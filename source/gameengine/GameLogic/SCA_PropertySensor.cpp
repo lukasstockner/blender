@@ -91,10 +91,10 @@ void SCA_PropertySensor::PrecalculateRangeExpression()
 		//The context is needed to retrieve the property at runtime but it creates
 		//loop of references
 		pars.SetContext(this->AddRef());
-		STR_String checkstr = "(" + m_checkpropval + " <= " 
-							+ m_checkpropname + ") && ( " 
-							+ m_checkpropname + " <= " 
-							+ m_checkpropmaxval + ")";
+		STR_String checkstr = ("(" + m_checkpropval + " <= "  +
+		                       m_checkpropname + ") && ( " +
+		                       m_checkpropname + " <= " +
+		                       m_checkpropmaxval + ")");
 
 		m_range_expr = pars.ProcessText(checkstr);
 }
@@ -318,9 +318,9 @@ CValue* SCA_PropertySensor::FindIdentifier(const STR_String& identifiername)
 
 int SCA_PropertySensor::validValueForProperty(void *self, const PyAttributeDef*)
 {
-	/*  If someone actually do type checking please make sure the 'max' and 'min'
-		are checked as well (currently they are calling the PrecalculateRangeExpression
-		function directly	*/
+	/* If someone actually do type checking please make sure the 'max' and 'min'
+	 * are checked as well (currently they are calling the PrecalculateRangeExpression
+	 * function directly */
 
 	/*  There is no type checking at this moment, unfortunately...           */
 	return 0;

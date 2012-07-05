@@ -35,7 +35,6 @@ set(INC
 	../makesrna
 	../render/extern/include
 	../../../intern/guardedalloc
-	../compositor
 )
 
 set(INC_SYS
@@ -76,12 +75,15 @@ set(SRC
 	composite/nodes/node_composite_idMask.c
 	composite/nodes/node_composite_image.c
 	composite/nodes/node_composite_invert.c
+	composite/nodes/node_composite_keyingscreen.c
+	composite/nodes/node_composite_keying.c
 	composite/nodes/node_composite_lensdist.c
 	composite/nodes/node_composite_levels.c
 	composite/nodes/node_composite_lummaMatte.c
 	composite/nodes/node_composite_mapUV.c
 	composite/nodes/node_composite_mapValue.c
 	composite/nodes/node_composite_math.c
+	composite/nodes/node_composite_mask.c
 	composite/nodes/node_composite_mixrgb.c
 	composite/nodes/node_composite_movieclip.c
 	composite/nodes/node_composite_moviedistortion.c
@@ -121,7 +123,6 @@ set(SRC
 	shader/nodes/node_shader_camera.c
 	shader/nodes/node_shader_common.c
 	shader/nodes/node_shader_curves.c
-	shader/nodes/node_shader_dynamic.c
 	shader/nodes/node_shader_gamma.c
 	shader/nodes/node_shader_brightness.c
 	shader/nodes/node_shader_geom.c
@@ -158,6 +159,8 @@ set(SRC
 	shader/nodes/node_shader_volume_isotropic.c
 	shader/nodes/node_shader_light_path.c
 	shader/nodes/node_shader_light_falloff.c
+	shader/nodes/node_shader_object_info.c
+	shader/nodes/node_shader_particle_info.c
 	shader/nodes/node_shader_mix_shader.c
 	shader/nodes/node_shader_add_shader.c
 	shader/nodes/node_shader_output_lamp.c
@@ -237,6 +240,13 @@ endif()
 
 if(WITH_IMAGE_OPENEXR)
 	add_definitions(-DWITH_OPENEXR)
+endif()
+
+if(WITH_COMPOSITOR)
+	list(APPEND INC
+		../compositor
+	)
+	add_definitions(-DWITH_COMPOSITOR)
 endif()
 
 blender_add_lib(bf_nodes "${SRC}" "${INC}" "${INC_SYS}")

@@ -77,22 +77,6 @@
 #  endif
 #endif /* WIN32 */
 
-/* standard paths */
-#ifdef WIN32
-#  define BLENDER_USER_FORMAT       "%s\\Blender Foundation\\Blender\\%s"
-#  define BLENDER_SYSTEM_FORMAT     "%s\\Blender Foundation\\Blender\\%s"
-#elif defined(__APPLE__)
-#  define BLENDER_USER_FORMAT           "%s/Blender/%s"
-#  define BLENDER_SYSTEM_FORMAT         "%s/Blender/%s"
-#else /* UNIX */
-#  ifndef WITH_XDG_USER_DIRS /* oldschool unix ~/.blender/ */
-#    define BLENDER_USER_FORMAT         "%s/.blender/%s"
-#  else /* new XDG ~/blender/.config/ */
-#    define BLENDER_USER_FORMAT         "%s/blender/%s"
-#  endif // WITH_XDG_USER_DIRS
-#  define BLENDER_SYSTEM_FORMAT         "%s/blender/%s"
-#endif
-
 /* local */
 #define UNIQUE_NAME_MAX 128
 
@@ -114,7 +98,7 @@ int BLI_stringdec(const char *string, char *head, char *tail, unsigned short *nu
 	if (lslash)
 		lenlslash = (int)(lslash - string);
 
-	while (len > lenlslash && string[--len] != '.') {};
+	while (len > lenlslash && string[--len] != '.') {}
 	if (len == lenlslash && string[len] != '.') len = len2;
 
 	for (i = len - 1; i >= lenlslash; i--) {
@@ -822,16 +806,12 @@ void BLI_getlastdir(const char *dir, char *last, const size_t maxlen)
 const char *BLI_getDefaultDocumentFolder(void)
 {
 #ifndef WIN32
-
-#ifdef WITH_XDG_USER_DIRS
 	const char *xdg_documents_dir = getenv("XDG_DOCUMENTS_DIR");
-	if (xdg_documents_dir) {
+
+	if (xdg_documents_dir)
 		return xdg_documents_dir;
-	}
-#endif
 
 	return getenv("HOME");
-
 #else /* Windows */
 	static char documentfolder[MAXPATHLEN];
 	HRESULT hResult;
@@ -969,10 +949,9 @@ static int get_path_user(char *targetpath, const char *folder_name, const char *
 		}
 	}
 
-	user_base_path = (const char *)GHOST_getUserDir();
-	if (user_base_path) {
-		BLI_snprintf(user_path, FILE_MAX, BLENDER_USER_FORMAT, user_base_path, blender_version_decimal(ver));
-	}
+	user_base_path = (const char *)GHOST_getUserDir(ver, blender_version_decimal(ver));
+	if (user_base_path)
+		BLI_strncpy(user_path, user_base_path, FILE_MAX);
 
 	if (!user_path[0])
 		return 0;
@@ -1040,10 +1019,9 @@ static int get_path_system(char *targetpath, const char *folder_name, const char
 		}
 	}
 
-	system_base_path = (const char *)GHOST_getSystemDir();
-	if (system_base_path) {
-		BLI_snprintf(system_path, FILE_MAX, BLENDER_SYSTEM_FORMAT, system_base_path, blender_version_decimal(ver));
-	}
+	system_base_path = (const char *)GHOST_getSystemDir(ver, blender_version_decimal(ver));
+	if (system_base_path)
+		BLI_strncpy(system_path, system_base_path, FILE_MAX);
 	
 	if (!system_path[0])
 		return 0;
@@ -1569,31 +1547,40 @@ char *BLI_path_basename(char *path)
 
 /**
  * Produce image export path.
- *
- * Fails returning 0 if image filename is empty or if destination path
- * matches image path (i.e. both are the same file).
- *
- * Trailing slash in dest_dir is optional.
+ * 
+ * Returns:
+ * 0        if image filename is empty or if destination path
+ *          matches image path (i.e. both are the same file).
+ * 2        if source is identical to destination.
+ * 1        if rebase was successfull
+ * -------------------------------------------------------------
+ * Hint: Trailing slash in dest_dir is optional.
  *
  * Logic:
  *
- * - if an image is "below" current .blend file directory, rebuild the
- * same dir structure in dest_dir
+ * - if an image is "below" current .blend file directory:
+ *   rebuild the same dir structure in dest_dir
  *
- * For example //textures/foo/bar.png becomes
- * [dest_dir]/textures/foo/bar.png.
+ *   Example: 
+ *   src : //textures/foo/bar.png
+ *   dest: [dest_dir]/textures/foo/bar.png.
  *
  * - if an image is not "below" current .blend file directory,
- * disregard it's path and copy it in the same directory where 3D file
- * goes.
+ *   disregard it's path and copy it into the destination  
+ *   directory.
  *
- * For example //../foo/bar.png becomes [dest_dir]/bar.png.
+ *   Example:
+ *   src : //../foo/bar.png becomes
+ *   dest: [dest_dir]/bar.png.
  *
- * This logic will help ensure that all image paths are relative and
+ * This logic ensures that all image paths are relative and
  * that a user gets his images in one place. It'll also provide
  * consistent behavior across exporters.
+ * IMPORTANT NOTE: If base_dir contains an empty string, then
+ * this function returns wrong results!
+ * XXX: test on empty base_dir and return an error ?
  */
-int BKE_rebase_path(char *abs, size_t abs_len, char *rel, size_t rel_len, const char *base_dir, const char *src_dir, const char *dest_dir)
+int BLI_rebase_path(char *abs, size_t abs_len, char *rel, size_t rel_len, const char *base_dir, const char *src_dir, const char *dest_dir)
 {
 	char path[FILE_MAX];
 	char dir[FILE_MAX];
@@ -1612,7 +1599,7 @@ int BKE_rebase_path(char *abs, size_t abs_len, char *rel, size_t rel_len, const 
 	BLI_split_dir_part(base_dir, blend_dir, sizeof(blend_dir));
 
 	if (src_dir[0] == '\0')
-		return 0;
+		return BLI_REBASE_NO_SRCDIR;
 
 	BLI_strncpy(path, src_dir, sizeof(path));
 
@@ -1656,13 +1643,13 @@ int BKE_rebase_path(char *abs, size_t abs_len, char *rel, size_t rel_len, const 
 		strncat(rel, base, rel_len);
 	}
 
-	/* return 2 if src=dest */
+	/* return 2 if (src == dest) */
 	if (BLI_path_cmp(path, dest_path) == 0) {
 		// if (G.debug & G_DEBUG) printf("%s and %s are the same file\n", path, dest_path);
-		return 2;
+		return BLI_REBASE_IDENTITY;
 	}
 
-	return 1;
+	return BLI_REBASE_OK;
 }
 
 char *BLI_first_slash(char *string)

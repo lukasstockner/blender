@@ -28,22 +28,22 @@
 
 class GaussianBokehBlurOperation : public BlurBaseOperation {
 private:
-	float *gausstab;
-	int radx, rady;
+	float *m_gausstab;
+	int m_radx, m_rady;
 	void updateGauss(MemoryBuffer **memoryBuffers);
 
 public:
 	GaussianBokehBlurOperation();
-
+	void initExecution();
 	void *initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers);
 	/**
-	  * the inner loop of this program
-	  */
-	void executePixel(float *color, int x, int y, MemoryBuffer *inputBuffers[], void *data);
+	 * the inner loop of this program
+	 */
+	void executePixel(float *color, int x, int y, MemoryBuffer * inputBuffers[], void *data);
 	
 	/**
-	  * Deinitialize the execution
-	  */
+	 * Deinitialize the execution
+	 */
 	void deinitExecution();
 	
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);

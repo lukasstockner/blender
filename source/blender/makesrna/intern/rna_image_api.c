@@ -178,9 +178,11 @@ static void rna_Image_update(Image *image, ReportList *reports)
 	IMB_rect_from_float(ibuf);
 }
 
-static void rna_Image_scale(Image *image, int width, int height)
+static void rna_Image_scale(Image *image, ReportList *reports, int width, int height)
 {
-	BKE_image_scale(image, width, height);
+	if (!BKE_image_scale(image, width, height)) {
+		BKE_reportf(reports, RPT_ERROR, "Image \"%s\" does not have any image data", image->id.name + 2);
+	}
 }
 
 static int rna_Image_gl_load(Image *image, ReportList *reports, int filter, int mag)
@@ -207,6 +209,9 @@ static int rna_Image_gl_load(Image *image, ReportList *reports, int filter, int 
 		error = (int)gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGBA, ibuf->x, ibuf->y, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect);
 
 	if (!error) {
+		/* clean glError buffer */
+		while (glGetError() != GL_NO_ERROR) {}
+
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, image->tpageflag & IMA_CLAMP_U ? GL_CLAMP : GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, image->tpageflag & IMA_CLAMP_V ? GL_CLAMP : GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (GLint)filter);
@@ -220,6 +225,19 @@ static int rna_Image_gl_load(Image *image, ReportList *reports, int filter, int 
 		glDeleteTextures(1, (GLuint *)bind);
 		image->bindcode = 0;
 	}
+
+	return error;
+}
+
+static int rna_Image_gl_touch(Image *image, ReportList *reports, int filter, int mag)
+{
+	unsigned int *bind = &image->bindcode;
+	int error = GL_NO_ERROR;
+
+	BKE_image_tag_time(image);
+
+	if (*bind == 0)
+		error = rna_Image_gl_load(image, reports, filter, mag);
 
 	return error;
 }
@@ -269,10 +287,22 @@ void RNA_api_image(StructRNA *srna)
 
 	func = RNA_def_function(srna, "scale", "rna_Image_scale");
 	RNA_def_function_ui_description(func, "Scale the image in pixels");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
 	parm = RNA_def_int(func, "width", 0, 1, 10000, "", "Width", 1, 10000);
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	parm = RNA_def_int(func, "height", 0, 1, 10000, "", "Height", 1, 10000);
 	RNA_def_property_flag(parm, PROP_REQUIRED);
+
+	func = RNA_def_function(srna, "gl_touch", "rna_Image_gl_touch");
+	RNA_def_function_ui_description(func, "Delay the image from being cleaned from the cache due inactivity");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	RNA_def_int(func, "filter", GL_LINEAR_MIPMAP_NEAREST, -INT_MAX, INT_MAX, "Filter",
+	            "The texture minifying function to use if the image wan't loaded", -INT_MAX, INT_MAX);
+	RNA_def_int(func, "mag", GL_LINEAR, -INT_MAX, INT_MAX, "Magnification",
+	            "The texture magnification function to use if the image wan't loaded", -INT_MAX, INT_MAX);
+	/* return value */
+	parm = RNA_def_int(func, "error", 0, -INT_MAX, INT_MAX, "Error", "OpenGL error value", -INT_MAX, INT_MAX);
+	RNA_def_function_return(func, parm);
 
 	func = RNA_def_function(srna, "gl_load", "rna_Image_gl_load");
 	RNA_def_function_ui_description(func, "Load the image into OpenGL graphics memory");

@@ -729,7 +729,8 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 					GPU_dynamic_texture(lamp->tex, GPU_DYNAMIC_SAMPLER_2DSHADOW, lamp->ob),
 					GPU_dynamic_uniform((float*)lamp->dynpersmat, GPU_DYNAMIC_LAMP_DYNPERSMAT, lamp->ob),
 					GPU_uniform(&lamp->bias), GPU_uniform(&lamp->la->bleedbias), inp, &shadfac);
-			} else {
+			}
+			else {
 				GPU_link(mat, "test_shadowbuf",
 					GPU_builtin(GPU_VIEW_POSITION),
 					GPU_dynamic_texture(lamp->tex, GPU_DYNAMIC_SAMPLER_2DSHADOW, lamp->ob),
@@ -771,7 +772,7 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 			GPU_link(mat, "mtex_value_invert", shadfac, &shadfac);
 			GPU_link(mat, "mix_mult",  shadfac, rgb, GPU_uniform(lamp->shadow_color), &rgb);
 			GPU_link(mat, "mtex_value_invert", shadfac, &shadfac);
-            add_to_diffuse(mat, ma, shi, is, rgb, &shr->diff);
+			add_to_diffuse(mat, ma, shi, is, rgb, &shr->diff);
 		}
 	}
 

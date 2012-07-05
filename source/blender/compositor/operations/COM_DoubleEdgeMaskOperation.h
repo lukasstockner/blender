@@ -28,37 +28,37 @@
 class DoubleEdgeMaskOperation : public NodeOperation {
 private:
 	/**
-	  * Cached reference to the inputProgram
-	  */
-	SocketReader * inputOuterMask;
-	SocketReader * inputInnerMask;
-	bool adjecentOnly;
-	bool keepInside;
-	float *cachedInstance;
+	 * Cached reference to the inputProgram
+	 */
+	SocketReader *m_inputOuterMask;
+	SocketReader *m_inputInnerMask;
+	bool m_adjecentOnly;
+	bool m_keepInside;
+	float *m_cachedInstance;
 public:
 	DoubleEdgeMaskOperation();
 
 	void doDoubleEdgeMask(float *inner, float *outer, float *res);
 	/**
-	  * the inner loop of this program
-	  */
-	void executePixel(float *color, int x, int y, MemoryBuffer *inputBuffers[], void *data);
+	 * the inner loop of this program
+	 */
+	void executePixel(float *color, int x, int y, MemoryBuffer * inputBuffers[], void *data);
 	
 	/**
-	  * Initialize the execution
-	  */
+	 * Initialize the execution
+	 */
 	void initExecution();
 	
 	/**
-	  * Deinitialize the execution
-	  */
+	 * Deinitialize the execution
+	 */
 	void deinitExecution();
 
 	void *initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers);
 
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
 	
-	void setAdjecentOnly(bool adjecentOnly) {this->adjecentOnly = adjecentOnly;}
-	void setKeepInside(bool keepInside) {this->keepInside = keepInside;}
+	void setAdjecentOnly(bool adjecentOnly) { this->m_adjecentOnly = adjecentOnly; }
+	void setKeepInside(bool keepInside) { this->m_keepInside = keepInside; }
 };
 #endif

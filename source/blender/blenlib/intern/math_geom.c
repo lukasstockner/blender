@@ -901,8 +901,8 @@ static int getLowestRoot(const float a, const float b, const float c, const floa
 
 	// If determinant is negative it means no solutions.
 	if (determinant >= 0.0f) {
-		// calculate the two roots: (if determinant == 0 then
-		// x1==x2 but lets disregard that slight optimization)
+		/* calculate the two roots: (if determinant == 0 then
+		 * x1==x2 but lets disregard that slight optimization) */
 		float sqrtD = (float)sqrt(determinant);
 		float r1 = (-b - sqrtD) / (2.0f * a);
 		float r2 = (-b + sqrtD) / (2.0f * a);
@@ -1823,6 +1823,45 @@ void interp_weights_face_v3(float w[4], const float v1[3], const float v2[3], co
 		else
 			barycentric_weights(v1, v2, v3, co, n, w);
 	}
+}
+
+/* return 1 of point is inside triangle, 2 if it's on the edge, 0 if point is outside of triangle */
+int barycentric_inside_triangle_v2(const float w[3])
+{
+	if (IN_RANGE(w[0], 0.0f, 1.0f) &&
+	    IN_RANGE(w[1], 0.0f, 1.0f) &&
+	    IN_RANGE(w[2], 0.0f, 1.0f))
+	{
+		return 1;
+	}
+	else if (IN_RANGE_INCL(w[0], 0.0f, 1.0f) &&
+	         IN_RANGE_INCL(w[1], 0.0f, 1.0f) &&
+	         IN_RANGE_INCL(w[2], 0.0f, 1.0f))
+	{
+		return 2;
+	}
+
+	return 0;
+}
+
+/* returns 0 for degenerated triangles */
+int barycentric_coords_v2(const float v1[2], const float v2[2], const float v3[2], const float co[2], float w[3])
+{
+	float x = co[0], y = co[1];
+	float x1 = v1[0], y1 = v1[1];
+	float x2 = v2[0], y2 = v2[1];
+	float x3 = v3[0], y3 = v3[1];
+	float det = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3);
+
+	if (fabsf(det) > FLT_EPSILON) {
+		w[0] = ((y2 - y3) * (x - x3) + (x3 - x2) * (y - y3)) / det;
+		w[1] = ((y3 - y1) * (x - x3) + (x1 - x3) * (y - y3)) / det;
+		w[2] = 1.0f - w[0] - w[1];
+
+	return 1;
+	}
+
+	return 0;
 }
 
 /* used by projection painting

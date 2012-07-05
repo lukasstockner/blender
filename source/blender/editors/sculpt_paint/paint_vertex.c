@@ -259,8 +259,6 @@ static void do_shared_vertex_tesscol(Mesh *me)
 void do_shared_vertexcol(Mesh *me, int do_tessface)
 {
 	const int use_face_sel = (me->editflag & ME_EDIT_PAINT_MASK);
-	MLoop *ml = me->mloop;
-	MLoopCol *lcol = me->mloopcol;
 	MPoly *mp;
 	float (*scol)[4];
 	int i, j, has_shared = 0;
@@ -274,8 +272,8 @@ void do_shared_vertexcol(Mesh *me, int do_tessface)
 
 	for (i = 0, mp = me->mpoly; i < me->totpoly; i++, mp++) {
 		if ((use_face_sel == FALSE) || (mp->flag & ME_FACE_SEL)) {
-			ml = me->mloop + mp->loopstart;
-			lcol = me->mloopcol + mp->loopstart;
+			MLoop *ml = me->mloop + mp->loopstart;
+			MLoopCol *lcol = me->mloopcol + mp->loopstart;
 			for (j = 0; j < mp->totloop; j++, ml++, lcol++) {
 				scol[ml->v][0] += lcol->r;
 				scol[ml->v][1] += lcol->g;
@@ -295,8 +293,8 @@ void do_shared_vertexcol(Mesh *me, int do_tessface)
 
 		for (i = 0, mp = me->mpoly; i < me->totpoly; i++, mp++) {
 			if ((use_face_sel == FALSE) || (mp->flag & ME_FACE_SEL)) {
-				ml = me->mloop + mp->loopstart;
-				lcol = me->mloopcol + mp->loopstart;
+				MLoop *ml = me->mloop + mp->loopstart;
+				MLoopCol *lcol = me->mloopcol + mp->loopstart;
 				for (j = 0; j < mp->totloop; j++, ml++, lcol++) {
 					lcol->r = scol[ml->v][0];
 					lcol->g = scol[ml->v][1];
@@ -1879,7 +1877,8 @@ static void do_weight_paint_vertex(
 		/* use locks and/or multipaint */
 		float oldw;
 		float neww;
-		float testw = 0;
+		/* float testw = 0; */ /* UNUSED */
+		float observedChange = 0;
 		float change = 0;
 		float oldChange = 0;
 		int i;
@@ -1891,13 +1890,14 @@ static void do_weight_paint_vertex(
 		                    wpi->brush_alpha_value, wpi->do_flip, do_multipaint_totsel);
 		
 		/* setup multi-paint */
-		if (do_multipaint_totsel) {
+		observedChange = neww - oldw;
+		if (do_multipaint_totsel && observedChange) {
 			dv_copy.dw = MEM_dupallocN(dv->dw);
 			dv_copy.flag = dv->flag;
 			dv_copy.totweight = dv->totweight;
 			tdw = dw;
 			tdw_prev = dw_prev;
-			change = get_mp_change(&wp->wpaint_prev[index], wpi->defbase_tot, wpi->defbase_sel, neww - oldw);
+			change = get_mp_change(&wp->wpaint_prev[index], wpi->defbase_tot, wpi->defbase_sel, observedChange);
 			if (change) {
 				if (!tdw->weight) {
 					i = get_first_selected_nonzero_weight(dv, wpi->defbase_tot, wpi->defbase_sel);
@@ -1912,8 +1912,8 @@ static void do_weight_paint_vertex(
 				if (change && tdw_prev->weight && tdw_prev->weight * change) {
 					if (tdw->weight != tdw_prev->weight) {
 						oldChange = tdw->weight / tdw_prev->weight;
-						testw = tdw_prev->weight * change;
-						if (testw > tdw_prev->weight) {
+						/* testw = tdw_prev->weight * change; */ /* UNUSED */
+						if (observedChange > 0) {
 							if (change > oldChange) {
 								/* reset the weights and use the new change */
 								defvert_reset_to_prev(wp->wpaint_prev + index, dv);
@@ -2102,8 +2102,7 @@ static char *wpaint_make_validmap(Object *ob)
 					if (chan->bone->flag & BONE_NO_DEFORM)
 						continue;
 
-					if (BLI_ghash_haskey(gh, chan->name)) {
-						BLI_ghash_remove(gh, chan->name, NULL, NULL);
+					if (BLI_ghash_remove(gh, chan->name, NULL, NULL)) {
 						BLI_ghash_insert(gh, chan->name, SET_INT_IN_POINTER(1));
 					}
 				}
@@ -2125,7 +2124,7 @@ static char *wpaint_make_validmap(Object *ob)
 	return vgroup_validmap;
 }
 
-static int wpaint_stroke_test_start(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
+static int wpaint_stroke_test_start(bContext *C, wmOperator *op, const float UNUSED(mouse[2]))
 {
 	Scene *scene = CTX_data_scene(C);
 	struct PaintStroke *stroke = op->customdata;
@@ -2462,6 +2461,8 @@ static void wpaint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 	}
 	
 	DAG_id_tag_update(ob->data, 0);
+
+	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 }
 
 
@@ -2623,10 +2624,10 @@ void PAINT_OT_vertex_paint_toggle(wmOperatorType *ot)
  * - revise whether op->customdata should be added in object, in set_vpaint
  */
 
-typedef struct polyfacemap_e {
-	struct polyfacemap_e *next, *prev;
+typedef struct PolyFaceMap {
+	struct PolyFaceMap *next, *prev;
 	int facenr;
-} polyfacemap_e;
+} PolyFaceMap;
 
 typedef struct VPaintData {
 	ViewContext vc;
@@ -2647,7 +2648,7 @@ typedef struct VPaintData {
 static void vpaint_build_poly_facemap(struct VPaintData *vd, Mesh *me)
 {
 	MFace *mf;
-	polyfacemap_e *e;
+	PolyFaceMap *e;
 	int *origIndex;
 	int i;
 
@@ -2666,14 +2667,14 @@ static void vpaint_build_poly_facemap(struct VPaintData *vd, Mesh *me)
 		if (*origIndex == ORIGINDEX_NONE)
 			continue;
 
-		e = BLI_memarena_alloc(vd->polyfacemap_arena, sizeof(polyfacemap_e));
+		e = BLI_memarena_alloc(vd->polyfacemap_arena, sizeof(PolyFaceMap));
 		e->facenr = i;
 		
 		BLI_addtail(&vd->polyfacemap[*origIndex], e);
 	}
 }
 
-static int vpaint_stroke_test_start(bContext *C, struct wmOperator *op, wmEvent *UNUSED(event))
+static int vpaint_stroke_test_start(bContext *C, struct wmOperator *op, const float UNUSED(mouse[2]))
 {
 	ToolSettings *ts = CTX_data_tool_settings(C);
 	struct PaintStroke *stroke = op->customdata;
@@ -2783,7 +2784,7 @@ static void vpaint_paint_poly(VPaint *vp, VPaintData *vpd, Object *ob,
 	MCol *mc;
 	MLoop *ml;
 	MLoopCol *mlc;
-	polyfacemap_e *e;
+	PolyFaceMap *e;
 	unsigned int *lcol = ((unsigned int *)me->mloopcol) + mpoly->loopstart;
 	unsigned int *lcolorig = ((unsigned int *)vp->vpaint_prev) + mpoly->loopstart;
 	float alpha;
@@ -2955,6 +2956,8 @@ static void vpaint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 {
 	ToolSettings *ts = CTX_data_tool_settings(C);
 	struct VPaintData *vpd = paint_stroke_mode_data(stroke);
+	ViewContext *vc = &vpd->vc;
+	Object *ob = vc->obact;
 	
 	if (vpd->vertexcosnos)
 		MEM_freeN(vpd->vertexcosnos);
@@ -2966,6 +2969,8 @@ static void vpaint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 	if (vpd->polyfacemap_arena) {
 		BLI_memarena_free(vpd->polyfacemap_arena);
 	}
+
+	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
 	MEM_freeN(vpd);
 }
@@ -3040,7 +3045,7 @@ static int weight_from_bones_exec(bContext *C, wmOperator *op)
 void PAINT_OT_weight_from_bones(wmOperatorType *ot)
 {
 	static EnumPropertyItem type_items[] = {
-		{ARM_GROUPS_AUTO, "AUTOMATIC", 0, "Automatic", "Automatic weights froms bones"},
+		{ARM_GROUPS_AUTO, "AUTOMATIC", 0, "Automatic", "Automatic weights from bones"},
 		{ARM_GROUPS_ENVELOPE, "ENVELOPES", 0, "From Envelopes", "Weights from envelopes with user defined radius"},
 		{0, NULL, 0, NULL, NULL}};
 

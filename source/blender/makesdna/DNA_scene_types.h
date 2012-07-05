@@ -34,7 +34,7 @@
 
 #include "DNA_defs.h"
 
-// XXX, temp feature - campbell
+/* XXX, temp feature - campbell */
 #define DURIAN_CAMERA_SWITCH
 
 #ifdef __cplusplus
@@ -625,6 +625,7 @@ typedef struct GameData {
 	short ticrate, maxlogicstep, physubstep, maxphystep;
 	short obstacleSimulation, pad1;
 	float levelHeight;
+	float deactivationtime, lineardeactthreshold, angulardeactthreshold, pad2;
 } GameData;
 
 #define STEREO_NOSTEREO		1
@@ -702,6 +703,8 @@ typedef struct TimeMarker {
 /* *************************************************************** */
 /* Paint Mode/Tool Data */
 
+#define PAINT_MAX_INPUT_SAMPLES 64
+
 /* Paint Tool Base */
 typedef struct Paint {
 	struct Brush *brush;
@@ -710,7 +713,14 @@ typedef struct Paint {
 	void *paint_cursor;
 	unsigned char paint_cursor_col[4];
 
+	/* enum PaintFlags */
 	int flags;
+
+	/* Paint stroke can use up to PAINT_MAX_INPUT_SAMPLES inputs to
+	 * smooth the stroke */
+	int num_input_samples;
+	
+	int pad;
 } Paint;
 
 /* ------------------------------------------- */
@@ -889,7 +899,7 @@ typedef struct ToolSettings {
 
 	/* Subdivide Settings */
 	short cornertype;
-	short pad3;
+	short pad1;
 	/*Triangle to Quad conversion threshold*/
 	float jointrilimit;
 	/* Editmode Tools */
@@ -985,11 +995,13 @@ typedef struct ToolSettings {
 	char edge_mode_live_unwrap;
 
 	/* Transform */
-	char snap_mode;
+	char snap_mode, snap_node_mode;
+	char pad3;
 	short snap_flag, snap_target;
 	short proportional, prop_mode;
 	char proportional_objects; /* proportional edit, object mode */
-	char pad[5];
+	char proportional_mask; /* proportional edit, object mode */
+	char pad4[2];
 
 	char auto_normalize; /*auto normalizing mode in wpaint*/
 	char multipaint; /* paint multiple bones in wpaint */
@@ -1001,7 +1013,7 @@ typedef struct ToolSettings {
 	int uv_relax_method;
 	/* XXX: these sculpt_paint_* fields are deprecated, use the
 	 * unified_paint_settings field instead! */
-	short sculpt_paint_settings DNA_DEPRECATED;	short pad1;
+	short sculpt_paint_settings DNA_DEPRECATED;	short pad5;
 	int sculpt_paint_unified_size DNA_DEPRECATED;
 	float sculpt_paint_unified_unprojected_radius DNA_DEPRECATED;
 	float sculpt_paint_unified_alpha DNA_DEPRECATED;
@@ -1359,6 +1371,9 @@ typedef struct Scene {
 #define SCE_SNAP_MODE_EDGE		2
 #define SCE_SNAP_MODE_FACE		3
 #define SCE_SNAP_MODE_VOLUME	4
+#define SCE_SNAP_MODE_NODE_X	5
+#define SCE_SNAP_MODE_NODE_Y	6
+#define SCE_SNAP_MODE_NODE_XY	7
 #define SCE_SNAP_MODE_EDGE_MIDDLE	8
 
 /* toolsettings->selectmode */

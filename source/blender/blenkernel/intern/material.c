@@ -36,6 +36,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_anim_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
@@ -607,7 +608,7 @@ Material *give_current_material(Object *ob, short act)
 	
 	if (ob == NULL) return NULL;
 	
-	/* if object cannot have material, totcolp==NULL */
+	/* if object cannot have material, (totcolp == NULL) */
 	totcolp = give_totcolp(ob);
 	if (totcolp == NULL || ob->totcol == 0) return NULL;
 	
@@ -840,7 +841,7 @@ void assign_matarar(struct Object *ob, struct Material ***matar, short totcol)
 	int actcol_orig = ob->actcol;
 	short i;
 
-	while (object_remove_material_slot(ob)) {};
+	while (object_remove_material_slot(ob)) {}
 
 	/* now we have the right number of slots */
 	for (i = 0; i < totcol; i++)
@@ -903,7 +904,7 @@ static void do_init_render_material(Material *ma, int r_mode, float *amb)
 			ma->mapto |= mtex->mapto;
 
 			/* always get derivatives for these textures */
-			if (ELEM3(mtex->tex->type, TEX_IMAGE, TEX_PLUGIN, TEX_ENVMAP)) ma->texco |= TEXCO_OSA;
+			if (ELEM(mtex->tex->type, TEX_IMAGE, TEX_ENVMAP)) ma->texco |= TEXCO_OSA;
 			else if (mtex->texflag & (MTEX_COMPAT_BUMP | MTEX_3TAP_BUMP | MTEX_5TAP_BUMP | MTEX_BICUBIC_BUMP)) ma->texco |= TEXCO_OSA;
 			
 			if (ma->texco & (TEXCO_ORCO | TEXCO_REFL | TEXCO_NORM | TEXCO_STRAND | TEXCO_STRESS)) needuv = 1;
@@ -1050,6 +1051,52 @@ int material_in_material(Material *parmat, Material *mat)
 	else
 		return 0;
 }
+
+
+/* ****************** */
+
+/* Update drivers for materials in a nodetree */
+static void material_node_drivers_update(Scene *scene, bNodeTree *ntree, float ctime)
+{
+	bNode *node;
+	
+	/* nodetree itself */
+	if (ntree->adt && ntree->adt->drivers.first) {
+		BKE_animsys_evaluate_animdata(scene, &ntree->id, ntree->adt, ctime, ADT_RECALC_DRIVERS);
+	}
+	
+	/* nodes... */
+	for (node = ntree->nodes.first; node; node = node->next) {
+		if (node->id && GS(node->id->name) == ID_MA) {
+			/* TODO: prevent infinite recursion here... */
+			material_drivers_update(scene, (Material *)node->id, ctime);
+		}
+		else if (node->type == NODE_GROUP && node->id) {
+			material_node_drivers_update(scene, (bNodeTree *)node->id, ctime);
+		}
+	}
+}
+
+/* Calculate all drivers for materials 
+ * FIXME: this is really a terrible method which may result in some things being calculated
+ * multiple times. However, without proper despgraph support for these things, we are forced
+ * into this sort of thing...
+ */
+void material_drivers_update(Scene *scene, Material *ma, float ctime)
+{
+	//if (G.f & G_DEBUG)
+	//	printf("material_drivers_update(%s, %s)\n", scene->id.name, ma->id.name);
+	
+	/* material itself */
+	if (ma->adt && ma->adt->drivers.first) {
+		BKE_animsys_evaluate_animdata(scene, &ma->id, ma->adt, ctime, ADT_RECALC_DRIVERS);
+	}
+	
+	/* nodes */
+	if (ma->nodetree) {
+		material_node_drivers_update(scene, ma->nodetree, ctime);
+	}
+}
 	
 /* ****************** */
 #if 0 /* UNUSED */
@@ -1060,19 +1107,19 @@ static char colname_array[125][20]= {
 "LightGreen", "Chartreuse", "YellowGreen", "Yellow", "Gold",
 "Green", "LawnGreen", "GreenYellow", "LightOlive", "Yellow",
 "DarkBlue", "DarkPurple", "HotPink", "VioletPink", "RedPink",
-"SlateGray", "DarkGrey", "PalePurple", "IndianRed", "Tomato",
+"SlateGray", "DarkGray", "PalePurple", "IndianRed", "Tomato",
 "SeaGreen", "PaleGreen", "GreenKhaki", "LightBrown", "LightSalmon",
 "SpringGreen", "PaleGreen", "MediumOlive", "YellowBrown", "LightGold",
 "LightGreen", "LightGreen", "LightGreen", "GreenYellow", "PaleYellow",
 "HalfBlue", "DarkSky", "HalfMagenta", "VioletRed", "DeepPink",
 "SteelBlue", "SkyBlue", "Orchid", "LightHotPink", "HotPink",
-"SeaGreen", "SlateGray", "MediumGrey", "Burlywood", "LightPink",
+"SeaGreen", "SlateGray", "MediumGray", "Burlywood", "LightPink",
 "SpringGreen", "Aquamarine", "PaleGreen", "Khaki", "PaleOrange",
 "SpringGreen", "SeaGreen", "PaleGreen", "PaleWhite", "YellowWhite",
 "LightBlue", "Purple", "MediumOrchid", "Magenta", "Magenta",
 "RoyalBlue", "SlateBlue", "MediumOrchid", "Orchid", "Magenta",
 "DeepSkyBlue", "LightSteelBlue", "LightSkyBlue", "Violet", "LightPink",
-"Cyan", "DarkTurquoise", "SkyBlue", "Grey", "Snow",
+"Cyan", "DarkTurquoise", "SkyBlue", "Gray", "Snow",
 "Mint", "Mint", "Aquamarine", "MintCream", "Ivory",
 "Blue", "Blue", "DarkMagenta", "DarkOrchid", "Magenta",
 "SkyBlue", "RoyalBlue", "LightSlateBlue", "MediumOrchid", "Magenta",
@@ -1179,7 +1226,7 @@ int object_remove_material_slot(Object *ob)
 }
 
 
-/* r_col = current value, col = new value, fac==0 is no change */
+/* r_col = current value, col = new value, (fac == 0) is no change */
 void ramp_blend(int type, float r_col[3], const float fac, const float col[3])
 {
 	float tmp, facm = 1.0f - fac;

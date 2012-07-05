@@ -102,7 +102,7 @@ void make_editLatt(Object *obedit)
 
 	if (lt->dvert) {
 		int tot = lt->pntsu * lt->pntsv * lt->pntsw;
-		lt->editlatt->latt->dvert = MEM_mallocN(sizeof (MDeformVert) * tot, "Lattice MDeformVert");
+		lt->editlatt->latt->dvert = MEM_mallocN(sizeof(MDeformVert) * tot, "Lattice MDeformVert");
 		copy_dverts(lt->editlatt->latt->dvert, lt->dvert, tot);
 	}
 
@@ -162,7 +162,7 @@ void load_editLatt(Object *obedit)
 	if (editlt->dvert) {
 		tot = lt->pntsu * lt->pntsv * lt->pntsw;
 
-		lt->dvert = MEM_mallocN(sizeof (MDeformVert) * tot, "Lattice MDeformVert");
+		lt->dvert = MEM_mallocN(sizeof(MDeformVert) * tot, "Lattice MDeformVert");
 		copy_dverts(lt->dvert, editlt->dvert, tot);
 	}
 }
@@ -335,7 +335,7 @@ static BPoint *findnearestLattvert(ViewContext *vc, const int mval[2], int sel)
 	return data.bp;
 }
 
-int mouse_lattice(bContext *C, const int mval[2], int extend)
+int mouse_lattice(bContext *C, const int mval[2], int extend, int deselect, int toggle)
 {
 	ViewContext vc;
 	BPoint *bp = NULL;
@@ -344,12 +344,19 @@ int mouse_lattice(bContext *C, const int mval[2], int extend)
 	bp = findnearestLattvert(&vc, mval, 1);
 
 	if (bp) {
-		if (extend == 0) {
+		if (extend) {
+			bp->f1 |= SELECT;
+		}
+		else if (deselect) {
+			bp->f1 &= ~SELECT;
+		}
+		else if (toggle) {
+			bp->f1 ^= SELECT;  /* swap */
+		}
+		else {
 			ED_setflagsLatt(vc.obedit, 0);
 			bp->f1 |= SELECT;
 		}
-		else
-			bp->f1 ^= SELECT;  /* swap */
 
 		WM_event_add_notifier(C, NC_GEOM | ND_SELECT, vc.obedit->data);
 

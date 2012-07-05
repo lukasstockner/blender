@@ -58,6 +58,7 @@ enum {
 	TFM_TRANSLATION,
 	TFM_ROTATION,
 	TFM_RESIZE,
+	TFM_SKIN_RESIZE,
 	TFM_TOSPHERE,
 	TFM_SHEAR,
 	TFM_WARP,
@@ -70,6 +71,7 @@ enum {
 	TFM_BONESIZE,
 	TFM_BONE_ENVELOPE,
 	TFM_CURVE_SHRINKFATTEN,
+	TFM_MASK_SHRINKFATTEN,
 	TFM_BONE_ROLL,
 	TFM_TIME_TRANSLATE,
 	TFM_TIME_SLIDE,
@@ -95,12 +97,13 @@ enum {
 #define CTX_BMESH           64
 #define CTX_NDOF            128
 #define CTX_MOVIECLIP       256
+#define CTX_MASK            512
 
 /* Standalone call to get the transformation center corresponding to the current situation
  * returns 1 if successful, 0 otherwise (usually means there's no selection)
  * (if 0 is returns, *vec is unmodified)
  * */
-int calculateTransformCenter(struct bContext *C, int centerMode, float *cent3d, int *cent2d);
+int calculateTransformCenter(struct bContext *C, int centerMode, float cent3d[3], int cent2d[2]);
 
 struct TransInfo;
 struct ScrArea;
@@ -165,8 +168,7 @@ typedef struct DepthPeel {
 
 struct ListBase;
 
-typedef enum SnapMode
-{
+typedef enum SnapMode {
 	SNAP_ALL = 0,
 	SNAP_NOT_SELECTED = 1,
 	SNAP_NOT_OBEDIT = 2
@@ -178,6 +180,8 @@ int peelObjectsTransForm(struct TransInfo *t, struct ListBase *depth_peels, cons
 int peelObjectsContext(struct bContext *C, struct ListBase *depth_peels, const float mval[2], SnapMode mode);
 int snapObjectsTransform(struct TransInfo *t, const float mval[2], int *r_dist, float r_loc[3], float r_no[3], SnapMode mode);
 int snapObjectsContext(struct bContext *C, const float mval[2], int *r_dist, float r_loc[3], float r_no[3], SnapMode mode);
+int snapNodesTransform(struct TransInfo *t, const int mval[2], int *r_dist, float r_loc[2], char *r_node_border, SnapMode mode);
+int snapNodesContext(struct bContext *C, const int mval[2], int *r_dist, float r_loc[2], char *r_node_border, SnapMode mode);
 
 #endif
 

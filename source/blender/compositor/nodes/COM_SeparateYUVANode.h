@@ -19,17 +19,17 @@
  *		Dalai Felinto
  */
 
-#ifndef _COM_SeparateYUVANode_h
-#define _COM_SeparateYUVANode_h
+#ifndef _COM_SeparateYUVANode_h_
+#define _COM_SeparateYUVANode_h_
 
 #include "COM_Node.h"
 #include "DNA_node_types.h"
 #include "COM_SeparateRGBANode.h"
 
 /**
-  * @brief SeparateYUVANode
-  * @ingroup Node
-  */
+ * @brief SeparateYUVANode
+ * @ingroup Node
+ */
 class SeparateYUVANode : public SeparateRGBANode {
 public:
 	SeparateYUVANode(bNode *editorNode);

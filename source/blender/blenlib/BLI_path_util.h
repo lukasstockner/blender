@@ -54,13 +54,11 @@ char *BLI_get_folder_version(const int id, const int ver, const int do_check);
 #define BLENDER_USER_CONFIG         31
 #define BLENDER_USER_DATAFILES      32
 #define BLENDER_USER_SCRIPTS        33
-#define BLENDER_USER_PLUGINS        34
-#define BLENDER_USER_AUTOSAVE       35
+#define BLENDER_USER_AUTOSAVE       34
 
 /* system */
 #define BLENDER_SYSTEM_DATAFILES    52
 #define BLENDER_SYSTEM_SCRIPTS      53
-#define BLENDER_SYSTEM_PLUGINS      54
 #define BLENDER_SYSTEM_PYTHON       54
 
 /* for BLI_get_folder_version only */
@@ -91,7 +89,16 @@ void BLI_split_dir_part(const char *string, char *dir, const size_t dirlen);
 void BLI_split_file_part(const char *string, char *file, const size_t filelen);
 void BLI_join_dirfile(char *string, const size_t maxlen, const char *dir, const char *file);
 char *BLI_path_basename(char *path);
-int BKE_rebase_path(char *abs, size_t abs_len, char *rel, size_t rel_len, const char *base_dir, const char *src_dir, const char *dest_dir);
+
+typedef enum bli_rebase_state {
+	BLI_REBASE_NO_SRCDIR = 0,
+	BLI_REBASE_OK        = 1,
+	BLI_REBASE_IDENTITY  = 2
+} bli_rebase_state;
+
+int BLI_rebase_path(char *abs, size_t abs_len, char *rel, size_t rel_len, const char *base_dir, const char *src_dir, const char *dest_dir);
+#define BKE_rebase_path BLI_rebase_path /* remove after a 2012 */
+
 char *BLI_last_slash(const char *string);
 int   BLI_add_slash(char *string);
 void  BLI_del_slash(char *string);

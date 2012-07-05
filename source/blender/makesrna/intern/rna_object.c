@@ -174,6 +174,11 @@ static void rna_Object_matrix_world_update(Main *bmain, Scene *scene, PointerRNA
 	rna_Object_internal_update(bmain, scene, ptr);
 }
 
+static void rna_Object_hide_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
+{
+	DAG_id_type_tag(bmain, ID_OB);
+}
+
 static void rna_Object_matrix_local_get(PointerRNA *ptr, float values[16])
 {
 	Object *ob = ptr->id.data;
@@ -891,6 +896,9 @@ static int rna_GameObjectSettings_physics_type_get(PointerRNA *ptr)
 			ob->body_type = OB_BODY_TYPE_NO_COLLISION;
 		}
 	}
+	else if (ob->gameflag & OB_CHARACTER) {
+		ob->body_type = OB_BODY_TYPE_CHARACTER;
+	}
 	else if (ob->gameflag & OB_SENSOR) {
 		ob->body_type = OB_BODY_TYPE_SENSOR;
 	}
@@ -922,16 +930,16 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
 	switch (ob->body_type) {
 		case OB_BODY_TYPE_SENSOR:
 			ob->gameflag |= OB_SENSOR | OB_COLLISION | OB_GHOST;
-			ob->gameflag &= ~(OB_OCCLUDER | OB_DYNAMIC | OB_RIGID_BODY | OB_SOFT_BODY | OB_ACTOR |
+			ob->gameflag &= ~(OB_OCCLUDER | OB_CHARACTER | OB_DYNAMIC | OB_RIGID_BODY | OB_SOFT_BODY | OB_ACTOR |
 			                  OB_ANISOTROPIC_FRICTION | OB_DO_FH | OB_ROT_FH | OB_COLLISION_RESPONSE | OB_NAVMESH);
 			break;
 		case OB_BODY_TYPE_OCCLUDER:
 			ob->gameflag |= OB_OCCLUDER;
-			ob->gameflag &= ~(OB_SENSOR | OB_RIGID_BODY | OB_SOFT_BODY | OB_COLLISION | OB_DYNAMIC | OB_NAVMESH);
+			ob->gameflag &= ~(OB_SENSOR | OB_RIGID_BODY | OB_SOFT_BODY | OB_COLLISION | OB_CHARACTER | OB_DYNAMIC | OB_NAVMESH);
 			break;
 		case OB_BODY_TYPE_NAVMESH:
 			ob->gameflag |= OB_NAVMESH;
-			ob->gameflag &= ~(OB_SENSOR | OB_RIGID_BODY | OB_SOFT_BODY | OB_COLLISION | OB_DYNAMIC | OB_OCCLUDER);
+			ob->gameflag &= ~(OB_SENSOR | OB_RIGID_BODY | OB_SOFT_BODY | OB_COLLISION | OB_CHARACTER | OB_DYNAMIC | OB_OCCLUDER);
 
 			if (ob->type == OB_MESH) {
 				/* could be moved into mesh UI but for now ensure mesh data layer */
@@ -940,24 +948,29 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
 
 			break;
 		case OB_BODY_TYPE_NO_COLLISION:
-			ob->gameflag &= ~(OB_SENSOR | OB_RIGID_BODY | OB_SOFT_BODY | OB_COLLISION | OB_OCCLUDER | OB_DYNAMIC | OB_NAVMESH);
+			ob->gameflag &= ~(OB_SENSOR | OB_RIGID_BODY | OB_SOFT_BODY | OB_COLLISION | OB_CHARACTER | OB_OCCLUDER | OB_DYNAMIC | OB_NAVMESH);
 			break;
+		case OB_BODY_TYPE_CHARACTER:
+			ob->gameflag |= OB_COLLISION | OB_GHOST | OB_CHARACTER;
+			ob->gameflag &= ~(OB_SENSOR | OB_OCCLUDER | OB_DYNAMIC | OB_RIGID_BODY | OB_SOFT_BODY | OB_ACTOR |
+		                      OB_ANISOTROPIC_FRICTION | OB_DO_FH | OB_ROT_FH | OB_COLLISION_RESPONSE | OB_NAVMESH);
+		break;
 		case OB_BODY_TYPE_STATIC:
 			ob->gameflag |= OB_COLLISION;
-			ob->gameflag &= ~(OB_DYNAMIC | OB_RIGID_BODY | OB_SOFT_BODY | OB_OCCLUDER | OB_SENSOR | OB_NAVMESH);
+			ob->gameflag &= ~(OB_DYNAMIC | OB_RIGID_BODY | OB_SOFT_BODY | OB_OCCLUDER | OB_CHARACTER | OB_SENSOR | OB_NAVMESH);
 			break;
 		case OB_BODY_TYPE_DYNAMIC:
 			ob->gameflag |= OB_COLLISION | OB_DYNAMIC | OB_ACTOR;
-			ob->gameflag &= ~(OB_RIGID_BODY | OB_SOFT_BODY | OB_OCCLUDER | OB_SENSOR | OB_NAVMESH);
+			ob->gameflag &= ~(OB_RIGID_BODY | OB_SOFT_BODY | OB_OCCLUDER | OB_CHARACTER | OB_SENSOR | OB_NAVMESH);
 			break;
 		case OB_BODY_TYPE_RIGID:
 			ob->gameflag |= OB_COLLISION | OB_DYNAMIC | OB_RIGID_BODY | OB_ACTOR;
-			ob->gameflag &= ~(OB_SOFT_BODY | OB_OCCLUDER | OB_SENSOR | OB_NAVMESH);
+			ob->gameflag &= ~(OB_SOFT_BODY | OB_OCCLUDER | OB_CHARACTER | OB_SENSOR | OB_NAVMESH);
 			break;
 		default:
 		case OB_BODY_TYPE_SOFT:
 			ob->gameflag |= OB_COLLISION | OB_DYNAMIC | OB_SOFT_BODY | OB_ACTOR;
-			ob->gameflag &= ~(OB_RIGID_BODY | OB_OCCLUDER | OB_SENSOR | OB_NAVMESH);
+			ob->gameflag &= ~(OB_RIGID_BODY | OB_OCCLUDER | OB_CHARACTER | OB_SENSOR | OB_NAVMESH);
 
 			/* assume triangle mesh, if no bounds chosen for soft body */
 			if ((ob->gameflag & OB_BOUNDS) && (ob->boundtype < OB_BOUND_TRIANGLE_MESH)) {
@@ -1436,6 +1449,8 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 		                      "Collision Sensor, detects static and dynamic objects but not the other "
 		                      "collision sensor objects"},
 		{OB_BODY_TYPE_NAVMESH, "NAVMESH", 0, "Navigation Mesh", "Navigation mesh"},
+		{OB_BODY_TYPE_CHARACTER, "CHARACTER", 0, "Character",
+		                         "Simple kinematic physics appropriate for game characters"},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -1493,7 +1508,7 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "use_ghost", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "gameflag", OB_GHOST);
-	RNA_def_property_ui_text(prop, "Ghost", "Object does not restitute collisions, like a ghost");
+	RNA_def_property_ui_text(prop, "Ghost", "Object does not react to collisions, like a ghost");
 
 	prop = RNA_def_property(srna, "mass", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_range(prop, 0.01, 10000.0);
@@ -1529,6 +1544,22 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "max_vel");
 	RNA_def_property_range(prop, 0.0, 1000.0);
 	RNA_def_property_ui_text(prop, "Velocity Max", "Clamp velocity to this maximum speed");
+	
+	prop = RNA_def_property(srna, "step_height", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "step_height");
+	RNA_def_property_range(prop, 0.0, 1.0);
+	RNA_def_property_ui_text(prop, "Step Height", "Maximum height of steps the character can run over");
+
+	prop = RNA_def_property(srna, "jump_speed", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "jump_speed");
+	RNA_def_property_range(prop, 0.0, 1000.0);
+	RNA_def_property_ui_text(prop, "Jump Force", "Upward velocity applied to the character when jumping (with the Motion actuator)");
+
+	prop = RNA_def_property(srna, "fall_speed", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "fall_speed");
+	RNA_def_property_range(prop, 0.0, 1000.0);
+	RNA_def_property_ui_text(prop, "Fall Speed Max", "Maximum speed at which the character will fall");
+
 
 	/* lock position */
 	prop = RNA_def_property(srna, "lock_location_x", PROP_BOOLEAN, PROP_NONE);
@@ -1946,6 +1977,12 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_LIB_EXCEPTION);
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_layer_update");
 
+	prop = RNA_def_property(srna, "layers_local_view", PROP_BOOLEAN, PROP_LAYER_MEMBER);
+	RNA_def_property_boolean_sdna(prop, NULL, "lay", 0x01000000);
+	RNA_def_property_array(prop, 8);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Local View Layers", "3D local view layers the object is on");
+
 	prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SELECT);
 	RNA_def_property_ui_text(prop, "Select", "Object selection state");
@@ -2283,7 +2320,7 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "restrictflag", OB_RESTRICT_VIEW);
 	RNA_def_property_ui_text(prop, "Restrict View", "Restrict visibility in the viewport");
 	RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_OFF, 1);
-	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_hide_update");
 
 	prop = RNA_def_property(srna, "hide_select", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "restrictflag", OB_RESTRICT_SELECT);
@@ -2295,7 +2332,7 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "restrictflag", OB_RESTRICT_RENDER);
 	RNA_def_property_ui_text(prop, "Restrict Render", "Restrict renderability");
 	RNA_def_property_ui_icon(prop, ICON_RESTRICT_RENDER_OFF, 1);
-	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_hide_update");
 
 	/* anim */
 	rna_def_animdata_common(srna);
@@ -2520,6 +2557,16 @@ static void rna_def_dupli_object(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE | PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Hide", "Don't show dupli object in viewport or render");
 
+	prop = RNA_def_property(srna, "index", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "index");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE | PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Index", "Index in the lowest-level dupli list");
+	
+	prop = RNA_def_property(srna, "particle_index", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "particle_index");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE | PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Particle Index", "Index in the lowest-level particle dupli list");
+
 	/* TODO: DupliObject has more properties that can be wrapped */
 }
 
@@ -2544,6 +2591,12 @@ static void rna_def_object_base(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Layers", "Layers the object base is on");
 	RNA_def_property_boolean_funcs(prop, NULL, "rna_Base_layer_set");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Base_layer_update");
+
+	prop = RNA_def_property(srna, "layers_local_view", PROP_BOOLEAN, PROP_LAYER_MEMBER);
+	RNA_def_property_boolean_sdna(prop, NULL, "lay", 0x01000000);
+	RNA_def_property_array(prop, 8);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Local View Layers", "3D local view layers the object base is on");
 	
 	prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BA_SELECT);

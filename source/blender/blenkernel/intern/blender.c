@@ -336,7 +336,8 @@ static int handle_subversion_warning(Main *main, ReportList *reports)
 	    (main->minversionfile == BLENDER_VERSION &&
 	     main->minsubversionfile > BLENDER_SUBVERSION))
 	{
-		BKE_reportf(reports, RPT_ERROR, "File written by newer Blender binary: %d.%d , expect loss of data!", main->minversionfile, main->minsubversionfile);
+		BKE_reportf(reports, RPT_ERROR, "File written by newer Blender binary: %d.%d, expect loss of data!",
+		            main->minversionfile, main->minsubversionfile);
 	}
 
 	return 1;
@@ -517,7 +518,7 @@ void BKE_write_undo(bContext *C, const char *name)
 	if ( (U.uiflag & USER_GLOBALUNDO) == 0) return;
 	if (U.undosteps == 0) return;
 	
-	/* remove all undos after (also when curundo==NULL) */
+	/* remove all undos after (also when curundo == NULL) */
 	while (undobase.last != curundo) {
 		uel = undobase.last;
 		BLI_remlink(&undobase, uel);
@@ -563,7 +564,7 @@ void BKE_write_undo(bContext *C, const char *name)
 		BLI_snprintf(numstr, sizeof(numstr), "%d.blend", counter);
 		BLI_make_file_string("/", filepath, BLI_temporary_dir(), numstr);
 	
-		/* success= */ /* UNUSED */ BLO_write_file(CTX_data_main(C), filepath, fileflags, NULL, NULL);
+		/* success = */ /* UNUSED */ BLO_write_file(CTX_data_main(C), filepath, fileflags, NULL, NULL);
 		
 		BLI_strncpy(curundo->str, filepath, sizeof(curundo->str));
 	}
@@ -573,7 +574,7 @@ void BKE_write_undo(bContext *C, const char *name)
 		if (curundo->prev) prevfile = &(curundo->prev->memfile);
 		
 		memused = MEM_get_memory_in_use();
-		/* success= */ /* UNUSED */ BLO_write_file_mem(CTX_data_main(C), prevfile, &curundo->memfile, G.fileflags);
+		/* success = */ /* UNUSED */ BLO_write_file_mem(CTX_data_main(C), prevfile, &curundo->memfile, G.fileflags);
 		curundo->undosize = MEM_get_memory_in_use() - memused;
 	}
 

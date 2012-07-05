@@ -169,6 +169,11 @@ BF_BOOST_LIBPATH = BF_BOOST + '/lib'
 WITH_BF_RAYOPTIMIZATION = True
 BF_RAYOPTIMIZATION_SSE_FLAGS = ['-msse']
 
+#CUDA
+WITH_BF_CYCLES_CUDA_BINARIES = False
+#BF_CYCLES_CUDA_NVCC = "" # Path to the nvidia compiler
+BF_CYCLES_CUDA_BINARIES_ARCH = ['sm_20', 'sm_21'] # don't build sm_13 until the compile can fit in 32bit process again :)
+
 ##
 CC = 'gcc'
 CXX = 'g++'
@@ -176,7 +181,7 @@ CXX = 'g++'
 CCFLAGS = [ '-pipe', '-funsigned-char', '-fno-strict-aliasing' ]
 CXXFLAGS = []
 
-CPPFLAGS = ['-DWIN32', '-DFREE_WINDOWS', '-D_LARGEFILE_SOURCE', '-D_FILE_OFFSET_BITS=64', '-D_LARGEFILE64_SOURCE', '-DBOOST_ALL_NO_LIB', '-DBOOST_THREAD_USE_LIB', '-DGLEW_STATIC']
+CPPFLAGS = ['-DWIN32', '-DFREE_WINDOWS', '-D_LARGEFILE_SOURCE', '-D_FILE_OFFSET_BITS=64', '-D_LARGEFILE64_SOURCE', '-DBOOST_ALL_NO_LIB', '-DBOOST_THREAD_USE_LIB', '-DGLEW_STATIC', '-DOPJ_STATIC']
 REL_CFLAGS = []
 REL_CXXFLAGS = []
 REL_CCFLAGS = ['-DNDEBUG',  '-O2']

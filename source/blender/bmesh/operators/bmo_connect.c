@@ -43,7 +43,7 @@
 #define FACE_MARK   1
 #define EDGE_CONNECTED 7
 
-void bmo_connectverts_exec(BMesh *bm, BMOperator *op)
+void bmo_connect_verts_exec(BMesh *bm, BMOperator *op)
 {
 	BMIter iter, liter;
 	BMFace *f, *nf;
@@ -267,8 +267,8 @@ BMVert* get_linear_seg(BMesh *bm, int seg, int n, BMVert *v1, BMVert *v2)
 }
 
 BMVert* get_cubic_seg(BMesh *bm, int seg, int n, BMVert *v1, BMVert *v2){
-    float co[3];
-    BMVert *v;
+    //float co[3];
+    BMVert *v = NULL;
     return v;
 }
 
@@ -377,6 +377,7 @@ void  bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
 
     int i = 0, j = 0, loops_count = 0, cl1 = 0, cl2 = 0;
     BMFace *f;
+	_list_exist_vert_tmp = NULL;
 
     // find all edges in faces
     BMO_ITER (f, &siter, bm, op, "edgefacein", BM_FACE)
@@ -474,7 +475,7 @@ void  bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
     if (ee1 && ee2)
     {
        float min = 1e32;
-       int min_i, min_j;
+       int min_j;
        float center1[3], center2[3];
        BMEdge **non_conected = NULL, **conected = NULL;
        BLI_array_declare(non_conected);
@@ -500,7 +501,7 @@ void  bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
 
        for (i = 0; i < BLI_array_count(ee1); i++)
        {
-           BMVert *v_i, *v_j;
+           BMVert *v_i;
            float mid_V_i[3];
            float mid_V_j[3];
            get_middle_edge(ee1[i], mid_V_i);

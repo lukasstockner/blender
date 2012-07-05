@@ -21,20 +21,20 @@
  *		Lukas Tönne
  */
 
-#ifndef _COM_OutputFileNode_h
-#define _COM_OutputFileNode_h
+#ifndef _COM_OutputFileNode_h_
+#define _COM_OutputFileNode_h_
 
 #include "COM_Node.h"
 #include "DNA_node_types.h"
 
 /**
-  * @brief OutputFileNode
-  * @ingroup Node
-  */
+ * @brief OutputFileNode
+ * @ingroup Node
+ */
 class OutputFileNode : public Node {
 public:
 	OutputFileNode(bNode *editorNode);
-	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
+	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);
 };
 
 #endif

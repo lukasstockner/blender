@@ -86,6 +86,7 @@ typedef struct TransSnap {
 	float	snapTarget[3]; /* to this point */
 	float	snapNormal[3];
 	float	snapTangent[3];
+	char	snapNodeBorder;
 	ListBase points;
 	TransSnapPoint	*selectedPoint;
 	float	dist; // Distance from snapPoint to snapTarget
@@ -194,6 +195,8 @@ typedef struct TransDataSlideVert {
 	struct BMVert *up, *down;
 	struct BMVert *v;
 
+	float edge_len;
+
 	float upvec[3], downvec[3];
 } TransDataSlideVert;
 
@@ -206,9 +209,16 @@ typedef struct SlideData {
 
 	int start[2], end[2];
 	struct BMEditMesh *em;
-	float perc;
+
 	/* flag that is set when origfaces is initialized */
 	int origfaces_init;
+
+	float perc;
+
+	int is_proportional;
+	int flipped_vtx;
+
+	int curr_sv_index;
 } SlideData;
 
 typedef struct TransData {
@@ -464,6 +474,9 @@ int Shear(TransInfo *t, const int mval[2]);
 void initResize(TransInfo *t);
 int Resize(TransInfo *t, const int mval[2]);
 
+void initSkinResize(TransInfo *t);
+int SkinResize(TransInfo *t, const int mval[2]);
+
 void initTranslation(TransInfo *t);
 int Translation(TransInfo *t, const int mval[2]);
 
@@ -481,6 +494,9 @@ int Tilt(TransInfo *t, const int mval[2]);
 
 void initCurveShrinkFatten(TransInfo *t);
 int CurveShrinkFatten(TransInfo *t, const int mval[2]);
+
+void initMaskShrinkFatten(TransInfo *t);
+int MaskShrinkFatten(TransInfo *t, const int mval[2]);
 
 void initTrackball(TransInfo *t);
 int Trackball(TransInfo *t, const int mval[2]);
@@ -508,6 +524,7 @@ void initBoneRoll(TransInfo *t);
 int BoneRoll(TransInfo *t, const int mval[2]);
 
 void initEdgeSlide(TransInfo *t);
+int handleEventEdgeSlide(TransInfo *t, struct wmEvent *event);
 int EdgeSlide(TransInfo *t, const int mval[2]);
 
 void initTimeTranslate(TransInfo *t);
@@ -539,7 +556,7 @@ struct wmKeyMap *transform_modal_keymap(struct wmKeyConfig *keyconf);
 /*********************** transform_conversions.c ********** */
 struct ListBase;
 
-void flushTransGPactionData(TransInfo *t);
+void flushTransIntFrameActionData(TransInfo *t);
 void flushTransGraphData(TransInfo *t);
 void remake_graph_transdata(TransInfo *t, struct ListBase *anim_data);
 void flushTransUVs(TransInfo *t);
@@ -548,6 +565,7 @@ int clipUVTransform(TransInfo *t, float *vec, int resize);
 void flushTransNodes(TransInfo *t);
 void flushTransSeq(TransInfo *t);
 void flushTransTracking(TransInfo *t);
+void flushTransMasking(TransInfo *t);
 
 /*********************** exported from transform_manipulator.c ********** */
 int gimbal_axis(struct Object *ob, float gmat[][3]); /* return 0 when no gimbal for selection */
@@ -649,6 +667,8 @@ void postTrans (struct bContext *C, TransInfo *t);
 void resetTransRestrictions(TransInfo *t);
 
 void drawLine(TransInfo *t, float *center, float *dir, char axis, short options);
+
+void drawNonPropEdge(const struct bContext *C, TransInfo *t);
 
 /* DRAWLINE options flags */
 #define DRAWLIGHT	1

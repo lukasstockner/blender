@@ -2363,13 +2363,12 @@ static EdgeHash *sph_springhash_build(ParticleSystem *psys)
 }
 
 #define SPH_NEIGHBORS 512
-typedef struct SPHNeighbor
-{
+typedef struct SPHNeighbor {
 	ParticleSystem *psys;
 	int index;
 } SPHNeighbor;
-typedef struct SPHRangeData
-{
+
+typedef struct SPHRangeData {
 	SPHNeighbor neighbors[SPH_NEIGHBORS];
 	int tot_neighbors;
 
@@ -2641,8 +2640,7 @@ static void sph_integrate(ParticleSimulationData *sim, ParticleData *pa, float d
 /************************************************/
 /*			Basic physics						*/
 /************************************************/
-typedef struct EfData
-{
+typedef struct EfData {
 	ParticleTexture ptex;
 	ParticleSimulationData *sim;
 	ParticleData *pa;
@@ -2673,6 +2671,9 @@ static void basic_force_cb(void *efdata_v, ParticleKey *state, float *force, flo
 		force[1] += (BLI_frand()-0.5f) * part->brownfac;
 		force[2] += (BLI_frand()-0.5f) * part->brownfac;
 	}
+
+	if (part->flag & PART_ROT_DYN && epoint.ave)
+		copy_v3_v3(pa->state.ave, epoint.ave);
 }
 /* gathers all forces that effect particles and calculates a new state for the particle */
 static void basic_integrate(ParticleSimulationData *sim, int p, float dfra, float cfra)
@@ -2730,7 +2731,7 @@ static void basic_integrate(ParticleSimulationData *sim, int p, float dfra, floa
 }
 static void basic_rotate(ParticleSettings *part, ParticleData *pa, float dfra, float timestep)
 {
-	float rotfac, rot1[4], rot2[4]={1.0,0.0,0.0,0.0}, dtime=dfra*timestep;
+	float rotfac, rot1[4], rot2[4]={1.0,0.0,0.0,0.0}, dtime=dfra*timestep, extrotfac;
 
 	if ((part->flag & PART_ROTATIONS)==0) {
 		pa->state.rot[0]=1.0f;
@@ -2738,7 +2739,9 @@ static void basic_rotate(ParticleSettings *part, ParticleData *pa, float dfra, f
 		return;
 	}
 
-	if ((part->flag & PART_ROT_DYN)==0 && ELEM3(part->avemode, PART_AVE_VELOCITY, PART_AVE_HORIZONTAL, PART_AVE_VERTICAL)) {
+	extrotfac = len_v3(pa->state.ave);
+
+	if ((part->flag & PART_ROT_DYN) && ELEM3(part->avemode, PART_AVE_VELOCITY, PART_AVE_HORIZONTAL, PART_AVE_VERTICAL)) {
 		float angle;
 		float len1 = len_v3(pa->prev_state.vel);
 		float len2 = len_v3(pa->state.vel);
@@ -2758,7 +2761,7 @@ static void basic_rotate(ParticleSettings *part, ParticleData *pa, float dfra, f
 	}
 
 	rotfac = len_v3(pa->state.ave);
-	if (rotfac == 0.0f) { /* unit_qt(in VecRotToQuat) doesn't give unit quat [1,0,0,0]?? */
+	if (rotfac == 0.0f || (part->flag & PART_ROT_DYN)==0 || extrotfac == 0.0f) { /* unit_qt(in VecRotToQuat) doesn't give unit quat [1,0,0,0]?? */
 		rot1[0]=1.0f;
 		rot1[1]=rot1[2]=rot1[3]=0;
 	}
@@ -3317,7 +3320,7 @@ static int collision_response(ParticleData *pa, ParticleCollision *col, BVHTreeR
 			}
 		}
 
-		/* stickness was possibly added before, so cancel that before calculating new normal velocity */
+		/* stickiness was possibly added before, so cancel that before calculating new normal velocity */
 		/* otherwise particles go flying out of the surface because of high reversed sticky velocity */
 		if (v0_dot < 0.0f) {
 			v0_dot += pd->pdef_stickness;
@@ -3376,7 +3379,7 @@ static int collision_response(ParticleData *pa, ParticleCollision *col, BVHTreeR
 				madd_v3_v3fl(pa->state.vel, nor, -dot);
 		}
 
-		/* add stickness to surface */
+		/* add stickiness to surface */
 		madd_v3_v3fl(pa->state.vel, pce->nor, -pd->pdef_stickness);
 
 		/* set coordinates for next iteration */
@@ -4111,7 +4114,7 @@ static void particles_fluid_step(ParticleSimulationData *sim, int UNUSED(cfra))
 				if (ptype&readMask) {
 					activeParts++;
 	
-					gzread(gzf, &(pa->size), sizeof( float )); 
+					gzread(gzf, &(pa->size), sizeof(float));
 	
 					pa->size /= 10.0f;
 	
@@ -4135,7 +4138,7 @@ static void particles_fluid_step(ParticleSimulationData *sim, int UNUSED(cfra))
 					pa->dietime = sim->scene->r.efra + 1;
 					pa->lifetime = sim->scene->r.efra;
 					pa->alive = PARS_ALIVE;
-					//if (a < 25) fprintf(stderr,"FSPARTICLE debug set %s , a%d = %f,%f,%f , life=%f\n", filename, a, pa->co[0],pa->co[1],pa->co[2], pa->lifetime );
+					//if (a < 25) fprintf(stderr,"FSPARTICLE debug set %s, a%d = %f,%f,%f, life=%f\n", filename, a, pa->co[0],pa->co[1],pa->co[2], pa->lifetime );
 				}
 				else {
 					// skip...
@@ -4444,7 +4447,8 @@ static void psys_prepare_physics(ParticleSimulationData *sim)
 static int hair_needs_recalc(ParticleSystem *psys)
 {
 	if (!(psys->flag & PSYS_EDITED) && (!psys->edit || !psys->edit->edited) &&
-		((psys->flag & PSYS_HAIR_DONE)==0 || psys->recalc & PSYS_RECALC_RESET || (psys->part->flag & PART_HAIR_REGROW && !psys->edit))) {
+	    ((psys->flag & PSYS_HAIR_DONE)==0 || psys->recalc & PSYS_RECALC_RESET || (psys->part->flag & PART_HAIR_REGROW && !psys->edit)))
+	{
 		return 1;
 	}
 

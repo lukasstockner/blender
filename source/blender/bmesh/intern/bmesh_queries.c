@@ -190,6 +190,22 @@ BMLoop *BM_loop_other_vert_loop(BMLoop *l, BMVert *v)
 }
 
 /**
+ * Get the first loop of a vert. Uses the same initialization code for the first loop of the
+ * iterator API
+ */
+
+BMLoop *BM_vert_find_first_loop(BMVert *v)
+{
+	BMEdge *e;
+
+	if(!v || !v->e)
+		return NULL;
+
+	e = bmesh_disk_faceedge_find_first(v->e, v);
+	return bmesh_radial_faceloop_find_first(e->l, v);
+}
+
+/**
  * Returns TRUE if the vertex is used in a given face.
  */
 
@@ -369,6 +385,7 @@ int BM_edge_face_pair(BMEdge *e, BMFace **r_fa, BMFace **r_fb)
 
 	if ((la = e->l) &&
 	    (lb = la->radial_next) &&
+	    (la != lb) &&
 	    (lb->radial_next == la))
 	{
 		*r_fa = la->f;
@@ -394,6 +411,7 @@ int BM_edge_loop_pair(BMEdge *e, BMLoop **r_la, BMLoop **r_lb)
 
 	if ((la = e->l) &&
 	    (lb = la->radial_next) &&
+	    (la != lb) &&
 	    (lb->radial_next == la))
 	{
 		*r_la = la;
@@ -752,6 +770,7 @@ void BM_edge_ordered_verts_ex(BMEdge *edge, BMVert **r_v1, BMVert **r_v2,
                               BMLoop *edge_loop)
 {
 	BLI_assert(edge_loop->e == edge);
+	(void)edge; /* quiet warning in release build */
 	*r_v1 = edge_loop->v;
 	*r_v2 = edge_loop->next->v;
 }
@@ -948,6 +967,54 @@ float BM_vert_calc_mean_tagged_edge_length(BMVert *v)
 	return length / (float)tot;
 }
 
+
+/**
+ * Returns the loop of the shortest edge in f.
+ */
+BMLoop *BM_face_find_shortest_loop(BMFace *f)
+{
+	BMLoop *shortest_loop = NULL;
+	float shortest_len = FLT_MAX;
+
+	BMLoop *l_iter;
+	BMLoop *l_first;
+
+	l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+
+	do {
+		const float len = len_squared_v3v3(l_iter->v->co, l_iter->next->v->co);
+		if (len <= shortest_len) {
+			shortest_loop = l_iter;
+			shortest_len = len;
+		}
+	} while ((l_iter = l_iter->next) != l_first);
+
+	return shortest_loop;
+}
+
+/**
+ * Returns the loop of the longest edge in f.
+ */
+BMLoop *BM_face_find_longest_loop(BMFace *f)
+{
+	BMLoop *longest_loop = NULL;
+	float longest_len = 0.0f;
+
+	BMLoop *l_iter;
+	BMLoop *l_first;
+
+	l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+
+	do {
+		const float len = len_squared_v3v3(l_iter->v->co, l_iter->next->v->co);
+		if (len >= longest_len) {
+			longest_loop = l_iter;
+			longest_len = len;
+		}
+	} while ((l_iter = l_iter->next) != l_first);
+
+	return longest_loop;
+}
 
 /**
  * Returns the edge existing between v1 and v2, or NULL if there isn't one.

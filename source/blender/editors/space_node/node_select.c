@@ -38,6 +38,7 @@
 
 #include "BKE_context.h"
 #include "BKE_main.h"
+#include "BKE_node.h"
 
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
@@ -58,119 +59,30 @@
 
 /* ****** helpers ****** */
 
-static bNode *node_under_mouse(bNodeTree *ntree, int mx, int my)
+static bNode *node_under_mouse_select(bNodeTree *ntree, int mx, int my)
 {
 	bNode *node;
 	
 	for (node=ntree->nodes.last; node; node=node->prev) {
-		/* node body (header and scale are in other operators) */
-		if (BLI_in_rctf(&node->totr, mx, my))
-			return node;
+		if (node->typeinfo->select_area_func) {
+			if (node->typeinfo->select_area_func(node, mx, my))
+				return node;
+		}
 	}
 	return NULL;
 }
 
-static int compare_nodes(bNode *a, bNode *b)
+static bNode *node_under_mouse_tweak(bNodeTree *ntree, int mx, int my)
 {
-	bNode *parent;
-	/* These tell if either the node or any of the parent nodes is selected.
-	 * A selected parent means an unselected node is also in foreground!
-	 */
-	int a_select=(a->flag & NODE_SELECT), b_select=(b->flag & NODE_SELECT);
-	int a_active=(a->flag & NODE_ACTIVE), b_active=(b->flag & NODE_ACTIVE);
+	bNode *node;
 	
-	/* if one is an ancestor of the other */
-	/* XXX there might be a better sorting algorithm for stable topological sort, this is O(n^2) worst case */
-	for (parent = a->parent; parent; parent=parent->parent) {
-		/* if b is an ancestor, it is always behind a */
-		if (parent==b)
-			return 1;
-		/* any selected ancestor moves the node forward */
-		if (parent->flag & NODE_ACTIVE)
-			a_active = 1;
-		if (parent->flag & NODE_SELECT)
-			a_select = 1;
+	for (node=ntree->nodes.last; node; node=node->prev) {
+		if (node->typeinfo->tweak_area_func) {
+			if (node->typeinfo->tweak_area_func(node, mx, my))
+				return node;
+		}
 	}
-	for (parent = b->parent; parent; parent=parent->parent) {
-		/* if a is an ancestor, it is always behind b */
-		if (parent==a)
-			return 0;
-		/* any selected ancestor moves the node forward */
-		if (parent->flag & NODE_ACTIVE)
-			b_active = 1;
-		if (parent->flag & NODE_SELECT)
-			b_select = 1;
-	}
-
-	/* if one of the nodes is in the background and the other not */
-	if ((a->flag & NODE_BACKGROUND) && !(b->flag & NODE_BACKGROUND))
-		return 0;
-	else if (!(a->flag & NODE_BACKGROUND) && (b->flag & NODE_BACKGROUND))
-		return 1;
-	
-	/* if one has a higher selection state (active > selected > nothing) */
-	if (!b_active && a_active)
-		return 1;
-	else if (!b_select && (a_active || a_select))
-		return 1;
-	
-	return 0;
-}
-
-/* Sorts nodes by selection: unselected nodes first, then selected,
- * then the active node at the very end. Relative order is kept intact!
- */
-static void node_sort(bNodeTree *ntree)
-{
-	/* merge sort is the algorithm of choice here */
-	bNode *first_a, *first_b, *node_a, *node_b, *tmp;
-	int totnodes= BLI_countlist(&ntree->nodes);
-	int k, a, b;
-	
-	k = 1;
-	while (k < totnodes) {
-		first_a = first_b = ntree->nodes.first;
-		
-		do {
-			/* setup first_b pointer */
-			for (b=0; b < k && first_b; ++b) {
-				first_b = first_b->next;
-			}
-			/* all batches merged? */
-			if (first_b==NULL)
-				break;
-			
-			/* merge batches */
-			node_a = first_a;
-			node_b = first_b;
-			a = b = 0;
-			while (a < k && b < k && node_b) {
-				if (compare_nodes(node_a, node_b)==0) {
-					node_a = node_a->next;
-					++a;
-				}
-				else {
-					tmp = node_b;
-					node_b = node_b->next;
-					++b;
-					BLI_remlink(&ntree->nodes, tmp);
-					BLI_insertlinkbefore(&ntree->nodes, node_a, tmp);
-				}
-			}
-
-			/* setup first pointers for next batch */
-			first_b = node_b;
-			for (; b < k; ++b) {
-				/* all nodes sorted? */
-				if (first_b==NULL)
-					break;
-				first_b = first_b->next;
-			}
-			first_a = first_b;
-		} while (first_b);
-		
-		k = k << 1;
-	}
+	return NULL;
 }
 
 void node_select(bNode *node)
@@ -407,7 +319,7 @@ void node_select_single(bContext *C, bNode *node)
 	
 	ED_node_set_active(bmain, snode->edittree, node);
 	
-	node_sort(snode->edittree);
+	ED_node_sort(snode->edittree);
 	
 	WM_event_add_notifier(C, NC_NODE|NA_SELECTED, NULL);
 }
@@ -453,7 +365,7 @@ static int node_mouse_select(Main *bmain, SpaceNode *snode, ARegion *ar, const i
 		}
 		else {
 			/* find the closest visible node */
-			node = node_under_mouse(snode->edittree, mx, my);
+			node = node_under_mouse_select(snode->edittree, mx, my);
 			
 			if (node) {
 				node_toggle(node);
@@ -466,7 +378,7 @@ static int node_mouse_select(Main *bmain, SpaceNode *snode, ARegion *ar, const i
 	else {	/* extend==0 */
 		
 		/* find the closest visible node */
-		node = node_under_mouse(snode->edittree, mx, my);
+		node = node_under_mouse_select(snode->edittree, mx, my);
 		
 		if (node) {
 			for (tnode=snode->edittree->nodes.first; tnode; tnode=tnode->next)
@@ -479,7 +391,7 @@ static int node_mouse_select(Main *bmain, SpaceNode *snode, ARegion *ar, const i
 	
 	/* update node order */
 	if (selected)
-		node_sort(snode->edittree);
+		ED_node_sort(snode->edittree);
 	
 	return selected;
 }
@@ -573,7 +485,7 @@ static int node_borderselect_exec(bContext *C, wmOperator *op)
 		}
 	}
 	
-	node_sort(snode->edittree);
+	ED_node_sort(snode->edittree);
 	
 	WM_event_add_notifier(C, NC_NODE|NA_SELECTED, NULL);
 
@@ -593,7 +505,7 @@ static int node_border_select_invoke(bContext *C, wmOperator *op, wmEvent *event
 
 		UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &mx, &my);
 		
-		if (node_under_mouse(snode->edittree, mx, my))
+		if (node_under_mouse_tweak(snode->edittree, mx, my))
 			return OPERATOR_CANCELLED|OPERATOR_PASS_THROUGH;
 	}
 	
@@ -645,7 +557,7 @@ static int node_select_all_exec(bContext *C, wmOperator *UNUSED(op))
 			node_select(node);
 	}
 	
-	node_sort(snode->edittree);
+	ED_node_sort(snode->edittree);
 	
 	WM_event_add_notifier(C, NC_NODE|NA_SELECTED, NULL);
 	return OPERATOR_FINISHED;
@@ -687,7 +599,7 @@ static int node_select_linked_to_exec(bContext *C, wmOperator *UNUSED(op))
 			node_select(node);
 	}
 	
-	node_sort(snode->edittree);
+	ED_node_sort(snode->edittree);
 	
 	WM_event_add_notifier(C, NC_NODE|NA_SELECTED, NULL);
 	return OPERATOR_FINISHED;
@@ -729,7 +641,7 @@ static int node_select_linked_from_exec(bContext *C, wmOperator *UNUSED(op))
 			node_select(node);
 	}
 	
-	node_sort(snode->edittree);
+	ED_node_sort(snode->edittree);
 	
 	WM_event_add_notifier(C, NC_NODE|NA_SELECTED, NULL);
 	return OPERATOR_FINISHED;
@@ -758,7 +670,7 @@ static int node_select_same_type_exec(bContext *C, wmOperator *UNUSED(op))
 
 	node_select_same_type(snode);
 
-	node_sort(snode->edittree);
+	ED_node_sort(snode->edittree);
 
 	WM_event_add_notifier(C, NC_NODE|NA_SELECTED, NULL);
 	return OPERATOR_FINISHED;
@@ -787,7 +699,7 @@ static int node_select_same_type_next_exec(bContext *C, wmOperator *UNUSED(op))
 
 	node_select_same_type_np(snode, 0);
 
-	node_sort(snode->edittree);
+	ED_node_sort(snode->edittree);
 
 	WM_event_add_notifier(C, NC_NODE|NA_SELECTED, NULL);
 
@@ -815,7 +727,7 @@ static int node_select_same_type_prev_exec(bContext *C, wmOperator *UNUSED(op))
 
 	node_select_same_type_np(snode, 1);
 
-	node_sort(snode->edittree);
+	ED_node_sort(snode->edittree);
 
 	WM_event_add_notifier(C, NC_NODE|NA_SELECTED, NULL);
 	return OPERATOR_FINISHED;

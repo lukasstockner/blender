@@ -81,11 +81,11 @@ static void localize(bNodeTree *localtree, bNodeTree *UNUSED(ntree))
 {
 	bNode *node, *node_next;
 	
-	/* replace muted nodes by internal links */
+	/* replace muted nodes and reroute nodes by internal links */
 	for (node= localtree->nodes.first; node; node= node_next) {
 		node_next = node->next;
 		
-		if (node->flag & NODE_MUTED) {
+		if (node->flag & NODE_MUTED || node->type == NODE_REROUTE) {
 			nodeInternalRelink(localtree, node);
 			nodeFreeNode(localtree, node);
 		}
@@ -282,7 +282,7 @@ int ntreeTexExecTree(
 	if (texres->nor) retval |= TEX_NOR;
 	retval |= TEX_RGB;
 	/* confusing stuff; the texture output node sets this to NULL to indicate no normal socket was set
-	   however, the texture code checks this for other reasons (namely, a normal is required for material) */
+	 * however, the texture code checks this for other reasons (namely, a normal is required for material) */
 	texres->nor= nor;
 
 	return retval;

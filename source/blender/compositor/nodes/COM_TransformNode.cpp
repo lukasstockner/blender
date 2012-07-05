@@ -28,11 +28,12 @@
 #include "COM_SetValueOperation.h"
 #include "COM_SetSamplerOperation.h"
 
-TransformNode::TransformNode(bNode *editorNode): Node(editorNode)
+TransformNode::TransformNode(bNode *editorNode) : Node(editorNode)
 {
+	/* pass */
 }
 
-void TransformNode::convertToOperations(ExecutionSystem *graph, CompositorContext * context)
+void TransformNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
 {
 	InputSocket *imageInput = this->getInputSocket(0);
 	InputSocket *xInput = this->getInputSocket(1);
@@ -40,35 +41,35 @@ void TransformNode::convertToOperations(ExecutionSystem *graph, CompositorContex
 	InputSocket *angleInput = this->getInputSocket(3);
 	InputSocket *scaleInput = this->getInputSocket(4);
 	
-	ScaleOperation * scaleOperation = new ScaleOperation();
-	RotateOperation * rotateOperation = new RotateOperation();
-	TranslateOperation * translateOperation = new TranslateOperation();
+	ScaleOperation *scaleOperation = new ScaleOperation();
+	RotateOperation *rotateOperation = new RotateOperation();
+	TranslateOperation *translateOperation = new TranslateOperation();
 	SetSamplerOperation *sampler = new SetSamplerOperation();
 
 	switch (this->getbNode()->custom1) {
-	case 0:
-		sampler->setSampler(COM_PS_NEAREST);
-		break ;
-	case 1:
-		sampler->setSampler(COM_PS_BILINEAR);
-		break;
-	case 2:
-		sampler->setSampler(COM_PS_BICUBIC);
-		break;
+		case 0:
+			sampler->setSampler(COM_PS_NEAREST);
+			break;
+		case 1:
+			sampler->setSampler(COM_PS_BILINEAR);
+			break;
+		case 2:
+			sampler->setSampler(COM_PS_BICUBIC);
+			break;
 	}
 	
-	imageInput->relinkConnections(sampler->getInputSocket(0), true, 0, graph);
+	imageInput->relinkConnections(sampler->getInputSocket(0), 0, graph);
 	addLink(graph, sampler->getOutputSocket(), scaleOperation->getInputSocket(0));
-	scaleInput->relinkConnections(scaleOperation->getInputSocket(1), true, 4, graph);
+	scaleInput->relinkConnections(scaleOperation->getInputSocket(1), 4, graph);
 	addLink(graph, scaleOperation->getInputSocket(1)->getConnection()->getFromSocket(), scaleOperation->getInputSocket(2)); // xscale = yscale
 	
 	addLink(graph, scaleOperation->getOutputSocket(), rotateOperation->getInputSocket(0));
 	rotateOperation->setDoDegree2RadConversion(false);
-	angleInput->relinkConnections(rotateOperation->getInputSocket(1), true, 3, graph);
+	angleInput->relinkConnections(rotateOperation->getInputSocket(1), 3, graph);
 
 	addLink(graph, rotateOperation->getOutputSocket(), translateOperation->getInputSocket(0));
-	xInput->relinkConnections(translateOperation->getInputSocket(1), true, 1, graph);
-	yInput->relinkConnections(translateOperation->getInputSocket(2), true, 2, graph);
+	xInput->relinkConnections(translateOperation->getInputSocket(1), 1, graph);
+	yInput->relinkConnections(translateOperation->getInputSocket(2), 2, graph);
 	
 	this->getOutputSocket()->relinkConnections(translateOperation->getOutputSocket());
 	

@@ -22,17 +22,17 @@
 #include "COM_ConvertPremulToKeyOperation.h"
 #include "BLI_math.h"
 
-ConvertPremulToKeyOperation::ConvertPremulToKeyOperation(): NodeOperation()
+ConvertPremulToKeyOperation::ConvertPremulToKeyOperation() : NodeOperation()
 {
 	this->addInputSocket(COM_DT_COLOR);
 	this->addOutputSocket(COM_DT_COLOR);
 
-	this->inputColor = NULL;
+	this->m_inputColor = NULL;
 }
 
 void ConvertPremulToKeyOperation::initExecution()
 {
-	this->inputColor = getInputSocketReader(0);
+	this->m_inputColor = getInputSocketReader(0);
 }
 
 void ConvertPremulToKeyOperation::executePixel(float *outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[])
@@ -40,18 +40,14 @@ void ConvertPremulToKeyOperation::executePixel(float *outputValue, float x, floa
 	float inputValue[4];
 	float alpha;
 
-	this->inputColor->read(inputValue, x, y, sampler, inputBuffers);
+	this->m_inputColor->read(inputValue, x, y, sampler, inputBuffers);
 	alpha = inputValue[3];
 
 	if (fabsf(alpha) < 1e-5f) {
-		outputValue[0] = 0.f;
-		outputValue[1] = 0.f;
-		outputValue[2] = 0.f;
+		zero_v3(outputValue);
 	}
 	else {
-		outputValue[0] = inputValue[0] / alpha;
-		outputValue[1] = inputValue[1] / alpha;
-		outputValue[2] = inputValue[2] / alpha;
+		mul_v3_v3fl(outputValue, inputValue, 1.0f / alpha);
 	}
 
 	/* never touches the alpha */
@@ -60,5 +56,5 @@ void ConvertPremulToKeyOperation::executePixel(float *outputValue, float x, floa
 
 void ConvertPremulToKeyOperation::deinitExecution()
 {
-	this->inputColor = NULL;
+	this->m_inputColor = NULL;
 }

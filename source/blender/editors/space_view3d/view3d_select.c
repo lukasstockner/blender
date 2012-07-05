@@ -64,6 +64,7 @@
 #include "BKE_context.h"
 #include "BKE_paint.h"
 #include "BKE_armature.h"
+#include "BKE_depsgraph.h"
 #include "BKE_tessmesh.h"
 #include "BKE_movieclip.h"
 #include "BKE_object.h"
@@ -333,7 +334,7 @@ static void do_lasso_select_pose(ViewContext *vc, Object *ob, int mcords[][2], s
 	int sco1[2], sco2[2];
 	bArmature *arm = ob->data;
 	
-	if (ob->type != OB_ARMATURE || ob->pose == NULL) return;
+	if ((ob->type != OB_ARMATURE) || (ob->pose == NULL)) return;
 
 	for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		if (PBONE_VISIBLE(arm, pchan->bone) && (pchan->bone->flag & BONE_UNSELECTABLE) == 0) {
@@ -347,6 +348,11 @@ static void do_lasso_select_pose(ViewContext *vc, Object *ob, int mcords[][2], s
 				else pchan->bone->flag &= ~BONE_SELECTED;
 			}
 		}
+	}
+	
+	if (arm->flag & ARM_HAS_VIZ_DEPS) {
+		/* mask modifier ('armature' mode), etc. */
+		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	}
 }
 
@@ -500,7 +506,7 @@ static void do_lasso_select_curve__doSelect(void *userData, Nurb *UNUSED(nu), BP
 		}
 		else {
 			if (cu->drawflag & CU_HIDE_HANDLES) {
-				/* can only be beztindex==0 here since handles are hidden */
+				/* can only be (beztindex == 0) here since handles are hidden */
 				bezt->f1 = bezt->f2 = bezt->f3 = data->select ? (bezt->f2 | SELECT) : (bezt->f2 & ~SELECT);
 			}
 			else {
@@ -1297,11 +1303,11 @@ static void deselect_all_tracks(MovieTracking *tracking)
 
 	object = tracking->objects.first;
 	while (object) {
-		ListBase *tracksbase = BKE_tracking_object_tracks(tracking, object);
+		ListBase *tracksbase = BKE_tracking_object_get_tracks(tracking, object);
 		MovieTrackingTrack *track = tracksbase->first;
 
 		while (track) {
-			BKE_tracking_deselect_track(track, TRACK_AREA_ALL);
+			BKE_tracking_track_deselect(track, TRACK_AREA_ALL);
 
 			track = track->next;
 		}
@@ -1311,7 +1317,7 @@ static void deselect_all_tracks(MovieTracking *tracking)
 }
 
 /* mval is region coords */
-static int mouse_select(bContext *C, const int mval[2], short extend, short obcenter, short enumerate)
+static int mouse_select(bContext *C, const int mval[2], short extend, short deselect, short toggle, short obcenter, short enumerate)
 {
 	ViewContext vc;
 	ARegion *ar = CTX_wm_region(C);
@@ -1402,18 +1408,18 @@ static int mouse_select(bContext *C, const int mval[2], short extend, short obce
 								ListBase *tracksbase;
 								MovieTrackingTrack *track;
 
-								track = BKE_tracking_indexed_track(&clip->tracking, hitresult >> 16, &tracksbase);
+								track = BKE_tracking_track_get_indexed(&clip->tracking, hitresult >> 16, &tracksbase);
 
 								if (TRACK_SELECTED(track) && extend) {
 									changed = 0;
-									BKE_tracking_deselect_track(track, TRACK_AREA_ALL);
+									BKE_tracking_track_deselect(track, TRACK_AREA_ALL);
 								}
 								else {
 									int oldsel = TRACK_SELECTED(track) ? 1 : 0;
 									if (!extend)
 										deselect_all_tracks(tracking);
 
-									BKE_tracking_select_track(tracksbase, track, TRACK_AREA_ALL, extend);
+									BKE_tracking_track_select(tracksbase, track, TRACK_AREA_ALL, extend);
 
 									if (oldsel != (TRACK_SELECTED(track) ? 1 : 0))
 										changed = 1;
@@ -1438,7 +1444,7 @@ static int mouse_select(bContext *C, const int mval[2], short extend, short obce
 						}
 					}
 				}
-				else if (ED_do_pose_selectbuffer(scene, basact, buffer, hits, extend) ) {   /* then bone is found */
+				else if (ED_do_pose_selectbuffer(scene, basact, buffer, hits, extend, deselect, toggle) ) {   /* then bone is found */
 				
 					/* we make the armature selected: 
 					 * not-selected active object in posemode won't work well for tools */
@@ -1477,19 +1483,25 @@ static int mouse_select(bContext *C, const int mval[2], short extend, short obce
 
 			oldbasact = BASACT;
 			
-			if (!extend) {
-				deselectall_except(scene, basact);
+			if (extend) {
 				ED_base_object_select(basact, BA_SELECT);
 			}
-			else if (0) {
-				// XXX select_all_from_groups(basact);
+			else if (deselect) {
+				ED_base_object_select(basact, BA_DESELECT);
+			}
+			else if (toggle) {
+				if (basact->flag & SELECT) {
+					if (basact == oldbasact) {
+						ED_base_object_select(basact, BA_DESELECT);
+					}
+				}
+				else {
+					ED_base_object_select(basact, BA_SELECT);
+				}
 			}
 			else {
-				if (basact->flag & SELECT) {
-					if (basact == oldbasact)
-						ED_base_object_select(basact, BA_DESELECT);
-				}
-				else ED_base_object_select(basact, BA_SELECT);
+				deselectall_except(scene, basact);
+				ED_base_object_select(basact, BA_SELECT);
 			}
 
 			if (oldbasact != basact) {
@@ -1546,7 +1558,7 @@ static void do_nurbs_box_select__doSelect(void *userData, Nurb *UNUSED(nu), BPoi
 		}
 		else {
 			if (cu->drawflag & CU_HIDE_HANDLES) {
-				/* can only be beztindex==0 here since handles are hidden */
+				/* can only be (beztindex == 0) here since handles are hidden */
 				bezt->f1 = bezt->f2 = bezt->f3 = data->select ? (bezt->f2 | SELECT) : (bezt->f2 & ~SELECT);
 			}
 			else {
@@ -1858,7 +1870,6 @@ static int do_object_pose_box_select(bContext *C, ViewContext *vc, rcti *rect, i
 		for (base = vc->scene->base.first; base && hits; base = base->next) {
 			if (BASE_SELECTABLE(vc->v3d, base)) {
 				while (base->selcol == (*col & 0xFFFF)) {   /* we got an object */
-					
 					if (*col & 0xFFFF0000) {                    /* we got a bone */
 						bone = get_indexed_bone(base->object, *col & ~(BONESEL_ANY));
 						if (bone) {
@@ -1866,16 +1877,13 @@ static int do_object_pose_box_select(bContext *C, ViewContext *vc, rcti *rect, i
 								if ((bone->flag & BONE_UNSELECTABLE) == 0) {
 									bone->flag |= BONE_SELECTED;
 									bone_selected = 1;
-// XXX									select_actionchannel_by_name(base->object->action, bone->name, 1);
 								}
 							}
 							else {
 								bArmature *arm = base->object->data;
 								bone->flag &= ~BONE_SELECTED;
-// XXX									select_actionchannel_by_name(base->object->action, bone->name, 0);
 								if (arm->act_bone == bone)
 									arm->act_bone = NULL;
-								
 							}
 						}
 					}
@@ -1885,7 +1893,7 @@ static int do_object_pose_box_select(bContext *C, ViewContext *vc, rcti *rect, i
 						else
 							ED_base_object_select(base, BA_DESELECT);
 					}
-
+					
 					col += 4; /* next color */
 					hits--;
 					if (hits == 0) break;
@@ -1893,12 +1901,22 @@ static int do_object_pose_box_select(bContext *C, ViewContext *vc, rcti *rect, i
 			}
 			
 			if (bone_selected) {
-				WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, base->object);
+				Object *ob = base->object;
+				
+				if (ob && (ob->type == OB_ARMATURE)) {
+					bArmature *arm = ob->data;
+					
+					WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
+					
+					if (arm && (arm->flag & ARM_HAS_VIZ_DEPS)) {
+						/* mask modifier ('armature' mode), etc. */
+						DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+					}
+				}
 			}
 		}
-
+		
 		WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, vc->scene);
-
 	}
 	MEM_freeN(vbuffer);
 
@@ -2043,7 +2061,7 @@ static int vertsel_vert_pick(struct bContext *C, Mesh *me, const int mval[2], un
 
 /* mouse selection in weight paint */
 /* gets called via generic mouse select operator */
-static int mouse_weight_paint_vertex_select(bContext *C, const int mval[2], short extend, Object *obact)
+static int mouse_weight_paint_vertex_select(bContext *C, const int mval[2], short extend, short deselect, short toggle, Object *obact)
 {
 	Mesh *me = obact->data; /* already checked for NULL */
 	unsigned int index = 0;
@@ -2052,6 +2070,12 @@ static int mouse_weight_paint_vertex_select(bContext *C, const int mval[2], shor
 	if (vertsel_vert_pick(C, me, mval, &index, 50)) {
 		mv = me->mvert + index;
 		if (extend) {
+			mv->flag |= SELECT;
+		}
+		else if (deselect) {
+			mv->flag &= ~SELECT;
+		}
+		else if (toggle) {
 			mv->flag ^= SELECT;
 		}
 		else {
@@ -2073,6 +2097,8 @@ static int view3d_select_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	Object *obedit = CTX_data_edit_object(C);
 	Object *obact = CTX_data_active_object(C);
 	short extend = RNA_boolean_get(op->ptr, "extend");
+	short deselect = RNA_boolean_get(op->ptr, "deselect");
+	short toggle = RNA_boolean_get(op->ptr, "toggle");
 	short center = RNA_boolean_get(op->ptr, "center");
 	short enumerate = RNA_boolean_get(op->ptr, "enumerate");
 	short object = RNA_boolean_get(op->ptr, "object");
@@ -2092,27 +2118,27 @@ static int view3d_select_invoke(bContext *C, wmOperator *op, wmEvent *event)
 
 	if (obedit && object == FALSE) {
 		if (obedit->type == OB_MESH)
-			retval = mouse_mesh(C, event->mval, extend);
+			retval = mouse_mesh(C, event->mval, extend, deselect, toggle);
 		else if (obedit->type == OB_ARMATURE)
-			retval = mouse_armature(C, event->mval, extend);
+			retval = mouse_armature(C, event->mval, extend, deselect, toggle);
 		else if (obedit->type == OB_LATTICE)
-			retval = mouse_lattice(C, event->mval, extend);
+			retval = mouse_lattice(C, event->mval, extend, deselect, toggle);
 		else if (ELEM(obedit->type, OB_CURVE, OB_SURF))
-			retval = mouse_nurb(C, event->mval, extend);
+			retval = mouse_nurb(C, event->mval, extend, deselect, toggle);
 		else if (obedit->type == OB_MBALL)
-			retval = mouse_mball(C, event->mval, extend);
+			retval = mouse_mball(C, event->mval, extend, deselect, toggle);
 			
 	}
 	else if (obact && obact->mode & OB_MODE_SCULPT)
 		return OPERATOR_CANCELLED;
 	else if (obact && obact->mode & OB_MODE_PARTICLE_EDIT)
-		return PE_mouse_particles(C, event->mval, extend);
+		return PE_mouse_particles(C, event->mval, extend, deselect, toggle);
 	else if (obact && paint_facesel_test(obact))
-		retval = paintface_mouse_select(C, obact, event->mval, extend);
+		retval = paintface_mouse_select(C, obact, event->mval, extend, deselect, toggle);
 	else if (paint_vertsel_test(obact))
-		retval = mouse_weight_paint_vertex_select(C, event->mval, extend, obact);
+		retval = mouse_weight_paint_vertex_select(C, event->mval, extend, deselect, toggle, obact);
 	else
-		retval = mouse_select(C, event->mval, extend, center, enumerate);
+		retval = mouse_select(C, event->mval, extend, deselect, toggle, center, enumerate);
 
 	/* passthrough allows tweaks
 	 * FINISHED to signal one operator worked
@@ -2138,7 +2164,8 @@ void VIEW3D_OT_select(wmOperatorType *ot)
 	ot->flag = OPTYPE_UNDO;
 	
 	/* properties */
-	RNA_def_boolean(ot->srna, "extend", 0, "Extend", "Extend selection instead of deselecting everything first");
+	WM_operator_properties_mouse_select(ot);
+
 	RNA_def_boolean(ot->srna, "center", 0, "Center", "Use the object center when selecting, in editmode used to extend object selection");
 	RNA_def_boolean(ot->srna, "enumerate", 0, "Enumerate", "List objects under the mouse (object mode only)");
 	RNA_def_boolean(ot->srna, "object", 0, "Object", "Use object selection (editmode only)");
@@ -2281,7 +2308,7 @@ static void nurbscurve_circle_doSelect(void *userData, Nurb *UNUSED(nu), BPoint 
 		}
 		else {
 			if (cu->drawflag & CU_HIDE_HANDLES) {
-				/* can only be beztindex==0 here since handles are hidden */
+				/* can only be (beztindex == 0) here since handles are hidden */
 				bezt->f1 = bezt->f2 = bezt->f3 = data->select ? (bezt->f2 | SELECT) : (bezt->f2 & ~SELECT);
 			}
 			else {

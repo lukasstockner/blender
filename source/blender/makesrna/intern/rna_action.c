@@ -104,12 +104,12 @@ static FCurve *rna_Action_fcurve_new(bAction *act, ReportList *reports, const ch
 	}
 
 	/* annoying, check if this exists */
-	if (verify_fcurve(act, group, data_path, index, 0)) {
+	if (verify_fcurve(act, group, NULL, data_path, index, 0)) {
 		BKE_reportf(reports, RPT_ERROR, "F-Curve '%s[%d]' already exists in action '%s'", data_path,
 		            index, act->id.name + 2);
 		return NULL;
 	}
-	return verify_fcurve(act, group, data_path, index, 1);
+	return verify_fcurve(act, group, NULL, data_path, index, 1);
 }
 
 static void rna_Action_fcurve_remove(bAction *act, ReportList *reports, FCurve *fcu)
@@ -480,10 +480,8 @@ static void rna_def_action_group(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Expanded", "Action Group is expanded");
 	RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, NULL);
 	
-	prop = RNA_def_property(srna, "custom_color", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "customCol");
-	RNA_def_property_ui_text(prop, "Custom Color", "Index of custom color set");
-	RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, NULL);
+	/* color set */
+	rna_def_actionbone_group_common(srna, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, NULL);
 }
 
 /* fcurve.keyframe_points */

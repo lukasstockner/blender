@@ -89,6 +89,7 @@ set(SRC
 	intern/time.c
 	intern/uvproject.c
 	intern/voxel.c
+	intern/voronoi.c
 	intern/winstuff.c
 
 	BLI_args.h
@@ -155,10 +156,6 @@ endif()
 
 if(WITH_OPENMP)
 	add_definitions(-DPARALLEL=1)
-endif()
-
-if(WITH_XDG_USER_DIRS)
-	add_definitions(-DWITH_XDG_USER_DIRS)
 endif()
 
 if(WIN32)

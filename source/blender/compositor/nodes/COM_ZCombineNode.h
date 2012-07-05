@@ -20,19 +20,19 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_ZCombineNode_h
-#define _COM_ZCombineNode_h
+#ifndef _COM_ZCombineNode_h_
+#define _COM_ZCombineNode_h_
 
 #include "COM_Node.h"
 
 /**
-  * @brief ZCombineNode
-  * @ingroup Node
-  */
-class ZCombineNode: public Node {
+ * @brief ZCombineNode
+ * @ingroup Node
+ */
+class ZCombineNode : public Node {
 public:
-	ZCombineNode(bNode *editorNode) :Node(editorNode) {}
-	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
+	ZCombineNode(bNode *editorNode) : Node(editorNode) {}
+	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);
 };
 
 #endif

@@ -22,24 +22,26 @@
 
 #include "COM_SocketProxyOperation.h"
 
-SocketProxyOperation::SocketProxyOperation() : NodeOperation()
+SocketProxyOperation::SocketProxyOperation(DataType type) : NodeOperation()
 {
-	this->addInputSocket(COM_DT_COLOR/*|COM_DT_VECTOR|COM_DT_VALUE*/);
-	this->addOutputSocket(COM_DT_COLOR);
-	this->inputOperation = NULL;
+	this->addInputSocket(type);
+	this->addOutputSocket(type);
+	this->m_inputOperation = NULL;
 }
 
 void SocketProxyOperation::initExecution()
 {
-	this->inputOperation = this->getInputSocketReader(0);
+	this->m_inputOperation = this->getInputSocketReader(0);
 }
 
 void SocketProxyOperation::deinitExecution()
 {
-	this->inputOperation = NULL;
+	this->m_inputOperation = NULL;
 }
 
-void SocketProxyOperation::executePixel(float *color,float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[])
+void SocketProxyOperation::executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[])
 {
-	this->inputOperation->read(color, x, y, sampler, inputBuffers);
+	if (this->m_inputOperation) {
+		this->m_inputOperation->read(color, x, y, sampler, inputBuffers);
+	}
 }

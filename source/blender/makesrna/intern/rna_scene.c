@@ -101,6 +101,16 @@ EnumPropertyItem proportional_falloff_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
+/* subset of the enum - only curves, missing random and const */
+EnumPropertyItem proportional_falloff_curve_only_items[] = {
+	{PROP_SMOOTH, "SMOOTH", ICON_SMOOTHCURVE, "Smooth", "Smooth falloff"},
+	{PROP_SPHERE, "SPHERE", ICON_SPHERECURVE, "Sphere", "Spherical falloff"},
+	{PROP_ROOT, "ROOT", ICON_ROOTCURVE, "Root", "Root falloff"},
+	{PROP_SHARP, "SHARP", ICON_SHARPCURVE, "Sharp", "Sharp falloff"},
+	{PROP_LIN, "LINEAR", ICON_LINCURVE, "Linear", "Linear falloff"},
+	{0, NULL, 0, NULL, NULL}
+};
+
 
 EnumPropertyItem proportional_editing_items[] = {
 	{PROP_EDIT_OFF, "DISABLED", ICON_PROP_OFF, "Disable", "Proportional Editing disabled"},
@@ -124,6 +134,14 @@ EnumPropertyItem snap_element_items[] = {
     {SCE_SNAP_MODE_EDGE_MIDDLE, "EDGE_MIDDLE", ICON_SNAP_EDGE, "Edge Middle", "Snap to middle of edges"},
 	{SCE_SNAP_MODE_FACE, "FACE", ICON_SNAP_FACE, "Face", "Snap to faces"},
 	{SCE_SNAP_MODE_VOLUME, "VOLUME", ICON_SNAP_VOLUME, "Volume", "Snap to volume"},
+	{0, NULL, 0, NULL, NULL}
+};
+
+EnumPropertyItem snap_node_element_items[] = {
+	{SCE_SNAP_MODE_INCREMENT, "INCREMENT", ICON_SNAP_INCREMENT, "Increment", "Snap to increments of grid"},
+	{SCE_SNAP_MODE_NODE_X, "NODE_X", ICON_SNAP_EDGE, "Node X", "Snap to left/right node border"},
+	{SCE_SNAP_MODE_NODE_Y, "NODE_Y", ICON_SNAP_EDGE, "Node Y", "Snap to top/bottom node border"},
+	{SCE_SNAP_MODE_NODE_XY, "NODE_XY", ICON_SNAP_EDGE, "Node X / Y", "Snap to any node border"},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -727,7 +745,7 @@ static void rna_ImageFormatSettings_file_format_set(PointerRNA *ptr, int value)
 }
 
 static EnumPropertyItem *rna_ImageFormatSettings_file_format_itemf(bContext *C, PointerRNA *ptr,
-                                                                   PropertyRNA *UNUSED(prop), int *free)
+                                                                   PropertyRNA *UNUSED(prop), int *UNUSED(free))
 {
 	ID *id = ptr->id.data;
 	if (id && GS(id->name) == ID_SCE) {
@@ -746,7 +764,7 @@ static EnumPropertyItem *rna_ImageFormatSettings_color_mode_itemf(bContext *C, P
 	const char is_render = (id && GS(id->name) == ID_SCE);
 
 	/* note, we need to act differently for render
-	 * where 'BW' will force greyscale even if the output format writes
+	 * where 'BW' will force grayscale even if the output format writes
 	 * as RGBA, this is age old blender convention and not sure how useful
 	 * it really is but keep it for now - campbell */
 	char chan_flag = BKE_imtype_valid_channels(imf->imtype) | (is_render ? IMA_CHAN_FLAG_BW : 0);
@@ -1566,6 +1584,12 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	RNA_def_property_ui_icon(prop, ICON_PROP_OFF, 1);
 	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* header redraw */
 
+	prop = RNA_def_property(srna, "use_proportional_edit_mask", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "proportional_mask", 0);
+	RNA_def_property_ui_text(prop, "Proportional Editing Objects", "Proportional editing mask mode");
+	RNA_def_property_ui_icon(prop, ICON_PROP_OFF, 1);
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* header redraw */
+
 	prop = RNA_def_property(srna, "proportional_edit_falloff", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "prop_mode");
 	RNA_def_property_enum_items(prop, proportional_falloff_items);
@@ -1611,6 +1635,13 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	RNA_def_property_enum_items(prop, snap_element_items);
 	RNA_def_property_ui_text(prop, "Snap Element", "Type of element to snap to");
 	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* header redraw */
+	
+	/* node editor uses own set of snap modes */
+	prop = RNA_def_property(srna, "snap_node_element", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "snap_node_mode");
+	RNA_def_property_enum_items(prop, snap_node_element_items);
+	RNA_def_property_ui_text(prop, "Snap Node Element", "Type of element to snap to");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* header redraw */
 
 	prop = RNA_def_property(srna, "snap_target", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "snap_target");
@@ -1636,7 +1667,7 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	RNA_def_property_ui_text(prop, "Project to Self", "Snap onto itself (editmode)");
 	RNA_def_property_ui_icon(prop, ICON_ORTHO, 0);
 	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* header redraw */
-	
+
 	/* Grease Pencil */
 	prop = RNA_def_property(srna, "use_grease_pencil_sessions", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "gpencil_flags", GP_TOOL_FLAG_PAINTSESSIONS_ON);
@@ -2445,7 +2476,7 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "use_desktop", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "playerflag", GAME_PLAYER_DESKTOP_RESOLUTION);
-	RNA_def_property_ui_text(prop, "Desktop", "Uses the current desktop resultion in fullscreen mode");
+	RNA_def_property_ui_text(prop, "Desktop", "Use the current desktop resolution in fullscreen mode");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
 
 	/* Framing */
@@ -2576,6 +2607,31 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Physics Sub Steps",
 	                         "Number of simulation substep per physic timestep, "
 	                         "higher value give better physics precision");
+	RNA_def_property_update(prop, NC_SCENE, NULL);
+
+	prop = RNA_def_property(srna, "deactivation_linear_threshold", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "lineardeactthreshold");
+	RNA_def_property_ui_range(prop, 0.001, 10000.0, 2, 3);
+	RNA_def_property_range(prop, 0.001, 10000.0);
+	RNA_def_property_ui_text(prop, "Deactivation Linear Threshold",
+	                         "Linear velocity that an object must be below before the deactivation timer can start");
+	RNA_def_property_update(prop, NC_SCENE, NULL);
+
+	prop = RNA_def_property(srna, "deactivation_angular_threshold", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "angulardeactthreshold");
+	RNA_def_property_ui_range(prop, 0.001, 10000.0, 2, 3);
+	RNA_def_property_range(prop, 0.001, 10000.0);
+	RNA_def_property_ui_text(prop, "Deactivation Angular Threshold",
+	                         "Angular velocity that an object must be below before the deactivation timer can start");
+	RNA_def_property_update(prop, NC_SCENE, NULL);
+
+	prop = RNA_def_property(srna, "deactivation_time", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "deactivationtime");
+	RNA_def_property_ui_range(prop, 0.0, 60.0, 1, 1);
+	RNA_def_property_range(prop, 0.0, 60.0);
+	RNA_def_property_ui_text(prop, "Deactivation Time",
+	                         "Amount of time (in seconds) after which objects with a velocity less than the given "
+	                         "threshold will deactivate (0.0 means no deactivation)");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
 
 	/* mode */
@@ -2814,7 +2870,7 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, image_color_mode_items);
 	RNA_def_property_enum_funcs(prop, NULL, NULL, "rna_ImageFormatSettings_color_mode_itemf");
 	RNA_def_property_ui_text(prop, "Color Mode",
-	                         "Choose BW for saving greyscale images, RGB for saving red, green and blue channels, "
+	                         "Choose BW for saving grayscale images, RGB for saving red, green and blue channels, "
 	                         "and RGBA for saving red, green, blue and alpha channels");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
@@ -3630,6 +3686,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "use_compositing", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "scemode", R_DOCOMP);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Compositing",
 	                         "Process the render result through the compositing pipeline, "
 	                         "if compositing nodes are enabled");
@@ -3637,6 +3694,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "use_sequencer", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "scemode", R_DOSEQ);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Sequencer",
 	                         "Process the render (and composited) result through the video sequence "
 	                         "editor pipeline, if sequencer strips exist");
@@ -3726,65 +3784,78 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "bake_mode");
 	RNA_def_property_enum_items(prop, bake_mode_items);
 	RNA_def_property_ui_text(prop, "Bake Mode", "Choose shading information to bake into the image");
-	
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
 	prop = RNA_def_property(srna, "bake_normal_space", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "bake_normal_space");
 	RNA_def_property_enum_items(prop, bake_normal_space_items);
 	RNA_def_property_ui_text(prop, "Normal Space", "Choose normal space for baking");
-	
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
 	prop = RNA_def_property(srna, "bake_quad_split", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, bake_qyad_split_items);
 	RNA_def_property_ui_text(prop, "Quad Split", "Choose the method used to split a quad into 2 triangles for baking");
-	
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
 	prop = RNA_def_property(srna, "bake_aa_mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "bake_osa");
 	RNA_def_property_enum_items(prop, fixed_oversample_items);
 	RNA_def_property_ui_text(prop, "Anti-Aliasing Level", "");
-	
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
 	prop = RNA_def_property(srna, "use_bake_selected_to_active", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "bake_flag", R_BAKE_TO_ACTIVE);
 	RNA_def_property_ui_text(prop, "Selected to Active",
 	                         "Bake shading on the surface of selected objects to the active object");
-	
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
 	prop = RNA_def_property(srna, "use_bake_normalize", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "bake_flag", R_BAKE_NORMALIZE);
 	RNA_def_property_ui_text(prop, "Normalized",
 	                         "With displacement normalize to the distance, with ambient occlusion "
 	                         "normalize without using material settings");
-	
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
 	prop = RNA_def_property(srna, "use_bake_clear", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "bake_flag", R_BAKE_CLEAR);
 	RNA_def_property_ui_text(prop, "Clear", "Clear Images before baking");
-	
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
 	prop = RNA_def_property(srna, "use_bake_antialiasing", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "bake_flag", R_BAKE_OSA);
 	RNA_def_property_ui_text(prop, "Anti-Aliasing", "Enables Anti-aliasing");
-	
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
 	prop = RNA_def_property(srna, "bake_margin", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "bake_filter");
 	RNA_def_property_range(prop, 0, 64);
 	RNA_def_property_ui_text(prop, "Margin",
 	                         "Amount of pixels to extend the baked result with, as post process filter");
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	prop = RNA_def_property(srna, "bake_distance", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "bake_maxdist");
 	RNA_def_property_range(prop, 0.0, 1000.0);
 	RNA_def_property_ui_text(prop, "Distance",
 	                         "Maximum distance from active object to other object (in blender units)");
-	
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
 	prop = RNA_def_property(srna, "bake_bias", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "bake_biasdist");
 	RNA_def_property_range(prop, 0.0, 1000.0);
 	RNA_def_property_ui_text(prop, "Bias", "Bias towards faces further away from the object (in blender units)");
-	
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
 	prop = RNA_def_property(srna, "use_bake_multires", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "bake_flag", R_BAKE_MULTIRES);
 	RNA_def_property_ui_text(prop, "Bake from Multires", "Bake directly from multires object");
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	prop = RNA_def_property(srna, "use_bake_lores_mesh", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "bake_flag", R_BAKE_LORES_MESH);
 	RNA_def_property_ui_text(prop, "Low Resolution Mesh",
 	                         "Calculate heights against unsubdivided low resolution mesh");
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	/* stamp */
 	
@@ -4202,7 +4273,7 @@ void RNA_def_scene(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK);
 	RNA_def_property_pointer_funcs(prop, NULL, "rna_Scene_set_set", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Background Scene", "Background set scene");
-	RNA_def_property_update(prop, NC_SCENE | NA_EDITED, NULL);
+	RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_glsl_update");
 
 	prop = RNA_def_property(srna, "world", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_EDITABLE);

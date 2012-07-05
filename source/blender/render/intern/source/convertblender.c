@@ -130,7 +130,7 @@
 /* ------------------------------------------------------------------------- */
 /* this is a bad beast, since it is misused by the 3d view drawing as well. */
 
-static HaloRen *initstar(Render *re, ObjectRen *obr, float *vec, float hasize)
+static HaloRen *initstar(Render *re, ObjectRen *obr, const float vec[3], float hasize)
 {
 	HaloRen *har;
 	float hoco[4];
@@ -327,16 +327,16 @@ void RE_make_stars(Render *re, Scene *scenev3d, void (*initfunc)(void),
 
 #define UVTOINDEX(u,v) (startvlak + (u) * sizev + (v))
 /*
-
-NOTE THAT U/V COORDINATES ARE SOMETIMES SWAPPED !!
-	
-^	()----p4----p3----()
-|	|     |     |     |
-u	|     |  F1 |  F2 |
-	|     |     |     |
-	()----p1----p2----()
-		   v ->
-*/
+ *
+ * NOTE THAT U/V COORDINATES ARE SOMETIMES SWAPPED !!
+ *
+ * ^   ()----p4----p3----()
+ * |   |     |     |     |
+ * u   |     |  F1 |  F2 |
+ *     |     |     |     |
+ *     ()----p1----p2----()
+ *            v ->
+ */
 
 /* ------------------------------------------------------------------------- */
 
@@ -520,8 +520,7 @@ static void calc_tangent_vector(ObjectRen *obr, VertexTangent **vtangents, MemAr
  ************ tangent space generation interface ****************
  ****************************************************************/
 
-typedef struct
-{
+typedef struct {
 	ObjectRen *obr;
 
 } SRenderMeshToTangent;
@@ -1011,8 +1010,7 @@ static Material *give_render_material(Render *re, Object *ob, short nr)
 /* ------------------------------------------------------------------------- */
 /* Particles                                                                 */
 /* ------------------------------------------------------------------------- */
-typedef struct ParticleStrandData
-{
+typedef struct ParticleStrandData {
 	struct MCol *mcol;
 	float *orco, *uvco, *surfnor;
 	float time, adapt_angle, adapt_pix, size;
@@ -1324,7 +1322,8 @@ static void static_particle_wire(ObjectRen *obr, Material *ma, const float vec[3
 
 }
 
-static void particle_curve(Render *re, ObjectRen *obr, DerivedMesh *dm, Material *ma, ParticleStrandData *sd, float *loc, float *loc1,	int seed, float *pa_co)
+static void particle_curve(Render *re, ObjectRen *obr, DerivedMesh *dm, Material *ma, ParticleStrandData *sd,
+                           const float loc[3], const float loc1[3], int seed, float *pa_co)
 {
 	HaloRen *har=0;
 
@@ -1730,7 +1729,7 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 			strandbuf->minwidth= ma->strand_min;
 
 			if (ma->strand_widthfade == 0.0f)
-				strandbuf->widthfade= 0.0f;
+				strandbuf->widthfade= -1.0f;
 			else if (ma->strand_widthfade >= 1.0f)
 				strandbuf->widthfade= 2.0f - ma->strand_widthfade;
 			else
@@ -3227,12 +3226,15 @@ static void init_camera_inside_volumes(Render *re)
 		}
 	}
 
-	/* debug {
-	MatInside *m;
-	for (m=re->render_volumes_inside.first; m; m=m->next) {
-		printf("matinside: ma: %s\n", m->ma->id.name+2);
+
+#if 0 /* debug */
+	{
+		MatInside *m;
+		for (m = re->render_volumes_inside.first; m; m = m->next) {
+			printf("matinside: ma: %s\n", m->ma->id.name + 2);
+		}
 	}
-	}*/
+#endif
 }
 
 static void add_volume(Render *re, ObjectRen *obr, Material *ma)
@@ -3790,7 +3792,8 @@ static GroupObject *add_render_lamp(Render *re, Object *ob)
 		lar->area_sizey= lar->area_size;
 
 		if ((la->sun_effect_type & LA_SUN_EFFECT_SKY) ||
-				(la->sun_effect_type & LA_SUN_EFFECT_AP)) {
+		    (la->sun_effect_type & LA_SUN_EFFECT_AP))
+		{
 			lar->sunsky = (struct SunSky*)MEM_callocN(sizeof(struct SunSky), "sunskyren");
 			lar->sunsky->effect_type = la->sun_effect_type;
 		
@@ -4318,7 +4321,7 @@ static void finalize_render_object(Render *re, ObjectRen *obr, int timeoffset)
 				/* Baking lets us define a quad split order */
 				split_quads(obr, re->r.bake_quad_split);
 			}
-			else if(BKE_object_is_animated(re->scene, ob))
+			else if (BKE_object_is_animated(re->scene, ob))
 				split_quads(obr, 1);
 			else {
 				if ((re->r.mode & R_SIMPLIFY && re->r.simplify_flag & R_SIMPLE_NO_TRIANGULATE) == 0)
@@ -5644,7 +5647,7 @@ void RE_Database_FromScene_Vectors(Render *re, Main *bmain, Scene *sce, unsigned
 						ok= 1;
 				}
 				if (ok==0) {
-					 printf("speed table: missing object %s\n", obi->ob->id.name+2);
+					printf("speed table: missing object %s\n", obi->ob->id.name+2);
 					continue;
 				}
 

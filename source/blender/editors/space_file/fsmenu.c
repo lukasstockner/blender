@@ -440,7 +440,7 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 		}
 		
 		/* Finally get user favorite places */
-		if(read_bookmarks) {
+		if (read_bookmarks) {
 			list = LSSharedFileListCreate(NULL, kLSSharedFileListFavoriteItems, NULL);
 			pathesArray = LSSharedFileListCopySnapshot(list, &seed);
 			pathesCount = CFArrayGetCount(pathesArray);
@@ -449,9 +449,9 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 				itemRef = (LSSharedFileListItemRef)CFArrayGetValueAtIndex(pathesArray, i);
 				
 				err = LSSharedFileListItemResolve(itemRef, 
-												  kLSSharedFileListNoUserInteraction |
-												  kLSSharedFileListDoNotMountVolumes,
-												  &cfURL, NULL);
+				                                  kLSSharedFileListNoUserInteraction |
+				                                  kLSSharedFileListDoNotMountVolumes,
+				                                  &cfURL, NULL);
 				if (err != noErr)
 					continue;
 				

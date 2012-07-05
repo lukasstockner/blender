@@ -171,6 +171,9 @@ typedef struct uiLayout uiLayout;
 #define UI_PANEL_WIDTH          340
 #define UI_COMPACT_PANEL_WIDTH  160
 
+/* uiBut->drawflag */
+#define UI_BUT_DRAW_ENUM_ARROWS    (1 << 0) /* draw enum-like up/down arrows for button */
+
 /* scale fixed button widths by this to account for DPI
  * 8.4852 == sqrtf(72.0f)) */
 #define UI_DPI_FAC (sqrtf((float)U.dpi) / 8.48528137423857f)
@@ -192,7 +195,8 @@ typedef struct uiLayout uiLayout;
 /*#define FUN	192*/ /*UNUSED*/
 #define BIT 256
 
-#define BUTPOIN (128 + 64 + 32)
+/* button reqyires a pointer */
+#define BUTPOIN (FLO | SHO | CHA)
 
 #define BUT (1 << 9)
 #define ROW (2 << 9)
@@ -426,6 +430,9 @@ int     UI_but_active_drop_name(struct bContext *C);
 
 void    uiButSetFlag(uiBut *but, int flag);
 void    uiButClearFlag(uiBut *but, int flag);
+
+void    uiButSetDrawFlag(uiBut *but, int flag);
+void    uiButClearDrawFlag(uiBut *but, int flag);
 
 /* special button case, only draw it when used actively, for outliner etc */
 int     uiButActiveOnly(const struct bContext *C, uiBlock *block, uiBut *but);

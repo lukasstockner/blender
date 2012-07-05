@@ -33,6 +33,10 @@ set(INC
 	../../../intern/opennl/extern
 )
 
+set(INC_SYS
+
+)
+
 set(SRC
 	operators/bmo_bevel.c
 	operators/bmo_connect.c

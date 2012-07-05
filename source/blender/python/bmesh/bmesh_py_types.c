@@ -1024,7 +1024,7 @@ PyDoc_STRVAR(bpy_bm_elem_select_set_doc,
 ".. method:: select_set(select)\n"
 "\n"
 "   Set the selection.\n"
-"   This is different from the *select* attribute because it updates the selection state of assosiated geometry.\n"
+"   This is different from the *select* attribute because it updates the selection state of associated geometry.\n"
 "\n"
 "   :arg select: Select or de-select.\n"
 "   :type select: boolean\n"
@@ -1057,7 +1057,7 @@ PyDoc_STRVAR(bpy_bm_elem_hide_set_doc,
 ".. method:: hide_set(hide)\n"
 "\n"
 "   Set the hide state.\n"
-"   This is different from the *hide* attribute because it updates the selection and hide state of assosiated geometry.\n"
+"   This is different from the *hide* attribute because it updates the selection and hide state of associated geometry.\n"
 "\n"
 "   :arg hide: Hidden or visible.\n"
 "   :type hide: boolean\n"
@@ -2065,7 +2065,7 @@ static PyObject *bpy_bmelemseq_index_update(BPy_BMElemSeq *self)
 			int index = 0;
 			const char htype = bm_iter_itype_htype_map[self->itype];
 
-			BM_ITER_BPY_BM_SEQ(ele, &iter, self) {
+			BM_ITER_BPY_BM_SEQ (ele, &iter, self) {
 				BM_elem_index_set(ele, index); /* set_dirty! */
 				index++;
 			}
@@ -2099,7 +2099,7 @@ static struct PyMethodDef bpy_bmesh_methods[] = {
     {"select_flush_mode", (PyCFunction)bpy_bmesh_select_flush_mode, METH_NOARGS, bpy_bmesh_select_flush_mode_doc},
     {"select_flush", (PyCFunction)bpy_bmesh_select_flush, METH_O, bpy_bmesh_select_flush_doc},
     {"normal_update", (PyCFunction)bpy_bmesh_normal_update, METH_VARARGS, bpy_bmesh_normal_update_doc},
-    {"transform", (PyCFunction)bpy_bmesh_transform, METH_VARARGS|METH_KEYWORDS, bpy_bmesh_transform_doc},
+    {"transform", (PyCFunction)bpy_bmesh_transform, METH_VARARGS | METH_KEYWORDS, bpy_bmesh_transform_doc},
     {NULL, NULL, 0, NULL}
 };
 
@@ -2141,7 +2141,7 @@ static struct PyMethodDef bpy_bmface_methods[] = {
     {"copy_from", (PyCFunction)bpy_bm_elem_copy_from, METH_O, bpy_bm_elem_copy_from_doc},
     {"copy_from_face_interp", (PyCFunction)bpy_bmface_copy_from_face_interp, METH_O, bpy_bmface_copy_from_face_interp_doc},
 
-    {"copy", (PyCFunction)bpy_bmface_copy, METH_VARARGS|METH_KEYWORDS, bpy_bmface_copy_doc},
+    {"copy", (PyCFunction)bpy_bmface_copy, METH_VARARGS | METH_KEYWORDS, bpy_bmface_copy_doc},
 
     {"calc_area",          (PyCFunction)bpy_bmface_calc_area,          METH_NOARGS, bpy_bmface_calc_area_doc},
     {"calc_perimeter",     (PyCFunction)bpy_bmface_calc_perimeter,     METH_NOARGS, bpy_bmface_calc_perimeter_doc},
@@ -2278,7 +2278,7 @@ static Py_ssize_t bpy_bmelemseq_length(BPy_BMElemSeq *self)
 		BMHeader *ele;
 		Py_ssize_t tot = 0;
 
-		BM_ITER_BPY_BM_SEQ(ele, &iter, self) {
+		BM_ITER_BPY_BM_SEQ (ele, &iter, self) {
 			tot++;
 		}
 		return tot;
@@ -2409,7 +2409,7 @@ static int bpy_bmelemseq_contains(BPy_BMElemSeq *self, PyObject *value)
 		if (value_bm_ele->bm == self->bm) {
 			BMElem *ele, *ele_test = value_bm_ele->ele;
 			BMIter iter;
-			BM_ITER_BPY_BM_SEQ(ele, &iter, self) {
+			BM_ITER_BPY_BM_SEQ (ele, &iter, self) {
 				if (ele == ele_test) {
 					return 1;
 				}
@@ -3115,6 +3115,21 @@ PyObject *BPy_BMElem_CreatePyObject(BMesh *bm, BMHeader *ele)
 int bpy_bm_generic_valid_check(BPy_BMGeneric *self)
 {
 	if (LIKELY(self->bm)) {
+
+		/* far too slow to enable by default but handy
+		 * to uncomment for debugging tricky errors,
+		 * note that this will throw error on entering a
+		 * function where the actual error will be caused by
+		 * the previous action. */
+#if 0
+		if (BM_mesh_validate(self->bm) == FALSE) {
+			PyErr_Format(PyExc_ReferenceError,
+			             "BMesh used by %.200s has become invalid",
+			             Py_TYPE(self)->tp_name);
+			return -1;
+		}
+#endif
+
 		return 0;
 	}
 	else {

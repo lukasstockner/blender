@@ -108,6 +108,7 @@ def validate_arguments(args, bc):
             'WITH_BF_STATICFFMPEG', 'BF_FFMPEG_LIB_STATIC',
             'WITH_BF_OGG', 'BF_OGG', 'BF_OGG_LIB',
             'WITH_BF_FRAMESERVER',
+            'WITH_BF_COMPOSITOR',
             'WITH_BF_JPEG', 'BF_JPEG', 'BF_JPEG_INC', 'BF_JPEG_LIB', 'BF_JPEG_LIBPATH',
             'WITH_BF_OPENJPEG', 'BF_OPENJPEG', 'BF_OPENJPEG_INC', 'BF_OPENJPEG_LIB', 'BF_OPENJPEG_LIBPATH',
             'WITH_BF_REDCODE', 'BF_REDCODE', 'BF_REDCODE_INC', 'BF_REDCODE_LIB', 'BF_REDCODE_LIBPATH',
@@ -134,7 +135,7 @@ def validate_arguments(args, bc):
             'BF_CXX', 'WITH_BF_STATICCXX', 'BF_CXX_LIB_STATIC',
             'BF_TWEAK_MODE', 'BF_SPLIT_SRC',
             'WITHOUT_BF_INSTALL',
-            'WITHOUT_BF_PYTHON_INSTALL',
+            'WITHOUT_BF_PYTHON_INSTALL', 'WITHOUT_BF_PYTHON_UNPACK',
             'WITHOUT_BF_OVERWRITE_INSTALL',
             'WITH_BF_OPENMP', 'BF_OPENMP', 'BF_OPENMP_LIBPATH',
             'WITH_GHOST_COCOA',
@@ -519,6 +520,7 @@ def read_opts(env, cfg, args):
         (BoolVariable('BF_SPLIT_SRC', 'Split src lib into several chunks if true', False)),
         (BoolVariable('WITHOUT_BF_INSTALL', 'dont install if true', False)),
         (BoolVariable('WITHOUT_BF_PYTHON_INSTALL', 'dont install Python modules if true', False)),
+        (BoolVariable('WITHOUT_BF_PYTHON_UNPACK', 'dont remove and unpack Python modules everytime if true', False)),
         (BoolVariable('WITHOUT_BF_OVERWRITE_INSTALL', 'dont remove existing files before breating the new install directory (set to False when making packages for others)', False)),
         (BoolVariable('BF_FANCY', 'Enable fancy output if true', True)),
         (BoolVariable('BF_QUIET', 'Enable silent output if true', True)),
@@ -530,6 +532,8 @@ def read_opts(env, cfg, args):
         (BoolVariable('WITH_BF_CARVE', 'Enable carve library for mesh boolean operations', True)),
         
         (BoolVariable('WITH_BF_LIBMV', 'Enable libmv structure from motion library', True)),
+        
+        (BoolVariable('WITH_BF_COMPOSITOR', 'Enable the tile based nodal compositor', True)),
 
         ('BF_X264_CONFIG', 'configuration flags for x264', ''),
         ('BF_XVIDCORE_CONFIG', 'configuration flags for xvidcore', ''),

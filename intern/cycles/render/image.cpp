@@ -66,7 +66,7 @@ static bool is_float_image(const string& filename)
 
 		if(in->open(filename, spec)) {
 			/* check the main format, and channel formats;
-			   if any take up more than one byte, we'll need a float texture slot */
+			 * if any take up more than one byte, we'll need a float texture slot */
 			if(spec.format.basesize() > 1)
 				is_float = true;
 
@@ -109,8 +109,11 @@ int ImageManager::add_image(const string& filename, bool& is_float)
 
 		if(slot == float_images.size()) {
 			/* max images limit reached */
-			if(float_images.size() == TEX_NUM_FLOAT_IMAGES)
+			if(float_images.size() == TEX_NUM_FLOAT_IMAGES) {
+				printf("ImageManager::add_image: byte image limit reached %d, skipping '%s'\n",
+				       TEX_NUM_IMAGES, filename.c_str());
 				return -1;
+			}
 
 			float_images.resize(float_images.size() + 1);
 		}
@@ -141,8 +144,11 @@ int ImageManager::add_image(const string& filename, bool& is_float)
 
 		if(slot == images.size()) {
 			/* max images limit reached */
-			if(images.size() == TEX_NUM_IMAGES)
+			if(images.size() == TEX_NUM_IMAGES) {
+				printf("ImageManager::add_image: byte image limit reached %d, skipping '%s'\n",
+				       TEX_NUM_IMAGES, filename.c_str());
 				return -1;
+			}
 
 			images.resize(images.size() + 1);
 		}
@@ -171,8 +177,8 @@ void ImageManager::remove_image(const string& filename)
 			assert(images[slot]->users >= 0);
 
 			/* don't remove immediately, rather do it all together later on. one of
-			   the reasons for this is that on shader changes we add and remove nodes
-			   that use them, but we do not want to reload the image all the time. */
+			 * the reasons for this is that on shader changes we add and remove nodes
+			 * that use them, but we do not want to reload the image all the time. */
 			if(images[slot]->users == 0)
 				need_update = true;
 
@@ -189,8 +195,8 @@ void ImageManager::remove_image(const string& filename)
 				assert(float_images[slot]->users >= 0);
 
 				/* don't remove immediately, rather do it all together later on. one of
-				   the reasons for this is that on shader changes we add and remove nodes
-				   that use them, but we do not want to reload the image all the time. */
+				 * the reasons for this is that on shader changes we add and remove nodes
+				 * that use them, but we do not want to reload the image all the time. */
 				if(float_images[slot]->users == 0)
 					need_update = true;
 
@@ -353,13 +359,13 @@ void ImageManager::device_load_image(Device *device, DeviceScene *dscene, int sl
 			device->tex_free(tex_img);
 
 		if(!file_load_float_image(img, tex_img)) {
-			/* on failure to load, we set a 1x1 pixels black image */
+			/* on failure to load, we set a 1x1 pixels pink image */
 			float *pixels = (float*)tex_img.resize(1, 1);
 
-			pixels[0] = 0.0f;
-			pixels[1] = 0.0f;
-			pixels[2] = 0.0f;
-			pixels[3] = 0.0f;
+			pixels[0] = TEX_IMAGE_MISSING_R;
+			pixels[1] = TEX_IMAGE_MISSING_G;
+			pixels[2] = TEX_IMAGE_MISSING_B;
+			pixels[3] = TEX_IMAGE_MISSING_A;
 		}
 
 		string name;
@@ -380,13 +386,13 @@ void ImageManager::device_load_image(Device *device, DeviceScene *dscene, int sl
 			device->tex_free(tex_img);
 
 		if(!file_load_image(img, tex_img)) {
-			/* on failure to load, we set a 1x1 pixels black image */
+			/* on failure to load, we set a 1x1 pixels pink image */
 			uchar *pixels = (uchar*)tex_img.resize(1, 1);
 
-			pixels[0] = 0;
-			pixels[1] = 0;
-			pixels[2] = 0;
-			pixels[3] = 0;
+			pixels[0] = (TEX_IMAGE_MISSING_R * 255);
+			pixels[1] = (TEX_IMAGE_MISSING_G * 255);
+			pixels[2] = (TEX_IMAGE_MISSING_B * 255);
+			pixels[3] = (TEX_IMAGE_MISSING_A * 255);
 		}
 
 		string name;
@@ -483,7 +489,7 @@ void ImageManager::device_update(Device *device, DeviceScene *dscene, Progress& 
 void ImageManager::device_pack_images(Device *device, DeviceScene *dscene, Progress& progess)
 {
 	/* for OpenCL, we pack all image textures inside a single big texture, and
-	   will do our own interpolation in the kernel */
+	 * will do our own interpolation in the kernel */
 	size_t size = 0;
 
 	for(size_t slot = 0; slot < images.size(); slot++) {

@@ -272,7 +272,7 @@ void UI_view2d_region_reinit(View2D *v2d, short type, int winx, int winy)
 				v2d->keepzoom = (V2D_KEEPASPECT | V2D_LIMITZOOM | V2D_KEEPZOOM);
 				v2d->minzoom = 0.5f;
 				v2d->maxzoom = 2.0f;
-				//tot_changed= 1;
+				//tot_changed = 1;
 				
 				v2d->align = (V2D_ALIGN_NO_NEG_X | V2D_ALIGN_NO_POS_Y);
 				v2d->keeptot = V2D_KEEPTOT_BOUNDS;
@@ -428,10 +428,10 @@ void UI_view2d_curRect_validate_resize(View2D *v2d, int resize)
 		if (winx != v2d->oldwinx) do_x = TRUE;
 		if (winy != v2d->oldwiny) do_y = TRUE;
 		
-		/* curRatio= height / width; */ /* UNUSED */
+		/* curRatio = height / width; */ /* UNUSED */
 		winRatio = winy / winx;
 		
-		/* both sizes change (area/region maximised)  */
+		/* both sizes change (area/region maximized)  */
 		if (do_x == do_y) {
 			if (do_x && do_y) {
 				/* here is 1,1 case, so all others must be 0,0 */
@@ -442,7 +442,7 @@ void UI_view2d_curRect_validate_resize(View2D *v2d, int resize)
 			else do_x = TRUE;
 		}
 		do_cur = do_x;
-		/* do_win= do_y; */ /* UNUSED */
+		/* do_win = do_y; */ /* UNUSED */
 		
 		if (do_cur) {
 			if ((v2d->keeptot == V2D_KEEPTOT_STRICT) && (winx != v2d->oldwinx)) {
@@ -806,7 +806,7 @@ void UI_view2d_curRect_reset(View2D *v2d)
 		v2d->cur.xmax = (float)width;
 	}
 	else {
-		/* width is centered around x==0 */
+		/* width is centered around (x == 0) */
 		const float dx = (float)width / 2.0f;
 		
 		v2d->cur.xmin = -dx;
@@ -825,7 +825,7 @@ void UI_view2d_curRect_reset(View2D *v2d)
 		v2d->cur.ymax = (float)height;
 	}
 	else {
-		/* height is centered around y==0 */
+		/* height is centered around (y == 0) */
 		const float dy = (float)height / 2.0f;
 		
 		v2d->cur.ymin = -dy;
@@ -869,7 +869,7 @@ void UI_view2d_totRect_set_resize(View2D *v2d, int width, int height, int resize
 		v2d->tot.xmax = (float)width;
 	}
 	else {
-		/* width is centered around x==0 */
+		/* width is centered around (x == 0) */
 		const float dx = (float)width / 2.0f;
 		
 		v2d->tot.xmin = -dx;
@@ -888,7 +888,7 @@ void UI_view2d_totRect_set_resize(View2D *v2d, int width, int height, int resize
 		v2d->tot.ymax = (float)height;
 	}
 	else {
-		/* height is centered around y==0 */
+		/* height is centered around (y == 0) */
 		const float dy = (float)height / 2.0f;
 		
 		v2d->tot.ymin = -dy;
@@ -1326,6 +1326,54 @@ void UI_view2d_constant_grid_draw(View2D *v2d)
 	glVertex2f(v2d->cur.xmax, 0.0f);
 	
 	glEnd();
+}
+
+/* Draw a multi-level grid in given 2d-region */
+void UI_view2d_multi_grid_draw(View2D *v2d, float step, int level_size, int totlevels)
+{
+	int offset = -10;
+	float lstep = step;
+	int level;
+	
+	for (level = 0; level < totlevels; ++level) {
+		int i;
+		float start;
+		
+		UI_ThemeColorShade(TH_BACK, offset);
+		
+		i = (v2d->cur.xmin >= 0.0f ? -(int)(-v2d->cur.xmin / lstep) : (int)(v2d->cur.xmin / lstep));
+		start = i * lstep;
+		
+		glBegin(GL_LINES);
+		for (; start < v2d->cur.xmax; start += lstep, ++i) {
+			if (i == 0 || (level < totlevels - 1 && i % level_size == 0))
+				continue;
+			glVertex2f(start, v2d->cur.ymin);
+			glVertex2f(start, v2d->cur.ymax);
+		}
+		
+		i = (v2d->cur.ymin >= 0.0f ? -(int)(-v2d->cur.ymin / lstep) : (int)(v2d->cur.ymin / lstep));
+		start = i * lstep;
+		
+		for (; start < v2d->cur.ymax; start += lstep, ++i) {
+			if (i == 0 || (level < totlevels - 1 && i % level_size == 0))
+				continue;
+			glVertex2f(v2d->cur.xmin, start);
+			glVertex2f(v2d->cur.xmax, start);
+		}
+		
+		/* X and Y axis */
+		UI_ThemeColorShade(TH_BACK, offset - 8);
+		glVertex2f(0.0f, v2d->cur.ymin);
+		glVertex2f(0.0f, v2d->cur.ymax);
+		glVertex2f(v2d->cur.xmin, 0.0f);
+		glVertex2f(v2d->cur.xmax, 0.0f);
+		
+		glEnd();
+		
+		lstep *= level_size;
+		offset -= 6;
+	}
 }
 
 /* the price we pay for not exposting structs :( */
@@ -2078,18 +2126,21 @@ void UI_view2d_text_cache_draw(ARegion *ar)
 {
 	View2DString *v2s;
 	int col_pack_prev = 0;
+
+	/* investigate using BLF_ascender() */
+	const float default_height = strings.first ? BLF_height_default("28") : 0.0f;
 	
 	// glMatrixMode(GL_PROJECTION);
 	// glPushMatrix();
 	// glMatrixMode(GL_MODELVIEW);
 	// glPushMatrix();
 	ED_region_pixelspace(ar);
-	
+
 	for (v2s = strings.first; v2s; v2s = v2s->next) {
 		const char *str = (const char *)(v2s + 1);
 		int xofs = 0, yofs;
 
-		yofs = ceil(0.5f * (v2s->rect.ymax - v2s->rect.ymin - BLF_height_default("28")));
+		yofs = ceil(0.5f * (v2s->rect.ymax - v2s->rect.ymin - default_height));
 		if (yofs < 1) yofs = 1;
 
 		if (col_pack_prev != v2s->col.pack) {

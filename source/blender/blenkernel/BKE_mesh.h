@@ -33,6 +33,7 @@
 
 /***/
 
+struct ID;
 struct BoundBox;
 struct DispList;
 struct ListBase;
@@ -111,6 +112,10 @@ int poly_find_loop_from_vert(const struct MPoly *poly,
 int poly_get_adj_loops_from_vert(unsigned adj_r[3], const struct MPoly *poly,
                                  const struct MLoop *mloop, unsigned vert);
 
+/* Return the index of the edge vert that is not equal to 'v'. If
+ * neither edge vertex is equal to 'v', returns -1. */
+int BKE_mesh_edge_other_vert(const struct MEdge *e, int v);
+
 /* update the hide flag for edges and polys from the corresponding
  * flag in verts */
 void BKE_mesh_flush_hidden_from_verts(const struct MVert *mvert,
@@ -146,6 +151,14 @@ void copy_dverts(struct MDeformVert *dst, struct MDeformVert *src, int totvert);
 void BKE_mesh_delete_material_index(struct Mesh *me, short index);
 void BKE_mesh_smooth_flag_set(struct Object *meshOb, int enableSmooth);
 void BKE_mesh_convert_mfaces_to_mpolys(struct Mesh *mesh);
+void BKE_mesh_do_versions_convert_mfaces_to_mpolys(struct Mesh *mesh);
+void BKE_mesh_convert_mfaces_to_mpolys_ex(struct ID *id,
+                                          struct CustomData *fdata, struct CustomData *ldata, struct CustomData *pdata,
+                                          int totedge_i, int totface_i, int totloop_i, int totpoly_i,
+                                          struct MEdge *medge, struct MFace *mface,
+										  int *totloop_r, int *totpoly_r,
+										  struct MLoop **mloop_r, struct MPoly **mpoly_r);
+
 void BKE_mesh_calc_normals_tessface(struct MVert *mverts, int numVerts, struct MFace *mfaces, int numFaces, float (*faceNors_r)[3]);
 
 /* used for unit testing; compares two meshes, checking only
@@ -283,6 +296,7 @@ int BKE_mesh_validate_arrays(
         struct Mesh *me,
         struct MVert *mverts, unsigned int totvert,
         struct MEdge *medges, unsigned int totedge,
+        struct MFace *mfaces, unsigned int totface,
         struct MLoop *mloops, unsigned int totloop,
         struct MPoly *mpolys, unsigned int totpoly,
         struct MDeformVert *dverts, /* assume totvert length */

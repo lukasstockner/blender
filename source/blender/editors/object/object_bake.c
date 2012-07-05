@@ -534,7 +534,7 @@ static void get_ccgdm_data(DerivedMesh *lodm, DerivedMesh *hidm, const int *orig
 		int grid_index = origindex[face_index];
 		int loc_offs = face_index % (1 << (2 * lvl));
 		int cell_index = loc_offs % ((side - 1) * (side - 1));
-		int cell_side = grid_size / (side - 1);
+		int cell_side = (grid_size - 1) / (side - 1);
 		int row = cell_index / (side - 1);
 		int col = cell_index % (side - 1);
 
@@ -616,13 +616,15 @@ static void *init_heights_data(MultiresBakeRender *bkr, Image *ima)
 
 		CLAMP(ss_lvl, 0, 6);
 
-		smd.levels = smd.renderLevels = ss_lvl;
-		smd.flags |= eSubsurfModifierFlag_SubsurfUv;
+		if (ss_lvl > 0) {
+			smd.levels = smd.renderLevels = ss_lvl;
+			smd.flags |= eSubsurfModifierFlag_SubsurfUv;
 
-		if (bkr->simple)
-			smd.subdivType = ME_SIMPLE_SUBSURF;
+			if (bkr->simple)
+				smd.subdivType = ME_SIMPLE_SUBSURF;
 
-		height_data->ssdm = subsurf_make_derived_from_derived(bkr->lores_dm, &smd, NULL, 0);
+			height_data->ssdm = subsurf_make_derived_from_derived(bkr->lores_dm, &smd, NULL, 0);
+		}
 	}
 
 	height_data->origindex = lodm->getTessFaceDataArray(lodm, CD_ORIGINDEX);

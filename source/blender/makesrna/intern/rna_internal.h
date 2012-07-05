@@ -179,6 +179,7 @@ void RNA_def_wm(struct BlenderRNA *brna);
 void RNA_def_world(struct BlenderRNA *brna);
 void RNA_def_movieclip(struct BlenderRNA *brna);
 void RNA_def_tracking(struct BlenderRNA *brna);
+void RNA_def_mask(struct BlenderRNA *brna);
 
 /* Common Define functions */
 
@@ -192,6 +193,9 @@ void rna_def_mtex_common(struct BlenderRNA *brna, struct StructRNA *srna, const 
                          const char *activeset, const char *activeeditable, const char *structname,
                          const char *structname_slots, const char *update);
 void rna_def_render_layer_common(struct StructRNA *srna, int scene);
+
+void rna_def_actionbone_group_common(struct StructRNA *srna, int update_flag, const char *update_cb);
+void rna_ActionGroup_colorset_set(struct PointerRNA *ptr, int value);
 
 void rna_ID_name_get(struct PointerRNA *ptr, char *value);
 int rna_ID_name_length(struct PointerRNA *ptr);
@@ -298,6 +302,7 @@ void RNA_def_main_actions(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_particles(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_gpencil(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_movieclips(BlenderRNA *brna, PropertyRNA *cprop);
+void RNA_def_main_masks(BlenderRNA *brna, PropertyRNA *cprop);
 
 /* ID Properties */
 

@@ -36,27 +36,27 @@ extern "C" {
 	#include "IMB_imbuf_types.h"
 }
 
-BaseImageOperation::BaseImageOperation(): NodeOperation()
+BaseImageOperation::BaseImageOperation() : NodeOperation()
 {
-	this->image = NULL;
-	this->buffer = NULL;
-	this->imageBuffer = NULL;
-	this->imageUser = NULL;
-	this->imagewidth = 0;
-	this->imageheight = 0;
-	this->framenumber = 0;
-	this->depthBuffer = NULL;
-	this->numberOfChannels = 0;
+	this->m_image = NULL;
+	this->m_buffer = NULL;
+	this->m_imageBuffer = NULL;
+	this->m_imageUser = NULL;
+	this->m_imagewidth = 0;
+	this->m_imageheight = 0;
+	this->m_framenumber = 0;
+	this->m_depthBuffer = NULL;
+	this->m_numberOfChannels = 0;
 }
-ImageOperation::ImageOperation(): BaseImageOperation()
+ImageOperation::ImageOperation() : BaseImageOperation()
 {
 	this->addOutputSocket(COM_DT_COLOR);
 }
-ImageAlphaOperation::ImageAlphaOperation(): BaseImageOperation()
+ImageAlphaOperation::ImageAlphaOperation() : BaseImageOperation()
 {
 	this->addOutputSocket(COM_DT_VALUE);
 }
-ImageDepthOperation::ImageDepthOperation(): BaseImageOperation()
+ImageDepthOperation::ImageDepthOperation() : BaseImageOperation()
 {
 	this->addOutputSocket(COM_DT_VALUE);
 }
@@ -65,13 +65,13 @@ ImBuf *BaseImageOperation::getImBuf()
 {
 	ImBuf *ibuf;
 	
-	ibuf = BKE_image_get_ibuf(this->image, this->imageUser);
-	if (ibuf==NULL || (ibuf->rect==NULL && ibuf->rect_float==NULL)) {
-			return NULL;
+	ibuf = BKE_image_get_ibuf(this->m_image, this->m_imageUser);
+	if (ibuf == NULL || (ibuf->rect == NULL && ibuf->rect_float == NULL)) {
+		return NULL;
 	}
 	
 	if (ibuf->rect_float == NULL) {
-			IMB_float_from_rect(ibuf);
+		IMB_float_from_rect(ibuf);
 	}
 	return ibuf;
 }
@@ -80,27 +80,27 @@ ImBuf *BaseImageOperation::getImBuf()
 void BaseImageOperation::initExecution()
 {
 	ImBuf *stackbuf = getImBuf();
-	this->buffer = stackbuf;
+	this->m_buffer = stackbuf;
 	if (stackbuf) {
-		this->imageBuffer = stackbuf->rect_float;
-		this->depthBuffer = stackbuf->zbuf_float;
-		this->imagewidth = stackbuf->x;
-		this->imageheight = stackbuf->y;
-		this->numberOfChannels = stackbuf->channels;
+		this->m_imageBuffer = stackbuf->rect_float;
+		this->m_depthBuffer = stackbuf->zbuf_float;
+		this->m_imagewidth = stackbuf->x;
+		this->m_imageheight = stackbuf->y;
+		this->m_numberOfChannels = stackbuf->channels;
 	}
 }
 
 void BaseImageOperation::deinitExecution()
 {
-	this->imageBuffer = NULL;
+	this->m_imageBuffer = NULL;
 }
 
 void BaseImageOperation::determineResolution(unsigned int resolution[], unsigned int preferredResolution[])
 {
 	ImBuf *stackbuf = getImBuf();
 
-        resolution[0] = 0;
-        resolution[1] = 0;
+	resolution[0] = 0;
+	resolution[1] = 0;
 
 	if (stackbuf) {
 		resolution[0] = stackbuf->x;
@@ -108,25 +108,22 @@ void BaseImageOperation::determineResolution(unsigned int resolution[], unsigned
 	}
 }
 
-void ImageOperation::executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[])\
+void ImageOperation::executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[])
 {
-	if (this->imageBuffer == NULL || x < 0 || y < 0 || x >= this->getWidth() || y >= this->getHeight() ) {
-		color[0] = 0.0f;
-		color[1] = 0.0f;
-		color[2] = 0.0f;
-		color[3] = 0.0f;
+	if (this->m_imageBuffer == NULL || x < 0 || y < 0 || x >= this->getWidth() || y >= this->getHeight() ) {
+		zero_v4(color);
 	}
 	else {
 		switch (sampler) {
-		case COM_PS_NEAREST:
-			neareast_interpolation_color(this->buffer, NULL, color, x, y);
-			break;
-		case COM_PS_BILINEAR:
-			bilinear_interpolation_color(this->buffer, NULL, color, x, y);
-			break;
-		case COM_PS_BICUBIC:
-			bicubic_interpolation_color(this->buffer, NULL, color, x, y);
-			break;
+			case COM_PS_NEAREST:
+				neareast_interpolation_color(this->m_buffer, NULL, color, x, y);
+				break;
+			case COM_PS_BILINEAR:
+				bilinear_interpolation_color(this->m_buffer, NULL, color, x, y);
+				break;
+			case COM_PS_BICUBIC:
+				bicubic_interpolation_color(this->m_buffer, NULL, color, x, y);
+				break;
 		}
 	}
 }
@@ -135,21 +132,21 @@ void ImageAlphaOperation::executePixel(float *color, float x, float y, PixelSamp
 {
 	float tempcolor[4];
 
-	if (this->imageBuffer == NULL || x < 0 || y < 0 || x >= this->getWidth() || y >= this->getHeight() ) {
+	if (this->m_imageBuffer == NULL || x < 0 || y < 0 || x >= this->getWidth() || y >= this->getHeight() ) {
 		color[0] = 0.0f;
 	}
 	else {
 		tempcolor[3] = 1.0f;
 		switch (sampler) {
-		case COM_PS_NEAREST:
-			neareast_interpolation_color(this->buffer, NULL, tempcolor, x, y);
-			break;
-		case COM_PS_BILINEAR:
-			bilinear_interpolation_color(this->buffer, NULL, tempcolor, x, y);
-			break;
-		case COM_PS_BICUBIC:
-			bicubic_interpolation_color(this->buffer, NULL, tempcolor, x, y);
-			break;
+			case COM_PS_NEAREST:
+				neareast_interpolation_color(this->m_buffer, NULL, tempcolor, x, y);
+				break;
+			case COM_PS_BILINEAR:
+				bilinear_interpolation_color(this->m_buffer, NULL, tempcolor, x, y);
+				break;
+			case COM_PS_BICUBIC:
+				bicubic_interpolation_color(this->m_buffer, NULL, tempcolor, x, y);
+				break;
 		}
 		color[0] = tempcolor[3];
 	}
@@ -157,11 +154,11 @@ void ImageAlphaOperation::executePixel(float *color, float x, float y, PixelSamp
 
 void ImageDepthOperation::executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[])
 {
-	if (this->depthBuffer == NULL || x < 0 || y < 0 || x >= this->getWidth() || y >= this->getHeight() ) {
+	if (this->m_depthBuffer == NULL || x < 0 || y < 0 || x >= this->getWidth() || y >= this->getHeight() ) {
 		color[0] = 0.0f;
 	}
 	else {
-		int offset = y * width + x;
-		color[0] = this->depthBuffer[offset];
+		int offset = y * this->m_width + x;
+		color[0] = this->m_depthBuffer[offset];
 	}
 }

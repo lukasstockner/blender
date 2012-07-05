@@ -132,6 +132,7 @@ static const char *includefiles[] = {
 	"DNA_movieclip_types.h",
 	"DNA_tracking_types.h",
 	"DNA_dynamicpaint_types.h",
+	"DNA_mask_types.h",
 
 	// empty string to indicate end of includefiles
 	""
@@ -145,7 +146,7 @@ static char **names, *namedata;      /* at address names[a] is string a */
 static char **types, *typedata;      /* at address types[a] is string a */
 static short *typelens;              /* at typelens[a] is de length of type a */
 static short *alphalens;             /* contains sizes as they are calculated on the DEC Alpha (64 bits), in fact any 64bit system */
-static short **structs, *structdata; /* at sp= structs[a] is the first address of a struct definition
+static short **structs, *structdata; /* at sp = structs[a] is the first address of a struct definition
                                       * sp[0] is type number
                                       * sp[1] is amount of elements
                                       * sp[2] sp[3] is typenr,  namenr (etc) */
@@ -285,7 +286,7 @@ static int add_name(const char *str)
 
 	additional_slen_offset = 0;
 	
-	if (str[0] == 0 /*  || (str[1]==0) */) return -1;
+	if (str[0] == 0 /*  || (str[1] == 0) */) return -1;
 
 	if (str[0] == '(' && str[1] == '*') {
 		/* we handle function pointer and special array cases here, e.g.
@@ -797,7 +798,11 @@ static int calculate_structlens(int firststruct)
 							}
 						}
 						
-						/* 2-4 aligned/ */
+						/* 2-4-8 aligned/ */
+						if (type < firststruct && typelens[type] > 4 && (len % 8)) {
+							printf("Align 8 error in struct: %s %s (add %d padding bytes)\n", types[structtype], cp, len % 8);
+							dna_error = 1;
+						}
 						if (typelens[type] > 3 && (len % 4) ) {
 							printf("Align 4 error in struct: %s %s (add %d padding bytes)\n", types[structtype], cp, len % 4);
 							dna_error = 1;
@@ -909,7 +914,7 @@ void printStructLengths(void)
 	printf("\n\n*** All detected structs:\n");
 
 	while (unknown) {
-		/*lastunknown= unknown;*/ /*UNUSED*/
+		/*lastunknown = unknown;*/ /*UNUSED*/
 		unknown = 0;
 		
 		/* check all structs... */
@@ -1170,7 +1175,7 @@ int main(int argc, char **argv)
 			}
 			else {
 				fprintf(file, "};\n");
-				fprintf(file, "int DNAlen= sizeof(DNAstr);\n");
+				fprintf(file, "int DNAlen = sizeof(DNAstr);\n");
 	
 				fclose(file);
 			}
@@ -1241,4 +1246,5 @@ int main(int argc, char **argv)
 #include "DNA_movieclip_types.h"
 #include "DNA_tracking_types.h"
 #include "DNA_dynamicpaint_types.h"
+#include "DNA_mask_types.h"
 /* end of list */

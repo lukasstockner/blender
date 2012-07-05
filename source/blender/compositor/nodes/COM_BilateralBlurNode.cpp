@@ -26,18 +26,20 @@
 #include "COM_ExecutionSystem.h"
 #include "COM_BilateralBlurOperation.h"
 
-BilateralBlurNode::BilateralBlurNode(bNode *editorNode): Node(editorNode)
+BilateralBlurNode::BilateralBlurNode(bNode *editorNode) : Node(editorNode)
 {
+	/* pass */
 }
 
-void BilateralBlurNode::convertToOperations(ExecutionSystem *graph, CompositorContext * context)
+void BilateralBlurNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
 {
-	NodeBilateralBlurData *data = (NodeBilateralBlurData*)this->getbNode()->storage;
+	NodeBilateralBlurData *data = (NodeBilateralBlurData *)this->getbNode()->storage;
 	BilateralBlurOperation *operation = new BilateralBlurOperation();
+	operation->setbNode(this->getbNode());
 	operation->setQuality(context->getQuality());
 	operation->setData(data);
-	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), true, 0, graph);
-	this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), true, 1, graph);
+	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
+	this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), 1, graph);
 	this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket());
 	graph->addOperation(operation);
 }

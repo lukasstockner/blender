@@ -676,6 +676,7 @@ static EnumPropertyItem prop_similar_types[] = {
 	{SIMVERT_NORMAL, "NORMAL", 0, "Normal", ""},
 	{SIMVERT_FACE, "FACE", 0, "Amount of Adjacent Faces", ""},
 	{SIMVERT_VGROUP, "VGROUP", 0, "Vertex Groups", ""},
+	{SIMVERT_EDGE, "EDGE", 0, "Amount of connecting edges", ""},
 
 	{SIMEDGE_LENGTH, "LENGTH", 0, "Length", ""},
 	{SIMEDGE_DIR, "DIR", 0, "Direction", ""},
@@ -709,7 +710,7 @@ static int similar_face_select_exec(bContext *C, wmOperator *op)
 	float thresh = RNA_float_get(op->ptr, "threshold");
 
 	/* initialize the bmop using EDBM api, which does various ui error reporting and other stuff */
-	EDBM_op_init(em, &bmop, op, "similarfaces faces=%hf type=%i thresh=%f", BM_ELEM_SELECT, type, thresh);
+	EDBM_op_init(em, &bmop, op, "similar_faces faces=%hf type=%i thresh=%f", BM_ELEM_SELECT, type, thresh);
 
 	/* execute the operator */
 	BMO_op_exec(em->bm, &bmop);
@@ -747,7 +748,7 @@ static int similar_edge_select_exec(bContext *C, wmOperator *op)
 	float thresh = RNA_float_get(op->ptr, "threshold");
 
 	/* initialize the bmop using EDBM api, which does various ui error reporting and other stuff */
-	EDBM_op_init(em, &bmop, op, "similaredges edges=%he type=%i thresh=%f", BM_ELEM_SELECT, type, thresh);
+	EDBM_op_init(em, &bmop, op, "similar_edges edges=%he type=%i thresh=%f", BM_ELEM_SELECT, type, thresh);
 
 	/* execute the operator */
 	BMO_op_exec(em->bm, &bmop);
@@ -788,7 +789,7 @@ static int similar_vert_select_exec(bContext *C, wmOperator *op)
 	float thresh = RNA_float_get(op->ptr, "threshold");
 
 	/* initialize the bmop using EDBM api, which does various ui error reporting and other stuff */
-	EDBM_op_init(em, &bmop, op, "similarverts verts=%hv type=%i thresh=%f", BM_ELEM_SELECT, type, thresh);
+	EDBM_op_init(em, &bmop, op, "similar_verts verts=%hv type=%i thresh=%f", BM_ELEM_SELECT, type, thresh);
 
 	/* execute the operator */
 	BMO_op_exec(em->bm, &bmop);
@@ -1000,12 +1001,13 @@ static void mouse_mesh_loop(bContext *C, int mval[2], short extend, short ring)
 	BMEdge *eed;
 	int select = TRUE;
 	int dist = 50;
-	
+	float mvalf[2];
+
 	em_setup_viewcontext(C, &vc);
-	vc.mval[0] = mval[0];
-	vc.mval[1] = mval[1];
+	mvalf[0] = (float)(vc.mval[0] = mval[0]);
+	mvalf[1] = (float)(vc.mval[1] = mval[1]);
 	em = vc.em;
-	
+
 	/* no afterqueue (yet), so we check it now, otherwise the bm_xxxofs indices are bad */
 	view3d_validate_backbuf(&vc);
 
@@ -1040,22 +1042,58 @@ static void mouse_mesh_loop(bContext *C, int mval[2], short extend, short ring)
 		}
 
 		EDBM_selectmode_flush(em);
-//			if (EM_texFaceCheck())
-		
+
 		/* sets as active, useful for other tools */
 		if (select) {
 			if (em->selectmode & SCE_SELECT_VERTEX) {
-				/* TODO: would be nice if the edge vertex chosen here
-				 * was the one closer to the selection pointer, instead
-				 * of arbitrarily selecting the first one */
-				BM_select_history_store(em->bm, eed->v1);
+				/* Find nearest vert from mouse. */
+				float v1_co[2], v2_co[2];
+
+				/* We can't be sure this has already been set... */
+				ED_view3d_init_mats_rv3d(vc.obedit, vc.rv3d);
+				project_float_noclip(vc.ar, eed->v1->co, v1_co);
+				project_float_noclip(vc.ar, eed->v2->co, v2_co);
+#if 0
+				printf("mouse to v1: %f\nmouse to v2: %f\n", len_squared_v2v2(mvalf, v1_co),
+				       len_squared_v2v2(mvalf, v2_co));
+#endif
+				if (len_squared_v2v2(mvalf, v1_co) < len_squared_v2v2(mvalf, v2_co))
+					BM_select_history_store(em->bm, eed->v1);
+				else
+					BM_select_history_store(em->bm, eed->v2);
 			}
 			else if (em->selectmode & SCE_SELECT_EDGE) {
 				BM_select_history_store(em->bm, eed);
 			}
-			/* TODO: would be nice if the nearest face that
-			 * belongs to the selected edge could be set to
-			 * active here in face select mode */
+			else if (em->selectmode & SCE_SELECT_FACE) {
+				/* Select the face of eed which is the nearest of mouse. */
+				BMFace *f, *efa = NULL;
+				BMIter iterf;
+				float best_dist = MAXFLOAT;
+
+				/* We can't be sure this has already been set... */
+				ED_view3d_init_mats_rv3d(vc.obedit, vc.rv3d);
+
+				BM_ITER_ELEM(f, &iterf, eed, BM_FACES_OF_EDGE) {
+					if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
+						float cent[3];
+						float co[2], tdist;
+
+						BM_face_calc_center_mean(f, cent);
+						project_float_noclip(vc.ar, cent, co);
+						tdist = len_squared_v2v2(mvalf, co);
+						if (tdist < best_dist) {
+/*							printf("Best face: %p (%f)\n", f, tdist);*/
+							best_dist = tdist;
+							efa = f;
+						}
+					}
+				}
+				if (efa) {
+					BM_active_face_set(em->bm, efa);
+					BM_select_history_store(em->bm, efa);
+				}
+			}
 		}
 
 		WM_event_add_notifier(C, NC_GEOM | ND_SELECT, vc.obedit);
@@ -1454,7 +1492,7 @@ void MESH_OT_select_shortest_path(wmOperatorType *ot)
 /* ************************************************** */
 /* here actual select happens */
 /* gets called via generic mouse select operator */
-int mouse_mesh(bContext *C, const int mval[2], short extend)
+int mouse_mesh(bContext *C, const int mval[2], short extend, short deselect, short toggle)
 {
 	ViewContext vc;
 	BMVert *eve = NULL;
@@ -1468,39 +1506,86 @@ int mouse_mesh(bContext *C, const int mval[2], short extend)
 	
 	if (unified_findnearest(&vc, &eve, &eed, &efa)) {
 		
-		if (extend == 0) EDBM_flag_disable_all(vc.em, BM_ELEM_SELECT);
+		// Deselect everything
+		if (extend == 0 && deselect == 0 && toggle == 0)
+			EDBM_flag_disable_all(vc.em, BM_ELEM_SELECT);
 		
 		if (efa) {
-			/* set the last selected face */
-			BM_active_face_set(vc.em->bm, efa);
-			
-			if (!BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
+			if (extend) {
+				// set the last selected face
+				BM_active_face_set(vc.em->bm, efa);
+				
+				// Work-around: deselect first, so we can guarantee it will
+				// be active even if it was already selected
+				BM_select_history_remove(vc.em->bm, efa);
+				BM_face_select_set(vc.em->bm, efa, FALSE);
 				BM_select_history_store(vc.em->bm, efa);
 				BM_face_select_set(vc.em->bm, efa, TRUE);
 			}
-			else if (extend) {
+			else if (deselect) {
 				BM_select_history_remove(vc.em->bm, efa);
 				BM_face_select_set(vc.em->bm, efa, FALSE);
 			}
+			else {
+				// set the last selected face
+				BM_active_face_set(vc.em->bm, efa);
+			
+				if (!BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
+					BM_select_history_store(vc.em->bm, efa);
+					BM_face_select_set(vc.em->bm, efa, TRUE);
+				}
+				else if (toggle) {
+					BM_select_history_remove(vc.em->bm, efa);
+					BM_face_select_set(vc.em->bm, efa, FALSE);
+				}
+			}
 		}
 		else if (eed) {
-			if (!BM_elem_flag_test(eed, BM_ELEM_SELECT)) {
+			if (extend) {
+				// Work-around: deselect first, so we can guarantee it will
+				// be active even if it was already selected
+				BM_select_history_remove(vc.em->bm, eed);
+				BM_edge_select_set(vc.em->bm, eed, FALSE);
 				BM_select_history_store(vc.em->bm, eed);
 				BM_edge_select_set(vc.em->bm, eed, TRUE);
 			}
-			else if (extend) {
+			else if (deselect) {
 				BM_select_history_remove(vc.em->bm, eed);
 				BM_edge_select_set(vc.em->bm, eed, FALSE);
 			}
+			else {
+				if (!BM_elem_flag_test(eed, BM_ELEM_SELECT)) {
+					BM_select_history_store(vc.em->bm, eed);
+					BM_edge_select_set(vc.em->bm, eed, TRUE);
+				}
+				else if (toggle) {
+					BM_select_history_remove(vc.em->bm, eed);
+					BM_edge_select_set(vc.em->bm, eed, FALSE);
+				}
+			}
 		}
 		else if (eve) {
-			if (!BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
+			if (extend) {
+				// Work-around: deselect first, so we can guarantee it will
+				// be active even if it was already selected
+				BM_select_history_remove(vc.em->bm, eve);
+				BM_vert_select_set(vc.em->bm, eve, FALSE);
 				BM_select_history_store(vc.em->bm, eve);
 				BM_vert_select_set(vc.em->bm, eve, TRUE);
 			}
-			else if (extend) {
+			else if (deselect) {
 				BM_select_history_remove(vc.em->bm, eve);
 				BM_vert_select_set(vc.em->bm, eve, FALSE);
+			}
+			else {
+				if (!BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
+					BM_select_history_store(vc.em->bm, eve);
+					BM_vert_select_set(vc.em->bm, eve, TRUE);
+				}
+				else if (toggle) {
+					BM_select_history_remove(vc.em->bm, eve);
+					BM_vert_select_set(vc.em->bm, eve, FALSE);
+				}
 			}
 		}
 		
@@ -1842,7 +1927,7 @@ static int edbm_select_linked_pick_invoke(bContext *C, wmOperator *op, wmEvent *
 		}
 		BMW_end(&walker);
 
-		BM_mesh_select_mode_flush(bm);
+		EDBM_selectmode_flush(em);
 	}
 
 	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit);

@@ -26,8 +26,9 @@ extern "C" {
 	#include "BLI_math.h"
 }
 
-MixValueOperation::MixValueOperation(): MixBaseOperation()
+MixValueOperation::MixValueOperation() : MixBaseOperation()
 {
+	/* pass */
 }
 
 void MixValueOperation::executePixel(float *outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[])
@@ -36,19 +37,19 @@ void MixValueOperation::executePixel(float *outputValue, float x, float y, Pixel
 	float inputColor2[4];
 	float value;
 
-	inputValueOperation->read(&value, x, y, sampler, inputBuffers);
-	inputColor1Operation->read(&inputColor1[0], x, y, sampler, inputBuffers);
-	inputColor2Operation->read(&inputColor2[0], x, y, sampler, inputBuffers);
+	this->m_inputValueOperation->read(&value, x, y, sampler, inputBuffers);
+	this->m_inputColor1Operation->read(&inputColor1[0], x, y, sampler, inputBuffers);
+	this->m_inputColor2Operation->read(&inputColor2[0], x, y, sampler, inputBuffers);
 
 	if (this->useValueAlphaMultiply()) {
 		value *= inputColor2[3];
 	}
 	float valuem = 1.0f - value;
 	
-	float rH,rS,rV;
-	float colH,colS,colV;
+	float rH, rS, rV;
+	float colH, colS, colV;
 	rgb_to_hsv(inputColor1[0], inputColor1[1], inputColor1[2], &rH, &rS, &rV);
 	rgb_to_hsv(inputColor2[0], inputColor2[1], inputColor2[2], &colH, &colS, &colV);
-	hsv_to_rgb(rH , rS, (valuem*rV+value*colV), &outputValue[0], &outputValue[1], &outputValue[2]);
+	hsv_to_rgb(rH, rS, (valuem * rV + value * colV), &outputValue[0], &outputValue[1], &outputValue[2]);
 	outputValue[3] = inputColor1[3];
 }

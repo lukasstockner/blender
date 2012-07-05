@@ -105,6 +105,7 @@ void sequencer_operatortypes(void)
 	/* sequencer_add.c */
 	WM_operatortype_append(SEQUENCER_OT_scene_strip_add);
 	WM_operatortype_append(SEQUENCER_OT_movieclip_strip_add);
+	WM_operatortype_append(SEQUENCER_OT_mask_strip_add);
 	WM_operatortype_append(SEQUENCER_OT_movie_strip_add);
 	WM_operatortype_append(SEQUENCER_OT_sound_strip_add);
 	WM_operatortype_append(SEQUENCER_OT_image_strip_add);
@@ -166,7 +167,7 @@ void sequencer_keymap(wmKeyConfig *keyconf)
 
 	WM_keymap_add_item(keymap, "SEQUENCER_OT_offset_clear", OKEY, KM_PRESS, KM_ALT, 0);
 
-	WM_keymap_add_item(keymap, "SEQUENCER_OT_duplicate", DKEY, KM_PRESS, KM_SHIFT, 0);
+	WM_keymap_add_item(keymap, "SEQUENCER_OT_duplicate_move", DKEY, KM_PRESS, KM_SHIFT, 0);
 
 	WM_keymap_add_item(keymap, "SEQUENCER_OT_delete", XKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "SEQUENCER_OT_delete", DELKEY, KM_PRESS, 0, 0);
@@ -320,3 +321,13 @@ void sequencer_keymap(wmKeyConfig *keyconf)
 #endif
 }
 
+void ED_operatormacros_sequencer(void)
+{
+	wmOperatorType *ot;
+
+	ot = WM_operatortype_append_macro("SEQUENCER_OT_duplicate_move", "Duplicate Strips",
+	                                  "Duplicate selected strips and move them", OPTYPE_UNDO | OPTYPE_REGISTER);
+
+	WM_operatortype_macro_define(ot, "SEQUENCER_OT_duplicate");
+	WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+}

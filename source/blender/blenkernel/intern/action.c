@@ -252,6 +252,37 @@ void set_active_action_group(bAction *act, bActionGroup *agrp, short select)
 	}
 }
 
+/* Sync colors used for action/bone group with theme settings */
+void action_group_colors_sync(bActionGroup *grp, const bActionGroup *ref_grp)
+{
+	/* only do color copying if using a custom color (i.e. not default color)  */
+	if (grp->customCol) {
+		if (grp->customCol > 0) {
+			/* copy theme colors on-to group's custom color in case user tries to edit color */
+			bTheme *btheme = U.themes.first;
+			ThemeWireColor *col_set = &btheme->tarm[(grp->customCol - 1)];
+			
+			memcpy(&grp->cs, col_set, sizeof(ThemeWireColor));
+		}
+		else {
+			/* if a reference group is provided, use the custom color from there... */
+			if (ref_grp) {
+				/* assumption: reference group has a color set */
+				memcpy(&grp->cs, &ref_grp->cs, sizeof(ThemeWireColor));
+			}
+			/* otherwise, init custom color with a generic/placeholder color set if
+			 * no previous theme color was used that we can just keep using
+			 */
+			else if (grp->cs.solid[0] == 0) {
+				/* define for setting colors in theme below */
+				rgba_char_args_set(grp->cs.solid, 0xff, 0x00, 0x00, 255);
+				rgba_char_args_set(grp->cs.select, 0x81, 0xe6, 0x14, 255);
+				rgba_char_args_set(grp->cs.active, 0x18, 0xb6, 0xe0, 255);
+			}
+		}
+	}
+}
+
 /* Add a new action group with the given name to the action */
 bActionGroup *action_groups_add_new(bAction *act, const char name[])
 {
@@ -409,10 +440,9 @@ void action_groups_clear_tempflags(bAction *act)
 
 /* *************** Pose channels *************** */
 
-/* usually used within a loop, so we got a N^2 slowdown */
 bPoseChannel *BKE_pose_channel_find_name(const bPose *pose, const char *name)
 {
-	if (ELEM(NULL, pose, name) || (name[0] == 0))
+	if (ELEM(NULL, pose, name) || (name[0] == '\0'))
 		return NULL;
 	
 	if (pose->chanhash)

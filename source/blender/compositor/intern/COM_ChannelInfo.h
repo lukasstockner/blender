@@ -32,9 +32,9 @@
 using namespace std;
 
 /**
-  * @brief List of possible channel types
-  * @ingroup Model
-  */
+ * @brief List of possible channel types
+ * @ingroup Model
+ */
 typedef enum ChannelType {
 	COM_CT_ColorComponent /** @brief this channel is contains color information. Specific used is determined by channelnumber, and in the future color space */,
 	COM_CT_Alpha /** @brief this channel is contains transparency value */,
@@ -47,74 +47,74 @@ typedef enum ChannelType {
 } ChannelType;
 
 /**
-  * @brief ChannelInfo holds information about a channel.
-  *
-  * Channels are transported from node to node via a SocketConnection.
-  * ChannelInfo holds specific setting of these channels in order that the to-node of the connection
-  * Can handle specific logic per channel setting.
-  *
-  * @note currently this is not used, but a future place to implement color spacing and other things.
-  * @ingroup Model
-  */
+ * @brief ChannelInfo holds information about a channel.
+ *
+ * Channels are transported from node to node via a SocketConnection.
+ * ChannelInfo holds specific setting of these channels in order that the to-node of the connection
+ * Can handle specific logic per channel setting.
+ *
+ * @note currently this is not used, but a future place to implement color spacing and other things.
+ * @ingroup Model
+ */
 class ChannelInfo {
 private:
 	/**
-	  * @brief the channel number, in the connection. [0-3]
-	  */
-	int number;
+	 * @brief the channel number, in the connection. [0-3]
+	 */
+	int m_number;
 
 	/**
-	  * @brief type of channel
-	  */
-	ChannelType type;
+	 * @brief type of channel
+	 */
+	ChannelType m_type;
 
 	/**
-	  * @brieg Is this value in this channel premultiplied with its alpha
-	  * @note only valid if type = ColorComponent;
-	  */
-	bool premultiplied;
+	 * @brieg Is this value in this channel premultiplied with its alpha
+	 * @note only valid if type = ColorComponent;
+	 */
+	bool m_premultiplied;
 
 //	/**
-//	  * Color space of this value.
-//	  * only valid when type = ColorComponent;
-//	  */
+//	 * Color space of this value.
+//	 * only valid when type = ColorComponent;
+//	 */
 //	string colorspacename;
 
 public:
 	/**
-	  * @brief creates a new ChannelInfo and set default values
-	  */
+	 * @brief creates a new ChannelInfo and set default values
+	 */
 	ChannelInfo();
 
 	/**
-	  * @brief set the index of this channel in the SocketConnection
-	  */
-	void setNumber(const int number) { this->number = number; }
+	 * @brief set the index of this channel in the SocketConnection
+	 */
+	void setNumber(const int number) { this->m_number = number; }
 
 	/**
-	  * @brief get the index of this channel in the SocketConnection
-	  */
-	const int getNumber() const {return this->number; }
+	 * @brief get the index of this channel in the SocketConnection
+	 */
+	const int getNumber() const { return this->m_number; }
 
 	/**
-	  * @brief set the type of channel
-	  */
-	void setType(const ChannelType type) { this->type = type; }
+	 * @brief set the type of channel
+	 */
+	void setType(const ChannelType type) { this->m_type = type; }
 
 	/**
-	  * @brief get the type of channel
-	  */
-	const ChannelType getType() const {return this->type; }
+	 * @brief get the type of channel
+	 */
+	const ChannelType getType() const { return this->m_type; }
 
 	/**
-	  * @brief set the premultiplicatioin of this channel
-	  */
-	void setPremultiplied(const bool premultiplied) { this->premultiplied = premultiplied; }
+	 * @brief set the premultiplicatioin of this channel
+	 */
+	void setPremultiplied(const bool premultiplied) { this->m_premultiplied = premultiplied; }
 
 	/**
-	  * @brief is this channel premultiplied
-	  */
-	const bool isPremultiplied() const {return this->premultiplied;}
+	 * @brief is this channel premultiplied
+	 */
+	const bool isPremultiplied() const { return this->m_premultiplied; }
 };
 
 

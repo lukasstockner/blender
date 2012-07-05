@@ -20,17 +20,16 @@
  *		Monique Dewanchand
  */
 
-#ifndef COM_ColorBalanceNODE_H
-#define COM_ColorBalanceNODE_H
+#ifndef _COM_ColorBalanceNode_h_
+#define _COM_ColorBalanceNode_h_
 
 #include "COM_Node.h"
 
 /**
-  * @brief ColorBalanceNode
-  * @ingroup Node
-  */
-class ColorBalanceNode : public Node
-{
+ * @brief ColorBalanceNode
+ * @ingroup Node
+ */
+class ColorBalanceNode : public Node {
 public:
 	ColorBalanceNode(bNode *editorNode);
 	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);

@@ -29,26 +29,26 @@ private:
 	/**
 	 * Cached reference to the inputProgram
 	 */
-	SocketReader *inputColorProgram;
-	SocketReader *inputVectorProgram;
-	SocketReader *inputScaleXProgram;
-	SocketReader *inputScaleYProgram;
+	SocketReader *m_inputColorProgram;
+	SocketReader *m_inputVectorProgram;
+	SocketReader *m_inputScaleXProgram;
+	SocketReader *m_inputScaleYProgram;
 
-	float width_x4;
-	float height_x4;
+	float m_width_x4;
+	float m_height_x4;
 
 public:
 	DisplaceSimpleOperation();
 
 	/**
-	* we need a full buffer for the image
-	*/	
+	 * we need a full buffer for the image
+	 */
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
 
 	/**
 	 * the inner loop of this program
 	 */
-	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer * inputBuffers[]);
 	
 	/**
 	 * Initialize the execution

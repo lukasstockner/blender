@@ -89,8 +89,8 @@ static void active_node_panel(const bContext *C, Panel *pa)
 	SpaceNode *snode= CTX_wm_space_node(C);
 	bNodeTree *ntree= (snode) ? snode->edittree : NULL;
 	bNode *node = (ntree) ? nodeGetActive(ntree) : NULL; // xxx... for editing group nodes
-	uiLayout *layout;
-	PointerRNA ptr;
+	uiLayout *layout, *row, *col, *sub;
+	PointerRNA ptr, opptr;
 	
 	/* verify pointers, and create RNA pointer for the node */
 	if (ELEM(NULL, ntree, node))
@@ -100,8 +100,7 @@ static void active_node_panel(const bContext *C, Panel *pa)
 	//else
 		RNA_pointer_create(&ntree->id, &RNA_Node, node, &ptr); 
 	
-	/* XXX nicer way to make sub-layout? */
-	layout = uiLayoutColumn(pa->layout, 0);
+	layout = uiLayoutColumn(pa->layout, FALSE);
 	uiLayoutSetContextPointer(layout, "node", &ptr);
 	
 	/* draw this node's name, etc. */
@@ -112,12 +111,35 @@ static void active_node_panel(const bContext *C, Panel *pa)
 	
 	uiItemO(layout, NULL, 0, "NODE_OT_hide_socket_toggle");
 	uiItemS(layout);
+	uiItemS(layout);
 
+	row = uiLayoutRow(layout, FALSE);
+	
+	col = uiLayoutColumn(row, TRUE);
+	uiItemM(col, (bContext *)C, "NODE_MT_node_color_presets", NULL, 0);
+	uiItemR(col, &ptr, "use_custom_color", UI_ITEM_R_ICON_ONLY, NULL, ICON_NONE);
+	sub = uiLayoutRow(col, FALSE);
+	if (!(node->flag & NODE_CUSTOM_COLOR))
+		uiLayoutSetEnabled(sub, 0);
+	uiItemR(sub, &ptr, "color", 0, "", 0);
+	
+	col = uiLayoutColumn(row, TRUE);
+	uiItemO(col, "", ICON_ZOOMIN, "node.node_color_preset_add");
+	opptr = uiItemFullO(col, "node.node_color_preset_add", "", ICON_ZOOMOUT, NULL, WM_OP_INVOKE_DEFAULT, UI_ITEM_O_RETURN_PROPS);
+	RNA_boolean_set(&opptr, "remove_active", 1);
+	uiItemM(col, (bContext *)C, "NODE_MT_node_color_specials", "", ICON_DOWNARROW_HLT);
+	
 	/* draw this node's settings */
-	if (node->typeinfo && node->typeinfo->uifuncbut)
+	if (node->typeinfo && node->typeinfo->uifuncbut) {
+		uiItemS(layout);
+		uiItemS(layout);
 		node->typeinfo->uifuncbut(layout, (bContext *)C, &ptr);
-	else if (node->typeinfo && node->typeinfo->uifunc)
+	}
+	else if (node->typeinfo && node->typeinfo->uifunc) {
+		uiItemS(layout);
+		uiItemS(layout);
 		node->typeinfo->uifunc(layout, (bContext *)C, &ptr);
+	}
 }
 
 static int node_sockets_poll(const bContext *C, PanelType *UNUSED(pt))
@@ -142,7 +164,7 @@ static void node_sockets_panel(const bContext *C, Panel *pa)
 	for (sock=node->inputs.first; sock; sock=sock->next) {
 		BLI_snprintf(name, sizeof(name), "%s:", sock->name);
 
-		split = uiLayoutSplit(layout, 0.35f, 0);
+		split = uiLayoutSplit(layout, 0.35f, FALSE);
 		uiItemL(split, name, ICON_NONE);
 		uiTemplateNodeLink(split, ntree, node, sock);
 	}

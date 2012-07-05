@@ -31,23 +31,23 @@ typedef enum QualityHelper {
 
 class QualityStepHelper  {
 private:
-	CompositorQuality quality;
-	int step;
-	int offsetadd;
+	CompositorQuality m_quality;
+	int m_step;
+	int m_offsetadd;
 
 protected:
 	/**
-	  * Initialize the execution
-	  */
+	 * Initialize the execution
+	 */
 	void initExecution(QualityHelper helper);
 
-	inline int getStep() const {return this->step;}
-	inline int getOffsetAdd() const {return this->offsetadd;}
+	inline int getStep() const { return this->m_step; }
+	inline int getOffsetAdd() const { return this->m_offsetadd; }
 
 public:
 	QualityStepHelper();
 
 
-	void setQuality(CompositorQuality quality) {this->quality = quality;}
+	void setQuality(CompositorQuality quality) { this->m_quality = quality; }
 };
 #endif

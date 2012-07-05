@@ -26,14 +26,13 @@
 #include "COM_Node.h"
 
 /**
-  * @brief BlurNode
-  * @ingroup Node
-  */
-
-class BlurNode: public Node {
+ * @brief BlurNode
+ * @ingroup Node
+ */
+class BlurNode : public Node {
 public:
 	BlurNode(bNode *editorNode);
-	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
+	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);
 };
 
 #endif

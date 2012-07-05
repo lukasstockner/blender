@@ -53,6 +53,7 @@ struct MovieClip;
 void BKE_object_workob_clear(struct Object *workob);
 void BKE_object_workob_calc_parent(struct Scene *scene, struct Object *ob, struct Object *workob);
 
+void BKE_object_transform_copy(struct Object *ob_tar, const struct Object *ob_src);
 struct SoftBody *copy_softbody(struct SoftBody *sb);
 struct BulletSoftBody *copy_bulletsoftbody(struct BulletSoftBody *sb);
 void BKE_object_copy_particlesystems(struct Object *obn, struct Object *ob);
@@ -156,6 +157,26 @@ int BKE_object_is_animated(struct Scene *scene, struct Object *ob);
 void BKE_object_relink(struct Object *ob);
 
 struct MovieClip *BKE_object_movieclip_get(struct Scene *scene, struct Object *ob, int use_default);
+
+/* this function returns a superset of the scenes selection based on relationships */
+
+typedef enum eObRelationTypes {
+	OB_REL_NONE               = 0,        /* just the selection as is */
+	OB_REL_PARENT             = (1 << 0), /* immediate parent */
+	OB_REL_PARENT_RECURSIVE   = (1 << 1), /* parents up to root of selection tree*/
+	OB_REL_CHILDREN           = (1 << 2), /* immediate children */
+	OB_REL_CHILDREN_RECURSIVE = (1 << 3), /* All children */
+	OB_REL_MOD_ARMATURE       = (1 << 4), /* Armatures related to the selected objects */
+	OB_REL_SCENE_CAMERA       = (1 << 5), /* you might want the scene camera too even if unselected? */
+} eObRelationTypes;
+
+typedef enum eObjectSet {
+	OB_SET_SELECTED, /* Selected Objects */
+	OB_SET_VISIBLE,  /* Visible Objects  */
+	OB_SET_ALL       /* All Objects      */
+} eObjectSet;
+
+struct LinkNode *BKE_object_relational_superset(struct Scene *scene, eObjectSet objectSet, eObRelationTypes includeFilter);
 
 #ifdef __cplusplus
 }

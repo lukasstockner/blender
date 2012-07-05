@@ -2242,11 +2242,11 @@ static void project_bucket_clip_face(
  *         
  *         i = l
  *         while i < len(me.verts):
- *             ii = i+1
- *             if ii==len(me.verts):
+ *             ii = i + 1
+ *             if ii == len(me.verts):
  *                 ii = l
  *             me.edges.extend([i, ii])
- *             i+=1
+ *             i += 1
  * 
  * if __name__ == '__main__':
  *     main()
@@ -2344,8 +2344,8 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 	/* Use tf_uv_pxoffset instead of tf->uv so we can offset the UV half a pixel
 	 * this is done so we can avoid offsetting all the pixels by 0.5 which causes
 	 * problems when wrapping negative coords */
-	xhalfpx = (0.5f +   (PROJ_GEOM_TOLERANCE / 3.0f)   ) / ibuf_xf;
-	yhalfpx = (0.5f +   (PROJ_GEOM_TOLERANCE / 4.0f)   ) / ibuf_yf;
+	xhalfpx = (0.5f + (PROJ_GEOM_TOLERANCE / 3.0f)) / ibuf_xf;
+	yhalfpx = (0.5f + (PROJ_GEOM_TOLERANCE / 4.0f)) / ibuf_yf;
 	
 	/* Note about (PROJ_GEOM_TOLERANCE/x) above...
 	 * Needed to add this offset since UV coords are often quads aligned to pixels.
@@ -4935,7 +4935,7 @@ static int texture_paint_init(bContext *C, wmOperator *op)
 		if (BKE_brush_size_get(scene, brush) < 2)
 			BKE_brush_size_set(scene, brush, 2);
 
-		/* allocate and initialize spacial data structures */
+		/* allocate and initialize spatial data structures */
 		project_paint_begin(&pop->ps);
 		
 		if (pop->ps.dm == NULL)
@@ -5096,8 +5096,8 @@ static void paint_apply_event(bContext *C, wmOperator *op, wmEvent *event)
 
 		/* This can be removed once fixed properly in
 		 * BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, float *pos, double time, float pressure, void *user) 
-		 * at zero pressure we should do nothing 1/2^12 is .0002 which is the sensitivity of the most sensitive pen tablet available */
-		if (tablet && (pressure < .0002f) && ((pop->s.brush->flag & BRUSH_SPACING_PRESSURE) || BKE_brush_use_alpha_pressure(scene, pop->s.brush) || BKE_brush_use_size_pressure(scene, pop->s.brush)))
+		 * at zero pressure we should do nothing 1/2^12 is 0.0002 which is the sensitivity of the most sensitive pen tablet available */
+		if (tablet && (pressure < 0.0002f) && ((pop->s.brush->flag & BRUSH_SPACING_PRESSURE) || BKE_brush_use_alpha_pressure(scene, pop->s.brush) || BKE_brush_use_size_pressure(scene, pop->s.brush)))
 			return;
 	
 	}
@@ -5215,7 +5215,7 @@ static void brush_drawcursor(bContext *C, int x, int y, void *UNUSED(customdata)
 
 	Scene *scene = CTX_data_scene(C);
 	//Brush *brush= image_paint_brush(C);
-	Paint *paint = paint_get_active(scene);
+	Paint *paint = paint_get_active_from_context(C);
 	Brush *brush = paint_brush(paint);
 
 	if (paint && brush && paint->flags & PAINT_SHOW_BRUSH) {
@@ -5420,13 +5420,12 @@ void PAINT_OT_grab_clone(wmOperatorType *ot)
 
 static int sample_color_exec(bContext *C, wmOperator *op)
 {
-	Scene *scene = CTX_data_scene(C);
 	Brush *brush = image_paint_brush(C);
 	ARegion *ar = CTX_wm_region(C);
 	int location[2];
 
 	RNA_int_get_array(op->ptr, "location", location);
-	paint_sample_color(scene, ar, location[0], location[1]);
+	paint_sample_color(C, ar, location[0], location[1]);
 
 	WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
 	
@@ -5729,7 +5728,7 @@ static int texture_paint_camera_project_exec(bContext *C, wmOperator *op)
 	undo_paint_push_begin(UNDO_PAINT_IMAGE, op->type->name,
 	                      image_undo_restore, image_undo_free);
 
-	/* allocate and initialize spacial data structures */
+	/* allocate and initialize spatial data structures */
 	project_paint_begin(&ps);
 
 	if (ps.dm == NULL) {

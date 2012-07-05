@@ -26,8 +26,12 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_meshdata_types.h"
+
 #include "BLI_math.h"
 #include "BLI_array.h"
+
+#include "BKE_customdata.h"
 
 #include "bmesh.h"
 
@@ -45,7 +49,7 @@ enum {
 #define VERT_NONMAN 2
 #define EDGE_NONMAN 2
 
-void bmo_extrude_face_indiv_exec(BMesh *bm, BMOperator *op)
+void bmo_extrude_discrete_faces_exec(BMesh *bm, BMOperator *op)
 {
 	BMOIter siter;
 	BMIter liter, liter2;
@@ -114,7 +118,7 @@ void bmo_extrude_face_indiv_exec(BMesh *bm, BMOperator *op)
 
 	BLI_array_free(edges);
 
-	BMO_op_callf(bm, "del geom=%ff context=%i", EXT_DEL, DEL_ONLYFACES);
+	BMO_op_callf(bm, "delete geom=%ff context=%i", EXT_DEL, DEL_ONLYFACES);
 	BMO_slot_buffer_from_enabled_flag(bm, op, "faceout", BM_FACE, EXT_KEEP);
 }
 
@@ -167,6 +171,16 @@ static void bm_extrude_copy_face_loop_attributes(BMesh *bm, BMFace *f, BMEdge *e
 	BM_elem_attrs_copy(bm, bm, l_src_1, l_dst_b);
 }
 
+/* Disable the skin root flag on the input vert, assumes that the vert
+ * data includes an CD_MVERT_SKIN layer */
+static void bm_extrude_disable_skin_root(BMesh *bm, BMVert *v)
+{
+	MVertSkin *vs;
+	
+	vs = CustomData_bmesh_get(&bm->vdata, v->head.data, CD_MVERT_SKIN);
+	vs->flag &= ~MVERT_SKIN_ROOT;
+}
+
 void bmo_extrude_edge_only_exec(BMesh *bm, BMOperator *op)
 {
 	BMOIter siter;
@@ -181,8 +195,15 @@ void bmo_extrude_edge_only_exec(BMesh *bm, BMOperator *op)
 		BMO_elem_flag_enable(bm, e->v2, EXT_INPUT);
 	}
 
-	BMO_op_initf(bm, &dupeop, "dupe geom=%fve", EXT_INPUT);
+	BMO_op_initf(bm, &dupeop, "duplicate geom=%fve", EXT_INPUT);
 	BMO_op_exec(bm, &dupeop);
+
+	/* disable root flag on all new skin nodes */
+	if (CustomData_has_layer(&bm->vdata, CD_MVERT_SKIN)) {
+		BMO_ITER(v1, &siter, bm, &dupeop, "newout", BM_VERT) {
+			bm_extrude_disable_skin_root(bm, v1);
+		}
+	}
 
 	for (e = BMO_iter_new(&siter, bm, &dupeop, "boundarymap", 0); e; e = BMO_iter_step(&siter)) {
 		e2 = BMO_iter_map_value(&siter);
@@ -224,9 +245,12 @@ void bmo_extrude_vert_indiv_exec(BMesh *bm, BMOperator *op)
 	BMOIter siter;
 	BMVert *v, *dupev;
 	BMEdge *e;
+	const int has_vskin = CustomData_has_layer(&bm->vdata, CD_MVERT_SKIN);
 
 	for (v = BMO_iter_new(&siter, bm, op, "verts", BM_VERT); v; v = BMO_iter_step(&siter)) {
 		dupev = BM_vert_create(bm, v->co, v);
+		if (has_vskin)
+			bm_extrude_disable_skin_root(bm, v);
 
 		e = BM_edge_create(bm, v, dupev, NULL, FALSE);
 
@@ -249,7 +273,7 @@ void bmo_extrude_face_region_exec(BMesh *bm, BMOperator *op)
 	int found, fwd, delorig = FALSE;
 
 	/* initialize our sub-operators */
-	BMO_op_init(bm, &dupeop, "dupe");
+	BMO_op_init(bm, &dupeop, "duplicate");
 	
 	BMO_slot_buffer_flag_enable(bm, op, "edgefacein", BM_EDGE | BM_FACE, EXT_INPUT);
 	
@@ -317,12 +341,19 @@ void bmo_extrude_face_region_exec(BMesh *bm, BMOperator *op)
 	}
 
 	if (delorig == TRUE) {
-		BMO_op_initf(bm, &delop, "del geom=%fvef context=%i",
+		BMO_op_initf(bm, &delop, "delete geom=%fvef context=%i",
 		             EXT_DEL, DEL_ONLYTAGGED);
 	}
 
 	BMO_slot_copy(op, &dupeop, "edgefacein", "geom");
 	BMO_op_exec(bm, &dupeop);
+
+	/* disable root flag on all new skin nodes */
+	if (CustomData_has_layer(&bm->vdata, CD_MVERT_SKIN)) {
+		BMO_ITER(v, &siter, bm, &dupeop, "newout", BM_VERT) {
+			bm_extrude_disable_skin_root(bm, v);
+		}
+	}
 
 	if (bm->act_face && BMO_elem_flag_test(bm, bm->act_face, EXT_INPUT))
 		bm->act_face = BMO_slot_map_ptr_get(bm, &dupeop, "facemap", bm->act_face);
@@ -616,7 +647,7 @@ void bmo_solidify_face_region_exec(BMesh *bm, BMOperator *op)
 	thickness = BMO_slot_float_get(op, "thickness");
 
 	/* Flip original faces (so the shell is extruded inward) */
-	BMO_op_init(bm, &reverseop, "reversefaces");
+	BMO_op_init(bm, &reverseop, "reverse_faces");
 	BMO_slot_copy(op, &reverseop, "geom", "faces");
 	BMO_op_exec(bm, &reverseop);
 	BMO_op_finish(bm, &reverseop);

@@ -24,8 +24,10 @@
 #include "COM_DistanceMatteOperation.h"
 #include "COM_SetAlphaOperation.h"
 
-DistanceMatteNode::DistanceMatteNode(bNode *editorNode): Node(editorNode)
-{}
+DistanceMatteNode::DistanceMatteNode(bNode *editorNode) : Node(editorNode)
+{
+	/* pass */
+}
 
 void DistanceMatteNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
 {
@@ -36,10 +38,10 @@ void DistanceMatteNode::convertToOperations(ExecutionSystem *graph, CompositorCo
 
 	DistanceMatteOperation *operation = new DistanceMatteOperation();
 	bNode *editorsnode = getbNode();
-	operation->setSettings((NodeChroma*)editorsnode->storage);
+	operation->setSettings((NodeChroma *)editorsnode->storage);
 
-	inputSocketImage->relinkConnections(operation->getInputSocket(0), true, 0, graph);
-	inputSocketKey->relinkConnections(operation->getInputSocket(1), true, 1, graph);
+	inputSocketImage->relinkConnections(operation->getInputSocket(0), 0, graph);
+	inputSocketKey->relinkConnections(operation->getInputSocket(1), 1, graph);
 
 	if (outputSocketMatte->isConnected()) {
 		outputSocketMatte->relinkConnections(operation->getOutputSocket());
@@ -52,7 +54,7 @@ void DistanceMatteNode::convertToOperations(ExecutionSystem *graph, CompositorCo
 	addLink(graph, operation->getOutputSocket(), operationAlpha->getInputSocket(1));
 
 	graph->addOperation(operationAlpha);
-	addPreviewOperation(graph, operationAlpha->getOutputSocket(), 9);
+	addPreviewOperation(graph, operationAlpha->getOutputSocket());
 
 	if (outputSocketImage->isConnected()) {
 		outputSocketImage->relinkConnections(operationAlpha->getOutputSocket());

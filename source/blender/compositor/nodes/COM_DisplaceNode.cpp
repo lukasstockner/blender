@@ -24,11 +24,12 @@
 #include "COM_DisplaceSimpleOperation.h"
 #include "COM_ExecutionSystem.h"
 
-DisplaceNode::DisplaceNode(bNode *editorNode): Node(editorNode)
+DisplaceNode::DisplaceNode(bNode *editorNode) : Node(editorNode)
 {
+	/* pass */
 }
 
-void DisplaceNode::convertToOperations(ExecutionSystem *graph, CompositorContext * context)
+void DisplaceNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
 {
 	NodeOperation *operation;
 	if (context->getQuality() == COM_QUALITY_LOW)
@@ -36,10 +37,10 @@ void DisplaceNode::convertToOperations(ExecutionSystem *graph, CompositorContext
 	else
 		operation = new DisplaceOperation();
 
-	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), true, 0, graph);
-	this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), true, 1, graph);
-	this->getInputSocket(2)->relinkConnections(operation->getInputSocket(2), true, 2, graph);
-	this->getInputSocket(3)->relinkConnections(operation->getInputSocket(3), true, 3, graph);
+	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
+	this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), 1, graph);
+	this->getInputSocket(2)->relinkConnections(operation->getInputSocket(2), 2, graph);
+	this->getInputSocket(3)->relinkConnections(operation->getInputSocket(3), 3, graph);
 	this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket());
 
 	graph->addOperation(operation);

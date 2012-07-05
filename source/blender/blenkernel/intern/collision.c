@@ -302,6 +302,10 @@ static int cloth_collision_response_static ( ClothModifierData *clmd, CollisionM
 
 			// Apply repulse impulse if distance too short
 			// I_r = -min(dt*kd, m(0, 1d/dt - v_n))
+			// DG: this formula ineeds to be changed for this code since we apply impulses/repulses like this:
+			// v += impulse; x_new = x + v; 
+			// We don't use dt!!
+			// DG TODO: Fix usage of dt here!
 			spf = (float)clmd->sim_parms->stepsPerFrame / clmd->sim_parms->timescale;
 
 			d = clmd->coll_parms->epsilon*8.0f/9.0f + epsilon2*8.0f/9.0f - collpair->distance;
@@ -321,10 +325,12 @@ static int cloth_collision_response_static ( ClothModifierData *clmd, CollisionM
 
 			result = 1;
 		}
-		else
-		{
+		else {
 			// Apply repulse impulse if distance too short
-			// I_r = -min(dt*kd, m(0, 1d/dt - v_n))
+			// I_r = -min(dt*kd, max(0, 1d/dt - v_n))
+			// DG: this formula ineeds to be changed for this code since we apply impulses/repulses like this:
+			// v += impulse; x_new = x + v; 
+			// We don't use dt!!
 			float spf = (float)clmd->sim_parms->stepsPerFrame / clmd->sim_parms->timescale;
 
 			float d = clmd->coll_parms->epsilon*8.0f/9.0f + epsilon2*8.0f/9.0f - collpair->distance;
@@ -332,7 +338,8 @@ static int cloth_collision_response_static ( ClothModifierData *clmd, CollisionM
 				// stay on the safe side and clamp repulse
 				float repulse = d*1.0f/spf;
 
-				float impulse = repulse / ( 1.0f + w1*w1 + w2*w2 + w3*w3 ); // original 2.0 / 0.25
+				float impulse = repulse / ( 3.0 * ( 1.0f + w1*w1 + w2*w2 + w3*w3 )); // original 2.0 / 0.25 
+
 				VECADDMUL ( i1, collpair->normal,  impulse );
 				VECADDMUL ( i2, collpair->normal,  impulse );
 				VECADDMUL ( i3, collpair->normal,  impulse );
@@ -345,19 +352,17 @@ static int cloth_collision_response_static ( ClothModifierData *clmd, CollisionM
 			}
 		}
 
-		if(result)
-		{
+		if (result) {
 			int i = 0;
 
-			for(i = 0; i < 3; i++)
-			{
-				if(cloth1->verts[collpair->ap1].impulse_count > 0 && ABS(cloth1->verts[collpair->ap1].impulse[i]) < ABS(i1[i]))
+			for (i = 0; i < 3; i++) {
+				if (cloth1->verts[collpair->ap1].impulse_count > 0 && ABS(cloth1->verts[collpair->ap1].impulse[i]) < ABS(i1[i]))
 					cloth1->verts[collpair->ap1].impulse[i] = i1[i];
 
-				if(cloth1->verts[collpair->ap2].impulse_count > 0 && ABS(cloth1->verts[collpair->ap2].impulse[i]) < ABS(i2[i]))
+				if (cloth1->verts[collpair->ap2].impulse_count > 0 && ABS(cloth1->verts[collpair->ap2].impulse[i]) < ABS(i2[i]))
 					cloth1->verts[collpair->ap2].impulse[i] = i2[i];
 
-				if(cloth1->verts[collpair->ap3].impulse_count > 0 && ABS(cloth1->verts[collpair->ap3].impulse[i]) < ABS(i3[i]))
+				if (cloth1->verts[collpair->ap3].impulse_count > 0 && ABS(cloth1->verts[collpair->ap3].impulse[i]) < ABS(i3[i]))
 					cloth1->verts[collpair->ap3].impulse[i] = i3[i];
 			}
 		}
@@ -637,12 +642,12 @@ static void cloth_bvh_objcollisions_nearcheck ( ClothModifierData * clmd, Collis
 {
 	int i;
 	
-	*collisions = ( CollPair* ) MEM_mallocN ( sizeof ( CollPair ) * numresult * 64, "collision array" ); //*4 since cloth_collision_static can return more than 1 collision
+	*collisions = (CollPair *) MEM_mallocN(sizeof(CollPair) * numresult * 64, "collision array" ); //*4 since cloth_collision_static can return more than 1 collision
 	*collisions_index = *collisions;
 
 	for ( i = 0; i < numresult; i++ ) {
 		*collisions_index = cloth_collision ( (ModifierData *)clmd, (ModifierData *)collmd,
-											  overlap+i, *collisions_index, dt );
+		                                      overlap+i, *collisions_index, dt );
 	}
 }
 
@@ -681,8 +686,9 @@ static int cloth_bvh_objcollisions_resolve ( ClothModifierData * clmd, Collision
 			}
 		}
 
-		if(!result)
+		if (!result) {
 			break;
+		}
 	}
 	return ret;
 }
@@ -832,6 +838,12 @@ int cloth_bvh_objcollision(Object *ob, ClothModifierData * clmd, float step, flo
 							{
 								continue;
 							}
+						}
+
+						if ((cloth->verts[i].flags & CLOTH_VERT_FLAG_NOSELFCOLL) ||
+						    (cloth->verts[j].flags & CLOTH_VERT_FLAG_NOSELFCOLL))
+						{
+							continue;
 						}
 	
 						sub_v3_v3v3(temp, verts[i].tx, verts[j].tx);

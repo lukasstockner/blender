@@ -1,5 +1,27 @@
-# -*- mode: cmake; indent-tabs-mode: t; -*-
-
+# ***** BEGIN GPL LICENSE BLOCK *****
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# The Original Code is Copyright (C) 2006, Blender Foundation
+# All rights reserved.
+#
+# The Original Code is: all of this file.
+#
+# Contributor(s): Jacques Beaurain.
+#
+# ***** END GPL LICENSE BLOCK *****
 
 # foo_bar.spam --> foo_barMySuffix.spam
 macro(file_suffix
@@ -171,7 +193,7 @@ macro(SETUP_LIBDIRS)
 	if(WITH_OPENIMAGEIO)
 		link_directories(${OPENIMAGEIO_LIBPATH})
 	endif()
-	if(WITH_IMAGE_OPENJPEG AND UNIX AND NOT APPLE)
+	if(WITH_IMAGE_OPENJPEG AND WITH_SYSTEM_OPENJPEG)
 		link_directories(${OPENJPEG_LIBPATH})
 	endif()
 	if(WITH_CODEC_QUICKTIME)
@@ -214,8 +236,7 @@ macro(setup_liblinks
 			${OPENGL_glu_LIBRARY}
 			${PNG_LIBRARIES}
 			${ZLIB_LIBRARIES}
-			${FREETYPE_LIBRARY}
-			${LAPACK_LIBRARIES})
+			${FREETYPE_LIBRARY})
 
 	# since we are using the local libs for python when compiling msvc projects, we need to add _d when compiling debug versions
 	if(WITH_PYTHON)  # AND NOT WITH_PYTHON_MODULE  # WIN32 needs
@@ -231,7 +252,7 @@ macro(setup_liblinks
 		endif()
 	endif()
 
-	if(NOT WITH_BUILTIN_GLEW)
+	if(WITH_SYSTEM_GLEW)
 		target_link_libraries(${target} ${GLEW_LIBRARY})
 	endif()
 
@@ -281,7 +302,7 @@ macro(setup_liblinks
 			target_link_libraries(${target} ${OPENEXR_LIBRARIES})
 		endif()
 	endif()
-	if(WITH_IMAGE_OPENJPEG AND UNIX AND NOT APPLE)
+	if(WITH_IMAGE_OPENJPEG AND WITH_SYSTEM_OPENJPEG)
 		target_link_libraries(${target} ${OPENJPEG_LIBRARIES})
 	endif()
 	if(WITH_CODEC_FFMPEG)
@@ -324,7 +345,9 @@ macro(setup_liblinks
 	if(WITH_INPUT_NDOF)
 		target_link_libraries(${target} ${NDOF_LIBRARIES})
 	endif()
-
+	if(WITH_MOD_CLOTH_ELTOPO)
+		target_link_libraries(${target} ${LAPACK_LIBRARIES})
+	endif()
 	if(WIN32 AND NOT UNIX)
 		target_link_libraries(${target} ${PTHREADS_LIBRARIES})
 	endif()
@@ -428,6 +451,12 @@ macro(remove_strict_flags)
 
 		# negate flags implied by '-Wall'
 		add_cc_flag("${CC_REMOVE_STRICT_FLAGS}")
+	endif()
+
+	if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+		remove_cc_flag("-Wunused-parameter")
+		remove_cc_flag("-Wunused-variable")
+		remove_cc_flag("-Werror")
 	endif()
 
 	if(MSVC)

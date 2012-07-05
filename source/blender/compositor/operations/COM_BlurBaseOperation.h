@@ -29,30 +29,39 @@ class BlurBaseOperation : public NodeOperation, public QualityStepHelper {
 private:
 
 protected:
-	/**
-	  * Cached reference to the inputProgram
-	  */
-	SocketReader *inputProgram;
-	SocketReader *inputSize;
-	NodeBlurData * data;
-	BlurBaseOperation();
+
+	BlurBaseOperation(DataType data_type);
 	float *make_gausstab(int rad);
-	float size;
-	bool deleteData;
+	float *make_dist_fac_inverse(int rad, int falloff);
+
 	void updateSize(MemoryBuffer **memoryBuffers);
+
+	/**
+	 * Cached reference to the inputProgram
+	 */
+	SocketReader *m_inputProgram;
+	SocketReader *m_inputSize;
+	NodeBlurData *m_data;
+
+	float m_size;
+	bool m_deleteData;
+	bool m_sizeavailable;
+
 public:
 	/**
-	  * Initialize the execution
-	  */
+	 * Initialize the execution
+	 */
 	void initExecution();
 	
 	/**
-	  * Deinitialize the execution
-	  */
+	 * Deinitialize the execution
+	 */
 	void deinitExecution();
 	
-	void setData(NodeBlurData *data) {this->data = data;}
-	
-	void deleteDataWhenFinished() {this->deleteData = true;}
+	void setData(NodeBlurData *data) { this->m_data = data; }
+
+	void deleteDataWhenFinished() { this->m_deleteData = true; }
+
+	void setSize(float size) { this->m_size = size; this->m_sizeavailable = true; }
 };
 #endif

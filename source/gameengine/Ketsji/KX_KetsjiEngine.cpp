@@ -603,7 +603,7 @@ else
 	
 			/* Suspension holds the physics and logic processing for an
 			 * entire scene. Objects can be suspended individually, and
-			 * the settings for that preceed the logic and physics
+			 * the settings for that precede the logic and physics
 			 * update. */
 			m_logger->StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
 
@@ -1342,13 +1342,13 @@ void KX_KetsjiEngine::PostRenderScene(KX_Scene* scene)
 {
 	// We need to first make sure our viewport is correct (enabling multiple viewports can mess this up)
 	m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
-
+	
+	m_rasterizer->FlushDebugShapes();
 	m_rendertools->MotionBlur(m_rasterizer);
 	scene->Render2DFilters(m_canvas);
 #ifdef WITH_PYTHON
 	scene->RunDrawingCallbacks(scene->GetPostDrawCB());	
 #endif
-	m_rasterizer->FlushDebugShapes();
 }
 
 void KX_KetsjiEngine::StopEngine()
@@ -1472,18 +1472,18 @@ void KX_KetsjiEngine::RenderDebugProperties()
 		for (int j = tc_first; j < tc_numCategories; j++)
 		{
 			debugtxt.Format(m_profileLabels[j]);
-			m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED, 
-										debugtxt.Ptr(),
-										xcoord,ycoord,
-										m_canvas->GetWidth(), 
-										m_canvas->GetHeight());
+			m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
+			                            debugtxt.Ptr(),
+			                            xcoord,ycoord,
+			                            m_canvas->GetWidth(),
+			                            m_canvas->GetHeight());
 			double time = m_logger->GetAverage((KX_TimeCategory)j);
 			debugtxt.Format("%.3fms (%2.2f %%)", time*1000.f, time/tottime * 100.f);
-			m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED, 
-										debugtxt.Ptr(),
-										xcoord + 60 ,ycoord,
-										m_canvas->GetWidth(), 
-										m_canvas->GetHeight());
+			m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
+			                            debugtxt.Ptr(),
+			                            xcoord + 60, ycoord,
+			                            m_canvas->GetWidth(),
+			                            m_canvas->GetHeight());
 			ycoord += 14;
 		}
 	}

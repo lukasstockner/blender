@@ -32,18 +32,19 @@ extern "C" {
 	#include "BKE_tracking.h"
 }
 
-Stabilize2dNode::Stabilize2dNode(bNode *editorNode): Node(editorNode)
+Stabilize2dNode::Stabilize2dNode(bNode *editorNode) : Node(editorNode)
 {
+	/* pass */
 }
 
-void Stabilize2dNode::convertToOperations(ExecutionSystem *graph, CompositorContext * context)
+void Stabilize2dNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
 {
 	InputSocket *imageInput = this->getInputSocket(0);
 	MovieClip *clip = (MovieClip *)getbNode()->id;
 	
-	ScaleOperation * scaleOperation = new ScaleOperation();
-	RotateOperation * rotateOperation = new RotateOperation();
-	TranslateOperation * translateOperation = new TranslateOperation();
+	ScaleOperation *scaleOperation = new ScaleOperation();
+	RotateOperation *rotateOperation = new RotateOperation();
+	TranslateOperation *translateOperation = new TranslateOperation();
 	MovieClipAttributeOperation *scaleAttribute = new MovieClipAttributeOperation();
 	MovieClipAttributeOperation *angleAttribute = new MovieClipAttributeOperation();
 	MovieClipAttributeOperation *xAttribute = new MovieClipAttributeOperation();
@@ -65,7 +66,7 @@ void Stabilize2dNode::convertToOperations(ExecutionSystem *graph, CompositorCont
 	yAttribute->setFramenumber(context->getFramenumber());
 	yAttribute->setMovieClip(clip);
 	
-	imageInput->relinkConnections(scaleOperation->getInputSocket(0), true, 0, graph);
+	imageInput->relinkConnections(scaleOperation->getInputSocket(0), 0, graph);
 	addLink(graph, scaleAttribute->getOutputSocket(), scaleOperation->getInputSocket(1));
 	addLink(graph, scaleAttribute->getOutputSocket(), scaleOperation->getInputSocket(2));
 	

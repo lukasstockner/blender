@@ -99,8 +99,15 @@
 #  include "BLI_winstuff.h"
 #endif
 
-#define PTCACHE_DATA_FROM(data, type, from)		if (data[type]) { memcpy(data[type], from, ptcache_data_size[type]); }
-#define PTCACHE_DATA_TO(data, type, index, to)	if (data[type]) { memcpy(to, (char*)data[type] + (index ? index * ptcache_data_size[type] : 0), ptcache_data_size[type]); }
+#define PTCACHE_DATA_FROM(data, type, from)  \
+	if (data[type]) { \
+		memcpy(data[type], from, ptcache_data_size[type]); \
+	} (void)0
+
+#define PTCACHE_DATA_TO(data, type, index, to)  \
+	if (data[type]) { \
+		memcpy(to, (char *)(data)[type] + ((index) ? (index) * ptcache_data_size[type] : 0), ptcache_data_size[type]); \
+	} (void)0
 
 /* could be made into a pointcache option */
 #define DURIAN_POINTCACHE_LIB_OK 1
@@ -835,7 +842,7 @@ void BKE_ptcache_id_from_particles(PTCacheID *pid, Object *ob, ParticleSystem *p
 
 		if (psys->part->rotmode != PART_ROT_VEL  ||
 		    psys->part->avemode == PART_AVE_RAND ||
-		    psys->part->avefac  != 0.0f)
+		    psys->part->avefac != 0.0f)
 		{
 			pid->data_types |= (1 << BPHYS_DATA_AVELOCITY);
 		}
@@ -2190,8 +2197,9 @@ void BKE_ptcache_id_clear(PTCacheID *pid, int mode, unsigned int cfra)
 								BLI_strncpy(num, de->d_name + (strlen(de->d_name) - 15), sizeof(num));
 								frame = atoi(num);
 								
-								if ((mode==PTCACHE_CLEAR_BEFORE && frame < cfra)	|| 
-								(mode==PTCACHE_CLEAR_AFTER && frame > cfra)	) {
+								if ((mode == PTCACHE_CLEAR_BEFORE && frame < cfra) ||
+								    (mode == PTCACHE_CLEAR_AFTER && frame > cfra))
+								{
 									
 									BLI_join_dirfile(path_full, sizeof(path_full), path, de->d_name);
 									BLI_delete(path_full, 0, 0);
@@ -2226,8 +2234,9 @@ void BKE_ptcache_id_clear(PTCacheID *pid, int mode, unsigned int cfra)
 			}
 			else {
 				while (pm) {
-					if ((mode==PTCACHE_CLEAR_BEFORE && pm->frame < cfra)	|| 
-					(mode==PTCACHE_CLEAR_AFTER && pm->frame > cfra)	) {
+					if ((mode == PTCACHE_CLEAR_BEFORE && pm->frame < cfra) ||
+					    (mode == PTCACHE_CLEAR_AFTER && pm->frame > cfra))
+					{
 						link = pm;
 						if (pid->cache->cached_frames && pm->frame >=sta && pm->frame <= end)
 							pid->cache->cached_frames[pm->frame-sta] = 0;
@@ -3292,9 +3301,9 @@ void BKE_ptcache_update_info(PTCacheID *pid)
 		mb = (bytes > 1024.0f * 1024.0f);
 
 		BLI_snprintf(mem_info, sizeof(mem_info), "%i frames in memory (%.1f %s)",
-			totframes,
-			bytes / (mb ? 1024.0f * 1024.0f : 1024.0f),
-			mb ? "Mb" : "kb");
+		             totframes,
+		             bytes / (mb ? 1024.0f * 1024.0f : 1024.0f),
+		             mb ? "Mb" : "kb");
 	}
 
 	if (cache->flag & PTCACHE_OUTDATED) {

@@ -212,7 +212,7 @@ Lattice *BKE_lattice_copy(Lattice *lt)
 	
 	if (lt->dvert) {
 		int tot = lt->pntsu * lt->pntsv * lt->pntsw;
-		ltn->dvert = MEM_mallocN(sizeof (MDeformVert) * tot, "Lattice MDeformVert");
+		ltn->dvert = MEM_mallocN(sizeof(MDeformVert) * tot, "Lattice MDeformVert");
 		copy_dverts(ltn->dvert, lt->dvert, tot);
 	}
 
@@ -305,7 +305,7 @@ void init_latt_deform(Object *oblatt, Object *ob)
 	
 	fp = lt->latticedata = MEM_mallocN(sizeof(float) * 3 * lt->pntsu * lt->pntsv * lt->pntsw, "latticedata");
 	
-	/* for example with a particle system: ob==0 */
+	/* for example with a particle system: (ob == NULL) */
 	if (ob == NULL) {
 		/* in deformspace, calc matrix  */
 		invert_m4_m4(lt->latmat, oblatt->obmat);
@@ -662,7 +662,8 @@ void curve_deform_verts(Scene *scene, Object *cuOb, Object *target,
 			use_vgroups = (dm->getVertData(dm, 0, CD_MDEFORMVERT) != NULL);
 		}
 		else {
-			use_vgroups = FALSE;
+			Mesh *me = target->data;
+			use_vgroups = (me->dvert != NULL);
 		}
 	}
 	else {
@@ -807,7 +808,8 @@ void lattice_deform_verts(Object *laOb, Object *target, DerivedMesh *dm,
 			use_vgroups = (dm->getVertData(dm, 0, CD_MDEFORMVERT) != NULL);
 		}
 		else {
-			use_vgroups = FALSE;
+			Mesh *me = target->data;
+			use_vgroups = (me->dvert != NULL);
 		}
 	}
 	else {

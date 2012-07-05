@@ -26,6 +26,7 @@ subject to the following restrictions:
 #include <algorithm>
 #include "btBulletDynamicsCommon.h"
 #include "LinearMath/btIDebugDraw.h"
+#include "BulletCollision/CollisionDispatch/btGhostObject.h"
 #include "BulletCollision/CollisionDispatch/btSimulationIslandManager.h"
 #include "BulletSoftBody/btSoftRigidDynamicsWorld.h"
 #include "BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h"
@@ -369,6 +370,7 @@ m_scalingPropagated(false)
 
 	m_filterCallback = new CcdOverlapFilterCallBack(this);
 	m_broadphase->getOverlappingPairCache()->setOverlapFilterCallback(m_filterCallback);
+	m_broadphase->getOverlappingPairCache()->setInternalGhostPairCallback(new btGhostPairCallback());
 
 	setSolverType(1);//issues with quickstep and memory allocations
 //	m_dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher,m_broadphase,m_solver,m_collisionConfiguration);
@@ -406,7 +408,11 @@ void	CcdPhysicsEnvironment::addCcdPhysicsController(CcdPhysicsController* ctrl)
 		{
 			if (obj->getCollisionShape())
 			{
-				m_dynamicsWorld->addCollisionObject(obj,ctrl->GetCollisionFilterGroup(), ctrl->GetCollisionFilterMask());
+				m_dynamicsWorld->addCollisionObject(obj, ctrl->GetCollisionFilterGroup(), ctrl->GetCollisionFilterMask());
+			}
+			if (ctrl->GetCharacterController())
+			{
+				m_dynamicsWorld->addAction(ctrl->GetCharacterController());
 			}
 		}
 	}
@@ -713,8 +719,8 @@ void	CcdPhysicsEnvironment::processFhSprings(double curTime,float interval)
 					{
 						if (ctrl->getConstructionInfo().m_do_fh) 
 						{
-							btVector3 lspot = cl_object->getCenterOfMassPosition()
-								+ rayDirLocal * resultCallback.m_closestHitFraction;
+							btVector3 lspot = cl_object->getCenterOfMassPosition() +
+							        rayDirLocal * resultCallback.m_closestHitFraction;
 
 
 								
@@ -1805,8 +1811,8 @@ bool CcdPhysicsEnvironment::cullingTest(PHY_CullingCallback callback, void* user
 		// occlusion culling, the direction of the view is taken from the first plan which MUST be the near plane
 		btDbvt::collideOCL(m_cullingTree->m_sets[1].m_root,planes_n,planes_o,planes_n[0],nplanes,dispatcher);
 		btDbvt::collideOCL(m_cullingTree->m_sets[0].m_root,planes_n,planes_o,planes_n[0],nplanes,dispatcher);		
-	}else 
-	{
+	}
+	else {
 		btDbvt::collideKDOP(m_cullingTree->m_sets[1].m_root,planes_n,planes_o,nplanes,dispatcher);
 		btDbvt::collideKDOP(m_cullingTree->m_sets[0].m_root,planes_n,planes_o,nplanes,dispatcher);		
 	}

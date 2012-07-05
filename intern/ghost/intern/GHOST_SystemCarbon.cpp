@@ -31,7 +31,6 @@
 
 
 /**
-
  * Copyright (C) 2001 NaN Technologies B.V.
  * @author	Maarten Gribnau
  * @date	May 7, 2001
@@ -57,8 +56,6 @@
 #include "GHOST_NDOFManager.h"
 #include "AssertMacros.h"
 
-#define GHOST_KEY_SWITCH(mac, ghost) { case (mac): ghostKey = (ghost); break; }
-
 /* blender class and types events */
 enum {
 	kEventClassBlender              = 'blnd'
@@ -72,10 +69,10 @@ enum {
 const EventTypeSpec kEvents[] =
 {
 	{ kEventClassAppleEvent, kEventAppleEvent },
-/*
-    { kEventClassApplication, kEventAppActivated },
-    { kEventClassApplication, kEventAppDeactivated },
- */
+#if 0
+	{ kEventClassApplication, kEventAppActivated },
+	{ kEventClassApplication, kEventAppDeactivated },
+ #endif
 	{ kEventClassKeyboard, kEventRawKeyDown },
 	{ kEventClassKeyboard, kEventRawKeyRepeat },
 	{ kEventClassKeyboard, kEventRawKeyUp },
@@ -996,7 +993,7 @@ bool GHOST_SystemCarbon::handleMouseDown(EventRef event)
 			 * @see GHOST_SystemCarbon::handleWindowEvent(EventRef event)
 			 */
 			/* even worse: scale window also generates a load of events, and nothing 
-			   is handled (read: client's event proc called) until you release mouse (ton) */
+			 * is handled (read: client's event proc called) until you release mouse (ton) */
 			
 			GHOST_ASSERT(validWindow(ghostWindow), "GHOST_SystemCarbon::handleMouseDown: invalid window");
 			m_ignoreWindowSizedMessages = true;
@@ -1027,7 +1024,7 @@ bool GHOST_SystemCarbon::handleMouseDown(EventRef event)
 			GHOST_ASSERT(ghostWindow, "GHOST_SystemCarbon::handleMouseEvent: ghostWindow==0");
 			if (::TrackGoAway(window, mousePos))
 			{
-				// todo: add option-close, because itÿs in the HIG
+				// todo: add option-close, because it's in the HIG
 				// if (event.modifiers & optionKey) {
 				// Close the clean documents, others will be confirmed one by one.
 				//}

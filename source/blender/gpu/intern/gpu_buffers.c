@@ -102,7 +102,7 @@ static GPUBufferPool *gpu_buffer_pool_new(void)
 	if (useVBOs == -1)
 		useVBOs = (GLEW_ARB_vertex_buffer_object ? 1 : 0);
 
-	pool = MEM_callocN(sizeof(GPUBufferPool), "GPUBuffer");
+	pool = MEM_callocN(sizeof(GPUBufferPool), "GPUBuffer_Pool");
 
 	pool->maxsize = MAX_FREE_GPU_BUFFERS;
 	pool->buffers = MEM_callocN(sizeof(GPUBuffer *) * pool->maxsize,
@@ -191,6 +191,12 @@ GPUBuffer *GPU_buffer_alloc(int size)
 	GPUBufferPool *pool;
 	GPUBuffer *buf;
 	int i, bufsize, bestfit = -1;
+
+	/* bad case, leads to leak of buf since buf->pointer will allocate
+	 * NULL, leading to return without cleanup. In any case better detect early
+	 * psy-fi */
+	if (size == 0)
+		return NULL;
 
 	pool = gpu_get_global_buffer_pool();
 
@@ -1145,7 +1151,7 @@ void GPU_buffer_unbind(void)
 			glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
 		}
 	}
-	GLStates &= !(GPU_BUFFER_VERTEX_STATE | GPU_BUFFER_NORMAL_STATE |
+	GLStates &= ~(GPU_BUFFER_VERTEX_STATE | GPU_BUFFER_NORMAL_STATE |
 	              GPU_BUFFER_TEXCOORD_STATE | GPU_BUFFER_COLOR_STATE |
 	              GPU_BUFFER_ELEMENT_STATE);
 
@@ -1185,7 +1191,7 @@ void GPU_color_switch(int mode)
 	else {
 		if (GLStates & GPU_BUFFER_COLOR_STATE)
 			glDisableClientState(GL_COLOR_ARRAY);
-		GLStates &= (!GPU_BUFFER_COLOR_STATE);
+		GLStates &= ~GPU_BUFFER_COLOR_STATE;
 	}
 }
 
@@ -1654,7 +1660,7 @@ static int gpu_count_grid_quads(BLI_bitmap *grid_hidden,
 			glDeleteBuffersARB(1, &(buffer_));                          \
 			(buffer_) = 0;                                              \
 		}                                                               \
-	}
+	} (void)0
 /* end FILL_QUAD_BUFFER */
 
 static GLuint gpu_get_grid_buffer(int gridsize, GLenum *index_type, unsigned *totquad)

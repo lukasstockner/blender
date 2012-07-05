@@ -68,7 +68,6 @@ EnumPropertyItem texture_type_items[] = {
 	{TEX_MUSGRAVE, "MUSGRAVE", ICON_TEXTURE, "Musgrave", "Procedural - highly flexible fractal noise texture"},
 	{TEX_NOISE, "NOISE", ICON_TEXTURE, "Noise",
 	            "Procedural - random noise, gives a different result every time, for every frame, for every pixel"},
-	/*{TEX_PLUGIN, "PLUGIN", ICON_PLUGIN, "Plugin", ""},  *//* Nothing yet */
 	{TEX_POINTDENSITY, "POINT_DENSITY", ICON_TEXTURE, "Point Density", ""},
 	{TEX_STUCCI, "STUCCI", ICON_TEXTURE, "Stucci", "Procedural - create a fractal noise texture"},
 	{TEX_VORONOI, "VORONOI", ICON_TEXTURE, "Voronoi", "Procedural - create cell-like patterns based on Worley noise"},
@@ -842,7 +841,7 @@ static void rna_def_texture_clouds(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	static EnumPropertyItem prop_clouds_stype[] = {
-		{TEX_DEFAULT, "GREYSCALE", 0, "Greyscale", ""},
+		{TEX_DEFAULT, "GRAYSCALE", 0, "Grayscale", ""},
 		{TEX_COLOR, "COLOR", 0, "Color", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
@@ -1784,7 +1783,7 @@ static void rna_def_texture_voxeldata(BlenderRNA *brna)
 
 	static EnumPropertyItem file_format_items[] = {
 		{TEX_VD_BLENDERVOXEL, "BLENDER_VOXEL", 0, "Blender Voxel", "Default binary voxel file format"},
-		{TEX_VD_RAW_8BIT, "RAW_8BIT", 0, "8 bit RAW", "8 bit greyscale binary data"},
+		{TEX_VD_RAW_8BIT, "RAW_8BIT", 0, "8 bit RAW", "8 bit grayscale binary data"},
 		/*{TEX_VD_RAW_16BIT, "RAW_16BIT", 0, "16 bit RAW", ""}, */
 		{TEX_VD_IMAGE_SEQUENCE, "IMAGE_SEQUENCE", 0, "Image Sequence",
 		                        "Generate voxels from a sequence of image slices"},

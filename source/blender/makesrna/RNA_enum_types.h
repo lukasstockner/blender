@@ -41,9 +41,11 @@ extern EnumPropertyItem object_mode_items[];
 extern EnumPropertyItem metaelem_type_items[];
 
 extern EnumPropertyItem proportional_falloff_items[];
+extern EnumPropertyItem proportional_falloff_curve_only_items[];
 extern EnumPropertyItem proportional_editing_items[];
 extern EnumPropertyItem snap_target_items[];
 extern EnumPropertyItem snap_element_items[];
+extern EnumPropertyItem snap_node_element_items[];
 extern EnumPropertyItem mesh_select_mode_items[];
 extern EnumPropertyItem space_type_items[];
 extern EnumPropertyItem region_type_items[];
@@ -55,10 +57,14 @@ extern EnumPropertyItem image_type_items[];
 extern EnumPropertyItem image_color_mode_items[];
 extern EnumPropertyItem image_depth_mode_items[];
 
+extern EnumPropertyItem color_sets_items[];
+
 extern EnumPropertyItem beztriple_keyframe_type_items[];
 extern EnumPropertyItem beztriple_handle_type_items[];
 extern EnumPropertyItem beztriple_interpolation_mode_items[];
 extern EnumPropertyItem keyframe_handle_type_items[];
+
+extern EnumPropertyItem keyblock_type_items[];
 
 extern EnumPropertyItem keyingset_path_grouping_items[];
 
@@ -140,6 +146,7 @@ EnumPropertyItem *RNA_scene_itemf(struct bContext *C, struct PointerRNA *ptr, st
 EnumPropertyItem *RNA_scene_local_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
 EnumPropertyItem *RNA_movieclip_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
 EnumPropertyItem *RNA_movieclip_local_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
-
+EnumPropertyItem *RNA_mask_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
+EnumPropertyItem *RNA_mask_local_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
 
 #endif /* __RNA_ENUM_TYPES_H__ */

@@ -22,26 +22,24 @@
 
 #include "COM_VectorBlurNode.h"
 #include "DNA_node_types.h"
-#include "COM_FogGlowImageOperation.h"
-#include "COM_BokehBlurOperation.h"
 #include "COM_VectorBlurOperation.h"
-#include "COM_SetValueOperation.h"
-#include "COM_MixBlendOperation.h"
 
-VectorBlurNode::VectorBlurNode(bNode *editorNode): Node(editorNode)
+VectorBlurNode::VectorBlurNode(bNode *editorNode) : Node(editorNode)
 {
+	/* pass */
 }
 
-void VectorBlurNode::convertToOperations(ExecutionSystem *system, CompositorContext * context)
+void VectorBlurNode::convertToOperations(ExecutionSystem *system, CompositorContext *context)
 {
 	bNode *node = this->getbNode();
-	NodeBlurData *vectorBlurSettings = (NodeBlurData*)node->storage;
+	NodeBlurData *vectorBlurSettings = (NodeBlurData *)node->storage;
 	VectorBlurOperation *operation = new VectorBlurOperation();
+	operation->setbNode(node);
 	operation->setVectorBlurSettings(vectorBlurSettings);
 	operation->setQuality(context->getQuality());
-	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), true, 0, system);
-	this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), true, 1, system);
-	this->getInputSocket(2)->relinkConnections(operation->getInputSocket(2), true, 2, system);
+	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, system);
+	this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), 1, system);
+	this->getInputSocket(2)->relinkConnections(operation->getInputSocket(2), 2, system);
 	this->getOutputSocket()->relinkConnections(operation->getOutputSocket());
 	system->addOperation(operation);
 }

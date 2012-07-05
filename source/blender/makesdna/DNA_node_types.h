@@ -154,30 +154,35 @@ typedef struct bNode {
 	struct bNode *next, *prev, *new_node;
 	
 	char name[64];	/* MAX_NAME */
-	short type, flag;
+	int flag;
+	short type, pad2;
 	short done, level;		/* both for dependency and sorting */
 	short lasty, menunr;	/* lasty: check preview render status, menunr: browse ID blocks */
 	short stack_index;		/* for groupnode, offset in global caller stack */
 	short nr;				/* number of this node in list, used for UI exec events */
+	float color[3];			/* custom user-defined color */
 	
 	ListBase inputs, outputs;
 	struct bNode *parent;	/* parent node */
 	struct ID *id;			/* optional link to libdata */
 	void *storage;			/* custom data, must be struct, for storage in file */
+	struct bNode *original;	/* the original node in the tree (for localized tree) */
 	
 	float locx, locy;		/* root offset for drawing */
 	float width, height;	/* node custom width and height */
 	float miniwidth;		/* node width if hidden */
+	float offsetx, offsety;	/* additional offset from loc */
 	
 	int update;				/* update flags */
 	
 	char label[64];			/* custom user-defined label, MAX_NAME */
 	short custom1, custom2;	/* to be abused for buttons */
 	float custom3, custom4;
+	int highlight;			/* 0 = not highlighted, 1-N = highlighted*/
+	int pad;
 	
 	short need_exec, exec;	/* need_exec is set as UI execution event, exec is flag during exec */
 	void *threaddata;		/* optional extra storage for use in thread (read only then!) */
-	
 	rctf totr;				/* entire boundbox */
 	rctf butr;				/* optional buttons area */
 	rctf prvr;				/* optional preview area */
@@ -209,6 +214,8 @@ typedef struct bNode {
 #define NODE_TRANSFORM		(1<<13)
 	/* node is active texture */
 #define NODE_ACTIVE_TEXTURE	(1<<14)
+	/* use a custom color for the node */
+#define NODE_CUSTOM_COLOR	(1<<15)
 
 /* node->update */
 /* XXX NODE_UPDATE is a generic update flag. More fine-grained updates
@@ -235,6 +242,14 @@ typedef struct bNodeLink {
 #define NTREE_QUALITY_HIGH    0
 #define NTREE_QUALITY_MEDIUM  1
 #define NTREE_QUALITY_LOW     2
+
+/* tree->chunksize */
+#define NTREE_CHUNCKSIZE_32 32
+#define NTREE_CHUNCKSIZE_64 64
+#define NTREE_CHUNCKSIZE_128 128
+#define NTREE_CHUNCKSIZE_256 256
+#define NTREE_CHUNCKSIZE_512 512
+#define NTREE_CHUNCKSIZE_1024 1024
 
 /* the basis for a Node tree, all links and nodes reside internal here */
 /* only re-usable node trees are in the library though, materials and textures allocate own tree struct */
@@ -289,6 +304,7 @@ typedef struct bNodeTree {
 /* ntree->flag */
 #define NTREE_DS_EXPAND		1	/* for animation editors */
 #define NTREE_COM_OPENCL	2	/* use opencl */
+#define NTREE_TWO_PASS		4	/* two pass */
 /* XXX not nice, but needed as a temporary flags
  * for group updates after library linking.
  */
@@ -334,16 +350,36 @@ typedef struct bNodeSocketValueRGBA {
 
 
 /* data structs, for node->storage */
+enum {
+	CMP_NODE_MASKTYPE_ADD         = 0,
+	CMP_NODE_MASKTYPE_SUBTRACT    = 1,
+	CMP_NODE_MASKTYPE_MULTIPLY    = 2,
+	CMP_NODE_MASKTYPE_NOT         = 3
+};
 
-#define CMP_NODE_MASKTYPE_ADD       	0
-#define CMP_NODE_MASKTYPE_SUBTRACT  	1
-#define CMP_NODE_MASKTYPE_MULTIPLY  	2
-#define CMP_NODE_MASKTYPE_NOT       	3
+enum {
+	CMP_NODE_LENSFLARE_GHOST   = 1,
+	CMP_NODE_LENSFLARE_GLOW    = 2,
+	CMP_NODE_LENSFLARE_CIRCLE  = 4,
+	CMP_NODE_LENSFLARE_STREAKS = 8
+};
 
-#define CMP_NODE_LENSFLARE_GHOST   1
-#define CMP_NODE_LENSFLARE_GLOW    2
-#define CMP_NODE_LENSFLARE_CIRCLE  4
-#define CMP_NODE_LENSFLARE_STREAKS 8
+enum {
+	CMP_NODE_DILATEERODE_STEP             = 0,
+	CMP_NODE_DILATEERODE_DISTANCE_THRESH  = 1,
+	CMP_NODE_DILATEERODE_DISTANCE         = 2,
+	CMP_NODE_DILATEERODE_DISTANCE_FEATHER = 3
+};
+
+enum {
+	CMP_NODEFLAG_MASK_AA         = (1 << 0),
+	CMP_NODEFLAG_MASK_NO_FEATHER = (1 << 1)
+};
+
+typedef struct NodeFrame {
+	short flag;
+	short label_size;
+} NodeFrame;
 
 /* this one has been replaced with ImageUser, keep it for do_versions() */
 typedef struct NodeImageAnim {
@@ -536,6 +572,11 @@ typedef struct NodeColorspill {
 	float uspillr, uspillg, uspillb;
 } NodeColorspill;
 
+typedef struct NodeDilateErode {
+	char falloff;
+	char pad[7];
+} NodeDilateErode;
+
 typedef struct NodeTexBase {
 	TexMapping tex_mapping;
 	ColorMapping color_mapping;
@@ -549,6 +590,7 @@ typedef struct NodeTexSky {
 
 typedef struct NodeTexImage {
 	NodeTexBase base;
+	ImageUser iuser;
 	int color_space, pad;
 } NodeTexImage;
 
@@ -558,6 +600,7 @@ typedef struct NodeTexChecker {
 
 typedef struct NodeTexEnvironment {
 	NodeTexBase base;
+	ImageUser iuser;
 	int color_space, projection;
 } NodeTexEnvironment;
 
@@ -603,6 +646,26 @@ typedef struct NodeShaderAttribute {
 typedef struct TexNodeOutput {
 	char name[64];
 } TexNodeOutput;
+
+typedef struct NodeKeyingScreenData {
+	char tracking_object[64];
+} NodeKeyingScreenData;
+
+typedef struct NodeKeyingData {
+	float screen_balance;
+	float despill_factor;
+	int edge_kernel_radius;
+	float edge_kernel_tolerance;
+	float clip_black, clip_white;
+	int dilate_distance;
+	int feather_distance;
+	int feather_falloff;
+	int blur_pre, blur_post;
+} NodeKeyingData;
+
+/* frame node flags */
+#define NODE_FRAME_SHRINK		1	/* keep the bounding box minimal */
+#define NODE_FRAME_RESIZEABLE	2	/* test flag, if frame can be resized by user */
 
 /* comp channel matte */
 #define CMP_NODE_CHANNEL_MATTE_CS_RGB	1

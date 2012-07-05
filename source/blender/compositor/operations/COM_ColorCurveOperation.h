@@ -29,28 +29,61 @@
 class ColorCurveOperation : public CurveBaseOperation {
 private:
 	/**
-	  * Cached reference to the inputProgram
-	  */
-	SocketReader * inputFacProgram;
-	SocketReader * inputImageProgram;
-	SocketReader * inputBlackProgram;
-	SocketReader * inputWhiteProgram;
+	 * Cached reference to the inputProgram
+	 */
+	SocketReader *m_inputFacProgram;
+	SocketReader *m_inputImageProgram;
+	SocketReader *m_inputBlackProgram;
+	SocketReader *m_inputWhiteProgram;
 public:
 	ColorCurveOperation();
 	
 	/**
-	  * the inner loop of this program
-	  */
-	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+	 * the inner loop of this program
+	 */
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer * inputBuffers[]);
 	
 	/**
-	  * Initialize the execution
-	  */
+	 * Initialize the execution
+	 */
 	void initExecution();
 	
 	/**
-	  * Deinitialize the execution
-	  */
+	 * Deinitialize the execution
+	 */
 	void deinitExecution();
 };
+
+class ConstantLevelColorCurveOperation : public CurveBaseOperation {
+private:
+	/**
+	 * Cached reference to the inputProgram
+	 */
+	SocketReader *m_inputFacProgram;
+	SocketReader *m_inputImageProgram;
+	float m_black[3];
+	float m_white[3];
+	
+public:
+	ConstantLevelColorCurveOperation();
+	
+	/**
+	 * the inner loop of this program
+	 */
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer * inputBuffers[]);
+	
+	/**
+	 * Initialize the execution
+	 */
+	void initExecution();
+	
+	/**
+	 * Deinitialize the execution
+	 */
+	void deinitExecution();
+	
+	void setBlackLevel(float black[3]) { this->m_black[0] = black[0]; this->m_black[1] = black[1]; this->m_black[2] = black[2]; }
+	void setWhiteLevel(float white[3]) { this->m_white[0] = white[0]; this->m_white[1] = white[1]; this->m_white[2] = white[2]; }
+};
+
 #endif

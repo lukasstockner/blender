@@ -60,6 +60,33 @@ EnumPropertyItem posebone_rotmode_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
+/* Bone and Group Color Sets */
+EnumPropertyItem color_sets_items[] = {
+	{0, "DEFAULT", 0, "Default Colors", ""},
+	{1, "THEME01", 0, "01 - Theme Color Set", ""},
+	{2, "THEME02", 0, "02 - Theme Color Set", ""},
+	{3, "THEME03", 0, "03 - Theme Color Set", ""},
+	{4, "THEME04", 0, "04 - Theme Color Set", ""},
+	{5, "THEME05", 0, "05 - Theme Color Set", ""},
+	{6, "THEME06", 0, "06 - Theme Color Set", ""},
+	{7, "THEME07", 0, "07 - Theme Color Set", ""},
+	{8, "THEME08", 0, "08 - Theme Color Set", ""},
+	{9, "THEME09", 0, "09 - Theme Color Set", ""},
+	{10, "THEME10", 0, "10 - Theme Color Set", ""},
+	{11, "THEME11", 0, "11 - Theme Color Set", ""},
+	{12, "THEME12", 0, "12 - Theme Color Set", ""},
+	{13, "THEME13", 0, "13 - Theme Color Set", ""},
+	{14, "THEME14", 0, "14 - Theme Color Set", ""},
+	{15, "THEME15", 0, "15 - Theme Color Set", ""},
+	{16, "THEME16", 0, "16 - Theme Color Set", ""},
+	{17, "THEME17", 0, "17 - Theme Color Set", ""},
+	{18, "THEME18", 0, "18 - Theme Color Set", ""},
+	{19, "THEME19", 0, "19 - Theme Color Set", ""},
+	{20, "THEME20", 0, "20 - Theme Color Set", ""},
+	{-1, "CUSTOM", 0, "Custom Color Set", ""},
+	{0, NULL, 0, NULL, NULL}
+};
+
 #ifdef RNA_RUNTIME
 
 #include "BIK_api.h"
@@ -107,35 +134,17 @@ static char *rna_PoseBone_path(PointerRNA *ptr)
 	return BLI_sprintfN("pose.bones[\"%s\"]", ((bPoseChannel *)ptr->data)->name);
 }
 
-static void rna_BoneGroup_color_set_set(PointerRNA *ptr, int value)
+/* shared for actions groups and bone groups */
+void rna_ActionGroup_colorset_set(PointerRNA *ptr, int value)
 {
 	bActionGroup *grp = ptr->data;
 	
-	/* if valid value, set the new enum value, then copy the relevant colors? */
-	if ((value >= -1) && (value < 21))
+	/* ensure only valid values get set */
+	if ((value >= -1) && (value < 21)) {
 		grp->customCol = value;
-	else
-		return;
-	
-	/* only do color copying if using a custom color (i.e. not default color)  */
-	if (grp->customCol) {
-		if (grp->customCol > 0) {
-			/* copy theme colors on-to group's custom color in case user tries to edit color */
-			bTheme *btheme = U.themes.first;
-			ThemeWireColor *col_set = &btheme->tarm[(grp->customCol - 1)];
-			
-			memcpy(&grp->cs, col_set, sizeof(ThemeWireColor));
-		}
-		else {
-			/* init custom colors with a generic multi-color rgb set, if not initialized already
-			 * (for custom color set) */
-			if (grp->cs.solid[0] == 0) {
-				/* define for setting colors in theme below */
-				rgba_char_args_set(grp->cs.solid, 0xff, 0x00, 0x00, 255);
-				rgba_char_args_set(grp->cs.select, 0x81, 0xe6, 0x14, 255);
-				rgba_char_args_set(grp->cs.active, 0x18, 0xb6, 0xe0, 255);
-			}
-		}
+		
+		/* sync colors stored with theme colors based on the index specified */
+		action_group_colors_sync(grp, NULL);
 	}
 }
 
@@ -622,34 +631,31 @@ static void rna_PoseChannel_matrix_set(PointerRNA *ptr, const float *values)
 
 #else
 
+/* common properties for Action/Bone Groups - related to color */
+void rna_def_actionbone_group_common(StructRNA *srna, int update_flag, const char *update_cb)
+{
+	PropertyRNA *prop;
+	
+	/* color set + colors */
+	prop = RNA_def_property(srna, "color_set", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "customCol");
+	RNA_def_property_enum_items(prop, color_sets_items);
+	RNA_def_property_enum_funcs(prop, NULL, "rna_ActionGroup_colorset_set", NULL);
+	RNA_def_property_ui_text(prop, "Color Set", "Custom color set to use");
+	RNA_def_property_update(prop, update_flag, update_cb);
+	
+	/* TODO: editing the colors for this should result in changes to the color type... */
+	prop = RNA_def_property(srna, "colors", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_NEVER_NULL);
+	RNA_def_property_struct_type(prop, "ThemeBoneColorSet");
+	/* NOTE: the DNA data is not really a pointer, but this code works :) */
+	RNA_def_property_pointer_sdna(prop, NULL, "cs");
+	RNA_def_property_ui_text(prop, "Colors", "Copy of the colors associated with the group's color set");
+	RNA_def_property_update(prop, update_flag, update_cb);
+}
+
 static void rna_def_bone_group(BlenderRNA *brna)
 {
-	static EnumPropertyItem prop_colorSets_items[] = {
-		{0, "DEFAULT", 0, "Default Colors", ""},
-		{1, "THEME01", 0, "01 - Theme Color Set", ""},
-		{2, "THEME02", 0, "02 - Theme Color Set", ""},
-		{3, "THEME03", 0, "03 - Theme Color Set", ""},
-		{4, "THEME04", 0, "04 - Theme Color Set", ""},
-		{5, "THEME05", 0, "05 - Theme Color Set", ""},
-		{6, "THEME06", 0, "06 - Theme Color Set", ""},
-		{7, "THEME07", 0, "07 - Theme Color Set", ""},
-		{8, "THEME08", 0, "08 - Theme Color Set", ""},
-		{9, "THEME09", 0, "09 - Theme Color Set", ""},
-		{10, "THEME10", 0, "10 - Theme Color Set", ""},
-		{11, "THEME11", 0, "11 - Theme Color Set", ""},
-		{12, "THEME12", 0, "12 - Theme Color Set", ""},
-		{13, "THEME13", 0, "13 - Theme Color Set", ""},
-		{14, "THEME14", 0, "14 - Theme Color Set", ""},
-		{15, "THEME15", 0, "15 - Theme Color Set", ""},
-		{16, "THEME16", 0, "16 - Theme Color Set", ""},
-		{17, "THEME17", 0, "17 - Theme Color Set", ""},
-		{18, "THEME18", 0, "18 - Theme Color Set", ""},
-		{19, "THEME19", 0, "19 - Theme Color Set", ""},
-		{20, "THEME20", 0, "20 - Theme Color Set", ""},
-		{-1, "CUSTOM", 0, "Custom Color Set", ""},
-		{0, NULL, 0, NULL, NULL}
-	};
-	
 	StructRNA *srna;
 	PropertyRNA *prop;
 	
@@ -667,22 +673,8 @@ static void rna_def_bone_group(BlenderRNA *brna)
 	
 	/* TODO: add some runtime-collections stuff to access grouped bones  */
 	
-	/* color set + colors */
-	prop = RNA_def_property(srna, "color_set", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "customCol");
-	RNA_def_property_enum_items(prop, prop_colorSets_items);
-	RNA_def_property_enum_funcs(prop, NULL, "rna_BoneGroup_color_set_set", NULL);
-	RNA_def_property_ui_text(prop, "Color Set", "Custom color set to use");
-	RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
-	
-	/* TODO: editing the colors for this should result in changes to the color type... */
-	prop = RNA_def_property(srna, "colors", PROP_POINTER, PROP_NONE);
-	RNA_def_property_flag(prop, PROP_NEVER_NULL);
-	RNA_def_property_struct_type(prop, "ThemeBoneColorSet");
-	/* NOTE: the DNA data is not really a pointer, but this code works :) */
-	RNA_def_property_pointer_sdna(prop, NULL, "cs");
-	RNA_def_property_ui_text(prop, "Colors", "Copy of the colors associated with the group's color set");
-	RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
+	/* color set */
+	rna_def_actionbone_group_common(srna, NC_OBJECT | ND_POSE, "rna_Pose_update");
 }
 
 static EnumPropertyItem prop_iksolver_items[] = {
@@ -754,6 +746,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Pose Bone", "Channel defining pose data for a bone in a Pose");
 	RNA_def_struct_path_func(srna, "rna_PoseBone_path");
 	RNA_def_struct_idprops_func(srna, "rna_PoseBone_idprops");
+	RNA_def_struct_ui_icon(srna, ICON_BONE_DATA);
 	
 	/* Bone Constraints */
 	prop = RNA_def_property(srna, "constraints", PROP_COLLECTION, PROP_NONE);
@@ -1125,8 +1118,8 @@ static void rna_def_pose_itasc(BlenderRNA *brna)
 		{ITASC_INITIAL_REITERATION, "INITIAL", 0, "Initial",
 		                            "The solver reiterates (converges) on the first frame but not on "
 		                            "subsequent frame"},
-		{ITASC_INITIAL_REITERATION|ITASC_REITERATION, "ALWAYS", 0, "Always",
-		                                              "The solver reiterates (converges) on all frames"},
+		{ITASC_INITIAL_REITERATION | ITASC_REITERATION, "ALWAYS", 0, "Always",
+		                                                "The solver reiterates (converges) on all frames"},
 		{0, NULL, 0, NULL, NULL}
 	};
 

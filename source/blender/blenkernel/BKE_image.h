@@ -44,6 +44,7 @@ struct anim;
 struct Scene;
 struct Object;
 struct ImageFormatData;
+struct Main;
 
 /* call from library */
 void    BKE_image_free(struct Image *me);
@@ -69,6 +70,7 @@ char    BKE_imtype_valid_depths(const char imtype);
 char    BKE_imtype_from_arg(const char *arg);
 
 void    BKE_imformat_defaults(struct ImageFormatData *im_format);
+void    BKE_imbuf_to_image_format(struct ImageFormatData *im_format, const struct ImBuf *imbuf);
 
 struct anim *openanim(const char *name, int flags, int streamindex);
 
@@ -143,6 +145,9 @@ struct Image *BKE_image_add_from_imbuf(struct ImBuf *ibuf);
 /* for reload, refresh, pack */
 void BKE_image_signal(struct Image *ima, struct ImageUser *iuser, int signal);
 
+void BKE_image_walk_all_users(const struct Main *mainp, void *customdata,
+                              void callback(struct Image *ima, struct ImageUser *iuser, void *customdata));
+
 /* ensures an Image exists for viewing nodes or render */
 struct Image *BKE_image_verify_viewer(int type, const char *name);
 
@@ -151,7 +156,9 @@ void BKE_image_assign_ibuf(struct Image *ima, struct ImBuf *ibuf);
 
 /* called on frame change or before render */
 void BKE_image_user_frame_calc(struct ImageUser *iuser, int cfra, int fieldnr);
-int  BKE_image_user_frame_get(const struct ImageUser *iuser, int cfra, int fieldnr);
+void BKE_image_user_check_frame_calc(struct ImageUser *iuser, int cfra, int fieldnr);
+int  BKE_image_user_frame_get(const struct ImageUser *iuser, int cfra, int fieldnr, short *r_is_in_range);
+void BKE_image_user_file_path(struct ImageUser *iuser, struct Image *ima, char *path); 
 
 /* sets index offset for multilayer files */
 struct RenderPass *BKE_image_multilayer_index(struct RenderResult *rr, struct ImageUser *iuser);
@@ -184,7 +191,7 @@ struct Image *BKE_image_copy(struct Image *ima);
 void BKE_image_merge(struct Image *dest, struct Image *source);
 
 /* scale the image */
-void BKE_image_scale(struct Image *image, int width, int height);
+int BKE_image_scale(struct Image *image, int width, int height);
 
 /* check if texture has alpha (depth=32) */
 int BKE_image_has_alpha(struct Image *image);

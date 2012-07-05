@@ -28,38 +28,38 @@
 class EllipseMaskOperation : public NodeOperation {
 private:
 	/**
-	  * Cached reference to the inputProgram
-	  */
-	SocketReader * inputMask;
-	SocketReader * inputValue;
+	 * Cached reference to the inputProgram
+	 */
+	SocketReader *m_inputMask;
+	SocketReader *m_inputValue;
 	
-	float sine;
-	float cosine;
-	float aspectRatio;
-	int maskType;
+	float m_sine;
+	float m_cosine;
+	float m_aspectRatio;
+	int m_maskType;
 	
-	NodeEllipseMask *data;
+	NodeEllipseMask *m_data;
 public:
 	EllipseMaskOperation();
 	
 	/**
-	  * the inner loop of this program
-	  */
-	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+	 * the inner loop of this program
+	 */
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer * inputBuffers[]);
 	
 	/**
-	  * Initialize the execution
-	  */
+	 * Initialize the execution
+	 */
 	void initExecution();
 	
 	/**
-	  * Deinitialize the execution
-	  */
+	 * Deinitialize the execution
+	 */
 	void deinitExecution();
 	
-	void setData(NodeEllipseMask *data) {this->data = data;}
-	
-	void setMaskType(int maskType) {this->maskType = maskType;}
+	void setData(NodeEllipseMask *data) { this->m_data = data; }
+
+	void setMaskType(int maskType) { this->m_maskType = maskType; }
 	
 };
 #endif

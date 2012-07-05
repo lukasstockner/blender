@@ -23,15 +23,16 @@
 #include "COM_NormalizeOperation.h"
 #include "COM_ExecutionSystem.h"
 
-NormalizeNode::NormalizeNode(bNode *editorNode): Node(editorNode)
+NormalizeNode::NormalizeNode(bNode *editorNode) : Node(editorNode)
 {
+	/* pass */
 }
 
-void NormalizeNode::convertToOperations(ExecutionSystem *graph, CompositorContext * context)
+void NormalizeNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
 {
 	NormalizeOperation *operation = new NormalizeOperation();
 
-	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), true, 0, graph);
+	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
 	this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket(0));
 
 	graph->addOperation(operation);

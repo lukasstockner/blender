@@ -29,6 +29,7 @@ subject to the following restrictions:
 ///	PHY_IPhysicsController is the abstract simplified Interface to a physical object.
 ///	It contains the IMotionState and IDeformableMesh Interfaces.
 #include "btBulletDynamicsCommon.h"
+#include "BulletDynamics/Character/btKinematicCharacterController.h"
 #include "LinearMath/btTransform.h"
 
 #include "PHY_IMotionState.h"
@@ -202,9 +203,7 @@ protected:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:CcdShapeConstructionInfo"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CcdShapeConstructionInfo")
 #endif
 };
 
@@ -221,7 +220,8 @@ struct CcdConstructionInfo
 		KinematicFilter = 4,
 		DebrisFilter = 8,
 		SensorFilter = 16,
-		AllFilter = DefaultFilter | StaticFilter | KinematicFilter | DebrisFilter | SensorFilter,
+		CharacterFilter = 32,
+		AllFilter = DefaultFilter | StaticFilter | KinematicFilter | DebrisFilter | SensorFilter | CharacterFilter,
 	};
 
 
@@ -301,6 +301,10 @@ struct CcdConstructionInfo
 	btScalar	m_margin;
 
 	////////////////////
+	float	m_stepHeight;
+	float	m_jumpSpeed;
+	float	m_fallSpeed;
+	
 	int		m_gamesoftFlag;
 	float	m_soft_linStiff;			/* linear stiffness 0..1 */
 	float	m_soft_angStiff;		/* angular stiffness 0..1 */
@@ -343,6 +347,7 @@ struct CcdConstructionInfo
 	bool		m_bRigid;
 	bool		m_bSoft;
 	bool		m_bSensor;
+	bool		m_bCharacter;
 	bool		m_bGimpact;			// use Gimpact for mesh body
 
 	///optional use of collision group/mask:
@@ -391,6 +396,7 @@ class CcdPhysicsController : public PHY_IPhysicsController
 {
 protected:
 	btCollisionObject* m_object;
+	btKinematicCharacterController* m_characterController;
 	
 
 	class PHY_IMotionState*		m_MotionState;
@@ -417,6 +423,7 @@ protected:
 
 	void CreateRigidbody();
 	bool CreateSoftbody();
+	bool CreateCharacterController();
 
 	bool Register()	{ 
 		return (m_registerCount++ == 0) ? true : false;
@@ -453,6 +460,7 @@ protected:
 		btRigidBody* GetRigidBody();
 		btCollisionObject*	GetCollisionObject();
 		btSoftBody* GetSoftBody();
+		btKinematicCharacterController* GetCharacterController();
 
 		CcdShapeConstructionInfo* GetShapeInfo() { return m_shapeInfo; }
 
@@ -615,9 +623,7 @@ protected:
 		}
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:CcdPhysicsController"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CcdPhysicsController")
 #endif
 };
 
@@ -649,9 +655,7 @@ class	DefaultMotionState : public PHY_IMotionState
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:DefaultMotionState"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:DefaultMotionState")
 #endif
 };
 

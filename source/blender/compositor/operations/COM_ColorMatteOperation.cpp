@@ -22,26 +22,26 @@
 #include "COM_ColorMatteOperation.h"
 #include "BLI_math.h"
 
-ColorMatteOperation::ColorMatteOperation(): NodeOperation()
+ColorMatteOperation::ColorMatteOperation() : NodeOperation()
 {
 	addInputSocket(COM_DT_COLOR);
 	addInputSocket(COM_DT_COLOR);
 	addOutputSocket(COM_DT_VALUE);
 
-	inputImageProgram = NULL;
-	inputKeyProgram = NULL;
+	this->m_inputImageProgram = NULL;
+	this->m_inputKeyProgram = NULL;
 }
 
 void ColorMatteOperation::initExecution()
 {
-	this->inputImageProgram = this->getInputSocketReader(0);
-	this->inputKeyProgram = this->getInputSocketReader(1);
+	this->m_inputImageProgram = this->getInputSocketReader(0);
+	this->m_inputKeyProgram = this->getInputSocketReader(1);
 }
 
 void ColorMatteOperation::deinitExecution()
 {
-	this->inputImageProgram = NULL;
-	this->inputKeyProgram = NULL;
+	this->m_inputImageProgram = NULL;
+	this->m_inputKeyProgram = NULL;
 }
 
 void ColorMatteOperation::executePixel(float *outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[])
@@ -49,14 +49,14 @@ void ColorMatteOperation::executePixel(float *outputValue, float x, float y, Pix
 	float inColor[4];
 	float inKey[4];
 
-	const float hue = this->settings->t1;
-	const float sat = this->settings->t2;
-	const float val = this->settings->t3;
+	const float hue = this->m_settings->t1;
+	const float sat = this->m_settings->t2;
+	const float val = this->m_settings->t3;
 
 	float h_wrap;
 
-	this->inputImageProgram->read(inColor, x, y, sampler, inputBuffers);
-	this->inputKeyProgram->read(inKey, x, y, sampler, inputBuffers);
+	this->m_inputImageProgram->read(inColor, x, y, sampler, inputBuffers);
+	this->m_inputKeyProgram->read(inKey, x, y, sampler, inputBuffers);
 
 
 	/* store matte(alpha) value in [0] to go with
@@ -64,16 +64,17 @@ void ColorMatteOperation::executePixel(float *outputValue, float x, float y, Pix
 	 */
 
 	if (
-	/* do hue last because it needs to wrap, and does some more checks  */
+	    /* do hue last because it needs to wrap, and does some more checks  */
 
-	/* sat */	(fabsf(inColor[1] - inKey[1]) < sat) &&
-	/* val */	(fabsf(inColor[2] - inKey[2]) < val) &&
+	    /* sat */ (fabsf(inColor[1] - inKey[1]) < sat) &&
+	    /* val */ (fabsf(inColor[2] - inKey[2]) < val) &&
 
-	/* multiply by 2 because it wraps on both sides of the hue,
-	 * otherwise 0.5 would key all hue's */
+	    /* multiply by 2 because it wraps on both sides of the hue,
+	     * otherwise 0.5 would key all hue's */
 
-	/* hue */	((h_wrap = 2.f * fabsf(inColor[0]-inKey[0])) < hue || (2.f - h_wrap) < hue)
-	) {
+	    /* hue */ ((h_wrap = 2.f * fabsf(inColor[0] - inKey[0])) < hue || (2.f - h_wrap) < hue)
+	    )
+	{
 		outputValue[0] = 0.0f; /*make transparent*/
 	}
 

@@ -285,7 +285,7 @@ static FModifierTypeInfo FMI_GENERATOR = {
  * x is the evaluation 'time', and 'y' is the resultant value
  *
  * Functions available are
- *	sin, cos, tan, sinc (normalised sin), natural log, square root 
+ *	sin, cos, tan, sinc (normalized sin), natural log, square root 
  */
 
 static void fcm_fn_generator_new_data(void *mdata)
@@ -297,7 +297,7 @@ static void fcm_fn_generator_new_data(void *mdata)
 	data->phase_multiplier = 1.0f;
 }
 
-/* Unary 'normalised sine' function
+/* Unary 'normalized sine' function
  *  y = sin(PI + x) / (PI * x),
  * except for x = 0 when y = 1.
  */
@@ -326,7 +326,7 @@ static void fcm_fn_generator_evaluate(FCurve *UNUSED(fcu), FModifier *fcm, float
 		case FCM_GENERATOR_FN_COS: /* cosine wave */
 			fn = cos;
 			break;
-		case FCM_GENERATOR_FN_SINC: /* normalised sine wave */
+		case FCM_GENERATOR_FN_SINC: /* normalized sine wave */
 			fn = sinc;
 			break;
 			
@@ -613,7 +613,7 @@ static float fcm_cycles_time(FCurve *fcu, FModifier *fcm, float UNUSED(cvalue), 
 		
 		/* check that cyclic is still enabled for the specified time */
 		if (cycles == 0) {
-			/* catch this case so that we don't exit when we have cycles=0
+			/* catch this case so that we don't exit when we have (cycles = 0)
 			 * as this indicates infinite cycles...
 			 */
 		}
@@ -810,7 +810,7 @@ static void fcm_python_copy(FModifier *fcm, FModifier *src)
 static void fcm_python_evaluate(FCurve *UNUSED(fcu), FModifier *UNUSED(fcm), float *UNUSED(cvalue), float UNUSED(evaltime))
 {
 #ifdef WITH_PYTHON
-	//FMod_Python *data= (FMod_Python *)fcm->data;
+	//FMod_Python *data = (FMod_Python *)fcm->data;
 	
 	/* FIXME... need to implement this modifier...
 	 *	It will need it execute a script using the custom properties 

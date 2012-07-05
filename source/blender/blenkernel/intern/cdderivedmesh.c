@@ -927,7 +927,7 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm,
 					//int actualFace = dm->drawObject->triangle_to_mface[i];
 					int actualFace = next_actualFace;
 					MFace *mface = mf + actualFace;
-					/*int drawSmooth= (flag & DM_DRAW_ALWAYS_SMOOTH) ? 1 : (mface->flag & ME_SMOOTH);*/ /* UNUSED */
+					/*int drawSmooth = (flag & DM_DRAW_ALWAYS_SMOOTH) ? 1 : (mface->flag & ME_SMOOTH);*/ /* UNUSED */
 					DMDrawOption draw_option = DM_DRAW_OPTION_NORMAL;
 					int flush = 0;
 
@@ -1208,7 +1208,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 						else {
 							/* if the buffer was set, don't use it again.
 							 * prevdraw was assumed true but didnt run so set to false - [#21036] */
-							/* prevdraw= 0; */ /* UNUSED */
+							/* prevdraw = 0; */ /* UNUSED */
 							buffer = NULL;
 						}
 					}
@@ -1471,9 +1471,9 @@ static void cdDM_foreachMappedFaceCenter(
         void *userData)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
-	MVert *mv = cddm->mvert;
-	MPoly *mp = cddm->mpoly;
-	MLoop *ml = cddm->mloop;
+	MVert *mvert = cddm->mvert;
+	MPoly *mp;
+	MLoop *ml;
 	int i, j, orig, *index;
 
 	index = CustomData_get_layer(&dm->polyData, CD_ORIGINDEX);
@@ -1492,23 +1492,23 @@ static void cdDM_foreachMappedFaceCenter(
 		ml = &cddm->mloop[mp->loopstart];
 		cent[0] = cent[1] = cent[2] = 0.0f;
 		for (j = 0; j < mp->totloop; j++, ml++) {
-			add_v3_v3v3(cent, cent, mv[ml->v].co);
+			add_v3_v3v3(cent, cent, mvert[ml->v].co);
 		}
 		mul_v3_fl(cent, 1.0f / (float)j);
 
 		ml = &cddm->mloop[mp->loopstart];
 		if (j > 3) {
 			normal_quad_v3(no,
-			               mv[(ml + 0)->v].co,
-			               mv[(ml + 1)->v].co,
-			               mv[(ml + 2)->v].co,
-			               mv[(ml + 3)->v].co);
+			               mvert[(ml + 0)->v].co,
+			               mvert[(ml + 1)->v].co,
+			               mvert[(ml + 2)->v].co,
+			               mvert[(ml + 3)->v].co);
 		}
 		else {
 			normal_tri_v3(no,
-			              mv[(ml + 0)->v].co,
-			              mv[(ml + 1)->v].co,
-			              mv[(ml + 2)->v].co);
+			              mvert[(ml + 0)->v].co,
+			              mvert[(ml + 1)->v].co,
+			              mvert[(ml + 2)->v].co);
 		}
 
 		func(userData, orig, cent, no);
@@ -1890,6 +1890,14 @@ DerivedMesh *CDDM_from_BMEditMesh(BMEditMesh *em, Mesh *UNUSED(me), int use_mdis
 			med->bweight = (unsigned char)(BM_elem_float_data_get(&bm->edata, eed, CD_BWEIGHT) * 255.0f);
 		
 		med->flag = BM_edge_flag_to_mflag(eed);
+
+		/* handle this differently to editmode switching,
+		 * only enable draw for single user edges rather then calculating angle */
+		if ((med->flag & ME_EDGEDRAW) == 0) {
+			if (eed->l && eed->l == eed->l->radial_next) {
+				med->flag |= ME_EDGEDRAW;
+			}
+		}
 
 		CustomData_from_bmesh_block(&bm->edata, &dm->edgeData, eed->head.data, i);
 		if (add_orig) *index = i;
@@ -2586,94 +2594,15 @@ MPoly *CDDM_get_polys(DerivedMesh *dm)
 
 void CDDM_tessfaces_to_faces(DerivedMesh *dm)
 {
-	/*converts mfaces to mpolys/mloops*/
+	/* converts mfaces to mpolys/mloops */
 	CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
-	MFace *mf;
-	MEdge *me;
-	EdgeHash *eh = BLI_edgehash_new();
-	int i, totloop;
 
-	/* ... on second thaughts, better comment this and assume caller knows edge state. */
-#if 0
-	/* ensure we have all the edges we need */
-	CDDM_calc_edges_tessface(dm);
-#else
-#  ifndef NDEBUG
-	{
-		/* ensure we have correct edges on non release builds */
-		i = cddm->dm.numEdgeData;
-		CDDM_calc_edges_tessface(dm);
-		BLI_assert(cddm->dm.numEdgeData == i);
-	}
-#  endif
-#endif
-
-	/*build edge hash*/
-	me = cddm->medge;
-	for (i = 0; i < cddm->dm.numEdgeData; i++, me++) {
-		BLI_edgehash_insert(eh, me->v1, me->v2, SET_INT_IN_POINTER(i));
-	}
-
-	mf = cddm->mface;
-	totloop = 0;
-	for (i = 0; i < cddm->dm.numTessFaceData; i++, mf++) {
-		totloop += mf->v4 ? 4 : 3;
-	}
-
-	CustomData_free(&cddm->dm.polyData, cddm->dm.numPolyData);
-	CustomData_free(&cddm->dm.loopData, cddm->dm.numLoopData);
-	
-	cddm->dm.numLoopData = totloop;
-	cddm->dm.numPolyData = cddm->dm.numTessFaceData;
-
-	if (totloop) {
-		MLoop *ml;
-		MPoly *mp;
-		int l, *polyindex;
-
-		cddm->mloop = MEM_callocN(sizeof(MLoop) * totloop, "cddm->mloop in CDDM_tessfaces_to_faces");
-		cddm->mpoly = MEM_callocN(sizeof(MPoly) * cddm->dm.numTessFaceData, "cddm->mpoly in CDDM_tessfaces_to_faces");
-
-		CustomData_add_layer(&cddm->dm.loopData, CD_MLOOP, CD_ASSIGN, cddm->mloop, totloop);
-		CustomData_add_layer(&cddm->dm.polyData, CD_MPOLY, CD_ASSIGN, cddm->mpoly, cddm->dm.numPolyData);
-		CustomData_merge(&cddm->dm.faceData, &cddm->dm.polyData,
-		                 CD_MASK_ORIGINDEX, CD_DUPLICATE, cddm->dm.numTessFaceData);
-
-		polyindex = CustomData_get_layer(&cddm->dm.faceData, CD_POLYINDEX);
-
-		mf = cddm->mface;
-		mp = cddm->mpoly;
-		ml = cddm->mloop;
-		l = 0;
-		for (i = 0; i < cddm->dm.numTessFaceData; i++, mf++, mp++, polyindex++) {
-			mp->flag = mf->flag;
-			mp->loopstart = l;
-			mp->mat_nr = mf->mat_nr;
-			mp->totloop = mf->v4 ? 4 : 3;
-
-			ml->v = mf->v1;
-			ml->e = GET_INT_FROM_POINTER(BLI_edgehash_lookup(eh, mf->v1, mf->v2));
-			ml++, l++;
-
-			ml->v = mf->v2;
-			ml->e = GET_INT_FROM_POINTER(BLI_edgehash_lookup(eh, mf->v2, mf->v3));
-			ml++, l++;
-
-			ml->v = mf->v3;
-			ml->e = GET_INT_FROM_POINTER(BLI_edgehash_lookup(eh, mf->v3, mf->v4 ? mf->v4 : mf->v1));
-			ml++, l++;
-
-			if (mf->v4) {
-				ml->v = mf->v4;
-				ml->e = GET_INT_FROM_POINTER(BLI_edgehash_lookup(eh, mf->v4, mf->v1));
-				ml++, l++;
-			}
-
-			*polyindex = i;
-		}
-	}
-
-	BLI_edgehash_free(eh, NULL);
+	BKE_mesh_convert_mfaces_to_mpolys_ex(NULL, &cddm->dm.faceData, &cddm->dm.loopData, &cddm->dm.polyData,
+	                                     cddm->dm.numEdgeData, cddm->dm.numTessFaceData,
+	                                     cddm->dm.numLoopData, cddm->dm.numPolyData,
+	                                     cddm->medge, cddm->mface,
+	                                     &cddm->dm.numLoopData, &cddm->dm.numPolyData,
+	                                     &cddm->mloop, &cddm->mpoly);
 }
 
 void CDDM_set_mvert(DerivedMesh *dm, MVert *mvert)

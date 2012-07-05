@@ -20,20 +20,19 @@
  *		Monique Dewanchand
  */
 
-#ifndef COM_ColorRampNODE_H
-#define COM_ColorRampNODE_H
+#ifndef _COM_ColorRampNode_h_
+#define _COM_ColorRampNode_h_
 
 #include "COM_Node.h"
 
 /**
-  * @brief ColorRampNode
-  * @ingroup Node
-  */
-class ColorRampNode : public Node
-{
+ * @brief ColorRampNode
+ * @ingroup Node
+ */
+class ColorRampNode : public Node {
 public:
 	ColorRampNode(bNode *editorNode);
-	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
+	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);
 };
 
 #endif // COM_ColorRampNODE_H

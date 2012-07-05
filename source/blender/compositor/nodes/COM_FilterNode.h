@@ -20,20 +20,19 @@
  *		Monique Dewanchand
  */
 
-#ifndef COM_FILTERNODE_H
-#define COM_FILTERNODE_H
+#ifndef _COM_FilterNode_h_
+#define _COM_FilterNode_h_
 
 #include "COM_Node.h"
 
 /**
-  * @brief FilterNode
-  * @ingroup Node
-  */
-class FilterNode : public Node
-{
+ * @brief FilterNode
+ * @ingroup Node
+ */
+class FilterNode : public Node {
 public:
 	FilterNode(bNode *editorNode);
-	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
+	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);
 };
 
-#endif // COM_FILTERNODE_H
+#endif // _COM_FilterNode_h_

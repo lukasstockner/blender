@@ -157,7 +157,7 @@ void WM_operatortype_append(void (*opfunc)(wmOperatorType *))
 		ot->name = N_("Dummy Name");
 	}
 
-	// XXX All ops should have a description but for now allow them not to.
+	/* XXX All ops should have a description but for now allow them not to. */
 	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description ? ot->description : N_("(undocumented operator)"));
 	RNA_def_struct_identifier(ot->srna, ot->idname);
 
@@ -591,7 +591,7 @@ void WM_operator_properties_alloc(PointerRNA **ptr, IDProperty **properties, con
 
 void WM_operator_properties_sanitize(PointerRNA *ptr, const short no_context)
 {
-	RNA_STRUCT_BEGIN (ptr, prop)
+	RNA_STRUCT_BEGIN(ptr, prop)
 	{
 		switch (RNA_property_type(prop)) {
 			case PROP_ENUM:
@@ -625,7 +625,7 @@ void WM_operator_properties_reset(wmOperator *op)
 		PropertyRNA *iterprop;
 		iterprop = RNA_struct_iterator_property(op->type->srna);
 
-		RNA_PROP_BEGIN (op->ptr, itemptr, iterprop)
+		RNA_PROP_BEGIN(op->ptr, itemptr, iterprop)
 		{
 			PropertyRNA *prop = itemptr.data;
 
@@ -918,6 +918,13 @@ void WM_operator_properties_gesture_border(wmOperatorType *ot, int extend)
 		RNA_def_boolean(ot->srna, "extend", 1, "Extend", "Extend selection instead of deselecting everything first");
 }
 
+void WM_operator_properties_mouse_select(wmOperatorType *ot)
+{
+	RNA_def_boolean(ot->srna, "extend", 0, "Extend", "Extend selection instead of deselecting everything first");
+	RNA_def_boolean(ot->srna, "deselect", 0, "Deselect", "Remove from selection");
+	RNA_def_boolean(ot->srna, "toggle", 0, "Toggle Selection", "Toggle the selection");
+}
+
 void WM_operator_properties_gesture_straightline(wmOperatorType *ot, int cursor)
 {
 	RNA_def_int(ot->srna, "xstart", 0, INT_MIN, INT_MAX, "X Start", "", INT_MIN, INT_MAX);
@@ -1015,8 +1022,8 @@ static void dialog_exec_cb(bContext *C, void *arg1, void *arg2)
 	WM_operator_call(C, data->op);
 
 	/* let execute handle freeing it */
-	//data->free_op= FALSE;
-	//data->op= NULL;
+	//data->free_op = FALSE;
+	//data->op = NULL;
 
 	/* in this case, wm_operator_ui_popup_cancel wont run */
 	MEM_freeN(data);
@@ -1045,7 +1052,10 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *ar, void *userData)
 
 	block = uiBeginBlock(C, ar, __func__, UI_EMBOSS);
 	uiBlockClearFlag(block, UI_BLOCK_LOOP);
-	uiBlockSetFlag(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_RET_1 | UI_BLOCK_MOVEMOUSE_QUIT);
+
+	/* intentionally don't use 'UI_BLOCK_MOVEMOUSE_QUIT', some dialogs have many items
+	 * where quitting by accident is very annoying */
+	uiBlockSetFlag(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_RET_1);
 
 	layout = uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, data->width, data->height, style);
 	
@@ -1314,15 +1324,15 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 		menu.type = mt;
 		mt->draw(C, &menu);
 
-//		wmWindowManager *wm= CTX_wm_manager(C);
+//		wmWindowManager *wm = CTX_wm_manager(C);
 //		uiItemM(layout, C, "USERPREF_MT_keyconfigs", U.keyconfigstr, ICON_NONE);
 	}
 	
 	uiBlockSetEmboss(block, UI_EMBOSSP);
 	uiLayoutSetOperatorContext(layout, WM_OP_EXEC_REGION_WIN);
 	
-	split = uiLayoutSplit(layout, 0, 0);
-	col = uiLayoutColumn(split, 0);
+	split = uiLayoutSplit(layout, 0.0f, FALSE);
+	col = uiLayoutColumn(split, FALSE);
 	uiItemL(col, "Links", ICON_NONE);
 	uiItemStringO(col, IFACE_("Donations"), ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org/blenderorg/blender-foundation/donation-payment");
 	uiItemStringO(col, IFACE_("Credits"), ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org/development/credits");
@@ -1339,7 +1349,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	uiItemStringO(col, IFACE_("Python API Reference"), ICON_URL, "WM_OT_url_open", "url", url);
 	uiItemL(col, "", ICON_NONE);
 
-	col = uiLayoutColumn(split, 0);
+	col = uiLayoutColumn(split, FALSE);
 
 	if (wm_resource_check_prev()) {
 		uiItemO(col, NULL, ICON_NEW, "WM_OT_copy_prev_settings");
@@ -1639,8 +1649,8 @@ static int wm_open_mainfile_exec(bContext *C, wmOperator *op)
 	else
 		G.f &= ~G_SCRIPT_AUTOEXEC;
 	
-	// XXX wm in context is not set correctly after WM_read_file -> crash
-	// do it before for now, but is this correct with multiple windows?
+	/* XXX wm in context is not set correctly after WM_read_file -> crash */
+	/* do it before for now, but is this correct with multiple windows? */
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
 
 	WM_read_file(C, path, op->reports);
@@ -1802,7 +1812,7 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
 	}
 	else {
-		RNA_BEGIN (op->ptr, itemptr, "files")
+		RNA_BEGIN(op->ptr, itemptr, "files")
 		{
 			RNA_string_get(&itemptr, "name", name);
 			BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
@@ -1870,8 +1880,8 @@ static int wm_recover_last_session_exec(bContext *C, wmOperator *op)
 
 	G.fileflags |= G_FILE_RECOVER;
 
-	// XXX wm in context is not set correctly after WM_read_file -> crash
-	// do it before for now, but is this correct with multiple windows?
+	/* XXX wm in context is not set correctly after WM_read_file -> crash */
+	/* do it before for now, but is this correct with multiple windows? */
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
 
 	/* load file */
@@ -1902,8 +1912,8 @@ static int wm_recover_auto_save_exec(bContext *C, wmOperator *op)
 
 	G.fileflags |= G_FILE_RECOVER;
 
-	// XXX wm in context is not set correctly after WM_read_file -> crash
-	// do it before for now, but is this correct with multiple windows?
+	/* XXX wm in context is not set correctly after WM_read_file -> crash */
+	/* do it before for now, but is this correct with multiple windows? */
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
 
 	/* load file */
@@ -2055,12 +2065,17 @@ static void WM_OT_save_as_mainfile(wmOperatorType *ot)
 	ot->check = blend_save_check;
 	/* ommit window poll so this can work in background mode */
 
-	WM_operator_properties_filesel(ot, FOLDERFILE | BLENDERFILE, FILE_BLENDER, FILE_SAVE, WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
+	WM_operator_properties_filesel(ot, FOLDERFILE | BLENDERFILE, FILE_BLENDER, FILE_SAVE, WM_FILESEL_FILEPATH,
+	                               FILE_DEFAULTDISPLAY);
 	RNA_def_boolean(ot->srna, "compress", 0, "Compress", "Write compressed .blend file");
-	RNA_def_boolean(ot->srna, "relative_remap", 1, "Remap Relative", "Remap relative paths when saving in a different directory");
-	RNA_def_boolean(ot->srna, "copy", 0, "Save Copy", "Save a copy of the actual working state but does not make saved file active");
+	RNA_def_boolean(ot->srna, "relative_remap", 1, "Remap Relative",
+	                "Remap relative paths when saving in a different directory");
+	RNA_def_boolean(ot->srna, "copy", 0, "Save Copy",
+	                "Save a copy of the actual working state but does not make saved file active");
 #ifdef USE_BMESH_SAVE_AS_COMPAT
-	RNA_def_boolean(ot->srna, "use_mesh_compat", 0, "Legacy Mesh Format", "Save using legacy mesh format (no ngons)");
+	RNA_def_boolean(ot->srna, "use_mesh_compat", 0, "Legacy Mesh Format",
+	                "Save using legacy mesh format (no ngons) - WARNING: only saves tris and quads, other ngons will "
+	                "be lost (no implicit triangulation)");
 #endif
 }
 
@@ -2127,114 +2142,6 @@ static void WM_OT_save_mainfile(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "relative_remap", 0, "Remap Relative", "Remap relative paths when saving in a different directory");
 }
 
-/* XXX: move these collada operators to a more appropriate place */
-#ifdef WITH_COLLADA
-
-#include "../../collada/collada.h"
-
-static int wm_collada_export_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
-{	
-	if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
-		char filepath[FILE_MAX];
-
-		if (G.main->name[0] == 0)
-			BLI_strncpy(filepath, "untitled", sizeof(filepath));
-		else
-			BLI_strncpy(filepath, G.main->name, sizeof(filepath));
-
-		BLI_replace_extension(filepath, sizeof(filepath), ".dae");
-		RNA_string_set(op->ptr, "filepath", filepath);
-	}
-
-	WM_event_add_fileselect(C, op);
-
-	return OPERATOR_RUNNING_MODAL;
-}
-
-/* function used for WM_OT_save_mainfile too */
-static int wm_collada_export_exec(bContext *C, wmOperator *op)
-{
-	char filename[FILE_MAX];
-	int selected, second_life, apply_modifiers;
-	
-	if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
-		BKE_report(op->reports, RPT_ERROR, "No filename given");
-		return OPERATOR_CANCELLED;
-	}
-
-	RNA_string_get(op->ptr, "filepath", filename);
-
-	/* Options panel */
-	selected        = RNA_boolean_get(op->ptr, "selected");
-	second_life     = RNA_boolean_get(op->ptr, "second_life");
-	apply_modifiers = RNA_boolean_get(op->ptr, "apply_modifiers");
-
-	/* get editmode results */
-	ED_object_exit_editmode(C, 0);  /* 0 = does not exit editmode */
-
-	if (collada_export(CTX_data_scene(C), filename, selected, apply_modifiers, second_life)) {
-		return OPERATOR_FINISHED;
-	}
-	else {
-		return OPERATOR_CANCELLED;
-	}
-}
-
-static void WM_OT_collada_export(wmOperatorType *ot)
-{
-	ot->name = "Export COLLADA";
-	ot->description = "Save a Collada file";
-	ot->idname = "WM_OT_collada_export";
-	
-	ot->invoke = wm_collada_export_invoke;
-	ot->exec = wm_collada_export_exec;
-	ot->poll = WM_operator_winactive;
-	
-	WM_operator_properties_filesel(ot, FOLDERFILE | COLLADAFILE, FILE_BLENDER, FILE_SAVE, WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
-	RNA_def_boolean(ot->srna, "selected", 0, "Selection Only",
-	                "Export only selected elements");
-	RNA_def_boolean(ot->srna, "apply_modifiers", 0, "Apply Modifiers",
-	                "Apply modifiers (Preview Resolution)");
-	RNA_def_boolean(ot->srna, "second_life", 0, "Export for Second Life",
-	                "Compatibility mode for Second Life");
-}
-
-/* function used for WM_OT_save_mainfile too */
-static int wm_collada_import_exec(bContext *C, wmOperator *op)
-{
-	char filename[FILE_MAX];
-	
-	if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
-		BKE_report(op->reports, RPT_ERROR, "No filename given");
-		return OPERATOR_CANCELLED;
-	}
-
-	RNA_string_get(op->ptr, "filepath", filename);
-	if (collada_import(C, filename)) return OPERATOR_FINISHED;
-	
-	BKE_report(op->reports, RPT_ERROR, "Errors found during parsing COLLADA document. Please see console for error log.");
-	
-	return OPERATOR_FINISHED;
-}
-
-static void WM_OT_collada_import(wmOperatorType *ot)
-{
-	ot->name = "Import COLLADA";
-	ot->description = "Load a Collada file";
-	ot->idname = "WM_OT_collada_import";
-	
-	ot->invoke = WM_operator_filesel;
-	ot->exec = wm_collada_import_exec;
-	ot->poll = WM_operator_winactive;
-	
-	WM_operator_properties_filesel(ot, FOLDERFILE | COLLADAFILE, FILE_BLENDER, FILE_OPENFILE, WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
-}
-
-#endif
-
-
-/* *********************** */
-
 static void WM_OT_window_fullscreen_toggle(wmOperatorType *ot)
 {
 	ot->name = "Toggle Fullscreen";
@@ -2279,7 +2186,7 @@ static void WM_OT_console_toggle(wmOperatorType *ot)
 {
 	/* XXX Have to mark these for xgettext, as under linux they do not exists...
 	 *     And even worth, have to give the context as text, as xgettext doesn't expand macros. :( */
-	ot->name = CTX_N_("Operator"/* BLF_I18NCONTEXT_OPERATOR_DEFAULT */, "Toggle System Console");
+	ot->name = CTX_N_("Operator" /* BLF_I18NCONTEXT_OPERATOR_DEFAULT */, "Toggle System Console");
 	ot->idname = "WM_OT_console_toggle";
 	ot->description = N_("Toggle System Console");
 	
@@ -2443,7 +2350,7 @@ int WM_border_select_modal(bContext *C, wmOperator *op, wmEvent *event)
 		}
 
 	}
-//	// Allow view navigation???
+//	/* Allow view navigation??? */
 //	else {
 //		return OPERATOR_PASS_THROUGH;
 //	}
@@ -2462,7 +2369,7 @@ int WM_border_select_cancel(bContext *C, wmOperator *op)
 /* works now only for selection or modal paint stuff, calls exec while hold mouse, exit on release */
 
 #ifdef GESTURE_MEMORY
-int circle_select_size = 25; // XXX - need some operator memory thing\!
+int circle_select_size = 25; /* XXX - need some operator memory thing! */
 #endif
 
 int WM_gesture_circle_invoke(bContext *C, wmOperator *op, wmEvent *event)
@@ -2545,7 +2452,7 @@ int WM_gesture_circle_modal(bContext *C, wmOperator *op, wmEvent *event)
 				return OPERATOR_FINISHED; /* use finish or we don't get an undo */
 		}
 	}
-//	// Allow view navigation???
+//	/* Allow view navigation??? */
 //	else {
 //		return OPERATOR_PASS_THROUGH;
 //	}
@@ -2833,7 +2740,7 @@ int (*WM_gesture_lasso_path_to_array(bContext *UNUSED(C), wmOperator *op, int *m
 
 static int gesture_lasso_exec(bContext *C, wmOperator *op)
 {
-	RNA_BEGIN (op->ptr, itemptr, "path")
+	RNA_BEGIN(op->ptr, itemptr, "path")
 	{
 		float loc[2];
 		
@@ -3675,14 +3582,14 @@ static void WM_OT_dependency_relations(wmOperatorType *ot)
 
 static int wm_ndof_sensitivity_exec(bContext *UNUSED(C), wmOperator *op)
 {
-	const float min = 0.25f, max = 4.f; // TODO: get these from RNA property
+	const float min = 0.25f, max = 4.0f; /* TODO: get these from RNA property */
 	float change;
 	float sensitivity = U.ndof_sensitivity;
 
 	if (RNA_boolean_get(op->ptr, "fast"))
-		change = 0.5f;  // 50% change
+		change = 0.5f;  /* 50% change */
 	else
-		change = 0.1f;  // 10%
+		change = 0.1f;  /* 10% */
 
 	if (RNA_boolean_get(op->ptr, "decrease")) {
 		sensitivity -= sensitivity * change; 
@@ -3768,12 +3675,6 @@ void wm_operatortype_init(void)
 #if defined(WIN32)
 	WM_operatortype_append(WM_OT_console_toggle);
 #endif
-
-#ifdef WITH_COLLADA
-	/* XXX: move these */
-	WM_operatortype_append(WM_OT_collada_export);
-	WM_operatortype_append(WM_OT_collada_import);
-#endif
 }
 
 /* circleselect-like modal operators */
@@ -3789,7 +3690,8 @@ static void gesture_circle_modal_keymap(wmKeyConfig *keyconf)
 		{GESTURE_MODAL_DESELECT, "DESELECT", 0, "DeSelect", ""},
 		{GESTURE_MODAL_NOP, "NOP", 0, "No Operation", ""},
 
-		{0, NULL, 0, NULL, NULL}};
+		{0, NULL, 0, NULL, NULL}
+	};
 
 	wmKeyMap *keymap = WM_modalkeymap_get(keyconf, "View3D Gesture Circle");
 
@@ -3807,7 +3709,7 @@ static void gesture_circle_modal_keymap(wmKeyConfig *keyconf)
 
 	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_PRESS, 0, 0, GESTURE_MODAL_SELECT);
 
-#if 0 // Durien guys like this :S
+#if 0 /* Durien guys like this :S */
 	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_PRESS, KM_SHIFT, 0, GESTURE_MODAL_DESELECT);
 	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_RELEASE, KM_SHIFT, 0, GESTURE_MODAL_NOP);
 #else
@@ -3826,6 +3728,7 @@ static void gesture_circle_modal_keymap(wmKeyConfig *keyconf)
 	WM_modalkeymap_assign(keymap, "VIEW3D_OT_select_circle");
 	WM_modalkeymap_assign(keymap, "UV_OT_circle_select");
 	WM_modalkeymap_assign(keymap, "CLIP_OT_select_circle");
+	WM_modalkeymap_assign(keymap, "MASK_OT_select_circle");
 
 }
 
@@ -3836,7 +3739,8 @@ static void gesture_straightline_modal_keymap(wmKeyConfig *keyconf)
 		{GESTURE_MODAL_CANCEL,  "CANCEL", 0, "Cancel", ""},
 		{GESTURE_MODAL_SELECT,  "SELECT", 0, "Select", ""},
 		{GESTURE_MODAL_BEGIN,   "BEGIN", 0, "Begin", ""},
-		{0, NULL, 0, NULL, NULL}};
+		{0, NULL, 0, NULL, NULL}
+	};
 	
 	wmKeyMap *keymap = WM_modalkeymap_get(keyconf, "Gesture Straight Line");
 	
@@ -3865,7 +3769,8 @@ static void gesture_border_modal_keymap(wmKeyConfig *keyconf)
 		{GESTURE_MODAL_SELECT,  "SELECT", 0, "Select", ""},
 		{GESTURE_MODAL_DESELECT, "DESELECT", 0, "DeSelect", ""},
 		{GESTURE_MODAL_BEGIN,   "BEGIN", 0, "Begin", ""},
-		{0, NULL, 0, NULL, NULL}};
+		{0, NULL, 0, NULL, NULL}
+	};
 
 	wmKeyMap *keymap = WM_modalkeymap_get(keyconf, "Gesture Border");
 
@@ -3883,7 +3788,7 @@ static void gesture_border_modal_keymap(wmKeyConfig *keyconf)
 	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_RELEASE, KM_ANY, 0, GESTURE_MODAL_SELECT);
 	WM_modalkeymap_add_item(keymap, RIGHTMOUSE, KM_RELEASE, KM_ANY, 0, GESTURE_MODAL_SELECT);
 
-#if 0 // Durian guys like this
+#if 0 /* Durian guys like this */
 	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_PRESS, KM_SHIFT, 0, GESTURE_MODAL_BEGIN);
 	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_RELEASE, KM_SHIFT, 0, GESTURE_MODAL_DESELECT);
 #else
@@ -3909,6 +3814,7 @@ static void gesture_border_modal_keymap(wmKeyConfig *keyconf)
 	WM_modalkeymap_assign(keymap, "UV_OT_select_border");
 	WM_modalkeymap_assign(keymap, "CLIP_OT_select_border");
 	WM_modalkeymap_assign(keymap, "CLIP_OT_graph_select_border");
+	WM_modalkeymap_assign(keymap, "MASK_OT_select_border");
 	WM_modalkeymap_assign(keymap, "VIEW2D_OT_zoom_border");
 	WM_modalkeymap_assign(keymap, "VIEW3D_OT_clip_border");
 	WM_modalkeymap_assign(keymap, "VIEW3D_OT_render_border");
@@ -3924,7 +3830,8 @@ static void gesture_zoom_border_modal_keymap(wmKeyConfig *keyconf)
 		{GESTURE_MODAL_IN,  "IN", 0, "In", ""},
 		{GESTURE_MODAL_OUT, "OUT", 0, "Out", ""},
 		{GESTURE_MODAL_BEGIN, "BEGIN", 0, "Begin", ""},
-		{0, NULL, 0, NULL, NULL}};
+		{0, NULL, 0, NULL, NULL}
+	};
 
 	wmKeyMap *keymap = WM_modalkeymap_get(keyconf, "Gesture Zoom Border");
 
@@ -4128,3 +4035,13 @@ EnumPropertyItem *RNA_movieclip_local_itemf(bContext *C, PointerRNA *ptr, Proper
 {
 	return rna_id_itemf(C, ptr, do_free, C ? (ID *)CTX_data_main(C)->movieclip.first : NULL, TRUE);
 }
+
+EnumPropertyItem *RNA_mask_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), int *do_free)
+{
+	return rna_id_itemf(C, ptr, do_free, C ? (ID *)CTX_data_main(C)->mask.first : NULL, FALSE);
+}
+EnumPropertyItem *RNA_mask_local_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), int *do_free)
+{
+	return rna_id_itemf(C, ptr, do_free, C ? (ID *)CTX_data_main(C)->mask.first : NULL, TRUE);
+}
+

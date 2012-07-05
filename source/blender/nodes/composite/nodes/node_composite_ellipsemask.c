@@ -27,7 +27,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/nodes/intern/CMP_nodes/CMP_math.c
+/** \file blender/nodes/composite/nodes/node_composite_ellipsemask.c
  *  \ingroup cmpnodes
  */
 
@@ -36,13 +36,13 @@
 
 /* **************** SCALAR MATH ******************** */ 
 static bNodeSocketTemplate cmp_node_ellipsemask_in[]= {
-	{	SOCK_FLOAT, 1, "Mask", 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
-	{	SOCK_FLOAT, 1, "Value", 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
+	{	SOCK_FLOAT, 1, N_("Mask"), 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
+	{	SOCK_FLOAT, 1, N_("Value"), 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
 	{	-1, 0, "" } 
 };
 
 static bNodeSocketTemplate cmp_node_ellipsemask_out[]= {
-	{	SOCK_FLOAT, 0, "Mask", 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
+	{	SOCK_FLOAT, 0, N_("Mask"), 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
 	{	-1, 0, "" } 
 };
 
@@ -63,7 +63,7 @@ void register_node_type_cmp_ellipsemask(bNodeTreeType *ttype)
 
 	node_type_base(ttype, &ntype, CMP_NODE_MASK_ELLIPSE, "Ellipse Mask", NODE_CLASS_MATTE, NODE_OPTIONS);
 	node_type_socket_templates(&ntype, cmp_node_ellipsemask_in, cmp_node_ellipsemask_out);
-	node_type_size(&ntype, 120, 110, 160);
+	node_type_size(&ntype, 260, 110, 300);
 	node_type_init(&ntype, node_composit_init_ellipsemask);
 	node_type_storage(&ntype, "NodeEllipseMask", node_free_standard_storage, node_copy_standard_storage);
 

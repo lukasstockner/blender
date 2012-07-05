@@ -59,7 +59,10 @@
 
 #include "NOD_composite.h"
 #include "node_composite_util.h"
-#include "COM_compositor.h"
+
+#ifdef WITH_COMPOSITOR
+#  include "COM_compositor.h"
+#endif
 
 static void foreach_nodetree(Main *main, void *calldata, bNodeTreeCallback func)
 {
@@ -115,7 +118,6 @@ static void update_node(bNodeTree *ntree, bNode *node)
 		}
 	}
 	node->need_exec= 1;
-	
 	/* individual node update call */
 	if (node->typeinfo->updatefunc)
 		node->typeinfo->updatefunc(ntree, node);
@@ -130,6 +132,7 @@ static void localize(bNodeTree *localtree, bNodeTree *ntree)
 	for (node= ntree->nodes.first; node; node= node->next) {
 		/* ensure new user input gets handled ok */
 		node->need_exec= 0;
+		node->new_node->original = node;
 		
 		/* move over the compbufs */
 		/* right after ntreeCopyTree() oldsock pointers are valid */
@@ -143,6 +146,16 @@ static void localize(bNodeTree *localtree, bNodeTree *ntree)
 			}
 		}
 		
+		/* copy over the preview buffers to update graduatly */
+		if (node->preview) {
+			bNodePreview *preview = MEM_callocN(sizeof(bNodePreview), "Preview");
+			preview->pad = node->preview->pad;
+			preview->xsize = node->preview->xsize;
+			preview->ysize = node->preview->ysize;
+			preview->rect = MEM_dupallocN(node->preview->rect);
+			node->new_node->preview = preview;
+		}
+		
 		for (sock= node->outputs.first; sock; sock= sock->next) {
 			sock->new_sock->cache= sock->cache;
 			compbuf_set_node(sock->new_sock->cache, node->new_node);
@@ -152,11 +165,11 @@ static void localize(bNodeTree *localtree, bNodeTree *ntree)
 		}
 	}
 	
-	/* replace muted nodes by internal links */
+	/* replace muted nodes and reroute nodes by internal links */
 	for (node= localtree->nodes.first; node; node= node_next) {
 		node_next = node->next;
 		
-		if (node->flag & NODE_MUTED) {
+		if (node->flag & NODE_MUTED || node->type == NODE_REROUTE) {
 			/* make sure the update tag isn't lost when removing the muted node.
 			 * propagate this to all downstream nodes.
 			 */
@@ -187,6 +200,7 @@ static void local_sync(bNodeTree *localtree, bNodeTree *ntree)
 					lnode->new_node->preview= lnode->preview;
 					lnode->preview= NULL;
 				}
+				
 			}
 		}
 	}
@@ -208,11 +222,11 @@ static void local_merge(bNodeTree *localtree, bNodeTree *ntree)
 			}
 			else if (lnode->type==CMP_NODE_MOVIEDISTORTION) {
 				/* special case for distortion node: distortion context is allocating in exec function
-				   and to achive much better performance on further calls this context should be
-				   copied back to original node */
+				 * and to achive much better performance on further calls this context should be
+				 * copied back to original node */
 				if (lnode->storage) {
 					if (lnode->new_node->storage)
-						BKE_tracking_distortion_destroy(lnode->new_node->storage);
+						BKE_tracking_distortion_free(lnode->new_node->storage);
 
 					lnode->new_node->storage= BKE_tracking_distortion_copy(lnode->storage);
 				}
@@ -340,6 +354,8 @@ void ntreeCompositEndExecTree(bNodeTreeExec *exec, int use_tree_data)
 		}
 	}
 }
+
+#ifdef WITH_COMPOSITOR
 
 /* ***************************** threaded version for execute composite nodes ************* */
 /* these are nodes without input, only giving values */
@@ -576,7 +592,6 @@ static  void ntree_composite_texnode(bNodeTree *ntree, int init)
 }
 
 /* optimized tree execute test for compositing */
-/* optimized tree execute test for compositing */
 static void ntreeCompositExecTreeOld(bNodeTree *ntree, RenderData *rd, int do_preview)
 {
 	bNodeExec *nodeexec;
@@ -586,9 +601,9 @@ static void ntreeCompositExecTreeOld(bNodeTree *ntree, RenderData *rd, int do_pr
 	int totnode, curnode, rendering= 1, n;
 	bNodeTreeExec *exec= ntree->execdata;
 	
-	if(ntree==NULL) return;
+	if (ntree == NULL) return;
 	
-	if(do_preview)
+	if (do_preview)
 		ntreeInitPreview(ntree, 0, 0);
 	
 	if (!ntree->execdata) {
@@ -598,7 +613,7 @@ static void ntreeCompositExecTreeOld(bNodeTree *ntree, RenderData *rd, int do_pr
 	ntree_composite_texnode(ntree, 1);
 	
 	/* prevent unlucky accidents */
-	if(G.background)
+	if (G.background)
 		rd->scemode &= ~R_COMP_CROP;
 	
 	/* setup callerdata for thread callback */
@@ -613,15 +628,15 @@ static void ntreeCompositExecTreeOld(bNodeTree *ntree, RenderData *rd, int do_pr
 
 	BLI_init_threads(&threads, exec_composite_node, rd->threads);
 	
-	while(rendering) {
+	while (rendering) {
 		
-		if(BLI_available_threads(&threads)) {
+		if (BLI_available_threads(&threads)) {
 			nodeexec= getExecutableNode(exec);
-			if(nodeexec) {
+			if (nodeexec) {
 				node = nodeexec->node;
-				if(ntree->progress && totnode)
+				if (ntree->progress && totnode)
 					ntree->progress(ntree->prh, (1.0f - curnode/(float)totnode));
-				if(ntree->stats_draw) {
+				if (ntree->stats_draw) {
 					char str[128];
 					BLI_snprintf(str, sizeof(str), "Compositing %d %s", curnode, node->name);
 					ntree->stats_draw(ntree->sdh, str);
@@ -640,21 +655,21 @@ static void ntreeCompositExecTreeOld(bNodeTree *ntree, RenderData *rd, int do_pr
 		
 		rendering= 0;
 		/* test for ESC */
-		if(ntree->test_break && ntree->test_break(ntree->tbh)) {
-			for(node= ntree->nodes.first; node; node= node->next)
+		if (ntree->test_break && ntree->test_break(ntree->tbh)) {
+			for (node= ntree->nodes.first; node; node= node->next)
 				node->exec |= NODE_READY;
 		}
 		
 		/* check for ready ones, and if we need to continue */
-		for(n=0, nodeexec=exec->nodeexec; n < exec->totnodes; ++n, ++nodeexec) {
+		for (n=0, nodeexec=exec->nodeexec; n < exec->totnodes; ++n, ++nodeexec) {
 			node = nodeexec->node;
-			if(node->exec & NODE_READY) {
-				if((node->exec & NODE_FINISHED)==0) {
+			if (node->exec & NODE_READY) {
+				if ((node->exec & NODE_FINISHED)==0) {
 					BLI_remove_thread(&threads, nodeexec); /* this waits for running thread to finish btw */
 					node->exec |= NODE_FINISHED;
 					
 					/* freeing unused buffers */
-					if(rd->scemode & R_COMP_FREE)
+					if (rd->scemode & R_COMP_FREE)
 						freeExecutableNode(exec);
 				}
 			}
@@ -667,13 +682,18 @@ static void ntreeCompositExecTreeOld(bNodeTree *ntree, RenderData *rd, int do_pr
 	/* XXX top-level tree uses the ntree->execdata pointer */
 	ntreeCompositEndExecTree(exec, 1);
 }
+#endif
 
 void ntreeCompositExecTree(bNodeTree *ntree, RenderData *rd, int rendering, int do_preview)
 {
-	if(G.rt == 200)
+#ifdef WITH_COMPOSITOR
+	if (G.rt == 200)
 		ntreeCompositExecTreeOld(ntree, rd, do_preview);
 	else
-		COM_execute(ntree, rendering);
+		COM_execute(rd, ntree, rendering);
+#else
+	(void)ntree, (void)rd, (void)rendering, (void)do_preview;
+#endif
 }
 
 /* *********************************************** */
@@ -877,6 +897,10 @@ int ntreeCompositTagAnimated(bNodeTree *ntree)
 			}
 		}
 		else if (ELEM(node->type, CMP_NODE_MOVIECLIP, CMP_NODE_TRANSFORM)) {
+			nodeUpdate(ntree, node);
+			tagged= 1;
+		}
+		else if (node->type==CMP_NODE_MASK) {
 			nodeUpdate(ntree, node);
 			tagged= 1;
 		}

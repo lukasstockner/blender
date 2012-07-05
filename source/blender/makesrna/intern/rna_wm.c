@@ -115,6 +115,9 @@ EnumPropertyItem event_timer_type_items[] = {
 	{TIMER0, "TIMER0", 0, "Timer 0", ""},
 	{TIMER1, "TIMER1", 0, "Timer 1", ""},
 	{TIMER2, "TIMER2", 0, "Timer 2", ""},
+	{TIMERJOBS, "TIMER_JOBS", 0, "Timer Jobs", ""},
+	{TIMERAUTOSAVE, "TIMER_AUTOSAVE", 0, "Timer Autosave", ""},
+	{TIMERREPORT, "TIMER_REPORT", 0, "Timer Report", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -180,7 +183,7 @@ EnumPropertyItem event_type_items[] = {
 	{SELECTMOUSE, "SELECTMOUSE", 0, "Select Mouse", ""},
 	{0, "", 0, NULL, NULL},
 	{MOUSEMOVE, "MOUSEMOVE", 0, "Mouse Move", ""},
-	{INBETWEEN_MOUSEMOVE, "INBETWEEN_MOUSEMOVE", 0, "Inbetween Move", ""},
+	{INBETWEEN_MOUSEMOVE, "INBETWEEN_MOUSEMOVE", 0, "In-between Move", ""},
 	{MOUSEPAN, "TRACKPADPAN", 0, "Mouse/Trackpad Pan", ""},
 	{MOUSEZOOM, "TRACKPADZOOM", 0, "Mouse/Trackpad Zoom", ""},
 	{MOUSEROTATE, "MOUSEROTATE", 0, "Mouse/Trackpad Rotate", ""},
@@ -317,6 +320,9 @@ EnumPropertyItem event_type_items[] = {
 	{TIMER0, "TIMER0", 0, "Timer 0", ""},
 	{TIMER1, "TIMER1", 0, "Timer 1", ""},
 	{TIMER2, "TIMER2", 0, "Timer 2", ""},
+	{TIMERJOBS, "TIMER_JOBS", 0, "Timer Jobs", ""},
+	{TIMERAUTOSAVE, "TIMER_AUTOSAVE", 0, "Timer Autosave", ""},
+	{TIMERREPORT, "TIMER_REPORT", 0, "Timer Report", ""},
 	{0, "", 0, NULL, NULL},
 	{NDOF_MOTION, "NDOF_MOTION", 0, "NDOF Motion", ""},
 	/* buttons on all 3dconnexion devices */

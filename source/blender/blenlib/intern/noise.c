@@ -302,14 +302,14 @@ static float newPerlin(float x, float y, float z)
 	w = npfade(z);
 	A = hash[X  ]+Y;  AA = hash[A]+Z;  AB = hash[A+1]+Z;      // HASH COORDINATES OF
 	B = hash[X+1]+Y;  BA = hash[B]+Z;  BB = hash[B+1]+Z;      // THE 8 CUBE CORNERS,
-	return lerp(w, lerp(v, lerp(u, grad(hash[AA  ], x  , y  , z   ),  // AND ADD
-																grad(hash[BA  ], x-1, y  , z   )), // BLENDED
-												lerp(u, grad(hash[AB  ], x  , y-1, z   ),  // RESULTS
-																grad(hash[BB  ], x-1, y-1, z   ))),// FROM  8
-								lerp(v, lerp(u, grad(hash[AA+1], x  , y  , z-1 ),  // CORNERS
-																grad(hash[BA+1], x-1, y  , z-1 )), // OF CUBE
-												lerp(u, grad(hash[AB+1], x  , y-1, z-1 ),
-																grad(hash[BB+1], x-1, y-1, z-1 ))));
+	return lerp(w, lerp(v, lerp(u, grad(hash[AA   ],  x,     y,     z    ),   // AND ADD
+	                               grad(hash[BA   ],  x - 1, y,     z    )),  // BLENDED
+	                       lerp(u, grad(hash[AB   ],  x,     y - 1, z    ),   // RESULTS
+	                               grad(hash[BB   ],  x - 1, y - 1, z    ))), // FROM  8
+	               lerp(v, lerp(u, grad(hash[AA + 1], x,     y,     z - 1),   // CORNERS
+	                               grad(hash[BA + 1], x - 1, y,     z - 1)),  // OF CUBE
+	                       lerp(u, grad(hash[AB + 1], x,     y - 1, z - 1),
+	                               grad(hash[BB + 1], x - 1, y - 1, z - 1))));
 }
 
 /* for use with BLI_gNoise()/BLI_gTurbulence(), returns unsigned improved perlin noise */
@@ -992,7 +992,7 @@ static float g[512 + 2][3] = {
 		b1 = (b0 + 1) & 255;                                                  \
 		r0 = t - floorf(t);                                                   \
 		r1 = r0 - 1.0f;                                                       \
-	}
+	} (void)0
 
 
 static float noise3_perlin(float vec[3])
@@ -1134,15 +1134,18 @@ static float turbulencep(float noisesize, float x, float y, float z, int nr)
 /* Camberra omitted, didn't seem useful */
 
 /* distance squared */
-static float dist_Squared(float x, float y, float z, float e) {
+static float dist_Squared(float x, float y, float z, float e)
+{
 	(void)e; return (x * x + y * y + z * z);
 }
 /* real distance */
-static float dist_Real(float x, float y, float z, float e) {
+static float dist_Real(float x, float y, float z, float e)
+{
 	(void)e; return sqrtf(x * x + y * y + z * z);
 }
 /* manhattan/taxicab/cityblock distance */
-static float dist_Manhattan(float x, float y, float z, float e) {
+static float dist_Manhattan(float x, float y, float z, float e)
+{
 	(void)e; return (fabsf(x) + fabsf(y) + fabsf(z));
 }
 /* Chebychev */

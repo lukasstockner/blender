@@ -734,7 +734,7 @@ static void pchan_deform_mat_add(bPoseChannel *pchan, float weight, float bbonem
 }
 
 static float dist_bone_deform(bPoseChannel *pchan, bPoseChanDeform *pdef_info, float vec[3], DualQuat *dq,
-                              float mat[][3], float *co)
+                              float mat[][3], const float co[3])
 {
 	Bone *bone = pchan->bone;
 	float fac, contrib = 0.0;
@@ -781,7 +781,7 @@ static float dist_bone_deform(bPoseChannel *pchan, bPoseChanDeform *pdef_info, f
 }
 
 static void pchan_bone_deform(bPoseChannel *pchan, bPoseChanDeform *pdef_info, float weight, float vec[3], DualQuat *dq,
-                              float mat[][3], float *co, float *contrib)
+                              float mat[][3], const float co[3], float *contrib)
 {
 	float cop[3], bbonemat[3][3];
 	DualQuat bbonedq;
@@ -986,7 +986,7 @@ void armature_deform_verts(Object *armOb, Object *target, DerivedMesh *dm, float
 
 			for (j = dvert->totweight; j != 0; j--, dw++) {
 				const int index = dw->def_nr;
-				if (index < defbase_tot && (pchan = defnrToPC[index])) {
+				if (index >= 0 && index < defbase_tot && (pchan = defnrToPC[index])) {
 					float weight = dw->weight;
 					Bone *bone = pchan->bone;
 					pdef_info = pdef_info_array + defnrToPCIndex[index];
@@ -1588,7 +1588,11 @@ static void pose_proxy_synchronize(Object *ob, Object *from, int layer_protected
 	for (pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
 		pchanp = BKE_pose_channel_find_name(frompose, pchan->name);
 
-		if (pchan->bone->layer & layer_protected) {
+		if (UNLIKELY(pchanp == NULL)) {
+			/* happens for proxies that become invalid because of a missing link
+			 * for regulat cases it shouldn't happen at all */
+		}
+		else if (pchan->bone->layer & layer_protected) {
 			ListBase proxylocal_constraints = {NULL, NULL};
 
 			/* copy posechannel to temp, but restore important pointers */
@@ -2203,7 +2207,7 @@ void BKE_pchan_to_mat4(bPoseChannel *pchan, float chan_mat[4][4])
 		axis_angle_to_mat3(rmat, pchan->rotAxis, pchan->rotAngle);
 	}
 	else {
-		/* quats are normalised before use to eliminate scaling issues */
+		/* quats are normalized before use to eliminate scaling issues */
 		float quat[4];
 
 		/* NOTE: we now don't normalize the stored values anymore, since this was kindof evil in some cases

@@ -61,16 +61,16 @@
 #include <stdlib.h>
 
 static void mask_flood_fill_set_elem(float *elem,
-									 PaintMaskFloodMode mode,
-									 float value)
+                                     PaintMaskFloodMode mode,
+                                     float value)
 {
-	switch(mode) {
-	case PAINT_MASK_FLOOD_VALUE:
-		(*elem) = value;
-		break;
-	case PAINT_MASK_INVERT:
-		(*elem) = 1.0f - (*elem);
-		break;
+	switch (mode) {
+		case PAINT_MASK_FLOOD_VALUE:
+			(*elem) = value;
+			break;
+		case PAINT_MASK_INVERT:
+			(*elem) = 1.0f - (*elem);
+			break;
 	}
 }
 
@@ -96,7 +96,7 @@ static int mask_flood_fill_exec(bContext *C, wmOperator *op)
 
 	sculpt_undo_push_begin("Mask flood fill");
 
-	for(i = 0; i < totnode; i++) {
+	for (i = 0; i < totnode; i++) {
 		PBVHVertexIter vi;
 
 		sculpt_undo_push_node(ob, nodes[i], SCULPT_UNDO_MASK);
@@ -106,13 +106,13 @@ static int mask_flood_fill_exec(bContext *C, wmOperator *op)
 		} BLI_pbvh_vertex_iter_end;
 		
 		BLI_pbvh_node_mark_update(nodes[i]);
-		if(BLI_pbvh_type(pbvh) == PBVH_GRIDS)
+		if (BLI_pbvh_type(pbvh) == PBVH_GRIDS)
 			multires_mark_as_modified(ob, MULTIRES_COORDS_MODIFIED);
 	}
 	
 	sculpt_undo_push_end();
 
-	if(nodes)
+	if (nodes)
 		MEM_freeN(nodes);
 
 	ED_region_tag_redraw(ar);
