@@ -236,6 +236,8 @@ typedef struct UVTransCorrect {
 	/* initial vertex value. We have to store it here too because for proportional editing
 	 * we can't correlate vertex indices to transdata anymore due to sorting */
 	float (*init_vec)[3];
+	float *edge_length;
+	int total_edges;
 	int total_verts;
 } UVTransCorrect;
 

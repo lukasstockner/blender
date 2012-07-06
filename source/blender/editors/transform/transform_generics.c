@@ -1262,24 +1262,13 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 
 void deleteUVTransCorrect(struct UVTransCorrect *uvtc)
 {
-	/*
-	if(uvtc->boundary_edges) {
-		MEM_freeN(uvtc->boundary_edges);
-		uvtc->boundary_edges = NULL;
-	}
-	if(uvtc->unwrapped_faces) {
-		MEM_freeN(uvtc->unwrapped_faces);
-		uvtc->unwrapped_faces = NULL;
-	}
-
-	if(uvtc->affected_verts) {
-		MEM_freeN(uvtc->affected_verts);
-		uvtc->affected_verts = NULL;
-	}	
-	*/
 	if(uvtc->init_vec) {
 		MEM_freeN(uvtc->init_vec);
 		uvtc->init_vec = NULL;
+	}
+	if(uvtc->edge_length) {
+		MEM_freeN(uvtc->edge_length);
+		uvtc->edge_length = NULL;
 	}
 	if(uvtc->initial_uvs) {
 		int i;
@@ -1755,7 +1744,7 @@ void calculateUVTransformCorrection(TransInfo *t)
 				float angle1, angle2, angle_boundary;
 				float cross1[3], cross2[3], cross[3];
 				float normal[3], projv[3];
-				float edge_len_init, edge_len_init2;
+				float edge_len_init, edge_len_init2, proj_len;
 				float edge_len_final, edge_len_final2;
 				float edge_vec_init[3], edge_vec_init2[3], neg_edge_prev[3];
 				//float edge_vec_final[3], edge_vec_final2[3];
@@ -1826,6 +1815,10 @@ void calculateUVTransformCorrection(TransInfo *t)
 					break;
 				}
 
+				edge_len_init = uvtc->edge_length[BM_elem_index_get(l->e)];
+				edge_len_init2 = uvtc->edge_length[BM_elem_index_get(l_prev->e)];
+				proj_len = len_v3(projv);
+
 				/* get the vector pointing inside the face (not sure if this will work) */
 				cross_v3_v3v3(cross1, l->f->no, edge_vec_init);
 				/* we need to negate the second edge to follow the loop flow */
@@ -1835,13 +1828,13 @@ void calculateUVTransformCorrection(TransInfo *t)
 				add_v3_v3v3(cross, cross2, cross1);
 
 				/* now get angles and use sine law to calculate translation across uv axes */
-				angle1 = acos(dot_v3v3(projv, edge_vec_init)/(len_v3(projv)*len_v3(edge_vec_init)));
-				angle_boundary = acos(dot_v3v3(edge_vec_init, edge_vec_init2)/(len_v3(edge_vec_init)*len_v3(edge_vec_init2)));
+				angle1 = acos(dot_v3v3(projv, edge_vec_init)/(proj_len*edge_len_init));
+				angle_boundary = acos(dot_v3v3(edge_vec_init, edge_vec_init2)/(edge_len_init*edge_len_init2));
 
-				edge_len_final = len_v3(projv)*sin(angle_boundary - angle1)/sin(M_PI - angle_boundary);
+				edge_len_final = proj_len*sin(angle_boundary - angle1)/sin(M_PI - angle_boundary);
 
-				angle2 = acos(dot_v3v3(projv, edge_vec_init2)/(len_v3(projv)*len_v3(edge_vec_init2)));
-				edge_len_final2 = len_v3(projv)*sin(angle_boundary - angle2)/sin(M_PI - angle_boundary);
+				angle2 = acos(dot_v3v3(projv, edge_vec_init2)/(proj_len*edge_len_init2));
+				edge_len_final2 = proj_len*sin(angle_boundary - angle2)/sin(M_PI - angle_boundary);
 
 				/*
 				mul1 = dot_v3v3(edge_vec_final, edge_vec_init) / dot_v3v3(edge_vec_init, edge_vec_init);
@@ -1852,9 +1845,6 @@ void calculateUVTransformCorrection(TransInfo *t)
 				mul_v3_v3fl(edge_vec_final2, edge_vec_init2, mul2);
 				edge_len_final2 = signf(mul2)*len_v3(edge_vec_final2);
 				*/
-
-				edge_len_init = len_v3(edge_vec_init);
-				edge_len_init2 = len_v3(edge_vec_init2);
 
 				mul_v2_v2fl(uvdiff, edge_uv_init, edge_len_final/edge_len_init);
 				mul_v2_v2fl(uvdiff2, edge_uv_init2, edge_len_final2/edge_len_init2);
@@ -1874,6 +1864,7 @@ void calculateUVTransformCorrection(TransInfo *t)
 					print_v3("cross product 2\n", cross2);
 					print_v3("cross total\n", cross);
 					print_v3("diff vector\n", projv);
+					printf("edge_length1 %f, edge_length2 %f, proj_length %f\n", edge_len_init, edge_len_init2, proj_len);
 					printf("angle1 : %f, angle2 : %f, angle_boundary : %f\n", angle1, angle2, angle_boundary);
 #endif
 
