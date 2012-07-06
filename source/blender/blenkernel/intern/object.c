@@ -2601,18 +2601,18 @@ void BKE_object_handle_update(Scene *scene, Object *ob)
 			 * However, not doing anything (or trying to hack around this lack) is not an option 
 			 * anymore, especially due to Cycles [#31834] 
 			 */
-			if (ob->totcol) {
-				int a;
-				
-				for (a = 1; a <= ob->totcol; a++) {
-					Material *ma = give_current_material(ob, a);
-					
-					if (ma) {
-						/* recursively update drivers for this material */
-						material_drivers_update(scene, ma, ctime);
-					}
-				}
-			}
+			//if (ob->totcol) {
+			//	int a;
+			//	
+			//	for (a = 1; a <= ob->totcol; a++) {
+			//		Material *ma = give_current_material(ob, a);
+			//		
+			//		if (ma) {
+			//			/* recursively update drivers for this material */
+			//			material_drivers_update(scene, ma, ctime);
+			//		}
+			//	}
+			//}
 			
 			/* particles */
 			if (ob->particlesystem.first) {

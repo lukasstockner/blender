@@ -620,18 +620,18 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 	}
 	
 	/* material drivers */
-	if (ob->totcol) {
-		int a;
-		
-		for (a = 1; a <= ob->totcol; a++) {
-			Material *ma = give_current_material(ob, a);
-			
-			if (ma) {
-				/* recursively figure out if there are drivers, and hook these up to this object */
-				dag_add_material_driver_relations(dag, node, ma);
-			}
-		}
-	}
+	//if (ob->totcol) {
+	//	int a;
+	//	
+	//	for (a = 1; a <= ob->totcol; a++) {
+	//		Material *ma = give_current_material(ob, a);
+	//		
+	//		if (ma) {
+	//			/* recursively figure out if there are drivers, and hook these up to this object */
+	//			dag_add_material_driver_relations(dag, node, ma);
+	//		}
+	//	}
+	//}
 	
 	/* particles */
 	psys = ob->particlesystem.first;
