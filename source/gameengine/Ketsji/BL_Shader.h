@@ -6,6 +6,10 @@
 #ifndef __BL_SHADER_H__
 #define __BL_SHADER_H__
 
+#ifdef GLES
+#include "intern/gpu_object_gles.h"
+#endif
+
 #include "PyObjectPlus.h"
 #include "BL_Material.h"
 #include "BL_Texture.h"
@@ -125,6 +129,10 @@ private:
 	const char*		fragProg;			// Fragment program string
 	bool			mError;				// ...
 	bool			mDirty;				// 
+	
+#ifdef GLES
+	GPUGLSL_ES_info glslesloc;
+#endif
 
 	// Compiles and links the shader
 	bool LinkProgram();
