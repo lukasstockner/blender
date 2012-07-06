@@ -126,7 +126,7 @@ static void setup(void)
 
 	if (GPU_IMMEDIATE->format.colorSize != 0) {
 		glColorPointer(
-			4, //-V112
+			4 * sizeof(GLubyte),
 			GL_UNSIGNED_BYTE,
 			GPU_IMMEDIATE->stride,
 			bufferData->ptr + offset);

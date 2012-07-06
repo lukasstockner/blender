@@ -65,7 +65,7 @@ GLsizei gpu_calc_stride(void)
 
 	if (GPU_IMMEDIATE->format.colorSize != 0) {
 		/* color always get 4 bytes for efficient memory alignment */
-		stride += 4; //-V112
+		stride += 4 * sizeof(GLubyte);
 	}
 
 	/* texture coordinate */
@@ -86,8 +86,7 @@ GLsizei gpu_calc_stride(void)
 
 	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++) {
 		/* byte attributes always get 4 bytes for efficient memory alignment */
-		stride +=
-			(size_t)(GPU_IMMEDIATE->format.attribSize_ub[i]) * sizeof(GLfloat);
+		stride += 4 * sizeof(GLubyte);
 	}
 
 	return (GLsizei)stride;
