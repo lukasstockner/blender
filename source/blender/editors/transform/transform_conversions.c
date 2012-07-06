@@ -1956,7 +1956,6 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 	int propmode = (t->flag & T_PROP_EDIT) ? (t->flag & (T_PROP_EDIT | T_PROP_CONNECTED)) : 0;
 	int mirror = 0;
 	char *selstate = NULL;
-	char *edge_length_calc; /* setting to remember which edges have had their length calculated */
 	short selectmode = ts->selectmode;
 
 	if (t->flag & T_MIRROR) {
@@ -2054,10 +2053,8 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 		uvtc = t->uvtc = MEM_callocN(sizeof(*t->uvtc), "UVTransformCorrect");
 		uvtc->initial_uvs = initial_uvs = MEM_mallocN(bm->totvert * sizeof(*t->uvtc->initial_uvs), "uvtc_inituvs");
 		uvtc->init_vec = MEM_mallocN(bm->totvert * sizeof(*t->uvtc->init_vec), "uvtc_initial_vertexes");
+		uvtc->init_normal = MEM_mallocN(bm->totvert * sizeof(*t->uvtc->init_normal), "uvtc_initial_normals");
 		uvtc->total_verts = bm->totvert;
-		uvtc->total_edges = bm->totedge;
-		uvtc->edge_length = MEM_mallocN(sizeof(*uvtc->edge_length)*bm->totedge, "uvtc_edge_length");
-		edge_length_calc = MEM_callocN(sizeof(*edge_length_calc)*bm->totedge, "transform_edge_length_calc");
 		BM_mesh_elem_index_ensure(bm, BM_VERT | BM_EDGE);
 	}
 
@@ -2135,11 +2132,9 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 					UVTransCorrInfoUV *uviter = NULL, *uviter2 = NULL;
 
 					tob->eve = eve;
+					copy_v3_v3(uvtc->init_normal[a], eve->no);
 
 					BM_ITER_ELEM(l, &iter2, eve, BM_LOOPS_OF_VERT) {
-						int edge_index = BM_elem_index_get(l->e);
-						/* we also need the previous edge in case the face normals do not behave well */
-						int edge_index_prev = BM_elem_index_get(l->prev->e);
 						MLoopUV *luv = CustomData_bmesh_get(&em->bm->ldata, l->head.data, CD_MLOOPUV);
 
 						*uvtcuv = MEM_mallocN(sizeof(**uvtcuv), "uvtcelem");
@@ -2151,15 +2146,6 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 						(*uvtcuv)->l = l;
 						(*uvtcuv)->next = NULL;
 						uvtcuv = &((*uvtcuv)->next);
-
-						if(!edge_length_calc[edge_index]) {
-							uvtc->edge_length[edge_index] = BM_edge_calc_length(l->e);
-							edge_length_calc[edge_index] = TRUE;
-						}
-						if(!edge_length_calc[edge_index_prev]) {
-							uvtc->edge_length[edge_index_prev] = BM_edge_calc_length(l->prev->e);
-							edge_length_calc[edge_index_prev] = TRUE;
-						}
 					}
 
 					/* Now we need to sort uvs according to uv island */
@@ -2277,8 +2263,6 @@ cleanup:
 		MEM_freeN(defmats);
 	if (dists)
 		MEM_freeN(dists);
-	if(edge_length_calc)
-		MEM_freeN(edge_length_calc);
 	
 	MEM_freeN(selstate);
 
