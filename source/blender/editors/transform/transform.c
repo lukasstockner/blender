@@ -5008,6 +5008,10 @@ void projectSVData(TransInfo *t, int final)
 	if (!(t->settings->uvcalc_flag & UVCALC_TRANSFORM_CORRECT))
 		return;
 
+	/* temporary until we decide what to do with data interpolation */
+	if(!final)
+		return;
+
 	/* don't do this at all for non-basis shape keys, too easy to
 	 * accidentally break uv maps or vertex colors then */
 	if (em->bm->shapenr > 1)
@@ -5122,7 +5126,7 @@ void projectSVData(TransInfo *t, int final)
 
 				/* only loop data, no vertex data since that contains shape keys,
 				 * and we do not want to mess up other shape keys */
-				BM_loop_interp_from_face(em->bm, l, f_copy_flip, FALSE, FALSE);
+				//BM_loop_interp_from_face(em->bm, l, f_copy_flip, FALSE, FALSE);
 
 				if (final) {
 					BM_loop_interp_multires(em->bm, l, f_copy_flip);
