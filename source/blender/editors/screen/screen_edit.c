@@ -779,8 +779,8 @@ static void draw_horizontal_join_shape(ScrArea *sa, char dir)
 	gpuVertex2f(points[0].x, points[0].y);
 	gpuEnd();
 
-	gpuSingleFilledRectf(points[2].x, points[2].y, points[8].x, points[8].y);
-	gpuSingleFilledRectf(points[6].x, points[6].y, points[9].x, points[9].y);
+	gpuDrawFilledRectf(points[2].x, points[2].y, points[8].x, points[8].y);
+	gpuDrawFilledRectf(points[6].x, points[6].y, points[9].x, points[9].y);
 }
 
 /* draw vertical shape visualizing future joining (up/down direction) */
