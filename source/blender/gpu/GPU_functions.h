@@ -173,6 +173,11 @@ typedef _W64 int ptrdiff_t;
 #  endif
 #endif
 
+#ifdef WITH_ANDROID
+#undef GLEWAPI
+#   define GLEWAPI extern __attribute__ ((visibility("default")))
+#endif
+
 /* <glu.h> */
 #ifndef GLAPI
 #define GLAPI extern
@@ -193,16 +198,23 @@ GPUFUNC GLuint (GLAPIENTRY* gpuCreateShader)(GLuint shaderType);
 GPUFUNC void (GLAPIENTRY* gpuAttachShader)(GLuint program, GLuint shader);
 GPUFUNC void (GLAPIENTRY* gpuShaderSource)(GLuint shader, GLint count, const GLchar ** string, const GLint * length);
 GPUFUNC void (GLAPIENTRY* gpuCompileShader)(GLuint shader);
-GPUFUNC void (* gpuGetShaderiv)(GLuint shader, GLuint pname, GLint *params);
+GPUFUNC void (GLAPIENTRY* gpuGetShaderiv)(GLuint shader, GLuint pname, GLint *params);
 GPUFUNC void (GLAPIENTRY* gpuGetShaderInfoLog)(GLuint shader, GLint maxLength, GLint *length, GLchar *infoLog);
 
 GPUFUNC GLuint (GLAPIENTRY* gpuCreateProgram)(void);
 GPUFUNC void (GLAPIENTRY* gpuLinkProgram)(GLuint program);
-GPUFUNC void (* gpuGetProgramiv)(GLuint shader, GLuint pname, GLint *params);
+GPUFUNC void (GLAPIENTRY* gpuGetProgramiv)(GLuint shader, GLuint pname, GLint *params);
 GPUFUNC void (GLAPIENTRY* gpuGetProgramInfoLog)(GLuint shader, GLint maxLength, GLint *length, GLchar *infoLog);
 
 
 GPUFUNC void (GLAPIENTRY* gpuUniform1i)(GLint location, GLint v0);
+GPUFUNC void (GLAPIENTRY* gpuUniform1f)(GLint location, GLfloat v0);
+
+GPUFUNC void (GLAPIENTRY* gpuUniform1iv)(GLint location, GLint count, const GLint * value);
+GPUFUNC void (GLAPIENTRY* gpuUniform2iv)(GLint location, GLint count, const GLint * value);
+GPUFUNC void (GLAPIENTRY* gpuUniform3iv)(GLint location, GLint count, const GLint * value);
+GPUFUNC void (GLAPIENTRY* gpuUniform4iv)(GLint location, GLint count, const GLint * value);
+
 
 GPUFUNC void (GLAPIENTRY* gpuUniform1fv)(GLint location, GLint count, const GLfloat * value);
 GPUFUNC void (GLAPIENTRY* gpuUniform2fv)(GLint location, GLint count, const GLfloat * value);
@@ -212,6 +224,7 @@ GPUFUNC void (GLAPIENTRY* gpuUniformMatrix3fv)(GLint location, GLint count, GLbo
 GPUFUNC void (GLAPIENTRY* gpuUniformMatrix4fv)(GLint location, GLint count, GLboolean transpose, const GLfloat * value);
 
 GPUFUNC GLint (GLAPIENTRY* gpuGetAttribLocation)(GLuint program, const GLchar *name);
+GPUFUNC GLint (GLAPIENTRY* gpuBindAttribLocation)(GLuint program, GLuint index, const GLchar * name);
 GPUFUNC GLint (GLAPIENTRY* gpuGetUniformLocation)(GLuint program, const GLchar * name);
 
 

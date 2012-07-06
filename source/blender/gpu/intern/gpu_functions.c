@@ -26,6 +26,9 @@
  *  \ingroup gpu
  */
 
+#include <stdlib.h>
+#include <stdio.h>
+
 #ifdef GLES
 #include <GLES2/gl2.h>
 #endif
@@ -81,6 +84,12 @@ static void init_glsl_arb(void)
 	gpuGetProgramInfoLog = glGetInfoLogARB;
 
 	gpuUniform1i = glUniform1iARB;
+	gpuUniform1f = glUniform1fARB;
+	
+	gpuUniform1iv = glUniform1ivARB;
+	gpuUniform2iv = glUniform2ivARB;
+	gpuUniform3iv = glUniform3ivARB;
+	gpuUniform4iv = glUniform4ivARB;
 
 	gpuUniform1fv = glUniform1fvARB;
 	gpuUniform2fv = glUniform2fvARB;
@@ -91,6 +100,7 @@ static void init_glsl_arb(void)
 	gpuUniformMatrix4fv = glUniformMatrix4fvARB;
 
 	gpuGetAttribLocation  = glGetAttribLocationARB;
+	gpuBindAttribLocation = glBindAttribLocationARB;
 	gpuGetUniformLocation = glGetUniformLocationARB;
 
 	gpuUseProgram    = glUseProgramObjectARB;
@@ -121,15 +131,21 @@ static void init_glsl_standard(void)
 	gpuAttachShader     = glAttachShader;
 	gpuShaderSource     = glShaderSource;
 	gpuCompileShader    = glCompileShader;
-	gpuGetShaderiv      = check_glGetShaderiv;
+	gpuGetShaderiv      = glGetShaderiv;
 	gpuGetShaderInfoLog = glGetShaderInfoLog;
 
 	gpuCreateProgram     = glCreateProgram;
 	gpuLinkProgram       = glLinkProgram;
-	gpuGetProgramiv      = check_glGetProgramiv;
+	gpuGetProgramiv      = glGetProgramiv;
 	gpuGetProgramInfoLog = glGetProgramInfoLog;
 
 	gpuUniform1i = glUniform1i;
+	gpuUniform1f = glUniform1f;
+
+	gpuUniform1iv = glUniform1iv;
+	gpuUniform2iv = glUniform2iv;
+	gpuUniform3iv = glUniform3iv;
+	gpuUniform4iv = glUniform4iv;
 
 	gpuUniform1fv = glUniform1fv;
 	gpuUniform2fv = glUniform2fv;
@@ -140,6 +156,7 @@ static void init_glsl_standard(void)
 	gpuUniformMatrix4fv = glUniformMatrix4fv;
 
 	gpuGetAttribLocation  = glGetAttribLocation;
+	gpuBindAttribLocation = glBindAttribLocation;
 	gpuGetUniformLocation = glGetUniformLocation;
 
 	gpuUseProgram    = glUseProgram;
@@ -172,8 +189,13 @@ static void init_framebuffers_ext(void)
 void GPU_func_comp_init(void)
 {
 #ifdef GLES
+//exit(0);
 	init_glsl_standard();
 	init_framebuffers_standard();
+	
+	
+	printf("gpuUniform3iv: %p\n", gpuUniform3iv);
+	//exit(0);
 #else
 	/*	Here we rely on GLEW
 	We expect all symbols be present, even if they are only 0,
