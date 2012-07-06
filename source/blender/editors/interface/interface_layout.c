@@ -1831,8 +1831,18 @@ static void ui_litem_estimate_column(uiLayout *litem)
 
 static void ui_litem_layout_column(uiLayout *litem)
 {
+	ARegion *ar = CTX_wm_region(litem->root->block->evil_C);
 	uiItem *item;
-	int itemh, x, y;
+	int itemh, x, y, offset;
+	int ar_height = ar?(ar->v2d.cur.ymax-ar->v2d.cur.ymin):0;
+	int total_height = 0, num_controls = 0;
+
+	for (item = litem->items.first; item; item = item->next) {
+		ui_item_size(item, NULL, &itemh);
+
+		total_height += itemh;
+		num_controls++;
+	}
 
 	x = litem->x;
 	y = litem->y;
@@ -1841,7 +1851,18 @@ static void ui_litem_layout_column(uiLayout *litem)
 		ui_item_size(item, NULL, &itemh);
 
 		y -= itemh;
-		ui_item_position(item, x, y, litem->w, itemh);
+
+		/* align right/center */
+		offset = 0;
+		if (ar)
+		{
+			if (litem->alignment == UI_LAYOUT_ALIGN_BOTTOM)
+				offset = -ar_height + total_height + litem->space*(num_controls+2);	// add space to offset the space given on the top
+			else if (litem->alignment == UI_LAYOUT_ALIGN_CENTER)
+				offset = (-ar_height + total_height)/2 + litem->space*(num_controls/2+1);
+		}
+
+		ui_item_position(item, x, y + offset, litem->w, itemh);
 
 		if (item->next)
 			y -= litem->space;
@@ -1853,9 +1874,20 @@ static void ui_litem_layout_column(uiLayout *litem)
 }
 
 /* root layout */
-static void ui_litem_estimate_root(uiLayout *UNUSED(litem))
+static void ui_litem_estimate_root(uiLayout *litem)
 {
-	/* nothing to do */
+	if (litem->root->type == UI_LAYOUT_HEADER)
+	{
+		int h = litem->h;
+		ui_litem_estimate_row(litem);
+		litem->h = h;
+	}
+	else
+	{
+		int w = litem->w;
+		ui_litem_estimate_column(litem);
+		litem->w = w;
+	}
 }
 
 static void ui_litem_layout_root(uiLayout *litem)

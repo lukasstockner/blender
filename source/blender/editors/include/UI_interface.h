@@ -670,6 +670,8 @@ void UI_exit(void);
 #define UI_LAYOUT_ALIGN_LEFT    1
 #define UI_LAYOUT_ALIGN_CENTER  2
 #define UI_LAYOUT_ALIGN_RIGHT   3
+#define UI_LAYOUT_ALIGN_TOP     4
+#define UI_LAYOUT_ALIGN_BOTTOM  5
 
 #define UI_ITEM_O_RETURN_PROPS  1
 #define UI_ITEM_R_EXPAND        2

@@ -2704,19 +2704,22 @@ class VIEW3D_PT_context_properties(Panel):
 
 
 class VIEW3D_PT_floating_controls(Panel):
-	bl_space_type = 'VIEW_3D'
-	bl_region_type = 'WINDOW'
-	bl_label = "Floating Controls"
-	bl_options = {'HIDE_HEADER'}
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'WINDOW'
+    bl_label = "Floating Controls"
+    bl_options = {'HIDE_HEADER'}
 
-	def draw(self, context):
-		layout = self.layout
+    def draw(self, context):
+        layout = self.layout
+        layout.alignment = 'BOTTOM'
 
-		col = layout.column(align=True)
-		col.label(text="Transform:")
-		#col.operator("transform.translate")
-		#col.operator("transform.rotate")
-		#col.operator("transform.resize", text="Scale")
+        row = layout.row(align=True)
+        row.alignment = 'CENTER'
+        row.scale_x = 1.5
+        row.scale_y = 1.5
+        row.operator("transform.translate", text="", icon='MAN_TRANS')
+        row.operator("transform.rotate", text="", icon='MAN_ROT')
+        row.operator("transform.resize", text="", icon='MAN_SCALE')
 
 
 

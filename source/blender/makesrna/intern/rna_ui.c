@@ -599,6 +599,8 @@ static void rna_def_ui_layout(BlenderRNA *brna)
 		{UI_LAYOUT_ALIGN_LEFT, "LEFT", 0, "Left", ""},
 		{UI_LAYOUT_ALIGN_CENTER, "CENTER", 0, "Center", ""},
 		{UI_LAYOUT_ALIGN_RIGHT, "RIGHT", 0, "Right", ""},
+		{UI_LAYOUT_ALIGN_TOP, "TOP", 0, "Top", ""},
+		{UI_LAYOUT_ALIGN_BOTTOM, "BOTTOM", 0, "Bottom", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 	
