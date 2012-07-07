@@ -26,6 +26,8 @@
 
 #include "MEM_guardedalloc.h"
 
+//#include "BLI_heap.h"
+#include "BLI_listbase.h"
 #include "BLI_array.h"
 #include "BLI_math.h"
 #include "BLI_smallhash.h"
@@ -35,7 +37,9 @@
 #include "bmesh.h"
 
 #include "intern/bmesh_operators_private.h" /* own include */
+#include "intern/bmesh_private.h"
 
+#include <stdbool.h>
 #define BEVEL_FLAG	1
 #define BEVEL_DEL	2
 #define FACE_NEW	4
@@ -45,6 +49,8 @@
 #define FACE_SPAN	64
 #define FACE_HOLE	128
 
+#define EDGE_SELECTED 6
+
 typedef struct LoopTag {
 	BMVert *newv;
 } LoopTag;
@@ -52,6 +58,29 @@ typedef struct LoopTag {
 typedef struct EdgeTag {
 	BMVert *newv1, *newv2;
 } EdgeTag;
+
+// Item in the list of vertices
+typedef struct VertexItem{
+    struct VertexItem *next, *prev;
+    BMVert *v;
+    bool onEdge; //  true if new vertex located on edge; edge1 = edge, edge2 = NULL
+   // false, new vert located betwen edge1 and edge2
+    BMEdge *edge1;
+    BMEdge *edge2;
+}VertexItem;
+
+// list of new vertices formed around v
+typedef struct AdditionalVert{
+    struct AdditionalVert *next, *prev;
+    BMVert *v;
+    ListBase vertices;
+} AdditionalVert;
+
+
+typedef struct BevelParams{
+    ListBase vertList;
+    float offset;
+} BevelParams;
 
 static void calc_corner_co(BMLoop *l, const float fac, float r_co[3],
                            const short do_dist, const short do_even)
@@ -178,7 +207,240 @@ static void calc_corner_co(BMLoop *l, const float fac, float r_co[3],
 		(etags[BM_elem_index_get((e))].newv2)                                 \
 	)
 
+// build point on edge
+// todo rename function
+BMVert* bevel_calc_aditional_vert(BMesh *bm, BevelParams *bp, BMEdge* edge, BMVert* vert)
+{
+    // TODO добавить проверку на то что эдж содержит вершину
+    float vect[3], normV[3];
+
+    BMVert *new_Vert = NULL;
+
+    sub_v3_v3v3(vect, BM_edge_other_vert(edge, vert)->co, vert->co);
+    normalize_v3_v3(normV, vect);
+    mul_v3_fl(normV, bp->offset);
+
+    add_v3_v3(normV, vert->co);
+
+    new_Vert = BM_vert_create(bm, normV, NULL);
+    return new_Vert;
+}
+
+// build point between edges
+BMVert* bevel_middle_vert(BMesh *bm, BevelParams *bp, BMEdge *edge_a, BMEdge *edge_b, BMVert *vert)
+{
+    float offset, v_a[3], v_b[3], v_c[3], norm_a[3], norm_b[3],norm_c[3],  angel;
+    BMVert* new_vert = NULL;
+    offset = bp->offset;
+    // calc vectors
+    // TODO: ДОБАВИТЬ ПРОВЕРКУ НА ПАРАЛЕЛЬНОСТЬ
+    sub_v3_v3v3(v_a, BM_edge_other_vert(edge_a, vert)->co, vert->co);
+    sub_v3_v3v3(v_b, BM_edge_other_vert(edge_b, vert)->co, vert->co);
+    normalize_v3_v3(norm_a, v_a);
+    normalize_v3_v3(norm_b, v_b);
+    add_v3_v3v3(v_c, norm_a, norm_b);
+    mul_v3_fl(v_c, 0.5);
+    normalize_v3_v3(norm_c, v_c);
+
+    // v_c ^ edge_a
+    //cos = (v_c[0]*v_a[0] + v_c[1]*v_a[1] + v_c[2]*v_a[0]) / (len_v3(v_c)*len_v3(v_a));
+    angel = angle_normalized_v3v3(norm_c, norm_a);
+    //offset = offset / (sqrt(1-cos*cos));
+    offset = offset / sin(angel);
+
+    mul_v3_fl(norm_c, offset);
+    add_v3_v3(norm_c, vert->co);
+    new_vert = BM_vert_create(bm, norm_c, NULL);
+    return new_vert;
+}
+
+// additional construction arround the vertex
+void bevel_aditional_construction_by_vert(BMesh *bm, BevelParams *bp, BMOperator *op, BMVert *v)
+{
+    BMOIter siter;
+    BMIter iter;
+    BMEdge *e, **edges = NULL;
+    BLI_array_declare(edges);
+
+    // calc count input edges
+    BMO_ITER (e, &siter, bm, op, "geom", BM_EDGE) {
+        if ((e->v1 == v)|| (BM_edge_other_vert(e, e->v1) == v))
+        {
+            BMO_elem_flag_enable (bm, e, EDGE_SELECTED);
+            BLI_array_append(edges, e);
+        }
+    }
+
+    if (BLI_array_count(edges) == 1)
+    {
+    // TODO разработать плоский варинат
+        AdditionalVert *av;
+        av = (AdditionalVert*)MEM_callocN(sizeof(AdditionalVert), "AdditionalVert");
+        av->v = v;
+        av->vertices.first = av->vertices.last = NULL;
+        BLI_addtail(&bp->vertList, av);
+
+        BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH)
+        {
+            if (e!= edges[0])
+            {
+                if ((e->v1 == v)||(BM_edge_other_vert(e, e->v1) == v)){
+                    VertexItem *item;
+                    item = (VertexItem*)MEM_callocN(sizeof(VertexItem), "VertexItem");
+                    item->onEdge = true;
+                    item->edge1 = e;
+                    item->edge2 = NULL;
+                    item->v = bevel_calc_aditional_vert(bm, bp, e, v);
+                    BLI_addtail(&av->vertices, item);
+                   }
+            }
+        }
+    }
+
+    if (BLI_array_count(edges) > 1)
+    {
+        BMEdge *cur_e, *prev_e;
+        AdditionalVert *av;
+        av = (AdditionalVert*)MEM_callocN(sizeof(AdditionalVert), "AdditionalVert");
+        av->v = v;
+        av->vertices.first = av->vertices.last = NULL;
+        BLI_addtail(&bp->vertList, av);
+        e = edges[0];
+        cur_e = e;
+        do {
+            prev_e = cur_e;
+            cur_e = bmesh_disk_edge_next(cur_e, v);
+            if (!BMO_elem_flag_test(bm, cur_e, EDGE_SELECTED)){
+                VertexItem *item;
+                item = (VertexItem*)MEM_callocN(sizeof(VertexItem), "VertexItem");
+                item->onEdge = true;
+                item->edge1 = cur_e;
+                item->edge2 = NULL;
+                item->v = bevel_calc_aditional_vert(bm, bp, cur_e, v);
+                BLI_addtail(&av->vertices, item);
+            }else {               
+                if ( BMO_elem_flag_test(bm, cur_e, EDGE_SELECTED) &&
+                     BMO_elem_flag_test(bm, prev_e, EDGE_SELECTED)){
+                    VertexItem *item;
+                    item = (VertexItem*)MEM_callocN(sizeof(VertexItem), "VertexItem");
+                    item->onEdge = false;
+                    item->edge1 = cur_e;
+                    item->edge2 = prev_e;
+                    item->v = bevel_middle_vert(bm, bp, prev_e,cur_e, v);
+                    BLI_addtail(&av->vertices, item);
+                }
+            }
+        } while (e!= cur_e);
+    }
+}
+
+// Build the polygons along the selected Edge
+void bevel_build_polygon(BMesh *bm, BevelParams *bp, BMEdge *e){
+    BMVert *vi[4]; // only for linear case with seg = 1
+    BMFace *f1, *f2;
+    AdditionalVert *item, *av1, *av2;
+    VertexItem *vItem;
+    int i = 0;
+    // find pair
+    for (item = bp->vertList.first; item ; item = item->next){
+        if (item->v == e->v1)
+            av1 = item;
+        if (item->v == BM_edge_other_vert(e, e->v1))
+            av2 = item;
+    }
+
+
+    for (vItem = av1->vertices.first; vItem; vItem = vItem->next){
+        if (vItem->onEdge)
+        {
+            if (vItem->edge1 == bmesh_disk_edge_next(e, av1->v))
+            {
+                vi[i] = vItem->v;
+                i++;
+            }
+            if (vItem->edge1 == bmesh_disk_edge_prev(e, av1->v))
+            {
+                vi[i] = vItem->v;
+                i++;
+            }
+        }
+        else
+        {
+            if ((vItem->edge1 == bmesh_disk_edge_next(e, av1->v)) ||
+            (vItem->edge2 == bmesh_disk_edge_next(e, av1->v)))
+            {
+                vi[i] = vItem->v;
+                i++;
+            }
+            if ((vItem->edge1 == bmesh_disk_edge_prev(e, av1->v)) ||
+            (vItem->edge2 == bmesh_disk_edge_prev(e, av1->v)))
+            {
+                vi[i] = vItem->v;
+                i++;
+            }
+        }
+    }
+    for (vItem = av2->vertices.first; vItem; vItem = vItem->next){
+        if (vItem->onEdge)
+        {
+            if (vItem->edge1 == bmesh_disk_edge_next(e, av2->v))
+            {
+                vi[i] = vItem->v;
+                i++;
+            }
+            if (vItem->edge1 == bmesh_disk_edge_prev(e, av2->v))
+            {
+                vi[i] = vItem->v;
+                i++;
+            }
+        }
+        else
+        {
+            if ((vItem->edge1 == bmesh_disk_edge_next(e, av2->v)) ||
+            (vItem->edge2 == bmesh_disk_edge_next(e, av2->v)))
+            {
+                vi[i] = vItem->v;
+                i++;
+            }
+            if ((vItem->edge1 == bmesh_disk_edge_prev(e, av2->v)) ||
+            (vItem->edge2 == bmesh_disk_edge_prev(e, av2->v)))
+            {
+                vi[i] = vItem->v;
+                i++;
+            }
+        }
+    }
+    BM_face_create_quad_tri(bm, vi[0], vi[1], vi[3], vi[2], NULL, TRUE);
+
+
+}
+
 void bmo_bevel_exec(BMesh *bm, BMOperator *op)
+{
+    BMOIter siter;
+    BMVert *v;
+    BMEdge *e;
+    BevelParams bp;
+    AdditionalVert *item;
+
+    bp.offset = 0.1;
+    bp.vertList.first = bp.vertList.last = NULL;
+    // The analysis of the input vertices and vyrolnenine additional constructions
+    BMO_ITER (v, &siter, bm, op, "geom", BM_VERT) {
+        bevel_aditional_construction_by_vert(bm, &bp, op, v);
+    }
+
+    // Build polgiony found at verteces
+    // First construct the polygons along the edge
+    BMO_ITER(e, &siter, bm, op, "geom", BM_EDGE){
+        bevel_build_polygon(bm, &bp, e);
+    }
+
+
+}
+
+
+void bmo_bevel_exec_old(BMesh *bm, BMOperator *op)
 {
 	BMOIter siter;
 	BMIter iter;
@@ -211,7 +473,7 @@ void bmo_bevel_exec(BMesh *bm, BMOperator *op)
 		BMO_elem_flag_enable(bm, e, BEVEL_FLAG | BEVEL_DEL);
 		BMO_elem_flag_enable(bm, e->v1, BEVEL_FLAG | BEVEL_DEL);
 		BMO_elem_flag_enable(bm, e->v2, BEVEL_FLAG | BEVEL_DEL);
-		
+        // разбраться с этим случаем
 		if (BM_edge_face_count(e) < 2) {
 			BMO_elem_flag_disable(bm, e, BEVEL_DEL);
 			BMO_elem_flag_disable(bm, e->v1, BEVEL_DEL);
