@@ -189,6 +189,10 @@ General functions
    :arg async: Whether or not to do the loading asynchronously (in another thread)
    :type async: bool
    
+   :rtype: :class:`bge.types.KX_LibLoadStatus`
+
+   .. note:: Asynchronously loaded libraries will not be available immediately after LibLoad() returns. Use the returned KX_LibLoadStatus to figure out when the libraries are ready.
+
 .. function:: LibNew(name, type, data)
 
    Uses existing datablock data and loads in as a new library.
