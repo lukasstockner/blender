@@ -1813,7 +1813,7 @@ void calculateUVTransformCorrection(TransInfo *t)
 			UVTransCorrInfoUV *first_island_uv, *uvtcuv;
 			float projv[3], proj_len;
 			float min_angles[2] = {-10.0, -10.0} /* arbitrary, just bigger than 2PI */;
-			BMLoop *boundary_loops[2];
+			BMLoop *boundary_loops[2] = {NULL, NULL};
 			int index;
 			BMVert *v = td[i].eve;
 			index = BM_elem_index_get(v);
