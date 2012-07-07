@@ -2367,7 +2367,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 		Mesh* mesh = static_cast<Mesh*>(ob->data);
 		float center[3], extents[3];
 		float radius = my_boundbox_mesh((Mesh*) ob->data, center, extents);
-		RAS_MeshObject* meshobj = BL_ConvertMesh_old(mesh,ob,kxscene,converter);
+		RAS_MeshObject* meshobj = BL_ConvertMesh(mesh,ob,kxscene,converter);
 		
 		// needed for python scripting
 		kxscene->GetLogicManager()->RegisterMeshName(meshobj->GetName(),meshobj);
