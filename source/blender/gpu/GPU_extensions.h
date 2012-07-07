@@ -32,15 +32,11 @@
 #ifndef __GPU_EXTENSIONS_H__
 #define __GPU_EXTENSIONS_H__
 
-
-
-extern unsigned int GPU_ext_config ;
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-
+extern unsigned int GPU_ext_config ;
 
 
 #define GPU_EXT_GLSL (1<<0)
