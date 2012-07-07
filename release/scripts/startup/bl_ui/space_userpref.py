@@ -294,6 +294,8 @@ class USERPREF_PT_edit(Panel):
         row.separator()
 
         col = row.column()
+        col.label(text="3D view floating controls:")
+        col.prop(edit, "floating_controls")
         col.label(text="Grease Pencil:")
         col.prop(edit, "grease_pencil_manhattan_distance", text="Manhattan Distance")
         col.prop(edit, "grease_pencil_euclidean_distance", text="Euclidean Distance")

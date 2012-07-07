@@ -2710,16 +2710,32 @@ class VIEW3D_PT_floating_controls(Panel):
     bl_options = {'HIDE_HEADER'}
 
     def draw(self, context):
-        layout = self.layout
-        layout.alignment = 'BOTTOM'
+        if bpy.context.user_preferences.edit.floating_controls == 'BOTTOM' or bpy.context.user_preferences.edit.floating_controls == 'TOP':
+            layout = self.layout
+            if bpy.context.user_preferences.edit.floating_controls == 'BOTTOM':
+	            layout.alignment = 'BOTTOM'
 
-        row = layout.row(align=True)
-        row.alignment = 'CENTER'
-        row.scale_x = 1.5
-        row.scale_y = 1.5
-        row.operator("transform.translate", text="", icon='MAN_TRANS')
-        row.operator("transform.rotate", text="", icon='MAN_ROT')
-        row.operator("transform.resize", text="", icon='MAN_SCALE')
+            row = layout.row(align=True)
+            row.alignment = 'CENTER'
+            row.scale_x = 1.5
+            row.scale_y = 1.5
+            row.operator("transform.translate", text="", icon='MAN_TRANS')
+            row.operator("transform.rotate", text="", icon='MAN_ROT')
+            row.operator("transform.resize", text="", icon='MAN_SCALE')
+        elif bpy.context.user_preferences.edit.floating_controls == 'LEFT' or bpy.context.user_preferences.edit.floating_controls == 'RIGHT':
+            layout = self.layout
+
+            row = layout.row()
+            if bpy.context.user_preferences.edit.floating_controls == 'RIGHT':
+	            row.alignment = 'RIGHT'
+
+            column = row.column(align=True)
+            column.alignment = 'CENTER'
+            column.scale_x = 1.5
+            column.scale_y = 1.5
+            column.operator("transform.translate", text="", icon='MAN_TRANS')
+            column.operator("transform.rotate", text="", icon='MAN_ROT')
+            column.operator("transform.resize", text="", icon='MAN_SCALE')
 
 
 

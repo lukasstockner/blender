@@ -6,6 +6,7 @@ bpy.context.user_preferences.view.use_zoom_to_mouse = False
 bpy.context.user_preferences.view.use_rotate_around_active = False
 bpy.context.user_preferences.edit.use_drag_immediately = False
 bpy.context.user_preferences.edit.use_insertkey_xyz_to_rgb = False
+bpy.context.user_preferences.edit.floating_controls = 'BOTTOM'
 bpy.context.user_preferences.inputs.select_mouse = 'RIGHT'
 bpy.context.user_preferences.inputs.view_zoom_method = 'DOLLY'
 bpy.context.user_preferences.inputs.view_zoom_axis = 'VERTICAL'

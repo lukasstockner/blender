@@ -429,7 +429,8 @@ typedef struct UserDef {
 	float sculpt_paint_overlay_col[3];
 
 	short tweak_threshold;
-	short pad3;
+
+	short floating_controls;
 
 	char author[80];	/* author name for file formats supporting it */
 
@@ -657,6 +658,13 @@ extern UserDef U; /* from blenkernel blender.c */
 #define USER_COMPUTE_DEVICE_NONE	0
 #define USER_COMPUTE_DEVICE_OPENCL	1
 #define USER_COMPUTE_DEVICE_CUDA	2
+
+/* floating panel options */
+#define USER_FLOATING_CONTROLS_OFF		0
+#define USER_FLOATING_CONTROLS_TOP		1
+#define USER_FLOATING_CONTROLS_LEFT		2
+#define USER_FLOATING_CONTROLS_BOTTOM	3
+#define USER_FLOATING_CONTROLS_RIGHT	4
 
 #ifdef __cplusplus
 }
