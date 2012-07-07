@@ -162,9 +162,9 @@ public:
 	struct Main*		  GetMainDynamicPath(const char *path);
 	vector<struct Main*> &GetMainDynamic();
 	
-	bool LinkBlendFileMemory(void *data, int length, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
-	bool LinkBlendFilePath(const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
-	bool LinkBlendFile(struct BlendHandle *bpy_openlib, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
+	class KX_LibLoadStatus *LinkBlendFileMemory(void *data, int length, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
+	class KX_LibLoadStatus *LinkBlendFilePath(const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
+	class KX_LibLoadStatus *LinkBlendFile(struct BlendHandle *bpy_openlib, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
 	bool MergeScene(KX_Scene *to, KX_Scene *from);
 	RAS_MeshObject *ConvertMeshSpecial(KX_Scene* kx_scene, Main *maggie, const char *name);
 	bool FreeBlendFile(struct Main *maggie);

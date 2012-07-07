@@ -141,6 +141,7 @@ extern "C" {
 
 /* for converting new scenes */
 #include "KX_BlenderSceneConverter.h"
+#include "KX_LibLoadStatus.h"
 #include "KX_MeshProxy.h" /* for creating a new library of mesh objects */
 extern "C" {
 	#include "BKE_idcode.h"
@@ -674,6 +675,7 @@ static PyObject *gLibLoad(PyObject*, PyObject* args, PyObject* kwds)
 	Py_buffer py_buffer;
 	py_buffer.buf = NULL;
 	char *err_str= NULL;
+	KX_LibLoadStatus *status = NULL;
 
 	short options=0;
 	int load_actions=0, verbose=0, async=0;
@@ -700,16 +702,16 @@ static PyObject *gLibLoad(PyObject*, PyObject* args, PyObject* kwds)
 		BLI_strncpy(abs_path, path, sizeof(abs_path));
 		BLI_path_abs(abs_path, gp_GamePythonPath);
 
-		if (kx_scene->GetSceneConverter()->LinkBlendFilePath(abs_path, group, kx_scene, &err_str, options)) {
-			Py_RETURN_TRUE;
+		if ((status=kx_scene->GetSceneConverter()->LinkBlendFilePath(abs_path, group, kx_scene, &err_str, options))) {
+			return status->NewProxy(false);
 		}
 	}
 	else
 	{
 
-		if (kx_scene->GetSceneConverter()->LinkBlendFileMemory(py_buffer.buf, py_buffer.len, path, group, kx_scene, &err_str, options))	{
+		if ((status=kx_scene->GetSceneConverter()->LinkBlendFileMemory(py_buffer.buf, py_buffer.len, path, group, kx_scene, &err_str, options)))	{
 			PyBuffer_Release(&py_buffer);
-			Py_RETURN_TRUE;
+			return status->NewProxy(false);
 		}
 
 		PyBuffer_Release(&py_buffer);
