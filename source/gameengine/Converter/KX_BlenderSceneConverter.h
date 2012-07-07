@@ -62,7 +62,7 @@ class KX_BlenderSceneConverter : public KX_ISceneConverter
 	vector<pair<KX_Scene*,RAS_MeshObject*> > m_meshobjects;
 	vector<pair<KX_Scene*,BL_Material *> >	m_materials;
 
-	vector<pair<KX_Scene*,KX_Scene*> > m_mergequeue;
+	vector<class KX_LibLoadStatus*> m_mergequeue;
 	ThreadInfo	*m_threadinfo;
 
 	// Cached material conversions
@@ -171,7 +171,7 @@ public:
 	bool FreeBlendFile(const char *path);
 
 	virtual void MergeAsyncLoads();
-	void AddScenesToMergeQueue(KX_Scene *merge_scene, KX_Scene *other);
+	void AddScenesToMergeQueue(class KX_LibLoadStatus *status);
  
 	void PrintStats() {
 		printf("BGE STATS!\n");

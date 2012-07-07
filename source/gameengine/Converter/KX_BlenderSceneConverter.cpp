@@ -953,18 +953,31 @@ Main* KX_BlenderSceneConverter::GetMainDynamicPath(const char *path)
 
 void KX_BlenderSceneConverter::MergeAsyncLoads()
 {
-	vector<pair<KX_Scene*,KX_Scene*> >::iterator sit;
-	for (sit=m_mergequeue.begin(); sit!=m_mergequeue.end(); ++sit) {
-		(*sit).first->MergeScene((*sit).second);
-		delete (*sit).second;
+	vector<KX_Scene*> *merge_scenes;
+
+	vector<KX_LibLoadStatus*>::iterator mit;
+	vector<KX_Scene*>::iterator sit;
+
+	for (mit=m_mergequeue.begin(); mit!=m_mergequeue.end(); ++mit) {
+		merge_scenes = (vector<KX_Scene*>*)(*mit)->GetData();
+
+		for (sit=merge_scenes->begin(); sit!=merge_scenes->end(); ++sit) {
+			(*mit)->GetMergeScene()->MergeScene(*sit);
+			delete (*sit);
+		}
+
+		delete (*mit)->GetData();
+		(*mit)->SetData(NULL);
+
+		(*mit)->Finish();
 	}
 
 	m_mergequeue.clear();
 }
 
-void KX_BlenderSceneConverter::AddScenesToMergeQueue(KX_Scene *merge_scene, KX_Scene *other)
+void KX_BlenderSceneConverter::AddScenesToMergeQueue(KX_LibLoadStatus *status)
 {
-	m_mergequeue.push_back(pair<KX_Scene*,KX_Scene*>(merge_scene, other));
+	m_mergequeue.push_back(status);
 }
 
 static void *async_convert(void *ptr)
@@ -972,20 +985,22 @@ static void *async_convert(void *ptr)
 	KX_Scene *new_scene = NULL;
 	KX_LibLoadStatus *status = (KX_LibLoadStatus*)ptr;
 	vector<Scene*> *scenes = (vector<Scene*>*)status->GetData();
+	vector<KX_Scene*> *merge_scenes = new vector<KX_Scene*>(); // Deleted in MergeAsyncLoads
 
 	for (unsigned int i=0; i<scenes->size(); ++i) {
 		new_scene = status->GetEngine()->CreateScene((*scenes)[i]);
 
 		if (new_scene)
-			status->GetConverter()->AddScenesToMergeQueue(status->GetMergeScene(), new_scene);
+			merge_scenes->push_back(new_scene);
 
-		status->AddProgress(1.f/scenes->size());
+		status->AddProgress((1.f/scenes->size())*0.9f); // We'll call conversion 90% and merging 10% for now
 	}
 
-	status->Finish();
-
 	delete status->GetData();
-	status->SetData(NULL);
+	status->SetData(merge_scenes);
+
+	status->GetConverter()->AddScenesToMergeQueue(status);
+
 	return NULL;
 }
 
@@ -1149,6 +1164,9 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 			}
 		}
 	}
+
+	if (!(options & LIB_LOAD_ASYNC))
+		status->Finish();
 	
 	return status;
 }
