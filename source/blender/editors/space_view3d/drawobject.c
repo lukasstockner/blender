@@ -7005,7 +7005,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				            smd->domain->tex_shadow);
 				GPU_free_smoke(smd);
 				// draw_smoke_heat(smd->domain);
-				draw_smoke_velocity(smd->domain);
+				// draw_smoke_velocity(smd->domain);
 // #endif
 #if 0
 				int x, y, z;
