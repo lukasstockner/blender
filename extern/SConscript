@@ -34,6 +34,9 @@ if env['WITH_BF_LIBMV']:
 
 if env['WITH_BF_CARVE']:
     SConscript(['carve/SConscript'])
+print(env)
+if env['WITH_BF_ASSIMP']:
+    SConscript(['assimp/SConscript'])
 
 if env['WITH_GHOST_XDND']:
     # FreeBSD doesn't seems to support XDND protocol

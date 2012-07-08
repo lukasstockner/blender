@@ -38,6 +38,12 @@ if env['WITH_BF_QUICKTIME']:
 if env['WITH_BF_COLLADA']:
     SConscript (['collada/SConscript'])
     
+if env['WITH_BF_ASSIMP']:
+    SConscript (['assimp/SConscript'])
+
+if env['WITH_BF_FBX']:
+    SConscript (['fbx/SConscript'])
+
 if env['WITH_BF_COMPOSITOR']:
     SConscript (['compositor/SConscript',
                  'opencl/SConscript'])

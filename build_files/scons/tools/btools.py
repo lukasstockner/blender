@@ -127,6 +127,8 @@ def validate_arguments(args, bc):
             'WITH_BF_FFTW3', 'BF_FFTW3', 'BF_FFTW3_INC', 'BF_FFTW3_LIB', 'BF_FFTW3_LIBPATH', 'WITH_BF_STATICFFTW3', 'BF_FFTW3_LIB_STATIC',
             'WITH_BF_STATICOPENGL', 'BF_OPENGL', 'BF_OPENGL_INC', 'BF_OPENGL_LIB', 'BF_OPENGL_LIBPATH', 'BF_OPENGL_LIB_STATIC',
             'WITH_BF_COLLADA', 'BF_COLLADA', 'BF_COLLADA_INC', 'BF_COLLADA_LIB', 'BF_OPENCOLLADA', 'BF_OPENCOLLADA_INC', 'BF_OPENCOLLADA_LIB', 'BF_OPENCOLLADA_LIBPATH', 'BF_PCRE', 'BF_PCRE_LIB', 'BF_PCRE_LIBPATH', 'BF_EXPAT', 'BF_EXPAT_LIB', 'BF_EXPAT_LIBPATH',
+            'WITH_BF_ASSIMP',
+            'WITH_BF_FBX',
             'WITH_BF_PLAYER',
             'WITH_BF_NOBLENDER',
             'WITH_BF_BINRELOC',
@@ -456,6 +458,9 @@ def read_opts(env, cfg, args):
         ('BF_EXPAT', 'Expat base path', ''),
         ('BF_EXPAT_LIB', 'Expat library', ''),
         ('BF_EXPAT_LIBPATH', 'Expat library path', ''),
+        
+        (BoolVariable('WITH_BF_ASSIMP', 'Build assimp import module if true', False)),
+        (BoolVariable('WITH_BF_FBX', 'Build fbx import module if true (depends on WITH_BF_ASSIMP)', False)),
         
         (BoolVariable('WITH_BF_JEMALLOC', 'Use jemalloc if true', False)),
         (BoolVariable('WITH_BF_STATICJEMALLOC', 'Staticly link to jemalloc', False)),
