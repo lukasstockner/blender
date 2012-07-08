@@ -9,7 +9,7 @@ defs = ''
 if env['WITH_BF_OPENMP']:
     if env['OURPLATFORM'] == 'linuxcross':
         incs += ' ' + env['BF_OPENMP_INC']
-		defs += ' PARALLEL=1'
+        defs += ' PARALLEL=1'
 
 incs += ' ' + env['BF_PNG_INC'] + ' ' + env['BF_ZLIB_INC'] 
 incs += ' intern ../memutil ../guardealloc ../../extern/Eigen3 '
