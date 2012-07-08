@@ -155,6 +155,10 @@ BF_OPENMP = LIBDIR + '/gcc/gomp'
 BF_OPENMP_INC = '${BF_OPENMP}/include'
 BF_OPENMP_LIBPATH = '${BF_OPENMP}/lib'
 
+# note: WITH_BF_FBX==True needs WITH_BF_ASSIMP to be enabled as well
+WITH_BF_ASSIMP = False
+WITH_BF_FBX = False
+
 WITH_BF_COLLADA = False
 BF_COLLADA = '#source/blender/collada'
 BF_COLLADA_INC = '${BF_COLLADA}'

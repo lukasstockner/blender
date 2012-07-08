@@ -137,6 +137,10 @@ BF_OPENGL_LIB_STATIC = [ '${BF_OPENGL}/lib/libGL.a', '${BF_OPENGL}/lib/libGLU.a'
              '${BF_OPENGL}/lib/libXmu.a', '${BF_OPENGL}/lib/libXext.a',
              '${BF_OPENGL}/lib/libX11.a', '${BF_OPENGL}/lib/libXi.a' ]
 
+# note: WITH_BF_FBX==True needs WITH_BF_ASSIMP to be enabled as well
+WITH_BF_ASSIMP = False
+WITH_BF_FBX = False
+
 WITH_BF_COLLADA = True
 BF_COLLADA = '#source/blender/collada'
 BF_COLLADA_INC = '${BF_COLLADA}'

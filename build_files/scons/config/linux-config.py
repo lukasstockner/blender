@@ -177,6 +177,11 @@ BF_OPENGL_LIB = 'GL GLU X11 Xi'
 BF_OPENGL_LIBPATH = '/usr/X11R6/lib'
 BF_OPENGL_LIB_STATIC = '${BF_OPENGL_LIBPATH}/libGL.a ${BF_OPENGL_LIBPATH}/libGLU.a ${BF_OPENGL_LIBPATH}/libXxf86vm.a ${BF_OPENGL_LIBPATH}/libX11.a ${BF_OPENGL_LIBPATH}/libXi.a ${BF_OPENGL_LIBPATH}/libXext.a ${BF_OPENGL_LIBPATH}/libXxf86vm.a'
 
+# note: WITH_BF_FBX==True needs WITH_BF_ASSIMP to be enabled as well
+WITH_BF_ASSIMP = False
+WITH_BF_FBX = False
+
+
 WITH_BF_COLLADA = False
 BF_COLLADA = '#source/blender/collada'
 BF_COLLADA_INC = '${BF_COLLADA}'
