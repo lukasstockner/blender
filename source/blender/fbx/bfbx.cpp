@@ -41,7 +41,13 @@ extern "C"
 		assert(C);
 		assert(filepath);
 
-		bassimp::SceneImporter imp(filepath,*C);
+		bassimp_import_settings defaults;
+		defaults.enableAssimpLog = 0;
+		defaults.reports = NULL;
+		defaults.nolines = 0;
+		defaults.triangulate = 0;
+
+		bassimp::SceneImporter imp(filepath,*C,defaults);
 		return imp.import() != 0 && imp.apply() != 0;
 	}
 

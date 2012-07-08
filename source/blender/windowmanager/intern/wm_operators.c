@@ -2166,6 +2166,7 @@ static void WM_OT_save_mainfile(wmOperatorType *ot)
 /* function used for WM_OT_save_mainfile too */
 static int wm_assimp_import_exec(bContext *C, wmOperator *op)
 {
+	bassimp_import_settings settings;
 	char filename[FILE_MAX];
 
 	if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
@@ -2174,10 +2175,17 @@ static int wm_assimp_import_exec(bContext *C, wmOperator *op)
 	}
 
 	RNA_string_get(op->ptr, "filepath", filename);
-	if (bassimp_import(C, filename)) return OPERATOR_FINISHED;
 
-	BKE_report(op->reports, RPT_ERROR, "Errors found during importing. Please see console for error log.");
+	settings.reports = op->reports;
+	settings.triangulate = 0;
+	settings.nolines = 0;
+	settings.enableAssimpLog = 1;
 
+	if (bassimp_import(C, filename, &settings)) {
+		return OPERATOR_FINISHED;
+	}
+
+	BKE_report(op->reports, RPT_ERROR, "Errors found during importing");
 	return OPERATOR_FINISHED;
 }
 
