@@ -518,7 +518,7 @@ typedef enum eSpaceSeq_Proxy_RenderSize {
 
 /* Config and Input for File Selector */
 typedef struct FileSelectParams {
-	char title[32]; /* title, also used for the text of the execute button */
+	char title[96]; /* title, also used for the text of the execute button */
 	char dir[1056]; /* directory, FILE_MAX_LIBEXTRA, 1024 + 32, this is for extreme case when 1023 length path
 	                 * needs to be linked in, where foo.blend/Armature need adding  */
 	char file[256]; /* file */
@@ -879,6 +879,9 @@ typedef enum eSpaceNode_Flag {
 /*  SNODE_DISPGP         = (1 << 2), */ /* XXX: Grease Pencil - deprecated? */
 	SNODE_USE_ALPHA      = (1 << 3),
 	SNODE_SHOW_ALPHA     = (1 << 4),
+	SNODE_SHOW_R         = (1 << 7),
+	SNODE_SHOW_G         = (1 << 8),
+	SNODE_SHOW_B         = (1 << 9),
 	SNODE_AUTO_RENDER    = (1 << 5),
 	SNODE_SHOW_HIGHLIGHT = (1 << 6),
 } eSpaceNode_Flag;

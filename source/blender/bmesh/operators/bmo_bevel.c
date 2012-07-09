@@ -39,7 +39,6 @@
 #include "intern/bmesh_operators_private.h" /* own include */
 #include "intern/bmesh_private.h"
 
-#include <stdbool.h>
 #define BEVEL_FLAG	1
 #define BEVEL_DEL	2
 #define FACE_NEW	4
@@ -63,7 +62,7 @@ typedef struct EdgeTag {
 typedef struct VertexItem{
     struct VertexItem *next, *prev;
     BMVert *v;
-    bool onEdge; //  true if new vertex located on edge; edge1 = edge, edge2 = NULL
+    int onEdge; //  true if new vertex located on edge; edge1 = edge, edge2 = NULL
    // false, new vert located betwen edge1 and edge2
     BMEdge *edge1;
     BMEdge *edge2;
@@ -287,7 +286,7 @@ void bevel_aditional_construction_by_vert(BMesh *bm, BevelParams *bp, BMOperator
                 if ((e->v1 == v)||(BM_edge_other_vert(e, e->v1) == v)){
                     VertexItem *item;
                     item = (VertexItem*)MEM_callocN(sizeof(VertexItem), "VertexItem");
-                    item->onEdge = true;
+                    item->onEdge = TRUE;
                     item->edge1 = e;
                     item->edge2 = NULL;
                     item->v = bevel_calc_aditional_vert(bm, bp, e, v);
@@ -313,7 +312,7 @@ void bevel_aditional_construction_by_vert(BMesh *bm, BevelParams *bp, BMOperator
             if (!BMO_elem_flag_test(bm, cur_e, EDGE_SELECTED)){
                 VertexItem *item;
                 item = (VertexItem*)MEM_callocN(sizeof(VertexItem), "VertexItem");
-                item->onEdge = true;
+                item->onEdge = TRUE;
                 item->edge1 = cur_e;
                 item->edge2 = NULL;
                 item->v = bevel_calc_aditional_vert(bm, bp, cur_e, v);
@@ -323,7 +322,7 @@ void bevel_aditional_construction_by_vert(BMesh *bm, BevelParams *bp, BMOperator
                      BMO_elem_flag_test(bm, prev_e, EDGE_SELECTED)){
                     VertexItem *item;
                     item = (VertexItem*)MEM_callocN(sizeof(VertexItem), "VertexItem");
-                    item->onEdge = false;
+                    item->onEdge = FALSE;
                     item->edge1 = cur_e;
                     item->edge2 = prev_e;
                     item->v = bevel_middle_vert(bm, bp, prev_e,cur_e, v);
@@ -337,7 +336,6 @@ void bevel_aditional_construction_by_vert(BMesh *bm, BevelParams *bp, BMOperator
 // Build the polygons along the selected Edge
 void bevel_build_polygon(BMesh *bm, BevelParams *bp, BMEdge *e){
     BMVert *vi[4]; // only for linear case with seg = 1
-    BMFace *f1, *f2;
     AdditionalVert *item, *av1, *av2;
     VertexItem *vItem;
     int i = 0;
@@ -421,7 +419,6 @@ void bmo_bevel_exec(BMesh *bm, BMOperator *op)
     BMVert *v;
     BMEdge *e;
     BevelParams bp;
-    AdditionalVert *item;
 
     bp.offset = 0.1;
     bp.vertList.first = bp.vertList.last = NULL;
