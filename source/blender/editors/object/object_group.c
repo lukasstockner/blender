@@ -393,7 +393,7 @@ void OBJECT_OT_group_link(wmOperatorType *ot)
 	ot->invoke = WM_enum_search_invoke;
 
 	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_CLEAR_SEARCH;
 
 	/* properties */
 	prop = RNA_def_enum(ot->srna, "group", DummyRNA_NULL_items, 0, "Group", "");
