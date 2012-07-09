@@ -134,9 +134,9 @@ bAction *verify_adt_action(ID *id, short add)
 		printf("ERROR: Couldn't add AnimData (ID = %s)\n", (id) ? (id->name) : "<None>");
 		return NULL;
 	}
-		
+
 	/* init action if none available yet */
-	// TODO: need some wizardry to handle NLA stuff correct
+	/* TODO: need some wizardry to handle NLA stuff correct */
 	if ((adt->action == NULL) && (add)) {
 		char actname[sizeof(id->name) - 2];
 		BLI_snprintf(actname, sizeof(actname), "%sAction", id->name + 2);
@@ -256,8 +256,8 @@ int insert_bezt_fcurve(FCurve *fcu, BezTriple *bezt, short flag)
 				dst->f1 = bezt->f1;
 				dst->f2 = bezt->f2;
 				dst->f3 = bezt->f3;
-				
-				// TODO: perform some other operations?
+
+				/* TODO: perform some other operations? */
 			}
 		}
 		/* keyframing modes allow to not replace keyframe */
@@ -1581,7 +1581,7 @@ void ANIM_OT_keyframe_delete_button(wmOperatorType *ot)
 	ot->flag = OPTYPE_UNDO;
 
 	/* properties */
-	RNA_def_boolean(ot->srna, "all", 1, "All", "Delete keyfames from all elements of the array");
+	RNA_def_boolean(ot->srna, "all", 1, "All", "Delete keyframes from all elements of the array");
 }
 
 /* ******************************************* */
@@ -1691,11 +1691,11 @@ static short object_frame_has_keyframe(Object *ob, float frame, short filter)
 		/* 1. test for relative (with keyframes) */
 		if (id_frame_has_keyframe((ID *)key, frame, filter))
 			return 1;
-			
+
 		/* 2. test for time */
-		// TODO... yet to be implemented (this feature may evolve before then anyway)
+		/* TODO... yet to be implemented (this feature may evolve before then anyway) */
 	}
-	
+
 	/* try materials */
 	if (!(filter & ANIMFILTER_KEYS_LOCAL) && !(filter & ANIMFILTER_KEYS_NOMAT) ) {
 		/* if only active, then we can skip a lot of looping */

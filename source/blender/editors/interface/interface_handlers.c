@@ -804,7 +804,7 @@ static void ui_add_smart_controller(bContext *C, uiBut *from, uiBut *to)
 			break;
 	}
 
-	// only works if the sensor and the actuator are from the same object
+	/* only works if the sensor and the actuator are from the same object */
 	if (!act_iter) return;
 
 	/* (3) add a new controller */
@@ -3362,7 +3362,7 @@ static void ui_ndofedit_but_HSVCIRCLE(uiBut *but, uiHandleButtonData *data, wmND
 	ui_get_but_vectorf(but, rgb);
 	rgb_to_hsv_compat_v(rgb, hsv);
 	
-	/* Convert current colour on hue/sat disc to circular coordinates phi, r */
+	/* Convert current color on hue/sat disc to circular coordinates phi, r */
 	phi = fmodf(hsv[0] + 0.25f, 1.0f) * -2.0f * (float)M_PI;
 	r = hsv[1];
 	/* sqr= r>0.f?sqrtf(r):1; */ /* UNUSED */
@@ -3478,13 +3478,13 @@ static int ui_do_but_HSVCIRCLE(bContext *C, uiBlock *block, uiBut *but, uiHandle
 		else if (event->type == WHEELDOWNMOUSE) {
 			float *hsv = ui_block_hsv_get(but->block);
 			hsv[2] = CLAMPIS(hsv[2] - 0.05f, 0.0f, 1.0f);
-			ui_set_but_hsv(but);    // converts to rgb
+			ui_set_but_hsv(but);    /* converts to rgb */
 			ui_numedit_apply(C, block, but, data);
 		}
 		else if (event->type == WHEELUPMOUSE) {
 			float *hsv = ui_block_hsv_get(but->block);
 			hsv[2] = CLAMPIS(hsv[2] + 0.05f, 0.0f, 1.0f);
-			ui_set_but_hsv(but);    // converts to rgb
+			ui_set_but_hsv(but);    /* converts to rgb */
 			ui_numedit_apply(C, block, but, data);
 		}
 		else if (event->type == MOUSEMOVE) {
@@ -3810,7 +3810,7 @@ static int ui_do_but_CURVE(bContext *C, uiBlock *block, uiBut *but, uiHandleButt
 
 static int in_scope_resize_zone(uiBut *but, int UNUSED(x), int y)
 {
-	// bottom corner return (x > but->x2 - SCOPE_RESIZE_PAD) && (y < but->y1 + SCOPE_RESIZE_PAD);
+	/* bottom corner return (x > but->x2 - SCOPE_RESIZE_PAD) && (y < but->y1 + SCOPE_RESIZE_PAD); */
 	return (y < but->y1 + SCOPE_RESIZE_PAD);
 }
 
@@ -3833,7 +3833,7 @@ static int ui_numedit_but_HISTOGRAM(uiBut *but, uiHandleButtonData *data, int mx
 	}
 	else {
 		/* scale histogram values */
-		const float yfac = MIN2(powf(hist->ymax, 2.f), 1.f) * 0.5f;
+		const float yfac = minf(powf(hist->ymax, 2.0f), 1.0f) * 0.5f;
 		hist->ymax += dy * yfac;
 	
 		CLAMP(hist->ymax, 1.f, 100.f);
@@ -4399,23 +4399,32 @@ static int ui_but_menu(bContext *C, uiBut *but)
 	uiPopupMenu *pup;
 	uiLayout *layout;
 	int length;
-	const char *name;
+	char *name;
+	uiStringInfo label = {BUT_GET_LABEL, NULL};
 
-	if ((but->rnapoin.data && but->rnaprop) == 0 && but->optype == NULL)
-		return 0;
+/*	if ((but->rnapoin.data && but->rnaprop) == 0 && but->optype == NULL)*/
+/*		return 0;*/
 	
 	button_timers_tooltip_remove(C, but);
 
+#if 0
 	if (but->rnaprop)
 		name = RNA_property_ui_name(but->rnaprop);
 	else if (but->optype && but->optype->srna)
 		name = RNA_struct_ui_name(but->optype->srna);
 	else
 		name = IFACE_("<needs_name>");  // XXX - should never happen.
+#else
+	uiButGetStrInfo(C, but, 1, &label);
+	name = label.strinfo;
+#endif
 
 	pup = uiPupMenuBegin(C, name, ICON_NONE);
 	layout = uiPupMenuLayout(pup);
-	
+
+	if (label.strinfo)
+		MEM_freeN(label.strinfo);
+
 	uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
 
 	if (but->rnapoin.data && but->rnaprop) {
@@ -4505,7 +4514,7 @@ static int ui_but_menu(bContext *C, uiBut *but)
 		}
 		
 		/* Keying Sets */
-		// TODO: check on modifyability of Keying Set when doing this
+		/* TODO: check on modifyability of Keying Set when doing this */
 		if (is_anim) {
 			uiItemS(layout);
 
@@ -4529,8 +4538,8 @@ static int ui_but_menu(bContext *C, uiBut *but)
 		
 		/* Property Operators */
 		
-		//Copy Property Value
-		//Paste Property Value
+		/*Copy Property Value
+		 *Paste Property Value */
 		
 		if (length) {
 			uiItemBooleanO(layout, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Reset All to Default Values"),
@@ -4566,7 +4575,7 @@ static int ui_but_menu(bContext *C, uiBut *but)
 		/* keyboard shortcuts */
 		if ((kmi) && ISKEYBOARD(kmi->type)) {
 
-			// would rather use a block but, but gets weirdly positioned...
+			/* would rather use a block but, but gets weirdly positioned... */
 			//uiDefBlockBut(block, menu_change_shortcut, but, "Change Shortcut", 0, 0, uiLayoutGetWidth(layout), UI_UNIT_Y, "");
 			
 			but2 = uiDefIconTextBut(block, BUT, 0, 0, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Change Shortcut"),
@@ -4642,8 +4651,8 @@ static int ui_but_menu(bContext *C, uiBut *but)
 	}
 
 	/* perhaps we should move this into (G.debug & G_DEBUG) - campbell */
-	uiItemFullO(layout, "UI_OT_editsource", CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Edit Source"),
-	            ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, 0);
+	uiItemFullO(layout, "UI_OT_editsource", NULL, ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, 0);
+	uiItemFullO(layout, "UI_OT_edittranslation_init", NULL, ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, 0);
 
 	uiPupMenuEnd(C, pup);
 
@@ -5009,7 +5018,7 @@ static uiBut *ui_but_find_mouse_over(ARegion *ar, int x, int y)
 		ui_window_to_block(ar, block, &mx, &my);
 
 		for (but = block->buttons.first; but; but = but->next) {
-			/* note, LABEL is included for hilights, this allows drags */
+			/* note, LABEL is included for highlights, this allows drags */
 			if (but->type == LABEL && but->dragpoin == NULL)
 				continue;
 			if (ELEM3(but->type, ROUNDBOX, SEPR, LISTBOX))

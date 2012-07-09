@@ -91,7 +91,7 @@ static void view2d_masks(View2D *v2d)
 	v2d->mask.ymax = v2d->winy - 1;
 
 #if 0
-	// XXX see above
+	/* XXX see above */
 	v2d->scroll &= ~(V2D_SCROLL_HORIZONTAL_HIDE | V2D_SCROLL_VERTICAL_HIDE);
 	/* check size if: */
 	if (v2d->scroll & V2D_SCROLL_HORIZONTAL)
@@ -203,7 +203,7 @@ void UI_view2d_region_reinit(View2D *v2d, short type, int winx, int winy)
 				v2d->cur = v2d->tot;
 				
 				/* scrollers - should we have these by default? */
-				// XXX for now, we don't override this, or set it either!
+				/* XXX for now, we don't override this, or set it either! */
 			}
 			break;
 			
@@ -431,7 +431,7 @@ void UI_view2d_curRect_validate_resize(View2D *v2d, int resize)
 		/* curRatio = height / width; */ /* UNUSED */
 		winRatio = winy / winx;
 		
-		/* both sizes change (area/region maximised)  */
+		/* both sizes change (area/region maximized)  */
 		if (do_x == do_y) {
 			if (do_x && do_y) {
 				/* here is 1,1 case, so all others must be 0,0 */
