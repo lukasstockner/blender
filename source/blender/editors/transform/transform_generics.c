@@ -1694,8 +1694,15 @@ void calculateCenter(TransInfo *t)
 	}
 }
 
+typedef struct _UVTCLoop {
+	float angle;  /* angle between projected displaced vertex and loop */
+	BMLoop *loop; /* pointer to loop */
+	char prev;    /* is loop previous from central vertex. Helps to evaluate direction of outward vector */
+} UVTCLoop;
+
+
 /* flush the calculated displacement to uvs of the same uv island */
-static void flushUVdisplacement(UVTransCorrInfoUV *first, BMLoop *loops[2], BMEditMesh *em, TransData *td, UVTransCorrect *uvtc)
+static void flushUVdisplacement(UVTransCorrInfoUV *first, UVTCLoop loops[2], BMEditMesh *em, TransData *td, UVTransCorrect *uvtc)
 {
 	UVTransCorrInfoUV *uvtcuv = first;
 	float normal[3];
@@ -1705,12 +1712,12 @@ static void flushUVdisplacement(UVTransCorrInfoUV *first, BMLoop *loops[2], BMEd
 	float uv_result[2];
 	MLoopUV *luv;
 	BMLoop *l = first->l;
-	BMLoop *l1 = loops[0];
-	BMLoop *l2 = loops[1];
+	BMLoop *l1 = loops[0].loop;
+	BMLoop *l2 = loops[1].loop;
 
 	int index = BM_elem_index_get(td->eve);
-	int index1 = BM_elem_index_get(loops[0]->v);
-	int index2 = BM_elem_index_get(loops[1]->v);
+	int index1 = BM_elem_index_get(l1->v);
+	int index2 = BM_elem_index_get(l2->v);
 
 	/* first we need to calculate the displacement based on the projection of the vertex to the
 	 * boundary loops plane */
@@ -1741,9 +1748,67 @@ static void flushUVdisplacement(UVTransCorrInfoUV *first, BMLoop *loops[2], BMEd
 	/* calculate a normal from the two edges */
 	cross_v3_v3v3(normal, edge_vec_init1, edge_vec_init2);
 
-	/* parallel edges, do exceptional solution */
+
 	if(len_v3(normal) < 0.00001) {
-		int duck = 0;
+		float edge_uv_perp1[2], edge_uv_perp2[2], uv_perp[2], uv_parallel[2];
+		float len1, len2, len;
+		float uv_world_ratio, angle, displaced_length;
+		/* parallel edges, do exceptional solution */
+		len1 = len_v3(edge_vec_init1);
+		len2 = len_v3(edge_vec_init2);
+
+		/* first, we need a way to calculate an offset in uv space. A way to do this is to find the mean
+		 * displacement in uv space for each unit of displacement in 3D space. */
+		uv_world_ratio = 0.5*(len1/len_v2(edge_uv_init1)
+		                      + len2/len_v2(edge_uv_init2));
+
+		/* to get an 'outward' direction in uv space, just get the perpendicular vector.
+		 * To get a correct outward vector, we need to negate the vector appropriately
+		 * according to the winding of the loop */
+		if(loops[0].prev) {
+			edge_uv_perp1[0] = -edge_uv_init1[1];
+			edge_uv_perp1[1] = edge_uv_init1[0];
+		}
+		else {
+			edge_uv_perp1[0] = edge_uv_init1[1];
+			edge_uv_perp1[1] = -edge_uv_init1[0];
+		}
+		if(loops[1].prev) {
+			edge_uv_perp2[0] = -edge_uv_init2[1];
+			edge_uv_perp2[1] = edge_uv_init2[0];
+		}
+		else {
+			edge_uv_perp2[0] = edge_uv_init2[1];
+			edge_uv_perp2[1] = -edge_uv_init2[0];
+		}
+
+		/* mean value of perpendicular vectors (can also interpolate with angle but leave at that currently) */
+		sub_v3_v3v3(projv, td->eve->co, td->iloc);
+		displaced_length = len_v3(projv);
+
+		add_v2_v2v2(uv_perp, edge_uv_perp1, edge_uv_perp2);
+
+		/* estimate an angle for parallel to the edges motion and add the appropriate paralel vector.
+		 * remember, we still store the cosine here so we are checking for greater value */
+		if(loops[0].angle >= loops[1].angle) {
+			angle = loops[0].angle;
+			copy_v2_v2(uv_parallel, edge_uv_init1);
+			len = len1;
+		} else {
+			angle = loops[1].angle;
+			copy_v2_v2(uv_parallel, edge_uv_init2);
+			len = len2;
+		}
+		/* angle still equals cosine here */
+		mul_v2_fl(uv_parallel, angle*displaced_length/len);
+
+		angle = acos(angle);
+
+		mul_v2_fl(uv_perp, 0.5*sin(angle)*displaced_length*uv_world_ratio);
+
+		copy_v2_v2(uv_result, first->init_uv);
+		add_v2_v2(uv_result, uv_parallel);
+		add_v2_v2(uv_result, uv_perp);
 	} else {
 		int ax, ay;
 		float det, det1, det2, coeff1, coeff2;
@@ -1812,10 +1877,12 @@ void calculateUVTransformCorrection(TransInfo *t)
 			 * we must flush the result */
 			UVTransCorrInfoUV *first_island_uv, *uvtcuv;
 			float projv[3], proj_len;
-			float min_angles[2] = {-10.0, -10.0} /* arbitrary, just bigger than 2PI */;
-			BMLoop *boundary_loops[2] = {NULL, NULL};
+			UVTCLoop boundary_loops[2];
+			const UVTCLoop boundary_loop_init = {-10.0, NULL, FALSE};
 			int index;
 			BMVert *v = td[i].eve;
+
+			boundary_loops[0] = boundary_loops[1] = boundary_loop_init;
 			index = BM_elem_index_get(v);
 
 			/* first project the vector to the initial normal plane to get the displacement along that */
@@ -1843,8 +1910,7 @@ void calculateUVTransformCorrection(TransInfo *t)
 
 					flushUVdisplacement(first_island_uv, boundary_loops, em, td+i, uvtc);
 
-					min_angles[0] = min_angles[1] = -10.0;
-					boundary_loops[0] = boundary_loops[1] = NULL;
+					boundary_loops[0] = boundary_loops[1] = boundary_loop_init;
 
 					first_island_uv = uvtcuv;
 				}
@@ -1873,26 +1939,32 @@ void calculateUVTransformCorrection(TransInfo *t)
 				angle2 = dot_v3v3(projv, proj_prev)/(sqrtf(dot_tmp*dot_v3v3(proj_prev, proj_prev)));
 
 				/* store the loops that have the minimum angle with the displacement vector */
-				if((angle1 > min_angles[0]) && (!boundary_loops[1] || l_next->v != boundary_loops[1]->v)) {
-					min_angles[1] = min_angles[0];
-					boundary_loops[1] = boundary_loops[0];
+				if((angle1 > boundary_loops[0].angle) && (!boundary_loops[1].loop || l_next->v != boundary_loops[1].loop->v)) {
+					boundary_loops[1].angle = boundary_loops[0].angle;
+					boundary_loops[1].loop = boundary_loops[0].loop;
+					boundary_loops[1].prev = boundary_loops[0].prev;
 
-					min_angles[0] = angle1;
-					boundary_loops[0] = l_next;
-				} else if((angle1 > min_angles[1]) && (!boundary_loops[0] || l_next->v != boundary_loops[0]->v)) {
-					min_angles[1] = angle1;
-					boundary_loops[1] = l_next;
+					boundary_loops[0].angle = angle1;
+					boundary_loops[0].loop = l_next;
+					boundary_loops[0].prev = FALSE;
+				} else if((angle1 > boundary_loops[1].angle) && (!boundary_loops[0].loop || l_next->v != boundary_loops[0].loop->v)) {
+					boundary_loops[1].angle = angle1;
+					boundary_loops[1].loop = l_next;
+					boundary_loops[1].prev = FALSE;
 				}
 
-				if((angle2 > min_angles[0]) && (!boundary_loops[1] || l_prev->v != boundary_loops[1]->v)) {
-					min_angles[1] = min_angles[0];
-					boundary_loops[1] = boundary_loops[0];
+				if((angle2 > boundary_loops[0].angle) && (!boundary_loops[1].loop || l_prev->v != boundary_loops[1].loop->v)) {
+					boundary_loops[1].angle = boundary_loops[0].angle;
+					boundary_loops[1].loop = boundary_loops[0].loop;
+					boundary_loops[1].prev = boundary_loops[0].prev;
 
-					min_angles[0] = angle2;
-					boundary_loops[0] = l_prev;
-				} else if((angle2 > min_angles[1]) && (!boundary_loops[0] || l_prev->v != boundary_loops[0]->v)) {
-					min_angles[1] = angle2;
-					boundary_loops[1] = l_prev;
+					boundary_loops[0].angle = angle2;
+					boundary_loops[0].loop = l_prev;
+					boundary_loops[0].prev = TRUE;
+				} else if((angle2 > boundary_loops[1].angle) && (!boundary_loops[0].loop || l_prev->v != boundary_loops[0].loop->v)) {
+					boundary_loops[1].angle = angle2;
+					boundary_loops[1].loop = l_prev;
+					boundary_loops[1].prev = TRUE;
 				}
 			}
 
