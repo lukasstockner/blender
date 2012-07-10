@@ -316,7 +316,6 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         layout.prop(md, "iterations")
         layout.prop(md, "lamb")
         layout.prop(md, "lambdaborder")
-        layout.prop(md, "minarea")
         row = layout.row()
         row.label(text="Axis: ")
         row.prop(md, "use_x")

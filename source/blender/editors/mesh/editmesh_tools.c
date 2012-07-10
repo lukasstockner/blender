@@ -1604,7 +1604,6 @@ static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
 	int i, repeat;
 	float lambda = 0.1f;
 	float lambda_border = 0.1f;
-	float min_area = 0.00001f;
 	BMIter fiter;
 	BMFace *f;
 
@@ -1626,7 +1625,6 @@ static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
 	repeat = RNA_int_get(op->ptr, "repeat");
 	lambda = RNA_float_get(op->ptr, "lambda");
 	lambda_border = RNA_float_get(op->ptr, "lambda_border");
-	min_area = RNA_float_get(op->ptr, "min_area");
 	usex = RNA_boolean_get(op->ptr, "use_x");
 	usey = RNA_boolean_get(op->ptr, "use_y");
 	usez = RNA_boolean_get(op->ptr, "use_z");
@@ -1636,8 +1634,8 @@ static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
 	
 	for (i = 0; i < repeat; i++) {
 		if (!EDBM_op_callf(em, op,
-		                   "smooth_laplacian_vert verts=%hv lambda=%f lambda_border=%f min_area=%f use_x=%b use_y=%b use_z=%b volume_preservation=%b",
-		                   BM_ELEM_SELECT, lambda, lambda_border, min_area, usex, usey, usez, volume_preservation))
+		                   "smooth_laplacian_vert verts=%hv lambda=%f lambda_border=%f use_x=%b use_y=%b use_z=%b volume_preservation=%b",
+		                   BM_ELEM_SELECT, lambda, lambda_border, usex, usey, usez, volume_preservation))
 		{
 			return OPERATOR_CANCELLED;
 		}
@@ -1674,8 +1672,6 @@ void MESH_OT_vertices_smooth_laplacian(wmOperatorType *ot)
 					"Lambda factor", "", 0.0000001f, 1000.0f);
 	RNA_def_float(ot->srna, "lambda_border", 0.00005f, 0.0000001f, 1000.0f, 
 					"Lambda factor in border", "", 0.0000001f, 1000.0f);
-	RNA_def_float(ot->srna, "min_area", 0.00001f, 0.0000000000000001f, 1000.0f, 
-					"Minimum area permitted", "", 0.0000000000000001f, 1000.0f);
 	RNA_def_boolean(ot->srna, "use_x", 1, "Smooth X Axis", "Smooth object along	X axis");
 	RNA_def_boolean(ot->srna, "use_y", 1, "Smooth Y Axis", "Smooth object along	Y axis");
 	RNA_def_boolean(ot->srna, "use_z", 1, "Smooth Z Axis", "Smooth object along	Z axis");

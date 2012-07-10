@@ -46,6 +46,8 @@
 
 #define SMOOTH_LAPLACIAN_AREA_FACTOR 4.0f
 #define SMOOTH_LAPLACIAN_EDGE_FACTOR 2.0f
+#define SMOOTH_LAPLACIAN_MAX_EDGE_PERCENTAGE 1.8
+#define SMOOTH_LAPLACIAN_MIN_EDGE_PERCENTAGE 0.15
 
 struct BLaplacianSystem {
 	float *eweights;		/* Length weights per Edge */
@@ -77,6 +79,7 @@ static void delete_laplacian_system(LaplacianSystem * sys);
 static void delete_void_pointer(void * data);
 static void fill_laplacian_matrix(LaplacianSystem * sys);
 static void memset_laplacian_system(LaplacianSystem *sys, int val);
+static void validate_solution(LaplacianSystem * sys, int usex, int usey, int usez, float lambda, float lambda_border, int volumepreservation);
 static void volume_preservation(BMesh *bm, BMOperator *op, float vini, float vend, int usex, int usey, int usez);
 
 static void delete_void_pointer(void * data)
@@ -472,13 +475,67 @@ static void volume_preservation(BMesh *bm, BMOperator *op, float vini, float ven
 	}
 }
 
+static void validate_solution(LaplacianSystem * sys, int usex, int usey, int usez, float lambda, float lambda_border, int volumepreservation)
+{
+	int m_vertex_id;
+	float leni, lene;
+	float vini, vend;
+	float *vi1, *vi2, ve1[3], ve2[3];
+	unsigned int idv1, idv2;
+	BMOIter siter;
+	BMVert *v;
+	BMEdge *e;
+	BMIter eiter;
+
+	BM_ITER_MESH  (e, &eiter, sys->bm, BM_EDGES_OF_MESH) {
+		idv1 = BM_elem_index_get(e->v1);
+		idv2 = BM_elem_index_get(e->v2);
+		vi1 = e->v1->co;
+		vi2 =  e->v2->co;
+		ve1[0] = nlGetVariable(0, idv1);
+		ve1[1] = nlGetVariable(1, idv1);
+		ve1[2] = nlGetVariable(2, idv1);
+		ve2[0] = nlGetVariable(0, idv2);
+		ve2[1] = nlGetVariable(1, idv2);
+		ve2[2] = nlGetVariable(2, idv2);
+		leni = len_v3v3(vi1, vi2);
+		lene = len_v3v3(ve1, ve2);
+		if ( lene > leni* SMOOTH_LAPLACIAN_MAX_EDGE_PERCENTAGE || lene < leni*SMOOTH_LAPLACIAN_MIN_EDGE_PERCENTAGE) {
+			sys->zerola[idv1] = 1;
+			sys->zerola[idv2] = 1;
+		}
+	}
+
+	if (volumepreservation) {
+		vini = compute_volume(sys->bm, sys->op);
+	}
+	BMO_ITER (v, &siter, sys->bm, sys->op, "verts", BM_VERT) {
+		m_vertex_id = BM_elem_index_get(v);
+		if (sys->zerola[m_vertex_id] == 0) {
+			if (usex) {
+				v->co[0] =  nlGetVariable(0, m_vertex_id);
+			}
+			if (usey) {
+				v->co[1] =  nlGetVariable(1, m_vertex_id);
+			}
+			if (usez) {
+				v->co[2] =  nlGetVariable(2, m_vertex_id);
+			}
+		}
+	}
+	if (volumepreservation) {
+		vend = compute_volume(sys->bm, sys->op);
+		volume_preservation(sys->bm, sys->op, vini, vend, usex, usey, usez);
+	}
+
+}
+
 void bmo_smooth_laplacian_vert_exec(BMesh *bm, BMOperator *op)
 {
 	int i;
 	int m_vertex_id;
 	int usex, usey, usez, volumepreservation;
 	float lambda, lambda_border;
-	float vini, vend;
 	float w;
 	BMOIter siter;
 	BMVert *v;
@@ -494,7 +551,7 @@ void bmo_smooth_laplacian_vert_exec(BMesh *bm, BMOperator *op)
 	BM_mesh_elem_index_ensure(bm, BM_VERT);
 	lambda = BMO_slot_float_get(op, "lambda");
 	lambda_border = BMO_slot_float_get(op, "lambda_border");
-	sys->min_area = BMO_slot_float_get(op, "min_area");
+	sys->min_area = 0.00001f;
 	usex = BMO_slot_bool_get(op, "use_x");
 	usey = BMO_slot_bool_get(op, "use_y");
 	usez = BMO_slot_bool_get(op, "use_z");
@@ -550,25 +607,7 @@ void bmo_smooth_laplacian_vert_exec(BMesh *bm, BMOperator *op)
 	nlEnd(NL_SYSTEM);
 
 	if (nlSolveAdvanced(NULL, NL_TRUE) ) {
-		if(volumepreservation){
-			vini = compute_volume(bm, op);
-		}
-		BMO_ITER (v, &siter, bm, op, "verts", BM_VERT) {
-			m_vertex_id = BM_elem_index_get(v);
-			if (usex) {
-				v->co[0] =  nlGetVariable(0, m_vertex_id);
-			}
-			if (usey) {
-				v->co[1] =  nlGetVariable(1, m_vertex_id);
-			}
-			if (usez) {
-				v->co[2] =  nlGetVariable(2, m_vertex_id);
-			}
-		}
-		if(volumepreservation){
-			vend = compute_volume(bm, op);
-			volume_preservation(bm, op, vini, vend, usex, usey, usez);
-		}
+		validate_solution(sys, usex, usey, usez, lambda, lambda_border, volumepreservation);
 	}
 		
 	delete_laplacian_system(sys);

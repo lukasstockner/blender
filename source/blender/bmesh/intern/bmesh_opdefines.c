@@ -120,11 +120,9 @@ static BMOpDefine bmo_smooth_laplacian_vert_def = {
 	{{BMO_OP_SLOT_ELEMENT_BUF, "verts"}, //input vertices
 	 {BMO_OP_SLOT_FLT, "lambda"}, //lambda param
 	 {BMO_OP_SLOT_FLT, "lambda_border"}, //lambda param in border
-	 {BMO_OP_SLOT_FLT, "min_area"}, //Minimun area permited
 	 {BMO_OP_SLOT_BOOL, "use_x"}, //Smooth object along X axis
 	 {BMO_OP_SLOT_BOOL, "use_y"}, //Smooth object along Y axis
 	 {BMO_OP_SLOT_BOOL, "use_z"}, //Smooth object along Z axis
-	 {BMO_OP_SLOT_MAPPING, "vertex_group"}, // Vertex group with weights for every vertice.
 	 {BMO_OP_SLOT_BOOL, "volume_preservation"}, //Apply volume preservation after smooth
 	{0} /* null-terminating sentinel */,
 	},
