@@ -1102,10 +1102,9 @@ enum {
 
 typedef struct LaplacianSmoothModifierData {
 	ModifierData modifier;
-	float lambda, lambda_border;
-	char defgrp_name[64];	/* MAX_VGROUP_NAME */
+	float lambda, lambda_border, pad1;
+	char defgrp_name[64]; /* MAX_VGROUP_NAME */
 	short flag, repeat;
-
 } LaplacianSmoothModifierData;
 
 #endif
