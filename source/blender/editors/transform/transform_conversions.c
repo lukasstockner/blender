@@ -1830,7 +1830,7 @@ static void editmesh_set_connectivity_distance(BMEditMesh *em, float mtx[][3], f
 			d2 = d + len_v3(vec);
 			
 			if (dists[BM_elem_index_get(v3)] != FLT_MAX)
-				dists[BM_elem_index_get(v3)] = MIN2(d2, dists[BM_elem_index_get(v3)]);
+				dists[BM_elem_index_get(v3)] = minf(d2, dists[BM_elem_index_get(v3)]);
 			else
 				dists[BM_elem_index_get(v3)] = d2;
 			
@@ -4967,7 +4967,7 @@ void autokeyframe_pose_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *o
 						for (fcu = act->curves.first; fcu; fcu = fcu->next) {
 							/* only insert keyframes for this F-Curve if it affects the current bone */
 							if (strstr(fcu->rna_path, "bones")) {
-								char *pchanName = BLI_getQuotedStr(fcu->rna_path, "bones[");
+								char *pchanName = BLI_str_quoted_substrN(fcu->rna_path, "bones[");
 								
 								/* only if bone name matches too... 
 								 * NOTE: this will do constraints too, but those are ok to do here too?

@@ -33,7 +33,6 @@ private:
 	SocketReader *m_inputProgram;
 	SocketReader *m_inputBokehProgram;
 	SocketReader *m_inputSizeProgram;
-	SocketReader *m_inputDepthProgram;
 #ifdef COM_DEFOCUS_SEARCH
 	SocketReader *inputSearchProgram;
 #endif
@@ -62,7 +61,7 @@ public:
 
 	void setThreshold(float threshold) { this->m_threshold = threshold; }
 
-
+	void executeOpenCL(OpenCLDevice* device, MemoryBuffer *outputMemoryBuffer, cl_mem clOutputBuffer, MemoryBuffer **inputMemoryBuffers, list<cl_mem> *clMemToCleanUp, list<cl_kernel> *clKernelsToCleanUp);
 };
 
 #ifdef COM_DEFOCUS_SEARCH

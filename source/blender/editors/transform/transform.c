@@ -264,6 +264,9 @@ void projectIntView(TransInfo *t, const float vec[3], int adr[2])
 
 		UI_view2d_to_region_no_clip(t->view, v[0], v[1], adr, adr + 1);
 	}
+	else if (t->spacetype == SPACE_NODE) {
+		UI_view2d_to_region_no_clip((View2D *)t->view, vec[0], vec[1], adr, adr + 1);
+	}
 }
 
 void projectFloatView(TransInfo *t, const float vec[3], float adr[2])
@@ -1395,8 +1398,8 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 				float dx = t->mval[0] - cent[0], dy = t->mval[1] - cent[1];
 				float angle = atan2f(dy, dx);
 				float dist = sqrtf(dx * dx + dy * dy);
-				float delta_angle = MIN2(15.0f / dist, (float)M_PI / 4.0f);
-				float spacing_angle = MIN2(5.0f / dist, (float)M_PI / 12.0f);
+				float delta_angle = minf(15.0f / dist, (float)M_PI / 4.0f);
+				float spacing_angle = minf(5.0f / dist, (float)M_PI / 12.0f);
 				UI_ThemeColor(TH_WIRE);
 
 				setlinestyle(3);
