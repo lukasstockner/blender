@@ -382,17 +382,28 @@ int ED_mesh_uv_texture_add(bContext *C, Mesh *me, const char *name, int active_s
 	return layernum_dst;
 }
 
-int ED_mesh_uv_texture_remove(bContext *C, Object *ob, Mesh *me)
+int ED_mesh_uv_texture_remove(bContext *C, Object *ob, Mesh *me, int delete_index)
 {
 	CustomData *pdata = GET_CD_DATA(me, pdata), *ldata = GET_CD_DATA(me, ldata);
 	CustomDataLayer *cdlp, *cdlu;
 	int index;
 
-	index = CustomData_get_active_layer_index(pdata, CD_MTEXPOLY);
-	cdlp = (index == -1) ? NULL : &pdata->layers[index];
+	if (delete_index < 0)
+	{
+		index = CustomData_get_active_layer_index(pdata, CD_MTEXPOLY);
+		cdlp = (index == -1) ? NULL : &pdata->layers[index];
 
-	index = CustomData_get_active_layer_index(ldata, CD_MLOOPUV);
-	cdlu = (index == -1) ? NULL : &ldata->layers[index];
+		index = CustomData_get_active_layer_index(ldata, CD_MLOOPUV);
+		cdlu = (index == -1) ? NULL : &ldata->layers[index];
+	}
+	else
+	{
+		index = CustomData_get_layer_index_n(pdata, CD_MTEXPOLY, delete_index);
+		cdlp = (index == -1) ? NULL : &pdata->layers[index];
+
+		index = CustomData_get_layer_index_n(ldata, CD_MLOOPUV, delete_index);
+		cdlu = (index == -1) ? NULL : &ldata->layers[index];
+	}
 	
 	if (!cdlp || !cdlu)
 		return 0;
@@ -620,12 +631,13 @@ void MESH_OT_drop_named_image(wmOperatorType *ot)
 	RNA_def_string(ot->srna, "filepath", "Path", FILE_MAX, "Filepath", "Path to image file");
 }
 
-static int mesh_uv_texture_remove_exec(bContext *C, wmOperator *UNUSED(op))
+static int mesh_uv_texture_remove_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = ED_object_context(C);
 	Mesh *me = ob->data;
+	int index = RNA_int_get(op->ptr, "index");
 
-	if (!ED_mesh_uv_texture_remove(C, ob, me))
+	if (!ED_mesh_uv_texture_remove(C, ob, me, index))
 		return OPERATOR_CANCELLED;
 
 	return OPERATOR_FINISHED;
@@ -644,6 +656,8 @@ void MESH_OT_uv_texture_remove(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	RNA_def_int(ot->srna, "index", -1, INT_MIN, INT_MAX, "Index to remove", "< 0 means selection", INT_MIN, INT_MAX);
 }
 
 /*********************** vertex color operators ************************/

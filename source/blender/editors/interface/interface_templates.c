@@ -2137,10 +2137,16 @@ static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, Pointe
 
 	/* hardcoded types */
 	if (itemptr->type == &RNA_MeshTexturePolyLayer || itemptr->type == &RNA_MeshLoopColorLayer) {
+		PointerRNA remove_rna;
+
 		uiItemL(sub, name, icon);
 		uiBlockSetEmboss(block, UI_EMBOSSN);
 		uiDefIconButR(block, TOG, 0, ICON_SCENE, 0, 0, UI_UNIT_X, UI_UNIT_Y, itemptr, "active_render", 0, 0, 0, 0, 0, NULL);
 		uiBlockSetEmboss(block, UI_EMBOSS);
+
+		WM_operator_properties_create(&remove_rna, "MESH_OT_uv_texture_remove");
+		RNA_int_set(&remove_rna, "index", i);
+		uiItemFullO(sub, "mesh.uv_texture_remove", "", ICON_X, remove_rna.data, uiLayoutGetOperatorContext(layout), UI_ITEM_O_RETURN_PROPS|UI_ITEM_R_NO_BG);
 	}
 	else if (RNA_struct_is_a(itemptr->type, &RNA_MaterialTextureSlot)) {
 		uiItemL(sub, name, icon);
