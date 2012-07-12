@@ -145,9 +145,10 @@ static int rna_PaintCapabilities_has_normal_weight_get(PointerRNA *ptr)
 static int rna_PaintCapabilities_has_overlay_get(PointerRNA *ptr)
 {
 	Brush *br = (Brush *)ptr->data;
-	return ELEM(br->mtex.brush_map_mode,
+	return ELEM3(br->mtex.brush_map_mode,
 				MTEX_MAP_MODE_VIEW,
-				MTEX_MAP_MODE_TILED);
+				MTEX_MAP_MODE_TILED,
+				MTEX_MAP_MODE_TILED_TEXPAINT);
 }
 
 static int rna_PaintCapabilities_has_persistence_get(PointerRNA *ptr)
@@ -172,9 +173,10 @@ static int rna_PaintCapabilities_has_plane_offset_get(PointerRNA *ptr)
 static int rna_PaintCapabilities_has_random_texture_angle_get(PointerRNA *ptr)
 {
 	Brush *br = (Brush *)ptr->data;
-	return (ELEM(br->mtex.brush_map_mode,
+	return (ELEM3(br->mtex.brush_map_mode,
 	             MTEX_MAP_MODE_VIEW,
-	             MTEX_MAP_MODE_AREA) &&
+	             MTEX_MAP_MODE_AREA,
+	             MTEX_MAP_MODE_TILED_TEXPAINT) &&
 	        !(br->flag & BRUSH_ANCHORED) &&
 	        !ELEM4(br->sculpt_tool,
 	               SCULPT_TOOL_GRAB, SCULPT_TOOL_ROTATE,
@@ -235,18 +237,21 @@ static int rna_PaintCapabilities_has_strength_get(PointerRNA *ptr)
 static int rna_PaintCapabilities_has_texture_angle_get(PointerRNA *ptr)
 {
 	Brush *br = (Brush *)ptr->data;
-	return ELEM3(br->mtex.brush_map_mode,
+	return ELEM4(br->mtex.brush_map_mode,
 	             MTEX_MAP_MODE_VIEW,
 	             MTEX_MAP_MODE_AREA,
-	             MTEX_MAP_MODE_TILED);
+	             MTEX_MAP_MODE_TILED,
+	             MTEX_MAP_MODE_TILED_TEXPAINT);
 }
 
 static int rna_PaintCapabilities_has_texture_angle_source_get(PointerRNA *ptr)
 {
 	Brush *br = (Brush *)ptr->data;
-	return ELEM(br->mtex.brush_map_mode,
+	return ELEM4(br->mtex.brush_map_mode,
 	            MTEX_MAP_MODE_VIEW,
-	            MTEX_MAP_MODE_AREA);
+	            MTEX_MAP_MODE_AREA,
+	            MTEX_MAP_MODE_TILED,
+	            MTEX_MAP_MODE_TILED_TEXPAINT);
 }
 
 static PointerRNA rna_Brush_paint_capabilities_get(PointerRNA *ptr)
