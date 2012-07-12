@@ -42,6 +42,8 @@
 #  include "GHOST_SystemNULL.h"
 #elif defined(WITH_GHOST_SDL)
 #  include "GHOST_SystemSDL.h"
+#elif defined(WITH_ANDROID)
+#  include "GHOST_SystemAndroid.h"
 #elif defined(WIN32)
 #  include "GHOST_SystemWin32.h"
 #else
@@ -68,6 +70,8 @@ GHOST_TSuccess GHOST_ISystem::createSystem()
 		m_system = new GHOST_SystemNULL();
 #elif defined(WITH_GHOST_SDL)
 		m_system = new GHOST_SystemSDL();
+#elif defined(WITH_ANDROID)
+		m_system = new GHOST_SystemAndroid();
 #elif defined(WIN32)
 		m_system = new GHOST_SystemWin32();
 #else

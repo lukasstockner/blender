@@ -123,7 +123,25 @@ if(WITH_INPUT_TOUCH)
 	)
 endif()
 
-if(WITH_HEADLESS OR WITH_GHOST_SDL)
+if(WITH_ANDROID AND NOT WITH_GHOST_SDL)
+
+list(APPEND SRC
+	intern/GHOST_DisplayManagerAndroid.cpp
+	intern/GHOST_SystemAndroid.cpp
+	intern/GHOST_WindowAndroid.cpp
+	intern/GHOST_SystemPathsAndroid.cpp
+
+	intern/GHOST_DisplayManagerAndroid.h
+	intern/GHOST_SystemAndroid.h
+	intern/GHOST_WindowAndroid.h
+	intern/GHOST_SystemPathsAndroid.h
+)
+
+list(APPEND INC_SYS
+	${ANDROID_APP_INCLUDE_DIR}
+)
+
+elseif(WITH_HEADLESS OR WITH_GHOST_SDL)
 	if(WITH_HEADLESS)
 		list(APPEND SRC
 			intern/GHOST_DisplayManagerNULL.h

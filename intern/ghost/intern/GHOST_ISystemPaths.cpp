@@ -40,6 +40,8 @@
 
 #ifdef WIN32
 #  include "GHOST_SystemPathsWin32.h"
+#elif defined(WITH_ANDROID) && !defined(WITH_GHOST_SDL)
+#  include "GHOST_SystemPathsAndroid.h"
 #else
 #  ifdef __APPLE__
 #    ifdef GHOST_COCOA
@@ -62,6 +64,8 @@ GHOST_TSuccess GHOST_ISystemPaths::create()
 	if (!m_systemPaths) {
 #ifdef WIN32
 		m_systemPaths = new GHOST_SystemPathsWin32();
+#elif defined(WITH_ANDROID) && !defined(WITH_GHOST_SDL)
+		m_systemPaths = new GHOST_SystemPathsAndroid();
 #else
 #  ifdef __APPLE__
 #    ifdef GHOST_COCOA
