@@ -276,12 +276,17 @@ static int load_tex(Brush *br, ViewContext *vc)
 					x += br->mtex.ofs[0];
 					y += br->mtex.ofs[1];
 
-					avg = br->mtex.tex ? paint_get_tex_pixel(br, x, y) : 1;
+					avg = br->mtex.tex ? paint_get_tex_pixel(br, x, y, FALSE) : 1;
 
 					avg += br->texture_sample_bias;
 
-					if (br->mtex.brush_map_mode == MTEX_MAP_MODE_VIEW)
+					if (!do_tiled) {
 						avg *= BKE_brush_curve_strength(br, len, 1);  /* Falloff curve */
+
+						if(br->flag & BRUSH_USE_MASK) {
+							avg *= br->mask_mtex.tex ? paint_get_tex_pixel(br, x, y, TRUE) : 1;
+						}
+					}
 
 					buffer[index] = 255 - (GLubyte)(255 * avg);
 				}
@@ -361,6 +366,10 @@ static int load_tex(Brush *br, ViewContext *vc)
 					y += br->mtex.ofs[1];
 
 					avg = BKE_brush_curve_strength(br, len, 1);  /* Falloff curve */
+
+					if(br->flag & BRUSH_USE_MASK) {
+						avg *= br->mask_mtex.tex ? paint_get_tex_pixel(br, x, y, TRUE) : 1;
+					}
 
 					curve_buffer[index] = (GLubyte)(255 * avg);
 				}
