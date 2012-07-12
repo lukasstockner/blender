@@ -67,6 +67,10 @@ if(WITH_CYCLES)
 	add_subdirectory(cycles)
 endif()
 
+if(WITH_INPUT_TOUCH)
+	add_subdirectory(touch)
+endif()
+
 # only windows needs utf16 converter
 if(WIN32)
 	add_subdirectory(utfconv)

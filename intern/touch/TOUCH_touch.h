@@ -25,18 +25,25 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file touch_types.h
+/** \file touch/TOUCH_touch.h
  *  \ingroup TOUCH
  */
 
-#ifndef __TOUCH_TYPES_H__
-#define __TOUCH_TYPES_H__
+#ifndef __TOUCH_TOUCH_H__
+#define __TOUCH_TOUCH_H__
 
-#include STR_String.h
+#include "TOUCH_Types.h"
 
-typedef struct touchRegisteredContext {
-	STR_String AreaType;
-	SRT_String RegionType;
-} touchRegisteredContext;
+void TOUCH_InitManager();
 
-#endif // TOUCH_TYPES_H
+void TOUCH_RegisterArea(STR_String context);
+void TOUCH_RegisterRegion(STR_String context);
+void TOUCH_RegisterData(STR_String context);
+
+void TOUCH_AddTouchEvent(TOUCH_event_info event);
+
+char checkRegisteredArea(STR_String area);
+char checkRegisteredRegion(STR_String region);
+char checkRegisteredData(STR_String data);
+
+#endif /* __TOUCH_TOUCH_H__ */

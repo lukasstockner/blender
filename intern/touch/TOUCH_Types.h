@@ -25,29 +25,36 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file touch/TOUCH_API.h
+/** \file touch/touch_types.h
  *  \ingroup TOUCH
  */
 
-#ifndef __TOUCH_API_H__
-#define __TOUCH_API_H__
+#ifndef __TOUCH_TYPES_H__
+#define __TOUCH_TYPES_H__
 
-#include "TOUCH_touch.h"
+#include "STR_String.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+typedef struct TOUCH_registered_context {
+	TOUCH_registered_context *prev, *next;
+	STR_String context;
+	char encoding;
+} TOUCH_registered_context;
 
-extern void TOUCH_InitManager();
+typedef struct TOUCH_registered_context TOUCH_area;
+typedef struct TOUCH_registered_context TOUCH_region;
+typedef struct TOUCH_registered_context TOUCH_data;
 
-extern void TOUCH_RegisterArea(STR_String context);
-extern void TOUCH_RegisterRegion(STR_String context);
-extern void TOUCH_RegisterData(STR_String context);
+typedef struct TOUCH_context_full {
+	TOUCH_area area;
+	TOUCH_region region;
+	TOUCH_data data;
+} TOUCH_context;
 
-extern void TOUCH_AddTouchEvent(TOUCH_event_info event);
+typedef struct TOUCH_event_info {
+	TOUCH_event_info *prev, *next;
+	int position_x, position_y;
+	char id;
+	STR_String area, region, data;
+} TOUCH_event_info;
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* __TOUCH_API_H__ */
+#endif /* TOUCH_TYPES_H */
