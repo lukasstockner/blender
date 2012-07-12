@@ -1711,9 +1711,10 @@ static void flushUVdisplacement(UVTransCorrInfoUV *first, UVTCLoop loops[2], BME
 	float projv[3];
 	float uv_result[2];
 	MLoopUV *luv;
-	BMLoop *l = first->l;
 	BMLoop *l1 = loops[0].loop;
 	BMLoop *l2 = loops[1].loop;
+
+	float offset[3] = {0.0, 0.0, 1.0};
 
 	int index = BM_elem_index_get(td->eve);
 	int index1 = BM_elem_index_get(l1->v);
@@ -1750,65 +1751,107 @@ static void flushUVdisplacement(UVTransCorrInfoUV *first, UVTCLoop loops[2], BME
 
 
 	if(len_v3(normal) < 0.00001) {
-		float edge_uv_perp1[2], edge_uv_perp2[2], uv_perp[2], uv_parallel[2];
-		float len1, len2, len;
-		float uv_world_ratio, angle, displaced_length;
 		/* parallel edges, do exceptional solution */
-		len1 = len_v3(edge_vec_init1);
-		len2 = len_v3(edge_vec_init2);
+		int ax, ay;
+		float det, det1, det2, coeff1, coeff2;
+		float edge_uv_perp1[2], edge_uv_perp2[2];
+		float edge_world_perp1[3], edge_world_perp2[3], edge_world_perp[3], edge_world_parall[3];
+		float uv_displacement1[2], uv_displacement2[2], uvtmp[2];
+		float normal1[3], normal2[3];
+		float angle, displaced_length;
+		BMLoop *ltmp;
+
+		sub_v3_v3v3(projv, td->eve->co, td->iloc);
+		displaced_length = len_v3(projv);
 
 		/* first, we need a way to calculate an offset in uv space. A way to do this is to find the mean
 		 * displacement in uv space for each unit of displacement in 3D space. */
-		uv_world_ratio = 0.5*(len1/len_v2(edge_uv_init1)
-		                      + len2/len_v2(edge_uv_init2));
+		//uv_world_ratio = 0.5*(len1/len_v2(edge_uv_init1)
+		//                      + len2/len_v2(edge_uv_init2));
+
+		/* estimate an angle for parallel to the edges motion and add the appropriate paralel vector.
+		 * remember, we still store the cosine here so we are checking for greater value */
+		angle = loops[0].angle;
+
+		if(loops[0].angle >= loops[1].angle) {
+			angle = loops[0].angle;
+			copy_v3_v3(edge_world_parall, edge_vec_init1);
+		} else {
+			angle = loops[1].angle;
+			copy_v3_v3(edge_world_parall, edge_vec_init2);
+		}
+		/* tmp! */
+		copy_v3_v3(edge_world_parall, edge_vec_init1);
+
+		normalize_v3(edge_world_parall);
+		mul_v3_fl(edge_world_parall, angle*displaced_length);
+
+		angle = acos(angle);
 
 		/* to get an 'outward' direction in uv space, just get the perpendicular vector.
 		 * To get a correct outward vector, we need to negate the vector appropriately
 		 * according to the winding of the loop */
 		if(loops[0].prev) {
-			edge_uv_perp1[0] = -edge_uv_init1[1];
-			edge_uv_perp1[1] = edge_uv_init1[0];
-		}
-		else {
-			edge_uv_perp1[0] = edge_uv_init1[1];
-			edge_uv_perp1[1] = -edge_uv_init1[0];
-		}
-		if(loops[1].prev) {
-			edge_uv_perp2[0] = -edge_uv_init2[1];
-			edge_uv_perp2[1] = edge_uv_init2[0];
-		}
-		else {
-			edge_uv_perp2[0] = edge_uv_init2[1];
-			edge_uv_perp2[1] = -edge_uv_init2[0];
-		}
-
-		/* mean value of perpendicular vectors (can also interpolate with angle but leave at that currently) */
-		sub_v3_v3v3(projv, td->eve->co, td->iloc);
-		displaced_length = len_v3(projv);
-
-		add_v2_v2v2(uv_perp, edge_uv_perp1, edge_uv_perp2);
-
-		/* estimate an angle for parallel to the edges motion and add the appropriate paralel vector.
-		 * remember, we still store the cosine here so we are checking for greater value */
-		if(loops[0].angle >= loops[1].angle) {
-			angle = loops[0].angle;
-			copy_v2_v2(uv_parallel, edge_uv_init1);
-			len = len1;
+			ltmp = l1->next->next;
 		} else {
-			angle = loops[1].angle;
-			copy_v2_v2(uv_parallel, edge_uv_init2);
-			len = len2;
+			ltmp = l1->prev->prev;
 		}
-		/* angle still equals cosine here */
-		mul_v2_fl(uv_parallel, angle*displaced_length/len);
+		sub_v3_v3v3(edge_world_perp1, ltmp->v->co, td->iloc);
 
-		angle = acos(angle);
+		if(uvtc->initial_uvs[BM_elem_index_get(ltmp->v)]) {
+			UVTransCorrInfoUV *uvtmp = uvtc->initial_uvs[BM_elem_index_get(ltmp->v)];
+			while(uvtmp->l != ltmp) {
+				uvtmp = uvtmp->next;
+			}
+			sub_v2_v2v2(edge_uv_perp1, uvtmp->init_uv, uvtcuv->init_uv);
+		} else {
+			luv = CustomData_bmesh_get(&em->bm->ldata, ltmp->head.data, CD_MLOOPUV);
+			sub_v2_v2v2(edge_uv_perp1, luv->uv, uvtcuv->init_uv);
+		}
 
-		mul_v2_fl(uv_perp, 0.5*sin(angle)*displaced_length*uv_world_ratio);
+		cross_v3_v3v3(normal1, edge_vec_init1, edge_world_perp1);
+
+		cross_v3_v3v3(edge_world_perp, edge_vec_init1, normal1);
+
+		print_v3("world perp",edge_world_perp);
+
+		normalize_v3(edge_world_perp);
+		mul_v3_fl(edge_world_perp, sin(angle)*displaced_length);
+		/* make vertex on the face plane with equal vertical displacemenet */
+		add_v3_v3(edge_world_perp, edge_world_parall);
+
+		/* solve the coefficients for one edge face */
+		axis_dominant_v3(&ax, &ay, normal1);
+
+		det = determinant_m2(edge_world_perp1[ax], edge_vec_init1[ax], edge_world_perp1[ay], edge_vec_init1[ay]);
+		det1 = determinant_m2(edge_world_perp[ax], edge_vec_init1[ax], edge_world_perp[ay], edge_vec_init1[ay]);
+		det2 = determinant_m2(edge_world_perp1[ax], edge_world_perp[ax], edge_world_perp1[ay], edge_world_perp[ay]);
+
+		coeff1 = det1/det;
+		coeff2 = det2/det;
+
+		mul_v2_v2fl(uv_displacement1, edge_uv_perp1, coeff1);
+		mul_v2_v2fl(uvtmp, edge_uv_init1, coeff2);
+		add_v2_v2(uv_displacement1, uvtmp);
+
+		if(loops[1].prev) {
+			ltmp = l1->next->next;
+			luv = CustomData_bmesh_get(&em->bm->ldata, ltmp->head.data, CD_MLOOPUV);
+		} else {
+			ltmp = l1->prev->prev;
+			luv = CustomData_bmesh_get(&em->bm->ldata, ltmp->head.data, CD_MLOOPUV);
+		}
+		sub_v3_v3v3(edge_world_perp2, ltmp->v->co, td->iloc);
+		sub_v2_v2v2(edge_uv_perp2, luv->uv, uvtcuv->init_uv);
+		cross_v3_v3v3(normal2, edge_vec_init2, edge_world_perp2);
+		if(loops[1].prev) {
+			cross_v3_v3v3(edge_world_perp, normal2, edge_vec_init1);
+		} else {
+			cross_v3_v3v3(edge_world_perp, edge_vec_init1, normal2);
+		}
 
 		copy_v2_v2(uv_result, first->init_uv);
-		add_v2_v2(uv_result, uv_parallel);
-		add_v2_v2(uv_result, uv_perp);
+		add_v2_v2(uv_result, uv_displacement1);
 	} else {
 		int ax, ay;
 		float det, det1, det2, coeff1, coeff2;
@@ -1833,8 +1876,6 @@ static void flushUVdisplacement(UVTransCorrInfoUV *first, UVTCLoop loops[2], BME
 		coeff1 = det1/det;
 		coeff2 = det2/det;
 
-		luv = CustomData_bmesh_get(&em->bm->ldata, l->head.data, CD_MLOOPUV);
-
 		copy_v2_v2(uv_result, first->init_uv);
 		mul_v2_v2fl(uvtmp, edge_uv_init1, coeff1);
 		add_v2_v2(uv_result, uvtmp);
@@ -1849,6 +1890,9 @@ static void flushUVdisplacement(UVTransCorrInfoUV *first, UVTCLoop loops[2], BME
 		copy_v2_v2(luv->uv, uv_result);
 		uvtcuv = uvtcuv->next;
 	}
+
+	//add_v3_v3v3(l1->v->co, uvtc->init_vec[index1], offset);
+	//add_v3_v3v3(l2->v->co, uvtc->init_vec[index2], offset);
 }
 
 
