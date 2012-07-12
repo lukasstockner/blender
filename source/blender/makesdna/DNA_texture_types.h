@@ -491,10 +491,11 @@ typedef struct ColorMapping {
 #define MTEX_LIN_LIGHT      16
 
 /* brush_map_mode */
-#define MTEX_MAP_MODE_VIEW     0
-#define MTEX_MAP_MODE_TILED    1
-#define MTEX_MAP_MODE_3D       2
-#define MTEX_MAP_MODE_AREA     3
+#define MTEX_MAP_MODE_VIEW              0
+#define MTEX_MAP_MODE_TILED             1
+#define MTEX_MAP_MODE_3D                2
+#define MTEX_MAP_MODE_AREA              3
+#define MTEX_MAP_MODE_TILED_TEXPAINT    4
 
 /* **************** EnvMap ********************* */
 

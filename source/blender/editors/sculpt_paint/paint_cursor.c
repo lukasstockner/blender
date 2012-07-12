@@ -131,13 +131,15 @@ static int load_tex(Brush *br, ViewContext *vc)
 	GLubyte *buffer = NULL;
 	GLubyte *curve_buffer = NULL;
 
-	char do_tiled = (br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED);
+	char do_tiled_texpaint = (br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED_TEXPAINT);
+	char do_tiled = (br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED) || do_tiled_texpaint;
+
 	int size;
 	int curve_size;
 	int j;
 	int refresh, refresh_curve;
 
-	if (br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED && !br->mtex.tex) return 0;
+	if (do_tiled && !br->mtex.tex) return 0;
 	
 	refresh = 
 	    !overlay_texture ||
@@ -241,8 +243,10 @@ static int load_tex(Brush *br, ViewContext *vc)
 				x = (float)i / size;
 				y = (float)j / size;
 
-				x -= 0.5f;
-				y -= 0.5f;
+				if(!do_tiled_texpaint) {
+					x -= 0.5f;
+					y -= 0.5f;
+				}
 
 				if (do_tiled) {
 					x *= vc->ar->winx / radius;
@@ -494,7 +498,7 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 
 	/* check for overlay mode */
 	if (!(brush->flag & BRUSH_TEXTURE_OVERLAY) ||
-	    !(ELEM(brush->mtex.brush_map_mode, MTEX_MAP_MODE_VIEW, MTEX_MAP_MODE_TILED)) ||
+	    !(ELEM3(brush->mtex.brush_map_mode, MTEX_MAP_MODE_VIEW, MTEX_MAP_MODE_TILED, MTEX_MAP_MODE_TILED_TEXPAINT)) ||
 	    (brush->flag & BRUSH_FIXED_TEX && in_uv_editor))
 	{
 		return;
@@ -675,7 +679,7 @@ void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 	in_uv_editor = get_imapaint_zoom(C, &zoomx, &zoomy);
 
 	if(CTX_data_mode_enum(C) == CTX_MODE_PAINT_TEXTURE) {
-		brush->mtex.brush_map_mode = MTEX_MAP_MODE_TILED;
+		brush->mtex.brush_map_mode = MTEX_MAP_MODE_TILED_TEXPAINT;
 
 		if((brush->flag & BRUSH_RAKE) || (brush->flag & BRUSH_RANDOM_ROTATION))
 			brush->mtex.brush_map_mode = MTEX_MAP_MODE_VIEW;
