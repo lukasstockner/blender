@@ -715,8 +715,7 @@ class VIEW3D_PT_tools_brush_texture(Panel, View3DPaintPanel):
     @classmethod
     def poll(cls, context):
         settings = cls.paint_settings(context)
-        return (settings and settings.brush and (context.sculpt_object or
-                             context.image_paint_object))
+        return (settings and settings.brush and (context.sculpt_object or context.image_paint_object))
 
     def draw(self, context):
         layout = self.layout
@@ -729,13 +728,6 @@ class VIEW3D_PT_tools_brush_texture(Panel, View3DPaintPanel):
         col = layout.column()
 
         col.template_ID_preview(brush, "texture", new="texture.new", rows=3, cols=8)
-        if context.image_paint_object:
-            col.prop(brush, 'use_mask')
-            if brush.use_mask:
-                col.template_ID_preview(brush, "mask_texture", new="texture.new", rows=3, cols=8)
-
-        if brush.use_paint_image:
-            col.prop(brush, "use_fixed_texture")
 
         if context.sculpt_object or context.image_paint_object:
             brush_texture_settings(col, brush, context.sculpt_object)
@@ -752,6 +744,48 @@ class VIEW3D_PT_tools_brush_texture(Panel, View3DPaintPanel):
                 row.prop(brush, "use_texture_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
             sub = row.row()
             sub.prop(brush, "texture_overlay_alpha", text="Alpha")
+
+
+class VIEW3D_PT_tools_mask_texture(View3DPanel, Panel):
+    bl_context = "imagepaint"
+    bl_label = "Texture Mask"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        brush = context.tool_settings.image_paint.brush
+        return (context.image_paint_object and brush and brush.image_tool != 'SOFTEN')
+
+    def draw_header(self, context):
+       	brush = context.tool_settings.image_paint.brush
+        tex_slot_alpha = brush.mask_texture_slot
+        self.layout.prop(brush, 'use_mask', text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+        brush = context.tool_settings.image_paint.brush
+        tex_slot_alpha = brush.mask_texture_slot
+
+        col = layout.column()
+
+        col.template_ID_preview(brush, "mask_texture", new="texture.new", rows=3, cols=8)
+
+        brush_texture_settings(col, brush, context.sculpt_object)
+
+        # use_texture_overlay and texture_overlay_alpha
+        col = layout.column(align=True)
+        col.active = brush.paint_capabilities.has_overlay
+        col.label(text="Overlay:")
+
+        row = col.row()
+        if brush.use_texture_overlay:
+            row.prop(brush, "use_texture_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
+        else:
+            row.prop(brush, "use_texture_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
+        sub = row.row()
+        sub.prop(brush, "texture_overlay_alpha", text="Alpha")
+
 
 
 class VIEW3D_PT_tools_brush_stroke(Panel, View3DPaintPanel):
@@ -1047,6 +1081,7 @@ class VIEW3D_PT_tools_vertexpaint(Panel, View3DPaintPanel):
 #~         col.prop(vpaint, "mul", text="")
 
 # ********** default tools for texture-paint ****************
+
 
 
 class VIEW3D_PT_tools_projectpaint(View3DPanel, Panel):
