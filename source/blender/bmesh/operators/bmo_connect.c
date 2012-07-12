@@ -26,6 +26,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_array.h"
 #include "BLI_utildefines.h"
@@ -34,14 +35,35 @@
 
 #include "intern/bmesh_operators_private.h" /* own include */
 
+
 #define VERT_INPUT	1
 #define EDGE_OUT	1
 #define FACE_NEW	2
 #define EDGE_MARK	4
 #define EDGE_DONE	8
 
-#define FACE_MARK   1
-#define EDGE_CONNECTED 7
+#define FACE_MARK       1
+#define EDGE_CONNECTED  7
+#define EDGE_NON_CONNECTED  9
+
+#define LINEAR_INTER  2
+#define CUBIC_INTER   4
+
+typedef struct VertexItem{
+    struct VertexItem *next, *prev;
+    BMVert *v;
+}VertexItem;
+
+
+typedef struct BridgeParams{
+    ListBase newVertices; // list of new vertex
+    int inter;  // interpolation
+    int seg; // segmentation param
+    float strenght;
+    float centrod1[3]; // coordinate of centrod input loops
+    float centrod2[3];
+} BridgeParams;
+
 
 void bmo_connect_verts_exec(BMesh *bm, BMOperator *op)
 {
@@ -213,7 +235,8 @@ static void bm_vert_loop_pair(BMesh *bm, BMVert *v1, BMVert *v2, BMLoop **l1, BM
 	*l2 = BM_iter_at_index(bm, BM_LOOPS_OF_VERT, v2, 0);
 }
 
-//TODO: rename and comented
+//TODO: rename function
+// return count entry element into list
 int bmo_bridge_array_entry_elem(BMEdge **list, int size,  BMEdge *elem)
 {
     int i = 0, count = 0;
@@ -249,26 +272,90 @@ void get_centroid(BMVert **vv, int vert_count, float center[3]){
     mul_v3_fl(center, 1.0f/vert_count);
 }
 
+
+BMVert* bridge_check_existing_vertex(BridgeParams *bp, float co[3])
+{
+    float epsilon = 1e-6;
+    BMVert *vert = NULL;
+    VertexItem *item;
+    for (item = bp->newVertices.first; item; item = item->next)
+    {
+        if (compare_v3v3(item->v->co, co, epsilon))
+            vert = item->v;
+    }
+    return vert;
+}
 /*
-* this function return vertex of linear interpolation
+* this function return vertex of linear interpolation between v1 and v2
 */
-BMVert* get_linear_seg(BMesh *bm, int seg, int n, BMVert *v1, BMVert *v2)
+BMVert* get_linear_seg(BMesh *bm, BridgeParams* bp, int n, BMVert *v1, BMVert *v2)
 {
     float co[3];
     BMVert *v;
-    co[0] = v1->co[0] + (v2->co[0]-v1->co[0])*n / seg;
-    co[1] = v1->co[1] + (v2->co[1]-v1->co[1])*n / seg;
-    co[2] = v1->co[2] + (v2->co[2]-v1->co[2])*n / seg;
-    // TODO проверка на то что уже это вершина  существует
+    VertexItem *item;
 
-    v = BM_vert_create(bm, co, NULL);
-    //BLI_array_append(list_exist_vert, v);
+    co[0] = v1->co[0] + (v2->co[0]-v1->co[0])*n / bp->seg;
+    co[1] = v1->co[1] + (v2->co[1]-v1->co[1])*n / bp->seg;
+    co[2] = v1->co[2] + (v2->co[2]-v1->co[2])*n / bp->seg;
+
+    v = bridge_check_existing_vertex(bp, co);
+    if (!v)
+    {
+        item = (VertexItem*)MEM_callocN(sizeof(VertexItem), "VertexItem");
+        item->v = BM_vert_create(bm, co, NULL);
+        BLI_addtail(&bp->newVertices, item);
+        v = item->v;
+    }
     return v;
 }
 
-BMVert* get_cubic_seg(BMesh *bm, int seg, int n, BMVert *v1, BMVert *v2){
-    //float co[3];
+/*
+* this function return vertex of cubic interpolation between v1 and v2
+* Parametric cubic spline in Hermite form
+* 0 <= t <= 1
+*/
+BMVert* get_cubic_seg(BMesh *bm, BridgeParams *bp, int n, BMVert *v1, BMVert *v2){
     BMVert *v = NULL;
+    VertexItem *item;
+    float t, co[3], r1[3], r2[3], mn[3];
+    t = (float) (n) / bp->seg;
+
+    //sub_v3_v3v3(r1,  bp->centrod2 , v1->co);
+    //sub_v3_v3v3(r2,  v2->co, bp->centrod1);
+
+    sub_v3_v3v3(r1,  bp->centrod1 , v1->co);
+    sub_v3_v3v3(r2,  v2->co, bp->centrod2);
+    //sub_v3_v3v3(mn, v1->co, v2->co);
+
+    //mul_v3_fl(r1, bp->strenght);
+    //mul_v3_fl(r2, bp->strenght);
+    //add_v3_v3(r1, mn);
+    //add_v3_v3(r2, mn);
+
+    mul_v3_fl(r1, 2*asin(bp->strenght));
+    mul_v3_fl(r2, 2*asin(bp->strenght));
+
+    co[0] = v1->co[0] * (2 * t * t * t - 3 * t * t + 1) +
+            v2->co[0] * (-2 * t * t * t + 3 * t * t ) +
+            r1[0] * (t * t * t - 2 * t * t + t) +
+            r2[0] * (t * t * t - t * t);
+    co[1] = v1->co[1] * (2 * t * t * t - 3 * t * t + 1) +
+            v2->co[1] * (-2 * t * t * t + 3 * t * t ) +
+            r1[1] * (t * t * t - 2 * t * t + t) +
+            r2[1] * (t * t * t - t * t);
+    co[2] = v1->co[2] * (2 * t * t * t - 3 * t * t + 1) +
+            v2->co[2] * (-2 * t * t * t + 3 * t * t ) +
+            r1[2] * (t * t * t - 2 * t * t + t) +
+            r2[2] * (t * t * t - t * t);
+
+    v = bridge_check_existing_vertex(bp, co);
+    if (!v)
+    {
+        item = (VertexItem*)MEM_callocN(sizeof(VertexItem), "VertexItem");
+        item->v = BM_vert_create(bm, co, NULL);
+        BLI_addtail(&bp->newVertices, item);
+        v = item->v;
+    }
     return v;
 }
 
@@ -279,14 +366,16 @@ float get_cos_v3v3(float a[3], float b[3]){
     return cos_ab;
 }
 /*
-  create face betwin two edge
+  create polygons between two edge
   */
-void bmo_edge_face_connect(BMesh *bm, BMEdge *e1, BMEdge *e2, BMFace *f_example, BMVert** list_exist_vert, int count)
+void bmo_edge_face_connect(BMesh *bm, BridgeParams* bp, BMEdge *e1, BMEdge *e2, BMFace *f_example)
 {
-    int seg=5, i;
+    int i;
+    BMVert *vv[4];
     BMVert *v1, *v2, *v3, *v4;
     BMVert *vi1, *vi2, *vi3, *vi4; // input vertex
-    float vect1[3], vect2[3], vect3[3], vect4[3];
+    BMFace *f;
+    float vect1[3], vect2[3], vect3[3], vect4[3], normalA[3], normalB[3], normalVector[3];
     float vp1[3], vp2[3], vp3[3], vp4[3];
 
     vi1 = e1->v1;
@@ -304,6 +393,14 @@ void bmo_edge_face_connect(BMesh *bm, BMEdge *e1, BMEdge *e2, BMFace *f_example,
     cross_v3_v3v3(vp2, vect2, vect3);
     cross_v3_v3v3(vp3, vect3, vect4);
     cross_v3_v3v3(vp4, vect4, vect1);
+// calculate normal vector
+   mid_v3_v3v3(normalA, bp->centrod1, bp->centrod2);
+   vv[0] = vi1;
+   vv[1] = vi2;
+   vv[2] = vi3;
+   vv[3] = vi4;
+   get_centroid(vv, 4, normalB);
+   sub_v3_v3v3(normalVector, normalB, normalA);
 
     // check direction cros produc result
     if (!(get_cos_v3v3(vp1, vp2)>0 &&
@@ -316,48 +413,103 @@ void bmo_edge_face_connect(BMesh *bm, BMEdge *e1, BMEdge *e2, BMFace *f_example,
         vi3 = BM_edge_other_vert(e2,vi2);
         vi4 = BM_edge_other_vert(e1,vi1);
     }
-
     // vi1  - v1 - v2 ... vi2
     // |      |    |       |
     // vi4 .. v4 - v3 ... vi3
-   v1 = vi1; v2 = vi2; v3 = vi3; v4 = vi4;
-    if (seg > 1){
-        for (i = 1; i <= seg; i++){
-           v2 = get_linear_seg (bm, seg, i, vi1, vi2);
-           v3 = get_linear_seg(bm, seg,  i, vi4, vi3);
-
-           BM_face_create_quad_tri(bm, v1, v2, v3, v4, f_example, TRUE);
+   v1 = vi1;
+   v2 = vi2;
+   v3 = vi3;
+   v4 = vi4;
+    if (bp->seg > 1){
+        for (i = 1; i < bp->seg; i++){
+            if (bp->inter == LINEAR_INTER)
+            {
+                v2 = get_linear_seg (bm, bp, i, vi1, vi2);
+                v3 = get_linear_seg(bm, bp,  i, vi4, vi3);
+            }
+            if (bp->inter == CUBIC_INTER)
+            {
+                v2 = get_cubic_seg (bm, bp, i, vi1, vi2);
+                v3 = get_cubic_seg(bm, bp,  i, vi4, vi3);
+            }
+           f =  BM_face_create_quad_tri(bm, v1, v2, v3, v4, f_example, TRUE);
+           BM_face_normal_update(f);
+           //check normal BM_face_normal_flip(bm, f);
+           if (get_cos_v3v3(f->no, normalVector)<0)
+               BM_face_normal_flip(bm, f);
            v1 = v2;
            v4 = v3;
         }
+       f =  BM_face_create_quad_tri(bm, v1, vi2, vi3, v4, f_example, TRUE);
+       BM_face_normal_update(f);
+       if (get_cos_v3v3(f->no, normalVector)<0)
+           BM_face_normal_flip(bm, f);
     }
     else {
-        BM_face_create_quad_tri(bm, v1, v2, v3, v4, f_example, TRUE);
+        f = BM_face_create_quad_tri(bm, v1, v2, v3, v4, f_example, TRUE);
+        BM_face_normal_update(f);
+        if (get_cos_v3v3(f->no, normalVector)<0)
+            BM_face_normal_flip(bm, f);
     }
 }
-
-void bmo_edge_vert_connect(BMesh *bm, BMEdge *e, BMVert *v, BMFace *f_example)
+/*
+This function create polygons between edge and vert
+*/
+void bmo_edge_vert_connect(BMesh *bm, BridgeParams *bp, BMEdge *e, BMVert *v, BMFace *f_example)
 {
-    int seg = 5, i;
-    BMVert *v1, *v2, *v3, *v4;
+    BMVert *v1, *v2, *v3, *v4, *vv[3];
+    BMFace *f;
+    float normalA[3], normalB[3], normalVector[3];
+    int i;
     v1 = e->v1;
     v2 = v;
-    v3 = 0;
-    v4 = BM_edge_other_vert(e, e->v1);;
-    if (seg > 1){
-        for (i = 1; i < seg; i++){
-            v2 = get_linear_seg(bm, seg, i, e->v1, v);
-            v3 = get_linear_seg(bm, seg, i, BM_edge_other_vert(e, e->v1), v);
-            BM_face_create_quad_tri(bm, v1, v2, v3, v4, f_example, TRUE);
+    v3 = NULL;
+    v4 = BM_edge_other_vert(e, e->v1);
+
+    // calculate normal vector
+       mid_v3_v3v3(normalA, bp->centrod1, bp->centrod2);
+       vv[0] = v1;
+       vv[1] = v2;
+       vv[2] = v4;
+       get_centroid(vv, 3, normalB);
+       sub_v3_v3v3(normalVector, normalB, normalA);
+
+    if (bp->seg > 1){
+        for (i = 1; i < bp->seg; i++){
+            if (bp->inter == LINEAR_INTER)
+            {
+                v2 = get_linear_seg(bm, bp, i, v, e->v1);
+                v3 = get_linear_seg(bm, bp, i, v, BM_edge_other_vert(e, e->v1));
+            }
+            if (bp->inter == CUBIC_INTER)
+            {
+                v2 = get_cubic_seg (bm, bp, i, v,  e->v1);
+                v3 = get_cubic_seg (bm, bp, i, v, BM_edge_other_vert(e, e->v1));
+            }
+            if (i == 1)
+                f = BM_face_create_quad_tri(bm, v2, v, v3, NULL, f_example, TRUE);
+            else
+                f = BM_face_create_quad_tri(bm, v1, v2, v3, v4, f_example, TRUE);
+
+            BM_face_normal_update(f);
+            if (get_cos_v3v3(f->no, normalVector)<0)
+                BM_face_normal_flip(bm, f);
             v1 = v2;
             v4 = v3;
         }
-        BM_face_create_quad_tri(bm, v1, v, v4, NULL, f_example, TRUE);
-    }
-    else
-        BM_face_create_quad_tri(bm, e->v1, BM_edge_other_vert(e, e->v1), v, NULL, f_example, TRUE);
-}
+        f = BM_face_create_quad_tri(bm, e->v1, v2, v3, BM_edge_other_vert(e, e->v1), f_example, TRUE);
+        BM_face_normal_update(f);
+        if (get_cos_v3v3(f->no, normalVector)<0)
+            BM_face_normal_flip(bm, f);
 
+    }
+    else{
+        f = BM_face_create_quad_tri(bm, e->v1, BM_edge_other_vert(e, e->v1), v, NULL, f_example, TRUE);
+        BM_face_normal_update(f);
+        if (get_cos_v3v3(f->no, normalVector)<0)
+            BM_face_normal_flip(bm, f);
+    }
+}
 
 void  bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
 {
@@ -366,8 +518,11 @@ void  bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
     BMIter iter;
     BMEdge **skip_edge = NULL, **all_edge = NULL, **ee1=NULL, **ee2=NULL;
     BMVert **vv1 = NULL, **vv2 = NULL;
-    BMVert **list_exist_vert = NULL; //  list of exixting vertex. it's needed only in case segmentation >1
-    BLI_array_declare(list_exist_vert);
+    BridgeParams bp;
+
+    int i = 0, j = 0, loops_count = 0, cl1 = 0, cl2 = 0;
+    BMFace *f;
+
     BLI_array_declare(skip_edge);
     BLI_array_declare(all_edge);
     BLI_array_declare(ee1);
@@ -375,9 +530,14 @@ void  bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
     BLI_array_declare(vv1);
     BLI_array_declare(vv2);
 
-    int i = 0, j = 0, loops_count = 0, cl1 = 0, cl2 = 0;
-    BMFace *f;
-	_list_exist_vert_tmp = NULL;
+    // init bridge param
+    bp.newVertices.first = bp.newVertices.last = NULL;
+    bp.seg = BMO_slot_int_get(op, "segmentation");
+    if (BMO_slot_int_get(op,"interpolation"))
+        bp.inter = CUBIC_INTER;
+    else
+        bp.inter = LINEAR_INTER;
+    bp.strenght = BMO_slot_float_get(op, "strenght");
 
     // find all edges in faces
     BMO_ITER (f, &siter, bm, op, "edgefacein", BM_FACE)
@@ -410,6 +570,7 @@ void  bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
 
         }
     }
+    //TODO develop non connected case
     // create loop according with skiped edges
     BMO_slot_buffer_flag_enable(bm, op, "edgefacein", BM_EDGE, EDGE_MARK);
     BMO_ITER (e, &siter, bm, op, "edgefacein", BM_EDGE)
@@ -468,7 +629,6 @@ void  bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
             loops_count ++;
         }
     }
-
 // -----------------------------------------------
 // ---------------CREATE BRIDGE-------------------
 // -----------------------------------------------
@@ -489,49 +649,65 @@ void  bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
 
        get_centroid(vv1, BLI_array_count(vv1), center1);
        get_centroid(vv2, BLI_array_count(vv2), center2);
-/*       BM_edge_create(bm, BM_vert_create(bm, center1, NULL),
-                        BM_vert_create(bm, center2, NULL),
-                        NULL,
-                        1);
-                        */
 
-       // проходим по короткому циклу
+       copy_v3_v3(bp.centrod1, center1);
+       copy_v3_v3(bp.centrod2, center2);
 
-
+       for (i = 0; i < BLI_array_count(ee1); i++)
+            BMO_elem_flag_enable(bm, ee1[i], EDGE_NON_CONNECTED);
+       for (i = 0; i < BLI_array_count(ee2); i++)
+            BMO_elem_flag_enable(bm, ee2[i], EDGE_NON_CONNECTED);
 
        for (i = 0; i < BLI_array_count(ee1); i++)
        {
-           BMVert *v_i;
-           float mid_V_i[3];
-           float mid_V_j[3];
+           float mid_V_i[3], mid_V_j[3], centerV[3];
+           float co1[3], angel;
+
            get_middle_edge(ee1[i], mid_V_i);
-           v_i = BM_vert_create(bm, mid_V_i, NULL);
+           sub_v3_v3v3(co1, mid_V_i, bp.centrod1);
+         /*  sub_v3_v3v3(centerV, bp.centrod2, bp.centrod1);
+           angel = angle_v3v3(centerV, co1);
+           mul_v3_fl(co1, cos(angel - M_PI_2));*/
            min = 1e32;
-           min_j =  0;
+           min_j =  -1;
            for (j = 0; j < BLI_array_count(ee2); j++)
            {
-               float co1[3], co2[3]; // new coordinate with center of loops
-               get_middle_edge(ee2[j],mid_V_j);
-               // TDDO add normolize loops
-               sub_v3_v3v3(co1, mid_V_i, center1);
-               sub_v3_v3v3(co2, mid_V_j, center2);
-
-               if (len_v3v3(co1, co2) < min)
+               float co2[3], summ[3]; // new coordinate with center of loops
+               if (BMO_elem_flag_test(bm, ee2[j], EDGE_NON_CONNECTED))
                {
-                    min = len_v3v3(co1, co2);
-                    min_j = j;
+                   get_middle_edge(ee2[j],mid_V_j);
+                   sub_v3_v3v3(co2, mid_V_j, bp.centrod2);
+
+                   //---------------------------
+                   /*
+                   sub_v3_v3v3(centerV, bp.centrod1, bp.centrod2);
+                   angel = angle_v3v3(centerV, co2);
+                   mul_v3_fl(co2, cos(angel-M_PI_2));
+                   */
+                   //-----------------
+                   //sub_v3_v3v3(co1, mid_V_i, bp.centrod1);
+                   //sub_v3_v3v3(co2, mid_V_j, bp.centrod2);
+                   //---------------------------------
+                   //sub_v3_v3v3(co1, co1, bp.centrod1);
+                   //sub_v3_v3v3(co2, co2, bp.centrod2);
+                   //---------------------------------
+                   angel = angle_v3v3(co1, co2);
+                   add_v3_v3v3(summ, co1, co2);
+                   //angel = angle_v3v3(co1, summ);
+                   if (len_v3v3(co1, co2) < min)
+                   {
+                       min = len_v3v3(co1, co2);
+                       min_j = j;
+                   }
                }
            }
-            // only for debuging
-          // get_middle_edge(ee2[min_j], mid_V_j);
-         //  v_j = BM_vert_create(bm, mid_V_j, NULL);
-         //  BM_edge_create(bm, v_i, v_j, NULL, 1);
-
-           bmo_edge_face_connect(bm, ee1[i], ee2[min_j], NULL, list_exist_vert, BLI_array_count(list_exist_vert));
-
-           BLI_array_append(conected, ee2[min_j]);
-           //BMO_elem_flag_enable(bm, ee2[min_j], EDGE_CONNECTED);
+           if (min_j != -1){
+               bmo_edge_face_connect(bm, &bp, ee1[i], ee2[min_j], NULL);
+               BLI_array_append(conected, ee2[min_j]);
+               BMO_elem_flag_enable(bm, ee2[min_j], EDGE_CONNECTED);
+           }
        }
+
 
         // create triangle
        for (i = 0; i < BLI_array_count(ee2); i++)
@@ -567,11 +743,13 @@ void  bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
                         min_j = j;
                     }
                 }
-                bmo_edge_vert_connect(bm, non_conected[i], vv1[min_j], NULL);
-
+                bmo_edge_vert_connect(bm, &bp,  non_conected[i], vv1[min_j], NULL);
             //}
         }
+        BLI_array_free(non_conected);
+        BLI_array_free(conected);
     }
+
 // -----kill input data-------------------------
     BMO_ITER (f, &siter, bm, op, "edgefacein", BM_FACE)
     {
@@ -582,11 +760,14 @@ void  bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
     }
 
 cleanup_2:
-    i = BLI_array_count(ee1);
-    j = BLI_array_count(ee2);
-
     BLI_array_free(ee1);
     BLI_array_free(ee2);
+    BLI_array_free(vv1);
+    BLI_array_free(vv2);
+    BLI_array_free(skip_edge);
+    BLI_array_free(all_edge);
+    BLI_freelistN(&bp.newVertices);
+
 }
 
 

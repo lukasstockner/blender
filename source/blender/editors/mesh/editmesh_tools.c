@@ -97,7 +97,7 @@ static int edbm_subdivide_exec(bContext *C, wmOperator *op)
 		RNA_enum_set(op->ptr, "quadcorner", SUBD_INNERVERT);
 	}
 	
-	BM_mesh_esubdivide(em->bm, BM_ELEM_SELECT,
+    BM_mesh_esubdivide(em->bm, BM_ELEM_SELECT,
 	                   smooth, fractal, along_normal,
 	                   cuts,
 	                   SUBDIV_SELECT_ORIG, RNA_enum_get(op->ptr, "quadcorner"),
@@ -4690,12 +4690,31 @@ void MESH_OT_bevel(wmOperatorType *ot)
 
 }
 
+enum {
+    BRIDGE_LINEAR,
+    BRIDGE_CUBIC
+};
+
 static int edbm_bridge_edge_loops_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BMEdit_FromObject(obedit);
-	
-    if (!EDBM_op_callf(em, op, "bridge_loops edgefacein=%hfe", BM_ELEM_SELECT))
+    int seg = RNA_int_get(op->ptr, "Segmentation");
+    int interpolation_flag = 0;
+    float strenght = RNA_float_get(op->ptr, "Strenght");
+    if (RNA_enum_get(op->ptr, "Interpolation") == BRIDGE_LINEAR)
+        interpolation_flag = 0;
+    if (RNA_enum_get(op->ptr, "Interpolation") == BRIDGE_CUBIC)
+        interpolation_flag = 1;
+    if (!EDBM_op_callf(em, op,
+                       "bridge_loops edgefacein=%hfe"
+                       "segmentation=%i "
+                       "interpolation=%i "
+                       "strenght=%f",
+                       BM_ELEM_SELECT,
+                       seg,
+                       interpolation_flag,
+                       strenght))
 		return OPERATOR_CANCELLED;
 	
 	EDBM_update_generic(C, em, TRUE);
@@ -4703,9 +4722,15 @@ static int edbm_bridge_edge_loops_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
+static EnumPropertyItem prop_mesh_bridge_interpolation_types[] = {
+    {BRIDGE_LINEAR, "LINEAR", 0, "Linear", ""},
+    {BRIDGE_CUBIC, "CUBIC", 0, "Cubic", ""}
+};
+
 void MESH_OT_bridge_edge_loops(wmOperatorType *ot)
+
 {
-	/* identifiers */
+    /* identifiers */
 	ot->name = "Bridge Two Edge Loops";
 	ot->description = "Make faces between two edge loops";
 	ot->idname = "MESH_OT_bridge_edge_loops";
@@ -4717,7 +4742,16 @@ void MESH_OT_bridge_edge_loops(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	
-	RNA_def_boolean(ot->srna, "inside", 0, "Inside", "");
+    //RNA_def_boolean(ot->srna, "inside", 0, "Inside", "");
+
+    RNA_def_int(ot->srna, "Segmentation",1,1,1000,"Segmentation", "number of segments",0,50  );
+    RNA_def_enum(ot->srna,
+                 "Interpolation",
+                 prop_mesh_bridge_interpolation_types,
+                 BRIDGE_LINEAR,
+                 "Interpolation",
+                 "Interpolation");
+    RNA_def_float(ot->srna, "Strenght", 0.5, -1.0f, 1.0f, "strenght", "strenght", -1.0f, 1.0f );
 }
 
 typedef struct {

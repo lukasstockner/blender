@@ -440,6 +440,11 @@ static BMOpDefine bmo_bridge_loops_def = {
     //{{BMO_OP_SLOT_ELEMENT_BUF, "edges"}, /* input edge */
     {{BMO_OP_SLOT_ELEMENT_BUF, "edgefacein"}, /* input faces and edge */
 	 {BMO_OP_SLOT_ELEMENT_BUF, "faceout"}, /* new face */
+
+     {BMO_OP_SLOT_INT,  "segmentation"}, /* input segmentation param */
+     {BMO_OP_SLOT_INT,  "interpolation"}, /* input interpolation param */
+     {BMO_OP_SLOT_FLT,  "strenght"}, /* input strenght param */
+
 	 {0, /* null-terminating sentinel */}},
 	bmo_bridge_loops_exec,
 	0,
