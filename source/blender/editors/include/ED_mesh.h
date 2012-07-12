@@ -241,7 +241,7 @@ void ED_mesh_material_link(struct Mesh *me, struct Material *ma);
 void ED_mesh_update(struct Mesh *mesh, struct bContext *C, int calc_edges, int calc_tessface);
 
 int ED_mesh_uv_texture_add(struct bContext *C, struct Mesh *me, const char *name, int active_set);
-int ED_mesh_uv_texture_remove(struct bContext *C, struct Object *ob, struct Mesh *me);
+int ED_mesh_uv_texture_remove(struct bContext *C, struct Object *ob, struct Mesh *me, int delete_index);
 int ED_mesh_uv_loop_reset(struct bContext *C, struct Mesh *me);
 int ED_mesh_uv_loop_reset_ex(struct bContext *C, struct Mesh *me, const int layernum);
 int ED_mesh_color_add(struct bContext *C, struct Scene *scene, struct Object *ob, struct Mesh *me, const char *name, int active_set);
