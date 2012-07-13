@@ -52,6 +52,7 @@
 #include "DNA_mask_types.h"
 
 #include "BLI_math.h"
+#include "BLI_math_base.h"
 #include "BLI_blenlib.h"
 #include "BLI_rand.h"
 #include "BLI_utildefines.h"
@@ -1074,7 +1075,9 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 			v3d->twtype = 0;
 		}
 
-		if(ts->uvcalc_flag & UVCALC_TRANSFORM_CORRECT && obedit && EDBM_mtexpoly_check(BMEdit_FromObject(obedit))) {
+		if(ts->uvcalc_flag & UVCALC_TRANSFORM_CORRECT &&
+		   obedit && EDBM_mtexpoly_check(BMEdit_FromObject(obedit)) &&
+		   !(t->options & CTX_EDGE)) {
 			t->flag |= T_IMAGE_PRESERVE_CALC;
 		}
 
@@ -1700,6 +1703,7 @@ typedef struct _UVTCLoop {
 	char prev;    /* is loop previous from central vertex. Helps to evaluate direction of outward vector */
 } UVTCLoop;
 
+//#define UVTC_VISUAL_DEBUG
 
 /* flush the calculated displacement to uvs of the same uv island */
 static void flushUVdisplacement(UVTransCorrInfoUV *first, UVTCLoop loops[2], BMEditMesh *em, TransData *td, UVTransCorrect *uvtc)
@@ -1714,7 +1718,9 @@ static void flushUVdisplacement(UVTransCorrInfoUV *first, UVTCLoop loops[2], BME
 	BMLoop *l1 = loops[0].loop;
 	BMLoop *l2 = loops[1].loop;
 
-	float offset[3] = {0.0, 0.0, 1.0};
+	#ifdef UVTC_VISUAL_DEBUG
+	float offset[3] = {0.0, 0.0, 0.1};
+	#endif
 
 	int index = BM_elem_index_get(td->eve);
 	int index1 = BM_elem_index_get(l1->v);
@@ -1900,11 +1906,19 @@ static void flushUVdisplacement(UVTransCorrInfoUV *first, UVTCLoop loops[2], BME
 		luv = CustomData_bmesh_get(&em->bm->ldata, l_flush->head.data, CD_MLOOPUV);
 
 		copy_v2_v2(luv->uv, uv_result);
+
+		#ifdef UVTC_VISUAL_DEBUG
+		copy_v3_v3(l_flush->prev->v->co, uvtc->init_vec[BM_elem_index_get(l_flush->prev->v)]);
+		copy_v3_v3(l_flush->next->v->co, uvtc->init_vec[BM_elem_index_get(l_flush->next->v)]);
+		#endif
+
 		uvtcuv = uvtcuv->next;
 	}
 
-	//add_v3_v3v3(l1->v->co, uvtc->init_vec[index1], offset);
-	//add_v3_v3v3(l2->v->co, uvtc->init_vec[index2], offset);
+#ifdef UVTC_VISUAL_DEBUG
+	add_v3_v3v3(l1->v->co, uvtc->init_vec[index1], offset);
+	add_v3_v3v3(l2->v->co, uvtc->init_vec[index2], offset);
+#endif
 }
 
 
@@ -1994,13 +2008,17 @@ void calculateUVTransformCorrection(TransInfo *t)
 				/* now calculate the angles between the edges and the displacement vector */
 				dot_tmp = dot_v3v3(projv, projv);
 
-				angle1 = acos(dot_v3v3(projv, proj_next)/(sqrtf(dot_tmp*dot_v3v3(proj_next, proj_next))));
-				angle2 = acos(dot_v3v3(projv, proj_prev)/(sqrtf(dot_tmp*dot_v3v3(proj_prev, proj_prev))));
+				angle1 = dot_v3v3(projv, proj_next)/(sqrtf(dot_tmp*dot_v3v3(proj_next, proj_next)));
+				CLAMP(angle1, -1.0, 1.0);
+				angle1 = acos(angle1);
+				angle2 = dot_v3v3(projv, proj_prev)/(sqrtf(dot_tmp*dot_v3v3(proj_prev, proj_prev)));
+				CLAMP(angle2, -1.0, 1.0);
+				angle2 = acos(angle2);
 
-				if(signf(dot_v3v3(cross1, uvtc->init_normal[index])) > 0.0) {
+				if(signf(dot_v3v3(cross1, uvtc->init_normal[index])) < 0.0)  {
 					angle1 = 2*M_PI - angle1;
 				}
-				if(signf(dot_v3v3(cross2, uvtc->init_normal[index])) > 0.0) {
+				if(signf(dot_v3v3(cross2, uvtc->init_normal[index])) < 0.0) {
 					angle2 = 2*M_PI - angle2;
 				}
 
