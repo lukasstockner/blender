@@ -33,11 +33,12 @@ set(INC_SYS
 )
 
 set(SRC
-	intern/TOUCH_Touch.cpp
+	intern/TOUCH_Manager.cpp
+	intern/TOUCH_API.cpp
 
 	TOUCH_API.h
 	TOUCH_Types.h
-	TOUCH_touch.h
+	TOUCH_Manager.h
 )
 
 blender_add_lib(bf_intern_touch "${SRC}" "${INC}" "${INC_SYS}")

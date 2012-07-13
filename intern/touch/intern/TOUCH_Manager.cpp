@@ -25,16 +25,53 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file touch/intern/TOUCH_touch.cpp
+/** \file touch/intern/TOUCH_Manager.cpp
  *  \ingroup TOUCH
  */
 
-#include "TOUCH_touch.h"
+#include "TOUCH_Manager.h"
 
-void TOUCH_InitManager(){};
+TOUCH_Manager::TOUCH_Manager()
+{
+	//TODO
+}
 
-void TOUCH_RegisterArea(STR_String context){};
-void TOUCH_RegisterRegion(STR_String context){};
-void TOUCH_RegisterData(STR_String context){};
+TOUCH_Manager::~TOUCH_Manager()
+{
+	//TODO
+}
 
-void TOUCH_AddTouchEvent(TOUCH_event_info event){};
+void TOUCH_Manager::TOUCH_RegisterArea(STR_String context)
+{
+	//TODO
+}
+
+void TOUCH_Manager::TOUCH_RegisterRegion(STR_String context)
+{
+	//TODO
+}
+
+void TOUCH_Manager::TOUCH_RegisterData(STR_String context)
+{
+	//TODO
+}
+
+void TOUCH_Manager::TOUCH_AddTouchEvent(TOUCH_event_info event)
+{
+	//TODO
+}
+
+char checkRegisteredArea(STR_String area)
+{
+	//TODO
+}
+
+char checkRegisteredRegion(STR_String region)
+{
+	//TODO
+}
+
+char checkRegisteredData(STR_String data)
+{
+	//TODO
+}
