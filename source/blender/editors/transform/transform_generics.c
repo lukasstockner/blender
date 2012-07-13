@@ -1755,7 +1755,7 @@ static void flushUVdisplacement(UVTransCorrInfoUV *first, UVTCLoop loops[2], BME
 		int ax, ay;
 		float det, det1, det2, coeff1, coeff2;
 		float edge_uv_perp1[2], edge_uv_perp2[2];
-		float edge_world_perp1[3], edge_world_perp2[3], edge_world_perp[3], edge_world_parall[3];
+		float edge_world_perp1[3], edge_world_perp2[3], edge_world_coplanar[3], edge_world_parall[3];
 		float uv_displacement1[2], uv_displacement2[2], uvtmp[2];
 		float normal1[3], normal2[3];
 		float angle, displaced_length;
@@ -1764,16 +1764,9 @@ static void flushUVdisplacement(UVTransCorrInfoUV *first, UVTCLoop loops[2], BME
 		sub_v3_v3v3(projv, td->eve->co, td->iloc);
 		displaced_length = len_v3(projv);
 
-		/* first, we need a way to calculate an offset in uv space. A way to do this is to find the mean
-		 * displacement in uv space for each unit of displacement in 3D space. */
-		//uv_world_ratio = 0.5*(len1/len_v2(edge_uv_init1)
-		//                      + len2/len_v2(edge_uv_init2));
-
 		/* estimate an angle for parallel to the edges motion and add the appropriate paralel vector.
 		 * remember, we still store the cosine here so we are checking for greater value */
-		angle = loops[0].angle;
-
-		if(loops[0].angle >= loops[1].angle) {
+		if(loops[0].angle <= loops[1].angle) {
 			angle = loops[0].angle;
 			copy_v3_v3(edge_world_parall, edge_vec_init1);
 		} else {
@@ -1795,7 +1788,7 @@ static void flushUVdisplacement(UVTransCorrInfoUV *first, UVTCLoop loops[2], BME
 		} else {
 			ltmp = l1->prev->prev;
 		}
-		sub_v3_v3v3(edge_world_perp1, ltmp->v->co, td->iloc);
+		sub_v3_v3v3(edge_world_perp1, uvtc->init_vec[BM_elem_index_get(ltmp->v)], td->iloc);
 
 		if(uvtc->initial_uvs[BM_elem_index_get(ltmp->v)]) {
 			UVTransCorrInfoUV *uvtmp = uvtc->initial_uvs[BM_elem_index_get(ltmp->v)];
@@ -1810,21 +1803,19 @@ static void flushUVdisplacement(UVTransCorrInfoUV *first, UVTCLoop loops[2], BME
 
 		cross_v3_v3v3(normal1, edge_vec_init1, edge_world_perp1);
 
-		cross_v3_v3v3(edge_world_perp, edge_vec_init1, normal1);
+		cross_v3_v3v3(edge_world_coplanar, edge_vec_init1, normal1);
 
-		print_v3("world perp",edge_world_perp);
-
-		normalize_v3(edge_world_perp);
-		mul_v3_fl(edge_world_perp, sin(angle)*displaced_length);
+		normalize_v3(edge_world_coplanar);
+		mul_v3_fl(edge_world_coplanar, sin(angle)*displaced_length);
 		/* make vertex on the face plane with equal vertical displacemenet */
-		add_v3_v3(edge_world_perp, edge_world_parall);
+		add_v3_v3(edge_world_coplanar, edge_world_parall);
 
 		/* solve the coefficients for one edge face */
 		axis_dominant_v3(&ax, &ay, normal1);
 
 		det = determinant_m2(edge_world_perp1[ax], edge_vec_init1[ax], edge_world_perp1[ay], edge_vec_init1[ay]);
-		det1 = determinant_m2(edge_world_perp[ax], edge_vec_init1[ax], edge_world_perp[ay], edge_vec_init1[ay]);
-		det2 = determinant_m2(edge_world_perp1[ax], edge_world_perp[ax], edge_world_perp1[ay], edge_world_perp[ay]);
+		det1 = determinant_m2(edge_world_coplanar[ax], edge_vec_init1[ax], edge_world_coplanar[ay], edge_vec_init1[ay]);
+		det2 = determinant_m2(edge_world_perp1[ax], edge_world_coplanar[ax], edge_world_perp1[ay], edge_world_coplanar[ay]);
 
 		coeff1 = det1/det;
 		coeff2 = det2/det;
@@ -1840,17 +1831,39 @@ static void flushUVdisplacement(UVTransCorrInfoUV *first, UVTCLoop loops[2], BME
 			ltmp = l1->prev->prev;
 			luv = CustomData_bmesh_get(&em->bm->ldata, ltmp->head.data, CD_MLOOPUV);
 		}
-		sub_v3_v3v3(edge_world_perp2, ltmp->v->co, td->iloc);
-		sub_v2_v2v2(edge_uv_perp2, luv->uv, uvtcuv->init_uv);
-		cross_v3_v3v3(normal2, edge_vec_init2, edge_world_perp2);
-		if(loops[1].prev) {
-			cross_v3_v3v3(edge_world_perp, normal2, edge_vec_init1);
+
+		sub_v3_v3v3(edge_world_perp2, uvtc->init_vec[BM_elem_index_get(ltmp->v)], td->iloc);
+
+		if(uvtc->initial_uvs[BM_elem_index_get(ltmp->v)]) {
+			UVTransCorrInfoUV *uvtmp = uvtc->initial_uvs[BM_elem_index_get(ltmp->v)];
+			while(uvtmp->l != ltmp) {
+				uvtmp = uvtmp->next;
+			}
+			sub_v2_v2v2(edge_uv_perp2, uvtmp->init_uv, uvtcuv->init_uv);
 		} else {
-			cross_v3_v3v3(edge_world_perp, edge_vec_init1, normal2);
+			luv = CustomData_bmesh_get(&em->bm->ldata, ltmp->head.data, CD_MLOOPUV);
+			sub_v2_v2v2(edge_uv_perp2, luv->uv, uvtcuv->init_uv);
 		}
 
-		copy_v2_v2(uv_result, first->init_uv);
-		add_v2_v2(uv_result, uv_displacement1);
+		cross_v3_v3v3(normal2, edge_vec_init2, edge_world_perp2);
+		axis_dominant_v3(&ax, &ay, normal2);
+
+		det = determinant_m2(edge_world_perp2[ax], edge_vec_init2[ax], edge_world_perp2[ay], edge_vec_init2[ay]);
+		det1 = determinant_m2(edge_world_coplanar[ax], edge_vec_init2[ax], edge_world_coplanar[ay], edge_vec_init2[ay]);
+		det2 = determinant_m2(edge_world_perp2[ax], edge_world_coplanar[ax], edge_world_perp2[ay], edge_world_coplanar[ay]);
+
+		coeff1 = det1/det;
+		coeff2 = det2/det;
+
+		mul_v2_v2fl(uv_displacement2, edge_uv_perp2, coeff1);
+		mul_v2_v2fl(uvtmp, edge_uv_init2, coeff2);
+		add_v2_v2(uv_displacement2, uvtmp);
+
+		copy_v2_v2(uv_result, uv_displacement1);
+		add_v2_v2(uv_result, uv_displacement2);
+		/* take mean */
+		mul_v2_fl(uv_result, 0.5);
+		add_v2_v2(uv_result, first->init_uv);
 	} else {
 		int ax, ay;
 		float det, det1, det2, coeff1, coeff2;
