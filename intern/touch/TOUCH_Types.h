@@ -34,6 +34,12 @@
 
 #include "STR_String.h"
 
+typedef enum TOUCH_state {
+	TOUCH_DOWN = 0,
+	TOUCH_MOVE = 1,
+	TOUCH_UP = 2
+} TOUCH_state;
+
 typedef struct TOUCH_registered_context {
 	TOUCH_registered_context *prev, *next;
 	STR_String context;
@@ -52,8 +58,11 @@ typedef struct TOUCH_context_full {
 
 typedef struct TOUCH_event_info {
 	TOUCH_event_info *prev, *next;
+
 	int position_x, position_y;
 	char id;
+	TOUCH_state state;
+
 	STR_String area, region, data;
 } TOUCH_event_info;
 
