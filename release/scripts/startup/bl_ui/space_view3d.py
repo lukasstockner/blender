@@ -2710,6 +2710,8 @@ class VIEW3D_PT_floating_controls(Panel):
     bl_options = {'HIDE_HEADER'}
 
     def draw(self, context):
+        view = context.space_data
+
         if bpy.context.user_preferences.edit.floating_controls == 'BOTTOM' or bpy.context.user_preferences.edit.floating_controls == 'TOP':
             layout = self.layout
             if bpy.context.user_preferences.edit.floating_controls == 'BOTTOM':
@@ -2719,9 +2721,10 @@ class VIEW3D_PT_floating_controls(Panel):
             row.alignment = 'CENTER'
             row.scale_x = 1.5
             row.scale_y = 1.5
-            row.operator("transform.translate", text="", icon='MAN_TRANS')
-            row.operator("transform.rotate", text="", icon='MAN_ROT')
-            row.operator("transform.resize", text="", icon='MAN_SCALE')
+            row.prop(view, "use_manipulator_translate", text="", icon='MAN_TRANS')
+            row.prop(view, "use_manipulator_rotate", text="", icon='MAN_ROT')
+            row.prop(view, "use_manipulator_scale", text="", icon='MAN_SCALE')
+
         elif bpy.context.user_preferences.edit.floating_controls == 'LEFT' or bpy.context.user_preferences.edit.floating_controls == 'RIGHT':
             layout = self.layout
 
@@ -2733,9 +2736,9 @@ class VIEW3D_PT_floating_controls(Panel):
             column.alignment = 'CENTER'
             column.scale_x = 1.5
             column.scale_y = 1.5
-            column.operator("transform.translate", text="", icon='MAN_TRANS')
-            column.operator("transform.rotate", text="", icon='MAN_ROT')
-            column.operator("transform.resize", text="", icon='MAN_SCALE')
+            column.prop(view, "use_manipulator_translate", text="", icon='MAN_TRANS')
+            column.prop(view, "use_manipulator_rotate", text="", icon='MAN_ROT')
+            column.prop(view, "use_manipulator_scale", text="", icon='MAN_SCALE')
 
 
 
