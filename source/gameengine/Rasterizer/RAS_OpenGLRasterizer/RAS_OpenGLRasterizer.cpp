@@ -139,7 +139,11 @@ RAS_OpenGLRasterizer::~RAS_OpenGLRasterizer()
 {
 	// Restore the previous AF value
 	GPU_set_anisotropic(m_prevafvalue);
-	delete m_storage;
+	if (m_failsafe_storage && m_failsafe_storage != m_storage)
+		delete m_failsafe_storage;
+
+	if (m_storage)
+		delete m_storage;
 }
 
 bool RAS_OpenGLRasterizer::Init()
