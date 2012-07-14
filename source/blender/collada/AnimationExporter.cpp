@@ -835,8 +835,7 @@ std::string AnimationExporter::create_4x4_source(std::vector<float> &frames, Obj
 	bPoseChannel *pchan = NULL;
 	bPoseChannel *rootchan = NULL;
 	bPoseChannel *itrpchan;
-	float actframe = BKE_nla_tweakedit_remap(ob->adt, (float)CFRA, 0);
-
+	
 	if (ob->type == OB_ARMATURE ){
 		bPose *pose = ob->pose;
 		pchan = BKE_pose_channel_find_name(pose, bone->name);
@@ -932,6 +931,8 @@ std::string AnimationExporter::create_4x4_source(std::vector<float> &frames, Obj
 		source.appendValues(outmat);
 
 		j++;
+
+		BIK_release_tree(scene, ob, ctime);
 	}
 
 	enable_fcurves(ob->adt->action, NULL);
