@@ -43,6 +43,7 @@ extern "C"
 #include "BKE_animsys.h"
 #include "BKE_scene.h"
 #include "BKE_object.h"
+#include "BKE_nla.h"
 
 #ifdef NAN_BUILDINFO
 extern char build_rev[];
@@ -56,6 +57,7 @@ extern char build_rev[];
 #include "BKE_object.h"
 #include "BKE_constraint.h"
 #include "BIK_api.h"
+#include "BKE_global.h"
 
 #include "BLI_math.h"
 #include "BLI_string.h"
@@ -79,8 +81,12 @@ extern char build_rev[];
 
 #include "collada_internal.h"
 
+#include "IK_solver.h"
+
 #include <vector>
 #include <algorithm> // std::find
+
+
 
 class AnimationExporter: COLLADASW::LibraryAnimations
 {
@@ -181,4 +187,13 @@ protected:
 	bool validateConstraints(bConstraint *con);
 
 	void calc_ob_mat_at_time(Object *ob, float ctime , float mat[][4]);
+
+	void CAE_execute_tree( struct Scene *scene, Object *ob, bPoseChannel *pchan, float ctime);
+    
+	void execute_posetree_ctime(struct Scene *scene, Object *ob, PoseTree *tree, float ctime);
+
+	void where_is_ik_bone(bPoseChannel *pchan, float ik_mat[][3]);
+
+	void free_posetree(PoseTree *tree);
+
 };

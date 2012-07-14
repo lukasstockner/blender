@@ -52,9 +52,9 @@ void TransformWriter::add_node_transform(COLLADASW::Node& node, float mat[][4], 
 
 	TransformBase::decompose(local, loc, rot, NULL, scale);
 	if (node.getType() == COLLADASW::Node::JOINT)
-		node.addMatrix("transform", dmat);
+	node.addMatrix("transform", dmat);
 	else
-		add_transform(node, loc, rot, scale);
+	add_transform(node, loc, rot, scale);
 }
 
 void TransformWriter::add_node_transform_ob(COLLADASW::Node& node, Object *ob)

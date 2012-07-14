@@ -37,6 +37,8 @@ set(INC
 	../imbuf
 	../../../intern/guardedalloc
 	../ikplugin
+	../../../intern/iksolver/extern
+	
 )
 
 set(INC_SYS

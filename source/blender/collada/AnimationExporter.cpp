@@ -24,6 +24,8 @@
 #include "AnimationExporter.h"
 #include "MaterialExporter.h"
 
+Global G;
+
 template<class Functor>
 void forEachObjectInExportSet(Scene *sce, Functor &f, LinkNode *export_set)
 {
@@ -831,6 +833,10 @@ std::string AnimationExporter::create_4x4_source(std::vector<float> &frames, Obj
     
 	bPoseChannel *parchan = NULL;
 	bPoseChannel *pchan = NULL;
+	bPoseChannel *rootchan = NULL;
+	bPoseChannel *itrpchan;
+	float actframe = BKE_nla_tweakedit_remap(ob->adt, (float)CFRA, 0);
+
 	if (ob->type == OB_ARMATURE ){
 		bPose *pose = ob->pose;
 		pchan = BKE_pose_channel_find_name(pose, bone->name);
@@ -841,25 +847,49 @@ std::string AnimationExporter::create_4x4_source(std::vector<float> &frames, Obj
 
 		enable_fcurves(ob->adt->action, bone->name);
 	}
+	
 	std::vector<float>::iterator it;
 	int j = 0;
 	for (it = frames.begin(); it != frames.end(); it++) {
 		float mat[4][4], ipar[4][4];
-
+        
 		float ctime = BKE_scene_frame_get_from_ctime(scene, *it);
-
-		BKE_animsys_evaluate_animdata(scene, &ob->id, ob->adt, ctime, ADT_RECALC_ANIM);
+		CFRA = BKE_scene_frame_get_from_ctime(scene, *it);
+		BKE_scene_update_for_newframe(G.main,scene,scene->lay);
+		//BKE_animsys_evaluate_animdata(scene, &ob->id, ob->adt, ctime, ADT_RECALC_ALL);
+		BKE_pose_where_is(scene, ob);
+		
 		if (bone){
-			/* 4a. if we find an IK root, we handle it separated */
-			if (pchan->flag & POSE_IKTREE) {
-				BIK_execute_tree(scene, ob, pchan, ctime);
-			}
-			///* 4b. if we find a Spline IK root, we handle it separated too */
-			//else if (pchan->flag & POSE_IKSPLINE) {
-			//	splineik_execute_tree(scene, ob, pchan, ctime);
+			//if( pchan->flag & POSE_CHAIN)
+			//{
+			//	for (itrpchan = (bPoseChannel*)ob->pose->chanbase.first; itrpchan; itrpchan = itrpchan->next) {
+			//		itrpchan->flag &= ~(POSE_DONE | POSE_CHAIN | POSE_IKTREE | POSE_IKSPLINE);
+			//	}
+			//	rootchan = pchan;
+			//	while(rootchan->parent){
+			//		rootchan = rootchan->parent;
+			//	}
+			//	BIK_initialize_tree(scene, ob, ctime);
+			//	
+			//	for (itrpchan = (bPoseChannel*)ob->pose->chanbase.first; itrpchan; itrpchan = itrpchan->next) {
+			//		if (itrpchan->flag & POSE_IKTREE) {
+			//			BIK_execute_tree(scene, ob, itrpchan, ctime);
+			//		}
+			//		/*else if (itrpchan->flag & POSE_IKSPLINE) {
+			//			splineik_execute_tree(scene, ob, itrpchan, ctime);
+			//		}*/
+			//		else if (!(itrpchan->flag & POSE_DONE)) {
+			//			BKE_pose_where_is_bone(scene, ob, itrpchan, ctime, 1);
+			//		}
+			//	}
+
+			//	BIK_release_tree(scene, ob, ctime);
+			//	/*if (rootchan->flag & POSE_IKTREE) 
+			//	CAE_execute_tree(scene, ob, rootchan, ctime);*/
 			//}
+			//else
+			//BKE_pose_where_is_bone(scene, ob, pchan, ctime, 1);
 			
-			BKE_pose_where_is_bone(scene, ob, pchan, ctime, 1);
 			// compute bone local mat
 			if (bone->parent) {
 				invert_m4_m4(ipar, parchan->pose_mat);
@@ -892,6 +922,8 @@ std::string AnimationExporter::create_4x4_source(std::vector<float> &frames, Obj
 			calc_ob_mat_at_time(ob, ctime, mat);
 		}
 		
+		//BIK_release_tree(scene, ob, ctime);
+
 		UnitConverter converter;
 
 		double outmat[4][4];
@@ -902,9 +934,13 @@ std::string AnimationExporter::create_4x4_source(std::vector<float> &frames, Obj
 		j++;
 	}
 
-	//enable_fcurves(ob->adt->action, NULL);
+	enable_fcurves(ob->adt->action, NULL);
 
 	source.finish();
+
+	/*BKE_pose_free(posen);
+	ob->pose = poseo;
+	BKE_pose_rebuild(ob, (bArmature*)ob->data);*/
 
 	return source_id;
 }
@@ -1455,3 +1491,336 @@ void AnimationExporter::calc_ob_mat_at_time(Object *ob, float ctime , float mat[
 	copy_m4_m4(mat, ob->obmat);
 }
 
+void AnimationExporter::CAE_execute_tree( struct Scene *scene, Object *ob, bPoseChannel *pchan, float ctime){
+	while (pchan->iktree.first) {
+		PoseTree *tree = (PoseTree*)pchan->iktree.first;
+		int a;
+
+		/* stop on the first tree that isn't a standard IK chain */
+		if (tree->type != CONSTRAINT_TYPE_KINEMATIC)
+			return;
+
+		/* 4. walk over the tree for regular solving */
+		for (a = 0; a < tree->totchannel; a++) {
+			if (!(tree->pchan[a]->flag & POSE_DONE))    // successive trees can set the flag
+				BKE_pose_where_is_bone(scene, ob, tree->pchan[a], ctime, 1);
+			// tell blender that this channel was controlled by IK, it's cleared on each BKE_pose_where_is()
+			tree->pchan[a]->flag |= POSE_CHAIN;
+		}
+		/* 5. execute the IK solver */
+		execute_posetree_ctime(scene, ob, tree, ctime);
+
+		/* 6. apply the differences to the channels,
+		 *    we need to calculate the original differences first */
+		for (a = 0; a < tree->totchannel; a++) {
+			if (tree->pchan[a]->parent) {
+				float iR_parmat[4][4];
+				invert_m4_m4(iR_parmat, tree->pchan[a]->parent->pose_mat);
+				mult_m4_m4m4(tree->pchan[a]->chan_mat, iR_parmat,  tree->pchan[a]->pose_mat); // delta mat
+			}
+			else copy_m4_m4(tree->pchan[a]->chan_mat, tree->pchan[a]->pose_mat);
+		}
+
+		for (a = 0; a < tree->totchannel; a++) {
+			/* sets POSE_DONE */
+			where_is_ik_bone(tree->pchan[a], tree->basis_change[a]);
+		}
+
+		/* 7. and free */
+		BLI_remlink(&pchan->iktree, tree);
+		free_posetree(tree);
+	}
+}
+
+void AnimationExporter::execute_posetree_ctime(struct Scene *scene, Object *ob, PoseTree *tree, float ctime){
+	float R_parmat[3][3], identity[3][3];
+	float iR_parmat[3][3];
+	float R_bonemat[3][3];
+	float goalrot[3][3], goalpos[3];
+	float rootmat[4][4], imat[4][4];
+	float goal[4][4], goalinv[4][4];
+	float irest_basis[3][3], full_basis[3][3];
+	float end_pose[4][4], world_pose[4][4];
+	float length, basis[3][3], rest_basis[3][3], start[3], *ikstretch = NULL;
+	float resultinf = 0.0f;
+	int a, flag, hasstretch = 0, resultblend = 0;
+	bPoseChannel *pchan;
+	IK_Segment *seg, *parent, **iktree, *iktarget;
+	IK_Solver *solver;
+	PoseTarget *target;
+	bKinematicConstraint *data, *poleangledata = NULL;
+	Bone *bone;
+
+	if (tree->totchannel == 0)
+		return;
+
+	iktree = (IK_Segment **)MEM_mallocN(sizeof(void *) * tree->totchannel, "ik tree");
+
+	for (a = 0; a < tree->totchannel; a++) {
+		pchan = tree->pchan[a];
+		bone = pchan->bone;
+
+		/* set DoF flag */
+		flag = 0;
+		if (!(pchan->ikflag & BONE_IK_NO_XDOF) && !(pchan->ikflag & BONE_IK_NO_XDOF_TEMP))
+			flag |= IK_XDOF;
+		if (!(pchan->ikflag & BONE_IK_NO_YDOF) && !(pchan->ikflag & BONE_IK_NO_YDOF_TEMP))
+			flag |= IK_YDOF;
+		if (!(pchan->ikflag & BONE_IK_NO_ZDOF) && !(pchan->ikflag & BONE_IK_NO_ZDOF_TEMP))
+			flag |= IK_ZDOF;
+
+		if (tree->stretch && (pchan->ikstretch > 0.0f)) {
+			flag |= IK_TRANS_YDOF;
+			hasstretch = 1;
+		}
+
+		seg = iktree[a] = IK_CreateSegment(flag);
+
+		/* find parent */
+		if (a == 0)
+			parent = NULL;
+		else
+			parent = iktree[tree->parent[a]];
+
+		IK_SetParent(seg, parent);
+
+		/* get the matrix that transforms from prevbone into this bone */
+		copy_m3_m4(R_bonemat, pchan->pose_mat);
+
+		/* gather transformations for this IK segment */
+
+		if (pchan->parent)
+			copy_m3_m4(R_parmat, pchan->parent->pose_mat);
+		else
+			unit_m3(R_parmat);
+
+		/* bone offset */
+		if (pchan->parent && (a > 0))
+			sub_v3_v3v3(start, pchan->pose_head, pchan->parent->pose_tail);
+		else
+			/* only root bone (a = 0) has no parent */
+			start[0] = start[1] = start[2] = 0.0f;
+
+		/* change length based on bone size */
+		length = bone->length * len_v3(R_bonemat[1]);
+
+		/* compute rest basis and its inverse */
+		copy_m3_m3(rest_basis, bone->bone_mat);
+		copy_m3_m3(irest_basis, bone->bone_mat);
+		transpose_m3(irest_basis);
+
+		/* compute basis with rest_basis removed */
+		invert_m3_m3(iR_parmat, R_parmat);
+		mul_m3_m3m3(full_basis, iR_parmat, R_bonemat);
+		mul_m3_m3m3(basis, irest_basis, full_basis);
+
+		/* basis must be pure rotation */
+		normalize_m3(basis);
+
+		/* transform offset into local bone space */
+		normalize_m3(iR_parmat);
+		mul_m3_v3(iR_parmat, start);
+
+		IK_SetTransform(seg, start, rest_basis, basis, length);
+
+		if (pchan->ikflag & BONE_IK_XLIMIT)
+			IK_SetLimit(seg, IK_X, pchan->limitmin[0], pchan->limitmax[0]);
+		if (pchan->ikflag & BONE_IK_YLIMIT)
+			IK_SetLimit(seg, IK_Y, pchan->limitmin[1], pchan->limitmax[1]);
+		if (pchan->ikflag & BONE_IK_ZLIMIT)
+			IK_SetLimit(seg, IK_Z, pchan->limitmin[2], pchan->limitmax[2]);
+
+		IK_SetStiffness(seg, IK_X, pchan->stiffness[0]);
+		IK_SetStiffness(seg, IK_Y, pchan->stiffness[1]);
+		IK_SetStiffness(seg, IK_Z, pchan->stiffness[2]);
+
+		if (tree->stretch && (pchan->ikstretch > 0.0f)) {
+			float ikstretch = pchan->ikstretch * pchan->ikstretch;
+			IK_SetStiffness(seg, IK_TRANS_Y, MIN2(1.0f - ikstretch, 0.99f));
+			IK_SetLimit(seg, IK_TRANS_Y, 0.001, 1e10);
+		}
+	}
+
+	solver = IK_CreateSolver(iktree[0]);
+
+	/* set solver goals */
+
+	/* first set the goal inverse transform, assuming the root of tree was done ok! */
+	pchan = tree->pchan[0];
+	if (pchan->parent) {
+		/* transform goal by parent mat, so this rotation is not part of the
+		 * segment's basis. otherwise rotation limits do not work on the
+		 * local transform of the segment itself. */
+		copy_m4_m4(rootmat, pchan->parent->pose_mat);
+		/* However, we do not want to get (i.e. reverse) parent's scale, as it generates [#31008]
+		 * kind of nasty bugs... */
+		normalize_m4(rootmat);
+	}
+	else
+		unit_m4(rootmat);
+	copy_v3_v3(rootmat[3], pchan->pose_head);
+
+	mult_m4_m4m4(imat, ob->obmat, rootmat);
+	invert_m4_m4(goalinv, imat);
+
+	for (target = (PoseTarget *)tree->targets.first; target; target = target->next) {
+		float polepos[3];
+		int poleconstrain = 0;
+
+		data = (bKinematicConstraint *)target->con->data;
+
+		get_constraint_target_matrix(scene, target->con, 0, CONSTRAINT_OBTYPE_OBJECT, ob, rootmat, ctime);
+
+		/* and set and transform goal */
+		mult_m4_m4m4(goal, goalinv, rootmat);
+
+		copy_v3_v3(goalpos, goal[3]);
+		copy_m3_m4(goalrot, goal);
+
+		/* same for pole vector target */
+		if (data->poletar) {
+			get_constraint_target_matrix(scene, target->con, 1, CONSTRAINT_OBTYPE_OBJECT, ob, rootmat, ctime);
+
+			if (data->flag & CONSTRAINT_IK_SETANGLE) {
+				/* don't solve IK when we are setting the pole angle */
+				break;
+			}
+			else {
+				mult_m4_m4m4(goal, goalinv, rootmat);
+				copy_v3_v3(polepos, goal[3]);
+				poleconstrain = 1;
+
+				/* for pole targets, we blend the result of the ik solver
+				 * instead of the target position, otherwise we can't get
+				 * a smooth transition */
+				resultblend = 1;
+				resultinf = target->con->enforce;
+
+				if (data->flag & CONSTRAINT_IK_GETANGLE) {
+					poleangledata = data;
+					data->flag &= ~CONSTRAINT_IK_GETANGLE;
+				}
+			}
+		}
+
+		/* do we need blending? */
+		if (!resultblend && target->con->enforce != 1.0f) {
+			float q1[4], q2[4], q[4];
+			float fac = target->con->enforce;
+			float mfac = 1.0f - fac;
+
+			pchan = tree->pchan[target->tip];
+
+			/* end effector in world space */
+			copy_m4_m4(end_pose, pchan->pose_mat);
+			copy_v3_v3(end_pose[3], pchan->pose_tail);
+			mul_serie_m4(world_pose, goalinv, ob->obmat, end_pose, NULL, NULL, NULL, NULL, NULL);
+
+			/* blend position */
+			goalpos[0] = fac * goalpos[0] + mfac * world_pose[3][0];
+			goalpos[1] = fac * goalpos[1] + mfac * world_pose[3][1];
+			goalpos[2] = fac * goalpos[2] + mfac * world_pose[3][2];
+
+			/* blend rotation */
+			mat3_to_quat(q1, goalrot);
+			mat4_to_quat(q2, world_pose);
+			interp_qt_qtqt(q, q1, q2, mfac);
+			quat_to_mat3(goalrot, q);
+		}
+
+		iktarget = iktree[target->tip];
+
+		if (data->weight != 0.0f) {
+			if (poleconstrain)
+				IK_SolverSetPoleVectorConstraint(solver, iktarget, goalpos,
+				                                 polepos, data->poleangle, (poleangledata == data));
+			IK_SolverAddGoal(solver, iktarget, goalpos, data->weight);
+		}
+		if ((data->flag & CONSTRAINT_IK_ROT) && (data->orientweight != 0.0f))
+			if ((data->flag & CONSTRAINT_IK_AUTO) == 0)
+				IK_SolverAddGoalOrientation(solver, iktarget, goalrot,
+				                            data->orientweight);
+	}
+
+	/* solve */
+	IK_Solve(solver, 0.0f, tree->iterations);
+
+	if (poleangledata)
+		poleangledata->poleangle = IK_SolverGetPoleAngle(solver);
+
+	IK_FreeSolver(solver);
+
+	/* gather basis changes */
+	tree->basis_change = (float (*)[3][3]) MEM_mallocN(sizeof(float[3][3]) * tree->totchannel, "ik basis change");
+	if (hasstretch)
+		ikstretch = (float *) MEM_mallocN(sizeof(float) * tree->totchannel, "ik stretch");
+
+	for (a = 0; a < tree->totchannel; a++) {
+		IK_GetBasisChange(iktree[a], tree->basis_change[a]);
+
+		if (hasstretch) {
+			/* have to compensate for scaling received from parent */
+			float parentstretch, stretch;
+
+			pchan = tree->pchan[a];
+			parentstretch = (tree->parent[a] >= 0) ? ikstretch[tree->parent[a]] : 1.0f;
+
+			if (tree->stretch && (pchan->ikstretch > 0.0f)) {
+				float trans[3], length;
+
+				IK_GetTranslationChange(iktree[a], trans);
+				length = pchan->bone->length * len_v3(pchan->pose_mat[1]);
+
+				ikstretch[a] = (length == 0.0f) ? 1.0f : (trans[1] + length) / length;
+			}
+			else
+				ikstretch[a] = 1.0;
+
+			stretch = (parentstretch == 0.0f) ? 1.0f : ikstretch[a] / parentstretch;
+
+			mul_v3_fl(tree->basis_change[a][0], stretch);
+			mul_v3_fl(tree->basis_change[a][1], stretch);
+			mul_v3_fl(tree->basis_change[a][2], stretch);
+		}
+
+		if (resultblend && resultinf != 1.0f) {
+			unit_m3(identity);
+			blend_m3_m3m3(tree->basis_change[a], identity,
+			              tree->basis_change[a], resultinf);
+		}
+
+		IK_FreeSegment(iktree[a]);
+	}
+
+	MEM_freeN(iktree);
+	if (ikstretch) MEM_freeN(ikstretch);
+}
+
+void AnimationExporter::where_is_ik_bone(bPoseChannel *pchan, float ik_mat[][3]){
+	float vec[3], ikmat[4][4];
+
+	copy_m4_m3(ikmat, ik_mat);
+
+	if (pchan->parent)
+		mul_serie_m4(pchan->pose_mat, pchan->parent->pose_mat, pchan->chan_mat, ikmat, NULL, NULL, NULL, NULL, NULL);
+	else
+		mult_m4_m4m4(pchan->pose_mat, pchan->chan_mat, ikmat);
+
+	/* calculate head */
+	copy_v3_v3(pchan->pose_head, pchan->pose_mat[3]);
+	/* calculate tail */
+	copy_v3_v3(vec, pchan->pose_mat[1]);
+	mul_v3_fl(vec, pchan->bone->length);
+	add_v3_v3v3(pchan->pose_tail, pchan->pose_head, vec);
+
+	pchan->flag |= POSE_DONE;
+}
+
+void AnimationExporter::free_posetree(PoseTree *tree)
+{
+	BLI_freelistN(&tree->targets);
+	if (tree->pchan) MEM_freeN(tree->pchan);
+	if (tree->parent) MEM_freeN(tree->parent);
+	if (tree->basis_change) MEM_freeN(tree->basis_change);
+	MEM_freeN(tree);
+}
