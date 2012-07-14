@@ -43,35 +43,93 @@ TOUCH_Manager::~TOUCH_Manager()
 
 void TOUCH_Manager::TOUCH_RegisterArea(STR_String context)
 {
-	//TODO
+	char encoding = checkRegisteredArea(context);
+	if(encoding) {
+		TOUCH_area area = {context, encoding};
+		registered_data.push_back(area);
+	}
 }
 
 void TOUCH_Manager::TOUCH_RegisterRegion(STR_String context)
 {
-	//TODO
+	char encoding = checkRegisteredRegion(context);
+	if(encoding) {
+		TOUCH_region region = {context, encoding};
+		registered_data.push_back(region);
+	}
 }
 
 void TOUCH_Manager::TOUCH_RegisterData(STR_String context)
 {
-	//TODO
+	char encoding = checkRegisteredData(context);
+	if(encoding) {
+		TOUCH_data data = {context, encoding};
+		registered_data.push_back(data);
+	}
 }
 
-void TOUCH_Manager::TOUCH_AddTouchEvent(TOUCH_event_info event)
+void TOUCH_Manager::TOUCH_AddTouchEvent(std::vector<TOUCH_event_info> event)
 {
-	//TODO
+	for(int i = 0; i < event.size(); i++){
+		/* if index 1 is touching down for the first time, clear the input string */
+		if(event[i].state == TOUCH_DOWN) {
+			if(event[i].index == 1) {
+				input_string.Clear();
+			}
+			//touch_position_begin[i] = event[i].position; XXX
+		}
+
+		//touch_position_last[i] = event[i].position; XXX
+
+		switch(event[i].state){
+			case TOUCH_DOWN:
+				input_string += 'd';
+				break;
+			case TOUCH_MOVE:
+				input_string += 'm';
+				break;
+			case TOUCH_UP:
+				input_string += 'u';
+				break;
+			default:
+				input_string += '\0'; // XXX avoid null
+				break;
+		}
+
+		input_string += event[i].index;
+
+		input_string += checkRegisteredArea(event[i].area);
+		input_string += checkRegisteredRegion(event[i].region);
+		input_string += checkRegisteredData(event[i].data);
+	}
 }
 
-char checkRegisteredArea(STR_String area)
+char TOUCH_Manager::checkRegisteredArea(STR_String area)
 {
-	//TODO
+	for(int i = 0; i < registered_area.size(); i++) {
+		if(area == registered_area[i].context) {
+			return registered_area[i].encoding;
+		}
+	}
+	return '\0'; // XXX avoid null
 }
 
-char checkRegisteredRegion(STR_String region)
+char TOUCH_Manager::checkRegisteredRegion(STR_String region)
 {
-	//TODO
+	for(int i = 0; i < registered_region.size(); i++) {
+		if(region == registered_region[i].context) {
+			return registered_region[i].encoding;
+		}
+	}
+	return '\0'; // XXX avoid null
 }
 
-char checkRegisteredData(STR_String data)
+char TOUCH_Manager::checkRegisteredData(STR_String data)
 {
-	//TODO
+	for(int i = 0; i < registered_data.size(); i++) {
+		if(data == registered_data[i].context) {
+			return registered_data[i].encoding;
+		}
+	}
+	return '\0'; // XXX avoid null
 }

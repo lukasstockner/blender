@@ -33,6 +33,7 @@
 #define __TOUCH_TOUCH_H__
 
 #include "TOUCH_Types.h"
+#include <vector>
 
 class TOUCH_Manager
 {
@@ -51,12 +52,20 @@ public:
 	void TOUCH_RegisterRegion(STR_String context);
 	void TOUCH_RegisterData(STR_String context);
 
-	void TOUCH_AddTouchEvent(TOUCH_event_info event);
+	void TOUCH_AddTouchEvent(std::vector<TOUCH_event_info> event);
 
 private:
 	char checkRegisteredArea(STR_String area);
 	char checkRegisteredRegion(STR_String region);
 	char checkRegisteredData(STR_String data);
+
+	STR_String input_string;
+	//std::vector<TOUCH_position> touch_position_begin; XXX
+	//std::vector<TOUCH_position> touch_position_last; XXX
+
+	std::vector<TOUCH_area> registered_area;
+	std::vector<TOUCH_region> registered_region;
+	std::vector<TOUCH_data> registered_data;
 
 };
 

@@ -41,7 +41,7 @@ typedef enum TOUCH_state {
 } TOUCH_state;
 
 typedef struct TOUCH_registered_context {
-	TOUCH_registered_context *prev, *next;
+	//TOUCH_registered_context *prev, *next;
 	STR_String context;
 	char encoding;
 } TOUCH_registered_context;
@@ -56,11 +56,14 @@ typedef struct TOUCH_context_full {
 	TOUCH_data data;
 } TOUCH_context;
 
-typedef struct TOUCH_event_info {
-	TOUCH_event_info *prev, *next;
-
+typedef struct TOUCH_position {
 	int position_x, position_y;
-	char id;
+} TOUCH_position;
+
+typedef struct TOUCH_event_info {
+	//TOUCH_event_info *prev, *next;
+	TOUCH_position position;
+	char index;
 	TOUCH_state state;
 
 	STR_String area, region, data;
