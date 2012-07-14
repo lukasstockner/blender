@@ -144,10 +144,14 @@ KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
 	int i;
 	// delete sumoshapes
 	
-	vector<pthread_t>::iterator pit = m_threadinfo->threads.begin();
-	while (pit != m_threadinfo->threads.end()) {
-		pthread_join((*pit), NULL);
-		pit++;
+	if (m_threadinfo) {
+		vector<pthread_t>::iterator pit = m_threadinfo->threads.begin();
+		while (pit != m_threadinfo->threads.end()) {
+			pthread_join((*pit), NULL);
+			pit++;
+		}
+
+		delete m_threadinfo;
 	}
 
 	int numAdtLists = m_map_blender_to_gameAdtList.size();
@@ -966,7 +970,8 @@ void KX_BlenderSceneConverter::MergeAsyncLoads()
 			delete (*sit);
 		}
 
-		delete (*mit)->GetData();
+
+		delete merge_scenes;
 		(*mit)->SetData(NULL);
 
 		(*mit)->Finish();
@@ -996,7 +1001,7 @@ static void *async_convert(void *ptr)
 		status->AddProgress((1.f/scenes->size())*0.9f); // We'll call conversion 90% and merging 10% for now
 	}
 
-	delete status->GetData();
+	delete scenes;
 	status->SetData(merge_scenes);
 
 	status->GetConverter()->AddScenesToMergeQueue(status);
