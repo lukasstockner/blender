@@ -492,6 +492,7 @@ typedef struct MTF_localLayer {
 
 static void GetUVs(BL_Material *material, MTF_localLayer *layers, MFace *mface, MTFace *tface, MT_Point2 uvs[4][MAXTEX])
 {
+	int unit = 0;
 	if (tface)
 	{
 			
@@ -511,16 +512,19 @@ static void GetUVs(BL_Material *material, MTF_localLayer *layers, MFace *mface, 
 	{
 		BL_Mapping &map = material->mapping[vind];
 
+		if (map.mapping != BL_MappingFlag::USEUV) continue;
+
 		//If no UVSet is specified, try grabbing one from the UV/Image editor
 		if (map.uvCoName.IsEmpty() && tface)
 		{			
-			uvs[0][vind].setValue(tface->uv[0]);
-			uvs[1][vind].setValue(tface->uv[1]);
-			uvs[2][vind].setValue(tface->uv[2]);
+			uvs[0][unit].setValue(tface->uv[0]);
+			uvs[1][unit].setValue(tface->uv[1]);
+			uvs[2][unit].setValue(tface->uv[2]);
 
 			if (mface->v4) 
-				uvs[3][vind].setValue(tface->uv[3]);
+				uvs[3][unit].setValue(tface->uv[3]);
 
+			++unit;
 			continue;
 		}
 
@@ -534,15 +538,16 @@ static void GetUVs(BL_Material *material, MTF_localLayer *layers, MFace *mface, 
 			{
 				MT_Point2 uvSet[4];
 
-				uvs[0][vind].setValue(layer.face->uv[0]);
-				uvs[1][vind].setValue(layer.face->uv[1]);
-				uvs[2][vind].setValue(layer.face->uv[2]);
+				uvs[0][unit].setValue(layer.face->uv[0]);
+				uvs[1][unit].setValue(layer.face->uv[1]);
+				uvs[2][unit].setValue(layer.face->uv[2]);
 
 				if (mface->v4) 
-					uvs[3][vind].setValue(layer.face->uv[3]);
+					uvs[3][unit].setValue(layer.face->uv[3]);
 				else
-					uvs[3][vind].setValue(0.0f, 0.0f);
+					uvs[3][unit].setValue(0.0f, 0.0f);
 
+				++unit;
 				break;
 			}
 		}
@@ -832,8 +837,6 @@ bool ConvertMaterial(
 		// No material - old default TexFace properties
 		material->ras_mode |= USE_LIGHT;
 	}
-
-	MT_Point2 uvs[4][MAXTEX];
 
 	/* No material, what to do? let's see what is in the UV and set the material accordingly
 	 * light and visible is always on */
