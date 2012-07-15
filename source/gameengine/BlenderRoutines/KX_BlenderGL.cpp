@@ -160,14 +160,14 @@ void BL_print_gamedebug_line(const char* text, int xco, int yco, int width, int 
 	glDisable(GL_DEPTH_TEST);
 
 	//glMatrixMode(GL_PROJECTION);
-	gpuMatrixMode(GPU_PROJECTION);
+	gpuMatrixMode(GL_PROJECTION);
 
 	gpuPushMatrix();
 
 	gpuLoadOrtho(0, (float)width, 0, (float)height, -100, 100); gpuMatrixCommit();
 
 	glMatrixMode(GL_MODELVIEW);
-	gpuMatrixMode(GPU_MODELVIEW);
+	gpuMatrixMode(GL_MODELVIEW);
 
 	gpuPushMatrix();
 	gpuLoadIdentity(); gpuMatrixCommit();
@@ -177,11 +177,11 @@ void BL_print_gamedebug_line(const char* text, int xco, int yco, int width, int 
 	BLF_draw_default((float)xco, (float)(height-yco), 0.0f, (char *)text, 65535); /* XXX, use real len */
 
 	//glMatrixMode(GL_PROJECTION);
-	gpuMatrixMode(GPU_PROJECTION);
+	gpuMatrixMode(GL_PROJECTION);
 
 	gpuPopMatrix(); gpuMatrixCommit();
 	glMatrixMode(GL_MODELVIEW);
-	gpuMatrixMode(GPU_MODELVIEW);
+	gpuMatrixMode(GL_MODELVIEW);
 
 	gpuPopMatrix(); gpuMatrixCommit();
 	glEnable(GL_DEPTH_TEST);
@@ -196,14 +196,14 @@ void BL_print_gamedebug_line_padded(const char* text, int xco, int yco, int widt
 	glDisable(GL_DEPTH_TEST);
 
 	//glMatrixMode(GL_PROJECTION);
-	gpuMatrixMode(GPU_PROJECTION);
+	gpuMatrixMode(GL_PROJECTION);
 	
 	gpuPushMatrix();
 	
 	gpuLoadOrtho(0, (float)width, 0, (float)height, -100, 100); gpuMatrixCommit();
 	
 	glMatrixMode(GL_MODELVIEW);
-	gpuMatrixMode(GPU_MODELVIEW);
+	gpuMatrixMode(GL_MODELVIEW);
 
 	gpuPushMatrix();
 	gpuLoadIdentity(); gpuMatrixCommit();
@@ -215,11 +215,11 @@ void BL_print_gamedebug_line_padded(const char* text, int xco, int yco, int widt
 	BLF_draw_default((float)xco, (float)(height-yco), 0.0f, text, 65535); /* XXX, use real len */
 
 	//glMatrixMode(GL_PROJECTION);
-	gpuMatrixMode(GPU_PROJECTION);
+	gpuMatrixMode(GL_PROJECTION);
 
 	gpuPopMatrix(); gpuMatrixCommit();
 	glMatrixMode(GL_MODELVIEW);
-	gpuMatrixMode(GPU_MODELVIEW);
+	gpuMatrixMode(GL_MODELVIEW);
 
 	gpuPopMatrix(); gpuMatrixCommit();
 	glEnable(GL_DEPTH_TEST);

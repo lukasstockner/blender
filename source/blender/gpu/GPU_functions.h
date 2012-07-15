@@ -224,7 +224,7 @@ GPUFUNC void (GLAPIENTRY* gpuUniformMatrix3fv)(GLint location, GLint count, GLbo
 GPUFUNC void (GLAPIENTRY* gpuUniformMatrix4fv)(GLint location, GLint count, GLboolean transpose, const GLfloat * value);
 
 GPUFUNC GLint (GLAPIENTRY* gpuGetAttribLocation)(GLuint program, const GLchar *name);
-GPUFUNC GLint (GLAPIENTRY* gpuBindAttribLocation)(GLuint program, GLuint index, const GLchar * name);
+GPUFUNC void (GLAPIENTRY* gpuBindAttribLocation)(GLuint program, GLuint index, const GLchar * name);
 GPUFUNC GLint (GLAPIENTRY* gpuGetUniformLocation)(GLuint program, const GLchar * name);
 
 
@@ -247,6 +247,8 @@ void GPU_func_comp_init(void);
 }
 #endif
 
+
+#ifndef GIVE_ME_APIENTRY
 
 /***** BEGIN:THIS CODE WAS COPIED DIRECTLY FROM glew.h *****/
 
@@ -271,5 +273,7 @@ void GPU_func_comp_init(void);
 /* #undef GLEWAPI */
 
 /***** END:THIS CODE WAS COPIED DIRECTLY FROM glew.h *****/
+
+#endif
 
 #endif /* GPU_FUNCTIONS_H */

@@ -657,7 +657,7 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 void KX_BlenderMaterial::setTexMatrixData(int i)
 {
 	glMatrixMode(GL_TEXTURE);
-	gpuMatrixMode(GPU_TEXTURE);
+	gpuMatrixMode(GL_TEXTURE);
 
 	gpuLoadIdentity(); gpuMatrixCommit();
 
@@ -686,7 +686,7 @@ void KX_BlenderMaterial::setTexMatrixData(int i)
 
 	gpuMatrixCommit();
 	glMatrixMode(GL_MODELVIEW);
-	gpuMatrixMode(GPU_MODELVIEW);
+	gpuMatrixMode(GL_MODELVIEW);
 
 
 }
@@ -734,7 +734,7 @@ void KX_BlenderMaterial::setObjectMatrixData(int i, RAS_IRasterizer *ras)
 	const MT_Matrix4x4& mvmat = ras->GetViewMatrix();
 
 	glMatrixMode(GL_TEXTURE);
-	gpuMatrixMode(GPU_TEXTURE);
+	gpuMatrixMode(GL_TEXTURE);
 
 	gpuLoadIdentity(); gpuMatrixCommit();
 	gpuScale(
@@ -751,7 +751,7 @@ void KX_BlenderMaterial::setObjectMatrixData(int i, RAS_IRasterizer *ras)
 
 	gpuMatrixCommit();
 	glMatrixMode(GL_MODELVIEW);
-	gpuMatrixMode(GPU_MODELVIEW);
+	gpuMatrixMode(GL_MODELVIEW);
 
 
 }

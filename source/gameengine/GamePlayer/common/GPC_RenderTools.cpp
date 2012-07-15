@@ -368,12 +368,12 @@ void GPC_RenderTools::RenderText2D(RAS_TEXT_RENDER_MODE mode,
 	
 	// Set up viewing settings
 	//glMatrixMode(GL_PROJECTION);
-	gpuMatrixMode(GPU_PROJECTION);
+	gpuMatrixMode(GL_PROJECTION);
 
 	gpuPushMatrix();
 	gpuLoadOrtho(0, width, 0, height, -1, 1); gpuMatrixCommit();
 	glMatrixMode(GL_MODELVIEW);
-	gpuMatrixMode(GPU_MODELVIEW);
+	gpuMatrixMode(GL_MODELVIEW);
 
 	gpuPushMatrix();
 	gpuLoadIdentity(); gpuMatrixCommit();
@@ -390,11 +390,11 @@ void GPC_RenderTools::RenderText2D(RAS_TEXT_RENDER_MODE mode,
 
 	// Restore view settings
 	//glMatrixMode(GL_PROJECTION);
-	gpuMatrixMode(GPU_PROJECTION);
+	gpuMatrixMode(GL_PROJECTION);
 
 	gpuPopMatrix(); gpuMatrixCommit();
 	glMatrixMode(GL_MODELVIEW);
-	gpuMatrixMode(GPU_MODELVIEW);
+	gpuMatrixMode(GL_MODELVIEW);
 
 	gpuPopMatrix(); gpuMatrixCommit();
 

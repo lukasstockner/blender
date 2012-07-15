@@ -34,6 +34,7 @@
 #endif
 
 #define GPU_FUNC_INTERN
+#define GIVE_ME_APIENTRY
 #include "GPU_functions.h"
 #include REAL_GL_MODE
 
@@ -54,14 +55,14 @@
 
 #ifndef GLES
 
-static void check_glGetObjectParameterivARB(GLuint shader, GLuint pname, GLint *params)
+static void GLAPIENTRY check_glGetObjectParameterivARB(GLuint shader, GLuint pname, GLint *params)
 {
 	GPU_CHECK_INVALID_PNAME(GL_SHADER_TYPE);
 
 	glGetObjectParameterivARB(shader, pname, params);
 }
 
-static void check_glGetProgramivARB(GLuint shader, GLuint pname, GLint *params)
+static void GLAPIENTRY check_glGetProgramivARB(GLuint shader, GLuint pname, GLint *params)
 {
 	GPU_CHECK_INVALID_PNAME(GL_ACTIVE_ATTRIBUTES);
 	GPU_CHECK_INVALID_PNAME(GL_ACTIVE_ATTRIBUTE_MAX_LENGTH);
@@ -100,7 +101,7 @@ static void init_glsl_arb(void)
 	gpuUniformMatrix4fv = glUniformMatrix4fvARB;
 
 	gpuGetAttribLocation  = glGetAttribLocationARB;
-	gpuBindAttribLocation = glBindAttribLocationARB;
+	gpuBindAttribLocation = (void (GLAPIENTRY*)(GLuint,GLuint,const GLchar*))glBindAttribLocationARB;
 	gpuGetUniformLocation = glGetUniformLocationARB;
 
 	gpuUseProgram    = glUseProgramObjectARB;

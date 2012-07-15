@@ -561,11 +561,11 @@ static void blf_draw__start(FontBLF *font)
 
 	gpuMatrixLock();
 
-	gpuMatrixMode(GPU_TEXTURE);
+	gpuMatrixMode(GL_TEXTURE);
 	gpuPushMatrix();
 	gpuLoadIdentity();
 
-	gpuMatrixMode(GPU_MODELVIEW);
+	gpuMatrixMode(GL_MODELVIEW);
 	gpuPushMatrix();
 
 
@@ -596,10 +596,10 @@ static void blf_draw__end(FontBLF *font)
 {
 	draw_unlock(font);
 
-	gpuMatrixMode(GPU_TEXTURE);
+	gpuMatrixMode(GL_TEXTURE);
 	gpuPopMatrix();
 
-	gpuMatrixMode(GPU_MODELVIEW);
+	gpuMatrixMode(GL_MODELVIEW);
 	gpuPopMatrix();
 
 	gpuMatrixUnlock();

@@ -1660,7 +1660,7 @@ void KX_Dome::DrawEnvMap(void)
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	//glMatrixMode(GL_PROJECTION);
-	gpuMatrixMode(GPU_PROJECTION);
+	gpuMatrixMode(GL_PROJECTION);
 
 	gpuLoadIdentity(); gpuMatrixCommit();
 
@@ -1690,11 +1690,11 @@ void KX_Dome::DrawEnvMap(void)
 	gpuMatrixCommit();
 
 	//glMatrixMode(GL_TEXTURE);
-	gpuMatrixMode(GPU_TEXTURE);
+	gpuMatrixMode(GL_TEXTURE);
 
 	gpuLoadIdentity(); gpuMatrixCommit();
 	//glMatrixMode(GL_MODELVIEW);
-	gpuMatrixMode(GPU_MODELVIEW);
+	gpuMatrixMode(GL_MODELVIEW);
 
 	gpuLoadIdentity();
 	gpuLookAt(0.0,0.0,1.0, 0.0,0.0,0.0, 0.0,1.0,0.0);  gpuMatrixCommit();
@@ -1798,7 +1798,7 @@ void KX_Dome::DrawDomeFisheye(void)
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	//glMatrixMode(GL_PROJECTION);
-	gpuMatrixMode(GPU_PROJECTION);
+	gpuMatrixMode(GL_PROJECTION);
 
 	gpuLoadIdentity(); gpuMatrixCommit();
 
@@ -1843,11 +1843,11 @@ void KX_Dome::DrawDomeFisheye(void)
 	gpuMatrixCommit();
 
 	//glMatrixMode(GL_TEXTURE);
-	gpuMatrixMode(GPU_TEXTURE);
+	gpuMatrixMode(GL_TEXTURE);
 
 	gpuLoadIdentity(); gpuMatrixCommit();
 	//glMatrixMode(GL_MODELVIEW);
-	gpuMatrixMode(GPU_MODELVIEW);
+	gpuMatrixMode(GL_MODELVIEW);
 
 	gpuLoadIdentity(); gpuMatrixCommit();
 	gpuLookAt(0.0,-1.0,0.0, 0.0,0.0,0.0, 0.0,0.0,1.0);  gpuMatrixCommit();
@@ -1902,7 +1902,7 @@ void KX_Dome::DrawPanorama(void)
 	int i;
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	//glMatrixMode(GL_PROJECTION);
-	gpuMatrixMode(GPU_PROJECTION);
+	gpuMatrixMode(GL_PROJECTION);
 
 	gpuLoadIdentity(); gpuMatrixCommit();
 
@@ -1934,11 +1934,11 @@ void KX_Dome::DrawPanorama(void)
 	gpuMatrixCommit();
 
 	//glMatrixMode(GL_TEXTURE);
-	gpuMatrixMode(GPU_TEXTURE);
+	gpuMatrixMode(GL_TEXTURE);
 
 	gpuLoadIdentity(); gpuMatrixCommit();
 	//glMatrixMode(GL_MODELVIEW);
-	gpuMatrixMode(GPU_MODELVIEW);
+	gpuMatrixMode(GL_MODELVIEW);
 
 	gpuLoadIdentity(); gpuMatrixCommit();
 	gpuLookAt(0.0,-1.0,0.0, 0.0,0.0,0.0, 0.0,0.0,1.0);  gpuMatrixCommit();
@@ -1994,7 +1994,7 @@ void KX_Dome::DrawDomeWarped(void)
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	//glMatrixMode(GL_PROJECTION);
-	gpuMatrixMode(GPU_PROJECTION);
+	gpuMatrixMode(GL_PROJECTION);
 
 	gpuLoadIdentity(); gpuMatrixCommit();
 
@@ -2008,11 +2008,11 @@ void KX_Dome::DrawDomeWarped(void)
 
 
 	//glMatrixMode(GL_TEXTURE);
-	gpuMatrixMode(GPU_TEXTURE);
+	gpuMatrixMode(GL_TEXTURE);
 
 	gpuLoadIdentity(); gpuMatrixCommit();
 	//glMatrixMode(GL_MODELVIEW);
-	gpuMatrixMode(GPU_MODELVIEW);
+	gpuMatrixMode(GL_MODELVIEW);
 
 	gpuLoadIdentity(); gpuMatrixCommit();
 	gpuLookAt(0.0, 0.0, 1.0, 0.0,0.0,0.0, 0.0,1.0,0.0);  gpuMatrixCommit();

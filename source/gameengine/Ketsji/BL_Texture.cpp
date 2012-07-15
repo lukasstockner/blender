@@ -403,10 +403,10 @@ void BL_Texture::DisableUnit()
 		glActiveTextureARB(GL_TEXTURE0_ARB+mUnit);
 
 	//glMatrixMode(GL_TEXTURE);
-	gpuMatrixMode(GPU_TEXTURE);
+	gpuMatrixMode(GL_TEXTURE);
 	gpuLoadIdentity(); gpuMatrixCommit();
 	glMatrixMode(GL_MODELVIEW);
-	gpuMatrixMode(GPU_MODELVIEW);
+	gpuMatrixMode(GL_MODELVIEW);
 
 
 	if (GLEW_ARB_texture_cube_map && glIsEnabled(GL_TEXTURE_CUBE_MAP_ARB))
@@ -432,11 +432,11 @@ void BL_Texture::DisableAllTextures()
 			glActiveTextureARB(GL_TEXTURE0_ARB+i);
 
 		//glMatrixMode(GL_TEXTURE);
-		gpuMatrixMode(GPU_TEXTURE);
+		gpuMatrixMode(GL_TEXTURE);
 
 		gpuLoadIdentity(); gpuMatrixCommit();
 		glMatrixMode(GL_MODELVIEW);
-		gpuMatrixMode(GPU_MODELVIEW);
+		gpuMatrixMode(GL_MODELVIEW);
 
 		glDisable(GL_TEXTURE_2D);	
 		glDisable(GL_TEXTURE_GEN_S);

@@ -441,11 +441,11 @@ void RAS_2DFilterManager::RenderFilters(RAS_ICanvas* canvas)
 	gpuPushMatrix();		//GL_MODELVIEW
 	gpuLoadIdentity(); gpuMatrixCommit();	// GL_MODELVIEW
 	glMatrixMode(GL_TEXTURE);
-	gpuMatrixMode(GPU_TEXTURE);
+	gpuMatrixMode(GL_TEXTURE);
 
 	gpuLoadIdentity(); gpuMatrixCommit();
 	glMatrixMode(GL_PROJECTION);
-	gpuMatrixMode(GPU_PROJECTION);
+	gpuMatrixMode(GL_PROJECTION);
 
 	gpuPushMatrix();
 	gpuLoadIdentity(); gpuMatrixCommit();
@@ -500,7 +500,7 @@ void RAS_2DFilterManager::RenderFilters(RAS_ICanvas* canvas)
 	EndShaderProgram();	
 	gpuPopMatrix(); gpuMatrixCommit();
 	glMatrixMode(GL_MODELVIEW);
-	gpuMatrixMode(GPU_MODELVIEW);
+	gpuMatrixMode(GL_MODELVIEW);
 
 	gpuPopMatrix(); gpuMatrixCommit();
 }

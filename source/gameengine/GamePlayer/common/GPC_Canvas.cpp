@@ -393,11 +393,11 @@ SetOrthoProjection(
 	::glViewport(0, 0, m_width, m_height);
 	::glScissor(0, 0, m_width, m_height);
 	//::glMatrixMode(GL_PROJECTION);
-	gpuMatrixMode(GPU_PROJECTION);
+	gpuMatrixMode(GL_PROJECTION);
 
 	::gpuLoadOrtho(0, m_width, 0, m_height, -1, 1); gpuMatrixCommit();
 	//::glMatrixMode(GL_MODELVIEW);
-	gpuMatrixMode(GPU_MODELVIEW);
+	gpuMatrixMode(GL_MODELVIEW);
 
 	::gpuLoadIdentity(); gpuMatrixCommit();
 	::glMatrixMode(GL_TEXTURE);

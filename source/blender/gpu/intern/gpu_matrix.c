@@ -1,3 +1,5 @@
+#include "gpu_immediate.h"
+
 #include <assert.h>
 
 #include "MEM_guardedalloc.h"
@@ -17,16 +19,19 @@
 #include <GL/glew.h>
 #endif
 
-#define GLU_STACK_DEBUG
-int glslneedupdate = 1;
+#if WITH_GPU_SAFETY
+#define GPU_STACK_DEBUG
+#endif
 
-typedef float GPU_matrix[4][4];
+GLint glslneedupdate = 1;
+
+typedef GLfloat GPU_matrix[4][4];
 
 typedef struct GPU_matrix_stack
 {
-	int size;
-	int pos;
-	int changed;
+	GLint size;
+	GLint pos;
+	GLint changed;
 	GPU_matrix * dynstack;
 
 
@@ -51,24 +56,26 @@ void GPU_matrix_forced_update(void)
 
 
 /* Check if we have a good matrix */
-#if 0
-static void checkmat(float *m)
+#if WITH_GPU_SAFETY
+static void checkmat(GLfloat *m)
 {
-	int i;
-	for(i=0;i<16;i++){
-		if(isinf(m[i]))
-		{assert(0);};};
-
-
+	GLint i;
+	for(i=0;i<16;i++) {
+#if _MSC_VER
+		BLI_assert(_finite(m[i]));
+#else
+		BLI_assert(!isinf(m[i]));
+#endif
+	}
 }
 
-#define CHECKMAT checkmat((float*)CURMATRIX);
+#define CHECKMAT checkmat((GLfloat*)CURMATRIX);
 #else
 #define CHECKMAT
 #endif
 
 
-static void ms_init(GPU_matrix_stack * ms, int initsize)
+static void ms_init(GPU_matrix_stack * ms, GLint initsize)
 {
 	if(initsize == 0)
 		initsize = 32;
@@ -88,8 +95,8 @@ static void ms_free(GPU_matrix_stack * ms)
 }
 
 
-static int glstackpos[3] = {0};
-static int glstackmode;
+static GLint glstackpos[3] = {0};
+static GLint glstackmode;
 
 void GPU_ms_init(void)
 {
@@ -126,17 +133,17 @@ void gpuMatrixLock(void)
 	glGetIntegerv(GL_TEXTURE_STACK_DEPTH, glstackpos+2);
 	glGetIntegerv(GL_MATRIX_MODE, &glstackmode);
 
-	glGetFloatv(GL_MODELVIEW_MATRIX, (float*)tm);
-	gpuMatrixMode(GPU_MODELVIEW);
-	gpuLoadMatrix((float*)tm);
+	glGetFloatv(GL_MODELVIEW_MATRIX, (GLfloat*)tm);
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuLoadMatrix((GLfloat*)tm);
 
-	glGetFloatv(GL_PROJECTION_MATRIX, (float*)tm);
-	gpuMatrixMode(GPU_PROJECTION);
-	gpuLoadMatrix((float*)tm);
+	glGetFloatv(GL_PROJECTION_MATRIX, (GLfloat*)tm);
+	gpuMatrixMode(GL_PROJECTION);
+	gpuLoadMatrix((GLfloat*)tm);
 
-	glGetFloatv(GL_TEXTURE_MATRIX, (float*)tm);
-	gpuMatrixMode(GPU_TEXTURE);
-	gpuLoadMatrix((float*)tm);
+	glGetFloatv(GL_TEXTURE_MATRIX, (GLfloat*)tm);
+	gpuMatrixMode(GL_TEXTURE);
+	gpuLoadMatrix((GLfloat*)tm);
 
 
 
@@ -152,13 +159,13 @@ void gpuMatrixLock(void)
 	switch(glstackmode)
 	{
 		case GL_MODELVIEW:
-			gpuMatrixMode(GPU_MODELVIEW);
+			gpuMatrixMode(GL_MODELVIEW);
 			break;
 		case GL_TEXTURE:
-			gpuMatrixMode(GPU_TEXTURE);
+			gpuMatrixMode(GL_TEXTURE);
 			break;
 		case GL_PROJECTION:
-			gpuMatrixMode(GPU_PROJECTION);
+			gpuMatrixMode(GL_PROJECTION);
 			break;
 
 	}
@@ -173,7 +180,7 @@ void gpuMatrixUnlock(void)
 {
 
 #ifndef GLES
-	int curval;
+	GLint curval;
 
 
 	glMatrixMode(GL_TEXTURE);
@@ -207,19 +214,19 @@ void gpuMatrixCommit(void)
 	{
 		ms_modelview.changed = 0;
 		glMatrixMode(GL_MODELVIEW);
-		glLoadMatrixf((float*)ms_modelview.dynstack[ms_modelview.pos]);
+		glLoadMatrixf((GLfloat*)ms_modelview.dynstack[ms_modelview.pos]);
 	}
 	if(ms_projection.changed)
 	{
 		ms_projection.changed = 0;
 		glMatrixMode(GL_PROJECTION);
-		glLoadMatrixf((float*)ms_projection.dynstack[ms_projection.pos]);
+		glLoadMatrixf((GLfloat*)ms_projection.dynstack[ms_projection.pos]);
 	}
 	if(ms_texture.changed)
 	{
 		ms_texture.changed = 0;
 		glMatrixMode(GL_TEXTURE);
-		glLoadMatrixf((float*)ms_texture.dynstack[ms_texture.pos]);
+		glLoadMatrixf((GLfloat*)ms_texture.dynstack[ms_texture.pos]);
 	}
 
 #else
@@ -229,7 +236,7 @@ if(curglslesi)
 	if(ms_modelview.changed || glslneedupdate)
 	{
 	
-		float t[3][3] = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
+		GLfloat t[3][3] = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
 		copy_m3_m4(t, ms_modelview.dynstack[ms_modelview.pos]); 
 		if(curglslesi->viewmatloc!=-1)
 			glUniformMatrix4fv(curglslesi->viewmatloc, 1, 0, ms_modelview.dynstack[ms_modelview.pos]);
@@ -270,7 +277,7 @@ void gpuPushMatrix(void)
 	
 	}
 
-	gpuLoadMatrix((float*)ms_current->dynstack[ms_current->pos-1]);
+	gpuLoadMatrix((GLfloat*)ms_current->dynstack[ms_current->pos-1]);
 	CHECKMAT
 
 }
@@ -285,7 +292,7 @@ void gpuPopMatrix(void)
 	ms_current->changed = 1;
 
 
-#ifdef GLU_STACK_DEBUG
+#ifdef GPU_STACK_DEBUG
 	if(ms_current->pos < 0)
 		assert(0);
 #endif	
@@ -293,45 +300,43 @@ void gpuPopMatrix(void)
 }
 
 
-void gpuMatrixMode(int mode)
+void gpuMatrixMode(GLenum mode)
 {
+	GPU_ASSERT(ELEM3(mode, GL_MODELVIEW, GL_PROJECTION, GL_TEXTURE));
 
 	switch(mode)
 	{
-		case GPU_MODELVIEW:
+		case GL_MODELVIEW:
 			ms_current = &ms_modelview;
 			break;
-		case GPU_PROJECTION:
+		case GL_PROJECTION:
 			ms_current = &ms_projection;
 			break;
-		case GPU_TEXTURE:
+		case GL_TEXTURE:
 			ms_current = & ms_texture;
 			break;
-	#if 1
 		default:
-			assert(0);
-	
-	#endif
-	
+			/* ignore */
+			break;
 	}
 
 CHECKMAT
 }
 
 
-void gpuLoadMatrix(const float * m)
+void gpuLoadMatrix(const GLfloat * m)
 {
-	copy_m4_m4((float (*)[4])CURMATRIX, (float (*)[4])m);
+	copy_m4_m4((GLfloat (*)[4])CURMATRIX, (GLfloat (*)[4])m);
 	ms_current->changed = 1;
 	CHECKMAT
 }
 
-float * gpuGetMatrix(float * m)
+GLfloat * gpuGetMatrix(GLfloat * m)
 {
 	if(m)
-		copy_m4_m4((float (*)[4])m,CURMATRIX);
+		copy_m4_m4((GLfloat (*)[4])m,CURMATRIX);
 	else
-		return (float*)(CURMATRIX);
+		return (GLfloat*)(CURMATRIX);
 	ms_current->changed = 1;
 	return 0;
 }
@@ -347,7 +352,7 @@ void gpuLoadIdentity(void)
 
 
 
-void gpuTranslate(float x, float y, float z)
+void gpuTranslate(GLfloat x, GLfloat y, GLfloat z)
 {
 
 	translate_m4(CURMATRIX, x, y, z);
@@ -356,7 +361,7 @@ void gpuTranslate(float x, float y, float z)
 
 }
 
-void gpuScale(float x, float y, float z)
+void gpuScale(GLfloat x, GLfloat y, GLfloat z)
 {
 
 	scale_m4(CURMATRIX, x, y, z);
@@ -365,13 +370,13 @@ void gpuScale(float x, float y, float z)
 }
 
 
-void gpuMultMatrix(const float *m)
+void gpuMultMatrix(const GLfloat *m)
 {
 	GPU_matrix cm;
 
-	copy_m4_m4((float (*)[4])cm, (float (*)[4])CURMATRIX);
+	copy_m4_m4((GLfloat (*)[4])cm, (GLfloat (*)[4])CURMATRIX);
 
-	mult_m4_m4m4_q(CURMATRIX, cm, (float (*)[4])m);
+	mult_m4_m4m4_q(CURMATRIX, cm, (GLfloat (*)[4])m);
 	ms_current->changed = 1;
 	CHECKMAT
 
@@ -380,8 +385,8 @@ void gpuMultMatrix(const float *m)
 
 void gpuMultMatrixd(const double *m)
 {
-	float mf[16];
-	int i;
+	GLfloat mf[16];
+	GLint i;
 	for(i=0; i<16; i++)
 		mf[i] = m[i];
 	gpuMultMatrix(mf);
@@ -389,14 +394,14 @@ void gpuMultMatrixd(const double *m)
 }
 
 
-void gpuRotateAxis(float angle, char axis)
+void gpuRotateAxis(GLfloat angle, char axis)
 {
 
-	rotate_m4((float (*)[4])CURMATRIX, axis, angle*M_PI/180.0f);
+	rotate_m4((GLfloat (*)[4])CURMATRIX, axis, angle*M_PI/180.0f);
 	ms_current->changed = 1;
 }
 
-void gpuLoadOrtho(float left, float right, float bottom, float top, float nearVal, float farVal)
+void gpuLoadOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat nearVal, GLfloat farVal)
 {
 	mat4_ortho_set(CURMATRIX, left, right, bottom, top, nearVal, farVal);
 	ms_current->changed = 1;
@@ -404,26 +409,26 @@ void gpuLoadOrtho(float left, float right, float bottom, float top, float nearVa
 }
 
 
-void gpuOrtho(float left, float right, float bottom, float top, float nearVal, float farVal)
+void gpuOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat nearVal, GLfloat farVal)
 {
 	GPU_matrix om;
 
 	mat4_ortho_set(om, left, right, bottom, top, nearVal, farVal);
 
-	gpuMultMatrix((float*)om);
+	gpuMultMatrix((GLfloat*)om);
 	CHECKMAT
 }
 
 
-void gpuFrustum(float left, float right, float bottom, float top, float nearVal, float farVal)
+void gpuFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat nearVal, GLfloat farVal)
 {
 	GPU_matrix fm;
 	mat4_frustum_set(fm, left, right, bottom, top, nearVal, farVal);
-	gpuMultMatrix((float*) fm);
+	gpuMultMatrix((GLfloat*) fm);
 	CHECKMAT
 }
 
-void gpuLoadFrustum(float left, float right, float bottom, float top, float nearVal, float farVal)
+void gpuLoadFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat nearVal, GLfloat farVal)
 {
 	mat4_frustum_set(CURMATRIX, left, right, bottom, top, nearVal, farVal);
 	ms_current->changed = 1;
@@ -431,12 +436,12 @@ void gpuLoadFrustum(float left, float right, float bottom, float top, float near
 }
 
 
-void gpuLookAt(float eyeX, float eyeY, float eyeZ, float centerX, float centerY, float centerZ, float upX, float upY, float upZ)
+void gpuLookAt(GLfloat eyeX, GLfloat eyeY, GLfloat eyeZ, GLfloat centerX, GLfloat centerY, GLfloat centerZ, GLfloat upX, GLfloat upY, GLfloat upZ)
 {
 
 	GPU_matrix cm;
-	float lookdir[3];
-	float camup[3] = {upX, upY, upZ};
+	GLfloat lookdir[3];
+	GLfloat camup[3] = {upX, upY, upZ};
 
 	lookdir[0] =  centerX - eyeX;
 	lookdir[1] =  centerY - eyeY;
@@ -444,7 +449,7 @@ void gpuLookAt(float eyeX, float eyeY, float eyeZ, float centerX, float centerY,
 
 	mat4_look_from_origin(cm, lookdir, camup);
 
-	gpuMultMatrix((float*) cm);
+	gpuMultMatrix((GLfloat*) cm);
 
 	gpuTranslate(-eyeX, -eyeY, -eyeZ);
 	CHECKMAT

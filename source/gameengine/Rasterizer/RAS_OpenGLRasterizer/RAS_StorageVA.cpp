@@ -258,16 +258,16 @@ glFrontFace(GL_CCW);
 glDepthMask( true );
 		glUseProgram (programObject );
 
-		gpuMatrixMode(GPU_MODELVIEW);
+		gpuMatrixMode(GL_MODELVIEW);
 		gpuGetMatrix(mat);
 		posmat = glGetUniformLocation(programObject, "bModelViewMatrix");
 		glUniformMatrix4fv(posmat,1,0,mat);
 
-		gpuMatrixMode(GPU_PROJECTION);
+		gpuMatrixMode(GL_PROJECTION);
 		gpuGetMatrix(mat);
 		posmat = glGetUniformLocation(programObject, "bProjectionMatrix");
 		glUniformMatrix4fv(posmat,1,0,mat);
-		gpuMatrixMode(GPU_MODELVIEW);
+		gpuMatrixMode(GL_MODELVIEW);
 		int infoLen;
 		glGetProgramiv ( programObject, GL_ACTIVE_UNIFORMS, &infoLen );
 
