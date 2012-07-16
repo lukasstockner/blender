@@ -512,7 +512,7 @@ static void GetUVs(BL_Material *material, MTF_localLayer *layers, MFace *mface, 
 	{
 		BL_Mapping &map = material->mapping[vind];
 
-		if (map.mapping != BL_MappingFlag::USEUV) continue;
+		if (map.mapping != USEUV) continue;
 
 		//If no UVSet is specified, try grabbing one from the UV/Image editor
 		if (map.uvCoName.IsEmpty() && tface)
