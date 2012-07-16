@@ -26,7 +26,10 @@
 #include "GPU_draw.h"
 #include "GPU_matrix.h"
 
+
 #include "STR_HashedString.h"
+
+#include "GPU_extensions.h"
 
 // ------------------------------------
 #include "DNA_object_types.h"
@@ -245,7 +248,7 @@ void KX_BlenderMaterial::OnExit()
 
 void KX_BlenderMaterial::setShaderData( bool enable, RAS_IRasterizer *ras)
 {
-	MT_assert(GLEW_ARB_shader_objects && mShader);
+	MT_assert(GPU_EXT_GLSL_ENABLED && mShader);
 
 	int i;
 	if ( !enable || !mShader->Ok() ) {
@@ -520,7 +523,7 @@ KX_BlenderMaterial::Activate(
 	TCachingInfo& cachingInfo
 	)const
 {
-	if (GLEW_ARB_shader_objects && (mShader && mShader->Ok())) {
+	if (GPU_EXT_GLSL_ENABLED && (mShader && mShader->Ok())) {
 		if ((mPass++) < mShader->getNumPass() ) {
 			ActivatShaders(rasty, cachingInfo);
 			return true;
@@ -534,7 +537,7 @@ KX_BlenderMaterial::Activate(
 			return false;
 		}
 	}
-	else if ( GLEW_ARB_shader_objects && (mBlenderShader && mBlenderShader->Ok() ) ) {
+	else if ( GPU_EXT_GLSL_ENABLED && (mBlenderShader && mBlenderShader->Ok() ) ) {
 		if (mPass++ == 0) {
 			ActivateBlenderShaders(rasty, cachingInfo);
 			return true;
@@ -571,10 +574,10 @@ bool KX_BlenderMaterial::UsesLighting(RAS_IRasterizer *rasty) const
 
 void KX_BlenderMaterial::ActivateMeshSlot(const RAS_MeshSlot & ms, RAS_IRasterizer* rasty) const
 {
-	if (mShader && GLEW_ARB_shader_objects) {
+	if (mShader && GPU_EXT_GLSL_ENABLED) {
 		mShader->Update(ms, rasty);
 	}
-	else if (mBlenderShader && GLEW_ARB_shader_objects) {
+	else if (mBlenderShader && GPU_EXT_GLSL_ENABLED) {
 		int alphablend;
 
 		mBlenderShader->Update(ms, rasty);
@@ -625,7 +628,7 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 {
 	if (ras->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED) {
 		ras->SetAttribNum(0);
-		if (mShader && GLEW_ARB_shader_objects) {
+		if (mShader && GPU_EXT_GLSL_ENABLED) {
 			if (mShader->GetAttribute() == BL_Shader::SHD_TANGENT) {
 				ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_DISABLE, 0);
 				ras->SetAttrib(RAS_IRasterizer::RAS_TEXTANGENT, 1);
@@ -864,7 +867,7 @@ int KX_BlenderMaterial::pyattr_set_blending(void *self_v, const KX_PYATTRIBUTE_D
 
 KX_PYMETHODDEF_DOC( KX_BlenderMaterial, getShader , "getShader()")
 {
-	if ( !GLEW_ARB_fragment_shader) {
+	if ( !GPU_EXT_GLSL_FRAGMENT_ENABLED) {
 		if (!mModified)
 			spit("Fragment shaders not supported");
 	
@@ -872,7 +875,7 @@ KX_PYMETHODDEF_DOC( KX_BlenderMaterial, getShader , "getShader()")
 		Py_RETURN_NONE;
 	}
 
-	if ( !GLEW_ARB_vertex_shader) {
+	if ( !GPU_EXT_GLSL_VERTEX_ENABLED) {
 		if (!mModified)
 			spit("Vertex shaders not supported");
 
@@ -880,7 +883,7 @@ KX_PYMETHODDEF_DOC( KX_BlenderMaterial, getShader , "getShader()")
 		Py_RETURN_NONE;
 	}
 
-	if (!GLEW_ARB_shader_objects)  {
+	if (!GPU_EXT_GLSL_ENABLED)  {
 		if (!mModified)
 			spit("GLSL not supported");
 		mModified = true;

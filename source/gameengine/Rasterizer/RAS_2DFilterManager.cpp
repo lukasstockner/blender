@@ -48,6 +48,7 @@
 
 #include "Value.h"
 
+#include "GPU_extensions.h"
 #include "GPU_compatibility.h"
 
 RAS_2DFilterManager::RAS_2DFilterManager():
@@ -55,8 +56,8 @@ texturewidth(-1), textureheight(-1),
 canvaswidth(-1), canvasheight(-1),
 /* numberoffilters(0), */ /* UNUSED */ need_tex_update(true)
 {
-	isshadersupported = GLEW_ARB_shader_objects &&
-		GLEW_ARB_fragment_shader && GLEW_ARB_multitexture;
+	isshadersupported = GPU_EXT_GLSL_ENABLED &&
+		GPU_EXT_GLSL_FRAGMENT_ENABLED && GLEW_ARB_multitexture;
 
 	/* used to return before 2.49 but need to initialize values so don't */
 	if (!isshadersupported)
