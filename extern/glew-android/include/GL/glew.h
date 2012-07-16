@@ -81,10 +81,10 @@
 #define __GLEW_H__
 
 #if defined(__gl_h_) || defined(__GL_H__) || defined(__X_GL_H)
-#error gl.h included before glew.h
+//#error gl.h included before glew.h
 #endif
 #if defined(__glext_h_) || defined(__GLEXT_H_)
-#error glext.h included before glew.h
+//#error glext.h included before glew.h
 #endif
 #if defined(__gl_ATI_h_)
 #error glATI.h included before glew.h
@@ -822,7 +822,6 @@ typedef char GLchar;
 #define GL_CLIENT_ALL_ATTRIB_BITS 0xffffffff
 
 #include "GL/fakegl.h"
-
 GLAPI void GLAPIENTRY glAccum (GLenum op, GLfloat value);
 GLAPI void GLAPIENTRY glAlphaFunc (GLenum func, GLclampf ref);
 GLAPI GLboolean GLAPIENTRY glAreTexturesResident (GLsizei n, const GLuint *textures, GLboolean *residences);
@@ -1648,8 +1647,9 @@ typedef void (GLAPIENTRY * PFNGLWINDOWPOS3SVPROC) (const GLshort *p);
 #define GL_DYNAMIC_COPY 0x88EA
 #define GL_SAMPLES_PASSED 0x8914
 
-typedef ptrdiff_t GLintptr;
-typedef ptrdiff_t GLsizeiptr;
+
+typedef signed   long  int GLintptr;
+typedef signed   long  int  GLsizeiptr;
 
 typedef void (GLAPIENTRY * PFNGLBEGINQUERYPROC) (GLenum target, GLuint id);
 typedef void (GLAPIENTRY * PFNGLBINDBUFFERPROC) (GLenum target, GLuint buffer);
@@ -16131,10 +16131,7 @@ GLEWAPI const GLubyte* glewGetString (GLenum name);
 
 #undef GLAPI
 /* #undef GLEWAPI */
-
-#include "GL/realgl.h"
 #include "GL/fakegl.h"
-#include "GL/gl.h"
 
 #endif /* __glew_h__ */
-//#include "GL/realgl.h"
+#include "GL/fakegl.h"

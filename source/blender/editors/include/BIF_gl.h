@@ -35,7 +35,7 @@
 
 #include <GL/glew.h>
 
-#ifdef WITH_ANDROID
+#ifdef GLES
 #define glMultMatrixf(x)  fake_glMultMatrixf( (float *)(x))
 #define glLoadMatrixf(x)  fake_glLoadMatrixf( (float *)(x))
 #else
