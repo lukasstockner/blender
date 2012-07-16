@@ -34,6 +34,8 @@
 #include <iostream>
 #include <math.h>
 
+#include <stdlib.h>
+
 #ifdef __linux__
 #ifdef __alpha__
 #include <signal.h>
@@ -318,7 +320,7 @@ static BlendFileData *load_game_data(const char *progname, char *filename = NULL
 			bfd->type= BLENFILETYPE_RUNTIME;
 			BLI_strncpy(bfd->main->name, progname, sizeof(bfd->main->name));
 		}
-	} else {
+	} else {	
 		bfd= BLO_read_from_file(progname, &reports);
 	}
 	
@@ -1012,9 +1014,10 @@ int main(int argc, char** argv)
 						// Enter main loop
 						bool run = true;
                         char *python_main = NULL;
+#ifdef WITH_PYTHON
 						pynextframestate.state = NULL;
 						pynextframestate.func = NULL;
-#ifdef WITH_PYTHON
+
 						python_main = KX_GetPythonMain(scene);
 #endif // WITH_PYTHON
 						if (python_main) 
