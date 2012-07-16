@@ -100,6 +100,8 @@ extern "C"
 #include "GHOST_Rect.h"
 
 #include "GPU_matrix.h"
+#include "GPU_object.h"
+#include "GPU_functions.h"
 
 static void frameTimerProc(GHOST_ITimerTask* task, GHOST_TUns64 time);
 
@@ -537,6 +539,8 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 	{
 		GPU_extensions_init();
 		GPU_ms_init();
+		GPU_init_object_func();
+		
 		bgl::InitExtensions(true);
 
 		// get and set the preferences

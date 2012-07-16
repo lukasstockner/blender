@@ -29,10 +29,16 @@
 #include <GLES2/gl2.h>
 #endif
 
+#include "GPU_extensions.h"
+
 #include "GPU_matrix.h"
 #include "RAS_StorageVA.h"
 
 #include "GPU_compatibility.h"
+
+#include "GPU_material.h"
+#include "GPU_object.h"
+#include "GPU_functions.h"
 
 RAS_StorageVA::RAS_StorageVA(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib) :
 	m_texco_num(texco_num),
@@ -413,8 +419,13 @@ void RAS_StorageVA::IndexPrimitivesMulti(class RAS_MeshSlot& ms)
 			gpuCurrentColor3x(CPACK_BLACK);
 		}
 
-		glVertexPointer(3, GL_FLOAT, stride, it.vertex->getXYZ());
-		glNormalPointer(GL_FLOAT, stride, it.vertex->getNormal());
+
+		gpuMatrixCommit();
+
+
+		gpugameobj.gpuVertexPointer(3, GL_FLOAT, stride, it.vertex->getXYZ());
+		gpugameobj.gpuNormalPointer(GL_FLOAT, stride, it.vertex->getNormal());
+
 		if (!wireframe) {
 			TexCoordPtr(it.vertex);
 			if (glIsEnabled(GL_COLOR_ARRAY))
@@ -422,7 +433,10 @@ void RAS_StorageVA::IndexPrimitivesMulti(class RAS_MeshSlot& ms)
 		}
 
 		// here the actual drawing takes places
+#include REAL_GL_MODE
+		// here the actual drawing takes places
 		glDrawElements(drawmode, it.totindex, GL_UNSIGNED_SHORT, it.index);
+#include FAKE_GL_MODE
 	}
 	
 	glDisableClientState(GL_VERTEX_ARRAY);
@@ -468,31 +482,31 @@ void RAS_StorageVA::TexCoordPtr(const RAS_TexVert *tv)
 		glClientActiveTextureARB(GL_TEXTURE0_ARB);
 	}
 
-	if (GLEW_ARB_vertex_program) {
+	if (GPU_EXT_GLSL_VERTEX_ENABLED) {
 		int uv = 0;
 		for (unit = 0; unit < *m_attrib_num; unit++) {
 			switch (m_attrib[unit]) {
 				case RAS_IRasterizer::RAS_TEXCO_ORCO:
 				case RAS_IRasterizer::RAS_TEXCO_GLOB:
-					glVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getXYZ());
+					gpuVertexAttribPointer(unit, 3, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getXYZ());
 					break;
 				case RAS_IRasterizer::RAS_TEXCO_UV:
-					glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getUV(uv++));
+					gpuVertexAttribPointer(unit, 2, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getUV(uv++));
 					break;
 				case RAS_IRasterizer::RAS_TEXCO_NORM:
-					glVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getNormal());
+					gpuVertexAttribPointer(unit, 3, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getNormal());
 					break;
 				case RAS_IRasterizer::RAS_TEXTANGENT:
-					glVertexAttribPointerARB(unit, 4, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getTangent());
+					gpuVertexAttribPointer(unit, 4, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getTangent());
 					break;
 				case RAS_IRasterizer::RAS_TEXCO_VCOL:
-					glVertexAttribPointerARB(unit, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(RAS_TexVert), tv->getRGBA());
+					gpuVertexAttribPointer(unit, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(RAS_TexVert), tv->getRGBA());
 					break;
 				default:
 					break;
 			}
 		}
-	}
+	}	
 }
 
 void RAS_StorageVA::EnableTextures(bool enable)
@@ -549,7 +563,7 @@ void RAS_StorageVA::EnableTextures(bool enable)
 		}
 	}
 
-	if (GLEW_ARB_vertex_program) {
+	if (GPU_EXT_GLSL_VERTEX_ENABLED) {
 		for (unit = 0; unit < attrib_num; unit++) {
 			switch (attrib[unit]) {
 				case RAS_IRasterizer::RAS_TEXCO_ORCO:
@@ -558,11 +572,11 @@ void RAS_StorageVA::EnableTextures(bool enable)
 				case RAS_IRasterizer::RAS_TEXCO_NORM:
 				case RAS_IRasterizer::RAS_TEXTANGENT:
 				case RAS_IRasterizer::RAS_TEXCO_VCOL:
-					if (enable) glEnableVertexAttribArrayARB(unit);
-					else glDisableVertexAttribArrayARB(unit);
+					if (enable) gpuEnableVertexAttribArray(unit);
+					else gpuDisableVertexAttribArray(unit);
 					break;
 				default:
-					glDisableVertexAttribArrayARB(unit);
+					gpuDisableVertexAttribArray(unit);
 					break;
 			}
 		}

@@ -108,6 +108,8 @@
 #include "GPU_draw.h"
 #include "GPU_compatibility.h"
 #include "GPU_matrix.h"
+#include "GPU_object.h"
+#include "GPU_functions.h"
 
 #include "BKE_depsgraph.h"
 #include "BKE_sound.h"
@@ -186,6 +188,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 		GPU_set_gpu_mipmapping(U.use_gpu_mipmap);
 
 		GPU_ms_init();
+		GPU_init_object_func();
 
 		immediate = gpuNewImmediate();
 		gpuImmediateMakeCurrent(immediate);

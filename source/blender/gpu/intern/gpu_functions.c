@@ -103,6 +103,11 @@ static void init_glsl_arb(void)
 	gpuGetAttribLocation  = glGetAttribLocationARB;
 	gpuBindAttribLocation = (void (GLAPIENTRY*)(GLuint,GLuint,const GLchar*))glBindAttribLocationARB;
 	gpuGetUniformLocation = glGetUniformLocationARB;
+	
+	gpuVertexAttribPointer = glVertexAttribPointerARB;
+	
+	gpuEnableVertexAttribArray = glEnableVertexAttribArrayARB;
+	gpuDisableVertexAttribArray = glDisableVertexAttribArrayARB;
 
 	gpuUseProgram    = glUseProgramObjectARB;
 	gpuDeleteShader  = glDeleteObjectARB;
@@ -159,6 +164,11 @@ static void init_glsl_standard(void)
 	gpuGetAttribLocation  = glGetAttribLocation;
 	gpuBindAttribLocation = glBindAttribLocation;
 	gpuGetUniformLocation = glGetUniformLocation;
+	
+	gpuVertexAttribPointer = glVertexAttribPointer;
+
+	gpuEnableVertexAttribArray = glEnableVertexAttribArray;
+	gpuDisableVertexAttribArray = glDisableVertexAttribArray;
 
 	gpuUseProgram    = glUseProgram;
 	gpuDeleteShader  = glDeleteShader;

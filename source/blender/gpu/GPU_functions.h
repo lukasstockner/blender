@@ -227,6 +227,10 @@ GPUFUNC GLint (GLAPIENTRY* gpuGetAttribLocation)(GLuint program, const GLchar *n
 GPUFUNC void (GLAPIENTRY* gpuBindAttribLocation)(GLuint program, GLuint index, const GLchar * name);
 GPUFUNC GLint (GLAPIENTRY* gpuGetUniformLocation)(GLuint program, const GLchar * name);
 
+GPUFUNC void (GLAPIENTRY* gpuVertexAttribPointer)(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid *  pointer);
+
+GPUFUNC void (GLAPIENTRY* gpuEnableVertexAttribArray)(GLuint index);
+GPUFUNC void (GLAPIENTRY* gpuDisableVertexAttribArray)(GLuint index);
 
 GPUFUNC void (GLAPIENTRY* gpuUseProgram)(GLuint program);
 GPUFUNC void (GLAPIENTRY* gpuDeleteShader)(GLuint shader);
