@@ -92,8 +92,9 @@ public:
 
 	/* python */
 	virtual sensortype GetSensorType() { return ST_RADAR; }
-
+#ifdef WITH_PYTHON
 	static PyObject*	pyattr_get_angle(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+#endif
 };
 
 #endif //__KX_RADARSENSOR_H__

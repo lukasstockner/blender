@@ -149,6 +149,8 @@ extern "C" {
 
 #include "NG_NetworkScene.h" //Needed for sendMessage()
 
+#include "GPU_extensions.h"
+
 // 'local' copy of canvas ptr, for window height/width python scripts
 
 #ifdef WITH_PYTHON
@@ -602,10 +604,10 @@ static PyObject *pyPrintExt(PyObject *,PyObject *,PyObject *)
 	bool count=0;
 	bool support=0;
 	pprint("Supported Extensions...");
-	pprint(" GL_ARB_shader_objects supported?       "<< (GLEW_ARB_shader_objects?"yes.":"no."));
+	pprint(" GL_ARB_shader_objects supported?       "<< (GPU_EXT_GLSL_ENABLED?"yes.":"no."));
 	count = 1;
 
-	support= GLEW_ARB_vertex_shader;
+	support= GPU_EXT_GLSL_VERTEX_ENABLED;
 	pprint(" GL_ARB_vertex_shader supported?        "<< (support?"yes.":"no."));
 	count = 1;
 	if (support) {
@@ -625,7 +627,7 @@ static PyObject *pyPrintExt(PyObject *,PyObject *,PyObject *)
 		pprint("");
 	}
 
-	support=GLEW_ARB_fragment_shader;
+	support=GPU_EXT_GLSL_FRAGMENT_ENABLED;
 	pprint(" GL_ARB_fragment_shader supported?      "<< (support?"yes.":"no."));
 	count = 1;
 	if (support) {
@@ -1843,16 +1845,21 @@ static void restorePySysObjects(void)
 //	PyObject_Print(sys_path, stderr, 0);
 }
 
+#endif
 void addImportMain(struct Main *maggie)
 {
+#ifdef WITH_PYTHON
 	bpy_import_main_extra_add(maggie);
+#endif
 }
 
 void removeImportMain(struct Main *maggie)
 {
+#ifdef WITH_PYTHON
 	bpy_import_main_extra_remove(maggie);
+#endif
 }
-
+#ifdef WITH_PYTHON
 // Copied from bpy_interface.c
 static struct _inittab bge_internal_modules[]= {
 	{(char *)"mathutils", PyInit_mathutils},
