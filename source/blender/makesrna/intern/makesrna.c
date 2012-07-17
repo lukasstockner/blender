@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -956,6 +957,54 @@ static char *rna_def_property_set_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 	return func;
 }
 
+static char *rna_def_property_clear_func(FILE *f, StructRNA *srna, PropertyRNA *prop, PropertyDefRNA *dp,
+                                       const char *manualfunc)
+{
+	char *func;
+
+	if (!(prop->flag & PROP_EDITABLE))
+		return NULL;
+	if (prop->flag & PROP_IDPROPERTY && manualfunc == NULL)
+		return NULL;
+
+	if (!manualfunc) {
+		if (!dp->dnastructname || !dp->dnaname) {
+			/*if (prop->flag & PROP_EDITABLE) {
+				fprintf(stderr, "%s: %s.%s has no valid dna info.\n",
+				        __func__, srna->identifier, prop->identifier);
+				DefRNA.error = 1;
+			}*/
+			return NULL;
+		}
+	}
+
+	// This function is only for clearing boolean bit fields
+	if (prop->type != PROP_BOOLEAN)
+		return NULL;
+
+	if (prop->arraydimension)
+		return NULL;
+
+	if (!dp->booleanbit)
+		return NULL;
+
+	func = rna_alloc_function_name(srna->identifier, rna_safe_id(prop->identifier), "clear");
+
+	fprintf(f, "void %s(PointerRNA *ptr)\n", func);
+	fprintf(f, "{\n");
+
+	if (manualfunc) {
+		fprintf(f, "	%s(ptr);\n", manualfunc);
+	}
+	else {
+		rna_print_data_get(f, dp);
+		fprintf(f, "	data->%s = 0;\n", dp->dnaname);
+	}
+	fprintf(f, "}\n\n");
+
+	return func;
+}
+
 static char *rna_def_property_length_func(FILE *f, StructRNA *srna, PropertyRNA *prop, PropertyDefRNA *dp,
                                           const char *manualfunc)
 {
@@ -1284,6 +1333,7 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
 
 				bprop->get = (void *)rna_def_property_get_func(f, srna, prop, dp, (const char *)bprop->get);
 				bprop->set = (void *)rna_def_property_set_func(f, srna, prop, dp, (const char *)bprop->set);
+				bprop->clear = (void *)rna_def_property_clear_func(f, srna, prop, dp, (const char *)bprop->clear);
 			}
 			else {
 				bprop->getarray = (void *)rna_def_property_get_func(f, srna, prop, dp, (const char *)bprop->getarray);
@@ -2382,9 +2432,10 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
 	switch (prop->type) {
 		case PROP_BOOLEAN: {
 			BoolPropertyRNA *bprop = (BoolPropertyRNA *)prop;
-			fprintf(f, "\t%s, %s, %s, %s, %d, ",
+			fprintf(f, "\t%s, %s, %s, %s, %s, %d, ",
 			        rna_function_string(bprop->get),
 			        rna_function_string(bprop->set),
+			        rna_function_string(bprop->clear),
 			        rna_function_string(bprop->getarray),
 			        rna_function_string(bprop->setarray),
 			        bprop->defaultvalue);
@@ -2741,10 +2792,14 @@ static void rna_generate(BlenderRNA *brna, FILE *f, const char *filename, const 
 		}
 	}
 
+	fprintf(f, "/* Property Functions */\n\n");
+
 	for (ds = DefRNA.structs.first; ds; ds = ds->cont.next)
 		if (!filename || ds->filename == filename)
 			for (dp = ds->cont.properties.first; dp; dp = dp->next)
 				rna_def_property_funcs(f, ds->srna, dp);
+
+	fprintf(f, "/* Function Functions */\n\n");
 
 	for (ds = DefRNA.structs.first; ds; ds = ds->cont.next) {
 		if (!filename || ds->filename == filename) {
@@ -2754,6 +2809,8 @@ static void rna_generate(BlenderRNA *brna, FILE *f, const char *filename, const 
 			rna_generate_static_function_prototypes(brna, ds->srna, f);
 		}
 	}
+
+	fprintf(f, "/* Structs */\n\n");
 
 	for (ds = DefRNA.structs.first; ds; ds = ds->cont.next)
 		if (!filename || ds->filename == filename)

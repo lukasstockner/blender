@@ -657,7 +657,7 @@ static void rna_def_action_actuator(BlenderRNA *brna)
 	/* booleans */
 	prop = RNA_def_property(srna, "use_additive", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", ACT_IPOADD);
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_ActionActuator_add_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_ActionActuator_add_set", NULL);
 	RNA_def_property_ui_text(prop, "Add",
 	                         "Action is added to the current loc/rot/scale in global or local coordinate according to "
 	                         "Local flag");
@@ -665,7 +665,7 @@ static void rna_def_action_actuator(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "use_force", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", ACT_IPOFORCE);
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_ActionActuator_force_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_ActionActuator_force_set", NULL);
 	RNA_def_property_ui_text(prop, "Force",
 	                         "Apply Action as a global or local force depending on the local option "
 	                         "(dynamic objects only)");
@@ -1289,7 +1289,7 @@ static void rna_def_constraint_actuator(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_material_detect", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", ACT_CONST_MATERIAL);
 	RNA_def_property_ui_text(prop, "M/P", "Detect material instead of property");
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_Actuator_constraint_detect_material_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_Actuator_constraint_detect_material_set", NULL);
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop = RNA_def_property(srna, "use_fh_paralel_axis", PROP_BOOLEAN, PROP_NONE);
@@ -1916,7 +1916,7 @@ static void rna_def_state_actuator(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "mask", 1);
 	RNA_def_property_array(prop, OB_MAX_STATES);
 	RNA_def_property_ui_text(prop, "State", "");
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_StateActuator_state_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_StateActuator_state_set", NULL);
 }
 
 static void rna_def_armature_actuator(BlenderRNA *brna)

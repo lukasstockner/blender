@@ -1478,7 +1478,18 @@ void ui_set_but_val(uiBut *but, double value)
 					if (RNA_property_array_length(&but->rnapoin, prop))
 						RNA_property_boolean_set_index(&but->rnapoin, prop, but->rnaindex, value);
 					else
+					{
+						if (but->flag & UI_CLEAR_BITFIELD)
+						{
+							// I'm not thrilled with this code, but I'm not sure there's a better way to find the state of shift.
+							wmWindow *win = CTX_wm_window((const bContext*)but->block->evil_C);
+							int shift = win->eventstate->shift;
+							if (!shift)
+								RNA_property_boolean_clear(&but->rnapoin, prop);
+						}
+
 						RNA_property_boolean_set(&but->rnapoin, prop, value);
+					}
 					break;
 				case PROP_INT:
 					if (RNA_property_array_length(&but->rnapoin, prop))

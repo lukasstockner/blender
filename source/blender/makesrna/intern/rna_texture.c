@@ -673,7 +673,7 @@ static void rna_def_filter_common(StructRNA *srna)
 	
 	prop = RNA_def_property(srna, "use_mipmap", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "imaflag", TEX_MIPMAP);
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_ImageTexture_mipmap_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_ImageTexture_mipmap_set", NULL);
 	RNA_def_property_ui_text(prop, "MIP Map", "Use auto-generated MIP maps for the image");
 	RNA_def_property_update(prop, 0, "rna_Texture_update");
 	
@@ -1958,7 +1958,7 @@ static void rna_def_texture(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "use_color_ramp", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", TEX_COLORBAND);
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_Texture_use_color_ramp_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_Texture_use_color_ramp_set", NULL);
 	RNA_def_property_ui_text(prop, "Use Color Ramp", "Toggle color ramp operations");
 	RNA_def_property_update(prop, 0, "rna_Texture_update");
 
@@ -2012,7 +2012,7 @@ static void rna_def_texture(BlenderRNA *brna)
 	/* nodetree */
 	prop = RNA_def_property(srna, "use_nodes", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "use_nodes", 1);
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_Texture_use_nodes_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_Texture_use_nodes_set", NULL);
 	RNA_def_property_ui_text(prop, "Use Nodes", "Make this a node-based texture");
 	RNA_def_property_update(prop, 0, "rna_Texture_nodes_update");
 	

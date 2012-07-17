@@ -742,7 +742,7 @@ static void rna_def_material_mtex(BlenderRNA *brna)
 	/* end volume material */
 	
 	prop = RNA_def_property(srna, "use", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_funcs(prop, "rna_MaterialTextureSlot_use_get", "rna_MaterialTextureSlot_use_set");
+	RNA_def_property_boolean_funcs(prop, "rna_MaterialTextureSlot_use_get", "rna_MaterialTextureSlot_use_set", NULL);
 	RNA_def_property_ui_text(prop, "Enabled", "Enable this material texture slot");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 
@@ -862,7 +862,7 @@ static void rna_def_material_colors(StructRNA *srna)
 	/* Color bands */
 	prop = RNA_def_property(srna, "use_diffuse_ramp", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", MA_RAMP_COL);
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_Material_use_diffuse_ramp_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_Material_use_diffuse_ramp_set", NULL);
 	RNA_def_property_ui_text(prop, "Use Diffuse Ramp", "Toggle diffuse ramp operations");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 
@@ -874,7 +874,7 @@ static void rna_def_material_colors(StructRNA *srna)
 
 	prop = RNA_def_property(srna, "use_specular_ramp", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", MA_RAMP_SPEC);
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_Material_use_specular_ramp_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_Material_use_specular_ramp_set", NULL);
 	RNA_def_property_ui_text(prop, "Use Specular Ramp", "Toggle specular ramp operations");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 

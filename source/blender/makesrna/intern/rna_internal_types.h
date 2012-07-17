@@ -71,6 +71,7 @@ typedef char *(*StructPathFunc)(struct PointerRNA *ptr);
 typedef int (*PropArrayLengthGetFunc)(struct PointerRNA *ptr, int length[RNA_MAX_ARRAY_DIMENSION]);
 typedef int (*PropBooleanGetFunc)(struct PointerRNA *ptr);
 typedef void (*PropBooleanSetFunc)(struct PointerRNA *ptr, int value);
+typedef void (*PropBooleanClearFunc)(struct PointerRNA *ptr);
 typedef void (*PropBooleanArrayGetFunc)(struct PointerRNA *ptr, int *values);
 typedef void (*PropBooleanArraySetFunc)(struct PointerRNA *ptr, const int *values);
 typedef int (*PropIntGetFunc)(struct PointerRNA *ptr);
@@ -193,6 +194,7 @@ typedef struct BoolPropertyRNA {
 
 	PropBooleanGetFunc get;
 	PropBooleanSetFunc set;
+	PropBooleanClearFunc clear;
 
 	PropBooleanArrayGetFunc getarray;
 	PropBooleanArraySetFunc setarray;

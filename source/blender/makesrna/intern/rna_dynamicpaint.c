@@ -702,7 +702,7 @@ static void rna_def_canvas_surface(BlenderRNA *brna)
 
 	/* is cache used */
 	prop = RNA_def_property(srna, "is_cache_user", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_funcs(prop, "rna_DynamicPaint_is_cache_user_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_DynamicPaint_is_cache_user_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Use Cache", "");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE | PROP_EDITABLE);
 }

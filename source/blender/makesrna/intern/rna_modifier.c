@@ -939,7 +939,7 @@ static void rna_def_modifier_multires(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "is_external", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_MultiresModifier_external_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_MultiresModifier_external_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "External",
 	                         "Store multires displacements outside the .blend file, to save memory");
 
@@ -1849,7 +1849,7 @@ static void rna_def_modifier_meshdeform(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
 	
 	prop = RNA_def_property(srna, "is_bound", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_funcs(prop, "rna_MeshDeformModifier_is_bound_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_MeshDeformModifier_is_bound_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Bound", "Whether geometry has been bound to control cage");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	
@@ -3053,7 +3053,7 @@ static void rna_def_modifier_ocean(BlenderRNA *brna)
 	
 	/* General check if blender was built with OceanSim modifier support */
 	prop = RNA_def_property(srna, "is_build_enabled", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_funcs(prop, "rna_OceanModifier_is_build_enabled_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_OceanModifier_is_build_enabled_get", NULL, NULL);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Build Enabled", "True if the OceanSim modifier is enabled in this build");
 	

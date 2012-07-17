@@ -1123,7 +1123,10 @@ void uiItemFullR(uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop, int index
 
 		if (toggle && but->type == OPTION)
 			but->type = TOG;
-		
+
+		if (flag & UI_ITEM_R_CLEARFIELD)
+			but->flag |= UI_CLEAR_BITFIELD;
+
 		if (layout->redalert)
 			uiButSetFlag(but, UI_BUT_REDALERT);
 	}

@@ -167,7 +167,7 @@ void RNA_def_property_editable_array_func(PropertyRNA *prop, const char *editabl
 void RNA_def_property_update_runtime(PropertyRNA *prop, void *func);
 
 void RNA_def_property_dynamic_array_funcs(PropertyRNA *prop, const char *getlength);
-void RNA_def_property_boolean_funcs(PropertyRNA *prop, const char *get, const char *set);
+void RNA_def_property_boolean_funcs(PropertyRNA *prop, const char *get, const char *set, const char *clear);
 void RNA_def_property_int_funcs(PropertyRNA *prop, const char *get, const char *set, const char *range);
 void RNA_def_property_float_funcs(PropertyRNA *prop, const char *get, const char *set, const char *range);
 void RNA_def_property_enum_funcs(PropertyRNA *prop, const char *get, const char *set, const char *item);

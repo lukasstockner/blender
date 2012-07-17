@@ -319,7 +319,7 @@ static void rna_def_sensor(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Level",
 	                         "Level detector, trigger controllers of new states "
 	                         "(only applicable upon logic state transition)");
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_Sensor_level_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_Sensor_level_set", NULL);
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop = RNA_def_property(srna, "use_pulse_true_level", PROP_BOOLEAN, PROP_NONE);
@@ -340,7 +340,7 @@ static void rna_def_sensor(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "use_tap", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "tap", 1);
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_Sensor_tap_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_Sensor_tap_set", NULL);
 	RNA_def_property_ui_text(prop, "Tap",
 	                         "Trigger controllers only for an instant, even while the sensor remains true");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);

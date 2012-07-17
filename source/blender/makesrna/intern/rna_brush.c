@@ -467,7 +467,7 @@ static void rna_def_sculpt_capabilities(BlenderRNA *brna)
 	                        PROP_BOOLEAN, PROP_NONE);                   \
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);                   \
 	RNA_def_property_boolean_funcs(prop, "rna_PaintCapabilities_"      \
-	                               #prop_name_ "_get", NULL);           \
+	                               #prop_name_ "_get", NULL, NULL);           \
 	RNA_def_property_ui_text(prop, ui_name_, NULL)
 
 	BRUSH_CAPABILITY(has_accumulate, "Has Accumulate");

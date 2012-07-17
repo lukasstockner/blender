@@ -1216,7 +1216,7 @@ static void rna_def_editor(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "overlay_lock", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "over_flag", SEQ_EDIT_OVERLAY_ABS);
 	RNA_def_property_ui_text(prop, "Overlay Lock", "");
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_SequenceEditor_overlay_lock_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_SequenceEditor_overlay_lock_set", NULL);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, NULL);
 
 	/* access to fixed and relative frame */
@@ -1282,7 +1282,7 @@ static void rna_def_filter_video(StructRNA *srna)
 	prop = RNA_def_property(srna, "use_color_balance", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SEQ_USE_COLOR_BALANCE);
 	RNA_def_property_ui_text(prop, "Use Color Balance", "(3-Way color correction) on input");
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_Sequence_use_color_balance_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_Sequence_use_color_balance_set", NULL);
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_update");
 
 	prop = RNA_def_property(srna, "color_balance", PROP_POINTER, PROP_NONE);
@@ -1292,7 +1292,7 @@ static void rna_def_filter_video(StructRNA *srna)
 	prop = RNA_def_property(srna, "use_translation", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SEQ_USE_TRANSFORM);
 	RNA_def_property_ui_text(prop, "Use Translation", "Translate image before processing");
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_Sequence_use_translation_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_Sequence_use_translation_set", NULL);
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_update");
 
 	prop = RNA_def_property(srna, "transform", PROP_POINTER, PROP_NONE);
@@ -1302,7 +1302,7 @@ static void rna_def_filter_video(StructRNA *srna)
 	prop = RNA_def_property(srna, "use_crop", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SEQ_USE_CROP);
 	RNA_def_property_ui_text(prop, "Use Crop", "Crop image before processing");
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_Sequence_use_crop_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_Sequence_use_crop_set", NULL);
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_update");
 
 	prop = RNA_def_property(srna, "crop", PROP_POINTER, PROP_NONE);
@@ -1317,7 +1317,7 @@ static void rna_def_proxy(StructRNA *srna)
 	prop = RNA_def_property(srna, "use_proxy", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SEQ_USE_PROXY);
 	RNA_def_property_ui_text(prop, "Use Proxy / Timecode", "Use a preview proxy and/or timecode index for this strip");
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_Sequence_use_proxy_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_Sequence_use_proxy_set", NULL);
 
 	prop = RNA_def_property(srna, "proxy", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "strip->proxy");

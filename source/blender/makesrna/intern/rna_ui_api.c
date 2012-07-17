@@ -40,7 +40,7 @@
 
 static void rna_uiItemR(uiLayout *layout, PointerRNA *ptr, const char *propname, const char *name, int icon,
                         int expand, int slider, int toggle, int icon_only, int event, int full_event,
-                        int emboss, int index)
+                        int emboss, int clearfield, int index)
 {
 	PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
 	int flag = 0;
@@ -57,6 +57,7 @@ static void rna_uiItemR(uiLayout *layout, PointerRNA *ptr, const char *propname,
 	flag |= (event) ? UI_ITEM_R_EVENT : 0;
 	flag |= (full_event) ? UI_ITEM_R_FULL_EVENT : 0;
 	flag |= (emboss) ? 0 : UI_ITEM_R_NO_BG;
+	flag |= (clearfield) ? UI_ITEM_R_CLEARFIELD : 0;
 
 	uiItemFullR(layout, ptr, prop, index, 0, flag, name, icon);
 }
@@ -184,6 +185,7 @@ void RNA_api_ui_layout(StructRNA *srna)
 	RNA_def_boolean(func, "event", 0, "", "Use button to input key events");
 	RNA_def_boolean(func, "full_event", 0, "", "Use button to input full events including modifiers");
 	RNA_def_boolean(func, "emboss", 1, "", "Draw the button itself, just the icon/text");
+	RNA_def_boolean(func, "clearfield", 0, "", "Clear the bitfield before setting the value");
 	RNA_def_int(func, "index", -1, -2, INT_MAX, "",
 	            "The index of this button, when set a single member of an array can be accessed, "
 	            "when set to -1 all array members are used", -2, INT_MAX); /* RNA_NO_INDEX == -1 */

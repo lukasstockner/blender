@@ -1058,7 +1058,7 @@ static void rna_def_trackingTrack(BlenderRNA *brna)
 
 	/* select */
 	prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_funcs(prop, "rna_trackingTrack_select_get", "rna_trackingTrack_select_set");
+	RNA_def_property_boolean_funcs(prop, "rna_trackingTrack_select_get", "rna_trackingTrack_select_set", NULL);
 	RNA_def_property_ui_text(prop, "Select", "Track is selected");
 	RNA_def_property_update(prop, NC_MOVIECLIP | ND_DISPLAY, NULL);
 

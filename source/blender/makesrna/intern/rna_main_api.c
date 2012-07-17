@@ -668,7 +668,7 @@ void RNA_def_main_cameras(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_cameras_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_cameras_is_updated_get", NULL, NULL);
 }
 
 void RNA_def_main_scenes(BlenderRNA *brna, PropertyRNA *cprop)
@@ -703,7 +703,7 @@ void RNA_def_main_scenes(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_scenes_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_scenes_is_updated_get", NULL, NULL);
 }
 
 void RNA_def_main_objects(BlenderRNA *brna, PropertyRNA *cprop)
@@ -742,7 +742,7 @@ void RNA_def_main_objects(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_objects_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_objects_is_updated_get", NULL, NULL);
 }
 
 void RNA_def_main_materials(BlenderRNA *brna, PropertyRNA *cprop)
@@ -777,7 +777,7 @@ void RNA_def_main_materials(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_materials_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_materials_is_updated_get", NULL, NULL);
 }
 void RNA_def_main_node_groups(BlenderRNA *brna, PropertyRNA *cprop)
 {
@@ -820,7 +820,7 @@ void RNA_def_main_node_groups(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_node_groups_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_node_groups_is_updated_get", NULL, NULL);
 }
 void RNA_def_main_meshes(BlenderRNA *brna, PropertyRNA *cprop)
 {
@@ -854,7 +854,7 @@ void RNA_def_main_meshes(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_meshes_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_meshes_is_updated_get", NULL, NULL);
 }
 void RNA_def_main_lamps(BlenderRNA *brna, PropertyRNA *cprop)
 {
@@ -890,7 +890,7 @@ void RNA_def_main_lamps(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_lamps_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_lamps_is_updated_get", NULL, NULL);
 }
 
 void RNA_def_main_libraries(BlenderRNA *brna, PropertyRNA *cprop)
@@ -911,7 +911,7 @@ void RNA_def_main_libraries(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_libraries_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_libraries_is_updated_get", NULL, NULL);
 }
 
 void RNA_def_main_screens(BlenderRNA *brna, PropertyRNA *cprop)
@@ -932,7 +932,7 @@ void RNA_def_main_screens(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_screens_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_screens_is_updated_get", NULL, NULL);
 }
 
 void RNA_def_main_window_managers(BlenderRNA *brna, PropertyRNA *cprop)
@@ -953,7 +953,7 @@ void RNA_def_main_window_managers(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_window_managers_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_window_managers_is_updated_get", NULL, NULL);
 }
 void RNA_def_main_images(BlenderRNA *brna, PropertyRNA *cprop)
 {
@@ -1002,7 +1002,7 @@ void RNA_def_main_images(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_images_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_images_is_updated_get", NULL, NULL);
 }
 
 void RNA_def_main_lattices(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1037,7 +1037,7 @@ void RNA_def_main_lattices(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_lattices_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_lattices_is_updated_get", NULL, NULL);
 }
 void RNA_def_main_curves(BlenderRNA *brna, PropertyRNA *cprop)
 {
@@ -1073,7 +1073,7 @@ void RNA_def_main_curves(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_curves_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_curves_is_updated_get", NULL, NULL);
 }
 void RNA_def_main_metaballs(BlenderRNA *brna, PropertyRNA *cprop)
 {
@@ -1107,7 +1107,7 @@ void RNA_def_main_metaballs(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_metaballs_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_metaballs_is_updated_get", NULL, NULL);
 }
 void RNA_def_main_fonts(BlenderRNA *brna, PropertyRNA *cprop)
 {
@@ -1142,7 +1142,7 @@ void RNA_def_main_fonts(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_fonts_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_fonts_is_updated_get", NULL, NULL);
 }
 void RNA_def_main_textures(BlenderRNA *brna, PropertyRNA *cprop)
 {
@@ -1178,7 +1178,7 @@ void RNA_def_main_textures(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_textures_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_textures_is_updated_get", NULL, NULL);
 }
 void RNA_def_main_brushes(BlenderRNA *brna, PropertyRNA *cprop)
 {
@@ -1212,7 +1212,7 @@ void RNA_def_main_brushes(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_brushes_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_brushes_is_updated_get", NULL, NULL);
 }
 
 void RNA_def_main_worlds(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1247,7 +1247,7 @@ void RNA_def_main_worlds(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_worlds_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_worlds_is_updated_get", NULL, NULL);
 }
 
 void RNA_def_main_groups(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1281,7 +1281,7 @@ void RNA_def_main_groups(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_groups_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_groups_is_updated_get", NULL, NULL);
 }
 
 void RNA_def_main_speakers(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1316,7 +1316,7 @@ void RNA_def_main_speakers(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_speakers_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_speakers_is_updated_get", NULL, NULL);
 }
 
 void RNA_def_main_texts(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1360,7 +1360,7 @@ void RNA_def_main_texts(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_texts_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_texts_is_updated_get", NULL, NULL);
 }
 
 void RNA_def_main_sounds(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1383,7 +1383,7 @@ void RNA_def_main_sounds(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_sounds_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_sounds_is_updated_get", NULL, NULL);
 }
 
 void RNA_def_main_armatures(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1418,7 +1418,7 @@ void RNA_def_main_armatures(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_armatures_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_armatures_is_updated_get", NULL, NULL);
 }
 void RNA_def_main_actions(BlenderRNA *brna, PropertyRNA *cprop)
 {
@@ -1452,7 +1452,7 @@ void RNA_def_main_actions(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_actions_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_actions_is_updated_get", NULL, NULL);
 }
 void RNA_def_main_particles(BlenderRNA *brna, PropertyRNA *cprop)
 {
@@ -1486,7 +1486,7 @@ void RNA_def_main_particles(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_particles_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_particles_is_updated_get", NULL, NULL);
 }
 
 void RNA_def_main_gpencil(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1507,7 +1507,7 @@ void RNA_def_main_gpencil(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Main_gpencil_is_updated_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_gpencil_is_updated_get", NULL, NULL);
 }
 
 void RNA_def_main_movieclips(BlenderRNA *brna, PropertyRNA *cprop)

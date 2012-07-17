@@ -1935,7 +1935,7 @@ void RNA_def_property_dynamic_array_funcs(PropertyRNA *prop, const char *getleng
 	if (getlength) prop->getlength = (PropArrayLengthGetFunc)getlength;
 }
 
-void RNA_def_property_boolean_funcs(PropertyRNA *prop, const char *get, const char *set)
+void RNA_def_property_boolean_funcs(PropertyRNA *prop, const char *get, const char *set, const char *clear)
 {
 	StructRNA *srna = DefRNA.laststruct;
 
@@ -1955,6 +1955,7 @@ void RNA_def_property_boolean_funcs(PropertyRNA *prop, const char *get, const ch
 			else {
 				if (get) bprop->get = (PropBooleanGetFunc)get;
 				if (set) bprop->set = (PropBooleanSetFunc)set;
+				if (clear) bprop->clear = (PropBooleanClearFunc)clear;
 			}
 			break;
 		}

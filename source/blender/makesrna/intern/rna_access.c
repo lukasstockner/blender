@@ -1673,6 +1673,17 @@ void RNA_property_boolean_set(PointerRNA *ptr, PropertyRNA *prop, int value)
 	}
 }
 
+void RNA_property_boolean_clear(PointerRNA *ptr, PropertyRNA *prop)
+{
+	BoolPropertyRNA *bprop = (BoolPropertyRNA *)prop;
+
+	BLI_assert(RNA_property_type(prop) == PROP_BOOLEAN);
+	BLI_assert(RNA_property_array_check(prop) == 0);
+
+	if (bprop->clear)
+		bprop->clear(ptr);
+}
+
 void RNA_property_boolean_get_array(PointerRNA *ptr, PropertyRNA *prop, int *values)
 {
 	BoolPropertyRNA *bprop = (BoolPropertyRNA *)prop;

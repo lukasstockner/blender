@@ -758,6 +758,7 @@ void RNA_property_update_cache_free(void);
 
 int RNA_property_boolean_get(PointerRNA *ptr, PropertyRNA *prop);
 void RNA_property_boolean_set(PointerRNA *ptr, PropertyRNA *prop, int value);
+void RNA_property_boolean_clear(PointerRNA *ptr, PropertyRNA *prop);
 void RNA_property_boolean_get_array(PointerRNA *ptr, PropertyRNA *prop, int *values);
 int RNA_property_boolean_get_index(PointerRNA *ptr, PropertyRNA *prop, int index);
 void RNA_property_boolean_set_array(PointerRNA *ptr, PropertyRNA *prop, const int *values);

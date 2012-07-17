@@ -1057,7 +1057,7 @@ static void rna_def_fmodifier(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "active", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", FMODIFIER_FLAG_ACTIVE);
 	RNA_def_property_ui_text(prop, "Active", "F-Curve Modifier is the one being edited ");
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_FModifier_active_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_FModifier_active_set", NULL);
 	RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME_PROP, "rna_FModifier_active_update");
 	RNA_def_property_ui_icon(prop, ICON_RADIOBUT_OFF, 1);
 	

@@ -441,7 +441,7 @@ static void rna_def_curvemapping(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_clip", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", CUMA_DO_CLIP);
 	RNA_def_property_ui_text(prop, "Clip", "Force the curve view to fit a defined boundary");
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_CurveMapping_clip_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_CurveMapping_clip_set", NULL);
 
 	prop = RNA_def_property(srna, "clip_min_x", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "clipr.xmin");

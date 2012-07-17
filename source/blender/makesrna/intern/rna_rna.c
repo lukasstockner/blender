@@ -1127,63 +1127,63 @@ static void rna_def_property(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "is_readonly", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Property_readonly_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Property_readonly_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Read Only", "Property is editable through RNA");
 
 	prop = RNA_def_property(srna, "is_animatable", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Property_animatable_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Property_animatable_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Animatable", "Property is animatable through RNA");
 
 	prop = RNA_def_property(srna, "is_required", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Property_is_required_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Property_is_required_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Required", "False when this property is an optional argument in an RNA function");
 
 	prop = RNA_def_property(srna, "is_never_none", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Property_is_never_none_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Property_is_never_none_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Never None", "True when this value can't be set to None");
 
 	prop = RNA_def_property(srna, "is_hidden", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Property_is_hidden_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Property_is_hidden_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Hidden", "True when the property is hidden");
 
 	prop = RNA_def_property(srna, "is_skip_save", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Property_is_skip_save_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Property_is_skip_save_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Skip Save", "True when the property is not saved in presets");
 
 	prop = RNA_def_property(srna, "is_output", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Property_use_output_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Property_use_output_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Return", "True when this property is an output value from an RNA function");
 
 	prop = RNA_def_property(srna, "is_registered", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Property_registered_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Property_registered_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Registered", "Property is registered as part of type registration");
 
 	prop = RNA_def_property(srna, "is_registered_optional", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Property_registered_optional_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Property_registered_optional_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Registered Optionally",
 	                         "Property is optionally registered as part of type registration");
 	
 	prop = RNA_def_property(srna, "is_runtime", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Property_runtime_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Property_runtime_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Runtime", "Property has been dynamically created at runtime");
 
 	prop = RNA_def_property(srna, "is_enum_flag", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Property_is_enum_flag_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Property_is_enum_flag_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Enum Flag", "True when multiple enums ");
 
 	prop = RNA_def_property(srna, "is_library_editable", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Property_is_library_editable_flag_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Property_is_library_editable_flag_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Library Editable", "Property is editable from linked instances (changes not saved)");
 }
 
@@ -1217,18 +1217,18 @@ static void rna_def_function(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "is_registered", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Function_registered_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Function_registered_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Registered", "Function is registered as callback as part of type registration");
 
 	prop = RNA_def_property(srna, "is_registered_optional", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Function_registered_optional_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Function_registered_optional_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Registered Optionally",
 	                         "Function is optionally registered as callback part of type registration");
 
 	prop = RNA_def_property(srna, "use_self", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_boolean_funcs(prop, "rna_Function_no_self_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Function_no_self_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "No Self",
 	                         "Function does not pass its self as an argument (becomes a class method in python)");
 }
@@ -1243,7 +1243,7 @@ static void rna_def_number_property(StructRNA *srna, PropertyType type)
 
 	switch (type) {
 		case PROP_BOOLEAN:
-			RNA_def_property_boolean_funcs(prop, "rna_BoolProperty_default_get", NULL);
+			RNA_def_property_boolean_funcs(prop, "rna_BoolProperty_default_get", NULL, NULL);
 			break;
 		case PROP_INT:
 			RNA_def_property_int_funcs(prop, "rna_IntProperty_default_get", NULL, NULL);
@@ -1264,7 +1264,7 @@ static void rna_def_number_property(StructRNA *srna, PropertyType type)
 
 	switch (type) {
 		case PROP_BOOLEAN:
-			RNA_def_property_boolean_funcs(prop, "rna_BoolProperty_default_array_get", NULL);
+			RNA_def_property_boolean_funcs(prop, "rna_BoolProperty_default_array_get", NULL, NULL);
 			break;
 		case PROP_INT:
 			RNA_def_property_int_funcs(prop, "rna_IntProperty_default_array_get", NULL, NULL);

@@ -143,7 +143,7 @@ typedef struct uiLayout uiLayout;
 #define UI_TEXT_RIGHT       1024
 #define UI_BUT_NODE_LINK    2048
 #define UI_BUT_NODE_ACTIVE  4096
-#define UI_FLAG_UNUSED      8192
+#define UI_CLEAR_BITFIELD   8192
 
 /* button align flag, for drawing groups together */
 #define UI_BUT_ALIGN        (UI_BUT_ALIGN_TOP | UI_BUT_ALIGN_LEFT | UI_BUT_ALIGN_RIGHT | UI_BUT_ALIGN_DOWN)
@@ -710,6 +710,7 @@ void UI_exit(void);
 #define UI_ITEM_R_FULL_EVENT    64
 #define UI_ITEM_R_NO_BG         128
 #define UI_ITEM_R_IMMEDIATE     256
+#define UI_ITEM_R_CLEARFIELD    512
 
 /* uiLayoutOperatorButs flags */
 #define UI_LAYOUT_OP_SHOW_TITLE 1

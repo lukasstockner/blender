@@ -1284,7 +1284,7 @@ static void rna_def_operator(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "has_reports", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE); /* this is 'virtual' property */
-	RNA_def_property_boolean_funcs(prop, "rna_Operator_has_reports_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_Operator_has_reports_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Has Reports",
 	                         "Operator has a set of reports (warnings and errors) from last execution");
 	
@@ -1830,7 +1830,7 @@ static void rna_def_keyconfig(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_KeyMapItem_update");
 
 	prop = RNA_def_property(srna, "any", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_funcs(prop, "rna_KeyMapItem_any_getf", "rna_KeyMapItem_any_setf");
+	RNA_def_property_boolean_funcs(prop, "rna_KeyMapItem_any_getf", "rna_KeyMapItem_any_setf", NULL);
 	RNA_def_property_ui_text(prop, "Any", "Any modifier keys pressed");
 	RNA_def_property_update(prop, 0, "rna_KeyMapItem_update");
 
@@ -1896,7 +1896,7 @@ static void rna_def_keyconfig(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "User Defined",
 	                         "Is this keymap item user defined (doesn't just replace a builtin item)");
-	RNA_def_property_boolean_funcs(prop, "rna_KeyMapItem_userdefined_get", NULL);
+	RNA_def_property_boolean_funcs(prop, "rna_KeyMapItem_userdefined_get", NULL, NULL);
 
 	RNA_api_keymapitem(srna);
 }

@@ -527,14 +527,14 @@ static void rna_def_nlastrip(BlenderRNA *brna)
 	/* TODO: should the animated_influence/time settings be animatable themselves? */
 	prop = RNA_def_property(srna, "use_animated_influence", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", NLASTRIP_FLAG_USR_INFLUENCE);
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_NlaStrip_animated_influence_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_NlaStrip_animated_influence_set", NULL);
 	RNA_def_property_ui_text(prop, "Animated Influence",
 	                         "Influence setting is controlled by an F-Curve rather than automatically determined");
 	RNA_def_property_update(prop, NC_ANIMATION | ND_NLA, NULL); /* this will do? */
 	
 	prop = RNA_def_property(srna, "use_animated_time", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", NLASTRIP_FLAG_USR_TIME);
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_NlaStrip_animated_time_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_NlaStrip_animated_time_set", NULL);
 	RNA_def_property_ui_text(prop, "Animated Strip Time",
 	                         "Strip time is controlled by an F-Curve rather than automatically determined");
 	RNA_def_property_update(prop, NC_ANIMATION | ND_NLA, NULL); /* this will do? */

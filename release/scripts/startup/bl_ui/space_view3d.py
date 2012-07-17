@@ -2721,9 +2721,9 @@ class VIEW3D_PT_floating_controls(Panel):
             row.alignment = 'CENTER'
             row.scale_x = 1.5
             row.scale_y = 1.5
-            row.prop(view, "use_manipulator_translate", text="", icon='MAN_TRANS')
-            row.prop(view, "use_manipulator_rotate", text="", icon='MAN_ROT')
-            row.prop(view, "use_manipulator_scale", text="", icon='MAN_SCALE')
+            row.prop(view, "use_manipulator_translate", text="", icon='MAN_TRANS', clearfield=True)
+            row.prop(view, "use_manipulator_rotate", text="", icon='MAN_ROT', clearfield=True)
+            row.prop(view, "use_manipulator_scale", text="", icon='MAN_SCALE', clearfield=True)
 
         elif bpy.context.user_preferences.edit.floating_controls == 'LEFT' or bpy.context.user_preferences.edit.floating_controls == 'RIGHT':
             layout = self.layout
@@ -2736,9 +2736,9 @@ class VIEW3D_PT_floating_controls(Panel):
             column.alignment = 'CENTER'
             column.scale_x = 1.5
             column.scale_y = 1.5
-            column.prop(view, "use_manipulator_translate", text="", icon='MAN_TRANS')
-            column.prop(view, "use_manipulator_rotate", text="", icon='MAN_ROT')
-            column.prop(view, "use_manipulator_scale", text="", icon='MAN_SCALE')
+            column.prop(view, "use_manipulator_translate", text="", icon='MAN_TRANS', clearfield=True)
+            column.prop(view, "use_manipulator_rotate", text="", icon='MAN_ROT', clearfield=True)
+            column.prop(view, "use_manipulator_scale", text="", icon='MAN_SCALE', clearfield=True)
 
 
 

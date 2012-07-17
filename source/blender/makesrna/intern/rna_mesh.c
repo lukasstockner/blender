@@ -1748,20 +1748,20 @@ static void rna_def_mtface(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
 	prop = RNA_def_property(srna, "active", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_funcs(prop, "rna_MeshTextureFaceLayer_active_get", "rna_MeshTextureFaceLayer_active_set");
+	RNA_def_property_boolean_funcs(prop, "rna_MeshTextureFaceLayer_active_get", "rna_MeshTextureFaceLayer_active_set", NULL);
 	RNA_def_property_ui_text(prop, "Active", "Set the map as active for display and editing");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
 	prop = RNA_def_property(srna, "active_render", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "active_rnd", 0);
 	RNA_def_property_boolean_funcs(prop, "rna_MeshTextureFaceLayer_active_render_get",
-	                               "rna_MeshTextureFaceLayer_active_render_set");
+	                               "rna_MeshTextureFaceLayer_active_render_set", NULL);
 	RNA_def_property_ui_text(prop, "Active Render", "Set the map as active for rendering");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
 	prop = RNA_def_property(srna, "active_clone", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "active_clone", 0);
-	RNA_def_property_boolean_funcs(prop, "rna_MeshTextureFaceLayer_clone_get", "rna_MeshTextureFaceLayer_clone_set");
+	RNA_def_property_boolean_funcs(prop, "rna_MeshTextureFaceLayer_clone_get", "rna_MeshTextureFaceLayer_clone_set", NULL);
 	RNA_def_property_ui_text(prop, "Active Clone", "Set the map as active for cloning");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
@@ -1860,20 +1860,20 @@ static void rna_def_mtexpoly(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
 	prop = RNA_def_property(srna, "active", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_funcs(prop, "rna_MeshTexturePolyLayer_active_get", "rna_MeshTexturePolyLayer_active_set");
+	RNA_def_property_boolean_funcs(prop, "rna_MeshTexturePolyLayer_active_get", "rna_MeshTexturePolyLayer_active_set", NULL);
 	RNA_def_property_ui_text(prop, "Active", "Set the map as active for display and editing");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
 	prop = RNA_def_property(srna, "active_render", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "active_rnd", 0);
 	RNA_def_property_boolean_funcs(prop, "rna_MeshTexturePolyLayer_active_render_get",
-	                               "rna_MeshTexturePolyLayer_active_render_set");
+	                               "rna_MeshTexturePolyLayer_active_render_set", NULL);
 	RNA_def_property_ui_text(prop, "Active Render", "Set the map as active for rendering");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
 	prop = RNA_def_property(srna, "active_clone", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "active_clone", 0);
-	RNA_def_property_boolean_funcs(prop, "rna_MeshTexturePolyLayer_clone_get", "rna_MeshTexturePolyLayer_clone_set");
+	RNA_def_property_boolean_funcs(prop, "rna_MeshTexturePolyLayer_clone_get", "rna_MeshTexturePolyLayer_clone_set", NULL);
 	RNA_def_property_ui_text(prop, "Active Clone", "Set the map as active for cloning");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
@@ -1950,14 +1950,14 @@ static void rna_def_mcol(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
 	prop = RNA_def_property(srna, "active", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_funcs(prop, "rna_MeshColorLayer_active_get", "rna_MeshColorLayer_active_set");
+	RNA_def_property_boolean_funcs(prop, "rna_MeshColorLayer_active_get", "rna_MeshColorLayer_active_set", NULL);
 	RNA_def_property_ui_text(prop, "Active", "Sets the layer as active for display and editing");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
 	prop = RNA_def_property(srna, "active_render", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "active_rnd", 0);
 	RNA_def_property_boolean_funcs(prop, "rna_MeshColorLayer_active_render_get",
-	                               "rna_MeshColorLayer_active_render_set");
+	                               "rna_MeshColorLayer_active_render_set", NULL);
 	RNA_def_property_ui_text(prop, "Active Render", "Sets the layer as active for rendering");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
@@ -2020,14 +2020,14 @@ static void rna_def_mloopcol(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
 	prop = RNA_def_property(srna, "active", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_funcs(prop, "rna_MeshLoopColorLayer_active_get", "rna_MeshLoopColorLayer_active_set");
+	RNA_def_property_boolean_funcs(prop, "rna_MeshLoopColorLayer_active_get", "rna_MeshLoopColorLayer_active_set", NULL);
 	RNA_def_property_ui_text(prop, "Active", "Sets the layer as active for display and editing");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
 	prop = RNA_def_property(srna, "active_render", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "active_rnd", 0);
 	RNA_def_property_boolean_funcs(prop, "rna_MeshLoopColorLayer_active_render_get",
-	                               "rna_MeshLoopColorLayer_active_render_set");
+	                               "rna_MeshLoopColorLayer_active_render_set", NULL);
 	RNA_def_property_ui_text(prop, "Active Render", "Sets the layer as active for rendering");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 

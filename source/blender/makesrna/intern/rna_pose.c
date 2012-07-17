@@ -881,7 +881,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
 	
 	/* IK Settings */
 	prop = RNA_def_property(srna, "is_in_ik_chain", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_funcs(prop,  "rna_PoseChannel_has_ik_get", NULL);
+	RNA_def_property_boolean_funcs(prop,  "rna_PoseChannel_has_ik_get", NULL, NULL);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Has IK", "Is part of an IK chain");
 	RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_IK_update");

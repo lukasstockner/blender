@@ -530,7 +530,7 @@ static void rna_def_lamp_shadow(StructRNA *srna, int spot, int area)
 	};
 
 	prop = RNA_def_property(srna, "use_shadow", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_funcs(prop, "rna_use_shadow_get", "rna_use_shadow_set");
+	RNA_def_property_boolean_funcs(prop, "rna_use_shadow_get", "rna_use_shadow_set", NULL);
 	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
 
 	prop = RNA_def_property(srna, "shadow_method", PROP_ENUM, PROP_NONE);

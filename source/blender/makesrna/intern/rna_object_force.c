@@ -1750,33 +1750,33 @@ static void rna_def_softbody(BlenderRNA *brna)
 	/* Flags */
 	
 	prop = RNA_def_property(srna, "use_goal", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_funcs(prop, "rna_SoftBodySettings_use_goal_get", "rna_SoftBodySettings_use_goal_set");
+	RNA_def_property_boolean_funcs(prop, "rna_SoftBodySettings_use_goal_get", "rna_SoftBodySettings_use_goal_set", NULL);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Use Goal", "Define forces for vertices to stick to animated position");
 	RNA_def_property_update(prop, 0, "rna_softbody_update");
 	
 	prop = RNA_def_property(srna, "use_edges", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_funcs(prop, "rna_SoftBodySettings_use_edges_get", "rna_SoftBodySettings_use_edges_set");
+	RNA_def_property_boolean_funcs(prop, "rna_SoftBodySettings_use_edges_get", "rna_SoftBodySettings_use_edges_set", NULL);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Use Edges", "Use Edges as springs");
 	RNA_def_property_update(prop, 0, "rna_softbody_update");
 	
 	prop = RNA_def_property(srna, "use_stiff_quads", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_funcs(prop, "rna_SoftBodySettings_stiff_quads_get",
-	                               "rna_SoftBodySettings_stiff_quads_set");
+	                               "rna_SoftBodySettings_stiff_quads_set", NULL);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Stiff Quads", "Add diagonal springs on 4-gons");
 	RNA_def_property_update(prop, 0, "rna_softbody_update");
 	
 	prop = RNA_def_property(srna, "use_edge_collision", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_funcs(prop, "rna_SoftBodySettings_edge_collision_get",
-	                               "rna_SoftBodySettings_edge_collision_set");
+	                               "rna_SoftBodySettings_edge_collision_set", NULL);
 	RNA_def_property_ui_text(prop, "Edge Collision", "Edges collide too");
 	RNA_def_property_update(prop, 0, "rna_softbody_update");
 	
 	prop = RNA_def_property(srna, "use_face_collision", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_funcs(prop, "rna_SoftBodySettings_face_collision_get",
-	                               "rna_SoftBodySettings_face_collision_set");
+	                               "rna_SoftBodySettings_face_collision_set", NULL);
 	RNA_def_property_ui_text(prop, "Face Collision", "Faces collide too, can be very slow");
 	RNA_def_property_update(prop, 0, "rna_softbody_update");
 	
@@ -1788,7 +1788,7 @@ static void rna_def_softbody(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "use_self_collision", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_funcs(prop, "rna_SoftBodySettings_self_collision_get",
-	                               "rna_SoftBodySettings_self_collision_set");
+	                               "rna_SoftBodySettings_self_collision_set", NULL);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Self Collision", "Enable naive vertex ball self collision");
 	RNA_def_property_update(prop, 0, "rna_softbody_update");

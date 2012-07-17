@@ -476,14 +476,14 @@ static void rna_def_bone_common(StructRNA *srna, int editbone)
 	prop = RNA_def_property(srna, "layers", PROP_BOOLEAN, PROP_LAYER_MEMBER);
 	RNA_def_property_boolean_sdna(prop, NULL, "layer", 1);
 	RNA_def_property_array(prop, 32);
-	if (editbone) RNA_def_property_boolean_funcs(prop, NULL, "rna_EditBone_layer_set");
-	else RNA_def_property_boolean_funcs(prop, NULL, "rna_Bone_layer_set");
+	if (editbone) RNA_def_property_boolean_funcs(prop, NULL, "rna_EditBone_layer_set", NULL);
+	else RNA_def_property_boolean_funcs(prop, NULL, "rna_Bone_layer_set", NULL);
 	RNA_def_property_ui_text(prop, "Layers", "Layers bone exists in");
 	RNA_def_property_update(prop, 0, "rna_Armature_redraw_data");
 
 	prop = RNA_def_property(srna, "use_connect", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BONE_CONNECTED);
-	if (editbone) RNA_def_property_boolean_funcs(prop, NULL, "rna_EditBone_connected_set");
+	if (editbone) RNA_def_property_boolean_funcs(prop, NULL, "rna_EditBone_connected_set", NULL);
 	else RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Connected", "When bone has a parent, bone's head is stuck to the parent's tail");
 	RNA_def_property_update(prop, 0, "rna_Armature_update_data");
@@ -948,7 +948,7 @@ static void rna_def_armature(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "layer", 1);
 	RNA_def_property_array(prop, 32);
 	RNA_def_property_ui_text(prop, "Visible Layers", "Armature layer visibility");
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_Armature_layer_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_Armature_layer_set", NULL);
 	RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Armature_update_layers");
 	RNA_def_property_flag(prop, PROP_LIB_EXCEPTION);
 	
