@@ -1220,6 +1220,87 @@ static void rna_Scene_editmesh_select_mode_set(PointerRNA *ptr, const int *value
 	}
 }
 
+static void rna_Scene_editmesh_use_select_vertex_set(PointerRNA *ptr, int value)
+{
+	Scene *scene = (Scene *)ptr->id.data;
+	ToolSettings *ts = (ToolSettings *)ptr->data;
+	BMEditMesh *em = NULL;
+
+	if (value)
+		ts->selectmode |= SCE_SELECT_VERTEX;
+	else
+		ts->selectmode &= ~SCE_SELECT_VERTEX;
+
+	if (scene->basact && scene->basact->object && scene->basact->object->type == OB_MESH) {
+		em = BMEdit_FromObject(scene->basact->object);
+	}
+
+	if (em) {
+		em->selectmode = ts->selectmode;
+		EDBM_selectmode_set(em);
+	}
+}
+
+static void rna_Scene_editmesh_use_select_edge_set(PointerRNA *ptr, int value)
+{
+	Scene *scene = (Scene *)ptr->id.data;
+	ToolSettings *ts = (ToolSettings *)ptr->data;
+	BMEditMesh *em = NULL;
+
+	if (value)
+		ts->selectmode |= SCE_SELECT_EDGE;
+	else
+		ts->selectmode &= ~SCE_SELECT_EDGE;
+
+	if (scene->basact && scene->basact->object && scene->basact->object->type == OB_MESH) {
+		em = BMEdit_FromObject(scene->basact->object);
+	}
+
+	if (em) {
+		em->selectmode = ts->selectmode;
+		EDBM_selectmode_set(em);
+	}
+}
+
+static void rna_Scene_editmesh_use_select_face_set(PointerRNA *ptr, int value)
+{
+	Scene *scene = (Scene *)ptr->id.data;
+	ToolSettings *ts = (ToolSettings *)ptr->data;
+	BMEditMesh *em = NULL;
+
+	if (value)
+		ts->selectmode |= SCE_SELECT_FACE;
+	else
+		ts->selectmode &= ~SCE_SELECT_FACE;
+
+	if (scene->basact && scene->basact->object && scene->basact->object->type == OB_MESH) {
+		em = BMEdit_FromObject(scene->basact->object);
+	}
+
+	if (em) {
+		em->selectmode = ts->selectmode;
+		EDBM_selectmode_set(em);
+	}
+}
+
+static void rna_Scene_editmesh_use_select_mode_clear(PointerRNA *ptr)
+{
+	Scene *scene = (Scene *)ptr->id.data;
+	ToolSettings *ts = (ToolSettings *)ptr->data;
+	BMEditMesh *em = NULL;
+
+	ts->selectmode = 0;
+
+	if (scene->basact && scene->basact->object && scene->basact->object->type == OB_MESH) {
+		em = BMEdit_FromObject(scene->basact->object);
+	}
+
+	if (em) {
+		em->selectmode = ts->selectmode;
+		EDBM_selectmode_set(em);
+	}
+}
+
 static void rna_Scene_editmesh_select_mode_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *UNUSED(ptr))
 {
 	Mesh *me = NULL;
@@ -1726,6 +1807,27 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	RNA_def_property_boolean_funcs(prop, NULL, "rna_Scene_editmesh_select_mode_set", NULL);
 	RNA_def_property_ui_text(prop, "Mesh Selection Mode", "Which mesh elements selection works on");
 	RNA_def_property_update(prop, 0, "rna_Scene_editmesh_select_mode_update");
+
+	prop = RNA_def_property(srna, "use_select_vertex", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "selectmode", SCE_SELECT_VERTEX);
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_Scene_editmesh_use_select_vertex_set", "rna_Scene_editmesh_use_select_mode_clear");
+	RNA_def_property_ui_text(prop, "Vertex", "Edit vertices. Shift-click for multiple modes");
+	RNA_def_property_ui_icon(prop, ICON_VERTEXSEL, 0);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+	prop = RNA_def_property(srna, "use_select_edge", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "selectmode", SCE_SELECT_EDGE);
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_Scene_editmesh_use_select_edge_set", "rna_Scene_editmesh_use_select_mode_clear");
+	RNA_def_property_ui_text(prop, "Edge", "Edit edges. Shift-click for multiple modes");
+	RNA_def_property_ui_icon(prop, ICON_EDGESEL, 0);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+	prop = RNA_def_property(srna, "use_select_face", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "selectmode", SCE_SELECT_FACE);
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_Scene_editmesh_use_select_face_set", "rna_Scene_editmesh_use_select_mode_clear");
+	RNA_def_property_ui_text(prop, "Face", "Edit faces. Shift-click for multiple modes");
+	RNA_def_property_ui_icon(prop, ICON_FACESEL, 0);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	prop = RNA_def_property(srna, "vertex_group_weight", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "vgroup_weight");

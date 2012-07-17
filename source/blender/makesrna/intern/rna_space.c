@@ -1657,19 +1657,19 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "use_manipulator_translate", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "twtype", V3D_MANIP_TRANSLATE);
-	RNA_def_property_ui_text(prop, "Manipulator Translate", "Translation manipulator. Shift-click for multiple modes.");
+	RNA_def_property_ui_text(prop, "Manipulator Translate", "Translation manipulator. Shift-click for multiple modes");
 	RNA_def_property_ui_icon(prop, ICON_MAN_TRANS, 0);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 	
 	prop = RNA_def_property(srna, "use_manipulator_rotate", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "twtype", V3D_MANIP_ROTATE);
-	RNA_def_property_ui_text(prop, "Manipulator Rotate", "Rotation manipulator. Shift-click for multiple modes.");
+	RNA_def_property_ui_text(prop, "Manipulator Rotate", "Rotation manipulator. Shift-click for multiple modes");
 	RNA_def_property_ui_icon(prop, ICON_MAN_ROT, 0);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 	
 	prop = RNA_def_property(srna, "use_manipulator_scale", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "twtype", V3D_MANIP_SCALE);
-	RNA_def_property_ui_text(prop, "Manipulator Scale", "Scaling manipulator. Shift-click for multiple modes.");
+	RNA_def_property_ui_text(prop, "Manipulator Scale", "Scaling manipulator. Shift-click for multiple modes");
 	RNA_def_property_ui_icon(prop, ICON_MAN_SCALE, 0);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 	

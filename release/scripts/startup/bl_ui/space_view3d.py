@@ -2711,6 +2711,7 @@ class VIEW3D_PT_floating_controls(Panel):
 
     def draw(self, context):
         view = context.space_data
+        tools = context.tool_settings
 
         if bpy.context.user_preferences.edit.floating_controls == 'BOTTOM' or bpy.context.user_preferences.edit.floating_controls == 'TOP':
             layout = self.layout
@@ -2724,6 +2725,13 @@ class VIEW3D_PT_floating_controls(Panel):
             row.prop(view, "use_manipulator_translate", text="", icon='MAN_TRANS', clearfield=True)
             row.prop(view, "use_manipulator_rotate", text="", icon='MAN_ROT', clearfield=True)
             row.prop(view, "use_manipulator_scale", text="", icon='MAN_SCALE', clearfield=True)
+
+            if bpy.context.object.mode == 'EDIT':
+                row.separator()
+            
+                row.prop(tools, "use_select_vertex", text="", clearfield=True)
+                row.prop(tools, "use_select_edge", text="", clearfield=True)
+                row.prop(tools, "use_select_face", text="", clearfield=True)
 
         elif bpy.context.user_preferences.edit.floating_controls == 'LEFT' or bpy.context.user_preferences.edit.floating_controls == 'RIGHT':
             layout = self.layout
@@ -2739,6 +2747,14 @@ class VIEW3D_PT_floating_controls(Panel):
             column.prop(view, "use_manipulator_translate", text="", icon='MAN_TRANS', clearfield=True)
             column.prop(view, "use_manipulator_rotate", text="", icon='MAN_ROT', clearfield=True)
             column.prop(view, "use_manipulator_scale", text="", icon='MAN_SCALE', clearfield=True)
+
+            if bpy.context.object.mode == 'EDIT':
+                column.separator()
+            
+                column.prop(tools, "use_select_vertex", text="", clearfield=True)
+                column.prop(tools, "use_select_edge", text="", clearfield=True)
+                column.prop(tools, "use_select_face", text="", clearfield=True)
+
 
 
 
