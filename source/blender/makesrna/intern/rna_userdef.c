@@ -2872,6 +2872,7 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "floating_controls", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, floating_control_modes);
 	RNA_def_property_ui_text(prop, "", "Position of the floating controls in the 3D view");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 }
 
 static void rna_def_userdef_system(BlenderRNA *brna)
