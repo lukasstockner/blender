@@ -1464,7 +1464,8 @@ typedef enum SculptFlags {
 #define UVCALC_FILLHOLES			1
 #define UVCALC_NO_ASPECT_CORRECT	2	/* would call this UVCALC_ASPECT_CORRECT, except it should be default with old file */
 #define UVCALC_TRANSFORM_CORRECT	4	/* adjust UV's while transforming to avoid distortion */
-#define UVCALC_USESUBSURF			8	/* Use mesh data after subsurf to compute UVs*/
+#define UVCALC_USESUBSURF			8	/* use mesh data after subsurf to compute UVs*/
+#define UVCALC_USEMIRROR_MOD		16  /* use mirror modifier output if it exists */
 
 /* toolsettings->uv_flag */
 #define UV_SYNC_SELECTION	1

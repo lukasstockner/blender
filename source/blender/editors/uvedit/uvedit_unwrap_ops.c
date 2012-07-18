@@ -809,6 +809,7 @@ void ED_uvedit_live_unwrap_begin(Scene *scene, Object *obedit)
 	short abf = scene->toolsettings->unwrapper == 0;
 	short fillholes = scene->toolsettings->uvcalc_flag & UVCALC_FILLHOLES;
 	short use_subsurf = scene->toolsettings->uvcalc_flag & UVCALC_USESUBSURF;
+	short use_mirror = scene->toolsettings->uvcalc_flag & UVCALC_USEMIRROR_MOD;
 
 	if (!ED_uvedit_test(obedit)) {
 		return;
@@ -1138,6 +1139,7 @@ void ED_unwrap_lscm(Scene *scene, Object *obedit, const short sel)
 	const short fill_holes = scene->toolsettings->uvcalc_flag & UVCALC_FILLHOLES;
 	const short correct_aspect = !(scene->toolsettings->uvcalc_flag & UVCALC_NO_ASPECT_CORRECT);
 	const short use_subsurf = scene->toolsettings->uvcalc_flag & UVCALC_USESUBSURF;
+	const short use_mirror = scene->toolsettings->uvcalc_flag & UVCALC_USEMIRROR_MOD;
 
 	if (use_subsurf)
 		handle = construct_param_handle_subsurfed(scene, em, fill_holes, sel, correct_aspect);
@@ -1165,6 +1167,7 @@ static int unwrap_exec(bContext *C, wmOperator *op)
 	int fill_holes = RNA_boolean_get(op->ptr, "fill_holes");
 	int correct_aspect = RNA_boolean_get(op->ptr, "correct_aspect");
 	int use_subsurf = RNA_boolean_get(op->ptr, "use_subsurf_data");
+	int use_mirror = RNA_boolean_get(op->ptr, "use_mirror_mod");
 	int subsurf_level = RNA_int_get(op->ptr, "uv_subsurf_level");
 	float obsize[3], unitsize[3] = {1.0f, 1.0f, 1.0f};
 	short implicit = 0;
@@ -1198,6 +1201,9 @@ static int unwrap_exec(bContext *C, wmOperator *op)
 
 	if (use_subsurf) scene->toolsettings->uvcalc_flag |= UVCALC_USESUBSURF;
 	else scene->toolsettings->uvcalc_flag &= ~UVCALC_USESUBSURF;
+
+	if (use_mirror) scene->toolsettings->uvcalc_flag |= UVCALC_USEMIRROR_MOD;
+	else scene->toolsettings->uvcalc_flag &= ~UVCALC_USEMIRROR_MOD;
 
 	/* execute unwrap */
 	ED_unwrap_lscm(scene, obedit, TRUE);
@@ -1233,6 +1239,8 @@ void UV_OT_unwrap(wmOperatorType *ot)
 	                "Virtual fill holes in mesh before unwrapping, to better avoid overlaps and preserve symmetry");
 	RNA_def_boolean(ot->srna, "correct_aspect", 1, "Correct Aspect",
 	                "Map UVs taking image aspect ratio into account");
+	RNA_def_boolean(ot->srna, "use_mirror_mod", 0, "Use Mirror",
+	                "Take mirror modifier output into account to make more symmetric unwraps. Only works if mirror modifier is first");
 	RNA_def_boolean(ot->srna, "use_subsurf_data", 0, "Use Subsurf Data",
 	                "Map UVs taking vertex position after subsurf into account");
 	RNA_def_int(ot->srna, "uv_subsurf_level", 1, 1, 6, "SubSurf Target",
