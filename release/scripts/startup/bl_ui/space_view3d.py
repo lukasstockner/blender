@@ -2725,11 +2725,14 @@ class VIEW3D_PT_floating_controls(Panel):
             # invoke edit mode.
 
             if bpy.context.object.mode == 'EDIT':
+                props = row.operator("object.mode_set", text="", icon='OBJECT_DATA')
+                props.mode='OBJECT'
                 row.prop(tools, "use_select_vertex", text="", clearfield=True)
                 row.prop(tools, "use_select_edge", text="", clearfield=True)
                 row.prop(tools, "use_select_face", text="", clearfield=True)
 
             else:
+                row.prop(tools, "object_select_mode", text="")
                 props = row.operator("mesh.selection_mode_set", text="", icon='VERTEXSEL')
                 props.mode='VERTEX'
                 props = row.operator("mesh.selection_mode_set", text="", icon='EDGESEL')
@@ -2755,11 +2758,14 @@ class VIEW3D_PT_floating_controls(Panel):
             column.separator()
 
             if bpy.context.object.mode == 'EDIT':
+                props = row.operator("object.mode_set", text="", icon='OBJECT_DATA')
+                props.mode='OBJECT'
                 column.prop(tools, "use_select_vertex", text="", clearfield=True)
                 column.prop(tools, "use_select_edge", text="", clearfield=True)
                 column.prop(tools, "use_select_face", text="", clearfield=True)
 
             else:
+                column.prop(tools, "object_select_mode", text="")
                 props = column.operator("mesh.selection_mode_set", text="", icon='VERTEXSEL')
                 props.mode='VERTEX'
                 props = column.operator("mesh.selection_mode_set", text="", icon='EDGESEL')

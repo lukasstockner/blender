@@ -37,6 +37,7 @@
 #include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
+#include "DNA_object_types.h"
 
 #include "BLI_math.h"
 
@@ -1807,6 +1808,12 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	RNA_def_property_boolean_funcs(prop, NULL, "rna_Scene_editmesh_select_mode_set", NULL);
 	RNA_def_property_ui_text(prop, "Mesh Selection Mode", "Which mesh elements selection works on");
 	RNA_def_property_update(prop, 0, "rna_Scene_editmesh_select_mode_update");
+
+	prop = RNA_def_property(srna, "object_select_mode", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "selectmode", OB_MODE_OBJECT);
+	RNA_def_property_ui_text(prop, "Object Mode", "Switch to object mode");
+	RNA_def_property_ui_icon(prop, ICON_OBJECT_DATA, 0);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	prop = RNA_def_property(srna, "use_select_vertex", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "selectmode", SCE_SELECT_VERTEX);
