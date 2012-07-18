@@ -177,9 +177,35 @@ static int uvedit_have_selection(Scene *scene, BMEditMesh *em, short implicit)
 	return 0;
 }
 
+static void modifier_unwrap_state(Object *obedit, Scene *scene, short *use_subsurf, short *use_mirror)
+{
+	ModifierData *md;
+	short subsurf = scene->toolsettings->uvcalc_flag & UVCALC_USESUBSURF;
+	short mirror = scene->toolsettings->uvcalc_flag & UVCALC_USEMIRROR_MOD;
+
+	md = obedit->modifiers.first;
+
+	/* only account for mirroring if first modifier is mirror */
+	if(!(md->type == eModifierType_Mirror))
+		mirror = 0;
+
+	/* subsurf will take the modifier settings only if modifier is first or right after mirror */
+	if (subsurf) {
+		if (mirror) {
+			md = md->next;
+		}
+
+		if (!(md->type == eModifierType_Subsurf))
+			subsurf = 0;
+	}
+
+	*use_subsurf = subsurf;
+	*use_mirror = mirror;
+}
+
 static ParamHandle *construct_param_handle(Scene *scene, BMEditMesh *em, 
                                            short implicit, short fill, short sel,
-                                           short correct_aspect)
+                                           short correct_aspect, short mirrored)
 {
 	ScanFillContext sf_ctx;
 	ParamHandle *handle;
@@ -351,7 +377,7 @@ static void texface_from_original_index(BMFace *efa, int index, float **uv, Para
 
 /* unwrap handle initialization for subsurf aware-unwrapper. The many modifications required to make the original function(see above)
  * work justified the existence of a new function. */
-static ParamHandle *construct_param_handle_subsurfed(Scene *scene, BMEditMesh *em, short fill, short sel, short correct_aspect)
+static ParamHandle *construct_param_handle_subsurfed(Scene *scene, Object *obedit, short fill, short sel, short correct_aspect, short mirrored)
 {
 	ParamHandle *handle;
 	/* index pointers */
@@ -359,11 +385,14 @@ static ParamHandle *construct_param_handle_subsurfed(Scene *scene, BMEditMesh *e
 	MEdge *edge;
 	BMFace *editFace;
 	int i;
-
+	/* pointers to modifier data for unwrap control */
+	ModifierData *md;
+	SubsurfModifierData *smd_real;
 	/* modifier initialization data, will  control what type of subdivision will happen*/
 	SubsurfModifierData smd = {{0}};
 	/* Used to hold subsurfed Mesh */
 	DerivedMesh *derivedMesh, *initialDerived;
+	BMEditMesh *em;
 	/* holds original indices for subsurfed mesh */
 	int *origVertIndices, *origFaceIndices, *origEdgeIndices;
 	/* Holds vertices of subsurfed mesh */
@@ -377,6 +406,8 @@ static ParamHandle *construct_param_handle_subsurfed(Scene *scene, BMEditMesh *e
 	BMFace **faceMap;
 	/* similar to the above, we need a way to map edges to their original ones */
 	BMEdge **edgeMap;
+
+	em = BMEdit_FromObject(obedit);
 
 	handle = param_construct_begin();
 
@@ -398,8 +429,14 @@ static ParamHandle *construct_param_handle_subsurfed(Scene *scene, BMEditMesh *e
 	}
 
 	/* number of subdivisions to perform */
-	smd.levels = scene->toolsettings->uv_subsurf_level;
-	smd.subdivType = ME_CC_SUBSURF;
+	md = obedit->modifiers.first;
+	if(mirrored)
+		md = md->next;
+	smd_real = (SubsurfModifierData *)md;
+
+	smd.levels = smd_real->levels;
+
+	smd.subdivType = smd_real->subdivType;
 		
 	initialDerived = CDDM_from_BMEditMesh(em, NULL, 0, 0);
 	derivedMesh = subsurf_make_derived_from_derived(initialDerived, &smd,
@@ -536,7 +573,7 @@ static int minimize_stretch_init(bContext *C, wmOperator *op)
 	ms->blend = RNA_float_get(op->ptr, "blend");
 	ms->iterations = RNA_int_get(op->ptr, "iterations");
 	ms->i = 0;
-	ms->handle = construct_param_handle(scene, em, implicit, fill_holes, 1, 1);
+	ms->handle = construct_param_handle(scene, em, implicit, fill_holes, 1, 1, 0);
 	ms->lasttime = PIL_check_seconds_timer();
 
 	param_stretch_begin(ms->handle);
@@ -732,7 +769,7 @@ static int pack_islands_exec(bContext *C, wmOperator *op)
 		RNA_float_set(op->ptr, "margin", scene->toolsettings->uvcalc_margin);
 	}
 
-	handle = construct_param_handle(scene, em, implicit, 0, 1, 1);
+	handle = construct_param_handle(scene, em, implicit, 0, 1, 1, 0);
 	param_pack(handle, scene->toolsettings->uvcalc_margin);
 	param_flush(handle);
 	param_delete(handle);
@@ -774,7 +811,7 @@ static int average_islands_scale_exec(bContext *C, wmOperator *UNUSED(op))
 		return OPERATOR_CANCELLED;
 	}
 
-	handle = construct_param_handle(scene, em, implicit, 0, 1, 1);
+	handle = construct_param_handle(scene, em, implicit, 0, 1, 1, 0);
 	param_average(handle);
 	param_flush(handle);
 	param_delete(handle);
@@ -808,17 +845,19 @@ void ED_uvedit_live_unwrap_begin(Scene *scene, Object *obedit)
 	BMEditMesh *em = BMEdit_FromObject(obedit);
 	short abf = scene->toolsettings->unwrapper == 0;
 	short fillholes = scene->toolsettings->uvcalc_flag & UVCALC_FILLHOLES;
-	short use_subsurf = scene->toolsettings->uvcalc_flag & UVCALC_USESUBSURF;
-	short use_mirror = scene->toolsettings->uvcalc_flag & UVCALC_USEMIRROR_MOD;
+	short use_subsurf;
+	short use_mirror;
+
+	modifier_unwrap_state(obedit, scene, &use_subsurf, &use_mirror);
 
 	if (!ED_uvedit_test(obedit)) {
 		return;
 	}
 
 	if (use_subsurf)
-		liveHandle = construct_param_handle_subsurfed(scene, em, fillholes, 0, 1);
+		liveHandle = construct_param_handle_subsurfed(scene, obedit, fillholes, 0, 1, use_mirror);
 	else
-		liveHandle = construct_param_handle(scene, em, 0, fillholes, 0, 1);
+		liveHandle = construct_param_handle(scene, em, 0, fillholes, 0, 1, use_mirror);
 
 	param_lscm_begin(liveHandle, PARAM_TRUE, abf);
 }
@@ -1138,13 +1177,15 @@ void ED_unwrap_lscm(Scene *scene, Object *obedit, const short sel)
 
 	const short fill_holes = scene->toolsettings->uvcalc_flag & UVCALC_FILLHOLES;
 	const short correct_aspect = !(scene->toolsettings->uvcalc_flag & UVCALC_NO_ASPECT_CORRECT);
-	const short use_subsurf = scene->toolsettings->uvcalc_flag & UVCALC_USESUBSURF;
-	const short use_mirror = scene->toolsettings->uvcalc_flag & UVCALC_USEMIRROR_MOD;
+	short use_subsurf;
+	short use_mirror;
+
+	modifier_unwrap_state(obedit, scene, &use_subsurf, &use_mirror);
 
 	if (use_subsurf)
-		handle = construct_param_handle_subsurfed(scene, em, fill_holes, sel, correct_aspect);
+		handle = construct_param_handle_subsurfed(scene, obedit, fill_holes, sel, correct_aspect, use_mirror);
 	else
-		handle = construct_param_handle(scene, em, 0, fill_holes, sel, correct_aspect);
+		handle = construct_param_handle(scene, em, 0, fill_holes, sel, correct_aspect, use_mirror);
 
 	param_lscm_begin(handle, PARAM_FALSE, scene->toolsettings->unwrapper == 0);
 	param_lscm_solve(handle);
@@ -1168,7 +1209,6 @@ static int unwrap_exec(bContext *C, wmOperator *op)
 	int correct_aspect = RNA_boolean_get(op->ptr, "correct_aspect");
 	int use_subsurf = RNA_boolean_get(op->ptr, "use_subsurf_data");
 	int use_mirror = RNA_boolean_get(op->ptr, "use_mirror_mod");
-	int subsurf_level = RNA_int_get(op->ptr, "uv_subsurf_level");
 	float obsize[3], unitsize[3] = {1.0f, 1.0f, 1.0f};
 	short implicit = 0;
 
@@ -1190,8 +1230,6 @@ static int unwrap_exec(bContext *C, wmOperator *op)
 		scene->toolsettings->unwrapper = method;
 	else
 		RNA_enum_set(op->ptr, "method", scene->toolsettings->unwrapper);
-
-	scene->toolsettings->uv_subsurf_level = subsurf_level;
 
 	if (fill_holes) scene->toolsettings->uvcalc_flag |=  UVCALC_FILLHOLES;
 	else scene->toolsettings->uvcalc_flag &= ~UVCALC_FILLHOLES;
@@ -1243,8 +1281,6 @@ void UV_OT_unwrap(wmOperatorType *ot)
 	                "Take mirror modifier output into account to make more symmetric unwraps. Only works if mirror modifier is first");
 	RNA_def_boolean(ot->srna, "use_subsurf_data", 0, "Use Subsurf Data",
 	                "Map UVs taking vertex position after subsurf into account");
-	RNA_def_int(ot->srna, "uv_subsurf_level", 1, 1, 6, "SubSurf Target",
-	            "Number of times to subdivide before calculating UVs", 1, 6);
 }
 
 /**************** Project From View operator **************/

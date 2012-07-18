@@ -931,8 +931,8 @@ typedef struct ToolSettings {
 	short uvcalc_mapalign;
 	short uvcalc_flag;
 	short uv_flag, uv_selectmode;
-	short uv_subsurf_level;
-	
+	short pad2;
+
 	/* Grease Pencil */
 	short gpencil_flags;
 	
@@ -959,7 +959,7 @@ typedef struct ToolSettings {
 
 	/* Multires */
 	char multires_subdiv_type;
-	char pad2[5];
+	char pad3[5];
 
 	/* Skeleton generation */
 	short skgen_resolution;
@@ -995,12 +995,12 @@ typedef struct ToolSettings {
 
 	/* Transform */
 	char snap_mode, snap_node_mode;
-	char pad3;
+	char pad4;
 	short snap_flag, snap_target;
 	short proportional, prop_mode;
 	char proportional_objects; /* proportional edit, object mode */
 	char proportional_mask; /* proportional edit, object mode */
-	char pad4[2];
+	char pad5[2];
 
 	char auto_normalize; /*auto normalizing mode in wpaint*/
 	char multipaint; /* paint multiple bones in wpaint */
@@ -1012,7 +1012,7 @@ typedef struct ToolSettings {
 	int uv_relax_method;
 	/* XXX: these sculpt_paint_* fields are deprecated, use the
 	 * unified_paint_settings field instead! */
-	short sculpt_paint_settings DNA_DEPRECATED;	short pad5;
+	short sculpt_paint_settings DNA_DEPRECATED;	short pad6;
 	int sculpt_paint_unified_size DNA_DEPRECATED;
 	float sculpt_paint_unified_unprojected_radius DNA_DEPRECATED;
 	float sculpt_paint_unified_alpha DNA_DEPRECATED;
