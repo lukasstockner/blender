@@ -1952,6 +1952,9 @@ void calculateUVTransformCorrection(TransInfo *t)
 			int index;
 			BMVert *v = td[i].eve;
 
+			if (!BM_vert_find_first_loop(v))
+				continue;
+
 			boundary_loops[0] = boundary_loops[1] = boundary_loop_init;
 			index = BM_elem_index_get(v);
 
