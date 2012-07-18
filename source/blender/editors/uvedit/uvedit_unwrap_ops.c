@@ -186,17 +186,21 @@ static void modifier_unwrap_state(Object *obedit, Scene *scene, short *use_subsu
 	md = obedit->modifiers.first;
 
 	/* only account for mirroring if first modifier is mirror */
-	if(!(md->type == eModifierType_Mirror))
-		mirror = 0;
+	if(mirror && md && md->type == eModifierType_Mirror)
+		mirror = TRUE;
+	else
+		mirror = FALSE;
 
 	/* subsurf will take the modifier settings only if modifier is first or right after mirror */
 	if (subsurf) {
-		if (mirror) {
+		if (mirror && md) {
 			md = md->next;
 		}
 
-		if (!(md->type == eModifierType_Subsurf))
-			subsurf = 0;
+		if (md && md->type == eModifierType_Subsurf)
+			subsurf = TRUE;
+		else
+			subsurf = FALSE;
 	}
 
 	*use_subsurf = subsurf;
