@@ -175,7 +175,6 @@ enum BL_MappingProj
 // ------------------------------------
 //extern void initBL_Material(BL_Material* mat);
 extern MTex* getImageFromMaterial(Material *mat, int index);
-extern int  getNumTexChannels( Material *mat );
 // ------------------------------------
 
 #endif

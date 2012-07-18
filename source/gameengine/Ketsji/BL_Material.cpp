@@ -20,15 +20,6 @@ MTex* getImageFromMaterial(Material *mat, int index)
 	return m?m:0;
 }
 
-int getNumTexChannels( Material *mat )
-{
-	int count = -1;
-	if (!mat) return -1;
-
-	for (count =0; (count < 10) && mat->mtex[count] != 0; count++) {}
-	return count;
-}
-
 BL_Material::BL_Material()
 {
 	Initialize();

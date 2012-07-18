@@ -96,16 +96,11 @@ void KX_BlenderMaterial::Initialize(
 	m_flag |= (mMaterial->glslmat)? RAS_BLENDERGLSL: 0;
 	m_flag |= ((mMaterial->ras_mode & CAST_SHADOW)!=0)? RAS_CASTSHADOW: 0;
 
-	// figure max
-	int enabled = mMaterial->num_enabled;
-	int max = BL_Texture::GetMaxUnits();
-	mMaterial->num_enabled = enabled>=max?max:enabled;
-
 	// test the sum of the various modes for equality
 	// so we can ether accept or reject this material
 	// as being equal, this is rather important to
 	// prevent material bleeding
-	for (int i=0; i<mMaterial->num_enabled; i++) {
+	for (int i=0; i<BL_Texture::GetMaxUnits(); i++) {
 		m_multimode	+= (mMaterial->flag[i] + mMaterial->blend_mode[i]);
 	}
 	m_multimode += mMaterial->IdMode+ (mMaterial->ras_mode & ~(USE_LIGHT));
@@ -169,7 +164,7 @@ void KX_BlenderMaterial::OnConstruction(int layer)
 
 	// for each unique material...
 	int i;
-	for (i=0; i<mMaterial->num_enabled; i++) {
+	for (i=0; i<BL_Texture::GetMaxUnits(); i++) {
 		if ( mMaterial->mapping[i].mapping & USEENV ) {
 			if (!GLEW_ARB_texture_cube_map) {
 				spit("CubeMap textures not supported");
@@ -181,7 +176,7 @@ void KX_BlenderMaterial::OnConstruction(int layer)
 		} 
 		// If we're using glsl materials, the textures are handled by bf_gpu, so don't load them twice!
 		// However, if we're using a custom shader, then we still need to load the textures ourselves.
-		else if (!mMaterial->glslmat || mBlenderShader) {
+		else if (!mMaterial->glslmat || mShader) {
 			if ( mMaterial->img[i] ) {
 				if ( ! mTextures[i].InitFromImage(i, mMaterial->img[i], (mMaterial->flag[i] &MIPMAP)!=0 ))
 					spit("unable to initialize image("<<i<<") in "<< 
@@ -233,7 +228,8 @@ void KX_BlenderMaterial::OnExit()
 	}
 
 	BL_Texture::ActivateFirst();
-	for (int i=0; i<mMaterial->num_enabled; i++) {
+	for (int i=0; i<BL_Texture::GetMaxUnits(); i++) {
+		if (!mTextures[i].Ok()) continue;
 		BL_Texture::ActivateUnit(i);
 		mTextures[i].DeleteTex();
 		mTextures[i].DisableUnit();
@@ -272,7 +268,7 @@ void KX_BlenderMaterial::setShaderData( bool enable, RAS_IRasterizer *ras)
 	mShader->ApplyShader();
 
 	// for each enabled unit
-	for (i=0; i<mMaterial->num_enabled; i++) {
+	for (i=0; i<BL_Texture::GetMaxUnits(); i++) {
 		if (!mTextures[i].Ok()) continue;
 		mTextures[i].ActivateTexture();
 		mTextures[0].SetMapping(mMaterial->mapping[i].mapping);
@@ -346,7 +342,7 @@ void KX_BlenderMaterial::setTexData( bool enable, RAS_IRasterizer *ras)
 	}
 
 	int mode = 0,i=0;
-	for (i=0; (i<mMaterial->num_enabled && i<MAXTEX); i++) {
+	for (i=0; i<BL_Texture::GetMaxUnits(); i++) {
 		if ( !mTextures[i].Ok() ) continue;
 
 		mTextures[i].ActivateTexture();
@@ -638,7 +634,7 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 
 		ras->SetTexCoordNum(mMaterial->num_enabled);
 
-		for (int i=0; i<mMaterial->num_enabled; i++) {
+		for (int i=0; i<BL_Texture::GetMaxUnits(); i++) {
 			int mode = mMaterial->mapping[i].mapping;
 
 			if ( mode &(USEREFL|USEOBJ))

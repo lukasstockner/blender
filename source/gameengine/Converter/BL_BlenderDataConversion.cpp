@@ -508,11 +508,11 @@ static void GetUVs(BL_Material *material, MTF_localLayer *layers, MFace *mface, 
 		uvs[0][0] = uvs[1][0] = uvs[2][0] = uvs[3][0] = MT_Point2(0.f, 0.f);
 	}
 	
-	for (int vind = 0; vind<material->num_enabled; vind++)
+	for (int vind = 0; vind<MAXTEX; vind++)
 	{
 		BL_Mapping &map = material->mapping[vind];
 
-		if (map.mapping != USEUV) continue;
+		if (!(map.mapping & USEUV)) continue;
 
 		//If no UVSet is specified, try grabbing one from the UV/Image editor
 		if (map.uvCoName.IsEmpty() && tface)
@@ -562,11 +562,10 @@ bool ConvertMaterial(
 	const char *tfaceName,
 	MFace* mface, 
 	MCol* mmcol,
-	MTF_localLayer *layers,
 	bool glslmat)
 {
 	material->Initialize();
-	int numchan =	-1, texalpha = 0;
+	int texalpha = 0;
 	bool validmat	= (mat!=0);
 	bool validface	= (tface!=0);
 	
@@ -592,7 +591,6 @@ bool ConvertMaterial(
 		// cast shadows?
 		material->ras_mode |= ( mat->mode & MA_SHADBUF )?CAST_SHADOW:0;
 		MTex *mttmp = 0;
-		numchan = getNumTexChannels(mat);
 		int valid_index = 0;
 		
 		/* In Multitexture use the face texture if and only if
@@ -601,12 +599,9 @@ bool ConvertMaterial(
 		bool facetex = false;
 		if (validface && mat->mode &MA_FACETEXTURE) 
 			facetex = true;
-
-		numchan = numchan>MAXTEX?MAXTEX:numchan;
-		if (facetex && numchan == 0) numchan = 1;
 	
 		// foreach MTex
-		for (int i=0; i<numchan; i++) {
+		for (int i=0; i<MAXTEX; i++) {
 			// use face tex
 
 			if (i==0 && facetex ) {
@@ -906,7 +901,7 @@ RAS_MaterialBucket* material_from_mesh(Material *ma, MFace *mface, MTFace *tface
 			bl_mat = new BL_Material();
 
 			ConvertMaterial(bl_mat, ma, tface, tfaceName, mface, mcol,
-				layers, converter->GetGLSLMaterials());
+				converter->GetGLSLMaterials());
 
 			converter->CacheBlenderMaterial(ma, bl_mat);
 		}
@@ -1422,7 +1417,7 @@ RAS_MeshObject* BL_ConvertMesh_old(Mesh* mesh, Object* blenderobj, KX_Scene* sce
 				if(!ma)
 					ma= &defmaterial;
 				ConvertMaterial(bl_mat, ma, tface, tfaceName, mface, mcol,
-					layers, converter->GetGLSLMaterials());
+					converter->GetGLSLMaterials());
 
 				short type = (bl_mat) ? ((ma->mode & MA_VERTEXCOLP || bl_mat->glslmat) ? 0 : 1) : 0;
 				GetRGB(type,mface,mcol,ma,rgb);
