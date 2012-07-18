@@ -2717,12 +2717,25 @@ class VIEW3D_PT_floating_controls(Panel):
             row.prop(view, "use_manipulator_rotate", text="", icon='MAN_ROT', clearfield=True)
             row.prop(view, "use_manipulator_scale", text="", icon='MAN_SCALE', clearfield=True)
 
+            row.separator()
+
+            # When the user is in edit mode, these buttons are property controls so that they can remember state,
+            # toggle on and off, make use of shift, etc. However, when the user is in object mode they're drawn
+            # as operator controls so that they render off (popped, not toggled) and when the user clicks they
+            # invoke edit mode.
+
             if bpy.context.object.mode == 'EDIT':
-                row.separator()
-            
                 row.prop(tools, "use_select_vertex", text="", clearfield=True)
                 row.prop(tools, "use_select_edge", text="", clearfield=True)
                 row.prop(tools, "use_select_face", text="", clearfield=True)
+
+            else:
+                props = row.operator("mesh.selection_mode_set", text="", icon='VERTEXSEL')
+                props.mode='VERTEX'
+                props = row.operator("mesh.selection_mode_set", text="", icon='EDGESEL')
+                props.mode='EDGE'
+                props = row.operator("mesh.selection_mode_set", text="", icon='FACESEL')
+                props.mode='FACE'
 
         elif bpy.context.user_preferences.edit.floating_controls == 'LEFT' or bpy.context.user_preferences.edit.floating_controls == 'RIGHT':
             layout = self.layout
@@ -2739,13 +2752,20 @@ class VIEW3D_PT_floating_controls(Panel):
             column.prop(view, "use_manipulator_rotate", text="", icon='MAN_ROT', clearfield=True)
             column.prop(view, "use_manipulator_scale", text="", icon='MAN_SCALE', clearfield=True)
 
+            column.separator()
+
             if bpy.context.object.mode == 'EDIT':
-                column.separator()
-            
                 column.prop(tools, "use_select_vertex", text="", clearfield=True)
                 column.prop(tools, "use_select_edge", text="", clearfield=True)
                 column.prop(tools, "use_select_face", text="", clearfield=True)
 
+            else:
+                props = column.operator("mesh.selection_mode_set", text="", icon='VERTEXSEL')
+                props.mode='VERTEX'
+                props = column.operator("mesh.selection_mode_set", text="", icon='EDGESEL')
+                props.mode='EDGE'
+                props = column.operator("mesh.selection_mode_set", text="", icon='FACESEL')
+                props.mode='FACE'
 
 
 
