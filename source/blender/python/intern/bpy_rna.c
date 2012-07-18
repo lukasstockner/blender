@@ -4267,7 +4267,7 @@ static int foreach_parse_args(BPy_PropertyRNA *self, PyObject *args,
 		return -1;
 	}
 
-	*tot = PySequence_Size(*seq); // TODO - buffer may not be a sequence! array.array() is tho.
+	*tot = PySequence_Size(*seq); /* TODO - buffer may not be a sequence! array.array() is tho. */
 
 	if (*tot > 0) {
 		foreach_attr_type(self, *attr, raw_type, attr_tot, attr_signed);
@@ -7000,7 +7000,7 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
 			Py_INCREF(py_class_instance);
 #endif
 			/*
-			 * This would work fine but means __init__ functions wouldnt run.
+			 * This would work fine but means __init__ functions wouldn't run.
 			 * none of blenders default scripts use __init__ but its nice to call it
 			 * for general correctness. just to note why this is here when it could be safely removed.
 			 */

@@ -363,7 +363,7 @@ PyObject *BPy_BMLoopColor_CreatePyObject(struct MLoopCol *data)
  *     weight = dv[group_nr]
  *     del dv[group_nr]
  *
- * \note: there is nothing BMesh spesific here,
+ * \note: there is nothing BMesh specific here,
  * its only that BMesh is the only part of blender that uses a hand written api like this.
  * This type could eventually be used to access lattice weights.
  *
@@ -432,7 +432,7 @@ static int bpy_bmdeformvert_ass_subscript(BPy_BMDeformVert *self, PyObject *key,
 			/* dvert[group_index] = 0.5 */
 			if (i < 0) {
 				PyErr_SetString(PyExc_KeyError, "BMDeformVert[key] = x: "
-								"weight keys can't be negative");
+				                "weight keys can't be negative");
 				return -1;
 			}
 			else {
@@ -440,8 +440,8 @@ static int bpy_bmdeformvert_ass_subscript(BPy_BMDeformVert *self, PyObject *key,
 				const float f = PyFloat_AsDouble(value);
 				if (f == -1 && PyErr_Occurred()) { // parsed key not a number
 					PyErr_SetString(PyExc_TypeError,
-									"BMDeformVert[key] = x: "
-									"argument not a number");
+					                "BMDeformVert[key] = x: "
+					                "argument not a number");
 					return -1;
 				}
 
@@ -496,7 +496,7 @@ static PySequenceMethods bpy_bmdeformvert_as_sequence = {
     NULL,                                        /* sq_slice */
     NULL,                                        /* sq_ass_item */
     NULL,                                        /* *was* sq_ass_slice */
-    (objobjproc)bpy_bmdeformvert_contains,  /* sq_contains */
+    (objobjproc)bpy_bmdeformvert_contains,       /* sq_contains */
     (binaryfunc) NULL,                           /* sq_inplace_concat */
     (ssizeargfunc) NULL,                         /* sq_inplace_repeat */
 };

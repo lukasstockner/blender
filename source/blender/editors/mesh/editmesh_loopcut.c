@@ -449,6 +449,7 @@ static int loopcut_modal(bContext *C, wmOperator *op, wmEvent *event)
 
 	switch (event->type) {
 		case RETKEY:
+		case PADENTER:
 		case LEFTMOUSE: /* confirm */ // XXX hardcoded
 			if (event->val == KM_PRESS) {
 				/* finish */

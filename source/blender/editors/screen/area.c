@@ -418,7 +418,7 @@ void region_scissor_winrct(ARegion *ar, rcti *winrct)
 	while (ar->prev) {
 		ar = ar->prev;
 		
-		if (BLI_isect_rcti(winrct, &ar->winrct, NULL)) {
+		if (BLI_rcti_isect(winrct, &ar->winrct, NULL)) {
 			if (ar->flag & RGN_FLAG_HIDDEN) ;
 			else if (ar->alignment & RGN_SPLIT_PREV) ;
 			else if (ar->alignment == RGN_OVERLAP_LEFT) {
@@ -622,7 +622,7 @@ static void area_azone_initialize(ScrArea *sa)
 	az->y1 = sa->totrct.ymin - 1;
 	az->x2 = sa->totrct.xmin + (AZONESPOT - 1);
 	az->y2 = sa->totrct.ymin + (AZONESPOT - 1);
-	BLI_init_rcti(&az->rect, az->x1, az->x2, az->y1, az->y2);
+	BLI_rcti_init(&az->rect, az->x1, az->x2, az->y1, az->y2);
 	
 	az = (AZone *)MEM_callocN(sizeof(AZone), "actionzone");
 	BLI_addtail(&(sa->actionzones), az);
@@ -631,7 +631,7 @@ static void area_azone_initialize(ScrArea *sa)
 	az->y1 = sa->totrct.ymax + 1;
 	az->x2 = sa->totrct.xmax - (AZONESPOT - 1);
 	az->y2 = sa->totrct.ymax - (AZONESPOT - 1);
-	BLI_init_rcti(&az->rect, az->x1, az->x2, az->y1, az->y2);
+	BLI_rcti_init(&az->rect, az->x1, az->x2, az->y1, az->y2);
 }
 
 #define AZONEPAD_EDGE   4
@@ -665,7 +665,7 @@ static void region_azone_edge(AZone *az, ARegion *ar)
 			break;
 	}
 
-	BLI_init_rcti(&az->rect, az->x1, az->x2, az->y1, az->y2);
+	BLI_rcti_init(&az->rect, az->x1, az->x2, az->y1, az->y2);
 }
 
 static void region_azone_icon(ScrArea *sa, AZone *az, ARegion *ar)
@@ -707,7 +707,7 @@ static void region_azone_icon(ScrArea *sa, AZone *az, ARegion *ar)
 			break;
 	}
 
-	BLI_init_rcti(&az->rect, az->x1, az->x2, az->y1, az->y2);
+	BLI_rcti_init(&az->rect, az->x1, az->x2, az->y1, az->y2);
 	
 	/* if more azones on 1 spot, set offset */
 	for (azt = sa->actionzones.first; azt; azt = azt->next) {
@@ -721,7 +721,7 @@ static void region_azone_icon(ScrArea *sa, AZone *az, ARegion *ar)
 					az->y1 -= AZONESPOT;
 					az->y2 -= AZONESPOT;
 				}
-				BLI_init_rcti(&az->rect, az->x1, az->x2, az->y1, az->y2);
+				BLI_rcti_init(&az->rect, az->x1, az->x2, az->y1, az->y2);
 			}
 		}
 	}
@@ -768,7 +768,7 @@ static void region_azone_tab_plus(ScrArea *sa, AZone *az, ARegion *ar)
 			break;
 	}
 	/* rect needed for mouse pointer test */
-	BLI_init_rcti(&az->rect, az->x1, az->x2, az->y1, az->y2);
+	BLI_rcti_init(&az->rect, az->x1, az->x2, az->y1, az->y2);
 }	
 
 
@@ -813,7 +813,7 @@ static void region_azone_tab(ScrArea *sa, AZone *az, ARegion *ar)
 			break;
 	}
 	/* rect needed for mouse pointer test */
-	BLI_init_rcti(&az->rect, az->x1, az->x2, az->y1, az->y2);
+	BLI_rcti_init(&az->rect, az->x1, az->x2, az->y1, az->y2);
 }	
 
 #define AZONEPAD_TRIAW  16
@@ -858,7 +858,7 @@ static void region_azone_tria(ScrArea *sa, AZone *az, ARegion *ar)
 			break;
 	}
 	/* rect needed for mouse pointer test */
-	BLI_init_rcti(&az->rect, az->x1, az->x2, az->y1, az->y2);
+	BLI_rcti_init(&az->rect, az->x1, az->x2, az->y1, az->y2);
 }	
 
 
@@ -926,7 +926,7 @@ static void region_rect_recursive(ScrArea *sa, ARegion *ar, rcti *remainder, int
 		return;
 	
 	/* no returns in function, winrct gets set in the end again */
-	BLI_init_rcti(&ar->winrct, 0, 0, 0, 0);
+	BLI_rcti_init(&ar->winrct, 0, 0, 0, 0);
 	
 	/* for test; allow split of previously defined region */
 	if (ar->alignment & RGN_SPLIT_PREV)
@@ -962,7 +962,7 @@ static void region_rect_recursive(ScrArea *sa, ARegion *ar, rcti *remainder, int
 	else if (alignment == RGN_ALIGN_NONE) {
 		/* typically last region */
 		ar->winrct = *remainder;
-		BLI_init_rcti(remainder, 0, 0, 0, 0);
+		BLI_rcti_init(remainder, 0, 0, 0, 0);
 	}
 	else if (alignment == RGN_ALIGN_TOP || alignment == RGN_ALIGN_BOTTOM) {
 		
@@ -1022,7 +1022,7 @@ static void region_rect_recursive(ScrArea *sa, ARegion *ar, rcti *remainder, int
 				remainder->xmin = ar->winrct.xmax + 1;
 			}
 			else {
-				BLI_init_rcti(remainder, 0, 0, 0, 0);
+				BLI_rcti_init(remainder, 0, 0, 0, 0);
 			}
 		}
 		else {
@@ -1031,7 +1031,7 @@ static void region_rect_recursive(ScrArea *sa, ARegion *ar, rcti *remainder, int
 				remainder->ymin = ar->winrct.ymax + 1;
 			}
 			else {
-				BLI_init_rcti(remainder, 0, 0, 0, 0);
+				BLI_rcti_init(remainder, 0, 0, 0, 0);
 			}
 		}
 	}
@@ -1051,7 +1051,7 @@ static void region_rect_recursive(ScrArea *sa, ARegion *ar, rcti *remainder, int
 			
 			if (count != 4) {
 				/* let's stop adding regions */
-				BLI_init_rcti(remainder, 0, 0, 0, 0);
+				BLI_rcti_init(remainder, 0, 0, 0, 0);
 				if (G.debug & G_DEBUG)
 					printf("region quadsplit failed\n");
 			}
@@ -1073,7 +1073,7 @@ static void region_rect_recursive(ScrArea *sa, ARegion *ar, rcti *remainder, int
 			else {  /* right top */
 				ar->winrct.xmin = 1 + (remainder->xmin + remainder->xmax) / 2;
 				ar->winrct.ymin = 1 + (remainder->ymin + remainder->ymax) / 2;
-				BLI_init_rcti(remainder, 0, 0, 0, 0);
+				BLI_rcti_init(remainder, 0, 0, 0, 0);
 			}
 
 			quad++;
@@ -1164,7 +1164,7 @@ static void ed_default_handlers(wmWindowManager *wm, ScrArea *sa, ListBase *hand
 {
 	/* note, add-handler checks if it already exists */
 	
-	// XXX it would be good to have boundbox checks for some of these...
+	/* XXX it would be good to have boundbox checks for some of these... */
 	if (flag & ED_KEYMAP_UI) {
 		/* user interface widgets */
 		UI_add_region_handlers(handlers);
@@ -1669,7 +1669,7 @@ void ED_region_panels(const bContext *C, ARegion *ar, int vertical, const char *
 		v2d->scroll |= V2D_SCROLL_HORIZONTAL_HIDE;
 		v2d->scroll &= ~V2D_SCROLL_VERTICAL_HIDE;
 		
-		// don't jump back when panels close or hide
+		/* don't jump back when panels close or hide */
 		if (!newcontext)
 			y = MAX2(-y, -v2d->cur.ymin);
 		else
@@ -1684,14 +1684,14 @@ void ED_region_panels(const bContext *C, ARegion *ar, int vertical, const char *
 		//v2d->keepofs &= ~(V2D_LOCKOFS_X|V2D_KEEPOFS_Y);
 		v2d->scroll |= V2D_SCROLL_VERTICAL_HIDE;
 		v2d->scroll &= ~V2D_SCROLL_HORIZONTAL_HIDE;
-		
-		// don't jump back when panels close or hide
+
+		/* don't jump back when panels close or hide */
 		if (!newcontext)
 			x = MAX2(x, v2d->cur.xmax);
 		y = -y;
 	}
 
-	// +V2D_SCROLL_HEIGHT is workaround to set the actual height
+	/* +V2D_SCROLL_HEIGHT is workaround to set the actual height */
 	UI_view2d_totRect_set(v2d, x + V2D_SCROLL_WIDTH, y + V2D_SCROLL_HEIGHT);
 
 	/* set the view */
@@ -1713,17 +1713,17 @@ void ED_region_panels_init(wmWindowManager *wm, ARegion *ar)
 {
 	wmKeyMap *keymap;
 	
-	// XXX quick hacks for files saved with 2.5 already (i.e. the builtin defaults file)
-	// scrollbars for button regions
+	/* XXX quick hacks for files saved with 2.5 already (i.e. the builtin defaults file)
+	 * scrollbars for button regions */
 	ar->v2d.scroll |= (V2D_SCROLL_RIGHT | V2D_SCROLL_BOTTOM);
 	ar->v2d.scroll |= V2D_SCROLL_HORIZONTAL_HIDE;
 	ar->v2d.scroll &= ~V2D_SCROLL_VERTICAL_HIDE;
 	ar->v2d.keepzoom |= V2D_KEEPZOOM;
 
-	// correctly initialized User-Prefs?
+	/* correctly initialized User-Prefs? */
 	if (!(ar->v2d.align & V2D_ALIGN_NO_POS_Y))
 		ar->v2d.flag &= ~V2D_IS_INITIALISED;
-	
+
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_PANELS_UI, ar->winx, ar->winy);
 
 	keymap = WM_keymap_find(wm->defaultconf, "View2D Buttons List", 0, 0);

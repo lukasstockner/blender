@@ -850,7 +850,7 @@ static int acf_group_setting_flag(bAnimContext *ac, int setting, short *neg)
 			// *neg = 1; - if we change this to edtiability
 			return AGRP_PROTECTED;
 			
-		case ACHANNEL_SETTING_VISIBLE: /* visiblity - graph editor */
+		case ACHANNEL_SETTING_VISIBLE: /* visibility - graph editor */
 			*neg = 1;
 			return AGRP_NOTVISIBLE;
 	}
@@ -938,7 +938,7 @@ static int acf_fcurve_setting_flag(bAnimContext *UNUSED(ac), int setting, short 
 			// *neg = 1; - if we change this to edtiability
 			return FCURVE_PROTECTED;
 			
-		case ACHANNEL_SETTING_VISIBLE: /* visiblity - graph editor */
+		case ACHANNEL_SETTING_VISIBLE: /* visibility - graph editor */
 			return FCURVE_VISIBLE;
 			
 		default: /* unsupported */
@@ -3006,41 +3006,41 @@ void ANIM_channel_draw(bAnimContext *ac, bAnimListElem *ale, float yminc, float 
 			offset += ICON_WIDTH; 
 		}
 	}
-	
+
 	/* step 5) draw name ............................................... */
-	// TODO: when renaming, we might not want to draw this, especially if name happens to be longer than channel
+	/* TODO: when renaming, we might not want to draw this, especially if name happens to be longer than channel */
 	if (acf->name) {
 		char name[ANIM_CHAN_NAME_SIZE]; /* hopefully this will be enough! */
-		
+
 		/* set text color */
-		// XXX: if active, highlight differently?
+		/* XXX: if active, highlight differently? */
 		if (selected)
 			UI_ThemeColor(TH_TEXT_HI);
 		else
 			UI_ThemeColor(TH_TEXT);
-			
+
 		/* get name */
 		acf->name(ale, name);
-		
+
 		offset += 3;
 		UI_DrawString(offset, ytext, name);
-		
+
 		/* draw red underline if channel is disabled */
 		if ((ale->type == ANIMTYPE_FCURVE) && (ale->flag & FCURVE_DISABLED)) {
-			// FIXME: replace hardcoded color here, and check on extents!
+			/* FIXME: replace hardcoded color here, and check on extents! */
 			gpuCurrentColor3x(CPACK_RED);
 			glLineWidth(2.0);
 			gpuSingleLinef(offset, yminc, v2d->cur.xmax, yminc); // DOODLE: single thick colored line
 			glLineWidth(1.0);
 		}
 	}
-	
+
 	/* step 6) draw backdrops behidn mute+protection toggles + (sliders) ....................... */
 	/* reset offset - now goes from RHS of panel */
 	offset = 0;
-	
-	// TODO: when drawing sliders, make those draw instead of these toggles if not enough space
-	
+
+	/* TODO: when drawing sliders, make those draw instead of these toggles if not enough space */
+
 	if (v2d) {
 		short draw_sliders = 0;
 		float color[3];

@@ -81,7 +81,7 @@ static FileSelection find_file_mouse_rect(SpaceFile *sfile, struct ARegion *ar, 
 	UI_view2d_region_to_view(v2d, rect->xmin, rect->ymin, &fxmin, &fymin);
 	UI_view2d_region_to_view(v2d, rect->xmax, rect->ymax, &fxmax, &fymax);
 
-	BLI_init_rcti(&rect_view, (int)(v2d->tot.xmin + fxmin), (int)(v2d->tot.xmin + fxmax), (int)(v2d->tot.ymax - fymin), (int)(v2d->tot.ymax - fymax));
+	BLI_rcti_init(&rect_view, (int)(v2d->tot.xmin + fxmin), (int)(v2d->tot.xmin + fxmax), (int)(v2d->tot.ymax - fymin), (int)(v2d->tot.ymax - fymax));
 
 	sel  = ED_fileselect_layout_offset_rect(sfile->layout, &rect_view);
 	
@@ -248,7 +248,7 @@ static int file_border_select_modal(bContext *C, wmOperator *op, wmEvent *event)
 		rect.xmax = RNA_int_get(op->ptr, "xmax");
 		rect.ymax = RNA_int_get(op->ptr, "ymax");
 
-		BLI_isect_rcti(&(ar->v2d.mask), &rect, &rect);
+		BLI_rcti_isect(&(ar->v2d.mask), &rect, &rect);
 
 		sel = file_selection_get(C, &rect, 0);
 		if ( (sel.first != params->sel_first) || (sel.last != params->sel_last) ) {
@@ -288,7 +288,7 @@ static int file_border_select_exec(bContext *C, wmOperator *op)
 		file_deselect_all(sfile, SELECTED_FILE);
 	}
 
-	BLI_isect_rcti(&(ar->v2d.mask), &rect, &rect);
+	BLI_rcti_isect(&(ar->v2d.mask), &rect, &rect);
 
 	ret = file_select(C, &rect, select ? FILE_SEL_ADD : FILE_SEL_REMOVE, 0);
 	if (FILE_SELECT_DIR == ret) {

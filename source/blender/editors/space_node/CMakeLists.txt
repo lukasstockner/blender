@@ -31,6 +31,7 @@ set(INC
 	../../nodes
 	../../render/extern/include
 	../../windowmanager
+	../../compositor
 	../../../../intern/guardedalloc
 	../../../../intern/opennl/extern
 )
@@ -56,6 +57,10 @@ set(SRC
 
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
+if(WITH_COMPOSITOR)
+	add_definitions(-DWITH_COMPOSITOR)
 endif()
 
 add_definitions(-DGLEW_STATIC)

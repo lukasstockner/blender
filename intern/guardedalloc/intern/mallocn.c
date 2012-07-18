@@ -20,7 +20,8 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): none yet.
+ * Contributor(s): Brecht Van Lommel
+ *                 Campbell Barton
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -163,6 +164,9 @@ static int malloc_debug_memset = 0;
 /* implementation                                                        */
 /* --------------------------------------------------------------------- */
 
+#ifdef __GNUC__
+__attribute__ ((format(printf, 1, 2)))
+#endif
 static void print_error(const char *str, ...)
 {
 	char buf[512];
@@ -219,10 +223,10 @@ void MEM_set_memory_debug(void)
 	malloc_debug_memset = 1;
 }
 
-size_t MEM_allocN_len(void *vmemh)
+size_t MEM_allocN_len(const void *vmemh)
 {
 	if (vmemh) {
-		MemHead *memh = vmemh;
+		const MemHead *memh = vmemh;
 	
 		memh--;
 		return memh->len;
@@ -325,7 +329,7 @@ void *MEM_mallocN(size_t len, const char *str)
 	}
 	mem_unlock_thread();
 	print_error("Malloc returns null: len=" SIZET_FORMAT " in %s, total %u\n",
-	            SIZET_ARG(len), str, mem_in_use);
+	            SIZET_ARG(len), str, (unsigned int) mem_in_use);
 	return NULL;
 }
 
@@ -351,7 +355,7 @@ void *MEM_callocN(size_t len, const char *str)
 	}
 	mem_unlock_thread();
 	print_error("Calloc returns null: len=" SIZET_FORMAT " in %s, total %u\n",
-	            SIZET_ARG(len), str, mem_in_use);
+	            SIZET_ARG(len), str, (unsigned int) mem_in_use);
 	return NULL;
 }
 
@@ -384,7 +388,7 @@ void *MEM_mapallocN(size_t len, const char *str)
 		mem_unlock_thread();
 		print_error("Mapalloc returns null, fallback to regular malloc: "
 		            "len=" SIZET_FORMAT " in %s, total %u\n",
-		            SIZET_ARG(len), str, mmap_in_use);
+		            SIZET_ARG(len), str, (unsigned int) mmap_in_use);
 		return MEM_callocN(len, str);
 	}
 }
@@ -901,6 +905,4 @@ const char *MEM_name_ptr(void *vmemh)
 		return "MEM_name_ptr(NULL)";
 	}
 }
-#endif
-
-/* eof */
+#endif  /* NDEBUG */

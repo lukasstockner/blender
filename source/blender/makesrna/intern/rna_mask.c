@@ -35,6 +35,7 @@
 #include "BKE_tracking.h"
 
 #include "RNA_define.h"
+#include "RNA_enum_types.h"
 
 #include "rna_internal.h"
 
@@ -565,7 +566,14 @@ static void rna_def_maskSpline(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", MASK_SPLINE_CYCLIC);
 	RNA_def_property_ui_text(prop, "Cyclic", "Make this spline a closed loop");
-	RNA_def_property_update(prop, 0, "rna_Mask_update_data");
+	RNA_def_property_update(prop, NC_MASK | NA_EDITED, "rna_Mask_update_data");
+
+	/* fill */
+	prop = RNA_def_property(srna, "use_fill", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", MASK_SPLINE_NOFILL);
+	RNA_def_property_ui_text(prop, "Fill", "Make this spline filled");
+	RNA_def_property_update(prop, NC_MASK | NA_EDITED, "rna_Mask_update_data");
 }
 
 static void rna_def_mask_layer(BlenderRNA *brna)
@@ -573,6 +581,10 @@ static void rna_def_mask_layer(BlenderRNA *brna)
 	static EnumPropertyItem masklay_blend_mode_items[] = {
 		{MASK_BLEND_ADD, "ADD", 0, "Add", ""},
 		{MASK_BLEND_SUBTRACT, "SUBTRACT", 0, "Subtract", ""},
+		{MASK_BLEND_LIGHTEN, "LIGHTEN", 0, "Lighten", ""},
+		{MASK_BLEND_DARKEN, "DARKEN", 0, "Darken", ""},
+		{MASK_BLEND_MUL, "MUL", 0, "Multiply", ""},
+		{MASK_BLEND_REPLACE, "REPLACE", 0, "Replace", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -644,6 +656,12 @@ static void rna_def_mask_layer(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "invert", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "blend_flag", MASK_BLENDFLAG_INVERT);
 	RNA_def_property_ui_text(prop, "Restrict View", "Invert the mask black/white");
+	RNA_def_property_update(prop, NC_MASK | NA_EDITED, NULL);
+
+	prop = RNA_def_property(srna, "falloff", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "falloff");
+	RNA_def_property_enum_items(prop, proportional_falloff_curve_only_items);
+	RNA_def_property_ui_text(prop, "Falloff", "Falloff type the feather");
 	RNA_def_property_update(prop, NC_MASK | NA_EDITED, NULL);
 
 }

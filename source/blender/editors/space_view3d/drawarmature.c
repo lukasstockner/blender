@@ -696,13 +696,13 @@ static void draw_sphere_bone_dist(float smat[][4], float imat[][4], bPoseChannel
 			tailvec = headvec;
 			tail = head;
 			zero_v3(dirvec);
-			dirvec[0] = 0.00001; // XXX. weak but ok
+			dirvec[0] = 0.00001;  /* XXX. weak but ok */
 		}
 		else if (tail - view_dist > head) {
 			headvec = tailvec;
 			head = tail;
 			zero_v3(dirvec);
-			dirvec[0] = 0.00001; // XXX. weak but ok
+			dirvec[0] = 0.00001;  /* XXX. weak but ok */
 		}
 	}
 
@@ -1066,7 +1066,7 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 		
 		/*	Draw root point if we are not connected */
 		if ((boneflag & BONE_CONNECTED) == 0) {
-			if (G.f & G_PICKSEL) {  // no bitmap in selection mode, crashes 3d cards...
+			if (G.f & G_PICKSEL) {  /* no bitmap in selection mode, crashes 3d cards... */
 				glLoadName(id | BONESEL_ROOT);
 				gpuBegin(GL_POINTS);
 				gpuVertex3f(0.0f, 0.0f, 0.0f);
@@ -1200,7 +1200,7 @@ static void draw_b_bone(const short dt, int armflag, int boneflag, short constfl
 		glScalef(length, length, length);
 		draw_bone_points(dt, armflag, boneflag, id);
 		glPopMatrix();
-		length *= 0.95f; // make vertices visible
+		length *= 0.95f;  /* make vertices visible */
 	}
 
 	/* colors for modes */
@@ -1274,7 +1274,7 @@ static void draw_wire_bone_segments(bPoseChannel *pchan, Mat4 *bbones, float len
 			gpuBegin(GL_LINES);
 			gpuVertex3f(0.0f, 0.0f, 0.0f);
 			gpuVertex3f(0.0f, dlen, 0.0f);
-			gpuEnd(); // GL_LINES
+			gpuEnd(); /* GL_LINES */
 			
 			glPopMatrix();
 		}
@@ -1315,7 +1315,7 @@ static void draw_wire_bone(const short dt, int armflag, int boneflag, short cons
 		glScalef(length, length, length);
 		draw_bone_points(dt, armflag, boneflag, id);
 		glPopMatrix();
-		length *= 0.95f;    // make vertices visible
+		length *= 0.95f;  /* make vertices visible */
 	}
 	
 	/* this chunk not in object mode */
@@ -1466,7 +1466,9 @@ static void pchan_draw_IK_root_lines(bPoseChannel *pchan, short only_temp)
 				/* Find the chain's root */
 				while (parchan->parent) {
 					segcount++;
-					if (segcount == data->rootbone || segcount > 255) break;  // 255 is weak
+					if (segcount == data->rootbone || segcount > 255) {
+						break;  /* 255 is weak */
+					}
 					parchan = parchan->parent;
 				}
 				if (parchan)
@@ -1490,13 +1492,13 @@ static void pchan_draw_IK_root_lines(bPoseChannel *pchan, short only_temp)
 				/* Find the chain's root */
 				while (parchan->parent) {
 					segcount++;
-					// FIXME: revise the breaking conditions
-					if (segcount == data->chainlen || segcount > 255) break;  // 255 is weak
+					/* FIXME: revise the breaking conditions */
+					if (segcount == data->chainlen || segcount > 255) break;  /* 255 is weak */
 					parchan = parchan->parent;
 				}
-				if (parchan) // XXX revise the breaking conditions to only stop at the tail?
+				if (parchan)  /* XXX revise the breaking conditions to only stop at the tail? */
 					gpuVertex3fv(parchan->pose_head);
-				
+
 				gpuEnd();
 				setlinestyle(0);
 			}
@@ -1644,7 +1646,7 @@ static void draw_pose_dofs(Object *ob)
 								theta = RAD2DEGF(0.5f * (pchan->limitmin[2] + pchan->limitmax[2]));
 								glRotatef(theta, 0.0f, 0.0f, 1.0f);
 								
-								gpuCurrentColor3ub(50, 50, 255);    // blue, Z axis limit
+								gpuCurrentColor3ub(50, 50, 255);    /* blue, Z axis limit */
 								gpuBegin(GL_LINE_STRIP);
 								for (a = -16; a <= 16; a++) {
 									/* *0.5f here comes from M_PI/360.0f when rotations were still in degrees */
@@ -1661,14 +1663,14 @@ static void draw_pose_dofs(Object *ob)
 								gpuEnd();
 								
 								glRotatef(-theta, 0.0f, 0.0f, 1.0f);
-							}					
+							}
 							
 							if (pchan->ikflag & BONE_IK_XLIMIT) {
 								/* OpenGL requires rotations in degrees; so we're taking the average angle here */
 								theta = RAD2DEGF(0.5f * (pchan->limitmin[0] + pchan->limitmax[0]));
 								glRotatef(theta, 1.0f, 0.0f, 0.0f);
 								
-								gpuCurrentColor3ub(255, 50, 50);    // Red, X axis limit
+								gpuCurrentColor3ub(255, 50, 50);    /* Red, X axis limit */
 								gpuBegin(GL_LINE_STRIP);
 								for (a = -16; a <= 16; a++) {
 									/* *0.5f here comes from M_PI/360.0f when rotations were still in degrees */
@@ -1842,7 +1844,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 			}
 			
 			if (index != -1)
-				index += 0x10000;   // pose bones count in higher 2 bytes only
+				index += 0x10000;  /* pose bones count in higher 2 bytes only */
 		}
 		
 		/* very very confusing... but in object mode, solid draw, we cannot do glLoadName yet,
@@ -1911,7 +1913,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 			}
 			
 			if (index != -1) 
-				index += 0x10000;   // pose bones count in higher 2 bytes only
+				index += 0x10000;  /* pose bones count in higher 2 bytes only */
 		}
 		/* stick or wire bones have not been drawn yet so don't clear object selection in this case */
 		if (ELEM(arm->drawtype, ARM_LINE, ARM_WIRE) == 0 && draw_wire) {
@@ -1950,11 +1952,11 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 					const short constflag = pchan->constflag;
 					if ((do_dashed & 1) && (pchan->parent)) {
 						/* Draw a line from our root to the parent's tip 
-						 *	- only if V3D_HIDE_HELPLINES is enabled...
+						 * - only if V3D_HIDE_HELPLINES is enabled...
 						 */
 						if ( (do_dashed & 2) && ((bone->flag & BONE_CONNECTED) == 0) ) {
 							if (arm->flag & ARM_POSEMODE) {
-								glLoadName(index & 0xFFFF); // object tag, for bordersel optim
+								glLoadName(index & 0xFFFF);  /* object tag, for bordersel optim */
 								UI_ThemeColor(TH_WIRE);
 							}
 							setlinestyle(3);
@@ -1972,15 +1974,15 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 							if (constflag & PCHAN_HAS_IK) {
 								if (bone->flag & BONE_SELECTED) {
 									if (constflag & PCHAN_HAS_TARGET) gpuCurrentColor3ub(200, 120, 0);
-									else gpuCurrentColor3ub(200, 200, 50);  // add theme!
-									
+									else gpuCurrentColor3ub(200, 200, 50);  /* add theme! */
+
 									glLoadName(index & 0xFFFF);
 									pchan_draw_IK_root_lines(pchan, !(do_dashed & 2));
 								}
 							}
 							else if (constflag & PCHAN_HAS_SPLINEIK) {
 								if (bone->flag & BONE_SELECTED) {
-									gpuCurrentColor3ub(150, 200, 50);   // add theme!
+									gpuCurrentColor3ub(150, 200, 50);   /* add theme! */
 									
 									glLoadName(index & 0xFFFF);
 									pchan_draw_IK_root_lines(pchan, !(do_dashed & 2));
@@ -2256,7 +2258,7 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 				/* offset to parent */
 				if (eBone->parent) {
 					UI_ThemeColor(TH_WIRE);
-					glLoadName(-1);         // -1 here is OK!
+					glLoadName(-1);  /* -1 here is OK! */
 					setlinestyle(3);
 					
 					gpuBegin(GL_LINES);
@@ -2278,7 +2280,7 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 	
 	/* finally names and axes */
 	if (arm->flag & (ARM_DRAWNAMES | ARM_DRAWAXES)) {
-		// patch for several 3d cards (IBM mostly) that crash on GL_SELECT with text drawing
+		/* patch for several 3d cards (IBM mostly) that crash on GL_SELECT with text drawing */
 		if ((G.f & G_PICKSEL) == 0) {
 			float vec[3];
 			unsigned char col[4];
@@ -2628,7 +2630,7 @@ int draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 
 		glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 
-		glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW); // only for lighting...
+		glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);  /* only for lighting... */
 	}
 	
 	/* arm->flag is being used to detect mode... */

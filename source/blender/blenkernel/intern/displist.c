@@ -499,16 +499,14 @@ void BKE_displist_fill(ListBase *dispbase, ListBase *to, int flipnormal)
 				/* vert data */
 				f1 = dlnew->verts;
 				totvert = 0;
-				sf_vert = sf_ctx.fillvertbase.first;
-				while (sf_vert) {
+
+				for (sf_vert = sf_ctx.fillvertbase.first; sf_vert; sf_vert = sf_vert->next) {
 					copy_v3_v3(f1, sf_vert->co);
 					f1 += 3;
 
 					/* index number */
 					sf_vert->tmp.l = totvert;
 					totvert++;
-
-					sf_vert = sf_vert->next;
 				}
 
 				/* index data */
@@ -950,7 +948,7 @@ static void curve_calc_modifiers_post(Scene *scene, Object *ob, ListBase *dispba
 					curve_to_filledpoly(cu, nurb, dispbase);
 				}
 
-				dm = CDDM_from_curve_customDB(ob, dispbase);
+				dm = CDDM_from_curve_displist(ob, dispbase);
 
 				CDDM_calc_normals_mapping(dm);
 			}
@@ -1040,7 +1038,7 @@ static DerivedMesh *create_orco_dm(Scene *scene, Object *ob)
 
 	/* OrcoDM should be created from underformed disp lists */
 	BKE_displist_make_curveTypes_forOrco(scene, ob, &disp);
-	dm = CDDM_from_curve_customDB(ob, &disp);
+	dm = CDDM_from_curve_displist(ob, &disp);
 
 	BKE_displist_free(&disp);
 
@@ -1386,17 +1384,18 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 						ListBase top_capbase = {NULL, NULL};
 
 						for (dlb = dlbev.first; dlb; dlb = dlb->next) {
-							int i, start, steps;
-							float bevfac1 = MIN2(cu->bevfac1, cu->bevfac2), bevfac2 = MAX2(cu->bevfac1, cu->bevfac2);
+							const float bevfac1 = minf(cu->bevfac1, cu->bevfac2);
+							const float bevfac2 = maxf(cu->bevfac1, cu->bevfac2);
 							float firstblend = 0.0f, lastblend = 0.0f;
+							int i, start, steps;
 
-							if (cu->bevfac1 - cu->bevfac2 == 0.0f)
+							if (bevfac2 - bevfac1 == 0.0f)
 								continue;
 
 							start = (int)(bevfac1 * (bl->nr - 1));
 							steps = 2 + (int)((bevfac2) * (bl->nr - 1)) - start;
-							firstblend = 1.0f - ((float)bevfac1 * (bl->nr - 1) - (int)((float)bevfac1 * (bl->nr - 1)));
-							lastblend  = (float)bevfac2 * (bl->nr - 1) - (int)((float)bevfac2 * (bl->nr - 1));
+							firstblend = 1.0f - (bevfac1 * (bl->nr - 1) - (int)(bevfac1 * (bl->nr - 1)));
+							lastblend  =         bevfac2 * (bl->nr - 1) - (int)(bevfac2 * (bl->nr - 1));
 
 							if (steps > bl->nr) {
 								steps = bl->nr;

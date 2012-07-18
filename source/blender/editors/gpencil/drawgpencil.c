@@ -677,7 +677,7 @@ void draw_gpencil_2dimage(const bContext *C)
 		{
 			
 			/* just draw using standard scaling (settings here are currently ignored anyways) */
-			// FIXME: the opengl poly-strokes don't draw at right thickness when done this way, so disabled
+			/* FIXME: the opengl poly-strokes don't draw at right thickness when done this way, so disabled */
 			offsx = 0;
 			offsy = 0;
 			sizex = ar->winx;
@@ -734,7 +734,7 @@ void draw_gpencil_view2d(const bContext *C, short onlyv2d)
 	if (gpd == NULL) return;
 	
 	/* special hack for Image Editor */
-	// FIXME: the opengl poly-strokes don't draw at right thickness when done this way, so disabled
+	/* FIXME: the opengl poly-strokes don't draw at right thickness when done this way, so disabled */
 	if (ELEM(sa->spacetype, SPACE_IMAGE, SPACE_CLIP))
 		dflag |= GP_DRAWDATA_IEDITHACK;
 	
@@ -767,7 +767,7 @@ void draw_gpencil_view3d(Scene *scene, View3D *v3d, ARegion *ar, short only3d)
 	if ((rv3d->persp == RV3D_CAMOB) && !(G.f & G_RENDER_OGL)) {
 		rctf rectf;
 		ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, &rectf, TRUE); /* no shift */
-		BLI_copy_rcti_rctf(&rect, &rectf);
+		BLI_rcti_rctf_copy(&rect, &rectf);
 	}
 	else {
 		rect.xmin = 0;

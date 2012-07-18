@@ -35,7 +35,7 @@
 
 #include "DNA_camera_types.h"
 #include "DNA_curve_types.h"
-#include "DNA_constraint_types.h" // for drawing constraint
+#include "DNA_constraint_types.h"  /* for drawing constraint */
 #include "DNA_lamp_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_material_types.h"
@@ -56,10 +56,10 @@
 #include "BLI_rand.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_anim.h"  //for the where_on_path function
+#include "BKE_anim.h"  /* for the where_on_path function */
 #include "BKE_armature.h"
 #include "BKE_camera.h"
-#include "BKE_constraint.h" // for the get_constraint_target function
+#include "BKE_constraint.h"  /* for the get_constraint_target function */
 #include "BKE_curve.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_deform.h"
@@ -109,7 +109,7 @@
 #include "wm_subwindow.h"
 #include "BLF_api.h"
 
-#include "view3d_intern.h"  // own include
+#include "view3d_intern.h"  /* own include */
 
 typedef enum eWireDrawMode {
 	OBDRAW_WIRE_OFF = 0,
@@ -2002,7 +2002,7 @@ static void drawSelectedVertices__mapFunc(void *userData, int index, const float
 	if (!(mv->flag & ME_HIDE)) {
 		const char sel = mv->flag & SELECT;
 
-		// TODO define selected color
+		/* TODO define selected color */
 		if (sel) {
 			gpuColor3x(CPACK_YELLOW);
 		}
@@ -2046,7 +2046,7 @@ static void mesh_foreachScreenEdge__mapFunc(void *userData, int index, const flo
 				/* make an int copy */
 				int s_int[2][2] = {{s[0][0], s[0][1]},
 				                   {s[1][0], s[1][1]}};
-				if (!BLI_segment_in_rcti(&data->win_rect, s_int[0], s_int[1])) {
+				if (!BLI_rcti_isect_segment(&data->win_rect, s_int[0], s_int[1])) {
 					return;
 				}
 			}
@@ -2709,7 +2709,7 @@ static void draw_em_fancy_verts(Scene *scene, View3D *v3d, Object *obedit,
 	ToolSettings *ts = scene->toolsettings;
 	int sel;
 
-	if (v3d->zbuf) glDepthMask(0);      // disable write in zbuffer, zbuf select
+	if (v3d->zbuf) glDepthMask(0);  /* disable write in zbuffer, zbuf select */
 
 	for (sel = 0; sel < 2; sel++) {
 		unsigned char col[4], fcol[4];
@@ -2771,7 +2771,7 @@ static void draw_em_fancy_edges(BMEditMesh *em, Scene *scene, View3D *v3d,
 	int pass;
 	unsigned char wireCol[4], selCol[4], actCol[4];
 
-	/* since this function does transparant... */
+	/* since this function does transparent... */
 	UI_GetThemeColor4ubv(TH_EDGE_SELECT, selCol);
 	UI_GetThemeColor4ubv(TH_WIRE, wireCol);
 	UI_GetThemeColor4ubv(TH_EDITMESH_ACTIVE, actCol);
@@ -2782,7 +2782,7 @@ static void draw_em_fancy_edges(BMEditMesh *em, Scene *scene, View3D *v3d,
 		wireCol[3] = 0;
 
 	for (pass = 0; pass < 2; pass++) {
-		/* show wires in transparant when no zbuf clipping for select */
+		/* show wires in transparent when no zbuf clipping for select */
 		if (pass == 0) {
 			if (v3d->zbuf && (v3d->flag & V3D_ZBUF_SELECT) == 0) {
 				glEnable(GL_BLEND);
@@ -3139,8 +3139,8 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 			glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
 		}
 
-		// Setup for drawing wire over, disable zbuffer
-		// write to show selected edge wires better
+		/* Setup for drawing wire over, disable zbuffer
+		 * write to show selected edge wires better */
 		UI_ThemeColor(TH_WIRE);
 
 		bglPolygonOffset(rv3d->dist, 1.0);
@@ -3159,18 +3159,18 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 		UI_GetThemeColor4ubv(TH_FACE, col1);
 		UI_GetThemeColor4ubv(TH_FACE_SELECT, col2);
 		UI_GetThemeColor4ubv(TH_EDITMESH_ACTIVE, col3);
-		
+
 		glEnable(GL_BLEND);
-		glDepthMask(0);     // disable write in zbuffer, needed for nice transp
-		
+		glDepthMask(0);  /* disable write in zbuffer, needed for nice transp */
+
 		/* don't draw unselected faces, only selected, this is MUCH nicer when texturing */
 		if (check_object_draw_texture(scene, v3d, dt))
 			col1[3] = 0;
-		
+
 		draw_dm_faces_sel(em, cageDM, col1, col2, col3, efa_act);
 
 		glDisable(GL_BLEND);
-		glDepthMask(1);     // restore write in zbuffer
+		glDepthMask(1);  /* restore write in zbuffer */
 	}
 	else if (efa_act) {
 		/* even if draw faces is off it would be nice to draw the stipple face
@@ -3179,15 +3179,15 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 		unsigned char col1[4], col2[4], col3[4];
 		col1[3] = col2[3] = 0; /* don't draw */
 		UI_GetThemeColor4ubv(TH_EDITMESH_ACTIVE, col3);
-		
+
 		glEnable(GL_BLEND);
-		glDepthMask(0);     // disable write in zbuffer, needed for nice transp
-		
+		glDepthMask(0);  /* disable write in zbuffer, needed for nice transp */
+
 		draw_dm_faces_sel(em, cageDM, col1, col2, col3, efa_act);
 
 		glDisable(GL_BLEND);
-		glDepthMask(1);     // restore write in zbuffer
-		
+		glDepthMask(1);  /* restore write in zbuffer */
+
 	}
 
 	/* here starts all fancy draw-extra over */
@@ -3530,7 +3530,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 		 */
 		if (dt != OB_WIRE && (draw_wire == OBDRAW_WIRE_ON_DEPTH)) {
 			bglPolygonOffset(rv3d->dist, 1.0);
-			glDepthMask(0); // disable write in zbuffer, selected edge wires show better
+			glDepthMask(0);  /* disable write in zbuffer, selected edge wires show better */
 		}
 		
 		if (((v3d->flag2 & V3D_RENDER_OVERRIDE) && v3d->drawtype >= OB_SOLID) == 0)
@@ -3786,7 +3786,7 @@ static void drawDispListsolid(ListBase *lb, Object *ob,
 		glFrontFace(GL_CCW);
 	}
 
-	if (ob->type == OB_MBALL) {   // mball always smooth shaded
+	if (ob->type == OB_MBALL) {  /* mball always smooth shaded */
 		glShadeModel(GL_SMOOTH);
 	}
 
@@ -5709,8 +5709,8 @@ static void drawnurb(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 
 			while (nr-- > 0) { /* accounts for empty bevel lists */
 				const float fac = bevp->radius * ts->normalsize;
-				float vec_a[3]; // Offset perpendicular to the curve
-				float vec_b[3]; // Delta along the curve
+				float vec_a[3]; /* Offset perpendicular to the curve */
+				float vec_b[3]; /* Delta along the curve */
 
 				vec_a[0] = fac;
 				vec_a[1] = 0.0f;
@@ -5810,7 +5810,7 @@ static void draw_empty_cone(float size)
 }
 
 /* draw points on curve speed handles */
-#if 0 // XXX old animation system stuff
+#if 0  /* XXX old animation system stuff */
 static void curve_draw_speed(Scene *scene, Object *ob)
 {
 	Curve *cu = ob->data;
@@ -5839,7 +5839,7 @@ static void curve_draw_speed(Scene *scene, Object *ob)
 	glPointSize(1.0);
 	gpuEndSprites();
 }
-#endif // XXX old animation system stuff
+#endif  /* XXX old animation system stuff */
 
 
 static void draw_textcurs(float textcurs[4][2])
@@ -6018,7 +6018,7 @@ static void draw_forcefield(Scene *scene, Object *ob, RegionView3D *rv3d)
 	
 	/* calculus here, is reused in PFIELD_FORCE */
 	invert_m4_m4(imat, rv3d->viewmatob);
-//	normalize_v3(imat[0]);		// we don't do this because field doesnt scale either... apart from wind!
+//	normalize_v3(imat[0]);  /* we don't do this because field doesnt scale either... apart from wind! */
 //	normalize_v3(imat[1]);
 	
 	if (pd->forcefield == PFIELD_WIND) {
@@ -6459,8 +6459,8 @@ static void drawWireExtra(Scene *scene, RegionView3D *rv3d, Object *ob)
 	}
 	
 	bglPolygonOffset(rv3d->dist, 1.0);
-	glDepthMask(0); // disable write in zbuffer, selected edge wires show better
-	
+	glDepthMask(0);  /* disable write in zbuffer, selected edge wires show better */
+
 	if (ELEM3(ob->type, OB_FONT, OB_CURVE, OB_SURF)) {
 		Curve *cu = ob->data;
 		if (ED_view3d_boundbox_clip(rv3d, ob->obmat, ob->bb ? ob->bb : cu->bb)) {
@@ -7076,7 +7076,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 #endif
 		}
 
-		// only draw domains
+		/* only draw domains */
 		if (smd->domain && smd->domain->fluid) {
 			if (CFRA < smd->domain->point_cache[0]->startframe) {
 				/* don't show smoke before simulation starts, this could be made an option in the future */
@@ -7539,7 +7539,7 @@ static DMDrawOption bbs_mesh_solid_hide__setDrawOpts(Mesh *me, int index)
 	}
 }
 
-// must have called WM_set_framebuffer_index_color beforehand
+/* must have called WM_set_framebuffer_index_color beforehand */
 static DMDrawOption bbs_mesh_solid_hide2__setDrawOpts(Mesh *me, int index)
 {
 	if (!(me->mpoly[index].flag & ME_HIDE)) {
@@ -7593,11 +7593,11 @@ void draw_object_backbufsel(Scene *scene, View3D *v3d, RegionView3D *rv3d, Objec
 
 				bglPolygonOffset(rv3d->dist, 1.0);
 
-				// we draw edges always, for loop (select) tools
+				/* we draw edges always, for loop (select) tools */
 				bbs_mesh_wire(em, dm, bm_solidoffs);
 				bm_wireoffs = bm_solidoffs + em->bm->totedge;
 
-				// we draw verts if vert select mode or if in transform (for snap).
+				/* we draw verts if vert select mode or if in transform (for snap). */
 				if ((ts->selectmode & SCE_SELECT_VERTEX) || (G.moving & G_TRANSFORM_EDIT)) {
 					bbs_mesh_verts(em, dm, bm_wireoffs);
 					bm_vertoffs = bm_wireoffs + em->bm->totvert;

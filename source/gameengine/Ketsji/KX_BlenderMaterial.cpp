@@ -153,15 +153,8 @@ void KX_BlenderMaterial::ReleaseMaterial()
 		mBlenderShader->ReloadMaterial();
 }
 
-void KX_BlenderMaterial::OnConstruction(int layer)
+void KX_BlenderMaterial::InitTextures()
 {
-	if (mConstructed)
-		// when material are reused between objects
-		return;
-	
-	if (mMaterial->glslmat)
-		SetBlenderGLSLShader(layer);
-
 	// for each unique material...
 	int i;
 	for (i=0; i<BL_Texture::GetMaxUnits(); i++) {
@@ -184,6 +177,18 @@ void KX_BlenderMaterial::OnConstruction(int layer)
 			}
 		}
 	}
+}
+
+void KX_BlenderMaterial::OnConstruction(int layer)
+{
+	if (mConstructed)
+		// when material are reused between objects
+		return;
+	
+	if (mMaterial->glslmat)
+		SetBlenderGLSLShader(layer);
+
+	InitTextures();
 
 	mBlendFunc[0] =0;
 	mBlendFunc[1] =0;
@@ -892,6 +897,9 @@ KX_PYMETHODDEF_DOC( KX_BlenderMaterial, getShader , "getShader()")
 		if (!mShader && !mModified) {
 			mShader = new BL_Shader();
 			mModified = true;
+
+			// Using a custom shader, make sure to initialize textures
+			InitTextures();
 		}
 
 		if (mShader && !mShader->GetError()) {

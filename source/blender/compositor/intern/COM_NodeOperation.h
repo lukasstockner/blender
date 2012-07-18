@@ -101,7 +101,7 @@ public:
 	/**
 	 * @brief isOutputOperation determines whether this operation is an output of the ExecutionSystem during rendering or editing.
 	 *
-	 * Default behaviour if not overriden, this operation will not be evaluated as being an output of the ExecutionSystem.
+	 * Default behaviour if not overridden, this operation will not be evaluated as being an output of the ExecutionSystem.
 	 *
 	 * @see ExecutionSystem
 	 * @group check
@@ -134,7 +134,7 @@ public:
 	 * @param chunkNumber the chunkNumber to be calculated
 	 * @param memoryBuffers all input MemoryBuffer's needed
 	 */
-	virtual void executeRegion(rcti *rect, unsigned int chunkNumber, MemoryBuffer **memoryBuffers) {}
+	virtual void executeRegion(rcti *rect, unsigned int chunkNumber) {}
 
 	/**
 	 * @brief when a chunk is executed by an OpenCLDevice, this method is called

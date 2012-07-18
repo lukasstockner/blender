@@ -193,12 +193,11 @@ BMLoop *BM_loop_other_vert_loop(BMLoop *l, BMVert *v)
  * Get the first loop of a vert. Uses the same initialization code for the first loop of the
  * iterator API
  */
-
 BMLoop *BM_vert_find_first_loop(BMVert *v)
 {
 	BMEdge *e;
 
-	if(!v || !v->e)
+	if (!v || !v->e)
 		return NULL;
 
 	e = bmesh_disk_faceedge_find_first(v->e, v);
@@ -208,7 +207,6 @@ BMLoop *BM_vert_find_first_loop(BMVert *v)
 /**
  * Returns TRUE if the vertex is used in a given face.
  */
-
 int BM_vert_in_face(BMFace *f, BMVert *v)
 {
 	BMLoop *l_iter, *l_first;
@@ -714,7 +712,7 @@ BMVert *BM_edge_share_vert(BMEdge *e1, BMEdge *e2)
  *
  * Finds the loop used which uses \a v in face loop \a l
  *
- * \note currenly this just uses simple loop in future may be speeded up
+ * \note currently this just uses simple loop in future may be sped up
  * using radial vars
  */
 BMLoop *BM_face_vert_share_loop(BMFace *f, BMVert *v)
@@ -737,7 +735,7 @@ BMLoop *BM_face_vert_share_loop(BMFace *f, BMVert *v)
  *
  * Finds the loop used which uses \a e in face loop \a l
  *
- * \note currenly this just uses simple loop in future may be speeded up
+ * \note currently this just uses simple loop in future may be sped up
  * using radial vars
  */
 BMLoop *BM_face_edge_share_loop(BMFace *f, BMEdge *e)
@@ -796,7 +794,7 @@ float BM_loop_calc_face_angle(BMLoop *l)
 /**
  * \brief BM_loop_calc_face_normal
  *
- * Calculate the normal at this loop corner or fallback to the face normal on straignt lines.
+ * Calculate the normal at this loop corner or fallback to the face normal on straight lines.
  *
  * \param bm The BMesh
  * \param l The loop to calculate the normal at
@@ -819,7 +817,7 @@ void BM_loop_calc_face_normal(BMLoop *l, float r_normal[3])
 /**
  * \brief BM_loop_calc_face_tangent
  *
- * Calculate the tangent at this loop corner or fallback to the face normal on straignt lines.
+ * Calculate the tangent at this loop corner or fallback to the face normal on straight lines.
  * This vector always points inward into the face.
  *
  * \param bm The BMesh
@@ -875,7 +873,7 @@ float BM_edge_calc_face_angle(BMEdge *e)
 /**
  * \brief BMESH EDGE/FACE TANGENT
  *
- * Calculate the tangent at this loop corner or fallback to the face normal on straignt lines.
+ * Calculate the tangent at this loop corner or fallback to the face normal on straight lines.
  * This vector always points inward into the face.
  *
  * \brief BM_edge_calc_face_tangent
