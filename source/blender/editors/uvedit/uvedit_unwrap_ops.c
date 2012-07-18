@@ -193,7 +193,7 @@ static void modifier_unwrap_state(Object *obedit, Scene *scene, short *use_subsu
 
 	/* subsurf will take the modifier settings only if modifier is first or right after mirror */
 	if (subsurf) {
-		if (mirror && md) {
+		if (md && md->type == eModifierType_Mirror) {
 			md = md->next;
 		}
 
@@ -434,7 +434,7 @@ static ParamHandle *construct_param_handle_subsurfed(Scene *scene, Object *obedi
 
 	/* number of subdivisions to perform */
 	md = obedit->modifiers.first;
-	if(mirrored)
+	if(md->type == eModifierType_Mirror)
 		md = md->next;
 	smd_real = (SubsurfModifierData *)md;
 
