@@ -499,16 +499,14 @@ void BKE_displist_fill(ListBase *dispbase, ListBase *to, int flipnormal)
 				/* vert data */
 				f1 = dlnew->verts;
 				totvert = 0;
-				sf_vert = sf_ctx.fillvertbase.first;
-				while (sf_vert) {
+
+				for (sf_vert = sf_ctx.fillvertbase.first; sf_vert; sf_vert = sf_vert->next) {
 					copy_v3_v3(f1, sf_vert->co);
 					f1 += 3;
 
 					/* index number */
 					sf_vert->tmp.l = totvert;
 					totvert++;
-
-					sf_vert = sf_vert->next;
 				}
 
 				/* index data */
@@ -950,7 +948,7 @@ static void curve_calc_modifiers_post(Scene *scene, Object *ob, ListBase *dispba
 					curve_to_filledpoly(cu, nurb, dispbase);
 				}
 
-				dm = CDDM_from_curve_customDB(ob, dispbase);
+				dm = CDDM_from_curve_displist(ob, dispbase);
 
 				CDDM_calc_normals_mapping(dm);
 			}
@@ -1040,7 +1038,7 @@ static DerivedMesh *create_orco_dm(Scene *scene, Object *ob)
 
 	/* OrcoDM should be created from underformed disp lists */
 	BKE_displist_make_curveTypes_forOrco(scene, ob, &disp);
-	dm = CDDM_from_curve_customDB(ob, &disp);
+	dm = CDDM_from_curve_displist(ob, &disp);
 
 	BKE_displist_free(&disp);
 

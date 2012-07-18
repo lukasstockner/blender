@@ -26,8 +26,8 @@
 
 /** \file blender/editors/space_node/node_draw.c
  *  \ingroup spnode
+ *  \brief higher level node drawing for the node editor.
  */
-
 
 #include <math.h>
 #include <stdio.h>
@@ -335,9 +335,6 @@ static void node_update_basis(const bContext *C, bNodeTree *ntree, bNode *node)
 
 	/* preview rect? */
 	if (node->flag & NODE_PREVIEW) {
-		/* only recalculate size when there's a preview actually, otherwise we use stored result */
-		BLI_lock_thread(LOCK_PREVIEW);
-
 		if (node->preview && node->preview->rect) {
 			float aspect = 1.0f;
 			
@@ -374,8 +371,6 @@ static void node_update_basis(const bContext *C, bNodeTree *ntree, bNode *node)
 			node->prvr.ymin = dy - oldh;
 			dy = node->prvr.ymin - NODE_DYS / 2;
 		}
-
-		BLI_unlock_thread(LOCK_PREVIEW);
 	}
 
 	/* buttons rect? */
@@ -726,11 +721,14 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	if (node->flag & NODE_MUTED)
 		UI_ThemeColorBlend(color_id, TH_REDALERT, 0.5f);
 
+#ifdef WITH_COMPOSITOR
 	if (ntree->type == NTREE_COMPOSIT && (snode->flag & SNODE_SHOW_HIGHLIGHT)) {
 		if (COM_isHighlightedbNode(node)) {
 			UI_ThemeColorBlend(color_id, TH_ACTIVE, 0.5f);
 		}
 	}
+#endif
+
 	uiSetRoundBox(UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT);
 	uiRoundBox(rct->xmin, rct->ymax - NODE_DY, rct->xmax, rct->ymax, BASIS_RAD);
 	
@@ -861,10 +859,8 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	
 	/* preview */
 	if (node->flag & NODE_PREVIEW) {
-		BLI_lock_thread(LOCK_PREVIEW);
 		if (node->preview && node->preview->rect && !BLI_rctf_is_empty(&node->prvr))
 			node_draw_preview(node->preview, &node->prvr);
-		BLI_unlock_thread(LOCK_PREVIEW);
 	}
 	
 	UI_ThemeClearColor(color_id);
@@ -892,11 +888,15 @@ static void node_draw_hidden(const bContext *C, ARegion *ar, SpaceNode *snode, b
 	if (node->flag & NODE_MUTED)
 		UI_ThemeColorBlend(color_id, TH_REDALERT, 0.5f);
 
+#ifdef WITH_COMPOSITOR
 	if (ntree->type == NTREE_COMPOSIT && (snode->flag & SNODE_SHOW_HIGHLIGHT)) {
 		if (COM_isHighlightedbNode(node)) {
 			UI_ThemeColorBlend(color_id, TH_ACTIVE, 0.5f);
 		}
 	}
+#else
+	(void)ntree;
+#endif
 	
 	uiRoundBox(rct->xmin, rct->ymin, rct->xmax, rct->ymax, hiddenrad);
 	
@@ -1145,9 +1145,13 @@ void drawnodespace(const bContext *C, ARegion *ar, View2D *v2d)
 		}
 		
 		node_update_nodetree(C, snode->nodetree, 0.0f, 0.0f);
+
+#ifdef WITH_COMPOSITOR
 		if (snode->nodetree->type == NTREE_COMPOSIT) {
 			COM_startReadHighlights();
 		} 
+#endif
+
 		node_draw_nodetree(C, ar, snode, snode->nodetree);
 		
 		#if 0

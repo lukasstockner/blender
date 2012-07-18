@@ -1679,19 +1679,25 @@ int initTransform(bContext *C, TransInfo *t, wmOperator *op, wmEvent *event, int
 
 	/* Stupid code to have Ctrl-Click on manipulator work ok */
 	if (event) {
-		wmKeyMap *keymap = WM_keymap_active(CTX_wm_manager(C), op->type->modalkeymap);
-		wmKeyMapItem *kmi;
+		/* do this only for translation/rotation/resize due to only this
+		 * moded are available from manipulator and doing such check could
+		 * lead to keymap conflicts for other modes (see #31584)
+		 */
+		if (ELEM3(mode, TFM_TRANSLATION, TFM_ROTATION, TFM_RESIZE)) {
+			wmKeyMap *keymap = WM_keymap_active(CTX_wm_manager(C), op->type->modalkeymap);
+			wmKeyMapItem *kmi;
 
-		for (kmi = keymap->items.first; kmi; kmi = kmi->next) {
-			if (kmi->propvalue == TFM_MODAL_SNAP_INV_ON && kmi->val == KM_PRESS) {
-				if ((ELEM(kmi->type, LEFTCTRLKEY, RIGHTCTRLKEY) &&   event->ctrl)  ||
-				    (ELEM(kmi->type, LEFTSHIFTKEY, RIGHTSHIFTKEY) && event->shift) ||
-				    (ELEM(kmi->type, LEFTALTKEY, RIGHTALTKEY) &&     event->alt)   ||
-				    ((kmi->type == OSKEY) &&                         event->oskey) )
-				{
-					t->modifiers |= MOD_SNAP_INVERT;
+			for (kmi = keymap->items.first; kmi; kmi = kmi->next) {
+				if (kmi->propvalue == TFM_MODAL_SNAP_INV_ON && kmi->val == KM_PRESS) {
+					if ((ELEM(kmi->type, LEFTCTRLKEY, RIGHTCTRLKEY) &&   event->ctrl)  ||
+					    (ELEM(kmi->type, LEFTSHIFTKEY, RIGHTSHIFTKEY) && event->shift) ||
+					    (ELEM(kmi->type, LEFTALTKEY, RIGHTALTKEY) &&     event->alt)   ||
+					    ((kmi->type == OSKEY) &&                         event->oskey) )
+					{
+						t->modifiers |= MOD_SNAP_INVERT;
+					}
+					break;
 				}
-				break;
 			}
 		}
 
@@ -2452,7 +2458,7 @@ int Warp(TransInfo *t, const int UNUSED(mval[2]))
 	
 	/* header print for NumInput */
 	if (hasNumInput(&t->num)) {
-		char c[20];
+		char c[NUM_STR_REP_LEN];
 		
 		outputNumInput(&(t->num), c);
 		
@@ -2581,7 +2587,7 @@ int Shear(TransInfo *t, const int UNUSED(mval[2]))
 	
 	/* header print for NumInput */
 	if (hasNumInput(&t->num)) {
-		char c[20];
+		char c[NUM_STR_REP_LEN];
 		
 		outputNumInput(&(t->num), c);
 		
@@ -2667,15 +2673,15 @@ void initResize(TransInfo *t)
 
 static void headerResize(TransInfo *t, float vec[3], char *str)
 {
-	char tvec[60];
+	char tvec[NUM_STR_REP_LEN * 3];
 	char *spos = str;
 	if (hasNumInput(&t->num)) {
 		outputNumInput(&(t->num), tvec);
 	}
 	else {
-		BLI_snprintf(&tvec[0],  20, "%.4f", vec[0]);
-		BLI_snprintf(&tvec[20], 20, "%.4f", vec[1]);
-		BLI_snprintf(&tvec[40], 20, "%.4f", vec[2]);
+		BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.4f", vec[0]);
+		BLI_snprintf(&tvec[NUM_STR_REP_LEN], NUM_STR_REP_LEN, "%.4f", vec[1]);
+		BLI_snprintf(&tvec[NUM_STR_REP_LEN * 2], NUM_STR_REP_LEN, "%.4f", vec[2]);
 	}
 	
 	if (t->con.mode & CON_APPLY) {
@@ -2684,17 +2690,21 @@ static void headerResize(TransInfo *t, float vec[3], char *str)
 				spos += sprintf(spos, "Scale: %s%s %s", &tvec[0], t->con.text, t->proptext);
 				break;
 			case 1:
-				spos += sprintf(spos, "Scale: %s : %s%s %s", &tvec[0], &tvec[20], t->con.text, t->proptext);
+				spos += sprintf(spos, "Scale: %s : %s%s %s", &tvec[0], &tvec[NUM_STR_REP_LEN],
+				                t->con.text, t->proptext);
 				break;
 			case 2:
-				spos += sprintf(spos, "Scale: %s : %s : %s%s %s", &tvec[0], &tvec[20], &tvec[40], t->con.text, t->proptext);
+				spos += sprintf(spos, "Scale: %s : %s : %s%s %s", &tvec[0], &tvec[NUM_STR_REP_LEN],
+				                &tvec[NUM_STR_REP_LEN * 2], t->con.text, t->proptext);
 		}
 	}
 	else {
 		if (t->flag & T_2D_EDIT)
-			spos += sprintf(spos, "Scale X: %s   Y: %s%s %s", &tvec[0], &tvec[20], t->con.text, t->proptext);
+			spos += sprintf(spos, "Scale X: %s   Y: %s%s %s", &tvec[0], &tvec[NUM_STR_REP_LEN],
+			                t->con.text, t->proptext);
 		else
-			spos += sprintf(spos, "Scale X: %s   Y: %s  Z: %s%s %s", &tvec[0], &tvec[20], &tvec[40], t->con.text, t->proptext);
+			spos += sprintf(spos, "Scale X: %s   Y: %s  Z: %s%s %s", &tvec[0], &tvec[NUM_STR_REP_LEN],
+			                &tvec[NUM_STR_REP_LEN * 2], t->con.text, t->proptext);
 	}
 	
 	if (t->flag & (T_PROP_EDIT | T_PROP_CONNECTED)) {
@@ -3040,7 +3050,7 @@ int ToSphere(TransInfo *t, const int UNUSED(mval[2]))
 
 	/* header print for NumInput */
 	if (hasNumInput(&t->num)) {
-		char c[20];
+		char c[NUM_STR_REP_LEN];
 		
 		outputNumInput(&(t->num), c);
 		
@@ -3386,7 +3396,7 @@ int Rotation(TransInfo *t, const int UNUSED(mval[2]))
 	applySnapping(t, &final);
 	
 	if (hasNumInput(&t->num)) {
-		char c[20];
+		char c[NUM_STR_REP_LEN];
 		
 		applyNumInput(&t->num, &final);
 		
@@ -3485,13 +3495,13 @@ int Trackball(TransInfo *t, const int UNUSED(mval[2]))
 	snapGrid(t, phi);
 
 	if (hasNumInput(&t->num)) {
-		char c[40];
+		char c[NUM_STR_REP_LEN * 2];
 
 		applyNumInput(&t->num, phi);
 
 		outputNumInput(&(t->num), c);
 
-		spos += sprintf(spos, "Trackball: %s %s %s", &c[0], &c[20], t->proptext);
+		spos += sprintf(spos, "Trackball: %s %s %s", &c[0], &c[NUM_STR_REP_LEN], t->proptext);
 
 		phi[0] = DEG2RADF(phi[0]);
 		phi[1] = DEG2RADF(phi[1]);
@@ -3570,9 +3580,9 @@ void initTranslation(TransInfo *t)
 static void headerTranslation(TransInfo *t, float vec[3], char *str)
 {
 	char *spos = str;
-	char tvec[60];
-	char distvec[20];
-	char autoik[20];
+	char tvec[NUM_STR_REP_LEN * 3];
+	char distvec[NUM_STR_REP_LEN];
+	char autoik[NUM_STR_REP_LEN];
 	float dist;
 
 	if (hasNumInput(&t->num)) {
@@ -3590,12 +3600,13 @@ static void headerTranslation(TransInfo *t, float vec[3], char *str)
 			int i, do_split = t->scene->unit.flag & USER_UNIT_OPT_SPLIT ? 1 : 0;
 
 			for (i = 0; i < 3; i++)
-				bUnit_AsString(&tvec[i * 20], 20, dvec[i] * t->scene->unit.scale_length, 4, t->scene->unit.system, B_UNIT_LENGTH, do_split, 1);
+				bUnit_AsString(&tvec[i * NUM_STR_REP_LEN], NUM_STR_REP_LEN, dvec[i] * t->scene->unit.scale_length,
+				               4, t->scene->unit.system, B_UNIT_LENGTH, do_split, 1);
 		}
 		else {
 			sprintf(&tvec[0], "%.4f", dvec[0]);
-			sprintf(&tvec[20], "%.4f", dvec[1]);
-			sprintf(&tvec[40], "%.4f", dvec[2]);
+			sprintf(&tvec[NUM_STR_REP_LEN], "%.4f", dvec[1]);
+			sprintf(&tvec[NUM_STR_REP_LEN * 2], "%.4f", dvec[2]);
 		}
 	}
 
@@ -3623,17 +3634,21 @@ static void headerTranslation(TransInfo *t, float vec[3], char *str)
 				spos += sprintf(spos, "D: %s (%s)%s %s  %s", &tvec[0], distvec, t->con.text, t->proptext, &autoik[0]);
 				break;
 			case 1:
-				spos += sprintf(spos, "D: %s   D: %s (%s)%s %s  %s", &tvec[0], &tvec[20], distvec, t->con.text, t->proptext, &autoik[0]);
+				spos += sprintf(spos, "D: %s   D: %s (%s)%s %s  %s", &tvec[0], &tvec[NUM_STR_REP_LEN],
+				                distvec, t->con.text, t->proptext, &autoik[0]);
 				break;
 			case 2:
-				spos += sprintf(spos, "D: %s   D: %s  D: %s (%s)%s %s  %s", &tvec[0], &tvec[20], &tvec[40], distvec, t->con.text, t->proptext, &autoik[0]);
+				spos += sprintf(spos, "D: %s   D: %s  D: %s (%s)%s %s  %s", &tvec[0], &tvec[NUM_STR_REP_LEN],
+				                &tvec[NUM_STR_REP_LEN * 2], distvec, t->con.text, t->proptext, &autoik[0]);
 		}
 	}
 	else {
 		if (t->flag & T_2D_EDIT)
-			spos += sprintf(spos, "Dx: %s   Dy: %s (%s)%s %s", &tvec[0], &tvec[20], distvec, t->con.text, t->proptext);
+			spos += sprintf(spos, "Dx: %s   Dy: %s (%s)%s %s", &tvec[0], &tvec[NUM_STR_REP_LEN],
+			                distvec, t->con.text, t->proptext);
 		else
-			spos += sprintf(spos, "Dx: %s   Dy: %s  Dz: %s (%s)%s %s  %s", &tvec[0], &tvec[20], &tvec[40], distvec, t->con.text, t->proptext, &autoik[0]);
+			spos += sprintf(spos, "Dx: %s   Dy: %s  Dz: %s (%s)%s %s  %s", &tvec[0], &tvec[NUM_STR_REP_LEN],
+			                &tvec[NUM_STR_REP_LEN * 2], distvec, t->con.text, t->proptext, &autoik[0]);
 	}
 	
 	if (t->flag & (T_PROP_EDIT | T_PROP_CONNECTED)) {
@@ -3791,7 +3806,7 @@ int ShrinkFatten(TransInfo *t, const int UNUSED(mval[2]))
 
 	/* header print for NumInput */
 	if (hasNumInput(&t->num)) {
-		char c[20];
+		char c[NUM_STR_REP_LEN];
 
 		outputNumInput(&(t->num), c);
 
@@ -3860,7 +3875,7 @@ int Tilt(TransInfo *t, const int UNUSED(mval[2]))
 	snapGrid(t, &final);
 
 	if (hasNumInput(&t->num)) {
-		char c[20];
+		char c[NUM_STR_REP_LEN];
 
 		applyNumInput(&t->num, &final);
 
@@ -3932,7 +3947,7 @@ int CurveShrinkFatten(TransInfo *t, const int UNUSED(mval[2]))
 
 	/* header print for NumInput */
 	if (hasNumInput(&t->num)) {
-		char c[20];
+		char c[NUM_STR_REP_LEN];
 
 		outputNumInput(&(t->num), c);
 		sprintf(str, "Shrink/Fatten: %s", c);
@@ -4000,7 +4015,7 @@ int MaskShrinkFatten(TransInfo *t, const int UNUSED(mval[2]))
 
 	/* header print for NumInput */
 	if (hasNumInput(&t->num)) {
-		char c[20];
+		char c[NUM_STR_REP_LEN];
 
 		outputNumInput(&(t->num), c);
 		sprintf(str, "Shrink/Fatten: %s", c);
@@ -4066,7 +4081,7 @@ int PushPull(TransInfo *t, const int UNUSED(mval[2]))
 
 	/* header print for NumInput */
 	if (hasNumInput(&t->num)) {
-		char c[20];
+		char c[NUM_STR_REP_LEN];
 
 		outputNumInput(&(t->num), c);
 
@@ -4202,7 +4217,7 @@ int Bevel(TransInfo *t, const int UNUSED(mval[2]))
 
 	/* header print for NumInput */
 	if (hasNumInput(&t->num)) {
-		char c[20];
+		char c[NUM_STR_REP_LEN];
 
 		outputNumInput(&(t->num), c);
 
@@ -4269,7 +4284,7 @@ int BevelWeight(TransInfo *t, const int UNUSED(mval[2]))
 
 	/* header print for NumInput */
 	if (hasNumInput(&t->num)) {
-		char c[20];
+		char c[NUM_STR_REP_LEN];
 
 		outputNumInput(&(t->num), c);
 
@@ -4342,7 +4357,7 @@ int Crease(TransInfo *t, const int UNUSED(mval[2]))
 
 	/* header print for NumInput */
 	if (hasNumInput(&t->num)) {
-		char c[20];
+		char c[NUM_STR_REP_LEN];
 
 		outputNumInput(&(t->num), c);
 
@@ -4402,14 +4417,14 @@ void initBoneSize(TransInfo *t)
 
 static void headerBoneSize(TransInfo *t, float vec[3], char *str)
 {
-	char tvec[60];
+	char tvec[NUM_STR_REP_LEN * 3];
 	if (hasNumInput(&t->num)) {
 		outputNumInput(&(t->num), tvec);
 	}
 	else {
 		sprintf(&tvec[0], "%.4f", vec[0]);
-		sprintf(&tvec[20], "%.4f", vec[1]);
-		sprintf(&tvec[40], "%.4f", vec[2]);
+		sprintf(&tvec[NUM_STR_REP_LEN], "%.4f", vec[1]);
+		sprintf(&tvec[NUM_STR_REP_LEN * 2], "%.4f", vec[2]);
 	}
 
 	/* hmm... perhaps the y-axis values don't need to be shown? */
@@ -4417,10 +4432,12 @@ static void headerBoneSize(TransInfo *t, float vec[3], char *str)
 		if (t->num.idx_max == 0)
 			sprintf(str, "ScaleB: %s%s %s", &tvec[0], t->con.text, t->proptext);
 		else
-			sprintf(str, "ScaleB: %s : %s : %s%s %s", &tvec[0], &tvec[20], &tvec[40], t->con.text, t->proptext);
+			sprintf(str, "ScaleB: %s : %s : %s%s %s", &tvec[0], &tvec[NUM_STR_REP_LEN], &tvec[NUM_STR_REP_LEN * 2],
+			        t->con.text, t->proptext);
 	}
 	else {
-		sprintf(str, "ScaleB X: %s  Y: %s  Z: %s%s %s", &tvec[0], &tvec[20], &tvec[40], t->con.text, t->proptext);
+		sprintf(str, "ScaleB X: %s  Y: %s  Z: %s%s %s", &tvec[0], &tvec[NUM_STR_REP_LEN], &tvec[NUM_STR_REP_LEN * 2],
+		        t->con.text, t->proptext);
 	}
 }
 
@@ -4533,7 +4550,7 @@ int BoneEnvelope(TransInfo *t, const int UNUSED(mval[2]))
 	
 	/* header print for NumInput */
 	if (hasNumInput(&t->num)) {
-		char c[20];
+		char c[NUM_STR_REP_LEN];
 		
 		outputNumInput(&(t->num), c);
 		sprintf(str, "Envelope: %s", c);
@@ -4692,7 +4709,7 @@ static int createSlideVerts(TransInfo *t)
 	float projectMat[4][4];
 	float mval[2] = {(float)t->mval[0], (float)t->mval[1]};
 	float start[3] = {0.0f, 0.0f, 0.0f}, dir[3], end[3] = {0.0f, 0.0f, 0.0f};
-	float vec[3], vec2[3], lastvec[3] /*, size, dis=0.0, z */ /* UNUSED */;
+	float vec[3], vec2[3] /*, lastvec[3], size, dis=0.0, z */ /* UNUSED */;
 	int numsel, i, j;
 
 	if (t->spacetype == SPACE_VIEW3D) {
@@ -4880,7 +4897,7 @@ static int createSlideVerts(TransInfo *t)
 		} while (e != first->e && l1);
 	}
 
-	//EDBM_flag_disable_all(em, BM_ELEM_SELECT);
+	/* EDBM_flag_disable_all(em, BM_ELEM_SELECT); */
 
 	sld->sv = sv_array;
 	sld->totsv = j;
@@ -4888,14 +4905,15 @@ static int createSlideVerts(TransInfo *t)
 	/*find mouse vector*/
 	/* dis = z = -1.0f; */ /* UNUSED */
 	/* size = 50.0; */ /* UNUSED */
-	zero_v3(lastvec); zero_v3(dir);
+	/* zero_v3(lastvec); */ /* UNUSED */
+	zero_v3(dir);
 	/* ee = le = NULL; */ /* UNUSED */
 	BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
 		if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
 			BMIter iter2;
 			BMEdge *e2;
 			float vec1[3], dis2, mval[2] = {t->mval[0], t->mval[1]}, d;
-						
+
 			/* search cross edges for visible edge to the mouse cursor,
 			 * then use the shared vertex to calculate screen vector*/
 			dis2 = -1.0f;
@@ -4904,10 +4922,12 @@ static int createSlideVerts(TransInfo *t)
 				BM_ITER_ELEM (e2, &iter2, v, BM_EDGES_OF_VERT) {
 					if (BM_elem_flag_test(e2, BM_ELEM_SELECT))
 						continue;
-					
-					if (v3d && !BMBVH_EdgeVisible(btree, e2, ar, v3d, t->obedit))
+
+					/* This test is only relevant if object is not wire-drawn! See [#32068]. */
+					if (v3d && t->obedit->dt > OB_WIRE && v3d->drawtype > OB_WIRE &&
+					    !BMBVH_EdgeVisible(btree, e2, ar, v3d, t->obedit))
 						continue;
-					
+
 					j = GET_INT_FROM_POINTER(BLI_smallhash_lookup(&table, (uintptr_t)v));
 
 					if (sv_array[j].down) {
@@ -5425,7 +5445,7 @@ int EdgeSlide(TransInfo *t, const int UNUSED(mval[2]))
 	CLAMP(final, -1.0f, 1.0f);
 
 	if (hasNumInput(&t->num)) {
-		char c[20];
+		char c[NUM_STR_REP_LEN];
 
 		applyNumInput(&t->num, &final);
 
@@ -5491,7 +5511,7 @@ int BoneRoll(TransInfo *t, const int UNUSED(mval[2]))
 	snapGrid(t, &final);
 
 	if (hasNumInput(&t->num)) {
-		char c[20];
+		char c[NUM_STR_REP_LEN];
 
 		applyNumInput(&t->num, &final);
 
@@ -5563,7 +5583,7 @@ int BakeTime(TransInfo *t, const int mval[2])
 
 	/* header print for NumInput */
 	if (hasNumInput(&t->num)) {
-		char c[20];
+		char c[NUM_STR_REP_LEN];
 
 		outputNumInput(&(t->num), c);
 
@@ -5756,7 +5776,7 @@ void initSeqSlide(TransInfo *t)
 
 static void headerSeqSlide(TransInfo *t, float val[2], char *str)
 {
-	char tvec[60];
+	char tvec[NUM_STR_REP_LEN * 3];
 
 	if (hasNumInput(&t->num)) {
 		outputNumInput(&(t->num), tvec);
@@ -5999,7 +6019,7 @@ void initTimeTranslate(TransInfo *t)
 
 static void headerTimeTranslate(TransInfo *t, char *str)
 {
-	char tvec[60];
+	char tvec[NUM_STR_REP_LEN * 3];
 
 	/* if numeric input is active, use results from that, otherwise apply snapping to result */
 	if (hasNumInput(&t->num)) {
@@ -6154,7 +6174,7 @@ void initTimeSlide(TransInfo *t)
 
 static void headerTimeSlide(TransInfo *t, float sval, char *str)
 {
-	char tvec[60];
+	char tvec[NUM_STR_REP_LEN * 3];
 
 	if (hasNumInput(&t->num)) {
 		outputNumInput(&(t->num), tvec);
@@ -6296,7 +6316,7 @@ void initTimeScale(TransInfo *t)
 
 static void headerTimeScale(TransInfo *t, char *str)
 {
-	char tvec[60];
+	char tvec[NUM_STR_REP_LEN * 3];
 
 	if (hasNumInput(&t->num))
 		outputNumInput(&(t->num), tvec);
