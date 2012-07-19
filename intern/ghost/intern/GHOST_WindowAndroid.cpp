@@ -99,9 +99,7 @@ GHOST_WindowAndroid::invalidate(void)
 	if (m_invalid_window == false) {
 		m_system->addDirtyWindow(this);
 		m_invalid_window = true;
-		LOGW("Added to invalid");
 	}
-//LOGW("Added to invalid - done");
 	return GHOST_kSuccess;
 }
 
@@ -209,6 +207,11 @@ GHOST_WindowAndroid::setClientSize(GHOST_TUns32 width,
 void
 GHOST_WindowAndroid::screenToClient(GHOST_TInt32 inX, GHOST_TInt32 inY, GHOST_TInt32& outX, GHOST_TInt32& outY) const
 {
+
+	outX = winrect.m_l + inX;
+	outY = winrect.m_t + inY;
+
+
 
 }
 void

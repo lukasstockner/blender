@@ -152,7 +152,7 @@ GHOST_SystemAndroid::getCursorPosition(GHOST_TInt32& x,
                                    GHOST_TInt32& y) const
 {
 
-
+	LOGW("Get Cursor");
 	return GHOST_kFailure;
 }
 
@@ -171,71 +171,96 @@ void GHOST_SystemAndroid::processEvent(eEventAllTypes *ae)
 
 	if (!window) {
 		return;
-	}
 
-	switch (ae->eb.aeventype) {
-		case ET_WINDOW:
-		{
-			switch(ae->Window.type)
+
+
+	}
+		switch (ae->eb.aeventype) {
+			case ET_APP:
 			{
-				case ET_WS_FOCUS:
-					LOGW("Update");
-					g_event = new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowActivate, window);
-				break;
-				case ET_WS_DEFOCUS:
-					LOGW("Update");
-					g_event = new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowDeactivate, window);
-				break;
-				case ET_WS_UPDATE:
-					LOGW("Update");
-					g_event = new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowUpdate, window);
+				switch(ae->app.action)
+				{
+					case ET_APP_CLOSE:
+						LOGW("Close event");
+
+					g_event = new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowClose, window);
+					break;
+				}
 				break;
 			}
 
-			break;
-		}
-		case ET_WINDOWSIZE:
-		{
+			case ET_WINDOW:
+			{
+				switch(ae->Window.type)
+				{
+					case ET_WS_FOCUS:
+						LOGW("Update");
+						g_event = new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowActivate, window);
+					break;
+					case ET_WS_DEFOCUS:
+						LOGW("Update");
+						g_event = new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowDeactivate, window);
+					break;
+					case ET_WS_UPDATE:
+						LOGW("Update");
+						g_event = new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowUpdate, window);
+					break;
+				}
 
-		window->storeWindowSize(ae->WindowSize.pos[0], ae->WindowSize.pos[1],
-								ae->WindowSize.size[0], ae->WindowSize.size[1]
+				break;
+			}
+			case ET_WINDOWSIZE:
+			{
+
+			window->storeWindowSize(ae->WindowSize.pos[0], ae->WindowSize.pos[1],
+									ae->WindowSize.size[0], ae->WindowSize.size[1]
+									);
+				g_event = new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowSize, window);
+	pushEvent(new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowSize, window));
+
+				break;
+			}
+
+			case ET_MOUSE:
+			{
+				if(ae->Mouse.mouseevent == 2)
+				{
+					g_event = new
+							  GHOST_EventCursor(
+						getMilliSeconds(),
+						GHOST_kEventCursorMove,
+						window,
+						ae->Mouse.coord[0],
+						ae->Mouse.coord[1]
+						);
+
+
+					LOGW(" Cursor %i x %i", (int)ae->Mouse.coord[0], (int)ae->Mouse.coord[1]);
+
+				}
+				else if(ae->Mouse.mouseevent < 2)
+				{
+					GHOST_TEventType type = ae->Mouse.mouseevent ? GHOST_kEventButtonUp : GHOST_kEventButtonDown;
+
+
+					g_event = new GHOST_EventButton(
+								getMilliSeconds(),
+								type,
+								window,
+								GHOST_kButtonMaskLeft
 								);
-			g_event = new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowSize, window);
 
-
-			break;
-		}
-
-		case ET_MOUSE:
-		{
-			if(ae->Mouse.mouseevent == 2)
-			{
-
-
+				}
+				break;
 			}
-			else if(ae->Mouse.mouseevent < 2)
-			{
-				GHOST_TEventType type = ae->Mouse.mouseevent ? GHOST_kEventButtonUp : GHOST_kEventButtonDown;
 
 
-				g_event = new GHOST_EventButton(
-							getMilliSeconds(),
-							type,
-							window,
-							GHOST_kButtonMaskLeft
-							);
-
+			default: {
+				//pushEvent(new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowUpdate, window));
+				LOGW("Unknown type %i", ae->eb.aeventype);
+				break;
 			}
-			break;
 		}
-
-
-		default: {
-			//pushEvent(new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowUpdate, window));
-			LOGW("Unknown type %i", ae->eb.aeventype);
-			break;
-		}
-	}
 
 	if (g_event) {
 		pushEvent(g_event);
@@ -247,7 +272,6 @@ GHOST_SystemAndroid::
 addDirtyWindow(
 		GHOST_WindowAndroid *bad_wind)
 {
-	LOGW("addDirtyWindow %p", this);
 	GHOST_ASSERT((bad_wind != NULL), "addDirtyWindow() NULL ptr trapped (window)");
 
 	m_dirty_windows.push_back(bad_wind);
@@ -271,7 +295,6 @@ GHOST_SystemAndroid::generateWindowExposeEvents()
 		(*w_start)->validate();
 
 		if (g_event) {
-			LOGW("Expose events pushed");
 			pushEvent(g_event);
 			anyProcessed = true;
 		}

@@ -147,6 +147,8 @@ protected:
 		return GHOST_kSuccess;
 	}
 
+
+
 	GHOST_Rect winrect;
 
 };
