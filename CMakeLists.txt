@@ -503,7 +503,15 @@ if(UNIX AND NOT APPLE)
 	# set lib directory if it exists
 	if(WITH_ANDROID)
 		set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/android/${ANDROID_TARGET})
-		set(ANDROID_PROJ ${LIBDIR}/aghosty-sdl CACHE STRING  "boo")
+		
+		if(NOT WITH_GHOST_SDL)
+			set(ANDROID_APP_LIBPATH ${CMAKE_SOURCE_DIR}/source/android/app/libs/armeabi/)
+			set(ANDROID_APP_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/source/android/app/jni/)
+			set(ANDROID_APP_LIBRARY main)
+			set(ANDROID_PROJ ${CMAKE_SOURCE_DIR}/source/android/app)
+		else()
+			set(ANDROID_PROJ ${LIBDIR}/aghosty-sdl CACHE STRING  "Android Project Path")
+		endif()
 	elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")
 		if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
 			set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/linux64)
@@ -535,13 +543,13 @@ if(UNIX AND NOT APPLE)
 		set(ZLIB_INCLUDE_DIRS ${LIBDIR}/zlib/include)
 
 		set(ZLIB_LIBRARIES ${LIBDIR}/zlib/lib/libz.so.1)
-
+	if(WITH_GHOST_SDL)
 		set(SDL_INCLUDE_DIR ${LIBDIR}/aghosty-sdl/jni/SDL/include/)
 		
 		set(SDLMAIN_LIBRARY ${LIBDIR}/aghosty-sdl/jni/SDL/src/main/android/libSDLmain.a)
 		set(SDL_LIBRARY "${SDLMAIN_LIBRARY};${LIBDIR}/aghosty-sdl/libs/armeabi/libSDL.so")
 		set(SDL_LIBPATH ${LIBDIR}/aghosty-sdl/libs/armeabi/)
-
+	endif()
 
 		set(FREETYPE ${LIBDIR}/freetype)
 		set(FREETYPE_INCLUDE_DIRS
@@ -762,14 +770,14 @@ if(UNIX AND NOT APPLE)
 	# OpenSuse needs lutil, ArchLinux not, for now keep, can avoid by using --as-needed
 	set(PLATFORM_LINKLIBS "-lc -lm -lstdc++")
 	if(WITH_ANDROID)
-		set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS}  -lGLESv2")
+		set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS}  -lGLESv2 -llog")
 	elseif(WITH_GLES)
 		set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS}  -lGLESv2 -lEGL")
 	else()
 		set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} -lutil -lpthread")
 	endif()
 
-	if((NOT WITH_HEADLESS) AND (NOT WITH_GHOST_SDL))
+	if((NOT WITH_HEADLESS) AND (NOT WITH_GHOST_SDL) AND (NOT WITH_ANDROID))
 		find_package(X11 REQUIRED)
 		find_path(X11_XF86keysym_INCLUDE_PATH X11/XF86keysym.h ${X11_INC_SEARCH_PATH})
 		mark_as_advanced(X11_XF86keysym_INCLUDE_PATH)

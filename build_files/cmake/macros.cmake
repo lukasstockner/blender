@@ -242,6 +242,10 @@ macro(SETUP_LIBDIRS)
 	if(WIN32 AND NOT UNIX)
 		link_directories(${PTHREADS_LIBPATH})
 	endif()
+
+	if(WITH_ANDROID AND NOT WITH_GHOST_SDL)
+		link_directories(${ANDROID_APP_LIBPATH})
+	endif()
 endmacro()
 
 macro(setup_liblinks
@@ -369,6 +373,10 @@ macro(setup_liblinks
 	endif()
 	if(WIN32 AND NOT UNIX)
 		target_link_libraries(${target} ${PTHREADS_LIBRARIES})
+	endif()
+
+	if(WITH_ANDROID AND NOT WITH_GHOST_SDL)
+		target_link_libraries(${target}  ${ANDROID_APP_LIBRARY})
 	endif()
 
 	target_link_libraries(${target} ${PLATFORM_LINKLIBS})
