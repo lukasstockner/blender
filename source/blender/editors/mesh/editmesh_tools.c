@@ -1676,7 +1676,7 @@ void MESH_OT_vertices_smooth_laplacian(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "use_x", 1, "Smooth X Axis", "Smooth object along	X axis");
 	RNA_def_boolean(ot->srna, "use_y", 1, "Smooth Y Axis", "Smooth object along	Y axis");
 	RNA_def_boolean(ot->srna, "use_z", 1, "Smooth Z Axis", "Smooth object along	Z axis");
-	RNA_def_boolean(ot->srna, "volume_preservation", 1, "Volume Preservation", "Apply volume preservation after smooth");
+	RNA_def_boolean(ot->srna, "volume_preservation", 1, "Preserve Volume", "Apply volume preservation after smooth");
 
 }
 
