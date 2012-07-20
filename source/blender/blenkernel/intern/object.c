@@ -2300,14 +2300,21 @@ void BKE_object_minmax(Object *ob, float min_r[3], float max_r[3])
 	}
 
 	if (change == FALSE) {
+		float size[3];
+
+		copy_v3_v3(size, ob->size);
+		if (ob->type == OB_EMPTY) {
+			mul_v3_fl(size, ob->empty_drawsize);
+		}
+
 		minmax_v3v3_v3(min_r, max_r, ob->obmat[3]);
 
 		copy_v3_v3(vec, ob->obmat[3]);
-		add_v3_v3(vec, ob->size);
+		add_v3_v3(vec, size);
 		minmax_v3v3_v3(min_r, max_r, vec);
 
 		copy_v3_v3(vec, ob->obmat[3]);
-		sub_v3_v3(vec, ob->size);
+		sub_v3_v3(vec, size);
 		minmax_v3v3_v3(min_r, max_r, vec);
 	}
 }
@@ -3149,7 +3156,7 @@ static void obrel_list_add(LinkNode **links, Object *ob)
  * If OB_SET_VISIBLE or OB_SET_SELECTED are collected, 
  * then also add related objects according to the given includeFilters.
  */
-struct LinkNode *BKE_object_relational_superset(struct Scene *scene, eObjectSet objectSet, eObRelationTypes includeFilter)
+LinkNode *BKE_object_relational_superset(struct Scene *scene, eObjectSet objectSet, eObRelationTypes includeFilter)
 {
 	LinkNode *links = NULL;
 
@@ -3227,4 +3234,33 @@ struct LinkNode *BKE_object_relational_superset(struct Scene *scene, eObjectSet 
 	}
 
 	return links;
+}
+
+/**
+ * return all groups this object is apart of, caller must free.
+ */
+struct LinkNode *BKE_object_groups(Object *ob)
+{
+	LinkNode *group_linknode = NULL;
+	Group *group = NULL;
+	while ((group = find_group(ob, group))) {
+		BLI_linklist_prepend(&group_linknode, group);
+	}
+
+	return group_linknode;
+}
+
+void BKE_object_groups_clear(Scene *scene, Base *base, Object *object)
+{
+	Group *group = NULL;
+
+	BLI_assert(base->object == object);
+
+	if (scene && base == NULL) {
+		base = BKE_scene_base_find(scene, object);
+	}
+
+	while ((group = find_group(base->object, group))) {
+		rem_from_group(group, object, scene, base);
+	}
 }

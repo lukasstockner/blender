@@ -317,7 +317,7 @@ BMVert* get_linear_seg(BMesh *bm, BridgeParams* bp, int n, BMVert *v1, BMVert *v
 BMVert* get_cubic_seg(BMesh *bm, BridgeParams *bp, int n, BMVert *v1, BMVert *v2){
     BMVert *v = NULL;
     VertexItem *item;
-    float t, co[3], r1[3], r2[3], mn[3];
+    float t, co[3], r1[3], r2[3]/*, mn[3]*/;
     t = (float) (n) / bp->seg;
 
     //sub_v3_v3v3(r1,  bp->centrod2 , v1->co);
@@ -660,7 +660,7 @@ void  bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
 
        for (i = 0; i < BLI_array_count(ee1); i++)
        {
-           float mid_V_i[3], mid_V_j[3], centerV[3];
+           float mid_V_i[3], mid_V_j[3]/*, centerV[3]*/;
            float co1[3], angel;
 
            get_middle_edge(ee1[i], mid_V_i);

@@ -36,10 +36,13 @@
 #include "BLI_threads.h"
 
 #if COM_CURRENT_THREADING_MODEL == COM_TM_NOTHREAD
-#warning COM_CURRENT_THREADING_MODEL COM_TM_NOTHREAD is activated. Use only for debugging.
+#  ifndef DEBUG  /* test this so we dont get warnings in debug builds */
+#    warning COM_CURRENT_THREADING_MODEL COM_TM_NOTHREAD is activated. Use only for debugging.
+#  endif
 #elif COM_CURRENT_THREADING_MODEL == COM_TM_QUEUE
+   /* do nothing - default */
 #else
-#error COM_CURRENT_THREADING_MODEL No threading model selected
+#  error COM_CURRENT_THREADING_MODEL No threading model selected
 #endif
 
 
@@ -66,6 +69,12 @@ static bool g_openclActive = false;
 #endif
 #endif
 
+#define MAX_HIGHLIGHT 8
+extern "C" {
+int g_highlightIndex;
+void ** g_highlightedNodes;
+void ** g_highlightedNodesRead;
+
 #define HIGHLIGHT(wp) \
 { \
 	ExecutionGroup* group = wp->getExecutionGroup(); \
@@ -77,14 +86,41 @@ static bool g_openclActive = false;
 			bNode *node = complexOperation->getbNode(); \
 			if (node) { \
 				if (node->original) { \
-					node->original->highlight = 1;\
-				} else {\
-					node->highlight = 1; \
+					node = node->original;\
+				}\
+				if (g_highlightIndex < MAX_HIGHLIGHT) {\
+					g_highlightedNodes[g_highlightIndex++] = node;\
 				}\
 			} \
 		} \
 	} \
 }
+
+void COM_startReadHighlights()
+{
+	if (g_highlightedNodesRead) {
+		delete [] g_highlightedNodesRead;
+	}
+	
+	g_highlightedNodesRead = g_highlightedNodes;
+	g_highlightedNodes = new void*[MAX_HIGHLIGHT];
+	g_highlightIndex = 0;
+	for (int i = 0 ; i < MAX_HIGHLIGHT; i++) {
+		g_highlightedNodes[i] = 0;
+	}
+}
+
+int COM_isHighlightedbNode(bNode* bnode)
+{
+	if (!g_highlightedNodesRead) return false;
+	for (int i = 0 ; i < MAX_HIGHLIGHT; i++) {
+		void* p = g_highlightedNodesRead[i];
+		if (!p) return false;
+		if (p == bnode) return true;
+	}
+	return false;
+}
+} // end extern "C"
 
 #if COM_CURRENT_THREADING_MODEL == COM_TM_QUEUE
 void *WorkScheduler::thread_execute_cpu(void *data)
@@ -219,6 +255,9 @@ extern void clContextError(const char *errinfo, const void *private_info, size_t
 
 void WorkScheduler::initialize()
 {
+	g_highlightedNodesRead = 0;
+	g_highlightedNodes = 0;
+	COM_startReadHighlights();
 #if COM_CURRENT_THREADING_MODEL == COM_TM_QUEUE
 	int numberOfCPUThreads = BLI_system_thread_count();
 
@@ -313,3 +352,4 @@ void WorkScheduler::deinitialize()
 #endif
 #endif
 }
+

@@ -139,7 +139,7 @@ static void calc_corner_co(BMLoop *l, const float fac, float r_co[3],
 		normalize_v3(l_vec_next);
 
 		add_v3_v3v3(co_ofs, l_vec_prev, l_vec_next);
-		if (UNLIKELY(normalize_v3(co_ofs) == 0.0f)) { /* edges form a straignt line */
+		if (UNLIKELY(normalize_v3(co_ofs) == 0.0f)) {  /* edges form a straight line */
 			cross_v3_v3v3(co_ofs, l_vec_prev, l->f->no);
 		}
 
@@ -299,9 +299,9 @@ void bevel_aditional_construction_by_vert(BMesh *bm, BevelParams *bp, BMOperator
 {
     // TODO develop planar case
     BMOIter siter;
-    BMIter iter;
+    //BMIter iter;
     BMEdge *e, **edges = NULL;
-    int i;
+    //int i;
     BLI_array_declare(edges);
 
     // calc count input selected edges
@@ -313,7 +313,7 @@ void bevel_aditional_construction_by_vert(BMesh *bm, BevelParams *bp, BMOperator
         }
     }
     if (BLI_array_count(edges) > 0) {
-        BMEdge *prev_e;
+        //BMEdge *prev_e;
         AdditionalVert *av;
         av = (AdditionalVert*)MEM_callocN(sizeof(AdditionalVert), "AdditionalVert");
         av->v = v;
@@ -332,8 +332,8 @@ void bevel_aditional_construction_by_vert(BMesh *bm, BevelParams *bp, BMOperator
                 BMIter iter;
                 BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
                     BMLoop *l = f->l_first;
-                    BMEdge **ee = NULL;
-                    BLI_array_declare (ee);
+                    //BMEdge **ee = NULL;
+                    //BLI_array_declare (ee);
                     do {
                         if ((l->e == e) && (find_selected_edge_in_face(bm, f, e, v) !=NULL )){
                             if (!check_dublicated_vertex_item(av, f)) {
@@ -375,7 +375,8 @@ AdditionalVert* get_additionalVert_by_vert(BevelParams *bp, BMVert *v)
     AdditionalVert *av = NULL;
     for (item = bp->vertList.first; item ; item = item->next){
         if (item->v == v)
-            av = item;
+            //av = item;
+			av->v = item->v;
     }
     return av;
 }
@@ -510,9 +511,9 @@ BMVert* get_additional_vert(AdditionalVert *av, BMFace *f,  BMEdge *adjacentE)
 */
 void bevel_build_polygon(BMesh *bm, BevelParams *bp, BMEdge *e)
 {
-    BMVert *vi[4]; // only for linear case with seg = 1
+    //BMVert *vi[4]; // only for linear case with seg = 1
     AdditionalVert *item, *av1, *av2;
-    VertexItem *vItem;
+    //VertexItem *vItem;
     BMVert **vv=NULL , *v;
     BMFace *f;
     BMIter iter;

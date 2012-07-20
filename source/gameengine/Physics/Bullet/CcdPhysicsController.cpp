@@ -1294,17 +1294,16 @@ void		CcdPhysicsController::getReactionForce(float& forceX,float& forceY,float& 
 		// dyna's that are rigidbody are free in orientation, dyna's with non-rigidbody are restricted 
 void		CcdPhysicsController::setRigidBody(bool rigid)
 {
-	if (!rigid)
+	btRigidBody* body = GetRigidBody();
+	if (body)
 	{
-		btRigidBody* body = GetRigidBody();
-		if (body)
-		{
-			//fake it for now
-			btVector3 inertia = body->getInvInertiaDiagLocal();
-			inertia[1] = 0.f;
-			body->setInvInertiaDiagLocal(inertia);
-			body->updateInertiaTensor();
+		m_cci.m_bRigid = rigid;
+		if (!rigid) {
+			body->setAngularFactor(0.f);
+			body->setAngularVelocity(btVector3(0.f, 0.f, 0.f));
 		}
+		else
+			body->setAngularFactor(m_cci.m_angularFactor);
 	}
 }
 
@@ -2047,6 +2046,15 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject* gameobj, class RA
 		// don't free now so it can re-allocate under the same location and not break pointers.
 		// DeleteBulletShape(m_unscaledShape); 
 		m_forceReInstance= true;
+	}
+
+	// Make sure to also replace the mesh in the shape map! Otherwise we leave dangling references when we free.
+	// Note, this whole business could cause issues with shared meshes. If we update one mesh, do we replace
+	// them all?
+	std::map<RAS_MeshObject*,CcdShapeConstructionInfo*>::iterator mit = m_meshShapeMap.find(m_meshObject);
+	if (mit != m_meshShapeMap.end()) {
+		m_meshShapeMap.erase(mit);
+		m_meshShapeMap[meshobj] = this;
 	}
 
 	m_meshObject= meshobj;
