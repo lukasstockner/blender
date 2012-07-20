@@ -58,7 +58,7 @@
 #include "ONL_opennl.h"
 
 #define MOD_LAPLACIANSMOOTH_MAX_EDGE_PERCENTAGE 1.8
-#define MOD_LAPLACIANSMOOTH_MIN_EDGE_PERCENTAGE 0.15
+#define MOD_LAPLACIANSMOOTH_MIN_EDGE_PERCENTAGE 0.02
 
 struct BLaplacianSystem {
 	float *eweights;		/* Length weights per Edge */
