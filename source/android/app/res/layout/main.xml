@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    >
+
+    <TextView
+        android:id="@+id/binarystatustext"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textAppearance="?android:attr/textAppearanceMedium" />
+
+    <ProgressBar
+        android:id="@+id/progressBar1"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <Button
+        android:id="@+id/downloadbutton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Download Binaries" 
+        android:enabled="false"
+        />
+
+<Button
+    android:id="@+id/gameselecterbutton"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="Select Game" />
+
+<TextView
+    android:id="@+id/gamenametext"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="No game was selected"
+    android:textAppearance="?android:attr/textAppearanceLarge" />
+
+<Button
+    android:id="@+id/startbutton"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="Start Blenderplayer" 
+    android:enabled="false"
+    />
+
+</LinearLayout>
+
