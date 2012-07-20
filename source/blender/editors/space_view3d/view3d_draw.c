@@ -86,6 +86,7 @@
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
 #include "UI_resources.h"
+#include "UI_view2d.h"
 
 #include "GPU_draw.h"
 #include "GPU_material.h"
@@ -3085,6 +3086,8 @@ static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const 
 
 static void view3d_main_area_draw_floating_controls(const bContext *C, ARegion *ar)
 {
+	/* fixes trembling and, strangely, event handling of menus */
+	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_PANELS_UI, ar->winx, ar->winy);
 	ED_region_panels(C, ar, 1, CTX_data_mode_string(C), -1);
 }
 
