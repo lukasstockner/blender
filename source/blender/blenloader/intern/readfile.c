@@ -7873,7 +7873,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				if (md->type == eModifierType_Smoke) {
 					SmokeModifierData *smd = (SmokeModifierData *)md;
 					if ((smd->type & MOD_SMOKE_TYPE_DOMAIN) && smd->domain) {
-						/* hack to detect other blender branches without version number */
+						/* hack to keep branch changes without version number */
 						if (!smd->domain->flame_max_temp) {
 							smd->domain->burning_rate = 0.75f;
 							smd->domain->flame_smoke = 1.0f;
@@ -7885,13 +7885,26 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 							smd->domain->adapt_threshold = 0.02f;
 							smd->domain->adapt_margin = 4;
 						}
+						if (smd->branch_v < 1) {
+							smd->domain->active_fields = SM_SIMULATE_HEAT | SM_SIMULATE_FIRE | SM_SIMULATE_COLORS;
+							smd->domain->flame_smoke_color[0] = 0.7f;
+							smd->domain->flame_smoke_color[1] = 0.7f;
+							smd->domain->flame_smoke_color[2] = 0.7f;
+						}
 					}
 					else if ((smd->type & MOD_SMOKE_TYPE_FLOW) && smd->flow) {
 						if (!smd->flow->fuel_amount) {
 							smd->flow->fuel_amount = 1.0;
 							smd->flow->surface_distance = 1.5;
 						}
+
+						if (smd->branch_v < 1) {
+							smd->flow->color[0] = 0.7f;
+							smd->flow->color[1] = 0.7f;
+							smd->flow->color[2] = 0.7f;
+						}
 					}
+					smd->branch_v = 1; /* hack to keep branch changes without version number */
 				}
 			}
 		}

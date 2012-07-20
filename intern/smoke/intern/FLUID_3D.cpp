@@ -44,7 +44,7 @@
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
 
-FLUID_3D::FLUID_3D(int *res, float dx, float dtdef) :
+FLUID_3D::FLUID_3D(int *res, float dx, float dtdef, int use_heat, int use_fire, int use_colors) :
 	_xRes(res[0]), _yRes(res[1]), _zRes(res[2]), _res(0.0f)
 {
 	// set simulation consts
@@ -92,8 +92,14 @@ FLUID_3D::FLUID_3D(int *res, float dx, float dtdef) :
 	_zForce       = new float[_totalCells];
 	_density      = new float[_totalCells];
 	_densityOld   = new float[_totalCells];
-	_heat         = new float[_totalCells];
-	_heatOld      = new float[_totalCells];
+	if (use_heat) {
+		_heat         = new float[_totalCells];
+		_heatOld      = new float[_totalCells];
+		_heatTemp      = new float[_totalCells];
+	}
+	else {
+		_heat = _heatOld = _heatTemp = NULL;
+	}
 	_obstacles    = new unsigned char[_totalCells]; // set 0 at end of step
 
 	// For threaded version:
@@ -101,13 +107,35 @@ FLUID_3D::FLUID_3D(int *res, float dx, float dtdef) :
 	_yVelocityTemp = new float[_totalCells];
 	_zVelocityTemp = new float[_totalCells];
 	_densityTemp   = new float[_totalCells];
-	_heatTemp      = new float[_totalCells];
 
 	// Fire simulation
-	_flame		= new float[_totalCells];
-	_fuel		= new float[_totalCells];
-	_fuelTemp	= new float[_totalCells];
-	_fuelOld	= new float[_totalCells];
+	if (use_fire) {
+		_flame		= new float[_totalCells];
+		_fuel		= new float[_totalCells];
+		_fuelTemp	= new float[_totalCells];
+		_fuelOld	= new float[_totalCells];
+	}
+	else {
+		_flame = _fuel = _fuelTemp = _fuelOld = NULL;
+	}
+
+	// Smoke color
+	if (use_colors) {
+		_color_r		= new float[_totalCells];
+		_color_rOld		= new float[_totalCells];
+		_color_rTemp	= new float[_totalCells];
+		_color_g		= new float[_totalCells];
+		_color_gOld		= new float[_totalCells];
+		_color_gTemp	= new float[_totalCells];
+		_color_b		= new float[_totalCells];
+		_color_bOld		= new float[_totalCells];
+		_color_bTemp	= new float[_totalCells];
+	}
+	else {
+		_color_r = _color_rOld = _color_rTemp = NULL;
+		_color_g = _color_gOld = _color_gTemp = NULL;
+		_color_b = _color_bOld = _color_bTemp = NULL;
+	}
 
 	// DG TODO: check if alloc went fine
 
@@ -115,8 +143,6 @@ FLUID_3D::FLUID_3D(int *res, float dx, float dtdef) :
 	{
 		_density[x]      = 0.0f;
 		_densityOld[x]   = 0.0f;
-		_heat[x]         = 0.0f;
-		_heatOld[x]      = 0.0f;
 		_xVelocity[x]    = 0.0f;
 		_yVelocity[x]    = 0.0f;
 		_zVelocity[x]    = 0.0f;
@@ -131,10 +157,26 @@ FLUID_3D::FLUID_3D(int *res, float dx, float dtdef) :
 		_zForce[x]       = 0.0f;
 		_obstacles[x]    = false;
 
-		_flame[x]		= 0.0f;
-		_fuel[x]		= 0.0f;
-		_fuelTemp[x]	= 0.0f;
-		_fuelOld[x]		= 0.0f;
+		if (_heat) {
+			_heat[x]         = 0.0f;
+			_heatOld[x]      = 0.0f;
+		}
+
+		if (_flame) {
+			_flame[x]		= 0.0f;
+			_fuel[x]		= 0.0f;
+			_fuelTemp[x]	= 0.0f;
+			_fuelOld[x]		= 0.0f;
+		}
+
+		if (_color_r) {
+			_color_r[x]		= 0.0f;
+			_color_rOld[x]	= 0.0f;
+			_color_g[x]		= 0.0f;
+			_color_gOld[x]	= 0.0f;
+			_color_b[x]		= 0.0f;
+			_color_bOld[x]	= 0.0f;
+		}
 	}
 
 	// boundary conditions of the fluid domain
@@ -226,12 +268,19 @@ FLUID_3D::~FLUID_3D()
 	if (_fuelTemp) delete[] _fuelTemp;
 	if (_fuelOld) delete[] _fuelOld;
 
+	if (_color_r) delete[] _color_r;
+	if (_color_rOld) delete[] _color_rOld;
+	if (_color_g) delete[] _color_g;
+	if (_color_gOld) delete[] _color_gOld;
+	if (_color_b) delete[] _color_b;
+	if (_color_bOld) delete[] _color_bOld;
+
     // printf("deleted fluid\n");
 }
 
 // init direct access functions from blender
-void FLUID_3D::initBlenderRNA(float *alpha, float *beta, float *dt_factor, float *vorticity, int *borderCollision,
-							  float *burning_rate, float *flame_smoke, float *flame_vorticity, float *flame_ignition_temp, float *flame_max_temp)
+void FLUID_3D::initBlenderRNA(float *alpha, float *beta, float *dt_factor, float *vorticity, int *borderCollision, float *burning_rate,
+							  float *flame_smoke, float *flame_smoke_color, float *flame_vorticity, float *flame_ignition_temp, float *flame_max_temp)
 {
 	_alpha = alpha;
 	_beta = beta;
@@ -240,6 +289,7 @@ void FLUID_3D::initBlenderRNA(float *alpha, float *beta, float *dt_factor, float
 	_borderColli = borderCollision;
 	_burning_rate = burning_rate;
 	_flame_smoke = flame_smoke;
+	_flame_smoke_color = flame_smoke_color;
 	_flame_vorticity = flame_vorticity;
 	_ignition_temp = flame_ignition_temp;
 	_max_temp = flame_max_temp;
@@ -266,6 +316,8 @@ void FLUID_3D::step(float dt, float gravity[3])
 
 	// set delta time by dt_factor
 	_dt = (*_dtFactor) * dt;
+	// set vorticity from RNA value
+	_vorticityEps = (*_vorticityRNA)/_constantScaling;
 
 #if PARALLEL==1
 	int threadval = 1;
@@ -330,13 +382,15 @@ void FLUID_3D::step(float dt, float gravity[3])
 		if (i==0)
 		{
 #endif
-		project();
+			project();
 #if PARALLEL==1
 		}
-		else
+		else if (i==1)
 		{
 #endif
-		diffuseHeat();
+			if (_heat) {
+				diffuseHeat();
+			}
 #if PARALLEL==1
 		}
 	}
@@ -354,8 +408,13 @@ void FLUID_3D::step(float dt, float gravity[3])
 	SWAP_POINTERS(_yVelocity, _yVelocityOld);
 	SWAP_POINTERS(_zVelocity, _zVelocityOld);
 	SWAP_POINTERS(_density, _densityOld);
-	SWAP_POINTERS(_fuel, _fuelOld);
 	SWAP_POINTERS(_heat, _heatOld);
+
+	SWAP_POINTERS(_fuel, _fuelOld);
+
+	SWAP_POINTERS(_color_r, _color_rOld);
+	SWAP_POINTERS(_color_g, _color_gOld);
+	SWAP_POINTERS(_color_b, _color_bOld);
 
 	advectMacCormackBegin(0, _zRes);
 
@@ -659,7 +718,14 @@ void FLUID_3D::wipeBoundaries(int zBegin, int zEnd)
 	setZeroBorder(_yVelocity, _res, zBegin, zEnd);
 	setZeroBorder(_zVelocity, _res, zBegin, zEnd);
 	setZeroBorder(_density, _res, zBegin, zEnd);
-	setZeroBorder(_fuel, _res, zBegin, zEnd);
+	if (_fuel) {
+		setZeroBorder(_fuel, _res, zBegin, zEnd);
+	}
+	if (_color_r) {
+		setZeroBorder(_color_r, _res, zBegin, zEnd);
+		setZeroBorder(_color_g, _res, zBegin, zEnd);
+		setZeroBorder(_color_b, _res, zBegin, zEnd);
+	}
 }
 
 void FLUID_3D::wipeBoundariesSL(int zBegin, int zEnd)
@@ -685,7 +751,14 @@ void FLUID_3D::wipeBoundariesSL(int zBegin, int zEnd)
 			_yVelocity[index] = 0.0f;
 			_zVelocity[index] = 0.0f;
 			_density[index] = 0.0f;
-			_fuel[index] = 0.0f;
+			if (_fuel) {
+				_fuel[index] = 0.0f;
+			}
+			if (_color_r) {
+				_color_r[index] = 0.0f;
+				_color_g[index] = 0.0f;
+				_color_b[index] = 0.0f;
+			}
 
 			// right slab
 			index += _xRes - 1;
@@ -693,7 +766,14 @@ void FLUID_3D::wipeBoundariesSL(int zBegin, int zEnd)
 			_yVelocity[index] = 0.0f;
 			_zVelocity[index] = 0.0f;
 			_density[index] = 0.0f;
-			_fuel[index] = 0.0f;
+			if (_fuel) {
+				_fuel[index] = 0.0f;
+			}
+			if (_color_r) {
+				_color_r[index] = 0.0f;
+				_color_g[index] = 0.0f;
+				_color_b[index] = 0.0f;
+			}
 		}
 
 	/////////////////////////////////////
@@ -709,7 +789,14 @@ void FLUID_3D::wipeBoundariesSL(int zBegin, int zEnd)
 			_yVelocity[index] = 0.0f;
 			_zVelocity[index] = 0.0f;
 			_density[index] = 0.0f;
-			_fuel[index] = 0.0f;
+			if (_fuel) {
+				_fuel[index] = 0.0f;
+			}
+			if (_color_r) {
+				_color_r[index] = 0.0f;
+				_color_g[index] = 0.0f;
+				_color_b[index] = 0.0f;
+			}
 
 			// top slab
 			index += slabSize - _xRes;
@@ -717,7 +804,14 @@ void FLUID_3D::wipeBoundariesSL(int zBegin, int zEnd)
 			_yVelocity[index] = 0.0f;
 			_zVelocity[index] = 0.0f;
 			_density[index] = 0.0f;
-			_fuel[index] = 0.0f;
+			if (_fuel) {
+				_fuel[index] = 0.0f;
+			}
+			if (_color_r) {
+				_color_r[index] = 0.0f;
+				_color_g[index] = 0.0f;
+				_color_b[index] = 0.0f;
+			}
 
 		}
 
@@ -738,7 +832,14 @@ void FLUID_3D::wipeBoundariesSL(int zBegin, int zEnd)
 			_yVelocity[index] = 0.0f;
 			_zVelocity[index] = 0.0f;
 			_density[index] = 0.0f;
-			_fuel[index] = 0.0f;
+			if (_fuel) {
+				_fuel[index] = 0.0f;
+			}
+			if (_color_r) {
+				_color_r[index] = 0.0f;
+				_color_g[index] = 0.0f;
+				_color_b[index] = 0.0f;
+			}
     }
 
 	if (zEnd == _zRes)
@@ -757,7 +858,14 @@ void FLUID_3D::wipeBoundariesSL(int zBegin, int zEnd)
 				_yVelocity[indexx] = 0.0f;
 				_zVelocity[indexx] = 0.0f;
 				_density[indexx] = 0.0f;
-				_fuel[index] = 0.0f;
+				if (_fuel) {
+					_fuel[index] = 0.0f;
+				}
+				if (_color_r) {
+					_color_r[index] = 0.0f;
+					_color_g[index] = 0.0f;
+					_color_b[index] = 0.0f;
+				}
 			}
 	}
 
@@ -803,35 +911,6 @@ void FLUID_3D::project()
 
 	if(!_domainBcTop) setNeumannZ(_zVelocity, _res, 0, _zRes);
 	else setZeroZ(_zVelocity, _res, 0, _zRes);
-
-	/*
-	{
-		float maxx = 0, maxy = 0, maxz = 0;
-		for(unsigned int i = 0; i < _xRes * _yRes * _zRes; i++)
-		{
-			if(_xVelocity[i] > maxx)
-				maxx = _xVelocity[i];
-			if(_yVelocity[i] > maxy)
-				maxy = _yVelocity[i];
-			if(_zVelocity[i] > maxz)
-				maxz = _zVelocity[i];
-		}
-		printf("Max velx: %f, vely: %f, velz: %f\n", maxx, maxy, maxz);
-	}
-	*/
-
-	/*
-	{
-		float maxvalue = 0;
-		for(unsigned int i = 0; i < _xRes * _yRes * _zRes; i++)
-		{
-			if(_heat[i] > maxvalue)
-				maxvalue = _heat[i];
-
-		}
-		printf("Max heat: %f\n", maxvalue);
-	}
-	*/
 
 	// calculate divergence
 	index = _slabSize + _xRes + 1;
@@ -1030,7 +1109,6 @@ void FLUID_3D::diffuseHeat()
 	for (int x = 0; x < _totalCells; x++)
 		if (_obstacles[x])
 			_heat[x] = 0.0f;
-
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -1206,7 +1284,7 @@ void FLUID_3D::addBuoyancy(float *heat, float *density, float gravity[3], int zB
 		for (int y = 0; y < _yRes; y++)
 			for (int x = 0; x < _xRes; x++, index++)
 			{
-				float buoyancy = *_alpha * density[index] + (*_beta * (heat[index] - _tempAmb));
+				float buoyancy = *_alpha * density[index] + (*_beta * (((heat) ? heat[index] : 0.0f) - _tempAmb));
 				_xForce[index] -= gravity[0] * buoyancy;
 				_yForce[index] -= gravity[1] * buoyancy;
 				_zForce[index] -= gravity[2] * buoyancy;
@@ -1218,9 +1296,8 @@ void FLUID_3D::addBuoyancy(float *heat, float *density, float gravity[3], int zB
 //////////////////////////////////////////////////////////////////////
 void FLUID_3D::addVorticity(int zBegin, int zEnd)
 {
-	// set vorticity from RNA value
+	// set flame vorticity from RNA value
 	float flame_vorticity = (*_flame_vorticity)/_constantScaling;
-	_vorticityEps = (*_vorticityRNA)/_constantScaling;
 	//int x,y,z,index;
 	if(_vorticityEps+flame_vorticity<=0.) return;
 
@@ -1329,14 +1406,15 @@ void FLUID_3D::addVorticity(int zBegin, int zEnd)
 					float magnitude = sqrtf(N[0] * N[0] + N[1] * N[1] + N[2] * N[2]);
 					if (magnitude > FLT_EPSILON)
 					{
+						float flame_vort = (_fuel) ? _fuel[index]*flame_vorticity : 0.0f;
 						magnitude = 1.0f / magnitude;
 						N[0] *= magnitude;
 						N[1] *= magnitude;
 						N[2] *= magnitude;
 
-						_xForce[index] += (N[1] * _zVorticity[vIndex] - N[2] * _yVorticity[vIndex]) * _dx * (eps + _fuel[index]*flame_vorticity);
-						_yForce[index] += (N[2] * _xVorticity[vIndex] - N[0] * _zVorticity[vIndex]) * _dx * (eps + _fuel[index]*flame_vorticity);
-						_zForce[index] += (N[0] * _yVorticity[vIndex] - N[1] * _xVorticity[vIndex]) * _dx * (eps + _fuel[index]*flame_vorticity);
+						_xForce[index] += (N[1] * _zVorticity[vIndex] - N[2] * _yVorticity[vIndex]) * _dx * (eps + flame_vort);
+						_yForce[index] += (N[2] * _xVorticity[vIndex] - N[0] * _zVorticity[vIndex]) * _dx * (eps + flame_vort);
+						_zForce[index] += (N[0] * _yVorticity[vIndex] - N[1] * _xVorticity[vIndex]) * _dx * (eps + flame_vort);
 					}
 					}	// if
 					vIndex++;
@@ -1384,8 +1462,17 @@ void FLUID_3D::advectMacCormackEnd1(int zBegin, int zEnd)
 	// advectFieldMacCormack1(dt, xVelocity, yVelocity, zVelocity, oldField, newField, res)
 
 	advectFieldMacCormack1(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _densityOld, _densityTemp, res, zBegin, zEnd);
-	advectFieldMacCormack1(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _fuelOld, _fuelTemp, res, zBegin, zEnd);
-	advectFieldMacCormack1(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _heatOld, _heatTemp, res, zBegin, zEnd);
+	if (_heat) {
+		advectFieldMacCormack1(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _heatOld, _heatTemp, res, zBegin, zEnd);
+	}
+	if (_fuel) {
+		advectFieldMacCormack1(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _fuelOld, _fuelTemp, res, zBegin, zEnd);
+	}
+	if (_color_r) {
+		advectFieldMacCormack1(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _color_rOld, _color_rTemp, res, zBegin, zEnd);
+		advectFieldMacCormack1(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _color_gOld, _color_gTemp, res, zBegin, zEnd);
+		advectFieldMacCormack1(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _color_bOld, _color_bTemp, res, zBegin, zEnd);
+	}
 	advectFieldMacCormack1(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _xVelocityOld, _xVelocity, res, zBegin, zEnd);
 	advectFieldMacCormack1(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _yVelocityOld, _yVelocity, res, zBegin, zEnd);
 	advectFieldMacCormack1(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _zVelocityOld, _zVelocity, res, zBegin, zEnd);
@@ -1401,18 +1488,29 @@ void FLUID_3D::advectMacCormackEnd2(int zBegin, int zEnd)
 	const float dt0 = _dt / _dx;
 	Vec3Int res = Vec3Int(_xRes,_yRes,_zRes);
 
-	// use force array as temp arrays
+	// use force array as temp array
 	float* t1 = _xForce;
 
 	// advectFieldMacCormack2(dt, xVelocity, yVelocity, zVelocity, oldField, newField, tempfield, temp, res, obstacles)
 
+	/* finish advection */
 	advectFieldMacCormack2(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _densityOld, _density, _densityTemp, t1, res, _obstacles, zBegin, zEnd);
-	advectFieldMacCormack2(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _fuelOld, _fuel, _fuelTemp, t1, res, _obstacles, zBegin, zEnd);
-	advectFieldMacCormack2(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _heatOld, _heat, _heatTemp, t1, res, _obstacles, zBegin, zEnd);
+	if (_heat) {
+		advectFieldMacCormack2(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _heatOld, _heat, _heatTemp, t1, res, _obstacles, zBegin, zEnd);
+	}
+	if (_fuel) {
+		advectFieldMacCormack2(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _fuelOld, _fuel, _fuelTemp, t1, res, _obstacles, zBegin, zEnd);
+	}
+	if (_color_r) {
+		advectFieldMacCormack2(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _color_rOld, _color_r, _color_rTemp, t1, res, _obstacles, zBegin, zEnd);
+		advectFieldMacCormack2(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _color_gOld, _color_g, _color_gTemp, t1, res, _obstacles, zBegin, zEnd);
+		advectFieldMacCormack2(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _color_bOld, _color_b, _color_bTemp, t1, res, _obstacles, zBegin, zEnd);
+	}
 	advectFieldMacCormack2(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _xVelocityOld, _xVelocityTemp, _xVelocity, t1, res, _obstacles, zBegin, zEnd);
 	advectFieldMacCormack2(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _yVelocityOld, _yVelocityTemp, _yVelocity, t1, res, _obstacles, zBegin, zEnd);
 	advectFieldMacCormack2(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _zVelocityOld, _zVelocityTemp, _zVelocity, t1, res, _obstacles, zBegin, zEnd);
 
+	/* set boundary conditions for velocity */
 	if(!_domainBcLeft) copyBorderX(_xVelocityTemp, res, zBegin, zEnd);
 	else setZeroX(_xVelocityTemp, res, zBegin, zEnd);				
 
@@ -1422,47 +1520,21 @@ void FLUID_3D::advectMacCormackEnd2(int zBegin, int zEnd)
 	if(!_domainBcTop) copyBorderZ(_zVelocityTemp, res, zBegin, zEnd);
 	else setZeroZ(_zVelocityTemp, res, zBegin, zEnd);
 
+	/* clear data boundaries */
 	setZeroBorder(_density, res, zBegin, zEnd);
-	setZeroBorder(_fuel, res, zBegin, zEnd);
-	setZeroBorder(_heat, res, zBegin, zEnd);
-#if 0
-	{
-	const size_t index_ = _slabSize + _xRes + 1;
-	int bb=0;
-	int bt=0;
-
-	if (zBegin == 0) {bb = 1;}
-	if (zEnd == _zRes) {bt = 1;}
-	
-	for (int z = zBegin + bb; z < zEnd - bt; z++)
-	{
-		size_t index = index_ +(z-1)*_slabSize;
-
-		for (int y = 1; y < _yRes - 1; y++, index += 2)
-		{
-			for (int x = 1; x < _xRes - 1; x++, index++)
-			{
-				// clean custom velocities from moving obstacles again
-				if (_obstacles[index])
-				{
-					_xVelocity[index] =
-					_yVelocity[index] =
-					_zVelocity[index] = 0.0f;
-				}
-			}
-		}
+	if (_fuel) {
+		setZeroBorder(_fuel, res, zBegin, zEnd);
 	}
+	if (_color_r) {
+		setZeroBorder(_color_r, res, zBegin, zEnd);
+		setZeroBorder(_color_g, res, zBegin, zEnd);
+		setZeroBorder(_color_b, res, zBegin, zEnd);
 	}
-#endif
-
-	/*int begin=zBegin * _slabSize;
-	int end=begin + (zEnd - zBegin) * _slabSize;
-  for (int x = begin; x < end; x++)
-    _xForce[x] = _yForce[x] = 0.0f;*/
 }
 
 
-void FLUID_3D::processBurn(float *fuel, float *smoke, float *flame, float *heat, int total_cells, float dt)
+void FLUID_3D::processBurn(float *fuel, float *smoke, float *flame, float *heat,
+						   float *r, float *g, float *b, int total_cells, float dt)
 {
 	float burning_rate = *_burning_rate;
 	float flame_smoke = *_flame_smoke;
@@ -1472,13 +1544,16 @@ void FLUID_3D::processBurn(float *fuel, float *smoke, float *flame, float *heat,
 	for (int index = 0; index < total_cells; index++)
 	{
 		float orig_fuel = fuel[index];
+		float orig_smoke = smoke[index];
+		float smoke_emit = 0.0f;
 
 		/* process reaction coordinate */
 		fuel[index] -= burning_rate * dt;
 		if (fuel[index] < 0.0f) fuel[index] = 0.0f;
 
 		/* emit smoke based on reaction time and "flame_smoke" factor */
-		smoke[index] += (1.0f-orig_fuel) * (orig_fuel-fuel[index]) * 0.1f * flame_smoke;
+		smoke_emit = (1.0f-orig_fuel) * (orig_fuel-fuel[index]) * 0.1f * flame_smoke;
+		smoke[index] += smoke_emit;
 		CLAMP(smoke[index], 0.0f, 1.0f);
 
 		/* model flame temperature curve from the reaction coordinate (fuel) */
@@ -1498,5 +1573,13 @@ void FLUID_3D::processBurn(float *fuel, float *smoke, float *flame, float *heat,
 		/* for flame set fluid temperature from the flame temperature profile */
 		if (heat && flame[index])
 			heat[index] = (1.0f-flame[index])*ignition_point + flame[index]*temp_max;
+
+		/* mix new color */
+		if (r && smoke_emit) {
+			float smoke_factor = smoke[index]/(orig_smoke+smoke_emit);
+			r[index] = (r[index] + _flame_smoke_color[0] * smoke_emit) * smoke_factor;
+			g[index] = (g[index] + _flame_smoke_color[1] * smoke_emit) * smoke_factor;
+			b[index] = (b[index] + _flame_smoke_color[2] * smoke_emit) * smoke_factor;
+		}
 	}
 }

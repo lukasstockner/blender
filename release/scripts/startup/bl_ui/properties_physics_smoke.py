@@ -109,6 +109,7 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
                 sub.prop(flow, "use_absolute")
                 if flow.smoke_flow_type in {'SMOKE', 'BOTH'}:
                     sub.prop(flow, "density")
+                    sub.prop(flow, "smoke_color")
                     sub.prop(flow, "temperature")
                 if flow.smoke_flow_type in {'FIRE', 'BOTH'}:
                     sub.prop(flow, "fuel_amount")
@@ -120,6 +121,44 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
 
             col = split.column()
             col.prop(coll, "collision_type")
+
+
+class PHYSICS_PT_smoke_advanced(PhysicButtonsPanel, Panel):
+    bl_label = "Smoke Advanced"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        md = context.smoke
+        rd = context.scene.render
+        return md and (md.smoke_type == 'DOMAIN') and (not rd.use_game_engine)
+
+    def draw(self, context):
+        layout = self.layout
+        domain = context.smoke.domain_settings
+        
+        layout.label(text="Simulation Fields:")
+        split = layout.split()
+        
+        col = split.column()
+        col.prop(domain, "use_field_fire")
+        col.prop(domain, "use_field_colors")
+        
+        col = split.column()
+        col.prop(domain, "use_field_heat")
+
+        split = layout.split()
+
+        col = split.column()
+        col.label(text="Flow Group:")
+        col.prop(domain, "fluid_group", text="")
+
+        #col.label(text="Effector Group:")
+        #col.prop(domain, "effector_group", text="")
+
+        col = split.column()
+        col.label(text="Collision Group:")
+        col.prop(domain, "collision_group", text="")
 
 class PHYSICS_PT_smoke_fire(PhysicButtonsPanel, Panel):
     bl_label = "Smoke Flames"
@@ -133,6 +172,8 @@ class PHYSICS_PT_smoke_fire(PhysicButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
         domain = context.smoke.domain_settings
+        
+        layout.active = domain.use_field_fire and domain.use_field_heat
 
         split = layout.split()
         split.enabled = not domain.point_cache.is_baked
@@ -147,6 +188,7 @@ class PHYSICS_PT_smoke_fire(PhysicButtonsPanel, Panel):
         col.label(text="Temperatures:")
         col.prop(domain, "flame_ignition")
         col.prop(domain, "flame_max_temp")
+        col.prop(domain, "flame_smoke_color")
         
 class PHYSICS_PT_smoke_adaptive_domain(PhysicButtonsPanel, Panel):
     bl_label = "Smoke Adaptive Domain"
@@ -179,34 +221,6 @@ class PHYSICS_PT_smoke_adaptive_domain(PhysicButtonsPanel, Panel):
         col = split.column(align=True)
         col.label(text="Advanced:")
         col.prop(domain, "adapt_threshold")
-            
-class PHYSICS_PT_smoke_groups(PhysicButtonsPanel, Panel):
-    bl_label = "Smoke Groups"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    @classmethod
-    def poll(cls, context):
-        md = context.smoke
-        rd = context.scene.render
-        return md and (md.smoke_type == 'DOMAIN') and (not rd.use_game_engine)
-
-    def draw(self, context):
-        layout = self.layout
-
-        group = context.smoke.domain_settings
-
-        split = layout.split()
-
-        col = split.column()
-        col.label(text="Flow Group:")
-        col.prop(group, "fluid_group", text="")
-
-        #col.label(text="Effector Group:")
-        #col.prop(group, "effector_group", text="")
-
-        col = split.column()
-        col.label(text="Collision Group:")
-        col.prop(group, "collision_group", text="")
 
 
 class PHYSICS_PT_smoke_highres(PhysicButtonsPanel, Panel):

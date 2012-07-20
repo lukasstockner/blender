@@ -36,7 +36,7 @@ class WTURBULENCE
 {
 	public:
 		// both config files can be NULL, altCfg might override values from noiseCfg
-		WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int noisetype);
+		WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int noisetype, int use_fire, int use_colors);
 
 		/// destructor
 		virtual ~WTURBULENCE();
@@ -116,6 +116,13 @@ class WTURBULENCE
 		float* _flameBig;
 		float* _fuelBig;
 		float* _fuelBigOld;
+
+		float* _color_rBig;
+		float* _color_rBigOld;
+		float* _color_gBig;
+		float* _color_gBigOld;
+		float* _color_bBig;
+		float* _color_bBigOld;
 
 		// texture coordinates for noise
 		float* _tcU;

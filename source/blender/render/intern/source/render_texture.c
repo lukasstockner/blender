@@ -2746,6 +2746,12 @@ void do_volume_tex(ShadeInput *shi, const float *xyz, int mapto_flag, float col_
 				if ((rgbnor & TEX_RGB) == 0) {
 					copy_v3_v3(tcol, &mtex->r);
 				}
+				else if (mtex->mapto & MAP_DENSITY) {
+					copy_v3_v3(tcol, &texres.tr);
+					if (texres.talpha) {
+						texres.tin = stencilTin;
+					}
+				}
 				else {
 					copy_v3_v3(tcol, &texres.tr);
 					if (texres.talpha) {

@@ -62,6 +62,11 @@
 #define SM_COLL_RIGID		1
 #define SM_COLL_ANIMATED	2
 
+/* smoke data fileds (active_fields) */
+#define SM_SIMULATE_HEAT	(1<<0)
+#define SM_SIMULATE_FIRE	(1<<1)
+#define SM_SIMULATE_COLORS	(1<<2)
+
 typedef struct SmokeDomainSettings {
 	struct SmokeModifierData *smd; /* for fast RNA access */
 	struct FLUID_3D *fluid;
@@ -125,10 +130,12 @@ typedef struct SmokeDomainSettings {
 	int border_collisions;	/* How domain border collisions are handled */
 	float time_scale;
 	float vorticity;
+	int active_fields;
 
 	/* flame parameters */
 	float burning_rate, flame_smoke, flame_vorticity;
 	float flame_ignition, flame_max_temp;
+	float flame_smoke_color[3];
 } SmokeDomainSettings;
 
 
@@ -161,10 +168,12 @@ typedef struct SmokeFlowSettings {
 	float vel_random;
 	/* emission */
 	float density;
+	float color[3];
 	float fuel_amount;
 	float temp; /* delta temperature (temp - ambient temp) */
 	float volume_density; /* density emitted within mesh volume */
 	float surface_distance; /* maximum emission distance from mesh surface */
+	int pad4;
 	short vgroup_density;
 
 	short type; /* smoke, flames, both, outflow */

@@ -198,8 +198,8 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob, ARegion *ar, GPUTex
 	GPUTexture *tex_spec;
 
 	/* Fragment program to calculate the view3d of smoke */
-	/* using 2 textures, density and shadow */
-	const char *text = "!!ARBfp1.0\n"
+	/* using 4 textures, density, shadow, flame and flame spectrum */
+	const char *shader_basic = "!!ARBfp1.0\n"
 	                   "PARAM dx = program.local[0];\n"
 	                   "PARAM darkness = program.local[1];\n"
 					   "PARAM render = program.local[2];\n"
@@ -209,15 +209,46 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob, ARegion *ar, GPUTex
 	                   "TEX shadow, fragment.texcoord[0], texture[1], 3D;\n"
 					   "TEX flame, fragment.texcoord[0], texture[2], 3D;\n"
 					   "TEX spec, flame.r, texture[3], 1D;\n"
+
 	                   "MUL value, temp, darkness;\n"
 	                   "MUL value, value, dx;\n"
 	                   "MUL value, value, f;\n"
 	                   "EX2 temp, -value.r;\n"
-	                   "SUB temp.a, 1.0, temp.r;\n"
+					   "SUB temp.a, 1.0, temp.r;\n"
 	                   "MUL temp.r, temp.r, shadow.r;\n"
 	                   "MUL temp.g, temp.g, shadow.r;\n"
 	                   "MUL temp.b, temp.b, shadow.r;\n"
-					   /* for now this just replaces smoke shading if rendering fire */
+					   /* for now this just replace smoke shading if rendering fire */
+					   "CMP result.color, render.r, temp, spec;\n"
+	                   "END\n";
+
+	/* color shader */
+	const char *shader_color = "!!ARBfp1.0\n"
+	                   "PARAM dx = program.local[0];\n"
+	                   "PARAM darkness = program.local[1];\n"
+					   "PARAM render = program.local[2];\n"
+	                   "PARAM f = {1.442695041, 1.442695041, 1.442695041, 1.442695041};\n"
+	                   "TEMP temp, shadow, flame, spec, value;\n"
+	                   "TEX temp, fragment.texcoord[0], texture[0], 3D;\n"
+	                   "TEX shadow, fragment.texcoord[0], texture[1], 3D;\n"
+					   "TEX flame, fragment.texcoord[0], texture[2], 3D;\n"
+					   "TEX spec, flame.r, texture[3], 1D;\n"
+
+					   /* unpremultiply volume texture */
+					   "RCP value.r, temp.a;\n"
+					   "MUL temp.r, temp.r, value.r;\n"
+					   "MUL temp.g, temp.g, value.r;\n"
+					   "MUL temp.b, temp.b, value.r;\n"
+
+	                   "MUL value, temp, darkness;\n"
+	                   "MUL value, value, dx;\n"
+	                   "MUL value, value, f;\n"
+	                   "EX2 temp.a, -value.a;\n"
+	                   "SUB temp.a, 1.0, temp.a;\n"
+	                   "MUL temp.r, temp.r, shadow.r;\n"
+	                   "MUL temp.g, temp.g, shadow.r;\n"
+	                   "MUL temp.b, temp.b, shadow.r;\n"
+					   /* for now this just replace smoke shading if rendering fire */
 					   "CMP result.color, render.r, temp, spec;\n"
 	                   "END\n";
 	GLuint prog;
@@ -370,7 +401,10 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob, ARegion *ar, GPUTex
 		glGenProgramsARB(1, &prog);
 
 		glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, prog);
-		glProgramStringARB(GL_FRAGMENT_PROGRAM_ARB, GL_PROGRAM_FORMAT_ASCII_ARB, (GLsizei)strlen(text), text);
+		if (sds->active_fields & SM_SIMULATE_COLORS)
+			glProgramStringARB(GL_FRAGMENT_PROGRAM_ARB, GL_PROGRAM_FORMAT_ASCII_ARB, (GLsizei)strlen(shader_color), shader_color);
+		else
+			glProgramStringARB(GL_FRAGMENT_PROGRAM_ARB, GL_PROGRAM_FORMAT_ASCII_ARB, (GLsizei)strlen(shader_basic), shader_basic);
 
 		/* cell spacing */
 		glProgramLocalParameter4fARB(GL_FRAGMENT_PROGRAM_ARB, 0, dx, dx, dx, 1.0);
@@ -386,8 +420,10 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob, ARegion *ar, GPUTex
 	else
 		printf("No volume shadow\n");
 
-	GPU_texture_bind(tex_flame, 2);
-	GPU_texture_bind(tex_spec, 3);
+	if (tex_flame) {
+		GPU_texture_bind(tex_flame, 2);
+		GPU_texture_bind(tex_spec, 3);
+	}
 
 	if (!GPU_non_power_of_two_support()) {
 		cor[0] = (float)res[0] / (float)power_of_2_max_i(res[0]);
@@ -481,8 +517,10 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob, ARegion *ar, GPUTex
 	if (tex_shadow)
 		GPU_texture_unbind(tex_shadow);
 	GPU_texture_unbind(tex);
-	GPU_texture_unbind(tex_flame);
-	GPU_texture_unbind(tex_spec);
+	if (tex_flame) {
+		GPU_texture_unbind(tex_flame);
+		GPU_texture_unbind(tex_spec);
+	}
 	GPU_texture_free(tex_spec);
 
 	free(spec_data);

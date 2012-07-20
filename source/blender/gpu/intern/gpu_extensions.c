@@ -522,6 +522,86 @@ GPUTexture *GPU_texture_create_3D(int w, int h, int depth, float *fpixels)
 	return tex;
 }
 
+GPUTexture *GPU_texture_create_3D_rgba(int w, int h, int depth, float *fpixels)
+{
+	GPUTexture *tex;
+	GLenum type, format, internalformat;
+	void *pixels = NULL;
+	float vfBorderColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+	if (!GLEW_VERSION_1_2)
+		return NULL;
+
+	tex = MEM_callocN(sizeof(GPUTexture), "GPUTexture");
+	tex->w = w;
+	tex->h = h;
+	tex->depth = depth;
+	tex->number = -1;
+	tex->refcount = 1;
+	tex->target = GL_TEXTURE_3D;
+
+	glGenTextures(1, &tex->bindcode);
+
+	if (!tex->bindcode) {
+		fprintf(stderr, "GPUTexture: texture create failed: %d\n",
+			(int)glGetError());
+		GPU_texture_free(tex);
+		return NULL;
+	}
+
+	if (!GPU_non_power_of_two_support()) {
+		tex->w = power_of_2_max_i(tex->w);
+		tex->h = power_of_2_max_i(tex->h);
+		tex->depth = power_of_2_max_i(tex->depth);
+	}
+
+	tex->number = 0;
+	glBindTexture(tex->target, tex->bindcode);
+
+	GPU_print_error("3D glBindTexture");
+
+	type = GL_FLOAT; // GL_UNSIGNED_BYTE
+	format = GL_RGBA;
+	internalformat = GL_RGBA;
+
+	//if (fpixels)
+	//	pixels = GPU_texture_convert_pixels(w*h*depth, fpixels);
+
+	glTexImage3D(tex->target, 0, internalformat, tex->w, tex->h, tex->depth, 0, format, type, NULL);
+
+	GPU_print_error("3D glTexImage3D");
+
+	if (fpixels) {
+		if (!GPU_non_power_of_two_support() && (w != tex->w || h != tex->h || depth != tex->depth)) {
+			/* clear first to avoid unitialized pixels */
+			float *zero= MEM_callocN(sizeof(float)*tex->w*tex->h*tex->depth, "zero");
+			glTexSubImage3D(tex->target, 0, 0, 0, 0, tex->w, tex->h, tex->depth, format, type, zero);
+			MEM_freeN(zero);
+		}
+
+		glTexSubImage3D(tex->target, 0, 0, 0, 0, w, h, depth, format, type, fpixels);
+		GPU_print_error("3D glTexSubImage3D");
+	}
+
+
+	glTexParameterfv(GL_TEXTURE_3D, GL_TEXTURE_BORDER_COLOR, vfBorderColor);
+	GPU_print_error("3D GL_TEXTURE_BORDER_COLOR");
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	GPU_print_error("3D GL_LINEAR");
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+	GPU_print_error("3D GL_CLAMP_TO_BORDER");
+
+	if (pixels)
+		MEM_freeN(pixels);
+
+	GPU_texture_unbind(tex);
+
+	return tex;
+}
+
 GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, double time, int mipmap)
 {
 	GPUTexture *tex;

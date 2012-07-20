@@ -367,6 +367,7 @@ class QuickSmoke(Operator):
         tex_slot.texture = tex
         tex_slot.use_map_color_emission = False
         tex_slot.use_map_density = True
+        tex_slot.use_map_color_reflection = True
 
         # for fire add a second texture for emission and emission color
         if self.style == 'FIRE':

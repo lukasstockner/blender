@@ -51,7 +51,7 @@ static const float persistence = 0.56123f;
 //////////////////////////////////////////////////////////////////////
 // constructor
 //////////////////////////////////////////////////////////////////////
-WTURBULENCE::WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int noisetype)
+WTURBULENCE::WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int noisetype, int use_fire, int use_colors)
 {
 	// if noise magnitude is below this threshold, its contribution
 	// is negilgible, so stop evaluating new octaves
@@ -88,17 +88,45 @@ WTURBULENCE::WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int no
 	_totalStepsBig = 0;
 	_densityBig = new float[_totalCellsBig];
 	_densityBigOld = new float[_totalCellsBig];
-	_flameBig = new float[_totalCellsBig];
-	_fuelBig = new float[_totalCellsBig];
-	_fuelBigOld = new float[_totalCellsBig];
+	if (use_fire) {
+		_flameBig = new float[_totalCellsBig];
+		_fuelBig = new float[_totalCellsBig];
+		_fuelBigOld = new float[_totalCellsBig];
+	}
+	else {
+		_flameBig = _fuelBig = _fuelBigOld = NULL;
+	}
+	if (use_colors) {
+		_color_rBig = new float[_totalCellsBig];
+		_color_rBigOld = new float[_totalCellsBig];
+		_color_gBig = new float[_totalCellsBig];
+		_color_gBigOld = new float[_totalCellsBig];
+		_color_bBig = new float[_totalCellsBig];
+		_color_bBigOld = new float[_totalCellsBig];
+	}
+	else {
+		_color_rBig = _color_rBigOld = NULL;
+		_color_gBig = _color_gBigOld = NULL;
+		_color_bBig = _color_bBigOld = NULL;
+	}
 	
 	for(int i = 0; i < _totalCellsBig; i++) {
 		_densityBig[i] = 
 		_densityBigOld[i] = 0.;
 
-		_flameBig[i] = 
-		_fuelBig[i] = 
-		_fuelBigOld[i] = 0.;
+		if (_fuelBig) {
+			_flameBig[i] = 
+			_fuelBig[i] = 
+			_fuelBigOld[i] = 0.;
+		}
+		if (_color_rBig) {
+			_color_rBig[i] = 
+			_color_rBigOld[i] = 
+			_color_gBig[i] = 
+			_color_gBigOld[i] = 
+			_color_bBig[i] = 
+			_color_bBigOld[i] = 0.;
+		}
 	}
 	
 	// allocate & init texture coordinates
@@ -141,9 +169,16 @@ WTURBULENCE::WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int no
 WTURBULENCE::~WTURBULENCE() {
   delete[] _densityBig;
   delete[] _densityBigOld;
-  delete[] _flameBig;
-  delete[] _fuelBig;
-  delete[] _fuelBigOld;
+  if (_flameBig) delete[] _flameBig;
+  if (_fuelBig) delete[] _fuelBig;
+  if (_fuelBigOld) delete[] _fuelBigOld;
+
+  if (_color_rBig) delete[] _color_rBig;
+  if (_color_rBigOld) delete[] _color_rBigOld;
+  if (_color_gBig) delete[] _color_gBig;
+  if (_color_gBigOld) delete[] _color_gBigOld;
+  if (_color_bBig) delete[] _color_bBig;
+  if (_color_bBigOld) delete[] _color_bBigOld;
 
   delete[] _tcU;
   delete[] _tcV;
@@ -767,8 +802,8 @@ void WTURBULENCE::stepTurbulenceFull(float dtOrg, float* xvel, float* yvel, floa
 	// enlarge timestep to match grid
 	const float dt = dtOrg * _amplify;
 	const float invAmp = 1.0f / _amplify;
+	float *tempFuelBig = NULL, *tempColor_rBig = NULL, *tempColor_gBig = NULL, *tempColor_bBig = NULL;
 	float *tempDensityBig = (float *)calloc(_totalCellsBig, sizeof(float));
-	float *tempFuelBig = (float *)calloc(_totalCellsBig, sizeof(float));
 	float *tempBig = (float *)calloc(_totalCellsBig, sizeof(float));
 	float *bigUx = (float *)calloc(_totalCellsBig, sizeof(float));
 	float *bigUy = (float *)calloc(_totalCellsBig, sizeof(float));
@@ -777,6 +812,15 @@ void WTURBULENCE::stepTurbulenceFull(float dtOrg, float* xvel, float* yvel, floa
 	float *highFreqEnergy = (float *)calloc(_totalCellsSm, sizeof(float));
 	float *eigMin  = (float *)calloc(_totalCellsSm, sizeof(float));
 	float *eigMax  = (float *)calloc(_totalCellsSm, sizeof(float));
+
+	if (_fuelBig) {
+		tempFuelBig = (float *)calloc(_totalCellsBig, sizeof(float));
+	}
+	if (_color_rBig) {
+		tempColor_rBig = (float *)calloc(_totalCellsBig, sizeof(float));
+		tempColor_gBig = (float *)calloc(_totalCellsBig, sizeof(float));
+		tempColor_bBig = (float *)calloc(_totalCellsBig, sizeof(float));
+	}
 
 	memset(_tcTemp, 0, sizeof(float)*_totalCellsSm);
 
@@ -984,6 +1028,9 @@ void WTURBULENCE::stepTurbulenceFull(float dtOrg, float* xvel, float* yvel, floa
   // prepare density for an advection
   SWAP_POINTERS(_densityBig, _densityBigOld);
   SWAP_POINTERS(_fuelBig, _fuelBigOld);
+  SWAP_POINTERS(_color_rBig, _color_rBigOld);
+  SWAP_POINTERS(_color_gBig, _color_gBigOld);
+  SWAP_POINTERS(_color_bBig, _color_bBigOld);
 
   // based on the maximum velocity present, see if we need to substep,
   // but cap the maximum number of substeps to 5
@@ -1030,8 +1077,18 @@ void WTURBULENCE::stepTurbulenceFull(float dtOrg, float* xvel, float* yvel, floa
 #endif
 		FLUID_3D::advectFieldMacCormack1(dtSubdiv, bigUx, bigUy, bigUz, 
 		    _densityBigOld, tempDensityBig, _resBig, zBegin, zEnd);
-		FLUID_3D::advectFieldMacCormack1(dtSubdiv, bigUx, bigUy, bigUz, 
-		    _fuelBigOld, tempFuelBig, _resBig, zBegin, zEnd);
+		if (_fuelBig) {
+			FLUID_3D::advectFieldMacCormack1(dtSubdiv, bigUx, bigUy, bigUz, 
+				_fuelBigOld, tempFuelBig, _resBig, zBegin, zEnd);
+		}
+		if (_color_rBig) {
+			FLUID_3D::advectFieldMacCormack1(dtSubdiv, bigUx, bigUy, bigUz, 
+				_color_rBigOld, tempColor_rBig, _resBig, zBegin, zEnd);
+			FLUID_3D::advectFieldMacCormack1(dtSubdiv, bigUx, bigUy, bigUz, 
+				_color_gBigOld, tempColor_gBig, _resBig, zBegin, zEnd);
+			FLUID_3D::advectFieldMacCormack1(dtSubdiv, bigUx, bigUy, bigUz, 
+				_color_bBigOld, tempColor_bBig, _resBig, zBegin, zEnd);
+		}
 #if PARALLEL==1
 	}
 
@@ -1045,8 +1102,18 @@ void WTURBULENCE::stepTurbulenceFull(float dtOrg, float* xvel, float* yvel, floa
 #endif
 		FLUID_3D::advectFieldMacCormack2(dtSubdiv, bigUx, bigUy, bigUz, 
 		    _densityBigOld, _densityBig, tempDensityBig, tempBig, _resBig, NULL, zBegin, zEnd);
-		FLUID_3D::advectFieldMacCormack2(dtSubdiv, bigUx, bigUy, bigUz, 
-		    _fuelBigOld, _fuelBig, tempFuelBig, tempBig, _resBig, NULL, zBegin, zEnd);
+		if (_fuelBig) {
+			FLUID_3D::advectFieldMacCormack2(dtSubdiv, bigUx, bigUy, bigUz, 
+				_fuelBigOld, _fuelBig, tempFuelBig, tempBig, _resBig, NULL, zBegin, zEnd);
+		}
+		if (_color_rBig) {
+			FLUID_3D::advectFieldMacCormack2(dtSubdiv, bigUx, bigUy, bigUz, 
+				_color_rBigOld, _color_rBig, tempColor_rBig, tempBig, _resBig, NULL, zBegin, zEnd);
+			FLUID_3D::advectFieldMacCormack2(dtSubdiv, bigUx, bigUy, bigUz, 
+				_color_gBigOld, _color_gBig, tempColor_gBig, tempBig, _resBig, NULL, zBegin, zEnd);
+			FLUID_3D::advectFieldMacCormack2(dtSubdiv, bigUx, bigUy, bigUz, 
+				_color_bBigOld, _color_bBig, tempColor_bBig, tempBig, _resBig, NULL, zBegin, zEnd);
+		}
 #if PARALLEL==1
 	}
 	}
@@ -1055,11 +1122,17 @@ void WTURBULENCE::stepTurbulenceFull(float dtOrg, float* xvel, float* yvel, floa
 	if (substep < totalSubsteps - 1) {
       SWAP_POINTERS(_densityBig, _densityBigOld);
 	  SWAP_POINTERS(_fuelBig, _fuelBigOld);
+	  SWAP_POINTERS(_color_rBig, _color_rBigOld);
+	  SWAP_POINTERS(_color_gBig, _color_gBigOld);
+	  SWAP_POINTERS(_color_bBig, _color_bBigOld);
 	}
   } // substep
 
   free(tempDensityBig);
-  free(tempFuelBig);
+  if (tempFuelBig) free(tempFuelBig);
+  if (tempColor_rBig) free(tempColor_rBig);
+  if (tempColor_gBig) free(tempColor_gBig);
+  if (tempColor_bBig) free(tempColor_bBig);
   free(tempBig);
   free(bigUx);
   free(bigUy);
@@ -1069,7 +1142,14 @@ void WTURBULENCE::stepTurbulenceFull(float dtOrg, float* xvel, float* yvel, floa
   
   // wipe the density borders
   FLUID_3D::setZeroBorder(_densityBig, _resBig, 0 , _resBig[2]);
-  FLUID_3D::setZeroBorder(_fuelBig, _resBig, 0 , _resBig[2]);
+  if (_fuelBig) {
+	FLUID_3D::setZeroBorder(_fuelBig, _resBig, 0 , _resBig[2]);
+  }
+  if (_color_rBig) {
+	  FLUID_3D::setZeroBorder(_color_rBig, _resBig, 0 , _resBig[2]);
+	  FLUID_3D::setZeroBorder(_color_gBig, _resBig, 0 , _resBig[2]);
+	  FLUID_3D::setZeroBorder(_color_bBig, _resBig, 0 , _resBig[2]);
+  }
     
   // reset texture coordinates now in preparation for next timestep
   // Shouldn't do this before generating the noise because then the 

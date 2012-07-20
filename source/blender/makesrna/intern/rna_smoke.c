@@ -389,6 +389,11 @@ static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Maximum", "Maximum temperature of flames");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_resetCache");
 
+	prop = RNA_def_property(srna, "flame_smoke_color", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Smoke Color", "Color of smoke emitted from burning fuel");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_resetCache");
+
 	prop = RNA_def_property(srna, "use_adaptive_domain", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", MOD_SMOKE_ADAPTIVE_DOMAIN);
 	RNA_def_property_ui_text(prop, "Adaptive Domain", "Adapt simulation resolution and size to fluid");
@@ -414,6 +419,24 @@ static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 0.01, 0.5, 1.0, 5);
 	RNA_def_property_ui_text(prop, "Threshold", "Maximum amount of fluid cell can contain before it's considered empty");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_resetCache");
+
+	prop = RNA_def_property(srna, "use_field_heat", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "active_fields", SM_SIMULATE_HEAT);
+	RNA_def_property_ui_text(prop, "Use Heat", "Simulate heat");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
+	prop = RNA_def_property(srna, "use_field_fire", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "active_fields", SM_SIMULATE_FIRE);
+	RNA_def_property_ui_text(prop, "Use Fire", "Simulate fire");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
+	prop = RNA_def_property(srna, "use_field_colors", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "active_fields", SM_SIMULATE_COLORS);
+	RNA_def_property_ui_text(prop, "Use Colors", "Simulate colors");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
 }
 
 static void rna_def_smoke_flow_settings(BlenderRNA *brna)
@@ -445,6 +468,12 @@ static void rna_def_smoke_flow_settings(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0.0, 1);
 	RNA_def_property_ui_range(prop, 0.0, 1.0, 1.0, 4);
 	RNA_def_property_ui_text(prop, "Density", "");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
+	prop = RNA_def_property(srna, "smoke_color", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "color");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Smoke Color", "Color of smoke");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
 
 	prop = RNA_def_property(srna, "fuel_amount", PROP_FLOAT, PROP_NONE);

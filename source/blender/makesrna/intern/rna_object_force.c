@@ -1359,7 +1359,7 @@ static void rna_def_field(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "source_object", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "f_source");
 	RNA_def_property_ui_text(prop, "Domain Object", "Select domain object of the smoke simulation");
-	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK);
+	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_update(prop, 0, "rna_FieldSettings_update");
 	
 	/********** Curve Guide Field Settings **********/
