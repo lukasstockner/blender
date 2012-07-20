@@ -203,7 +203,7 @@ static void fluidsimPrintChannel(FILE *file, float *channel, int paramsize, char
 		elbeemSimplifyChannelFloat(channel, &channelSize);
 	}
 	else {
-		// invalid, cant happen?
+		/* invalid, cant happen? */
 	}
 
 	fprintf(file, "      CHANNEL %s =\n", str);
@@ -651,16 +651,16 @@ static int fluid_init_filepaths(Object *fsDomain, char *targetDir, char *targetF
 	FluidsimSettings *domainSettings= fluidmd->fss;	
 	FILE *fileCfg;
 	int dirExist = 0;
-	char newSurfdataPath[FILE_MAX]; // modified output settings
+	char newSurfdataPath[FILE_MAX]; /* modified output settings */
 	const char *suffixConfigTmp = FLUID_SUFFIX_CONFIG_TMP;
 	int outStringsChanged = 0;
 
-	// prepare names...
+	/* prepare names... */
 	const char *relbase= modifier_path_relbase(fsDomain);
 
 	BLI_strncpy(targetDir, domainSettings->surfdataPath, FILE_MAXDIR);
 	BLI_strncpy(newSurfdataPath, domainSettings->surfdataPath, FILE_MAXDIR); /* if 0'd out below, this value is never used! */
-	BLI_path_abs(targetDir, relbase); // fixed #frame-no
+	BLI_path_abs(targetDir, relbase); /* fixed #frame-no */
 
 	/* .tmp: don't overwrite/delete original file */
 	BLI_join_dirfile(targetFile, FILE_MAX, targetDir, suffixConfigTmp);
@@ -913,7 +913,7 @@ static int fluidsimBake(bContext *C, ReportList *reports, Object *fsDomain, shor
 		return 0;
 	}
 	
-	/* these both have to be valid, otherwise we wouldnt be here */
+	/* these both have to be valid, otherwise we wouldn't be here */
 	fluidmd = (FluidsimModifierData *)modifiers_findByType(fsDomain, eModifierType_Fluidsim);
 	domainSettings = fluidmd->fss;
 	mesh = fsDomain->data;

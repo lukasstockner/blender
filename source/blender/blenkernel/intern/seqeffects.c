@@ -310,7 +310,7 @@ static void do_alphaunder_effect_byte(
 
 			/* rt = rt1 under rt2  (alpha from rt2) */
 
-			/* this complex optimalisation is because the
+			/* this complex optimization is because the
 			 * 'skybuf' can be crossed in
 			 */
 			if (rt2[3] == 0 && fac2 == 256) *( (unsigned int *)rt) = *( (unsigned int *)rt1);
@@ -379,7 +379,7 @@ static void do_alphaunder_effect_float(float facf0, float facf1, int x, int y,
 
 			/* rt = rt1 under rt2  (alpha from rt2) */
 
-			/* this complex optimalisation is because the
+			/* this complex optimization is because the
 			 * 'skybuf' can be crossed in
 			 */
 			if (rt2[3] <= 0 && fac2 >= 1.0f) {
@@ -1848,7 +1848,7 @@ static void do_transform(Scene *scene, Sequence *seq, float UNUSED(facf0), int x
 	TransformVars *transform = (TransformVars *)seq->effectdata;
 	float scale_x, scale_y, translate_x, translate_y, rotate_radians;
 	
-	// Scale
+	/* Scale */
 	if (transform->uniform_scale) {
 		scale_x = scale_y = transform->ScalexIni;
 	}
@@ -1857,7 +1857,7 @@ static void do_transform(Scene *scene, Sequence *seq, float UNUSED(facf0), int x
 		scale_y = transform->ScaleyIni;
 	}
 
-	// Translate
+	/* Translate */
 	if (!transform->percent) {
 		float rd_s = (scene->r.size / 100.0f);
 
@@ -1868,8 +1868,8 @@ static void do_transform(Scene *scene, Sequence *seq, float UNUSED(facf0), int x
 		translate_x = x * (transform->xIni / 100.0f) + (x / 2.0f);
 		translate_y = y * (transform->yIni / 100.0f) + (y / 2.0f);
 	}
-	
-	// Rotate
+
+	/* Rotate */
 	rotate_radians = DEG2RADF(transform->rotIni);
 
 	transform_image(x, y, ibuf1, out, scale_x, scale_y, translate_x, translate_y, rotate_radians, transform->interpolation);

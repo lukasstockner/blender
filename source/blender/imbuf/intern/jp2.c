@@ -864,7 +864,7 @@ int imb_savejp2(struct ImBuf *ibuf, const char *name, int flags)
 	
 	/*
 	 * configure the event callbacks (not required)
-	 * setting of each callback is optionnal
+	 * setting of each callback is optional
 	 */
 	memset(&event_mgr, 0, sizeof(opj_event_mgr_t));
 	event_mgr.error_handler = error_callback;
@@ -880,7 +880,7 @@ int imb_savejp2(struct ImBuf *ibuf, const char *name, int flags)
 	parameters.tcp_rates[0] = ((100 - quality) / 90.0f * 99.0f) + 1;
 
 	
-	parameters.tcp_numlayers = 1; // only one resolution
+	parameters.tcp_numlayers = 1; /* only one resolution */
 	parameters.cp_disto_alloc = 1;
 
 	image = ibuftoimage(ibuf, &parameters);

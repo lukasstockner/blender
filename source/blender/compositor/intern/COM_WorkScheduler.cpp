@@ -30,15 +30,19 @@
 #include "COM_OpenCLDevice.h"
 #include "COM_OpenCLKernels.cl.h"
 #include "OCL_opencl.h"
+#include "COM_WriteBufferOperation.h"
 
 #include "PIL_time.h"
 #include "BLI_threads.h"
 
 #if COM_CURRENT_THREADING_MODEL == COM_TM_NOTHREAD
-#warning COM_CURRENT_THREADING_MODEL COM_TM_NOTHREAD is activated. Use only for debugging.
+#  ifndef DEBUG  /* test this so we dont get warnings in debug builds */
+#    warning COM_CURRENT_THREADING_MODEL COM_TM_NOTHREAD is activated. Use only for debugging.
+#  endif
 #elif COM_CURRENT_THREADING_MODEL == COM_TM_QUEUE
+   /* do nothing - default */
 #else
-#error COM_CURRENT_THREADING_MODEL No threading model selected
+#  error COM_CURRENT_THREADING_MODEL No threading model selected
 #endif
 
 
@@ -65,6 +69,58 @@ static bool g_openclActive = false;
 #endif
 #endif
 
+#define MAX_HIGHLIGHT 8
+extern "C" {
+int g_highlightIndex;
+void ** g_highlightedNodes;
+void ** g_highlightedNodesRead;
+
+#define HIGHLIGHT(wp) \
+{ \
+	ExecutionGroup* group = wp->getExecutionGroup(); \
+	if (group->isComplex()) { \
+		NodeOperation* operation = group->getOutputNodeOperation(); \
+		if (operation->isWriteBufferOperation()) {\
+			WriteBufferOperation *writeOperation = (WriteBufferOperation*)operation;\
+			NodeOperation *complexOperation = writeOperation->getInput(); \
+			bNode *node = complexOperation->getbNode(); \
+			if (node) { \
+				if (node->original) { \
+					node = node->original;\
+				}\
+				if (g_highlightIndex < MAX_HIGHLIGHT) {\
+					g_highlightedNodes[g_highlightIndex++] = node;\
+				}\
+			} \
+		} \
+	} \
+}
+
+void COM_startReadHighlights()
+{
+	if (g_highlightedNodesRead) {
+		delete [] g_highlightedNodesRead;
+	}
+	
+	g_highlightedNodesRead = g_highlightedNodes;
+	g_highlightedNodes = new void*[MAX_HIGHLIGHT];
+	g_highlightIndex = 0;
+	for (int i = 0 ; i < MAX_HIGHLIGHT; i++) {
+		g_highlightedNodes[i] = 0;
+	}
+}
+
+int COM_isHighlightedbNode(bNode* bnode)
+{
+	if (!g_highlightedNodesRead) return false;
+	for (int i = 0 ; i < MAX_HIGHLIGHT; i++) {
+		void* p = g_highlightedNodesRead[i];
+		if (!p) return false;
+		if (p == bnode) return true;
+	}
+	return false;
+}
+} // end extern "C"
 
 #if COM_CURRENT_THREADING_MODEL == COM_TM_QUEUE
 void *WorkScheduler::thread_execute_cpu(void *data)
@@ -73,6 +129,7 @@ void *WorkScheduler::thread_execute_cpu(void *data)
 	WorkPackage *work;
 	
 	while ((work = (WorkPackage *)BLI_thread_queue_pop(g_cpuqueue))) {
+		HIGHLIGHT(work);
 		device->execute(work);
 		delete work;
 	}
@@ -86,6 +143,7 @@ void *WorkScheduler::thread_execute_gpu(void *data)
 	WorkPackage *work;
 	
 	while ((work = (WorkPackage *)BLI_thread_queue_pop(g_gpuqueue))) {
+		HIGHLIGHT(work);
 		device->execute(work);
 		delete work;
 	}
@@ -197,6 +255,9 @@ extern void clContextError(const char *errinfo, const void *private_info, size_t
 
 void WorkScheduler::initialize()
 {
+	g_highlightedNodesRead = 0;
+	g_highlightedNodes = 0;
+	COM_startReadHighlights();
 #if COM_CURRENT_THREADING_MODEL == COM_TM_QUEUE
 	int numberOfCPUThreads = BLI_system_thread_count();
 
@@ -291,3 +352,4 @@ void WorkScheduler::deinitialize()
 #endif
 #endif
 }
+

@@ -524,15 +524,15 @@ static int actionzone_area_poll(bContext *C)
 	return 0;
 }
 
-AZone *is_in_area_actionzone(ScrArea *sa, int x, int y)
+AZone *is_in_area_actionzone(ScrArea *sa, const int xy[2])
 {
 	AZone *az = NULL;
 	
 	for (az = sa->actionzones.first; az; az = az->next) {
-		if (BLI_in_rcti(&az->rect, x, y)) {
+		if (BLI_in_rcti_v(&az->rect, xy)) {
 			if (az->type == AZONE_AREA) {
 				/* no triangle intersect but a hotspot circle based on corner */
-				int radius = (x - az->x1) * (x - az->x1) + (y - az->y1) * (y - az->y1);
+				int radius = (xy[0] - az->x1) * (xy[0] - az->x1) + (xy[1] - az->y1) * (xy[1] - az->y1);
 				
 				if (radius <= AZONESPOT * AZONESPOT)
 					break;
@@ -577,7 +577,7 @@ static void actionzone_apply(bContext *C, wmOperator *op, int type)
 
 static int actionzone_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
-	AZone *az = is_in_area_actionzone(CTX_wm_area(C), event->x, event->y);
+	AZone *az = is_in_area_actionzone(CTX_wm_area(C), &event->x);
 	sActionzoneData *sad;
 	
 	/* quick escape */
@@ -827,7 +827,7 @@ static int area_dupli_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	
 	/* adds window to WM */
 	rect = sa->totrct;
-	BLI_translate_rcti(&rect, win->posx, win->posy);
+	BLI_rcti_translate(&rect, win->posx, win->posy);
 	newwin = WM_window_open(C, &rect);
 	
 	/* allocs new screen and adds to newly created window, using window size */
@@ -3017,7 +3017,7 @@ static int screen_animation_step(bContext *C, wmOperator *UNUSED(op), wmEvent *e
 			}
 		}
 
-		/* next frame overriden by user action (pressed jump to first/last frame) */
+		/* next frame overridden by user action (pressed jump to first/last frame) */
 		if (sad->flag & ANIMPLAY_FLAG_USE_NEXT_FRAME) {
 			scene->r.cfra = sad->nextfra;
 			sad->flag &= ~ANIMPLAY_FLAG_USE_NEXT_FRAME;

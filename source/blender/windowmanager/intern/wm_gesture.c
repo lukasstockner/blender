@@ -224,7 +224,7 @@ static void wm_gesture_draw_circle(wmGesture *gt)
 	glutil_draw_lined_arc(0.0, M_PI * 2.0, rect->xmax, 40);
 	
 	glDisable(GL_LINE_STIPPLE);
-	glTranslatef((float)-rect->xmin, (float)-rect->ymin, 0.0f);
+	glTranslatef(-rect->xmin, -rect->ymin, 0.0f);
 	
 }
 
@@ -253,7 +253,7 @@ static void draw_filled_lasso(wmGesture *gt)
 	
 	/* highly unlikely this will fail, but could crash if (gt->points == 0) */
 	if (sf_vert_first) {
-		float zvec[3] = {0.0f, 0.0f, 1.0f};
+		const float zvec[3] = {0.0f, 0.0f, 1.0f};
 		BLI_scanfill_edge_add(&sf_ctx, sf_vert_first, sf_vert);
 		BLI_scanfill_calc_ex(&sf_ctx, FALSE, zvec);
 	

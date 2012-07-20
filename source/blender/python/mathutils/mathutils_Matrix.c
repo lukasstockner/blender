@@ -2282,7 +2282,7 @@ static struct PyMethodDef Matrix_methods[] = {
 	{"invert", (PyCFunction) Matrix_invert, METH_NOARGS, Matrix_invert_doc},
 	{"inverted", (PyCFunction) Matrix_inverted, METH_NOARGS, Matrix_inverted_doc},
 	{"to_3x3", (PyCFunction) Matrix_to_3x3, METH_NOARGS, Matrix_to_3x3_doc},
-	// TODO. {"resize_3x3", (PyCFunction) Matrix_resize3x3, METH_NOARGS, Matrix_resize3x3_doc},
+	/* TODO. {"resize_3x3", (PyCFunction) Matrix_resize3x3, METH_NOARGS, Matrix_resize3x3_doc}, */
 	{"to_4x4", (PyCFunction) Matrix_to_4x4, METH_NOARGS, Matrix_to_4x4_doc},
 	{"resize_4x4", (PyCFunction) Matrix_resize_4x4, METH_NOARGS, Matrix_resize_4x4_doc},
 	{"rotate", (PyCFunction) Matrix_rotate, METH_O, Matrix_rotate_doc},
@@ -2443,7 +2443,7 @@ PyObject *Matrix_CreatePyObject_cb(PyObject *cb_user,
 
 
 /* ----------------------------------------------------------------------------
- * special type for alaternate access */
+ * special type for alternate access */
 
 typedef struct {
 	PyObject_HEAD /* required python macro   */

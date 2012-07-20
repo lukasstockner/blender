@@ -321,15 +321,18 @@ bNode *nodeAddNode(bNodeTree *ntree, struct bNodeTemplate *ntemp)
 	node->color[0] = node->color[1] = node->color[2] = 0.608;	/* default theme color */
 	
 	node_add_sockets_from_type(ntree, node, ntype);
-	
-	/* initialize the node name with the node label */
-	BLI_strncpy(node->name, nodeLabel(node), NODE_MAXSTR);
-	nodeUniqueName(ntree, node);
-	
+
 	BLI_addtail(&ntree->nodes, node);
 	
 	if (ntype->initfunc!=NULL)
 		ntype->initfunc(ntree, node, ntemp);
+
+	/* initialize the node name with the node label.
+	 * note: do this after the initfunc so nodes get
+	 * their data set which may be used in naming
+	 * (node groups for example) */
+	BLI_strncpy(node->name, nodeLabel(node), NODE_MAXSTR);
+	nodeUniqueName(ntree, node);
 	
 	ntree->update |= NTREE_UPDATE_NODES;
 	
@@ -633,8 +636,12 @@ bNodeTree *ntreeAddTree(const char *name, int type, int nodetype)
  *	- this gets called when executing compositing updates (for threaded previews)
  *	- when the nodetree datablock needs to be copied (i.e. when users get copied)
  *	- for scene duplication use ntreeSwapID() after so we don't have stale pointers.
+ *
+ * do_make_extern: keep enabled for general use, only reason _not_ to enable is when
+ * copying for internal use (threads for eg), where you wont want it to modify the
+ * scene data.
  */
-bNodeTree *ntreeCopyTree(bNodeTree *ntree)
+static bNodeTree *ntreeCopyTree_internal(bNodeTree *ntree, const short do_make_extern)
 {
 	bNodeTree *newtree;
 	bNode *node /*, *nnode */ /* UNUSED */, *last;
@@ -664,6 +671,11 @@ bNodeTree *ntreeCopyTree(bNodeTree *ntree)
 	
 	last = ntree->nodes.last;
 	for (node= ntree->nodes.first; node; node= node->next) {
+
+		if (do_make_extern) {
+			id_lib_extern(node->id);
+		}
+
 		node->new_node= NULL;
 		/* nnode= */ nodeCopyNode(newtree, node);	/* sets node->new */
 		
@@ -707,6 +719,11 @@ bNodeTree *ntreeCopyTree(bNodeTree *ntree)
 	}
 	
 	return newtree;
+}
+
+bNodeTree *ntreeCopyTree(bNodeTree *ntree)
+{
+	return ntreeCopyTree_internal(ntree, TRUE);
 }
 
 /* use when duplicating scenes */
@@ -1131,7 +1148,7 @@ bNodeTree *ntreeLocalize(bNodeTree *ntree)
 	}
 
 	/* node copy func */
-	ltree= ntreeCopyTree(ntree);
+	ltree = ntreeCopyTree_internal(ntree, FALSE);
 
 	if (adt) {
 		AnimData *ladt= BKE_animdata_from_id(&ltree->id);
@@ -1925,6 +1942,7 @@ static void registerCompositNodes(bNodeTreeType *ttype)
 	register_node_type_cmp_switch(ttype);
 
 	register_node_type_cmp_mask(ttype);
+	register_node_type_cmp_trackpos(ttype);
 }
 
 static void registerShaderNodes(bNodeTreeType *ttype) 

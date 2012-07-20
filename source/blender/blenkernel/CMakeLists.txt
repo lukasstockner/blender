@@ -101,6 +101,7 @@ set(SRC
 	intern/lamp.c
 	intern/lattice.c
 	intern/library.c
+	intern/mask_rasterize.c
 	intern/mask.c
 	intern/material.c
 	intern/mball.c
@@ -316,9 +317,6 @@ endif()
 if(WITH_PYTHON)
 	list(APPEND INC
 		../python
-	)
-	list(APPEND INC_SYS
-		${PYTHON_INCLUDE_DIRS}
 	)
 	add_definitions(-DWITH_PYTHON)
 

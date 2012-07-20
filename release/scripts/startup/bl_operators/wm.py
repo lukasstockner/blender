@@ -36,6 +36,10 @@ class MESH_OT_delete_edgeloop(Operator):
     bl_idname = "mesh.delete_edgeloop"
     bl_label = "Delete Edge Loop"
 
+    @classmethod
+    def poll(cls, context):
+        return bpy.ops.transform.edge_slide.poll()
+
     def execute(self, context):
         if 'FINISHED' in bpy.ops.transform.edge_slide(value=1.0):
             bpy.ops.mesh.select_more()
@@ -46,7 +50,7 @@ class MESH_OT_delete_edgeloop(Operator):
 
 rna_path_prop = StringProperty(
         name="Context Attributes",
-        description="rna context string",
+        description="RNA context string",
         maxlen=1024,
         )
 
@@ -372,8 +376,8 @@ class WM_OT_context_toggle_enum(Operator):
 
 
 class WM_OT_context_cycle_int(Operator):
-    """Set a context value. Useful for cycling active material, """ \
-    """vertex keys, groups' etc"""
+    """Set a context value (useful for cycling active material, """ \
+    """vertex keys, groups, etc.)"""
     bl_idname = "wm.context_cycle_int"
     bl_label = "Context Int Cycle"
     bl_options = {'UNDO', 'INTERNAL'}
@@ -1395,8 +1399,8 @@ class WM_OT_keyconfig_export(Operator):
         if not self.filepath:
             raise Exception("Filepath not set")
 
-        if not self.filepath.endswith('.py'):
-            self.filepath += '.py'
+        if not self.filepath.endswith(".py"):
+            self.filepath += ".py"
 
         wm = context.window_manager
 

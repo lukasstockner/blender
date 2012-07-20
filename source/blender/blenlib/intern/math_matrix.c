@@ -1111,7 +1111,7 @@ void mat3_to_rot_size(float rot[3][3], float size[3], float mat3[3][3])
 	/* rotation & scale are linked, we need to create the mat's
 	 * for these together since they are related. */
 
-	/* so scale doesnt interfear with rotation [#24291] */
+	/* so scale doesn't interfere with rotation [#24291] */
 	/* note: this is a workaround for negative matrix not working for rotation conversion, FIXME */
 	normalize_m3_m3(mat3_n, mat3);
 	if (is_negative_m3(mat3)) {
@@ -1271,7 +1271,7 @@ int is_negative_m4(float mat[][4])
 
 /* make a 4x4 matrix out of 3 transform components */
 /* matrices are made in the order: scale * rot * loc */
-// TODO: need to have a version that allows for rotation order...
+/* TODO: need to have a version that allows for rotation order... */
 
 void loc_eul_size_to_mat4(float mat[4][4], const float loc[3], const float eul[3], const float size[3])
 {

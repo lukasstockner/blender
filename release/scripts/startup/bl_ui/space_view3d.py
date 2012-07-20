@@ -1121,7 +1121,7 @@ class VIEW3D_MT_brush(Menu):
             sculpt_tool = brush.sculpt_tool
 
             layout.separator()
-            layout.operator_menu_enum("brush.curve_preset", "shape", text='Curve Preset')
+            layout.operator_menu_enum("brush.curve_preset", "shape", text="Curve Preset")
             layout.separator()
 
             if sculpt_tool != 'GRAB':
@@ -1772,7 +1772,7 @@ class VIEW3D_MT_edit_mesh_vertices(Menu):
 
         layout.operator("mesh.vertices_smooth")
         layout.operator("mesh.remove_doubles")
-        layout.operator("mesh.sort_elements", text="Sort Vertices").elements = {"VERT"}
+        layout.operator("mesh.sort_elements", text="Sort Vertices").elements = {'VERT'}
 
         layout.operator("mesh.select_vertex_path")
 
@@ -1822,19 +1822,13 @@ class VIEW3D_MT_edit_mesh_edges(Menu):
         layout.operator("mesh.bevel")
         layout.operator("mesh.edge_split")
         layout.operator("mesh.bridge_edge_loops")
-        layout.operator("mesh.sort_elements", text="Sort Edges").elements = {"EDGE"}
+        layout.operator("mesh.sort_elements", text="Sort Edges").elements = {'EDGE'}
 
         layout.separator()
 
-        layout.operator("TRANSFORM_OT_edge_slide")
-        layout.operator("TRANSFORM_OT_edge_crease")
+        layout.operator("transform.edge_slide")
         layout.operator("mesh.loop_multi_select", text="Edge Loop").ring = False
-
-        #~ uiItemO(layout, "Loopcut", 0, "mesh.loop_cut"); // CutEdgeloop(em, 1);
-        #~ uiItemO(layout, "Edge Slide", 0, "mesh.edge_slide"); // EdgeSlide(em, 0,0.0);
-
         layout.operator("mesh.loop_multi_select", text="Edge Ring").ring = True
-
         layout.operator("mesh.loop_to_region")
         layout.operator("mesh.region_to_loop")
 
@@ -1855,7 +1849,7 @@ class VIEW3D_MT_edit_mesh_faces(Menu):
         layout.operator("mesh.bevel")
         layout.operator("mesh.solidify")
         layout.operator("mesh.wireframe")
-        layout.operator("mesh.sort_elements", text="Sort Faces").elements = {"FACE"}
+        layout.operator("mesh.sort_elements", text="Sort Faces").elements = {'FACE'}
 
         layout.separator()
 
@@ -1868,9 +1862,6 @@ class VIEW3D_MT_edit_mesh_faces(Menu):
         layout.operator("mesh.faces_shade_flat")
 
         layout.separator()
-
-        # uiItemO(layout, NULL, 0, "mesh.face_mode"); // mesh_set_face_flags(em, 1);
-        # uiItemBooleanO(layout, NULL, 0, "mesh.face_mode", "clear", 1); // mesh_set_face_flags(em, 0);
 
         layout.operator("mesh.edge_rotate", text="Rotate Edge CW").direction = 'CW'
 

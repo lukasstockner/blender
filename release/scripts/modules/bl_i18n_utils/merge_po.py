@@ -29,16 +29,19 @@
 # never merged from sources.
 
 import sys
-from codecs import open
 
-import utils
+try:
+    import settings
+    import utils
+except:
+    from . import (settings, utils)
 
 
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="" \
                     "Merge one or more .po files into the first dest one.\n" \
-                    "If a msgkey (msgid, msgctxt) is present in more than " \
+                    "If a msgkey (msgctxt, msgid) is present in more than " \
                     "one merged po, the one in the first file wins, unless " \
                     "it’s marked as fuzzy and one later is not.\n" \
                     "The fuzzy flag is removed if necessary.\n" \

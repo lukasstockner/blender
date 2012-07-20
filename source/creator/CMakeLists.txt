@@ -551,9 +551,20 @@ elseif(WIN32)
 			)
 		elseif(WITH_MINGW64)
 			install(
-				FILES ${LIBDIR}/binaries/pthreadGC2-w64.dll
+				FILES 
+					${LIBDIR}/binaries/libgcc_s_sjlj-1.dll
+					${LIBDIR}/binaries/libwinpthread-1.dll
+					${LIBDIR}/binaries/libstdc++-6.dll
 				DESTINATION ${TARGETDIR}
 			)
+			
+			if(WITH_OPENMP)
+				install(
+					FILES 
+					${LIBDIR}/binaries/libgomp-1.dll
+					DESTINATION ${TARGETDIR}
+				)
+			endif()
 		endif()
 	endif()
 
@@ -898,9 +909,9 @@ endif()
 	)
 
 	if(WITH_COMPOSITOR)
-		#added for opencl compositor
-		list(APPEND BLENDER_SORTED_LIBS bf_compositor)
-		list(APPEND BLENDER_SORTED_LIBS bf_opencl)
+		# added for opencl compositor
+		list_insert_before(BLENDER_SORTED_LIBS "bf_blenkernel" "bf_compositor")
+		list_insert_after(BLENDER_SORTED_LIBS "bf_compositor" "bf_opencl")
 	endif()
 
 	if(WITH_LIBMV)

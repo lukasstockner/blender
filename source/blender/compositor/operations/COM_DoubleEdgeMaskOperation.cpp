@@ -894,7 +894,7 @@ static void do_createEdgeLocationBuffer(unsigned int t, unsigned int rw, unsigne
 	int x;                             // x = pixel loop counter
 	int a;                             // a = temporary pixel index buffer loop counter
 	unsigned int ud;                   // ud = unscaled edge distance
-	unsigned int dmin;                 // dmin = minimun edge distance
+	unsigned int dmin;                 // dmin = minimum edge distance
 	
 	unsigned int rsl;                  // long used for finding fast 1.0/sqrt
 	unsigned int gradientFillOffset;
@@ -1012,7 +1012,7 @@ static void do_fillGradientBuffer(unsigned int rw, float *res, unsigned short *g
 	unsigned int gradientFillOffset;
 	unsigned int t;
 	unsigned int ud;                   // ud = unscaled edge distance
-	unsigned int dmin;                 // dmin = minimun edge distance
+	unsigned int dmin;                 // dmin = minimum edge distance
 	float odist;                       // odist = current outer edge distance
 	float idist;                       // idist = current inner edge distance
 	int dx;                            // dx = X-delta (used for distance proportion calculation)
@@ -1070,7 +1070,7 @@ static void do_fillGradientBuffer(unsigned int rw, float *res, unsigned short *g
 	 * pixel color as |GI| / (|GI| + |GO|). Since these are reciprocals, GI serves the
 	 * purpose of GO for the proportion calculation.
 	 *
-	 * For the purposes of the minimun distance comparisons, we only check
+	 * For the purposes of the minimum distance comparisons, we only check
 	 * the sums-of-squares against eachother, since they are in the same
 	 * mathematical sort-order as if we did go ahead and take square roots
 	 *
@@ -1116,7 +1116,7 @@ static void do_fillGradientBuffer(unsigned int rw, float *res, unsigned short *g
 		/*
 		 * Note once again that since we are using reciprocals of distance values our
 		 * proportion is already the correct intensity, and does not need to be
-		 * subracted from 1.0 like it would have if we used real distances.
+		 * subtracted from 1.0 like it would have if we used real distances.
 		 */
 		
 		/*
@@ -1260,15 +1260,15 @@ void DoubleEdgeMaskOperation::initExecution()
 	this->m_cachedInstance = NULL;
 }
 
-void *DoubleEdgeMaskOperation::initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers)
+void *DoubleEdgeMaskOperation::initializeTileData(rcti *rect)
 {
 	if (this->m_cachedInstance)
 		return this->m_cachedInstance;
 	
 	lockMutex();
 	if (this->m_cachedInstance == NULL) {
-		MemoryBuffer *innerMask = (MemoryBuffer *)this->m_inputInnerMask->initializeTileData(rect, memoryBuffers);
-		MemoryBuffer *outerMask = (MemoryBuffer *)this->m_inputOuterMask->initializeTileData(rect, memoryBuffers);
+		MemoryBuffer *innerMask = (MemoryBuffer *)this->m_inputInnerMask->initializeTileData(rect);
+		MemoryBuffer *outerMask = (MemoryBuffer *)this->m_inputOuterMask->initializeTileData(rect);
 		float *data = new float[this->getWidth() * this->getHeight()];
 		float *imask = innerMask->convertToValueBuffer();
 		float *omask = outerMask->convertToValueBuffer();
@@ -1280,7 +1280,7 @@ void *DoubleEdgeMaskOperation::initializeTileData(rcti *rect, MemoryBuffer **mem
 	unlockMutex();
 	return this->m_cachedInstance;
 }
-void DoubleEdgeMaskOperation::executePixel(float *color, int x, int y, MemoryBuffer *inputBuffers[], void *data)
+void DoubleEdgeMaskOperation::executePixel(float *color, int x, int y, void *data)
 {
 	float *buffer = (float *) data;
 	int index = (y * this->getWidth() + x);

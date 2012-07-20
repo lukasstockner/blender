@@ -29,7 +29,6 @@
  *  \ingroup edtransform
  */
 
- 
 #include <stdlib.h>
 #include <math.h>
 #include <float.h>
@@ -41,7 +40,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h" // Temporary, for snapping to other unselected meshes
+#include "DNA_meshdata_types.h"  /* Temporary, for snapping to other unselected meshes */
 #include "DNA_node_types.h"
 #include "DNA_space_types.h"
 #include "DNA_screen_types.h"
@@ -54,20 +53,11 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-//#include "BDR_drawobject.h"
-//
-//#include "editmesh.h"
-//#include "BIF_editsima.h"
 #include "BIF_gl.h"
-//#include "BIF_mywindow.h"
-//#include "BIF_screen.h"
-//#include "BIF_editsima.h"
-//#include "BIF_drawimage.h"
-//#include "BIF_editmesh.h"
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_object.h"
-#include "BKE_anim.h" /* for duplis */
+#include "BKE_anim.h"  /* for duplis */
 #include "BKE_context.h"
 #include "BKE_tessmesh.h"
 #include "BKE_mesh.h"
@@ -87,8 +77,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "transform.h"
-
-//#include "blendef.h" /* for selection modes */
 
 #define USE_BVH_FACE_SNAP
 
@@ -463,12 +451,10 @@ static void initSnappingMode(TransInfo *t)
 			t->tsnap.mode = SCE_SNAP_MODE_INCREMENT;
 		}
 	}
-	else if (t->spacetype == SPACE_NODE)
-	{
+	else if (t->spacetype == SPACE_NODE) {
 		setSnappingCallback(t);
 		
-		if (t->tsnap.applySnap != NULL)
-		{
+		if (t->tsnap.applySnap != NULL) {
 			t->tsnap.modeSelect = SNAP_NOT_SELECTED;
 		}
 		else {

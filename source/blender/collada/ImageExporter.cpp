@@ -63,6 +63,11 @@ void ImagesExporter::export_UV_Image(Image *image, bool use_copies)
 	if (not_yet_exported) {
 
 		ImBuf *imbuf       = BKE_image_get_ibuf(image, NULL);
+		if(!imbuf) {
+			fprintf(stderr, "Collada export: image does not exist:\n%s\n", image->name);
+			return;
+		}
+
 		bool  is_dirty     = imbuf->userflags & IB_BITMAPDIRTY;
 
 		ImageFormatData imageFormat;
@@ -100,6 +105,7 @@ void ImagesExporter::export_UV_Image(Image *image, bool use_copies)
 
 			if (BKE_imbuf_write_as(imbuf, export_path, &imageFormat, true) == 0) {
 				fprintf(stderr, "Collada export: Cannot export image to:\n%s\n", export_path);
+				return;
 			}
 			BLI_strncpy(export_path, export_file, sizeof(export_path));
 		}
@@ -119,6 +125,7 @@ void ImagesExporter::export_UV_Image(Image *image, bool use_copies)
 
 				if (BLI_copy(source_path, export_path) != 0) {
 					fprintf(stderr, "Collada export: Cannot copy image:\n source:%s\ndest :%s\n", source_path, export_path);
+					return;
 				}
 
 				BLI_strncpy(export_path, export_file, sizeof(export_path));
@@ -135,7 +142,7 @@ void ImagesExporter::export_UV_Image(Image *image, bool use_copies)
 
 		COLLADASW::Image img(COLLADABU::URI(COLLADABU::URI::nativePathToUri(export_path)), translated_name, translated_name); /* set name also to mNameNC. This helps other viewers import files exported from Blender better */
 		img.add(mSW);
-		fprintf(stdout, "Collada export: Added image: %s\n",export_file);
+		fprintf(stdout, "Collada export: Added image: %s\n", export_file);
 		mImages.push_back(translated_name);
 	}
 }
@@ -145,7 +152,7 @@ void ImagesExporter::export_UV_Images()
 	std::set<Image *> uv_textures;
 	LinkNode *node;
 	bool use_copies = this->export_settings->use_texture_copies;
-	for (node=this->export_settings->export_set; node; node=node->next) {
+	for (node = this->export_settings->export_set; node; node = node->next) {
 		Object *ob = (Object *)node->link;
 		if (ob->type == OB_MESH && ob->totcol) {
 			Mesh *me     = (Mesh *) ob->data;
@@ -153,14 +160,13 @@ void ImagesExporter::export_UV_Images()
 			for (int i = 0; i < me->pdata.totlayer; i++) {
 				if (me->pdata.layers[i].type == CD_MTEXPOLY) {
 					MTexPoly *txface = (MTexPoly *)me->pdata.layers[i].data;
-					MFace *mface = me->mface;
-					for (int j = 0; j < me->totpoly; j++, mface++, txface++) {
+					for (int j = 0; j < me->totpoly; j++, txface++) {
 
 						Image *ima = txface->tpage;
 						if (ima == NULL)
 							continue;
 
-						bool not_in_list = uv_textures.find(ima)==uv_textures.end();
+						bool not_in_list = uv_textures.find(ima) == uv_textures.end();
 						if (not_in_list) {
 								uv_textures.insert(ima);
 								export_UV_Image(ima, use_copies);
@@ -177,7 +183,7 @@ bool ImagesExporter::hasImages(Scene *sce)
 {
 	LinkNode *node;
 	
-	for (node=this->export_settings->export_set; node; node=node->next) {
+	for (node = this->export_settings->export_set; node; node = node->next) {
 		Object *ob = (Object *)node->link;
 		int a;
 		for (a = 0; a < ob->totcol; a++) {

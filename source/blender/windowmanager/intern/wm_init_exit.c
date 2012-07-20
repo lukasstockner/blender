@@ -28,7 +28,6 @@
  *  \ingroup wm
  */
 
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -63,7 +62,6 @@
 #include "BKE_tracking.h" /* free tracking clipboard */
 
 #include "BLI_listbase.h"
-// #include "BLI_scanfill.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -75,7 +73,7 @@
 #endif
 
 #ifdef WITH_GAMEENGINE
-#include "BL_System.h"
+#  include "BL_System.h"
 #endif
 #include "GHOST_Path-api.h"
 #include "GHOST_C-api.h"
@@ -199,6 +197,14 @@ void WM_init(bContext *C, int argc, const char **argv)
 #endif
 
 	BLI_strncpy(G.lib, G.main->name, FILE_MAX);
+
+#ifdef WITH_COMPOSITOR
+	if (1) {
+		extern void *COM_linker_hack;
+		extern void *COM_execute;
+		COM_linker_hack = COM_execute;
+	}
+#endif
 }
 
 void WM_init_splash(bContext *C)
@@ -226,21 +232,21 @@ int WM_init_game(bContext *C)
 	Scene *scene = CTX_data_scene(C);
 
 	if (!scene) {
-		// XXX, this should not be needed.
+		/* XXX, this should not be needed. */
 		Main *bmain = CTX_data_main(C);
 		scene = bmain->scene.first;
 	}
 
 	win = wm->windows.first;
 
-	//first to get a valid window
+	/* first to get a valid window */
 	if (win)
 		CTX_wm_window_set(C, win);
 
 	sa = BKE_screen_find_big_area(CTX_wm_screen(C), SPACE_VIEW3D, 0);
 	ar = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
 
-	// if we have a valid 3D view
+	/* if we have a valid 3D view */
 	if (sa && ar) {
 		ARegion *arhide;
 
