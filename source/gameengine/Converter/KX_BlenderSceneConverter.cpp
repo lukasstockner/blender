@@ -306,7 +306,8 @@ struct	BlenderDebugDraw : public btIDebugDraw
 
 void KX_BlenderSceneConverter::ConvertScene(class KX_Scene* destinationscene,
 											class RAS_IRenderTools* rendertools,
-											class RAS_ICanvas* canvas)
+											class RAS_ICanvas* canvas,
+											bool libloading)
 {
 	//find out which physics engine
 	Scene *blenderscene = destinationscene->GetBlenderScene();
@@ -375,7 +376,8 @@ void KX_BlenderSceneConverter::ConvertScene(class KX_Scene* destinationscene,
 		rendertools,
 		canvas,
 		this,
-		m_alwaysUseExpandFraming
+		m_alwaysUseExpandFraming,
+		libloading
 		);
 
 	//These lookup are not needed during game
@@ -993,7 +995,7 @@ static void *async_convert(void *ptr)
 	vector<KX_Scene*> *merge_scenes = new vector<KX_Scene*>(); // Deleted in MergeAsyncLoads
 
 	for (unsigned int i=0; i<scenes->size(); ++i) {
-		new_scene = status->GetEngine()->CreateScene((*scenes)[i]);
+		new_scene = status->GetEngine()->CreateScene((*scenes)[i], true);
 
 		if (new_scene)
 			merge_scenes->push_back(new_scene);
@@ -1112,7 +1114,7 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 		for (mesh= (ID *)main_newlib->mesh.first; mesh; mesh= (ID *)mesh->next ) {
 			if (options & LIB_LOAD_VERBOSE)
 				printf("MeshName: %s\n", mesh->name+2);
-			RAS_MeshObject *meshobj = BL_ConvertMesh((Mesh *)mesh, NULL, scene_merge, this);
+			RAS_MeshObject *meshobj = BL_ConvertMesh((Mesh *)mesh, NULL, scene_merge, this, false); // For now only use the libloading option for scenes, which need to handle materials/shaders
 			scene_merge->GetLogicManager()->RegisterMeshName(meshobj->GetName(),meshobj);
 		}
 	}
@@ -1140,7 +1142,7 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 				scenes->push_back((Scene*)scene);
 			} else {
 				/* merge into the base  scene */
-				KX_Scene* other= m_ketsjiEngine->CreateScene((Scene *)scene);
+				KX_Scene* other= m_ketsjiEngine->CreateScene((Scene *)scene, true);
 				scene_merge->MergeScene(other);
 			
 				// RemoveScene(other); // Don't run this, it frees the entire scene converter data, just delete the scene
@@ -1577,7 +1579,7 @@ RAS_MeshObject *KX_BlenderSceneConverter::ConvertMeshSpecial(KX_Scene* kx_scene,
 		}
 	}
 	
-	RAS_MeshObject *meshobj = BL_ConvertMesh((Mesh *)me, NULL, kx_scene, this);
+	RAS_MeshObject *meshobj = BL_ConvertMesh((Mesh *)me, NULL, kx_scene, this, false);
 	kx_scene->GetLogicManager()->RegisterMeshName(meshobj->GetName(),meshobj);
 	m_map_mesh_to_gamemesh.clear(); /* This is at runtime so no need to keep this, BL_ConvertMesh adds */
 	return meshobj;

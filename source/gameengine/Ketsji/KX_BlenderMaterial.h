@@ -39,7 +39,8 @@ public:
 	void Initialize(
 		class KX_Scene*	scene,
 		BL_Material*	mat,
-		GameSettings*	game
+		GameSettings*	game,
+		int				lightlayer
 	);
 
 	virtual ~KX_BlenderMaterial();
@@ -95,14 +96,7 @@ public:
 		MT_Scalar ref, MT_Scalar emit, MT_Scalar alpha
 	);
 	
-	virtual void Replace_IScene(SCA_IScene *val)
-	{
-		mScene= static_cast<KX_Scene *>(val);
-		if (mBlenderShader)
-		{
-			mBlenderShader->SetScene(mScene);
-		}
-	};
+	virtual void Replace_IScene(SCA_IScene *val);
 
 #ifdef WITH_PYTHON
 	// --------------------------------
@@ -123,7 +117,7 @@ public:
 
 	// --------------------------------
 	// pre calculate to avoid pops/lag at startup
-	virtual void OnConstruction(int layer);
+	virtual void OnConstruction();
 
 	static void	EndFrame();
 
@@ -137,10 +131,11 @@ private:
 	unsigned int	mBlendFunc[2];
 	bool			mModified;
 	bool			mConstructed;			// if false, don't clean on exit
+	int				mLightLayer;
 
 	void InitTextures();
 
-	void SetBlenderGLSLShader(int layer);
+	void SetBlenderGLSLShader();
 
 	void ActivatGLMaterials( RAS_IRasterizer* rasty )const;
 	void ActivateTexGen( RAS_IRasterizer *ras ) const;

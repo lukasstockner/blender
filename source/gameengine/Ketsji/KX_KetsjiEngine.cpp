@@ -1646,7 +1646,7 @@ void KX_KetsjiEngine::RemoveScheduledScenes()
 	}
 }
 
-KX_Scene* KX_KetsjiEngine::CreateScene(Scene *scene)
+KX_Scene* KX_KetsjiEngine::CreateScene(Scene *scene, bool libloading)
 {
 	KX_Scene* tmpscene = new KX_Scene(m_keyboarddevice,
 									  m_mousedevice,
@@ -1657,7 +1657,8 @@ KX_Scene* KX_KetsjiEngine::CreateScene(Scene *scene)
 
 	m_sceneconverter->ConvertScene(tmpscene,
 							  m_rendertools,
-							  m_canvas);
+							  m_canvas,
+							  libloading);
 
 	return tmpscene;
 }

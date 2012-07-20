@@ -917,7 +917,7 @@ RAS_MaterialBucket* material_from_mesh(Material *ma, MFace *mface, MTFace *tface
 		{
 			kx_blmat = new KX_BlenderMaterial();
 
-			kx_blmat->Initialize(scene, bl_mat, (ma?&ma->game:NULL));
+			kx_blmat->Initialize(scene, bl_mat, (ma?&ma->game:NULL), lightlayer);
 			polymat = static_cast<RAS_IPolyMaterial*>(kx_blmat);
 			converter->CachePolyMaterial(ma, polymat);
 		}
@@ -1067,7 +1067,7 @@ RAS_MaterialBucket* material_from_mesh(Material *ma, MFace *mface, MTFace *tface
 }
 
 /* blenderobj can be NULL, make sure its checked for */
-RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, KX_BlenderSceneConverter *converter)
+RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, KX_BlenderSceneConverter *converter, bool libloading)
 {
 	RAS_MeshObject *meshobj;
 	int lightlayer = blenderobj ? blenderobj->lay:(1<<20)-1; // all layers if no object.
@@ -1265,9 +1265,12 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	meshobj->EndConversion();
 
 	// pre calculate texture generation
-	for (list<RAS_MeshMaterial>::iterator mit = meshobj->GetFirstMaterial();
-		mit != meshobj->GetLastMaterial(); ++ mit) {
-		mit->m_bucket->GetPolyMaterial()->OnConstruction(lightlayer);
+	// However, we want to delay this if we're libloading so we can make sure we have the right scene.
+	if (!libloading) {
+		for (list<RAS_MeshMaterial>::iterator mit = meshobj->GetFirstMaterial();
+			mit != meshobj->GetLastMaterial(); ++ mit) {
+			mit->m_bucket->GetPolyMaterial()->OnConstruction();
+		}
 	}
 
 	if (layers)
@@ -1431,7 +1434,7 @@ RAS_MeshObject* BL_ConvertMesh_old(Mesh* mesh, Object* blenderobj, KX_Scene* sce
 				if (kx_blmat == NULL)
 					kx_blmat = new KX_BlenderMaterial();
 
-				kx_blmat->Initialize(scene, bl_mat, (ma?&ma->game:NULL));
+				kx_blmat->Initialize(scene, bl_mat, (ma?&ma->game:NULL), lightlayer);
 				polymat = static_cast<RAS_IPolyMaterial*>(kx_blmat);
 			}
 			else {
@@ -1660,7 +1663,7 @@ RAS_MeshObject* BL_ConvertMesh_old(Mesh* mesh, Object* blenderobj, KX_Scene* sce
 	// pre calculate texture generation
 	for (list<RAS_MeshMaterial>::iterator mit = meshobj->GetFirstMaterial();
 		mit != meshobj->GetLastMaterial(); ++ mit) {
-		mit->m_bucket->GetPolyMaterial()->OnConstruction(lightlayer);
+		mit->m_bucket->GetPolyMaterial()->OnConstruction();
 	}
 
 	if (layers)
@@ -2327,7 +2330,8 @@ static KX_GameObject *gameobject_from_blenderobject(
 								Object *ob, 
 								KX_Scene *kxscene, 
 								RAS_IRenderTools *rendertools, 
-								KX_BlenderSceneConverter *converter) 
+								KX_BlenderSceneConverter *converter,
+								bool libloading) 
 {
 	KX_GameObject *gameobj = NULL;
 	Scene *blenderscene = kxscene->GetBlenderScene();
@@ -2365,7 +2369,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 		Mesh* mesh = static_cast<Mesh*>(ob->data);
 		float center[3], extents[3];
 		float radius = my_boundbox_mesh((Mesh*) ob->data, center, extents);
-		RAS_MeshObject* meshobj = BL_ConvertMesh(mesh,ob,kxscene,converter);
+		RAS_MeshObject* meshobj = BL_ConvertMesh(mesh,ob,kxscene,converter, libloading);
 		
 		// needed for python scripting
 		kxscene->GetLogicManager()->RegisterMeshName(meshobj->GetName(),meshobj);
@@ -2728,7 +2732,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 							  RAS_IRenderTools* rendertools,
 							  RAS_ICanvas* canvas,
 							  KX_BlenderSceneConverter* converter,
-							  bool alwaysUseExpandFraming
+							  bool alwaysUseExpandFraming,
+							  bool libloading
 							  )
 {
 
@@ -2838,7 +2843,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 										base->object, 
 										kxscene, 
 										rendertools, 
-										converter);
+										converter,
+										libloading);
 										
 		bool isInActiveLayer = (blenderobject->lay & activeLayerBitInfo) !=0;
 		bool addobj=true;
@@ -2897,7 +2903,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 														blenderobject, 
 														kxscene, 
 														rendertools, 
-														converter);
+														converter,
+														libloading);
 										
 						// this code is copied from above except that
 						// object from groups are never in active layer

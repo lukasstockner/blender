@@ -64,7 +64,8 @@ KX_BlenderMaterial::KX_BlenderMaterial()
 void KX_BlenderMaterial::Initialize(
 	KX_Scene *scene,
 	BL_Material *data,
-	GameSettings *game)
+	GameSettings *game,
+	int lightlayer)
 {
 	RAS_IPolyMaterial::Initialize(
 		data->texname[0],
@@ -88,6 +89,7 @@ void KX_BlenderMaterial::Initialize(
 	mModified = 0;
 	mConstructed = false;
 	mPass = 0;
+	mLightLayer = lightlayer;
 	// --------------------------------
 	// RAS_IPolyMaterial variables...
 	m_flag |= RAS_BLENDERMAT;
@@ -179,14 +181,14 @@ void KX_BlenderMaterial::InitTextures()
 	}
 }
 
-void KX_BlenderMaterial::OnConstruction(int layer)
+void KX_BlenderMaterial::OnConstruction()
 {
 	if (mConstructed)
 		// when material are reused between objects
 		return;
 	
 	if (mMaterial->glslmat)
-		SetBlenderGLSLShader(layer);
+		SetBlenderGLSLShader();
 
 	InitTextures();
 
@@ -785,10 +787,19 @@ void KX_BlenderMaterial::UpdateIPO(
 	mMaterial->ref			= (float)(ref);
 }
 
-void KX_BlenderMaterial::SetBlenderGLSLShader(int layer)
+void KX_BlenderMaterial::Replace_IScene(SCA_IScene *val)
+{
+	mScene= static_cast<KX_Scene *>(val);
+	if (mBlenderShader)
+		mBlenderShader->SetScene(mScene);
+	
+	OnConstruction();
+}
+
+void KX_BlenderMaterial::SetBlenderGLSLShader()
 {
 	if (!mBlenderShader)
-		mBlenderShader = new BL_BlenderShader(mScene, mMaterial->material, layer);
+		mBlenderShader = new BL_BlenderShader(mScene, mMaterial->material, mLightLayer);
 
 	if (!mBlenderShader->Ok()) {
 		delete mBlenderShader;
