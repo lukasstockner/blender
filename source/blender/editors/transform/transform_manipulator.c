@@ -1247,10 +1247,10 @@ static void draw_manipulator_scale(View3D *v3d, RegionView3D *rv3d, int moving, 
 		glPopMatrix();
 
 		glPushMatrix();
-			glTranslatef(dz*0.35f, 0.0, dz*0.35f);
+			glTranslatef(dz*0.3f, 0.0, dz*0.3f);
 			if(G.f & G_PICKSEL) glLoadName(MAN_SCALE_XZ);
 			manipulator_setcolor(v3d, 'Z', colcode, axisBlendAngle(rv3d->twangle[2]), MAN_SCALE_XZ);
-			glScalef(1.5, 0.3, 1.5);
+			glScalef(2, 0.3, 2);
 			drawsolidcube(cywid);
 		glPopMatrix();
 	}
@@ -1265,10 +1265,10 @@ static void draw_manipulator_scale(View3D *v3d, RegionView3D *rv3d, int moving, 
 		glPopMatrix();
 
 		glPushMatrix();
-			glTranslatef(dz*0.35f, dz*0.35f, 0.0);
+			glTranslatef(dz*0.3f, dz*0.3f, 0.0);
 			if(G.f & G_PICKSEL) glLoadName(MAN_SCALE_XY);
 			manipulator_setcolor(v3d, 'X', colcode, axisBlendAngle(rv3d->twangle[0]), MAN_SCALE_XY);
-			glScalef(1.5, 1.5, 0.3);
+			glScalef(2, 2, 0.3);
 			drawsolidcube(cywid);
 		glPopMatrix();
 	}
@@ -1283,10 +1283,10 @@ static void draw_manipulator_scale(View3D *v3d, RegionView3D *rv3d, int moving, 
 		glPopMatrix();
 
 		glPushMatrix();
-			glTranslatef(0.0, dz*0.35f, dz*0.35f);
+			glTranslatef(0.0, dz*0.3f, dz*0.3f);
 			if(G.f & G_PICKSEL) glLoadName(MAN_SCALE_YZ);
 			manipulator_setcolor(v3d, 'Y', colcode, axisBlendAngle(rv3d->twangle[1]), MAN_SCALE_YZ);
-			glScalef(0.3, 1.5, 1.5);
+			glScalef(0.3, 2, 2);
 			drawsolidcube(cywid);
 		glPopMatrix();
 	}
@@ -1378,7 +1378,7 @@ static void draw_manipulator_translate(View3D *v3d, RegionView3D *rv3d, int UNUS
 
 	/* offset in combo mode, for rotate a bit more */
 	if (combo & (V3D_MANIP_ROTATE)) dz = 1.0f + 2.0f * cylen;
-	else if (combo & (V3D_MANIP_SCALE)) dz = 1.0f + 0.5f * cylen;
+	else if (combo & (V3D_MANIP_SCALE)) dz = 1.0f + 1.5f * cylen;
 	else dz = 1.0f;
 
 	/* Z Cone */
@@ -1391,12 +1391,11 @@ static void draw_manipulator_translate(View3D *v3d, RegionView3D *rv3d, int UNUS
 		glPopMatrix();
 
 		glPushMatrix();
-			glTranslatef(dz*0.45f, 0.0, dz*0.45f);
+			glTranslatef(0.0, 0.0, dz*0.75f);
 			if(G.f & G_PICKSEL) glLoadName(MAN_TRANS_XZ);
 			manipulator_setcolor(v3d, 'Z', colcode, axisBlendAngle(rv3d->twangle[2]), MAN_TRANS_XZ);
 			glScalef(1.3, 0.3, 1.3);
-			glRotatef(45.0f, 0.0, 1.0, 0.0);
-			draw_cone(qobj, cylen, cywid);
+			drawsolidcube(cywid);
 		glPopMatrix();
 	}
 
@@ -1411,12 +1410,11 @@ static void draw_manipulator_translate(View3D *v3d, RegionView3D *rv3d, int UNUS
 		glPopMatrix();
 
 		glPushMatrix();
-			glTranslatef(dz*0.45f, dz*0.45f, 0.0);
+			glTranslatef(dz*0.75f, 0.0, 0.0);
 			if(G.f & G_PICKSEL) glLoadName(MAN_TRANS_XY);
 			manipulator_setcolor(v3d, 'X', colcode, axisBlendAngle(rv3d->twangle[0]), MAN_TRANS_XY);
 			glScalef(1.3, 1.3, 0.3);
-			glRotatef(90.0, -0.707, 0.707, 0.0);
-			draw_cone(qobj, cylen, cywid);
+			drawsolidcube(cywid);
 		glPopMatrix();
 	}
 
@@ -1431,12 +1429,11 @@ static void draw_manipulator_translate(View3D *v3d, RegionView3D *rv3d, int UNUS
 		glPopMatrix();
 
 		glPushMatrix();
-			glTranslatef(0.0, dz*0.45f, dz*0.45f);
+			glTranslatef(0.0, dz*0.75f, 0.0);
 			if(G.f & G_PICKSEL) glLoadName(MAN_TRANS_YZ);
 			manipulator_setcolor(v3d, 'Y', colcode, axisBlendAngle(rv3d->twangle[1]), MAN_TRANS_YZ);
 			glScalef(0.3, 1.3, 1.3);
-			glRotatef(-45.0f, 1.0, 0.0, 0.0);
-			draw_cone(qobj, cylen, cywid);
+			drawsolidcube(cywid);
 		glPopMatrix();
 	}
 
