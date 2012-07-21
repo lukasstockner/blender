@@ -106,7 +106,7 @@ static void calc_corner_co(BMLoop *l, const float fac, float r_co[3],
 		normalize_v3(l_vec_next);
 
 		add_v3_v3v3(co_ofs, l_vec_prev, l_vec_next);
-		if (UNLIKELY(normalize_v3(co_ofs) == 0.0f)) { /* edges form a straignt line */
+		if (UNLIKELY(normalize_v3(co_ofs) == 0.0f)) {  /* edges form a straight line */
 			cross_v3_v3v3(co_ofs, l_vec_prev, l->f->no);
 		}
 
@@ -865,7 +865,7 @@ void bmo_bevel_exec(BMesh *bm, BMOperator *op)
 	}
 #endif
 
-	BMO_op_callf(bm, "delete geom=%fv context=%i", BEVEL_DEL, DEL_VERTS);
+	BMO_op_callf(bm, op->flag, "delete geom=%fv context=%i", BEVEL_DEL, DEL_VERTS);
 
 	/* clean up any edges that might not get properly delete */
 	BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
@@ -873,8 +873,8 @@ void bmo_bevel_exec(BMesh *bm, BMOperator *op)
 			BMO_elem_flag_enable(bm, e, BEVEL_DEL);
 	}
 
-	BMO_op_callf(bm, "delete geom=%fe context=%i", BEVEL_DEL, DEL_EDGES);
-	BMO_op_callf(bm, "delete geom=%ff context=%i", BEVEL_DEL, DEL_FACES);
+	BMO_op_callf(bm, op->flag, "delete geom=%fe context=%i", BEVEL_DEL, DEL_EDGES);
+	BMO_op_callf(bm, op->flag, "delete geom=%ff context=%i", BEVEL_DEL, DEL_FACES);
 	
 	BLI_smallhash_release(&hash);
 	BLI_array_free(tags);

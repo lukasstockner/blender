@@ -178,9 +178,7 @@ typedef struct bNode {
 	char label[64];			/* custom user-defined label, MAX_NAME */
 	short custom1, custom2;	/* to be abused for buttons */
 	float custom3, custom4;
-	int highlight;			/* 0 = not highlighted, 1-N = highlighted*/
-	int pad;
-	
+
 	short need_exec, exec;	/* need_exec is set as UI execution event, exec is flag during exec */
 	void *threaddata;		/* optional extra storage for use in thread (read only then!) */
 	rctf totr;				/* entire boundbox */
@@ -374,6 +372,10 @@ enum {
 enum {
 	CMP_NODEFLAG_MASK_AA         = (1 << 0),
 	CMP_NODEFLAG_MASK_NO_FEATHER = (1 << 1)
+};
+
+enum {
+	CMP_NODEFLAG_BLUR_REFERENCE = (1 << 0),
 };
 
 typedef struct NodeFrame {
@@ -654,6 +656,7 @@ typedef struct NodeKeyingScreenData {
 typedef struct NodeKeyingData {
 	float screen_balance;
 	float despill_factor;
+	float despill_balance;
 	int edge_kernel_radius;
 	float edge_kernel_tolerance;
 	float clip_black, clip_white;
@@ -662,6 +665,11 @@ typedef struct NodeKeyingData {
 	int feather_falloff;
 	int blur_pre, blur_post;
 } NodeKeyingData;
+
+typedef struct NodeTrackPosData {
+	char tracking_object[64];
+	char track_name[64];
+} NodeTrackPosData;
 
 /* frame node flags */
 #define NODE_FRAME_SHRINK		1	/* keep the bounding box minimal */

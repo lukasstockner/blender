@@ -27,7 +27,6 @@
  *  \ingroup render
  */
 
-
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -2375,9 +2374,8 @@ static void displace_render_face(Render *re, ObjectRen *obr, VlakRen *vlr, float
 			displace_render_vert(re, obr, &shi, vlr->v4, 3, scale, mat, imat);
 
 		/*	closest in displace value.  This will help smooth edges.   */ 
-		if ( fabs(vlr->v1->accum - vlr->v3->accum) > fabs(vlr->v2->accum - vlr->v4->accum)) 
-			vlr->flag |= R_DIVIDE_24;
-		else vlr->flag &= ~R_DIVIDE_24;
+		if (fabsf(vlr->v1->accum - vlr->v3->accum) > fabsf(vlr->v2->accum - vlr->v4->accum)) vlr->flag |=  R_DIVIDE_24;
+		else                                                                                 vlr->flag &= ~R_DIVIDE_24;
 	}
 	
 	/* Recalculate the face normal  - if flipped before, flip now */
@@ -3391,7 +3389,7 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 
 				ma= give_render_material(re, ob, a1+1);
 				
-				/* test for 100% transparant */
+				/* test for 100% transparent */
 				ok= 1;
 				if (ma->alpha==0.0f && ma->spectra==0.0f && ma->filter==0.0f && (ma->mode & MA_TRANSP) && (ma->mode & MA_RAYMIRROR)==0) {
 					ok= 0;
@@ -4261,8 +4259,8 @@ static void check_non_flat_quads(ObjectRen *obr)
 					normal_tri_v3(nor, vlr->v2->co, vlr->v3->co, vlr->v4->co);
 					d2 = dot_v3v3(nor, vlr->v2->n);
 
-					if ( fabs(d1) < fabs(d2) ) vlr->flag |= R_DIVIDE_24;
-					else vlr->flag &= ~R_DIVIDE_24;
+					if (fabsf(d1) < fabsf(d2) ) vlr->flag |=  R_DIVIDE_24;
+					else                        vlr->flag &= ~R_DIVIDE_24;
 
 					/* new vertex pointers */
 					if (vlr->flag & R_DIVIDE_24) {
@@ -5495,7 +5493,7 @@ static int load_fluidsimspeedvectors(Render *re, ObjectInstanceRen *obi, float *
 		camco[1] = dot_v3v3(imat[1], fsvec);
 		camco[2] = dot_v3v3(imat[2], fsvec);
 
-		/* get homogenous coordinates */
+		/* get homogeneous coordinates */
 		projectvert(camco, winmat, hoco);
 		projectvert(ver->co, winmat, ho);
 		

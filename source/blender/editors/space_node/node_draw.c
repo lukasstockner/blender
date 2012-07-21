@@ -26,8 +26,8 @@
 
 /** \file blender/editors/space_node/node_draw.c
  *  \ingroup spnode
+ *  \brief higher level node drawing for the node editor.
  */
-
 
 #include <math.h>
 #include <stdio.h>
@@ -80,10 +80,11 @@
 #include "intern/node_util.h"
 
 #include "node_intern.h"
+#include "COM_compositor.h"
 
 /* width of socket columns in group display */
 #define NODE_GROUP_FRAME  120
-// XXX interface.h
+/* XXX interface.h */
 extern void ui_dropshadow(rctf *rct, float radius, float aspect, float alpha, int select);
 
 /* XXX update functions for node editor are a mess, needs a clear concept */
@@ -334,9 +335,6 @@ static void node_update_basis(const bContext *C, bNodeTree *ntree, bNode *node)
 
 	/* preview rect? */
 	if (node->flag & NODE_PREVIEW) {
-		/* only recalculate size when there's a preview actually, otherwise we use stored result */
-		BLI_lock_thread(LOCK_PREVIEW);
-
 		if (node->preview && node->preview->rect) {
 			float aspect = 1.0f;
 			
@@ -349,7 +347,8 @@ static void node_update_basis(const bContext *C, bNodeTree *ntree, bNode *node)
 			if (aspect <= 1.0f)
 				node->prvr.ymin = dy - aspect * (node->width - NODE_DY);
 			else {
-				float dx = (node->width - NODE_DYS) - (node->width - NODE_DYS) / aspect;    /* width correction of image */
+				/* width correction of image */
+				float dx = (node->width - NODE_DYS) - (node->width - NODE_DYS) / aspect;
 				
 				node->prvr.ymin = dy - (node->width - NODE_DY);
 				
@@ -372,8 +371,6 @@ static void node_update_basis(const bContext *C, bNodeTree *ntree, bNode *node)
 			node->prvr.ymin = dy - oldh;
 			dy = node->prvr.ymin - NODE_DYS / 2;
 		}
-
-		BLI_unlock_thread(LOCK_PREVIEW);
 	}
 
 	/* buttons rect? */
@@ -724,12 +721,14 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	if (node->flag & NODE_MUTED)
 		UI_ThemeColorBlend(color_id, TH_REDALERT, 0.5f);
 
+#ifdef WITH_COMPOSITOR
 	if (ntree->type == NTREE_COMPOSIT && (snode->flag & SNODE_SHOW_HIGHLIGHT)) {
-		if (node->highlight) {
+		if (COM_isHighlightedbNode(node)) {
 			UI_ThemeColorBlend(color_id, TH_ACTIVE, 0.5f);
-			node->highlight = 0;
 		}
 	}
+#endif
+
 	uiSetRoundBox(UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT);
 	uiRoundBox(rct->xmin, rct->ymax - NODE_DY, rct->xmax, rct->ymax, BASIS_RAD);
 	
@@ -776,7 +775,8 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 		/* XXX button uses a custom triangle draw below, so make it invisible without icon */
 		uiBlockSetEmboss(node->block, UI_EMBOSSN);
 		but = uiDefBut(node->block, TOGBUT, B_REDR, "",
-		               rct->xmin + 10.0f - but_size / 2, rct->ymax - NODE_DY / 2.0f - but_size / 2, but_size, but_size, NULL, 0, 0, 0, 0, "");
+		               rct->xmin + 10.0f - but_size / 2, rct->ymax - NODE_DY / 2.0f - but_size / 2,
+		               but_size, but_size, NULL, 0, 0, 0, 0, "");
 		uiButSetFunc(but, node_toggle_button_cb, node, (void *)"NODE_OT_hide_toggle");
 		uiBlockSetEmboss(node->block, UI_EMBOSS);
 		
@@ -795,7 +795,7 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	BLI_strncpy(showname, nodeLabel(node), sizeof(showname));
 	
 	//if (node->flag & NODE_MUTED)
-	//	BLI_snprintf(showname, sizeof(showname), "[%s]", showname); // XXX - don't print into self!
+	//	BLI_snprintf(showname, sizeof(showname), "[%s]", showname); /* XXX - don't print into self! */
 	
 	uiDefBut(node->block, LABEL, 0, showname,
 	         (int)(rct->xmin + (NODE_MARGIN_X / snode->aspect_sqrt)), (int)(rct->ymax - NODE_DY),
@@ -841,7 +841,8 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 		node_socket_circle_draw(ntree, sock, NODE_SOCKSIZE, sock->flag & SELECT);
 		
 		node->typeinfo->drawinputfunc(C, node->block, ntree, node, sock, IFACE_(sock->name),
-		                              sock->locx + (NODE_DYS / snode->aspect_sqrt), sock->locy - NODE_DYS, node->width - NODE_DY);
+		                              sock->locx + (NODE_DYS / snode->aspect_sqrt), sock->locy - NODE_DYS,
+		                              node->width - NODE_DY);
 	}
 	
 	/* socket outputs */
@@ -852,15 +853,14 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 		node_socket_circle_draw(ntree, sock, NODE_SOCKSIZE, sock->flag & SELECT);
 		
 		node->typeinfo->drawoutputfunc(C, node->block, ntree, node, sock, IFACE_(sock->name),
-		                               sock->locx - node->width + (NODE_DYS / snode->aspect_sqrt), sock->locy - NODE_DYS, node->width - NODE_DY);
+		                               sock->locx - node->width + (NODE_DYS / snode->aspect_sqrt), sock->locy - NODE_DYS,
+		                               node->width - NODE_DY);
 	}
 	
 	/* preview */
 	if (node->flag & NODE_PREVIEW) {
-		BLI_lock_thread(LOCK_PREVIEW);
 		if (node->preview && node->preview->rect && !BLI_rctf_is_empty(&node->prvr))
 			node_draw_preview(node->preview, &node->prvr);
-		BLI_unlock_thread(LOCK_PREVIEW);
 	}
 	
 	UI_ThemeClearColor(color_id);
@@ -888,12 +888,15 @@ static void node_draw_hidden(const bContext *C, ARegion *ar, SpaceNode *snode, b
 	if (node->flag & NODE_MUTED)
 		UI_ThemeColorBlend(color_id, TH_REDALERT, 0.5f);
 
+#ifdef WITH_COMPOSITOR
 	if (ntree->type == NTREE_COMPOSIT && (snode->flag & SNODE_SHOW_HIGHLIGHT)) {
-		if (node->highlight) {
+		if (COM_isHighlightedbNode(node)) {
 			UI_ThemeColorBlend(color_id, TH_ACTIVE, 0.5f);
-			node->highlight = 0;
 		}
 	}
+#else
+	(void)ntree;
+#endif
 	
 	uiRoundBox(rct->xmin, rct->ymin, rct->xmax, rct->ymax, hiddenrad);
 	
@@ -925,7 +928,8 @@ static void node_draw_hidden(const bContext *C, ARegion *ar, SpaceNode *snode, b
 		/* XXX button uses a custom triangle draw below, so make it invisible without icon */
 		uiBlockSetEmboss(node->block, UI_EMBOSSN);
 		but = uiDefBut(node->block, TOGBUT, B_REDR, "",
-		               rct->xmin + 10.0f - but_size / 2, centy - but_size / 2, but_size, but_size, NULL, 0, 0, 0, 0, "");
+		               rct->xmin + 10.0f - but_size / 2, centy - but_size / 2,
+		               but_size, but_size, NULL, 0, 0, 0, 0, "");
 		uiButSetFunc(but, node_toggle_button_cb, node, (void *)"NODE_OT_hide_toggle");
 		uiBlockSetEmboss(node->block, UI_EMBOSS);
 		
@@ -946,7 +950,7 @@ static void node_draw_hidden(const bContext *C, ARegion *ar, SpaceNode *snode, b
 		BLI_strncpy(showname, nodeLabel(node), sizeof(showname));
 		
 		//if (node->flag & NODE_MUTED)
-		//	BLI_snprintf(showname, sizeof(showname), "[%s]", showname); // XXX - don't print into self!
+		//	BLI_snprintf(showname, sizeof(showname), "[%s]", showname); /* XXX - don't print into self! */
 
 		uiDefBut(node->block, LABEL, 0, showname,
 		         (int)(rct->xmin + (NODE_MARGIN_X / snode->aspect_sqrt)), (int)(centy - 10),
@@ -1128,6 +1132,7 @@ void drawnodespace(const bContext *C, ARegion *ar, View2D *v2d)
 	
 	if (snode->nodetree) {
 		bNode *node;
+		/* void** highlights = 0; */ /* UNUSED */
 		
 		node_uiblocks_init(C, snode->nodetree);
 		
@@ -1140,6 +1145,13 @@ void drawnodespace(const bContext *C, ARegion *ar, View2D *v2d)
 		}
 		
 		node_update_nodetree(C, snode->nodetree, 0.0f, 0.0f);
+
+#ifdef WITH_COMPOSITOR
+		if (snode->nodetree->type == NTREE_COMPOSIT) {
+			COM_startReadHighlights();
+		} 
+#endif
+
 		node_draw_nodetree(C, ar, snode, snode->nodetree);
 		
 		#if 0

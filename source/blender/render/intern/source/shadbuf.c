@@ -1176,8 +1176,8 @@ float testshadowbuf(Render *re, ShadBuf *shb, const float co[3], const float dxc
 	dy[0]= xs1 - dy[0];
 	dy[1]= ys1 - dy[1];
 	
-	xres= fac*(fabs(dx[0]) + fabs(dy[0]));
-	yres= fac*(fabs(dx[1]) + fabs(dy[1]));
+	xres = fac * (fabsf(dx[0]) + fabsf(dy[0]));
+	yres = fac * (fabsf(dx[1]) + fabsf(dy[1]));
 	if (xres<1.0f) xres= 1.0f;
 	if (yres<1.0f) yres= 1.0f;
 	
@@ -1815,7 +1815,7 @@ static void isb_bsp_face_inside(ISBBranch *bspn, BSPFace *face)
 			return;
 		
 		/* if face boundbox is outside of branch rect, give up */
-		if (0==BLI_isect_rctf((rctf *)&face->box, (rctf *)&bspn->box, NULL))
+		if (0==BLI_rctf_isect((rctf *)&face->box, (rctf *)&bspn->box, NULL))
 			return;
 		
 		/* test all points inside branch */
@@ -1824,7 +1824,7 @@ static void isb_bsp_face_inside(ISBBranch *bspn, BSPFace *face)
 			
 			if ((samp->facenr!=face->facenr || samp->obi!=face->obi) && samp->shadfac) {
 				if (face->box.zmin < samp->zco[2]) {
-					if (BLI_in_rctf((rctf *)&face->box, samp->zco[0], samp->zco[1])) {
+					if (BLI_in_rctf_v((rctf *)&face->box, samp->zco)) {
 						int inshadow= 0;
 						
 						if (face->type) {

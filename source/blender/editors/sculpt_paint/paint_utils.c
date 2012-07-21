@@ -41,6 +41,7 @@
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_rect.h"
 
 #include "BKE_brush.h"
 #include "BKE_context.h"
@@ -80,8 +81,7 @@ int paint_convert_bb_to_rect(rcti *rect,
 	float projection_mat[4][4];
 	int i, j, k;
 
-	rect->xmin = rect->ymin = INT_MAX;
-	rect->xmax = rect->ymax = INT_MIN;
+	BLI_rcti_init_minmax(rect);
 
 	/* return zero if the bounding box has non-positive volume */
 	if (bb_min[0] > bb_max[0] || bb_min[1] > bb_max[1] || bb_min[2] > bb_max[2])
@@ -93,16 +93,19 @@ int paint_convert_bb_to_rect(rcti *rect,
 		for (j = 0; j < 2; ++j) {
 			for (k = 0; k < 2; ++k) {
 				float vec[3], proj[2];
+				int proj_i[2];
 				vec[0] = i ? bb_min[0] : bb_max[0];
 				vec[1] = j ? bb_min[1] : bb_max[1];
 				vec[2] = k ? bb_min[2] : bb_max[2];
 				/* convert corner to screen space */
 				ED_view3d_project_float_v2(ar, vec, proj, projection_mat);
 				/* expand 2D rectangle */
-				rect->xmin = MIN2(rect->xmin, proj[0]);
-				rect->xmax = MAX2(rect->xmax, proj[0]);
-				rect->ymin = MIN2(rect->ymin, proj[1]);
-				rect->ymax = MAX2(rect->ymax, proj[1]);
+
+				/* we could project directly to int? */
+				proj_i[0] = proj[0];
+				proj_i[1] = proj[1];
+
+				BLI_rcti_do_minmax_v(rect, proj_i);
 			}
 		}
 	}
@@ -284,7 +287,7 @@ void imapaint_pick_uv(Scene *scene, Object *ob, unsigned int faceindex, const in
 				/* the triangle with the largest absolute values is the one
 				 * with the most negative weights */
 				imapaint_tri_weights(ob, mv[0].co, mv[1].co, mv[3].co, p, w);
-				absw = fabs(w[0]) + fabs(w[1]) + fabs(w[2]);
+				absw = fabsf(w[0]) + fabsf(w[1]) + fabsf(w[2]);
 				if (absw < minabsw) {
 					uv[0] = tf->uv[0][0] * w[0] + tf->uv[1][0] * w[1] + tf->uv[3][0] * w[2];
 					uv[1] = tf->uv[0][1] * w[0] + tf->uv[1][1] * w[1] + tf->uv[3][1] * w[2];
@@ -292,7 +295,7 @@ void imapaint_pick_uv(Scene *scene, Object *ob, unsigned int faceindex, const in
 				}
 
 				imapaint_tri_weights(ob, mv[1].co, mv[2].co, mv[3].co, p, w);
-				absw = fabs(w[0]) + fabs(w[1]) + fabs(w[2]);
+				absw = fabsf(w[0]) + fabsf(w[1]) + fabsf(w[2]);
 				if (absw < minabsw) {
 					uv[0] = tf->uv[1][0] * w[0] + tf->uv[2][0] * w[1] + tf->uv[3][0] * w[2];
 					uv[1] = tf->uv[1][1] * w[0] + tf->uv[2][1] * w[1] + tf->uv[3][1] * w[2];
@@ -301,7 +304,7 @@ void imapaint_pick_uv(Scene *scene, Object *ob, unsigned int faceindex, const in
 			}
 			else {
 				imapaint_tri_weights(ob, mv[0].co, mv[1].co, mv[2].co, p, w);
-				absw = fabs(w[0]) + fabs(w[1]) + fabs(w[2]);
+				absw = fabsf(w[0]) + fabsf(w[1]) + fabsf(w[2]);
 				if (absw < minabsw) {
 					uv[0] = tf->uv[0][0] * w[0] + tf->uv[1][0] * w[1] + tf->uv[2][0] * w[2];
 					uv[1] = tf->uv[0][1] * w[0] + tf->uv[1][1] * w[1] + tf->uv[2][1] * w[2];

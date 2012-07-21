@@ -49,7 +49,7 @@
  * - If the entry has no block allocated for it yet, memory is
  * allocated.
  *
- * The pointer to the correct entry is returned. Memory is guarateed
+ * The pointer to the correct entry is returned. Memory is guaranteed
  * to exist (as long as the malloc does not break). Since guarded
  * allocation is used, memory _must_ be available. Otherwise, an
  * exit(0) would occur.
@@ -1309,11 +1309,11 @@ void project_renderdata(Render *re, void (*projectfunc)(const float *, float mat
 			
 				/* the Zd value is still not really correct for pano */
 			
-				vec[2]-= har->hasize;	/* z negative, otherwise it's clipped */
+				vec[2] -= har->hasize;  /* z negative, otherwise it's clipped */
 				projectfunc(vec, re->winmat, hoco);
-				zn= hoco[3];
-				zn= fabs( (float)har->zs - 0x7FFFFF*(hoco[2]/zn));
-				har->zd= CLAMPIS(zn, 0, INT_MAX);
+				zn = hoco[3];
+				zn = fabsf((float)har->zs - 0x7FFFFF * (hoco[2] / zn));
+				har->zd = CLAMPIS(zn, 0, INT_MAX);
 			
 			}
 			

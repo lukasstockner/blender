@@ -791,9 +791,9 @@ static int cubemap(MTex *mtex, VlakRen *vlr, const float n[3], float x, float y,
 				float nor[3];
 				normal_tri_v3(nor, vlr->v1->orco, vlr->v2->orco, vlr->v3->orco);
 				
-				if ( fabs(nor[0])<fabs(nor[2]) && fabs(nor[1])<fabs(nor[2]) ) vlr->puno |= ME_PROJXY;
-				else if ( fabs(nor[0])<fabs(nor[1]) && fabs(nor[2])<fabs(nor[1]) ) vlr->puno |= ME_PROJXZ;
-				else vlr->puno |= ME_PROJYZ;
+				if      (fabsf(nor[0]) < fabsf(nor[2]) && fabsf(nor[1]) < fabsf(nor[2])) vlr->puno |= ME_PROJXY;
+				else if (fabsf(nor[0]) < fabsf(nor[1]) && fabsf(nor[2]) < fabsf(nor[1])) vlr->puno |= ME_PROJXZ;
+				else                                                                     vlr->puno |= ME_PROJYZ;
 			}
 			else return cubemap_glob(n, x, y, z, adr1, adr2);
 		}
@@ -2985,7 +2985,7 @@ void do_sky_tex(const float rco[3], float lo[3], const float dxyview[2], float h
 				}
 				else {
 					/* this value has no angle, the vector is directly along the view.
-					 * avoide divide by zero and use a dummy value. */
+					 * avoid divide by zero and use a dummy value. */
 					tempvec[0]= 1.0f;
 					tempvec[1]= 0.0;
 					tempvec[2]= 0.0;

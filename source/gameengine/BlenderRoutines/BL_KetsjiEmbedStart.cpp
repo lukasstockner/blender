@@ -82,10 +82,6 @@ extern "C" {
 /* #include "BKE_screen.h" */ /* cant include this because of 'new' function name */
 extern float BKE_screen_view3d_zoom_to_fac(float camzoom);
 
-
-//XXX #include "BIF_screen.h"
-//XXX #include "BIF_scrarea.h"
-
 #include "BKE_main.h"
 #include "BLI_blenlib.h"
 #include "BLO_readfile.h"
@@ -93,7 +89,6 @@ extern float BKE_screen_view3d_zoom_to_fac(float camzoom);
 #include "BKE_ipo.h"
 	/***/
 
-//XXX #include "BSE_headerbuttons.h"
 #include "BKE_context.h"
 #include "../../blender/windowmanager/WM_types.h"
 #include "../../blender/windowmanager/wm_window.h"
@@ -525,7 +520,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 				PyObject *gameLogic_keys_new = PyDict_Keys(PyModule_GetDict(gameLogic));
 				const Py_ssize_t numitems= PyList_GET_SIZE(gameLogic_keys_new);
 				Py_ssize_t listIndex;
-				for (listIndex=0; listIndex < numitems; listIndex++)  {
+				for (listIndex=0; listIndex < numitems; listIndex++) {
 					PyObject* item = PyList_GET_ITEM(gameLogic_keys_new, listIndex);
 					if (!PySequence_Contains(gameLogic_keys, item)) {
 						PyDict_DelItem(	PyModule_GetDict(gameLogic), item);
