@@ -212,14 +212,23 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
                                            short implicit, short fill, short sel,
                                            short correct_aspect, short mirrored)
 {
+	DerivedMesh *init_derived, *mirr_derived;
+	int tot_faces;
+	int *orig_verts;
+	int *orig_faces;
+	MPoly *face_array;
+	MVert *vert_array;
+	MLoop *loop_array;
 	BMEditMesh *em;
 	ScanFillContext sf_ctx;
 	ParamHandle *handle;
 	BMFace *efa;
+	MPoly *poly;
 	BMLoop *l;
 	BMEdge *eed;
 	BMIter iter, liter;
 	MTexPoly *tf;
+	int fi;
 
 	handle = param_construct_begin();
 
@@ -245,14 +254,31 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 	BM_mesh_elem_index_ensure(em->bm, BM_VERT);
 
 	if(mirrored) {
-		MirrorModifierData *mmd = (MirrorModifierData *)obedit->modifiers.first;
+		MirrorModifierData mmd;
+		MirrorModifierData *real_mmd = (MirrorModifierData *)obedit->modifiers.first;
 
-		/* we need to mirror the mesh */
+		mmd = *real_mmd;
 
+		init_derived = CDDM_from_BMEditMesh(em, NULL, 0, 0);
+		mirr_derived = mirror_make_derived_from_derived(&mmd, obedit, init_derived, TRUE);
+		if(mirr_derived != init_derived)
+			init_derived->release(init_derived);
+
+		tot_faces = mirr_derived->getNumPolys(mirr_derived);
+		orig_verts = CustomData_get_layer(&mirr_derived->vertData, CD_ORIGINDEX);
+		orig_faces = CustomData_get_layer(&mirr_derived->polyData, CD_ORIGINDEX);
+		face_array = mirr_derived->getPolyArray(mirr_derived);
+		loop_array = mirr_derived->getLoopArray(mirr_derived);
+		vert_array = mirr_derived->getVertArray(mirr_derived);
+	} else {
+		tot_faces = em->bm->totface;
 	}
+	EDBM_index_arrays_init(em, 0, 0, 1);
+
 	BLI_srand(0);
 	
-	BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
+	for (fi = 0; fi < tot_faces; fi++) {
+//	BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
 		MTexPoly *tf;
 		ScanFillVert *sf_vert, *sf_vert_last, *sf_vert_first;
 		ScanFillFace *sf_tri;
@@ -261,7 +287,17 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 		BMLoop *ls[3];
 		float *co[4];
 		float *uv[4];
-		int i, lsel;
+		int i, lsel, len;
+
+		if (mirrored) {
+			poly = face_array + fi;
+			len = poly->totloop;
+			efa = EDBM_face_at_index(em, orig_faces[fi]);
+		}
+		else {
+			efa = EDBM_face_at_index(em, fi);
+			len = efa->len;
+		}
 
 		if ((BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) || (sel && BM_elem_flag_test(efa, BM_ELEM_SELECT) == 0))
 			continue;
@@ -277,25 +313,68 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 
 		if (implicit && !lsel)
 			continue;
-
-		key = (ParamKey)efa;
+		if (mirrored)
+			key = (ParamKey)poly;
+		else
+			key = (ParamKey)efa;
 
 		tf = CustomData_bmesh_get(&em->bm->pdata, efa->head.data, CD_MTEXPOLY);
 
-		if (efa->len == 3 || efa->len == 4) {
+		if (len == 3 || len == 4) {
 			/* for quads let parametrize split, it can make better decisions
 			 * about which split is best for unwrapping than scanfill */
-			i = 0;
-			BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-				MLoopUV *luv = CustomData_bmesh_get(&em->bm->ldata, l->head.data, CD_MLOOPUV);
-				vkeys[i] = (ParamKey)BM_elem_index_get(l->v);
-				co[i] = l->v->co;
-				uv[i] = luv->uv;
-				pin[i] = (luv->flag & MLOOPUV_PINNED) != 0;
-				select[i] = uvedit_uv_select_test(em, scene, l) != 0;
+				BM_ITER_ELEM_INDEX (l, &liter, efa, BM_LOOPS_OF_FACE, i) {
+					MLoopUV *luv;
+					if (mirrored) {
+						int orig_index = orig_verts[loop_array[poly->loopstart + i].v];
 
-				i++;
-			}
+						BMLoop *tmpl;
+						BMIter liter2;
+						int itmp;
+						int is_mirror;
+
+						for (itmp = 0; itmp < poly->totloop; itmp++)
+							if(orig_verts[loop_array[poly->loopstart + itmp].v] == ORIGINDEX_NONE)
+								is_mirror = TRUE;
+
+						vkeys[i] = (ParamKey)loop_array[poly->loopstart + i].v;
+
+						if(!is_mirror) {
+							luv = CustomData_bmesh_get(&em->bm->ldata, l->head.data, CD_MLOOPUV);
+
+							co[i] = l->v->co;
+							uv[i] = luv->uv;
+							pin[i] = (luv->flag & MLOOPUV_PINNED) != 0;
+							select[i] = uvedit_uv_select_test(em, scene, l) != 0;
+						} else {
+							if (orig_index != ORIGINDEX_NONE) {
+								BM_ITER_ELEM_INDEX (tmpl, &liter2, efa, BM_LOOPS_OF_FACE, itmp)
+									if (BM_elem_index_get(tmpl->v) == orig_index)
+										break;
+
+								luv = CustomData_bmesh_get(&em->bm->ldata, tmpl->head.data, CD_MLOOPUV);
+
+								co[i] = tmpl->v->co;
+								uv[i] = luv->uv;
+								pin[i] = (luv->flag & MLOOPUV_PINNED) != 0;
+								select[i] = uvedit_uv_select_test(em, scene, tmpl) != 0;
+							} else {
+								co[i] = vert_array[loop_array[poly->loopstart + i].v].co;
+								uv[i] = NULL;
+								pin[i] = FALSE;
+								select[i] = FALSE;
+							}
+						}
+					} else {
+						luv = CustomData_bmesh_get(&em->bm->ldata, l->head.data, CD_MLOOPUV);
+						vkeys[i] = (ParamKey)BM_elem_index_get(l->v);
+
+						co[i] = l->v->co;
+						uv[i] = luv->uv;
+						pin[i] = (luv->flag & MLOOPUV_PINNED) != 0;
+						select[i] = uvedit_uv_select_test(em, scene, l) != 0;
+					}
+				}
 
 			param_face_add(handle, key, i, vkeys, co, uv, pin, select, &tf->unwrap);
 		}
@@ -359,6 +438,11 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 			}
 		}
 	}
+
+	if(mirrored)
+		mirr_derived->release(mirr_derived);
+	else
+		EDBM_index_arrays_free(em);
 
 	param_construct_end(handle, fill, implicit);
 
