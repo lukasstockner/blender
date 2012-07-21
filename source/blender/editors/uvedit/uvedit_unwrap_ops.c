@@ -53,6 +53,7 @@
 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_subsurf.h"
+#include "BKE_mirror.h"
 #include "BKE_context.h"
 #include "BKE_customdata.h"
 #include "BKE_depsgraph.h"
@@ -207,10 +208,11 @@ static void modifier_unwrap_state(Object *obedit, Scene *scene, short *use_subsu
 	*use_mirror = mirror;
 }
 
-static ParamHandle *construct_param_handle(Scene *scene, BMEditMesh *em, 
+static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
                                            short implicit, short fill, short sel,
                                            short correct_aspect, short mirrored)
 {
+	BMEditMesh *em;
 	ScanFillContext sf_ctx;
 	ParamHandle *handle;
 	BMFace *efa;
@@ -218,8 +220,10 @@ static ParamHandle *construct_param_handle(Scene *scene, BMEditMesh *em,
 	BMEdge *eed;
 	BMIter iter, liter;
 	MTexPoly *tf;
-	
+
 	handle = param_construct_begin();
+
+	em = BMEdit_FromObject(obedit);
 
 	if (correct_aspect) {
 		efa = BM_active_face_get(em->bm, TRUE);
@@ -240,6 +244,12 @@ static ParamHandle *construct_param_handle(Scene *scene, BMEditMesh *em,
 	/* we need the vert indices */
 	BM_mesh_elem_index_ensure(em->bm, BM_VERT);
 
+	if(mirrored) {
+		MirrorModifierData *mmd = (MirrorModifierData *)obedit->modifiers.first;
+
+		/* we need to mirror the mesh */
+
+	}
 	BLI_srand(0);
 	
 	BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
@@ -392,8 +402,10 @@ static ParamHandle *construct_param_handle_subsurfed(Scene *scene, Object *obedi
 	/* pointers to modifier data for unwrap control */
 	ModifierData *md;
 	SubsurfModifierData *smd_real;
+	MirrorModifierData *mmd_real;
 	/* modifier initialization data, will  control what type of subdivision will happen*/
 	SubsurfModifierData smd = {{0}};
+	MirrorModifierData mmd = {{0}};
 	/* Used to hold subsurfed Mesh */
 	DerivedMesh *derivedMesh, *initialDerived;
 	BMEditMesh *em;
@@ -434,18 +446,31 @@ static ParamHandle *construct_param_handle_subsurfed(Scene *scene, Object *obedi
 
 	/* number of subdivisions to perform */
 	md = obedit->modifiers.first;
+	/* we need to get the mirrored mesh first */
+	if(mirrored) {
+		mmd_real = (MirrorModifierData *)md;
+		mmd = *mmd_real;
+	}
+
 	if(md->type == eModifierType_Mirror)
 		md = md->next;
+
 	smd_real = (SubsurfModifierData *)md;
 
 	smd.levels = smd_real->levels;
-
 	smd.subdivType = smd_real->subdivType;
 		
 	initialDerived = CDDM_from_BMEditMesh(em, NULL, 0, 0);
-	derivedMesh = subsurf_make_derived_from_derived(initialDerived, &smd,
-	                                                NULL, SUBSURF_IN_EDIT_MODE);
 
+	if(mirrored) {
+		derivedMesh = mirror_make_derived_from_derived(&mmd, obedit, initialDerived, TRUE);
+		if(derivedMesh != initialDerived)
+			initialDerived->release(initialDerived);
+		initialDerived = derivedMesh;
+	}
+
+	derivedMesh = subsurf_make_derived_from_derived(initialDerived, &smd,
+													NULL, SUBSURF_IN_EDIT_MODE);
 	initialDerived->release(initialDerived);
 
 	/* get the derived data */
@@ -474,7 +499,7 @@ static ParamHandle *construct_param_handle_subsurfed(Scene *scene, Object *obedi
 	/* map subsurfed edges to original editEdges */
 	for (i = 0; i < numOfEdges; i++) {
 		/* not all edges correspond to an old edge */
-		edgeMap[i] = (origEdgeIndices[i] != -1) ?
+		edgeMap[i] = (origEdgeIndices[i] != ORIGINDEX_NONE) ?
 		             EDBM_edge_at_index(em, origEdgeIndices[i]) : NULL;
 	}
 
@@ -577,7 +602,7 @@ static int minimize_stretch_init(bContext *C, wmOperator *op)
 	ms->blend = RNA_float_get(op->ptr, "blend");
 	ms->iterations = RNA_int_get(op->ptr, "iterations");
 	ms->i = 0;
-	ms->handle = construct_param_handle(scene, em, implicit, fill_holes, 1, 1, 0);
+	ms->handle = construct_param_handle(scene, obedit, implicit, fill_holes, 1, 1, 0);
 	ms->lasttime = PIL_check_seconds_timer();
 
 	param_stretch_begin(ms->handle);
@@ -773,7 +798,7 @@ static int pack_islands_exec(bContext *C, wmOperator *op)
 		RNA_float_set(op->ptr, "margin", scene->toolsettings->uvcalc_margin);
 	}
 
-	handle = construct_param_handle(scene, em, implicit, 0, 1, 1, 0);
+	handle = construct_param_handle(scene, obedit, implicit, 0, 1, 1, 0);
 	param_pack(handle, scene->toolsettings->uvcalc_margin);
 	param_flush(handle);
 	param_delete(handle);
@@ -815,7 +840,7 @@ static int average_islands_scale_exec(bContext *C, wmOperator *UNUSED(op))
 		return OPERATOR_CANCELLED;
 	}
 
-	handle = construct_param_handle(scene, em, implicit, 0, 1, 1, 0);
+	handle = construct_param_handle(scene, obedit, implicit, 0, 1, 1, 0);
 	param_average(handle);
 	param_flush(handle);
 	param_delete(handle);
@@ -846,7 +871,6 @@ static ParamHandle *liveHandle = NULL;
 
 void ED_uvedit_live_unwrap_begin(Scene *scene, Object *obedit)
 {
-	BMEditMesh *em = BMEdit_FromObject(obedit);
 	short abf = scene->toolsettings->unwrapper == 0;
 	short fillholes = scene->toolsettings->uvcalc_flag & UVCALC_FILLHOLES;
 	short use_subsurf;
@@ -861,7 +885,7 @@ void ED_uvedit_live_unwrap_begin(Scene *scene, Object *obedit)
 	if (use_subsurf)
 		liveHandle = construct_param_handle_subsurfed(scene, obedit, fillholes, 0, 1, use_mirror);
 	else
-		liveHandle = construct_param_handle(scene, em, 0, fillholes, 0, 1, use_mirror);
+		liveHandle = construct_param_handle(scene, obedit, 0, fillholes, 0, 1, use_mirror);
 
 	param_lscm_begin(liveHandle, PARAM_TRUE, abf);
 }
@@ -1176,7 +1200,6 @@ static void uv_map_clip_correct(BMEditMesh *em, wmOperator *op)
 /* assumes UV Map is checked, doesn't run update funcs */
 void ED_unwrap_lscm(Scene *scene, Object *obedit, const short sel)
 {
-	BMEditMesh *em = BMEdit_FromObject(obedit);
 	ParamHandle *handle;
 
 	const short fill_holes = scene->toolsettings->uvcalc_flag & UVCALC_FILLHOLES;
@@ -1189,7 +1212,7 @@ void ED_unwrap_lscm(Scene *scene, Object *obedit, const short sel)
 	if (use_subsurf)
 		handle = construct_param_handle_subsurfed(scene, obedit, fill_holes, sel, correct_aspect, use_mirror);
 	else
-		handle = construct_param_handle(scene, em, 0, fill_holes, sel, correct_aspect, use_mirror);
+		handle = construct_param_handle(scene, obedit, 0, fill_holes, sel, correct_aspect, use_mirror);
 
 	param_lscm_begin(handle, PARAM_FALSE, scene->toolsettings->unwrapper == 0);
 	param_lscm_solve(handle);

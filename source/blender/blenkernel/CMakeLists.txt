@@ -107,6 +107,7 @@ set(SRC
 	intern/mball.c
 	intern/mesh.c
 	intern/mesh_validate.c
+	intern/mirror.c
 	intern/modifier.c
 	intern/modifiers_bmesh.c
 	intern/movieclip.c
@@ -195,6 +196,7 @@ set(SRC
 	BKE_material.h
 	BKE_mball.h
 	BKE_mesh.h
+	BKE_mirror.h
 	BKE_modifier.h
 	BKE_movieclip.h
 	BKE_multires.h
