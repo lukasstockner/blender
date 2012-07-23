@@ -213,12 +213,14 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
                                            short correct_aspect, short mirrored)
 {
 	DerivedMesh *init_derived, *mirr_derived;
-	int tot_faces;
+	int tot_faces, tot_edges;
 	int *orig_verts;
+	int *orig_edges;
 	int *orig_faces;
 	MPoly *face_array;
 	MVert *vert_array;
 	MLoop *loop_array;
+	MEdge *edge_array;
 	BMEditMesh *em;
 	ScanFillContext sf_ctx;
 	ParamHandle *handle;
@@ -265,15 +267,18 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 			init_derived->release(init_derived);
 
 		tot_faces = mirr_derived->getNumPolys(mirr_derived);
+		tot_edges = mirr_derived->getNumEdges(mirr_derived);
 		orig_verts = CustomData_get_layer(&mirr_derived->vertData, CD_ORIGINDEX);
 		orig_faces = CustomData_get_layer(&mirr_derived->polyData, CD_ORIGINDEX);
+		orig_edges = CustomData_get_layer(&mirr_derived->edgeData, CD_ORIGINDEX);
 		face_array = mirr_derived->getPolyArray(mirr_derived);
 		loop_array = mirr_derived->getLoopArray(mirr_derived);
 		vert_array = mirr_derived->getVertArray(mirr_derived);
+		edge_array = mirr_derived->getEdgeArray(mirr_derived);
 	} else {
 		tot_faces = em->bm->totface;
 	}
-	EDBM_index_arrays_init(em, 0, 0, 1);
+	EDBM_index_arrays_init(em, 0, 1, 1);
 
 	BLI_srand(0);
 	
@@ -429,20 +434,32 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 	}
 
 	if (!implicit) {
-		BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
-			if (BM_elem_flag_test(eed, BM_ELEM_SEAM)) {
-				ParamKey vkeys[2];
-				vkeys[0] = (ParamKey)BM_elem_index_get(eed->v1);
-				vkeys[1] = (ParamKey)BM_elem_index_get(eed->v2);
-				param_edge_set_seam(handle, vkeys);
+		if(!mirrored) {
+			BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
+				if (BM_elem_flag_test(eed, BM_ELEM_SEAM)) {
+					ParamKey vkeys[2];
+					vkeys[0] = (ParamKey)BM_elem_index_get(eed->v1);
+					vkeys[1] = (ParamKey)BM_elem_index_get(eed->v2);
+					param_edge_set_seam(handle, vkeys);
+				}
+			}
+		} else {
+			for (fi = 0; fi < tot_edges; fi++) {
+				eed = EDBM_edge_at_index(em, orig_edges[fi]);
+				if (BM_elem_flag_test(eed, BM_ELEM_SEAM)) {
+					ParamKey vkeys[2];
+					vkeys[0] = (ParamKey)edge_array[fi].v1;
+					vkeys[1] = (ParamKey)edge_array[fi].v2;
+					param_edge_set_seam(handle, vkeys);
+				}
 			}
 		}
 	}
 
 	if(mirrored)
 		mirr_derived->release(mirr_derived);
-	else
-		EDBM_index_arrays_free(em);
+
+	EDBM_index_arrays_free(em);
 
 	param_construct_end(handle, fill, implicit);
 
