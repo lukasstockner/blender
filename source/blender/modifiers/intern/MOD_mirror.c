@@ -43,6 +43,8 @@
 
 #include "depsgraph_private.h"
 
+#include <stddef.h>
+
 static void initData(ModifierData *md)
 {
 	MirrorModifierData *mmd = (MirrorModifierData *) md;
