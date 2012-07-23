@@ -113,7 +113,7 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_ICanvas* canvas, int storage)
 	hinterlace_mask[32] = 0;
 
 	m_prevafvalue = GPU_get_anisotropic();
-
+	
 	if (m_storage_type == RAS_VBO /*|| m_storage_type == RAS_AUTO_STORAGE && GLEW_ARB_vertex_buffer_object*/)
 	{
 		m_storage = new RAS_StorageVBO(&m_texco_num, m_texco, &m_attrib_num, m_attrib);
@@ -159,13 +159,13 @@ bool RAS_OpenGLRasterizer::Init()
 	glDisable(GL_ALPHA_TEST);
 
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-#include FAKE_GL_MODE
+
 	//m_last_alphablend = GPU_BLEND_SOLID;
 	GPU_set_material_alpha_blend(GPU_BLEND_SOLID);
 
 	glFrontFace(GL_CCW);
 	m_last_frontface = true;
-
+#include FAKE_GL_MODE
 	m_redback = 0.4375;
 	m_greenback = 0.4375;
 	m_blueback = 0.4375;
@@ -302,9 +302,10 @@ void RAS_OpenGLRasterizer::Exit()
 {
 
 	m_storage->Exit();
-
+#include REAL_GL_MODE
 	glEnable(GL_CULL_FACE);
 	glEnable(GL_DEPTH_TEST);
+#include FAKE_GL_MODE
 	glClearDepth(1.0); 
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 	glClearColor(m_redback, m_greenback, m_blueback, m_alphaback);
@@ -343,13 +344,13 @@ bool RAS_OpenGLRasterizer::BeginFrame(int drawingmode, double time)
 
 	glDisable(GL_BLEND);
 	glDisable(GL_ALPHA_TEST);
-#include FAKE_GL_MODE
+
 	//m_last_alphablend = GPU_BLEND_SOLID;
 	GPU_set_material_alpha_blend(GPU_BLEND_SOLID);
 
 	glFrontFace(GL_CCW);
 	m_last_frontface = true;
-
+#include FAKE_GL_MODE
 	glShadeModel(GL_SMOOTH);
 
 	glEnable(GL_MULTISAMPLE_ARB);
@@ -363,12 +364,14 @@ bool RAS_OpenGLRasterizer::BeginFrame(int drawingmode, double time)
 
 void RAS_OpenGLRasterizer::SetDrawingMode(int drawingmode)
 {
+#include REAL_GL_MODE
 	m_drawingmode = drawingmode;
 
 	if (m_drawingmode == KX_WIREFRAME)
 		glDisable(GL_CULL_FACE);
 
 	m_storage->SetDrawingMode(drawingmode);
+#include FAKE_GL_MODE
 }
 
 int RAS_OpenGLRasterizer::GetDrawingMode()
@@ -706,7 +709,7 @@ void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot& ms,
 
 				// find the right opengl attribute
 				glattrib = -1;
-				if (GLEW_ARB_vertex_program)
+				if (GPU_EXT_GLSL_VERTEX_ENABLED)
 					for (unit=0; unit<m_attrib_num; unit++)
 						if (m_attrib[unit] == RAS_TEXCO_UV)
 							glattrib = unit;
@@ -752,6 +755,7 @@ void RAS_OpenGLRasterizer::SetAttrib(TexCoGen coords, int unit)
 
 void RAS_OpenGLRasterizer::IndexPrimitives(RAS_MeshSlot& ms)
 {
+	gpuMatrixCommit();
 	if (ms.m_pDerivedMesh)
 		m_failsafe_storage->IndexPrimitives(ms);
 	else
@@ -760,6 +764,7 @@ void RAS_OpenGLRasterizer::IndexPrimitives(RAS_MeshSlot& ms)
 
 void RAS_OpenGLRasterizer::IndexPrimitivesMulti(RAS_MeshSlot& ms)
 {
+	gpuMatrixCommit();
 	if (ms.m_pDerivedMesh)
 		m_failsafe_storage->IndexPrimitivesMulti(ms);
 	else
@@ -976,10 +981,12 @@ bool RAS_OpenGLRasterizer::GetCameraOrtho()
 
 void RAS_OpenGLRasterizer::SetCullFace(bool enable)
 {
+#include REAL_GL_MODE
 	if (enable)
 		glEnable(GL_CULL_FACE);
 	else
 		glDisable(GL_CULL_FACE);
+#include FAKE_GL_MODE
 }
 
 void RAS_OpenGLRasterizer::SetLines(bool enable)
@@ -1058,7 +1065,7 @@ void RAS_OpenGLRasterizer::SetAlphaBlend(int alphablend)
 {
 	GPU_set_material_alpha_blend(alphablend);
 }
-
+#include REAL_GL_MODE
 void RAS_OpenGLRasterizer::SetFrontFace(bool ccw)
 {
 	if (m_last_frontface == ccw)
