@@ -57,6 +57,11 @@ public:
 	int particle_id;
 	vector<Particle> particles;
 
+	/* Voxel / 3D volume data */
+	bool use_volume;
+	int3 resolution;
+	vector<float3> grid;
+
 	Object();
 	~Object();
 

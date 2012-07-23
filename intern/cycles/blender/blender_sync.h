@@ -90,6 +90,7 @@ private:
 	/* util */
 	void find_shader(BL::ID id, vector<uint>& used_shaders, int default_shader);
 	bool BKE_object_is_modified(BL::Object b_ob);
+	bool BKE_modifiers_isSmokeEnabled(BL::Object b_ob);
 	bool object_is_mesh(BL::Object b_ob);
 	bool object_is_light(BL::Object b_ob);
 	bool object_use_particles(BL::Object b_ob);
