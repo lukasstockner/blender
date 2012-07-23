@@ -390,43 +390,52 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 		else {
 			/* ngon - scanfill time! */
 			BLI_scanfill_begin(&sf_ctx);
+			sf_vert_first = sf_vert_last = NULL;
+			BM_ITER_ELEM_INDEX (l, &liter, efa, BM_LOOPS_OF_FACE, j) {
+				int i;
 
-			if (mirrored) {
-				sf_vert_first = sf_vert_last = NULL;
-				BM_ITER_ELEM_INDEX (l, &liter, efa, BM_LOOPS_OF_FACE, j) {
-					int i;
+				if (mirrored) {
 					int vert_index = loop_array[poly->loopstart + j].v;
-
 					sf_vert = BLI_scanfill_vert_add(&sf_ctx, vert_array[vert_index].co);
-
-					/* add small random offset */
-					for (i = 0; i < 3; i++) {
-						sf_vert->co[i] += (BLI_frand() - 0.5f) * FLT_EPSILON * 50;
-					}
-
 					sf_vert->tmp.u = vert_index;
-
-					if (sf_vert_last) {
-						BLI_scanfill_edge_add(&sf_ctx, sf_vert_last, sf_vert);
-					}
-
-					sf_vert_last = sf_vert;
-					if (!sf_vert_first)
-						sf_vert_first = sf_vert;
+				} else {
+					sf_vert = BLI_scanfill_vert_add(&sf_ctx, l->v->co);
+					sf_vert->tmp.p = l;
+				}
+				/* add small random offset */
+				for (i = 0; i < 3; i++) {
+					sf_vert->co[i] += (BLI_frand() - 0.5f) * FLT_EPSILON * 50;
 				}
 
-				BLI_scanfill_edge_add(&sf_ctx, sf_vert_first, sf_vert);
+				if (sf_vert_last) {
+					BLI_scanfill_edge_add(&sf_ctx, sf_vert_last, sf_vert);
+				}
 
-				BLI_scanfill_calc_ex(&sf_ctx, TRUE, efa->no);
-				for (sf_tri = sf_ctx.fillfacebase.first; sf_tri; sf_tri = sf_tri->next) {
-					int tri_indices[3];
+				sf_vert_last = sf_vert;
+				if (!sf_vert_first)
+					sf_vert_first = sf_vert;
+			}
 
+			BLI_scanfill_edge_add(&sf_ctx, sf_vert_first, sf_vert);
+
+			BLI_scanfill_calc_ex(&sf_ctx, TRUE, efa->no);
+			for (sf_tri = sf_ctx.fillfacebase.first; sf_tri; sf_tri = sf_tri->next) {
+				int tri_indices[3];
+
+				if (mirrored) {
 					tri_indices[0] = sf_tri->v1->tmp.u;
 					tri_indices[1] = sf_tri->v2->tmp.u;
 					tri_indices[2] = sf_tri->v3->tmp.u;
+				} else {
+					ls[0] = sf_tri->v1->tmp.p;
+					ls[1] = sf_tri->v2->tmp.p;
+					ls[2] = sf_tri->v3->tmp.p;
+				}
 
-					for (i = 0; i < 3; i++) {
-						MLoopUV *luv;
+				for (i = 0; i < 3; i++) {
+					MLoopUV *luv;
+
+					if (mirrored) {
 						int vert_index = tri_indices[i];
 						int orig_index = orig_verts[vert_index];
 
@@ -454,52 +463,17 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 							pin[i] = (luv->flag & MLOOPUV_PINNED) != 0;
 							select[i] = uvedit_uv_select_test(em, scene, tmpl) != 0;
 						}
-					}
-
-					param_face_add(handle, key, 3, vkeys, co, uv, pin, select, &tf->unwrap);
-				}
-			} else {
-				sf_vert_first = sf_vert_last = NULL;
-				BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-					int i;
-
-					sf_vert = BLI_scanfill_vert_add(&sf_ctx, l->v->co);
-
-					/* add small random offset */
-					for (i = 0; i < 3; i++) {
-						sf_vert->co[i] += (BLI_frand() - 0.5f) * FLT_EPSILON * 50;
-					}
-
-					sf_vert->tmp.p = l;
-					
-					if (sf_vert_last) {
-						BLI_scanfill_edge_add(&sf_ctx, sf_vert_last, sf_vert);
-					}
-					
-					sf_vert_last = sf_vert;
-					if (!sf_vert_first)
-						sf_vert_first = sf_vert;
-				}
-				
-				BLI_scanfill_edge_add(&sf_ctx, sf_vert_first, sf_vert);
-				
-				BLI_scanfill_calc_ex(&sf_ctx, TRUE, efa->no);
-				for (sf_tri = sf_ctx.fillfacebase.first; sf_tri; sf_tri = sf_tri->next) {
-					ls[0] = sf_tri->v1->tmp.p;
-					ls[1] = sf_tri->v2->tmp.p;
-					ls[2] = sf_tri->v3->tmp.p;
-					
-					for (i = 0; i < 3; i++) {
-						MLoopUV *luv = CustomData_bmesh_get(&em->bm->ldata, ls[i]->head.data, CD_MLOOPUV);
+					} else {
+						luv = CustomData_bmesh_get(&em->bm->ldata, ls[i]->head.data, CD_MLOOPUV);
 						vkeys[i] = (ParamKey)BM_elem_index_get(ls[i]->v);
 						co[i] = ls[i]->v->co;
 						uv[i] = luv->uv;
 						pin[i] = (luv->flag & MLOOPUV_PINNED) != 0;
 						select[i] = uvedit_uv_select_test(em, scene, ls[i]) != 0;
 					}
-					
-					param_face_add(handle, key, 3, vkeys, co, uv, pin, select, &tf->unwrap);
 				}
+
+				param_face_add(handle, key, 3, vkeys, co, uv, pin, select, &tf->unwrap);
 			}
 
 			BLI_scanfill_end(&sf_ctx);
