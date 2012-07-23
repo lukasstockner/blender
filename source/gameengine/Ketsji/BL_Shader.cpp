@@ -293,6 +293,8 @@ bool BL_Shader::LinkProgram()
 	"uniform mat4 b_ModelViewMatrix ;	\n"
 	"uniform mat3 b_NormalMatrix ;	\n"
 	
+	"#define gl_ModelViewProjectionMatrix (gl_ProjectionMatrix * gl_ModelViewMatrix)\n"
+	
 	"attribute vec4 b_Vertex;	\n"
 	"attribute vec3 b_Normal;	\n"
 		
@@ -331,8 +333,18 @@ bool BL_Shader::LinkProgram()
 	}
 
 	// -- fragment shader ----------------
+#ifdef GLES	
+	src[0] = ""
+	"#define B_GLES\n"
+	"precision mediump float;		\n"
+	;
+#else
+	src[0] = "";
+#endif
+	src[1] = fragProg;
+	
 	tmpFrag = gpuCreateShader(GL_FRAGMENT_SHADER);
-	gpuShaderSource(tmpFrag, 1,(const char**)&fragProg, 0);
+	gpuShaderSource(tmpFrag, 2,(const char**)src, 0);
 	gpuCompileShader(tmpFrag);
 	gpuGetShaderiv(tmpFrag, GL_INFO_LOG_LENGTH, (GLint*) &fraglen);
 	if (fraglen >0 && fraglen < MAX_LOG_LEN) {
@@ -631,7 +643,7 @@ int BL_Shader::GetUniformLocation(const STR_String& name)
 		)
 	{
 		MT_assert(mShader!=0);
-		int location = glGetUniformLocationARB(mShader, name.ReadPtr());
+		int location = gpuGetUniformLocation(mShader, name.ReadPtr());
 		if (location == -1)
 			spit("Invalid uniform value: " << name.ReadPtr() << ".");
 		return location;
