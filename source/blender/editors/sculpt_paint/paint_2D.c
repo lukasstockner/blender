@@ -322,8 +322,6 @@ int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float p
 
 	BKE_brush_randomize_size(brush);
 
-	print_v2("mouse"__FILE__, pos);
-
 	if (pressure == 0.0f) {
 		if (painter->lastpressure) // XXX - hack, operator misses
 			pressure = painter->lastpressure;

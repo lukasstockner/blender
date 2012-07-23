@@ -292,7 +292,8 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 		BMLoop *ls[3];
 		float *co[4];
 		float *uv[4];
-		int i, lsel, len;
+		int i, j, lsel, len;
+		int is_mirror = FALSE;
 
 		if (mirrored) {
 			poly = face_array + fi;
@@ -325,49 +326,52 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 
 		tf = CustomData_bmesh_get(&em->bm->pdata, efa->head.data, CD_MTEXPOLY);
 
+		/* determine if poly is mirrored */
+		if(mirrored)
+			for (j = 0; j < poly->totloop; j++)
+				if(orig_verts[loop_array[poly->loopstart + j].v] == ORIGINDEX_NONE) {
+					is_mirror = TRUE;
+					break;
+				}
+
+
 		if (len == 3 || len == 4) {
 			/* for quads let parametrize split, it can make better decisions
 			 * about which split is best for unwrapping than scanfill */
 				BM_ITER_ELEM_INDEX (l, &liter, efa, BM_LOOPS_OF_FACE, i) {
 					MLoopUV *luv;
 					if (mirrored) {
-						int orig_index = orig_verts[loop_array[poly->loopstart + i].v];
+						int vert_index = loop_array[poly->loopstart + i].v;
+						int orig_index = orig_verts[vert_index];
 
-						BMLoop *tmpl;
-						BMIter liter2;
-						int itmp;
-						int is_mirror;
-
-						for (itmp = 0; itmp < poly->totloop; itmp++)
-							if(orig_verts[loop_array[poly->loopstart + itmp].v] == ORIGINDEX_NONE)
-								is_mirror = TRUE;
-
-						vkeys[i] = (ParamKey)loop_array[poly->loopstart + i].v;
+						vkeys[i] = (ParamKey)vert_index;
+						co[i] = vert_array[vert_index].co;
 
 						if(!is_mirror) {
 							luv = CustomData_bmesh_get(&em->bm->ldata, l->head.data, CD_MLOOPUV);
 
-							co[i] = l->v->co;
 							uv[i] = luv->uv;
 							pin[i] = (luv->flag & MLOOPUV_PINNED) != 0;
 							select[i] = uvedit_uv_select_test(em, scene, l) != 0;
 						} else {
 							if (orig_index != ORIGINDEX_NONE) {
-								BM_ITER_ELEM_INDEX (tmpl, &liter2, efa, BM_LOOPS_OF_FACE, itmp)
+								BMLoop *tmpl;
+								BMIter liter2;
+
+								BM_ITER_ELEM (tmpl, &liter2, efa, BM_LOOPS_OF_FACE) {
 									if (BM_elem_index_get(tmpl->v) == orig_index)
 										break;
+								}
 
 								luv = CustomData_bmesh_get(&em->bm->ldata, tmpl->head.data, CD_MLOOPUV);
 
-								co[i] = tmpl->v->co;
-								uv[i] = luv->uv;
+								uv[i] = NULL;
 								pin[i] = (luv->flag & MLOOPUV_PINNED) != 0;
 								select[i] = uvedit_uv_select_test(em, scene, tmpl) != 0;
 							} else {
-								co[i] = vert_array[loop_array[poly->loopstart + i].v].co;
 								uv[i] = NULL;
 								pin[i] = FALSE;
-								select[i] = FALSE;
+								select[i] = TRUE;
 							}
 						}
 					} else {
@@ -386,47 +390,116 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 		else {
 			/* ngon - scanfill time! */
 			BLI_scanfill_begin(&sf_ctx);
-			
-			sf_vert_first = sf_vert_last = NULL;
-			BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-				int i;
-				
-				sf_vert = BLI_scanfill_vert_add(&sf_ctx, l->v->co);
-				
-				/* add small random offset */
-				for (i = 0; i < 3; i++) {
-					sf_vert->co[i] += (BLI_frand() - 0.5f) * FLT_EPSILON * 50;
-				}
-				
-				sf_vert->tmp.p = l;
 
-				if (sf_vert_last) {
-					BLI_scanfill_edge_add(&sf_ctx, sf_vert_last, sf_vert);
-				}
+			if (mirrored) {
+				sf_vert_first = sf_vert_last = NULL;
+				BM_ITER_ELEM_INDEX (l, &liter, efa, BM_LOOPS_OF_FACE, j) {
+					int i;
+					int vert_index = loop_array[poly->loopstart + j].v;
 
-				sf_vert_last = sf_vert;
-				if (!sf_vert_first)
-					sf_vert_first = sf_vert;
-			}
+					sf_vert = BLI_scanfill_vert_add(&sf_ctx, vert_array[vert_index].co);
 
-			BLI_scanfill_edge_add(&sf_ctx, sf_vert_first, sf_vert);
+					/* add small random offset */
+					for (i = 0; i < 3; i++) {
+						sf_vert->co[i] += (BLI_frand() - 0.5f) * FLT_EPSILON * 50;
+					}
 
-			BLI_scanfill_calc_ex(&sf_ctx, TRUE, efa->no);
-			for (sf_tri = sf_ctx.fillfacebase.first; sf_tri; sf_tri = sf_tri->next) {
-				ls[0] = sf_tri->v1->tmp.p;
-				ls[1] = sf_tri->v2->tmp.p;
-				ls[2] = sf_tri->v3->tmp.p;
+					sf_vert->tmp.u = vert_index;
 
-				for (i = 0; i < 3; i++) {
-					MLoopUV *luv = CustomData_bmesh_get(&em->bm->ldata, ls[i]->head.data, CD_MLOOPUV);
-					vkeys[i] = (ParamKey)BM_elem_index_get(ls[i]->v);
-					co[i] = ls[i]->v->co;
-					uv[i] = luv->uv;
-					pin[i] = (luv->flag & MLOOPUV_PINNED) != 0;
-					select[i] = uvedit_uv_select_test(em, scene, ls[i]) != 0;
+					if (sf_vert_last) {
+						BLI_scanfill_edge_add(&sf_ctx, sf_vert_last, sf_vert);
+					}
+
+					sf_vert_last = sf_vert;
+					if (!sf_vert_first)
+						sf_vert_first = sf_vert;
 				}
 
-				param_face_add(handle, key, 3, vkeys, co, uv, pin, select, &tf->unwrap);
+				BLI_scanfill_edge_add(&sf_ctx, sf_vert_first, sf_vert);
+
+				BLI_scanfill_calc_ex(&sf_ctx, TRUE, efa->no);
+				for (sf_tri = sf_ctx.fillfacebase.first; sf_tri; sf_tri = sf_tri->next) {
+					int tri_indices[3];
+
+					tri_indices[0] = sf_tri->v1->tmp.u;
+					tri_indices[1] = sf_tri->v2->tmp.u;
+					tri_indices[2] = sf_tri->v3->tmp.u;
+
+					for (i = 0; i < 3; i++) {
+						MLoopUV *luv;
+						int vert_index = tri_indices[i];
+						int orig_index = orig_verts[vert_index];
+
+						vkeys[i] = (ParamKey)vert_index;
+						co[i] = vert_array[vert_index].co;
+
+						if (is_mirror && orig_index == ORIGINDEX_NONE) {
+							uv[i] = NULL;
+							pin[i] = FALSE;
+							select[i] = TRUE;
+						} else {
+							BMLoop *tmpl;
+							BMIter liter2;
+
+							BM_ITER_ELEM (tmpl, &liter2, efa, BM_LOOPS_OF_FACE) {
+								if (BM_elem_index_get(tmpl->v) == orig_index)
+									break;
+							}
+
+							luv = CustomData_bmesh_get(&em->bm->ldata, tmpl->head.data, CD_MLOOPUV);
+							if(is_mirror)
+								uv[i] = NULL;
+							else
+								uv[i] = luv->uv;
+							pin[i] = (luv->flag & MLOOPUV_PINNED) != 0;
+							select[i] = uvedit_uv_select_test(em, scene, tmpl) != 0;
+						}
+					}
+
+					param_face_add(handle, key, 3, vkeys, co, uv, pin, select, &tf->unwrap);
+				}
+			} else {
+				sf_vert_first = sf_vert_last = NULL;
+				BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
+					int i;
+
+					sf_vert = BLI_scanfill_vert_add(&sf_ctx, l->v->co);
+
+					/* add small random offset */
+					for (i = 0; i < 3; i++) {
+						sf_vert->co[i] += (BLI_frand() - 0.5f) * FLT_EPSILON * 50;
+					}
+
+					sf_vert->tmp.p = l;
+					
+					if (sf_vert_last) {
+						BLI_scanfill_edge_add(&sf_ctx, sf_vert_last, sf_vert);
+					}
+					
+					sf_vert_last = sf_vert;
+					if (!sf_vert_first)
+						sf_vert_first = sf_vert;
+				}
+				
+				BLI_scanfill_edge_add(&sf_ctx, sf_vert_first, sf_vert);
+				
+				BLI_scanfill_calc_ex(&sf_ctx, TRUE, efa->no);
+				for (sf_tri = sf_ctx.fillfacebase.first; sf_tri; sf_tri = sf_tri->next) {
+					ls[0] = sf_tri->v1->tmp.p;
+					ls[1] = sf_tri->v2->tmp.p;
+					ls[2] = sf_tri->v3->tmp.p;
+					
+					for (i = 0; i < 3; i++) {
+						MLoopUV *luv = CustomData_bmesh_get(&em->bm->ldata, ls[i]->head.data, CD_MLOOPUV);
+						vkeys[i] = (ParamKey)BM_elem_index_get(ls[i]->v);
+						co[i] = ls[i]->v->co;
+						uv[i] = luv->uv;
+						pin[i] = (luv->flag & MLOOPUV_PINNED) != 0;
+						select[i] = uvedit_uv_select_test(em, scene, ls[i]) != 0;
+					}
+					
+					param_face_add(handle, key, 3, vkeys, co, uv, pin, select, &tf->unwrap);
+				}
 			}
 
 			BLI_scanfill_end(&sf_ctx);
@@ -475,7 +548,7 @@ static void texface_from_original_index(BMFace *efa, int index, float **uv, Para
 
 	*uv = NULL;
 	*pin = 0;
-	*select = 1;
+	*select = TRUE;
 
 	if (index == ORIGINDEX_NONE)
 		return;
