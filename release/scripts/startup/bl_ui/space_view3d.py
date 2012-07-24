@@ -2704,9 +2704,9 @@ class VIEW3D_PT_floating_controls(Panel):
         view = context.space_data
         tools = context.tool_settings
 
-        if bpy.context.user_preferences.edit.floating_controls == 'BOTTOM' or bpy.context.user_preferences.edit.floating_controls == 'TOP':
+        if bpy.context.user_preferences.view.floating_controls == 'BOTTOM' or bpy.context.user_preferences.view.floating_controls == 'TOP':
             layout = self.layout
-            if bpy.context.user_preferences.edit.floating_controls == 'BOTTOM':
+            if bpy.context.user_preferences.view.floating_controls == 'BOTTOM':
 	            layout.alignment = 'BOTTOM'
 
             row = layout.row(align=True)
@@ -2740,11 +2740,11 @@ class VIEW3D_PT_floating_controls(Panel):
                 props = row.operator("mesh.selection_mode_set", text="", icon='FACESEL')
                 props.mode='FACE'
 
-        elif bpy.context.user_preferences.edit.floating_controls == 'LEFT' or bpy.context.user_preferences.edit.floating_controls == 'RIGHT':
+        elif bpy.context.user_preferences.view.floating_controls == 'LEFT' or bpy.context.user_preferences.view.floating_controls == 'RIGHT':
             layout = self.layout
 
             row = layout.row()
-            if bpy.context.user_preferences.edit.floating_controls == 'RIGHT':
+            if bpy.context.user_preferences.view.floating_controls == 'RIGHT':
 	            row.alignment = 'RIGHT'
 
             column = row.column(align=True)
