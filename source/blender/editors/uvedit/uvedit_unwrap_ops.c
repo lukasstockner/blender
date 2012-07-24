@@ -1367,11 +1367,20 @@ void ED_unwrap_lscm(Scene *scene, Object *obedit, const short sel)
 	param_lscm_end(handle);
 
 	param_average(handle);
-	param_pack(handle, scene->toolsettings->uvcalc_margin);
+	if(!use_mirror)
+		param_pack(handle, scene->toolsettings->uvcalc_margin);
 
 	param_flush(handle);
 
 	param_delete(handle);
+
+	/* we need to repack properly to discard mirrored faces */
+	if(use_mirror) {
+		handle = construct_param_handle(scene, obedit, 0, 0, 1, 1, 0);
+		param_pack(handle, scene->toolsettings->uvcalc_margin);
+		param_flush(handle);
+		param_delete(handle);
+	}
 }
 
 static int unwrap_exec(bContext *C, wmOperator *op)
