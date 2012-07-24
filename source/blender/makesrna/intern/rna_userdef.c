@@ -2437,6 +2437,15 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 	
+	static EnumPropertyItem floating_control_modes[] = {
+		{USER_FLOATING_CONTROLS_OFF, "OFF", 0, "Off", ""},
+		{USER_FLOATING_CONTROLS_TOP, "TOP", 0, "Top", ""},
+		{USER_FLOATING_CONTROLS_LEFT, "LEFT", 0, "Left", ""},
+		{USER_FLOATING_CONTROLS_BOTTOM, "BOTTOM", 0, "Bottom", ""},
+		{USER_FLOATING_CONTROLS_RIGHT, "RIGHT", 0, "Right", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	PropertyRNA *prop;
 	StructRNA *srna;
 	
@@ -2643,6 +2652,11 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "TimeCode Style",
 	                         "Format of Time Codes displayed when not displaying timing in terms of frames");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "floating_controls", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, floating_control_modes);
+	RNA_def_property_ui_text(prop, "", "Position of the floating controls in the 3D view");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 }
 
 static void rna_def_userdef_edit(BlenderRNA *brna)
@@ -2666,15 +2680,6 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
 	static const EnumPropertyItem object_align_items[] = {
 		{0, "WORLD", 0, "World", "Align newly added objects to the world coordinate system"},
 		{USER_ADD_VIEWALIGNED, "VIEW", 0, "View", "Align newly added objects facing the active 3D View direction"},
-		{0, NULL, 0, NULL, NULL}
-	};
-
-	static EnumPropertyItem floating_control_modes[] = {
-		{USER_FLOATING_CONTROLS_OFF, "OFF", 0, "Off", ""},
-		{USER_FLOATING_CONTROLS_TOP, "TOP", 0, "Top", ""},
-		{USER_FLOATING_CONTROLS_LEFT, "LEFT", 0, "Left", ""},
-		{USER_FLOATING_CONTROLS_BOTTOM, "BOTTOM", 0, "Bottom", ""},
-		{USER_FLOATING_CONTROLS_RIGHT, "RIGHT", 0, "Right", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -2868,11 +2873,6 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_duplicate_particle", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "dupflag", USER_DUP_PSYS);
 	RNA_def_property_ui_text(prop, "Duplicate Particle", "Causes particle systems to be duplicated with the object");
-
-	prop = RNA_def_property(srna, "floating_controls", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_items(prop, floating_control_modes);
-	RNA_def_property_ui_text(prop, "", "Position of the floating controls in the 3D view");
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 }
 
 static void rna_def_userdef_system(BlenderRNA *brna)

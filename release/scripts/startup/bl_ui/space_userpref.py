@@ -183,6 +183,8 @@ class USERPREF_PT_interface(Panel):
         col.separator()
         col.separator()
 
+        col.label(text="3D view floating controls:")
+        col.prop(view, "floating_controls")
         col.prop(view, "show_mini_axis", text="Display Mini Axis")
         sub = col.column()
         sub.active = view.show_mini_axis
@@ -294,8 +296,6 @@ class USERPREF_PT_edit(Panel):
         row.separator()
 
         col = row.column()
-        col.label(text="3D view floating controls:")
-        col.prop(edit, "floating_controls")
         col.label(text="Grease Pencil:")
         col.prop(edit, "grease_pencil_manhattan_distance", text="Manhattan Distance")
         col.prop(edit, "grease_pencil_euclidean_distance", text="Euclidean Distance")
