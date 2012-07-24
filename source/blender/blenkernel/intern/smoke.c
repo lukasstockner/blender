@@ -152,7 +152,6 @@ void smoke_initWaveletBlenderRNA(struct WTURBULENCE *UNUSED(wt), float *UNUSED(s
 void smoke_initBlenderRNA(struct FLUID_3D *UNUSED(fluid), float *UNUSED(alpha), float *UNUSED(beta), float *UNUSED(dt_factor), float *UNUSED(vorticity),
 						  int *UNUSED(border_colli), float *UNUSED(burning_rate), float *UNUSED(flame_smoke), float *UNUSED(flame_smoke_color),
 						  float *UNUSED(flame_vorticity), float *UNUSED(flame_ignition_temp), float *UNUSED(flame_max_temp)) {}
-long long smoke_get_mem_req(int UNUSED(xres), int UNUSED(yres), int UNUSED(zres), int UNUSED(amplify)) { return 0; }
 void smokeModifier_do(SmokeModifierData *UNUSED(smd), Scene *UNUSED(scene), Object *UNUSED(ob), DerivedMesh *UNUSED(dm)) {}
 
 #endif /* WITH_SMOKE */
@@ -161,9 +160,9 @@ void smokeModifier_do(SmokeModifierData *UNUSED(smd), Scene *UNUSED(scene), Obje
 
 void smoke_reallocate_fluid(SmokeDomainSettings *sds, float dx, int res[3], int free_old)
 {
-	int use_heat = (sds->active_fields & SM_SIMULATE_HEAT);
-	int use_fire = (sds->active_fields & (SM_SIMULATE_HEAT|SM_SIMULATE_FIRE));
-	int use_colors = (sds->active_fields & SM_SIMULATE_COLORS);
+	int use_heat = (sds->active_fields & SM_ACTIVE_HEAT);
+	int use_fire = (sds->active_fields & (SM_ACTIVE_HEAT|SM_ACTIVE_FIRE));
+	int use_colors = (sds->active_fields & SM_ACTIVE_COLORS);
 
 	if (free_old && sds->fluid)
 		smoke_free(sds->fluid);
@@ -183,8 +182,8 @@ void smoke_reallocate_fluid(SmokeDomainSettings *sds, float dx, int res[3], int 
 
 void smoke_reallocate_highres_fluid(SmokeDomainSettings *sds, float dx, int res[3], int free_old)
 {
-	int use_fire = (sds->active_fields & (SM_SIMULATE_HEAT|SM_SIMULATE_FIRE));
-	int use_colors = (sds->active_fields & SM_SIMULATE_COLORS);
+	int use_fire = (sds->active_fields & (SM_ACTIVE_HEAT|SM_ACTIVE_FIRE));
+	int use_colors = (sds->active_fields & SM_ACTIVE_COLORS);
 
 	if (free_old && sds->wt)
 		smoke_turbulence_free(sds->wt);
@@ -438,6 +437,7 @@ void smokeModifier_reset(struct SmokeModifierData *smd)
 
 			smd->time = -1;
 			smd->domain->total_cells = 0;
+			smd->domain->active_fields = 0;
 		}
 		else if(smd->flow)
 		{
@@ -506,7 +506,7 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 			smd->domain->strength = 2.0;
 			smd->domain->noise = MOD_SMOKE_NOISEWAVE;
 			smd->domain->diss_speed = 5;
-			smd->domain->active_fields = SM_SIMULATE_HEAT | SM_SIMULATE_FIRE | SM_SIMULATE_COLORS;
+			smd->domain->active_fields = 0;
 
 			smd->domain->adapt_margin = 4;
 			smd->domain->adapt_res = 0;
@@ -869,7 +869,7 @@ typedef struct EmissionMap {
 	float *influence;
 	float *velocity;
 	int min[3], max[3], res[3];
-	int valid;
+	int total_cells, valid;
 } EmissionMap;
 
 static void em_boundInsert(EmissionMap *em, float point[3])
@@ -912,20 +912,20 @@ static void clampBoundsInDomain(SmokeDomainSettings *sds, int min[3], int max[3]
 }
 
 static void em_allocateData(EmissionMap *em, int use_velocity) {
-	int i, res[3], total_cells;
+	int i, res[3];
 
 	for (i=0; i<3; i++) {
 		res[i] = em->max[i] - em->min[i];
 		if (res[i] <= 0)
 			return;
 	}
-	total_cells = res[0]*res[1]*res[2];
+	em->total_cells = res[0]*res[1]*res[2];
 	copy_v3_v3_int(em->res, res);
 
 
-	em->influence = MEM_callocN(sizeof(float) * total_cells, "smoke_flow_influence");
+	em->influence = MEM_callocN(sizeof(float) * em->total_cells, "smoke_flow_influence");
 	if (use_velocity)
-		em->velocity = MEM_callocN(sizeof(float) * total_cells * 3, "smoke_flow_velocity");
+		em->velocity = MEM_callocN(sizeof(float) * em->total_cells * 3, "smoke_flow_velocity");
 }
 
 static void em_freeData(EmissionMap *em) {
@@ -1463,6 +1463,7 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 	unsigned int numflowobj = 0;
 	unsigned int flowIndex;
 	int new_shift[3] = {0};
+	int active_fields = sds->active_fields;
 
 	/* calculate domain shift for current frame if using adaptive domain */
 	if (sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN) {
@@ -1521,12 +1522,63 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 			else {
 				emit_from_derivedmesh(collob, sds, sfs, em, dt);
 			}
+
+			/* update required data fields */
+			if (em->total_cells && sfs->type != MOD_SMOKE_FLOW_TYPE_OUTFLOW) {
+				/* activate heat field if flow produces any heat */
+				if (sfs->temp) {
+					active_fields |= SM_ACTIVE_HEAT;
+				}
+				/* activate fuel field if flow adds any fuel */
+				if (sfs->type != MOD_SMOKE_FLOW_TYPE_SMOKE && sfs->fuel_amount) {
+					active_fields |= SM_ACTIVE_FIRE;
+				}
+				/* activate color field if flows add smoke with varying colors */
+				if (sfs->type != MOD_SMOKE_FLOW_TYPE_FIRE && sfs->density) {
+					if (!(active_fields & SM_ACTIVE_COLOR_SET)) {
+						copy_v3_v3(sds->active_color, sfs->color);
+						active_fields |= SM_ACTIVE_COLOR_SET;
+					}
+					else if (!equals_v3v3(sds->active_color, sfs->color)) {
+						active_fields |= SM_ACTIVE_COLORS;
+					}
+				}
+			}
+		}
+	}
+
+	/* monitor active fields based on domain settings */
+	/* if domain has fire, activate new fields if required */
+	if (active_fields & SM_ACTIVE_FIRE) {
+		/* heat is always needed for fire */
+		active_fields |= SM_ACTIVE_HEAT;
+		/* also activate colors if domain smoke color differs from active color */
+		if (!(active_fields & SM_ACTIVE_COLOR_SET)) {
+			copy_v3_v3(sds->active_color, sds->flame_smoke_color);
+			active_fields |= SM_ACTIVE_COLOR_SET;
+		}
+		else if (!equals_v3v3(sds->active_color, sds->flame_smoke_color)) {
+			active_fields |= SM_ACTIVE_COLORS;
 		}
 	}
 
 	/* Adjust domain size if needed */
-	if (sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN)
+	if (sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN) {
 		adjustDomainResolution(sds, new_shift, emaps, numflowobj, dt);
+	}
+
+	/* Initialize new data fields if any */
+	if (active_fields & SM_ACTIVE_HEAT) {
+		smoke_ensure_heat(sds->fluid);
+	}
+	if (active_fields & SM_ACTIVE_FIRE) {
+		smoke_ensure_fire(sds->fluid, sds->wt);
+	}
+	if (active_fields & SM_ACTIVE_COLORS) {
+		/* initialize all smoke with "active_color" */
+		smoke_ensure_colors(sds->fluid, sds->wt, sds->active_color[0], sds->active_color[1], sds->active_color[2]);
+	}
+	sds->active_fields = active_fields;
 
 	/* Apply emission data */
 	if (sds->fluid) {
@@ -2195,24 +2247,6 @@ static float calc_voxel_transp(float *result, float *input, int res[3], int *pix
 	return *tRay;
 }
 
-long long smoke_get_mem_req(int xres, int yres, int zres, int amplify)
-{
-	int totalCells = xres * yres * zres;
-	int amplifiedCells = totalCells * amplify * amplify * amplify;
-
-	// print out memory requirements
-	long long int coarseSize = sizeof(float) * totalCells * 22 +
-	sizeof(unsigned char) * totalCells;
-
-	long long int fineSize = sizeof(float) * amplifiedCells * 7 + // big grids
-	sizeof(float) * totalCells * 8 +     // small grids
-	sizeof(float) * 128 * 128 * 128;     // noise tile
-
-	long long int totalMB = (coarseSize + fineSize) / (1024 * 1024);
-
-	return totalMB;
-}
-
 static void bresenham_linie_3D(int x1, int y1, int z1, int x2, int y2, int z2, float *tRay, bresenham_callback cb, float *result, float *input, int res[3], float correct)
 {
 	int dx, dy, dz, i, l, m, n, x_inc, y_inc, z_inc, err_1, err_2, dx2, dy2, dz2;
@@ -2427,9 +2461,9 @@ float smoke_get_velocity_at(struct Object *ob, float position[3], float velocity
 
 int smoke_get_data_flags(SmokeDomainSettings *sds) {
 	int flags = 0;
-	if (smoke_has_heat(sds->fluid)) flags |= SM_SIMULATE_HEAT;
-	if (smoke_has_fuel(sds->fluid)) flags |= SM_SIMULATE_FIRE;
-	if (smoke_has_colors(sds->fluid)) flags |= SM_SIMULATE_COLORS;
+	if (smoke_has_heat(sds->fluid)) flags |= SM_ACTIVE_HEAT;
+	if (smoke_has_fuel(sds->fluid)) flags |= SM_ACTIVE_FIRE;
+	if (smoke_has_colors(sds->fluid)) flags |= SM_ACTIVE_COLORS;
 
 	return flags;
 }

@@ -63,9 +63,10 @@
 #define SM_COLL_ANIMATED	2
 
 /* smoke data fileds (active_fields) */
-#define SM_SIMULATE_HEAT	(1<<0)
-#define SM_SIMULATE_FIRE	(1<<1)
-#define SM_SIMULATE_COLORS	(1<<2)
+#define SM_ACTIVE_HEAT		(1<<0)
+#define SM_ACTIVE_FIRE		(1<<1)
+#define SM_ACTIVE_COLORS	(1<<2)
+#define SM_ACTIVE_COLOR_SET	(1<<3)
 
 typedef struct SmokeDomainSettings {
 	struct SmokeModifierData *smd; /* for fast RNA access */
@@ -131,6 +132,8 @@ typedef struct SmokeDomainSettings {
 	float time_scale;
 	float vorticity;
 	int active_fields;
+	float active_color[3]; /* monitor color situation of simulation */
+	int pad;
 
 	/* flame parameters */
 	float burning_rate, flame_smoke, flame_vorticity;

@@ -46,9 +46,13 @@ class WTURBULENCE;
 class FLUID_3D  
 {
 	public:
-		FLUID_3D(int *res, float dx, float dtdef, int use_heat, int use_fire, int use_colors);
+		FLUID_3D(int *res, float dx, float dtdef, int init_heat, int init_fire, int init_colors);
 		FLUID_3D() {};
 		virtual ~FLUID_3D();
+
+		void initHeat();
+		void initFire();
+		void initColors(float init_r, float init_g, float init_b);
 
 		void initBlenderRNA(float *alpha, float *beta, float *dt_factor, float *vorticity, int *border_colli, float *burning_rate,
 							float *flame_smoke, float *flame_smoke_color, float *flame_vorticity, float *ignition_temp, float *max_temp);

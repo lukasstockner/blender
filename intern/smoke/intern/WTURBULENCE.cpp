@@ -51,7 +51,7 @@ static const float persistence = 0.56123f;
 //////////////////////////////////////////////////////////////////////
 // constructor
 //////////////////////////////////////////////////////////////////////
-WTURBULENCE::WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int noisetype, int use_fire, int use_colors)
+WTURBULENCE::WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int noisetype, int init_fire, int init_colors)
 {
 	// if noise magnitude is below this threshold, its contribution
 	// is negilgible, so stop evaluating new octaves
@@ -88,45 +88,23 @@ WTURBULENCE::WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int no
 	_totalStepsBig = 0;
 	_densityBig = new float[_totalCellsBig];
 	_densityBigOld = new float[_totalCellsBig];
-	if (use_fire) {
-		_flameBig = new float[_totalCellsBig];
-		_fuelBig = new float[_totalCellsBig];
-		_fuelBigOld = new float[_totalCellsBig];
-	}
-	else {
-		_flameBig = _fuelBig = _fuelBigOld = NULL;
-	}
-	if (use_colors) {
-		_color_rBig = new float[_totalCellsBig];
-		_color_rBigOld = new float[_totalCellsBig];
-		_color_gBig = new float[_totalCellsBig];
-		_color_gBigOld = new float[_totalCellsBig];
-		_color_bBig = new float[_totalCellsBig];
-		_color_bBigOld = new float[_totalCellsBig];
-	}
-	else {
-		_color_rBig = _color_rBigOld = NULL;
-		_color_gBig = _color_gBigOld = NULL;
-		_color_bBig = _color_bBigOld = NULL;
-	}
 	
 	for(int i = 0; i < _totalCellsBig; i++) {
 		_densityBig[i] = 
 		_densityBigOld[i] = 0.;
+	}
 
-		if (_fuelBig) {
-			_flameBig[i] = 
-			_fuelBig[i] = 
-			_fuelBigOld[i] = 0.;
-		}
-		if (_color_rBig) {
-			_color_rBig[i] = 
-			_color_rBigOld[i] = 
-			_color_gBig[i] = 
-			_color_gBigOld[i] = 
-			_color_bBig[i] = 
-			_color_bBigOld[i] = 0.;
-		}
+	/* fire */
+	_flameBig = _fuelBig = _fuelBigOld = NULL;
+	if (init_fire) {
+		initFire();
+	}
+	/* colors */
+	_color_rBig = _color_rBigOld = NULL;
+	_color_gBig = _color_gBigOld = NULL;
+	_color_bBig = _color_bBigOld = NULL;
+	if (init_colors) {
+		initColors(0.0f, 0.0f, 0.0f);
 	}
 	
 	// allocate & init texture coordinates
@@ -161,6 +139,42 @@ WTURBULENCE::WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int no
 	std::string noiseTileFilename = std::string("noise.fft");
 	generatTile_FFT(_noiseTile, noiseTileFilename);
 	*/
+}
+
+void WTURBULENCE::initFire()
+{
+	if (!_fuelBig) {
+		_flameBig = new float[_totalCellsBig];
+		_fuelBig = new float[_totalCellsBig];
+		_fuelBigOld = new float[_totalCellsBig];
+
+		for(int i = 0; i < _totalCellsBig; i++) {
+			_flameBig[i] = 
+			_fuelBig[i] = 
+			_fuelBigOld[i] = 0.;
+		}
+	}
+}
+
+void WTURBULENCE::initColors(float init_r, float init_g, float init_b)
+{
+	if (!_color_rBig) {
+		_color_rBig = new float[_totalCellsBig];
+		_color_rBigOld = new float[_totalCellsBig];
+		_color_gBig = new float[_totalCellsBig];
+		_color_gBigOld = new float[_totalCellsBig];
+		_color_bBig = new float[_totalCellsBig];
+		_color_bBigOld = new float[_totalCellsBig];
+
+		for(int i = 0; i < _totalCellsBig; i++) {
+			_color_rBig[i] = _densityBig[i] * init_r;
+			_color_rBigOld[i] = 0.0f;
+			_color_gBig[i] = _densityBig[i] * init_g;
+			_color_gBigOld[i] = 0.0f;
+			_color_bBig[i] = _densityBig[i] * init_b;
+			_color_bBigOld[i] = 0.0f;
+		}
+	}
 }
 
 //////////////////////////////////////////////////////////////////////

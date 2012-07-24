@@ -305,6 +305,43 @@ extern "C" void smoke_turbulence_get_rgba(WTURBULENCE *wt, float *data, int sequ
 	get_rgba(wt->_color_rBig, wt->_color_gBig, wt->_color_bBig, wt->_densityBig, wt->_totalCellsBig, data, sequential);
 }
 
+/* get a single color premultiplied voxel grid */
+static void get_rgba_from_density(float color[3], float *a, int total_cells, float *data, int sequential)
+{
+	int i;
+	int m = 4, i_g = 1, i_b = 2, i_a = 3;
+	/* sequential data */
+	if (sequential) {
+		m = 1;
+		i_g *= total_cells;
+		i_b *= total_cells;
+		i_a *= total_cells;
+	}
+
+	for (i=0; i<total_cells; i++) {
+		float alpha = a[i];
+		if (alpha) {
+			data[i*m  ] = color[0] * alpha;
+			data[i*m+i_g] = color[1] * alpha;
+			data[i*m+i_b] = color[2] * alpha;
+		}
+		else {
+			data[i*m  ] = data[i*m+i_g] = data[i*m+i_b] = 0.0f;
+		}
+		data[i*m+i_a] = alpha;
+	}
+}
+
+extern "C" void smoke_get_rgba_from_density(FLUID_3D *fluid, float color[3], float *data, int sequential)
+{
+	get_rgba_from_density(color, fluid->_density, fluid->_totalCells, data, sequential);
+}
+
+extern "C" void smoke_turbulence_get_rgba_from_density(WTURBULENCE *wt, float color[3], float *data, int sequential)
+{
+	get_rgba_from_density(color, wt->_densityBig, wt->_totalCellsBig, data, sequential);
+}
+
 extern "C" float *smoke_turbulence_get_density(WTURBULENCE *wt)
 {
 	return wt ? wt->getDensityBig() : NULL;
@@ -404,4 +441,32 @@ extern "C" int smoke_turbulence_has_fuel(WTURBULENCE *wt)
 extern "C" int smoke_turbulence_has_colors(WTURBULENCE *wt)
 {
 	return (wt->_color_rBig && wt->_color_gBig && wt->_color_bBig) ? 1 : 0;
+}
+
+/* additional field initialization */
+extern "C" void smoke_ensure_heat(FLUID_3D *fluid)
+{
+	if (fluid) {
+		fluid->initHeat();
+	}
+}
+
+extern "C" void smoke_ensure_fire(FLUID_3D *fluid, WTURBULENCE *wt)
+{
+	if (fluid) {
+		fluid->initFire();
+	}
+	if (wt) {
+		wt->initFire();
+	}
+}
+
+extern "C" void smoke_ensure_colors(FLUID_3D *fluid, WTURBULENCE *wt, float init_r, float init_g, float init_b)
+{
+	if (fluid) {
+		fluid->initColors(init_r, init_g, init_b);
+	}
+	if (wt) {
+		wt->initColors(init_r, init_g, init_b);
+	}
 }

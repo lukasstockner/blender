@@ -36,10 +36,13 @@ class WTURBULENCE
 {
 	public:
 		// both config files can be NULL, altCfg might override values from noiseCfg
-		WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int noisetype, int use_fire, int use_colors);
+		WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int noisetype, int init_fire, int init_colors);
 
 		/// destructor
 		virtual ~WTURBULENCE();
+
+		void initFire();
+		void initColors(float init_r, float init_g, float init_b);
 		
 		void setNoise(int type);
 		void initBlenderRNA(float *strength);

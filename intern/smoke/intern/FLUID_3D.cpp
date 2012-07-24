@@ -44,7 +44,7 @@
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
 
-FLUID_3D::FLUID_3D(int *res, float dx, float dtdef, int use_heat, int use_fire, int use_colors) :
+FLUID_3D::FLUID_3D(int *res, float dx, float dtdef, int init_heat, int init_fire, int init_colors) :
 	_xRes(res[0]), _yRes(res[1]), _zRes(res[2]), _res(0.0f)
 {
 	// set simulation consts
@@ -92,14 +92,6 @@ FLUID_3D::FLUID_3D(int *res, float dx, float dtdef, int use_heat, int use_fire, 
 	_zForce       = new float[_totalCells];
 	_density      = new float[_totalCells];
 	_densityOld   = new float[_totalCells];
-	if (use_heat) {
-		_heat         = new float[_totalCells];
-		_heatOld      = new float[_totalCells];
-		_heatTemp      = new float[_totalCells];
-	}
-	else {
-		_heat = _heatOld = _heatTemp = NULL;
-	}
 	_obstacles    = new unsigned char[_totalCells]; // set 0 at end of step
 
 	// For threaded version:
@@ -107,35 +99,6 @@ FLUID_3D::FLUID_3D(int *res, float dx, float dtdef, int use_heat, int use_fire, 
 	_yVelocityTemp = new float[_totalCells];
 	_zVelocityTemp = new float[_totalCells];
 	_densityTemp   = new float[_totalCells];
-
-	// Fire simulation
-	if (use_fire) {
-		_flame		= new float[_totalCells];
-		_fuel		= new float[_totalCells];
-		_fuelTemp	= new float[_totalCells];
-		_fuelOld	= new float[_totalCells];
-	}
-	else {
-		_flame = _fuel = _fuelTemp = _fuelOld = NULL;
-	}
-
-	// Smoke color
-	if (use_colors) {
-		_color_r		= new float[_totalCells];
-		_color_rOld		= new float[_totalCells];
-		_color_rTemp	= new float[_totalCells];
-		_color_g		= new float[_totalCells];
-		_color_gOld		= new float[_totalCells];
-		_color_gTemp	= new float[_totalCells];
-		_color_b		= new float[_totalCells];
-		_color_bOld		= new float[_totalCells];
-		_color_bTemp	= new float[_totalCells];
-	}
-	else {
-		_color_r = _color_rOld = _color_rTemp = NULL;
-		_color_g = _color_gOld = _color_gTemp = NULL;
-		_color_b = _color_bOld = _color_bTemp = NULL;
-	}
 
 	// DG TODO: check if alloc went fine
 
@@ -156,27 +119,24 @@ FLUID_3D::FLUID_3D(int *res, float dx, float dtdef, int use_heat, int use_fire, 
 		_yForce[x]       = 0.0f;
 		_zForce[x]       = 0.0f;
 		_obstacles[x]    = false;
+	}
 
-		if (_heat) {
-			_heat[x]         = 0.0f;
-			_heatOld[x]      = 0.0f;
-		}
-
-		if (_flame) {
-			_flame[x]		= 0.0f;
-			_fuel[x]		= 0.0f;
-			_fuelTemp[x]	= 0.0f;
-			_fuelOld[x]		= 0.0f;
-		}
-
-		if (_color_r) {
-			_color_r[x]		= 0.0f;
-			_color_rOld[x]	= 0.0f;
-			_color_g[x]		= 0.0f;
-			_color_gOld[x]	= 0.0f;
-			_color_b[x]		= 0.0f;
-			_color_bOld[x]	= 0.0f;
-		}
+	/* heat */
+	_heat = _heatOld = _heatTemp = NULL;
+	if (init_heat) {
+		initHeat();
+	}
+	// Fire simulation
+	_flame = _fuel = _fuelTemp = _fuelOld = NULL;
+	if (init_fire) {
+		initFire();
+	}
+	// Smoke color
+	_color_r = _color_rOld = _color_rTemp = NULL;
+	_color_g = _color_gOld = _color_gTemp = NULL;
+	_color_b = _color_bOld = _color_bTemp = NULL;
+	if (init_colors) {
+		initColors(0.0f, 0.0f, 0.0f);
 	}
 
 	// boundary conditions of the fluid domain
@@ -192,6 +152,64 @@ FLUID_3D::FLUID_3D(int *res, float dx, float dtdef, int use_heat, int use_fire, 
 
 	setBorderObstacles(); // walls
 
+}
+
+void FLUID_3D::initHeat()
+{
+	if (!_heat) {
+		_heat         = new float[_totalCells];
+		_heatOld      = new float[_totalCells];
+		_heatTemp      = new float[_totalCells];
+
+		for (int x = 0; x < _totalCells; x++)
+		{
+			_heat[x]         = 0.0f;
+			_heatOld[x]      = 0.0f;
+		}
+	}
+}
+
+void FLUID_3D::initFire()
+{
+	if (!_flame) {
+		_flame		= new float[_totalCells];
+		_fuel		= new float[_totalCells];
+		_fuelTemp	= new float[_totalCells];
+		_fuelOld	= new float[_totalCells];
+
+		for (int x = 0; x < _totalCells; x++)
+		{
+			_flame[x]		= 0.0f;
+			_fuel[x]		= 0.0f;
+			_fuelTemp[x]	= 0.0f;
+			_fuelOld[x]		= 0.0f;
+		}
+	}
+}
+
+void FLUID_3D::initColors(float init_r, float init_g, float init_b)
+{
+	if (!_color_r) {
+		_color_r		= new float[_totalCells];
+		_color_rOld		= new float[_totalCells];
+		_color_rTemp	= new float[_totalCells];
+		_color_g		= new float[_totalCells];
+		_color_gOld		= new float[_totalCells];
+		_color_gTemp	= new float[_totalCells];
+		_color_b		= new float[_totalCells];
+		_color_bOld		= new float[_totalCells];
+		_color_bTemp	= new float[_totalCells];
+
+		for (int x = 0; x < _totalCells; x++)
+		{
+			_color_r[x]		= _density[x] * init_r;
+			_color_rOld[x]	= 0.0f;
+			_color_g[x]		= _density[x] * init_g;
+			_color_gOld[x]	= 0.0f;
+			_color_b[x]		= _density[x] * init_b;
+			_color_bOld[x]	= 0.0f;
+		}
+	}
 }
 
 void FLUID_3D::setBorderObstacles()
@@ -255,7 +273,6 @@ FLUID_3D::~FLUID_3D()
 	if (_heat) delete[] _heat;
 	if (_heatOld) delete[] _heatOld;
 	if (_obstacles) delete[] _obstacles;
-    // if (_wTurbulence) delete _wTurbulence;
 
 	if (_xVelocityTemp) delete[] _xVelocityTemp;
 	if (_yVelocityTemp) delete[] _yVelocityTemp;
@@ -270,10 +287,13 @@ FLUID_3D::~FLUID_3D()
 
 	if (_color_r) delete[] _color_r;
 	if (_color_rOld) delete[] _color_rOld;
+	if (_color_rTemp) delete[] _color_rTemp;
 	if (_color_g) delete[] _color_g;
 	if (_color_gOld) delete[] _color_gOld;
+	if (_color_gTemp) delete[] _color_gTemp;
 	if (_color_b) delete[] _color_b;
 	if (_color_bOld) delete[] _color_bOld;
+	if (_color_bTemp) delete[] _color_bTemp;
 
     // printf("deleted fluid\n");
 }

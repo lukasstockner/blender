@@ -7886,7 +7886,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 							smd->domain->adapt_margin = 4;
 						}
 						if (smd->branch_v < 1) {
-							smd->domain->active_fields = SM_SIMULATE_HEAT | SM_SIMULATE_FIRE | SM_SIMULATE_COLORS;
 							smd->domain->flame_smoke_color[0] = 0.7f;
 							smd->domain->flame_smoke_color[1] = 0.7f;
 							smd->domain->flame_smoke_color[2] = 0.7f;

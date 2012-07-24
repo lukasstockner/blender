@@ -291,13 +291,9 @@ static void init_frame_smoke(VoxelData *vd, float cfra)
 			}
 			else {
 				size_t totCells;
-				int depth = 1;
+				int depth = 4;
+				vd->data_type = TEX_VD_RGBA_PREMUL;
 
-				/* change data type and depth if smoke has colors */
-				if (smoke_has_colors(sds->fluid)) {
-					vd->data_type = TEX_VD_RGBA_PREMUL;
-					depth = 4;
-				}
 				/* data resolution */
 				if (sds->flags & MOD_SMOKE_HIGHRES) {
 					smoke_turbulence_get_res(sds->wt, vd->resol);
@@ -305,6 +301,7 @@ static void init_frame_smoke(VoxelData *vd, float cfra)
 				else {
 					copy_v3_v3_int(vd->resol, sds->res);
 				}
+
 				/* TODO: is_vd_res_ok(rvd) doesnt check this resolution */
 				totCells = vd_resol_size(vd) * depth;
 				/* always store copy, as smoke internal data can change */
@@ -315,7 +312,7 @@ static void init_frame_smoke(VoxelData *vd, float cfra)
 						smoke_turbulence_get_rgba(sds->wt, vd->dataset, 1);
 					}
 					else {
-						memcpy(vd->dataset, smoke_turbulence_get_density(sds->wt), sizeof(float) * totCells);
+						smoke_turbulence_get_rgba_from_density(sds->wt, sds->active_color, vd->dataset, 1);
 					}
 				}
 				else {
@@ -323,7 +320,7 @@ static void init_frame_smoke(VoxelData *vd, float cfra)
 						smoke_get_rgba(sds->fluid, vd->dataset, 1);
 					}
 					else {
-						memcpy(vd->dataset, smoke_get_density(sds->fluid), sizeof(float) * totCells);
+						smoke_get_rgba_from_density(sds->fluid, sds->active_color, vd->dataset, 1);
 					}
 				}
 			}  /* end of fluid condition */

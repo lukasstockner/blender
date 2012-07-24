@@ -52,6 +52,7 @@ float *smoke_get_color_r(struct FLUID_3D *fluid);
 float *smoke_get_color_g(struct FLUID_3D *fluid);
 float *smoke_get_color_b(struct FLUID_3D *fluid);
 void smoke_get_rgba(struct FLUID_3D *fluid, float *data, int sequential);
+void smoke_get_rgba_from_density(struct FLUID_3D *fluid, float color[3], float *data, int sequential);
 float *smoke_get_heat(struct FLUID_3D *fluid);
 float *smoke_get_velocity_x(struct FLUID_3D *fluid);
 float *smoke_get_velocity_y(struct FLUID_3D *fluid);
@@ -81,6 +82,7 @@ float *smoke_turbulence_get_color_r(struct WTURBULENCE *wt);
 float *smoke_turbulence_get_color_g(struct WTURBULENCE *wt);
 float *smoke_turbulence_get_color_b(struct WTURBULENCE *wt);
 void smoke_turbulence_get_rgba(struct WTURBULENCE *wt, float *data, int sequential);
+void smoke_turbulence_get_rgba_from_density(struct WTURBULENCE *wt, float color[3], float *data, int sequential);
 float *smoke_turbulence_get_flame(struct WTURBULENCE *wt);
 float *smoke_turbulence_get_fuel(struct WTURBULENCE *wt);
 void smoke_turbulence_get_res(struct WTURBULENCE *wt, int *res);
@@ -104,6 +106,10 @@ int smoke_has_fuel(struct FLUID_3D *fluid);
 int smoke_has_colors(struct FLUID_3D *fluid);
 int smoke_turbulence_has_fuel(struct WTURBULENCE *wt);
 int smoke_turbulence_has_colors(struct WTURBULENCE *wt);
+
+void smoke_ensure_heat(struct FLUID_3D *fluid);
+void smoke_ensure_fire(struct FLUID_3D *fluid, struct WTURBULENCE *wt);
+void smoke_ensure_colors(struct FLUID_3D *fluid, struct WTURBULENCE *wt, float init_r, float init_g, float init_b);
 
 #ifdef __cplusplus
 }
