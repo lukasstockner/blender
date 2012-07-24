@@ -357,6 +357,63 @@ static void do_view3d_header_buttons(bContext *C, void *UNUSED(arg), int event)
 			WM_operator_properties_free(&props_ptr);
 			break;
 
+		case B_SEL_VERT:
+			if (em) {
+				if (shift == 0 || em->selectmode == 0)
+					em->selectmode = SCE_SELECT_VERTEX;
+				ts->selectmode = em->selectmode;
+				EDBM_selectmode_set(em);
+				WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+				ED_undo_push(C, "Selectmode Set: Vertex");
+			}
+			break;
+		case B_SEL_EDGE:
+			if (em) {
+				if (shift == 0 || em->selectmode == 0) {
+					if ( (em->selectmode ^ SCE_SELECT_EDGE) == SCE_SELECT_VERTEX) {
+						if (ctrl) EDBM_selectmode_convert(em, SCE_SELECT_VERTEX, SCE_SELECT_EDGE);
+					}
+					em->selectmode = SCE_SELECT_EDGE;
+				}
+				ts->selectmode = em->selectmode;
+				EDBM_selectmode_set(em);
+				WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+				ED_undo_push(C, "Selectmode Set: Edge");
+			}
+			break;
+		case B_SEL_FACE:
+			if (em) {
+				if (shift == 0 || em->selectmode == 0) {
+					if ( ((ts->selectmode ^ SCE_SELECT_FACE) == SCE_SELECT_VERTEX) || ((ts->selectmode ^ SCE_SELECT_FACE) == SCE_SELECT_EDGE)) {
+						if (ctrl) EDBM_selectmode_convert(em, (ts->selectmode ^ SCE_SELECT_FACE), SCE_SELECT_FACE);
+					}
+					em->selectmode = SCE_SELECT_FACE;
+				}
+				ts->selectmode = em->selectmode;
+				EDBM_selectmode_set(em);
+				WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+				ED_undo_push(C, "Selectmode Set: Face");
+			}
+			break;
+
+		case B_MAN_TRANS:
+			if (shift == 0 || v3d->twtype == 0) {
+				v3d->twtype = V3D_MANIP_TRANSLATE;
+			}
+			ED_area_tag_redraw(sa);
+			break;
+		case B_MAN_ROT:
+			if (shift == 0 || v3d->twtype == 0) {
+				v3d->twtype = V3D_MANIP_ROTATE;
+			}
+			ED_area_tag_redraw(sa);
+			break;
+		case B_MAN_SCALE:
+			if (shift == 0 || v3d->twtype == 0) {
+				v3d->twtype = V3D_MANIP_SCALE;
+			}
+			ED_area_tag_redraw(sa);
+			break;
 		case B_NDOF:
 			ED_area_tag_redraw(sa);
 			break;
@@ -478,6 +535,15 @@ void uiTemplateHeader3D(uiLayout *layout, struct bContext *C)
 		uiItemR(row, &v3dptr, "show_manipulator", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
 		block = uiLayoutGetBlock(row);
 		
+		if (v3d->twflag & V3D_USE_MANIPULATOR) {
+			but = uiDefIconButBitC(block, TOG, V3D_MANIP_TRANSLATE, B_MAN_TRANS, ICON_MAN_TRANS, 0, 0, UI_UNIT_X, UI_UNIT_Y, &v3d->twtype, 1.0, 0.0, 0, 0, TIP_("Translate manipulator - Shift-Click for multiple modes"));
+			uiButClearFlag(but, UI_BUT_UNDO); /* skip undo on screen buttons */
+			but = uiDefIconButBitC(block, TOG, V3D_MANIP_ROTATE, B_MAN_ROT, ICON_MAN_ROT, 0, 0, UI_UNIT_X, UI_UNIT_Y, &v3d->twtype, 1.0, 0.0, 0, 0, TIP_("Rotate manipulator - Shift-Click for multiple modes"));
+			uiButClearFlag(but, UI_BUT_UNDO); /* skip undo on screen buttons */
+			but = uiDefIconButBitC(block, TOG, V3D_MANIP_SCALE, B_MAN_SCALE, ICON_MAN_SCALE, 0, 0, UI_UNIT_X, UI_UNIT_Y, &v3d->twtype, 1.0, 0.0, 0, 0, TIP_("Scale manipulator - Shift-Click for multiple modes"));
+			uiButClearFlag(but, UI_BUT_UNDO); /* skip undo on screen buttons */
+		}
+			
 		if (v3d->twmode > (BIF_countTransformOrientation(C) - 1) + V3D_MANIP_CUSTOM) {
 			v3d->twmode = 0;
 		}
@@ -497,4 +563,6 @@ void uiTemplateHeader3D(uiLayout *layout, struct bContext *C)
 		/* Scene lock */
 		uiItemR(layout, &v3dptr, "lock_camera_and_layers", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
 	}
+	
+	uiTemplateEditModeSelection(layout, C);
 }
