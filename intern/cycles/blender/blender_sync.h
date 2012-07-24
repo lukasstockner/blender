@@ -86,6 +86,7 @@ private:
 	void sync_mesh_motion(BL::Object b_ob, Mesh *mesh, int motion);
 	void sync_camera_motion(BL::Object b_ob, int motion);
 	void sync_particles(Object *ob, BL::Object b_ob);
+	void sync_smoke(Object *ob, BL::Object b_ob);
 
 	/* util */
 	void find_shader(BL::ID id, vector<uint>& used_shaders, int default_shader);

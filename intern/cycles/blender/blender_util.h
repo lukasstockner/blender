@@ -56,6 +56,9 @@ void rna_Scene_frame_set(void *scene, int frame, float subframe);
 void BKE_image_user_frame_calc(void *iuser, int cfra, int fieldnr);
 void BKE_image_user_file_path(void *iuser, void *ima, char *path);
 
+int rna_SmokeModifier_density_get_length(PointerRNA *ptr, int length[3]);
+void rna_SmokeModifier_density_get(PointerRNA *ptr, float *values);
+
 }
 
 CCL_NAMESPACE_BEGIN
@@ -153,6 +156,11 @@ static inline float3 get_float3(BL::Array<float, 4> array)
 static inline int4 get_int4(BL::Array<int, 4> array)
 {
 	return make_int4(array[0], array[1], array[2], array[3]);
+}
+
+static inline int3 get_int3(BL::Array<int, 3> array)
+{
+	return make_int3(array[0], array[1], array[2]);
 }
 
 static inline uint get_layer(BL::Array<int, 20> array)

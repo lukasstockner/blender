@@ -60,7 +60,7 @@ public:
 	/* Voxel / 3D volume data */
 	bool use_volume;
 	int3 resolution;
-	vector<float3> grid;
+	vector<float> grid;
 
 	Object();
 	~Object();

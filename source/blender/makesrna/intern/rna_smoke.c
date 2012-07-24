@@ -113,7 +113,7 @@ static char *rna_SmokeCollSettings_path(PointerRNA *ptr)
 	return BLI_sprintfN("modifiers[\"%s\"].coll_settings", md->name);
 }
 
-static int rna_SmokeModifier_density_get_length(PointerRNA *ptr, int length[RNA_MAX_ARRAY_DIMENSION])
+int rna_SmokeModifier_density_get_length(PointerRNA *ptr, int length[3])
 {
 	SmokeDomainSettings *settings = (SmokeDomainSettings *)ptr->data;
 
@@ -133,7 +133,7 @@ static int rna_SmokeModifier_density_get_length(PointerRNA *ptr, int length[RNA_
 	return length[0];
 }
 
-static void rna_SmokeModifier_density_get(PointerRNA *ptr, float *values)
+void rna_SmokeModifier_density_get(PointerRNA *ptr, float *values)
 {
 	SmokeDomainSettings *settings = (SmokeDomainSettings *)ptr->data;
 	float *density = smoke_get_density(settings->fluid);

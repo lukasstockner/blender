@@ -53,26 +53,6 @@ bool BlenderSync::BKE_object_is_modified(BL::Object b_ob)
 	return false;
 }
 
-/* Only looking for Smoke domains */
-// TODO DG: disable rendering of smoke flow??
-bool BlenderSync::BKE_modifiers_isSmokeEnabled(BL::Object b_ob)
-{
-	BL::Object::modifiers_iterator b_modifiers;
-	for(b_ob.modifiers.begin(b_modifiers); b_modifiers != b_ob.modifiers.end(); ++b_modifiers) {
-		BL::Modifier mod = (*b_modifiers);
-
-		if (mod.is_a(&RNA_SmokeModifier)) {
-			BL::SmokeModifier smd(mod);
-
-			if(smd.smoke_type() == BL::SmokeModifier::smoke_type_DOMAIN) {
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
 bool BlenderSync::object_is_mesh(BL::Object b_ob)
 {
 	BL::ID b_ob_data = b_ob.data();
@@ -262,11 +242,6 @@ void BlenderSync::sync_object(BL::Object b_parent, int b_index, BL::Object b_ob,
 	/* mesh sync */
 	object->mesh = sync_mesh(b_ob, object_updated);
 
-	if(BKE_modifiers_isSmokeEnabled(b_ob))
-	{
-		// TODO DG sync_volume(b_ob);
-	}
-
 	if(use_holdout != object->use_holdout) {
 		object->use_holdout = use_holdout;
 		scene->object_manager->tag_update(scene);
@@ -302,6 +277,9 @@ void BlenderSync::sync_object(BL::Object b_parent, int b_index, BL::Object b_ob,
 		/* particle sync */
 		if (object_use_particles(b_ob))
 			sync_particles(object, b_ob);
+
+		// if(BKE_modifiers_isSmokeEnabled(b_ob))
+		// 	sync_smoke(object, b_ob);
 	
 		object->tag_update(scene);
 	}
