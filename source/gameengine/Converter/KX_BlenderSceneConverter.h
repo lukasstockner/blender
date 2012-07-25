@@ -69,6 +69,9 @@ class KX_BlenderSceneConverter : public KX_ISceneConverter
 	map<struct Material*, BL_Material*> m_mat_cache;
 	map<struct Material*, RAS_IPolyMaterial*> m_polymat_cache;
 
+	// Saved KX_LibLoadStatus objects
+	map<char *, class KX_LibLoadStatus*> m_status_map;
+
 	// Should also have a list of collision shapes. 
 	// For the time being this is held in KX_Scene::m_shapes
 

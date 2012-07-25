@@ -1175,6 +1175,7 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 	if (!(options & LIB_LOAD_ASYNC))
 		status->Finish();
 	
+	m_status_map[main_newlib->name] = status;
 	return status;
 }
 
@@ -1458,6 +1459,9 @@ bool KX_BlenderSceneConverter::FreeBlendFile(struct Main *maggie)
 
 	/* make sure this maggie is removed from the import list if it's there (this operation is safe if it isn't in the list) */
 	removeImportMain(maggie);
+
+	delete m_status_map[maggie->name];
+	m_status_map.erase(maggie->name);
 
 	free_main(maggie);
 

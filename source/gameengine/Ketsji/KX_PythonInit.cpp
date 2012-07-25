@@ -705,7 +705,7 @@ static PyObject *gLibLoad(PyObject*, PyObject* args, PyObject* kwds)
 		BLI_path_abs(abs_path, gp_GamePythonPath);
 
 		if ((status=kx_scene->GetSceneConverter()->LinkBlendFilePath(abs_path, group, kx_scene, &err_str, options))) {
-			return status->NewProxy(false);
+			return status->GetProxy();
 		}
 	}
 	else
@@ -713,7 +713,7 @@ static PyObject *gLibLoad(PyObject*, PyObject* args, PyObject* kwds)
 
 		if ((status=kx_scene->GetSceneConverter()->LinkBlendFileMemory(py_buffer.buf, py_buffer.len, path, group, kx_scene, &err_str, options)))	{
 			PyBuffer_Release(&py_buffer);
-			return status->NewProxy(false);
+			return status->GetProxy();
 		}
 
 		PyBuffer_Release(&py_buffer);
