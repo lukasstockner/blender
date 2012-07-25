@@ -21,6 +21,7 @@ void gpuPushMatrix(void);
 void gpuPopMatrix(void);
 
 void gpuMatrixMode(GLenum mode);
+GLenum gpuGetMatrixMode(void);
 
 void gpuLoadMatrix(const GLfloat * m);
 GLfloat * gpuGetMatrix(GLfloat * m);

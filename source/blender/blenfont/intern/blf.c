@@ -548,14 +548,11 @@ static void blf_draw__start(FontBLF *font)
 
 #if GPU_SAFETY
 	{
-	GLenum mode;
 	GLenum param;
-
-	glGetIntegerv(GL_MATRIX_MODE, &mode);
-	GPU_ASSERT(mode == GL_MODELVIEW);
-
 	glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &param);
 	GPU_ASSERT(param == GL_MODULATE);
+
+	GPU_ASSERT(gpuGetMatrixMode() == GL_MODELVIEW);
 	}
 #endif
 

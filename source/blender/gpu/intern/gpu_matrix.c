@@ -23,7 +23,7 @@
 #define GPU_STACK_DEBUG
 #endif
 
-GLint glslneedupdate = 1;
+static GLint glslneedupdate = 1;
 
 typedef GLfloat GPU_matrix[4][4];
 
@@ -37,11 +37,12 @@ typedef struct GPU_matrix_stack
 
 } GPU_matrix_stack;
 
-GPU_matrix_stack ms_modelview;
-GPU_matrix_stack ms_projection;
-GPU_matrix_stack ms_texture;
+static GPU_matrix_stack ms_modelview;
+static GPU_matrix_stack ms_projection;
+static GPU_matrix_stack ms_texture;
 
-GPU_matrix_stack * ms_current;
+static GPU_matrix_stack * ms_current;
+static GLenum ms_current_mode;
 
 void GPU_matrix_forced_update(void)
 {
@@ -105,6 +106,7 @@ void GPU_ms_init(void)
 	ms_init(&ms_texture, 16);
 
 	ms_current = &ms_modelview;
+	ms_current_mode = GL_MODELVIEW;
 
 	printf("Stack init\n");
 
@@ -304,6 +306,8 @@ void gpuMatrixMode(GLenum mode)
 {
 	GPU_ASSERT(ELEM3(mode, GL_MODELVIEW, GL_PROJECTION, GL_TEXTURE));
 
+	ms_current_mode = mode;
+
 	switch(mode)
 	{
 		case GL_MODELVIEW:
@@ -323,6 +327,10 @@ void gpuMatrixMode(GLenum mode)
 CHECKMAT
 }
 
+GLenum gpuGetMatrixMode(void)
+{
+	return ms_current_mode;
+}
 
 void gpuLoadMatrix(const GLfloat * m)
 {
