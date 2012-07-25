@@ -314,7 +314,7 @@ struct GPUTexture {
 	int w, h;				/* width/height */
 	int number;				/* number for multitexture binding */
 	int refcount;			/* reference count */
-	GLenum target;			/* GL_TEXTURE_* */
+	GLenum target;			/* GL texture enum */
 	GLuint bindcode;		/* opengl identifier for texture */
 	int fromblender;		/* we got the texture from Blender */
 

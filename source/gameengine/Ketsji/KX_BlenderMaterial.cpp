@@ -952,7 +952,7 @@ KX_PYMETHODDEF_DOC( KX_BlenderMaterial, setTexture , "setTexture( index, tex)")
 	return NULL;
 }
 
-static unsigned int GL_array[11] = {
+static unsigned int blend_mode_enums[11] = {
 	GL_ZERO,
 	GL_ONE,
 	GL_SRC_COLOR,
@@ -974,11 +974,11 @@ KX_PYMETHODDEF_DOC( KX_BlenderMaterial, setBlending , "setBlending( bge.logic.sr
 		bool value_found[2] = {false, false};
 		for (int i=0; i<11; i++)
 		{
-			if (b[0] == GL_array[i]) {
+			if (b[0] == blend_mode_enums[i]) {
 				value_found[0] = true;
 				mBlendFunc[0] = b[0];
 			}
-			if (b[1] == GL_array[i]) {
+			if (b[1] == blend_mode_enums[i]) {
 				value_found[1] = true;
 				mBlendFunc[1] = b[1];
 			}

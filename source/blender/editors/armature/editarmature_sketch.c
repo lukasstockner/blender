@@ -458,7 +458,7 @@ static void sk_drawPoint(GPUprim3 *prim, SK_Point *pt, float size)
 	glTranslatef(pt->p[0], pt->p[1], pt->p[2]);
 
 	gpuDrawSphere(prim, sk_clampPointSize(pt, size));
-	//GLU gluSphere(quad, sk_clampPointSize(pt, size), 8, 8);
+	//GLU Sphere(quad, sk_clampPointSize(pt, size), 8, 8);
 }
 
 static void sk_drawEdge(GPUprim3 *prim, SK_Point *pt0, SK_Point *pt1, float size)
@@ -479,7 +479,7 @@ static void sk_drawEdge(GPUprim3 *prim, SK_Point *pt0, SK_Point *pt1, float size
 	glRotatef(angle * (float)(180.0 / M_PI) + 180.0f, axis[0], axis[1], axis[2]);
 
 	gpuDrawCylinder(prim, sk_clampPointSize(pt1, size), sk_clampPointSize(pt0, size), length);
-	//GLU gluCylinder(quad, sk_clampPointSize(pt1, size), sk_clampPointSize(pt0, size), length, 8, 8);
+	//GLU Cylinder(quad, sk_clampPointSize(pt1, size), sk_clampPointSize(pt0, size), length, 8, 8);
 }
 
 static void sk_drawNormal(GPUprim3 *prim, SK_Point *pt, float size, float height)
@@ -502,7 +502,7 @@ static void sk_drawNormal(GPUprim3 *prim, SK_Point *pt, float size, float height
 	gpuCurrentColor3x(CPACK_CYAN);
 
 	gpuDrawCylinder(prim, sk_clampPointSize(pt, size), 0, sk_clampPointSize(pt, height));
-	//GLU gluCylinder(quad, sk_clampPointSize(pt, size), 0, sk_clampPointSize(pt, height), 10, 2);
+	//GLU Cylinder(quad, sk_clampPointSize(pt, size), 0, sk_clampPointSize(pt, height), 10, 2);
 
 	glPopMatrix();
 }
@@ -2126,7 +2126,7 @@ static void sk_drawSketch(Scene *scene, View3D *UNUSED(v3d), SK_Sketch *sketch, 
 			if (!dl) {
 				gpuPushImmediate();
 				gpuSingleSphere(&prim, 0.02);
-				//GLU gluSphere(quad, 0.02, 8, 8);
+				//GLU Sphere(quad, 0.02, 8, 8);
 				dl = gpuPopImmediate();
 			}
 			else {

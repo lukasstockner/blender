@@ -1398,7 +1398,7 @@ static void draw_bundle_sphere(void)
 		GPUprim3 prim = GPU_PRIM_LOFI_SOLID;
 
 		gpuPushImmediate();
-		//GLU gluSphere(qobj, 0.05, 8, 8);
+		//GLU Sphere(qobj, 0.05, 8, 8);
 		gpuSingleSphere(&prim, 0.05f);
 		displist = gpuPopImmediate();
 	}
@@ -5798,7 +5798,7 @@ static void draw_empty_cone(float size)
 		gpuImmediateIndex(index);
 		gpuImmediateMaxIndexCount(96);
 
-		//GLU gluCylinder(qobj, 1.0, 0.0, 1.0, 8, 1);
+		//GLU Cylinder(qobj, 1.0, 0.0, 1.0, 8, 1);
 		gpuSingleCone(&prim, 1, 1);
 		displist = gpuPopImmediate();
 	}
@@ -6277,7 +6277,7 @@ static void draw_bb_quadric(BoundBox *bb, char type)
 			gpuImmediateIndex(index);
 			gpuImmediateMaxIndexCount(48);
 
-			//GLU gluCylinder(qobj, 1.0, 1.0, 1.0, 8, 1);
+			//GLU Cylinder(qobj, 1.0, 1.0, 1.0, 8, 1);
 			gpuSingleCylinder(&prim, 1, 1, 1);
 			displist = gpuPopImmediate();
 		}
@@ -6304,7 +6304,7 @@ static void draw_bb_quadric(BoundBox *bb, char type)
 			gpuImmediateIndex(index);
 			gpuImmediateMaxIndexCount(48);
 
-			//GLU gluCylinder(qobj, 1.0, 0.0, 1.0, 8, 1);
+			//GLU Cylinder(qobj, 1.0, 0.0, 1.0, 8, 1);
 			gpuSingleCone(&prim, 1, 1);
 			displist = gpuPopImmediate();
 		}

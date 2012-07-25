@@ -1509,7 +1509,7 @@ PyObject* initGameLogic(KX_KetsjiEngine *engine, KX_Scene* scene) // quick hack 
 	KX_MACRO_addTypesToDict(d, KX_ACTIONACT_LOOPEND,     ACT_ACTION_LOOP_END);
 	KX_MACRO_addTypesToDict(d, KX_ACTIONACT_PROPERTY,    ACT_ACTION_FROM_PROP);
 	
-	/* 7. GL_BlendFunc */
+	/* 7. GL BlendFunc */
 	KX_MACRO_addTypesToDict(d, BL_ZERO, GL_ZERO);
 	KX_MACRO_addTypesToDict(d, BL_ONE, GL_ONE);
 	KX_MACRO_addTypesToDict(d, BL_SRC_COLOR, GL_SRC_COLOR);

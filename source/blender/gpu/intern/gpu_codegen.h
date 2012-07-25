@@ -132,7 +132,7 @@ typedef struct GPUInput {
 	int attribid;			/* id for vertex attributes */
 	int bindtex;			/* input is responsible for binding the texture? */
 	int definetex;			/* input is responsible for defining the pixel? */
-	int textarget;			/* GL_TEXTURE_* */
+	int textarget;			/* GL texture enum */
 	int textype;			/* datatype */
 
 	struct Image *ima;		/* image */

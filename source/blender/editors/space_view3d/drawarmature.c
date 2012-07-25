@@ -944,7 +944,7 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 		}
 
 		gpuDrawSphere(&prim, head);
-		//GLU gluSphere(qobj, head, 16, 10);
+		//GLU Sphere(qobj, head, 16, 10);
 	}
 
 	/*	Draw tip point */
@@ -963,7 +963,7 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 
 	glTranslatef(0.0f, 0.0f, length);
 	gpuDrawSphere(&prim, tail);
-	//GLU gluSphere(qobj, tail, 16, 10);
+	//GLU Sphere(qobj, tail, 16, 10);
 	glTranslatef(0.0f, 0.0f, -length);
 
 	/* base */
@@ -999,7 +999,7 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 			fac1 * head + (1.0f - fac1) * tail,
 			fac2 * tail + (1.0f - fac2) * head,
 			length - head - tail);
-		//GLU gluCylinder(qobj, fac1 * head + (1.0f - fac1) * tail, fac2 * tail + (1.0f - fac2) * head, length - head - tail, 16, 1);
+		//GLU Cylinder(qobj, fac1 * head + (1.0f - fac1) * tail, fac2 * tail + (1.0f - fac2) * head, length - head - tail, 16, 1);
 		glTranslatef(0.0f, 0.0f, -head);
 
 		glDisable(GL_POLYGON_OFFSET_FILL);
@@ -1007,18 +1007,18 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 		/* draw sphere on extrema */
 		glTranslatef(0.0f, 0.0f, length - tail);
 		gpuDrawSphere(&prim, fac2 * tail + (1.0f - fac2) * head);
-		//GLU gluSphere(qobj, fac2 * tail + (1.0f - fac2) * head, 16, 10);
+		//GLU Sphere(qobj, fac2 * tail + (1.0f - fac2) * head, 16, 10);
 		glTranslatef(0.0f, 0.0f, -length + tail);
 
 		glTranslatef(0.0f, 0.0f, head);
 		gpuDrawSphere(&prim,  fac1 * head + (1.0f - fac1) * tail);
-		//GLU gluSphere(qobj, fac1 * head + (1.0f - fac1) * tail, 16, 10);
+		//GLU Sphere(qobj, fac1 * head + (1.0f - fac1) * tail, 16, 10);
 	}
 	else {
 		/* 1 sphere in center */
 		glTranslatef(0.0f, 0.0f, (head + length - tail) / 2.0f);
 		gpuDrawSphere(&prim,  fac1 * head + (1.0f - fac1) * tail);
-		//GLU gluSphere(qobj, fac1 * head + (1.0f - fac1) * tail, 16, 10);
+		//GLU Sphere(qobj, fac1 * head + (1.0f - fac1) * tail, 16, 10);
 	}
 
 	/* restore */

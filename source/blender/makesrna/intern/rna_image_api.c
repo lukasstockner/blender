@@ -209,7 +209,7 @@ static int rna_Image_gl_load(Image *image, ReportList *reports, int filter, int 
 		error = (int)gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGBA, ibuf->x, ibuf->y, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect);
 
 	if (!error) {
-		/* clean glError buffer */
+		/* clean GL error buffer */
 		while (glGetError() != GL_NO_ERROR) {}
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, image->tpageflag & IMA_CLAMP_U ? GL_CLAMP : GL_REPEAT);
