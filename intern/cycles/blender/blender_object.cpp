@@ -255,6 +255,7 @@ void BlenderSync::sync_object(BL::Object b_parent, int b_index, BL::Object b_ob,
 		object->motion.pre = tfm;
 		object->motion.post = tfm;
 		object->use_motion = false;
+		object->use_volume = false;
 
 		object->random_id = hash_int_2d(hash_string(object->name.c_str()), b_index);
 
@@ -278,8 +279,11 @@ void BlenderSync::sync_object(BL::Object b_parent, int b_index, BL::Object b_ob,
 		if (object_use_particles(b_ob))
 			sync_particles(object, b_ob);
 
-		// if(BKE_modifiers_isSmokeEnabled(b_ob))
-		// 	sync_smoke(object, b_ob);
+		if(BKE_modifiers_isSmokeEnabled(b_ob))
+		{
+			object->use_volume = true;
+			sync_smoke(object, b_ob);
+		}
 	
 		object->tag_update(scene);
 	}

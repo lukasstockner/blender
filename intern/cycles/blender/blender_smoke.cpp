@@ -74,22 +74,14 @@ void BlenderSync::sync_smoke(Object *ob, BL::Object b_ob)
 	BL::SmokeModifier *smd = get_smoke(b_ob);
 	BL::SmokeDomainSettings sds = smd->domain_settings();
 
+	ob->grid.clear();
 	ob->resolution = get_int3(sds.domain_resolution());
-
-	// int rna_SmokeModifier_density_get_length(PointerRNA *ptr, int length[RNA_MAX_ARRAY_DIMENSION]);
-	// void rna_SmokeModifier_density_get(PointerRNA *ptr, float *values);
 
 	int length[3];
 	int numcells = rna_SmokeModifier_density_get_length(&sds.ptr, length);
-	
-	ob->grid.clear();
 
-	if(numcells == 0)
-		ob->use_volume = false; // still needs to be rendered transparent!
-	else
+	if(numcells != 0)
 	{
-		ob->use_volume = true;
-
 		vector<float> &grid = ob->grid;
 		grid.reserve(numcells);
 		grid.resize(numcells);
