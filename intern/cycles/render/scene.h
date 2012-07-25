@@ -85,6 +85,9 @@ public:
 	/* particles */
 	device_vector<float4> particles;
 
+	/* smoke */
+	device_vector<float> smoke_density;
+
 	/* shaders */
 	device_vector<uint4> svm_nodes;
 	device_vector<uint> shader_flag;

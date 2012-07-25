@@ -1834,6 +1834,38 @@ void ParticleInfoNode::compile(OSLCompiler& compiler)
 	compiler.add(this, "node_particle_info");
 }
 
+/* Smoke Density */
+
+SmokeDensityNode::SmokeDensityNode()
+: ShaderNode("particle_info")
+{
+	add_output("Density", SHADER_SOCKET_FLOAT);
+}
+
+void SmokeDensityNode::attributes(AttributeRequestSet *attributes)
+{
+	if(!output("Density")->links.empty())
+		attributes->add(ATTR_STD_SMOKE_DENSITY);
+
+	ShaderNode::attributes(attributes);
+}
+
+void SmokeDensityNode::compile(SVMCompiler& compiler)
+{
+	ShaderOutput *out;
+	
+	out = output("Density");
+	if(!out->links.empty()) {
+		compiler.stack_assign(out);
+		compiler.add_node(NODE_SMOKE_DENSITY, NODE_INFO_SMO_DEN, out->stack_offset);
+	}
+}
+
+void SmokeDensityNode::compile(OSLCompiler& compiler)
+{
+	compiler.add(this, "node_smoke_density");
+}
+
 /* Value */
 
 ValueNode::ValueNode()

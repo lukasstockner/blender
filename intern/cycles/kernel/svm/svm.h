@@ -272,6 +272,9 @@ __device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, ShaderT
 			case NODE_PARTICLE_INFO:
 				svm_node_particle_info(kg, sd, stack, node.y, node.z);
 				break;
+			case NODE_SMOKE_DENSITY:
+				svm_node_smoke_density(kg, sd, stack, node.y, node.z);
+				break;
 #endif
 			case NODE_CONVERT:
 				svm_node_convert(sd, stack, node.y, node.z, node.w);

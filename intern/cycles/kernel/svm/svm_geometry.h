@@ -116,5 +116,22 @@ __device void svm_node_particle_info(KernelGlobals *kg, ShaderData *sd, float *s
 	}
 }
 
+
+/* Smoke Density */
+
+__device void svm_node_smoke_density(KernelGlobals *kg, ShaderData *sd, float *stack, uint type, uint out_offset)
+{
+	float data;
+
+	switch(type) {
+		case NODE_INFO_SMO_DEN: {
+			// DG TODO uint particle_id = object_particle_id(kg, sd->object);
+			// DG TODO data = smoke_density(kg, WHICH CELL IN GRID?);
+			// DG TODO stack_store_float(stack, out_offset, data);
+			break;
+		}
+	}
+}
+
 CCL_NAMESPACE_END
 

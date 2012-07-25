@@ -280,6 +280,37 @@ void ObjectManager::device_update_particles(Device *device, DeviceScene *dscene,
 	device->tex_alloc("__particles", dscene->particles);
 }
 
+void ObjectManager::device_update_smoke(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress)
+{
+	/* count smoke cells.
+	 * adds one dummy particle at the beginning to avoid invalid lookups,
+	 * in case a shader uses particle info without actual particle data.
+	 */
+	int num_cells = 1;
+	foreach(Object *ob, scene->objects)
+		num_cells += ob->grid.size();
+	
+	float *density = dscene->smoke_density.resize(num_cells);
+	
+	/* dummy particle */
+	// DG TODO density[0] = 0.0f;
+	
+	int i = 0;
+	foreach(Object *ob, scene->objects) {
+		/* pack in texture */
+		for(i = 0; i < ob->grid.size(); i++) {
+
+			// DG TODO: use "*PARTICLE_SIZE"?
+			density[i] = ob->grid[i];
+			
+			if(progress.get_cancel()) return;
+
+		}
+	}
+	
+	device->tex_alloc("__smoke_density", dscene->smoke_density);
+}
+
 void ObjectManager::device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress)
 {
 	if(!need_update)
@@ -310,6 +341,11 @@ void ObjectManager::device_update(Device *device, DeviceScene *dscene, Scene *sc
 	
 	if(progress.get_cancel()) return;
 	
+	progress.set_status("Updating Objects", "Copying Smoke Density to device");
+	device_update_smoke(device, dscene, scene, progress);
+	
+	if(progress.get_cancel()) return;
+
 	need_update = false;
 }
 

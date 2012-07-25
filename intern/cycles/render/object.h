@@ -58,7 +58,6 @@ public:
 	vector<Particle> particles;
 
 	/* Voxel / 3D volume data */
-	bool use_volume;
 	int3 resolution;
 	vector<float> grid;
 
@@ -83,6 +82,7 @@ public:
 	void device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress);
 	void device_update_transforms(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress);
 	void device_update_particles(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress);
+	void device_update_smoke(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress);
 	void device_free(Device *device, DeviceScene *dscene);
 
 	void tag_update(Scene *scene);

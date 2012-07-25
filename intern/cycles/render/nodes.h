@@ -296,6 +296,12 @@ public:
 	void attributes(AttributeRequestSet *attributes);
 };
 
+class SmokeDensityNode : public ShaderNode {
+public:
+	SHADER_NODE_CLASS(SmokeDensityNode)
+	void attributes(AttributeRequestSet *attributes);
+};
+
 class ValueNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(ValueNode)

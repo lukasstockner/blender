@@ -89,7 +89,8 @@ typedef enum NodeType {
 	NODE_MIN_MAX,
 	NODE_LIGHT_FALLOFF,
 	NODE_OBJECT_INFO,
-	NODE_PARTICLE_INFO
+	NODE_PARTICLE_INFO,
+	NODE_SMOKE_DENSITY
 } NodeType;
 
 typedef enum NodeAttributeType {
@@ -117,6 +118,10 @@ typedef enum NodeParticleInfo {
 	NODE_INFO_PAR_AGE,
 	NODE_INFO_PAR_LIFETIME
 } NodeParticleInfo;
+
+typedef enum NodeSmokeDensity {
+	NODE_INFO_SMO_DEN
+} NodeSmokeDensity;
 
 typedef enum NodeLightPath {
 	NODE_LP_camera = 0,

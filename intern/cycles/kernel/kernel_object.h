@@ -183,6 +183,12 @@ __device float particle_lifetime(KernelGlobals *kg, int particle)
 	return f.y;
 }
 
+__device float smoke_density(KernelGlobals *kg, int cell)
+{
+	int offset = cell; // DG TODO *PARTICLE_SIZE
+	return kernel_tex_fetch(__smoke_density, offset);
+}
+
 
 CCL_NAMESPACE_END
 

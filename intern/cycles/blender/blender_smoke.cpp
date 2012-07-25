@@ -33,7 +33,7 @@ CCL_NAMESPACE_BEGIN
 
 /* Only looking for Smoke domains */
 // TODO DG: disable rendering of smoke flow??
-bool BlenderSync::BKE_modifiers_isSmokeEnabled(BL::Object b_ob)
+bool BlenderSync::object_use_smoke(BL::Object b_ob)
 {
 	BL::Object::modifiers_iterator b_modifiers;
 	for(b_ob.modifiers.begin(b_modifiers); b_modifiers != b_ob.modifiers.end(); ++b_modifiers) {
@@ -43,7 +43,11 @@ bool BlenderSync::BKE_modifiers_isSmokeEnabled(BL::Object b_ob)
 			BL::SmokeModifier smd(mod);
 
 			if(smd.smoke_type() == BL::SmokeModifier::smoke_type_DOMAIN) {
-				return true;
+				BL::ID key = (BKE_object_is_modified(b_ob))? b_ob: b_ob.data();
+				Mesh *mesh = mesh_map.find(key);
+				if (mesh) {
+					return mesh->need_attribute(scene, ATTR_STD_SMOKE_DENSITY);
+				}
 			}
 		}
 	}
