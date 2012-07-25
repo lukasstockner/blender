@@ -72,6 +72,7 @@ public:
 	static PyObject* pyattr_get_v2(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject* pyattr_get_XYZ(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject* pyattr_get_UV(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject* pyattr_get_uvs(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject* pyattr_get_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject* pyattr_get_normal(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_x(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
@@ -87,6 +88,7 @@ public:
 	static int pyattr_set_a(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static int pyattr_set_XYZ(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static int pyattr_set_UV(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_uvs(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static int pyattr_set_color(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static int pyattr_set_normal(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 

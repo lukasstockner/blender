@@ -3518,6 +3518,12 @@ Game Types (bge.types)
       The alpha component of the vertex color. 0.0 <= a <= 1.0.
 
       :type: float
+	  
+   .. attribute:: uvs
+
+      A list of uvs for the vertex.
+	  
+	  :type: list [[u1, v1], [u2, v2], ...]
 
    .. method:: getXYZ()
 

@@ -94,6 +94,7 @@ PyAttributeDef KX_VertexProxy::Attributes[] = {
 
 	KX_PYATTRIBUTE_RW_FUNCTION("XYZ", KX_VertexProxy, pyattr_get_XYZ, pyattr_set_XYZ),
 	KX_PYATTRIBUTE_RW_FUNCTION("UV", KX_VertexProxy, pyattr_get_UV, pyattr_set_UV),
+	KX_PYATTRIBUTE_RW_FUNCTION("uvs", KX_VertexProxy, pyattr_get_uvs, pyattr_set_uvs),
 
 	KX_PYATTRIBUTE_RW_FUNCTION("color", KX_VertexProxy, pyattr_get_color, pyattr_set_color),
 	KX_PYATTRIBUTE_RW_FUNCTION("normal", KX_VertexProxy, pyattr_get_normal, pyattr_set_normal),
@@ -177,6 +178,19 @@ PyObject* KX_VertexProxy::pyattr_get_UV(void *self_v, const KX_PYATTRIBUTE_DEF *
 {
 	KX_VertexProxy* self= static_cast<KX_VertexProxy*>(self_v);
 	return PyObjectFrom(MT_Point2(self->m_vertex->getUV(0)));
+}
+
+PyObject* KX_VertexProxy::pyattr_get_uvs(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_VertexProxy* self= static_cast<KX_VertexProxy*>(self_v);
+	
+	PyObject* uvlist = PyList_New(RAS_TexVert::MAX_UNIT);
+	for (int i=0; i<RAS_TexVert::MAX_UNIT; ++i)
+	{
+		PyList_SET_ITEM(uvlist, i, PyObjectFrom(MT_Point2(self->m_vertex->getUV(i))));
+	}
+
+	return uvlist;
 }
 
 PyObject* KX_VertexProxy::pyattr_get_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
@@ -395,6 +409,32 @@ int KX_VertexProxy::pyattr_set_UV(void *self_v, const struct KX_PYATTRIBUTE_DEF 
 			self->m_mesh->SetMeshModified(true);
 			return PY_SET_ATTR_SUCCESS;
 		}
+	}
+	return PY_SET_ATTR_FAIL;
+}
+
+int KX_VertexProxy::pyattr_set_uvs(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_VertexProxy* self= static_cast<KX_VertexProxy*>(self_v);
+	if (PySequence_Check(value))
+	{
+		MT_Point2 vec;
+		for (int i=0; i<PySequence_Size(value) && i<RAS_TexVert::MAX_UNIT; ++i)
+		{
+			if (PyVecTo(PySequence_GetItem(value, i), vec))
+			{
+				self->m_vertex->SetUV(i, vec);
+				self->m_mesh->SetMeshModified(true);
+			}
+			else
+			{
+				PyErr_SetString(PyExc_AttributeError, STR_String().Format("list[%d] was not a vector", i).ReadPtr());
+				return PY_SET_ATTR_FAIL;
+			}
+		}
+		
+		self->m_mesh->SetMeshModified(true);
+		return PY_SET_ATTR_SUCCESS;
 	}
 	return PY_SET_ATTR_FAIL;
 }
