@@ -298,6 +298,16 @@ GHOST_TSuccess GHOST_System::getButtonState(GHOST_TButtonMask mask, bool& isDown
 	return success;
 }
 
+GHOST_TSuccess GHOST_System::getSensorsAvailability(GHOST_TSensorTypes type)
+{
+	return GHOST_kFailure;
+}
+
+GHOST_TSuccess GHOST_System::setSensorsState(GHOST_TSensorTypes type, int enable)
+{
+	return GHOST_kFailure;
+}
+
 GHOST_TSuccess GHOST_System::init()
 {
 	m_timerManager = new GHOST_TimerManager();

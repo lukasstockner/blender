@@ -170,6 +170,8 @@ typedef enum {
 	GHOST_kEventKeyUp,
 //	GHOST_kEventKeyAuto,
 
+	GHOST_kEventSensor,
+
 	GHOST_kEventQuit,
 
 	GHOST_kEventWindowClose,
@@ -496,6 +498,19 @@ typedef struct {
 	char utf8_buf[6];
 } GHOST_TEventKeyData;
 
+typedef enum {
+	GHOST_kSensorAccelerometer = 1,
+	GHOST_kSensorGyroscope,
+	GHOST_kSensorMagnetic
+
+} GHOST_TSensorTypes;
+
+typedef struct {
+	GHOST_TSensorTypes type;
+	float dv[3];
+
+} GHOST_TEventSensorData;
+
 typedef struct {
 	/** Number of pixels on a line. */
 	GHOST_TUns32 xPixels;
@@ -506,6 +521,7 @@ typedef struct {
 	/** Refresh rate (in Hertz). */
 	GHOST_TUns32 frequency;
 } GHOST_DisplaySetting;
+
 
 
 #ifdef _WIN32

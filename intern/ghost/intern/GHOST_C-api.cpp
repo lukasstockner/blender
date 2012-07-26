@@ -403,6 +403,23 @@ GHOST_TSuccess GHOST_GetButtonState(GHOST_SystemHandle systemhandle,
 }
 
 
+extern GHOST_TSuccess GHOST_getSensorsAvailability(GHOST_SystemHandle systemhandle,
+												   GHOST_TSensorTypes type)
+{
+	GHOST_ISystem *system = (GHOST_ISystem *) systemhandle;
+
+	return system->getSensorsAvailability(type);
+}
+
+extern GHOST_TSuccess GHOST_setSensorsState(GHOST_SystemHandle systemhandle,
+											GHOST_TSensorTypes type,
+											int enable)
+{
+	GHOST_ISystem *system = (GHOST_ISystem *) systemhandle;
+
+	return system->setSensorsState(type, enable && 1);
+}
+
 void GHOST_setAcceptDragOperation(GHOST_WindowHandle windowhandle, GHOST_TInt8 canAccept)
 {
 	GHOST_IWindow *window = (GHOST_IWindow *) windowhandle;

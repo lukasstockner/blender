@@ -420,6 +420,30 @@ extern GHOST_TSuccess GHOST_GetButtonState(GHOST_SystemHandle systemhandle,
                                            GHOST_TButtonMask mask,
                                            int *isDown);
 
+/***************************************************************************************
+ * Hardware Sensor operations
+ ***************************************************************************************/
+
+/**
+ * Returns the availability of sensor.
+ * @param systemhandle The handle to the system
+ * @param type		The type of sensor.
+ * @return			Indication of availability.
+ */
+extern GHOST_TSuccess GHOST_getSensorsAvailability(GHOST_SystemHandle systemhandle,
+												   GHOST_TSensorTypes type);
+
+/**
+ * Enables or disables specific sensor.
+ * @param systemhandle The handle to the system
+ * @param type		The type of sensor.
+ * @param enable	1 = enable, 0 = disable
+ * @return			Indication of success.
+ */
+extern GHOST_TSuccess GHOST_setSensorsState(GHOST_SystemHandle systemhandle,
+											GHOST_TSensorTypes type,
+											int enable);
+
 
 /***************************************************************************************
  * Drag'n'drop operations

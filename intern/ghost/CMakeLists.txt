@@ -75,6 +75,7 @@ set(SRC
 	intern/GHOST_EventString.h
 	intern/GHOST_EventTrackpad.h
 	intern/GHOST_EventWheel.h
+	intern/GHOST_EventSensor.h
 	intern/GHOST_ModifierKeys.h
 	intern/GHOST_System.h
 	intern/GHOST_SystemPaths.h
