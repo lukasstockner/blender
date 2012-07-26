@@ -138,7 +138,7 @@ void MESH_OT_subdivide(wmOperatorType *ot)
 	/* properties */
 	prop = RNA_def_int(ot->srna, "number_cuts", 1, 1, INT_MAX, "Number of Cuts", "", 1, 10);
 	/* avoid re-using last var because it can cause _very_ high poly meshes and annoy users (or worse crash) */
-	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE|PROP_PRIMARY);
 
 	RNA_def_float(ot->srna, "smoothness", 0.0f, 0.0f, FLT_MAX, "Smoothness", "Smoothness factor", 0.0f, 1.0f);
 
@@ -3373,6 +3373,8 @@ static int edbm_spin_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 
 void MESH_OT_spin(wmOperatorType *ot)
 {
+	PropertyRNA* prop;
+
 	/* identifiers */
 	ot->name = "Spin";
 	ot->description = "Extrude selected vertices in a circle around the cursor in indicated viewport";
@@ -3387,9 +3389,13 @@ void MESH_OT_spin(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* props */
-	RNA_def_int(ot->srna, "steps", 9, 0, INT_MAX, "Steps", "Steps", 0, INT_MAX);
+	prop = RNA_def_int(ot->srna, "steps", 9, 0, INT_MAX, "Steps", "Steps", 0, INT_MAX);
+	RNA_def_property_flag(prop, PROP_PRIMARY);
+
 	RNA_def_boolean(ot->srna, "dupli", 0, "Dupli", "Make Duplicates");
-	RNA_def_float(ot->srna, "degrees", 90.0f, -FLT_MAX, FLT_MAX, "Degrees", "Degrees", -360.0f, 360.0f);
+
+	prop = RNA_def_float(ot->srna, "degrees", 90.0f, -FLT_MAX, FLT_MAX, "Degrees", "Degrees", -360.0f, 360.0f);
+	RNA_def_property_flag(prop, PROP_PRIMARY);
 
 	RNA_def_float_vector(ot->srna, "center", 3, NULL, -FLT_MAX, FLT_MAX, "Center", "Center in global view space", -FLT_MAX, FLT_MAX);
 	RNA_def_float_vector(ot->srna, "axis", 3, NULL, -1.0f, 1.0f, "Axis", "Axis in global view space", -FLT_MAX, FLT_MAX);
@@ -3497,6 +3503,8 @@ static int edbm_screw_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event)
 
 void MESH_OT_screw(wmOperatorType *ot)
 {
+	PropertyRNA* prop;
+
 	/* identifiers */
 	ot->name = "Screw";
 	ot->description = "Extrude selected vertices in screw-shaped rotation around the cursor in indicated viewport";
@@ -3511,8 +3519,11 @@ void MESH_OT_screw(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* props */
-	RNA_def_int(ot->srna, "steps", 9, 0, INT_MAX, "Steps", "Steps", 0, 256);
-	RNA_def_int(ot->srna, "turns", 1, 0, INT_MAX, "Turns", "Turns", 0, 256);
+	prop = RNA_def_int(ot->srna, "steps", 9, 0, INT_MAX, "Steps", "Steps", 0, 256);
+	RNA_def_property_flag(prop, PROP_PRIMARY);
+
+	prop = RNA_def_int(ot->srna, "turns", 1, 0, INT_MAX, "Turns", "Turns", 0, 256);
+	RNA_def_property_flag(prop, PROP_PRIMARY);
 
 	RNA_def_float_vector(ot->srna, "center", 3, NULL, -FLT_MAX, FLT_MAX,
 	                     "Center", "Center in global view space", -FLT_MAX, FLT_MAX);

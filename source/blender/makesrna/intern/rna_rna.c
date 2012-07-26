@@ -583,6 +583,12 @@ static int rna_Property_is_library_editable_flag_get(PointerRNA *ptr)
 	return prop->flag & PROP_LIB_EXCEPTION ? 1 : 0;
 }
 
+static int rna_Property_is_primary_get(PointerRNA *ptr)
+{
+	PropertyRNA *prop = (PropertyRNA *)ptr->data;
+	return prop->flag & PROP_PRIMARY ? 1 : 0;
+}
+
 static int rna_Property_array_length_get(PointerRNA *ptr)
 {
 	PropertyRNA *prop = (PropertyRNA *)ptr->data;
@@ -1185,6 +1191,11 @@ static void rna_def_property(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_boolean_funcs(prop, "rna_Property_is_library_editable_flag_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Library Editable", "Property is editable from linked instances (changes not saved)");
+
+	prop = RNA_def_property(srna, "is_primary", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_boolean_funcs(prop, "rna_Property_is_primary_get", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Primary", "True when the property is primary");
 }
 
 static void rna_def_function(BlenderRNA *brna)

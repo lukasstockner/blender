@@ -167,6 +167,8 @@ typedef enum PropertyFlag {
 	PROP_HIDDEN = (1 << 19),
 	/* do not write in presets */
 	PROP_SKIP_SAVE = (1 << 28),
+	/* this is the most important property */
+	PROP_PRIMARY = (1 << 29),
 
 	/* function paramater flags */
 	PROP_REQUIRED = (1 << 2),

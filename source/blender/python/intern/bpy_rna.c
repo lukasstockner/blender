@@ -3137,6 +3137,34 @@ static PyObject *pyrna_struct_is_property_hidden(BPy_StructRNA *self, PyObject *
 	return PyBool_FromLong(RNA_property_flag(prop) & PROP_HIDDEN);
 }
 
+PyDoc_STRVAR(pyrna_struct_is_property_primary_doc,
+".. method:: is_property_primary(property)\n"
+"\n"
+"   Check if a property is primary.\n"
+"\n"
+"   :return: True when the property is primary.\n"
+"   :rtype: boolean\n"
+);
+static PyObject *pyrna_struct_is_property_primary(BPy_StructRNA *self, PyObject *args)
+{
+	PropertyRNA *prop;
+	const char *name;
+
+	PYRNA_STRUCT_CHECK_OBJ(self);
+
+	if (!PyArg_ParseTuple(args, "s:is_property_primary", &name))
+		return NULL;
+
+	if ((prop = RNA_struct_find_property(&self->ptr, name)) == NULL) {
+		PyErr_Format(PyExc_TypeError,
+		             "%.200s.is_property_primary(\"%.200s\") not found",
+		             RNA_struct_identifier(self->ptr.type), name);
+		return NULL;
+	}
+
+	return PyBool_FromLong(RNA_property_flag(prop) & PROP_PRIMARY);
+}
+
 PyDoc_STRVAR(pyrna_struct_path_resolve_doc,
 ".. method:: path_resolve(path, coerce=True)\n"
 "\n"
@@ -4578,6 +4606,7 @@ static struct PyMethodDef pyrna_struct_methods[] = {
 
 	{"is_property_set", (PyCFunction)pyrna_struct_is_property_set, METH_VARARGS, pyrna_struct_is_property_set_doc},
 	{"is_property_hidden", (PyCFunction)pyrna_struct_is_property_hidden, METH_VARARGS, pyrna_struct_is_property_hidden_doc},
+	{"is_property_primary", (PyCFunction)pyrna_struct_is_property_primary, METH_VARARGS, pyrna_struct_is_property_primary_doc},
 	{"path_resolve", (PyCFunction)pyrna_struct_path_resolve, METH_VARARGS, pyrna_struct_path_resolve_doc},
 	{"path_from_id", (PyCFunction)pyrna_struct_path_from_id, METH_VARARGS, pyrna_struct_path_from_id_doc},
 	{"type_recast", (PyCFunction)pyrna_struct_type_recast, METH_NOARGS, pyrna_struct_type_recast_doc},

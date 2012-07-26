@@ -513,6 +513,8 @@ void Transform_Properties(struct wmOperatorType *ot, int flags)
 
 static void TRANSFORM_OT_translate(struct wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+
 	/* identifiers */
 	ot->name   = "Translate";
 	ot->description = "Translate (move) selected items";
@@ -526,13 +528,16 @@ static void TRANSFORM_OT_translate(struct wmOperatorType *ot)
 	ot->cancel = transform_cancel;
 	ot->poll   = ED_operator_screenactive;
 
-	RNA_def_float_vector_xyz(ot->srna, "value", 3, NULL, -FLT_MAX, FLT_MAX, "Vector", "", -FLT_MAX, FLT_MAX);
+	prop = RNA_def_float_vector_xyz(ot->srna, "value", 3, NULL, -FLT_MAX, FLT_MAX, "Vector", "", -FLT_MAX, FLT_MAX);
+	RNA_def_property_flag(prop, PROP_PRIMARY);
 
 	Transform_Properties(ot, P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_ALIGN_SNAP | P_OPTIONS);
 }
 
 static void TRANSFORM_OT_resize(struct wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+
 	/* identifiers */
 	ot->name   = "Resize";
 	ot->description = "Scale (resize) selected items"; 
@@ -546,7 +551,8 @@ static void TRANSFORM_OT_resize(struct wmOperatorType *ot)
 	ot->cancel = transform_cancel;
 	ot->poll   = ED_operator_screenactive;
 
-	RNA_def_float_vector(ot->srna, "value", 3, VecOne, -FLT_MAX, FLT_MAX, "Vector", "", -FLT_MAX, FLT_MAX);
+	prop = RNA_def_float_vector(ot->srna, "value", 3, VecOne, -FLT_MAX, FLT_MAX, "Vector", "", -FLT_MAX, FLT_MAX);
+	RNA_def_property_flag(prop, PROP_PRIMARY);
 
 	Transform_Properties(ot, P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_GEO_SNAP | P_OPTIONS);
 }
@@ -603,6 +609,8 @@ static void TRANSFORM_OT_trackball(struct wmOperatorType *ot)
 
 static void TRANSFORM_OT_rotate(struct wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+
 	/* identifiers */
 	ot->name   = "Rotate";
 	ot->description = "Rotate selected items";
@@ -616,7 +624,8 @@ static void TRANSFORM_OT_rotate(struct wmOperatorType *ot)
 	ot->cancel = transform_cancel;
 	ot->poll   = ED_operator_screenactive;
 
-	RNA_def_float_rotation(ot->srna, "value", 1, NULL, -FLT_MAX, FLT_MAX, "Angle", "", -M_PI * 2, M_PI * 2);
+	prop = RNA_def_float_rotation(ot->srna, "value", 1, NULL, -FLT_MAX, FLT_MAX, "Angle", "", -M_PI * 2, M_PI * 2);
+	RNA_def_property_flag(prop, PROP_PRIMARY);
 
 	Transform_Properties(ot, P_AXIS | P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_GEO_SNAP);
 }
@@ -688,6 +697,8 @@ static void TRANSFORM_OT_shear(struct wmOperatorType *ot)
 
 static void TRANSFORM_OT_push_pull(struct wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+
 	/* identifiers */
 	ot->name   = "Push/Pull";
 	ot->description = "Push/Pull selected items";
@@ -701,13 +712,16 @@ static void TRANSFORM_OT_push_pull(struct wmOperatorType *ot)
 	ot->cancel = transform_cancel;
 	ot->poll   = ED_operator_screenactive;
 
-	RNA_def_float(ot->srna, "value", 0, -FLT_MAX, FLT_MAX, "Distance", "", -FLT_MAX, FLT_MAX);
+	prop = RNA_def_float(ot->srna, "value", 0, -FLT_MAX, FLT_MAX, "Distance", "", -FLT_MAX, FLT_MAX);
+	RNA_def_property_flag(prop, PROP_PRIMARY);
 
 	Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR | P_SNAP);
 }
 
 static void TRANSFORM_OT_shrink_fatten(struct wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+
 	/* identifiers */
 	ot->name   = "Shrink/Fatten";
 	ot->description = "Shrink/fatten selected vertices along normals";
@@ -721,7 +735,8 @@ static void TRANSFORM_OT_shrink_fatten(struct wmOperatorType *ot)
 	ot->cancel = transform_cancel;
 	ot->poll   = ED_operator_editmesh;
 
-	RNA_def_float(ot->srna, "value", 0, -FLT_MAX, FLT_MAX, "Offset", "", -FLT_MAX, FLT_MAX);
+	prop = RNA_def_float(ot->srna, "value", 0, -FLT_MAX, FLT_MAX, "Offset", "", -FLT_MAX, FLT_MAX);
+	RNA_def_property_flag(prop, PROP_PRIMARY);
 
 	Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR | P_SNAP);
 }
@@ -767,6 +782,8 @@ static void TRANSFORM_OT_mirror(struct wmOperatorType *ot)
 
 static void TRANSFORM_OT_edge_slide(struct wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+
 	/* identifiers */
 	ot->name   = "Edge Slide";
 	ot->description = "Slide an edge loop along a mesh"; 
@@ -780,7 +797,8 @@ static void TRANSFORM_OT_edge_slide(struct wmOperatorType *ot)
 	ot->cancel = transform_cancel;
 	ot->poll   = ED_operator_editmesh;
 
-	RNA_def_float_factor(ot->srna, "value", 0, -1.0f, 1.0f, "Factor", "", -1.0f, 1.0f);
+	prop = RNA_def_float_factor(ot->srna, "value", 0, -1.0f, 1.0f, "Factor", "", -1.0f, 1.0f);
+	RNA_def_property_flag(prop, PROP_PRIMARY);
 
 	Transform_Properties(ot, P_MIRROR | P_SNAP);
 }

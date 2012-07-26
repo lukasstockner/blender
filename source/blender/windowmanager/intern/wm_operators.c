@@ -960,7 +960,7 @@ int WM_operator_check_ui_enabled(const bContext *C, const char *idname)
 	return !(ED_undo_valid(C, idname) == 0 || WM_jobs_test(wm, scene));
 }
 
-wmOperator *WM_operator_last_redo(const bContext *C)
+wmOperator *WM_operator_last_redo(bContext *C)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmOperator *op;

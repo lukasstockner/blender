@@ -247,7 +247,12 @@ void RNA_api_wm(StructRNA *srna)
 	func = RNA_def_function(srna, "invoke_confirm", "WM_operator_confirm");
 	RNA_def_function_ui_description(func, "Operator confirmation");
 	rna_generic_op_invoke(func, WM_GEN_INVOKE_EVENT | WM_GEN_INVOKE_RETURN);
-	
+
+	func = RNA_def_function(srna, "last_redo", "WM_operator_last_redo");
+	RNA_def_function_ui_description(func, "Find last redoable operator");
+	RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
+	parm = RNA_def_pointer(func, "operator", "Operator", "Operator", "Last redoable operator");
+	RNA_def_function_return(func, parm);
 }
 
 void RNA_api_operator(StructRNA *srna)

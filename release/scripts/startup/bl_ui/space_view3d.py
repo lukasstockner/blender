@@ -2700,16 +2700,52 @@ class VIEW3D_PT_floating_controls(Panel):
     bl_label = "Floating Controls"
     bl_options = {'HIDE_HEADER'}
 
+    def make_lastop(self, context, layout):
+        wm = context.window_manager
+
+        last_operator = wm.last_redo()
+        if last_operator != None:
+            lastop = layout.row()
+            lastop.alignment = 'RIGHT'
+                
+            lastop_name = last_operator.name
+            for id, p in last_operator.properties.items():
+                if last_operator.properties.is_property_primary(id):
+                    if str(p.__class__) == "<class 'IDPropertyArray'>":
+                        lastop_name = lastop_name + " ("
+                        for v in p:
+                            if type(v) is float:
+                                string_formatted = "%(pretty_number).3f" % { "pretty_number": v }
+                            else:
+                                string_formatted = str(v)
+                            lastop_name = lastop_name + string_formatted + " "
+                        lastop_name = lastop_name[:-1] # cut off the last space
+                        lastop_name = lastop_name + ")"
+                    else:
+                        lastop_name = lastop_name + " (" + str(p) + ")"
+
+            lastop.operator("screen.redo_last", text=lastop_name, emboss=False)
+
     def draw(self, context):
         view = context.space_data
         tools = context.tool_settings
+        wm = context.window_manager
 
         if bpy.context.user_preferences.view.floating_controls == 'BOTTOM' or bpy.context.user_preferences.view.floating_controls == 'TOP':
             layout = self.layout
-            if bpy.context.user_preferences.view.floating_controls == 'BOTTOM':
-	            layout.alignment = 'BOTTOM'
 
-            row = layout.row(align=True)
+            row = None
+
+            if bpy.context.user_preferences.view.floating_controls == 'BOTTOM':
+                layout.alignment = 'BOTTOM'
+                row = layout.row()  # Create this first so it floats on the bottom
+
+            self.make_lastop(context, layout)
+
+            if bpy.context.user_preferences.view.floating_controls == 'TOP':
+                row = layout.row()
+
+            row = row.row(align=True)
             row.alignment = 'CENTER'
             row.scale_x = 1.5
             row.scale_y = 1.5
@@ -2742,6 +2778,8 @@ class VIEW3D_PT_floating_controls(Panel):
 
         elif bpy.context.user_preferences.view.floating_controls == 'LEFT' or bpy.context.user_preferences.view.floating_controls == 'RIGHT':
             layout = self.layout
+
+            self.make_lastop(context, layout)
 
             row = layout.row()
             if bpy.context.user_preferences.view.floating_controls == 'RIGHT':

@@ -58,6 +58,7 @@ extern BPy_StructRNA *bpy_context_module;
 
 static EnumPropertyItem property_flag_items[] = {
 	{PROP_HIDDEN, "HIDDEN", 0, "Hidden", ""},
+	{PROP_PRIMARY, "PRIMARY", 0, "Primary", ""},
 	{PROP_SKIP_SAVE, "SKIP_SAVE", 0, "Skip Save", ""},
 	{PROP_ANIMATABLE, "ANIMATABLE", 0, "Animatable", ""},
 	{PROP_LIB_EXCEPTION, "LIBRARY_EDITABLE", 0, "Library Editable", ""},
