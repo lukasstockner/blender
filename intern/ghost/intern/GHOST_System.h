@@ -230,6 +230,25 @@ public:
 	 * @return			Indication of success.
 	 */
 	virtual GHOST_TSuccess getButtonState(GHOST_TButtonMask mask, bool& isDown) const;
+
+	/***************************************************************************************
+	 * Hardware Sensor operations
+	 ***************************************************************************************/
+
+	/**
+	 * Returns the availability of sensor.
+	 * @param type		The type of sensor.
+	 * @return			Indication of availability.
+	 */
+	virtual GHOST_TSuccess getSensorsAvailability(GHOST_TSensorTypes type);
+
+	/**
+	 * Enables or disables specific sensor.
+	 * @param type		The type of sensor.
+	 * @param enable	1 = enable, 0 = disable
+	 * @return			Indication of success.
+	 */
+	virtual GHOST_TSuccess setSensorsState(GHOST_TSensorTypes type, int enable);
 	
 	/***************************************************************************************
 	 * Other (internal) functionality.

@@ -83,6 +83,13 @@ public:
 	getMainDisplayDimensions(GHOST_TUns32& width,
 	                         GHOST_TUns32& height) const;
 
+
+
+
+	GHOST_TSuccess getSensorsAvailability(GHOST_TSensorTypes type);
+
+	GHOST_TSuccess setSensorsState(GHOST_TSensorTypes type, int enable);
+
 private:
 
 	/// The vector of windows that need to be updated.

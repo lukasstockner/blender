@@ -34,6 +34,7 @@
 #include "GHOST_EventKey.h"
 #include "GHOST_EventButton.h"
 #include "GHOST_EventWheel.h"
+#include "GHOST_EventSensor.h"
 
 #include <sys/time.h>
 
@@ -46,9 +47,9 @@
 
 GHOST_SystemAndroid::GHOST_SystemAndroid()
     :
-	  GHOST_System()
+	  GHOST_System(),
+	  mainwindow(NULL)
 {
-
 
 	// compute the initial time
 	timeval tv;
@@ -170,6 +171,7 @@ void GHOST_SystemAndroid::processEvent(eEventAllTypes *ae)
 	GHOST_Event *g_event = NULL;
 
 	if (!window) {
+
 		return;
 
 
@@ -216,7 +218,6 @@ void GHOST_SystemAndroid::processEvent(eEventAllTypes *ae)
 									ae->WindowSize.size[0], ae->WindowSize.size[1]
 									);
 				g_event = new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowSize, window);
-	pushEvent(new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowSize, window));
 
 				break;
 			}
@@ -251,6 +252,11 @@ void GHOST_SystemAndroid::processEvent(eEventAllTypes *ae)
 								);
 
 				}
+				break;
+			}
+			case ET_SENSOR:
+			{
+				g_event = new  GHOST_EventSensor(getMilliSeconds(), window, (GHOST_TSensorTypes)ae->Sensor.type, ae->Sensor.sv);
 				break;
 			}
 
@@ -354,6 +360,15 @@ GHOST_SystemAndroid::processEvents(bool waitForEvent)
 
 
 
+GHOST_TSuccess GHOST_SystemAndroid::getSensorsAvailability(GHOST_TSensorTypes type)
+{
+	return aGetSensorsAvailability(type) ? GHOST_kSuccess : GHOST_kFailure;
+}
+
+GHOST_TSuccess GHOST_SystemAndroid::setSensorsState(GHOST_TSensorTypes type, int enable)
+{
+	return aSetSensorsState(type, enable) ? GHOST_kSuccess : GHOST_kFailure;
+}
 
 GHOST_TSuccess GHOST_SystemAndroid::getButtons(GHOST_Buttons& buttons) const
 {
