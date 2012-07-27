@@ -91,6 +91,8 @@ protected:
 	 * relative to the context */
 	RAS_Rect m_displayarea;
 
+	int *m_viewport;
+
 	/** Storage for the banners to display. */
 	TBannerMap m_banners;
 	/** State of banner display. */
@@ -154,6 +156,7 @@ public:
 	);
 	
 	void SetViewPort(int x1, int y1, int x2, int y2);
+	const int *GetViewPort();
 
 	void ClearColor(float r, float g, float b, float a);
 

@@ -91,8 +91,7 @@ KX_Dome::KX_Dome (
 	}
 
 	//setting the viewport size
-	GLuint	viewport[4]={0};
-	glGetIntegerv(GL_VIEWPORT,(GLint *)viewport);
+	const int *viewport = m_canvas->GetViewPort();
 
 	SetViewPort(viewport);
 
@@ -179,7 +178,7 @@ KX_Dome::~KX_Dome (void)
 		glDeleteLists(dlistId, (GLsizei) m_numimages);
 }
 
-void KX_Dome::SetViewPort(GLuint viewport[4])
+void KX_Dome::SetViewPort(const int *viewport)
 {
 	if (canvaswidth != m_viewport.GetWidth() || canvasheight != m_viewport.GetHeight())
 	{

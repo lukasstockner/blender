@@ -62,6 +62,8 @@ GPC_Canvas::GPC_Canvas(
 	m_displayarea.m_y1 = 0;
 	m_displayarea.m_x2 = width;
 	m_displayarea.m_y2 = height;
+
+	glGetIntegerv(GL_VIEWPORT, (GLint*)m_viewport);
 }
 
 
@@ -129,12 +131,21 @@ void GPC_Canvas::SetViewPort(int x1, int y1, int x2, int y2)
 		 */
 #include REAL_GL_MODE
 	glEnable(GL_SCISSOR_TEST);
+	
+	m_viewport[0] = x1;
+	m_viewport[1] = y1;
+	m_viewport[2] = x2-x1 + 1;
+	m_viewport[3] = y2-y1 + 1;
 
 	glViewport(x1,y1,x2-x1 + 1,y2-y1 + 1);
 	glScissor(x1,y1,x2-x1 + 1,y2-y1 + 1);
 #include FAKE_GL_MODE
 };
 
+const int *GPC_Canvas::GetViewPort()
+{
+	return m_viewport;
+}
 
 void GPC_Canvas::ClearBuffer(
 	int type

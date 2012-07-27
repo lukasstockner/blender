@@ -44,6 +44,8 @@ m_frame_rect(rect)
 	// area boundaries needed for mouse coordinates in Letterbox framing mode
 	m_area_left = ar->winrct.xmin;
 	m_area_top = ar->winrct.ymax;
+
+	glGetIntegerv(GL_VIEWPORT, (GLint*)m_viewport);
 }
 
 KX_BlenderCanvas::~KX_BlenderCanvas()
@@ -166,10 +168,20 @@ SetViewPort(
 	m_area_rect.SetRight(minx + x2);
 	m_area_rect.SetTop(miny + y2);
 
+	m_viewport[0] = minx+x1;
+	m_viewport[1] = miny+y1;
+	m_viewport[2] = vp_width;
+	m_viewport[3] = vp_height;
+
 	glViewport(minx + x1, miny + y1, vp_width, vp_height);
 	glScissor(minx + x1, miny + y1, vp_width, vp_height);
 }
 
+	const int*
+KX_BlenderCanvas::
+GetViewPort() {
+	return m_viewport;
+}
 
 void KX_BlenderCanvas::SetMouseState(RAS_MouseState mousestate)
 {
