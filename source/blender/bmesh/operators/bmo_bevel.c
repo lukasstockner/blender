@@ -299,9 +299,7 @@ void bevel_aditional_construction_by_vert(BMesh *bm, BevelParams *bp, BMOperator
 {
     // TODO develop planar case
     BMOIter siter;
-    //BMIter iter;
     BMEdge *e, **edges = NULL;
-    //int i;
     BLI_array_declare(edges);
 
     // calc count input selected edges
@@ -313,19 +311,15 @@ void bevel_aditional_construction_by_vert(BMesh *bm, BevelParams *bp, BMOperator
         }
     }
     if (BLI_array_count(edges) > 0) {
-        //BMEdge *prev_e;
         AdditionalVert *av;
+        BMIter bmiter;
         av = (AdditionalVert*)MEM_callocN(sizeof(AdditionalVert), "AdditionalVert");
         av->v = v;
         av->count = 0;
         av->vertices.first = av->vertices.last = NULL;
         BLI_addtail(&bp->vertList, av);
-        e = bmesh_disk_faceedge_find_first(edges[0], v);
 
-        // for (e = bmesh_disk_edge_next(edges[0], v); e != edges[0]; e = bmesh_disk_edge_next(e, v)) {
-        do {
-            //prev_e = e;
-            e = bmesh_disk_edge_next(e, v);
+        BM_ITER_ELEM(e, &bmiter, v, BM_EDGES_OF_VERT) {
             // point located beteween selecion edges
             if (BMO_elem_flag_test(bm, e, EDGE_SELECTED)) {
                 BMFace *f;
@@ -363,7 +357,7 @@ void bevel_aditional_construction_by_vert(BMesh *bm, BevelParams *bp, BMOperator
                 BLI_addtail(&av->vertices, item);
                 av->count ++;
             }
-        } while (e != edges[0]);
+        }
     }
     BLI_array_free(edges);
 }
