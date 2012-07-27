@@ -371,12 +371,11 @@ void bevel_aditional_construction_by_vert(BMesh *bm, BevelParams *bp, BMOperator
 //TODO rename it!
 AdditionalVert* get_additionalVert_by_vert(BevelParams *bp, BMVert *v)
 {
-    VertexItem *item;
+    AdditionalVert *item;
     AdditionalVert *av = NULL;
     for (item = bp->vertList.first; item ; item = item->next){
         if (item->v == v)
-            //av = item;
-			av->v = item->v;
+            av = item;
     }
     return av;
 }
