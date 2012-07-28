@@ -186,7 +186,7 @@ General functions
    :type load_actions: bool
    :arg verbose: Whether or not to print debugging information (e.g., "SceneName: Scene")
    :type verbose: bool
-   :arg async: Whether or not to do the loading asynchronously (in another thread)
+   :arg async: Whether or not to do the loading asynchronously (in another thread). Only the "Scene" type is currently supported for this feature.
    :type async: bool
    
    :rtype: :class:`bge.types.KX_LibLoadStatus`
