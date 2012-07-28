@@ -188,12 +188,4 @@ protected:
 
 	void calc_ob_mat_at_time(Object *ob, float ctime , float mat[][4]);
 
-	void CAE_execute_tree( struct Scene *scene, Object *ob, bPoseChannel *pchan, float ctime);
-    
-	void execute_posetree_ctime(struct Scene *scene, Object *ob, PoseTree *tree, float ctime);
-
-	void where_is_ik_bone(bPoseChannel *pchan, float ik_mat[][3]);
-
-	void free_posetree(PoseTree *tree);
-
 };
