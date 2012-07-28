@@ -4845,7 +4845,8 @@ static int edbm_bridge_edge_loops_exec(bContext *C, wmOperator *op)
 
 static EnumPropertyItem prop_mesh_bridge_interpolation_types[] = {
     {BRIDGE_LINEAR, "LINEAR", 0, "Linear", ""},
-    {BRIDGE_CUBIC, "CUBIC", 0, "Cubic", ""}
+    {BRIDGE_CUBIC, "CUBIC", 0, "Cubic", ""},
+    {0, NULL, 0, NULL, NULL}
 };
 
 void MESH_OT_bridge_edge_loops(wmOperatorType *ot)

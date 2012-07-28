@@ -284,7 +284,7 @@ void SnapSystem_evaluate_stack(SnapSystem* ssystem){
   */
 
 void SnapSystem_default_object_handler(SnapSystem* ssystem, void* callback_data, Object* ob){
-	int retval;is
+	int retval;
 	TransInfo* t = (TransInfo*)callback_data; //hack to test using existing option system
 	BMEditMesh *em;
 	DerivedMesh *dm;

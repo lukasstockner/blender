@@ -161,7 +161,7 @@ void ED_operatortypes_mesh(void)
 
 	WM_operatortype_append(MESH_OT_select_next_loop);
 
-	// WM_operatortype_append(MESH_OT_bridge_edge_loops);
+	WM_operatortype_append(MESH_OT_bridge_edge_loops);
 	WM_operatortype_append(MESH_OT_inset);
 	WM_operatortype_append(MESH_OT_wireframe);
 	WM_operatortype_append(MESH_OT_edge_split);
