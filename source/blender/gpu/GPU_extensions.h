@@ -37,7 +37,7 @@ extern "C" {
 #endif
 
 extern unsigned int GPU_ext_config ;
-
+extern unsigned int GPU_gl_type ;
 
 #define GPU_EXT_GLSL (1<<0)
 #define GPU_EXT_GLSL_ENABLED (GPU_ext_config & GPU_EXT_GLSL)
@@ -47,6 +47,13 @@ extern unsigned int GPU_ext_config ;
 #define GPU_EXT_GLSL_FRAGMENT_ENABLED (GPU_ext_config & GPU_EXT_GLSL_FRAGMENT)
 #define GPU_EXT_FRAMEBUFFERS (1<<3)
 #define GPU_EXT_FRAMEBUFFERS_ENABLED (GPU_ext_config & GPU_EXT_FRAMEBUFFERS)
+
+#ifdef GLES
+#define GPU_GLTYPE_FIXED_ENABLED (0)
+#else
+#define GPU_GLTYPE_FIXED (1<<0)
+#define GPU_GLTYPE_FIXED_ENABLED (GPU_gl_type & GPU_GLTYPE_FIXED)
+#endif
 
 /* GPUShader */
 

@@ -78,7 +78,8 @@ extern char datatoc_gpu_shader_vsm_store_vert_glsl[];
 extern char datatoc_gpu_shader_vsm_store_frag_glsl[];
 extern char datatoc_gpu_shader_sep_gaussian_blur_vert_glsl[];
 extern char datatoc_gpu_shader_sep_gaussian_blur_frag_glsl[];
-unsigned int GPU_ext_config ;
+unsigned int GPU_ext_config = 0;
+unsigned int GPU_gl_type = 0;
 
 typedef struct GPUShaders {
 	GPUShader *vsm_store;
@@ -142,6 +143,7 @@ void GPU_extensions_init(void)
 	if (!GLEW_ARB_fragment_shader) GG.glslsupport = 0;
 	if (GLEW_VERSION_2_0) GG.glslsupport = 1;
 	if (GLEW_EXT_framebuffer_object || GLEW_VERSION_3_0) GPU_ext_config |= GPU_EXT_FRAMEBUFFERS;
+	GPU_gl_type |= GPU_GLTYPE_FIXED;
 #else 
 	GPU_ext_config |= GPU_EXT_FRAMEBUFFERS;
 #endif
