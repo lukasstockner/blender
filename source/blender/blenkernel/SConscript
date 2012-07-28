@@ -18,6 +18,7 @@ incs += ' #/intern/mikktspace'
 incs += ' #/intern/audaspace/intern'
 incs += ' #/intern/ffmpeg'
 incs += ' #/intern/raskter'
+incs += ' ../editors/include ../editors/transform'
 
 incs += ' ' + env['BF_OPENGL_INC']
 incs += ' ' + env['BF_ZLIB_INC']

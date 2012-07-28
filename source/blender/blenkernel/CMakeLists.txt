@@ -45,6 +45,7 @@ set(INC
 	../../../intern/mikktspace
 	../../../intern/opennl/extern
 	../../../intern/raskter
+	../editors/transform
 	
 
 	# XXX - BAD LEVEL CALL WM_api.h

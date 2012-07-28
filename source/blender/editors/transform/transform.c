@@ -740,6 +740,7 @@ int transformEvent(TransInfo *t, wmEvent *event)
 	float mati[3][3] = MAT3_UNITY;
 	char cmode = constraintModeToChar(t);
 	int handled = 1;
+	int snapping_handled = 0;
 
 	t->redraw |= handleMouseInput(t, &t->mouse, event);
 
@@ -763,14 +764,20 @@ int transformEvent(TransInfo *t, wmEvent *event)
 		t->redraw |= handleSnapping(t, event);
 	}
 
+	snapping_handled = SnapSystem_Event(t->tsnap.ssystem, event);
+
 	/* handle modal keymap first */
 	if (event->type == EVT_MODAL_MAP) {
 		switch (event->val) {
 			case TFM_MODAL_CANCEL:
-				t->state = TRANS_CANCEL;
+				if(!snapping_handled){
+					t->state = TRANS_CANCEL;
+				}
 				break;
 			case TFM_MODAL_CONFIRM:
-				t->state = TRANS_CONFIRM;
+				if(!snapping_handled){
+					t->state = TRANS_CONFIRM;
+				}
 				break;
 			case TFM_MODAL_TRANSLATE:
 				/* only switch when... */
@@ -973,7 +980,9 @@ int transformEvent(TransInfo *t, wmEvent *event)
 	else if (event->val == KM_PRESS) {
 		switch (event->type) {
 			case RIGHTMOUSE:
-				t->state = TRANS_CANCEL;
+				if(!snapping_handled){
+					t->state = TRANS_CANCEL;
+				}
 				break;
 			/* enforce redraw of transform when modifiers are used */
 			case LEFTSHIFTKEY:

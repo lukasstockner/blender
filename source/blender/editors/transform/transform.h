@@ -40,6 +40,7 @@
 
 #include "BLI_smallhash.h"
 #include "BKE_tessmesh.h"
+#include "BKE_snap.h"
 
 /* ************************** Types ***************************** */
 
@@ -73,6 +74,7 @@ typedef struct TransSnapPoint {
 } TransSnapPoint;
 
 typedef struct TransSnap {
+	SnapSystem *ssystem;
 	short	mode;
 	short	target;
 	short	modePoint;
@@ -82,6 +84,8 @@ typedef struct TransSnap {
 	char	snap_self;
 	short	peel;
 	short  	status;
+	int r_dist;
+	float r_depth;
 	float	snapPoint[3]; /* snapping from this point */
 	float	snapTarget[3]; /* to this point */
 	float	snapNormal[3];
@@ -552,6 +556,24 @@ void drawPropCircle(const struct bContext *C, TransInfo *t);
 
 struct wmKeyMap *transform_modal_keymap(struct wmKeyConfig *keyconf);
 
+/* NOTE: these defines are saved in keymap files, do not change values but just add new ones */
+#define TFM_MODAL_CANCEL		1
+#define TFM_MODAL_CONFIRM		2
+#define TFM_MODAL_TRANSLATE		3
+#define TFM_MODAL_ROTATE		4
+#define TFM_MODAL_RESIZE		5
+#define TFM_MODAL_SNAP_INV_ON	6
+#define TFM_MODAL_SNAP_INV_OFF	7
+#define TFM_MODAL_SNAP_TOGGLE	8
+#define TFM_MODAL_AXIS_X		9
+#define TFM_MODAL_AXIS_Y		10
+#define TFM_MODAL_AXIS_Z		11
+#define TFM_MODAL_PLANE_X		12
+#define TFM_MODAL_PLANE_Y		13
+#define TFM_MODAL_PLANE_Z		14
+#define TFM_MODAL_CONS_OFF		15
+#define TFM_MODAL_ADD_SNAP		16
+#define TFM_MODAL_REMOVE_SNAP	17
 
 /*********************** transform_conversions.c ********** */
 struct ListBase;
@@ -622,6 +644,8 @@ void snapGridAction(TransInfo *t, float *val, GearsType action);
 int activeSnap(TransInfo *t);
 int validSnap(TransInfo *t);
 
+void initSnappingSystem(TransInfo *t, bContext *C);
+void runSnappingSystem(TransInfo *t, float *UNUSED);
 void initSnapping(struct TransInfo *t, struct wmOperator *op);
 void applyProject(TransInfo *t);
 void applySnapping(TransInfo *t, float *vec);

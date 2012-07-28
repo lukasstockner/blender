@@ -1375,6 +1375,7 @@ typedef struct Scene {
 #define SCE_SNAP_MODE_NODE_Y	6
 #define SCE_SNAP_MODE_NODE_XY	7
 #define SCE_SNAP_MODE_EDGE_MIDDLE	8
+#define SCE_SNAP_MODE_EDGE_PARALLEL 9
 
 /* toolsettings->selectmode */
 #define SCE_SELECT_VERTEX	1 /* for mesh */

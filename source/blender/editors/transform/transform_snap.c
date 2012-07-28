@@ -62,6 +62,7 @@
 #include "BKE_tessmesh.h"
 #include "BKE_mesh.h"
 #include "BKE_snap.h"
+#include "BKE_context.h"
 
 #include "ED_armature.h"
 #include "ED_image.h"
@@ -433,9 +434,15 @@ static void initSnappingMode(TransInfo *t)
 			/* Exclude editmesh if using proportional edit */
 			if ((obedit->type == OB_MESH) && (t->flag & T_PROP_EDIT)) {
 				t->tsnap.modeSelect = SNAP_NOT_OBEDIT;
+				SnapSystem_set_mode_select(t->tsnap.ssystem, SNAPSYSTEM_MODE_SELECT_NOT_OBEDIT);
 			}
 			else {
 				t->tsnap.modeSelect = t->tsnap.snap_self ? SNAP_ALL : SNAP_NOT_OBEDIT;
+				if(t->tsnap.snap_self){
+					SnapSystem_set_mode_select(t->tsnap.ssystem, SNAPSYSTEM_MODE_SELECT_ALL);
+				}else{
+					SnapSystem_set_mode_select(t->tsnap.ssystem, SNAPSYSTEM_MODE_SELECT_NOT_OBEDIT);
+				}
 			}
 		}
 		/* Particles edit mode*/
@@ -443,12 +450,14 @@ static void initSnappingMode(TransInfo *t)
 		         (obedit == NULL && BASACT && BASACT->object && BASACT->object->mode & OB_MODE_PARTICLE_EDIT))
 		{
 			t->tsnap.modeSelect = SNAP_ALL;
+			SnapSystem_set_mode_select(t->tsnap.ssystem, SNAPSYSTEM_MODE_SELECT_ALL);
 		}
 		/* Object mode */
 		else if (t->tsnap.applySnap != NULL && // A snapping function actually exist
 		         (obedit == NULL) ) // Object Mode
 		{
 			t->tsnap.modeSelect = SNAP_NOT_SELECTED;
+			SnapSystem_set_mode_select(t->tsnap.ssystem, SNAPSYSTEM_MODE_SELECT_NOT_SELECTED);
 		}
 		else {
 			/* Grid if snap is not possible */
@@ -471,6 +480,70 @@ static void initSnappingMode(TransInfo *t)
 		t->tsnap.mode = SCE_SNAP_MODE_INCREMENT;
 	}
 }
+
+void SnappingConfirmCallback(void* trans_info, SnapPoint sp){
+	TransInfo* t = (TransInfo*)trans_info;
+	copy_v3_v3(t->tsnap.snapPoint, sp.location);
+	copy_v3_v3(t->tsnap.snapNormal, sp.normal);
+	t->state = TRANS_CONFIRM;
+	//TODO: clean this up and same with update function
+	//applyProject(TransInfo *t)
+	//t->tsnap.applySnap
+
+//	copy_v3_v3(t->tsnap.snapPoint, sp->location);
+//	copy_v3_v3(t->tsnap.snapNormal, sp->normal);
+//	if(retval){
+//		t->tsnap.status |=  POINT_INIT;
+//	}
+//	else {
+//		t->tsnap.status &= ~POINT_INIT;
+//	}
+
+}
+
+void SnappingUpdateCallback(void* trans_info, SnapPoint sp){
+	TransInfo* t = (TransInfo*)trans_info;
+	//applyProject(TransInfo *t)
+	//t->tsnap.applySnap does this actuall fully apply it? (is it used while the mouse is moving?)
+	//applySnapping is another good function to look at, same as its callers Translation, Rotation and Scale
+	copy_v3_v3(t->tsnap.snapPoint, sp.location);
+	copy_v3_v3(t->tsnap.snapNormal, sp.normal);
+//	if(retval){
+//		t->tsnap.status |=  POINT_INIT;
+//	}
+//	else {
+//		t->tsnap.status &= ~POINT_INIT;
+//	}
+}
+
+void SnappingCancelCallback(void* trans_info){
+	TransInfo* t = (TransInfo*)trans_info;
+	t->state = TRANS_CANCEL;
+}
+
+
+void runSnappingSystem(TransInfo *t, float *UNUSED){
+	SnapSystem_reset_snappoint(t->tsnap.ssystem);
+	SnapSystem_evaluate_stack(t->tsnap.ssystem);
+
+
+	if(SnapSystem_get_retval(t->tsnap.ssystem)){
+		t->tsnap.status |=  POINT_INIT;
+	}
+	else {
+		t->tsnap.status &= ~POINT_INIT;
+	}
+//	SnapSystem_free(t->tsnap.ssystem);
+}
+
+void initSnappingSystem(TransInfo *t, bContext *C){
+	t->tsnap.ssystem = SnapSystem_create(t->scene, t->view, t->ar, t->obedit, C, t,
+									SnappingUpdateCallback,
+									SnappingConfirmCallback,
+									SnappingCancelCallback);
+//	runSnappingSystem(t, NULL);
+}
+
 
 void initSnapping(TransInfo *t, wmOperator *op)
 {
@@ -530,7 +603,7 @@ void initSnapping(TransInfo *t, wmOperator *op)
 
 static void setSnappingCallback(TransInfo *t)
 {
-	t->tsnap.calcSnap = CalcSnapGeometry;
+	t->tsnap.calcSnap = runSnappingSystem;//CalcSnapGeometry;
 
 	switch (t->tsnap.target) {
 		case SCE_SNAP_TARGET_CLOSEST:
@@ -545,7 +618,6 @@ static void setSnappingCallback(TransInfo *t)
 		case SCE_SNAP_TARGET_ACTIVE:
 			t->tsnap.targetSnap = TargetSnapActive;
 			break;
-
 	}
 
 	switch (t->mode) {
@@ -914,8 +986,8 @@ static void CalcSnapGeometry(TransInfo *t, float *UNUSED(vec))
 				copy_v3_v3(t->tsnap.snapTangent, tangent);
 			}
 			
-			copy_v3_v3(t->tsnap.snapPoint, loc);
-			copy_v3_v3(t->tsnap.snapNormal, no);
+			//copy_v3_v3(t->tsnap.snapPoint, loc);
+//			copy_v3_v3(t->tsnap.snapNormal, no); //disable current snapping system
 
 			t->tsnap.status |=  POINT_INIT;
 		}
@@ -1758,70 +1830,9 @@ static int snapObject(Scene *scene, View3D *v3d, ARegion *ar, Object *ob, int ed
 			dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
 		}
 		
-		if(ts->snap_mode == SCE_SNAP_MODE_VERTEX){
-			int mval_i[2] = {mval[0], mval[1]};
-			Snap* sm;
-			SnapPoint* sp;
-			SnapPoint sp_prev;
 
-			if(em == NULL){
-				sm = SnapMesh_create(dm, SNAPMESH_DATA_TYPE_DerivedMesh, SNAPMESH_TYPE_VERTEX, scene, ob, v3d, ar, mval_i);
-			}else{
-				sm = SnapMesh_create(em, SNAPMESH_DATA_TYPE_BMEditMesh, SNAPMESH_TYPE_VERTEX, scene, ob, v3d, ar, mval_i);
-			}
+		retval = snapDerivedMesh(ts->snap_mode, ar, ob, dm, em, obmat, ray_start, ray_normal, mval, r_loc, r_no, r_dist, r_depth);
 
-			//if this is not the first run through.
-			if(*r_depth < FLT_MAX - 10){
-				sp_prev.r_depth = *r_depth;
-				sp_prev.r_dist = *r_dist;
-				Snap_setClosestPoint(sm, &sp_prev);
-			}
-
-			Snap_run(sm);
-			retval = Snap_getretval(sm);
-			if(retval){
-				sp = Snap_getSnapPoint(sm);
-				//printf("SnapPointExternal: %f, %f, %f\n", sp->location[0], sp->location[1], sp->location[2]);
-				copy_v3_v3(r_loc, sp->location);
-				copy_v3_v3(r_no, sp->normal);
-				*r_depth = sp->r_depth;
-				*r_dist = sp->r_dist;
-			}
-			Snap_free(sm);
-
-		}else if(ts->snap_mode == SCE_SNAP_MODE_EDGE){
-			int mval_i[2] = {mval[0], mval[1]};
-			Snap* sm;
-			SnapPoint* sp;
-			SnapPoint sp_prev;
-
-			if(em == NULL){
-				sm = SnapMesh_create(dm, SNAPMESH_DATA_TYPE_DerivedMesh, SNAPMESH_TYPE_EDGE, scene, ob, v3d, ar, mval_i);
-			}else{
-				sm = SnapMesh_create(em, SNAPMESH_DATA_TYPE_BMEditMesh, SNAPMESH_TYPE_EDGE, scene, ob, v3d, ar, mval_i);
-			}
-
-			//if this is not the first run through.
-			if(*r_depth < FLT_MAX - 10){
-				sp_prev.r_depth = *r_depth;
-				sp_prev.r_dist = *r_dist;
-				Snap_setClosestPoint(sm, &sp_prev);
-			}
-
-			Snap_run(sm);
-			retval = Snap_getretval(sm);
-			if(retval){
-				sp = Snap_getSnapPoint(sm);
-				//printf("SnapPointExternal: %f, %f, %f\n", sp->location[0], sp->location[1], sp->location[2]);
-				copy_v3_v3(r_loc, sp->location);
-				copy_v3_v3(r_no, sp->normal);
-				*r_depth = sp->r_depth;
-				*r_dist = sp->r_dist;
-			}
-			Snap_free(sm); //TODO: there is some memory not getting freed around here.
-		}else {
-			retval = snapDerivedMesh(ts->snap_mode, ar, ob, dm, em, obmat, ray_start, ray_normal, mval, r_loc, r_no, r_dist, r_depth);
-		}
 		dm->release(dm);
 	}
 	else if (ob->type == OB_ARMATURE) {

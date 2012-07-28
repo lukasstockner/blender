@@ -1232,6 +1232,7 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 	}
 
 	setTransformViewMatrices(t);
+	initSnappingSystem(t, C);
 	initNumInput(&t->num);
 	
 	return 1;
@@ -1295,6 +1296,8 @@ void postTrans(bContext *C, TransInfo *t)
 	if (t->mouse.data) {
 		MEM_freeN(t->mouse.data);
 	}
+
+	SnapSystem_free(t->tsnap.ssystem);
 }
 
 void applyTransObjects(TransInfo *t)
