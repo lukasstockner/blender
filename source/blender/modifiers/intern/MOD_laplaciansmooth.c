@@ -81,6 +81,7 @@ struct BLaplacianSystem {
 
 	/*Data*/
 	float min_area;
+	float vert_centroid[3];
 };
 typedef struct BLaplacianSystem LaplacianSystem;
 
@@ -96,7 +97,7 @@ static void fill_laplacian_matrix(LaplacianSystem * sys);
 static void init_data(ModifierData *md);
 static void init_laplacian_matrix(LaplacianSystem * sys);
 static void memset_laplacian_system(LaplacianSystem *sys, int val);
-static void volume_preservation(float (*vertexCos)[3], int numVerts, float vini, float vend, short flag);
+static void volume_preservation(LaplacianSystem *sys, float vini, float vend, short flag);
 static void validate_solution(LaplacianSystem * sys, short flag, float lambda, float lambda_border);
 
 static void delete_void_pointer(void * data)
@@ -295,22 +296,22 @@ static float compute_volume(float (*vertexCos)[3], MFace *mfaces, int numFaces)
 	return fabs(vol);
 }
 
-static void volume_preservation(float (*vertexCos)[3], int numVerts, float vini, float vend, short flag)
+static void volume_preservation(LaplacianSystem *sys, float vini, float vend, short flag)
 {
 	float beta;
 	int i;
 
 	if (vend != 0.0f) {	
 		beta  = pow (vini / vend, 1.0f / 3.0f);
-		for (i = 0; i < numVerts; i++) {
+		for (i = 0; i < sys->numVerts; i++) {
 			if (flag & MOD_LAPLACIANSMOOTH_X) {
-				vertexCos[i][0] *= beta;
+				sys->vertexCos[i][0] = (sys->vertexCos[i][0] - sys->vert_centroid[0])* beta + sys->vert_centroid[0];
 			}
 			if (flag & MOD_LAPLACIANSMOOTH_Y) {
-				vertexCos[i][1] *= beta;
+				sys->vertexCos[i][1] = (sys->vertexCos[i][1] - sys->vert_centroid[1])* beta + sys->vert_centroid[1];
 			}
 			if (flag & MOD_LAPLACIANSMOOTH_Z) {
-				vertexCos[i][2] *= beta;
+				sys->vertexCos[i][2] = (sys->vertexCos[i][2] - sys->vert_centroid[2])* beta + sys->vert_centroid[2];
 			}
 			
 		}
@@ -547,7 +548,7 @@ static void validate_solution(LaplacianSystem * sys, short flag, float lambda, f
 	}
 	if (flag & MOD_LAPLACIANSMOOTH_VOLUME_PRESERVATION) {
 		vend = compute_volume(sys->vertexCos, sys->mfaces, sys->numFaces);
-		volume_preservation(sys->vertexCos, sys->numVerts, vini, vend, flag);
+		volume_preservation(sys, vini, vend, flag);
 	}
 }
 
@@ -573,7 +574,9 @@ static void laplaciansmoothModifier_do(
 	sys->min_area = 0.00001f;
 	modifier_get_vgroup(ob, dm, smd->defgrp_name, &dvert, &defgrp_index);
 
-	
+	sys->vert_centroid[0] = 0.0f;
+	sys->vert_centroid[1] = 0.0f;
+	sys->vert_centroid[2] = 0.0f;
 	for (iter = 0; iter < smd->repeat; iter++) {
 		memset_laplacian_system(sys, 0);
 		nlNewContext();
@@ -590,6 +593,16 @@ static void laplaciansmoothModifier_do(
 			nlSetVariable(0, i, vertexCos[i][0]);
 			nlSetVariable(1, i, vertexCos[i][1]);
 			nlSetVariable(2, i, vertexCos[i][2]);
+			if (iter == 0) {
+				sys->vert_centroid[0] += vertexCos[i][0];
+				sys->vert_centroid[1] += vertexCos[i][1];
+				sys->vert_centroid[2] += vertexCos[i][2];
+			}
+		}
+		if (iter == 0 && numVerts >0) {
+			sys->vert_centroid[0] = sys->vert_centroid[0] / numVerts;
+			sys->vert_centroid[1] = sys->vert_centroid[1] / numVerts;
+			sys->vert_centroid[2] = sys->vert_centroid[2] / numVerts;
 		}
 
 		nlBegin(NL_MATRIX);
