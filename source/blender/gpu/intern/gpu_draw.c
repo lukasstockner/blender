@@ -496,10 +496,19 @@ static void ScaleHalfImageFloat(int size, float *imgin, int widthin, int hightin
 #ifndef GLES
 static void GenerateMipmapRGBA(int high_bit, int w, int h, void * data)
 {
+	if (GLEW_EXT_framebuffer_object) {
+		/* use hardware accelerated mipmap generation */
+		if (high_bit)
+			glTexImage2D(GL_TEXTURE_2D, 0,  GL_RGBA16,  w, h, 0, GL_RGBA, GL_FLOAT, data);
+		else
+			glTexImage2D(GL_TEXTURE_2D, 0,  GL_RGBA,  w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+	} else {
 		if (high_bit)
 			gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGBA16, w, h, GL_RGBA, GL_FLOAT, data);
 		else
 			gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGBA, w, h, GL_RGBA, GL_UNSIGNED_BYTE, data);
+	}
 }
 #else	
 static void GenerateMipmapRGBA(int high_bit, int w, int h, void * data)

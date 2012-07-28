@@ -180,7 +180,12 @@ void BL_Texture::InitGLTex(unsigned int *pix,int x,int y,bool mipmap)
 	if ( mipmap ) {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		gluBuild2DMipmaps( GL_TEXTURE_2D, GL_RGBA, x, y, GL_RGBA, GL_UNSIGNED_BYTE, pix );
+		if (GLEW_EXT_framebuffer_object) {
+			glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA, x, y, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix );
+			glGenerateMipmap(GL_TEXTURE_2D);
+		} else {
+			gluBuild2DMipmaps( GL_TEXTURE_2D, GL_RGBA, x, y, GL_RGBA, GL_UNSIGNED_BYTE, pix );
+		}
 	} 
 	else {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -227,7 +232,12 @@ void BL_Texture::InitNonPow2Tex(unsigned int *pix,int x,int y,bool mipmap)
 	if ( mipmap ) {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		gluBuild2DMipmaps( GL_TEXTURE_2D, GL_RGBA, nx, ny, GL_RGBA, GL_UNSIGNED_BYTE, newPixels );
+		if (GLEW_EXT_framebuffer_object) {
+			glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA, nx, ny, 0, GL_RGBA, GL_UNSIGNED_BYTE, newPixels );
+			glGenerateMipmap(GL_TEXTURE_2D);
+		} else {
+			gluBuild2DMipmaps( GL_TEXTURE_2D, GL_RGBA, nx, ny, GL_RGBA, GL_UNSIGNED_BYTE, newPixels );
+		}
 	}
 	else {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
