@@ -25,7 +25,11 @@ void gpu_set_shader_es(struct GPUGLSL_ES_info * s, int update);
 
 void gpuVertexPointer_gles(int size, int type, int stride, const void *pointer);
 void gpuNormalPointer_gles(          int type, int stride, const void *pointer);
-void gpuColorPointer_gles (int size, int type, int stride, const void *pointer);	 
+void gpuColorPointer_gles (int size, int type, int stride, const void *pointer);
+void gpuTexCoordPointer_gles(int size, int type, int stride, const void *pointer);
+void gpuClientActiveTexture_gles(int texture);
+
+void gpuCleanupAfterDraw_gles(void);
 
 
 #ifdef __cplusplus 

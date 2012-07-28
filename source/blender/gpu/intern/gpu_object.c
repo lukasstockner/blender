@@ -15,13 +15,20 @@ void GPU_init_object_func(void)
 gpugameobj.gpuVertexPointer = gpuVertexPointer_gles;
 gpugameobj.gpuNormalPointer = gpuNormalPointer_gles;
 gpugameobj.gpuColorPointer = gpuColorPointer_gles;
+gpugameobj.gpuTexCoordPointer = gpuTexCoordPointer_gles;
+gpugameobj.gpuClientActiveTexture = gpuClientActiveTexture_gles;
 
+gpugameobj.gpuCleanupAfterDraw = gpuCleanupAfterDraw_gles;
 
 #else
 
 gpugameobj.gpuVertexPointer = gpuVertexPointer_gl11;
 gpugameobj.gpuNormalPointer = gpuNormalPointer_gl11;
 gpugameobj.gpuColorPointer = gpuColorPointer_gl11;
+gpugameobj.gpuTexCoordPointer = gpuTexCoordPointer_gl11;
+gpugameobj.gpuClientActiveTexture = gpuClientActiveTexture_gl11;
+
+gpugameobj.gpuCleanupAfterDraw = gpuCleanupAfterDraw_gl11;
 
 #endif
 
