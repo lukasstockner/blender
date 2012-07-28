@@ -312,7 +312,7 @@ glDepthMask( true );
 void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot& ms)
 {
 	static const GLsizei stride = sizeof(RAS_TexVert);
-	bool wireframe = m_drawingmode <= RAS_IRasterizer::KX_WIREFRAME;
+	bool wireframe = m_drawingmode <= RAS_IRasterizer::KX_WIREFRAME, use_color_array;
 	RAS_MeshSlot::iterator it;
 	GLenum drawmode;
 
@@ -343,10 +343,12 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot& ms)
 
 				glDisableClientState(GL_COLOR_ARRAY);
 				gpuCurrentColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
+				use_color_array = false;
 			}
 			else {
 				gpuCurrentColor3x(CPACK_BLACK);
 				glEnableClientState(GL_COLOR_ARRAY);
+				use_color_array = true;
 			}
 		}
 		else {
@@ -357,7 +359,7 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot& ms)
 		glNormalPointer(GL_FLOAT, stride, it.vertex->getNormal());
 		if (!wireframe) {
 			glTexCoordPointer(2, GL_FLOAT, stride, it.vertex->getUV(0));
-			if (glIsEnabled(GL_COLOR_ARRAY))
+			if (use_color_array)
 				glColorPointer(4, GL_UNSIGNED_BYTE, stride, it.vertex->getRGBA());
 		}
 
@@ -380,7 +382,7 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot& ms)
 void RAS_StorageVA::IndexPrimitivesMulti(class RAS_MeshSlot& ms)
 {
 	static const GLsizei stride = sizeof(RAS_TexVert);
-	bool wireframe = m_drawingmode <= RAS_IRasterizer::KX_WIREFRAME;
+	bool wireframe = m_drawingmode <= RAS_IRasterizer::KX_WIREFRAME, use_color_array;
 	RAS_MeshSlot::iterator it;
 	GLenum drawmode;
 
@@ -409,10 +411,12 @@ void RAS_StorageVA::IndexPrimitivesMulti(class RAS_MeshSlot& ms)
 
 				glDisableClientState(GL_COLOR_ARRAY);
 				gpuCurrentColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
+				use_color_array = false;
 			}
 			else {
 				gpuCurrentColor3x(CPACK_BLACK);
 				glEnableClientState(GL_COLOR_ARRAY);
+				use_color_array = true;
 			}
 		}
 		else {
@@ -428,7 +432,7 @@ void RAS_StorageVA::IndexPrimitivesMulti(class RAS_MeshSlot& ms)
 
 		if (!wireframe) {
 			TexCoordPtr(it.vertex);
-			if (glIsEnabled(GL_COLOR_ARRAY))
+			if (use_color_array)
 				glColorPointer(4, GL_UNSIGNED_BYTE, stride, it.vertex->getRGBA());
 		}
 
