@@ -50,24 +50,23 @@ GHOST_WindowAndroid::GHOST_WindowAndroid(GHOST_SystemAndroid *system,
 	m_invalid_window(false),
 	m_system(system)
 {
-	
-	winrect.m_t = 0;
-	winrect.m_l = 0;
-	winrect.m_r = 200;
-	winrect.m_b = 200;
+	int size[2];
+	if(aGetWindowSize(size))
+	{
+		winrect.m_t = 0;
+		winrect.m_l = 0;
+		winrect.m_r = size[0];
+		winrect.m_b = size[1];
+	} else
+	{
+		/* Cannot get correct size */
+		/* shouldn't happend */
 
-
-
-
-
-	glClearColor(0.0f, 0.0f, 1.0f, 0.5f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	aSwapBuffers();
-
-    
-
-	//fprintf(stderr, "Ignoring Xlib error: error code %d request code %d\n",
-	//	theEvent->error_code, theEvent->request_code);
+		winrect.m_t = 0;
+		winrect.m_l = 0;
+		winrect.m_r = 400;
+		winrect.m_b = 400;
+	}
 
 	setTitle(title);
 }
