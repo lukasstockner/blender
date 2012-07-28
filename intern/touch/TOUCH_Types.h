@@ -32,29 +32,21 @@
 #ifndef __TOUCH_TYPES_H__
 #define __TOUCH_TYPES_H__
 
-#include "STR_String.h"
+#ifdef WITH_CXX_GUARDEDALLOC
+#include "MEM_guardedalloc.h"
+#endif
+
+#if defined(WITH_CXX_GUARDEDALLOC) && defined(__cplusplus)
+#  define TOUCH_DECLARE_HANDLE(name) typedef struct name##__ { int unused; MEM_CXX_CLASS_ALLOC_FUNCS(#name) } *name
+#else
+#  define TOUCH_DECLARE_HANDLE(name) typedef struct name##__ { int unused; } *name
+#endif
 
 typedef enum TOUCH_state {
 	TOUCH_DOWN = 0,
 	TOUCH_MOVE = 1,
 	TOUCH_UP = 2
 } TOUCH_state;
-
-typedef struct TOUCH_registered_context {
-	//TOUCH_registered_context *prev, *next;
-	STR_String context;
-	char encoding;
-} TOUCH_registered_context;
-
-typedef struct TOUCH_registered_context TOUCH_area;
-typedef struct TOUCH_registered_context TOUCH_region;
-typedef struct TOUCH_registered_context TOUCH_data;
-
-typedef struct TOUCH_context_full {
-	TOUCH_area area;
-	TOUCH_region region;
-	TOUCH_data data;
-} TOUCH_context;
 
 typedef struct TOUCH_position {
 	int position_x, position_y;
@@ -66,7 +58,7 @@ typedef struct TOUCH_event_info {
 	char index;
 	TOUCH_state state;
 
-	STR_String area, region, data;
+	char * area, * region, * data;
 } TOUCH_event_info;
 
 #endif /* TOUCH_TYPES_H */

@@ -43,6 +43,7 @@ set(INC
 	../../../intern/guardedalloc
 	../../../intern/memutil
 	../../../intern/opennl/extern
+	../../../intern/touch
 )
 
 set(INC_SYS

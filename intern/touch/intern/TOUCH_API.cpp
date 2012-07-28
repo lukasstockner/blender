@@ -30,28 +30,38 @@
  */
 
 #include "TOUCH_API.h"
+#include "TOUCH_Manager.h"
 
-extern void TOUCH_InitManager()
+extern TOUCH_Handle TOUCH_InitManager()
+{
+	TOUCH_Manager::CreateManager();
+	TOUCH_Manager * manager = TOUCH_Manager::GetManager();
+
+	return (TOUCH_Handle)manager;
+}
+
+extern void TOUCH_DestroyManager(TOUCH_Handle* handle) {
+	delete handle;
+}
+
+extern void TOUCH_RegisterArea(TOUCH_Handle* handle, const char * context)
 {
 	//TODO
 }
 
-extern void TOUCH_RegisterArea(STR_String context)
+extern void TOUCH_RegisterRegion(TOUCH_Handle* handle, const char * context)
 {
 	//TODO
 }
 
-extern void TOUCH_RegisterRegion(STR_String context)
+extern void TOUCH_RegisterData(TOUCH_Handle* handle, const char * context)
 {
 	//TODO
 }
 
-extern void TOUCH_RegisterData(STR_String context)
+extern void TOUCH_AddTouchEvent(TOUCH_Handle* handle, void * event)
 {
-	//TODO
-}
-
-extern void TOUCH_AddTouchEvent(TOUCH_event_info event)
-{
-	//TODO
+	std::vector<TOUCH_event_info> * event_vector = (std::vector<TOUCH_event_info> *) event;
+	TOUCH_Manager * manager = (TOUCH_Manager *) handle;
+	manager->AddTouchEvent(* event_vector);
 }

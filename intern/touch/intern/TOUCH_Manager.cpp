@@ -31,44 +31,35 @@
 
 #include "TOUCH_Manager.h"
 
+#define TOUCH_DOWN_ENCODING 'd'
+#define TOUCH_MOVE_ENCODING 'm'
+#define TOUCH_UP_ENCODING 'u'
+
+TOUCH_Context::TOUCH_Context(){}
+
 TOUCH_Manager::TOUCH_Manager()
 {
-	//TODO
+	//TODO?
 }
 
 TOUCH_Manager::~TOUCH_Manager()
 {
-	//TODO
+	//TODO?
 }
 
-void TOUCH_Manager::TOUCH_RegisterArea(STR_String context)
+void TOUCH_Manager::RegisterContext(std::vector<TOUCH_Context> * context_type, const char * context_id)
 {
-	char encoding = checkRegisteredArea(context);
-	if(encoding) {
-		TOUCH_area area = {context, encoding};
-		registered_data.push_back(area);
+	char encoding = checkRegisteredContext(context_type, context_id);
+	if(!encoding) {
+		encoding = 'a'; //XXX PLACEHOLDER
+		TOUCH_Context * new_context = new TOUCH_Context;
+		new_context->external_id = STR_String(context_id);
+		new_context->internal_encoding = encoding;
+		context_type->push_back(*new_context);
 	}
 }
 
-void TOUCH_Manager::TOUCH_RegisterRegion(STR_String context)
-{
-	char encoding = checkRegisteredRegion(context);
-	if(encoding) {
-		TOUCH_region region = {context, encoding};
-		registered_data.push_back(region);
-	}
-}
-
-void TOUCH_Manager::TOUCH_RegisterData(STR_String context)
-{
-	char encoding = checkRegisteredData(context);
-	if(encoding) {
-		TOUCH_data data = {context, encoding};
-		registered_data.push_back(data);
-	}
-}
-
-void TOUCH_Manager::TOUCH_AddTouchEvent(std::vector<TOUCH_event_info> event)
+void TOUCH_Manager::AddTouchEvent(std::vector<TOUCH_event_info> event) // XXX Vectors will not work with c api
 {
 	for(int i = 0; i < event.size(); i++){
 		/* if index 1 is touching down for the first time, clear the input string */
@@ -83,53 +74,51 @@ void TOUCH_Manager::TOUCH_AddTouchEvent(std::vector<TOUCH_event_info> event)
 
 		switch(event[i].state){
 			case TOUCH_DOWN:
-				input_string += 'd';
+				input_string += TOUCH_DOWN_ENCODING;
 				break;
 			case TOUCH_MOVE:
-				input_string += 'm';
+				input_string += TOUCH_MOVE_ENCODING;
 				break;
 			case TOUCH_UP:
-				input_string += 'u';
+				input_string += TOUCH_UP_ENCODING;
 				break;
 			default:
-				input_string += '\0'; // XXX avoid null
 				break;
 		}
 
 		input_string += event[i].index;
-
-		input_string += checkRegisteredArea(event[i].area);
+#if 0
+		input_string += checkRegisteredContext(&registered_area, event[i].area);
 		input_string += checkRegisteredRegion(event[i].region);
 		input_string += checkRegisteredData(event[i].data);
+#endif
 	}
+
+#ifdef INPUT_TOUCH_DEBUG
+	printf(input_string, std::endl);
+#endif
+
 }
 
-char TOUCH_Manager::checkRegisteredArea(STR_String area)
+char TOUCH_Manager::checkRegisteredContext(std::vector<TOUCH_Context> * context_type, const char * context_id)
 {
-	for(int i = 0; i < registered_area.size(); i++) {
-		if(area == registered_area[i].context) {
-			return registered_area[i].encoding;
+	for(int i = 0; i < context_type->size(); i++) {
+		if(context_id == context_type->at(i).external_id) {
+			return context_type->at(i).internal_encoding;
 		}
 	}
-	return '\0'; // XXX avoid null
+	return '\0'; // XXX avoid null?
 }
 
-char TOUCH_Manager::checkRegisteredRegion(STR_String region)
-{
-	for(int i = 0; i < registered_region.size(); i++) {
-		if(region == registered_region[i].context) {
-			return registered_region[i].encoding;
-		}
-	}
-	return '\0'; // XXX avoid null
+void TOUCH_Manager::CreateManager() {
+	manager = new TOUCH_Manager();
 }
 
-char TOUCH_Manager::checkRegisteredData(STR_String data)
-{
-	for(int i = 0; i < registered_data.size(); i++) {
-		if(data == registered_data[i].context) {
-			return registered_data[i].encoding;
-		}
-	}
-	return '\0'; // XXX avoid null
+void TOUCH_Manager::DestroyManager() {
+	delete manager;
+	manager = 0;
+}
+
+TOUCH_Manager * TOUCH_Manager::GetManager() {
+	return manager;
 }

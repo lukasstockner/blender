@@ -34,38 +34,52 @@
 
 #include "TOUCH_Types.h"
 #include <vector>
+#include "STR_String.h"
+
+#ifdef INPUT_TOUCH_DEBUG
+#include <stdio.h>
+#endif
+
+struct TOUCH_Context
+{
+	TOUCH_Context();
+	STR_String external_id;
+	char internal_encoding;
+};
 
 class TOUCH_Manager
 {
 public:
 	/**
-	 * Constructor.
+	 * Constructor
 	 */
 	TOUCH_Manager();
 
 	/**
-	 * Destructor.
+	 * Destructor
 	 */
 	~TOUCH_Manager();
 
-	void TOUCH_RegisterArea(STR_String context);
-	void TOUCH_RegisterRegion(STR_String context);
-	void TOUCH_RegisterData(STR_String context);
+	void RegisterContext(std::vector<TOUCH_Context> * context_type, const char * context_id);
 
-	void TOUCH_AddTouchEvent(std::vector<TOUCH_event_info> event);
+	void AddTouchEvent(std::vector<TOUCH_event_info> event);
+
+	static void CreateManager();
+	static void DestroyManager();
+	static TOUCH_Manager * GetManager();
 
 private:
-	char checkRegisteredArea(STR_String area);
-	char checkRegisteredRegion(STR_String region);
-	char checkRegisteredData(STR_String data);
+	char checkRegisteredContext(std::vector<TOUCH_Context> * context_type, const char * context_id);
 
 	STR_String input_string;
 	//std::vector<TOUCH_position> touch_position_begin; XXX
 	//std::vector<TOUCH_position> touch_position_last; XXX
 
-	std::vector<TOUCH_area> registered_area;
-	std::vector<TOUCH_region> registered_region;
-	std::vector<TOUCH_data> registered_data;
+	std::vector<TOUCH_Context> registered_area; //pass with &registered_area
+	std::vector<TOUCH_Context> registered_region;
+	std::vector<TOUCH_Context> registered_data;
+
+	static TOUCH_Manager * manager;
 
 };
 

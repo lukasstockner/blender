@@ -41,6 +41,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "GHOST_C-api.h"
+#include "TOUCH_API.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"

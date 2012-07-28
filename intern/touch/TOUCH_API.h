@@ -32,19 +32,22 @@
 #ifndef __TOUCH_API_H__
 #define __TOUCH_API_H__
 
-#include "TOUCH_Manager.h"
+#include "TOUCH_Types.h"
+
+TOUCH_DECLARE_HANDLE(TOUCH_Handle);
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-extern void TOUCH_InitManager();
-
-extern void TOUCH_RegisterArea(STR_String context);
-extern void TOUCH_RegisterRegion(STR_String context);
-extern void TOUCH_RegisterData(STR_String context);
-
-extern void TOUCH_AddTouchEvent(TOUCH_event_info event);
+extern TOUCH_Handle TOUCH_InitManager();
+extern void TOUCH_DestoryManager(TOUCH_Handle * handle);
+#if 0
+extern void TOUCH_RegisterContext(TOUCH_Handle* handle, const char * context);
+extern void TOUCH_RegisterRegion(TOUCH_Handle* handle, const char * context);
+extern void TOUCH_RegisterData(TOUCH_Handle* handle, const char * context);
+#endif
+extern void TOUCH_AddTouchEvent(TOUCH_Handle* handle, void * event);
 
 #ifdef __cplusplus
 }
