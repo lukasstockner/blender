@@ -114,6 +114,14 @@ static void init_glsl_arb(void)
 	gpuDeleteProgram = glDeleteObjectARB;
 }
 
+static void init_buffers_arb(void)
+{
+	gpuGenBuffers = glGenBuffersARB;
+	gpuBindBuffer = glBindBufferARB;
+	gpuBufferData =  glBufferDataARB;
+	gpuDeleteBuffers = glDeleteBuffersARB;
+}
+
 #endif
 
 static void check_glGetShaderiv(GLuint shader, GLuint pname, GLint *params)
@@ -175,6 +183,14 @@ static void init_glsl_standard(void)
 	gpuDeleteProgram = glDeleteProgram;
 }
 
+static void init_buffers_standard(void)
+{
+	gpuGenBuffers = glGenBuffers;
+	gpuBindBuffer = glBindBuffer;
+	gpuBufferData =  glBufferData;
+	gpuDeleteBuffers = glDeleteBuffers;
+}
+
 static void init_framebuffers_standard(void)
 {
 	gpuGenFramebuffers    = glGenFramebuffers;
@@ -200,18 +216,21 @@ static void init_framebuffers_ext(void)
 void GPU_func_comp_init(void)
 {
 #ifdef GLES
-//exit(0);
+
 	init_glsl_standard();
 	init_framebuffers_standard();
+	init_buffers_standard();
 	
-	
-	printf("gpuUniform3iv: %p\n", gpuUniform3iv);
-	//exit(0);
 #else
 	/*	Here we rely on GLEW
 	We expect all symbols be present, even if they are only 0,
 	We use GLEW to fill the arrays with zero even if extensions are not avalable
 	*/
+
+	if(GLEW_VERSION_1_5)
+		init_buffers_standard();
+	else
+		init_buffers_arb();
 
 	if(GLEW_VERSION_2_0)
 		init_glsl_standard();
