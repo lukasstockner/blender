@@ -1915,13 +1915,24 @@ static void direct_link_fcurves(FileData *fd, ListBase *list)
 		/* group */
 		fcu->grp = newdataadr(fd, fcu->grp);
 		
+		/* clear disabled flag - allows disabled drivers to be tried again ([#32155]),
+		 * but also means that another method for "reviving disabled F-Curves" exists
+		 */
+		fcu->flag &= ~FCURVE_DISABLED;
+		
 		/* driver */
 		fcu->driver= newdataadr(fd, fcu->driver);
 		if (fcu->driver) {
 			ChannelDriver *driver= fcu->driver;
 			DriverVar *dvar;
 			
+			/* compiled expression data will need to be regenerated (old pointer may still be set here) */
 			driver->expr_comp = NULL;
+			
+			/* give the driver a fresh chance - the operating environment may be different now 
+			 * (addons, etc. may be different) so the driver namespace may be sane now [#32155]
+			 */
+			driver->flag &= ~DRIVER_FLAG_INVALID;
 			
 			/* relink variables, targets and their paths */
 			link_list(fd, &driver->variables);
@@ -5288,7 +5299,8 @@ static void lib_link_screen(FileData *fd, Main *main)
 						SpaceImage *sima = (SpaceImage *)sl;
 						
 						sima->image = newlibadr_us(fd, sc->id.lib, sima->image);
-						
+						sima->mask_info.mask = newlibadr_us(fd, sc->id.lib, sima->mask_info.mask);
+
 						/* NOTE: pre-2.5, this was local data not lib data, but now we need this as lib data
 						 * so fingers crossed this works fine!
 						 */
@@ -5374,7 +5386,7 @@ static void lib_link_screen(FileData *fd, Main *main)
 						SpaceClip *sclip = (SpaceClip *)sl;
 						
 						sclip->clip = newlibadr_us(fd, sc->id.lib, sclip->clip);
-						sclip->mask = newlibadr_us(fd, sc->id.lib, sclip->mask);
+						sclip->mask_info.mask = newlibadr_us(fd, sc->id.lib, sclip->mask_info.mask);
 						
 						sclip->scopes.track_search = NULL;
 						sclip->scopes.track_preview = NULL;
@@ -5588,6 +5600,7 @@ void lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *curscene)
 					 * so assume that here we're doing for undo only...
 					 */
 					sima->gpd = restore_pointer_by_name(newmain, (ID *)sima->gpd, 1);
+					sima->mask_info.mask = restore_pointer_by_name(newmain, (ID *)sima->mask_info.mask, 1);
 				}
 				else if (sl->spacetype == SPACE_SEQ) {
 					SpaceSeq *sseq = (SpaceSeq *)sl;
@@ -5663,7 +5676,7 @@ void lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *curscene)
 					SpaceClip *sclip = (SpaceClip *)sl;
 					
 					sclip->clip = restore_pointer_by_name(newmain, (ID *)sclip->clip, 1);
-					sclip->mask = restore_pointer_by_name(newmain, (ID *)sclip->mask, 1);
+					sclip->mask_info.mask = restore_pointer_by_name(newmain, (ID *)sclip->mask_info.mask, 1);
 					
 					sclip->scopes.ok = 0;
 				}
@@ -7017,6 +7030,24 @@ static void do_version_ntree_dilateerode_264(void *UNUSED(data), ID *UNUSED(id),
 	}
 }
 
+static void do_version_ntree_mask_264(void *UNUSED(data), ID *UNUSED(id), bNodeTree *ntree)
+{
+	bNode *node;
+
+	for (node = ntree->nodes.first; node; node = node->next) {
+		if (node->type == CMP_NODE_MASK) {
+			if (node->storage == NULL) {
+				NodeMask *data = MEM_callocN(sizeof(NodeMask), __func__);
+				/* move settings into own struct */
+				data->size_x = node->custom3;
+				data->size_y = node->custom4;
+				node->custom3 = 0.5f; /* default shutter */
+				node->storage = data;
+			}
+		}
+	}
+}
+
 static void do_version_ntree_keying_despill_balance(void *UNUSED(data), ID *UNUSED(id), bNodeTree *ntree)
 {
 	bNode *node;
@@ -7858,6 +7889,13 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 
 		if (ntreetype && ntreetype->foreach_nodetree)
 			ntreetype->foreach_nodetree(main, NULL, do_version_ntree_keying_despill_balance);
+	}
+
+	if (main->versionfile < 263 || (main->versionfile == 263 && main->subversionfile < 17)) {
+		bNodeTreeType *ntreetype = ntreeGetType(NTREE_COMPOSIT);
+
+		if (ntreetype && ntreetype->foreach_nodetree)
+			ntreetype->foreach_nodetree(main, NULL, do_version_ntree_mask_264);
 	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */

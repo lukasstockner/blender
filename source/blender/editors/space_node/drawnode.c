@@ -217,16 +217,20 @@ static void node_draw_output_default(const bContext *C, uiBlock *block,
 	float slen;
 	int ofs = 0;
 	const char *ui_name = IFACE_(name);
+	int len = strlen(ui_name);
 	UI_ThemeColor(TH_TEXT);
 	slen = (UI_GetStringWidth(ui_name) + NODE_MARGIN_X) * snode->aspect_sqrt;
-	while (slen > node->width) {
+	while (slen > node->width && ofs < len) {
 		ofs++;
 		slen = (UI_GetStringWidth(ui_name + ofs) + NODE_MARGIN_X) * snode->aspect_sqrt;
 	}
-	uiDefBut(block, LABEL, 0, ui_name + ofs,
-	         (int)(sock->locx - slen), (int)(sock->locy - 9.0f),
-	         (short)(node->width - NODE_DY), (short)NODE_DY,
-	         NULL, 0, 0, 0, 0, "");
+
+	if (ofs < len) {
+		uiDefBut(block, LABEL, 0, ui_name + ofs,
+		         (int)(sock->locx - slen), (int)(sock->locy - 9.0f),
+		         (short)(node->width - NODE_DY), (short)NODE_DY,
+		         NULL, 0, 0, 0, 0, "");
+	}
 
 	(void)snode;
 }
@@ -848,7 +852,7 @@ static void node_draw_group(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	
 		layout = uiBlockLayout(gnode->block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
 		                       (int)(rect.xmin + NODE_MARGIN_X), (int)(rect.ymax + (group_header - (2.5f * dpi_fac))),
-		                       MIN2((int)(rect.xmax - rect.xmin - 18.0f), node_group_frame + 20), group_header, UI_GetStyle());
+		                       mini((int)(rect.xmax - rect.xmin - 18.0f), node_group_frame + 20), group_header, UI_GetStyle());
 		RNA_pointer_create(&ntree->id, &RNA_Node, gnode, &ptr);
 		uiTemplateIDBrowse(layout, (bContext *)C, &ptr, "node_tree", NULL, NULL, NULL);
 		uiBlockLayoutResolve(gnode->block, NULL, NULL);
@@ -1528,12 +1532,19 @@ static void node_composit_buts_renderlayers(uiLayout *layout, bContext *C, Point
 static void node_composit_buts_blur(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiLayout *col, *row;
+	int reference;
+	int filter;
 	
 	col = uiLayoutColumn(layout, FALSE);
-	
+	filter = RNA_enum_get(ptr, "filter_type");
+	reference = RNA_boolean_get(ptr, "use_reference");
+
 	uiItemR(col, ptr, "filter_type", 0, "", ICON_NONE);
-	if (RNA_enum_get(ptr, "filter_type") != R_FILTER_FAST_GAUSS) {
-		uiItemR(col, ptr, "use_bokeh", 0, NULL, ICON_NONE);
+	if (filter != R_FILTER_FAST_GAUSS) {
+		uiItemR(col, ptr, "use_reference", 0, NULL, ICON_NONE);
+		if (!reference) {
+			uiItemR(col, ptr, "use_bokeh", 0, NULL, ICON_NONE);
+		}
 		uiItemR(col, ptr, "use_gamma_correction", 0, NULL, ICON_NONE);
 	}
 	
@@ -2483,10 +2494,24 @@ static void node_composit_buts_viewer_but(uiLayout *layout, bContext *UNUSED(C),
 
 static void node_composit_buts_mask(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
+	bNode *node = ptr->data;
+
 	uiTemplateID(layout, C, ptr, "mask", NULL, NULL, NULL);
 	uiItemR(layout, ptr, "use_antialiasing", 0, NULL, ICON_NONE);
 	uiItemR(layout, ptr, "use_feather", 0, NULL, ICON_NONE);
 
+	uiItemR(layout, ptr, "size_source", 0, "", ICON_NONE);
+
+	if (node->custom1 & (CMP_NODEFLAG_MASK_FIXED | CMP_NODEFLAG_MASK_FIXED_SCENE)) {
+		uiItemR(layout, ptr, "size_x", 0, NULL, ICON_NONE);
+		uiItemR(layout, ptr, "size_y", 0, NULL, ICON_NONE);
+	}
+
+	uiItemR(layout, ptr, "use_motion_blur", 0, NULL, ICON_NONE);
+	if (node->custom1 & CMP_NODEFLAG_MASK_MOTION_BLUR) {
+		uiItemR(layout, ptr, "motion_blur_samples", 0, NULL, ICON_NONE);
+		uiItemR(layout, ptr, "motion_blur_shutter", 0, NULL, ICON_NONE);
+	}
 }
 
 static void node_composit_buts_keyingscreen(uiLayout *layout, bContext *C, PointerRNA *ptr)
@@ -2556,7 +2581,11 @@ static void node_composit_buts_trackpos(uiLayout *layout, bContext *C, PointerRN
 			uiItemR(layout, ptr, "track_name", 0, "", ICON_ANIM_DATA);
 		}
 
-		uiItemR(layout, ptr, "use_relative", 0, NULL, ICON_NONE);
+		uiItemR(layout, ptr, "position", 0, NULL, ICON_NONE);
+
+		if (node->custom1 == 2) {
+			uiItemR(layout, ptr, "relative_frame", 0, NULL, ICON_NONE);
+		}
 	}
 }
 
@@ -3126,7 +3155,7 @@ static void draw_nodespace_back_tex(ScrArea *sa, SpaceNode *snode)
 				float zoomx, zoomy;
 				zoomx = (float)sa->winx / ibuf->x;
 				zoomy = (float)sa->winy / ibuf->y;
-				zoom = MIN2(zoomx, zoomy);
+				zoom = minf(zoomx, zoomy);
 			}
 			
 			x = (sa->winx - zoom * ibuf->x) / 2 + snode->xof;

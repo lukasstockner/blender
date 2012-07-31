@@ -615,7 +615,7 @@ static void test_manipulator_axis(const bContext *C)
 
 	ED_view3d_global_to_vector(rv3d, rv3d->twmat[3], vec);
 
-	angle = fabs(angle_v3v3(rv3d->twmat[0], vec));
+	angle = fabsf(angle_v3v3(rv3d->twmat[0], vec));
 	if (angle > (float)M_PI / 2.0f) {
 		angle = (float)M_PI - angle;
 	}
@@ -624,7 +624,7 @@ static void test_manipulator_axis(const bContext *C)
 		rv3d->twdrawflag &= ~(MAN_TRANS_X | MAN_SCALE_X);
 	}
 
-	angle = fabs(angle_v3v3(rv3d->twmat[1], vec));
+	angle = fabsf(angle_v3v3(rv3d->twmat[1], vec));
 	if (angle > (float)M_PI / 2.0f) {
 		angle = (float)M_PI - angle;
 	}
@@ -633,7 +633,7 @@ static void test_manipulator_axis(const bContext *C)
 		rv3d->twdrawflag &= ~(MAN_TRANS_Y | MAN_SCALE_Y);
 	}
 
-	angle = fabs(angle_v3v3(rv3d->twmat[2], vec));
+	angle = fabsf(angle_v3v3(rv3d->twmat[2], vec));
 	if (angle > (float)M_PI / 2.0f) {
 		angle = (float)M_PI - angle;
 	}

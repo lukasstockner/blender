@@ -2601,7 +2601,7 @@ void RNA_property_pointer_set(PointerRNA *ptr, PropertyRNA *prop, PointerRNA ptr
 
 PointerRNA RNA_property_pointer_get_default(PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop))
 {
-	/*PointerPropertyRNA *pprop = (PointerPropertyRNA*)prop; */
+	/*PointerPropertyRNA *pprop = (PointerPropertyRNA *)prop; */
 
 	/* BLI_assert(RNA_property_type(prop) == PROP_POINTER); */
 
@@ -2740,7 +2740,7 @@ int RNA_property_collection_length(PointerRNA *ptr, PropertyRNA *prop)
 void RNA_property_collection_add(PointerRNA *ptr, PropertyRNA *prop, PointerRNA *r_ptr)
 {
 	IDProperty *idprop;
-/*	CollectionPropertyRNA *cprop = (CollectionPropertyRNA*)prop; */
+/*	CollectionPropertyRNA *cprop = (CollectionPropertyRNA *)prop; */
 
 	BLI_assert(RNA_property_type(prop) == PROP_COLLECTION);
 
@@ -2799,7 +2799,7 @@ void RNA_property_collection_add(PointerRNA *ptr, PropertyRNA *prop, PointerRNA 
 int RNA_property_collection_remove(PointerRNA *ptr, PropertyRNA *prop, int key)
 {
 	IDProperty *idprop;
-/*	CollectionPropertyRNA *cprop = (CollectionPropertyRNA*)prop; */
+/*	CollectionPropertyRNA *cprop = (CollectionPropertyRNA *)prop; */
 
 	BLI_assert(RNA_property_type(prop) == PROP_COLLECTION);
 
@@ -3046,11 +3046,11 @@ int RNA_property_collection_raw_array(PointerRNA *ptr, PropertyRNA *prop, Proper
 #define RAW_GET(dtype, var, raw, a)                                           \
 {                                                                             \
 	switch (raw.type) {                                                       \
-		case PROP_RAW_CHAR: var = (dtype)((char*)raw.array)[a]; break;        \
-		case PROP_RAW_SHORT: var = (dtype)((short*)raw.array)[a]; break;      \
-		case PROP_RAW_INT: var = (dtype)((int*)raw.array)[a]; break;          \
-		case PROP_RAW_FLOAT: var = (dtype)((float*)raw.array)[a]; break;      \
-		case PROP_RAW_DOUBLE: var = (dtype)((double*)raw.array)[a]; break;    \
+		case PROP_RAW_CHAR: var = (dtype)((char *)raw.array)[a]; break;       \
+		case PROP_RAW_SHORT: var = (dtype)((short *)raw.array)[a]; break;     \
+		case PROP_RAW_INT: var = (dtype)((int *)raw.array)[a]; break;         \
+		case PROP_RAW_FLOAT: var = (dtype)((float *)raw.array)[a]; break;     \
+		case PROP_RAW_DOUBLE: var = (dtype)((double *)raw.array)[a]; break;   \
 		default: var = (dtype)0;                                              \
 	}                                                                         \
 } (void)0
@@ -3058,11 +3058,11 @@ int RNA_property_collection_raw_array(PointerRNA *ptr, PropertyRNA *prop, Proper
 #define RAW_SET(dtype, raw, a, var)                                           \
 {                                                                             \
 	switch (raw.type) {                                                       \
-		case PROP_RAW_CHAR: ((char*)raw.array)[a] = (char)var; break;         \
-		case PROP_RAW_SHORT: ((short*)raw.array)[a] = (short)var; break;      \
-		case PROP_RAW_INT: ((int*)raw.array)[a] = (int)var; break;            \
-		case PROP_RAW_FLOAT: ((float*)raw.array)[a] = (float)var; break;      \
-		case PROP_RAW_DOUBLE: ((double*)raw.array)[a] = (double)var; break;   \
+		case PROP_RAW_CHAR: ((char *)raw.array)[a] = (char)var; break;        \
+		case PROP_RAW_SHORT: ((short *)raw.array)[a] = (short)var; break;     \
+		case PROP_RAW_INT: ((int *)raw.array)[a] = (int)var; break;           \
+		case PROP_RAW_FLOAT: ((float *)raw.array)[a] = (float)var; break;     \
+		case PROP_RAW_DOUBLE: ((double *)raw.array)[a] = (double)var; break;  \
 		default: break;                                                       \
 	}                                                                         \
 } (void)0

@@ -306,9 +306,9 @@ static void brush_pressure_apply(BrushPainter *painter, Brush *brush, float pres
 	if (BKE_brush_use_size_pressure(painter->scene, brush))
 		BKE_brush_size_set(painter->scene, brush, MAX2(1.0f, painter->startsize * pressure));
 	if (brush->flag & BRUSH_JITTER_PRESSURE)
-		brush->jitter = MAX2(0.0f, painter->startjitter * pressure);
+		brush->jitter = maxf(0.0f, painter->startjitter * pressure);
 	if (brush->flag & BRUSH_SPACING_PRESSURE)
-		brush->spacing = MAX2(1.0f, painter->startspacing * (1.5f - pressure));
+		brush->spacing = maxf(1.0f, painter->startspacing * (1.5f - pressure));
 }
 
 int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float pos[2], double time, float pressure,

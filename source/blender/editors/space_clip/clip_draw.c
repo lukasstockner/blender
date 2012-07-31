@@ -93,13 +93,30 @@ void clip_draw_curfra_label(SpaceClip *sc, float x, float y)
 	BLF_draw(fontid, numstr, sizeof(numstr));
 }
 
+static void draw_keyframe(int frame, int cfra, int sfra, float framelen, int width)
+{
+	int height = (frame == cfra) ? 22 : 10;
+	int x = (frame - sfra) * framelen;
+
+	if (width == 1) {
+		glBegin(GL_LINES);
+		glVertex2i(x, 0);
+		glVertex2i(x, height);
+		glEnd();
+	}
+	else {
+		glRecti(x, 0, x + width, height);
+	}
+}
+
 static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Scene *scene)
 {
 	float x;
 	int *points, totseg, i, a;
 	float sfra = SFRA, efra = EFRA, framelen = ar->winx / (efra - sfra + 1);
+	MovieTracking *tracking = &clip->tracking;
 	MovieTrackingTrack *act_track = BKE_tracking_track_get_active(&clip->tracking);
-	MovieTrackingReconstruction *reconstruction = BKE_tracking_get_active_reconstruction(&clip->tracking);
+	MovieTrackingReconstruction *reconstruction = BKE_tracking_get_active_reconstruction(tracking);
 
 	glEnable(GL_BLEND);
 
@@ -197,9 +214,14 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 
 	clip_draw_curfra_label(sc, x, 8.0f);
 
+	/* solver keyframes */
+	glColor4ub(175, 255, 0, 255);
+	draw_keyframe(tracking->settings.keyframe1 + clip->start_frame - 1, CFRA, sfra, framelen, 2);
+	draw_keyframe(tracking->settings.keyframe2 + clip->start_frame - 1, CFRA, sfra, framelen, 2);
+
 	/* movie clip animation */
-	if ((sc->mode == SC_MODE_MASKEDIT) && sc->mask) {
-		MaskLayer *masklay = BKE_mask_layer_active(sc->mask);
+	if ((sc->mode == SC_MODE_MASKEDIT) && sc->mask_info.mask) {
+		MaskLayer *masklay = BKE_mask_layer_active(sc->mask_info.mask);
 		if (masklay) {
 			MaskLayerShape *masklay_shape;
 
@@ -212,11 +234,7 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 			{
 				i = masklay_shape->frame;
 
-				/* glRecti((i - sfra) * framelen, 0, (i - sfra + 1) * framelen, 4); */
-
-				/* use a line so we always see the keyframes */
-				glVertex2i((i - sfra) * framelen, 0);
-				glVertex2i((i - sfra) * framelen, (i == CFRA) ? 22 : 10);
+				draw_keyframe(i, CFRA, sfra, framelen, 1);
 			}
 
 			glEnd();
@@ -714,7 +732,7 @@ static float get_shortest_pattern_side(MovieTrackingMarker *marker)
 
 		cur_len = len_v2v2(marker->pattern_corners[i], marker->pattern_corners[next]);
 
-		len = MIN2(cur_len, len);
+		len = minf(cur_len, len);
 	}
 
 	return len;
@@ -786,11 +804,11 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 	dy = 6.0f / height / sc->zoom;
 
 	side = get_shortest_pattern_side(marker);
-	patdx = MIN2(dx * 2.0f / 3.0f, side / 6.0f);
-	patdy = MIN2(dy * 2.0f / 3.0f, side * width / height / 6.0f);
+	patdx = minf(dx * 2.0f / 3.0f, side / 6.0f);
+	patdy = minf(dy * 2.0f / 3.0f, side * width / height / 6.0f);
 
-	searchdx = MIN2(dx, (marker->search_max[0] - marker->search_min[0]) / 6.0f);
-	searchdy = MIN2(dy, (marker->search_max[1] - marker->search_min[1]) / 6.0f);
+	searchdx = minf(dx, (marker->search_max[0] - marker->search_min[0]) / 6.0f);
+	searchdy = minf(dy, (marker->search_max[1] - marker->search_min[1]) / 6.0f);
 
 	px[0] = 1.0f / sc->zoom / width / sc->scale;
 	px[1] = 1.0f / sc->zoom / height / sc->scale;
@@ -1408,17 +1426,16 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 	glPopMatrix();
 }
 
-void clip_draw_main(const bContext *C, ARegion *ar)
+void clip_draw_main(const bContext *C, SpaceClip *sc, ARegion *ar)
 {
-	SpaceClip *sc = CTX_wm_space_clip(C);
 	MovieClip *clip = ED_space_clip_get_clip(sc);
 	Scene *scene = CTX_data_scene(C);
 	ImBuf *ibuf;
 	int width, height;
 	float zoomx, zoomy;
 
-	ED_space_clip_get_size(C, &width, &height);
-	ED_space_clip_get_zoom(C, &zoomx, &zoomy);
+	ED_space_clip_get_size(sc, &width, &height);
+	ED_space_clip_get_zoom(sc, ar, &zoomx, &zoomy);
 
 	/* if no clip, nothing to do */
 	if (!clip) {

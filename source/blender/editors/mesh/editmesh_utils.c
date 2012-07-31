@@ -166,7 +166,7 @@ int EDBM_op_init(BMEditMesh *em, BMOperator *bmop, wmOperator *op, const char *f
 
 	va_start(list, fmt);
 
-	if (!BMO_op_vinitf(bm, bmop, fmt, list)) {
+	if (!BMO_op_vinitf(bm, bmop, BMO_FLAG_DEFAULTS, fmt, list)) {
 		BKE_reportf(op->reports, RPT_ERROR, "Parse error in %s", __func__);
 		va_end(list);
 		return 0;
@@ -235,7 +235,7 @@ int EDBM_op_callf(BMEditMesh *em, wmOperator *op, const char *fmt, ...)
 
 	va_start(list, fmt);
 
-	if (!BMO_op_vinitf(bm, &bmop, fmt, list)) {
+	if (!BMO_op_vinitf(bm, &bmop, BMO_FLAG_DEFAULTS, fmt, list)) {
 		BKE_reportf(op->reports, RPT_ERROR, "Parse error in %s", __func__);
 		va_end(list);
 		return 0;
@@ -259,7 +259,7 @@ int EDBM_op_call_and_selectf(BMEditMesh *em, wmOperator *op, const char *selects
 
 	va_start(list, fmt);
 
-	if (!BMO_op_vinitf(bm, &bmop, fmt, list)) {
+	if (!BMO_op_vinitf(bm, &bmop, BMO_FLAG_DEFAULTS, fmt, list)) {
 		BKE_reportf(op->reports, RPT_ERROR, "Parse error in %s", __func__);
 		va_end(list);
 		return 0;
@@ -287,7 +287,7 @@ int EDBM_op_call_silentf(BMEditMesh *em, const char *fmt, ...)
 
 	va_start(list, fmt);
 
-	if (!BMO_op_vinitf(bm, &bmop, fmt, list)) {
+	if (!BMO_op_vinitf(bm, &bmop, BMO_FLAG_DEFAULTS, fmt, list)) {
 		va_end(list);
 		return 0;
 	}
@@ -452,11 +452,9 @@ BMFace *EDBM_face_at_index(BMEditMesh *tm, int index)
 	return (tm->face_index && index < tm->bm->totface && index >= 0) ? tm->face_index[index] : NULL;
 }
 
-void EDBM_selectmode_flush_ex(BMEditMesh *em, int selectmode)
+void EDBM_selectmode_flush_ex(BMEditMesh *em, const short selectmode)
 {
-	em->bm->selectmode = selectmode;
-	BM_mesh_select_mode_flush(em->bm);
-	em->bm->selectmode = em->selectmode;
+	BM_mesh_select_mode_flush_ex(em->bm, selectmode);
 }
 
 void EDBM_selectmode_flush(BMEditMesh *em)
@@ -484,7 +482,7 @@ void EDBM_select_more(BMEditMesh *em)
 	BMOperator bmop;
 	int use_faces = em->selectmode == SCE_SELECT_FACE;
 
-	BMO_op_initf(em->bm, &bmop,
+	BMO_op_initf(em->bm, &bmop, BMO_FLAG_DEFAULTS,
 	             "region_extend geom=%hvef constrict=%b use_faces=%b",
 	             BM_ELEM_SELECT, FALSE, use_faces);
 	BMO_op_exec(em->bm, &bmop);
@@ -500,7 +498,7 @@ void EDBM_select_less(BMEditMesh *em)
 	BMOperator bmop;
 	int use_faces = em->selectmode == SCE_SELECT_FACE;
 
-	BMO_op_initf(em->bm, &bmop,
+	BMO_op_initf(em->bm, &bmop, BMO_FLAG_DEFAULTS,
 	             "region_extend geom=%hvef constrict=%b use_faces=%b",
 	             BM_ELEM_SELECT, TRUE, use_faces);
 	BMO_op_exec(em->bm, &bmop);

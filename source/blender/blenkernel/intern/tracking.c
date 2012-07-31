@@ -853,7 +853,7 @@ static void track_mask_gpencil_layer_rasterize(int frame_width, int frame_height
 					fp[1] = (stroke_points[i].y - marker->search_min[1]) * frame_height / mask_height;
 				}
 
-				/* TODO: add an option to control wether AA is enabled or not */
+				/* TODO: add an option to control whether AA is enabled or not */
 				PLX_raskterize((float (*)[2])mask_points, stroke->totpoints, mask, mask_width, mask_height, FALSE);
 
 				MEM_freeN(mask_points);
@@ -916,7 +916,7 @@ void BKE_tracking_track_deselect(MovieTrackingTrack *track, int area)
 	BKE_tracking_track_flag_clear(track, area, SELECT);
 }
 
-/*********************** Marker  *************************/
+/*********************** Marker *************************/
 
 MovieTrackingMarker *BKE_tracking_marker_insert(MovieTrackingTrack *track, MovieTrackingMarker *marker)
 {
@@ -995,8 +995,8 @@ void BKE_tracking_marker_clamp(MovieTrackingMarker *marker, int event)
 	if (event == CLAMP_PAT_DIM) {
 		for (a = 0; a < 2; a++) {
 			/* search shouldn't be resized smaller than pattern */
-			marker->search_min[a] = MIN2(pat_min[a], marker->search_min[a]);
-			marker->search_max[a] = MAX2(pat_max[a], marker->search_max[a]);
+			marker->search_min[a] = minf(pat_min[a], marker->search_min[a]);
+			marker->search_max[a] = maxf(pat_max[a], marker->search_max[a]);
 		}
 	}
 	else if (event == CLAMP_PAT_POS) {
@@ -1020,8 +1020,8 @@ void BKE_tracking_marker_clamp(MovieTrackingMarker *marker, int event)
 	else if (event == CLAMP_SEARCH_DIM) {
 		for (a = 0; a < 2; a++) {
 			/* search shouldn't be resized smaller than pattern */
-			marker->search_min[a] = MIN2(pat_min[a], marker->search_min[a]);
-			marker->search_max[a] = MAX2(pat_max[a], marker->search_max[a]);
+			marker->search_min[a] = minf(pat_min[a], marker->search_min[a]);
+			marker->search_max[a] = maxf(pat_max[a], marker->search_max[a]);
 		}
 	}
 	else if (event == CLAMP_SEARCH_POS) {
@@ -1131,6 +1131,36 @@ void BKE_tracking_marker_pattern_minmax(const MovieTrackingMarker *marker, float
 	DO_MINMAX2(marker->pattern_corners[1], min, max);
 	DO_MINMAX2(marker->pattern_corners[2], min, max);
 	DO_MINMAX2(marker->pattern_corners[3], min, max);
+}
+
+void BKE_tracking_marker_get_subframe_position(MovieTrackingTrack *track, float framenr, float pos[2])
+{
+	MovieTrackingMarker *marker = BKE_tracking_marker_get(track, (int) framenr);
+	MovieTrackingMarker *marker_last = track->markers + (track->markersnr - 1);
+
+	if (marker != marker_last) {
+		MovieTrackingMarker *marker_next = marker + 1;
+
+		if (marker_next->framenr == marker->framenr + 1) {
+			/* currently only do subframing inside tracked ranges, do not extrapolate tracked segments
+			 * could be changed when / if mask parent would be interpolating position in-between
+			 * tracked segments
+			 */
+
+			float fac = (framenr - (int) framenr) / (marker_next->framenr - marker->framenr);
+
+			interp_v2_v2v2(pos, marker->pos, marker_next->pos, fac);
+		}
+		else {
+			copy_v2_v2(pos, marker->pos);
+		}
+	}
+	else {
+		copy_v2_v2(pos, marker->pos);
+	}
+
+	/* currently track offset is always wanted to be applied here, could be made an option later */
+	add_v2_v2(pos, track->offset);
 }
 
 /*********************** Object *************************/
@@ -3242,7 +3272,7 @@ static float stabilization_calculate_autoscale_factor(MovieTracking *tracking, i
 
 						S = (-w * I - h * J) / (dx * I + dy * J + K);
 
-						scale = MAX2(scale, S);
+						scale = maxf(scale, S);
 					}
 				}
 			}
@@ -3251,7 +3281,7 @@ static float stabilization_calculate_autoscale_factor(MovieTracking *tracking, i
 		stab->scale = scale;
 
 		if (stab->maxscale > 0.0f)
-			stab->scale = MIN2(stab->scale, stab->maxscale);
+			stab->scale = minf(stab->scale, stab->maxscale);
 	}
 	else {
 		stab->scale = 1.0f;

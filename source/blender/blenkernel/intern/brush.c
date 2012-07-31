@@ -822,13 +822,12 @@ void BKE_brush_scale_size(int *BKE_brush_size_get,
 	(*BKE_brush_size_get) = (int)((float)(*BKE_brush_size_get) * scale);
 }
 
-
 void BKE_brush_jitter_pos(const Scene *scene, Brush *brush, const float pos[2], float jitterpos[2])
 {
 	int use_jitter = brush->jitter != 0;
 
 	/* jitter-ed brush gives weird and unpredictable result for this
-	 * kinds of stroke, so manyally disable jitter usage (sergey) */
+	 * kinds of stroke, so manually disable jitter usage (sergey) */
 	use_jitter &= (brush->flag & (BRUSH_RESTORE_MESH | BRUSH_ANCHORED)) == 0;
 
 	if (use_jitter) {
