@@ -71,6 +71,7 @@ struct BrushPainter {
 	float startspacing;
 
 	float areamousepos[2]; /* guaranteed to hold the mouse position */
+	short invert;
 
 	BrushPainterCache cache;
 };

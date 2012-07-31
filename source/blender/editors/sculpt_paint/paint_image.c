@@ -341,6 +341,7 @@ typedef struct ProjPaintState {
 	int bucketMax[2];
 	int context_bucket_x, context_bucket_y; /* must lock threads while accessing these */
 	float rotation;
+	short invert;
 } ProjPaintState;
 
 typedef union pixelPointer {
@@ -3795,6 +3796,8 @@ static void do_projectpaint_draw(ProjPaintState *ps, ProjPixel *projPixel, const
 		rgba_ub[3] = 255;
 	}
 	
+	if (ps->invert) rgb_invert_uchar(rgba_ub);
+
 	if (ps->is_airbrush == 0 && mask < 1.0f) {
 		projPixel->newColor.uint = IMB_blend_color(projPixel->newColor.uint, *((unsigned int *)rgba_ub), (int)(alpha * 255), ps->blend);
 		blend_color_mix(projPixel->pixel.ch_pt,  projPixel->origColor.ch, projPixel->newColor.ch, (int)(mask * 255));
@@ -3826,6 +3829,8 @@ static void do_projectpaint_draw_f(ProjPaintState *ps, ProjPixel *projPixel, flo
 		}
 		rgba[3] = 1.0;
 	}
+
+	if (ps->invert) rgb_invert(rgba);
 	
 	if (ps->is_airbrush == 0 && mask < 1.0f) {
 		IMB_blend_color_float(projPixel->newColor.f, projPixel->newColor.f, rgba, alpha, ps->blend);
@@ -4873,10 +4878,13 @@ static int texture_paint_init(bContext *C, wmOperator *op)
 	ToolSettings *settings = scene->toolsettings;
 	Brush *brush = paint_brush(&settings->imapaint.paint);
 	PaintOperation *pop = MEM_callocN(sizeof(PaintOperation), "PaintOperation"); /* caller frees */
+	short invert = RNA_boolean_get(op->ptr, "invert") ? IMAGEPAINT_INVERT : 0;
 
 	pop->first = 1;
 	op->customdata = pop;
 	
+	invert = invert ^ (settings->imapaint.flag & IMAGEPAINT_INVERT);
+
 	/* XXX: Soften tool does not support projection painting atm, so just disable
 	 *      projection for this brush */
 	if (brush->imagepaint_tool == PAINT_TOOL_SOFTEN) {
@@ -4967,6 +4975,7 @@ static int texture_paint_init(bContext *C, wmOperator *op)
 		paint_brush_init_tex(pop->ps.brush);
 
 		pop->ps.source = PROJ_SRC_VIEW;
+		pop->ps.invert = invert;
 
 		if (pop->ps.ob == NULL || !(pop->ps.ob->lay & pop->ps.v3d->lay))
 			return 0;
@@ -4988,6 +4997,7 @@ static int texture_paint_init(bContext *C, wmOperator *op)
 
 	/* create painter */
 	pop->painter = BKE_brush_painter_new(scene, pop->s.brush);
+	pop->painter->invert = invert;
 
 	return 1;
 }
@@ -5230,6 +5240,7 @@ void PAINT_OT_image_paint(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement, "Stroke", "");
+	RNA_def_boolean(ot->srna, "invert", FALSE, "Invert", "Invert the colours of the brush during painting");
 }
 
 int get_imapaint_zoom(bContext *C, float *zoomx, float *zoomy)

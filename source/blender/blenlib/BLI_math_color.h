@@ -112,6 +112,8 @@ void rgb_float_to_uchar(unsigned char col_r[3], const float col_f[3]);
 void rgba_float_to_uchar(unsigned char col_r[4], const float col_f[4]);
 
 void xyz_to_lab(float x, float y, float z, float *l, float *a, float *b);
+void rgb_invert(float col[3]);
+void rgb_invert_uchar(unsigned char col[3]);
 
 /***************** lift/gamma/gain / ASC-CDL conversion *****************/
 

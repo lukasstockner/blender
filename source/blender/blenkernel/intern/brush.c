@@ -579,7 +579,7 @@ float BKE_brush_sample_masktex(const Scene *scene, Brush *brush, const float xy[
 }
 
 /* TODO, use define for 'texfall' arg */
-void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texfall, int bufsize, ImBuf **outbuf, float angle, int use_color_correction)
+void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texfall, int bufsize, ImBuf **outbuf, float angle, int use_color_correction, short invert)
 {
 	ImBuf *ibuf;
 	float xy[2], rgba[4], *dstf;
@@ -612,17 +612,20 @@ void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texf
 				xy[0] = x + xoff;
 				xy[1] = y + yoff;
 
-				/* texfall = 0, 1 seem unused from a qiock search */
+				/* texfall = 0, 1 seem unused from a quick search */
 				if (texfall == 0) {
 					copy_v3_v3(dstf, brush_rgb);
 					dstf[3] = alpha * BKE_brush_curve_strength_clamp(brush, len_v2(xy), radius);
+					if(invert) rgb_invert(dstf);
 				}
 				else if (texfall == 1) {
 					BKE_brush_sample_tex(scene, brush, xy, dstf, 0, angle);
+					if(invert) rgb_invert(dstf);
 				}
 				else {
 					BKE_brush_sample_tex(scene, brush, xy, rgba, 0, angle);
 					mul_v3_v3v3(dstf, rgba, brush_rgb);
+					if(invert) rgb_invert(dstf);
 					dstf[3] = rgba[3] *alpha *BKE_brush_curve_strength_clamp(brush, len_v2(xy), radius)
 					        *BKE_brush_sample_masktex(scene, brush, xy, 0, angle);
 				}
@@ -651,6 +654,7 @@ void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texf
 				else if (texfall == 1) {
 					BKE_brush_sample_tex(scene, brush, xy, rgba, 0, angle);
 					rgba_float_to_uchar(dst, rgba);
+					if(invert) rgb_invert_uchar(dst);
 				}
 				else if (texfall == 2) {
 					BKE_brush_sample_tex(scene, brush, xy, rgba, 0, angle);
@@ -659,6 +663,7 @@ void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texf
 					        *BKE_brush_sample_masktex(scene, brush, xy, 0, angle);
 
 					rgb_float_to_uchar(dst, rgba);
+					if(invert) rgb_invert_uchar(dst);
 
 					dst[3] = FTOCHAR(alpha_f);
 				}
@@ -671,6 +676,7 @@ void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texf
 					dst[1] = crgb[1];
 					dst[2] = crgb[2];
 					dst[3] = FTOCHAR(alpha_f);
+					if(invert) rgb_invert_uchar(dst);
 				}
 			}
 		}

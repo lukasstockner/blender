@@ -371,13 +371,17 @@ static void rna_def_image_paint(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "invert_stencil", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", IMAGEPAINT_PROJECT_LAYER_STENCIL_INV);
-	RNA_def_property_ui_text(prop, "Invert", "Invert the stencil layer");
+	RNA_def_property_ui_text(prop, "Invert Stencil", "Invert the stencil layer");
 	
 	prop = RNA_def_property(srna, "use_clone_layer", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", IMAGEPAINT_PROJECT_LAYER_CLONE);
 	RNA_def_property_ui_text(prop, "Clone Map",
 	                         "Use another UV map as clone source, otherwise use the 3D cursor as the source");
-	
+
+	prop = RNA_def_property(srna, "invert_color", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", IMAGEPAINT_INVERT);
+	RNA_def_property_ui_text(prop, "Invert Color", "Invert the paint colour");
+
 	/* integers */
 	
 	prop = RNA_def_property(srna, "seam_bleed", PROP_INT, PROP_UNSIGNED);

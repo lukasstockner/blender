@@ -682,6 +682,7 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
             col = layout.column()
             col.template_color_wheel(brush, "color", value_slider=True)
             col.prop(brush, "color", text="")
+            col.prop(toolsettings, "invert_color")
 
             row = col.row(align=True)
             self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")

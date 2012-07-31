@@ -637,6 +637,7 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             col = layout.column()
             col.template_color_wheel(brush, "color", value_slider=True)
             col.prop(brush, "color", text="")
+            col.prop(settings, "invert_color")
 
             row = col.row(align=True)
             self.prop_unified_size(row, context, brush, "use_locked_size", icon='LOCKED')

@@ -255,6 +255,7 @@ static void brush_painter_refresh_cache(BrushPainter *painter, const float pos[2
 	const int diameter = 2 * BKE_brush_size_randomized_get(scene, brush);
 	const float alpha = BKE_brush_alpha_get(scene, brush);
 	const float rotation = -special_rotation + brush->mtex.rot;
+	const short invert = painter->invert;
 
 	if (diameter != cache->lastsize ||
 	    alpha != cache->lastalpha ||
@@ -274,11 +275,11 @@ static void brush_painter_refresh_cache(BrushPainter *painter, const float pos[2
 		size = (cache->size) ? cache->size : diameter;
 
 		if (brush->flag & BRUSH_FIXED_TEX) {
-			BKE_brush_imbuf_new(scene, brush, flt, 3, size, &cache->maskibuf, rotation, use_color_correction);
+			BKE_brush_imbuf_new(scene, brush, flt, 3, size, &cache->maskibuf, rotation, use_color_correction, invert);
 			brush_painter_fixed_tex_partial_update(painter, pos);
 		}
 		else
-			BKE_brush_imbuf_new(scene, brush, flt, 2, size, &cache->ibuf, rotation, use_color_correction);
+			BKE_brush_imbuf_new(scene, brush, flt, 2, size, &cache->ibuf, rotation, use_color_correction, invert);
 
 		cache->lastsize = diameter;
 		cache->lastalpha = alpha;

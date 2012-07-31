@@ -731,7 +731,7 @@ typedef struct ImagePaintSettings {
 	Paint paint;
 
 	short flag, pad;
-	
+
 	/* for projection painting only */
 	short seam_bleed, normal_angle;
 	short screen_grab_size[2]; /* capture size for re-projection */
@@ -1450,6 +1450,7 @@ typedef enum SculptFlags {
 #define IMAGEPAINT_DRAWING				1
 // #define IMAGEPAINT_DRAW_TOOL			2 // deprecated
 // #define IMAGEPAINT_DRAW_TOOL_DRAWING	4 // deprecated
+#define IMAGEPAINT_INVERT               1024
 
 /* projection painting only */
 #define IMAGEPAINT_PROJECT_DISABLE		8	/* Non projection 3D painting */
