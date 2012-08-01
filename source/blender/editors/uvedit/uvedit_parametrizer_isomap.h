@@ -20,6 +20,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/**
+  C interface for isomap unwrapper. The unwrapper utilizes eigen for eigenvalue solving
+  and this file provides the needed funtions to initialize/cleanup/solve/load the solution
+*/
+
 #ifndef UVEDIT_PARAMETRIZER_ISOMAP_H
 #define UVEDIT_PARAMETRIZER_ISOMAP_H
 
@@ -27,9 +32,10 @@
 extern "C" {
 #endif
 
-void param_new_solver_pool(void);
-void param_delete_solver_pool(void);
-int param_new_isomap_solver(int nverts);
+void param_isomap_new_solver(int nverts);
+int param_isomap_solve(float dist_matrix[]);
+void param_isomap_delete_solver(void);
+void param_isomap_load_uv_solution(int index, float uv[2]);
 
 #ifdef __cplusplus
 }

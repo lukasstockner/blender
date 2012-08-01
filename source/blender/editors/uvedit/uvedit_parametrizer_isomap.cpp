@@ -23,63 +23,81 @@
 #include <Eigen/Dense>
 #include "uvedit_parametrizer_isomap.h"
 #include <vector>
+#include <iostream>
 
 using namespace std;
+using namespace Eigen;
 
 /**
   containt the Eigen solver and does the actual solving
 */
 class IsomapSolver {
 	public:
-		IsomapSolver (int nverts){}
+		IsomapSolver (int nverts);
 		~IsomapSolver () {}
-};
+		int solve(float dist_matrix[]);
+		void load_uv_solution(int index, float uv[2]);
 
-
-/**
-  maintain the pool of solvers for each chart
-*/
-class SolverPool {
-	public:
-		SolverPool() {}
-		~SolverPool ();
-		IsomapSolver *getSolverAtIndex(int index) {return chart_solvers[index];}
-		int addNewSolver(int nverts);
 	private:
-		vector <IsomapSolver *> chart_solvers;
+		int size;
+		SelfAdjointEigenSolver <MatrixXf> eigensolver;
 };
 
-static SolverPool *solver_pool = NULL;
+
+static IsomapSolver *solver = NULL;
 
 
 
-/************************ SolverPool Implementation *********************************/
-SolverPool::~SolverPool ()
+/************************ Solver Implementation *********************************/
+IsomapSolver::IsomapSolver(int nverts): size(nverts), eigensolver()
 {
-	for (int i = 0; i < chart_solvers.size(); i++) {
-		delete chart_solvers[i];
-	}
 }
 
-int SolverPool::addNewSolver(int nverts)
+int IsomapSolver::solve(float dist_matrix[])
 {
-	chart_solvers.push_back(new IsomapSolver(nverts));
-	return chart_solvers.size() - 1;
+	/* use Map class to reuse memory from C */
+	Map <MatrixXf> map_matrix(dist_matrix, size, size);
+	MatrixXf final;
+	MatrixXf centering_transform;
+
+	centering_transform.setConstant(size, size, 1.0/size);
+	centering_transform = MatrixXf::Identity(size, size) - centering_transform;
+
+	/* in the paper there's also a -1/2 factor but we incorporate this in  dist_matrix
+	 * construction */
+	final = centering_transform * map_matrix * centering_transform;
+
+	eigensolver.compute(final);
+
+	 if (eigensolver.info() != Success)
+		 return false;
+
+	cout << eigensolver.eigenvalues() << endl;
+
+	 return true;
 }
 
-
-int param_new_isomap_solver (int nverts)
+void IsomapSolver::load_uv_solution(int index, float uv[2])
 {
-	return solver_pool->addNewSolver(nverts);
+	uv[0] = eigensolver.eigenvectors()(index, size - 1)*sqrt(eigensolver.eigenvalues()(size - 1));
+	uv[1] = eigensolver.eigenvectors()(index, size - 2)*sqrt(eigensolver.eigenvalues()(size - 2));
 }
 
-void param_new_solver_pool (void)
+void param_isomap_new_solver(int nverts)
 {
-	solver_pool = new SolverPool;
+	solver = new IsomapSolver(nverts);
 }
 
-void param_delete_solver_pool(void)
+void param_isomap_delete_solver(void)
 {
-	delete solver_pool;
-	solver_pool = 0;
+	delete solver;
+}
+
+int param_isomap_solve(float dist_matrix[]) {
+	return solver->solve(dist_matrix);
+}
+
+void param_isomap_load_uv_solution(int index, float uv[2])
+{
+	solver->load_uv_solution(index, uv);
 }

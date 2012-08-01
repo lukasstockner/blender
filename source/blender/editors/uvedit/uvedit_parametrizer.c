@@ -202,7 +202,7 @@ typedef struct PChart {
 			float size[2], trans[2];
 		} pack;
 		struct PChartIsomap {
-			int solverindex;
+			unsigned int do_solution;
 		} isomap;
 	} u;
 
@@ -430,7 +430,7 @@ static float p_face_uv_area_signed(PFace *f)
 	               ((v3->uv[0] - v1->uv[0]) * (v2->uv[1] - v1->uv[1])));
 }
 
-static float p_edge_length(PEdge *e)
+static float p_edge_length_squared(PEdge *e)
 {
 	PVert *v1 = e->vert, *v2 = e->next->vert;
 	float d[3];
@@ -439,7 +439,11 @@ static float p_edge_length(PEdge *e)
 	d[1] = v2->co[1] - v1->co[1];
 	d[2] = v2->co[2] - v1->co[2];
 
-	return sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+	return d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
+}
+static float p_edge_length(PEdge *e)
+{
+	return sqrt(p_edge_length_squared(e));
 }
 
 static float p_edge_uv_length(PEdge *e)
@@ -3022,7 +3026,10 @@ static void p_chart_lscm_begin(PChart *chart, PBool live, enum UnwrapMethods met
 	}
 
 	if ((live && (!select || !deselect)) || (npins == 1)) {
-		chart->u.lscm.context = NULL;
+		if (isomap)
+			chart->u.isomap.do_solution = TRUE;
+		else
+			chart->u.lscm.context = NULL;
 	}
 	else {
 #if 0
@@ -3033,9 +3040,6 @@ static void p_chart_lscm_begin(PChart *chart, PBool live, enum UnwrapMethods met
 		if (abf) {
 			if (!p_chart_abf_solve(chart))
 				param_warning("ABF solving failed: falling back to LSCM.\n");
-		}
-		if (isomap) {
-			param_new_solver_pool();
 		}
 
 		if (npins <= 1) {
@@ -3065,23 +3069,58 @@ static void p_chart_lscm_begin(PChart *chart, PBool live, enum UnwrapMethods met
 
 			chart->u.lscm.context = nlGetCurrent();
 		} else {
-			chart->u.isomap.solverindex = param_new_isomap_solver(chart->nverts);
+			chart->u.isomap.do_solution = TRUE;
 		}
 	}
 }
 
 static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 {
-	PVert *v, *pin1 = chart->u.lscm.pin1, *pin2 = chart->u.lscm.pin2;
-	PFace *f;
-	float *alpha = chart->u.lscm.abf_alpha;
-	int row;
 	enum UnwrapMethods method = handle->method;
 
 	if (method == UNWRAP_ISOMAP) {
+		PEdge *e;
+		PVert *v;
+		int nverts = chart->nverts;
+		int i, j;
 
+		/* create matrix with squared edge distances */
+		float *dist_map = MEM_mallocN(sizeof(*dist_map)*nverts*nverts, "isomap_distance_map");
+
+		param_isomap_new_solver(nverts);
+
+		/* initialize every point to "infinity" according to the paper.
+		 * since this will make every inner product give infinity as well, initialize to some
+		 * large number instead */
+		for (i = 0; i < nverts; i++)
+			for (j = 0; i < nverts; i++)
+				*(dist_map + i*nverts + j) = (i == j)? 0 : -MAXFLOAT;
+
+		/* for each edge, put the squared distance to the appropriate matrix positions
+		 * for interior edges this will unfortunately be computed twice */
+		for (e = chart->edges; e; e = e->nextlink) {
+			*(dist_map + e->vert->u.id*nverts + e->next->vert->u.id) =
+			*(dist_map + e->next->vert->u.id*nverts + e->vert->u.id) =
+			        -0.5*p_edge_length_squared(e);
+		}
+		if(!param_isomap_solve(dist_map)) {
+			param_warning("ISOMAP failure, matrix solution did not converge.\n");
+		}
+
+		/* load the solution back to pverts */
+		for (v = chart->verts; v; v = v->nextlink)
+			param_isomap_load_uv_solution(v->u.id, v->uv);
+
+		/* cleanup */
+		param_isomap_delete_solver();
+		MEM_freeN(dist_map);
 
 	} else {
+		PVert *v, *pin1 = chart->u.lscm.pin1, *pin2 = chart->u.lscm.pin2;
+		PFace *f;
+		float *alpha = chart->u.lscm.abf_alpha;
+		int row;
+
 		nlMakeCurrent(chart->u.lscm.context);
 
 		nlBegin(NL_SYSTEM);
@@ -3216,10 +3255,7 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 
 static void p_chart_lscm_end(PChart *chart, enum UnwrapMethods method)
 {
-	if (method == UNWRAP_ISOMAP) {
-		if (chart->u.isomap.solverindex)
-			;
-	} else {
+	if (method != UNWRAP_ISOMAP) {
 		if (chart->u.lscm.context)
 			nlDeleteContext(chart->u.lscm.context);
 
@@ -3227,11 +3263,11 @@ static void p_chart_lscm_end(PChart *chart, enum UnwrapMethods method)
 			MEM_freeN(chart->u.lscm.abf_alpha);
 			chart->u.lscm.abf_alpha = NULL;
 		}
-	}
 
-	chart->u.lscm.context = NULL;
-	chart->u.lscm.pin1 = NULL;
-	chart->u.lscm.pin2 = NULL;
+		chart->u.lscm.context = NULL;
+		chart->u.lscm.pin1 = NULL;
+		chart->u.lscm.pin2 = NULL;
+	}
 }
 
 /* Stretch */
@@ -4277,23 +4313,29 @@ void param_lscm_begin(ParamHandle *handle, ParamBool live, enum UnwrapMethods me
 void param_lscm_solve(ParamHandle *handle)
 {
 	PHandle *phandle = (PHandle *)handle;
+	enum UnwrapMethods method = phandle->method;
 	PChart *chart;
 	int i;
 	PBool result;
+	PBool isomap = method == UNWRAP_ISOMAP;
 
 	param_assert(phandle->state == PHANDLE_STATE_LSCM);
 
 	for (i = 0; i < phandle->ncharts; i++) {
+		int do_solution;
 		chart = phandle->charts[i];
 
-		if (chart->u.lscm.context) {
+		do_solution = (isomap)?
+		    chart->u.isomap.do_solution : (chart->u.lscm.context != NULL);
+
+		if (do_solution) {
 			result = p_chart_lscm_solve(phandle, chart);
 
 			if (result && !(chart->flag & PCHART_NOPACK))
 				p_chart_rotate_minimum_area(chart);
 
 			if (!result || (chart->u.lscm.pin1))
-				p_chart_lscm_end(chart, phandle->method);
+				p_chart_lscm_end(chart, method);
 		}
 	}
 }
@@ -4301,8 +4343,8 @@ void param_lscm_solve(ParamHandle *handle)
 void param_lscm_end(ParamHandle *handle)
 {
 	PHandle *phandle = (PHandle *)handle;
-	enum UnwrapMethods method = phandle->method;
 	int i;
+	enum UnwrapMethods method = phandle->method;
 
 	param_assert(phandle->state == PHANDLE_STATE_LSCM);
 
@@ -4311,10 +4353,6 @@ void param_lscm_end(ParamHandle *handle)
 #if 0
 		p_chart_complexify(phandle->charts[i]);
 #endif
-	}
-
-	if (method == UNWRAP_ISOMAP) {
-		param_delete_solver_pool();
 	}
 
 	phandle->state = PHANDLE_STATE_CONSTRUCTED;
