@@ -99,7 +99,7 @@ extern "C"
 #include "GHOST_IWindow.h"
 #include "GHOST_Rect.h"
 
-#include "GPU_matrix.h"
+#include "GPU_compatibility.h"
 #include "GPU_object.h"
 #include "GPU_functions.h"
 

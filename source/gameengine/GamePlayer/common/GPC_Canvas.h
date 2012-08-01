@@ -40,8 +40,7 @@
 	#include <windows.h>
 #endif // WIN32
 
-#include <GL/glew.h>
-#include "GPU_matrix.h"
+#include "GPU_compatibility.h"
 
 #include <map>
 

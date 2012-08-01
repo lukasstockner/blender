@@ -30,8 +30,8 @@
 #include "RAS_StorageVBO.h"
 #include "RAS_MeshObject.h"
 
+#include "GPU_compatibility.h"
 #include "GPU_extensions.h"
-#include "GPU_matrix.h"
 
 #include "GPU_object.h"
 #include "GPU_functions.h"

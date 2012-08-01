@@ -31,11 +31,9 @@
 
 #include "GPU_extensions.h"
 
-#include "GPU_matrix.h"
 #include "RAS_StorageVA.h"
 
 #include "GPU_compatibility.h"
-
 #include "GPU_material.h"
 #include "GPU_object.h"
 #include "GPU_functions.h"

@@ -23,13 +23,11 @@
 #include "RAS_IRasterizer.h"
 #include "RAS_OpenGLRasterizer/RAS_GLExtensionManager.h"
 
+#include "GPU_compatibility.h"
 #include "GPU_draw.h"
-#include "GPU_matrix.h"
-
+#include "GPU_extensions.h"
 
 #include "STR_HashedString.h"
-
-#include "GPU_extensions.h"
 
 // ------------------------------------
 #include "DNA_object_types.h"

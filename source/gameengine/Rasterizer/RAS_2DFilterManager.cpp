@@ -41,15 +41,14 @@
 #include "RAS_ICanvas.h"
 #include "RAS_Rect.h"
 #include "RAS_2DFilterManager.h"
-#include <iostream>
-
-#include "GPU_matrix.h"
-#include <stdio.h>
 
 #include "Value.h"
 
-#include "GPU_extensions.h"
 #include "GPU_compatibility.h"
+#include "GPU_extensions.h"
+
+#include <iostream>
+#include <stdio.h>
 
 RAS_2DFilterManager::RAS_2DFilterManager():
 texturewidth(-1), textureheight(-1),

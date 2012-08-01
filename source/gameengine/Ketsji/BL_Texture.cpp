@@ -3,9 +3,6 @@
  */
 // ------------------------------------
 
-#include "GPU_matrix.h"
-#include <GL/glew.h>
-
 #include <iostream>
 #include <map>
 #include <stdlib.h>
@@ -29,6 +26,8 @@
 #define spit(x) std::cout << x << std::endl;
 
 #include "MEM_guardedalloc.h"
+
+#include "GPU_compatibility.h"
 #include "GPU_draw.h"
 
 extern "C" {
@@ -36,18 +35,6 @@ extern "C" {
 	#include "IMB_imbuf.h"
 	void my_envmap_split_ima(EnvMap *env, ImBuf *ibuf);
 	void my_free_envmapdata(EnvMap *env);
-}
-
-// (n&(n-1)) zeros the least significant bit of n 
-static int is_power_of_2_i(int num)
-{
-	return ((num)&(num-1))==0;
-}
-static int power_of_2_min_i(int num)
-{
-	while (!is_power_of_2_i(num))
-		num= num&(num-1);
-	return num;	
 }
 
 // Place holder for a full texture manager
