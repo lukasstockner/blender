@@ -3093,8 +3093,8 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 		 * since this will make every inner product give infinity as well, initialize to some
 		 * large number instead */
 		for (i = 0; i < nverts; i++)
-			for (j = 0; i < nverts; i++)
-				*(dist_map + i*nverts + j) = (i == j)? 0 : -MAXFLOAT;
+			for (j = 0; j < nverts; j++)
+				*(dist_map + i*nverts + j) = (i == j)? 0 : -500.000;
 
 		/* for each edge, put the squared distance to the appropriate matrix positions
 		 * for interior edges this will unfortunately be computed twice */
@@ -3105,6 +3105,11 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 		}
 		if(!param_isomap_solve(dist_map)) {
 			param_warning("ISOMAP failure, matrix solution did not converge.\n");
+
+			param_isomap_delete_solver();
+			MEM_freeN(dist_map);
+
+			return P_FALSE;
 		}
 
 		/* load the solution back to pverts */
@@ -3115,6 +3120,7 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 		param_isomap_delete_solver();
 		MEM_freeN(dist_map);
 
+		return P_TRUE;
 	} else {
 		PVert *v, *pin1 = chart->u.lscm.pin1, *pin2 = chart->u.lscm.pin2;
 		PFace *f;
