@@ -237,6 +237,7 @@ void ED_render_engine_changed(struct Main *bmain) {}
 
 struct PTCacheEdit *PE_get_current(struct Scene *scene, struct Object *ob) {return (struct PTCacheEdit *) NULL;}
 void PE_current_changed(struct Scene *scene, struct Object *ob) {}
+struct wmOperator *WM_operator_last_redo(struct bContext *C){return (struct bContext *)NULL;}
 
 /* rna keymap */
 struct wmKeyMap *WM_keymap_active(struct wmWindowManager *wm, struct wmKeyMap *keymap) {return (struct wmKeyMap *) NULL;}
