@@ -29,6 +29,7 @@ set(INC
 	../../windowmanager
 	../../../../intern/guardedalloc
 	../../../../intern/opennl/extern
+	../../../../extern/Eigen3
 )
 
 set(INC_SYS
@@ -42,9 +43,11 @@ set(SRC
 	uvedit_parametrizer.c
 	uvedit_smart_stitch.c
 	uvedit_unwrap_ops.c
+	uvedit_parametrizer_isomap.cpp
 
 	uvedit_intern.h
 	uvedit_parametrizer.h
+	uvedit_parametrizer_isomap.h
 )
 
 blender_add_lib(bf_editor_uvedit "${SRC}" "${INC}" "${INC_SYS}")

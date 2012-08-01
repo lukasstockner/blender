@@ -39,6 +39,7 @@
 
 #include "uvedit_intern.h"
 #include "uvedit_parametrizer.h"
+#include "uvedit_parametrizer_isomap.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -200,6 +201,9 @@ typedef struct PChart {
 			float rescale, area;
 			float size[2], trans[2];
 		} pack;
+		struct PChartIsomap {
+			int solverindex;
+		} isomap;
 	} u;
 
 	unsigned char flag;
@@ -234,6 +238,7 @@ typedef struct PHandle {
 	RNG *rng;
 	float blend;
 	char do_aspect;
+	enum UnwrapMethods method;
 } PHandle;
 
 /* duplicate, to avoid including DNA_mesh_types.h */
@@ -2996,11 +3001,13 @@ static void p_chart_lscm_load_solution(PChart *chart)
 	}
 }
 
-static void p_chart_lscm_begin(PChart *chart, PBool live, PBool abf)
+static void p_chart_lscm_begin(PChart *chart, PBool live, enum UnwrapMethods method)
 {
 	PVert *v, *pin1, *pin2;
 	PBool select = P_FALSE, deselect = P_FALSE;
 	int npins = 0, id = 0;
+	PBool abf = (method == UNWRAP_ABF);
+	PBool isomap = (method == UNWRAP_ISOMAP);
 
 	/* give vertices matrix indices and count pins */
 	for (v = chart->verts; v; v = v->nextlink) {
@@ -3027,6 +3034,9 @@ static void p_chart_lscm_begin(PChart *chart, PBool live, PBool abf)
 			if (!p_chart_abf_solve(chart))
 				param_warning("ABF solving failed: falling back to LSCM.\n");
 		}
+		if (isomap) {
+			param_new_solver_pool();
+		}
 
 		if (npins <= 1) {
 			/* not enough pins, lets find some ourself */
@@ -3047,12 +3057,16 @@ static void p_chart_lscm_begin(PChart *chart, PBool live, PBool abf)
 		for (v = chart->verts; v; v = v->nextlink)
 			v->u.id = id++;
 
-		nlNewContext();
-		nlSolverParameteri(NL_NB_VARIABLES, 2 * chart->nverts);
-		nlSolverParameteri(NL_NB_ROWS, 2 * chart->nfaces);
-		nlSolverParameteri(NL_LEAST_SQUARES, NL_TRUE);
+		if (!isomap) {
+			nlNewContext();
+			nlSolverParameteri(NL_NB_VARIABLES, 2 * chart->nverts);
+			nlSolverParameteri(NL_NB_ROWS, 2 * chart->nfaces);
+			nlSolverParameteri(NL_LEAST_SQUARES, NL_TRUE);
 
-		chart->u.lscm.context = nlGetCurrent();
+			chart->u.lscm.context = nlGetCurrent();
+		} else {
+			chart->u.isomap.solverindex = param_new_isomap_solver(chart->nverts);
+		}
 	}
 }
 
@@ -3062,146 +3076,157 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 	PFace *f;
 	float *alpha = chart->u.lscm.abf_alpha;
 	int row;
+	enum UnwrapMethods method = handle->method;
 
-	nlMakeCurrent(chart->u.lscm.context);
+	if (method == UNWRAP_ISOMAP) {
 
-	nlBegin(NL_SYSTEM);
+
+	} else {
+		nlMakeCurrent(chart->u.lscm.context);
+
+		nlBegin(NL_SYSTEM);
 
 #if 0
-	/* TODO: make loading pins work for simplify/complexify. */
+		/* TODO: make loading pins work for simplify/complexify. */
 #endif
 
-	for (v = chart->verts; v; v = v->nextlink)
-		if (v->flag & PVERT_PIN)
-			p_vert_load_pin_select_uvs(handle, v);  /* reload for live */
+		for (v = chart->verts; v; v = v->nextlink)
+			if (v->flag & PVERT_PIN)
+				p_vert_load_pin_select_uvs(handle, v);  /* reload for live */
 
-	if (chart->u.lscm.pin1) {
-		nlLockVariable(2 * pin1->u.id);
-		nlLockVariable(2 * pin1->u.id + 1);
-		nlLockVariable(2 * pin2->u.id);
-		nlLockVariable(2 * pin2->u.id + 1);
+		if (chart->u.lscm.pin1) {
+			nlLockVariable(2 * pin1->u.id);
+			nlLockVariable(2 * pin1->u.id + 1);
+			nlLockVariable(2 * pin2->u.id);
+			nlLockVariable(2 * pin2->u.id + 1);
 
-		nlSetVariable(0, 2 * pin1->u.id, pin1->uv[0]);
-		nlSetVariable(0, 2 * pin1->u.id + 1, pin1->uv[1]);
-		nlSetVariable(0, 2 * pin2->u.id, pin2->uv[0]);
-		nlSetVariable(0, 2 * pin2->u.id + 1, pin2->uv[1]);
-	}
-	else {
-		/* set and lock the pins */
-		for (v = chart->verts; v; v = v->nextlink) {
-			if (v->flag & PVERT_PIN) {
-				nlLockVariable(2 * v->u.id);
-				nlLockVariable(2 * v->u.id + 1);
+			nlSetVariable(0, 2 * pin1->u.id, pin1->uv[0]);
+			nlSetVariable(0, 2 * pin1->u.id + 1, pin1->uv[1]);
+			nlSetVariable(0, 2 * pin2->u.id, pin2->uv[0]);
+			nlSetVariable(0, 2 * pin2->u.id + 1, pin2->uv[1]);
+		}
+		else {
+			/* set and lock the pins */
+			for (v = chart->verts; v; v = v->nextlink) {
+				if (v->flag & PVERT_PIN) {
+					nlLockVariable(2 * v->u.id);
+					nlLockVariable(2 * v->u.id + 1);
 
-				nlSetVariable(0, 2 * v->u.id, v->uv[0]);
-				nlSetVariable(0, 2 * v->u.id + 1, v->uv[1]);
+					nlSetVariable(0, 2 * v->u.id, v->uv[0]);
+					nlSetVariable(0, 2 * v->u.id + 1, v->uv[1]);
+				}
 			}
 		}
-	}
 
-	/* construct matrix */
+		/* construct matrix */
 
-	nlBegin(NL_MATRIX);
+		nlBegin(NL_MATRIX);
 
-	row = 0;
-	for (f = chart->faces; f; f = f->nextlink) {
-		PEdge *e1 = f->edge, *e2 = e1->next, *e3 = e2->next;
-		PVert *v1 = e1->vert, *v2 = e2->vert, *v3 = e3->vert;
-		float a1, a2, a3, ratio, cosine, sine;
-		float sina1, sina2, sina3, sinmax;
+		row = 0;
+		for (f = chart->faces; f; f = f->nextlink) {
+			PEdge *e1 = f->edge, *e2 = e1->next, *e3 = e2->next;
+			PVert *v1 = e1->vert, *v2 = e2->vert, *v3 = e3->vert;
+			float a1, a2, a3, ratio, cosine, sine;
+			float sina1, sina2, sina3, sinmax;
 
-		if (alpha) {
-			/* use abf angles if passed on */
-			a1 = *(alpha++);
-			a2 = *(alpha++);
-			a3 = *(alpha++);
-		}
-		else
-			p_face_angles(f, &a1, &a2, &a3);
+			if (alpha) {
+				/* use abf angles if passed on */
+				a1 = *(alpha++);
+				a2 = *(alpha++);
+				a3 = *(alpha++);
+			}
+			else
+				p_face_angles(f, &a1, &a2, &a3);
 
-		sina1 = sin(a1);
-		sina2 = sin(a2);
-		sina3 = sin(a3);
+			sina1 = sin(a1);
+			sina2 = sin(a2);
+			sina3 = sin(a3);
 
-		sinmax = MAX3(sina1, sina2, sina3);
+			sinmax = MAX3(sina1, sina2, sina3);
 
-		/* shift vertices to find most stable order */
-		if (sina3 != sinmax) {
-			SHIFT3(PVert *, v1, v2, v3);
-			SHIFT3(float, a1, a2, a3);
-			SHIFT3(float, sina1, sina2, sina3);
-
-			if (sina2 == sinmax) {
+			/* shift vertices to find most stable order */
+			if (sina3 != sinmax) {
 				SHIFT3(PVert *, v1, v2, v3);
 				SHIFT3(float, a1, a2, a3);
 				SHIFT3(float, sina1, sina2, sina3);
-			}
-		}
 
-		/* angle based lscm formulation */
-		ratio = (sina3 == 0.0f) ? 1.0f : sina2 / sina3;
-		cosine = cosf(a1) * ratio;
-		sine = sina1 * ratio;
+				if (sina2 == sinmax) {
+					SHIFT3(PVert *, v1, v2, v3);
+					SHIFT3(float, a1, a2, a3);
+					SHIFT3(float, sina1, sina2, sina3);
+				}
+			}
+
+			/* angle based lscm formulation */
+			ratio = (sina3 == 0.0f) ? 1.0f : sina2 / sina3;
+			cosine = cosf(a1) * ratio;
+			sine = sina1 * ratio;
 
 #if 0
-		nlBegin(NL_ROW);
-		nlCoefficient(2 * v1->u.id,   cosine - 1.0);
-		nlCoefficient(2 * v1->u.id + 1, -sine);
-		nlCoefficient(2 * v2->u.id,   -cosine);
-		nlCoefficient(2 * v2->u.id + 1, sine);
-		nlCoefficient(2 * v3->u.id,   1.0);
-		nlEnd(NL_ROW);
+			nlBegin(NL_ROW);
+			nlCoefficient(2 * v1->u.id,   cosine - 1.0);
+			nlCoefficient(2 * v1->u.id + 1, -sine);
+			nlCoefficient(2 * v2->u.id,   -cosine);
+			nlCoefficient(2 * v2->u.id + 1, sine);
+			nlCoefficient(2 * v3->u.id,   1.0);
+			nlEnd(NL_ROW);
 
-		nlBegin(NL_ROW);
-		nlCoefficient(2 * v1->u.id,   sine);
-		nlCoefficient(2 * v1->u.id + 1, cosine - 1.0);
-		nlCoefficient(2 * v2->u.id,   -sine);
-		nlCoefficient(2 * v2->u.id + 1, -cosine);
-		nlCoefficient(2 * v3->u.id + 1, 1.0);
-		nlEnd(NL_ROW);
+			nlBegin(NL_ROW);
+			nlCoefficient(2 * v1->u.id,   sine);
+			nlCoefficient(2 * v1->u.id + 1, cosine - 1.0);
+			nlCoefficient(2 * v2->u.id,   -sine);
+			nlCoefficient(2 * v2->u.id + 1, -cosine);
+			nlCoefficient(2 * v3->u.id + 1, 1.0);
+			nlEnd(NL_ROW);
 #else
-		nlMatrixAdd(row, 2 * v1->u.id,   cosine - 1.0f);
-		nlMatrixAdd(row, 2 * v1->u.id + 1, -sine);
-		nlMatrixAdd(row, 2 * v2->u.id,   -cosine);
-		nlMatrixAdd(row, 2 * v2->u.id + 1, sine);
-		nlMatrixAdd(row, 2 * v3->u.id,   1.0);
-		row++;
+			nlMatrixAdd(row, 2 * v1->u.id,   cosine - 1.0f);
+			nlMatrixAdd(row, 2 * v1->u.id + 1, -sine);
+			nlMatrixAdd(row, 2 * v2->u.id,   -cosine);
+			nlMatrixAdd(row, 2 * v2->u.id + 1, sine);
+			nlMatrixAdd(row, 2 * v3->u.id,   1.0);
+			row++;
 
-		nlMatrixAdd(row, 2 * v1->u.id,   sine);
-		nlMatrixAdd(row, 2 * v1->u.id + 1, cosine - 1.0f);
-		nlMatrixAdd(row, 2 * v2->u.id,   -sine);
-		nlMatrixAdd(row, 2 * v2->u.id + 1, -cosine);
-		nlMatrixAdd(row, 2 * v3->u.id + 1, 1.0);
-		row++;
+			nlMatrixAdd(row, 2 * v1->u.id,   sine);
+			nlMatrixAdd(row, 2 * v1->u.id + 1, cosine - 1.0f);
+			nlMatrixAdd(row, 2 * v2->u.id,   -sine);
+			nlMatrixAdd(row, 2 * v2->u.id + 1, -cosine);
+			nlMatrixAdd(row, 2 * v3->u.id + 1, 1.0);
+			row++;
 #endif
-	}
+		}
 
-	nlEnd(NL_MATRIX);
+		nlEnd(NL_MATRIX);
 
-	nlEnd(NL_SYSTEM);
+		nlEnd(NL_SYSTEM);
 
-	if (nlSolveAdvanced(NULL, NL_TRUE)) {
-		p_chart_lscm_load_solution(chart);
-		return P_TRUE;
-	}
-	else {
-		for (v = chart->verts; v; v = v->nextlink) {
-			v->uv[0] = 0.0f;
-			v->uv[1] = 0.0f;
+		if (nlSolveAdvanced(NULL, NL_TRUE)) {
+			p_chart_lscm_load_solution(chart);
+			return P_TRUE;
+		}
+		else {
+			for (v = chart->verts; v; v = v->nextlink) {
+				v->uv[0] = 0.0f;
+				v->uv[1] = 0.0f;
+			}
 		}
 	}
 
 	return P_FALSE;
 }
 
-static void p_chart_lscm_end(PChart *chart)
+static void p_chart_lscm_end(PChart *chart, enum UnwrapMethods method)
 {
-	if (chart->u.lscm.context)
-		nlDeleteContext(chart->u.lscm.context);
-	
-	if (chart->u.lscm.abf_alpha) {
-		MEM_freeN(chart->u.lscm.abf_alpha);
-		chart->u.lscm.abf_alpha = NULL;
+	if (method == UNWRAP_ISOMAP) {
+		if (chart->u.isomap.solverindex)
+			;
+	} else {
+		if (chart->u.lscm.context)
+			nlDeleteContext(chart->u.lscm.context);
+
+		if (chart->u.lscm.abf_alpha) {
+			MEM_freeN(chart->u.lscm.abf_alpha);
+			chart->u.lscm.abf_alpha = NULL;
+		}
 	}
 
 	chart->u.lscm.context = NULL;
@@ -4231,19 +4256,21 @@ void param_construct_end(ParamHandle *handle, ParamBool fill, ParamBool impl)
 	phandle->state = PHANDLE_STATE_CONSTRUCTED;
 }
 
-void param_lscm_begin(ParamHandle *handle, ParamBool live, ParamBool abf)
+void param_lscm_begin(ParamHandle *handle, ParamBool live, enum UnwrapMethods method)
 {
 	PHandle *phandle = (PHandle *)handle;
 	PFace *f;
 	int i;
 
+	phandle->method = method;
 	param_assert(phandle->state == PHANDLE_STATE_CONSTRUCTED);
 	phandle->state = PHANDLE_STATE_LSCM;
 
 	for (i = 0; i < phandle->ncharts; i++) {
 		for (f = phandle->charts[i]->faces; f; f = f->nextlink)
 			p_face_backup_uvs(f);
-		p_chart_lscm_begin(phandle->charts[i], (PBool)live, (PBool)abf);
+
+		p_chart_lscm_begin(phandle->charts[i], (PBool)live, method);
 	}
 }
 
@@ -4266,7 +4293,7 @@ void param_lscm_solve(ParamHandle *handle)
 				p_chart_rotate_minimum_area(chart);
 
 			if (!result || (chart->u.lscm.pin1))
-				p_chart_lscm_end(chart);
+				p_chart_lscm_end(chart, phandle->method);
 		}
 	}
 }
@@ -4274,15 +4301,20 @@ void param_lscm_solve(ParamHandle *handle)
 void param_lscm_end(ParamHandle *handle)
 {
 	PHandle *phandle = (PHandle *)handle;
+	enum UnwrapMethods method = phandle->method;
 	int i;
 
 	param_assert(phandle->state == PHANDLE_STATE_LSCM);
 
 	for (i = 0; i < phandle->ncharts; i++) {
-		p_chart_lscm_end(phandle->charts[i]);
+		p_chart_lscm_end(phandle->charts[i], method);
 #if 0
 		p_chart_complexify(phandle->charts[i]);
 #endif
+	}
+
+	if (method == UNWRAP_ISOMAP) {
+		param_delete_solver_pool();
 	}
 
 	phandle->state = PHANDLE_STATE_CONSTRUCTED;

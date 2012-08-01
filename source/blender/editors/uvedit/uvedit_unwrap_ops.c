@@ -1362,7 +1362,7 @@ void ED_unwrap_lscm(Scene *scene, Object *obedit, const short sel)
 	else
 		handle = construct_param_handle(scene, obedit, 0, fill_holes, sel, correct_aspect, use_mirror);
 
-	param_lscm_begin(handle, PARAM_FALSE, scene->toolsettings->unwrapper == UNWRAP_ABF);
+	param_lscm_begin(handle, PARAM_FALSE, scene->toolsettings->unwrapper);
 	param_lscm_solve(handle);
 	param_lscm_end(handle);
 

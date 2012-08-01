@@ -87,7 +87,7 @@ enum UnwrapMethods {
 	UNWRAP_LSCM,
 	UNWRAP_ISOMAP
 	};
-void param_lscm_begin(ParamHandle *handle, ParamBool live, ParamBool abf);
+void param_lscm_begin(ParamHandle *handle, ParamBool live, enum UnwrapMethods method);
 void param_lscm_solve(ParamHandle *handle);
 void param_lscm_end(ParamHandle *handle);
 
