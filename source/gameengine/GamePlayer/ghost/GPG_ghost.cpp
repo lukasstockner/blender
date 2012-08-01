@@ -767,7 +767,9 @@ int main(int argc, char** argv)
 		GPUindex *gindex = gpuNewIndex();
 		gpuImmediateIndex(gindex);
 		gpuImmediateMaxIndexCount(500000); // XXX: temporary!
-		
+
+		gpuInitializeLighting();
+
 		// Create the system
 		if (GHOST_ISystem::createSystem() == GHOST_kSuccess)
 		{
@@ -1069,6 +1071,8 @@ int main(int argc, char** argv)
 			error = true;
 			printf("error: couldn't create a system.\n");
 		}
+
+		gpuShutdownLighting();
 
 		gpuDeleteIndex(gindex);
 		gpuImmediateIndex(NULL);
