@@ -48,18 +48,6 @@
 
 
 
-/* Are restricted pointers available? (C99) */
-#if (__STDC_VERSION__ < 199901L)
-	/* Not a C99 compiler */
-	#ifdef __GNUC__
-		#define restrict __restrict__
-	#else
-		#define restrict /* restrict */
-	#endif
-#endif
-
-
-
 #ifndef GPU_SAFETY
 #define GPU_SAFETY (DEBUG && WITH_GPU_SAFETY)
 #endif

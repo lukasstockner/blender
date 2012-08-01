@@ -331,4 +331,14 @@
 #  define UNLIKELY(x)     (x)
 #endif
 
+/* Are restricted pointers available? (C99) */
+#if (__STDC_VERSION__ < 199901L)
+	/* Not a C99 compiler */
+	#ifdef __GNUC__
+		#define restrict __restrict__
+	#else
+		#define restrict /* restrict */
+	#endif
+#endif
+
 #endif // __BLI_UTILDEFINES_H__
