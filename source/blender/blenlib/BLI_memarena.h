@@ -50,7 +50,7 @@ extern "C" {
 struct MemArena;
 typedef struct MemArena MemArena;
 
-struct MemArena    *BLI_memarena_new(const int bufsize, const char *name)
+struct MemArena    *BLI_memarena_new(int bufsize, const char *name)
 #ifdef __GNUC__
 __attribute__((warn_unused_result))
 __attribute__((nonnull(2)))
@@ -74,7 +74,7 @@ __attribute__((nonnull(1)))
 #endif
 ;
 
-void                BLI_memarena_use_align(struct MemArena *ma, const int align)
+void                BLI_memarena_use_align(struct MemArena *ma, int align)
 #ifdef __GNUC__
 __attribute__((nonnull(1)))
 #endif
