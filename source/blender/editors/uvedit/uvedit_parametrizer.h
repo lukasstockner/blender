@@ -81,6 +81,12 @@ void param_delete(ParamHandle *chart);
  *   quick re-solving
  */
 
+
+enum UnwrapMethods {
+	UNWRAP_ABF,
+	UNWRAP_LSCM,
+	UNWRAP_ISOMAP
+	};
 void param_lscm_begin(ParamHandle *handle, ParamBool live, ParamBool abf);
 void param_lscm_solve(ParamHandle *handle);
 void param_lscm_end(ParamHandle *handle);

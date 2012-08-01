@@ -1362,7 +1362,7 @@ void ED_unwrap_lscm(Scene *scene, Object *obedit, const short sel)
 	else
 		handle = construct_param_handle(scene, obedit, 0, fill_holes, sel, correct_aspect, use_mirror);
 
-	param_lscm_begin(handle, PARAM_FALSE, scene->toolsettings->unwrapper == 0);
+	param_lscm_begin(handle, PARAM_FALSE, scene->toolsettings->unwrapper == UNWRAP_ABF);
 	param_lscm_solve(handle);
 	param_lscm_end(handle);
 
@@ -1439,8 +1439,9 @@ static int unwrap_exec(bContext *C, wmOperator *op)
 void UV_OT_unwrap(wmOperatorType *ot)
 {
 	static EnumPropertyItem method_items[] = {
-		{0, "ANGLE_BASED", 0, "Angle Based", ""},
-		{1, "CONFORMAL", 0, "Conformal", ""},
+		{UNWRAP_ABF, "ANGLE_BASED", 0, "Angle Based", ""},
+		{UNWRAP_LSCM, "CONFORMAL", 0, "Conformal", ""},
+		{UNWRAP_ISOMAP, "ISOMAP", 0, "Isomap", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -1456,7 +1457,7 @@ void UV_OT_unwrap(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_enum(ot->srna, "method", method_items, 0, "Method",
-	             "Unwrapping method (Angle Based usually gives better results than Conformal, while being somewhat slower)");
+	             "Unwrapping method (Angle Based usually gives better results than Conformal, while being somewhat slower. Isomap is best)");
 	RNA_def_boolean(ot->srna, "fill_holes", 1, "Fill Holes",
 	                "Virtual fill holes in mesh before unwrapping, to better avoid overlaps and preserve symmetry");
 	RNA_def_boolean(ot->srna, "correct_aspect", 1, "Correct Aspect",
