@@ -537,7 +537,7 @@ typedef struct uiStringInfo {
 /* Note: Expects pointers to uiStringInfo structs as parameters.
  *       Will fill them with translated strings, when possible.
  *       Strings in uiStringInfo must be MEM_freeN'ed by caller. */
-void uiButGetStrInfo(struct bContext *C, uiBut *but, const int nbr, ...);
+void uiButGetStrInfo(struct bContext *C, uiBut *but, int nbr, ...);
 
 /* Edit i18n stuff. */
 /* Name of the main py op from i18n addon. */
