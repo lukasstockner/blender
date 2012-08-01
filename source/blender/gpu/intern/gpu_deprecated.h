@@ -464,4 +464,65 @@
 #undef glSecondaryColor3usv
 #define glSecondaryColor3usv DO_NOT_USE_glSecondaryColor3usv
 
+// Lighting
+
+#undef glColorMaterial
+#define glColorMaterial DO_NOT_USE_glColorMaterial
+
+#undef glMaterialf
+#define glMaterialf DO_NOT_USE_glMaterialf
+#undef glMaterialfv
+#define glMaterialfv DO_NOT_USE_glMaterialfv
+#undef glMateriali
+#define glMateriali DO_NOT_USE_glMateriali
+#undef glMaterialiv
+#define glMaterialiv DO_NOT_USE_glMaterialiv
+
+#undef glGetMaterialfv
+#define glGetMaterialfv DO_NOT_USE_glGetMaterialfv
+#undef glGetMaterialiv
+#define glGetMaterialiv DO_NOT_USE_glGetMaterialiv
+
+#undef glLightf
+#define glLightf DO_NOT_USE_glLightf
+#undef glLightfv
+#define glLightfv DO_NOT_USE_glLightfv
+#undef glLighti
+#define glLighti DO_NOT_USE_glLighti
+#undef glLightiv
+#define glLightiv DO_NOT_USE_glLightiv
+
+#undef glLightModelf
+#define glLightModelf DO_NOT_USE_glLightModelf
+#undef glLightModeli
+#define glLightModeli DO_NOT_USE_glLightModeli
+#undef glLightModelfv
+#define glLightModelfv DO_NOT_USE_glLightModelfv
+#undef glLightModeliv
+#define glLightModeliv DO_NOT_USE_glLightModeliv
+
+#undef GL_LIGHT0
+#define GL_LIGHT0 DO_NOT_USE_GL_LIGHT0
+#undef GL_LIGHT1
+#define GL_LIGHT1 DO_NOT_USE_GL_LIGHT1
+#undef GL_LIGHT2
+#define GL_LIGHT2 DO_NOT_USE_GL_LIGHT2
+#undef GL_LIGHT3
+#define GL_LIGHT3 DO_NOT_USE_GL_LIGHT3
+#undef GL_LIGHT4
+#define GL_LIGHT4 DO_NOT_USE_GL_LIGHT4
+#undef GL_LIGHT5
+#define GL_LIGHT5 DO_NOT_USE_GL_LIGHT5
+#undef GL_LIGHT6
+#define GL_LIGHT6 DO_NOT_USE_GL_LIGHT6
+#undef GL_LIGHT7
+#define GL_LIGHT7 DO_NOT_USE_GL_LIGHT7
+
+#undef GL_LIGHTING
+#define DO_NOT_USE_GL_LIGHTING
+
+#undef GL_COLOR_MATERIAL
+#define DO_NOT_USE_GL_COLOR_MATERIAL
+
+
 #endif /* _GPU_DEPRECATED_H_ */

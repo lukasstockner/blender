@@ -1273,7 +1273,7 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 	float dir[4], size;
 
 	/* store stuff */
-	glGetMaterialfv(GL_FRONT, GL_DIFFUSE, diff);
+	gpuGetMaterialfv(GL_FRONT, GL_DIFFUSE, diff);
 		
 	/* backdrop */
 	gpuCurrentColor3ubv((unsigned char *)wcol->inner);
@@ -1286,22 +1286,22 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 	
 	/* disable blender light */
 	for (a = 0; a < 8; a++) {
-		old[a] = glIsEnabled(GL_LIGHT0 + a);
-		glDisable(GL_LIGHT0 + a);
+		old[a] = gpuIsLightEnabled(a);
+		gpuDisableLight(a);
 	}
 	
 	/* own light */
-	glEnable(GL_LIGHT7);
-	glEnable(GL_LIGHTING);
+	gpuEnableLight(7);
+	gpuEnableLighting();
 	
 	ui_get_but_vectorf(but, dir);
 
 	dir[3] = 0.0f;   /* glLightfv needs 4 args, 0.0 is sun */
-	glLightfv(GL_LIGHT7, GL_POSITION, dir); 
-	glLightfv(GL_LIGHT7, GL_DIFFUSE, diffn); 
-	glLightfv(GL_LIGHT7, GL_SPECULAR, vec0); 
-	glLightf(GL_LIGHT7, GL_CONSTANT_ATTENUATION, 1.0f);
-	glLightf(GL_LIGHT7, GL_LINEAR_ATTENUATION, 0.0f);
+	gpuLightfv(7, GL_POSITION, dir); 
+	gpuLightfv(7, GL_DIFFUSE, diffn); 
+	gpuLightfv(7, GL_SPECULAR, vec0); 
+	gpuLightf(7, GL_CONSTANT_ATTENUATION, 1.0f);
+	gpuLightf(7, GL_LINEAR_ATTENUATION, 0.0f);
 	
 	/* transform to button */
 	glPushMatrix();
@@ -1339,10 +1339,10 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 	glShadeModel(GL_FLAT);
 
 	/* restore */
-	glDisable(GL_LIGHTING);
+	gpuDisableLighting();
 	glDisable(GL_CULL_FACE);
 	gpuMaterialfv(GL_FRONT, GL_DIFFUSE, diff); 
-	glDisable(GL_LIGHT7);
+	gpuDisableLight(7);
 	
 	/* AA circle */
 	glEnable(GL_BLEND);
@@ -1358,7 +1358,7 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 	/* enable blender light */
 	for (a = 0; a < 8; a++) {
 		if (old[a])
-			glEnable(GL_LIGHT0 + a);
+			gpuEnableLight(a);
 	}
 }
 

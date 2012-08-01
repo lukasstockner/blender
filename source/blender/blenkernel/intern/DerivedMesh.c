@@ -2937,14 +2937,14 @@ static void navmesh_drawColored(DerivedMesh *dm)
 
 #if 0
 	//UI_ThemeColor(TH_WIRE);
-	glDisable(GL_LIGHTING);
+	gpuDisableLighting();
 	glLineWidth(2.0);
 	dm->drawEdges(dm, 0, 1);
 	glLineWidth(1.0);
-	glEnable(GL_LIGHTING);
+	gpuEnableLighting();
 #endif
 
-	glDisable(GL_LIGHTING);
+	gpuDisableLighting();
 	/* if (GPU_buffer_legacy(dm) ) */ { /* TODO - VBO draw code, not high priority - campbell */
 		DEBUG_VBO("Using legacy code. drawNavMeshColored\n");
 		//glShadeModel(GL_SMOOTH);
@@ -2973,7 +2973,7 @@ static void navmesh_drawColored(DerivedMesh *dm)
 		}
 		gpuEnd();
 	}
-	glEnable(GL_LIGHTING);
+	gpuEnableLighting();
 }
 
 static void navmesh_DM_drawFacesTex(DerivedMesh *dm,

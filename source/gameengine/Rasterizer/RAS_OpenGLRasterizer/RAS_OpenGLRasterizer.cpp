@@ -53,7 +53,6 @@
 #include "GPU_draw.h"
 #include "GPU_material.h"
 #include "GPU_extensions.h"
-#include "GPU_matrix.h"
 
 #include "DNA_image_types.h"
 #include "DNA_meshdata_types.h"
@@ -195,7 +194,7 @@ void RAS_OpenGLRasterizer::SetAmbientColor(float red, float green, float blue)
 void RAS_OpenGLRasterizer::SetAmbient(float factor)
 {
 	float ambient[] = { m_ambr*factor, m_ambg*factor, m_ambb*factor, 1.0f };
-	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambient);
+	gpuLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambient);
 }
 
 
@@ -317,9 +316,9 @@ void RAS_OpenGLRasterizer::Exit()
 
 	glDisable(GL_POLYGON_STIPPLE);
 	
-	glDisable(GL_LIGHTING);
+	gpuDisableLighting();
 	if (GLEW_EXT_separate_specular_color || GLEW_VERSION_1_2)
-		glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SINGLE_COLOR);
+		gpuLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SINGLE_COLOR);
 	
 	EndFrame();
 }
@@ -412,10 +411,10 @@ void RAS_OpenGLRasterizer::FlushDebugShapes()
 	// DrawDebugLines
 	GLboolean light, tex;
 
-	light= glIsEnabled(GL_LIGHTING);
+	light= gpuIsLightingEnabled();
 	tex= glIsEnabled(GL_TEXTURE_2D);
 
-	if (light) glDisable(GL_LIGHTING);
+	if (light) gpuDisableLighting();
 	if (tex) glDisable(GL_TEXTURE_2D);
 
 	//draw lines
@@ -470,7 +469,7 @@ void RAS_OpenGLRasterizer::FlushDebugShapes()
 		gpuEnd();
 	}
 
-	if (light) glEnable(GL_LIGHTING);
+	if (light) gpuEnableLighting();
 	if (tex) glEnable(GL_TEXTURE_2D);
 
 	m_debugShapes.clear();

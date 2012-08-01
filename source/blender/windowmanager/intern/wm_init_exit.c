@@ -133,6 +133,21 @@ void WM_init(bContext *C, int argc, const char **argv)
 	if (!G.background) {
 		wm_ghost_init(C);   /* note: it assigns C to ghost! */
 		wm_init_cursor_data();
+
+		/* begin - init opengl compatibility layer */
+		GPU_ms_init();
+		GPU_init_object_func();
+
+		immediate = gpuNewImmediate();
+		gpuImmediateMakeCurrent(immediate);
+		gpuImmediateMaxVertexCount(500000); // XXX: temporary!
+
+		gindex = gpuNewIndex();
+		gpuImmediateIndex(gindex);
+		gpuImmediateMaxIndexCount(500000); // XXX: temporary!
+
+		gpuInitializeLighting();
+		/* end - init opengl compatibility layer */
 	}
 	GHOST_CreateSystemPaths();
 	wm_operatortype_init();
@@ -185,17 +200,6 @@ void WM_init(bContext *C, int argc, const char **argv)
 		GPU_set_mipmap(!(U.gameflags & USER_DISABLE_MIPMAP));
 		GPU_set_anisotropic(U.anisotropic_filter);
 		GPU_set_gpu_mipmapping(U.use_gpu_mipmap);
-
-		GPU_ms_init();
-		GPU_init_object_func();
-
-		immediate = gpuNewImmediate();
-		gpuImmediateMakeCurrent(immediate);
-		gpuImmediateMaxVertexCount(500000); // XXX: temporary!
-
-		gindex = gpuNewIndex();
-		gpuImmediateIndex(gindex);
-		gpuImmediateMaxIndexCount(500000); // XXX: temporary!
 
 		UI_init();
 	}
@@ -441,6 +445,8 @@ void WM_exit_ext(bContext *C, const short do_python)
 
 	if (!G.background) {
 		BKE_undo_save_quit();  /* saves quit.blend if global undo is on */
+
+		gpuShutdownLighting();
 
 		gpuDeleteIndex(gindex);
 		gpuImmediateIndex(NULL);

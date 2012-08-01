@@ -40,7 +40,6 @@
 #include "BLI_math.h"
 
 #include "GPU_compatibility.h"
-#include "GPU_matrix.h"
 
 // constructor
 KX_Dome::KX_Dome (
@@ -1700,7 +1699,7 @@ void KX_Dome::DrawEnvMap(void)
 
 	glPolygonMode(GL_FRONT, GL_FILL);
 	glShadeModel(GL_SMOOTH);
-	glDisable(GL_LIGHTING);
+	gpuDisableLighting();
 	glDisable(GL_DEPTH_TEST);
 
 	glEnable(GL_TEXTURE_2D);
@@ -1857,7 +1856,7 @@ void KX_Dome::DrawDomeFisheye(void)
 		glPolygonMode(GL_FRONT, GL_FILL);
 
 	glShadeModel(GL_SMOOTH);
-	glDisable(GL_LIGHTING);
+	gpuDisableLighting();
 	glDisable(GL_DEPTH_TEST);
 
 	glEnable(GL_TEXTURE_2D);
@@ -1948,7 +1947,7 @@ void KX_Dome::DrawPanorama(void)
 		glPolygonMode(GL_FRONT, GL_FILL);
 
 	glShadeModel(GL_SMOOTH);
-	glDisable(GL_LIGHTING);
+	gpuDisableLighting();
 	glDisable(GL_DEPTH_TEST);
 
 	glEnable(GL_TEXTURE_2D);
@@ -2022,7 +2021,7 @@ void KX_Dome::DrawDomeWarped(void)
 		glPolygonMode(GL_FRONT, GL_FILL);
 
 	glShadeModel(GL_SMOOTH);
-	glDisable(GL_LIGHTING);
+	gpuDisableLighting();
 	glDisable(GL_DEPTH_TEST);
 
 	glEnable(GL_TEXTURE_2D);

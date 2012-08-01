@@ -1462,7 +1462,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 		glScalef(v3d->bundle_size / 0.05f, v3d->bundle_size / 0.05f, v3d->bundle_size / 0.05f);
 
 		if (v3d->drawtype == OB_WIRE) {
-			glDisable(GL_LIGHTING);
+			gpuDisableLighting();
 
 			if (selected) {
 				if (base == BASACT) UI_ThemeColor(TH_ACTIVE);
@@ -1475,7 +1475,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 
 			drawaxes(0.05f, v3d->bundle_drawtype);
 
-			glEnable(GL_LIGHTING);
+			gpuEnableLighting();
 		}
 		else if (v3d->drawtype > OB_WIRE) {
 			if (v3d->bundle_drawtype == OB_EMPTY_SPHERE) {
@@ -1485,13 +1485,13 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 					else UI_ThemeColor(TH_SELECT);
 
 					glLineWidth(2.f);
-					glDisable(GL_LIGHTING);
+					gpuDisableLighting();
 					glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 					draw_bundle_sphere();
 
 					glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-					glEnable(GL_LIGHTING);
+					gpuEnableLighting();
 					glLineWidth(1.f);
 				}
 
@@ -1501,7 +1501,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 				draw_bundle_sphere();
 			}
 			else {
-				glDisable(GL_LIGHTING);
+				gpuDisableLighting();
 
 				if (selected) {
 					if (base == BASACT) UI_ThemeColor(TH_ACTIVE);
@@ -1514,7 +1514,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 
 				drawaxes(0.05f, v3d->bundle_drawtype);
 
-				glEnable(GL_LIGHTING);
+				gpuEnableLighting();
 			}
 		}
 
@@ -1543,7 +1543,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 				MovieReconstructedCamera *camera = reconstruction->cameras;
 				int a = 0;
 
-				glDisable(GL_LIGHTING);
+				gpuDisableLighting();
 				UI_ThemeColor(TH_CAMERA_PATH);
 				glLineWidth(2.0f);
 
@@ -1554,7 +1554,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 				gpuEnd();
 
 				glLineWidth(1.0f);
-				glEnable(GL_LIGHTING);
+				gpuEnableLighting();
 			}
 		}
 	}
@@ -1578,9 +1578,9 @@ static void draw_viewport_reconstruction(Scene *scene, Base *base, View3D *v3d, 
 	if (v3d->flag2 & V3D_RENDER_OVERRIDE)
 		return;
 
-	glEnable(GL_LIGHTING);
-	glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
-	glEnable(GL_COLOR_MATERIAL);
+	gpuEnableLighting();
+	gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+	gpuEnableColorMaterial();
 	glShadeModel(GL_SMOOTH);
 
 	tracking_object = tracking->objects.first;
@@ -1593,8 +1593,8 @@ static void draw_viewport_reconstruction(Scene *scene, Base *base, View3D *v3d, 
 
 	/* restore */
 	glShadeModel(GL_FLAT);
-	glDisable(GL_COLOR_MATERIAL);
-	glDisable(GL_LIGHTING);
+	gpuDisableColorMaterial();
+	gpuDisableLighting();
 
 	if (!(dflag & DRAW_CONSTCOLOR)) {
 		gpuCurrentColor3ubv(ob_wire_col);
@@ -1650,7 +1650,7 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 	BKE_camera_view_frame_ex(scene, cam, cam->drawsize, is_view, scale,
 	                         asp, shift, &drawsize, vec);
 
-	glDisable(GL_LIGHTING);
+	gpuDisableLighting();
 	glDisable(GL_CULL_FACE);
 
 	gpuImmediateFormat_V3(); // DOODLE: camera
@@ -3119,9 +3119,9 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 		else {
 			/* 3 floats for position,
 			 * 3 for normal and times two because the faces may actually be quads instead of triangles */
-			glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, (me->flag & ME_TWOSIDED) ? GL_TRUE : GL_FALSE);
+			gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, (me->flag & ME_TWOSIDED) ? GL_TRUE : GL_FALSE);
 
-			glEnable(GL_LIGHTING);
+			gpuEnableLighting();
 			glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);
 
 			gpuImmediateFormat_N3_V3();
@@ -3135,8 +3135,8 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 			gpuImmediateUnformat();
 
 			glFrontFace(GL_CCW);
-			glDisable(GL_LIGHTING);
-			glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
+			gpuDisableLighting();
+			gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
 		}
 
 		/* Setup for drawing wire over, disable zbuffer
@@ -3403,9 +3403,9 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 				gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
 
 				/* diffuse */
-				glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
-				glEnable(GL_LIGHTING);
-				glEnable(GL_COLOR_MATERIAL);
+				gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+				gpuEnableLighting();
+				gpuEnableColorMaterial();
 
 				gpuImmediateFormat_C4_N3_V3();
 				dm->drawMappedFaces(
@@ -3417,8 +3417,8 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 					DM_DRAW_USE_COLORS|DM_DRAW_USE_NORMALS);
 				gpuImmediateUnformat();
 
-				glDisable(GL_COLOR_MATERIAL);
-				glDisable(GL_LIGHTING);
+				gpuDisableColorMaterial();
+				gpuDisableLighting();
 
 				GPU_disable_material();
 			}
@@ -3435,9 +3435,9 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 				draw_mesh_object_outline(v3d, ob, dm);
 			}
 
-			glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, (me->flag & ME_TWOSIDED) ? GL_TRUE : GL_FALSE);
+			gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, (me->flag & ME_TWOSIDED) ? GL_TRUE : GL_FALSE);
 
-			glEnable(GL_LIGHTING);
+			gpuEnableLighting();
 			glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);
 
 			if (ob->sculpt && (p = paint_get_active(scene))) {
@@ -3461,9 +3461,9 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			GPU_disable_material();
 
 			glFrontFace(GL_CCW);
-			glDisable(GL_LIGHTING);
+			gpuDisableLighting();
 
-			glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
+			gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
 
 			if (base->flag & SELECT) {
 				UI_ThemeColor(is_obact ? TH_ACTIVE : TH_SELECT);
@@ -3777,7 +3777,7 @@ static void drawDispListsolid(ListBase *lb, Object *ob,
 		return;
 	}
 
-	glEnable(GL_LIGHTING);
+	gpuEnableLighting();
 
 	if (ob->transflag & OB_NEG_SCALE) {
 		glFrontFace(GL_CW);
@@ -3795,17 +3795,17 @@ static void drawDispListsolid(ListBase *lb, Object *ob,
 		switch (dl->type) {
 			case DL_SEGM:
 				if (ob->type == OB_SURF) {
-					glDisable(GL_LIGHTING);
+					gpuDisableLighting();
 					gpuCurrentColor3ubv(ob_wire_col);
 					gpuSingleClientArrays_V3F(GL_LINE_STRIP, dl->verts, 0, 0, dl->nr);
-					glEnable(GL_LIGHTING);
+					gpuEnableLighting();
 				}
 				break;
 			case DL_POLY:
 				if (ob->type == OB_SURF) {
-					glDisable(GL_LIGHTING);
+					gpuDisableLighting();
 					gpuSingleClientArrays_V3F(GL_LINE_LOOP, dl->verts, 0, 0, dl->nr);
-					glEnable(GL_LIGHTING);
+					gpuEnableLighting();
 					break;
 				}
 			case DL_SURF:
@@ -3869,7 +3869,7 @@ static void drawDispListsolid(ListBase *lb, Object *ob,
 	}
 
 	glShadeModel(GL_FLAT);
-	glDisable(GL_LIGHTING);
+	gpuDisableLighting();
 	glFrontFace(GL_CCW);
 }
 
@@ -3894,9 +3894,9 @@ static int drawCurveDerivedMesh(Scene *scene, View3D *v3d, RegionView3D *rv3d, B
 		GPU_begin_object_materials(v3d, rv3d, scene, ob, glsl, NULL);
 
 		if (!glsl) {
-			glEnable(GL_LIGHTING);
+			gpuEnableLighting();
 			dm->drawFacesSolid(dm, NULL, 0, GPU_enable_material);
-			glDisable(GL_LIGHTING);
+			gpuDisableLighting();
 		}
 		else
 			dm->drawFacesGLSL(dm, GPU_enable_material);
@@ -4708,9 +4708,9 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 		float* cdata2 = NULL;
 
 		/* setup gl flags */
-		glEnable(GL_LIGHTING);
-		glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
-		glEnable(GL_COLOR_MATERIAL);
+		gpuEnableLighting();
+		gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+		gpuEnableColorMaterial();
 
 		if (totchild && (part->draw & PART_DRAW_PARENT) == 0) {
 			totpart = 0;
@@ -4779,7 +4779,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 
 		/* restore & clean up */
 
-		glDisable(GL_COLOR_MATERIAL);
+		gpuDisableColorMaterial();
 
 		if (cdata2) {
 			MEM_freeN(cdata2);
@@ -4838,11 +4838,11 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 		/* billboards are drawn this way */
 		if (pdd->ndata && ob_dt > OB_WIRE) {
 			nPtr = pdd->ndata;
-			glEnable(GL_LIGHTING);
+			gpuEnableLighting();
 		}
 		else {
 			nPtr = NULL;
-			glDisable(GL_LIGHTING);
+			gpuDisableLighting();
 		}
 
 		if (pdd->cdata) {
@@ -4876,7 +4876,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 
 /* 7. */
 
-	glDisable(GL_LIGHTING);
+	gpuDisableLighting();
 
 	if (states) {
 		MEM_freeN(states);
@@ -4948,13 +4948,13 @@ static void draw_ptcache_edit(Scene *scene, View3D *v3d, PTCacheEdit *edit)
 		pathcol = MEM_callocN(steps * 4 * sizeof(float), "particle path color data");
 	}
 
-	glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
-	glEnable(GL_COLOR_MATERIAL);
+	gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+	gpuEnableColorMaterial();
 	glShadeModel(GL_SMOOTH);
 
 	if (pset->brushtype == PE_BRUSH_WEIGHT) {
 		glLineWidth(2.0f);
-		glDisable(GL_LIGHTING);
+		gpuDisableLighting();
 	}
 
 	cache = edit->pathcache;
@@ -5119,8 +5119,8 @@ static void draw_ptcache_edit(Scene *scene, View3D *v3d, PTCacheEdit *edit)
 	}
 
 	glDisable(GL_BLEND);
-	glDisable(GL_LIGHTING);
-	glDisable(GL_COLOR_MATERIAL);
+	gpuDisableLighting();
+	gpuDisableColorMaterial();
 	glShadeModel(GL_FLAT);
 
 	if (v3d->zbuf) {
@@ -7674,13 +7674,13 @@ static void draw_object_mesh_instance(Scene *scene, View3D *v3d, RegionView3D *r
 			GPU_begin_object_materials(v3d, rv3d, scene, ob, glsl, NULL);
 		}
 		else {
-			glEnable(GL_COLOR_MATERIAL);
+			gpuEnableColorMaterial();
 			UI_ThemeColor(TH_BONE_SOLID);
-			glDisable(GL_COLOR_MATERIAL);
+			gpuDisableColorMaterial();
 		}
 		
 		glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);
-		glEnable(GL_LIGHTING);
+		gpuEnableLighting();
 		
 		if (dm) {
 			dm->drawFacesSolid(dm, NULL, 0, GPU_enable_material);
@@ -7692,7 +7692,7 @@ static void draw_object_mesh_instance(Scene *scene, View3D *v3d, RegionView3D *r
 			gpuImmediateUnformat();
 		}
 
-		glDisable(GL_LIGHTING);
+		gpuDisableLighting();
 	}
 
 	if (edm) edm->release(edm);

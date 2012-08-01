@@ -87,9 +87,8 @@ extern char datatoc_bfont_ttf[];
 }
 #endif // __cplusplus
 
-#include "GPU_draw.h"
 #include "GPU_compatibility.h"
-#include "GPU_matrix.h"
+#include "GPU_draw.h"
 
 /**********************************
 * End Blender include block

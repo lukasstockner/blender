@@ -54,6 +54,8 @@ set(SRC
 	intern/gpu_immediate_gl11.c
 	intern/gpu_immediate_vbo.c
 	intern/gpu_lighting.c
+	intern/gpu_lighting_gl11.c
+	intern/gpu_lighting_glsl.c
 	intern/gpu_material.c
 	intern/gpu_matrix.c
 	intern/gpu_primitives.c
@@ -77,7 +79,6 @@ set(SRC
 	GPU_material.h
 	GPU_utility.h
 	GPU_matrix.h
-	GPU_lighting.h
 	GPU_primitives.h
 	GPU_object.h
 	GPU_functions.h
@@ -87,6 +88,9 @@ set(SRC
 	intern/gpu_immediate.h
 	intern/gpu_immediate_inline.h
 	intern/gpu_immediate_internal.h
+	intern/gpu_lighting.h
+	intern/gpu_lighting_inline.h
+	intern/gpu_lighting_internal.h
 	intern/gpu_object_gles.h
 	intern/gpu_object_gl11.h
 	intern/gpu_primitives_inline.h

@@ -245,7 +245,7 @@ void GPC_Canvas::DrawAllBanners(void)
 	// Set up OpenGL matrices 
 	SetOrthoProjection();
 	// Activate OpenGL settings needed for display of the texture
-	::glDisable(GL_LIGHTING);
+	::gpuDisableLighting();
 	::glDisable(GL_DEPTH_TEST);
 	::glDisable(GL_FOG);
 	::glEnable(GL_TEXTURE_2D);
@@ -373,7 +373,7 @@ PopRenderState(
 ) {
 #if 0
 	// Restore OpenGL settings
-	render_state.oldLighting ? ::glEnable(GL_LIGHTING) : glDisable(GL_LIGHTING);
+	render_state.oldLighting ? ::gpuEnableLighting() : gpuDisableLighting();
 	render_state.oldDepthTest ? ::glEnable(GL_DEPTH_TEST) : glDisable(GL_DEPTH_TEST);
 	render_state.oldFog ? ::glEnable(GL_FOG) : ::glDisable(GL_FOG);
 	render_state.oldTexture2D ? ::glEnable(GL_TEXTURE_2D) : glDisable(GL_TEXTURE_2D);

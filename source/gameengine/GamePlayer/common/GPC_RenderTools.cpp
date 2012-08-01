@@ -49,8 +49,8 @@
 
 #include "STR_String.h"
 
+#include "GPU_compatibility.h"
 #include "GPU_draw.h"
-#include "GPU_matrix.h"
 
 #include "BKE_bmfont.h" // for text printing
 #include "BKE_bmfont_types.h"
@@ -129,14 +129,14 @@ void GPC_RenderTools::EnableOpenGLLights(RAS_IRasterizer *rasty)
 	if (m_lastlighting == true)
 		return;
 
-	glEnable(GL_LIGHTING);
-	glEnable(GL_COLOR_MATERIAL);
+	gpuEnableLighting();
+	gpuEnableColorMaterial();
 
-	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
-	glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, (rasty->GetCameraOrtho())? GL_FALSE: GL_TRUE);
+	gpuColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
+	gpuLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, (rasty->GetCameraOrtho())? GL_FALSE: GL_TRUE);
 	if (GLEW_EXT_separate_specular_color || GLEW_VERSION_1_2)
-		glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SEPARATE_SPECULAR_COLOR);
+		gpuLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SEPARATE_SPECULAR_COLOR);
 	
 	m_lastlighting = true;
 }
@@ -146,8 +146,8 @@ void GPC_RenderTools::DisableOpenGLLights()
 	if (m_lastlighting == false)
 		return;
 
-	glDisable(GL_LIGHTING);
-	glDisable(GL_COLOR_MATERIAL);
+	gpuDisableLighting();
+	gpuDisableColorMaterial();
 
 	m_lastlighting = false;
 }
@@ -361,9 +361,8 @@ void GPC_RenderTools::RenderText2D(RAS_TEXT_RENDER_MODE mode,
 	glGetIntegerv(GL_FOG, (GLint*)&fog);
 	glDisable(GL_FOG);
 	
-	int light;
-	glGetIntegerv(GL_LIGHTING, (GLint*)&light);
-	glDisable(GL_LIGHTING);
+	GLboolean light = gpuIsLightingEnabled();
+	gpuDisableLighting();
 
 	
 	// Set up viewing settings
@@ -409,9 +408,9 @@ void GPC_RenderTools::RenderText2D(RAS_TEXT_RENDER_MODE mode,
 	else
 		glDisable(GL_TEXTURE_2D);
 	if (light)
-		glEnable(GL_LIGHTING);
+		gpuEnableLighting();
 	else
-		glDisable(GL_LIGHTING);
+		gpuDisableLighting();
 }
 
 /* Render Text renders text into a (series of) polygon, using a texture font,
@@ -464,7 +463,7 @@ int GPC_RenderTools::applyLights(int objectlayer, const MT_Transform& viewmat)
 	std::vector<struct	RAS_LightObject*>::iterator lit = m_lights.begin();
 
 	for (count=0; count<m_numgllights; count++)
-		glDisable((GLenum)(GL_LIGHT0+count));
+		gpuDisableLight(count);
 
 	viewmat.getValue(glviewmat);
 	

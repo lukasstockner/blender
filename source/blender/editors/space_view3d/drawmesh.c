@@ -188,7 +188,7 @@ void draw_mesh_face_select(RegionView3D *rv3d, Mesh *me, DerivedMesh *dm)
 	data.eh = get_tface_mesh_marked_edge_info(me);
 
 	glEnable(GL_DEPTH_TEST);
-	glDisable(GL_LIGHTING);
+	gpuDisableLighting();
 	bglPolygonOffset(rv3d->dist, 1.0);
 
 	/* Draw (Hidden) Edges */
@@ -335,14 +335,14 @@ static int set_draw_settings_cached(int clearcache, MTFace *texface, Material *m
 			spec[3] = 1.0;
 
 			gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
-			glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+			gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 			gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, CLAMPIS(ma->har, 0, 128));
-			glEnable(GL_LIGHTING);
-			glEnable(GL_COLOR_MATERIAL);
+			gpuEnableLighting();
+			gpuEnableColorMaterial();
 		}
 		else {
-			glDisable(GL_LIGHTING); 
-			glDisable(GL_COLOR_MATERIAL);
+			gpuDisableLighting(); 
+			gpuDisableColorMaterial();
 		}
 
 		c_lit = lit;
@@ -899,8 +899,8 @@ static void tex_mat_set_texture_cb(void *userData, int mat_nr, void *attribs)
 			gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, 0);
 
 			/* bind texture */
-			glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
-			glEnable(GL_COLOR_MATERIAL);
+			gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+			gpuEnableColorMaterial();
 			glEnable(GL_TEXTURE_2D);
 
 			glBindTexture(GL_TEXTURE_2D, ima->bindcode);
@@ -929,7 +929,7 @@ static void tex_mat_set_texture_cb(void *userData, int mat_nr, void *attribs)
 
 		/* disable texture */
 		glDisable(GL_TEXTURE_2D);
-		glDisable(GL_COLOR_MATERIAL);
+		gpuDisableColorMaterial();
 
 		/* draw single color */
 		GPU_enable_material(mat_nr, attribs);
@@ -971,7 +971,7 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *o
 	if (ob->transflag & OB_NEG_SCALE) glFrontFace(GL_CW);
 	else glFrontFace(GL_CCW);
 
-	glEnable(GL_LIGHTING);
+	gpuEnableLighting();
 
 	{
 		Mesh *me = ob->data;
@@ -1015,9 +1015,9 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *o
 	}
 
 	/* reset opengl state */
-	glDisable(GL_COLOR_MATERIAL);
+	gpuDisableColorMaterial();
 	glDisable(GL_TEXTURE_2D);
-	glDisable(GL_LIGHTING);
+	gpuDisableLighting();
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glFrontFace(GL_CCW);
 
@@ -1053,9 +1053,9 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d, Object *ob, DerivedMesh *d
 			gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
 
 			/* diffuse */
-			glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
-			glEnable(GL_LIGHTING);
-			glEnable(GL_COLOR_MATERIAL);
+			gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+			gpuEnableLighting();
+			gpuEnableColorMaterial();
 		}
 
 		if (do_light) {
@@ -1076,8 +1076,8 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d, Object *ob, DerivedMesh *d
 		gpuImmediateUnformat();
 
 		if (do_light) {
-			glDisable(GL_COLOR_MATERIAL);
-			glDisable(GL_LIGHTING);
+			gpuDisableColorMaterial();
+			gpuDisableLighting();
 
 			GPU_disable_material();
 		}

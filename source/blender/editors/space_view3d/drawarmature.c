@@ -910,8 +910,8 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 
 	if (dt == OB_SOLID) {
 		/* set up solid drawing */
-		glEnable(GL_COLOR_MATERIAL);
-		glEnable(GL_LIGHTING);
+		gpuEnableColorMaterial();
+		gpuEnableLighting();
 
 		glShadeModel(GL_SMOOTH);
 
@@ -1024,8 +1024,8 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 	/* restore */
 	if (dt == OB_SOLID) {
 		glShadeModel(GL_FLAT);
-		glDisable(GL_LIGHTING);
-		glDisable(GL_COLOR_MATERIAL);
+		gpuDisableLighting();
+		gpuDisableColorMaterial();
 	}
 
 	glPopMatrix();
@@ -1224,8 +1224,8 @@ static void draw_b_bone(const short dt, int armflag, int boneflag, short constfl
 	
 	/* set up solid drawing */
 	if (dt > OB_WIRE) {
-		glEnable(GL_COLOR_MATERIAL);
-		glEnable(GL_LIGHTING);
+		gpuEnableColorMaterial();
+		gpuEnableLighting();
 		
 		if (armflag & ARM_POSEMODE)
 			set_pchan_gpuCurrentColor(PCHAN_COLOR_SOLID, boneflag, constflag);
@@ -1235,8 +1235,8 @@ static void draw_b_bone(const short dt, int armflag, int boneflag, short constfl
 		draw_b_bone_boxes(OB_SOLID, pchan, xwidth, length, zwidth);
 		
 		/* disable solid drawing */
-		glDisable(GL_COLOR_MATERIAL);
-		glDisable(GL_LIGHTING);
+		gpuDisableColorMaterial();
+		gpuDisableLighting();
 	}
 	else {	
 		/* wire */
@@ -1352,8 +1352,8 @@ static void draw_bone(const short dt, int armflag, int boneflag, short constflag
 
 	/* set up solid drawing */
 	if (dt > OB_WIRE) {
-		glEnable(GL_COLOR_MATERIAL);
-		glEnable(GL_LIGHTING);
+		gpuEnableColorMaterial();
+		gpuEnableLighting();
 		UI_ThemeColor(TH_BONE_SOLID);
 	}
 	
@@ -1408,8 +1408,8 @@ static void draw_bone(const short dt, int armflag, int boneflag, short constflag
 
 	/* disable solid drawing */
 	if (dt > OB_WIRE) {
-		glDisable(GL_COLOR_MATERIAL);
-		glDisable(GL_LIGHTING);
+		gpuDisableColorMaterial();
+		gpuDisableLighting();
 	}
 }
 
@@ -2628,7 +2628,7 @@ int draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 		/* we use color for solid lighting */
 		gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, white);
 
-		glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+		gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 
 		glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);  /* only for lighting... */
 	}

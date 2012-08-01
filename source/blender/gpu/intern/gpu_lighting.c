@@ -29,31 +29,60 @@
  *  \ingroup gpu
  */
 
-#include <GL/glew.h>
+#include "gpu_lighting_internal.h"
+
+#include "MEM_guardedalloc.h"
 
 
- 
-void gpuMaterialfv(GLenum face, GLenum pname, const GLfloat *params)
+
+GPUlighting *restrict GPU_LIGHTING = NULL;
+
+
+
+void gpuInitializeLighting(void)
 {
-    glMaterialfv(face, pname, params);
+	GPU_LIGHTING = MEM_mallocN(sizeof(GPUlighting), "GPU_LIGHTING");
+
+		//GPU_LIGHTING->material_fv            = gpu_material_fv_glsl;
+		//GPU_LIGHTING->material_i             = gpu_material_i_glsl;
+		//GPU_LIGHTING->get_material_fv        = gpu_get_material_fv_glsl;
+		//GPU_LIGHTING->color_material         = gpu_color_material_glsl;
+		//GPU_LIGHTING->enable_color_material  = gpu_enable_color_material_glsl;
+		//GPU_LIGHTING->disable_color_material = gpu_disable_color_material_glsl;
+		//GPU_LIGHTING->light_f                = gpu_light_f_glsl;
+		//GPU_LIGHTING->light_fv               = gpu_light_fv_glsl;
+		//GPU_LIGHTING->enable_light           = gpu_enable_light_glsl;
+		//GPU_LIGHTING->disable_light          = gpu_disable_light_glsl;
+		//GPU_LIGHTING->is_light_enabled       = gpu_is_light_enabled_glsl;
+		//GPU_LIGHTING->light_model_i          = gpu_light_model_i_glsl;
+		//GPU_LIGHTING->light_model_fv         = gpu_light_model_fv_glsl;
+		//GPU_LIGHTING->enable_lighting        = gpu_enable_lighting_glsl;
+		//GPU_LIGHTING->disable_lighting       = gpu_disable_lighting_glsl;
+		//GPU_LIGHTING->is_lighting_enabled    = gpu_is_lighting_enabled_glsl;
+	// else {
+		GPU_LIGHTING->material_fv            = gpu_material_fv_gl11;
+		GPU_LIGHTING->material_i             = gpu_material_i_gl11;
+		GPU_LIGHTING->get_material_fv        = gpu_get_material_fv_gl11;
+		GPU_LIGHTING->color_material         = gpu_color_material_gl11;
+		GPU_LIGHTING->enable_color_material  = gpu_enable_color_material_gl11;
+		GPU_LIGHTING->disable_color_material = gpu_disable_color_material_gl11;
+		GPU_LIGHTING->light_f                = gpu_light_f_gl11;
+		GPU_LIGHTING->light_fv               = gpu_light_fv_gl11;
+		GPU_LIGHTING->enable_light           = gpu_enable_light_gl11;
+		GPU_LIGHTING->disable_light          = gpu_disable_light_gl11;
+		GPU_LIGHTING->is_light_enabled       = gpu_is_light_enabled_gl11;
+		GPU_LIGHTING->light_model_i          = gpu_light_model_i_gl11;
+		GPU_LIGHTING->light_model_fv         = gpu_light_model_fv_gl11;
+		GPU_LIGHTING->enable_lighting        = gpu_enable_lighting_gl11;
+		GPU_LIGHTING->disable_lighting       = gpu_disable_lighting_gl11;
+		GPU_LIGHTING->is_lighting_enabled    = gpu_is_lighting_enabled_gl11;
+	//}
 }
 
-void gpuMateriali(GLenum face, GLenum pname, GLint param)
-{
-    glMateriali(face, pname, param);
-}
 
-void gpuEnableColorMaterial(void)
-{
-    glEnable(GL_COLOR_MATERIAL);
-}
 
-void gpuDisableColorMaterial(void)
+void gpuShutdownLighting(void)
 {
-    glDisable(GL_COLOR_MATERIAL);
-}
-
-void gpuGetMaterialfv(GLenum face, GLenum pname, GLfloat *params)
-{
-    glGetMaterialfv(face, pname, params);
+	MEM_freeN(GPU_LIGHTING);
+	GPU_LIGHTING = NULL;
 }

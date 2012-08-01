@@ -1313,15 +1313,15 @@ typedef enum {
 
 static void gpu_colors_enable(VBO_State vbo_state)
 {
-	glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
-	glEnable(GL_COLOR_MATERIAL);
+	gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+	gpuEnableColorMaterial();
 	if (vbo_state == VBO_ENABLED)
 		glEnableClientState(GL_COLOR_ARRAY);
 }
 
 static void gpu_colors_disable(VBO_State vbo_state)
 {
-	glDisable(GL_COLOR_MATERIAL);
+	gpuDisableColorMaterial();
 	if (vbo_state == VBO_ENABLED)
 		glDisableClientState(GL_COLOR_ARRAY);
 }
