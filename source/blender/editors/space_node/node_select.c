@@ -368,9 +368,17 @@ static int node_mouse_select(Main *bmain, SpaceNode *snode, ARegion *ar, const i
 			node = node_under_mouse_select(snode->edittree, mx, my);
 			
 			if (node) {
-				node_toggle(node);
-				
-				ED_node_set_active(bmain, snode->edittree, node);
+				if ((node->flag & SELECT) && (node->flag & NODE_ACTIVE) == 0) {
+					/* if node is selected but not active make it active
+					 * before it'll be desleected
+					 */
+					ED_node_set_active(bmain, snode->edittree, node);
+				}
+				else {
+					node_toggle(node);
+					ED_node_set_active(bmain, snode->edittree, node);
+				}
+
 				selected = 1;
 			}
 		}
@@ -537,26 +545,34 @@ void NODE_OT_select_border(wmOperatorType *ot)
 
 /* ****** Select/Deselect All ****** */
 
-static int node_select_all_exec(bContext *C, wmOperator *UNUSED(op))
+static int node_select_all_exec(bContext *C, wmOperator *op)
 {
 	SpaceNode *snode = CTX_wm_space_node(C);
-	bNode *first = snode->edittree->nodes.first;
+	ListBase *node_lb = &snode->edittree->nodes;
 	bNode *node;
-	int count= 0;
+	int action = RNA_enum_get(op->ptr, "action");
 
-	for (node=first; node; node=node->next)
-		if (node->flag & NODE_SELECT)
-			count++;
+	if (action == SEL_TOGGLE) {
+		if (ED_node_select_check(node_lb))
+			action = SEL_DESELECT;
+		else
+			action = SEL_SELECT;
+	}
 
-	if (count) {
-		for (node=first; node; node=node->next)
-			node_deselect(node);
+	for (node = node_lb->first; node; node = node->next) {
+		switch (action) {
+			case SEL_SELECT:
+				node_select(node);
+				break;
+			case SEL_DESELECT:
+				node_deselect(node);
+				break;
+			case SEL_INVERT:
+				((node->flag & SELECT) ? node_deselect : node_select)(node);
+				break;
+		}
 	}
-	else {
-		for (node=first; node; node=node->next)
-			node_select(node);
-	}
-	
+
 	ED_node_sort(snode->edittree);
 	
 	WM_event_add_notifier(C, NC_NODE|NA_SELECTED, NULL);
@@ -576,6 +592,8 @@ void NODE_OT_select_all(wmOperatorType *ot)
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
+
+	WM_operator_properties_select_all(ot);
 }
 
 /* ****** Select Linked To ****** */

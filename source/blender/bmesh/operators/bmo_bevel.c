@@ -1336,7 +1336,7 @@ void bmo_bevel_exec_old(BMesh *bm, BMOperator *op)
 	}
 #endif
 
-	BMO_op_callf(bm, "delete geom=%fv context=%i", BEVEL_DEL, DEL_VERTS);
+	BMO_op_callf(bm, op->flag, "delete geom=%fv context=%i", BEVEL_DEL, DEL_VERTS);
 
 	/* clean up any edges that might not get properly delete */
 	BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
@@ -1344,8 +1344,8 @@ void bmo_bevel_exec_old(BMesh *bm, BMOperator *op)
 			BMO_elem_flag_enable(bm, e, BEVEL_DEL);
 	}
 
-	BMO_op_callf(bm, "delete geom=%fe context=%i", BEVEL_DEL, DEL_EDGES);
-	BMO_op_callf(bm, "delete geom=%ff context=%i", BEVEL_DEL, DEL_FACES);
+	BMO_op_callf(bm, op->flag, "delete geom=%fe context=%i", BEVEL_DEL, DEL_EDGES);
+	BMO_op_callf(bm, op->flag, "delete geom=%ff context=%i", BEVEL_DEL, DEL_FACES);
 	
 	BLI_smallhash_release(&hash);
 	BLI_array_free(tags);
