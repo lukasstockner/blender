@@ -34,8 +34,6 @@
 #pragma warning (disable : 4786)
 #endif
 
-#include <GL/glew.h>
-
 #include "KX_Light.h"
 #include "KX_Camera.h"
 #include "RAS_IRasterizer.h"
@@ -46,8 +44,11 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_lamp_types.h"
+
+#include "GPU_compatibility.h"
+#include "GPU_colors.h"
 #include "GPU_material.h"
- 
+
 KX_LightObject::KX_LightObject(void* sgReplicationInfo,SG_Callbacks callbacks,
 							   class RAS_IRenderTools* rendertools,
 							   const RAS_LightObject&	lightobj,
@@ -126,16 +127,16 @@ bool KX_LightObject::ApplyLight(KX_Scene *kxscene, int oblayer, int slot)
 		//vec[1]= base->object->obmat[2][1];
 		//vec[2]= base->object->obmat[2][2];
 		vec[3]= 0.0;
-		glLightfv((GLenum)(GL_LIGHT0+slot), GL_POSITION, vec); 
+		gpuLightfv(slot, GL_POSITION, vec); 
 	}
 	else {
 		//vec[3]= 1.0;
-		glLightfv((GLenum)(GL_LIGHT0+slot), GL_POSITION, vec); 
-		glLightf((GLenum)(GL_LIGHT0+slot), GL_CONSTANT_ATTENUATION, 1.0);
-		glLightf((GLenum)(GL_LIGHT0+slot), GL_LINEAR_ATTENUATION, m_lightobj.m_att1/m_lightobj.m_distance);
+		gpuLightfv(slot, GL_POSITION, vec); 
+		gpuLightf(slot, GL_CONSTANT_ATTENUATION, 1.0);
+		gpuLightf(slot, GL_LINEAR_ATTENUATION, m_lightobj.m_att1/m_lightobj.m_distance);
 		// without this next line it looks backward compatible.
 		//attennuation still is acceptable 
-		glLightf((GLenum)(GL_LIGHT0+slot), GL_QUADRATIC_ATTENUATION, m_lightobj.m_att2/(m_lightobj.m_distance*m_lightobj.m_distance)); 
+		gpuLightf(slot, GL_QUADRATIC_ATTENUATION, m_lightobj.m_att2/(m_lightobj.m_distance*m_lightobj.m_distance)); 
 		
 		if (m_lightobj.m_type==RAS_LightObject::LIGHT_SPOT) {
 			vec[0] = -worldmatrix(0,2);
@@ -144,12 +145,12 @@ bool KX_LightObject::ApplyLight(KX_Scene *kxscene, int oblayer, int slot)
 			//vec[0]= -base->object->obmat[2][0];
 			//vec[1]= -base->object->obmat[2][1];
 			//vec[2]= -base->object->obmat[2][2];
-			glLightfv((GLenum)(GL_LIGHT0+slot), GL_SPOT_DIRECTION, vec);
-			glLightf((GLenum)(GL_LIGHT0+slot), GL_SPOT_CUTOFF, m_lightobj.m_spotsize/2.0);
-			glLightf((GLenum)(GL_LIGHT0+slot), GL_SPOT_EXPONENT, 128.0*m_lightobj.m_spotblend);
+			gpuLightfv(slot, GL_SPOT_DIRECTION, vec);
+			gpuLightf(slot, GL_SPOT_CUTOFF, m_lightobj.m_spotsize/2.0);
+			gpuLightf(slot, GL_SPOT_EXPONENT, 128.0*m_lightobj.m_spotblend);
 		}
 		else
-			glLightf((GLenum)(GL_LIGHT0+slot), GL_SPOT_CUTOFF, 180.0);
+			gpuLightf(slot, GL_SPOT_CUTOFF, 180.0);
 	}
 	
 	if (m_lightobj.m_nodiffuse) {
@@ -162,7 +163,7 @@ bool KX_LightObject::ApplyLight(KX_Scene *kxscene, int oblayer, int slot)
 		vec[3]= 1.0;
 	}
 
-	glLightfv((GLenum)(GL_LIGHT0+slot), GL_DIFFUSE, vec);
+	gpuLightfv(slot, GL_DIFFUSE, vec);
 	if (m_lightobj.m_nospecular)
 	{
 		vec[0] = vec[1] = vec[2] = vec[3] = 0.0;
@@ -174,8 +175,8 @@ bool KX_LightObject::ApplyLight(KX_Scene *kxscene, int oblayer, int slot)
 		vec[3]= 1.0;
 	}
 
-	glLightfv((GLenum)(GL_LIGHT0+slot), GL_SPECULAR, vec);
-	glEnable((GLenum)(GL_LIGHT0+slot));
+	gpuLightfv(slot, GL_SPECULAR, vec);
+	gpuEnableLight(slot);
 
 	return true;
 }
