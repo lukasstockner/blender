@@ -35,21 +35,21 @@
 
 void gpu_material_fv_gl11(GLenum face, GLenum pname, const GLfloat *params)
 {
-    glMaterialfv(face, pname, params);
+	glMaterialfv(face, pname, params);
 }
 
 
 
 void gpu_material_i_gl11(GLenum face, GLenum pname, GLint param)
 {
-    glMateriali(face, pname, param);
+	glMateriali(face, pname, param);
 }
 
 
 
 void gpu_get_material_fv_gl11(GLenum face, GLenum pname, GLfloat *params)
 {
-    glGetMaterialfv(face, pname, params);
+	glGetMaterialfv(face, pname, params);
 }
 
 
@@ -63,14 +63,14 @@ void gpu_color_material_gl11(GLenum face, GLenum mode)
 
 void gpu_enable_color_material_gl11(void)
 {
-    glEnable(GL_COLOR_MATERIAL);
+	glEnable(GL_COLOR_MATERIAL);
 }
 
 
 
 void gpu_disable_color_material_gl11(void)
 {
-    glDisable(GL_COLOR_MATERIAL);
+	glDisable(GL_COLOR_MATERIAL);
 }
 
 
