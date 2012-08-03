@@ -68,21 +68,23 @@ int IsomapSolver::solve(float dist_matrix[])
 
 	eigensolver.compute(final);
 
-	cout << centering_transform << endl << endl;
+	#ifdef UNWRAP_DEBUG
 	cout << map_matrix << endl << endl;
 	cout << final << endl << endl;
+	#endif
 
 	if (eigensolver.info() != Success) {
 		cout << "isomap solver failure" << endl;
 		return false;
 	}
 
+	#ifdef UNWRAP_DEBUG
 	cout << eigensolver.eigenvectors() << endl << endl;
 
 
 	cout << endl << "eigenvalues" << endl << eigensolver.eigenvalues() << endl;
 	cout << endl << "UVs:" << endl;
-
+	#endif
 	return true;
 }
 
@@ -94,9 +96,11 @@ void IsomapSolver::load_uv_solution(int index, float uv[2])
 	uv[0] = eigensolver.eigenvectors()(index, size - 1)*sqrtf(eigenvalue1);
 	uv[1] = eigensolver.eigenvectors()(index, size - 2)*sqrtf(eigenvalue2);
 
+	#ifdef UNWRAP_DEBUG
 	cout << index << ' ' << uv[0] << ' ' << uv[1] << endl;
 	cout << index << ' ' << eigensolver.eigenvectors()(index, size - 1)
 	     << ' ' << eigensolver.eigenvectors()(index, size - 2) << endl;
+	#endif
 }
 
 void param_isomap_new_solver(int nverts)

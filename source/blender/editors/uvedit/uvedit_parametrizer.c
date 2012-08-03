@@ -3082,7 +3082,6 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 
 		/* create matrix with squared edge distances */
 		float *dist_map = MEM_mallocN(sizeof(*dist_map)*nverts*nverts, "isomap_distance_map");
-		//float *init_map = MEM_mallocN(sizeof(*dist_map)*nverts*nverts, "isomap_distance_map");
 
 		param_isomap_new_solver(nverts);
 
@@ -3091,8 +3090,7 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 		 * large number instead */
 		for (i = 0; i < nverts; i++)
 			for (j = 0; j < nverts; j++) {
-				*(dist_map + i*nverts + j) = (i == j)? 0 : MAXFLOAT;
-				//*(init_map + i*nverts + j) = MAXFLOAT;
+				dist_map[i*nverts + j] = (i == j)? 0 : MAXFLOAT;
 			}
 
 		/* for each edge, put the squared distance to the appropriate matrix positions */
@@ -3103,8 +3101,10 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 			        p_edge_length(e);
 		}
 
-		/* now edge length has been computed. Now construct shortest paths
-		 * and put them to lower left of matrix. */
+		/* now edge length has been computed. Construct shortest paths
+		 * and run the algorithm nverts times to eventually calculate shortest
+		 * paths between all verts. This is a silly way to do this and will probably be optimized
+		 * if i go on working on this. */
 		for (l = 0; l < nverts; l++) {
 			for (i = 0; i < nverts; i++) {
 				for (j = 0; j < nverts; j++) {
@@ -3117,6 +3117,7 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 			}
 		}
 
+		/* square distances */
 		for (i = 0; i < nverts; i++) {
 			for (j = 0; j < nverts; j++) {
 				dist_map[i*nverts + j] *=  dist_map[i*nverts + j];
@@ -3128,7 +3129,6 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 
 			param_isomap_delete_solver();
 			MEM_freeN(dist_map);
-			//MEM_freeN(init_map);
 
 			return P_FALSE;
 		}
@@ -3140,7 +3140,6 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 		/* cleanup */
 		param_isomap_delete_solver();
 		MEM_freeN(dist_map);
-		//MEM_freeN(init_map);
 
 		return P_TRUE;
 	} else {
