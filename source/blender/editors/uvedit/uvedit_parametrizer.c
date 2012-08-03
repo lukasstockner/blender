@@ -430,7 +430,7 @@ static float p_face_uv_area_signed(PFace *f)
 	               ((v3->uv[0] - v1->uv[0]) * (v2->uv[1] - v1->uv[1])));
 }
 
-static float p_edge_length_squared(PEdge *e)
+static float p_edge_length(PEdge *e)
 {
 	PVert *v1 = e->vert, *v2 = e->next->vert;
 	float d[3];
@@ -439,11 +439,7 @@ static float p_edge_length_squared(PEdge *e)
 	d[1] = v2->co[1] - v1->co[1];
 	d[2] = v2->co[2] - v1->co[2];
 
-	return d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
-}
-static float p_edge_length(PEdge *e)
-{
-	return sqrt(p_edge_length_squared(e));
+	return sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
 }
 
 static float p_edge_uv_length(PEdge *e)
@@ -3082,10 +3078,11 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 		PEdge *e;
 		PVert *v;
 		int nverts = chart->nverts;
-		int i, j;
+		int i, j, k;
 
 		/* create matrix with squared edge distances */
 		float *dist_map = MEM_mallocN(sizeof(*dist_map)*nverts*nverts, "isomap_distance_map");
+		float *init_map = MEM_mallocN(sizeof(*dist_map)*nverts*nverts, "isomap_distance_map");
 
 		param_isomap_new_solver(nverts);
 
@@ -3093,21 +3090,39 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 		 * since this will make every inner product give infinity as well, initialize to some
 		 * large number instead */
 		for (i = 0; i < nverts; i++)
-			for (j = 0; j < nverts; j++)
-				*(dist_map + i*nverts + j) = (i == j)? 0 : -500.000;
+			for (j = 0; j < nverts; j++) {
+				*(dist_map + i*nverts + j) = (i == j)? 0 : 500;
+				*(init_map + i*nverts + j) = 500000;
+			}
 
-		/* for each edge, put the squared distance to the appropriate matrix positions
-		 * for interior edges this will unfortunately be computed twice */
+		/* for each edge, put the squared distance to the appropriate matrix positions */
 		for (e = chart->edges; e; e = e->nextlink) {
+			/* fill the upper right part of the matrix */
 			*(dist_map + e->vert->u.id*nverts + e->next->vert->u.id) =
 			*(dist_map + e->next->vert->u.id*nverts + e->vert->u.id) =
-			        -0.5*p_edge_length_squared(e);
+			        p_edge_length(e);
 		}
-		if(!param_isomap_solve(dist_map)) {
+
+		/* now edge length has been computed. Now construct shortest paths
+		 * and put them to lower left of matrix. */
+		for (i = 0; i < nverts; i++) {
+			for (j = 0; j < nverts; j++) {
+				for (k = 0; k < nverts; k++) {
+					float sum_dist;
+					sum_dist = *(dist_map + i*nverts + k) + *(dist_map + k*nverts + j);
+
+					*(init_map + i*nverts + j) = minf(*(init_map + i*nverts + j), sum_dist);
+				}
+			}
+		}
+
+
+		if(!param_isomap_solve(init_map)) {
 			param_warning("ISOMAP failure, matrix solution did not converge.\n");
 
 			param_isomap_delete_solver();
 			MEM_freeN(dist_map);
+			MEM_freeN(init_map);
 
 			return P_FALSE;
 		}
@@ -3119,6 +3134,7 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 		/* cleanup */
 		param_isomap_delete_solver();
 		MEM_freeN(dist_map);
+		MEM_freeN(init_map);
 
 		return P_TRUE;
 	} else {

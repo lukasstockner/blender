@@ -24,6 +24,7 @@
 #include "uvedit_parametrizer_isomap.h"
 #include <vector>
 #include <iostream>
+#include "BLI_math_base.h"
 
 using namespace std;
 using namespace Eigen;
@@ -63,31 +64,39 @@ int IsomapSolver::solve(float dist_matrix[])
 	centering_transform.setConstant(size, size, 1.0/size);
 	centering_transform = MatrixXf::Identity(size, size) - centering_transform;
 
-	/* in the paper there's also a -1/2 factor but we incorporate this in  dist_matrix
-	 * construction */
-	final = centering_transform * map_matrix * centering_transform;
+	final = -0.5 * centering_transform * map_matrix * map_matrix * centering_transform;
 
 	eigensolver.compute(final);
 
-	//cout << map_matrix << endl;
+	cout << map_matrix << endl << endl;
+	cout << final << endl << endl;
 
 	if (eigensolver.info() != Success) {
 		cout << "isomap solver failure" << endl;
 		return false;
 	}
 
-	//cout << endl << "eigenvalues" << endl << eigensolver.eigenvalues() << endl;
-	//cout << endl << "UVs:" << endl;
+	cout << eigensolver.eigenvectors() << endl << endl;
+
+
+	cout << endl << "eigenvalues" << endl << eigensolver.eigenvalues() << endl;
+	cout << endl << "UVs:" << endl;
 
 	return true;
 }
 
 void IsomapSolver::load_uv_solution(int index, float uv[2])
 {
-	uv[0] = eigensolver.eigenvectors()(index, size - 1)*sqrt(eigensolver.eigenvalues()(size - 1));
-	uv[1] = eigensolver.eigenvectors()(index, size - 2)*sqrt(eigensolver.eigenvalues()(size - 2));
+	float eigenvalue1 = eigensolver.eigenvalues()(size - 1);
+	float eigenvalue2 = eigensolver.eigenvalues()(size - 2);
 
-//	cout << uv[0] << ' ' << uv[1] << endl;
+	uv[0] = eigensolver.eigenvectors()(index, size - 1)*signf(eigenvalue1)*sqrtf(fabs(eigenvalue1));
+	uv[1] = eigensolver.eigenvectors()(index, size - 2)*signf(eigenvalue2)*sqrtf(fabs(eigenvalue2));
+
+	cout << index << ' ' << uv[0] << ' ' << uv[1] << endl;
+	cout << index << ' ' << eigenvalue1 << ' ' << eigenvalue2 << endl;
+	cout << index << ' ' << eigensolver.eigenvectors()(index, size - 1)
+	     << ' ' << eigensolver.eigenvectors()(index, size - 2) << endl;
 }
 
 void param_isomap_new_solver(int nverts)
