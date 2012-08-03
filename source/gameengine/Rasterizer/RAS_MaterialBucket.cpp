@@ -651,9 +651,6 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 	else
 		rasty->IndexPrimitives(ms);
 
-
-	ms.m_mesh->SetMeshModified(false);
-
 	rendertools->PopMatrix();
 }
 
