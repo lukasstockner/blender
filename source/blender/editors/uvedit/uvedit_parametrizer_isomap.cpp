@@ -64,10 +64,11 @@ int IsomapSolver::solve(float dist_matrix[])
 	centering_transform.setConstant(size, size, 1.0/size);
 	centering_transform = MatrixXf::Identity(size, size) - centering_transform;
 
-	final = -0.5 * centering_transform * map_matrix * map_matrix * centering_transform;
+	final = -0.5 * centering_transform * map_matrix * centering_transform;
 
 	eigensolver.compute(final);
 
+	cout << centering_transform << endl << endl;
 	cout << map_matrix << endl << endl;
 	cout << final << endl << endl;
 
@@ -90,11 +91,10 @@ void IsomapSolver::load_uv_solution(int index, float uv[2])
 	float eigenvalue1 = eigensolver.eigenvalues()(size - 1);
 	float eigenvalue2 = eigensolver.eigenvalues()(size - 2);
 
-	uv[0] = eigensolver.eigenvectors()(index, size - 1)*signf(eigenvalue1)*sqrtf(fabs(eigenvalue1));
-	uv[1] = eigensolver.eigenvectors()(index, size - 2)*signf(eigenvalue2)*sqrtf(fabs(eigenvalue2));
+	uv[0] = eigensolver.eigenvectors()(index, size - 1)*sqrtf(eigenvalue1);
+	uv[1] = eigensolver.eigenvectors()(index, size - 2)*sqrtf(eigenvalue2);
 
 	cout << index << ' ' << uv[0] << ' ' << uv[1] << endl;
-	cout << index << ' ' << eigenvalue1 << ' ' << eigenvalue2 << endl;
 	cout << index << ' ' << eigensolver.eigenvectors()(index, size - 1)
 	     << ' ' << eigensolver.eigenvectors()(index, size - 2) << endl;
 }
