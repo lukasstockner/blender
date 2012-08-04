@@ -29,6 +29,8 @@
 using namespace std;
 using namespace Eigen;
 
+#define UNWRAP_DEBUG
+
 /**
   containt the Eigen solver and does the actual solving
 */
