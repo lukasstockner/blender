@@ -42,7 +42,7 @@ VBO::VBO(RAS_DisplayArray *data, unsigned int indices)
 	this->data = data;
 	this->size = data->m_vertex.size();
 	this->indices = indices;
-	this->stride = 28*sizeof(GLfloat);
+	this->stride = 32*sizeof(GLfloat); // ATI cards really like 32byte aligned VBOs, so we add a little padding
 
 	//	Determine drawmode
 	if (data->m_type == data->QUAD)
