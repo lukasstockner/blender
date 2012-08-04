@@ -56,9 +56,6 @@ VBO::VBO(RAS_DisplayArray *data, unsigned int indices)
 	gpuGenBuffers(1, &this->ibo);
 	gpuGenBuffers(1, &this->vbo_id);
 
-	// Allocate some space to gather data into before uploading to GPU
-	this->vbo = new GLfloat[this->stride*this->size];
-
 	// Fill the buffers with initial data
 	UpdateIndices();
 	UpdateData();
@@ -69,15 +66,12 @@ VBO::VBO(RAS_DisplayArray *data, unsigned int indices)
 	this->tangent_offset = (void*)(6*sizeof(GLfloat));
 	this->color_offset = (void*)(10*sizeof(GLfloat));
 	this->uv_offset = (void*)(11*sizeof(GLfloat));
-	this->dummy_offset = (void*)(27*sizeof(GLfloat));
 }
 
 VBO::~VBO()
 {
 	gpuDeleteBuffers(1, &this->ibo);
 	gpuDeleteBuffers(1, &this->vbo_id);
-
-	delete this->vbo;
 }
 
 void VBO::UpdateData()
@@ -85,24 +79,24 @@ void VBO::UpdateData()
 	unsigned int i, j, k;
 	
 	gpuBindBuffer(GL_ARRAY_BUFFER, this->vbo_id);
+	gpuBufferData(GL_ARRAY_BUFFER, this->stride*this->size, NULL, GL_STATIC_DRAW);
 
-	// Lets the video card know we are done with the old VBO
-	gpuBufferData(GL_ARRAY_BUFFER, 0, NULL, GL_DYNAMIC_DRAW);
+	// Map the buffer
+	GLfloat *vbo_map = (GLfloat*)glMapBufferARB(GL_ARRAY_BUFFER_ARB, GL_WRITE_ONLY_ARB);
 
 	// Gather data
 	for (i = 0, j = 0; i < data->m_vertex.size(); i++, j += this->stride/sizeof(GLfloat))
 	{
-		memcpy(&this->vbo[j], data->m_vertex[i].getXYZ(), sizeof(float)*3);
-		memcpy(&this->vbo[j+3], data->m_vertex[i].getNormal(), sizeof(float)*3);
-		memcpy(&this->vbo[j+6], data->m_vertex[i].getTangent(), sizeof(float)*4);
-		memcpy(&this->vbo[j+10], data->m_vertex[i].getRGBA(), sizeof(char)*4);
+		memcpy(&vbo_map[j], data->m_vertex[i].getXYZ(), sizeof(float)*3);
+		memcpy(&vbo_map[j+3], data->m_vertex[i].getNormal(), sizeof(float)*3);
+		memcpy(&vbo_map[j+6], data->m_vertex[i].getTangent(), sizeof(float)*4);
+		memcpy(&vbo_map[j+10], data->m_vertex[i].getRGBA(), sizeof(char)*4);
 
 		for (k = 0; k < RAS_TexVert::MAX_UNIT; k++)
-			memcpy(&this->vbo[j+11+(k*2)], data->m_vertex[i].getUV(k), sizeof(float)*2);
+			memcpy(&vbo_map[j+11+(k*2)], data->m_vertex[i].getUV(k), sizeof(float)*2);
 	}
-
-	// Upload Data to GPU
-	gpuBufferData(GL_ARRAY_BUFFER, this->size*this->stride, this->vbo, GL_DYNAMIC_DRAW);
+	
+	glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
 }
 
 void VBO::UpdateIndices()
@@ -110,11 +104,8 @@ void VBO::UpdateIndices()
 	int space = data->m_index.size() * sizeof(GLushort);
 	gpuBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->ibo);
 
-	// Lets the video card know we are done with the old VBO
-	gpuBufferData(GL_ELEMENT_ARRAY_BUFFER, 0, NULL, GL_DYNAMIC_DRAW);
-
 	// Upload Data to VBO
-	gpuBufferData(GL_ELEMENT_ARRAY_BUFFER, space, &data->m_index[0], GL_DYNAMIC_DRAW);
+	gpuBufferData(GL_ELEMENT_ARRAY_BUFFER, space, &data->m_index[0], GL_STATIC_DRAW);
 }
 
 void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, RAS_IRasterizer::TexCoGen* attrib, bool multi)
@@ -157,7 +148,6 @@ void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, 
 						gpugameobj.gpuTexCoordPointer(4, GL_FLOAT, this->stride, this->tangent_offset);
 						break;
 					default:
-						gpugameobj.gpuTexCoordPointer(1, GL_SHORT, this->stride, this->dummy_offset);
 						break;
 				}
 			}

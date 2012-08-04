@@ -58,14 +58,12 @@ private:
 	GLenum			mode;
 	GLuint			ibo;
 	GLuint			vbo_id;
-	GLfloat*		vbo;
 
 	void*			vertex_offset;
 	void*			normal_offset;
 	void*			color_offset;
 	void*			tangent_offset;
 	void*			uv_offset;
-	void*			dummy_offset;
 };
 
 class RAS_StorageVBO : public RAS_IStorage
