@@ -29,7 +29,7 @@
 using namespace std;
 using namespace Eigen;
 
-#define UNWRAP_DEBUG
+//#define UNWRAP_DEBUG
 
 /**
   containt the Eigen solver and does the actual solving
@@ -71,8 +71,8 @@ int IsomapSolver::solve(float dist_matrix[])
 	eigensolver.compute(final);
 
 	#ifdef UNWRAP_DEBUG
-	cout << map_matrix << endl << endl;
-	cout << final << endl << endl;
+	cout << "distance map" << endl << map_matrix << endl << endl;
+	cout << "final matrix" << endl << final << endl << endl;
 	#endif
 
 	if (eigensolver.info() != Success) {

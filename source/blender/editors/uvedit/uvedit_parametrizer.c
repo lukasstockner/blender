@@ -3072,6 +3072,8 @@ static void p_chart_lscm_begin(PChart *chart, PBool live, enum UnwrapMethods met
 
 static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 {
+
+	//#define OLD_DIST_CONSTRUCTION
 	enum UnwrapMethods method = handle->method;
 
 	if (method == UNWRAP_ISOMAP) {
@@ -3082,9 +3084,10 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 
 		/* create matrix with squared edge distances */
 		float *dist_map = MEM_mallocN(sizeof(*dist_map)*nverts*nverts, "isomap_distance_map");
+		#ifndef OLD_DIST_CONSTRUCTION
 		char *visited = MEM_mallocN(nverts, "isomap_visited_flags");
-		PVert **graph_stack = MEM_mallocN(sizeof(*graph_stack)*nverts, "isomap_distance_stack");
-		int graph_stack_depth = 0;
+		Heap *graph_heap = BLI_heap_new();
+		#endif
 
 		param_isomap_new_solver(nverts);
 
@@ -3153,51 +3156,68 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 				int ic = p_cent->u.id;
 
 				/* iterate through all edges and update distances to distance matrix */
-					PEdge *e_iter, *e_init;
-					PVert *p_viter;
-					int ij;
-					float sum_dist;
+				PEdge *e_iter, *e_init, *e_ipair;
+				PVert *p_viter;
+				int ij;
+				float sum_dist;
 
-					e_iter = e_init = p_cent->edge;
-					p_viter = e_iter->next->vert;
+				e_iter = e_init = p_cent->edge;
+				e_ipair = e_init->pair;
+				p_viter = e_iter->next->vert;
 
+				ij = p_viter->u.id;
+				sum_dist = dist_map[ic*nverts + i0] + p_edge_length(e_iter);
+				dist_map[i0*nverts + ij] = dist_map[ij*nverts + i0] =
+				        minf(dist_map[i0*nverts + ij], sum_dist);
+
+				/* add pverts in the hash and tag as visited */
+				if (!visited[ij]) {
+					BLI_heap_insert(graph_heap, dist_map[i0*nverts + ij] , p_viter);
+					visited[ij] = TRUE;
+				}
+
+				do {
+					e_iter = e_iter->next->next;
+					p_viter = e_iter->vert;
 					ij = p_viter->u.id;
-						sum_dist = dist_map[ic*nverts + i0] + p_edge_length(e_iter);
-						dist_map[i0*nverts + ij] = dist_map[ij*nverts + i0] =
-						       minf(dist_map[i0*nverts + ij], sum_dist);
+					sum_dist = dist_map[ic*nverts + i0] + p_edge_length(e_iter);
+					dist_map[i0*nverts + ij] = dist_map[ij*nverts + i0] =
+					        minf(dist_map[i0*nverts + ij], sum_dist);
 
-						/* add pverts in the hash and tag as visited */
-						if (!visited[ij]) {
-							graph_stack[graph_stack_depth++] = p_viter;
-							visited[ij] = TRUE;
-						}
+					/* add pverts in the hash and tag as visited */
+					if (!visited[ij]) {
+						BLI_heap_insert(graph_heap, dist_map[i0*nverts + ij] , p_viter);
+						visited[ij] = TRUE;
+					}
 
-					do {
-						e_iter = e_iter->next->next;
-						p_viter = e_iter->vert;
-						ij = p_viter->u.id;
-						sum_dist = dist_map[ic*nverts + i0] + p_edge_length(e_iter);
-						dist_map[i0*nverts + ij] = dist_map[ij*nverts + i0] =
-						       minf(dist_map[i0*nverts + ij], sum_dist);
+					/* assert that one of the two edge vertices is actually the p_cent vertex */
+					BLI_assert (e_iter->vert == p_cent || e_iter->next->vert == p_cent);
+					/* also assert that one of the two edge vertices is actually the p_viter vertex */
+					BLI_assert (e_iter->vert == p_viter || e_iter->next->vert == p_viter);
 
-						/* add pverts in the hash and tag as visited */
-						if (!visited[ij]) {
-							graph_stack[graph_stack_depth++] = p_viter;
-							visited[ij] = TRUE;
-						}
+					e_iter = e_iter->pair;
+				} while (e_iter && e_iter != e_init);
 
-						e_iter = e_iter->pair;
-					} while (e_iter && e_iter != e_init);
+				BLI_assert(e_iter || !e_ipair);
 
-				if (graph_stack_depth > 0)
-					p_cent = graph_stack[--graph_stack_depth];
+				if(BLI_heap_size(graph_heap) > 0)
+					p_cent = BLI_heap_popmin(graph_heap);
 				else
 					p_cent = NULL;
 			}
 		}
 
+
+		for (i = 0; i < nverts; i++) {
+			for (j = 0; j < i + 1; j++) {
+				dist_map[i*nverts + j] *= dist_map[i*nverts + j];
+				dist_map[j*nverts + i] *= dist_map[j*nverts + i];
+			}
+		}
+
+
 		MEM_freeN(visited);
-		MEM_freeN(graph_stack);
+		BLI_heap_free(graph_heap, NULL);
 
 		#endif
 
