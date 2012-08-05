@@ -3070,6 +3070,11 @@ static void p_chart_lscm_begin(PChart *chart, PBool live, enum UnwrapMethods met
 	}
 }
 
+typedef struct GraphVertInfo {
+	int removed;
+	HeapNode * node;
+} GraphVertInfo;
+
 static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 {
 
@@ -3085,7 +3090,7 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 		/* create matrix with squared edge distances */
 		float *dist_map = MEM_mallocN(sizeof(*dist_map)*nverts*nverts, "isomap_distance_map");
 		#ifndef OLD_DIST_CONSTRUCTION
-		char *visited = MEM_mallocN(nverts, "isomap_visited_flags");
+		GraphVertInfo *visited = MEM_mallocN(nverts*sizeof(*visited), "isomap_visited_flags");
 		Heap *graph_heap = BLI_heap_new();
 		#endif
 
@@ -3144,16 +3149,15 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 			PVert *p_cent;
 			int i0 = v->u.id;
 
-			/* reset the visited flags */
-			memset(visited, 0, nverts);
-
-			visited[i0] = TRUE;
+			/* reset the visited nodes */
+			memset(visited, 0, nverts*sizeof(*visited));
 			p_cent = v;
 
 			while (p_cent) {
 				/* iterate through the edge ring vertices of p0 and calculate geodesic
 				 * distances */
 				int ic = p_cent->u.id;
+				char update = FALSE;
 
 				/* iterate through all edges and update distances to distance matrix */
 				PEdge *e_iter, *e_init, *e_ipair;
@@ -3161,35 +3165,56 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 				int ij;
 				float sum_dist;
 
+				/* iterating through this vert means we no longer need to update the graph for
+				 * it (distances may need to be updated though) */
+				visited[ic].removed = TRUE;
+				visited[ic].node = NULL;
+
 				e_iter = e_init = p_cent->edge;
 				e_ipair = e_init->pair;
 				p_viter = e_iter->next->vert;
 
 				ij = p_viter->u.id;
 				sum_dist = dist_map[ic*nverts + i0] + p_edge_length(e_iter);
-				dist_map[i0*nverts + ij] = dist_map[ij*nverts + i0] =
-				        minf(dist_map[i0*nverts + ij], sum_dist);
+				update = (dist_map[i0*nverts + ij] > sum_dist);
 
-				/* add pverts in the hash and tag as visited */
-				if (!visited[ij]) {
-					BLI_heap_insert(graph_heap, dist_map[i0*nverts + ij] , p_viter);
-					visited[ij] = TRUE;
+				/* add pverts in the heap */
+				if(update) {
+					dist_map[i0*nverts + ij] = dist_map[ij*nverts + i0] = sum_dist;
+					if(!visited[ij].removed) {
+						if (visited[ij].node) {
+							BLI_heap_remove(graph_heap, visited[ij].node);
+						}
+
+						visited[ij].node = BLI_heap_insert(graph_heap, sum_dist , p_viter);
+					}
 				}
-
+				if(!visited[ij].removed && !visited[ij].node) {
+					visited[ij].node = BLI_heap_insert(graph_heap, sum_dist , p_viter);
+				}
 				do {
+					update = FALSE;
+
 					e_iter = e_iter->next->next;
 					p_viter = e_iter->vert;
 					ij = p_viter->u.id;
 					sum_dist = dist_map[ic*nverts + i0] + p_edge_length(e_iter);
-					dist_map[i0*nverts + ij] = dist_map[ij*nverts + i0] =
-					        minf(dist_map[i0*nverts + ij], sum_dist);
+					update = (dist_map[i0*nverts + ij] > sum_dist);
 
-					/* add pverts in the hash and tag as visited */
-					if (!visited[ij]) {
-						BLI_heap_insert(graph_heap, dist_map[i0*nverts + ij] , p_viter);
-						visited[ij] = TRUE;
+					/* add pverts in the hash */
+					if(update) {
+						dist_map[i0*nverts + ij] = dist_map[ij*nverts + i0] = sum_dist;
+						if(!visited[ij].removed) {
+							if (visited[ij].node) {
+								BLI_heap_remove(graph_heap, visited[ij].node);
+							}
+
+							visited[ij].node = BLI_heap_insert(graph_heap, sum_dist , p_viter);
+						}
 					}
-
+					if(!visited[ij].removed && !visited[ij].node) {
+						visited[ij].node = BLI_heap_insert(graph_heap, sum_dist , p_viter);
+					}
 					/* assert that one of the two edge vertices is actually the p_cent vertex */
 					BLI_assert (e_iter->vert == p_cent || e_iter->next->vert == p_cent);
 					/* also assert that one of the two edge vertices is actually the p_viter vertex */
@@ -3200,8 +3225,10 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 
 				BLI_assert(e_iter || !e_ipair);
 
-				if(BLI_heap_size(graph_heap) > 0)
+				if(BLI_heap_size(graph_heap) > 0) {
 					p_cent = BLI_heap_popmin(graph_heap);
+
+				}
 				else
 					p_cent = NULL;
 			}
@@ -3215,15 +3242,12 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 			}
 		}
 
-
-		MEM_freeN(visited);
 		BLI_heap_free(graph_heap, NULL);
+		MEM_freeN(visited);
 
 		#endif
 
 		if(!param_isomap_solve(dist_map)) {
-			param_warning("ISOMAP failure, matrix solution did not converge.\n");
-
 			param_isomap_delete_solver();
 			MEM_freeN(dist_map);
 
