@@ -479,7 +479,7 @@ static void ui_draw_but_CHARTAB(uiBut *but)
 	int charmax = G.charmax;
 	
 	/* FO_BUILTIN_NAME font in use. There are TTF FO_BUILTIN_NAME and non-TTF FO_BUILTIN_NAME fonts */
-	if (!strcmp(G.selfont->name, FO_BUILTIN_NAME)) {
+	if (BKE_vfont_is_builtin(G.selfont)) {
 		if (G.ui_international == TRUE) {
 			charmax = 0xff;
 		}
@@ -508,7 +508,7 @@ static void ui_draw_but_CHARTAB(uiBut *but)
 	cs = G.charstart;
 
 	/* Set the font, in case it is not FO_BUILTIN_NAME font */
-	if (G.selfont && strcmp(G.selfont->name, FO_BUILTIN_NAME)) {
+	if (G.selfont && BKE_vfont_is_builtin(G.selfont) == FALSE) {
 		/* Is the font file packed, if so then use the packed file */
 		if (G.selfont->packedfile) {
 			pf = G.selfont->packedfile;		
@@ -559,7 +559,7 @@ static void ui_draw_but_CHARTAB(uiBut *but)
 
 			/* Set the font to be either unicode or FO_BUILTIN_NAME */
 			wstr[0] = cs;
-			if (strcmp(G.selfont->name, FO_BUILTIN_NAME)) {
+			if (BKE_vfont_is_builtin(G.selfont) == FALSE) {
 				BLI_strncpy_wchar_as_utf8((char *)ustr, (wchar_t *)wstr, sizeof(ustr));
 			}
 			else {
@@ -572,8 +572,8 @@ static void ui_draw_but_CHARTAB(uiBut *but)
 				}
 			}
 
-			if ((G.selfont && strcmp(G.selfont->name, FO_BUILTIN_NAME)) ||
-			    (G.selfont && !strcmp(G.selfont->name, FO_BUILTIN_NAME) && G.ui_international == TRUE))
+			if ((G.selfont && (BKE_vfont_is_builtin(G.selfont) == FALSE)) ||
+			    (G.selfont && (BKE_vfont_is_builtin(G.selfont) == TRUE) && G.ui_international == TRUE))
 			{
 				float wid;
 				float llx, lly, llz, urx, ury, urz;
@@ -714,6 +714,8 @@ static void histogram_draw_one(float r, float g, float b, float alpha,
 	}
 }
 
+#define HISTOGRAM_TOT_GRID_LINES 4
+
 void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *recti)
 {
 	Histogram *hist = (Histogram *)but->poin;
@@ -749,9 +751,16 @@ void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol)
 
 	glColor4f(1.f, 1.f, 1.f, 0.08f);
 	/* draw grid lines here */
-	for (i = 1; i < 4; i++) {
-		fdrawline(rect.xmin, rect.ymin + (i / 4.f) * h, rect.xmax, rect.ymin + (i / 4.f) * h);
-		fdrawline(rect.xmin + (i / 4.f) * w, rect.ymin, rect.xmin + (i / 4.f) * w, rect.ymax);
+	for (i = 1; i < (HISTOGRAM_TOT_GRID_LINES + 1); i++) {
+		const float fac = (float)i / (float)HISTOGRAM_TOT_GRID_LINES;
+
+		/* so we can tell the 1.0 color point */
+		if (i == HISTOGRAM_TOT_GRID_LINES) {
+			glColor4f(1.0f, 1.0f, 1.0f, 0.5f);
+		}
+
+		fdrawline(rect.xmin, rect.ymin + fac * h, rect.xmax, rect.ymin + fac * h);
+		fdrawline(rect.xmin + fac * w, rect.ymin, rect.xmin + fac * w, rect.ymax);
 	}
 	
 	if (hist->mode == HISTO_MODE_LUMA) {
@@ -772,6 +781,8 @@ void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol)
 	/* outline, scale gripper */
 	draw_scope_end(&rect, scissor);
 }
+
+#undef HISTOGRAM_TOT_GRID_LINES
 
 void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *recti)
 {

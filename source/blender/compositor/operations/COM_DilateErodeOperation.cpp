@@ -234,7 +234,7 @@ bool DilateDistanceOperation::determineDependingAreaOfInterest(rcti *input, Read
 	return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
 }
 
-void DilateDistanceOperation::executeOpenCL(OpenCLDevice* device,
+void DilateDistanceOperation::executeOpenCL(OpenCLDevice *device,
                                             MemoryBuffer *outputMemoryBuffer, cl_mem clOutputBuffer,
                                             MemoryBuffer **inputMemoryBuffers, list<cl_mem> *clMemToCleanUp,
                                             list<cl_kernel> *clKernelsToCleanUp)
@@ -291,7 +291,7 @@ void ErodeDistanceOperation::executePixel(float *color, int x, int y, void *data
 	color[0] = value;
 }
 
-void ErodeDistanceOperation::executeOpenCL(OpenCLDevice* device,
+void ErodeDistanceOperation::executeOpenCL(OpenCLDevice *device,
                                            MemoryBuffer *outputMemoryBuffer, cl_mem clOutputBuffer,
                                            MemoryBuffer **inputMemoryBuffers, list<cl_mem> *clMemToCleanUp,
                                            list<cl_kernel> *clKernelsToCleanUp)
@@ -384,7 +384,7 @@ void DilateStepOperation::deinitExecution()
 	this->m_inputProgram = NULL;
 	this->deinitMutex();
 	if (this->m_cached_buffer) {
-		delete this->m_cached_buffer;
+		delete [] this->m_cached_buffer;
 		this->m_cached_buffer = NULL;
 	}
 }

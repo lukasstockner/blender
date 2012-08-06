@@ -32,6 +32,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#if WIN32
+#include <Windows.h>
+#endif
+
 #include "MEM_guardedalloc.h"
 #include "MEM_CacheLimiterC-Api.h"
 
@@ -54,6 +58,7 @@
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_mball.h"
+#include "BKE_node.h"
 #include "BKE_report.h"
 
 #include "BKE_packedFile.h"
@@ -62,6 +67,7 @@
 #include "BKE_tracking.h" /* free tracking clipboard */
 
 #include "BLI_listbase.h"
+#include "BLI_math_color.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -137,10 +143,14 @@ void WM_init(bContext *C, int argc, const char **argv)
 	ED_spacetypes_init();   /* editors/space_api/spacetype.c */
 	
 	ED_file_init();         /* for fsmenu */
-	ED_init_node_butfuncs();	
+	ED_node_init_butfuncs();
 	
 	BLF_init(11, U.dpi); /* Please update source/gamengine/GamePlayer/GPG_ghost.cpp if you change this */
 	BLF_lang_init();
+
+	/* initialize color stuff */
+	BLI_init_srgb_conversion();
+
 	/* get the default database, plus a wm */
 	WM_read_homefile(C, NULL, G.factory_startup);
 
@@ -325,10 +335,33 @@ static void free_openrecent(void)
 /* bad stuff*/
 
 // XXX copy/paste buffer stuff...
-extern void free_anim_copybuf(void); 
-extern void free_anim_drivers_copybuf(void); 
-extern void free_fmodifiers_copybuf(void); 
-extern void free_posebuf(void); 
+extern void free_anim_copybuf(void);
+extern void free_anim_drivers_copybuf(void);
+extern void free_fmodifiers_copybuf(void);
+extern void free_posebuf(void);
+
+#if WIN32
+/* Read console events until there is a key event.  Also returns on any error. */
+static void wait_for_console_key(void)
+{
+	HANDLE hConsoleInput = GetStdHandle(STD_INPUT_HANDLE);
+
+	if (!ELEM(hConsoleInput, NULL, INVALID_HANDLE_VALUE) && FlushConsoleInputBuffer(hConsoleInput)) {
+		for (;;) {
+			INPUT_RECORD buffer;
+			DWORD ignored;
+
+			if (!ReadConsoleInput(hConsoleInput, &buffer, 1, &ignored)) {
+				break;
+			}
+
+			if (buffer.EventType == KEY_EVENT) {
+				break;
+			}
+		}
+	}
+}
+#endif
 
 /* called in creator.c even... tsk, split this! */
 /* note, doesnt run exit() call WM_exit() for that */
@@ -387,6 +420,7 @@ void WM_exit_ext(bContext *C, const short do_python)
 	free_anim_drivers_copybuf();
 	free_fmodifiers_copybuf();
 	free_posebuf();
+	BKE_node_clipboard_clear();
 
 	BLF_exit();
 
@@ -452,10 +486,10 @@ void WM_exit_ext(bContext *C, const short do_python)
 	printf("\nBlender quit\n");
 	
 #ifdef WIN32   
-	/* ask user to press enter when in debug mode */
+	/* ask user to press a key when in debug mode */
 	if (G.debug & G_DEBUG) {
-		printf("press enter key to exit...\n\n");
-		getchar();
+		printf("Press any key to exit . . .\n\n");
+		wait_for_console_key();
 	}
 #endif 
 }

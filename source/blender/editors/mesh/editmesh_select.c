@@ -113,7 +113,9 @@ void EDBM_automerge(Scene *scene, Object *obedit, int update)
 		if (!em)
 			return;
 
-		BMO_op_callf(em->bm, "automerge verts=%hv dist=%f", BM_ELEM_SELECT, scene->toolsettings->doublimit);
+		BMO_op_callf(em->bm, BMO_FLAG_DEFAULTS,
+		             "automerge verts=%hv dist=%f",
+		             BM_ELEM_SELECT, scene->toolsettings->doublimit);
 		if (update) {
 			DAG_id_tag_update(obedit->data, OB_RECALC_DATA);
 			BMEdit_RecalcTessellation(em);
@@ -2335,7 +2337,7 @@ static int edbm_select_sharp_edges_exec(bContext *C, wmOperator *op)
 		/* edge has exactly two neighboring faces, check angle */
 		angle = angle_normalized_v3v3(l1->f->no, l2->f->no);
 
-		if (fabsf(angle) > sharp) {
+		if (fabsf(angle) < sharp) {
 			BM_edge_select_set(em->bm, e, TRUE);
 		}
 

@@ -257,14 +257,14 @@ void GaussianBlurReferenceOperation::updateGauss()
 {
 	int i;
 	int x = MAX2(m_radx, m_rady);
-	this->m_maintabs = (float**)MEM_mallocN(x * sizeof(float *), "gauss array");
+	this->m_maintabs = (float **)MEM_mallocN(x * sizeof(float *), "gauss array");
 	for (i = 0; i < x; i++)
 		m_maintabs[i] = make_gausstab(i + 1);
 }
 
 void GaussianBlurReferenceOperation::executePixel(float *color, int x, int y, void *data)
 {
-	MemoryBuffer *memorybuffer = (MemoryBuffer*)data;
+	MemoryBuffer *memorybuffer = (MemoryBuffer *)data;
 	float *buffer = memorybuffer->getBuffer();
 	float *gausstabx, *gausstabcenty;
 	float *gausstaby, *gausstabcentx;
@@ -286,7 +286,8 @@ void GaussianBlurReferenceOperation::executePixel(float *color, int x, int y, vo
 
 	if (refradx == 1 && refrady == 1) {
 		memorybuffer->readNoCheck(color, x, y);
-	} else {
+	}
+	else {
 		int minxr = x - refradx < 0 ? -x : -refradx;
 		int maxxr = x + refradx > imgx ? imgx - x : refradx;
 		int minyr = y - refrady < 0 ? -y : -refrady;

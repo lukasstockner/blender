@@ -232,7 +232,7 @@ void RE_make_stars(Render *re, Scene *scenev3d, void (*initfunc)(void),
 		obr= RE_addRenderObject(re, NULL, NULL, 0, 0, 0);
 	
 	for (x = sx, fx = sx * stargrid; x <= ex; x++, fx += stargrid) {
-		for (y = sy, fy = sy * stargrid; y <= ey ; y++, fy += stargrid) {
+		for (y = sy, fy = sy * stargrid; y <= ey; y++, fy += stargrid) {
 			for (z = sz, fz = sz * stargrid; z <= ez; z++, fz += stargrid) {
 
 				BLI_srand((hash[z & 0xff] << 24) + (hash[y & 0xff] << 16) + (hash[x & 0xff] << 8));
@@ -2374,9 +2374,8 @@ static void displace_render_face(Render *re, ObjectRen *obr, VlakRen *vlr, float
 			displace_render_vert(re, obr, &shi, vlr->v4, 3, scale, mat, imat);
 
 		/*	closest in displace value.  This will help smooth edges.   */ 
-		if ( fabs(vlr->v1->accum - vlr->v3->accum) > fabs(vlr->v2->accum - vlr->v4->accum)) 
-			vlr->flag |= R_DIVIDE_24;
-		else vlr->flag &= ~R_DIVIDE_24;
+		if (fabsf(vlr->v1->accum - vlr->v3->accum) > fabsf(vlr->v2->accum - vlr->v4->accum)) vlr->flag |=  R_DIVIDE_24;
+		else                                                                                 vlr->flag &= ~R_DIVIDE_24;
 	}
 	
 	/* Recalculate the face normal  - if flipped before, flip now */
@@ -4260,8 +4259,8 @@ static void check_non_flat_quads(ObjectRen *obr)
 					normal_tri_v3(nor, vlr->v2->co, vlr->v3->co, vlr->v4->co);
 					d2 = dot_v3v3(nor, vlr->v2->n);
 
-					if ( fabs(d1) < fabs(d2) ) vlr->flag |= R_DIVIDE_24;
-					else vlr->flag &= ~R_DIVIDE_24;
+					if (fabsf(d1) < fabsf(d2) ) vlr->flag |=  R_DIVIDE_24;
+					else                        vlr->flag &= ~R_DIVIDE_24;
 
 					/* new vertex pointers */
 					if (vlr->flag & R_DIVIDE_24) {

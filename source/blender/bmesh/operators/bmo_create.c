@@ -1312,7 +1312,7 @@ void bmo_contextual_create_exec(BMesh *bm, BMOperator *op)
 	 *
 	 */
 
-	/* Here we check for consistancy and create 2 edges */
+	/* Here we check for consistency and create 2 edges */
 	if (totf == 0 && totv >= 4 && totv == tote + 2) {
 		/* find a free standing vertex and 2 endpoint verts */
 		BMVert *v_free = NULL, *v_a = NULL, *v_b = NULL;
@@ -1365,12 +1365,12 @@ void bmo_contextual_create_exec(BMesh *bm, BMOperator *op)
 
 	/* call edgenet create */
 	/* call edgenet prepare op so additional face creation cases wore */
-	BMO_op_initf(bm, &op2, "edgenet_prepare edges=%fe", ELE_NEW);
+	BMO_op_initf(bm, &op2, op->flag, "edgenet_prepare edges=%fe", ELE_NEW);
 	BMO_op_exec(bm, &op2);
 	BMO_slot_buffer_flag_enable(bm, &op2, "edgeout", BM_EDGE, ELE_NEW);
 	BMO_op_finish(bm, &op2);
 
-	BMO_op_initf(bm, &op2,
+	BMO_op_initf(bm, &op2, op->flag,
 	             "edgenet_fill edges=%fe use_fill_check=%b mat_nr=%i use_smooth=%b",
 	             ELE_NEW, TRUE, mat_nr, use_smooth);
 
@@ -1386,7 +1386,7 @@ void bmo_contextual_create_exec(BMesh *bm, BMOperator *op)
 	BMO_op_finish(bm, &op2);
 	
 	/* now call dissolve face */
-	BMO_op_initf(bm, &op2, "dissolve_faces faces=%ff", ELE_NEW);
+	BMO_op_initf(bm, &op2, op->flag, "dissolve_faces faces=%ff", ELE_NEW);
 	BMO_op_exec(bm, &op2);
 	
 	/* if we dissolved anything, then return */

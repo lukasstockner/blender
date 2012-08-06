@@ -247,7 +247,7 @@ typedef struct Tex {
 	struct Image *ima;
 	struct ColorBand *coba;
 	struct EnvMap *env;
-	struct PreviewImage * preview;
+	struct PreviewImage *preview;
 	struct PointDensity *pd;
 	struct VoxelData *vd;
 	struct OceanTex *ot;

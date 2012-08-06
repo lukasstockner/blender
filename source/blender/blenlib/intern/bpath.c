@@ -73,6 +73,7 @@
 #include "BLI_bpath.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_font.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_report.h"
@@ -191,12 +192,14 @@ void BLI_bpath_absolute_convert(Main *bmain, const char *basedir, ReportList *re
 	            data.count_tot, data.count_changed, data.count_failed);
 }
 
-/* find this file recursively, use the biggest file so thumbnails don't get used by mistake
- * - dir: subdir to search
- * - filename: set this filename
- * - filesize: filesize for the file
+/**
+ * find this file recursively, use the biggest file so thumbnails don't get used by mistake
+ * \param filename_new: the path will be copied here, caller must initialize as empyu string.
+ * \param dirname: subdir to search
+ * \param filename: set this filename
+ * \param filesize: filesize for the file
  *
- * return found: 1/0.
+ * \returns found: 1/0.
  */
 #define MAX_RECUR 16
 static int findFileRecursive(char *filename_new,
@@ -212,8 +215,6 @@ static int findFileRecursive(char *filename_new,
 	char path[FILE_MAX];
 	int size;
 	int found = FALSE;
-
-	filename_new[0] = '\0';
 
 	dir = opendir(dirname);
 
@@ -270,6 +271,8 @@ static int findMissingFiles_visit_cb(void *userdata, char *path_dst, const char 
 	int filesize = -1;
 	int recur_depth = 0;
 	int found;
+
+	filename_new[0] = '\0';
 
 	found = findFileRecursive(filename_new,
 	                          data->searchdir, BLI_path_basename((char *)path_src),
@@ -482,9 +485,9 @@ void BLI_bpath_traverse_id(Main *bmain, ID *id, BPathVisitor visit_cb, const int
 			break;
 		case ID_VF:
 		{
-			VFont *vf = (VFont *)id;
-			if (vf->packedfile == NULL || (flag & BLI_BPATH_TRAVERSE_SKIP_PACKED) == 0) {
-				if (strcmp(vf->name, FO_BUILTIN_NAME) != 0) {
+			VFont *vfont = (VFont *)id;
+			if (vfont->packedfile == NULL || (flag & BLI_BPATH_TRAVERSE_SKIP_PACKED) == 0) {
+				if (BKE_vfont_is_builtin(vfont) == FALSE) {
 					rewrite_path_fixed(((VFont *)id)->name, visit_cb, absbase, bpath_user_data);
 				}
 			}

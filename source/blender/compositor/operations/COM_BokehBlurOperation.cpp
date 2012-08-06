@@ -94,9 +94,14 @@ void BokehBlurOperation::executePixel(float *color, int x, int y, void *data)
 		int bufferstartx = inputBuffer->getRect()->xmin;
 		int bufferstarty = inputBuffer->getRect()->ymin;
 		int pixelSize = this->m_size * this->getWidth() / 100.0f;
-		if (pixelSize==0){
-			this->m_inputProgram->read(color, x, y, COM_PS_NEAREST);
-			return;
+		zero_v4(color_accum);
+
+		if (pixelSize<2) {
+			this->m_inputProgram->read(color_accum, x, y, COM_PS_NEAREST);
+			multiplier_accum[0] = 1.0f;
+			multiplier_accum[1] = 1.0f;
+			multiplier_accum[2] = 1.0f;
+			multiplier_accum[3] = 1.0f;
 		}
 		int miny = y - pixelSize;
 		int maxy = y + pixelSize;
@@ -107,7 +112,6 @@ void BokehBlurOperation::executePixel(float *color, int x, int y, void *data)
 		maxy = min(maxy, inputBuffer->getRect()->ymax);
 		maxx = min(maxx, inputBuffer->getRect()->xmax);
 
-		zero_v4(color_accum);
 
 		int step = getStep();
 		int offsetadd = getOffsetAdd();
@@ -152,7 +156,8 @@ bool BokehBlurOperation::determineDependingAreaOfInterest(rcti *input, ReadBuffe
 		newInput.xmin = input->xmin - (this->m_size * this->getWidth() / 100.0f);
 		newInput.ymax = input->ymax + (this->m_size * this->getWidth() / 100.0f);
 		newInput.ymin = input->ymin - (this->m_size * this->getWidth() / 100.0f);
-	} else {
+	}
+	else {
 		newInput.xmax = input->xmax + (10.0f * this->getWidth() / 100.0f);
 		newInput.xmin = input->xmin - (10.0f * this->getWidth() / 100.0f);
 		newInput.ymax = input->ymax + (10.0f * this->getWidth() / 100.0f);
@@ -189,7 +194,7 @@ bool BokehBlurOperation::determineDependingAreaOfInterest(rcti *input, ReadBuffe
 	return false;
 }
 
-void BokehBlurOperation::executeOpenCL(OpenCLDevice* device,
+void BokehBlurOperation::executeOpenCL(OpenCLDevice *device,
                                        MemoryBuffer *outputMemoryBuffer, cl_mem clOutputBuffer, 
                                        MemoryBuffer **inputMemoryBuffers, list<cl_mem> *clMemToCleanUp, 
                                        list<cl_kernel> *clKernelsToCleanUp) 

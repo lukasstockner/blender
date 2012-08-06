@@ -87,6 +87,44 @@ float *MemoryBuffer::convertToValueBuffer()
 	return result;
 }
 
+float MemoryBuffer::getMaximumValue()
+{
+	float result = this->m_buffer[0];
+	const unsigned int size = this->determineBufferSize();
+	unsigned int i;
+
+	const float *fp_src = this->m_buffer;
+
+	for (i = 0; i < size; i++, fp_src += COM_NUMBER_OF_CHANNELS) {
+		float value = *fp_src;
+		if (value > result) {
+			result = value;
+		}
+	}
+
+	return result;
+}
+
+float MemoryBuffer::getMaximumValue(rcti *rect)
+{
+	rcti rect_clamp;
+
+	/* first clamp the rect by the bounds or we get un-initialized values */
+	BLI_rcti_isect(rect, &this->m_rect, &rect_clamp);
+
+	if (!BLI_rcti_is_empty(&rect_clamp)) {
+		MemoryBuffer *temp = new MemoryBuffer(NULL, &rect_clamp);
+		temp->copyContentFrom(this);
+		float result = temp->getMaximumValue();
+		delete temp;
+		return result;
+	}
+	else {
+		BLI_assert(0);
+		return 0.0f;
+	}
+}
+
 MemoryBuffer::~MemoryBuffer()
 {
 	if (this->m_buffer) {
@@ -98,6 +136,7 @@ MemoryBuffer::~MemoryBuffer()
 void MemoryBuffer::copyContentFrom(MemoryBuffer *otherBuffer)
 {
 	if (!otherBuffer) {
+		BLI_assert(0);
 		return;
 	}
 	unsigned int otherY;
@@ -209,7 +248,7 @@ static void imp2radangle(float A, float B, float C, float F, float *a, float *b,
 			*b = sqrtf(F2 / d);
 			*ecc = *a / *b;
 		}
-		// incr theta by 0.5*pi (angle of major axis)
+		/* incr theta by 0.5 * pi (angle of major axis) */
 		*th = 0.5f * (atan2f(B, AmC) + (float)M_PI);
 	}
 }
