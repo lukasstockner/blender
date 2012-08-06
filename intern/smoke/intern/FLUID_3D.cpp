@@ -149,9 +149,6 @@ FLUID_3D::FLUID_3D(int *res, float dx, float dtdef, int init_heat, int init_fire
 	_domainBcRight	= _domainBcLeft;
 
 	_colloPrev = 1;	// default value
-
-	setBorderObstacles(); // walls
-
 }
 
 void FLUID_3D::initHeat()
@@ -1455,14 +1452,9 @@ void FLUID_3D::advectMacCormackBegin(int zBegin, int zEnd)
 {
 	Vec3Int res = Vec3Int(_xRes,_yRes,_zRes);
 
-	if(!_domainBcLeft) copyBorderX(_xVelocityOld, res, zBegin, zEnd);
-	else setZeroX(_xVelocityOld, res, zBegin, zEnd);
-
-	if(!_domainBcFront) copyBorderY(_yVelocityOld, res, zBegin, zEnd);
-	else setZeroY(_yVelocityOld, res, zBegin, zEnd); 
-
-	if(!_domainBcTop) copyBorderZ(_zVelocityOld, res, zBegin, zEnd);
-	else setZeroZ(_zVelocityOld, res, zBegin, zEnd);
+	setZeroX(_xVelocityOld, res, zBegin, zEnd);
+	setZeroY(_yVelocityOld, res, zBegin, zEnd);
+	setZeroZ(_zVelocityOld, res, zBegin, zEnd);
 }
 
 //////////////////////////////////////////////////////////////////////
