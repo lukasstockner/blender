@@ -907,7 +907,7 @@ static void do_createEdgeLocationBuffer(unsigned int t, unsigned int rw, unsigne
 	 * or outer edge.
 	 *
 	 * Allocation is done by requesting 4 bytes "sizeof(int)" per pixel, even
-	 * though gbuf[] is declared as unsigned short* (2 bytes) because we don't
+	 * though gbuf[] is declared as (unsigned short *) (2 bytes) because we don't
 	 * store the pixel indexes, we only store x,y location of pixel in buffer.
 	 *
 	 * This does make the assumption that x and y can fit in 16 unsigned bits
@@ -1273,8 +1273,8 @@ void *DoubleEdgeMaskOperation::initializeTileData(rcti *rect)
 		float *imask = innerMask->convertToValueBuffer();
 		float *omask = outerMask->convertToValueBuffer();
 		doDoubleEdgeMask(imask, omask, data);
-		delete imask;
-		delete omask;
+		delete [] imask;
+		delete [] omask;
 		this->m_cachedInstance = data;
 	}
 	unlockMutex();
@@ -1282,12 +1282,9 @@ void *DoubleEdgeMaskOperation::initializeTileData(rcti *rect)
 }
 void DoubleEdgeMaskOperation::executePixel(float *color, int x, int y, void *data)
 {
-	float *buffer = (float *) data;
+	float *buffer = (float *)data;
 	int index = (y * this->getWidth() + x);
-	color[0] = buffer[index];
-	color[1] = buffer[index + 1];
-	color[2] = buffer[index + 2];
-	color[3] = buffer[index + 3];
+	copy_v4_v4(color, buffer + index);
 }
 
 void DoubleEdgeMaskOperation::deinitExecution()

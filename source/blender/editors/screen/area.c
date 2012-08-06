@@ -107,7 +107,7 @@ void ED_region_pixelspace(ARegion *ar)
 	int width = ar->winrct.xmax - ar->winrct.xmin + 1;
 	int height = ar->winrct.ymax - ar->winrct.ymin + 1;
 	
-	wmOrtho2(-0.375f, (float)width - 0.375f, -0.375f, (float)height - 0.375f);
+	wmOrtho2(-GLA_PIXEL_OFS, (float)width - GLA_PIXEL_OFS, -GLA_PIXEL_OFS, (float)height - GLA_PIXEL_OFS);
 	glLoadIdentity();
 }
 
@@ -1297,7 +1297,7 @@ void area_copy_data(ScrArea *sa1, ScrArea *sa2, int swap_space)
 	if (swap_space == 1) {
 		SWAP(ListBase, sa1->spacedata, sa2->spacedata);
 		/* exception: ensure preview is reset */
-//		if (sa1->spacetype==SPACE_VIEW3D)
+//		if (sa1->spacetype == SPACE_VIEW3D)
 // XXX			BIF_view3d_previewrender_free(sa1->spacedata.first);
 	}
 	else if (swap_space == 2) {

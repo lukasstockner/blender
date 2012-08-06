@@ -77,6 +77,7 @@
 #include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
+#include "BKE_multires.h"
 #include "BKE_packedFile.h"
 #include "BKE_report.h"
 #include "BKE_sound.h"
@@ -379,6 +380,8 @@ void WM_read_file(bContext *C, const char *filepath, ReportList *reports)
 		/* assume automated tasks with background, don't write recent file list */
 		const int do_history = (G.background == FALSE) && (CTX_wm_manager(C)->op_undo_depth == 0);
 
+		BKE_vfont_free_global_ttf();
+
 		/* put aside screens to match with persistent windows later */
 		/* also exit screens and editors */
 		wm_window_match_init(C, &wmbase); 
@@ -488,7 +491,7 @@ int WM_read_homefile(bContext *C, ReportList *UNUSED(reports), short from_memory
 	char tstr[FILE_MAX];
 	int success = 0;
 	
-	BKE_vfont_free_global_ttf(); /* still weird... what does it here? */
+	BKE_vfont_free_global_ttf();
 		
 	G.relbase_valid = 0;
 	if (!from_memory) {
@@ -930,6 +933,7 @@ void wm_autosave_timer(const bContext *C, wmWindowManager *wm, wmTimer *UNUSED(w
 	wmEventHandler *handler;
 	char filepath[FILE_MAX];
 	int fileflags;
+	Scene *scene = CTX_data_scene(C);
 
 	WM_event_remove_timer(wm, NULL, wm->autosavetimer);
 
@@ -942,7 +946,14 @@ void wm_autosave_timer(const bContext *C, wmWindowManager *wm, wmTimer *UNUSED(w
 			}
 		}
 	}
-	
+
+	if (scene) {
+		Object *ob = OBACT;
+
+		if (ob && ob->mode & OB_MODE_SCULPT)
+			multires_force_update(ob);
+	}
+
 	wm_autosave_location(filepath);
 
 	/*  force save as regular blend file */

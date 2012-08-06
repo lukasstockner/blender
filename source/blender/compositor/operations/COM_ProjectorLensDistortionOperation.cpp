@@ -78,11 +78,12 @@ bool ProjectorLensDistortionOperation::determineDependingAreaOfInterest(rcti *in
 		newInput.ymin = input->ymin;
 		newInput.xmin = input->xmin - this->m_kr2 - 2;
 		newInput.xmax = input->xmax + this->m_kr2 + 2;
-	} else {
-		newInput.xmin = input->xmin - 7; //(0.25f*20*1)+2 == worse case dispersion
+	}
+	else {
+		newInput.xmin = input->xmin - 7;  /* (0.25f * 20 * 1) + 2 == worse case dispersion */
 		newInput.ymin = input->ymin;
 		newInput.ymax = input->ymax;
-		newInput.xmax = input->xmax + 7; //(0.25f*20*1)+2 == worse case dispersion
+		newInput.xmax = input->xmax + 7;  /* (0.25f * 20 * 1) + 2 == worse case dispersion */
 	}
 	return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
 }
@@ -95,7 +96,7 @@ void ProjectorLensDistortionOperation::updateDispersion()
 		float result[4];
 		this->getInputSocketReader(1)->read(result, 0, 0, COM_PS_NEAREST);
 		this->m_dispersion = result[0];
-		this->m_kr = 0.25f * MAX2(MIN2(this->m_dispersion, 1.f), 0.f);
+		this->m_kr = 0.25f * maxf(minf(this->m_dispersion, 1.0f), 0.0f);
 		this->m_kr2 = this->m_kr * 20;
 		this->m_dispersionAvailable = true;
 	}

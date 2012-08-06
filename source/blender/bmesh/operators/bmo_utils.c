@@ -304,7 +304,7 @@ void bmo_recalc_face_normals_exec(BMesh *bm, BMOperator *op)
 	BLI_array_declare(fstack);
 	BMLoop *l, *l2;
 	float maxx, maxx_test, cent[3];
-	int i, maxi, flagflip = BMO_slot_bool_get(op, "do_flip");
+	int i, i_max, flagflip = BMO_slot_bool_get(op, "do_flip");
 
 	startf = NULL;
 	maxx = -1.0e10;
@@ -353,7 +353,7 @@ void bmo_recalc_face_normals_exec(BMesh *bm, BMOperator *op)
 	BMO_elem_flag_enable(bm, startf, FACE_VIS);
 
 	i = 0;
-	maxi = 1;
+	i_max = 1;
 	while (i >= 0) {
 		f = fstack[i];
 		i--;
@@ -381,9 +381,9 @@ void bmo_recalc_face_normals_exec(BMesh *bm, BMOperator *op)
 						}
 					}
 					
-					if (i == maxi) {
+					if (i == i_max) {
 						BLI_array_grow_one(fstack);
-						maxi++;
+						i_max++;
 					}
 
 					fstack[i] = l2->f;
@@ -413,10 +413,15 @@ void bmo_smooth_vert_exec(BMesh *bm, BMOperator *op)
 	float (*cos)[3] = NULL;
 	float *co, *co2, clipdist = BMO_slot_float_get(op, "clipdist");
 	int i, j, clipx, clipy, clipz;
+	int xaxis, yaxis, zaxis;
 	
 	clipx = BMO_slot_bool_get(op, "mirror_clip_x");
 	clipy = BMO_slot_bool_get(op, "mirror_clip_y");
 	clipz = BMO_slot_bool_get(op, "mirror_clip_z");
+
+	xaxis = BMO_slot_bool_get(op, "use_axis_x");
+	yaxis = BMO_slot_bool_get(op, "use_axis_y");
+	zaxis = BMO_slot_bool_get(op, "use_axis_z");
 
 	i = 0;
 	BMO_ITER (v, &siter, bm, op, "verts", BM_VERT) {
@@ -451,7 +456,13 @@ void bmo_smooth_vert_exec(BMesh *bm, BMOperator *op)
 
 	i = 0;
 	BMO_ITER (v, &siter, bm, op, "verts", BM_VERT) {
-		copy_v3_v3(v->co, cos[i]);
+		if (xaxis)
+			v->co[0] = cos[i][0];
+		if (yaxis)
+			v->co[1] = cos[i][1];
+		if (zaxis)
+			v->co[2] = cos[i][2];
+
 		i++;
 	}
 
