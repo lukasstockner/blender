@@ -1,4 +1,4 @@
-/**
+/*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -24,48 +24,24 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+ 
+/** \file BOP_Interface.h
+ *  \ingroup bsp
+ */
 
-#ifndef __BSP_MESHDRAWER_H__
-#define __BSP_MESHDRAWER_H__
+#ifndef __BOP_INTERFACE_H__
+#define __BOP_INTERFACE_H__
 
-class BSP_TMesh;
-class MT_Vector3;
+#include "BSP_CSGMesh.h"
 
-enum BSP_TRenderMode {
-	e_shaded,
-	e_none,
-	e_wireframe,
-	e_wireframe_shaded,
-	e_first_render_mode = e_shaded,
-	e_last_render_mode = e_wireframe_shaded
-};
+typedef enum EnumBoolOpState {BOP_OK, BOP_NO_SOLID, BOP_ERROR} BoolOpState;
+typedef enum EnumBoolOpType {BOP_INTERSECTION=e_csg_intersection, BOP_UNION=e_csg_union, BOP_DIFFERENCE=e_csg_difference} BoolOpType;
 
-class BSP_MeshDrawer
-{
-public :
-	static
-		void
-	DrawMesh(
-		BSP_TMesh &mesh,
-		int render_mode
-	);
-
-private :
-
-	static
-		void
-	DrawPolies(
-		BSP_TMesh &mesh
-	);
-
-
-	BSP_MeshDrawer(
-	);
-
-	~BSP_MeshDrawer(
-	);
-
-};
+BoolOpState BOP_performBooleanOperation(BoolOpType                   opType,
+					BSP_CSGMesh**                outputMesh,
+					CSG_FaceIteratorDescriptor   obAFaces,
+					CSG_VertexIteratorDescriptor obAVertices,
+					CSG_FaceIteratorDescriptor   obBFaces,
+					CSG_VertexIteratorDescriptor obBVertices);
 
 #endif
-

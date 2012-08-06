@@ -58,6 +58,7 @@
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_mball.h"
+#include "BKE_node.h"
 #include "BKE_report.h"
 
 #include "BKE_packedFile.h"
@@ -142,7 +143,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 	ED_spacetypes_init();   /* editors/space_api/spacetype.c */
 	
 	ED_file_init();         /* for fsmenu */
-	ED_init_node_butfuncs();	
+	ED_node_init_butfuncs();
 	
 	BLF_init(11, U.dpi); /* Please update source/gamengine/GamePlayer/GPG_ghost.cpp if you change this */
 	BLF_lang_init();
@@ -335,10 +336,10 @@ static void free_openrecent(void)
 /* bad stuff*/
 
 // XXX copy/paste buffer stuff...
-extern void free_anim_copybuf(void); 
-extern void free_anim_drivers_copybuf(void); 
-extern void free_fmodifiers_copybuf(void); 
-extern void free_posebuf(void); 
+extern void free_anim_copybuf(void);
+extern void free_anim_drivers_copybuf(void);
+extern void free_fmodifiers_copybuf(void);
+extern void free_posebuf(void);
 
 #if WIN32
 /* Read console events until there is a key event.  Also returns on any error. */
@@ -347,7 +348,7 @@ static void wait_for_console_key(void)
 	HANDLE hConsoleInput = GetStdHandle(STD_INPUT_HANDLE);
 
 	if (!ELEM(hConsoleInput, NULL, INVALID_HANDLE_VALUE) && FlushConsoleInputBuffer(hConsoleInput)) {
-		for(;;) {
+		for (;;) {
 			INPUT_RECORD buffer;
 			DWORD ignored;
 
@@ -420,6 +421,7 @@ void WM_exit_ext(bContext *C, const short do_python)
 	free_anim_drivers_copybuf();
 	free_fmodifiers_copybuf();
 	free_posebuf();
+	BKE_node_clipboard_clear();
 
 	BLF_exit();
 

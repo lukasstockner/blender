@@ -94,6 +94,10 @@ class NODE_HT_header(Header):
         if toolsettings.snap_node_element != 'INCREMENT':
             row.prop(toolsettings, "snap_target", text="")
 
+        row = layout.row(align=True)
+        row.operator("node.clipboard_copy", text="", icon='COPYDOWN')
+        row.operator("node.clipboard_paste", text="", icon='PASTEDOWN')
+
         layout.template_running_jobs()
 
 
@@ -135,7 +139,8 @@ class NODE_MT_select(Menu):
         layout.operator("node.select_border")
 
         layout.separator()
-        layout.operator("node.select_all")
+        layout.operator("node.select_all").action = 'TOGGLE'
+        layout.operator("node.select_all", text="Inverse").action = 'INVERT'
         layout.operator("node.select_linked_from")
         layout.operator("node.select_linked_to")
         layout.operator("node.select_same_type")

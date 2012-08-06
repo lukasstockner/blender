@@ -203,21 +203,27 @@ int space_image_main_area_not_uv_brush_poll(bContext *C)
 	return 0;
 }
 
-static int space_image_image_sample_poll(bContext *C)
+static int image_sample_poll(bContext *C)
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
-	Object *obedit = CTX_data_edit_object(C);
-	ToolSettings *toolsettings = CTX_data_scene(C)->toolsettings;
+	if (sima) {
+		Scene *scene = CTX_data_scene(C);
+		Object *obedit = CTX_data_edit_object(C);
+		ToolSettings *toolsettings = scene->toolsettings;
 
-	if (obedit) {
-		if (ED_space_image_show_uvedit(sima, obedit) && (toolsettings->use_uv_sculpt))
-			return 0;
-	}
-	else if (sima->mode != SI_MODE_VIEW) {
-		return 0;
-	}
+		if (obedit) {
+			if (ED_space_image_show_uvedit(sima, obedit) && (toolsettings->use_uv_sculpt))
+				return FALSE;
+		}
+		else if (sima->mode != SI_MODE_VIEW) {
+			return FALSE;
+		}
 
-	return space_image_main_area_poll(C);
+		return space_image_main_area_poll(C);
+	}
+	else {
+		return FALSE;
+	}
 }
 /********************** view pan operator *********************/
 
@@ -955,7 +961,8 @@ void IMAGE_OT_open(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_filesel(ot, FOLDERFILE | IMAGEFILE | MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE, WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
+	WM_operator_properties_filesel(ot, FOLDERFILE | IMAGEFILE | MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE,
+	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
 }
 
 /******************** Match movie length operator ********************/
@@ -1067,7 +1074,8 @@ void IMAGE_OT_replace(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_filesel(ot, FOLDERFILE | IMAGEFILE | MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE, WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
+	WM_operator_properties_filesel(ot, FOLDERFILE | IMAGEFILE | MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE,
+	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
 }
 
 /******************** save image as operator ********************/
@@ -1411,7 +1419,8 @@ void IMAGE_OT_save_as(wmOperatorType *ot)
 	/* properties */
 	RNA_def_boolean(ot->srna, "copy", 0, "Copy", "Create a new image file without modifying the current image in blender");
 
-	WM_operator_properties_filesel(ot, FOLDERFILE | IMAGEFILE | MOVIEFILE, FILE_SPECIAL, FILE_SAVE, WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
+	WM_operator_properties_filesel(ot, FOLDERFILE | IMAGEFILE | MOVIEFILE, FILE_SPECIAL, FILE_SAVE,
+	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
 }
 
 /******************** save image operator ********************/
@@ -2113,7 +2122,7 @@ void IMAGE_OT_sample(wmOperatorType *ot)
 	ot->invoke = image_sample_invoke;
 	ot->modal = image_sample_modal;
 	ot->cancel = image_sample_cancel;
-	ot->poll = space_image_image_sample_poll;
+	ot->poll = image_sample_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_BLOCKING;

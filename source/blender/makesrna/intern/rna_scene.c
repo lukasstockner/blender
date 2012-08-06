@@ -38,6 +38,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_object_types.h"
+#include "DNA_world_types.h"
 
 #include "BLI_math.h"
 
@@ -238,10 +239,6 @@ EnumPropertyItem image_type_items[] = {
 	IMAGE_TYPE_ITEMS_IMAGE_ONLY
 
 	{0, "", 0, N_("Movie"), NULL},
-#ifdef _WIN32
-	/* XXX Missing codec menu */
-	{R_IMF_IMTYPE_AVICODEC, "AVICODEC", ICON_FILE_MOVIE, "AVI Codec", "Output video in AVI format"},
-#endif
 	{R_IMF_IMTYPE_AVIJPEG, "AVI_JPEG", ICON_FILE_MOVIE, "AVI JPEG", "Output video in AVI JPEG format"},
 	{R_IMF_IMTYPE_AVIRAW, "AVI_RAW", ICON_FILE_MOVIE, "AVI Raw", "Output video in AVI Raw format"},
 #ifdef WITH_FRAMESERVER
@@ -2748,13 +2745,13 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 
 	/* mode */
 	prop = RNA_def_property(srna, "use_occlusion_culling", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "mode", (1 << 5)); /*XXX mode hardcoded  *//* WO_DBVT_CULLING */
+	RNA_def_property_boolean_sdna(prop, NULL, "mode", WO_DBVT_CULLING);
 	RNA_def_property_ui_text(prop, "DBVT culling",
 	                         "Use optimized Bullet DBVT tree for view frustum and occlusion culling");
 	
 	/* not used  *//* deprecated !!!!!!!!!!!!! */
 	prop = RNA_def_property(srna, "use_activity_culling", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "mode", (1 << 3)); /*XXX mode hardcoded */
+	RNA_def_property_boolean_sdna(prop, NULL, "mode", WO_ACTIVITY_CULLING);
 	RNA_def_property_ui_text(prop, "Activity Culling", "Activity culling is enabled");
 
 	/* not used  *//* deprecated !!!!!!!!!!!!! */

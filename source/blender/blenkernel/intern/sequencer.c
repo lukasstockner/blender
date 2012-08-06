@@ -2072,10 +2072,30 @@ static ImBuf *seq_render_mask_strip(
 	if (!seq->mask) {
 		return NULL;
 	}
+	else {
+		Mask *mask_temp;
+		MaskRasterHandle *mr_handle;
 
-	BKE_mask_evaluate(seq->mask, seq->mask->sfra + nr, TRUE);
+		mask_temp = BKE_mask_copy_nolib(seq->mask);
 
-	maskbuf = MEM_callocN(sizeof(float) * context.rectx * context.recty, __func__);
+		BKE_mask_evaluate(mask_temp, seq->mask->sfra + nr, TRUE);
+
+		maskbuf = MEM_mallocN(sizeof(float) * context.rectx * context.recty, __func__);
+
+		mr_handle = BKE_maskrasterize_handle_new();
+
+		BKE_maskrasterize_handle_init(mr_handle, mask_temp,
+		                              context.rectx, context.recty,
+		                              TRUE, TRUE, TRUE);
+
+		BKE_mask_free(mask_temp);
+		MEM_freeN(mask_temp);
+
+		BKE_maskrasterize_buffer(mr_handle, context.rectx, context.recty, maskbuf);
+
+		BKE_maskrasterize_handle_free(mr_handle);
+	}
+
 
 	if (seq->flag & SEQ_MAKE_FLOAT) {
 		/* pixels */
@@ -2083,14 +2103,6 @@ static ImBuf *seq_render_mask_strip(
 		float *fp_dst;
 
 		ibuf = IMB_allocImBuf(context.rectx, context.recty, 32, IB_rectfloat);
-
-		BKE_mask_rasterize(seq->mask,
-		                   context.rectx, context.recty,
-		                   maskbuf,
-		                   TRUE,
-		                   FALSE, /*XXX- TODO: make on/off for anti-aliasing */
-		                   TRUE   /*XXX- TODO: make on/off for feather */
-		                   );
 
 		fp_src = maskbuf;
 		fp_dst = ibuf->rect_float;
@@ -2109,14 +2121,6 @@ static ImBuf *seq_render_mask_strip(
 		unsigned char *ub_dst;
 
 		ibuf = IMB_allocImBuf(context.rectx, context.recty, 32, IB_rect);
-
-		BKE_mask_rasterize(seq->mask,
-		                   context.rectx, context.recty,
-		                   maskbuf,
-		                   TRUE,
-		                   FALSE, /*XXX- TODO: make on/off for anti-aliasing */
-		                   TRUE   /*XXX- TODO: make on/off for feather */
-		                   );
 
 		fp_src = maskbuf;
 		ub_dst = (unsigned char *)ibuf->rect;
@@ -2223,7 +2227,7 @@ static ImBuf *seq_render_scene_strip(
 		/* for old scened this can be uninitialized,
 		 * should probably be added to do_versions at some point if the functionality stays */
 		if (context.scene->r.seq_prev_type == 0)
-			context.scene->r.seq_prev_type = 3 /* ==OB_SOLID */; 
+			context.scene->r.seq_prev_type = 3 /* == OB_SOLID */;
 
 		/* opengl offscreen render */
 		BKE_scene_update_for_newframe(context.bmain, scene, scene->lay);
@@ -3914,7 +3918,7 @@ Sequence *sequencer_add_sound_strip(bContext *C, ListBase *seqbasep, SeqLoadInfo
 
 	AUD_SoundInfo info;
 
-	sound = sound_new_file(CTX_data_main(C), seq_load->path); /* handles relative paths */
+	sound = sound_new_file(bmain, seq_load->path); /* handles relative paths */
 
 	if (sound == NULL || sound->playback_handle == NULL) {
 		//if (op)

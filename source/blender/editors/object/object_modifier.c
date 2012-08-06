@@ -1361,7 +1361,8 @@ void OBJECT_OT_multires_external_save(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 
-	WM_operator_properties_filesel(ot, FOLDERFILE | BTXFILE, FILE_SPECIAL, FILE_SAVE, WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
+	WM_operator_properties_filesel(ot, FOLDERFILE | BTXFILE, FILE_SPECIAL, FILE_SAVE,
+	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
 	edit_modifier_properties(ot);
 }
 
@@ -1518,8 +1519,8 @@ static void skin_root_clear(BMesh *bm, BMVert *bm_vert, GHash *visited)
 static int skin_root_mark_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob = CTX_data_edit_object(C);
-	Mesh *me = ob->data;
-	BMesh *bm = me->edit_btmesh->bm;
+	BMEditMesh *em = BMEdit_FromObject(ob);
+	BMesh *bm = em->bm;
 	BMVert *bm_vert;
 	BMIter bm_iter;
 	GHash *visited;
@@ -1574,11 +1575,15 @@ typedef enum {
 static int skin_loose_mark_clear_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_edit_object(C);
-	Mesh *me = ob->data;
-	BMesh *bm = me->edit_btmesh->bm;
+	BMEditMesh *em = BMEdit_FromObject(ob);
+	BMesh *bm = em->bm;
 	BMVert *bm_vert;
 	BMIter bm_iter;
 	SkinLooseAction action = RNA_enum_get(op->ptr, "action");
+
+	if (!CustomData_has_layer(&bm->vdata, CD_MVERT_SKIN)) {
+		return OPERATOR_CANCELLED;
+	}
 
 	BM_ITER_MESH (bm_vert, &bm_iter, bm, BM_VERTS_OF_MESH) {
 		if (bm_vert->head.hflag & BM_ELEM_SELECT) {
@@ -1628,10 +1633,14 @@ void OBJECT_OT_skin_loose_mark_clear(wmOperatorType *ot)
 static int skin_radii_equalize_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob = CTX_data_edit_object(C);
-	Mesh *me = ob->data;
-	BMesh *bm = me->edit_btmesh->bm;
+	BMEditMesh *em = BMEdit_FromObject(ob);
+	BMesh *bm = em->bm;
 	BMVert *bm_vert;
 	BMIter bm_iter;
+
+	if (!CustomData_has_layer(&bm->vdata, CD_MVERT_SKIN)) {
+		return OPERATOR_CANCELLED;
+	}
 
 	BM_ITER_MESH (bm_vert, &bm_iter, bm, BM_VERTS_OF_MESH) {
 		if (bm_vert->head.hflag & BM_ELEM_SELECT) {
@@ -1804,8 +1813,14 @@ static int skin_armature_create_exec(bContext *C, wmOperator *op)
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C), *arm_ob;
+	Mesh *me = ob->data;
 	ModifierData *skin_md;
 	ArmatureModifierData *arm_md;
+
+	if (!CustomData_has_layer(&me->vdata, CD_MVERT_SKIN)) {
+		BKE_reportf(op->reports, RPT_WARNING, "Mesh '%s' has no skin vertex data", me->id.name + 2);
+		return OPERATOR_CANCELLED;
+	}
 
 	/* create new armature */
 	arm_ob = modifier_skin_armature_create(scene, ob);

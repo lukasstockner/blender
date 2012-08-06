@@ -356,6 +356,7 @@ class IMAGE_HT_header(Header):
         show_render = sima.show_render
         # show_paint = sima.show_paint
         show_uvedit = sima.show_uvedit
+        show_maskedit = sima.show_maskedit
 
         row = layout.row(align=True)
         row.template_header()
@@ -380,11 +381,19 @@ class IMAGE_HT_header(Header):
         if not show_render:
             layout.prop(sima, "use_image_pin", text="")
 
+        layout.prop(sima, "mode", text="")
+
+        if show_maskedit:
+            row = layout.row()
+            row.template_ID(sima, "mask", new="mask.new")
+
+        if show_uvedit or show_maskedit:
+            layout.prop(sima, "pivot_point", text="", icon_only=True)
+
         # uv editing
         if show_uvedit:
             uvedit = sima.uv_editor
 
-            layout.prop(uvedit, "pivot_point", text="", icon_only=True)
             layout.prop(toolsettings, "use_uv_select_sync", text="")
 
             if toolsettings.use_uv_select_sync:
@@ -405,16 +414,6 @@ class IMAGE_HT_header(Header):
             mesh = context.edit_object.data
             layout.prop_search(mesh.uv_textures, "active", mesh, "uv_textures", text="")
 
-        layout.prop(sima, "mode", text="")
-
-        if mode == 'MASK':
-            row = layout.row()
-            row.template_ID(sima, "mask", new="mask.new")
-
-            # reused for mask
-            uvedit = sima.uv_editor
-            layout.prop(uvedit, "pivot_point", text="", icon_only=True)
-
         if ima:
             # layers
             layout.template_image_layers(ima, iuser)
@@ -429,7 +428,7 @@ class IMAGE_HT_header(Header):
             if ima.type == 'COMPOSITE' and ima.source in {'MOVIE', 'SEQUENCE'}:
                 row.operator("image.play_composite", icon='PLAY')
 
-        if show_uvedit or mode == 'PAINT':
+        if show_uvedit or show_maskedit or mode == 'PAINT':
             layout.prop(sima, "use_realtime_update", text="", icon_only=True, icon='LOCKED')
 
 
@@ -616,6 +615,7 @@ class IMAGE_PT_view_properties(Panel):
         sima = context.space_data
         ima = sima.image
         show_uvedit = sima.show_uvedit
+        show_maskedit = sima.show_maskedit
         uvedit = sima.uv_editor
 
         split = layout.split()
@@ -634,12 +634,12 @@ class IMAGE_PT_view_properties(Panel):
             col.label(text="Coordinates:")
             col.prop(uvedit, "show_normalized_coords", text="Normalized")
 
-        if show_uvedit:
-
+        if show_uvedit or show_maskedit:
             col = layout.column()
             col.label("Cursor Location:")
-            col.row().prop(uvedit, "cursor_location", text="")
+            col.row().prop(sima, "cursor_location", text="")
 
+        if show_uvedit:
             col.separator()
 
             col.label(text="UVs:")
