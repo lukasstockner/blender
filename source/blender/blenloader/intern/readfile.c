@@ -4405,6 +4405,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				smd->domain = NULL;
 				smd->coll = newdataadr(fd, smd->coll);
 				if (smd->coll) {
+					smd->coll->smd = smd;
 					smd->coll->verts_old = NULL;
 					smd->coll->numverts = 0;
 					smd->coll->dm = NULL;

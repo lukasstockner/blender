@@ -7050,7 +7050,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 					GPU_create_smoke(smd, 1);
 					draw_smoke_volume(sds, ob, ar, sds->tex,
 								p0, p1,
-								sds->res_wt, sds->dx_wt, sds->scale*sds->maxres,
+								sds->res_wt, sds->dx, sds->scale*sds->maxres,
 								viewnormal, sds->tex_shadow, sds->tex_flame);
 					GPU_free_smoke(smd);
 				}

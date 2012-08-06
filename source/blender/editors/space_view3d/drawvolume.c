@@ -451,7 +451,6 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob, ARegion *ar, GPUTex
 
 	/* d0 = (viewnormal[0]*cv[i][0] + viewnormal[1]*cv[i][1] + viewnormal[2]*cv[i][2]); */ /* UNUSED */
 	ds = (ABS(viewnormal[0]) * size[0] + ABS(viewnormal[1]) * size[1] + ABS(viewnormal[2]) * size[2]);
-	dd = dx*base_scale/128.f;
 	dd = MAX3(sds->global_size[0],sds->global_size[1],sds->global_size[2])/128.f;
 	n = 0;
 	good_index = i;

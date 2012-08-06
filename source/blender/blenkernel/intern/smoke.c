@@ -727,7 +727,7 @@ static void obstacles_from_derivedmesh(Object *coll_ob, SmokeDomainSettings *sds
 				sub_v3_v3v3(&vert_vel[i*3], co, &scs->verts_old[i*3]);
 				mul_v3_fl(&vert_vel[i*3], sds->dx/dt);
 			}
-			copy_v3_v3(&scs->verts_old[i*3], mvert[i].co);
+			copy_v3_v3(&scs->verts_old[i*3], co);
 		}
 
 		if (bvhtree_from_mesh_faces(&treeData, dm, 0.0f, 4, 6)) {
