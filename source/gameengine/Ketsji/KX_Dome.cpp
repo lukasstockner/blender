@@ -1446,7 +1446,7 @@ void KX_Dome::CalculateFrustum(KX_Camera * cam)
 	right = aspect * top
 
 	// the equivalent GLU call is:
-	glMatrixMode(GL_PROJECTION);
+	gpuMatrixMode(GL_PROJECTION);
 	gpuLoadIdentity(); gpuMatrixCommit();
 	gluPerspective(90.0,1.0,cam->GetCameraNear(),cam->GetCameraFar());
 #endif
@@ -1657,7 +1657,6 @@ void KX_Dome::Draw(void)
 void KX_Dome::DrawEnvMap(void)
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	//glMatrixMode(GL_PROJECTION);
 	gpuMatrixMode(GL_PROJECTION);
 
 	gpuLoadIdentity(); gpuMatrixCommit();
@@ -1685,13 +1684,10 @@ void KX_Dome::DrawEnvMap(void)
 		gpuOrtho((-ortho_width), ortho_width, (-ortho_height), ortho_height, -20.0, 10.0);
 	}
 
-	gpuMatrixCommit();
 
-	//glMatrixMode(GL_TEXTURE);
 	gpuMatrixMode(GL_TEXTURE);
 
-	gpuLoadIdentity(); gpuMatrixCommit();
-	//glMatrixMode(GL_MODELVIEW);
+	gpuLoadIdentity();
 	gpuMatrixMode(GL_MODELVIEW);
 
 	gpuLoadIdentity();
@@ -1795,7 +1791,6 @@ void KX_Dome::DrawDomeFisheye(void)
 	int i;
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	//glMatrixMode(GL_PROJECTION);
 	gpuMatrixMode(GL_PROJECTION);
 
 	gpuLoadIdentity(); gpuMatrixCommit();
@@ -1838,13 +1833,10 @@ void KX_Dome::DrawDomeFisheye(void)
 		gpuOrtho((-ortho_width), ortho_width, (-ortho_width), ortho_height, -20.0, 10.0);
 	}
 
-	gpuMatrixCommit();
 
-	//glMatrixMode(GL_TEXTURE);
 	gpuMatrixMode(GL_TEXTURE);
 
-	gpuLoadIdentity(); gpuMatrixCommit();
-	//glMatrixMode(GL_MODELVIEW);
+	gpuLoadIdentity();
 	gpuMatrixMode(GL_MODELVIEW);
 
 	gpuLoadIdentity(); gpuMatrixCommit();
@@ -1899,7 +1891,6 @@ void KX_Dome::DrawPanorama(void)
 {
 	int i;
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	//glMatrixMode(GL_PROJECTION);
 	gpuMatrixMode(GL_PROJECTION);
 
 	gpuLoadIdentity(); gpuMatrixCommit();
@@ -1929,16 +1920,12 @@ void KX_Dome::DrawPanorama(void)
 		gpuOrtho((-ortho_width), ortho_width, (-ortho_height), ortho_height, -20.0, 10.0);
 	}
 
-	gpuMatrixCommit();
-
-	//glMatrixMode(GL_TEXTURE);
 	gpuMatrixMode(GL_TEXTURE);
 
-	gpuLoadIdentity(); gpuMatrixCommit();
-	//glMatrixMode(GL_MODELVIEW);
+	gpuLoadIdentity();
 	gpuMatrixMode(GL_MODELVIEW);
 
-	gpuLoadIdentity(); gpuMatrixCommit();
+	gpuLoadIdentity();
 	gpuLookAt(0.0,-1.0,0.0, 0.0,0.0,0.0, 0.0,0.0,1.0);  gpuMatrixCommit();
 
 	if (m_drawingmode == RAS_IRasterizer::KX_WIREFRAME)
@@ -1991,10 +1978,7 @@ void KX_Dome::DrawPanorama(void)
 void KX_Dome::DrawDomeWarped(void)
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	//glMatrixMode(GL_PROJECTION);
 	gpuMatrixMode(GL_PROJECTION);
-
-	gpuLoadIdentity(); gpuMatrixCommit();
 
 	// Making the viewport always square 
 	int can_width = m_viewport.GetRight();
@@ -2002,17 +1986,15 @@ void KX_Dome::DrawDomeWarped(void)
 
 	double screen_ratio = can_width/ (double) can_height;
 
-	gpuOrtho(-screen_ratio,screen_ratio,-1.0,1.0,-20.0,10.0);
+	gpuLoadOrtho(-screen_ratio,screen_ratio,-1.0,1.0,-20.0,10.0);
 
 
-	//glMatrixMode(GL_TEXTURE);
 	gpuMatrixMode(GL_TEXTURE);
 
-	gpuLoadIdentity(); gpuMatrixCommit();
-	//glMatrixMode(GL_MODELVIEW);
+	gpuLoadIdentity();
 	gpuMatrixMode(GL_MODELVIEW);
 
-	gpuLoadIdentity(); gpuMatrixCommit();
+	gpuLoadIdentity();
 	gpuLookAt(0.0, 0.0, 1.0, 0.0,0.0,0.0, 0.0,1.0,0.0);  gpuMatrixCommit();
 
 	if (m_drawingmode == RAS_IRasterizer::KX_WIREFRAME)

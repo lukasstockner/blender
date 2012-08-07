@@ -772,7 +772,6 @@ void RAS_OpenGLRasterizer::IndexPrimitivesMulti(RAS_MeshSlot& ms)
 
 void RAS_OpenGLRasterizer::SetProjectionMatrix(MT_CmMatrix4x4 &mat)
 {
-	//glMatrixMode(GL_PROJECTION);
 	gpuMatrixMode(GL_PROJECTION);
 
 	float matrix[16];
@@ -791,7 +790,6 @@ void RAS_OpenGLRasterizer::SetProjectionMatrix(MT_CmMatrix4x4 &mat)
 
 void RAS_OpenGLRasterizer::SetProjectionMatrix(const MT_Matrix4x4 & mat)
 {
-	//glMatrixMode(GL_PROJECTION);
 	gpuMatrixMode(GL_PROJECTION);
 
 	float matrix[16];
@@ -844,15 +842,14 @@ MT_Matrix4x4 RAS_OpenGLRasterizer::GetFrustumMatrix(
 			// leave bottom and top untouched
 	}
 	
-	//glMatrixMode(GL_PROJECTION);
 	gpuMatrixMode(GL_PROJECTION);
 
-	gpuLoadIdentity(); gpuMatrixCommit();
-
-
-	gpuMatrixMode(GL_PROJECTION);
 	gpuLoadIdentity();
-	gpuFrustum(left, right, bottom, top, frustnear, frustfar);
+
+
+	gpuMatrixMode(GL_PROJECTION);;
+	gpuLoadFrustum(left, right, bottom, top, frustnear, frustfar);
+	gpuMatrixCommit();
 
 	float tm [16];
 
@@ -874,15 +871,13 @@ MT_Matrix4x4 RAS_OpenGLRasterizer::GetOrthoMatrix(
 	MT_Matrix4x4 result;
 
 	// stereo is meaning less for orthographic, disable it
-//	glMatrixMode(GL_PROJECTION);
 	gpuMatrixMode(GL_PROJECTION);
 
 	gpuLoadIdentity(); gpuMatrixCommit();
 
 
 	gpuMatrixMode(GL_PROJECTION);
-	gpuLoadIdentity();
-	gpuOrtho(left, right, bottom, top, frustnear, frustfar);
+	gpuLoadOrtho(left, right, bottom, top, frustnear, frustfar);
 
 	float tm [16];
 
@@ -949,7 +944,7 @@ void RAS_OpenGLRasterizer::SetViewMatrix(const MT_Matrix4x4 &mat,
 	m_viewmatrix.getValue(glviewmat);
 	float tm[16];
 	for(int i=0;i<16;i++)tm[i]=glviewmat[i];
-	glMatrixMode(GL_MODELVIEW);
+
 	gpuMatrixMode(GL_MODELVIEW);
 
 

@@ -180,7 +180,6 @@ bool GPC_RenderTools::RayHit(KX_ClientObjectInfo* client, KX_RayCast* result, vo
 		resultnormal[0],resultnormal[1],resultnormal[2], 0,
 				0,              0,              0, 1};
 	gpuTranslate(resultpoint[0],resultpoint[1],resultpoint[2]);
-	//glMultMatrixd(oglmatrix);
 	gpuMultMatrix(maat); gpuMatrixCommit();
 
 	gpuMatrixCommit();
@@ -275,7 +274,7 @@ void GPC_RenderTools::applyTransform(RAS_IRasterizer* rasty,double* oglmatrix,in
 			if (!KX_RayCast::RayTest(physics_environment, frompoint, topoint, callback))
 			{
 				// couldn't find something to cast the shadow on...
-				glMultMatrixd(oglmatrix);
+				gpuMultMatrixd(oglmatrix);
 			}
 		} else
 		{
@@ -366,12 +365,10 @@ void GPC_RenderTools::RenderText2D(RAS_TEXT_RENDER_MODE mode,
 
 	
 	// Set up viewing settings
-	//glMatrixMode(GL_PROJECTION);
 	gpuMatrixMode(GL_PROJECTION);
 
 	gpuPushMatrix();
-	gpuLoadOrtho(0, width, 0, height, -1, 1); gpuMatrixCommit();
-	glMatrixMode(GL_MODELVIEW);
+	gpuLoadOrtho(0, width, 0, height, -1, 1);
 	gpuMatrixMode(GL_MODELVIEW);
 
 	gpuPushMatrix();
@@ -387,12 +384,10 @@ void GPC_RenderTools::RenderText2D(RAS_TEXT_RENDER_MODE mode,
 	gpuCurrentColor3x(CPACK_WHITE);
 	BLF_draw_default(xco, height-yco, 0.f, text, 65536);
 
-	// Restore view settings
-	//glMatrixMode(GL_PROJECTION);
+	// Restore view settings;
 	gpuMatrixMode(GL_PROJECTION);
 
-	gpuPopMatrix(); gpuMatrixCommit();
-	glMatrixMode(GL_MODELVIEW);
+	gpuPopMatrix();
 	gpuMatrixMode(GL_MODELVIEW);
 
 	gpuPopMatrix(); gpuMatrixCommit();

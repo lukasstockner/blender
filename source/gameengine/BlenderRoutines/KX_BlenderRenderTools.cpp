@@ -177,7 +177,6 @@ bool KX_BlenderRenderTools::RayHit(KX_ClientObjectInfo* client, KX_RayCast* resu
 		resultnormal[0],resultnormal[1],resultnormal[2], 0,
 				0,              0,              0, 1};
 	gpuTranslate(resultpoint[0],resultpoint[1],resultpoint[2]);
-	//glMultMatrixd(oglmatrix);
 	gpuMultMatrix(maat); gpuMatrixCommit();
 	return true;
 }
@@ -270,7 +269,7 @@ void KX_BlenderRenderTools::applyTransform(RAS_IRasterizer* rasty,double* oglmat
 			if (!KX_RayCast::RayTest(physics_environment, frompoint, topoint, callback))
 			{
 				// couldn't find something to cast the shadow on...
-				glMultMatrixd(oglmatrix);
+				gpuMultMatrixd(oglmatrix);
 			}
 			else
 			{ // we found the "ground", but the cast matrix doesn't take

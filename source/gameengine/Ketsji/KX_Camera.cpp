@@ -31,7 +31,7 @@
  */
 
  
-#include <GL/glew.h>
+#include "GPU_compatibility.h"
 #include "KX_Camera.h"
 #include "KX_Scene.h"
 #include "KX_PythonInit.h"
@@ -957,9 +957,11 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 	}
 
 	const GLint *viewport;
-	GLdouble win[3];
-	GLdouble modelmatrix[16];
-	GLdouble projmatrix[16];
+	GLfloat win[3];
+	GLfloat modelmatrix[16];
+	GLfloat projmatrix[16];
+	GLfloat vectf[3] = {vect[0], vect[1], vect[2]};
+
 
 	MT_Matrix4x4 m_modelmatrix = this->GetModelviewMatrix();
 	MT_Matrix4x4 m_projmatrix = this->GetProjectionMatrix();
@@ -969,7 +971,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 
 	viewport = KX_GetActiveEngine()->GetCanvas()->GetViewPort();
 
-	gluProject(vect[0], vect[1], vect[2], modelmatrix, projmatrix, viewport, &win[0], &win[1], &win[2]);
+	gpuProject(vectf, (GLfloat (*)[4])modelmatrix, (GLfloat (*)[4])projmatrix, viewport, win);
 
 	vect[0] =  (win[0] - viewport[0]) / viewport[2];
 	vect[1] =  (win[1] - viewport[1]) / viewport[3];
@@ -1000,9 +1002,9 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect,
 	MT_Point3 campos, screenpos;
 
 	const GLint *viewport;
-	GLdouble win[3];
-	GLdouble modelmatrix[16];
-	GLdouble projmatrix[16];
+	GLfloat win[3];
+	GLfloat modelmatrix[16];
+	GLfloat projmatrix[16];
 
 	MT_Matrix4x4 m_modelmatrix = this->GetModelviewMatrix();
 	MT_Matrix4x4 m_projmatrix = this->GetProjectionMatrix();
@@ -1019,7 +1021,10 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect,
 	vect[1] += viewport[1];
 
 	glReadPixels(x, y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &vect[2]);
-	gluUnProject(vect[0], vect[1], vect[2], modelmatrix, projmatrix, viewport, &win[0], &win[1], &win[2]);
+
+	GLfloat vectf[3] = {vect[0], vect[1], vect[2]};
+
+	gpuUnProject(vectf, (GLfloat (*)[4])modelmatrix, (GLfloat (*)[4])projmatrix, viewport, win);
 
 	campos = this->GetCameraLocation();
 	screenpos = MT_Point3(win[0], win[1], win[2]);
