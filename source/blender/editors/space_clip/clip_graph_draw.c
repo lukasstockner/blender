@@ -46,9 +46,9 @@
 #include "ED_screen.h"
 #include "ED_clip.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "WM_types.h"

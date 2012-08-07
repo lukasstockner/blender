@@ -59,9 +59,8 @@
 #include "ED_uvedit.h"
 #include "ED_view3d.h"
 
+#include "GPU_colors.h"
 #include "GPU_compatibility.h"
-
-#include "BIF_gl.h"
 
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"

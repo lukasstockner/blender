@@ -29,6 +29,9 @@
  *  \ingroup gpu
  */
 
+#ifndef GPU_LIGHTING_INLINE_H
+#define GPU_LIGHTING_INLINE_H
+
 #include "gpu_lighting.h"
 
 
@@ -142,3 +145,5 @@ BLI_INLINE GLboolean gpuIsLightingEnabled(void)
 {
 	return GPU_LIGHTING->is_lighting_enabled();
 }
+
+#endif /* GPU_LIGHTING_INLINE_H */

@@ -49,7 +49,7 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "BIF_gl.h"
+#include "GPU_compatibility.h"
 
 #include "RNA_access.h"
 

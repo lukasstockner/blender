@@ -51,7 +51,7 @@
 #include "BKE_report.h"
 #include "BKE_writeavi.h"
 
-#include "BIF_gl.h"
+#include "GPU_compatibility.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"

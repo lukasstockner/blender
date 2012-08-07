@@ -37,7 +37,8 @@ Developed as part of a Research and Development project for SAT - La Société d
 #include "RAS_IRenderTools.h"
 #include "KX_KetsjiEngine.h"
 
-#include <GL/glew.h>
+#include "GPU_compatibility.h"
+
 #include <vector>
 
 #include "MEM_guardedalloc.h"
@@ -77,8 +78,7 @@ public:
 	virtual ~KX_Dome (void);
 
 	//openGL checks:
-	bool	dlistSupported;
-	bool	fboSupported;
+	bool fboSupported;
 
 	//openGL names:
 	GLuint domefacesId[7];      /* ID of the images -- room for 7 images, using only 4 for 180deg x 360deg dome,

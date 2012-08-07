@@ -31,12 +31,14 @@
  */
 
  
-#include "GPU_compatibility.h"
 #include "KX_Camera.h"
 #include "KX_Scene.h"
 #include "KX_PythonInit.h"
 #include "KX_Python.h"
 #include "KX_PyMath.h"
+
+#include "GPU_compatibility.h"
+
 KX_Camera::KX_Camera(void* sgReplicationInfo,
 					 SG_Callbacks callbacks,
 					 const RAS_CameraData& camdata,

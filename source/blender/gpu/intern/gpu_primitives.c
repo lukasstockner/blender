@@ -1413,3 +1413,60 @@ void gpuSingleWireCube(GLfloat size)
 
 	gpuImmediateUnformat();
 }
+
+/* half the cube, in Y */
+static float half_cube[8][3] = {
+	{-1.0,  0.0, -1.0},
+	{-1.0,  0.0,  1.0},
+	{-1.0,  1.0,  1.0},
+	{-1.0,  1.0, -1.0},
+	{ 1.0,  0.0, -1.0},
+	{ 1.0,  0.0,  1.0},
+	{ 1.0,  1.0,  1.0},
+	{ 1.0,  1.0, -1.0},
+};
+
+void gpuDrawSolidHalfCube(void)
+{
+	float n[3] = {0,0,0};
+
+	gpuBegin(GL_QUADS);
+	n[0] = -1.0;
+	gpuNormal3fv(n); 
+	gpuVertex3fv(half_cube[0]); gpuVertex3fv(half_cube[1]); gpuVertex3fv(half_cube[2]); gpuVertex3fv(half_cube[3]);
+	n[0] = 0;
+	n[1] = -1.0;
+	gpuNormal3fv(n); 
+	gpuVertex3fv(half_cube[0]); gpuVertex3fv(half_cube[4]); gpuVertex3fv(half_cube[5]); gpuVertex3fv(half_cube[1]);
+	n[1] = 0;
+	n[0] = 1.0;
+	gpuNormal3fv(n); 
+	gpuVertex3fv(half_cube[4]); gpuVertex3fv(half_cube[7]); gpuVertex3fv(half_cube[6]); gpuVertex3fv(half_cube[5]);
+	n[0] = 0;
+	n[1] = 1.0;
+	gpuNormal3fv(n); 
+	gpuVertex3fv(half_cube[7]); gpuVertex3fv(half_cube[3]); gpuVertex3fv(half_cube[2]); gpuVertex3fv(half_cube[6]);
+	n[1] = 0;
+	n[2] = 1.0;
+	gpuNormal3fv(n); 
+	gpuVertex3fv(half_cube[1]); gpuVertex3fv(half_cube[5]); gpuVertex3fv(half_cube[6]); gpuVertex3fv(half_cube[2]);
+	n[2] = -1.0;
+	gpuNormal3fv(n); 
+	gpuVertex3fv(half_cube[7]); gpuVertex3fv(half_cube[4]); gpuVertex3fv(half_cube[0]); gpuVertex3fv(half_cube[3]);
+	gpuEnd();
+}
+
+void gpuDrawWireHalfCube(void)
+{
+	gpuBegin(GL_LINE_STRIP);
+	gpuVertex3fv(half_cube[0]); gpuVertex3fv(half_cube[1]); gpuVertex3fv(half_cube[2]); gpuVertex3fv(half_cube[3]);
+	gpuVertex3fv(half_cube[0]); gpuVertex3fv(half_cube[4]); gpuVertex3fv(half_cube[5]); gpuVertex3fv(half_cube[6]);
+	gpuVertex3fv(half_cube[7]); gpuVertex3fv(half_cube[4]);
+	gpuEnd();
+	
+	gpuBegin(GL_LINES);
+	gpuVertex3fv(half_cube[1]); gpuVertex3fv(half_cube[5]);
+	gpuVertex3fv(half_cube[2]); gpuVertex3fv(half_cube[6]);
+	gpuVertex3fv(half_cube[3]); gpuVertex3fv(half_cube[7]);
+	gpuEnd();
+}

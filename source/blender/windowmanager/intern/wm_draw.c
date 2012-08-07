@@ -33,6 +33,7 @@
 #include <string.h>
 
 #include "GPU_compatibility.h"
+#include "GPU_colors.h"
 
 #include "DNA_listBase.h"
 #include "DNA_screen_types.h"

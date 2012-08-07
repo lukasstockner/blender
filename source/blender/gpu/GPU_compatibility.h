@@ -28,15 +28,17 @@
 /** \file GPU_compatibility.h
  *  \ingroup gpu
  */
- 
+
 #ifndef __GPU_COMPATIBILITY_H__
 #define __GPU_COMPATIBILITY_H__
 
+
+
 #include "intern/gpu_immediate_inline.h"
 #include "intern/gpu_lighting_inline.h"
-#include "GPU_primitives.h" // XXX: temporary, these do not belong here
-#include "GPU_colors.h" // XXX: temporary, these do not belong here
 #include "GPU_matrix.h"
+
+
 
 #ifndef GPU_MANGLE_DEPRECATED
 #define GPU_MANGLE_DEPRECATED 1
@@ -47,13 +49,15 @@
 #endif
 
 
-
-#ifdef __cplusplus
-extern "C" {
+// don't commit this!
+#ifdef GLES
+#define glMultMatrixf(x)  fake_glMultMatrixf( (float *)(x))
+#define glLoadMatrixf(x)  fake_glLoadMatrixf( (float *)(x))
+#else
+#define glMultMatrixf(x)  glMultMatrixf( (float *)(x))
+#define glLoadMatrixf(x)  glLoadMatrixf( (float *)(x))
 #endif
 
-#ifdef __cplusplus
-}
-#endif
+
 
 #endif /* __GPU_COMPATIBILITY_H_ */

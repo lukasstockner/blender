@@ -31,8 +31,6 @@
 #include <string.h>
 #include <stddef.h>
 
-#include <GL/glew.h>
-
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math.h"
@@ -68,6 +66,7 @@
 #include "RNA_define.h"
 
 
+#include "GPU_compatibility.h"
 #include "GPU_extensions.h"
 
 #include "wm_window.h"

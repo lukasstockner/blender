@@ -41,6 +41,7 @@
 
 #include "ED_mask.h"  /* own include */
 
+#include "GPU_colors.h"
 #include "GPU_compatibility.h"
 
 #include "UI_resources.h"

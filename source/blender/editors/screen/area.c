@@ -57,7 +57,8 @@
 #include "ED_types.h"
 #include "ED_fileselect.h" 
 
-#include "GPU_compatibility.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
 
 #include "BLF_api.h"
 
@@ -208,12 +209,9 @@ static void area_draw_azone(short x1, short y1, short x2, short y2)
 
 static void region_draw_azone_icon(AZone *az)
 {
-	GLUquadricObj *qobj = NULL; 
 	short midx = az->x1 + (az->x2 - az->x1) / 2;
 	short midy = az->y1 + (az->y2 - az->y1) / 2;
-		
-	//qobj = gluNewQuadric();
-	
+
 	gpuPushMatrix();
 	gpuTranslate(midx, midy, 0.0);
 
@@ -231,7 +229,6 @@ static void region_draw_azone_icon(AZone *az)
 	glDisable(GL_LINE_SMOOTH);
 
 	gpuPopMatrix();
-	//gluDeleteQuadric(qobj);
 
 	/* + */
 	gpuBegin(GL_LINES);

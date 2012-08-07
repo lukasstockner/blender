@@ -27,7 +27,7 @@
 
 #include "RAS_StorageIM.h"
 
-#include <GL/glew.h>
+#include "GPU_compatibility.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"
@@ -35,8 +35,6 @@
 #include "DNA_meshdata_types.h"
 
 #include "BKE_DerivedMesh.h"
-
-#include "GPU_compatibility.h"
 
 RAS_StorageIM::RAS_StorageIM(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib) :
 	m_texco_num(texco_num),

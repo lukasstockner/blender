@@ -37,7 +37,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BIF_gl.h"
+#include "GPU_compatibility.h"
 
 #include "BLO_readfile.h"
 

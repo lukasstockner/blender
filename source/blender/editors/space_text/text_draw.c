@@ -51,10 +51,10 @@
 #include "BKE_text.h"
 
 
-#include "GPU_compatibility.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
 #include "GPU_utility.h"
 
-#include "BIF_gl.h"
 
 #include "ED_datafiles.h"
 #include "UI_interface.h"

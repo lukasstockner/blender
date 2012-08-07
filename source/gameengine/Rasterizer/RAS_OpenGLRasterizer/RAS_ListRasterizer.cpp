@@ -14,7 +14,8 @@
 #include <windows.h>
 #endif // WIN32
 
-#include <GL/glew.h>
+#define GPU_MANGLE_DEPRECATED 0
+#include "GPU_compatibility.h"
 
 #include "RAS_MaterialBucket.h"
 #include "RAS_TexVert.h"

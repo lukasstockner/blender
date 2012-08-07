@@ -1,4 +1,33 @@
-#include "gpu_immediate.h"
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * The Original Code is Copyright (C) 2012 Blender Foundation.
+ * All rights reserved.
+ *
+ * The Original Code is: all of this file.
+ *
+ * Contributor(s): Jason Wilkins, Alexandr Kuznetsov
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
+
+/** \file GPU_compatibility.h
+ *  \ingroup gpu
+ */
 
 #include <assert.h>
 
@@ -8,15 +37,15 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 
-#define GPU_MAT_CAST_ANY
+#include "intern/gpu_safety.h"
+#include "intern/gpu_glew.h"
+
+#define GPU_MAT_CAST_ANY 0
 #include "GPU_matrix.h"
 
 
 #ifdef GLES
-#include <GLES2/gl2.h>
 #include "gpu_object_gles.h"
-#else 
-#include <GL/glew.h>
 #endif
 
 #if WITH_GPU_SAFETY
@@ -227,9 +256,10 @@ void gpuMatrixCommit(void)
 if(curglslesi)
 {
 #include REAL_GL_MODE
+
 	if(ms_modelview.changed || glslneedupdate)
 	{
-	
+
 		GLfloat t[3][3] = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
 		copy_m3_m4(t, ms_modelview.dynstack[ms_modelview.pos]); 
 		if(curglslesi->viewmatloc!=-1)
@@ -244,8 +274,7 @@ if(curglslesi)
 		if(curglslesi->projectionmatloc!=-1)
 		glUniformMatrix4fv(curglslesi->projectionmatloc, 1, 0, ms_projection.dynstack[ms_projection.pos]);
 	}
-	
-	
+
 #include FAKE_GL_MODE
 }
 

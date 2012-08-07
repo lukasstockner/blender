@@ -36,7 +36,7 @@
 
 #include "BLI_utildefines.h"
 
-#include <GL/glew.h>
+#include "intern/gpu_glew.h"
 
 
 
@@ -74,28 +74,6 @@ extern GPUlighting *restrict GPU_LIGHTING;
 
 void gpuInitializeLighting(void);
 void gpuShutdownLighting(void);
-
-BLI_INLINE void gpuColorMaterial(GLenum face, GLenum mode);
-BLI_INLINE void gpuEnableColorMaterial(void);
-BLI_INLINE void gpuDisableColorMaterial(void);
-
-BLI_INLINE void gpuMaterialfv(GLenum face, GLenum pname, const GLfloat *params);
-BLI_INLINE void gpuMateriali(GLenum face, GLenum pname, GLint param);
-BLI_INLINE void gpuGetMaterialfv(GLenum face, GLenum pname, GLfloat *params);
-
-BLI_INLINE void gpuLightf(GLint light, GLenum pname, GLfloat param);
-BLI_INLINE void gpuLightfv(GLint light, GLenum pname, const GLfloat* params);
-
-BLI_INLINE void gpuEnableLight(GLint light);
-BLI_INLINE void gpuDisableLight(GLint light);
-BLI_INLINE GLboolean gpuIsLightEnabled(GLint light);
-
-BLI_INLINE void gpuLightModeli(GLenum pname, GLint param);
-BLI_INLINE void gpuLightModelfv(GLenum pname, const GLfloat* params);
-
-BLI_INLINE void gpuEnableLighting(void);
-BLI_INLINE void gpuDisableLighting(void);
-BLI_INLINE GLboolean gpuIsLightingEnabled(void);
 
 
 

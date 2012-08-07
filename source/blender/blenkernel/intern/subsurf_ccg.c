@@ -67,6 +67,7 @@
 #include "BLI_array.h"
 
 #include "GPU_compatibility.h"
+#include "GPU_colors.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"

@@ -44,7 +44,6 @@
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
 
-#include "BIF_gl.h"
 #include "BLF_api.h"
 
 #include "blf_internal_types.h"

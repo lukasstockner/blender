@@ -40,6 +40,7 @@
 #include "BLI_math.h"
 
 #include "GPU_compatibility.h"
+#include "GPU_colors.h"
 
 // constructor
 KX_Dome::KX_Dome (
@@ -59,7 +60,6 @@ KX_Dome::KX_Dome (
         struct Text* warptext
 
         ):
-    dlistSupported(false),
     canvaswidth(-1), canvasheight(-1),
     m_drawingmode(engine->GetDrawType()),
     m_resolution(res),
@@ -161,8 +161,6 @@ KX_Dome::KX_Dome (
 
 	if (warp.usemesh)
 		fboSupported = CreateFBO();
-
-	dlistSupported = CreateDL();
 }
 
 // destructor
@@ -172,9 +170,6 @@ KX_Dome::~KX_Dome (void)
 
 	if (fboSupported)
 		glDeleteFramebuffersEXT(1, &warp.fboId);
-
-	if (dlistSupported)
-		glDeleteLists(dlistId, (GLsizei) m_numimages);
 }
 
 void KX_Dome::SetViewPort(const int *viewport)
@@ -254,82 +249,6 @@ void KX_Dome::CalculateImageSize(void)
 		warp.bufferwidth  = canvaswidth;
 		warp.bufferheight = canvasheight;
 	}
-}
-
-bool KX_Dome::CreateDL()
-{
-	dlistId = glGenLists((GLsizei) m_numimages);
-	if (dlistId != 0) {
-		if (m_mode == DOME_FISHEYE || m_mode == DOME_TRUNCATED_FRONT || m_mode == DOME_TRUNCATED_REAR) {
-			glNewList(dlistId, GL_COMPILE);
-				GLDrawTriangles(cubetop, nfacestop);
-			glEndList();
-
-			glNewList(dlistId+1, GL_COMPILE);
-				GLDrawTriangles(cubebottom, nfacesbottom);
-			glEndList();
-
-			glNewList(dlistId+2, GL_COMPILE);
-				GLDrawTriangles(cubeleft, nfacesleft);
-			glEndList();
-
-			glNewList(dlistId+3, GL_COMPILE);
-				GLDrawTriangles(cuberight, nfacesright);
-			glEndList();
-
-			if (m_angle > 180) {
-				glNewList(dlistId+4, GL_COMPILE);
-					GLDrawTriangles(cubefront, nfacesfront);
-				glEndList();
-			}
-		}
-		else if (m_mode == DOME_PANORAM_SPH)
-		{
-			glNewList(dlistId, GL_COMPILE);
-				GLDrawTriangles(cubetop, nfacestop);
-			glEndList();
-
-			glNewList(dlistId+1, GL_COMPILE);
-				GLDrawTriangles(cubebottom, nfacesbottom);
-			glEndList();
-
-			glNewList(dlistId+2, GL_COMPILE);
-				GLDrawTriangles(cubeleft, nfacesleft);
-			glEndList();
-
-			glNewList(dlistId+3, GL_COMPILE);
-				GLDrawTriangles(cuberight, nfacesright);
-			glEndList();
-
-			glNewList(dlistId+4, GL_COMPILE);
-				GLDrawTriangles(cubeleftback, nfacesleftback);
-			glEndList();
-
-			glNewList(dlistId+5, GL_COMPILE);
-				GLDrawTriangles(cuberightback, nfacesrightback);
-			glEndList();
-		}
-
-		if (warp.usemesh) {
-			glNewList((dlistId + m_numfaces), GL_COMPILE);
-				GLDrawWarpQuads();
-			glEndList();
-		}
-
-		//clearing the vectors 
-		cubetop.clear();
-		cubebottom.clear();
-		cuberight.clear();
-		cubeleft.clear();
-		cubefront.clear();
-		cubeleftback.clear();
-		cuberightback.clear();
-		warp.nodes.clear();
-
-	} else // genList failed
-		return false;
-
-	return true;
 }
 
 bool KX_Dome::CreateFBO(void)
@@ -1788,8 +1707,6 @@ void KX_Dome::DrawEnvMap(void)
 
 void KX_Dome::DrawDomeFisheye(void)
 {
-	int i;
-
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	gpuMatrixMode(GL_PROJECTION);
 
@@ -1854,42 +1771,34 @@ void KX_Dome::DrawDomeFisheye(void)
 	glEnable(GL_TEXTURE_2D);
 	gpuCurrentColor3x(CPACK_WHITE);
 
-	if (dlistSupported) {
-		for (i=0;i<m_numfaces;i++) {
-			glBindTexture(GL_TEXTURE_2D, domefacesId[i]);
-			glCallList(dlistId+i);
-		}
+	// top triangle
+	glBindTexture(GL_TEXTURE_2D, domefacesId[0]);
+	GLDrawTriangles(cubetop, nfacestop);
+
+	// bottom triangle	
+	glBindTexture(GL_TEXTURE_2D, domefacesId[1]);
+	GLDrawTriangles(cubebottom, nfacesbottom);
+
+	// left triangle
+	glBindTexture(GL_TEXTURE_2D, domefacesId[2]);
+	GLDrawTriangles(cubeleft, nfacesleft);
+
+	// right triangle
+	glBindTexture(GL_TEXTURE_2D, domefacesId[3]);
+	GLDrawTriangles(cuberight, nfacesright);
+
+	if (m_angle > 180) {
+		// front triangle
+		glBindTexture(GL_TEXTURE_2D, domefacesId[4]);
+		GLDrawTriangles(cubefront, nfacesfront);
 	}
-	else { // DisplayLists not supported
-		// top triangle
-		glBindTexture(GL_TEXTURE_2D, domefacesId[0]);
-		GLDrawTriangles(cubetop, nfacestop);
 
-		// bottom triangle	
-		glBindTexture(GL_TEXTURE_2D, domefacesId[1]);
-		GLDrawTriangles(cubebottom, nfacesbottom);
-
-		// left triangle
-		glBindTexture(GL_TEXTURE_2D, domefacesId[2]);
-		GLDrawTriangles(cubeleft, nfacesleft);
-
-		// right triangle
-		glBindTexture(GL_TEXTURE_2D, domefacesId[3]);
-		GLDrawTriangles(cuberight, nfacesright);
-
-		if (m_angle > 180) {
-			// front triangle
-			glBindTexture(GL_TEXTURE_2D, domefacesId[4]);
-			GLDrawTriangles(cubefront, nfacesfront);
-		}
-	}
 	glDisable(GL_TEXTURE_2D);
 	glEnable(GL_DEPTH_TEST);
 }
 
 void KX_Dome::DrawPanorama(void)
 {
-	int i;
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	gpuMatrixMode(GL_PROJECTION);
 
@@ -1940,37 +1849,30 @@ void KX_Dome::DrawPanorama(void)
 	glEnable(GL_TEXTURE_2D);
 	gpuCurrentColor3x(CPACK_WHITE);
 
-	if (dlistSupported) {
-		for (i=0;i<m_numfaces;i++) {
-			glBindTexture(GL_TEXTURE_2D, domefacesId[i]);
-			glCallList(dlistId+i);
-		}
-	}
-	else {
-		// domefacesId[4] =>  (top)
-		glBindTexture(GL_TEXTURE_2D, domefacesId[0]);
-			GLDrawTriangles(cubetop, nfacestop);
+	// domefacesId[4] =>  (top)
+	glBindTexture(GL_TEXTURE_2D, domefacesId[0]);
+	GLDrawTriangles(cubetop, nfacestop);
 
-		// domefacesId[5] =>  (bottom)
-		glBindTexture(GL_TEXTURE_2D, domefacesId[1]);
-			GLDrawTriangles(cubebottom, nfacesbottom);
+	// domefacesId[5] =>  (bottom)
+	glBindTexture(GL_TEXTURE_2D, domefacesId[1]);
+	GLDrawTriangles(cubebottom, nfacesbottom);
 
-		// domefacesId[1] => -45deg (left)
-		glBindTexture(GL_TEXTURE_2D, domefacesId[2]);
-			GLDrawTriangles(cubeleft, nfacesleft);
+	// domefacesId[1] => -45deg (left)
+	glBindTexture(GL_TEXTURE_2D, domefacesId[2]);
+	GLDrawTriangles(cubeleft, nfacesleft);
 
-		// domefacesId[2] => 45deg (right)
-		glBindTexture(GL_TEXTURE_2D, domefacesId[3]);
-			GLDrawTriangles(cuberight, nfacesright);
+	// domefacesId[2] => 45deg (right)
+	glBindTexture(GL_TEXTURE_2D, domefacesId[3]);
+	GLDrawTriangles(cuberight, nfacesright);
 
-		// domefacesId[0] => -135deg (leftback)
-		glBindTexture(GL_TEXTURE_2D, domefacesId[4]);
-			GLDrawTriangles(cubeleftback, nfacesleftback);
+	// domefacesId[0] => -135deg (leftback)
+	glBindTexture(GL_TEXTURE_2D, domefacesId[4]);
+	GLDrawTriangles(cubeleftback, nfacesleftback);
 
-		// domefacesId[3] => 135deg (rightback)
-		glBindTexture(GL_TEXTURE_2D, domefacesId[5]);
-			GLDrawTriangles(cuberightback, nfacesrightback);
-	}
+	// domefacesId[3] => 135deg (rightback)
+	glBindTexture(GL_TEXTURE_2D, domefacesId[5]);
+	GLDrawTriangles(cuberightback, nfacesrightback);
+
 	glDisable(GL_TEXTURE_2D);
 	glEnable(GL_DEPTH_TEST);
 }
@@ -2009,14 +1911,9 @@ void KX_Dome::DrawDomeWarped(void)
 	glEnable(GL_TEXTURE_2D);
 	gpuCurrentColor3x(CPACK_WHITE);
 
-	if (dlistSupported) {
-		glBindTexture(GL_TEXTURE_2D, domefacesId[m_numfaces]);
-		glCallList(dlistId + m_numfaces);
-	}
-	else {
-		glBindTexture(GL_TEXTURE_2D, domefacesId[m_numfaces]);
-		GLDrawWarpQuads();
-	}
+	glBindTexture(GL_TEXTURE_2D, domefacesId[m_numfaces]);
+	GLDrawWarpQuads();
+
 	glDisable(GL_TEXTURE_2D);
 	glEnable(GL_DEPTH_TEST);
 }

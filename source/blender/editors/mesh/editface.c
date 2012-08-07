@@ -51,7 +51,7 @@
 #include "BKE_context.h"
 #include "BKE_tessmesh.h"
 
-#include "BIF_gl.h"
+#include "GPU_compatibility.h"
 
 #include "ED_mesh.h"
 #include "ED_screen.h"

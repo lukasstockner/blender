@@ -46,9 +46,8 @@
 
 #include "WM_api.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_primitives.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "ED_view3d.h"

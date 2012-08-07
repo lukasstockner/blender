@@ -52,9 +52,8 @@
 #include "BKE_idprop.h"
 #include "BKE_utildefines.h" /* FILE_MAX */
 
+#include "GPU_colors.h"
 #include "GPU_compatibility.h"
-
-#include "BIF_gl.h"
 
 #include "BLF_api.h"
 #include "BLF_translation.h"

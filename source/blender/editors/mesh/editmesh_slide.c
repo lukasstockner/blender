@@ -37,7 +37,6 @@
 #include "BKE_report.h"
 #include "BKE_tessmesh.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "ED_screen.h"
@@ -55,7 +54,7 @@
 
 #include "mesh_intern.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_primitives.h"
 
 #define VTX_SLIDE_SNAP_THRSH 15
 

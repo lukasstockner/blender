@@ -31,6 +31,8 @@
 #ifndef __BLF_INTERNAL_TYPES_H__
 #define __BLF_INTERNAL_TYPES_H__
 
+#include "GPU_compatibility.h"
+
 typedef struct GlyphCacheBLF {
 	struct GlyphCacheBLF *next;
 	struct GlyphCacheBLF *prev;

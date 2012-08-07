@@ -48,9 +48,9 @@
 #include "ED_view3d.h"
 #include "ED_screen.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
 
-#include "BIF_gl.h"
 //#include "BIF_screen.h"
 //#include "BIF_space.h"
 //#include "BIF_mywindow.h"
@@ -453,7 +453,7 @@ static float sk_clampPointSize(SK_Point *pt, float size)
 	return MAX2(size * pt->size, size / 2);
 }
 
-static void sk_drawPoint(GPUprim3 *prim, SK_Point *pt, float size)
+static void sk_drawPoint(struct GPUprim3 *prim, SK_Point *pt, float size)
 {
 	gpuTranslate(pt->p[0], pt->p[1], pt->p[2]);
 
@@ -461,7 +461,7 @@ static void sk_drawPoint(GPUprim3 *prim, SK_Point *pt, float size)
 	//GLU Sphere(quad, sk_clampPointSize(pt, size), 8, 8);
 }
 
-static void sk_drawEdge(GPUprim3 *prim, SK_Point *pt0, SK_Point *pt1, float size)
+static void sk_drawEdge(struct GPUprim3 *prim, SK_Point *pt0, SK_Point *pt1, float size)
 {
 	float vec1[3], vec2[3] = {0, 0, 1}, axis[3];
 	float angle, length;
@@ -482,7 +482,7 @@ static void sk_drawEdge(GPUprim3 *prim, SK_Point *pt0, SK_Point *pt1, float size
 	//GLU Cylinder(quad, sk_clampPointSize(pt1, size), sk_clampPointSize(pt0, size), length, 8, 8);
 }
 
-static void sk_drawNormal(GPUprim3 *prim, SK_Point *pt, float size, float height)
+static void sk_drawNormal(struct GPUprim3 *prim, SK_Point *pt, float size, float height)
 {
 	float vec2[3] = {0, 0, 1}, axis[3];
 	float angle;
@@ -511,7 +511,7 @@ static void sk_drawStroke(SK_Stroke *stk, int id, float color[3], int start, int
 {
 	float rgb[3];
 	int i;
-	GPUprim3 prim = GPU_PRIM_LOFI_SOLID;
+	struct GPUprim3 prim = GPU_PRIM_LOFI_SOLID;
 
 	if (id != -1) {
 		glLoadName(id);
@@ -577,7 +577,7 @@ static void drawSubdividedStrokeBy(ToolSettings *toolsettings, BArcIterator *ite
 	int bone_start = 0;
 	int end = iter->length;
 	int index;
-	GPUprim3 prim = GPU_PRIM_LOFI_SOLID;
+	struct GPUprim3 prim = GPU_PRIM_LOFI_SOLID;
 
 	iter->head(iter);
 	copy_v3_v3(head, iter->p);
@@ -2068,7 +2068,7 @@ static void sk_drawSketch(Scene *scene, View3D *UNUSED(v3d), SK_Sketch *sketch, 
 			}
 
 			if (last != NULL) {
-				GPUprim3 prim = GPU_PRIM_LOFI_SOLID;
+				struct GPUprim3 prim = GPU_PRIM_LOFI_SOLID;
 
 				gpuPushMatrix();
 
@@ -2112,7 +2112,7 @@ static void sk_drawSketch(Scene *scene, View3D *UNUSED(v3d), SK_Sketch *sketch, 
 								{0, 0, 0}
 							};
 		DepthPeel *p;
-		GPUprim3 prim = GPU_PRIM_LORES_SOLID;
+		struct GPUprim3 prim = GPU_PRIM_LORES_SOLID;
 
 		for (p = sketch->depth_peels.first; p; p = p->next)
 		{

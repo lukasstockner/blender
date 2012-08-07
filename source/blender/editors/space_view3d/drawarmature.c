@@ -55,10 +55,9 @@
 #include "BKE_modifier.h"
 #include "BKE_nla.h"
 
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
 
-#include "GPU_compatibility.h"
-
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "ED_armature.h"
@@ -315,89 +314,6 @@ static void set_ebone_gpuCurrentColor(const unsigned int boneflag)
 }
 
 /* *************** Armature drawing, helper calls for parts ******************* */
-
-/* half the cube, in Y */
-static float cube[8][3] = {
-	{-1.0,  0.0, -1.0},
-	{-1.0,  0.0,  1.0},
-	{-1.0,  1.0,  1.0},
-	{-1.0,  1.0, -1.0},
-	{ 1.0,  0.0, -1.0},
-	{ 1.0,  0.0,  1.0},
-	{ 1.0,  1.0,  1.0},
-	{ 1.0,  1.0, -1.0},
-};
-
-static void drawsolidcube_size(float xsize, float ysize, float zsize)
-{
-	static GLuint displist = 0;
-	float n[3] = {0.0f};
-	
-	gpuScale(xsize, ysize, zsize);
-
-	if (displist == 0) {
-		displist = glGenLists(1);
-		glNewList(displist, GL_COMPILE);
-
-		gpuBegin(GL_QUADS);
-		n[0] = -1.0;
-		gpuNormal3fv(n); 
-		gpuVertex3fv(cube[0]); gpuVertex3fv(cube[1]); gpuVertex3fv(cube[2]); gpuVertex3fv(cube[3]);
-		n[0] = 0;
-		n[1] = -1.0;
-		gpuNormal3fv(n); 
-		gpuVertex3fv(cube[0]); gpuVertex3fv(cube[4]); gpuVertex3fv(cube[5]); gpuVertex3fv(cube[1]);
-		n[1] = 0;
-		n[0] = 1.0;
-		gpuNormal3fv(n); 
-		gpuVertex3fv(cube[4]); gpuVertex3fv(cube[7]); gpuVertex3fv(cube[6]); gpuVertex3fv(cube[5]);
-		n[0] = 0;
-		n[1] = 1.0;
-		gpuNormal3fv(n); 
-		gpuVertex3fv(cube[7]); gpuVertex3fv(cube[3]); gpuVertex3fv(cube[2]); gpuVertex3fv(cube[6]);
-		n[1] = 0;
-		n[2] = 1.0;
-		gpuNormal3fv(n); 
-		gpuVertex3fv(cube[1]); gpuVertex3fv(cube[5]); gpuVertex3fv(cube[6]); gpuVertex3fv(cube[2]);
-		n[2] = -1.0;
-		gpuNormal3fv(n); 
-		gpuVertex3fv(cube[7]); gpuVertex3fv(cube[4]); gpuVertex3fv(cube[0]); gpuVertex3fv(cube[3]);
-		gpuEnd();
-
-		glEndList();
-	}
-
-	glCallList(displist);
-}
-
-static void drawcube_size(float xsize, float ysize, float zsize)
-{
-	static GLuint displist = 0;
-	
-	if (displist == 0) {
-		displist = glGenLists(1);
-		glNewList(displist, GL_COMPILE);
-		
-		gpuBegin(GL_LINE_STRIP);
-		gpuVertex3fv(cube[0]); gpuVertex3fv(cube[1]); gpuVertex3fv(cube[2]); gpuVertex3fv(cube[3]);
-		gpuVertex3fv(cube[0]); gpuVertex3fv(cube[4]); gpuVertex3fv(cube[5]); gpuVertex3fv(cube[6]);
-		gpuVertex3fv(cube[7]); gpuVertex3fv(cube[4]);
-		gpuEnd();
-		
-		gpuBegin(GL_LINES);
-		gpuVertex3fv(cube[1]); gpuVertex3fv(cube[5]);
-		gpuVertex3fv(cube[2]); gpuVertex3fv(cube[6]);
-		gpuVertex3fv(cube[3]); gpuVertex3fv(cube[7]);
-		gpuEnd();
-		
-		glEndList();
-	}
-
-	gpuScale(xsize, ysize, zsize);
-	glCallList(displist);
-	
-}
-
 
 static void draw_bonevert(void)
 {
@@ -1164,16 +1080,32 @@ static void draw_b_bone_boxes(const short dt, bPoseChannel *pchan, float xwidth,
 		for (a = 0; a < segments; a++, bbone++) {
 			gpuPushMatrix();
 			gpuMultMatrix(bbone->mat);
-			if (dt == OB_SOLID) drawsolidcube_size(xwidth, dlen, zwidth);
-			else drawcube_size(xwidth, dlen, zwidth);
+			gpuScale(xwidth, dlen, zwidth);
+
+			if (dt == OB_SOLID) {
+				gpuDrawSolidHalfCube();
+			}
+			else {
+				gpuDrawWireHalfCube();
+			}
+
 			gpuPopMatrix();
+
 		}
 	}
 	else {
 		gpuPushMatrix();
-		if (dt == OB_SOLID) drawsolidcube_size(xwidth, length, zwidth);
-		else drawcube_size(xwidth, length, zwidth);
+		gpuScale(xwidth, length, zwidth);
+
+		if (dt == OB_SOLID) {
+			gpuDrawSolidHalfCube();
+		}
+		else {
+			gpuDrawWireHalfCube();
+		}
+
 		gpuPopMatrix();
+
 	}
 }
 

@@ -49,7 +49,6 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "ED_screen.h"
@@ -57,7 +56,7 @@
 
 #include "paint_intern.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_primitives.h"
 
 #include <float.h>
 #include <math.h>

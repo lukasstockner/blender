@@ -32,8 +32,6 @@ http://www.gnu.org/copyleft/lesser.txt.
 #include <math.h>
 
 
-#include <GL/glew.h>
-
 #include "KX_PythonInit.h"
 #include "DNA_scene_types.h"
 #include "RAS_CameraData.h"
@@ -45,6 +43,8 @@ http://www.gnu.org/copyleft/lesser.txt.
 #include "BlendType.h"
 #include "Exception.h"
 #include "Texture.h"
+
+#include "GPU_compatibility.h"
 
 ExceptionID SceneInvalid, CameraInvalid, ObserverInvalid;
 ExceptionID MirrorInvalid, MirrorSizeInvalid, MirrorNormalInvalid, MirrorHorizontal, MirrorTooSmall;

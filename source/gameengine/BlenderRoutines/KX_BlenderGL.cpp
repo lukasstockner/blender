@@ -44,6 +44,7 @@
 #include <string.h>
 
 #include "GPU_compatibility.h"
+#include "GPU_colors.h"
 
 #include "MEM_guardedalloc.h"
 

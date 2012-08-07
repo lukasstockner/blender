@@ -34,7 +34,7 @@
 
 
 
-#include <GL/glew.h>
+#include "GPU_compatibility.h"
 
 
 
@@ -224,6 +224,9 @@ void gpuEndSprites(void);
 
 void gpuSingleWireUnitCube(void);
 void gpuSingleWireCube(GLfloat size);
+
+void gpuDrawSolidHalfCube(void);
+void gpuDrawWireHalfCube(void);
 
 
 

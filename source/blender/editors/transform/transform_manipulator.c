@@ -66,8 +66,8 @@
 #include "BKE_pointcache.h"
 #include "BKE_tessmesh.h"
 
-#include "GPU_compatibility.h"
-#include "BIF_gl.h"
+#include "GPU_primitives.h"
+
 
 #include "WM_api.h"
 #include "WM_types.h"

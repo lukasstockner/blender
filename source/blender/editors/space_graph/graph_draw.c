@@ -54,9 +54,9 @@
 #include "BKE_curve.h"
 #include "BKE_fcurve.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "ED_anim_api.h"
@@ -399,30 +399,18 @@ static void draw_fcurve_handles(SpaceIpo *sipo, FCurve *fcu)
  */
 static void draw_fcurve_sample_control(float x, float y, float xscale, float yscale, float hsize)
 {
-	static GLuint displist = 0;
-	
-	/* initialize X shape */
-	if (displist == 0) {
-		displist = glGenLists(1);
-		glNewList(displist, GL_COMPILE);
-		
-		gpuBegin(GL_LINES);
-		gpuVertex2f(-0.7f, -0.7f);
-		gpuVertex2f(+0.7f, +0.7f);
-			
-		gpuVertex2f(-0.7f, +0.7f);
-		gpuVertex2f(+0.7f, -0.7f);
-		gpuEnd(); // GL_LINES
-		
-		glEndList();
-	}
-	
 	/* adjust view transform before starting */
 	gpuTranslate(x, y, 0.0f);
 	gpuScale(1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
 	
 	/* draw! */
-	glCallList(displist);
+	gpuBegin(GL_LINES);
+	gpuVertex2f(-0.7f, -0.7f);
+	gpuVertex2f(+0.7f, +0.7f);
+
+	gpuVertex2f(-0.7f, +0.7f);
+	gpuVertex2f(+0.7f, -0.7f);
+	gpuEnd(); // GL_LINES
 	
 	/* restore view transform */
 	gpuScale(xscale / hsize, yscale / hsize, 1.0);

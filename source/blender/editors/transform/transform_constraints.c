@@ -48,9 +48,8 @@
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_primitives.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "BKE_context.h"

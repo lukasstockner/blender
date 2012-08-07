@@ -75,7 +75,8 @@
 
 #include "BKE_idcode.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
 
 #include "BLF_api.h"
 

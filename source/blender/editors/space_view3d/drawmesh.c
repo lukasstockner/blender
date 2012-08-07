@@ -58,12 +58,12 @@
 #include "BKE_tessmesh.h"
 #include "BKE_scene.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "UI_resources.h"
 
 #include "GPU_compatibility.h"
+#include "GPU_colors.h"
 #include "GPU_buffers.h"
 #include "GPU_extensions.h"
 #include "GPU_draw.h"

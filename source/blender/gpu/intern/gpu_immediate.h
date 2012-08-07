@@ -32,41 +32,16 @@
 #ifndef __GPU_IMMEDIATE_H__
 #define __GPU_IMMEDIATE_H__
 
-#ifdef GLES
-#include REAL_GL_MODE
-#include <GLES2/gl2.h>
-#include <GL/glew.h>
-#else
-#include <GL/glew.h>
-#endif
-
-#ifndef GLES
-#include <stdlib.h>
-#endif
-
-#include "BLI_utildefines.h"
 
 
+#include "intern/gpu_glew.h"
+#include "intern/gpu_safety.h"
 
-#ifndef GPU_SAFETY
-#define GPU_SAFETY (DEBUG && WITH_GPU_SAFETY)
-#endif
+
 
 #if GPU_SAFETY
 
 /* Define some useful, but slow, checks for correct API usage. */
-
-#define GPU_ASSERT(test) BLI_assert(test)
-
-/* Bails out of function even if assert or abort are disabled.
-   Needs a variable in scope to store results of the test.
-   Can only be used in functions that return void. */
-#define GPU_SAFE_RETURN(test, var, ret) \
-    var = (GLboolean)(test);            \
-    GPU_ASSERT(((void)#test, var));     \
-    if (!var) {                         \
-        return ret;                     \
-    }
 
 #define GPU_CHECK_BASE(var) \
     GPU_SAFE_RETURN(GPU_IMMEDIATE != NULL, var,);
@@ -125,10 +100,6 @@
 #define GPU_CURRENT_NORMAL_VALID(v) (GPU_IMMEDIATE->isNormalValid = (v))
 
 #else
-
-#define GPU_ASSERT(test)
-
-#define GPU_SAFE_RETURN(test, var, ret) { (void)var; }
 
 #define GPU_CHECK_CAN_BEGIN()
 #define GPU_CHECK_CAN_END()

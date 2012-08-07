@@ -53,9 +53,9 @@
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
+#include "GPU_compatibility.h"
 #include "GPU_draw.h"
 
 #include "WM_api.h"

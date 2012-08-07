@@ -48,9 +48,7 @@
 
 #include "WM_api.h"
 
-#include "GPU_compatibility.h"
-
-#include "BIF_gl.h"
+#include "GPU_primitives.h"
 
 #include "BLF_api.h"
 

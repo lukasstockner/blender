@@ -50,7 +50,8 @@ http://www.gnu.org/copyleft/lesser.txt.
 #include "Exception.h"
 
 #include <memory.h>
-#include <GL/glew.h>
+#include "GPU_compatibility.h"
+
 
 
 // macro for exception handling and logging

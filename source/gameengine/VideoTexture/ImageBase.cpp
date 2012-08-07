@@ -28,7 +28,6 @@ http://www.gnu.org/copyleft/lesser.txt.
 extern "C" {
 #include "bgl.h"
 }
-#include <GL/glew.h>
 
 #include <vector>
 #include <string.h>
@@ -39,6 +38,8 @@ extern "C" {
 #include "FilterBase.h"
 
 #include "Exception.h"
+
+#include "GPU_compatibility.h"
 
 #if (defined(WIN32) || defined(WIN64)) && !defined(FREE_WINDOWS)
 #define strcasecmp	_stricmp

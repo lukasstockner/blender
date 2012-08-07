@@ -45,6 +45,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
 
+#include "GPU_compatibility.h"
 #include "GPU_extensions.h"
 
 #include "IMB_imbuf_types.h"
@@ -53,7 +54,6 @@
 #include "ED_screen.h"
 #include "ED_clip.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "WM_api.h"

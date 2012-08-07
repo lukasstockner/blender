@@ -34,8 +34,6 @@
 #include <stddef.h>
 #include <string.h>
 
-#include <GL/glew.h>
-
 #include "MEM_guardedalloc.h"
 
 #include "BLI_bitmap.h"

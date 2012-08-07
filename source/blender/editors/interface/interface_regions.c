@@ -58,7 +58,6 @@
 #include "GPU_compatibility.h"
 #include "GPU_utility.h"
 
-#include "BIF_gl.h"
 
 #include "UI_interface.h"
 #include "UI_interface_icons.h"

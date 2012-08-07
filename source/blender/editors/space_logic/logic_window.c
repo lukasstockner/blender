@@ -61,9 +61,8 @@
 
 #include "WM_types.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_primitives.h"
 
-#include "BIF_gl.h"
 
 #include "UI_interface.h"
 

@@ -45,8 +45,6 @@
 
 #include "BLI_blenlib.h"
 
-#include "BIF_gl.h"
-
 #include "BLF_api.h"
 #include "blf_internal_types.h"
 #include "blf_internal.h"

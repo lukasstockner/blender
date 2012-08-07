@@ -5,7 +5,6 @@
 // ------------------------------------
 // ...
 // ------------------------------------
-#include <GL/glew.h>
 
 #include "KX_BlenderMaterial.h"
 #include "BL_Material.h"

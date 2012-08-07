@@ -52,7 +52,7 @@
 #include "ED_markers.h"
 #include "ED_screen.h"
 
-#include "BIF_gl.h"
+#include "GPU_compatibility.h"
 
 #include "WM_api.h"
 #include "WM_types.h"

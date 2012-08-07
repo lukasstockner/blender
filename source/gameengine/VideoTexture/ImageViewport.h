@@ -32,6 +32,7 @@ http://www.gnu.org/copyleft/lesser.txt.
 
 #include "ImageBase.h"
 
+#include "GPU_compatibility.h"
 
 /// class for viewport access
 class ImageViewport : public ImageBase

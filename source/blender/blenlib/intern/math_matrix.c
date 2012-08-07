@@ -142,7 +142,7 @@ void swap_m4m4(float m1[][4], float m2[][4])
 
 /******************************** Arithmetic *********************************/
 
-void mult_m4_m4m4_q(float m1[][4], float m3[][4], float m2[][4])
+void mult_m4_m4m4_q(float m1[][4], const float m3[][4], const float m2[][4])
 {
 	/* matrix product: m1[j][k] = m2[j][i].m3[i][k] */
 	m1[0][0] = m2[0][0] * m3[0][0] + m2[0][1] * m3[1][0] + m2[0][2] * m3[2][0] + m2[0][3] * m3[3][0];
@@ -365,7 +365,7 @@ void mul_v3_m4v3(float in[3], float mat[][4], const float vec[3])
 }
 
 
-void mul_v4_m4v3(float out[4], float mat[][4], const float vec[3])
+void mul_v4_m4v3(float out[4], const float mat[][4], const float vec[3])
 {
 	out[0] = vec[0] * mat[0][0] + vec[1] * mat[1][0] + mat[2][0] * vec[2] + mat[3][0];
 	out[1] = vec[0] * mat[0][1] + vec[1] * mat[1][1] + mat[2][1] * vec[2] + mat[3][1];

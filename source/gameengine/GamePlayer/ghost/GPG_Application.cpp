@@ -36,7 +36,7 @@
 	#include <windows.h>
 #endif
 
-#include <GL/glew.h>
+#include "GPU_compatibility.h"
 #include "GPU_extensions.h"
 
 #include "GPG_Application.h"

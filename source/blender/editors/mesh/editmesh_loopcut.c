@@ -62,9 +62,9 @@
 #include "BKE_tessmesh.h"
 #include "BKE_depsgraph.h"
 
+#include "GPU_colors.h"
 #include "GPU_compatibility.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h" /* for paint cursor */
 
 #include "IMB_imbuf_types.h"

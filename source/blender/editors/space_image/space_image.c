@@ -62,7 +62,7 @@
 #include "ED_screen.h"
 #include "ED_uvedit.h"
 
-#include "BIF_gl.h"
+#include "GPU_compatibility.h"
 
 #include "RNA_access.h"
 

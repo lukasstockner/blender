@@ -69,7 +69,7 @@
 #include "BKE_modifier.h"
 #include "DNA_object_types.h"
 
-#include "BIF_gl.h"
+#include "GPU_compatibility.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"

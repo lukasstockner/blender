@@ -39,7 +39,7 @@
 
 #include "DNA_packedFile_types.h"
 
-#include "BIF_gl.h"
+#include "GPU_compatibility.h"
 
 #ifdef RNA_RUNTIME
 
@@ -51,7 +51,6 @@
 
 #include "IMB_imbuf.h"
 
-#include "BIF_gl.h"
 #include "GPU_draw.h"
 
 #include "DNA_image_types.h"

@@ -48,9 +48,9 @@
 #include "ED_screen.h"
 #include "ED_clip.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "WM_types.h"
@@ -90,37 +90,8 @@ static void draw_keyframe_shape(float x, float y, float xscale, float yscale, sh
 		{0.0f, -1.0f},  /* bottom vert */
 		{-1.0f, 0.0f}   /* mid-left */
 	};
-	static GLuint displist1 = 0;
-	static GLuint displist2 = 0;
+
 	int hsize = STRIP_HEIGHT_HALF;
-
-	/* initialize 2 display lists for diamond shape - one empty, one filled */
-	if (displist1 == 0) {
-		displist1 = glGenLists(1);
-		glNewList(displist1, GL_COMPILE);
-
-		gpuBegin(GL_LINE_LOOP);
-		gpuVertex2fv(_unit_diamond_shape[0]);
-		gpuVertex2fv(_unit_diamond_shape[1]);
-		gpuVertex2fv(_unit_diamond_shape[2]);
-		gpuVertex2fv(_unit_diamond_shape[3]);
-		gpuEnd();
-		
-		glEndList();
-	}
-	if (displist2 == 0) {
-		displist2 = glGenLists(1);
-		glNewList(displist2, GL_COMPILE);
-
-		gpuBegin(GL_QUADS);
-		gpuVertex2fv(_unit_diamond_shape[0]);
-		gpuVertex2fv(_unit_diamond_shape[1]);
-		gpuVertex2fv(_unit_diamond_shape[2]);
-		gpuVertex2fv(_unit_diamond_shape[3]);
-		gpuEnd();
-
-		glEndList();
-	}
 
 	gpuPushMatrix();
 
@@ -136,11 +107,21 @@ static void draw_keyframe_shape(float x, float y, float xscale, float yscale, sh
 	else
 		gpuCurrentGray4f(0.910f, alpha);
 
-	glCallList(displist2);
+	gpuBegin(GL_QUADS);
+	gpuVertex2fv(_unit_diamond_shape[0]);
+	gpuVertex2fv(_unit_diamond_shape[1]);
+	gpuVertex2fv(_unit_diamond_shape[2]);
+	gpuVertex2fv(_unit_diamond_shape[3]);
+	gpuEnd();
 
 	/* exterior - black frame */
 	gpuCurrentColor4x(CPACK_BLACK, alpha);
-	glCallList(displist1);
+	gpuBegin(GL_LINE_LOOP);
+	gpuVertex2fv(_unit_diamond_shape[0]);
+	gpuVertex2fv(_unit_diamond_shape[1]);
+	gpuVertex2fv(_unit_diamond_shape[2]);
+	gpuVertex2fv(_unit_diamond_shape[3]);
+	gpuEnd();
 
 	glDisable(GL_LINE_SMOOTH);
 

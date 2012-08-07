@@ -45,6 +45,7 @@
 #include "GPC_Canvas.h"
 
 #include "GPU_compatibility.h"
+#include "GPU_colors.h"
 
 GPC_Canvas::TBannerId GPC_Canvas::s_bannerId = 0;
 

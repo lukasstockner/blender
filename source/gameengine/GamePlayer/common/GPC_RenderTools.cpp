@@ -51,6 +51,7 @@
 
 #include "GPU_compatibility.h"
 #include "GPU_draw.h"
+#include "GPU_colors.h"
 
 #include "BKE_bmfont.h" // for text printing
 #include "BKE_bmfont_types.h"

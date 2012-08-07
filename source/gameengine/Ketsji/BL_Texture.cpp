@@ -51,12 +51,11 @@ static GLint g_max_units = -1;
 
 
 BL_Texture::BL_Texture()
-:	mTexture(0),
-	mOk(0),
-	mNeedsDeleted(0),
-	mType(0),
-	mUnit(0),
-	mEnvState(0)
+	: mTexture(0)
+	, mOk(0)
+	, mNeedsDeleted(0)
+	, mType(0)
+	, mUnit(0)
 {
 	// --
 }
@@ -72,11 +71,6 @@ void BL_Texture::DeleteTex()
 		glDeleteTextures(1, (GLuint*)&mTexture);
 		mNeedsDeleted = 0;
 		mOk = 0;
-	}
-
-	if (mEnvState) {
-		glDeleteLists((GLuint)mEnvState, 1);
-		mEnvState =0;
 	}
 
 	if (mDisableState) {
@@ -514,16 +508,6 @@ void BL_Texture::setTexEnv(BL_Material *mat, bool modulate)
 		return;
 	}
 
-	if (glIsList(mEnvState))
-	{
-		glCallList(mEnvState);
-		return;
-	}
-	if (!mEnvState)
-		mEnvState = glGenLists(1);
-
-	glNewList(mEnvState, GL_COMPILE_AND_EXECUTE);
-
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_ARB );
 
 	GLfloat blend_operand		= GL_SRC_COLOR;
@@ -549,6 +533,7 @@ void BL_Texture::setTexEnv(BL_Material *mat, bool modulate)
 		op2 = GL_OPERAND2_ALPHA_ARB;
 		blend_operand = GL_SRC_ALPHA;
 		blend_operand_prev = GL_SRC_ALPHA;
+
 		// invert
 		if (mat->flag[mUnit] &TEXNEG) {
 			blend_operand_prev = GL_ONE_MINUS_SRC_ALPHA;
@@ -640,9 +625,8 @@ void BL_Texture::setTexEnv(BL_Material *mat, bool modulate)
 					glTexEnvf(	GL_TEXTURE_ENV, op1,		blend_operand);
 			} break;
 	}
-	glTexEnvf(	GL_TEXTURE_ENV, GL_RGB_SCALE_ARB,	1.0);
 
-	glEndList();
+	glTexEnvf(	GL_TEXTURE_ENV, GL_RGB_SCALE_ARB,	1.0);
 }
 
 int BL_Texture::GetPow2(int n)

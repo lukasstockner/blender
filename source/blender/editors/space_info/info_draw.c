@@ -46,10 +46,10 @@
 // #include "BKE_suggestions.h"
 #include "BKE_report.h"
 
+#include "GPU_compatibility.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "ED_datafiles.h"

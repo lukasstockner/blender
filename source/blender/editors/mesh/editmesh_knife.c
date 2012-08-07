@@ -47,7 +47,6 @@
 
 #include "GPU_compatibility.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h" /* for paint cursor */
 
 #include "ED_screen.h"

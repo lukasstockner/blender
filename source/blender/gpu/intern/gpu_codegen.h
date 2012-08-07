@@ -34,8 +34,9 @@
 #define __GPU_CODEGEN_H__
 
 #include "DNA_listBase.h"
+
+#include "GPU_compatibility.h"
 #include "GPU_material.h"
-#include <GL/glew.h>
 
 struct ListBase;
 struct GPUShader;

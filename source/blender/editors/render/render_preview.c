@@ -81,13 +81,13 @@
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "PIL_time.h"
 
 #include "RE_pipeline.h"
 
+#include "GPU_compatibility.h"
 
 #include "WM_api.h"
 #include "WM_types.h"

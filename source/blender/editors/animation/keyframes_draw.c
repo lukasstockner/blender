@@ -66,9 +66,8 @@
 #include "BKE_material.h"
 #include "BKE_global.h"     // XXX remove me!
 
-#include "GPU_compatibility.h"
-
-#include "BIF_gl.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
 
 #include "UI_resources.h"
 #include "UI_view2d.h"
@@ -551,37 +550,6 @@ static const float _unit_diamond_shape[4][2] = {
 /* draw a simple diamond shape with OpenGL */
 void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel, short key_type, short mode, float alpha)
 {
-	static GLuint displist1 = 0;
-	static GLuint displist2 = 0;
-	
-	/* initialize 2 display lists for diamond shape - one empty, one filled */
-	if (displist1 == 0) {
-		displist1 = glGenLists(1);
-		glNewList(displist1, GL_COMPILE);
-			
-		gpuBegin(GL_LINE_LOOP);
-		gpuVertex2fv(_unit_diamond_shape[0]);
-		gpuVertex2fv(_unit_diamond_shape[1]);
-		gpuVertex2fv(_unit_diamond_shape[2]);
-		gpuVertex2fv(_unit_diamond_shape[3]);
-		gpuEnd();
-
-		glEndList();
-	}
-	if (displist2 == 0) {
-		displist2 = glGenLists(1);
-		glNewList(displist2, GL_COMPILE);
-			
-		gpuBegin(GL_QUADS);
-		gpuVertex2fv(_unit_diamond_shape[0]);
-		gpuVertex2fv(_unit_diamond_shape[1]);
-		gpuVertex2fv(_unit_diamond_shape[2]);
-		gpuVertex2fv(_unit_diamond_shape[3]);
-		gpuEnd();
-
-		glEndList();
-	}
-	
 	/* tweak size of keyframe shape according to type of keyframe 
 	 * - 'proper' keyframes have key_type=0, so get drawn at full size
 	 */
@@ -628,14 +596,24 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 			break;
 		}
 		
-		glCallList(displist2);
+		gpuBegin(GL_QUADS);
+		gpuVertex2fv(_unit_diamond_shape[0]);
+		gpuVertex2fv(_unit_diamond_shape[1]);
+		gpuVertex2fv(_unit_diamond_shape[2]);
+		gpuVertex2fv(_unit_diamond_shape[3]);
+		gpuEnd();
 	}
 	
 	if (ELEM(mode, KEYFRAME_SHAPE_FRAME, KEYFRAME_SHAPE_BOTH)) {
 		/* exterior - black frame */
 		gpuCurrentColor4x(CPACK_BLACK, alpha);
 		
-		glCallList(displist1);
+		gpuBegin(GL_LINE_LOOP);
+		gpuVertex2fv(_unit_diamond_shape[0]);
+		gpuVertex2fv(_unit_diamond_shape[1]);
+		gpuVertex2fv(_unit_diamond_shape[2]);
+		gpuVertex2fv(_unit_diamond_shape[3]);
+		gpuEnd();
 	}
 	
 	glDisable(GL_LINE_SMOOTH);

@@ -32,7 +32,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <GL/glew.h>
+#include "intern/gpu_glew.h"
 
 /* debugging aid */
 static void gpu_get_print(const char *name, GLenum type)

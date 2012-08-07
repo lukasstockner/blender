@@ -33,8 +33,6 @@
 #include <limits.h>
 #include <math.h>
 
-#include "GL/glew.h"
-
 #include "BLI_utildefines.h"
 #include "BLI_blenlib.h"
 #include "BLI_edgehash.h"

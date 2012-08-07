@@ -41,6 +41,7 @@
 #include "BLI_blenlib.h"
 
 #include "GPU_compatibility.h"
+#include "GPU_colors.h"
 
 #include "BIF_glutil.h"
 

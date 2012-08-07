@@ -29,13 +29,13 @@ http://www.gnu.org/copyleft/lesser.txt.
 #include "PyObjectPlus.h"
 #include <structmember.h>
 
-#include <GL/glew.h>
-
 #include "KX_PythonInit.h"
 #include "Texture.h"
 #include "ImageBase.h"
 #include "FilterSource.h"
 #include "ImageViewport.h"
+
+#include "GPU_compatibility.h"
 
 
 // constructor

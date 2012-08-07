@@ -53,7 +53,7 @@
 #include "ED_anim_api.h"
 #include "ED_markers.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_primitives.h"
 
 #include "WM_api.h"
 #include "WM_types.h"

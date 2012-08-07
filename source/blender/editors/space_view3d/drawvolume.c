@@ -66,10 +66,10 @@
 
 #include "smoke_API.h"
 
-#include "BIF_gl.h"
 
-#include "GPU_extensions.h"
 #include "GPU_compatibility.h"
+#include "GPU_colors.h"
+#include "GPU_extensions.h"
 
 #include "ED_mesh.h"
 

@@ -50,8 +50,7 @@
 #include "ED_screen.h"
 #include "ED_object.h"
 
-#include "BIF_gl.h"
-
+#include "GPU_compatibility.h"
 
 #include "WM_api.h"
 #include "WM_types.h"

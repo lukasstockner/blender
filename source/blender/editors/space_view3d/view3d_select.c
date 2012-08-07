@@ -70,8 +70,8 @@
 #include "BKE_object.h"
 #include "BKE_tracking.h"
 
+#include "GPU_compatibility.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "WM_api.h"

@@ -64,9 +64,9 @@
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
+#include "GPU_colors.h"
 #include "GPU_compatibility.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "ED_datafiles.h"

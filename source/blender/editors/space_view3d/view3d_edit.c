@@ -60,8 +60,8 @@
 #include "BKE_armature.h"
 #include "BKE_depsgraph.h" /* for ED_view3d_camera_lock_sync */
 
+#include "GPU_compatibility.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "WM_api.h"

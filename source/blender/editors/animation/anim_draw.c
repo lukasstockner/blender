@@ -45,9 +45,8 @@
 
 #include "RNA_access.h"
 
-#include "GPU_compatibility.h"
-
-#include "BIF_gl.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"

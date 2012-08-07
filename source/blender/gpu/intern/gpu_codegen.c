@@ -30,8 +30,6 @@
  */
 
 
-#include <GL/glew.h>
-
 #include "MEM_guardedalloc.h"
 
 #include "DNA_customdata_types.h"
@@ -44,6 +42,7 @@
 #include "BLI_ghash.h"
 #include "BLI_heap.h"
 
+#include "GPU_compatibility.h"
 #include "GPU_material.h"
 #include "GPU_extensions.h"
 

@@ -30,7 +30,6 @@ private:
 	bool				mNeedsDeleted;	// If generated
 	unsigned int		mType;			// enum TEXTURE_2D | CUBE_MAP 
 	int					mUnit;			// Texture unit associated with mTexture
-	unsigned int		mEnvState;		// cache textureEnv
 	static unsigned int	mDisableState;	// speed up disabling calls
 
 	void InitNonPow2Tex(unsigned int *p,int x,int y,bool mipmap );

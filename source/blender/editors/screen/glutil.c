@@ -42,9 +42,8 @@
 #include "BLI_math.h"
 #include "BLI_threads.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_primitives.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #ifndef GL_CLAMP_TO_EDGE
@@ -54,7 +53,6 @@
 
 /* ******************************************** */
 
-/* defined in BIF_gl.h */
 GLubyte stipple_halftone[128] = {
 	0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55, 
 	0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55, 

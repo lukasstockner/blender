@@ -33,8 +33,6 @@
 #include <GLES2/gl2.h>
 #endif
 
-#include <GL/glew.h>
-
 #include "DNA_image_types.h"
 
 #include "MEM_guardedalloc.h"
@@ -49,9 +47,9 @@
 
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
-#include "gpu_codegen.h"
+#include "intern/gpu_codegen.h"
 #include "GPU_compatibility.h"
-#include <GPU_functions.h>
+#include "GPU_functions.h"
 
 #include <stdlib.h>
 #include <stdio.h>

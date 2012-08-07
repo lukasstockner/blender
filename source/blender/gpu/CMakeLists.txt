@@ -45,11 +45,15 @@ set(INC_SYS
 )
 
 set(SRC
+    intern/gpu_aspect.c
+    intern/gpu_aspectfuncs.c
 	intern/gpu_buffers.c
 	intern/gpu_codegen.c
-    intern/gpu_debug.c
+	intern/gpu_debug.c
+	intern/gpu_aspect.c
 	intern/gpu_draw.c
 	intern/gpu_extensions.c
+    intern/gpu_framebuffer.c
 	intern/gpu_immediate.c
 	intern/gpu_immediate_gl11.c
 	intern/gpu_immediate_vbo.c
@@ -82,9 +86,13 @@ set(SRC
 	GPU_primitives.h
 	GPU_object.h
 	GPU_functions.h
+	GPU_fx.h
 
+	intern/gpu_aspect.h
+    intern/gpu_aspectfuncs.h
 	intern/gpu_codegen.h
 	intern/gpu_deprecated.h
+    intern/gpu_glew.h
 	intern/gpu_immediate.h
 	intern/gpu_immediate_inline.h
 	intern/gpu_immediate_internal.h
@@ -94,6 +102,7 @@ set(SRC
 	intern/gpu_object_gles.h
 	intern/gpu_object_gl11.h
 	intern/gpu_primitives_inline.h
+    intern/gpu_safety.h
 )
 
 if(WITH_MOD_SMOKE)

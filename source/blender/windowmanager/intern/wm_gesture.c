@@ -52,10 +52,9 @@
 #include "wm_subwindow.h"
 #include "wm_draw.h"
 
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
 
-#include "GPU_compatibility.h"
-
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 

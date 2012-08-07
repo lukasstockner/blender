@@ -40,9 +40,9 @@
 #  include "BLI_winstuff.h"
 #endif
 
-#include "GPU_compatibility.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "BKE_context.h"

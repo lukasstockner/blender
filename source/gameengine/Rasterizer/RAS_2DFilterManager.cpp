@@ -45,6 +45,7 @@
 #include "Value.h"
 
 #include "GPU_compatibility.h"
+#include "GPU_colors.h"
 #include "GPU_extensions.h"
 
 #include <iostream>

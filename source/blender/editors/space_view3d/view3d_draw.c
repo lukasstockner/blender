@@ -69,7 +69,6 @@
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "WM_api.h"
@@ -87,7 +86,9 @@
 #include "UI_interface_icons.h"
 #include "UI_resources.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_colors.h"
+#define GPU_MANGLE_DEPRECATED 0
+#include "GPU_primitives.h"
 #include "GPU_draw.h"
 #include "GPU_material.h"
 #include "GPU_extensions.h"

@@ -55,7 +55,6 @@
 #include "BKE_main.h"
 
 
-#include "BIF_gl.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -70,6 +69,7 @@
 
 #include "PIL_time.h"
 
+#include "GPU_compatibility.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 

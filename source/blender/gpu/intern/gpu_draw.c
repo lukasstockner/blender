@@ -68,6 +68,7 @@
 #include "BLI_blenlib.h"
 
 #include "GPU_compatibility.h"
+#include "GPU_colors.h"
 #include "GPU_buffers.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"

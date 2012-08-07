@@ -14,8 +14,6 @@
 #include "BL_Shader.h"
 #include "BL_Material.h"
 
-#include <GL/glew.h>
-
 #include "MT_assert.h"
 #include "MT_Matrix4x4.h"
 #include "MT_Matrix3x3.h"
@@ -26,6 +24,7 @@
 #include "RAS_MeshObject.h"
 #include "RAS_IRasterizer.h"
 
+#include "GPU_compatibility.h"
 #include "GPU_extensions.h"
 
 #define spit(x) std::cout << x << std::endl;

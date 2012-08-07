@@ -51,7 +51,6 @@
 
 #include "GPU_compatibility.h"
 
-#include "BIF_gl.h"
 
 #include "ED_armature.h"
 #include "ED_keyframes_draw.h"

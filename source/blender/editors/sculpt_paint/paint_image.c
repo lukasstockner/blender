@@ -82,9 +82,8 @@
 
 #include "BKE_tessmesh.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_primitives.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "UI_view2d.h"
