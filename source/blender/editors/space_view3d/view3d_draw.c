@@ -1790,10 +1790,10 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 
 			glEnable(GL_BLEND);
 
-			glMatrixMode(GL_PROJECTION);
-			glPushMatrix();
-			glMatrixMode(GL_MODELVIEW);
-			glPushMatrix();
+			gpuMatrixMode(GL_PROJECTION);
+			gpuPushMatrix();
+			gpuMatrixMode(GL_MODELVIEW);
+			gpuPushMatrix();
 			ED_region_pixelspace(ar);
 
 			glPixelZoom(zoomx, zoomy);
@@ -1803,10 +1803,10 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 
 			glPixelZoom(1, 1);
 
-			glMatrixMode(GL_PROJECTION);
-			glPopMatrix();
-			glMatrixMode(GL_MODELVIEW);
-			glPopMatrix();
+			gpuMatrixMode(GL_PROJECTION);
+			gpuPopMatrix();
+			gpuMatrixMode(GL_MODELVIEW);
+			gpuPopMatrix();
 
 			glDisable(GL_BLEND);
 
@@ -2028,10 +2028,10 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 			}
 		}
 		if (use_displist) {
-			glMultMatrixf(dob->mat);
+			gpuMultMatrix(dob->mat);
 			if (ED_view3d_boundbox_clip(rv3d, dob->mat, &bb))
 				glCallList(displist);
-			glLoadMatrixf(rv3d->viewmat);
+			gpuLoadMatrix(rv3d->viewmat);
 		}
 		else {
 			copy_m4_m4(dob->ob->obmat, dob->mat);
@@ -2189,7 +2189,7 @@ void draw_depth_gpencil(Scene *scene, ARegion *ar, View3D *v3d)
 
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	glLoadMatrixf(rv3d->viewmat);
+	gpuLoadMatrix(rv3d->viewmat);
 
 	v3d->zbuf = TRUE;
 	glEnable(GL_DEPTH_TEST);
@@ -2224,7 +2224,7 @@ void draw_depth(Scene *scene, ARegion *ar, View3D *v3d, int (*func)(void *))
 	
 	glClear(GL_DEPTH_BUFFER_BIT);
 	
-	glLoadMatrixf(rv3d->viewmat);
+	gpuLoadMatrix(rv3d->viewmat);
 //	persp(PERSP_STORE);  /* store correct view for persp(PERSP_VIEW) calls */
 	
 	if (rv3d->rflag & RV3D_CLIPPING) {
@@ -2544,10 +2544,10 @@ static void view3d_main_area_setup_view(Scene *scene, View3D *v3d, ARegion *ar, 
 	ED_view3d_update_viewmat(scene, v3d, ar, viewmat, winmat);
 
 	/* set for opengl */
-	glMatrixMode(GL_PROJECTION);
-	glLoadMatrixf(rv3d->winmat);
-	glMatrixMode(GL_MODELVIEW);
-	glLoadMatrixf(rv3d->viewmat);
+	gpuMatrixMode(GL_PROJECTION);
+	gpuLoadMatrix(rv3d->winmat);
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuLoadMatrix(rv3d->viewmat);
 }
 
 void ED_view3d_draw_offscreen(Scene *scene, View3D *v3d, ARegion *ar,
@@ -2560,7 +2560,7 @@ void ED_view3d_draw_offscreen(Scene *scene, View3D *v3d, ARegion *ar,
 	int bwinx, bwiny;
 	rcti brect;
 
-	glPushMatrix();
+	gpuPushMatrix();
 
 	/* set temporary new size */
 	bwinx = ar->winx;
@@ -2689,7 +2689,7 @@ void ED_view3d_draw_offscreen(Scene *scene, View3D *v3d, ARegion *ar,
 	ar->winy = bwiny;
 	ar->winrct = brect;
 
-	glPopMatrix();
+	gpuPopMatrix();
 
 	/* XXX, without this the sequencer flickers with opengl draw enabled, need to find out why - campbell */
 	gpuCurrentColor3x(CPACK_WHITE);
@@ -3020,10 +3020,10 @@ static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const 
 			ED_region_pixelspace(ar);
 			drawgrid(&scene->unit, ar, v3d, grid_unit);
 			/* XXX make function? replaces persp(1) */
-			glMatrixMode(GL_PROJECTION);
-			glLoadMatrixf(rv3d->winmat);
-			glMatrixMode(GL_MODELVIEW);
-			glLoadMatrixf(rv3d->viewmat);
+			gpuMatrixMode(GL_PROJECTION);
+			gpuLoadMatrix(rv3d->winmat);
+			gpuMatrixMode(GL_MODELVIEW);
+			gpuLoadMatrix(rv3d->viewmat);
 		}
 	}
 

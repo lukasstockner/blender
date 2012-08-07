@@ -1345,7 +1345,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 
 		projectFloatView(t, vecrot, cent);  // no overflow in extreme cases
 
-		glPushMatrix();
+		gpuPushMatrix();
 
 		gpuImmediateFormat_V3();
 
@@ -1359,8 +1359,8 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 				gpuVertex2fv(cent);
 				gpuEnd();
 
-				glTranslatef(mval[0], mval[1], 0);
-				glRotatef(-RAD2DEGF(atan2f(cent[0] - t->mval[0], cent[1] - t->mval[1])), 0, 0, 1);
+				gpuTranslate(mval[0], mval[1], 0);
+				gpuRotateAxis(-(atan2f(cent[0] - t->mval[0], cent[1] - t->mval[1])), 'Z');
 
 				setlinestyle(0);
 				glLineWidth(3.0);
@@ -1372,7 +1372,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 			case HLP_HARROW:
 				UI_ThemeColor(TH_WIRE);
 
-				glTranslatef(mval[0], mval[1], 0);
+				gpuTranslate(mval[0], mval[1], 0);
 
 				glLineWidth(3.0);
 				drawArrow(RIGHT, 5, 10, 5);
@@ -1383,7 +1383,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 			case HLP_VARROW:
 				UI_ThemeColor(TH_WIRE);
 
-				glTranslatef(mval[0], mval[1], 0);
+				gpuTranslate(mval[0], mval[1], 0);
 
 				glLineWidth(3.0);
 				gpuBegin(GL_LINES);
@@ -1407,24 +1407,24 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 				gpuVertex2fv(cent);
 				gpuEnd();
 
-				glTranslatef(cent[0] - t->mval[0] + mval[0], cent[1] - t->mval[1] + mval[1], 0);
+				gpuTranslate(cent[0] - t->mval[0] + mval[0], cent[1] - t->mval[1] + mval[1], 0);
 
 				setlinestyle(0);
 				glLineWidth(3.0);
 				gpuDrawArc(0, 0, angle - spacing_angle, delta_angle - spacing_angle, dist, dist, 10);
 				gpuDrawArc(0, 0, angle + spacing_angle, spacing_angle - delta_angle, dist, dist, 10);
 
-				glPushMatrix();
+				gpuPushMatrix();
 
-				glTranslatef(cosf(angle - delta_angle) * dist, sinf(angle - delta_angle) * dist, 0);
-				glRotatef(RAD2DEGF(angle - delta_angle), 0, 0, 1);
+				gpuTranslate(cosf(angle - delta_angle) * dist, sinf(angle - delta_angle) * dist, 0);
+				gpuRotateAxis(angle - delta_angle, 'Z');
 
 				drawArrowHead(DOWN, 5);
 
-				glPopMatrix();
+				gpuPopMatrix();
 
-				glTranslatef(cosf(angle + delta_angle) * dist, sinf(angle + delta_angle) * dist, 0);
-				glRotatef(RAD2DEGF(angle + delta_angle), 0, 0, 1);
+				gpuTranslate(cosf(angle + delta_angle) * dist, sinf(angle + delta_angle) * dist, 0);
+				gpuRotateAxis(angle + delta_angle, 'Z');
 
 				drawArrowHead(UP, 5);
 
@@ -1437,7 +1437,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 				unsigned char col[3], col2[3];
 				UI_GetThemeColor3ubv(TH_GRID, col);
 
-				glTranslatef(mval[0], mval[1], 0);
+				gpuTranslate(mval[0], mval[1], 0);
 
 				glLineWidth(3.0);
 
@@ -1459,7 +1459,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 
 		gpuImmediateUnformat();
 
-		glPopMatrix();
+		gpuPopMatrix();
 	}
 }
 
@@ -1676,7 +1676,7 @@ static void drawSnapping(const struct bContext *C, TransInfo *t)
 			
 			calc_image_view(G.sima, 'f');	// float
 			myortho2(G.v2d->cur.xmin, G.v2d->cur.xmax, G.v2d->cur.ymin, G.v2d->cur.ymax);
-			glLoadIdentity();
+			gpuLoadIdentity();
 			
 			ED_space_image_aspect(t->sa->spacedata.first, &xuser_aspx, &yuser_asp);
 			ED_space_image_width(t->sa->spacedata.first, &wi, &hi);
@@ -1684,7 +1684,7 @@ static void drawSnapping(const struct bContext *C, TransInfo *t)
 			h = (((float)hi)/256.0f)*G.sima->zoom * yuser_asp;
 			
 			gpuCurrentColor3x(CPACK_WHITE);
-			glTranslatef(t->tsnap.snapPoint[0], t->tsnap.snapPoint[1], 0.0f);
+			gpuTranslate(t->tsnap.snapPoint[0], t->tsnap.snapPoint[1], 0.0f);
 
 			//gpuDrawFilledRectf(0, 0, 1, 1);
 
@@ -1698,7 +1698,7 @@ static void drawSnapping(const struct bContext *C, TransInfo *t)
 			gpuAppendLinef(0, 0.1/h, 0, 0.020/h);
 			gpuEnd();
 
-			glTranslatef(-t->tsnap.snapPoint[0], -t->tsnap.snapPoint[1], 0.0f);
+			gpuTranslate(-t->tsnap.snapPoint[0], -t->tsnap.snapPoint[1], 0.0f);
 			setlinestyle(0);
 #endif
 		}
@@ -1765,9 +1765,9 @@ static void drawNonPropEdge(const struct bContext *C, TransInfo *t)
 			glEnable(GL_BLEND);
 
 			glPushAttrib(GL_CURRENT_BIT | GL_LINE_BIT | GL_POINT_BIT);
-			glPushMatrix();
+			gpuPushMatrix();
 
-			glMultMatrixf(t->obedit->obmat);
+			gpuMultMatrix(t->obedit->obmat);
 
 			glLineWidth(line_size);
 			UI_ThemeColorShadeAlpha(TH_EDGE_SELECT, 80, alpha_shade);
@@ -1796,7 +1796,7 @@ static void drawNonPropEdge(const struct bContext *C, TransInfo *t)
 			gpuEndSprites();
 
 
-			glPopMatrix();
+			gpuPopMatrix();
 			glPopAttrib();
 
 			glDisable(GL_BLEND);

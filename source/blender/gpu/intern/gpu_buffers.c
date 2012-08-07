@@ -1260,6 +1260,7 @@ void GPU_buffer_unlock(GPUBuffer *buffer)
 /* used for drawing edges */
 void GPU_buffer_draw_elements(GPUBuffer *elements, unsigned int mode, int start, int count)
 {
+	gpuMatrixCommit();
 	glDrawElements(mode, count, GL_UNSIGNED_INT,
 	               (useVBOs ?
 	                (void *)(start * sizeof(unsigned int)) :
@@ -1961,6 +1962,8 @@ void GPU_draw_buffers(GPU_Buffers *buffers, DMSetMaterial setMaterial)
 
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->vert_buf);
 		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, buffers->index_buf);
+
+		gpuMatrixCommit();
 
 		if (buffers->tot_quad) {
 			char *offset = 0;

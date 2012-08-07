@@ -63,13 +63,13 @@
 
 static void draw_curve_knot(float x, float y, float xscale, float yscale, float hsize)
 {
-	glPushMatrix();
-	glTranslatef(x, y, 0.0f);
-	glScalef(1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
+	gpuPushMatrix();
+	gpuTranslate(x, y, 0.0f);
+	gpuScale(1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
 
 	gpuSingleCircle(0, 0, 0.7, 8);
 
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 static void tracking_segment_point_cb(void *UNUSED(userdata), MovieTrackingTrack *UNUSED(track),

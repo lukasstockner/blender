@@ -117,8 +117,8 @@ static void ringsel_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		if (v3d && v3d->zbuf)
 			glDisable(GL_DEPTH_TEST);
 
-		glPushMatrix();
-		glMultMatrixf(lcd->ob->obmat);
+		gpuPushMatrix();
+		gpuMultMatrix(lcd->ob->obmat);
 
 		gpuCurrentColor3x(CPACK_MAGENTA);
 		gpuBegin(GL_LINES);
@@ -128,7 +128,7 @@ static void ringsel_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		}
 		gpuEnd();
 
-		glPopMatrix();
+		gpuPopMatrix();
 		if (v3d && v3d->zbuf)
 			glEnable(GL_DEPTH_TEST);
 	}

@@ -274,9 +274,9 @@ static void draw_movieclip_buffer(SpaceClip *sc, ARegion *ar, ImBuf *ibuf,
 
 			if (ED_space_clip_texture_buffer_supported(sc)) {
 				if (ED_space_clip_load_movieclip_buffer(sc, ibuf)) {
-					glPushMatrix();
-					glTranslatef(x, y, 0.0f);
-					glScalef(zoomx, zoomy, 1.0f);
+					gpuPushMatrix();
+					gpuTranslate(x, y, 0.0f);
+					gpuScale(zoomx, zoomy, 1.0f);
 
 					gpuBegin(GL_QUADS);
 					
@@ -294,7 +294,7 @@ static void draw_movieclip_buffer(SpaceClip *sc, ARegion *ar, ImBuf *ibuf,
 					
 					gpuEnd();
 
-					glPopMatrix();
+					gpuPopMatrix();
 
 					ED_space_clip_unload_movieclip_buffer(sc);
 
@@ -325,11 +325,11 @@ static void draw_movieclip_buffer(SpaceClip *sc, ARegion *ar, ImBuf *ibuf,
 		glEnable(GL_COLOR_LOGIC_OP);
 		glLogicOp(GL_NOR);
 
-		glPushMatrix();
-		glTranslatef(x, y, 0.0f);
+		gpuPushMatrix();
+		gpuTranslate(x, y, 0.0f);
 
-		glScalef(zoomx, zoomy, 1.0f);
-		glMultMatrixf(sc->stabmat);
+		gpuScale(zoomx, zoomy, 1.0f);
+		gpuMultMatrix(sc->stabmat);
 
 		gpuBegin(GL_LINE_LOOP);
 		gpuVertex2f(0, 0);
@@ -338,7 +338,7 @@ static void draw_movieclip_buffer(SpaceClip *sc, ARegion *ar, ImBuf *ibuf,
 		gpuVertex2f(0, height);
 		gpuEnd();
 
-		glPopMatrix();
+		gpuPopMatrix();
 
 		glDisable(GL_COLOR_LOGIC_OP);
 		glDisable(GL_LINE_STIPPLE);
@@ -525,8 +525,8 @@ static void draw_marker_outline(SpaceClip *sc, MovieTrackingTrack *track, MovieT
 	}
 
 	/* pattern and search outline */
-	glPushMatrix();
-	glTranslatef(marker_pos[0], marker_pos[1], 0);
+	gpuPushMatrix();
+	gpuTranslate(marker_pos[0], marker_pos[1], 0);
 
 	if (!tiny)
 		glLineWidth(3.0f);
@@ -550,7 +550,7 @@ static void draw_marker_outline(SpaceClip *sc, MovieTrackingTrack *track, MovieT
 		gpuVertex2f(marker->search_min[0], marker->search_max[1]);
 		gpuEnd();
 	}
-	glPopMatrix();
+	gpuPopMatrix();
 
 	if (!tiny)
 		glLineWidth(1.0f);
@@ -661,8 +661,8 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 	}
 
 	/* pattern */
-	glPushMatrix();
-	glTranslatef(marker_pos[0], marker_pos[1], 0);
+	gpuPushMatrix();
+	gpuTranslate(marker_pos[0], marker_pos[1], 0);
 
 	if (tiny) {
 		glLineStipple(3, 0xaaaa);
@@ -734,7 +734,7 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 	if (tiny)
 		glDisable(GL_LINE_STIPPLE);
 
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 static float get_shortest_pattern_side(MovieTrackingMarker *marker)
@@ -814,8 +814,8 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 		UI_ThemeColor(TH_MARKER_OUTLINE);
 	}
 
-	glPushMatrix();
-	glTranslatef(marker_pos[0], marker_pos[1], 0);
+	gpuPushMatrix();
+	gpuTranslate(marker_pos[0], marker_pos[1], 0);
 
 	dx = 6.0f / width / sc->zoom;
 	dy = 6.0f / height / sc->zoom;
@@ -900,7 +900,7 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 		draw_marker_slide_square(tilt_ctrl[0], tilt_ctrl[1], patdx, patdy, outline, px);
 	}
 
-	glPopMatrix();
+	gpuPopMatrix();
 
 	if (outline)
 		glLineWidth(1.0f);
@@ -1019,13 +1019,13 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 
 	view2d_to_region_float(&ar->v2d, 0.0f, 0.0f, &x, &y);
 
-	glPushMatrix();
-	glTranslatef(x, y, 0);
+	gpuPushMatrix();
+	gpuTranslate(x, y, 0);
 
-	glPushMatrix();
-	glScalef(zoomx, zoomy, 0);
-	glMultMatrixf(sc->stabmat);
-	glScalef(width, height, 0);
+	gpuPushMatrix();
+	gpuScale(zoomx, zoomy, 0);
+	gpuMultMatrix(sc->stabmat);
+	gpuScale(width, height, 0);
 
 	act_track = BKE_tracking_track_get_active(tracking);
 
@@ -1199,7 +1199,7 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 		glDisable(GL_POINT_SMOOTH);
 	}
 
-	glPopMatrix();
+	gpuPopMatrix();
 
 	if (sc->flag & SC_SHOW_NAMES) {
 		/* scaling should be cleared before drawing texts, otherwise font would also be scaled */
@@ -1225,7 +1225,7 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 		}
 	}
 
-	glPopMatrix();
+	gpuPopMatrix();
 
 	if (marker_pos)
 		MEM_freeN(marker_pos);
@@ -1255,11 +1255,11 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 
 	view2d_to_region_float(&ar->v2d, 0.0f, 0.0f, &x, &y);
 
-	glPushMatrix();
-	glTranslatef(x, y, 0);
-	glScalef(zoomx, zoomy, 0);
-	glMultMatrixf(sc->stabmat);
-	glScalef(width, height, 0);
+	gpuPushMatrix();
+	gpuTranslate(x, y, 0);
+	gpuScale(zoomx, zoomy, 0);
+	gpuMultMatrix(sc->stabmat);
+	gpuScale(width, height, 0);
 
 	/* grid */
 	if (sc->flag & SC_SHOW_GRID) {
@@ -1441,7 +1441,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 		glPointSize(1.0f);
 	}
 
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 void clip_draw_main(const bContext *C, ARegion *ar)
@@ -1525,8 +1525,8 @@ void clip_draw_grease_pencil(bContext *C, int onlyv2d)
 		/* if manual calibration is used then grease pencil data is already
 		 * drawed in draw_distortion */
 		if ((sc->flag & SC_MANUAL_CALIBRATION) == 0 || sc->mode != SC_MODE_DISTORTION) {
-			glPushMatrix();
-			glMultMatrixf(sc->unistabmat);
+			gpuPushMatrix();
+			gpuMultMatrix(sc->unistabmat);
 
 			if (sc->gpencil_src == SC_GPENCIL_SRC_TRACK) {
 				MovieTrackingTrack *track = BKE_tracking_track_get_active(&sc->clip->tracking);
@@ -1535,13 +1535,13 @@ void clip_draw_grease_pencil(bContext *C, int onlyv2d)
 					int framenr = ED_space_clip_get_clip_frame_number(sc);
 					MovieTrackingMarker *marker = BKE_tracking_marker_get(track, framenr);
 
-					glTranslatef(marker->pos[0], marker->pos[1], 0.0f);
+					gpuTranslate(marker->pos[0], marker->pos[1], 0.0f);
 				}
 			}
 
 			draw_gpencil_2dimage(C);
 
-			glPopMatrix();
+			gpuPopMatrix();
 		}
 	}
 	else {

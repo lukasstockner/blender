@@ -455,7 +455,7 @@ static float sk_clampPointSize(SK_Point *pt, float size)
 
 static void sk_drawPoint(GPUprim3 *prim, SK_Point *pt, float size)
 {
-	glTranslatef(pt->p[0], pt->p[1], pt->p[2]);
+	gpuTranslate(pt->p[0], pt->p[1], pt->p[2]);
 
 	gpuDrawSphere(prim, sk_clampPointSize(pt, size));
 	//GLU Sphere(quad, sk_clampPointSize(pt, size), 8, 8);
@@ -476,7 +476,7 @@ static void sk_drawEdge(GPUprim3 *prim, SK_Point *pt0, SK_Point *pt1, float size
 
 	angle = angle_normalized_v3v3(vec2, vec1);
 
-	glRotatef(angle * (float)(180.0 / M_PI) + 180.0f, axis[0], axis[1], axis[2]);
+	gpuRotateVector(angle + M_PI, axis);
 
 	gpuDrawCylinder(prim, sk_clampPointSize(pt1, size), sk_clampPointSize(pt0, size), length);
 	//GLU Cylinder(quad, sk_clampPointSize(pt1, size), sk_clampPointSize(pt0, size), length, 8, 8);
@@ -487,7 +487,7 @@ static void sk_drawNormal(GPUprim3 *prim, SK_Point *pt, float size, float height
 	float vec2[3] = {0, 0, 1}, axis[3];
 	float angle;
 	
-	glPushMatrix();
+	gpuPushMatrix();
 
 	cross_v3_v3v3(axis, vec2, pt->no);
 
@@ -497,14 +497,14 @@ static void sk_drawNormal(GPUprim3 *prim, SK_Point *pt, float size, float height
 
 	angle = angle_normalized_v3v3(vec2, pt->no);
 
-	glRotatef(angle * (float)(180.0 / M_PI), axis[0], axis[1], axis[2]);
+	gpuRotateVector(angle, axis);
 
 	gpuCurrentColor3x(CPACK_CYAN);
 
 	gpuDrawCylinder(prim, sk_clampPointSize(pt, size), 0, sk_clampPointSize(pt, height));
 	//GLU Cylinder(quad, sk_clampPointSize(pt, size), 0, sk_clampPointSize(pt, height), 10, 2);
 
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 static void sk_drawStroke(SK_Stroke *stk, int id, float color[3], int start, int end)
@@ -517,7 +517,7 @@ static void sk_drawStroke(SK_Stroke *stk, int id, float color[3], int start, int
 		glLoadName(id);
 
 		for (i = 0; i < stk->nb_points; i++) {
-			glPushMatrix();
+			gpuPushMatrix();
 
 			sk_drawPoint(&prim, stk->points + i, 0.1);
 
@@ -525,7 +525,7 @@ static void sk_drawStroke(SK_Stroke *stk, int id, float color[3], int start, int
 				sk_drawEdge(&prim, stk->points + i - 1, stk->points + i, 0.1);
 			}
 
-			glPopMatrix();
+			gpuPopMatrix();
 		}
 
 	}
@@ -539,7 +539,7 @@ static void sk_drawStroke(SK_Stroke *stk, int id, float color[3], int start, int
 		for (i = 0; i < stk->nb_points; i++) {
 			SK_Point *pt = stk->points + i;
 
-			glPushMatrix();
+			gpuPushMatrix();
 
 			if (pt->type == PT_EXACT) {
 				gpuCurrentColor3x(CPACK_BLACK);
@@ -563,7 +563,7 @@ static void sk_drawStroke(SK_Stroke *stk, int id, float color[3], int start, int
 				sk_drawEdge(&prim, pt - 1, pt, 0.1);
 			}
 
-			glPopMatrix();
+			gpuPopMatrix();
 
 			add_v3_v3(rgb, d_rgb);
 		}
@@ -586,14 +586,14 @@ static void drawSubdividedStrokeBy(ToolSettings *toolsettings, BArcIterator *ite
 	while (index != -1) {
 		SK_Point *pt = stk->points + index;
 
-		glPushMatrix();
+		gpuPushMatrix();
 
 		gpuCurrentColor3x(CPACK_GREEN);
 		sk_drawPoint(&prim, pt, 0.15);
 
 		sk_drawNormal(&prim, pt, 0.05, 0.9);
 
-		glPopMatrix();
+		gpuPopMatrix();
 
 		copy_v3_v3(head, tail);
 		bone_start = index; // start next bone from current index
@@ -2070,7 +2070,7 @@ static void sk_drawSketch(Scene *scene, View3D *UNUSED(v3d), SK_Sketch *sketch, 
 			if (last != NULL) {
 				GPUprim3 prim = GPU_PRIM_LOFI_SOLID;
 
-				glPushMatrix();
+				gpuPushMatrix();
 
 				glEnable(GL_BLEND);
 
@@ -2091,7 +2091,7 @@ static void sk_drawSketch(Scene *scene, View3D *UNUSED(v3d), SK_Sketch *sketch, 
 
 				glDisable(GL_BLEND);
 
-				glPopMatrix();
+				gpuPopMatrix();
 			}
 		}
 	}
@@ -2120,8 +2120,8 @@ static void sk_drawSketch(Scene *scene, View3D *UNUSED(v3d), SK_Sketch *sketch, 
 			index = (index >> 5) & 7;
 
 			gpuCurrentColor3fv(colors[index]);
-			glPushMatrix();
-			glTranslatef(p->p[0], p->p[1], p->p[2]);
+			gpuPushMatrix();
+			gpuTranslate(p->p[0], p->p[1], p->p[2]);
 
 			if (!dl) {
 				gpuPushImmediate();
@@ -2133,7 +2133,7 @@ static void sk_drawSketch(Scene *scene, View3D *UNUSED(v3d), SK_Sketch *sketch, 
 				gpuImmediateSingleRepeat(dl);
 			}
 
-			glPopMatrix();
+			gpuPopMatrix();
 		}
 	}
 #endif

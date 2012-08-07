@@ -177,16 +177,16 @@ static void draw_fcurve_vertices_keyframes(FCurve *fcu, SpaceIpo *UNUSED(sipo), 
  */
 static void draw_fcurve_handle_control(float x, float y, float xscale, float yscale, float hsize)
 {
-	glPushMatrix();
+	gpuPushMatrix();
 
 	/* adjust view transform before starting */
-	glTranslatef(x, y, 0.0f);
-	glScalef(1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
+	gpuTranslate(x, y, 0.0f);
+	gpuScale(1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
 
 	/* draw! */
 	gpuSingleCircle(0, 0, 0.7, 8);
 
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 /* helper func - draw handle vertices only for an F-Curve (if it is not protected) */
@@ -418,15 +418,15 @@ static void draw_fcurve_sample_control(float x, float y, float xscale, float ysc
 	}
 	
 	/* adjust view transform before starting */
-	glTranslatef(x, y, 0.0f);
-	glScalef(1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
+	gpuTranslate(x, y, 0.0f);
+	gpuScale(1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
 	
 	/* draw! */
 	glCallList(displist);
 	
 	/* restore view transform */
-	glScalef(xscale / hsize, yscale / hsize, 1.0);
-	glTranslatef(-x, -y, 0.0f);
+	gpuScale(xscale / hsize, yscale / hsize, 1.0);
+	gpuTranslate(-x, -y, 0.0f);
 }
 
 /* helper func - draw keyframe vertices only for an F-Curve */

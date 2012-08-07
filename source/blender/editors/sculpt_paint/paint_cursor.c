@@ -404,23 +404,23 @@ static void paint_draw_alpha_overlay(Sculpt *sd, Brush *brush,
 		glDepthMask(GL_FALSE);
 		glDepthFunc(GL_ALWAYS);
 
-		glMatrixMode(GL_TEXTURE);
-		glPushMatrix();
-		glLoadIdentity();
+		gpuMatrixMode(GL_TEXTURE);
+		gpuPushMatrix();
+		gpuLoadIdentity();
 
 		if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_VIEW) {
 			/* brush rotation */
-			glTranslatef(0.5, 0.5, 0);
-			glRotatef((double)RAD2DEGF((brush->flag & BRUSH_RAKE) ?
+			gpuTranslate(0.5, 0.5, 0);
+			gpuRotateAxis((double)((brush->flag & BRUSH_RAKE) ?
 			                           sd->last_angle : sd->special_rotation),
-			          0.0, 0.0, 1.0);
-			glTranslatef(-0.5f, -0.5f, 0);
+						  'Z');
+			gpuTranslate(-0.5f, -0.5f, 0);
 
 			/* scale based on tablet pressure */
 			if (sd->draw_pressure && BKE_brush_use_size_pressure(vc->scene, brush)) {
-				glTranslatef(0.5f, 0.5f, 0);
-				glScalef(1.0f / sd->pressure_value, 1.0f / sd->pressure_value, 1);
-				glTranslatef(-0.5f, -0.5f, 0);
+				gpuTranslate(0.5f, 0.5f, 0);
+				gpuScale(1.0f / sd->pressure_value, 1.0f / sd->pressure_value, 1);
+				gpuTranslate(-0.5f, -0.5f, 0);
 			}
 
 			if (sd->draw_anchored) {
@@ -465,7 +465,7 @@ static void paint_draw_alpha_overlay(Sculpt *sd, Brush *brush,
 		gpuVertex2f(quad.xmin, quad.ymax);
 		gpuEnd();
 
-		glPopMatrix();
+		gpuPopMatrix();
 	}
 
 	glPopAttrib();

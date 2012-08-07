@@ -1010,7 +1010,7 @@ void UI_view2d_view_ortho(View2D *v2d)
 	wmOrtho2(curmasked.xmin - xofs, curmasked.xmax - xofs, curmasked.ymin - yofs, curmasked.ymax - yofs);
 
 	/* XXX is this necessary? */
-	glLoadIdentity();
+	gpuLoadIdentity();
 }
 
 /* Set view matrices to only use one axis of 'cur' only
@@ -1038,7 +1038,7 @@ void UI_view2d_view_orthoSpecial(ARegion *ar, View2D *v2d, short xaxis)
 		wmOrtho2(-xofs, ar->winx - xofs, curmasked.ymin - yofs, curmasked.ymax - yofs);
 		
 	/* XXX is this necessary? */
-	glLoadIdentity();
+	gpuLoadIdentity();
 } 
 
 
@@ -1050,7 +1050,7 @@ void UI_view2d_view_restore(const bContext *C)
 	int height = ar->winrct.ymax - ar->winrct.ymin + 1;
 	
 	wmOrtho2(0.0f, (float)width, 0.0f, (float)height);
-	glLoadIdentity();
+	gpuLoadIdentity();
 	
 	//	ED_region_pixelspace(CTX_wm_region(C));
 }
@@ -2136,10 +2136,10 @@ void UI_view2d_text_cache_draw(ARegion *ar)
 	/* investigate using BLF_ascender() */
 	const float default_height = strings.first ? BLF_height_default("28") : 0.0f;
 	
-	// glMatrixMode(GL_PROJECTION);
-	// glPushMatrix();
-	// glMatrixMode(GL_MODELVIEW);
-	// glPushMatrix();
+	// gpuMatrixMode(GL_PROJECTION);
+	// gpuPushMatrix();
+	// gpuMatrixMode(GL_MODELVIEW);
+	// gpuPushMatrix();
 	ED_region_pixelspace(ar);
 
 	for (v2s = strings.first; v2s; v2s = v2s->next) {
@@ -2164,10 +2164,10 @@ void UI_view2d_text_cache_draw(ARegion *ar)
 		}
 	}
 	
-	// glMatrixMode(GL_PROJECTION);
-	// glPopMatrix();
-	// glMatrixMode(GL_MODELVIEW);
-	// glPopMatrix();
+	// gpuMatrixMode(GL_PROJECTION);
+	// gpuPopMatrix();
+	// gpuMatrixMode(GL_MODELVIEW);
+	// gpuPopMatrix();
 	
 	if (strings.first) 
 		BLI_freelistN(&strings);

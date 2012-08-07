@@ -229,9 +229,9 @@ void ui_draw_anti_roundbox(int mode, float minx, float miny, float maxx, float m
 	gpuMultCurrentAlpha(0.125f);
 
 	for (j = 0; j < WIDGET_AA_JITTER; j++) {
-		glTranslatef(1.0f * jit[j][0], 1.0f * jit[j][1], 0.0f);
+		gpuTranslate(1.0f * jit[j][0], 1.0f * jit[j][1], 0.0f);
 		uiDrawBox(mode, minx, miny, maxx, maxy, rad);
-		glTranslatef(-1.0f * jit[j][0], -1.0f * jit[j][1], 0.0f);
+		gpuTranslate(-1.0f * jit[j][0], -1.0f * jit[j][1], 0.0f);
 	}
 
 	glDisable(GL_BLEND);

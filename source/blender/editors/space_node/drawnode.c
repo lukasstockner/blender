@@ -3000,10 +3000,10 @@ void draw_nodespace_back_pix(ARegion *ar, SpaceNode *snode, int color_manage)
 		if (ibuf) {
 			float x, y; 
 			
-			glMatrixMode(GL_PROJECTION);
-			glPushMatrix();
-			glMatrixMode(GL_MODELVIEW);
-			glPushMatrix();
+			gpuMatrixMode(GL_PROJECTION);
+			gpuPushMatrix();
+			gpuMatrixMode(GL_MODELVIEW);
+			gpuPushMatrix();
 
 			/* keep this, saves us from a version patch */
 			if (snode->zoom==0.0f) snode->zoom= 1.0f;
@@ -3092,10 +3092,10 @@ void draw_nodespace_back_pix(ARegion *ar, SpaceNode *snode, int color_manage)
 				}
 			}
 			
-			glMatrixMode(GL_PROJECTION);
-			glPopMatrix();
-			glMatrixMode(GL_MODELVIEW);
-			glPopMatrix();
+			gpuMatrixMode(GL_PROJECTION);
+			gpuPopMatrix();
+			gpuMatrixMode(GL_MODELVIEW);
+			gpuPopMatrix();
 		}
 
 		BKE_image_release_ibuf(ima, lock);
@@ -3116,10 +3116,10 @@ static void draw_nodespace_back_tex(ScrArea *sa, SpaceNode *snode)
 			int x, y;
 			float zoom = 1.0;
 
-			glMatrixMode(GL_PROJECTION);
-			glPushMatrix();
-			glMatrixMode(GL_MODELVIEW);
-			glPushMatrix();
+			gpuMatrixMode(GL_PROJECTION);
+			gpuPushMatrix();
+			gpuMatrixMode(GL_MODELVIEW);
+			gpuPushMatrix();
 			
 			glaDefine2DArea(&sa->winrct);
 
@@ -3143,10 +3143,10 @@ static void draw_nodespace_back_tex(ScrArea *sa, SpaceNode *snode)
 
 			glPixelZoom(1.0, 1.0);
 
-			glMatrixMode(GL_PROJECTION);
-			glPopMatrix();
-			glMatrixMode(GL_MODELVIEW);
-			glPopMatrix();
+			gpuMatrixMode(GL_PROJECTION);
+			gpuPopMatrix();
+			gpuMatrixMode(GL_MODELVIEW);
+			gpuPopMatrix();
 		}
 	}
 }

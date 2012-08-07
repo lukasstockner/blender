@@ -651,7 +651,7 @@ void drawPropCircle(const struct bContext *C, TransInfo *t)
 			unit_m4(imat);
 		}
 
-		glPushMatrix();
+		gpuPushMatrix();
 
 		copy_v3_v3(center, t->center);
 
@@ -662,14 +662,14 @@ void drawPropCircle(const struct bContext *C, TransInfo *t)
 			float aspx, aspy;
 
 			ED_space_image_uv_aspect(t->sa->spacedata.first, &aspx, &aspy);
-			glScalef(1.0f / aspx, 1.0f / aspy, 1.0);
+			gpuScale(1.0f / aspx, 1.0f / aspy, 1.0);
 		}
 
 		set_inverted_drawing(1);
 		gpuDrawFastBall(GL_LINE_LOOP, center, t->prop_size, imat);
 		set_inverted_drawing(0);
 
-		glPopMatrix();
+		gpuPopMatrix();
 	}
 }
 

@@ -68,6 +68,8 @@
 
 #include "paint_intern.h"
 
+#include "GPU_compatibility.h"
+
 /* Convert the object-space axis-aligned bounding box (expressed as
  * its minimum and maximum corners) into a screen-space rectangle,
  * returns zero if the result is empty */
@@ -146,12 +148,12 @@ void paint_calc_redraw_planes(float planes[4][4],
  * view3d_project_float() */
 void projectf(bglMats *mats, const float v[3], float p[2])
 {
-	double ux, uy, uz;
+	float u[3];
 
-	gluProject(v[0], v[1], v[2], mats->modelview, mats->projection,
-	           (GLint *)mats->viewport, &ux, &uy, &uz);
-	p[0] = ux;
-	p[1] = uy;
+	gpuProject(v, mats->modelview, mats->projection,
+			   (GLint *)mats->viewport, u);
+	p[0] = u[0];
+	p[1] = u[1];
 }
 
 float paint_calc_object_space_radius(ViewContext *vc, const float center[3],
@@ -218,8 +220,8 @@ static void imapaint_tri_weights(Object *ob,
 
 	/* get the needed opengl matrices */
 	glGetIntegerv(GL_VIEWPORT, view);
-	glGetFloatv(GL_MODELVIEW_MATRIX,  (float *)model);
-	glGetFloatv(GL_PROJECTION_MATRIX, (float *)proj);
+	gpuGetSpecificMatrix(GL_MODELVIEW,  (float *)model);
+	gpuGetSpecificMatrix(GL_PROJECTION, (float *)proj);
 	view[0] = view[1] = 0;
 
 	/* project the verts */

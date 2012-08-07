@@ -176,9 +176,9 @@ static void time_draw_cache(SpaceTime *stime, Object *ob)
 			}
 		}
 		
-		glPushMatrix();
-		glTranslatef(0.0, (float)V2D_SCROLL_HEIGHT + yoffs, 0.0);
-		glScalef(1.0, CACHE_DRAW_HEIGHT, 0.0);
+		gpuPushMatrix();
+		gpuTranslate(0.0, (float)V2D_SCROLL_HEIGHT + yoffs, 0.0);
+		gpuScale(1.0, CACHE_DRAW_HEIGHT, 0.0);
 		
 		switch (pid->type) {
 			case PTCACHE_TYPE_SOFTBODY:
@@ -224,7 +224,7 @@ static void time_draw_cache(SpaceTime *stime, Object *ob)
 		gpuCurrentColor4fv(col);
 		gpuSingleClientArrays_V2F(GL_QUADS, stc->array, 0, 0, (fp - (stc->array)) / 2);
 
-		glPopMatrix();
+		gpuPopMatrix();
 
 		yoffs += CACHE_DRAW_HEIGHT;
 

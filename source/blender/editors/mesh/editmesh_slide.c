@@ -290,8 +290,8 @@ static void vtx_slide_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 
 		glPushAttrib(GL_CURRENT_BIT | GL_LINE_BIT | GL_POINT_BIT);
 
-		glPushMatrix();
-		glMultMatrixf(vso->obj->obmat);
+		gpuPushMatrix();
+		gpuMultMatrix(vso->obj->obmat);
 
 		glEnable(GL_BLEND);
 
@@ -335,7 +335,7 @@ static void vtx_slide_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		gpuImmediateUnformat();
 
 		glDisable(GL_BLEND);
-		glPopMatrix();
+		gpuPopMatrix();
 		glPopAttrib();
 
 		if (view3d && view3d->zbuf)

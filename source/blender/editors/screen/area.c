@@ -105,7 +105,7 @@ void ED_region_pixelspace(ARegion *ar)
 	int height = ar->winrct.ymax - ar->winrct.ymin + 1;
 	
 	wmOrtho2(-0.375f, (float)width - 0.375f, -0.375f, (float)height - 0.375f);
-	glLoadIdentity();
+	gpuLoadIdentity();
 }
 
 /* only exported for WM */
@@ -212,10 +212,10 @@ static void region_draw_azone_icon(AZone *az)
 	short midx = az->x1 + (az->x2 - az->x1) / 2;
 	short midy = az->y1 + (az->y2 - az->y1) / 2;
 		
-	qobj = gluNewQuadric();
+	//qobj = gluNewQuadric();
 	
-	glPushMatrix();
-	glTranslatef(midx, midy, 0.0);
+	gpuPushMatrix();
+	gpuTranslate(midx, midy, 0.0);
 
 	gpuImmediateFormat_V2(); // DOODLE, azone icon, disk, circle, and plus (cross), 2 lines mono
 
@@ -230,8 +230,8 @@ static void region_draw_azone_icon(AZone *az)
 
 	glDisable(GL_LINE_SMOOTH);
 
-	glPopMatrix();
-	gluDeleteQuadric(qobj);
+	gpuPopMatrix();
+	//gluDeleteQuadric(qobj);
 
 	/* + */
 	gpuBegin(GL_LINES);
@@ -1281,7 +1281,7 @@ void ED_region_init(bContext *C, ARegion *ar)
 	
 	/* UI convention */
 	wmOrtho2(-0.01f, ar->winx - 0.01f, -0.01f, ar->winy - 0.01f);
-	glLoadIdentity();
+	gpuLoadIdentity();
 }
 
 void ED_region_toggle_hidden(bContext *C, ARegion *ar)

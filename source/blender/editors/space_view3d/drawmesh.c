@@ -406,10 +406,10 @@ static void draw_textured_end(void)
 	 * of and restored the light settings it changed.
 	 *  - zr
 	 */
-	glPushMatrix();
-	glLoadIdentity();	
+	gpuPushMatrix();
+	gpuLoadIdentity();	
 	GPU_default_lights();
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 static DMDrawOption draw_tface__set_draw_legacy(MTFace *tface, int has_mcol, int matnr)
@@ -906,9 +906,9 @@ static void tex_mat_set_texture_cb(void *userData, int mat_nr, void *attribs)
 			glBindTexture(GL_TEXTURE_2D, ima->bindcode);
 			gpuCurrentColor3x(CPACK_WHITE);
 
-			glMatrixMode(GL_TEXTURE);
-			glLoadMatrixf(texbase->tex_mapping.mat);
-			glMatrixMode(GL_MODELVIEW);
+			gpuMatrixMode(GL_TEXTURE);
+			gpuLoadMatrix(texbase->tex_mapping.mat);
+			gpuMatrixMode(GL_MODELVIEW);
 
 			/* use active UV texture layer */
 			memset(gattribs, 0, sizeof(*gattribs));
@@ -923,9 +923,9 @@ static void tex_mat_set_texture_cb(void *userData, int mat_nr, void *attribs)
 	}
 
 	if (!texture_set) {
-		glMatrixMode(GL_TEXTURE);
-		glLoadIdentity();
-		glMatrixMode(GL_MODELVIEW);
+		gpuMatrixMode(GL_TEXTURE);
+		gpuLoadIdentity();
+		gpuMatrixMode(GL_MODELVIEW);
 
 		/* disable texture */
 		glDisable(GL_TEXTURE_2D);
@@ -1021,9 +1021,9 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *o
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glFrontFace(GL_CCW);
 
-	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
-	glMatrixMode(GL_MODELVIEW);
+	gpuMatrixMode(GL_TEXTURE);
+	gpuLoadIdentity();
+	gpuMatrixMode(GL_MODELVIEW);
 
 	/* faceselect mode drawing over textured mesh */
 	if (!(ob == scene->obedit) && (draw_flags & DRAW_FACE_SELECT))

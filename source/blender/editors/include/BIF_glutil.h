@@ -171,8 +171,8 @@ void bglPolygonOffset(float viewdist, float dist);
 
 /* For caching opengl matrices (gluProject/gluUnProject) */
 typedef struct bglMats {
-	double modelview[16];
-	double projection[16];
+	float modelview[16];
+	float projection[16];
 	int viewport[4];
 } bglMats;
 void bgl_get_mats(bglMats *mats);

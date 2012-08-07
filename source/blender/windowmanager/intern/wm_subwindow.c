@@ -143,7 +143,9 @@ void wm_subwindow_getmatrix(wmWindow *win, int swinid, float mat[][4])
 			orthographic_m4(mat, -0.375f, (float)width - 0.375f, -0.375f, (float)height - 0.375f, -100, 100);
 		}
 		else
-			glGetFloatv(GL_PROJECTION_MATRIX, (float *)mat);
+		{	gpuMatrixMode(GL_PROJECTION);
+			gpuGetMatrix((float *)mat);
+		}
 	}
 }
 
@@ -175,7 +177,7 @@ int wm_subwindow_open(wmWindow *win, rcti *winrct)
 	/* extra service */
 	wm_subwindow_getsize(win, swin->swinid, &width, &height);
 	wmOrtho2(-0.375f, (float)width - 0.375f, -0.375f, (float)height - 0.375f);
-	glLoadIdentity();
+	gpuLoadIdentity();
 
 	return swin->swinid;
 }
@@ -275,7 +277,7 @@ void wmSubWindowScissorSet(wmWindow *win, int swinid, rcti *srct)
 
 	wmOrtho2(-0.375f, (float)width - 0.375f, -0.375f, (float)height - 0.375f);
 
-	glLoadIdentity(); /* reset MODELVIEW */
+	gpuLoadIdentity(); /* reset MODELVIEW */
 }
 
 /* enable the WM versions of opengl calls */
@@ -286,18 +288,16 @@ void wmSubWindowSet(wmWindow *win, int swinid)
 
 void wmFrustum(float x1, float x2, float y1, float y2, float n, float f)
 {
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glFrustum(x1, x2, y1, y2, n, f);
-	glMatrixMode(GL_MODELVIEW);
+	gpuMatrixMode(GL_PROJECTION);
+	gpuLoadFrustum(x1, x2, y1, y2, n, f);
+	gpuMatrixMode(GL_MODELVIEW);
 }
 
 void wmOrtho(float x1, float x2, float y1, float y2, float n, float f)
 {
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glOrtho(x1, x2, y1, y2, n, f);
-	glMatrixMode(GL_MODELVIEW);
+	gpuMatrixMode(GL_PROJECTION);
+	gpuLoadOrtho(x1, x2, y1, y2, n, f);
+	gpuMatrixMode(GL_MODELVIEW);
 }
 
 void wmOrtho2(float x1, float x2, float y1, float y2)

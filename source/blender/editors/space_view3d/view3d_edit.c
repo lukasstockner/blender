@@ -78,6 +78,7 @@
 #include "ED_view3d.h"
 #include "ED_sculpt.h"
 
+#include "GPU_compatibility.h"
 
 #include "PIL_time.h" /* smoothview */
 
@@ -2554,7 +2555,7 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 	/* ZBuffer depth vars */
 	bglMats mats;
 	float depth_close = FLT_MAX;
-	double cent[2],  p[3];
+	float cent[3],  p[3], corner[3];
 
 	/* note; otherwise opengl won't work */
 	view3d_operator_needs_opengl(C);
@@ -2582,24 +2583,30 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 		MEM_freeN(depth_temp.depths);
 	}
 
-	cent[0] = (((double)rect.xmin) + ((double)rect.xmax)) / 2;
-	cent[1] = (((double)rect.ymin) + ((double)rect.ymax)) / 2;
+	cent[0] = (((float)rect.xmin) + ((float)rect.xmax)) / 2;
+	cent[1] = (((float)rect.ymin) + ((float)rect.ymax)) / 2;
+
+	corner[0] = rect.xmin;
+	corner[1] = rect.ymin;
 
 	if (rv3d->is_persp) {
-		double p_corner[3];
+		float p_corner[3];
 
 		/* no depths to use, we cant do anything! */
 		if (depth_close == FLT_MAX) {
 			BKE_report(op->reports, RPT_ERROR, "Depth Too Large");
 			return OPERATOR_CANCELLED;
 		}
+
+
+		cent[2] = corner[2] = depth_close;
 		/* convert border to 3d coordinates */
-		if ( (!gluUnProject(cent[0], cent[1], depth_close,
+		if ( (!gpuUnProject(cent,
 		                    mats.modelview, mats.projection, (GLint *)mats.viewport,
-		                    &p[0], &p[1], &p[2])) ||
-		     (!gluUnProject((double)rect.xmin, (double)rect.ymin, depth_close,
+							p)) ||
+			 (!gpuUnProject(corner,
 		                    mats.modelview, mats.projection, (GLint *)mats.viewport,
-		                    &p_corner[0], &p_corner[1], &p_corner[2])))
+							p_corner)))
 		{
 			return OPERATOR_CANCELLED;
 		}
@@ -2623,10 +2630,11 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 
 		new_dist = rv3d->dist;
 
+		cent[2] = depth_close;
 		/* convert the drawn rectangle into 3d space */
-		if (depth_close != FLT_MAX && gluUnProject(cent[0], cent[1], depth_close,
+		if (depth_close != FLT_MAX && gpuUnProject(cent,
 		                                           mats.modelview, mats.projection, (GLint *)mats.viewport,
-		                                           &p[0], &p[1], &p[2]))
+												   p))
 		{
 			new_ofs[0] = -p[0];
 			new_ofs[1] = -p[1];
@@ -3569,30 +3577,26 @@ static float view_autodist_depth_margin(ARegion *ar, const int mval[2], int marg
 int ED_view3d_autodist(Scene *scene, ARegion *ar, View3D *v3d, const int mval[2], float mouse_worldloc[3])
 {
 	bglMats mats; /* ZBuffer depth vars */
-	float depth_close = FLT_MAX;
-	double cent[2],  p[3];
+	float cent[3];
 
 	/* Get Z Depths, needed for perspective, nice for ortho */
 	bgl_get_mats(&mats);
 	draw_depth(scene, ar, v3d, NULL);
 
-	depth_close = view_autodist_depth_margin(ar, mval, 4);
+	cent[2] = view_autodist_depth_margin(ar, mval, 4);
 
-	if (depth_close == FLT_MAX)
+	if (cent[3] == FLT_MAX)
 		return 0;
 
-	cent[0] = (double)mval[0];
-	cent[1] = (double)mval[1];
+	cent[0] = mval[0];
+	cent[1] = mval[1];
 
-	if (!gluUnProject(cent[0], cent[1], depth_close,
-	                  mats.modelview, mats.projection, (GLint *)mats.viewport, &p[0], &p[1], &p[2]))
+	if (!gpuUnProject(cent,
+					  mats.modelview, mats.projection, (GLint *)mats.viewport, mouse_worldloc))
 	{
 		return 0;
 	}
 
-	mouse_worldloc[0] = (float)p[0];
-	mouse_worldloc[1] = (float)p[1];
-	mouse_worldloc[2] = (float)p[2];
 	return 1;
 }
 
@@ -3616,32 +3620,28 @@ int ED_view3d_autodist_simple(ARegion *ar, const int mval[2], float mouse_worldl
                               int margin, float *force_depth)
 {
 	bglMats mats; /* ZBuffer depth vars, could cache? */
-	float depth;
-	double cent[2],  p[3];
+	float cent[3];
 
 	/* Get Z Depths, needed for perspective, nice for ortho */
 	if (force_depth)
-		depth = *force_depth;
+		cent[2] = *force_depth;
 	else
-		depth = view_autodist_depth_margin(ar, mval, margin);
+		cent[2] = view_autodist_depth_margin(ar, mval, margin);
 
-	if (depth == FLT_MAX)
+	if (cent[2] == FLT_MAX)
 		return 0;
 
-	cent[0] = (double)mval[0];
-	cent[1] = (double)mval[1];
+	cent[0] = mval[0];
+	cent[1] = mval[1];
 
 	bgl_get_mats(&mats);
 
-	if (!gluUnProject(cent[0], cent[1], depth,
-	                  mats.modelview, mats.projection, (GLint *)mats.viewport, &p[0], &p[1], &p[2]))
+	if (!gpuUnProject(cent,
+					  mats.modelview, mats.projection, (GLint *)mats.viewport, mouse_worldloc))
 	{
 		return 0;
 	}
 
-	mouse_worldloc[0] = (float)p[0];
-	mouse_worldloc[1] = (float)p[1];
-	mouse_worldloc[2] = (float)p[2];
 	return 1;
 }
 

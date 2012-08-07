@@ -5251,13 +5251,13 @@ static void brush_drawcursor(bContext *C, int x, int y, void *UNUSED(customdata)
 			alpha *= (pixel_size - PX_SIZE_FADE_MIN) / (PX_SIZE_FADE_MAX - PX_SIZE_FADE_MIN);
 		}
 
-		glPushMatrix();
+		gpuPushMatrix();
 
-		glTranslatef((float)x, (float)y, 0.0f);
+		gpuTranslate((float)x, (float)y, 0.0f);
 
 		/* No need to scale for uv sculpting, on the contrary it might be useful to keep unscaled */
 		if (use_zoom)
-			glScalef(zoomx, zoomy, 1.0f);
+			gpuScale(zoomx, zoomy, 1.0f);
 
 		gpuCurrentColor4f(brush->add_col[0], brush->add_col[1], brush->add_col[2], alpha);
 		glEnable(GL_LINE_SMOOTH);
@@ -5266,7 +5266,7 @@ static void brush_drawcursor(bContext *C, int x, int y, void *UNUSED(customdata)
 		glDisable(GL_BLEND);
 		glDisable(GL_LINE_SMOOTH);
 
-		glPopMatrix();
+		gpuPopMatrix();
 	}
 #undef PX_SIZE_FADE_MAX
 #undef PX_SIZE_FADE_MIN

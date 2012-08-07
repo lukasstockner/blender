@@ -555,8 +555,6 @@ static void blf_draw__start(FontBLF *font)
 	}
 #endif
 
-	gpuMatrixLock();
-
 	gpuMatrixMode(GL_TEXTURE);
 	gpuPushMatrix();
 	gpuLoadIdentity();
@@ -575,7 +573,7 @@ static void blf_draw__start(FontBLF *font)
 		gpuScale(font->aspect[0], font->aspect[1], font->aspect[2]);
 
 	if (font->flags & BLF_ROTATION)
-		gpuRotateAxis(font->angle, 'Z');
+		gpuRotateAxis(font->angle*M_PI/180.0f, 'Z');
 
 	if (font->shadow || font->blur) 
 		gpuGetCurrentColor4fv(font->orig_col);
@@ -597,8 +595,6 @@ static void blf_draw__end(FontBLF *font)
 
 	gpuMatrixMode(GL_MODELVIEW);
 	gpuPopMatrix();
-
-	gpuMatrixUnlock();
 
 	/* XXX: current color becomes undefined due to use of vertex arrays,
 	        but a lot of code relies on it remaining the same */

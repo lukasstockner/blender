@@ -75,8 +75,8 @@ void draw_motion_paths_init(View3D *v3d, ARegion *ar)
 	
 	if (v3d->zbuf) glDisable(GL_DEPTH_TEST);
 	
-	glPushMatrix();
-	glLoadMatrixf(rv3d->viewmat);
+	gpuPushMatrix();
+	gpuLoadMatrix(rv3d->viewmat);
 }
 
 /* Draw the given motion path for an Object or a Bone 
@@ -330,5 +330,5 @@ void draw_motion_path_instance(Scene *scene,
 void draw_motion_paths_cleanup(View3D *v3d)
 {
 	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
-	glPopMatrix();
+	gpuPopMatrix();
 }

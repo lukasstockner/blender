@@ -298,8 +298,8 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 	glGetBooleanv(GL_BLEND, (GLboolean *)&gl_blend);
 	glGetBooleanv(GL_DEPTH_TEST, (GLboolean *)&gl_depth);
 
-	glLoadMatrixf(rv3d->viewmat);
-	// glMultMatrixf(ob->obmat);	
+	gpuLoadMatrix(rv3d->viewmat);
+	// gpuMultMatrix(ob->obmat);	
 
 	glDepthMask(GL_FALSE);
 	glDisable(GL_DEPTH_TEST);

@@ -778,7 +778,7 @@ void draw_image_main(SpaceImage *sima, ARegion *ar, Scene *scene)
 			calc_image_view(sima, 'f');	
 			myortho2(G.v2d->cur.xmin, G.v2d->cur.xmax, G.v2d->cur.ymin, G.v2d->cur.ymax);
 			gpuSingleFilledRectf(0.0f, 0.0f, 1.0f, 1.0f);
-			glLoadIdentity();
+			gpuLoadIdentity();
 		}
 	}
 #endif

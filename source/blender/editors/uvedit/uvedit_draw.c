@@ -76,7 +76,7 @@ static void drawcursor_sima(SpaceImage *sima, ARegion *ar)
 	w = zoomx * width / 256.0f;
 	h = zoomy * height / 256.0f;
 	
-	glTranslatef(sima->cursor[0], sima->cursor[1], 0.0);
+	gpuTranslate(sima->cursor[0], sima->cursor[1], 0.0);
 
 	gpuImmediateFormat_C4_V2(); // DOODLE: uvedit cursor sima, 16 colored lines
 	gpuBegin(GL_LINES);
@@ -112,7 +112,7 @@ static void drawcursor_sima(SpaceImage *sima, ARegion *ar)
 	gpuEnd();
 	gpuImmediateUnformat();
 
-	glTranslatef(-sima->cursor[0], -sima->cursor[1], 0.0);
+	gpuTranslate(-sima->cursor[0], -sima->cursor[1], 0.0);
 	setlinestyle(0);
 }
 

@@ -30,7 +30,7 @@
 */
 
 #include "gpu_immediate_internal.h"
-
+#include "GPU_matrix.h"
 #include "MEM_guardedalloc.h"
 
 #include <string.h>
@@ -274,7 +274,7 @@ void gpu_end_buffer_gl11(void)
 {
 	if (GPU_IMMEDIATE->count > 0) {
 		GPU_CHECK_NO_ERROR();
-
+		gpuMatrixCommit();
 		glDrawArrays(GPU_IMMEDIATE->mode, 0, GPU_IMMEDIATE->count);
 
 		GPU_CHECK_NO_ERROR();
@@ -423,7 +423,7 @@ void gpu_draw_elements_gl11(void)
 	GPUindex* index = GPU_IMMEDIATE->index;
 
 	GPU_CHECK_NO_ERROR();
-
+	gpuMatrixCommit();
 	glDrawElements(
 		GPU_IMMEDIATE->mode,
 		index->count,
@@ -438,7 +438,7 @@ void gpu_draw_range_elements_gl11(void)
 	GPUindex* index = GPU_IMMEDIATE->index;
 
 	GPU_CHECK_NO_ERROR();
-
+	gpuMatrixCommit();
 	glDrawRangeElements(
 		GPU_IMMEDIATE->mode,
 		index->indexMin,

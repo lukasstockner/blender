@@ -1982,7 +1982,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 	/* draw other stuff */
 	draw_brackets(st, ar);
 	draw_markers(st, ar);
-	glTranslatef(0.375f, 0.375f, 0.0f); /* XXX scroll requires exact pixel space */
+	gpuTranslate(0.375f, 0.375f, 0.0f); /* XXX scroll requires exact pixel space */
 	draw_textscroll(st, &scroll, &back);
 	draw_documentation(st, ar);
 	draw_suggestion_list(st, ar);

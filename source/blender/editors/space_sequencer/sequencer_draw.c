@@ -1045,15 +1045,15 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 			}
 
 			/* apply transformation so mask editing tools will assume drawing from the origin in normalized space */
-			glPushMatrix();
-			glTranslatef(x + xofs, y + yofs, 0);
-			glScalef(maxdim * zoomx, maxdim * zoomy, 0);
+			gpuPushMatrix();
+			gpuTranslate(x + xofs, y + yofs, 0);
+			gpuScale(maxdim * zoomx, maxdim * zoomy, 0);
 
 			ED_mask_draw((bContext *)C, 0, 0); // sc->mask_draw_flag, sc->mask_draw_type
 
 			ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_VIEW);
 
-			glPopMatrix();
+			gpuPopMatrix();
 		}
 	}
 

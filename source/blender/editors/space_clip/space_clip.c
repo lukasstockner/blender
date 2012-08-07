@@ -70,6 +70,8 @@
 
 #include "RNA_access.h"
 
+#include "GPU_compatibility.h"
+
 
 #include "clip_intern.h"  /* own include */
 
@@ -1109,16 +1111,16 @@ static void clip_main_area_draw_mask(const bContext *C, ARegion *ar)
 	}
 
 	/* apply transformation so mask editing tools will assume drawing from the origin in normalized space */
-	glPushMatrix();
-	glTranslatef(x + xofs, y + yofs, 0);
-	glScalef(maxdim * zoomx, maxdim * zoomy, 0);
-	glMultMatrixf(sc->stabmat);
+	gpuPushMatrix();
+	gpuTranslate(x + xofs, y + yofs, 0);
+	gpuScale(maxdim * zoomx, maxdim * zoomy, 0);
+	gpuMultMatrix(sc->stabmat);
 
 	ED_mask_draw(C, sc->mask_draw_flag, sc->mask_draw_type);
 
 	ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_VIEW);
 
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 static void clip_main_area_draw(const bContext *C, ARegion *ar)

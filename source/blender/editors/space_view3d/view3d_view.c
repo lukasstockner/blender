@@ -71,6 +71,8 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
+#include "GPU_compatibility.h"
+
 #include "view3d_intern.h"  /* own include */
 
 /* use this call when executing an operator,
@@ -93,10 +95,11 @@ void view3d_region_operator_needs_opengl(wmWindow *win, ARegion *ar)
 		RegionView3D *rv3d = ar->regiondata;
 		
 		wmSubWindowSet(win, ar->swinid);
-		glMatrixMode(GL_PROJECTION);
-		glLoadMatrixf(rv3d->winmat);
-		glMatrixMode(GL_MODELVIEW);
-		glLoadMatrixf(rv3d->viewmat);
+		gpuMatrixMode(GL_PROJECTION);
+		gpuLoadMatrix(rv3d->winmat);
+		gpuMatrixMode(GL_MODELVIEW);
+		gpuLoadMatrix(rv3d->viewmat);
+		gpuMatrixCommit();//change
 	}
 }
 
@@ -527,7 +530,7 @@ void VIEW3D_OT_object_as_camera(wmOperatorType *ot)
 void ED_view3d_calc_clipping(BoundBox *bb, float planes[4][4], bglMats *mats, const rcti *rect)
 {
 	float modelview[4][4];
-	double xs, ys, p[3];
+	float s[3], p[3];
 	int val, flip_sign, a;
 
 	/* near zero floating point values can give issues with gluUnProject
@@ -540,16 +543,19 @@ void ED_view3d_calc_clipping(BoundBox *bb, float planes[4][4], bglMats *mats, co
 	mats->viewport[1] = 0;
 
 	/* four clipping planes and bounding volume */
-	/* first do the bounding volume */
+	/* first do the bounding volume */	
 	for (val = 0; val < 4; val++) {
-		xs = (val == 0 || val == 3) ? rect->xmin : rect->xmax;
-		ys = (val == 0 || val == 1) ? rect->ymin : rect->ymax;
+		s[0] = (val == 0 || val == 3) ? rect->xmin : rect->xmax;
+		s[1] = (val == 0 || val == 1) ? rect->ymin : rect->ymax;
+		s[2] = 0;
 
-		gluUnProject(xs, ys, 0.0, mats->modelview, mats->projection, mats->viewport, &p[0], &p[1], &p[2]);
-		copy_v3fl_v3db(bb->vec[val], p);
+		gpuUnProject(s, mats->modelview, mats->projection, mats->viewport, p);
+		copy_v3_v3(bb->vec[val], p);
 
-		gluUnProject(xs, ys, 1.0, mats->modelview, mats->projection, mats->viewport, &p[0], &p[1], &p[2]);
-		copy_v3fl_v3db(bb->vec[4 + val], p);
+		s[2] = 1.0;
+
+		gpuUnProject(s, mats->modelview, mats->projection, mats->viewport, p);
+		copy_v3_v3(bb->vec[4 + val], p);
 	}
 
 	/* verify if we have negative scale. doing the transform before cross
@@ -760,14 +766,11 @@ void ED_view3d_ob_project_mat_get(RegionView3D *rv3d, Object *ob, float pmat[4][
  * modelspace */
 void view3d_unproject(bglMats *mats, float out[3], const short x, const short y, const float z)
 {
-	double ux, uy, uz;
+	float win[] = {x, y, z};
 
-	gluUnProject(x, y, z, mats->modelview, mats->projection,
-	             (GLint *)mats->viewport, &ux, &uy, &uz);
+	gpuUnProject(win, mats->modelview, mats->projection,
+				 (GLint *)mats->viewport, out);
 
-	out[0] = ux;
-	out[1] = uy;
-	out[2] = uz;
 }
 
 /* use view3d_get_object_project_mat to get projecting mat */
@@ -1067,7 +1070,7 @@ void setwinmatrixview3d(ARegion *ar, View3D *v3d, rctf *rect)       /* rect: for
 	}
 
 	/* update matrix in 3d view region */
-	glGetFloatv(GL_PROJECTION_MATRIX, (float *)rv3d->winmat);
+	gpuGetSpecificMatrix(GL_PROJECTION, (float *)rv3d->winmat);
 }
 
 static void obmat_to_viewmat(View3D *v3d, RegionView3D *rv3d, Object *ob, short smooth)

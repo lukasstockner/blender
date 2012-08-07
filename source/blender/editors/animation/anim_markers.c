@@ -359,7 +359,7 @@ static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
 	ypixels = v2d->mask.ymax - v2d->mask.ymin;
 	UI_view2d_getscale(v2d, &xscale, &yscale);
 	
-	glScalef(1.0f / xscale, 1.0f, 1.0f);
+	gpuScale(1.0f / xscale, 1.0f, 1.0f);
 	
 	glEnable(GL_BLEND);
 	
@@ -431,7 +431,7 @@ static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
 		UI_DrawString(x, y, marker->name); // DOODLE text label
 	}
 	
-	glScalef(xscale, 1.0f, 1.0f);
+	gpuScale(xscale, 1.0f, 1.0f);
 }
 
 /* Draw Scene-Markers in time window */

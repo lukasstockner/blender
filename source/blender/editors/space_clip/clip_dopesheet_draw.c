@@ -122,11 +122,11 @@ static void draw_keyframe_shape(float x, float y, float xscale, float yscale, sh
 		glEndList();
 	}
 
-	glPushMatrix();
+	gpuPushMatrix();
 
 	/* adjust view transform before starting */
-	glTranslatef(x, y, 0.0f);
-	glScalef(1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
+	gpuTranslate(x, y, 0.0f);
+	gpuScale(1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
 
 	/* anti-aliased lines for more consistent appearance */
 	glEnable(GL_LINE_SMOOTH);
@@ -145,7 +145,7 @@ static void draw_keyframe_shape(float x, float y, float xscale, float yscale, sh
 	glDisable(GL_LINE_SMOOTH);
 
 	/* restore view transform */
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *ar, Scene *scene)

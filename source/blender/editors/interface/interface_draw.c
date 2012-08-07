@@ -894,14 +894,14 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 		gpuCurrentGray3f(alpha);
 		if (scopes->wavefrm_mode == SCOPES_WAVEFRM_LUMA) {
 
-			glPushMatrix();
-			glTranslatef(rect.xmin, yofs, 0);
-			glScalef(w, h, 0);
+			gpuPushMatrix();
+			gpuTranslate(rect.xmin, yofs, 0);
+			gpuScale(w, h, 0);
 
 			arrays.vertexPointer = scopes->waveform_1;
 			gpuDrawClientArrays(GL_POINTS, &arrays, 0, scopes->waveform_tot);
 
-			glPopMatrix();
+			gpuPopMatrix();
 
 			/* min max */
 			gpuCurrentGray3f(0.500f);
@@ -922,26 +922,26 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 
 			int rgb = (scopes->wavefrm_mode == SCOPES_WAVEFRM_RGB);
 
-			glPushMatrix();
+			gpuPushMatrix();
 
-			glTranslatef(rect.xmin, yofs, 0);
-			glScalef(w3, h, 0);
+			gpuTranslate(rect.xmin, yofs, 0);
+			gpuScale(w3, h, 0);
 
 			gpuCurrentColor3fv((rgb) ? colors_alpha[0] : colorsycc_alpha[0]);
 			arrays.vertexPointer = scopes->waveform_1;
 			gpuDrawClientArrays(GL_POINTS, &arrays, 0, scopes->waveform_tot);
 
-			glTranslatef(1, 0, 0);
+			gpuTranslate(1, 0, 0);
 			gpuCurrentColor3fv((rgb) ? colors_alpha[1] : colorsycc_alpha[1]);
 			arrays.vertexPointer = scopes->waveform_2;
 			gpuDrawClientArrays(GL_POINTS, &arrays, 0, scopes->waveform_tot);
 
-			glTranslatef(1, 0, 0);
+			gpuTranslate(1, 0, 0);
 			gpuCurrentColor3fv((rgb) ? colors_alpha[2] : colorsycc_alpha[2]);
 			arrays.vertexPointer = scopes->waveform_3;
 			gpuDrawClientArrays(GL_POINTS, &arrays, 0, scopes->waveform_tot);
 
-			glPopMatrix();
+			gpuPopMatrix();
 
 			/* min max */
 			for (c = 0; c < 3; c++) {
@@ -1117,14 +1117,14 @@ void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wco
 		/* pixel point cloud */
 		gpuCurrentGray3f(alpha);
 
-		glPushMatrix();
-		glTranslatef(centerx, centery, 0);
-		glScalef(diam, diam, 0);
+		gpuPushMatrix();
+		gpuTranslate(centerx, centery, 0);
+		gpuScale(diam, diam, 0);
 
 		arrays.vertexPointer = scopes->vecscope;
 		gpuDrawClientArrays(GL_POINTS, &arrays, 0, scopes->waveform_tot);
 
-		glPopMatrix();
+		gpuPopMatrix();
 
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); /* reset blender default */
 	}
@@ -1304,15 +1304,15 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 	gpuLightf(7, GL_LINEAR_ATTENUATION, 0.0f);
 	
 	/* transform to button */
-	glPushMatrix();
-	glTranslatef(rect->xmin + 0.5f * (rect->xmax - rect->xmin), rect->ymin + 0.5f * (rect->ymax - rect->ymin), 0.0f);
+	gpuPushMatrix();
+	gpuTranslate(rect->xmin + 0.5f * (rect->xmax - rect->xmin), rect->ymin + 0.5f * (rect->ymax - rect->ymin), 0.0f);
 	
 	if (rect->xmax - rect->xmin < rect->ymax - rect->ymin)
 		size = (rect->xmax - rect->xmin) / 200.f;
 	else
 		size = (rect->ymax - rect->ymin) / 200.f;
 	
-	glScalef(size, size, size);
+	gpuScale(size, size, size);
 	
 	glShadeModel(GL_SMOOTH);
 
@@ -1353,7 +1353,7 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 	glDisable(GL_LINE_SMOOTH);
 
 	/* matrix after circle */
-	glPopMatrix();
+	gpuPopMatrix();
 
 	/* enable blender light */
 	for (a = 0; a < 8; a++) {
@@ -1645,7 +1645,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 		int a;
 		ImBuf *drawibuf;
 
-		glPushMatrix();
+		gpuPushMatrix();
 
 		track_pos[0] = scopes->track_pos[0];
 		track_pos[1] = scopes->track_pos[1];
@@ -1666,7 +1666,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 			                  drawibuf->x, GL_RGBA, GL_UNSIGNED_BYTE, drawibuf->rect);
 
 			/* draw cross for pizel position */
-			glTranslatef(rect.xmin + track_pos[0], rect.ymin + track_pos[1], 0.f);
+			gpuTranslate(rect.xmin + track_pos[0], rect.ymin + track_pos[1], 0.f);
 			glScissor(ar->winrct.xmin + rect.xmin,
 			          ar->winrct.ymin + rect.ymin,
 			          rect.xmax - rect.xmin,
@@ -1692,7 +1692,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 		}
 
 		glDisable(GL_LINE_STIPPLE);
-		glPopMatrix();
+		gpuPopMatrix();
 
 		ok = 1;
 	}

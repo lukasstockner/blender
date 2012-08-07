@@ -59,7 +59,6 @@
 //#include "editmesh.h"
 //#include "BIF_editsima.h"
 #include "GPU_compatibility.h"
-#include "BIF_gl.h"
 //#include "BIF_mywindow.h"
 //#include "BIF_screen.h"
 //#include "BIF_editsima.h"

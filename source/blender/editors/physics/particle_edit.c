@@ -403,7 +403,7 @@ static void PE_set_view3d_data(bContext *C, PEData *data)
 static int key_test_depth(PEData *data, const float co[3])
 {
 	View3D *v3d= data->vc.v3d;
-	double ux, uy, uz;
+	double u[3];
 	float depth;
 	short wco[3], x, y;
 
@@ -416,8 +416,8 @@ static int key_test_depth(PEData *data, const float co[3])
 	if (wco[0] == IS_CLIPPED)
 		return 0;
 
-	gluProject(co[0], co[1], co[2], data->mats.modelview, data->mats.projection,
-	           (GLint *)data->mats.viewport, &ux, &uy, &uz);
+	gpuProject(co, data->mats.modelview, data->mats.projection,
+			   (GLint *)data->mats.viewport, u);
 
 	x=wco[0];
 	y=wco[1];
@@ -438,7 +438,7 @@ static int key_test_depth(PEData *data, const float co[3])
 	}
 #endif
 
-	if ((float)uz - 0.00001f > depth)
+	if (u[2] - 0.00001f > depth)
 		return 0;
 	else
 		return 1;
