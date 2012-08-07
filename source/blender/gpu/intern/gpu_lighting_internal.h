@@ -34,7 +34,7 @@
 
 
 
-#include "GPU_lighting.h"
+#include "gpu_lighting.h"
 
 
 
