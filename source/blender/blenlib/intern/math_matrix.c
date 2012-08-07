@@ -167,6 +167,31 @@ void mult_m4_m4m4_q(float m1[][4], float m3[][4], float m2[][4])
 
 }
 
+void mult_m4_m3m4_q(float m1[][4], float m3[][4], float m2[][3])
+{
+	/* matrix product: m1[j][k] = m2[j][i].m3[i][k] */
+	m1[0][0] = m2[0][0] * m3[0][0] + m2[0][1] * m3[1][0] + m2[0][2] * m3[2][0];
+	m1[0][1] = m2[0][0] * m3[0][1] + m2[0][1] * m3[1][1] + m2[0][2] * m3[2][1];
+	m1[0][2] = m2[0][0] * m3[0][2] + m2[0][1] * m3[1][2] + m2[0][2] * m3[2][2];
+	m1[0][3] = m2[0][0] * m3[0][3] + m2[0][1] * m3[1][3] + m2[0][2] * m3[2][3];
+
+	m1[1][0] = m2[1][0] * m3[0][0] + m2[1][1] * m3[1][0] + m2[1][2] * m3[2][0];
+	m1[1][1] = m2[1][0] * m3[0][1] + m2[1][1] * m3[1][1] + m2[1][2] * m3[2][1];
+	m1[1][2] = m2[1][0] * m3[0][2] + m2[1][1] * m3[1][2] + m2[1][2] * m3[2][2];
+	m1[1][3] = m2[1][0] * m3[0][3] + m2[1][1] * m3[1][3] + m2[1][2] * m3[2][3];
+
+	m1[2][0] = m2[2][0] * m3[0][0] + m2[2][1] * m3[1][0] + m2[2][2] * m3[2][0];
+	m1[2][1] = m2[2][0] * m3[0][1] + m2[2][1] * m3[1][1] + m2[2][2] * m3[2][1];
+	m1[2][2] = m2[2][0] * m3[0][2] + m2[2][1] * m3[1][2] + m2[2][2] * m3[2][2];
+	m1[2][3] = m2[2][0] * m3[0][3] + m2[2][1] * m3[1][3] + m2[2][2] * m3[2][3];
+
+	m1[3][0] = m3[3][0];
+	m1[3][1] = m3[3][1];
+	m1[3][2] = m3[3][2];
+	m1[3][3] = m3[3][3];
+
+}
+
 void mult_m4_m4m4(float m1[][4], float m3_[][4], float m2_[][4])
 {
 	float m2[4][4], m3[4][4];
@@ -337,6 +362,23 @@ void mul_v3_m4v3(float in[3], float mat[][4], const float vec[3])
 	in[0] = x * mat[0][0] + y * mat[1][0] + mat[2][0] * vec[2] + mat[3][0];
 	in[1] = x * mat[0][1] + y * mat[1][1] + mat[2][1] * vec[2] + mat[3][1];
 	in[2] = x * mat[0][2] + y * mat[1][2] + mat[2][2] * vec[2] + mat[3][2];
+}
+
+
+void mul_v4_m4v3(float out[4], float mat[][4], const float vec[3])
+{
+	out[0] = vec[0] * mat[0][0] + vec[1] * mat[1][0] + mat[2][0] * vec[2] + mat[3][0];
+	out[1] = vec[0] * mat[0][1] + vec[1] * mat[1][1] + mat[2][1] * vec[2] + mat[3][1];
+	out[2] = vec[0] * mat[0][2] + vec[1] * mat[1][2] + mat[2][2] * vec[2] + mat[3][2];
+	out[3] = vec[0] * mat[0][3] + vec[1] * mat[1][3] + mat[2][3] * vec[2] + mat[3][3];
+}
+
+void mul_v3_m4v3_q(float out[3], float mat[][4], const float vec[3])
+{
+	out[0] = vec[0] * mat[0][0] + vec[1] * mat[1][0] + mat[2][0] * vec[2] + mat[3][0];
+	out[1] = vec[0] * mat[0][1] + vec[1] * mat[1][1] + mat[2][1] * vec[2] + mat[3][1];
+	out[2] = vec[0] * mat[0][2] + vec[1] * mat[1][2] + mat[2][2] * vec[2] + mat[3][2];
+
 }
 
 /* same as mul_m4_v3() but doesnt apply translation component */
@@ -1224,6 +1266,61 @@ void rotate_m4(float mat[][4], const char axis, const float angle)
 			break;
 	}
 }
+
+void rotate_m4_right(float mat[][4], const char axis)
+{
+#define COORD(x,y) (4*x + y)
+	const static char mrotx[]  = {1, 2};
+	const static char mrotxn[] = {2, 1};
+
+	const static char mroty[]  = {2, 0};
+	const static char mrotyn[] = {0, 2};
+
+	const static char mrotz[]  = {0, 1};
+	const static char mrotzn[] = {1, 0};
+
+#undef COORD
+
+	const char * rotmat;
+	float tmpf;
+	int i;
+
+
+	switch(axis)
+	{
+		case 'X':
+			rotmat = mrotx;
+			break;
+		case (char)-'X':
+			rotmat = mrotxn;
+			break;
+		case 'Y':
+			rotmat = mroty;
+			break;
+		case (char)-'Y':
+			rotmat = mrotyn;
+			break;
+		case 'Z':
+			rotmat = mrotz;
+			break;
+		case (char)-'Z':
+			rotmat = mrotzn;
+			break;
+		default:
+			BLI_assert(0);
+
+	}
+
+	for(i=0; i<3; i++)
+	{
+		tmpf = mat[rotmat[1]][i];
+		mat[rotmat[1]][i] = -1.0*mat[rotmat[0]][i];
+		mat[rotmat[0]][i] = tmpf;
+
+	}
+
+}
+
 
 void blend_m3_m3m3(float out[][3], float dst[][3], float src[][3], const float srcweight)
 {
