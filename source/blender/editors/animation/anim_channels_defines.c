@@ -120,7 +120,7 @@ static void acf_generic_root_backdrop(bAnimContext *ac, bAnimListElem *ale, floa
 
 	/* rounded corners on LHS only - top only when expanded, but bottom too when collapsed */
 	uiSetRoundBox(expanded ? UI_CNR_TOP_LEFT : (UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT));
-	uiDrawBox(GL_POLYGON, offset,  yminc, v2d->cur.xmax + EXTRA_SCROLL_PAD, ymaxc, 8);
+	uiDrawBox(GL_TRIANGLE_FAN, offset,  yminc, v2d->cur.xmax + EXTRA_SCROLL_PAD, ymaxc, 8);
 }
 
 
@@ -416,7 +416,7 @@ static void acf_summary_backdrop(bAnimContext *ac, bAnimListElem *ale, float ymi
 	 *	- special hack: make the top a bit higher, since we are first... 
 	 */
 	uiSetRoundBox(UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT);
-	uiDrawBox(GL_POLYGON, 0,  yminc - 2, v2d->cur.xmax + EXTRA_SCROLL_PAD, ymaxc, 8);
+	uiDrawBox(GL_TRIANGLE_FAN, 0,  yminc - 2, v2d->cur.xmax + EXTRA_SCROLL_PAD, ymaxc, 8);
 }
 
 /* name for summary entries */
@@ -788,7 +788,7 @@ static void acf_group_backdrop(bAnimContext *ac, bAnimListElem *ale, float yminc
 	
 	/* rounded corners on LHS only - top only when expanded, but bottom too when collapsed */
 	uiSetRoundBox(expanded ? UI_CNR_TOP_LEFT : (UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT));
-	uiDrawBox(GL_POLYGON, offset,  yminc, v2d->cur.xmax + EXTRA_SCROLL_PAD, ymaxc, 8);
+	uiDrawBox(GL_TRIANGLE_FAN, offset,  yminc, v2d->cur.xmax + EXTRA_SCROLL_PAD, ymaxc, 8);
 }
 
 /* name for group entries */

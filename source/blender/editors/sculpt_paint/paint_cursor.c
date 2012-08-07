@@ -453,7 +453,7 @@ static void paint_draw_alpha_overlay(Sculpt *sd, Brush *brush,
 			brush->texture_overlay_alpha / 100.0f);
 
 		/* draw textured quad */
-		gpuBegin(GL_QUADS);
+		gpuBegin(GL_TRIANGLE_FAN);
 		gpuTexCoord2f(0, 0);
 		gpuVertex2f(quad.xmin, quad.ymin);
 		gpuTexCoord2f(1, 0);

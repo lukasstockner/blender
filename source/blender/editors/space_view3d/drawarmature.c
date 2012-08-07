@@ -632,7 +632,7 @@ static void draw_sphere_bone_dist(float smat[][4], float imat[][4], bPoseChannel
 		//mul_v3_fl(dirvec, head);
 		cross_v3_v3v3(norvec, dirvec, imat[2]);
 		
-		gpuBegin(GL_QUAD_STRIP);
+		gpuBegin(GL_TRIANGLE_STRIP);
 		
 		for (a = 0; a < 16; a++) {
 			vec[0] = -si[a] * dirvec[0] + co[a] * norvec[0];

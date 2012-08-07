@@ -157,7 +157,8 @@ void GPU_render_text(MTFace *tface, int mode,
 			uv[2][0] = (tface->uv[2][0] - centerx) * sizex + transx;
 			uv[2][1] = (tface->uv[2][1] - centery) * sizey + transy;
 			
-			gpuBegin(GL_POLYGON);
+			/* Changed GL_POLYGON to GL_TRIANGLE_FAN. Needs to be check*/
+			gpuBegin(GL_TRIANGLE_FAN);
 			if (glattrib >= 0) gpuVertexAttrib2fv(glattrib, uv[0]);
 			else gpuTexCoord2fv(uv[0]);
 			if (col) gpu_mcol(col[0]);

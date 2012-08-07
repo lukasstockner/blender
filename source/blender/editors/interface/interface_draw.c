@@ -93,6 +93,8 @@ void uiDrawBox(int mode, float minx, float miny, float maxx, float maxy, float r
 	gpuImmediateFormat_V2(); // DOODLE: ui box, a rounded rectangle
 	gpuBegin(mode);
 
+
+
 	/* start with corner right-bottom */
 	if (roundboxtype & UI_CNR_BOTTOM_RIGHT) {
 		gpuVertex2f(maxx - rad, miny);
@@ -387,7 +389,7 @@ void uiRoundBox(float minx, float miny, float maxx, float maxy, float rad)
 		glEnable(GL_BLEND);
 	}
 
-	ui_draw_anti_roundbox(GL_POLYGON, minx, miny, maxx, maxy, rad);
+	ui_draw_anti_roundbox(GL_TRIANGLE_FAN, minx, miny, maxx, maxy, rad);
 }
 
 
@@ -693,7 +695,7 @@ static void histogram_draw_one(float r, float g, float b, float alpha,
 
 		glShadeModel(GL_FLAT);
 
-	gpuBegin(GL_QUAD_STRIP); // DOODLE: line graph drawn using quads, locking done by function callee
+	gpuBegin(GL_TRIANGLE_STRIP); // DOODLE: line graph drawn using quads, locking done by function callee
 	gpuVertex2f(x, y);
 	gpuVertex2f(x, y + (data[0] * h));
 		for (i = 1; i < res; i++) {
@@ -742,7 +744,7 @@ void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol)
 
 	gpuCurrentColor4x(CPACK_BLACK, 0.300f);
 	uiSetRoundBox(UI_CNR_ALL);
-	uiDrawBox(GL_POLYGON, rect.xmin - 1, rect.ymin - 1, rect.xmax + 1, rect.ymax + 1, 3.0f);
+	uiDrawBox(GL_TRIANGLE_FAN, rect.xmin - 1, rect.ymin - 1, rect.xmax + 1, rect.ymax + 1, 3.0f);
 
 	/* need scissor test, histogram can draw outside of boundary */
 	glGetIntegerv(GL_VIEWPORT, scissor);
@@ -824,7 +826,7 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 
 	gpuCurrentColor4x(CPACK_BLACK, 0.300f);
 	uiSetRoundBox(UI_CNR_ALL);
-	uiDrawBox(GL_POLYGON, rect.xmin - 1, rect.ymin - 1, rect.xmax + 1, rect.ymax + 1, 3.0f);
+	uiDrawBox(GL_TRIANGLE_FAN, rect.xmin - 1, rect.ymin - 1, rect.xmax + 1, rect.ymax + 1, 3.0f);
 	
 
 	/* need scissor test, waveform can draw outside of boundary */
@@ -1064,7 +1066,7 @@ void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wco
 
 	gpuCurrentColor4x(CPACK_BLACK, 0.300f);
 	uiSetRoundBox(UI_CNR_ALL);
-	uiDrawBox(GL_POLYGON, rect.xmin - 1, rect.ymin - 1, rect.xmax + 1, rect.ymax + 1, 3.0f);
+	uiDrawBox(GL_TRIANGLE_FAN, rect.xmin - 1, rect.ymin - 1, rect.xmax + 1, rect.ymax + 1, 3.0f);
 
 	/* need scissor test, hvectorscope can draw outside of boundary */
 	glGetIntegerv(GL_VIEWPORT, scissor);
@@ -1175,7 +1177,7 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 	v1[1] = y1;
 	v2[1] = y1 + sizey;
 
-	gpuBegin(GL_QUAD_STRIP);
+	gpuBegin(GL_TRIANGLE_STRIP);
 
 	gpuColor4fv(&cbd->r);
 	gpuVertex2fv(v1); gpuVertex2fv(v2);
@@ -1278,7 +1280,7 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 	/* backdrop */
 	gpuCurrentColor3ubv((unsigned char *)wcol->inner);
 	uiSetRoundBox(UI_CNR_ALL);
-	uiDrawBox(GL_POLYGON, rect->xmin, rect->ymin, rect->xmax, rect->ymax, 5.0f);
+	uiDrawBox(GL_TRIANGLE_FAN, rect->xmin, rect->ymin, rect->xmax, rect->ymax, 5.0f);
 	
 	/* sphere color */
 	gpuMaterialfv(GL_FRONT, GL_DIFFUSE, diffn);
@@ -1609,7 +1611,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 	if (scopes->track_disabled) {
 		gpuCurrentColor4f(0.7f, 0.3f, 0.3f, 0.3f);
 		uiSetRoundBox(15);
-		uiDrawBox(GL_POLYGON, rect.xmin - 1, rect.ymin, rect.xmax + 1, rect.ymax + 1, 3.0f);
+		uiDrawBox(GL_TRIANGLE_FAN, rect.xmin - 1, rect.ymin, rect.xmax + 1, rect.ymax + 1, 3.0f);
 
 		ok = 1;
 	}
@@ -1659,7 +1661,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 			if (scopes->use_track_mask) {
 				gpuCurrentColor4x(CPACK_BLACK, 0.300f);
 				uiSetRoundBox(15);
-				uiDrawBox(GL_POLYGON, rect.xmin - 1, rect.ymin, rect.xmax + 1, rect.ymax + 1, 3.0f);
+				uiDrawBox(GL_TRIANGLE_FAN, rect.xmin - 1, rect.ymin, rect.xmax + 1, rect.ymax + 1, 3.0f);
 			}
 
 			glaDrawPixelsSafe(rect.xmin, rect.ymin + 1, drawibuf->x, drawibuf->y,
@@ -1700,7 +1702,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 	if (!ok) {
 		gpuCurrentColor4x(CPACK_BLACK, 0.300f);
 		uiSetRoundBox(15);
-		uiDrawBox(GL_POLYGON, rect.xmin - 1, rect.ymin, rect.xmax + 1, rect.ymax + 1, 3.0f);
+		uiDrawBox(GL_TRIANGLE_FAN, rect.xmin - 1, rect.ymin, rect.xmax + 1, rect.ymax + 1, 3.0f);
 	}
 
 	/* outline, scale gripper */
@@ -1718,7 +1720,7 @@ static void ui_shadowbox(float minx, float miny, float maxx, float maxy, float s
 	glShadeModel(GL_SMOOTH);
 	
 	/* right quad */
-	gpuBegin(GL_POLYGON);
+	gpuBegin(GL_TRIANGLE_FAN);
 
 	gpuColor4x(CPACK_BLACK, alpha);
 	gpuVertex2f(maxx, miny);
@@ -1731,7 +1733,7 @@ static void ui_shadowbox(float minx, float miny, float maxx, float maxy, float s
 	gpuEnd();
 	
 	/* corner shape */
-	gpuBegin(GL_POLYGON);
+	gpuBegin(GL_TRIANGLE_FAN);
 
 	gpuColor4x(CPACK_BLACK, alpha);
 	gpuVertex2f(maxx, miny);
@@ -1744,7 +1746,7 @@ static void ui_shadowbox(float minx, float miny, float maxx, float maxy, float s
 	gpuEnd();
 	
 	/* bottom quad */		
-	gpuBegin(GL_POLYGON);
+	gpuBegin(GL_TRIANGLE_FAN);
 
 	gpuColor4x(CPACK_BLACK, alpha);
 	gpuVertex2f(minx + 0.3f * shadsize, miny);
@@ -1801,7 +1803,7 @@ void ui_dropshadow(rctf *rct, float radius, float aspect, float alpha, int UNUSE
 		gpuCurrentColor4x(CPACK_BLACK, calpha);
 		calpha += dalpha;
 
-		uiDrawBox(GL_POLYGON, rct->xmin - a, rct->ymin - a, rct->xmax + a, rct->ymax - 10.0f + a, rad + a);
+		uiDrawBox(GL_TRIANGLE_FAN, rct->xmin - a, rct->ymin - a, rct->xmax + a, rct->ymax - 10.0f + a, rad + a);
 	}
 
 	/* outline emphasis */

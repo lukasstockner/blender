@@ -278,7 +278,7 @@ static void draw_movieclip_buffer(SpaceClip *sc, ARegion *ar, ImBuf *ibuf,
 					gpuTranslate(x, y, 0.0f);
 					gpuScale(zoomx, zoomy, 1.0f);
 
-					gpuBegin(GL_QUADS);
+					gpuBegin(GL_TRIANGLE_FAN);
 					
 					gpuTexCoord2f(0, 0);
 					gpuVertex2f(0, 0);
@@ -767,7 +767,7 @@ static void draw_marker_slide_square(float x, float y, float dx, float dy, int o
 		tdy += px[1];
 	}
 
-	gpuBegin(GL_QUADS);
+	gpuBegin(GL_TRIANGLE_FAN);
 	gpuVertex3f(x - tdx, y + tdy, 0.0f);
 	gpuVertex3f(x + tdx, y + tdy, 0.0f);
 	gpuVertex3f(x + tdx, y - tdy, 0.0f);

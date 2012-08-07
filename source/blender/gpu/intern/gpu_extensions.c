@@ -939,7 +939,7 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 	gpuImmediateFormat_T2_V2();
 
 	/* Drawing quad */
-	gpuBegin(GL_QUADS);
+	gpuBegin(GL_TRIANGLE_FAN);
 	gpuTexCoord2f(0, 0); gpuVertex2f(1, 1);
 	gpuTexCoord2f(1, 0); gpuVertex2f(-1, 1);
 	gpuTexCoord2f(1, 1); gpuVertex2f(-1, -1);
@@ -954,7 +954,7 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 	GPU_shader_uniform_texture(blur_shader, texture_source_uniform, blurtex);
 	GPU_texture_bind(blurtex, 0);
 
-	gpuBegin(GL_QUADS);
+	gpuBegin(GL_TRIANGLE_FAN);
 	gpuTexCoord2f(0, 0); gpuVertex2f(1, 1);
 	gpuTexCoord2f(1, 0); gpuVertex2f(-1, 1);
 	gpuTexCoord2f(1, 1); gpuVertex2f(-1, -1);

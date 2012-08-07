@@ -680,7 +680,7 @@ static void partial_doughnut(float radring, float radhole, int start, int end, i
 		sin_theta1 = (float)sin(theta1);
 
 		if (do_caps && i == start) {  // cap
-			gpuBegin(GL_POLYGON);
+			gpuBegin(GL_TRIANGLE_FAN);
 			phi = 0.0;
 			for (j = nsides; j >= 0; j--) {
 				float cos_phi, sin_phi, dist;
@@ -695,7 +695,7 @@ static void partial_doughnut(float radring, float radhole, int start, int end, i
 			gpuEnd();
 		}
 		if (i >= start && i <= end) {
-			gpuBegin(GL_QUAD_STRIP);
+			gpuBegin(GL_TRIANGLE_STRIP);
 			phi = 0.0;
 			for (j = nsides; j >= 0; j--) {
 				float cos_phi, sin_phi, dist;
@@ -712,7 +712,7 @@ static void partial_doughnut(float radring, float radhole, int start, int end, i
 		}
 
 		if (do_caps && i == end) {    // cap
-			gpuBegin(GL_POLYGON);
+			gpuBegin(GL_TRIANGLE_FAN);
 			phi = 0.0;
 			for (j = nsides; j >= 0; j--) {
 				float cos_phi, sin_phi, dist;

@@ -1882,7 +1882,7 @@ static void gpu_draw_buffers_legacy_grids(GPU_Buffers *buffers, int smooth)
 		}
 		else if (smooth) {
 			for (y = 0; y < gridsize - 1; y++) {
-				gpuBegin(GL_QUAD_STRIP);
+				gpuBegin(GL_TRIANGLE_STRIP);
 				for (x = 0; x < gridsize; x++) {
 					CCGElem *a = CCG_grid_elem(key, grid, x, y);
 					CCGElem *b = CCG_grid_elem(key, grid, x, y + 1);
@@ -1899,7 +1899,7 @@ static void gpu_draw_buffers_legacy_grids(GPU_Buffers *buffers, int smooth)
 		}
 		else {
 			for (y = 0; y < gridsize - 1; y++) {
-				gpuBegin(GL_QUAD_STRIP);
+				gpuBegin(GL_TRIANGLE_STRIP);
 				for (x = 0; x < gridsize; x++) {
 					CCGElem *a = CCG_grid_elem(key, grid, x, y);
 					CCGElem *b = CCG_grid_elem(key, grid, x, y + 1);

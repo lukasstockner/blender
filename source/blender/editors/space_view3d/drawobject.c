@@ -717,7 +717,7 @@ static void drawcentercircle(View3D *v3d, RegionView3D *rv3d, const float co[3],
 	gpuImmediateFormat_V3();
 
 	/* 1. draw filled, blended polygon */
-	gpuDrawFastBall(GL_POLYGON, co, size, rv3d->viewinv);
+	gpuDrawFastBall(GL_TRIANGLE_FAN, co, size, rv3d->viewinv);
 
 	/* 2. draw outline */
 	UI_ThemeColorShadeAlpha(TH_WIRE, 0, -30);
@@ -1098,7 +1098,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 		glEnable(GL_BLEND);
 		gpuDrawFastBall(GL_LINE_LOOP, vec, lampsize, imat);
 		glDisable(GL_BLEND);
-		gpuDrawFastBall(GL_POLYGON, vec, lampsize, imat);
+		gpuDrawFastBall(GL_TRIANGLE_FAN, vec, lampsize, imat);
 
 		/* restore */
 		if ((dflag & DRAW_CONSTCOLOR) == 0) {

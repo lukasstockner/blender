@@ -172,7 +172,7 @@ static void wm_gesture_draw_rect(wmGesture *gt)
 	glEnable(GL_BLEND);
 
 	gpuCurrentColor4x(CPACK_WHITE, 0.050f);
-	gpuBegin(GL_QUADS);
+	gpuBegin(GL_TRIANGLE_FAN);
 	gpuVertex2i(rect->xmax, rect->ymin);
 	gpuVertex2i(rect->xmax, rect->ymax);
 	gpuVertex2i(rect->xmin, rect->ymax);

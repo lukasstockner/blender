@@ -302,7 +302,7 @@ static void nla_draw_strip(SpaceNla *snla, AnimData *adt, NlaTrack *nlt, NlaStri
 					gpuCurrentColor4f(color[0], color[1], color[2], 0.15f);
 					
 					/* draw the rect to the edge of the screen */
-					gpuBegin(GL_QUADS);
+					gpuBegin(GL_TRIANGLE_FAN);
 					gpuVertex2f(v2d->cur.xmin, yminc);
 					gpuVertex2f(v2d->cur.xmin, ymaxc);
 					gpuVertex2f(strip->start, ymaxc);
@@ -319,7 +319,7 @@ static void nla_draw_strip(SpaceNla *snla, AnimData *adt, NlaTrack *nlt, NlaStri
 					gpuCurrentColor4f(color[0], color[1], color[2], 0.3f);
 					
 					/* draw the rect to the next strip or the edge of the screen */
-					gpuBegin(GL_QUADS);
+					gpuBegin(GL_TRIANGLE_FAN);
 					gpuVertex2f(strip->end, yminc);
 					gpuVertex2f(strip->end, ymaxc);
 						
@@ -346,7 +346,7 @@ static void nla_draw_strip(SpaceNla *snla, AnimData *adt, NlaTrack *nlt, NlaStri
 		gpuCurrentColor3fv(color);
 		uiSetRoundBox(UI_CNR_ALL); /* all corners rounded */
 		
-		uiDrawBoxShade(GL_POLYGON, strip->start, yminc, strip->end, ymaxc, 0.0, 0.5, 0.1);
+		uiDrawBoxShade(GL_TRIANGLE_FAN, strip->start, yminc, strip->end, ymaxc, 0.0, 0.5, 0.1);
 	}
 	else {
 		/* strip is in disabled track - make less visible */
@@ -800,7 +800,7 @@ static void draw_nla_channel_list_gl(bAnimContext *ac, ListBase *anim_data, View
 					/* draw slightly shifted up vertically to look like it has more separation from other channels,
 					 * but we then need to slightly shorten it so that it doesn't look like it overlaps
 					 */
-					uiDrawBox(GL_POLYGON, x + offset,  yminc + NLACHANNEL_SKIP, (float)v2d->cur.xmax, ymaxc + NLACHANNEL_SKIP - 1, 8);
+					uiDrawBox(GL_TRIANGLE_FAN, x + offset,  yminc + NLACHANNEL_SKIP, (float)v2d->cur.xmax, ymaxc + NLACHANNEL_SKIP - 1, 8);
 					
 					/* clear group value, otherwise we cause errors... */
 					group = 0;
@@ -811,7 +811,7 @@ static void draw_nla_channel_list_gl(bAnimContext *ac, ListBase *anim_data, View
 					
 					indent += group;
 					offset += 7 * indent;
-					gpuBegin(GL_QUADS);
+					gpuBegin(GL_TRIANGLE_FAN);
 					gpuVertex2f(x + offset, yminc);
 					gpuVertex2f(x + offset, ymaxc);
 					gpuVertex2f((float)v2d->cur.xmax, ymaxc);

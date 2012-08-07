@@ -953,7 +953,7 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 	glBindTexture(GL_TEXTURE_2D, icongltex.id);
 
 	gpuImmediateFormat_T2_V2(); // DOODLE: icon, single quad with texture
-	gpuBegin(GL_QUADS);
+	gpuBegin(GL_TRIANGLE_FAN);
 
 	gpuTexCoord2f(x1, y1);
 	gpuVertex2f(x, y);

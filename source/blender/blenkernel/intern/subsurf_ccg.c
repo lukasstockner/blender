@@ -1938,7 +1938,7 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 
 			if (drawSmooth) {
 				for (y = 0; y < gridFaces; y++) {
-					gpuBegin(GL_QUAD_STRIP);
+					gpuBegin(GL_TRIANGLE_STRIP);
 					for (x = 0; x < gridFaces; x++) {
 						vda = CCG_grid_elem(&key, faceGridData, x, y + 0);
 						vdb = CCG_grid_elem(&key, faceGridData, x, y + 1);
@@ -2097,7 +2097,7 @@ static void ccgDM_drawMappedFacesMat(DerivedMesh *dm,
 
 			if (drawSmooth) {
 				for (y = 0; y < gridFaces; y++) {
-					gpuBegin(GL_QUAD_STRIP);
+					gpuBegin(GL_TRIANGLE_STRIP);
 					for (x = 0; x < gridFaces; x++) {
 						vda = CCG_grid_elem(&key, faceGridData, x, y);
 						vdb = CCG_grid_elem(&key, faceGridData, x, y + 1);
@@ -2236,7 +2236,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 			if (drawSmooth) {
 				glShadeModel(GL_SMOOTH);
 				for (y = 0; y < gridFaces; y++) {
-					gpuBegin(GL_QUAD_STRIP);
+					gpuBegin(GL_TRIANGLE_STRIP);
 					for (x = 0; x < gridFaces; x++) {
 						a = CCG_grid_elem(&key, faceGridData, x, y + 0);
 						b = CCG_grid_elem(&key, faceGridData, x, y + 1);
@@ -2441,7 +2441,7 @@ static void ccgDM_drawMappedFaces(
 					if (drawSmooth) {
 						for (y = 0; y < gridFaces; y++) {
 							CCGElem *a, *b;
-							gpuBegin(GL_QUAD_STRIP);
+							gpuBegin(GL_TRIANGLE_STRIP);
 							for (x = 0; x < gridFaces; x++) {
 								a = CCG_grid_elem(&key, faceGridData, x, y + 0);
 								b = CCG_grid_elem(&key, faceGridData, x, y + 1);

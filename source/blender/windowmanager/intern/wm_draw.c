@@ -524,7 +524,7 @@ static void wm_triple_draw_textures(wmWindow *win, wmDrawTriple *triple)
 
 			gpuImmediateFormat_T2_V2(); // DOODLE: triple backbuffer
 
-			gpuBegin(GL_QUADS);
+			gpuBegin(GL_TRIANGLE_FAN);
 			gpuTexCoord2f(halfx, halfy);
 			gpuVertex2f(offx, offy);
 

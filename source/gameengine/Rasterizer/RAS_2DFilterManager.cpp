@@ -473,7 +473,7 @@ void RAS_2DFilterManager::RenderFilters(RAS_ICanvas* canvas)
 			}
 
 			gpuImmediateLock();
-			gpuBegin(GL_QUADS);
+			gpuBegin(GL_TRIANGLE_FAN);
 				gpuTexCoord2f(1, 1);
 				gpuMultiTexCoord2f(1, canvascoord[1], canvascoord[3]);
 				gpuVertex2f( 1, 1);

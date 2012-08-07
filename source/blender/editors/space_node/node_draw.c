@@ -571,8 +571,8 @@ static void node_circle_draw(float x, float y, float size, char *col, int highli
 	int a;
 	
 	gpuCurrentColor3ub(col[0], col[1], col[2]);
-	
-	gpuBegin(GL_POLYGON);
+
+	gpuBegin(GL_TRIANGLE_FAN);
 	for (a = 0; a < 16; a++)
 		gpuVertex2f(x  +  size*si[a], y + size*co[a]);
 	gpuEnd();

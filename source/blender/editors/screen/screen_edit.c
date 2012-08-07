@@ -769,11 +769,11 @@ static void draw_horizontal_join_shape(ScrArea *sa, char dir)
 		}
 	}
 
-	gpuBegin(GL_POLYGON);
+	gpuBegin(GL_TRIANGLE_FAN);
 	for (i = 0; i < 5; i++)
 		gpuVertex2f(points[i].x, points[i].y);
 	gpuEnd();
-	gpuBegin(GL_POLYGON);
+	gpuBegin(GL_TRIANGLE_FAN);
 	for (i = 4; i < 8; i++)
 		gpuVertex2f(points[i].x, points[i].y);
 	gpuVertex2f(points[0].x, points[0].y);
@@ -841,11 +841,11 @@ static void draw_vertical_join_shape(ScrArea *sa, char dir)
 		}
 	}
 
-	gpuBegin(GL_POLYGON);
+	gpuBegin(GL_TRIANGLE_FAN);
 	for (i = 0; i < 5; i++)
 		gpuVertex2f(points[i].x, points[i].y);
 	gpuEnd();
-	gpuBegin(GL_POLYGON);
+	gpuBegin(GL_TRIANGLE_FAN);
 	for (i = 4; i < 8; i++)
 		gpuVertex2f(points[i].x, points[i].y);
 	gpuVertex2f(points[0].x, points[0].y);

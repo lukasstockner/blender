@@ -263,7 +263,7 @@ void ED_image_draw_info(ARegion *ar, int color_manage, int channels, int x, int 
 
 	gpuCurrentColor3fv(finalcol);
 	dx += 5;
-	gpuBegin(GL_QUADS);
+	gpuBegin(GL_TRIANGLE_FAN);
 	gpuVertex2f(dx, 3);
 	gpuVertex2f(dx, 17);
 	gpuVertex2f(dx + 30, 17);

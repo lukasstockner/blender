@@ -678,7 +678,7 @@ static void widgetbase_outline(uiWidgetBase *wtb)
 	float quad_strip[WIDGET_SIZE_MAX * 2 + 2][2]; /* + 2 because the last pair is wrapped */
 	widget_verts_to_quad_strip(wtb, wtb->totvert, quad_strip);
 
-	gpuSingleClientArrays_V2F(GL_QUAD_STRIP, quad_strip, 0, 0, 2*(wtb->totvert) + 2);
+	gpuSingleClientArrays_V2F(GL_TRIANGLE_STRIP, quad_strip, 0, 0, 2*(wtb->totvert) + 2);
 }
 
 static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
@@ -703,7 +703,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 				/* dark checkers */
 				gpuCurrentColor4ub(UI_TRANSP_DARK, UI_TRANSP_DARK, UI_TRANSP_DARK, 255);
 				arrays.vertexPointer = wtb->inner_v;
-				gpuDrawClientArrays(GL_POLYGON, &arrays, 0, wtb->totvert);
+				gpuDrawClientArrays(GL_TRIANGLE_FAN, &arrays, 0, wtb->totvert);
 
 				/* light checkers */
 				glEnable(GL_POLYGON_STIPPLE);
@@ -729,13 +729,13 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 				/* 1/2 solid color */
 				gpuCurrentColor4ub(wcol->inner[0], wcol->inner[1], wcol->inner[2], 255);
 				arrays.vertexPointer = inner_v_half;
-				gpuDrawClientArrays(GL_POLYGON, &arrays, 0, wtb->totvert);
+				gpuDrawClientArrays(GL_TRIANGLE_FAN, &arrays, 0, wtb->totvert);
 			}
 			else {
 				/* simple fill */
 				gpuCurrentColor4ubv((unsigned char *)wcol->inner);
 				arrays.vertexPointer = wtb->inner_v;
-				gpuDrawClientArrays(GL_POLYGON, &arrays, 0, wtb->totvert);
+				gpuDrawClientArrays(GL_TRIANGLE_FAN, &arrays, 0, wtb->totvert);
 			}
 
 			gpuImmediateUnformat();
@@ -753,7 +753,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 			}
 
 			gpuSingleClientArrays_C4UB_V2F(
-				GL_POLYGON,
+				GL_TRIANGLE_FAN,
 				col_array,
 				0,
 				wtb->inner_v,
@@ -1803,7 +1803,7 @@ static void widget_softshadow(rcti *rect, int roundboxalign, float radin, float 
 	alphastep = 0.67f;
 
 	gpuImmediateFormat_C4_V2();
-	gpuBegin(GL_QUAD_STRIP);
+	gpuBegin(GL_TRIANGLE_STRIP);
 
 	for (step = 1; step <= radout; step++, alpha *= alphastep) {
 		int i;

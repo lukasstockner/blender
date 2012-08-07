@@ -229,7 +229,7 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTe
 				gpuCurrentColor3fv(col);
 				BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 					if (BM_elem_flag_test(efa, BM_ELEM_TAG)) {
-						gpuBegin(GL_POLYGON);
+						gpuBegin(GL_TRIANGLE_FAN);
 						BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 							luv = CustomData_bmesh_get(&bm->ldata, l->head.data, CD_MLOOPUV);
 							gpuVertex2fv(luv->uv);
@@ -272,7 +272,7 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTe
 						weight_to_rgb(col, areadiff);
 						gpuCurrentColor3fv(col);
 						
-						gpuBegin(GL_POLYGON);
+						gpuBegin(GL_TRIANGLE_FAN);
 						BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 							luv = CustomData_bmesh_get(&bm->ldata, l->head.data, CD_MLOOPUV);
 							gpuVertex2fv(luv->uv);
@@ -344,7 +344,7 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTe
 						ang[i] = angle_normalized_v3v3(av[i], av[(i + 1) % nverts]);
 					}
 
-					gpuBegin(GL_POLYGON);
+					gpuBegin(GL_TRIANGLE_FAN);
 					BM_ITER_ELEM_INDEX (l, &liter, efa, BM_LOOPS_OF_FACE, i) {
 						luv = CustomData_bmesh_get(&bm->ldata, l->head.data, CD_MLOOPUV);
 						a = fabsf(uvang[i] - ang[i]) / (float)M_PI;
@@ -525,7 +525,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 				else
 					gpuCurrentColor4ubv((GLubyte *)col1);
 				
-				gpuBegin(GL_POLYGON);
+				gpuBegin(GL_TRIANGLE_FAN);
 				BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 					luv = CustomData_bmesh_get(&bm->ldata, l->head.data, CD_MLOOPUV);
 					gpuVertex2fv(luv->uv);
@@ -569,7 +569,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 			glEnable(GL_POLYGON_STIPPLE);
 			glPolygonStipple(stipple_quarttone);
 
-			gpuBegin(GL_POLYGON);
+			gpuBegin(GL_TRIANGLE_FAN);
 			BM_ITER_ELEM (l, &liter, activef, BM_LOOPS_OF_FACE) {
 				luv = CustomData_bmesh_get(&bm->ldata, l->head.data, CD_MLOOPUV);
 				gpuVertex2fv(luv->uv);
@@ -849,7 +849,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 			UI_ThemeColor4(TH_STITCH_PREVIEW_FACE);
 			arrays.vertexPointer = stitch_preview->preview_polys;
-			gpuDrawClientArrays(GL_POLYGON, &arrays, index, stitch_preview->uvs_per_polygon[i]);
+			gpuDrawClientArrays(GL_TRIANGLE_FAN, &arrays, index, stitch_preview->uvs_per_polygon[i]);
 
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 			UI_ThemeColor4(TH_STITCH_PREVIEW_EDGE);

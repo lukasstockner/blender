@@ -2983,7 +2983,7 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 		/* draw textured quad */
 		glEnable(GL_TEXTURE_2D);
 		gpuImmediateFormat_T2_V2();
-		gpuBegin(GL_QUADS);
+		gpuBegin(GL_TRIANGLE_FAN);
 		gpuTexCoord2f(0, 0);
 		gpuVertex2f(-radius, -radius);
 		gpuTexCoord2f(1, 0);

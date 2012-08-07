@@ -455,7 +455,7 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 			glEnable(GL_TEXTURE_2D);
 
 			gpuImmediateFormat_T2_V2();
-			gpuBegin(GL_QUADS);
+			gpuBegin(GL_TRIANGLE_FAN);
 
 			gpuTexCoord2f((float)(0 + offset_left) / tex_w, (float)(0 + offset_bot) / tex_h);
 			gpuVertex2f(rast_x + (float)offset_left * xzoom, rast_y + (float)offset_bot * xzoom);

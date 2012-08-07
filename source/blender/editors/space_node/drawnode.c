@@ -258,7 +258,7 @@ static void node_draw_socket_new(bNodeSocket *sock, float size)
 
 	gpuCurrentGray3f(0.706f);
 
-	gpuBegin(GL_POLYGON);
+	gpuBegin(GL_TRIANGLE_FAN);
 	for (a=0; a<16; a++)
 		gpuVertex2f(x+size*si[a], y+size*co[a]);
 	gpuEnd();
@@ -802,24 +802,24 @@ static void node_draw_group(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 		glEnable(GL_BLEND);
 		uiSetRoundBox(UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT);
 		UI_ThemeColorShadeAlpha(TH_NODE_GROUP, 0, -70);
-		uiDrawBox(GL_POLYGON,
+		uiDrawBox(GL_TRIANGLE_FAN,
 		          rect.xmin - node_group_frame, rect.ymax,
 		          rect.xmax + node_group_frame, rect.ymax + group_header, BASIS_RAD);
 		
 		/* backdrop body */
 		UI_ThemeColorShadeAlpha(TH_BACK, -8, -70);
 		uiSetRoundBox(UI_CNR_NONE);
-		uiDrawBox(GL_POLYGON, rect.xmin, rect.ymin, rect.xmax, rect.ymax, BASIS_RAD);
+		uiDrawBox(GL_TRIANGLE_FAN, rect.xmin, rect.ymin, rect.xmax, rect.ymax, BASIS_RAD);
 	
 		/* input column */
 		UI_ThemeColorShadeAlpha(TH_BACK, 10, -50);
 		uiSetRoundBox(UI_CNR_BOTTOM_LEFT);
-		uiDrawBox(GL_POLYGON, rect.xmin-node_group_frame, rect.ymin, rect.xmin, rect.ymax, BASIS_RAD);
+		uiDrawBox(GL_TRIANGLE_FAN, rect.xmin-node_group_frame, rect.ymin, rect.xmin, rect.ymax, BASIS_RAD);
 	
 		/* output column */
 		UI_ThemeColorShadeAlpha(TH_BACK, 10, -50);
 		uiSetRoundBox(UI_CNR_BOTTOM_RIGHT);
-		uiDrawBox(GL_POLYGON, rect.xmax, rect.ymin, rect.xmax+node_group_frame, rect.ymax, BASIS_RAD);
+		uiDrawBox(GL_TRIANGLE_FAN, rect.xmax, rect.ymin, rect.xmax+node_group_frame, rect.ymax, BASIS_RAD);
 
 		gpuCurrentGray4f(0.784f, 0.549f);
 
