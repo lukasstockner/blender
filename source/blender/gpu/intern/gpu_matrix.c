@@ -75,7 +75,6 @@ static void checkmat(GLfloat *m)
 #define CHECKMAT
 #endif
 
-
 static void ms_init(GPU_matrix_stack * ms, GLint initsize)
 {
 	if(initsize == 0)
@@ -108,8 +107,6 @@ void GPU_ms_init(void)
 	ms_current = &ms_modelview;
 	ms_current_mode = GL_MODELVIEW;
 
-	printf("Stack init\n");
-
 
 
 }
@@ -119,11 +116,6 @@ void GPU_ms_exit(void)
 	ms_free(&ms_modelview);
 	ms_free(&ms_projection);
 	ms_free(&ms_texture);
-
-	printf("Stack exit\n");
-
-
-
 }
 
 void gpuMatrixLock(void)
@@ -259,7 +251,7 @@ if(curglslesi)
 
 
 #endif
-CHECKMAT
+//CHECKMAT
 }
 
 
@@ -342,13 +334,42 @@ void gpuLoadMatrix(const GLfloat * m)
 GLfloat * gpuGetMatrix(GLfloat * m)
 {
 	if(m)
-		copy_m4_m4((GLfloat (*)[4])m,CURMATRIX);
+		copy_m4_m4((GLfloat (*)[4])m, CURMATRIX);
 	else
 		return (GLfloat*)(CURMATRIX);
 	ms_current->changed = 1;
 	return 0;
 }
 
+GLfloat * gpuGetSpecificMatrix(GLenum type, GLfloat *m)
+{
+	GPU_matrix_stack * ms_select;
+
+	switch(type)
+	{
+		case GL_MODELVIEW:
+			ms_select = &ms_modelview;
+			break;
+		case GL_PROJECTION:
+			ms_select = &ms_projection;
+			break;
+		case GL_TEXTURE:
+			ms_select = & ms_texture;
+			break;
+		default:
+			BLI_assert(0);
+			return 0;
+	}
+
+	if(m)
+		copy_m4_m4((GLfloat (*)[4])m, ms_select->dynstack[ms_select->pos]);
+	else
+		return (GLfloat*)(ms_select->dynstack[ms_select->pos]);
+
+	return 0;
+
+
+}
 
 void gpuLoadIdentity(void)
 {
@@ -402,11 +423,32 @@ void gpuMultMatrixd(const double *m)
 }
 
 
+void gpuRotateVector(GLfloat angle, GLfloat * vector)
+{
+	float rm[3][3];
+	GPU_matrix cm;
+	copy_m4_m4((GLfloat (*)[4])cm, (GLfloat (*)[4])CURMATRIX);
+
+	axis_angle_to_mat3(rm, vector, angle);
+	mult_m4_m3m4_q(CURMATRIX, cm, rm);
+
+	ms_current->changed = 1;
+
+}
+
 void gpuRotateAxis(GLfloat angle, char axis)
 {
 
-	rotate_m4((GLfloat (*)[4])CURMATRIX, axis, angle*M_PI/180.0f);
+	rotate_m4((GLfloat (*)[4])CURMATRIX, axis, angle);
 	ms_current->changed = 1;
+}
+
+void gpuRotateRight(char type)
+{
+	rotate_m4_right((GLfloat (*)[4])CURMATRIX, type);
+
+	ms_current->changed = 1;
+
 }
 
 void gpuLoadOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat nearVal, GLfloat farVal)
@@ -461,5 +503,62 @@ void gpuLookAt(GLfloat eyeX, GLfloat eyeY, GLfloat eyeZ, GLfloat centerX, GLfloa
 
 	gpuTranslate(-eyeX, -eyeY, -eyeZ);
 	CHECKMAT
+
+}
+
+void gpuProject(const GLfloat obj[3], const GLfloat model[4][4], const GLfloat proj[4][4], const GLint view[4], GLfloat win[3])
+{
+	float v[4];
+
+	mul_v4_m4v3(v, model, obj);
+	mul_m4_v4(proj, v);
+
+	win[0]=view[0]+(view[2]*(v[0]+1))*0.5f;
+	win[1]=view[1]+(view[3]*(v[1]+1))*0.5f;
+	win[2]=(v[2]+1)*0.5f;
+}
+
+
+int gpuUnProject(const GLfloat win[3], const GLfloat model[4][4], const GLfloat proj[4][4], const GLint view[4], GLfloat obj[3])
+{
+
+	float v[3];
+	GPU_matrix pm;
+
+	int i;
+	double modeld[16], projd[16];
+	double objd[3] = {0};
+	for(i=0; i<16; i++)
+	{
+		modeld[i] = model[0][i];
+		projd[i] = proj[0][i];
+	}
+	if(!gluUnProject(win[0], win[1], win[2], modeld, projd, view, objd, objd+1, objd+2))
+		BLI_assert(0);
+
+	mult_m4_m4m4_q(pm, proj, model);
+
+	if(!invert_m4(pm))
+		return 0;
+
+
+
+
+	v[0] = 2.0*(win[0]-view[0])/view[2] - 1.0f;
+	v[1] = 2.0*(win[1]-view[1])/view[3] - 1.0f;
+	v[2] = 2.0*(win[2]		   )		 - 1.0f;
+
+
+	mul_v3_m4v3_q(obj, pm, v);
+	/*obj[0]/=10;
+obj[1]/=10;
+obj[2]/=10;
+obj[0]=0;
+obj[1]=0;
+obj[2]=0;*/
+	obj[0] = objd[0];
+	obj[1] = objd[1];
+	obj[2] = objd[2];
+	return 1;
 
 }
