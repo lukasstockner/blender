@@ -247,6 +247,11 @@ GPUFUNC void (GLAPIENTRY* gpuBindBuffer)(GLenum target, GLuint buffer);
 GPUFUNC void (GLAPIENTRY* gpuBufferData)(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage);
 GPUFUNC void (GLAPIENTRY* gpuDeleteBuffers)(GLsizei  n, const GLuint * buffers);
 
+GPUFUNC void * (GLAPIENTRY* gpuMapBuffer)(GLenum target, GLenum access);
+GPUFUNC GLboolean (GLAPIENTRY* gpuUnmapBuffer)(GLenum  target);
+
+GPUFUNC void * (GLAPIENTRY* gpuBufferStartUpdate)(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage);
+GPUFUNC void (GLAPIENTRY* gpuBufferFinishUpdate)(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage);
 
 void GPU_func_comp_init(void);
 

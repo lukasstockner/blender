@@ -31,11 +31,15 @@
 
 #ifdef GLES
 #include <GLES2/gl2.h>
+#include <dlfcn.h>
 #endif
 
 #define GPU_FUNC_INTERN
 #define GIVE_ME_APIENTRY
 #include "GPU_functions.h"
+
+#include "GPU_extensions.h"
+
 #include REAL_GL_MODE
 
 #if GPU_SAFETY
@@ -120,7 +124,26 @@ static void init_buffers_arb(void)
 	gpuBindBuffer = glBindBufferARB;
 	gpuBufferData =  glBufferDataARB;
 	gpuDeleteBuffers = glDeleteBuffersARB;
+	
+	gpuMapBuffer = glMapBufferARB;
+	gpuUnmapBuffer = glUnmapBufferARB;
 }
+
+static void init_mapbuffers_standard()
+{
+	gpuMapBuffer = glMapBuffer;
+	gpuUnmapBuffer = glUnmapBuffer;
+}
+	
+	
+#else
+
+static void init_mapbuffers_oes(void *gllib)
+{
+	gpuMapBuffer = dlsym(gllib, "glMapBufferOES");
+	gpuUnmapBuffer = dlsym(gllib, "glUnmapBufferOES");
+}
+
 
 #endif
 
@@ -211,15 +234,43 @@ static void init_framebuffers_ext(void)
 
 #endif
 
+static void * gpuBufferStartUpdate_buffer(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage)
+{
+	gpuBufferData(target, 0, NULL, usage);
+	return data;
+}
 
+static void * gpuBufferStartUpdate_map(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage)
+{
+	gpuBufferData(target, size, NULL, usage);
+	return gpuMapBuffer(target, GL_WRITE_ONLY);
+}
+
+static void gpuBufferFinishUpdate_buffer(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage)
+{
+	gpuBufferData(target, size, data, usage);
+
+}
+
+static void gpuBufferFinishUpdate_map(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage)
+{
+	gpuUnmapBuffer(target);
+
+}
 
 void GPU_func_comp_init(void)
 {
 #ifdef GLES
 
+	void * gllib = dlopen("libGLESv2.so", RTLD_LAZY);
+
 	init_glsl_standard();
 	init_framebuffers_standard();
+	
 	init_buffers_standard();
+	init_mapbuffers_oes(gllib);
+	
+	dlclose(gllib);
 	
 #else
 	/*	Here we rely on GLEW
@@ -228,7 +279,10 @@ void GPU_func_comp_init(void)
 	*/
 
 	if(GLEW_VERSION_1_5)
+	{
 		init_buffers_standard();
+		init_mapbuffers_standard();
+	}
 	else
 		init_buffers_arb();
 
@@ -242,4 +296,15 @@ void GPU_func_comp_init(void)
 	else
 		init_framebuffers_ext();
 #endif
+	if(gpuMapBuffer!=NULL)
+	{
+		GPU_ext_config|=GPU_EXT_MAPBUFFER;
+		gpuBufferStartUpdate = gpuBufferStartUpdate_map;
+		gpuBufferFinishUpdate = gpuBufferFinishUpdate_map;		
+	} else
+	{
+		gpuBufferStartUpdate = gpuBufferStartUpdate_buffer;
+		gpuBufferFinishUpdate = gpuBufferFinishUpdate_buffer;		
+	
+	}
 }

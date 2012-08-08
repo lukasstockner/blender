@@ -31,6 +31,7 @@
 #include "RAS_MeshObject.h"
 
 #include "GPU_compatibility.h"
+#include REAL_GL_MODE /* GPU_compatibility.h includes intern/gpu_immediate_inline.h which includes fake glew.h. We need to switch to real mode due to glDraw. Should be removed soon.*/
 #include "GPU_extensions.h"
 
 #include "GPU_object.h"
@@ -55,6 +56,8 @@ VBO::VBO(RAS_DisplayArray *data, unsigned int indices)
 	// Generate Buffers
 	gpuGenBuffers(1, &this->ibo);
 	gpuGenBuffers(1, &this->vbo_id);
+	
+	this->vbo = GPU_EXT_MAPBUFFER_ENABLED ? NULL : new GLfloat[this->stride*this->size];
 
 	// Fill the buffers with initial data
 	UpdateIndices();
@@ -72,6 +75,8 @@ VBO::~VBO()
 {
 	gpuDeleteBuffers(1, &this->ibo);
 	gpuDeleteBuffers(1, &this->vbo_id);
+	
+	delete this->vbo;
 }
 
 void VBO::UpdateData()
@@ -79,11 +84,9 @@ void VBO::UpdateData()
 	unsigned int i, j, k;
 	
 	gpuBindBuffer(GL_ARRAY_BUFFER, this->vbo_id);
-	gpuBufferData(GL_ARRAY_BUFFER, this->stride*this->size, NULL, GL_STATIC_DRAW);
-
-	// Map the buffer
-	GLfloat *vbo_map = (GLfloat*)glMapBufferARB(GL_ARRAY_BUFFER_ARB, GL_WRITE_ONLY_ARB);
-
+	
+	// Map the buffer or frees previous
+	GLfloat *vbo_map = (GLfloat*)gpuBufferStartUpdate(GL_ARRAY_BUFFER, this->stride*this->size, vbo, GL_DYNAMIC_DRAW);
 	// Gather data
 	for (i = 0, j = 0; i < data->m_vertex.size(); i++, j += this->stride/sizeof(GLfloat))
 	{
@@ -95,8 +98,7 @@ void VBO::UpdateData()
 		for (k = 0; k < RAS_TexVert::MAX_UNIT; k++)
 			memcpy(&vbo_map[j+11+(k*2)], data->m_vertex[i].getUV(k), sizeof(float)*2);
 	}
-	
-	glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
+	gpuBufferFinishUpdate(GL_ARRAY_BUFFER, this->stride*this->size, vbo, GL_DYNAMIC_DRAW);
 }
 
 void VBO::UpdateIndices()
@@ -105,7 +107,7 @@ void VBO::UpdateIndices()
 	gpuBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->ibo);
 
 	// Upload Data to VBO
-	gpuBufferData(GL_ELEMENT_ARRAY_BUFFER, space, &data->m_index[0], GL_STATIC_DRAW);
+	gpuBufferData(GL_ELEMENT_ARRAY_BUFFER, space, &data->m_index[0], GL_DYNAMIC_DRAW);
 }
 
 void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, RAS_IRasterizer::TexCoGen* attrib, bool multi)
@@ -190,6 +192,7 @@ void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, 
 			}
 		}
 	}	
+	
 	glDrawElements(this->mode, this->indices, GL_UNSIGNED_SHORT, 0);
 	
 	gpugameobj.gpuCleanupAfterDraw();

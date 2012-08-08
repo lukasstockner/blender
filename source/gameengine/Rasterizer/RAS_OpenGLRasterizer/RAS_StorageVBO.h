@@ -55,6 +55,7 @@ private:
 	GLenum			mode;
 	GLuint			ibo;
 	GLuint			vbo_id;
+	GLfloat*		vbo;
 
 	void*			vertex_offset;
 	void*			normal_offset;
