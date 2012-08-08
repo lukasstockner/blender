@@ -3078,65 +3078,19 @@ typedef struct GraphVertInfo {
 
 static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 {
-
-	//#define OLD_DIST_CONSTRUCTION
 	enum UnwrapMethods method = handle->method;
 
 	if (method == UNWRAP_ISOMAP) {
-		PEdge *e;
 		PVert *v;
 		int nverts = chart->nverts;
-		int i, j, k, l;
+		int i, j;
 
 		/* create matrix with squared edge distances */
 		float *dist_map = MEM_mallocN(sizeof(*dist_map)*nverts*nverts, "isomap_distance_map");
-		#ifndef OLD_DIST_CONSTRUCTION
 		GraphVertInfo *visited = MEM_mallocN(nverts*sizeof(*visited), "isomap_visited_flags");
 		Heap *graph_heap = BLI_heap_new();
-		#endif
 
 		param_isomap_new_solver(nverts);
-
-		#ifdef OLD_DIST_CONSTRUCTION
-		/* initialize every point to "infinity" according to the paper.
-		 * since this will make every inner product give infinity as well, initialize to some
-		 * large number instead */
-		for (i = 0; i < nverts; i++)
-			for (j = 0; j < nverts; j++) {
-				dist_map[i*nverts + j] = (i == j)? 0 : MAXFLOAT;
-			}
-
-		/* for each edge, put the squared distance to the appropriate matrix positions */
-		for (e = chart->edges; e; e = e->nextlink) {
-			/* fill the upper right part of the matrix */
-			dist_map[e->vert->u.id*nverts + e->next->vert->u.id] =
-			dist_map[e->next->vert->u.id*nverts + e->vert->u.id] =
-			        p_edge_length(e);
-		}
-
-		/* now edge length has been computed. Construct shortest paths
-		 * and run the algorithm nverts times to eventually calculate shortest
-		 * paths between all verts. This is a silly way to do this and will probably be optimized
-		 * if i go on working on this. */
-		for (l = 0; l < nverts; l++) {
-			for (i = 0; i < nverts; i++) {
-				for (j = 0; j < nverts; j++) {
-					for (k = 0; k < nverts; k++) {
-						float sum_dist = dist_map[i*nverts + k] + dist_map[k*nverts + j];
-
-						dist_map[i*nverts + j] = dist_map[j*nverts + i] = minf(dist_map[i*nverts + j], sum_dist);
-					}
-				}
-			}
-		}
-
-		/* square distances */
-		for (i = 0; i < nverts; i++) {
-			for (j = 0; j < nverts; j++) {
-				dist_map[i*nverts + j] *=  dist_map[i*nverts + j];
-			}
-		}
-		#else
 
 		/* initialize graph distances */
 		for (i = 0; i < nverts; i++) {
@@ -3245,8 +3199,6 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 
 		BLI_heap_free(graph_heap, NULL);
 		MEM_freeN(visited);
-
-		#endif
 
 		if(!param_isomap_solve(dist_map)) {
 			param_isomap_delete_solver();
