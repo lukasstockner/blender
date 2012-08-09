@@ -626,6 +626,8 @@ void    uiButSetCompleteFunc(uiBut *but,        uiButCompleteFunc func, void *ar
 
 void    uiBlockSetDrawExtraFunc(uiBlock *block, void (*func)(const struct bContext *C, void *, void *, void *, struct rcti *rect), void *arg1, void *arg2);
 
+void    uiButSetColorOverride(uiBut *but, int r, int g, int b);
+
 void uiButSetFocusOnEnter(struct wmWindow *win, uiBut *but);
 
 /* Autocomplete

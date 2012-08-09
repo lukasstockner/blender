@@ -2031,6 +2031,9 @@ static void ui_free_but(const bContext *C, uiBut *but)
 		IMB_freeImBuf((struct ImBuf *)but->poin);
 	}
 
+	if (but->color_override)
+		MEM_freeN(but->color_override);
+
 	MEM_freeN(but);
 }
 
@@ -3531,6 +3534,14 @@ void uiButSetCompleteFunc(uiBut *but, uiButCompleteFunc func, void *arg)
 {
 	but->autocomplete_func = func;
 	but->autofunc_arg = arg;
+}
+
+void uiButSetColorOverride(uiBut *but, int r, int g, int b)
+{
+	but->color_override = MEM_callocN(sizeof(uiWidgetColors), "button color override");
+	but->color_override->inner[0] = r;
+	but->color_override->inner[1] = g;
+	but->color_override->inner[2] = b;
 }
 
 uiBut *uiDefIDPoinBut(uiBlock *block, uiIDPoinFuncFP func, short blocktype, int retval, const char *str, int x1, int y1, short x2, short y2, void *idpp, const char *tip)

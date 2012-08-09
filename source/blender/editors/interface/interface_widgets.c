@@ -3242,6 +3242,14 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 		if (but->editstr) state |= UI_TEXTINPUT;
 		
 		wt->state(wt, state);
+
+		if (but->color_override)
+		{
+			wt->wcol.inner[0] = but->color_override->inner[0];
+			wt->wcol.inner[1] = but->color_override->inner[1];
+			wt->wcol.inner[2] = but->color_override->inner[2];
+		}
+
 		if (wt->custom)
 			wt->custom(but, &wt->wcol, rect, state, roundboxalign);
 		else if (wt->draw)

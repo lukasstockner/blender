@@ -2264,10 +2264,12 @@ static void uiBlockPicker(uiBlock *block, float rgba[4], PointerRNA *ptr, Proper
 	bt = uiDefIconButO(block, BUT, "UI_OT_eyedropper", WM_OP_INVOKE_DEFAULT, ICON_EYEDROPPER, butwidth + 10, -60, UI_UNIT_X, UI_UNIT_Y, NULL);
 	uiButSetFunc(bt, close_popup_cb, bt, NULL);
 
-	bt = uiDefButR_prop(block, BUT, 0, "W", butwidth + 10, -80, UI_UNIT_X, UI_UNIT_Y, ptr, prop, 0, 0.0, 0.0, 0, 0, TIP_("Set to white"));
+	bt = uiDefButR_prop(block, BUT, 0, "", butwidth + 10, -80, UI_UNIT_X, UI_UNIT_Y, ptr, prop, 0, 0.0, 0.0, 0, 0, TIP_("Set to white"));
 	uiButSetFunc(bt, do_white_cb, bt, NULL);
-	bt = uiDefButR_prop(block, BUT, 0, "B", butwidth + 10, -100, UI_UNIT_X, UI_UNIT_Y, ptr, prop, 0, 0.0, 0.0, 0, 0, TIP_("Set to black"));
+	uiButSetColorOverride(bt, 255, 255, 255);
+	bt = uiDefButR_prop(block, BUT, 0, "", butwidth + 10, -100, UI_UNIT_X, UI_UNIT_Y, ptr, prop, 0, 0.0, 0.0, 0, 0, TIP_("Set to black"));
 	uiButSetFunc(bt, do_black_cb, bt, NULL);
+	uiButSetColorOverride(bt, 0, 0, 0);
 	
 	/* RGB values */
 	uiBlockBeginAlign(block);

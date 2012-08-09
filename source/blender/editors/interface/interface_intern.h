@@ -157,7 +157,9 @@ struct uiBut {
 	char *str;
 	char strdata[UI_MAX_NAME_STR];
 	char drawstr[UI_MAX_DRAW_STR];
-	
+
+	uiWidgetColors* color_override;
+
 	float x1, y1, x2, y2;
 
 	char *poin;
