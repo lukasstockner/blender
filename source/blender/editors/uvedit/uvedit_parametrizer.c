@@ -3076,17 +3076,31 @@ typedef struct GraphVertInfo {
 	HeapNode * node;
 } GraphVertInfo;
 
-void p_chart_isomap_iterate_graph_edge(int i0, PEdge *p_edge, PBool inverted, float *dist_map, int nverts, GraphVertInfo *visited, Heap *graph_heap)
+void p_chart_isomap_iterate_graph_edge(int i0, PEdge *p_edge, PBool inverted, PBool do_double, float *dist_map, int nverts, GraphVertInfo *visited, Heap *graph_heap)
 {
 	PBool update = P_FALSE;
-
-	int ij;
+	int ij, io;
 	int ic;
 	float sum_dist;
 	float d[3];
 
 	PVert *p_cent;
 	PVert *p_viter;
+	PVert *p_other;
+
+	/* determine if we can calculate distance from two neighbors. p_cent is guaranteed to
+	 * have valid distance data so simply check for other vert */
+	if (do_double) {
+		p_other = p_edge->next->next->vert;
+		io = p_other->u.id;
+
+		if (!visited[io].node) {
+			/* add a node to the heap so that the node will be traversed later.
+			 * make sure to put a max value so the node gets to the bottom of the heap. */
+			visited[io].node = BLI_heap_insert(graph_heap, MAXFLOAT , p_other);
+			return;
+		}
+	}
 
 	if(inverted) {
 		p_cent = p_edge->next->vert;
@@ -3152,6 +3166,7 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 
 		/* for each vert calculate graph distance */
 		for (v = chart->verts; v; v = v->nextlink) {
+			PBool not_first = FALSE;
 			PVert *p_cent;
 			int i0 = v->u.id;
 
@@ -3159,31 +3174,33 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 			memset(visited, 0, nverts*sizeof(*visited));
 			p_cent = v;
 
+			/* calculate distance on a first circle of verts around the first vertex.
+			 * this will provide  */
+
 			while (p_cent) {
-				/* iterate through the edge ring vertices of p0 and calculate geodesic
-				 * distances */
 				int ic = p_cent->u.id;
 
-				/* iterate through all edges and update distances to distance matrix */
 				PEdge *e_iter, *e_init;
 
 				/* iterating through this vert means we no longer need to update the graph for
 				 * it (distances may need to be updated though) */
 				visited[ic].removed = TRUE;
-				visited[ic].node = NULL;
 
 				e_iter = e_init = p_cent->edge;
 
+				/* iterate through the edge ring vertices of p0 and calculate geodesic
+				 * distances */
 				do {
-					p_chart_isomap_iterate_graph_edge(i0, e_iter, P_FALSE,
+					p_chart_isomap_iterate_graph_edge(i0, e_iter, P_FALSE, not_first,
 					                                  dist_map, nverts, visited, graph_heap);
 
 					e_iter = e_iter->next->next;
 
+					/* if we are at a boundary we need to account for the edge now, so pass a reversed edge */
 					if(e_iter->pair)
 						e_iter = e_iter->pair;
 					else {
-						p_chart_isomap_iterate_graph_edge(i0, e_iter, P_TRUE,
+						p_chart_isomap_iterate_graph_edge(i0, e_iter, P_TRUE, not_first,
 						                                  dist_map, nverts, visited, graph_heap);
 						break;
 					}
@@ -3195,6 +3212,8 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 				else {
 					p_cent = NULL;
 				}
+
+				not_first = TRUE;
 			}
 		}
 
