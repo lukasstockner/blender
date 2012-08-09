@@ -28,9 +28,8 @@
 /** \file gpu_lighting.c
  *  \ingroup gpu
  */
-
+#ifndef GLES
 #include "gpu_lighting_internal.h"
-
 
 
 void gpu_material_fv_gl11(GLenum face, GLenum pname, const GLfloat *params)
@@ -142,3 +141,5 @@ GLboolean gpu_is_lighting_enabled_gl11(void)
 {
 	return glIsEnabled(GL_LIGHTING);
 }
+
+#endif
