@@ -31,7 +31,7 @@
 /** \file BLI_smallhash.h
  *  \ingroup bli
  */
-
+#include <stdint.h>
 /* a light stack-friendly hash library,
  * (it uses stack space for smallish hash tables) */
 
