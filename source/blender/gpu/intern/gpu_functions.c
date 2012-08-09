@@ -234,25 +234,25 @@ static void init_framebuffers_ext(void)
 
 #endif
 
-static void * gpuBufferStartUpdate_buffer(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage)
+static const void * GLAPIENTRY gpuBufferStartUpdate_buffer(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage)
 {
 	gpuBufferData(target, 0, NULL, usage);
 	return data;
 }
 
-static void * gpuBufferStartUpdate_map(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage)
+static void * GLAPIENTRY gpuBufferStartUpdate_map(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage)
 {
 	gpuBufferData(target, size, NULL, usage);
 	return gpuMapBuffer(target, GL_WRITE_ONLY);
 }
 
-static void gpuBufferFinishUpdate_buffer(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage)
+static void GLAPIENTRY gpuBufferFinishUpdate_buffer(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage)
 {
 	gpuBufferData(target, size, data, usage);
 
 }
 
-static void gpuBufferFinishUpdate_map(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage)
+static void GLAPIENTRY gpuBufferFinishUpdate_map(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage)
 {
 	gpuUnmapBuffer(target);
 
