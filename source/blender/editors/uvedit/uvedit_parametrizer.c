@@ -3073,13 +3073,14 @@ static void p_chart_lscm_begin(PChart *chart, PBool live, enum UnwrapMethods met
 
 typedef struct GraphVertInfo {
 	int removed;
+	int added;
 	HeapNode * node;
 } GraphVertInfo;
 
-void p_chart_isomap_iterate_graph_edge(int i0, PEdge *p_edge, PBool inverted, PBool do_double, float *dist_map, int nverts, GraphVertInfo *visited, Heap *graph_heap)
+PBool p_chart_isomap_iterate_graph_edge(int i0, PEdge *p_edge, PBool inverted, PBool do_double, float *dist_map, int nverts, GraphVertInfo *visited, Heap *graph_heap)
 {
 	PBool update = P_FALSE;
-	int ij, io;
+	int ij, iother;
 	int ic;
 	float sum_dist;
 	float d[3];
@@ -3087,20 +3088,6 @@ void p_chart_isomap_iterate_graph_edge(int i0, PEdge *p_edge, PBool inverted, PB
 	PVert *p_cent;
 	PVert *p_viter;
 	PVert *p_other;
-
-	/* determine if we can calculate distance from two neighbors. p_cent is guaranteed to
-	 * have valid distance data so simply check for other vert */
-	if (do_double) {
-		p_other = p_edge->next->next->vert;
-		io = p_other->u.id;
-
-		if (!visited[io].node) {
-			/* add a node to the heap so that the node will be traversed later.
-			 * make sure to put a max value so the node gets to the bottom of the heap. */
-			visited[io].node = BLI_heap_insert(graph_heap, MAXFLOAT , p_other);
-			return;
-		}
-	}
 
 	if(inverted) {
 		p_cent = p_edge->next->vert;
@@ -3113,12 +3100,59 @@ void p_chart_isomap_iterate_graph_edge(int i0, PEdge *p_edge, PBool inverted, PB
 	ic = p_cent->u.id;
 	ij = p_viter->u.id;
 
+	/* determine if we can calculate distance from two neighbors. p_cent is guaranteed to
+	 * have valid distance data so simply check for other vert */
+	if (do_double) {
+		p_other = p_edge->next->next->vert;
+		iother = p_other->u.id;
+
+		if (!visited[iother].added) {
+			PBool fail = P_FALSE;
+			/* first attempt calculating the vert using the other triangle */
+			p_edge = p_edge->pair;
+			/* possible that we are at a chart's edge */
+			if (p_edge) {
+				if(inverted) {
+					p_viter = p_edge->next->vert;
+				} else {
+					p_viter = p_edge->vert;
+				}
+
+				ij = p_viter->u.id;
+
+				p_other = p_edge->next->next->vert;
+				iother = p_other->u.id;
+			} else {
+				fail = P_TRUE;
+			}
+
+			if (!visited[iother].added)
+				fail = P_TRUE;
+
+			/* attempt failed, return 0 */
+			if(fail) {
+				/* add a node to the heap so that the node will be traversed later.
+					 * make sure to put a max value so the node gets to the bottom of the heap. */
+				if (!visited[ij].node)
+					visited[ij].node = BLI_heap_insert(graph_heap, MAXFLOAT , p_viter);
+
+				printf("vertex %d failed due to vertex %d missing. inverted: %d\n", ij, iother, inverted);
+				return P_FALSE;
+			}
+		}
+	}
+
 	d[0] = p_viter->co[0] - p_cent->co[0];
 	d[1] = p_viter->co[1] - p_cent->co[1];
 	d[2] = p_viter->co[2] - p_cent->co[2];
 
 	sum_dist = dist_map[ic*nverts + i0] + sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
 	update = (dist_map[i0*nverts + ij] > sum_dist);
+
+	if (!visited[ij].added && visited[ij].node) {
+		BLI_heap_remove(graph_heap, visited[ij].node);
+		visited[ij].node = NULL;
+	}
 
 	/* add pverts in the hash */
 	if(update) {
@@ -3134,12 +3168,19 @@ void p_chart_isomap_iterate_graph_edge(int i0, PEdge *p_edge, PBool inverted, PB
 	if(!visited[ij].removed && !visited[ij].node) {
 		visited[ij].node = BLI_heap_insert(graph_heap, sum_dist , p_viter);
 	}
-
-	/* assert that one of the two edge vertices is actually the p_cent vertex */
-	//BLI_assert (e_iter->vert == p_cent || e_iter->next->vert == p_cent);
-	/* also assert that one of the two edge vertices is actually the p_viter vertex */
-	//BLI_assert (e_iter->vert == p_viter || e_iter->next->vert == p_viter);
+	visited[ij].added = TRUE;
+	if (do_double) {
+		printf("vertex %d calculated, other vertex %d, inverted %d \n", ij, iother, inverted);
+	} else {
+		printf("vertex %d calculated\n", ij);
+	}
+	return P_TRUE;
 }
+
+typedef struct GraphEdgeInfo {
+	PEdge *e;
+	PBool inverted;
+} GraphEdgeInfo;
 
 static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 {
@@ -3148,12 +3189,13 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 	if (method == UNWRAP_ISOMAP) {
 		PVert *v;
 		int nverts = chart->nverts;
-		int i, j;
+		int i, j, stack_depth = 0;
 
 		/* create matrix with squared edge distances */
 		float *dist_map = MEM_mallocN(sizeof(*dist_map)*nverts*nverts, "isomap_distance_map");
 		GraphVertInfo *visited = MEM_mallocN(nverts*sizeof(*visited), "isomap_visited_flags");
 		Heap *graph_heap = BLI_heap_new();
+		GraphEdgeInfo *prox_stack = MEM_mallocN(nverts*sizeof(*prox_stack), "isomap_proximity_stack");
 
 		param_isomap_new_solver(nverts);
 
@@ -3170,8 +3212,13 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 			PVert *p_cent;
 			int i0 = v->u.id;
 
+			printf("changing initial vertex: %d\n", i0);
+
 			/* reset the visited nodes */
 			memset(visited, 0, nverts*sizeof(*visited));
+
+			visited[i0].added = P_TRUE;
+
 			p_cent = v;
 
 			/* calculate distance on a first circle of verts around the first vertex.
@@ -3179,6 +3226,8 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 
 			while (p_cent) {
 				int ic = p_cent->u.id;
+				int stack_iter = 0;
+				int old_stack_depth;
 
 				PEdge *e_iter, *e_init;
 
@@ -3188,11 +3237,10 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 
 				e_iter = e_init = p_cent->edge;
 
-				/* iterate through the edge ring vertices of p0 and calculate geodesic
-				 * distances */
+				/* iterate through the edge ring vertices of p_cent */
 				do {
-					p_chart_isomap_iterate_graph_edge(i0, e_iter, P_FALSE, not_first,
-					                                  dist_map, nverts, visited, graph_heap);
+					prox_stack[stack_depth].e = e_iter;
+					prox_stack[stack_depth++].inverted = P_FALSE;
 
 					e_iter = e_iter->next->next;
 
@@ -3200,14 +3248,69 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 					if(e_iter->pair)
 						e_iter = e_iter->pair;
 					else {
-						p_chart_isomap_iterate_graph_edge(i0, e_iter, P_TRUE, not_first,
-						                                  dist_map, nverts, visited, graph_heap);
+						prox_stack[stack_depth].e = e_iter;
+						prox_stack[stack_depth++].inverted = P_TRUE;
 						break;
 					}
 				} while (e_iter != e_init);
 
+				old_stack_depth = stack_depth;
+				printf("processing vertex %d \n", ic);
+				while (stack_depth) {
+					int old_stack_iter = stack_iter;
+
+					stack_iter %= stack_depth;
+
+					if(stack_iter < old_stack_iter) {
+						if(old_stack_depth == stack_depth) {
+							printf("deadlock vertex index: %d\n", ic);
+							for(i = 0; i < nverts; i++) {
+								printf("%d vertex info added: %d\n",i, visited[i].added);
+								printf("%d vertex info removed: %d\n",i, visited[i].added);
+							}
+							e_iter = e_init = p_cent->edge;
+
+							/* iterate through the edge ring vertices of p_cent */
+							do {
+								printf("neighbor index: %d\n",e_iter->next->vert->u.id);
+								e_iter = e_iter->next->next;
+								if(e_iter->pair)
+									e_iter = e_iter->pair;
+								else {
+									printf("neighbor index: %d\n",e_iter->vert->u.id);
+									break;
+								}
+							} while (e_iter != e_init);
+
+							BLI_heap_free(graph_heap, NULL);
+							MEM_freeN(visited);
+							MEM_freeN(prox_stack);
+							MEM_freeN(dist_map);
+
+							return P_FALSE;
+						}
+						old_stack_depth = stack_depth;
+					}
+
+					if(p_chart_isomap_iterate_graph_edge(i0, prox_stack[stack_iter].e,
+					                                     prox_stack[stack_iter].inverted,
+					                                     not_first, dist_map, nverts,
+					                                     visited, graph_heap))
+					{
+						prox_stack[stack_iter].e = prox_stack[stack_depth - 1].e;
+						prox_stack[stack_iter].inverted = prox_stack[stack_depth - 1].inverted;
+						stack_depth--;
+						continue;
+					}
+					stack_iter++;
+				}
+
 				if(BLI_heap_size(graph_heap) > 0) {
 					p_cent = BLI_heap_popmin(graph_heap);
+
+					if(!visited[p_cent->u.id].added) {
+						printf("BLI_heap_size(graph_heap) %d\n", BLI_heap_size(graph_heap));
+					}
 				}
 				else {
 					p_cent = NULL;
@@ -3217,6 +3320,9 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 			}
 		}
 
+		BLI_heap_free(graph_heap, NULL);
+		MEM_freeN(visited);
+		MEM_freeN(prox_stack);
 
 		for (i = 0; i < nverts; i++) {
 			for (j = 0; j < i + 1; j++) {
@@ -3224,9 +3330,6 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 				dist_map[j*nverts + i] *= dist_map[j*nverts + i];
 			}
 		}
-
-		BLI_heap_free(graph_heap, NULL);
-		MEM_freeN(visited);
 
 		if(!param_isomap_solve(dist_map)) {
 			param_isomap_delete_solver();
