@@ -635,8 +635,8 @@ gla2DDrawInfo *glaBegin2DDraw(rcti *screen_rect, rctf *world_rect)
 
 	glGetIntegerv(GL_VIEWPORT, (GLint *)di->orig_vp);
 	glGetIntegerv(GL_SCISSOR_BOX, (GLint *)di->orig_sc);
-	gpuGetSpecificMatrix(GL_PROJECTION, (GLfloat *)di->orig_projmat);
-	gpuGetSpecificMatrix(GL_MODELVIEW, (GLfloat *)di->orig_viewmat);
+	gpuGetMatrix(GL_PROJECTION_MATRIX, (GLfloat *)di->orig_projmat);
+	gpuGetMatrix(GL_MODELVIEW_MATRIX, (GLfloat *)di->orig_viewmat);
 
 	di->screen_rect = *screen_rect;
 	if (world_rect) {
@@ -691,8 +691,8 @@ void bgl_get_mats(bglMats *mats)
 {
 	const double badvalue = 1.0e-6;
 
-	gpuGetSpecificMatrix(GL_MODELVIEW, mats->modelview);
-	gpuGetSpecificMatrix(GL_PROJECTION, mats->projection);
+	gpuGetMatrix(GL_MODELVIEW_MATRIX, mats->modelview);
+	gpuGetMatrix(GL_PROJECTION_MATRIX, mats->projection);
 	glGetIntegerv(GL_VIEWPORT, (GLint *)mats->viewport);
 	
 	/* Very strange code here - it seems that certain bad values in the
@@ -728,21 +728,20 @@ void bglPolygonOffset(float viewdist, float dist)
 
 		/* hack below is to mimic polygon offset */
 		gpuMatrixMode(GL_PROJECTION);
-		gpuGetMatrix((float *)winmat);
-		
+		gpuGetMatrix(GL_PROJECTION_MATRIX, (float *)winmat);
+
 		/* dist is from camera to center point */
 		
 		if (winmat[15] > 0.5f) offs = 0.00001f * dist * viewdist;  // ortho tweaking
 		else offs = 0.0005f * dist;  // should be clipping value or so...
-		
+
 		winmat[14] -= offs;
 		offset += offs;
-		
+
 		gpuLoadMatrix(winmat);
 		gpuMatrixMode(GL_MODELVIEW);
 	}
 	else {
-
 		gpuMatrixMode(GL_PROJECTION);
 		winmat[14] += offset;
 		offset = 0.0;

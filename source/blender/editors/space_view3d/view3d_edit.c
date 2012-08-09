@@ -2601,12 +2601,8 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 
 		cent[2] = corner[2] = depth_close;
 		/* convert border to 3d coordinates */
-		if ( (!gpuUnProject(cent,
-		                    mats.modelview, mats.projection, (GLint *)mats.viewport,
-							p)) ||
-			 (!gpuUnProject(corner,
-		                    mats.modelview, mats.projection, (GLint *)mats.viewport,
-							p_corner)))
+		if ( (!gpuUnProject(cent, mats.modelview, mats.projection, (GLint *)mats.viewport, p)) ||
+			 (!gpuUnProject(corner, mats.modelview, mats.projection, (GLint *)mats.viewport, p_corner)))
 		{
 			return OPERATOR_CANCELLED;
 		}
@@ -2632,9 +2628,8 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 
 		cent[2] = depth_close;
 		/* convert the drawn rectangle into 3d space */
-		if (depth_close != FLT_MAX && gpuUnProject(cent,
-		                                           mats.modelview, mats.projection, (GLint *)mats.viewport,
-												   p))
+		if (depth_close != FLT_MAX &&
+			gpuUnProject(cent, mats.modelview, mats.projection, (GLint *)mats.viewport, p)) 
 		{
 			new_ofs[0] = -p[0];
 			new_ofs[1] = -p[1];
@@ -3585,19 +3580,13 @@ int ED_view3d_autodist(Scene *scene, ARegion *ar, View3D *v3d, const int mval[2]
 
 	cent[2] = view_autodist_depth_margin(ar, mval, 4);
 
-	if (cent[3] == FLT_MAX)
+	if (cent[2] == FLT_MAX)
 		return 0;
 
 	cent[0] = mval[0];
 	cent[1] = mval[1];
 
-	if (!gpuUnProject(cent,
-					  mats.modelview, mats.projection, (GLint *)mats.viewport, mouse_worldloc))
-	{
-		return 0;
-	}
-
-	return 1;
+	return gpuUnProject(cent, mats.modelview, mats.projection, (GLint *)mats.viewport, mouse_worldloc);
 }
 
 int ED_view3d_autodist_init(Scene *scene, ARegion *ar, View3D *v3d, int mode)
@@ -3636,13 +3625,7 @@ int ED_view3d_autodist_simple(ARegion *ar, const int mval[2], float mouse_worldl
 
 	bgl_get_mats(&mats);
 
-	if (!gpuUnProject(cent,
-					  mats.modelview, mats.projection, (GLint *)mats.viewport, mouse_worldloc))
-	{
-		return 0;
-	}
-
-	return 1;
+	return gpuUnProject(cent, mats.modelview, mats.projection, (GLint *)mats.viewport, mouse_worldloc);
 }
 
 int ED_view3d_autodist_depth(struct ARegion *ar, const int mval[2], int margin, float *depth)

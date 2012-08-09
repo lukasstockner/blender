@@ -927,11 +927,11 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 	glViewport(0, 0, GPU_texture_opengl_width(blurtex), GPU_texture_opengl_height(blurtex));
 
 	/* Peparing to draw quad */
-	gpuMatrixMode(GL_MODELVIEW);
-	gpuLoadIdentity();
 	gpuMatrixMode(GL_TEXTURE);
 	gpuLoadIdentity();
 	gpuMatrixMode(GL_PROJECTION);
+	gpuLoadIdentity();
+	gpuMatrixMode(GL_MODELVIEW); /* make sure last current matrix is modelview */
 	gpuLoadIdentity();
 
 	GPU_texture_bind(tex, 0);

@@ -373,7 +373,9 @@ void GPC_RenderTools::RenderText2D(RAS_TEXT_RENDER_MODE mode,
 	gpuMatrixMode(GL_MODELVIEW);
 
 	gpuPushMatrix();
-	gpuLoadIdentity(); gpuMatrixCommit();
+	gpuLoadIdentity();
+
+	gpuMatrixCommit();
 
 	// Actual drawing (draw black first if padded)
 	if (mode == RAS_IRenderTools::RAS_TEXT_PADDED)
@@ -387,11 +389,12 @@ void GPC_RenderTools::RenderText2D(RAS_TEXT_RENDER_MODE mode,
 
 	// Restore view settings;
 	gpuMatrixMode(GL_PROJECTION);
-
 	gpuPopMatrix();
-	gpuMatrixMode(GL_MODELVIEW);
 
-	gpuPopMatrix(); gpuMatrixCommit();
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuPopMatrix();
+	
+	gpuMatrixCommit();
 
 	// Restore OpenGL Settings
 	if (fog)

@@ -344,11 +344,11 @@ PushRenderState(
 ) {
 #if 0
 
+	::gpuMatrixMode(GL_TEXTURE);
+	::gpuPushMatrix();
 	::gpuMatrixMode(GL_PROJECTION);
 	::gpuPushMatrix();
 	::gpuMatrixMode(GL_MODELVIEW);
-	::gpuPushMatrix();
-	::gpuMatrixMode(GL_TEXTURE);
 	::gpuPushMatrix();
 	// Save old OpenGL settings
 	::glGetIntegerv(GL_LIGHTING, (GLint*)&(render_state.oldLighting));
@@ -389,7 +389,8 @@ PopRenderState(
 	::gpuMatrixMode(GL_PROJECTION);
 	::gpuPopMatrix();
 	::gpuMatrixMode(GL_MODELVIEW);
-	::gpuPopMatrix(); gpuMatrixCommit();
+	::gpuPopMatrix();
+	::gpuMatrixCommit();
 
 #else
 
@@ -404,14 +405,17 @@ SetOrthoProjection(
 	// Set up OpenGL matrices 
 	::glViewport(0, 0, m_width, m_height);
 	::glScissor(0, 0, m_width, m_height);
-	gpuMatrixMode(GL_PROJECTION);
 
-	::gpuLoadOrtho(0, m_width, 0, m_height, -1, 1); gpuMatrixCommit();
-	gpuMatrixMode(GL_MODELVIEW);
-
-	::gpuLoadIdentity();
 	::gpuMatrixMode(GL_TEXTURE);
-	::gpuLoadIdentity(); gpuMatrixCommit();
+	::gpuLoadIdentity();
+
+	::gpuMatrixMode(GL_PROJECTION);
+	::gpuLoadOrtho(0, m_width, 0, m_height, -1, 1); gpuMatrixCommit();
+
+	::gpuMatrixMode(GL_MODELVIEW);
+	::gpuLoadIdentity();
+
+	::gpuMatrixCommit();
 }
 
 	void

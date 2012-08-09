@@ -768,9 +768,7 @@ void view3d_unproject(bglMats *mats, float out[3], const short x, const short y,
 {
 	float win[] = {x, y, z};
 
-	gpuUnProject(win, mats->modelview, mats->projection,
-				 (GLint *)mats->viewport, out);
-
+	gpuUnProject(win, mats->modelview, mats->projection, (GLint *)mats->viewport, out);
 }
 
 /* use view3d_get_object_project_mat to get projecting mat */
@@ -1070,7 +1068,7 @@ void setwinmatrixview3d(ARegion *ar, View3D *v3d, rctf *rect)       /* rect: for
 	}
 
 	/* update matrix in 3d view region */
-	gpuGetSpecificMatrix(GL_PROJECTION, (float *)rv3d->winmat);
+	gpuGetMatrix(GL_PROJECTION_MATRIX, (float *)rv3d->winmat);
 }
 
 static void obmat_to_viewmat(View3D *v3d, RegionView3D *rv3d, Object *ob, short smooth)

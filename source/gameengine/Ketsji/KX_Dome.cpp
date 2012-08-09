@@ -1366,8 +1366,10 @@ void KX_Dome::CalculateFrustum(KX_Camera * cam)
 
 	// the equivalent GLU call is:
 	gpuMatrixMode(GL_PROJECTION);
-	gpuLoadIdentity(); gpuMatrixCommit();
+	gpuLoadIdentity();
+	gpuMatrixCommit();
 	gluPerspective(90.0,1.0,cam->GetCameraNear(),cam->GetCameraFar());
+	gpuMatrixMode(GL_MODELVIEW);
 #endif
 
 	RAS_FrameFrustum m_frustrum; //90 deg. Frustum
@@ -1578,7 +1580,8 @@ void KX_Dome::DrawEnvMap(void)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	gpuMatrixMode(GL_PROJECTION);
 
-	gpuLoadIdentity(); gpuMatrixCommit();
+	gpuLoadIdentity();
+	gpuMatrixCommit();
 
 	// Making the viewport always square 
 
@@ -1802,7 +1805,8 @@ void KX_Dome::DrawPanorama(void)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	gpuMatrixMode(GL_PROJECTION);
 
-	gpuLoadIdentity(); gpuMatrixCommit();
+	gpuLoadIdentity();
+	gpuMatrixCommit();
 
 	// Making the viewport always square 
 

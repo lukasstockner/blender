@@ -142,9 +142,8 @@ void wm_subwindow_getmatrix(wmWindow *win, int swinid, float mat[][4])
 			wm_subwindow_getsize(win, swin->swinid, &width, &height);
 			orthographic_m4(mat, -0.375f, (float)width - 0.375f, -0.375f, (float)height - 0.375f, -100, 100);
 		}
-		else
-		{	gpuMatrixMode(GL_PROJECTION);
-			gpuGetMatrix((float *)mat);
+		else {
+			gpuGetMatrix(GL_PROJECTION_MATRIX, (float *)mat);
 		}
 	}
 }

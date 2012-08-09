@@ -973,7 +973,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 
 	viewport = KX_GetActiveEngine()->GetCanvas()->GetViewPort();
 
-	gpuProject(vectf, (GLfloat (*)[4])modelmatrix, (GLfloat (*)[4])projmatrix, viewport, win);
+	gpuProject(vectf, modelmatrix, projmatrix, viewport, win);
 
 	vect[0] =  (win[0] - viewport[0]) / viewport[2];
 	vect[1] =  (win[1] - viewport[1]) / viewport[3];
@@ -1026,7 +1026,7 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect,
 
 	GLfloat vectf[3] = {vect[0], vect[1], vect[2]};
 
-	gpuUnProject(vectf, (GLfloat (*)[4])modelmatrix, (GLfloat (*)[4])projmatrix, viewport, win);
+	gpuUnProject(vectf, modelmatrix, projmatrix, viewport, win);
 
 	campos = this->GetCameraLocation();
 	screenpos = MT_Point3(win[0], win[1], win[2]);

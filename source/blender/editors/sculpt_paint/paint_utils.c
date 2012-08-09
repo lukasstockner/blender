@@ -221,8 +221,8 @@ static void imapaint_tri_weights(Object *ob,
 
 	/* get the needed opengl matrices */
 	glGetIntegerv(GL_VIEWPORT, view);
-	gpuGetSpecificMatrix(GL_MODELVIEW,  (float *)model);
-	gpuGetSpecificMatrix(GL_PROJECTION, (float *)proj);
+	gpuGetMatrix(GL_MODELVIEW_MATRIX,  (float *)model);
+	gpuGetMatrix(GL_PROJECTION_MATRIX, (float *)proj);
 	view[0] = view[1] = 0;
 
 	/* project the verts */

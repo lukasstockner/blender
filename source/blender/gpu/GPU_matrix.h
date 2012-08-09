@@ -55,8 +55,7 @@ void gpuMatrixMode(GLenum mode);
 GLenum gpuGetMatrixMode(void);
 
 void gpuLoadMatrix(const GLfloat * m);
-GLfloat * gpuGetMatrix(GLfloat * m);
-GLfloat * gpuGetSpecificMatrix(GLenum type, GLfloat * m);
+const GLfloat * gpuGetMatrix(GLenum type, GLfloat * m);
 
 void gpuLoadIdentity(void);
 
@@ -86,10 +85,14 @@ int gpuUnProject(const GLfloat win[3], const GLfloat model[4][4], const GLfloat 
 #endif
 
 #if GPU_MAT_CAST_ANY
-#define gpuLoadMatrix(m)  gpuLoadMatrix((const GLfloat *) m);
-#define gpuGetMatrix(m)   gpuGetMatrix((GLfloat *) m);
-#define gpuMultMatrix(m)  gpuMultMatrix((const GLfloat *) m);
-#define gpuMultMatrixd(m) gpuMultMatrixd((const double *) m);
+
+#define gpuLoadMatrix(m)  gpuLoadMatrix((const GLfloat *)(m))
+#define gpuMultMatrix(m)  gpuMultMatrix((const GLfloat *)(m))
+#define gpuMultMatrixd(m) gpuMultMatrixd((const double *)(m))
+
+#define gpuProject(o, m, p, v, w)   gpuProject   (o, (const GLfloat (*)[4])(m), (const GLfloat (*)[4])(p), v, w)
+#define gpuUnProject(w, m, p, v, o) gpuUnProject (w, (const GLfloat (*)[4])(m), (const GLfloat (*)[4])(p), v, o)
+
 #endif
 
 

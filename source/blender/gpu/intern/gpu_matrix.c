@@ -179,20 +179,7 @@ void gpuMatrixLock(void)
 	glPushMatrix();
 
 	glMatrixMode(glstackmode);
-	switch(glstackmode)
-	{
-		case GL_MODELVIEW:
-			gpuMatrixMode(GL_MODELVIEW);
-			break;
-		case GL_TEXTURE:
-			gpuMatrixMode(GL_TEXTURE);
-			break;
-		case GL_PROJECTION:
-			gpuMatrixMode(GL_PROJECTION);
-			break;
-
-	}
-
+	gpuMatrixMode(glstackmode);
 
 #endif
 
@@ -360,37 +347,28 @@ void gpuLoadMatrix(const GLfloat * m)
 	CHECKMAT
 }
 
-GLfloat * gpuGetMatrix(GLfloat * m)
-{
-	if(m)
-		copy_m4_m4((GLfloat (*)[4])m, CURMATRIX);
-	else
-		return (GLfloat*)(CURMATRIX);
-	ms_current->changed = 1;
-	return 0;
-}
-
-GLfloat * gpuGetSpecificMatrix(GLenum type, GLfloat *m)
+const GLfloat * gpuGetMatrix(GLenum type, GLfloat *m)
 {
 	GPU_matrix_stack * ms_select;
 
+	GPU_ASSERT(ELEM3(type, GL_MODELVIEW_MATRIX, GL_PROJECTION_MATRIX, GL_TEXTURE_MATRIX));
+
 	switch(type)
 	{
-		case GL_MODELVIEW:
+		case GL_MODELVIEW_MATRIX:
 			ms_select = &ms_modelview;
 			break;
-		case GL_PROJECTION:
+		case GL_PROJECTION_MATRIX:
 			ms_select = &ms_projection;
 			break;
-		case GL_TEXTURE:
+		case GL_TEXTURE_MATRIX:
 			ms_select = & ms_texture;
 			break;
 		default:
-			BLI_assert(0);
 			return 0;
 	}
 
-	if(m)
+	if (m)
 		copy_m4_m4((GLfloat (*)[4])m, ms_select->dynstack[ms_select->pos]);
 	else
 		return (GLfloat*)(ms_select->dynstack[ms_select->pos]);
@@ -568,7 +546,7 @@ int gpuUnProject(const GLfloat win[3], const GLfloat model[4][4], const GLfloat 
 	mult_m4_m4m4_q(pm, proj, model);
 
 	if(!invert_m4(pm))
-		return 0;
+		return FALSE;
 
 
 
@@ -588,6 +566,6 @@ obj[2]=0;*/
 	obj[0] = objd[0];
 	obj[1] = objd[1];
 	obj[2] = objd[2];
-	return 1;
+	return TRUE;
 
 }
