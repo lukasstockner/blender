@@ -49,15 +49,6 @@
 #endif
 
 
-// don't commit this!
-#ifdef GLES
-#define glMultMatrixf(x)  fake_glMultMatrixf( (float *)(x))
-#define glLoadMatrixf(x)  fake_glLoadMatrixf( (float *)(x))
-#else
-#define glMultMatrixf(x)  glMultMatrixf( (float *)(x))
-#define glLoadMatrixf(x)  glLoadMatrixf( (float *)(x))
-#endif
-
 
 
 #endif /* __GPU_COMPATIBILITY_H_ */
