@@ -33,6 +33,7 @@
 #include <iostream>
 
 #include "RAS_GLExtensionManager.h"
+#include "GPU_extensions.h"
 
 namespace bgl
 {
@@ -52,14 +53,12 @@ namespace bgl
 					std::cout << "Detected GL_ARB_texture_cube_map" << std::endl;
 				if (GLEW_ARB_multitexture)
 					std::cout << "Detected GL_ARB_multitexture" << std::endl;
-				if (GLEW_ARB_shader_objects)
-					std::cout << "Detected GL_ARB_shader_objects" << std::endl;
-				if (GLEW_ARB_vertex_shader)
-					std::cout << "Detected GL_ARB_vertex_shader" << std::endl;
-				if (GLEW_ARB_fragment_shader)
-					std::cout << "Detected GL_ARB_fragment_shader" << std::endl;
-				if (GLEW_ARB_vertex_program)
-					std::cout << "Detected GL_ARB_vertex_program" << std::endl;
+				if (GPU_EXT_GLSL_ENABLED)
+					std::cout << "Detected GLSL shader support" << std::endl;
+				if (GPU_EXT_GLSL_FRAGMENT_ENABLED)
+					std::cout << "Detected GLSL fragment shader support" << std::endl;
+				if (GPU_EXT_GLSL_VERTEX_ENABLED)
+					std::cout << "Detected GLSL vertex shader support" << std::endl;
 				if (GLEW_ARB_depth_texture)
 					std::cout << "Detected GL_ARB_depth_texture" << std::endl;
 				if (GLEW_EXT_separate_specular_color)
