@@ -3076,6 +3076,57 @@ typedef struct GraphVertInfo {
 	HeapNode * node;
 } GraphVertInfo;
 
+void p_chart_isomap_iterate_graph_edge(int i0, PEdge *p_edge, PBool inverted, float *dist_map, int nverts, GraphVertInfo *visited, Heap *graph_heap)
+{
+	PBool update = P_FALSE;
+
+	int ij;
+	int ic;
+	float sum_dist;
+	float d[3];
+
+	PVert *p_cent;
+	PVert *p_viter;
+
+	if(inverted) {
+		p_cent = p_edge->next->vert;
+		p_viter = p_edge->vert;
+	} else {
+		p_cent = p_edge->vert;
+		p_viter = p_edge->next->vert;
+	}
+
+	ic = p_cent->u.id;
+	ij = p_viter->u.id;
+
+	d[0] = p_viter->co[0] - p_cent->co[0];
+	d[1] = p_viter->co[1] - p_cent->co[1];
+	d[2] = p_viter->co[2] - p_cent->co[2];
+
+	sum_dist = dist_map[ic*nverts + i0] + sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+	update = (dist_map[i0*nverts + ij] > sum_dist);
+
+	/* add pverts in the hash */
+	if(update) {
+		dist_map[i0*nverts + ij] = dist_map[ij*nverts + i0] = sum_dist;
+		if(!visited[ij].removed) {
+			if (visited[ij].node) {
+				BLI_heap_remove(graph_heap, visited[ij].node);
+			}
+
+			visited[ij].node = BLI_heap_insert(graph_heap, sum_dist , p_viter);
+		}
+	}
+	if(!visited[ij].removed && !visited[ij].node) {
+		visited[ij].node = BLI_heap_insert(graph_heap, sum_dist , p_viter);
+	}
+
+	/* assert that one of the two edge vertices is actually the p_cent vertex */
+	//BLI_assert (e_iter->vert == p_cent || e_iter->next->vert == p_cent);
+	/* also assert that one of the two edge vertices is actually the p_viter vertex */
+	//BLI_assert (e_iter->vert == p_viter || e_iter->next->vert == p_viter);
+}
+
 static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 {
 	enum UnwrapMethods method = handle->method;
@@ -3112,13 +3163,9 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 				/* iterate through the edge ring vertices of p0 and calculate geodesic
 				 * distances */
 				int ic = p_cent->u.id;
-				char update = FALSE;
 
 				/* iterate through all edges and update distances to distance matrix */
-				PEdge *e_iter, *e_init, *e_ipair;
-				PVert *p_viter;
-				int ij;
-				float sum_dist;
+				PEdge *e_iter, *e_init;
 
 				/* iterating through this vert means we no longer need to update the graph for
 				 * it (distances may need to be updated though) */
@@ -3126,66 +3173,28 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 				visited[ic].node = NULL;
 
 				e_iter = e_init = p_cent->edge;
-				e_ipair = e_init->pair;
-				p_viter = e_iter->next->vert;
 
-				ij = p_viter->u.id;
-				sum_dist = dist_map[ic*nverts + i0] + p_edge_length(e_iter);
-				update = (dist_map[i0*nverts + ij] > sum_dist);
-
-				/* add pverts in the heap */
-				if(update) {
-					dist_map[i0*nverts + ij] = dist_map[ij*nverts + i0] = sum_dist;
-					if(!visited[ij].removed) {
-						if (visited[ij].node) {
-							BLI_heap_remove(graph_heap, visited[ij].node);
-						}
-
-						visited[ij].node = BLI_heap_insert(graph_heap, sum_dist , p_viter);
-					}
-				}
-				if(!visited[ij].removed && !visited[ij].node) {
-					visited[ij].node = BLI_heap_insert(graph_heap, sum_dist , p_viter);
-				}
 				do {
-					update = FALSE;
+					p_chart_isomap_iterate_graph_edge(i0, e_iter, P_FALSE,
+					                                  dist_map, nverts, visited, graph_heap);
 
 					e_iter = e_iter->next->next;
-					p_viter = e_iter->vert;
-					ij = p_viter->u.id;
-					sum_dist = dist_map[ic*nverts + i0] + p_edge_length(e_iter);
-					update = (dist_map[i0*nverts + ij] > sum_dist);
 
-					/* add pverts in the hash */
-					if(update) {
-						dist_map[i0*nverts + ij] = dist_map[ij*nverts + i0] = sum_dist;
-						if(!visited[ij].removed) {
-							if (visited[ij].node) {
-								BLI_heap_remove(graph_heap, visited[ij].node);
-							}
-
-							visited[ij].node = BLI_heap_insert(graph_heap, sum_dist , p_viter);
-						}
+					if(e_iter->pair)
+						e_iter = e_iter->pair;
+					else {
+						p_chart_isomap_iterate_graph_edge(i0, e_iter, P_TRUE,
+						                                  dist_map, nverts, visited, graph_heap);
+						break;
 					}
-					if(!visited[ij].removed && !visited[ij].node) {
-						visited[ij].node = BLI_heap_insert(graph_heap, sum_dist , p_viter);
-					}
-					/* assert that one of the two edge vertices is actually the p_cent vertex */
-					BLI_assert (e_iter->vert == p_cent || e_iter->next->vert == p_cent);
-					/* also assert that one of the two edge vertices is actually the p_viter vertex */
-					BLI_assert (e_iter->vert == p_viter || e_iter->next->vert == p_viter);
-
-					e_iter = e_iter->pair;
-				} while (e_iter && e_iter != e_init);
-
-				BLI_assert(e_iter || !e_ipair);
+				} while (e_iter != e_init);
 
 				if(BLI_heap_size(graph_heap) > 0) {
 					p_cent = BLI_heap_popmin(graph_heap);
-
 				}
-				else
+				else {
 					p_cent = NULL;
+				}
 			}
 		}
 
