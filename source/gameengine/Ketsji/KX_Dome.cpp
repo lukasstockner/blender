@@ -40,6 +40,7 @@
 #include "BLI_math.h"
 
 #include "GPU_compatibility.h"
+#include "GPU_extensions.h"
 #include "GPU_colors.h"
 
 // constructor
@@ -253,7 +254,7 @@ void KX_Dome::CalculateImageSize(void)
 
 bool KX_Dome::CreateFBO(void)
 {
-	if (!GLEW_EXT_framebuffer_object)
+	if (!GPU_EXT_FRAMEBUFFERS)
 	{
 		printf("Dome Error: FrameBuffer unsupported. Using low resolution warp image.");
 		return false;
