@@ -126,6 +126,7 @@ void GPU_extensions_init(void)
 
 	glewInit();
 	GPU_func_comp_init();
+	gpuInitializeViewFuncs();
 	GPU_codegen_init();
 
 	/* glewIsSupported("GL_VERSION_2_0") */
@@ -849,7 +850,7 @@ void GPU_framebuffer_texture_bind(GPUFrameBuffer *UNUSED(fb), GPUTexture *tex, i
 	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, tex->fb->object);
 
 	/* push matrices and set default viewport and matrix */
-	glViewport(0, 0, w, h);
+	gpuViewport(0, 0, w, h);
 	GG.currentfb = tex->fb->object;
 
 	gpuMatrixMode(GL_PROJECTION);
@@ -924,7 +925,7 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 	GPU_shader_bind(blur_shader);
 	GPU_shader_uniform_vector(blur_shader, scale_uniform, 2, 1, (float*)scaleh);
 	GPU_shader_uniform_texture(blur_shader, texture_source_uniform, tex);
-	glViewport(0, 0, GPU_texture_opengl_width(blurtex), GPU_texture_opengl_height(blurtex));
+	gpuViewport(0, 0, GPU_texture_opengl_width(blurtex), GPU_texture_opengl_height(blurtex));
 
 	/* Peparing to draw quad */
 	gpuMatrixMode(GL_TEXTURE);
@@ -949,7 +950,7 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 	/* Blurring vertically */
 
 	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
-	glViewport(0, 0, GPU_texture_opengl_width(tex), GPU_texture_opengl_height(tex));
+	gpuViewport(0, 0, GPU_texture_opengl_width(tex), GPU_texture_opengl_height(tex));
 	GPU_shader_uniform_vector(blur_shader, scale_uniform, 2, 1, (float*)scalev);
 	GPU_shader_uniform_texture(blur_shader, texture_source_uniform, blurtex);
 	GPU_texture_bind(blurtex, 0);
