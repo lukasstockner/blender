@@ -87,6 +87,7 @@ static void init_glsl_arb(void)
 	gpu_glLinkProgram       = glLinkProgramARB;
 	gpu_glGetProgramiv      = check_glGetProgramivARB;
 	gpu_glGetProgramInfoLog = glGetInfoLogARB;
+	gpu_glValidateProgram		= glValidateProgramARB;
 
 	gpu_glUniform1i = glUniform1iARB;
 	gpu_glUniform1f = glUniform1fARB;
@@ -175,6 +176,7 @@ static void init_glsl_standard(void)
 	gpu_glLinkProgram       = glLinkProgram;
 	gpu_glGetProgramiv      = glGetProgramiv;
 	gpu_glGetProgramInfoLog = glGetProgramInfoLog;
+	gpu_glValidateProgram	= glValidateProgram;
 
 	gpu_glUniform1i = glUniform1i;
 	gpu_glUniform1f = glUniform1f;

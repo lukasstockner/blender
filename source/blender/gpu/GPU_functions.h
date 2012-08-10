@@ -205,6 +205,7 @@ GPUFUNC GLuint (GLAPIENTRY* gpu_glCreateProgram)(void);
 GPUFUNC void (GLAPIENTRY* gpu_glLinkProgram)(GLuint program);
 GPUFUNC void (GLAPIENTRY* gpu_glGetProgramiv)(GLuint shader, GLuint pname, GLint *params);
 GPUFUNC void (GLAPIENTRY* gpu_glGetProgramInfoLog)(GLuint shader, GLint maxLength, GLint *length, GLchar *infoLog);
+GPUFUNC void (GLAPIENTRY* gpu_glValidateProgram)(GLuint program);
 
 
 GPUFUNC void (GLAPIENTRY* gpu_glUniform1i)(GLint location, GLint v0);
