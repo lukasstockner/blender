@@ -249,7 +249,7 @@ option(WITH_CYCLES					"Enable cycles Render Engine" ON)
 option(WITH_CYCLES_TEST				"Build cycles test application" OFF)
 option(WITH_CYCLES_OSL				"Build Cycles with OSL support" OFF)
 option(WITH_CYCLES_CUDA_BINARIES	"Build cycles CUDA binaries" OFF)
-set(CYCLES_CUDA_BINARIES_ARCH sm_13 sm_20 sm_21 CACHE STRING "CUDA architectures to build binaries for")
+set(CYCLES_CUDA_BINARIES_ARCH sm_13 sm_20 sm_21 sm_30 CACHE STRING "CUDA architectures to build binaries for")
 mark_as_advanced(CYCLES_CUDA_BINARIES_ARCH)
 unset(PLATFORM_DEFAULT)
 
@@ -273,7 +273,9 @@ if(APPLE)
 	endif()
 	
 	execute_process(COMMAND uname -r OUTPUT_VARIABLE MAC_SYS) # check for actual system-version
-	if (${MAC_SYS} MATCHES 11)
+	if (${MAC_SYS} MATCHES 12)
+		set(OSX_SYSTEM 10.8)
+	elseif (${MAC_SYS} MATCHES 11)
 		set(OSX_SYSTEM 10.7)
 	elseif(${MAC_SYS} MATCHES 10)
 		set(OSX_SYSTEM 10.6)
@@ -1488,6 +1490,16 @@ endif()
 if(MSVC)
 	# for some reason this fails on msvc
 	add_definitions(-D__LITTLE_ENDIAN__)
+	
+# OSX-Note: as we do crosscompiling with specific set architecture,
+# endianess-detection and autosetting is counterproductive
+# so we just set endianess according CMAKE_OSX_ARCHITECTURES
+
+elseif(CMAKE_OSX_ARCHITECTURES MATCHES i386 OR CMAKE_OSX_ARCHITECTURES MATCHES x86_64)
+	add_definitions(-D__LITTLE_ENDIAN__)
+elseif(CMAKE_OSX_ARCHITECTURES MATCHES ppc OR CMAKE_OSX_ARCHITECTURES MATCHES ppc64)		
+	add_definitions(-D__BIG_ENDIAN__)
+	
 else()
 	include(TestBigEndian)
 	test_big_endian(_SYSTEM_BIG_ENDIAN)

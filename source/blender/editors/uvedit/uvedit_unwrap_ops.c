@@ -284,7 +284,6 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 	
 	for (fi = 0; fi < tot_faces; fi++) {
 //	BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
-		MTexPoly *tf;
 		ScanFillVert *sf_vert, *sf_vert_last, *sf_vert_first;
 		ScanFillFace *sf_tri;
 		ParamKey key, vkeys[4];
@@ -385,7 +384,7 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 					}
 				}
 
-			param_face_add(handle, key, i, vkeys, co, uv, pin, select, &tf->unwrap);
+			param_face_add(handle, key, i, vkeys, co, uv, pin, select);
 		}
 		else {
 			/* ngon - scanfill time! */
@@ -473,7 +472,7 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 					}
 				}
 
-				param_face_add(handle, key, 3, vkeys, co, uv, pin, select, &tf->unwrap);
+				param_face_add(handle, key, 3, vkeys, co, uv, pin, select);
 			}
 
 			BLI_scanfill_end(&sf_ctx);
@@ -660,7 +659,6 @@ static ParamHandle *construct_param_handle_subsurfed(Scene *scene, Object *obedi
 		float *co[4];
 		float *uv[4];
 		BMFace *origFace = faceMap[i];
-		MTexPoly *tf;
 
 		face = subsurfedFaces + i;
 
@@ -672,8 +670,6 @@ static ParamHandle *construct_param_handle_subsurfed(Scene *scene, Object *obedi
 			if (BM_elem_flag_test(origFace, BM_ELEM_HIDDEN) || (sel && !BM_elem_flag_test(origFace, BM_ELEM_SELECT)))
 				continue;
 		}
-
-		tf = CustomData_bmesh_get(&em->bm->pdata, origFace->head.data, CD_MTEXPOLY);
 
 		/* We will not check for v4 here. Subsurfed mfaces always have 4 vertices. */
 		key = (ParamKey)face;
@@ -694,7 +690,7 @@ static ParamHandle *construct_param_handle_subsurfed(Scene *scene, Object *obedi
 		texface_from_original_index(origFace, origVertIndices[face->v3], &uv[2], &pin[2], &select[2], scene, em);
 		texface_from_original_index(origFace, origVertIndices[face->v4], &uv[3], &pin[3], &select[3], scene, em);
 
-		param_face_add(handle, key, 4, vkeys, co, uv, pin, select, &tf->unwrap);
+		param_face_add(handle, key, 4, vkeys, co, uv, pin, select);
 	}
 
 	/* these are calculated from original mesh too */

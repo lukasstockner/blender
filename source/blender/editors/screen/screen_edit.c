@@ -927,7 +927,7 @@ static void drawscredge_area(ScrArea *sa, int sizex, int sizey, int center)
 		y2 += sa->v3->offset.y;
 	}
 
-	rt = 0; // CLAMPIS(G.rt, 0, 16);
+	rt = 0; // CLAMPIS(G.debug_value, 0, 16);
 	
 	if (center == 0) {
 		cpack(0x505050);

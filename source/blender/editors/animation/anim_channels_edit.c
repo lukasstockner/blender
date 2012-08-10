@@ -287,10 +287,10 @@ void ANIM_deselect_anim_channels(bAnimContext *ac, void *data, short datatype, s
 				{
 					Base *base = (Base *)ale->data;
 					Object *ob = base->object;
-				
+					
 					ACHANNEL_SET_FLAG(base, sel, SELECT);
 					ACHANNEL_SET_FLAG(ob, sel, SELECT);
-				
+					
 					if (ob->adt) {
 						ACHANNEL_SET_FLAG(ob, sel, ADT_UI_SELECTED);
 					}
@@ -360,11 +360,11 @@ void ANIM_deselect_anim_channels(bAnimContext *ac, void *data, short datatype, s
 				ACHANNEL_SET_FLAG(gpl, sel, GP_LAYER_SELECT);
 			}
 			break;
-
+			
 			case ANIMTYPE_MASKLAYER:
 			{
 				MaskLayer *masklay = (MaskLayer *)ale->data;
-
+				
 				ACHANNEL_SET_FLAG(masklay, sel, MASK_LAYERFLAG_SELECT);
 			}
 			break;
@@ -1930,10 +1930,7 @@ static int animchannels_borderselect_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	
 	/* get settings from operator */
-	rect.xmin = RNA_int_get(op->ptr, "xmin");
-	rect.ymin = RNA_int_get(op->ptr, "ymin");
-	rect.xmax = RNA_int_get(op->ptr, "xmax");
-	rect.ymax = RNA_int_get(op->ptr, "ymax");
+	WM_operator_properties_border_to_rcti(op, &rect);
 	
 	gesture_mode = RNA_int_get(op->ptr, "gesture_mode");
 	extend = RNA_boolean_get(op->ptr, "extend");
@@ -2152,7 +2149,7 @@ static int mouse_anim_channels(bAnimContext *ac, float UNUSED(x), int channel_in
 			}
 			else {
 				Base *b;
-
+				
 				/* deselect all */
 				/* TODO: should this deselect all other types of channels too? */
 				for (b = sce->base.first; b; b = b->next) {
@@ -2242,6 +2239,8 @@ static int mouse_anim_channels(bAnimContext *ac, float UNUSED(x), int channel_in
 			/* if group is selected now, make group the 'active' one in the visible list */
 			if (agrp->flag & AGRP_SELECTED)
 				ANIM_set_active_channel(ac, ac->data, ac->datatype, filter, agrp, ANIMTYPE_GROUP);
+			else
+				ANIM_set_active_channel(ac, ac->data, ac->datatype, filter, NULL, ANIMTYPE_GROUP);
 				
 			notifierFlags |= (ND_ANIMCHAN | NA_SELECTED);
 		}
@@ -2319,19 +2318,19 @@ static int mouse_anim_channels(bAnimContext *ac, float UNUSED(x), int channel_in
 		case ANIMTYPE_MASKDATABLOCK:
 		{
 			Mask *mask = (Mask *)ale->data;
-
+			
 			/* toggle expand
 			 *	- although the triangle widget already allows this, the whole channel can also be used for this purpose
 			 */
 			mask->flag ^= MASK_ANIMF_EXPAND;
-
+			
 			notifierFlags |= (ND_ANIMCHAN | NA_EDITED);
 		}
 		break;
 		case ANIMTYPE_MASKLAYER:
 		{
 			MaskLayer *masklay = (MaskLayer *)ale->data;
-
+			
 			/* select/deselect */
 			if (selectmode == SELECT_INVERT) {
 				/* invert selection status of this layer only */
@@ -2342,7 +2341,7 @@ static int mouse_anim_channels(bAnimContext *ac, float UNUSED(x), int channel_in
 				ANIM_deselect_anim_channels(ac, ac->data, ac->datatype, 0, ACHANNEL_SETFLAG_CLEAR);
 				masklay->flag |= MASK_LAYERFLAG_SELECT;
 			}
-
+			
 			notifierFlags |= (ND_ANIMCHAN | NA_EDITED);
 		}
 		break;
@@ -2407,6 +2406,8 @@ static int animchannels_mouseclick_invoke(bContext *C, wmOperator *op, wmEvent *
  
 static void ANIM_OT_channels_click(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+	
 	/* identifiers */
 	ot->name = "Mouse Click on Channels";
 	ot->idname = "ANIM_OT_channels_click";
@@ -2419,9 +2420,13 @@ static void ANIM_OT_channels_click(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	
-	/* id-props */
-	RNA_def_boolean(ot->srna, "extend", 0, "Extend Select", ""); // SHIFTKEY
-	RNA_def_boolean(ot->srna, "children_only", 0, "Select Children Only", ""); // CTRLKEY|SHIFTKEY
+	/* properties */
+	/* NOTE: don't save settings, otherwise, can end up with some weird behaviour (sticky extend) */
+	prop = RNA_def_boolean(ot->srna, "extend", 0, "Extend Select", ""); // SHIFTKEY
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	
+	prop = RNA_def_boolean(ot->srna, "children_only", 0, "Select Children Only", ""); // CTRLKEY|SHIFTKEY
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /* ************************************************************************** */
