@@ -69,12 +69,12 @@ void gpu_set_shader_es(struct GPUGLSL_ES_info * s, int update)
 
 void gpu_assign_gles_loc(GPUGLSL_ES_info * glslesinfo, unsigned int program)
 {
-		glslesinfo->normalmatloc = gpuGetUniformLocation(program, "b_NormalMatrix");	
-		glslesinfo->viewmatloc = gpuGetUniformLocation(program, "b_ModelViewMatrix");	
-		glslesinfo->projectionmatloc = gpuGetUniformLocation(program, "b_ProjectionMatrix");
+		glslesinfo->normalmatloc = gpu_glGetUniformLocation(program, "b_NormalMatrix");	
+		glslesinfo->viewmatloc = gpu_glGetUniformLocation(program, "b_ModelViewMatrix");	
+		glslesinfo->projectionmatloc = gpu_glGetUniformLocation(program, "b_ProjectionMatrix");
 		
-		glslesinfo->vertexloc = gpuGetAttribLocation(program, "b_Vertex");
-		glslesinfo->normalloc = gpuGetAttribLocation(program, "b_Normal");
+		glslesinfo->vertexloc = gpu_glGetAttribLocation(program, "b_Vertex");
+		glslesinfo->normalloc = gpu_glGetAttribLocation(program, "b_Normal");
 }
 
 
