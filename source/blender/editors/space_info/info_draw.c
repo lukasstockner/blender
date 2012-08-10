@@ -146,8 +146,7 @@ static int report_textview_begin(TextViewContext *tvc)
 	/* iterator */
 	tvc->iter = reports->list.last;
 
-	glClearColor(120.0 / 255.0, 120.0 / 255.0, 120.0 / 255.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
+	gpuColorAndClear(120.0 / 255.0, 120.0 / 255.0, 120.0 / 255.0, 1.0);
 
 #ifdef USE_INFO_NEWLINE
 	tvc->iter_tmp = 0;

@@ -1116,7 +1116,7 @@ void drawnodespace(const bContext *C, ARegion *ar, View2D *v2d)
 	LinkData *linkdata;
 	
 	UI_ThemeClearColor(TH_BACK);
-	glClear(GL_COLOR_BUFFER_BIT);
+	gpuClear(GL_COLOR_BUFFER_BIT);
 
 	UI_view2d_view_ortho(v2d);
 	

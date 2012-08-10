@@ -442,8 +442,8 @@ void ui_draw_but_IMAGE(ARegion *UNUSED(ar), uiBut *but, uiWidgetColors *UNUSED(w
 	w = (rect->xmax - rect->xmin);
 	h = (rect->ymax - rect->ymin);
 	/* prevent drawing outside widget area */
-	glGetIntegerv(GL_SCISSOR_BOX, scissor);
-	glScissor(ar->winrct.xmin + rect->xmin, ar->winrct.ymin + rect->ymin, w, h);
+	gpuGetSizeBox(GL_SCISSOR_BOX, scissor);
+	gpuScissor(ar->winrct.xmin + rect->xmin, ar->winrct.ymin + rect->ymin, w, h);
 #endif
 	
 	glEnable(GL_BLEND);
@@ -456,7 +456,7 @@ void ui_draw_but_IMAGE(ARegion *UNUSED(ar), uiBut *but, uiWidgetColors *UNUSED(w
 	
 #if 0
 	// restore scissortest
-	glScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
+	gpuScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
 #endif
 	
 #endif
@@ -637,7 +637,7 @@ static void draw_scope_end(rctf *rect, GLint *scissor)
 	float scaler_x1, scaler_x2;
 
 	/* restore scissortest */
-	glScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
+	gpuScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
 
 	/* scale widget */
 	scaler_x1 = rect->xmin + (rect->xmax - rect->xmin) / 2 - SCOPE_RESIZE_PAD;
@@ -747,8 +747,8 @@ void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol)
 	uiDrawBox(GL_TRIANGLE_FAN, rect.xmin - 1, rect.ymin - 1, rect.xmax + 1, rect.ymax + 1, 3.0f);
 
 	/* need scissor test, histogram can draw outside of boundary */
-	glGetIntegerv(GL_VIEWPORT, scissor);
-	glScissor(ar->winrct.xmin + (rect.xmin - 1),
+	gpuGetSizeBox(GL_VIEWPORT, scissor);
+	gpuScissor(ar->winrct.xmin + (rect.xmin - 1),
 	          ar->winrct.ymin + (rect.ymin - 1),
 	          (rect.xmax + 1) - (rect.xmin - 1),
 	          (rect.ymax + 1) - (rect.ymin - 1));
@@ -830,8 +830,8 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 	
 
 	/* need scissor test, waveform can draw outside of boundary */
-	glGetIntegerv(GL_VIEWPORT, scissor);
-	glScissor(ar->winrct.xmin + (rect.xmin - 1),
+	gpuGetSizeBox(GL_VIEWPORT, scissor);
+	gpuScissor(ar->winrct.xmin + (rect.xmin - 1),
 	          ar->winrct.ymin + (rect.ymin - 1),
 	          (rect.xmax + 1) - (rect.xmin - 1),
 	          (rect.ymax + 1) - (rect.ymin - 1));
@@ -1069,8 +1069,8 @@ void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wco
 	uiDrawBox(GL_TRIANGLE_FAN, rect.xmin - 1, rect.ymin - 1, rect.xmax + 1, rect.ymax + 1, 3.0f);
 
 	/* need scissor test, hvectorscope can draw outside of boundary */
-	glGetIntegerv(GL_VIEWPORT, scissor);
-	glScissor(ar->winrct.xmin + (rect.xmin - 1),
+	gpuGetSizeBox(GL_VIEWPORT, scissor);
+	gpuScissor(ar->winrct.xmin + (rect.xmin - 1),
 	          ar->winrct.ymin + (rect.ymin - 1),
 	          (rect.xmax + 1) - (rect.xmin - 1),
 	          (rect.ymax + 1) - (rect.ymin - 1));
@@ -1411,13 +1411,13 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 	cuma = cumap->cm + cumap->cur;
 
 	/* need scissor test, curve can draw outside of boundary */
-	glGetIntegerv(GL_VIEWPORT, scissor);
+	gpuGetSizeBox(GL_VIEWPORT, scissor);
 	scissor_new.xmin = ar->winrct.xmin + rect->xmin;
 	scissor_new.ymin = ar->winrct.ymin + rect->ymin;
 	scissor_new.xmax = ar->winrct.xmin + rect->xmax;
 	scissor_new.ymax = ar->winrct.ymin + rect->ymax;
 	BLI_rcti_isect(&scissor_new, &ar->winrct, &scissor_new);
-	glScissor(scissor_new.xmin, scissor_new.ymin, scissor_new.xmax - scissor_new.xmin, scissor_new.ymax - scissor_new.ymin);
+	gpuScissor(scissor_new.xmin, scissor_new.ymin, scissor_new.xmax - scissor_new.xmin, scissor_new.ymax - scissor_new.ymin);
 	
 	/* calculate offset and zoom */
 	zoomx = (rect->xmax - rect->xmin - 2.0f * but->aspect) / (cumap->curr.xmax - cumap->curr.xmin);
@@ -1577,7 +1577,7 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 	glPointSize(1.0f);
 	
 	/* restore scissortest */
-	glScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
+	gpuScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
 
 	/* outline */
 	gpuCurrentColor3ubv((unsigned char *)wcol->outline);
@@ -1602,8 +1602,8 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 	glEnable(GL_BLEND);
 
 	/* need scissor test, preview image can draw outside of boundary */
-	glGetIntegerv(GL_VIEWPORT, scissor);
-	glScissor(ar->winrct.xmin + (rect.xmin - 1),
+	gpuGetSizeBox(GL_VIEWPORT, scissor);
+	gpuScissor(ar->winrct.xmin + (rect.xmin - 1),
 	          ar->winrct.ymin + (rect.ymin - 1),
 	          (rect.xmax + 1) - (rect.xmin - 1),
 	          (rect.ymax + 1) - (rect.ymin - 1));
@@ -1653,7 +1653,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 		track_pos[1] = scopes->track_pos[1];
 
 		/* draw content of pattern area */
-		glScissor(ar->winrct.xmin + rect.xmin, ar->winrct.ymin + rect.ymin, scissor[2], scissor[3]);
+		gpuScissor(ar->winrct.xmin + rect.xmin, ar->winrct.ymin + rect.ymin, scissor[2], scissor[3]);
 
 		if (width > 0 && height > 0) {
 			drawibuf = scopes->track_preview;
@@ -1669,7 +1669,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 
 			/* draw cross for pizel position */
 			gpuTranslate(rect.xmin + track_pos[0], rect.ymin + track_pos[1], 0.f);
-			glScissor(ar->winrct.xmin + rect.xmin,
+			gpuScissor(ar->winrct.xmin + rect.xmin,
 			          ar->winrct.ymin + rect.ymin,
 			          rect.xmax - rect.xmin,
 			          rect.ymax - rect.ymin);

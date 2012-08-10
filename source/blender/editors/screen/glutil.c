@@ -514,7 +514,7 @@ void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int fo
 	float rast_x = x + off_x * xzoom;
 	float rast_y = y + off_y * yzoom;
 
-	GLfloat scissor[4];
+	int scissor[4];
 	int draw_w, draw_h;
 
 	/* Determine the smallest number of pixels we need to draw
@@ -529,9 +529,9 @@ void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int fo
 	 * fails if we zoom in on one really huge pixel so that it
 	 * covers the entire screen).
 	 */
-	glGetFloatv(GL_SCISSOR_BOX, scissor);
-	draw_w = MIN2(img_w - off_x, ceil((scissor[2] - rast_x) / xzoom));
-	draw_h = MIN2(img_h - off_y, ceil((scissor[3] - rast_y) / yzoom));
+	gpuGetSizeBox(GL_SCISSOR_BOX, scissor);
+	draw_w = MIN2(img_w - off_x, ceil(((float)scissor[2] - rast_x) / xzoom));
+	draw_h = MIN2(img_h - off_y, ceil(((float)scissor[3] - rast_y) / yzoom));
 
 	if (draw_w > 0 && draw_h > 0) {
 		/* Don't use safe RasterPos (slower) if we can avoid it. */
@@ -576,8 +576,8 @@ void glaDefine2DArea(rcti *screen_rect)
 	int sc_w = screen_rect->xmax - screen_rect->xmin + 1;
 	int sc_h = screen_rect->ymax - screen_rect->ymin + 1;
 
-	glViewport(screen_rect->xmin, screen_rect->ymin, sc_w, sc_h);
-	glScissor(screen_rect->xmin, screen_rect->ymin, sc_w, sc_h);
+	gpuViewport(screen_rect->xmin, screen_rect->ymin, sc_w, sc_h);
+	gpuScissor(screen_rect->xmin, screen_rect->ymin, sc_w, sc_h);
 
 	/* The 0.375 magic number is to shift the matrix so that
 	 * both raster and vertex integer coordinates fall at pixel
@@ -597,7 +597,7 @@ void glaDefine2DArea(rcti *screen_rect)
 #if 0 /* UNUSED */
 
 struct gla2DDrawInfo {
-	int orig_vp[4], orig_sc[4];
+	int orig_vp[4], /*orig_sc[4]; Unused*/
 	float orig_projmat[16], orig_viewmat[16];
 
 	rcti screen_rect;
@@ -633,8 +633,7 @@ gla2DDrawInfo *glaBegin2DDraw(rcti *screen_rect, rctf *world_rect)
 	int sc_w, sc_h;
 	float wo_w, wo_h;
 
-	glGetIntegerv(GL_VIEWPORT, (GLint *)di->orig_vp);
-	glGetIntegerv(GL_SCISSOR_BOX, (GLint *)di->orig_sc);
+	gpuGetSizeBox(GL_VIEWPORT, (GLint *)di->orig_vp);
 	gpuGetMatrix(GL_PROJECTION_MATRIX, (GLfloat *)di->orig_projmat);
 	gpuGetMatrix(GL_MODELVIEW_MATRIX, (GLfloat *)di->orig_viewmat);
 
@@ -675,8 +674,8 @@ void gla2DDrawTranslatePtv(gla2DDrawInfo *di, float world[2], int screen_r[2])
 
 void glaEnd2DDraw(gla2DDrawInfo *di)
 {
-	glViewport(di->orig_vp[0], di->orig_vp[1], di->orig_vp[2], di->orig_vp[3]);
-	glScissor(di->orig_vp[0], di->orig_vp[1], di->orig_vp[2], di->orig_vp[3]);
+	gpuViewport(di->orig_vp[0], di->orig_vp[1], di->orig_vp[2], di->orig_vp[3]);
+	gpuScissor(di->orig_vp[0], di->orig_vp[1], di->orig_vp[2], di->orig_vp[3]);
 	gpuMatrixMode(GL_PROJECTION);
 	gpuLoadMatrix(di->orig_projmat);
 	gpuMatrixMode(GL_MODELVIEW);
@@ -693,7 +692,7 @@ void bgl_get_mats(bglMats *mats)
 
 	gpuGetMatrix(GL_MODELVIEW_MATRIX, mats->modelview);
 	gpuGetMatrix(GL_PROJECTION_MATRIX, mats->projection);
-	glGetIntegerv(GL_VIEWPORT, (GLint *)mats->viewport);
+	gpuGetSizeBox(GL_VIEWPORT, (GLint *)mats->viewport);
 	
 	/* Very strange code here - it seems that certain bad values in the
 	 * modelview matrix can cause gluUnProject to give bad results. */

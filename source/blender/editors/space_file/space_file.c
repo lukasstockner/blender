@@ -323,8 +323,7 @@ static void file_main_area_draw(const bContext *C, ARegion *ar)
 
 	/* clear and setup matrix */
 	UI_GetThemeColor3fv(TH_BACK, col);
-	glClearColor(col[0], col[1], col[2], 0.0);
-	glClear(GL_COLOR_BUFFER_BIT);
+	gpuColorAndClearvf(col, 0.0);
 	
 	/* Allow dynamically sliders to be set, saves notifiers etc. */
 	if (layout && (layout->flag == FILE_LAYOUT_VER)) {
@@ -520,8 +519,7 @@ static void file_ui_area_draw(const bContext *C, ARegion *ar)
 	float col[3];
 	/* clear */
 	UI_GetThemeColor3fv(TH_PANEL, col);
-	glClearColor(col[0], col[1], col[2], 0.0);
-	glClear(GL_COLOR_BUFFER_BIT);
+	gpuColorAndClearvf(col, 0.0);
 
 	/* scrolling here is just annoying, disable it */
 	ar->v2d.cur.ymax = ar->v2d.cur.ymax - ar->v2d.cur.ymin;

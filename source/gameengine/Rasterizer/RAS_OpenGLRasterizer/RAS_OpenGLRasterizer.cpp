@@ -33,9 +33,6 @@
 #include <math.h>
 #include <stdlib.h>
  
-#ifdef GLES
-#include "GLES2/gl2.h"
-#endif 
  
 #include "RAS_OpenGLRasterizer.h"
 
@@ -170,9 +167,9 @@ bool RAS_OpenGLRasterizer::Init()
 	m_blueback = 0.4375;
 	m_alphaback = 0.0;
 
-	glClearColor(m_redback,m_greenback,m_blueback,m_alphaback);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	gpuSetClearColor(m_redback,m_greenback,m_blueback,m_alphaback);
+	gpuClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
 	glShadeModel(GL_SMOOTH);
@@ -304,14 +301,14 @@ void RAS_OpenGLRasterizer::Exit()
 #include REAL_GL_MODE
 	glEnable(GL_CULL_FACE);
 	glEnable(GL_DEPTH_TEST);
-#include FAKE_GL_MODE
-	glClearDepth(1.0); 
+	/*glClearDepth(1.0); */
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	glClearColor(m_redback, m_greenback, m_blueback, m_alphaback);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	gpuSetClearColor(m_redback, m_greenback, m_blueback, m_alphaback);
+	gpuClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glDepthMask (GL_TRUE);
 	glDepthFunc(GL_LEQUAL);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); /* reset blender default */
+#include FAKE_GL_MODE
 	glAlphaFunc(GL_GREATER, 0.5f); /* reset blender default */
 
 	glDisable(GL_POLYGON_STIPPLE);

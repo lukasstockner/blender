@@ -43,7 +43,7 @@ gpuSetClearColorvf = gpuSetClearColorvf_gl;
 gpuViewport = gpuViewport_gl;
 gpuScissor = gpuScissor_gl;
 gpuViewportScissor = gpuViewportScissor_gl;
-gpuGetScissorBox = gpuGetScissorBox_gl;
+gpuGetSizeBox = gpuGetSizeBox_gl;
 
 gpuClear = gpuClear_gl;
 

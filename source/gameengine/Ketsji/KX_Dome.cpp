@@ -1538,8 +1538,7 @@ void KX_Dome::Draw(void)
 	if (fboSupported) {
 		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, warp.fboId);
 
-		glViewport(0,0,warp.imagesize, warp.imagesize);
-		glScissor(0,0,warp.imagesize, warp.imagesize);
+		gpuViewportScissor(0,0,warp.imagesize, warp.imagesize);
 	}
 
 	switch(m_mode) {
@@ -1578,7 +1577,7 @@ void KX_Dome::Draw(void)
 
 void KX_Dome::DrawEnvMap(void)
 {
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	gpuClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	gpuMatrixMode(GL_PROJECTION);
 
 	gpuLoadIdentity();
@@ -1711,7 +1710,7 @@ void KX_Dome::DrawEnvMap(void)
 
 void KX_Dome::DrawDomeFisheye(void)
 {
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	gpuClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	gpuMatrixMode(GL_PROJECTION);
 
 	gpuLoadIdentity(); gpuMatrixCommit();
@@ -1803,7 +1802,7 @@ void KX_Dome::DrawDomeFisheye(void)
 
 void KX_Dome::DrawPanorama(void)
 {
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	gpuClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	gpuMatrixMode(GL_PROJECTION);
 
 	gpuLoadIdentity();
@@ -1884,7 +1883,7 @@ void KX_Dome::DrawPanorama(void)
 
 void KX_Dome::DrawDomeWarped(void)
 {
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	gpuClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	gpuMatrixMode(GL_PROJECTION);
 
 	// Making the viewport always square 

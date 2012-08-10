@@ -72,9 +72,9 @@ glEnable(GL_SCISSOR_TEST);
 	//gpuSetClearColor_gl((float)rand()/RAND_MAX,(float)rand()/RAND_MAX,(float)rand()/RAND_MAX,0);
 }
 
-void gpuGetScissorBox_gl(int *box)
+void gpuGetSizeBox_gl(int type, int *box)
 {
-	glGetIntegerv(GL_SCISSOR_BOX, box);
+	glGetIntegerv(type, box);
 }
 
 void gpuViewportScissor_gl(int x, int y, unsigned int width, unsigned int height)

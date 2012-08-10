@@ -32,7 +32,6 @@
  *  \ingroup wm
  */
 
-
 #include <string.h>
 
 #include "MEM_guardedalloc.h"
@@ -263,7 +262,7 @@ void wmSubWindowScissorSet(wmWindow *win, int swinid, rcti *srct)
 	width  = _curswin->winrct.xmax - _curswin->winrct.xmin + 1;
 	height = _curswin->winrct.ymax - _curswin->winrct.ymin + 1;
 
-	glViewport(x, y, width, height);
+	gpuViewport(x, y, width, height);
 
 	if (srct) {
 		x      = srct->xmin;
@@ -272,7 +271,7 @@ void wmSubWindowScissorSet(wmWindow *win, int swinid, rcti *srct)
 		height = srct->ymax - srct->ymin + 1;
 	}
 
-	glScissor(x, y, width, height);
+	gpuScissor(x, y, width, height);
 
 	wmOrtho2(-0.375f, (float)width - 0.375f, -0.375f, (float)height - 0.375f);
 

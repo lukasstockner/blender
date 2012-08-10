@@ -1152,7 +1152,7 @@ static void clip_main_area_draw(const bContext *C, ARegion *ar)
 
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);
-	glClear(GL_COLOR_BUFFER_BIT);
+	gpuClear(GL_COLOR_BUFFER_BIT);
 
 	/* data... */
 	movieclip_main_area_set_view2d(C, ar);
@@ -1213,7 +1213,7 @@ static void graph_area_draw(const bContext *C, ARegion *ar)
 
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);
-	glClear(GL_COLOR_BUFFER_BIT);
+	gpuClear(GL_COLOR_BUFFER_BIT);
 
 	UI_view2d_view_ortho(v2d);
 
@@ -1246,7 +1246,7 @@ static void dopesheet_area_draw(const bContext *C, ARegion *ar)
 
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);
-	glClear(GL_COLOR_BUFFER_BIT);
+	gpuClear(GL_COLOR_BUFFER_BIT);
 
 	UI_view2d_view_ortho(v2d);
 
@@ -1307,7 +1307,7 @@ static void clip_channels_area_draw(const bContext *C, ARegion *ar)
 
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);
-	glClear(GL_COLOR_BUFFER_BIT);
+	gpuClear(GL_COLOR_BUFFER_BIT);
 
 	UI_view2d_view_ortho(v2d);
 

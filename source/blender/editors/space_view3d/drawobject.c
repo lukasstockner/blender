@@ -7572,7 +7572,7 @@ void draw_object_backbufsel(Scene *scene, View3D *v3d, RegionView3D *rv3d, Objec
 
 	gpuMultMatrix(ob->obmat);
 
-	glClearDepth(1.0); glClear(GL_DEPTH_BUFFER_BIT);
+	/*glClearDepth(1.0); */gpuClear(GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 
 	switch (ob->type) {

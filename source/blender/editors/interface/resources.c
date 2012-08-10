@@ -1316,9 +1316,8 @@ void UI_GetColorPtrBlendShade3ubv(const unsigned char cp1[3], const unsigned cha
 void UI_ThemeClearColor(int colorid)
 {
 	float col[3];
-	
 	UI_GetThemeColor3fv(colorid, col);
-	glClearColor(col[0], col[1], col[2], 0.0);
+	gpuSetClearColorvf(col, 0.0);
 }
 
 void UI_make_axis_color(const unsigned char src_col[3], unsigned char dst_col[3], const char axis)

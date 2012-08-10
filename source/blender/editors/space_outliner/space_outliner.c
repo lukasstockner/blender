@@ -241,7 +241,7 @@ static void outliner_main_area_draw(const bContext *C, ARegion *ar)
 	
 	/* clear */
 	UI_ThemeClearColor(TH_BACK);
-	glClear(GL_COLOR_BUFFER_BIT);
+	gpuClear(GL_COLOR_BUFFER_BIT);
 	
 	draw_outliner(C);
 	

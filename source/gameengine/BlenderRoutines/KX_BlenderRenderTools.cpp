@@ -58,10 +58,6 @@ unsigned int KX_BlenderRenderTools::m_numgllights;
 
 KX_BlenderRenderTools::KX_BlenderRenderTools()
 {
-#include REAL_GL_MODE
-//glClearColor(1.0f,1.0f,1.0f,0.0f);
-//glClear(GL_COLOR_BUFFER_BIT);
-#include FAKE_GL_MODE
     printf("Done\n");
 	glGetIntegerv(GL_MAX_LIGHTS, (GLint*) &m_numgllights);
 	if (m_numgllights < 8)

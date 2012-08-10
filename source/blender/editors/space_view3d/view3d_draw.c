@@ -1389,15 +1389,15 @@ static void backdrawview3d(Scene *scene, ARegion *ar, View3D *v3d)
 		glDisable(GL_MULTISAMPLE_ARB);
 
 	region_scissor_winrct(ar, &winrct);
-	glScissor(winrct.xmin, winrct.ymin, winrct.xmax - winrct.xmin, winrct.ymax - winrct.ymin);
+	gpuScissor(winrct.xmin, winrct.ymin, winrct.xmax - winrct.xmin, winrct.ymax - winrct.ymin);
 
-	glClearColor(0.0, 0.0, 0.0, 0.0); 
+	gpuSetClearColor(0.0, 0.0, 0.0, 0.0); 
 	if (v3d->zbuf) {
 		glEnable(GL_DEPTH_TEST);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		gpuClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	}
 	else {
-		glClear(GL_COLOR_BUFFER_BIT);
+		gpuClear(GL_COLOR_BUFFER_BIT);
 		glDisable(GL_DEPTH_TEST);
 	}
 	
@@ -1885,7 +1885,7 @@ static void view3d_draw_xray(Scene *scene, ARegion *ar, View3D *v3d, int clear)
 	View3DAfter *v3da, *next;
 
 	if (clear && v3d->zbuf)
-		glClear(GL_DEPTH_BUFFER_BIT);
+		gpuClear(GL_DEPTH_BUFFER_BIT);
 
 	v3d->xray = TRUE;
 	for (v3da = v3d->afterdraw_xray.first; v3da; v3da = next) {
@@ -1904,7 +1904,7 @@ static void view3d_draw_xraytransp(Scene *scene, ARegion *ar, View3D *v3d, int c
 	View3DAfter *v3da, *next;
 
 	if (clear && v3d->zbuf)
-		glClear(GL_DEPTH_BUFFER_BIT);
+		gpuClear(GL_DEPTH_BUFFER_BIT);
 
 	v3d->xray = TRUE;
 	v3d->transp = TRUE;
@@ -2188,7 +2188,7 @@ void draw_depth_gpencil(Scene *scene, ARegion *ar, View3D *v3d)
 	invert_m4_m4(rv3d->persinv, rv3d->persmat);
 	invert_m4_m4(rv3d->viewinv, rv3d->viewmat);
 
-	glClear(GL_DEPTH_BUFFER_BIT);
+	gpuClear(GL_DEPTH_BUFFER_BIT);
 
 	gpuLoadMatrix(rv3d->viewmat);
 
@@ -2223,7 +2223,7 @@ void draw_depth(Scene *scene, ARegion *ar, View3D *v3d, int (*func)(void *))
 	invert_m4_m4(rv3d->persinv, rv3d->persmat);
 	invert_m4_m4(rv3d->viewinv, rv3d->viewmat);
 	
-	glClear(GL_DEPTH_BUFFER_BIT);
+	gpuClear(GL_DEPTH_BUFFER_BIT);
 	
 	gpuLoadMatrix(rv3d->viewmat);
 //	persp(PERSP_STORE);  /* store correct view for persp(PERSP_VIEW) calls */
@@ -2596,14 +2596,14 @@ void ED_view3d_draw_offscreen(Scene *scene, View3D *v3d, ARegion *ar,
 			linearrgb_to_srgb_v3_v3(backcol, &scene->world->horr);
 		else
 			copy_v3_v3(backcol, &scene->world->horr);
-		glClearColor(backcol[0], backcol[1], backcol[2], 0.0);
+		gpuSetClearColorvf(backcol, 0.0);
 	}
 	else {
 		UI_ThemeClearColor(TH_BACK);
 	}
 
 
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	gpuClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	/* setup view matrices */
 	view3d_main_area_setup_view(scene, v3d, ar, viewmat, winmat);
@@ -2907,15 +2907,15 @@ static int view3d_main_area_draw_engine(const bContext *C, ARegion *ar, int draw
 		cliprct.ymax = CLAMPIS(cliprct.ymax, ar->winrct.ymin, ar->winrct.ymax);
 
 		if (cliprct.xmax > cliprct.xmin && cliprct.ymax > cliprct.ymin) {
-			glGetIntegerv(GL_SCISSOR_BOX, scissor);
-			glScissor(cliprct.xmin, cliprct.ymin, cliprct.xmax - cliprct.xmin, cliprct.ymax - cliprct.ymin);
+			gpuGetSizeBox(GL_SCISSOR_BOX, scissor);
+			gpuScissor(cliprct.xmin, cliprct.ymin, cliprct.xmax - cliprct.xmin, cliprct.ymax - cliprct.ymin);
 		}
 		else
 			return 0;
 	}
 
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	gpuSetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	gpuClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	if (v3d->flag & V3D_DISPBGPICS)
 		view3d_draw_bgpic(scene, ar, v3d, FALSE, TRUE);
@@ -2931,7 +2931,7 @@ static int view3d_main_area_draw_engine(const bContext *C, ARegion *ar, int draw
 
 	if (draw_border) {
 		/* restore scissor as it was before */
-		glScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
+		gpuScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
 	}
 
 	return 1;
@@ -2971,12 +2971,12 @@ static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const 
 			linearrgb_to_srgb_v3_v3(backcol, &scene->world->horr);
 		else
 			copy_v3_v3(backcol, &scene->world->horr);
-		glClearColor(backcol[0], backcol[1], backcol[2], 0.0);
+		gpuSetClearColorvf(backcol, 0.0);
 	}
 	else
 		UI_ThemeClearColor(TH_BACK);
 
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	gpuClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	
 	/* setup view matrices */
 	view3d_main_area_setup_view(scene, v3d, ar, NULL, NULL);

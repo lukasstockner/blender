@@ -147,7 +147,7 @@ static void script_main_area_draw(const bContext *C, ARegion *ar)
 
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);
-	glClear(GL_COLOR_BUFFER_BIT);
+	gpuClear(GL_COLOR_BUFFER_BIT);
 	
 	UI_view2d_view_ortho(v2d);
 		

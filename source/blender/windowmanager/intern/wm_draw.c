@@ -573,8 +573,8 @@ static void wm_method_draw_triple(bContext *C, wmWindow *win)
 	int copytex = 0, paintcursor = 1;
 
 	if (win->drawdata) {
-		glClearColor(0, 0, 0, 0);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		gpuSetClearColor(0, 0, 0, 0);
+		gpuClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		wmSubWindowSet(win, screen->mainwin);
 

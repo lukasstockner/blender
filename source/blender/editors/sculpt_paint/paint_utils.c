@@ -220,7 +220,7 @@ static void imapaint_tri_weights(Object *ob,
 	/* compute barycentric coordinates */
 
 	/* get the needed opengl matrices */
-	glGetIntegerv(GL_VIEWPORT, view);
+	gpuGetSizeBox(GL_VIEWPORT, view);
 	gpuGetMatrix(GL_MODELVIEW_MATRIX,  (float *)model);
 	gpuGetMatrix(GL_PROJECTION_MATRIX, (float *)proj);
 	view[0] = view[1] = 0;

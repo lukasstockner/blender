@@ -45,7 +45,7 @@ m_frame_rect(rect)
 	m_area_left = ar->winrct.xmin;
 	m_area_top = ar->winrct.ymax;
 
-	glGetIntegerv(GL_VIEWPORT, (GLint*)m_viewport);
+	gpuGetSizeBox(GL_VIEWPORT, (GLint*)m_viewport);
 }
 
 KX_BlenderCanvas::~KX_BlenderCanvas()
@@ -89,9 +89,8 @@ void KX_BlenderCanvas::EndFrame()
 
 void KX_BlenderCanvas::ClearColor(float r,float g,float b,float a)
 {
-	glClearColor(r,g,b,a);
+	gpuSetClearColor(r,g,b,a);
 }
-
 
 
 void KX_BlenderCanvas::ClearBuffer(int type)
@@ -103,7 +102,7 @@ void KX_BlenderCanvas::ClearBuffer(int type)
 
 	if (type & RAS_ICanvas::DEPTH_BUFFER )
 		ogltype |= GL_DEPTH_BUFFER_BIT;
-	glClear(ogltype);
+	gpuClear(ogltype);
 }
 
 int KX_BlenderCanvas::GetWidth(
@@ -167,14 +166,12 @@ SetViewPort(
 	m_area_rect.SetBottom(miny + y1);
 	m_area_rect.SetRight(minx + x2);
 	m_area_rect.SetTop(miny + y2);
-
 	m_viewport[0] = minx+x1;
 	m_viewport[1] = miny+y1;
 	m_viewport[2] = vp_width;
 	m_viewport[3] = vp_height;
 
-	glViewport(minx + x1, miny + y1, vp_width, vp_height);
-	glScissor(minx + x1, miny + y1, vp_width, vp_height);
+	gpuViewportScissor(minx + x1, miny + y1, vp_width, vp_height);
 }
 
 	const int*

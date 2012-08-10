@@ -53,7 +53,7 @@ GPU_VIEW_FUNC void (* gpuViewport)(int x, int y, unsigned int width, unsigned in
 GPU_VIEW_FUNC void (* gpuScissor)(int x, int y, unsigned int width, unsigned int height);
 GPU_VIEW_FUNC void (* gpuViewportScissor)(int x, int y, unsigned int width, unsigned int height);
 
-GPU_VIEW_FUNC void (*gpuGetScissorBox)(int *box);
+GPU_VIEW_FUNC void (*gpuGetSizeBox)(int type, int *box);
 
 #ifdef __cplusplus
 }

@@ -151,10 +151,9 @@ int BL_KetsjiNextFrame(class KX_KetsjiEngine* ketsjiengine, struct bContext *C, 
             // Clear screen to border color
             // We do this here since we set the canvas to be within the frames. This means the engine
             // itself is unaware of the extra space, so we clear the whole region for it.
-            glClearColor(scene->gm.framing.col[0], scene->gm.framing.col[1], scene->gm.framing.col[2], 1.0f);
-            glViewport(ar->winrct.xmin, ar->winrct.ymin,
+            gpuViewport(ar->winrct.xmin, ar->winrct.ymin,
                 ar->winrct.xmax - ar->winrct.xmin, ar->winrct.ymax - ar->winrct.ymin);
-            glClear(GL_COLOR_BUFFER_BIT);
+            gpuColorAndClearvf(scene->gm.framing.col, 1.0f);;
         }
 
         // render the frame

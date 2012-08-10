@@ -59,7 +59,7 @@
 
 #include "GPU_colors.h"
 #include "GPU_primitives.h"
-
+#include REAL_GL_MODE
 #include "BLF_api.h"
 
 #include "UI_interface.h"
@@ -485,7 +485,7 @@ void ED_region_do_draw(bContext *C, ARegion *ar)
 	/* optional header info instead? */
 	if (ar->headerstr) {
 		UI_ThemeClearColor(TH_HEADER);
-		glClear(GL_COLOR_BUFFER_BIT);
+		gpuClear(GL_COLOR_BUFFER_BIT);
 		
 		UI_ThemeColor(TH_TEXT);
 		BLF_draw_default(20, 8, 0.0f, ar->headerstr, BLF_DRAW_STR_DUMMY_MAX);
@@ -1656,7 +1656,7 @@ void ED_region_panels(const bContext *C, ARegion *ar, int vertical, const char *
 
 	/* clear */
 	UI_ThemeClearColor((ar->type->regionid == RGN_TYPE_PREVIEW) ? TH_PREVIEW_BACK : TH_BACK);
-	glClear(GL_COLOR_BUFFER_BIT);
+	gpuClear(GL_COLOR_BUFFER_BIT);
 	
 	/* before setting the view */
 	if (vertical) {
@@ -1739,7 +1739,7 @@ void ED_region_header(const bContext *C, ARegion *ar)
 
 	/* clear */	
 	UI_ThemeClearColor((ED_screen_area_active(C)) ? TH_HEADER : TH_HEADERDESEL);
-	glClear(GL_COLOR_BUFFER_BIT);
+	gpuClear(GL_COLOR_BUFFER_BIT);
 	
 	/* set view2d view matrix for scrolling (without scrollers) */
 	UI_view2d_view_ortho(&ar->v2d);

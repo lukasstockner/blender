@@ -2790,7 +2790,7 @@ static void widget_box(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(
 	/* store the box bg as gl clearcolor, to retrieve later when drawing semi-transparent rects
 	 * over the top to indicate disabled buttons */
 	/* XXX, this doesnt work right since the color applies to buttons outside the box too. */
-	glClearColor(wcol->inner[0] / 255.0, wcol->inner[1] / 255.0, wcol->inner[2] / 255.0, 1.0);
+	gpuSetClearColor(wcol->inner[0] / 255.0, wcol->inner[1] / 255.0, wcol->inner[2] / 255.0, 1.0);
 	
 	copy_v3_v3_char(wcol->inner, old_col);
 }

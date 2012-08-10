@@ -1042,6 +1042,8 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h, int mipmap)
 	}
 }
 
+#include REAL_GL_MODE
+
 void GPU_update_images_framechange(void)
 {
 	Image *ima;
@@ -1254,6 +1256,7 @@ static struct GPUMaterialState {
 	GLfloat   lastalphatestref;
 } GMS = {NULL};
 
+
 static void disable_blend(void)
 {
 	if (GMS.lastblendenabled) {
@@ -1284,11 +1287,13 @@ static void enable_blendfunc_add(void)
 {
 	enable_blend();
 
-	if (!GMS.lastblendfuncdefault) {
+	if (GMS.lastblendfuncdefault) {
 		glBlendFunc(GL_ONE, GL_ONE); /* non-standard blend function */
 		GMS.lastblendfuncdefault = GL_FALSE;
 	}
 }
+
+#include FAKE_GL_MODE
 
 static void disable_alphatest(void)
 {
@@ -1337,6 +1342,7 @@ static void reset_default_alphablend_state(void)
 
 	if (!GMS.lastblendfuncdefault) {
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); /* reset blender default */
+		GMS.lastblendfuncdefault = GL_TRUE;
 	}
 
 	if (GMS.lastalphatestref != 0.5f) {

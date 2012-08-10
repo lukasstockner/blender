@@ -29,10 +29,6 @@
  *  \ingroup player
  */
 
-#ifdef GLES
-#include <GLES2/gl2.h>
-#endif
-
 #ifndef NOPNG
 #ifdef WIN32
 #include "png.h"
@@ -64,7 +60,7 @@ GPC_Canvas::GPC_Canvas(
 	m_displayarea.m_x2 = width;
 	m_displayarea.m_y2 = height;
 
-	glGetIntegerv(GL_VIEWPORT, (GLint*)m_viewport);
+	gpuGetSizeBox(GL_VIEWPORT, (GLint*)m_viewport);
 }
 
 
@@ -76,7 +72,7 @@ GPC_Canvas::~GPC_Canvas()
 
 //  void GPC_Canvas::InitPostRenderingContext(void)
 //  {
-//  	glViewport(0, 0, m_width, m_height);
+//  	gpuViewport(0, 0, m_width, m_height);
 //  	gpuMatrixMode(GL_PROJECTION);
 //  	gpuLoadIdentity();
 	
@@ -113,9 +109,7 @@ void GPC_Canvas::EndFrame()
 
 void GPC_Canvas::ClearColor(float r, float g, float b, float a)
 {
-#include REAL_GL_MODE
-	::glClearColor(r,g,b,a);
-#include FAKE_GL_MODE
+	::gpuSetClearColor(r,g,b,a);
 }
 
 void GPC_Canvas::SetViewPort(int x1, int y1, int x2, int y2)
@@ -130,7 +124,6 @@ void GPC_Canvas::SetViewPort(int x1, int y1, int x2, int y2)
 		 * but where... definitely need to clean up this
 		 * whole canvas/rendertools mess.
 		 */
-#include REAL_GL_MODE
 	glEnable(GL_SCISSOR_TEST);
 	
 	m_viewport[0] = x1;
@@ -138,9 +131,7 @@ void GPC_Canvas::SetViewPort(int x1, int y1, int x2, int y2)
 	m_viewport[2] = x2-x1 + 1;
 	m_viewport[3] = y2-y1 + 1;
 
-	glViewport(x1,y1,x2-x1 + 1,y2-y1 + 1);
-	glScissor(x1,y1,x2-x1 + 1,y2-y1 + 1);
-#include FAKE_GL_MODE
+	gpuViewportScissor(x1,y1,x2-x1 + 1,y2-y1 + 1);
 };
 
 const int *GPC_Canvas::GetViewPort()
@@ -157,9 +148,7 @@ void GPC_Canvas::ClearBuffer(
 		ogltype |= GL_COLOR_BUFFER_BIT;
 	if (type & RAS_ICanvas::DEPTH_BUFFER )
 		ogltype |= GL_DEPTH_BUFFER_BIT;
-#include REAL_GL_MODE
-	::glClear(ogltype);
-#include FAKE_GL_MODE
+	::gpuClear(ogltype);
 }
 
 
@@ -403,8 +392,7 @@ GPC_Canvas::
 SetOrthoProjection(
 ) {
 	// Set up OpenGL matrices 
-	::glViewport(0, 0, m_width, m_height);
-	::glScissor(0, 0, m_width, m_height);
+	::gpuViewportScissor(0, 0, m_width, m_height);
 
 	::gpuMatrixMode(GL_TEXTURE);
 	::gpuLoadIdentity();

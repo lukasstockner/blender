@@ -206,7 +206,7 @@ static void buttons_header_area_draw(const bContext *C, ARegion *ar)
 {
 	/* clear */
 	UI_ThemeClearColor(ED_screen_area_active(C) ? TH_HEADER : TH_HEADERDESEL);
-	glClear(GL_COLOR_BUFFER_BIT);
+	gpuClear(GL_COLOR_BUFFER_BIT);
 	
 	/* set view2d view matrix for scrolling (without scrollers) */
 	UI_view2d_view_ortho(&ar->v2d);

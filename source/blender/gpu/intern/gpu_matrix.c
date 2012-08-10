@@ -262,7 +262,6 @@ if(curglslesi)
 		glUniformMatrix4fv(curglslesi->projectionmatloc, 1, 0, ms_projection.dynstack[ms_projection.pos]);
 	}
 
-#include FAKE_GL_MODE
 }
 
 

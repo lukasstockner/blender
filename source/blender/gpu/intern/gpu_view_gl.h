@@ -40,6 +40,6 @@ void gpuScissor_gl(int x, int y, unsigned int width, unsigned int height);
 
 void gpuViewportScissor_gl(int x, int y, unsigned int width, unsigned int height);
 
-void gpuGetScissorBox_gl(int *box);
+void gpuGetSizeBox_gl(int type, int *box);
 
 void gpuClear_gl(int mask);

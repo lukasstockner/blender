@@ -2030,7 +2030,7 @@ static void sk_drawSketch(Scene *scene, View3D *UNUSED(v3d), SK_Sketch *sketch, 
 	ToolSettings *ts = scene->toolsettings;
 	SK_Stroke *stk;
 
-	glClear(GL_DEPTH_BUFFER_BIT);
+	gpuClear(GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 
 	if (with_names) {

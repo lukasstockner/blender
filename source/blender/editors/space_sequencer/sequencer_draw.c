@@ -853,8 +853,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 
 	if (frame_ofs == 0) {
 		UI_GetThemeColor3fv(TH_SEQ_PREVIEW, col);
-		glClearColor(col[0], col[1], col[2], 0.0);
-		glClear(GL_COLOR_BUFFER_BIT);
+		gpuColorAndClearvf(col, 0.0);
 	}
 
 	/* without this colors can flicker from previous opengl state */
@@ -1212,10 +1211,9 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	/* clear and setup matrix */
 	UI_GetThemeColor3fv(TH_BACK, col);
 	if (ed && ed->metastack.first) 
-		glClearColor(col[0], col[1], col[2] - 0.1f, 0.0f);
+		gpuColorAndClear(col[0], col[1], col[2] - 0.1f, 0.0f);
 	else 
-		glClearColor(col[0], col[1], col[2], 0.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
+		gpuColorAndClearvf(col, 0.0f);
 
 	UI_view2d_view_ortho(v2d);
 

@@ -152,7 +152,7 @@ static void info_main_area_draw(const bContext *C, ARegion *ar)
 
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);
-	glClear(GL_COLOR_BUFFER_BIT);
+	gpuClear(GL_COLOR_BUFFER_BIT);
 
 	/* quick way to avoid drawing if not bug enough */
 	if (ar->winy < 16)
