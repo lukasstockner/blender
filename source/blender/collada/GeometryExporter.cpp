@@ -158,9 +158,10 @@ void GeometryExporter::operator()(Object *ob)
     //shape keys
 	Key * key = ob_get_key(ob);
 	if(key){
-		KeyBlock * kb;
-		for (kb = (KeyBlock*)key->block.first; kb; kb = kb->next) {
-			//have to skip the basis mesh
+		KeyBlock * kb = (KeyBlock*)key->block.first;
+		//skip the basis
+		kb = kb->next;
+		for (; kb; kb = kb->next) {
 			key_to_mesh(kb, me);
 			export_key_mesh(ob, me, kb);
 		}
@@ -215,7 +216,7 @@ void GeometryExporter::export_key_mesh(Object *ob, Mesh *me, KeyBlock *kb){
 	input_list.push_back(input);
 	verts.add();
 
-	createLooseEdgeList(ob, me, geom_id, norind);
+	//createLooseEdgeList(ob, me, geom_id, norind);
 
 	// XXX slow		
 	if (ob->totcol) {

@@ -266,9 +266,11 @@ void DocumentExporter::exportCurrentScene(Scene *sce)
 
 	// <library_controllers>
 	ArmatureExporter arm_exporter(&sw, this->export_settings);
-	if (bc_has_object_type(export_set, OB_ARMATURE)) {
+	//for Morph controller export, removing the check
+	/*if (bc_has_object_type(export_set, OB_ARMATURE)) 
+	{*/
 		arm_exporter.export_controllers(sce);
-	}
+	//}
 
 	// <library_visual_scenes>
 	SceneExporter se(&sw, &arm_exporter, this->export_settings);
