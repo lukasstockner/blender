@@ -96,6 +96,7 @@ WTURBULENCE::WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int no
 
 	/* fire */
 	_flameBig = _fuelBig = _fuelBigOld = NULL;
+	_reactBig = _reactBigOld = NULL;
 	if (init_fire) {
 		initFire();
 	}
@@ -147,11 +148,15 @@ void WTURBULENCE::initFire()
 		_flameBig = new float[_totalCellsBig];
 		_fuelBig = new float[_totalCellsBig];
 		_fuelBigOld = new float[_totalCellsBig];
+		_reactBig = new float[_totalCellsBig];
+		_reactBigOld = new float[_totalCellsBig];
 
 		for(int i = 0; i < _totalCellsBig; i++) {
 			_flameBig[i] = 
 			_fuelBig[i] = 
 			_fuelBigOld[i] = 0.;
+			_reactBig[i] = 
+			_reactBigOld[i] = 0.;
 		}
 	}
 }
@@ -186,6 +191,8 @@ WTURBULENCE::~WTURBULENCE() {
   if (_flameBig) delete[] _flameBig;
   if (_fuelBig) delete[] _fuelBig;
   if (_fuelBigOld) delete[] _fuelBigOld;
+  if (_reactBig) delete[] _reactBig;
+  if (_reactBigOld) delete[] _reactBigOld;
 
   if (_color_rBig) delete[] _color_rBig;
   if (_color_rBigOld) delete[] _color_rBigOld;
@@ -816,7 +823,8 @@ void WTURBULENCE::stepTurbulenceFull(float dtOrg, float* xvel, float* yvel, floa
 	// enlarge timestep to match grid
 	const float dt = dtOrg * _amplify;
 	const float invAmp = 1.0f / _amplify;
-	float *tempFuelBig = NULL, *tempColor_rBig = NULL, *tempColor_gBig = NULL, *tempColor_bBig = NULL;
+	float *tempFuelBig = NULL, *tempReactBig = NULL;
+	float *tempColor_rBig = NULL, *tempColor_gBig = NULL, *tempColor_bBig = NULL;
 	float *tempDensityBig = (float *)calloc(_totalCellsBig, sizeof(float));
 	float *tempBig = (float *)calloc(_totalCellsBig, sizeof(float));
 	float *bigUx = (float *)calloc(_totalCellsBig, sizeof(float));
@@ -829,6 +837,7 @@ void WTURBULENCE::stepTurbulenceFull(float dtOrg, float* xvel, float* yvel, floa
 
 	if (_fuelBig) {
 		tempFuelBig = (float *)calloc(_totalCellsBig, sizeof(float));
+		tempReactBig = (float *)calloc(_totalCellsBig, sizeof(float));
 	}
 	if (_color_rBig) {
 		tempColor_rBig = (float *)calloc(_totalCellsBig, sizeof(float));
@@ -1042,6 +1051,7 @@ void WTURBULENCE::stepTurbulenceFull(float dtOrg, float* xvel, float* yvel, floa
   // prepare density for an advection
   SWAP_POINTERS(_densityBig, _densityBigOld);
   SWAP_POINTERS(_fuelBig, _fuelBigOld);
+  SWAP_POINTERS(_reactBig, _reactBigOld);
   SWAP_POINTERS(_color_rBig, _color_rBigOld);
   SWAP_POINTERS(_color_gBig, _color_gBigOld);
   SWAP_POINTERS(_color_bBig, _color_bBigOld);
@@ -1094,6 +1104,8 @@ void WTURBULENCE::stepTurbulenceFull(float dtOrg, float* xvel, float* yvel, floa
 		if (_fuelBig) {
 			FLUID_3D::advectFieldMacCormack1(dtSubdiv, bigUx, bigUy, bigUz, 
 				_fuelBigOld, tempFuelBig, _resBig, zBegin, zEnd);
+			FLUID_3D::advectFieldMacCormack1(dtSubdiv, bigUx, bigUy, bigUz, 
+				_reactBigOld, tempReactBig, _resBig, zBegin, zEnd);
 		}
 		if (_color_rBig) {
 			FLUID_3D::advectFieldMacCormack1(dtSubdiv, bigUx, bigUy, bigUz, 
@@ -1119,6 +1131,8 @@ void WTURBULENCE::stepTurbulenceFull(float dtOrg, float* xvel, float* yvel, floa
 		if (_fuelBig) {
 			FLUID_3D::advectFieldMacCormack2(dtSubdiv, bigUx, bigUy, bigUz, 
 				_fuelBigOld, _fuelBig, tempFuelBig, tempBig, _resBig, NULL, zBegin, zEnd);
+			FLUID_3D::advectFieldMacCormack2(dtSubdiv, bigUx, bigUy, bigUz, 
+				_reactBigOld, _reactBig, tempReactBig, tempBig, _resBig, NULL, zBegin, zEnd);
 		}
 		if (_color_rBig) {
 			FLUID_3D::advectFieldMacCormack2(dtSubdiv, bigUx, bigUy, bigUz, 
@@ -1136,6 +1150,7 @@ void WTURBULENCE::stepTurbulenceFull(float dtOrg, float* xvel, float* yvel, floa
 	if (substep < totalSubsteps - 1) {
       SWAP_POINTERS(_densityBig, _densityBigOld);
 	  SWAP_POINTERS(_fuelBig, _fuelBigOld);
+	  SWAP_POINTERS(_reactBig, _reactBigOld);
 	  SWAP_POINTERS(_color_rBig, _color_rBigOld);
 	  SWAP_POINTERS(_color_gBig, _color_gBigOld);
 	  SWAP_POINTERS(_color_bBig, _color_bBigOld);
@@ -1144,6 +1159,7 @@ void WTURBULENCE::stepTurbulenceFull(float dtOrg, float* xvel, float* yvel, floa
 
   free(tempDensityBig);
   if (tempFuelBig) free(tempFuelBig);
+  if (tempReactBig) free(tempReactBig);
   if (tempColor_rBig) free(tempColor_rBig);
   if (tempColor_gBig) free(tempColor_gBig);
   if (tempColor_bBig) free(tempColor_bBig);
@@ -1158,6 +1174,7 @@ void WTURBULENCE::stepTurbulenceFull(float dtOrg, float* xvel, float* yvel, floa
   FLUID_3D::setZeroBorder(_densityBig, _resBig, 0 , _resBig[2]);
   if (_fuelBig) {
 	FLUID_3D::setZeroBorder(_fuelBig, _resBig, 0 , _resBig[2]);
+	FLUID_3D::setZeroBorder(_reactBig, _resBig, 0 , _resBig[2]);
   }
   if (_color_rBig) {
 	  FLUID_3D::setZeroBorder(_color_rBig, _resBig, 0 , _resBig[2]);

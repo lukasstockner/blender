@@ -48,6 +48,7 @@ void smoke_step(struct FLUID_3D *fluid, float gravity[3], float dtSubdiv);
 float *smoke_get_density(struct FLUID_3D *fluid);
 float *smoke_get_flame(struct FLUID_3D *fluid);
 float *smoke_get_fuel(struct FLUID_3D *fluid);
+float *smoke_get_react(struct FLUID_3D *fluid);
 float *smoke_get_color_r(struct FLUID_3D *fluid);
 float *smoke_get_color_g(struct FLUID_3D *fluid);
 float *smoke_get_color_b(struct FLUID_3D *fluid);
@@ -85,6 +86,7 @@ void smoke_turbulence_get_rgba(struct WTURBULENCE *wt, float *data, int sequenti
 void smoke_turbulence_get_rgba_from_density(struct WTURBULENCE *wt, float color[3], float *data, int sequential);
 float *smoke_turbulence_get_flame(struct WTURBULENCE *wt);
 float *smoke_turbulence_get_fuel(struct WTURBULENCE *wt);
+float *smoke_turbulence_get_react(struct WTURBULENCE *wt);
 void smoke_turbulence_get_res(struct WTURBULENCE *wt, int *res);
 int smoke_turbulence_get_cells(struct WTURBULENCE *wt);
 void smoke_turbulence_set_noise(struct WTURBULENCE *wt, int type);
@@ -92,9 +94,9 @@ void smoke_initWaveletBlenderRNA(struct WTURBULENCE *wt, float *strength);
 void smoke_dissolve_wavelet(struct WTURBULENCE *wt, int speed, int log);
 
 /* export */
-void smoke_export(struct FLUID_3D *fluid, float *dt, float *dx, float **dens, float **flame, float **fuel, float **heat, float **heatold,
+void smoke_export(struct FLUID_3D *fluid, float *dt, float *dx, float **dens, float **react, float **flame, float **fuel, float **heat, float **heatold,
 				  float **vx, float **vy, float **vz, float **r, float **g, float **b, unsigned char **obstacles);
-void smoke_turbulence_export(struct WTURBULENCE *wt, float **dens, float **flame, float **fuel,
+void smoke_turbulence_export(struct WTURBULENCE *wt, float **dens, float **react, float **flame, float **fuel,
 							 float **r, float **g, float **b, float **tcu, float **tcv, float **tcw);
 
 /* flame spectrum */

@@ -7942,8 +7942,11 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 							smd->flow->color[1] = 0.7f;
 							smd->flow->color[2] = 0.7f;
 						}
+						if (smd->branch_v < 2) {
+							smd->flow->texture_size = 1.0f;
+						}
 					}
-					smd->branch_v = 1; /* hack to keep branch changes without version number */
+					smd->branch_v = 2; /* hack to keep branch changes without version number */
 				}
 			}
 		}

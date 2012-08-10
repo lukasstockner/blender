@@ -125,6 +125,9 @@ class FLUID_3D
 		float *_fuel;
 		float *_fuelTemp;
 		float *_fuelOld;
+		float *_react;
+		float *_reactTemp;
+		float *_reactOld;
 
 		// smoke color
 		float *_color_r;
@@ -206,7 +209,7 @@ class FLUID_3D
 		float *_flame_vorticity; // RNA pointer
 		float *_ignition_temp; // RNA pointer
 		float *_max_temp; // RNA pointer
-		void processBurn(float *fuel, float *smoke, float *flame, float *heat,
+		void processBurn(float *fuel, float *smoke, float *react, float *flame, float *heat,
 						 float *r, float *g, float *b, int total_cells, float dt);
 
 		// boundary setting functions

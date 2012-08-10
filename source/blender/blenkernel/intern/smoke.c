@@ -76,6 +76,8 @@
 #include "BKE_pointcache.h"
 #include "BKE_smoke.h"
 
+#include "RE_shader_ext.h"
+
 /* UNUSED so far, may be enabled later */
 /* #define USE_SMOKE_COLLISION_DM */
 
@@ -495,8 +497,7 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 			smd->domain->fluid_group = NULL;
 			smd->domain->coll_group = NULL;
 			smd->domain->maxres = 32;
-			smd->domain->amplify = 1;			
-			smd->domain->omega = 1.0;			
+			smd->domain->amplify = 1;					
 			smd->domain->alpha = -0.001;
 			smd->domain->beta = 0.1;
 			smd->domain->time_scale = 1.0;
@@ -542,6 +543,7 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 			smd->flow->vel_multi = 1.0f;
 			smd->flow->surface_distance = 1.5f;
 			smd->flow->source = MOD_SMOKE_FLOW_SOURCE_MESH;
+			smd->flow->texture_size = 1.0f;
 
 			smd->flow->color[0] = 0.7f;
 			smd->flow->color[1] = 0.7f;
@@ -579,51 +581,61 @@ void smokeModifier_copy(struct SmokeModifierData *smd, struct SmokeModifierData 
 	smokeModifier_createType(tsmd);
 
 	if (tsmd->domain) {
-		tsmd->domain->maxres = smd->domain->maxres;
-		tsmd->domain->amplify = smd->domain->amplify;
-		tsmd->domain->omega = smd->domain->omega;
-		tsmd->domain->alpha = smd->domain->alpha;
-		tsmd->domain->beta = smd->domain->beta;
-		tsmd->domain->flags = smd->domain->flags;
-		tsmd->domain->strength = smd->domain->strength;
-		tsmd->domain->noise = smd->domain->noise;
-		tsmd->domain->diss_speed = smd->domain->diss_speed;
-		tsmd->domain->viewsettings = smd->domain->viewsettings;
 		tsmd->domain->fluid_group = smd->domain->fluid_group;
 		tsmd->domain->coll_group = smd->domain->coll_group;
-		tsmd->domain->vorticity = smd->domain->vorticity;
-		tsmd->domain->time_scale = smd->domain->time_scale;
-		tsmd->domain->border_collisions = smd->domain->border_collisions;
 
 		tsmd->domain->adapt_margin = smd->domain->adapt_margin;
 		tsmd->domain->adapt_res = smd->domain->adapt_res;
 		tsmd->domain->adapt_threshold = smd->domain->adapt_threshold;
+
+		tsmd->domain->alpha = smd->domain->alpha;
+		tsmd->domain->beta = smd->domain->beta;
+		tsmd->domain->amplify = smd->domain->amplify;
+		tsmd->domain->maxres = smd->domain->maxres;
+		tsmd->domain->flags = smd->domain->flags;
+		tsmd->domain->viewsettings = smd->domain->viewsettings;
+		tsmd->domain->noise = smd->domain->noise;
+		tsmd->domain->diss_speed = smd->domain->diss_speed;
+		tsmd->domain->strength = smd->domain->strength;
+
+		tsmd->domain->border_collisions = smd->domain->border_collisions;
+		tsmd->domain->vorticity = smd->domain->vorticity;
+		tsmd->domain->time_scale = smd->domain->time_scale;
 
 		tsmd->domain->burning_rate = smd->domain->burning_rate;
 		tsmd->domain->flame_smoke = smd->domain->flame_smoke;
 		tsmd->domain->flame_vorticity = smd->domain->flame_vorticity;
 		tsmd->domain->flame_ignition = smd->domain->flame_ignition;
 		tsmd->domain->flame_max_temp = smd->domain->flame_max_temp;
+		copy_v3_v3(tsmd->domain->flame_smoke_color, smd->domain->flame_smoke_color);
 		
 		MEM_freeN(tsmd->domain->effector_weights);
 		tsmd->domain->effector_weights = MEM_dupallocN(smd->domain->effector_weights);
 	} 
 	else if (tsmd->flow) {
 		tsmd->flow->psys = smd->flow->psys;
-		tsmd->flow->type = smd->flow->type;
-		tsmd->flow->flags = smd->flow->flags;
+		tsmd->flow->noise_texture = smd->flow->noise_texture;
+
 		tsmd->flow->vel_multi = smd->flow->vel_multi;
 		tsmd->flow->vel_normal = smd->flow->vel_normal;
 		tsmd->flow->vel_random = smd->flow->vel_random;
 
 		tsmd->flow->density = smd->flow->density;
+		copy_v3_v3(tsmd->flow->color, smd->flow->color);
 		tsmd->flow->fuel_amount = smd->flow->fuel_amount;
 		tsmd->flow->temp = smd->flow->temp;
 		tsmd->flow->volume_density = smd->flow->volume_density;
 		tsmd->flow->surface_distance = smd->flow->surface_distance;
+
+		tsmd->flow->texture_size = smd->flow->texture_size;
+		tsmd->flow->texture_offset = smd->flow->texture_offset;
+		BLI_strncpy(tsmd->flow->uvlayer_name, tsmd->flow->uvlayer_name, sizeof(tsmd->flow->uvlayer_name));
 		tsmd->flow->vgroup_density = smd->flow->vgroup_density;
 
+		tsmd->flow->type = smd->flow->type;
 		tsmd->flow->source = smd->flow->source;
+		tsmd->flow->texture_type = smd->flow->texture_type;
+		tsmd->flow->flags = smd->flow->flags;
 	}
 	else if (tsmd->coll) {
 		;
@@ -1040,6 +1052,25 @@ static void emit_from_particles(Object *flow_ob, SmokeDomainSettings *sds, Smoke
 	}
 }
 
+static void get_texture_value(Tex *texture, float *tex_co, TexResult *texres)
+{
+	int result_type;
+
+	/* no node textures for now */
+	result_type = multitex_ext_safe(texture, tex_co, texres);
+
+	/* if the texture gave an RGB value, we assume it didn't give a valid
+	 * intensity, since this is in the context of modifiers don't use perceptual color conversion.
+	 * if the texture didn't give an RGB value, copy the intensity across
+	 */
+	if (result_type & TEX_RGB) {
+		texres->tin = (1.0f / 3.0f) * (texres->tr + texres->tg + texres->tb);
+	}
+	else {
+		copy_v3_fl(&texres->tr, texres->tin);
+	}
+}
+
 static void emit_from_derivedmesh(Object *flow_ob, SmokeDomainSettings *sds, SmokeFlowSettings *sfs, EmissionMap *em, float dt)
 {
 	if (!sfs->dm) return;
@@ -1050,8 +1081,10 @@ static void emit_from_derivedmesh(Object *flow_ob, SmokeDomainSettings *sds, Smo
 		MVert *mvert = NULL;
 		MVert *mvert_orig = NULL;
 		MFace *mface = NULL;
+		MTFace *tface = NULL;
 		BVHTreeFromMesh treeData = {0};
 		int numOfVerts, i, z;
+		float flow_center[3] = {0};
 
 		float *vert_vel = NULL;
 		int has_velocity = 0;
@@ -1062,6 +1095,7 @@ static void emit_from_derivedmesh(Object *flow_ob, SmokeDomainSettings *sds, Smo
 		mface = dm->getTessFaceArray(dm);
 		numOfVerts = dm->getNumVerts(dm);
 		dvert = dm->getVertDataArray(dm, CD_MDEFORMVERT);
+		tface = CustomData_get_layer_named(&dm->faceData, CD_MTFACE, sfs->uvlayer_name);
 
 		if (sfs->flags & MOD_SMOKE_FLOW_INITVELOCITY) {
 			vert_vel = MEM_callocN(sizeof(float) * numOfVerts * 3, "smoke_flow_velocity");
@@ -1103,6 +1137,8 @@ static void emit_from_derivedmesh(Object *flow_ob, SmokeDomainSettings *sds, Smo
 			/* calculate emission map bounds */
 			em_boundInsert(em, mvert[i].co);
 		}
+		mul_m4_v3(flow_ob->obmat, flow_center);
+		smoke_pos_to_cell(sds, flow_center);
 
 		/* set emission map */
 		clampBoundsInDomain(sds, em->min, em->max, NULL, NULL, sfs->surface_distance, dt);
@@ -1206,6 +1242,26 @@ static void emit_from_derivedmesh(Object *flow_ob, SmokeDomainSettings *sds, Smo
 												defvert_find_weight(&dvert[v2], defgrp_index) * weights[1] +
 												defvert_find_weight(&dvert[v3], defgrp_index) * weights[2];
 							sample_str *= weight_mask;
+						}
+
+						/* apply emission texture */
+						if ((sfs->flags & MOD_SMOKE_FLOW_TEXTUREEMIT) && sfs->noise_texture) {
+							float tex_co[3] = {0};
+							TexResult texres;
+
+							if (sfs->texture_type == MOD_SMOKE_FLOW_TEXTURE_MAP_AUTO) {
+								tex_co[0] = ((float)(x - flow_center[0]) / sds->base_res[0]) / sfs->texture_size;
+								tex_co[1] = ((float)(y - flow_center[1]) / sds->base_res[1]) / sfs->texture_size;
+								tex_co[2] = ((float)(z - flow_center[2]) / sds->base_res[2] - sfs->texture_offset) / sfs->texture_size;
+							}
+							else if (tface) {
+								interp_v2_v2v2v2(tex_co, tface[f_index].uv[0], tface[f_index].uv[(nearest.flags & BVH_ONQUAD) ? 2 : 1], 
+																   tface[f_index].uv[(nearest.flags & BVH_ONQUAD) ? 3 : 2], weights);
+								tex_co[2] = sfs->texture_offset;
+							}
+							texres.nor = NULL;
+							get_texture_value(sfs->noise_texture, tex_co, &texres);
+							sample_str *= texres.tin;
 						}
 					}
 
@@ -1345,22 +1401,22 @@ static void adjustDomainResolution(SmokeDomainSettings *sds, int new_shift[3], E
 		/* copy values from old fluid to new */
 		if (sds->total_cells>1 && total_cells>1) {
 			/* low res smoke */
-			float *o_dens, *o_flame, *o_fuel, *o_heat, *o_heatold, *o_vx, *o_vy, *o_vz, *o_r, *o_g, *o_b;
-			float *n_dens, *n_flame, *n_fuel, *n_heat, *n_heatold, *n_vx, *n_vy, *n_vz, *n_r, *n_g, *n_b;
+			float *o_dens, *o_react, *o_flame, *o_fuel, *o_heat, *o_heatold, *o_vx, *o_vy, *o_vz, *o_r, *o_g, *o_b;
+			float *n_dens, *n_react, *n_flame, *n_fuel, *n_heat, *n_heatold, *n_vx, *n_vy, *n_vz, *n_r, *n_g, *n_b;
 			float dummy;
 			unsigned char *dummy_p;
 			/* high res smoke */
 			int wt_res_old[3];
-			float *o_wt_dens, *o_wt_flame, *o_wt_fuel, *o_wt_tcu, *o_wt_tcv, *o_wt_tcw, *o_wt_r, *o_wt_g, *o_wt_b;
-			float *n_wt_dens, *n_wt_flame, *n_wt_fuel, *n_wt_tcu, *n_wt_tcv, *n_wt_tcw, *n_wt_r, *n_wt_g, *n_wt_b;
+			float *o_wt_dens, *o_wt_react, *o_wt_flame, *o_wt_fuel, *o_wt_tcu, *o_wt_tcv, *o_wt_tcw, *o_wt_r, *o_wt_g, *o_wt_b;
+			float *n_wt_dens, *n_wt_react, *n_wt_flame, *n_wt_fuel, *n_wt_tcu, *n_wt_tcv, *n_wt_tcw, *n_wt_r, *n_wt_g, *n_wt_b;
 
-			smoke_export(fluid_old, &dummy, &dummy, &o_dens, &o_flame, &o_fuel, &o_heat, &o_heatold, &o_vx, &o_vy, &o_vz, &o_r, &o_g, &o_b, &dummy_p);
-			smoke_export(sds->fluid, &dummy, &dummy, &n_dens, &n_flame, &n_fuel, &n_heat, &n_heatold, &n_vx, &n_vy, &n_vz, &n_r, &n_g, &n_b, &dummy_p);
+			smoke_export(fluid_old, &dummy, &dummy, &o_dens, &o_react, &o_flame, &o_fuel, &o_heat, &o_heatold, &o_vx, &o_vy, &o_vz, &o_r, &o_g, &o_b, &dummy_p);
+			smoke_export(sds->fluid, &dummy, &dummy, &n_dens, &n_react, &n_flame, &n_fuel, &n_heat, &n_heatold, &n_vx, &n_vy, &n_vz, &n_r, &n_g, &n_b, &dummy_p);
 
 			if(sds->flags & MOD_SMOKE_HIGHRES) {
-				smoke_turbulence_export(turb_old, &o_wt_dens, &o_wt_flame, &o_wt_fuel, &o_wt_r, &o_wt_g, &o_wt_b, &o_wt_tcu, &o_wt_tcv, &o_wt_tcw);
+				smoke_turbulence_export(turb_old, &o_wt_dens, &o_wt_react, &o_wt_flame, &o_wt_fuel, &o_wt_r, &o_wt_g, &o_wt_b, &o_wt_tcu, &o_wt_tcv, &o_wt_tcw);
 				smoke_turbulence_get_res(turb_old, wt_res_old);
-				smoke_turbulence_export(sds->wt, &n_wt_dens, &n_wt_flame, &n_wt_fuel, &n_wt_r, &n_wt_g, &n_wt_b, &n_wt_tcu, &n_wt_tcv, &n_wt_tcw);
+				smoke_turbulence_export(sds->wt, &n_wt_dens, &n_wt_react, &n_wt_flame, &n_wt_fuel, &n_wt_r, &n_wt_g, &n_wt_b, &n_wt_tcu, &n_wt_tcv, &n_wt_tcw);
 			}
 
 
@@ -1396,6 +1452,7 @@ static void adjustDomainResolution(SmokeDomainSettings *sds, int new_shift[3], E
 						if (n_fuel && o_fuel) {
 							n_flame[index_new] = o_flame[index_old];
 							n_fuel[index_new] = o_fuel[index_old];
+							n_react[index_new] = o_react[index_old];
 						}
 						/* color */
 						if (o_r && n_r) {
@@ -1434,6 +1491,7 @@ static void adjustDomainResolution(SmokeDomainSettings *sds, int new_shift[3], E
 										if (n_wt_flame && o_wt_flame) {
 											n_wt_flame[big_index_new] = o_wt_flame[big_index_old];
 											n_wt_fuel[big_index_new] = o_wt_fuel[big_index_old];
+											n_wt_react[big_index_new] = o_wt_react[big_index_old];
 										}
 										if (n_wt_r && o_wt_r) {
 											n_wt_r[big_index_new] = o_wt_r[big_index_old];
@@ -1453,6 +1511,78 @@ static void adjustDomainResolution(SmokeDomainSettings *sds, int new_shift[3], E
 		VECCOPY(sds->res_max, max);
 		VECCOPY(sds->res, res);
 		sds->total_cells = total_cells;
+	}
+}
+
+BLI_INLINE void apply_outflow_fields(int index, float *density, float *heat, float *fuel, float *react, float *color_r, float *color_g, float *color_b)
+{
+	density[index] = 0.f;
+	if (heat) {
+		heat[index] = 0.f;
+	}
+	if (fuel) {
+		fuel[index] = 0.f;
+		react[index] = 0.f;
+	}
+	if (color_r) {
+		color_r[index] = 0.f;
+		color_g[index] = 0.f;
+		color_b[index] = 0.f;
+	}
+}
+
+BLI_INLINE void apply_inflow_fields(SmokeFlowSettings *sfs, float emission_value, int index, float *density, float *heat, float *fuel, float *react, float *color_r, float *color_g, float *color_b)
+{
+	int absolute_flow = (sfs->flags & MOD_SMOKE_FLOW_ABSOLUTE);
+	float dens_old = density[index];
+	float fuel_old = (fuel) ? fuel[index] : 0.0f;
+	float dens_flow = (sfs->type == MOD_SMOKE_FLOW_TYPE_FIRE) ? 0.0f : emission_value * sfs->density;
+	float fuel_flow = emission_value * sfs->fuel_amount;
+	/* add heat */
+	if (heat) {
+		heat[index] = MAX2(emission_value*sfs->temp, heat[index]);
+	}
+	/* absolute */
+	if (absolute_flow) {
+		if (sfs->type != MOD_SMOKE_FLOW_TYPE_FIRE) {
+			if (dens_flow > density[index])
+				density[index] = dens_flow;
+		}
+		if (sfs->type != MOD_SMOKE_FLOW_TYPE_SMOKE && fuel && fuel_flow) {
+			if (fuel_flow > fuel[index])
+				fuel[index] = fuel_flow;
+		}
+	}
+	/* additive */
+	else {
+		if (sfs->type != MOD_SMOKE_FLOW_TYPE_FIRE) {
+			density[index] += dens_flow;
+			CLAMP(density[index], 0.0f, 1.0f);
+		}
+		if (sfs->type != MOD_SMOKE_FLOW_TYPE_SMOKE && fuel && sfs->fuel_amount) {
+			fuel[index] += fuel_flow;
+			CLAMP(fuel[index], 0.0f, 10.0f);
+		}
+	}
+
+	/* set color */
+	if (color_r && dens_flow) {
+		float total_dens = density[index]/(dens_old+dens_flow);
+		color_r[index] = (color_r[index] + sfs->color[0] * dens_flow) * total_dens;
+		color_g[index] = (color_g[index] + sfs->color[1] * dens_flow) * total_dens;
+		color_b[index] = (color_b[index] + sfs->color[2] * dens_flow) * total_dens;
+	}
+
+	/* set fire reaction coordinate */
+	if (fuel && fuel[index]) {
+		/* instead of using 1.0 for all new fuel add slight falloff
+		 * to reduce flow blockiness */
+		float value = 1.0f - pow(1.0f - emission_value, 2.0f);
+
+		if (value > react[index]) {
+			float f = fuel_flow / fuel[index];
+			react[index] = value*f + (1.0f - f)*react[index];
+		}
 	}
 }
 
@@ -1599,8 +1729,10 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 				float *color_g = smoke_get_color_g(sds->fluid);
 				float *color_b = smoke_get_color_b(sds->fluid);
 				float *fuel = smoke_get_fuel(sds->fluid);
+				float *react = smoke_get_react(sds->fluid);
 				float *bigdensity = smoke_turbulence_get_density(sds->wt);
 				float *bigfuel = smoke_turbulence_get_fuel(sds->wt);
+				float *bigreact = smoke_turbulence_get_react(sds->wt);
 				float *bigcolor_r = smoke_turbulence_get_color_r(sds->wt);
 				float *bigcolor_g = smoke_turbulence_get_color_g(sds->wt);
 				float *bigcolor_b = smoke_turbulence_get_color_b(sds->wt);
@@ -1611,7 +1743,6 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 				//unsigned char *obstacle = smoke_get_obstacle(sds->fluid);							
 				// DG TODO UNUSED unsigned char *obstacleAnim = smoke_get_obstacle_anim(sds->fluid);
 				int bigres[3];
-				short absolute_flow = (sfs->flags & MOD_SMOKE_FLOW_ABSOLUTE);
 				short high_emission_smoothing = (sds->flags & MOD_SMOKE_HIGH_SMOOTH);
 				float *velocity_map = em->velocity;
 				float *emission_map = em->influence;
@@ -1637,66 +1768,17 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 							d_index = smoke_get_index(dx, sds->res[0], dy, sds->res[1], dz);
 
 							if(sfs->type == MOD_SMOKE_FLOW_TYPE_OUTFLOW) { // outflow
-								density[d_index] = 0.f;
-								if (heat) {
-									heat[d_index] = 0.f;
-								}
-								if (fuel) {
-									fuel[d_index] = 0.f;
-								}
-								if (color_r) {
-									color_r[d_index] = 0.f;
-									color_g[d_index] = 0.f;
-									color_b[d_index] = 0.f;
-								}
-								velocity_x[d_index] = 0.f;
-								velocity_y[d_index] = 0.f;
-								velocity_z[d_index] = 0.f;
+								apply_outflow_fields(d_index, density, heat, fuel, react, color_r, color_g, color_b);
 							}
 							else { // inflow
-								float dens_old = density[d_index];
-								float dens_flow = (sfs->type == MOD_SMOKE_FLOW_TYPE_FIRE) ? 0.0f : emission_map[e_index] * sfs->density;
-								/* add heat */
-								if (heat) {
-									heat[d_index] = MAX2(emission_map[e_index]*sfs->temp, heat[d_index]);
-								}
-								/* absolute */
-								if (absolute_flow) {
-									if (sfs->type != MOD_SMOKE_FLOW_TYPE_FIRE) {
-										if (dens_flow > density[d_index])
-											density[d_index] = dens_flow;
-									}
-									if (sfs->type != MOD_SMOKE_FLOW_TYPE_SMOKE && fuel) {
-										if (emission_map[e_index] * sfs->fuel_amount > fuel[d_index])
-											fuel[d_index] = emission_map[e_index] * sfs->fuel_amount;
-									}
-								}
-								/* additive */
-								else {
-									if (sfs->type != MOD_SMOKE_FLOW_TYPE_FIRE) {
-										density[d_index] += dens_flow;
-										CLAMP(density[d_index], 0.0f, 1.0f);
-									}
-									if (sfs->type != MOD_SMOKE_FLOW_TYPE_SMOKE && fuel) {
-										fuel[d_index] += emission_map[e_index] * sfs->fuel_amount;
-										CLAMP(fuel[d_index], 0.0f, 1.0f);
-									}
-								}
+								apply_inflow_fields(sfs, emission_map[e_index], d_index, density, heat, fuel, react, color_r, color_g, color_b);
+
 								/* initial velocity */
 								if(sfs->flags & MOD_SMOKE_FLOW_INITVELOCITY) {
 									velocity_x[d_index] = ADD_IF_LOWER(velocity_x[d_index], velocity_map[e_index*3]);
 									velocity_y[d_index] = ADD_IF_LOWER(velocity_y[d_index], velocity_map[e_index*3+1]);
 									velocity_z[d_index] = ADD_IF_LOWER(velocity_z[d_index], velocity_map[e_index*3+2]);
 								}
-
-								/* set color */
-								if (color_r && dens_flow) {
-									float total_dens = density[d_index]/(dens_old+dens_flow);
-									color_r[d_index] = (color_r[d_index] + sfs->color[0] * dens_flow) * total_dens;
-									color_g[d_index] = (color_g[d_index] + sfs->color[1] * dens_flow) * total_dens;
-									color_b[d_index] = (color_b[d_index] + sfs->color[2] * dens_flow) * total_dens;
-								}
-
 							}
 
 							/* loop through high res blocks if high res enabled */
@@ -1732,13 +1814,13 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 											*/
 											if (high_emission_smoothing)
 											{
-												// convert block position to relative
-												// for interpolation smoothing
+												/* get relative block position
+												 * for interpolation smoothing */
 												fx = (float)ii/block_size + 0.5f/block_size;
 												fy = (float)jj/block_size + 0.5f/block_size;
 												fz = (float)kk/block_size + 0.5f/block_size;
 
-												// calculate trilinear interpolation
+												/* calculate trilinear interpolation */
 												interpolated_value = c000 * (1-fx) * (1-fy) * (1-fz) +
 													c100 * fx * (1-fy) * (1-fz) +
 													c010 * (1-fx) * fy * (1-fz) +
@@ -1749,77 +1831,38 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 													c111 * fx * fy * fz;
 
 
-												// add some contrast / sharpness
-												// depending on hi-res block size
+												/* add some contrast / sharpness
+												 * depending on hi-res block size */
 												interpolated_value = (interpolated_value-0.4f)*(block_size/2) + 0.4f;
 												CLAMP(interpolated_value, 0.0f, 1.0f);
 
-												// shift smoke block index
-												// (because pixel center is actually
-												// in halfway of the low res block)
+												/* shift smoke block index
+												 * (because pixel center is actually
+												 * in halfway of the low res block) */
 												shift_x = (dx < 1) ? 0 : block_size/2;
 												shift_y = (dy < 1) ? 0 : block_size/2;
 												shift_z = (dz < 1) ? 0 : block_size/2;
 											}
 											else 
 											{
-												// without interpolation use same low resolution
-												// block value for all hi-res blocks
+												/* without interpolation use same low resolution
+												 * block value for all hi-res blocks */
 												interpolated_value = c111;
 												shift_x = 0;
 												shift_y = 0;
 												shift_z = 0;
 											}
 
-											// get shifted index for current high resolution block
+											/* get shifted index for current high resolution block */
 											index_big = smoke_get_index(block_size * dx + ii - shift_x, bigres[0], block_size * dy + jj - shift_y, bigres[1], block_size * dz + kk - shift_z);														
 
 											if(sfs->type == MOD_SMOKE_FLOW_TYPE_OUTFLOW) { // outflow
 												if (interpolated_value) {
-													bigdensity[index_big] = 0.f;
-													if (bigfuel) {
-														bigfuel[index_big] = 0.f;
-													}
-													if (bigcolor_r) {
-														bigcolor_r[index_big] = 0.f;
-														bigcolor_g[index_big] = 0.f;
-														bigcolor_b[index_big] = 0.f;
-													}
+													apply_outflow_fields(index_big, bigdensity, NULL, bigfuel, bigreact, bigcolor_r, bigcolor_g, bigcolor_b);
 												}
 											}
 											else { // inflow
-												float dens_old = bigdensity[index_big];
-												float dens_flow = (sfs->type == MOD_SMOKE_FLOW_TYPE_FIRE) ? 0.0f : interpolated_value * sfs->density;
-												if (absolute_flow) 
-												{
-													if (sfs->type != MOD_SMOKE_FLOW_TYPE_FIRE) {
-														if (dens_flow > bigdensity[index_big])
-															bigdensity[index_big] = dens_flow;
-													}
-													if (sfs->type != MOD_SMOKE_FLOW_TYPE_SMOKE && bigfuel) {
-														if (interpolated_value * sfs->fuel_amount > bigfuel[index_big])
-															bigfuel[index_big] = interpolated_value * sfs->fuel_amount;
-													}
-												}
-												else 
-												{
-													if (sfs->type != MOD_SMOKE_FLOW_TYPE_FIRE) {
-														bigdensity[index_big] += dens_flow;
-														CLAMP(bigdensity[index_big], 0.0f, 1.0f);
-													}
-													if (sfs->type != MOD_SMOKE_FLOW_TYPE_SMOKE && bigfuel) {
-														bigfuel[index_big] += interpolated_value * sfs->fuel_amount;
-														CLAMP(bigfuel[index_big], 0.0f, 1.0f);
-													}
-												}
-
-												/* set color */
-												if (bigcolor_r && dens_flow) {
-													float total_dens = bigdensity[index_big]/(dens_old+dens_flow);
-													bigcolor_r[index_big] = (bigcolor_r[index_big] + sfs->color[0] * dens_flow) * total_dens;
-													bigcolor_g[index_big] = (bigcolor_g[index_big] + sfs->color[1] * dens_flow) * total_dens;
-													bigcolor_b[index_big] = (bigcolor_b[index_big] + sfs->color[2] * dens_flow) * total_dens;
-												}
+												apply_inflow_fields(sfs, interpolated_value, index_big, bigdensity, NULL, bigfuel, bigreact, bigcolor_r, bigcolor_g, bigcolor_b);
 											}
 										} // hires loop
 							}  // bigdensity
@@ -2224,7 +2267,8 @@ struct DerivedMesh *smokeModifier_do(SmokeModifierData *smd, Scene *scene, Objec
 
 	/* return generated geometry for adaptive domain */
 	if(smd->type & MOD_SMOKE_TYPE_DOMAIN && smd->domain &&
-		smd->domain->flags & MOD_SMOKE_ADAPTIVE_DOMAIN)
+		smd->domain->flags & MOD_SMOKE_ADAPTIVE_DOMAIN &&
+		smd->domain->base_res[0])
 	{
 		return createDomainGeometry(smd->domain, ob);
 	}

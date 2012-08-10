@@ -128,6 +128,7 @@ FLUID_3D::FLUID_3D(int *res, float dx, float dtdef, int init_heat, int init_fire
 	}
 	// Fire simulation
 	_flame = _fuel = _fuelTemp = _fuelOld = NULL;
+	_react = _reactTemp = _reactOld = NULL;
 	if (init_fire) {
 		initFire();
 	}
@@ -173,6 +174,9 @@ void FLUID_3D::initFire()
 		_fuel		= new float[_totalCells];
 		_fuelTemp	= new float[_totalCells];
 		_fuelOld	= new float[_totalCells];
+		_react		= new float[_totalCells];
+		_reactTemp	= new float[_totalCells];
+		_reactOld	= new float[_totalCells];
 
 		for (int x = 0; x < _totalCells; x++)
 		{
@@ -180,6 +184,9 @@ void FLUID_3D::initFire()
 			_fuel[x]		= 0.0f;
 			_fuelTemp[x]	= 0.0f;
 			_fuelOld[x]		= 0.0f;
+			_react[x]		= 0.0f;
+			_reactTemp[x]	= 0.0f;
+			_reactOld[x]	= 0.0f;
 		}
 	}
 }
@@ -281,6 +288,9 @@ FLUID_3D::~FLUID_3D()
 	if (_fuel) delete[] _fuel;
 	if (_fuelTemp) delete[] _fuelTemp;
 	if (_fuelOld) delete[] _fuelOld;
+	if (_react) delete[] _react;
+	if (_reactTemp) delete[] _reactTemp;
+	if (_reactOld) delete[] _reactOld;
 
 	if (_color_r) delete[] _color_r;
 	if (_color_rOld) delete[] _color_rOld;
@@ -428,6 +438,7 @@ void FLUID_3D::step(float dt, float gravity[3])
 	SWAP_POINTERS(_heat, _heatOld);
 
 	SWAP_POINTERS(_fuel, _fuelOld);
+	SWAP_POINTERS(_react, _reactOld);
 
 	SWAP_POINTERS(_color_r, _color_rOld);
 	SWAP_POINTERS(_color_g, _color_gOld);
@@ -737,6 +748,7 @@ void FLUID_3D::wipeBoundaries(int zBegin, int zEnd)
 	setZeroBorder(_density, _res, zBegin, zEnd);
 	if (_fuel) {
 		setZeroBorder(_fuel, _res, zBegin, zEnd);
+		setZeroBorder(_react, _res, zBegin, zEnd);
 	}
 	if (_color_r) {
 		setZeroBorder(_color_r, _res, zBegin, zEnd);
@@ -770,6 +782,7 @@ void FLUID_3D::wipeBoundariesSL(int zBegin, int zEnd)
 			_density[index] = 0.0f;
 			if (_fuel) {
 				_fuel[index] = 0.0f;
+				_react[index] = 0.0f;
 			}
 			if (_color_r) {
 				_color_r[index] = 0.0f;
@@ -785,6 +798,7 @@ void FLUID_3D::wipeBoundariesSL(int zBegin, int zEnd)
 			_density[index] = 0.0f;
 			if (_fuel) {
 				_fuel[index] = 0.0f;
+				_react[index] = 0.0f;
 			}
 			if (_color_r) {
 				_color_r[index] = 0.0f;
@@ -808,6 +822,7 @@ void FLUID_3D::wipeBoundariesSL(int zBegin, int zEnd)
 			_density[index] = 0.0f;
 			if (_fuel) {
 				_fuel[index] = 0.0f;
+				_react[index] = 0.0f;
 			}
 			if (_color_r) {
 				_color_r[index] = 0.0f;
@@ -823,6 +838,7 @@ void FLUID_3D::wipeBoundariesSL(int zBegin, int zEnd)
 			_density[index] = 0.0f;
 			if (_fuel) {
 				_fuel[index] = 0.0f;
+				_react[index] = 0.0f;
 			}
 			if (_color_r) {
 				_color_r[index] = 0.0f;
@@ -851,6 +867,7 @@ void FLUID_3D::wipeBoundariesSL(int zBegin, int zEnd)
 			_density[index] = 0.0f;
 			if (_fuel) {
 				_fuel[index] = 0.0f;
+				_react[index] = 0.0f;
 			}
 			if (_color_r) {
 				_color_r[index] = 0.0f;
@@ -877,6 +894,7 @@ void FLUID_3D::wipeBoundariesSL(int zBegin, int zEnd)
 				_density[indexx] = 0.0f;
 				if (_fuel) {
 					_fuel[index] = 0.0f;
+					_react[index] = 0.0f;
 				}
 				if (_color_r) {
 					_color_r[index] = 0.0f;
@@ -1479,6 +1497,7 @@ void FLUID_3D::advectMacCormackEnd1(int zBegin, int zEnd)
 	}
 	if (_fuel) {
 		advectFieldMacCormack1(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _fuelOld, _fuelTemp, res, zBegin, zEnd);
+		advectFieldMacCormack1(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _reactOld, _reactTemp, res, zBegin, zEnd);
 	}
 	if (_color_r) {
 		advectFieldMacCormack1(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _color_rOld, _color_rTemp, res, zBegin, zEnd);
@@ -1512,6 +1531,7 @@ void FLUID_3D::advectMacCormackEnd2(int zBegin, int zEnd)
 	}
 	if (_fuel) {
 		advectFieldMacCormack2(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _fuelOld, _fuel, _fuelTemp, t1, res, _obstacles, zBegin, zEnd);
+		advectFieldMacCormack2(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _reactOld, _react, _reactTemp, t1, res, _obstacles, zBegin, zEnd);
 	}
 	if (_color_r) {
 		advectFieldMacCormack2(dt0, _xVelocityOld, _yVelocityOld, _zVelocityOld, _color_rOld, _color_r, _color_rTemp, t1, res, _obstacles, zBegin, zEnd);
@@ -1536,6 +1556,7 @@ void FLUID_3D::advectMacCormackEnd2(int zBegin, int zEnd)
 	setZeroBorder(_density, res, zBegin, zEnd);
 	if (_fuel) {
 		setZeroBorder(_fuel, res, zBegin, zEnd);
+		setZeroBorder(_react, res, zBegin, zEnd);
 	}
 	if (_color_r) {
 		setZeroBorder(_color_r, res, zBegin, zEnd);
@@ -1545,7 +1566,7 @@ void FLUID_3D::advectMacCormackEnd2(int zBegin, int zEnd)
 }
 
 
-void FLUID_3D::processBurn(float *fuel, float *smoke, float *flame, float *heat,
+void FLUID_3D::processBurn(float *fuel, float *smoke, float *react, float *flame, float *heat,
 						   float *r, float *g, float *b, int total_cells, float dt)
 {
 	float burning_rate = *_burning_rate;
@@ -1558,31 +1579,35 @@ void FLUID_3D::processBurn(float *fuel, float *smoke, float *flame, float *heat,
 		float orig_fuel = fuel[index];
 		float orig_smoke = smoke[index];
 		float smoke_emit = 0.0f;
+		float react_coord = 0.0f;
 
-		/* process reaction coordinate */
+		/* process fuel */
 		fuel[index] -= burning_rate * dt;
 		if (fuel[index] < 0.0f) fuel[index] = 0.0f;
+		/* process reaction coordinate */
+		if (orig_fuel) {
+			react[index] *= fuel[index]/orig_fuel;
+			react_coord = react[index];
+		}
+		else {
+			react[index] = 0.0f;
+		}
 
-		/* emit smoke based on reaction time and "flame_smoke" factor */
-		smoke_emit = (1.0f-orig_fuel) * (orig_fuel-fuel[index]) * 0.1f * flame_smoke;
+		/* emit smoke based on fuel burn rate and "flame_smoke" factor */
+		smoke_emit = (orig_fuel < 1.0f) ? (1.0f - orig_fuel)*0.5f : 0.0f;
+		smoke_emit = (smoke_emit + 0.5f) * (orig_fuel-fuel[index]) * 0.1f * flame_smoke;
 		smoke[index] += smoke_emit;
 		CLAMP(smoke[index], 0.0f, 1.0f);
 
 		/* model flame temperature curve from the reaction coordinate (fuel) */
-		/* DISABLED FOR NOW: temp rise region doesnt work well
-		*  when fuel amount isnt 1.0 to start with
-		if (fuel[index]>=0.9f) {
-			// linearly interpolate from ignition to max for temp rise region
-			flame[index] = (1.0f - fuel[index])/0.1f;
-		}
-		else */if (fuel[index]>0.0f) {
+		if (react_coord>0.0f) {
 			/* do a smooth falloff for rest of the values */
-			flame[index] = pow(fuel[index]/1.0f, 0.5f);
+			flame[index] = pow(react_coord, 0.5f);
 		}
 		else
 			flame[index] = 0.0f;
 
-		/* for flame set fluid temperature from the flame temperature profile */
+		/* set fluid temperature from the flame temperature profile */
 		if (heat && flame[index])
 			heat[index] = (1.0f-flame[index])*ignition_point + flame[index]*temp_max;
 

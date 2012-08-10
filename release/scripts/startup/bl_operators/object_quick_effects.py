@@ -359,6 +359,7 @@ class QuickSmoke(Operator):
         mat.type = 'VOLUME'
         mat.volume.density = 0
         mat.volume.density_scale = 5
+        mat.volume.step_size = 0.1
 
         tex = bpy.data.textures.new("Smoke Density", 'VOXEL_DATA')
         tex.voxel_data.domain_object = obj
@@ -369,30 +370,33 @@ class QuickSmoke(Operator):
         tex_slot.use_map_density = True
         tex_slot.use_map_color_reflection = True
 
-        # for fire add a second texture for emission and emission color
-        if self.style == 'FIRE':
-            mat.volume.emission_color = Vector((0.0, 0.0, 0.0))
-            tex = bpy.data.textures.new("Flame", 'VOXEL_DATA')
-            tex.voxel_data.domain_object = obj
-            tex.voxel_data.smoke_data_type = 'SMOKEFLAME'
-            tex.use_color_ramp = True
+        # for fire add a second texture for flame emission
+        mat.volume.emission_color = Vector((0.0, 0.0, 0.0))
+        tex = bpy.data.textures.new("Flame", 'VOXEL_DATA')
+        tex.voxel_data.domain_object = obj
+        tex.voxel_data.smoke_data_type = 'SMOKEFLAME'
+        tex.use_color_ramp = True
 
-            tex_slot = mat.texture_slots.add()
-            tex_slot.texture = tex
+        tex_slot = mat.texture_slots.add()
+        tex_slot.texture = tex
 
-            ramp = tex.color_ramp
+        # add color ramp for flame color
+        ramp = tex.color_ramp
+        # dark orange
+        elem = ramp.elements.new(0.333)
+        elem.color[0] = 0.2
+        elem.color[1] = 0.03
+        elem.color[2] = 0
+        elem.color[3] = 1
+        # yellow glow
+        elem = ramp.elements.new(0.666)
+        elem.color[0] = elem.color[3] = 1
+        elem.color[1] = 0.65
+        elem.color[2] = 0.25
 
-            elem = ramp.elements.new(0.333)
-            elem.color[0] = elem.color[3] = 1
-            elem.color[1] = elem.color[2] = 0
-
-            elem = ramp.elements.new(0.666)
-            elem.color[0] = elem.color[1] = elem.color[3] = 1
-            elem.color[2] = 0
-
-            mat.texture_slots[1].use_map_density = True
-            mat.texture_slots[1].use_map_emission = True
-            mat.texture_slots[1].emission_factor = 5
+        mat.texture_slots[1].use_map_density = True
+        mat.texture_slots[1].use_map_emission = True
+        mat.texture_slots[1].emission_factor = 5
 
         return {'FINISHED'}
 

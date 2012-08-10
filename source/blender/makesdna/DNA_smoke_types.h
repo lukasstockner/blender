@@ -81,6 +81,7 @@ typedef struct SmokeDomainSettings {
 	struct GPUTexture *tex_flame;
 	float *shadow;
 
+	/* simulation data */
 	float p0[3]; /* start point of BB in local space (includes sub-cell shift for adaptive domain)*/
 	float p1[3]; /* end point of BB in local space */
 	float dp0[3]; /* difference from object center to grid start point */
@@ -98,18 +99,16 @@ typedef struct SmokeDomainSettings {
 	int res_max[3]; /* cell max */
 	int res[3]; /* data resolution (res_max-res_min) */
 	int total_cells;
+	float dx; /* 1.0f / res */
+	float scale; /* largest domain size */
 
+	/* user settings */
 	int adapt_margin;
 	int adapt_res;
 	float adapt_threshold;
 
-	float dx; /* 1.0f / res */
-	float omega; /* smoke color - from 0 to 1 */
-	float temp; /* fluid temperature */
-	float tempAmb; /* ambient temperature */
 	float alpha;
 	float beta;
-	float scale; /* largest domain size */
 	int amplify; /* wavelet amplification */
 	int maxres; /* longest axis on the BB gets this resolution assigned */
 	int flags; /* show up-res or low res, etc */
@@ -120,7 +119,6 @@ typedef struct SmokeDomainSettings {
 	float strength;
 	int res_wt[3];
 	float dx_wt;
-	int v3dnum;
 	int cache_comp;
 	int cache_high_comp;
 
@@ -154,14 +152,20 @@ typedef struct SmokeDomainSettings {
 #define MOD_SMOKE_FLOW_SOURCE_PARTICLES 0
 #define MOD_SMOKE_FLOW_SOURCE_MESH 1
 
+/* flow texture type */
+#define MOD_SMOKE_FLOW_TEXTURE_MAP_AUTO 0
+#define MOD_SMOKE_FLOW_TEXTURE_MAP_UV 1
+
 /* flags */
 #define MOD_SMOKE_FLOW_ABSOLUTE (1<<1) /*old style emission*/
 #define MOD_SMOKE_FLOW_INITVELOCITY (1<<2) /* passes particles speed to the smoke */
+#define MOD_SMOKE_FLOW_TEXTUREEMIT (1<<3) /* use texture to control emission speed */
 
 typedef struct SmokeFlowSettings {
 	struct SmokeModifierData *smd; /* for fast RNA access */
 	struct DerivedMesh *dm;
 	struct ParticleSystem *psys;
+	struct Tex *noise_texture;
 
 	/* initial velocity */
 	float *verts_old; /* previous vertex positions in domain space */
@@ -176,12 +180,16 @@ typedef struct SmokeFlowSettings {
 	float temp; /* delta temperature (temp - ambient temp) */
 	float volume_density; /* density emitted within mesh volume */
 	float surface_distance; /* maximum emission distance from mesh surface */
-	int pad4;
+	/* texture control */
+	float texture_size;
+	float texture_offset;
+	int pad;
+	char uvlayer_name[64];	/* MAX_CUSTOMDATA_LAYER_NAME */
 	short vgroup_density;
 
 	short type; /* smoke, flames, both, outflow */
 	short source;
-	short pad;
+	short texture_type;
 	int flags; /* absolute emission etc*/
 } SmokeFlowSettings;
 

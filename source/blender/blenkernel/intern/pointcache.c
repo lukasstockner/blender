@@ -539,7 +539,7 @@ static int  ptcache_smoke_totpoint(void *smoke_v, int UNUSED(cfra))
 		return 0;
 }
 
-#define SMOKE_CACHE_VERSION "1.03"
+#define SMOKE_CACHE_VERSION "1.04"
 
 static int  ptcache_smoke_write(PTCacheFile *pf, void *smoke_v)
 {	
@@ -557,7 +557,7 @@ static int  ptcache_smoke_write(PTCacheFile *pf, void *smoke_v)
 	
 	if (sds->fluid) {
 		size_t res = sds->res[0]*sds->res[1]*sds->res[2];
-		float dt, dx, *dens, *densold, *fuel, *flame, *heat, *heatold, *vx, *vy, *vz, *r, *g, *b;
+		float dt, dx, *dens, *react, *fuel, *flame, *heat, *heatold, *vx, *vy, *vz, *r, *g, *b;
 		unsigned char *obstacles;
 		unsigned int in_len = sizeof(float)*(unsigned int)res;
 		unsigned char *out = (unsigned char *)MEM_callocN(LZO_OUT_LEN(in_len)*4, "pointcache_lzo_buffer");
@@ -565,7 +565,7 @@ static int  ptcache_smoke_write(PTCacheFile *pf, void *smoke_v)
 		int mode=1;		// light
 		if (sds->cache_comp == SM_CACHE_HEAVY) mode=2;	// heavy
 
-		smoke_export(sds->fluid, &dt, &dx, &dens, &flame, &fuel, &heat, &heatold, &vx, &vy, &vz, &r, &g, &b, &obstacles);
+		smoke_export(sds->fluid, &dt, &dx, &dens, &react, &flame, &fuel, &heat, &heatold, &vx, &vy, &vz, &r, &g, &b, &obstacles);
 
 		ptcache_file_compressed_write(pf, (unsigned char *)sds->shadow, in_len, out, mode);
 		ptcache_file_compressed_write(pf, (unsigned char *)dens, in_len, out, mode);
@@ -576,6 +576,7 @@ static int  ptcache_smoke_write(PTCacheFile *pf, void *smoke_v)
 		if (fluid_fields & SM_ACTIVE_FIRE) {
 			ptcache_file_compressed_write(pf, (unsigned char *)flame, in_len, out, mode);
 			ptcache_file_compressed_write(pf, (unsigned char *)fuel, in_len, out, mode);
+			ptcache_file_compressed_write(pf, (unsigned char *)react, in_len, out, mode);
 		}
 		if (fluid_fields & SM_ACTIVE_COLORS) {
 			ptcache_file_compressed_write(pf, (unsigned char *)r, in_len, out, mode);
@@ -608,7 +609,7 @@ static int  ptcache_smoke_write(PTCacheFile *pf, void *smoke_v)
 		int res_big_array[3];
 		int res_big;
 		int res = sds->res[0]*sds->res[1]*sds->res[2];
-		float *dens, *fuel, *flame, *tcu, *tcv, *tcw, *r, *g, *b;
+		float *dens, *react, *fuel, *flame, *tcu, *tcv, *tcw, *r, *g, *b;
 		unsigned int in_len = sizeof(float)*(unsigned int)res;
 		unsigned int in_len_big;
 		unsigned char *out;
@@ -622,13 +623,14 @@ static int  ptcache_smoke_write(PTCacheFile *pf, void *smoke_v)
 
 		in_len_big = sizeof(float) * (unsigned int)res_big;
 
-		smoke_turbulence_export(sds->wt, &dens, &flame, &fuel, &r, &g, &b, &tcu, &tcv, &tcw);
+		smoke_turbulence_export(sds->wt, &dens, &react, &flame, &fuel, &r, &g, &b, &tcu, &tcv, &tcw);
 
 		out = (unsigned char *)MEM_callocN(LZO_OUT_LEN(in_len_big), "pointcache_lzo_buffer");
 		ptcache_file_compressed_write(pf, (unsigned char *)dens, in_len_big, out, mode);
 		if (fluid_fields & SM_ACTIVE_FIRE) {
 			ptcache_file_compressed_write(pf, (unsigned char *)flame, in_len_big, out, mode);
 			ptcache_file_compressed_write(pf, (unsigned char *)fuel, in_len_big, out, mode);
+			ptcache_file_compressed_write(pf, (unsigned char *)react, in_len_big, out, mode);
 		}
 		if (fluid_fields & SM_ACTIVE_COLORS) {
 			ptcache_file_compressed_write(pf, (unsigned char *)r, in_len_big, out, mode);
@@ -697,11 +699,11 @@ static int ptcache_smoke_read(PTCacheFile *pf, void *smoke_v)
 	
 	if (sds->fluid) {
 		size_t res = sds->res[0]*sds->res[1]*sds->res[2];
-		float dt, dx, *dens, *fuel, *flame, *heat, *heatold, *vx, *vy, *vz, *r, *g, *b;
+		float dt, dx, *dens, *react, *fuel, *flame, *heat, *heatold, *vx, *vy, *vz, *r, *g, *b;
 		unsigned char *obstacles;
 		unsigned int out_len = (unsigned int)res * sizeof(float);
 		
-		smoke_export(sds->fluid, &dt, &dx, &dens, &flame, &fuel, &heat, &heatold, &vx, &vy, &vz, &r, &g, &b, &obstacles);
+		smoke_export(sds->fluid, &dt, &dx, &dens, &react, &flame, &fuel, &heat, &heatold, &vx, &vy, &vz, &r, &g, &b, &obstacles);
 
 		ptcache_file_compressed_read(pf, (unsigned char *)sds->shadow, out_len);
 		ptcache_file_compressed_read(pf, (unsigned char*)dens, out_len);
@@ -712,6 +714,7 @@ static int ptcache_smoke_read(PTCacheFile *pf, void *smoke_v)
 		if (cache_fields & SM_ACTIVE_FIRE) {
 			ptcache_file_compressed_read(pf, (unsigned char*)flame, out_len);
 			ptcache_file_compressed_read(pf, (unsigned char*)fuel, out_len);
+			ptcache_file_compressed_read(pf, (unsigned char*)react, out_len);
 		}
 		if (cache_fields & SM_ACTIVE_COLORS) {
 			ptcache_file_compressed_read(pf, (unsigned char*)r, out_len);
@@ -739,7 +742,7 @@ static int ptcache_smoke_read(PTCacheFile *pf, void *smoke_v)
 	if (pf->data_types & (1<<BPHYS_DATA_SMOKE_HIGH) && sds->wt) {
 			int res = sds->res[0]*sds->res[1]*sds->res[2];
 			int res_big, res_big_array[3];
-			float *dens, *fuel, *flame, *tcu, *tcv, *tcw, *r, *g, *b;
+			float *dens, *react, *fuel, *flame, *tcu, *tcv, *tcw, *r, *g, *b;
 			unsigned int out_len = sizeof(float)*(unsigned int)res;
 			unsigned int out_len_big;
 
@@ -747,7 +750,7 @@ static int ptcache_smoke_read(PTCacheFile *pf, void *smoke_v)
 			res_big = res_big_array[0]*res_big_array[1]*res_big_array[2];
 			out_len_big = sizeof(float) * (unsigned int)res_big;
 
-			smoke_turbulence_export(sds->wt, &dens, &flame, &fuel, &r, &g, &b, &tcu, &tcv, &tcw);
+			smoke_turbulence_export(sds->wt, &dens, &react, &flame, &fuel, &r, &g, &b, &tcu, &tcv, &tcw);
 
 			ptcache_file_compressed_read(pf, (unsigned char*)dens, out_len_big);
 			if (cache_fields & SM_ACTIVE_FIRE) {

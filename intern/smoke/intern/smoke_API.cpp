@@ -76,7 +76,7 @@ extern "C" size_t smoke_get_index2d(int x, int max_x, int y /*, int max_y, int z
 extern "C" void smoke_step(FLUID_3D *fluid, float gravity[3], float dtSubdiv)
 {
 	if (fluid->_fuel) {
-		fluid->processBurn(fluid->_fuel, fluid->_density, fluid->_flame, fluid->_heat,
+		fluid->processBurn(fluid->_fuel, fluid->_density, fluid->_react, fluid->_flame, fluid->_heat,
 						   fluid->_color_r, fluid->_color_g, fluid->_color_b, fluid->_totalCells, (*fluid->_dtFactor)*dtSubdiv);
 	}
 	fluid->step(dtSubdiv, gravity);
@@ -85,7 +85,7 @@ extern "C" void smoke_step(FLUID_3D *fluid, float gravity[3], float dtSubdiv)
 extern "C" void smoke_turbulence_step(WTURBULENCE *wt, FLUID_3D *fluid)
 {
 	if (wt->_fuelBig) {
-		fluid->processBurn(wt->_fuelBig, wt->_densityBig, wt->_flameBig, 0,
+		fluid->processBurn(wt->_fuelBig, wt->_densityBig, wt->_reactBig, wt->_flameBig, 0,
 						   wt->_color_rBig, wt->_color_gBig, wt->_color_bBig, wt->_totalCellsBig, fluid->_dt);
 	}
 	wt->stepTurbulenceFull(fluid->_dt/fluid->_dx, fluid->_xVelocity, fluid->_yVelocity, fluid->_zVelocity, fluid->_obstacles); 
@@ -168,12 +168,13 @@ extern "C" void smoke_dissolve_wavelet(WTURBULENCE *wt, int speed, int log)
 	data_dissolve(wt->_densityBig, 0, wt->_color_rBig, wt->_color_gBig, wt->_color_bBig, wt->_totalCellsBig, speed, log);
 }
 
-extern "C" void smoke_export(FLUID_3D *fluid, float *dt, float *dx, float **dens, float **flame, float **fuel, float **heat, 
+extern "C" void smoke_export(FLUID_3D *fluid, float *dt, float *dx, float **dens, float **react, float **flame, float **fuel, float **heat, 
 							 float **heatold, float **vx, float **vy, float **vz, float **r, float **g, float **b, unsigned char **obstacles)
 {
 	*dens = fluid->_density;
-	*flame = fluid->_flame;
 	*fuel = fluid->_fuel;
+	*react = fluid->_react;
+	*flame = fluid->_flame;
 	*heat = fluid->_heat;
 	*heatold = fluid->_heatOld;
 	*vx = fluid->_xVelocity;
@@ -187,7 +188,7 @@ extern "C" void smoke_export(FLUID_3D *fluid, float *dt, float *dx, float **dens
 	*dx = fluid->_dx;
 }
 
-extern "C" void smoke_turbulence_export(WTURBULENCE *wt, float **dens, float **flame, float **fuel,
+extern "C" void smoke_turbulence_export(WTURBULENCE *wt, float **dens, float **react, float **flame, float **fuel,
 										float **r, float **g, float **b , float **tcu, float **tcv, float **tcw)
 {
 	if(!wt)
@@ -195,6 +196,7 @@ extern "C" void smoke_turbulence_export(WTURBULENCE *wt, float **dens, float **f
 
 	*dens = wt->_densityBig;
 	*fuel = wt->_fuelBig;
+	*react = wt->_reactBig;
 	*flame = wt->_flameBig;
 	*r = wt->_color_rBig;
 	*g = wt->_color_gBig;
@@ -212,6 +214,11 @@ extern "C" float *smoke_get_density(FLUID_3D *fluid)
 extern "C" float *smoke_get_fuel(FLUID_3D *fluid)
 {
 	return fluid->_fuel;
+}
+
+extern "C" float *smoke_get_react(FLUID_3D *fluid)
+{
+	return fluid->_react;
 }
 
 extern "C" float *smoke_get_heat(FLUID_3D *fluid)
@@ -350,6 +357,11 @@ extern "C" float *smoke_turbulence_get_density(WTURBULENCE *wt)
 extern "C" float *smoke_turbulence_get_fuel(WTURBULENCE *wt)
 {
 	return wt ? wt->getFuelBig() : NULL;
+}
+
+extern "C" float *smoke_turbulence_get_react(WTURBULENCE *wt)
+{
+	return wt ? wt->_reactBig : NULL;
 }
 
 extern "C" float *smoke_turbulence_get_color_r(WTURBULENCE *wt)

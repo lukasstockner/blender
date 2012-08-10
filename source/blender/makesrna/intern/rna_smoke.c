@@ -148,7 +148,7 @@ static void rna_SmokeModifier_density_get(PointerRNA *ptr, float *values)
 	memcpy(values, density, size * sizeof(float));
 }
 
-static void rna_SmokeFlow_density_vgroup_get(PointerRNA *ptr, const char *value)
+static void rna_SmokeFlow_density_vgroup_get(PointerRNA *ptr, char *value)
 {
 	SmokeFlowSettings *flow = (SmokeFlowSettings *)ptr->data;
 	rna_object_vgroup_name_index_get(ptr, value, flow->vgroup_density);
@@ -164,6 +164,12 @@ static void rna_SmokeFlow_density_vgroup_set(PointerRNA *ptr, const char *value)
 {
 	SmokeFlowSettings *flow = (SmokeFlowSettings *)ptr->data;
 	rna_object_vgroup_name_index_set(ptr, value, &flow->vgroup_density);
+}
+
+static void rna_SmokeFlow_uvlayer_set(PointerRNA *ptr, const char *value)
+{
+	SmokeFlowSettings *flow = (SmokeFlowSettings *)ptr->data;
+	rna_object_uvlayer_name_set(ptr, value, flow->uvlayer_name, sizeof(flow->uvlayer_name));
 }
 
 #else
@@ -440,6 +446,12 @@ static void rna_def_smoke_flow_settings(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem smoke_flow_texture_types[] = {
+		{MOD_SMOKE_FLOW_TEXTURE_MAP_AUTO, "AUTO", 0, "Generated", "Generated coordinates centered to flow object"},
+		{MOD_SMOKE_FLOW_TEXTURE_MAP_UV, "UV", 0, "UV", "Use UV layer for texture coordinates"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "SmokeFlowSettings", NULL);
 	RNA_def_struct_ui_text(srna, "Flow Settings", "Smoke flow settings");
 	RNA_def_struct_sdna(srna, "SmokeFlowSettings");
@@ -459,8 +471,8 @@ static void rna_def_smoke_flow_settings(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
 
 	prop = RNA_def_property(srna, "fuel_amount", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_range(prop, 0.0, 1);
-	RNA_def_property_ui_range(prop, 0.0, 1.0, 1.0, 4);
+	RNA_def_property_range(prop, 0.0, 10);
+	RNA_def_property_ui_range(prop, 0.0, 5.0, 1.0, 4);
 	RNA_def_property_ui_text(prop, "Flame Rate", "");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
 
@@ -528,8 +540,8 @@ static void rna_def_smoke_flow_settings(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
 
 	prop = RNA_def_property(srna, "surface_distance", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_range(prop, 0.0, 10.0);
-	RNA_def_property_ui_range(prop, 0.0, 5.0, 0.05, 5);
+	RNA_def_property_range(prop, 0.5, 10.0);
+	RNA_def_property_ui_range(prop, 0.5, 5.0, 0.05, 5);
 	RNA_def_property_ui_text(prop, "Surface", "Maximum distance from mesh surface to emit smoke");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
 
@@ -539,6 +551,40 @@ static void rna_def_smoke_flow_settings(BlenderRNA *brna)
 	                              "rna_SmokeFlow_density_vgroup_set");
 	RNA_def_property_ui_text(prop, "Vertex Group",
 	                         "Name of Vertex Group which determines surface emission rate");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
+	prop = RNA_def_property(srna, "use_texture", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flags", MOD_SMOKE_FLOW_TEXTUREEMIT);
+	RNA_def_property_ui_text(prop, "Use Texture", "Use a texture to controll emission strength");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
+	prop = RNA_def_property(srna, "texture_map_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "texture_type");
+	RNA_def_property_enum_items(prop, smoke_flow_texture_types);
+	RNA_def_property_ui_text(prop, "Mapping", "Texture mapping type");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
+	prop = RNA_def_property(srna, "uv_layer", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "uvlayer_name");
+	RNA_def_property_ui_text(prop, "UV Map", "UV map name");
+	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_SmokeFlow_uvlayer_set");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
+	prop = RNA_def_property(srna, "noise_texture", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Texture", "Texture that controls emission strength");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
+	prop = RNA_def_property(srna, "texture_size", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.01, 10.0);
+	RNA_def_property_ui_range(prop, 0.1, 5.0, 0.05, 5);
+	RNA_def_property_ui_text(prop, "Size", "Size of texture mapping");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
+	prop = RNA_def_property(srna, "texture_offset", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0, 200.0);
+	RNA_def_property_ui_range(prop, 0.0, 100.0, 0.05, 5);
+	RNA_def_property_ui_text(prop, "Offset", "Z-offset of texture mapping");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
 }
 

@@ -91,7 +91,6 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
                     col.prop_search(flow, "particle_system", ob, "particle_systems", text="")
                 else:
                     col.prop(flow, "surface_distance")
-                    col.prop_search(flow, "density_vertex_group", ob, "vertex_groups", text="")
                     col.prop(flow, "volume_density")
 
                 sub = col.column(align=True)
@@ -109,8 +108,8 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
                 sub.prop(flow, "use_absolute")
                 if flow.smoke_flow_type in {'SMOKE', 'BOTH'}:
                     sub.prop(flow, "density")
-                    sub.prop(flow, "smoke_color")
                     sub.prop(flow, "temperature")
+                    sub.prop(flow, "smoke_color")
                 if flow.smoke_flow_type in {'FIRE', 'BOTH'}:
                     sub.prop(flow, "fuel_amount")
 
@@ -121,6 +120,39 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
 
             col = split.column()
             col.prop(coll, "collision_type")
+            
+class PHYSICS_PT_smoke_flow_advanced(PhysicButtonsPanel, Panel):
+    bl_label = "Smoke Flow Advanced"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        md = context.smoke
+        return md and (md.smoke_type == 'FLOW') and (md.flow_settings.smoke_flow_source == "MESH")
+
+    def draw(self, context):
+        layout = self.layout
+        ob = context.object
+        flow = context.smoke.flow_settings
+        
+        split = layout.split()
+        col = split.column()
+
+        col.prop(flow, "use_texture")
+        sub = col.column()
+        sub.active = flow.use_texture
+        sub.prop(flow, "noise_texture", text="")
+        sub.label(text="Mapping:")
+        sub.prop(flow, "texture_map_type", expand=False, text="")
+        if flow.texture_map_type == "UV":
+            sub.prop_search(flow, "uv_layer", ob.data, "uv_textures", text="")
+        if flow.texture_map_type == "AUTO":
+            sub.prop(flow, "texture_size")
+        sub.prop(flow, "texture_offset")
+        
+        col = split.column()
+        col.label(text="Vertex Group:")
+        col.prop_search(flow, "density_vertex_group", ob, "vertex_groups", text="")
 
 class PHYSICS_PT_smoke_fire(PhysicButtonsPanel, Panel):
     bl_label = "Smoke Flames"

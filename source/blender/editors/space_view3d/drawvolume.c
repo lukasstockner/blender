@@ -159,8 +159,6 @@ static int convex(const float p0[3], const float up[3], const float a[3], const 
 
 void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob, ARegion *ar, GPUTexture *tex, float min[3], float max[3], int res[3], float dx, float base_scale, float viewnormal[3], GPUTexture *tex_shadow, GPUTexture *tex_flame)
 {
-	RegionView3D *rv3d = ar->regiondata;
-
 	int i, j, k, n, good_index;
 	float d /*, d0 */ /* UNUSED */, dd, ds;
 	float *points = NULL;
@@ -373,13 +371,6 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob, ARegion *ar, GPUTex
 	glDepthMask(GL_FALSE);
 	glDisable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
-
-#if 0
-	printf("Viewinv:\n");
-	printf("%f, %f, %f\n", rv3d->viewinv[0][0], rv3d->viewinv[0][1], rv3d->viewinv[0][2]);
-	printf("%f, %f, %f\n", rv3d->viewinv[1][0], rv3d->viewinv[1][1], rv3d->viewinv[1][2]);
-	printf("%f, %f, %f\n", rv3d->viewinv[2][0], rv3d->viewinv[2][1], rv3d->viewinv[2][2]);
-#endif
 
 	/* find cube vertex that is closest to the viewer */
 	for (i = 0; i < 8; i++) {

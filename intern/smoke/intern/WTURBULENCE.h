@@ -119,6 +119,8 @@ class WTURBULENCE
 		float* _flameBig;
 		float* _fuelBig;
 		float* _fuelBigOld;
+		float* _reactBig;
+		float* _reactBigOld;
 
 		float* _color_rBig;
 		float* _color_rBigOld;

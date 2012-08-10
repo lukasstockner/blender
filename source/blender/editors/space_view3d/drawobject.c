@@ -6992,36 +6992,34 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		}
 
 		/* only draw domains */
-		if (smd->domain && smd->domain->fluid) {
-			if (CFRA < smd->domain->point_cache[0]->startframe) {
-				/* don't show smoke before simulation starts, this could be made an option in the future */
-			}
-			else {
-// #if 0
-				SmokeDomainSettings *sds = smd->domain;
-				float p0[3], p1[3], viewnormal[3];
-				BoundBox bb;
+		if (smd->domain) {
+			SmokeDomainSettings *sds = smd->domain;
+			float p0[3], p1[3], viewnormal[3];
+			BoundBox bb;
 
-				glLoadMatrixf(rv3d->viewmat);
-				glMultMatrixf(ob->obmat);
+			glLoadMatrixf(rv3d->viewmat);
+			glMultMatrixf(ob->obmat);
+
+			/* draw adaptive domain bounds */
+			if (sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN) {
+				/* draw domain max bounds */
+				VECSUBFAC(p0, sds->p0, sds->cell_size, sds->adapt_res);
+				VECADDFAC(p1, sds->p1, sds->cell_size, sds->adapt_res);
+				BKE_boundbox_init_from_minmax(&bb, p0, p1);
+				draw_box(bb.vec);
+
+				/* draw base resolution bounds */
+				/*BKE_boundbox_init_from_minmax(&bb, sds->p0, sds->p1);
+				draw_box(bb.vec);*/
+			}
+
+			/* don't show smoke before simulation starts, this could be made an option in the future */
+			if (smd->domain->fluid && CFRA >= smd->domain->point_cache[0]->startframe) {
 
 				// get view vector
 				copy_v3_v3(viewnormal, rv3d->viewinv[2]);
 				mul_mat3_m4_v3(ob->imat, viewnormal);
 				normalize_v3(viewnormal);
-
-				
-				if (sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN) {
-					/* draw domain max bounds */
-					VECSUBFAC(p0, sds->p0, sds->cell_size, sds->adapt_res);
-					VECADDFAC(p1, sds->p1, sds->cell_size, sds->adapt_res);
-					BKE_boundbox_init_from_minmax(&bb, p0, p1);
-					draw_box(bb.vec);
-
-					/* draw base resolution bounds */
-					/*BKE_boundbox_init_from_minmax(&bb, sds->p0, sds->p1);
-					draw_box(bb.vec);*/
-				}
 
 				/* set dynamic boundaries to draw the volume */
 				p0[0] = sds->p0[0] + sds->cell_size[0]*sds->res_min[0] + sds->obj_shift_f[0];

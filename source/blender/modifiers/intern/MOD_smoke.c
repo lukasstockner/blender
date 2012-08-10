@@ -87,8 +87,13 @@ static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 	CustomDataMask dataMask = 0;
 
 	if (smd && (smd->type & MOD_SMOKE_TYPE_FLOW) && smd->flow) {
-		if (smd->flow->source == MOD_SMOKE_FLOW_SOURCE_MESH && smd->flow->vgroup_density) {
-			dataMask |= (1 << CD_MDEFORMVERT);
+		if (smd->flow->source == MOD_SMOKE_FLOW_SOURCE_MESH) {
+			/* vertex groups */
+			if (smd->flow->vgroup_density)
+				dataMask |= CD_MASK_MDEFORMVERT;
+			/* uv layer */
+			if (smd->flow->texture_type == MOD_SMOKE_FLOW_TEXTURE_MAP_UV)
+				dataMask |= CD_MASK_MTFACE;
 		}
 	}
 	return dataMask;
@@ -180,6 +185,10 @@ static void foreachIDLink(ModifierData *md, Object *ob,
 		if (smd->domain->effector_weights) {
 			walk(userData, ob, (ID **)&smd->domain->effector_weights->group);
 		}
+	}
+
+	if (smd->type == MOD_SMOKE_TYPE_FLOW && smd->flow) {
+		walk(userData, ob, (ID **)&smd->flow->noise_texture);
 	}
 }
 
