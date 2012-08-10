@@ -45,6 +45,7 @@
 #include "TransformReader.h"
 #include "AnimationImporter.h"
 #include "ArmatureImporter.h"
+#include "ControllerExporter.h"
 #include "MeshImporter.h"
 
 

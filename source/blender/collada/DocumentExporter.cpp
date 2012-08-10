@@ -122,6 +122,7 @@ extern bool bc_has_object_type(LinkNode *export_set, short obtype);
 #include "ArmatureExporter.h"
 #include "AnimationExporter.h"
 #include "CameraExporter.h"
+#include "ControllerExporter.h"
 #include "EffectExporter.h"
 #include "GeometryExporter.h"
 #include "ImageExporter.h"
@@ -266,13 +267,15 @@ void DocumentExporter::exportCurrentScene(Scene *sce)
 
 	// <library_controllers>
 	ArmatureExporter arm_exporter(&sw, this->export_settings);
+	ControllerExporter controller_exporter(&sw , this->export_settings);
 	//for Morph controller export, removing the check
 	/*if (bc_has_object_type(export_set, OB_ARMATURE)) 
 	{*/
-		arm_exporter.export_controllers(sce);
+		controller_exporter.export_controllers(sce);
 	//}
 
 	// <library_visual_scenes>
+
 	SceneExporter se(&sw, &arm_exporter, this->export_settings);
 	se.exportScene(sce);
 	
