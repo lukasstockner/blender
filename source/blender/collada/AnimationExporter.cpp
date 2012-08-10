@@ -86,6 +86,8 @@ void AnimationExporter::operator()(Object *ob)
 	}
     
     export_object_constraint_animation(ob);
+
+	export_morph_animation(ob);
 		
 	//Export Lamp parameter animations
 	if ( (ob->type == OB_LAMP) && ((Lamp *)ob->data)->adt && ((Lamp *)ob->data)->adt->action) {
@@ -143,13 +145,35 @@ void AnimationExporter::operator()(Object *ob)
 
 }
 
-void AnimationExporter::export_object_constraint_animation(Object *ob){
+void AnimationExporter::export_object_constraint_animation(Object *ob)
+{
 	std::vector<float> fra;
     //Takes frames of target animations
 	make_anim_frames_from_targets(ob, fra);
     
 	if (fra.size())
 	dae_baked_object_animation(fra, ob);
+}
+
+void AnimationExporter::export_morph_animation(Object *ob)
+{ 
+	FCurve *fcu;
+	char *transformName;
+	Key *key = ob_get_key(ob);
+	if(!key) return;
+
+	if(key->adt && key->adt->action){
+		fcu = (FCurve *)key->adt->action->curves.first;
+		
+		while (fcu) {
+			transformName = extract_transform_name(fcu->rna_path);
+
+			dae_animation(ob, fcu, transformName, true);
+			
+			fcu = fcu->next;
+		}
+	}
+
 }
 
 void AnimationExporter::make_anim_frames_from_targets(Object *ob, std::vector<float> &frames ){

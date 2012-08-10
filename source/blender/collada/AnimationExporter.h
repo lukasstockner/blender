@@ -113,6 +113,8 @@ protected:
     
 	void export_object_constraint_animation(Object *ob);
 
+	void export_morph_animation(Object *ob);
+
 	void write_bone_animation_matrix(Object *ob_arm, Bone *bone);
 
 	void write_bone_animation(Object *ob_arm, Bone *bone);
