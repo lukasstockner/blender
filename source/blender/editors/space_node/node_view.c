@@ -36,6 +36,7 @@
 #include "BKE_context.h"
 #include "BKE_image.h"
 #include "BKE_screen.h"
+#include "BKE_node.h"
 
 #include "ED_node.h"  /* own include */
 #include "ED_screen.h"
@@ -60,66 +61,87 @@
 
 /* **************** View All Operator ************** */
 
-static void snode_home(ScrArea *UNUSED(sa), ARegion *ar, SpaceNode *snode)
+static int space_node_view_flag(SpaceNode *snode, ARegion *ar, const int node_flag)
 {
 	bNode *node;
-	rctf *cur;
+	rctf cur_new;
 	float oldwidth, oldheight, width, height;
-	int first = 1;
+	int tot = 0;
+	int has_frame = FALSE;
 	
-	cur = &ar->v2d.cur;
-	
-	oldwidth = cur->xmax - cur->xmin;
-	oldheight = cur->ymax - cur->ymin;
-	
-	cur->xmin = cur->ymin = 0.0f;
-	cur->xmax = ar->winx;
-	cur->ymax = ar->winy;
-	
+	oldwidth = ar->v2d.cur.xmax - ar->v2d.cur.xmin;
+	oldheight = ar->v2d.cur.ymax - ar->v2d.cur.ymin;
+
+	BLI_rctf_init_minmax(&cur_new);
+
 	if (snode->edittree) {
 		for (node = snode->edittree->nodes.first; node; node = node->next) {
-			if (first) {
-				first = 0;
-				ar->v2d.cur = node->totr;
-			}
-			else {
-				BLI_rctf_union(cur, &node->totr);
+			if ((node->flag & node_flag) == node_flag) {
+				BLI_rctf_union(&cur_new, &node->totr);
+				tot++;
+
+				if (node->type == NODE_FRAME) {
+					has_frame = TRUE;
+				}
 			}
 		}
 	}
-	
-	snode->xof = 0;
-	snode->yof = 0;
-	width = cur->xmax - cur->xmin;
-	height = cur->ymax - cur->ymin;
 
-	if (width > height) {
-		float newheight;
-		newheight = oldheight * width / oldwidth;
-		cur->ymin = cur->ymin - newheight / 4;
-		cur->ymax = cur->ymax + newheight / 4;
-	}
-	else {
-		float newwidth;
-		newwidth = oldwidth * height / oldheight;
-		cur->xmin = cur->xmin - newwidth / 4;
-		cur->xmax = cur->xmax + newwidth / 4;
+	if (tot) {
+		width = cur_new.xmax - cur_new.xmin;
+		height = cur_new.ymax - cur_new.ymin;
+
+		/* for single non-frame nodes, don't zoom in, just pan view,
+		 * but do allow zooming out, this allows for big nodes to be zoomed out */
+		if ((tot == 1) &&
+		    (has_frame == FALSE) &&
+		    ((oldwidth * oldheight) > (width * height)))
+		{
+			/* center, don't zoom */
+			BLI_rctf_resize(&cur_new, oldwidth, oldheight);
+		}
+		else {
+			width = cur_new.xmax - cur_new.xmin;
+			height = cur_new.ymax - cur_new.ymin;
+
+			if (width > height) {
+				float newheight;
+				newheight = oldheight * width / oldwidth;
+				cur_new.ymin = cur_new.ymin - newheight / 4;
+				cur_new.ymax = cur_new.ymax + newheight / 4;
+			}
+			else {
+				float newwidth;
+				newwidth = oldwidth * height / oldheight;
+				cur_new.xmin = cur_new.xmin - newwidth / 4;
+				cur_new.xmax = cur_new.xmax + newwidth / 4;
+			}
+		}
+
+		ar->v2d.tot = ar->v2d.cur = cur_new;
+		UI_view2d_curRect_validate(&ar->v2d);
 	}
 
-	ar->v2d.tot = ar->v2d.cur;
-	UI_view2d_curRect_validate(&ar->v2d);
+	return (tot != 0);
 }
 
 static int node_view_all_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
 	SpaceNode *snode = CTX_wm_space_node(C);
-	
-	snode_home(sa, ar, snode);
-	ED_region_tag_redraw(ar);
-	
-	return OPERATOR_FINISHED;
+
+	/* is this really needed? */
+	snode->xof = 0;
+	snode->yof = 0;
+
+	if (space_node_view_flag(snode, ar, 0)) {
+		ED_region_tag_redraw(ar);
+
+		return OPERATOR_FINISHED;
+	}
+	else {
+		return OPERATOR_CANCELLED;
+	}
 }
 
 void NODE_OT_view_all(wmOperatorType *ot)
@@ -137,6 +159,35 @@ void NODE_OT_view_all(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
+static int node_view_selected_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	ARegion *ar = CTX_wm_region(C);
+	SpaceNode *snode = CTX_wm_space_node(C);
+
+	if (space_node_view_flag(snode, ar, NODE_SELECT)) {
+		ED_region_tag_redraw(ar);
+
+		return OPERATOR_FINISHED;
+	}
+	else {
+		return OPERATOR_CANCELLED;
+	}
+}
+
+void NODE_OT_view_selected(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "View Selected";
+	ot->idname = "NODE_OT_view_selected";
+	ot->description = "Resize view so you can see selected nodes";
+
+	/* api callbacks */
+	ot->exec = node_view_selected_exec;
+	ot->poll = ED_operator_node_active;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
 
 /* **************** Backround Image Operators ************** */
 

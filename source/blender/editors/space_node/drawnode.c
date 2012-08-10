@@ -338,8 +338,8 @@ static void node_buts_curvevec(uiLayout *layout, bContext *UNUSED(C), PointerRNA
 	uiTemplateCurveMapping(layout, ptr, "mapping", 'v', 0, 0);
 }
 
-static float _sample_col[4];  /* bad bad, 2.5 will do better?... no it won't... */
 #define SAMPLE_FLT_ISNONE FLT_MAX
+static float _sample_col[4] = {SAMPLE_FLT_ISNONE};  /* bad bad, 2.5 will do better?... no it won't... */
 void ED_node_sample_set(const float col[4])
 {
 	if (col) {
@@ -1807,6 +1807,11 @@ static void node_composit_buts_dilateerode(uiLayout *layout, bContext *UNUSED(C)
 	}
 }
 
+static void node_composit_buts_inpaint(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	uiItemR(layout, ptr, "distance", 0, NULL, ICON_NONE);
+}
+
 static void node_composit_buts_diff_matte(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiLayout *col;
@@ -2659,6 +2664,9 @@ static void node_composit_set_butfunc(bNodeType *ntype)
 		case CMP_NODE_DILATEERODE:
 			ntype->uifunc = node_composit_buts_dilateerode;
 			break;
+		case CMP_NODE_INPAINT:
+			ntype->uifunc = node_composit_buts_inpaint;
+			break;
 		case CMP_NODE_OUTPUT_FILE:
 			ntype->uifunc = node_composit_buts_file_output;
 			ntype->uifuncbut = node_composit_buts_file_output_details;
@@ -3177,8 +3185,7 @@ int node_link_bezier_points(View2D *v2d, SpaceNode *snode, bNodeLink *link, floa
 	}
 	else {
 		if (snode == NULL) return 0;
-		vec[0][0] = snode->mx;
-		vec[0][1] = snode->my;
+		copy_v2_v2(vec[0], snode->cursor);
 		fromreroute = 0;
 	}
 	if (link->tosock) {
@@ -3188,8 +3195,7 @@ int node_link_bezier_points(View2D *v2d, SpaceNode *snode, bNodeLink *link, floa
 	}
 	else {
 		if (snode == NULL) return 0;
-		vec[3][0] = snode->mx;
-		vec[3][1] = snode->my;
+		copy_v2_v2(vec[3], snode->cursor);
 		toreroute = 0;
 	}
 
@@ -3275,7 +3281,7 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 
 			sub_v2_v2v2(d_xy, coord_array[LINK_ARROW], coord_array[LINK_ARROW - 1]);
 			len = len_v2(d_xy);
-			mul_v2_fl(d_xy, 1.0f / (len * ARROW_SIZE));
+			mul_v2_fl(d_xy, ARROW_SIZE / len);
 			arrow1[0] = coord_array[LINK_ARROW][0] - d_xy[0] + d_xy[1];
 			arrow1[1] = coord_array[LINK_ARROW][1] - d_xy[1] - d_xy[0];
 			arrow2[0] = coord_array[LINK_ARROW][0] - d_xy[0] - d_xy[1];

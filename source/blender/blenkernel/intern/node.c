@@ -1443,13 +1443,13 @@ void BKE_node_clipboard_clear(void)
 	bNode *node, *node_next;
 	bNodeLink *link, *link_next;
 	
-	for (link = node_clipboard.links.first; link; link=link_next) {
+	for (link = node_clipboard.links.first; link; link = link_next) {
 		link_next = link->next;
 		nodeRemLink(NULL, link);
 	}
 	node_clipboard.links.first = node_clipboard.links.last = NULL;
 	
-	for (node = node_clipboard.nodes.first; node; node=node_next) {
+	for (node = node_clipboard.nodes.first; node; node = node_next) {
 		node_next = node->next;
 		nodeFreeNode(NULL, node);
 	}
@@ -1660,8 +1660,6 @@ void ntreeUpdateTree(bNodeTree *ntree)
 			else if (node->typeinfo->updatefunc)
 				node->typeinfo->updatefunc(ntree, node);
 		}
-		/* clear update flag */
-		node->update = 0;
 	}
 	
 	/* check link validity */
@@ -1683,7 +1681,10 @@ void ntreeUpdateTree(bNodeTree *ntree)
 	/* XXX hack, should be done by depsgraph!! */
 	ntreeVerifyNodes(G.main, &ntree->id);
 	
-	/* clear the update flag */
+	/* clear update flags */
+	for (node = ntree->nodes.first; node; node = node->next) {
+		node->update = 0;
+	}
 	ntree->update = 0;
 }
 
@@ -1990,6 +1991,7 @@ static void registerCompositNodes(bNodeTreeType *ttype)
 	register_node_type_cmp_bilateralblur(ttype);
 	register_node_type_cmp_vecblur(ttype);
 	register_node_type_cmp_dilateerode(ttype);
+	register_node_type_cmp_inpaint(ttype);
 	register_node_type_cmp_defocus(ttype);
 	
 	register_node_type_cmp_valtorgb(ttype);
