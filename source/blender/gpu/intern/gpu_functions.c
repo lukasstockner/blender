@@ -76,63 +76,63 @@ static void GLAPIENTRY check_glGetProgramivARB(GLuint shader, GLuint pname, GLin
 
 static void init_glsl_arb(void)
 {
-	gpuCreateShader     = glCreateShaderObjectARB;
-	gpuAttachShader     = glAttachObjectARB;
-	gpuShaderSource     = glShaderSourceARB;
-	gpuCompileShader    = glCompileShaderARB;
-	gpuGetShaderiv      = check_glGetObjectParameterivARB;
-	gpuGetShaderInfoLog = glGetInfoLogARB;
+	gpu_glCreateShader     = glCreateShaderObjectARB;
+	gpu_glAttachShader     = glAttachObjectARB;
+	gpu_glShaderSource     = glShaderSourceARB;
+	gpu_glCompileShader    = glCompileShaderARB;
+	gpu_glGetShaderiv      = check_glGetObjectParameterivARB;
+	gpu_glGetShaderInfoLog = glGetInfoLogARB;
 
-	gpuCreateProgram     = glCreateProgramObjectARB;
-	gpuLinkProgram       = glLinkProgramARB;
-	gpuGetProgramiv      = check_glGetProgramivARB;
-	gpuGetProgramInfoLog = glGetInfoLogARB;
+	gpu_glCreateProgram     = glCreateProgramObjectARB;
+	gpu_glLinkProgram       = glLinkProgramARB;
+	gpu_glGetProgramiv      = check_glGetProgramivARB;
+	gpu_glGetProgramInfoLog = glGetInfoLogARB;
 
-	gpuUniform1i = glUniform1iARB;
-	gpuUniform1f = glUniform1fARB;
+	gpu_glUniform1i = glUniform1iARB;
+	gpu_glUniform1f = glUniform1fARB;
 	
-	gpuUniform1iv = glUniform1ivARB;
-	gpuUniform2iv = glUniform2ivARB;
-	gpuUniform3iv = glUniform3ivARB;
-	gpuUniform4iv = glUniform4ivARB;
+	gpu_glUniform1iv = glUniform1ivARB;
+	gpu_glUniform2iv = glUniform2ivARB;
+	gpu_glUniform3iv = glUniform3ivARB;
+	gpu_glUniform4iv = glUniform4ivARB;
 
-	gpuUniform1fv = glUniform1fvARB;
-	gpuUniform2fv = glUniform2fvARB;
-	gpuUniform3fv = glUniform3fvARB;
-	gpuUniform4fv = glUniform4fvARB;
+	gpu_glUniform1fv = glUniform1fvARB;
+	gpu_glUniform2fv = glUniform2fvARB;
+	gpu_glUniform3fv = glUniform3fvARB;
+	gpu_glUniform4fv = glUniform4fvARB;
 
-	gpuUniformMatrix3fv = glUniformMatrix3fvARB;
-	gpuUniformMatrix4fv = glUniformMatrix4fvARB;
+	gpu_glUniformMatrix3fv = glUniformMatrix3fvARB;
+	gpu_glUniformMatrix4fv = glUniformMatrix4fvARB;
 
-	gpuGetAttribLocation  = glGetAttribLocationARB;
-	gpuBindAttribLocation = (void (GLAPIENTRY*)(GLuint,GLuint,const GLchar*))glBindAttribLocationARB;
-	gpuGetUniformLocation = glGetUniformLocationARB;
+	gpu_glGetAttribLocation  = glGetAttribLocationARB;
+	gpu_glBindAttribLocation = (void (GLAPIENTRY*)(GLuint,GLuint,const GLchar*))glBindAttribLocationARB;
+	gpu_glGetUniformLocation = glGetUniformLocationARB;
 	
-	gpuVertexAttribPointer = glVertexAttribPointerARB;
+	gpu_glVertexAttribPointer = glVertexAttribPointerARB;
 	
-	gpuEnableVertexAttribArray = glEnableVertexAttribArrayARB;
-	gpuDisableVertexAttribArray = glDisableVertexAttribArrayARB;
+	gpu_glEnableVertexAttribArray = glEnableVertexAttribArrayARB;
+	gpu_glDisableVertexAttribArray = glDisableVertexAttribArrayARB;
 
-	gpuUseProgram    = glUseProgramObjectARB;
-	gpuDeleteShader  = glDeleteObjectARB;
-	gpuDeleteProgram = glDeleteObjectARB;
+	gpu_glUseProgram    = glUseProgramObjectARB;
+	gpu_glDeleteShader  = glDeleteObjectARB;
+	gpu_glDeleteProgram = glDeleteObjectARB;
 }
 
 static void init_buffers_arb(void)
 {
-	gpuGenBuffers = glGenBuffersARB;
-	gpuBindBuffer = glBindBufferARB;
-	gpuBufferData =  glBufferDataARB;
-	gpuDeleteBuffers = glDeleteBuffersARB;
+	gpu_glGenBuffers = glGenBuffersARB;
+	gpu_glBindBuffer = glBindBufferARB;
+	gpu_glBufferData =  glBufferDataARB;
+	gpu_glDeleteBuffers = glDeleteBuffersARB;
 	
-	gpuMapBuffer = glMapBufferARB;
-	gpuUnmapBuffer = glUnmapBufferARB;
+	gpu_glMapBuffer = glMapBufferARB;
+	gpu_glUnmapBuffer = glUnmapBufferARB;
 }
 
 static void init_mapbuffers_standard()
 {
-	gpuMapBuffer = glMapBuffer;
-	gpuUnmapBuffer = glUnmapBuffer;
+	gpu_glMapBuffer = glMapBuffer;
+	gpu_glUnmapBuffer = glUnmapBuffer;
 }
 	
 	
@@ -140,8 +140,8 @@ static void init_mapbuffers_standard()
 
 static void init_mapbuffers_oes(void *gllib)
 {
-	gpuMapBuffer = dlsym(gllib, "glMapBufferOES");
-	gpuUnmapBuffer = dlsym(gllib, "glUnmapBufferOES");
+	gpu_glMapBuffer = dlsym(gllib, "glMapBufferOES");
+	gpu_glUnmapBuffer = dlsym(gllib, "glUnmapBufferOES");
 }
 
 
@@ -164,61 +164,61 @@ static void check_glGetProgramiv(GLuint shader, GLuint pname, GLint *params)
 
 static void init_glsl_standard(void)
 {
-	gpuCreateShader     = glCreateShader;
-	gpuAttachShader     = glAttachShader;
-	gpuShaderSource     = glShaderSource;
-	gpuCompileShader    = glCompileShader;
-	gpuGetShaderiv      = glGetShaderiv;
-	gpuGetShaderInfoLog = glGetShaderInfoLog;
+	gpu_glCreateShader     = glCreateShader;
+	gpu_glAttachShader     = glAttachShader;
+	gpu_glShaderSource     = glShaderSource;
+	gpu_glCompileShader    = glCompileShader;
+	gpu_glGetShaderiv      = glGetShaderiv;
+	gpu_glGetShaderInfoLog = glGetShaderInfoLog;
 
-	gpuCreateProgram     = glCreateProgram;
-	gpuLinkProgram       = glLinkProgram;
-	gpuGetProgramiv      = glGetProgramiv;
-	gpuGetProgramInfoLog = glGetProgramInfoLog;
+	gpu_glCreateProgram     = glCreateProgram;
+	gpu_glLinkProgram       = glLinkProgram;
+	gpu_glGetProgramiv      = glGetProgramiv;
+	gpu_glGetProgramInfoLog = glGetProgramInfoLog;
 
-	gpuUniform1i = glUniform1i;
-	gpuUniform1f = glUniform1f;
+	gpu_glUniform1i = glUniform1i;
+	gpu_glUniform1f = glUniform1f;
 
-	gpuUniform1iv = glUniform1iv;
-	gpuUniform2iv = glUniform2iv;
-	gpuUniform3iv = glUniform3iv;
-	gpuUniform4iv = glUniform4iv;
+	gpu_glUniform1iv = glUniform1iv;
+	gpu_glUniform2iv = glUniform2iv;
+	gpu_glUniform3iv = glUniform3iv;
+	gpu_glUniform4iv = glUniform4iv;
 
-	gpuUniform1fv = glUniform1fv;
-	gpuUniform2fv = glUniform2fv;
-	gpuUniform3fv = glUniform3fv;
-	gpuUniform4fv = glUniform4fv;
+	gpu_glUniform1fv = glUniform1fv;
+	gpu_glUniform2fv = glUniform2fv;
+	gpu_glUniform3fv = glUniform3fv;
+	gpu_glUniform4fv = glUniform4fv;
 
-	gpuUniformMatrix3fv = glUniformMatrix3fv;
-	gpuUniformMatrix4fv = glUniformMatrix4fv;
+	gpu_glUniformMatrix3fv = glUniformMatrix3fv;
+	gpu_glUniformMatrix4fv = glUniformMatrix4fv;
 
-	gpuGetAttribLocation  = glGetAttribLocation;
-	gpuBindAttribLocation = glBindAttribLocation;
-	gpuGetUniformLocation = glGetUniformLocation;
+	gpu_glGetAttribLocation  = glGetAttribLocation;
+	gpu_glBindAttribLocation = glBindAttribLocation;
+	gpu_glGetUniformLocation = glGetUniformLocation;
 	
-	gpuVertexAttribPointer = glVertexAttribPointer;
+	gpu_glVertexAttribPointer = glVertexAttribPointer;
 
-	gpuEnableVertexAttribArray = glEnableVertexAttribArray;
-	gpuDisableVertexAttribArray = glDisableVertexAttribArray;
+	gpu_glEnableVertexAttribArray = glEnableVertexAttribArray;
+	gpu_glDisableVertexAttribArray = glDisableVertexAttribArray;
 
-	gpuUseProgram    = glUseProgram;
-	gpuDeleteShader  = glDeleteShader;
-	gpuDeleteProgram = glDeleteProgram;
+	gpu_glUseProgram    = glUseProgram;
+	gpu_glDeleteShader  = glDeleteShader;
+	gpu_glDeleteProgram = glDeleteProgram;
 }
 
 static void init_buffers_standard(void)
 {
-	gpuGenBuffers = glGenBuffers;
-	gpuBindBuffer = glBindBuffer;
-	gpuBufferData =  glBufferData;
-	gpuDeleteBuffers = glDeleteBuffers;
+	gpu_glGenBuffers = glGenBuffers;
+	gpu_glBindBuffer = glBindBuffer;
+	gpu_glBufferData =  glBufferData;
+	gpu_glDeleteBuffers = glDeleteBuffers;
 }
 
 static void init_framebuffers_standard(void)
 {
-	gpuGenFramebuffers    = glGenFramebuffers;
-	gpuBindFramebuffer    = glBindFramebuffer;
-	gpuDeleteFramebuffers = glDeleteFramebuffers;
+	gpu_glGenFramebuffers    = glGenFramebuffers;
+	gpu_glBindFramebuffer    = glBindFramebuffer;
+	gpu_glDeleteFramebuffers = glDeleteFramebuffers;
 }
 
 
@@ -227,34 +227,34 @@ static void init_framebuffers_standard(void)
 
 static void init_framebuffers_ext(void)
 {
-	gpuGenFramebuffers    = glGenFramebuffersEXT;
-	gpuBindFramebuffer    = glBindFramebufferEXT;
-	gpuDeleteFramebuffers = glDeleteFramebuffersEXT;
+	gpu_glGenFramebuffers    = glGenFramebuffersEXT;
+	gpu_glBindFramebuffer    = glBindFramebufferEXT;
+	gpu_glDeleteFramebuffers = glDeleteFramebuffersEXT;
 }
 
 #endif
 
 static const void * GLAPIENTRY gpuBufferStartUpdate_buffer(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage)
 {
-	gpuBufferData(target, 0, NULL, usage);
+	gpu_glBufferData(target, 0, NULL, usage);
 	return data;
 }
 
 static void * GLAPIENTRY gpuBufferStartUpdate_map(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage)
 {
-	gpuBufferData(target, size, NULL, usage);
-	return gpuMapBuffer(target, GL_WRITE_ONLY);
+	gpu_glBufferData(target, size, NULL, usage);
+	return gpu_glMapBuffer(target, GL_WRITE_ONLY);
 }
 
 static void GLAPIENTRY gpuBufferFinishUpdate_buffer(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage)
 {
-	gpuBufferData(target, size, data, usage);
+	gpu_glBufferData(target, size, data, usage);
 
 }
 
 static void GLAPIENTRY gpuBufferFinishUpdate_map(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage)
 {
-	gpuUnmapBuffer(target);
+	gpu_glUnmapBuffer(target);
 
 }
 
@@ -296,7 +296,7 @@ void GPU_func_comp_init(void)
 	else
 		init_framebuffers_ext();
 #endif
-	if(gpuMapBuffer!=NULL)
+	if(gpu_glMapBuffer!=NULL)
 	{
 		GPU_ext_config|=GPU_EXT_MAPBUFFER;
 		gpuBufferStartUpdate = gpuBufferStartUpdate_map;

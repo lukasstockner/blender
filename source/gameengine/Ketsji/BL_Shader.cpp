@@ -68,43 +68,43 @@ void BL_Uniform::Apply(class BL_Shader *shader)
 	{
 	case UNI_FLOAT: {
 			float *f = (float*)mData;
-			gpuUniform1f(mLoc,(GLfloat)*f);
+			gpu_glUniform1f(mLoc,(GLfloat)*f);
 		}break;
 	case UNI_INT: {
 			int *f = (int*)mData;
-			gpuUniform1i(mLoc, (GLint)*f);
+			gpu_glUniform1i(mLoc, (GLint)*f);
 		}break;
 	case UNI_FLOAT2: {
 			float *f = (float*)mData;
-			gpuUniform2fv(mLoc,1, (GLfloat*)f);
+			gpu_glUniform2fv(mLoc,1, (GLfloat*)f);
 		}break;
 	case UNI_FLOAT3: {
 			float *f = (float*)mData;
-			gpuUniform3fv(mLoc,1,(GLfloat*)f);
+			gpu_glUniform3fv(mLoc,1,(GLfloat*)f);
 		}break;
 	case UNI_FLOAT4: {
 			float *f = (float*)mData;
-			gpuUniform4fv(mLoc,1,(GLfloat*)f);
+			gpu_glUniform4fv(mLoc,1,(GLfloat*)f);
 		}break;
 	case UNI_INT2: {
 			int *f = (int*)mData;
-			gpuUniform2iv(mLoc,1,(GLint*)f);
+			gpu_glUniform2iv(mLoc,1,(GLint*)f);
 		}break; 
 	case UNI_INT3: {
 			int *f = (int*)mData;
-			gpuUniform3iv(mLoc,1,(GLint*)f);
+			gpu_glUniform3iv(mLoc,1,(GLint*)f);
 		}break; 
 	case UNI_INT4: {
 			int *f = (int*)mData;
-			gpuUniform4iv(mLoc,1,(GLint*)f);
+			gpu_glUniform4iv(mLoc,1,(GLint*)f);
 		}break;
 	case UNI_MAT4: {
 			float *f = (float*)mData;
-			gpuUniformMatrix4fv(mLoc, 1, mTranspose?GL_TRUE:GL_FALSE,(GLfloat*)f);
+			gpu_glUniformMatrix4fv(mLoc, 1, mTranspose?GL_TRUE:GL_FALSE,(GLfloat*)f);
 		}break;
 	case UNI_MAT3: {
 			float *f = (float*)mData;
-			gpuUniformMatrix3fv(mLoc, 1, mTranspose?GL_TRUE:GL_FALSE,(GLfloat*)f);
+			gpu_glUniformMatrix3fv(mLoc, 1, mTranspose?GL_TRUE:GL_FALSE,(GLfloat*)f);
 		}break;
 	}
 	mDirty = false;
@@ -154,13 +154,13 @@ BL_Shader::~BL_Shader()
 	ClearUniforms();
 
 	if ( mShader ) {
-		gpuDeleteProgram(mShader);
+		gpu_glDeleteProgram(mShader);
 		mShader = 0;
 	}
 	vertProg	= 0;
 	fragProg	= 0;
 	mOk			= 0;
-	gpuUseProgram(0);
+	gpu_glUseProgram(0);
 }
 
 void BL_Shader::ClearUniforms()
@@ -308,15 +308,15 @@ bool BL_Shader::LinkProgram()
 	
 	src[1] = vertProg;
 	
-	tmpVert = gpuCreateShader(GL_VERTEX_SHADER);
-	gpuShaderSource(tmpVert, 2, (const char**)src, 0);
-	gpuCompileShader(tmpVert);
-	gpuGetShaderiv(tmpVert, GL_INFO_LOG_LENGTH,(GLint*) &vertlen);
+	tmpVert = gpu_glCreateShader(GL_VERTEX_SHADER);
+	gpu_glShaderSource(tmpVert, 2, (const char**)src, 0);
+	gpu_glCompileShader(tmpVert);
+	gpu_glGetShaderiv(tmpVert, GL_INFO_LOG_LENGTH,(GLint*) &vertlen);
 	
 	// print info if any
 	if ( vertlen > 0 && vertlen < MAX_LOG_LEN) {
 		logInf = (char*)MEM_mallocN(vertlen, "vert-log");
-		gpuGetShaderInfoLog(tmpVert, vertlen, (GLsizei*)&char_len, logInf);
+		gpu_glGetShaderInfoLog(tmpVert, vertlen, (GLsizei*)&char_len, logInf);
 		if (char_len >0) {
 			spit("---- Vertex Shader Error ----");
 			spit(logInf);
@@ -325,7 +325,7 @@ bool BL_Shader::LinkProgram()
 		logInf=0;
 	}
 	// check for compile errors
-	gpuGetShaderiv(tmpVert, GL_COMPILE_STATUS,(GLint*)&vertstatus);
+	gpu_glGetShaderiv(tmpVert, GL_COMPILE_STATUS,(GLint*)&vertstatus);
 	if (!vertstatus) {
 		spit("---- Vertex shader failed to compile ----");
 		goto programError;
@@ -342,13 +342,13 @@ bool BL_Shader::LinkProgram()
 #endif
 	src[1] = fragProg;
 	
-	tmpFrag = gpuCreateShader(GL_FRAGMENT_SHADER);
-	gpuShaderSource(tmpFrag, 2,(const char**)src, 0);
-	gpuCompileShader(tmpFrag);
-	gpuGetShaderiv(tmpFrag, GL_INFO_LOG_LENGTH, (GLint*) &fraglen);
+	tmpFrag = gpu_glCreateShader(GL_FRAGMENT_SHADER);
+	gpu_glShaderSource(tmpFrag, 2,(const char**)src, 0);
+	gpu_glCompileShader(tmpFrag);
+	gpu_glGetShaderiv(tmpFrag, GL_INFO_LOG_LENGTH, (GLint*) &fraglen);
 	if (fraglen >0 && fraglen < MAX_LOG_LEN) {
 		logInf = (char*)MEM_mallocN(fraglen, "frag-log");
-		gpuGetShaderInfoLog(tmpFrag, fraglen,(GLsizei*) &char_len, logInf);
+		gpu_glGetShaderInfoLog(tmpFrag, fraglen,(GLsizei*) &char_len, logInf);
 		if (char_len >0) {
 			spit("---- Fragment Shader Error ----");
 			spit(logInf);
@@ -357,7 +357,7 @@ bool BL_Shader::LinkProgram()
 		logInf=0;
 	}
 
-	gpuGetShaderiv(tmpFrag, GL_COMPILE_STATUS, (GLint*) &fragstatus);
+	gpu_glGetShaderiv(tmpFrag, GL_COMPILE_STATUS, (GLint*) &fragstatus);
 	if (!fragstatus) {
 		spit("---- Fragment shader failed to compile ----");
 		goto programError;
@@ -366,17 +366,17 @@ bool BL_Shader::LinkProgram()
 	
 	// -- program ------------------------
 	//  set compiled vert/frag shader & link
-	tmpProg = gpuCreateProgram();
-	gpuAttachShader(tmpProg, tmpVert);
-	gpuAttachShader(tmpProg, tmpFrag);
-	gpuLinkProgram(tmpProg);
-	gpuGetProgramiv(tmpProg, GL_INFO_LOG_LENGTH, (GLint*) &proglen);
-	gpuGetProgramiv(tmpProg, GL_LINK_STATUS, (GLint*) &progstatus);
+	tmpProg = gpu_glCreateProgram();
+	gpu_glAttachShader(tmpProg, tmpVert);
+	gpu_glAttachShader(tmpProg, tmpFrag);
+	gpu_glLinkProgram(tmpProg);
+	gpu_glGetProgramiv(tmpProg, GL_INFO_LOG_LENGTH, (GLint*) &proglen);
+	gpu_glGetProgramiv(tmpProg, GL_LINK_STATUS, (GLint*) &progstatus);
 	
 
 	if (proglen > 0 && proglen < MAX_LOG_LEN) {
 		logInf = (char*)MEM_mallocN(proglen, "prog-log");
-		gpuGetProgramInfoLog(tmpProg, proglen, (GLsizei*)&char_len, logInf);
+		gpu_glGetProgramInfoLog(tmpProg, proglen, (GLsizei*)&char_len, logInf);
 		if (char_len >0) {
 			spit("---- GLSL Program ----");
 			spit(logInf);
@@ -395,24 +395,24 @@ bool BL_Shader::LinkProgram()
 #endif
 	// set
 	mShader = tmpProg;
-	gpuDeleteShader(tmpVert);
-	gpuDeleteShader(tmpFrag);
+	gpu_glDeleteShader(tmpVert);
+	gpu_glDeleteShader(tmpFrag);
 	mOk		= 1;
 	mError = 0;
 	return true;
 
 programError:
 	if (tmpVert) {
-		gpuDeleteShader(tmpVert);
+		gpu_glDeleteShader(tmpVert);
 		tmpVert=0;
 	}
 	if (tmpFrag) {
-		gpuDeleteShader(tmpFrag);
+		gpu_glDeleteShader(tmpFrag);
 		tmpFrag=0;
 	}
 
 	if (tmpProg) {
-		gpuDeleteProgram(tmpProg);
+		gpu_glDeleteProgram(tmpProg);
 		tmpProg=0;
 	}
 
@@ -480,13 +480,13 @@ void BL_Shader::SetProg(bool enable)
 		)
 	{
 		if (	mShader != 0 && mOk && enable) {
-			gpuUseProgram(mShader);
+			gpu_glUseProgram(mShader);
 #ifdef GLES
 			gpu_set_shader_es(&glslesloc, 1);
 #endif
 		}
 		else {
-			gpuUseProgram(0);
+			gpu_glUseProgram(0);
 #ifdef GLES
 			gpu_set_shader_es(0, 0);
 #endif			
@@ -642,7 +642,7 @@ int BL_Shader::GetUniformLocation(const STR_String& name)
 		)
 	{
 		MT_assert(mShader!=0);
-		int location = gpuGetUniformLocation(mShader, name.ReadPtr());
+		int location = gpu_glGetUniformLocation(mShader, name.ReadPtr());
 		if (location == -1)
 			spit("Invalid uniform value: " << name.ReadPtr() << ".");
 		return location;
@@ -660,7 +660,7 @@ void BL_Shader::SetUniform(int uniform, const MT_Tuple2& vec)
 	{
 		float value[2];
 		vec.getValue(value);
-		gpuUniform2fv(uniform, 1, value);
+		gpu_glUniform2fv(uniform, 1, value);
 	}
 
 }
@@ -674,7 +674,7 @@ void BL_Shader::SetUniform(int uniform, const MT_Tuple3& vec)
 	{	
 		float value[3];
 		vec.getValue(value);
-		gpuUniform3fv(uniform, 1, value);
+		gpu_glUniform3fv(uniform, 1, value);
 	}
 }
 
@@ -687,7 +687,7 @@ void BL_Shader::SetUniform(int uniform, const MT_Tuple4& vec)
 	{
 		float value[4];
 		vec.getValue(value);
-		gpuUniform4fv(uniform, 1, value);
+		gpu_glUniform4fv(uniform, 1, value);
 	}
 }
 
@@ -698,7 +698,7 @@ void BL_Shader::SetUniform(int uniform, const unsigned int& val)
 		GPU_EXT_GLSL_ENABLED 
 		)
 	{
-		gpuUniform1i(uniform, val);
+		gpu_glUniform1i(uniform, val);
 	}
 }
 
@@ -709,7 +709,7 @@ void BL_Shader::SetUniform(int uniform, const int val)
 		GPU_EXT_GLSL_ENABLED 
 		)
 	{
-		gpuUniform1i(uniform, val);
+		gpu_glUniform1i(uniform, val);
 	}
 }
 
@@ -720,7 +720,7 @@ void BL_Shader::SetUniform(int uniform, const float& val)
 		GPU_EXT_GLSL_ENABLED 
 		)
 	{
-		gpuUniform1f(uniform, val);
+		gpu_glUniform1f(uniform, val);
 	}
 }
 
@@ -734,7 +734,7 @@ void BL_Shader::SetUniform(int uniform, const MT_Matrix4x4& vec, bool transpose)
 		float value[16];
 		// note: getValue gives back column major as needed by OpenGL
 		vec.getValue(value);
-		gpuUniformMatrix4fv(uniform, 1, transpose?GL_TRUE:GL_FALSE, value);
+		gpu_glUniformMatrix4fv(uniform, 1, transpose?GL_TRUE:GL_FALSE, value);
 	}
 }
 
@@ -749,7 +749,7 @@ void BL_Shader::SetUniform(int uniform, const MT_Matrix3x3& vec, bool transpose)
 		value[0] = (float)vec[0][0]; value[1] = (float)vec[1][0]; value[2] = (float)vec[2][0]; 
 		value[3] = (float)vec[0][1]; value[4] = (float)vec[1][1]; value[5] = (float)vec[2][1]; 
 		value[6] = (float)vec[0][2]; value[7] = (float)vec[1][2]; value[8] = (float)vec[2][2];
-		gpuUniformMatrix3fv(uniform, 1, transpose?GL_TRUE:GL_FALSE, value);
+		gpu_glUniformMatrix3fv(uniform, 1, transpose?GL_TRUE:GL_FALSE, value);
 	}
 }
 
@@ -761,11 +761,11 @@ void BL_Shader::SetUniform(int uniform, const float* val, int len)
 		)
 	{
 		if (len == 2) 
-			gpuUniform2fv(uniform, 1,(GLfloat*)val);
+			gpu_glUniform2fv(uniform, 1,(GLfloat*)val);
 		else if (len == 3)
-			gpuUniform3fv(uniform, 1,(GLfloat*)val);
+			gpu_glUniform3fv(uniform, 1,(GLfloat*)val);
 		else if (len == 4)
-			gpuUniform4fv(uniform, 1,(GLfloat*)val);
+			gpu_glUniform4fv(uniform, 1,(GLfloat*)val);
 		else
 			MT_assert(0);
 	}
@@ -779,11 +779,11 @@ void BL_Shader::SetUniform(int uniform, const int* val, int len)
 		)
 	{
 		if (len == 2) 
-			gpuUniform2iv(uniform, 1, (GLint*)val);
+			gpu_glUniform2iv(uniform, 1, (GLint*)val);
 		else if (len == 3)
-			gpuUniform3iv(uniform, 1, (GLint*)val);
+			gpu_glUniform3iv(uniform, 1, (GLint*)val);
 		else if (len == 4)
-			gpuUniform4iv(uniform, 1, (GLint*)val);
+			gpu_glUniform4iv(uniform, 1, (GLint*)val);
 		else
 			MT_assert(0);
 	}
@@ -863,7 +863,7 @@ KX_PYMETHODDEF_DOC( BL_Shader, setSource," setSource(vertexProgram, fragmentProg
 		vertProg = v;
 		fragProg = f;
 		if ( LinkProgram() ) {
-			gpuUseProgram( mShader );
+			gpu_glUseProgram( mShader );
 			mUse = apply!=0;
 			Py_RETURN_NONE;
 		}
@@ -879,9 +879,9 @@ KX_PYMETHODDEF_DOC( BL_Shader, setSource," setSource(vertexProgram, fragmentProg
 KX_PYMETHODDEF_DOC( BL_Shader, delSource, "delSource( )" )
 {
 	ClearUniforms();
-	gpuUseProgram(0);
+	gpu_glUseProgram(0);
 
-	gpuDeleteProgram(mShader);
+	gpu_glDeleteProgram(mShader);
 	mShader		= 0;
 	mOk			= 0;
 	mUse		= 0;
@@ -1431,8 +1431,8 @@ KX_PYMETHODDEF_DOC( BL_Shader, setAttrib, "setAttrib(enum)" )
 	}
 
 	mAttr= attr;
-	gpuUseProgram(mShader);
-	gpuBindAttribLocation(mShader, mAttr, "Tangent");
+	gpu_glUseProgram(mShader);
+	gpu_glBindAttribLocation(mShader, mAttr, "Tangent");
 	Py_RETURN_NONE;
 }
 

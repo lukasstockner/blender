@@ -158,7 +158,6 @@ void GPU_extensions_init(void)
 
 	vendor = (const char*)glGetString(GL_VENDOR);
 	renderer = (const char*)glGetString(GL_RENDERER);
-#include FAKE_GL_MODE
 
 	if (strstr(vendor, "ATI")) {
 		GG.device = GPU_DEVICE_ATI;
@@ -258,7 +257,6 @@ int GPU_color_depth(void)
 int GPU_print_error(const char *str)
 {
 	GLenum errCode;
-#include REAL_GL_MODE
 	if (G.debug & G_DEBUG) {
 		if ((errCode = glGetError()) != GL_NO_ERROR) {
 			fprintf(stderr, "%s opengl error: %s\n", str, gpuErrorString(errCode));
@@ -757,7 +755,7 @@ GPUFrameBuffer *GPU_framebuffer_create(void)
 		return NULL;
 	
 	fb= MEM_callocN(sizeof(GPUFrameBuffer), "GPUFrameBuffer");
-	gpuGenFramebuffers(1, &fb->object);
+	gpu_glGenFramebuffers(1, &fb->object);
 
 	if (!fb->object) {
 		fprintf(stderr, "GPUFFrameBuffer: framebuffer gen failed. %s\n",
@@ -883,10 +881,10 @@ void GPU_framebuffer_free(GPUFrameBuffer *fb)
 		GPU_framebuffer_texture_detach(fb, fb->colortex);
 
 	if (fb->object) {
-		gpuDeleteFramebuffers(1, &fb->object);
+		gpu_glDeleteFramebuffers(1, &fb->object);
 
 		if (GG.currentfb == fb->object) {
-			gpuBindFramebuffer(GL_FRAMEBUFFER, 0);
+			gpu_glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			GG.currentfb = 0;
 		}
 	}
@@ -1088,10 +1086,10 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, /*GPU
 	shader = MEM_callocN(sizeof(GPUShader), "GPUShader");
 
 	if (vertexcode)
-		shader->vertex = gpuCreateShader(GL_VERTEX_SHADER);
+		shader->vertex = gpu_glCreateShader(GL_VERTEX_SHADER);
 	if (fragcode)
-		shader->fragment = gpuCreateShader(GL_FRAGMENT_SHADER);
-	shader->object = gpuCreateProgram();
+		shader->fragment = gpu_glCreateShader(GL_FRAGMENT_SHADER);
+	shader->object = gpu_glCreateProgram();
 
 	if (!shader->object ||
 	    (vertexcode && !shader->vertex) ||
@@ -1103,14 +1101,14 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, /*GPU
 	}
 
 	if (vertexcode) {
-		gpuAttachShader(shader->object, shader->vertex);
-		gpuShaderSource(shader->vertex, 1, (const char**)&vertexcode, NULL);
+		gpu_glAttachShader(shader->object, shader->vertex);
+		gpu_glShaderSource(shader->vertex, 1, (const char**)&vertexcode, NULL);
 
-		gpuCompileShader(shader->vertex);
-		gpuGetShaderiv(shader->vertex, GL_COMPILE_STATUS, &status);
+		gpu_glCompileShader(shader->vertex);
+		gpu_glGetShaderiv(shader->vertex, GL_COMPILE_STATUS, &status);
 
 		if (!status) {
-			gpuGetShaderInfoLog(shader->vertex, sizeof(log), &length, log);
+			gpu_glGetShaderInfoLog(shader->vertex, sizeof(log), &length, log);
 			shader_print_errors("compile", log, vertexcode);
 
 			GPU_shader_free(shader);
@@ -1123,14 +1121,14 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, /*GPU
 		if (libcode) fragsource[count++] = libcode;
 		if (fragcode) fragsource[count++] = fragcode;
 
-		gpuAttachShader(shader->object, shader->fragment);
-		gpuShaderSource(shader->fragment, count, fragsource, NULL);
+		gpu_glAttachShader(shader->object, shader->fragment);
+		gpu_glShaderSource(shader->fragment, count, fragsource, NULL);
 
-		gpuCompileShader(shader->fragment);
-		gpuGetShaderiv(shader->fragment, GL_COMPILE_STATUS, &status);
+		gpu_glCompileShader(shader->fragment);
+		gpu_glGetShaderiv(shader->fragment, GL_COMPILE_STATUS, &status);
 
 		if (!status) {
-			gpuGetShaderInfoLog(shader->fragment, sizeof(log), &length, log);
+			gpu_glGetShaderInfoLog(shader->fragment, sizeof(log), &length, log);
 			shader_print_errors("compile", log, fragcode);
 
 			GPU_shader_free(shader);
@@ -1143,10 +1141,10 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, /*GPU
 		gpuAttachShader(shader->object, lib->lib);
 #endif
 
-	gpuLinkProgram(shader->object);
-	gpuGetProgramiv(shader->object, GL_LINK_STATUS, &status);
+	gpu_glLinkProgram(shader->object);
+	gpu_glGetProgramiv(shader->object, GL_LINK_STATUS, &status);
 	if (!status) {
-		gpuGetProgramInfoLog(shader->object, sizeof(log), &length, log);
+		gpu_glGetProgramInfoLog(shader->object, sizeof(log), &length, log);
 		if (fragcode) shader_print_errors("linking", log, fragcode);
 		else if (vertexcode) shader_print_errors("linking", log, vertexcode);
 		else if (libcode) shader_print_errors("linking", log, libcode);
@@ -1198,34 +1196,34 @@ GPUShader *GPU_shader_create_lib(const char *code)
 void GPU_shader_bind(GPUShader *shader)
 {
 	GPU_print_error("Pre Shader Bind");
-	gpuUseProgram(shader->object);
+	gpu_glUseProgram(shader->object);
 	GPU_print_error("Post Shader Bind");
 }
 
 void GPU_shader_unbind(GPUShader *UNUSED(shader))
 {
 	GPU_print_error("Pre Shader Unbind");
-	gpuUseProgram(0);
+	gpu_glUseProgram(0);
 	GPU_print_error("Post Shader Unbind");
 }
 
 void GPU_shader_free(GPUShader *shader)
 {
 	if (shader->lib)
-		gpuDeleteShader(shader->lib);
+		gpu_glDeleteShader(shader->lib);
 	if (shader->vertex)
-		gpuDeleteShader(shader->vertex);
+		gpu_glDeleteShader(shader->vertex);
 	if (shader->fragment)
-		gpuDeleteShader(shader->fragment);
+		gpu_glDeleteShader(shader->fragment);
 	if (shader->object)
-		gpuDeleteProgram(shader->object);
+		gpu_glDeleteProgram(shader->object);
 	MEM_freeN(shader);
 
 }
 
 int GPU_shader_get_uniform(GPUShader *shader, const char *name)
 {
-	return gpuGetUniformLocation(shader->object, name);
+	return gpu_glGetUniformLocation(shader->object, name);
 }
 
 void GPU_shader_uniform_vector(GPUShader *UNUSED(shader), int location, int length, int arraysize, float *value)
@@ -1235,12 +1233,12 @@ void GPU_shader_uniform_vector(GPUShader *UNUSED(shader), int location, int leng
 
 	GPU_print_error("Pre Uniform Vector");
 
-	if (length == 1) gpuUniform1fv(location, arraysize, value);
-	else if (length == 2) gpuUniform2fv(location, arraysize, value);
-	else if (length == 3) gpuUniform3fv(location, arraysize, value);
-	else if (length == 4) gpuUniform4fv(location, arraysize, value);
-	else if (length == 9) gpuUniformMatrix3fv(location, arraysize, 0, value);
-	else if (length == 16) gpuUniformMatrix4fv(location, arraysize, 0, value);
+	if (length == 1) gpu_glUniform1fv(location, arraysize, value);
+	else if (length == 2) gpu_glUniform2fv(location, arraysize, value);
+	else if (length == 3) gpu_glUniform3fv(location, arraysize, value);
+	else if (length == 4) gpu_glUniform4fv(location, arraysize, value);
+	else if (length == 9) gpu_glUniformMatrix3fv(location, arraysize, 0, value);
+	else if (length == 16) gpu_glUniformMatrix4fv(location, arraysize, 0, value);
 
 	GPU_print_error("Post Uniform Vector");
 }
@@ -1268,7 +1266,7 @@ void GPU_shader_uniform_texture(GPUShader *UNUSED(shader), int location, GPUText
 	if (tex->number != 0) 
 		glActiveTexture(arbnumber);
 	glBindTexture(tex->target, tex->bindcode);
-	gpuUniform1i(location, tex->number);
+	gpu_glUniform1i(location, tex->number);
 	glEnable(tex->target);
 	if (tex->number != 0) 
 		glActiveTexture(GL_TEXTURE0_ARB);
@@ -1281,7 +1279,7 @@ int GPU_shader_get_attribute(GPUShader *shader, const char *name)
 	int index;
 	
 	GPU_print_error("Pre Get Attribute");
-	index = gpuGetAttribLocation(shader->object, name);
+	index = gpu_glGetAttribLocation(shader->object, name);
 	GPU_print_error("Post Get Attribute");
 
 	return index;

@@ -489,19 +489,19 @@ void RAS_StorageVA::TexCoordPtr(const RAS_TexVert *tv)
 			switch (m_attrib[unit]) {
 				case RAS_IRasterizer::RAS_TEXCO_ORCO:
 				case RAS_IRasterizer::RAS_TEXCO_GLOB:
-					gpuVertexAttribPointer(unit, 3, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getXYZ());
+					gpu_glVertexAttribPointer(unit, 3, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getXYZ());
 					break;
 				case RAS_IRasterizer::RAS_TEXCO_UV:
-					gpuVertexAttribPointer(unit, 2, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getUV(uv++));
+					gpu_glVertexAttribPointer(unit, 2, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getUV(uv++));
 					break;
 				case RAS_IRasterizer::RAS_TEXCO_NORM:
-					gpuVertexAttribPointer(unit, 3, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getNormal());
+					gpu_glVertexAttribPointer(unit, 3, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getNormal());
 					break;
 				case RAS_IRasterizer::RAS_TEXTANGENT:
-					gpuVertexAttribPointer(unit, 4, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getTangent());
+					gpu_glVertexAttribPointer(unit, 4, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getTangent());
 					break;
 				case RAS_IRasterizer::RAS_TEXCO_VCOL:
-					gpuVertexAttribPointer(unit, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(RAS_TexVert), tv->getRGBA());
+					gpu_glVertexAttribPointer(unit, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(RAS_TexVert), tv->getRGBA());
 					break;
 				default:
 					break;
@@ -573,11 +573,11 @@ void RAS_StorageVA::EnableTextures(bool enable)
 				case RAS_IRasterizer::RAS_TEXCO_NORM:
 				case RAS_IRasterizer::RAS_TEXTANGENT:
 				case RAS_IRasterizer::RAS_TEXCO_VCOL:
-					if (enable) gpuEnableVertexAttribArray(unit);
-					else gpuDisableVertexAttribArray(unit);
+					if (enable) gpu_glEnableVertexAttribArray(unit);
+					else gpu_glDisableVertexAttribArray(unit);
 					break;
 				default:
-					gpuDisableVertexAttribArray(unit);
+					gpu_glDisableVertexAttribArray(unit);
 					break;
 			}
 		}

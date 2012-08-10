@@ -1192,28 +1192,28 @@ static void drawsolidcube(float size)
 	gpuPushMatrix();
 	gpuScale(size, size, size);
 
-	gpuBegin(GL_QUADS);
+	gpuBegin(GL_TRIANGLE_FAN);
 	n[0] = -1.0;
 	gpuNormal3fv(n);
 	gpuVertex3fv(cube[0]); gpuVertex3fv(cube[1]); gpuVertex3fv(cube[2]); gpuVertex3fv(cube[3]);
 	n[0] = 0;
 	gpuEnd();
 
-	gpuBegin(GL_QUADS);
+	gpuBegin(GL_TRIANGLE_FAN);
 	n[1] = -1.0;
 	gpuNormal3fv(n);
 	gpuVertex3fv(cube[0]); gpuVertex3fv(cube[4]); gpuVertex3fv(cube[5]); gpuVertex3fv(cube[1]);
 	n[1] = 0;
 	gpuEnd();
 
-	gpuBegin(GL_QUADS);
+	gpuBegin(GL_TRIANGLE_FAN);
 	n[0] = 1.0;
 	gpuNormal3fv(n);
 	gpuVertex3fv(cube[4]); gpuVertex3fv(cube[7]); gpuVertex3fv(cube[6]); gpuVertex3fv(cube[5]);
 	n[0] = 0;
 	gpuEnd();
 
-	gpuBegin(GL_QUADS);
+	gpuBegin(GL_TRIANGLE_FAN);
 	n[1] = 1.0;
 	gpuNormal3fv(n);
 	gpuVertex3fv(cube[7]); gpuVertex3fv(cube[3]); gpuVertex3fv(cube[2]); gpuVertex3fv(cube[6]);

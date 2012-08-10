@@ -194,61 +194,61 @@ typedef _W64 int ptrdiff_t;
 extern "C" {
 #endif
 
-GPUFUNC GLuint (GLAPIENTRY* gpuCreateShader)(GLuint shaderType);
-GPUFUNC void (GLAPIENTRY* gpuAttachShader)(GLuint program, GLuint shader);
-GPUFUNC void (GLAPIENTRY* gpuShaderSource)(GLuint shader, GLint count, const GLchar ** string, const GLint * length);
-GPUFUNC void (GLAPIENTRY* gpuCompileShader)(GLuint shader);
-GPUFUNC void (GLAPIENTRY* gpuGetShaderiv)(GLuint shader, GLuint pname, GLint *params);
-GPUFUNC void (GLAPIENTRY* gpuGetShaderInfoLog)(GLuint shader, GLint maxLength, GLint *length, GLchar *infoLog);
+GPUFUNC GLuint (GLAPIENTRY* gpu_glCreateShader)(GLuint shaderType);
+GPUFUNC void (GLAPIENTRY* gpu_glAttachShader)(GLuint program, GLuint shader);
+GPUFUNC void (GLAPIENTRY* gpu_glShaderSource)(GLuint shader, GLint count, const GLchar ** string, const GLint * length);
+GPUFUNC void (GLAPIENTRY* gpu_glCompileShader)(GLuint shader);
+GPUFUNC void (GLAPIENTRY* gpu_glGetShaderiv)(GLuint shader, GLuint pname, GLint *params);
+GPUFUNC void (GLAPIENTRY* gpu_glGetShaderInfoLog)(GLuint shader, GLint maxLength, GLint *length, GLchar *infoLog);
 
-GPUFUNC GLuint (GLAPIENTRY* gpuCreateProgram)(void);
-GPUFUNC void (GLAPIENTRY* gpuLinkProgram)(GLuint program);
-GPUFUNC void (GLAPIENTRY* gpuGetProgramiv)(GLuint shader, GLuint pname, GLint *params);
-GPUFUNC void (GLAPIENTRY* gpuGetProgramInfoLog)(GLuint shader, GLint maxLength, GLint *length, GLchar *infoLog);
-
-
-GPUFUNC void (GLAPIENTRY* gpuUniform1i)(GLint location, GLint v0);
-GPUFUNC void (GLAPIENTRY* gpuUniform1f)(GLint location, GLfloat v0);
-
-GPUFUNC void (GLAPIENTRY* gpuUniform1iv)(GLint location, GLint count, const GLint * value);
-GPUFUNC void (GLAPIENTRY* gpuUniform2iv)(GLint location, GLint count, const GLint * value);
-GPUFUNC void (GLAPIENTRY* gpuUniform3iv)(GLint location, GLint count, const GLint * value);
-GPUFUNC void (GLAPIENTRY* gpuUniform4iv)(GLint location, GLint count, const GLint * value);
+GPUFUNC GLuint (GLAPIENTRY* gpu_glCreateProgram)(void);
+GPUFUNC void (GLAPIENTRY* gpu_glLinkProgram)(GLuint program);
+GPUFUNC void (GLAPIENTRY* gpu_glGetProgramiv)(GLuint shader, GLuint pname, GLint *params);
+GPUFUNC void (GLAPIENTRY* gpu_glGetProgramInfoLog)(GLuint shader, GLint maxLength, GLint *length, GLchar *infoLog);
 
 
-GPUFUNC void (GLAPIENTRY* gpuUniform1fv)(GLint location, GLint count, const GLfloat * value);
-GPUFUNC void (GLAPIENTRY* gpuUniform2fv)(GLint location, GLint count, const GLfloat * value);
-GPUFUNC void (GLAPIENTRY* gpuUniform3fv)(GLint location, GLint count, const GLfloat * value);
-GPUFUNC void (GLAPIENTRY* gpuUniform4fv)(GLint location, GLint count, const GLfloat * value);
-GPUFUNC void (GLAPIENTRY* gpuUniformMatrix3fv)(GLint location, GLint count, GLboolean transpose, const GLfloat * value);
-GPUFUNC void (GLAPIENTRY* gpuUniformMatrix4fv)(GLint location, GLint count, GLboolean transpose, const GLfloat * value);
+GPUFUNC void (GLAPIENTRY* gpu_glUniform1i)(GLint location, GLint v0);
+GPUFUNC void (GLAPIENTRY* gpu_glUniform1f)(GLint location, GLfloat v0);
 
-GPUFUNC GLint (GLAPIENTRY* gpuGetAttribLocation)(GLuint program, const GLchar *name);
-GPUFUNC void (GLAPIENTRY* gpuBindAttribLocation)(GLuint program, GLuint index, const GLchar * name);
-GPUFUNC GLint (GLAPIENTRY* gpuGetUniformLocation)(GLuint program, const GLchar * name);
-
-GPUFUNC void (GLAPIENTRY* gpuVertexAttribPointer)(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid *  pointer);
-
-GPUFUNC void (GLAPIENTRY* gpuEnableVertexAttribArray)(GLuint index);
-GPUFUNC void (GLAPIENTRY* gpuDisableVertexAttribArray)(GLuint index);
-
-GPUFUNC void (GLAPIENTRY* gpuUseProgram)(GLuint program);
-GPUFUNC void (GLAPIENTRY* gpuDeleteShader)(GLuint shader);
-GPUFUNC void (GLAPIENTRY* gpuDeleteProgram)(GLuint program);
+GPUFUNC void (GLAPIENTRY* gpu_glUniform1iv)(GLint location, GLint count, const GLint * value);
+GPUFUNC void (GLAPIENTRY* gpu_glUniform2iv)(GLint location, GLint count, const GLint * value);
+GPUFUNC void (GLAPIENTRY* gpu_glUniform3iv)(GLint location, GLint count, const GLint * value);
+GPUFUNC void (GLAPIENTRY* gpu_glUniform4iv)(GLint location, GLint count, const GLint * value);
 
 
+GPUFUNC void (GLAPIENTRY* gpu_glUniform1fv)(GLint location, GLint count, const GLfloat * value);
+GPUFUNC void (GLAPIENTRY* gpu_glUniform2fv)(GLint location, GLint count, const GLfloat * value);
+GPUFUNC void (GLAPIENTRY* gpu_glUniform3fv)(GLint location, GLint count, const GLfloat * value);
+GPUFUNC void (GLAPIENTRY* gpu_glUniform4fv)(GLint location, GLint count, const GLfloat * value);
+GPUFUNC void (GLAPIENTRY* gpu_glUniformMatrix3fv)(GLint location, GLint count, GLboolean transpose, const GLfloat * value);
+GPUFUNC void (GLAPIENTRY* gpu_glUniformMatrix4fv)(GLint location, GLint count, GLboolean transpose, const GLfloat * value);
 
-GPUFUNC void (GLAPIENTRY* gpuGenFramebuffers)(GLint m, GLuint * ids);
-GPUFUNC void (GLAPIENTRY* gpuBindFramebuffer)(GLuint target, GLuint framebuffer);
-GPUFUNC void (GLAPIENTRY* gpuDeleteFramebuffers)(GLint n, const GLuint * framebuffers);
+GPUFUNC GLint (GLAPIENTRY* gpu_glGetAttribLocation)(GLuint program, const GLchar *name);
+GPUFUNC void (GLAPIENTRY* gpu_glBindAttribLocation)(GLuint program, GLuint index, const GLchar * name);
+GPUFUNC GLint (GLAPIENTRY* gpu_glGetUniformLocation)(GLuint program, const GLchar * name);
 
-GPUFUNC void (GLAPIENTRY* gpuGenBuffers)(GLsizei  n, GLuint *buffers);
-GPUFUNC void (GLAPIENTRY* gpuBindBuffer)(GLenum target, GLuint buffer);
-GPUFUNC void (GLAPIENTRY* gpuBufferData)(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage);
-GPUFUNC void (GLAPIENTRY* gpuDeleteBuffers)(GLsizei  n, const GLuint * buffers);
+GPUFUNC void (GLAPIENTRY* gpu_glVertexAttribPointer)(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid *  pointer);
 
-GPUFUNC void * (GLAPIENTRY* gpuMapBuffer)(GLenum target, GLenum access);
-GPUFUNC GLboolean (GLAPIENTRY* gpuUnmapBuffer)(GLenum  target);
+GPUFUNC void (GLAPIENTRY* gpu_glEnableVertexAttribArray)(GLuint index);
+GPUFUNC void (GLAPIENTRY* gpu_glDisableVertexAttribArray)(GLuint index);
+
+GPUFUNC void (GLAPIENTRY* gpu_glUseProgram)(GLuint program);
+GPUFUNC void (GLAPIENTRY* gpu_glDeleteShader)(GLuint shader);
+GPUFUNC void (GLAPIENTRY* gpu_glDeleteProgram)(GLuint program);
+
+
+
+GPUFUNC void (GLAPIENTRY* gpu_glGenFramebuffers)(GLint m, GLuint * ids);
+GPUFUNC void (GLAPIENTRY* gpu_glBindFramebuffer)(GLuint target, GLuint framebuffer);
+GPUFUNC void (GLAPIENTRY* gpu_glDeleteFramebuffers)(GLint n, const GLuint * framebuffers);
+
+GPUFUNC void (GLAPIENTRY* gpu_glGenBuffers)(GLsizei  n, GLuint *buffers);
+GPUFUNC void (GLAPIENTRY* gpu_glBindBuffer)(GLenum target, GLuint buffer);
+GPUFUNC void (GLAPIENTRY* gpu_glBufferData)(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage);
+GPUFUNC void (GLAPIENTRY* gpu_glDeleteBuffers)(GLsizei  n, const GLuint * buffers);
+
+GPUFUNC void * (GLAPIENTRY* gpu_glMapBuffer)(GLenum target, GLenum access);
+GPUFUNC GLboolean (GLAPIENTRY* gpu_glUnmapBuffer)(GLenum  target);
 
 GPUFUNC const void * (GLAPIENTRY* gpuBufferStartUpdate)(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage);
 GPUFUNC void (GLAPIENTRY* gpuBufferFinishUpdate)(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage);

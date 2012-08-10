@@ -54,8 +54,8 @@ VBO::VBO(RAS_DisplayArray *data, unsigned int indices)
 		this->mode = GL_LINE;
 
 	// Generate Buffers
-	gpuGenBuffers(1, &this->ibo);
-	gpuGenBuffers(1, &this->vbo_id);
+	gpu_glGenBuffers(1, &this->ibo);
+	gpu_glGenBuffers(1, &this->vbo_id);
 	
 	this->vbo = GPU_EXT_MAPBUFFER_ENABLED ? NULL : new GLfloat[this->stride*this->size];
 
@@ -73,8 +73,8 @@ VBO::VBO(RAS_DisplayArray *data, unsigned int indices)
 
 VBO::~VBO()
 {
-	gpuDeleteBuffers(1, &this->ibo);
-	gpuDeleteBuffers(1, &this->vbo_id);
+	gpu_glDeleteBuffers(1, &this->ibo);
+	gpu_glDeleteBuffers(1, &this->vbo_id);
 	
 	delete this->vbo;
 }
@@ -83,7 +83,7 @@ void VBO::UpdateData()
 {
 	unsigned int i, j, k;
 	
-	gpuBindBuffer(GL_ARRAY_BUFFER, this->vbo_id);
+	gpu_glBindBuffer(GL_ARRAY_BUFFER, this->vbo_id);
 	
 	// Map the buffer or frees previous
 	GLfloat *vbo_map = (GLfloat*)gpuBufferStartUpdate(GL_ARRAY_BUFFER, this->stride*this->size, vbo, GL_DYNAMIC_DRAW);
@@ -104,10 +104,10 @@ void VBO::UpdateData()
 void VBO::UpdateIndices()
 {
 	int space = data->m_index.size() * sizeof(GLushort);
-	gpuBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->ibo);
+	gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->ibo);
 
 	// Upload Data to VBO
-	gpuBufferData(GL_ELEMENT_ARRAY_BUFFER, space, &data->m_index[0], GL_DYNAMIC_DRAW);
+	gpu_glBufferData(GL_ELEMENT_ARRAY_BUFFER, space, &data->m_index[0], GL_DYNAMIC_DRAW);
 }
 
 void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, RAS_IRasterizer::TexCoGen* attrib, bool multi)
@@ -115,8 +115,8 @@ void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, 
 	int unit;
 
 	// Bind buffers
-	gpuBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->ibo);
-	gpuBindBuffer(GL_ARRAY_BUFFER, this->vbo_id);
+	gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->ibo);
+	gpu_glBindBuffer(GL_ARRAY_BUFFER, this->vbo_id);
 
 	// Vertexes	
 	gpugameobj.gpuVertexPointer(3, GL_FLOAT, this->stride, this->vertex_offset);
@@ -171,21 +171,21 @@ void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, 
 			{
 				case RAS_IRasterizer::RAS_TEXCO_ORCO:
 				case RAS_IRasterizer::RAS_TEXCO_GLOB:
-					gpuVertexAttribPointer(unit, 3, GL_FLOAT, GL_FALSE, this->stride, this->vertex_offset);
-					gpuEnableVertexAttribArray(unit);
+					gpu_glVertexAttribPointer(unit, 3, GL_FLOAT, GL_FALSE, this->stride, this->vertex_offset);
+					gpu_glEnableVertexAttribArray(unit);
 					break;
 				case RAS_IRasterizer::RAS_TEXCO_UV:
-					gpuVertexAttribPointer(unit, 2, GL_FLOAT, GL_FALSE, this->stride, (void*)((intptr_t)this->uv_offset+uv));
+					gpu_glVertexAttribPointer(unit, 2, GL_FLOAT, GL_FALSE, this->stride, (void*)((intptr_t)this->uv_offset+uv));
 					uv += sizeof(GLfloat)*2;
-					gpuEnableVertexAttribArray(unit);
+					gpu_glEnableVertexAttribArray(unit);
 					break;
 				case RAS_IRasterizer::RAS_TEXCO_NORM:
-					gpuVertexAttribPointer(unit, 2, GL_FLOAT, GL_FALSE, stride, this->normal_offset);
-					gpuEnableVertexAttribArray(unit);
+					gpu_glVertexAttribPointer(unit, 2, GL_FLOAT, GL_FALSE, stride, this->normal_offset);
+					gpu_glEnableVertexAttribArray(unit);
 					break;
 				case RAS_IRasterizer::RAS_TEXTANGENT:
-					gpuVertexAttribPointer(unit, 4, GL_FLOAT, GL_FALSE, this->stride, this->tangent_offset);
-					gpuEnableVertexAttribArray(unit);
+					gpu_glVertexAttribPointer(unit, 4, GL_FLOAT, GL_FALSE, this->stride, this->tangent_offset);
+					gpu_glEnableVertexAttribArray(unit);
 					break;
 				default:
 					break;
@@ -200,11 +200,11 @@ void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, 
 	if (GPU_EXT_GLSL_VERTEX_ENABLED)
 	{
 		for (int i = 0; i < attrib_num; ++i)
-			gpuDisableVertexAttribArray(i);
+			gpu_glDisableVertexAttribArray(i);
 	}
 
-	gpuBindBuffer(GL_ARRAY_BUFFER, 0);
-	gpuBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	gpu_glBindBuffer(GL_ARRAY_BUFFER, 0);
+	gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
  }
 
