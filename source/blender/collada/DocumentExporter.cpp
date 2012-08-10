@@ -271,7 +271,7 @@ void DocumentExporter::exportCurrentScene(Scene *sce)
 	//for Morph controller export, removing the check
 	/*if (bc_has_object_type(export_set, OB_ARMATURE)) 
 	{*/
-		controller_exporter.export_controllers(sce);
+	controller_exporter.export_controllers(sce);
 	//}
 
 	// <library_visual_scenes>

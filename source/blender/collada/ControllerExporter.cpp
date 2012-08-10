@@ -118,9 +118,13 @@ void ControllerExporter::export_controllers(Scene *sce)
 void ControllerExporter::operator()(Object *ob)
 {
 	Object *ob_arm = bc_get_assigned_armature(ob);
+	Key *key = ob_get_key(ob);
 
 	if (ob_arm /*&& !already_written(ob_arm)*/)
-		export_controller(ob, ob_arm);
+		export_skin_controller(ob, ob_arm);
+	if(key){
+		export_morph_controller(ob, key);
+	}
 }
 #if 0
 
@@ -161,9 +165,14 @@ std::string ControllerExporter::get_controller_id(Object *ob_arm, Object *ob)
 	return translate_id(id_name(ob_arm)) + "_" + translate_id(id_name(ob)) + SKIN_CONTROLLER_ID_SUFFIX;
 }
 
+std::string ControllerExporter::get_controller_id(Key *key, Object *ob)
+{
+	return translate_id(id_name(ob)) + MORPH_CONTROLLER_ID_SUFFIX;
+}
+
 // ob should be of type OB_MESH
 // both args are required
-void ControllerExporter::export_controller(Object *ob, Object *ob_arm)
+void ControllerExporter::export_skin_controller(Object *ob, Object *ob_arm)
 {
 	// joint names
 	// joint inverse bind matrices
@@ -275,6 +284,129 @@ void ControllerExporter::export_controller(Object *ob, Object *ob_arm)
 	closeSkin();
 	closeController();
 }
+
+void ControllerExporter::export_morph_controller(Object *ob, Key *key)
+{
+	// joint names
+	// joint inverse bind matrices
+	// vertex weights
+
+	// input:
+	// joint names: ob -> vertex group names
+	// vertex group weights: me->dvert -> groups -> index, weight
+
+#if 0
+	me->dvert :
+
+	typedef struct MDeformVert {
+		struct MDeformWeight *dw;
+		int totweight;
+		int flag;   // flag only in use for weightpaint now
+	} MDeformVert;
+
+	typedef struct MDeformWeight {
+		int def_nr;
+		float weight;
+	} MDeformWeight;
+#endif
+
+	bool use_instantiation = this->export_settings->use_object_instantiation;
+	Mesh *me;
+
+	if (this->export_settings->apply_modifiers) {
+		me = bc_to_mesh_apply_modifiers(scene, ob, this->export_settings->export_mesh_type);
+	} 
+	else {
+		me = (Mesh *)ob->data;
+	}
+	BKE_mesh_tessface_ensure(me);
+
+	if (!me->dvert) return;
+
+	std::string controller_name = id_name(ob) + "-morph";
+	std::string controller_id = get_controller_id(key, ob);
+
+	openMorph(controller_id, controller_name,
+	         COLLADABU::URI(COLLADABU::Utils::EMPTY_STRING, get_geometry_id(ob, use_instantiation)));
+    
+	std::string targets_id = add_morph_targets(key, ob);
+	std::string morph_weights_id = add_morph_weights(key, ob);
+	
+	COLLADASW::TargetsElement targets(mSW);
+
+	COLLADASW::InputList &input = targets.getInputList();
+
+	input.push_back(COLLADASW::Input(COLLADASW::InputSemantic::MORPH_TARGET, // constant declared in COLLADASWInputList.h
+	                                 COLLADASW::URI(COLLADABU::Utils::EMPTY_STRING, targets_id)));
+	input.push_back(COLLADASW::Input(COLLADASW::InputSemantic::MORPH_WEIGHT,
+	                                 COLLADASW::URI(COLLADABU::Utils::EMPTY_STRING, morph_weights_id)));
+	targets.add();
+
+	if (this->export_settings->apply_modifiers)
+	{
+		BKE_libblock_free_us(&(G.main->mesh), me);
+	}
+	closeMorph();
+	closeController();
+}
+
+std::string ControllerExporter::add_morph_targets(Key *key, Object *ob)
+{
+	std::string source_id = id_name(ob) + TARGETS_SOURCE_ID_SUFFIX;
+
+	COLLADASW::IdRefSource source(mSW);
+	source.setId(source_id);
+	source.setArrayId(source_id + ARRAY_ID_SUFFIX);
+	source.setAccessorCount(key->totkey - 1);
+	source.setAccessorStride(1);
+    
+	COLLADASW::SourceBase::ParameterNameList &param = source.getParameterNameList();
+	param.push_back("IDREF");
+
+	source.prepareToAppendValues();
+
+	KeyBlock * kb = (KeyBlock*)key->block.first;
+		//skip the basis
+	kb = kb->next;
+	for (; kb; kb = kb->next) {
+		std::string geom_id = get_geometry_id(ob, false) + "_morph_" + kb->name;
+		source.appendValues(geom_id);
+
+	}
+
+	source.finish();
+
+	return source_id;
+}
+
+std::string ControllerExporter::add_morph_weights(Key *key, Object *ob)
+{
+	std::string source_id = id_name(ob) + WEIGHTS_SOURCE_ID_SUFFIX;
+
+	COLLADASW::FloatSourceF source(mSW);
+	source.setId(source_id);
+	source.setArrayId(source_id + ARRAY_ID_SUFFIX);
+	source.setAccessorCount(key->totkey - 1);
+	source.setAccessorStride(1);
+    
+	COLLADASW::SourceBase::ParameterNameList &param = source.getParameterNameList();
+	param.push_back("MORPH_WEIGHT");
+	
+	source.prepareToAppendValues();
+
+	KeyBlock * kb = (KeyBlock*)key->block.first;
+		//skip the basis
+	kb = kb->next;
+	for (; kb; kb = kb->next) {
+		float weight = kb->curval;
+		source.appendValues(weight);
+	}
+	source.finish();
+
+	return source_id;
+}
+
+
 
 void ControllerExporter::add_joints_element(ListBase *defbase,
                                           const std::string& joints_source_id, const std::string& inv_bind_mat_source_id)

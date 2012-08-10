@@ -43,11 +43,14 @@
 #include "DNA_object_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_key_types.h"
 
 #include "TransformWriter.h"
 #include "InstanceWriter.h"
 
 #include "ExportSettings.h"
+
+#include "BKE_key.h"
 
 class SceneExporter;
 
@@ -86,14 +89,22 @@ private:
 
 	std::string get_controller_id(Object *ob_arm, Object *ob);
 
+	std::string get_controller_id(Key *key, Object *ob);
+
 	// ob should be of type OB_MESH
 	// both args are required
-	void export_controller(Object *ob, Object *ob_arm);
+	void export_skin_controller(Object *ob, Object *ob_arm);
+
+	void export_morph_controller(Object *ob, Key *key);
 
 	void add_joints_element(ListBase *defbase,
 	                        const std::string& joints_source_id, const std::string& inv_bind_mat_source_id);
 
 	void add_bind_shape_mat(Object *ob);
+
+	std::string add_morph_targets(Key *key, Object *ob);
+
+	std::string add_morph_weights(Key *key, Object *ob);
 
 	std::string add_joints_source(Object *ob_arm, ListBase *defbase, const std::string& controller_id);
 

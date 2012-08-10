@@ -172,7 +172,7 @@ void GeometryExporter::operator()(Object *ob)
 }
 
 void GeometryExporter::export_key_mesh(Object *ob, Mesh *me, KeyBlock *kb){
-	std::string geom_id = get_geometry_id(ob, 0) + "_morph_" + kb->name;
+	std::string geom_id = get_geometry_id(ob, false) + "_morph_" + kb->name;
 	std::vector<Normal> nor;
 	std::vector<Face> norind;
 	
