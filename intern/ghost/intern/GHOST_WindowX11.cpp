@@ -1441,10 +1441,11 @@ installDrawingContext(
 
 			EGLint attribList[] =
 			{
-				EGL_RED_SIZE,       5,
-				EGL_GREEN_SIZE,     6,
-				EGL_BLUE_SIZE,      5,
+				EGL_RED_SIZE,       8,
+				EGL_GREEN_SIZE,     8,
+				EGL_BLUE_SIZE,      8,
 				EGL_DEPTH_SIZE,     8,
+				//EGL_ALPHA_SIZE,     8,
 				/*EGL_ALPHA_SIZE,     8,
 				
 				EGL_STENCIL_SIZE,   8,
@@ -1492,6 +1493,7 @@ installDrawingContext(
 
 			glClearColor(0.447, 0.447, 0.447, 0);
 			glClear(GL_COLOR_BUFFER_BIT);
+			glEnable(GL_DITHER);
 			eglSwapBuffers(gl_display, gl_surface);
 			success = GHOST_kSuccess;
 			break;
