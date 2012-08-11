@@ -165,10 +165,12 @@ protected:
 	std::string create_interpolation_source(FCurve *fcu, const std::string& anim_id, const char *axis_name, bool *has_tangents);
 
 	std::string fake_interpolation_source(int tot, const std::string& anim_id, const char *axis_name);
+	
 	// for rotation, axis name is always appended and the value of append_axis is ignored
 	std::string get_transform_sid(char *rna_path, int tm_type, const char *axis_name, bool append_axis);
 	std::string get_light_param_sid(char *rna_path, int tm_type, const char *axis_name, bool append_axis);
 	std::string get_camera_param_sid(char *rna_path, int tm_type, const char *axis_name, bool append_axis);
+	
 	void find_frames(Object *ob, std::vector<float> &fra, const char *prefix, const char *tm_name);
 	void find_frames(Object *ob, std::vector<float> &fra);
 

@@ -287,29 +287,6 @@ void ControllerExporter::export_skin_controller(Object *ob, Object *ob_arm)
 
 void ControllerExporter::export_morph_controller(Object *ob, Key *key)
 {
-	// joint names
-	// joint inverse bind matrices
-	// vertex weights
-
-	// input:
-	// joint names: ob -> vertex group names
-	// vertex group weights: me->dvert -> groups -> index, weight
-
-#if 0
-	me->dvert :
-
-	typedef struct MDeformVert {
-		struct MDeformWeight *dw;
-		int totweight;
-		int flag;   // flag only in use for weightpaint now
-	} MDeformVert;
-
-	typedef struct MDeformWeight {
-		int def_nr;
-		float weight;
-	} MDeformWeight;
-#endif
-
 	bool use_instantiation = this->export_settings->use_object_instantiation;
 	Mesh *me;
 
@@ -321,7 +298,7 @@ void ControllerExporter::export_morph_controller(Object *ob, Key *key)
 	}
 	BKE_mesh_tessface_ensure(me);
 
-	if (!me->dvert) return;
+	//if (!me->dvert) return;
 
 	std::string controller_name = id_name(ob) + "-morph";
 	std::string controller_id = get_controller_id(key, ob);
@@ -352,7 +329,7 @@ void ControllerExporter::export_morph_controller(Object *ob, Key *key)
 
 std::string ControllerExporter::add_morph_targets(Key *key, Object *ob)
 {
-	std::string source_id = id_name(ob) + TARGETS_SOURCE_ID_SUFFIX;
+	std::string source_id = translate_id(id_name(ob)) + TARGETS_SOURCE_ID_SUFFIX;
 
 	COLLADASW::IdRefSource source(mSW);
 	source.setId(source_id);
@@ -369,7 +346,7 @@ std::string ControllerExporter::add_morph_targets(Key *key, Object *ob)
 		//skip the basis
 	kb = kb->next;
 	for (; kb; kb = kb->next) {
-		std::string geom_id = get_geometry_id(ob, false) + "_morph_" + kb->name;
+		std::string geom_id = get_geometry_id(ob, false) + "_morph_" + translate_id(id_name(kb));
 		source.appendValues(geom_id);
 
 	}
@@ -381,7 +358,7 @@ std::string ControllerExporter::add_morph_targets(Key *key, Object *ob)
 
 std::string ControllerExporter::add_morph_weights(Key *key, Object *ob)
 {
-	std::string source_id = id_name(ob) + WEIGHTS_SOURCE_ID_SUFFIX;
+	std::string source_id = translate_id(id_name(ob)) + WEIGHTS_SOURCE_ID_SUFFIX;
 
 	COLLADASW::FloatSourceF source(mSW);
 	source.setId(source_id);

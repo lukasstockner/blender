@@ -86,8 +86,9 @@ void AnimationExporter::operator()(Object *ob)
 	}
     
     export_object_constraint_animation(ob);
-
-	export_morph_animation(ob);
+    
+	//This needs to be handled by extra profiles, so postponed for now
+	//export_morph_animation(ob);
 		
 	//Export Lamp parameter animations
 	if ( (ob->type == OB_LAMP) && ((Lamp *)ob->data)->adt && ((Lamp *)ob->data)->adt->action) {
@@ -395,6 +396,9 @@ void AnimationExporter::dae_animation(Object *ob, FCurve *fcu, char *transformNa
 		if (ma)
 			target = translate_id(id_name(ma)) + "-effect" +
 			         "/common/" /*profile common is only supported */ + get_transform_sid(fcu->rna_path, -1, axis_name, true);
+		//if shape key animation, this is the main problem, how to define the channel targets.
+		/*target = get_morph_id(ob) +
+				 "/value" +*/ 
 	}
 	addChannel(COLLADABU::URI(empty, sampler_id), target);
 
@@ -905,8 +909,7 @@ std::string AnimationExporter::create_4x4_source(std::vector<float> &frames, Obj
 	bPoseChannel *parchan = NULL;
 	bPoseChannel *pchan = NULL;
 	bPoseChannel *rootchan = NULL;
-	bPoseChannel *itrpchan;
-	
+		
 	if (ob->type == OB_ARMATURE ){
 		bPose *pose = ob->pose;
 		pchan = BKE_pose_channel_find_name(pose, bone->name);
@@ -1331,6 +1334,12 @@ bool AnimationExporter::hasAnimations(Scene *sce)
 			}
 		}
 
+		//check shape key animation
+		if(!fcu){
+			Key *key = ob_get_key(ob);
+			if(key && key->adt && key->adt->action)
+				fcu = (FCurve *)key->adt->action->curves.first;
+		}
 		if (fcu)
 			return true;
 	}
