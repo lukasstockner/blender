@@ -11,6 +11,7 @@ enum aEventType {
 	ET_UNKNOWN = 0,
 	ET_MOUSE,
 	ET_KEY,
+	ET_SENSOR,
 	ET_WINDOW,
 	ET_WINDOWSIZE,
 	ET_APP
@@ -76,11 +77,19 @@ typedef struct aEventApp
 	int action;
 } aEventApp;
 
+typedef struct aEventSensor
+{
+	aEventBase eb;
+	int type;
+	float sv[3];
+} aEventSensor;
+
 typedef union eEventAllTypes
 {
 	aEventBase eb;
 	aEventMouse Mouse;
 	aEventKey Key;
+	aEventSensor Sensor;
 	aEventWindow Window;
 	aEventWindowSize WindowSize;
 	aEventApp app;
@@ -115,6 +124,11 @@ int aEventGQueueRead(eEventAllTypes * event);
 void aEventQueuexFree(aEventQueue * q);
 
 void aSwapBuffers(void);
+int aGetSensorsAvailability(int type);
+int aSetSensorsState(int type, int enable);
+
+int aGetWindowSize(int *size);
+
 
 #ifdef __cplusplus
 }

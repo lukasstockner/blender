@@ -375,9 +375,19 @@ struct JavaBox {
 	JavaVM *jvm;
 
 	jclass jcGhostSurface;
-	jmethodID midSwapBuffers;
-jmethodID midinitSurface;
 
+	jmethodID mid_SwapBuffers;
+	jmethodID mid_initSurface;
+	jmethodID mid_getWindowSize;
+
+
+
+	jclass jcGhostActivity;
+
+	jmethodID mid_getSensorsAvailability;
+	jmethodID mid_setSensorsState;
+
+	jobject jsys;
 	jobject mainwin; /* should be stored */
 } jb;
 
@@ -516,6 +526,35 @@ JNIEXPORT void JNICALL Java_org_blender_play_BlenderNativeAPI_eventWindowsResize
 
 }
 
+JNIEXPORT void JNICALL Java_org_blender_play_BlenderNativeAPI_eventSensor3D(JNIEnv * env, jclass class, jint jtype, jfloat jx, jfloat jy, jfloat jz)
+{
+	aEventSensor sensor;
+
+	sensor.eb.aeventype = ET_SENSOR;
+
+	sensor.type = jtype;
+
+	sensor.sv[0] = jx;
+	sensor.sv[1] = jy;
+	sensor.sv[2] = jz;
+
+
+	aEventQueueAdd(&mq, (char*)&sensor, sizeof(sensor));
+}
+
+JNIEXPORT void JNICALL Java_org_blender_play_BlenderNativeAPI_eventSensor1D(JNIEnv * env, jclass class, jint jtype, jfloat jx)
+{
+	aEventSensor sensor;
+
+	sensor.eb.aeventype = ET_SENSOR;
+
+	sensor.type = jtype;
+
+	sensor.sv[0] = jx;
+
+	aEventQueueAdd(&mq, (char*)&sensor, sizeof(sensor));
+}
+
 
 JNIEXPORT void JNICALL Java_org_blender_play_BlenderNativeAPI_actionClose(JNIEnv * env, jclass class)
 {
@@ -532,6 +571,20 @@ JNIEXPORT void JNICALL Java_org_blender_play_BlenderNativeAPI_actionClose(JNIEnv
 
 }
 
+JNIEXPORT void JNICALL Java_org_blender_play_BlenderNativeAPI_SetASystem
+  (JNIEnv * env, jclass class, jobject jsys)
+{
+
+jb.jsys = (*env)->NewGlobalRef(env, jsys);
+jb.jcGhostActivity = (*env)->NewGlobalRef(env, (*env)->GetObjectClass(env, jb.jsys));
+jb.mid_getSensorsAvailability = (*env)->GetMethodID(env, jb.jcGhostActivity, "export_getSensorsAvailability", "(I)I");
+jb.mid_setSensorsState =		(*env)->GetMethodID(env, jb.jcGhostActivity, "export_setSensorsState", "(II)I");
+
+LOGW("Accelerometer Set %i", aSetSensorsState(1,1));
+}
+
+
+
 JNIEXPORT void JNICALL Java_org_blender_play_BlenderNativeAPI_SetScreen
   (JNIEnv * env, jclass class, jobject win)
   {
@@ -542,9 +595,20 @@ JNIEXPORT void JNICALL Java_org_blender_play_BlenderNativeAPI_SetScreen
 // LOGW("Hiopea2 ");
   jb.jcGhostSurface = (*env)->NewGlobalRef(env, (*env)->GetObjectClass(env, jb.mainwin));
  // LOGW("Hiopea3 ");
-  jb.midSwapBuffers = (*env)->GetMethodID(env, jb.jcGhostSurface, "SwapBuffers", "()V");//(*env)->NewGlobalRef(env, (*env)->GetMethodID(env, jb.jcGhostSurface, "SwapBuffers", "()V"));
+  jb.mid_SwapBuffers = (*env)->GetMethodID(env, jb.jcGhostSurface, "SwapBuffers", "()V");//(*env)->NewGlobalRef(env, (*env)->GetMethodID(env, jb.jcGhostSurface, "SwapBuffers", "()V"));
   //LOGW("Hiopea4 ");
-  LOGW("cl %i %i", (int)jb.midSwapBuffers, (int)jb.jcGhostSurface);
+
+  jb.mid_getWindowSize = (*env)->GetMethodID(env, jb.jcGhostSurface, "export_getWindowSize", "()I");
+
+  LOGW("cl %i %i", (int)jb.mid_SwapBuffers, (int)jb.jcGhostSurface);
+
+  {
+	  int size[2] = {0};
+	  aGetWindowSize(size);
+
+	  LOGW("Size %i x %i", size[0], size[1]);
+  }
+
   //glClearColor(0.5f, 0.0f, 0.5f, 1.0f);
   //glClear(GL_COLOR_BUFFER_BIT);
   }
@@ -566,12 +630,36 @@ JNIEnv* jGetEnv(void)
 }
   
 
+int aGetWindowSize(int *size)
+{
+	JNIEnv* env = jGetEnv();
+	int r = (*env)->CallIntMethod(env, jb.mainwin, jb.mid_getWindowSize);
+	if(r==0)
+		return 0;
+
+	size[0] = (r>>16) & 0xFFFF;
+	size[1] =r & 0xFFFF;
+
+	return 1;
+}
+
+int aGetSensorsAvailability(int type)
+{
+	JNIEnv* env = jGetEnv();
+	return (*env)->CallIntMethod(env, jb.jsys, jb.mid_getSensorsAvailability, type);
+}
+
+
+int aSetSensorsState(int type, int enable)
+{
+	JNIEnv* env = jGetEnv();
+	return (*env)->CallIntMethod(env, jb.jsys, jb.mid_setSensorsState, type, enable);
+}
+
 void aSwapBuffers(void)
 {
 	JNIEnv* env = jGetEnv();
-LOGW("Start Swap ");
-	(*env)->CallVoidMethod(env, jb.mainwin, jb.midSwapBuffers);
-	LOGW("Swapped");
+	(*env)->CallVoidMethod(env, jb.mainwin, jb.mid_SwapBuffers);
 }
   
 JNIEXPORT void JNICALL Java_org_blender_play_BlenderNativeAPI_Swap(JNIEnv * env, jclass class)
@@ -584,7 +672,7 @@ void * StartBlender( void * parp )
 {
 	char * copyfilepath = parp;
 	JNIEnv* env = NULL;
-	(*jb.jvm)->AttachCurrentThread(jb.jvm, (void**) &env, NULL);
+	(*jb.jvm)->AttachCurrentThread(jb.jvm, (const struct JNINativeInterface ***) &env, NULL);
 	LOGW("One moment");
 	{
 
@@ -592,15 +680,15 @@ void * StartBlender( void * parp )
 
 LOGW("env %p",*env);
 
-jb.midinitSurface = (*env)->GetMethodID(env, jb.jcGhostSurface, "initSurface", "()V");//(*env)->NewGlobalRef(env, (*env)->GetMethodID(env, jb.jcGhostSurface, "initSurface", "()V"));
+jb.mid_initSurface = (*env)->GetMethodID(env, jb.jcGhostSurface, "initSurface", "()V");//(*env)->NewGlobalRef(env, (*env)->GetMethodID(env, jb.jcGhostSurface, "initSurface", "()V"));
 
-LOGW("midinitSurface2 %p",jb.midinitSurface);
+LOGW("midinitSurface2 %p",jb.mid_initSurface);
 
-(*env)->CallVoidMethod(env, jb.mainwin, jb.midinitSurface);
+(*env)->CallVoidMethod(env, jb.mainwin, jb.mid_initSurface);
 	}
-
-	setenv("PYTHONPATH","/mnt/sdcard/com.googlecode.python3forandroid/extras/python3:/data/data/com.googlecode.python3forandroid/files/python3/lib/python3.2/lib-dynload",1);
-	setenv("PYTHONHOME","/data/data/com.googlecode.python3forandroid/files/python3",1);
+///mnt/sdcard/com.googlecode.python3forandroid/extras/python3:
+	setenv("PYTHONPATH","/data/data/org.blender.play/python/scripts:/data/data/org.blender.play/python/lib/python3.2/lib-dynload",1);
+	setenv("PYTHONHOME","/data/data/org.blender.play/python",1);
 
 	loadownlib("jpeg", 8);
 	loadownlib("freetype", 6);

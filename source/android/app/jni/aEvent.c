@@ -15,11 +15,12 @@ size_t eEventGetSize(int type)
 {
 	switch(type)
 	{
-		case ET_MOUSE:	return sizeof(aEventMouse);
-		case ET_KEY:	return sizeof(aEventKey);
-		case ET_WINDOW:	return sizeof(aEventWindow);
+		case ET_MOUSE:		return sizeof(aEventMouse);
+		case ET_KEY:		return sizeof(aEventKey);
+		case ET_SENSOR:		return sizeof(aEventSensor);
+		case ET_WINDOW:		return sizeof(aEventWindow);
 		case ET_WINDOWSIZE:	return sizeof(aEventWindowSize);
-		case ET_APP:	return sizeof(aEventApp);
+		case ET_APP:		return sizeof(aEventApp);
 		default: assert(0);
 
 	}
