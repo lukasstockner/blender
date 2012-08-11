@@ -3058,13 +3058,74 @@ typedef struct GraphVertInfo {
 	HeapNode * node;
 } GraphVertInfo;
 
+//#define ISOMAP_DEBUG
+float p_chart_isomap_calculate_distance_from_triangle(float theta, float a, float b, float c, float Ta, float Tb)
+{
+	/* quadratic equation coefficients */
+	float q_a, q_b, q_c;
+	float u, t1, t2;
+	float sth = sin(theta);
+	float cth = cos(theta);
+	float t;
+
+	/* Tb should be greater than Ta */
+	if (Ta > Tb) {
+		float tmp;
+
+		tmp = Ta;
+		Ta = Tb;
+		Tb = tmp;
+
+		tmp = a;
+		a = b;
+		b = tmp;
+	}
+
+	u = Tb - Ta;
+	q_a = a*a + b*b + 2*a*b*cth;
+	q_b = 2*b*u*(a*cth - b);
+	q_c = b*b*(u*u - a*a*sth*sth);
+
+	/* find the two solutions for tc */
+	t1 = (q_b*q_b - 4*q_a*q_c)/(2*q_a);
+	t2 = (q_b*q_b + 4*q_a*q_c)/(2*q_a);
+
+//	printf("data: a %f, b %f, c %f, Ta %f, Tb %f, theta %f\n", a, b, c, Ta, Tb, theta);
+
+	t = (t1 > 0)? t1 : t2;
+
+	if ((t > u) && (a*cth < b*(t-u)/t) && (a/cth > b*(t-u)/t)) {
+		t = t + Ta;
+	} else {
+		t = minf(b + Ta, c + Tb);
+	}
+
+	printf("solutions: %f, %f, final: %f\n", t1, t2, t);
+
+	return t;
+}
+
+
 PBool p_chart_isomap_iterate_graph_edge(int i0, PEdge *p_edge, PBool inverted, PBool do_double, float *dist_map, int nverts, GraphVertInfo *visited, Heap *graph_heap)
 {
 	PBool update = P_FALSE;
-	int ij, iother;
-	int ic;
+	int ic, ib;
+	int ia;
 	float sum_dist;
-	float d[3];
+
+	/* triangle edges */
+	float a[3];
+	float b[3];
+	float c[3];
+
+	/* normalized triangle edges */
+	float norm_b[3];
+	float norm_a[3];
+
+	/* edge norms */
+	float a_d, b_d, c_d;
+
+	float theta;
 
 	PVert *p_cent;
 	PVert *p_viter;
@@ -3078,16 +3139,16 @@ PBool p_chart_isomap_iterate_graph_edge(int i0, PEdge *p_edge, PBool inverted, P
 		p_viter = p_edge->next->vert;
 	}
 
-	ic = p_cent->u.id;
-	ij = p_viter->u.id;
+	ia = p_cent->u.id;
+	ic = p_viter->u.id;
 
 	/* determine if we can calculate distance from two neighbors. p_cent is guaranteed to
 	 * have valid distance data so simply check for other vert */
 	if (do_double) {
 		p_other = p_edge->next->next->vert;
-		iother = p_other->u.id;
+		ib = p_other->u.id;
 
-		if (!visited[iother].added) {
+		if (!visited[ib].added) {
 			PBool fail = P_FALSE;
 			/* first attempt calculating the vert using the other triangle */
 			p_edge = p_edge->pair;
@@ -3099,62 +3160,119 @@ PBool p_chart_isomap_iterate_graph_edge(int i0, PEdge *p_edge, PBool inverted, P
 					p_viter = p_edge->vert;
 				}
 
-				ij = p_viter->u.id;
+				ic = p_viter->u.id;
 
 				p_other = p_edge->next->next->vert;
-				iother = p_other->u.id;
+				ib = p_other->u.id;
 			} else {
 				fail = P_TRUE;
 			}
 
-			if (!visited[iother].added)
+			if (!visited[ib].added)
 				fail = P_TRUE;
 
 			/* attempt failed, return 0 */
 			if(fail) {
 				/* add a node to the heap so that the node will be traversed later.
 					 * make sure to put a max value so the node gets to the bottom of the heap. */
-				if (!visited[ij].node)
-					visited[ij].node = BLI_heap_insert(graph_heap, MAXFLOAT , p_viter);
+				if (!visited[ic].node)
+					visited[ic].node = BLI_heap_insert(graph_heap, MAXFLOAT , p_viter);
 
-				printf("vertex %d failed due to vertex %d missing. inverted: %d\n", ij, iother, inverted);
+				#ifdef ISOMAP_DEBUG
+				printf("vertex %d failed due to vertex %d missing. inverted: %d\n", ic, ib, inverted);
+				#endif
 				return P_FALSE;
 			}
 		}
 	}
 
-	d[0] = p_viter->co[0] - p_cent->co[0];
-	d[1] = p_viter->co[1] - p_cent->co[1];
-	d[2] = p_viter->co[2] - p_cent->co[2];
+	/* calculate edges */
+	b[0] = p_viter->co[0] - p_cent->co[0];
+	b[1] = p_viter->co[1] - p_cent->co[1];
+	b[2] = p_viter->co[2] - p_cent->co[2];
 
-	sum_dist = dist_map[ic*nverts + i0] + sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
-	update = (dist_map[i0*nverts + ij] > sum_dist);
+	if (do_double) {
+		c[0] = p_other->co[0] - p_cent->co[0];
+		c[1] = p_other->co[1] - p_cent->co[1];
+		c[2] = p_other->co[2] - p_cent->co[2];
 
-	if (!visited[ij].added && visited[ij].node) {
-		BLI_heap_remove(graph_heap, visited[ij].node);
-		visited[ij].node = NULL;
+		a[0] = p_viter->co[0] - p_other->co[0];
+		a[1] = p_viter->co[1] - p_other->co[1];
+		a[2] = p_viter->co[2] - p_other->co[2];
+
+		/* calculate the angle at the vertex being updated. */
+		normalize_v3_v3(norm_b, b);
+		normalize_v3_v3(norm_a, a);
+		theta = dot_v3v3(norm_b, norm_a);
+		CLAMP(theta, -1.0, 1.0);
+		theta = acos(theta);
+
+		a_d = len_v3(a);
+		b_d = len_v3(b);
+		c_d = len_v3(c);
+
+		if(theta < M_PI_2) {
+			/* acute triangle case */
+			sum_dist = p_chart_isomap_calculate_distance_from_triangle(theta, a_d, b_d, c_d, dist_map[ia*nverts + i0], dist_map[ib*nverts + i0]);
+		} else {
+			/* divide opposite edge to make two acute triangles and retry */
+			float tri1_result, tri2_result;
+			float T_mean = 0.5*(dist_map[ia*nverts + i0] + dist_map[ib*nverts + i0]);
+			float ed_mean[3];
+			float ed_mean_len;
+
+			add_v3_v3v3(ed_mean, a, b);
+			ed_mean_len = 0.5*len_v3(ed_mean);
+			c_d *= 0.5;
+
+			theta = (a_d*a_d + ed_mean_len*ed_mean_len - c_d*c_d)/(2*a_d*ed_mean_len);
+			CLAMP(theta, -1.0, 1.0);
+			theta = acos(theta);
+			BLI_assert(theta < M_PI_2);
+			tri1_result = p_chart_isomap_calculate_distance_from_triangle(theta, a_d, ed_mean_len, c_d, dist_map[ia*nverts + i0], T_mean);
+
+			theta = (b_d*b_d + ed_mean_len*ed_mean_len - c_d*c_d)/(2*b_d*ed_mean_len);
+			CLAMP(theta, -1.0, 1.0);
+			theta = acos(theta);
+			BLI_assert(theta < M_PI_2);
+			tri2_result = p_chart_isomap_calculate_distance_from_triangle(theta, ed_mean_len, b_d, c_d, T_mean, dist_map[ib*nverts + i0]);
+
+			sum_dist = minf(tri1_result, tri2_result);
+		}
+	} else {
+		sum_dist = sqrt(b[0] * b[0] + b[1] * b[1] + b[2] * b[2]);
+	}
+
+	sum_dist += dist_map[ia*nverts + i0];
+	update = (dist_map[i0*nverts + ic] > sum_dist);
+
+	if (!visited[ic].added && visited[ic].node) {
+		BLI_heap_remove(graph_heap, visited[ic].node);
+		visited[ic].node = NULL;
 	}
 
 	/* add pverts in the hash */
 	if(update) {
-		dist_map[i0*nverts + ij] = dist_map[ij*nverts + i0] = sum_dist;
-		if(!visited[ij].removed) {
-			if (visited[ij].node) {
-				BLI_heap_remove(graph_heap, visited[ij].node);
+		dist_map[i0*nverts + ic] = dist_map[ic*nverts + i0] = sum_dist;
+		if(!visited[ic].removed) {
+			if (visited[ic].node) {
+				BLI_heap_remove(graph_heap, visited[ic].node);
 			}
 
-			visited[ij].node = BLI_heap_insert(graph_heap, sum_dist , p_viter);
+			visited[ic].node = BLI_heap_insert(graph_heap, sum_dist , p_viter);
 		}
 	}
-	if(!visited[ij].removed && !visited[ij].node) {
-		visited[ij].node = BLI_heap_insert(graph_heap, sum_dist , p_viter);
+	if(!visited[ic].removed && !visited[ic].node) {
+		visited[ic].node = BLI_heap_insert(graph_heap, sum_dist , p_viter);
 	}
-	visited[ij].added = TRUE;
+	visited[ic].added = TRUE;
+	#ifdef ISOMAP_DEBUG
 	if (do_double) {
-		printf("vertex %d calculated, other vertex %d, inverted %d \n", ij, iother, inverted);
+		printf("vertex %d calculated, other vertex %d, inverted %d \n", ic, ib, inverted);
 	} else {
-		printf("vertex %d calculated\n", ij);
+		printf("vertex %d calculated\n", ic);
 	}
+	#endif
 	return P_TRUE;
 }
 
@@ -3192,9 +3310,9 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 			PBool not_first = FALSE;
 			PVert *p_cent;
 			int i0 = v->u.id;
-
+			#ifdef ISOMAP_DEBUG
 			printf("changing initial vertex: %d\n", i0);
-
+			#endif
 			/* reset the visited nodes */
 			memset(visited, 0, nverts*sizeof(*visited));
 
@@ -3236,7 +3354,11 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 				} while (e_iter != e_init);
 
 				old_stack_depth = stack_depth;
+
+				#ifdef ISOMAP_DEBUG
 				printf("processing vertex %d \n", ic);
+				#endif
+
 				while (stack_depth) {
 					int old_stack_iter = stack_iter;
 
@@ -3244,6 +3366,7 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 
 					if(stack_iter < old_stack_iter) {
 						if(old_stack_depth == stack_depth) {
+							#ifdef ISOMAP_DEBUG
 							printf("deadlock vertex index: %d\n", ic);
 							for(i = 0; i < nverts; i++) {
 								printf("%d vertex info added: %d\n",i, visited[i].added);
@@ -3262,6 +3385,7 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 									break;
 								}
 							} while (e_iter != e_init);
+							#endif
 
 							BLI_heap_free(graph_heap, NULL);
 							MEM_freeN(visited);
@@ -3288,10 +3412,11 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 
 				if(BLI_heap_size(graph_heap) > 0) {
 					p_cent = BLI_heap_popmin(graph_heap);
-
+					#ifdef ISOMAP_DEBUG
 					if(!visited[p_cent->u.id].added) {
 						printf("BLI_heap_size(graph_heap) %d\n", BLI_heap_size(graph_heap));
 					}
+					#endif
 				}
 				else {
 					p_cent = NULL;
