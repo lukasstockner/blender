@@ -53,7 +53,7 @@ public class CopyIntern extends Activity {
 	public void onStart() {
 		super.onStart();
 		MainFunc();
-
+		finish();
 		BlenderNativeAPI.exit(0);
 	    
 	}

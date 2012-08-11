@@ -70,6 +70,7 @@ public class makesActivity extends Activity {
 		super.onStart();
 
 		MainFunc();
+		finish();
 		BlenderNativeAPI.exit(0);		
 	}
 

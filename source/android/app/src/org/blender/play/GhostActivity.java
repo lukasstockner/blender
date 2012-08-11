@@ -2,10 +2,13 @@ package org.blender.play;
 
 
 
+import java.util.*;
+
 import android.app.Activity;
 import android.os.Bundle;
 import android.view.*;
 import android.content.*;
+import android.hardware.*;
 import android.util.*;
 import android.net.*;
 import javax.microedition.khronos.egl.*;
@@ -14,10 +17,15 @@ import javax.microedition.khronos.egl.*;
 
 
 
-public class GhostActivity extends Activity
+public class GhostActivity extends Activity implements SensorEventListener
 {
     /** Called when the activity is first created. */
 	private GhostSurface mainSurface;
+	
+	private SensorManager sensors;
+	private Sensor accelerometer;
+	private Sensor gyroscope;
+	private Sensor magneticfield;
 	
     @Override
     public void onCreate(Bundle savedInstanceState)
@@ -27,17 +35,71 @@ public class GhostActivity extends Activity
         
         
         Uri data = getIntent().getData();
-        if(data != null){
+        if(data != null || true){
       
         Log.i("Blender","Started");
-        mainSurface = new GhostSurface(data.getPath(), getApplication());
+        mainSurface = new GhostSurface(data != null ? data.getPath() : "/sdcard/test.blend", getApplication());
         setContentView(mainSurface);
         SurfaceHolder holder = mainSurface.getHolder();
         Log.v("Blender", "Surface valid: " + Boolean.toString(holder.getSurface().isValid()));
+       // holder.setFixedSize(240, 400);
+        
         //mainSurface.initSurface();
      //setContentView(R.layout.main);
+        
+        sensors = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        
+        accelerometer = sensors.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        gyroscope = sensors.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+        magneticfield = sensors.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+        
+        BlenderNativeAPI.SetASystem(this);
+        //sensors.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_GAME);
+        
+        //sensors.registerListener(this, gyroscope, SensorManager.SENSOR_DELAY_GAME);        
+        
+        
         }
 	    
+    }
+    
+    public int export_getSensorsAvailability(int type)
+    {
+    	switch(type)
+    	{
+    		case 1:	return accelerometer == null ? 0 : 1;
+    		case 2:	return gyroscope == null ? 0 : 1;
+    		case 3: return magneticfield == null ? 1 : 0;
+    	}
+    	return 0;  	
+    }
+    
+    public int export_setSensorsState(int type, int enable)
+    {
+    	Sensor cs = null;
+    	switch(type)
+    	{
+    		case 1:	cs = accelerometer ; break;
+    		case 2:	cs =  gyroscope; break;
+    		case 3: cs =  magneticfield; break;
+    		default: return 0;
+    	}
+    	
+    	if(cs==null)
+    		return 0;
+    	
+    	if(enable != 0)
+    	{
+    		return sensors.registerListener(this, cs, SensorManager.SENSOR_DELAY_GAME) ? 1 : 0;
+    		
+    	} else
+    	{
+    		sensors.unregisterListener(this, cs);
+    		return 1;
+    		
+    	}
+    	
+    	
     }
     
     public void onStart()
@@ -47,7 +109,7 @@ public class GhostActivity extends Activity
 	
 
     }
-    
+        
     @Override
     public boolean onTouchEvent(MotionEvent event)
     {
@@ -61,14 +123,42 @@ public class GhostActivity extends Activity
     	super.onPause();
     	BlenderNativeAPI.actionClose();
     	
-    	finish();    	
+    	finish(); 
+    	BlenderNativeAPI.exit(0);
+    }
+        
+    
+
+    
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) 
+    {
+
     }
     
+    @Override
+    public void onSensorChanged(SensorEvent event) 
+    {
+    	switch(event.sensor.getType())
+    	{
+    		case Sensor.TYPE_ACCELEROMETER:
+    			BlenderNativeAPI.eventSensor3D(0, event.values[0], event.values[1], event.values[2]);
+    			break;
+    		case Sensor.TYPE_GYROSCOPE:
+    			BlenderNativeAPI.eventSensor3D(1, event.values[0], event.values[1], event.values[2]);
+    			break;	
+    		case Sensor.TYPE_MAGNETIC_FIELD:
+    			BlenderNativeAPI.eventSensor3D(2, event.values[0], event.values[1], event.values[2]);
+    			break;      	
+    	
+    	}
+    	
+    }
 }
 
 
 
-class GhostSurface extends SurfaceView implements SurfaceHolder.Callback {
+class GhostSurface extends SurfaceView implements SurfaceHolder.Callback{
 
 	private EGLDisplay egldisplay = null;
 	private EGLSurface surface = null;
@@ -77,6 +167,7 @@ class GhostSurface extends SurfaceView implements SurfaceHolder.Callback {
 	
 	private String filepath;
 	
+	long lasttime;
 	
 	@Override
 	public boolean onTouchEvent(MotionEvent event)
@@ -92,11 +183,14 @@ class GhostSurface extends SurfaceView implements SurfaceHolder.Callback {
 		
 		this.filepath = filepath;
 		
+		lasttime = Calendar.getInstance().getTimeInMillis();
+		
 		getHolder().addCallback(this); 
 		getHolder().setType(SurfaceHolder.SURFACE_TYPE_GPU);
         setFocusable(true);
         setFocusableInTouchMode(true);
         requestFocus();
+        
 	}
 	
     public void surfaceCreated(SurfaceHolder holder) {
@@ -109,6 +203,8 @@ class GhostSurface extends SurfaceView implements SurfaceHolder.Callback {
     	BlenderNativeAPI.eventWindowsResize(this.getWidth(), this.getHeight());
     	BlenderNativeAPI.eventWindowsFocus();
     	BlenderNativeAPI.eventWindowsUpdate();
+    	
+    	export_getWindowSize();
     }
 	
     
@@ -119,6 +215,8 @@ class GhostSurface extends SurfaceView implements SurfaceHolder.Callback {
 		BlenderNativeAPI.eventWindowsResize(width, height);
 		BlenderNativeAPI.eventWindowsFocus();
 		BlenderNativeAPI.eventWindowsUpdate();
+		
+		
 	}
     
     public void surfaceDestroyed(SurfaceHolder holder) {
@@ -126,6 +224,11 @@ class GhostSurface extends SurfaceView implements SurfaceHolder.Callback {
     }
     
     public void SwapBuffers() {
+    	long ctime = Calendar.getInstance().getTimeInMillis();
+    	
+    	
+    	Log.i("Blender", "FPS " + String.format("%.2f", 1000.0/(ctime-lasttime)) + " Time: "+(ctime-lasttime));
+    	lasttime = ctime;
         eglc = (EGL10)EGLContext.getEGL();
         
         eglc.eglWaitNative(EGL10.EGL_CORE_NATIVE_ENGINE, null);
@@ -136,7 +239,12 @@ class GhostSurface extends SurfaceView implements SurfaceHolder.Callback {
         }
 
     }
-	
+    
+    public int export_getWindowSize()
+    {
+    	return (this.getWidth() << 16) | this.getHeight();
+    }
+    	
 	public void initSurface()
 	{
 		 eglc = (EGL10)EGLContext.getEGL();

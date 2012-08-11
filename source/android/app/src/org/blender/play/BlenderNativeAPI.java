@@ -9,7 +9,7 @@ class BlenderNativeAPI
 		System.loadLibrary("main");
     }
 	
-	
+	public static native void SetASystem(GhostActivity jsys);
 	public static native void SetScreen(GhostSurface win);
 	public static native void Swap();
 	public static native void StartBlender(String filepath);
@@ -18,6 +18,9 @@ class BlenderNativeAPI
 	public static native void eventWindowsResize(int x, int y);
 	public static native void eventWindowsFocus();
 	public static native void eventWindowsDefocus();
+	
+	public static native void eventSensor3D(int type, float x, float y, float z);
+	public static native void eventSensor1D(int type, float x);
 	
 	public static native void actionClose();
 	

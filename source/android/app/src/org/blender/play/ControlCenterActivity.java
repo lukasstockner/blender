@@ -1,8 +1,6 @@
 package org.blender.play;
 
-import java.io.BufferedInputStream;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import java.io.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -16,8 +14,12 @@ import android.widget.*;
 import android.view.*;
 import android.view.View.*;
 
+
+
+
 public class ControlCenterActivity extends Activity {
 
+	private Button b_downloadlib;
 	private Button b_startgame;
 	private Button b_selectgame;
 	private TextView t_gamename;
@@ -25,18 +27,24 @@ public class ControlCenterActivity extends Activity {
 	
 	private String gamepath = null;
 	
+	private String appdirbase;
+	
 	/** Called when the activity is first created. */
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 	    super.onCreate(savedInstanceState);
+	    PathsHelper.installIfNeeded(this);
+	    
+	    
 	    
 	    setContentView(R.layout.main);
 
-	    
+	    appdirbase = PathsHelper.getBaseAppDir(this);
 	    
 	    b_startgame = (Button)findViewById(R.id.startbutton);
 	    b_selectgame = (Button)findViewById(R.id.gameselecterbutton);
 	    t_gamename = (TextView)findViewById(R.id.gamenametext);
+	    
 	    
 	    
 	    b_startgame.setOnClickListener(new OnClickListener() {           
@@ -48,6 +56,7 @@ public class ControlCenterActivity extends Activity {
             	intent.setData(Uri.parse("file://" + gamepath));
             	
             	startActivity(intent); 
+            	BlenderNativeAPI.exit(0);
             }
         });
 	    
@@ -74,19 +83,19 @@ public class ControlCenterActivity extends Activity {
         });
 	    
 	    updatePlayable();
-	    
-	    // TODO Auto-generated method stub
+
 	}
 
 	void updatePlayable()
 	{
-		if(gamepath != null)
+		if(gamepath != null && (new File(appdirbase+"libblenderplayer.so")).exists())
 			b_startgame.setEnabled(true);
 		else
 			b_startgame.setEnabled(false);
 	}
 	
 	
+		
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         switch (requestCode) {
             case 0:      
@@ -113,7 +122,7 @@ public class ControlCenterActivity extends Activity {
     super.onActivityResult(requestCode, resultCode, data);
     }
 	
-	void InstallFile(String installpath, String basepath)
+	public void InstallFile(String installpath, String basepath)
 	{
         try
         {
@@ -168,7 +177,7 @@ public class ControlCenterActivity extends Activity {
         	String path =  intentdata.getEncodedPath();
         	if(path != null)
         	{
-        		Log.i("rrrr","Started " + path);
+        		Log.i("Blender","Started " + path);
         		
         	    String basedir = getBaseContext().getFilesDir().getPath();
         	    basedir = basedir.substring(0, basedir.lastIndexOf("/")+1);
@@ -176,11 +185,14 @@ public class ControlCenterActivity extends Activity {
         	    InstallFile(path, basedir);
         		
         	}
-        	else Log.i("rrrr","No path");
-        } else Log.i("rrrr","No data");
+        	else Log.i("Blender","No path");
+        } else Log.i("Blender","No data");
     	
 
         
 
 	}
+	
+	
+
 }
