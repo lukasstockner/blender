@@ -27,6 +27,8 @@
 #include <cassert>
 #include "../assimp/SceneImporter.h"
 
+#include "bfbx.h"
+
 extern "C"
 {
 #include "BKE_scene.h"
@@ -36,18 +38,27 @@ extern "C"
 #include "BLI_fileops.h"
 #include "BLI_path_util.h"
 
-	int bfbx_import(bContext *C, const char *filepath)
+	int bfbx_import(bContext *C, const char *filepath, const bfbx_import_settings* settings)
 	{
 		assert(C);
 		assert(filepath);
 
-		bassimp_import_settings defaults;
-		defaults.enableAssimpLog = 0;
-		defaults.reports = NULL;
-		defaults.nolines = 0;
-		defaults.triangulate = 0;
+		bfbx_import_settings defaults;
 
-		bassimp::SceneImporter imp(filepath,*C,defaults);
+		defaults.assimp_settings.enableAssimpLog = 0;
+		defaults.assimp_settings.reports = NULL;
+		defaults.assimp_settings.nolines = 0;
+		defaults.assimp_settings.triangulate = 0;
+
+		if(!settings) {
+			settings = &defaults;
+		}
+
+		bassimp::SceneImporter imp(filepath,*C,settings->assimp_settings);
+
+		//Assimp::Importer& ai_imp = imp.get_importer();
+		//importer.SetPropertyInteger(AI_CONFIG_IMPORT_FBX_STRICT_MODE,settings->strict_mode);
+
 		return imp.import() != 0 && imp.apply() != 0;
 	}
 

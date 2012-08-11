@@ -2233,6 +2233,7 @@ static void WM_OT_assimp_import(wmOperatorType *ot)
 /* function used for WM_OT_save_mainfile too */
 static int wm_fbx_import_exec(bContext *C, wmOperator *op)
 {
+	bfbx_import_settings settings;
 	char filename[FILE_MAX];
 
 	if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
@@ -2241,7 +2242,17 @@ static int wm_fbx_import_exec(bContext *C, wmOperator *op)
 	}
 
 	RNA_string_get(op->ptr, "filepath", filename);
-	if (bfbx_import(C, filename)) return OPERATOR_FINISHED;
+
+	settings.assimp_settings.reports = op->reports;
+	settings.assimp_settings.triangulate = 0;
+	settings.assimp_settings.nolines = 0;
+	settings.assimp_settings.enableAssimpLog = 1;
+
+	settings.strict_mode = 0;
+
+	if (bfbx_import(C, filename, &settings)) { 
+		return OPERATOR_FINISHED;
+	}
 
 	BKE_report(op->reports, RPT_ERROR, "Errors found during importing. Please see console for error log.");
 

@@ -34,11 +34,23 @@ struct Scene;
 extern "C" {
 #endif
 
+	/* fbx import settings */
+	typedef struct bfbx_import_settings
+	{
+		/* settings for assimp */
+		bassimp_import_settings assimp_settings;
+
+		/* in strict mode, only the 2013 fbx format will be read. In non-strict
+		 * mode the importer attempts to make the best out of the data it gets.*/
+		int strict_mode;
+
+	} bfbx_import_settings;
+
 
 	/* import/export functions
 	 * both return 1 on success, 0 on error
 	 */
-	int bfbx_import(bContext *C, const char *filepath);
+	int bfbx_import(bContext *C, const char *filepath, const bfbx_import_settings* settings);
 	//int bassimp_export(Scene *sce, const char *filepath, int selected, int apply_modifiers);
 #ifdef __cplusplus
 }
