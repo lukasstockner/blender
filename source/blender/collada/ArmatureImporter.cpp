@@ -649,9 +649,47 @@ bool ArmatureImporter::write_controller(const COLLADAFW::Controller *controller)
 		skin_by_data_uid[data_uid].set_controller(co);
 	}
 	// morph controller
-	else {
-		// shape keys? :)
-		fprintf(stderr, "Morph controller is not supported yet.\n");
+	else if (controller->getControllerType() == COLLADAFW::Controller::CONTROLLER_TYPE_MORPH) {
+		COLLADAFW::MorphController *co = (COLLADAFW::MorphController *)controller;
+		// to be able to find geom id by controller id
+		geom_uid_by_controller_uid[skin_id] = co->getSource();
+
+		COLLADAFW::UniqueIdArray& morphTargetIds = co->getMorphTargets();
+		COLLADAFW::FloatOrDoubleArray& morphWeights = co->getMorphWeights();
+        
+		//Prereq: all the geometries must be imported and mesh objects must be made
+		Object *source_ob = this->mesh_importer->get_object_by_geom_uid(co->getSource());
+		Mesh *source_me = (Mesh*) source_ob->data;
+		float *weight;
+
+		for ( int i = 0 ; i < morphTargetIds.getCount() ; i++ ){
+			//better to have a seperate map of morph objects, 
+			//This'll do for now since only mesh morphing is imported
+			Object *ob = this->mesh_importer->get_object_by_geom_uid(morphTargetIds[i]);
+			if(ob){
+				Mesh *me = (Mesh*)ob->data;
+				Key *key = ob_get_key(source_ob);
+				KeyBlock *kb;
+				int newkey = 0;
+
+				if (key == NULL) {
+					key = source_me->key = add_key((ID *)me);
+					key->type = KEY_RELATIVE;
+					newkey = 1;
+				}
+
+				kb = add_keyblock_ctime(key, morphTargetIds[i].toAscii().c_str(), FALSE);
+				mesh_to_key(me, kb);
+				weight =  morphWeights.getFloatValues()[i].getData();
+				kb->curval = *weight;
+				
+				//free object since it is added as shape key
+				BKE_object_free(ob);
+			}
+			else 
+				fprintf(stderr, "Morph target geometry not found.\n");
+		} 
+//		fprintf(stderr, "Morph controller is not supported yet.\n");
 	}
 
 	return true;

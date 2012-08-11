@@ -29,13 +29,16 @@
 
 #include "COLLADAFWNode.h"
 #include "COLLADAFWUniqueId.h"
+#include "COLLADAFWMorphController.h"
 
 extern "C" {
 #include "BKE_context.h"
+#include "BKE_key.h"
 
 #include "DNA_armature_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_key_types.h"
 
 #include "ED_armature.h"
 }
