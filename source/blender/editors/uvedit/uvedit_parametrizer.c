@@ -3087,10 +3087,8 @@ float p_chart_isomap_calculate_distance_from_triangle(float theta, float a, floa
 	q_c = b*b*(u*u - a*a*sth*sth);
 
 	/* find the two solutions for tc */
-	t1 = (q_b*q_b - 4*q_a*q_c)/(2*q_a);
-	t2 = (q_b*q_b + 4*q_a*q_c)/(2*q_a);
-
-//	printf("data: a %f, b %f, c %f, Ta %f, Tb %f, theta %f\n", a, b, c, Ta, Tb, theta);
+	t1 = (-q_b - sqrt(q_b*q_b - 4*q_a*q_c))/(2*q_a);
+	t2 = (-q_b + sqrt(q_b*q_b - 4*q_a*q_c))/(2*q_a);
 
 	t = (t1 > 0)? t1 : t2;
 
@@ -3101,6 +3099,7 @@ float p_chart_isomap_calculate_distance_from_triangle(float theta, float a, floa
 	}
 
 	printf("solutions: %f, %f, final: %f\n", t1, t2, t);
+	printf("data: a %f, b %f, c %f, Ta %f, Tb %f, theta %f\n", a, b, c, Ta, Tb, theta);
 
 	return t;
 }
@@ -3221,6 +3220,7 @@ PBool p_chart_isomap_iterate_graph_edge(int i0, PEdge *p_edge, PBool inverted, P
 			float ed_mean[3];
 			float ed_mean_len;
 
+			printf("\nobtuse set coming\n");
 			add_v3_v3v3(ed_mean, a, b);
 			ed_mean_len = 0.5*len_v3(ed_mean);
 			c_d *= 0.5;
@@ -3236,6 +3236,7 @@ PBool p_chart_isomap_iterate_graph_edge(int i0, PEdge *p_edge, PBool inverted, P
 			theta = acos(theta);
 			BLI_assert(theta < M_PI_2);
 			tri2_result = p_chart_isomap_calculate_distance_from_triangle(theta, ed_mean_len, b_d, c_d, T_mean, dist_map[ib*nverts + i0]);
+			printf("obtuse set end\n\n");
 
 			sum_dist = minf(tri1_result, tri2_result);
 		}
