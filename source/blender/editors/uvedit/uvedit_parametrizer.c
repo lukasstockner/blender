@@ -3138,10 +3138,8 @@ PBool p_chart_isomap_iterate_graph_edge(int i0, PEdge *p_edge, PBool inverted, P
 		float norm[3];
 		float x_local[3];
 		float y_local[3];
-		float v2x, sqv2x, v3x, v3y, projx, projy;
+		float v2x, v3x, v3y, projx, projy;
 
-		/* temp variables for solution of projected distance point */
-		float alpha, beta;
 		float T1 = dist_map[i_center*nverts + i0], T2 = dist_map[i_sec*nverts + i0];
 
 		c[0] = v_secondary->co[0] - v_cent->co[0];
@@ -3161,13 +3159,9 @@ PBool p_chart_isomap_iterate_graph_edge(int i0, PEdge *p_edge, PBool inverted, P
 
 		/* now we will find the nexus of the two circles with loci v1, v2 and radii T1 T2.
 		 * The farthest solution from v3 will give the distance T3 */
-		sqv2x = v2x*v2x;
-
-		alpha = 2*T1*T1*sqv2x - sqv2x*sqv2x + 2*T2*T2*sqv2x;
-		beta = T1*T1 - T2*T2;
-		projx = 0.5*(sqv2x + beta)/v2x;
-		beta *= beta;
-		projy = 0.5*sqrt(alpha - beta)/v2x;
+		projx = 0.5*(v2x*v2x + T1*T1 - T2*T2)/v2x;
+		/* taking max because there's a tendency for precision floating point errors */
+		projy = sqrt(maxf(T1*T1 - projx*projx, 0.0));
 
 		/* compare solution and choose the greater of the two */
 		if(fabs(v3y + projy) > fabs(v3y - projy)) {
