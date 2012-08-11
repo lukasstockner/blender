@@ -12,20 +12,6 @@
         android:text=""
         android:textAppearance="?android:attr/textAppearanceMedium" />
 
-    <ProgressBar
-        android:id="@+id/progressBar1"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
-
-    <Button
-        android:id="@+id/downloadbutton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Download Binaries" 
-        android:enabled="false"
-        />
-
 <Button
     android:id="@+id/gameselecterbutton"
     android:layout_width="match_parent"

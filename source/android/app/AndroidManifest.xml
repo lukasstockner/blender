@@ -2,10 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
 	  package="org.blender.play"
 	  android:versionCode="1"
-	  android:versionName="1.0">
+	  android:versionName="1.1">
 	  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-	  <uses-permission android:name="android.permission.INTERNET" />
-	  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 		  <supports-screens android:resizeable="true" android:xlargeScreens="true"
 		android:largeScreens="true" android:normalScreens="true"
 		android:anyDensity="true"></supports-screens>
@@ -26,6 +24,8 @@
 				<category android:name="android.intent.category.BROWSABLE" />
 				<data android:scheme="file" android:host="*"
                     android:pathPattern=".*\\.blend"/>
+				<data android:scheme="file" android:host="*"
+				android:pathPattern=".*\\.blend" android:mimeType="*/*"/>
 			</intent-filter>
 		</activity>
 		<activity android:name="makesActivity" android:launchMode="singleTask">
