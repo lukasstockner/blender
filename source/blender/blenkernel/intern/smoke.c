@@ -1257,6 +1257,9 @@ static void emit_from_derivedmesh(Object *flow_ob, SmokeDomainSettings *sds, Smo
 							else if (tface) {
 								interp_v2_v2v2v2(tex_co, tface[f_index].uv[0], tface[f_index].uv[(nearest.flags & BVH_ONQUAD) ? 2 : 1], 
 																   tface[f_index].uv[(nearest.flags & BVH_ONQUAD) ? 3 : 2], weights);
+								/* map between -1.0f and 1.0f */
+								tex_co[0] = tex_co[0] * 2.0f - 1.0f;
+								tex_co[1] = tex_co[1] * 2.0f - 1.0f;
 								tex_co[2] = sfs->texture_offset;
 							}
 							texres.nor = NULL;
