@@ -1069,6 +1069,9 @@ static BMOpDefine bmo_bevel_def = {
 	                                  * modifier uses this. We could do this as another float setting */
 	 {BMO_OP_SLOT_INT, "lengthlayer"}, /* which PROP_FLT layer to us */
 	 {BMO_OP_SLOT_FLT, "percent"}, /* percentage to expand beveled edge */
+
+	 {BMO_OP_SLOT_FLT, "amount"},
+	 {BMO_OP_SLOT_INT, "segmentation"},
 	 {0} /* null-terminating sentinel */},
 	bmo_bevel_exec,
 	BMO_OP_FLAG_UNTAN_MULTIRES

@@ -4526,8 +4526,11 @@ static void edbm_bevel_update_header(wmOperator *op, bContext *C)
 		BLI_snprintf(msg, HEADER_LENGTH, str,
 		             factor_str,
 		             RNA_boolean_get(op->ptr, "use_dist") ? "On" : "Off",
-		             RNA_boolean_get(op->ptr, "use_even") ? "On" : "Off"
-		            );
+
+					 RNA_boolean_get(op->ptr, "use_even") ? "On" : "Off",
+					 RNA_float_get(op->ptr, "Amount"),
+					 RNA_int_get(op->ptr, "Segmentation")
+					 );
 
 		ED_area_headerprint(sa, msg);
 	}
@@ -4614,6 +4617,8 @@ static int edbm_bevel_calc(bContext *C, wmOperator *op)
 	int recursion = 1; /* RNA_int_get(op->ptr, "recursion"); */ /* temp removed, see comment below */
 	const int use_even = RNA_boolean_get(op->ptr, "use_even");
 	const int use_dist = RNA_boolean_get(op->ptr, "use_dist");
+	int seg = RNA_int_get(op->ptr, "segmentation");
+	float amount = RNA_float_get(op->ptr, "amount");
 
 	/* revert to original mesh */
 	if (opdata->is_modal) {
@@ -4625,8 +4630,22 @@ static int edbm_bevel_calc(bContext *C, wmOperator *op)
 
 
 		if (!EDBM_op_init(em, &bmop, op,
-		                  "bevel geom=%hev percent=%f lengthlayer=%i use_lengths=%b use_even=%b use_dist=%b",
-		                  BM_ELEM_SELECT, fac, opdata->li, TRUE, use_even, use_dist))
+						  "bevel geom=%hev"
+						  " percent=%f"
+						  " lengthlayer=%i"
+						  " use_lengths=%b"
+						  " use_even=%b"
+						  " use_dist=%b"
+						  " amount=%f"
+						  " segmentation=%i",
+						  BM_ELEM_SELECT,
+						  fac,
+						  opdata->li,
+						  TRUE,
+						  use_even,
+						  use_dist,
+						  amount,
+						  seg))
 		{
 			return 0;
 		}
@@ -4837,6 +4856,9 @@ void MESH_OT_bevel(wmOperatorType *ot)
 
 	RNA_def_boolean(ot->srna, "use_even", FALSE, "Even",     "Calculate evenly spaced bevel");
 	RNA_def_boolean(ot->srna, "use_dist", FALSE, "Distance", "Interpret the percent in blender units");
+
+	RNA_def_float(ot->srna, "amount", 0.0f,  -FLT_MAX, FLT_MAX, "Amount", "", 0.0f, 1.0f);
+	RNA_def_int(ot->srna, "segmentation", 1,  1, 10000, "Segmentation", "", 1, 100);
 
 }
 
