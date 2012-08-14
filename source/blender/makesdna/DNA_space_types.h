@@ -470,7 +470,7 @@ typedef struct SpaceSeq {
 	int flag;
 	float zoom DNA_DEPRECATED;  /* deprecated, handled by View2D now */
 	int view; /* see SEQ_VIEW_* below */
-	int pad;
+	int overlay_type;
 
 	struct bGPdata *gpd;        /* grease-pencil data */
 } SpaceSeq;
@@ -522,6 +522,13 @@ typedef struct MaskSpaceInfo
 	char draw_type;
 	char pad3[6];
 } MaskSpaceInfo;
+
+/* sseq->mainb */
+typedef enum eSpaceSeq_OverlayType {
+	SEQ_DRAW_OVERLAY_RECT = 0,
+	SEQ_DRAW_OVERLAY_REFERENCE = 1,
+	SEQ_DRAW_OVERLAY_CURRENT = 2
+} eSpaceSeq_OverlayType;
 
 /* File Selector ========================================== */
 
@@ -879,7 +886,7 @@ typedef struct SpaceNode {
 	
 	float xof, yof;     /* offset for drawing the backdrop */
 	float zoom;   /* zoom for backdrop */
-	float mx, my;       /* mousepos for drawing socketless link */
+	float cursor[2];    /* mouse pos for drawing socketless link and adding nodes */
 	
 	struct bNodeTree *nodetree, *edittree;
 	int treetype;       /* treetype: as same nodetree->type */

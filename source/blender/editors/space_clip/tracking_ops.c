@@ -952,7 +952,7 @@ typedef struct TrackMarkersJob {
 
 static int track_markers_testbreak(void)
 {
-	return G.afbreek;
+	return G.is_break;
 }
 
 static int track_count_markers(SpaceClip *sc, MovieClip *clip)
@@ -1262,7 +1262,7 @@ static int track_markers_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(eve
 
 	/* setup job */
 	steve = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), sa, "Track Markers", WM_JOB_PROGRESS);
-	WM_jobs_customdata(steve, tmj, track_markers_freejob);
+	WM_jobs_customdata_set(steve, tmj, track_markers_freejob);
 
 	/* if there's delay set in tracking job, tracking should happen
 	 * with fixed FPS. To deal with editor refresh we have to synchronize
@@ -1275,7 +1275,7 @@ static int track_markers_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(eve
 
 	WM_jobs_callbacks(steve, track_markers_startjob, NULL, track_markers_updatejob, NULL);
 
-	G.afbreek = 0;
+	G.is_break = FALSE;
 
 	WM_jobs_start(CTX_wm_manager(C), steve);
 	WM_cursor_wait(0);
@@ -1493,11 +1493,11 @@ static int solve_camera_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(even
 
 	/* setup job */
 	steve = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), sa, "Solve Camera", WM_JOB_PROGRESS);
-	WM_jobs_customdata(steve, scj, solve_camera_freejob);
+	WM_jobs_customdata_set(steve, scj, solve_camera_freejob);
 	WM_jobs_timer(steve, 0.1, NC_MOVIECLIP | NA_EVALUATED, 0);
 	WM_jobs_callbacks(steve, solve_camera_startjob, NULL, solve_camera_updatejob, NULL);
 
-	G.afbreek = 0;
+	G.is_break = FALSE;
 
 	WM_jobs_start(CTX_wm_manager(C), steve);
 	WM_cursor_wait(0);

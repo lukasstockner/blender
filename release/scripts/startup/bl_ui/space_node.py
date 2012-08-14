@@ -115,6 +115,7 @@ class NODE_MT_view(Menu):
 
         layout.separator()
 
+        layout.operator("node.view_selected")
         layout.operator("node.view_all")
 
         if context.space_data.show_backdrop:
@@ -181,6 +182,7 @@ class NODE_MT_node(Menu):
         layout.operator("node.preview_toggle")
         layout.operator("node.hide_socket_toggle")
         layout.operator("node.options_toggle")
+        layout.operator("node.collapse_hide_unused_toggle")
 
         layout.separator()
 

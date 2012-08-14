@@ -326,7 +326,7 @@ static int wm_macro_modal(bContext *C, wmOperator *op, wmEvent *event)
 						}
 					}
 
-					WM_cursor_grab(CTX_wm_window(C), wrap, FALSE, bounds);
+					WM_cursor_grab_enable(CTX_wm_window(C), wrap, FALSE, bounds);
 				}
 			}
 		}
@@ -906,16 +906,31 @@ void WM_operator_properties_select_all(wmOperatorType *ot)
 	RNA_def_enum(ot->srna, "action", select_all_actions, SEL_TOGGLE, "Action", "Selection action to execute");
 }
 
-void WM_operator_properties_gesture_border(wmOperatorType *ot, int extend)
+void WM_operator_properties_border(wmOperatorType *ot)
 {
-	RNA_def_int(ot->srna, "gesture_mode", 0, INT_MIN, INT_MAX, "Gesture Mode", "", INT_MIN, INT_MAX);
 	RNA_def_int(ot->srna, "xmin", 0, INT_MIN, INT_MAX, "X Min", "", INT_MIN, INT_MAX);
 	RNA_def_int(ot->srna, "xmax", 0, INT_MIN, INT_MAX, "X Max", "", INT_MIN, INT_MAX);
 	RNA_def_int(ot->srna, "ymin", 0, INT_MIN, INT_MAX, "Y Min", "", INT_MIN, INT_MAX);
 	RNA_def_int(ot->srna, "ymax", 0, INT_MIN, INT_MAX, "Y Max", "", INT_MIN, INT_MAX);
+}
 
-	if (extend)
+void WM_operator_properties_border_to_rcti(struct wmOperator *op, rcti *rect)
+{
+	rect->xmin = RNA_int_get(op->ptr, "xmin");
+	rect->ymin = RNA_int_get(op->ptr, "ymin");
+	rect->xmax = RNA_int_get(op->ptr, "xmax");
+	rect->ymax = RNA_int_get(op->ptr, "ymax");
+}
+
+void WM_operator_properties_gesture_border(wmOperatorType *ot, int extend)
+{
+	RNA_def_int(ot->srna, "gesture_mode", 0, INT_MIN, INT_MAX, "Gesture Mode", "", INT_MIN, INT_MAX);
+
+	WM_operator_properties_border(ot);
+
+	if (extend) {
 		RNA_def_boolean(ot->srna, "extend", 1, "Extend", "Extend selection instead of deselecting everything first");
+	}
 }
 
 void WM_operator_properties_mouse_select(wmOperatorType *ot)
@@ -1194,7 +1209,7 @@ int WM_operator_redo_popup(bContext *C, wmOperator *op)
 
 static int wm_debug_menu_exec(bContext *C, wmOperator *op)
 {
-	G.rt = RNA_int_get(op->ptr, "debug_value");
+	G.debug_value = RNA_int_get(op->ptr, "debug_value");
 	ED_screen_refresh(CTX_wm_manager(C), CTX_wm_window(C));
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
 
@@ -1203,7 +1218,7 @@ static int wm_debug_menu_exec(bContext *C, wmOperator *op)
 
 static int wm_debug_menu_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
-	RNA_int_set(op->ptr, "debug_value", G.rt);
+	RNA_int_set(op->ptr, "debug_value", G.debug_value);
 	return WM_operator_props_dialog_popup(C, op, 9 * UI_UNIT_X, UI_UNIT_Y);
 }
 
@@ -1560,7 +1575,7 @@ static void WM_OT_save_homefile(wmOperatorType *ot)
 	ot->description = "Make the current file the default .blend file";
 		
 	ot->invoke = WM_operator_confirm;
-	ot->exec = WM_write_homefile;
+	ot->exec = WM_homefile_write_exec;
 	ot->poll = WM_operator_winactive;
 }
 
@@ -1571,7 +1586,7 @@ static void WM_OT_read_homefile(wmOperatorType *ot)
 	ot->description = "Open the default file (doesn't save the current file)";
 	
 	ot->invoke = WM_operator_confirm;
-	ot->exec = WM_read_homefile_exec;
+	ot->exec = WM_homefile_read_exec;
 	/* ommit poll to run in background mode */
 }
 
@@ -1582,7 +1597,7 @@ static void WM_OT_read_factory_settings(wmOperatorType *ot)
 	ot->description = "Load default file and user preferences";
 	
 	ot->invoke = WM_operator_confirm;
-	ot->exec = WM_read_homefile_exec;
+	ot->exec = WM_homefile_read_exec;
 	/* ommit poll to run in background mode */
 }
 
@@ -1649,11 +1664,11 @@ static int wm_open_mainfile_exec(bContext *C, wmOperator *op)
 	else
 		G.f &= ~G_SCRIPT_AUTOEXEC;
 	
-	/* XXX wm in context is not set correctly after WM_read_file -> crash */
+	/* XXX wm in context is not set correctly after WM_file_read -> crash */
 	/* do it before for now, but is this correct with multiple windows? */
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
 
-	WM_read_file(C, path, op->reports);
+	WM_file_read(C, path, op->reports);
 	
 	return OPERATOR_FINISHED;
 }
@@ -1880,13 +1895,13 @@ static int wm_recover_last_session_exec(bContext *C, wmOperator *op)
 
 	G.fileflags |= G_FILE_RECOVER;
 
-	/* XXX wm in context is not set correctly after WM_read_file -> crash */
+	/* XXX wm in context is not set correctly after WM_file_read -> crash */
 	/* do it before for now, but is this correct with multiple windows? */
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
 
 	/* load file */
 	BLI_make_file_string("/", filename, BLI_temporary_dir(), "quit.blend");
-	WM_read_file(C, filename, op->reports);
+	WM_file_read(C, filename, op->reports);
 
 	G.fileflags &= ~G_FILE_RECOVER;
 	return OPERATOR_FINISHED;
@@ -1912,12 +1927,12 @@ static int wm_recover_auto_save_exec(bContext *C, wmOperator *op)
 
 	G.fileflags |= G_FILE_RECOVER;
 
-	/* XXX wm in context is not set correctly after WM_read_file -> crash */
+	/* XXX wm in context is not set correctly after WM_file_read -> crash */
 	/* do it before for now, but is this correct with multiple windows? */
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
 
 	/* load file */
-	WM_read_file(C, path, op->reports);
+	WM_file_read(C, path, op->reports);
 
 	G.fileflags &= ~G_FILE_RECOVER;
 
@@ -2032,7 +2047,7 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
 	}
 #endif
 
-	if (WM_write_file(C, path, fileflags, op->reports, copy) != 0)
+	if (WM_file_write(C, path, fileflags, op->reports, copy) != 0)
 		return OPERATOR_CANCELLED;
 
 	WM_event_add_notifier(C, NC_WM | ND_FILESAVE, NULL);

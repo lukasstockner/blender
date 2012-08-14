@@ -989,11 +989,11 @@ void node_set_cursor(wmWindow *win, SpaceNode *snode)
 		else {
 			/* check nodes front to back */
 			for (node = ntree->nodes.last; node; node = node->prev) {
-				if (BLI_in_rctf(&node->totr, snode->mx, snode->my))
+				if (BLI_in_rctf(&node->totr, snode->cursor[0], snode->cursor[1]))
 					break;  /* first hit on node stops */
 			}
 			if (node) {
-				int dir = node->typeinfo->resize_area_func(node, snode->mx, snode->my);
+				int dir = node->typeinfo->resize_area_func(node, snode->cursor[0], snode->cursor[1]);
 				cursor = node_get_resize_cursor(dir);
 			}
 		}
@@ -1039,6 +1039,8 @@ static void node_draw(const bContext *C, ARegion *ar, SpaceNode *snode, bNodeTre
 		node->typeinfo->drawfunc(C, ar, snode, ntree, node);
 }
 
+#define USE_DRAW_TOT_UPDATE
+
 void node_draw_nodetree(const bContext *C, ARegion *ar, SpaceNode *snode, bNodeTree *ntree)
 {
 	bNode *node;
@@ -1046,9 +1048,22 @@ void node_draw_nodetree(const bContext *C, ARegion *ar, SpaceNode *snode, bNodeT
 	int a;
 	
 	if (ntree == NULL) return;      /* groups... */
-	
+
+#ifdef USE_DRAW_TOT_UPDATE
+	if (ntree->nodes.first) {
+		BLI_rctf_init_minmax(&ar->v2d.tot);
+	}
+#endif
+
 	/* draw background nodes, last nodes in front */
 	for (a = 0, node = ntree->nodes.first; node; node = node->next, a++) {
+
+#ifdef USE_DRAW_TOT_UPDATE
+		/* unrelated to background nodes, update the v2d->tot,
+		 * can be anywhere before we draw the scroll bars */
+		BLI_rctf_union(&ar->v2d.tot, &node->totr);
+#endif
+
 		if (!(node->flag & NODE_BACKGROUND))
 			continue;
 		node->nr = a;        /* index of node in list, used for exec event code */

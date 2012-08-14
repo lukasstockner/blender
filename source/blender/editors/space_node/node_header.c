@@ -74,7 +74,7 @@ static void do_node_add(bContext *C, bNodeTemplate *ntemp)
 			int y = win->eventstate->y - ar->winrct.ymin;
 			
 			if (y < 60) y += 60;
-			UI_view2d_region_to_view(&ar->v2d, x, y, &snode->mx, &snode->my);
+			UI_view2d_region_to_view(&ar->v2d, x, y, &snode->cursor[0], &snode->cursor[1]);
 		}
 	}
 	
@@ -84,7 +84,7 @@ static void do_node_add(bContext *C, bNodeTemplate *ntemp)
 		else node->flag &= ~NODE_TEST;
 	}
 	
-	/* node= */ node_add_node(snode, bmain, scene, ntemp, snode->mx, snode->my);
+	/* node= */ node_add_node(snode, bmain, scene, ntemp, snode->cursor[0], snode->cursor[1]);
 	
 	/* select previous selection before autoconnect */
 	for (node = snode->edittree->nodes.first; node; node = node->next) {
@@ -234,6 +234,9 @@ static void node_menu_add(const bContext *C, Menu *menu)
 
 	if (!snode->nodetree)
 		uiLayoutSetActive(layout, FALSE);
+	
+	uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
+	uiItemO(layout, "Search ...", 0, "NODE_OT_add_search");
 	
 	if (ntreetype && ntreetype->foreach_nodeclass)
 		ntreetype->foreach_nodeclass(scene, layout, node_menu_add_foreach_cb);

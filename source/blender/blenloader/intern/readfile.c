@@ -4399,6 +4399,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				smd->flow = NULL;
 				smd->domain = NULL;
 				smd->coll = newdataadr(fd, smd->coll);
+				smd->coll->smd = smd;
 				if (smd->coll) {
 					smd->coll->verts_old = NULL;
 					smd->coll->numverts = 0;
@@ -4842,19 +4843,27 @@ static void lib_link_scene(FileData *fd, Main *main)
 				}
 				if (seq->clip) {
 					seq->clip = newlibadr(fd, sce->id.lib, seq->clip);
-					seq->clip->id.us++;
+					if (seq->clip) {
+						seq->clip->id.us++;
+					}
 				}
 				if (seq->mask) {
 					seq->mask = newlibadr(fd, sce->id.lib, seq->mask);
-					seq->mask->id.us++;
+					if (seq->mask) {
+						seq->mask->id.us++;
+					}
 				}
-				if (seq->scene_camera) seq->scene_camera = newlibadr(fd, sce->id.lib, seq->scene_camera);
+				if (seq->scene_camera) {
+					seq->scene_camera = newlibadr(fd, sce->id.lib, seq->scene_camera);
+				}
 				if (seq->sound) {
 					seq->scene_sound = NULL;
-					if (seq->type == SEQ_TYPE_SOUND_HD)
+					if (seq->type == SEQ_TYPE_SOUND_HD) {
 						seq->type = SEQ_TYPE_SOUND_RAM;
-					else
+					}
+					else {
 						seq->sound = newlibadr(fd, sce->id.lib, seq->sound);
+					}
 					if (seq->sound) {
 						seq->sound->id.us++;
 						seq->scene_sound = sound_add_scene_sound_defaults(sce, seq);
@@ -4874,8 +4883,8 @@ static void lib_link_scene(FileData *fd, Main *main)
 			(void)marker;
 #endif
 			
-			seq_update_muting(sce->ed);
-			seq_update_sound_bounds_all(sce);
+			BKE_sequencer_update_muting(sce->ed);
+			BKE_sequencer_update_sound_bounds_all(sce);
 			
 			if (sce->nodetree) {
 				lib_link_ntree(fd, &sce->id, sce->nodetree);
@@ -4972,6 +4981,7 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 			seq->seq1= newdataadr(fd, seq->seq1);
 			seq->seq2= newdataadr(fd, seq->seq2);
 			seq->seq3= newdataadr(fd, seq->seq3);
+			seq->mask_sequence= newdataadr(fd, seq->mask_sequence);
 			/* a patch: after introduction of effects with 3 input strips */
 			if (seq->seq3 == NULL) seq->seq3 = seq->seq2;
 			
@@ -5450,7 +5460,7 @@ static int lib_link_seq_clipboard_cb(Sequence *seq, void *arg_pt)
 static void lib_link_clipboard_restore(Main *newmain)
 {
 	/* update IDs stored in sequencer clipboard */
-	seqbase_recursive_apply(&seqbase_clipboard, lib_link_seq_clipboard_cb, newmain);
+	BKE_sequencer_base_recursive_apply(&seqbase_clipboard, lib_link_seq_clipboard_cb, newmain);
 }
 
 /* called from kernel/blender.c */
@@ -5724,6 +5734,7 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 	ar->v2d.tab_offset = NULL;
 	ar->v2d.tab_num = 0;
 	ar->v2d.tab_cur = 0;
+	ar->v2d.sms = NULL;
 	ar->handlers.first = ar->handlers.last = NULL;
 	ar->uiblocks.first = ar->uiblocks.last = NULL;
 	ar->headerstr = NULL;
@@ -9430,7 +9441,7 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 					fd = blo_openblenderfile(mainptr->curlib->filepath, basefd->reports);
 
 					/* allow typing in a new lib path */
-					if (G.rt == -666) {
+					if (G.debug_value == -666) {
 						while (fd == NULL) {
 							char newlib_path[FILE_MAX] = {0};
 							printf("Missing library...'\n");

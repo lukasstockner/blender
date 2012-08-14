@@ -127,6 +127,8 @@ class MASK_PT_spline():
         row.prop(spline, "use_cyclic")
         row.prop(spline, "use_fill")
 
+        col.prop(spline, "use_self_intersection_check")
+
 
 class MASK_PT_point():
     # subclasses must define...
@@ -234,6 +236,13 @@ class MASK_PT_tools():
         col.label(text="Parenting:")
         col.operator("mask.parent_set")
         col.operator("mask.parent_clear")
+
+        col = layout.column(align=True)
+        col.label(text="Animation:")
+        col.operator("mask.shape_key_clear")
+        col.operator("mask.shape_key_insert")
+        col.operator("mask.shape_key_feather_reset")
+        col.operator("mask.shape_key_rekey")
 
 
 class MASK_MT_mask(Menu):

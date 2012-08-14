@@ -206,19 +206,19 @@ void BLI_rcti_init(rcti *rect, int xmin, int xmax, int ymin, int ymax)
 	}
 }
 
-void BLI_rcti_init_minmax(struct rcti *rect)
+void BLI_rcti_init_minmax(rcti *rect)
 {
 	rect->xmin = rect->ymin = INT_MAX;
 	rect->xmax = rect->ymax = INT_MIN;
 }
 
-void BLI_rctf_init_minmax(struct rctf *rect)
+void BLI_rctf_init_minmax(rctf *rect)
 {
-	rect->xmin = rect->ymin = FLT_MAX;
-	rect->xmax = rect->ymax = FLT_MIN;
+	rect->xmin = rect->ymin =  FLT_MAX;
+	rect->xmax = rect->ymax = -FLT_MAX;
 }
 
-void BLI_rcti_do_minmax_v(struct rcti *rect, const int xy[2])
+void BLI_rcti_do_minmax_v(rcti *rect, const int xy[2])
 {
 	if (xy[0] < rect->xmin) rect->xmin = xy[0];
 	if (xy[0] > rect->xmax) rect->xmax = xy[0];
@@ -226,7 +226,7 @@ void BLI_rcti_do_minmax_v(struct rcti *rect, const int xy[2])
 	if (xy[1] > rect->ymax) rect->ymax = xy[1];
 }
 
-void BLI_rctf_do_minmax_v(struct rctf *rect, const float xy[2])
+void BLI_rctf_do_minmax_v(rctf *rect, const float xy[2])
 {
 	if (xy[0] < rect->xmin) rect->xmin = xy[0];
 	if (xy[0] > rect->xmax) rect->xmax = xy[0];
@@ -268,6 +268,39 @@ void BLI_rctf_resize(rctf *rect, float x, float y)
 	rect->ymin -= y * 0.5f;
 	rect->xmax = rect->xmin + x;
 	rect->ymax = rect->ymin + y;
+}
+
+void BLI_rctf_interp(rctf *rect, const rctf *rect_a, const rctf *rect_b, const float fac)
+{
+	const float ifac = 1.0f - fac;
+	rect->xmin = (rect_a->xmin * ifac) + (rect_b->xmin * fac);
+	rect->xmax = (rect_a->xmax * ifac) + (rect_b->xmax * fac);
+	rect->ymin = (rect_a->ymin * ifac) + (rect_b->ymin * fac);
+	rect->ymax = (rect_a->ymax * ifac) + (rect_b->ymax * fac);
+}
+
+/* BLI_rcti_interp() not needed yet */
+
+int BLI_rctf_compare(const struct rctf *rect_a, const struct rctf *rect_b, const float limit)
+{
+	if (fabsf(rect_a->xmin - rect_b->xmin) < limit)
+		if (fabsf(rect_a->xmax - rect_b->xmax) < limit)
+			if (fabsf(rect_a->ymin - rect_b->ymin) < limit)
+				if (fabsf(rect_a->ymax - rect_b->ymax) < limit)
+					return 1;
+
+	return 0;
+}
+
+int BLI_rcti_compare(const struct rcti *rect_a, const struct rcti *rect_b)
+{
+	if (rect_a->xmin == rect_b->xmin)
+		if (rect_a->xmax == rect_b->xmax)
+			if (rect_a->ymin == rect_b->ymin)
+				if (rect_a->ymax == rect_b->ymax)
+					return 1;
+
+	return 0;
 }
 
 int BLI_rctf_isect(const rctf *src1, const rctf *src2, rctf *dest)

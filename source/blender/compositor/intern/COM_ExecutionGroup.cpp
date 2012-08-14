@@ -99,6 +99,9 @@ bool ExecutionGroup::canContainOperation(NodeOperation *operation)
 
 void ExecutionGroup::addOperation(ExecutionSystem *system, NodeOperation *operation)
 {
+	/* should never happen but in rare cases it can - it causes confusing crashes */
+	BLI_assert(operation->isOperation() == true);
+
 	if (containsOperation(operation)) return;
 	if (canContainOperation(operation)) {
 		if (!operation->isBufferOperation()) {
@@ -186,7 +189,7 @@ void ExecutionGroup::deinitExecution()
 	this->m_cachedReadOperations.clear();
 	this->m_bTree = NULL;
 }
-void ExecutionGroup::determineResolution(unsigned int resolution[])
+void ExecutionGroup::determineResolution(unsigned int resolution[2])
 {
 	NodeOperation *operation = this->getOutputNodeOperation();
 	resolution[0] = operation->getWidth();

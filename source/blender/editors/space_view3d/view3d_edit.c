@@ -434,7 +434,7 @@ static void viewops_data_create(bContext *C, wmOperator *op, wmEvent *event)
 		calculateTransformCenter(C, V3D_CENTROID, lastofs, NULL);
 		negate_v3_v3(vod->dyn_ofs, lastofs);
 	}
-	else if (U.uiflag & USER_ORBIT_ZBUF) {
+	else if (U.uiflag & USER_ZBUF_ORBIT) {
 
 		view3d_operator_needs_opengl(C); /* needed for zbuf drawing */
 
@@ -2081,7 +2081,7 @@ static int view3d_all_exec(bContext *C, wmOperator *op) /* was view3d_home() in 
 		 * I think no, because we always move the cursor, with or without
 		 * object, but in this case there is no change in the scene,
 		 * only the cursor so I choice a ED_region_tag like
-		 * smooth_view do for the center_cursor.
+		 * view3d_smooth_view do for the center_cursor.
 		 * See bug #22640
 		 */
 		return OPERATOR_FINISHED;
@@ -2109,10 +2109,10 @@ static int view3d_all_exec(bContext *C, wmOperator *op) /* was view3d_home() in 
 
 		if ((rv3d->persp == RV3D_CAMOB) && !ED_view3d_camera_lock_check(v3d, rv3d)) {
 			rv3d->persp = RV3D_PERSP;
-			smooth_view(C, v3d, ar, v3d->camera, NULL, new_ofs, NULL, &new_dist, NULL);
+			view3d_smooth_view(C, v3d, ar, v3d->camera, NULL, new_ofs, NULL, &new_dist, NULL);
 		}
 		else {
-			smooth_view(C, v3d, ar, NULL, NULL, new_ofs, NULL, &new_dist, NULL);
+			view3d_smooth_view(C, v3d, ar, NULL, NULL, new_ofs, NULL, &new_dist, NULL);
 		}
 	}
 // XXX	BIF_view3d_previewrender_signal(curarea, PR_DBASE|PR_DISPRECT);
@@ -2266,10 +2266,10 @@ static int viewselected_exec(bContext *C, wmOperator *UNUSED(op))
 
 	if (rv3d->persp == RV3D_CAMOB && !ED_view3d_camera_lock_check(v3d, rv3d)) {
 		rv3d->persp = RV3D_PERSP;
-		smooth_view(C, v3d, ar, v3d->camera, NULL, new_ofs, NULL, ok_dist ? &new_dist : NULL, NULL);
+		view3d_smooth_view(C, v3d, ar, v3d->camera, NULL, new_ofs, NULL, ok_dist ? &new_dist : NULL, NULL);
 	}
 	else {
-		smooth_view(C, v3d, ar, NULL, NULL, new_ofs, NULL, ok_dist ? &new_dist : NULL, NULL);
+		view3d_smooth_view(C, v3d, ar, NULL, NULL, new_ofs, NULL, ok_dist ? &new_dist : NULL, NULL);
 	}
 
 	/* smooth view does viewlock RV3D_BOXVIEW copy */
@@ -2390,7 +2390,7 @@ static int viewcenter_cursor_exec(bContext *C, wmOperator *UNUSED(op))
 		/* non camera center */
 		float new_ofs[3];
 		negate_v3_v3(new_ofs, give_cursor(scene, v3d));
-		smooth_view(C, v3d, ar, NULL, NULL, new_ofs, NULL, NULL, NULL);
+		view3d_smooth_view(C, v3d, ar, NULL, NULL, new_ofs, NULL, NULL, NULL);
 		
 		/* smooth view does viewlock RV3D_BOXVIEW copy */
 	}
@@ -2471,10 +2471,7 @@ static int render_border_exec(bContext *C, wmOperator *op)
 	rctf vb;
 
 	/* get border select values using rna */
-	rect.xmin = RNA_int_get(op->ptr, "xmin");
-	rect.ymin = RNA_int_get(op->ptr, "ymin");
-	rect.xmax = RNA_int_get(op->ptr, "xmax");
-	rect.ymax = RNA_int_get(op->ptr, "ymax");
+	WM_operator_properties_border_to_rcti(op, &rect);
 
 	/* calculate range */
 	ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, &vb, FALSE);
@@ -2528,10 +2525,7 @@ void VIEW3D_OT_render_border(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* rna */
-	RNA_def_int(ot->srna, "xmin", 0, INT_MIN, INT_MAX, "X Min", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "xmax", 0, INT_MIN, INT_MAX, "X Max", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "ymin", 0, INT_MIN, INT_MAX, "Y Min", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "ymax", 0, INT_MIN, INT_MAX, "Y Max", "", INT_MIN, INT_MAX);
+	WM_operator_properties_border(ot);
 
 }
 /* ********************* Border Zoom operator ****************** */
@@ -2542,10 +2536,12 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 	View3D *v3d = CTX_wm_view3d(C);
 	RegionView3D *rv3d = CTX_wm_region_view3d(C);
 	Scene *scene = CTX_data_scene(C);
+	int gesture_mode;
 
 	/* Zooms in on a border drawn by the user */
 	rcti rect;
-	float dvec[3], vb[2], xscale, yscale, scale;
+	float dvec[3], vb[2], xscale, yscale;
+	float dist_range_min;
 
 	/* SMOOTHVIEW */
 	float new_dist;
@@ -2560,10 +2556,10 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 	view3d_operator_needs_opengl(C);
 
 	/* get border select values using rna */
-	rect.xmin = RNA_int_get(op->ptr, "xmin");
-	rect.ymin = RNA_int_get(op->ptr, "ymin");
-	rect.xmax = RNA_int_get(op->ptr, "xmax");
-	rect.ymax = RNA_int_get(op->ptr, "ymax");
+	WM_operator_properties_border_to_rcti(op, &rect);
+
+	/* check if zooming in/out view */
+	gesture_mode = RNA_int_get(op->ptr, "gesture_mode");
 
 	/* Get Z Depths, needed for perspective, nice for ortho */
 	bgl_get_mats(&mats);
@@ -2608,12 +2604,12 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 		dvec[1] = p[1] - p_corner[1];
 		dvec[2] = p[2] - p_corner[2];
 
-		new_dist = len_v3(dvec);
-		if (new_dist <= v3d->near * 1.5f) new_dist = v3d->near * 1.5f;
-
 		new_ofs[0] = -p[0];
 		new_ofs[1] = -p[1];
 		new_ofs[2] = -p[2];
+
+		new_dist = len_v3(dvec);
+		dist_range_min = v3d->near * 1.5f;
 
 	}
 	else { /* othographic */
@@ -2649,13 +2645,24 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 		/* work out the ratios, so that everything selected fits when we zoom */
 		xscale = ((rect.xmax - rect.xmin) / vb[0]);
 		yscale = ((rect.ymax - rect.ymin) / vb[1]);
-		scale = (xscale >= yscale) ? xscale : yscale;
+		new_dist *= maxf(xscale, yscale);
 
 		/* zoom in as required, or as far as we can go */
-		new_dist = ((new_dist * scale) >= 0.001f * v3d->grid) ? new_dist * scale : 0.001f * v3d->grid;
+		dist_range_min = 0.001f * v3d->grid;
 	}
 
-	smooth_view(C, v3d, ar, NULL, NULL, new_ofs, NULL, &new_dist, NULL);
+	if (gesture_mode == GESTURE_MODAL_OUT) {
+		sub_v3_v3v3(dvec, new_ofs, rv3d->ofs);
+		new_dist = rv3d->dist * (rv3d->dist / new_dist);
+		add_v3_v3v3(new_ofs, rv3d->ofs, dvec);
+	}
+
+	/* clamp after because we may have been zooming out */
+	if (new_dist < dist_range_min) {
+		new_dist = dist_range_min;
+	}
+
+	view3d_smooth_view(C, v3d, ar, NULL, NULL, new_ofs, NULL, &new_dist, NULL);
 
 	if (rv3d->viewlock & RV3D_BOXVIEW)
 		view3d_boxview_sync(CTX_wm_area(C), ar);
@@ -2678,7 +2685,7 @@ static int view3d_zoom_border_invoke(bContext *C, wmOperator *op, wmEvent *event
 void VIEW3D_OT_zoom_border(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Border Zoom";
+	ot->name = "Zoom to Border";
 	ot->description = "Zoom in the view to the nearest object contained in the border";
 	ot->idname = "VIEW3D_OT_zoom_border";
 
@@ -2694,11 +2701,7 @@ void VIEW3D_OT_zoom_border(wmOperatorType *ot)
 	ot->flag = 0;
 
 	/* rna */
-	RNA_def_int(ot->srna, "xmin", 0, INT_MIN, INT_MAX, "X Min", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "xmax", 0, INT_MIN, INT_MAX, "X Max", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "ymin", 0, INT_MIN, INT_MAX, "Y Min", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "ymax", 0, INT_MIN, INT_MAX, "Y Max", "", INT_MIN, INT_MAX);
-
+	WM_operator_properties_gesture_border(ot, FALSE);
 }
 
 /* sets the view to 1:1 camera/render-pixel */
@@ -2825,14 +2828,14 @@ static void axis_set_view(bContext *C, View3D *v3d, ARegion *ar,
 		if (U.uiflag & USER_AUTOPERSP) rv3d->persp = view ? RV3D_ORTHO : RV3D_PERSP;
 		else if (rv3d->persp == RV3D_CAMOB) rv3d->persp = perspo;
 
-		smooth_view(C, v3d, ar, v3d->camera, NULL, rv3d->ofs, new_quat, NULL, NULL);
+		view3d_smooth_view(C, v3d, ar, v3d->camera, NULL, rv3d->ofs, new_quat, NULL, NULL);
 	}
 	else {
 
 		if (U.uiflag & USER_AUTOPERSP) rv3d->persp = view ? RV3D_ORTHO : RV3D_PERSP;
 		else if (rv3d->persp == RV3D_CAMOB) rv3d->persp = perspo;
 
-		smooth_view(C, v3d, ar, NULL, NULL, NULL, new_quat, NULL, NULL);
+		view3d_smooth_view(C, v3d, ar, NULL, NULL, NULL, new_quat, NULL, NULL);
 	}
 
 }
@@ -2950,12 +2953,12 @@ static int viewnumpad_exec(bContext *C, wmOperator *op)
 
 					/* finally do snazzy view zooming */
 					rv3d->persp = RV3D_CAMOB;
-					smooth_view(C, v3d, ar, NULL, v3d->camera, rv3d->ofs, rv3d->viewquat, &rv3d->dist, &v3d->lens);
+					view3d_smooth_view(C, v3d, ar, NULL, v3d->camera, rv3d->ofs, rv3d->viewquat, &rv3d->dist, &v3d->lens);
 
 				}
 				else {
 					/* return to settings of last view */
-					/* does smooth_view too */
+					/* does view3d_smooth_view too */
 					axis_set_view(C, v3d, ar,
 					              rv3d->lviewquat[0], rv3d->lviewquat[1], rv3d->lviewquat[2], rv3d->lviewquat[3],
 					              rv3d->lview, rv3d->lpersp, 0);
@@ -3045,7 +3048,7 @@ static int vieworbit_exec(bContext *C, wmOperator *op)
 			mul_qt_qtqt(quat_new, rv3d->viewquat, quat_mul);
 			rv3d->view = RV3D_VIEW_USER;
 
-			smooth_view(C, CTX_wm_view3d(C), ar, NULL, NULL, NULL, quat_new, NULL, NULL);
+			view3d_smooth_view(C, CTX_wm_view3d(C), ar, NULL, NULL, NULL, quat_new, NULL, NULL);
 
 			return OPERATOR_FINISHED;
 		}
@@ -3309,10 +3312,7 @@ static int view3d_clipping_exec(bContext *C, wmOperator *op)
 	bglMats mats;
 	rcti rect;
 
-	rect.xmin = RNA_int_get(op->ptr, "xmin");
-	rect.ymin = RNA_int_get(op->ptr, "ymin");
-	rect.xmax = RNA_int_get(op->ptr, "xmax");
-	rect.ymax = RNA_int_get(op->ptr, "ymax");
+	WM_operator_properties_border_to_rcti(op, &rect);
 
 	rv3d->rflag |= RV3D_CLIPPING;
 	rv3d->clipbb = MEM_callocN(sizeof(BoundBox), "clipbb");
@@ -3365,10 +3365,7 @@ void VIEW3D_OT_clip_border(wmOperatorType *ot)
 	ot->flag = 0;
 
 	/* rna */
-	RNA_def_int(ot->srna, "xmin", 0, INT_MIN, INT_MAX, "X Min", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "xmax", 0, INT_MIN, INT_MAX, "X Max", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "ymin", 0, INT_MIN, INT_MAX, "Y Min", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "ymax", 0, INT_MIN, INT_MAX, "Y Max", "", INT_MIN, INT_MAX);
+	WM_operator_properties_border(ot);
 }
 
 /* ***************** 3d cursor cursor op ******************* */
@@ -3405,7 +3402,7 @@ static int set_3dcursor_invoke(bContext *C, wmOperator *UNUSED(op), wmEvent *eve
 	if (mval[0] != IS_CLIPPED) {
 		short depth_used = 0;
 
-		if (U.uiflag & USER_ORBIT_ZBUF) {  /* maybe this should be accessed some other way */
+		if (U.uiflag & USER_ZBUF_CURSOR) {  /* maybe this should be accessed some other way */
 			view3d_operator_needs_opengl(C);
 			if (ED_view3d_autodist(scene, ar, v3d, event->mval, fp))
 				depth_used = 1;

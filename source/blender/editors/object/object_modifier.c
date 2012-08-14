@@ -2060,7 +2060,7 @@ static int oceanbake_breakjob(void *UNUSED(customdata))
 	/* this is not nice yet, need to make the jobs list template better 
 	 * for identifying/acting upon various different jobs */
 	/* but for now we'll reuse the render break... */
-	return (G.afbreek);
+	return (G.is_break);
 }
 
 /* called by oceanbake, wmJob sends notifier */
@@ -2083,7 +2083,7 @@ static void oceanbake_startjob(void *customdata, short *stop, short *do_update, 
 	oj->do_update = do_update;
 	oj->progress = progress;
 	
-	G.afbreek = 0;   /* XXX shared with render - replace with job 'stop' switch */
+	G.is_break = FALSE;   /* XXX shared with render - replace with job 'stop' switch */
 	
 	BKE_bake_ocean(oj->ocean, oj->och, oceanbake_update, (void *)oj);
 	
@@ -2187,7 +2187,7 @@ static int ocean_bake_exec(bContext *C, wmOperator *op)
 	oj->och = och;
 	oj->omd = omd;
 	
-	WM_jobs_customdata(steve, oj, oceanbake_free);
+	WM_jobs_customdata_set(steve, oj, oceanbake_free);
 	WM_jobs_timer(steve, 0.1, NC_OBJECT | ND_MODIFIER, NC_OBJECT | ND_MODIFIER);
 	WM_jobs_callbacks(steve, oceanbake_startjob, NULL, NULL, oceanbake_endjob);
 	

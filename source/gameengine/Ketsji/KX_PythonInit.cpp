@@ -2007,13 +2007,21 @@ void setupGamePython(KX_KetsjiEngine* ketsjiengine, KX_Scene* startscene, Main *
 
 	/* could be done a lot more nicely, but for now a quick way to get bge.* working */
 	PyRun_SimpleString("sys = __import__('sys');"
-	                   "mod = sys.modules['bge'] = type(sys)('bge');"
-	                   "mod.__dict__.update({'logic':__import__('GameLogic'), "
+	                   "bge = type(sys)('bge');"
+	                   "bge.__dict__.update({'logic':__import__('GameLogic'), "
 	                                        "'render':__import__('Rasterizer'), "
 	                                        "'events':__import__('GameKeys'), "
 	                                        "'constraints':__import__('PhysicsConstraints'), "
 	                                        "'types':__import__('GameTypes'), "
 	                                        "'texture':__import__('VideoTexture')});"
+	                   /* so we can do 'import bge.foo as bar' */
+	                   "sys.modules.update({'bge': bge, "
+	                                       "'bge.logic':bge.logic, "
+	                                       "'bge.render':bge.render, "
+	                                       "'bge.events':bge.events, "
+	                                       "'bge.constraints':bge.constraints, "
+	                                       "'bge.types':bge.types, "
+	                                       "'bge.texture':bge.texture})"
 	                   );
 }
 
@@ -2274,15 +2282,15 @@ PyObject* initGameKeys()
 	KX_MACRO_addTypesToDict(d, PADPLUSKEY, SCA_IInputDevice::KX_PADPLUSKEY);
 		
 		
-	KX_MACRO_addTypesToDict(d, F1KEY , SCA_IInputDevice::KX_F1KEY);
-	KX_MACRO_addTypesToDict(d, F2KEY , SCA_IInputDevice::KX_F2KEY);
-	KX_MACRO_addTypesToDict(d, F3KEY , SCA_IInputDevice::KX_F3KEY);
-	KX_MACRO_addTypesToDict(d, F4KEY , SCA_IInputDevice::KX_F4KEY);
-	KX_MACRO_addTypesToDict(d, F5KEY , SCA_IInputDevice::KX_F5KEY);
-	KX_MACRO_addTypesToDict(d, F6KEY , SCA_IInputDevice::KX_F6KEY);
-	KX_MACRO_addTypesToDict(d, F7KEY , SCA_IInputDevice::KX_F7KEY);
-	KX_MACRO_addTypesToDict(d, F8KEY , SCA_IInputDevice::KX_F8KEY);
-	KX_MACRO_addTypesToDict(d, F9KEY , SCA_IInputDevice::KX_F9KEY);
+	KX_MACRO_addTypesToDict(d, F1KEY,  SCA_IInputDevice::KX_F1KEY);
+	KX_MACRO_addTypesToDict(d, F2KEY,  SCA_IInputDevice::KX_F2KEY);
+	KX_MACRO_addTypesToDict(d, F3KEY,  SCA_IInputDevice::KX_F3KEY);
+	KX_MACRO_addTypesToDict(d, F4KEY,  SCA_IInputDevice::KX_F4KEY);
+	KX_MACRO_addTypesToDict(d, F5KEY,  SCA_IInputDevice::KX_F5KEY);
+	KX_MACRO_addTypesToDict(d, F6KEY,  SCA_IInputDevice::KX_F6KEY);
+	KX_MACRO_addTypesToDict(d, F7KEY,  SCA_IInputDevice::KX_F7KEY);
+	KX_MACRO_addTypesToDict(d, F8KEY,  SCA_IInputDevice::KX_F8KEY);
+	KX_MACRO_addTypesToDict(d, F9KEY,  SCA_IInputDevice::KX_F9KEY);
 	KX_MACRO_addTypesToDict(d, F10KEY, SCA_IInputDevice::KX_F10KEY);
 	KX_MACRO_addTypesToDict(d, F11KEY, SCA_IInputDevice::KX_F11KEY);
 	KX_MACRO_addTypesToDict(d, F12KEY, SCA_IInputDevice::KX_F12KEY);
@@ -2294,9 +2302,9 @@ PyObject* initGameKeys()
 	KX_MACRO_addTypesToDict(d, F18KEY, SCA_IInputDevice::KX_F18KEY);
 	KX_MACRO_addTypesToDict(d, F19KEY, SCA_IInputDevice::KX_F19KEY);
 		
-	KX_MACRO_addTypesToDict(d, PAUSEKEY, SCA_IInputDevice::KX_PAUSEKEY);
+	KX_MACRO_addTypesToDict(d, PAUSEKEY,  SCA_IInputDevice::KX_PAUSEKEY);
 	KX_MACRO_addTypesToDict(d, INSERTKEY, SCA_IInputDevice::KX_INSERTKEY);
-	KX_MACRO_addTypesToDict(d, HOMEKEY , SCA_IInputDevice::KX_HOMEKEY);
+	KX_MACRO_addTypesToDict(d, HOMEKEY,   SCA_IInputDevice::KX_HOMEKEY);
 	KX_MACRO_addTypesToDict(d, PAGEUPKEY, SCA_IInputDevice::KX_PAGEUPKEY);
 	KX_MACRO_addTypesToDict(d, PAGEDOWNKEY, SCA_IInputDevice::KX_PAGEDOWNKEY);
 	KX_MACRO_addTypesToDict(d, ENDKEY, SCA_IInputDevice::KX_ENDKEY);
