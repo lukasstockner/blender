@@ -113,6 +113,13 @@ void GPU_extensions_disable(void)
 	GG.extdisabled = 1;
 }
 
+void GPU_init_graphics_type(void)
+{
+#ifndef GLES
+	GPU_gl_type |= GPU_GLTYPE_FIXED;
+#endif
+}
+
 void GPU_extensions_init(void)
 {
 	GLint r, g, b;
@@ -142,7 +149,6 @@ void GPU_extensions_init(void)
 	if (!GLEW_ARB_fragment_shader) GG.glslsupport = 0;
 	if (GLEW_VERSION_2_0) GG.glslsupport = 1;
 	if (GLEW_EXT_framebuffer_object || GLEW_VERSION_3_0) GPU_ext_config |= GPU_EXT_FRAMEBUFFERS;
-	GPU_gl_type |= GPU_GLTYPE_FIXED;
 #else 
 	GPU_ext_config |= GPU_EXT_FRAMEBUFFERS;
 #endif

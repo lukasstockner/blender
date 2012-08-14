@@ -135,6 +135,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 		wm_init_cursor_data();
 
 		/* begin - init opengl compatibility layer */
+		GPU_init_graphics_type();
 		GPU_ms_init();
 		GPU_init_object_func();
 
@@ -161,7 +162,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 	
 	ED_file_init();         /* for fsmenu */
 	ED_init_node_butfuncs();	
-	
+
 	BLF_init(11, U.dpi); /* Please update source/gamengine/GamePlayer/GPG_ghost.cpp if you change this */
 	BLF_lang_init();
 	/* get the default database, plus a wm */

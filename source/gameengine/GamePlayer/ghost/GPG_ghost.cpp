@@ -88,6 +88,7 @@ extern char datatoc_bfont_ttf[];
 #endif // __cplusplus
 
 #include "GPU_compatibility.h"
+#include "GPU_extensions.h"
 #include "GPU_draw.h"
 
 /**********************************
@@ -759,6 +760,8 @@ int main(int argc, char** argv)
 		}
 
 		GPU_set_anisotropic(U.anisotropic_filter);
+
+		GPU_init_graphics_type();
 
 		GPUimmediate *immediate = gpuNewImmediate();
 		gpuImmediateMakeCurrent(immediate);
