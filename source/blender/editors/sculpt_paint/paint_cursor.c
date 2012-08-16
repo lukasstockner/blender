@@ -57,6 +57,9 @@
  * removed eventually (TODO) */
 #include "sculpt_intern.h"
 
+#define CURSOR_RESOLUTION 40
+
+
 /* TODOs:
  *
  * Some of the cursor drawing code is doing non-draw stuff
@@ -66,7 +69,12 @@
  * There is also some ugliness with sculpt-specific code.
  */
 
-typedef struct Snapshot {
+typedef struct SnapshotAlpha {
+	int BKE_brush_size_get;
+	int alpha_changed_timestamp;
+} SnapshotAlpha;
+
+typedef struct SnapshotTex {
 	float size[3];
 	float ofs[3];
 	float rot;
@@ -74,10 +82,9 @@ typedef struct Snapshot {
 	int winx;
 	int winy;
 	int brush_map_mode;
-	int curve_changed_timestamp;
-} Snapshot;
+} SnapshotTex;
 
-static int same_snap(Snapshot *snap, Brush *brush, ViewContext *vc)
+static int same_snap_image(SnapshotTex *snap, Brush *brush, ViewContext *vc)
 {
 	MTex *mtex = &brush->mtex;
 
@@ -96,7 +103,7 @@ static int same_snap(Snapshot *snap, Brush *brush, ViewContext *vc)
 	        (vc->ar->winy == snap->winy));
 }
 
-static void make_snap(Snapshot *snap, Brush *brush, ViewContext *vc)
+static void make_snap_image(SnapshotTex *snap, Brush *brush, ViewContext *vc)
 {
 	if (brush->mtex.tex) {
 		snap->brush_map_mode = brush->mtex.brush_map_mode;
@@ -116,58 +123,177 @@ static void make_snap(Snapshot *snap, Brush *brush, ViewContext *vc)
 	snap->winy = vc->ar->winy;
 }
 
-static int load_tex(Brush *br, ViewContext *vc)
+static int load_brush_tex_alpha(Brush *br, ViewContext *vc)
+{
+	static GLuint overlay_texture_alpha = 0;
+	static int init_alpha = 0;
+	static SnapshotAlpha snap;
+	static int old_alpha_size = -1;
+
+	GLubyte *alpha_buffer = NULL;
+
+	/*
+	char do_tiled_texpaint = (br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED_TEXPAINT);
+	char do_tiled = (br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED) || do_tiled_texpaint;
+	*/
+	int alpha_size;
+	int j;
+	int refresh;
+
+	//if (do_tiled && !br->mask_mtex.tex) return 0;
+
+	refresh =
+			(snap.BKE_brush_size_get != BKE_brush_size_get(vc->scene, br)) ||
+			!br->curve ||
+			br->curve->changed_timestamp != snap.alpha_changed_timestamp ||
+			!overlay_texture_alpha;
+
+	if (refresh) {
+		int s = BKE_brush_size_get(vc->scene, br);
+		int r = 1;
+
+		if (br->curve)
+			snap.alpha_changed_timestamp = br->curve->changed_timestamp;
+
+		snap.BKE_brush_size_get = BKE_brush_size_get(vc->scene, br);
+
+		for (s >>= 1; s > 0; s >>= 1)
+			r++;
+
+		alpha_size = (1 << r);
+
+		if (alpha_size < 256)
+			alpha_size = 256;
+
+		if (alpha_size < old_alpha_size)
+			alpha_size = old_alpha_size;
+
+		if (old_alpha_size != alpha_size) {
+			if (overlay_texture_alpha) {
+				glDeleteTextures(1, &overlay_texture_alpha);
+				overlay_texture_alpha = 0;
+			}
+
+			init_alpha = 0;
+
+			old_alpha_size = alpha_size;
+		}
+
+		alpha_buffer = MEM_mallocN(sizeof(GLubyte) * alpha_size * alpha_size, "load_tex_curve");
+
+		/* dummy call to avoid generating curve tables in openmp, causes memory leaks since allocation
+		 * is not thread safe */
+		BKE_brush_curve_strength(br, 0.5, 1);
+
+		#pragma omp parallel for schedule(static)
+		for (j = 0; j < alpha_size; j++) {
+			int i;
+			float y;
+			float len;
+
+			for (i = 0; i < alpha_size; i++) {
+				int index = j * alpha_size + i;
+				float x;
+				float avg;
+
+				x = (float)i / alpha_size;
+				y = (float)j / alpha_size;
+
+				x -= 0.5f;
+				y -= 0.5f;
+
+				x *= 2;
+				y *= 2;
+
+				len = sqrtf(x * x + y * y);
+
+				if (len <= 1) {
+					x *= br->mtex.size[0];
+					y *= br->mtex.size[1];
+
+					x += br->mtex.ofs[0];
+					y += br->mtex.ofs[1];
+
+					avg = BKE_brush_curve_strength(br, len, 1);  /* Falloff curve */
+
+					if(br->flag & BRUSH_USE_MASK) {
+						avg *= br->mask_mtex.tex ? paint_get_tex_pixel(br, x, y, TRUE) : 1;
+					}
+					CLAMP(avg, 0.0, 1.0);
+
+					alpha_buffer[index] = (GLubyte)(255 * avg);
+				}
+				else {
+					alpha_buffer[index] = 0;
+				}
+			}
+		}
+
+		if (!overlay_texture_alpha)
+			glGenTextures(1, &overlay_texture_alpha);
+	}
+
+	/* switch to second texture unit */
+	glBindTexture(GL_TEXTURE_2D, overlay_texture_alpha);
+
+	if (refresh) {
+		if (!init_alpha) {
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, alpha_size, alpha_size, 0, GL_ALPHA, GL_UNSIGNED_BYTE, alpha_buffer);
+			init_alpha = 1;
+		}
+		else {
+			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, alpha_size, alpha_size, GL_ALPHA, GL_UNSIGNED_BYTE, alpha_buffer);
+		}
+
+		if(alpha_buffer)
+			MEM_freeN(alpha_buffer);
+	}
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	glEnable(GL_TEXTURE_2D);
+
+	return 1;
+}
+
+static int load_brush_tex_image(Brush *br, ViewContext *vc)
 {
 	static GLuint overlay_texture = 0;
-	static GLuint overlay_texture_curve = 0;
 	static int init = 0;
-	static int init_curve = 0;
 	static int tex_changed_timestamp = -1;
-	static int curve_changed_timestamp = -1;
-	static Snapshot snap;
+	static SnapshotTex snap;
 	static int old_size = -1;
-	static int old_curve_size = -1;
 
 	GLubyte *buffer = NULL;
-	GLubyte *curve_buffer = NULL;
 
 	char do_tiled_texpaint = (br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED_TEXPAINT);
 	char do_tiled = (br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED) || do_tiled_texpaint;
 
 	int size;
-	int curve_size;
 	int j;
-	int refresh, refresh_curve;
+	int refresh;
 
-	if (do_tiled && !br->mtex.tex) return 0;
+	if (!br->mtex.tex) return 0;
 	
-	refresh = 
-	    !overlay_texture ||
-	    (br->mtex.tex &&
-	     (!br->mtex.tex->preview ||
-	      br->mtex.tex->preview->changed_timestamp[0] != tex_changed_timestamp)) ||
-	    !br->curve ||
-	    br->curve->changed_timestamp != curve_changed_timestamp ||
-	    !same_snap(&snap, br, vc);
+	refresh =
+		!overlay_texture ||
+		(br->mtex.tex &&
+		(!br->mtex.tex->preview ||
+		br->mtex.tex->preview->changed_timestamp[0] != tex_changed_timestamp)) ||
+		!same_snap_image(&snap, br, vc);
 
-	refresh_curve = do_tiled &&
-	        ((snap.BKE_brush_size_get != BKE_brush_size_get(vc->scene, br)) ||
-	        !br->curve ||
-	        br->curve->changed_timestamp != curve_changed_timestamp ||
-	        br->mtex.brush_map_mode != snap.brush_map_mode ||
-	        !overlay_texture_curve);
-
-	if (refresh || refresh_curve) {
+	if (refresh) {
 		int s = BKE_brush_size_get(vc->scene, br);
 		int r = 1;
 
 		if (br->mtex.tex && br->mtex.tex->preview)
 			tex_changed_timestamp = br->mtex.tex->preview->changed_timestamp[0];
 
-		if (br->curve)
-			curve_changed_timestamp = br->curve->changed_timestamp;
-
-		make_snap(&snap, br, vc);
+		make_snap_image(&snap, br, vc);
 
 		for (s >>= 1; s > 0; s >>= 1)
 			r++;
@@ -180,15 +306,6 @@ static int load_tex(Brush *br, ViewContext *vc)
 		if (size < old_size)
 			size = old_size;
 
-		if(do_tiled) {
-			curve_size = size;
-			size = 512;
-		}
-
-		if(!refresh) {
-			size = old_size;
-		}
-
 		if (old_size != size) {
 			if (overlay_texture) {
 				glDeleteTextures(1, &overlay_texture);
@@ -200,29 +317,7 @@ static int load_tex(Brush *br, ViewContext *vc)
 			old_size = size;
 		}
 
-		if (old_curve_size != curve_size) {
-			if (overlay_texture_curve) {
-				glDeleteTextures(1, &overlay_texture_curve);
-				overlay_texture_curve = 0;
-			}
-
-			init_curve = 0;
-
-			old_curve_size = curve_size;
-		}
-	}
-
-	/* image texture refresh */
-	if(refresh)
 		buffer = MEM_mallocN(sizeof(GLubyte) * size * size, "load_tex");
-
-	if(refresh_curve)
-		curve_buffer = MEM_mallocN(sizeof(GLubyte) * curve_size * curve_size, "load_tex_curve");
-
-	if(refresh) {
-		/* dummy call to avoid generating curve tables in openmp, causes memory leaks since allocation
-		 * is not thread safe */
-		BKE_brush_curve_strength(br, 0.5, 1);
 
 		#pragma omp parallel for schedule(static)
 		for (j = 0; j < size; j++) {
@@ -263,7 +358,7 @@ static int load_tex(Brush *br, ViewContext *vc)
 					/* it is probably worth optimizing for those cases where 
 					 * the texture is not rotated by skipping the calls to
 					 * atan2, sqrtf, sin, and cos. */
-					if (br->mtex.tex && (rotation > 0.001f || rotation < -0.001f)) {
+					if (rotation > 0.001f || rotation < -0.001f) {
 						const float angle    = atan2f(y, x) + rotation;
 
 						x = len * cosf(angle);
@@ -276,19 +371,11 @@ static int load_tex(Brush *br, ViewContext *vc)
 					x += br->mtex.ofs[0];
 					y += br->mtex.ofs[1];
 
-					avg = br->mtex.tex ? paint_get_tex_pixel(br, x, y, FALSE) : 1;
+					avg = paint_get_tex_pixel(br, x, y, FALSE);
 
 					avg += br->texture_sample_bias;
 
-					if (!do_tiled) {
-						avg *= BKE_brush_curve_strength(br, len, 1);  /* Falloff curve */
-
-						if(br->flag & BRUSH_USE_MASK) {
-							avg *= br->mask_mtex.tex ? paint_get_tex_pixel(br, x, y, TRUE) : 1;
-						}
-					}
-
-					buffer[index] = 255 - (GLubyte)(255 * avg);
+					buffer[index] = (GLubyte)(255 * avg);
 				}
 				else {
 					buffer[index] = 0;
@@ -300,6 +387,7 @@ static int load_tex(Brush *br, ViewContext *vc)
 			glGenTextures(1, &overlay_texture);
 	}
 
+	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, overlay_texture);
 
 	if (refresh) {
@@ -317,8 +405,6 @@ static int load_tex(Brush *br, ViewContext *vc)
 
 	glEnable(GL_TEXTURE_2D);
 
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -327,97 +413,11 @@ static int load_tex(Brush *br, ViewContext *vc)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 	}
 
-	/* view mode doesn't need a separate curve texture */
-	if(!do_tiled)
-		return 1;
-
-	if(refresh_curve) {
-		/* dummy call to avoid generating curve tables in openmp, causes memory leaks since allocation
-		 * is not thread safe */
-		BKE_brush_curve_strength(br, 0.5, 1);
-
-		#pragma omp parallel for schedule(static)
-		for (j = 0; j < curve_size; j++) {
-			int i;
-			float y;
-			float len;
-
-			for (i = 0; i < curve_size; i++) {
-				int index = j * curve_size + i;
-				float x;
-				float avg;
-
-				x = (float)i / curve_size;
-				y = (float)j / curve_size;
-
-				x -= 0.5f;
-				y -= 0.5f;
-
-				x *= 2;
-				y *= 2;
-
-				len = sqrtf(x * x + y * y);
-
-				if (len <= 1) {
-					x *= br->mtex.size[0];
-					y *= br->mtex.size[1];
-
-					x += br->mtex.ofs[0];
-					y += br->mtex.ofs[1];
-
-					avg = BKE_brush_curve_strength(br, len, 1);  /* Falloff curve */
-
-					if(br->flag & BRUSH_USE_MASK) {
-						avg *= br->mask_mtex.tex ? paint_get_tex_pixel(br, x, y, TRUE) : 1;
-					}
-
-					curve_buffer[index] = (GLubyte)(255 * avg);
-				}
-				else {
-					curve_buffer[index] = 0;
-				}
-			}
-		}
-
-		if (!overlay_texture_curve)
-			glGenTextures(1, &overlay_texture_curve);
-	}
-
-	/* switch to second texture unit */
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, overlay_texture_curve);
-
-	if (refresh_curve) {
-		if (!init_curve) {
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, curve_size, curve_size, 0, GL_ALPHA, GL_UNSIGNED_BYTE, curve_buffer);
-			init_curve = 1;
-		}
-		else {
-			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, curve_size, curve_size, GL_ALPHA, GL_UNSIGNED_BYTE, curve_buffer);
-		}
-
-		if(curve_buffer)
-			MEM_freeN(curve_buffer);
-	}
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-	glEnable(GL_TEXTURE_2D);
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
-	glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
-	glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
-	glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_PREVIOUS);
-	glTexEnvf(GL_TEXTURE_ENV, GL_SRC1_ALPHA, GL_TEXTURE1);
-	glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PRIMARY_COLOR);
-
 	glActiveTexture(GL_TEXTURE0);
 
 	return 1;
 }
+
 
 static int project_brush_radius(ViewContext *vc,
                                 float radius,
@@ -526,7 +526,39 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 	             GL_VIEWPORT_BIT |
 	             GL_TEXTURE_BIT);
 
-	if (load_tex(brush, vc)) {
+	if (load_brush_tex_alpha(brush, vc)) {
+		int radius;
+
+		/* setup opengl texture state to combine the alpha and texture images */
+		if (load_brush_tex_image(brush, vc)) {
+			/* modulate in first unit, negate in second */
+			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+			glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
+			glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
+			glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PRIMARY_COLOR);
+			glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_TEXTURE);
+			glTexEnvf(GL_TEXTURE_ENV, GL_SRC1_ALPHA, GL_TEXTURE1);
+			glActiveTexture(GL_TEXTURE1);
+			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+			glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
+			glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
+			glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_PREVIOUS);
+			glTexEnvf(GL_TEXTURE_ENV, GL_OPERAND0_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			glTexEnvf(GL_TEXTURE_ENV, GL_SRC1_ALPHA, GL_PRIMARY_COLOR);
+			glTexEnvf(GL_TEXTURE_ENV, GL_OPERAND1_ALPHA, GL_SRC_ALPHA);
+			glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PRIMARY_COLOR);
+			glActiveTexture(GL_TEXTURE0);
+		} else {
+			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+			glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
+			glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
+			glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PRIMARY_COLOR);
+			glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_TEXTURE);
+			glTexEnvf(GL_TEXTURE_ENV, GL_OPERAND0_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			glTexEnvf(GL_TEXTURE_ENV, GL_SRC1_ALPHA, GL_PRIMARY_COLOR);
+			glTexEnvf(GL_TEXTURE_ENV, GL_OPERAND1_ALPHA, GL_SRC_ALPHA);
+		}
+
 		glEnable(GL_BLEND);
 
 		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
@@ -538,7 +570,11 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		glLoadIdentity();
 
 		if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_VIEW) {
+			float texmatrix[16];
 			/* brush rotation */
+			glActiveTexture(GL_TEXTURE1);
+			glPushMatrix();
+			glLoadIdentity();
 			glTranslatef(0.5, 0.5, 0);
 			glRotatef((double)RAD2DEGF((brush->flag & BRUSH_RAKE) ?
 			                           ups->last_angle : ups->special_rotation),
@@ -550,6 +586,9 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 			}
 
 			glTranslatef(-0.5f, -0.5f, 0);
+			glGetFloatv(GL_TEXTURE_MATRIX, texmatrix);
+			glActiveTexture(GL_TEXTURE0);
+			glLoadMatrixf(texmatrix);
 
 			if (ups->draw_anchored) {
 				const float *aim = ups->anchored_initial_mouse;
@@ -560,7 +599,7 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 				quad.ymax = aim[1] + ups->anchored_size - win->ymin;
 			}
 			else {
-				int radius = BKE_brush_size_get(vc->scene, brush);
+				radius = BKE_brush_size_get(vc->scene, brush);
 
 				radius *= MAX2(zoomx, zoomy);
 
@@ -571,7 +610,7 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 			}
 		}
 		else {
-			int radius = BKE_brush_size_get(vc->scene, brush);
+			radius = BKE_brush_size_get(vc->scene, brush);
 
 			radius *= MAX2(zoomx, zoomy);
 
@@ -588,39 +627,59 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		          brush->texture_overlay_alpha / 100.0f);
 
 		/* draw textured quad */
-		glBegin(GL_QUADS);
 		if(brush->mtex.brush_map_mode == MTEX_MAP_MODE_VIEW) {
-			glTexCoord2f(0, 0);
-			glVertex2f(quad.xmin, quad.ymin);
-			glTexCoord2f(1, 0);
-			glVertex2f(quad.xmax, quad.ymin);
-			glTexCoord2f(1, 1);
-			glVertex2f(quad.xmax, quad.ymax);
-			glTexCoord2f(0, 1);
-			glVertex2f(quad.xmin, quad.ymax);
+			int i;
+			float xcenter;
+			float ycenter;
+			radius = (quad.xmax - quad.xmin)/ 2.0;
+			xcenter = quad.xmin + radius;
+			ycenter = quad.ymin + radius;
+
+			glBegin(GL_TRIANGLE_FAN);
+			/* center vertex specification */
+			glTexCoord2f(0.5, 0.5);
+			glMultiTexCoord2f(GL_TEXTURE1, 0.5, 0.5);
+			glVertex2f(xcenter, ycenter);
+			for(i = 0; i < CURSOR_RESOLUTION; i++) {
+				float t = (float) i / (CURSOR_RESOLUTION - 1);
+				float cur = t * 2.0 * M_PI;
+				float tmpcos = cosf(cur);
+				float tmpsin = sinf(cur);
+
+				glTexCoord2f(0.5 + 0.5 * tmpcos, 0.5 + 0.5 * tmpsin);
+				glMultiTexCoord2f(GL_TEXTURE1, 0.5 + 0.5 * tmpcos, 0.5 + 0.5 * tmpsin);
+				glVertex2f(xcenter + tmpcos * radius, ycenter + tmpsin * radius);
+			}
+			glEnd();
 		} else {
+			int i;
 			short sizex = vc->ar->winrct.xmax - vc->ar->winrct.xmin;
 			short sizey = vc->ar->winrct.ymax - vc->ar->winrct.ymin;
 
-			glTexCoord2f(quad.xmin/sizex, quad.ymin/sizey);
-			glMultiTexCoord2f(GL_TEXTURE1, 0, 0);
-			glVertex2f(quad.xmin, quad.ymin);
-			glTexCoord2f(quad.xmax/sizex, quad.ymin/sizey);
-			glMultiTexCoord2f(GL_TEXTURE1, 1, 0);
-			glVertex2f(quad.xmax, quad.ymin);
-			glTexCoord2f(quad.xmax/sizex, quad.ymax/sizey);
-			glMultiTexCoord2f(GL_TEXTURE1, 1, 1);
-			glVertex2f(quad.xmax, quad.ymax);
-			glTexCoord2f(quad.xmin/sizex, quad.ymax/sizey);
-			glMultiTexCoord2f(GL_TEXTURE1, 0, 1);
-			glVertex2f(quad.xmin, quad.ymax);
+			glBegin(GL_TRIANGLE_FAN);
+			/* center vertex specification */
+			glTexCoord2f(0.5, 0.5);
+			glMultiTexCoord2f(GL_TEXTURE1, ((float)x)/sizex, ((float)y)/sizey);
+			glVertex2f(x, y);
+			for(i = 0; i < CURSOR_RESOLUTION; i++) {
+				float t = (float) i / (CURSOR_RESOLUTION - 1);
+				float cur = t * 2.0 * M_PI;
+				float tmpcos = cosf(cur);
+				float tmpsin = sinf(cur);
+				float xpos = x + tmpcos * radius;
+				float ypos = y + tmpsin * radius;
+
+				glTexCoord2f(0.5 + 0.5 * tmpcos, 0.5 + 0.5 * tmpsin);
+				glMultiTexCoord2f(GL_TEXTURE1, xpos/sizex, ypos/sizey);
+				glVertex2f(xpos, ypos);
+			}
+			glEnd();
 		}
-		glEnd();
 
 		/* should be caught by enable bits but do explicitly just in case..*/
 		glActiveTexture(GL_TEXTURE1);
 		glDisable(GL_TEXTURE_2D);
-
+		glPopMatrix();
 		glActiveTexture(GL_TEXTURE0);
 		glPopMatrix();
 	}
@@ -779,7 +838,7 @@ void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 	glTranslatef(translation[0], translation[1], 0);
 	if(in_uv_editor)
 		glScalef(zoomx, zoomy, 1.0f);
-	glutil_draw_lined_arc(0.0, M_PI * 2.0, final_radius, 40);
+	glutil_draw_lined_arc(0.0, M_PI * 2.0, final_radius, CURSOR_RESOLUTION);
 	glPopMatrix();
 
 	/* restore GL state */
