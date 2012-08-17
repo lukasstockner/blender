@@ -56,6 +56,12 @@ void gpuSetClearColorvf_gl(float c[3], float a)
 
 }
 
+void gpuGetClearColor_gl(float r[4])
+{
+
+	glGetFloatv(GL_COLOR_CLEAR_VALUE, r);
+}
+
 
 void gpuViewport_gl(int x, int y, unsigned int width, unsigned int height)
 {
