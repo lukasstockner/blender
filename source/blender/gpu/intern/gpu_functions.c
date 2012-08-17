@@ -298,12 +298,16 @@ void GPU_func_comp_init(void)
 	else
 		init_framebuffers_ext();
 #endif
+#ifndef WITH_ANDROID
+/* Some android has unimplemented glUnMapBuffer? */
 	if(gpu_glMapBuffer!=NULL)
 	{
 		GPU_ext_config|=GPU_EXT_MAPBUFFER;
 		gpuBufferStartUpdate = gpuBufferStartUpdate_map;
 		gpuBufferFinishUpdate = gpuBufferFinishUpdate_map;		
 	} else
+#endif	
+	if(1)
 	{
 		gpuBufferStartUpdate = gpuBufferStartUpdate_buffer;
 		gpuBufferFinishUpdate = gpuBufferFinishUpdate_buffer;		
