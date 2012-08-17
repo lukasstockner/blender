@@ -614,7 +614,9 @@ static GLubyte Squaredot[16] = {
 void gpuBeginSprites(void)
 {
 	GLfloat range[4];
+	#include REAL_GL_MODE
 	glGetFloatv(GL_ALIASED_POINT_SIZE_RANGE, range);
+	#include FAKE_GL_MODE
 
 	if (range[1] < 2.0f) {
 		GLfloat size[4];

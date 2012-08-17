@@ -50,6 +50,7 @@
 #include "intern/gpu_codegen.h"
 #include "GPU_compatibility.h"
 #include "GPU_functions.h"
+#include "gpu_object_gles.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -135,7 +136,11 @@ void GPU_extensions_init(void)
 	GPU_func_comp_init();
 	gpuInitializeViewFuncs();
 	GPU_codegen_init();
-
+	
+	if(!GPU_GLTYPE_FIXED_ENABLED)
+		gpu_object_init_gles();
+	
+	
 	/* glewIsSupported("GL_VERSION_2_0") */
 #include REAL_GL_MODE
 	if (GLEW_ARB_multitexture)

@@ -44,9 +44,8 @@
 #include "GPU_matrix.h"
 
 
-#ifdef GLES
 #include "gpu_object_gles.h"
-#endif
+#include "GPU_extensions.h"
 
 #if WITH_GPU_SAFETY
 #define GPU_STACK_DEBUG
@@ -219,6 +218,8 @@ void gpuMatrixUnlock(void)
 
 void gpuMatrixCommit(void)
 {
+if(GPU_GLTYPE_FIXED_ENABLED)
+{
 #ifndef GLES
 	if(ms_modelview.changed)
 	{
@@ -239,20 +240,24 @@ void gpuMatrixCommit(void)
 		glLoadMatrixf((GLfloat*)ms_texture.dynstack[ms_texture.pos]);
 	}
 
-#else
-if(curglslesi)
+#endif
+} else if(curglslesi)
 {
 #include REAL_GL_MODE
 
 	if(ms_modelview.changed || glslneedupdate)
 	{
 
-		GLfloat t[3][3] = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
-		copy_m3_m4(t, ms_modelview.dynstack[ms_modelview.pos]); 
+		 
 		if(curglslesi->viewmatloc!=-1)
 			glUniformMatrix4fv(curglslesi->viewmatloc, 1, 0, ms_modelview.dynstack[ms_modelview.pos]);
+			
 		if(curglslesi->normalmatloc!=-1)
+		{
+			GLfloat t[3][3] = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
+			copy_m3_m4(t, ms_modelview.dynstack[ms_modelview.pos]);
 			glUniformMatrix3fv(curglslesi->normalmatloc, 1, 0, t);
+		}
 		
 		
 	}
@@ -261,12 +266,14 @@ if(curglslesi)
 		if(curglslesi->projectionmatloc!=-1)
 		glUniformMatrix4fv(curglslesi->projectionmatloc, 1, 0, ms_projection.dynstack[ms_projection.pos]);
 	}
-
+	
+	if(ms_texture.changed|| glslneedupdate)
+	{
+		if(curglslesi->texturecoordloc!=-1)
+		glUniformMatrix4fv(curglslesi->texturecoordloc, 1, 0, ms_texture.dynstack[ms_texture.pos]);
+	}
 }
 
-
-#endif
-//CHECKMAT
 }
 
 
