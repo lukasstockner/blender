@@ -1775,7 +1775,11 @@ static void bli_where_am_i(char *fullname, const size_t maxlen, const char *name
 
 #ifdef WITH_ANDROID
 /* probably we should use better method */
-    BLI_strncpy(fullname, "/data/data/org.blender.app/blender", maxlen);
+#ifdef WITH_GHOST_SDL
+	BLI_strncpy(fullname, "/data/data/org.blender.app/blender", maxlen);
+#else
+	BLI_strncpy(fullname, "/data/data/org.blender.play/blender", maxlen);
+#endif
     return;
 	
 #endif
