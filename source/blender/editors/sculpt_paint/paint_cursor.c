@@ -70,8 +70,14 @@
  */
 
 typedef struct SnapshotAlpha {
+	float size[3];
+	float ofs[3];
+	float rot;
 	int BKE_brush_size_get;
-	int alpha_changed_timestamp;
+	int winx;
+	int winy;
+	int brush_map_mode;
+	int use_tex_mask;
 } SnapshotAlpha;
 
 typedef struct SnapshotTex {
@@ -83,6 +89,48 @@ typedef struct SnapshotTex {
 	int winy;
 	int brush_map_mode;
 } SnapshotTex;
+
+static void make_snap_alpha(SnapshotAlpha *snap, Brush *brush, ViewContext *vc)
+{
+	if (brush->mask_mtex.tex) {
+		snap->brush_map_mode = brush->mtex.brush_map_mode;
+		copy_v3_v3(snap->ofs, brush->mask_mtex.ofs);
+		copy_v3_v3(snap->size, brush->mask_mtex.size);
+		snap->rot = brush->mask_mtex.rot;
+	}
+	else {
+		snap->brush_map_mode = -1;
+		snap->ofs[0] = snap->ofs[1] = snap->ofs[2] = -1;
+		snap->size[0] = snap->size[1] = snap->size[2] = -1;
+		snap->rot = -1;
+	}
+
+	snap->BKE_brush_size_get = BKE_brush_size_get(vc->scene, brush);
+	snap->winx = vc->ar->winx;
+	snap->winy = vc->ar->winy;
+	snap->use_tex_mask = (brush->flag & BRUSH_USE_MASK);
+}
+
+static int same_snap_alpha(SnapshotAlpha *snap, Brush *brush, ViewContext *vc)
+{
+	MTex *mtex = &brush->mtex;
+	MTex *mask_mtex = &brush->mask_mtex;
+
+	return (((mask_mtex->tex) &&
+	         equals_v3v3(mask_mtex->ofs, snap->ofs) &&
+	         equals_v3v3(mask_mtex->size, snap->size) &&
+	         mask_mtex->rot == snap->rot &&
+	         (brush->flag & BRUSH_USE_MASK) == snap->use_tex_mask) &&
+
+	        /* make brush smaller shouldn't cause a resample */
+	        ((mtex->brush_map_mode == MTEX_MAP_MODE_VIEW &&
+	          (BKE_brush_size_get(vc->scene, brush) <= snap->BKE_brush_size_get)) ||
+	         (BKE_brush_size_get(vc->scene, brush) == snap->BKE_brush_size_get)) &&
+
+	        (mtex->brush_map_mode == snap->brush_map_mode) &&
+	        (vc->ar->winx == snap->winx) &&
+	        (vc->ar->winy == snap->winy));
+}
 
 static int same_snap_image(SnapshotTex *snap, Brush *brush, ViewContext *vc)
 {
@@ -127,6 +175,8 @@ static int load_brush_tex_alpha(Brush *br, ViewContext *vc)
 {
 	static GLuint overlay_texture_alpha = 0;
 	static int init_alpha = 0;
+	static int alpha_tex_changed_timestamp = -1;
+	static int alpha_changed_timestamp = -1;
 	static SnapshotAlpha snap;
 	static int old_alpha_size = -1;
 
@@ -145,15 +195,24 @@ static int load_brush_tex_alpha(Brush *br, ViewContext *vc)
 	refresh =
 			(snap.BKE_brush_size_get != BKE_brush_size_get(vc->scene, br)) ||
 			!br->curve ||
-			br->curve->changed_timestamp != snap.alpha_changed_timestamp ||
-			!overlay_texture_alpha;
+			br->curve->changed_timestamp != alpha_changed_timestamp ||
+			!overlay_texture_alpha ||
+	        (br->mask_mtex.tex &&
+	        (!br->mask_mtex.tex->preview ||
+	        br->mask_mtex.tex->preview->changed_timestamp[0] != alpha_tex_changed_timestamp))
+	        || !same_snap_alpha(&snap, br, vc);
 
 	if (refresh) {
 		int s = BKE_brush_size_get(vc->scene, br);
 		int r = 1;
 
 		if (br->curve)
-			snap.alpha_changed_timestamp = br->curve->changed_timestamp;
+			alpha_changed_timestamp = br->curve->changed_timestamp;
+
+		if (br->mask_mtex.tex && br->mask_mtex.tex->preview)
+			alpha_tex_changed_timestamp = br->mask_mtex.tex->preview->changed_timestamp[0];
+
+		make_snap_alpha(&snap, br, vc);
 
 		snap.BKE_brush_size_get = BKE_brush_size_get(vc->scene, br);
 
