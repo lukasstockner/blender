@@ -3852,8 +3852,6 @@ static void *do_projectpaint_thread(void *ph_v)
 	const float *lastpos =       ((ProjectHandle *)ph_v)->prevmval;
 	const float *pos =           ((ProjectHandle *)ph_v)->mval;
 	const int thread_index =     ((ProjectHandle *)ph_v)->thread_index;
-	Scene *scene = ps->scene;
-	UnifiedPaintSettings *unified_paint_settings = &scene->toolsettings->unified_paint_settings;
 	/* Done with args from ProjectHandle */
 
 	LinkNode *node;
@@ -3928,12 +3926,15 @@ static void *do_projectpaint_thread(void *ph_v)
 				/*if (dist < radius) {*/ /* correct but uses a sqrtf */
 				if (dist_nosqrt <= radius_squared) {
 					float samplecos[2];
+					float masksamplecos[2];
 					dist = sqrtf(dist_nosqrt);
 
 					falloff = BKE_brush_curve_strength_clamp(ps->brush, dist, radius);
 
-					/* will eventuallly be separated when mask textures get their own attributes */
-					if (ps->is_texbrush || ps->is_maskbrush) {
+					if(ps->is_maskbrush) {
+						sub_v2_v2v2(masksamplecos, projPixel->projCoSS, pos);
+					}
+					if (ps->is_texbrush) {
 						if(ps->brush->flag & (BRUSH_RAKE | BRUSH_RANDOM_ROTATION)) {
 							sub_v2_v2v2(samplecos, projPixel->projCoSS, pos);
 						} else {
@@ -3949,6 +3950,9 @@ static void *do_projectpaint_thread(void *ph_v)
 						}
 						else {
 							alpha = 1.0f;
+						}
+						if(ps->is_maskbrush) {
+							alpha *= BKE_brush_sample_masktex(ps->scene, ps->brush, masksamplecos, thread_index, -ps->rotation + ps->brush->mask_mtex.rot);
 						}
 
 						if (ps->is_airbrush || (ps->brush->flag & (BRUSH_RANDOM_ROTATION | BRUSH_RAKE))) {
@@ -3972,10 +3976,6 @@ static void *do_projectpaint_thread(void *ph_v)
 								/* Go onto the next pixel */
 								continue;
 							}
-						}
-
-						if(ps->is_maskbrush) {
-							alpha *= BKE_brush_sample_masktex(ps->scene, ps->brush, samplecos, thread_index, unified_paint_settings->last_angle);
 						}
 
 						if (alpha > 0.0f) {

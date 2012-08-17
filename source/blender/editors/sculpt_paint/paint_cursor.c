@@ -186,11 +186,10 @@ static int load_brush_tex_alpha(Brush *br, ViewContext *vc)
 	char do_tiled_texpaint = (br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED_TEXPAINT);
 	char do_tiled = (br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED) || do_tiled_texpaint;
 	*/
+
 	int alpha_size;
 	int j;
 	int refresh;
-
-	//if (do_tiled && !br->mask_mtex.tex) return 0;
 
 	refresh =
 			(snap.BKE_brush_size_get != BKE_brush_size_get(vc->scene, br)) ||
@@ -251,6 +250,7 @@ static int load_brush_tex_alpha(Brush *br, ViewContext *vc)
 			float len;
 
 			for (i = 0; i < alpha_size; i++) {
+				const float rotation = -br->mask_mtex.rot;
 				int index = j * alpha_size + i;
 				float x;
 				float avg;
@@ -267,15 +267,22 @@ static int load_brush_tex_alpha(Brush *br, ViewContext *vc)
 				len = sqrtf(x * x + y * y);
 
 				if (len <= 1) {
-					x *= br->mtex.size[0];
-					y *= br->mtex.size[1];
-
-					x += br->mtex.ofs[0];
-					y += br->mtex.ofs[1];
-
 					avg = BKE_brush_curve_strength(br, len, 1);  /* Falloff curve */
 
 					if(br->flag & BRUSH_USE_MASK) {
+						if (rotation > 0.001f || rotation < -0.001f) {
+							const float angle    = atan2f(y, x) + rotation;
+
+							x = len * cosf(angle);
+							y = len * sinf(angle);
+						}
+
+						x *= br->mask_mtex.size[0];
+						y *= br->mask_mtex.size[1];
+
+						x += br->mask_mtex.ofs[0];
+						y += br->mask_mtex.ofs[1];
+
 						avg *= br->mask_mtex.tex ? paint_get_tex_pixel(br, x, y, TRUE) : 1;
 					}
 					CLAMP(avg, 0.0, 1.0);
