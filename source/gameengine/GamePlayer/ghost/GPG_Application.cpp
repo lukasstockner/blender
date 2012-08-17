@@ -595,7 +595,7 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 			m_rasterizer = new RAS_ListRasterizer(m_canvas, false, gm->raster_storage);
 		else
 #ifdef GLES
-			m_rasterizer = new RAS_OpenGLRasterizer(m_canvas, gm->raster_storage=RAS_VA);
+			m_rasterizer = new RAS_OpenGLRasterizer(m_canvas, gm->raster_storage=RAS_VBO);
 #else
 			m_rasterizer = new RAS_OpenGLRasterizer(m_canvas, gm->raster_storage);
 #endif
