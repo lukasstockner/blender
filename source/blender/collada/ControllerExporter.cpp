@@ -323,6 +323,9 @@ void ControllerExporter::export_morph_controller(Object *ob, Key *key)
 	{
 		BKE_libblock_free_us(&(G.main->mesh), me);
 	}
+    
+	// can also try the base element and param alternative
+	add_weight_extras(key);
 	closeMorph();
 	closeController();
 }
@@ -346,7 +349,7 @@ std::string ControllerExporter::add_morph_targets(Key *key, Object *ob)
 		//skip the basis
 	kb = kb->next;
 	for (; kb; kb = kb->next) {
-		std::string geom_id = get_geometry_id(ob, false) + "_morph_" + translate_id(id_name(kb));
+		std::string geom_id = get_geometry_id(ob, false) + "_morph_" + translate_id(kb->name);
 		source.appendValues(geom_id);
 
 	}
@@ -381,6 +384,20 @@ std::string ControllerExporter::add_morph_weights(Key *key, Object *ob)
 	source.finish();
 
 	return source_id;
+}
+
+//Added to implemente support for animations.
+void ControllerExporter::add_weight_extras(Key *key){
+	// can also try the base element and param alternative
+	COLLADASW::BaseExtraTechnique extra;
+	
+	KeyBlock * kb = (KeyBlock*)key->block.first;
+		//skip the basis
+	kb = kb->next;
+	for (; kb; kb = kb->next) {
+		float weight = kb->curval;
+		extra.addExtraTechniqueParameter ("KHR", "morph_weights" , 0.000, "MORPH_WEIGHT_TO_TARGET");
+	}
 }
 
 

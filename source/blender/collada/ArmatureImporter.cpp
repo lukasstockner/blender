@@ -633,12 +633,12 @@ bool ArmatureImporter::write_controller(const COLLADAFW::Controller *controller)
 {
 	// - create and store armature object
 
-	const COLLADAFW::UniqueId& skin_id = controller->getUniqueId();
+	const COLLADAFW::UniqueId& con_id = controller->getUniqueId();
 
 	if (controller->getControllerType() == COLLADAFW::Controller::CONTROLLER_TYPE_SKIN) {
 		COLLADAFW::SkinController *co = (COLLADAFW::SkinController *)controller;
 		// to be able to find geom id by controller id
-		geom_uid_by_controller_uid[skin_id] = co->getSource();
+		geom_uid_by_controller_uid[con_id] = co->getSource();
 
 		const COLLADAFW::UniqueId& data_uid = co->getSkinControllerData();
 		if (skin_by_data_uid.find(data_uid) == skin_by_data_uid.end()) {
@@ -652,47 +652,48 @@ bool ArmatureImporter::write_controller(const COLLADAFW::Controller *controller)
 	else if (controller->getControllerType() == COLLADAFW::Controller::CONTROLLER_TYPE_MORPH) {
 		COLLADAFW::MorphController *co = (COLLADAFW::MorphController *)controller;
 		// to be able to find geom id by controller id
-		geom_uid_by_controller_uid[skin_id] = co->getSource();
-
-		COLLADAFW::UniqueIdArray& morphTargetIds = co->getMorphTargets();
-		COLLADAFW::FloatOrDoubleArray& morphWeights = co->getMorphWeights();
-        
-		//Prereq: all the geometries must be imported and mesh objects must be made
-		Object *source_ob = this->mesh_importer->get_object_by_geom_uid(co->getSource());
-		Mesh *source_me = (Mesh*) source_ob->data;
-		float *weight;
-
-		for ( int i = 0 ; i < morphTargetIds.getCount() ; i++ ){
-			//better to have a seperate map of morph objects, 
-			//This'll do for now since only mesh morphing is imported
-			Object *ob = this->mesh_importer->get_object_by_geom_uid(morphTargetIds[i]);
-			if(ob){
-				Mesh *me = (Mesh*)ob->data;
-				Key *key = ob_get_key(source_ob);
-				KeyBlock *kb;
-				int newkey = 0;
-
-				if (key == NULL) {
-					key = source_me->key = add_key((ID *)me);
-					key->type = KEY_RELATIVE;
-					newkey = 1;
-				}
-
-				kb = add_keyblock_ctime(key, morphTargetIds[i].toAscii().c_str(), FALSE);
-				mesh_to_key(me, kb);
-				weight =  morphWeights.getFloatValues()[i].getData();
-				kb->curval = *weight;
-				
-				//free object since it is added as shape key
-				BKE_object_free(ob);
-			}
-			else 
-				fprintf(stderr, "Morph target geometry not found.\n");
-		} 
+		geom_uid_by_controller_uid[con_id] = co->getSource();
+		morph_controllers.push_back(co);
 //		fprintf(stderr, "Morph controller is not supported yet.\n");
 	}
 
 	return true;
+}
+
+void ArmatureImporter::make_shape_keys(){
+	std::vector<COLLADAFW::MorphController *>::iterator mc;
+
+	for (mc = morph_controllers.begin(); mc != morph_controllers.end(); mc++) {
+		COLLADAFW::UniqueIdArray& morphTargetIds = (*mc)->getMorphTargets();
+		COLLADAFW::FloatOrDoubleArray& morphWeights = (*mc)->getMorphWeights();
+        
+		//Prereq: all the geometries must be imported and mesh objects must be made
+		Object *source_ob = this->mesh_importer->get_object_by_geom_uid((*mc)->getSource());
+		Mesh *source_me = (Mesh*) source_ob->data;
+		float weight;
+        Key *key = source_me->key = add_key((ID *)source_me);
+		key->type = KEY_RELATIVE;
+		KeyBlock *kb;
+		kb = add_keyblock_ctime(key, "Basis", FALSE);
+		mesh_to_key(source_me, kb);
+		for ( int i = 0 ; i < morphTargetIds.getCount() ; i++ ){
+			//better to have a seperate map of morph objects, 
+			//This'll do for now since only mesh morphing is imported
+			Mesh *me = this->mesh_importer->get_mesh_by_geom_uid(morphTargetIds[i]);
+			if(me){
+				me->key = key;
+				kb = add_keyblock_ctime(key, me->id.name, FALSE);
+				mesh_to_key(me, kb);
+				weight =  morphWeights.getFloatValues()->getData()[i];
+				kb->curval = weight;
+				
+				//free object since it is added as shape key
+				//BKE_object_free(ob);
+			}
+			else 
+				fprintf(stderr, "Morph target geometry not found.\n");
+		}
+	}
 }
 
 

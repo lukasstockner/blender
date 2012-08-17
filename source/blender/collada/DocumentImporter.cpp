@@ -210,6 +210,7 @@ void DocumentImporter::finish()
 	}
 	armature_importer.set_tags_map(this->uid_tags_map);
 	armature_importer.make_armatures(mContext);
+	armature_importer.make_shape_keys();
 
 #if 0
 	armature_importer.fix_animation();

@@ -91,6 +91,7 @@ private:
 	std::map<COLLADAFW::UniqueId, COLLADAFW::Node*> joint_by_uid; // contains all joints
 	std::vector<COLLADAFW::Node*> root_joints;
 	std::vector<COLLADAFW::Node*> finished_joints;
+	std::vector<COLLADAFW::MorphController*> morph_controllers;
 	std::map<COLLADAFW::UniqueId, Object*> joint_parent_map;
 	std::map<COLLADAFW::UniqueId, Object*> unskinned_armature_map;
 
@@ -151,6 +152,8 @@ public:
 
 	// here we add bones to armatures, having armatures previously created in write_controller
 	void make_armatures(bContext *C);
+
+	void make_shape_keys();
 
 #if 0
 	// link with meshes, create vertex groups, assign weights

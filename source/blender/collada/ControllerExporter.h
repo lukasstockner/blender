@@ -36,6 +36,7 @@
 #include "COLLADASWLibraryControllers.h"
 #include "COLLADASWInputList.h"
 #include "COLLADASWNode.h"
+#include "COLLADASWExtraTechnique.h"
 
 #include "DNA_armature_types.h"
 #include "DNA_listBase.h"
@@ -105,6 +106,8 @@ private:
 	std::string add_morph_targets(Key *key, Object *ob);
 
 	std::string add_morph_weights(Key *key, Object *ob);
+
+	void add_weight_extras(Key *key);
 
 	std::string add_joints_source(Object *ob_arm, ListBase *defbase, const std::string& controller_id);
 

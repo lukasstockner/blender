@@ -59,6 +59,7 @@ class MeshImporterBase
 {
 public:
 	virtual Object *get_object_by_geom_uid(const COLLADAFW::UniqueId& geom_uid) = 0;
+	virtual Mesh *get_mesh_by_geom_uid(const COLLADAFW::UniqueId& mesh_uid) = 0;
 };
 
 class UVDataWrapper
@@ -148,6 +149,8 @@ public:
 	void bmeshConversion();
 
 	virtual Object *get_object_by_geom_uid(const COLLADAFW::UniqueId& geom_uid);
+
+	virtual Mesh *get_mesh_by_geom_uid(const COLLADAFW::UniqueId& geom_uid);
 	
 	MTex *assign_textures_to_uvlayer(COLLADAFW::TextureCoordinateBinding &ctexture,
 									 Mesh *me, TexIndexTextureArrayMap& texindex_texarray_map,
