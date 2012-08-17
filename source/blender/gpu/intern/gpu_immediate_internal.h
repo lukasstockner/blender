@@ -173,7 +173,7 @@ BLI_INLINE void GPU_CHECK_NO_ERROR(void)
 
 GLsizei gpu_calc_stride(void);
 
-
+#ifndef GLES
 
 void gpu_lock_buffer_gl11(void);
 void gpu_unlock_buffer_gl11(void);
@@ -189,7 +189,23 @@ void gpu_index_shutdown_buffer_gl11(GPUindex *restrict index);
 void gpu_draw_elements_gl11(void);
 void gpu_draw_range_elements_gl11(void);
 
+#endif
 
+void gpu_lock_buffer_glsl(void);
+void gpu_unlock_buffer_glsl(void);
+void gpu_begin_buffer_glsl(void);
+void gpu_end_buffer_glsl(void);
+void gpu_shutdown_buffer_glsl(GPUimmediate *restrict immediate);
+void gpu_current_color_glsl(void);
+void gpu_get_current_color_glsl(GLfloat *restrict v);
+void gpu_current_normal_glsl(void);
+void gpu_index_begin_buffer_glsl(void);
+void gpu_index_end_buffer_glsl(void);
+void gpu_index_shutdown_buffer_glsl(GPUindex *restrict index);
+void gpu_draw_elements_glsl(void);
+void gpu_draw_range_elements_glsl(void);
+
+void gpu_quad_elements_init(void);
 
 void gpu_lock_buffer_vbo(void);
 void gpu_unlock_buffer_vbo(void);

@@ -54,6 +54,7 @@ set(SRC
 	intern/gpu_draw.c
 	intern/gpu_extensions.c
 	intern/gpu_immediate.c
+	intern/gpu_immediate_glsl.c
 	intern/gpu_immediate_gl11.c
 	intern/gpu_immediate_vbo.c
 	intern/gpu_lighting.c

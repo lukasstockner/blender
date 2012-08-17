@@ -30,11 +30,13 @@
 */
 
 #include "gpu_immediate_internal.h"
-
+#include "GPU_extensions.h"
+#include "gpu_object_gles.h"
 #include "MEM_guardedalloc.h"
 
 #include <math.h>
 #include <string.h>
+
 
 
 
@@ -198,6 +200,28 @@ GPUimmediate* gpuNewImmediate(void)
 	immediate->copyVertex   = gpu_copy_vertex;
 	immediate->appendClientArrays = gpu_append_client_arrays;
 
+
+	if(!GPU_GLTYPE_FIXED_ENABLED)
+	{
+		immediate->lockBuffer          = gpu_lock_buffer_glsl;
+		immediate->unlockBuffer        = gpu_unlock_buffer_glsl;
+		immediate->beginBuffer         = gpu_begin_buffer_glsl;
+		immediate->endBuffer           = gpu_end_buffer_glsl;
+		immediate->shutdownBuffer      = gpu_shutdown_buffer_glsl;
+		immediate->currentColor        = gpu_current_color_glsl;
+		immediate->getCurrentColor     = gpu_get_current_color_glsl;
+		immediate->currentNormal       = gpu_current_normal_glsl;
+		immediate->indexBeginBuffer    = gpu_index_begin_buffer_glsl;
+		immediate->indexShutdownBuffer = gpu_index_shutdown_buffer_glsl;
+		immediate->indexEndBuffer      = gpu_index_end_buffer_glsl;
+		immediate->drawElements        = gpu_draw_elements_glsl;
+		immediate->drawRangeElements   = gpu_draw_range_elements_glsl;
+		
+		gpu_quad_elements_init();
+		
+		
+	}
+	// else {
 	//	immediate->lockBuffer          = gpu_lock_buffer_vbo;
 	//	immediate->beginBuffer         = gpu_begin_buffer_vbo;
 	//	immediate->endBuffer           = gpu_end_buffer_vbo;
@@ -211,8 +235,9 @@ GPUimmediate* gpuNewImmediate(void)
 	//	immediate->indexShutdownBuffer = gpu_index_shutdown_buffer_vbo;
 	//	immediate->drawElements        = gpu_draw_elements_vbo;
 	//	immediate->drawRangeElements   = gpu_draw_range_elements_vbo;
-	//}
-	//else {
+	//}	
+	#ifndef GLES
+	else {
 		immediate->lockBuffer          = gpu_lock_buffer_gl11;
 		immediate->unlockBuffer        = gpu_unlock_buffer_gl11;
 		immediate->beginBuffer         = gpu_begin_buffer_gl11;
@@ -226,7 +251,8 @@ GPUimmediate* gpuNewImmediate(void)
 		immediate->indexEndBuffer      = gpu_index_end_buffer_gl11;
 		immediate->drawElements        = gpu_draw_elements_gl11;
 		immediate->drawRangeElements   = gpu_draw_range_elements_gl11;
-	//}
+	}
+	#endif
 #if GPU_SAFETY
 	calc_last_texture(immediate);
 #endif
