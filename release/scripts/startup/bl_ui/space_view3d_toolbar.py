@@ -21,7 +21,7 @@ import bpy
 from bpy.types import Menu, Panel
 from bl_ui.properties_paint_common import UnifiedPaintPanel
 from bl_ui.properties_paint_common import brush_texture_settings
-
+from bl_ui.properties_paint_common import brush_mask_texture_settings
 
 class View3DPanel():
     bl_space_type = 'VIEW_3D'
@@ -772,7 +772,7 @@ class VIEW3D_PT_tools_mask_texture(View3DPanel, Panel):
 
         col.template_ID_preview(brush, "mask_texture", new="texture.new", rows=3, cols=8)
 
-        brush_texture_settings(col, brush, context.sculpt_object)
+        brush_mask_texture_settings(col, brush)
 
 
 class VIEW3D_PT_tools_brush_stroke(Panel, View3DPaintPanel):

@@ -21,6 +21,7 @@ import bpy
 from bpy.types import Header, Menu, Panel
 from bl_ui.properties_paint_common import UnifiedPaintPanel
 from bl_ui.properties_paint_common import brush_texture_settings
+from bl_ui.properties_paint_common import brush_mask_texture_settings
 
 
 class ImagePaintPanel(UnifiedPaintPanel):
@@ -742,7 +743,7 @@ class IMAGE_PT_tools_mask_texture(BrushButtonsPanel, Panel):
 
         col.template_ID_preview(brush, "mask_texture", new="texture.new", rows=3, cols=8)
 
-        brush_texture_settings(col, brush, context.sculpt_object)
+        brush_mask_texture_settings(col, brush)
 
 
 class IMAGE_PT_tools_brush_tool(BrushButtonsPanel, Panel):
