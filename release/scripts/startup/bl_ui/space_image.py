@@ -20,6 +20,7 @@
 import bpy
 from bpy.types import Header, Menu, Panel
 from bl_ui.properties_paint_common import UnifiedPaintPanel
+from bl_ui.properties_paint_common import brush_texture_settings
 
 
 class ImagePaintPanel(UnifiedPaintPanel):
@@ -720,9 +721,28 @@ class IMAGE_PT_tools_brush_texture(BrushButtonsPanel, Panel):
 
         col = layout.column()
         col.template_ID_preview(brush, "texture", new="texture.new", rows=3, cols=8)
-        col.label(text='Mask Texture')
-        col.template_ID_preview(brush, "mask_texture", new="texture.new", rows=3, cols=8)
         col.prop(brush, "use_fixed_texture")
+
+class IMAGE_PT_tools_mask_texture(BrushButtonsPanel, Panel):
+    bl_label = "Texture Mask"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_header(self, context):
+       	brush = context.tool_settings.image_paint.brush
+        tex_slot_alpha = brush.mask_texture_slot
+        self.layout.prop(brush, 'use_mask', text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+        brush = context.tool_settings.image_paint.brush
+        tex_slot_alpha = brush.mask_texture_slot
+
+        col = layout.column()
+
+        col.template_ID_preview(brush, "mask_texture", new="texture.new", rows=3, cols=8)
+
+        brush_texture_settings(col, brush, context.sculpt_object)
 
 
 class IMAGE_PT_tools_brush_tool(BrushButtonsPanel, Panel):

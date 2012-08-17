@@ -774,20 +774,6 @@ class VIEW3D_PT_tools_mask_texture(View3DPanel, Panel):
 
         brush_texture_settings(col, brush, context.sculpt_object)
 
-        # use_texture_overlay and texture_overlay_alpha
-        col = layout.column(align=True)
-        col.active = brush.paint_capabilities.has_overlay
-        col.label(text="Overlay:")
-
-        row = col.row()
-        if brush.use_texture_overlay:
-            row.prop(brush, "use_texture_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
-        else:
-            row.prop(brush, "use_texture_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
-        sub = row.row()
-        sub.prop(brush, "texture_overlay_alpha", text="Alpha")
-
-
 
 class VIEW3D_PT_tools_brush_stroke(Panel, View3DPaintPanel):
     bl_label = "Stroke"
