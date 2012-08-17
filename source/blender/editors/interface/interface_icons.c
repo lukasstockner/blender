@@ -528,7 +528,7 @@ static void init_brush_icons(void)
 
 #undef INIT_BRUSH_ICON
 }
-
+#include REAL_GL_MODE
 static void init_internal_icons(void)
 {
 	bTheme *btheme = UI_GetTheme();
@@ -615,6 +615,8 @@ static void init_internal_icons(void)
 
 	IMB_freeImBuf(bbuf);
 }
+#include FAKE_GL_MODE
+
 #endif // WITH_HEADLESS
 
 static void init_iconfile_list(struct ListBase *list)
@@ -948,7 +950,7 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 	x2 = (ix + ih) * icongltex.invw;
 	y1 = iy * icongltex.invh;
 	y2 = (iy + ih) * icongltex.invh;
-
+#include REAL_GL_MODE
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, icongltex.id);
 
@@ -971,6 +973,7 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 	gpuImmediateUnformat();
 
 	glBindTexture(GL_TEXTURE_2D, 0);
+#include FAKE_GL_MODE
 	glDisable(GL_TEXTURE_2D);
 }
 

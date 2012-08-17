@@ -2859,7 +2859,7 @@ static void widget_disabled(rcti *rect)
 	glEnable(GL_BLEND);
 	
 	/* can't use theme TH_BACK or TH_PANEL... undefined */
-	glGetFloatv(GL_COLOR_CLEAR_VALUE, col);
+	gpuGetClearColor(col);
 	gpuCurrentColor4f(col[0], col[1], col[2], 0.5f);
 
 	/* need -1 and +1 to make it work right for aligned buttons,

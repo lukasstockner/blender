@@ -34,6 +34,8 @@ void gpuColorAndClearvf_gl(float c[3], float a);
 
 void gpuSetClearColorvf_gl(float c[3], float a);
 
+void gpuGetClearColor_gl(float r[4]);
+
 void gpuViewport_gl(int x, int y, unsigned int width, unsigned int height);
 
 void gpuScissor_gl(int x, int y, unsigned int width, unsigned int height);

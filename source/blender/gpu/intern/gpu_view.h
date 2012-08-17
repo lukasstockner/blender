@@ -46,6 +46,7 @@ GPU_VIEW_FUNC void (* gpuSetClearColor)(float r, float g, float b, float a);
 
 GPU_VIEW_FUNC void (* gpuColorAndClearvf)(float c[3], float a);
 GPU_VIEW_FUNC void (* gpuSetClearColorvf)(float c[3], float a);
+GPU_VIEW_FUNC void (* gpuGetClearColor)(float r[4]);
 
 GPU_VIEW_FUNC void (* gpuClear)(int mask);
 
