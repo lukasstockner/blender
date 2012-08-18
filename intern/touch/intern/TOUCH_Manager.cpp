@@ -35,32 +35,13 @@
 #define TOUCH_MOVE_ENCODING 'm'
 #define TOUCH_UP_ENCODING 'u'
 
-TOUCH_Context::TOUCH_Context(){}
+TOUCH_Manager::TOUCH_Manager(){}
 
-TOUCH_Manager::TOUCH_Manager()
-{
-	//TODO?
-}
+TOUCH_Manager::~TOUCH_Manager(){}
 
-TOUCH_Manager::~TOUCH_Manager()
+void TOUCH_Manager::AddTouchEvent(void * event)
 {
-	//TODO?
-}
-
-void TOUCH_Manager::RegisterContext(std::vector<TOUCH_Context> * context_type, const char * context_id)
-{
-	char encoding = checkRegisteredContext(context_type, context_id);
-	if(!encoding) {
-		encoding = 'a'; //XXX PLACEHOLDER
-		TOUCH_Context * new_context = new TOUCH_Context;
-		new_context->external_id = STR_String(context_id);
-		new_context->internal_encoding = encoding;
-		context_type->push_back(*new_context);
-	}
-}
-
-void TOUCH_Manager::AddTouchEvent(std::vector<TOUCH_event_info> event) // XXX Vectors will not work with c api
-{
+#if 0 //instead handle in TOUCH_Context*
 	for(int i = 0; i < event.size(); i++){
 		/* if index 1 is touching down for the first time, clear the input string */
 		if(event[i].state == TOUCH_DOWN) {
@@ -87,27 +68,17 @@ void TOUCH_Manager::AddTouchEvent(std::vector<TOUCH_event_info> event) // XXX Ve
 		}
 
 		input_string += event[i].index;
-#if 0
+
 		input_string += checkRegisteredContext(&registered_area, event[i].area);
 		input_string += checkRegisteredRegion(event[i].region);
 		input_string += checkRegisteredData(event[i].data);
-#endif
 	}
+#endif
 
 #ifdef INPUT_TOUCH_DEBUG
 	printf(input_string, std::endl);
 #endif
 
-}
-
-char TOUCH_Manager::checkRegisteredContext(std::vector<TOUCH_Context> * context_type, const char * context_id)
-{
-	for(int i = 0; i < context_type->size(); i++) {
-		if(context_id == context_type->at(i).external_id) {
-			return context_type->at(i).internal_encoding;
-		}
-	}
-	return '\0'; // XXX avoid null?
 }
 
 void TOUCH_Manager::CreateManager() {

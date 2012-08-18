@@ -40,28 +40,17 @@ extern TOUCH_Handle TOUCH_InitManager()
 	return (TOUCH_Handle)manager;
 }
 
+extern TOUCH_Handle TOUCH_GetManager()
+{
+	return (TOUCH_Handle)TOUCH_Manager::GetManager();
+}
+
 extern void TOUCH_DestroyManager(TOUCH_Handle* handle) {
 	delete handle;
 }
 
-extern void TOUCH_RegisterArea(TOUCH_Handle* handle, const char * context)
-{
-	//TODO
-}
-
-extern void TOUCH_RegisterRegion(TOUCH_Handle* handle, const char * context)
-{
-	//TODO
-}
-
-extern void TOUCH_RegisterData(TOUCH_Handle* handle, const char * context)
-{
-	//TODO
-}
-
 extern void TOUCH_AddTouchEvent(TOUCH_Handle* handle, void * event)
 {
-	std::vector<TOUCH_event_info> * event_vector = (std::vector<TOUCH_event_info> *) event;
 	TOUCH_Manager * manager = (TOUCH_Manager *) handle;
-	manager->AddTouchEvent(* event_vector);
+	manager->AddTouchEvent(event);
 }

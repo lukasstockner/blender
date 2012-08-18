@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file touch/touch_types.h
+/** \file touch/TOUCH_Types.h
  *  \ingroup TOUCH
  */
 
@@ -48,17 +48,11 @@ typedef enum TOUCH_state {
 	TOUCH_UP = 2
 } TOUCH_state;
 
-typedef struct TOUCH_position {
-	int position_x, position_y;
-} TOUCH_position;
-
-typedef struct TOUCH_event_info {
-	//TOUCH_event_info *prev, *next;
-	TOUCH_position position;
+typedef struct TOUCH_event_base {
 	char index;
+	int position_x;
+	int position_y;
 	TOUCH_state state;
+} TOUCH_event_base;
 
-	char * area, * region, * data;
-} TOUCH_event_info;
-
-#endif /* TOUCH_TYPES_H */
+#endif /* __TOUCH_TYPES_H__ */

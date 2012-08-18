@@ -41,13 +41,10 @@ extern "C" {
 #endif
 
 extern TOUCH_Handle TOUCH_InitManager();
+
 extern void TOUCH_DestoryManager(TOUCH_Handle * handle);
-#if 0
-extern void TOUCH_RegisterContext(TOUCH_Handle* handle, const char * context);
-extern void TOUCH_RegisterRegion(TOUCH_Handle* handle, const char * context);
-extern void TOUCH_RegisterData(TOUCH_Handle* handle, const char * context);
-#endif
-extern void TOUCH_AddTouchEvent(TOUCH_Handle* handle, void * event);
+
+extern void TOUCH_AddTouchEvent(TOUCH_Handle * handle, void * event);
 
 #ifdef __cplusplus
 }

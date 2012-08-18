@@ -25,51 +25,15 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file touch/TOUCH_Manager.h
+/** \file touch/TOUCH_TypesGameEngine.h
  *  \ingroup TOUCH
  */
 
-#ifndef __TOUCH_TOUCH_H__
-#define __TOUCH_TOUCH_H__
-
-#include <vector>
-#include "STR_String.h"
+#ifndef __TOUCH_TYPESGAMEENGINE_H__
+#define __TOUCH_TYPESGAMEENGINE_H__
 
 #include "TOUCH_Types.h"
-#if 1
-#	include "TOUCH_ContextBlender.h"
-#else
-#	include "TOUCH_ContextGameEngine.h"
-#endif
 
-#ifdef INPUT_TOUCH_DEBUG
-#include <stdio.h>
-#endif
 
-class TOUCH_Manager
-{
-public:
-	/**
-	 * Constructor
-	 */
-	TOUCH_Manager();
 
-	/**
-	 * Destructor
-	 */
-	~TOUCH_Manager();
-
-	void AddTouchEvent(void * event);
-
-	static void CreateManager();
-	static void DestroyManager();
-	static TOUCH_Manager * GetManager();
-
-private:
-	STR_String input_string;
-
-	static TOUCH_Manager * manager;
-
-};
-
-#endif /* __TOUCH_TOUCH_H__ */
+#endif /* __TOUCH_TYPESGAMEENGINE_H__ */

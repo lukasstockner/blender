@@ -25,51 +25,25 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file touch/TOUCH_Manager.h
+/** \file touch/TOUCH_ContextBlender.h
  *  \ingroup TOUCH
  */
 
-#ifndef __TOUCH_TOUCH_H__
-#define __TOUCH_TOUCH_H__
+/*
+ * Touch Context for Blender assumes that a known Area and Region have been provided
+ */
 
-#include <vector>
-#include "STR_String.h"
+#ifndef __TOUCH_CONTEXTBLENDER_H__
+#define __TOUCH_CONTEXTBLENDER_H__
 
-#include "TOUCH_Types.h"
-#if 1
-#	include "TOUCH_ContextBlender.h"
-#else
-#	include "TOUCH_ContextGameEngine.h"
-#endif
+#include "TOUCH_TypesBlender.h"
+#include "TOUCH_Context.h"
 
-#ifdef INPUT_TOUCH_DEBUG
-#include <stdio.h>
-#endif
-
-class TOUCH_Manager
-{
+class TOUCH_ContextBlender : TOUCH_Context {
 public:
-	/**
-	 * Constructor
-	 */
-	TOUCH_Manager();
-
-	/**
-	 * Destructor
-	 */
-	~TOUCH_Manager();
-
-	void AddTouchEvent(void * event);
-
-	static void CreateManager();
-	static void DestroyManager();
-	static TOUCH_Manager * GetManager();
-
-private:
-	STR_String input_string;
-
-	static TOUCH_Manager * manager;
-
+	TOUCH_ContextBlender();
+	~TOUCH_ContextBlender();
+protected:
 };
 
-#endif /* __TOUCH_TOUCH_H__ */
+#endif // __TOUCH_CONTEXTBLENDER_H__

@@ -113,6 +113,8 @@
 #include "BKE_depsgraph.h"
 #include "BKE_sound.h"
 
+#include "TOUCH_API.h"
+
 static void wm_init_reports(bContext *C)
 {
 	BKE_reports_init(CTX_wm_reports(C), RPT_STORE);
@@ -225,6 +227,23 @@ void WM_init(bContext *C, int argc, const char **argv)
 		extern void *COM_linker_hack;
 		extern void *COM_execute;
 		COM_linker_hack = COM_execute;
+	}
+#endif
+
+#ifdef WITH_INPUT_TOUCH
+	{
+		const struct Listbase *spacetypes;
+		const struct Listbase *areatypes;
+		TOUCH_Handle touch_manager;
+
+		touch_manager = TOUCH_InitManager();
+		spacetypes = BKE_spacetypes_list();
+
+		for (SpaceType space = spacetypes.first; space; space = space->next) {
+			for (ARegionType region = space.regiontypes.first; region; region = region->next) {
+				TOUCH_RegisterContext(touch_manager, space.name, region.regionid);
+			}
+		}
 	}
 #endif
 }
