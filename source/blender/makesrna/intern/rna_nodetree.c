@@ -4122,7 +4122,7 @@ static void rna_def_node_socket(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "hide", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SOCK_HIDDEN);
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_NodeSocket_hide_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_NodeSocket_hide_set", NULL);
 	RNA_def_property_ui_text(prop, "Hide", "Hide the socket");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, NULL);
 
