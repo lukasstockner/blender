@@ -537,4 +537,3 @@ void gpu_draw_range_elements_glsl(void)
 
 	GPU_CHECK_NO_ERROR();
 }
-\
