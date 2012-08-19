@@ -113,6 +113,7 @@
 
 #include "BKE_depsgraph.h"
 #include "BKE_sound.h"
+#include "COM_compositor.h"
 
 static void wm_init_reports(bContext *C)
 {
@@ -153,7 +154,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 
 	/* get the default database, plus a wm */
 	WM_read_preferences(C);
-	WM_read_homefile(C, NULL, G.factory_startup);
+	WM_homefile_read(C, NULL, G.factory_startup);
 
 	BLF_lang_set(NULL);
 
@@ -162,7 +163,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 	 * initializing space types and other internal data.
 	 *
 	 * However cant redo this at the moment. Solution is to load python
-	 * before WM_read_homefile() or make py-drivers check if python is running.
+	 * before WM_homefile_read() or make py-drivers check if python is running.
 	 * Will try fix when the crash can be repeated. - campbell. */
 
 #ifdef WITH_PYTHON
@@ -212,7 +213,6 @@ void WM_init(bContext *C, int argc, const char **argv)
 #ifdef WITH_COMPOSITOR
 	if (1) {
 		extern void *COM_linker_hack;
-		extern void *COM_execute;
 		COM_linker_hack = COM_execute;
 	}
 #endif
@@ -415,6 +415,10 @@ void WM_exit_ext(bContext *C, const short do_python)
 	BKE_sequencer_free_clipboard(); /* sequencer.c */
 	BKE_tracking_clipboard_free();
 		
+#ifdef WITH_COMPOSITOR
+	COM_deinitialize();
+#endif
+	
 	free_blender();  /* blender.c, does entire library and spacetypes */
 //	free_matcopybuf();
 	free_anim_copybuf();

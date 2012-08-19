@@ -394,7 +394,7 @@ void filelist_init_icons(void)
 #ifdef WITH_HEADLESS
 	bbuf = NULL;
 #else
-	bbuf = IMB_ibImageFromMemory((unsigned char *)datatoc_prvicons, datatoc_prvicons_size, IB_rect, "<splash>");
+	bbuf = IMB_ibImageFromMemory((unsigned char *)datatoc_prvicons_png, datatoc_prvicons_png_size, IB_rect, "<splash>");
 #endif
 	if (bbuf) {
 		for (y = 0; y < SPECIAL_IMG_ROWS; y++) {
@@ -1396,7 +1396,7 @@ void thumbnails_start(struct FileList *filelist, const struct bContext *C)
 
 	/* setup job */
 	steve = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), filelist, "Thumbnails", 0);
-	WM_jobs_customdata(steve, tj, thumbnails_free);
+	WM_jobs_customdata_set(steve, tj, thumbnails_free);
 	WM_jobs_timer(steve, 0.5, NC_WINDOW, NC_WINDOW);
 	WM_jobs_callbacks(steve, thumbnails_startjob, NULL, thumbnails_update, NULL);
 

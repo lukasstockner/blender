@@ -727,20 +727,43 @@ macro(set_lib_path
 endmacro()
 
 
-# TODO, create a C binary and call it instead!, doing this in cmake its slow
 macro(data_to_c
-      file_from file_to var_name
+      file_from file_to
       list_to_add)
 
 	list(APPEND ${list_to_add} ${file_to})
 
+	get_filename_component(_file_to_path ${file_to} PATH)
+
 	add_custom_command(
 		OUTPUT ${file_to}
-		COMMAND ${CMAKE_COMMAND}
-				-DFILE_FROM=${file_from}
-				-DFILE_TO=${file_to}
-				-DVAR_NAME=${var_name}
-				-P ${CMAKE_SOURCE_DIR}/build_files/cmake/data_to_c.cmake
-		DEPENDS ${file_from})
+		COMMAND ${CMAKE_COMMAND} -E make_directory ${_file_to_path}
+		COMMAND ${CMAKE_BINARY_DIR}/bin/${CMAKE_CFG_INTDIR}/datatoc ${file_from} ${file_to}
+		DEPENDS ${file_from} datatoc)
+	unset(_file_to_path)
 endmacro()
 
+
+# same as above but generates the var name and output automatic.
+macro(data_to_c_simple
+      file_from
+      list_to_add)
+
+	# remove ../'s
+	get_filename_component(_file_from ${CMAKE_CURRENT_SOURCE_DIR}/${file_from}   REALPATH)
+	get_filename_component(_file_to   ${CMAKE_CURRENT_BINARY_DIR}/${file_from}.c REALPATH)
+
+	list(APPEND ${list_to_add} ${_file_to})
+
+	get_filename_component(_file_to_path ${_file_to} PATH)
+
+	add_custom_command(
+		OUTPUT  ${_file_to}
+		COMMAND ${CMAKE_COMMAND} -E make_directory ${_file_to_path}
+		COMMAND ${CMAKE_BINARY_DIR}/bin/${CMAKE_CFG_INTDIR}/datatoc ${_file_from} ${_file_to}
+		DEPENDS ${_file_from} datatoc)
+
+	unset(_file_from)
+	unset(_file_to)
+	unset(_file_to_path)
+endmacro()
