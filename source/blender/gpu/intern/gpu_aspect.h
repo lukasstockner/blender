@@ -51,8 +51,8 @@ void gpuGenAspects(GLsizei count, GLuint* aspects);
 void gpuDeleteAspects(GLsizei count, const GLuint* aspects);
 
 typedef struct GPUaspectfuncs {
-	GLboolean (*begin)(GLvoid* param, GLvoid* object);
-	GLboolean (*end)(GLvoid* param, GLvoid* object);
+	GLboolean (*begin)(GLvoid* param, const GLvoid* object);
+	GLboolean (*end)(GLvoid* param, const GLvoid* object);
 	GLvoid* param;
 } GPUaspectfuncs;
 
