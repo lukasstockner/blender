@@ -111,24 +111,10 @@ bool ArmatureExporter::add_instance_controller(Object *ob)
 	return true;
 }
 
-//void ArmatureExporter::export_controllers(Scene *sce)
-//{
-//	scene = sce;
-//
-//	openLibrary();
-//
-//	GeometryFunctor gf;
-//	gf.forEachMeshObjectInExportSet<ArmatureExporter>(sce, *this, this->export_settings->export_set);
-//
-//	closeLibrary();
-//}
-
 void ArmatureExporter::operator()(Object *ob)
 {
 	Object *ob_arm = bc_get_assigned_armature(ob);
 
-	//if (ob_arm /*&& !already_written(ob_arm)*/);
-//		export_controller(ob, ob_arm);
 }
 #if 0
 
@@ -279,9 +265,9 @@ void ArmatureExporter::add_bone_transform(Object *ob_arm, Bone *bone, COLLADASW:
 
 	}
 	else {
-		//pose mat is object space
-		//copy_m4_m4(mat, pchan->pose_mat);
 		
+		//copy_m4_m4(mat, pchan->pose_mat);
+		//pose mat is object space
 		//New change: export bone->arm_mat
 		copy_m4_m4(mat, bone->arm_mat);
 	}

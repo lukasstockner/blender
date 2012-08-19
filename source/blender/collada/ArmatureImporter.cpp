@@ -93,8 +93,7 @@ void ArmatureImporter::create_bone(SkinInfo* skin, COLLADAFW::Node *node, EditBo
 
 	float mat[4][4];
 	float obmat[4][4];
-	float bonemat[3][3];
-
+	
 	// TODO rename from Node "name" attrs later
 	EditBone *bone = ED_armature_edit_bone_add(arm, (char *)bc_get_joint_name(node));
 	totbone++;
@@ -118,7 +117,6 @@ void ArmatureImporter::create_bone(SkinInfo* skin, COLLADAFW::Node *node, EditBo
 
 	if (parent) bone->parent = parent;
 
-	////mult_m4_m4m4(mat, ob_arm->obmat , mat);
 	float loc[3], size[3], rot[3][3]; 
 	float angle;
 	float vec[3] = {0.0f, 0.5f, 0.0f};
@@ -211,9 +209,7 @@ void ArmatureImporter::fix_leaf_bones( )
 		float vec[3] = {0.0f, 0.0f, 0.1f};
 		
 		sub_v3_v3v3(vec, leaf.bone->tail , leaf.bone->head);
-		
 		mul_v3_fl(vec, leaf_bone_length);
-
 		add_v3_v3v3(leaf.bone->tail, leaf.bone->head , vec);
 
 		}
@@ -338,7 +334,6 @@ void ArmatureImporter::create_armature_bones( )
 		fix_leaf_bones();
 
 		// exit armature edit mode
-	
 		unskinned_armature_map[(*ri)->getUniqueId()] = ob_arm;
 
 		ED_armature_from_edit(ob_arm);
@@ -434,7 +429,6 @@ void ArmatureImporter::create_armature_bones(SkinInfo& skin)
 	totbone = 0;
 	// bone_direction_row = 1; // TODO: don't default to Y but use asset and based on it decide on default row
 	leaf_bone_length = FLT_MAX;
-	// min_angle = 360.0f;		// minimum angle between bone head-tail and a row of bone matrix
 
 	// create bones
 	/*
@@ -464,14 +458,7 @@ void ArmatureImporter::create_armature_bones(SkinInfo& skin)
 	ED_armature_edit_free(ob_arm);
 	DAG_id_tag_update(&ob_arm->id, OB_RECALC_OB | OB_RECALC_DATA);
 
-	// set_leaf_bone_shapes(ob_arm);
-	// set_euler_rotmode();
 }
-
-
-// root - if this joint is the top joint in hierarchy, if a joint
-// is a child of a node (not joint), root should be true since
-// this is where we build armature bones from
 
 void ArmatureImporter::set_pose(Object *ob_arm,  COLLADAFW::Node *root_node, const char *parentname, float parent_mat[][4])
 { 
@@ -479,7 +466,6 @@ void ArmatureImporter::set_pose(Object *ob_arm,  COLLADAFW::Node *root_node, con
 	float mat[4][4];
 	float obmat[4][4];
 
-	float ax[3];
 	float angle = 0.0f;
 	
 	// object-space
@@ -517,6 +503,10 @@ void ArmatureImporter::set_pose(Object *ob_arm,  COLLADAFW::Node *root_node, con
 
 }
 
+
+// root - if this joint is the top joint in hierarchy, if a joint
+// is a child of a node (not joint), root should be true since
+// this is where we build armature bones from
 void ArmatureImporter::add_joint(COLLADAFW::Node *node, bool root, Object *parent, Scene *sce)
 {
 	joint_by_uid[node->getUniqueId()] = node;
@@ -632,7 +622,6 @@ bool ArmatureImporter::write_skin_controller_data(const COLLADAFW::SkinControlle
 bool ArmatureImporter::write_controller(const COLLADAFW::Controller *controller)
 {
 	// - create and store armature object
-
 	const COLLADAFW::UniqueId& con_id = controller->getUniqueId();
 
 	if (controller->getControllerType() == COLLADAFW::Controller::CONTROLLER_TYPE_SKIN) {
@@ -653,8 +642,8 @@ bool ArmatureImporter::write_controller(const COLLADAFW::Controller *controller)
 		COLLADAFW::MorphController *co = (COLLADAFW::MorphController *)controller;
 		// to be able to find geom id by controller id
 		geom_uid_by_controller_uid[con_id] = co->getSource();
+		//Shape keys are applied in DocumentImporter->finish()
 		morph_controllers.push_back(co);
-//		fprintf(stderr, "Morph controller is not supported yet.\n");
 	}
 
 	return true;
@@ -662,33 +651,40 @@ bool ArmatureImporter::write_controller(const COLLADAFW::Controller *controller)
 
 void ArmatureImporter::make_shape_keys(){
 	std::vector<COLLADAFW::MorphController *>::iterator mc;
-
+	float weight;
+        
 	for (mc = morph_controllers.begin(); mc != morph_controllers.end(); mc++) {
+		//Controller data
 		COLLADAFW::UniqueIdArray& morphTargetIds = (*mc)->getMorphTargets();
 		COLLADAFW::FloatOrDoubleArray& morphWeights = (*mc)->getMorphWeights();
         
 		//Prereq: all the geometries must be imported and mesh objects must be made
 		Object *source_ob = this->mesh_importer->get_object_by_geom_uid((*mc)->getSource());
+		
 		Mesh *source_me = (Mesh*) source_ob->data;
-		float weight;
-        Key *key = source_me->key = add_key((ID *)source_me);
+		//insert key to source mesh
+		Key *key = source_me->key = add_key((ID *)source_me);
 		key->type = KEY_RELATIVE;
 		KeyBlock *kb;
+		
+		//insert basis key
 		kb = add_keyblock_ctime(key, "Basis", FALSE);
 		mesh_to_key(source_me, kb);
+
+		//insert other shape keys
 		for ( int i = 0 ; i < morphTargetIds.getCount() ; i++ ){
 			//better to have a seperate map of morph objects, 
 			//This'll do for now since only mesh morphing is imported
 			Mesh *me = this->mesh_importer->get_mesh_by_geom_uid(morphTargetIds[i]);
+			
 			if(me){
 				me->key = key;
 				kb = add_keyblock_ctime(key, me->id.name, FALSE);
 				mesh_to_key(me, kb);
+				
+				//apply weights
 				weight =  morphWeights.getFloatValues()->getData()[i];
 				kb->curval = weight;
-				
-				//free object since it is added as shape key
-				//BKE_object_free(ob);
 			}
 			else 
 				fprintf(stderr, "Morph target geometry not found.\n");

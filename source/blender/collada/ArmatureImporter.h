@@ -141,9 +141,6 @@ public:
 	ArmatureImporter(UnitConverter *conv, MeshImporterBase *mesh, AnimationImporterBase *anim, Scene *sce);
 	~ArmatureImporter();
 
-	// root - if this joint is the top joint in hierarchy, if a joint
-	// is a child of a node (not joint), root should be true since
-	// this is where we build armature bones from
 	void add_joint(COLLADAFW::Node *node, bool root, Object *parent, Scene *sce);
 
 #if 0

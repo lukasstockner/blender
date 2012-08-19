@@ -120,7 +120,7 @@ void ControllerExporter::operator()(Object *ob)
 	Object *ob_arm = bc_get_assigned_armature(ob);
 	Key *key = ob_get_key(ob);
 
-	if (ob_arm /*&& !already_written(ob_arm)*/)
+	if (ob_arm)
 		export_skin_controller(ob, ob_arm);
 	if(key){
 		export_morph_controller(ob, key);
@@ -200,12 +200,11 @@ void ControllerExporter::export_skin_controller(Object *ob, Object *ob_arm)
 	bool use_instantiation = this->export_settings->use_object_instantiation;
 	Mesh *me;
 
-	if (this->export_settings->apply_modifiers) {
+	if (this->export_settings->apply_modifiers) 
 		me = bc_to_mesh_apply_modifiers(scene, ob, this->export_settings->export_mesh_type);
-	} 
-	else {
+	else 
 		me = (Mesh *)ob->data;
-	}
+	
 	BKE_mesh_tessface_ensure(me);
 
 	if (!me->dvert) return;
@@ -298,8 +297,6 @@ void ControllerExporter::export_morph_controller(Object *ob, Key *key)
 	}
 	BKE_mesh_tessface_ensure(me);
 
-	//if (!me->dvert) return;
-
 	std::string controller_name = id_name(ob) + "-morph";
 	std::string controller_id = get_controller_id(key, ob);
 
@@ -324,7 +321,8 @@ void ControllerExporter::export_morph_controller(Object *ob, Key *key)
 		BKE_libblock_free_us(&(G.main->mesh), me);
 	}
     
-	// can also try the base element and param alternative
+	//support for animations
+	//can also try the base element and param alternative
 	add_weight_extras(key);
 	closeMorph();
 	closeController();
@@ -346,7 +344,7 @@ std::string ControllerExporter::add_morph_targets(Key *key, Object *ob)
 	source.prepareToAppendValues();
 
 	KeyBlock * kb = (KeyBlock*)key->block.first;
-		//skip the basis
+	//skip the basis
 	kb = kb->next;
 	for (; kb; kb = kb->next) {
 		std::string geom_id = get_geometry_id(ob, false) + "_morph_" + translate_id(kb->name);
@@ -375,7 +373,7 @@ std::string ControllerExporter::add_morph_weights(Key *key, Object *ob)
 	source.prepareToAppendValues();
 
 	KeyBlock * kb = (KeyBlock*)key->block.first;
-		//skip the basis
+	//skip the basis
 	kb = kb->next;
 	for (; kb; kb = kb->next) {
 		float weight = kb->curval;
@@ -392,7 +390,7 @@ void ControllerExporter::add_weight_extras(Key *key){
 	COLLADASW::BaseExtraTechnique extra;
 	
 	KeyBlock * kb = (KeyBlock*)key->block.first;
-		//skip the basis
+	//skip the basis
 	kb = kb->next;
 	for (; kb; kb = kb->next) {
 		float weight = kb->curval;

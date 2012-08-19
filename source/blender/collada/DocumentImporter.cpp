@@ -377,8 +377,8 @@ Object *DocumentImporter::create_instance_node(Object *source_ob, COLLADAFW::Nod
 		anim_importer.read_node_transform(source_node, obn);
 	}
 
-	DAG_scene_sort(CTX_data_main(mContext), sce);
-	DAG_ids_flush_update(CTX_data_main(mContext), 0);
+	/*DAG_scene_sort(CTX_data_main(mContext), sce);
+	DAG_ids_flush_update(CTX_data_main(mContext), 0);*/
 
 	COLLADAFW::NodePointerArray &children = source_node->getChildNodes();
 	if (children.getCount()) {
@@ -495,6 +495,7 @@ void DocumentImporter::write_node(COLLADAFW::Node *node, COLLADAFW::Node *parent
 
 			read_transform = false;
 		}
+
 		// if node is empty - create empty object
 		// XXX empty node may not mean it is empty object, not sure about this
 		if ( (geom_done + camera_done + lamp_done + controller_done + inst_done) < 1) {

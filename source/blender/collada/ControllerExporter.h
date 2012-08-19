@@ -55,9 +55,6 @@
 
 class SceneExporter;
 
-// XXX exporter writes wrong data for shared armatures.  A separate
-// controller should be written for each armature-mesh binding how do
-// we make controller ids then?
 class ControllerExporter : public COLLADASW::LibraryControllers, protected TransformWriter, protected InstanceWriter
 {
 public:

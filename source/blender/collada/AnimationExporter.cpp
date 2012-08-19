@@ -242,13 +242,6 @@ float *AnimationExporter::get_eul_source_for_quat(Object *ob)
 
 }
 
-//from Bake animation script 
-void AnimationExporter::getBakedPoseData(Object *obarm, int startFrame, int endFrame, bool ActionBake = false, bool ActionBakeFirstFrame = true)
-{
-	
-		
-}
-
 //Get proper name for bones
 std::string AnimationExporter::getObjectBoneName(Object *ob, const FCurve *fcu)
 {
@@ -973,8 +966,6 @@ std::string AnimationExporter::create_4x4_source(std::vector<float> &frames, Obj
 			calc_ob_mat_at_time(ob, ctime, mat);
 		}
 		
-		//BIK_release_tree(scene, ob, ctime);
-
 		UnitConverter converter;
 
 		double outmat[4][4];
