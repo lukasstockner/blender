@@ -962,12 +962,14 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 	float length;
 	
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	
+
 	if (pchan) 
 		length = pchan->bone->length;
 	else 
 		length = ebone->length;
-	
+
+	gpuImmediateFormat_V3();
+
 	gpuPushMatrix();
 	gpuScale(length, length, length);
 	
@@ -1061,6 +1063,8 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 	glLineWidth(1.0);
 	
 	gpuPopMatrix();
+
+	gpuImmediateUnformat();
 
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 4); /* restore default value */
 }
@@ -1892,10 +1896,12 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 								UI_ThemeColor(TH_WIRE);
 							}
 							setlinestyle(3);
+							gpuImmediateFormat_V3();
 							gpuBegin(GL_LINES);
 							gpuVertex3fv(pchan->pose_head);
 							gpuVertex3fv(pchan->parent->pose_tail);
 							gpuEnd();
+							gpuImmediateUnformat();
 							setlinestyle(0);
 						}
 						
