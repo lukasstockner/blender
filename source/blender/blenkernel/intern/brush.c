@@ -490,7 +490,7 @@ int BKE_brush_clone_image_delete(Brush *brush)
  * number for every call. Instead we will generate a random number before each stroke */
 void BKE_brush_randomize_size(Brush *brush)
 {
-	brush->random_factor_cache = (1.0 - brush->random_size/2.0) + brush->random_size*BLI_frand();
+	brush->random_factor_cache = (1.0 - brush->random_size / 2.0) + brush->random_size * BLI_frand();
 }
 
 
@@ -509,7 +509,7 @@ void BKE_brush_sample_tex(const Scene *scene, Brush *brush, const float xy[2], f
 		co[1] = xy[1] / radius;
 		co[2] = 0.0f;
 
-		if(fabs(angle) > 0.0001) {
+		if (fabsf(angle) > 0.0001f) {
 			length = normalize_v2(co);
 			co_angle = acos(co[0]);
 			co_angle = (co[1] > 0)? co_angle : - co_angle;
@@ -554,10 +554,10 @@ float BKE_brush_sample_masktex(const Scene *scene, Brush *brush, const float xy[
 		co[1] = xy[1] / radius;
 		co[2] = 0.0f;
 
-		if(fabs(angle) > 0.0001) {
+		if (fabsf(angle) > 0.0001f) {
 			length = normalize_v2(co);
 			co_angle = acos(co[0]);
-			co_angle = (co[1] > 0)? co_angle : - co_angle;
+			co_angle = (co[1] > 0) ? co_angle : -co_angle;
 
 			co_angle -= angle;
 			co[0] = cos(co_angle)*length;
@@ -588,7 +588,7 @@ void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texf
 	unsigned char *dst, crgb[3];
 	const float alpha = BKE_brush_alpha_get(scene, brush);
 	float brush_rgb[3];
-
+    
 	imbflag = (flt) ? IB_rectfloat : IB_rect;
 	xoff = -bufsize / 2.0f + 0.5f;
 	yoff = -bufsize / 2.0f + 0.5f;
@@ -616,16 +616,16 @@ void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texf
 				if (texfall == 0) {
 					copy_v3_v3(dstf, brush_rgb);
 					dstf[3] = alpha * BKE_brush_curve_strength_clamp(brush, len_v2(xy), radius);
-					if(invert) rgb_invert(dstf);
+					if (invert) rgb_invert(dstf);
 				}
 				else if (texfall == 1) {
 					BKE_brush_sample_tex(scene, brush, xy, dstf, 0, angle);
-					if(invert) rgb_invert(dstf);
+					if (invert) rgb_invert(dstf);
 				}
 				else {
 					BKE_brush_sample_tex(scene, brush, xy, rgba, 0, angle);
 					mul_v3_v3v3(dstf, rgba, brush_rgb);
-					if(invert) rgb_invert(dstf);
+					if (invert) rgb_invert(dstf);
 					dstf[3] = rgba[3] *alpha *BKE_brush_curve_strength_clamp(brush, len_v2(xy), radius)
 					        *BKE_brush_sample_masktex(scene, brush, xy, 0, angle);
 				}
@@ -654,7 +654,7 @@ void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texf
 				else if (texfall == 1) {
 					BKE_brush_sample_tex(scene, brush, xy, rgba, 0, angle);
 					rgba_float_to_uchar(dst, rgba);
-					if(invert) rgb_invert_uchar(dst);
+					if (invert) rgb_invert_uchar(dst);
 				}
 				else if (texfall == 2) {
 					BKE_brush_sample_tex(scene, brush, xy, rgba, 0, angle);
@@ -663,7 +663,7 @@ void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texf
 					        *BKE_brush_sample_masktex(scene, brush, xy, 0, angle);
 
 					rgb_float_to_uchar(dst, rgba);
-					if(invert) rgb_invert_uchar(dst);
+					if (invert) rgb_invert_uchar(dst);
 
 					dst[3] = FTOCHAR(alpha_f);
 				}
@@ -676,7 +676,7 @@ void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texf
 					dst[1] = crgb[1];
 					dst[2] = crgb[2];
 					dst[3] = FTOCHAR(alpha_f);
-					if(invert) rgb_invert_uchar(dst);
+					if (invert) rgb_invert_uchar(dst);
 				}
 			}
 		}
@@ -721,7 +721,7 @@ int BKE_brush_size_randomized_get(const Scene *scene, Brush *brush)
 {
 	UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
 
-	return (ups->flag & UNIFIED_PAINT_SIZE) ? brush->random_factor_cache*ups->size : brush->random_factor_cache*brush->size;
+	return (ups->flag & UNIFIED_PAINT_SIZE) ? brush->random_factor_cache * ups->size : brush->random_factor_cache * brush->size;
 }
 
 int BKE_brush_use_locked_size(const Scene *scene, Brush *brush)

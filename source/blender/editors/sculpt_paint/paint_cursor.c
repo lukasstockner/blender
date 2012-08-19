@@ -269,7 +269,7 @@ static int load_brush_tex_alpha(Brush *br, ViewContext *vc)
 				if (len <= 1) {
 					avg = BKE_brush_curve_strength(br, len, 1);  /* Falloff curve */
 
-					if(br->flag & BRUSH_USE_MASK) {
+					if (br->flag & BRUSH_USE_MASK) {
 						if (rotation > 0.001f || rotation < -0.001f) {
 							const float angle    = atan2f(y, x) + rotation;
 
@@ -311,8 +311,9 @@ static int load_brush_tex_alpha(Brush *br, ViewContext *vc)
 			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, alpha_size, alpha_size, GL_ALPHA, GL_UNSIGNED_BYTE, alpha_buffer);
 		}
 
-		if(alpha_buffer)
+		if (alpha_buffer) {
 			MEM_freeN(alpha_buffer);
+		}
 	}
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -404,7 +405,7 @@ static int load_brush_tex_image(Brush *br, ViewContext *vc)
 				x = (float)i / size;
 				y = (float)j / size;
 
-				if(!do_tiled_texpaint) {
+				if (!do_tiled_texpaint) {
 					x -= 0.5f;
 					y -= 0.5f;
 				}
@@ -614,7 +615,8 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 			glTexEnvf(GL_TEXTURE_ENV, GL_OPERAND1_ALPHA, GL_SRC_ALPHA);
 			glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PRIMARY_COLOR);
 			glActiveTexture(GL_TEXTURE0);
-		} else {
+		}
+		else {
 			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
 			glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
 			glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
@@ -693,7 +695,7 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		          brush->texture_overlay_alpha / 100.0f);
 
 		/* draw textured quad */
-		if(brush->mtex.brush_map_mode == MTEX_MAP_MODE_VIEW) {
+		if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_VIEW) {
 			int i;
 			float xcenter;
 			float ycenter;
@@ -706,7 +708,7 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 			glTexCoord2f(0.5, 0.5);
 			glMultiTexCoord2f(GL_TEXTURE1, 0.5, 0.5);
 			glVertex2f(xcenter, ycenter);
-			for(i = 0; i < CURSOR_RESOLUTION; i++) {
+			for (i = 0; i < CURSOR_RESOLUTION; i++) {
 				float t = (float) i / (CURSOR_RESOLUTION - 1);
 				float cur = t * 2.0 * M_PI;
 				float tmpcos = cosf(cur);
@@ -717,7 +719,8 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 				glVertex2f(xcenter + tmpcos * radius, ycenter + tmpsin * radius);
 			}
 			glEnd();
-		} else {
+		}
+		else {
 			int i;
 			short sizex = vc->ar->winrct.xmax - vc->ar->winrct.xmin;
 			short sizey = vc->ar->winrct.ymax - vc->ar->winrct.ymin;
@@ -727,7 +730,7 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 			glTexCoord2f(0.5, 0.5);
 			glMultiTexCoord2f(GL_TEXTURE1, ((float)x)/sizex, ((float)y)/sizey);
 			glVertex2f(x, y);
-			for(i = 0; i < CURSOR_RESOLUTION; i++) {
+			for (i = 0; i < CURSOR_RESOLUTION; i++) {
 				float t = (float) i / (CURSOR_RESOLUTION - 1);
 				float cur = t * 2.0 * M_PI;
 				float tmpcos = cosf(cur);
@@ -812,17 +815,17 @@ void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 
 	in_uv_editor = get_imapaint_zoom(C, &zoomx, &zoomy);
 
-	if(CTX_data_mode_enum(C) == CTX_MODE_PAINT_TEXTURE) {
+	if (CTX_data_mode_enum(C) == CTX_MODE_PAINT_TEXTURE) {
 		brush->mtex.brush_map_mode = MTEX_MAP_MODE_TILED_TEXPAINT;
 
-		if((brush->flag & BRUSH_RAKE) || (brush->flag & BRUSH_RANDOM_ROTATION))
+		if ((brush->flag & BRUSH_RAKE) || (brush->flag & BRUSH_RANDOM_ROTATION))
 			brush->mtex.brush_map_mode = MTEX_MAP_MODE_VIEW;
 	}
 
-	if(in_uv_editor) {
+	if (in_uv_editor) {
 		brush->mtex.brush_map_mode = MTEX_MAP_MODE_VIEW;
 
-		if(brush->flag & BRUSH_FIXED_TEX)
+		if (brush->flag & BRUSH_FIXED_TEX)
 			brush->mtex.brush_map_mode = MTEX_MAP_MODE_TILED;
 	}
 
@@ -840,13 +843,14 @@ void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 
 	//print_v2("mouse"__FILE__, translation);
 
-	if(!in_uv_editor) {
+	if (!in_uv_editor) {
 		/* test if brush is over the mesh. sculpt only for now */
 		hit = sculpt_get_brush_geometry(C, &vc, x, y, &pixel_radius, location);
 
 	/* uv sculpting brush won't get scaled maybe I should make this respect the setting
 	 * of lock size */
-	} else if(!(scene->toolsettings->use_uv_sculpt)){
+	}
+	else if (!(scene->toolsettings->use_uv_sculpt)) {
 #define PX_SIZE_FADE_MAX 12.0f
 #define PX_SIZE_FADE_MIN 4.0f
 
@@ -902,7 +906,7 @@ void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 	/* draw brush outline */
 	glPushMatrix();
 	glTranslatef(translation[0], translation[1], 0);
-	if(in_uv_editor)
+	if (in_uv_editor)
 		glScalef(zoomx, zoomy, 1.0f);
 	glutil_draw_lined_arc(0.0, M_PI * 2.0, final_radius, CURSOR_RESOLUTION);
 	glPopMatrix();

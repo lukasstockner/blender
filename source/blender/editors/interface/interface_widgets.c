@@ -3327,8 +3327,7 @@ void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int ic
 	rcti _rect_thinner = *rect;
 	char *cpoin;
 
-	if (unlink_operator)
-	{
+	if (unlink_operator) {
 		if (state & UI_BUT_ALIGN_RIGHT)
 			_rect_thinner.xmin = _rect_thinner.xmax - (ICON_DEFAULT_HEIGHT + 6);
 		else
@@ -3338,7 +3337,7 @@ void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int ic
 	wt->state(wt, state);
 	wt->draw(&wt->wcol, &_rect_thinner, 0, 0);
 
-	// If the delete button is active then it gets the highlight, so make sure the text color is as if the button weren't active.
+	/* If the delete button is active then it gets the highlight, so make sure the text color is as if the button weren't active. */
 	if (state & UI_BUT_ALIGN_RIGHT) {
 		state &= ~UI_ACTIVE;
 		wt->state(wt, state);
@@ -3380,8 +3379,7 @@ void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int ic
 		glDisable(GL_BLEND);
 	}
 
-	if (unlink_operator)
-	{
+	if (unlink_operator) {
 		glEnable(GL_BLEND);
 		UI_icon_draw(rect->xmax - ICON_DEFAULT_WIDTH - 3, (rect->ymax + rect->ymin)/2 - ICON_DEFAULT_HEIGHT/2, ICON_X);
 		glDisable(GL_BLEND);

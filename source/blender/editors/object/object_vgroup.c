@@ -1947,10 +1947,10 @@ static void vgroup_delete(Object *ob, int index)
 {
 	bDeformGroup *dg;
 	
-	if (index < 0)
+	if (index < 0) {
 		dg = BLI_findlink(&ob->defbase, ob->actdef - 1);
-	else
-	{
+	}
+	else {
 		unsigned short new_selection = ob->actdef;
 		if (ob->actdef == index + 1)
 			new_selection = index + 2;

@@ -825,12 +825,11 @@ int uiSearchItemAdd(uiSearchItems *items, const char *name, void *poin, int icon
 		items->pointers[items->totitem] = poin;
 	if (items->icons)
 		items->icons[items->totitem] = iconid;
-	if (items->unlink_operators && unlink_operator)
-	{
-		wmOperatorType* wm = WM_operatortype_find(unlink_operator, 0);
-		PropertyRNA* prna = RNA_struct_type_find_property(wm->srna, "index");
+	if (items->unlink_operators && unlink_operator) {
+		wmOperatorType *wm = WM_operatortype_find(unlink_operator, 0);
+		PropertyRNA *prna = RNA_struct_type_find_property(wm->srna, "index");
 
-		// Only add an delete "X" button if the unlink operator has an "index" property, so the "X" doesn't show up for operators that don't support it.
+		/* Only add an delete "X" button if the unlink operator has an "index" property, so the "X" doesn't show up for operators that don't support it. */
 		if (prna) {
 			items->unlink_operators[items->totitem] = wm;
 		}
@@ -940,7 +939,8 @@ void ui_searchbox_apply(uiBut *but, ARegion *ar)
 
 			WM_operator_properties_create(but->opptr, but->optype->idname);
 			RNA_int_set(but->opptr, "index", data->active - 1);
-		} else {
+		}
+		else {
 			char *name = data->items.names[data->active - 1];
 			char *cpoin = strchr(name, '|');
 		
@@ -979,8 +979,10 @@ void ui_searchbox_event(bContext *C, ARegion *ar, uiBut *but, wmEvent *event)
 							rcti delete_rect = rect;
 							delete_rect.xmin = delete_rect.xmax - (ICON_DEFAULT_HEIGHT + 6);
 							data->delete_active = !!BLI_in_rcti(&delete_rect, event->x - ar->winrct.xmin, event->y - ar->winrct.ymin);
-						} else
+						}
+						else {
 							data->delete_active = 0;
+						}
 
 						if (data->active != a + 1 || old_delete_active != data->delete_active) {
 							data->active = a + 1;
@@ -2066,11 +2068,8 @@ static void do_white_cb(bContext *UNUSED(C), void *bt1, void *UNUSED(arg))
 	uiPopupBlockHandle *popup = but->block->handle;
 	PropertyRNA *prop = but->rnaprop;
 	PointerRNA ptr = but->rnapoin;
-	float rgb[3];
+	float rgb[3] = {1.0f, 1.0f, 1.0f};
 
-	rgb[0] = 1;
-	rgb[1] = 1;
-	rgb[2] = 1;
 	RNA_property_float_set_array(&ptr, prop, rgb);
 	ui_update_block_buts_rgb(but->block, rgb);
 
@@ -2084,11 +2083,8 @@ static void do_black_cb(bContext *UNUSED(C), void *bt1, void *UNUSED(arg))
 	uiPopupBlockHandle *popup = but->block->handle;
 	PropertyRNA *prop = but->rnaprop;
 	PointerRNA ptr = but->rnapoin;
-	float rgb[3];
+	float rgb[3] = {0.0f, 0.0f, 0.0f};
 
-	rgb[0] = 0;
-	rgb[1] = 0;
-	rgb[2] = 0;
 	RNA_property_float_set_array(&ptr, prop, rgb);
 	ui_update_block_buts_rgb(but->block, rgb);
 

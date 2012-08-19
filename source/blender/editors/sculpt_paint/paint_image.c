@@ -3410,7 +3410,7 @@ static void project_paint_begin_clone(ProjPaintState *ps, int mouse[2])
 		mul_m4_v4(ps->projectMat, projCo);
 		ps->cloneOffset[0] = mouse[0] - ((float)(ps->winx / 2.0f) + (ps->winx / 2.0f) * projCo[0] / projCo[3]);
 		ps->cloneOffset[1] = mouse[1] - ((float)(ps->winy / 2.0f) + (ps->winy / 2.0f) * projCo[1] / projCo[3]);
-	}
+	}	
 }	
 
 static void project_paint_end(ProjPaintState *ps)
@@ -3901,7 +3901,9 @@ static void *do_projectpaint_thread(void *ph_v)
 		
 		smearArena = BLI_memarena_new(1 << 16, "paint smear arena");
 	}
-		
+	
+	/* printf("brush bounds %d %d %d %d\n", bucketMin[0], bucketMin[1], bucketMax[0], bucketMax[1]); */
+	
 	while (project_bucket_iter_next(ps, &bucket_index, &bucket_bounds, pos)) {
 		
 		/* Check this bucket and its faces are initialized */
@@ -3967,13 +3969,14 @@ static void *do_projectpaint_thread(void *ph_v)
 
 					falloff = BKE_brush_curve_strength_clamp(ps->brush, dist, radius);
 
-					if(ps->is_maskbrush) {
+					if (ps->is_maskbrush) {
 						sub_v2_v2v2(masksamplecos, projPixel->projCoSS, pos);
 					}
 					if (ps->is_texbrush) {
-						if(ps->brush->flag & (BRUSH_RAKE | BRUSH_RANDOM_ROTATION)) {
+						if (ps->brush->flag & (BRUSH_RAKE | BRUSH_RANDOM_ROTATION)) {
 							sub_v2_v2v2(samplecos, projPixel->projCoSS, pos);
-						} else {
+						}
+						else {
 							copy_v2_v2(samplecos, projPixel->projCoSS);
 						}
 					}
@@ -3987,7 +3990,7 @@ static void *do_projectpaint_thread(void *ph_v)
 						else {
 							alpha = 1.0f;
 						}
-						if(ps->is_maskbrush) {
+						if (ps->is_maskbrush) {
 							alpha *= BKE_brush_sample_masktex(ps->scene, ps->brush, masksamplecos, thread_index, -ps->rotation + ps->brush->mask_mtex.rot);
 						}
 
@@ -4013,7 +4016,7 @@ static void *do_projectpaint_thread(void *ph_v)
 								continue;
 							}
 						}
-
+						
 						if (alpha > 0.0f) {
 
 							/* copy of code above */
@@ -4097,11 +4100,11 @@ static int project_paint_op(void *state, ImBuf *UNUSED(ibufb), const float lastp
 	/* First unpack args from the struct */
 	ProjPaintState *ps = (ProjPaintState *)state;
 	int touch_any = 0;	
-
+	
 	ProjectHandle handles[BLENDER_MAX_THREADS];
 	ListBase threads;
 	int a, i;
-
+	
 	if (!project_bucket_iter_init(ps, pos)) {
 		return 0;
 	}
@@ -4109,10 +4112,14 @@ static int project_paint_op(void *state, ImBuf *UNUSED(ibufb), const float lastp
 	ps->rotation = rotation;
 
 	if (ps->brush->flag & BRUSH_RAKE) {
-
-	} else if (ps->brush->flag & BRUSH_RANDOM_ROTATION) {
-
-	} else ;
+		/* pass*/
+	}
+	else if (ps->brush->flag & BRUSH_RANDOM_ROTATION) {
+		/* pass*/
+	}
+	else {
+		/* pass*/
+	}
 
 	if (ps->thread_tot > 1)
 		BLI_init_threads(&threads, do_projectpaint_thread, ps->thread_tot);
@@ -5385,7 +5392,7 @@ void ED_space_image_paint_update(wmWindowManager *wm, ToolSettings *settings)
 	if (!imapaint->paintcursor) {
 		imapaint->paintcursor =
 		    WM_paint_cursor_activate(wm, image_paint_poll,
-									 paint_draw_cursor, NULL);
+		                             paint_draw_cursor, NULL);
 	}
 }
 

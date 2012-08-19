@@ -345,7 +345,7 @@ void project_v3_v3_plane(float v[3], const float v2[3], const float n[3], const 
 	float mul;
 
 	sub_v3_v3v3(vector, v, p);
-	mul = dot_v3v3(vector, n)/dot_v3v3(v2, n);
+	mul = dot_v3v3(vector, n) / dot_v3v3(v2, n);
 
 	mul_v3_v3fl(vector, v2, mul);
 	sub_v3_v3(v, vector);

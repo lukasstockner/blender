@@ -1543,7 +1543,8 @@ void ED_screen_delete_scene(bContext *C, Scene *scene)
 			newscene = scene->id.next;
 		else
 			return;
-	} else {
+	}
+	else {
 		newscene = CTX_wm_screen(C)->scene;
 	}
 

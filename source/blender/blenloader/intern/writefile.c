@@ -2885,8 +2885,7 @@ static int write_file_handle(Main *mainvar, int handle, MemFile *compare, MemFil
 	write_thumb(wd, thumb);
 	write_global(wd, write_flags, mainvar);
 
-	if (!(write_flags & G_FILE_NO_DATA))
-	{
+	if (!(write_flags & G_FILE_NO_DATA)) {
 		/* no UI save in undo */
 		if (current==NULL) {
 			write_windowmanagers(wd, &mainvar->wm);

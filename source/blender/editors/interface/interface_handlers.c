@@ -2268,8 +2268,7 @@ static int ui_do_but_TOG(bContext *C, uiBut *but, uiHandleButtonData *data, wmEv
 			return WM_UI_HANDLER_BREAK;
 		}
 
-		if (G.drag_button_func != NULL && ELEM(G.drag_button_func, but->func, but->rnaprop) && G.drag_button_state == (ui_get_but_val(but) == 0))
-		{
+		if (G.drag_button_func != NULL && ELEM(G.drag_button_func, but->func, but->rnaprop) && G.drag_button_state == (ui_get_but_val(but) == 0)) {
 			wmWindow *win = CTX_wm_window(C);
 
 			button_activate_state(C, but, BUTTON_STATE_EXIT);
@@ -5180,10 +5179,12 @@ static void button_tooltip_timer_reset(bContext *C, uiBut *but)
 	if (U.flag & USER_TOOLTIPS) {
 		if (!but->block->tooltipdisabled) {
 			if (!wm->drags.first) {
-				if (!data->tooltip && PIL_check_seconds_timer() - G.last_tooltip_close < BUTTON_TOOLTIP_RESET)
+				if (!data->tooltip && PIL_check_seconds_timer() - G.last_tooltip_close < BUTTON_TOOLTIP_RESET) {
 					data->tooltip = ui_tooltip_create(C, data->region, but);
-				else
+				}
+				else {
 					data->tooltiptimer = WM_event_add_timer(data->wm, data->window, TIMER, BUTTON_TOOLTIP_DELAY);
+				}
 			}
 		}
 	}
@@ -5630,13 +5631,13 @@ static int ui_handle_button_over(bContext *C, wmEvent *event, ARegion *ar)
 
 	if (event->type == MOUSEMOVE) {
 		but = ui_but_find_mouse_over(ar, event->x, event->y);
-		if (but)
-		{
+		if (but) {
 			button_activate_init(C, ar, but, BUTTON_ACTIVATE_OVER);
 
-			if (G.drag_button_func)
-				// Make sure the button gets the event so it can toggle itself
+			if (G.drag_button_func) {
+				/* Make sure the button gets the event so it can toggle itself */
 				ui_handle_button_event(C, event, but);
+			}
 		}
 	}
 	else if (event->type == EVT_BUT_OPEN) {
@@ -5649,8 +5650,7 @@ static int ui_handle_button_over(bContext *C, wmEvent *event, ARegion *ar)
 	else if (event->type == LEFTMOUSE) {
 		but = ui_but_find_mouse_over(ar, event->x, event->y);
 		/* If the user clicked a button, quickly activate it and then run its ui stuff */
-		if (but)
-		{
+		if (but) {
 			button_activate_init(C, ar, but, BUTTON_ACTIVATE_OVER);
 			retval = ui_do_button(C, but->block, but, event);
 		}
@@ -5732,9 +5732,10 @@ static int ui_handle_button_event(bContext *C, wmEvent *event, uiBut *but)
 					button_tooltip_timer_reset(C, but);
 				}
 
-				if (G.drag_button_func)
-					// Make sure the button gets the event so it can toggle itself
+				if (G.drag_button_func) {
+					/* Make sure the button gets the event so it can toggle itself */
 					retval = ui_do_button(C, block, but, event);
+				}
 
 				break;
 			case TIMER: {
@@ -6157,8 +6158,8 @@ static int ui_handle_menu_event(bContext *C, wmEvent *event, uiPopupBlockHandle 
 			ui_menu_scroll(ar, block, my);
 	}
 	else {
-		// For these types to be called the mouse must be inside the block event.
-		int mousewheels = event->type == WHEELUPMOUSE || event->type == WHEELDOWNMOUSE;
+		/* For these types to be called the mouse must be inside the block event. */
+		int mousewheels = (ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE));
 		int callblockevent = TRUE;
 		if (!inside && mousewheels)
 			callblockevent = FALSE;
@@ -6655,8 +6656,9 @@ static int ui_handler_region_menu(bContext *C, wmEvent *event, void *UNUSED(user
 					retval = ui_handle_button_event(C, event, but);
 			}
 			/* If the menu keeps the input but wants an update anyway... */
-			else if (retval == WM_UI_HANDLER_BREAK && data->menu->menuretval == UI_RETURN_UPDATE)
+			else if (retval == WM_UI_HANDLER_BREAK && data->menu->menuretval == UI_RETURN_UPDATE) {
 				ui_handle_button_return_submenu(C, event, but);
+			}
 		}
 		else {
 			/* handle events for the activated button */

@@ -153,8 +153,8 @@ const char *imb_ext_audio[] = {
 	NULL
 };
 
-// the actual list will be pulled from assimp at runtime
-// if Blender is built without assimp, this is just a dummy
+/* the actual list will be pulled from assimp at runtime
+ * if Blender is built without assimp, this is just a dummy */
 const char *imb_ext_assimp[MAX_ASSIMP_EXT+1] = {0};
 
 

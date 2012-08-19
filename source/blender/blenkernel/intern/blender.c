@@ -253,8 +253,8 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 	sound_init_main(G.main);
 	
 	if (bfd->user) {
-		if (G.fileflags&G_FILE_PREFERENCES)
-		{
+
+		if (G.fileflags & G_FILE_PREFERENCES) {
 			/* only here free userdef themes... */
 			BKE_userdef_free();
 			U = *bfd->user;

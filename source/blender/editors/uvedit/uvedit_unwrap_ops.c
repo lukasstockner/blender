@@ -187,7 +187,7 @@ static void modifier_unwrap_state(Object *obedit, Scene *scene, short *use_subsu
 	md = obedit->modifiers.first;
 
 	/* only account for mirroring if first modifier is mirror */
-	if(mirror && md && md->type == eModifierType_Mirror)
+	if (mirror && md && md->type == eModifierType_Mirror)
 		mirror = TRUE;
 	else
 		mirror = FALSE;
@@ -255,7 +255,7 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 	/* we need the vert indices */
 	BM_mesh_elem_index_ensure(em->bm, BM_VERT);
 
-	if(mirrored) {
+	if (mirrored) {
 		MirrorModifierData mmd;
 		MirrorModifierData *real_mmd = (MirrorModifierData *)obedit->modifiers.first;
 
@@ -263,7 +263,7 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 
 		init_derived = CDDM_from_BMEditMesh(em, NULL, 0, 0);
 		mirr_derived = mirror_make_derived_from_derived(&mmd, obedit, init_derived, TRUE);
-		if(mirr_derived != init_derived)
+		if (mirr_derived != init_derived)
 			init_derived->release(init_derived);
 
 		tot_faces = mirr_derived->getNumPolys(mirr_derived);
@@ -275,7 +275,8 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 		loop_array = mirr_derived->getLoopArray(mirr_derived);
 		vert_array = mirr_derived->getVertArray(mirr_derived);
 		edge_array = mirr_derived->getEdgeArray(mirr_derived);
-	} else {
+	}
+	else {
 		tot_faces = em->bm->totface;
 	}
 	EDBM_index_arrays_init(em, 0, 1, 1);
@@ -326,9 +327,9 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 		tf = CustomData_bmesh_get(&em->bm->pdata, efa->head.data, CD_MTEXPOLY);
 
 		/* determine if poly is mirrored */
-		if(mirrored)
+		if (mirrored)
 			for (j = 0; j < poly->totloop; j++)
-				if(orig_verts[loop_array[poly->loopstart + j].v] == ORIGINDEX_NONE) {
+				if (orig_verts[loop_array[poly->loopstart + j].v] == ORIGINDEX_NONE) {
 					is_mirror = TRUE;
 					break;
 				}
@@ -346,13 +347,14 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 						vkeys[i] = (ParamKey)vert_index;
 						co[i] = vert_array[vert_index].co;
 
-						if(!is_mirror) {
+						if (!is_mirror) {
 							luv = CustomData_bmesh_get(&em->bm->ldata, l->head.data, CD_MLOOPUV);
 
 							uv[i] = luv->uv;
 							pin[i] = (luv->flag & MLOOPUV_PINNED) != 0;
 							select[i] = uvedit_uv_select_test(em, scene, l) != 0;
-						} else {
+						}
+						else {
 							if (orig_index != ORIGINDEX_NONE) {
 								BMLoop *tmpl;
 								BMIter liter2;
@@ -367,13 +369,15 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 								uv[i] = NULL;
 								pin[i] = (luv->flag & MLOOPUV_PINNED) != 0;
 								select[i] = uvedit_uv_select_test(em, scene, tmpl) != 0;
-							} else {
+							}
+							else {
 								uv[i] = NULL;
 								pin[i] = FALSE;
 								select[i] = TRUE;
 							}
 						}
-					} else {
+					}
+					else {
 						luv = CustomData_bmesh_get(&em->bm->ldata, l->head.data, CD_MLOOPUV);
 						vkeys[i] = (ParamKey)BM_elem_index_get(l->v);
 
@@ -397,7 +401,8 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 					int vert_index = loop_array[poly->loopstart + j].v;
 					sf_vert = BLI_scanfill_vert_add(&sf_ctx, vert_array[vert_index].co);
 					sf_vert->tmp.u = vert_index;
-				} else {
+				}
+				else {
 					sf_vert = BLI_scanfill_vert_add(&sf_ctx, l->v->co);
 					sf_vert->tmp.p = l;
 				}
@@ -425,7 +430,8 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 					tri_indices[0] = sf_tri->v1->tmp.u;
 					tri_indices[1] = sf_tri->v2->tmp.u;
 					tri_indices[2] = sf_tri->v3->tmp.u;
-				} else {
+				}
+				else {
 					ls[0] = sf_tri->v1->tmp.p;
 					ls[1] = sf_tri->v2->tmp.p;
 					ls[2] = sf_tri->v3->tmp.p;
@@ -445,7 +451,8 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 							uv[i] = NULL;
 							pin[i] = FALSE;
 							select[i] = TRUE;
-						} else {
+						}
+						else {
 							BMLoop *tmpl;
 							BMIter liter2;
 
@@ -455,14 +462,15 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 							}
 
 							luv = CustomData_bmesh_get(&em->bm->ldata, tmpl->head.data, CD_MLOOPUV);
-							if(is_mirror)
+							if (is_mirror)
 								uv[i] = NULL;
 							else
 								uv[i] = luv->uv;
 							pin[i] = (luv->flag & MLOOPUV_PINNED) != 0;
 							select[i] = uvedit_uv_select_test(em, scene, tmpl) != 0;
 						}
-					} else {
+					}
+					else {
 						luv = CustomData_bmesh_get(&em->bm->ldata, ls[i]->head.data, CD_MLOOPUV);
 						vkeys[i] = (ParamKey)BM_elem_index_get(ls[i]->v);
 						co[i] = ls[i]->v->co;
@@ -480,7 +488,7 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 	}
 
 	if (!implicit) {
-		if(!mirrored) {
+		if (!mirrored) {
 			BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
 				if (BM_elem_flag_test(eed, BM_ELEM_SEAM)) {
 					ParamKey vkeys[2];
@@ -489,7 +497,8 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 					param_edge_set_seam(handle, vkeys);
 				}
 			}
-		} else {
+		}
+		else {
 			for (fi = 0; fi < tot_edges; fi++) {
 				eed = EDBM_edge_at_index(em, orig_edges[fi]);
 				if (BM_elem_flag_test(eed, BM_ELEM_SEAM)) {
@@ -502,7 +511,7 @@ static ParamHandle *construct_param_handle(Scene *scene, Object *obedit,
 		}
 	}
 
-	if(mirrored)
+	if (mirrored)
 		mirr_derived->release(mirr_derived);
 
 	EDBM_index_arrays_free(em);
@@ -594,12 +603,12 @@ static ParamHandle *construct_param_handle_subsurfed(Scene *scene, Object *obedi
 	/* number of subdivisions to perform */
 	md = obedit->modifiers.first;
 	/* we need to get the mirrored mesh first */
-	if(mirrored) {
+	if (mirrored) {
 		mmd_real = (MirrorModifierData *)md;
 		mmd = *mmd_real;
 	}
 
-	if(md->type == eModifierType_Mirror)
+	if (md->type == eModifierType_Mirror)
 		md = md->next;
 
 	smd_real = (SubsurfModifierData *)md;
@@ -609,9 +618,9 @@ static ParamHandle *construct_param_handle_subsurfed(Scene *scene, Object *obedi
 		
 	initialDerived = CDDM_from_BMEditMesh(em, NULL, 0, 0);
 
-	if(mirrored) {
+	if (mirrored) {
 		derivedMesh = mirror_make_derived_from_derived(&mmd, obedit, initialDerived, TRUE);
-		if(derivedMesh != initialDerived)
+		if (derivedMesh != initialDerived)
 			initialDerived->release(initialDerived);
 		initialDerived = derivedMesh;
 	}
@@ -1363,7 +1372,7 @@ void ED_unwrap_lscm(Scene *scene, Object *obedit, const short sel)
 	param_lscm_end(handle);
 
 	param_average(handle);
-	if(!use_mirror)
+	if (!use_mirror)
 		param_pack(handle, scene->toolsettings->uvcalc_margin);
 
 	param_flush(handle);
@@ -1371,7 +1380,7 @@ void ED_unwrap_lscm(Scene *scene, Object *obedit, const short sel)
 	param_delete(handle);
 
 	/* we need to repack properly to discard mirrored faces */
-	if(use_mirror) {
+	if (use_mirror) {
 		handle = construct_param_handle(scene, obedit, 0, 0, 1, 1, 0);
 		param_pack(handle, scene->toolsettings->uvcalc_margin);
 		param_flush(handle);

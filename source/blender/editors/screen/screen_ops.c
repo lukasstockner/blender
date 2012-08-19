@@ -932,18 +932,18 @@ static void area_move_set_limits(bScreen *sc, int dir, int *bigger, int *smaller
 			int y1 = sa->v2->vec.y - sa->v1->vec.y - areaminy;
 			
 			/* if top or down edge selected, test height */
-			if ((sa->v1->flag&VERT_FLAG_SELECTED) && (sa->v4->flag&VERT_FLAG_SELECTED))
+			if ((sa->v1->flag & VERT_FLAG_SELECTED) && (sa->v4->flag & VERT_FLAG_SELECTED))
 				*bigger = MIN2(*bigger, y1);
-			else if ((sa->v2->flag&VERT_FLAG_SELECTED) && (sa->v3->flag&VERT_FLAG_SELECTED))
+			else if ((sa->v2->flag & VERT_FLAG_SELECTED) && (sa->v3->flag & VERT_FLAG_SELECTED))
 				*smaller = MIN2(*smaller, y1);
 		}
 		else {
 			int x1 = sa->v4->vec.x - sa->v1->vec.x - AREAMINX;
 			
 			/* if left or right edge selected, test width */
-			if ((sa->v1->flag&VERT_FLAG_SELECTED) && (sa->v2->flag&VERT_FLAG_SELECTED))
+			if ((sa->v1->flag & VERT_FLAG_SELECTED) && (sa->v2->flag & VERT_FLAG_SELECTED))
 				*bigger = MIN2(*bigger, x1);
-			else if ((sa->v3->flag&VERT_FLAG_SELECTED) && (sa->v4->flag&VERT_FLAG_SELECTED))
+			else if ((sa->v3->flag & VERT_FLAG_SELECTED) && (sa->v4->flag & VERT_FLAG_SELECTED))
 				*smaller = MIN2(*smaller, x1);
 		}
 	}
@@ -1027,14 +1027,13 @@ static void area_move_apply_do(bContext *C, int origval, int delta, int dir, int
 	delta = CLAMPIS(delta, -smaller, bigger);
 
 	for (v1 = sc->vertbase.first; v1; v1 = v1->next) {
-		if (v1->flag&VERT_FLAG_SELECTED) {
+		if (v1->flag & VERT_FLAG_SELECTED) {
 			/* that way a nice AREAGRID  */
 			if ((dir == 'v') && v1->vec.x > 0 && v1->vec.x < win->sizex - 1) {
 				v1->vec.x = origval + delta;
 				if (delta != bigger && delta != -smaller) v1->vec.x -= (v1->vec.x % AREAGRID);
 
-				if (overflow)
-				{
+				if (overflow) {
 					v1->flag |= VERT_FLAG_OFFSET;
 					v1->offset.x = overflow>0?offset:-offset;
 					v1->offset.y = 0;
@@ -1053,14 +1052,14 @@ static void area_move_apply_do(bContext *C, int origval, int delta, int dir, int
 				if (v1->vec.y > win->sizey - areaminy)
 					v1->vec.y = win->sizey - areaminy;
 
-				if (overflow)
-				{
+				if (overflow) {
 					v1->flag |= VERT_FLAG_OFFSET;
 					v1->offset.y = overflow>0?offset:-offset;
 					v1->offset.x = 0;
 				}
-				else
+				else {
 					v1->flag &= ~VERT_FLAG_OFFSET;
+				}
 			}
 		}
 	}
@@ -1072,122 +1071,110 @@ static void area_move_apply_do(bContext *C, int origval, int delta, int dir, int
 	}
 
 	for (sa = sc->areabase.first; sa; sa = sa->next) {
-		if ((sa->v1->flag&VERT_FLAG_SELECTED) || (sa->v2->flag&VERT_FLAG_SELECTED) || (sa->v3->flag&VERT_FLAG_SELECTED) || (sa->v4->flag&VERT_FLAG_SELECTED))
+		if ((sa->v1->flag & VERT_FLAG_SELECTED) ||
+		    (sa->v2->flag & VERT_FLAG_SELECTED) ||
+		    (sa->v3->flag & VERT_FLAG_SELECTED) ||
+		    (sa->v4->flag & VERT_FLAG_SELECTED))
 		{
-			if (overflow)
-			{
-				if (dir == 'v')
-				{
-					if (overflow < 0)
-					{
-						if ((sa->v1->flag&VERT_FLAG_SELECTED) && (sa->v2->flag&VERT_FLAG_SELECTED))
-						{
-							// If there's already a split on this side then disallow joining.
-							// Blender doesn't support joining a split with multiple areas on one side.
-							if (*split1)
-							{
+			if (overflow) {
+				if (dir == 'v') {
+					if (overflow < 0) {
+						if ((sa->v1->flag & VERT_FLAG_SELECTED) && (sa->v2->flag & VERT_FLAG_SELECTED)) {
+							/* If there's already a split on this side then disallow joining.
+							 * Blender doesn't support joining a split with multiple areas on one side. */
+							if (*split1) {
 								area_move_reset_split_offsets(split1, split2);
 								overflow = 0;
 							}
-							else
+							else {
 								*split1 = sa;
+							}
 						}
-						else if ((sa->v3->flag&VERT_FLAG_SELECTED) && (sa->v4->flag&VERT_FLAG_SELECTED))
-						{
-							if (*split2)
-							{
+						else if ((sa->v3->flag & VERT_FLAG_SELECTED) && (sa->v4->flag & VERT_FLAG_SELECTED)) {
+							if (*split2) {
 								area_move_reset_split_offsets(split1, split2);
 								overflow = 0;
 							}
-							else
+							else {
 								*split2 = sa;
+							}
 						}
 					}
-					else
-					{
-						if ((sa->v1->flag&VERT_FLAG_SELECTED) && (sa->v2->flag&VERT_FLAG_SELECTED))
-						{
-							if (*split2)
-							{
+					else {
+						if ((sa->v1->flag & VERT_FLAG_SELECTED) && (sa->v2->flag & VERT_FLAG_SELECTED)) {
+							if (*split2) {
 								area_move_reset_split_offsets(split1, split2);
 								overflow = 0;
 							}
-							else
+							else {
 								*split2 = sa;
+							}
 						}
-						else if ((sa->v3->flag&VERT_FLAG_SELECTED) && (sa->v4->flag&VERT_FLAG_SELECTED))
-						{
-							if (*split1)
-							{
+						else if ((sa->v3->flag & VERT_FLAG_SELECTED) && (sa->v4->flag & VERT_FLAG_SELECTED)) {
+							if (*split1) {
 								area_move_reset_split_offsets(split1, split2);
 								overflow = 0;
 							}
-							else
+							else {
 								*split1 = sa;
+							}
 						}
 					}
 				}
-				else
-				{
-					if (overflow > 0)
-					{
-						if ((sa->v2->flag&VERT_FLAG_SELECTED) && (sa->v3->flag&VERT_FLAG_SELECTED))
-						{
-							if (*split1)
-							{
+				else {
+					if (overflow > 0) {
+						if ((sa->v2->flag & VERT_FLAG_SELECTED) && (sa->v3->flag & VERT_FLAG_SELECTED)) {
+							if (*split1) {
 								area_move_reset_split_offsets(split1, split2);
 								overflow = 0;
 							}
-							else
+							else {
 								*split1 = sa;
+							}
 						}
-						else if ((sa->v1->flag&VERT_FLAG_SELECTED) && (sa->v4->flag&VERT_FLAG_SELECTED))
-						{
-							if (*split2)
-							{
+						else if ((sa->v1->flag & VERT_FLAG_SELECTED) && (sa->v4->flag & VERT_FLAG_SELECTED)) {
+							if (*split2) {
 								area_move_reset_split_offsets(split1, split2);
 								overflow = 0;
 							}
-							else
+							else {
 								*split2 = sa;
+							}
 						}
 					}
-					else
-					{
-						if ((sa->v2->flag&VERT_FLAG_SELECTED) && (sa->v3->flag&VERT_FLAG_SELECTED))
-						{
-							if (*split2)
-							{
+					else {
+						if ((sa->v2->flag & VERT_FLAG_SELECTED) && (sa->v3->flag & VERT_FLAG_SELECTED)) {
+							if (*split2) {
 								area_move_reset_split_offsets(split1, split2);
 								overflow = 0;
 							}
-							else
+							else {
 								*split2 = sa;
+							}
 						}
-						else if ((sa->v1->flag&VERT_FLAG_SELECTED) && (sa->v4->flag&VERT_FLAG_SELECTED))
-						{
-							if (*split1)
-							{
+						else if ((sa->v1->flag & VERT_FLAG_SELECTED) && (sa->v4->flag & VERT_FLAG_SELECTED)) {
+							if (*split1) {
 								area_move_reset_split_offsets(split1, split2);
 								overflow = 0;
 							}
-							else
+							else {
 								*split1 = sa;
+							}
 						}
 					}
 				}
 			}
-			else
+			else {
 				area_move_reset_split_offset(sa);
+			}
 
 			ED_area_tag_redraw(sa);
 		}
 	}
 
-	if (split1 && *split1 && split2 && *split2 && ((*split2)->type->spaceid == SPACE_INFO || area_getorientation(*split1, *split2) < 0))
-	{
-		// Don't allow dragging closed of SPACE_INFO.
-		// It should be tougher to close, most users want it always open and new users don't want to accidentally close it.
+	if (split1 && *split1 && split2 && *split2 && ((*split2)->type->spaceid == SPACE_INFO || area_getorientation(*split1, *split2) < 0)) {
+		/* Don't allow dragging closed of SPACE_INFO. */
+		/* It should be tougher to close, most users want it always open and new users don't want to accidentally close it. */
 		area_move_reset_split_offsets(split1, split2);
 	}
 
@@ -1212,17 +1199,16 @@ static void area_move_exit(bContext *C, wmOperator *op)
 	for (sv = sc->vertbase.first; sv; sv = sv->next)
 		sv->flag &= ~VERT_FLAG_OFFSET;
 
-	if (md->split1 && md->split2)
-	{
-		if (screen_area_join(C, CTX_wm_screen(C), md->split1, md->split2))
-		{
+	if (md->split1 && md->split2) {
+		if (screen_area_join(C, CTX_wm_screen(C), md->split1, md->split2)) {
 			if (CTX_wm_area(C) == md->split2) {
 				CTX_wm_area_set(C, NULL);
 				CTX_wm_region_set(C, NULL);
 			}
 		}
-		else
+		else {
 			ED_area_tag_redraw(md->split2);
+		}
 
 		WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, NULL);
 		ED_area_tag_redraw(md->split1);
@@ -1267,6 +1253,7 @@ static int area_move_invoke(bContext *C, wmOperator *op, wmEvent *event)
 
 static int area_move_cancel(bContext *C, wmOperator *op)
 {
+	
 	RNA_int_set(op->ptr, "delta", 0);
 	area_move_apply(C, op);
 	area_move_exit(C, op);
@@ -1394,6 +1381,7 @@ typedef struct sAreaSplitData {
 	ScrEdge *nedge;         /* new edge */
 	ScrArea *sarea;         /* start area */
 	ScrArea *narea;         /* new area */
+	
 } sAreaSplitData;
 
 /* generic init, menu case, doesn't need active area */
@@ -1521,10 +1509,8 @@ static void area_split_exit(bContext *C, wmOperator *op)
 	if (op->customdata) {
 		sAreaSplitData *sd = (sAreaSplitData *)op->customdata;
 
-		if (sd->rejoin)
-		{
-			if (screen_area_join(C, CTX_wm_screen(C), sd->sarea, sd->narea))
-			{
+		if (sd->rejoin) {
+			if (screen_area_join(C, CTX_wm_screen(C), sd->sarea, sd->narea)) {
 				if (CTX_wm_area(C) == sd->narea) {
 					CTX_wm_area_set(C, NULL);
 					CTX_wm_region_set(C, NULL);
@@ -1697,8 +1683,7 @@ static int area_split_modal(bContext *C, wmOperator *op, wmEvent *event)
 			dir = RNA_enum_get(op->ptr, "direction");
 			
 			sd->delta = (dir == 'v') ? event->x - sd->origval : event->y - sd->origval;
-			if (sd->previewmode == 0)
-			{
+			if (sd->previewmode == 0) {
 				ScrArea* s1 = NULL;
 				ScrArea* s2 = NULL;
 				area_move_apply_do(C, sd->origval, sd->delta, dir, sd->bigger, sd->smaller, event->ctrl?NULL:&s1, event->ctrl?NULL:&s2);
@@ -3593,12 +3578,12 @@ static int screen_delete_exec(bContext *C, wmOperator *op)
 	int index = RNA_int_get(op->ptr, "index");
 	bScreen *sc = CTX_wm_screen(C);
 
-	if (index >= 0)
-	{
+	if (index >= 0) {
 		int i = 0;
 		for (sc = CTX_data_main(C)->screen.first; sc; sc = sc->id.next, i++) {
-			if (i == index)
+			if (i == index) {
 				break;
+			}
 		}
 	}
 
@@ -3686,12 +3671,12 @@ static int scene_delete_exec(bContext *C, wmOperator *op)
 	int index = RNA_int_get(op->ptr, "index");
 	Scene *scene = CTX_data_scene(C);
 
-	if (index >= 0)
-	{
+	if (index >= 0) {
 		int i = 0;
 		for (scene = CTX_data_main(C)->scene.first; scene; scene = scene->id.next, i++) {
-			if (i == index)
+			if (i == index) {
 				break;
+			}
 		}
 	}
 

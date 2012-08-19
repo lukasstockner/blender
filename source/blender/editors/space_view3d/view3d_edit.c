@@ -1493,8 +1493,7 @@ static void viewzoom_texpaint_brush_radius_update(Scene *scene, float factor)
 	Paint *p = paint_get_active(scene);
 	Brush *brush = paint_brush(p);
 
-	if (brush && BKE_brush_use_locked_size(scene, brush))
-	{
+	if (brush && BKE_brush_use_locked_size(scene, brush)) {
 		int oldsize = BKE_brush_size_get(scene, brush);
 		int newsize = oldsize*factor + 0.5;
 		newsize = (newsize > 5)? newsize : 5;
@@ -1540,7 +1539,7 @@ static void view_zoom_mouseloc(ARegion *ar, Scene *scene, float dfac, int mx, in
 		rv3d->dist *= dfac;
 	}
 
-	viewzoom_texpaint_brush_radius_update(scene, old_dist/rv3d->dist);
+	viewzoom_texpaint_brush_radius_update(scene, old_dist / rv3d->dist);
 }
 
 

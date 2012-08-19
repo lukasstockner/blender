@@ -388,16 +388,14 @@ int ED_mesh_uv_texture_remove(bContext *C, Object *ob, Mesh *me, int delete_inde
 	CustomDataLayer *cdlp, *cdlu;
 	int index;
 
-	if (delete_index < 0)
-	{
+	if (delete_index < 0) {
 		index = CustomData_get_active_layer_index(pdata, CD_MTEXPOLY);
 		cdlp = (index == -1) ? NULL : &pdata->layers[index];
 
 		index = CustomData_get_active_layer_index(ldata, CD_MLOOPUV);
 		cdlu = (index == -1) ? NULL : &ldata->layers[index];
 	}
-	else
-	{
+	else {
 		index = CustomData_get_layer_index_n(pdata, CD_MTEXPOLY, delete_index);
 		cdlp = (index == -1) ? NULL : &pdata->layers[index];
 

@@ -1069,7 +1069,6 @@ class VIEW3D_PT_tools_vertexpaint(Panel, View3DPaintPanel):
 # ********** default tools for texture-paint ****************
 
 
-
 class VIEW3D_PT_tools_projectpaint(View3DPanel, Panel):
     bl_context = "imagepaint"
     bl_label = "Project Paint"

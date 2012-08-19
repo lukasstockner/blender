@@ -2049,7 +2049,7 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 	else t->total = countsel;
 
 	/* now we need to allocate store for affected verts if we do maintain image */
-	if(t->flag & T_IMAGE_PRESERVE_CALC) {
+	if (t->flag & T_IMAGE_PRESERVE_CALC) {
 		uvtc = t->uvtc = MEM_callocN(sizeof(*t->uvtc), "UVTransformCorrect");
 		uvtc->initial_uvs = initial_uvs = MEM_mallocN(bm->totvert * sizeof(*t->uvtc->initial_uvs), "uvtc_inituvs");
 		uvtc->init_vec = MEM_mallocN(bm->totvert * sizeof(*t->uvtc->init_vec), "uvtc_initial_vertexes");
@@ -2110,7 +2110,7 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 
 	eve = BM_iter_new(&iter, bm, BM_VERTS_OF_MESH, NULL);
 	for (a = 0, i = 0; eve; eve = BM_iter_step(&iter), a++) {
-		if(t->flag & T_IMAGE_PRESERVE_CALC) {
+		if (t->flag & T_IMAGE_PRESERVE_CALC) {
 			/* will need to save initial position iteratable by vertex too */
 			copy_v3_v3(uvtc->init_vec[a], eve->co);
 			initial_uvs[a] = NULL;
@@ -2124,7 +2124,7 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 				if (tx)
 					tx++;
 
-				if(t->flag & T_IMAGE_PRESERVE_CALC) {
+				if (t->flag & T_IMAGE_PRESERVE_CALC) {
 					int island = 0;
 					BMIter iter2;
 					UVTransCorrInfoUV **uvtcuv = initial_uvs + a;
@@ -2138,7 +2138,7 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 						MLoopUV *luv = CustomData_bmesh_get(&em->bm->ldata, l->head.data, CD_MLOOPUV);
 
 						*uvtcuv = MEM_mallocN(sizeof(**uvtcuv), "uvtcelem");
-						if(uvprev)
+						if (uvprev)
 							uvprev->next = *uvtcuv;
 						uvprev = *uvtcuv;
 
@@ -2150,25 +2150,26 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 
 					/* Now we need to sort uvs according to uv island */
 					uviter2 = initial_uvs[a];
-					while(uviter2) {
+					while (uviter2) {
 						uviter2->island_index = island;
 						uviter = uviter2->next;
 						uvprev = uviter2;
 
-						while(uviter) {
+						while (uviter) {
 							UVTransCorrInfoUV *tmpuv = uviter->next;
 							float diff[2];
 							sub_v2_v2v2(diff, uviter->init_uv, uviter2->init_uv);
-							if(len_v2(diff) < STD_UV_CONNECT_LIMIT) {
+							if (len_v2(diff) < STD_UV_CONNECT_LIMIT) {
 								uviter->island_index = island;
 
 								/* this avoids circular queue */
-								if(uviter2->next != uviter) {
+								if (uviter2->next != uviter) {
 									uviter->next = uviter2->next;
 									/* change after if test to avoid altering the result
 									 * in case uviter2 equals uvprev */
 									uvprev->next = tmpuv;
-								} else {
+								}
+								else {
 									/* change before altering uvprev */
 									uvprev->next = tmpuv;
 									/* if iter is equal to iter2, uvprev must move or
@@ -2179,7 +2180,8 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 								/* if uvprev and uviter2 are the same this overrides previous */
 								uviter2->next = uviter;
 								uviter2 = uviter;
-							} else {
+							}
+							else {
 								uvprev = uviter;
 							}
 							uviter = tmpuv;
@@ -2245,7 +2247,7 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 			}
 		}
 	}
-
+	
 	if (mirror != 0) {
 		tob = t->data;
 		for (a = 0; a < t->total; a++, tob++) {

@@ -2792,9 +2792,9 @@ static void p_chart_pin_positions(PChart *chart, PVert **pin1, PVert **pin2)
 		float sub[3];
 
 		sub_v3_v3v3(sub, (*pin1)->co, (*pin2)->co);
-		sub[0] = fabs(sub[0]);
-		sub[1] = fabs(sub[1]);
-		sub[2] = fabs(sub[2]);
+		sub[0] = fabsf(sub[0]);
+		sub[1] = fabsf(sub[1]);
+		sub[2] = fabsf(sub[2]);
 
 		if ((sub[0] > sub[1]) && (sub[0] > sub[2])) {
 			dirx = 0;
@@ -3046,7 +3046,8 @@ static void p_chart_lscm_begin(PChart *chart, PBool live, enum UnwrapMethods met
 			nlSolverParameteri(NL_LEAST_SQUARES, NL_TRUE);
 
 			chart->u.lscm.context = nlGetCurrent();
-		} else {
+		}
+		else {
 			chart->u.isomap.do_solution = TRUE;
 		}
 	}
@@ -3074,10 +3075,11 @@ PBool p_chart_isomap_iterate_graph_edge(int i0, PEdge *p_edge, PBool inverted, P
 	PVert *v_updated;
 	PVert *v_secondary;
 
-	if(inverted) {
+	if (inverted) {
 		v_cent = p_edge->next->vert;
 		v_updated = p_edge->vert;
-	} else {
+	}
+	else {
 		v_cent = p_edge->vert;
 		v_updated = p_edge->next->vert;
 	}
@@ -3097,9 +3099,10 @@ PBool p_chart_isomap_iterate_graph_edge(int i0, PEdge *p_edge, PBool inverted, P
 			p_edge = p_edge->pair;
 			/* possible that we are at a chart's edge */
 			if (p_edge) {
-				if(inverted) {
+				if (inverted) {
 					v_updated = p_edge->next->vert;
-				} else {
+				}
+				else {
 					v_updated = p_edge->vert;
 				}
 
@@ -3107,7 +3110,8 @@ PBool p_chart_isomap_iterate_graph_edge(int i0, PEdge *p_edge, PBool inverted, P
 
 				v_secondary = p_edge->next->next->vert;
 				i_sec = v_secondary->u.id;
-			} else {
+			}
+			else {
 				fail = P_TRUE;
 			}
 
@@ -3115,7 +3119,7 @@ PBool p_chart_isomap_iterate_graph_edge(int i0, PEdge *p_edge, PBool inverted, P
 				fail = P_TRUE;
 
 			/* attempt failed, return 0 */
-			if(fail) {
+			if (fail) {
 				/* add a node to the heap so that the node will be traversed later.
 				 * make sure to put a max value so the node gets to the bottom of the heap. */
 				if (!graph_vert_info[i_update].node)
@@ -3138,7 +3142,7 @@ PBool p_chart_isomap_iterate_graph_edge(int i0, PEdge *p_edge, PBool inverted, P
 		float norm[3];
 		float x_local[3];
 		float y_local[3];
-		float v2x, v3x, v3y, projx, projy;
+		float v2x, v3x, v3y, proj_xy[2];
 
 		float T1 = dist_map[i_center*nverts + i0], T2 = dist_map[i_sec*nverts + i0];
 
@@ -3159,22 +3163,23 @@ PBool p_chart_isomap_iterate_graph_edge(int i0, PEdge *p_edge, PBool inverted, P
 
 		/* now we will find the nexus of the two circles with loci v1, v2 and radii T1 T2.
 		 * The farthest solution from v3 will give the distance T3 */
-		projx = 0.5*(v2x*v2x + T1*T1 - T2*T2)/v2x;
+		proj_xy[0] = 0.5*(v2x*v2x + T1*T1 - T2*T2)/v2x;
 		/* taking max because there's a tendency for precision floating point errors */
-		projy = sqrt(maxf(T1*T1 - projx*projx, 0.0));
+		proj_xy[1] = sqrt(maxf(T1 * T1 - proj_xy[0] * proj_xy[0], 0.0));
 
 		/* compare solution and choose the greater of the two */
-		if(fabs(v3y + projy) > fabs(v3y - projy)) {
-			projy = -projy;
+		if (fabsf(v3y + proj_xy[1]) > fabsf(v3y - proj_xy[1])) {
+			proj_xy[1] = -proj_xy[1];
 		}
 
 		/* find coordinates relative to updated vert */
-		projx -= v3x;
-		projy -= v3y;
+		proj_xy[0] -= v3x;
+		proj_xy[1] -= v3y;
 
-		sum_dist = sqrt(projx*projx + projy*projy);
-	} else {
-		sum_dist = sqrt(b[0] * b[0] + b[1] * b[1] + b[2] * b[2]) + dist_map[i_center*nverts + i0];
+		sum_dist = len_v2(proj_xy);
+	}
+	else {
+		sum_dist = len_v3(b) + dist_map[i_center * nverts + i0];
 	}
 
 	update = (dist_map[i0*nverts + i_update] > sum_dist);
@@ -3185,9 +3190,9 @@ PBool p_chart_isomap_iterate_graph_edge(int i0, PEdge *p_edge, PBool inverted, P
 	}
 
 	/* add pverts in the hash */
-	if(update) {
+	if (update) {
 		dist_map[i0*nverts + i_update] = dist_map[i_update*nverts + i0] = sum_dist;
-		if(!graph_vert_info[i_update].removed) {
+		if (!graph_vert_info[i_update].removed) {
 			if (graph_vert_info[i_update].node) {
 				BLI_heap_remove(graph_heap, graph_vert_info[i_update].node);
 			}
@@ -3195,14 +3200,15 @@ PBool p_chart_isomap_iterate_graph_edge(int i0, PEdge *p_edge, PBool inverted, P
 			graph_vert_info[i_update].node = BLI_heap_insert(graph_heap, sum_dist , v_updated);
 		}
 	}
-	if(!graph_vert_info[i_update].removed && !graph_vert_info[i_update].node) {
+	if (!graph_vert_info[i_update].removed && !graph_vert_info[i_update].node) {
 		graph_vert_info[i_update].node = BLI_heap_insert(graph_heap, sum_dist , v_updated);
 	}
 	graph_vert_info[i_update].added = TRUE;
 	#ifdef ISOMAP_DEBUG
 	if (do_double) {
 		printf("vertex %d calculated, other vertex %d, inverted %d \n", ic, ib, inverted);
-	} else {
+	}
+	else {
 		printf("vertex %d calculated\n", ic);
 	}
 	#endif
@@ -3277,7 +3283,7 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 					e_iter = e_iter->next->next;
 
 					/* if we are at a boundary we need to account for the edge now, so pass a reversed edge */
-					if(e_iter->pair)
+					if (e_iter->pair)
 						e_iter = e_iter->pair;
 					else {
 						prox_stack[stack_depth].e = e_iter;
@@ -3297,11 +3303,11 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 
 					stack_iter %= stack_depth;
 
-					if(stack_iter < old_stack_iter) {
-						if(old_stack_depth == stack_depth) {
+					if (stack_iter < old_stack_iter) {
+						if (old_stack_depth == stack_depth) {
 							#ifdef ISOMAP_DEBUG
 							printf("deadlock vertex index: %d\n", ic);
-							for(i = 0; i < nverts; i++) {
+							for (i = 0; i < nverts; i++) {
 								printf("%d vertex info added: %d\n",i, visited[i].added);
 								printf("%d vertex info removed: %d\n",i, visited[i].added);
 							}
@@ -3386,7 +3392,8 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 		MEM_freeN(dist_map);
 
 		return P_TRUE;
-	} else {
+	}
+	else {
 		PVert *v, *pin1 = chart->u.lscm.pin1, *pin2 = chart->u.lscm.pin2;
 		PFace *f;
 		float *alpha = chart->u.lscm.abf_alpha;

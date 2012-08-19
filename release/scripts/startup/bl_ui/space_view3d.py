@@ -2744,19 +2744,20 @@ class VIEW3D_PT_floating_controls(Panel):
         view = context.space_data
         tools = context.tool_settings
         wm = context.window_manager
+        floating_controls = context.user_preferences.view.floating_controls
 
-        if bpy.context.user_preferences.view.floating_controls == 'BOTTOM' or bpy.context.user_preferences.view.floating_controls == 'TOP':
+        if floating_controls in {'BOTTOM', 'TOP'}:
             layout = self.layout
 
             row = None
 
-            if bpy.context.user_preferences.view.floating_controls == 'BOTTOM':
+            if floating_controls == 'BOTTOM':
                 layout.alignment = 'BOTTOM'
                 row = layout.row()  # Create this first so it floats on the bottom
 
             self.make_lastop(context, layout)
 
-            if bpy.context.user_preferences.view.floating_controls == 'TOP':
+            if floating_controls == 'TOP':
                 row = layout.row()
 
             row = row.row(align=True)
@@ -2774,7 +2775,7 @@ class VIEW3D_PT_floating_controls(Panel):
             # as operator controls so that they render off (popped, not toggled) and when the user clicks they
             # invoke edit mode.
 
-            if bpy.context.object.mode == 'EDIT':
+            if context.object.mode == 'EDIT':
                 props = row.operator("object.mode_set", text="", icon='OBJECT_DATA')
                 props.mode='OBJECT'
                 row.prop(tools, "use_select_vertex", text="", clearfield=True)
@@ -2790,13 +2791,13 @@ class VIEW3D_PT_floating_controls(Panel):
                 props = row.operator("mesh.selection_mode_set", text="", icon='FACESEL')
                 props.mode='FACE'
 
-        elif bpy.context.user_preferences.view.floating_controls == 'LEFT' or bpy.context.user_preferences.view.floating_controls == 'RIGHT':
+        elif floating_controls in {'LEFT', 'RIGHT'}:
             layout = self.layout
 
             self.make_lastop(context, layout)
 
             row = layout.row()
-            if bpy.context.user_preferences.view.floating_controls == 'RIGHT':
+            if floating_controls == 'RIGHT':
 	            row.alignment = 'RIGHT'
 
             column = row.column(align=True)
@@ -2809,7 +2810,7 @@ class VIEW3D_PT_floating_controls(Panel):
 
             column.separator()
 
-            if bpy.context.object.mode == 'EDIT':
+            if context.object.mode == 'EDIT':
                 props = row.operator("object.mode_set", text="", icon='OBJECT_DATA')
                 props.mode='OBJECT'
                 column.prop(tools, "use_select_vertex", text="", clearfield=True)
@@ -2824,7 +2825,6 @@ class VIEW3D_PT_floating_controls(Panel):
                 props.mode='EDGE'
                 props = column.operator("mesh.selection_mode_set", text="", icon='FACESEL')
                 props.mode='FACE'
-
 
 
 def register():

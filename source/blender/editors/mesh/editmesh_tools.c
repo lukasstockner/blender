@@ -139,7 +139,7 @@ void MESH_OT_subdivide(wmOperatorType *ot)
 	/* properties */
 	prop = RNA_def_int(ot->srna, "number_cuts", 1, 1, INT_MAX, "Number of Cuts", "", 1, 10);
 	/* avoid re-using last var because it can cause _very_ high poly meshes and annoy users (or worse crash) */
-	RNA_def_property_flag(prop, PROP_SKIP_SAVE|PROP_PRIMARY);
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_PRIMARY);
 
 	RNA_def_float(ot->srna, "smoothness", 0.0f, 0.0f, FLT_MAX, "Smoothness", "Smoothness factor", 0.0f, 1.0f);
 
@@ -3476,7 +3476,7 @@ static int edbm_spin_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 
 void MESH_OT_spin(wmOperatorType *ot)
 {
-	PropertyRNA* prop;
+	PropertyRNA *prop;
 
 	/* identifiers */
 	ot->name = "Spin";
@@ -3606,7 +3606,7 @@ static int edbm_screw_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event)
 
 void MESH_OT_screw(wmOperatorType *ot)
 {
-	PropertyRNA* prop;
+	PropertyRNA *prop;
 
 	/* identifiers */
 	ot->name = "Screw";
@@ -5358,7 +5358,7 @@ static int selection_mode_set_exec(bContext *C, wmOperator *op)
 	if (!ob || ob->type != OB_MESH)
 		return OPERATOR_PASS_THROUGH;
 
-	// Make sure we are in edit mode.
+	/* Make sure we are in edit mode. */
 	if (ob->mode != mode) {
 		PointerRNA ptr;
 

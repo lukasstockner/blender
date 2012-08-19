@@ -1458,17 +1458,17 @@ void ui_set_but_val(uiBut *but, double value)
 		if (RNA_property_editable(&but->rnapoin, prop)) {
 			switch (RNA_property_type(prop)) {
 				case PROP_BOOLEAN:
-					if (RNA_property_array_length(&but->rnapoin, prop))
+					if (RNA_property_array_length(&but->rnapoin, prop)) {
 						RNA_property_boolean_set_index(&but->rnapoin, prop, but->rnaindex, value);
-					else
-					{
-						if (but->flag & UI_CLEAR_BITFIELD)
-						{
-							// I'm not thrilled with this code, but I'm not sure there's a better way to find the state of shift.
+					}
+					else {
+						if (but->flag & UI_CLEAR_BITFIELD) {
+							/* I'm not thrilled with this code, but I'm not sure there's a better way to find the state of shift. */
 							wmWindow *win = CTX_wm_window((const bContext*)but->block->evil_C);
 							int shift = win->eventstate->shift;
-							if (!shift)
+							if (!shift) {
 								RNA_property_boolean_clear(&but->rnapoin, prop);
+							}
 						}
 
 						RNA_property_boolean_set(&but->rnapoin, prop, value);
@@ -2014,8 +2014,9 @@ static void ui_free_but(const bContext *C, uiBut *but)
 		IMB_freeImBuf((struct ImBuf *)but->poin);
 	}
 
-	if (but->color_override)
+	if (but->color_override) {
 		MEM_freeN(but->color_override);
+	}
 
 	MEM_freeN(but);
 }

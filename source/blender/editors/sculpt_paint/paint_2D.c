@@ -334,9 +334,9 @@ int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float p
 		painter->startpaintpos[0] = pos[0];
 		painter->startpaintpos[1] = pos[1];
 
-		if(brush->flag & BRUSH_RANDOM_ROTATION)
+		if (brush->flag & BRUSH_RANDOM_ROTATION)
 			special_rotation = BLI_frand()*2*M_PI;
-		else if(brush->flag & BRUSH_RAKE) {
+		else if (brush->flag & BRUSH_RAKE) {
 			paint_calculate_rake_rotation(ups, painter->areamousepos);
 			special_rotation = ups->last_angle;
 		}
@@ -401,11 +401,13 @@ int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float p
 		len = normalize_v2(dmousepos);
 		painter->accumdistance += len;
 
-		if(brush->flag & BRUSH_RAKE) {
+		if (brush->flag & BRUSH_RAKE) {
 			paint_calculate_rake_rotation(ups, painter->areamousepos);
 			special_rotation = ups->last_angle;
-		} else if(brush->flag & BRUSH_RANDOM_ROTATION)
-			special_rotation = BLI_frand()*2*M_PI;
+		}
+		else if (brush->flag & BRUSH_RANDOM_ROTATION) {
+			special_rotation = BLI_frand() * (float)(2.0 * M_PI);
+		}
 
 		if (brush->flag & BRUSH_SPACE) {
 			/* do paint op over unpainted distance */

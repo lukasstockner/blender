@@ -84,30 +84,30 @@
 
 /* return codes for select, and drawing flags */
 
-#define MAN_TRANS_X		(1<<0)
-#define MAN_TRANS_Y		(1<<1)
-#define MAN_TRANS_Z		(1<<2)
-#define MAN_TRANS_C		(MAN_TRANS_X|MAN_TRANS_Y|MAN_TRANS_Z)
+#define MAN_TRANS_X		(1 << 0)
+#define MAN_TRANS_Y		(1 << 1)
+#define MAN_TRANS_Z		(1 << 2)
+#define MAN_TRANS_C		(MAN_TRANS_X | MAN_TRANS_Y | MAN_TRANS_Z)
 
-#define MAN_ROT_X		(1<<3)
-#define MAN_ROT_Y		(1<<4)
-#define MAN_ROT_Z		(1<<5)
-#define MAN_ROT_V		(1<<6)
-#define MAN_ROT_T		(1<<7)
-#define MAN_ROT_C		(MAN_ROT_X|MAN_ROT_Y|MAN_ROT_Z|MAN_ROT_V|MAN_ROT_T)
+#define MAN_ROT_X		(1 << 3)
+#define MAN_ROT_Y		(1 << 4)
+#define MAN_ROT_Z		(1 << 5)
+#define MAN_ROT_V		(1 << 6)
+#define MAN_ROT_T		(1 << 7)
+#define MAN_ROT_C		(MAN_ROT_X | MAN_ROT_Y | MAN_ROT_Z | MAN_ROT_V | MAN_ROT_T)
 
-#define MAN_SCALE_X		(1<<8)
-#define MAN_SCALE_Y		(1<<9)
-#define MAN_SCALE_Z		(1<<10)
-#define MAN_SCALE_C		(MAN_SCALE_X|MAN_SCALE_Y|MAN_SCALE_Z)
+#define MAN_SCALE_X		(1 << 8)
+#define MAN_SCALE_Y		(1 << 9)
+#define MAN_SCALE_Z		(1 << 10)
+#define MAN_SCALE_C		(MAN_SCALE_X | MAN_SCALE_Y | MAN_SCALE_Z)
 
-#define MAN_TRANS_XY	(1<<11)
-#define MAN_TRANS_YZ	(1<<12)
-#define MAN_TRANS_XZ	(1<<13)
+#define MAN_TRANS_XY	(1 << 11)
+#define MAN_TRANS_YZ	(1 << 12)
+#define MAN_TRANS_XZ	(1 << 13)
 
-#define MAN_SCALE_XY	(1<<14)
-#define MAN_SCALE_YZ	(1<<15)
-#define MAN_SCALE_XZ	(1<<16)
+#define MAN_SCALE_XY	(1 << 14)
+#define MAN_SCALE_YZ	(1 << 15)
+#define MAN_SCALE_XZ	(1 << 16)
 
 /* color codes */
 
@@ -785,32 +785,32 @@ static void manipulator_setcolor(View3D *v3d, char axis, int colcode, unsigned c
 				break;
 			case 'X':
 				if (manipulator & v3d->twhighlight) {
-					col[0]= 255;
-					col[1]= 200;
-					col[2]= 200;
+					col[0] = 255;
+					col[1] = 200;
+					col[2] = 200;
 				}
 				else
-					col[0]= 220;
+					col[0] = 220;
 				break;
 			case 'Y':
 				if (manipulator & v3d->twhighlight) {
-					col[0]= 200;
-					col[1]= 255;
-					col[2]= 200;
+					col[0] = 200;
+					col[1] = 255;
+					col[2] = 200;
 				}
 				else
 					col[1]= 220;
 				break;
 			case 'Z':
 				if (manipulator & v3d->twhighlight) {
-					col[0]= 200;
-					col[1]= 200;
-					col[2]= 255;
+					col[0] = 200;
+					col[1] = 200;
+					col[2] = 255;
 				}
 				else {
-					col[0]= 30;
-					col[1]= 30;
-					col[2]= 220;
+					col[0] = 30;
+					col[1] = 30;
+					col[2] = 220;
 				}
 				break;
 			default:
@@ -1247,12 +1247,13 @@ static void draw_manipulator_scale(View3D *v3d, RegionView3D *rv3d, int moving, 
 		glPopMatrix();
 
 		glPushMatrix();
-			if(G.f & G_PICKSEL) {
+			if (G.f & G_PICKSEL) {
 				glLoadName(MAN_SCALE_XZ);
 				glTranslatef(dz*0.3f, 0.0, dz*0.3f);
 				glScalef(2, 0.3, 2);
 				drawsolidcube(cywid);
-			} else {
+			}
+			else {
 				manipulator_setcolor(v3d, 'Z', colcode, axisBlendAngle(rv3d->twangle[2]), MAN_SCALE_XZ);
 				glScalef(0.45, 0.45, 0.45);
 				glBegin(GL_LINES);
@@ -1275,12 +1276,13 @@ static void draw_manipulator_scale(View3D *v3d, RegionView3D *rv3d, int moving, 
 		glPopMatrix();
 
 		glPushMatrix();
-			if(G.f & G_PICKSEL) {
+			if (G.f & G_PICKSEL) {
 				glLoadName(MAN_SCALE_XY);
 				glTranslatef(dz*0.3f, dz*0.3f, 0.0);
 				glScalef(2, 2, 0.3);
 				drawsolidcube(cywid);
-			} else {
+			}
+			else {
 				manipulator_setcolor(v3d, 'X', colcode, axisBlendAngle(rv3d->twangle[0]), MAN_SCALE_XY);
 				glScalef(0.45, 0.45, 0.45);
 				glBegin(GL_LINES);
@@ -1303,12 +1305,13 @@ static void draw_manipulator_scale(View3D *v3d, RegionView3D *rv3d, int moving, 
 		glPopMatrix();
 
 		glPushMatrix();
-			if(G.f & G_PICKSEL) {
+			if (G.f & G_PICKSEL) {
 				glLoadName(MAN_SCALE_YZ);
 				glTranslatef(0.0, dz*0.3f, dz*0.3f);
 				glScalef(0.3, 2, 2);
 				drawsolidcube(cywid);
-			} else {
+			}
+			else {
 				manipulator_setcolor(v3d, 'Y', colcode, axisBlendAngle(rv3d->twangle[1]), MAN_SCALE_YZ);
 				glScalef(0.45, 0.45, 0.45);
 				glBegin(GL_LINES);
@@ -1422,7 +1425,7 @@ static void draw_manipulator_translate(View3D *v3d, RegionView3D *rv3d, int UNUS
 
 		glPushMatrix();
 			glTranslatef(0.0, 0.0, dz*0.72f);
-			if(G.f & G_PICKSEL) glLoadName(MAN_TRANS_XZ);
+			if (G.f & G_PICKSEL) glLoadName(MAN_TRANS_XZ);
 			manipulator_setcolor(v3d, 'Z', colcode, axisBlendAngle(rv3d->twangle[2]), MAN_TRANS_XZ);
 			glScalef(1.3, 0.3, 1.3);
 			drawsolidcube(cywid);
@@ -1441,7 +1444,7 @@ static void draw_manipulator_translate(View3D *v3d, RegionView3D *rv3d, int UNUS
 
 		glPushMatrix();
 			glTranslatef(dz*0.72f, 0.0, 0.0);
-			if(G.f & G_PICKSEL) glLoadName(MAN_TRANS_XY);
+			if (G.f & G_PICKSEL) glLoadName(MAN_TRANS_XY);
 			manipulator_setcolor(v3d, 'X', colcode, axisBlendAngle(rv3d->twangle[0]), MAN_TRANS_XY);
 			glScalef(1.3, 1.3, 0.3);
 			drawsolidcube(cywid);
@@ -1460,7 +1463,7 @@ static void draw_manipulator_translate(View3D *v3d, RegionView3D *rv3d, int UNUS
 
 		glPushMatrix();
 			glTranslatef(0.0, dz*0.72f, 0.0);
-			if(G.f & G_PICKSEL) glLoadName(MAN_TRANS_YZ);
+			if (G.f & G_PICKSEL) glLoadName(MAN_TRANS_YZ);
 			manipulator_setcolor(v3d, 'Y', colcode, axisBlendAngle(rv3d->twangle[1]), MAN_TRANS_YZ);
 			glScalef(0.3, 1.3, 1.3);
 			drawsolidcube(cywid);
@@ -1883,8 +1886,7 @@ int BIF_test_manipulator_mouseover(const struct bContext *C, struct wmEvent *eve
 	int val= manipulator_selectbuf(sa, ar, event->mval, 0.5f*(float)U.tw_hotspot);
 	val= manipulator_selectbuf(sa, ar, event->mval, 0.2f*(float)U.tw_hotspot);	// Why twice? Dunno, but it don't work otherwise. BIF_do_manipulator does it this way, end of story.
 
-	if (val != v3d->twhighlight)
-	{
+	if (val != v3d->twhighlight) {
 		v3d->twhighlight = val;
 		return 1;
 	}

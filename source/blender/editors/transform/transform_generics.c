@@ -738,7 +738,7 @@ static void recalcData_view3d(TransInfo *t)
 
 			/* stay here for now, maybe will find some other way to avoid duplicating in every transform
 			 * apply funtion */
-			if(t->flag & T_IMAGE_PRESERVE_CALC) {
+			if (t->flag & T_IMAGE_PRESERVE_CALC) {
 				calculateUVTransformCorrection(t);
 			}
 
@@ -1070,9 +1070,10 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 			v3d->twtype = 0;
 		}
 
-		if(ts->uvcalc_flag & UVCALC_TRANSFORM_CORRECT &&
-		   obedit && EDBM_mtexpoly_check(BMEdit_FromObject(obedit)) &&
-		   !(t->options & CTX_EDGE)) {
+		if (ts->uvcalc_flag & UVCALC_TRANSFORM_CORRECT &&
+		    obedit && EDBM_mtexpoly_check(BMEdit_FromObject(obedit)) &&
+		    !(t->options & CTX_EDGE))
+		{
 			t->flag |= T_IMAGE_PRESERVE_CALC;
 		}
 
@@ -1113,8 +1114,8 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 				RNA_boolean_set(op->ptr, "correct_uv", t->settings->uvcalc_flag & UVCALC_TRANSFORM_CORRECT);
 			}
 		}
-	}
 
+	}
 	else if (t->spacetype == SPACE_IMAGE) {
 		SpaceImage *sima = sa->spacedata.first;
 		// XXX for now, get View2D from the active region
@@ -1270,21 +1271,21 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 
 void deleteUVTransCorrect(struct UVTransCorrect *uvtc)
 {
-	if(uvtc->init_vec) {
+	if (uvtc->init_vec) {
 		MEM_freeN(uvtc->init_vec);
 		uvtc->init_vec = NULL;
 	}
-	if(uvtc->init_normal) {
+	if (uvtc->init_normal) {
 		MEM_freeN(uvtc->init_normal);
 		uvtc->init_normal = NULL;
 	}
-	if(uvtc->initial_uvs) {
+	if (uvtc->initial_uvs) {
 		int i;
-		for(i = 0; i < uvtc->total_verts; i++) {
+		for (i = 0; i < uvtc->total_verts; i++) {
 			UVTransCorrInfoUV *uvtcuv;
 			uvtcuv = uvtc->initial_uvs[i];
-			if(uvtcuv) {
-				while(uvtcuv->next) {
+			if (uvtcuv) {
+				while (uvtcuv->next) {
 					UVTransCorrInfoUV *uvtcuvtmp = 	uvtcuv->next;
 					MEM_freeN(uvtcuv);
 					uvtcuv = uvtcuvtmp;
@@ -1355,8 +1356,8 @@ void postTrans(bContext *C, TransInfo *t)
 		if (t->flag & T_MODAL) {
 			v3d->twtype = t->twtype;
 		}
-		if(t->flag & T_IMAGE_PRESERVE_CALC) {
-			if(t->uvtc) {
+		if (t->flag & T_IMAGE_PRESERVE_CALC) {
+			if (t->uvtc) {
 				deleteUVTransCorrect(t->uvtc);
 				MEM_freeN(t->uvtc);
 				t->uvtc = NULL;
@@ -1430,10 +1431,10 @@ void restoreTransObjects(TransInfo *t)
 	}
 	
 	td = t->data;
-	if(t->flag & T_IMAGE_PRESERVE_CALC) {
+	if (t->flag & T_IMAGE_PRESERVE_CALC) {
 		CustomData *data = &(BMEdit_FromObject(t->obedit)->bm->ldata);
 		int i;
-		for(i = 0; i < t->total; i++) {
+		for (i = 0; i < t->total; i++) {
 			BMVert *eve;
 			UVTransCorrInfoUV *uvtcuv;
 
@@ -1441,7 +1442,7 @@ void restoreTransObjects(TransInfo *t)
 
 			uvtcuv = t->uvtc->initial_uvs[BM_elem_index_get(eve)];
 
-			while(uvtcuv) {
+			while (uvtcuv) {
 				MLoopUV *luv = CustomData_bmesh_get(data, uvtcuv->l->head.data, CD_MLOOPUV);
 
 				copy_v2_v2(luv->uv, uvtcuv->init_uv);
@@ -1748,9 +1749,9 @@ static void flushUVdisplacement(UVTransCorrInfoUV *first, UVTCLoop loops[2], BME
 	BMLoop *l1 = loops[0].loop;
 	BMLoop *l2 = loops[1].loop;
 
-	#ifdef UVTC_VISUAL_DEBUG
+#ifdef UVTC_VISUAL_DEBUG
 	float offset[3] = {0.0, 0.0, 0.1};
-	#endif
+#endif
 
 	int index = BM_elem_index_get(td->eve);
 	int index1 = BM_elem_index_get(l1->v);
@@ -1759,25 +1760,27 @@ static void flushUVdisplacement(UVTransCorrInfoUV *first, UVTCLoop loops[2], BME
 	/* first we need to calculate the displacement based on the projection of the vertex to the
 	 * boundary loops plane */
 	sub_v3_v3v3(edge_vec_init1, uvtc->init_vec[index1], td->iloc);
-	if(uvtc->initial_uvs[index1]) {
+	if (uvtc->initial_uvs[index1]) {
 		UVTransCorrInfoUV *uvtmp = uvtc->initial_uvs[index1];
-		while(uvtmp->l != l1) {
+		while (uvtmp->l != l1) {
 			uvtmp = uvtmp->next;
 		}
 		sub_v2_v2v2(edge_uv_init1, uvtmp->init_uv, uvtcuv->init_uv);
-	} else {
+	}
+	else {
 		luv = CustomData_bmesh_get(&em->bm->ldata, l1->head.data, CD_MLOOPUV);
 		sub_v2_v2v2(edge_uv_init1, luv->uv, uvtcuv->init_uv);
 	}
 
 	sub_v3_v3v3(edge_vec_init2, uvtc->init_vec[index2], td->iloc);
-	if(uvtc->initial_uvs[index2]) {
+	if (uvtc->initial_uvs[index2]) {
 		UVTransCorrInfoUV *uvtmp = uvtc->initial_uvs[index2];
-		while(uvtmp->l != l2) {
+		while (uvtmp->l != l2) {
 			uvtmp = uvtmp->next;
 		}
 		sub_v2_v2v2(edge_uv_init2, uvtmp->init_uv, uvtcuv->init_uv);
-	} else {
+	}
+	else {
 		luv = CustomData_bmesh_get(&em->bm->ldata, l2->head.data, CD_MLOOPUV);
 		sub_v2_v2v2(edge_uv_init2, luv->uv, uvtcuv->init_uv);
 	}
@@ -1786,7 +1789,7 @@ static void flushUVdisplacement(UVTransCorrInfoUV *first, UVTCLoop loops[2], BME
 	cross_v3_v3v3(normal, edge_vec_init1, edge_vec_init2);
 
 
-	if(len_v3(normal) < 0.00001) {
+	if (len_v3(normal) < 0.00001) {
 		/* parallel edges, do exceptional solution */
 		int ax, ay;
 		float det, det1, det2, coeff1, coeff2;
@@ -1802,10 +1805,11 @@ static void flushUVdisplacement(UVTransCorrInfoUV *first, UVTCLoop loops[2], BME
 
 		/* estimate an angle for parallel to the edges motion and add the appropriate paralel vector.
 		 * remember, we still store the cosine here so we are checking for greater value */
-		if(loops[0].angle <= loops[1].angle) {
+		if (loops[0].angle <= loops[1].angle) {
 			angle = loops[0].angle;
 			copy_v3_v3(edge_world_parall, edge_vec_init1);
-		} else {
+		}
+		else {
 			angle = loops[1].angle;
 			copy_v3_v3(edge_world_parall, edge_vec_init2);
 		}
@@ -1819,20 +1823,22 @@ static void flushUVdisplacement(UVTransCorrInfoUV *first, UVTCLoop loops[2], BME
 		/* to get an 'outward' direction in uv space, just get the perpendicular vector.
 		 * To get a correct outward vector, we need to negate the vector appropriately
 		 * according to the winding of the loop */
-		if(loops[0].prev) {
+		if (loops[0].prev) {
 			ltmp = l1->next->next;
-		} else {
+		}
+		else {
 			ltmp = l1->prev->prev;
 		}
 		sub_v3_v3v3(edge_world_perp1, uvtc->init_vec[BM_elem_index_get(ltmp->v)], td->iloc);
 
-		if(uvtc->initial_uvs[BM_elem_index_get(ltmp->v)]) {
+		if (uvtc->initial_uvs[BM_elem_index_get(ltmp->v)]) {
 			UVTransCorrInfoUV *uvtmp = uvtc->initial_uvs[BM_elem_index_get(ltmp->v)];
-			while(uvtmp->l != ltmp) {
+			while (uvtmp->l != ltmp) {
 				uvtmp = uvtmp->next;
 			}
 			sub_v2_v2v2(edge_uv_perp1, uvtmp->init_uv, uvtcuv->init_uv);
-		} else {
+		}
+		else {
 			luv = CustomData_bmesh_get(&em->bm->ldata, ltmp->head.data, CD_MLOOPUV);
 			sub_v2_v2v2(edge_uv_perp1, luv->uv, uvtcuv->init_uv);
 		}
@@ -1860,23 +1866,25 @@ static void flushUVdisplacement(UVTransCorrInfoUV *first, UVTCLoop loops[2], BME
 		mul_v2_v2fl(uvtmp, edge_uv_init1, coeff2);
 		add_v2_v2(uv_displacement1, uvtmp);
 
-		if(loops[1].prev) {
+		if (loops[1].prev) {
 			ltmp = l1->next->next;
 			luv = CustomData_bmesh_get(&em->bm->ldata, ltmp->head.data, CD_MLOOPUV);
-		} else {
+		}
+		else {
 			ltmp = l1->prev->prev;
 			luv = CustomData_bmesh_get(&em->bm->ldata, ltmp->head.data, CD_MLOOPUV);
 		}
 
 		sub_v3_v3v3(edge_world_perp2, uvtc->init_vec[BM_elem_index_get(ltmp->v)], td->iloc);
 
-		if(uvtc->initial_uvs[BM_elem_index_get(ltmp->v)]) {
+		if (uvtc->initial_uvs[BM_elem_index_get(ltmp->v)]) {
 			UVTransCorrInfoUV *uvtmp = uvtc->initial_uvs[BM_elem_index_get(ltmp->v)];
-			while(uvtmp->l != ltmp) {
+			while (uvtmp->l != ltmp) {
 				uvtmp = uvtmp->next;
 			}
 			sub_v2_v2v2(edge_uv_perp2, uvtmp->init_uv, uvtcuv->init_uv);
-		} else {
+		}
+		else {
 			luv = CustomData_bmesh_get(&em->bm->ldata, ltmp->head.data, CD_MLOOPUV);
 			sub_v2_v2v2(edge_uv_perp2, luv->uv, uvtcuv->init_uv);
 		}
@@ -1900,7 +1908,8 @@ static void flushUVdisplacement(UVTransCorrInfoUV *first, UVTCLoop loops[2], BME
 		/* take mean */
 		mul_v2_fl(uv_result, 0.5);
 		add_v2_v2(uv_result, first->init_uv);
-	} else {
+	}
+	else {
 		int ax, ay;
 		float det, det1, det2, coeff1, coeff2;
 		float uvtmp[2];
@@ -1931,7 +1940,7 @@ static void flushUVdisplacement(UVTransCorrInfoUV *first, UVTCLoop loops[2], BME
 		add_v2_v2(uv_result, uvtmp);
 	}
 
-	while(uvtcuv && uvtcuv->island_index == first->island_index) {
+	while (uvtcuv && uvtcuv->island_index == first->island_index) {
 		BMLoop *l_flush = uvtcuv->l;
 		luv = CustomData_bmesh_get(&em->bm->ldata, l_flush->head.data, CD_MLOOPUV);
 
@@ -1972,7 +1981,7 @@ void calculateUVTransformCorrection(TransInfo *t)
 
 	/* iterate through loops of vert and calculate image space diff of uvs */
 	for (i = 0 ; i < t->total; i++) {
-		if(not_prop_edit || td[i].factor > 0.0) {
+		if (not_prop_edit || td[i].factor > 0.0) {
 			/* first island visited, if this changes without an optimal face found,
 			 * we must flush the result */
 			UVTransCorrInfoUV *first_island_uv, *uvtcuv;
@@ -1995,12 +2004,12 @@ void calculateUVTransformCorrection(TransInfo *t)
 			proj_len = len_v3(projv);
 
 			/* little change, do nothing */
-			if(proj_len < 0.00001) {
+			if (proj_len < 0.00001f) {
 				continue;
 			}
 
 			first_island_uv = uvtc->initial_uvs[index];
-			for(uvtcuv = first_island_uv; uvtcuv; uvtcuv = uvtcuv->next) {
+			for (uvtcuv = first_island_uv; uvtcuv; uvtcuv = uvtcuv->next) {
 				float angle1, angle2;
 				float dot_tmp;
 				float proj_prev[3], proj_next[3];
@@ -2010,7 +2019,7 @@ void calculateUVTransformCorrection(TransInfo *t)
 
 				/* if we have more uvs on a different island, we need to transform the
 				 * existing uvs with a good approximation */
-				if(first_island_uv->island_index != uvtcuv->island_index) {
+				if (first_island_uv->island_index != uvtcuv->island_index) {
 
 					flushUVdisplacement(first_island_uv, boundary_loops, em, td+i, uvtc);
 
@@ -2048,31 +2057,31 @@ void calculateUVTransformCorrection(TransInfo *t)
 				CLAMP(angle2, -1.0, 1.0);
 				angle2 = acos(angle2);
 
-				if(signf(dot_v3v3(cross1, uvtc->init_normal[index])) < 0.0)  {
+				if (signf(dot_v3v3(cross1, uvtc->init_normal[index])) < 0.0)  {
 					angle1 = 2*M_PI - angle1;
 				}
-				if(signf(dot_v3v3(cross2, uvtc->init_normal[index])) < 0.0) {
+				if (signf(dot_v3v3(cross2, uvtc->init_normal[index])) < 0.0) {
 					angle2 = 2*M_PI - angle2;
 				}
 
 				/* store the loops that have the minimum angle with the displacement vector */
-				if((angle1 < boundary_loops[0].angle)) {
+				if ((angle1 < boundary_loops[0].angle)) {
 					boundary_loops[0].angle = angle1;
 					boundary_loops[0].loop = l_next;
 					boundary_loops[0].prev = FALSE;
 				}
-				if(((2*M_PI - angle1) < boundary_loops[1].angle)) {
+				if (((2*M_PI - angle1) < boundary_loops[1].angle)) {
 					boundary_loops[1].angle = 2*M_PI - angle1;
 					boundary_loops[1].loop = l_next;
 					boundary_loops[1].prev = FALSE;
 				}
 
-				if((angle2 < boundary_loops[0].angle)) {
+				if ((angle2 < boundary_loops[0].angle)) {
 					boundary_loops[0].angle = angle2;
 					boundary_loops[0].loop = l_prev;
 					boundary_loops[0].prev = TRUE;
 				}
-				if(((2*M_PI - angle2) < boundary_loops[1].angle)) {
+				if (((2*M_PI - angle2) < boundary_loops[1].angle)) {
 					boundary_loops[1].angle = 2*M_PI - angle2;
 					boundary_loops[1].loop = l_prev;
 					boundary_loops[1].prev = TRUE;
