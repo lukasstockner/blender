@@ -120,6 +120,7 @@ static void ringsel_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		gpuPushMatrix();
 		gpuMultMatrix(lcd->ob->obmat);
 
+		gpuImmediateFormat_V3();
 		gpuCurrentColor3x(CPACK_MAGENTA);
 		gpuBegin(GL_LINES);
 		for (i = 0; i < lcd->totedge; i++) {
@@ -127,6 +128,7 @@ static void ringsel_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 			gpuVertex3fv(lcd->edges[i][1]);
 		}
 		gpuEnd();
+		gpuImmediateUnformat();
 
 		gpuPopMatrix();
 		if (v3d && v3d->zbuf)
