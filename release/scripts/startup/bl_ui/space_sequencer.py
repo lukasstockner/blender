@@ -75,6 +75,9 @@ class SEQUENCER_HT_header(Header):
                     row.prop(ed, "overlay_frame", text="")
                     row.prop(ed, "overlay_lock", text="", icon='LOCKED')
 
+                    row = layout.row()
+                    row.prop(st, "overlay_type", text="")
+
                 row = layout.row(align=True)
                 props = row.operator("render.opengl", text="", icon='RENDER_STILL')
                 props.sequencer = True
@@ -428,12 +431,18 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
 
+        sequencer = context.scene.sequence_editor
         strip = act_strip(context)
+
         if strip.input_count > 0:
             col = layout.column()
             col.prop(strip, "input_1")
             if strip.input_count > 1:
                 col.prop(strip, "input_2")
+
+        if strip.is_supports_mask:
+            col = layout.column()
+            col.prop_search(strip, "input_mask", sequencer, "sequences")
 
         if strip.type == 'COLOR':
             layout.prop(strip, "color")
@@ -488,7 +497,7 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
 
             col = layout.column(align=True)
             col.prop(strip, "use_uniform_scale")
-            if (strip.use_uniform_scale):
+            if strip.use_uniform_scale:
                 col = layout.column(align=True)
                 col.prop(strip, "scale_start_x", text="Scale")
             else:
@@ -763,20 +772,26 @@ class SEQUENCER_PT_filter(SequencerButtonsPanel, Panel):
 
         layout.prop(strip, "use_color_balance")
         if strip.use_color_balance and strip.color_balance:  # TODO - need to add this somehow
-            row = layout.row()
-            row.active = strip.use_color_balance
-            col = row.column()
-            col.template_color_wheel(strip.color_balance, "lift", value_slider=False, cubic=True)
-            col.row().prop(strip.color_balance, "lift")
-            col.prop(strip.color_balance, "invert_lift", text="Inverse")
-            col = row.column()
-            col.template_color_wheel(strip.color_balance, "gamma", value_slider=False, lock_luminosity=True, cubic=True)
-            col.row().prop(strip.color_balance, "gamma")
-            col.prop(strip.color_balance, "invert_gamma", text="Inverse")
-            col = row.column()
-            col.template_color_wheel(strip.color_balance, "gain", value_slider=False, lock_luminosity=True, cubic=True)
-            col.row().prop(strip.color_balance, "gain")
-            col.prop(strip.color_balance, "invert_gain", text="Inverse")
+            col = layout.column()
+            col.label(text="Lift:")
+            col.template_color_wheel(strip.color_balance, "lift", value_slider=True, cubic=True)
+            row = col.row()
+            row.prop(strip.color_balance, "lift", text="")
+            row.prop(strip.color_balance, "invert_lift", text="Inverse")
+
+            col = layout.column()
+            col.label(text="Gamma:")
+            col.template_color_wheel(strip.color_balance, "gamma", value_slider=True, lock_luminosity=True, cubic=True)
+            row = col.row()
+            row.prop(strip.color_balance, "gamma", text="")
+            row.prop(strip.color_balance, "invert_gamma", text="Inverse")
+
+            col = layout.column()
+            col.label(text="Gain:")
+            col.template_color_wheel(strip.color_balance, "gain", value_slider=True, lock_luminosity=True, cubic=True)
+            row = col.row()
+            row.prop(strip.color_balance, "gain", text="")
+            row.prop(strip.color_balance, "invert_gain", text="Inverse")
 
 
 class SEQUENCER_PT_proxy(SequencerButtonsPanel, Panel):

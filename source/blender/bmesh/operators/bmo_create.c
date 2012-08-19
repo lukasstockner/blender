@@ -364,7 +364,7 @@ static void init_rotsys(BMesh *bm, EdgeData *edata, VertData *vdata)
 	/* BLI_array_staticdeclare(verts, BM_NGON_STACK_SIZE); */ /* UNUSE */
 	int i;
 	
-#define SIGN(n) ((n)<0.0f)
+#define SIGN(n) ((n) < 0.0f)
 	
 	BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
 		BMIter eiter;
@@ -1312,7 +1312,7 @@ void bmo_contextual_create_exec(BMesh *bm, BMOperator *op)
 	 *
 	 */
 
-	/* Here we check for consistancy and create 2 edges */
+	/* Here we check for consistency and create 2 edges */
 	if (totf == 0 && totv >= 4 && totv == tote + 2) {
 		/* find a free standing vertex and 2 endpoint verts */
 		BMVert *v_free = NULL, *v_a = NULL, *v_b = NULL;

@@ -1517,7 +1517,7 @@ void uiTemplateWaveform(uiLayout *layout, PointerRNA *ptr, const char *propname)
 	scopes->wavefrm_height = (scopes->wavefrm_height <= UI_UNIT_Y) ? UI_UNIT_Y : scopes->wavefrm_height;
 
 	bt = uiDefBut(block, WAVEFORM, 0, "", rect.xmin, rect.ymin, rect.xmax - rect.xmin, scopes->wavefrm_height, scopes, 0, 0, 0, 0, "");
-	(void)bt; // UNUSED
+	(void)bt;  /* UNUSED */
 	
 	MEM_freeN(cb);
 }
@@ -2315,7 +2315,6 @@ static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, Pointe
 
 void uiTemplateList(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, PointerRNA *activeptr, const char *activepropname, const char *prop_list, int rows, int maxrows, int listtype)
 {
-	//Scene *scene = CTX_data_scene(C);
 	PropertyRNA *prop = NULL, *activeprop;
 	PropertyType type, activetype;
 	StructRNA *ptype;
@@ -2562,7 +2561,7 @@ static void do_running_jobs(bContext *C, void *UNUSED(arg), int event)
 {
 	switch (event) {
 		case B_STOPRENDER:
-			G.afbreek = 1;
+			G.is_break = TRUE;
 			break;
 		case B_STOPCAST:
 			WM_jobs_stop(CTX_wm_manager(C), CTX_wm_screen(C), NULL);
@@ -2571,7 +2570,7 @@ static void do_running_jobs(bContext *C, void *UNUSED(arg), int event)
 			WM_operator_name_call(C, "SCREEN_OT_animation_play", WM_OP_INVOKE_SCREEN, NULL);
 			break;
 		case B_STOPCOMPO:
-			WM_jobs_stop(CTX_wm_manager(C), CTX_wm_area(C), NULL);
+			WM_jobs_stop(CTX_wm_manager(C), CTX_data_scene(C), NULL);
 			break;
 		case B_STOPSEQ:
 			WM_jobs_stop(CTX_wm_manager(C), CTX_wm_area(C), NULL);
@@ -2596,36 +2595,37 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
 
 	uiBlockSetHandleFunc(block, do_running_jobs, NULL);
 
-	if (sa->spacetype == SPACE_NODE) {
-		if (WM_jobs_test(wm, sa))
-			owner = sa;
-		handle_event = B_STOPCOMPO;
-	}
-	else if (sa->spacetype == SPACE_SEQ) {
-		if (WM_jobs_test(wm, sa))
+	if (sa->spacetype == SPACE_SEQ) {
+		if (WM_jobs_test(wm, sa, WM_JOB_TYPE_ANY))
 			owner = sa;
 		handle_event = B_STOPSEQ;
 	}
 	else if (sa->spacetype == SPACE_CLIP) {
-		if (WM_jobs_test(wm, sa))
+		if (WM_jobs_test(wm, sa, WM_JOB_TYPE_ANY))
 			owner = sa;
 		handle_event = B_STOPCLIP;
 	}
 	else {
 		Scene *scene;
 		/* another scene can be rendering too, for example via compositor */
-		for (scene = CTX_data_main(C)->scene.first; scene; scene = scene->id.next)
-			if (WM_jobs_test(wm, scene))
+		for (scene = CTX_data_main(C)->scene.first; scene; scene = scene->id.next) {
+			if (WM_jobs_test(wm, scene, WM_JOB_TYPE_RENDER)) {
+				handle_event = B_STOPRENDER;
 				break;
+			}
+			else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_COMPOSITE)) {
+				handle_event = B_STOPCOMPO;
+				break;
+			}
+		}
 		owner = scene;
-		handle_event = B_STOPRENDER;
 	}
 
 	if (owner) {
 		uiLayout *ui_abs;
 		
 		ui_abs = uiLayoutAbsolute(layout, FALSE);
-		(void)ui_abs; // UNUSED
+		(void)ui_abs;  /* UNUSED */
 		
 		uiDefIconBut(block, BUT, handle_event, ICON_PANEL_CLOSE, 
 		             0, UI_UNIT_Y * 0.1, UI_UNIT_X * 0.8, UI_UNIT_Y * 0.8, NULL, 0.0f, 0.0f, 0, 0, TIP_("Stop this job"));
@@ -2634,7 +2634,7 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
 		
 		uiLayoutRow(layout, FALSE);
 	}
-	if (WM_jobs_test(wm, screen))
+	if (WM_jobs_test(wm, screen, WM_JOB_TYPE_SCREENCAST))
 		uiDefIconTextBut(block, BUT, B_STOPCAST, ICON_CANCEL, IFACE_("Capture"), 0, 0, 85, UI_UNIT_Y, NULL, 0.0f, 0.0f, 0, 0,
 		                 TIP_("Stop screencast"));
 	if (screen->animtimer)

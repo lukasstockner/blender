@@ -138,9 +138,9 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 		SeqRenderData context;
 		int chanshown = oglrender->sseq ? oglrender->sseq->chanshown : 0;
 
-		context = seq_new_render_data(oglrender->bmain, scene, oglrender->sizex, oglrender->sizey, 100.0f);
+		context = BKE_sequencer_new_render_data(oglrender->bmain, scene, oglrender->sizex, oglrender->sizey, 100.0f);
 
-		ibuf = give_ibuf_seq(context, CFRA, chanshown);
+		ibuf = BKE_sequencer_give_ibuf(context, CFRA, chanshown);
 
 		if (ibuf) {
 			BLI_assert((oglrender->sizex == ibuf->x) && (oglrender->sizey == ibuf->y));
@@ -309,7 +309,7 @@ static int screen_opengl_render_init(bContext *C, wmOperator *op)
 	}
 
 	/* only one render job at a time */
-	if (WM_jobs_test(CTX_wm_manager(C), scene))
+	if (WM_jobs_test(CTX_wm_manager(C), scene, WM_JOB_TYPE_RENDER))
 		return 0;
 	
 	if (!is_view_context && scene->camera == NULL) {

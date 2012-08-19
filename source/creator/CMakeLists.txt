@@ -475,15 +475,15 @@ elseif(WIN32)
 	endif()
 
 	if(WITH_PYTHON)
-		set_lib_path(PYLIB "python/lib")
+		set_lib_path(PYLIB "python")
 		install(
-			FILES ${PYLIB}/python32.dll
+			FILES ${PYLIB}/lib/python32.dll
 			DESTINATION ${TARGETDIR}
 			CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
 		)
 
 		install(
-			FILES ${PYLIB}/python32_d.dll
+			FILES ${PYLIB}/lib/python32_d.dll
 			DESTINATION ${TARGETDIR}
 			CONFIGURATIONS Debug
 		)
@@ -627,10 +627,10 @@ elseif(WIN32)
 
 	if(WITH_OPENIMAGEIO)
 		if(NOT MINGW)
-			set_lib_path(OIIOBIN "openimageio/bin")
+			set_lib_path(OIIOBIN "openimageio")
 			install(
 				FILES
-					${OIIOBIN}/OpenImageIO.dll
+					${OIIOBIN}/bin/OpenImageIO.dll
 				DESTINATION ${TARGETDIR}
 			)
 		endif()
@@ -860,10 +860,8 @@ endif()
 		bf_imbuf_dds
 		bf_collada
 		bf_intern_bsp
-		bf_intern_bop
 		bf_intern_decimate
 		bf_intern_elbeem
-		bf_intern_ik
 		bf_intern_memutil
 		bf_intern_guardedalloc
 		bf_intern_ctr
@@ -933,6 +931,10 @@ endif()
 
 	if(WITH_CXX_GUARDEDALLOC)
 		list(APPEND BLENDER_SORTED_LIBS bf_intern_guardedalloc_cpp)
+	endif()
+
+	if(WITH_IK_SOLVER)
+		list_insert_after(BLENDER_SORTED_LIBS "bf_intern_elbeem" "bf_intern_iksolver")
 	endif()
 
 	if(WITH_IK_ITASC)

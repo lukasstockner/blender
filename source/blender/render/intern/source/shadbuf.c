@@ -848,7 +848,7 @@ void threaded_makeshadowbufs(Render *re)
 	int (*test_break)(void *);
 
 	/* count number of threads to use */
-	if (G.rendering) {
+	if (G.is_rendering) {
 		for (lar=re->lampren.first; lar; lar= lar->next)
 			if (lar->shb)
 				totthread++;
@@ -1496,7 +1496,7 @@ static void bound_rectf(rctf *box, const float v1[2])
 static void isb_bsp_split_init(ISBBranch *root, MemArena *mem, int level)
 {
 	
-	/* if level > 0 we create new branches and go deeper*/
+	/* if level > 0 we create new branches and go deeper */
 	if (level > 0) {
 		ISBBranch *left, *right;
 		int i;

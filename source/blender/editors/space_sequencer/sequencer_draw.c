@@ -374,7 +374,7 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, const float handsize_cla
 	
 	/* draw! */
 	if (seq->type < SEQ_TYPE_EFFECT || 
-	    get_sequence_effect_num_inputs(seq->type) == 0)
+	    BKE_sequence_effect_get_num_inputs(seq->type) == 0)
 	{
 		glEnable(GL_BLEND);
 		
@@ -530,7 +530,7 @@ static void draw_seq_text(View2D *v2d, Sequence *seq, float x1, float x2, float 
 
 	/* note, all strings should include 'name' */
 	if (name[0] == '\0')
-		name = give_seqname(seq);
+		name = BKE_sequence_give_name(seq);
 
 	if (seq->type == SEQ_TYPE_META || seq->type == SEQ_TYPE_ADJUSTMENT) {
 		BLI_snprintf(str, sizeof(str), "%s | %d", name, seq->len);
@@ -685,7 +685,7 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 	const float handsize_clamped = draw_seq_handle_size_get_clamped(seq, pixelx);
 
 	/* we need to know if this is a single image/color or not for drawing */
-	is_single_image = (char)seq_single_check(seq);
+	is_single_image = (char)BKE_sequence_single_check(seq);
 	
 	/* body */
 	x1 = (seq->startstill) ? seq->start : seq->startdisp;
@@ -700,7 +700,9 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 	
 	/* draw the main strip body */
 	if (is_single_image) {  /* single image */
-		draw_shadedstrip(seq, background_col, seq_tx_get_final_left(seq, 0), y1, seq_tx_get_final_right(seq, 0), y2);
+		draw_shadedstrip(seq, background_col,
+		                 BKE_sequence_tx_get_final_left(seq, 0), y1,
+		                 BKE_sequence_tx_get_final_right(seq, 0), y2);
 	}
 	else {  /* normal operation */
 		draw_shadedstrip(seq, background_col, x1, y1, x2, y2);
@@ -739,6 +741,17 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 
 		glDisable(GL_POLYGON_STIPPLE);
 		glDisable(GL_BLEND);
+	}
+
+	if (!BKE_seqence_is_valid_check(seq)) {
+		glEnable(GL_POLYGON_STIPPLE);
+
+		/* panic! */
+		glColor4ub(255, 0, 0, 255);
+		glPolygonStipple(stipple_diag_stripes_pos);
+		glRectf(x1, y1, x2, y2);
+
+		glDisable(GL_POLYGON_STIPPLE);
 	}
 
 	get_seq_color3ubv(scene, seq, col);
@@ -798,7 +811,7 @@ static void UNUSED_FUNCTION(set_special_seq_update) (int val)
 	else special_seq_update = NULL;
 }
 
-void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq, int cfra, int frame_ofs)
+void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq, int cfra, int frame_ofs, int draw_overlay)
 {
 	struct Main *bmain = CTX_data_main(C);
 	struct ImBuf *ibuf = NULL;
@@ -836,7 +849,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		viewrecty /= proxy_size / 100.0f;
 	}
 
-	if (frame_ofs == 0) {
+	if (!draw_overlay || sseq->overlay_type == SEQ_DRAW_OVERLAY_REFERENCE) {
 		UI_GetThemeColor3fv(TH_SEQ_PREVIEW, col);
 		glClearColor(col[0], col[1], col[2], 0.0);
 		glClear(GL_COLOR_BUFFER_BIT);
@@ -849,17 +862,17 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	UI_view2d_curRect_validate(v2d);
 
 	/* only initialize the preview if a render is in progress */
-	if (G.rendering)
+	if (G.is_rendering)
 		return;
 
-	context = seq_new_render_data(bmain, scene, rectx, recty, proxy_size);
+	context = BKE_sequencer_new_render_data(bmain, scene, rectx, recty, proxy_size);
 
 	if (special_seq_update)
-		ibuf = give_ibuf_seq_direct(context, cfra + frame_ofs, special_seq_update);
+		ibuf = BKE_sequencer_give_ibuf_direct(context, cfra + frame_ofs, special_seq_update);
 	else if (!U.prefetchframes) // XXX || (G.f & G_PLAYANIM) == 0) {
-		ibuf = give_ibuf_seq(context, cfra + frame_ofs, sseq->chanshown);
+		ibuf = BKE_sequencer_give_ibuf(context, cfra + frame_ofs, sseq->chanshown);
 	else
-		ibuf = give_ibuf_seq_threaded(context, cfra + frame_ofs, sseq->chanshown);
+		ibuf = BKE_sequencer_give_ibuf_threaded(context, cfra + frame_ofs, sseq->chanshown);
 	
 	if (ibuf == NULL)
 		return;
@@ -913,17 +926,25 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, ibuf->x, ibuf->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect);
 	glBegin(GL_QUADS);
 
-	if (frame_ofs) {
-		rctf tot_clip;
-		tot_clip.xmin = v2d->tot.xmin + (ABS(v2d->tot.xmax - v2d->tot.xmin) * scene->ed->over_border.xmin);
-		tot_clip.ymin = v2d->tot.ymin + (ABS(v2d->tot.ymax - v2d->tot.ymin) * scene->ed->over_border.ymin);
-		tot_clip.xmax = v2d->tot.xmin + (ABS(v2d->tot.xmax - v2d->tot.xmin) * scene->ed->over_border.xmax);
-		tot_clip.ymax = v2d->tot.ymin + (ABS(v2d->tot.ymax - v2d->tot.ymin) * scene->ed->over_border.ymax);
+	if (draw_overlay) {
+		if (sseq->overlay_type == SEQ_DRAW_OVERLAY_RECT) {
+			rctf tot_clip;
+			tot_clip.xmin = v2d->tot.xmin + (ABS(v2d->tot.xmax - v2d->tot.xmin) * scene->ed->over_border.xmin);
+			tot_clip.ymin = v2d->tot.ymin + (ABS(v2d->tot.ymax - v2d->tot.ymin) * scene->ed->over_border.ymin);
+			tot_clip.xmax = v2d->tot.xmin + (ABS(v2d->tot.xmax - v2d->tot.xmin) * scene->ed->over_border.xmax);
+			tot_clip.ymax = v2d->tot.ymin + (ABS(v2d->tot.ymax - v2d->tot.ymin) * scene->ed->over_border.ymax);
 
-		glTexCoord2f(scene->ed->over_border.xmin, scene->ed->over_border.ymin); glVertex2f(tot_clip.xmin, tot_clip.ymin);
-		glTexCoord2f(scene->ed->over_border.xmin, scene->ed->over_border.ymax); glVertex2f(tot_clip.xmin, tot_clip.ymax);
-		glTexCoord2f(scene->ed->over_border.xmax, scene->ed->over_border.ymax); glVertex2f(tot_clip.xmax, tot_clip.ymax);
-		glTexCoord2f(scene->ed->over_border.xmax, scene->ed->over_border.ymin); glVertex2f(tot_clip.xmax, tot_clip.ymin);
+			glTexCoord2f(scene->ed->over_border.xmin, scene->ed->over_border.ymin); glVertex2f(tot_clip.xmin, tot_clip.ymin);
+			glTexCoord2f(scene->ed->over_border.xmin, scene->ed->over_border.ymax); glVertex2f(tot_clip.xmin, tot_clip.ymax);
+			glTexCoord2f(scene->ed->over_border.xmax, scene->ed->over_border.ymax); glVertex2f(tot_clip.xmax, tot_clip.ymax);
+			glTexCoord2f(scene->ed->over_border.xmax, scene->ed->over_border.ymin); glVertex2f(tot_clip.xmax, tot_clip.ymin);
+		}
+		else if (sseq->overlay_type == SEQ_DRAW_OVERLAY_REFERENCE) {
+			glTexCoord2f(0.0f, 0.0f); glVertex2f(v2d->tot.xmin, v2d->tot.ymin);
+			glTexCoord2f(0.0f, 1.0f); glVertex2f(v2d->tot.xmin, v2d->tot.ymax);
+			glTexCoord2f(1.0f, 1.0f); glVertex2f(v2d->tot.xmax, v2d->tot.ymax);
+			glTexCoord2f(1.0f, 0.0f); glVertex2f(v2d->tot.xmax, v2d->tot.ymin);
+		}
 	}
 	else {
 		glTexCoord2f(0.0f, 0.0f); glVertex2f(v2d->tot.xmin, v2d->tot.ymin);

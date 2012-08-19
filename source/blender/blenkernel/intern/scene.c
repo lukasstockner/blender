@@ -237,7 +237,7 @@ Scene *BKE_scene_copy(Scene *sce, int type)
 		if (sce->ed) {
 			scen->ed = MEM_callocN(sizeof(Editing), "addseq");
 			scen->ed->seqbasep = &scen->ed->seqbase;
-			seqbase_dupli_recursive(sce, scen, &scen->ed->seqbase, &sce->ed->seqbase, SEQ_DUPE_ALL);
+			BKE_sequence_base_dupli_recursive(sce, scen, &scen->ed->seqbase, &sce->ed->seqbase, SEQ_DUPE_ALL);
 		}
 	}
 
@@ -550,14 +550,7 @@ Scene *BKE_scene_add(const char *name)
 
 Base *BKE_scene_base_find(Scene *scene, Object *ob)
 {
-	Base *base;
-	
-	base = scene->base.first;
-	while (base) {
-		if (base->object == ob) return base;
-		base = base->next;
-	}
-	return NULL;
+	return BLI_findptr(&scene->base, ob, offsetof(Base, object));
 }
 
 void BKE_scene_set_background(Main *bmain, Scene *scene)
@@ -582,10 +575,10 @@ void BKE_scene_set_background(Main *bmain, Scene *scene)
 
 	/* group flags again */
 	for (group = bmain->group.first; group; group = group->id.next) {
-		go = group->gobject.first;
-		while (go) {
-			if (go->ob) go->ob->flag |= OB_FROMGROUP;
-			go = go->next;
+		for (go = group->gobject.first; go; go = go->next) {
+			if (go->ob) {
+				go->ob->flag |= OB_FROMGROUP;
+			}
 		}
 	}
 
@@ -639,7 +632,7 @@ void BKE_scene_unlink(Main *bmain, Scene *sce, Scene *newsce)
 			sce1->set = NULL;
 	
 	/* check all sequences */
-	clear_scene_in_allseqs(bmain, sce);
+	BKE_sequencer_clear_scene_in_allseqs(bmain, sce);
 
 	/* check render layer nodes in other scenes */
 	clear_scene_in_nodes(bmain, sce);

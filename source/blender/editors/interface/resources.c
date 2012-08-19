@@ -643,9 +643,7 @@ void ui_theme_init_default(void)
 	bTheme *btheme;
 	
 	/* we search for the theme with name Default */
-	for (btheme = U.themes.first; btheme; btheme = btheme->next) {
-		if (strcmp("Default", btheme->name) == 0) break;
-	}
+	btheme = BLI_findstring(&U.themes, "Default", offsetof(bTheme, name));
 	
 	if (btheme == NULL) {
 		btheme = MEM_callocN(sizeof(bTheme), "theme");
@@ -1949,9 +1947,6 @@ void init_userdef_do_versions(void)
 	}
 	if (U.dbl_click_time == 0) {
 		U.dbl_click_time = 350;
-	}
-	if (U.anim_player_preset == 0) {
-		U.anim_player_preset = 1;
 	}
 	if (U.scrcastfps == 0) {
 		U.scrcastfps = 10;

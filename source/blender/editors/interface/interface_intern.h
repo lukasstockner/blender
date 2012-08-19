@@ -158,7 +158,7 @@ struct uiBut {
 	char strdata[UI_MAX_NAME_STR];
 	char drawstr[UI_MAX_DRAW_STR];
 	
-	float x1, y1, x2, y2;
+	rctf rect;
 
 	char *poin;
 	float hardmin, hardmax, softmin, softmax;
@@ -176,7 +176,7 @@ struct uiBut {
 
 	struct bContextStore *context;
 
-	/* not ysed yet, was used in 2.4x for ui_draw_pulldown_round & friends */
+	/* not used yet, was used in 2.4x for ui_draw_pulldown_round & friends */
 #if 0
 	void (*embossfunc)(int, int, float, float, float, float, float, int);
 	void (*sliderfunc)(int, float, float, float, float, float, float, int);
@@ -264,8 +264,8 @@ struct uiBlock {
 	char name[UI_MAX_NAME_STR];
 	
 	float winmat[4][4];
-	
-	float minx, miny, maxx, maxy;
+
+	rctf rect;
 	float aspect;
 
 	int puphash;  /* popup menu hash for memory */

@@ -88,7 +88,7 @@ void GaussianBokehBlurOperation::updateGauss()
 		n = (2 * this->m_radx + 1) * (2 * this->m_rady + 1);
 	
 		/* create a full filter image */
-		ddgauss = new float[n];
+		ddgauss = (float *)MEM_mallocN(sizeof(float) * n, __func__);
 		dgauss = ddgauss;
 		val = 0.0f;
 		for (j = -this->m_rady; j <= this->m_rady; j++) {
@@ -103,8 +103,9 @@ void GaussianBokehBlurOperation::updateGauss()
 		}
 		if (val != 0.0f) {
 			val = 1.0f / val;
-			for (j = n - 1; j >= 0; j--)
+			for (j = n - 1; j >= 0; j--) {
 				ddgauss[j] *= val;
+			}
 		}
 		else ddgauss[4] = 1.0f;
 		
@@ -112,7 +113,7 @@ void GaussianBokehBlurOperation::updateGauss()
 	}
 }
 
-void GaussianBokehBlurOperation::executePixel(float *color, int x, int y, void *data)
+void GaussianBokehBlurOperation::executePixel(float output[4], int x, int y, void *data)
 {
 	float tempColor[4];
 	tempColor[0] = 0;
@@ -152,13 +153,13 @@ void GaussianBokehBlurOperation::executePixel(float *color, int x, int y, void *
 		}
 	}
 
-	mul_v4_v4fl(color, tempColor, 1.0f / multiplier_accum);
+	mul_v4_v4fl(output, tempColor, 1.0f / multiplier_accum);
 }
 
 void GaussianBokehBlurOperation::deinitExecution()
 {
 	BlurBaseOperation::deinitExecution();
-	delete [] this->m_gausstab;
+	MEM_freeN(this->m_gausstab);
 	this->m_gausstab = NULL;
 
 	deinitMutex();
@@ -257,14 +258,15 @@ void GaussianBlurReferenceOperation::updateGauss()
 {
 	int i;
 	int x = MAX2(m_radx, m_rady);
-	this->m_maintabs = (float**)MEM_mallocN(x * sizeof(float *), "gauss array");
-	for (i = 0; i < x; i++)
+	this->m_maintabs = (float **)MEM_mallocN(x * sizeof(float *), "gauss array");
+	for (i = 0; i < x; i++) {
 		m_maintabs[i] = make_gausstab(i + 1);
+	}
 }
 
-void GaussianBlurReferenceOperation::executePixel(float *color, int x, int y, void *data)
+void GaussianBlurReferenceOperation::executePixel(float output[4], int x, int y, void *data)
 {
-	MemoryBuffer *memorybuffer = (MemoryBuffer*)data;
+	MemoryBuffer *memorybuffer = (MemoryBuffer *)data;
 	float *buffer = memorybuffer->getBuffer();
 	float *gausstabx, *gausstabcenty;
 	float *gausstaby, *gausstabcentx;
@@ -285,8 +287,9 @@ void GaussianBlurReferenceOperation::executePixel(float *color, int x, int y, vo
 	else if (refrady < 1) refrady = 1;
 
 	if (refradx == 1 && refrady == 1) {
-		memorybuffer->readNoCheck(color, x, y);
-	} else {
+		memorybuffer->readNoCheck(output, x, y);
+	}
+	else {
 		int minxr = x - refradx < 0 ? -x : -refradx;
 		int maxxr = x + refradx > imgx ? imgx - x : refradx;
 		int minyr = y - refrady < 0 ? -y : -refrady;
@@ -313,10 +316,10 @@ void GaussianBlurReferenceOperation::executePixel(float *color, int x, int y, vo
 			}
 		}
 		sum = 1.0f / sum;
-		color[0] = rval * sum;
-		color[1] = gval * sum;
-		color[2] = bval * sum;
-		color[3] = aval * sum;
+		output[0] = rval * sum;
+		output[1] = gval * sum;
+		output[2] = bval * sum;
+		output[3] = aval * sum;
 	}
 
 }
@@ -325,8 +328,9 @@ void GaussianBlurReferenceOperation::deinitExecution()
 {
 	int x, i;
 	x = MAX2(m_radx, m_rady);
-	for (i = 0; i < x; i++)
-		delete []m_maintabs[i];
+	for (i = 0; i < x; i++) {
+		MEM_freeN(m_maintabs[i]);
+	}
 	MEM_freeN(m_maintabs);
 	BlurBaseOperation::deinitExecution();
 }

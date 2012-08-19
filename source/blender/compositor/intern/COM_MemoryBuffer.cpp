@@ -75,7 +75,7 @@ float *MemoryBuffer::convertToValueBuffer()
 	const unsigned int size = this->determineBufferSize();
 	unsigned int i;
 
-	float *result = new float[size];
+	float *result = (float *)MEM_mallocN(sizeof(float) * size, __func__);
 
 	const float *fp_src = this->m_buffer;
 	float       *fp_dst = result;
@@ -105,13 +105,24 @@ float MemoryBuffer::getMaximumValue()
 	return result;
 }
 
-float MemoryBuffer::getMaximumValue(rcti* rect)
+float MemoryBuffer::getMaximumValue(rcti *rect)
 {
-	MemoryBuffer *temp = new MemoryBuffer(NULL, rect);
-	temp->copyContentFrom(this);
-	float result = temp->getMaximumValue();
-	delete temp;
-	return result;
+	rcti rect_clamp;
+
+	/* first clamp the rect by the bounds or we get un-initialized values */
+	BLI_rcti_isect(rect, &this->m_rect, &rect_clamp);
+
+	if (!BLI_rcti_is_empty(&rect_clamp)) {
+		MemoryBuffer *temp = new MemoryBuffer(NULL, &rect_clamp);
+		temp->copyContentFrom(this);
+		float result = temp->getMaximumValue();
+		delete temp;
+		return result;
+	}
+	else {
+		BLI_assert(0);
+		return 0.0f;
+	}
 }
 
 MemoryBuffer::~MemoryBuffer()
@@ -125,6 +136,7 @@ MemoryBuffer::~MemoryBuffer()
 void MemoryBuffer::copyContentFrom(MemoryBuffer *otherBuffer)
 {
 	if (!otherBuffer) {
+		BLI_assert(0);
 		return;
 	}
 	unsigned int otherY;
@@ -236,7 +248,7 @@ static void imp2radangle(float A, float B, float C, float F, float *a, float *b,
 			*b = sqrtf(F2 / d);
 			*ecc = *a / *b;
 		}
-		// incr theta by 0.5*pi (angle of major axis)
+		/* incr theta by 0.5 * pi (angle of major axis) */
 		*th = 0.5f * (atan2f(B, AmC) + (float)M_PI);
 	}
 }
@@ -247,7 +259,10 @@ float clipuv(float x, float limit)
 	return x;
 }
 
-void MemoryBuffer::readEWA(float result[4], float fx, float fy, float dx, float dy)
+/**
+ * \note \a sampler at the moment is either 'COM_PS_NEAREST' or not, other values won't matter.
+ */
+void MemoryBuffer::readEWA(float result[4], float fx, float fy, float dx, float dy, PixelSampler sampler)
 {
 	const int width = this->getWidth(), height = this->getHeight();
 	
@@ -268,7 +283,14 @@ void MemoryBuffer::readEWA(float result[4], float fx, float fy, float dx, float 
 	// Use a different radius based on interpolation switch, just enough to anti-alias when interpolation is off,
 	// and slightly larger to make result a bit smoother than bilinear interpolation when interpolation is on
 	// (minimum values: const float rmin = intpol ? 1.f : 0.5f;)
-	const float rmin = 1.5625f / ff2;
+
+	/* note: 0.765625f is too sharp, 1.0 will not blur with an exact pixel sample
+	 * useful to avoid blurring when there is no distortion */
+#if 0
+	const float rmin = ((sampler != COM_PS_NEAREST) ? 1.5625f : 0.765625f) / ff2;
+#else
+	const float rmin = ((sampler != COM_PS_NEAREST) ? 1.5625f : 1.0f     ) / ff2;
+#endif
 	imp2radangle(A, B, C, F, &a, &b, &th, &ecc);
 	if ((b2 = b * b) < rmin) {
 		if ((a2 = a * a) < rmin) {

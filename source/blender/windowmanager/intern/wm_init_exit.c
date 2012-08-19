@@ -58,6 +58,7 @@
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_mball.h"
+#include "BKE_node.h"
 #include "BKE_report.h"
 
 #include "BKE_packedFile.h"
@@ -112,6 +113,7 @@
 
 #include "BKE_depsgraph.h"
 #include "BKE_sound.h"
+#include "COM_compositor.h"
 
 static void wm_init_reports(bContext *C)
 {
@@ -151,7 +153,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 	BLI_init_srgb_conversion();
 
 	/* get the default database, plus a wm */
-	WM_read_homefile(C, NULL, G.factory_startup);
+	WM_homefile_read(C, NULL, G.factory_startup);
 
 	BLF_lang_set(NULL);
 
@@ -160,7 +162,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 	 * initializing space types and other internal data.
 	 *
 	 * However cant redo this at the moment. Solution is to load python
-	 * before WM_read_homefile() or make py-drivers check if python is running.
+	 * before WM_homefile_read() or make py-drivers check if python is running.
 	 * Will try fix when the crash can be repeated. - campbell. */
 
 #ifdef WITH_PYTHON
@@ -210,7 +212,6 @@ void WM_init(bContext *C, int argc, const char **argv)
 #ifdef WITH_COMPOSITOR
 	if (1) {
 		extern void *COM_linker_hack;
-		extern void *COM_execute;
 		COM_linker_hack = COM_execute;
 	}
 #endif
@@ -334,10 +335,10 @@ static void free_openrecent(void)
 /* bad stuff*/
 
 // XXX copy/paste buffer stuff...
-extern void free_anim_copybuf(void); 
-extern void free_anim_drivers_copybuf(void); 
-extern void free_fmodifiers_copybuf(void); 
-extern void free_posebuf(void); 
+extern void free_anim_copybuf(void);
+extern void free_anim_drivers_copybuf(void);
+extern void free_fmodifiers_copybuf(void);
+extern void free_posebuf(void);
 
 #if WIN32
 /* Read console events until there is a key event.  Also returns on any error. */
@@ -346,7 +347,7 @@ static void wait_for_console_key(void)
 	HANDLE hConsoleInput = GetStdHandle(STD_INPUT_HANDLE);
 
 	if (!ELEM(hConsoleInput, NULL, INVALID_HANDLE_VALUE) && FlushConsoleInputBuffer(hConsoleInput)) {
-		for(;;) {
+		for (;;) {
 			INPUT_RECORD buffer;
 			DWORD ignored;
 
@@ -366,19 +367,19 @@ static void wait_for_console_key(void)
 /* note, doesnt run exit() call WM_exit() for that */
 void WM_exit_ext(bContext *C, const short do_python)
 {
-	wmWindow *win;
+	wmWindowManager *wm = C ? CTX_wm_manager(C) : NULL;
 
 	sound_exit();
-
 
 	/* first wrap up running stuff, we assume only the active WM is running */
 	/* modal handlers are on window level freed, others too? */
 	/* note; same code copied in wm_files.c */
-	if (C && CTX_wm_manager(C)) {
-		
-		WM_jobs_stop_all(CTX_wm_manager(C));
-		
-		for (win = CTX_wm_manager(C)->windows.first; win; win = win->next) {
+	if (C && wm) {
+		wmWindow *win;
+
+		WM_jobs_stop_all(wm);
+
+		for (win = wm->windows.first; win; win = win->next) {
 			
 			CTX_wm_window_set(C, win);  /* needed by operator close callbacks */
 			WM_event_remove_handlers(C, &win->handlers);
@@ -407,18 +408,23 @@ void WM_exit_ext(bContext *C, const short do_python)
 	
 	ED_preview_free_dbase();  /* frees a Main dbase, before free_blender! */
 
-	if (C && CTX_wm_manager(C))
+	if (C && wm)
 		wm_free_reports(C);  /* before free_blender! - since the ListBases get freed there */
 
-	seq_free_clipboard(); /* sequencer.c */
+	BKE_sequencer_free_clipboard(); /* sequencer.c */
 	BKE_tracking_clipboard_free();
 		
+#ifdef WITH_COMPOSITOR
+	COM_deinitialize();
+#endif
+	
 	free_blender();  /* blender.c, does entire library and spacetypes */
 //	free_matcopybuf();
 	free_anim_copybuf();
 	free_anim_drivers_copybuf();
 	free_fmodifiers_copybuf();
 	free_posebuf();
+	BKE_node_clipboard_clear();
 
 	BLF_exit();
 
@@ -495,5 +501,5 @@ void WM_exit_ext(bContext *C, const short do_python)
 void WM_exit(bContext *C)
 {
 	WM_exit_ext(C, 1);
-	exit(G.afbreek == 1);
+	exit(G.is_break == TRUE);
 }

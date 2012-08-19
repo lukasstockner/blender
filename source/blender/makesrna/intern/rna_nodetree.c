@@ -324,6 +324,20 @@ static char *rna_NodeSocket_path(PointerRNA *ptr)
 	return NULL;
 }
 
+static void rna_NodeSocket_hide_set(PointerRNA *ptr, int value)
+{
+	bNodeSocket *sock = (bNodeSocket *)ptr->data;
+	
+	/* don't hide linked sockets */
+	if (sock->flag & SOCK_IN_USE)
+		return;
+	
+	if (value)
+		sock->flag |= SOCK_HIDDEN;
+	else
+		sock->flag &= ~SOCK_HIDDEN;
+}
+
 /* Button Set Funcs for Matte Nodes */
 static void rna_Matte_t1_set(PointerRNA *ptr, float value)
 {
@@ -437,6 +451,15 @@ static void rna_NodeGroup_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 	ntreeUpdateTree((bNodeTree *)node->id);
 	
 	node_update(bmain, scene, ntree, node);
+}
+
+static int rna_NodeGroup_node_tree_poll(PointerRNA *ptr, const PointerRNA value)
+{
+	bNodeTree *ntree = (bNodeTree *)ptr->id.data;
+	bNodeTree *ngroup = (bNodeTree *)value.data;
+	
+	/* only allow node trees of the same type as the group node's tree */
+	return (ngroup->type == ntree->type);
 }
 
 static void rna_Node_name_set(PointerRNA *ptr, const char *value)
@@ -1129,6 +1152,7 @@ static void def_group(StructRNA *srna)
 	prop = RNA_def_property(srna, "node_tree", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "id");
 	RNA_def_property_struct_type(prop, "NodeTree");
+	RNA_def_property_pointer_funcs(prop, NULL, NULL, NULL, "rna_NodeGroup_node_tree_poll");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Node Tree", "");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeGroup_update");
@@ -1713,9 +1737,10 @@ static void def_cmp_blur(StructRNA *srna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
-	prop = RNA_def_property(srna, "use_reference", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "custom1", CMP_NODEFLAG_BLUR_REFERENCE);
-	RNA_def_property_ui_text(prop, "Reference", "Use size socket as a reference image");
+	/* duplicated in def_cmp_bokehblur */
+	prop = RNA_def_property(srna, "use_variable_size", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "custom1", CMP_NODEFLAG_BLUR_VARIABLE_SIZE);
+	RNA_def_property_ui_text(prop, "Variable Size", "Support variable blue per-pixel when using an image for size input");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
 	RNA_def_struct_sdna_from(srna, "NodeBlurData", "storage");
@@ -2100,6 +2125,26 @@ static void def_cmp_dilate_erode(StructRNA *srna)
 	RNA_def_property_enum_sdna(prop, NULL, "falloff");
 	RNA_def_property_enum_items(prop, proportional_falloff_curve_only_items);
 	RNA_def_property_ui_text(prop, "Falloff", "Falloff type the feather");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_cmp_inpaint(StructRNA *srna)
+{
+	PropertyRNA *prop;
+
+/*
+	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
+
+	RNA_def_property_enum_sdna(prop, NULL, "custom1");
+	RNA_def_property_enum_items(prop, type_items);
+	RNA_def_property_ui_text(prop, "Type", "Type of inpaint algorithm");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+*/
+	
+	prop = RNA_def_property(srna, "distance", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "custom2");
+	RNA_def_property_range(prop, 1, 10000);
+	RNA_def_property_ui_text(prop, "Distance", "Distance to inpaint (number of iterations)");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
@@ -3324,6 +3369,14 @@ static void def_cmp_ellipsemask(StructRNA *srna)
 static void def_cmp_bokehblur(StructRNA *srna)
 {
 	PropertyRNA *prop;
+
+	/* duplicated in def_cmp_blur */
+	prop = RNA_def_property(srna, "use_variable_size", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "custom1", CMP_NODEFLAG_BLUR_VARIABLE_SIZE);
+	RNA_def_property_ui_text(prop, "Variable Size", "Support variable blue per-pixel when using an image for size input");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+#if 0
 	prop = RNA_def_property(srna, "f_stop", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "custom3");
 	RNA_def_property_range(prop, 0.0f, 128.0f);
@@ -3331,7 +3384,8 @@ static void def_cmp_bokehblur(StructRNA *srna)
 	                         "Amount of focal blur, 128=infinity=perfect focus, half the value doubles "
 	                         "the blur radius");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-	
+#endif
+
 	prop = RNA_def_property(srna, "blur_max", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "custom4");
 	RNA_def_property_range(prop, 0.0f, 10000.0f);
@@ -4065,6 +4119,17 @@ static void rna_def_node_socket(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "NodeSocket");
 	RNA_def_property_ui_text(prop, "Group Socket",
 	                         "For group nodes, the group input or output socket this corresponds to");
+
+	prop = RNA_def_property(srna, "hide", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", SOCK_HIDDEN);
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_NodeSocket_hide_set");
+	RNA_def_property_ui_text(prop, "Hide", "Hide the socket");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, NULL);
+
+	prop = RNA_def_property(srna, "is_linked", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", SOCK_IN_USE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Linked", "True if the socket is connected");
 
 	prop = RNA_def_property(srna, "show_expanded", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", SOCK_COLLAPSED);

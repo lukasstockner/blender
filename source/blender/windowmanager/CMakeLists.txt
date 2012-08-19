@@ -36,6 +36,7 @@ set(INC
 	../makesdna
 	../makesrna
 	../nodes
+	../compositor
 	../render/extern/include
 	../../gameengine/BlenderRoutines
 	../../../intern/elbeem/extern
@@ -53,6 +54,7 @@ set(INC_SYS
 
 set(SRC
 	intern/wm.c
+	intern/wm_playanim.c
 	intern/wm_cursors.c
 	intern/wm_dragdrop.c
 	intern/wm_draw.c

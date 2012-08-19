@@ -437,10 +437,10 @@ static int outside_group_rect(SpaceNode *snode)
 {
 	bNode *gnode = node_tree_get_editgroup(snode->nodetree);
 	if (gnode) {
-		return (snode->mx <  gnode->totr.xmin ||
-		        snode->mx >= gnode->totr.xmax ||
-		        snode->my <  gnode->totr.ymin ||
-		        snode->my >= gnode->totr.ymax);
+		return (snode->cursor[0] <  gnode->totr.xmin ||
+		        snode->cursor[0] >= gnode->totr.xmax ||
+		        snode->cursor[1] <  gnode->totr.ymin ||
+		        snode->cursor[1] >= gnode->totr.ymax);
 	}
 	return 0;
 }
@@ -462,7 +462,7 @@ static int node_link_modal(bContext *C, wmOperator *op, wmEvent *event)
 	in_out = nldrag->in_out;
 
 	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1],
-	                         &snode->mx, &snode->my);
+	                         &snode->cursor[0], &snode->cursor[1]);
 
 	switch (event->type) {
 		case MOUSEMOVE:
@@ -708,7 +708,7 @@ static int node_link_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	int detach = RNA_boolean_get(op->ptr, "detach");
 
 	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1],
-	                         &snode->mx, &snode->my);
+	                         &snode->cursor[0], &snode->cursor[1]);
 
 	ED_preview_kill_jobs(C);
 
@@ -836,24 +836,35 @@ static int cut_links_exec(bContext *C, wmOperator *op)
 	RNA_END;
 
 	if (i > 1) {
+		int found = FALSE;
 		bNodeLink *link, *next;
-
-		ED_preview_kill_jobs(C);
 
 		for (link = snode->edittree->links.first; link; link = next) {
 			next = link->next;
 
 			if (cut_links_intersect(link, mcoords, i)) {
+
+				if (found == FALSE) {
+					ED_preview_kill_jobs(C);
+					found = TRUE;
+				}
+
 				snode_update(snode, link->tonode);
 				nodeRemLink(snode->edittree, link);
 			}
 		}
 
-		ntreeUpdateTree(snode->edittree);
-		snode_notify(C, snode);
-		snode_dag_update(C, snode);
+		if (found) {
+			ntreeUpdateTree(snode->edittree);
+			snode_notify(C, snode);
+			snode_dag_update(C, snode);
 
-		return OPERATOR_FINISHED;
+			return OPERATOR_FINISHED;
+		}
+		else {
+			return OPERATOR_CANCELLED;
+		}
+
 	}
 
 	return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
@@ -1128,7 +1139,7 @@ static int node_attach_exec(bContext *C, wmOperator *UNUSED(op))
 		/* skip selected, those are the nodes we want to attach */
 		if ((frame->type != NODE_FRAME) || (frame->flag & NODE_SELECT))
 			continue;
-		if (BLI_in_rctf(&frame->totr, snode->mx, snode->my))
+		if (BLI_in_rctf(&frame->totr, snode->cursor[0], snode->cursor[1]))
 			break;
 	}
 	if (frame) {
@@ -1136,17 +1147,26 @@ static int node_attach_exec(bContext *C, wmOperator *UNUSED(op))
 		for (node = ntree->nodes.last; node; node = node->prev) {
 			if (node->flag & NODE_SELECT) {
 				if (node->parent == NULL) {
-					/* attach all unparented nodes */
-					nodeAttachNode(node, frame);
+					/* disallow moving a parent into its child */
+					if (nodeAttachNodeCheck(frame, node) == FALSE) {
+						/* attach all unparented nodes */
+						nodeAttachNode(node, frame);
+					}
 				}
 				else {
 					/* attach nodes which share parent with the frame */
-					for (parent = frame->parent; parent; parent = parent->parent)
-						if (parent == node->parent)
+					for (parent = frame->parent; parent; parent = parent->parent) {
+						if (parent == node->parent) {
 							break;
+						}
+					}
+
 					if (parent) {
-						nodeDetachNode(node);
-						nodeAttachNode(node, frame);
+						/* disallow moving a parent into its child */
+						if (nodeAttachNodeCheck(frame, node) == FALSE) {
+							nodeDetachNode(node);
+							nodeAttachNode(node, frame);
+						}
 					}
 				}
 			}
@@ -1165,7 +1185,7 @@ static int node_attach_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	SpaceNode *snode = CTX_wm_space_node(C);
 
 	/* convert mouse coordinates to v2d space */
-	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &snode->mx, &snode->my);
+	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &snode->cursor[0], &snode->cursor[1]);
 
 	return node_attach_exec(C, op);
 }

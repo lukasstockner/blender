@@ -268,17 +268,12 @@ static int object_modifier_safe_to_delete(Main *bmain, Object *ob,
 static int object_modifier_remove(Main *bmain, Object *ob, ModifierData *md,
                                   int *sort_depsgraph)
 {
-	ModifierData *obmd;
-
 	/* It seems on rapid delete it is possible to
 	 * get called twice on same modifier, so make
 	 * sure it is in list. */
-	for (obmd = ob->modifiers.first; obmd; obmd = obmd->next)
-		if (obmd == md)
-			break;
-
-	if (!obmd)
+	if (BLI_findindex(&ob->modifiers, md) == -1) {
 		return 0;
+	}
 
 	/* special cases */
 	if (md->type == eModifierType_ParticleSystem) {
@@ -341,7 +336,7 @@ int ED_object_modifier_remove(ReportList *reports, Main *bmain, Scene *scene, Ob
 	ok = object_modifier_remove(bmain, ob, md, &sort_depsgraph);
 
 	if (!ok) {
-		BKE_reportf(reports, RPT_ERROR, "Modifier '%s' not in object '%s'", ob->id.name, md->name);
+		BKE_reportf(reports, RPT_ERROR, "Modifier '%s' not in object '%s'", md->name, ob->id.name);
 		return 0;
 	}
 
@@ -1361,7 +1356,8 @@ void OBJECT_OT_multires_external_save(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 
-	WM_operator_properties_filesel(ot, FOLDERFILE | BTXFILE, FILE_SPECIAL, FILE_SAVE, WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
+	WM_operator_properties_filesel(ot, FOLDERFILE | BTXFILE, FILE_SPECIAL, FILE_SAVE,
+	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
 	edit_modifier_properties(ot);
 }
 
@@ -2059,7 +2055,7 @@ static int oceanbake_breakjob(void *UNUSED(customdata))
 	/* this is not nice yet, need to make the jobs list template better 
 	 * for identifying/acting upon various different jobs */
 	/* but for now we'll reuse the render break... */
-	return (G.afbreek);
+	return (G.is_break);
 }
 
 /* called by oceanbake, wmJob sends notifier */
@@ -2082,7 +2078,7 @@ static void oceanbake_startjob(void *customdata, short *stop, short *do_update, 
 	oj->do_update = do_update;
 	oj->progress = progress;
 	
-	G.afbreek = 0;   /* XXX shared with render - replace with job 'stop' switch */
+	G.is_break = FALSE;   /* XXX shared with render - replace with job 'stop' switch */
 	
 	BKE_bake_ocean(oj->ocean, oj->och, oceanbake_update, (void *)oj);
 	
@@ -2113,7 +2109,7 @@ static int ocean_bake_exec(bContext *C, wmOperator *op)
 	int f, cfra, i = 0;
 	int free = RNA_boolean_get(op->ptr, "free");
 	
-	wmJob *steve;
+	wmJob *wm_job;
 	OceanBakeJob *oj;
 	
 	if (!omd)
@@ -2180,17 +2176,18 @@ static int ocean_bake_exec(bContext *C, wmOperator *op)
 	scene->r.cfra = cfra;
 	
 	/* setup job */
-	steve = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "Ocean Simulation", WM_JOB_PROGRESS);
+	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "Ocean Simulation",
+	                     WM_JOB_PROGRESS, WM_JOB_TYPE_OBJECT_SIM_OCEAN);
 	oj = MEM_callocN(sizeof(OceanBakeJob), "ocean bake job");
 	oj->ocean = ocean;
 	oj->och = och;
 	oj->omd = omd;
 	
-	WM_jobs_customdata(steve, oj, oceanbake_free);
-	WM_jobs_timer(steve, 0.1, NC_OBJECT | ND_MODIFIER, NC_OBJECT | ND_MODIFIER);
-	WM_jobs_callbacks(steve, oceanbake_startjob, NULL, NULL, oceanbake_endjob);
+	WM_jobs_customdata_set(wm_job, oj, oceanbake_free);
+	WM_jobs_timer(wm_job, 0.1, NC_OBJECT | ND_MODIFIER, NC_OBJECT | ND_MODIFIER);
+	WM_jobs_callbacks(wm_job, oceanbake_startjob, NULL, NULL, oceanbake_endjob);
 	
-	WM_jobs_start(CTX_wm_manager(C), steve);
+	WM_jobs_start(CTX_wm_manager(C), wm_job);
 	
 	
 	

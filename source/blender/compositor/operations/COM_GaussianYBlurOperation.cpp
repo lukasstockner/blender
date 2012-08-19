@@ -22,6 +22,7 @@
 
 #include "COM_GaussianYBlurOperation.h"
 #include "BLI_math.h"
+#include "MEM_guardedalloc.h"
 
 extern "C" {
 	#include "RE_pipeline.h"
@@ -73,7 +74,7 @@ void GaussianYBlurOperation::updateGauss()
 	}
 }
 
-void GaussianYBlurOperation::executePixel(float *color, int x, int y, void *data)
+void GaussianYBlurOperation::executePixel(float output[4], int x, int y, void *data)
 {
 	float color_accum[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 	float multiplier_accum = 0.0f;
@@ -102,13 +103,13 @@ void GaussianYBlurOperation::executePixel(float *color, int x, int y, void *data
 		madd_v4_v4fl(color_accum, &buffer[bufferindex], multiplier);
 		multiplier_accum += multiplier;
 	}
-	mul_v4_v4fl(color, color_accum, 1.0f / multiplier_accum);
+	mul_v4_v4fl(output, color_accum, 1.0f / multiplier_accum);
 }
 
 void GaussianYBlurOperation::deinitExecution()
 {
 	BlurBaseOperation::deinitExecution();
-	delete [] this->m_gausstab;
+	MEM_freeN(this->m_gausstab);
 	this->m_gausstab = NULL;
 
 	deinitMutex();

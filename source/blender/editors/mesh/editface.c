@@ -502,7 +502,7 @@ void seam_mark_clear_tface(Scene *scene, short mode)
 		BLI_edgehash_free(ehash2, NULL);
 	}
 
-// XXX	if (G.rt == 8)
+// XXX	if (G.debug_value == 8)
 //		unwrap_lscm(1);
 
 	me->drawflag |= ME_DRAWSEAMS;
@@ -521,7 +521,7 @@ int paintface_mouse_select(struct bContext *C, Object *ob, const int mval[2], in
 	if (!facesel_face_pick(C, me, ob, mval, &index, 1))
 		return 0;
 	
-	if (index >= me->totpoly || index < 0)
+	if (index >= me->totpoly)
 		return 0;
 
 	mpoly_sel = me->mpoly + index;

@@ -41,6 +41,7 @@ struct bNodeTree;
 struct bNode;
 struct bNodeTree;
 struct ScrArea;
+struct Scene;
 struct View2D;
 
 typedef enum {
@@ -73,8 +74,13 @@ int  ED_node_select_check(ListBase *lb);
 void ED_node_post_apply_transform(struct bContext *C, struct bNodeTree *ntree);
 void ED_node_set_active(struct Main *bmain, struct bNodeTree *ntree, struct bNode *node);
 
-/* node ops.c */
+void ED_node_composite_job(const bContext *C, struct bNodeTree *nodetree, struct Scene *scene_owner);
+
+/* node_ops.c */
 void ED_operatormacros_node(void);
+
+/* node_view.c */
+int ED_space_node_color_sample(struct SpaceNode *snode, struct ARegion *ar, int mval[2], float r_col[3]);
 
 #endif /* __ED_NODE_H__ */
 

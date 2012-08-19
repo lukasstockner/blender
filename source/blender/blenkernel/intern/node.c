@@ -592,9 +592,25 @@ void nodeFromView(bNode *node, float x, float y, float *rx, float *ry)
 	}
 }
 
+int nodeAttachNodeCheck(bNode *node, bNode *parent)
+{
+	bNode *parent_recurse;
+	for (parent_recurse = node; parent_recurse; parent_recurse = parent_recurse->parent) {
+		if (parent_recurse == parent) {
+			return TRUE;
+		}
+	}
+
+	return FALSE;
+}
+
 void nodeAttachNode(bNode *node, bNode *parent)
 {
 	float locx, locy;
+
+	BLI_assert(parent->type == NODE_FRAME);
+	BLI_assert(nodeAttachNodeCheck(parent, node) == FALSE);
+
 	nodeToView(node, 0.0f, 0.0f, &locx, &locy);
 	
 	node->parent = parent;
@@ -607,6 +623,9 @@ void nodeDetachNode(struct bNode *node)
 	float locx, locy;
 	
 	if (node->parent) {
+
+		BLI_assert(node->parent->type == NODE_FRAME);
+
 		/* transform to view space */
 		nodeToView(node, 0.0f, 0.0f, &locx, &locy);
 		node->locx = locx;
@@ -1409,46 +1428,57 @@ void nodeSocketSetType(bNodeSocket *sock, int type)
 typedef struct bNodeClipboard {
 	ListBase nodes;
 	ListBase links;
+	int type;
 } bNodeClipboard;
 
 bNodeClipboard node_clipboard;
 
-void nodeClipboardClear(void)
+void BKE_node_clipboard_init(struct bNodeTree *ntree)
+{
+	node_clipboard.type = ntree->type;
+}
+
+void BKE_node_clipboard_clear(void)
 {
 	bNode *node, *node_next;
 	bNodeLink *link, *link_next;
 	
-	for (link = node_clipboard.links.first; link; link=link_next) {
+	for (link = node_clipboard.links.first; link; link = link_next) {
 		link_next = link->next;
 		nodeRemLink(NULL, link);
 	}
 	node_clipboard.links.first = node_clipboard.links.last = NULL;
 	
-	for (node = node_clipboard.nodes.first; node; node=node_next) {
+	for (node = node_clipboard.nodes.first; node; node = node_next) {
 		node_next = node->next;
 		nodeFreeNode(NULL, node);
 	}
 	node_clipboard.nodes.first = node_clipboard.nodes.last = NULL;
 }
 
-void nodeClipboardAddNode(bNode *node)
+void BKE_node_clipboard_add_node(bNode *node)
 {
 	BLI_addtail(&node_clipboard.nodes, node);
 }
 
-void nodeClipboardAddLink(bNodeLink *link)
+void BKE_node_clipboard_add_link(bNodeLink *link)
 {
 	BLI_addtail(&node_clipboard.links, link);
 }
 
-const ListBase *nodeClipboardGetNodes(void)
+const ListBase *BKE_node_clipboard_get_nodes(void)
 {
 	return &node_clipboard.nodes;
 }
 
-const ListBase *nodeClipboardGetLinks(void)
+const ListBase *BKE_node_clipboard_get_links(void)
 {
 	return &node_clipboard.links;
+}
+
+int BKE_node_clipboard_get_type(void)
+{
+	return node_clipboard.type;
 }
 
 /* ************** dependency stuff *********** */
@@ -1630,8 +1660,6 @@ void ntreeUpdateTree(bNodeTree *ntree)
 			else if (node->typeinfo->updatefunc)
 				node->typeinfo->updatefunc(ntree, node);
 		}
-		/* clear update flag */
-		node->update = 0;
 	}
 	
 	/* check link validity */
@@ -1653,7 +1681,10 @@ void ntreeUpdateTree(bNodeTree *ntree)
 	/* XXX hack, should be done by depsgraph!! */
 	ntreeVerifyNodes(G.main, &ntree->id);
 	
-	/* clear the update flag */
+	/* clear update flags */
+	for (node = ntree->nodes.first; node; node = node->next) {
+		node->update = 0;
+	}
 	ntree->update = 0;
 }
 
@@ -1960,6 +1991,7 @@ static void registerCompositNodes(bNodeTreeType *ttype)
 	register_node_type_cmp_bilateralblur(ttype);
 	register_node_type_cmp_vecblur(ttype);
 	register_node_type_cmp_dilateerode(ttype);
+	register_node_type_cmp_inpaint(ttype);
 	register_node_type_cmp_defocus(ttype);
 	
 	register_node_type_cmp_valtorgb(ttype);
