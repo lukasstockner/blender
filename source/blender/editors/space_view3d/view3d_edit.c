@@ -439,7 +439,7 @@ static void viewops_data_create(bContext *C, wmOperator *op, wmEvent *event)
 		calculateTransformCenter(C, V3D_CENTROID, lastofs, NULL);
 		negate_v3_v3(vod->dyn_ofs, lastofs);
 	}
-	else if (U.uiflag & USER_ORBIT_ZBUF) {
+	else if (U.uiflag & USER_ZBUF_ORBIT) {
 
 		view3d_operator_needs_opengl(C); /* needed for zbuf drawing */
 
@@ -2743,7 +2743,7 @@ static int view3d_zoom_border_invoke(bContext *C, wmOperator *op, wmEvent *event
 void VIEW3D_OT_zoom_border(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Border Zoom";
+	ot->name = "Zoom to Border";
 	ot->description = "Zoom in the view to the nearest object contained in the border";
 	ot->idname = "VIEW3D_OT_zoom_border";
 
@@ -3460,7 +3460,7 @@ static int set_3dcursor_invoke(bContext *C, wmOperator *UNUSED(op), wmEvent *eve
 	if (mval[0] != IS_CLIPPED) {
 		short depth_used = 0;
 
-		if (U.uiflag & USER_ORBIT_ZBUF) {  /* maybe this should be accessed some other way */
+		if (U.uiflag & USER_ZBUF_CURSOR) {  /* maybe this should be accessed some other way */
 			view3d_operator_needs_opengl(C);
 			if (ED_view3d_autodist(scene, ar, v3d, event->mval, fp))
 				depth_used = 1;
