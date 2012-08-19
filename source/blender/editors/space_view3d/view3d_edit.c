@@ -2130,7 +2130,7 @@ static int view3d_all_exec(bContext *C, wmOperator *op) /* was view3d_home() in 
 				continue;
 			}
 
-			BKE_object_minmax(base->object, min, max);
+			BKE_object_minmax(base->object, min, max, FALSE);
 		}
 	}
 	if (!onedone) {
@@ -2276,8 +2276,8 @@ static int viewselected_exec(bContext *C, wmOperator *UNUSED(op))
 				}
 
 				/* account for duplis */
-				if (BKE_object_minmax_dupli(scene, base->object, min, max) == 0)
-					BKE_object_minmax(base->object, min, max);  /* use if duplis not found */
+				if (BKE_object_minmax_dupli(scene, base->object, min, max, FALSE) == 0)
+					BKE_object_minmax(base->object, min, max, FALSE);  /* use if duplis not found */
 
 				ok = 1;
 			}

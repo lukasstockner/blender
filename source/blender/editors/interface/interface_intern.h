@@ -160,7 +160,7 @@ struct uiBut {
 
 	uiWidgetColors* color_override;
 
-	float x1, y1, x2, y2;
+	rctf rect;
 
 	char *poin;
 	float hardmin, hardmax, softmin, softmax;
@@ -266,8 +266,8 @@ struct uiBlock {
 	char name[UI_MAX_NAME_STR];
 	
 	float winmat[4][4];
-	
-	float minx, miny, maxx, maxy;
+
+	rctf rect;
 	float aspect;
 
 	int puphash;  /* popup menu hash for memory */
