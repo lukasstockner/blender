@@ -126,7 +126,8 @@ void GPU_render_text(MTFace *tface, int mode,
 		
 		advance_tab= advance * 4; /* tab width could also be an option */
 		
-		
+		gpuImmediateFormat_V2();
+
 		for (index = 0; index < textlen; index++) {
 			float uv[4][2];
 
@@ -188,6 +189,9 @@ void GPU_render_text(MTFace *tface, int mode,
 			gpuTranslate(advance, 0.0, 0.0);
 			line_start -= advance; /* so we can go back to the start of the line */
 		}
+
+		gpuImmediateUnformat();
+
 		gpuPopMatrix();
 	}
 }
