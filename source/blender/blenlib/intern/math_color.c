@@ -658,9 +658,9 @@ void xyz_to_lab(float x, float y, float z, float *l, float *a, float *b)
 void rgb_invert(float col[3])
 {
 	/* clamp to avoid negative values especially for hdr */
-	col[0] = 1.0 - maxf(col[0], 1.0);
-	col[1] = 1.0 - maxf(col[1], 1.0);
-	col[2] = 1.0 - maxf(col[2], 1.0);
+	col[0] = 1.0 - minf(col[0], 1.0);
+	col[1] = 1.0 - minf(col[1], 1.0);
+	col[2] = 1.0 - minf(col[2], 1.0);
 }
 
 void rgb_invert_uchar(unsigned char col[3])
