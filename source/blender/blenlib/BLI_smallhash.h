@@ -31,7 +31,11 @@
 /** \file BLI_smallhash.h
  *  \ingroup bli
  */
+
+#if !defined(_WIN32)
 #include <stdint.h>
+#endif
+
 /* a light stack-friendly hash library,
  * (it uses stack space for smallish hash tables) */
 
