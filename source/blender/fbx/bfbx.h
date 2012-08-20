@@ -44,6 +44,18 @@ extern "C" {
 		 * mode the importer attempts to make the best out of the data it gets.*/
 		int strict_mode;
 
+		/* specifies that the importer will attempt to read all geometry layers
+		 * present in the source file. Some fbx files may only contain useful
+		 * data in their first geometry channel. */
+		int all_geo_layers;
+
+		/* drop dummy/empty animation curves */
+		int drop_dummy_anims;
+
+		/* always preserve the pivot points from the input file, even if
+		 * this involves creating dummy nodes. */
+		int preserve_pivot_nodes;
+
 	} bfbx_import_settings;
 
 

@@ -2257,6 +2257,9 @@ static int wm_fbx_import_exec(bContext *C, wmOperator *op)
 	settings.assimp_settings.enableAssimpLog = 1;
 
 	settings.strict_mode = 0;
+	settings.all_geo_layers = 1;
+	settings.drop_dummy_anims = 1;
+	settings.preserve_pivot_nodes = 0;
 
 	if (bfbx_import(C, filename, &settings)) { 
 		return OPERATOR_FINISHED;

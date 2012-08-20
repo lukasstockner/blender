@@ -56,8 +56,12 @@ extern "C"
 
 		bassimp::SceneImporter imp(filepath,*C,settings->assimp_settings);
 
-		//Assimp::Importer& ai_imp = imp.get_importer();
-		//importer.SetPropertyInteger(AI_CONFIG_IMPORT_FBX_STRICT_MODE,settings->strict_mode);
+		Assimp::Importer& ai_imp = imp.get_importer();
+		ai_imp.SetPropertyInteger(AI_CONFIG_IMPORT_FBX_STRICT_MODE,settings->strict_mode);
+
+		ai_imp.SetPropertyInteger(AI_CONFIG_IMPORT_FBX_READ_ALL_GEOMETRY_LAYERS,settings->all_geo_layers);
+		ai_imp.SetPropertyInteger(AI_CONFIG_IMPORT_FBX_OPTIMIZE_EMPTY_ANIMATION_CURVES,settings->drop_dummy_anims);
+		ai_imp.SetPropertyInteger(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS,settings->preserve_pivot_nodes);
 
 		return imp.import() != 0 && imp.apply() != 0;
 	}
