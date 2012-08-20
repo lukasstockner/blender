@@ -46,7 +46,7 @@ extern "C"
 
 		defaults_out->all_geo_layers = 1;
 		defaults_out->drop_dummy_anims = 1;
-		defaults_out->preserve_pivot_nodes = 0;
+		defaults_out->preserve_pivot_nodes = 1;
 		defaults_out->strict_mode = 0;
 	}
 

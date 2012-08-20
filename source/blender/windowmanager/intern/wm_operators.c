@@ -2345,7 +2345,7 @@ static void WM_OT_fbx_import(wmOperatorType *ot)
 
 	// add fbx specific stuff
 	RNA_def_boolean(ot->srna, "strict_mode", 0, "FBX: Strict Mode",
-		"Only read FBX 2013 files, do strong version checking to make sure no data is incorrectly interpreted");
+		"Only read FBX 2013 and 2012 files, do strong version checking to make sure no data is incorrectly interpreted");
 
 	RNA_def_boolean(ot->srna, "all_geo_layers", 1, "FBX: Read all geometry layers",
 		"Read all geometry layers present in the source file and merge their contents");
@@ -2353,7 +2353,7 @@ static void WM_OT_fbx_import(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "drop_dummy_anims", 1, "FBX: Strip empty animations",
 		"Remove redundant (i.e. constant) or empty animation curves");
 
-	RNA_def_boolean(ot->srna, "preserve_pivots", 0, "FBX: Preserve pivots",
+	RNA_def_boolean(ot->srna, "preserve_pivots", 1, "FBX: Preserve pivots",
 		"Always preserve pivot points, even if this involves creating dummy nodes");
 
 	// inherit rna settings from assimp operator
