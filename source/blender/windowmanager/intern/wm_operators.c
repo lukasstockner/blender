@@ -2205,9 +2205,19 @@ static int wm_assimp_import_exec(bContext *C, wmOperator *op)
 	RNA_string_get(op->ptr, "filepath", filename);
 
 	settings.reports = op->reports;
-	settings.triangulate = 0;
-	settings.nolines = 0;
-	settings.enableAssimpLog = 1;
+
+	settings.enableAssimpLog = RNA_boolean_get(op->ptr, "enable_log");
+	settings.triangulate = RNA_boolean_get(op->ptr, "triangulate");
+	settings.nolines = !RNA_boolean_get(op->ptr, "read_lines");
+
+	settings.read_animations = RNA_boolean_get(op->ptr, "read_animations");
+	settings.read_armature = RNA_boolean_get(op->ptr, "read_armature");
+	settings.read_lights = RNA_boolean_get(op->ptr, "read_lights");
+	settings.read_cameras = RNA_boolean_get(op->ptr, "read_cameras");
+	settings.read_materials = RNA_boolean_get(op->ptr, "read_materials");
+
+	settings.unit_scaling = RNA_boolean_get(op->ptr, "scale_to_fit");
+	settings.maximum_size = RNA_float_get(op->ptr, "scale_to_fit_extents");
 
 	if (bassimp_import(C, filename, &settings)) {
 		return OPERATOR_FINISHED;
@@ -2216,6 +2226,46 @@ static int wm_assimp_import_exec(bContext *C, wmOperator *op)
 	BKE_report(op->reports, RPT_ERROR, "Errors found during importing");
 	return OPERATOR_FINISHED;
 }
+
+/* utility function used by WM_OT_assimp_import and WM_OT_fbx_import */
+static void def_assimp_rna_props(StructRNA* srna)
+{
+	RNA_def_boolean(srna, "enable_log", 1, "Import Logging", 
+		"Show Open Asset Import Library's log in Blender");
+
+	RNA_def_boolean(srna, "triangulate", 0, "Triangulate",
+		"Run Open Asset Import Library's builtin triangulation");
+
+	RNA_def_boolean(srna, "scale_to_fit", 0, "Scale To Fit",
+		"Scale imported scene to fit into a cube of the given extents");
+
+	RNA_def_float(srna, "scale_to_fit_extents", 
+		1.0f, 
+		0.0f, 
+		FLT_MAX, 
+		"Maximum Extents",
+		"If Scale-To-Fit is checked, specifies the extents the scene will be fitted into",
+		0.0f, 100.0f);
+
+	RNA_def_boolean(srna, "read_lines", 0, "Import Lines",
+		"Import single lines not connected to any polygons");
+
+	RNA_def_boolean(srna, "read_animations", 1, "Import Animations",
+		"Import animations");
+
+	RNA_def_boolean(srna, "read_cameras", 1, "Import Cameras",
+		"Import cameras and camera settings");
+
+	RNA_def_boolean(srna, "read_lights", 1, "Import Lights",
+		"Import light sources");
+
+	RNA_def_boolean(srna, "read_armature", 1, "Import Armature",
+		"Import armature and deform groups");
+
+	RNA_def_boolean(srna, "read_materials", 1, "Import Materials",
+		"Import materials and material assignments, if not checked a default material will be used");
+}
+
 
 static void WM_OT_assimp_import(wmOperatorType *ot)
 {
@@ -2228,6 +2278,7 @@ static void WM_OT_assimp_import(wmOperatorType *ot)
 	ot->poll = WM_operator_winactive;
 
 	WM_operator_properties_filesel(ot, FOLDERFILE | ASSIMPFILE, FILE_BLENDER, FILE_OPENFILE, WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
+	def_assimp_rna_props(ot->srna);
 }
 
 #endif
@@ -2251,15 +2302,25 @@ static int wm_fbx_import_exec(bContext *C, wmOperator *op)
 
 	RNA_string_get(op->ptr, "filepath", filename);
 
-	settings.assimp_settings.reports = op->reports;
-	settings.assimp_settings.triangulate = 0;
-	settings.assimp_settings.nolines = 0;
-	settings.assimp_settings.enableAssimpLog = 1;
+	// fbx-specific settings
+	settings.strict_mode = RNA_boolean_get(op->ptr, "strict_mode");
+	settings.all_geo_layers = RNA_boolean_get(op->ptr, "all_geo_layers");
+	settings.drop_dummy_anims = RNA_boolean_get(op->ptr, "drop_dummy_anims");
+	settings.preserve_pivot_nodes = RNA_boolean_get(op->ptr, "preserve_pivots");
 
-	settings.strict_mode = 0;
-	settings.all_geo_layers = 1;
-	settings.drop_dummy_anims = 1;
-	settings.preserve_pivot_nodes = 0;
+	// copy paste inherited assimp settings
+	settings.assimp_settings.reports = op->reports;
+
+	settings.assimp_settings.enableAssimpLog = RNA_boolean_get(op->ptr, "enable_log");
+	settings.assimp_settings.triangulate = RNA_boolean_get(op->ptr, "triangulate");
+	settings.assimp_settings.nolines = !RNA_boolean_get(op->ptr, "read_lines");
+	settings.assimp_settings.read_animations = RNA_boolean_get(op->ptr, "read_animations");
+	settings.assimp_settings.read_armature = RNA_boolean_get(op->ptr, "read_armature");
+	settings.assimp_settings.read_lights = RNA_boolean_get(op->ptr, "read_lights");
+	settings.assimp_settings.read_cameras = RNA_boolean_get(op->ptr, "read_cameras");
+	settings.assimp_settings.read_materials = RNA_boolean_get(op->ptr, "read_materials");
+	settings.assimp_settings.unit_scaling = RNA_boolean_get(op->ptr, "scale_to_fit");
+	settings.assimp_settings.maximum_size = RNA_float_get(op->ptr, "scale_to_fit_extents");
 
 	if (bfbx_import(C, filename, &settings)) { 
 		return OPERATOR_FINISHED;
@@ -2281,6 +2342,22 @@ static void WM_OT_fbx_import(wmOperatorType *ot)
 	ot->poll = WM_operator_winactive;
 
 	WM_operator_properties_filesel(ot, FOLDERFILE | FBXFILE, FILE_BLENDER, FILE_OPENFILE, WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
+
+	// add fbx specific stuff
+	RNA_def_boolean(ot->srna, "strict_mode", 0, "FBX: Strict Mode",
+		"Only read FBX 2013 files, do strong version checking to make sure no data is incorrectly interpreted");
+
+	RNA_def_boolean(ot->srna, "all_geo_layers", 1, "FBX: Read all geometry layers",
+		"Read all geometry layers present in the source file and merge their contents");
+
+	RNA_def_boolean(ot->srna, "drop_dummy_anims", 1, "FBX: Strip empty animations",
+		"Remove redundant (i.e. constant) or empty animation curves");
+
+	RNA_def_boolean(ot->srna, "preserve_pivots", 0, "FBX: Preserve pivots",
+		"Always preserve pivot points, even if this involves creating dummy nodes");
+
+	// inherit rna settings from assimp operator
+	def_assimp_rna_props(ot->srna);
 }
 
 #endif

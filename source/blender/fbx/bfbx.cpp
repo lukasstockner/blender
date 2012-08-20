@@ -34,9 +34,22 @@ extern "C"
 #include "BKE_scene.h"
 #include "BKE_context.h"
 
-/* make dummy file */
 #include "BLI_fileops.h"
 #include "BLI_path_util.h"
+
+
+	void bfbx_import_set_defaults(bfbx_import_settings* defaults_out)
+	{
+		assert(defaults_out);
+
+		bassimp_import_set_defaults(&defaults_out->assimp_settings);
+
+		defaults_out->all_geo_layers = 1;
+		defaults_out->drop_dummy_anims = 1;
+		defaults_out->preserve_pivot_nodes = 0;
+		defaults_out->strict_mode = 0;
+	}
+
 
 	int bfbx_import(bContext *C, const char *filepath, const bfbx_import_settings* settings)
 	{
@@ -45,12 +58,8 @@ extern "C"
 
 		bfbx_import_settings defaults;
 
-		defaults.assimp_settings.enableAssimpLog = 0;
-		defaults.assimp_settings.reports = NULL;
-		defaults.assimp_settings.nolines = 0;
-		defaults.assimp_settings.triangulate = 0;
-
 		if(!settings) {
+			bfbx_import_set_defaults(&defaults);
 			settings = &defaults;
 		}
 

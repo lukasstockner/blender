@@ -59,7 +59,12 @@ extern "C" {
 	} bfbx_import_settings;
 
 
-	/* import/export functions
+	/* obtain default settings for bfbx_import() */
+	void bfbx_import_set_defaults(bfbx_import_settings* defaults_out);
+
+
+	/* import/export functions, settings are optional, bfbx_import_set_defaults()
+	 * will be used to get default settings if NULL is specified.
 	 * both return 1 on success, 0 on error
 	 */
 	int bfbx_import(bContext *C, const char *filepath, const bfbx_import_settings* settings);
