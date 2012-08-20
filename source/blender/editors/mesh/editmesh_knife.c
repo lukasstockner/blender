@@ -913,6 +913,8 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 
 	glPolygonOffset(1.0f, 1.0f);
 
+	gpuImmediateFormat_V3();
+
 	gpuPushMatrix();
 	gpuMultMatrix(kcd->ob->obmat);
 
@@ -1047,6 +1049,8 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 	}
 
 	gpuPopMatrix();
+
+	gpuImmediateUnformat();
 
 	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 }

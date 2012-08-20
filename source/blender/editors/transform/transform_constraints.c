@@ -665,7 +665,7 @@ void drawPropCircle(const struct bContext *C, TransInfo *t)
 		}
 
 		set_inverted_drawing(1);
-		gpuDrawFastBall(GL_LINE_LOOP, center, t->prop_size, imat);
+		gpuSingleFastBall(GL_LINE_LOOP, center, t->prop_size, imat);
 		set_inverted_drawing(0);
 
 		gpuPopMatrix();
