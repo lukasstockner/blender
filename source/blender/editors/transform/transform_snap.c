@@ -159,9 +159,10 @@ void drawSnapping(const struct bContext *C, TransInfo *t)
 			RegionView3D *rv3d = CTX_wm_region_view3d(C);
 			float imat[4][4];
 			float size;
-			
+
+			SnapSystem_draw(t->tsnap.ssystem);
 			glDisable(GL_DEPTH_TEST);
-			
+
 			size = 2.5f * UI_GetThemeValuef(TH_VERTEX_SIZE);
 			
 			invert_m4_m4(imat, rv3d->viewmat);
@@ -278,7 +279,7 @@ int  handleSnapping(TransInfo *t, wmEvent *event)
 	}
 #endif
 	if (event->type == MOUSEMOVE) {
-		status |= updateSelectedSnapPoint(t);
+		//status |= updateSelectedSnapPoint(t);
 	}
 	
 	return status;
@@ -481,11 +482,23 @@ static void initSnappingMode(TransInfo *t)
 	}
 }
 
-void SnappingConfirmCallback(void* trans_info, SnapPoint sp){
+//callback with no feedback, to prevent verts from moving from original position..
+//maybe rename to resetfeedback
+void SnappingNFBCallback(SnapSystem *ssystem, void* trans_info){
+	TransInfo* t = (TransInfo*)trans_info;
+	//TODO: find out where the snap point is applied and move it to the other callback functions
+	//below to prevent things moving after thiupdateSelectedSnapPoints function has been called.
+	restoreTransObjects(t); // calls recalcData()
+	viewRedrawForce(SnapSystem_get_C(ssystem), t);
+}
+
+void SnappingConfirmCallback(SnapSystem *ssystem, void* trans_info, SnapPoint sp){
 	TransInfo* t = (TransInfo*)trans_info;
 	copy_v3_v3(t->tsnap.snapPoint, sp.location);
 	copy_v3_v3(t->tsnap.snapNormal, sp.normal);
 	t->state = TRANS_CONFIRM;
+	t->redraw |= updateSelectedSnapPoint(t);
+
 	//TODO: clean this up and same with update function
 	//applyProject(TransInfo *t)
 	//t->tsnap.applySnap
@@ -501,13 +514,14 @@ void SnappingConfirmCallback(void* trans_info, SnapPoint sp){
 
 }
 
-void SnappingUpdateCallback(void* trans_info, SnapPoint sp){
+void SnappingUpdateCallback(SnapSystem *ssystem, void* trans_info, SnapPoint sp){
 	TransInfo* t = (TransInfo*)trans_info;
 	//applyProject(TransInfo *t)
 	//t->tsnap.applySnap does this actuall fully apply it? (is it used while the mouse is moving?)
 	//applySnapping is another good function to look at, same as its callers Translation, Rotation and Scale
 	copy_v3_v3(t->tsnap.snapPoint, sp.location);
 	copy_v3_v3(t->tsnap.snapNormal, sp.normal);
+	t->redraw |= updateSelectedSnapPoint(t);
 //	if(retval){
 //		t->tsnap.status |=  POINT_INIT;
 //	}
@@ -516,9 +530,10 @@ void SnappingUpdateCallback(void* trans_info, SnapPoint sp){
 //	}
 }
 
-void SnappingCancelCallback(void* trans_info){
-	TransInfo* t = (TransInfo*)trans_info;
-	t->state = TRANS_CANCEL;
+void SnappingCancelCallback(SnapSystem* UNUSED(ssystem), void* trans_info){
+	/*TODO: fix this function to work properly in cancelling the snapping and resetting it*/
+	//TransInfo* t = (TransInfo*)trans_info;
+	//t->state = TRANS_CANCEL;
 }
 
 
@@ -539,6 +554,7 @@ void runSnappingSystem(TransInfo *t, float *UNUSED){
 void initSnappingSystem(TransInfo *t, bContext *C){
 	t->tsnap.ssystem = SnapSystem_create(t->scene, t->view, t->ar, t->obedit, C, t,
 									SnappingUpdateCallback,
+								   SnappingNFBCallback,
 									SnappingConfirmCallback,
 									SnappingCancelCallback);
 //	runSnappingSystem(t, NULL);
@@ -1211,7 +1227,7 @@ static void TargetSnapClosest(TransInfo *t)
 }
 /*================================================================*/
 #ifndef USE_BVH_FACE_SNAP
-static int snapFace(ARegion *ar, float v1co[3], float v2co[3], float v3co[3], float *v4co, float mval[2], float ray_start[3], float ray_start_local[3], float ray_normal_local[3], float obmat[][4], float timat[][3], float loc[3], float no[3], int *dist, float *depth)
+//static int snapFace(ARegion *ar, float v1co[3], float v2co[3], float v3co[3], float *v4co, float mval[2], float ray_start[3], float ray_start_local[3], float ray_normal_local[3], float obmat[][4], float timat[][3], float loc[3], float no[3], int *dist, float *depth)
 {
 	float lambda;
 	int result;

@@ -466,6 +466,7 @@ void projectFloatView(TransInfo *t, const float vec[3], float adr[2]);
 
 void applyAspectRatio(TransInfo *t, float *vec);
 void removeAspectRatio(TransInfo *t, float *vec);
+void viewRedrawForce(const bContext *C, TransInfo *t);
 
 void initWarp(TransInfo *t);
 int handleEventWarp(TransInfo *t, struct wmEvent *event);

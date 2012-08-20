@@ -401,7 +401,7 @@ void removeAspectRatio(TransInfo *t, float vec[2])
 	}
 }
 
-static void viewRedrawForce(const bContext *C, TransInfo *t)
+void viewRedrawForce(const bContext *C, TransInfo *t)
 {
 	if (t->spacetype == SPACE_VIEW3D) {
 		/* Do we need more refined tags? */
@@ -1933,7 +1933,7 @@ void transformApply(bContext *C, TransInfo *t)
 
 	if ((t->redraw & TREDRAW_HARD) || (t->draw_handle_apply == NULL && (t->redraw & TREDRAW_SOFT))) {
 		selectConstraint(t);
-		if (t->transform) {
+		if (t->transform && (SnapSystem_get_state(t->tsnap.ssystem) != SNAPSYSTEM_STATE_INIT_SNAP)) {
 			t->transform(t, t->mval);  // calls recalcData()
 			viewRedrawForce(C, t);
 		}

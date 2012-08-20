@@ -57,7 +57,7 @@ float bvhtree_ray_tri_intersection(const BVHTreeRay *ray, const float UNUSED(m_d
 	return FLT_MAX;
 }
 
-static float sphereray_tri_intersection(const BVHTreeRay *ray, float radius, const float m_dist, const float v0[3], const float v1[3], const float v2[3])
+float sphereray_tri_intersection(const BVHTreeRay *ray, float radius, const float m_dist, const float v0[3], const float v1[3], const float v2[3])
 {
 	
 	float idist;

@@ -1,3 +1,25 @@
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * Contributor(s): Luke Frisken 2012
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
+
 #include "BKE_snap.h"
 #include "BKE_mesh.h"
 #include "BKE_tessmesh.h"
@@ -28,10 +50,14 @@
 #include "BLI_math_vector.h"
 #include "BLI_listbase.h"
 #include "BLI_utildefines.h"
+#include "BLI_kdopbvh.h"
+#include "BLI_math_geom.h"
 
 #include "UI_resources.h"
 
 #include "transform.h"
+#include "BIF_gl.h"
+#include "BIF_glutil.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,6 +66,7 @@
 #include <assert.h>
 
 //#define DEBUG_SNAP
+
 /* -- PROTOTYPES -- */
 typedef struct MeshData MeshData;
 typedef struct SnapStack SnapStack;
@@ -56,28 +83,78 @@ Snap* SnapStack_getSnap(SnapStack* sstack, int index);
 void SnapStack_reset(SnapStack* sstack);
 void SnapStack_free(SnapStack*);
 void Snap_draw_default(Snap *s);
+void SnapMesh_draw_planar(Snap *sm);
+void SnapMesh_draw_edge_parallel(Snap *sm);
 void SnapMesh_run(Snap *sm);
-void SnapMesh_free(Snap* sm);
+void SnapMesh_free(Snap *sm);
+void MeshData_pickface_free(MeshData_pickface *pface);
+MeshData_pickface* MeshData_pickface_create(MFace *face, MVert *verts, int nverts, float *no);
 Snap_type Snap_getType(Snap* s);
 
-void SnapPoint_deepcopy(SnapPoint* out, SnapPoint* in){
-	copy_v3_v3(out->location, in->location);
-	copy_v3_v3(out->normal, in->normal);
-	out->r_depth = in->r_depth;
-	out->r_dist = in->r_dist;
-}
+/* -- STRUCTS and ENUMS -- */
+typedef enum{
+	SNAP_ISECT_TYPE_GEOMETRY,
+	SNAP_ISECT_TYPE_POINT
+}SnapIsect_type;
+
+struct SnapIsect{
+	SnapIsect_type type;
+	Snap* isect_geom; //a new snap containing the snap geometry of the intersection.
+	SnapPoint isect_point; //for use if the intersection is a single point (isect_type == SNAP_ISECT_TYPE_POINT)
+};
+
+struct Snap{
+	Snap_type s_type;
+	int snap_found; //boolean whether snap point has been found
+	SnapPoint snap_point;
+	SnapPoint* closest_point; //previously calculated closest point to mouse and screen.
+	Snap* pick; //previously calculated snap to use as a picking point in modes such as parallel snap and planar snap
+
+	//TODO: all extra data in Snap should be subject to streamlining and change
+	//in the near future, as soon as I get something working. A lot of quick
+	//not-so-well-thought-out bits of code here that will need more thought later.
+
+	int retval; //temporary variable for linking in with transform code
+
+	/*external data pointers*/
+	bContext *C;
+	Scene* scene;
+	Object* ob;
+	View3D* v3d;
+	ARegion* ar;
+	int mval[2];
+
+	/*internal calculation data*/
+	float ray_start[3], ray_normal[3];
+	float ray_start_local[3], ray_normal_local[3];
+	int min_distance;
+
+	//matrix storage
+	float imat[4][4];
+	float timat[3][3];
+
+
+	//snap type -- type of snap to calculate
+	//geom_data_type
+
+	//transform
+
+	/*subclass data struct*/
+	void* snap_data;
+
+	/*function pointers*/
+	void (*run)(Snap*);
+	SnapIsect* (*interesect)(Snap*,Snap*); //for use with multisnap
+	void (*draw)(Snap*);
+	void (*free)(Snap*);
+	//void callback for doing transform -- function pointer
+};
 
 typedef struct SnapObRef SnapObRef;
 struct SnapObRef{
 	SnapObRef *next, *prev;
 	Object* ob;
 };
-
-typedef enum{
-	SNAPSYSTEM_STATE_SNAPPING,
-	SNAPSYSTEM_STATE_INIT_SNAP,
-	SNAPSYSTEM_STATE_IDLE
-}SnapSystem_state;
 
 /* -- SnapSystem Class -- */
 struct SnapSystem{
@@ -86,30 +163,33 @@ struct SnapSystem{
 	/*events and state machine variables*/
 	/*most are hacks to get this working for now*/
 	SnapSystem_state state;
-	Snap* pick; //used for parallel snap, perpendicular and planar snap
+	Snap* pick; //used for parallel snap, perpendicular and planar snap to store user picked geometry
 
+	/*external data pointers required by all snap modes*/
 	bContext* C;
 	Scene* scene;
 	View3D* v3d;
 	ARegion* ar;
 	Object* obedit;
 
-	SnapPoint snap_point;
-	int min_distance;
-	int retval;
+	SnapPoint snap_point; //storage of the snapsystem's current snap point for access by the outside world
+	int min_distance; //minimum distance between mouse and geometry for snap to occur
+	int retval; //if a snap_point has been found retval == 1 else retval == 0
 
+	//list of objects in the scene which the snapssystem can currently operate upon
 	ListBase ob_list;
 	int n_obs;
 
-	SnapSystem_mode_select mode_select;
+	SnapSystem_mode_select mode_select; //todo: find out more about what this does
 
-	void* callback_data;
-	void (*update_callback)(void* callback_data, SnapPoint sp);
-	void (*finish_callback)(void* callback_data, SnapPoint sp);
-	void (*cancel_callback)(void* callback_data);
+	void* callback_data; //data from external system (e.g. transform) for use in callbacks
+	void (*update_callback)(SnapSystem *ssystem, void* callback_data, SnapPoint sp); //update the view in external system, but don't finalize the snap.
+	void (*nofeedback_callback)(SnapSystem *ssytem, void* callback_data); //TODO: change name of this function
+	void (*finish_callback)(SnapSystem *ssystem, void* callback_data, SnapPoint sp); //update the view and finalize the snap.
+	void (*cancel_callback)(SnapSystem *ssystem, void* callback_data);
 
-	void* (*object_iterator)(SnapSystem* ssystem, void* callback_data);
-	void* (*object_handler)(SnapSystem* ssystem, void* callback_data, Object* ob);
+	void (*object_iterator)(SnapSystem* ssystem, void* callback_data);
+	void (*object_handler)(SnapSystem* ssystem, void* callback_data, Object* ob);
 
 	MeshData* (*meshdata_selector)(SnapStack* stack, void* callback_data);
 	void (*bonedata_selector)(SnapStack* stack, void* callback_data);
@@ -117,9 +197,10 @@ struct SnapSystem{
 
 SnapSystem* SnapSystem_create( Scene* scene, View3D* v3d, ARegion* ar, Object* obedit, bContext* C,
 								void* callback_data,
-								void (*update_callback)(void* callback_data, SnapPoint sp),
-								void (*finish_callback)(void* callback_data, SnapPoint sp),
-							   void (*cancel_callback)(void* callback_data))
+								void (*update_callback)(SnapSystem *ssystem, void* callback_data, SnapPoint sp),
+							   void (*nofeedback_callback)(SnapSystem *ssystem, void* callback_data),
+								void (*finish_callback)(SnapSystem *ssystem, void* callback_data, SnapPoint sp),
+							   void (*cancel_callback)(SnapSystem *ssystem, void* callback_data))
 {
 	SnapSystem* ssystem = (SnapSystem*)MEM_mallocN(sizeof(SnapSystem), "snapsystem");
 	ssystem->sstack = SnapStack_create();
@@ -130,6 +211,7 @@ SnapSystem* SnapSystem_create( Scene* scene, View3D* v3d, ARegion* ar, Object* o
 	ssystem->obedit = obedit;
 	ssystem->callback_data = callback_data;
 	ssystem->update_callback = update_callback;
+	ssystem->nofeedback_callback = nofeedback_callback;
 	ssystem->finish_callback = finish_callback;
 	ssystem->cancel_callback = cancel_callback;
 	ssystem->object_iterator = SnapSystem_default_object_iterator;
@@ -166,13 +248,15 @@ SnapPoint* SnapSystem_getSnapPoint(SnapSystem* ssystem){
 }
 
 void SnapSystem_state_logic(SnapSystem* ssystem){
-	ToolSettings *ts= ssystem->scene->toolsettings;
+//	ToolSettings *ts= ssystem->scene->toolsettings;
 	switch(ssystem->state){
 	case SNAPSYSTEM_STATE_INIT_SNAP:
 		SnapSystem_pick_snap(ssystem);
 		break;
 	case SNAPSYSTEM_STATE_SNAPPING:
 		SnapSystem_find_snap(ssystem);
+		break;
+	default:
 		break;
 	}
 }
@@ -190,6 +274,7 @@ void SnapSystem_pick_snap(SnapSystem* ssystem){
 	//use the parallel snap hack object handler
 	Object* ob;
 	int i;
+	ssystem->nofeedback_callback(ssystem, ssystem->callback_data); //resets transform
 	for(i=0;i<ssystem->n_obs;i++){
 		ob = SnapSystem_get_ob(ssystem, i);
 		SnapSystem_parallel_hack_ob_handler(ssystem, ssystem->callback_data, ob);
@@ -198,15 +283,15 @@ void SnapSystem_pick_snap(SnapSystem* ssystem){
 }
 
 //TODO: change this when I refactor the way object handlers work
-Snap* snapmesh_edit_create(SnapSystem* ssystem, void* callback_data, SnapMesh_type sm_type, Object* ob, BMEditMesh *em, DerivedMesh *dm){
+Snap* snapmesh_edit_create(SnapSystem* ssystem, void* callback_data, MeshData_check check, SnapMesh_type sm_type, Object* ob, BMEditMesh *em, DerivedMesh *dm){
 	TransInfo* t = (TransInfo*)callback_data; //hack to test using existing option system
 	Scene* scene = ssystem->scene;
 	bContext *C = ssystem->C;
 	if(em == NULL){
-		return SnapMesh_create(dm, SNAPMESH_DATA_TYPE_DerivedMesh, 1, sm_type, scene, ob, t->view, t->ar, C, t->mval);
+		return SnapMesh_create(dm, SNAPMESH_DATA_TYPE_DerivedMesh, 1, check, sm_type, scene, ob, t->view, t->ar, C, t->mval);
 	}else{
 		dm->release(dm);
-		return SnapMesh_create(em, SNAPMESH_DATA_TYPE_BMEditMesh, 0, sm_type, scene, ob, t->view, t->ar, C, t->mval);
+		return SnapMesh_create(em, SNAPMESH_DATA_TYPE_BMEditMesh, 0, check, sm_type, scene, ob, t->view, t->ar, C, t->mval);
 	}
 }
 
@@ -219,16 +304,12 @@ void SnapSystem_parallel_hack_ob_handler(SnapSystem* ssystem, void* callback_dat
 	SnapPoint* sp;
 	SnapPoint sp_prev;
 	float* r_depth = &(ssystem->snap_point.r_depth);
-	float* r_dist = &(ssystem->snap_point.r_dist);
+	int* r_dist = &(ssystem->snap_point.r_dist);
 
 	ToolSettings *ts= scene->toolsettings;
 
 	if (ob->type != OB_MESH){
 		return;
-	}else{
-#ifdef DEBUG_SNAP
-		//printf("yaya mesh object");
-#endif //DEBUG_SNAP
 	}
 
 	if (ssystem->mode_select == SNAPSYSTEM_MODE_SELECT_ALL && ob->mode == OB_MODE_EDIT) {
@@ -241,9 +322,16 @@ void SnapSystem_parallel_hack_ob_handler(SnapSystem* ssystem, void* callback_dat
 		dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
 	}
 
-	sm = snapmesh_edit_create(ssystem, callback_data, SNAPMESH_TYPE_EDGE, ob, em, dm);
+	if(ts->snap_mode == SCE_SNAP_MODE_EDGE_PARALLEL){
+		sm = snapmesh_edit_create(ssystem, callback_data, MESHDATA_CHECK_HIDDEN, SNAPMESH_TYPE_EDGE, ob, em, dm);
+	}
+	if(ts->snap_mode == SCE_SNAP_MODE_PLANAR){
+		//todo: fix bvh function so it can filter out hidden and selected
+		sm = snapmesh_edit_create(ssystem, callback_data, MESHDATA_CHECK_NONE, SNAPMESH_TYPE_FACE, ob, em, dm);
+	}
 
 	//if this is not the first run through.
+	//TODO: not sure how this will work with planar snapping
 	if(*r_depth < FLT_MAX){
 		sp_prev.r_depth = *r_depth;
 		sp_prev.r_dist = *r_dist;
@@ -264,7 +352,14 @@ void SnapSystem_parallel_hack_ob_handler(SnapSystem* ssystem, void* callback_dat
 	if(retval){
 		SnapSystem_clear_pick(ssystem); //free and clear the pick variable
 		ssystem->pick = sm;
-		ssystem->update_callback(ssystem->callback_data, ssystem->snap_point);
+		if(ssystem->state != SNAPSYSTEM_STATE_INIT_SNAP){
+			ssystem->update_callback(ssystem, ssystem->callback_data, ssystem->snap_point);
+		}else{
+#ifdef DEBUG_SNAP
+			//printf("missed");
+#endif
+		}
+
 	}else{
 		Snap_free(sm);
 	}
@@ -278,23 +373,23 @@ void SnapSystem_evaluate_stack(SnapSystem* ssystem){
 }
 
 /*TODO:
-  I'm planning on turning this into a struct with different object handlers which are selected
-  based on object type. Each of these handlers can be over-ridden. But only if that kind of flexibility
-  is required by other sections in blender code using snapping.
+  object handler functionality is going to change drastically, by using a list of snap combinations
+  with objects.
   */
 
 void SnapSystem_default_object_handler(SnapSystem* ssystem, void* callback_data, Object* ob){
 	int retval;
-	TransInfo* t = (TransInfo*)callback_data; //hack to test using existing option system
+//	TransInfo* t = (TransInfo*)callback_data; //hack to test using existing option system
 	BMEditMesh *em;
 	DerivedMesh *dm;
 	Scene* scene = ssystem->scene;
-	bContext *C = ssystem->C;
+//	bContext *C = ssystem->C;
 	Snap* sm;
 	SnapPoint* sp;
 	SnapPoint sp_prev;
+	MeshData_check default_check = MESHDATA_CHECK_HIDDEN|MESHDATA_CHECK_SELECTED;
 	float* r_depth = &(ssystem->snap_point.r_depth);
-	float* r_dist = &(ssystem->snap_point.r_dist);
+	int* r_dist = &(ssystem->snap_point.r_dist);
 
 	ToolSettings *ts= scene->toolsettings;
 
@@ -325,15 +420,21 @@ void SnapSystem_default_object_handler(SnapSystem* ssystem, void* callback_data,
 		  point snap. For mesh snap this would be vertex snap. For curve this would be curve snap. and for
 		  any other type of object (camera, light, etc) it could just be the location of the object. Some way of resolving
 			which types of objects a given snap mode can apply to. and also only display snapping modes which are possible
-			on the currently edited object? no that would not be good. Need to think of a good way to deal with this.*/
-		sm = snapmesh_edit_create(ssystem, callback_data, SNAPMESH_TYPE_VERTEX, ob, em, dm);
+			on the currently edited object? no that would not be good. Need to think of a good way to deal with this.
+		EDIT: see comment above this function*/
+		sm = snapmesh_edit_create(ssystem, callback_data, default_check, SNAPMESH_TYPE_VERTEX, ob, em, dm);
 	}else if(ts->snap_mode == SCE_SNAP_MODE_EDGE){
-		sm = snapmesh_edit_create(ssystem, callback_data, SNAPMESH_TYPE_EDGE, ob, em, dm);
+		sm = snapmesh_edit_create(ssystem, callback_data, default_check, SNAPMESH_TYPE_EDGE, ob, em, dm);
 	}else if(ts->snap_mode == SCE_SNAP_MODE_EDGE_MIDDLE){
-		sm = snapmesh_edit_create(ssystem, callback_data, SNAPMESH_TYPE_EDGE_MIDPOINT, ob, em, dm);
+		sm = snapmesh_edit_create(ssystem, callback_data, default_check, SNAPMESH_TYPE_EDGE_MIDPOINT, ob, em, dm);
+	}else if(ts->snap_mode == SCE_SNAP_MODE_FACE){
+		sm = snapmesh_edit_create(ssystem, callback_data, default_check, SNAPMESH_TYPE_FACE, ob, em, dm);
 	}else if(ts->snap_mode == SCE_SNAP_MODE_EDGE_PARALLEL){
-		sm = snapmesh_edit_create(ssystem, callback_data, SNAPMESH_TYPE_EDGE_PARALLEL, ob, em, dm);
+		sm = snapmesh_edit_create(ssystem, callback_data, MESHDATA_CHECK_HIDDEN, SNAPMESH_TYPE_EDGE_PARALLEL, ob, em, dm);
 		Snap_setpick(sm, ssystem->pick);
+	}else if(ts->snap_mode == SCE_SNAP_MODE_PLANAR){
+			sm = snapmesh_edit_create(ssystem, callback_data, MESHDATA_CHECK_HIDDEN, SNAPMESH_TYPE_PLANAR, ob, em, dm);
+			Snap_setpick(sm, ssystem->pick);
 	}else{
 		dm->release(dm);
 		return;
@@ -364,11 +465,13 @@ void SnapSystem_default_object_handler(SnapSystem* ssystem, void* callback_data,
 
 	ssystem->retval |= retval;
 	if(retval){
-		ssystem->update_callback(ssystem->callback_data, ssystem->snap_point);
+		if(ssystem->state != SNAPSYSTEM_STATE_INIT_SNAP){
+			ssystem->update_callback(ssystem, ssystem->callback_data, ssystem->snap_point);
+		}
 	}
 }
 
-void SnapSystem_default_object_iterator(SnapSystem* ssystem, void* UNUSED){
+void SnapSystem_default_object_iterator(SnapSystem* ssystem, void* UNUSED(callback_data)){
 	Base* base;
 	Scene* scene = ssystem->scene;
 	View3D* v3d = ssystem->v3d;
@@ -424,43 +527,46 @@ void SnapSystem_default_object_iterator(SnapSystem* ssystem, void* UNUSED){
 	}
 }
 
-static int snap_type_exec(bContext *C, wmOperator *op)
-{
-	ToolSettings *ts= CTX_data_tool_settings(C);
+//static int snap_type_exec(bContext *C, wmOperator *op)
+//{
+//	ToolSettings *ts= CTX_data_tool_settings(C);
 
-	ts->snap_mode = RNA_enum_get(op->ptr, "type");
+//	ts->snap_mode = RNA_enum_get(op->ptr, "type");
 
-	WM_event_add_notifier(C, NC_SCENE|ND_TOOLSETTINGS, NULL); /* header redraw */
+//	WM_event_add_notifier(C, NC_SCENE|ND_TOOLSETTINGS, NULL); /* header redraw */
 
-	return OPERATOR_FINISHED;
-}
+//	return OPERATOR_FINISHED;
+//}
 
 extern EnumPropertyItem snap_element_items[];
 
 /*TODO: in the future I want to make it so the snap type selector only shows the available snap types
   to select based on the state of the snapsystem*/
-static void SNAP_OT_snap_type(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Snap Type";
-	ot->description = "Set the snap element type";
-	ot->idname = "SNAP_OT_snap_type";
+//static void SNAP_OT_snap_type(wmOperatorType *ot)
+//{
+//	/* identifiers */
+//	ot->name = "Snap Type";
+//	ot->description = "Set the snap element type";
+//	ot->idname = "SNAP_OT_snap_type";
 
-	/* api callbacks */
-	ot->invoke = WM_menu_invoke;
-	ot->exec = snap_type_exec;
+//	/* api callbacks */
+//	ot->invoke = WM_menu_invoke;
+//	ot->exec = snap_type_exec;
+//	//ot->poll = ED_operator_areaactive;
 
-	//ot->poll = ED_operator_areaactive;
+//	/* flags */
+//	ot->flag = OPTYPE_UNDO;
 
-	/* flags */
-	ot->flag = OPTYPE_UNDO;
+//	/* props */
+//	ot->prop = RNA_def_enum(ot->srna, "type", snap_element_items, 0, "Type", "Set the snap element type");
 
-	/* props */
-	ot->prop = RNA_def_enum(ot->srna, "type", snap_element_items, 0, "Type", "Set the snap element type");
+//}
 
-}
-
-
+/*TODO:
+  there will be a patch soon to replace this with function based state handling, according to Martin's Idea.
+  I've experimented with it a bit so far on a small scale and it makes sense, just ran out of time for this patch
+  to implement it properly. That's the goal for next patch. Everything here should be a lot cleaner, and easier
+  to explain with that.*/
 int SnapSystem_Event(SnapSystem* ssystem, wmEvent* event){
 	ToolSettings *ts= ssystem->scene->toolsettings;
 	//This function returns a 1 if the event was handled by this code to prevent
@@ -477,7 +583,7 @@ int SnapSystem_Event(SnapSystem* ssystem, wmEvent* event){
 				break; //don't cancel if it hasn't even started
 			}
 			/*stop consuming all the events*/
-			ssystem->cancel_callback(ssystem->callback_data);
+			ssystem->cancel_callback(ssystem, ssystem->callback_data);
 			ssystem->state = SNAPSYSTEM_STATE_IDLE;
 			handled = 1;
 			break;
@@ -490,7 +596,7 @@ int SnapSystem_Event(SnapSystem* ssystem, wmEvent* event){
 			switch(ssystem->state){
 			case SNAPSYSTEM_STATE_SNAPPING:
 				ssystem->state = SNAPSYSTEM_STATE_IDLE;
-				ssystem->finish_callback(ssystem->callback_data, ssystem->snap_point);
+				ssystem->finish_callback(ssystem, ssystem->callback_data, ssystem->snap_point);
 				handled = 1;
 				break;
 			case SNAPSYSTEM_STATE_INIT_SNAP:
@@ -500,11 +606,13 @@ int SnapSystem_Event(SnapSystem* ssystem, wmEvent* event){
 				}
 				handled = 1;
 				break;
+			default:
+				break;
 			}
 			break; //probably needs to change this bit!
 		case TFM_MODAL_SNAP_INV_ON:
 			/*start consuming all the events*/
-			if(ts->snap_mode == SCE_SNAP_MODE_EDGE_PARALLEL){
+			if(ts->snap_mode == SCE_SNAP_MODE_EDGE_PARALLEL || ts->snap_mode == SCE_SNAP_MODE_PLANAR){
 				ssystem->state = SNAPSYSTEM_STATE_INIT_SNAP;
 			}else{
 				ssystem->state = SNAPSYSTEM_STATE_SNAPPING;
@@ -516,6 +624,8 @@ int SnapSystem_Event(SnapSystem* ssystem, wmEvent* event){
 				break; //don't stop if it hasn't started
 			}
 			/*stop consuming all the events*/
+			ssystem->cancel_callback(ssystem, ssystem->callback_data);
+			SnapStack_reset(ssystem->sstack);
 			ssystem->state = SNAPSYSTEM_STATE_IDLE;
 			handled = 1;
 			break;
@@ -535,7 +645,7 @@ int SnapSystem_Event(SnapSystem* ssystem, wmEvent* event){
 			if(ssystem->state == SNAPSYSTEM_STATE_IDLE){
 				break; //don't cancel if it hasn't started
 			}
-			ssystem->cancel_callback(ssystem->callback_data);
+			ssystem->cancel_callback(ssystem, ssystem->callback_data);
 			ssystem->state = SNAPSYSTEM_STATE_IDLE;
 			handled = 1;
 			break;
@@ -567,13 +677,33 @@ Object* SnapSystem_get_ob(SnapSystem* ssystem, int index){
 	return ob_ref->ob;
 }
 
+void SnapSystem_draw(SnapSystem* ssystem){
+	Snap* s;
+	if(ssystem->retval && SnapStack_getN_Snaps(ssystem->sstack) > 0){
+		s = (Snap*)SnapStack_getSnap(ssystem->sstack, 0);
+		if(s == NULL){
+			return;
+		}
+		s->draw(s);
+	}
 
+}
+
+//TODO: find out how to clean up this function and the way it gets used within snapsystem
 void SnapSystem_set_mode_select(SnapSystem* ssystem, SnapSystem_mode_select mode_select){
 	ssystem->mode_select = mode_select;
 }
 
 int SnapSystem_get_retval(SnapSystem* ssystem){
 	return ssystem->retval;
+}
+
+bContext* SnapSystem_get_C(SnapSystem* ssystem){
+	return ssystem->C;
+}
+
+SnapSystem_state SnapSystem_get_state(SnapSystem* ssystem){
+	return ssystem->state;
 }
 
 void SnapSystem_clear_pick(SnapSystem* ssystem){
@@ -599,6 +729,7 @@ void SnapSystem_free(SnapSystem* ssystem){
 
 
 /* -- SnapStack Class -- */
+/*This is used for storing a stack of snaps to collapse and evaluate when using multi-snap*/
 
 #define MAX_SNAPS 3
 
@@ -654,54 +785,6 @@ void SnapStack_free(SnapStack* sstack){
 
 
 /* -- Snap Class -- */
-
-struct Snap{
-	Snap_type s_type;
-	int snap_found; //boolean whether snap point has been found
-	SnapPoint snap_point;
-	SnapPoint* closest_point; //previously calculated closest point to mouse and screen.
-	Snap* pick; //previously calculated snap to use as a picking point in modes such as parallel snap and planar snap
-
-	//TODO: all extra data in Snap should be subject to streamlining and change
-	//in the near future, as soon as I get something working. A lot of quick
-	//not-so-well-thought-out bits of code here that will need more thought later.
-
-	int retval; //temporary variable for linking in with transform code
-
-	/*external data pointers*/
-	bContext *C;
-	Scene* scene;
-	Object* ob;
-	View3D* v3d;
-	ARegion* ar;
-	int mval[2];
-
-	/*internal calculation data*/
-	float ray_start[3], ray_normal[3];
-	float ray_start_local[3], ray_normal_local[3];
-	int min_distance;
-
-	//matrix storage
-	float imat[4][4];
-	float timat[3][3];
-
-
-	//snap type -- type of snap to calculate
-	//geom_data_type
-
-	//transform
-
-	/*subclass data struct*/
-	void* snap_data;
-
-	/*function pointers*/
-	void (*run)(Snap*);
-	SnapIsect* (*interesect)(Snap*,Snap*);
-	void (*draw)(Snap*);
-	void (*free)(Snap*);
-	//void callback for doing transform -- function pointer
-};
-
 Snap* Snap_create(Snap_type s_type,
 				  Scene *scene, Object* ob, View3D *v3d, ARegion *ar, bContext *C, int mval[2],
 				  void (*run)(Snap*), void (*draw)(Snap*), void (*free)(Snap*)){
@@ -798,7 +881,7 @@ void Snap_draw(Snap* s){
 	s->draw(s);
 }
 
-void Snap_draw_default(Snap *s){
+void Snap_draw_default(Snap *UNUSED(s)){
 //	unsigned char col[4], selectedCol[4], activeCol[4];
 //	UI_GetThemeColor3ubv(TH_TRANSFORM, col);
 //	col[3]= 128;
@@ -860,15 +943,20 @@ void Snap_draw_default(Snap *s){
 
 /* -- MESH SNAPPING -- */
 
+/*TODO: implement a better system for input/output with snaps to allow things such as
+  user configurable values for snaps like angles, number of sections for midpoint, and other things
+  */
 typedef struct {
 	SnapMesh_type sm_type;// -- type of snap to calculate -- can be combination of several
 
-	MeshData *mesh_data;
+	MeshData *mesh_data; //actual mesh data stored in consistent interface (see struct MeshData)
 
 	/*return the vertex, edge or face picked by user for
 	use in combining snap modes (parallel and edge snap)*/
 	int ret_data_index; //index to use when getting element from mesh_data
-	SnapMesh_data_array_type ret_data_type; //vert, edge or face.
+	MeshData_pickface *ret_data_pface; //this pointer is assigned snap returns a face as the return value.
+	SnapMesh_ret_data_type ret_data_type; //vert index, edge index or pick face.
+	MeshData_check check;
 
 	int *dm_index_array; //for use when using derivedmesh data type;
 
@@ -876,22 +964,34 @@ typedef struct {
 
 }SnapMesh_data;
 
+/* The purpose of meshdata is to provide a consistent interface to the mesh system for use in mesh based
+  snapping modes without the requirement to convert between them, and thus suffer a performance loss.
+At the moment it supports two backends: BMEditmesh and DerivedMesh. It does this using a struct with
+function pointers that are assigned according to the type of mesh system that is getting used*/
+
 struct MeshData{
 	SnapMesh_data_type data_type;
 	void* data;
+	DerivedMesh* dm_bvh; //use derivedmesh if bvh functions are called.
+
 	int edit_mode;
 	int free_data;//TODO: to let SnapMesh_free know whether to free the meshdata.
 	int (*getNumVerts)(MeshData* md);
 	int (*getNumEdges)(MeshData* md);
 	int (*getNumFaces)(MeshData* md);
 
+	//call before using getVert, getEdge, getFace or bvh_from_faces functions
 	void (*index_init)(MeshData* md, SnapMesh_data_array_type array_type);
 
 	void (*getVert)(MeshData* md, int index, MVert* mv);
 	void (*getEdgeVerts)(MeshData* md, int index, MVert* mv1, MVert* mv2);
 
-	int (*checkVert)(MeshData* md, int index);
-	int (*checkEdge)(MeshData* md, int index);
+
+	BVHTreeFromMesh* (*bvh_from_faces)(MeshData* md, Object* ob, MeshData_check check);
+	void (*free_bvh_tree)(MeshData* md, BVHTreeFromMesh* treeData);
+
+	int (*checkVert)(MeshData* md, int index, MeshData_check check);
+	int (*checkEdge)(MeshData* md, int index, MeshData_check check);
 
 	void (*free)(MeshData* md);
 };
@@ -918,9 +1018,38 @@ void bmvert_to_mvert(BMesh *bm, BMVert *bmv, MVert *mv)
 	}
 }
 
-void bmedge_to_medge(BMesh *bm, BMEdge *ee, MEdge *edge_r)
-{
+//void bmedge_to_medge(BMesh *bm, BMEdge *ee, MEdge *edge_r)
+//{
 
+//}
+
+
+//TODO: finish writing this function!
+void bmface_to_mface(BMesh *UNUSED(bm), BMFace *UNUSED(bmf), MFace *UNUSED(mf)){
+
+}
+
+MeshData_pickface* MeshData_pickface_create(MFace *face, MVert *verts, int nverts, float *no){
+	int i;
+	MeshData_pickface *pickface = (MeshData_pickface*)MEM_mallocN(sizeof(MeshData_pickface), "snap_meshdata_pickface");
+	pickface->face = (MFace*)MEM_mallocN(sizeof(MFace), "snap_meshdata_pickface_face");
+	memcpy(pickface->face, face, sizeof(MFace));
+	pickface->face->v1 = 0;
+	pickface->face->v2 = 1;
+	pickface->face->v3 = 2;
+	pickface->verts = (MVert*)MEM_mallocN(sizeof(MVert) * nverts, "snap_meshdata_pickface_mverts");
+	pickface->nverts = nverts;
+	for(i=0;i<nverts;i++){
+		memcpy(&(pickface->verts[i]), &(verts[i]), sizeof(MVert));
+	}
+	copy_v3_v3(pickface->no, no);
+	return pickface;
+}
+
+void MeshData_pickface_free(MeshData_pickface *pface){
+	MEM_freeN(pface->verts);
+	MEM_freeN(pface->face);
+	MEM_freeN(pface);
 }
 
 /* - MeshData BMEditMesh accessor implementation - */
@@ -969,7 +1098,7 @@ void MeshData_BMEditMesh_getVert(MeshData *md, int index, MVert* mv){
 }
 
 //if vert is not hidden and not selected return 1 else 0
-int MeshData_BMEditMesh_checkVert(MeshData *md, int index){
+int MeshData_BMEditMesh_checkVert(MeshData *md, int index, MeshData_check UNUSED(check)){
 	BMVert* bmv;
 	BMEditMesh* em = (BMEditMesh*)md->data;
 	bmv = EDBM_vert_at_index(em, index);
@@ -988,22 +1117,50 @@ void MeshData_BMEditMesh_getEdgeVerts(MeshData *md, int index, MVert* mv1, MVert
 }
 
 
-//if vert is not hidden and not selected return 1 else 0
-int MeshData_BMEditMesh_checkEdge(MeshData *md, int index){
+//return a 1 if any of the checks return a positive
+int MeshData_BMEditMesh_checkEdge(MeshData *md, int index, MeshData_check check){
 	BMEdge* bme;
 	BMEditMesh* em = (BMEditMesh*)md->data;
+	int retval = 0;
 	bme = EDBM_edge_at_index(em, index);
 	/* check whether edge is hidden and if either of its vertices are selected*/
-	if( BM_elem_flag_test(bme, BM_ELEM_HIDDEN) ||
-		BM_elem_flag_test(bme->v1, BM_ELEM_SELECT) ||
-		 BM_elem_flag_test(bme->v2, BM_ELEM_SELECT)){
-		return 0;
+	if(check & MESHDATA_CHECK_HIDDEN){
+		if(BM_elem_flag_test(bme, BM_ELEM_HIDDEN)){
+			retval |= 1;
+		}
 	}
-	return 1;
+	if(check & MESHDATA_CHECK_SELECTED){
+		if(BM_elem_flag_test(bme->v1, BM_ELEM_SELECT) ||
+		 BM_elem_flag_test(bme->v2, BM_ELEM_SELECT)){
+			retval |= 1;
+		}
+	}
+	return retval;
 }
 
-void MeshData_BMEditMesh_getFace(MeshData *md, int index, MVert* mv){
+void MeshData_BMEditMesh_getFace(MeshData *md, int index, MFace* mf){
+	BMFace* bmf;
+	BMEditMesh* em = (BMEditMesh*)md->data;
+	bmf = EDBM_face_at_index(em, index);
+	bmface_to_mface(em->bm, bmf, mf);
+}
 
+BVHTreeFromMesh* MeshData_BMEditMesh_bvh_from_faces(MeshData* md, Object* ob, MeshData_check check){
+	/*this function creates a bvh tree from the faces in meshdata using the struct passed in through
+	the treeData pointer*/
+	BMEditMesh* em = (BMEditMesh*)md->data;
+	BVHTreeFromMesh* treeData;
+	if(md->dm_bvh == NULL){ //if this code has already executed, use previous dm_bvh to avoid calculations
+		md->dm_bvh = editbmesh_get_derived_base(ob, em);
+	}
+	treeData = (BVHTreeFromMesh*)MEM_mallocN(sizeof(BVHTreeFromMesh), "snap_bvhtreedata");
+	if(check & MESHDATA_CHECK_SELECTED || check & MESHDATA_CHECK_HIDDEN){
+		treeData->em_evil = em; //see bvhtree_from_mesh_faces function for comments on this value.
+	}else{
+		treeData->em_evil = NULL;
+	}
+	bvhtree_from_mesh_faces(treeData, md->dm_bvh, 0.0f, 4, 6);
+	return treeData;
 }
 
 void MeshData_BMEditMesh_free(MeshData* md){
@@ -1012,13 +1169,16 @@ void MeshData_BMEditMesh_free(MeshData* md){
 		em = (BMEditMesh*)md->data;
 		//TODO: free bmeditmesh
 	}
+	if(md->dm_bvh){
+		md->dm_bvh->release(md->dm_bvh);
+	}
 	MEM_freeN(md);
 }
 
 
 /* - MeshData DerivedMesh accessor implementation - */
 
-void MeshData_DerivedMesh_index_init(MeshData* md, SnapMesh_data_array_type array_type){
+void MeshData_DerivedMesh_index_init(MeshData* UNUSED(md), SnapMesh_data_array_type UNUSED(array_type)){
 //	DerivedMesh* dm;
 //	dm = (DerivedMesh*)md->data;
 //	sm_data->dm_index_array = dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
@@ -1040,7 +1200,8 @@ int MeshData_DerivedMesh_getNumFaces(MeshData *md){
 	return dm->getNumPolys(dm);
 }
 
-int MeshData_DerivedMesh_checkVert(MeshData *md, int index){
+//TODO: implement check argument functionality
+int MeshData_DerivedMesh_checkVert(MeshData *md, int index, MeshData_check UNUSED(check)){
 	MVert *verts;
 	MVert *mv;
 	DerivedMesh* dm = (DerivedMesh*)md->data;
@@ -1048,11 +1209,11 @@ int MeshData_DerivedMesh_checkVert(MeshData *md, int index){
 	verts = dm->getVertArray(dm);
 	//TODO: remove these debugging variables mv and hidden
 	mv = &(verts[index]);
-	hidden =  (verts[index].flag & ME_HIDE);
+	hidden =  (mv->flag & ME_HIDE);
 
 	//there is a weird bug where the selected flag is always on for meshes which aren't in editmode.
 	if(md->edit_mode){
-		selected = (verts[index].flag & 1);
+		selected = (mv->flag & 1);
 	}
 	else{
 		selected = 0;
@@ -1082,40 +1243,59 @@ void MeshData_DerivedMesh_getEdgeVerts(MeshData *md, int index, MVert* mv1, MVer
 	copy_mvert(mv2, &(verts[edges[index].v2]));
 }
 //TODO: make this more clear that there is only one edge in the snap_edge_parallel meshdata (the edge that is selected for snapping is copied)
-int MeshData_DerivedMesh_checkEdge(MeshData *md, int index){
+int MeshData_DerivedMesh_checkEdge(MeshData *md, int index, MeshData_check check){
 	//TODO: optimise this code a bit, and remove debug variables.
 	MEdge* edges;
 	MVert* verts;
 	MVert *v1, *v2;
 	DerivedMesh* dm = (DerivedMesh*)md->data;
-	char hidden, v1_selected, v2_selected;
+	char v1_selected, v2_selected;
+	int retval = 0;
 	edges = dm->getEdgeArray(dm);
 	verts = dm->getVertArray(dm);
 	/* check whether edge is hidden and if either of its vertices (v1 and v2) are selected
 	When they are selected their flag will be 0? (if indeed it works similar to bmesh)*/
 	/* in this case v1 and v2 are integer indexes for the vertex array*/
 
-	v1 = &(verts[edges[index].v1]);
-	v2 = &(verts[edges[index].v2]);
-	if(md->edit_mode){
-		v1_selected = v1->flag & 1;
-		v2_selected = v2->flag & 1;
+
+	if(check & MESHDATA_CHECK_HIDDEN){
+		if(edges[index].flag & ME_HIDE){
+			retval |= 1;
+		}
 	}
-	else{
-		v1_selected = 0;
-		v2_selected = 0;
+	if(check & MESHDATA_CHECK_SELECTED){
+		v1 = &(verts[edges[index].v1]);
+		v2 = &(verts[edges[index].v2]);
+
+		if(md->edit_mode){
+			v1_selected = v1->flag & 1;
+			v2_selected = v2->flag & 1;
+		}
+		else{
+			v1_selected = 0;
+			v2_selected = 0;
+		}
+		if(v1_selected || v2_selected){
+			retval |= 1;
+		}
 	}
 
-	if(v1_selected ||
-		v2_selected ||
-		(edges[index].flag & ME_HIDE)){
-		return 0;
-	}
-	return 1;
+	return retval;
 }
 
-void MeshData_DerivedMesh_getFace(MeshData *md, int index, MVert* mv){
+void MeshData_DerivedMesh_getFace(MeshData *UNUSED(md), int UNUSED(index), MVert* UNUSED(mv)){
 
+}
+
+//TODO: add support for check variable
+BVHTreeFromMesh*  MeshData_DerivedMesh_bvh_from_faces(MeshData* md, Object* UNUSED(ob), MeshData_check UNUSED(check)){
+	/*this function creates a bvh tree from the faces in meshdata using the struct passed in through
+	the treeData pointer*/
+	DerivedMesh* dm = (DerivedMesh*)md->data;
+	BVHTreeFromMesh* treeData = (BVHTreeFromMesh*)MEM_mallocN(sizeof(BVHTreeFromMesh), "snap_bvhtreedata");
+	treeData->em_evil = NULL;
+	bvhtree_from_mesh_faces(treeData, dm, 0.0f, 4, 6);
+	return treeData;
 }
 
 void MeshData_DerivedMesh_free(MeshData *md){
@@ -1127,10 +1307,17 @@ void MeshData_DerivedMesh_free(MeshData *md){
 	MEM_freeN(md);
 }
 
+void MeshData_free_bvh_tree(MeshData* UNUSED(md), BVHTreeFromMesh* treeData){
+	free_bvhtree_from_mesh(treeData);
+	MEM_freeN(treeData);
+}
+
+/*Create a MeshData struct for use in MeshSnap functions. see struct MeshData comments for more details*/
 MeshData* MeshData_create(void* mesh_data, SnapMesh_data_type data_type, int free_data, int edit_mode){
 	MeshData* md = (MeshData*)MEM_mallocN(sizeof(MeshData), "snapmesh_meshdata");
 	md->data_type = data_type;
 	md->data = mesh_data;
+	md->dm_bvh = NULL;
 	md->edit_mode = edit_mode;//TODO: this variable might need to be updated if this thing is cached...
 	md->free_data = free_data;
 	switch(data_type){
@@ -1143,6 +1330,8 @@ MeshData* MeshData_create(void* mesh_data, SnapMesh_data_type data_type, int fre
 		md->checkEdge = MeshData_DerivedMesh_checkEdge;
 		md->getVert = MeshData_DerivedMesh_getVert;
 		md->getEdgeVerts = MeshData_DerivedMesh_getEdgeVerts;
+		md->bvh_from_faces = MeshData_DerivedMesh_bvh_from_faces;
+		md->free_bvh_tree = MeshData_free_bvh_tree;
 		md->free = MeshData_DerivedMesh_free;
 		break;
 	case SNAPMESH_DATA_TYPE_BMEditMesh:
@@ -1154,6 +1343,8 @@ MeshData* MeshData_create(void* mesh_data, SnapMesh_data_type data_type, int fre
 		md->checkEdge = MeshData_BMEditMesh_checkEdge;
 		md->getVert = MeshData_BMEditMesh_getVert;
 		md->getEdgeVerts = MeshData_BMEditMesh_getEdgeVerts;
+		md->bvh_from_faces = MeshData_BMEditMesh_bvh_from_faces;
+		md->free_bvh_tree = MeshData_free_bvh_tree;
 		md->free = MeshData_BMEditMesh_free;
 		break;
 	}
@@ -1166,21 +1357,48 @@ MeshData* MeshData_create(void* mesh_data, SnapMesh_data_type data_type, int fre
 Snap* SnapMesh_create(	void* mesh_data,
 						SnapMesh_data_type data_type,
 						int free_mesh_data,
+						MeshData_check check,
 						SnapMesh_type sm_type,
 						Scene *scene, Object *ob, View3D *v3d, ARegion *ar, bContext *C, int mval[2])
 {
 	int edit_mode;
-	Snap* sm = Snap_create(SNAP_TYPE_MESH, scene, ob, v3d, ar, C, mval, SnapMesh_run, Snap_draw_default, SnapMesh_free);
+	Snap* sm;
 	SnapMesh_data* sm_data;
+//	void (*run)(Snap*);
+	void (*draw)(Snap*);
 
+	switch(sm_type){
+	case SNAPMESH_TYPE_VERTEX:
+		//TODO: add SnapMesh_snap_vertex in here too.
+		//run = SnapMesh_snap_vertex;
+		draw = Snap_draw_default;
+		break;
+	case SNAPMESH_TYPE_FACE:
+		draw = Snap_draw_default;
+		break;
+	case SNAPMESH_TYPE_PLANAR:
+		draw = SnapMesh_draw_planar;
+		break;
+	case SNAPMESH_TYPE_EDGE:
+		draw = Snap_draw_default;
+		break;
+	case SNAPMESH_TYPE_EDGE_MIDPOINT:
+		draw = Snap_draw_default;
+		break;
+	case SNAPMESH_TYPE_EDGE_PARALLEL:
+		draw = SnapMesh_draw_edge_parallel;
+		break;
+	}
+
+	sm = Snap_create(SNAP_TYPE_MESH, scene, ob, v3d, ar, C, mval, SnapMesh_run, draw, SnapMesh_free);
 	sm_data = (SnapMesh_data*)MEM_mallocN(sizeof(SnapMesh_data), "snapmesh_data");
-
 	sm_data->sm_type = sm_type;
 
 	//put an early exit flag somewhere here for the case when there is no geometry in mesh_data;
 	edit_mode = (sm->ob->mode & OB_MODE_EDIT);
 	sm_data->mesh_data = MeshData_create(mesh_data, data_type, free_mesh_data, edit_mode);
 	sm_data->dm_index_array = NULL;
+	sm_data->check = check;
 
 	sm->snap_data = (void*)sm_data;
 
@@ -1191,12 +1409,271 @@ void SnapMesh_free(Snap* sm){
 	//TODO: there is some memory not getting freed somwhere in here...
 	SnapMesh_data *sm_data = sm->snap_data;
 	sm_data->mesh_data->free(sm_data->mesh_data);
+	if(sm_data->ret_data_type == SNAPMESH_RET_DAT_pface){
+		MeshData_pickface_free((MeshData_pickface*)(sm_data->ret_data_pface));
+	}
 	MEM_freeN(sm_data);
 	Snap_free_f(sm);
 }
 
+//This function is a custom callback for use with bvh intersection to
+//return the mface which was intersected for use as pick data in face snap
+//TODO: remove I don't think I'm using this function after all...
+//static void SnapMesh_faces_spherecast(void *userdata, int index, const BVHTreeRay *ray, BVHTreeRayHit *hit)
+//{
+//	const BVHTreeFromMesh *data = (BVHTreeFromMesh *) userdata;
+//	MVert *vert = data->vert;
+//	MFace *face = data->face + index;
+
+//	float *t0, *t1, *t2, *t3;
+//	t0 = vert[face->v1].co;
+//	t1 = vert[face->v2].co;
+//	t2 = vert[face->v3].co;
+//	t3 = face->v4 ? vert[face->v4].co : NULL;
+
+
+//	do {
+//		float dist;
+//		if (data->sphere_radius == 0.0f)
+//			dist = bvhtree_ray_tri_intersection(ray, hit->dist, t0, t1, t2);
+//		else
+//			dist = sphereray_tri_intersection(ray, data->sphere_radius, hit->dist, t0, t1, t2);
+
+//		if (dist >= 0 && dist < hit->dist) {
+//			hit->index = index;
+//			hit->dist = dist;
+//			madd_v3_v3v3fl(hit->co, ray->origin, ray->direction, dist);
+
+//			normal_tri_v3(hit->no, t0, t1, t2);
+
+//			if (t1 == vert[face->v3].co)
+//				hit->flags |= BVH_ONQUAD;
+//		}
+
+//		t1 = t2;
+//		t2 = t3;
+//		t3 = NULL;
+
+//	} while (t2);
+//}
 
 /* SnapMesh Implementation */
+void snap_face_return_val(SnapMesh_data* sm_data, BVHTreeFromMesh *treeData, BVHTreeRayHit *hit){
+	/*This function is a method to figure out the return pickface for snap_face function*/
+	/*this function is kind of a dud without better bvh support for ngons and quads*/
+	/*for some reason bvh seems to only contain tris!?*/
+	/*TODO: make this better when bvh stuff gets investigated/fixed*/
+	MVert verts[4];
+	MVert *v1, *v2, *v3; //, *v4;
+	MFace *face = treeData->face + hit->index;
+	v1 = treeData->vert + face->v1;
+	v2 = treeData->vert + face->v2;
+	v3 = treeData->vert + face->v3;
+	//v1 = treeData->vert + face->v1;
+	memcpy(&(verts[0]), v1, sizeof(MVert));
+	memcpy(&(verts[1]), v2, sizeof(MVert));
+	memcpy(&(verts[2]), v3, sizeof(MVert));
+
+	sm_data->ret_data_pface = MeshData_pickface_create(face, verts, 3, hit->no);
+	sm_data->ret_data_type = SNAPMESH_RET_DAT_pface;
+}
+
+void SnapMesh_snap_face(Snap* sm){
+	//Todo: try to use the MeshData face functions here to test them better, even though performance with them will suck.
+	SnapMesh_data* sm_data = (SnapMesh_data*)sm->snap_data;
+	MeshData* md = sm_data->mesh_data;
+	BVHTreeRayHit hit;
+	BVHTreeFromMesh* treeData;
+	MFace *face;
+	float local_scale = len_v3(sm->ray_normal_local);
+
+	sm->retval = 0;
+	treeData = md->bvh_from_faces(md, sm->ob, sm_data->check);
+
+	hit.index = -1;
+	hit.dist = sm->snap_point.r_depth * (sm->snap_point.r_depth == FLT_MAX ? 1.0f : local_scale);
+
+	if (treeData->tree && BLI_bvhtree_ray_cast(treeData->tree, sm->ray_start_local, sm->ray_normal_local, 0.0f, &hit, treeData->raycast_callback, treeData) != -1) {
+		if (hit.dist / local_scale <= sm->snap_point.r_depth) {
+			face = treeData->face + hit.index;
+			sm->snap_point.r_depth = hit.dist / local_scale;
+			copy_v3_v3(sm->snap_point.location, hit.co);
+			copy_v3_v3(sm->snap_point.normal, hit.no);
+
+			/* back to worldspace */
+			mul_m4_v3(sm->ob->obmat, sm->snap_point.location);
+
+			mul_m3_v3(sm->timat, sm->snap_point.normal);
+			normalize_v3(sm->snap_point.normal);
+
+			snap_face_return_val(sm_data, treeData, &hit);
+			sm->retval = 1;
+		}
+	}
+	md->free_bvh_tree(md, treeData);
+}
+
+void SnapMesh_snap_planar(Snap* sm){
+	SnapMesh_data* sm_data = (SnapMesh_data*)sm->pick->snap_data; //use data from pick
+	/*float[0] -> float[2] represent normal of plane. float[3] is the distance from origin*/
+//	float plane[4]; //could alternatively use isect_line_plane
+	MVert *v1, *v2, *v3;
+	float lambda;
+	int result;
+
+	assert(sm_data->ret_data_type == SNAPMESH_RET_DAT_pface);
+	sm->retval = 0;
+	v1 = &(sm_data->ret_data_pface->verts[0]); //grab 3 verts from pick
+	v2 = &(sm_data->ret_data_pface->verts[1]);
+	v3 = &(sm_data->ret_data_pface->verts[2]);
+	//find whether there is an intersection between ray from screen and a plane based upon these
+	//3 verts. Lambda is the distance along the ray that the intersection occurs.
+	result = isect_ray_plane_v3(sm->ray_start_local, sm->ray_normal_local, v1->co, v2->co, v3->co, &lambda, 0.001);
+	if(result){
+		float intersect[3];
+		float location[3];
+
+		copy_v3_v3(intersect, sm->ray_normal_local);
+		//find intersection vector from camera using lambda which is the length along the normal.
+		mul_v3_fl(intersect, lambda);
+		//find the intersection point in absolute local space
+		add_v3_v3(intersect, sm->ray_start_local);
+		copy_v3_v3(location, intersect);
+
+		mul_m4_v3(sm->ob->obmat, location); //transform location into global space
+		copy_v3_v3(sm->snap_point.location, location);
+		copy_v3_v3(sm->snap_point.normal, sm_data->ret_data_pface->no); //grab normal from pick face
+		mul_m3_v3(sm->timat, sm->snap_point.normal); //transform normal into global space
+		sm->retval = 1;
+	}
+}
+
+extern GLubyte stipple_quarttone[128];
+extern GLubyte stipple_diag_stripes_pos[128];
+
+//TODO: make this function cool :)
+void SnapMesh_draw_planar(Snap* UNUSED(sm)){
+//	MeshData_pickface* pf;
+//	float quat[4];
+//	int i;
+//	unsigned char col[] = {255, 255, 255};
+//	Snap* pick = sm->pick;
+//	SnapMesh_data* sm_pick_data = (SnapMesh_data*)pick->snap_data;
+//	View3D *v3d = sm->v3d;
+//	float verts[4][3] = {{-1.0f, -1.0f, 0.0f},
+//						 {-1.0f, 1.0f, 0.0f},
+//						 {1.0f, 1.0f, 0.0f},
+//						 {1.0f, -1.0f, 0.0f}};
+
+//	assert(sm_pick_data->ret_data_type == SNAPMESH_RET_DAT_pface);
+//	pf = sm_pick_data->ret_data_pface;
+//	assert(pf->nverts >= 3);
+
+//	tri_to_quat(quat, pf->verts[0].co, pf->verts[1].co, pf->verts[2].co); //produce quaternion from existing face user picked
+
+//	glPushMatrix();
+
+//	glColor3ubv(col);
+
+//	glBegin(GL_QUADS);
+//	for(i=0;i<4;i++){
+//		mul_qt_v3(quat,verts[i]);
+//		mul_v3_fl(verts[i], v3d->far);
+//		add_v3_v3(verts[i], pick->snap_point.location);
+
+//		glVertex3fv(verts[i]);
+//	}
+//	glEnd();
+
+//	glPopMatrix();
+}
+
+void SnapMesh_draw_planar_texture(Snap* sm){
+	MeshData_pickface* pf;
+	float quat[4];
+	GLuint texture;
+	int i, j;
+	unsigned char col[] = {255, 255, 255};
+	Snap* pick = sm->pick;
+	SnapMesh_data* sm_pick_data = (SnapMesh_data*)pick->snap_data;
+	View3D *v3d = sm->v3d;
+	GLubyte pixels[32][32][3];
+	float verts[4][3] = {{-1.0f, -1.0f, 0.0f},
+						 {-1.0f, 1.0f, 0.0f},
+						 {1.0f, 1.0f, 0.0f},
+						 {1.0f, -1.0f, 0.0f}};
+
+	float tmap[4][2] = {{0.0f, 0.0f},
+						{1.0f, 0.0f},
+						{1.0f, 1.0f},
+						{0.0f, 1.0f}};
+
+
+	for(i=0;i<32;i++){
+		for(j=0;j<32;j++){
+			GLubyte vcol = 0;
+			if(i%2){
+				vcol = 255;
+			}
+			if(j%2){
+				vcol = vcol? 0:255;
+			}
+			pixels[j][i][0] = vcol;
+			pixels[j][i][1] = vcol;
+			pixels[j][i][2] = vcol;
+		}
+	}
+
+	assert(sm_pick_data->ret_data_type == SNAPMESH_RET_DAT_pface);
+	pf = sm_pick_data->ret_data_pface;
+	assert(pf->nverts >= 3);
+
+	tri_to_quat(quat, pf->verts[0].co, pf->verts[1].co, pf->verts[2].co); //produce quaternion from existing face user picked
+
+
+	glPushMatrix();
+
+	glEnable(GL_TEXTURE_2D);
+	glGenTextures(1,&texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+//	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 32, 32, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+//	glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, 16, 8, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, stipple_quarttone);
+//	gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGB, 32, 32, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+	gluBuild2DMipmapLevels(GL_TEXTURE_2D, GL_RGB, 32, 32, GL_RGB, GL_UNSIGNED_BYTE,4,4,0, pixels);
+	//	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST); // Linear Filtering
+//	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST); // Linear Filtering
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST); // Linear Filtering
+//	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST); // Linear Filtering
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR); // Linear Filtering
+
+//	glEnable(GL_POLYGON_STIPPLE);
+//	glPolygonStipple(stipple_diag_stripes_pos);
+	glColor3ubv(col);
+
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glShadeModel(GL_SMOOTH);
+	glBegin(GL_QUADS);
+	for(i=0;i<4;i++){
+		mul_qt_v3(quat,verts[i]);
+		mul_v3_fl(verts[i], v3d->far);
+		add_v3_v3(verts[i], pick->snap_point.location);
+
+		mul_v3_fl(tmap[i], v3d->far/100.0f);
+		glTexCoord2fv(tmap[i]);
+
+		glVertex3fv(verts[i]);
+	}
+	glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f,  1.0f);  // Bottom Left Of The Texture and Quad
+	glTexCoord2f(10.0f, 0.0f); glVertex3f( 1.0f, -1.0f,  1.0f);  // Bottom Right Of The Texture and Quad
+	glTexCoord2f(10.0f, 10.0f); glVertex3f( 1.0f,  1.0f,  1.0f);  // Top Right Of The Texture and Quad
+	glTexCoord2f(0.0f, 10.0f); glVertex3f(-1.0f,  1.0f,  1.0f);  // Top Left Of The Texture and Quad
+	glEnd();
+//	glDisable(GL_POLYGON_STIPPLE);
+	glDisable(GL_TEXTURE_2D);
+	glDeleteTextures(1, &texture);
+
+	glPopMatrix();
+}
 
 void SnapMesh_snap_vertex(Snap* sm){
 	int i, totvert;
@@ -1219,7 +1696,7 @@ void SnapMesh_snap_vertex(Snap* sm){
 
 	totvert  = md->getNumVerts(md);
 	for(i=0;i<totvert;i++){
-		if(md->checkVert(md, i) == 0){
+		if(md->checkVert(md, i, MESHDATA_CHECK_HIDDEN|MESHDATA_CHECK_SELECTED) == 0){
 			continue; //skip this vert if it is selected or hidden
 		}
 
@@ -1254,19 +1731,12 @@ void SnapMesh_snap_vertex(Snap* sm){
 		mul_m3_v3(sm->timat, sm->snap_point.normal);
 		normalize_v3(sm->snap_point.normal);
 
+
 		sm->snap_point.r_dist = new_dist;
 
 		sm_data->ret_data_index = i;
-		sm_data->ret_data_type = SNAPMESH_DAT_vert;
+		sm_data->ret_data_type = SNAPMESH_RET_DAT_vert_index;
 	}
-}
-
-void SnapMesh_snap_face(Snap* sm){
-
-}
-
-void SnapMesh_snap_face_plane(Snap* sm){
-	//port over experiment project
 }
 
 void SnapMesh_snap_edge(Snap* sm){
@@ -1292,7 +1762,7 @@ void SnapMesh_snap_edge(Snap* sm){
 
 	totedge = md->getNumEdges(md);
 	for(i=0;i<totedge;i++){
-		if(md->checkEdge(md, i) == 0){
+		if(md->checkEdge(md, i, sm_data->check) == 1){
 			continue;
 		}
 
@@ -1378,7 +1848,7 @@ void SnapMesh_snap_edge(Snap* sm){
 		sm->snap_point.r_depth = new_depth;
 
 		sm_data->ret_data_index = i;
-		sm_data->ret_data_type = SNAPMESH_DAT_edge;
+		sm_data->ret_data_type = SNAPMESH_RET_DAT_edge_index;
 	}
 
 }
@@ -1407,7 +1877,7 @@ void SnapMesh_snap_edge_midpoint(Snap* sm){
 
 	totedge = md->getNumEdges(md);
 	for(i=0;i<totedge;i++){
-		if(md->checkEdge(md, i) == 0){
+		if(md->checkEdge(md, i, sm_data->check) == 1){
 			continue;
 		}
 
@@ -1429,7 +1899,7 @@ void SnapMesh_snap_edge_midpoint(Snap* sm){
 		new_dist = abs(screen_loc[0] - sm->mval[0]) + abs(screen_loc[1] - sm->mval[1]);
 
 		if(new_dist > sm->snap_point.r_dist || new_depth >= sm->snap_point.r_depth){//what is r_depth in original code? is it always FLT_MAX?
-			//I'm thinking this checks whether depth of snap point is the deeper than an existing point, if it is, then
+			//This checks whether depth of snap point is the deeper than an existing point, if it is, then
 			//skip this vert. it also checks whether the distance between the mouse and the vert is small enough, if it
 			//isn't then skip this vert. it picks the closest one to the mouse, and the closest one to the screen.
 			//if there is no existing snappable vert then r_depth == FLT_MAX;
@@ -1454,11 +1924,11 @@ void SnapMesh_snap_edge_midpoint(Snap* sm){
 		normalize_v3(sm->snap_point.normal);
 
 		sm->snap_point.r_dist = new_dist;
-	}
+	}//call before using getVert, getEdge, getFace or bvh_from_faces functions
 }
 
 void SnapMesh_snap_edge_parallel(Snap* sm){
-	int i, totedge, result, new_dist;
+	int i, result, new_dist;
 	int screen_loc[2];
 
 	float intersect[3] = {0, 0, 0}, ray_end[3], dvec[3];
@@ -1476,12 +1946,12 @@ void SnapMesh_snap_edge_parallel(Snap* sm){
 
 	sm->retval = 0;
 
-	assert(sm_data->ret_data_type == SNAPMESH_DAT_edge);
+	assert(sm_data->ret_data_type == SNAPMESH_RET_DAT_edge_index);
 	md->index_init(md, SNAPMESH_DAT_edge); //should perhaps only be called once per mesh...
 
 	i = sm_data->ret_data_index;
 
-	if(md->checkEdge(md, i) == 0){
+	if(md->checkEdge(md, i, sm_data->check) == 1){
 		return;
 	}
 
@@ -1540,7 +2010,7 @@ void SnapMesh_snap_edge_parallel(Snap* sm){
 	 * this takes care of series of connected edges a bit slanted w.r.t the viewport
 	 * otherwise, it would stick to the verts of the closest edge and not slide along merrily
 	 * */
-	if (new_dist > sm->snap_point.r_dist || new_depth >= sm->snap_point.r_depth * 1.001f){
+	if (new_depth >= sm->snap_point.r_depth * 1.001f){
 		return;
 	}
 
@@ -1566,6 +2036,52 @@ void SnapMesh_snap_edge_parallel(Snap* sm){
 	sm->snap_point.r_depth = new_depth;
 }
 
+void SnapMesh_draw_edge_parallel(Snap *sm){
+	unsigned char col[4];
+	MVert mv1, mv2;
+	float v1[3], v2[3], v3[3], v4[3], v5[3], center[3];
+	View3D *v3d = sm->v3d;
+	//using user picked edge data for calculations
+	SnapMesh_data* sm_pick_data = (SnapMesh_data*)sm->pick->snap_data;
+
+	assert(sm_pick_data->ret_data_type == SNAPMESH_RET_DAT_edge_index);
+	sm_pick_data->mesh_data->index_init(sm_pick_data->mesh_data, SNAPMESH_DAT_edge);
+	sm_pick_data->mesh_data->getEdgeVerts(sm_pick_data->mesh_data, sm_pick_data->ret_data_index, &mv1, &mv2);
+	copy_v3_v3(v1, mv1.co);
+	copy_v3_v3(v2, mv2.co);
+	sub_v3_v3v3(v3, v1, v2);
+	normalize_v3(v3);
+
+	copy_v3_v3(center, v1);
+
+
+	glPushMatrix();
+
+	if (sm->ob->mode == OB_MODE_EDIT){
+		//glLoadMatrixf(sm->ob->obmat);	// sets opengl viewing
+	}
+
+
+	mul_v3_fl(v3, v3d->far);
+
+	sub_v3_v3v3(v5, center, v3);
+	add_v3_v3v3(v4, center, v3);
+	mul_m4_v3(sm->ob->obmat, v5);
+	mul_m4_v3(sm->ob->obmat, v4);
+
+	col[0] = col[1] = col[2] = 220;
+	glColor3ubv(col);
+
+	setlinestyle(0);
+	glBegin(GL_LINE_STRIP);
+		glVertex3fv(v4);
+		glVertex3fv(v5);
+	glEnd();
+
+	glPopMatrix();
+}
+
+/*TODO: do the same thing I did to SnapMesh_draw, and dissolve this into function pointer assignment at runtime*/
 void SnapMesh_run(Snap *sm){
 	SnapMesh_data* sm_data = (SnapMesh_data*)sm->snap_data;
 
@@ -1596,9 +2112,11 @@ void SnapMesh_run(Snap *sm){
 		SnapMesh_snap_vertex(sm);
 		break;
 	case SNAPMESH_TYPE_FACE:
-		return; //call face snap function here
-	case SNAPMESH_TYPE_FACE_PLANE:
-		return; //call face plane snap function here
+		SnapMesh_snap_face(sm);
+		break;
+	case SNAPMESH_TYPE_PLANAR:
+		SnapMesh_snap_planar(sm);
+		break;
 	case SNAPMESH_TYPE_EDGE:
 		SnapMesh_snap_edge(sm);
 		break;
@@ -1614,18 +2132,7 @@ void SnapMesh_run(Snap *sm){
 	//call callback here?
 }
 
-typedef enum{
-	SNAP_ISECT_TYPE_GEOMETRY,
-	SNAP_ISECT_TYPE_POINT
-}SnapIsect_type;
-
 /*snap intersection*/
-struct SnapIsect{
-	SnapIsect_type type;
-	Snap* isect_geom; //a new snap containing the snap geometry of the intersection.
-	SnapPoint isect_point; //for use if the intersection is a single point (isect_type == SNAP_ISECT_TYPE_POINT)
-};
-
 SnapIsect* SnapIsect_create(SnapIsect_type type){
 	SnapIsect* si = (SnapIsect*)MEM_mallocN(sizeof(SnapIsect), "snapisect");
 	si->type = type;
@@ -1669,70 +2176,10 @@ be found then this function retruns NULL pointer.*/
 //}
 
 
-void SnapMesh_perpendicular(Snap* sm, SnapPoint point){
+//void SnapMesh_perpendicular(Snap* sm, SnapPoint point){
 	//set the sm->snap_point to the point on the snap_geometry which is perpendicular
 	//to the argurment point.
-}
-
-void SnapMesh_draw(Snap *sm){
-	unsigned char col[4], selectedCol[4], activeCol[4];
-	SnapMesh_data* sm_data = (SnapMesh_data*)sm->snap_data;
-	switch(sm_data->sm_type){
-	case SNAPMESH_TYPE_VERTEX:
-		//use default drawing function
-		break;
-	case SNAPMESH_TYPE_FACE:
-		//use default drawing function
-		break;
-	case SNAPMESH_TYPE_FACE_PLANE:
-		//special face_plane drawing
-		break;
-	case SNAPMESH_TYPE_EDGE:
-		//use default drawing function
-		break;
-	case SNAPMESH_TYPE_EDGE_MIDPOINT:
-		//use default drawing function
-		break;
-	case SNAPMESH_TYPE_EDGE_PARALLEL:
-		break;
-		//drawline code from transform_generics is another good example
-//		float v1[3], v2[3], v3[3];
-//		unsigned char col[3], col2[3];
-
-//		if (t->spacetype == SPACE_VIEW3D) {
-//			View3D *v3d = t->view;
-
-//			glPushMatrix();
-
-//			//if (t->obedit) glLoadMatrixf(t->obedit->obmat);	// sets opengl viewing
-
-
-//			copy_v3_v3(v3, dir);
-//			mul_v3_fl(v3, v3d->far);
-
-//			sub_v3_v3v3(v2, center, v3);
-//			add_v3_v3v3(v1, center, v3);
-
-//			if (options & DRAWLIGHT) {
-//				col[0] = col[1] = col[2] = 220;
-//			}
-//			else {
-//				UI_GetThemeColor3ubv(TH_GRID, col);
-//			}
-//			UI_make_axis_color(col, col2, axis);
-//			glColor3ubv(col2);
-
-//			setlinestyle(0);
-//			glBegin(GL_LINE_STRIP);
-//				glVertex3fv(v1);
-//				glVertex3fv(v2);
-//			glEnd();
-
-//			glPopMatrix();
-//		}
-		//use parallel edge code from experiment project
-	}
-}
+//}
 
 /* -- AXIS SNAPPING -- */
 /* this system will need some method of inputting the origin of the axis.
