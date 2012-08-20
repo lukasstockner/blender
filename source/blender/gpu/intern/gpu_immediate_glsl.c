@@ -104,16 +104,18 @@ glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	/* setup vertex arrays
 	   Assume that vertex arrays have been disabled for everything
 	   and only enable what is needed */
-	   if (GPU_IMMEDIATE->format.textureUnitCount == 0)
+	   if (GPU_IMMEDIATE->format.textureUnitCount == 1)
 	   {
-	   		gpu_set_shader_es(&shader_main_info, 0);
+	   
+	   	   		gpu_set_shader_es(&shader_alphatexture_info, 0);
 	   		
-	   		gpu_glUseProgram(shader_main);
+	   		gpu_glUseProgram(shader_alphatexture);	
+
 		} else
 		{
-	   		gpu_set_shader_es(&shader_alphatexture_info, 0);
+	   		gpu_set_shader_es(&shader_main_info, 0);
 	   		
-	   		gpu_glUseProgram(shader_alphatexture);		
+	   		gpu_glUseProgram(shader_main);	
 		
 		}
 		
@@ -154,18 +156,7 @@ gpugameobj.gpuVertexPointer(GPU_IMMEDIATE->format.vertexSize,
 		offset += 4 * sizeof(GLubyte);
 
 
-	} else 
-	{
-		/*gpugameobj.gpuColorPointer(
-			4 * sizeof(GLubyte),
-			GL_UNSIGNED_BYTE,
-			GPU_IMMEDIATE->stride,
-			bufferData->ptr + offset);*/
-			
-			
-			
-			//gpugameobj.gpuColorSet(	stateData.curcolor);
-			}
+	}
 
 	/* texture coordinate */
 
@@ -181,20 +172,20 @@ gpugameobj.gpuVertexPointer(GPU_IMMEDIATE->format.vertexSize,
 
 	}
 	else if (GPU_IMMEDIATE->format.textureUnitCount > 1) {
-		/*for (i = 0; i < GPU_IMMEDIATE->format.textureUnitCount; i++) {
-			glClientActiveTexture(GPU_IMMEDIATE->format.textureUnitMap[i]);
+		for (i = 0; i < GPU_IMMEDIATE->format.textureUnitCount; i++) {
+			/*glClientActiveTexture(GPU_IMMEDIATE->format.textureUnitMap[i]);
 
 			glTexCoordPointer(
 				GPU_IMMEDIATE->format.texCoordSize[i],
 				GL_FLOAT,
 				GPU_IMMEDIATE->stride,
-				bufferData->ptr + offset);
+				bufferData->ptr + offset);*/
 
 			offset +=
 				(size_t)(GPU_IMMEDIATE->format.texCoordSize[i]) * sizeof(GLfloat);
 
 		//	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-		}*/
+		}
 
 	//	glClientActiveTexture(GL_TEXTURE0);
 	}
@@ -202,37 +193,37 @@ gpugameobj.gpuVertexPointer(GPU_IMMEDIATE->format.vertexSize,
 	/* float vertex attribute */
 
 	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_f; i++) {
-		gpu_glVertexAttribPointer(
+	/*	gpu_glVertexAttribPointer(
 			GPU_IMMEDIATE->format.attribIndexMap_f[i],
 			GPU_IMMEDIATE->format.attribSize_f[i],
 			GL_FLOAT,
 			GPU_IMMEDIATE->format.attribNormalized_f[i],
 			GPU_IMMEDIATE->stride,
-			bufferData->ptr + offset);
+			bufferData->ptr + offset);*/
 
 		offset +=
 			(size_t)(GPU_IMMEDIATE->format.attribSize_f[i]) * sizeof(GLfloat);
 
-		gpu_glEnableVertexAttribArray(
-			GPU_IMMEDIATE->format.attribIndexMap_f[i]);
+		/*gpu_glEnableVertexAttribArray(
+			GPU_IMMEDIATE->format.attribIndexMap_f[i]);*/
 	}
 
 	/* byte vertex attribute */
 
 	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++) {
 		if (GPU_IMMEDIATE->format.attribSize_ub[i] > 0) {
-			glVertexAttribPointer(
+			/*glVertexAttribPointer(
 				GPU_IMMEDIATE->format.attribIndexMap_ub[i],
 				GPU_IMMEDIATE->format.attribSize_ub[i],
 				GL_UNSIGNED_BYTE,
 				GPU_IMMEDIATE->format.attribNormalized_ub[i],
 				GPU_IMMEDIATE->stride,
-				bufferData->ptr + offset);
+				bufferData->ptr + offset);*/
 
 			offset += 4 * sizeof(GLubyte);
 
-			glEnableVertexAttribArray(
-				GPU_IMMEDIATE->format.attribIndexMap_ub[i]);
+			/*glEnableVertexAttribArray(
+				GPU_IMMEDIATE->format.attribIndexMap_ub[i]);*/
 		}
 	}
 
@@ -298,8 +289,8 @@ void gpu_begin_buffer_glsl(void)
 }
 
 
-static short vqeos [65536*3/2];
-static char vqeoc [256*3/2];
+ short vqeos[65536*3/2];
+ char vqeoc[256*3/2];
 
 void gpu_quad_elements_init(void)
 {
@@ -310,7 +301,6 @@ void gpu_quad_elements_init(void)
 	
 	if(init) return;
 	init = 1;
-	
 	
 	for(i=0, j=0; i<65536; i++, j++)
 	{
@@ -344,17 +334,30 @@ void gpu_end_buffer_glsl(void)
 			gpugameobj.gpuColorSet(	stateData.curcolor);
 		}
 		
+		
 		gpuMatrixCommit();
 		
-		
 		if(GPU_IMMEDIATE->mode != GL_QUADS )
+		{
+	
 			glDrawArrays(GPU_IMMEDIATE->mode, 0, GPU_IMMEDIATE->count);
+			
+			}
 		else
 		{
-			if(GPU_IMMEDIATE->count <= 256)
+		
+			if(GPU_IMMEDIATE->count <= 256){
+
 				glDrawElements(GL_TRIANGLES,GPU_IMMEDIATE->count *3/2, GL_UNSIGNED_BYTE,  vqeoc);
+
+				}
 			else if(GPU_IMMEDIATE->count <= 65536)
+			{
+
 				glDrawElements(GL_TRIANGLES,GPU_IMMEDIATE->count *3/2, GL_UNSIGNED_SHORT,  vqeos);
+
+				
+				}
 			else
 			{
 				printf("To big GL_QUAD object to draw. Vertices: %i", GPU_IMMEDIATE->count);
@@ -362,7 +365,7 @@ void gpu_end_buffer_glsl(void)
 			
 			
 		}
-gpu_glUseProgram(0);
+
 		GPU_CHECK_NO_ERROR();
 	}
 }
@@ -376,7 +379,8 @@ void gpu_unlock_buffer_glsl(void)
 	/* Disable any arrays that were used so that everything is off again. */
 
 	GPU_CHECK_NO_ERROR();
-
+gpu_glUseProgram(0);
+gpu_set_shader_es(0, 0);
 	/* vertex */
 
 	//glDisableClientState(GL_VERTEX_ARRAY);
@@ -410,13 +414,13 @@ void gpu_unlock_buffer_glsl(void)
 	/* float vertex attribute */
 
 	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_f; i++) {
-		gpu_glDisableVertexAttribArray(GPU_IMMEDIATE->format.attribIndexMap_f[i]);
+		//gpu_glDisableVertexAttribArray(GPU_IMMEDIATE->format.attribIndexMap_f[i]);
 	}
 
 	/* byte vertex attribute */
 
 	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++) {
-		gpu_glDisableVertexAttribArray(GPU_IMMEDIATE->format.attribIndexMap_ub[i]);
+		//gpu_glDisableVertexAttribArray(GPU_IMMEDIATE->format.attribIndexMap_ub[i]);
 	}
 
 	GPU_CHECK_NO_ERROR();
@@ -478,7 +482,6 @@ void gpu_get_current_color_glsl(GLfloat *color)
 void gpu_current_normal_glsl(void)
 {
 
-	//glNormal3fv(GPU_IMMEDIATE->normal);
 	copy_v3_v3(stateData.curnormal, GPU_IMMEDIATE->normal);
 }
 
@@ -511,6 +514,7 @@ void gpu_draw_elements_glsl(void)
 		
 	
 	gpuMatrixCommit();
+	
 	glDrawElements(
 		GPU_IMMEDIATE->mode,
 		index->count,
@@ -525,7 +529,7 @@ void gpu_draw_range_elements_glsl(void)
 	GPUindex* index = GPU_IMMEDIATE->index;
 
 	GPU_CHECK_NO_ERROR();
-	gpuMatrixCommit();
+	//gpuMatrixCommit();
 //glDrawArrays(GPU_IMMEDIATE->mode, 0, GPU_IMMEDIATE->count);
 	/*glDrawRangeElements(
 		GPU_IMMEDIATE->mode,
@@ -534,6 +538,8 @@ void gpu_draw_range_elements_glsl(void)
 		index->count,
 		GL_UNSIGNED_INT,
 		index->unmappedBuffer);*/
+		
+		
 
 	GPU_CHECK_NO_ERROR();
 }

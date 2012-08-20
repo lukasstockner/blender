@@ -9,13 +9,14 @@ typedef struct GPUGLSL_ES_info
 		int viewmatloc;
 		int normalmatloc;
 		int projectionmatloc;
-		int texturecoordloc;
+		int texturematloc;
 	
 		int texidloc;
 
 		int vertexloc;
 		int normalloc;	
 		int colorloc;
+		int texturecoordloc;
 	
 
 } GPUGLSL_ES_info;

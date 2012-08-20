@@ -64,8 +64,11 @@ void gpuTexCoordPointer_gles(int size, int type, int stride, const void *pointer
 	if(curglslesi && (curglslesi->texturecoordloc!=-1))
 	{
 		glEnableVertexAttribArray(curglslesi->texturecoordloc);
+		//glDisableVertexAttribArray(curglslesi->texturecoordloc);
 		glVertexAttribPointer(curglslesi->texturecoordloc, size, type, 0, stride, pointer);
 	}
+		if(curglslesi && curglslesi->texidloc!=-1)
+			glUniform1i(curglslesi->texidloc, 0);
 }
 
 
@@ -93,13 +96,14 @@ void gpu_assign_gles_loc(GPUGLSL_ES_info * glslesinfo, unsigned int program)
 		glslesinfo->normalmatloc = gpu_glGetUniformLocation(program, "b_NormalMatrix");	
 		glslesinfo->viewmatloc = gpu_glGetUniformLocation(program, "b_ModelViewMatrix");	
 		glslesinfo->projectionmatloc = gpu_glGetUniformLocation(program, "b_ProjectionMatrix");
-		glslesinfo->texturecoordloc = gpu_glGetUniformLocation(program, "b_TextureMatrix");
+		glslesinfo->texturematloc = gpu_glGetUniformLocation(program, "b_TextureMatrix");
 		
 		glslesinfo->texidloc = gpu_glGetUniformLocation(program, "v_texid");
 		
 		glslesinfo->vertexloc = gpu_glGetAttribLocation(program, "b_Vertex");
 		glslesinfo->normalloc = gpu_glGetAttribLocation(program, "b_Normal");
 		glslesinfo->colorloc = gpu_glGetAttribLocation(program, "b_Color");
+		glslesinfo->texturecoordloc = gpu_glGetAttribLocation(program, "b_Coord");
 }
 
 
@@ -227,7 +231,7 @@ char * object_shader_fragment_basic =
 "varying vec4 v_Color;	\n"
 "void main()	\n"
 "{	\n"
-"	gl_FragColor = vec4(vec3(v_Color), v_Color.a * 1.0);	\n"
+"	gl_FragColor = v_Color;	\n"
 "}	\n"
 ;
 
@@ -266,6 +270,7 @@ int shader_main;
 
 GPUGLSL_ES_info shader_alphatexture_info;
 int shader_alphatexture;
+
 
 
 void gpu_object_init_gles(void)

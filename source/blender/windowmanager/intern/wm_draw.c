@@ -774,6 +774,9 @@ void wm_draw_update(bContext *C)
 
 			drawmethod = wm_automatic_draw_method(win);
 
+#ifdef GLES
+			wm_method_draw_full(C, win);
+#else
 			if (win->drawfail)
 				wm_method_draw_overlap_all(C, win, 0);
 			else if (drawmethod == USER_DRAW_FULL)
@@ -784,6 +787,7 @@ void wm_draw_update(bContext *C)
 				wm_method_draw_overlap_all(C, win, 1);
 			else // if (drawmethod == USER_DRAW_TRIPLE)
 				wm_method_draw_triple(C, win);
+#endif
 
 			win->screen->do_draw_gesture = FALSE;
 			win->screen->do_draw_paintcursor = FALSE;

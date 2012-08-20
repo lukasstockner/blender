@@ -267,10 +267,10 @@ if(GPU_GLTYPE_FIXED_ENABLED)
 		glUniformMatrix4fv(curglslesi->projectionmatloc, 1, 0, ms_projection.dynstack[ms_projection.pos]);
 	}
 	
-	if(ms_texture.changed|| glslneedupdate)
+	//if(ms_texture.changed|| glslneedupdate)
 	{
-		if(curglslesi->texturecoordloc!=-1)
-		glUniformMatrix4fv(curglslesi->texturecoordloc, 1, 0, ms_texture.dynstack[ms_texture.pos]);
+		if(curglslesi->texturematloc!=-1)
+		glUniformMatrix4fv(curglslesi->texturematloc, 1, 0, ms_texture.dynstack[ms_texture.pos]);
 	}
 }
 
