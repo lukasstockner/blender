@@ -527,7 +527,7 @@ int cocoa_request_qtcodec_settings(bContext *C, wmOperator *op)
 // So WM_exit needs to be called directly, as the event loop will never run before termination
 - (void)applicationWillTerminate:(NSNotification *)aNotification
 {
-	/*G.afbreek = 0; //Let Cocoa perform the termination at the end
+	/*G.is_break = FALSE; //Let Cocoa perform the termination at the end
 	WM_exit(C);*/
 }
 
@@ -1662,17 +1662,19 @@ GHOST_TSuccess GHOST_SystemCocoa::handleKeyEvent(void *eventPtr)
 		case NSKeyDown:
 		case NSKeyUp:
 			charsIgnoringModifiers = [event charactersIgnoringModifiers];
-			if ([charsIgnoringModifiers length]>0)
+			if ([charsIgnoringModifiers length] > 0) {
 				keyCode = convertKey([event keyCode],
 									 [charsIgnoringModifiers characterAtIndex:0],
 									 [event type] == NSKeyDown?kUCKeyActionDown:kUCKeyActionUp);
-			else
+			}
+			else {
 				keyCode = convertKey([event keyCode],0,
 									 [event type] == NSKeyDown?kUCKeyActionDown:kUCKeyActionUp);
+			}
 
 			/* handling both unicode or ascii */
 			characters = [event characters];
-			if ([characters length]>0) {
+			if ([characters length] > 0) {
 				convertedCharacters = [characters dataUsingEncoding:NSUTF8StringEncoding];
 				
 				for (int x = 0; x < [convertedCharacters length]; x++) {

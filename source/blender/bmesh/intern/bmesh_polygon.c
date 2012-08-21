@@ -507,8 +507,8 @@ static int linecrossesf(const float v1[2], const float v2[2], const float v3[2],
 
 #define GETMIN2_AXIS(a, b, ma, mb, axis)   \
 	{                                      \
-		ma[axis] = MIN2(a[axis], b[axis]); \
-		mb[axis] = MAX2(a[axis], b[axis]); \
+		ma[axis] = minf(a[axis], b[axis]); \
+		mb[axis] = maxf(a[axis], b[axis]); \
 	} (void)0
 
 #define GETMIN2(a, b, ma, mb)          \
@@ -538,17 +538,17 @@ static int linecrossesf(const float v1[2], const float v2[2], const float v3[2],
 	
 	/* do an interval test on the x and y axes */
 	/* first do x axis */
-	if (ABS(v1[1] - v2[1]) < EPS &&
-	    ABS(v3[1] - v4[1]) < EPS &&
-	    ABS(v1[1] - v3[1]) < EPS)
+	if (fabsf(v1[1] - v2[1]) < EPS &&
+	    fabsf(v3[1] - v4[1]) < EPS &&
+	    fabsf(v1[1] - v3[1]) < EPS)
 	{
 		return (mv4[0] >= mv1[0] && mv3[0] <= mv2[0]);
 	}
 
 	/* now do y axis */
-	if (ABS(v1[0] - v2[0]) < EPS &&
-	    ABS(v3[0] - v4[0]) < EPS &&
-	    ABS(v1[0] - v3[0]) < EPS)
+	if (fabsf(v1[0] - v2[0]) < EPS &&
+	    fabsf(v3[0] - v4[0]) < EPS &&
+	    fabsf(v1[0] - v3[0]) < EPS)
 	{
 		return (mv4[1] >= mv1[1] && mv3[1] <= mv2[1]);
 	}
@@ -646,8 +646,7 @@ static int bm_face_goodline(float const (*projectverts)[3], BMFace *f, int v1i, 
 			continue;
 		}
 
-		if (isect_point_tri_v2(pv1, v1, v2, v3) || isect_point_tri_v2(pv1, v3, v2, v1))
-		{
+		if (isect_point_tri_v2(pv1, v1, v2, v3) || isect_point_tri_v2(pv1, v3, v2, v1)) {
 #if 0
 			if (isect_point_tri_v2(pv1, v1, v2, v3))
 				printf("%d in (%d, %d, %d)\n", v3i, i, v1i, v2i);
@@ -664,7 +663,8 @@ static int bm_face_goodline(float const (*projectverts)[3], BMFace *f, int v1i, 
  * \brief Find Ear
  *
  * Used by tessellator to find the next triangle to 'clip off' of a polygon while tessellating.
- *
+ * \param f The face to search.
+ * \param verts an array of face vert coords.
  * \param use_beauty Currently only applies to quads, can be extended later on.
  * \param abscoss Must be allocated by caller, and at least f->len length
  *        (allow to avoid allocating a new one for each tri!).
@@ -994,8 +994,8 @@ void BM_face_legal_splits(BMesh *bm, BMFace *f, BMLoop *(*loops)[2], int len)
 
 	for (i = 0, l = BM_FACE_FIRST_LOOP(f); i < f->len; i++, l = l->next) {
 		p1 = projverts[i];
-		out[0] = MAX2(out[0], p1[0]) + 0.01f;
-		out[1] = MAX2(out[1], p1[1]) + 0.01f;
+		out[0] = maxf(out[0], p1[0]) + 0.01f;
+		out[1] = maxf(out[1], p1[1]) + 0.01f;
 		out[2] = 0.0f;
 		p1[2] = 0.0f;
 

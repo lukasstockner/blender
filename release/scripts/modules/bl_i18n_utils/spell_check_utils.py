@@ -297,6 +297,7 @@ dict_uimsgs = {
     "gimbal",
     "grayscale",
     "icosphere",
+    "inpaint",
     "lightmap",
     "lossless", "lossy",
     "midtones",
@@ -376,7 +377,7 @@ dict_uimsgs = {
     "chebychev",
     "kutta",
     "lennard",
-    "minkowsky",
+    "minkowski",
     "minnaert",
     "musgrave",
     "nayar",
@@ -414,7 +415,7 @@ dict_uimsgs = {
     "gpu", "gpus",
     "hc",
     "hdr",
-    "hh", "mm", "ss", "ff", # hh:mm:ss:ff timecode
+    "hh", "mm", "ss", "ff",  # hh:mm:ss:ff timecode
     "hsv", "hsva",
     "id",
     "itu",

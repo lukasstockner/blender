@@ -228,7 +228,7 @@ class VIEW3D_PT_tools_curveedit(View3DPanel, Panel):
 
         col = layout.column(align=True)
         col.operator("transform.tilt", text="Tilt")
-        col.operator("transform.transform", text="Shrink/Fatten").mode = 'CURVE_SHRINKFATTEN'
+        col.operator("transform.transform", text="Scale Feather").mode = 'CURVE_SHRINKFATTEN'
 
         col = layout.column(align=True)
         col.label(text="Curve:")
@@ -1124,6 +1124,7 @@ class VIEW3D_MT_tools_projectpaint_clone(Menu):
 
     def draw(self, context):
         layout = self.layout
+
         for i, tex in enumerate(context.active_object.data.uv_textures):
             props = layout.operator("wm.context_set_int", text=tex.name)
             props.data_path = "active_object.data.uv_texture_clone_index"

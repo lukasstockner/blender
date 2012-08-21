@@ -28,7 +28,7 @@
  * http://blog.ivank.net/fortunes-algorithm-and-implementation.html
  */
 
-/** \file blender/blenkernel/intern/voronoi.c
+/** \file blender/blenlib/intern/voronoi.c
  *  \ingroup bli
  */
 
@@ -259,9 +259,9 @@ static float voronoi_getXOfEdge(VoronoiProcess *process, VoronoiParabola *par, f
 	x2 = (-b - sqrtf(disc)) / (2 * a);
 
 	if (p[1] < r[1])
-		ry = MAX2(x1, x2);
+		ry = maxf(x1, x2);
 	else
-		ry = MIN2(x1, x2);
+		ry = minf(x1, x2);
 
 	return ry;
 }

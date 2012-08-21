@@ -69,13 +69,6 @@ set(SRC
 	intern/gpu_functions.c
 	intern/gpu_view.c
 	intern/gpu_view_gl.c
-	
-	shaders/gpu_shader_material.glsl.c
-	shaders/gpu_shader_vertex.glsl.c
-	shaders/gpu_shader_sep_gaussian_blur_frag.glsl.c
-	shaders/gpu_shader_sep_gaussian_blur_vert.glsl.c
-	shaders/gpu_shader_vsm_store_frag.glsl.c
-	shaders/gpu_shader_vsm_store_vert.glsl.c
 
 	GPU_buffers.h
 	GPU_colors.h
@@ -108,6 +101,13 @@ set(SRC
 	intern/gpu_view.h
 	intern/gpu_view_gl.h
 )
+
+data_to_c_simple(shaders/gpu_shader_material.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_vertex.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_sep_gaussian_blur_frag.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_sep_gaussian_blur_vert.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_vsm_store_frag.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_vsm_store_vert.glsl SRC)
 
 if(WITH_MOD_SMOKE)
 	add_definitions(-DWITH_SMOKE)

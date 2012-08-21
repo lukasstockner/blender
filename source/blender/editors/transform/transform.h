@@ -562,6 +562,7 @@ void remake_graph_transdata(TransInfo *t, struct ListBase *anim_data);
 void flushTransUVs(TransInfo *t);
 void flushTransParticles(TransInfo *t);
 int clipUVTransform(TransInfo *t, float *vec, int resize);
+void clipUVData(TransInfo *t);
 void flushTransNodes(TransInfo *t);
 void flushTransSeq(TransInfo *t);
 void flushTransTracking(TransInfo *t);
@@ -663,7 +664,7 @@ int initTransInfo(struct bContext *C, TransInfo *t, struct wmOperator *op, struc
 void postTrans (struct bContext *C, TransInfo *t);
 void resetTransRestrictions(TransInfo *t);
 
-void drawConstraintLine(TransInfo *t, float *center, float *dir, char axis, short options);
+void drawConstraintLine(TransInfo *t, const float center[3], const float dir[3], char axis, short options);
 
 /* DRAWLINE options flags */
 #define DRAWLIGHT	1

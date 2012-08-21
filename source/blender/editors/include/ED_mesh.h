@@ -104,7 +104,7 @@ struct BMFace *EDBM_face_at_index(struct BMEditMesh *em, int index);
 void EDBM_select_more(struct BMEditMesh *em);
 void EDBM_select_less(struct BMEditMesh *em);
 
-void EDBM_selectmode_flush_ex(struct BMEditMesh *em, int selectmode);
+void EDBM_selectmode_flush_ex(struct BMEditMesh *em, const short selectmode);
 void EDBM_selectmode_flush(struct BMEditMesh *em);
 
 void EDBM_deselect_flush(struct BMEditMesh *em);

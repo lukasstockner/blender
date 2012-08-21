@@ -1213,6 +1213,8 @@ static int separate_armature_exec(bContext *C, wmOperator *UNUSED(op))
 	
 	/* 2) duplicate base */
 	newbase = ED_object_add_duplicate(bmain, scene, oldbase, USER_DUP_ARM); /* only duplicate linked armature */
+	DAG_scene_sort(bmain, scene);
+
 	newob = newbase->object;
 	newbase->flag &= ~SELECT;
 	
@@ -1583,7 +1585,7 @@ void ARMATURE_OT_select_linked(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	
-	/* properties s*/
+	/* properties */
 	RNA_def_boolean(ot->srna, "extend", FALSE, "Extend", "Extend selection instead of deselecting everything first");
 }
 
@@ -4773,7 +4775,7 @@ static void envelope_bone_weighting(Object *ob, Mesh *mesh, float (*verts)[3], i
 			distance = distfactor_to_bone(verts[i], root[j], tip[j],
 			                              bone->rad_head * scale, bone->rad_tail * scale, bone->dist * scale);
 			
-			/* add the vert to the deform group if weight!=0.0 */
+			/* add the vert to the deform group if (weight != 0.0) */
 			if (distance != 0.0f)
 				ED_vgroup_vert_add(ob, dgroup, i, distance, WEIGHT_REPLACE);
 			else

@@ -1085,8 +1085,7 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 
 	load_datablocks(main_newlib, bpy_openlib, path, idcode);
 
-	if (idcode==ID_SCE) {
-		/* assume we want text blocks too */
+	if (idcode==ID_SCE && options & LIB_LOAD_LOAD_SCRIPTS) {
 		load_datablocks(main_newlib, bpy_openlib, path, ID_TXT);
 	}
 
@@ -1157,8 +1156,11 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 			m_threadinfo->threads.push_back(id);
 		}
 
+#ifdef WITH_PYTHON
 		/* Handle any text datablocks */
-		addImportMain(main_newlib);
+		if (options & LIB_LOAD_LOAD_SCRIPTS)
+			addImportMain(main_newlib);
+#endif
 
 		/* Now handle all the actions */
 		if (options & LIB_LOAD_LOAD_ACTIONS) {
@@ -1457,8 +1459,11 @@ bool KX_BlenderSceneConverter::FreeBlendFile(struct Main *maggie)
 		}
 	}
 
-	/* make sure this maggie is removed from the import list if it's there (this operation is safe if it isn't in the list) */
+#ifdef WITH_PYTHON
+	/* make sure this maggie is removed from the import list if it's there
+	 * (this operation is safe if it isn't in the list) */
 	removeImportMain(maggie);
+#endif
 
 	delete m_status_map[maggie->name];
 	m_status_map.erase(maggie->name);

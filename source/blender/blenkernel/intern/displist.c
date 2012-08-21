@@ -677,7 +677,7 @@ void BKE_displist_make_mball(Scene *scene, Object *ob)
 	/* XXX: mball stuff uses plenty of global variables
 	 *      while this is unchanged updating during render is unsafe
 	 */
-	if (G.rendering)
+	if (G.is_rendering)
 		return;
 
 	BKE_displist_free(&(ob->disp));
@@ -948,7 +948,7 @@ static void curve_calc_modifiers_post(Scene *scene, Object *ob, ListBase *dispba
 					curve_to_filledpoly(cu, nurb, dispbase);
 				}
 
-				dm = CDDM_from_curve_displist(ob, dispbase);
+				dm = CDDM_from_curve_displist(ob, dispbase, NULL);
 
 				CDDM_calc_normals_mapping(dm);
 			}
@@ -1038,7 +1038,7 @@ static DerivedMesh *create_orco_dm(Scene *scene, Object *ob)
 
 	/* OrcoDM should be created from underformed disp lists */
 	BKE_displist_make_curveTypes_forOrco(scene, ob, &disp);
-	dm = CDDM_from_curve_displist(ob, &disp);
+	dm = CDDM_from_curve_displist(ob, &disp, NULL);
 
 	BKE_displist_free(&disp);
 

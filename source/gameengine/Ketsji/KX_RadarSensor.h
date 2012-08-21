@@ -90,8 +90,8 @@ public:
 		KX_RADAR_AXIS_NEG_Z
 	};
 
-	/* python */
 	virtual sensortype GetSensorType() { return ST_RADAR; }
+	/* python */
 #ifdef WITH_PYTHON
 	static PyObject*	pyattr_get_angle(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 #endif

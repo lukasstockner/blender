@@ -34,6 +34,7 @@
 #define __DNA_SEQUENCE_TYPES_H__
 
 #include "DNA_defs.h"
+#include "DNA_color_types.h"
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
 
@@ -102,8 +103,10 @@ typedef struct Strip {
 } Strip;
 
 /* The sequence structure is the basic struct used by any strip. each of the strips uses a different sequence structure.*/
-/* WATCH IT: first part identical to ID (for use in ipo's) */
+/* WATCH IT: first part identical to ID (for use in ipo's)
+ * the commend above is historic, probably we can drop the ID compatibility, but take care making this change */
 
+/* WATCH ITv2, this is really a 'Strip' in the UI!, name is highly confusing */
 typedef struct Sequence {
 	struct Sequence *next, *prev;
 	void *tmp; /* tmp var for copying, and tagging for linked selection */
@@ -127,18 +130,23 @@ typedef struct Sequence {
 	Strip *strip;
 
 	struct Ipo *ipo DNA_DEPRECATED;   /* old animation system, deprecated for 2.5 */
-	struct Scene *scene;
-	struct Object *scene_camera; /* override scene camera */
+
+	/* these ID vars should never be NULL but can be when linked libs fail to load, so check on access */
+	struct Scene     *scene;
+	struct Object    *scene_camera;  /* override scene camera */
+	struct MovieClip *clip;          /* for MOVIECLIP strips */
+	struct Mask      *mask;          /* for MASK strips */
 
 	struct anim *anim;      /* for MOVIE strips */
-	struct MovieClip *clip; /* for MOVIECLIP strips */
-	struct Mask *mask;      /* for MASK strips */
 
 	float effect_fader;
 	float speed_fader;
 
 	/* pointers for effects: */
 	struct Sequence *seq1, *seq2, *seq3;
+
+	/* maks input for effects */
+	struct Sequence *mask_sequence;
 
 	ListBase seqbase;       /* list of strips for metastrips */
 
@@ -160,6 +168,9 @@ typedef struct Sequence {
 
 	/* is sfra needed anymore? - it looks like its only used in one place */
 	int sfra, pad;  /* starting frame according to the timeline of the scene. */
+
+	/* modifiers */
+	ListBase modifiers;
 } Sequence;
 
 typedef struct MetaStack {
@@ -221,6 +232,39 @@ typedef struct SpeedControlVars {
 	int length;
 	int lastValidFrame;
 } SpeedControlVars;
+
+/* ***************** Sequence modifiers ****************** */
+
+typedef struct SequenceModifierData {
+	struct SequenceModifierData *next, *prev;
+	int type, flag;
+	char name[64]; /* MAX_NAME */
+
+	/* mask input, either sequence or maks ID */
+	int mask_input_type, pad;
+
+	struct Sequence *mask_sequence;
+	struct Mask     *mask_id;
+} SequenceModifierData;
+
+typedef struct ColorBalanceModifierData {
+	SequenceModifierData modifier;
+
+	StripColorBalance color_balance;
+	float color_multiply;
+} ColorBalanceModifierData;
+
+typedef struct CurvesModifierData {
+	SequenceModifierData modifier;
+
+	struct CurveMapping curve_mapping;
+} CurvesModifierData;
+
+typedef struct HueCorrectModifierData {
+	SequenceModifierData modifier;
+
+	struct CurveMapping curve_mapping;
+} HueCorrectModifierData;
 
 #define MAXSEQ          32
 
@@ -345,5 +389,26 @@ enum {
 
 #define SEQ_HAS_PATH(_seq) (ELEM4((_seq)->type, SEQ_TYPE_MOVIE, SEQ_TYPE_IMAGE, SEQ_TYPE_SOUND_RAM, SEQ_TYPE_SOUND_HD))
 
-#endif
+/* modifiers */
 
+/* SequenceModifierData->type */
+enum {
+	seqModifierType_ColorBalance   = 1,
+	seqModifierType_Curves         = 2,
+	seqModifierType_HueCorrect     = 3,
+
+	NUM_SEQUENCE_MODIFIER_TYPES
+};
+
+/* SequenceModifierData->flag */
+enum {
+	SEQUENCE_MODIFIER_MUTE      = (1 << 0),
+	SEQUENCE_MODIFIER_EXPANDED  = (1 << 1),
+};
+
+enum {
+	SEQUENCE_MASK_INPUT_STRIP   = 0,
+	SEQUENCE_MASK_INPUT_ID      = 1
+};
+
+#endif

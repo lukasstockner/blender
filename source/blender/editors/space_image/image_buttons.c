@@ -27,8 +27,6 @@
  *  \ingroup spimage
  */
 
-
-
 #include <string.h>
 #include <stdio.h>
 
@@ -106,36 +104,36 @@ static void image_info(Scene *scene, ImageUser *iuser, Image *ima, ImBuf *ibuf, 
 	if (ima == NULL) return;
 
 	if (ibuf == NULL) {
-		ofs += sprintf(str, IFACE_("Can't Load Image"));
+		ofs += sprintf(str, "%s", IFACE_("Can't Load Image"));
 	}
 	else {
 		if (ima->source == IMA_SRC_MOVIE) {
-			ofs += sprintf(str, IFACE_("Movie"));
+			ofs += sprintf(str, "%s", IFACE_("Movie"));
 			if (ima->anim)
 				ofs += sprintf(str + ofs, IFACE_("%d frs"), IMB_anim_get_duration(ima->anim, IMB_TC_RECORD_RUN));
 		}
 		else
-			ofs += sprintf(str, IFACE_("Image"));
+			ofs += sprintf(str, "%s", IFACE_("Image"));
 
-		ofs += sprintf(str + ofs, IFACE_(": size %d x %d,"), ibuf->x, ibuf->y);
+		ofs += sprintf(str + ofs, ": %s %d x %d,", IFACE_("size"), ibuf->x, ibuf->y);
 
 		if (ibuf->rect_float) {
 			if (ibuf->channels != 4) {
-				ofs += sprintf(str + ofs, IFACE_("%d float channel(s)"), ibuf->channels);
+				ofs += sprintf(str + ofs, "%d %s", ibuf->channels, IFACE_("float channel(s)"));
 			}
 			else if (ibuf->planes == R_IMF_PLANES_RGBA)
-				ofs += sprintf(str + ofs, IFACE_(" RGBA float"));
+				ofs += sprintf(str + ofs, "%s", IFACE_(" RGBA float"));
 			else
-				ofs += sprintf(str + ofs, IFACE_(" RGB float"));
+				ofs += sprintf(str + ofs, "%s", IFACE_(" RGB float"));
 		}
 		else {
 			if (ibuf->planes == R_IMF_PLANES_RGBA)
-				ofs += sprintf(str + ofs, IFACE_(" RGBA byte"));
+				ofs += sprintf(str + ofs, "%s", IFACE_(" RGBA byte"));
 			else
-				ofs += sprintf(str + ofs, IFACE_(" RGB byte"));
+				ofs += sprintf(str + ofs, "%s", IFACE_(" RGB byte"));
 		}
 		if (ibuf->zbuf || ibuf->zbuf_float)
-			ofs += sprintf(str + ofs, IFACE_(" + Z"));
+			ofs += sprintf(str + ofs, "%s", IFACE_(" + Z"));
 
 		if (ima->source == IMA_SRC_SEQUENCE) {
 			char *file = BLI_last_slash(ibuf->name);
@@ -240,7 +238,7 @@ void image_preview_event(int event)
 		
 		ntreeCompositTagGenerators(G.scene->nodetree);
 
-		G.afbreek = 0;
+		G.is_break = FALSE;
 		G.scene->nodetree->timecursor = set_timecursor;
 		G.scene->nodetree->test_break = blender_test_break;
 		
@@ -260,7 +258,7 @@ void image_preview_event(int event)
 
 
 /* nothing drawn here, we use it to store values */
-static void preview_cb(struct ScrArea *sa, struct uiBlock *block)
+static void preview_cb(ScrArea *sa, struct uiBlock *block)
 {
 	SpaceImage *sima = sa->spacedata.first;
 	rctf dispf;
@@ -276,7 +274,7 @@ static void preview_cb(struct ScrArea *sa, struct uiBlock *block)
 	
 	/* while dragging we need to update the rects, otherwise it doesn't end with correct one */
 
-	BLI_rctf_init(&dispf, 15.0f, (block->maxx - block->minx) - 15.0f, 15.0f, (block->maxy - block->miny) - 15.0f);
+	BLI_rctf_init(&dispf, 15.0f, BLI_RCT_SIZE_X(&block->rect) - 15.0f, 15.0f, (BLI_RCT_SIZE_Y(&block->rect)) - 15.0f);
 	ui_graphics_to_window_rct(sa->win, &dispf, disprect);
 	
 	/* correction for gla draw */
@@ -381,11 +379,11 @@ static char *layer_menu(RenderResult *rr, short *UNUSED(curlay))
 	
 	/* compo result */
 	if (rr->rectf) {
-		a += sprintf(str + a, IFACE_("|Composite %%x0"));
+		a += sprintf(str + a, "|%s %%x0", IFACE_("Composite"));
 		nr = 1;
 	}
 	else if (rr->rect32) {
-		a += sprintf(str + a, IFACE_("|Sequence %%x0"));
+		a += sprintf(str + a, "|%s %%x0", IFACE_("Sequence"));
 		nr = 1;
 	}
 	for (rl = rr->layers.first; rl; rl = rl->next, nr++) {
@@ -410,7 +408,7 @@ static char *pass_menu(RenderLayer *rl, short *curpass)
 	
 	/* rendered results don't have a Combined pass */
 	if (rl == NULL || rl->rectf) {
-		a += sprintf(str + a, IFACE_("|Combined %%x0"));
+		a += sprintf(str + a, "|%s %%x0", IFACE_("Combined"));
 		nr = 1;
 	}
 	

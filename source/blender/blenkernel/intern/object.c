@@ -210,7 +210,14 @@ void BKE_object_link_modifiers(struct Object *ob, struct Object *from)
 	for (md = from->modifiers.first; md; md = md->next) {
 		ModifierData *nmd = NULL;
 
-		if (ELEM4(md->type, eModifierType_Hook, eModifierType_Softbody, eModifierType_ParticleInstance, eModifierType_Collision)) continue;
+		if (ELEM4(md->type,
+		          eModifierType_Hook,
+		          eModifierType_Softbody,
+		          eModifierType_ParticleInstance,
+		          eModifierType_Collision))
+		{
+			continue;
+		}
 
 		if (!BKE_object_support_modifier_type_check(ob, md->type))
 			continue;
@@ -1318,7 +1325,8 @@ void BKE_object_copy_proxy_drivers(Object *ob, Object *target)
 						if ((Object *)dtar->id == target)
 							dtar->id = (ID *)ob;
 						else {
-							/* only on local objects because this causes indirect links a -> b -> c, blend to point directly to a.blend
+							/* only on local objects because this causes indirect links
+							 * 'a -> b -> c', blend to point directly to a.blend
 							 * when a.blend has a proxy thats linked into c.blend  */
 							if (ob->id.lib == NULL)
 								id_lib_extern((ID *)dtar->id);
@@ -1688,16 +1696,16 @@ static void ob_parcurve(Scene *scene, Object *ob, Object *par, float mat[][4])
 
 		if (cu->flag & CU_FOLLOW) {
 #if 0
-			float x1, q[4];
+			float si, q[4];
 			vec_to_quat(quat, dir, ob->trackflag, ob->upflag);
 			
 			/* the tilt */
 			normalize_v3(dir);
 			q[0] = (float)cos(0.5 * vec[3]);
-			x1 = (float)sin(0.5 * vec[3]);
-			q[1] = -x1 * dir[0];
-			q[2] = -x1 * dir[1];
-			q[3] = -x1 * dir[2];
+			si = (float)sin(0.5 * vec[3]);
+			q[1] = -si * dir[0];
+			q[2] = -si * dir[1];
+			q[3] = -si * dir[2];
 			mul_qt_qtqt(quat, q, quat);
 #else
 			quat_apply_track(quat, ob->trackflag, ob->upflag);
@@ -1803,7 +1811,11 @@ static void give_parvert(Object *par, int nr, float vec[3])
 				dm->getVertCo(dm, 0, vec);
 			}
 		}
-		else fprintf(stderr, "%s: DerivedMesh is needed to solve parenting, object position can be wrong now\n", __func__);
+		else {
+			fprintf(stderr,
+			        "%s: DerivedMesh is needed to solve parenting, "
+			        "object position can be wrong now\n", __func__);
+		}
 	}
 	else if (ELEM(par->type, OB_CURVE, OB_SURF)) {
 		Nurb *nu;
@@ -2222,7 +2234,7 @@ void BKE_object_dimensions_set(Object *ob, const float *value)
 	}
 }
 
-void BKE_object_minmax(Object *ob, float min_r[3], float max_r[3])
+void BKE_object_minmax(Object *ob, float min_r[3], float max_r[3], const short use_hidden)
 {
 	BoundBox bb;
 	float vec[3];
@@ -2272,14 +2284,23 @@ void BKE_object_minmax(Object *ob, float min_r[3], float max_r[3])
 		break;
 		case OB_ARMATURE:
 			if (ob->pose) {
+				bArmature *arm = ob->data;
 				bPoseChannel *pchan;
+
 				for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
-					mul_v3_m4v3(vec, ob->obmat, pchan->pose_head);
-					minmax_v3v3_v3(min_r, max_r, vec);
-					mul_v3_m4v3(vec, ob->obmat, pchan->pose_tail);
-					minmax_v3v3_v3(min_r, max_r, vec);
+
+					if ((use_hidden == FALSE) && (PBONE_VISIBLE(arm, pchan->bone) == FALSE)) {
+						/* pass */
+					}
+					else {
+						mul_v3_m4v3(vec, ob->obmat, pchan->pose_head);
+						minmax_v3v3_v3(min_r, max_r, vec);
+						mul_v3_m4v3(vec, ob->obmat, pchan->pose_tail);
+						minmax_v3v3_v3(min_r, max_r, vec);
+
+						change = TRUE;
+					}
 				}
-				change = TRUE;
 			}
 			break;
 		case OB_MESH:
@@ -2319,9 +2340,9 @@ void BKE_object_minmax(Object *ob, float min_r[3], float max_r[3])
 	}
 }
 
-int BKE_object_minmax_dupli(Scene *scene, Object *ob, float r_min[3], float r_max[3])
+int BKE_object_minmax_dupli(Scene *scene, Object *ob, float r_min[3], float r_max[3], const short use_hidden)
 {
-	int ok = 0;
+	int ok = FALSE;
 	if ((ob->transflag & OB_DUPLI) == 0) {
 		return ok;
 	}
@@ -2331,7 +2352,10 @@ int BKE_object_minmax_dupli(Scene *scene, Object *ob, float r_min[3], float r_ma
 		
 		lb = object_duplilist(scene, ob);
 		for (dob = lb->first; dob; dob = dob->next) {
-			if (dob->no_draw == 0) {
+			if ((use_hidden == FALSE) && (dob->no_draw != 0)) {
+				/* pass */
+			}
+			else {
 				BoundBox *bb = BKE_object_boundbox_get(dob->ob);
 
 				if (bb) {
@@ -2342,7 +2366,7 @@ int BKE_object_minmax_dupli(Scene *scene, Object *ob, float r_min[3], float r_ma
 						minmax_v3v3_v3(r_min, r_max, vec);
 					}
 
-					ok = 1;
+					ok = TRUE;
 				}
 			}
 		}
@@ -2631,7 +2655,7 @@ void BKE_object_handle_update(Scene *scene, Object *ob)
 				while (psys) {
 					if (psys_check_enabled(ob, psys)) {
 						/* check use of dupli objects here */
-						if (psys->part && (psys->part->draw_as == PART_DRAW_REND || G.rendering) &&
+						if (psys->part && (psys->part->draw_as == PART_DRAW_REND || G.is_rendering) &&
 						    ((psys->part->ren_as == PART_DRAW_OB && psys->part->dup_ob) ||
 						     (psys->part->ren_as == PART_DRAW_GR && psys->part->dup_group)))
 						{
@@ -2651,7 +2675,7 @@ void BKE_object_handle_update(Scene *scene, Object *ob)
 						psys = psys->next;
 				}
 
-				if (G.rendering && ob->transflag & OB_DUPLIPARTS) {
+				if (G.is_rendering && ob->transflag & OB_DUPLIPARTS) {
 					/* this is to make sure we get render level duplis in groups:
 					 * the derivedmesh must be created before init_render_mesh,
 					 * since object_duplilist does dupliparticles before that */
@@ -3156,7 +3180,7 @@ static void obrel_list_add(LinkNode **links, Object *ob)
  * If OB_SET_VISIBLE or OB_SET_SELECTED are collected, 
  * then also add related objects according to the given includeFilters.
  */
-struct LinkNode *BKE_object_relational_superset(struct Scene *scene, eObjectSet objectSet, eObRelationTypes includeFilter)
+LinkNode *BKE_object_relational_superset(struct Scene *scene, eObjectSet objectSet, eObRelationTypes includeFilter)
 {
 	LinkNode *links = NULL;
 
@@ -3234,4 +3258,33 @@ struct LinkNode *BKE_object_relational_superset(struct Scene *scene, eObjectSet 
 	}
 
 	return links;
+}
+
+/**
+ * return all groups this object is apart of, caller must free.
+ */
+struct LinkNode *BKE_object_groups(Object *ob)
+{
+	LinkNode *group_linknode = NULL;
+	Group *group = NULL;
+	while ((group = find_group(ob, group))) {
+		BLI_linklist_prepend(&group_linknode, group);
+	}
+
+	return group_linknode;
+}
+
+void BKE_object_groups_clear(Scene *scene, Base *base, Object *object)
+{
+	Group *group = NULL;
+
+	BLI_assert(base->object == object);
+
+	if (scene && base == NULL) {
+		base = BKE_scene_base_find(scene, object);
+	}
+
+	while ((group = find_group(base->object, group))) {
+		rem_from_group(group, object, scene, base);
+	}
 }

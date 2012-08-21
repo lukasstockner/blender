@@ -123,6 +123,8 @@ bNodeSocket *ntreeCompositOutputFileAddSocket(bNodeTree *ntree, bNode *node, con
 			sockdata->format.imtype= R_IMF_IMTYPE_OPENEXR;
 		}
 	}
+	else
+		BKE_imformat_defaults(&sockdata->format);
 	/* use node data format by default */
 	sockdata->use_node_format = TRUE;
 	
@@ -174,9 +176,14 @@ static void init_output_file(bNodeTree *ntree, bNode* node, bNodeTemplate *ntemp
 		RenderData *rd = &ntemp->scene->r;
 		BLI_strncpy(nimf->base_path, rd->pic, sizeof(nimf->base_path));
 		nimf->format = rd->im_format;
+		if (BKE_imtype_is_movie(nimf->format.imtype)) {
+			nimf->format.imtype= R_IMF_IMTYPE_OPENEXR;
+		}
 		
-		format = &rd->im_format;
+		format = &nimf->format;
 	}
+	else
+		BKE_imformat_defaults(&nimf->format);
 	
 	/* add one socket by default */
 	ntreeCompositOutputFileAddSocket(ntree, node, "Image", format);
@@ -384,7 +391,7 @@ static void exec_output_file(void *data, bNode *node, bNodeStack **in, bNodeStac
 	RenderData *rd= data;
 	NodeImageMultiFile *nimf= node->storage;
 	
-	if (!G.rendering) {
+	if (G.is_rendering == FALSE) {
 		/* only output files when rendering a sequence -
 		 * otherwise, it overwrites the output files just 
 		 * scrubbing through the timeline when the compositor updates */

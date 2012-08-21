@@ -91,24 +91,24 @@ static void sima_zoom_set(SpaceImage *sima, ARegion *ar, float zoom, float locat
 
 	if (sima->zoom < 0.1f || sima->zoom > 4.0f) {
 		/* check zoom limits */
-		ED_space_image_size(sima, &width, &height);
+		ED_space_image_get_size(sima, &width, &height);
 
 		width *= sima->zoom;
 		height *= sima->zoom;
 
 		if ((width < 4) && (height < 4))
 			sima->zoom = oldzoom;
-		else if ((ar->winrct.xmax - ar->winrct.xmin) <= sima->zoom)
+		else if (BLI_RCT_SIZE_X(&ar->winrct) <= sima->zoom)
 			sima->zoom = oldzoom;
-		else if ((ar->winrct.ymax - ar->winrct.ymin) <= sima->zoom)
+		else if (BLI_RCT_SIZE_Y(&ar->winrct) <= sima->zoom)
 			sima->zoom = oldzoom;
 	}
 
 	if ((U.uiflag & USER_ZOOM_TO_MOUSEPOS) && location) {
 		float aspx, aspy, w, h;
 
-		ED_space_image_size(sima, &width, &height);
-		ED_space_image_aspect(sima, &aspx, &aspy);
+		ED_space_image_get_size(sima, &width, &height);
+		ED_space_image_get_aspect(sima, &aspx, &aspy);
 
 		w = width * aspx;
 		h = height * aspy;
@@ -203,17 +203,27 @@ int space_image_main_area_not_uv_brush_poll(bContext *C)
 	return 0;
 }
 
-static int space_image_image_sample_poll(bContext *C)
+static int image_sample_poll(bContext *C)
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
-	Object *obedit = CTX_data_edit_object(C);
-	ToolSettings *toolsettings = CTX_data_scene(C)->toolsettings;
+	if (sima) {
+		Scene *scene = CTX_data_scene(C);
+		Object *obedit = CTX_data_edit_object(C);
+		ToolSettings *toolsettings = scene->toolsettings;
 
-	if (obedit) {
-		if (ED_space_image_show_uvedit(sima, obedit) && (toolsettings->use_uv_sculpt))
-			return 0;
+		if (obedit) {
+			if (ED_space_image_show_uvedit(sima, obedit) && (toolsettings->use_uv_sculpt))
+				return FALSE;
+		}
+		else if (sima->mode != SI_MODE_VIEW) {
+			return FALSE;
+		}
+
+		return space_image_main_area_poll(C);
 	}
-	return space_image_main_area_poll(C);
+	else {
+		return FALSE;
+	}
 }
 /********************** view pan operator *********************/
 
@@ -564,21 +574,21 @@ static int image_view_all_exec(bContext *C, wmOperator *UNUSED(op))
 	sima = CTX_wm_space_image(C);
 	ar = CTX_wm_region(C);
 
-	ED_space_image_size(sima, &width, &height);
-	ED_space_image_aspect(sima, &aspx, &aspy);
+	ED_space_image_get_size(sima, &width, &height);
+	ED_space_image_get_aspect(sima, &aspx, &aspy);
 
 	w = width * aspx;
 	h = height * aspy;
 	
-	/* check if the image will fit in the image with zoom==1 */
-	width = ar->winrct.xmax - ar->winrct.xmin + 1;
-	height = ar->winrct.ymax - ar->winrct.ymin + 1;
+	/* check if the image will fit in the image with (zoom == 1) */
+	width  = BLI_RCT_SIZE_X(&ar->winrct) + 1;
+	height = BLI_RCT_SIZE_Y(&ar->winrct) + 1;
 
 	if ((w >= width || h >= height) && (width > 0 && height > 0)) {
 		/* find the zoom value that will fit the image in the image space */
 		zoomx = width / w;
 		zoomy = height / h;
-		sima_zoom_set(sima, ar, 1.0f / power_of_2(1 / MIN2(zoomx, zoomy)), NULL);
+		sima_zoom_set(sima, ar, 1.0f / power_of_2(1.0f / minf(zoomx, zoomy)), NULL);
 	}
 	else
 		sima_zoom_set(sima, ar, 1.0f, NULL);
@@ -621,8 +631,8 @@ static int image_view_selected_exec(bContext *C, wmOperator *UNUSED(op))
 	obedit = CTX_data_edit_object(C);
 
 	ima = ED_space_image(sima);
-	ED_space_image_size(sima, &width, &height);
-	ED_image_aspect(ima, &aspx, &aspy);
+	ED_space_image_get_size(sima, &width, &height);
+	ED_image_get_aspect(ima, &aspx, &aspy);
 
 	width = width * aspx;
 	height = height * aspy;
@@ -901,6 +911,26 @@ static int image_open_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event)
 			ima = tex->ima;
 	}
 
+	if (ima == NULL) {
+		PointerRNA ptr;
+		PropertyRNA *prop;
+
+		/* hook into UI */
+		uiIDContextProperty(C, &ptr, &prop);
+
+		if (prop) {
+			PointerRNA oldptr;
+			Image *oldima;
+
+			oldptr = RNA_property_pointer_get(&ptr, prop);
+			oldima = (Image *)oldptr.id.data;
+			/* unlikely to fail but better avoid strange crash */
+			if (oldima && GS(oldima->id.name) == ID_IM) {
+				ima = oldima;
+			}
+		}
+	}
+
 	if (ima)
 		path = ima->name;
 
@@ -931,7 +961,8 @@ void IMAGE_OT_open(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_filesel(ot, FOLDERFILE | IMAGEFILE | MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE, WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
+	WM_operator_properties_filesel(ot, FOLDERFILE | IMAGEFILE | MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE,
+	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
 }
 
 /******************** Match movie length operator ********************/
@@ -1043,7 +1074,8 @@ void IMAGE_OT_replace(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_filesel(ot, FOLDERFILE | IMAGEFILE | MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE, WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
+	WM_operator_properties_filesel(ot, FOLDERFILE | IMAGEFILE | MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE,
+	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
 }
 
 /******************** save image as operator ********************/
@@ -1387,7 +1419,8 @@ void IMAGE_OT_save_as(wmOperatorType *ot)
 	/* properties */
 	RNA_def_boolean(ot->srna, "copy", 0, "Copy", "Create a new image file without modifying the current image in blender");
 
-	WM_operator_properties_filesel(ot, FOLDERFILE | IMAGEFILE | MOVIEFILE, FILE_SPECIAL, FILE_SAVE, WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
+	WM_operator_properties_filesel(ot, FOLDERFILE | IMAGEFILE | MOVIEFILE, FILE_SPECIAL, FILE_SAVE,
+	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
 }
 
 /******************** save image operator ********************/
@@ -1915,6 +1948,52 @@ static void image_sample_draw(const bContext *UNUSED(C), ARegion *ar, void *arg_
 	}
 }
 
+/* returns color in SRGB */
+/* matching ED_space_node_color_sample() */
+int ED_space_image_color_sample(SpaceImage *sima, ARegion *ar, int mval[2], float r_col[3])
+{
+	void *lock;
+	ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock);
+	float fx, fy;
+	int ret = FALSE;
+
+	if (ibuf == NULL) {
+		ED_space_image_release_buffer(sima, lock);
+		return FALSE;
+	}
+
+	UI_view2d_region_to_view(&ar->v2d, mval[0], mval[1], &fx, &fy);
+
+	if (fx >= 0.0f && fy >= 0.0f && fx < 1.0f && fy < 1.0f) {
+		float *fp;
+		unsigned char *cp;
+		int x = (int)(fx * ibuf->x), y = (int)(fy * ibuf->y);
+
+		CLAMP(x, 0, ibuf->x - 1);
+		CLAMP(y, 0, ibuf->y - 1);
+
+		if (ibuf->rect_float) {
+			fp = (ibuf->rect_float + (ibuf->channels) * (y * ibuf->x + x));
+
+			if (ELEM(ibuf->profile, IB_PROFILE_LINEAR_RGB, IB_PROFILE_NONE)) {
+				linearrgb_to_srgb_v3_v3(r_col, fp);
+			}
+			else {
+				copy_v3_v3(r_col, fp);
+			}
+			ret = TRUE;
+		}
+		else if (ibuf->rect) {
+			cp = (unsigned char *)(ibuf->rect + y * ibuf->x + x);
+			rgb_uchar_to_float(r_col, cp);
+			ret = TRUE;
+		}
+	}
+
+	ED_space_image_release_buffer(sima, lock);
+	return ret;
+}
+
 static void image_sample_apply(bContext *C, wmOperator *op, wmEvent *event)
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
@@ -2089,7 +2168,7 @@ void IMAGE_OT_sample(wmOperatorType *ot)
 	ot->invoke = image_sample_invoke;
 	ot->modal = image_sample_modal;
 	ot->cancel = image_sample_cancel;
-	ot->poll = space_image_image_sample_poll;
+	ot->poll = image_sample_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_BLOCKING;
@@ -2133,6 +2212,9 @@ static int image_sample_line_exec(bContext *C, wmOperator *op)
 
 	BKE_histogram_update_sample_line(hist, ibuf, (scene->r.color_mgt_flag & R_COLOR_MANAGEMENT) != 0);
 	
+	/* reset y zoom */
+	hist->ymax = 1.0f;
+
 	ED_space_image_release_buffer(sima, lock);
 	
 	ED_area_tag_redraw(CTX_wm_area(C));
@@ -2216,7 +2298,7 @@ static int image_record_composite_apply(bContext *C, wmOperator *op)
 	Scene *scene = CTX_data_scene(C);
 	ImBuf *ibuf;
 	
-	WM_timecursor(CTX_wm_window(C), scene->r.cfra);
+	WM_cursor_time(CTX_wm_window(C), scene->r.cfra);
 
 	// XXX scene->nodetree->test_break= blender_test_break;
 	// XXX scene->nodetree->test_break= NULL;
@@ -2403,22 +2485,3 @@ void IMAGE_OT_cycle_render_slot(wmOperatorType *ot)
 
 	RNA_def_boolean(ot->srna, "reverse", 0, "Cycle in Reverse", "");
 }
-
-/******************** TODO ********************/
-
-/* XXX notifier? */
-
-/* goes over all ImageUsers, and sets frame numbers if auto-refresh is set */
-
-static void image_update_frame(struct Image *UNUSED(ima), struct ImageUser *iuser, void *customdata)
-{
-	int cfra = *(int*)customdata;
-
-	BKE_image_user_check_frame_calc(iuser, cfra, 0);
-}
-
-void ED_image_update_frame(const Main *mainp, int cfra)
-{
-	BKE_image_walk_all_users(mainp, &cfra, image_update_frame);
-}
-

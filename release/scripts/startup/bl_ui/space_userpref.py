@@ -79,6 +79,7 @@ class USERPREF_HT_header(Header):
 
     def draw(self, context):
         layout = self.layout
+
         layout.template_header(menus=False)
 
         userpref = context.user_preferences
@@ -137,6 +138,7 @@ class USERPREF_MT_splash(Menu):
 
     def draw(self, context):
         layout = self.layout
+
         split = layout.split()
         row = split.row()
         row.label("")
@@ -195,7 +197,8 @@ class USERPREF_PT_interface(Panel):
 
         col = row.column()
         col.label(text="View Manipulation:")
-        col.prop(view, "use_mouse_auto_depth")
+        col.prop(view, "use_mouse_depth_cursor")
+        col.prop(view, "use_mouse_depth_navigate")
         col.prop(view, "use_zoom_to_mouse")
         col.prop(view, "use_rotate_around_active")
         col.prop(view, "use_global_pivot")
@@ -850,10 +853,12 @@ class USERPREF_MT_ndof_settings(Menu):
 
     def draw(self, context):
         layout = self.layout
+
         input_prefs = context.user_preferences.inputs
 
         layout.separator()
         layout.prop(input_prefs, "ndof_sensitivity")
+        layout.prop(input_prefs, "ndof_orbit_sensitivity")
 
         if context.space_data.type == 'VIEW_3D':
             layout.separator()
@@ -861,11 +866,10 @@ class USERPREF_MT_ndof_settings(Menu):
 
             layout.separator()
             layout.label(text="Orbit options")
-            if input_prefs.view_rotate_method == 'TRACKBALL':
-                layout.prop(input_prefs, "ndof_roll_invert_axis")
+            layout.prop(input_prefs, "ndof_turntable")
+            layout.prop(input_prefs, "ndof_roll_invert_axis")
             layout.prop(input_prefs, "ndof_tilt_invert_axis")
             layout.prop(input_prefs, "ndof_rotate_invert_axis")
-            layout.prop(input_prefs, "ndof_zoom_invert")
 
             layout.separator()
             layout.label(text="Pan options")
@@ -874,6 +878,7 @@ class USERPREF_MT_ndof_settings(Menu):
             layout.prop(input_prefs, "ndof_panz_invert_axis")
 
             layout.label(text="Zoom options")
+            layout.prop(input_prefs, "ndof_zoom_invert")
             layout.prop(input_prefs, "ndof_zoom_updown")
 
             layout.separator()
@@ -979,6 +984,7 @@ class USERPREF_MT_addons_dev_guides(Menu):
     # menu to open web-pages with addons development guides
     def draw(self, context):
         layout = self.layout
+
         layout.operator("wm.url_open", text="API Concepts", icon='URL').url = "http://wiki.blender.org/index.php/Dev:2.5/Py/API/Intro"
         layout.operator("wm.url_open", text="Addon Guidelines", icon='URL').url = "http://wiki.blender.org/index.php/Dev:2.5/Py/Scripts/Guidelines/Addons"
         layout.operator("wm.url_open", text="How to share your addon", icon='URL').url = "http://wiki.blender.org/index.php/Dev:Py/Sharing"
@@ -1004,10 +1010,10 @@ class USERPREF_PT_addons(Panel):
     @staticmethod
     def is_user_addon(mod, user_addon_paths):
         if not user_addon_paths:
-            user_script_path = bpy.utils.user_script_path()
-            if user_script_path is not None:
-                user_addon_paths.append(os.path.join(user_script_path, "addons"))
-            user_addon_paths.append(os.path.join(bpy.utils.resource_path('USER'), "scripts", "addons"))
+            for path in (bpy.utils.script_path_user(),
+                         bpy.utils.script_path_pref()):
+                if path is not None:
+                    user_addon_paths.append(os.path.join(path, "addons"))
 
         for path in user_addon_paths:
             if bpy.path.is_subdir(mod.__file__, path):

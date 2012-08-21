@@ -617,7 +617,8 @@ static void init_internal_icons(void)
 }
 #include FAKE_GL_MODE
 
-#endif // WITH_HEADLESS
+#endif  /* WITH_HEADLESS */
+
 
 static void init_iconfile_list(struct ListBase *list)
 {
@@ -882,7 +883,8 @@ static void icon_set_image(bContext *C, ID *id, PreviewImage *prv_img, enum eIco
 	                    prv_img->w[size], prv_img->h[size]);
 }
 
-static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect), int rw, int rh, unsigned int *rect, float alpha, const float rgb[3], short is_preview)
+static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect), int rw, int rh,
+                           unsigned int *rect, float alpha, const float rgb[3], short is_preview)
 {
 	ImBuf *ima = NULL;
 
@@ -935,7 +937,8 @@ static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect),
 	}
 }
 
-static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy, int UNUSED(iw), int ih, float alpha, const float rgb[3])
+static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy,
+                              int UNUSED(iw), int ih, float alpha, const float rgb[3])
 {
 	float x1, x2, y1, y2;
 
@@ -987,7 +990,8 @@ static int get_draw_size(enum eIconSizes size)
 	return 0;
 }
 
-static void icon_draw_size(float x, float y, int icon_id, float aspect, float alpha, const float rgb[3], enum eIconSizes size, int draw_size, int UNUSED(nocreate), short is_preview)
+static void icon_draw_size(float x, float y, int icon_id, float aspect, float alpha, const float rgb[3],
+                           enum eIconSizes size, int draw_size, int UNUSED(nocreate), short is_preview)
 {
 	bTheme *btheme = UI_GetTheme();
 	Icon *icon = NULL;
@@ -1118,7 +1122,7 @@ static int ui_id_brush_get_icon(bContext *C, ID *id)
 				mode = OB_MODE_TEXTURE_PAINT;
 		}
 		else if ((sima = CTX_wm_space_image(C)) &&
-		         (sima->flag & SI_DRAWTOOL))
+		         (sima->mode == SI_MODE_PAINT))
 		{
 			mode = OB_MODE_TEXTURE_PAINT;
 		}

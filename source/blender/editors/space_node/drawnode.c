@@ -30,26 +30,17 @@
  *  \brief lower level node drawing for nodes (boarders, headers etc), also node layout.
  */
 
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
-
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_node_types.h"
-#include "DNA_material_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 #include "DNA_screen_types.h"
 
 #include "BKE_context.h"
 #include "BKE_curve.h"
-#include "BKE_global.h"
 #include "BKE_image.h"
-#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
 #include "BKE_tracking.h"
@@ -57,18 +48,13 @@
 #include "BLF_api.h"
 #include "BLF_translation.h"
 
-#include "NOD_composite.h"
-#include "NOD_shader.h"
 
 #include "GPU_colors.h"
 #include "GPU_primitives.h"
 
 #include "BIF_glutil.h"
 
-#include "BLF_api.h"
-
 #include "MEM_guardedalloc.h"
-
 
 #include "RNA_access.h"
 
@@ -77,13 +63,12 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "UI_interface.h"
 #include "UI_resources.h"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
-#include "node_intern.h"
+#include "node_intern.h"  /* own include */
 
 /* XXX interface.h */
 extern void ui_dropshadow(rctf *rct, float radius, float aspect, float alpha, int select);
@@ -219,16 +204,20 @@ static void node_draw_output_default(const bContext *C, uiBlock *block,
 	float slen;
 	int ofs = 0;
 	const char *ui_name = IFACE_(name);
+	int len = strlen(ui_name);
 	UI_ThemeColor(TH_TEXT);
 	slen = (UI_GetStringWidth(ui_name) + NODE_MARGIN_X) * snode->aspect_sqrt;
-	while (slen > node->width) {
+	while (slen > node->width && ofs < len) {
 		ofs++;
 		slen = (UI_GetStringWidth(ui_name + ofs) + NODE_MARGIN_X) * snode->aspect_sqrt;
 	}
-	uiDefBut(block, LABEL, 0, ui_name + ofs,
-	         (int)(sock->locx - slen), (int)(sock->locy - 9.0f),
-	         (short)(node->width - NODE_DY), (short)NODE_DY,
-	         NULL, 0, 0, 0, 0, "");
+
+	if (ofs < len) {
+		uiDefBut(block, LABEL, 0, ui_name + ofs,
+		         (int)(sock->locx - slen), (int)(sock->locy - 9.0f),
+		         (short)(node->width - NODE_DY), (short)NODE_DY,
+		         NULL, 0, 0, 0, 0, "");
+	}
 
 	(void)snode;
 }
@@ -351,8 +340,8 @@ static void node_buts_curvevec(uiLayout *layout, bContext *UNUSED(C), PointerRNA
 	uiTemplateCurveMapping(layout, ptr, "mapping", 'v', 0, 0);
 }
 
-static float _sample_col[4];  /* bad bad, 2.5 will do better?... no it won't... */
 #define SAMPLE_FLT_ISNONE FLT_MAX
+static float _sample_col[4] = {SAMPLE_FLT_ISNONE};  /* bad bad, 2.5 will do better?... no it won't... */
 void ED_node_sample_set(const float col[4])
 {
 	if (col) {
@@ -399,7 +388,7 @@ static void node_buts_normal(uiLayout *layout, bContext *UNUSED(C), PointerRNA *
 	
 	bt= uiDefButF(block, BUT_NORMAL, B_NODE_EXEC, "", 
 	               (int)butr->xmin, (int)butr->xmin,
-	               (short)(butr->xmax - butr->xmin), (short)(butr->xmax - butr->xmin),
+	               (short)BLI_RCT_SIZE_X(butr), (short)BLI_RCT_SIZE_X(butr),
 	              nor, 0.0f, 1.0f, 0, 0, "");
 	uiButSetFunc(bt, node_normal_cb, ntree, node);
 }
@@ -535,7 +524,7 @@ static void node_update_group(const bContext *C, bNodeTree *ntree, bNode *gnode)
 		rect->ymax+= NODE_DY;
 		
 		/* input sockets */
-		dy = 0.5f*(rect->ymin+rect->ymax) + NODE_DY*(BLI_countlist(&gnode->inputs)-1);
+		dy = BLI_RCT_CENTER_Y(rect) + (NODE_DY * (BLI_countlist(&gnode->inputs) - 1));
 		gsock=ngroup->inputs.first;
 		sock=gnode->inputs.first;
 		while (gsock || sock) {
@@ -583,7 +572,7 @@ static void node_update_group(const bContext *C, bNodeTree *ntree, bNode *gnode)
 		}
 		
 		/* output sockets */
-		dy = 0.5f*(rect->ymin+rect->ymax) + NODE_DY*(BLI_countlist(&gnode->outputs)-1);
+		dy = BLI_RCT_CENTER_Y(rect) + (NODE_DY * (BLI_countlist(&gnode->outputs) - 1));
 		gsock=ngroup->outputs.first;
 		sock=gnode->outputs.first;
 		while (gsock || sock) {
@@ -849,7 +838,7 @@ static void node_draw_group(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	
 		layout = uiBlockLayout(gnode->block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
 		                       (int)(rect.xmin + NODE_MARGIN_X), (int)(rect.ymax + (group_header - (2.5f * dpi_fac))),
-		                       MIN2((int)(rect.xmax - rect.xmin-18.0f), node_group_frame+20), group_header, UI_GetStyle());
+		                       mini((int)(BLI_RCT_SIZE_X(&rect) - 18.0f), node_group_frame + 20), group_header, UI_GetStyle());
 		RNA_pointer_create(&ntree->id, &RNA_Node, gnode, &ptr);
 		uiTemplateIDBrowse(layout, (bContext*)C, &ptr, "node_tree", NULL, NULL, NULL);
 		uiBlockLayoutResolve(gnode->block, NULL, NULL);
@@ -991,7 +980,7 @@ static void node_draw_frame_label(bNode *node, const float aspect)
 	ascender = BLF_ascender(fontid);
 	
 	/* 'x' doesn't need aspect correction */
-	x = 0.5f * (rct->xmin + rct->xmax) - 0.5f * width;
+	x = BLI_RCT_CENTER_X(rct) - (0.5f * width);
 	y = rct->ymax - (((NODE_DY / 4) / aspect) + (ascender * aspect));
 
 	BLF_position(fontid, x, y, 0);
@@ -1008,9 +997,7 @@ static void node_draw_frame(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	float alpha;
 	
 	/* skip if out of view */
-	if (node->totr.xmax < ar->v2d.cur.xmin || node->totr.xmin > ar->v2d.cur.xmax ||
-	    node->totr.ymax < ar->v2d.cur.ymin || node->totr.ymin > ar->v2d.cur.ymax) {
-		
+	if (BLI_rctf_isect(&node->totr, &ar->v2d.cur, NULL) == FALSE) {
 		uiEndBlock(C, node->block);
 		node->block = NULL;
 		return;
@@ -1033,7 +1020,7 @@ static void node_draw_frame(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	glDisable(GL_BLEND);
 
 	/* outline active and selected emphasis */
-	if (node->flag & (NODE_ACTIVE | SELECT)) {
+	if (node->flag & SELECT) {
 		glEnable(GL_BLEND);
 		glEnable(GL_LINE_SMOOTH);
 		
@@ -1147,7 +1134,7 @@ static void node_draw_reroute(const bContext *C, ARegion *ar, SpaceNode *UNUSED(
 	glDisable(GL_BLEND);
 
 	/* outline active and selected emphasis */
-	if (node->flag & (NODE_ACTIVE | SELECT)) {
+	if (node->flag & SELECT) {
 		glEnable(GL_BLEND);
 		glEnable(GL_LINE_SMOOTH);
 		/* using different shades of TH_TEXT_HI for the empasis, like triangle */
@@ -1529,12 +1516,19 @@ static void node_composit_buts_renderlayers(uiLayout *layout, bContext *C, Point
 static void node_composit_buts_blur(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiLayout *col, *row;
+	int reference;
+	int filter;
 	
 	col = uiLayoutColumn(layout, FALSE);
-	
+	filter = RNA_enum_get(ptr, "filter_type");
+	reference = RNA_boolean_get(ptr, "use_variable_size");
+
 	uiItemR(col, ptr, "filter_type", 0, "", ICON_NONE);
-	if (RNA_enum_get(ptr, "filter_type")!= R_FILTER_FAST_GAUSS) {
-		uiItemR(col, ptr, "use_bokeh", 0, NULL, ICON_NONE);
+	if (filter != R_FILTER_FAST_GAUSS) {
+		uiItemR(col, ptr, "use_variable_size", 0, NULL, ICON_NONE);
+		if (!reference) {
+			uiItemR(col, ptr, "use_bokeh", 0, NULL, ICON_NONE);
+		}
 		uiItemR(col, ptr, "use_gamma_correction", 0, NULL, ICON_NONE);
 	}
 	
@@ -1812,6 +1806,11 @@ static void node_composit_buts_dilateerode(uiLayout *layout, bContext *UNUSED(C)
 			uiItemR(layout, ptr, "falloff", 0, NULL, ICON_NONE);
 			break;
 	}
+}
+
+static void node_composit_buts_inpaint(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	uiItemR(layout, ptr, "distance", 0, NULL, ICON_NONE);
 }
 
 static void node_composit_buts_diff_matte(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
@@ -2353,6 +2352,13 @@ static void node_composit_buts_bokehimage(uiLayout *layout, bContext *UNUSED(C),
 	uiItemR(layout, ptr, "shift", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 }
 
+static void node_composit_buts_bokehblur(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	uiItemR(layout, ptr, "use_variable_size", 0, NULL, ICON_NONE);
+	// uiItemR(layout, ptr, "f_stop", 0, NULL, ICON_NONE);  // UNUSED
+	uiItemR(layout, ptr, "blur_max", 0, NULL, ICON_NONE);
+}
+
 void node_composit_backdrop_viewer(SpaceNode* snode, ImBuf* backdrop, bNode* node, int x, int y)
 {
 //	node_composit_backdrop_canvas(snode, backdrop, node, x, y);
@@ -2484,10 +2490,24 @@ static void node_composit_buts_viewer_but(uiLayout *layout, bContext *UNUSED(C),
 
 static void node_composit_buts_mask(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
+	bNode *node = ptr->data;
+
 	uiTemplateID(layout, C, ptr, "mask", NULL, NULL, NULL);
 	uiItemR(layout, ptr, "use_antialiasing", 0, NULL, ICON_NONE);
 	uiItemR(layout, ptr, "use_feather", 0, NULL, ICON_NONE);
 
+	uiItemR(layout, ptr, "size_source", 0, "", ICON_NONE);
+
+	if (node->custom1 & (CMP_NODEFLAG_MASK_FIXED | CMP_NODEFLAG_MASK_FIXED_SCENE)) {
+		uiItemR(layout, ptr, "size_x", 0, NULL, ICON_NONE);
+		uiItemR(layout, ptr, "size_y", 0, NULL, ICON_NONE);
+	}
+
+	uiItemR(layout, ptr, "use_motion_blur", 0, NULL, ICON_NONE);
+	if (node->custom1 & CMP_NODEFLAG_MASK_MOTION_BLUR) {
+		uiItemR(layout, ptr, "motion_blur_samples", 0, NULL, ICON_NONE);
+		uiItemR(layout, ptr, "motion_blur_shutter", 0, NULL, ICON_NONE);
+	}
 }
 
 static void node_composit_buts_keyingscreen(uiLayout *layout, bContext *C, PointerRNA *ptr)
@@ -2528,7 +2548,7 @@ static void node_composit_buts_keying(uiLayout *layout, bContext *UNUSED(C), Poi
 
 static void node_composit_buts_trackpos(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
-	bNode *node= ptr->data;
+	bNode *node = ptr->data;
 
 	uiTemplateID(layout, C, ptr, "clip", NULL, "CLIP_OT_open", NULL);
 
@@ -2557,7 +2577,11 @@ static void node_composit_buts_trackpos(uiLayout *layout, bContext *C, PointerRN
 			uiItemR(layout, ptr, "track_name", 0, "", ICON_ANIM_DATA);
 		}
 
-		uiItemR(layout, ptr, "use_relative", 0, NULL, ICON_NONE);
+		uiItemR(layout, ptr, "position", 0, NULL, ICON_NONE);
+
+		if (node->custom1 == 2) {
+			uiItemR(layout, ptr, "relative_frame", 0, NULL, ICON_NONE);
+		}
 	}
 }
 
@@ -2647,6 +2671,9 @@ static void node_composit_set_butfunc(bNodeType *ntype)
 			break;
 		case CMP_NODE_DILATEERODE:
 			ntype->uifunc= node_composit_buts_dilateerode;
+			break;
+		case CMP_NODE_INPAINT:
+			ntype->uifunc = node_composit_buts_inpaint;
 			break;
 		case CMP_NODE_OUTPUT_FILE:
 			ntype->uifunc= node_composit_buts_file_output;
@@ -2744,6 +2771,9 @@ static void node_composit_set_butfunc(bNodeType *ntype)
 			break;
 		case CMP_NODE_BOKEHIMAGE:
 			ntype->uifunc= node_composit_buts_bokehimage;
+			break;
+		case CMP_NODE_BOKEHBLUR:
+			ntype->uifunc = node_composit_buts_bokehblur;
 			break;
 		case CMP_NODE_VIEWER:
 			ntype->uifunc = NULL;
@@ -2922,7 +2952,7 @@ static void node_texture_set_butfunc(bNodeType *ntype)
 
 /* ******* init draw callbacks for all tree types, only called in usiblender.c, once ************* */
 
-void ED_init_node_butfuncs(void)
+void ED_node_init_butfuncs(void)
 {
 	bNodeTreeType *treetype;
 	bNodeType *ntype;
@@ -3012,7 +3042,7 @@ void draw_nodespace_back_pix(ARegion *ar, SpaceNode *snode, int color_manage)
 			
 			glaDefine2DArea(&ar->winrct);
 			/* ortho at pixel level curarea */
-			wmOrtho2(-0.375, ar->winx-0.375, -0.375, ar->winy-0.375);
+			wmOrtho2(-GLA_PIXEL_OFS, ar->winx - GLA_PIXEL_OFS, -GLA_PIXEL_OFS, ar->winy - GLA_PIXEL_OFS);
 			
 			x = (ar->winx-snode->zoom*ibuf->x)/2 + snode->xof;
 			y = (ar->winy-snode->zoom*ibuf->y)/2 + snode->yof;
@@ -3127,7 +3157,7 @@ static void draw_nodespace_back_tex(ScrArea *sa, SpaceNode *snode)
 				float zoomx, zoomy;
 				zoomx= (float)sa->winx/ibuf->x;
 				zoomy= (float)sa->winy/ibuf->y;
-				zoom = MIN2(zoomx, zoomy);
+				zoom = minf(zoomx, zoomy);
 			}
 			
 			x = (sa->winx-zoom*ibuf->x)/2 + snode->xof;
@@ -3166,8 +3196,7 @@ int node_link_bezier_points(View2D *v2d, SpaceNode *snode, bNodeLink *link, floa
 	}
 	else {
 		if (snode==NULL) return 0;
-		vec[0][0]= snode->mx;
-		vec[0][1]= snode->my;
+		copy_v2_v2(vec[0], snode->cursor);
 		fromreroute = 0;
 	}
 	if (link->tosock) {
@@ -3177,8 +3206,7 @@ int node_link_bezier_points(View2D *v2d, SpaceNode *snode, bNodeLink *link, floa
 	}
 	else {
 		if (snode==NULL) return 0;
-		vec[3][0]= snode->mx;
-		vec[3][1]= snode->my;
+		copy_v2_v2(vec[3], snode->cursor);
 		toreroute = 0;
 	}
 
@@ -3267,7 +3295,7 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 
 			sub_v2_v2v2(d_xy, coord_array[LINK_ARROW], coord_array[LINK_ARROW - 1]);
 			len = len_v2(d_xy);
-			mul_v2_fl(d_xy, 1.0f / (len * ARROW_SIZE));
+			mul_v2_fl(d_xy, ARROW_SIZE / len);
 			arrow1[0] = coord_array[LINK_ARROW][0] - d_xy[0] + d_xy[1];
 			arrow1[1] = coord_array[LINK_ARROW][1] - d_xy[1] - d_xy[0];
 			arrow2[0] = coord_array[LINK_ARROW][0] - d_xy[0] - d_xy[1];

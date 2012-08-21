@@ -29,7 +29,6 @@
  *  \ingroup edtransform
  */
 
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -37,9 +36,9 @@
 #include <float.h>
 
 #ifndef WIN32
-#include <unistd.h>
+#  include <unistd.h>
 #else
-#include <io.h>
+#  include <io.h>
 #endif
 
 #include "MEM_guardedalloc.h"
@@ -77,6 +76,7 @@
 #include "ED_mesh.h"
 #include "ED_clip.h"
 #include "ED_node.h"
+#include "ED_mask.h"
 
 #include "UI_view2d.h"
 #include "WM_types.h"
@@ -92,15 +92,11 @@
 
 #include "UI_resources.h"
 
-//#include "blendef.h"
-//
-//#include "mydevice.h"
-
 #include "transform.h"
 
 #include <stdio.h>
 
-static void drawTransformApply(const struct bContext *C, struct ARegion *ar, void *arg);
+static void drawTransformApply(const struct bContext *C, ARegion *ar, void *arg);
 static int doEdgeSlide(TransInfo *t, float perc);
 
 /* ************************** SPACE DEPENDANT CODE **************************** */
@@ -127,16 +123,44 @@ void setTransformViewMatrices(TransInfo *t)
 	calculateCenter2D(t);
 }
 
-static void convertViewVec2D(View2D *v2d, float vec[3], int dx, int dy)
+static void convertViewVec2D(View2D *v2d, float r_vec[3], int dx, int dy)
 {
 	float divx, divy;
 	
-	divx = v2d->mask.xmax - v2d->mask.xmin;
-	divy = v2d->mask.ymax - v2d->mask.ymin;
+	divx = BLI_RCT_SIZE_X(&v2d->mask);
+	divy = BLI_RCT_SIZE_Y(&v2d->mask);
 
-	vec[0] = (v2d->cur.xmax - v2d->cur.xmin) * dx / divx;
-	vec[1] = (v2d->cur.ymax - v2d->cur.ymin) * dy / divy;
-	vec[2] = 0.0f;
+	r_vec[0] = BLI_RCT_SIZE_X(&v2d->cur) * dx / divx;
+	r_vec[1] = BLI_RCT_SIZE_Y(&v2d->cur) * dy / divy;
+	r_vec[2] = 0.0f;
+}
+
+static void convertViewVec2D_mask(View2D *v2d, float r_vec[3], int dx, int dy)
+{
+	float divx, divy;
+	float mulx, muly;
+
+	divx = BLI_RCT_SIZE_X(&v2d->mask);
+	divy = BLI_RCT_SIZE_Y(&v2d->mask);
+
+	mulx = BLI_RCT_SIZE_X(&v2d->cur);
+	muly = BLI_RCT_SIZE_Y(&v2d->cur);
+
+	/* difference with convertViewVec2D */
+	/* clamp w/h, mask only */
+	if (mulx / divx < muly / divy) {
+		divy = divx;
+		muly = mulx;
+	}
+	else {
+		divx = divy;
+		mulx = muly;
+	}
+	/* end difference */
+
+	r_vec[0] = mulx * dx / divx;
+	r_vec[1] = muly * dy / divy;
+	r_vec[2] = 0.0f;
 }
 
 void convertViewVec(TransInfo *t, float r_vec[3], int dx, int dy)
@@ -150,9 +174,16 @@ void convertViewVec(TransInfo *t, float r_vec[3], int dx, int dy)
 	else if (t->spacetype == SPACE_IMAGE) {
 		float aspx, aspy;
 
-		convertViewVec2D(t->view, r_vec, dx, dy);
+		if (t->options & CTX_MASK) {
 
-		ED_space_image_uv_aspect(t->sa->spacedata.first, &aspx, &aspy);
+			convertViewVec2D_mask(t->view, r_vec, dx, dy);
+			ED_space_image_get_aspect(t->sa->spacedata.first, &aspx, &aspy);
+		}
+		else {
+			convertViewVec2D(t->view, r_vec, dx, dy);
+			ED_space_image_get_uv_aspect(t->sa->spacedata.first, &aspx, &aspy);
+		}
+
 		r_vec[0] *= aspx;
 		r_vec[1] *= aspy;
 	}
@@ -163,26 +194,14 @@ void convertViewVec(TransInfo *t, float r_vec[3], int dx, int dy)
 		convertViewVec2D(&t->ar->v2d, r_vec, dx, dy);
 	}
 	else if (t->spacetype == SPACE_CLIP) {
-		View2D *v2d = t->view;
-		float divx, divy;
-		float mulx, muly;
-		float aspx = 1.0f, aspy = 1.0f;
-
-		divx = v2d->mask.xmax - v2d->mask.xmin;
-		divy = v2d->mask.ymax - v2d->mask.ymin;
-
-		mulx = (v2d->cur.xmax - v2d->cur.xmin);
-		muly = (v2d->cur.ymax - v2d->cur.ymin);
+		float aspx, aspy;
 
 		if (t->options & CTX_MASK) {
-			/* clamp w/h, mask only */
-			divx = divy = maxf(divx, divy);
-			mulx = muly = minf(mulx, muly);
+			convertViewVec2D_mask(t->view, r_vec, dx, dy);
 		}
-
-		r_vec[0] = mulx * (dx) / divx;
-		r_vec[1] = muly * (dy) / divy;
-		r_vec[2] = 0.0f;
+		else {
+			convertViewVec2D(t->view, r_vec, dx, dy);
+		}
 
 		if (t->options & CTX_MOVIECLIP) {
 			ED_space_clip_get_aspect_dimension_aware(t->sa->spacedata.first, &aspx, &aspy);
@@ -208,13 +227,21 @@ void projectIntView(TransInfo *t, const float vec[3], int adr[2])
 			project_int_noclip(t->ar, vec, adr);
 	}
 	else if (t->spacetype == SPACE_IMAGE) {
-		float aspx, aspy, v[2];
+		if (t->options & CTX_MASK) {
+			float v[2];
+			ED_mask_point_pos__reverse(t->sa, t->ar, vec[0], vec[1], &v[0], &v[1]);
+			adr[0] = v[0];
+			adr[1] = v[1];
+		}
+		else {
+			float aspx, aspy, v[2];
 
-		ED_space_image_uv_aspect(t->sa->spacedata.first, &aspx, &aspy);
-		v[0] = vec[0] / aspx;
-		v[1] = vec[1] / aspy;
+			ED_space_image_get_uv_aspect(t->sa->spacedata.first, &aspx, &aspy);
+			v[0] = vec[0] / aspx;
+			v[1] = vec[1] / aspy;
 
-		UI_view2d_to_region_no_clip(t->view, v[0], v[1], adr, adr + 1);
+			UI_view2d_to_region_no_clip(t->view, v[0], v[1], adr, adr + 1);
+		}
 	}
 	else if (t->spacetype == SPACE_ACTION) {
 		int out[2] = {0, 0};
@@ -255,10 +282,13 @@ void projectIntView(TransInfo *t, const float vec[3], int adr[2])
 
 		copy_v2_v2(v, vec);
 
-		if (t->options & CTX_MOVIECLIP)
+		if (t->options & CTX_MOVIECLIP) {
 			ED_space_clip_get_aspect_dimension_aware(t->sa->spacedata.first, &aspx, &aspy);
-		else if (t->options & CTX_MASK)
+		}
+		else if (t->options & CTX_MASK) {
+			/* MASKTODO - not working as expected */
 			ED_space_clip_get_aspect(t->sa->spacedata.first, &aspx, &aspy);
+		}
 
 		v[0] /= aspx;
 		v[1] /= aspy;
@@ -305,13 +335,13 @@ void applyAspectRatio(TransInfo *t, float vec[2])
 
 		if ((sima->flag & SI_COORDFLOATS) == 0) {
 			int width, height;
-			ED_space_image_size(sima, &width, &height);
+			ED_space_image_get_size(sima, &width, &height);
 
 			vec[0] *= width;
 			vec[1] *= height;
 		}
 
-		ED_space_image_uv_aspect(sima, &aspx, &aspy);
+		ED_space_image_get_uv_aspect(sima, &aspx, &aspy);
 		vec[0] /= aspx;
 		vec[1] /= aspy;
 	}
@@ -345,13 +375,13 @@ void removeAspectRatio(TransInfo *t, float vec[2])
 
 		if ((sima->flag & SI_COORDFLOATS) == 0) {
 			int width, height;
-			ED_space_image_size(sima, &width, &height);
+			ED_space_image_get_size(sima, &width, &height);
 
 			vec[0] /= width;
 			vec[1] /= height;
 		}
 
-		ED_space_image_uv_aspect(sima, &aspx, &aspy);
+		ED_space_image_get_uv_aspect(sima, &aspx, &aspy);
 		vec[0] *= aspx;
 		vec[1] *= aspy;
 	}
@@ -407,10 +437,17 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
 		WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, NULL);
 	}
 	else if (t->spacetype == SPACE_IMAGE) {
-		// XXX how to deal with lock?
-		SpaceImage *sima = (SpaceImage *)t->sa->spacedata.first;
-		if (sima->lock) WM_event_add_notifier(C, NC_GEOM | ND_DATA, t->obedit->data);
-		else ED_area_tag_redraw(t->sa);
+		if (t->options & CTX_MASK) {
+			Mask *mask = CTX_data_edit_mask(C);
+
+			WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
+		}
+		else {
+			// XXX how to deal with lock?
+			SpaceImage *sima = (SpaceImage *)t->sa->spacedata.first;
+			if (sima->lock) WM_event_add_notifier(C, NC_GEOM | ND_DATA, t->obedit->data);
+			else ED_area_tag_redraw(t->sa);
+		}
 	}
 	else if (t->spacetype == SPACE_CLIP) {
 		SpaceClip *sc = (SpaceClip *)t->sa->spacedata.first;
@@ -424,7 +461,7 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
 			WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
 		}
 		else if (ED_space_clip_check_show_maskedit(sc)) {
-			Mask *mask = ED_space_clip_get_mask(sc);
+			Mask *mask = CTX_data_edit_mask(C);
 
 			WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
 		}
@@ -936,7 +973,7 @@ int transformEvent(TransInfo *t, wmEvent *event)
 				if (t->flag & T_PROP_EDIT) {
 					t->prop_size *= 1.1f;
 					if (t->spacetype == SPACE_VIEW3D && t->persp != RV3D_ORTHO)
-						t->prop_size = MIN2(t->prop_size, ((View3D *)t->view)->far);
+						t->prop_size = minf(t->prop_size, ((View3D *)t->view)->far);
 					calculatePropRatio(t);
 				}
 				t->redraw |= TREDRAW_HARD;
@@ -1106,7 +1143,7 @@ int transformEvent(TransInfo *t, wmEvent *event)
 				if (event->alt && t->flag & T_PROP_EDIT) {
 					t->prop_size *= 1.1f;
 					if (t->spacetype == SPACE_VIEW3D && t->persp != RV3D_ORTHO)
-						t->prop_size = MIN2(t->prop_size, ((View3D *)t->view)->far);
+						t->prop_size = minf(t->prop_size, ((View3D *)t->view)->far);
 					calculatePropRatio(t);
 				}
 				t->redraw = 1;
@@ -1312,6 +1349,7 @@ static void drawArrowHead(ArrowDirection d, short size)
 	}
 }
 
+	int a;
 static int helpline_poll(bContext *C)
 {
 	ARegion *ar = CTX_wm_region(C);
@@ -1469,7 +1507,7 @@ static void drawNonPropEdge(const struct bContext *C, TransInfo *t);
 static void drawConstraint(TransInfo *t);
 static void drawSnapping(const struct bContext *C, TransInfo *t);
 
-void drawConstraintLine(TransInfo *t, float *center, float *dir, char axis, short options)
+void drawConstraintLine(TransInfo *t, const float center[3], const float dir[3], char axis, short options)
 {
 	float v1[3], v2[3], v3[3];
 	unsigned char col[3], col2[3];
@@ -1677,10 +1715,10 @@ static void drawSnapping(const struct bContext *C, TransInfo *t)
 			myortho2(G.v2d->cur.xmin, G.v2d->cur.xmax, G.v2d->cur.ymin, G.v2d->cur.ymax);
 			gpuLoadIdentity();
 			
-			ED_space_image_aspect(t->sa->spacedata.first, &xuser_aspx, &yuser_asp);
+			ED_space_image_get_aspect(t->sa->spacedata.first, &xuser_aspx, &yuser_asp);
 			ED_space_image_width(t->sa->spacedata.first, &wi, &hi);
-			w = (((float)wi)/256.0f)*G.sima->zoom * xuser_asp;
-			h = (((float)hi)/256.0f)*G.sima->zoom * yuser_asp;
+			w = (((float)wi) / IMAGE_SIZE_FALLBACK) * G.sima->zoom * xuser_asp;
+			h = (((float)hi) / IMAGE_SIZE_FALLBACK) * G.sima->zoom * yuser_asp;
 			
 			gpuCurrentColor3x(CPACK_WHITE);
 			gpuTranslate(t->tsnap.snapPoint[0], t->tsnap.snapPoint[1], 0.0f);
@@ -1806,7 +1844,7 @@ static void drawNonPropEdge(const struct bContext *C, TransInfo *t)
 	}
 }
 
-static void drawTransformView(const struct bContext *C, struct ARegion *UNUSED(ar), void *arg)
+static void drawTransformView(const struct bContext *C, ARegion *UNUSED(ar), void *arg)
 {
 	TransInfo *t = arg;
 
@@ -1817,7 +1855,7 @@ static void drawTransformView(const struct bContext *C, struct ARegion *UNUSED(a
 }
 
 #if 0
-static void drawTransformPixel(const struct bContext *UNUSED(C), struct ARegion *UNUSED(ar), void *UNUSED(arg))
+static void drawTransformPixel(const struct bContext *UNUSED(C), ARegion *UNUSED(ar), void *UNUSED(arg))
 {
 //	TransInfo *t = arg;
 //
@@ -2259,7 +2297,7 @@ void transformApply(bContext *C, TransInfo *t)
 	t->context = NULL;
 }
 
-static void drawTransformApply(const bContext *C, struct ARegion *UNUSED(ar), void *arg)
+static void drawTransformApply(const bContext *C, ARegion *UNUSED(ar), void *arg)
 {
 	TransInfo *t = arg;
 
@@ -3243,6 +3281,14 @@ int Resize(TransInfo *t, const int mval[2])
 		
 		for (i = 0, td = t->data; i < t->total; i++, td++)
 			ElementResize(t, td, mat);
+
+		/* In proportional edit it can happen that */
+		/* vertices in the radius of the brush end */
+		/* outside the clipping area               */
+		/* XXX HACK - dg */
+		if (t->flag & (T_PROP_EDIT | T_PROP_CONNECTED)) {
+			clipUVData(t);
+		}
 	}
 	
 	recalcData(t);
@@ -4098,8 +4144,17 @@ int Translation(TransInfo *t, const int UNUSED(mval[2]))
 	applyTranslation(t, t->values);
 
 	/* evil hack - redo translation if clipping needed */
-	if (t->flag & T_CLIP_UV && clipUVTransform(t, t->values, 0))
+	if (t->flag & T_CLIP_UV && clipUVTransform(t, t->values, 0)) {
 		applyTranslation(t, t->values);
+
+		/* In proportional edit it can happen that */
+		/* vertices in the radius of the brush end */
+		/* outside the clipping area               */
+		/* XXX HACK - dg */
+		if (t->flag & (T_PROP_EDIT | T_PROP_CONNECTED)) {
+			clipUVData(t);
+		}
+	}
 
 	recalcData(t);
 
@@ -5055,7 +5110,7 @@ static int createSlideVerts(TransInfo *t)
 	float projectMat[4][4];
 	float mval[2] = {(float)t->mval[0], (float)t->mval[1]};
 	float start[3] = {0.0f, 0.0f, 0.0f}, dir[3], end[3] = {0.0f, 0.0f, 0.0f};
-	float vec[3], vec2[3], lastvec[3] /*, size, dis=0.0, z */ /* UNUSED */;
+	float vec[3], vec2[3] /*, lastvec[3], size, dis=0.0, z */ /* UNUSED */;
 	int numsel, i, j;
 
 	if (t->spacetype == SPACE_VIEW3D) {
@@ -5243,7 +5298,7 @@ static int createSlideVerts(TransInfo *t)
 		} while (e != first->e && l1);
 	}
 
-	//EDBM_flag_disable_all(em, BM_ELEM_SELECT);
+	/* EDBM_flag_disable_all(em, BM_ELEM_SELECT); */
 
 	sld->sv = sv_array;
 	sld->totsv = j;
@@ -5251,14 +5306,15 @@ static int createSlideVerts(TransInfo *t)
 	/*find mouse vector*/
 	/* dis = z = -1.0f; */ /* UNUSED */
 	/* size = 50.0; */ /* UNUSED */
-	zero_v3(lastvec); zero_v3(dir);
+	/* zero_v3(lastvec); */ /* UNUSED */
+	zero_v3(dir);
 	/* ee = le = NULL; */ /* UNUSED */
 	BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
 		if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
 			BMIter iter2;
 			BMEdge *e2;
 			float vec1[3], dis2, mval[2] = {t->mval[0], t->mval[1]}, d;
-						
+
 			/* search cross edges for visible edge to the mouse cursor,
 			 * then use the shared vertex to calculate screen vector*/
 			dis2 = -1.0f;
@@ -5267,10 +5323,12 @@ static int createSlideVerts(TransInfo *t)
 				BM_ITER_ELEM (e2, &iter2, v, BM_EDGES_OF_VERT) {
 					if (BM_elem_flag_test(e2, BM_ELEM_SELECT))
 						continue;
-					
-					if (v3d && !BMBVH_EdgeVisible(btree, e2, ar, v3d, t->obedit))
+
+					/* This test is only relevant if object is not wire-drawn! See [#32068]. */
+					if (v3d && t->obedit->dt > OB_WIRE && v3d->drawtype > OB_WIRE &&
+					    !BMBVH_EdgeVisible(btree, e2, ar, v3d, t->obedit))
 						continue;
-					
+
 					j = GET_INT_FROM_POINTER(BLI_smallhash_lookup(&table, (uintptr_t)v));
 
 					if (sv_array[j].down) {

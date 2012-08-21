@@ -300,7 +300,10 @@ static void sequencer_main_area_init(wmWindowManager *wm, ARegion *ar)
 	ListBase *lb;
 	
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_CUSTOM, ar->winx, ar->winy);
-	
+
+//	keymap = WM_keymap_find(wm->defaultconf, "Mask Editing", 0, 0);
+//	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
+
 	keymap = WM_keymap_find(wm->defaultconf, "SequencerCommon", SPACE_SEQ, 0);
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 	
@@ -409,9 +412,9 @@ static int sequencer_context(const bContext *C, const char *member, bContextData
 		return TRUE;
 	}
 	else if (CTX_data_equals(member, "edit_mask")) {
-		Sequence *seq_act = BKE_sequencer_active_get(scene);
-		if (seq_act && seq_act->type == SEQ_TYPE_MASK && seq_act->mask) {
-			CTX_data_id_pointer_set(result, &seq_act->mask->id);
+		Mask *mask = BKE_sequencer_mask_get(scene);
+		if (mask) {
+			CTX_data_id_pointer_set(result, &mask->id);
 		}
 		return TRUE;
 	}
@@ -468,6 +471,9 @@ static void sequencer_preview_area_init(wmWindowManager *wm, ARegion *ar)
 
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_CUSTOM, ar->winx, ar->winy);
 	
+//	keymap = WM_keymap_find(wm->defaultconf, "Mask Editing", 0, 0);
+//	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
+
 	keymap = WM_keymap_find(wm->defaultconf, "SequencerCommon", SPACE_SEQ, 0);
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 
@@ -481,13 +487,15 @@ static void sequencer_preview_area_draw(const bContext *C, ARegion *ar)
 	ScrArea *sa = CTX_wm_area(C);
 	SpaceSeq *sseq = sa->spacedata.first;
 	Scene *scene = CTX_data_scene(C);
+	int show_split = scene->ed && scene->ed->over_flag & SEQ_EDIT_OVERLAY_SHOW && sseq->mainb == SEQ_DRAW_IMG_IMBUF;
 	
 	/* XXX temp fix for wrong setting in sseq->mainb */
 	if (sseq->mainb == SEQ_DRAW_SEQUENCE) sseq->mainb = SEQ_DRAW_IMG_IMBUF;
 
-	draw_image_seq(C, scene, ar, sseq, scene->r.cfra, 0);
+	if (!show_split || sseq->overlay_type != SEQ_DRAW_OVERLAY_REFERENCE)
+		draw_image_seq(C, scene, ar, sseq, scene->r.cfra, 0, FALSE);
 
-	if (scene->ed && scene->ed->over_flag & SEQ_EDIT_OVERLAY_SHOW && sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
+	if (show_split && sseq->overlay_type != SEQ_DRAW_OVERLAY_CURRENT) {
 		int over_cfra;
 
 		if (scene->ed->over_flag & SEQ_EDIT_OVERLAY_ABS)
@@ -495,8 +503,8 @@ static void sequencer_preview_area_draw(const bContext *C, ARegion *ar)
 		else
 			over_cfra = scene->r.cfra + scene->ed->over_ofs;
 
-		if (over_cfra != scene->r.cfra)
-			draw_image_seq(C, scene, ar, sseq, scene->r.cfra, over_cfra - scene->r.cfra);
+		if (over_cfra != scene->r.cfra || sseq->overlay_type != SEQ_DRAW_OVERLAY_RECT)
+			draw_image_seq(C, scene, ar, sseq, scene->r.cfra, over_cfra - scene->r.cfra, TRUE);
 	}
 
 }

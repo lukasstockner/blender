@@ -530,8 +530,8 @@ void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int fo
 	 * covers the entire screen).
 	 */
 	gpuGetSizeBox(GL_SCISSOR_BOX, scissor);
-	draw_w = MIN2(img_w - off_x, ceil(((float)scissor[2] - rast_x) / xzoom));
-	draw_h = MIN2(img_h - off_y, ceil(((float)scissor[3] - rast_y) / yzoom));
+	draw_w = mini(img_w - off_x, ceil(((float)scissor[2] - rast_x) / xzoom));
+	draw_h = mini(img_h - off_y, ceil(((float)scissor[3] - rast_y) / yzoom));
 
 	if (draw_w > 0 && draw_h > 0) {
 		/* Don't use safe RasterPos (slower) if we can avoid it. */
@@ -579,7 +579,7 @@ void glaDefine2DArea(rcti *screen_rect)
 	gpuViewport(screen_rect->xmin, screen_rect->ymin, sc_w, sc_h);
 	gpuScissor(screen_rect->xmin, screen_rect->ymin, sc_w, sc_h);
 
-	/* The 0.375 magic number is to shift the matrix so that
+	/* The GLA_PIXEL_OFS magic number is to shift the matrix so that
 	 * both raster and vertex integer coordinates fall at pixel
 	 * centers properly. For a longer discussion see the OpenGL
 	 * Programming Guide, Appendix H, Correctness Tips.
@@ -588,7 +588,7 @@ void glaDefine2DArea(rcti *screen_rect)
 	gpuMatrixMode(GL_PROJECTION);
 	gpuLoadIdentity();
 	gpuOrtho(0.0, sc_w, 0.0, sc_h, -1, 1);
-	gpuTranslate(0.375, 0.375, 0.0);
+	gpuTranslate(GLA_PIXEL_OFS, GLA_PIXEL_OFS, 0.0);
 
 	gpuMatrixMode(GL_MODELVIEW);
 	gpuLoadIdentity();

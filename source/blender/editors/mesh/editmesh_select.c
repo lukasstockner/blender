@@ -114,7 +114,9 @@ void EDBM_automerge(Scene *scene, Object *obedit, int update)
 		if (!em)
 			return;
 
-		BMO_op_callf(em->bm, "automerge verts=%hv dist=%f", BM_ELEM_SELECT, scene->toolsettings->doublimit);
+		BMO_op_callf(em->bm, BMO_FLAG_DEFAULTS,
+		             "automerge verts=%hv dist=%f",
+		             BM_ELEM_SELECT, scene->toolsettings->doublimit);
 		if (update) {
 			DAG_id_tag_update(obedit->data, OB_RECALC_DATA);
 			BMEdit_RecalcTessellation(em);
@@ -1683,15 +1685,15 @@ void EDBM_selectmode_set(BMEditMesh *em)
 	}
 }
 
-void EDBM_selectmode_convert(BMEditMesh *em, short oldmode, short selectmode)
+void EDBM_selectmode_convert(BMEditMesh *em, short selectmode_old, short selectmode_new)
 {
 	BMEdge *eed;
 	BMFace *efa;
 	BMIter iter;
 
 	/* have to find out what the selectionmode was previously */
-	if (oldmode == SCE_SELECT_VERTEX) {
-		if (selectmode == SCE_SELECT_EDGE) {
+	if (selectmode_old == SCE_SELECT_VERTEX) {
+		if (selectmode_new == SCE_SELECT_EDGE) {
 			/* select all edges associated with every selected vertex */
 			eed = BM_iter_new(&iter, em->bm, BM_EDGES_OF_MESH, NULL);
 			for (; eed; eed = BM_iter_step(&iter)) {
@@ -1702,7 +1704,7 @@ void EDBM_selectmode_convert(BMEditMesh *em, short oldmode, short selectmode)
 				}
 			}
 		}		
-		else if (selectmode == SCE_SELECT_FACE) {
+		else if (selectmode_new == SCE_SELECT_FACE) {
 			BMIter liter;
 			BMLoop *l;
 
@@ -1719,9 +1721,8 @@ void EDBM_selectmode_convert(BMEditMesh *em, short oldmode, short selectmode)
 			}
 		}
 	}
-	
-	if (oldmode == SCE_SELECT_EDGE) {
-		if (selectmode == SCE_SELECT_FACE) {
+	else if (selectmode_old == SCE_SELECT_EDGE) {
+		if (selectmode_new == SCE_SELECT_FACE) {
 			BMIter liter;
 			BMLoop *l;
 
@@ -2337,7 +2338,7 @@ static int edbm_select_sharp_edges_exec(bContext *C, wmOperator *op)
 		/* edge has exactly two neighboring faces, check angle */
 		angle = angle_normalized_v3v3(l1->f->no, l2->f->no);
 
-		if (fabsf(angle) > sharp) {
+		if (fabsf(angle) < sharp) {
 			BM_edge_select_set(em->bm, e, TRUE);
 		}
 

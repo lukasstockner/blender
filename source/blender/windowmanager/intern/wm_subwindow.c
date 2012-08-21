@@ -43,6 +43,7 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
+#include "BIF_glutil.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -114,8 +115,8 @@ void wm_subwindow_getsize(wmWindow *win, int swinid, int *x, int *y)
 	wmSubWindow *swin = swin_from_swinid(win, swinid);
 
 	if (swin) {
-		*x = swin->winrct.xmax - swin->winrct.xmin + 1;
-		*y = swin->winrct.ymax - swin->winrct.ymin + 1;
+		*x = BLI_RCT_SIZE_X(&swin->winrct) + 1;
+		*y = BLI_RCT_SIZE_Y(&swin->winrct) + 1;
 	}
 }
 
@@ -139,7 +140,7 @@ void wm_subwindow_getmatrix(wmWindow *win, int swinid, float mat[][4])
 			int width, height;
 
 			wm_subwindow_getsize(win, swin->swinid, &width, &height);
-			orthographic_m4(mat, -0.375f, (float)width - 0.375f, -0.375f, (float)height - 0.375f, -100, 100);
+			orthographic_m4(mat, -GLA_PIXEL_OFS, (float)width - GLA_PIXEL_OFS, -GLA_PIXEL_OFS, (float)height - GLA_PIXEL_OFS, -100, 100);
 		}
 		else {
 			gpuGetMatrix(GL_PROJECTION_MATRIX, (float *)mat);
@@ -174,7 +175,7 @@ int wm_subwindow_open(wmWindow *win, rcti *winrct)
 	
 	/* extra service */
 	wm_subwindow_getsize(win, swin->swinid, &width, &height);
-	wmOrtho2(-0.375f, (float)width - 0.375f, -0.375f, (float)height - 0.375f);
+	wmOrtho2(-GLA_PIXEL_OFS, (float)width - GLA_PIXEL_OFS, -GLA_PIXEL_OFS, (float)height - GLA_PIXEL_OFS);
 	gpuLoadIdentity();
 
 	return swin->swinid;
@@ -228,7 +229,7 @@ void wm_subwindow_position(wmWindow *win, int swinid, rcti *winrct)
 		/* extra service */
 		wmSubWindowSet(win, swinid);
 		wm_subwindow_getsize(win, swinid, &width, &height);
-		wmOrtho2(-0.375f, (float)width - 0.375f, -0.375f, (float)height - 0.375f);
+		wmOrtho2(-GLA_PIXEL_OFS, (float)width - GLA_PIXEL_OFS, -GLA_PIXEL_OFS, (float)height - GLA_PIXEL_OFS);
 	}
 	else {
 		printf("%s: Internal error, bad winid: %d\n", __func__, swinid);
@@ -273,7 +274,7 @@ void wmSubWindowScissorSet(wmWindow *win, int swinid, rcti *srct)
 
 	gpuScissor(x, y, width, height);
 
-	wmOrtho2(-0.375f, (float)width - 0.375f, -0.375f, (float)height - 0.375f);
+	wmOrtho2(-GLA_PIXEL_OFS, (float)width - GLA_PIXEL_OFS, -GLA_PIXEL_OFS, (float)height - GLA_PIXEL_OFS);
 
 	gpuLoadIdentity(); /* reset MODELVIEW */
 }
@@ -381,7 +382,7 @@ unsigned int index_to_framebuffer(int index)
 
 #endif
 
-void WM_set_framebuffer_index_color(int index)
+void WM_framebuffer_index_set(int index)
 {
 	gpuColor3x(index_to_framebuffer(index));
 }

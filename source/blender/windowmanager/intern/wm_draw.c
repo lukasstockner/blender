@@ -50,13 +50,14 @@
 #include "BKE_context.h"
 #include "BKE_global.h"
 
-
 #include "GHOST_C-api.h"
 
 #include "ED_screen.h"
 
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
+
+#include "BIF_glutil.h"
 
 #include "RE_engine.h"
 
@@ -507,8 +508,8 @@ static void wm_triple_draw_textures(wmWindow *win, wmDrawTriple *triple)
 			/* wmOrtho for the screen has this same offset */
 			ratiox = sizex;
 			ratioy = sizey;
-			halfx = 0.375f;
-			halfy = 0.375f;
+			halfx = GLA_PIXEL_OFS;
+			halfy = GLA_PIXEL_OFS;
 
 			/* texture rectangle has unnormalized coordinates */
 			if (triple->target == GL_TEXTURE_2D) {

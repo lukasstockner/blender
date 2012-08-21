@@ -52,10 +52,7 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
-//XXX #include "BIF_toolbox.h"
-
 #include "BKE_font.h"
-
 
 #include "DNA_vfont_types.h"
 #include "DNA_packedFile_types.h"
@@ -299,7 +296,7 @@ static int objchr_to_ftvfontdata(VFont *vfont, FT_ULong charcode)
 	struct TmpFont *tf;
 
 	/* Find the correct FreeType font */
-	tf = BKE_vfont_find_tmpfont(vfont);
+	tf = BKE_vfont_tmpfont_find(vfont);
 
 	/* What, no font found. Something strange here */
 	if (!tf) return FALSE;
@@ -559,7 +556,7 @@ typedef struct  FT_Outline_
  * Type1 format.
  *
  * Each arc is described through a series of start, end and control points. Each point of the outline
- * has a specific tag which indicates wether it is used to describe a line segment or an arc.
+ * has a specific tag which indicates whether it is used to describe a line segment or an arc.
  *
  *
  * The following rules are applied to decompose the contour's points into segments and arcs :

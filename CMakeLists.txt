@@ -126,11 +126,13 @@ option(WITH_PYTHON_SAFETY "Enable internal API error checking to track invalid d
 option(WITH_PYTHON_MODULE "Enable building as a python module which runs without a user interface, like running regular blender in background mode (experimental, only enable for development)" OFF)
 option(WITH_BUILDINFO     "Include extra build details (only disable for development & faster builds)" ON)
 option(WITH_IK_ITASC      "Enable ITASC IK solver (only disable for development & for incompatible C++ compilers)" ON)
+option(WITH_IK_SOLVER     "Enable Legacy IK solver (only disable for development)" ON)
 option(WITH_FFTW3         "Enable FFTW3 support (Used for smoke and audio effects)" OFF)
 option(WITH_BULLET        "Enable Bullet (Physics Engine)" ON)
 option(WITH_GAMEENGINE    "Enable Game Engine" ON)
 option(WITH_PLAYER        "Build Player" OFF)
 option(WITH_COMPOSITOR    "Enable the tile based nodal compositor" ON)
+option(WITH_COMPOSITOR_LEGACY "Enable legacy compositor" ON)
 
 # GHOST Windowing Library Options
 option(WITH_GHOST_DEBUG   "Enable debugging output for the GHOST library" OFF)
@@ -226,9 +228,6 @@ option(WITH_LZMA          "Enable best LZMA compression, (used for pointcache)" 
 # Camera/motion tracking
 option(WITH_LIBMV         "Enable libmv structure from motion library" ON)
 
-# Mesh boolean lib
-option(WITH_CARVE         "Enable Carve library to handle mesh boolean operations" ON)
-
 # Misc
 option(WITH_INPUT_NDOF "Enable NDOF input devices (SpaceNavigator and friends)" ON)
 if(WIN32)
@@ -253,7 +252,7 @@ option(WITH_CYCLES					"Enable cycles Render Engine" ON)
 option(WITH_CYCLES_TEST				"Build cycles test application" OFF)
 option(WITH_CYCLES_OSL				"Build Cycles with OSL support" OFF)
 option(WITH_CYCLES_CUDA_BINARIES	"Build cycles CUDA binaries" OFF)
-set(CYCLES_CUDA_BINARIES_ARCH sm_13 sm_20 sm_21 CACHE STRING "CUDA architectures to build binaries for")
+set(CYCLES_CUDA_BINARIES_ARCH sm_13 sm_20 sm_21 sm_30 CACHE STRING "CUDA architectures to build binaries for")
 mark_as_advanced(CYCLES_CUDA_BINARIES_ARCH)
 unset(PLATFORM_DEFAULT)
 
@@ -286,7 +285,9 @@ if(APPLE)
 	endif()
 	
 	execute_process(COMMAND uname -r OUTPUT_VARIABLE MAC_SYS) # check for actual system-version
-	if (${MAC_SYS} MATCHES 11)
+	if (${MAC_SYS} MATCHES 12)
+		set(OSX_SYSTEM 10.8)
+	elseif (${MAC_SYS} MATCHES 11)
 		set(OSX_SYSTEM 10.7)
 	elseif(${MAC_SYS} MATCHES 10)
 		set(OSX_SYSTEM 10.6)
@@ -376,8 +377,8 @@ if(WITH_CYCLES)
 	set(WITH_OPENIMAGEIO ON)
 endif()
 
-# auto enable boost for cycles and carve
-if(WITH_CYCLES OR WITH_CARVE)
+# auto enable boost for cycles and booleans
+if(WITH_CYCLES OR WITH_MOD_BOOLEAN)
 	set(WITH_BOOST ON)
 endif()
 
@@ -965,7 +966,7 @@ elseif(WIN32)
 		if(WITH_MOD_CLOTH_ELTOPO)
 			set(LAPACK ${LIBDIR}/lapack)
 			# set(LAPACK_INCLUDE_DIR ${LAPACK}/include)
-			set_lib_path(LAPACK_LIBPATH ${LAPACK}/lib)	
+			set(LAPACK_LIBPATH ${LAPACK}/lib)	
 			set(LAPACK_LIBRARIES
 				${LIBDIR}/lapack/lib/libf2c.lib
 				${LIBDIR}/lapack/lib/clapack_nowrap.lib
@@ -1005,6 +1006,7 @@ elseif(WIN32)
 		endif()
 
 		if(WITH_OPENCOLLADA)
+			set(OPENCOLLADA ${LIBDIR}/opencollada)
 
 			set(OPENCOLLADA_INCLUDE_DIRS
 				${LIBDIR}/opencollada/include/COLLADAStreamWriter/include
@@ -1013,23 +1015,22 @@ elseif(WIN32)
 				${LIBDIR}/opencollada/include/COLLADASaxFrameworkLoader/include
 				${LIBDIR}/opencollada/include/GeneratedSaxParser/include
 			)
-			
-			set_lib_path(OPENCOLLADA_LIBPATH "opencollada/lib")
+			set_lib_path(OPENCOLLADA_LIBPATH "opencollada")
 
 			set(OPENCOLLADA_LIBRARIES
-				${OPENCOLLADA_LIBPATH}/OpenCOLLADASaxFrameworkLoader.lib
-				${OPENCOLLADA_LIBPATH}/OpenCOLLADAFramework.lib
-				${OPENCOLLADA_LIBPATH}/OpenCOLLADABaseUtils.lib
-				${OPENCOLLADA_LIBPATH}/OpenCOLLADAStreamWriter.lib
-				${OPENCOLLADA_LIBPATH}/MathMLSolver.lib
-				${OPENCOLLADA_LIBPATH}/GeneratedSaxParser.lib
-				${OPENCOLLADA_LIBPATH}/xml2.lib
-				${OPENCOLLADA_LIBPATH}/buffer.lib
-				${OPENCOLLADA_LIBPATH}/ftoa.lib
-				${OPENCOLLADA_LIBPATH}/UTF.lib
+				${OPENCOLLADA_LIBPATH}/lib/OpenCOLLADASaxFrameworkLoader.lib
+				${OPENCOLLADA_LIBPATH}/lib/OpenCOLLADAFramework.lib
+				${OPENCOLLADA_LIBPATH}/lib/OpenCOLLADABaseUtils.lib
+				${OPENCOLLADA_LIBPATH}/lib/OpenCOLLADAStreamWriter.lib
+				${OPENCOLLADA_LIBPATH}/lib/MathMLSolver.lib
+				${OPENCOLLADA_LIBPATH}/lib/GeneratedSaxParser.lib
+				${OPENCOLLADA_LIBPATH}/lib/xml2.lib
+				${OPENCOLLADA_LIBPATH}/lib/buffer.lib
+				${OPENCOLLADA_LIBPATH}/lib/ftoa.lib
+				${OPENCOLLADA_LIBPATH}/lib/UTF.lib
 			)
 			set(PCRE_LIBRARIES
-				${OPENCOLLADA_LIBPATH}/pcre.lib
+				${OPENCOLLADA_LIBPATH}/lib/pcre.lib
 			)
 			
 			unset(OPENCOLLADA_LIBPATH)
@@ -1052,7 +1053,8 @@ elseif(WIN32)
 
 		if(WITH_IMAGE_OPENEXR)
 			set_lib_path(OPENEXR "openexr")
-			set_lib_path(OPENEXR_LIBPATH "openexr/lib")
+			set(OPENEXR_INCLUDE_DIR ${OPENEXR}/include)
+			set(OPENEXR_LIBPATH ${OPENEXR}/lib)
 			set(OPENEXR_LIBRARIES
 				${OPENEXR_LIBPATH}/Iex.lib
 				${OPENEXR_LIBPATH}/Half.lib
@@ -1060,15 +1062,12 @@ elseif(WIN32)
 				${OPENEXR_LIBPATH}/Imath.lib
 				${OPENEXR_LIBPATH}/IlmThread.lib
 			)
-			set_lib_path(OPENEXR_INCUDE "openexr/include")
 			set(OPENEXR_INCLUDE_DIRS
-				${OPENEXR_INCUDE}
-				${OPENEXR_INCUDE}/IlmImf
-				${OPENEXR_INCUDE}/Iex
-				${OPENEXR_INCUDE}/Imath
+				${OPENEXR_INCLUDE_DIR}
+				${OPENEXR_INCLUDE_DIR}/IlmImf
+				${OPENEXR_INCLUDE_DIR}/Iex
+				${OPENEXR_INCLUDE_DIR}/Imath
 			)
-			unset(OPENEXR_INCUDE)
-			unset(OPENEXR_LIBPATH)
 		endif()
 
 		if(WITH_IMAGE_TIFF)
@@ -1087,9 +1086,11 @@ elseif(WIN32)
 		if(WITH_PYTHON)
 			# normally cached but not since we include them with blender
 			set(PYTHON_VERSION 3.2) # CACHE STRING)
-			set_lib_path(PYTHON_INCLUDE_DIR "python/include/python${PYTHON_VERSION}")
-			set_lib_path(PYTHON_LIBRARY "python/lib/python32.lib") #CACHE FILEPATH)
-			
+			set_lib_path(PYTHON "python")
+			set(PYTHON_LIBRARY ${PYTHON}/lib/python32.lib) #CACHE FILEPATH
+			#Shared includes for both vc2008 and vc2010
+			set(PYTHON_INCLUDE_DIR ${LIBDIR}/python/include/python${PYTHON_VERSION})
+
 			# uncached vars
 			set(PYTHON_INCLUDE_DIRS "${PYTHON_INCLUDE_DIR}")
 			set(PYTHON_LIBRARIES  "${PYTHON_LIBRARY}")
@@ -1099,7 +1100,7 @@ elseif(WIN32)
 			set(BOOST ${LIBDIR}/boost)
 			set(BOOST_INCLUDE_DIR ${BOOST}/include)
 			if(MSVC10)
-				set(BOOST_LIBPATH ${BOOST}/lib/vc_10)
+				set(BOOST_LIBPATH ${BOOST}/vc2010/lib)
 				set(BOOST_POSTFIX "vc100-mt-s-1_49.lib")
 				set(BOOST_DEBUG_POSTFIX "vc100-mt-sgd-1_49.lib")
 			else()
@@ -1119,7 +1120,7 @@ elseif(WIN32)
 			set(OPENIMAGEIO ${LIBDIR}/openimageio)
 			set(OPENIMAGEIO_INCLUDE_DIRS ${OPENIMAGEIO}/include)
 			set(OPENIMAGEIO_LIBRARIES OpenImageIO)
-			set_lib_path(OPENIMAGEIO_LIBPATH "openimageio/lib")
+			set(OPENIMAGEIO_LIBPATH ${OPENIMAGEIO}/lib)
 			set(OPENIMAGEIO_DEFINITIONS)
 		endif()
 
@@ -1594,6 +1595,16 @@ endif()
 if(MSVC)
 	# for some reason this fails on msvc
 	add_definitions(-D__LITTLE_ENDIAN__)
+	
+# OSX-Note: as we do crosscompiling with specific set architecture,
+# endianess-detection and autosetting is counterproductive
+# so we just set endianess according CMAKE_OSX_ARCHITECTURES
+
+elseif(CMAKE_OSX_ARCHITECTURES MATCHES i386 OR CMAKE_OSX_ARCHITECTURES MATCHES x86_64)
+	add_definitions(-D__LITTLE_ENDIAN__)
+elseif(CMAKE_OSX_ARCHITECTURES MATCHES ppc OR CMAKE_OSX_ARCHITECTURES MATCHES ppc64)		
+	add_definitions(-D__BIG_ENDIAN__)
+	
 else()
 	include(TestBigEndian)
 	test_big_endian(_SYSTEM_BIG_ENDIAN)
@@ -1775,9 +1786,6 @@ endif()
 
 # MSVC2010 fails to links C++ libs right
 if(MSVC10)
-	if(WITH_IMAGE_OPENEXR)
-		message(WARNING "MSVC 2010 does not support OpenEXR, disabling WITH_IMAGE_OPENEXR. To enable support use Use MSVC 2008")
-	endif()
 	if(WITH_OPENCOLLADA)
 		message(WARNING "MSVC 2010 does not support OpenCollada, disabling WITH_OPENCOLLADA. To enable support use Use MSVC 2008")
 	endif()
@@ -1918,6 +1926,7 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_GAMEENGINE)
 	info_cfg_option(WITH_PLAYER)
 	info_cfg_option(WITH_BULLET)
+	info_cfg_option(WITH_IK_SOLVER)
 	info_cfg_option(WITH_IK_ITASC)
 	info_cfg_option(WITH_OPENCOLLADA)
 	info_cfg_option(WITH_FFTW3)

@@ -375,7 +375,7 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, const float handsize_cla
 	
 	/* draw! */
 	if (seq->type < SEQ_TYPE_EFFECT || 
-	    get_sequence_effect_num_inputs(seq->type) == 0)
+	    BKE_sequence_effect_get_num_inputs(seq->type) == 0)
 	{
 		glEnable(GL_BLEND);
 
@@ -437,7 +437,7 @@ static void draw_seq_extensions(Scene *scene, ARegion *ar, Sequence *seq)
 	y1 = seq->machine + SEQ_STRIP_OFSBOTTOM;
 	y2 = seq->machine + SEQ_STRIP_OFSTOP;
 
-	pixely = (v2d->cur.ymax - v2d->cur.ymin) / (v2d->mask.ymax - v2d->mask.ymin);
+	pixely = BLI_RCT_SIZE_Y(&v2d->cur) / BLI_RCT_SIZE_Y(&v2d->mask);
 
 	if (pixely <= 0) return;  /* can happen when the view is split/resized */
 
@@ -545,7 +545,7 @@ static void draw_seq_text(View2D *v2d, Sequence *seq, float x1, float x2, float 
 
 	/* note, all strings should include 'name' */
 	if (name[0] == '\0')
-		name = give_seqname(seq);
+		name = BKE_sequence_give_name(seq);
 
 	if (seq->type == SEQ_TYPE_META || seq->type == SEQ_TYPE_ADJUSTMENT) {
 		BLI_snprintf(str, sizeof(str), "%s | %d", name, seq->len);
@@ -700,7 +700,7 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 	const float handsize_clamped = draw_seq_handle_size_get_clamped(seq, pixelx);
 
 	/* we need to know if this is a single image/color or not for drawing */
-	is_single_image = (char)seq_single_check(seq);
+	is_single_image = (char)BKE_sequence_single_check(seq);
 	
 	/* body */
 	x1 = (seq->startstill) ? seq->start : seq->startdisp;
@@ -715,7 +715,9 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 	
 	/* draw the main strip body */
 	if (is_single_image) {  /* single image */
-		draw_shadedstrip(seq, background_col, seq_tx_get_final_left(seq, 0), y1, seq_tx_get_final_right(seq, 0), y2);
+		draw_shadedstrip(seq, background_col,
+		                 BKE_sequence_tx_get_final_left(seq, 0), y1,
+		                 BKE_sequence_tx_get_final_right(seq, 0), y2);
 	}
 	else {  /* normal operation */
 		draw_shadedstrip(seq, background_col, x1, y1, x2, y2);
@@ -734,7 +736,7 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 	
 	/* draw sound wave */
 	if (seq->type == SEQ_TYPE_SOUND_RAM) {
-		drawseqwave(scene, seq, x1, y1, x2, y2, (ar->v2d.cur.xmax - ar->v2d.cur.xmin) / ar->winx);
+		drawseqwave(scene, seq, x1, y1, x2, y2, BLI_RCT_SIZE_X(&ar->v2d.cur) / ar->winx);
 	}
 
 	/* draw lock */
@@ -754,6 +756,17 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 
 		glDisable(GL_POLYGON_STIPPLE);
 		glDisable(GL_BLEND);
+	}
+
+	if (!BKE_seqence_is_valid_check(seq)) {
+		glEnable(GL_POLYGON_STIPPLE);
+
+		/* panic! */
+		gpuCurrentColor4ub(255, 0, 0, 255);
+		glPolygonStipple(stipple_diag_stripes_pos);
+		glRectf(x1, y1, x2, y2);
+
+		glDisable(GL_POLYGON_STIPPLE);
 	}
 
 	get_seq_color3ubv(scene, seq, col);
@@ -813,7 +826,7 @@ static void UNUSED_FUNCTION(set_special_seq_update) (int val)
 	else special_seq_update = NULL;
 }
 
-void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq, int cfra, int frame_ofs)
+void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq, int cfra, int frame_ofs, int draw_overlay)
 {
 	struct Main *bmain = CTX_data_main(C);
 	struct ImBuf *ibuf = NULL;
@@ -851,7 +864,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		viewrecty /= proxy_size / 100.0f;
 	}
 
-	if (frame_ofs == 0) {
+	if (!draw_overlay || sseq->overlay_type == SEQ_DRAW_OVERLAY_REFERENCE) {
 		UI_GetThemeColor3fv(TH_SEQ_PREVIEW, col);
 		gpuColorAndClearvf(col, 0.0);
 	}
@@ -863,17 +876,17 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	UI_view2d_curRect_validate(v2d);
 
 	/* only initialize the preview if a render is in progress */
-	if (G.rendering)
+	if (G.is_rendering)
 		return;
 
-	context = seq_new_render_data(bmain, scene, rectx, recty, proxy_size);
+	context = BKE_sequencer_new_render_data(bmain, scene, rectx, recty, proxy_size);
 
 	if (special_seq_update)
-		ibuf = give_ibuf_seq_direct(context, cfra + frame_ofs, special_seq_update);
+		ibuf = BKE_sequencer_give_ibuf_direct(context, cfra + frame_ofs, special_seq_update);
 	else if (!U.prefetchframes) // XXX || (G.f & G_PLAYANIM) == 0) {
-		ibuf = give_ibuf_seq(context, cfra + frame_ofs, sseq->chanshown);
+		ibuf = BKE_sequencer_give_ibuf(context, cfra + frame_ofs, sseq->chanshown);
 	else
-		ibuf = give_ibuf_seq_threaded(context, cfra + frame_ofs, sseq->chanshown);
+		ibuf = BKE_sequencer_give_ibuf_threaded(context, cfra + frame_ofs, sseq->chanshown);
 	
 	if (ibuf == NULL)
 		return;
@@ -927,17 +940,25 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, ibuf->x, ibuf->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect);
 	gpuBegin(GL_QUADS);
 
-	if (frame_ofs) {
-		rctf tot_clip;
-		tot_clip.xmin = v2d->tot.xmin + (ABS(v2d->tot.xmax - v2d->tot.xmin) * scene->ed->over_border.xmin);
-		tot_clip.ymin = v2d->tot.ymin + (ABS(v2d->tot.ymax - v2d->tot.ymin) * scene->ed->over_border.ymin);
-		tot_clip.xmax = v2d->tot.xmin + (ABS(v2d->tot.xmax - v2d->tot.xmin) * scene->ed->over_border.xmax);
-		tot_clip.ymax = v2d->tot.ymin + (ABS(v2d->tot.ymax - v2d->tot.ymin) * scene->ed->over_border.ymax);
+	if (draw_overlay) {
+		if (sseq->overlay_type == SEQ_DRAW_OVERLAY_RECT) {
+			rctf tot_clip;
+			tot_clip.xmin = v2d->tot.xmin + (ABS(BLI_RCT_SIZE_X(&v2d->tot)) * scene->ed->over_border.xmin);
+			tot_clip.ymin = v2d->tot.ymin + (ABS(BLI_RCT_SIZE_Y(&v2d->tot)) * scene->ed->over_border.ymin);
+			tot_clip.xmax = v2d->tot.xmin + (ABS(BLI_RCT_SIZE_X(&v2d->tot)) * scene->ed->over_border.xmax);
+			tot_clip.ymax = v2d->tot.ymin + (ABS(BLI_RCT_SIZE_Y(&v2d->tot)) * scene->ed->over_border.ymax);
 
-		gpuTexCoord2f(scene->ed->over_border.xmin, scene->ed->over_border.ymin); gpuVertex2f(tot_clip.xmin, tot_clip.ymin);
-		gpuTexCoord2f(scene->ed->over_border.xmin, scene->ed->over_border.ymax); gpuVertex2f(tot_clip.xmin, tot_clip.ymax);
-		gpuTexCoord2f(scene->ed->over_border.xmax, scene->ed->over_border.ymax); gpuVertex2f(tot_clip.xmax, tot_clip.ymax);
-		gpuTexCoord2f(scene->ed->over_border.xmax, scene->ed->over_border.ymin); gpuVertex2f(tot_clip.xmax, tot_clip.ymin);
+			gpuTexCoord2f(scene->ed->over_border.xmin, scene->ed->over_border.ymin); gpuVertex2f(tot_clip.xmin, tot_clip.ymin);
+			gpuTexCoord2f(scene->ed->over_border.xmin, scene->ed->over_border.ymax); gpuVertex2f(tot_clip.xmin, tot_clip.ymax);
+			gpuTexCoord2f(scene->ed->over_border.xmax, scene->ed->over_border.ymax); gpuVertex2f(tot_clip.xmax, tot_clip.ymax);
+			gpuTexCoord2f(scene->ed->over_border.xmax, scene->ed->over_border.ymin); gpuVertex2f(tot_clip.xmax, tot_clip.ymin);
+		}
+		else if (sseq->overlay_type == SEQ_DRAW_OVERLAY_REFERENCE) {
+			gpuTexCoord2f(0.0f, 0.0f); gpuVertex2f(v2d->tot.xmin, v2d->tot.ymin);
+			gpuTexCoord2f(0.0f, 1.0f); gpuVertex2f(v2d->tot.xmin, v2d->tot.ymax);
+			gpuTexCoord2f(1.0f, 1.0f); gpuVertex2f(v2d->tot.xmax, v2d->tot.ymax);
+			gpuTexCoord2f(1.0f, 0.0f); gpuVertex2f(v2d->tot.xmax, v2d->tot.ymin);
+		}
 	}
 	else {
 		gpuTexCoord2f(0.0f, 0.0f); gpuVertex2f(v2d->tot.xmin, v2d->tot.ymin);
@@ -1004,55 +1025,28 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	/* draw grease-pencil (screen aligned) */
 	draw_gpencil_view2d(C, 0);
 
+
+
+	/* NOTE: sequencer mask editing isnt finished, the draw code is working but editing not,
+	 * for now just disable drawing since the strip frame will likely be offset */
+
 	//if (sc->mode == SC_MODE_MASKEDIT) {
-	if (sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
-		Sequence *seq_act = BKE_sequencer_active_get(scene);
+	if (0 && sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
+		Mask *mask = BKE_sequencer_mask_get(scene);
 
-		if (seq_act && seq_act->type == SEQ_TYPE_MASK && seq_act->mask) {
-			int x, y;
+		if (mask) {
 			int width, height;
-			float zoomx, zoomy;
+			// ED_mask_get_size(C, &width, &height);
 
-			/* frame image */
-			float maxdim;
-			float xofs, yofs;
+			//Scene *scene = CTX_data_scene(C);
+			width = (scene->r.size * scene->r.xsch) / 100;
+			height = (scene->r.size * scene->r.ysch) / 100;
 
-			/* find window pixel coordinates of origin */
-			UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &x, &y);
-
-			width = v2d->tot.xmax - v2d->tot.xmin;
-			height = v2d->tot.ymax - v2d->tot.ymin;
-
-			zoomx = (float)(ar->winrct.xmax - ar->winrct.xmin + 1) / (float)((ar->v2d.cur.xmax - ar->v2d.cur.xmin));
-			zoomy = (float)(ar->winrct.ymax - ar->winrct.ymin + 1) / (float)((ar->v2d.cur.ymax - ar->v2d.cur.ymin));
-
-			x += v2d->tot.xmin * zoomx;
-			y += v2d->tot.ymin * zoomy;
-
-			/* frame the image */
-			maxdim = maxf(width, height);
-			if (width == height) {
-				xofs = yofs = 0;
-			}
-			else if (width < height) {
-				xofs = ((height - width) / -2.0f) * zoomx;
-				yofs = 0.0f;
-			}
-			else { /* (width > height) */
-				xofs = 0.0f;
-				yofs = ((width - height) / -2.0f) * zoomy;
-			}
-
-			/* apply transformation so mask editing tools will assume drawing from the origin in normalized space */
-			gpuPushMatrix();
-			gpuTranslate(x + xofs, y + yofs, 0);
-			gpuScale(maxdim * zoomx, maxdim * zoomy, 0);
-
-			ED_mask_draw((bContext *)C, 0, 0); // sc->mask_draw_flag, sc->mask_draw_type
-
-			ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_VIEW);
-
-			gpuPopMatrix();
+			ED_mask_draw_region(mask, ar,
+			                    0, 0,  /* TODO */
+			                    width, height,
+			                    FALSE, TRUE,
+			                    NULL, C);
 		}
 	}
 
@@ -1097,7 +1091,7 @@ static void draw_seq_backdrop(View2D *v2d)
 	gpuDrawFilledRectf(v2d->cur.xmin,  -1.0,  v2d->cur.xmax,  1.0);
 
 	/* Alternating horizontal stripes */
-	i = MAX2(1, ((int)v2d->cur.ymin) - 1);
+	i = maxi(1, ((int)v2d->cur.ymin) - 1);
 
 	gpuBegin(GL_QUADS);
 	while (i < v2d->cur.ymax) {
@@ -1116,7 +1110,7 @@ static void draw_seq_backdrop(View2D *v2d)
 	gpuEnd();
 	
 	/* Darker lines separating the horizontal bands */
-	i = MAX2(1, ((int)v2d->cur.ymin) - 1);
+	i = maxi(1, ((int)v2d->cur.ymin) - 1);
 	UI_ThemeColor(TH_GRID);
 	
 	gpuBegin(GL_LINES);
@@ -1138,7 +1132,7 @@ static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *ar)
 	View2D *v2d = &ar->v2d;
 	Sequence *last_seq = BKE_sequencer_active_get(scene);
 	int sel = 0, j;
-	float pixelx = (v2d->cur.xmax - v2d->cur.xmin) / (v2d->mask.xmax - v2d->mask.xmin);
+	float pixelx = BLI_RCT_SIZE_X(&v2d->cur) / BLI_RCT_SIZE_X(&v2d->mask);
 	
 	/* loop through twice, first unselected, then selected */
 	for (j = 0; j < 2; j++) {

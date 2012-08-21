@@ -238,11 +238,14 @@ void blf_font_buffer(FontBLF *font, const char *str)
 	size_t i = 0;
 	GlyphBLF **glyph_ascii_table = font->glyph_cache->glyph_ascii_table;
 
-	/* buffer specific vars*/
-	const unsigned char b_col_char[4] = {font->b_col[0] * 255,
-	                                     font->b_col[1] * 255,
-	                                     font->b_col[2] * 255,
-	                                     font->b_col[3] * 255};
+	/* buffer specific vars */
+	FontBufInfoBLF *buf_info = &font->buf_info;
+	float b_col_float[4];
+	const unsigned char b_col_char[4] = {buf_info->col[0] * 255,
+										 buf_info->col[1] * 255,
+										 buf_info->col[2] * 255,
+										 buf_info->col[3] * 255};
+
 	unsigned char *cbuf;
 	int chx, chy;
 	int y, x;
@@ -251,6 +254,14 @@ void blf_font_buffer(FontBLF *font, const char *str)
 	BLF_KERNING_VARS(font, has_kerning, kern_mode);
 
 	blf_font_ensure_ascii_table(font);
+
+	/* another buffer spesific call for color conversion */
+	if (buf_info->do_color_management) {
+		srgb_to_linearrgb_v4(b_col_float, buf_info->col);
+	}
+	else {
+		copy_v4_v4(b_col_float, buf_info->col);
+	}
 
 	while (str[i]) {
 		BLF_UTF8_NEXT_FAST(font, g, str, i, c, glyph_ascii_table);
@@ -272,16 +283,16 @@ void blf_font_buffer(FontBLF *font, const char *str)
 			pen_y = (int)font->pos[1] - (g->height - (int)g->pos_y);
 		}
 
-		if ((chx + g->width) >= 0 && chx < font->bw && (pen_y + g->height) >= 0 && pen_y < font->bh) {
+		if ((chx + g->width) >= 0 && chx < buf_info->w && (pen_y + g->height) >= 0 && pen_y < buf_info->h) {
 			/* don't draw beyond the buffer bounds */
 			int width_clip = g->width;
 			int height_clip = g->height;
 			int yb_start = g->pitch < 0 ? 0 : g->height - 1;
 
-			if (width_clip + chx > font->bw)
-				width_clip -= chx + width_clip - font->bw;
-			if (height_clip + pen_y > font->bh)
-				height_clip -= pen_y + height_clip - font->bh;
+			if (width_clip + chx > buf_info->w)
+				width_clip -= chx + width_clip - buf_info->w;
+			if (height_clip + pen_y > buf_info->h)
+				height_clip -= pen_y + height_clip - buf_info->h;
 			
 			/* drawing below the image? */
 			if (pen_y < 0) {
@@ -290,7 +301,7 @@ void blf_font_buffer(FontBLF *font, const char *str)
 				pen_y = 0;
 			}
 
-			if (font->b_fbuf) {
+			if (buf_info->fbuf) {
 				int yb = yb_start;
 				for (y = ((chy >= 0) ? 0 : -chy); y < height_clip; y++) {
 					for (x = ((chx >= 0) ? 0 : -chx); x < width_clip; x++) {
@@ -298,18 +309,18 @@ void blf_font_buffer(FontBLF *font, const char *str)
 
 						if (a > 0.0f) {
 							float alphatest;
-							fbuf = font->b_fbuf + font->bch * ((chx + x) + ((pen_y + y) * font->bw));
+							fbuf = buf_info->fbuf + buf_info->ch * ((chx + x) + ((pen_y + y) * buf_info->w));
 							if (a >= 1.0f) {
-								fbuf[0] = font->b_col[0];
-								fbuf[1] = font->b_col[1];
-								fbuf[2] = font->b_col[2];
-								fbuf[3] = (alphatest = (fbuf[3] + (font->b_col[3]))) < 1.0f ? alphatest : 1.0f;
+								fbuf[0] = b_col_float[0];
+								fbuf[1] = b_col_float[1];
+								fbuf[2] = b_col_float[2];
+								fbuf[3] = (alphatest = (fbuf[3] + (b_col_float[3]))) < 1.0f ? alphatest : 1.0f;
 							}
 							else {
-								fbuf[0] = (font->b_col[0] * a) + (fbuf[0] * (1 - a));
-								fbuf[1] = (font->b_col[1] * a) + (fbuf[1] * (1 - a));
-								fbuf[2] = (font->b_col[2] * a) + (fbuf[2] * (1 - a));
-								fbuf[3] = (alphatest = (fbuf[3] + (font->b_col[3] * a))) < 1.0f ? alphatest : 1.0f;
+								fbuf[0] = (b_col_float[0] * a) + (fbuf[0] * (1.0f - a));
+								fbuf[1] = (b_col_float[1] * a) + (fbuf[1] * (1.0f - a));
+								fbuf[2] = (b_col_float[2] * a) + (fbuf[2] * (1.0f - a));
+								fbuf[3] = (alphatest = (fbuf[3] + (b_col_float[3] * a))) < 1.0f ? alphatest : 1.0f;
 							}
 						}
 					}
@@ -321,7 +332,7 @@ void blf_font_buffer(FontBLF *font, const char *str)
 				}
 			}
 
-			if (font->b_cbuf) {
+			if (buf_info->cbuf) {
 				int yb = yb_start;
 				for (y = 0; y < height_clip; y++) {
 					for (x = 0; x < width_clip; x++) {
@@ -329,7 +340,7 @@ void blf_font_buffer(FontBLF *font, const char *str)
 
 						if (a > 0.0f) {
 							int alphatest;
-							cbuf = font->b_cbuf + font->bch * ((chx + x) + ((pen_y + y) * font->bw));
+							cbuf = buf_info->cbuf + buf_info->ch * ((chx + x) + ((pen_y + y) * buf_info->w));
 							if (a >= 1.0f) {
 								cbuf[0] = b_col_char[0];
 								cbuf[1] = b_col_char[1];
@@ -337,10 +348,10 @@ void blf_font_buffer(FontBLF *font, const char *str)
 								cbuf[3] = (alphatest = ((int)cbuf[3] + (int)b_col_char[3])) < 255 ? alphatest : 255;
 							}
 							else {
-								cbuf[0] = (b_col_char[0] * a) + (cbuf[0] * (1 - a));
-								cbuf[1] = (b_col_char[1] * a) + (cbuf[1] * (1 - a));
-								cbuf[2] = (b_col_char[2] * a) + (cbuf[2] * (1 - a));
-								cbuf[3] = (alphatest = ((int)cbuf[3] + (int)((font->b_col[3] * a) * 255.0f))) <
+								cbuf[0] = (b_col_char[0] * a) + (cbuf[0] * (1.0f - a));
+								cbuf[1] = (b_col_char[1] * a) + (cbuf[1] * (1.0f - a));
+								cbuf[2] = (b_col_char[2] * a) + (cbuf[2] * (1.0f - a));
+								cbuf[3] = (alphatest = ((int)cbuf[3] + (int)((b_col_float[3] * a) * 255.0f))) <
 								          255 ? alphatest : 255;
 							}
 						}
@@ -427,8 +438,8 @@ void blf_font_width_and_height(FontBLF *font, const char *str, float *width, flo
 	}
 
 	blf_font_boundbox(font, str, &box);
-	*width = ((box.xmax - box.xmin) * xa);
-	*height = ((box.ymax - box.ymin) * ya);
+	*width  = (BLI_RCT_SIZE_X(&box) * xa);
+	*height = (BLI_RCT_SIZE_Y(&box) * ya);
 }
 
 float blf_font_width(FontBLF *font, const char *str)
@@ -442,7 +453,7 @@ float blf_font_width(FontBLF *font, const char *str)
 		xa = 1.0f;
 
 	blf_font_boundbox(font, str, &box);
-	return (box.xmax - box.xmin) * xa;
+	return BLI_RCT_SIZE_X(&box) * xa;
 }
 
 float blf_font_height(FontBLF *font, const char *str)
@@ -520,15 +531,17 @@ static void blf_font_fill(FontBLF *font)
 	font->glyph_cache = NULL;
 	font->blur = 0;
 	font->max_tex_size = -1;
-	font->b_fbuf = NULL;
-	font->b_cbuf = NULL;
-	font->bw = 0;
-	font->bh = 0;
-	font->bch = 0;
-	font->b_col[0] = 0;
-	font->b_col[1] = 0;
-	font->b_col[2] = 0;
-	font->b_col[3] = 0;
+
+	font->buf_info.fbuf = NULL;
+	font->buf_info.cbuf = NULL;
+	font->buf_info.w = 0;
+	font->buf_info.h = 0;
+	font->buf_info.ch = 0;
+	font->buf_info.col[0] = 0;
+	font->buf_info.col[1] = 0;
+	font->buf_info.col[2] = 0;
+	font->buf_info.col[3] = 0;
+
 	font->ft_lib = ft_lib;
 }
 

@@ -42,12 +42,11 @@ extern "C" {
 	#include "BKE_main.h"
 	#include "BKE_global.h"
 	#include "BKE_library.h"
+	#include "BKE_customdata.h"
+	#include "BKE_material.h"
+	#include "BKE_mesh.h"
 }
 
-
-#include "BKE_customdata.h"
-#include "BKE_material.h"
-#include "BKE_mesh.h"
 #include "collada_internal.h"
 #include "collada_utils.h"
 
@@ -135,7 +134,7 @@ void GeometryExporter::operator()(Object *ob)
 
 	// XXX slow		
 	if (ob->totcol) {
-		for (int a = 0; a < ob->totcol; a++)    {
+		for (int a = 0; a < ob->totcol; a++) {
 			createPolylist(a, has_uvs, has_color, ob, me, geom_id, norind);
 		}
 	}
@@ -280,15 +279,18 @@ void GeometryExporter::createPolylist(short material_index,
 		
 	// if mesh has uv coords writes <input> for TEXCOORD
 	int num_layers = CustomData_number_of_layers(&me->fdata, CD_MTFACE);
-
+	int active_uv_index = CustomData_get_active_layer_index(&me->fdata, CD_MTFACE)-1;
 	for (i = 0; i < num_layers; i++) {
-		// char *name = CustomData_get_layer_name(&me->fdata, CD_MTFACE, i);
-		COLLADASW::Input input3(COLLADASW::InputSemantic::TEXCOORD,
-		                        makeUrl(makeTexcoordSourceId(geom_id, i)),
-		                        2, // offset always 2, this is only until we have optimized UV sets
-		                        i  // set number equals UV map index
-		                        );
-		til.push_back(input3);
+		if (!this->export_settings->active_uv_only || i == active_uv_index) {
+
+			// char *name = CustomData_get_layer_name(&me->fdata, CD_MTFACE, i);
+			COLLADASW::Input input3(COLLADASW::InputSemantic::TEXCOORD,
+									makeUrl(makeTexcoordSourceId(geom_id, i)),
+									2, // offset always 2, this is only until we have optimized UV sets
+									i  // set number equals UV map index
+									);
+			til.push_back(input3);
+		}
 	}
 
 	if (has_color) {

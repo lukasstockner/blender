@@ -22,7 +22,7 @@
 
 #include "COM_GaussianBokehBlurOperation.h"
 #include "BLI_math.h"
-
+#include "MEM_guardedalloc.h"
 extern "C" {
 	#include "RE_pipeline.h"
 }
@@ -88,7 +88,7 @@ void GaussianBokehBlurOperation::updateGauss()
 		n = (2 * this->m_radx + 1) * (2 * this->m_rady + 1);
 	
 		/* create a full filter image */
-		ddgauss = new float[n];
+		ddgauss = (float *)MEM_mallocN(sizeof(float) * n, __func__);
 		dgauss = ddgauss;
 		val = 0.0f;
 		for (j = -this->m_rady; j <= this->m_rady; j++) {
@@ -103,8 +103,9 @@ void GaussianBokehBlurOperation::updateGauss()
 		}
 		if (val != 0.0f) {
 			val = 1.0f / val;
-			for (j = n - 1; j >= 0; j--)
+			for (j = n - 1; j >= 0; j--) {
 				ddgauss[j] *= val;
+			}
 		}
 		else ddgauss[4] = 1.0f;
 		
@@ -112,7 +113,7 @@ void GaussianBokehBlurOperation::updateGauss()
 	}
 }
 
-void GaussianBokehBlurOperation::executePixel(float *color, int x, int y, void *data)
+void GaussianBokehBlurOperation::executePixel(float output[4], int x, int y, void *data)
 {
 	float tempColor[4];
 	tempColor[0] = 0;
@@ -152,13 +153,13 @@ void GaussianBokehBlurOperation::executePixel(float *color, int x, int y, void *
 		}
 	}
 
-	mul_v4_v4fl(color, tempColor, 1.0f / multiplier_accum);
+	mul_v4_v4fl(output, tempColor, 1.0f / multiplier_accum);
 }
 
 void GaussianBokehBlurOperation::deinitExecution()
 {
 	BlurBaseOperation::deinitExecution();
-	delete [] this->m_gausstab;
+	MEM_freeN(this->m_gausstab);
 	this->m_gausstab = NULL;
 
 	deinitMutex();
@@ -198,25 +199,20 @@ bool GaussianBokehBlurOperation::determineDependingAreaOfInterest(rcti *input, R
 }
 
 // reference image
-GaussianBokehBlurReferenceOperation::GaussianBokehBlurReferenceOperation() : NodeOperation()
+GaussianBlurReferenceOperation::GaussianBlurReferenceOperation() : BlurBaseOperation(COM_DT_COLOR)
 {
-	this->addInputSocket(COM_DT_COLOR);
-	this->addInputSocket(COM_DT_VALUE);
-	this->addOutputSocket(COM_DT_COLOR);
-	this->setComplex(true);
-	this->m_gausstab = NULL;
-	this->m_inputImage = NULL;
-	this->m_inputSize = NULL;
+	this->m_maintabs = NULL;
 }
 
-void *GaussianBokehBlurReferenceOperation::initializeTileData(rcti *rect)
+void *GaussianBlurReferenceOperation::initializeTileData(rcti *rect)
 {
 	void *buffer = getInputOperation(0)->initializeTileData(NULL);
 	return buffer;
 }
 
-void GaussianBokehBlurReferenceOperation::initExecution()
+void GaussianBlurReferenceOperation::initExecution()
 {
+	BlurBaseOperation::initExecution();
 	// setup gaustab
 	this->m_data->image_in_width = this->getWidth();
 	this->m_data->image_in_height = this->getHeight();
@@ -237,100 +233,109 @@ void GaussianBokehBlurReferenceOperation::initExecution()
 		}
 	}
 	
+	
+	/* horizontal */
+	m_radx = (float)this->m_data->sizex;
+	int imgx = getWidth()/2;
+	if (m_radx > imgx)
+		m_radx = imgx;
+	else if (m_radx < 1)
+		m_radx = 1;
+	m_radxf = (float)m_radx;
+
+	/* vertical */
+	m_rady = (float)this->m_data->sizey;
+	int imgy = getHeight()/2;
+	if (m_rady > imgy)
+		m_rady = imgy;
+	else if (m_rady < 1)
+		m_rady = 1;
+	m_radyf = (float)m_rady;
 	updateGauss();
-	this->m_inputImage = this->getInputSocketReader(0);
-	this->m_inputSize = this->getInputSocketReader(1);
 }
 
-void GaussianBokehBlurReferenceOperation::updateGauss()
+void GaussianBlurReferenceOperation::updateGauss()
 {
-	int n;
-	float *dgauss;
-	float *ddgauss;
-	int j, i;
-
-	n = (2 * radx + 1) * (2 * rady + 1);
-
-	/* create a full filter image */
-	ddgauss = new float[n];
-	dgauss = ddgauss;
-	for (j = -rady; j <= rady; j++) {
-		for (i = -radx; i <= radx; i++, dgauss++) {
-			float fj = (float)j / radyf;
-			float fi = (float)i / radxf;
-			float dist = sqrt(fj * fj + fi * fi);
-			*dgauss = RE_filter_value(this->m_data->filtertype, dist);
-		}
+	int i;
+	int x = MAX2(m_radx, m_rady);
+	this->m_maintabs = (float **)MEM_mallocN(x * sizeof(float *), "gauss array");
+	for (i = 0; i < x; i++) {
+		m_maintabs[i] = make_gausstab(i + 1);
 	}
-	this->m_gausstab = ddgauss;
 }
 
-void GaussianBokehBlurReferenceOperation::executePixel(float *color, int x, int y, void *data)
+void GaussianBlurReferenceOperation::executePixel(float output[4], int x, int y, void *data)
 {
-	float tempColor[4];
+	MemoryBuffer *memorybuffer = (MemoryBuffer *)data;
+	float *buffer = memorybuffer->getBuffer();
+	float *gausstabx, *gausstabcenty;
+	float *gausstaby, *gausstabcentx;
+	int i, j;
+	float *src;
+	register float sum, val;
+	float rval, gval, bval, aval;
+	int imgx = getWidth();
+	int imgy = getHeight();
 	float tempSize[4];
-	tempColor[0] = 0;
-	tempColor[1] = 0;
-	tempColor[2] = 0;
-	tempColor[3] = 0;
-	float multiplier_accum = 0;
-	MemoryBuffer *inputBuffer = (MemoryBuffer *)data;
-	float *buffer = inputBuffer->getBuffer();
-	int bufferwidth = inputBuffer->getWidth();
-	int bufferstartx = inputBuffer->getRect()->xmin;
-	int bufferstarty = inputBuffer->getRect()->ymin;
 	this->m_inputSize->read(tempSize, x, y, data);
-	float size = tempSize[0];
-	CLAMP(size, 0.0f, 1.0f);
-	float sizeX = ceil(this->m_data->sizex * size);
-	float sizeY = ceil(this->m_data->sizey * size);
+	float refSize = tempSize[0];
+	int refradx = (int)(refSize * m_radxf);
+	int refrady = (int)(refSize * m_radyf);
+	if (refradx > m_radx) refradx = m_radx;
+	else if (refradx < 1) refradx = 1;
+	if (refrady > m_rady) refrady = m_rady;
+	else if (refrady < 1) refrady = 1;
 
-	if (sizeX <= 0.5f && sizeY <= 0.5f) {
-		this->m_inputImage->read(color, x, y, data);
-		return;
+	if (refradx == 1 && refrady == 1) {
+		memorybuffer->readNoCheck(output, x, y);
 	}
-	
-	int miny = y - sizeY;
-	int maxy = y + sizeY;
-	int minx = x - sizeX;
-	int maxx = x + sizeX;
-	miny = max(miny, inputBuffer->getRect()->ymin);
-	minx = max(minx, inputBuffer->getRect()->xmin);
-	maxy = min(maxy, inputBuffer->getRect()->ymax);
-	maxx = min(maxx, inputBuffer->getRect()->xmax);
+	else {
+		int minxr = x - refradx < 0 ? -x : -refradx;
+		int maxxr = x + refradx > imgx ? imgx - x : refradx;
+		int minyr = y - refrady < 0 ? -y : -refrady;
+		int maxyr = y + refrady > imgy ? imgy - y : refrady;
 
-	int step = QualityStepHelper::getStep();
-	int offsetadd = QualityStepHelper::getOffsetAdd();
-	for (int ny = miny; ny < maxy; ny += step) {
-		int u = ny - y;
-		float uf = ((u/sizeY)*radyf)+radyf;
-		int indexu = uf * (radx*2+1);
-		int bufferindex = ((minx - bufferstartx) * 4) + ((ny - bufferstarty) * 4 * bufferwidth);
-		for (int nx = minx; nx < maxx; nx += step) {
-			int v = nx - x;
-			float vf = ((v/sizeX)*radxf)+radxf;
-			int index = indexu + vf;
-			const float multiplier = this->m_gausstab[index];
-			madd_v4_v4fl(tempColor, &buffer[bufferindex], multiplier);
-			multiplier_accum += multiplier;
-			index += step;
-			bufferindex += offsetadd;
+		float *srcd = buffer + COM_NUMBER_OF_CHANNELS * ( (y + minyr) * imgx + x + minxr);
+
+		gausstabx = m_maintabs[refradx - 1];
+		gausstabcentx = gausstabx + refradx;
+		gausstaby = m_maintabs[refrady - 1];
+		gausstabcenty = gausstaby + refrady;
+
+		sum = gval = rval = bval = aval = 0.0f;
+		for (i = minyr; i < maxyr; i++, srcd += COM_NUMBER_OF_CHANNELS * imgx) {
+			src = srcd;
+			for (j = minxr; j < maxxr; j++, src += COM_NUMBER_OF_CHANNELS) {
+			
+				val = gausstabcenty[i] * gausstabcentx[j];
+				sum += val;
+				rval += val * src[0];
+				gval += val * src[1];
+				bval += val * src[2];
+				aval += val * src[3];
+			}
 		}
+		sum = 1.0f / sum;
+		output[0] = rval * sum;
+		output[1] = gval * sum;
+		output[2] = bval * sum;
+		output[3] = aval * sum;
 	}
 
-	mul_v4_v4fl(color, tempColor, 1.0f / multiplier_accum);
 }
 
-void GaussianBokehBlurReferenceOperation::deinitExecution()
+void GaussianBlurReferenceOperation::deinitExecution()
 {
-	delete [] this->m_gausstab;
-	this->m_gausstab = NULL;
-	this->m_inputImage = NULL;
-	this->m_inputSize = NULL;
-	
+	int x, i;
+	x = MAX2(m_radx, m_rady);
+	for (i = 0; i < x; i++) {
+		MEM_freeN(m_maintabs[i]);
+	}
+	MEM_freeN(m_maintabs);
+	BlurBaseOperation::deinitExecution();
 }
 
-bool GaussianBokehBlurReferenceOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output)
+bool GaussianBlurReferenceOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output)
 {
 	rcti newInput;
 	NodeOperation *operation = this->getInputOperation(1);

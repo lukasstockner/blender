@@ -266,8 +266,8 @@ static void get_nlastrip_extents(bAnimContext *ac, float *min, float *max, const
 				/* only consider selected strips? */
 				if ((onlySel == 0) || (strip->flag & NLASTRIP_FLAG_SELECT)) {
 					/* extend range if appropriate */
-					*min = MIN2(*min, strip->start);
-					*max = MAX2(*max, strip->end);
+					*min = minf(*min, strip->start);
+					*max = maxf(*max, strip->end);
 				}
 			}
 		}
@@ -304,13 +304,13 @@ static int nlaedit_viewall(bContext *C, const short onlySel)
 	/* set the horizontal range, with an extra offset so that the extreme keys will be in view */
 	get_nlastrip_extents(&ac, &v2d->cur.xmin, &v2d->cur.xmax, onlySel);
 	
-	extra = 0.1f * (v2d->cur.xmax - v2d->cur.xmin);
+	extra = 0.1f * BLI_RCT_SIZE_X(&v2d->cur);
 	v2d->cur.xmin -= extra;
 	v2d->cur.xmax += extra;
 	
 	/* set vertical range */
 	v2d->cur.ymax = 0.0f;
-	v2d->cur.ymin = (float)-(v2d->mask.ymax - v2d->mask.ymin);
+	v2d->cur.ymin = (float)-BLI_RCT_SIZE_Y(&v2d->mask);
 	
 	/* do View2D syncing */
 	UI_view2d_sync(CTX_wm_screen(C), CTX_wm_area(C), v2d, V2D_LOCK_COPY);

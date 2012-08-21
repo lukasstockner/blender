@@ -50,6 +50,7 @@
 #include "BKE_paint.h"
 #include "BKE_utildefines.h"
 #include "BKE_tessmesh.h"
+#include "BKE_curve.h"
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -1854,10 +1855,49 @@ DerivedMesh *CDDM_from_mesh(Mesh *mesh, Object *UNUSED(ob))
 
 DerivedMesh *CDDM_from_curve(Object *ob)
 {
-	return CDDM_from_curve_displist(ob, &ob->disp);
+	return CDDM_from_curve_displist(ob, &ob->disp, NULL);
 }
 
-DerivedMesh *CDDM_from_curve_displist(Object *ob, ListBase *dispbase)
+DerivedMesh *CDDM_from_curve_orco(struct Scene *scene, Object *ob)
+{
+	int *orco_index_ptr = NULL;
+	int (*orco_index)[4] = NULL;
+	float (*orco)[3] = NULL;
+	DerivedMesh *dm = CDDM_from_curve_displist(ob, &ob->disp, &orco_index_ptr);
+
+	if (orco_index_ptr) {
+		orco = (float (*)[3])BKE_curve_make_orco(scene, ob);
+	}
+
+	if (orco && orco_index_ptr) {
+		const char *uvname = "Orco";
+
+		int totpoly = dm->getNumPolys(dm);
+
+		MPoly *mpolys = dm->getPolyArray(dm);
+		MLoop *mloops = dm->getLoopArray(dm);
+
+		MLoopUV *mloopuvs;
+
+		CustomData_add_layer_named(&dm->polyData, CD_MTEXPOLY, CD_DEFAULT, NULL, dm->numPolyData, uvname);
+		mloopuvs = CustomData_add_layer_named(&dm->loopData, CD_MLOOPUV,  CD_DEFAULT, NULL, dm->numLoopData, uvname);
+
+		BKE_mesh_nurbs_to_mdata_orco(mpolys, totpoly,
+		                             mloops, mloopuvs,
+		                             orco, orco_index);
+	}
+
+	if (orco_index) {
+		MEM_freeN(orco_index);
+	}
+	if (orco) {
+		MEM_freeN(orco);
+	}
+
+	return dm;
+}
+
+DerivedMesh *CDDM_from_curve_displist(Object *ob, ListBase *dispbase, int **orco_index_ptr)
 {
 	DerivedMesh *dm;
 	CDDerivedMesh *cddm;
@@ -1868,7 +1908,7 @@ DerivedMesh *CDDM_from_curve_displist(Object *ob, ListBase *dispbase)
 	int totvert, totedge, totloop, totpoly;
 
 	if (BKE_mesh_nurbs_displist_to_mdata(ob, dispbase, &allvert, &totvert, &alledge,
-	                                     &totedge, &allloop, &allpoly, &totloop, &totpoly) != 0)
+	                                     &totedge, &allloop, &allpoly, &totloop, &totpoly, orco_index_ptr) != 0)
 	{
 		/* Error initializing mdata. This often happens when curve is empty */
 		return CDDM_new(0, 0, 0, 0, 0);
@@ -1974,7 +2014,7 @@ DerivedMesh *CDDM_from_BMEditMesh(BMEditMesh *em, Mesh *UNUSED(me), int use_mdis
 	
 	dm->deformedOnly = 1;
 	
-	/*don't add origindex layer if one already exists*/
+	/* don't add origindex layer if one already exists */
 	add_orig = !CustomData_has_layer(&bm->pdata, CD_ORIGINDEX);
 
 	mask = use_mdisps ? CD_MASK_DERIVEDMESH | CD_MASK_MDISPS : CD_MASK_DERIVEDMESH;
@@ -1991,7 +2031,7 @@ DerivedMesh *CDDM_from_BMEditMesh(BMEditMesh *em, Mesh *UNUSED(me), int use_mdis
 	CustomData_merge(&bm->pdata, &dm->polyData, mask,
 	                 CD_CALLOC, dm->numPolyData);
 	
-	/*add tessellation mface layers*/
+	/* add tessellation mface layers */
 	if (use_tessface) {
 		CustomData_from_bmeshpoly(&dm->faceData, &dm->polyData, &dm->loopData, em->tottri);
 	}
@@ -2255,7 +2295,7 @@ void CDDM_calc_normals_mapping_ex(DerivedMesh *dm, const short only_face_normals
 		/* No tessellation on this mesh yet, need to calculate one.
 		 *
 		 * Important not to update face normals from polys since it
-		 * interfears with assigning the new normal layer in the following code.
+		 * interferes with assigning the new normal layer in the following code.
 		 */
 		CDDM_recalc_tessellation_ex(dm, FALSE);
 	}
@@ -2365,7 +2405,7 @@ DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap)
 	newe = MEM_callocN(sizeof(int) * dm->numEdgeData, "newv etable CDDM_merge_verts");
 	newl = MEM_callocN(sizeof(int) * totloop, "newv ltable CDDM_merge_verts");
 	
-	/*fill newl with destination vertex indices*/
+	/* fill newl with destination vertex indices */
 	mv = cddm->mvert;
 	c = 0;
 	for (i = 0; i < dm->numVertData; i++, mv++) {
@@ -2376,14 +2416,14 @@ DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap)
 		}
 	}
 	
-	/*now link target vertices to destination indices*/
+	/* now link target vertices to destination indices */
 	for (i = 0; i < dm->numVertData; i++) {
 		if (vtargetmap[i] != -1) {
 			newv[i] = newv[vtargetmap[i]];
 		}
 	}
 	
-	/*find-replace merged vertices with target vertices*/	
+	/* find-replace merged vertices with target vertices */
 	ml = cddm->mloop;
 	for (i = 0; i < totloop; i++, ml++) {
 		if (vtargetmap[ml->v] != -1) {
@@ -2391,7 +2431,7 @@ DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap)
 		}
 	}
 
-	/*now go through and fix edges and faces*/
+	/* now go through and fix edges and faces */
 	med = cddm->medge;
 	c = 0;
 	for (i = 0; i < dm->numEdgeData; i++, med++) {

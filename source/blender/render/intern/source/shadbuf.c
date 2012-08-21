@@ -322,8 +322,8 @@ static void compress_deepshadowbuf(Render *re, ShadBuf *shb, APixstr *apixbuf, A
 	shsample= MEM_callocN(sizeof(ShadSampleBuf), "shad sample buf");
 	BLI_addtail(&shb->buffers, shsample);
 
-	shsample->totbuf= MEM_callocN(sizeof(int)*size*size, "deeptotbuf");
-	shsample->deepbuf= MEM_callocN(sizeof(DeepSample*)*size*size, "deepbuf");
+	shsample->totbuf = MEM_callocN(sizeof(int) * size * size, "deeptotbuf");
+	shsample->deepbuf = MEM_callocN(sizeof(DeepSample *) * size * size, "deepbuf");
 
 	ap= apixbuf;
 	aps= apixbufstrand;
@@ -848,7 +848,7 @@ void threaded_makeshadowbufs(Render *re)
 	int (*test_break)(void *);
 
 	/* count number of threads to use */
-	if (G.rendering) {
+	if (G.is_rendering) {
 		for (lar=re->lampren.first; lar; lar= lar->next)
 			if (lar->shb)
 				totthread++;
@@ -1176,8 +1176,8 @@ float testshadowbuf(Render *re, ShadBuf *shb, const float co[3], const float dxc
 	dy[0]= xs1 - dy[0];
 	dy[1]= ys1 - dy[1];
 	
-	xres= fac*(fabs(dx[0]) + fabs(dy[0]));
-	yres= fac*(fabs(dx[1]) + fabs(dy[1]));
+	xres = fac * (fabsf(dx[0]) + fabsf(dy[0]));
+	yres = fac * (fabsf(dx[1]) + fabsf(dy[1]));
 	if (xres<1.0f) xres= 1.0f;
 	if (yres<1.0f) yres= 1.0f;
 	
@@ -1391,7 +1391,7 @@ float shadow_halo(LampRen *lar, const float p1[3], const float p2[3])
 			}
 		}
 		
-		labda= MIN2(labdax, labday);
+		labda = minf(labdax, labday);
 		if (labda==labdao || labda>=1.0f) break;
 		
 		zf= zf1 + labda*(zf2-zf1);
@@ -1496,7 +1496,7 @@ static void bound_rectf(rctf *box, const float v1[2])
 static void isb_bsp_split_init(ISBBranch *root, MemArena *mem, int level)
 {
 	
-	/* if level > 0 we create new branches and go deeper*/
+	/* if level > 0 we create new branches and go deeper */
 	if (level > 0) {
 		ISBBranch *left, *right;
 		int i;

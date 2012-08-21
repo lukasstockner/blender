@@ -48,6 +48,7 @@
 
 #include "BKE_context.h"
 #include "BKE_screen.h"
+#include "BKE_global.h"
 
 #include "ED_space_api.h"
 #include "ED_screen.h"
@@ -522,7 +523,7 @@ static void file_ui_area_draw(const bContext *C, ARegion *ar)
 	gpuColorAndClearvf(col, 0.0);
 
 	/* scrolling here is just annoying, disable it */
-	ar->v2d.cur.ymax = ar->v2d.cur.ymax - ar->v2d.cur.ymin;
+	ar->v2d.cur.ymax = BLI_RCT_SIZE_Y(&ar->v2d.cur);
 	ar->v2d.cur.ymin = 0;
 
 	/* set view2d view matrix for scrolling (without scrollers) */
@@ -622,12 +623,18 @@ void ED_file_init(void)
 		fsmenu_read_bookmarks(fsmenu_get(), name);
 	}
 	
-	filelist_init_icons();
+	if (G.background == FALSE) {
+		filelist_init_icons();
+	}
+
 	IMB_thumb_makedirs();
 }
 
 void ED_file_exit(void)
 {
 	fsmenu_free(fsmenu_get());
-	filelist_free_icons();
+
+	if (G.background == FALSE) {
+		filelist_free_icons();
+	}
 }

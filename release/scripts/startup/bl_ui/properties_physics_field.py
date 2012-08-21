@@ -92,7 +92,7 @@ class PHYSICS_PT_field(PhysicButtonsPanel, Panel):
             layout.separator()
 
             layout.prop(field, "guide_kink_type")
-            if (field.guide_kink_type != 'NONE'):
+            if field.guide_kink_type != 'NONE':
                 layout.prop(field, "guide_kink_axis")
 
                 split = layout.split()
@@ -168,7 +168,6 @@ class PHYSICS_PT_field(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_collision(PhysicButtonsPanel, Panel):
     bl_label = "Collision"
-    #bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):

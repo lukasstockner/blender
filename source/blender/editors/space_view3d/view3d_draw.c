@@ -1582,7 +1582,7 @@ exit:
 /* ************************************************************* */
 
 static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
-                              const short do_forground, const short do_camera_frame)
+                              const short do_foreground, const short do_camera_frame)
 {
 	RegionView3D *rv3d = ar->regiondata;
 	BGpic *bgpic;
@@ -1591,7 +1591,7 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 	ImBuf *ibuf = NULL, *freeibuf;
 	float vec[4], fac, asp, zoomx, zoomy;
 	float x1, y1, x2, y2, cx, cy;
-	int fg_flag = do_forground ? V3D_BGPIC_FOREGROUND : 0;
+	int fg_flag = do_foreground ? V3D_BGPIC_FOREGROUND : 0;
 
 	for (bgpic = v3d->bgpicbase.first; bgpic; bgpic = bgpic->next) {
 
@@ -1642,7 +1642,7 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 				ibuf = BKE_movieclip_get_ibuf(clip, &bgpic->cuser);
 
 				image_aspect[0] = clip->aspx;
-				image_aspect[1] = clip->aspx;
+				image_aspect[1] = clip->aspy;
 
 				/* working with ibuf from image and clip has got different workflow now.
 				 * ibuf acquired from clip is referenced by cache system and should
@@ -1766,7 +1766,7 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 
 			/* for some reason; zoomlevels down refuses to use GL_ALPHA_SCALE */
 			if (zoomx < 1.0f || zoomy < 1.0f) {
-				float tzoom = MIN2(zoomx, zoomy);
+				float tzoom = minf(zoomx, zoomy);
 				int mip = 0;
 
 				if ((ibuf->userflags & IB_MIPMAP_INVALID) != 0) {
@@ -1821,23 +1821,27 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 }
 
 static void view3d_draw_bgpic_test(Scene *scene, ARegion *ar, View3D *v3d,
-                                   const short do_forground, const short do_camera_frame)
+                                   const short do_foreground, const short do_camera_frame)
 {
 	RegionView3D *rv3d = ar->regiondata;
 
 	if ((v3d->flag & V3D_DISPBGPICS) == 0)
 		return;
 
+	/* disabled - mango request, since footage /w only render is quite useful
+	 * and this option is easy to disable all background images at once */
+#if 0
 	if (v3d->flag2 & V3D_RENDER_OVERRIDE)
 		return;
+#endif
 
 	if ((rv3d->view == RV3D_VIEW_USER) || (rv3d->persp != RV3D_ORTHO)) {
 		if (rv3d->persp == RV3D_CAMOB) {
-			view3d_draw_bgpic(scene, ar, v3d, do_forground, do_camera_frame);
+			view3d_draw_bgpic(scene, ar, v3d, do_foreground, do_camera_frame);
 		}
 	}
 	else {
-		view3d_draw_bgpic(scene, ar, v3d, do_forground, do_camera_frame);
+		view3d_draw_bgpic(scene, ar, v3d, do_foreground, do_camera_frame);
 	}
 }
 
@@ -2083,8 +2087,8 @@ void view3d_update_depths_rect(ARegion *ar, ViewDepths *d, rcti *rect)
 	x = rect->xmin;
 	y = rect->ymin;
 
-	w = rect->xmax - rect->xmin;
-	h = rect->ymax - rect->ymin;
+	w = BLI_RCT_SIZE_X(rect);
+	h = BLI_RCT_SIZE_Y(rect);
 
 	if (w <= 0 || h <= 0) {
 		if (d->depths)

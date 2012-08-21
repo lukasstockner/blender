@@ -435,7 +435,7 @@ static int mathutils_rna_vector_set(BaseMathObject *bmo, int subtype)
 
 	RNA_property_float_range(&self->ptr, self->prop, &min, &max);
 
-	if (min != FLT_MIN || max != FLT_MAX) {
+	if (min != -FLT_MAX || max != FLT_MAX) {
 		int i, len = RNA_property_array_length(&self->ptr, self->prop);
 		for (i = 0; i < len; i++) {
 			CLAMP(bmo->data[i], min, max);
@@ -6736,20 +6736,24 @@ static int rna_function_arg_count(FunctionRNA *func)
 	return count;
 }
 
-static int bpy_class_validate(PointerRNA *dummyptr, void *py_data, int *have_function)
+static int bpy_class_validate_recursive(PointerRNA *dummyptr, StructRNA *srna, void *py_data, int *have_function)
 {
 	const ListBase *lb;
 	Link *link;
 	FunctionRNA *func;
 	PropertyRNA *prop;
-	StructRNA *srna = dummyptr->type;
 	const char *class_type = RNA_struct_identifier(srna);
+	StructRNA *srna_base = RNA_struct_base(srna);
 	PyObject *py_class = (PyObject *)py_data;
 	PyObject *base_class = RNA_struct_py_type_get(srna);
 	PyObject *item;
 	int i, flag, arg_count, func_arg_count;
 	const char *py_class_name = ((PyTypeObject *)py_class)->tp_name; // __name__
 
+	if (srna_base) {
+		if (bpy_class_validate_recursive(dummyptr, srna_base, py_data, have_function) != 0)
+			return -1;
+	}
 
 	if (base_class) {
 		if (!PyObject_IsSubclass(py_class, base_class)) {
@@ -6882,6 +6886,11 @@ static int bpy_class_validate(PointerRNA *dummyptr, void *py_data, int *have_fun
 	}
 
 	return 0;
+}
+
+static int bpy_class_validate(PointerRNA *dummyptr, void *py_data, int *have_function)
+{
+	return bpy_class_validate_recursive(dummyptr, dummyptr->type, py_data, have_function);
 }
 
 /* TODO - multiple return values like with rna functions */

@@ -145,8 +145,6 @@ typedef struct PFace {
 
 	struct PEdge *edge;
 	unsigned char flag;
-	short *unwrap_flag;
-
 } PFace;
 
 enum PVertFlag {
@@ -235,9 +233,6 @@ typedef struct PHandle {
 	float blend;
 	char do_aspect;
 } PHandle;
-
-/* duplicate, to avoid including DNA_mesh_types.h */
-#define TF_CORRECT_ASPECT  256
 
 /* PHash
  * - special purpose hash that keeps all its elements in a single linked list.
@@ -650,22 +645,11 @@ static void p_vert_load_pin_select_uvs(PHandle *handle, PVert *v)
 static void p_flush_uvs(PHandle *handle, PChart *chart)
 {
 	PEdge *e;
-	PFace *f;
 
 	for (e = chart->edges; e; e = e->nextlink) {
 		if (e->orig_uv) {
 			e->orig_uv[0] = e->vert->uv[0] / handle->aspx;
 			e->orig_uv[1] = e->vert->uv[1] / handle->aspy;
-		}
-	}
-
-	for (f = chart->faces; f; f = f->nextlink) {
-		if(f->unwrap_flag) {
-			if (handle->do_aspect) {
-				*f->unwrap_flag |= TF_CORRECT_ASPECT;
-			} else {
-				*f->unwrap_flag &= ~TF_CORRECT_ASPECT;
-			}
 		}
 	}
 }
@@ -1057,7 +1041,6 @@ static PFace *p_face_add(PHandle *handle)
 	/* allocate */
 	f = (PFace *)BLI_memarena_alloc(handle->arena, sizeof *f);
 	f->flag = 0; // init !
-	f->unwrap_flag = NULL;
 
 	e1 = (PEdge *)BLI_memarena_alloc(handle->arena, sizeof *e1);
 	e2 = (PEdge *)BLI_memarena_alloc(handle->arena, sizeof *e2);
@@ -1084,7 +1067,7 @@ static PFace *p_face_add(PHandle *handle)
 
 static PFace *p_face_add_construct(PHandle *handle, ParamKey key, ParamKey *vkeys,
                                    float *co[3], float *uv[3], int i1, int i2, int i3,
-                                   ParamBool *pin, ParamBool *select, short *unwrap_flag)
+                                   ParamBool *pin, ParamBool *select)
 {
 	PFace *f = p_face_add(handle);
 	PEdge *e1 = f->edge, *e2 = e1->next, *e3 = e2->next;
@@ -1111,7 +1094,6 @@ static PFace *p_face_add_construct(PHandle *handle, ParamKey key, ParamKey *vkey
 
 	/* insert into hash */
 	f->u.key = key;
-	f->unwrap_flag = unwrap_flag;
 	phash_insert(handle->hash_faces, (PHashLink *)f);
 
 	e1->u.key = PHASH_edge(vkeys[i1], vkeys[i2]);
@@ -3469,7 +3451,7 @@ static float p_chart_minimum_area_angle(PChart *chart)
 
 	float rotated, minarea, minangle, area, len;
 	float *angles, miny, maxy, v[2], a[4], mina;
-	int npoints, right, mini, maxi, i, idx[4], nextidx;
+	int npoints, right, i_min, i_max, i, idx[4], nextidx;
 	PVert **points, *p1, *p2, *p3, *p4, *p1n;
 
 	/* compute convex hull */
@@ -3479,7 +3461,7 @@ static float p_chart_minimum_area_angle(PChart *chart)
 	/* find left/top/right/bottom points, and compute angle for each point */
 	angles = MEM_mallocN(sizeof(float) * npoints, "PMinAreaAngles");
 
-	mini = maxi = 0;
+	i_min = i_max = 0;
 	miny = 1e10;
 	maxy = -1e10;
 
@@ -3492,19 +3474,19 @@ static float p_chart_minimum_area_angle(PChart *chart)
 
 		if (points[i]->uv[1] < miny) {
 			miny = points[i]->uv[1];
-			mini = i;
+			i_min = i;
 		}
 		if (points[i]->uv[1] > maxy) {
 			maxy = points[i]->uv[1];
-			maxi = i;
+			i_max = i;
 		}
 	}
 
 	/* left, top, right, bottom */
 	idx[0] = 0;
-	idx[1] = maxi;
+	idx[1] = i_max;
 	idx[2] = right;
-	idx[3] = mini;
+	idx[3] = i_min;
 
 	v[0] = points[idx[0]]->uv[0];
 	v[1] = points[idx[0]]->uv[1] + 1.0f;
@@ -3530,29 +3512,29 @@ static float p_chart_minimum_area_angle(PChart *chart)
 
 	while (rotated <= (float)(M_PI / 2.0)) { /* INVESTIGATE: how far to rotate? */
 		/* rotate with the smallest angle */
-		mini = 0;
+		i_min = 0;
 		mina = 1e10;
 
 		for (i = 0; i < 4; i++)
 			if (a[i] < mina) {
 				mina = a[i];
-				mini = i;
+				i_min = i;
 			}
 
 		rotated += mina;
-		nextidx = (idx[mini] + 1) % npoints;
+		nextidx = (idx[i_min] + 1) % npoints;
 
-		a[mini] = angles[nextidx];
-		a[(mini + 1) % 4] = a[(mini + 1) % 4] - mina;
-		a[(mini + 2) % 4] = a[(mini + 2) % 4] - mina;
-		a[(mini + 3) % 4] = a[(mini + 3) % 4] - mina;
+		a[i_min] = angles[nextidx];
+		a[(i_min + 1) % 4] = a[(i_min + 1) % 4] - mina;
+		a[(i_min + 2) % 4] = a[(i_min + 2) % 4] - mina;
+		a[(i_min + 3) % 4] = a[(i_min + 3) % 4] - mina;
 
 		/* compute area */
-		p1 = points[idx[mini]];
+		p1 = points[idx[i_min]];
 		p1n = points[nextidx];
-		p2 = points[idx[(mini + 1) % 4]];
-		p3 = points[idx[(mini + 2) % 4]];
-		p4 = points[idx[(mini + 3) % 4]];
+		p2 = points[idx[(i_min + 1) % 4]];
+		p3 = points[idx[(i_min + 2) % 4]];
+		p4 = points[idx[(i_min + 3) % 4]];
 
 		len = len_v2v2(p1->uv, p1n->uv);
 
@@ -3570,7 +3552,7 @@ static float p_chart_minimum_area_angle(PChart *chart)
 			}
 		}
 
-		idx[mini] = nextidx;
+		idx[i_min] = nextidx;
 	}
 
 	/* try keeping rotation as small as possible */
@@ -4150,7 +4132,7 @@ void param_delete(ParamHandle *handle)
 
 void param_face_add(ParamHandle *handle, ParamKey key, int nverts,
                     ParamKey *vkeys, float **co, float **uv,
-                    ParamBool *pin, ParamBool *select, short *unwrap_flag)
+                    ParamBool *pin, ParamBool *select)
 {
 	PHandle *phandle = (PHandle *)handle;
 
@@ -4160,16 +4142,16 @@ void param_face_add(ParamHandle *handle, ParamKey key, int nverts,
 
 	if (nverts == 4) {
 		if (p_quad_split_direction(phandle, co, vkeys)) {
-			p_face_add_construct(phandle, key, vkeys, co, uv, 0, 1, 2, pin, select, unwrap_flag);
-			p_face_add_construct(phandle, key, vkeys, co, uv, 0, 2, 3, pin, select, unwrap_flag);
+			p_face_add_construct(phandle, key, vkeys, co, uv, 0, 1, 2, pin, select);
+			p_face_add_construct(phandle, key, vkeys, co, uv, 0, 2, 3, pin, select);
 		}
 		else {
-			p_face_add_construct(phandle, key, vkeys, co, uv, 0, 1, 3, pin, select, unwrap_flag);
-			p_face_add_construct(phandle, key, vkeys, co, uv, 1, 2, 3, pin, select, unwrap_flag);
+			p_face_add_construct(phandle, key, vkeys, co, uv, 0, 1, 3, pin, select);
+			p_face_add_construct(phandle, key, vkeys, co, uv, 1, 2, 3, pin, select);
 		}
 	}
 	else if (!p_face_exists(phandle, vkeys, 0, 1, 2)) {
-		p_face_add_construct(phandle, key, vkeys, co, uv, 0, 1, 2, pin, select, unwrap_flag);
+		p_face_add_construct(phandle, key, vkeys, co, uv, 0, 1, 2, pin, select);
 	}
 }
 

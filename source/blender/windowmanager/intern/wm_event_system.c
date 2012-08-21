@@ -243,7 +243,7 @@ void wm_event_do_notifiers(bContext *C)
 			/* XXX, quick frame changes can cause a crash if framechange and rendering
 			 * collide (happens on slow scenes), BKE_scene_update_for_newframe can be called
 			 * twice which can depgraph update the same object at once */
-			if (!G.rendering) {
+			if (G.is_rendering == FALSE) {
 
 				/* depsgraph gets called, might send more notifiers */
 				ED_update_for_newframe(CTX_data_main(C), win->screen->scene, 1);
@@ -302,7 +302,7 @@ void wm_event_do_notifiers(bContext *C)
 		}
 		
 		/* XXX make lock in future, or separated derivedmesh users in scene */
-		if (!G.rendering) {
+		if (G.is_rendering == FALSE) {
 			/* depsgraph & animation: update tagged datablocks */
 			Main *bmain = CTX_data_main(C);
 
@@ -649,7 +649,8 @@ int WM_operator_repeat_check(const bContext *UNUSED(C), wmOperator *op)
 	return op->type->exec != NULL;
 }
 
-static wmOperator *wm_operator_create(wmWindowManager *wm, wmOperatorType *ot, PointerRNA *properties, ReportList *reports)
+static wmOperator *wm_operator_create(wmWindowManager *wm, wmOperatorType *ot,
+                                      PointerRNA *properties, ReportList *reports)
 {
 	/* XXX operatortype names are static still. for debug */
 	wmOperator *op = MEM_callocN(sizeof(wmOperator), ot->idname);
@@ -825,7 +826,8 @@ int WM_operator_last_properties_store(wmOperator *UNUSED(op))
 
 #endif
 
-static int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event, PointerRNA *properties, ReportList *reports, short poll_only)
+static int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event,
+                              PointerRNA *properties, ReportList *reports, short poll_only)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	int retval = OPERATOR_PASS_THROUGH;
@@ -844,7 +846,8 @@ static int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event, P
 		}
 
 		if ((G.debug & G_DEBUG_EVENTS) && event && event->type != MOUSEMOVE) {
-			printf("%s: handle evt %d win %d op %s\n", __func__, event ? event->type : 0, CTX_wm_screen(C)->subwinactive, ot->idname);
+			printf("%s: handle evt %d win %d op %s\n",
+			       __func__, event ? event->type : 0, CTX_wm_screen(C)->subwinactive, ot->idname);
 		}
 		
 		if (op->type->invoke && event) {
@@ -936,7 +939,7 @@ static int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event, P
 					}
 				}
 
-				WM_cursor_grab(CTX_wm_window(C), wrap, FALSE, bounds);
+				WM_cursor_grab_enable(CTX_wm_window(C), wrap, FALSE, bounds);
 			}
 
 			/* cancel UI handlers, typically tooltips that can hang around
@@ -1083,7 +1086,8 @@ int WM_operator_name_call(bContext *C, const char *opstring, short context, Poin
  * - poll() must be called by python before this runs.
  * - reports can be passed to this function (so python can report them as exceptions)
  */
-int WM_operator_call_py(bContext *C, wmOperatorType *ot, short context, PointerRNA *properties, ReportList *reports, short is_undo)
+int WM_operator_call_py(bContext *C, wmOperatorType *ot, short context,
+                        PointerRNA *properties, ReportList *reports, short is_undo)
 {
 	int retval = OPERATOR_CANCELLED;
 
@@ -1199,7 +1203,7 @@ void WM_event_remove_handlers(bContext *C, ListBase *handlers)
 				CTX_wm_region_set(C, region);
 			}
 
-			WM_cursor_ungrab(CTX_wm_window(C));
+			WM_cursor_grab_disable(CTX_wm_window(C));
 			WM_operator_free(handler->op);
 		}
 		else if (handler->ui_remove) {
@@ -1429,7 +1433,7 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 
 				/* remove modal handler, operator itself should have been canceled and freed */
 				if (retval & (OPERATOR_CANCELLED | OPERATOR_FINISHED)) {
-					WM_cursor_ungrab(CTX_wm_window(C));
+					WM_cursor_grab_disable(CTX_wm_window(C));
 
 					BLI_remlink(handlers, handler);
 					wm_event_free_handler(handler);
@@ -1665,22 +1669,40 @@ static int wm_action_not_handled(int action)
 
 static int wm_handlers_do(bContext *C, wmEvent *event, ListBase *handlers)
 {
+#ifndef NDEBUG
+	const int do_debug_handler = (G.debug & G_DEBUG_EVENTS);
+#endif
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmEventHandler *handler, *nexthandler;
 	int action = WM_HANDLER_CONTINUE;
 	int always_pass;
 
-	if (handlers == NULL) return action;
+	if (handlers == NULL) {
+		return action;
+	}
 
-	/* modal handlers can get removed in this loop, we keep the loop this way */
-	for (handler = handlers->first; handler; handler = nexthandler) {
-		
+#ifndef NDEBUG
+	if (do_debug_handler) {
+		printf("%s: handling event\n", __func__);
+		WM_event_print(event);
+	}
+#endif
+
+	/* modal handlers can get removed in this loop, we keep the loop this way
+	 *
+	 * note: check 'handlers->first' because in rare cases the handlers can be cleared
+	 * by the event thats called, for eg:
+	 *
+	 * Calling a python script which changes the area.type, see [#32232] */
+	for (handler = handlers->first; handler && handlers->first; handler = nexthandler) {
+
 		nexthandler = handler->next;
 		
 		/* during this loop, ui handlers for nested menus can tag multiple handlers free */
-		if (handler->flag & WM_HANDLER_DO_FREE) ;
-		/* optional boundbox */
-		else if (handler_boundbox_test(handler, event)) {
+		if (handler->flag & WM_HANDLER_DO_FREE) {
+			/* pass */
+		}
+		else if (handler_boundbox_test(handler, event)) { /* optional boundbox */
 			/* in advance to avoid access to freed event on window close */
 			always_pass = wm_event_always_pass(event);
 		
@@ -1691,19 +1713,59 @@ static int wm_handlers_do(bContext *C, wmEvent *event, ListBase *handlers)
 			if (handler->keymap) {
 				wmKeyMap *keymap = WM_keymap_active(wm, handler->keymap);
 				wmKeyMapItem *kmi;
-				
+
+#ifndef NDEBUG
+				if (do_debug_handler) {
+					printf("%s:   checking '%s' ...", __func__, keymap->idname);
+				}
+#endif
+
 				if (!keymap->poll || keymap->poll(C)) {
+
+#ifndef NDEBUG
+					if (do_debug_handler) {
+						printf("pass\n");
+					}
+#endif
+
 					for (kmi = keymap->items.first; kmi; kmi = kmi->next) {
 						if (wm_eventmatch(event, kmi)) {
+
+#ifndef NDEBUG
+							if (do_debug_handler) {
+								printf("%s:     item matched '%s'\n", __func__, kmi->idname);
+							}
+#endif
 
 							/* weak, but allows interactive callback to not use rawkey */
 							event->keymap_idname = kmi->idname;
 
 							action |= wm_handler_operator_call(C, handlers, handler, event, kmi->ptr);
-							if (action & WM_HANDLER_BREAK)  /* not always_pass here, it denotes removed handler */
+							if (action & WM_HANDLER_BREAK) {
+								/* not always_pass here, it denotes removed handler */
+#ifndef NDEBUG
+								if (do_debug_handler) {
+									printf("%s:       handled! '%s'...", __func__, kmi->idname);
+								}
+#endif
 								break;
+							}
+							else {
+#ifndef NDEBUG
+								if (do_debug_handler) {
+									printf("%s:       un-handled '%s'...", __func__, kmi->idname);
+								}
+#endif
+							}
 						}
 					}
+				}
+				else {
+#ifndef NDEBUG
+					if (do_debug_handler) {
+						printf("fail\n");
+					}
+#endif
 				}
 			}
 			else if (handler->ui_handle) {
@@ -1966,7 +2028,9 @@ void wm_event_do_handlers(bContext *C)
 					CTX_wm_screen_set(C, win->screen);
 					CTX_data_scene_set(C, scene);
 					
-					if (((playing == 1) && (!ED_screen_animation_playing(wm))) || ((playing == 0) && (ED_screen_animation_playing(wm)))) {
+					if (((playing == 1) && (!ED_screen_animation_playing(wm))) ||
+					    ((playing == 0) && (ED_screen_animation_playing(wm))))
+					{
 						ED_screen_animation_play(C, -1, 1);
 					}
 					
@@ -2554,12 +2618,13 @@ static void attach_ndof_data(wmEvent *event, const GHOST_TEventNDOFMotionData *g
 	wmNDOFMotionData *data = MEM_mallocN(sizeof(wmNDOFMotionData), "customdata NDOF");
 
 	const float s = U.ndof_sensitivity;
+	const float rs = U.ndof_orbit_sensitivity;
 
 	data->tx = s * ghost->tx;
 
-	data->rx = s * ghost->rx;
-	data->ry = s * ghost->ry;
-	data->rz = s * ghost->rz;
+	data->rx = rs * ghost->rx;
+	data->ry = rs * ghost->ry;
+	data->rz = rs * ghost->rz;
 
 	if (U.ndof_flag & NDOF_ZOOM_UPDOWN) {
 		/* rotate so Y is where Z was */
@@ -2843,7 +2908,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			
 			/* if test_break set, it catches this. XXX Keep global for now? */
 			if (event.type == ESCKEY)
-				G.afbreek = 1;
+				G.is_break = TRUE;
 			
 			wm_event_add(win, &event);
 			

@@ -297,7 +297,12 @@ extern "C" {
  *     - output nodes can have different priorities in the WorkScheduler.
  * This is implemented in the COM_execute function.
  */
-void COM_execute(RenderData* rd, bNodeTree *editingtree, int rendering);
+void COM_execute(RenderData *rd, bNodeTree *editingtree, int rendering);
+
+/**
+ * @brief Deinitialize the compositor caches and allocated memory.
+ */
+void COM_deinitialize(void);
 
 /**
  * @brief Return a list of highlighted bnodes pointers.
@@ -310,7 +315,7 @@ void COM_startReadHighlights(void);
  * @param bnode
  * @return 
  */
-int COM_isHighlightedbNode(bNode* bnode);
+int COM_isHighlightedbNode(bNode *bnode);
 
 #ifdef __cplusplus
 }

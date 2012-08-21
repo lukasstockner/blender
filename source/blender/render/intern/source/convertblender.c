@@ -27,7 +27,6 @@
  *  \ingroup render
  */
 
-
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -233,7 +232,7 @@ void RE_make_stars(Render *re, Scene *scenev3d, void (*initfunc)(void),
 		obr= RE_addRenderObject(re, NULL, NULL, 0, 0, 0);
 	
 	for (x = sx, fx = sx * stargrid; x <= ex; x++, fx += stargrid) {
-		for (y = sy, fy = sy * stargrid; y <= ey ; y++, fy += stargrid) {
+		for (y = sy, fy = sy * stargrid; y <= ey; y++, fy += stargrid) {
 			for (z = sz, fz = sz * stargrid; z <= ez; z++, fz += stargrid) {
 
 				BLI_srand((hash[z & 0xff] << 24) + (hash[y & 0xff] << 16) + (hash[x & 0xff] << 8));
@@ -310,7 +309,7 @@ void RE_make_stars(Render *re, Scene *scenev3d, void (*initfunc)(void),
 				totstar++;
 			}
 			/* do not call blender_test_break() here, since it is used in UI as well, confusing the callback system */
-			/* main cause is G.afbreek of course, a global again... (ton) */
+			/* main cause is G.is_break of course, a global again... (ton) */
 		}
 	}
 	if (termfunc) termfunc();
@@ -1614,7 +1613,7 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 	if (part->type==PART_HAIR && !psys->childcache)
 		totchild= 0;
 
-	if (G.rendering == 0) { /* preview render */
+	if (G.is_rendering == FALSE) {  /* preview render */
 		totchild = (int)((float)totchild * (float)part->disp / 100.0f);
 	}
 
@@ -2375,9 +2374,8 @@ static void displace_render_face(Render *re, ObjectRen *obr, VlakRen *vlr, float
 			displace_render_vert(re, obr, &shi, vlr->v4, 3, scale, mat, imat);
 
 		/*	closest in displace value.  This will help smooth edges.   */ 
-		if ( fabs(vlr->v1->accum - vlr->v3->accum) > fabs(vlr->v2->accum - vlr->v4->accum)) 
-			vlr->flag |= R_DIVIDE_24;
-		else vlr->flag &= ~R_DIVIDE_24;
+		if (fabsf(vlr->v1->accum - vlr->v3->accum) > fabsf(vlr->v2->accum - vlr->v4->accum)) vlr->flag |=  R_DIVIDE_24;
+		else                                                                                 vlr->flag &= ~R_DIVIDE_24;
 	}
 	
 	/* Recalculate the face normal  - if flipped before, flip now */
@@ -3878,7 +3876,7 @@ static GroupObject *add_render_lamp(Render *re, Object *ob)
 			if (la->mtex[c]->mapto & LAMAP_SHAD)
 				lar->mode |= LA_SHAD_TEX;
 
-			if (G.rendering) {
+			if (G.is_rendering) {
 				if (re->osa) {
 					if (la->mtex[c]->tex->type==TEX_IMAGE) lar->mode |= LA_OSATEX;
 				}
@@ -4261,8 +4259,8 @@ static void check_non_flat_quads(ObjectRen *obr)
 					normal_tri_v3(nor, vlr->v2->co, vlr->v3->co, vlr->v4->co);
 					d2 = dot_v3v3(nor, vlr->v2->n);
 
-					if ( fabs(d1) < fabs(d2) ) vlr->flag |= R_DIVIDE_24;
-					else vlr->flag &= ~R_DIVIDE_24;
+					if (fabsf(d1) < fabsf(d2) ) vlr->flag |=  R_DIVIDE_24;
+					else                        vlr->flag &= ~R_DIVIDE_24;
 
 					/* new vertex pointers */
 					if (vlr->flag & R_DIVIDE_24) {
@@ -4652,7 +4650,7 @@ void RE_Database_Free(Render *re)
 	LampRen *lar;
 	
 	/* statistics for debugging render memory usage */
-	if ((G.debug & G_DEBUG) && (G.rendering)) {
+	if ((G.debug & G_DEBUG) && (G.is_rendering)) {
 		if ((re->r.scemode & R_PREVIEWBUTS)==0) {
 			BKE_image_print_memlist();
 			MEM_printmemlist_stats();

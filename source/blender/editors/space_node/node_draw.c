@@ -29,26 +29,13 @@
  *  \brief higher level node drawing for the node editor.
  */
 
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
-
-#include "MEM_guardedalloc.h"
-
 #include "DNA_node_types.h"
-#include "DNA_lamp_types.h"
-#include "DNA_material_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_world_types.h"
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
-#include "BLI_rect.h"
-#include "BLI_threads.h"
-#include "BLI_utildefines.h"
 
 #include "BLF_translation.h"
 
@@ -69,19 +56,12 @@
 #include "ED_gpencil.h"
 #include "ED_space_api.h"
 
-#include "UI_interface.h"
-#include "UI_interface_icons.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
 #include "RNA_access.h"
 
-#include "NOD_composite.h"
-#include "NOD_shader.h"
-
-#include "intern/node_util.h"
-
-#include "node_intern.h"
+#include "node_intern.h"  /* own include */
 #include "COM_compositor.h"
 
 /* width of socket columns in group display */
@@ -415,7 +395,7 @@ static void node_update_basis(const bContext *C, bNodeTree *ntree, bNode *node)
 	node->totr.xmin = locx;
 	node->totr.xmax = locx + node->width;
 	node->totr.ymax = locy;
-	node->totr.ymin = MIN2(dy, locy - 2 * NODE_DY);
+	node->totr.ymin = minf(dy, locy - 2 * NODE_DY);
 	
 	/* Set the block bounds to clip mouse events from underlying nodes.
 	 * Add a margin for sockets on each side.
@@ -703,9 +683,7 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 		nodeShaderSynchronizeID(node, 0);
 	
 	/* skip if out of view */
-	if (node->totr.xmax < ar->v2d.cur.xmin || node->totr.xmin > ar->v2d.cur.xmax ||
-	    node->totr.ymax < ar->v2d.cur.ymin || node->totr.ymin > ar->v2d.cur.ymax)
-	{
+	if (BLI_rctf_isect(&node->totr, &ar->v2d.cur, NULL) == FALSE) {
 		uiEndBlock(C, node->block);
 		node->block = NULL;
 		return;
@@ -815,7 +793,7 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	glDisable(GL_BLEND);
 
 	/* outline active and selected emphasis */
-	if (node->flag & (NODE_ACTIVE | SELECT)) {
+	if (node->flag & SELECT) {
 		glEnable(GL_BLEND);
 		glEnable(GL_LINE_SMOOTH);
 		
@@ -906,7 +884,7 @@ static void node_draw_hidden(const bContext *C, ARegion *ar, SpaceNode *snode, b
 	uiRoundBox(rct->xmin, rct->ymin, rct->xmax, rct->ymax, hiddenrad);
 	
 	/* outline active and selected emphasis */
-	if (node->flag & (NODE_ACTIVE | SELECT)) {
+	if (node->flag & SELECT) {
 		glEnable(GL_BLEND);
 		glEnable(GL_LINE_SMOOTH);
 		
@@ -1023,11 +1001,11 @@ void node_set_cursor(wmWindow *win, SpaceNode *snode)
 		else {
 			/* check nodes front to back */
 			for (node = ntree->nodes.last; node; node = node->prev) {
-				if (BLI_in_rctf(&node->totr, snode->mx, snode->my))
+				if (BLI_in_rctf(&node->totr, snode->cursor[0], snode->cursor[1]))
 					break;  /* first hit on node stops */
 			}
 			if (node) {
-				int dir = node->typeinfo->resize_area_func(node, snode->mx, snode->my);
+				int dir = node->typeinfo->resize_area_func(node, snode->cursor[0], snode->cursor[1]);
 				cursor = node_get_resize_cursor(dir);
 			}
 		}
@@ -1073,6 +1051,8 @@ static void node_draw(const bContext *C, ARegion *ar, SpaceNode *snode, bNodeTre
 		node->typeinfo->drawfunc(C, ar, snode, ntree, node);
 }
 
+#define USE_DRAW_TOT_UPDATE
+
 void node_draw_nodetree(const bContext *C, ARegion *ar, SpaceNode *snode, bNodeTree *ntree)
 {
 	bNode *node;
@@ -1080,9 +1060,22 @@ void node_draw_nodetree(const bContext *C, ARegion *ar, SpaceNode *snode, bNodeT
 	int a;
 	
 	if (ntree == NULL) return;      /* groups... */
-	
+
+#ifdef USE_DRAW_TOT_UPDATE
+	if (ntree->nodes.first) {
+		BLI_rctf_init_minmax(&ar->v2d.tot);
+	}
+#endif
+
 	/* draw background nodes, last nodes in front */
 	for (a = 0, node = ntree->nodes.first; node; node = node->next, a++) {
+
+#ifdef USE_DRAW_TOT_UPDATE
+		/* unrelated to background nodes, update the v2d->tot,
+		 * can be anywhere before we draw the scroll bars */
+		BLI_rctf_union(&ar->v2d.tot, &node->totr);
+#endif
+
 		if (!(node->flag & NODE_BACKGROUND))
 			continue;
 		node->nr = a;        /* index of node in list, used for exec event code */
@@ -1128,7 +1121,7 @@ void drawnodespace(const bContext *C, ARegion *ar, View2D *v2d)
 	glEnable(GL_MAP1_VERTEX_3);
 
 	/* aspect+font, set each time */
-	snode->aspect = (v2d->cur.xmax - v2d->cur.xmin) / ((float)ar->winx);
+	snode->aspect = BLI_RCT_SIZE_X(&v2d->cur) / (float)ar->winx;
 	snode->aspect_sqrt = sqrtf(snode->aspect);
 	// XXX snode->curfont= uiSetCurFont_ext(snode->aspect);
 

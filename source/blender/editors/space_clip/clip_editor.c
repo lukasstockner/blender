@@ -44,6 +44,7 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
+#include "BLI_rect.h"
 
 #include "GPU_compatibility.h"
 #include "GPU_extensions.h"
@@ -115,7 +116,7 @@ int ED_space_clip_maskedit_mask_poll(bContext *C)
 		if (clip) {
 			SpaceClip *sc = CTX_wm_space_clip(C);
 
-			return sc->mask != NULL;
+			return sc->mask_info.mask != NULL;
 		}
 	}
 
@@ -124,27 +125,32 @@ int ED_space_clip_maskedit_mask_poll(bContext *C)
 
 /* ******** common editing functions ******** */
 
-void ED_space_clip_get_size(const bContext *C, int *width, int *height)
+void ED_space_clip_get_size(SpaceClip *sc, int *width, int *height)
 {
-	SpaceClip *sc = CTX_wm_space_clip(C);
-
-	if (!sc->clip) {
-		*width = *height = 0;
+	if (sc->clip) {
+		BKE_movieclip_get_size(sc->clip, &sc->user, width, height);
 	}
 	else {
-		BKE_movieclip_get_size(sc->clip, &sc->user, width, height);
+		*width = *height = IMG_SIZE_FALLBACK;
 	}
 }
 
-void ED_space_clip_get_zoom(const bContext *C, float *zoomx, float *zoomy)
+void ED_space_clip_get_size_fl(SpaceClip *sc, float size[2])
 {
-	ARegion *ar = CTX_wm_region(C);
+	int size_i[2];
+	ED_space_clip_get_size(sc, &size_i[0], &size_i[1]);
+	size[0] = size_i[0];
+	size[1] = size_i[1];
+}
+
+void ED_space_clip_get_zoom(SpaceClip *sc, ARegion *ar, float *zoomx, float *zoomy)
+{
 	int width, height;
 
-	ED_space_clip_get_size(C, &width, &height);
+	ED_space_clip_get_size(sc, &width, &height);
 
-	*zoomx = (float)(ar->winrct.xmax - ar->winrct.xmin + 1) / (float)((ar->v2d.cur.xmax - ar->v2d.cur.xmin) * width);
-	*zoomy = (float)(ar->winrct.ymax - ar->winrct.ymin + 1) / (float)((ar->v2d.cur.ymax - ar->v2d.cur.ymin) * height);
+	*zoomx = (float)(BLI_RCT_SIZE_X(&ar->winrct) + 1) / (float)(BLI_RCT_SIZE_X(&ar->v2d.cur) * width);
+	*zoomy = (float)(BLI_RCT_SIZE_Y(&ar->winrct) + 1) / (float)(BLI_RCT_SIZE_Y(&ar->v2d.cur) * height);
 }
 
 void ED_space_clip_get_aspect(SpaceClip *sc, float *aspx, float *aspy)
@@ -242,6 +248,54 @@ ImBuf *ED_space_clip_get_stable_buffer(SpaceClip *sc, float loc[2], float *scale
 	return NULL;
 }
 
+/* returns color in SRGB */
+/* matching ED_space_image_color_sample() */
+int ED_space_clip_color_sample(SpaceClip *sc, ARegion *ar, int mval[2], float r_col[3])
+{
+	ImBuf *ibuf;
+	float fx, fy, co[2];
+	int ret = FALSE;
+
+	ibuf = ED_space_clip_get_buffer(sc);
+	if (!ibuf) {
+		return FALSE;
+	}
+
+	/* map the mouse coords to the backdrop image space */
+	ED_clip_mouse_pos(sc, ar, mval, co);
+
+	fx = co[0];
+	fy = co[1];
+
+	if (fx >= 0.0f && fy >= 0.0f && fx < 1.0f && fy < 1.0f) {
+		float *fp;
+		unsigned char *cp;
+		int x = (int)(fx * ibuf->x), y = (int)(fy * ibuf->y);
+
+		CLAMP(x, 0, ibuf->x - 1);
+		CLAMP(y, 0, ibuf->y - 1);
+
+		if (ibuf->rect_float) {
+			fp = (ibuf->rect_float + (ibuf->channels) * (y * ibuf->x + x));
+			/* IB_PROFILE_NONE is default but infact its linear */
+			if (ELEM(ibuf->profile, IB_PROFILE_LINEAR_RGB, IB_PROFILE_NONE)) {
+				linearrgb_to_srgb_v3_v3(r_col, fp);
+			}
+			else {
+				copy_v3_v3(r_col, fp);
+			}
+			ret = TRUE;
+		}
+		else if (ibuf->rect) {
+			cp = (unsigned char *)(ibuf->rect + y * ibuf->x + x);
+			rgb_uchar_to_float(r_col, cp);
+			ret = TRUE;
+		}
+	}
+
+	return ret;
+}
+
 void ED_clip_update_frame(const Main *mainp, int cfra)
 {
 	wmWindowManager *wm;
@@ -265,9 +319,8 @@ void ED_clip_update_frame(const Main *mainp, int cfra)
 	}
 }
 
-static int selected_boundbox(const bContext *C, float min[2], float max[2])
+static int selected_boundbox(SpaceClip *sc, float min[2], float max[2])
 {
-	SpaceClip *sc = CTX_wm_space_clip(C);
 	MovieClip *clip = ED_space_clip_get_clip(sc);
 	MovieTrackingTrack *track;
 	int width, height, ok = FALSE;
@@ -276,7 +329,7 @@ static int selected_boundbox(const bContext *C, float min[2], float max[2])
 
 	INIT_MINMAX2(min, max);
 
-	ED_space_clip_get_size(C, &width, &height);
+	ED_space_clip_get_size(sc, &width, &height);
 
 	track = tracksbase->first;
 	while (track) {
@@ -319,17 +372,17 @@ int ED_clip_view_selection(const bContext *C, ARegion *ar, int fit)
 	int w, h, frame_width, frame_height;
 	float min[2], max[2];
 
-	ED_space_clip_get_size(C, &frame_width, &frame_height);
+	ED_space_clip_get_size(sc, &frame_width, &frame_height);
 
 	if (frame_width == 0 || frame_height == 0)
 		return FALSE;
 
-	if (!selected_boundbox(C, min, max))
+	if (!selected_boundbox(sc, min, max))
 		return FALSE;
 
 	/* center view */
-	clip_view_center_to_point(C, (max[0] + min[0]) / (2 * frame_width),
-	                             (max[1] + min[1]) / (2 * frame_height));
+	clip_view_center_to_point(sc, (max[0] + min[0]) / (2 * frame_width),
+	                              (max[1] + min[1]) / (2 * frame_height));
 
 	w = max[0] - min[0];
 	h = max[1] - min[1];
@@ -341,13 +394,13 @@ int ED_clip_view_selection(const bContext *C, ARegion *ar, int fit)
 
 		ED_space_clip_get_aspect(sc, &aspx, &aspy);
 
-		width = ar->winrct.xmax - ar->winrct.xmin + 1;
-		height = ar->winrct.ymax - ar->winrct.ymin + 1;
+		width  = BLI_RCT_SIZE_X(&ar->winrct) + 1;
+		height = BLI_RCT_SIZE_Y(&ar->winrct) + 1;
 
 		zoomx = (float)width / w / aspx;
 		zoomy = (float)height / h / aspy;
 
-		newzoom = 1.0f / power_of_2(1.0f / MIN2(zoomx, zoomy));
+		newzoom = 1.0f / power_of_2(1.0f / minf(zoomx, zoomy));
 
 		if (fit || sc->zoom > newzoom)
 			sc->zoom = newzoom;
@@ -377,15 +430,13 @@ void ED_clip_point_undistorted_pos(SpaceClip *sc, const float co[2], float r_co[
 	}
 }
 
-void ED_clip_point_stable_pos(const bContext *C, float x, float y, float *xr, float *yr)
+void ED_clip_point_stable_pos(SpaceClip *sc, ARegion *ar, float x, float y, float *xr, float *yr)
 {
-	ARegion *ar = CTX_wm_region(C);
-	SpaceClip *sc = CTX_wm_space_clip(C);
 	int sx, sy, width, height;
 	float zoomx, zoomy, pos[3], imat[4][4];
 
-	ED_space_clip_get_zoom(C, &zoomx, &zoomy);
-	ED_space_clip_get_size(C, &width, &height);
+	ED_space_clip_get_zoom(sc, ar, &zoomx, &zoomy);
+	ED_space_clip_get_size(sc, &width, &height);
 
 	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &sx, &sy);
 
@@ -416,18 +467,16 @@ void ED_clip_point_stable_pos(const bContext *C, float x, float y, float *xr, fl
  * \brief the reverse of ED_clip_point_stable_pos(), gets the marker region coords.
  * better name here? view_to_track / track_to_view or so?
  */
-void ED_clip_point_stable_pos__reverse(const bContext *C, const float co[2], float r_co[2])
+void ED_clip_point_stable_pos__reverse(SpaceClip *sc, ARegion *ar, const float co[2], float r_co[2])
 {
-	SpaceClip *sc = CTX_wm_space_clip(C);
-	ARegion *ar = CTX_wm_region(C);
 	float zoomx, zoomy;
 	float pos[3];
 	int width, height;
 	int sx, sy;
 
 	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &sx, &sy);
-	ED_space_clip_get_size(C, &width, &height);
-	ED_space_clip_get_zoom(C, &zoomx, &zoomy);
+	ED_space_clip_get_size(sc, &width, &height);
+	ED_space_clip_get_zoom(sc, ar, &zoomx, &zoomy);
 
 	ED_clip_point_undistorted_pos(sc, co, pos);
 	pos[2] = 0.0f;
@@ -439,9 +488,10 @@ void ED_clip_point_stable_pos__reverse(const bContext *C, const float co[2], flo
 	r_co[1] = (pos[1] * height * zoomy) + (float)sy;
 }
 
-void ED_clip_mouse_pos(const bContext *C, wmEvent *event, float co[2])
+/* takes event->mval */
+void ED_clip_mouse_pos(SpaceClip *sc, ARegion *ar, const int mval[2], float co[2])
 {
-	ED_clip_point_stable_pos(C, event->mval[0], event->mval[1], &co[0], &co[1]);
+	ED_clip_point_stable_pos(sc, ar, mval[0], mval[1], &co[0], &co[1]);
 }
 
 int ED_space_clip_check_show_trackedit(SpaceClip *sc)
@@ -509,15 +559,15 @@ void ED_space_clip_set_clip(bContext *C, bScreen *screen, SpaceClip *sc, MovieCl
 
 Mask *ED_space_clip_get_mask(SpaceClip *sc)
 {
-	return sc->mask;
+	return sc->mask_info.mask;
 }
 
 void ED_space_clip_set_mask(bContext *C, SpaceClip *sc, Mask *mask)
 {
-	sc->mask = mask;
+	sc->mask_info.mask = mask;
 
-	if (sc->mask && sc->mask->id.us == 0) {
-		sc->clip->id.us = 1;
+	if (sc->mask_info.mask && sc->mask_info.mask->id.us == 0) {
+		sc->mask_info.mask->id.us = 1;
 	}
 
 	if (C) {

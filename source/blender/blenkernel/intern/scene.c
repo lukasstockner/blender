@@ -178,21 +178,21 @@ Scene *BKE_scene_copy(Scene *sce, int type)
 			ts->vpaint->paintcursor = NULL;
 			ts->vpaint->vpaint_prev = NULL;
 			ts->vpaint->wpaint_prev = NULL;
-			copy_paint(&ts->vpaint->paint, &ts->vpaint->paint);
+			BKE_paint_copy(&ts->vpaint->paint, &ts->vpaint->paint);
 		}
 		if (ts->wpaint) {
 			ts->wpaint = MEM_dupallocN(ts->wpaint);
 			ts->wpaint->paintcursor = NULL;
 			ts->wpaint->vpaint_prev = NULL;
 			ts->wpaint->wpaint_prev = NULL;
-			copy_paint(&ts->wpaint->paint, &ts->wpaint->paint);
+			BKE_paint_copy(&ts->wpaint->paint, &ts->wpaint->paint);
 		}
 		if (ts->sculpt) {
 			ts->sculpt = MEM_dupallocN(ts->sculpt);
-			copy_paint(&ts->sculpt->paint, &ts->sculpt->paint);
+			BKE_paint_copy(&ts->sculpt->paint, &ts->sculpt->paint);
 		}
 
-		copy_paint(&ts->imapaint.paint, &ts->imapaint.paint);
+		BKE_paint_copy(&ts->imapaint.paint, &ts->imapaint.paint);
 		ts->imapaint.paintcursor = NULL;
 		ts->particle.paintcursor = NULL;
 	}
@@ -237,7 +237,7 @@ Scene *BKE_scene_copy(Scene *sce, int type)
 		if (sce->ed) {
 			scen->ed = MEM_callocN(sizeof(Editing), "addseq");
 			scen->ed->seqbasep = &scen->ed->seqbase;
-			seqbase_dupli_recursive(sce, scen, &scen->ed->seqbase, &sce->ed->seqbase, SEQ_DUPE_ALL);
+			BKE_sequence_base_dupli_recursive(sce, scen, &scen->ed->seqbase, &sce->ed->seqbase, SEQ_DUPE_ALL);
 		}
 	}
 
@@ -294,22 +294,22 @@ void BKE_scene_free(Scene *sce)
 	
 	if (sce->toolsettings) {
 		if (sce->toolsettings->vpaint) {
-			free_paint(&sce->toolsettings->vpaint->paint);
+			BKE_paint_free(&sce->toolsettings->vpaint->paint);
 			MEM_freeN(sce->toolsettings->vpaint);
 		}
 		if (sce->toolsettings->wpaint) {
-			free_paint(&sce->toolsettings->wpaint->paint);
+			BKE_paint_free(&sce->toolsettings->wpaint->paint);
 			MEM_freeN(sce->toolsettings->wpaint);
 		}
 		if (sce->toolsettings->sculpt) {
-			free_paint(&sce->toolsettings->sculpt->paint);
+			BKE_paint_free(&sce->toolsettings->sculpt->paint);
 			MEM_freeN(sce->toolsettings->sculpt);
 		}
 		if (sce->toolsettings->uvsculpt) {
-			free_paint(&sce->toolsettings->uvsculpt->paint);
+			BKE_paint_free(&sce->toolsettings->uvsculpt->paint);
 			MEM_freeN(sce->toolsettings->uvsculpt);
 		}
-		free_paint(&sce->toolsettings->imapaint.paint);
+		BKE_paint_free(&sce->toolsettings->imapaint.paint);
 
 		MEM_freeN(sce->toolsettings);
 		sce->toolsettings = NULL;	
@@ -550,14 +550,7 @@ Scene *BKE_scene_add(const char *name)
 
 Base *BKE_scene_base_find(Scene *scene, Object *ob)
 {
-	Base *base;
-	
-	base = scene->base.first;
-	while (base) {
-		if (base->object == ob) return base;
-		base = base->next;
-	}
-	return NULL;
+	return BLI_findptr(&scene->base, ob, offsetof(Base, object));
 }
 
 void BKE_scene_set_background(Main *bmain, Scene *scene)
@@ -582,10 +575,10 @@ void BKE_scene_set_background(Main *bmain, Scene *scene)
 
 	/* group flags again */
 	for (group = bmain->group.first; group; group = group->id.next) {
-		go = group->gobject.first;
-		while (go) {
-			if (go->ob) go->ob->flag |= OB_FROMGROUP;
-			go = go->next;
+		for (go = group->gobject.first; go; go = go->next) {
+			if (go->ob) {
+				go->ob->flag |= OB_FROMGROUP;
+			}
 		}
 	}
 
@@ -639,7 +632,7 @@ void BKE_scene_unlink(Main *bmain, Scene *sce, Scene *newsce)
 			sce1->set = NULL;
 	
 	/* check all sequences */
-	clear_scene_in_allseqs(bmain, sce);
+	BKE_sequencer_clear_scene_in_allseqs(bmain, sce);
 
 	/* check render layer nodes in other scenes */
 	clear_scene_in_nodes(bmain, sce);
@@ -1018,6 +1011,11 @@ void BKE_scene_update_tagged(Main *bmain, Scene *scene)
 	DAG_ids_flush_tagged(bmain);
 
 	scene->physics_settings.quick_cache_step = 0;
+	
+	/* clear "LIB_DOIT" flag from all materials, to prevent infinite recursion problems later 
+	 * when trying to find materials with drivers that need evaluating [#32017] 
+	 */
+	tag_main_idcode(bmain, ID_MA, FALSE);
 
 	/* update all objects: drivers, matrices, displists, etc. flags set
 	 * by depgraph or manual, no layer check here, gets correct flushed

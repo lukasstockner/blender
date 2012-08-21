@@ -31,8 +31,6 @@
  *  \ingroup imbuf
  */
 
-
-#include "BLI_blenlib.h"
 #include "BLI_rand.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
@@ -199,7 +197,6 @@ void IMB_buffer_byte_from_float(uchar *rect_to, const float *rect_from,
 	BLI_assert(profile_to != IB_PROFILE_NONE);
 	BLI_assert(profile_from != IB_PROFILE_NONE);
 
-	BLI_init_srgb_conversion();
 	if (dither)
 		di = create_dither_context(width, dither);
 
@@ -334,8 +331,6 @@ void IMB_buffer_float_from_byte(float *rect_to, const uchar *rect_from,
 	/* we need valid profiles */
 	BLI_assert(profile_to != IB_PROFILE_NONE);
 	BLI_assert(profile_from != IB_PROFILE_NONE);
-
-	BLI_init_srgb_conversion();
 
 	/* RGBA input */
 	for (y = 0; y < height; y++) {
@@ -755,7 +750,7 @@ void IMB_buffer_float_clamp(float *buf, int width, int height)
 {
 	int i, total = width * height * 4;
 	for (i = 0; i < total; i++) {
-		buf[i] = MIN2(1.0, buf[i]);
+		buf[i] = minf(1.0, buf[i]);
 	}
 }
 

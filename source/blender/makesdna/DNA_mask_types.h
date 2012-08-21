@@ -141,7 +141,8 @@ typedef struct MaskLayer {
 /* reserve (1 << 0) for SELECT */
 enum {
 	MASK_SPLINE_CYCLIC  = (1 << 1),
-	MASK_SPLINE_NOFILL    = (1 << 2)
+	MASK_SPLINE_NOFILL  = (1 << 2),
+	MASK_SPLINE_NOINTERSECT = (1 << 3)
 };
 
 /* MaskSpline->weight_interp */
@@ -167,12 +168,14 @@ enum {
 
 /* masklay->blend */
 enum {
-	MASK_BLEND_ADD      = 0,
-	MASK_BLEND_SUBTRACT = 1,
-	MASK_BLEND_LIGHTEN  = 2,
-	MASK_BLEND_DARKEN   = 3,
-	MASK_BLEND_MUL      = 4,
-	MASK_BLEND_REPLACE  = 5,
+	MASK_BLEND_ADD         = 0,
+	MASK_BLEND_SUBTRACT    = 1,
+	MASK_BLEND_LIGHTEN     = 2,
+	MASK_BLEND_DARKEN      = 3,
+	MASK_BLEND_MUL         = 4,
+	MASK_BLEND_REPLACE     = 5,
+	MASK_BLEND_DIFFERENCE  = 6,
+	MASK_BLEND_MERGE       = 7
 };
 
 /* masklay->blend_flag */

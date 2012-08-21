@@ -40,23 +40,25 @@
 #include "BLI_math.h"
 
 #include "DNA_mask_types.h"
+#include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_tracking_types.h"
+#include "DNA_sequence_types.h"
 
 #include "BKE_curve.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_mask.h"
+#include "BKE_node.h"
+#include "BKE_sequencer.h"
 #include "BKE_tracking.h"
 #include "BKE_movieclip.h"
 #include "BKE_utildefines.h"
-
-#include "raskter.h"
 
 static MaskSplinePoint *mask_spline_point_next(MaskSpline *spline, MaskSplinePoint *points_array, MaskSplinePoint *point)
 {
@@ -110,7 +112,7 @@ static BezTriple *mask_spline_point_prev_bezt(MaskSpline *spline, MaskSplinePoin
 		if (spline->flag & MASK_SPLINE_CYCLIC) {
 			return &(points_array[0].bezt);
 		}
-		else  {
+		else {
 			return NULL;
 		}
 	}
@@ -156,6 +158,7 @@ MaskLayer *BKE_mask_layer_new(Mask *mask, const char *name)
 
 	mask->masklay_tot++;
 
+	masklay->blend = MASK_BLEND_MERGE;
 	masklay->alpha = 1.0f;
 
 	return masklay;
@@ -188,28 +191,48 @@ void BKE_mask_layer_unique_name(Mask *mask, MaskLayer *masklay)
 	BLI_uniquename(&mask->masklayers, masklay, "MaskLayer", '.', offsetof(MaskLayer, name), sizeof(masklay->name));
 }
 
-MaskLayer *BKE_mask_layer_copy(MaskLayer *layer)
+MaskLayer *BKE_mask_layer_copy(MaskLayer *masklay)
 {
-	MaskLayer *layer_new;
+	MaskLayer *masklay_new;
 	MaskSpline *spline;
 
-	layer_new = MEM_callocN(sizeof(MaskLayer), "new mask layer");
+	masklay_new = MEM_callocN(sizeof(MaskLayer), "new mask layer");
 
-	BLI_strncpy(layer_new->name, layer->name, sizeof(layer_new->name));
+	BLI_strncpy(masklay_new->name, masklay->name, sizeof(masklay_new->name));
 
-	layer_new->alpha = layer->alpha;
-	layer_new->blend = layer->blend;
-	layer_new->blend_flag = layer->blend_flag;
-	layer_new->flag = layer->flag;
-	layer_new->restrictflag = layer->restrictflag;
+	masklay_new->alpha = masklay->alpha;
+	masklay_new->blend = masklay->blend;
+	masklay_new->blend_flag = masklay->blend_flag;
+	masklay_new->flag = masklay->flag;
+	masklay_new->restrictflag = masklay->restrictflag;
 
-	for (spline = layer->splines.first; spline; spline = spline->next) {
+	for (spline = masklay->splines.first; spline; spline = spline->next) {
 		MaskSpline *spline_new = BKE_mask_spline_copy(spline);
 
-		BLI_addtail(&layer_new->splines, spline_new);
+		BLI_addtail(&masklay_new->splines, spline_new);
 	}
 
-	return layer_new;
+	/* correct animation */
+	if (masklay->splines_shapes.first) {
+		MaskLayerShape *masklay_shape;
+		MaskLayerShape *masklay_shape_new;
+
+		for (masklay_shape = masklay->splines_shapes.first;
+		     masklay_shape;
+		     masklay_shape = masklay_shape->next)
+		{
+			masklay_shape_new = MEM_callocN(sizeof(MaskLayerShape), "new mask layer shape");
+
+			masklay_shape_new->data = MEM_dupallocN(masklay_shape->data);
+			masklay_shape_new->tot_vert = masklay_shape->tot_vert;
+			masklay_shape_new->flag = masklay_shape->flag;
+			masklay_shape_new->frame = masklay_shape->frame;
+
+			BLI_addtail(&masklay_new->splines_shapes, masklay_shape_new);
+		}
+	}
+
+	return masklay_new;
 }
 
 void BKE_mask_layer_copy_list(ListBase *masklayers_new, ListBase *masklayers)
@@ -246,10 +269,10 @@ MaskSpline *BKE_mask_spline_add(MaskLayer *masklay)
 	return spline;
 }
 
-int BKE_mask_spline_resolution(MaskSpline *spline, int width, int height)
+unsigned int BKE_mask_spline_resolution(MaskSpline *spline, int width, int height)
 {
 	float max_segment = 0.01f;
-	int i, resol = 1;
+	unsigned int i, resol = 1;
 
 	if (width != 0 && height != 0) {
 		if (width >= height)
@@ -262,7 +285,7 @@ int BKE_mask_spline_resolution(MaskSpline *spline, int width, int height)
 		MaskSplinePoint *point = &spline->points[i];
 		BezTriple *bezt, *bezt_next;
 		float a, b, c, len;
-		int cur_resol;
+		unsigned int cur_resol;
 
 		bezt = &point->bezt;
 		bezt_next = mask_spline_point_next_bezt(spline, spline->points, point);
@@ -279,17 +302,26 @@ int BKE_mask_spline_resolution(MaskSpline *spline, int width, int height)
 		cur_resol = len / max_segment;
 
 		resol = MAX2(resol, cur_resol);
+
+		if (resol >= MASK_RESOL_MAX) {
+			break;
+		}
 	}
 
-	return resol;
+	return CLAMPIS(resol, 1, MASK_RESOL_MAX);
 }
 
-int BKE_mask_spline_feather_resolution(MaskSpline *spline, int width, int height)
+unsigned int BKE_mask_spline_feather_resolution(MaskSpline *spline, int width, int height)
 {
 	const float max_segment = 0.005;
-	int resol = BKE_mask_spline_resolution(spline, width, height);
+	unsigned int resol = BKE_mask_spline_resolution(spline, width, height);
 	float max_jump = 0.0f;
 	int i;
+
+	/* avoid checking the featrher if we already hit the maximum value */
+	if (resol >= MASK_RESOL_MAX) {
+		return MASK_RESOL_MAX;
+	}
 
 	for (i = 0; i < spline->tot_point; i++) {
 		MaskSplinePoint *point = &spline->points[i];
@@ -300,9 +332,16 @@ int BKE_mask_spline_feather_resolution(MaskSpline *spline, int width, int height
 		prev_w = point->bezt.weight;
 
 		for (j = 0; j < point->tot_uw; j++) {
-			float jump = fabsf((point->uw[j].w - prev_w) / (point->uw[j].u - prev_u));
+			const float w_diff = (point->uw[j].w - prev_w);
+			const float u_diff = (point->uw[j].u - prev_u);
 
-			max_jump = MAX2(max_jump, jump);
+			/* avoid divide by zero and very high values,
+			 * though these get clamped eventually */
+			if (u_diff > FLT_EPSILON) {
+				float jump = fabsf(w_diff / u_diff);
+
+				max_jump = MAX2(max_jump, jump);
+			}
 
 			prev_u = point->uw[j].u;
 			prev_w = point->uw[j].w;
@@ -311,29 +350,22 @@ int BKE_mask_spline_feather_resolution(MaskSpline *spline, int width, int height
 
 	resol += max_jump / max_segment;
 
-	return resol;
+	return CLAMPIS(resol, 1, MASK_RESOL_MAX);
 }
 
-int BKE_mask_spline_differentiate_calc_total(const MaskSpline *spline, const int resol)
+int BKE_mask_spline_differentiate_calc_total(const MaskSpline *spline, const unsigned int resol)
 {
-	int len;
-
-	/* count */
-	len = (spline->tot_point - 1) * resol;
-
 	if (spline->flag & MASK_SPLINE_CYCLIC) {
-		len += resol;
+		return spline->tot_point * resol;
 	}
 	else {
-		len++;
+		return ((spline->tot_point - 1) * resol) + 1;
 	}
-
-	return len;
 }
 
 float (*BKE_mask_spline_differentiate_with_resolution_ex(MaskSpline *spline,
                                                          int *tot_diff_point,
-                                                         const int resol
+                                                         const unsigned int resol
                                                          ))[2]
 {
 	MaskSplinePoint *points_array = BKE_mask_spline_point_array(spline);
@@ -394,7 +426,7 @@ float (*BKE_mask_spline_differentiate_with_resolution(MaskSpline *spline, int wi
                                                       int *tot_diff_point
                                                       ))[2]
 {
-	int resol = BKE_mask_spline_resolution(spline, width, height);
+	int unsigned resol = BKE_mask_spline_resolution(spline, width, height);
 
 	return BKE_mask_spline_differentiate_with_resolution_ex(spline, tot_diff_point, resol);
 }
@@ -453,14 +485,29 @@ static void feather_bucket_check_intersect(float (*feather_points)[2], int tot_f
 			continue;
 
 		if (isect_seg_seg_v2(v1, v2, v3, v4)) {
-			int k, len;
+			int k;
 			float p[2];
+			float min_a[2], max_a[2];
+			float min_b[2], max_b[2];
 
 			isect_seg_seg_v2_point(v1, v2, v3, v4, p);
 
-			/* TODO: for now simply choose the shortest loop, could be made smarter in some way */
-			len = cur_a - check_b;
-			if (len < tot_feather_point - len) {
+			INIT_MINMAX2(min_a, max_a);
+			INIT_MINMAX2(min_b, max_b);
+
+			/* collapse loop with smaller AABB */
+			for (k = 0; k < tot_feather_point; k++) {
+				if (k >= check_b && k <= cur_a) {
+					DO_MINMAX2(feather_points[k], min_a, max_a);
+				}
+				else {
+					DO_MINMAX2(feather_points[k], min_b, max_b);
+				}
+			}
+
+			if (max_a[0] - min_a[0] < max_b[0] - min_b[0] ||
+			    max_a[1] - min_a[1] < max_b[1] - min_b[1])
+			{
 				for (k = check_b; k <= cur_a; k++) {
 					copy_v2_v2(feather_points[k], p);
 				}
@@ -512,7 +559,7 @@ static void feather_bucket_get_diagonal(FeatherEdgesBucket *buckets, int start_b
 	*diagonal_bucket_b_r = &buckets[diagonal_bucket_b_index];
 }
 
-static void spline_feather_collapse_inner_loops(float (*feather_points)[2], int tot_feather_point)
+void BKE_mask_spline_feather_collapse_inner_loops(MaskSpline *spline, float (*feather_points)[2], const int tot_feather_point)
 {
 #define BUCKET_INDEX(co) \
 	feather_bucket_index_from_coord(co, min, bucket_scale, buckets_per_side)
@@ -541,8 +588,14 @@ static void spline_feather_collapse_inner_loops(float (*feather_points)[2], int 
 		int next = i + 1;
 		float delta;
 
-		if (next == tot_feather_point)
-			next = 0;
+		DO_MINMAX2(feather_points[i], min, max);
+
+		if (next == tot_feather_point) {
+			if (spline->flag & MASK_SPLINE_CYCLIC)
+				next = 0;
+			else
+				break;
+		}
 
 		delta = fabsf(feather_points[i][0] - feather_points[next][0]);
 		if (delta > max_delta_x)
@@ -551,19 +604,37 @@ static void spline_feather_collapse_inner_loops(float (*feather_points)[2], int 
 		delta = fabsf(feather_points[i][1] - feather_points[next][1]);
 		if (delta > max_delta_y)
 			max_delta_y = delta;
+	}
 
-		DO_MINMAX2(feather_points[i], min, max);
+	/* prevent divisionsby zero by ensuring bounding box is not collapsed */
+	if (max[0] - min[0] < FLT_EPSILON) {
+		max[0] += 0.01f;
+		min[0] -= 0.01f;
+	}
+
+	if (max[1] - min[1] < FLT_EPSILON) {
+		max[1] += 0.01f;
+		min[1] -= 0.01f;
 	}
 
 	/* use dynamically calculated buckets per side, so we likely wouldn't
 	 * run into a situation when segment doesn't fit two buckets which is
 	 * pain collecting candidates for intersection
 	 */
+
 	max_delta_x /= max[0] - min[0];
 	max_delta_y /= max[1] - min[1];
+
 	max_delta = MAX2(max_delta_x, max_delta_y);
 
 	buckets_per_side = MIN2(512, 0.9f / max_delta);
+
+	if (buckets_per_side == 0) {
+		/* happens when some segment fills the whole bounding box across some of dimension */
+
+		buckets_per_side = 1;
+	}
+
 	tot_bucket = buckets_per_side * buckets_per_side;
 	bucket_size = 1.0f / buckets_per_side;
 
@@ -578,8 +649,12 @@ static void spline_feather_collapse_inner_loops(float (*feather_points)[2], int 
 		int start = i, end = i + 1;
 		int start_bucket_index, end_bucket_index;
 
-		if (end == tot_feather_point)
-			end = 0;
+		if (end == tot_feather_point) {
+			if (spline->flag & MASK_SPLINE_CYCLIC)
+				end = 0;
+			else
+				break;
+		}
 
 		start_bucket_index = BUCKET_INDEX(feather_points[start]);
 		end_bucket_index = BUCKET_INDEX(feather_points[end]);
@@ -646,8 +721,8 @@ static void spline_feather_collapse_inner_loops(float (*feather_points)[2], int 
  */
 float (*BKE_mask_spline_feather_differentiated_points_with_resolution_ex(MaskSpline *spline,
                                                                          int *tot_feather_point,
-                                                                         const int resol,
-                                                                         const int do_collapse
+                                                                         const unsigned int resol,
+                                                                         const int do_feather_isect
                                                                          ))[2]
 {
 	MaskSplinePoint *points_array = BKE_mask_spline_point_array(spline);
@@ -709,9 +784,8 @@ float (*BKE_mask_spline_feather_differentiated_points_with_resolution_ex(MaskSpl
 
 	*tot_feather_point = tot;
 
-	/* this is slow! - don't do on draw */
-	if (do_collapse) {
-		spline_feather_collapse_inner_loops(feather, tot);
+	if ((spline->flag & MASK_SPLINE_NOINTERSECT) && do_feather_isect) {
+		BKE_mask_spline_feather_collapse_inner_loops(spline, feather, tot);
 	}
 
 	return feather;
@@ -720,9 +794,9 @@ float (*BKE_mask_spline_feather_differentiated_points_with_resolution_ex(MaskSpl
 float (*BKE_mask_spline_feather_differentiated_points_with_resolution(MaskSpline *spline, int width, int height,
                                                                       int *tot_feather_point))[2]
 {
-	int resol = BKE_mask_spline_feather_resolution(spline, width, height);
+	unsigned int resol = BKE_mask_spline_feather_resolution(spline, width, height);
 
-	return BKE_mask_spline_feather_differentiated_points_with_resolution_ex(spline, tot_feather_point, resol, FALSE);
+	return BKE_mask_spline_feather_differentiated_points_with_resolution_ex(spline, tot_feather_point, resol, TRUE);
 }
 
 float (*BKE_mask_spline_feather_differentiated_points(MaskSpline *spline, int *tot_feather_point))[2]
@@ -997,10 +1071,11 @@ void BKE_mask_point_set_handle(MaskSplinePoint *point, float loc[2], int keep_di
 
 float *BKE_mask_point_segment_feather_diff_with_resolution(MaskSpline *spline, MaskSplinePoint *point,
                                                            int width, int height,
-                                                           int *tot_feather_point)
+                                                           unsigned int *tot_feather_point)
 {
 	float *feather, *fp;
-	int i, resol = BKE_mask_spline_feather_resolution(spline, width, height);
+	unsigned int resol = BKE_mask_spline_feather_resolution(spline, width, height);
+	unsigned int i;
 
 	feather = fp = MEM_callocN(2 * resol * sizeof(float), "mask point spline feather diff points");
 
@@ -1021,13 +1096,13 @@ float *BKE_mask_point_segment_feather_diff_with_resolution(MaskSpline *spline, M
 	return feather;
 }
 
-float *BKE_mask_point_segment_feather_diff(MaskSpline *spline, MaskSplinePoint *point, int *tot_feather_point)
+float *BKE_mask_point_segment_feather_diff(MaskSpline *spline, MaskSplinePoint *point, unsigned int *tot_feather_point)
 {
 	return BKE_mask_point_segment_feather_diff_with_resolution(spline, point, 0, 0, tot_feather_point);
 }
 
 float *BKE_mask_point_segment_diff_with_resolution(MaskSpline *spline, MaskSplinePoint *point,
-                                                   int width, int height, int *tot_diff_point)
+                                                   int width, int height, unsigned int *tot_diff_point)
 {
 	MaskSplinePoint *points_array = BKE_mask_spline_point_array_from_point(spline, point);
 
@@ -1056,7 +1131,7 @@ float *BKE_mask_point_segment_diff_with_resolution(MaskSpline *spline, MaskSplin
 	return diff_points;
 }
 
-float *BKE_mask_point_segment_diff(MaskSpline *spline, MaskSplinePoint *point, int *tot_diff_point)
+float *BKE_mask_point_segment_diff(MaskSpline *spline, MaskSplinePoint *point, unsigned int *tot_diff_point)
 {
 	return BKE_mask_point_segment_diff_with_resolution(spline, point, 0, 0, tot_diff_point);
 }
@@ -1230,12 +1305,13 @@ MaskSplinePointUW *BKE_mask_point_sort_uw(MaskSplinePoint *point, MaskSplinePoin
 void BKE_mask_point_add_uw(MaskSplinePoint *point, float u, float w)
 {
 	if (!point->uw)
-		point->uw = MEM_callocN(sizeof(*point->uw), "mask point uw");
+		point->uw = MEM_mallocN(sizeof(*point->uw), "mask point uw");
 	else
 		point->uw = MEM_reallocN(point->uw, (point->tot_uw + 1) * sizeof(*point->uw));
 
 	point->uw[point->tot_uw].u = u;
 	point->uw[point->tot_uw].w = w;
+	point->uw[point->tot_uw].flag = 0;
 
 	point->tot_uw++;
 
@@ -1280,6 +1356,8 @@ static Mask *mask_alloc(const char *name)
 
 	mask = BKE_libblock_alloc(&G.main->mask, ID_MSK, name);
 
+	mask->id.flag |= LIB_FAKEUSER;
+
 	return mask;
 }
 
@@ -1300,6 +1378,49 @@ Mask *BKE_mask_new(const char *name)
 	mask->efra = 100;
 
 	return mask;
+}
+
+Mask *BKE_mask_copy_nolib(Mask *mask)
+{
+	Mask *mask_new;
+
+	mask_new = MEM_dupallocN(mask);
+
+	/*take care here! - we may want to copy anim data  */
+	mask_new->adt = NULL;
+
+	mask_new->masklayers.first = NULL;
+	mask_new->masklayers.last = NULL;
+
+	BKE_mask_layer_copy_list(&mask_new->masklayers, &mask->masklayers);
+
+	/* enable fake user by default */
+	if (!(mask_new->id.flag & LIB_FAKEUSER)) {
+		mask_new->id.flag |= LIB_FAKEUSER;
+		mask_new->id.us++;
+	}
+
+	return mask_new;
+}
+
+Mask *BKE_mask_copy(Mask *mask)
+{
+	Mask *mask_new;
+
+	mask_new = BKE_libblock_copy(&mask->id);
+
+	mask_new->masklayers.first = NULL;
+	mask_new->masklayers.last = NULL;
+
+	BKE_mask_layer_copy_list(&mask_new->masklayers, &mask->masklayers);
+
+	/* enable fake user by default */
+	if (!(mask_new->id.flag & LIB_FAKEUSER)) {
+		mask_new->id.flag |= LIB_FAKEUSER;
+		mask_new->id.us++;
+	}
+
+	return mask_new;
 }
 
 void BKE_mask_point_free(MaskSplinePoint *point)
@@ -1381,7 +1502,9 @@ MaskLayerShape *BKE_mask_layer_shape_alloc(MaskLayer *masklay, const int frame)
 
 void BKE_mask_layer_shape_free(MaskLayerShape *masklay_shape)
 {
-	MEM_freeN(masklay_shape->data);
+	if (masklay_shape->data) {
+		MEM_freeN(masklay_shape->data);
+	}
 
 	MEM_freeN(masklay_shape);
 }
@@ -1444,69 +1567,142 @@ void BKE_mask_free(Mask *mask)
 	BKE_mask_layer_free_list(&mask->masklayers);
 }
 
+
+static void ntree_unlink_mask_cb(void *calldata, struct ID *UNUSED(owner_id), struct bNodeTree *ntree)
+{
+	ID *id = (ID *)calldata;
+	bNode *node;
+
+	for (node = ntree->nodes.first; node; node = node->next) {
+		if (node->id == id) {
+			node->id = NULL;
+		}
+	}
+}
+
 void BKE_mask_unlink(Main *bmain, Mask *mask)
 {
 	bScreen *scr;
 	ScrArea *area;
 	SpaceLink *sl;
+	Scene *scene;
 
 	for (scr = bmain->screen.first; scr; scr = scr->id.next) {
 		for (area = scr->areabase.first; area; area = area->next) {
 			for (sl = area->spacedata.first; sl; sl = sl->next) {
-				if (sl->spacetype == SPACE_CLIP) {
-					SpaceClip *sc = (SpaceClip *) sl;
+				switch (sl->spacetype) {
+					case SPACE_CLIP:
+					{
+						SpaceClip *sc = (SpaceClip *)sl;
 
-					if (sc->mask == mask)
-						sc->mask = NULL;
+						if (sc->mask_info.mask == mask) {
+							sc->mask_info.mask = NULL;
+						}
+						break;
+					}
+					case SPACE_IMAGE:
+					{
+						SpaceImage *sima = (SpaceImage *)sl;
+
+						if (sima->mask_info.mask == mask) {
+							sima->mask_info.mask = NULL;
+						}
+						break;
+					}
 				}
 			}
 		}
 	}
 
-	mask->id.us = 0;
+	for (scene = bmain->scene.first; scene; scene = scene->id.next) {
+		if (scene->ed) {
+			Sequence *seq;
+
+			SEQ_BEGIN (scene->ed, seq)
+			{
+				if (seq->mask == mask) {
+					seq->mask = NULL;
+				}
+			}
+			SEQ_END
+		}
+
+
+		if (scene->nodetree) {
+			bNode *node;
+			for (node = scene->nodetree->nodes.first; node; node = node->next) {
+				if (node->id == &mask->id) {
+					node->id = NULL;
+				}
+			}
+		}
+	}
+
+	{
+		bNodeTreeType *treetype = ntreeGetType(NTREE_COMPOSIT);
+		treetype->foreach_nodetree(bmain, (void *)mask, &ntree_unlink_mask_cb);
+	}
+
+	BKE_libblock_free(&bmain->mask, mask);
 }
 
+void BKE_mask_coord_from_frame(float r_co[2], const float co[2], const float frame_size[2])
+{
+	if (frame_size[0] == frame_size[1]) {
+		r_co[0] = co[0];
+		r_co[1] = co[1];
+	}
+	else if (frame_size[0] < frame_size[1]) {
+		r_co[0] = ((co[0] - 0.5f) * (frame_size[0] / frame_size[1])) + 0.5f;
+		r_co[1] = co[1];
+	}
+	else { /* (frame_size[0] > frame_size[1]) */
+		r_co[0] = co[0];
+		r_co[1] = ((co[1] - 0.5f) * (frame_size[1] / frame_size[0])) + 0.5f;
+	}
+}
 void BKE_mask_coord_from_movieclip(MovieClip *clip, MovieClipUser *user, float r_co[2], const float co[2])
 {
 	int width, height;
+	float frame_size[2];
 
 	/* scaling for the clip */
 	BKE_movieclip_get_size(clip, user, &width, &height);
 
-	if (width == height) {
-		r_co[0] = co[0];
-		r_co[1] = co[1];
-	}
-	else if (width < height) {
-		r_co[0] = ((co[0] - 0.5f) * ((float)width / (float)height)) + 0.5f;
-		r_co[1] = co[1];
-	}
-	else { /* (width > height) */
-		r_co[0] = co[0];
-		r_co[1] = ((co[1] - 0.5f) * ((float)height / (float)width)) + 0.5f;
-	}
+	frame_size[0] = (float)width;
+	frame_size[1] = (float)height;
+
+	BKE_mask_coord_from_frame(r_co, co, frame_size);
 }
 
 /* as above but divide */
+void BKE_mask_coord_to_frame(float r_co[2], const float co[2], const float frame_size[2])
+{
+	if (frame_size[0] == frame_size[1]) {
+		r_co[0] = co[0];
+		r_co[1] = co[1];
+	}
+	else if (frame_size[0] < frame_size[1]) {
+		r_co[0] = ((co[0] - 0.5f) / (frame_size[0] / frame_size[1])) + 0.5f;
+		r_co[1] = co[1];
+	}
+	else { /* (frame_size[0] > frame_size[1]) */
+		r_co[0] = co[0];
+		r_co[1] = ((co[1] - 0.5f) / (frame_size[1] / frame_size[0])) + 0.5f;
+	}
+}
 void BKE_mask_coord_to_movieclip(MovieClip *clip, MovieClipUser *user, float r_co[2], const float co[2])
 {
 	int width, height;
+	float frame_size[2];
 
 	/* scaling for the clip */
 	BKE_movieclip_get_size(clip, user, &width, &height);
 
-	if (width == height) {
-		r_co[0] = co[0];
-		r_co[1] = co[1];
-	}
-	else if (width < height) {
-		r_co[0] = ((co[0] - 0.5f) / ((float)width / (float)height)) + 0.5f;
-		r_co[1] = co[1];
-	}
-	else { /* (width > height) */
-		r_co[0] = co[0];
-		r_co[1] = ((co[1] - 0.5f) / ((float)height / (float)width)) + 0.5f;
-	}
+	frame_size[0] = (float)width;
+	frame_size[1] = (float)height;
+
+	BKE_mask_coord_to_frame(r_co, co, frame_size);
 }
 
 static int BKE_mask_evaluate_parent(MaskParent *parent, float ctime, float r_co[2])
@@ -1528,9 +1724,8 @@ static int BKE_mask_evaluate_parent(MaskParent *parent, float ctime, float r_co[
 				user.framenr = ctime;
 
 				if (track) {
-					MovieTrackingMarker *marker = BKE_tracking_marker_get(track, clip_framenr);
 					float marker_pos_ofs[2];
-					add_v2_v2v2(marker_pos_ofs, marker->pos, track->offset);
+					BKE_tracking_marker_get_subframe_position(track, clip_framenr, marker_pos_ofs);
 					BKE_mask_coord_from_movieclip(clip, &user, r_co, marker_pos_ofs);
 
 					return TRUE;
@@ -2416,255 +2611,7 @@ void BKE_mask_layer_shape_changed_remove(MaskLayer *masklay, int index, int coun
 	}
 }
 
-/* local functions */
-static void invert_vn_vn(float *array, const int size)
-{
-	float *arr = array + (size - 1);
-	int i = size;
-	while (i--) {
-		*(arr) = 1.0f - *(arr);
-		arr--;
-	}
-}
-
-static void m_invert_vn_vn(float *array, const float f, const int size)
-{
-	float *arr = array + (size - 1);
-	int i = size;
-	while (i--) {
-		*(arr) = 1.0f - (*(arr) * f);
-		arr--;
-	}
-}
-
-static void clamp_vn_vn(float *array, const int size)
-{
-	float *arr = array + (size - 1);
-
-	int i = size;
-	while (i--) {
-		if      (*arr < 0.0f) *arr = 0.0f;
-		else if (*arr > 1.0f) *arr = 1.0f;
-		arr--;
-	}
-}
-
 int BKE_mask_get_duration(Mask *mask)
 {
-	return MAX2(1, mask->efra - mask->sfra);
-}
-
-/* rasterization */
-void BKE_mask_rasterize_layers(ListBase *masklayers, int width, int height, float *buffer,
-                               const short do_aspect_correct, const short do_mask_aa,
-                               const short do_feather)
-{
-	MaskLayer *masklay;
-
-	/* temp blending buffer */
-	const int buffer_size = width * height;
-	float *buffer_tmp = MEM_mallocN(sizeof(float) * buffer_size, __func__);
-
-	for (masklay = masklayers->first; masklay; masklay = masklay->next) {
-		MaskSpline *spline;
-		float alpha;
-
-		if (masklay->restrictflag & MASK_RESTRICT_RENDER) {
-			continue;
-		}
-
-		memset(buffer_tmp, 0, sizeof(float) * buffer_size);
-
-		for (spline = masklay->splines.first; spline; spline = spline->next) {
-			float (*diff_points)[2];
-			int tot_diff_point;
-
-			float (*diff_feather_points)[2];
-			int tot_diff_feather_points;
-
-			diff_points = BKE_mask_spline_differentiate_with_resolution(spline, width, height,
-			                                                            &tot_diff_point);
-
-			if (tot_diff_point) {
-				if (do_feather) {
-					diff_feather_points =
-					        BKE_mask_spline_feather_differentiated_points_with_resolution(spline, width, height,
-					                                                                      &tot_diff_feather_points);
-				}
-				else {
-					tot_diff_feather_points = 0;
-					diff_feather_points = NULL;
-				}
-
-				if (do_aspect_correct) {
-					if (width != height) {
-						float *fp;
-						float *ffp;
-						int i;
-						float asp;
-
-						if (width < height) {
-							fp = &diff_points[0][0];
-							ffp = tot_diff_feather_points ? &diff_feather_points[0][0] : NULL;
-							asp = (float)width / (float)height;
-						}
-						else {
-							fp = &diff_points[0][1];
-							ffp = tot_diff_feather_points ? &diff_feather_points[0][1] : NULL;
-							asp = (float)height / (float)width;
-						}
-
-						for (i = 0; i < tot_diff_point; i++, fp += 2) {
-							(*fp) = (((*fp) - 0.5f) / asp) + 0.5f;
-						}
-
-						if (tot_diff_feather_points) {
-							for (i = 0; i < tot_diff_feather_points; i++, ffp += 2) {
-								(*ffp) = (((*ffp) - 0.5f) / asp) + 0.5f;
-							}
-						}
-					}
-				}
-
-				if (tot_diff_point) {
-					PLX_raskterize(diff_points, tot_diff_point,
-                                   buffer_tmp, width, height,do_mask_aa);
-
-					if (tot_diff_feather_points) {
-						PLX_raskterize_feather(diff_points, tot_diff_point,
-						                       diff_feather_points, tot_diff_feather_points,
-						                       buffer_tmp, width, height);
-						MEM_freeN(diff_feather_points);
-					}
-
-					MEM_freeN(diff_points);
-				}
-			}
-		}
-
-		/* blend with original */
-		if (masklay->blend_flag & MASK_BLENDFLAG_INVERT) {
-			/* apply alpha multiply before inverting */
-			if (masklay->alpha != 1.0f) {
-				m_invert_vn_vn(buffer_tmp, masklay->alpha, buffer_size);
-			}
-			else {
-				invert_vn_vn(buffer_tmp, buffer_size);
-			}
-
-			alpha = 1.0f;
-		}
-		else {
-			alpha = masklay->alpha;
-		}
-
-		switch (masklay->blend) {
-			case MASK_BLEND_SUBTRACT:
-			{
-				if (alpha == 1.0f) {
-					sub_vn_vn(buffer, buffer_tmp, buffer_size);
-				}
-				else {
-					msub_vn_vn(buffer, buffer_tmp, alpha, buffer_size);
-				}
-				break;
-			}
-			case MASK_BLEND_ADD:
-			default:
-			{
-				if (alpha == 1.0f) {
-					add_vn_vn(buffer, buffer_tmp, buffer_size);
-				}
-				else {
-					madd_vn_vn(buffer, buffer_tmp, alpha, buffer_size);
-				}
-				break;
-			}
-		}
-
-		if(do_mask_aa){
-			//PLX_antialias_buffer(buffer,width,height);
-		}
-		/* clamp at the end */
-		clamp_vn_vn(buffer, buffer_size);
-	}
-	MEM_freeN(buffer_tmp);
-}
-
-#ifdef __PLX_RASKTER_MT__
-void BKE_mask_init_layers(Mask *mask, struct layer_init_data *mlayer_data, int width, int height, const short do_aspect_correct){
-	MaskLayer *masklay;
-	int numLayers=0;
-	int currLayer=0;
-	for (masklay = mask->masklayers->first; masklay; masklay = masklay->next) {
-		numLayers++;
-	}
-	mlayer_data = MEM_mallocN(sizeof(struct layer_init_data) * numLayers, __func__); //size correct?
-	
-	
-	for (masklay = mask->masklayers->first; masklay; masklay = masklay->next) {
-		MaskSpline *spline;
-		for (spline = masklay->splines.first; spline; spline = spline->next) {
-			float (*diff_points)[2];
-			int tot_diff_point;
-
-			float (*diff_feather_points)[2];
-			int tot_diff_feather_points;
-
-			diff_points = BKE_mask_spline_differentiate_with_resolution(spline, width, height,
-			                                                            &tot_diff_point);
-
-			if (tot_diff_point) {
-				if (do_feather) {
-					diff_feather_points =
-					        BKE_mask_spline_feather_differentiated_points_with_resolution(spline, width, height,
-					                                                                      &tot_diff_feather_points);
-				}
-				else {
-					tot_diff_feather_points = 0;
-					diff_feather_points = NULL;
-				}
-
-				if (do_aspect_correct) {
-					if (width != height) {
-						float *fp;
-						float *ffp;
-						int i;
-						float asp;
-
-						if (width < height) {
-							fp = &diff_points[0][0];
-							ffp = tot_diff_feather_points ? &diff_feather_points[0][0] : NULL;
-							asp = (float)width / (float)height;
-						}
-						else {
-							fp = &diff_points[0][1];
-							ffp = tot_diff_feather_points ? &diff_feather_points[0][1] : NULL;
-							asp = (float)height / (float)width;
-						}
-
-						for (i = 0; i < tot_diff_point; i++, fp += 2) {
-							(*fp) = (((*fp) - 0.5f) / asp) + 0.5f;
-						}
-
-						if (tot_diff_feather_points) {
-							for (i = 0; i < tot_diff_feather_points; i++, ffp += 2) {
-								(*ffp) = (((*ffp) - 0.5f) / asp) + 0.5f;
-							}
-						}
-					}
-				}
-				PLX_init_base_data(mlayer_data[currLayer], diff_points, tot_diff_points, width, height);
-				currLayer++;
-			}
-		}
-	}
-}
-#endif
-
-void BKE_mask_rasterize(Mask *mask, int width, int height, float *buffer,
-                        const short do_aspect_correct, const short do_mask_aa,
-                        const short do_feather)
-{
-	BKE_mask_rasterize_layers(&mask->masklayers, width, height, buffer, do_aspect_correct, do_mask_aa, do_feather);
+	return maxi(1, mask->efra - mask->sfra);
 }

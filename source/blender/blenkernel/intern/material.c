@@ -494,6 +494,9 @@ short *give_totcolp(Object *ob)
 /* same as above but for ID's */
 Material ***give_matarar_id(ID *id)
 {
+	/* ensure we don't try get materials from non-obdata */
+	BLI_assert(OB_DATA_SUPPORT_ID(GS(id->name)));
+
 	switch (GS(id->name)) {
 		case ID_ME:
 			return &(((Mesh *)id)->mat);
@@ -510,6 +513,9 @@ Material ***give_matarar_id(ID *id)
 
 short *give_totcolp_id(ID *id)
 {
+	/* ensure we don't try get materials from non-obdata */
+	BLI_assert(OB_DATA_SUPPORT_ID(GS(id->name)));
+
 	switch (GS(id->name)) {
 		case ID_ME:
 			return &(((Mesh *)id)->totcol);
@@ -526,6 +532,9 @@ short *give_totcolp_id(ID *id)
 
 static void data_delete_material_index_id(ID *id, short index)
 {
+	/* ensure we don't try get materials from non-obdata */
+	BLI_assert(OB_DATA_SUPPORT_ID(GS(id->name)));
+
 	switch (GS(id->name)) {
 		case ID_ME:
 			BKE_mesh_delete_material_index((Mesh *)id, index);
@@ -765,11 +774,12 @@ void assign_material_id(ID *id, Material *ma, short act)
 	test_object_materials(id);
 }
 
-void assign_material(Object *ob, Material *ma, short act)
+void assign_material(Object *ob, Material *ma, short act, int assign_type)
 {
 	Material *mao, **matar, ***matarar;
 	char *matbits;
 	short *totcolp;
+	char bit = 0;
 
 	if (act > MAXMAT) return;
 	if (act < 1) act = 1;
@@ -796,8 +806,29 @@ void assign_material(Object *ob, Material *ma, short act)
 		*matarar = matar;
 		*totcolp = act;
 	}
-	
+
+	// Determine the object/mesh linking
+	if (assign_type == BKE_MAT_ASSIGN_USERPREF && ob->totcol && ob->actcol) {
+		/* copy from previous material */
+		bit = ob->matbits[ob->actcol - 1];
+	}
+	else {
+		switch (assign_type) {
+			case BKE_MAT_ASSIGN_OBDATA:
+				bit = 0;
+				break;
+			case BKE_MAT_ASSIGN_OBJECT:
+				bit = 1;
+				break;
+			case BKE_MAT_ASSIGN_USERPREF:
+			default:
+				bit = (U.flag & USER_MAT_ON_OB) ? 1 : 0;
+				break;
+		}
+	}
+
 	if (act > ob->totcol) {
+		/* Need more space in the material arrays */
 		matar = MEM_callocN(sizeof(void *) * act, "matarray2");
 		matbits = MEM_callocN(sizeof(char) * act, "matbits1");
 		if (ob->totcol) {
@@ -809,17 +840,12 @@ void assign_material(Object *ob, Material *ma, short act)
 		ob->mat = matar;
 		ob->matbits = matbits;
 		ob->totcol = act;
-
-		/* copy object/mesh linking, or assign based on userpref */
-		if (ob->actcol)
-			ob->matbits[act - 1] = ob->matbits[ob->actcol - 1];
-		else
-			ob->matbits[act - 1] = (U.flag & USER_MAT_ON_OB) ? 1 : 0;
 	}
 	
 	/* do it */
 
-	if (ob->matbits[act - 1]) {   /* in object */
+	ob->matbits[act - 1] = bit;
+	if (bit == 1) {   /* in object */
 		mao = ob->mat[act - 1];
 		if (mao) mao->id.us--;
 		ob->mat[act - 1] = ma;
@@ -845,7 +871,7 @@ void assign_matarar(struct Object *ob, struct Material ***matar, short totcol)
 
 	/* now we have the right number of slots */
 	for (i = 0; i < totcol; i++)
-		assign_material(ob, (*matar)[i], i + 1);
+		assign_material(ob, (*matar)[i], i + 1, BKE_MAT_ASSIGN_USERPREF);
 
 	if (actcol_orig > ob->totcol)
 		actcol_orig = ob->totcol;
@@ -879,7 +905,7 @@ int object_add_material_slot(Object *ob)
 	if (ob == NULL) return FALSE;
 	if (ob->totcol >= MAXMAT) return FALSE;
 	
-	assign_material(ob, NULL, ob->totcol + 1);
+	assign_material(ob, NULL, ob->totcol + 1, BKE_MAT_ASSIGN_USERPREF);
 	ob->actcol = ob->totcol;
 	return TRUE;
 }
@@ -1030,13 +1056,18 @@ static int material_in_nodetree(bNodeTree *ntree, Material *mat)
 	bNode *node;
 
 	for (node = ntree->nodes.first; node; node = node->next) {
-		if (node->id && GS(node->id->name) == ID_MA) {
-			if (node->id == (ID *)mat)
-				return 1;
+		if (node->id) {
+			if (GS(node->id->name) == ID_MA) {
+				if (node->id == (ID *)mat) {
+					return 1;
+				}
+			}
+			else if (node->type == NODE_GROUP) {
+				if (material_in_nodetree((bNodeTree *)node->id, mat)) {
+					return 1;
+				}
+			}
 		}
-		else if (node->type == NODE_GROUP)
-			if (material_in_nodetree((bNodeTree *)node->id, mat))
-				return 1;
 	}
 
 	return 0;
@@ -1056,28 +1087,24 @@ int material_in_material(Material *parmat, Material *mat)
 /* ****************** */
 
 /* Update drivers for materials in a nodetree */
-static void material_node_drivers_update(Scene *scene, bNodeTree *ntree, float ctime, Material *rootma)
+static void material_node_drivers_update(Scene *scene, bNodeTree *ntree, float ctime)
 {
 	bNode *node;
-	Material *ma;
 
 	/* nodetree itself */
 	if (ntree->adt && ntree->adt->drivers.first) {
 		BKE_animsys_evaluate_animdata(scene, &ntree->id, ntree->adt, ctime, ADT_RECALC_DRIVERS);
 	}
 	
-	/* nodes... */
+	/* nodes */
 	for (node = ntree->nodes.first; node; node = node->next) {
-		if (node->id && GS(node->id->name) == ID_MA) {
-			/* TODO: prevent infinite recursion here... */
-            ma = (Material *)node->id;
-            if (ma != rootma) {
-                material_drivers_update(scene, ma, ctime);
-            }
-		}
-		else if (node->type == NODE_GROUP && node->id) {
-			material_node_drivers_update(scene, (bNodeTree *)node->id,
-                                         ctime, rootma);
+		if (node->id) {
+			if (GS(node->id->name) == ID_MA) {
+				material_drivers_update(scene, (Material *)node->id, ctime);
+			}
+			else if (node->type == NODE_GROUP) {
+				material_node_drivers_update(scene, (bNodeTree *)node->id, ctime);
+			}
 		}
 	}
 }
@@ -1092,6 +1119,15 @@ void material_drivers_update(Scene *scene, Material *ma, float ctime)
 	//if (G.f & G_DEBUG)
 	//	printf("material_drivers_update(%s, %s)\n", scene->id.name, ma->id.name);
 	
+	/* Prevent infinite recursion by checking (and tagging the material) as having been visited already
+	 * (see BKE_scene_update_tagged()). This assumes ma->id.flag & LIB_DOIT isn't set by anything else
+	 * in the meantime... [#32017]
+	 */
+	if (ma->id.flag & LIB_DOIT)
+		return;
+	else
+		ma->id.flag |= LIB_DOIT;
+	
 	/* material itself */
 	if (ma->adt && ma->adt->drivers.first) {
 		BKE_animsys_evaluate_animdata(scene, &ma->id, ma->adt, ctime, ADT_RECALC_DRIVERS);
@@ -1099,7 +1135,7 @@ void material_drivers_update(Scene *scene, Material *ma, float ctime)
 	
 	/* nodes */
 	if (ma->nodetree) {
-		material_node_drivers_update(scene, ma->nodetree, ctime, ma);
+		material_node_drivers_update(scene, ma->nodetree, ctime);
 	}
 }
 	

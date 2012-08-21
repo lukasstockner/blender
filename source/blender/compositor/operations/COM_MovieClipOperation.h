@@ -25,7 +25,6 @@
 #define _COM_ImageOperation_h
 
 #include "COM_NodeOperation.h"
-#include "DNA_scene_types.h"
 #include "DNA_movieclip_types.h"
 #include "BLI_listbase.h"
 #include "IMB_imbuf_types.h"
@@ -48,7 +47,7 @@ protected:
 	/**
 	 * Determine the output resolution. The resolution is retrieved from the Renderer
 	 */
-	void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
+	void determineResolution(unsigned int resolution[2], unsigned int preferredResolution[2]);
 
 public:
 	MovieClipOperation();
@@ -60,7 +59,7 @@ public:
 	void setCacheFrame(bool value) { this->m_cacheFrame = value; }
 
 	void setFramenumber(int framenumber) { this->m_framenumber = framenumber; }
-	void executePixel(float *color, float x, float y, PixelSampler sampler);
+	void executePixel(float output[4], float x, float y, PixelSampler sampler);
 };
 
 #endif

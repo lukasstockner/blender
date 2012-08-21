@@ -129,7 +129,7 @@ static int ed_undo_step(bContext *C, int step, const char *undoname)
 
 	/* undo during jobs are running can easily lead to freeing data using by jobs,
 	 * or they can just lead to freezing job in some other cases */
-	if (WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C))) {
+	if (WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_ANY)) {
 		return OPERATOR_CANCELLED;
 	}
 
@@ -141,7 +141,7 @@ static int ed_undo_step(bContext *C, int step, const char *undoname)
 	if (sa && (sa->spacetype == SPACE_IMAGE)) {
 		SpaceImage *sima = (SpaceImage *)sa->spacedata.first;
 		
-		if ((obact && (obact->mode & OB_MODE_TEXTURE_PAINT)) || (sima->flag & SI_DRAWTOOL)) {
+		if ((obact && (obact->mode & OB_MODE_TEXTURE_PAINT)) || (sima->mode == SI_MODE_PAINT)) {
 			if (!ED_undo_paint_step(C, UNDO_PAINT_IMAGE, step, undoname) && undoname)
 				if (U.uiflag & USER_GLOBALUNDO)
 					BKE_undo_name(C, undoname);
@@ -238,7 +238,7 @@ int ED_undo_valid(const bContext *C, const char *undoname)
 	if (sa && sa->spacetype == SPACE_IMAGE) {
 		SpaceImage *sima = (SpaceImage *)sa->spacedata.first;
 		
-		if ((obact && (obact->mode & OB_MODE_TEXTURE_PAINT)) || (sima->flag & SI_DRAWTOOL)) {
+		if ((obact && (obact->mode & OB_MODE_TEXTURE_PAINT)) || (sima->mode == SI_MODE_PAINT)) {
 			return 1;
 		}
 	}
@@ -359,7 +359,7 @@ int ED_undo_operator_repeat(bContext *C, struct wmOperator *op)
 		      * (which copy their data), wont stop redo, see [#29579]],
 		      *
 		      * note, - WM_operator_check_ui_enabled() jobs test _must_ stay in sync with this */
-		     (WM_jobs_test(wm, scene) == 0))
+		     (WM_jobs_test(wm, scene, WM_JOB_TYPE_ANY) == 0))
 		{
 			int retval;
 

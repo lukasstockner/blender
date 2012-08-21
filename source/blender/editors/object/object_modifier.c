@@ -212,10 +212,10 @@ int ED_object_iter_other(Main *bmain, Object *orig_ob, int include_orig,
 		int totfound = include_orig ? 0 : 1;
 
 		for (ob = bmain->object.first; ob && totfound < users;
-			 ob = ob->id.next)
+		     ob = ob->id.next)
 		{
 			if (((ob != orig_ob) || include_orig) &&
-				(ob->data == orig_ob->data))
+			    (ob->data == orig_ob->data))
 			{
 				if (callback(ob, callback_data))
 					return TRUE;
@@ -233,7 +233,7 @@ int ED_object_iter_other(Main *bmain, Object *orig_ob, int include_orig,
 
 static int object_has_modifier_cb(Object *ob, void *data)
 {
-	ModifierType type = *((ModifierType*)data);
+	ModifierType type = *((ModifierType *)data);
 
 	return object_has_modifier(ob, NULL, type);
 }
@@ -244,7 +244,7 @@ static int object_has_modifier_cb(Object *ob, void *data)
 int ED_object_multires_update_totlevels_cb(Object *ob, void *totlevel_v)
 {
 	ModifierData *md;
-	int totlevel = *((int*)totlevel_v);
+	int totlevel = *((int *)totlevel_v);
 
 	for (md = ob->modifiers.first; md; md = md->next) {
 		if (md->type == eModifierType_Multires) {
@@ -268,17 +268,12 @@ static int object_modifier_safe_to_delete(Main *bmain, Object *ob,
 static int object_modifier_remove(Main *bmain, Object *ob, ModifierData *md,
                                   int *sort_depsgraph)
 {
-	ModifierData *obmd;
-
 	/* It seems on rapid delete it is possible to
 	 * get called twice on same modifier, so make
 	 * sure it is in list. */
-	for (obmd = ob->modifiers.first; obmd; obmd = obmd->next)
-		if (obmd == md)
-			break;
-
-	if (!obmd)
+	if (BLI_findindex(&ob->modifiers, md) == -1) {
 		return 0;
+	}
 
 	/* special cases */
 	if (md->type == eModifierType_ParticleSystem) {
@@ -341,7 +336,7 @@ int ED_object_modifier_remove(ReportList *reports, Main *bmain, Scene *scene, Ob
 	ok = object_modifier_remove(bmain, ob, md, &sort_depsgraph);
 
 	if (!ok) {
-		BKE_reportf(reports, RPT_ERROR, "Modifier '%s' not in object '%s'", ob->id.name, md->name);
+		BKE_reportf(reports, RPT_ERROR, "Modifier '%s' not in object '%s'", md->name, ob->id.name);
 		return 0;
 	}
 
@@ -1148,8 +1143,8 @@ static int multires_higher_levels_delete_exec(bContext *C, wmOperator *op)
 	multiresModifier_del_levels(mmd, ob, 1);
 
 	ED_object_iter_other(CTX_data_main(C), ob, TRUE,
-						 ED_object_multires_update_totlevels_cb,
-						 &mmd->totlvl);
+	                     ED_object_multires_update_totlevels_cb,
+	                     &mmd->totlvl);
 	
 	WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 	
@@ -1192,8 +1187,8 @@ static int multires_subdivide_exec(bContext *C, wmOperator *op)
 	multiresModifier_subdivide(mmd, ob, 0, mmd->simple);
 
 	ED_object_iter_other(CTX_data_main(C), ob, TRUE,
-						 ED_object_multires_update_totlevels_cb,
-						 &mmd->totlvl);
+	                     ED_object_multires_update_totlevels_cb,
+	                     &mmd->totlvl);
 
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
@@ -1361,7 +1356,8 @@ void OBJECT_OT_multires_external_save(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 
-	WM_operator_properties_filesel(ot, FOLDERFILE | BTXFILE, FILE_SPECIAL, FILE_SAVE, WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
+	WM_operator_properties_filesel(ot, FOLDERFILE | BTXFILE, FILE_SPECIAL, FILE_SAVE,
+	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
 	edit_modifier_properties(ot);
 }
 
@@ -1466,7 +1462,8 @@ static void modifier_skin_customdata_ensure(Object *ob)
 		                          me->totvert);
 
 		/* Mark an arbitrary vertex as root */
-		vs->flag |= MVERT_SKIN_ROOT;
+		if (vs)
+			vs->flag |= MVERT_SKIN_ROOT;
 	}
 }
 
@@ -1518,8 +1515,8 @@ static void skin_root_clear(BMesh *bm, BMVert *bm_vert, GHash *visited)
 static int skin_root_mark_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob = CTX_data_edit_object(C);
-	Mesh *me = ob->data;
-	BMesh *bm = me->edit_btmesh->bm;
+	BMEditMesh *em = BMEdit_FromObject(ob);
+	BMesh *bm = em->bm;
 	BMVert *bm_vert;
 	BMIter bm_iter;
 	GHash *visited;
@@ -1574,11 +1571,15 @@ typedef enum {
 static int skin_loose_mark_clear_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_edit_object(C);
-	Mesh *me = ob->data;
-	BMesh *bm = me->edit_btmesh->bm;
+	BMEditMesh *em = BMEdit_FromObject(ob);
+	BMesh *bm = em->bm;
 	BMVert *bm_vert;
 	BMIter bm_iter;
 	SkinLooseAction action = RNA_enum_get(op->ptr, "action");
+
+	if (!CustomData_has_layer(&bm->vdata, CD_MVERT_SKIN)) {
+		return OPERATOR_CANCELLED;
+	}
 
 	BM_ITER_MESH (bm_vert, &bm_iter, bm, BM_VERTS_OF_MESH) {
 		if (bm_vert->head.hflag & BM_ELEM_SELECT) {
@@ -1628,10 +1629,14 @@ void OBJECT_OT_skin_loose_mark_clear(wmOperatorType *ot)
 static int skin_radii_equalize_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob = CTX_data_edit_object(C);
-	Mesh *me = ob->data;
-	BMesh *bm = me->edit_btmesh->bm;
+	BMEditMesh *em = BMEdit_FromObject(ob);
+	BMesh *bm = em->bm;
 	BMVert *bm_vert;
 	BMIter bm_iter;
+
+	if (!CustomData_has_layer(&bm->vdata, CD_MVERT_SKIN)) {
+		return OPERATOR_CANCELLED;
+	}
 
 	BM_ITER_MESH (bm_vert, &bm_iter, bm, BM_VERTS_OF_MESH) {
 		if (bm_vert->head.hflag & BM_ELEM_SELECT) {
@@ -1804,8 +1809,14 @@ static int skin_armature_create_exec(bContext *C, wmOperator *op)
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C), *arm_ob;
+	Mesh *me = ob->data;
 	ModifierData *skin_md;
 	ArmatureModifierData *arm_md;
+
+	if (!CustomData_has_layer(&me->vdata, CD_MVERT_SKIN)) {
+		BKE_reportf(op->reports, RPT_WARNING, "Mesh '%s' has no skin vertex data", me->id.name + 2);
+		return OPERATOR_CANCELLED;
+	}
 
 	/* create new armature */
 	arm_ob = modifier_skin_armature_create(scene, ob);
@@ -2045,7 +2056,7 @@ static int oceanbake_breakjob(void *UNUSED(customdata))
 	/* this is not nice yet, need to make the jobs list template better 
 	 * for identifying/acting upon various different jobs */
 	/* but for now we'll reuse the render break... */
-	return (G.afbreek);
+	return (G.is_break);
 }
 
 /* called by oceanbake, wmJob sends notifier */
@@ -2068,7 +2079,7 @@ static void oceanbake_startjob(void *customdata, short *stop, short *do_update, 
 	oj->do_update = do_update;
 	oj->progress = progress;
 	
-	G.afbreek = 0;   /* XXX shared with render - replace with job 'stop' switch */
+	G.is_break = FALSE;   /* XXX shared with render - replace with job 'stop' switch */
 	
 	BKE_bake_ocean(oj->ocean, oj->och, oceanbake_update, (void *)oj);
 	
@@ -2099,7 +2110,7 @@ static int ocean_bake_exec(bContext *C, wmOperator *op)
 	int f, cfra, i = 0;
 	int free = RNA_boolean_get(op->ptr, "free");
 	
-	wmJob *steve;
+	wmJob *wm_job;
 	OceanBakeJob *oj;
 	
 	if (!omd)
@@ -2166,17 +2177,18 @@ static int ocean_bake_exec(bContext *C, wmOperator *op)
 	scene->r.cfra = cfra;
 	
 	/* setup job */
-	steve = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "Ocean Simulation", WM_JOB_PROGRESS);
+	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "Ocean Simulation",
+	                     WM_JOB_PROGRESS, WM_JOB_TYPE_OBJECT_SIM_OCEAN);
 	oj = MEM_callocN(sizeof(OceanBakeJob), "ocean bake job");
 	oj->ocean = ocean;
 	oj->och = och;
 	oj->omd = omd;
 	
-	WM_jobs_customdata(steve, oj, oceanbake_free);
-	WM_jobs_timer(steve, 0.1, NC_OBJECT | ND_MODIFIER, NC_OBJECT | ND_MODIFIER);
-	WM_jobs_callbacks(steve, oceanbake_startjob, NULL, NULL, oceanbake_endjob);
+	WM_jobs_customdata_set(wm_job, oj, oceanbake_free);
+	WM_jobs_timer(wm_job, 0.1, NC_OBJECT | ND_MODIFIER, NC_OBJECT | ND_MODIFIER);
+	WM_jobs_callbacks(wm_job, oceanbake_startjob, NULL, NULL, oceanbake_endjob);
 	
-	WM_jobs_start(CTX_wm_manager(C), steve);
+	WM_jobs_start(CTX_wm_manager(C), wm_job);
 	
 	
 	

@@ -802,7 +802,7 @@ static int project_paint_PickColor(const ProjPaintState *ps, float pt[2], float 
 		
 		if (rgba_fp) {
 			if (ibuf->rect_float) {
-				copy_v4_v4(rgba_fp, ((float *)ibuf->rect_float + ((xi + yi * ibuf->x) * 4)));
+				copy_v4_v4(rgba_fp, (ibuf->rect_float + ((xi + yi * ibuf->x) * 4)));
 			}
 			else {
 				char *tmp_ch = ((char *)ibuf->rect) + ((xi + yi * ibuf->x) * 4);
@@ -1462,7 +1462,7 @@ static float project_paint_uvpixel_mask(
 	
 	/* This only works when the opacity dosnt change while painting, stylus pressure messes with this
 	 * so don't use it. */
-	// if (ps->is_airbrush==0) mask *= BKE_brush_alpha_get(ps->brush);
+	// if (ps->is_airbrush == 0) mask *= BKE_brush_alpha_get(ps->brush);
 	
 	return mask;
 }
@@ -1504,7 +1504,7 @@ static ProjPixel *project_paint_uvpixel_init(
 	//memset(projPixel, 0, size);
 	
 	if (ibuf->rect_float) {
-		projPixel->pixel.f_pt = (float *)ibuf->rect_float + ((x_px + y_px * ibuf->x) * 4);
+		projPixel->pixel.f_pt = ibuf->rect_float + ((x_px + y_px * ibuf->x) * 4);
 		projPixel->origColor.f[0] = projPixel->newColor.f[0] = projPixel->pixel.f_pt[0];  
 		projPixel->origColor.f[1] = projPixel->newColor.f[1] = projPixel->pixel.f_pt[1];  
 		projPixel->origColor.f[2] = projPixel->newColor.f[2] = projPixel->pixel.f_pt[2];  
@@ -2058,7 +2058,7 @@ static void project_bucket_clip_face(
 		float v1_clipSS[2], v2_clipSS[2];
 		float w[3];
 		
-		/* calc center*/
+		/* calc center */
 		float cent[2] = {0.0f, 0.0f};
 		/*float up[2] = {0.0f, 1.0f};*/
 		int i;
@@ -3714,7 +3714,7 @@ static void blend_color_mix_float(float *cp, const float *cp1, const float *cp2,
 	cp[3] = mfac * cp1[3] + fac * cp2[3];
 }
 
-static void blend_color_mix_accum(unsigned char *cp, const unsigned char *cp1, const unsigned char *cp2, const int fac)
+static void blend_color_mix_accum(unsigned char cp[4], const unsigned char cp1[4], const unsigned char cp2[4], const int fac)
 {
 	/* this and other blending modes previously used >>8 instead of /255. both
 	 * are not equivalent (>>8 is /256), and the former results in rounding
@@ -3727,6 +3727,17 @@ static void blend_color_mix_accum(unsigned char *cp, const unsigned char *cp1, c
 	cp[2] = (mfac * cp1[2] + fac * cp2[2]) / 255;
 	cp[3] = alpha > 255 ? 255 : alpha;
 }
+static void blend_color_mix_accum_float(float cp[4], const float cp1[4], const unsigned char cp2[4], const float fac)
+{
+	const float mfac = 1.0f - fac;
+	const float alpha = cp1[3] + (fac * (cp2[3] / 255.0f));
+
+	cp[0] = (mfac * cp1[0] + (fac * (cp2[0] / 255.0f)));
+	cp[1] = (mfac * cp1[1] + (fac * (cp2[1] / 255.0f)));
+	cp[2] = (mfac * cp1[2] + (fac * (cp2[2] / 255.0f)));
+	cp[3] = alpha > 1.0f ? 1.0f : alpha;
+}
+
 
 static void do_projectpaint_clone(ProjPaintState *ps, ProjPixel *projPixel, float alpha, float mask)
 {
@@ -3887,7 +3898,7 @@ static void *do_projectpaint_thread(void *ph_v)
 	
 	/* printf("brush bounds %d %d %d %d\n", bucketMin[0], bucketMin[1], bucketMax[0], bucketMax[1]); */
 	
-	while (project_bucket_iter_next(ps, &bucket_index, &bucket_bounds, pos)) {				
+	while (project_bucket_iter_next(ps, &bucket_index, &bucket_bounds, pos)) {
 		
 		/* Check this bucket and its faces are initialized */
 		if (ps->bucketFlags[bucket_index] == PROJ_BUCKET_NULL) {
@@ -3902,11 +3913,36 @@ static void *do_projectpaint_thread(void *ph_v)
 			for (node = ps->bucketRect[bucket_index]; node; node = node->next) {
 				projPixel = (ProjPixel *)node->link;
 
-				bicubic_interpolation_color(ps->reproject_ibuf, projPixel->newColor.ch, NULL, projPixel->projCoSS[0], projPixel->projCoSS[1]);
-				if (projPixel->newColor.ch[3]) {
-					mask = ((float)projPixel->mask) / 65535.0f;
-					blend_color_mix_accum(projPixel->pixel.ch_pt,  projPixel->origColor.ch, projPixel->newColor.ch, (int)(mask * projPixel->newColor.ch[3]));
+				/* copy of code below */
+				if (last_index != projPixel->image_index) {
+					last_index = projPixel->image_index;
+					last_projIma = projImages + last_index;
 
+					last_projIma->touch = 1;
+					is_floatbuf = last_projIma->ibuf->rect_float ? 1 : 0;
+					use_color_correction = (last_projIma->ibuf->profile == IB_PROFILE_LINEAR_RGB) ? 1 : 0;
+				}
+				/* end copy */
+
+				if (is_floatbuf) {
+					/* re-project buffer is assumed byte - TODO, allow float */
+					bicubic_interpolation_color(ps->reproject_ibuf, projPixel->newColor.ch, NULL,
+					                            projPixel->projCoSS[0], projPixel->projCoSS[1]);
+					if (projPixel->newColor.ch[3]) {
+						mask = ((float)projPixel->mask) / 65535.0f;
+						blend_color_mix_accum_float(projPixel->pixel.f_pt,  projPixel->origColor.f,
+						                            projPixel->newColor.ch, (mask * (projPixel->newColor.ch[3] / 255.0f)));
+					}
+				}
+				else {
+					/* re-project buffer is assumed byte - TODO, allow float */
+					bicubic_interpolation_color(ps->reproject_ibuf, projPixel->newColor.ch, NULL,
+					                            projPixel->projCoSS[0], projPixel->projCoSS[1]);
+					if (projPixel->newColor.ch[3]) {
+						mask = ((float)projPixel->mask) / 65535.0f;
+						blend_color_mix_accum(projPixel->pixel.ch_pt,  projPixel->origColor.ch,
+						                      projPixel->newColor.ch, (int)(mask * projPixel->newColor.ch[3]));
+					}
 				}
 			}
 		}
@@ -3960,6 +3996,7 @@ static void *do_projectpaint_thread(void *ph_v)
 						
 						if (alpha > 0.0f) {
 
+							/* copy of code above */
 							if (last_index != projPixel->image_index) {
 								last_index = projPixel->image_index;
 								last_projIma = projImages + last_index;
@@ -3968,6 +4005,7 @@ static void *do_projectpaint_thread(void *ph_v)
 								is_floatbuf = last_projIma->ibuf->rect_float ? 1 : 0;
 								use_color_correction = (last_projIma->ibuf->profile == IB_PROFILE_LINEAR_RGB) ? 1 : 0;
 							}
+							/* end copy */
 
 							last_partial_redraw_cell = last_projIma->partRedrawRect + projPixel->bb_cell_index;
 							last_partial_redraw_cell->x1 = MIN2(last_partial_redraw_cell->x1, projPixel->x_px);
@@ -4668,8 +4706,9 @@ static int image_paint_poll(bContext *C)
 		if (sima) {
 			ARegion *ar = CTX_wm_region(C);
 
-			if ((sima->flag & SI_DRAWTOOL) && ar->regiontype == RGN_TYPE_WINDOW)
+			if ((sima->mode == SI_MODE_PAINT) && ar->regiontype == RGN_TYPE_WINDOW) {
 				return 1;
+			}
 		}
 	}
 
@@ -5201,7 +5240,7 @@ int get_imapaint_zoom(bContext *C, float *zoomx, float *zoomy)
 		SpaceImage *sima = CTX_wm_space_image(C);
 		ARegion *ar = CTX_wm_region(C);
 		
-		ED_space_image_zoom(sima, ar, zoomx, zoomy);
+		ED_space_image_get_zoom(sima, ar, zoomx, zoomy);
 
 		return 1;
 	}
@@ -5236,13 +5275,13 @@ static void brush_drawcursor(bContext *C, int x, int y, void *UNUSED(customdata)
 		           !(ts->use_uv_sculpt && (scene->basact->object->mode == OB_MODE_EDIT));
 
 		if (use_zoom) {
-			pixel_size = MAX2(size * zoomx, size * zoomy);
+			pixel_size = size * maxf(zoomx, zoomy);
 		}
 		else {
 			pixel_size = size;
 		}
 
-		/* fade out the brush (cheap trick to work around brush interfearing with sampling [#])*/
+		/* fade out the brush (cheap trick to work around brush interfering with sampling [#])*/
 		if (pixel_size < PX_SIZE_FADE_MIN) {
 			return;
 		}
@@ -5254,7 +5293,7 @@ static void brush_drawcursor(bContext *C, int x, int y, void *UNUSED(customdata)
 
 		gpuTranslate((float)x, (float)y, 0.0f);
 
-		/* No need to scale for uv sculpting, on the contrary it might be useful to keep unscaled */
+		/* No need to scale for uv sculpting, on the contrary it might be useful to keep un-scaled */
 		if (use_zoom)
 			gpuScale(zoomx, zoomy, 1.0f);
 
@@ -5312,7 +5351,7 @@ void ED_space_image_uv_sculpt_update(wmWindowManager *wm, ToolSettings *settings
 			settings->uv_relax_method = UV_SCULPT_TOOL_RELAX_LAPLACIAN;
 		}
 
-		paint_init(&settings->uvsculpt->paint, PAINT_CURSOR_SCULPT);
+		BKE_paint_init(&settings->uvsculpt->paint, PAINT_CURSOR_SCULPT);
 
 		WM_paint_cursor_activate(wm, uv_sculpt_brush_poll,
 		                         brush_drawcursor, NULL);
@@ -5602,7 +5641,7 @@ static int texture_paint_toggle_exec(bContext *C, wmOperator *op)
 			me->mtface = CustomData_add_layer(&me->fdata, CD_MTFACE, CD_DEFAULT,
 			                                  NULL, me->totface);
 
-		paint_init(&scene->toolsettings->imapaint.paint, PAINT_CURSOR_TEXTURE_PAINT);
+		BKE_paint_init(&scene->toolsettings->imapaint.paint, PAINT_CURSOR_TEXTURE_PAINT);
 
 		if (U.glreslimit != 0)
 			GPU_free_images();

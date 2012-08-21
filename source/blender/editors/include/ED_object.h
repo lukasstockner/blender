@@ -41,6 +41,7 @@ struct bContext;
 struct bPoseChannel;
 struct Curve;
 struct EnumPropertyItem;
+struct ID;
 struct KeyBlock;
 struct Lattice;
 struct Main;
@@ -102,7 +103,7 @@ void ED_base_object_activate(struct bContext *C, struct Base *base);
 
 void ED_base_object_free_and_unlink(struct Main *bmain, struct Scene *scene, struct Base *base);
 
-/* single object duplicate, if dupflag==0, fully linked, else it uses the flags given */
+/* single object duplicate, if (dupflag == 0), fully linked, else it uses the flags given */
 struct Base *ED_object_add_duplicate(struct Main *bmain, struct Scene *scene, struct Base *base, int dupflag);
 
 void ED_object_parent(struct Object *ob, struct Object *parent, int type, const char *substr);
@@ -178,10 +179,13 @@ int ED_object_modifier_apply(struct ReportList *reports, struct Scene *scene,
 int ED_object_modifier_copy(struct ReportList *reports, struct Object *ob, struct ModifierData *md);
 
 int ED_object_iter_other(struct Main *bmain, struct Object *orig_ob, int include_orig,
-						 int (*callback)(struct Object *ob, void *callback_data),
-						 void *callback_data);
+                         int (*callback)(struct Object *ob, void *callback_data),
+                         void *callback_data);
 
 int ED_object_multires_update_totlevels_cb(struct Object *ob, void *totlevel_v);
+
+/* ibject_select.c */
+void ED_object_select_linked_by_id(struct bContext *C, struct ID *id);
 
 #ifdef __cplusplus
 }

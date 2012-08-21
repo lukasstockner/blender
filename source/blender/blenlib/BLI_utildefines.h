@@ -87,7 +87,7 @@
 #define INIT_MINMAX(min, max) {                                               \
 		(min)[0] = (min)[1] = (min)[2] =  1.0e30f;                            \
 		(max)[0] = (max)[1] = (max)[2] = -1.0e30f;                            \
-	}
+	} (void)0
 #define INIT_MINMAX2(min, max) {                                              \
 		(min)[0] = (min)[1] = 1.0e30f;                                        \
 		(max)[0] = (max)[1] = -1.0e30f;                                       \
@@ -191,7 +191,7 @@
 	}                                                                         \
 	else {                                                                    \
 		CLAMP(a, c, b);                                                       \
-	} (void)
+	} (void)0
 
 #define IS_EQ(a, b) ((fabs((double)(a) - (b)) >= (double) FLT_EPSILON) ? 0 : 1)
 #define IS_EQF(a, b) ((fabsf((float)(a) - (b)) >= (float) FLT_EPSILON) ? 0 : 1)

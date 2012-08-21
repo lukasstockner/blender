@@ -64,15 +64,14 @@
 #include <io.h>
 #endif
 
-#include "BLI_blenlib.h" /* BLI_remlink BLI_file_descriptor_size BLI_addtail
-                          * BLI_countlist BLI_stringdec */
+#include "BLI_string.h"
+#include "BLI_path_util.h"
 #include "BLI_utildefines.h"
 #include "BLI_math_base.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "DNA_userdef_types.h"
-
 
 #include "BKE_global.h"
 #include "BKE_depsgraph.h"
@@ -394,7 +393,9 @@ static ImBuf *avi_fetchibuf(struct anim *anim, int position)
 	int *tmp;
 	int y;
 	
-	if (anim == NULL) return (NULL);
+	if (anim == NULL) {
+		return NULL;
+	}
 
 #if defined(_WIN32) && !defined(FREE_WINDOWS)
 	if (anim->avistreams) {
@@ -418,7 +419,7 @@ static ImBuf *avi_fetchibuf(struct anim *anim, int position)
 		                     AVI_get_stream(anim->avi, AVIST_VIDEO, 0));
 		
 		if (tmp == NULL) {
-			printf("Error reading frame from AVI");
+			printf("Error reading frame from AVI: '%s'\n", anim->name);
 			IMB_freeImBuf(ibuf);
 			return NULL;
 		}

@@ -415,7 +415,7 @@ static short boundinsideEV(ScanFillEdge *eed, ScanFillVert *eve)
 
 static void testvertexnearedge(ScanFillContext *sf_ctx)
 {
-	/* only vertices with ->h==1 are being tested for
+	/* only vertices with (->h == 1) are being tested for
 	 * being close to an edge, if true insert */
 
 	ScanFillVert *eve;
@@ -658,7 +658,7 @@ static int scanfill(ScanFillContext *sf_ctx, PolyFill *pf)
 				if (v1 == v2 || v2 == v3) break;
 				/* printf("test verts %x %x %x\n",v1,v2,v3); */
 				miny = minf(v1->xy[1], v3->xy[1]);
-				/*  miny= MIN2(v1->xy[1],v3->xy[1]); */
+				/*  miny= minf(v1->xy[1],v3->xy[1]); */
 				sc1 = sc + 1;
 				test = 0;
 
@@ -947,7 +947,7 @@ int BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const short do_quad_tri_speedu
 		return 0;
 	}
 	
-	/* does it only for vertices with ->h==1 */
+	/* does it only for vertices with (->h == 1) */
 	testvertexnearedge(sf_ctx);
 
 	ok = 1;

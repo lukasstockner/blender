@@ -1369,6 +1369,8 @@ static int separate_exec(bContext *C, wmOperator *op)
 	
 	/* 1. duplicate the object and data */
 	newbase = ED_object_add_duplicate(bmain, scene, oldbase, 0); /* 0 = fully linked */
+	DAG_scene_sort(bmain, scene);
+
 	ED_base_object_select(newbase, BA_DESELECT);
 	newob = newbase->object;
 
@@ -1425,8 +1427,8 @@ void CURVE_OT_separate(wmOperatorType *ot)
 
 static short isNurbselUV(Nurb *nu, int *u, int *v, int flag)
 {
-	/* return u!=-1:     1 row in u-direction selected. U has value between 0-pntsv 
-	 * return v!=-1: 1 column in v-direction selected. V has value between 0-pntsu
+	/* return (u != -1): 1 row in u-direction selected. U has value between 0-pntsv
+	 * return (v != -1): 1 column in v-direction selected. V has value between 0-pntsu
 	 */
 	BPoint *bp;
 	int a, b, sel;

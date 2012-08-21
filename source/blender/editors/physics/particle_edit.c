@@ -403,7 +403,7 @@ static void PE_set_view3d_data(bContext *C, PEData *data)
 static int key_test_depth(PEData *data, const float co[3])
 {
 	View3D *v3d= data->vc.v3d;
-	double u[3];
+	GLfloat u[3];
 	float depth;
 	short wco[3], x, y;
 
@@ -4107,7 +4107,7 @@ int PE_minmax(Scene *scene, float min[3], float max[3])
 	}
 
 	if (!ok) {
-		BKE_object_minmax(ob, min, max);
+		BKE_object_minmax(ob, min, max, TRUE);
 		ok= 1;
 	}
   

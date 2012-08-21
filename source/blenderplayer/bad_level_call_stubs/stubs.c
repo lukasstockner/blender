@@ -64,6 +64,7 @@ struct LOD_Decimation_Info;
 struct MCol;
 struct MTex;
 struct Main;
+struct Mask;
 struct Material;
 struct MenuType;
 struct Mesh;
@@ -95,6 +96,7 @@ struct Tex;
 struct TexResult;
 struct Text;
 struct ToolSettings;
+struct View2D;
 struct View3D;
 struct bAction;
 struct bArmature;
@@ -211,6 +213,9 @@ void *ED_region_draw_cb_activate(struct ARegionType *art, void(*draw)(const stru
 void *ED_region_draw_cb_customdata(void *handle) {return 0;} /* XXX This one looks wrong also */
 void ED_region_draw_cb_exit(struct ARegionType *art, void *handle) {}
 void	ED_area_headerprint(struct ScrArea *sa, char *str) {}
+void UI_view2d_region_to_view(struct View2D *v2d, int x, int y, float *viewx, float *viewy) {}
+void UI_view2d_view_to_region(struct View2D *v2d, float x, float y, int *regionx, int *regiony) {}
+void UI_view2d_to_region_no_clip(struct View2D *v2d, float x, float y, int *regionx, int *region_y) {}
 
 struct EditBone *ED_armature_bone_get_mirrored(struct ListBase *edbo, struct EditBone *ebo) {return (struct EditBone *) NULL;}
 struct EditBone *ED_armature_edit_bone_add(struct bArmature *arm, char *name) {return (struct EditBone*) NULL;}
@@ -229,6 +234,7 @@ void ED_space_image_uv_sculpt_update(struct wmWindowManager *wm, struct ToolSett
 void ED_screen_set_scene(struct bContext *C, struct Scene *scene) {}
 void ED_space_clip_set_clip(struct bContext *C, struct SpaceClip *sc, struct MovieClip *clip) {}
 void ED_space_clip_set_mask(struct bContext *C, struct SpaceClip *sc, struct Mask *mask) {}
+void ED_space_image_set_mask(struct bContext *C, struct SpaceImage *sima, struct Mask *mask) {}
 
 void ED_area_tag_redraw_regiontype(struct ScrArea *sa, int regiontype) {}
 void ED_render_engine_changed(struct Main *bmain) {}
@@ -271,7 +277,7 @@ short ANIM_add_driver(struct ID *id, const char rna_path[], int array_index, sho
 short ANIM_remove_driver(struct ID *id, const char rna_path[], int array_index, short flag) {return 0;}
 void ED_space_image_release_buffer(struct SpaceImage *sima, void *lock) {}
 struct ImBuf *ED_space_image_acquire_buffer(struct SpaceImage *sima, void **lock_r) {return (struct ImBuf *) NULL;}
-void ED_space_image_zoom(struct SpaceImage *sima, struct ARegion *ar, float *zoomx, float *zoomy) {}
+void ED_space_image_get_zoom(struct SpaceImage *sima, struct ARegion *ar, float *zoomx, float *zoomy) {}
 char *ED_info_stats_string(struct Scene *scene) {return (char *) NULL;}
 void ED_area_tag_redraw(struct ScrArea *sa) {}
 void ED_area_tag_refresh(struct ScrArea *sa) {}
@@ -345,7 +351,8 @@ intptr_t mesh_octree_table(struct Object *ob, struct BMEditMesh *em, float *co, 
 
 void ED_sequencer_update_view(struct bContext *C, int view) {}
 float ED_rollBoneToVector(struct EditBone *bone, float new_up_axis[3]) {return 0.0f;}
-void ED_space_image_size(struct SpaceImage *sima, int *width, int *height) {}
+void ED_space_image_get_size(struct SpaceImage *sima, int *width, int *height) {}
+int ED_space_image_check_show_maskedit(struct Scene *scene, struct SpaceImage *sima) {return 0;};
 
 void ED_nurb_set_spline_type(struct Nurb *nu, int type) {}
 

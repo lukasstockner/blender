@@ -92,7 +92,7 @@ private:
 	bool BKE_object_is_modified(BL::Object b_ob);
 	bool object_is_mesh(BL::Object b_ob);
 	bool object_is_light(BL::Object b_ob);
-	bool object_use_particles(BL::Object b_ob);
+	bool object_need_particle_update(BL::Object b_ob);
 	int object_count_particles(BL::Object b_ob);
 
 	/* variables */
@@ -127,9 +127,24 @@ private:
 		BL::Material material_override;
 		bool use_background;
 		bool use_viewport_visibility;
+		bool use_localview;
 		int samples;
 	} render_layer;
 };
+
+/* we don't have spare bits for localview (normally 20-28)
+ * because PATH_RAY_LAYER_SHIFT uses 20-32.
+ * So - check if we have localview and if so, shift local
+ * view bits down to 1-8, since this is done for the view
+ * port only - it should be OK and not conflict with
+ * render layers. - Campbell.
+ *
+ * ... as an alternative we could use uint64_t
+ */
+#define CYCLES_LOCAL_LAYER_HACK(use_localview, layer)   \
+	if (use_localview) {                                \
+		layer >>= 20;                                   \
+	} (void)0
 
 CCL_NAMESPACE_END
 

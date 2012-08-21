@@ -56,20 +56,18 @@
 
 /* ***************** operations on full struct ************* */
 
-CurveMapping *curvemapping_add(int tot, float minx, float miny, float maxx, float maxy)
+void curvemapping_set_defaults(CurveMapping *cumap, int tot, float minx, float miny, float maxx, float maxy)
 {
-	CurveMapping *cumap;
 	int a;
 	float clipminx, clipminy, clipmaxx, clipmaxy;
 	
-	cumap = MEM_callocN(sizeof(CurveMapping), "new curvemap");
 	cumap->flag = CUMA_DO_CLIP;
 	if (tot == 4) cumap->cur = 3;   /* rhms, hack for 'col' curve? */
 	
-	clipminx = MIN2(minx, maxx);
-	clipminy = MIN2(miny, maxy);
-	clipmaxx = MAX2(minx, maxx);
-	clipmaxy = MAX2(miny, maxy);
+	clipminx = minf(minx, maxx);
+	clipminy = minf(miny, maxy);
+	clipmaxx = maxf(minx, maxx);
+	clipmaxy = maxf(miny, maxy);
 	
 	BLI_rctf_init(&cumap->curr, clipminx, clipmaxx, clipminy, clipmaxy);
 	cumap->clipr = cumap->curr;
@@ -89,38 +87,59 @@ CurveMapping *curvemapping_add(int tot, float minx, float miny, float maxx, floa
 	}	
 
 	cumap->changed_timestamp = 0;
+}
+
+CurveMapping *curvemapping_add(int tot, float minx, float miny, float maxx, float maxy)
+{
+	CurveMapping *cumap;
+
+	cumap = MEM_callocN(sizeof(CurveMapping), "new curvemap");
+
+	curvemapping_set_defaults(cumap, tot, minx, miny, maxx, maxy);
 
 	return cumap;
 }
 
-void curvemapping_free(CurveMapping *cumap)
+void curvemapping_free_data(CurveMapping *cumap)
 {
 	int a;
-	
+
+	for (a = 0; a < CM_TOT; a++) {
+		if (cumap->cm[a].curve) MEM_freeN(cumap->cm[a].curve);
+		if (cumap->cm[a].table) MEM_freeN(cumap->cm[a].table);
+		if (cumap->cm[a].premultable) MEM_freeN(cumap->cm[a].premultable);
+	}
+}
+
+void curvemapping_free(CurveMapping *cumap)
+{
 	if (cumap) {
-		for (a = 0; a < CM_TOT; a++) {
-			if (cumap->cm[a].curve) MEM_freeN(cumap->cm[a].curve);
-			if (cumap->cm[a].table) MEM_freeN(cumap->cm[a].table);
-			if (cumap->cm[a].premultable) MEM_freeN(cumap->cm[a].premultable);
-		}
+		curvemapping_free_data(cumap);
 		MEM_freeN(cumap);
+	}
+}
+
+void curvemapping_copy_data(CurveMapping *target, CurveMapping *cumap)
+{
+	int a;
+
+	*target = *cumap;
+
+	for (a = 0; a < CM_TOT; a++) {
+		if (cumap->cm[a].curve)
+			target->cm[a].curve = MEM_dupallocN(cumap->cm[a].curve);
+		if (cumap->cm[a].table)
+			target->cm[a].table = MEM_dupallocN(cumap->cm[a].table);
+		if (cumap->cm[a].premultable)
+			target->cm[a].premultable = MEM_dupallocN(cumap->cm[a].premultable);
 	}
 }
 
 CurveMapping *curvemapping_copy(CurveMapping *cumap)
 {
-	int a;
-	
 	if (cumap) {
 		CurveMapping *cumapn = MEM_dupallocN(cumap);
-		for (a = 0; a < CM_TOT; a++) {
-			if (cumap->cm[a].curve) 
-				cumapn->cm[a].curve = MEM_dupallocN(cumap->cm[a].curve);
-			if (cumap->cm[a].table) 
-				cumapn->cm[a].table = MEM_dupallocN(cumap->cm[a].table);
-			if (cumap->cm[a].premultable) 
-				cumapn->cm[a].premultable = MEM_dupallocN(cumap->cm[a].premultable);
-		}
+		curvemapping_copy_data(cumapn, cumap);
 		return cumapn;
 	}
 	return NULL;
@@ -463,8 +482,8 @@ static void curvemap_make_table(CurveMap *cuma, rctf *clipr)
 	bezt = MEM_callocN(cuma->totpoint * sizeof(BezTriple), "beztarr");
 	
 	for (a = 0; a < cuma->totpoint; a++) {
-		cuma->mintable = MIN2(cuma->mintable, cmp[a].x);
-		cuma->maxtable = MAX2(cuma->maxtable, cmp[a].x);
+		cuma->mintable = minf(cuma->mintable, cmp[a].x);
+		cuma->maxtable = maxf(cuma->maxtable, cmp[a].x);
 		bezt[a].vec[1][0] = cmp[a].x;
 		bezt[a].vec[1][1] = cmp[a].y;
 		if (cmp[a].flag & CUMA_VECTOR)
@@ -655,13 +674,13 @@ void curvemapping_changed(CurveMapping *cumap, int rem_doubles)
 		for (a = 0; a < cuma->totpoint; a++) {
 			if (cmp[a].flag & CUMA_SELECT) {
 				if (cmp[a].x < clipr->xmin)
-					dx = MIN2(dx, cmp[a].x - clipr->xmin);
+					dx = minf(dx, cmp[a].x - clipr->xmin);
 				else if (cmp[a].x > clipr->xmax)
-					dx = MAX2(dx, cmp[a].x - clipr->xmax);
+					dx = maxf(dx, cmp[a].x - clipr->xmax);
 				if (cmp[a].y < clipr->ymin)
-					dy = MIN2(dy, cmp[a].y - clipr->ymin);
+					dy = minf(dy, cmp[a].y - clipr->ymin);
 				else if (cmp[a].y > clipr->ymax)
-					dy = MAX2(dy, cmp[a].y - clipr->ymax);
+					dy = maxf(dy, cmp[a].y - clipr->ymax);
 			}
 		}
 		for (a = 0; a < cuma->totpoint; a++) {
@@ -780,6 +799,22 @@ void curvemapping_evaluate_premulRGBF(CurveMapping *cumap, float vecout[3], cons
 	
 	fac = (vecin[2] - cumap->black[2]) * cumap->bwmul[2];
 	vecout[2] = curvemap_evaluateF(cumap->cm + 2, fac);
+}
+
+/* same as above, byte version */
+void curvemapping_evaluate_premulRGB(CurveMapping *cumap, unsigned char vecout_byte[3], const unsigned char vecin_byte[3])
+{
+	float vecin[3], vecout[3];
+
+	vecin[0] = (float) vecin_byte[0] / 255.0f;
+	vecin[1] = (float) vecin_byte[1] / 255.0f;
+	vecin[2] = (float) vecin_byte[2] / 255.0f;
+
+	curvemapping_evaluate_premulRGBF(cumap, vecout, vecin);
+
+	vecout_byte[0] = FTOCHAR(vecout[0]);
+	vecout_byte[1] = FTOCHAR(vecout[1]);
+	vecout_byte[2] = FTOCHAR(vecout[2]);
 }
 
 
@@ -961,7 +996,7 @@ void BKE_histogram_update_sample_line(Histogram *hist, ImBuf *ibuf, const short 
 	hist->channels = 3;
 	hist->x_resolution = 256;
 	hist->xmax = 1.0f;
-	hist->ymax = 1.0f;
+	/* hist->ymax = 1.0f; */ /* now do this on the operator _only_ */
 
 	if (ibuf->rect == NULL && ibuf->rect_float == NULL) return;
 

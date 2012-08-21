@@ -38,6 +38,7 @@
 #include "BKE_mask.h"
 
 #include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_object_types.h"  /* SELECT */
 
@@ -57,17 +58,19 @@ static int find_nearest_diff_point(const bContext *C, Mask *mask, const float no
                                    float *u_r, float tangent[2],
                                    const short use_deform)
 {
+	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar = CTX_wm_region(C);
+
 	MaskLayer *masklay, *point_masklay;
 	MaskSpline *point_spline;
 	MaskSplinePoint *point = NULL;
 	float dist, co[2];
 	int width, height;
 	float u;
-	float scalex, scaley, aspx, aspy;
+	float scalex, scaley;
 
-	ED_mask_size(C, &width, &height);
-	ED_mask_aspect(C, &aspx, &aspy);
-	ED_mask_pixelspace_factor(C, &scalex, &scaley);
+	ED_mask_get_size(sa, &width, &height);
+	ED_mask_pixelspace_factor(sa, ar, &scalex, &scaley);
 
 	co[0] = normal_co[0] * scalex;
 	co[1] = normal_co[1] * scaley;
@@ -88,13 +91,14 @@ static int find_nearest_diff_point(const bContext *C, Mask *mask, const float no
 			     i++, cur_point++)
 			{
 				float *diff_points;
-				int tot_diff_point;
+				unsigned int tot_diff_point;
 
 				diff_points = BKE_mask_point_segment_diff_with_resolution(spline, cur_point, width, height,
 				                                                          &tot_diff_point);
 
 				if (diff_points) {
-					int i, tot_feather_point, tot_point;
+					int i, tot_point;
+					unsigned int tot_feather_point;
 					float *feather_points = NULL, *points;
 
 					if (feather) {
@@ -180,6 +184,8 @@ static void setup_vertex_point(const bContext *C, Mask *mask, MaskSpline *spline
                                const float point_co[2], const float tangent[2], const float u,
                                MaskSplinePoint *reference_point, const short reference_adjacent)
 {
+	ScrArea *sa = CTX_wm_area(C);
+
 	MaskSplinePoint *prev_point = NULL;
 	MaskSplinePoint *next_point = NULL;
 	BezTriple *bezt;
@@ -190,7 +196,7 @@ static void setup_vertex_point(const bContext *C, Mask *mask, MaskSpline *spline
 	copy_v2_v2(co, point_co);
 	co[2] = 0.0f;
 
-	ED_mask_size(C, &width, &height);
+	ED_mask_get_size(sa, &width, &height);
 
 	/* point coordinate */
 	bezt = &new_point->bezt;
@@ -315,6 +321,7 @@ static void finSelectedSplinePoint(MaskLayer *masklay, MaskSpline **spline, Mask
 	*point = NULL;
 
 	if (check_active) {
+		/* TODO, having an active point but no active spline is possible, why? */
 		if (masklay->act_spline && masklay->act_point && MASKPOINT_ISSEL_ANY(masklay->act_point)) {
 			*spline = masklay->act_spline;
 			*point = masklay->act_point;
@@ -556,7 +563,8 @@ static int add_vertex_exec(bContext *C, wmOperator *op)
 
 	RNA_float_get_array(op->ptr, "location", co);
 
-	if (masklay && masklay->act_point && MASKPOINT_ISSEL_ANY(masklay->act_point)) {
+	/* TODO, having an active point but no active spline is possible, why? */
+	if (masklay && masklay->act_spline && masklay->act_point && MASKPOINT_ISSEL_ANY(masklay->act_point)) {
 
 		/* cheap trick - double click for cyclic */
 		MaskSpline *spline = masklay->act_spline;
@@ -610,9 +618,12 @@ static int add_vertex_exec(bContext *C, wmOperator *op)
 
 static int add_vertex_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
+	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar = CTX_wm_region(C);
+
 	float co[2];
 
-	ED_mask_mouse_pos(C, event, co);
+	ED_mask_mouse_pos(sa, ar, event->mval, co);
 
 	RNA_float_set_array(op->ptr, "location", co);
 
@@ -635,7 +646,7 @@ void MASK_OT_add_vertex(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	RNA_def_float_vector(ot->srna, "location", 2, NULL, -FLT_MIN, FLT_MAX,
+	RNA_def_float_vector(ot->srna, "location", 2, NULL, -FLT_MAX, FLT_MAX,
 	                     "Location", "Location of vertex in normalized space", -1.0f, 1.0f);
 }
 
@@ -681,9 +692,12 @@ static int add_feather_vertex_exec(bContext *C, wmOperator *op)
 
 static int add_feather_vertex_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
+	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar = CTX_wm_region(C);
+
 	float co[2];
 
-	ED_mask_mouse_pos(C, event, co);
+	ED_mask_mouse_pos(sa, ar, event->mval, co);
 
 	RNA_float_set_array(op->ptr, "location", co);
 
@@ -706,6 +720,6 @@ void MASK_OT_add_feather_vertex(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	RNA_def_float_vector(ot->srna, "location", 2, NULL, -FLT_MIN, FLT_MAX,
+	RNA_def_float_vector(ot->srna, "location", 2, NULL, -FLT_MAX, FLT_MAX,
 	                     "Location", "Location of vertex in normalized space", -1.0f, 1.0f);
 }

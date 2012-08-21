@@ -50,11 +50,11 @@
 #include "BKE_suggestions.h"
 #include "BKE_text.h"
 
-
 #include "GPU_colors.h"
 #include "GPU_primitives.h"
 #include "GPU_utility.h"
 
+#include "BIF_glutil.h"
 
 #include "ED_datafiles.h"
 #include "UI_interface.h"
@@ -1982,7 +1982,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 	/* draw other stuff */
 	draw_brackets(st, ar);
 	draw_markers(st, ar);
-	gpuTranslate(0.375f, 0.375f, 0.0f); /* XXX scroll requires exact pixel space */
+	gpuTranslate(GLA_PIXEL_OFS, GLA_PIXEL_OFS, 0.0f); /* XXX scroll requires exact pixel space */
 	draw_textscroll(st, &scroll, &back);
 	draw_documentation(st, ar);
 	draw_suggestion_list(st, ar);

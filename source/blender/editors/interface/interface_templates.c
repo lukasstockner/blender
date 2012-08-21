@@ -40,6 +40,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_string.h"
 #include "BLI_ghash.h"
+#include "BLI_rect.h"
 
 #include "BLF_translation.h"
 
@@ -254,7 +255,7 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
 			break;
 		case UI_ID_OPEN:
 		case UI_ID_ADD_NEW:
-			/* these call uiIDContextPropertySet */
+			/* these call uiIDContextProperty */
 			break;
 		case UI_ID_DELETE:
 			memset(&idptr, 0, sizeof(idptr));
@@ -1378,7 +1379,7 @@ static void colorband_buttons_large(uiLayout *layout, uiBlock *block, ColorBand 
 static void colorband_buttons_small(uiLayout *layout, uiBlock *block, ColorBand *coba, rctf *butr, RNAUpdateCb *cb)
 {
 	uiBut *bt;
-	float unit = (butr->xmax - butr->xmin) / 14.0f;
+	float unit = BLI_RCT_SIZE_X(butr) / 14.0f;
 	float xs = butr->xmin;
 
 	uiBlockBeginAlign(block);
@@ -1404,7 +1405,7 @@ static void colorband_buttons_small(uiLayout *layout, uiBlock *block, ColorBand 
 	               TIP_("Set interpolation between color stops"));
 	uiButSetNFunc(bt, rna_update_cb, MEM_dupallocN(cb), NULL);
 
-	bt = uiDefBut(block, BUT_COLORBAND, 0, "",       xs, butr->ymin, butr->xmax - butr->xmin, UI_UNIT_Y, coba, 0, 0, 0, 0, "");
+	bt = uiDefBut(block, BUT_COLORBAND, 0, "", xs, butr->ymin, BLI_RCT_SIZE_X(butr), UI_UNIT_Y, coba, 0, 0, 0, 0, "");
 	uiButSetNFunc(bt, rna_update_cb, MEM_dupallocN(cb), NULL);
 
 	uiBlockEndAlign(block);
@@ -1479,7 +1480,7 @@ void uiTemplateHistogram(uiLayout *layout, PointerRNA *ptr, const char *propname
 
 	hist->height = (hist->height <= UI_UNIT_Y) ? UI_UNIT_Y : hist->height;
 
-	bt = uiDefBut(block, HISTOGRAM, 0, "", rect.xmin, rect.ymin, rect.xmax - rect.xmin, hist->height, hist, 0, 0, 0, 0, "");
+	bt = uiDefBut(block, HISTOGRAM, 0, "", rect.xmin, rect.ymin, BLI_RCT_SIZE_X(&rect), hist->height, hist, 0, 0, 0, 0, "");
 	uiButSetNFunc(bt, rna_update_cb, MEM_dupallocN(cb), NULL);
 
 	MEM_freeN(cb);
@@ -1516,8 +1517,8 @@ void uiTemplateWaveform(uiLayout *layout, PointerRNA *ptr, const char *propname)
 	
 	scopes->wavefrm_height = (scopes->wavefrm_height <= UI_UNIT_Y) ? UI_UNIT_Y : scopes->wavefrm_height;
 
-	bt = uiDefBut(block, WAVEFORM, 0, "", rect.xmin, rect.ymin, rect.xmax - rect.xmin, scopes->wavefrm_height, scopes, 0, 0, 0, 0, "");
-	(void)bt; // UNUSED
+	bt = uiDefBut(block, WAVEFORM, 0, "", rect.xmin, rect.ymin, BLI_RCT_SIZE_X(&rect), scopes->wavefrm_height, scopes, 0, 0, 0, 0, "");
+	(void)bt;  /* UNUSED */
 	
 	MEM_freeN(cb);
 }
@@ -1553,7 +1554,7 @@ void uiTemplateVectorscope(uiLayout *layout, PointerRNA *ptr, const char *propna
 
 	scopes->vecscope_height = (scopes->vecscope_height <= UI_UNIT_Y) ? UI_UNIT_Y : scopes->vecscope_height;
 	
-	bt = uiDefBut(block, VECTORSCOPE, 0, "", rect.xmin, rect.ymin, rect.xmax - rect.xmin, scopes->vecscope_height, scopes, 0, 0, 0, 0, "");
+	bt = uiDefBut(block, VECTORSCOPE, 0, "", rect.xmin, rect.ymin, BLI_RCT_SIZE_X(&rect), scopes->vecscope_height, scopes, 0, 0, 0, 0, "");
 	uiButSetNFunc(bt, rna_update_cb, MEM_dupallocN(cb), NULL);
 	
 	MEM_freeN(cb);
@@ -1568,11 +1569,11 @@ static void curvemap_buttons_zoom_in(bContext *C, void *cumap_v, void *UNUSED(ar
 	float d;
 
 	/* we allow 20 times zoom */
-	if ( (cumap->curr.xmax - cumap->curr.xmin) > 0.04f * (cumap->clipr.xmax - cumap->clipr.xmin) ) {
-		d = 0.1154f * (cumap->curr.xmax - cumap->curr.xmin);
+	if (BLI_RCT_SIZE_X(&cumap->curr) > 0.04f * BLI_RCT_SIZE_X(&cumap->clipr)) {
+		d = 0.1154f * BLI_RCT_SIZE_X(&cumap->curr);
 		cumap->curr.xmin += d;
 		cumap->curr.xmax -= d;
-		d = 0.1154f * (cumap->curr.ymax - cumap->curr.ymin);
+		d = 0.1154f * BLI_RCT_SIZE_Y(&cumap->curr);
 		cumap->curr.ymin += d;
 		cumap->curr.ymax -= d;
 	}
@@ -1586,8 +1587,8 @@ static void curvemap_buttons_zoom_out(bContext *C, void *cumap_v, void *UNUSED(u
 	float d, d1;
 
 	/* we allow 20 times zoom, but don't view outside clip */
-	if ( (cumap->curr.xmax - cumap->curr.xmin) < 20.0f * (cumap->clipr.xmax - cumap->clipr.xmin) ) {
-		d = d1 = 0.15f * (cumap->curr.xmax - cumap->curr.xmin);
+	if (BLI_RCT_SIZE_X(&cumap->curr) < 20.0f * BLI_RCT_SIZE_X(&cumap->clipr)) {
+		d = d1 = 0.15f * BLI_RCT_SIZE_X(&cumap->curr);
 
 		if (cumap->flag & CUMA_DO_CLIP) 
 			if (cumap->curr.xmin - d < cumap->clipr.xmin)
@@ -1600,7 +1601,7 @@ static void curvemap_buttons_zoom_out(bContext *C, void *cumap_v, void *UNUSED(u
 				d1 = -cumap->curr.xmax + cumap->clipr.xmax;
 		cumap->curr.xmax += d1;
 
-		d = d1 = 0.15f * (cumap->curr.ymax - cumap->curr.ymin);
+		d = d1 = 0.15f * BLI_RCT_SIZE_Y(&cumap->curr);
 
 		if (cumap->flag & CUMA_DO_CLIP) 
 			if (cumap->curr.ymin - d < cumap->clipr.ymin)
@@ -1635,7 +1636,7 @@ static void curvemap_buttons_delete(bContext *C, void *cb_v, void *cumap_v)
 }
 
 /* NOTE: this is a block-menu, needs 0 events, otherwise the menu closes */
-static uiBlock *curvemap_clipping_func(bContext *C, struct ARegion *ar, void *cumap_v)
+static uiBlock *curvemap_clipping_func(bContext *C, ARegion *ar, void *cumap_v)
 {
 	CurveMapping *cumap = cumap_v;
 	uiBlock *block;
@@ -1696,7 +1697,7 @@ static void curvemap_tools_dofunc(bContext *C, void *cumap_v, int event)
 	ED_region_tag_redraw(CTX_wm_region(C));
 }
 
-static uiBlock *curvemap_tools_func(bContext *C, struct ARegion *ar, void *cumap_v)
+static uiBlock *curvemap_tools_func(bContext *C, ARegion *ar, void *cumap_v)
 {
 	uiBlock *block;
 	short yco = 0, menuwidth = 10 * UI_UNIT_X;
@@ -1718,7 +1719,7 @@ static uiBlock *curvemap_tools_func(bContext *C, struct ARegion *ar, void *cumap
 	return block;
 }
 
-static uiBlock *curvemap_brush_tools_func(bContext *C, struct ARegion *ar, void *cumap_v)
+static uiBlock *curvemap_brush_tools_func(bContext *C, ARegion *ar, void *cumap_v)
 {
 	uiBlock *block;
 	short yco = 0, menuwidth = 10 * UI_UNIT_X;
@@ -2315,7 +2316,6 @@ static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, Pointe
 
 void uiTemplateList(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, PointerRNA *activeptr, const char *activepropname, const char *prop_list, int rows, int maxrows, int listtype)
 {
-	//Scene *scene = CTX_data_scene(C);
 	PropertyRNA *prop = NULL, *activeprop;
 	PropertyType type, activetype;
 	StructRNA *ptype;
@@ -2562,7 +2562,7 @@ static void do_running_jobs(bContext *C, void *UNUSED(arg), int event)
 {
 	switch (event) {
 		case B_STOPRENDER:
-			G.afbreek = 1;
+			G.is_break = TRUE;
 			break;
 		case B_STOPCAST:
 			WM_jobs_stop(CTX_wm_manager(C), CTX_wm_screen(C), NULL);
@@ -2571,7 +2571,7 @@ static void do_running_jobs(bContext *C, void *UNUSED(arg), int event)
 			WM_operator_name_call(C, "SCREEN_OT_animation_play", WM_OP_INVOKE_SCREEN, NULL);
 			break;
 		case B_STOPCOMPO:
-			WM_jobs_stop(CTX_wm_manager(C), CTX_wm_area(C), NULL);
+			WM_jobs_stop(CTX_wm_manager(C), CTX_data_scene(C), NULL);
 			break;
 		case B_STOPSEQ:
 			WM_jobs_stop(CTX_wm_manager(C), CTX_wm_area(C), NULL);
@@ -2596,36 +2596,37 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
 
 	uiBlockSetHandleFunc(block, do_running_jobs, NULL);
 
-	if (sa->spacetype == SPACE_NODE) {
-		if (WM_jobs_test(wm, sa))
-			owner = sa;
-		handle_event = B_STOPCOMPO;
-	}
-	else if (sa->spacetype == SPACE_SEQ) {
-		if (WM_jobs_test(wm, sa))
+	if (sa->spacetype == SPACE_SEQ) {
+		if (WM_jobs_test(wm, sa, WM_JOB_TYPE_ANY))
 			owner = sa;
 		handle_event = B_STOPSEQ;
 	}
 	else if (sa->spacetype == SPACE_CLIP) {
-		if (WM_jobs_test(wm, sa))
+		if (WM_jobs_test(wm, sa, WM_JOB_TYPE_ANY))
 			owner = sa;
 		handle_event = B_STOPCLIP;
 	}
 	else {
 		Scene *scene;
 		/* another scene can be rendering too, for example via compositor */
-		for (scene = CTX_data_main(C)->scene.first; scene; scene = scene->id.next)
-			if (WM_jobs_test(wm, scene))
+		for (scene = CTX_data_main(C)->scene.first; scene; scene = scene->id.next) {
+			if (WM_jobs_test(wm, scene, WM_JOB_TYPE_RENDER)) {
+				handle_event = B_STOPRENDER;
 				break;
+			}
+			else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_COMPOSITE)) {
+				handle_event = B_STOPCOMPO;
+				break;
+			}
+		}
 		owner = scene;
-		handle_event = B_STOPRENDER;
 	}
 
 	if (owner) {
 		uiLayout *ui_abs;
 		
 		ui_abs = uiLayoutAbsolute(layout, FALSE);
-		(void)ui_abs; // UNUSED
+		(void)ui_abs;  /* UNUSED */
 		
 		uiDefIconBut(block, BUT, handle_event, ICON_PANEL_CLOSE, 
 		             0, UI_UNIT_Y * 0.1, UI_UNIT_X * 0.8, UI_UNIT_Y * 0.8, NULL, 0.0f, 0.0f, 0, 0, TIP_("Stop this job"));
@@ -2634,7 +2635,7 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
 		
 		uiLayoutRow(layout, FALSE);
 	}
-	if (WM_jobs_test(wm, screen))
+	if (WM_jobs_test(wm, screen, WM_JOB_TYPE_SCREENCAST))
 		uiDefIconTextBut(block, BUT, B_STOPCAST, ICON_CANCEL, IFACE_("Capture"), 0, 0, 85, UI_UNIT_Y, NULL, 0.0f, 0.0f, 0, 0,
 		                 TIP_("Stop screencast"));
 	if (screen->animtimer)

@@ -29,7 +29,6 @@
 
 #include "COM_NodeOperation.h"
 
-#include "DNA_scene_types.h"
 #include "DNA_movieclip_types.h"
 
 #include "BLI_listbase.h"
@@ -63,7 +62,7 @@ protected:
 	/**
 	 * Determine the output resolution. The resolution is retrieved from the Renderer
 	 */
-	void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
+	void determineResolution(unsigned int resolution[2], unsigned int preferredResolution[2]);
 
 	TriangulationData *buildVoronoiTriangulation();
 
@@ -80,7 +79,7 @@ public:
 	void setTrackingObject(const char *object) {strncpy(this->m_trackingObject, object, sizeof(this->m_trackingObject));}
 	void setFramenumber(int framenumber) {this->m_framenumber = framenumber;}
 
-	void executePixel(float *color, int x, int y, void *data);
+	void executePixel(float output[4], int x, int y, void *data);
 };
 
 #endif

@@ -484,7 +484,7 @@ static void graph_listener(ScrArea *sa, wmNotifier *wmn)
 			
 			// XXX: restore the case below if not enough updates occur...
 			//default:
-			//	if (wmn->data==ND_KEYS)
+			//	if (wmn->data == ND_KEYS)
 			//		ED_area_tag_redraw(sa);
 	}
 }

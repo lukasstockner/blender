@@ -579,11 +579,11 @@ static int outliner_show_active_exec(bContext *C, wmOperator *UNUSED(op))
 	te = outliner_find_id(so, &so->tree, (ID *)OBACT);
 	if (te) {
 		/* make te->ys center of view */
-		ytop = (int)(te->ys + (v2d->mask.ymax - v2d->mask.ymin) / 2);
+		ytop = (int)(te->ys + BLI_RCT_SIZE_Y(&v2d->mask) / 2);
 		if (ytop > 0) ytop = 0;
 		
 		v2d->cur.ymax = (float)ytop;
-		v2d->cur.ymin = (float)(ytop - (v2d->mask.ymax - v2d->mask.ymin));
+		v2d->cur.ymin = (float)(ytop - BLI_RCT_SIZE_Y(&v2d->mask));
 		
 		/* make te->xs ==> te->xend center of view */
 		xdelta = (int)(te->xs - v2d->cur.xmin);
@@ -1851,7 +1851,7 @@ static int material_drop_invoke(bContext *C, wmOperator *op, wmEvent *event)
 			return OPERATOR_CANCELLED;
 		}
 
-		assign_material(ob, ma, ob->totcol + 1);
+		assign_material(ob, ma, ob->totcol + 1, BKE_MAT_ASSIGN_USERPREF);
 
 		DAG_ids_flush_update(bmain, 0);
 		WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, CTX_wm_view3d(C));		

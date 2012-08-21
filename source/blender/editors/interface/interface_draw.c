@@ -439,8 +439,8 @@ void ui_draw_but_IMAGE(ARegion *UNUSED(ar), uiBut *but, uiWidgetColors *UNUSED(w
 	//gpuCurrentColor3x(CPACK_RED);
 	//gpuSingleWireRectf(rect->xmin, rect->ymin, rect->xmax, rect->ymax)
 
-	w = (rect->xmax - rect->xmin);
-	h = (rect->ymax - rect->ymin);
+	w = BLI_RCT_SIZE_X(rect);
+	h = BLI_RCT_SIZE_Y(rect);
 	/* prevent drawing outside widget area */
 	gpuGetSizeBox(GL_SCISSOR_BOX, scissor);
 	gpuScissor(ar->winrct.xmin + rect->xmin, ar->winrct.ymin + rect->ymin, w, h);
@@ -479,7 +479,7 @@ static void ui_draw_but_CHARTAB(uiBut *but)
 	int charmax = G.charmax;
 	
 	/* FO_BUILTIN_NAME font in use. There are TTF FO_BUILTIN_NAME and non-TTF FO_BUILTIN_NAME fonts */
-	if (!strcmp(G.selfont->name, FO_BUILTIN_NAME)) {
+	if (BKE_vfont_is_builtin(G.selfont)) {
 		if (G.ui_international == TRUE) {
 			charmax = 0xff;
 		}
@@ -493,8 +493,8 @@ static void ui_draw_but_CHARTAB(uiBut *but)
 		charmax = G.charmax = 0xffff;
 
 	/* Calculate the size of the button */
-	width = abs(rect->xmax - rect->xmin);
-	height = abs(rect->ymax - rect->ymin);
+	width = absBLI_RCT_SIZE_X(rect);
+	height = absBLI_RCT_SIZE_Y(rect);
 	
 	butw = floor(width / 12);
 	buth = floor(height / 6);
@@ -508,7 +508,7 @@ static void ui_draw_but_CHARTAB(uiBut *but)
 	cs = G.charstart;
 
 	/* Set the font, in case it is not FO_BUILTIN_NAME font */
-	if (G.selfont && strcmp(G.selfont->name, FO_BUILTIN_NAME)) {
+	if (G.selfont && BKE_vfont_is_builtin(G.selfont) == FALSE) {
 		/* Is the font file packed, if so then use the packed file */
 		if (G.selfont->packedfile) {
 			pf = G.selfont->packedfile;		
@@ -559,7 +559,7 @@ static void ui_draw_but_CHARTAB(uiBut *but)
 
 			/* Set the font to be either unicode or FO_BUILTIN_NAME */
 			wstr[0] = cs;
-			if (strcmp(G.selfont->name, FO_BUILTIN_NAME)) {
+			if (BKE_vfont_is_builtin(G.selfont) == FALSE) {
 				BLI_strncpy_wchar_as_utf8((char *)ustr, (wchar_t *)wstr, sizeof(ustr));
 			}
 			else {
@@ -572,8 +572,8 @@ static void ui_draw_but_CHARTAB(uiBut *but)
 				}
 			}
 
-			if ((G.selfont && strcmp(G.selfont->name, FO_BUILTIN_NAME)) ||
-			    (G.selfont && !strcmp(G.selfont->name, FO_BUILTIN_NAME) && G.ui_international == TRUE))
+			if ((G.selfont && (BKE_vfont_is_builtin(G.selfont) == FALSE)) ||
+			    (G.selfont && (BKE_vfont_is_builtin(G.selfont) == TRUE) && G.ui_international == TRUE))
 			{
 				float wid;
 				float llx, lly, llz, urx, ury, urz;
@@ -629,7 +629,7 @@ static void ui_draw_but_CHARTAB(uiBut *but)
 	}
 }
 
-#endif // WITH_INTERNATIONAL
+#endif /* WITH_INTERNATIONAL */
 #endif
 
 static void draw_scope_end(rctf *rect, GLint *scissor)
@@ -640,8 +640,8 @@ static void draw_scope_end(rctf *rect, GLint *scissor)
 	gpuScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
 
 	/* scale widget */
-	scaler_x1 = rect->xmin + (rect->xmax - rect->xmin) / 2 - SCOPE_RESIZE_PAD;
-	scaler_x2 = rect->xmin + (rect->xmax - rect->xmin) / 2 + SCOPE_RESIZE_PAD;
+	scaler_x1 = rect->xmin + BLI_RCT_SIZE_X(rect) / 2 - SCOPE_RESIZE_PAD;
+	scaler_x2 = rect->xmin + BLI_RCT_SIZE_X(rect) / 2 + SCOPE_RESIZE_PAD;
 
 	gpuImmediateFormat_C4_V2(); // DOODLE: fixed number of colored lines
 	gpuBegin(GL_LINES);
@@ -722,6 +722,8 @@ static void histogram_draw_one(float r, float g, float b, float alpha,
 	}
 }
 
+#define HISTOGRAM_TOT_GRID_LINES 4
+
 void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *recti)
 {
 	Histogram *hist = (Histogram *)but->poin;
@@ -737,8 +739,8 @@ void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol)
 	rect.ymin = (float)recti->ymin + SCOPE_RESIZE_PAD + 2;
 	rect.ymax = (float)recti->ymax - 1;
 	
-	w = rect.xmax - rect.xmin;
-	h = (rect.ymax - rect.ymin) * hist->ymax;
+	w = BLI_RCT_SIZE_X(&rect);
+	h = BLI_RCT_SIZE_Y(&rect) * hist->ymax;
 	
 	glEnable(GL_BLEND);
 
@@ -758,10 +760,16 @@ void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol)
 	gpuImmediateFormat_V2(); /* lock both for grid and histogram */ // DOODLE: 4 monochrome lines and 1 or 3 histograms
 
 	/* draw grid lines here */
-	gpuBegin(GL_LINES);
-	for (i = 1; i < 4; i++) {
-		gpuAppendLinef(rect.xmin, rect.ymin + (i / 4.f) * h, rect.xmax, rect.ymin + (i / 4.f) * h);
-		gpuAppendLinef(rect.xmin + (i / 4.f) * w, rect.ymin, rect.xmin + (i / 4.f) * w, rect.ymax);
+	for (i = 1; i < (HISTOGRAM_TOT_GRID_LINES + 1); i++) {
+		const float fac = (float)i / (float)HISTOGRAM_TOT_GRID_LINES;
+
+		/* so we can tell the 1.0 color point */
+		if (i == HISTOGRAM_TOT_GRID_LINES) {
+			gpuCurrentColor4f(1.0f, 1.0f, 1.0f, 0.5f);
+		}
+
+		gpuAppendLinef(rect.xmin, rect.ymin + fac * h, rect.xmax, rect.ymin + fac * h);
+		gpuAppendLinef(rect.xmin + fac * w, rect.ymin, rect.xmin + fac * w, rect.ymax);
 	}
 	gpuEnd();
 
@@ -786,6 +794,8 @@ void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol)
 	draw_scope_end(&rect, scissor);
 }
 
+#undef HISTOGRAM_TOT_GRID_LINES
+
 void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *recti)
 {
 	Scopes *scopes = (Scopes *)but->poin;
@@ -807,9 +817,9 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 
 	if (scopes->wavefrm_yfac < 0.5f)
 		scopes->wavefrm_yfac = 0.98f;
-	w = rect.xmax - rect.xmin - 7;
-	h = (rect.ymax - rect.ymin) * scopes->wavefrm_yfac;
-	yofs = rect.ymin + (rect.ymax - rect.ymin - h) / 2.0f;
+	w = BLI_RCT_SIZE_X(&rect) - 7;
+	h = BLI_RCT_SIZE_Y(&rect) * scopes->wavefrm_yfac;
+	yofs = rect.ymin + (BLI_RCT_SIZE_Y(&rect) - h) / 2.0f;
 	w3 = w / 3.0f;
 
 	/* log scale for alpha */
@@ -1054,8 +1064,8 @@ void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wco
 	rect.ymin = (float)recti->ymin + SCOPE_RESIZE_PAD + 2;
 	rect.ymax = (float)recti->ymax - 1;
 
-	w = rect.xmax - rect.xmin;
-	h = rect.ymax - rect.ymin;
+	w = BLI_RCT_SIZE_X(&rect);
+	h = BLI_RCT_SIZE_Y(&rect);
 	centerx = rect.xmin + w / 2;
 	centery = rect.ymin + h / 2;
 	diam = (w < h) ? w : h;
@@ -1307,12 +1317,12 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 	
 	/* transform to button */
 	gpuPushMatrix();
-	gpuTranslate(rect->xmin + 0.5f * (rect->xmax - rect->xmin), rect->ymin + 0.5f * (rect->ymax - rect->ymin), 0.0f);
+	gpuTranslate(rect->xmin + 0.5f * BLI_RCT_SIZE_X(rect), rect->ymin + 0.5f * BLI_RCT_SIZE_Y(rect), 0.0f);
 	
-	if (rect->xmax - rect->xmin < rect->ymax - rect->ymin)
-		size = (rect->xmax - rect->xmin) / 200.f;
+	if (BLI_RCT_SIZE_X(rect) < BLI_RCT_SIZE_Y(rect))
+		size = BLI_RCT_SIZE_X(rect) / 200.f;
 	else
-		size = (rect->ymax - rect->ymin) / 200.f;
+		size = BLI_RCT_SIZE_Y(rect) / 200.f;
 	
 	gpuScale(size, size, size);
 	
@@ -1420,8 +1430,8 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 	gpuScissor(scissor_new.xmin, scissor_new.ymin, scissor_new.xmax - scissor_new.xmin, scissor_new.ymax - scissor_new.ymin);
 	
 	/* calculate offset and zoom */
-	zoomx = (rect->xmax - rect->xmin - 2.0f * but->aspect) / (cumap->curr.xmax - cumap->curr.xmin);
-	zoomy = (rect->ymax - rect->ymin - 2.0f * but->aspect) / (cumap->curr.ymax - cumap->curr.ymin);
+	zoomx = (BLI_RCT_SIZE_X(rect) - 2.0f * but->aspect) / BLI_RCT_SIZE_X(&cumap->curr);
+	zoomy = (BLI_RCT_SIZE_Y(rect) - 2.0f * but->aspect) / BLI_RCT_SIZE_Y(&cumap->curr);
 	offsx = cumap->curr.xmin - but->aspect / zoomx;
 	offsy = cumap->curr.ymin - but->aspect / zoomy;
 	
@@ -1596,8 +1606,8 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 	rect.ymin = (float)recti->ymin + SCOPE_RESIZE_PAD + 2;
 	rect.ymax = (float)recti->ymax - 1;
 
-	width = rect.xmax - rect.xmin + 1;
-	height = rect.ymax - rect.ymin;
+	width  = BLI_RCT_SIZE_X(&rect) + 1;
+	height = BLI_RCT_SIZE_Y(&rect);
 
 	glEnable(GL_BLEND);
 
@@ -1671,8 +1681,8 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 			gpuTranslate(rect.xmin + track_pos[0], rect.ymin + track_pos[1], 0.f);
 			gpuScissor(ar->winrct.xmin + rect.xmin,
 			          ar->winrct.ymin + rect.ymin,
-			          rect.xmax - rect.xmin,
-			          rect.ymax - rect.ymin);
+			          BLI_RCT_SIZE_X(&rect),
+			          BLI_RCT_SIZE_Y(&rect));
 
 			for (a = 0; a < 2; a++) {
 				if (a == 1) {

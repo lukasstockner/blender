@@ -74,6 +74,7 @@
 #include "COM_HueSaturationValueNode.h"
 #include "COM_IDMaskNode.h"
 #include "COM_ImageNode.h"
+#include "COM_InpaintNode.h"
 #include "COM_InvertNode.h"
 #include "COM_KeyingNode.h"
 #include "COM_KeyingScreenNode.h"
@@ -128,16 +129,16 @@ Node *Converter::convert(bNode *b_node, bool fast)
 	}
 	if (fast) {
 		if (b_node->type == CMP_NODE_BLUR ||
-		        b_node->type == CMP_NODE_VECBLUR ||
-		        b_node->type == CMP_NODE_BILATERALBLUR ||
-		        b_node->type == CMP_NODE_DEFOCUS ||
-		        b_node->type == CMP_NODE_BOKEHBLUR ||
-		        b_node->type == CMP_NODE_GLARE ||
-		        b_node->type == CMP_NODE_DBLUR ||
-		        b_node->type == CMP_NODE_MOVIEDISTORTION ||
-		        b_node->type == CMP_NODE_LENSDIST ||
-		        b_node->type == CMP_NODE_DOUBLEEDGEMASK ||
-		        b_node->type == CMP_NODE_DILATEERODE) 
+		    b_node->type == CMP_NODE_VECBLUR ||
+		    b_node->type == CMP_NODE_BILATERALBLUR ||
+		    b_node->type == CMP_NODE_DEFOCUS ||
+		    b_node->type == CMP_NODE_BOKEHBLUR ||
+		    b_node->type == CMP_NODE_GLARE ||
+		    b_node->type == CMP_NODE_DBLUR ||
+		    b_node->type == CMP_NODE_MOVIEDISTORTION ||
+		    b_node->type == CMP_NODE_LENSDIST ||
+		    b_node->type == CMP_NODE_DOUBLEEDGEMASK ||
+		    b_node->type == CMP_NODE_DILATEERODE)
 		{
 			return new MuteNode(b_node);
 		}
@@ -302,6 +303,9 @@ Node *Converter::convert(bNode *b_node, bool fast)
 			break;
 		case CMP_NODE_DILATEERODE:
 			node = new DilateErodeNode(b_node);
+			break;
+		case CMP_NODE_INPAINT:
+			node = new InpaintNode(b_node);
 			break;
 		case CMP_NODE_LENSDIST:
 			node = new LensDistortionNode(b_node);

@@ -755,8 +755,8 @@ static void group_duplilist(ListBase *lb, Scene *scene, Object *ob, int par_inde
 
 			/* check the group instance and object layers match, also that the object visible flags are ok. */
 			if ((dob->origlay & group->layer) == 0 ||
-			    (G.rendering == 0 && dob->ob->restrictflag & OB_RESTRICT_VIEW) ||
-			    (G.rendering && dob->ob->restrictflag & OB_RESTRICT_RENDER))
+			    ((G.is_rendering == FALSE) && dob->ob->restrictflag & OB_RESTRICT_VIEW) ||
+			    ((G.is_rendering == TRUE)  && dob->ob->restrictflag & OB_RESTRICT_RENDER))
 			{
 				dob->no_draw = TRUE;
 			}
@@ -934,7 +934,7 @@ static void vertex_duplilist(ListBase *lb, ID *id, Scene *scene, Object *par, fl
 	else
 		dm = mesh_get_derived_deform(scene, par, CD_MASK_BAREMESH);
 	
-	if (G.rendering) {
+	if (G.is_rendering) {
 		vdd.orco = (float(*)[3])BKE_mesh_orco_verts_get(par);
 		BKE_mesh_orco_verts_transform(me, vdd.orco, me->totvert, 0);
 	}
@@ -1066,7 +1066,7 @@ static void face_duplilist(ListBase *lb, ID *id, Scene *scene, Object *par, floa
 	mloop = dm->getLoopArray(dm);
 	mvert = dm->getVertArray(dm);
 
-	if (G.rendering) {
+	if (G.is_rendering) {
 
 		orco = (float(*)[3])BKE_mesh_orco_verts_get(par);
 		BKE_mesh_orco_verts_transform(me, orco, me->totvert, 0);
@@ -1177,7 +1177,7 @@ static void face_duplilist(ListBase *lb, ID *id, Scene *scene, Object *par, floa
 						mul_m4_m4m3(obmat, tmat, mat);
 						
 						dob = new_dupli_object(lb, ob, obmat, par->lay, a, par_index, OB_DUPLIFACES, animated);
-						if (G.rendering) {
+						if (G.is_rendering) {
 							w = 1.0f / (float)mp->totloop;
 
 							if (orco) {
@@ -1251,7 +1251,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 	if (!psys_check_enabled(par, psys))
 		return;
 
-	if (G.rendering == 0)
+	if (G.is_rendering == FALSE)
 		no_draw_flag |= PARS_NO_DISP;
 	
 	ctime = BKE_scene_frame_get(scene); /* NOTE: in old animsys, used parent object's timeoffset... */
@@ -1279,9 +1279,9 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 			if (part->dup_group == NULL || part->dup_group->gobject.first == NULL)
 				return;
 
-			for (go = part->dup_group->gobject.first; go; go = go->next)
-				if (go->ob == par)
-					return;
+			if (BLI_findptr(&part->dup_group->gobject, par, offsetof(GroupObject, ob))) {
+				return;
+			}
 		}
 
 		/* if we have a hair particle system, use the path cache */
@@ -1445,7 +1445,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 
 					dob = new_dupli_object(lb, go->ob, mat, par->lay, counter, index, OB_DUPLIPARTS, animated);
 					copy_m4_m4(dob->omat, obcopylist[b].obmat);
-					if (G.rendering)
+					if (G.is_rendering)
 						psys_get_dupli_texture(psys, part, sim.psmd, pa, cpa, dob->uv, dob->orco);
 				}
 			}
@@ -1458,12 +1458,18 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 
 				/* particle rotation uses x-axis as the aligned axis, so pre-rotate the object accordingly */
 				if ((part->draw & PART_DRAW_ROTATE_OB) == 0) {
-					float xvec[3], q[4];
+					float xvec[3], q[4], size_mat[4][4], original_size[3];
+
+					mat4_to_size(original_size, obmat);
+					size_to_mat4(size_mat, original_size);
+
 					xvec[0] = -1.f;
 					xvec[1] = xvec[2] = 0;
 					vec_to_quat(q, xvec, ob->trackflag, ob->upflag);
 					quat_to_mat4(obmat, q);
 					obmat[3][3] = 1.0f;
+					
+					mult_m4_m4m4(obmat, obmat, size_mat);
 				}
 				
 				/* Normal particles and cached hair live in global space so we need to
@@ -1487,7 +1493,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 
 				dob = new_dupli_object(lb, ob, mat, ob->lay, counter, index, GS(id->name) == ID_GR ? OB_DUPLIGROUP : OB_DUPLIPARTS, animated);
 				copy_m4_m4(dob->omat, oldobmat);
-				if (G.rendering)
+				if (G.is_rendering)
 					psys_get_dupli_texture(psys, part, sim.psmd, pa, cpa, dob->uv, dob->orco);
 			}
 
@@ -1543,7 +1549,7 @@ static void font_duplilist(ListBase *lb, Scene *scene, Object *par, int par_inde
 {
 	Object *ob, *obar[256] = {NULL};
 	Curve *cu;
-	struct chartrans *ct, *chartransdata;
+	struct CharTrans *ct, *chartransdata;
 	float vec[3], obmat[4][4], pmat[4][4], fsize, xof, yof;
 	int slen, a;
 	
@@ -1593,7 +1599,7 @@ static void object_duplilist_recursive(ID *id, Scene *scene, Object *ob, ListBas
 		return;
 	
 	/* Should the dupli's be generated for this object? - Respect restrict flags */
-	if (G.rendering) {
+	if (G.is_rendering) {
 		if (ob->restrictflag & OB_RESTRICT_RENDER) {
 			return;
 		}

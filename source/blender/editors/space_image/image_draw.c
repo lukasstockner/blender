@@ -44,6 +44,7 @@
 #include "PIL_time.h"
 
 #include "BLI_math.h"
+#include "BLI_rect.h"
 #include "BLI_threads.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -136,7 +137,7 @@ void ED_image_draw_info(ARegion *ar, int color_manage, int channels, int x, int 
 
 	/* noisy, high contrast make impossible to read if lower alpha is used. */
 	gpuCurrentColor4x(CPACK_BLACK, 0.745f);
-	gpuSingleFilledRecti(0.0, 0.0, ar->winrct.xmax - ar->winrct.xmin + 1, 20);
+	gpuSingleFilledRecti(0.0, 0.0, BLI_RCT_SIZE_X(&ar->winrct) + 1, 20);
 	glDisable(GL_BLEND);
 
 	BLF_size(blf_mono_font, 11, 72);
@@ -718,7 +719,7 @@ void draw_image_main(SpaceImage *sima, ARegion *ar, Scene *scene)
 	what_image(sima);
 	
 	if (sima->image) {
-		ED_image_aspect(sima->image, &xuser_asp, &yuser_asp);
+		ED_image_get_aspect(sima->image, &xuser_asp, &yuser_asp);
 		
 		/* UGLY hack? until now iusers worked fine... but for flipbook viewer we need this */
 		if (sima->image->type == IMA_TYPE_COMPOSITE) {
@@ -735,7 +736,7 @@ void draw_image_main(SpaceImage *sima, ARegion *ar, Scene *scene)
 
 	/* retrieve the image and information about it */
 	ima = ED_space_image(sima);
-	ED_space_image_zoom(sima, ar, &zoomx, &zoomy);
+	ED_space_image_get_zoom(sima, ar, &zoomx, &zoomy);
 
 	show_viewer = (ima && ima->source == IMA_SRC_VIEWER);
 	show_render = (show_viewer && ima->type == IMA_TYPE_R_RESULT);
@@ -762,7 +763,7 @@ void draw_image_main(SpaceImage *sima, ARegion *ar, Scene *scene)
 		draw_image_buffer(sima, ar, scene, ima, ibuf, 0.0f, 0.0f, zoomx, zoomy);
 
 	/* paint helpers */
-	if (sima->flag & SI_DRAWTOOL)
+	if (sima->mode == SI_MODE_PAINT)
 		draw_image_paint_helpers(ar, scene, zoomx, zoomy);
 
 

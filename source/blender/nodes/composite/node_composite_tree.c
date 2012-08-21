@@ -50,6 +50,7 @@
 #include "BKE_tracking.h"
 #include "BKE_utildefines.h"
 
+#include "node_common.h"
 #include "node_exec.h"
 #include "node_util.h"
 
@@ -247,6 +248,8 @@ static void local_merge(bNodeTree *localtree, bNodeTree *ntree)
 static void update(bNodeTree *ntree)
 {
 	ntreeSetOutput(ntree);
+	
+	ntree_update_reroute_nodes(ntree);
 }
 
 bNodeTreeType ntreeType_Composite = {
@@ -356,6 +359,7 @@ void ntreeCompositEndExecTree(bNodeTreeExec *exec, int use_tree_data)
 }
 
 #ifdef WITH_COMPOSITOR
+#ifdef WITH_COMPOSITOR_LEGACY
 
 /* ***************************** threaded version for execute composite nodes ************* */
 /* these are nodes without input, only giving values */
@@ -682,20 +686,29 @@ static void ntreeCompositExecTreeOld(bNodeTree *ntree, RenderData *rd, int do_pr
 	/* XXX top-level tree uses the ntree->execdata pointer */
 	ntreeCompositEndExecTree(exec, 1);
 }
-#endif
+#endif  /* WITH_COMPOSITOR_LEGACY */
+#endif  /* WITH_COMPOSITOR */
 
 void *COM_linker_hack = NULL;
 
 void ntreeCompositExecTree(bNodeTree *ntree, RenderData *rd, int rendering, int do_preview)
 {
 #ifdef WITH_COMPOSITOR
-	if (G.rt == 200)
+#ifdef WITH_COMPOSITOR_LEGACY
+	if (G.debug_value == 200)
+	{
 		ntreeCompositExecTreeOld(ntree, rd, do_preview);
+	}
 	else
+#endif
+	{
 		COM_execute(rd, ntree, rendering);
+	}
 #else
 	(void)ntree, (void)rd, (void)rendering, (void)do_preview;
 #endif
+
+	(void)do_preview;
 }
 
 /* *********************************************** */

@@ -85,22 +85,22 @@
 
 /* return codes for select, and drawing flags */
 
-#define MAN_TRANS_X     1
-#define MAN_TRANS_Y     2
-#define MAN_TRANS_Z     4
-#define MAN_TRANS_C     7
+#define MAN_TRANS_X		(1 << 0)
+#define MAN_TRANS_Y		(1 << 1)
+#define MAN_TRANS_Z		(1 << 2)
+#define MAN_TRANS_C		(MAN_TRANS_X | MAN_TRANS_Y | MAN_TRANS_Z)
 
-#define MAN_ROT_X       8
-#define MAN_ROT_Y       16
-#define MAN_ROT_Z       32
-#define MAN_ROT_V       64
-#define MAN_ROT_T       128
-#define MAN_ROT_C       248
+#define MAN_ROT_X		(1 << 3)
+#define MAN_ROT_Y		(1 << 4)
+#define MAN_ROT_Z		(1 << 5)
+#define MAN_ROT_V		(1 << 6)
+#define MAN_ROT_T		(1 << 7)
+#define MAN_ROT_C		(MAN_ROT_X | MAN_ROT_Y | MAN_ROT_Z | MAN_ROT_V | MAN_ROT_T)
 
-#define MAN_SCALE_X     256
-#define MAN_SCALE_Y     512
-#define MAN_SCALE_Z     1024
-#define MAN_SCALE_C     1792
+#define MAN_SCALE_X		(1 << 8)
+#define MAN_SCALE_Y		(1 << 9)
+#define MAN_SCALE_Z		(1 << 10)
+#define MAN_SCALE_C		(MAN_SCALE_X | MAN_SCALE_Y | MAN_SCALE_Z)
 
 /* color codes */
 
@@ -608,7 +608,7 @@ static void test_manipulator_axis(const bContext *C)
 
 	ED_view3d_global_to_vector(rv3d, rv3d->twmat[3], vec);
 
-	angle = fabs(angle_v3v3(rv3d->twmat[0], vec));
+	angle = fabsf(angle_v3v3(rv3d->twmat[0], vec));
 	if (angle > (float)M_PI / 2.0f) {
 		angle = (float)M_PI - angle;
 	}
@@ -617,7 +617,7 @@ static void test_manipulator_axis(const bContext *C)
 		rv3d->twdrawflag &= ~(MAN_TRANS_X | MAN_SCALE_X);
 	}
 
-	angle = fabs(angle_v3v3(rv3d->twmat[1], vec));
+	angle = fabsf(angle_v3v3(rv3d->twmat[1], vec));
 	if (angle > (float)M_PI / 2.0f) {
 		angle = (float)M_PI - angle;
 	}
@@ -626,7 +626,7 @@ static void test_manipulator_axis(const bContext *C)
 		rv3d->twdrawflag &= ~(MAN_TRANS_Y | MAN_SCALE_Y);
 	}
 
-	angle = fabs(angle_v3v3(rv3d->twmat[2], vec));
+	angle = fabsf(angle_v3v3(rv3d->twmat[2], vec));
 	if (angle > (float)M_PI / 2.0f) {
 		angle = (float)M_PI - angle;
 	}
@@ -886,7 +886,7 @@ static void draw_manipulator_rotate(View3D *v3d, RegionView3D *rv3d, int moving,
 	float size;
 	float cywid = 0.33f * 0.01f * (float)U.tw_handlesize;
 	float cusize = cywid * 0.65f;
-	int arcs = (G.rt != 2);
+	int arcs = (G.debug_value != 2);
 	int colcode;
 	int ortho;
 

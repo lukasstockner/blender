@@ -37,7 +37,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_string.h"
+#include "BLI_fileops.h"
 
 #include "imbuf.h"
 #include "IMB_imbuf_types.h"
@@ -200,7 +201,7 @@ static void memory_source(j_decompress_ptr cinfo, unsigned char *buffer, size_t 
 #define MAKESTMT(stuff)     do { stuff } while (0)
 
 #define INPUT_VARS(cinfo)  \
-	struct jpeg_source_mgr * datasrc = (cinfo)->src;  \
+	struct jpeg_source_mgr *datasrc = (cinfo)->src;  \
 	const JOCTET * next_input_byte = datasrc->next_input_byte;  \
 	size_t bytes_in_buffer = datasrc->bytes_in_buffer
 

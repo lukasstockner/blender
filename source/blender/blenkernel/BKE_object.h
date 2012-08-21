@@ -109,8 +109,8 @@ struct BoundBox *BKE_object_boundbox_get(struct Object *ob);
 void BKE_object_dimensions_get(struct Object *ob, float vec[3]);
 void BKE_object_dimensions_set(struct Object *ob, const float *value);
 void BKE_object_boundbox_flag(struct Object *ob, int flag, int set);
-void BKE_object_minmax(struct Object *ob, float r_min[3], float r_max[3]);
-int BKE_object_minmax_dupli(struct Scene *scene, struct Object *ob, float r_min[3], float r_max[3]);
+void BKE_object_minmax(struct Object *ob, float r_min[3], float r_max[3], const short use_hidden);
+int BKE_object_minmax_dupli(struct Scene *scene, struct Object *ob, float r_min[3], float r_max[3], const short use_hidden);
 
 /* sometimes min-max isn't enough, we need to loop over each point */
 void BKE_object_foreach_display_point(struct Object *ob, float obmat[4][4],
@@ -177,6 +177,8 @@ typedef enum eObjectSet {
 } eObjectSet;
 
 struct LinkNode *BKE_object_relational_superset(struct Scene *scene, eObjectSet objectSet, eObRelationTypes includeFilter);
+struct LinkNode *BKE_object_groups(struct Object *ob);
+void             BKE_object_groups_clear(struct Scene *scene, struct Base *base, struct Object *object);
 
 #ifdef __cplusplus
 }
