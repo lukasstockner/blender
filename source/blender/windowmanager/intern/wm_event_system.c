@@ -938,7 +938,7 @@ static int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event,
 					}
 				}
 
-				WM_cursor_grab(CTX_wm_window(C), wrap, FALSE, bounds);
+				WM_cursor_grab_enable(CTX_wm_window(C), wrap, FALSE, bounds);
 			}
 
 			/* cancel UI handlers, typically tooltips that can hang around
@@ -1202,7 +1202,7 @@ void WM_event_remove_handlers(bContext *C, ListBase *handlers)
 				CTX_wm_region_set(C, region);
 			}
 
-			WM_cursor_ungrab(CTX_wm_window(C));
+			WM_cursor_grab_disable(CTX_wm_window(C));
 			WM_operator_free(handler->op);
 		}
 		else if (handler->ui_remove) {
@@ -1432,7 +1432,7 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 
 				/* remove modal handler, operator itself should have been canceled and freed */
 				if (retval & (OPERATOR_CANCELLED | OPERATOR_FINISHED)) {
-					WM_cursor_ungrab(CTX_wm_window(C));
+					WM_cursor_grab_disable(CTX_wm_window(C));
 
 					BLI_remlink(handlers, handler);
 					wm_event_free_handler(handler);
@@ -2617,12 +2617,13 @@ static void attach_ndof_data(wmEvent *event, const GHOST_TEventNDOFMotionData *g
 	wmNDOFMotionData *data = MEM_mallocN(sizeof(wmNDOFMotionData), "customdata NDOF");
 
 	const float s = U.ndof_sensitivity;
+	const float rs = U.ndof_orbit_sensitivity;
 
 	data->tx = s * ghost->tx;
 
-	data->rx = s * ghost->rx;
-	data->ry = s * ghost->ry;
-	data->rz = s * ghost->rz;
+	data->rx = rs * ghost->rx;
+	data->ry = rs * ghost->ry;
+	data->rz = rs * ghost->rz;
 
 	if (U.ndof_flag & NDOF_ZOOM_UPDOWN) {
 		/* rotate so Y is where Z was */

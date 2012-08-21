@@ -31,11 +31,14 @@
  */
 
 struct bContext;
+struct StripColorBalance;
 struct Editing;
 struct ImBuf;
 struct Main;
+struct Mask;
 struct Scene;
 struct Sequence;
+struct SequenceModifierData;
 struct Strip;
 struct StripElem;
 struct bSound;
@@ -110,7 +113,8 @@ enum {
 };
 
 struct SeqEffectHandle {
-	int multithreaded;
+	short multithreaded;
+	short supports_mask;
 
 	/* constructors & destructor */
 	/* init is _only_ called on first creation */
@@ -150,11 +154,12 @@ struct SeqEffectHandle {
 	struct ImBuf * (*execute)(SeqRenderData context, struct Sequence *seq, float cfra, float facf0, float facf1,
 	                          struct ImBuf *ibuf1, struct ImBuf *ibuf2, struct ImBuf *ibuf3);
 
-	struct ImBuf * (*init_execution)(SeqRenderData context, struct ImBuf *ibuf1, struct ImBuf *ibuf2, struct ImBuf *ibuf3);
+	struct ImBuf * (*init_execution)(SeqRenderData context, struct ImBuf *ibuf1, struct ImBuf *ibuf2,
+	                                 struct ImBuf *ibuf3);
 
 	void (*execute_slice)(SeqRenderData context, struct Sequence *seq, float cfra, float facf0, float facf1,
 	                      struct ImBuf *ibuf1, struct ImBuf *ibuf2, struct ImBuf *ibuf3,
-	                       int start_line, int total_lines, struct ImBuf *out);
+	                      int start_line, int total_lines, struct ImBuf *out);
 };
 
 /* ********************* prototypes *************** */
@@ -239,6 +244,11 @@ void BKE_sequencer_cache_put(SeqRenderData context, struct Sequence *seq, float 
 
 void BKE_sequencer_cache_cleanup_sequence(struct Sequence *seq);
 
+struct ImBuf *BKE_sequencer_preprocessed_cache_get(SeqRenderData context, struct Sequence *seq, float cfra, seq_stripelem_ibuf_t type);
+void BKE_sequencer_preprocessed_cache_put(SeqRenderData context, struct Sequence *seq, float cfra, seq_stripelem_ibuf_t type, struct ImBuf *ibuf);
+void BKE_sequencer_preprocessed_cache_cleanup(void);
+void BKE_sequencer_preprocessed_cache_cleanup_sequence(struct Sequence *seq);
+
 /* **********************************************************************
  * seqeffects.c
  *
@@ -253,6 +263,7 @@ void BKE_sequence_effect_speed_rebuild_map(struct Scene *scene, struct Sequence 
 /* extern */
 struct SeqEffectHandle BKE_sequence_get_effect(struct Sequence *seq);
 int BKE_sequence_effect_get_num_inputs(int seq_type);
+int BKE_sequence_effect_get_supports_mask(int seq_type);
 
 /* **********************************************************************
  * Sequencer editing functions
@@ -284,7 +295,9 @@ void BKE_sequencer_free_imbuf(struct Scene *scene, struct ListBase *seqbasep, in
 struct Sequence *BKE_sequence_dupli_recursive(struct Scene *scene, struct Scene *scene_to, struct Sequence *seq, int dupe_flag);
 int BKE_sequence_swap(struct Sequence *seq_a, struct Sequence *seq_b, const char **error_str);
 
+int BKE_sequence_check_depend(struct Sequence *seq, struct Sequence *cur);
 void BKE_sequence_invalidate_cache(struct Scene *scene, struct Sequence *seq);
+void BKE_sequence_invalidate_cache_for_modifier(struct Scene *scene, struct Sequence *seq);
 
 void BKE_sequencer_update_sound_bounds_all(struct Scene *scene);
 void BKE_sequencer_update_sound_bounds(struct Scene *scene, struct Sequence *seq);
@@ -293,10 +306,11 @@ void BKE_sequencer_update_sound(struct Scene *scene, struct bSound *sound);
 
 void BKE_seqence_base_unique_name_recursive(ListBase *seqbasep, struct Sequence *seq);
 void BKE_sequence_base_dupli_recursive(struct Scene *scene, struct Scene *scene_to, ListBase *nseqbase, ListBase *seqbase, int dupe_flag);
+int  BKE_seqence_is_valid_check(struct Sequence *seq);
 
 void BKE_sequencer_clear_scene_in_allseqs(struct Main *bmain, struct Scene *sce);
 
-struct Sequence *BKE_sequwnce_get_by_name(struct ListBase *seqbase, const char *name, int recursive);
+struct Sequence *BKE_sequence_get_by_name(struct ListBase *seqbase, const char *name, int recursive);
 
 /* api for adding new sequence strips */
 typedef struct SeqLoadInfo {
@@ -341,5 +355,49 @@ extern SequencerDrawView sequencer_view3d_cb;
 /* copy/paste */
 extern ListBase seqbase_clipboard;
 extern int seqbase_clipboard_frame;
+
+/* modifiers */
+typedef struct SequenceModifierTypeInfo {
+	/* default name for the modifier */
+	char name[64];  /* MAX_NAME */
+
+	/* DNA structure name used on load/save filed */
+	char struct_name[64];  /* MAX_NAME */
+
+	/* size of modifier data structure, used by allocation */
+	int struct_size;
+
+	/* data initialization */
+	void (*init_data) (struct SequenceModifierData *smd);
+
+	/* free data used by modifier,
+	 * only modifier-specific data should be freed, modifier descriptor would
+	 * be freed outside of this callback
+	 */
+	void (*free_data) (struct SequenceModifierData *smd);
+
+	/* copy data from one modifier to another */
+	void (*copy_data) (struct SequenceModifierData *smd, struct SequenceModifierData *target);
+
+	/* apply modifier on a given image buffer */
+	struct ImBuf* (*apply) (struct SequenceModifierData *smd, struct ImBuf *ibuf, struct ImBuf *mask);
+} SequenceModifierTypeInfo;
+
+struct SequenceModifierTypeInfo *BKE_sequence_modifier_type_info_get(int type);
+
+struct SequenceModifierData *BKE_sequence_modifier_new(struct Sequence *seq, const char *name, int type);
+int BKE_sequence_modifier_remove(struct Sequence *seq, struct SequenceModifierData *smd);
+void BKE_sequence_modifier_clear(struct Sequence *seq);
+void BKE_sequence_modifier_free(struct SequenceModifierData *smd);
+void BKE_sequence_modifier_unique_name(struct Sequence *seq, struct SequenceModifierData *smd);
+struct SequenceModifierData *BKE_sequence_modifier_find_by_name(struct Sequence *seq, char *name);
+struct ImBuf *BKE_sequence_modifier_apply_stack(SeqRenderData context, struct Sequence *seq, struct ImBuf *ibuf, int cfra);
+void BKE_sequence_modifier_list_copy(struct Sequence *seqn, struct Sequence *seq);
+
+int BKE_sequence_supports_modifiers(struct Sequence *seq);
+
+/* internal filters */
+struct ImBuf *BKE_sequencer_render_mask_input(SeqRenderData context, int mask_input_type, struct Sequence *mask_sequence, struct Mask *mask_id, int cfra, int make_float);
+void BKE_sequencer_color_balance_apply(struct StripColorBalance *cb, struct ImBuf *ibuf, float mul, short make_float, struct ImBuf *mask_input);
 
 #endif /* __BKE_SEQUENCER_H__ */

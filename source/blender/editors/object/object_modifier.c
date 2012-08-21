@@ -268,17 +268,12 @@ static int object_modifier_safe_to_delete(Main *bmain, Object *ob,
 static int object_modifier_remove(Main *bmain, Object *ob, ModifierData *md,
                                   int *sort_depsgraph)
 {
-	ModifierData *obmd;
-
 	/* It seems on rapid delete it is possible to
 	 * get called twice on same modifier, so make
 	 * sure it is in list. */
-	for (obmd = ob->modifiers.first; obmd; obmd = obmd->next)
-		if (obmd == md)
-			break;
-
-	if (!obmd)
+	if (BLI_findindex(&ob->modifiers, md) == -1) {
 		return 0;
+	}
 
 	/* special cases */
 	if (md->type == eModifierType_ParticleSystem) {
@@ -341,7 +336,7 @@ int ED_object_modifier_remove(ReportList *reports, Main *bmain, Scene *scene, Ob
 	ok = object_modifier_remove(bmain, ob, md, &sort_depsgraph);
 
 	if (!ok) {
-		BKE_reportf(reports, RPT_ERROR, "Modifier '%s' not in object '%s'", ob->id.name, md->name);
+		BKE_reportf(reports, RPT_ERROR, "Modifier '%s' not in object '%s'", md->name, ob->id.name);
 		return 0;
 	}
 
@@ -1467,7 +1462,8 @@ static void modifier_skin_customdata_ensure(Object *ob)
 		                          me->totvert);
 
 		/* Mark an arbitrary vertex as root */
-		vs->flag |= MVERT_SKIN_ROOT;
+		if (vs)
+			vs->flag |= MVERT_SKIN_ROOT;
 	}
 }
 
@@ -2114,7 +2110,7 @@ static int ocean_bake_exec(bContext *C, wmOperator *op)
 	int f, cfra, i = 0;
 	int free = RNA_boolean_get(op->ptr, "free");
 	
-	wmJob *steve;
+	wmJob *wm_job;
 	OceanBakeJob *oj;
 	
 	if (!omd)
@@ -2181,17 +2177,18 @@ static int ocean_bake_exec(bContext *C, wmOperator *op)
 	scene->r.cfra = cfra;
 	
 	/* setup job */
-	steve = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "Ocean Simulation", WM_JOB_PROGRESS);
+	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "Ocean Simulation",
+	                     WM_JOB_PROGRESS, WM_JOB_TYPE_OBJECT_SIM_OCEAN);
 	oj = MEM_callocN(sizeof(OceanBakeJob), "ocean bake job");
 	oj->ocean = ocean;
 	oj->och = och;
 	oj->omd = omd;
 	
-	WM_jobs_customdata(steve, oj, oceanbake_free);
-	WM_jobs_timer(steve, 0.1, NC_OBJECT | ND_MODIFIER, NC_OBJECT | ND_MODIFIER);
-	WM_jobs_callbacks(steve, oceanbake_startjob, NULL, NULL, oceanbake_endjob);
+	WM_jobs_customdata_set(wm_job, oj, oceanbake_free);
+	WM_jobs_timer(wm_job, 0.1, NC_OBJECT | ND_MODIFIER, NC_OBJECT | ND_MODIFIER);
+	WM_jobs_callbacks(wm_job, oceanbake_startjob, NULL, NULL, oceanbake_endjob);
 	
-	WM_jobs_start(CTX_wm_manager(C), steve);
+	WM_jobs_start(CTX_wm_manager(C), wm_job);
 	
 	
 	

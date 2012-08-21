@@ -53,6 +53,10 @@ void BLI_rctf_translate(struct rctf *rect, float x, float y);
 void BLI_rcti_translate(struct rcti *rect, int x, int y);
 void BLI_rcti_resize(struct rcti *rect, int x, int y);
 void BLI_rctf_resize(struct rctf *rect, float x, float y);
+void BLI_rctf_interp(struct rctf *rect, const struct rctf *rect_a, const struct rctf *rect_b, const float fac);
+//void BLI_rcti_interp(struct rctf *rect, struct rctf *rect_a, struct rctf *rect_b, float fac);
+int  BLI_rctf_compare(const struct rctf *rect_a, const struct rctf *rect_b, const float limit);
+int  BLI_rcti_compare(const struct rcti *rect_a, const struct rcti *rect_b);
 int  BLI_in_rcti(const struct rcti *rect, const int x, const int y);
 int  BLI_in_rcti_v(const struct rcti *rect, const int xy[2]);
 int  BLI_in_rctf(const struct rctf *rect, const float x, const float y);
@@ -65,10 +69,20 @@ int  BLI_rctf_isect(const struct rctf *src1, const struct rctf *src2, struct rct
 int  BLI_rcti_isect(const struct rcti *src1, const struct rcti *src2, struct rcti *dest);
 void BLI_rctf_union(struct rctf *rctf1, const struct rctf *rctf2);
 void BLI_rcti_union(struct rcti *rcti1, const struct rcti *rcti2);
-void BLI_rcti_rctf_copy(struct rcti *tar, const struct rctf *src);
+void BLI_rcti_rctf_copy(struct rcti *dst, const struct rctf *src);
+void BLI_rctf_rcti_copy(struct rctf *dst, const struct rcti *src);
 
 void print_rctf(const char *str, const struct rctf *rect);
 void print_rcti(const char *str, const struct rcti *rect);
+
+#define BLI_RCT_SIZE_X(rct)       ((rct)->xmax - (rct)->xmin)
+#define BLI_RCT_SIZE_Y(rct)       ((rct)->ymax - (rct)->ymin)
+
+#define BLI_RCT_CENTER_X(rct)     (((rct)->xmin + (rct)->xmax) / 2)
+#define BLI_RCT_CENTER_Y(rct)     (((rct)->ymin + (rct)->ymax) / 2)
+
+#define BLI_RCT_CENTER_X_FL(rct)  ((float)((rct)->xmin + (rct)->xmax) / 2.0f)
+#define BLI_RCT_CENTER_Y_FL(rct)  ((float)((rct)->ymin + (rct)->ymax) / 2.0f)
 
 #ifdef __cplusplus
 }

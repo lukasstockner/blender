@@ -40,6 +40,7 @@
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 
+#include "BKE_blender.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_global.h"
@@ -72,6 +73,8 @@
 
 #include "node_intern.h"  /* own include */
 
+#define USE_ESC_COMPO
+
 /* ***************** composite job manager ********************** */
 
 typedef struct CompoJob {
@@ -88,7 +91,13 @@ static int compo_breakjob(void *cjv)
 {
 	CompoJob *cj = cjv;
 	
-	return *(cj->stop);
+	/* without G.is_break 'ESC' wont quit - which annoys users */
+	return (*(cj->stop)
+#ifdef USE_ESC_COMPO
+	        ||
+	        G.is_break
+#endif
+	        );
 }
 
 /* called by compo, wmJob sends notifier */
@@ -173,7 +182,7 @@ static void compo_startjob(void *cjv, short *stop, short *do_update, float *prog
  */
 void ED_node_composite_job(const bContext *C, struct bNodeTree *nodetree, Scene *scene_owner)
 {
-	wmJob *steve;
+	wmJob *wm_job;
 	CompoJob *cj;
 
 	/* to fix bug: [#32272] */
@@ -181,7 +190,12 @@ void ED_node_composite_job(const bContext *C, struct bNodeTree *nodetree, Scene 
 		return;
 	}
 
-	steve = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene_owner, "Compositing", WM_JOB_EXCL_RENDER | WM_JOB_PROGRESS);
+#ifdef USE_ESC_COMPO
+	G.is_break = FALSE;
+#endif
+
+	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene_owner, "Compositing",
+	                     WM_JOB_EXCL_RENDER | WM_JOB_PROGRESS, WM_JOB_TYPE_COMPOSITE);
 	cj = MEM_callocN(sizeof(CompoJob), "compo job");
 
 	/* customdata for preview thread */
@@ -189,11 +203,11 @@ void ED_node_composite_job(const bContext *C, struct bNodeTree *nodetree, Scene 
 	cj->ntree = nodetree;
 
 	/* setup job */
-	WM_jobs_customdata(steve, cj, compo_freejob);
-	WM_jobs_timer(steve, 0.1, NC_SCENE, NC_SCENE | ND_COMPO_RESULT);
-	WM_jobs_callbacks(steve, compo_startjob, compo_initjob, compo_updatejob, NULL);
+	WM_jobs_customdata_set(wm_job, cj, compo_freejob);
+	WM_jobs_timer(wm_job, 0.1, NC_SCENE, NC_SCENE | ND_COMPO_RESULT);
+	WM_jobs_callbacks(wm_job, compo_startjob, compo_initjob, compo_updatejob, NULL);
 
-	WM_jobs_start(CTX_wm_manager(C), steve);
+	WM_jobs_start(CTX_wm_manager(C), wm_job);
 }
 
 /* ***************************************** */
@@ -2004,15 +2018,33 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
 	SpaceNode *snode = CTX_wm_space_node(C);
 	bNodeTree *ntree = snode->edittree;
 	bNode *gnode = node_tree_get_editgroup(snode->nodetree);
-	float gnode_x = 0.0f, gnode_y = 0.0f;
+	float gnode_center[2];
+	const ListBase *clipboard_nodes_lb;
+	const ListBase *clipboard_links_lb;
 	bNode *node;
 	bNodeLink *link;
 	int num_nodes;
-	float centerx, centery;
+	float center[2];
+	int is_clipboard_valid;
+
+	/* validate pointers in the clipboard */
+	is_clipboard_valid = BKE_node_clipboard_validate();
+	clipboard_nodes_lb = BKE_node_clipboard_get_nodes();
+	clipboard_links_lb = BKE_node_clipboard_get_links();
+
+	if (clipboard_nodes_lb->first == NULL) {
+		BKE_report(op->reports, RPT_ERROR, "Clipboard is empty");
+		return OPERATOR_CANCELLED;
+	}
 
 	if (BKE_node_clipboard_get_type() != ntree->type) {
 		BKE_report(op->reports, RPT_ERROR, "Clipboard nodes are an incompatible type");
 		return OPERATOR_CANCELLED;
+	}
+
+	/* only warn */
+	if (is_clipboard_valid == FALSE) {
+		BKE_report(op->reports, RPT_WARNING, "Some nodes references could not be restored, will be left empty");
 	}
 
 	ED_preview_kill_jobs(C);
@@ -2021,30 +2053,34 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
 	node_deselect_all(snode);
 
 	/* get group node offset */
-	if (gnode)
-		nodeToView(gnode, 0.0f, 0.0f, &gnode_x, &gnode_y);
+	if (gnode) {
+		nodeToView(gnode, 0.0f, 0.0f, &gnode_center[0], &gnode_center[1]);
+	}
+	else {
+		zero_v2(gnode_center);
+	}
 
 	/* calculate "barycenter" for placing on mouse cursor */
-	num_nodes = 0;
-	centerx = centery = 0.0f;
-	for (node = BKE_node_clipboard_get_nodes()->first; node; node = node->next) {
-		++num_nodes;
-		centerx += 0.5f * (node->totr.xmin + node->totr.xmax);
-		centery += 0.5f * (node->totr.ymin + node->totr.ymax);
+	zero_v2(center);
+	for (node = clipboard_nodes_lb->first, num_nodes = 0; node; node = node->next, num_nodes++) {
+		center[0] += BLI_RCT_CENTER_X(&node->totr);
+		center[1] += BLI_RCT_CENTER_Y(&node->totr);
 	}
-	centerx /= num_nodes;
-	centery /= num_nodes;
+	mul_v2_fl(center, 1.0 / num_nodes);
 
 	/* copy nodes from clipboard */
-	for (node = BKE_node_clipboard_get_nodes()->first; node; node = node->next) {
+	for (node = clipboard_nodes_lb->first; node; node = node->next) {
 		bNode *new_node = nodeCopyNode(ntree, node);
+
+		/* needed since nodeCopyNode() doesn't increase ID's */
+		id_us_plus(node->id);
 
 		/* pasted nodes are selected */
 		node_select(new_node);
 	}
 	
 	/* reparent copied nodes */
-	for (node = BKE_node_clipboard_get_nodes()->first; node; node = node->next) {
+	for (node = clipboard_nodes_lb->first; node; node = node->next) {
 		bNode *new_node = node->new_node;
 		if (new_node->parent)
 			new_node->parent = new_node->parent->new_node;
@@ -2052,12 +2088,12 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
 		
 		/* place nodes around the mouse cursor. child nodes locations are relative to parent */
 		if (!new_node->parent) {
-			new_node->locx += snode->cursor[0] - centerx - gnode_x;
-			new_node->locy += snode->cursor[1] - centery - gnode_y;
+			new_node->locx += snode->cursor[0] - center[0] - gnode_center[0];
+			new_node->locy += snode->cursor[1] - center[1] - gnode_center[1];
 		}
 	}
 
-	for (link = BKE_node_clipboard_get_links()->first; link; link = link->next) {
+	for (link = clipboard_links_lb->first; link; link = link->next) {
 		nodeAddLink(ntree, link->fromnode->new_node, link->fromsock->new_sock,
 		            link->tonode->new_node, link->tosock->new_sock);
 	}

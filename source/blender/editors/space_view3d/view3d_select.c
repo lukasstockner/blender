@@ -654,8 +654,8 @@ int do_paintvert_box_select(ViewContext *vc, rcti *rect, int select, int extend)
 	unsigned int *rt;
 	int a, index;
 	char *selar;
-	int sx = rect->xmax - rect->xmin + 1;
-	int sy = rect->ymax - rect->ymin + 1;
+	int sx = BLI_RCT_SIZE_X(rect) + 1;
+	int sy = BLI_RCT_SIZE_Y(rect) + 1;
 
 	me = vc->obact->data;
 
@@ -765,9 +765,8 @@ static void do_lasso_select_node(int mcords[][2], short moves, short select)
 	
 	/* store selection in temp test flag */
 	for (node = snode->edittree->nodes.first; node; node = node->next) {
-		
-		node_centf[0] = (node->totr.xmin + node->totr.xmax) / 2;
-		node_centf[1] = (node->totr.ymin + node->totr.ymax) / 2;
+		node_centf[0] = BLI_RCT_CENTER_X(&node->totr);
+		node_centf[1] = BLI_RCT_CENTER_Y(&node->totr);
 		
 		ipoco_to_areaco_noclip(G.v2d, node_centf, node_cent);
 		if (BLI_in_rcti_v(&rect, node_cent) && BLI_lasso_is_point_inside(mcords, moves, node_cent[0], node_cent[1])) {
@@ -1523,26 +1522,28 @@ typedef struct BoxSelectUserData {
 	int select, pass, done;
 } BoxSelectUserData;
 
-int edge_inside_circle(short centx, short centy, short rad, short x1, short y1, short x2, short y2)
+int edge_inside_circle(int centx, int centy, int rad, int x1, int y1, int x2, int y2)
 {
 	int radsq = rad * rad;
-	float v1[2], v2[2], v3[2];
-	
+
 	/* check points in circle itself */
-	if ( (x1 - centx) * (x1 - centx) + (y1 - centy) * (y1 - centy) <= radsq) return 1;
-	if ( (x2 - centx) * (x2 - centx) + (y2 - centy) * (y2 - centy) <= radsq) return 1;
-	
-	/* pointdistline */
-	v3[0] = centx;
-	v3[1] = centy;
-	v1[0] = x1;
-	v1[1] = y1;
-	v2[0] = x2;
-	v2[1] = y2;
-	
-	if (dist_to_line_segment_v2(v3, v1, v2) < (float)rad) return 1;
-	
-	return 0;
+	if ( (x1 - centx) * (x1 - centx) + (y1 - centy) * (y1 - centy) <= radsq) {
+		return TRUE;
+	}
+	else if ( (x2 - centx) * (x2 - centx) + (y2 - centy) * (y2 - centy) <= radsq) {
+		return TRUE;
+	}
+	else {
+		const float cent[2] = {centx, centy};
+		const float v1[2] = {x1, y1};
+		const float v2[2] = {x2, y2};
+		/* pointdistline */
+		if (dist_squared_to_line_segment_v2(cent, v1, v2) < (float)radsq) {
+			return TRUE;
+		}
+	}
+
+	return FALSE;
 }
 
 static void do_nurbs_box_select__doSelect(void *userData, Nurb *UNUSED(nu), BPoint *bp, BezTriple *bezt, int beztindex, int x, int y)
@@ -2192,7 +2193,7 @@ static void mesh_circle_doSelectEdge(void *userData, BMEdge *eed, int x0, int y0
 {
 	CircleSelectUserData *data = userData;
 
-	if (edge_inside_circle(data->mval[0], data->mval[1], (short) data->radius, x0, y0, x1, y1)) {
+	if (edge_inside_circle(data->mval[0], data->mval[1], (int)data->radius, x0, y0, x1, y1)) {
 		BM_edge_select_set(data->vc->em->bm, eed, data->select);
 	}
 }

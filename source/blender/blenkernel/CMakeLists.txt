@@ -128,6 +128,7 @@ set(SRC
 	intern/script.c
 	intern/seqcache.c
 	intern/seqeffects.c
+	intern/seqmodifier.c
 	intern/sequencer.c
 	intern/shrinkwrap.c
 	intern/sketch.c
@@ -254,6 +255,7 @@ endif()
 if(WITH_MOD_CLOTH_ELTOPO)
 	list(APPEND INC
 		../../../extern/eltopo
+		../../../extern/eltopo/eltopo3d
 	)
 	add_definitions(-DWITH_ELTOPO)
 endif()

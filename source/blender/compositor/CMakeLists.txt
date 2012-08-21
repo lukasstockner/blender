@@ -50,21 +50,6 @@ set(INC_SYS
 
 )
 
-# --- data file ---
-# ... may make this a macro
-list(APPEND INC
-	${CMAKE_CURRENT_BINARY_DIR}/operations
-)
-add_custom_command(
-	OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/operations/COM_OpenCLKernels.cl.h
-	COMMAND ${CMAKE_COMMAND}
-	        -DFILE_FROM=${CMAKE_CURRENT_SOURCE_DIR}/operations/COM_OpenCLKernels.cl
-	        -DFILE_TO=${CMAKE_CURRENT_BINARY_DIR}/operations/COM_OpenCLKernels.cl.h
-	        -DVAR_NAME=clkernelstoh_COM_OpenCLKernels_cl
-	        -P ${CMAKE_SOURCE_DIR}/build_files/cmake/data_to_c.cmake
-	DEPENDS operations/COM_OpenCLKernels.cl)
-# --- end data file --
-
 set(SRC
 	COM_compositor.h
 	COM_defines.h
@@ -488,8 +473,10 @@ set(SRC
 	operations/COM_DifferenceMatteOperation.h
 	operations/COM_LuminanceMatteOperation.cpp
 	operations/COM_LuminanceMatteOperation.h
-	operations/COM_DistanceMatteOperation.cpp
-	operations/COM_DistanceMatteOperation.h
+	operations/COM_DistanceRGBMatteOperation.cpp
+	operations/COM_DistanceRGBMatteOperation.h
+	operations/COM_DistanceYCCMatteOperation.cpp
+	operations/COM_DistanceYCCMatteOperation.h
 	operations/COM_ChromaMatteOperation.cpp
 	operations/COM_ChromaMatteOperation.h
 	operations/COM_ColorMatteOperation.cpp
@@ -653,9 +640,12 @@ set(SRC
 
 	operations/COM_MaskOperation.cpp
 	operations/COM_MaskOperation.h
-
-	# generated file
-	${CMAKE_CURRENT_BINARY_DIR}/operations/COM_OpenCLKernels.cl.h
 )
+
+list(APPEND INC
+	${CMAKE_CURRENT_BINARY_DIR}/operations
+)
+data_to_c(${CMAKE_CURRENT_SOURCE_DIR}/operations/COM_OpenCLKernels.cl
+          ${CMAKE_CURRENT_BINARY_DIR}/operations/COM_OpenCLKernels.cl.h SRC)
 
 blender_add_lib(bf_compositor "${SRC}" "${INC}" "${INC_SYS}")

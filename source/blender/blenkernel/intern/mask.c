@@ -40,18 +40,22 @@
 #include "BLI_math.h"
 
 #include "DNA_mask_types.h"
+#include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_tracking_types.h"
+#include "DNA_sequence_types.h"
 
 #include "BKE_curve.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_mask.h"
+#include "BKE_node.h"
+#include "BKE_sequencer.h"
 #include "BKE_tracking.h"
 #include "BKE_movieclip.h"
 #include "BKE_utildefines.h"
@@ -555,7 +559,7 @@ static void feather_bucket_get_diagonal(FeatherEdgesBucket *buckets, int start_b
 	*diagonal_bucket_b_r = &buckets[diagonal_bucket_b_index];
 }
 
-static void spline_feather_collapse_inner_loops(MaskSpline *spline, float (*feather_points)[2], int tot_feather_point)
+void BKE_mask_spline_feather_collapse_inner_loops(MaskSpline *spline, float (*feather_points)[2], const int tot_feather_point)
 {
 #define BUCKET_INDEX(co) \
 	feather_bucket_index_from_coord(co, min, bucket_scale, buckets_per_side)
@@ -717,7 +721,8 @@ static void spline_feather_collapse_inner_loops(MaskSpline *spline, float (*feat
  */
 float (*BKE_mask_spline_feather_differentiated_points_with_resolution_ex(MaskSpline *spline,
                                                                          int *tot_feather_point,
-                                                                         const unsigned int resol
+                                                                         const unsigned int resol,
+                                                                         const int do_feather_isect
                                                                          ))[2]
 {
 	MaskSplinePoint *points_array = BKE_mask_spline_point_array(spline);
@@ -779,23 +784,24 @@ float (*BKE_mask_spline_feather_differentiated_points_with_resolution_ex(MaskSpl
 
 	*tot_feather_point = tot;
 
-	if (spline->flag & MASK_SPLINE_NOINTERSECT)
-		spline_feather_collapse_inner_loops(spline, feather, tot);
+	if ((spline->flag & MASK_SPLINE_NOINTERSECT) && do_feather_isect) {
+		BKE_mask_spline_feather_collapse_inner_loops(spline, feather, tot);
+	}
 
 	return feather;
 }
 
 float (*BKE_mask_spline_feather_differentiated_points_with_resolution(MaskSpline *spline, int width, int height,
-                                                                      int *tot_feather_point))[2]
+                                                                      int *tot_feather_point, const int do_feather_isect))[2]
 {
 	unsigned int resol = BKE_mask_spline_feather_resolution(spline, width, height);
 
-	return BKE_mask_spline_feather_differentiated_points_with_resolution_ex(spline, tot_feather_point, resol);
+	return BKE_mask_spline_feather_differentiated_points_with_resolution_ex(spline, tot_feather_point, resol, do_feather_isect);
 }
 
 float (*BKE_mask_spline_feather_differentiated_points(MaskSpline *spline, int *tot_feather_point))[2]
 {
-	return BKE_mask_spline_feather_differentiated_points_with_resolution(spline, 0, 0, tot_feather_point);
+	return BKE_mask_spline_feather_differentiated_points_with_resolution(spline, 0, 0, tot_feather_point, TRUE);
 }
 
 float (*BKE_mask_spline_feather_points(MaskSpline *spline, int *tot_feather_point))[2]
@@ -1561,26 +1567,83 @@ void BKE_mask_free(Mask *mask)
 	BKE_mask_layer_free_list(&mask->masklayers);
 }
 
+
+static void ntree_unlink_mask_cb(void *calldata, struct ID *UNUSED(owner_id), struct bNodeTree *ntree)
+{
+	ID *id = (ID *)calldata;
+	bNode *node;
+
+	for (node = ntree->nodes.first; node; node = node->next) {
+		if (node->id == id) {
+			node->id = NULL;
+		}
+	}
+}
+
 void BKE_mask_unlink(Main *bmain, Mask *mask)
 {
 	bScreen *scr;
 	ScrArea *area;
 	SpaceLink *sl;
+	Scene *scene;
 
 	for (scr = bmain->screen.first; scr; scr = scr->id.next) {
 		for (area = scr->areabase.first; area; area = area->next) {
 			for (sl = area->spacedata.first; sl; sl = sl->next) {
-				if (sl->spacetype == SPACE_CLIP) {
-					SpaceClip *sc = (SpaceClip *) sl;
+				switch (sl->spacetype) {
+					case SPACE_CLIP:
+					{
+						SpaceClip *sc = (SpaceClip *)sl;
 
-					if (sc->mask_info.mask == mask)
-						sc->mask_info.mask = NULL;
+						if (sc->mask_info.mask == mask) {
+							sc->mask_info.mask = NULL;
+						}
+						break;
+					}
+					case SPACE_IMAGE:
+					{
+						SpaceImage *sima = (SpaceImage *)sl;
+
+						if (sima->mask_info.mask == mask) {
+							sima->mask_info.mask = NULL;
+						}
+						break;
+					}
 				}
 			}
 		}
 	}
 
-	mask->id.us = 0;
+	for (scene = bmain->scene.first; scene; scene = scene->id.next) {
+		if (scene->ed) {
+			Sequence *seq;
+
+			SEQ_BEGIN (scene->ed, seq)
+			{
+				if (seq->mask == mask) {
+					seq->mask = NULL;
+				}
+			}
+			SEQ_END
+		}
+
+
+		if (scene->nodetree) {
+			bNode *node;
+			for (node = scene->nodetree->nodes.first; node; node = node->next) {
+				if (node->id == &mask->id) {
+					node->id = NULL;
+				}
+			}
+		}
+	}
+
+	{
+		bNodeTreeType *treetype = ntreeGetType(NTREE_COMPOSIT);
+		treetype->foreach_nodetree(bmain, (void *)mask, &ntree_unlink_mask_cb);
+	}
+
+	BKE_libblock_free(&bmain->mask, mask);
 }
 
 void BKE_mask_coord_from_frame(float r_co[2], const float co[2], const float frame_size[2])

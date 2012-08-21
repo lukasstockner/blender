@@ -92,7 +92,7 @@ extern "C" {
 	/**
 	 * Duplicates a block of memory, and returns a pointer to the
 	 * newly allocated block.  */
-	void *MEM_dupallocN(void *vmemh)
+	void *MEM_dupallocN(const void *vmemh)
 #if MEM_GNU_ATTRIBUTES
 	__attribute__((warn_unused_result))
 #endif
@@ -104,6 +104,16 @@ extern "C" {
 	 * as a system realloc but just makes a new allocation and copies
 	 * over from existing memory. */
 	void *MEM_reallocN(void *vmemh, size_t len)
+#if MEM_GNU_ATTRIBUTES
+	__attribute__((warn_unused_result))
+	__attribute__((alloc_size(2)))
+#endif
+	;
+
+	/**
+	 * A variant of realloc which zeros new bytes
+	 */
+	void *MEM_recallocN(void *vmemh, size_t len)
 #if MEM_GNU_ATTRIBUTES
 	__attribute__((warn_unused_result))
 	__attribute__((alloc_size(2)))

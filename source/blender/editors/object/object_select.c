@@ -388,21 +388,22 @@ static int object_select_all_by_library_obdata(bContext *C, Library *lib)
 
 void ED_object_select_linked_by_id(bContext *C, ID *id)
 {
-	int gs = GS(id->name);
+	int idtype = GS(id->name);
 	int changed = FALSE;
 
-	if (ELEM8(gs, ID_ME, ID_CU, ID_MB, ID_LT, ID_LA, ID_CA, ID_TXT, ID_SPK)) {
+	if (OB_DATA_SUPPORT_ID(idtype)) {
 		changed = object_select_all_by_obdata(C, id);
 	}
-	else if (gs == ID_MA) {
+	else if (idtype == ID_MA) {
 		changed = object_select_all_by_material_texture(C, FALSE, (Material *)id, NULL);
 	}
-	else if (gs == ID_LI) {
+	else if (idtype == ID_LI) {
 		changed = object_select_all_by_library(C, (Library *) id);
 	}
 
-	if (changed)
+	if (changed) {
 		WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, CTX_data_scene(C));
+	}
 }
 
 static int object_select_linked_exec(bContext *C, wmOperator *op)
@@ -987,13 +988,11 @@ static int object_select_same_group_exec(bContext *C, wmOperator *op)
 
 	RNA_string_get(op->ptr, "group", group_name);
 
-	for (group = CTX_data_main(C)->group.first; group; group = group->id.next) {
-		if (!strcmp(group->id.name, group_name))
-			break;
-	}
+	group = (Group *)BKE_libblock_find_name(ID_GR, group_name);
 
-	if (!group)
+	if (!group) {
 		return OPERATOR_PASS_THROUGH;
+	}
 
 	CTX_DATA_BEGIN (C, Base *, base, visible_bases)
 	{

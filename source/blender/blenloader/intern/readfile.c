@@ -2913,6 +2913,7 @@ static void lib_link_vfont(FileData *UNUSED(fd), Main *main)
 static void direct_link_vfont(FileData *fd, VFont *vf)
 {
 	vf->data = NULL;
+	vf->temp_pf = NULL;
 	vf->packedfile = direct_link_packedfile(fd, vf->packedfile);
 }
 
@@ -4796,6 +4797,16 @@ static void link_paint(FileData *fd, Scene *sce, Paint *p)
 	}
 }
 
+static void lib_link_sequence_modifiers(FileData *fd, Scene *scene, ListBase *lb)
+{
+	SequenceModifierData *smd;
+
+	for (smd = lb->first; smd; smd = smd->next) {
+		if (smd->mask_id)
+			smd->mask_id = newlibadr_us(fd, scene->id.lib, smd->mask_id);
+	}
+}
+
 static void lib_link_scene(FileData *fd, Main *main)
 {
 	Scene *sce;
@@ -4853,25 +4864,35 @@ static void lib_link_scene(FileData *fd, Main *main)
 				}
 				if (seq->clip) {
 					seq->clip = newlibadr(fd, sce->id.lib, seq->clip);
-					seq->clip->id.us++;
+					if (seq->clip) {
+						seq->clip->id.us++;
+					}
 				}
 				if (seq->mask) {
 					seq->mask = newlibadr(fd, sce->id.lib, seq->mask);
-					seq->mask->id.us++;
+					if (seq->mask) {
+						seq->mask->id.us++;
+					}
 				}
-				if (seq->scene_camera) seq->scene_camera = newlibadr(fd, sce->id.lib, seq->scene_camera);
+				if (seq->scene_camera) {
+					seq->scene_camera = newlibadr(fd, sce->id.lib, seq->scene_camera);
+				}
 				if (seq->sound) {
 					seq->scene_sound = NULL;
-					if (seq->type == SEQ_TYPE_SOUND_HD)
+					if (seq->type == SEQ_TYPE_SOUND_HD) {
 						seq->type = SEQ_TYPE_SOUND_RAM;
-					else
+					}
+					else {
 						seq->sound = newlibadr(fd, sce->id.lib, seq->sound);
+					}
 					if (seq->sound) {
 						seq->sound->id.us++;
 						seq->scene_sound = sound_add_scene_sound_defaults(sce, seq);
 					}
 				}
 				seq->anim = NULL;
+
+				lib_link_sequence_modifiers(fd, sce, &seq->modifiers);
 			}
 			SEQ_END
 
@@ -4926,6 +4947,29 @@ static void direct_link_paint(FileData *fd, Paint **paint)
 	(*paint) = newdataadr(fd, (*paint));
 	if (*paint && (*paint)->num_input_samples < 1)
 		(*paint)->num_input_samples = 1;
+}
+
+static void direct_link_sequence_modifiers(FileData *fd, ListBase *lb)
+{
+	SequenceModifierData *smd;
+
+	link_list(fd, lb);
+
+	for (smd = lb->first; smd; smd = smd->next) {
+		if (smd->mask_sequence)
+			smd->mask_sequence = newdataadr(fd, smd->mask_sequence);
+
+		if (smd->type == seqModifierType_Curves) {
+			CurvesModifierData *cmd = (CurvesModifierData *) smd;
+
+			direct_link_curvemapping(fd, &cmd->curve_mapping);
+		}
+		else if (smd->type == seqModifierType_HueCorrect) {
+			HueCorrectModifierData *hcmd = (HueCorrectModifierData *) smd;
+
+			direct_link_curvemapping(fd, &hcmd->curve_mapping);
+		}
+	}
 }
 
 static void direct_link_scene(FileData *fd, Scene *sce)
@@ -4983,6 +5027,7 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 			seq->seq1= newdataadr(fd, seq->seq1);
 			seq->seq2= newdataadr(fd, seq->seq2);
 			seq->seq3= newdataadr(fd, seq->seq3);
+			seq->mask_sequence= newdataadr(fd, seq->mask_sequence);
 			/* a patch: after introduction of effects with 3 input strips */
 			if (seq->seq3 == NULL) seq->seq3 = seq->seq2;
 			
@@ -5039,6 +5084,8 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 					// seq->strip->color_balance->gui = 0; // XXX - peter, is this relevant in 2.5?
 				}
 			}
+
+			direct_link_sequence_modifiers(fd, &seq->modifiers);
 		}
 		SEQ_END
 		
@@ -5735,6 +5782,7 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 	ar->v2d.tab_offset = NULL;
 	ar->v2d.tab_num = 0;
 	ar->v2d.tab_cur = 0;
+	ar->v2d.sms = NULL;
 	ar->handlers.first = ar->handlers.last = NULL;
 	ar->uiblocks.first = ar->uiblocks.last = NULL;
 	ar->headerstr = NULL;

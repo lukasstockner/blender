@@ -464,8 +464,8 @@ wmWindow *WM_window_open(bContext *C, rcti *rect)
 	
 	win->posx = rect->xmin;
 	win->posy = rect->ymin;
-	win->sizex = rect->xmax - rect->xmin;
-	win->sizey = rect->ymax - rect->ymin;
+	win->sizex = BLI_RCT_SIZE_X(rect);
+	win->sizey = BLI_RCT_SIZE_Y(rect);
 
 	win->drawmethod = -1;
 	win->drawdata = NULL;
@@ -500,8 +500,8 @@ void WM_window_open_temp(bContext *C, rcti *position, int type)
 		win->posy = position->ymin;
 	}
 	
-	win->sizex = position->xmax - position->xmin;
-	win->sizey = position->ymax - position->ymin;
+	win->sizex = BLI_RCT_SIZE_X(position);
+	win->sizey = BLI_RCT_SIZE_Y(position);
 	
 	if (win->ghostwin) {
 		wm_window_set_size(win, win->sizex, win->sizey);
@@ -1202,7 +1202,7 @@ void wm_get_cursor_position(wmWindow *win, int *x, int *y)
 
 
 /* called whem no ghost system was initialized */
-void WM_setprefsize(int stax, int stay, int sizx, int sizy)
+void WM_init_state_size_set(int stax, int stay, int sizx, int sizy)
 {
 	wm_init_state.start_x = stax; /* left hand pos */
 	wm_init_state.start_y = stay; /* bottom pos */
@@ -1212,13 +1212,13 @@ void WM_setprefsize(int stax, int stay, int sizx, int sizy)
 }
 
 /* for borderless and border windows set from command-line */
-void WM_setinitialstate_fullscreen(void)
+void WM_init_state_fullscreen_set(void)
 {
 	wm_init_state.windowstate = GHOST_kWindowStateFullScreen;
 	wm_init_state.override_flag |= WIN_OVERRIDE_WINSTATE;
 }
 
-void WM_setinitialstate_normal(void)
+void WM_init_state_normal_set(void)
 {
 	wm_init_state.windowstate = GHOST_kWindowStateNormal;
 	wm_init_state.override_flag |= WIN_OVERRIDE_WINSTATE;

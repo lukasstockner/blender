@@ -252,8 +252,8 @@ void BLI_rctf_translate(rctf *rect, float x, float y)
 /* change width & height around the central location */
 void BLI_rcti_resize(rcti *rect, int x, int y)
 {
-	rect->xmin = rect->xmax = (rect->xmax + rect->xmin) / 2;
-	rect->ymin = rect->ymax = (rect->ymax + rect->ymin) / 2;
+	rect->xmin = rect->xmax = BLI_RCT_CENTER_X(rect);
+	rect->ymin = rect->ymax = BLI_RCT_CENTER_Y(rect);
 	rect->xmin -= x / 2;
 	rect->ymin -= y / 2;
 	rect->xmax = rect->xmin + x;
@@ -262,12 +262,45 @@ void BLI_rcti_resize(rcti *rect, int x, int y)
 
 void BLI_rctf_resize(rctf *rect, float x, float y)
 {
-	rect->xmin = rect->xmax = (rect->xmax + rect->xmin) * 0.5f;
-	rect->ymin = rect->ymax = (rect->ymax + rect->ymin) * 0.5f;
+	rect->xmin = rect->xmax = BLI_RCT_CENTER_X(rect);
+	rect->ymin = rect->ymax = BLI_RCT_CENTER_Y(rect);
 	rect->xmin -= x * 0.5f;
 	rect->ymin -= y * 0.5f;
 	rect->xmax = rect->xmin + x;
 	rect->ymax = rect->ymin + y;
+}
+
+void BLI_rctf_interp(rctf *rect, const rctf *rect_a, const rctf *rect_b, const float fac)
+{
+	const float ifac = 1.0f - fac;
+	rect->xmin = (rect_a->xmin * ifac) + (rect_b->xmin * fac);
+	rect->xmax = (rect_a->xmax * ifac) + (rect_b->xmax * fac);
+	rect->ymin = (rect_a->ymin * ifac) + (rect_b->ymin * fac);
+	rect->ymax = (rect_a->ymax * ifac) + (rect_b->ymax * fac);
+}
+
+/* BLI_rcti_interp() not needed yet */
+
+int BLI_rctf_compare(const struct rctf *rect_a, const struct rctf *rect_b, const float limit)
+{
+	if (fabsf(rect_a->xmin - rect_b->xmin) < limit)
+		if (fabsf(rect_a->xmax - rect_b->xmax) < limit)
+			if (fabsf(rect_a->ymin - rect_b->ymin) < limit)
+				if (fabsf(rect_a->ymax - rect_b->ymax) < limit)
+					return 1;
+
+	return 0;
+}
+
+int BLI_rcti_compare(const struct rcti *rect_a, const struct rcti *rect_b)
+{
+	if (rect_a->xmin == rect_b->xmin)
+		if (rect_a->xmax == rect_b->xmax)
+			if (rect_a->ymin == rect_b->ymin)
+				if (rect_a->ymax == rect_b->ymax)
+					return 1;
+
+	return 0;
 }
 
 int BLI_rctf_isect(const rctf *src1, const rctf *src2, rctf *dest)
@@ -330,22 +363,30 @@ int BLI_rcti_isect(const rcti *src1, const rcti *src2, rcti *dest)
 	}
 }
 
-void BLI_rcti_rctf_copy(rcti *tar, const rctf *src)
+void BLI_rcti_rctf_copy(rcti *dst, const rctf *src)
 {
-	tar->xmin = floorf(src->xmin + 0.5f);
-	tar->xmax = floorf((src->xmax - src->xmin) + 0.5f);
-	tar->ymin = floorf(src->ymin + 0.5f);
-	tar->ymax = floorf((src->ymax - src->ymin) + 0.5f);
+	dst->xmin = floorf(src->xmin + 0.5f);
+	dst->xmax = dst->xmin + floorf((src->xmax - src->xmin) + 0.5f);
+	dst->ymin = floorf(src->ymin + 0.5f);
+	dst->ymax = dst->ymin + floorf((src->ymax - src->ymin) + 0.5f);
+}
+
+void BLI_rctf_rcti_copy(rctf *dst, const rcti *src)
+{
+	dst->xmin = src->xmin;
+	dst->xmax = src->xmax;
+	dst->ymin = src->ymin;
+	dst->ymax = src->ymax;
 }
 
 void print_rctf(const char *str, const rctf *rect)
 {
 	printf("%s: xmin %.3f, xmax %.3f, ymin %.3f, ymax %.3f (%.3fx%.3f)\n", str,
-	       rect->xmin, rect->xmax, rect->ymin, rect->ymax, rect->xmax - rect->xmin, rect->ymax - rect->ymin);
+	       rect->xmin, rect->xmax, rect->ymin, rect->ymax, BLI_RCT_SIZE_X(rect), BLI_RCT_SIZE_Y(rect));
 }
 
 void print_rcti(const char *str, const rcti *rect)
 {
 	printf("%s: xmin %d, xmax %d, ymin %d, ymax %d (%dx%d)\n", str,
-	       rect->xmin, rect->xmax, rect->ymin, rect->ymax, rect->xmax - rect->xmin, rect->ymax - rect->ymin);
+	       rect->xmin, rect->xmax, rect->ymin, rect->ymax, BLI_RCT_SIZE_X(rect), BLI_RCT_SIZE_Y(rect));
 }

@@ -438,6 +438,7 @@ static void clip_operatortypes(void)
 	WM_operatortype_append(CLIP_OT_change_frame);
 	WM_operatortype_append(CLIP_OT_rebuild_proxy);
 	WM_operatortype_append(CLIP_OT_mode_set);
+	WM_operatortype_append(CLIP_OT_view_ndof);
 
 	/* ** clip_toolbar.c ** */
 	WM_operatortype_append(CLIP_OT_tools);
@@ -601,6 +602,9 @@ static void clip_keymap(struct wmKeyConfig *keyconf)
 	RNA_boolean_set(kmi->ptr, "fit_view", TRUE);
 
 	WM_keymap_add_item(keymap, "CLIP_OT_view_selected", PADPERIOD, KM_PRESS, 0, 0);
+
+	WM_keymap_add_item(keymap, "CLIP_OT_view_all", NDOF_BUTTON_FIT, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "CLIP_OT_view_ndof", NDOF_MOTION, 0, 0, 0);
 
 	/* jump to special frame */
 	kmi = WM_keymap_add_item(keymap, "CLIP_OT_frame_jump", LEFTARROWKEY, KM_PRESS, KM_CTRL | KM_SHIFT, 0);
@@ -1032,8 +1036,8 @@ static void movieclip_main_area_set_view2d(const bContext *C, ARegion *ar)
 	if (clip)
 		h *= clip->aspy / clip->aspx / clip->tracking.camera.pixel_aspect;
 
-	winx = ar->winrct.xmax - ar->winrct.xmin + 1;
-	winy = ar->winrct.ymax - ar->winrct.ymin + 1;
+	winx = BLI_RCT_SIZE_X(&ar->winrct) + 1;
+	winy = BLI_RCT_SIZE_Y(&ar->winrct) + 1;
 
 	ar->v2d.tot.xmin = 0;
 	ar->v2d.tot.ymin = 0;

@@ -521,7 +521,7 @@ int paintface_mouse_select(struct bContext *C, Object *ob, const int mval[2], in
 	if (!facesel_face_pick(C, me, ob, mval, &index, 1))
 		return 0;
 	
-	if (index >= me->totpoly || index < 0)
+	if (index >= me->totpoly)
 		return 0;
 
 	mpoly_sel = me->mpoly + index;
@@ -570,8 +570,8 @@ int do_paintface_box_select(ViewContext *vc, rcti *rect, int select, int extend)
 	unsigned int *rt;
 	char *selar;
 	int a, index;
-	int sx = rect->xmax - rect->xmin + 1;
-	int sy = rect->ymax - rect->ymin + 1;
+	int sx = BLI_RCT_SIZE_X(rect) + 1;
+	int sy = BLI_RCT_SIZE_Y(rect) + 1;
 	
 	me = BKE_mesh_from_object(ob);
 
