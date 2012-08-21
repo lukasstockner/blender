@@ -2126,22 +2126,38 @@ static int edbm_remove_doubles_exec(bContext *C, wmOperator *op)
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BMEdit_FromObject(obedit);
 	BMOperator bmop;
+	const float mergedist = RNA_float_get(op->ptr, "mergedist");
+	int use_unselected = RNA_boolean_get(op->ptr, "use_unselected");
+	int totvert_orig = em->bm->totvert;
 	int count;
 
-	EDBM_op_init(em, &bmop, op, "find_doubles verts=%hv dist=%f", BM_ELEM_SELECT, RNA_float_get(op->ptr, "mergedist"));
-	BMO_op_exec(em->bm, &bmop);
+	if (use_unselected) {
+		EDBM_op_init(em, &bmop, op,
+		             "automerge verts=%hv dist=%f",
+		             BM_ELEM_SELECT, mergedist);
+		BMO_op_exec(em->bm, &bmop);
 
-	count = BMO_slot_map_count(em->bm, &bmop, "targetmapout");
-
-	if (!EDBM_op_callf(em, op, "weld_verts targetmap=%s", &bmop, "targetmapout")) {
-		BMO_op_finish(em->bm, &bmop);
-		return OPERATOR_CANCELLED;
+		if (!EDBM_op_finish(em, &bmop, op, TRUE)) {
+			return OPERATOR_CANCELLED;
+		}
 	}
+	else {
+		EDBM_op_init(em, &bmop, op,
+		             "find_doubles verts=%hv dist=%f",
+		             BM_ELEM_SELECT, mergedist);
+		BMO_op_exec(em->bm, &bmop);
 
-	if (!EDBM_op_finish(em, &bmop, op, TRUE)) {
-		return OPERATOR_CANCELLED;
+		if (!EDBM_op_callf(em, op, "weld_verts targetmap=%s", &bmop, "targetmapout")) {
+			BMO_op_finish(em->bm, &bmop);
+			return OPERATOR_CANCELLED;
+		}
+
+		if (!EDBM_op_finish(em, &bmop, op, TRUE)) {
+			return OPERATOR_CANCELLED;
+		}
 	}
 	
+	count = totvert_orig - em->bm->totvert;
 	BKE_reportf(op->reports, RPT_INFO, "Removed %d vert%s", count, (count == 1) ? "ex" : "ices");
 
 	EDBM_update_generic(C, em, TRUE);
@@ -2166,6 +2182,7 @@ void MESH_OT_remove_doubles(wmOperatorType *ot)
 	RNA_def_float(ot->srna, "mergedist", 0.0001f, 0.000001f, 50.0f, 
 	              "Merge Distance",
 	              "Minimum distance between elements to merge", 0.00001, 10.0);
+	RNA_def_boolean(ot->srna, "use_unselected", 1, "Unselected", "Merge selected to other unselected vertices");
 }
 
 /************************ Vertex Path Operator *************************/
@@ -2189,23 +2206,49 @@ static int edbm_select_vertex_path_exec(bContext *C, wmOperator *op)
 	Object *ob = CTX_data_edit_object(C);
 	BMEditMesh *em = BMEdit_FromObject(ob);
 	BMOperator bmop;
+	BMIter iter;
+	BMVert *eve = NULL, *svert = NULL, *evert = NULL;
 	BMEditSelection *sv, *ev;
 
 	/* get the type from RNA */
 	int type = RNA_enum_get(op->ptr, "type");
 
+	/* first try to find vertices in edit selection */
 	sv = em->bm->selected.last;
-	if (sv != NULL)
+	if (sv != NULL) {
 		ev = sv->prev;
-	else return OPERATOR_CANCELLED;
-	if (ev == NULL)
-		return OPERATOR_CANCELLED;
 
-	if ((sv->htype != BM_VERT) || (ev->htype != BM_VERT))
+		if (ev && (sv->htype == BM_VERT) && (ev->htype == BM_VERT)) {
+			svert = (BMVert *)sv->ele;
+			evert = (BMVert *)ev->ele;
+		}
+	}
+
+	/* if those are not found, because vertices where selected by e.g.
+	   border or circle select, find two selected vertices */
+	if (svert == NULL) {
+		BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
+			if (!BM_elem_flag_test(eve, BM_ELEM_SELECT) || BM_elem_flag_test(eve, BM_ELEM_HIDDEN))
+				continue;
+
+			if (svert == NULL) svert = eve;
+			else if (evert == NULL) evert = eve;
+			else {
+				/* more than two vertices are selected,
+				   show warning message and cancel operator */
+				svert = evert = NULL;
+				break;
+			}
+		}
+	}
+
+	if (svert == NULL || evert == NULL) {
+		BKE_report(op->reports, RPT_WARNING, "Path Selection requires that two vertices be selected");
 		return OPERATOR_CANCELLED;
+	}
 
 	/* initialize the bmop using EDBM api, which does various ui error reporting and other stuff */
-	EDBM_op_init(em, &bmop, op, "shortest_path startv=%e endv=%e type=%i", sv->ele, ev->ele, type);
+	EDBM_op_init(em, &bmop, op, "shortest_path startv=%e endv=%e type=%i", svert, evert, type);
 
 	/* execute the operator */
 	BMO_op_exec(em->bm, &bmop);
@@ -2999,11 +3042,11 @@ static int mesh_separate_material(Main *bmain, Scene *scene, Base *base_old, BMe
 	BMIter iter;
 	int result = FALSE;
 
-	BM_mesh_elem_hflag_disable_all(bm_old, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_TAG, FALSE);
-
 	while ((f_cmp = BM_iter_at_index(bm_old, BM_FACES_OF_MESH, NULL, 0))) {
 		const short mat_nr = f_cmp->mat_nr;
 		int tot = 0;
+
+		BM_mesh_elem_hflag_disable_all(bm_old, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_TAG, FALSE);
 
 		BM_ITER_MESH (f, &iter, bm_old, BM_FACES_OF_MESH) {
 			if (f->mat_nr == mat_nr) {
