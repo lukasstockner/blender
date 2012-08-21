@@ -66,18 +66,7 @@ typedef struct NewVertexItem {
 	BMVert *v;
 } NewVertexItem;
 
-/* Item in the list of additional vertices */
-typedef struct VertexItem{
-	struct VertexItem *next, *prev;
-	BMVert *v;		/* parent vertex */
-	int onEdge;		/*	1 if new vertex located on edge; edge1 = edge, edge2 = NULL
-					*	0 if new vert located betwen edge1 and edge2
-						3 additional vert for rounding case	*/
-	BMEdge *edge1;
-	BMEdge *edge2;
-	BMFace *f;
-	float hv[3];	/* coordinate of support vertex */
-}VertexItem;
+
 
 /* list of new vertices formed around v */
 typedef struct AdditionalVert{
@@ -88,15 +77,35 @@ typedef struct AdditionalVert{
 	int countSelect;	/* count input selection edges */
 } AdditionalVert;
 
+
+
+/* Item in the list of additional vertices */
+typedef struct VertexItem{
+	struct VertexItem *next, *prev;
+	BMVert *v;
+	int onEdge;		/*	1 if new vertex located on edge; edge1 = edge, edge2 = NULL
+					*	0 if new vert located betwen edge1 and edge2
+						3 additional vert for rounding case	*/
+	BMEdge *edge1;
+	BMEdge *edge2;
+	BMFace *f;
+	float hv[3];	/* coordinate of support vertex */
+	AdditionalVert *parent;
+} VertexItem;
+
+
+
 /*
 * struct with bevel parametrs
 */
-typedef struct BevelParams{
+typedef struct BevelParams {
 	ListBase vertList;		/* list additional vertex */
 	ListBase newVertList;	/* list of creation vertices */
 	float offset;
 	int byPolygon;			/* 1 - make bevel on each polygon, 0 - ignore internal polygon */
 	int seg;				/* segmentation */
+	int isMaxOffset;		/* flag	for control offset 0 - offset < max, 1 - offset > max*/
+	float maxOffset;		/* maximum allowable offset */
 
 	BMOperator *op;
 } BevelParams;
@@ -239,12 +248,37 @@ static void calc_corner_co(BMLoop *l, const float fac, float r_co[3],
 		(etags[BM_elem_index_get((e))].newv2)                                 \
 	)
 
+
+void recalculate_aditional_vert(BMesh* bm, BevelParams* bp, VertexItem *vi, BMEdge* sEdge)
+{
+	// берем минимальный отсуп
+	float ve[3], sve[3], angle, lenght, viLen, vie[3];
+	BMVert *v;
+	v = vi->parent->v;
+
+	sub_v3_v3v3(ve, BM_edge_other_vert(vi->edge1, v)->co, v->co);
+	sub_v3_v3v3(sve, BM_edge_other_vert(sEdge, v)->co, v->co);
+
+	angle = angle_v3v3(ve, sve);
+	lenght = bp->offset / sin(angle);
+
+	sub_v3_v3v3(vie, v->co, vi->v->co);
+	viLen = len_v3(vie);
+
+	if (lenght < viLen){
+		normalize_v3(ve);
+		mul_v3_fl(ve, lenght);
+		add_v3_v3(ve, v->co);
+		vi->v = BM_vert_create(bm, ve, NULL);
+	}
+}
+
 /* build point on edge
 *  sEdge - selectes edge */
 BMVert* bevel_calc_aditional_vert(BMesh *bm, BevelParams *bp, BMEdge *sEdge, BMEdge* edge, BMVert* v)
 {
 	BMVert *new_Vert = NULL;
-/*	float vect[3], normV[3];
+	/*float vect[3], normV[3];
 	sub_v3_v3v3(vect, BM_edge_other_vert(edge, v)->co, v->co);
 	normalize_v3_v3(normV, vect);
 	mul_v3_fl(normV, bp->offset);
@@ -261,6 +295,10 @@ BMVert* bevel_calc_aditional_vert(BMesh *bm, BevelParams *bp, BMEdge *sEdge, BME
 
 	angle = angle_v3v3(ve, sve);
 	lenght = bp->offset / sin(angle);
+
+	//if (bp->maxOffset < lenght)
+	//	bp->maxOffset = lenght;
+
 	normalize_v3(ve);
 	mul_v3_fl(ve, lenght);
 	add_v3_v3(ve, v->co);
@@ -294,7 +332,6 @@ BMVert* bevel_create_unic_vertex(BMesh *bm, BevelParams *bp, float co[3])
 BMVert* bevel_middle_vert(BMesh *bm, BevelParams *bp, BMEdge *edge_a, BMEdge *edge_b, BMVert *vert)
 {
 	float offset, v_a[3], v_b[3], v_c[3], norm_a[3], norm_b[3],norm_c[3],  angel;
-	float co[3];
 	BMVert* new_vert = NULL;
 	offset = bp->offset;
 	/* calc vectors */
@@ -395,10 +432,45 @@ int check_dublicated_vertex_item(AdditionalVert *item, BMFace *f)
 	return result;
 }
 
-VertexItem* calc_support_vertex(BevelParams* bp, BMEdge *e, BMVert *v)
+/*
+*	A-M-B
+*	  |
+*	C-N-D
+*  A-B, C-D input line
+* return MN - distance
+*/
+float calc_len_between_line(float A[3], float B[3], float C[3], float D[3], float M[3], float N[3])
+{
+	float P1, P2, Q1, Q2, R1, R2, m, n;
+	float MN[3];
+
+	P1 = (B[0] - A[0]) * (B[0] - A[0]) + (B[1] - A[1]) * (B[1] - A[1]) + (B[2] - A[2]) * (B[2] - A[2]);
+	P2 = (B[0] - A[0]) * (D[0] - C[0]) + (B[1] - A[1]) * (D[1] - C[1]) + (B[2] - A[2]) * (D[2] - C[2]);
+	Q1 = -1 * P2;
+	Q2 = -1 * ((D[0]  - C[0]) * (D[0] - C[0]) + (D[1] - C[1]) * (D[1] - C[1]) + (D[2] - C[2]) * (D[2] - C[2]));
+	R1 = (C[0] - A[0]) * (B[0] - A[0]) + (C[1] - A[1]) * (B[1] - A[1]) + (C[2] - A[2]) * (B[2] - A[2]);
+	R2 = (C[0] - A[0]) * (D[0] - C[0]) + (C[1] - A[1]) * (D[1] - C[1]) + (C[2] - A[2]) * (D[2] - C[2]);
+
+	m = (Q2 * R1 - Q1 * R2) / (P1 * Q2 - P2 * Q1);
+	n = (P1 * R2 - P2 * R1) / (P1 * Q2 - P2 * Q1);
+
+	M[0] = A[0] + m * (B[0] - A[0]);
+	M[1] = A[1] + m * (B[1] - A[1]);
+	M[2] = A[2] + m * (B[2] - A[2]);
+
+	N[0] = C[0] + n * (D[0] - C[0]);
+	N[1] = C[1] + n * (D[1] - C[1]);
+	N[2] = C[2] + n * (D[2] - C[2]);
+
+	sub_v3_v3v3(MN, M, N);
+	return len_v3(MN);
+}
+
+VertexItem* calc_support_vertex(BMEdge *e, BMVert *v, VertexItem *itemA, VertexItem *itemB)
 {
 	VertexItem *item;
-	float vect[3], normV[3];
+//	float vect[3], normV[3];
+	float M[3], N[3];
 
 	item = (VertexItem*)MEM_callocN(sizeof(VertexItem), "VertexItem");
 	item->onEdge = 3;
@@ -407,27 +479,68 @@ VertexItem* calc_support_vertex(BevelParams* bp, BMEdge *e, BMVert *v)
 	item->f = NULL;
 	item->v = NULL;
 
-	sub_v3_v3v3(vect, BM_edge_other_vert(e, v)->co, v->co);
+	/*sub_v3_v3v3(vect, BM_edge_other_vert(e, v)->co, v->co);
 	normalize_v3_v3(normV, vect);
 	mul_v3_fl(normV, bp->offset);
 	add_v3_v3(normV, v->co);
 
-	copy_v3_v3(item->hv, normV);
+	copy_v3_v3(item->hv, normV);*/
+
+	calc_len_between_line(v->co, BM_edge_other_vert(e, v)->co, itemA->v->co, itemB->v->co, M, N);
+	copy_v3_v3(item->hv, M);
+
 	return item;
 }
 
-int check_dublicated_vertex_item_by_edge(AdditionalVert *av, BMEdge* edge)
+/*
+  return NULL if not dublicated
+	return dublicated item
+*/
+VertexItem* check_dublicated_vertex_item_by_edge(AdditionalVert *av, BMEdge* edge)
 {
-	VertexItem *vitem;
-	int result = 0;
+	VertexItem *vitem, *vi = NULL;
+//	int result = 0;
+
 	for (vitem = av->vertices.first; vitem; vitem = vitem->next) {
 		if  ((vitem->onEdge == 1) &&
 			(vitem->edge1 == edge))
-			result = 1;
+			vi = vitem;
 	}
-	return result;
+	return vi;
 
-}/*
+}
+
+VertexItem* find_on_edge_vertex_item(AdditionalVert* av, BMEdge *e)
+{
+	VertexItem *item, *r = NULL;
+	for (item = av->vertices.first; item; item = item->next){
+		if ((item->onEdge == 1) && (item->edge1 == e))
+			r = item;
+	}
+	return r;
+}
+
+
+VertexItem* find_between_vertex_item(AdditionalVert* av, BMEdge *e, VertexItem *exclI)
+{
+	VertexItem *item, *r = NULL;
+	for (item = av->vertices.first; item; item = item->next){
+		if (exclI != NULL){
+			if ((item->onEdge == 0) &&
+					(item != exclI) &&
+					((item->edge1 == e) || (item->edge2) == e))
+				r = item;
+		}
+		else {
+			if ((item->onEdge == 0) &&
+				((item->edge1 == e) || (item->edge2) == e))
+			r = item;
+		}
+	}
+	return r;
+}
+
+/*
 * additional construction arround the vertex
 */
 void bevel_aditional_construction_by_vert(BMesh *bm, BevelParams *bp, BMOperator *op, BMVert *v)
@@ -436,7 +549,6 @@ void bevel_aditional_construction_by_vert(BMesh *bm, BevelParams *bp, BMOperator
 	BMOIter siter;
 	//BMIter iter;
 	BMEdge *e, **edges = NULL;
-	int i;
 	BLI_array_declare(edges);
 
 	// calc count input selected edges
@@ -464,9 +576,10 @@ void bevel_aditional_construction_by_vert(BMesh *bm, BevelParams *bp, BMOperator
 			if (BMO_elem_flag_test(bm, e, EDGE_SELECTED)) {
 				BMFace *f;
 				BMIter iter;
+
 				av->countSelect++;
 				/* calc additional point,    calc support vertex on edge */
-				BLI_addtail(&av->vertices, calc_support_vertex(bp, e, v));
+				//BLI_addtail(&av->vertices, calc_support_vertex(bp, e, v));
 
 				/* point located beteween selecion edges*/
 				BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
@@ -477,6 +590,7 @@ void bevel_aditional_construction_by_vert(BMesh *bm, BevelParams *bp, BMOperator
 							if (!check_dublicated_vertex_item(av, f)) {
 								VertexItem *item;
 								item = (VertexItem*)MEM_callocN(sizeof(VertexItem), "VertexItem");
+								item->parent = av;
 								item->onEdge = 0; // false
 								item->edge1 = e;
 								item->edge2 = find_selected_edge_in_face(bm, f, e, v);
@@ -489,9 +603,10 @@ void bevel_aditional_construction_by_vert(BMesh *bm, BevelParams *bp, BMOperator
 
 						adjacentE = find_non_selected_adjacent_edge(bm, f, e, v);
 						if ((l->e == e) && (adjacentE != NULL)){
-							if (!check_dublicated_vertex_item_by_edge(av, adjacentE)){
+							if (check_dublicated_vertex_item_by_edge(av, adjacentE) == NULL){
 								VertexItem *item;
 								item = (VertexItem*)MEM_callocN(sizeof(VertexItem), "VertexItem");
+								item->parent = av;
 								item->onEdge = 1; /* true */
 								item->edge1 = adjacentE;
 								item->edge2 = NULL;
@@ -500,6 +615,8 @@ void bevel_aditional_construction_by_vert(BMesh *bm, BevelParams *bp, BMOperator
 
 								BLI_addtail(&av->vertices, item);
 								av->count ++;
+							} else{
+								recalculate_aditional_vert(bm, bp, check_dublicated_vertex_item_by_edge(av, adjacentE), e);
 							}
 						}
 
@@ -513,8 +630,8 @@ void bevel_aditional_construction_by_vert(BMesh *bm, BevelParams *bp, BMOperator
 			/*if (!BMO_elem_flag_test(bm, e, EDGE_SELECTED)){
 				VertexItem *item;
 				item = (VertexItem*)MEM_callocN(sizeof(VertexItem), "VertexItem");
-				item->onEdge = 1; /* true */
-				/*item->edge1 = e;
+				item->onEdge = 1;
+				item->edge1 = e;
 				item->edge2 = NULL;
 				item->f = NULL;
 				item->v = bevel_calc_aditional_vert(bm, bp, e, v);
@@ -522,14 +639,30 @@ void bevel_aditional_construction_by_vert(BMesh *bm, BevelParams *bp, BMOperator
 				av->count ++;
 			}*/
 		} while (e != edges[0]);
+
+		/* calc additional point,    calc support vertex on edge */
+		e = bmesh_disk_faceedge_find_first(edges[0], v);
+		do {
+			VertexItem *itemA, *itemB; /* pair of middle vertices */
+			e = bmesh_disk_edge_next(e, v);
+			if (BMO_elem_flag_test(bm, e, EDGE_SELECTED)) {
+			itemA = find_between_vertex_item(av, e , NULL);
+				if (itemA != NULL)
+					itemB = find_between_vertex_item(av, e , itemA);
+
+				if ((itemA != NULL && itemB != NULL))
+					BLI_addtail(&av->vertices, calc_support_vertex(e, v, itemA, itemB));
+			}
+		} while (e != edges[0]);
 	}
+
 	BLI_array_free(edges);
 }
 
 AdditionalVert* get_additionalVert_by_vert(BevelParams *bp, BMVert *v)
 {
 
-	VertexItem *item;
+	AdditionalVert *item;
 	AdditionalVert *av = NULL;
 	for (item = bp->vertList.first; item ; item = item->next){
 		if (item->v == v)
@@ -556,10 +689,13 @@ int is_edge_of_face (BMFace *f, BMEdge* e)
 
 /*
 * calculation of points on the round profile
+* r - result, coordinate of point on round profile
 */
-void get_point_on_round_profile(float r[3], float offset, int i, int count, float va[3], float v[3], float vb[3])
+void get_point_on_round_profile(float r[3], float offset, int i, int count,
+								float va[3], float v[3], float vb[3])
 {
 	float vva[3], vvb[3], angle, center[3], rv[3], axis[3], co[3];
+//	float tmp1[3], tmp2[3];
 
 	sub_v3_v3v3(vva, va, v);
 	sub_v3_v3v3(vvb, vb, v);
@@ -577,6 +713,11 @@ void get_point_on_round_profile(float r[3], float offset, int i, int count, floa
 	sub_v3_v3v3(co, v, center);
 	cross_v3_v3v3(axis, rv, co);	/* calculate axis */
 
+	//---------------------------------
+	//add_v3_v3v3(tmp1, axis, v);
+	//add_v3_v3v3(tmp1, center, v);
+	//BM_edge_create( bm, BM_vert_create(bm, v, NULL), BM_vert_create(bm, center, NULL), NULL, 0);
+	// --------------------------------
 
 	sub_v3_v3v3(vva, va, center);
 	sub_v3_v3v3(vvb, vb, center);
@@ -589,13 +730,54 @@ void get_point_on_round_profile(float r[3], float offset, int i, int count, floa
 }
 
 /*
+*   Search for crossing the line and line
+*   a1-a2 lineA
+*   b1-b2 line B
+*	r - result, coordinate of crossing point
+*/
+int find_intersection_point(float r[3], float a1[3], float a2[3], float b1[3], float b2[3])
+{
+	double s, t, z1, z2;
+	double mx, my, nx, ny;
+	int flag =0;
+
+	mx = a2[0] - a1[0];
+	my = a2[1] - a1[1];
+
+	nx = b2[0] - b1[0];
+	ny = b2[1] - b1[1];
+
+	//s = (b1[1] / my - b1[0] / mx + a1[0]/ mx - a1[1] / my) / (nx / mx - ny / my);
+	//t = b1[0] / mx - a1[0] / mx + s * nx / mx;
+	s = ((b1[1] - a1[1]) / my + (a1[0] - b1[0])/ mx ) / (nx / mx - ny / my);
+	t = (b1[0] - a1[0] + s * nx) / mx;
+
+
+	z1 = a1[2] + t * (a2[2] -a1[2]);
+	z2 = b1[2] + s * (b2[2] -b1[2]);
+
+	if ( fabs(z1-z2) < BEVEL_EPSILON ){
+		flag = 1;
+		r[0] = a1[0]  + t * mx;
+		r[1] = a1[1]  + t * my;
+		r[2] = z1;
+	}
+	else
+		flag = 0;
+
+	return flag;
+}
+
+
+/*
 * Search for crossing the line and plane
 * p1, p2, p3 points which is given by the plane
 * a - line vector
 * m - point through which the line
+* r - result;
 */
 
-void find_intersection_point_plan(BMesh *bm, float r[3], float p1[3], float p2[3], float p3[3],
+void find_intersection_point_plan(float r[3], float p1[3], float p2[3], float p3[3],
 								  float a[3], float m[3])
 {
 	float P[3], N[3], A[3], M[3];
@@ -603,6 +785,7 @@ void find_intersection_point_plan(BMesh *bm, float r[3], float p1[3], float p2[3
 	double t;
 	double C, D, E;
 	float null = 1e-20;
+
 
 	/* calculation of the normal to the surface */
 	sub_v3_v3v3(vv1, p1, p2);
@@ -613,21 +796,35 @@ void find_intersection_point_plan(BMesh *bm, float r[3], float p1[3], float p2[3
 	copy_v3_v3(P, p2);
 	copy_v3_v3(M, m);
 
-	C = N[0] * P[0] + N[1] * P[1] + N[2] * P[2];
-	D = N[0] * M[0] + N[1] * M[1] + N[2] * M[2];
-	E = (A[0] * N[0] + A[1] * N[1] + A[2] * N[2]);
 
-	if (fabs(E)< null)
-		t = 0;
-	else
-		t = (C-D)/E;
+	if (fabs(N[0] * (A[0]-P[0]) + N[1] * (A[1]-P[1]) + N[2] * (A[2]-P[2])) < BEVEL_EPSILON){
+		/* point located on plane */
+		float tmp[3], line[3];
+		add_v3_v3v3(line, a, m);
+		if (find_intersection_point(tmp, m, a, p1, p2))
+			copy_v3_v3(r, tmp);
+		else {
+			if (find_intersection_point(tmp, m, a, p2, p3))
+				copy_v3_v3(r, tmp);
+		}
 
-	//t = (N[0] * P[0] + N[1] * P[1] + N[2] * P[2] - N[0] * m[0] - N[1] * m[1] - N[2] * m[2]) /
-	//   (a[0] * N[0] + a[1] * N[1] + a[2] * N[2]);
+	} else {
+		C = N[0] * P[0] + N[1] * P[1] + N[2] * P[2];
+		D = N[0] * M[0] + N[1] * M[1] + N[2] * M[2];
+		E = (A[0] * N[0] + A[1] * N[1] + A[2] * N[2]);
 
-	r[0] = m[0] + t * a [0];
-	r[1] = m[1] + t * a [1];
-	r[2] = m[2] + t * a [2];
+		if (fabs(E)< null)
+			t = 0;
+		else
+			t = (C-D)/E;
+
+		//t = (N[0] * P[0] + N[1] * P[1] + N[2] * P[2] - N[0] * m[0] - N[1] * m[1] - N[2] * m[2]) /
+		//   (a[0] * N[0] + a[1] * N[1] + a[2] * N[2]);
+
+		r[0] = m[0] + t * a [0];
+		r[1] = m[1] + t * a [1];
+		r[2] = m[2] + t * a [2];
+	}
 
 }
 
@@ -637,8 +834,9 @@ BMVert* get_vert_on_round_profile(BMesh* bm,  BevelParams *bp, int i, int n,
 								  float v[3], float va[3], float vb[3])
 {
 	BMVert *result = NULL;
-	float vva[3], vvb[3], ve[3], coa[3], cob[3], point[3], co[3];
-	float ve1[3], ve2[3];
+	float vva[3], vvb[3],  coa[3], cob[3], point[3], co[3];
+
+	//float ve[3], ve1[3], ve2[3];
 	// input data
 	//BM_edge_create(bm, BM_vert_create(bm, v, NULL), BM_vert_create(bm, va, NULL), NULL, 0);
 	//BM_edge_create(bm, BM_vert_create(bm, v, NULL), BM_vert_create(bm, vb, NULL), NULL, 0);
@@ -646,35 +844,46 @@ BMVert* get_vert_on_round_profile(BMesh* bm,  BevelParams *bp, int i, int n,
 
 	sub_v3_v3v3(vva, va, v);
 	sub_v3_v3v3(vvb, vb, v);
-
-	normalize_v3_v3(coa, direction);
-	mul_v3_fl(coa, len_v3(vva) * cos(angle_v3v3(vva, direction)));
-	//mul_v3_fl(coa, dot_v3v3(vva, ve) /  len_v3(vva));
-	add_v3_v3(coa, v);
-	sub_v3_v3v3(vva, va, coa);
-	add_v3_v3(vva, v);
+	if (fabs(angle_v3v3(vva, vvb)- M_PI) > BEVEL_EPSILON) {
+		normalize_v3_v3(coa, direction);
+		mul_v3_fl(coa, len_v3(vva) * cos(angle_v3v3(vva, direction)));
+		//mul_v3_fl(coa, dot_v3v3(vva, ve) /  len_v3(vva));
+		add_v3_v3(coa, v);
+		sub_v3_v3v3(vva, va, coa);
+		add_v3_v3(vva, v);
 		//BM_edge_create(bm, BM_vert_create(bm, v, NULL), BM_vert_create(bm, vva, NULL), NULL, 0);
 
-	/* Search the orthogonal vector */
-	normalize_v3_v3(cob, direction);
-	mul_v3_fl(cob, len_v3(vvb) * cos(angle_v3v3(vvb, direction)));
-	//mul_v3_fl(cob, dot_v3v3(vvb, ve) /  len_v3(vvb));
-	add_v3_v3(cob, v);
-	sub_v3_v3v3(vvb, vb, cob);
-	add_v3_v3(vvb, v);
-	//	BM_edge_create(bm, BM_vert_create(bm, v, NULL), BM_vert_create(bm, vvb, NULL), NULL, 0);
+		/* Search the orthogonal vector */
+		normalize_v3_v3(cob, direction);
+		mul_v3_fl(cob, len_v3(vvb) * cos(angle_v3v3(vvb, direction)));
+		//mul_v3_fl(cob, dot_v3v3(vvb, ve) /  len_v3(vvb));
+		add_v3_v3(cob, v);
+		sub_v3_v3v3(vvb, vb, cob);
+		add_v3_v3(vvb, v);
+		//	BM_edge_create(bm, BM_vert_create(bm, v, NULL), BM_vert_create(bm, vvb, NULL), NULL, 0);
 
-	/* search points in the profile */
-	get_point_on_round_profile(point, bp->offset, i, n, vva, v, vvb);
-	bevel_create_unic_vertex(bm, bp, point);
+		/* search points in the profile */
+		get_point_on_round_profile(point, bp->offset, i, n, vva, v, vvb);
+		//bevel_create_unic_vertex(bm, bp, point);
 
-	//BM_edge_create(bm, BM_vert_create(bm, va, NULL), BM_vert_create(bm, v, NULL), NULL, 0);
-	//BM_edge_create(bm, BM_vert_create(bm, vb, NULL), BM_vert_create(bm, v, NULL), NULL, 0);
-	//BM_edge_create(bm, BM_vert_create(bm, vb, NULL), BM_vert_create(bm, va, NULL), NULL, 0);
+		//BM_edge_create(bm, BM_vert_create(bm, va, NULL), BM_vert_create(bm, v, NULL), NULL, 0);
+		//BM_edge_create(bm, BM_vert_create(bm, vb, NULL), BM_vert_create(bm, v, NULL), NULL, 0);
+		//BM_edge_create(bm, BM_vert_create(bm, vb, NULL), BM_vert_create(bm, va, NULL), NULL, 0);
 
-	find_intersection_point_plan(bm, co, va, v ,vb , direction, point );
+		find_intersection_point_plan(co, va, v ,vb , direction, point );
+	} else {
+		/* planar case */
+		float ab[3];	/* va->vb*/
+		float len;
+		sub_v3_v3v3(ab, vb, va);
+		len = len_v3(ab);
+		normalize_v3(ab);
+		mul_v3_fl(ab, len * (float)(i) / (float)(n));
+		add_v3_v3v3(co, ab, va);
 
+	}
 	result = bevel_create_unic_vertex(bm, bp, co);
+	///result = bevel_create_unic_vertex(bm, bp, point);
 	return result;
 }
 
@@ -689,7 +898,7 @@ BMVert* get_vert_by_round_profile(BMesh* bm,  BevelParams *bp, int i,
 {
 	BMVert* vert = NULL;
 	float vect1[3], vect2[3], center[3], co[3], rv[3], axis[3]; // два вектора направленные к точке V
-	float angle, r, c;
+	float angle, c;
 
 	// ------debug input data----------
 	//BM_edge_create(bm, BM_vert_create(bm, v1, NULL), BM_vert_create(bm, v, NULL), NULL, 0);
@@ -731,52 +940,20 @@ BMVert* get_vert_by_round_profile(BMesh* bm,  BevelParams *bp, int i,
 
 
 
-// search for points of intersection of two segments of a (a1, a2) and b (b1, b2) given two points
-void find_intersection_point(float r[3], float a1[3], float a2[3], float b1[3], float b2[3])
-{
-	double s, t, z1, z2;
-	double mx, my, nx, ny;
-
-	mx = a2[0] - a1[0];
-	my = a2[1] - a1[1];
-
-	nx = b2[0] - b1[0];
-	ny = b2[1] - b1[1];
-
-	//s = (b1[1] / my - b1[0] / mx + a1[0]/ mx - a1[1] / my) / (nx / mx - ny / my);
-	//t = b1[0] / mx - a1[0] / mx + s * nx / mx;
-	s = ((b1[1] - a1[1]) / my + (a1[0] - b1[0])/ mx ) / (nx / mx - ny / my);
-	t = (b1[0] - a1[0] + s * nx) / mx;
-
-
-	z1 = a1[2] + t * (a2[2] -a1[2]);
-	z2 = b1[2] + s * (b2[2] -b1[2]);
-
-	/*r[0] = a1[0]  + t * mx;
-	r[1] = a1[1]  + t * my;
-	r[2] = z1;
-	*/
-	if ( fabs(z1-z2) < BEVEL_EPSILON ){
-		r[0] = a1[0]  + t * mx;
-		r[1] = a1[1]  + t * my;
-		r[2] = z1;
-	}
-	else
-		r = NULL;
-}
 
 
 
-BMVert* get_vert_by_round_profile_edge(BMesh* bm,  BevelParams *bp, BMEdge *e, AdditionalVert *av, int i,
+
+/*BMVert* get_vert_by_round_profile_edge(BevelParams *bp, BMEdge *e, AdditionalVert *av, int i,
 								  int n, float v1[3],  float v[3],  float v2[3])
 {
 	BMVert *vert = NULL;
 	// найти вектора ортогональные е
 	// построить по ним профиль и найти пересечение с тремя точками
-	float vv1[3], vv2[3], vve[3], angle, axis[3], co1[3], co2[3], co[3];
+	float vv1[3], vv2[3], vve[3], angle, axis[3], co1[3], co2[3];//, co[3];
 	sub_v3_v3v3(vv1, v1, av->v->co);
 	sub_v3_v3v3(vv2, v2, av->v->co);
-	sub_v3_v3v3(vve, av->v, BM_edge_other_vert(e, av->v));
+	sub_v3_v3v3(vve, av->v->co, BM_edge_other_vert(e, av->v)->co);
 
 	angle = angle_v3v3(vv1, vve);
 	if (fabs(angle - M_PI_2) > BEVEL_EPSILON){
@@ -807,7 +984,7 @@ BMVert* get_vert_by_round_profile_edge(BMesh* bm,  BevelParams *bp, BMEdge *e, A
 
 
 	return vert;
-}
+}*/
 
 /*
 * searches a point at the intersection of the two profiles
@@ -890,7 +1067,7 @@ BMVert* get_vert_by_intersection(BMesh *bm, BevelParams *bp, int i, int n,
 
 		BM_edge_create(bm, aVert, av->v, NULL, 0);
 		BM_edge_create(bm, bVert, av->v, NULL, 0);
-		find_intersection_point_plan(bm, co, aVert->co, av->v->co, bVert->co, ve, aRVert->co);
+		find_intersection_point_plan(co, aVert->co, av->v->co, bVert->co, ve, aRVert->co);
 
 		if (co != NULL)
 			vert = BM_vert_create(bm, co, NULL);
@@ -912,8 +1089,9 @@ BMVert* get_vert_by_seg(BMesh* bm,  BevelParams *bp, int i,
 	float t;
 
 	int j;
-	float testAxis[3], testV[3], t1[2], t2[3];
-	BMVert *bv1, *bv2;
+	float testAxis[3], testV[3];
+	//t1[2], t2[3];
+//	BMVert *bv1, *bv2;
 
 	sub_v3_v3v3(vect1, v1, v);
 	sub_v3_v3v3(vect2, v2, v);
@@ -1003,10 +1181,10 @@ BMVert* get_vert_by_round_profile_rotate(BMesh* bm,  BevelParams *bp,
 										 int n, BMVert *v1,  BMVert *v,  BMVert* v2,
 										 BMEdge *e)
 {
-	float vv1[3], vv2[3], ve[3], vc1[3], vc2[3], vc[3];
-	float angle_vv1_e, angle_vv2_e, r;
+	float vv1[3], vv2[3], ve[3], vc1[3], vc2[3], vc[3], r;
+	//float angle_vv1_e, angle_vv2_e,
 	BMVert *vert;
-	BMVert *tv1, *tv2, *tv3;
+	//BMVert *tv1, *tv2, *tv3;
 	float limit = 1e-6;
 
 	/* calculate the vector */
@@ -1015,8 +1193,8 @@ BMVert* get_vert_by_round_profile_rotate(BMesh* bm,  BevelParams *bp,
 	sub_v3_v3v3(vv2, v2->co, v->co);
 	sub_v3_v3v3(ve, BM_edge_other_vert(e, v)->co, v->co);
 	/* calculate the angles between them */
-	angle_vv1_e = angle_v3v3(vv1, ve);
-	angle_vv2_e = angle_v3v3(vv2, ve);
+	//angle_vv1_e = angle_v3v3(vv1, ve);
+	//angle_vv2_e = angle_v3v3(vv2, ve);
 
 	normalize_v3_v3(vc, ve);
 	mul_v3_fl(vc, bp->offset);
@@ -1031,9 +1209,9 @@ BMVert* get_vert_by_round_profile_rotate(BMesh* bm,  BevelParams *bp,
 	else
 		copy_v3_v3(vc2, v2->co);
 
-	tv1 = BM_vert_create(bm, vc1, NULL);
-	tv2 = BM_vert_create(bm, vc2, NULL);
-	tv3 = BM_vert_create(bm, vc, NULL);
+	//tv1 = BM_vert_create(bm, vc1, NULL);
+	//tv2 = BM_vert_create(bm, vc2, NULL);
+	//tv3 = BM_vert_create(bm, vc, NULL);
 	//BM_edge_create(bm, tv1, tv2, NULL, 0);
 	//BM_edge_create(bm, tv1, tv3, NULL, 0);
 	//BM_edge_create(bm, tv2, tv3, NULL, 0);
@@ -1104,12 +1282,16 @@ BMEdge* get_other_edge(VertexItem* item, BMEdge *e ){
 	return r;
 }
 
+/*
+*
+*/
 void calc_new_helper_point (BMesh *bm, BevelParams* bp,
-							AdditionalVert *av, int n, float a[3], float h[3], float b[3],  float r[3])
+							AdditionalVert *av, int n,
+							float a[3], float h[3], float b[3],  float r[3])
 {
 
 	float vect[3], va[3], vb[3], rv[3], center[3], axis[3], result[3];
-	float c, angle;
+	float angle;
 
 	sub_v3_v3v3(va, a, h);
 	sub_v3_v3v3(vb, b, h);
@@ -1121,6 +1303,7 @@ void calc_new_helper_point (BMesh *bm, BevelParams* bp,
 	add_v3_v3(center, h); /* local center*/
 
 	sub_v3_v3v3(rv, h, center);/* radius vector */
+
 
 	//add_v3_v3(rv, center);
 	//BM_edge_create(bm, BM_vert_create(bm, center, NULL), BM_vert_create(bm, rv, NULL), NULL, 0);
@@ -1333,15 +1516,20 @@ void updatSurfaceEdgeItems(SurfaceEdgeData** listData, SurfaceEdgeData** newList
 	}
 }
 
+/*
+ *	find the coordinates of boundary points
+ */
 void find_boundary_point(BMesh *bm, BevelParams *bp, AdditionalVert *av,
-							SurfaceEdgeData *sd, SurfaceEdgeData **listData, int count, int i,
+							SurfaceEdgeData *sd, SurfaceEdgeData **listData, int count,
 							  float bva[3], float bvb[3])
 {
 	VertexItem *pointA = NULL, *pointB = NULL;
 	BMEdge *ea, *eb;
 	SurfaceEdgeData *sdA, *sdB;
-	float h[3], ha[3], hb[3];
+	float h[3];
 	float dir[3];
+
+	int j;
 
 	pointA = find_middle_vertex_item(av, sd->e, NULL);
 	pointB = find_middle_vertex_item(av, sd->e, pointA);
@@ -1357,27 +1545,52 @@ void find_boundary_point(BMesh *bm, BevelParams *bp, AdditionalVert *av,
 			NewVertexItem *itemA, *itemB;
 			BMVert *a, *b;
 
-			if (len_v3v3(((NewVertexItem*)(sd->vertexList.first))->v->co, ((NewVertexItem*)(sdA->vertexList.first))->v->co) <
-				len_v3v3(((NewVertexItem*)(sd->vertexList.first))->v->co, ((NewVertexItem*)(sdA->vertexList.last))->v->co))
+			if (len_v3v3(((NewVertexItem*)(sd->vertexList.first))->v->co,
+						 ((NewVertexItem*)(sdA->vertexList.first))->v->co) <
+				len_v3v3(((NewVertexItem*)(sd->vertexList.first))->v->co,
+						 ((NewVertexItem*)(sdA->vertexList.last))->v->co))
 				itemA = sdA->vertexList.first;
 			else
 				itemA = sdA->vertexList.last;
 
-			if (len_v3v3(((NewVertexItem*)(sd->vertexList.first))->v->co, ((NewVertexItem*)(sdB->vertexList.first))->v->co) <
-				len_v3v3(((NewVertexItem*)(sd->vertexList.first))->v->co, ((NewVertexItem*)(sdB->vertexList.last))->v->co))
+			if (len_v3v3(((NewVertexItem*)(sd->vertexList.first))->v->co,
+						 ((NewVertexItem*)(sdB->vertexList.first))->v->co) <
+				len_v3v3(((NewVertexItem*)(sd->vertexList.first))->v->co,
+						 ((NewVertexItem*)(sdB->vertexList.last))->v->co))
 				itemB = sdB->vertexList.first;
 			else
 				itemB = sdB->vertexList.last;
 
-			calc_new_helper_point(bm, bp, av, 1, itemA->v->co, sd->h, itemB, h);
+
+
+
+//			calc_new_helper_point(bm, bp, av, 1, itemA->v->co, sd->h, itemB, h);
+			calc_new_helper_point(bm, bp, av, 1, itemA->v->co, sd->h, itemB->v->co, h);
+			// -----------------
+		/*	BM_edge_create(bm, itemA->v, itemB->v, NULL, 0);
+			BM_edge_create(bm, itemA->v, BM_vert_create(bm, h, NULL), NULL, 0);
+			BM_edge_create(bm, itemB->v, BM_vert_create(bm, h, NULL), NULL, 0);
+*/
+			// -----------------
+
 
 			//a = get_vert_by_round_profile(bm, bp, 1, sd->count, itemA->v->co, h, itemB->v->co);
 			//b = get_vert_by_round_profile(bm, bp, sd->count - 1, sd->count, itemA->v->co, h, itemB->v->co);
-			a = get_vert_on_round_profile(bm, bp, 1, sd->count, dir, h, itemA->v->co,  itemB->v->co);
-			b = get_vert_on_round_profile(bm, bp, sd->count - 1, sd->count, dir, h, itemA->v->co, itemB->v->co);
+			a = get_vert_on_round_profile(bm, bp, 1, sd->count+1, dir, h, itemA->v->co,  itemB->v->co);
+			b = get_vert_on_round_profile(bm, bp, sd->count + 1 - 1, sd->count+1, dir, h, itemA->v->co, itemB->v->co);
 
 			copy_v3_v3(bva, a->co);
 			copy_v3_v3(bvb, b->co);
+
+			// ------debug -----------
+			/*for (j = 0; j <= sd->count+1; j++ ){
+				a = get_vert_on_round_profile(bm, bp, j, sd->count+1, dir, h, itemA->v->co,  itemB->v->co);
+
+				if (j > 0)
+					BM_edge_create(bm, b, a, NULL, 0);
+				b = a;
+			}*/
+			// -----------------------
 		}
 	}
 }
@@ -1396,29 +1609,69 @@ BMVert* get_nearest_vert(SurfaceEdgeData *sd, BMVert *v)
 	return result;
 }
 
+
+/*
+*	count - count of element in listData
+*/
 void calculate_boundary_point(BMesh *bm, BevelParams *bp,
 							  AdditionalVert *av, SurfaceEdgeData *sd,
 							  SurfaceEdgeData **listData, int count, int i)
 {
-	VertexItem *pointA = NULL, *pointB = NULL;
-	BMEdge *ea, *eb;
+	VertexItem *pointA = NULL, *pointB = NULL;	/* adjacent points of support */
+	BMEdge *ea, *eb;							/* adjacent edges */
 	SurfaceEdgeData *sdA, *sdB;
-	BMVert **verts[4];
-	NewVertexItem *vertItem, *tVertItem;
+	BMVert *verts[4];
 
 	pointA = find_middle_vertex_item(av, sd->e, NULL);
 	pointB = find_middle_vertex_item(av, sd->e, pointA);
+
 	if ((pointA != NULL) && (pointB != NULL)){
 		float a[3], b[3], aa1[3], aa2[3],  bb1[3], bb2[3], co[3];
+//		float M[3], N[3];
 		ea = get_other_edge(pointA, sd->e);
 		eb = get_other_edge(pointB, sd->e);
 
 		sdA = getSurfaceEdgeItem(listData, count, ea);
 		sdB = getSurfaceEdgeItem(listData, count, eb);
 
-		find_boundary_point (bm, bp, av, sd, listData, count, i, a, b);
-		find_boundary_point (bm, bp, av, sdA, listData, count, i, aa1, aa2);
-		find_boundary_point (bm, bp, av, sdB, listData, count, i, bb1, bb2);
+		find_boundary_point (bm, bp, av, sd, listData, count, a, b);
+		find_boundary_point (bm, bp, av, sdA, listData, count, aa1, aa2);
+		find_boundary_point (bm, bp, av, sdB, listData, count, bb1, bb2);
+
+		// --------------------------
+		/*if (len_v3v3(a, aa1) < len_v3v3(a, aa2))
+			calc_len_between_line(((NewVertexItem*)(sd->vertexList.first))->v->co,
+								  aa1,
+								  get_nearest_vert(sdA, sd->a)->co,
+								  a,
+								  M, N);
+		else
+			calc_len_between_line(((NewVertexItem*)(sd->vertexList.first))->v->co,
+								  aa2,
+								  get_nearest_vert(sdA, sd->a)->co,
+								  a,
+								  M, N);
+
+		find_middle_vect(co, M, N);
+		sd->boundaryA = bevel_create_unic_vertex(bm, bp, co);
+
+		if (len_v3v3(b, bb1) < len_v3v3(b, bb2))
+			calc_len_between_line(((NewVertexItem*)(sd->vertexList.last))->v->co,
+								  bb1,
+								  get_nearest_vert(sdB, sd->b)->co,
+								  b,
+								  M, N);
+		else
+			calc_len_between_line(((NewVertexItem*)(sd->vertexList.last))->v->co,
+								  bb2,
+								  get_nearest_vert(sdB, sd->b)->co,
+								  b,
+								  M, N);
+
+		find_middle_vect(co, M, N);
+		sd->boundaryB = bevel_create_unic_vertex(bm, bp, co);*/
+		// --------------------------
+
 
 		if (len_v3v3(a, aa1) < len_v3v3(a, aa2))
 			find_middle_vect(co, a, aa1);
@@ -1463,7 +1716,7 @@ int check_dublicated_vertex(BMVert **vv, int count, BMVert *v)
 	return result;
 }
 
-void bevel_build_ring(BMesh *bm, BMOperator *op, BevelParams* bp, AdditionalVert *av)
+void bevel_build_rings(BMesh *bm, BMOperator *op, BevelParams* bp, AdditionalVert *av)
 {
 	BMEdge *e, *firstE;
 	int i = 0, j;
@@ -1530,9 +1783,10 @@ void bevel_build_ring(BMesh *bm, BMOperator *op, BevelParams* bp, AdditionalVert
 void bevel_build_polygons_arround_vertex(BMesh *bm, BevelParams *bp, BMOperator *op, BMVert *v)
 {
 	AdditionalVert *av = get_additionalVert_by_vert(bp, v);
-	VertexItem *vi, *viCur, *viPrev;
-	int i;
-	float centroid[3];
+	VertexItem *vi;
+			//*viCur, *viPrev;
+//	int i;
+	//float centroid[3];
 	BMVert **vv = NULL;
     BLI_array_declare(vv);
 
@@ -1590,9 +1844,12 @@ void bevel_build_polygons_arround_vertex(BMesh *bm, BevelParams *bp, BMOperator 
 	}*/
 
 	if ((av->count > 2) && (bp->seg > 1)){
-		BMEdge *e, *firstE;
-		bevel_build_ring(bm, op,  bp, av);
-		firstE = find_first_edge(bm, op, av->v);
+//		BMEdge *e, *firstE;
+
+		bevel_build_rings(bm, op,  bp, av);
+
+
+	/*	firstE = find_first_edge(bm, op, av->v);
 		e = firstE;
 		//do {
 			e = bmesh_disk_edge_next(e, v);
@@ -1713,24 +1970,15 @@ void bevel_build_polygons_arround_vertex(BMesh *bm, BevelParams *bp, BMOperator 
 						}
 						BM_edge_create(bm, cur, vb, NULL, 0);
 						*/
-					}
-				}
-			 }
+					//}
+				//}
+			 //}
 		//} while (e != firstE);
 	}
     BLI_array_free(vv);
 }
 
 
-VertexItem* find_vertex_item(AdditionalVert* av, BMEdge *e)
-{
-	VertexItem *item, *r = NULL;
-	for (item = av->vertices.first; item; item = item->next){
-		if ((item->onEdge == 1) && (item->edge1 == e))
-			r = item;
-	}
-	return r;
-}
 
 /*
 * Find Edge on the face with a vertex v
@@ -1781,7 +2029,7 @@ void rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
 						BMVert *tv;
 						int i;
 						e = find_edge_in_face(f, vItem->edge1, av->v);
-						tItem = find_vertex_item(av, e);
+						tItem = find_on_edge_vertex_item(av, e);
 						if (tItem != NULL){
 							float dir[3];
 							se = find_selected_edge_in_av(bm, bp, av);
@@ -1875,14 +2123,14 @@ BMVert* get_additional_vert(AdditionalVert *av, BMFace *f,  BMEdge *adjacentE)
 	return v;
 }
 
-void getOffsetCoordinate(float r[3], BevelParams *bp, BMEdge *e, BMVert* v)
+/*void getOffsetCoordinate(float r[3], BevelParams *bp, BMEdge *e, BMVert* v)
 {
 	sub_v3_v3v3(r, BM_edge_other_vert(e, v)->co, v->co);
 	normalize_v3(r);
 	mul_v3_fl(r, bp->offset);
 	add_v3_v3(r, v->co);
 }
-
+*/
 
 
 /*
@@ -1945,46 +2193,41 @@ void bevel_build_polygon(BMesh *bm, BevelParams *bp, BMEdge *e)
 		VertexItem *vItem1, *vItem2;
 		float co1[3], co2[3];
 
-		copy_v3_v3(co1, e->v1->co);
-		copy_v3_v3(co2, BM_edge_other_vert(e, e->v1)->co);
-
-	/*	BM_edge_create(bm, v1, BM_vert_create(bm, co1, NULL), NULL, 1);
-		BM_edge_create(bm, v4, BM_vert_create(bm, co1, NULL), NULL, 1);
-		BM_edge_create(bm, v3, BM_vert_create(bm, co2, NULL), NULL, 1);
-		BM_edge_create(bm, v2, BM_vert_create(bm, co2, NULL), NULL, 1);
-*/
 		vItem1 = find_helper_vertex_item(av1, e);
 		vItem2 = find_helper_vertex_item(av2, e);
-		if (av1->countSelect > 2){
-			//getOffsetCoordinate(co1, bp, e, e->v1);
-			copy_v3_v3(co1, vItem1->hv);
 
-		}
-		if (av2->countSelect > 2)
-			copy_v3_v3(co2, vItem2->hv);{
-			//getOffsetCoordinate(co2, bp, e, BM_edge_other_vert(e,e->v1));
-		}
+		if (vItem1 != NULL){
+			if (av1->countSelect > 2)
+				copy_v3_v3(co1, vItem1->hv);
+		} else
+			copy_v3_v3(co1, e->v1->co);
 
-		v1i = v1;
-		v2i = v2;
+		if (vItem2 != NULL){
+			if (av2->countSelect > 2)
+				copy_v3_v3(co2, vItem2->hv);
+		} else
+			copy_v3_v3(co2, BM_edge_other_vert(e, e->v1)->co);
 
-		for (i = 1; i < bp->seg; i++){
-			float dir[3];
-			sub_v3_v3v3(dir, BM_edge_other_vert(e, av1->v)->co, av1->v->co);
-			if (av1->countSelect == 2)
-				v4i = get_vert_on_round_profile(bm, bp, i, bp->seg, dir, co1, v1->co, v4->co);
-			else
-				v4i = get_vert_on_round_profile(bm, bp, i, bp->seg, dir, co1, v1->co, v4->co);
+			v1i = v1;
+			v2i = v2;
 
-			sub_v3_v3v3(dir, BM_edge_other_vert(e, av2->v)->co, av2->v->co);
-			if (av2->countSelect == 2)
-				v3i = get_vert_on_round_profile(bm, bp, i, bp->seg, dir, co2, v2->co, v3->co);
-			else
-				v3i = get_vert_on_round_profile(bm, bp, i, bp->seg, dir, co2, v2->co, v3->co);
+			for (i = 1; i < bp->seg; i++){
+				float dir[3];
+				sub_v3_v3v3(dir, BM_edge_other_vert(e, av1->v)->co, av1->v->co);
+				if (av1->countSelect == 2)
+					v4i = get_vert_on_round_profile(bm, bp, i, bp->seg, dir, co1, v1->co, v4->co);
+				else
+					v4i = get_vert_on_round_profile(bm, bp, i, bp->seg, dir, co1, v1->co, v4->co);
+
+				sub_v3_v3v3(dir, BM_edge_other_vert(e, av2->v)->co, av2->v->co);
+				if (av2->countSelect == 2)
+					v3i = get_vert_on_round_profile(bm, bp, i, bp->seg, dir, co2, v2->co, v3->co);
+				else
+					v3i = get_vert_on_round_profile(bm, bp, i, bp->seg, dir, co2, v2->co, v3->co);
 
 
 
-			/*if (av1->countSelect == 2) {
+				/*if (av1->countSelect == 2) {
 				//v4i = get_vert_by_round_profile_rotate(bm, bp, i, v1, e->v1, v4, e);
 				//v4i = get_vert_by_intersection(bm, bp, i, bp->seg, av1, e, v1, v4);
 				v4i = get_vert_on_round_profile(bm, bp, i, bp->seg, e, av1->v, v1->co, v4->co);
@@ -2008,11 +2251,12 @@ void bevel_build_polygon(BMesh *bm, BevelParams *bp, BMEdge *e)
 			}*/
 
 
-			BM_face_create_quad_tri(bm, v1i, v2i, v3i, v4i, NULL, 0);
-			v1i = v4i;
-			v2i = v3i;
-		}
-		BM_face_create_quad_tri(bm, v1i, v2i, v3, v4, NULL, 0);
+				BM_face_create_quad_tri(bm, v1i, v2i, v3i, v4i, NULL, 0);
+				v1i = v4i;
+				v2i = v3i;
+			}
+			BM_face_create_quad_tri(bm, v1i, v2i, v3, v4, NULL, 0);
+	//	}
 	}
 
 	/* linear case */
@@ -2032,54 +2276,72 @@ void free_bevel_params(BevelParams *bp)
 	BLI_freelistN(&bp->newVertList);
 }
 
+
+
+float get_min_adjacent_edge_len(BMEdge *edge, BMVert *v)
+{
+	BMEdge *e = NULL;
+	float min = 1e30,  vect[3];
+	e = bmesh_disk_faceedge_find_first(edge, v);
+	do {
+		float len;
+		e = bmesh_disk_edge_next(e, v);
+		sub_v3_v3v3(vect,  BM_edge_other_vert(e,v)->co, v->co);
+		len  = len_v3(vect);
+		if (len  < min )
+			min = len;
+	} while (e != edge);
+	return min;
+}
+
+float get_min_adjacent_projection_len (BMEdge *edge, BMVert *v, float max)
+{
+	BMEdge *e = NULL;
+	float min = 1e30;
+	float va[3], vb[3], len;
+	e = bmesh_disk_faceedge_find_first(edge, v);
+	do {
+		e = bmesh_disk_edge_next(e, v);
+		sub_v3_v3v3(va,  BM_edge_other_vert(edge,v )->co, v->co);
+		sub_v3_v3v3(vb,  BM_edge_other_vert(e, v)->co, v->co);
+		len = max * sin (angle_v3v3(va, vb));
+		if ((fabs(len) > BEVEL_EPSILON) && (len < min))
+			min = len;
+	}while (e != edge);
+
+	return min;
+
+}
+
 float get_max_offset(BMesh *bm, BMOperator *op)
 {
-	BMIter iter;
 	BMEdge *e = NULL;
-	BMEdge *minE = NULL;
-	BMVert *v;
-	float min = 1e30, vect[3], localMin = 1e30;
+	float min = 1e30, vect[3], len;
+	BMOIter siter;
 
-
-	BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+	BMO_ITER(e, &siter, bm, op, "geom", BM_EDGE){
 		sub_v3_v3v3( vect, e->v1->co,(BM_edge_other_vert(e, e->v1)->co));
-		if (len_v3(vect) < min){
-			min = len_v3(vect);
-			minE = e;
-		}
+		len = len_v3(vect);
+		if (len < min)
+			min = len;
+		len = get_min_adjacent_edge_len(e, e->v1);
+		if (len < min)
+			min = len;
+		len = get_min_adjacent_edge_len(e, BM_edge_other_vert(e, e->v1));
+		if (len < min)
+			min = len;
 	}
 
-	if (minE!= NULL) {
-		localMin = min;
+	BMO_ITER(e, &siter, bm, op, "geom", BM_EDGE){
+		len = get_min_adjacent_projection_len(e, e->v1, min);
+		if (len < min)
+			min = len;
 
-		v = minE->v1;
-		e = bmesh_disk_faceedge_find_first(minE, v);
-		do {
-			float va[3], vb[3], len;
-			e = bmesh_disk_edge_next(e, v);
-			sub_v3_v3v3(va,  BM_edge_other_vert(minE,v )->co, v->co);
-			sub_v3_v3v3(vb,  BM_edge_other_vert(e, v)->co, v->co);
-			len = min * sin (angle_v3v3(va, vb));
-
-			if ((fabs(len) > BEVEL_EPSILON) && (len < localMin))
-				localMin = len;
-
-		} while (e != minE);
-
-		v = BM_edge_other_vert (minE, minE->v1);
-		e = bmesh_disk_faceedge_find_first(minE, v);
-		do {
-			float va[3], vb[3], len;
-			e = bmesh_disk_edge_next(e, v);
-			sub_v3_v3v3(va,  BM_edge_other_vert(minE,v )->co, v->co);
-			sub_v3_v3v3(vb,  BM_edge_other_vert(e, v)->co, v->co);
-			len = min * sin (angle_v3v3(va, vb));
-			if ((fabs(len)> BEVEL_EPSILON) && (len < localMin))
-				localMin = len;
-
-		} while (e != minE);
-		min = localMin;
+		len = get_min_adjacent_projection_len(e, BM_edge_other_vert(e, e->v1), min);
+		if (len < min)
+			min = len;
 	}
+
 	return min;
 }
 
@@ -2091,25 +2353,26 @@ void bmo_bevel_exec(BMesh *bm, BMOperator *op)
 	BevelParams bp;
 	float fac = BMO_slot_float_get(op, "percent");
 	float max;
-	//int seg = BMO_slot_int_get(op, "segmentation");
-	//bp.offset = 3;
-	//max = get_max_offset(bm, op);
 
-	//if (fac > max)
-	//	bp.offset = max;
-	//else
+	max = get_max_offset(bm, op);
+	/*if (fac > max)
+		bp.offset = max;
+	else*/
 		bp.offset = fac;
 
 	bp.op = op;
 
 	bp.seg = BMO_slot_int_get(op, "segmentation");
+
 	if (bp.offset > 0 ){
 		bp.vertList.first = bp.vertList.last = NULL;
 		bp.newVertList.first = bp.newVertList.last = NULL;
+
 		/* The analysis of the input vertices and execution additional constructions */
 		BMO_ITER (v, &siter, bm, op, "geom", BM_VERT) {
 			bevel_aditional_construction_by_vert(bm, &bp, op, v);
 		}
+
 		/* Build polgiony found at verteces */
 		BMO_ITER(e, &siter, bm, op, "geom", BM_EDGE){
 			bevel_build_polygon(bm, &bp, e);
@@ -2123,7 +2386,7 @@ void bmo_bevel_exec(BMesh *bm, BMOperator *op)
 		BMO_ITER (v, &siter, bm, op, "geom", BM_VERT) {
 			BM_vert_kill(bm, v);
 		}
-		//free_bevel_params(&bp);
+		free_bevel_params(&bp);
 	}
 
 }

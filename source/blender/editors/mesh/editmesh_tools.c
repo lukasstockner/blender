@@ -4916,20 +4916,24 @@ static int edbm_bridge_edge_loops_exec(bContext *C, wmOperator *op)
 	BMEditMesh *em = BMEdit_FromObject(obedit);
     int seg = RNA_int_get(op->ptr, "Segmentation");
     int interpolation_flag = 0;
+	int ngon = RNA_boolean_get(op->ptr, "n_gon");
     float strenght = RNA_float_get(op->ptr, "Strenght");
     if (RNA_enum_get(op->ptr, "Interpolation") == BRIDGE_LINEAR)
         interpolation_flag = 0;
     if (RNA_enum_get(op->ptr, "Interpolation") == BRIDGE_CUBIC)
         interpolation_flag = 1;
-    if (!EDBM_op_callf(em, op,
-                       "bridge_loops edgefacein=%hfe"
+	if (!EDBM_op_callf(em, op,
+					   "bridge_loops "
+					   "edgefacein=%hfe "
                        "segmentation=%i "
                        "interpolation=%i "
-                       "strenght=%f",
+					   "strenght=%f "
+					   "n_gon=%b",
                        BM_ELEM_SELECT,
                        seg,
                        interpolation_flag,
-                       strenght))
+					   strenght,
+					   ngon))
 		return OPERATOR_CANCELLED;
 	
 	EDBM_update_generic(C, em, TRUE);
@@ -4958,8 +4962,7 @@ void MESH_OT_bridge_edge_loops(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	
-    //RNA_def_boolean(ot->srna, "inside", 0, "Inside", "");
-
+	RNA_def_boolean(ot->srna, "n_gon", 0, "N-Gon optimization", "");
     RNA_def_int(ot->srna, "Segmentation",1,1,1000,"Segmentation", "number of segments",0,50  );
     RNA_def_enum(ot->srna,
                  "Interpolation",

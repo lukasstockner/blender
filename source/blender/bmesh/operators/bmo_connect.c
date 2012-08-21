@@ -49,6 +49,8 @@
 #define LINEAR_INTER  2
 #define CUBIC_INTER   4
 
+#define BRIDGE_EPSILON  1e-6
+
 typedef struct VertexItem{
     struct VertexItem *next, *prev;
     BMVert *v;
@@ -368,13 +370,13 @@ float get_cos_v3v3(float a[3], float b[3]){
 /*
   create polygons between two edge
   */
-void bmo_edge_face_connect(BMesh *bm, BridgeParams* bp, BMEdge *e1, BMEdge *e2, BMFace *f_example)
+BMFace* bmo_edge_face_connect(BMesh *bm, BridgeParams* bp, BMEdge *e1, BMEdge *e2, BMFace *f_example)
 {
     int i;
     BMVert *vv[4];
     BMVert *v1, *v2, *v3, *v4;
     BMVert *vi1, *vi2, *vi3, *vi4; // input vertex
-    BMFace *f;
+	BMFace *f = NULL;
     float vect1[3], vect2[3], vect3[3], vect4[3], normalA[3], normalB[3], normalVector[3];
     float vp1[3], vp2[3], vp3[3], vp4[3];
 
@@ -451,14 +453,15 @@ void bmo_edge_face_connect(BMesh *bm, BridgeParams* bp, BMEdge *e1, BMEdge *e2, 
         if (get_cos_v3v3(f->no, normalVector)<0)
             BM_face_normal_flip(bm, f);
     }
+	return f;
 }
 /*
 This function create polygons between edge and vert
 */
-void bmo_edge_vert_connect(BMesh *bm, BridgeParams *bp, BMEdge *e, BMVert *v, BMFace *f_example)
+BMFace* bmo_edge_vert_connect(BMesh *bm, BridgeParams *bp, BMEdge *e, BMVert *v, BMFace *f_example)
 {
     BMVert *v1, *v2, *v3, *v4, *vv[3];
-    BMFace *f;
+	BMFace *f = NULL;
     float normalA[3], normalB[3], normalVector[3];
     int i;
     v1 = e->v1;
@@ -509,6 +512,168 @@ void bmo_edge_vert_connect(BMesh *bm, BridgeParams *bp, BMEdge *e, BMVert *v, BM
         if (get_cos_v3v3(f->no, normalVector)<0)
             BM_face_normal_flip(bm, f);
     }
+	return f;
+}
+
+
+
+int bridge_check_planar_point(float p1[3], float p2[3], float p3[3], float v[3])
+{
+	float P[3], N[3];
+	float vv1[3], vv2[3];
+	int result = 0;
+
+	/* calculation of the normal to the surface */
+	sub_v3_v3v3(vv1, p1, p2);
+	sub_v3_v3v3(vv2, p3, p2);
+	cross_v3_v3v3(N, vv1, vv2);
+
+	copy_v3_v3(P, p2);
+
+	if (fabs(N[0] * (v[0]-P[0]) + N[1] * (v[1]-P[1]) + N[2] * (v[2]-P[2])) < BRIDGE_EPSILON){
+		/* point located on plane */
+		result = 1;
+	}
+	return result;
+}
+
+int check_planar_faces(BMFace* fa, BMFace *fb)
+{
+	int result = 0;
+	float p1[3], p2[3], p3[3];
+	BMLoop *l = fa->l_first;
+	copy_v3_v3(p1, l->v->co);
+	l = l->next;
+	copy_v3_v3(p2, l->v->co);
+	l = l->next;
+	copy_v3_v3(p3, l->v->co);
+
+	l = fb->l_first;
+	do {
+		if (bridge_check_planar_point(p1, p2, p3, l->v->co))
+			result = 1;
+		else{
+			result = 0;
+			break;
+		}
+		l = l->next;
+	} while  (l != fb->l_first);
+	return result;
+
+}
+
+/*
+* return 1 if face content e
+*/
+int bridge_is_edge_of_face (BMFace *f, BMEdge* e)
+{
+	int result  = 0;
+	BMLoop *l = f->l_first;
+	do {
+		if (l->e == e)
+			result = 1;
+		l = l->next;
+	} while  (l != f->l_first);
+	return result;
+}
+
+int check_content_faces(BMFace *f, BMFace** faces, int count)
+{
+	int i, result = 0;
+	for(i = 0; i< count; i++){
+		if (f == faces[i])
+			result = 1;
+	}
+	return result;
+}
+
+void connect_faces(BMesh *bm, BMFace *fa, BMFace* fb, BMEdge *e)
+{
+	BMVert **vv = NULL;
+	BMLoop *l;
+	int count;
+	BLI_array_declare(vv);
+	BLI_array_append(vv, e->v1);
+	BLI_array_append(vv, BM_edge_other_vert(e, e->v1));
+
+	l = fa->l_first;
+	do {
+		if ((l->v != e->v1) && (l->v != BM_edge_other_vert(e, e->v1)))
+			BLI_array_append(vv, l->v);
+		l = l->next;
+	} while  (l != fa->l_first);
+
+	l = fb->l_first;
+	do {
+		if ((l->v != e->v1) && (l->v != BM_edge_other_vert(e, e->v1)))
+			BLI_array_append(vv, l->v);
+		l = l->next;
+	} while  (l != fb->l_first);
+
+	count = BLI_array_count(vv);
+	if (count > 2){
+		BM_face_create_ngon_vcloud(bm, vv, count, 0);
+	}
+	BLI_array_free(vv);
+}
+
+/*
+  1 - unic element
+  0 - dublicated element
+  */
+int check_unic_edge(BMEdge **ee, int count, BMEdge*e)
+{
+	int i, result = 1;
+	for (i = 0; i < count; i++) {
+		if (ee[i] == e)
+			result = 0;
+	}
+	return result;
+}
+
+void bridge_n_gon_optimization(BMesh *bm, BMFace **faces, int count)
+{
+	int i = 0, j = 0, t_count = 0 ;
+	BMFace *f , **exp_faces = NULL;
+	BMEdge *e = NULL, **ee = NULL;
+	BMLoop *l;
+	BLI_array_declare(exp_faces);
+	BLI_array_declare(ee);
+	for (i = 0; i < count; i++){
+		l = faces[i]->l_first;
+		f = NULL;
+		do {
+			for (j = 0; j < count; j++){
+				if (!check_content_faces(faces[j], exp_faces,  BLI_array_count(exp_faces))){
+					if (faces[i] != faces[j]){
+						if (bridge_is_edge_of_face(faces[j], l->e)){
+							if (check_planar_faces(faces[i], faces[j])){
+								connect_faces(bm, faces[i],faces[j], l->e);
+								f = faces[i];
+								e = l->e;
+								break;
+							}
+						}
+					}
+				}
+			}
+			l = l->next;
+		} while  (l != faces[i]->l_first);
+
+		if ( f != NULL){
+			BLI_array_append(exp_faces, f);
+			if (check_unic_edge(ee, BLI_array_count(ee), e))
+				BLI_array_append(ee, e);
+		}
+	}
+
+	t_count = BLI_array_count(ee);
+	if(t_count > 0 ) {
+		for (i = 0; i < t_count; i++ )
+			BM_edge_kill(bm, ee[i]);
+	}
+
+	BLI_array_free(exp_faces);
 }
 
 void  bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
@@ -521,7 +686,7 @@ void  bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
     BridgeParams bp;
 
     int i = 0, j = 0, loops_count = 0, cl1 = 0, cl2 = 0;
-    BMFace *f;
+	BMFace *f, **face_list = NULL;
 
     BLI_array_declare(skip_edge);
     BLI_array_declare(all_edge);
@@ -529,6 +694,7 @@ void  bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
     BLI_array_declare(ee2);
     BLI_array_declare(vv1);
     BLI_array_declare(vv2);
+	BLI_array_declare(face_list);
 
     // init bridge param
     bp.newVertices.first = bp.newVertices.last = NULL;
@@ -702,7 +868,10 @@ void  bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
                }
            }
            if (min_j != -1){
-               bmo_edge_face_connect(bm, &bp, ee1[i], ee2[min_j], NULL);
+			   f = bmo_edge_face_connect(bm, &bp, ee1[i], ee2[min_j], NULL);
+			   if (f != NULL)
+				   BLI_array_append(face_list, f);
+
                BLI_array_append(conected, ee2[min_j]);
                BMO_elem_flag_enable(bm, ee2[min_j], EDGE_CONNECTED);
            }
@@ -743,13 +912,18 @@ void  bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
                         min_j = j;
                     }
                 }
-                bmo_edge_vert_connect(bm, &bp,  non_conected[i], vv1[min_j], NULL);
+				f = bmo_edge_vert_connect(bm, &bp,  non_conected[i], vv1[min_j], NULL);
+				if (f != NULL)
+					BLI_array_append(face_list, f);
             //}
         }
         BLI_array_free(non_conected);
         BLI_array_free(conected);
     }
 
+// ---------------------------------------------
+	if (BMO_slot_bool_get(op,"n_gon"))
+		bridge_n_gon_optimization(bm, face_list, BLI_array_count(face_list));
 // -----kill input data-------------------------
     BMO_ITER (f, &siter, bm, op, "edgefacein", BM_FACE)
     {

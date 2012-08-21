@@ -447,6 +447,7 @@ static BMOpDefine bmo_bridge_loops_def = {
      {BMO_OP_SLOT_INT,  "segmentation"}, /* input segmentation param */
      {BMO_OP_SLOT_INT,  "interpolation"}, /* input interpolation param */
      {BMO_OP_SLOT_FLT,  "strenght"}, /* input strenght param */
+	 {BMO_OP_SLOT_BOOL, "n_gon"},	 /* flag N-gon optimization */
 
 	 {0, /* null-terminating sentinel */}},
 	bmo_bridge_loops_exec,
