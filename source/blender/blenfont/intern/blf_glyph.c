@@ -46,7 +46,8 @@
 #include "DNA_vec_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
+#include "BLI_rect.h"
 
 #include "BLF_api.h"
 

@@ -43,10 +43,12 @@
 
 #include "DNA_vec_types.h"
 
-
-#include "BLI_blenlib.h"
-#include "BLI_linklist.h"  /* linknode */
+#include "BLI_listbase.h"
 #include "BLI_math.h"
+#include "BLI_rect.h"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
+#include "BLI_linklist.h"  /* linknode */
 
 #include "BLF_api.h"
 
@@ -153,7 +155,7 @@ static void blf_font_ensure_ascii_table(FontBLF *font)
 		                   _kern_mode,                                           \
 		                   &(_delta)) == 0)                                      \
 		{                                                                        \
-			_pen_x += delta.x >> 6;                                              \
+			_pen_x += _delta.x >> 6;                                             \
 		}                                                                        \
 	}                                                                            \
 } (void)0
@@ -242,9 +244,9 @@ void blf_font_buffer(FontBLF *font, const char *str)
 	FontBufInfoBLF *buf_info = &font->buf_info;
 	float b_col_float[4];
 	const unsigned char b_col_char[4] = {buf_info->col[0] * 255,
-										 buf_info->col[1] * 255,
-										 buf_info->col[2] * 255,
-										 buf_info->col[3] * 255};
+	                                     buf_info->col[1] * 255,
+	                                     buf_info->col[2] * 255,
+	                                     buf_info->col[3] * 255};
 
 	unsigned char *cbuf;
 	int chx, chy;
@@ -255,7 +257,7 @@ void blf_font_buffer(FontBLF *font, const char *str)
 
 	blf_font_ensure_ascii_table(font);
 
-	/* another buffer spesific call for color conversion */
+	/* another buffer specific call for color conversion */
 	if (buf_info->do_color_management) {
 		srgb_to_linearrgb_v4(b_col_float, buf_info->col);
 	}
