@@ -48,6 +48,7 @@ set(SRC
 	drawvolume.c
 	space_view3d.c
 	view3d_buttons.c
+    view3d_composite.c
 	view3d_draw.c
 	view3d_edit.c
 	view3d_fly.c
