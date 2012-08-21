@@ -129,6 +129,7 @@ set(SRC
 	intern/script.c
 	intern/seqcache.c
 	intern/seqeffects.c
+	intern/seqmodifier.c
 	intern/sequencer.c
 	intern/shrinkwrap.c
 	intern/sketch.c
