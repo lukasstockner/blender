@@ -208,6 +208,11 @@ void convertViewVec(TransInfo *t, float r_vec[3], int dx, int dy)
 			/* TODO - NOT WORKING, this isnt so bad since its only display aspect */
 			ED_space_clip_get_aspect(t->sa->spacedata.first, &aspx, &aspy);
 		}
+		else {
+			/* should never happen, quiet warnings */
+			BLI_assert(0);
+			aspx = aspy = 1.0f;
+		}
 
 		r_vec[0] *= aspx;
 		r_vec[1] *= aspy;
@@ -4978,7 +4983,9 @@ static int createSlideVerts(TransInfo *t)
 					/* This test is only relevant if object is not wire-drawn! See [#32068]. */
 					if (v3d && t->obedit->dt > OB_WIRE && v3d->drawtype > OB_WIRE &&
 					    !BMBVH_EdgeVisible(btree, e2, ar, v3d, t->obedit))
+					{
 						continue;
+					}
 
 					j = GET_INT_FROM_POINTER(BLI_smallhash_lookup(&table, (uintptr_t)v));
 

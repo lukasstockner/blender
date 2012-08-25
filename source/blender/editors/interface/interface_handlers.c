@@ -698,7 +698,7 @@ static int ui_but_mouse_inside_icon(uiBut *but, ARegion *ar, wmEvent *event)
 		rect.xmax -= delta / 2;
 	}
 	
-	return BLI_in_rcti(&rect, x, y);
+	return BLI_rcti_isect_pt(&rect, x, y);
 }
 
 static int ui_but_start_drag(bContext *C, uiBut *but, uiHandleButtonData *data, wmEvent *event)
@@ -838,6 +838,7 @@ static void ui_add_smart_controller(bContext *C, uiBut *from, uiBut *to)
 	/* (3) add a new controller */
 	if (WM_operator_name_call(C, "LOGIC_OT_controller_add", WM_OP_EXEC_DEFAULT, NULL) & OPERATOR_FINISHED) {
 		cont = (bController *)ob->controllers.last;
+		cont->type = CONT_LOGIC_AND; /* Quick fix to make sure we always have an AND controller. It might be nicer to make sure the operator gives us the right one though... */
 
 		/* (4) link the sensor->controller->actuator */
 		tmp_but = MEM_callocN(sizeof(uiBut), "uiBut");
@@ -1139,8 +1140,9 @@ static void ui_but_copy_paste(bContext *C, uiBut *but, uiHandleButtonData *data,
 	static ColorBand but_copypaste_coba = {0};
 	char buf[UI_MAX_DRAW_STR + 1] = {0};
 
-	if (mode == 'v' && but->lock)
+	if (mode == 'v' && but->lock  == TRUE) {
 		return;
+	}
 
 	if (mode == 'v') {
 		/* extract first line from clipboard in case of multi-line copies */
@@ -2968,7 +2970,7 @@ static int ui_do_but_BLOCK(bContext *C, uiBut *but, uiHandleButtonData *data, wm
 				 * Alt+MouseWheel over the render slots, without this,
 				 * the slot menu fails to switch a second time.
 				 *
-				 * Theactive state of the button could be maintained some other way
+				 * The active state of the button could be maintained some other way
 				 * and remove this mousemove event.
 				 */
 				WM_event_add_mousemove(C);
@@ -4241,8 +4243,8 @@ static int ui_numedit_but_TRACKPREVIEW(bContext *C, uiBut *but, uiHandleButtonDa
 				scopes->marker = BKE_tracking_marker_ensure(scopes->track, scopes->framenr);
 
 			scopes->marker->flag &= ~(MARKER_DISABLED | MARKER_TRACKED);
-			scopes->marker->pos[0] += -dx * scopes->slide_scale[0] / (but->block->rect.xmax - but->block->rect.xmin);
-			scopes->marker->pos[1] += -dy * scopes->slide_scale[1] / (but->block->rect.ymax - but->block->rect.ymin);
+			scopes->marker->pos[0] += -dx * scopes->slide_scale[0] / BLI_RCT_SIZE_X(&but->block->rect);
+			scopes->marker->pos[1] += -dy * scopes->slide_scale[1] / BLI_RCT_SIZE_Y(&but->block->rect);
 
 			WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, NULL);
 		}
@@ -4792,7 +4794,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, wmEvent *event)
 	/* verify if we can edit this button */
 	if (ELEM(event->type, LEFTMOUSE, RETKEY)) {
 		/* this should become disabled button .. */
-		if (but->lock) {
+		if (but->lock == TRUE) {
 			if (but->lockstr) {
 				BKE_report(NULL, RPT_WARNING, but->lockstr);
 				button_activate_state(C, but, BUTTON_STATE_EXIT);
@@ -4917,7 +4919,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, wmEvent *event)
 
 static int ui_but_contains_pt(uiBut *but, int mx, int my)
 {
-	return BLI_in_rctf(&but->rect, mx, my);
+	return BLI_rctf_isect_pt(&but->rect, mx, my);
 }
 
 static uiBut *ui_but_find_activated(ARegion *ar)
@@ -4993,7 +4995,7 @@ static int ui_mouse_inside_region(ARegion *ar, int x, int y)
 	uiBlock *block;
 	
 	/* check if the mouse is in the region */
-	if (!BLI_in_rcti(&ar->winrct, x, y)) {
+	if (!BLI_rcti_isect_pt(&ar->winrct, x, y)) {
 		for (block = ar->uiblocks.first; block; block = block->next)
 			block->auto_open = FALSE;
 		
@@ -5032,7 +5034,7 @@ static int ui_mouse_inside_region(ARegion *ar, int x, int y)
 		}
 		
 		/* check if in the rect */
-		if (!BLI_in_rcti(&mask_rct, mx, my)) 
+		if (!BLI_rcti_isect_pt(&mask_rct, mx, my)) 
 			return 0;
 	}
 	
@@ -5085,7 +5087,7 @@ static uiBut *ui_but_find_mouse_over(ARegion *ar, int x, int y)
 		/* CLIP_EVENTS prevents the event from reaching other blocks */
 		if (block->flag & UI_BLOCK_CLIP_EVENTS) {
 			/* check if mouse is inside block */
-			if (BLI_in_rctf(&block->rect, mx, my)) {
+			if (BLI_rctf_isect_pt(&block->rect, mx, my)) {
 				break;
 			}
 		}
@@ -6099,7 +6101,7 @@ static int ui_handle_menu_event(bContext *C, wmEvent *event, uiPopupBlockHandle 
 	ui_window_to_block(ar, block, &mx, &my);
 
 	/* check if mouse is inside block */
-	inside = BLI_in_rctf(&block->rect, mx, my);
+	inside = BLI_rctf_isect_pt(&block->rect, mx, my);
 
 	/* if there's an active modal button, don't check events or outside, except for search menu */
 	but = ui_but_find_activated(ar);
@@ -6348,7 +6350,7 @@ static int ui_handle_menu_event(bContext *C, wmEvent *event, uiPopupBlockHandle 
 				uiSafetyRct *saferct = block->saferct.first;
 
 				if (ELEM3(event->type, LEFTMOUSE, MIDDLEMOUSE, RIGHTMOUSE) && event->val == KM_PRESS) {
-					if (saferct && !BLI_in_rctf(&saferct->parent, event->x, event->y)) {
+					if (saferct && !BLI_rctf_isect_pt(&saferct->parent, event->x, event->y)) {
 						if (block->flag & (UI_BLOCK_OUT_1))
 							menu->menuretval = UI_RETURN_OK;
 						else
@@ -6381,9 +6383,9 @@ static int ui_handle_menu_event(bContext *C, wmEvent *event, uiPopupBlockHandle 
 						 * events we check all preceding block rects too to make
 						 * arrow keys navigation work */
 						if (event->type != MOUSEMOVE || saferct == block->saferct.first) {
-							if (BLI_in_rctf(&saferct->parent, (float)event->x, (float)event->y))
+							if (BLI_rctf_isect_pt(&saferct->parent, (float)event->x, (float)event->y))
 								break;
-							if (BLI_in_rctf(&saferct->safety, (float)event->x, (float)event->y))
+							if (BLI_rctf_isect_pt(&saferct->safety, (float)event->x, (float)event->y))
 								break;
 						}
 					}

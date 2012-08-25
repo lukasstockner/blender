@@ -454,7 +454,7 @@ static int node_resize_area_default(bNode *node, int x, int y)
 		rctf totr = node->totr;
 		/* right part of node */
 		totr.xmin = node->totr.xmax - 20.0f;
-		if (BLI_in_rctf(&totr, x, y))
+		if (BLI_rctf_isect_pt(&totr, x, y))
 			return NODE_RESIZE_RIGHT;
 		else
 			return 0;
@@ -857,13 +857,13 @@ static void node_draw_group(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 			while (gsock && (!sock || sock->groupsock != gsock)) {
 				draw_group_socket(C, snode, ntree, gnode, NULL, gsock, index, SOCK_IN);
 				gsock = gsock->next;
-				++index;
+				index++;
 			}
 			while (sock && gsock && sock->groupsock == gsock) {
 				draw_group_socket(C, snode, ntree, gnode, sock, gsock, index, SOCK_IN);
 				sock = sock->next;
 				gsock = gsock->next;
-				++index;
+				index++;
 			}
 		}
 		gsock = ngroup->outputs.first;
@@ -877,13 +877,13 @@ static void node_draw_group(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 			while (gsock && (!sock || sock->groupsock != gsock)) {
 				draw_group_socket(C, snode, ntree, gnode, NULL, gsock, index, SOCK_OUT);
 				gsock = gsock->next;
-				++index;
+				index++;
 			}
 			while (sock && gsock && sock->groupsock == gsock) {
 				draw_group_socket(C, snode, ntree, gnode, sock, gsock, index, SOCK_OUT);
 				sock = sock->next;
 				gsock = gsock->next;
-				++index;
+				index++;
 			}
 		}
 		
@@ -1812,6 +1812,15 @@ static void node_composit_buts_inpaint(uiLayout *layout, bContext *UNUSED(C), Po
 	uiItemR(layout, ptr, "distance", 0, NULL, ICON_NONE);
 }
 
+static void node_composit_buts_despeckle(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	uiLayout *col;
+
+	col = uiLayoutColumn(layout, FALSE);
+	uiItemR(col, ptr, "threshold", 0, NULL, ICON_NONE);
+	uiItemR(col, ptr, "threshold_neighbour", 0, NULL, ICON_NONE);
+}
+
 static void node_composit_buts_diff_matte(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiLayout *col;
@@ -2673,6 +2682,9 @@ static void node_composit_set_butfunc(bNodeType *ntype)
 			break;
 		case CMP_NODE_INPAINT:
 			ntype->uifunc = node_composit_buts_inpaint;
+			break;
+		case CMP_NODE_DESPECKLE:
+			ntype->uifunc = node_composit_buts_despeckle;
 			break;
 		case CMP_NODE_OUTPUT_FILE:
 			ntype->uifunc = node_composit_buts_file_output;
