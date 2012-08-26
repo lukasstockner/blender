@@ -57,10 +57,10 @@ def node_group_items(tree_type):
 def node_type_items_cb(self, context):
     snode = context.space_data
     if not snode:
-        return []
+        return ()
     tree = snode.edit_tree
     if not tree:
-        return []
+        return ()
 
     # Lists of basic node types for each
     if not node_type_items_dict:
@@ -76,7 +76,7 @@ def node_type_items_cb(self, context):
     if tree.type in node_type_items_dict:
         return node_type_items_dict[tree.type] + node_group_items(tree.type)
     else:
-        return []
+        return ()
 
 
 class NODE_OT_add_search(Operator):
@@ -100,10 +100,10 @@ class NODE_OT_add_search(Operator):
 
         # Enum item identifier has an additional prefix to distinguish base node types from node groups
         item = self.type
-        if (item.startswith(node_type_prefix)):
+        if item.startswith(node_type_prefix):
             # item means base node type
             node = tree.nodes.new(type=item[len(node_type_prefix):])
-        elif (item.startswith(node_group_prefix)):
+        elif item.startswith(node_group_prefix):
             # item means node group type
             node = tree.nodes.new(type='GROUP', group=bpy.data.node_groups[item[len(node_group_prefix):]])
         else:

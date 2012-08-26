@@ -474,7 +474,9 @@ static int ed_preview_draw_rect(ScrArea *sa, Scene *sce, ID *id, int split, int 
 	RenderResult rres;
 	char name[32];
 	int do_gamma_correct = FALSE, do_predivide = FALSE;
-	int offx = 0, newx = rect->xmax - rect->xmin, newy = rect->ymax - rect->ymin;
+	int offx = 0;
+	int newx = BLI_RCT_SIZE_X(rect);
+	int newy = BLI_RCT_SIZE_Y(rect);
 
 	if (id && GS(id->name) != ID_TE) {
 		/* exception: don't color manage texture previews - show the raw values */
@@ -547,7 +549,8 @@ void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slotp, r
 		SpaceButs *sbuts = sa->spacedata.first;
 		rcti newrect;
 		int ok;
-		int newx = rect->xmax - rect->xmin, newy = rect->ymax - rect->ymin;
+		int newx = BLI_RCT_SIZE_X(rect);
+		int newy = BLI_RCT_SIZE_Y(rect);
 
 		newrect.xmin = rect->xmin;
 		newrect.xmax = rect->xmin;
@@ -746,7 +749,6 @@ static void shader_preview_free(void *customdata)
 	
 	if (sp->matcopy) {
 		struct IDProperty *properties;
-		int a;
 		
 		/* node previews */
 		shader_preview_updatejob(sp);
@@ -754,13 +756,7 @@ static void shader_preview_free(void *customdata)
 		/* get rid of copied material */
 		BLI_remlink(&pr_main->mat, sp->matcopy);
 		
-		/* BKE_material_free decrements texture, prevent this. hack alert! */
-		for (a = 0; a < MAX_MTEX; a++) {
-			MTex *mtex = sp->matcopy->mtex[a];
-			if (mtex && mtex->tex) mtex->tex = NULL;
-		}
-		
-		BKE_material_free(sp->matcopy);
+		BKE_material_free_ex(sp->matcopy, FALSE);
 
 		properties = IDP_GetProperties((ID *)sp->matcopy, FALSE);
 		if (properties) {
@@ -1022,16 +1018,17 @@ static void icon_preview_free(void *customdata)
 
 void ED_preview_icon_job(const bContext *C, void *owner, ID *id, unsigned int *rect, int sizex, int sizey)
 {
-	wmJob *steve;
+	wmJob *wm_job;
 	IconPreview *ip, *old_ip;
 	
 	/* suspended start means it starts after 1 timer step, see WM_jobs_timer below */
-	steve = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), owner, "Icon Preview", WM_JOB_EXCL_RENDER | WM_JOB_SUSPEND);
+	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), owner, "Icon Preview",
+	                     WM_JOB_EXCL_RENDER | WM_JOB_SUSPEND, WM_JOB_TYPE_RENDER_PREVIEW);
 
 	ip = MEM_callocN(sizeof(IconPreview), "icon preview");
 
 	/* render all resolutions from suspended job too */
-	old_ip = WM_jobs_customdata_get(steve);
+	old_ip = WM_jobs_customdata_get(wm_job);
 	if (old_ip)
 		BLI_movelisttolist(&ip->sizes, &old_ip->sizes);
 
@@ -1043,20 +1040,21 @@ void ED_preview_icon_job(const bContext *C, void *owner, ID *id, unsigned int *r
 	icon_preview_add_size(ip, rect, sizex, sizey);
 
 	/* setup job */
-	WM_jobs_customdata_set(steve, ip, icon_preview_free);
-	WM_jobs_timer(steve, 0.25, NC_MATERIAL, NC_MATERIAL);
-	WM_jobs_callbacks(steve, icon_preview_startjob_all_sizes, NULL, NULL, icon_preview_endjob);
+	WM_jobs_customdata_set(wm_job, ip, icon_preview_free);
+	WM_jobs_timer(wm_job, 0.25, NC_MATERIAL, NC_MATERIAL);
+	WM_jobs_callbacks(wm_job, icon_preview_startjob_all_sizes, NULL, NULL, icon_preview_endjob);
 
-	WM_jobs_start(CTX_wm_manager(C), steve);
+	WM_jobs_start(CTX_wm_manager(C), wm_job);
 }
 
 void ED_preview_shader_job(const bContext *C, void *owner, ID *id, ID *parent, MTex *slot, int sizex, int sizey, int method)
 {
 	Object *ob = CTX_data_active_object(C);
-	wmJob *steve;
+	wmJob *wm_job;
 	ShaderPreview *sp;
 
-	steve = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), owner, "Shader Preview", WM_JOB_EXCL_RENDER);
+	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), owner, "Shader Preview",
+	                    WM_JOB_EXCL_RENDER, WM_JOB_TYPE_RENDER_PREVIEW);
 	sp = MEM_callocN(sizeof(ShaderPreview), "shader preview");
 
 	/* customdata for preview thread */
@@ -1072,11 +1070,11 @@ void ED_preview_shader_job(const bContext *C, void *owner, ID *id, ID *parent, M
 	else sp->col[0] = sp->col[1] = sp->col[2] = sp->col[3] = 1.0f;
 	
 	/* setup job */
-	WM_jobs_customdata_set(steve, sp, shader_preview_free);
-	WM_jobs_timer(steve, 0.1, NC_MATERIAL, NC_MATERIAL);
-	WM_jobs_callbacks(steve, common_preview_startjob, NULL, shader_preview_updatejob, NULL);
+	WM_jobs_customdata_set(wm_job, sp, shader_preview_free);
+	WM_jobs_timer(wm_job, 0.1, NC_MATERIAL, NC_MATERIAL);
+	WM_jobs_callbacks(wm_job, common_preview_startjob, NULL, shader_preview_updatejob, NULL);
 	
-	WM_jobs_start(CTX_wm_manager(C), steve);
+	WM_jobs_start(CTX_wm_manager(C), wm_job);
 }
 
 void ED_preview_kill_jobs(const struct bContext *C)

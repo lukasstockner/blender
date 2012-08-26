@@ -498,7 +498,7 @@ void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob)
 			}
 		}
 		else {
-			/*if no object, set to INT_MAX so we don't mess up any shapekey layers*/
+			/* if no object, set to INT_MAX so we don't mess up any shapekey layers */
 			uid = INT_MAX;
 		}
 
@@ -541,7 +541,7 @@ void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob)
 	CustomData_free(&me->pdata, me->totpoly);
 
 	/* ok, this should now use new CD shapekey data,
-	 * which shouuld be fed through the modifier
+	 * which should be fed through the modifier
 	 * stack*/
 	if (tmp.totvert != me->totvert && !did_shapekeys && me->key) {
 		printf("%s: YEEK! this should be recoded! Shape key loss!: ID '%s'\n", __func__, tmp.id.name);
@@ -1188,7 +1188,7 @@ void DM_update_weight_mcol(Object *ob, DerivedMesh *dm, int const draw_flag,
 			wtcol_v = calc_weightpaint_vert_array(ob, dm, draw_flag, coba);
 
 		/* Now copy colors in all face verts. */
-		/*first add colors to the tessellation faces*/
+		/* first add colors to the tessellation faces */
 		/* XXX Why update that layer? We have to update WEIGHT_MLOOPCOL anyway, 
 		 *     and tessellation recreates mface layers from mloop/mpoly ones, so no
 		 *     need to fill WEIGHT_MCOL here. */
@@ -1793,7 +1793,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 		{
 			finaldm->recalcTessellation(finaldm);
 		}
-		/* Even if tessellation is not needed, some modifiers migh have modified CD layers
+		/* Even if tessellation is not needed, some modifiers might have modified CD layers
 		 * (like mloopcol or mloopuv), hence we have to update those. */
 		else if (finaldm->dirty & DM_DIRTY_TESS_CDLAYERS) {
 			/* A tessellation already exists, it should always have a CD_POLYINDEX. */

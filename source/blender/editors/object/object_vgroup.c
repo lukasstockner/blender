@@ -686,8 +686,9 @@ static void vgroup_duplicate(Object *ob)
 			dw_org = defvert_find_index(dv, idg);
 			if (dw_org) {
 				/* defvert_verify_index re-allocs org so need to store the weight first */
+				const float weight = dw_org->weight;
 				dw_cpy = defvert_verify_index(dv, icdg);
-				dw_cpy->weight = dw_org->weight;
+				dw_cpy->weight = weight;
 			}
 		}
 
@@ -2826,7 +2827,7 @@ void OBJECT_OT_vertex_group_set_active(wmOperatorType *ot)
 }
 
 /* creates the name_array parameter for vgroup_do_remap, call this before fiddling
- * with the order of vgroups then call vgroup_do_remap after*/
+ * with the order of vgroups then call vgroup_do_remap after */
 static char *vgroup_init_remap(Object *ob)
 {
 	bDeformGroup *def;

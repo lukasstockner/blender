@@ -80,7 +80,14 @@ BMVert *BM_vert_create(BMesh *bm, const float co[3], const BMVert *example)
 	CustomData_bmesh_set_default(&bm->vdata, &v->head.data);
 	
 	if (example) {
+		int *keyi;
+
 		BM_elem_attrs_copy(bm, bm, example, v);
+
+		/* exception: don't copy the original shapekey index */
+		keyi = CustomData_bmesh_get(&bm->vdata, v->head.data, CD_SHAPE_KEYINDEX);
+		if(keyi)
+			*keyi = ORIGINDEX_NONE;
 	}
 
 	BM_CHECK_ELEMENT(v);
@@ -1946,7 +1953,7 @@ int bmesh_vert_separate(BMesh *bm, BMVert *v, BMVert ***r_vout, int *r_vout_len)
 }
 
 /**
- * High level function which wraps both #bm_vert_separate and #bm_edge_separate
+ * High level function which wraps both #bmesh_vert_separate and #bmesh_edge_separate
  */
 int BM_vert_separate(BMesh *bm, BMVert *v, BMVert ***r_vout, int *r_vout_len,
                      BMEdge **e_in, int e_in_len)

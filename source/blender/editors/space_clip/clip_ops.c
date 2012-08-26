@@ -39,6 +39,7 @@
 #include "BLI_path_util.h"
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
+#include "BLI_rect.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -89,9 +90,9 @@ static void sclip_zoom_set(const bContext *C, float zoom, float location[2])
 
 		if ((width < 4) && (height < 4))
 			sc->zoom = oldzoom;
-		else if ((ar->winrct.xmax - ar->winrct.xmin) <= sc->zoom)
+		else if (BLI_RCT_SIZE_X(&ar->winrct) <= sc->zoom)
 			sc->zoom = oldzoom;
-		else if ((ar->winrct.ymax - ar->winrct.ymin) <= sc->zoom)
+		else if (BLI_RCT_SIZE_Y(&ar->winrct) <= sc->zoom)
 			sc->zoom = oldzoom;
 	}
 
@@ -455,7 +456,7 @@ void CLIP_OT_view_pan(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_float_vector(ot->srna, "offset", 2, NULL, -FLT_MAX, FLT_MAX,
-		"Offset", "Offset in floating point units, 1.0 is the width and height of the image", -FLT_MAX, FLT_MAX);
+	                     "Offset", "Offset in floating point units, 1.0 is the width and height of the image", -FLT_MAX, FLT_MAX);
 }
 
 /********************** view zoom operator *********************/
@@ -579,7 +580,7 @@ void CLIP_OT_view_zoom(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_float(ot->srna, "factor", 0.0f, 0.0f, FLT_MAX,
-		"Factor", "Zoom factor, values higher than 1.0 zoom in, lower values zoom out", -FLT_MAX, FLT_MAX);
+	              "Factor", "Zoom factor, values higher than 1.0 zoom in, lower values zoom out", -FLT_MAX, FLT_MAX);
 }
 
 /********************** view zoom in/out operator *********************/
@@ -700,7 +701,7 @@ void CLIP_OT_view_zoom_ratio(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_float(ot->srna, "ratio", 0.0f, 0.0f, FLT_MAX,
-		"Ratio", "Zoom ratio, 1.0 is 1:1, higher is zoomed in, lower is zoomed out", -FLT_MAX, FLT_MAX);
+	              "Ratio", "Zoom ratio, 1.0 is 1:1, higher is zoomed in, lower is zoomed out", -FLT_MAX, FLT_MAX);
 }
 
 /********************** view all operator *********************/
@@ -725,8 +726,8 @@ static int view_all_exec(bContext *C, wmOperator *op)
 	h = h * aspy;
 
 	/* check if the image will fit in the image with zoom == 1 */
-	width = ar->winrct.xmax - ar->winrct.xmin + 1;
-	height = ar->winrct.ymax - ar->winrct.ymin + 1;
+	width  = BLI_RCT_SIZE_X(&ar->winrct) + 1;
+	height = BLI_RCT_SIZE_Y(&ar->winrct) + 1;
 
 	if (fit_view) {
 		const int margin = 5; /* margin from border */
@@ -1031,7 +1032,7 @@ static void proxy_endjob(void *pjv)
 
 static int clip_rebuild_proxy_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	wmJob * steve;
+	wmJob *wm_job;
 	ProxyJob *pj;
 	Scene *scene = CTX_data_scene(C);
 	ScrArea *sa = CTX_wm_area(C);
@@ -1041,7 +1042,8 @@ static int clip_rebuild_proxy_exec(bContext *C, wmOperator *UNUSED(op))
 	if ((clip->flag & MCLIP_USE_PROXY) == 0)
 		return OPERATOR_CANCELLED;
 
-	steve = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), sa, "Building Proxies", WM_JOB_PROGRESS);
+	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), sa, "Building Proxies",
+	                     WM_JOB_PROGRESS, WM_JOB_TYPE_CLIP_BUILD_PROXY);
 
 	pj = MEM_callocN(sizeof(ProxyJob), "proxy rebuild job");
 	pj->scene = scene;
@@ -1054,12 +1056,12 @@ static int clip_rebuild_proxy_exec(bContext *C, wmOperator *UNUSED(op))
 					clip->proxy.build_size_flag, clip->proxy.quality);
 	}
 
-	WM_jobs_customdata_set(steve, pj, proxy_freejob);
-	WM_jobs_timer(steve, 0.2, NC_MOVIECLIP | ND_DISPLAY, 0);
-	WM_jobs_callbacks(steve, proxy_startjob, NULL, NULL, proxy_endjob);
+	WM_jobs_customdata_set(wm_job, pj, proxy_freejob);
+	WM_jobs_timer(wm_job, 0.2, NC_MOVIECLIP | ND_DISPLAY, 0);
+	WM_jobs_callbacks(wm_job, proxy_startjob, NULL, NULL, proxy_endjob);
 
 	G.is_break = FALSE;
-	WM_jobs_start(CTX_wm_manager(C), steve);
+	WM_jobs_start(CTX_wm_manager(C), wm_job);
 
 	ED_area_tag_redraw(CTX_wm_area(C));
 
