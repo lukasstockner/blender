@@ -18,12 +18,7 @@
  * The Original Code is Copyright (C) 2005 by the Blender Foundation.
  * All rights reserved.
  *
- * Contributor(s): Daniel Dunbar
- *                 Ton Roosendaal,
- *                 Ben Batt,
- *                 Brecht Van Lommel,
- *                 Campbell Barton,
- *                 Alexander Pinzon
+ * Contributor(s): Alexander Pinzon
  *
  * ***** END GPL LICENSE BLOCK *****
  *
