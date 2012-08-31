@@ -410,9 +410,8 @@ static void initSnappingMode(TransInfo *t)
 	}
 	else {
 		/* force project off when not supported */
-		if (ts->snap_mode != SCE_SNAP_MODE_FACE) {
+		if (t->spacetype == SPACE_IMAGE || ts->snap_mode != SCE_SNAP_MODE_FACE)
 			t->tsnap.project = 0;
-		}
 		
 		t->tsnap.mode = ts->snap_mode;
 	}
@@ -961,8 +960,8 @@ static void TargetSnapOffset(TransInfo *t, TransData *td)
 	if (t->spacetype == SPACE_NODE && td != NULL) {
 		bNode *node = td->extra;
 		char border = t->tsnap.snapNodeBorder;
-		float width = node->totr.xmax - node->totr.xmin;
-		float height = node->totr.ymax - node->totr.ymin;
+		float width  = BLI_RCT_SIZE_X(&node->totr);
+		float height = BLI_RCT_SIZE_Y(&node->totr);
 		
 		if (border & NODE_LEFT)
 			t->tsnap.snapTarget[0] -= 0.5f * width;

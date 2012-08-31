@@ -702,8 +702,7 @@ static void viewrotate_apply(ViewOpsData *vod, int x, int y)
 
 		if (vod->use_dyn_ofs) {
 			/* compute the post multiplication quat, to rotate the offset correctly */
-			copy_qt_qt(q1, vod->oldquat);
-			conjugate_qt(q1);
+			conjugate_qt_qt(q1, vod->oldquat);
 			mul_qt_qtqt(q1, q1, vod->viewquat);
 
 			conjugate_qt(q1); /* conj == inv for unit quat */
@@ -1698,6 +1697,7 @@ static void viewzoom_apply(ViewOpsData *vod, int x, int y, const short viewzoom,
 
 		CLAMP(vod->rv3d->camzoom, RV3D_CAMZOOM_MIN, RV3D_CAMZOOM_MAX);
 	}
+
 	if (viewzoom == USER_ZOOM_CONT) {
 		double time = PIL_check_seconds_timer();
 		float time_step = (float)(time - vod->timer_lastdraw);
@@ -1746,8 +1746,10 @@ static void viewzoom_apply(ViewOpsData *vod, int x, int y, const short viewzoom,
 		}
 		
 		if (use_cam_zoom) {
+			/* zfac is ignored in this case, see below */
+#if 0
 			zfac = vod->camzoom0 * (2.0f * ((len2 / len1) - 1.0f) + 1.0f) / vod->rv3d->camzoom;
-			zfac = 0;
+#endif
 		}
 		else {
 			zfac = vod->dist0 * (2.0f * ((len2 / len1) - 1.0f) + 1.0f) / vod->rv3d->dist;
@@ -2674,10 +2676,10 @@ static int render_border_exec(bContext *C, wmOperator *op)
 	/* calculate range */
 	ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, &vb, FALSE);
 
-	scene->r.border.xmin = ((float)rect.xmin - vb.xmin) / (vb.xmax - vb.xmin);
-	scene->r.border.ymin = ((float)rect.ymin - vb.ymin) / (vb.ymax - vb.ymin);
-	scene->r.border.xmax = ((float)rect.xmax - vb.xmin) / (vb.xmax - vb.xmin);
-	scene->r.border.ymax = ((float)rect.ymax - vb.ymin) / (vb.ymax - vb.ymin);
+	scene->r.border.xmin = ((float)rect.xmin - vb.xmin) / BLI_RCT_SIZE_X(&vb);
+	scene->r.border.ymin = ((float)rect.ymin - vb.ymin) / BLI_RCT_SIZE_Y(&vb);
+	scene->r.border.xmax = ((float)rect.xmax - vb.xmin) / BLI_RCT_SIZE_X(&vb);
+	scene->r.border.ymax = ((float)rect.ymax - vb.ymin) / BLI_RCT_SIZE_Y(&vb);
 
 	/* actually set border */
 	CLAMP(scene->r.border.xmin, 0.0f, 1.0f);

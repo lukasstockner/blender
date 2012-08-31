@@ -105,9 +105,18 @@ void curvemapping_free_data(CurveMapping *cumap)
 	int a;
 
 	for (a = 0; a < CM_TOT; a++) {
-		if (cumap->cm[a].curve) MEM_freeN(cumap->cm[a].curve);
-		if (cumap->cm[a].table) MEM_freeN(cumap->cm[a].table);
-		if (cumap->cm[a].premultable) MEM_freeN(cumap->cm[a].premultable);
+		if (cumap->cm[a].curve) {
+			MEM_freeN(cumap->cm[a].curve);
+			cumap->cm[a].curve = NULL;
+		}
+		if (cumap->cm[a].table) {
+			MEM_freeN(cumap->cm[a].table);
+			cumap->cm[a].table = NULL;
+		}
+		if (cumap->cm[a].premultable) {
+			MEM_freeN(cumap->cm[a].premultable);
+			cumap->cm[a].premultable = NULL;
+		}
 	}
 }
 
@@ -668,7 +677,7 @@ void curvemapping_changed(CurveMapping *cumap, int rem_doubles)
 	CurveMap *cuma = cumap->cm + cumap->cur;
 	CurveMapPoint *cmp = cuma->curve;
 	rctf *clipr = &cumap->clipr;
-	float thresh = 0.01f * (clipr->xmax - clipr->xmin);
+	float thresh = 0.01f * BLI_RCT_SIZE_X(clipr);
 	float dx = 0.0f, dy = 0.0f;
 	int a;
 

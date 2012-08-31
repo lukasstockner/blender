@@ -2619,7 +2619,7 @@ static void lib_link_armature(FileData *fd, Main *main)
 	}
 }
 
-static void direct_link_bones(FileData *fd, Bone* bone)
+static void direct_link_bones(FileData *fd, Bone *bone)
 {
 	Bone *child;
 	
@@ -6111,7 +6111,7 @@ static void fix_relpaths_library(const char *basepath, Main *main)
 			 * it absolute. This can happen when appending an object with a relative
 			 * link into an unsaved blend file. See [#27405].
 			 * The remap relative option will make it relative again on save - campbell */
-			if (strncmp(lib->name, "//", 2) == 0) {
+			if (BLI_path_is_rel(lib->name)) {
 				BLI_strncpy(lib->name, lib->filepath, sizeof(lib->name));
 			}
 		}
@@ -6120,7 +6120,7 @@ static void fix_relpaths_library(const char *basepath, Main *main)
 		for (lib = main->library.first; lib; lib = lib->id.next) {
 			/* Libraries store both relative and abs paths, recreate relative paths,
 			 * relative to the blend file since indirectly linked libs will be relative to their direct linked library */
-			if (strncmp(lib->name, "//", 2) == 0) { /* if this is relative to begin with? */
+			if (BLI_path_is_rel(lib->name)) {  /* if this is relative to begin with? */
 				BLI_strncpy(lib->name, lib->filepath, sizeof(lib->name));
 				BLI_path_rel(lib->name, basepath);
 			}
@@ -7934,10 +7934,17 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	}
 
 	if (main->versionfile < 263 || (main->versionfile == 263 && main->subversionfile < 14)) {
+		ParticleSettings *part;
 		bNodeTreeType *ntreetype = ntreeGetType(NTREE_COMPOSIT);
 
 		if (ntreetype && ntreetype->foreach_nodetree)
 			ntreetype->foreach_nodetree(main, NULL, do_version_ntree_keying_despill_balance);
+
+		/* keep compatibility for dupliobject particle size */
+		for (part=main->particle.first; part; part=part->id.next)
+			if (ELEM(part->ren_as, PART_DRAW_OB, PART_DRAW_GR))
+				if ((part->draw & PART_DRAW_ROTATE_OB) == 0)
+					part->draw |= PART_DRAW_NO_SCALE_OB;
 	}
 
 	if (main->versionfile < 263 || (main->versionfile == 263 && main->subversionfile < 17)) {

@@ -899,10 +899,19 @@ class SEQUENCER_PT_modifiers(SequencerButtonsPanel, Panel):
 
             row = box.row()
             row.prop(mod, "show_expanded", text="", emboss=False)
-            row.prop(mod, "name")
+            row.prop(mod, "name", text="")
 
             row.prop(mod, "mute", text="")
-            props = row.operator("sequencer.strip_modifier_remove", text="", icon='X')
+
+            sub = row.row(align=True)
+            props = sub.operator("sequencer.strip_modifier_move", text="", icon='TRIA_UP')
+            props.name = mod.name
+            props.direction = 'UP'
+            props = sub.operator("sequencer.strip_modifier_move", text="", icon='TRIA_DOWN')
+            props.name = mod.name
+            props.direction = 'DOWN'
+
+            props = row.operator("sequencer.strip_modifier_remove", text="", icon='X', emboss=False)
             props.name = mod.name
 
             if mod.show_expanded:
@@ -921,6 +930,10 @@ class SEQUENCER_PT_modifiers(SequencerButtonsPanel, Panel):
                     box.template_curve_mapping(mod, "curve_mapping", type='COLOR')
                 elif mod.type == 'HUE_CORRECT':
                     box.template_curve_mapping(mod, "curve_mapping", type='HUE')
+                elif mod.type == 'BRIGHT_CONTRAST':
+                    col = box.column()
+                    col.prop(mod, "bright")
+                    col.prop(mod, "contrast")
 
 
 if __name__ == "__main__":  # only for live edit.

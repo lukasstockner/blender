@@ -2256,9 +2256,9 @@ void mesh_foreachScreenFace(
 }
 
 void nurbs_foreachScreenVert(
-    ViewContext *vc,
-    void (*func)(void *userData, Nurb *nu, BPoint *bp, BezTriple *bezt, int beztindex, int x, int y),
-    void *userData)
+        ViewContext *vc,
+        void (*func)(void *userData, Nurb *nu, BPoint *bp, BezTriple *bezt, int beztindex, int x, int y),
+        void *userData)
 {
 	Curve *cu = vc->obedit->data;
 	short s[2] = {IS_CLIPPED, 0};
@@ -3164,7 +3164,7 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 
 {
 	Mesh *me = ob->data;
-	BMFace *efa_act = BM_active_face_get(em->bm, FALSE); /* annoying but active faces is stored differently */
+	BMFace *efa_act = BM_active_face_get(em->bm, FALSE, FALSE); /* annoying but active faces is stored differently */
 	BMEdge *eed_act = NULL;
 	BMVert *eve_act = NULL;
 	

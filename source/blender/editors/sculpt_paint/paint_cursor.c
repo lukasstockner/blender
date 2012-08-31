@@ -31,6 +31,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math.h"
+#include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_brush_types.h"

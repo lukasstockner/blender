@@ -209,6 +209,11 @@ void convertViewVec(TransInfo *t, float r_vec[3], int dx, int dy)
 			/* TODO - NOT WORKING, this isnt so bad since its only display aspect */
 			ED_space_clip_get_aspect(t->sa->spacedata.first, &aspx, &aspy);
 		}
+		else {
+			/* should never happen, quiet warnings */
+			BLI_assert(0);
+			aspx = aspy = 1.0f;
+		}
 
 		r_vec[0] *= aspx;
 		r_vec[1] *= aspy;
@@ -2430,8 +2435,9 @@ void initWarp(TransInfo *t)
 		mul_m3_v3(t->data[i].mtx, center);
 		mul_m4_v3(t->viewmat, center);
 		sub_v3_v3(center, t->viewmat[3]);
-		if (i)
+		if (i) {
 			minmax_v3v3_v3(min, max, center);
+		}
 		else {
 			copy_v3_v3(max, center);
 			copy_v3_v3(min, center);
@@ -2738,12 +2744,14 @@ static void headerResize(TransInfo *t, float vec[3], char *str)
 		}
 	}
 	else {
-		if (t->flag & T_2D_EDIT)
+		if (t->flag & T_2D_EDIT) {
 			spos += sprintf(spos, "Scale X: %s   Y: %s%s %s", &tvec[0], &tvec[NUM_STR_REP_LEN],
 			                t->con.text, t->proptext);
-		else
+		}
+		else {
 			spos += sprintf(spos, "Scale X: %s   Y: %s  Z: %s%s %s", &tvec[0], &tvec[NUM_STR_REP_LEN],
 			                &tvec[NUM_STR_REP_LEN * 2], t->con.text, t->proptext);
+		}
 	}
 	
 	if (t->flag & (T_PROP_EDIT | T_PROP_CONNECTED)) {
@@ -3646,9 +3654,10 @@ static void headerTranslation(TransInfo *t, float vec[3], char *str)
 		if (!(t->flag & T_2D_EDIT) && t->scene->unit.system) {
 			int i, do_split = t->scene->unit.flag & USER_UNIT_OPT_SPLIT ? 1 : 0;
 
-			for (i = 0; i < 3; i++)
+			for (i = 0; i < 3; i++) {
 				bUnit_AsString(&tvec[i * NUM_STR_REP_LEN], NUM_STR_REP_LEN, dvec[i] * t->scene->unit.scale_length,
 				               4, t->scene->unit.system, B_UNIT_LENGTH, do_split, 1);
+			}
 		}
 		else {
 			sprintf(&tvec[0], "%.4f", dvec[0]);
@@ -3690,12 +3699,14 @@ static void headerTranslation(TransInfo *t, float vec[3], char *str)
 		}
 	}
 	else {
-		if (t->flag & T_2D_EDIT)
+		if (t->flag & T_2D_EDIT) {
 			spos += sprintf(spos, "Dx: %s   Dy: %s (%s)%s %s", &tvec[0], &tvec[NUM_STR_REP_LEN],
 			                distvec, t->con.text, t->proptext);
-		else
+		}
+		else {
 			spos += sprintf(spos, "Dx: %s   Dy: %s  Dz: %s (%s)%s %s  %s", &tvec[0], &tvec[NUM_STR_REP_LEN],
 			                &tvec[NUM_STR_REP_LEN * 2], distvec, t->con.text, t->proptext, &autoik[0]);
+		}
 	}
 	
 	if (t->flag & (T_PROP_EDIT | T_PROP_CONNECTED)) {
@@ -4752,7 +4763,7 @@ static int createSlideVerts(TransInfo *t)
 	BMEditMesh *em = me->edit_btmesh;
 	BMesh *bm = em->bm;
 	BMIter iter, iter2;
-	BMEdge *e, *e1 /*, *ee, *le */ /* UNUSED */;
+	BMEdge *e, *e1;
 	BMVert *v, *v2, *first;
 	BMLoop *l, *l1, *l2;
 	TransDataSlideVert *sv_array;
@@ -4764,9 +4775,10 @@ static int createSlideVerts(TransInfo *t)
 	ARegion *ar = t->ar;
 	float projectMat[4][4];
 	float mval[2] = {(float)t->mval[0], (float)t->mval[1]};
-	float start[3] = {0.0f, 0.0f, 0.0f}, dir[3], end[3] = {0.0f, 0.0f, 0.0f};
+	float start[3] = {0.0f, 0.0f, 0.0f}, end[3] = {0.0f, 0.0f, 0.0f};
 	float vec[3], vec2[3] /*, lastvec[3], size, dis=0.0, z */ /* UNUSED */;
-	int numsel, i, j;
+	float dir[3], maxdist, (*loop_dir)[3], *loop_maxdist;
+	int numsel, i, j, loop_nr, l_nr;
 
 	if (t->spacetype == SPACE_VIEW3D) {
 		/* background mode support */
@@ -4841,6 +4853,7 @@ static int createSlideVerts(TransInfo *t)
 	}
 
 	sv_array = MEM_callocN(sizeof(TransDataSlideVert) * j, "sv_array");
+	loop_nr = 0;
 
 	j = 0;
 	while (1) {
@@ -4903,6 +4916,8 @@ static int createSlideVerts(TransInfo *t)
 
 			sv->v = v;
 			sv->origvert = *v;
+			sv->loop_nr = loop_nr;
+
 			copy_v3_v3(sv->upvec, vec);
 			if (l2)
 				copy_v3_v3(sv->downvec, vec2);
@@ -4925,6 +4940,7 @@ static int createSlideVerts(TransInfo *t)
 				sv = sv_array + j + 1;
 				sv->v = v;
 				sv->origvert = *v;
+				sv->loop_nr = loop_nr;
 				
 				l = BM_face_other_edge_loop(l1->f, l1->e, v);
 				sv->up = BM_edge_other_vert(l->e, v);
@@ -4951,6 +4967,8 @@ static int createSlideVerts(TransInfo *t)
 			BM_elem_flag_disable(v, BM_ELEM_TAG);
 			BM_elem_flag_disable(v2, BM_ELEM_TAG);
 		} while (e != first->e && l1);
+
+		loop_nr++;
 	}
 
 	/* EDBM_flag_disable_all(em, BM_ELEM_SELECT); */
@@ -4958,21 +4976,24 @@ static int createSlideVerts(TransInfo *t)
 	sld->sv = sv_array;
 	sld->totsv = j;
 	
-	/*find mouse vector*/
-	/* dis = z = -1.0f; */ /* UNUSED */
-	/* size = 50.0; */ /* UNUSED */
-	/* zero_v3(lastvec); */ /* UNUSED */
+	/* find mouse vectors, the global one, and one per loop in case we have
+	 * multiple loops selected, in case they are oriented different */
 	zero_v3(dir);
-	/* ee = le = NULL; */ /* UNUSED */
+	maxdist = -1.0f;
+
+	loop_dir = MEM_callocN(sizeof(float)*3*loop_nr, "sv loop_dir");
+	loop_maxdist = MEM_callocN(sizeof(float)*loop_nr, "sv loop_maxdist");
+	for (j = 0; j < loop_nr; j++)
+		loop_maxdist[j] = -1.0f;
+
 	BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
 		if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
 			BMIter iter2;
 			BMEdge *e2;
-			float vec1[3], dis2, mval[2] = {t->mval[0], t->mval[1]}, d;
+			float vec1[3], mval[2] = {t->mval[0], t->mval[1]}, d;
 
 			/* search cross edges for visible edge to the mouse cursor,
 			 * then use the shared vertex to calculate screen vector*/
-			dis2 = -1.0f;
 			for (i = 0; i < 2; i++) {
 				v = i ? e->v1 : e->v2;
 				BM_ITER_ELEM (e2, &iter2, v, BM_EDGES_OF_VERT) {
@@ -4982,7 +5003,9 @@ static int createSlideVerts(TransInfo *t)
 					/* This test is only relevant if object is not wire-drawn! See [#32068]. */
 					if (v3d && t->obedit->dt > OB_WIRE && v3d->drawtype > OB_WIRE &&
 					    !BMBVH_EdgeVisible(btree, e2, ar, v3d, t->obedit))
+					{
 						continue;
+					}
 
 					j = GET_INT_FROM_POINTER(BLI_smallhash_lookup(&table, (uintptr_t)v));
 
@@ -4998,16 +5021,22 @@ static int createSlideVerts(TransInfo *t)
 						ED_view3d_project_float_v3(ar, sv_array[j].up->co, vec2, projectMat);
 					}
 					else {
-						add_v3_v3v3(vec1, v->co, sv_array[j].upvec);
+						add_v3_v3v3(vec2, v->co, sv_array[j].upvec);
 						ED_view3d_project_float_v3(ar, vec2, vec2, projectMat);
 					}
-
+					
+					/* global direction */
 					d = dist_to_line_segment_v2(mval, vec1, vec2);
-					if (dis2 == -1.0f || d < dis2) {
-						dis2 = d;
-						/* ee = e2; */ /* UNUSED */
-						/* size = len_v3v3(vec1, vec2); */ /* UNUSED */
+					if (maxdist == -1.0f || d < maxdist) {
+						maxdist = d;
 						sub_v3_v3v3(dir, vec1, vec2);
+					}
+
+					/* per loop direction */
+					l_nr = sv_array[j].loop_nr;
+					if (loop_maxdist[l_nr] == -1.0f || d < loop_maxdist[l_nr]) {
+						loop_maxdist[l_nr] = d;
+						sub_v3_v3v3(loop_dir[l_nr], vec1, vec2);
 					}
 				}
 			}
@@ -5042,6 +5071,14 @@ static int createSlideVerts(TransInfo *t)
 		}
 
 		BLI_smallhash_insert(&sld->vhash, (uintptr_t)sv_array->v, sv_array);
+
+		/* switch up/down if loop direction is different from global direction */
+		l_nr = sv_array->loop_nr;
+		if (dot_v3v3(loop_dir[l_nr], dir) < 0.0f) {
+			swap_v3_v3(sv_array->upvec, sv_array->downvec);
+			SWAP(BMVert, sv_array->vup, sv_array->vdown);
+			SWAP(BMVert*, sv_array->up, sv_array->down);
+		}
 	}
 
 	if (rv3d)
@@ -5052,7 +5089,7 @@ static int createSlideVerts(TransInfo *t)
 	
 	/*zero out start*/
 	zero_v3(start);
-	
+
 	/*dir holds a vector along edge loop*/
 	copy_v3_v3(end, dir);
 	mul_v3_fl(end, 0.5f);
@@ -5069,6 +5106,8 @@ static int createSlideVerts(TransInfo *t)
 	
 	BLI_smallhash_release(&table);
 	BMBVH_FreeBVH(btree);
+	MEM_freeN(loop_dir);
+	MEM_freeN(loop_maxdist);
 	
 	return 1;
 }

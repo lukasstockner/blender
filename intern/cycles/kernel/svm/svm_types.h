@@ -116,7 +116,12 @@ typedef enum NodeObjectInfo {
 typedef enum NodeParticleInfo {
 	NODE_INFO_PAR_INDEX,
 	NODE_INFO_PAR_AGE,
-	NODE_INFO_PAR_LIFETIME
+	NODE_INFO_PAR_LIFETIME,
+	NODE_INFO_PAR_LOCATION,
+	NODE_INFO_PAR_ROTATION,
+	NODE_INFO_PAR_SIZE,
+	NODE_INFO_PAR_VELOCITY,
+	NODE_INFO_PAR_ANGULAR_VELOCITY
 } NodeParticleInfo;
 
 typedef enum NodeLightPath {
@@ -163,7 +168,8 @@ typedef enum NodeMix {
 	NODE_MIX_VAL,
 	NODE_MIX_COLOR,
 	NODE_MIX_SOFT,
-	NODE_MIX_LINEAR
+	NODE_MIX_LINEAR,
+	NODE_MIX_CLAMP /* used for the clamp UI option */
 } NodeMix;
 
 typedef enum NodeMath {
@@ -183,7 +189,8 @@ typedef enum NodeMath {
 	NODE_MATH_MAXIMUM,
 	NODE_MATH_ROUND,
 	NODE_MATH_LESS_THAN,
-	NODE_MATH_GREATER_THAN
+	NODE_MATH_GREATER_THAN,
+	NODE_MATH_CLAMP /* used for the clamp UI option */
 } NodeMath;
 
 typedef enum NodeVectorMath {

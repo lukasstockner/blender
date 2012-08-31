@@ -207,8 +207,10 @@ void BKE_sequence_free(Scene *scene, Sequence *seq)
 	/* free modifiers */
 	BKE_sequence_modifier_clear(seq);
 
-	BKE_sequencer_cache_cleanup_sequence(seq);
-	BKE_sequencer_preprocessed_cache_cleanup_sequence(seq);
+	/* free cached data used by this strip,
+	 * also invalidate cache for all dependent sequences
+	 */
+	BKE_sequence_invalidate_cache(scene, seq);
 
 	MEM_freeN(seq);
 }
@@ -2565,7 +2567,8 @@ static ImBuf *seq_render_strip(SeqRenderData context, Sequence *seq, float cfra)
 				is_proxy_image = (ibuf != NULL);
 			}
 
-			ibuf = do_render_strip_uncached(context, seq, cfra);
+			if (ibuf == NULL)
+				ibuf = do_render_strip_uncached(context, seq, cfra);
 
 			if (ibuf)
 				BKE_sequencer_preprocessed_cache_put(context, seq, cfra, SEQ_STRIPELEM_IBUF, ibuf);
@@ -2935,6 +2938,9 @@ static void free_anim_seq(Sequence *seq)
 /* check whether sequence cur depends on seq */
 int BKE_sequence_check_depend(Sequence *seq, Sequence *cur)
 {
+	if (cur->seq1 == seq || cur->seq2 == seq || cur->seq3 == seq)
+		return TRUE;
+
 	/* sequences are not intersecting in time, assume no dependency exists between them */
 	if (cur->enddisp < seq->startdisp || cur->startdisp > seq->enddisp)
 		return FALSE;
@@ -3626,8 +3632,8 @@ int BKE_sequence_swap(Sequence *seq_a, Sequence *seq_b, const char **error_str)
 	SWAP(float, seq_a->blend_opacity, seq_b->blend_opacity);
 
 
-	SWAP(void *, seq_a->prev, seq_b->prev);
-	SWAP(void *, seq_a->next, seq_b->next);
+	SWAP(Sequence *, seq_a->prev, seq_b->prev);
+	SWAP(Sequence *, seq_a->next, seq_b->next);
 	SWAP(int, seq_a->start, seq_b->start);
 	SWAP(int, seq_a->startofs, seq_b->startofs);
 	SWAP(int, seq_a->endofs, seq_b->endofs);
