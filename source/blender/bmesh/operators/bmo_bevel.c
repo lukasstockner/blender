@@ -120,6 +120,7 @@ typedef struct SurfaceEdgeData {
 	float h[3];
 
 } SurfaceEdgeData;
+#include "bevdebug.c"
 
 BMVert* bevel_create_unique_vertex(BMesh *bm, BevelParams *bp, float co[3]);
 
@@ -1414,7 +1415,7 @@ void calculate_boundary_point(BMesh *bm, BevelParams *bp,
 	}
 }
 
-int check_dublicated_vertex(BMVert **vv, int count, BMVert *v)
+int check_duplicated_vertex(BMVert **vv, int count, BMVert *v)
 {
 	int result =0, i;
 	for (i = 0; i< count; i++) {
@@ -1422,6 +1423,25 @@ int check_dublicated_vertex(BMVert **vv, int count, BMVert *v)
 			result = 1;
 	}
 	return result;
+}
+
+void merge_verts_at_center(BMesh *bm, BMOperator *op, BMVert **verts, int totv)
+{
+	int i;
+	float cent[3] = {0.0f, 0.0f, 0.0f};
+
+	if (totv <= 1)
+		return;
+
+	for (i = 0; i < totv; i++) {
+		add_v3_v3(cent, verts[i]->co);
+		BMO_elem_flag_enable(bm, verts[i], VERT_OLD);
+	}
+	mul_v3_fl(cent, 1.0f/totv);
+	BMO_op_callf(bm, op->flag, "pointmerge verts=%fv merge_co=%v", VERT_OLD, cent);
+
+	/* after merge, only the first vert remains; remove the flag from it */
+	BMO_elem_flag_disable(bm, verts[0], VERT_OLD);
 }
 
 void bevel_build_rings(BMesh *bm, BMOperator *op, BevelParams* bp, AdditionalVert *av)
@@ -1459,25 +1479,25 @@ void bevel_build_rings(BMesh *bm, BMOperator *op, BevelParams* bp, AdditionalVer
 
 		} while (e != firstE);
 		if (i != 0) {
+			if (i == bp->seg/2) { /*DEBUG*/int j; printf("bevel_build_rings i=%d, ", i); dump_e(e); printf("\n");
+				for (j=0; j < BLI_array_count(segmentList); j++) dump_sdata(segmentList[j], "segment"); }
 			updatSurfaceEdgeItems(segmentList, newSegmentsList, BLI_array_count(segmentList));
 			BLI_array_empty(newSegmentsList);
 		}
 	}
 
-	if (bp->seg % 2 != 0) {
-		for(i = 0; i < BLI_array_count(segmentList); i++) {
-			if (!check_dublicated_vertex(nGonList,BLI_array_count(nGonList), segmentList[i]->a))
-				BLI_array_append(nGonList, segmentList[i]->a);
-			if (!check_dublicated_vertex(nGonList,BLI_array_count(nGonList), segmentList[i]->b))
-				BLI_array_append(nGonList, segmentList[i]->b);
-		}
-		if (BLI_array_count(nGonList) > 2)
-			BM_face_create_ngon_vcloud(bm, nGonList, BLI_array_count(nGonList), 1);
+	for(i = 0; i < BLI_array_count(segmentList); i++) {
+		if (!check_duplicated_vertex(nGonList,BLI_array_count(nGonList), segmentList[i]->a))
+			BLI_array_append(nGonList, segmentList[i]->a);
+		if (!check_duplicated_vertex(nGonList,BLI_array_count(nGonList), segmentList[i]->b))
+			BLI_array_append(nGonList, segmentList[i]->b);
 	}
-
-
-	firstE = find_first_edge(bm, op, av->v);
-	e = firstE;
+	if (BLI_array_count(nGonList) > 2) {
+		if (bp->seg % 2 != 0)
+			BM_face_create_ngon_vcloud(bm, nGonList, BLI_array_count(nGonList), 1);
+		else
+			merge_verts_at_center(bm, op, nGonList, BLI_array_count(nGonList));
+	}
 }
 
 void bevel_build_polygons_around_vertex(BMesh *bm, BevelParams *bp, BMOperator *op, BMVert *v)
