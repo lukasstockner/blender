@@ -120,7 +120,6 @@ typedef struct SurfaceEdgeData {
 	float h[3];
 
 } SurfaceEdgeData;
-#include "bevdebug.c"
 
 BMVert* bevel_create_unique_vertex(BMesh *bm, BevelParams *bp, float co[3]);
 
@@ -1479,8 +1478,6 @@ void bevel_build_rings(BMesh *bm, BMOperator *op, BevelParams* bp, AdditionalVer
 
 		} while (e != firstE);
 		if (i != 0) {
-			if (i == bp->seg/2) { /*DEBUG*/int j; printf("bevel_build_rings i=%d, ", i); dump_e(e); printf("\n");
-				for (j=0; j < BLI_array_count(segmentList); j++) dump_sdata(segmentList[j], "segment"); }
 			updatSurfaceEdgeItems(segmentList, newSegmentsList, BLI_array_count(segmentList));
 			BLI_array_empty(newSegmentsList);
 		}
