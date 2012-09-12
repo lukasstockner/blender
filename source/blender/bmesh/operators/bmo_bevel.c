@@ -269,7 +269,8 @@ void recalculate_additional_vert(BMesh* bm, BevelParams* bp, VertexItem *vi, BME
 		normalize_v3(ve);
 		mul_v3_fl(ve, length);
 		add_v3_v3(ve, v->co);
-		vi->v = BM_vert_create(bm, ve, NULL);
+		BMO_elem_flag_enable(bm, vi->v, BEVEL_DEL);
+		vi->v = bevel_create_unique_vertex(bm, bp, ve);
 	}
 }
 
@@ -334,7 +335,7 @@ BMVert* bevel_middle_vert(BMesh *bm, BevelParams *bp, BMEdge *edge_a, BMEdge *ed
 	mul_v3_fl(norm_c, offset / sin(angel/2));
 	add_v3_v3(norm_c, vert->co);
 
-	new_vert = BM_vert_create(bm, norm_c, NULL);
+	new_vert = bevel_create_unique_vertex(bm, bp, norm_c);
 
 	return new_vert;
 }

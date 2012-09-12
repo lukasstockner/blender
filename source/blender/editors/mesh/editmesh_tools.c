@@ -4554,7 +4554,11 @@ typedef struct {
 
 static void edbm_bevel_update_header(wmOperator *op, bContext *C)
 {
+#ifdef OLDBEV
 	static char str[] = "Confirm: Enter/LClick, Cancel: (Esc/RMB), factor: %s, Use Dist (D): %s: Use Even (E): %s";
+#else
+	static char str[] = "Confirm: Enter/LClick, Cancel: (Esc/RMB), factor: %s, segments: %d";
+#endif
 
 	char msg[HEADER_LENGTH];
 	ScrArea *sa = CTX_wm_area(C);
@@ -4566,6 +4570,7 @@ static void edbm_bevel_update_header(wmOperator *op, bContext *C)
 			outputNumInput(&opdata->num_input, factor_str);
 		else
 			BLI_snprintf(factor_str, NUM_STR_REP_LEN, "%f", RNA_float_get(op->ptr, "percent"));
+#ifdef OLDBEV
 		BLI_snprintf(msg, HEADER_LENGTH, str,
 		             factor_str,
 		             RNA_boolean_get(op->ptr, "use_dist") ? "On" : "Off",
@@ -4574,6 +4579,9 @@ static void edbm_bevel_update_header(wmOperator *op, bContext *C)
 					 RNA_float_get(op->ptr, "Amount"),
 					 RNA_int_get(op->ptr, "Segmentation")
 					 );
+#else
+		BLI_snprintf(msg, HEADER_LENGTH, str, factor_str, RNA_int_get(op->ptr, "segmentation"));
+#endif
 
 		ED_area_headerprint(sa, msg);
 	}
