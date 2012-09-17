@@ -1608,22 +1608,6 @@ void SnapMesh_draw_planar_texture(Snap* sm){
 						{1.0f, 1.0f},
 						{0.0f, 1.0f}};
 
-
-	for(i=0;i<32;i++){
-		for(j=0;j<32;j++){
-			GLubyte vcol = 0;
-			if(i%2){
-				vcol = 255;
-			}
-			if(j%2){
-				vcol = vcol? 0:255;
-			}
-			pixels[j][i][0] = vcol;
-			pixels[j][i][1] = vcol;
-			pixels[j][i][2] = vcol;
-		}
-	}
-
 	assert(sm_pick_data->ret_data_type == SNAPMESH_RET_DAT_pface);
 	pf = sm_pick_data->ret_data_pface;
 	assert(pf->nverts >= 3);
@@ -1631,7 +1615,9 @@ void SnapMesh_draw_planar_texture(Snap* sm){
 	tri_to_quat(quat, pf->verts[0].co, pf->verts[1].co, pf->verts[2].co); //produce quaternion from existing face user picked
 
 
-	glPushMatrix();
+	//Commented code for future reference and experimentation, if going down the road of textured plane display again.
+	//will remove if not.
+	/*glPushMatrix();
 
 	glEnable(GL_TEXTURE_2D);
 	glGenTextures(1,&texture);
@@ -1672,7 +1658,7 @@ void SnapMesh_draw_planar_texture(Snap* sm){
 	glDisable(GL_TEXTURE_2D);
 	glDeleteTextures(1, &texture);
 
-	glPopMatrix();
+	glPopMatrix();*/
 }
 
 void SnapMesh_snap_vertex(Snap* sm){
