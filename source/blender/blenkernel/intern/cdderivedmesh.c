@@ -1485,6 +1485,7 @@ static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
 
 	memset(&attribs, 0, sizeof(attribs));
 
+	cddm_format_attrib_vertex(&attribs); /* XXX: jwilkins, just to make this simple to write for now */
 	gpuBegin(GL_QUADS);
 
 	for (a = 0; a < dm->numTessFaceData; a++, mf++) {
@@ -1495,10 +1496,12 @@ static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
 
 		if (new_matnr != matnr) {
 			gpuEnd();
+			cddm_unformat_attrib_vertex();
 
 			setMaterial(userData, matnr = new_matnr, &gattribs);
 			DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
 
+			cddm_format_attrib_vertex(&attribs);
 			gpuBegin(GL_QUADS);
 		}
 
@@ -1539,6 +1542,7 @@ static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
 			cddm_draw_attrib_vertex(&attribs, mvert, a, mf->v3, 2, smoothnormal);
 	}
 	gpuEnd();
+	cddm_unformat_attrib_vertex();
 
 	glShadeModel(GL_FLAT);
 }
