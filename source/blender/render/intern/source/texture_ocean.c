@@ -36,12 +36,13 @@
 
 #include "BKE_modifier.h"
 #include "BKE_ocean.h"
-#include "BKE_utildefines.h"
 
 #include "render_types.h"
 #include "RE_shader_ext.h"
 
 #include "texture.h"
+
+#include "texture_ocean.h"  /* own include */
 
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */

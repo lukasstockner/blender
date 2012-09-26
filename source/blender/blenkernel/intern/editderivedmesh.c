@@ -152,7 +152,7 @@ static void BMEdit_RecalcTessellation_intern(BMEditMesh *tm)
 
 	BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 		/* don't consider two-edged faces */
-		if (efa->len < 3) {
+		if (UNLIKELY(efa->len < 3)) {
 			/* do nothing */
 		}
 
@@ -1747,5 +1747,11 @@ DerivedMesh *getEditDerivedBMesh(BMEditMesh *em,
 BMEditMesh *BMEdit_FromObject(Object *ob)
 {
 	BLI_assert(ob->type == OB_MESH);
+	/* sanity check */
+#ifndef NDEBUG
+	if (((Mesh *)ob->data)->edit_btmesh) {
+		BLI_assert(((Mesh *)ob->data)->edit_btmesh->ob == ob);
+	}
+#endif
 	return ((Mesh *)ob->data)->edit_btmesh;
 }

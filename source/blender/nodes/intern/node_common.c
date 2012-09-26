@@ -45,7 +45,6 @@
 #include "BKE_main.h"
 #include "BLI_math.h"
 #include "BKE_node.h"
-#include "BKE_utildefines.h"
 
 #include "RNA_access.h"
 #include "RNA_types.h"
@@ -350,7 +349,7 @@ void node_group_edit_clear(bNode *node)
 			nodeGroupEditClear(inode);
 }
 
-void node_group_link(bNodeTree *ntree, bNodeSocket *sock, int in_out)
+static void UNUSED_FUNCTION(node_group_link)(bNodeTree *ntree, bNodeSocket *sock, int in_out)
 {
 	node_group_expose_socket(ntree, sock, in_out);
 }

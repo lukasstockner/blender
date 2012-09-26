@@ -99,7 +99,7 @@ typedef struct Strip {
 	StripProxy *proxy;
 	StripCrop *crop;
 	StripTransform *transform;
-	StripColorBalance *color_balance;
+	StripColorBalance *color_balance DNA_DEPRECATED;
 } Strip;
 
 /**
@@ -149,9 +149,6 @@ typedef struct Sequence {
 
 	/* pointers for effects: */
 	struct Sequence *seq1, *seq2, *seq3;
-
-	/* maks input for effects */
-	struct Sequence *mask_sequence;
 
 	ListBase seqbase;       /* list of strips for metastrips */
 
@@ -278,6 +275,18 @@ typedef struct BrightContrastModifierData {
 	float contrast;
 } BrightContrastModifierData;
 
+/* ***************** Scopes ****************** */
+
+typedef struct SequencerScopes {
+	struct ImBuf *reference_ibuf;
+
+	struct ImBuf *zebra_ibuf;
+	struct ImBuf *waveform_ibuf;
+	struct ImBuf *sep_waveform_ibuf;
+	struct ImBuf *vector_ibuf;
+	struct ImBuf *histogram_ibuf;
+} SequencerScopes;
+
 #define MAXSEQ          32
 
 #define SELECT 1
@@ -315,11 +324,12 @@ typedef struct BrightContrastModifierData {
 #define SEQ_USE_PROXY               (1 << 15)
 #define SEQ_USE_TRANSFORM           (1 << 16)
 #define SEQ_USE_CROP                (1 << 17)
-#define SEQ_USE_COLOR_BALANCE       (1 << 18)
+/* #define SEQ_USE_COLOR_BALANCE       (1 << 18) */ /* DEPRECATED */
 #define SEQ_USE_PROXY_CUSTOM_DIR    (1 << 19)
 
 #define SEQ_USE_PROXY_CUSTOM_FILE   (1 << 21)
 #define SEQ_USE_EFFECT_DEFAULT_FADE (1 << 22)
+#define SEQ_USE_LINEAR_MODIFIERS    (1 << 23)
 
 // flags for whether those properties are animated or not
 #define SEQ_AUDIO_VOLUME_ANIMATED   (1 << 24)
@@ -383,11 +393,6 @@ enum {
 	SEQ_TYPE_ADJUSTMENT  = 31,
 	SEQ_TYPE_EFFECT_MAX  = 31
 };
-
-#define STRIPELEM_FAILED       0
-#define STRIPELEM_OK           1
-
-#define STRIPELEM_PREVIEW_DONE  1
 
 #define SEQ_MOVIECLIP_RENDER_UNDISTORTED (1 << 0)
 #define SEQ_MOVIECLIP_RENDER_STABILIZED  (1 << 1)

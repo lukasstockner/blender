@@ -58,6 +58,8 @@
 
 #include "UI_interface.h"
 
+#include "IMB_colormanagement.h"
+
 #include "interface_intern.h"
 
 #include "WM_api.h"
@@ -75,7 +77,7 @@
 /* ********************************************************** */
 
 typedef struct Eyedropper {
-	short do_color_management;
+	struct ColorManagedDisplay *display;
 
 	PointerRNA ptr;
 	PropertyRNA *prop;
@@ -89,8 +91,6 @@ typedef struct Eyedropper {
 static int eyedropper_init(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
-	const int color_manage = scene->r.color_mgt_flag & R_COLOR_MANAGEMENT;
-
 	Eyedropper *eye;
 	
 	op->customdata = eye = MEM_callocN(sizeof(Eyedropper), "Eyedropper");
@@ -106,7 +106,12 @@ static int eyedropper_init(bContext *C, wmOperator *op)
 		return FALSE;
 	}
 
-	eye->do_color_management = (color_manage && RNA_property_subtype(eye->prop) == PROP_COLOR);
+	if (RNA_property_subtype(eye->prop) == PROP_COLOR) {
+		const char *display_device;
+
+		display_device = scene->display_settings.display_device;
+		eye->display = IMB_colormanagement_display_get_named(display_device);
+	}
 
 	return TRUE;
 }
@@ -194,9 +199,10 @@ static void eyedropper_color_set(bContext *C, Eyedropper *eye, const float col[3
 	/* to maintain alpha */
 	RNA_property_float_get_array(&eye->ptr, eye->prop, col_conv);
 
-	/* convert from screen (srgb) space to linear rgb space */
-	if (eye->do_color_management) {
-		srgb_to_linearrgb_v3_v3(col_conv, col);
+	/* convert from display space to linear rgb space */
+	if (eye->display) {
+		copy_v3_v3(col_conv, col);
+		IMB_colormanagement_display_to_scene_linear_v3(col_conv, eye->display);
 	}
 	else {
 		copy_v3_v3(col_conv, col);
@@ -906,21 +912,21 @@ static void UI_OT_editsource(wmOperatorType *ot)
  * Note: this includes utility functions and button matching checks.
  *       this only works in conjunction with a py operator! */
 
-void edittranslation_find_po_file(const char *root, const char *uilng, char *path, const size_t maxlen)
+static void edittranslation_find_po_file(const char *root, const char *uilng, char *path, const size_t maxlen)
 {
-	char t[32]; /* Should be more than enough! */
+	char tstr[32]; /* Should be more than enough! */
 	/* First, full lang code. */
-	sprintf(t, "%s.po", uilng);
+	BLI_snprintf(tstr, sizeof(tstr), "%s.po", uilng);
 	BLI_join_dirfile(path, maxlen, root, uilng);
-	BLI_join_dirfile(path, maxlen, path, t);
+	BLI_join_dirfile(path, maxlen, path, tstr);
 	if (BLI_is_file(path))
 		return;
 	/* Now try without the second iso code part (_ES in es_ES). */
-	strncpy(t, uilng, 2);
-	strcpy(t + 2, uilng + 5); /* Because of some codes like sr_SR@latin... */
-	BLI_join_dirfile(path, maxlen, root, t);
-	sprintf(t, "%s.po", t);
-	BLI_join_dirfile(path, maxlen, path, t);
+	strncpy(tstr, uilng, 2);
+	BLI_strncpy(tstr + 2, uilng + 5, sizeof(tstr) - 2); /* Because of some codes like sr_SR@latin... */
+	BLI_join_dirfile(path, maxlen, root, tstr);
+	strcat(tstr, ".po");
+	BLI_join_dirfile(path, maxlen, path, tstr);
 	if (BLI_is_file(path))
 		return;
 	path[0] = '\0';

@@ -27,7 +27,6 @@
  *  \ingroup edgpencil
  */
 
-
 #include <stdio.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -279,7 +278,7 @@ static void gp_stroke_convertcoords(tGPsdata *p, const int mval[2], float out[3]
 			gp_get_3d_reference(p, rvec);
 			
 			/* method taken from editview.c - mouse_cursor() */
-			project_int_noclip(p->ar, rvec, mval_prj);
+			ED_view3d_project_int_noclip(p->ar, rvec, mval_prj);
 			
 			VECSUB2D(mval_f, mval_prj, mval);
 			ED_view3d_win_to_delta(p->ar, mval_f, dvec);
@@ -300,8 +299,8 @@ static void gp_stroke_convertcoords(tGPsdata *p, const int mval[2], float out[3]
 			out[1] = (float)(mval[1]) / (float)(p->ar->winy) * 100;
 		}
 		else { /* camera view, use subrect */
-			out[0] = ((mval[0] - p->subrect->xmin) / BLI_RCT_SIZE_X(p->subrect)) * 100;
-			out[1] = ((mval[1] - p->subrect->ymin) / BLI_RCT_SIZE_Y(p->subrect)) * 100;
+			out[0] = ((mval[0] - p->subrect->xmin) / BLI_rctf_size_x(p->subrect)) * 100;
+			out[1] = ((mval[1] - p->subrect->ymin) / BLI_rctf_size_y(p->subrect)) * 100;
 		}
 	}
 }
@@ -778,7 +777,8 @@ static short gp_stroke_eraser_splitdel(bGPDframe *gpf, bGPDstroke *gps, int i)
 }
 
 /* eraser tool - check if part of stroke occurs within last segment drawn by eraser */
-static short gp_stroke_eraser_strokeinside(int mval[], int UNUSED(mvalo[]), short rad, short x0, short y0, short x1, short y1)
+static short gp_stroke_eraser_strokeinside(const int mval[], const int UNUSED(mvalo[]),
+                                           int rad, int x0, int y0, int x1, int y1)
 {
 	/* simple within-radius check for now */
 	if (edge_inside_circle(mval[0], mval[1], rad, x0, y0, x1, y1))
@@ -790,7 +790,9 @@ static short gp_stroke_eraser_strokeinside(int mval[], int UNUSED(mvalo[]), shor
 
 /* eraser tool - evaluation per stroke */
 // TODO: this could really do with some optimization (KD-Tree/BVH?)
-static void gp_stroke_eraser_dostroke(tGPsdata *p, int mval[], int mvalo[], short rad, rcti *rect, bGPDframe *gpf, bGPDstroke *gps)
+static void gp_stroke_eraser_dostroke(tGPsdata *p,
+                                      const int mval[], const int mvalo[],
+                                      short rad, const rcti *rect, bGPDframe *gpf, bGPDstroke *gps)
 {
 	bGPDspoint *pt1, *pt2;
 	int x0 = 0, y0 = 0, x1 = 0, y1 = 0;
@@ -806,7 +808,7 @@ static void gp_stroke_eraser_dostroke(tGPsdata *p, int mval[], int mvalo[], shor
 	else if (gps->totpoints == 1) {
 		/* get coordinates */
 		if (gps->flag & GP_STROKE_3DSPACE) {
-			project_int(p->ar, &gps->points->x, xyval);
+			ED_view3d_project_int(p->ar, &gps->points->x, xyval);
 			x0 = xyval[0];
 			y0 = xyval[1];
 		}
@@ -819,15 +821,15 @@ static void gp_stroke_eraser_dostroke(tGPsdata *p, int mval[], int mvalo[], shor
 				y0 = (int)(gps->points->y / 100 * p->ar->winy);
 			}
 			else { /* camera view, use subrect */
-				x0 = (int)((gps->points->x / 100) * BLI_RCT_SIZE_X(p->subrect)) + p->subrect->xmin;
-				y0 = (int)((gps->points->y / 100) * BLI_RCT_SIZE_Y(p->subrect)) + p->subrect->ymin;
+				x0 = (int)((gps->points->x / 100) * BLI_rctf_size_x(p->subrect)) + p->subrect->xmin;
+				y0 = (int)((gps->points->y / 100) * BLI_rctf_size_y(p->subrect)) + p->subrect->ymin;
 			}
 		}
 		
 		/* do boundbox check first */
 		if (BLI_rcti_isect_pt(rect, x0, y0)) {
 			/* only check if point is inside */
-			if ( ((x0 - mval[0]) * (x0 - mval[0]) + (y0 - mval[1]) * (y0 - mval[1])) <= rad * rad) {
+			if (((x0 - mval[0]) * (x0 - mval[0]) + (y0 - mval[1]) * (y0 - mval[1])) <= rad * rad) {
 				/* free stroke */
 				MEM_freeN(gps->points);
 				BLI_freelinkN(&gpf->strokes, gps);
@@ -845,11 +847,11 @@ static void gp_stroke_eraser_dostroke(tGPsdata *p, int mval[], int mvalo[], shor
 			
 			/* get coordinates */
 			if (gps->flag & GP_STROKE_3DSPACE) {
-				project_int(p->ar, &pt1->x, xyval);
+				ED_view3d_project_int(p->ar, &pt1->x, xyval);
 				x0 = xyval[0];
 				y0 = xyval[1];
 				
-				project_int(p->ar, &pt2->x, xyval);
+				ED_view3d_project_int(p->ar, &pt2->x, xyval);
 				x1 = xyval[0];
 				y1 = xyval[1];
 			}
@@ -866,10 +868,10 @@ static void gp_stroke_eraser_dostroke(tGPsdata *p, int mval[], int mvalo[], shor
 					y1 = (int)(pt2->y / 100 * p->ar->winy);
 				}
 				else { /* camera view, use subrect */ 
-					x0 = (int)((pt1->x / 100) * BLI_RCT_SIZE_X(p->subrect)) + p->subrect->xmin;
-					y0 = (int)((pt1->y / 100) * BLI_RCT_SIZE_Y(p->subrect)) + p->subrect->ymin;
-					x1 = (int)((pt2->x / 100) * BLI_RCT_SIZE_X(p->subrect)) + p->subrect->xmin;
-					y1 = (int)((pt2->y / 100) * BLI_RCT_SIZE_Y(p->subrect)) + p->subrect->ymin;
+					x0 = (int)((pt1->x / 100) * BLI_rctf_size_x(p->subrect)) + p->subrect->xmin;
+					y0 = (int)((pt1->y / 100) * BLI_rctf_size_y(p->subrect)) + p->subrect->ymin;
+					x1 = (int)((pt2->x / 100) * BLI_rctf_size_x(p->subrect)) + p->subrect->xmin;
+					y1 = (int)((pt2->y / 100) * BLI_rctf_size_y(p->subrect)) + p->subrect->ymin;
 				}
 			}
 			
@@ -1734,25 +1736,32 @@ static int gpencil_draw_modal(bContext *C, wmOperator *op, wmEvent *event)
 
 	//printf("\tGP - handle modal event...\n");
 	
-	/* exit painting mode (and/or end current stroke) */
-	if (ELEM5(event->type, RETKEY, PADENTER, ESCKEY, SPACEKEY, RIGHTMOUSE)) {
+	/* exit painting mode (and/or end current stroke) 
+	 * NOTE: cannot do RIGHTMOUSE (as is standard for cancelling) as that would break polyline [#32647] 
+	 */
+	if (ELEM4(event->type, RETKEY, PADENTER, ESCKEY, SPACEKEY)) {
 		/* exit() ends the current stroke before cleaning up */
 		//printf("\t\tGP - end of paint op + end of stroke\n");
 		p->status = GP_STATUS_DONE;
 		estate = OPERATOR_FINISHED;
 	}
 	
-	/* toggle painting mode upon mouse-button movement */
-	if (event->type == LEFTMOUSE) {
+	/* toggle painting mode upon mouse-button movement 
+	 *  - LEFTMOUSE  = standard drawing (all) / straight line drawing (all) / polyline (toolbox only)
+	 *  - RIGHTMOUSE = polyline (hotkey) / eraser (all)
+	 *    (Disabling RIGHTMOUSE case here results in bugs like [#32647])
+	 */
+	if (ELEM(event->type, LEFTMOUSE, RIGHTMOUSE)) {
 		/* if painting, end stroke */
 		if (p->status == GP_STATUS_PAINTING) {
 			int sketch = 0;
+			
 			/* basically, this should be mouse-button up = end stroke 
 			 * BUT what happens next depends on whether we 'painting sessions' is enabled
 			 */
 			sketch |= GPENCIL_SKETCH_SESSIONS_ON(p->scene);
 			/* polyline drawing is also 'sketching' -- all knots should be added during one session */
-			sketch |= p->paintmode == GP_PAINTMODE_DRAW_POLY;
+			sketch |= (p->paintmode == GP_PAINTMODE_DRAW_POLY);
 			
 			if (sketch) {
 				/* end stroke only, and then wait to resume painting soon */

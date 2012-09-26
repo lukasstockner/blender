@@ -39,8 +39,6 @@
 #include "BLI_fileops.h"
 #include "BLI_md5.h"
 
-#include "BKE_utildefines.h"
-
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 #include "IMB_thumbs.h"
@@ -315,7 +313,7 @@ ImBuf *IMB_thumb_create(const char *path, ThumbSize size, ThumbSource source, Im
 						img = IMB_loadblend_thumb(path);
 					}
 					else {
-						img = IMB_loadiffname(path, IB_rect | IB_metadata);
+						img = IMB_loadiffname(path, IB_rect | IB_metadata, NULL);
 					}
 				}
 
@@ -328,7 +326,7 @@ ImBuf *IMB_thumb_create(const char *path, ThumbSize size, ThumbSource source, Im
 			}
 			else if (THB_SOURCE_MOVIE == source) {
 				struct anim *anim = NULL;
-				anim = IMB_open_anim(path, IB_rect | IB_metadata, 0);
+				anim = IMB_open_anim(path, IB_rect | IB_metadata, 0, NULL);
 				if (anim != NULL) {
 					img = IMB_anim_absolute(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
 					if (img == NULL) {
@@ -378,6 +376,7 @@ ImBuf *IMB_thumb_create(const char *path, ThumbSize size, ThumbSource source, Im
 		}
 		img->ftype = PNG;
 		img->planes = 32;
+
 		if (IMB_saveiff(img, temp, IB_rect | IB_metadata)) {
 #ifndef WIN32
 			chmod(temp, S_IRUSR | S_IWUSR);
@@ -403,7 +402,7 @@ ImBuf *IMB_thumb_read(const char *path, ThumbSize size)
 		return NULL;
 	}
 	if (thumbpath_from_uri(uri, thumb, sizeof(thumb), size)) {		
-		img = IMB_loadiffname(thumb, IB_rect | IB_metadata);
+		img = IMB_loadiffname(thumb, IB_rect | IB_metadata, NULL);
 	}
 
 	return img;
@@ -458,10 +457,10 @@ ImBuf *IMB_thumb_manage(const char *path, ThumbSize size, ThumbSource source)
 
 	if (thumbpath_from_uri(uri, thumb, sizeof(thumb), size)) {
 		if (BLI_path_ncmp(path, thumb, sizeof(thumb)) == 0) {
-			img = IMB_loadiffname(path, IB_rect);
+			img = IMB_loadiffname(path, IB_rect, NULL);
 		}
 		else {
-			img = IMB_loadiffname(thumb, IB_rect | IB_metadata);
+			img = IMB_loadiffname(thumb, IB_rect | IB_metadata, NULL);
 			if (img) {
 				char mtime[40];
 				if (!IMB_metadata_get_field(img, "Thumb::MTime", mtime, 40)) {

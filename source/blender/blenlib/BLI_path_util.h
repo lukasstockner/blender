@@ -98,7 +98,6 @@ typedef enum bli_rebase_state {
 } bli_rebase_state;
 
 int BLI_rebase_path(char *abs, size_t abs_len, char *rel, size_t rel_len, const char *base_dir, const char *src_dir, const char *dest_dir);
-#define BKE_rebase_path BLI_rebase_path /* remove after a 2012 */
 
 char *BLI_last_slash(const char *string);
 int   BLI_add_slash(char *string);
@@ -192,6 +191,14 @@ void BLI_system_temporary_dir(char *dir);
 
 #ifdef WITH_ICONV
 void BLI_string_to_utf8(char *original, char *utf_8, const char *code);
+#endif
+
+/* these values need to be hardcoded in structs, dna does not recognize defines */
+/* also defined in DNA_space_types.h */
+#ifndef FILE_MAXDIR
+#  define FILE_MAXDIR         768
+#  define FILE_MAXFILE        256
+#  define FILE_MAX            1024
 #endif
 
 #ifdef __cplusplus

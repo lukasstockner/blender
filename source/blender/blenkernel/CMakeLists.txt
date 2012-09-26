@@ -44,6 +44,7 @@ set(INC
 	../../../intern/mikktspace
 	../../../intern/opennl/extern
 	../../../intern/raskter
+	../../../intern/smoke/extern
 
 	# XXX - BAD LEVEL CALL WM_api.h
 	../windowmanager
@@ -116,6 +117,7 @@ set(SRC
 	intern/nla.c
 	intern/node.c
 	intern/object.c
+	intern/object_deform.c
 	intern/ocean.c
 	intern/packedFile.c
 	intern/paint.c
@@ -205,6 +207,7 @@ set(SRC
 	BKE_nla.h
 	BKE_node.h
 	BKE_object.h
+	BKE_object_deform.h
 	BKE_ocean.h
 	BKE_packedFile.h
 	BKE_paint.h
@@ -342,9 +345,6 @@ if(WITH_MOD_FLUID)
 endif()
 
 if(WITH_MOD_SMOKE)
-	list(APPEND INC
-		../../../intern/smoke/extern
-	)
 	add_definitions(-DWITH_SMOKE)
 endif()
 

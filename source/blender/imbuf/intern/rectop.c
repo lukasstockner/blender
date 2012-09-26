@@ -42,23 +42,24 @@
 #include "IMB_imbuf.h"
 
 #include "IMB_allocimbuf.h"
+#include "IMB_colormanagement.h"
 
 
 /* blend modes */
 
-static void blend_color_mix(char *cp, char *cp1, char *cp2, int fac)
+static void blend_color_mix(char cp[3], const char cp1[3], const char cp2[3], const int fac)
 {
 	/* this and other blending modes previously used >>8 instead of /255. both
 	 * are not equivalent (>>8 is /256), and the former results in rounding
 	 * errors that can turn colors black fast after repeated blending */
-	int mfac = 255 - fac;
+	const int mfac = 255 - fac;
 
 	cp[0] = (mfac * cp1[0] + fac * cp2[0]) / 255;
 	cp[1] = (mfac * cp1[1] + fac * cp2[1]) / 255;
 	cp[2] = (mfac * cp1[2] + fac * cp2[2]) / 255;
 }
 
-static void blend_color_add(char *cp, char *cp1, char *cp2, int fac)
+static void blend_color_add(char cp[3], const char cp1[3], const char cp2[3], const int fac)
 {
 	int temp;
 
@@ -70,7 +71,7 @@ static void blend_color_add(char *cp, char *cp1, char *cp2, int fac)
 	if (temp > 254) cp[2] = 255; else cp[2] = temp;
 }
 
-static void blend_color_sub(char *cp, char *cp1, char *cp2, int fac)
+static void blend_color_sub(char cp[3], const char cp1[3], const char cp2[3], const int fac)
 {
 	int temp;
 
@@ -82,7 +83,7 @@ static void blend_color_sub(char *cp, char *cp1, char *cp2, int fac)
 	if (temp < 0) cp[2] = 0; else cp[2] = temp;
 }
 
-static void blend_color_mul(char *cp, char *cp1, char *cp2, int fac)
+static void blend_color_mul(char cp[3], const char cp1[3], const char cp2[3], const int fac)
 {
 	int mfac = 255 - fac;
 	
@@ -92,7 +93,7 @@ static void blend_color_mul(char *cp, char *cp1, char *cp2, int fac)
 	cp[2] = (mfac * cp1[2] + fac * ((cp1[2] * cp2[2]) / 255)) / 255;
 }
 
-static void blend_color_lighten(char *cp, char *cp1, char *cp2, int fac)
+static void blend_color_lighten(char cp[3], const char cp1[3], const char cp2[3], const int fac)
 {
 	/* See if are lighter, if so mix, else don't do anything.
 	 * if the paint col is darker then the original, then ignore */
@@ -101,11 +102,12 @@ static void blend_color_lighten(char *cp, char *cp1, char *cp2, int fac)
 		cp[1] = cp1[1];
 		cp[2] = cp1[2];
 	}
-	else
+	else {
 		blend_color_mix(cp, cp1, cp2, fac);
+	}
 }
 
-static void blend_color_darken(char *cp, char *cp1, char *cp2, int fac)
+static void blend_color_darken(char cp[3], const char cp1[3], const char cp2[3], const int fac)
 {
 	/* See if were darker, if so mix, else don't do anything.
 	 * if the paint col is brighter then the original, then ignore */
@@ -114,8 +116,9 @@ static void blend_color_darken(char *cp, char *cp1, char *cp2, int fac)
 		cp[1] = cp1[1];
 		cp[2] = cp1[2];
 	}
-	else
+	else {
 		blend_color_mix(cp, cp1, cp2, fac);
+	}
 }
 
 unsigned int IMB_blend_color(unsigned int src1, unsigned int src2, int fac, IMB_BlendMode mode)
@@ -162,7 +165,7 @@ unsigned int IMB_blend_color(unsigned int src1, unsigned int src2, int fac, IMB_
 	return dst;
 }
 
-static void blend_color_mix_float(float *cp, float *cp1, float *cp2, float fac)
+static void blend_color_mix_float(float cp[3], const float cp1[3], const float cp2[3], const float fac)
 {
 	float mfac = 1.0f - fac;
 	cp[0] = mfac * cp1[0] + fac * cp2[0];
@@ -170,7 +173,7 @@ static void blend_color_mix_float(float *cp, float *cp1, float *cp2, float fac)
 	cp[2] = mfac * cp1[2] + fac * cp2[2];
 }
 
-static void blend_color_add_float(float *cp, float *cp1, float *cp2, float fac)
+static void blend_color_add_float(float cp[3], const float cp1[3], const float cp2[3], const float fac)
 {
 	cp[0] = cp1[0] + fac * cp2[0];
 	cp[1] = cp1[1] + fac * cp2[1];
@@ -181,7 +184,7 @@ static void blend_color_add_float(float *cp, float *cp1, float *cp2, float fac)
 	if (cp[2] > 1.0f) cp[2] = 1.0f;
 }
 
-static void blend_color_sub_float(float *cp, float *cp1, float *cp2, float fac)
+static void blend_color_sub_float(float cp[3], const float cp1[3], const float cp2[3], const float fac)
 {
 	cp[0] = cp1[0] - fac * cp2[0];
 	cp[1] = cp1[1] - fac * cp2[1];
@@ -192,7 +195,7 @@ static void blend_color_sub_float(float *cp, float *cp1, float *cp2, float fac)
 	if (cp[2] < 0.0f) cp[2] = 0.0f;
 }
 
-static void blend_color_mul_float(float *cp, float *cp1, float *cp2, float fac)
+static void blend_color_mul_float(float cp[3], const float cp1[3], const float cp2[3], const float fac)
 {
 	float mfac = 1.0f - fac;
 	
@@ -201,7 +204,7 @@ static void blend_color_mul_float(float *cp, float *cp1, float *cp2, float fac)
 	cp[2] = mfac * cp1[2] + fac * (cp1[2] * cp2[2]);
 }
 
-static void blend_color_lighten_float(float *cp, float *cp1, float *cp2, float fac)
+static void blend_color_lighten_float(float cp[3], const float cp1[3], const float cp2[3], const float fac)
 {
 	/* See if are lighter, if so mix, else don't do anything.
 	 * if the pafloat col is darker then the original, then ignore */
@@ -214,7 +217,7 @@ static void blend_color_lighten_float(float *cp, float *cp1, float *cp2, float f
 		blend_color_mix_float(cp, cp1, cp2, fac);
 }
 
-static void blend_color_darken_float(float *cp, float *cp1, float *cp2, float fac)
+static void blend_color_darken_float(float cp[3], const float cp1[3], const float cp2[3], const float fac)
 {
 	/* See if were darker, if so mix, else don't do anything.
 	 * if the pafloat col is brighter then the original, then ignore */
@@ -484,7 +487,7 @@ void IMB_rectfill(struct ImBuf *drect, const float col[4])
 
 
 void buf_rectfill_area(unsigned char *rect, float *rectf, int width, int height,
-					   const float col[4], const int do_color_management,
+					   const float col[4], struct ColorManagedDisplay *display,
 					   int x1, int y1, int x2, int y2)
 {
 	int i, j;
@@ -551,11 +554,12 @@ void buf_rectfill_area(unsigned char *rect, float *rectf, int width, int height,
 		float col_conv[4];
 		float *pixel;
 
-		if (do_color_management) {
-			srgb_to_linearrgb_v4(col_conv, col);
+		if (display) {
+			copy_v4_v4(col_conv, col);
+			IMB_colormanagement_display_to_scene_linear_v3(col_conv, display);
 		}
 		else {
-			copy_v4_v4(col_conv, col);
+			srgb_to_linearrgb_v4(col_conv, col);
 		}
 
 		for (j = 0; j < y2 - y1; j++) {
@@ -579,12 +583,10 @@ void buf_rectfill_area(unsigned char *rect, float *rectf, int width, int height,
 	}
 }
 
-void IMB_rectfill_area(struct ImBuf *ibuf, const float col[4], int x1, int y1, int x2, int y2)
+void IMB_rectfill_area(struct ImBuf *ibuf, const float col[4], int x1, int y1, int x2, int y2, struct ColorManagedDisplay *display)
 {
-	int do_color_management;
 	if (!ibuf) return;
-	do_color_management = (ibuf->profile == IB_PROFILE_LINEAR_RGB);
-	buf_rectfill_area((unsigned char *) ibuf->rect, ibuf->rect_float, ibuf->x, ibuf->y, col, do_color_management,
+	buf_rectfill_area((unsigned char *) ibuf->rect, ibuf->rect_float, ibuf->x, ibuf->y, col, display,
 					  x1, y1, x2, y2);
 }
 

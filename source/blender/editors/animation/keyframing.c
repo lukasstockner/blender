@@ -164,10 +164,7 @@ FCurve *verify_fcurve(bAction *act, const char group[], PointerRNA *ptr,
 	 *	- add if not found and allowed to add one
 	 *		TODO: add auto-grouping support? how this works will need to be resolved
 	 */
-	if (act)
-		fcu = list_find_fcurve(&act->curves, rna_path, array_index);
-	else
-		fcu = NULL;
+	fcu = list_find_fcurve(&act->curves, rna_path, array_index);
 	
 	if ((fcu == NULL) && (add)) {
 		/* use default settings to make a F-Curve */
@@ -1089,7 +1086,7 @@ short delete_keyframe(ReportList *reports, ID *id, bAction *act, const char grou
  *	The flag argument is used for special settings that alter the behavior of
  *	the keyframe deletion. These include the quick refresh options.
  */
-short clear_keyframe(ReportList *reports, ID *id, bAction *act, const char group[], const char rna_path[], int array_index, short UNUSED(flag))
+static short clear_keyframe(ReportList *reports, ID *id, bAction *act, const char group[], const char rna_path[], int array_index, short UNUSED(flag))
 {
 	AnimData *adt = BKE_animdata_from_id(id);
 	PointerRNA id_ptr, ptr;
@@ -1839,7 +1836,7 @@ static short object_frame_has_keyframe(Object *ob, float frame, short filter)
 	
 	/* try shapekey keyframes (if available, and allowed by filter) */
 	if (!(filter & ANIMFILTER_KEYS_LOCAL) && !(filter & ANIMFILTER_KEYS_NOSKEY) ) {
-		Key *key = ob_get_key(ob);
+		Key *key = BKE_key_from_object(ob);
 		
 		/* shapekeys can have keyframes ('Relative Shape Keys') 
 		 * or depend on time (old 'Absolute Shape Keys') 

@@ -47,7 +47,6 @@
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_utildefines.h"
 #include "BKE_blender.h"    // BLENDER_VERSION
 
 #include "GHOST_Path-api.h"
@@ -1369,7 +1368,7 @@ int BLI_testextensie(const char *str, const char *ext)
 		retval = 0;
 	}
 	else if (BLI_strcasecmp(ext, str + a - b)) {
-		retval = 0;	
+		retval = 0;
 	}
 	else {
 		retval = 1;

@@ -40,6 +40,7 @@
 #include "DNA_armature_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
@@ -901,6 +902,17 @@ static void recalcData_view3d(TransInfo *t)
 /* helper for recalcData() - for sequencer transforms */
 static void recalcData_sequencer(TransInfo *t)
 {
+	Editing *ed = BKE_sequencer_editing_get(t->scene, FALSE);
+	Sequence *seq;
+
+	SEQ_BEGIN(ed, seq)
+	{
+		if (seq->flag & SELECT) {
+			BKE_sequence_invalidate_deendent(t->scene, seq);
+		}
+	}
+	SEQ_END
+
 	BKE_sequencer_preprocessed_cache_cleanup();
 
 	flushTransSeq(t);
@@ -1324,9 +1336,11 @@ void postTrans(bContext *C, TransInfo *t)
 	if (t->customFree) {
 		/* Can take over freeing t->data and data2d etc... */
 		t->customFree(t);
+		BLI_assert(t->customData == NULL);
 	}
 	else if ((t->customData != NULL) && (t->flag & T_FREE_CUSTOMDATA)) {
 		MEM_freeN(t->customData);
+		t->customData = NULL;
 	}
 
 	/* postTrans can be called when nothing is selected, so data is NULL already */

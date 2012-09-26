@@ -239,10 +239,8 @@ static void ui_item_size(uiItem *item, int *r_w, int *r_h)
 	if (item->type == ITEM_BUTTON) {
 		uiButtonItem *bitem = (uiButtonItem *)item;
 
-
-
-		if (r_w) *r_w = BLI_RCT_SIZE_X(&bitem->but->rect);
-		if (r_h) *r_h = BLI_RCT_SIZE_Y(&bitem->but->rect);
+		if (r_w) *r_w = BLI_rctf_size_x(&bitem->but->rect);
+		if (r_h) *r_h = BLI_rctf_size_y(&bitem->but->rect);
 	}
 	else {
 		uiLayout *litem = (uiLayout *)item;
@@ -2874,7 +2872,9 @@ static void ui_layout_operator_buts__reset_cb(bContext *UNUSED(C), void *op_pt, 
 }
 
 /* this function does not initialize the layout, functions can be called on the layout before and after */
-void uiLayoutOperatorButs(const bContext *C, uiLayout *layout, wmOperator *op, int (*check_prop)(struct PointerRNA *, struct PropertyRNA *), const char label_align, const short flag)
+void uiLayoutOperatorButs(const bContext *C, uiLayout *layout, wmOperator *op,
+                          int (*check_prop)(struct PointerRNA *, struct PropertyRNA *),
+                          const char label_align, const short flag)
 {
 	if (!op->properties) {
 		IDPropertyTemplate val = {0};

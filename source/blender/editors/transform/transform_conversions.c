@@ -862,7 +862,7 @@ static short pose_grab_with_ik_add(bPoseChannel *pchan)
 	data->rootbone = 0; /* watch-it! has to be 0 here, since we're still on the same bone for the first time through the loop [#25885] */
 	
 	/* we only include bones that are part of a continual connected chain */
-	while (pchan) {
+	do {
 		/* here, we set ik-settings for bone from pchan->protectflag */
 		// XXX: careful with quats/axis-angle rotations where we're locking 4d components
 		if (pchan->protectflag & OB_LOCK_ROTX) pchan->ikflag |= BONE_IK_NO_XDOF_TEMP;
@@ -877,7 +877,7 @@ static short pose_grab_with_ik_add(bPoseChannel *pchan)
 			pchan = pchan->parent;
 		else
 			pchan = NULL;
-	}
+	} while (pchan);
 
 	/* make a copy of maximum chain-length */
 	data->max_rootbone = data->rootbone;
@@ -992,6 +992,9 @@ static void createTransPose(TransInfo *t, Object *ob)
 
 	t->flag |= T_POSE;
 	t->poseobj = ob; /* we also allow non-active objects to be transformed, in weightpaint */
+
+	/* disable PET, its not usable in pose mode yet [#32444] */
+	t->flag &= ~(T_PROP_EDIT | T_PROP_CONNECTED);
 
 	/* init trans data */
 	td = t->data = MEM_callocN(t->total * sizeof(TransData), "TransPoseBone");
@@ -1770,9 +1773,6 @@ void flushTransParticles(TransInfo *t)
 }
 
 /* ********************* mesh ****************** */
-
-/* proportional distance based on connectivity  */
-#define THRESHOLDFACTOR (1.0f - 0.0001f)
 
 /* I did this wrong, it should be a breadth-first search
  * but instead it's a depth-first search, fudged
@@ -3381,15 +3381,19 @@ static void createTransActionData(bContext *C, TransInfo *t)
 	if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
 		if (t->mode == TFM_TIME_SLIDE) {
 			t->customData = MEM_callocN((sizeof(float) * 2) + (sizeof(tGPFtransdata) * count), "TimeSlide + tGPFtransdata");
+			t->flag |= T_FREE_CUSTOMDATA;
 			tfd = (tGPFtransdata *)((float *)(t->customData) + 2);
 		}
 		else {
 			t->customData = MEM_callocN(sizeof(tGPFtransdata) * count, "tGPFtransdata");
+			t->flag |= T_FREE_CUSTOMDATA;
 			tfd = (tGPFtransdata *)(t->customData);
 		}
 	}
-	else if (t->mode == TFM_TIME_SLIDE)
+	else if (t->mode == TFM_TIME_SLIDE) {
 		t->customData = MEM_callocN(sizeof(float) * 2, "TimeSlide Min/Max");
+		t->flag |= T_FREE_CUSTOMDATA;
+	}
 	
 	/* loop 2: build transdata array */
 	for (ale = anim_data.first; ale; ale = ale->next) {
@@ -5256,7 +5260,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 			/* Depending on the lock status, draw necessary views */
 			// fixme... some of this stuff is not good
 			if (ob) {
-				if (ob->pose || ob_get_key(ob))
+				if (ob->pose || BKE_key_from_object(ob))
 					DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 				else
 					DAG_id_tag_update(&ob->id, OB_RECALC_OB);
@@ -5640,8 +5644,8 @@ static void createTransObject(bContext *C, TransInfo *t)
 static void NodeToTransData(TransData *td, TransData2D *td2d, bNode *node)
 {
 	/* hold original location */
-	float locxy[2] = {BLI_RCT_CENTER_X(&node->totr),
-	                  BLI_RCT_CENTER_Y(&node->totr)};
+	float locxy[2] = {BLI_rctf_cent_x(&node->totr),
+	                  BLI_rctf_cent_y(&node->totr)};
 
 	copy_v2_v2(td2d->loc, locxy);
 	td2d->loc[2] = 0.0f;
@@ -5694,6 +5698,9 @@ static void createTransNodeData(bContext *UNUSED(C), TransInfo *t)
 	if (!snode->edittree) {
 		return;
 	}
+
+	/* nodes dont support PET and probably never will */
+	t->flag &= ~(T_PROP_EDIT | T_PROP_CONNECTED);
 
 	/* set transform flags on nodes */
 	for (node = snode->edittree->nodes.first; node; node = node->next) {
@@ -5805,10 +5812,9 @@ static void markerToTransDataInit(TransData *td, TransData2D *td2d, TransDataTra
 	unit_m3(td->smtx);
 }
 
-static void trackToTransData(SpaceClip *sc, TransData *td, TransData2D *td2d,
+static void trackToTransData(const int framenr, TransData *td, TransData2D *td2d,
                              TransDataTracking *tdt, MovieTrackingTrack *track, float aspx, float aspy)
 {
-	int framenr = ED_space_clip_get_clip_frame_number(sc);
 	MovieTrackingMarker *marker = BKE_tracking_marker_ensure(track, framenr);
 
 	tdt->flag = marker->flag;
@@ -5849,6 +5855,7 @@ static void transDataTrackingFree(TransInfo *t)
 			MEM_freeN(tdt->smarkers);
 
 		MEM_freeN(tdt);
+		t->customData = NULL;
 	}
 }
 
@@ -5860,7 +5867,6 @@ static void createTransTrackingTracksData(bContext *C, TransInfo *t)
 	MovieClip *clip = ED_space_clip_get_clip(sc);
 	ListBase *tracksbase = BKE_tracking_get_active_tracks(&clip->tracking);
 	MovieTrackingTrack *track;
-	MovieTrackingMarker *marker;
 	TransDataTracking *tdt;
 	int framenr = ED_space_clip_get_clip_frame_number(sc);
 	float aspx, aspy;
@@ -5871,8 +5877,6 @@ static void createTransTrackingTracksData(bContext *C, TransInfo *t)
 	track = tracksbase->first;
 	while (track) {
 		if (TRACK_VIEW_SELECTED(sc, track) && (track->flag & TRACK_LOCKED) == 0) {
-			marker = BKE_tracking_marker_get(track, framenr);
-
 			t->total++; /* offset */
 
 			if (track->flag & SELECT)
@@ -5903,9 +5907,7 @@ static void createTransTrackingTracksData(bContext *C, TransInfo *t)
 	track = tracksbase->first;
 	while (track) {
 		if (TRACK_VIEW_SELECTED(sc, track) && (track->flag & TRACK_LOCKED) == 0) {
-			marker = BKE_tracking_marker_get(track, framenr);
-
-			trackToTransData(sc, td, td2d, tdt, track, aspx, aspy);
+			trackToTransData(framenr, td, td2d, tdt, track, aspx, aspy);
 
 			/* offset */
 			td++;
@@ -5928,12 +5930,6 @@ static void createTransTrackingTracksData(bContext *C, TransInfo *t)
 				td += 2;
 				td2d += 2;
 				tdt += 2;
-
-				if (marker->flag & MARKER_DISABLED) {
-					td += 3;
-					td2d += 3;
-					tdt += 3;
-				};
 			}
 		}
 

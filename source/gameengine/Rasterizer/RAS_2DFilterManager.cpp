@@ -110,7 +110,7 @@ void RAS_2DFilterManager::PrintShaderErrors(unsigned int shader, const char *tas
 
 unsigned int RAS_2DFilterManager::CreateShaderProgram(const char* shadersource)
 {
-	GLuint program = 0;	
+	GLuint program = 0;
 	GLuint fShader = glCreateShaderObjectARB(GL_FRAGMENT_SHADER);
 	GLint success;
 
@@ -431,7 +431,7 @@ void RAS_2DFilterManager::RenderFilters(RAS_ICanvas* canvas)
 	// reverting to texunit 0, without this we get bug [#28462]
 	glActiveTextureARB(GL_TEXTURE0);
 
-	glViewport(rect.GetLeft(), rect.GetBottom(), rect_width, rect.GetHeight()+1);
+	glViewport(rect.GetLeft(), rect.GetBottom(), rect_width, rect_height);
 
 	glDisable(GL_DEPTH_TEST);
 	// in case the previous material was wire
@@ -469,7 +469,7 @@ void RAS_2DFilterManager::RenderFilters(RAS_ICanvas* canvas)
 
 	glEnable(GL_DEPTH_TEST);
 	glViewport(viewport[0],viewport[1],viewport[2],viewport[3]);
-	EndShaderProgram();	
+	EndShaderProgram();
 	glPopMatrix();
 	glMatrixMode(GL_MODELVIEW);
 	glPopMatrix();

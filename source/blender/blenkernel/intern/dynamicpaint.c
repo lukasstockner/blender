@@ -669,7 +669,7 @@ static void boundInsert(Bounds3D *b, float point[3])
 	}
 }
 
-float getSurfaceDimension(PaintSurfaceData *sData)
+static float getSurfaceDimension(PaintSurfaceData *sData)
 {
 	Bounds3D *mb = &sData->bData->mesh_bounds;
 	return MAX3((mb->max[0] - mb->min[0]), (mb->max[1] - mb->min[1]), (mb->max[2] - mb->min[2]));
@@ -910,7 +910,7 @@ static void free_bakeData(PaintSurfaceData *data)
 }
 
 /* free surface data if it's not used anymore */
-void surface_freeUnusedData(DynamicPaintSurface *surface)
+static void surface_freeUnusedData(DynamicPaintSurface *surface)
 {
 	if (!surface->data) return;
 
@@ -1368,7 +1368,7 @@ static void dynamicPaint_initAdjacencyData(DynamicPaintSurface *surface, int for
 	MEM_freeN(temp_data);
 }
 
-void dynamicPaint_setInitialColor(DynamicPaintSurface *surface)
+static void dynamicPaint_setInitialColor(DynamicPaintSurface *surface)
 {
 	PaintSurfaceData *sData = surface->data;
 	PaintPoint *pPoint = (PaintPoint *)sData->type_data;
@@ -1605,7 +1605,7 @@ static void dynamicPaint_applySurfaceDisplace(DynamicPaintSurface *surface, Deri
 /*
  *	Apply canvas data to the object derived mesh
  */
-struct DerivedMesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd,
+static DerivedMesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd,
                                                 Object *ob,
                                                 DerivedMesh *dm)
 {
@@ -1830,9 +1830,12 @@ void dynamicPaint_cacheUpdateFrames(DynamicPaintSurface *surface)
 	}
 }
 
-void canvas_copyDerivedMesh(DynamicPaintCanvasSettings *canvas, DerivedMesh *dm)
+static void canvas_copyDerivedMesh(DynamicPaintCanvasSettings *canvas, DerivedMesh *dm)
 {
-	if (canvas->dm) canvas->dm->release(canvas->dm);
+	if (canvas->dm) {
+		canvas->dm->release(canvas->dm);
+	}
+
 	canvas->dm = CDDM_copy(dm);
 }
 
@@ -2595,7 +2598,7 @@ void dynamicPaint_outputSurfaceImage(DynamicPaintSurface *surface, char *filenam
 	int format = (surface->image_fileformat & MOD_DPAINT_IMGFORMAT_OPENEXR) ? R_IMF_IMTYPE_OPENEXR : R_IMF_IMTYPE_PNG;
 	char output_file[FILE_MAX];
 
-	if (!sData || !sData->type_data) { setError(surface->canvas, "Image save failed: Invalid surface."); return; }
+	if (!sData->type_data) { setError(surface->canvas, "Image save failed: Invalid surface."); return; }
 	/* if selected format is openexr, but current build doesnt support one */
 	#ifndef WITH_OPENEXR
 	if (format == R_IMF_IMTYPE_OPENEXR) format = R_IMF_IMTYPE_PNG;
@@ -2748,7 +2751,7 @@ static void dynamicPaint_freeBrushMaterials(BrushMaterials *bMats)
 /*
  *	Get material diffuse color and alpha (including linked textures) in given coordinates
  */
-void dynamicPaint_doMaterialTex(BrushMaterials *bMats, float color[3], float *alpha, Object *brushOb, const float volume_co[3], const float surface_co[3], int faceIndex, short isQuad, DerivedMesh *orcoDm)
+static void dynamicPaint_doMaterialTex(BrushMaterials *bMats, float color[3], float *alpha, Object *brushOb, const float volume_co[3], const float surface_co[3], int faceIndex, short isQuad, DerivedMesh *orcoDm)
 {
 	Material *mat = bMats->mat;
 	MFace *mface = orcoDm->getTessFaceArray(orcoDm);
@@ -3953,7 +3956,7 @@ static void dynamicPaint_prepareAdjacencyData(DynamicPaintSurface *surface, int 
 }
 
 /* find two adjacency points (closest_id) and influence (closest_d) to move paint towards when affected by a force  */
-void surface_determineForceTargetPoints(PaintSurfaceData *sData, int index, float force[3], float closest_d[2], int closest_id[2])
+static void surface_determineForceTargetPoints(PaintSurfaceData *sData, int index, float force[3], float closest_d[2], int closest_id[2])
 {
 	BakeAdjPoint *bNeighs = sData->bData->bNeighs;
 	int numOfNeighs = sData->adj_data->n_num[index];
@@ -4342,7 +4345,7 @@ static void dynamicPaint_doEffectStep(DynamicPaintSurface *surface, float *force
 	}
 }
 
-void dynamicPaint_doWaveStep(DynamicPaintSurface *surface, float timescale)
+static void dynamicPaint_doWaveStep(DynamicPaintSurface *surface, float timescale)
 {
 	PaintSurfaceData *sData = surface->data;
 	BakeAdjPoint *bNeighs = sData->bData->bNeighs;
@@ -4800,7 +4803,7 @@ static int dynamicPaint_doStep(Scene *scene, Object *ob, DynamicPaintSurface *su
 	PaintBakeData *bData = sData->bData;
 	DynamicPaintCanvasSettings *canvas = surface->canvas;
 	int ret = 1;
-	if (!sData || sData->total_points < 1) return 0;
+	if (sData->total_points < 1) return 0;
 
 	dynamicPaint_surfacePreStep(surface, timescale);
 	/*
@@ -4875,7 +4878,7 @@ static int dynamicPaint_doStep(Scene *scene, Object *ob, DynamicPaintSurface *su
 					/* Apply brush on the surface depending on it's collision type */
 					/* Particle brush: */
 					if (brush->collision == MOD_DPAINT_COL_PSYS) {
-						if (brush && brush->psys && brush->psys->part && brush->psys->part->type == PART_EMITTER &&
+						if (brush->psys && brush->psys->part && brush->psys->part->type == PART_EMITTER &&
 						    psys_check_enabled(brushObj, brush->psys))
 						{
 

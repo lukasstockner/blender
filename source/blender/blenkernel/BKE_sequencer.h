@@ -177,6 +177,16 @@ struct ImBuf *BKE_sequencer_give_ibuf_seqbase(SeqRenderData context, float cfra,
 void BKE_sequencer_give_ibuf_prefetch_request(SeqRenderData context, float cfra, int chan_shown);
 
 /* **********************************************************************
+ * sequencer.c
+ *
+ * sequencer color space functions
+ * ********************************************************************** */
+
+void BKE_sequencer_imbuf_to_sequencer_space(struct Scene *scene, struct ImBuf *ibuf, int make_float);
+void BKE_sequencer_imbuf_from_sequencer_space(struct Scene *scene, struct ImBuf *ibuf);
+void BKE_sequencer_pixel_from_sequencer_space_v4(struct Scene *scene, float pixel[4]);
+
+/* **********************************************************************
  * sequencer scene functions
  * ********************************************************************** */
 struct Editing  *BKE_sequencer_editing_get(struct Scene *scene, int alloc);
@@ -291,12 +301,13 @@ void BKE_sequencer_dupe_animdata(struct Scene *scene, const char *name_src, cons
 int BKE_sequence_base_shuffle(struct ListBase *seqbasep, struct Sequence *test, struct Scene *evil_scene);
 int BKE_sequence_base_shuffle_time(ListBase *seqbasep, struct Scene *evil_scene);
 int BKE_sequence_base_isolated_sel_check(struct ListBase *seqbase);
-void BKE_sequencer_free_imbuf(struct Scene *scene, struct ListBase *seqbasep, int check_mem_usage, int keep_file_handles);
+void BKE_sequencer_free_imbuf(struct Scene *scene, struct ListBase *seqbasep, int for_render);
 struct Sequence *BKE_sequence_dupli_recursive(struct Scene *scene, struct Scene *scene_to, struct Sequence *seq, int dupe_flag);
 int BKE_sequence_swap(struct Sequence *seq_a, struct Sequence *seq_b, const char **error_str);
 
 int BKE_sequence_check_depend(struct Sequence *seq, struct Sequence *cur);
 void BKE_sequence_invalidate_cache(struct Scene *scene, struct Sequence *seq);
+void BKE_sequence_invalidate_deendent(struct Scene *scene, struct Sequence *seq);
 void BKE_sequence_invalidate_cache_for_modifier(struct Scene *scene, struct Sequence *seq);
 
 void BKE_sequencer_update_sound_bounds_all(struct Scene *scene);
@@ -349,7 +360,7 @@ struct Sequence *BKE_sequencer_add_sound_strip(struct bContext *C, ListBase *seq
 struct Sequence *BKE_sequencer_add_movie_strip(struct bContext *C, ListBase *seqbasep, struct SeqLoadInfo *seq_load);
 
 /* view3d draw callback, run when not in background view */
-typedef struct ImBuf *(*SequencerDrawView)(struct Scene *, struct Object *, int, int, unsigned int, int, int, char[256]);
+typedef struct ImBuf *(*SequencerDrawView)(struct Scene *, struct Object *, int, int, unsigned int, int, int, int, char[256]);
 extern SequencerDrawView sequencer_view3d_cb;
 
 /* copy/paste */
@@ -380,7 +391,7 @@ typedef struct SequenceModifierTypeInfo {
 	void (*copy_data) (struct SequenceModifierData *smd, struct SequenceModifierData *target);
 
 	/* apply modifier on a given image buffer */
-	struct ImBuf *(*apply) (struct SequenceModifierData *smd, struct ImBuf *ibuf, struct ImBuf *mask);
+	void (*apply) (struct SequenceModifierData *smd, struct ImBuf *ibuf, struct ImBuf *mask);
 } SequenceModifierTypeInfo;
 
 struct SequenceModifierTypeInfo *BKE_sequence_modifier_type_info_get(int type);

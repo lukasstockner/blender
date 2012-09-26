@@ -157,7 +157,7 @@ struct pgn_elements {
 
 /* Forward declarations */
 static int vertid(const CORNER *c1, const CORNER *c2, PROCESS *p, MetaBall *mb);
-static int setcenter(CENTERLIST *table[], int i, int j, int k);
+static int setcenter(CENTERLIST *table[], const int i, const int j, const int k);
 static CORNER *setcorner(PROCESS *p, int i, int j, int k);
 static void converge(const float p1[3], const float p2[3], float v1, float v2,
                      float (*function)(float, float, float), float p[3], MetaBall *mb, int f);
@@ -186,7 +186,7 @@ void BKE_mball_unlink(MetaBall *mb)
 /* do not free mball itself */
 void BKE_mball_free(MetaBall *mb)
 {
-	BKE_mball_unlink(mb);	
+	BKE_mball_unlink(mb);
 	
 	if (mb->adt) {
 		BKE_free_animdata((ID *)mb);
@@ -562,7 +562,7 @@ Object *BKE_mball_basis_find(Scene *scene, Object *basis)
 							basis = ob;
 							basisnr = obnr;
 						}
-					}	
+					}
 				}
 			}
 			
@@ -640,21 +640,6 @@ static float densfunc(MetaElem *ball, float x, float y, float z)
 		case MB_BALL:
 			/* do nothing */
 			break;
-		case MB_TUBEX:
-			if      (dvec[0] >  ball->len) dvec[0] -= ball->len;
-			else if (dvec[0] < -ball->len) dvec[0] += ball->len;
-			else                           dvec[0] = 0.0;
-			break;
-		case MB_TUBEY:
-			if      (dvec[1] >  ball->len) dvec[1] -= ball->len;
-			else if (dvec[1] < -ball->len) dvec[1] += ball->len;
-			else                           dvec[1] = 0.0;
-			break;
-		case MB_TUBEZ:
-			if      (dvec[2] >  ball->len) dvec[2] -= ball->len;
-			else if (dvec[2] < -ball->len) dvec[2] += ball->len;
-			else                           dvec[2] = 0.0;
-			break;
 		case MB_TUBE:
 			if      (dvec[0] >  ball->expx) dvec[0] -= ball->expx;
 			else if (dvec[0] < -ball->expx) dvec[0] += ball->expx;
@@ -686,9 +671,27 @@ static float densfunc(MetaElem *ball, float x, float y, float z)
 			else if (dvec[2] < -ball->expz) dvec[2] += ball->expz;
 			else                            dvec[2] = 0.0;
 			break;
+
+		/* *** deprecated, could be removed?, do-versioned at least *** */
+		case MB_TUBEX:
+			if      (dvec[0] >  ball->len) dvec[0] -= ball->len;
+			else if (dvec[0] < -ball->len) dvec[0] += ball->len;
+			else                           dvec[0] = 0.0;
+			break;
+		case MB_TUBEY:
+			if      (dvec[1] >  ball->len) dvec[1] -= ball->len;
+			else if (dvec[1] < -ball->len) dvec[1] += ball->len;
+			else                           dvec[1] = 0.0;
+			break;
+		case MB_TUBEZ:
+			if      (dvec[2] >  ball->len) dvec[2] -= ball->len;
+			else if (dvec[2] < -ball->len) dvec[2] += ball->len;
+			else                           dvec[2] = 0.0;
+			break;
+		/* *** end deprecated *** */
 	}
 
-	dist2 = 1.0f - (len_v3(dvec) / ball->rad2);
+	dist2 = 1.0f - (len_squared_v3(dvec) / ball->rad2);
 
 	if ((ball->flag & MB_NEGATIVE) == 0) {
 		return (dist2 < 0.0f) ? -0.5f : (ball->s * dist2 * dist2 * dist2) - 0.5f;
@@ -729,7 +732,7 @@ static octal_node *find_metaball_octal_node(octal_node *node, float x, float y, 
 					return find_metaball_octal_node(node->nodes[2], x, y, z, depth--);
 				else
 					return node;
-			}		
+			}
 		}
 	}
 	else {
@@ -759,7 +762,7 @@ static octal_node *find_metaball_octal_node(octal_node *node, float x, float y, 
 					return find_metaball_octal_node(node->nodes[6], x, y, z, depth--);
 				else
 					return node;
-			}		
+			}
 		}
 	}
 	
@@ -858,7 +861,7 @@ static void *new_pgn_element(int size)
 		}
 		BLI_freelistN(&lb);
 		
-		return NULL;	
+		return NULL;
 	}
 	
 	size = 4 * ( (size + 3) / 4);
@@ -1625,7 +1628,7 @@ static void polygonize(PROCESS *mbproc, MetaBall *mb)
 	for (a = 0; a < G_mb.totelem; a++) {
 
 		/* try to find 8 points on the surface for each MetaElem */
-		find_first_points(mbproc, mb, a);	
+		find_first_points(mbproc, mb, a);
 	}
 
 	/* polygonize all MetaElems of current MetaBall */
@@ -2035,7 +2038,7 @@ static void subdivide_metaball_octal_node(octal_node *node, float size_x, float 
 						
 					}
 			
-					/* ml belongs to the (4)5th node too */	
+					/* ml belongs to the (4)5th node too */
 					if (ml->bb->vec[6][2] >= z) {
 						fill_metaball_octal_node(node, ml, 4);
 					}
@@ -2223,7 +2226,7 @@ static void init_metaball_octal_tree(int depth)
 		}
 	}
 
-	/* size of first node */	
+	/* size of first node */
 	size[0] = node->x_max - node->x_min;
 	size[1] = node->y_max - node->y_min;
 	size[2] = node->z_max - node->z_min;

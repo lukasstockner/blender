@@ -65,6 +65,7 @@
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_unit.h"
+#include "BKE_mask.h"
 
 #include "ED_image.h"
 #include "ED_keyframing.h"
@@ -126,11 +127,11 @@ static void convertViewVec2D(View2D *v2d, float r_vec[3], int dx, int dy)
 {
 	float divx, divy;
 	
-	divx = BLI_RCT_SIZE_X(&v2d->mask);
-	divy = BLI_RCT_SIZE_Y(&v2d->mask);
+	divx = BLI_rcti_size_x(&v2d->mask);
+	divy = BLI_rcti_size_y(&v2d->mask);
 
-	r_vec[0] = BLI_RCT_SIZE_X(&v2d->cur) * dx / divx;
-	r_vec[1] = BLI_RCT_SIZE_Y(&v2d->cur) * dy / divy;
+	r_vec[0] = BLI_rctf_size_x(&v2d->cur) * dx / divx;
+	r_vec[1] = BLI_rctf_size_y(&v2d->cur) * dy / divy;
 	r_vec[2] = 0.0f;
 }
 
@@ -139,11 +140,11 @@ static void convertViewVec2D_mask(View2D *v2d, float r_vec[3], int dx, int dy)
 	float divx, divy;
 	float mulx, muly;
 
-	divx = BLI_RCT_SIZE_X(&v2d->mask);
-	divy = BLI_RCT_SIZE_Y(&v2d->mask);
+	divx = BLI_rcti_size_x(&v2d->mask);
+	divy = BLI_rcti_size_y(&v2d->mask);
 
-	mulx = BLI_RCT_SIZE_X(&v2d->cur);
-	muly = BLI_RCT_SIZE_Y(&v2d->cur);
+	mulx = BLI_rctf_size_x(&v2d->cur);
+	muly = BLI_rctf_size_y(&v2d->cur);
 
 	/* difference with convertViewVec2D */
 	/* clamp w/h, mask only */
@@ -165,9 +166,7 @@ static void convertViewVec2D_mask(View2D *v2d, float r_vec[3], int dx, int dy)
 void convertViewVec(TransInfo *t, float r_vec[3], int dx, int dy)
 {
 	if ((t->spacetype == SPACE_VIEW3D) && (t->ar->regiontype == RGN_TYPE_WINDOW)) {
-		float mval_f[2];
-		mval_f[0] = dx;
-		mval_f[1] = dy;
+		const float mval_f[2] = {(float)dx, (float)dy};
 		ED_view3d_win_to_delta(t->ar, mval_f, r_vec);
 	}
 	else if (t->spacetype == SPACE_IMAGE) {
@@ -228,12 +227,30 @@ void projectIntView(TransInfo *t, const float vec[3], int adr[2])
 {
 	if (t->spacetype == SPACE_VIEW3D) {
 		if (t->ar->regiontype == RGN_TYPE_WINDOW)
-			project_int_noclip(t->ar, vec, adr);
+			ED_view3d_project_int_noclip(t->ar, vec, adr);
 	}
 	else if (t->spacetype == SPACE_IMAGE) {
+		SpaceImage *sima = t->sa->spacedata.first;
+
 		if (t->options & CTX_MASK) {
+			/* not working quite right, TODO (see below too) */
+			float aspx, aspy;
 			float v[2];
-			ED_mask_point_pos__reverse(t->sa, t->ar, vec[0], vec[1], &v[0], &v[1]);
+
+			ED_space_image_get_aspect(sima, &aspx, &aspy);
+
+			copy_v2_v2(v, vec);
+
+			v[0] = v[0] / aspx;
+			v[1] = v[1] / aspy;
+
+			BKE_mask_coord_to_image(sima->image, &sima->iuser, v, v);
+
+			v[0] = v[0] / aspx;
+			v[1] = v[1] / aspy;
+
+			ED_image_point_pos__reverse(sima, t->ar, v, v);
+
 			adr[0] = v[0];
 			adr[1] = v[1];
 		}
@@ -281,23 +298,41 @@ void projectIntView(TransInfo *t, const float vec[3], int adr[2])
 		adr[1] = out[1];
 	}
 	else if (t->spacetype == SPACE_CLIP) {
-		float v[2];
-		float aspx = 1.0f, aspy = 1.0f;
+		SpaceClip *sc = t->sa->spacedata.first;
 
-		copy_v2_v2(v, vec);
+		if (t->options & CTX_MASK) {
+			/* not working quite right, TODO (see above too) */
+			float aspx, aspy;
+			float v[2];
 
-		if (t->options & CTX_MOVIECLIP) {
+			ED_space_clip_get_aspect(sc, &aspx, &aspy);
+
+			copy_v2_v2(v, vec);
+
+			v[0] = v[0] / aspx;
+			v[1] = v[1] / aspy;
+
+			BKE_mask_coord_to_movieclip(sc->clip, &sc->user, v, v);
+
+			v[0] = v[0] / aspx;
+			v[1] = v[1] / aspy;
+
+			ED_clip_point_stable_pos__reverse(sc, t->ar, v, v);
+
+			adr[0] = v[0];
+			adr[1] = v[1];
+		}
+		else if (t->options & CTX_MOVIECLIP) {
+			float v[2], aspx, aspy;
+
+			copy_v2_v2(v, vec);
 			ED_space_clip_get_aspect_dimension_aware(t->sa->spacedata.first, &aspx, &aspy);
-		}
-		else if (t->options & CTX_MASK) {
-			/* MASKTODO - not working as expected */
-			ED_space_clip_get_aspect(t->sa->spacedata.first, &aspx, &aspy);
-		}
 
-		v[0] /= aspx;
-		v[1] /= aspy;
+			v[0] /= aspx;
+			v[1] /= aspy;
 
-		UI_view2d_to_region_no_clip(t->view, v[0], v[1], adr, adr + 1);
+			UI_view2d_to_region_no_clip(t->view, v[0], v[1], adr, adr + 1);
+		}
 	}
 	else if (t->spacetype == SPACE_NODE) {
 		UI_view2d_to_region_no_clip((View2D *)t->view, vec[0], vec[1], adr, adr + 1);
@@ -310,7 +345,7 @@ void projectFloatView(TransInfo *t, const float vec[3], float adr[2])
 		case SPACE_VIEW3D:
 		{
 			if (t->ar->regiontype == RGN_TYPE_WINDOW) {
-				project_float_noclip(t->ar, vec, adr);
+				ED_view3d_project_float_noclip(t->ar, vec, adr);
 				return;
 			}
 			break;
@@ -2164,7 +2199,6 @@ static void constraintTransLim(TransInfo *t, TransData *td)
 		for (con = td->con; con; con = con->next) {
 			bConstraintTypeInfo *cti = NULL;
 			ListBase targets = {NULL, NULL};
-			float tmat[4][4];
 			
 			/* only consider constraint if enabled */
 			if (con->flag & CONSTRAINT_DISABLE) continue;
@@ -2190,8 +2224,7 @@ static void constraintTransLim(TransInfo *t, TransData *td)
 				/* do space conversions */
 				if (con->ownspace == CONSTRAINT_SPACE_WORLD) {
 					/* just multiply by td->mtx (this should be ok) */
-					copy_m4_m4(tmat, cob.matrix);
-					mul_m4_m3m4(cob.matrix, td->mtx, tmat);
+					mul_m4_m3m4(cob.matrix, td->mtx, cob.matrix);
 				}
 				else if (con->ownspace != CONSTRAINT_SPACE_LOCAL) {
 					/* skip... incompatable spacetype */
@@ -2206,9 +2239,8 @@ static void constraintTransLim(TransInfo *t, TransData *td)
 				
 				/* convert spaces again */
 				if (con->ownspace == CONSTRAINT_SPACE_WORLD) {
-					/* just multiply by td->mtx (this should be ok) */
-					copy_m4_m4(tmat, cob.matrix);
-					mul_m4_m3m4(cob.matrix, td->smtx, tmat);
+					/* just multiply by td->smtx (this should be ok) */
+					mul_m4_m3m4(cob.matrix, td->smtx, cob.matrix);
 				}
 				
 				/* free targets list */
@@ -2256,18 +2288,17 @@ static void constraintRotLim(TransInfo *UNUSED(t), TransData *td)
 		bConstraintOb cob;
 		bConstraint *con;
 		int do_limit = FALSE;
-		
+
 		/* Evaluate valid constraints */
 		for (con = td->con; con; con = con->next) {
 			/* only consider constraint if enabled */
 			if (con->flag & CONSTRAINT_DISABLE) continue;
 			if (con->enforce == 0.0f) continue;
-			
+
 			/* we're only interested in Limit-Rotation constraints */
 			if (con->type == CONSTRAINT_TYPE_ROTLIMIT) {
 				bRotLimitConstraint *data = con->data;
-				float tmat[4][4];
-				
+
 				/* only use it if it's tagged for this purpose */
 				if ((data->flag2 & LIMIT_TRANSFORM) == 0)
 					continue;
@@ -2281,12 +2312,11 @@ static void constraintRotLim(TransInfo *UNUSED(t), TransData *td)
 					constraintob_from_transdata(&cob, td);
 					do_limit = TRUE;
 				}
-				
+
 				/* do space conversions */
 				if (con->ownspace == CONSTRAINT_SPACE_WORLD) {
 					/* just multiply by td->mtx (this should be ok) */
-					copy_m4_m4(tmat, cob.matrix);
-					mul_m4_m3m4(cob.matrix, td->mtx, tmat);
+					mul_m4_m3m4(cob.matrix, td->mtx, cob.matrix);
 				}
 				
 				/* do constraint */
@@ -2294,9 +2324,8 @@ static void constraintRotLim(TransInfo *UNUSED(t), TransData *td)
 				
 				/* convert spaces again */
 				if (con->ownspace == CONSTRAINT_SPACE_WORLD) {
-					/* just multiply by td->mtx (this should be ok) */
-					copy_m4_m4(tmat, cob.matrix);
-					mul_m4_m3m4(cob.matrix, td->smtx, tmat);
+					/* just multiply by td->smtx (this should be ok) */
+					mul_m4_m3m4(cob.matrix, td->smtx, cob.matrix);
 				}
 			}
 		}
@@ -2351,7 +2380,6 @@ static void constraintSizeLim(TransInfo *t, TransData *td)
 			/* we're only interested in Limit-Scale constraints */
 			if (con->type == CONSTRAINT_TYPE_SIZELIMIT) {
 				bSizeLimitConstraint *data = con->data;
-				float tmat[4][4];
 				
 				/* only use it if it's tagged for this purpose */
 				if ((data->flag2 & LIMIT_TRANSFORM) == 0)
@@ -2360,11 +2388,10 @@ static void constraintSizeLim(TransInfo *t, TransData *td)
 				/* do space conversions */
 				if (con->ownspace == CONSTRAINT_SPACE_WORLD) {
 					/* just multiply by td->mtx (this should be ok) */
-					copy_m4_m4(tmat, cob.matrix);
-					mul_m4_m3m4(cob.matrix, td->mtx, tmat);
+					mul_m4_m3m4(cob.matrix, td->mtx, cob.matrix);
 				}
 				else if (con->ownspace != CONSTRAINT_SPACE_LOCAL) {
-					/* skip... incompatable spacetype */
+					/* skip... incompatible spacetype */
 					continue;
 				}
 				
@@ -2373,13 +2400,12 @@ static void constraintSizeLim(TransInfo *t, TransData *td)
 				
 				/* convert spaces again */
 				if (con->ownspace == CONSTRAINT_SPACE_WORLD) {
-					/* just multiply by td->mtx (this should be ok) */
-					copy_m4_m4(tmat, cob.matrix);
-					mul_m4_m3m4(cob.matrix, td->smtx, tmat);
+					/* just multiply by td->smtx (this should be ok) */
+					mul_m4_m3m4(cob.matrix, td->smtx, cob.matrix);
 				}
 			}
 		}
-		
+
 		/* copy results from cob->matrix */
 		if ((td->flag & TD_SINGLESIZE) && !(t->con.mode & CON_APPLY)) {
 			/* scale val and reset size */
@@ -2389,7 +2415,7 @@ static void constraintSizeLim(TransInfo *t, TransData *td)
 			/* Reset val if SINGLESIZE but using a constraint */
 			if (td->flag & TD_SINGLESIZE)
 				return;
-			
+
 			mat4_to_size(td->ext->size, cob.matrix);
 		}
 	}
@@ -2821,11 +2847,11 @@ static void ElementResize(TransInfo *t, TransData *td, float mat[3][3])
 		
 		if (t->flag & (T_OBJECT | T_TEXTURE | T_POSE)) {
 			float obsizemat[3][3];
-			// Reorient the size mat to fit the oriented object.
+			/* Reorient the size mat to fit the oriented object. */
 			mul_m3_m3m3(obsizemat, tmat, td->axismtx);
-			//print_m3("obsizemat", obsizemat);
+			/* print_m3("obsizemat", obsizemat); */
 			TransMat3ToSize(obsizemat, td->axismtx, fsize);
-			//print_v3("fsize", fsize);
+			/* print_v3("fsize", fsize); */
 		}
 		else {
 			mat3_to_size(fsize, tmat);
@@ -2833,7 +2859,7 @@ static void ElementResize(TransInfo *t, TransData *td, float mat[3][3])
 		
 		protectedSizeBits(td->protectflag, fsize);
 		
-		if ((t->flag & T_V3D_ALIGN) == 0) {   // align mode doesn't resize objects itself
+		if ((t->flag & T_V3D_ALIGN) == 0) {   /* align mode doesn't resize objects itself */
 			if ((td->flag & TD_SINGLESIZE) && !(t->con.mode & CON_APPLY)) {
 				/* scale val and reset size */
 				*td->val = td->ival * (1 + (fsize[0] - 1) * td->factor);
@@ -4069,9 +4095,9 @@ void initMaskShrinkFatten(TransInfo *t)
 
 int MaskShrinkFatten(TransInfo *t, const int UNUSED(mval[2]))
 {
-	TransData *td = t->data;
+	TransData *td;
 	float ratio;
-	int i;
+	int i, initial_feather = FALSE;
 	char str[50];
 
 	ratio = t->values[0];
@@ -4085,13 +4111,30 @@ int MaskShrinkFatten(TransInfo *t, const int UNUSED(mval[2]))
 		char c[NUM_STR_REP_LEN];
 
 		outputNumInput(&(t->num), c);
-		sprintf(str, "Shrink/Fatten: %s", c);
+		sprintf(str, "Feather Shrink/Fatten: %s", c);
 	}
 	else {
-		sprintf(str, "Shrink/Fatten: %3f", ratio);
+		sprintf(str, "Feather Shrink/Fatten: %3f", ratio);
 	}
 
-	for (i = 0; i < t->total; i++, td++) {
+	/* detect if no points have feather yet */
+	if (ratio > 1.0f) {
+		initial_feather = TRUE;
+
+		for (td = t->data, i = 0; i < t->total; i++, td++) {
+			if (td->flag & TD_NOACTION)
+				break;
+
+			if (td->flag & TD_SKIP)
+				continue;
+
+			if (td->ival >= 0.001f)
+				initial_feather = FALSE;
+		}
+	}
+
+	/* apply shrink/fatten */
+	for (td = t->data, i = 0; i < t->total; i++, td++) {
 		if (td->flag & TD_NOACTION)
 			break;
 
@@ -4099,7 +4142,11 @@ int MaskShrinkFatten(TransInfo *t, const int UNUSED(mval[2]))
 			continue;
 
 		if (td->val) {
-			*td->val = td->ival * ratio;
+			if (initial_feather)
+				*td->val = td->ival + (ratio - 1.0f) * 0.01f;
+			else
+				*td->val = td->ival * ratio;
+
 			/* apply PET */
 			*td->val = (*td->val * td->factor) + ((1.0f - td->factor) * td->ival);
 			if (*td->val <= 0.0f) *td->val = 0.001f;
@@ -4743,7 +4790,7 @@ static void calcNonProportionalEdgeSlide(TransInfo *t, SlideData *sld, const flo
 			sv->edge_len = len_v3v3(dw_p, up_p);
 
 			mul_v3_m4v3(v_proj, t->obedit->obmat, sv->v->co);
-			project_float_noclip(t->ar, v_proj, v_proj);
+			ED_view3d_project_float_noclip(t->ar, v_proj, v_proj);
 
 			dist = len_squared_v2v2(mval, v_proj);
 			if (dist < min_dist) {
@@ -4759,8 +4806,7 @@ static void calcNonProportionalEdgeSlide(TransInfo *t, SlideData *sld, const flo
 
 static int createSlideVerts(TransInfo *t)
 {
-	Mesh *me = t->obedit->data;
-	BMEditMesh *em = me->edit_btmesh;
+	BMEditMesh *em = BMEdit_FromObject(t->obedit);
 	BMesh *bm = em->bm;
 	BMIter iter, iter2;
 	BMEdge *e, *e1;
@@ -4981,8 +5027,8 @@ static int createSlideVerts(TransInfo *t)
 	zero_v3(dir);
 	maxdist = -1.0f;
 
-	loop_dir = MEM_callocN(sizeof(float)*3*loop_nr, "sv loop_dir");
-	loop_maxdist = MEM_callocN(sizeof(float)*loop_nr, "sv loop_maxdist");
+	loop_dir = MEM_callocN(sizeof(float) * 3 * loop_nr, "sv loop_dir");
+	loop_maxdist = MEM_callocN(sizeof(float) * loop_nr, "sv loop_maxdist");
 	for (j = 0; j < loop_nr; j++)
 		loop_maxdist[j] = -1.0f;
 
@@ -5010,19 +5056,19 @@ static int createSlideVerts(TransInfo *t)
 					j = GET_INT_FROM_POINTER(BLI_smallhash_lookup(&table, (uintptr_t)v));
 
 					if (sv_array[j].down) {
-						ED_view3d_project_float_v3(ar, sv_array[j].down->co, vec1, projectMat);
+						ED_view3d_project_float_v3_m4(ar, sv_array[j].down->co, vec1, projectMat);
 					}
 					else {
 						add_v3_v3v3(vec1, v->co, sv_array[j].downvec);
-						ED_view3d_project_float_v3(ar, vec1, vec1, projectMat);
+						ED_view3d_project_float_v3_m4(ar, vec1, vec1, projectMat);
 					}
 					
 					if (sv_array[j].up) {
-						ED_view3d_project_float_v3(ar, sv_array[j].up->co, vec2, projectMat);
+						ED_view3d_project_float_v3_m4(ar, sv_array[j].up->co, vec2, projectMat);
 					}
 					else {
 						add_v3_v3v3(vec2, v->co, sv_array[j].upvec);
-						ED_view3d_project_float_v3(ar, vec2, vec2, projectMat);
+						ED_view3d_project_float_v3_m4(ar, vec2, vec2, projectMat);
 					}
 					
 					/* global direction */
@@ -5369,7 +5415,8 @@ int handleEventEdgeSlide(struct TransInfo *t, struct wmEvent *event)
 						return 1;
 					}
 					break;
-				case FKEY: {
+				case FKEY:
+				{
 					if (event->val == KM_PRESS) {
 						if (sld->is_proportional == FALSE) {
 							sld->flipped_vtx = !sld->flipped_vtx;
@@ -5378,13 +5425,16 @@ int handleEventEdgeSlide(struct TransInfo *t, struct wmEvent *event)
 					}
 					break;
 				}
-				case EVT_MODAL_MAP: {
+				case EVT_MODAL_MAP:
+				{
 					switch (event->val) {
-						case TFM_MODAL_EDGESLIDE_DOWN: {
+						case TFM_MODAL_EDGESLIDE_DOWN:
+						{
 							sld->curr_sv_index = ((sld->curr_sv_index - 1) + sld->totsv) % sld->totsv;
 							break;
 						}
-						case TFM_MODAL_EDGESLIDE_UP: {
+						case TFM_MODAL_EDGESLIDE_UP:
+						{
 							sld->curr_sv_index = (sld->curr_sv_index + 1) % sld->totsv;
 							break;
 						}

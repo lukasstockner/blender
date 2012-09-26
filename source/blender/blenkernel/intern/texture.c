@@ -56,7 +56,6 @@
 
 #include "IMB_imbuf.h"
 
-#include "BKE_utildefines.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_ocean.h"
@@ -339,7 +338,7 @@ void colorband_table_RGBA(ColorBand *coba, float **array, int *size)
 		do_colorband(coba, (float)a / (float)CM_TABLE, &(*array)[a * 4]);
 }
 
-int vergcband(const void *a1, const void *a2)
+static int vergcband(const void *a1, const void *a2)
 {
 	const CBData *x1 = a1, *x2 = a2;
 

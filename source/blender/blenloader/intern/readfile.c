@@ -100,6 +100,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
+#include "BLI_endian_switch.h"
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_edgehash.h"
@@ -132,7 +133,7 @@
 #include "BKE_paint.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
-#include "BKE_property.h" // for get_ob_property
+#include "BKE_property.h" // for BKE_bproperty_object_get
 #include "BKE_report.h"
 #include "BKE_sca.h" // for init_actuator
 #include "BKE_scene.h"
@@ -140,7 +141,6 @@
 #include "BKE_sequencer.h"
 #include "BKE_text.h" // for txt_extended_ascii_as_utf8
 #include "BKE_tracking.h"
-#include "BKE_utildefines.h" // SWITCH_INT DATA ENDB DNA1 O_BINARY GLOB USER TEST REND
 #include "BKE_sound.h"
 #include "BKE_texture.h"
 
@@ -150,6 +150,7 @@
 
 #include "BLO_readfile.h"
 #include "BLO_undofile.h"
+#include "BLO_blend_defs.h"
 
 #include "RE_engine.h"
 
@@ -222,16 +223,6 @@
 /* from misc_util: flip the bytes from x  */
 /*  #define GS(x) (((unsigned char *)(x))[0] << 8 | ((unsigned char *)(x))[1]) */
 
-// only used here in readfile.c
-#define SWITCH_LONGINT(a) { \
-	char s_i, *p_i; \
-	p_i= (char *)&(a);  \
-	s_i=p_i[0]; p_i[0]=p_i[7]; p_i[7]=s_i; \
-	s_i=p_i[1]; p_i[1]=p_i[6]; p_i[6]=s_i; \
-	s_i=p_i[2]; p_i[2]=p_i[5]; p_i[5]=s_i; \
-	s_i=p_i[3]; p_i[3]=p_i[4]; p_i[4]=s_i; \
-} (void)0
-
 /***/
 
 typedef struct OldNew {
@@ -258,6 +249,12 @@ static void convert_tface_mt(FileData *fd, Main *main);
  * bit kludge but better then doubling up on prints,
  * we could alternatively have a versions of a report function which forces printing - campbell
  */
+
+static void BKE_reportf_wrap(ReportList *reports, ReportType type, const char *format, ...)
+#ifdef __GNUC__
+__attribute__ ((format(printf, 3, 4)))
+#endif
+;
 static void BKE_reportf_wrap(ReportList *reports, ReportType type, const char *format, ...)
 {
 	char fixed_buf[1024]; /* should be long enough */
@@ -578,9 +575,9 @@ static void switch_endian_bh4(BHead4 *bhead)
 	if ((bhead->code & 0xFFFF)==0) bhead->code >>= 16;
 	
 	if (bhead->code != ENDB) {
-		SWITCH_INT(bhead->len);
-		SWITCH_INT(bhead->SDNAnr);
-		SWITCH_INT(bhead->nr);
+		BLI_endian_switch_int32(&bhead->len);
+		BLI_endian_switch_int32(&bhead->SDNAnr);
+		BLI_endian_switch_int32(&bhead->nr);
 	}
 }
 
@@ -590,20 +587,16 @@ static void switch_endian_bh8(BHead8 *bhead)
 	if ((bhead->code & 0xFFFF)==0) bhead->code >>= 16;
 	
 	if (bhead->code != ENDB) {
-		SWITCH_INT(bhead->len);
-		SWITCH_INT(bhead->SDNAnr);
-		SWITCH_INT(bhead->nr);
+		BLI_endian_switch_int32(&bhead->len);
+		BLI_endian_switch_int32(&bhead->SDNAnr);
+		BLI_endian_switch_int32(&bhead->nr);
 	}
 }
 
 static void bh4_from_bh8(BHead *bhead, BHead8 *bhead8, int do_endian_swap)
 {
 	BHead4 *bhead4 = (BHead4 *) bhead;
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-	__int64 old;
-#else
-	long long old;
-#endif
+	int64_t old;
 
 	bhead4->code = bhead8->code;
 	bhead4->len = bhead8->len;
@@ -613,7 +606,7 @@ static void bh4_from_bh8(BHead *bhead, BHead8 *bhead8, int do_endian_swap)
 		 * 0x0000000000000000000012345678 would become 0x12345678000000000000000000000000
 		 */
 		if (do_endian_swap) {
-			SWITCH_LONGINT(bhead8->old);
+			BLI_endian_switch_int64(&bhead8->old);
 		}
 		
 		/* this patch is to avoid a long long being read from not-eight aligned positions
@@ -1477,11 +1470,7 @@ static void link_glob_list(FileData *fd, ListBase *lb)		/* for glob data */
 
 static void test_pointer_array(FileData *fd, void **mat)
 {
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-	__int64 *lpoin, *lmat;
-#else
-	long long *lpoin, *lmat;
-#endif
+	int64_t *lpoin, *lmat;
 	int *ipoin, *imat;
 	size_t len;
 
@@ -1498,7 +1487,7 @@ static void test_pointer_array(FileData *fd, void **mat)
 			
 			while (len-- > 0) {
 				if ((fd->flags & FD_FLAGS_SWITCH_ENDIAN))
-					SWITCH_LONGINT(*lpoin);
+					BLI_endian_switch_int64(lpoin);
 				*ipoin = (int)((*lpoin) >> 3);
 				ipoin++;
 				lpoin++;
@@ -1568,16 +1557,13 @@ static void IDP_DirectLinkArray(IDProperty *prop, int switch_endian, FileData *f
 	}
 	else if (prop->subtype == IDP_DOUBLE) {
 		if (switch_endian) {
-			for (i = 0; i < prop->len; i++) {
-				SWITCH_LONGINT(((double *)prop->data.pointer)[i]);
-			}
+			BLI_endian_switch_double_array(prop->data.pointer, prop->len);
 		}
 	}
 	else {
 		if (switch_endian) {
-			for (i = 0; i < prop->len; i++) {
-				SWITCH_INT(((int *)prop->data.pointer)[i]);
-			}
+			/* also used for floats */
+			BLI_endian_switch_int32_array(prop->data.pointer, prop->len);
 		}
 	}
 }
@@ -1629,9 +1615,9 @@ static void IDP_DirectLinkProperty(IDProperty *prop, int switch_endian, FileData
 			 */
 			
 			if (switch_endian) {
-				SWITCH_INT(prop->data.val);
-				SWITCH_INT(prop->data.val2);
-				SWITCH_LONGINT(prop->data.val);
+				BLI_endian_switch_int32(&prop->data.val);
+				BLI_endian_switch_int32(&prop->data.val2);
+				BLI_endian_switch_int64((int64_t *)&prop->data.val);
 			}
 			
 			break;
@@ -1873,9 +1859,7 @@ static void direct_link_fmodifiers(FileData *fd, ListBase *list)
 				data->coefficients = newdataadr(fd, data->coefficients);
 				
 				if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
-					unsigned int a;
-					for (a = 0; a < data->arraysize; a++)
-						SWITCH_INT(data->coefficients[a]);
+					BLI_endian_switch_float_array(data->coefficients, data->arraysize);
 				}
 			}
 				break;
@@ -2735,6 +2719,16 @@ static void direct_link_lamp(FileData *fd, Lamp *la)
 
 /* ************ READ keys ***************** */
 
+static void do_versions_key_uidgen(Key *key)
+{
+	KeyBlock *block;
+
+	key->uidgen = 1;
+	for (block = key->block.first; block; block = block->next) {
+		block->uid = key->uidgen++;
+	}
+}
+
 static void lib_link_key(FileData *fd, Main *main)
 {
 	Key *key;
@@ -2742,12 +2736,7 @@ static void lib_link_key(FileData *fd, Main *main)
 	for (key = main->key.first; key; key = key->id.next) {
 		/*check if we need to generate unique ids for the shapekeys*/
 		if (!key->uidgen) {
-			KeyBlock *block;
-			
-			key->uidgen = 1;
-			for (block=key->block.first; block; block=block->next) {
-				block->uid = key->uidgen++;
-			}
+			do_versions_key_uidgen(key);
 		}
 		
 		if (key->id.flag & LIB_NEED_LINK) {
@@ -2779,11 +2768,8 @@ static void switch_endian_keyblock(Key *key, KeyBlock *kb)
 				case IPO_BPOINT:
 				case IPO_BEZTRIPLE:
 					b = cp[0];
-					
-					while (b--) {
-						SWITCH_INT((*poin));
-						poin += 4;
-					}
+					BLI_endian_switch_float_array((float *)poin, b);
+					poin += sizeof(float) * b;
 					break;
 			}
 			
@@ -3074,19 +3060,11 @@ static void lib_link_curve(FileData *fd, Main *main)
 
 static void switch_endian_knots(Nurb *nu)
 {
-	int len;
-	
 	if (nu->knotsu) {
-		len = KNOTSU(nu);
-		while (len--) {
-			SWITCH_INT(nu->knotsu[len]);
-		}
+		BLI_endian_switch_float_array(nu->knotsu, KNOTSU(nu));
 	}
 	if (nu->knotsv) {
-		len = KNOTSV(nu);
-		while (len--) {
-			SWITCH_INT(nu->knotsv[len]);
-		}
+		BLI_endian_switch_float_array(nu->knotsv, KNOTSV(nu));
 	}
 }
 
@@ -3304,11 +3282,10 @@ static void direct_link_pointcache(FileData *fd, PointCache *cache)
 				
 				/* the cache saves non-struct data without DNA */
 				if (pm->data[i] && ptcache_data_struct[i][0]=='\0' && (fd->flags & FD_FLAGS_SWITCH_ENDIAN)) {
-					int j, tot = (BKE_ptcache_data_size (i) * pm->totpoint)/4; /* data_size returns bytes */
+					int tot = (BKE_ptcache_data_size (i) * pm->totpoint) / sizeof(int); /* data_size returns bytes */
 					int *poin = pm->data[i];
 					
-					for (j = 0; j < tot; j++)
-						SWITCH_INT(poin[j]);
+					BLI_endian_switch_int32_array(poin, tot);
 				}
 			}
 			
@@ -3777,12 +3754,7 @@ static void direct_link_mdisps(FileData *fd, int count, MDisps *mdisps, int exte
 			if ((fd->flags & FD_FLAGS_SWITCH_ENDIAN) && (mdisps[i].disps)) {
 				/* DNA_struct_switch_endian doesn't do endian swap for (*disps)[] */
 				/* this does swap for data written at write_mdisps() - readfile.c */
-				int x;
-				float *tmpdisps = *mdisps[i].disps;
-				for (x = 0; x < mdisps[i].totdisp * 3; x++) {
-					SWITCH_INT(*tmpdisps);
-					tmpdisps++;
-				}
+				BLI_endian_switch_float_array(*mdisps[i].disps, mdisps[i].totdisp * 3);
 			}
 			if (!external && !mdisps[i].disps)
 				mdisps[i].totdisp = 0;
@@ -3851,7 +3823,6 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 	mesh->tface = newdataadr(fd, mesh->tface);
 	mesh->mtface = newdataadr(fd, mesh->mtface);
 	mesh->mcol = newdataadr(fd, mesh->mcol);
-	mesh->msticky = newdataadr(fd, mesh->msticky);
 	mesh->dvert = newdataadr(fd, mesh->dvert);
 	mesh->mloopcol = newdataadr(fd, mesh->mloopcol);
 	mesh->mloopuv = newdataadr(fd, mesh->mloopuv);
@@ -3952,11 +3923,8 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 		TFace *tf = mesh->tface;
 		int i;
 		
-		for (i = 0; i < (mesh->totface); i++, tf++) {
-			SWITCH_INT(tf->col[0]);
-			SWITCH_INT(tf->col[1]);
-			SWITCH_INT(tf->col[2]);
-			SWITCH_INT(tf->col[3]);
+		for (i = 0; i < mesh->totface; i++, tf++) {
+			BLI_endian_switch_uint32_array(tf->col, 4);
 		}
 	}
 }
@@ -4482,10 +4450,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			
 			hmd->indexar = newdataadr(fd, hmd->indexar);
 			if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
-				int a;
-				for (a = 0; a < hmd->totindex; a++) {
-					SWITCH_INT(hmd->indexar[a]);
-				}
+				BLI_endian_switch_int32_array(hmd->indexar, hmd->totindex);
 			}
 		}
 		else if (md->type == eModifierType_ParticleSystem) {
@@ -4515,24 +4480,11 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			mmd->bindcos = newdataadr(fd, mmd->bindcos);
 			
 			if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
-				int a;
-				
-				if (mmd->bindoffsets)
-					for (a=0; a<mmd->totvert+1; a++)
-						SWITCH_INT(mmd->bindoffsets[a]);
-				if (mmd->bindcagecos)
-					for (a=0; a<mmd->totcagevert*3; a++)
-						SWITCH_INT(mmd->bindcagecos[a]);
-				if (mmd->dynverts)
-					for (a=0; a<mmd->totvert; a++)
-						SWITCH_INT(mmd->dynverts[a]);
-				
-				if (mmd->bindweights)
-					for (a=0; a<mmd->totcagevert*mmd->totvert; a++)
-						SWITCH_INT(mmd->bindweights[a]);
-				if (mmd->bindcos)
-					for (a=0; a<mmd->totcagevert*3; a++)
-						SWITCH_INT(mmd->bindcos[a]);
+				if (mmd->bindoffsets)  BLI_endian_switch_int32_array(mmd->bindoffsets, mmd->totvert + 1);
+				if (mmd->bindcagecos)  BLI_endian_switch_float_array(mmd->bindcagecos, mmd->totcagevert * 3);
+				if (mmd->dynverts)     BLI_endian_switch_int32_array(mmd->dynverts, mmd->totvert);
+				if (mmd->bindweights)  BLI_endian_switch_float_array(mmd->bindweights, mmd->totvert);
+				if (mmd->bindcos)      BLI_endian_switch_float_array(mmd->bindcos, mmd->totcagevert * 3);
 			}
 		}
 		else if (md->type == eModifierType_Ocean) {
@@ -4726,10 +4678,7 @@ static void direct_link_object(FileData *fd, Object *ob)
 		
 		hook->indexar= newdataadr(fd, hook->indexar);
 		if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
-			int a;
-			for (a = 0; a < hook->totindex; a++) {
-				SWITCH_INT(hook->indexar[a]);
-			}
+			BLI_endian_switch_int32_array(hook->indexar, hook->totindex);
 		}
 		
 		/* Do conversion here because if we have loaded
@@ -4963,6 +4912,14 @@ static void direct_link_sequence_modifiers(FileData *fd, ListBase *lb)
 	}
 }
 
+static void direct_link_view_settings(FileData *fd, ColorManagedViewSettings *view_settings)
+{
+	view_settings->curve_mapping = newdataadr(fd, view_settings->curve_mapping);
+
+	if (view_settings->curve_mapping)
+		direct_link_curvemapping(fd, view_settings->curve_mapping);
+}
+
 static void direct_link_scene(FileData *fd, Scene *sce)
 {
 	Editing *ed;
@@ -5018,7 +4975,6 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 			seq->seq1= newdataadr(fd, seq->seq1);
 			seq->seq2= newdataadr(fd, seq->seq2);
 			seq->seq3= newdataadr(fd, seq->seq3);
-			seq->mask_sequence= newdataadr(fd, seq->mask_sequence);
 			/* a patch: after introduction of effects with 3 input strips */
 			if (seq->seq3 == NULL) seq->seq3 = seq->seq2;
 			
@@ -5064,16 +5020,9 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 				else {
 					seq->strip->proxy = NULL;
 				}
-				if (seq->flag & SEQ_USE_COLOR_BALANCE) {
-					seq->strip->color_balance = newdataadr(
-						fd, seq->strip->color_balance);
-				}
-				else {
-					seq->strip->color_balance = NULL;
-				}
-				if (seq->strip->color_balance) {
-					// seq->strip->color_balance->gui = 0; // XXX - peter, is this relevant in 2.5?
-				}
+
+				/* need to load color balance to it could be converted to modifier */
+				seq->strip->color_balance = newdataadr(fd, seq->strip->color_balance);
 			}
 
 			direct_link_sequence_modifiers(fd, &seq->modifiers);
@@ -5148,6 +5097,8 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 	sce->nodetree = newdataadr(fd, sce->nodetree);
 	if (sce->nodetree)
 		direct_link_nodetree(fd, sce->nodetree);
+
+	direct_link_view_settings(fd, &sce->view_settings);
 }
 
 /* ************ READ WM ***************** */
@@ -5361,6 +5312,13 @@ static void lib_link_screen(FileData *fd, Main *main)
 						 * so fingers crossed this works fine!
 						 */
 						sseq->gpd = newlibadr_us(fd, sc->id.lib, sseq->gpd);
+
+						sseq->scopes.reference_ibuf = NULL;
+						sseq->scopes.zebra_ibuf = NULL;
+						sseq->scopes.waveform_ibuf = NULL;
+						sseq->scopes.sep_waveform_ibuf = NULL;
+						sseq->scopes.vector_ibuf = NULL;
+						sseq->scopes.histogram_ibuf = NULL;
 					}
 					else if (sl->spacetype == SPACE_NLA) {
 						SpaceNla *snla= (SpaceNla *)sl;
@@ -5505,7 +5463,7 @@ static void lib_link_clipboard_restore(Main *newmain)
 /* called from kernel/blender.c */
 /* used to link a file (without UI) to the current UI */
 /* note that it assumes the old pointers in UI are still valid, so old Main is not freed */
-void lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *curscene)
+void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *curscene)
 {
 	wmWindow *win;
 	wmWindowManager *wm;
@@ -5813,7 +5771,6 @@ static void direct_link_screen(FileData *fd, bScreen *sc)
 	ScrArea *sa;
 	ScrVert *sv;
 	ScrEdge *se;
-	int a;
 	
 	link_list(fd, &(sc->vertbase));
 	link_list(fd, &(sc->edgebase));
@@ -5823,16 +5780,7 @@ static void direct_link_screen(FileData *fd, bScreen *sc)
 	
 	sc->mainwin = sc->subwinactive= 0;	/* indices */
 	sc->swap = 0;
-	
-	/* hacky patch... but people have been saving files with the verse-blender,
-	 * causing the handler to keep running for ever, with no means to disable it */
-	for (a = 0; a < SCREEN_MAXHANDLER; a+=2) {
-		if (sc->handler[a] == SCREEN_HANDLER_VERSE) {
-			sc->handler[a] = 0;
-			break;
-		}
-	}
-	
+
 	/* edges */
 	for (se = sc->edgebase.first; se; se = se->next) {
 		se->v1 = newdataadr(fd, se->v1);
@@ -6347,6 +6295,14 @@ static void direct_link_mask(FileData *fd, Mask *mask)
 
 		for (masklay_shape = masklay->splines_shapes.first; masklay_shape; masklay_shape = masklay_shape->next) {
 			masklay_shape->data = newdataadr(fd, masklay_shape->data);
+
+			if (masklay_shape->tot_vert) {
+				if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
+					BLI_endian_switch_float_array(masklay_shape->data,
+					                              masklay_shape->tot_vert * sizeof(float) * MASK_OBJECT_SHAPE_ELEM_SIZE);
+
+				}
+			}
 		}
 
 		masklay->act_spline = newdataadr(fd, masklay->act_spline);
@@ -6760,7 +6716,7 @@ static void do_versions_nodetree_convert_angle(bNodeTree *ntree)
 	}
 }
 
-void do_versions_image_settings_2_60(Scene *sce)
+static void do_versions_image_settings_2_60(Scene *sce)
 {
 	/* note: rd->subimtype is moved into individual settings now and no longer
 	 * exists */
@@ -7088,8 +7044,8 @@ static void do_version_ntree_mask_264(void *UNUSED(data), ID *UNUSED(id), bNodeT
 			if (node->storage == NULL) {
 				NodeMask *data = MEM_callocN(sizeof(NodeMask), __func__);
 				/* move settings into own struct */
-				data->size_x = node->custom3;
-				data->size_y = node->custom4;
+				data->size_x = (int)node->custom3;
+				data->size_y = (int)node->custom4;
 				node->custom3 = 0.5f; /* default shutter */
 				node->storage = data;
 			}
@@ -7432,7 +7388,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			
 			for (ob= main->object.first; ob; ob= ob->id.next) {
 				if (ob->type == OB_FONT) {
-					prop = get_ob_property(ob, "Text");
+					prop = BKE_bproperty_object_get(ob, "Text");
 					if (prop) {
 						BKE_reportf_wrap(fd->reports, RPT_WARNING,
 						                 "Game property name conflict in object: \"%s\".\nText objects reserve the "
@@ -7885,7 +7841,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 					MovieTrackingMarker *marker = &track->markers[i];
 
 					if (is_zero_v2(marker->pattern_corners[0]) && is_zero_v2(marker->pattern_corners[1]) &&
-					    is_zero_v2(marker->pattern_corners[3]) && is_zero_v2(marker->pattern_corners[3]))
+					    is_zero_v2(marker->pattern_corners[2]) && is_zero_v2(marker->pattern_corners[3]))
 					{
 						marker->pattern_corners[0][0] = track->pat_min[0];
 						marker->pattern_corners[0][1] = track->pat_min[1];
@@ -7952,6 +7908,112 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 
 		if (ntreetype && ntreetype->foreach_nodetree)
 			ntreetype->foreach_nodetree(main, NULL, do_version_ntree_mask_264);
+	}
+
+	if (main->versionfile < 263 || (main->versionfile == 263 && main->subversionfile < 18)) {
+		Scene *scene;
+
+		for (scene = main->scene.first; scene; scene = scene->id.next) {
+			if (scene->ed) {
+				Sequence *seq;
+
+				SEQ_BEGIN (scene->ed, seq)
+				{
+					Strip *strip = seq->strip;
+
+					if (strip && strip->color_balance) {
+						SequenceModifierData *smd;
+						ColorBalanceModifierData *cbmd;
+
+						smd = BKE_sequence_modifier_new(seq, NULL, seqModifierType_ColorBalance);
+						cbmd = (ColorBalanceModifierData *) smd;
+
+						cbmd->color_balance = *strip->color_balance;
+
+						/* multiplication with color balance used is handled differently,
+						 * so we need to move multiplication to modifier so files would be
+						 * compatible
+						 */
+						cbmd->color_multiply = seq->mul;
+						seq->mul = 1.0f;
+
+						MEM_freeN(strip->color_balance);
+						strip->color_balance = NULL;
+					}
+				}
+				SEQ_END
+			}
+		}
+	}
+
+	/* color management pipeline changes compatibility code */
+	if (main->versionfile < 263 || (main->versionfile == 263 && main->subversionfile < 19)) {
+		Scene *scene;
+		Image *ima;
+		int colormanagement_disabled = FALSE;
+
+		/* make scenes which are not using color management have got None as display device,
+		 * so they wouldn't perform linear-to-sRGB conversion on display
+		 */
+		for (scene = main->scene.first; scene; scene = scene->id.next) {
+			if ((scene->r.color_mgt_flag & R_COLOR_MANAGEMENT) == 0) {
+				ColorManagedDisplaySettings *display_settings = &scene->display_settings;
+
+				if (display_settings->display_device[0] == 0) {
+					BKE_scene_disable_color_management(scene);
+
+				}
+
+				colormanagement_disabled = TRUE;
+			}
+		}
+
+		for (ima = main->image.first; ima; ima = ima->id.next) {
+			if (ima->source == IMA_SRC_VIEWER) {
+				ima->flag |= IMA_VIEW_AS_RENDER;
+			}
+			else if (colormanagement_disabled) {
+				/* if colormanagement not used, set image's color space to raw, so no sRGB->linear conversion
+				 * would happen on display and render
+				 * there's no clear way to check whether color management is enabled or not in render engine
+				 * so set all images to raw if there's at least one scene with color management disabled
+				 * this would still behave incorrect in cases when color management was used for only some
+				 * of scenes, but such a setup is crazy anyway and think it's fair enough to break compatibility
+				 * in that cases
+				 */
+
+				BLI_strncpy(ima->colorspace_settings.name, "Raw", sizeof(ima->colorspace_settings.name));
+			}
+		}
+	}
+
+	if (main->versionfile < 263 || (main->versionfile == 263 && main->subversionfile < 20)) {
+		Key *key;
+		for (key = main->key.first; key; key = key->id.next) {
+			do_versions_key_uidgen(key);
+		}
+	}
+
+	/* remove texco */
+	if (main->versionfile < 263 || (main->versionfile == 263 && main->subversionfile < 21)) {
+		Material *ma;
+		for (ma = main->mat.first; ma; ma = ma->id.next) {
+			int a;
+			for (a = 0; a < MAX_MTEX; a++) {
+				if (ma->mtex[a]) {
+					if (ma->mtex[a]->texco == TEXCO_STICKY_) {
+						ma->mtex[a]->texco = TEXCO_UV;
+					}
+				}
+			}
+		}
+
+		{
+			Mesh *me;
+			for (me = main->mesh.first; me; me = me->id.next) {
+				CustomData_free_layers(&me->vdata, CD_MSTICKY, me->totvert);
+			}
+		}
 	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
@@ -9509,9 +9571,9 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 								cleanup_path(G.main->name, mainptr->curlib->filepath);
 								
 								fd = blo_openblenderfile(mainptr->curlib->filepath, basefd->reports);
-								fd->mainlist = mainlist;
-								
+
 								if (fd) {
+									fd->mainlist = mainlist;
 									printf("found: '%s', party on macuno!\n", mainptr->curlib->filepath);
 								}
 							}

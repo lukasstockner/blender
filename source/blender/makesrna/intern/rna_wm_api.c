@@ -32,12 +32,16 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "BLI_utildefines.h"
+
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
+
+#include "rna_internal.h"  /* own include */
 
 #ifdef RNA_RUNTIME
 
@@ -72,12 +76,12 @@ static int rna_event_modal_handler_add(struct bContext *C, struct wmOperator *op
 }
 
 /* XXX, need a way for python to know event types, 0x0110 is hard coded */
-wmTimer *rna_event_timer_add(struct wmWindowManager *wm, float time_step, wmWindow *win)
+static wmTimer *rna_event_timer_add(struct wmWindowManager *wm, float time_step, wmWindow *win)
 {
 	return WM_event_add_timer(wm, win, 0x0110, time_step);
 }
 
-void rna_event_timer_remove(struct wmWindowManager *wm, wmTimer *timer)
+static void rna_event_timer_remove(struct wmWindowManager *wm, wmTimer *timer)
 {
 	WM_event_remove_timer(wm, timer->win, timer);
 }
@@ -386,7 +390,7 @@ void RNA_api_macro(StructRNA *srna)
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
 }
 
-void RNA_api_keyconfig(StructRNA *srna)
+void RNA_api_keyconfig(StructRNA *UNUSED(srna))
 {
 	/* FunctionRNA *func; */
 	/* PropertyRNA *parm; */

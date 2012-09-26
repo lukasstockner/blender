@@ -154,7 +154,6 @@ Any case: direct data is ALWAYS after the lib block
 #include "BKE_report.h"
 #include "BKE_sequencer.h"
 #include "BKE_subsurf.h"
-#include "BKE_utildefines.h"
 #include "BKE_modifier.h"
 #include "BKE_fcurve.h"
 #include "BKE_pointcache.h"
@@ -163,6 +162,7 @@ Any case: direct data is ALWAYS after the lib block
 #include "BLO_writefile.h"
 #include "BLO_readfile.h"
 #include "BLO_undofile.h"
+#include "BLO_blend_defs.h"
 
 #include "readfile.h"
 
@@ -2119,6 +2119,13 @@ static void write_sequence_modifiers(WriteData *wd, ListBase *modbase)
 	}
 }
 
+static void write_view_settings(WriteData *wd, ColorManagedViewSettings *view_settings)
+{
+	if (view_settings->curve_mapping) {
+		write_curvemapping(wd, view_settings->curve_mapping);
+	}
+}
+
 static void write_scenes(WriteData *wd, ListBase *scebase)
 {
 	Scene *sce;
@@ -2214,9 +2221,6 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 					if (seq->flag & SEQ_USE_PROXY && strip->proxy) {
 						writestruct(wd, DATA, "StripProxy", 1, strip->proxy);
 					}
-					if (seq->flag & SEQ_USE_COLOR_BALANCE && strip->color_balance) {
-						writestruct(wd, DATA, "StripColorBalance", 1, strip->color_balance);
-					}
 					if (seq->type==SEQ_TYPE_IMAGE)
 						writestruct(wd, DATA, "StripElem", MEM_allocN_len(strip->stripdata) / sizeof(struct StripElem), strip->stripdata);
 					else if (seq->type==SEQ_TYPE_MOVIE || seq->type==SEQ_TYPE_SOUND_RAM || seq->type == SEQ_TYPE_SOUND_HD)
@@ -2264,7 +2268,9 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 			writestruct(wd, DATA, "bNodeTree", 1, sce->nodetree);
 			write_nodetree(wd, sce->nodetree);
 		}
-		
+
+		write_view_settings(wd, &sce->view_settings);
+
 		sce= sce->id.next;
 	}
 	/* flush helps the compression for undo-save */

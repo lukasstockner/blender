@@ -52,7 +52,7 @@
 #  define __func__ __FUNCTION__
 #endif
 
-/* copied from BKE_utildefines.h ugh */
+/* copied from BLI_utildefines.h ugh */
 #ifdef __GNUC__
 #  define UNUSED(x) UNUSED_ ## x __attribute__((__unused__))
 #else
@@ -533,7 +533,8 @@ static char *rna_def_property_get_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 	func = rna_alloc_function_name(srna->identifier, rna_safe_id(prop->identifier), "get");
 
 	switch (prop->type) {
-		case PROP_STRING: {
+		case PROP_STRING:
+		{
 			StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
 			fprintf(f, "void %s(PointerRNA *ptr, char *value)\n", func);
 			fprintf(f, "{\n");
@@ -566,7 +567,8 @@ static char *rna_def_property_get_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 			fprintf(f, "}\n\n");
 			break;
 		}
-		case PROP_POINTER: {
+		case PROP_POINTER:
+		{
 			fprintf(f, "PointerRNA %s(PointerRNA *ptr)\n", func);
 			fprintf(f, "{\n");
 			if (manualfunc) {
@@ -585,7 +587,8 @@ static char *rna_def_property_get_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 			fprintf(f, "}\n\n");
 			break;
 		}
-		case PROP_COLLECTION: {
+		case PROP_COLLECTION:
+		{
 			CollectionPropertyRNA *cprop = (CollectionPropertyRNA *)prop;
 
 			fprintf(f, "static PointerRNA %s(CollectionPropertyIterator *iter)\n", func);
@@ -786,7 +789,8 @@ static char *rna_def_property_set_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 	func = rna_alloc_function_name(srna->identifier, rna_safe_id(prop->identifier), "set");
 
 	switch (prop->type) {
-		case PROP_STRING: {
+		case PROP_STRING:
+		{
 			StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
 			fprintf(f, "void %s(PointerRNA *ptr, const char *value)\n", func);
 			fprintf(f, "{\n");
@@ -818,7 +822,8 @@ static char *rna_def_property_set_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 			fprintf(f, "}\n\n");
 			break;
 		}
-		case PROP_POINTER: {
+		case PROP_POINTER:
+		{
 			fprintf(f, "void %s(PointerRNA *ptr, PointerRNA value)\n", func);
 			fprintf(f, "{\n");
 			if (manualfunc) {
@@ -1324,7 +1329,8 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
 	prop = dp->prop;
 
 	switch (prop->type) {
-		case PROP_BOOLEAN: {
+		case PROP_BOOLEAN:
+		{
 			BoolPropertyRNA *bprop = (BoolPropertyRNA *)prop;
 
 			if (!prop->arraydimension) {
@@ -1341,7 +1347,8 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
 			}
 			break;
 		}
-		case PROP_INT: {
+		case PROP_INT:
+		{
 			IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
 
 			if (!prop->arraydimension) {
@@ -1360,7 +1367,8 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
 			}
 			break;
 		}
-		case PROP_FLOAT: {
+		case PROP_FLOAT:
+		{
 			FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
 
 			if (!prop->arraydimension) {
@@ -1379,14 +1387,16 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
 			}
 			break;
 		}
-		case PROP_ENUM: {
+		case PROP_ENUM:
+		{
 			EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
 
 			eprop->get = (void *)rna_def_property_get_func(f, srna, prop, dp, (const char *)eprop->get);
 			eprop->set = (void *)rna_def_property_set_func(f, srna, prop, dp, (const char *)eprop->set);
 			break;
 		}
-		case PROP_STRING: {
+		case PROP_STRING:
+		{
 			StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
 
 			sprop->get = (void *)rna_def_property_get_func(f, srna, prop, dp, (const char *)sprop->get);
@@ -1394,7 +1404,8 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
 			sprop->set = (void *)rna_def_property_set_func(f, srna, prop, dp, (const char *)sprop->set);
 			break;
 		}
-		case PROP_POINTER: {
+		case PROP_POINTER:
+		{
 			PointerPropertyRNA *pprop = (PointerPropertyRNA *)prop;
 
 			pprop->get = (void *)rna_def_property_get_func(f, srna, prop, dp, (const char *)pprop->get);
@@ -1406,7 +1417,8 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
 			}
 			break;
 		}
-		case PROP_COLLECTION: {
+		case PROP_COLLECTION:
+		{
 			CollectionPropertyRNA *cprop = (CollectionPropertyRNA *)prop;
 			const char *nextfunc = (const char *)cprop->next;
 
@@ -1471,7 +1483,8 @@ static void rna_def_property_funcs_header(FILE *f, StructRNA *srna, PropertyDefR
 
 	switch (prop->type) {
 		case PROP_BOOLEAN:
-		case PROP_INT: {
+		case PROP_INT:
+		{
 			if (!prop->arraydimension) {
 				fprintf(f, "int %sget(PointerRNA *ptr);\n", func);
 				/*fprintf(f, "void %sset(PointerRNA *ptr, int value);\n", func); */
@@ -1486,7 +1499,8 @@ static void rna_def_property_funcs_header(FILE *f, StructRNA *srna, PropertyDefR
 			}
 			break;
 		}
-		case PROP_FLOAT: {
+		case PROP_FLOAT:
+		{
 			if (!prop->arraydimension) {
 				fprintf(f, "float %sget(PointerRNA *ptr);\n", func);
 				/*fprintf(f, "void %sset(PointerRNA *ptr, float value);\n", func); */
@@ -1501,7 +1515,8 @@ static void rna_def_property_funcs_header(FILE *f, StructRNA *srna, PropertyDefR
 			}
 			break;
 		}
-		case PROP_ENUM: {
+		case PROP_ENUM:
+		{
 			EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
 			int i;
 
@@ -1521,7 +1536,8 @@ static void rna_def_property_funcs_header(FILE *f, StructRNA *srna, PropertyDefR
 
 			break;
 		}
-		case PROP_STRING: {
+		case PROP_STRING:
+		{
 			StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
 
 			if (sprop->maxlength) {
@@ -1534,12 +1550,14 @@ static void rna_def_property_funcs_header(FILE *f, StructRNA *srna, PropertyDefR
 
 			break;
 		}
-		case PROP_POINTER: {
+		case PROP_POINTER:
+		{
 			fprintf(f, "PointerRNA %sget(PointerRNA *ptr);\n", func);
 			/*fprintf(f, "void %sset(PointerRNA *ptr, PointerRNA value);\n", func); */
 			break;
 		}
-		case PROP_COLLECTION: {
+		case PROP_COLLECTION:
+		{
 			fprintf(f, "void %sbegin(CollectionPropertyIterator *iter, PointerRNA *ptr);\n", func);
 			fprintf(f, "void %snext(CollectionPropertyIterator *iter);\n", func);
 			fprintf(f, "void %send(CollectionPropertyIterator *iter);\n", func);
@@ -1570,28 +1588,32 @@ static void rna_def_property_funcs_header_cpp(FILE *f, StructRNA *srna, Property
 		fprintf(f, "\t/* */\n");
 
 	switch (prop->type) {
-		case PROP_BOOLEAN: {
+		case PROP_BOOLEAN:
+		{
 			if (!prop->arraydimension)
 				fprintf(f, "\tinline bool %s(void);", rna_safe_id(prop->identifier));
 			else if (prop->totarraylength)
 				fprintf(f, "\tinline Array<int, %u> %s(void);", prop->totarraylength, rna_safe_id(prop->identifier));
 			break;
 		}
-		case PROP_INT: {
+		case PROP_INT:
+		{
 			if (!prop->arraydimension)
 				fprintf(f, "\tinline int %s(void);", rna_safe_id(prop->identifier));
 			else if (prop->totarraylength)
 				fprintf(f, "\tinline Array<int, %u> %s(void);", prop->totarraylength, rna_safe_id(prop->identifier));
 			break;
 		}
-		case PROP_FLOAT: {
+		case PROP_FLOAT:
+		{
 			if (!prop->arraydimension)
 				fprintf(f, "\tinline float %s(void);", rna_safe_id(prop->identifier));
 			else if (prop->totarraylength)
 				fprintf(f, "\tinline Array<float, %u> %s(void);", prop->totarraylength, rna_safe_id(prop->identifier));
 			break;
 		}
-		case PROP_ENUM: {
+		case PROP_ENUM:
+		{
 			EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
 			int i;
 
@@ -1609,11 +1631,13 @@ static void rna_def_property_funcs_header_cpp(FILE *f, StructRNA *srna, Property
 			fprintf(f, "\tinline %s_enum %s(void);", rna_safe_id(prop->identifier), rna_safe_id(prop->identifier));
 			break;
 		}
-		case PROP_STRING: {
+		case PROP_STRING:
+		{
 			fprintf(f, "\tinline std::string %s(void);", rna_safe_id(prop->identifier));
 			break;
 		}
-		case PROP_POINTER: {
+		case PROP_POINTER:
+		{
 			PointerPropertyRNA *pprop = (PointerPropertyRNA *)dp->prop;
 
 			if (pprop->type)
@@ -1622,7 +1646,8 @@ static void rna_def_property_funcs_header_cpp(FILE *f, StructRNA *srna, Property
 				fprintf(f, "\tinline %s %s(void);", "UnknownType", rna_safe_id(prop->identifier));
 			break;
 		}
-		case PROP_COLLECTION: {
+		case PROP_COLLECTION:
+		{
 			CollectionPropertyRNA *cprop = (CollectionPropertyRNA *)dp->prop;
 
 			if (cprop->item_type)
@@ -1648,7 +1673,8 @@ static void rna_def_property_funcs_impl_cpp(FILE *f, StructRNA *srna, PropertyDe
 		return;
 
 	switch (prop->type) {
-		case PROP_BOOLEAN: {
+		case PROP_BOOLEAN:
+		{
 			if (!prop->arraydimension)
 				fprintf(f, "\tBOOLEAN_PROPERTY(%s, %s)", srna->identifier, rna_safe_id(prop->identifier));
 			else if (prop->totarraylength)
@@ -1656,7 +1682,8 @@ static void rna_def_property_funcs_impl_cpp(FILE *f, StructRNA *srna, PropertyDe
 				        rna_safe_id(prop->identifier));
 			break;
 		}
-		case PROP_INT: {
+		case PROP_INT:
+		{
 			if (!prop->arraydimension)
 				fprintf(f, "\tINT_PROPERTY(%s, %s)", srna->identifier, rna_safe_id(prop->identifier));
 			else if (prop->totarraylength)
@@ -1664,7 +1691,8 @@ static void rna_def_property_funcs_impl_cpp(FILE *f, StructRNA *srna, PropertyDe
 				        rna_safe_id(prop->identifier));
 			break;
 		}
-		case PROP_FLOAT: {
+		case PROP_FLOAT:
+		{
 			if (!prop->arraydimension)
 				fprintf(f, "\tFLOAT_PROPERTY(%s, %s)", srna->identifier, rna_safe_id(prop->identifier));
 			else if (prop->totarraylength)
@@ -1672,17 +1700,20 @@ static void rna_def_property_funcs_impl_cpp(FILE *f, StructRNA *srna, PropertyDe
 				        rna_safe_id(prop->identifier));
 			break;
 		}
-		case PROP_ENUM: {
+		case PROP_ENUM:
+		{
 			fprintf(f, "\tENUM_PROPERTY(%s_enum, %s, %s)", rna_safe_id(prop->identifier), srna->identifier,
 			        rna_safe_id(prop->identifier));
 
 			break;
 		}
-		case PROP_STRING: {
+		case PROP_STRING:
+		{
 			fprintf(f, "\tSTRING_PROPERTY(%s, %s)", srna->identifier, rna_safe_id(prop->identifier));
 			break;
 		}
-		case PROP_POINTER: {
+		case PROP_POINTER:
+		{
 			PointerPropertyRNA *pprop = (PointerPropertyRNA *)dp->prop;
 
 			if (pprop->type)
@@ -1693,7 +1724,8 @@ static void rna_def_property_funcs_impl_cpp(FILE *f, StructRNA *srna, PropertyDe
 				        rna_safe_id(prop->identifier));
 			break;
 		}
-		case PROP_COLLECTION: {
+		case PROP_COLLECTION:
+		{
 #if 0
 			CollectionPropertyRNA *cprop = (CollectionPropertyRNA *)dp->prop;
 
@@ -2268,7 +2300,8 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
 	}
 
 	switch (prop->type) {
-		case PROP_ENUM: {
+		case PROP_ENUM:
+		{
 			EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
 			int i, defaultfound = 0, totflag = 0;
 
@@ -2320,7 +2353,8 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
 			}
 			break;
 		}
-		case PROP_BOOLEAN: {
+		case PROP_BOOLEAN:
+		{
 			BoolPropertyRNA *bprop = (BoolPropertyRNA *)prop;
 			unsigned int i;
 
@@ -2341,7 +2375,8 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
 			}
 			break;
 		}
-		case PROP_INT: {
+		case PROP_INT:
+		{
 			IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
 			unsigned int i;
 
@@ -2362,7 +2397,8 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
 			}
 			break;
 		}
-		case PROP_FLOAT: {
+		case PROP_FLOAT:
+		{
 			FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
 			unsigned int i;
 
@@ -2430,7 +2466,8 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
 	fprintf(f, "},\n");
 
 	switch (prop->type) {
-		case PROP_BOOLEAN: {
+		case PROP_BOOLEAN:
+		{
 			BoolPropertyRNA *bprop = (BoolPropertyRNA *)prop;
 			fprintf(f, "\t%s, %s, %s, %s, %s, %d, ",
 			        rna_function_string(bprop->get),
@@ -2444,7 +2481,8 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
 			else fprintf(f, "NULL\n");
 			break;
 		}
-		case PROP_INT: {
+		case PROP_INT:
+		{
 			IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
 			fprintf(f, "\t%s, %s, %s, %s, %s,\n\t",
 			        rna_function_string(iprop->get),
@@ -2463,7 +2501,8 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
 			else fprintf(f, "NULL\n");
 			break;
 		}
-		case PROP_FLOAT: {
+		case PROP_FLOAT:
+		{
 			FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
 			fprintf(f, "\t%s, %s, %s, %s, %s, ",
 			        rna_function_string(fprop->get),
@@ -2483,7 +2522,8 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
 			else fprintf(f, "NULL\n");
 			break;
 		}
-		case PROP_STRING: {
+		case PROP_STRING:
+		{
 			StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
 			fprintf(f, "\t%s, %s, %s, %d, ",
 			        rna_function_string(sprop->get),
@@ -2493,7 +2533,8 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
 			rna_print_c_string(f, sprop->defaultvalue); fprintf(f, "\n");
 			break;
 		}
-		case PROP_ENUM: {
+		case PROP_ENUM:
+		{
 			EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
 			fprintf(f, "\t%s, %s, %s, NULL, ",
 			        rna_function_string(eprop->get),
@@ -2506,7 +2547,8 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
 			fprintf(f, "%d, %d\n", eprop->totitem, eprop->defaultvalue);
 			break;
 		}
-		case PROP_POINTER: {
+		case PROP_POINTER:
+		{
 			PointerPropertyRNA *pprop = (PointerPropertyRNA *)prop;
 			fprintf(f, "\t%s, %s, %s, %s,", rna_function_string(pprop->get),
 			        rna_function_string(pprop->set),
@@ -2516,7 +2558,8 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
 			else fprintf(f, "NULL\n");
 			break;
 		}
-		case PROP_COLLECTION: {
+		case PROP_COLLECTION:
+		{
 			CollectionPropertyRNA *cprop = (CollectionPropertyRNA *)prop;
 			fprintf(f, "\t%s, %s, %s, %s, %s, %s, %s, %s, ",
 			        rna_function_string(cprop->begin),
@@ -2938,8 +2981,8 @@ static const char *cpp_classes = ""
 "	T data[Tsize];\n"
 "\n"
 "   Array() {}\n"
-"	Array(const Array<T, Tsize>& other) { memcpy(data, other.data, sizeof(T)*Tsize); }\n"
-"	const Array<T, Tsize>& operator=(const Array<T, Tsize>& other) { memcpy(data, other.data, sizeof(T)*Tsize); "
+"	Array(const Array<T, Tsize>& other) { memcpy(data, other.data, sizeof(T) * Tsize); }\n"
+"	const Array<T, Tsize>& operator=(const Array<T, Tsize>& other) { memcpy(data, other.data, sizeof(T) * Tsize); "
 "return *this; }\n"
 "\n"
 "	operator T*() { return data; }\n"
