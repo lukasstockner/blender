@@ -154,7 +154,7 @@ bool RAS_OpenGLRasterizer::Init()
 	glDisable(GL_BLEND);
 	glDisable(GL_ALPHA_TEST);
 
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); /* set default blend function */
 
 	//m_last_alphablend = GPU_BLEND_SOLID;
 	GPU_set_material_alpha_blend(GPU_BLEND_SOLID);

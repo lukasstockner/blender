@@ -667,16 +667,14 @@ static void histogram_draw_one(float r, float g, float b, float alpha,
                                float x, float y, float w, float h, float *data, int res, const short is_line)
 {
 	int i;
-	
-	if (is_line) {
 
+	if (is_line) {
 		glLineWidth(1.5);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE); /* non-standard blend function */
 		gpuCurrentColor4f(r, g, b, alpha);
 
 		/* curve outline */
 
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 		glEnable(GL_LINE_SMOOTH);
 		gpuBegin(GL_LINE_STRIP);
 		for (i = 0; i < res; i++) {
@@ -687,36 +685,38 @@ static void histogram_draw_one(float r, float g, float b, float alpha,
 		glDisable(GL_LINE_SMOOTH);
 
 		glLineWidth(1.0);
+
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); /* reset blender default */
 	}
 	else {
 		/* under the curve */
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE); /* non-standard blend function */
-	gpuCurrentColor4f(r, g, b, alpha);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+		gpuCurrentColor4f(r, g, b, alpha);
 
 		glShadeModel(GL_FLAT);
 
-	gpuBegin(GL_TRIANGLE_STRIP); // DOODLE: line graph drawn using quads, locking done by function callee
-	gpuVertex2f(x, y);
-	gpuVertex2f(x, y + (data[0] * h));
+		gpuBegin(GL_TRIANGLE_STRIP); // DOODLE: line graph drawn using quads, locking done by function callee
+		gpuVertex2f(x, y);
+		gpuVertex2f(x, y + (data[0] * h));
 		for (i = 1; i < res; i++) {
 			float x2 = x + i * (w / (float)res);
-		gpuVertex2f(x2, y + (data[i] * h));
-		gpuVertex2f(x2, y);
+			gpuVertex2f(x2, y + (data[i] * h));
+			gpuVertex2f(x2, y);
 		}
-	gpuEnd();
+		gpuEnd();
 
-	/* curve outline */
-	gpuCurrentColor4x(CPACK_BLACK, 0.250f);
+		/* curve outline */
+		gpuCurrentColor4x(CPACK_BLACK, 0.250f);
 
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); /* reset blender default */
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); /* reset blender default */
 		glEnable(GL_LINE_SMOOTH);
 
-	gpuBegin(GL_LINE_STRIP); // DOODLE: line graph drawn using a line strip, locking done by callee
+		gpuBegin(GL_LINE_STRIP); // DOODLE: line graph drawn using a line strip, locking done by callee
 		for (i = 0; i < res; i++) {
 			float x2 = x + i * (w / (float)res);
-		gpuVertex2f(x2, y + (data[i] * h));
+			gpuVertex2f(x2, y + (data[i] * h));
 		}
-	gpuEnd();
+		gpuEnd();
 
 		glDisable(GL_LINE_SMOOTH);
 	}
@@ -1456,7 +1456,6 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 
 		/* grid, hsv uses different grid */
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		gpuCurrentColor4x(CPACK_BLACK, 0.188f);
 		ui_draw_but_curve_grid(rect, zoomx, zoomy, offsx, offsy, 0.1666666f);
 		glDisable(GL_BLEND);

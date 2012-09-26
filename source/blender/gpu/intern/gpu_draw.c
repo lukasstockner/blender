@@ -1281,7 +1281,7 @@ static void enable_blendfunc_blend(void)
 	enable_blend();
 
 	if (!GMS.lastblendfuncdefault) {
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  /* set blender default */
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  /* set blend function default */
 		GMS.lastblendfuncdefault = GL_TRUE;
 	}
 }

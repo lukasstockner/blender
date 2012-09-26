@@ -97,8 +97,9 @@ static void setup(void)
 	bufferDataGLSL* bufferData = GPU_IMMEDIATE->bufferData;
 
 	offset = 0;
-glEnable(GL_BLEND);
-glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); 
+
+	glEnable(GL_BLEND); /* XXX: why? */
+
 	GPU_CHECK_NO_ERROR();
 
 	/* setup vertex arrays

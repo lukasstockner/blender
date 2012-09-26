@@ -115,7 +115,7 @@ void Device::draw_pixels(device_memory& rgba, int y, int w, int h, int dy, int w
 
 	if(transparent) {
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA); /* non-standard blend function */
 	}
 
 	glPixelZoom((float)width/(float)w, (float)height/(float)h);
@@ -132,8 +132,10 @@ void Device::draw_pixels(device_memory& rgba, int y, int w, int h, int dy, int w
 	glRasterPos2f(0.0f, 0.0f);
 	glPixelZoom(1.0f, 1.0f);
 
-	if(transparent)
+	if(transparent) {
 		glDisable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); /* reset blender default */
+	}
 }
 
 Device *Device::create(DeviceInfo& info, bool background, int threads)

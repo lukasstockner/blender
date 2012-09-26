@@ -778,12 +778,12 @@ public:
 			glBindTexture(GL_TEXTURE_2D, pmem.cuTexId);
 			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, (void*)offset);
 			glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
-			
+
 			glEnable(GL_TEXTURE_2D);
-			
+
 			if(transparent) {
 				glEnable(GL_BLEND);
-				glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+				glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA); /* non-standard blend function */
 			}
 
 			glColor3f(1.0f, 1.0f, 1.0f);
@@ -806,9 +806,11 @@ public:
 
 			glPopMatrix();
 
-			if(transparent)
+			if(transparent) {
 				glDisable(GL_BLEND);
-			
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); /* reset blender default */
+			}
+
 			glBindTexture(GL_TEXTURE_2D, 0);
 			glDisable(GL_TEXTURE_2D);
 
