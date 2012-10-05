@@ -402,6 +402,15 @@ const char *PyC_UnicodeAsByte(PyObject *py_str, PyObject **coerce)
 		if (PyBytes_Check(py_str)) {
 			return PyBytes_AS_STRING(py_str);
 		}
+#ifdef WIN32
+		/* bug [#31856] oddly enough, Python3.2 --> 3.3 on Windows will throw an
+		 * exception here this needs to be fixed in python:
+		 * see: bugs.python.org/issue15859 */
+		else if (!PyUnicode_Check(py_str)) {
+			PyErr_BadArgument();
+			return NULL;
+		}
+#endif
 		else if ((*coerce = PyUnicode_EncodeFSDefault(py_str))) {
 			return PyBytes_AS_STRING(*coerce);
 		}
@@ -441,7 +450,7 @@ PyObject *PyC_UnicodeFromByte(const char *str)
  * >> foo = 10
  * >> print(__import__("__main__").foo)
  *
- * note: this overwrites __main__ which gives problems with nested calles.
+ * note: this overwrites __main__ which gives problems with nested calls.
  * be sure to run PyC_MainModule_Backup & PyC_MainModule_Restore if there is
  * any chance that python is in the call stack.
  ****************************************************************************/
@@ -523,7 +532,9 @@ void PyC_SetHomePath(const char *py_path_bundle)
 	}
 }
 
-/* Would be nice if python had this built in */
+/* Would be nice if python had this built in
+ * See: http://wiki.blender.org/index.php/Dev:Doc/Tools/Debugging/PyFromC
+ */
 void PyC_RunQuicky(const char *filepath, int n, ...)
 {
 	FILE *fp = fopen(filepath, "r");

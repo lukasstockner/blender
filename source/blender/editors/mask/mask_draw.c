@@ -202,16 +202,16 @@ static void draw_spline_points(MaskLayer *masklay, MaskSpline *spline,
 				glLineWidth(3);
 				glColor4ubv(rgb_gray);
 				glBegin(GL_LINES);
-				glVertex3fv(vert);
-				glVertex3fv(handle);
+				glVertex2fv(vert);
+				glVertex2fv(handle);
 				glEnd();
 				glLineWidth(1);
 			}
 
 			glColor3ubv(rgb_spline);
 			glBegin(GL_LINES);
-			glVertex3fv(vert);
-			glVertex3fv(handle);
+			glVertex2fv(vert);
+			glVertex2fv(handle);
 			glEnd();
 		}
 
@@ -226,7 +226,7 @@ static void draw_spline_points(MaskLayer *masklay, MaskSpline *spline,
 			glColor3f(0.5f, 0.5f, 0.0f);
 
 		glBegin(GL_POINTS);
-		glVertex3fv(vert);
+		glVertex2fv(vert);
 		glEnd();
 
 		/* draw handle points */
@@ -242,7 +242,7 @@ static void draw_spline_points(MaskLayer *masklay, MaskSpline *spline,
 			}
 
 			glBegin(GL_POINTS);
-			glVertex3fv(handle);
+			glVertex2fv(handle);
 			glEnd();
 		}
 	}
@@ -496,13 +496,17 @@ void ED_mask_draw(const bContext *C,
  * width, height are to match the values from ED_mask_get_size() */
 void ED_mask_draw_region(Mask *mask, ARegion *ar,
                          const char draw_flag, const char draw_type,
-                         int width, int height,
+                         const int width_i, const int height_i,  /* convert directly into aspect corrected vars */
+                         const float aspx, const float aspy,
                          const short do_scale_applied, const short do_post_draw,
                          float stabmat[4][4], /* optional - only used by clip */
                          const bContext *C    /* optional - only used when do_post_draw is set */
                          )
 {
 	struct View2D *v2d = &ar->v2d;
+
+	/* aspect always scales vertically in movie and image spaces */
+	const float width = width_i, height = (float)height_i * (aspy / aspx);
 
 	int x, y;
 	/* int w, h; */
@@ -516,12 +520,12 @@ void ED_mask_draw_region(Mask *mask, ARegion *ar,
 	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &x, &y);
 
 
-	/* w = BLI_RCT_SIZE_X(&v2d->tot); */
-	/* h = BLI_RCT_SIZE_Y(&v2d->tot);/*/
+	/* w = BLI_rctf_size_x(&v2d->tot); */
+	/* h = BLI_rctf_size_y(&v2d->tot);/*/
 
 
-	zoomx = (float)(BLI_RCT_SIZE_X(&ar->winrct) + 1) / (float)(BLI_RCT_SIZE_X(&ar->v2d.cur));
-	zoomy = (float)(BLI_RCT_SIZE_Y(&ar->winrct) + 1) / (float)(BLI_RCT_SIZE_Y(&ar->v2d.cur));
+	zoomx = (float)(BLI_rcti_size_x(&ar->winrct) + 1) / BLI_rctf_size_x(&ar->v2d.cur);
+	zoomy = (float)(BLI_rcti_size_y(&ar->winrct) + 1) / BLI_rctf_size_y(&ar->v2d.cur);
 
 	if (do_scale_applied) {
 		zoomx /= width;

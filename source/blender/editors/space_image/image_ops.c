@@ -55,6 +55,7 @@
 #include "BKE_report.h"
 #include "BKE_screen.h"
 
+#include "IMB_colormanagement.h"
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
@@ -98,9 +99,9 @@ static void sima_zoom_set(SpaceImage *sima, ARegion *ar, float zoom, float locat
 
 		if ((width < 4) && (height < 4))
 			sima->zoom = oldzoom;
-		else if (BLI_RCT_SIZE_X(&ar->winrct) <= sima->zoom)
+		else if (BLI_rcti_size_x(&ar->winrct) <= sima->zoom)
 			sima->zoom = oldzoom;
-		else if (BLI_RCT_SIZE_Y(&ar->winrct) <= sima->zoom)
+		else if (BLI_rcti_size_y(&ar->winrct) <= sima->zoom)
 			sima->zoom = oldzoom;
 	}
 
@@ -191,7 +192,7 @@ int space_image_main_area_poll(bContext *C)
 }
 
 /* For IMAGE_OT_curves_point_set to avoid sampling when in uv smooth mode or editmode */
-int space_image_main_area_not_uv_brush_poll(bContext *C)
+static int space_image_main_area_not_uv_brush_poll(bContext *C)
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
 	Scene *scene = CTX_data_scene(C);
@@ -581,8 +582,8 @@ static int image_view_all_exec(bContext *C, wmOperator *UNUSED(op))
 	h = height * aspy;
 	
 	/* check if the image will fit in the image with (zoom == 1) */
-	width  = BLI_RCT_SIZE_X(&ar->winrct) + 1;
-	height = BLI_RCT_SIZE_Y(&ar->winrct) + 1;
+	width  = BLI_rcti_size_x(&ar->winrct) + 1;
+	height = BLI_rcti_size_y(&ar->winrct) + 1;
 
 	if ((w >= width || h >= height) && (width > 0 && height > 0)) {
 		/* find the zoom value that will fit the image in the image space */
@@ -632,7 +633,7 @@ static int image_view_selected_exec(bContext *C, wmOperator *UNUSED(op))
 
 	ima = ED_space_image(sima);
 	ED_space_image_get_size(sima, &width, &height);
-	ED_image_get_aspect(ima, &aspx, &aspy);
+	ED_space_image_get_aspect(sima, &aspx, &aspy);
 
 	width = width * aspx;
 	height = height * aspy;
@@ -1051,7 +1052,7 @@ static int image_replace_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(eve
 		return image_replace_exec(C, op);
 
 	if (!RNA_struct_property_is_set(op->ptr, "relative_path"))
-		RNA_boolean_set(op->ptr, "relative_path", (strncmp(sima->image->name, "//", 2)) == 0);
+		RNA_boolean_set(op->ptr, "relative_path", BLI_path_is_rel(sima->image->name));
 
 	image_filesel(C, op, sima->image->name);
 
@@ -1160,7 +1161,7 @@ static int save_image_options_init(SaveImageOptions *simopts, SpaceImage *sima, 
 
 		/* check for empty path */
 		if (guess_path && simopts->filepath[0] == 0) {
-			if ( (G.ima[0] == '/') && (G.ima[1] == '/') && (G.ima[2] == '\0') ) {
+			if ((G.ima[0] == '/') && (G.ima[1] == '/') && (G.ima[2] == '\0')) {
 				BLI_strncpy(simopts->filepath, "//untitled", FILE_MAX);
 			}
 			else {
@@ -1168,6 +1169,10 @@ static int save_image_options_init(SaveImageOptions *simopts, SpaceImage *sima, 
 			}
 			BLI_path_abs(simopts->filepath, G.main->name);
 		}
+
+		/* color management */
+		BKE_color_managed_display_settings_copy(&simopts->im_format.display_settings, &scene->display_settings);
+		BKE_color_managed_view_settings_copy(&simopts->im_format.view_settings, &scene->view_settings);
 	}
 
 	ED_space_image_release_buffer(sima, lock);
@@ -1178,6 +1183,8 @@ static int save_image_options_init(SaveImageOptions *simopts, SpaceImage *sima, 
 static void save_image_options_from_op(SaveImageOptions *simopts, wmOperator *op)
 {
 	if (op->customdata) {
+		BKE_color_managed_view_settings_free(&simopts->im_format.view_settings);
+
 		simopts->im_format = *(ImageFormatData *)op->customdata;
 	}
 
@@ -1190,6 +1197,8 @@ static void save_image_options_from_op(SaveImageOptions *simopts, wmOperator *op
 static void save_image_options_to_op(SaveImageOptions *simopts, wmOperator *op)
 {
 	if (op->customdata) {
+		BKE_color_managed_view_settings_free(&((ImageFormatData *)op->customdata)->view_settings);
+
 		*(ImageFormatData *)op->customdata = simopts->im_format;
 	}
 
@@ -1205,9 +1214,12 @@ static void save_image_doit(bContext *C, SpaceImage *sima, wmOperator *op, SaveI
 	ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock);
 
 	if (ibuf) {
+		ImBuf *colormanaged_ibuf;
 		const char *relbase = ID_BLEND_PATH(CTX_data_main(C), &ima->id);
 		const short relative = (RNA_struct_find_property(op->ptr, "relative_path") && RNA_boolean_get(op->ptr, "relative_path"));
 		const short save_copy = (RNA_struct_find_property(op->ptr, "copy") && RNA_boolean_get(op->ptr, "copy"));
+		const short save_as_render = (RNA_struct_find_property(op->ptr, "save_as_render") && RNA_boolean_get(op->ptr, "save_as_render"));
+		ImageFormatData *imf = &simopts->im_format;
 		short ok = FALSE;
 
 		/* old global to ensure a 2nd save goes to same dir */
@@ -1231,7 +1243,9 @@ static void save_image_doit(bContext *C, SpaceImage *sima, wmOperator *op, SaveI
 				ibuf->planes = BKE_imbuf_alpha_test(ibuf) ? 32 : 24;
 			}
 		}
-		
+
+		colormanaged_ibuf = IMB_colormanagement_imbuf_for_write(ibuf, save_as_render, TRUE, &imf->view_settings, &imf->display_settings, imf);
+
 		if (simopts->im_format.imtype == R_IMF_IMTYPE_MULTILAYER) {
 			Scene *scene = CTX_data_scene(C);
 			RenderResult *rr = BKE_image_acquire_renderresult(scene, ima);
@@ -1245,7 +1259,8 @@ static void save_image_doit(bContext *C, SpaceImage *sima, wmOperator *op, SaveI
 			BKE_image_release_renderresult(scene, ima);
 		}
 		else {
-			if (BKE_imbuf_write_as(ibuf, simopts->filepath, &simopts->im_format, save_copy)) {
+			if (BKE_imbuf_write_as(colormanaged_ibuf, simopts->filepath, &simopts->im_format, save_copy))
+			{
 				ok = TRUE;
 			}
 		}
@@ -1284,6 +1299,8 @@ static void save_image_doit(bContext *C, SpaceImage *sima, wmOperator *op, SaveI
 				if (relative) {
 					BLI_path_rel(ima->name, relbase); /* only after saving */
 				}
+
+				IMB_colormanagment_colorspace_from_ibuf_ftype(&ima->colorspace_settings, ibuf);
 			}
 		}
 		else {
@@ -1294,6 +1311,9 @@ static void save_image_doit(bContext *C, SpaceImage *sima, wmOperator *op, SaveI
 		WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, sima->image);
 
 		WM_cursor_wait(0);
+
+		if (colormanaged_ibuf != ibuf)
+			IMB_freeImBuf(colormanaged_ibuf);
 	}
 
 	ED_space_image_release_buffer(sima, lock);
@@ -1302,6 +1322,9 @@ static void save_image_doit(bContext *C, SpaceImage *sima, wmOperator *op, SaveI
 static void image_save_as_free(wmOperator *op)
 {
 	if (op->customdata) {
+		ImageFormatData *im_format = (ImageFormatData *)op->customdata;
+		BKE_color_managed_view_settings_free(&im_format->view_settings);
+
 		MEM_freeN(op->customdata);
 		op->customdata = NULL;
 	}
@@ -1354,6 +1377,11 @@ static int image_save_as_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(eve
 		RNA_boolean_set(op->ptr, "copy", TRUE);
 	}
 
+	if (ima->source == IMA_SRC_VIEWER || (ima->flag & IMA_VIEW_AS_RENDER))
+		RNA_boolean_set(op->ptr, "save_as_render", TRUE);
+	else
+		RNA_boolean_set(op->ptr, "save_as_render", FALSE);
+
 	op->customdata = MEM_mallocN(sizeof(simopts.im_format), __func__);
 	memcpy(op->customdata, &simopts.im_format, sizeof(simopts.im_format));
 
@@ -1389,11 +1417,29 @@ static void image_save_as_draw(bContext *UNUSED(C), wmOperator *op)
 
 	/* image template */
 	RNA_pointer_create(NULL, &RNA_ImageFormatSettings, imf, &ptr);
-	uiTemplateImageSettings(layout, &ptr);
+	uiTemplateImageSettings(layout, &ptr, FALSE);
 
 	/* main draw call */
 	RNA_pointer_create(NULL, op->type->srna, op->properties, &ptr);
 	uiDefAutoButsRNA(layout, &ptr, image_save_as_draw_check_prop, '\0');
+}
+
+static int image_save_as_poll(bContext *C)
+{
+	if (space_image_buffer_exists_poll(C)) {
+		if (G.is_rendering) {
+			/* no need to NULL check here */
+			SpaceImage *sima = CTX_wm_space_image(C);
+			Image *ima = ED_space_image(sima);
+
+			if (ima->source == IMA_SRC_VIEWER) {
+				CTX_wm_operator_poll_msg_set(C, "can't save image while rendering");
+				return FALSE;
+			}
+		}
+		return TRUE;
+	}
+	return FALSE;
 }
 
 void IMAGE_OT_save_as(wmOperatorType *ot)
@@ -1411,12 +1457,13 @@ void IMAGE_OT_save_as(wmOperatorType *ot)
 	ot->invoke = image_save_as_invoke;
 	ot->cancel = image_save_as_cancel;
 	ot->ui = image_save_as_draw;
-	ot->poll = space_image_buffer_exists_poll;
+	ot->poll = image_save_as_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
+	RNA_def_boolean(ot->srna, "save_as_render", 0, "Save As Render", "Apply render part of display transform when saving byte image");
 	RNA_def_boolean(ot->srna, "copy", 0, "Copy", "Create a new image file without modifying the current image in blender");
 
 	WM_operator_properties_filesel(ot, FOLDERFILE | IMAGEFILE | MOVIEFILE, FILE_SPECIAL, FILE_SAVE,
@@ -1586,7 +1633,7 @@ static int image_new_exec(bContext *C, wmOperator *op)
 	PropertyRNA *prop;
 	char name[MAX_ID_NAME - 2];
 	float color[4];
-	int width, height, floatbuf, uvtestgrid, alpha;
+	int width, height, floatbuf, gen_type, alpha;
 
 	/* retrieve state */
 	sima = CTX_wm_space_image(C);
@@ -1597,17 +1644,19 @@ static int image_new_exec(bContext *C, wmOperator *op)
 	width = RNA_int_get(op->ptr, "width");
 	height = RNA_int_get(op->ptr, "height");
 	floatbuf = RNA_boolean_get(op->ptr, "float");
-	uvtestgrid = RNA_boolean_get(op->ptr, "uv_test_grid");
+	gen_type = RNA_enum_get(op->ptr, "generated_type");
 	RNA_float_get_array(op->ptr, "color", color);
 	alpha = RNA_boolean_get(op->ptr, "alpha");
 	
-	if (!floatbuf && scene->r.color_mgt_flag & R_COLOR_MANAGEMENT)
+	if (!floatbuf) {
+		/* OCIO_TODO: perhaps we need to convert to display space, not just to sRGB */
 		linearrgb_to_srgb_v3_v3(color, color);
+	}
 
 	if (!alpha)
 		color[3] = 1.0f;
 
-	ima = BKE_image_add_generated(width, height, name, alpha ? 32 : 24, floatbuf, uvtestgrid, color);
+	ima = BKE_image_add_generated(width, height, name, alpha ? 32 : 24, floatbuf, gen_type, color);
 
 	if (!ima)
 		return OPERATOR_CANCELLED;
@@ -1664,7 +1713,8 @@ void IMAGE_OT_new(wmOperatorType *ot)
 	prop = RNA_def_float_color(ot->srna, "color", 4, NULL, 0.0f, FLT_MAX, "Color", "Default fill color", 0.0f, 1.0f);
 	RNA_def_property_float_array_default(prop, default_color);
 	RNA_def_boolean(ot->srna, "alpha", 1, "Alpha", "Create an image with an alpha channel");
-	RNA_def_boolean(ot->srna, "uv_test_grid", 0, "UV Test Grid", "Fill the image with a grid for UV map testing");
+	RNA_def_enum(ot->srna, "generated_type", image_generated_type_items, IMA_GENTYPE_BLANK,
+	             "Generated Type", "Fill the image with a grid for UV map testing");
 	RNA_def_boolean(ot->srna, "float", 0, "32 bit Float", "Create image with 32 bit floating point bit depth");
 }
 
@@ -1937,14 +1987,18 @@ typedef struct ImageSampleInfo {
 	float *zfp;
 
 	int draw;
+	int color_manage;
+	int use_default_view;
 } ImageSampleInfo;
 
-static void image_sample_draw(const bContext *UNUSED(C), ARegion *ar, void *arg_info)
+static void image_sample_draw(const bContext *C, ARegion *ar, void *arg_info)
 {
 	ImageSampleInfo *info = arg_info;
 	if (info->draw) {
-		/* no color management needed for images (color_manage=0) */
-		ED_image_draw_info(ar, 0, info->channels, info->x, info->y, info->colp, info->colfp, info->zp, info->zfp);
+		Scene *scene = CTX_data_scene(C);
+
+		ED_image_draw_info(scene, ar, info->color_manage, info->use_default_view, info->channels,
+		                   info->x, info->y, info->colp, info->colfp, info->zp, info->zfp);
 	}
 }
 
@@ -1974,13 +2028,7 @@ int ED_space_image_color_sample(SpaceImage *sima, ARegion *ar, int mval[2], floa
 
 		if (ibuf->rect_float) {
 			fp = (ibuf->rect_float + (ibuf->channels) * (y * ibuf->x + x));
-
-			if (ELEM(ibuf->profile, IB_PROFILE_LINEAR_RGB, IB_PROFILE_NONE)) {
-				linearrgb_to_srgb_v3_v3(r_col, fp);
-			}
-			else {
-				copy_v3_v3(r_col, fp);
-			}
+			linearrgb_to_srgb_v3_v3(r_col, fp);
 			ret = TRUE;
 		}
 		else if (ibuf->rect) {
@@ -2002,7 +2050,9 @@ static void image_sample_apply(bContext *C, wmOperator *op, wmEvent *event)
 	ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock);
 	ImageSampleInfo *info = op->customdata;
 	float fx, fy;
-	
+	Scene *scene = CTX_data_scene(C);
+	CurveMapping *curve_mapping = scene->view_settings.curve_mapping;
+
 	if (ibuf == NULL) {
 		ED_space_image_release_buffer(sima, lock);
 		info->draw = 0;
@@ -2015,6 +2065,7 @@ static void image_sample_apply(bContext *C, wmOperator *op, wmEvent *event)
 		float *fp;
 		unsigned char *cp;
 		int x = (int)(fx * ibuf->x), y = (int)(fy * ibuf->y);
+		Image *image = ED_space_image(sima);
 
 		CLAMP(x, 0, ibuf->x - 1);
 		CLAMP(y, 0, ibuf->y - 1);
@@ -2028,7 +2079,9 @@ static void image_sample_apply(bContext *C, wmOperator *op, wmEvent *event)
 		info->colfp = NULL;
 		info->zp = NULL;
 		info->zfp = NULL;
-		
+
+		info->use_default_view = (image->flag & IMA_VIEW_AS_RENDER) ? FALSE : TRUE;
+
 		if (ibuf->rect) {
 			cp = (unsigned char *)(ibuf->rect + y * ibuf->x + x);
 
@@ -2043,6 +2096,8 @@ static void image_sample_apply(bContext *C, wmOperator *op, wmEvent *event)
 			info->colf[2] = (float)cp[2] / 255.0f;
 			info->colf[3] = (float)cp[3] / 255.0f;
 			info->colfp = info->colf;
+
+			info->color_manage = FALSE;
 		}
 		if (ibuf->rect_float) {
 			fp = (ibuf->rect_float + (ibuf->channels) * (y * ibuf->x + x));
@@ -2052,6 +2107,8 @@ static void image_sample_apply(bContext *C, wmOperator *op, wmEvent *event)
 			info->colf[2] = fp[2];
 			info->colf[3] = fp[3];
 			info->colfp = info->colf;
+
+			info->color_manage = TRUE;
 		}
 
 		if (ibuf->zbuf) {
@@ -2062,25 +2119,21 @@ static void image_sample_apply(bContext *C, wmOperator *op, wmEvent *event)
 			info->zf = ibuf->zbuf_float[y * ibuf->x + x];
 			info->zfp = &info->zf;
 		}
-		
-		if (sima->cumap && ibuf->channels == 4) {
+
+		if (curve_mapping && ibuf->channels == 4) {
 			/* we reuse this callback for set curves point operators */
 			if (RNA_struct_find_property(op->ptr, "point")) {
 				int point = RNA_enum_get(op->ptr, "point");
 
 				if (point == 1) {
-					curvemapping_set_black_white(sima->cumap, NULL, info->colfp);
-					if (ibuf->rect_float)
-						curvemapping_do_ibuf(sima->cumap, ibuf);
+					curvemapping_set_black_white(curve_mapping, NULL, info->colfp);
 				}
 				else if (point == 0) {
-					curvemapping_set_black_white(sima->cumap, info->colfp, NULL);
-					if (ibuf->rect_float)
-						curvemapping_do_ibuf(sima->cumap, ibuf);
+					curvemapping_set_black_white(curve_mapping, info->colfp, NULL);
 				}
 			}
 		}
-				
+
 		// XXX node curve integration ..
 #if 0
 		{
@@ -2210,7 +2263,7 @@ static int image_sample_line_exec(bContext *C, wmOperator *op)
 	hist->co[1][0] = x2f;
 	hist->co[1][1] = y2f;
 
-	BKE_histogram_update_sample_line(hist, ibuf, (scene->r.color_mgt_flag & R_COLOR_MANAGEMENT) != 0);
+	BKE_histogram_update_sample_line(hist, ibuf, &scene->view_settings, &scene->display_settings);
 	
 	/* reset y zoom */
 	hist->ymax = 1.0f;
@@ -2305,7 +2358,8 @@ static int image_record_composite_apply(bContext *C, wmOperator *op)
 	
 	BKE_image_all_free_anim_ibufs(scene->r.cfra);
 	ntreeCompositTagAnimated(scene->nodetree);
-	ntreeCompositExecTree(scene->nodetree, &scene->r, 0, scene->r.cfra != rcd->old_cfra);  /* 1 is no previews */
+	ntreeCompositExecTree(scene->nodetree, &scene->r, 0, scene->r.cfra != rcd->old_cfra,
+	                      &scene->view_settings, &scene->display_settings);  /* 1 is no previews */
 
 	ED_area_tag_redraw(CTX_wm_area(C));
 	

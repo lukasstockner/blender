@@ -64,6 +64,8 @@ struct Tex;
 struct SpaceNode;
 struct ARegion;
 struct Object;
+struct ColorManagedViewSettings;
+struct ColorManagedDisplaySettings;
 
 /* ************** NODE TYPE DEFINITIONS ***** */
 
@@ -473,6 +475,8 @@ struct bNodeSocket *node_group_add_extern_socket(struct bNodeTree *ntree, ListBa
 void register_node_type_frame(struct bNodeTreeType *ttype);
 void register_node_type_reroute(struct bNodeTreeType *ttype);
 
+void BKE_node_tree_unlink_id_cb(void *calldata, struct ID *owner_id, struct bNodeTree *ntree);
+
 /* ************** SHADER NODES *************** */
 
 struct ShadeInput;
@@ -546,7 +550,8 @@ struct ShadeResult;
 #define SH_NODE_LIGHT_FALLOFF			166
 #define SH_NODE_OBJECT_INFO				167
 #define SH_NODE_PARTICLE_INFO           168
-#define SH_NODE_MYBSDF_DIFFUSE          169 //Diffuse copy node added for test purposes
+#define SH_NODE_TEX_BRICK				169
+#define SH_NODE_MYBSDF_DIFFUSE          170 //Diffuse copy node added for test purposes
 
 /* custom defines options for Material node */
 #define SH_NODE_MAT_DIFF   1
@@ -725,7 +730,8 @@ void            ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMateria
 struct CompBuf;
 struct bNodeTreeExec *ntreeCompositBeginExecTree(struct bNodeTree *ntree, int use_tree_data);
 void ntreeCompositEndExecTree(struct bNodeTreeExec *exec, int use_tree_data);
-void ntreeCompositExecTree(struct bNodeTree *ntree, struct RenderData *rd, int rendering, int do_previews);
+void ntreeCompositExecTree(struct bNodeTree *ntree, struct RenderData *rd, int rendering, int do_previews,
+                           const struct ColorManagedViewSettings *view_settings, const struct ColorManagedDisplaySettings *display_settings);
 void ntreeCompositTagRender(struct Scene *sce);
 int ntreeCompositTagAnimated(struct bNodeTree *ntree);
 void ntreeCompositTagGenerators(struct bNodeTree *ntree);

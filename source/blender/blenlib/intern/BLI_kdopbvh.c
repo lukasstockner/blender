@@ -42,7 +42,6 @@
 #endif
 
 #define MAX_TREETYPE 32
-#define DEFAULT_FIND_NEAREST_HEAP_SIZE 1024
 
 typedef struct BVHNode {
 	struct BVHNode **children;
@@ -114,6 +113,8 @@ static float KDOP_AXES[13][3] = {
 	{0, 1.0, -1.0}
 };
 
+#if 0
+
 /*
  * Generic push and pop heap
  */
@@ -153,7 +154,6 @@ static float KDOP_AXES[13][3] = {
 		heap[parent] = element;                                               \
 	} (void)0
 
-#if 0
 static int ADJUST_MEMORY(void *local_memblock, void **memblock, int new_size, int *max_size, int size_per_item)
 {
 	int new_max_size = *max_size * 2;
@@ -705,8 +705,8 @@ static void non_recursive_bvh_div_nodes(BVHTree *tree, BVHNode *branches_array, 
 	BVHNode *tmp = branches_array + 0;
 	tmp->parent = NULL;
 
-	/*Most of bvhtree code relies on 1-leaf trees having at least one branch
-	 *We handle that special case here */
+	/* Most of bvhtree code relies on 1-leaf trees having at least one branch
+	 * We handle that special case here */
 	if (num_leafs == 1) {
 		BVHNode *root = branches_array + 0;
 		refit_kdop_hull(tree, root, 0, num_leafs);
@@ -1167,8 +1167,6 @@ typedef struct NodeDistance {
 
 } NodeDistance;
 
-#define NodeDistance_priority(a, b) ( (a).dist < (b).dist)
-
 // TODO: use a priority queue to reduce the number of nodes looked on
 static void dfs_find_nearest_dfs(BVHNearestData *data, BVHNode *node)
 {
@@ -1211,6 +1209,11 @@ static void dfs_find_nearest_begin(BVHNearestData *data, BVHNode *node)
 
 
 #if 0
+
+#define DEFAULT_FIND_NEAREST_HEAP_SIZE 1024
+
+#define NodeDistance_priority(a, b) ( (a).dist < (b).dist)
+
 static void NodeDistance_push_heap(NodeDistance *heap, int heap_size)
 PUSH_HEAP_BODY(NodeDistance, NodeDistance_priority, heap, heap_size)
 

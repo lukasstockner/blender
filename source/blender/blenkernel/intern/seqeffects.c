@@ -49,10 +49,10 @@
 #include "BKE_main.h"
 #include "BKE_sequencer.h"
 #include "BKE_texture.h"
-#include "BKE_utildefines.h"
 
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
+#include "IMB_colormanagement.h"
 
 #include "RNA_access.h"
 
@@ -120,13 +120,13 @@ static ImBuf *prepare_effect_imbufs(SeqRenderData context, ImBuf *ibuf1, ImBuf *
 	}
 	
 	if (ibuf1 && !ibuf1->rect_float && out->rect_float) {
-		IMB_float_from_rect_simple(ibuf1);
+		BKE_sequencer_imbuf_to_sequencer_space(context.scene, ibuf1, TRUE);
 	}
 	if (ibuf2 && !ibuf2->rect_float && out->rect_float) {
-		IMB_float_from_rect_simple(ibuf2);
+		BKE_sequencer_imbuf_to_sequencer_space(context.scene, ibuf2, TRUE);
 	}
 	if (ibuf3 && !ibuf3->rect_float && out->rect_float) {
-		IMB_float_from_rect_simple(ibuf3);
+		BKE_sequencer_imbuf_to_sequencer_space(context.scene, ibuf3, TRUE);
 	}
 	
 	if (ibuf1 && !ibuf1->rect && !out->rect_float) {
@@ -138,7 +138,7 @@ static ImBuf *prepare_effect_imbufs(SeqRenderData context, ImBuf *ibuf1, ImBuf *
 	if (ibuf3 && !ibuf3->rect && !out->rect_float) {
 		IMB_rect_from_float(ibuf3);
 	}
-			
+
 	return out;
 }
 
@@ -609,9 +609,9 @@ static void makeGammaTables(float gamma)
 
 	/* The end of the table should match 1.0 carefully. In order to avoid
 	 * rounding errors, we just set this explicitly. The last segment may
-	* have a different length than the other segments, but our
-	* interpolation is insensitive to that
-	*/
+	 * have a different length than the other segments, but our
+	 * interpolation is insensitive to that
+	 */
 	color_domain_table[RE_GAMMA_TABLE_SIZE]    = 1.0;
 	gamma_range_table[RE_GAMMA_TABLE_SIZE]     = 1.0;
 	inv_gamma_range_table[RE_GAMMA_TABLE_SIZE] = 1.0;

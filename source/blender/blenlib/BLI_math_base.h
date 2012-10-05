@@ -30,8 +30,8 @@
  *  \ingroup bli
  */
 
-#ifdef WIN32
-#define _USE_MATH_DEFINES
+#ifdef _MSC_VER
+#  define _USE_MATH_DEFINES
 #endif
 
 #include <math.h>
@@ -164,7 +164,10 @@
 #endif
 
 #ifndef CLAMP
-#  define CLAMP(a, b, c)  if ((a) < (b)) (a) = (b); else if ((a) > (c)) (a) = (c)
+#  define CLAMP(a, b, c)  {         \
+	if ((a) < (b)) (a) = (b);       \
+	else if ((a) > (c)) (a) = (c);  \
+} (void)0
 #endif
 
 #ifdef __BLI_MATH_INLINE_H__

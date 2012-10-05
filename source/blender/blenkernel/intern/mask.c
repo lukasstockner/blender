@@ -55,6 +55,7 @@
 #include "BKE_sequencer.h"
 #include "BKE_tracking.h"
 #include "BKE_movieclip.h"
+#include "BKE_image.h"
 
 static MaskSplinePoint *mask_spline_point_next(MaskSpline *spline, MaskSplinePoint *points_array, MaskSplinePoint *point)
 {
@@ -909,25 +910,13 @@ void BKE_mask_layer_free_list(ListBase *masklayers)
 	}
 }
 
-void BKE_mask_free(Mask *mask)
+/** free for temp copy, but don't manage unlinking from other pointers */
+void BKE_mask_free_nolib(Mask *mask)
 {
 	BKE_mask_layer_free_list(&mask->masklayers);
 }
 
-
-static void ntree_unlink_mask_cb(void *calldata, struct ID *UNUSED(owner_id), struct bNodeTree *ntree)
-{
-	ID *id = (ID *)calldata;
-	bNode *node;
-
-	for (node = ntree->nodes.first; node; node = node->next) {
-		if (node->id == id) {
-			node->id = NULL;
-		}
-	}
-}
-
-void BKE_mask_unlink(Main *bmain, Mask *mask)
+void BKE_mask_free(Main *bmain, Mask *mask)
 {
 	bScreen *scr;
 	ScrArea *area;
@@ -973,24 +962,15 @@ void BKE_mask_unlink(Main *bmain, Mask *mask)
 			}
 			SEQ_END
 		}
-
-
-		if (scene->nodetree) {
-			bNode *node;
-			for (node = scene->nodetree->nodes.first; node; node = node->next) {
-				if (node->id == &mask->id) {
-					node->id = NULL;
-				}
-			}
-		}
 	}
 
 	{
 		bNodeTreeType *treetype = ntreeGetType(NTREE_COMPOSIT);
-		treetype->foreach_nodetree(bmain, (void *)mask, &ntree_unlink_mask_cb);
+		treetype->foreach_nodetree(bmain, (void *)mask, &BKE_node_tree_unlink_id_cb);
 	}
 
-	BKE_libblock_free(&bmain->mask, mask);
+	/* free mask data */
+	BKE_mask_layer_free_list(&mask->masklayers);
 }
 
 void BKE_mask_coord_from_frame(float r_co[2], const float co[2], const float frame_size[2])
@@ -1010,14 +990,26 @@ void BKE_mask_coord_from_frame(float r_co[2], const float co[2], const float fra
 }
 void BKE_mask_coord_from_movieclip(MovieClip *clip, MovieClipUser *user, float r_co[2], const float co[2])
 {
-	int width, height;
+	float aspx, aspy;
 	float frame_size[2];
 
 	/* scaling for the clip */
-	BKE_movieclip_get_size(clip, user, &width, &height);
+	BKE_movieclip_get_size_fl(clip, user, frame_size);
+	BKE_movieclip_get_aspect(clip, &aspx, &aspy);
 
-	frame_size[0] = (float)width;
-	frame_size[1] = (float)height;
+	frame_size[1] *= (aspy / aspx);
+
+	BKE_mask_coord_from_frame(r_co, co, frame_size);
+}
+void BKE_mask_coord_from_image(Image *image, ImageUser *iuser, float r_co[2], const float co[2])
+{
+	float aspx, aspy;
+	float frame_size[2];
+
+	BKE_image_get_size_fl(image, iuser, frame_size);
+	BKE_image_get_aspect(image, &aspx, &aspy);
+
+	frame_size[1] *= (aspy / aspx);
 
 	BKE_mask_coord_from_frame(r_co, co, frame_size);
 }
@@ -1040,14 +1032,27 @@ void BKE_mask_coord_to_frame(float r_co[2], const float co[2], const float frame
 }
 void BKE_mask_coord_to_movieclip(MovieClip *clip, MovieClipUser *user, float r_co[2], const float co[2])
 {
-	int width, height;
+	float aspx, aspy;
 	float frame_size[2];
 
 	/* scaling for the clip */
-	BKE_movieclip_get_size(clip, user, &width, &height);
+	BKE_movieclip_get_size_fl(clip, user, frame_size);
+	BKE_movieclip_get_aspect(clip, &aspx, &aspy);
 
-	frame_size[0] = (float)width;
-	frame_size[1] = (float)height;
+	frame_size[1] /= (aspy / aspx);
+
+	BKE_mask_coord_to_frame(r_co, co, frame_size);
+}
+void BKE_mask_coord_to_image(Image *image, ImageUser *iuser, float r_co[2], const float co[2])
+{
+	float aspx, aspy;
+	float frame_size[2];
+
+	/* scaling for the clip */
+	BKE_image_get_size_fl(image, iuser, frame_size);
+	BKE_image_get_aspect(image, &aspx, &aspy);
+
+	frame_size[1] /= (aspy / aspx);
 
 	BKE_mask_coord_to_frame(r_co, co, frame_size);
 }
@@ -1084,7 +1089,8 @@ static int BKE_mask_evaluate_parent(MaskParent *parent, float ctime, float r_co[
 	return FALSE;
 }
 
-int BKE_mask_evaluate_parent_delta(MaskParent *parent, float ctime, float r_delta[2])
+/* could make external but for now its only used internally */
+static int mask_evaluate_parent_delta(MaskParent *parent, float ctime, float r_delta[2])
 {
 	float parent_co[2];
 
@@ -1424,7 +1430,7 @@ void BKE_mask_layer_evaluate(MaskLayer *masklay, const float ctime, const int do
 				*point_deform = *point;
 				point_deform->uw = point->uw ? MEM_dupallocN(point->uw) : NULL;
 
-				if (BKE_mask_evaluate_parent_delta(&point->parent, ctime, delta)) {
+				if (mask_evaluate_parent_delta(&point->parent, ctime, delta)) {
 					add_v2_v2(point_deform->bezt.vec[0], delta);
 					add_v2_v2(point_deform->bezt.vec[1], delta);
 					add_v2_v2(point_deform->bezt.vec[2], delta);
@@ -1519,7 +1525,7 @@ void BKE_mask_parent_init(MaskParent *parent)
 }
 
 
-/* *** own animation/shapekey implimentation ***
+/* *** own animation/shapekey implementation ***
  * BKE_mask_layer_shape_XXX */
 
 int BKE_mask_layer_shape_totvert(MaskLayer *masklay)

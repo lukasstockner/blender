@@ -89,7 +89,6 @@
 #include "BKE_screen.h"
 #include "BKE_sequencer.h"
 #include "BKE_texture.h"
-#include "BKE_utildefines.h" // SWITCH_INT DATA ENDB DNA1 O_BINARY GLOB USER TEST REND
 #include "BKE_sound.h"
 
 #include "NOD_socket.h"
@@ -653,7 +652,7 @@ static void do_versions_seq_unique_name_all_strips(Scene * sce, ListBase *seqbas
 	Sequence * seq = seqbasep->first;
 
 	while (seq) {
-		BKE_seqence_base_unique_name_recursive(&sce->ed->seqbase, seq);
+		BKE_sequence_base_unique_name_recursive(&sce->ed->seqbase, seq);
 		if (seq->seqbase.first) {
 			do_versions_seq_unique_name_all_strips(sce, &seq->seqbase);
 		}

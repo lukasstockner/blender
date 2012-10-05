@@ -51,7 +51,6 @@
 #include "BLI_mempool.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_utildefines.h"
 #include "BKE_customdata.h"
 #include "BKE_customdata_file.h"
 #include "BKE_global.h"
@@ -271,28 +270,6 @@ static void layerInterp_mdeformvert(void **sources, const float *weights,
 
 	BLI_linklist_free(dest_dw, linklist_free_simple);
 }
-
-
-static void layerInterp_msticky(void **sources, const float *weights,
-                                const float *UNUSED(sub_weights), int count, void *dest)
-{
-	float co[2], w;
-	MSticky *mst;
-	int i;
-
-	co[0] = co[1] = 0.0f;
-	for (i = 0; i < count; i++) {
-		w = weights ? weights[i] : 1.0f;
-		mst = (MSticky *)sources[i];
-
-		madd_v2_v2fl(co, mst->co, w);
-	}
-
-	/* delay writing to the destination incase dest is in sources */
-	mst = (MSticky *)dest;
-	copy_v2_v2(mst->co, co);
-}
-
 
 static void layerCopy_tface(const void *source, void *dest, int count)
 {
@@ -1056,8 +1033,8 @@ static void layerInterp_mvert_skin(void **sources, const float *weights,
 static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	/* 0: CD_MVERT */
 	{sizeof(MVert), "MVert", 1, NULL, NULL, NULL, NULL, NULL, NULL},
-	/* 1: CD_MSTICKY */
-	{sizeof(MSticky), "MSticky", 1, NULL, NULL, NULL, layerInterp_msticky, NULL,
+	/* 1: CD_MSTICKY */  /* DEPRECATED */
+	{sizeof(float) * 2, "", 1, NULL, NULL, NULL, NULL, NULL,
 	 NULL},
 	/* 2: CD_MDEFORMVERT */
 	{sizeof(MDeformVert), "MDeformVert", 1, NULL, layerCopy_mdeformvert,
@@ -1156,7 +1133,7 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	{sizeof(GridPaintMask), "GridPaintMask", 1, NULL, layerCopy_grid_paint_mask,
 	 layerFree_grid_paint_mask, NULL, NULL, NULL},
 	/* 36: CD_SKIN_NODE */
-	{sizeof(MVertSkin), "MVertSkin", 1, "Skin", NULL, NULL,
+	{sizeof(MVertSkin), "MVertSkin", 1, NULL, NULL, NULL,
 	 layerInterp_mvert_skin, NULL, layerDefault_mvert_skin}
 };
 
@@ -2022,7 +1999,7 @@ void CustomData_interp(const CustomData *source, CustomData *dest,
 		}
 
 		/* if there are no more dest layers, we're done */
-		if (dest_i >= dest->totlayer) return;
+		if (dest_i >= dest->totlayer) break;
 
 		/* if we found a matching layer, copy the data */
 		if (dest->layers[dest_i].type == source->layers[src_i].type) {

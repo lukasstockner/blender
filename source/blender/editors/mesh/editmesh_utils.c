@@ -48,6 +48,8 @@
 #include "BKE_report.h"
 #include "BKE_tessmesh.h"
 
+#include "BKE_object.h"  /* XXX. only for EDBM_mesh_ensure_valid_dm_hack() which will be removed */
+
 #include "WM_api.h"
 #include "WM_types.h"
 
@@ -102,7 +104,17 @@ void EDBM_redo_state_free(BMBackup *backup, BMEditMesh *em, int recalctess)
 		BMEdit_RecalcTessellation(em);
 }
 
-
+/* hack to workaround multiple operators being called within the same event loop without an update
+ * see: [#31811] */
+void EDBM_mesh_ensure_valid_dm_hack(Scene *scene, BMEditMesh *em)
+{
+	if ((((ID *)em->ob->data)->flag & LIB_ID_RECALC) ||
+	    (em->ob->recalc & OB_RECALC_DATA))
+	{
+		em->ob->recalc |= OB_RECALC_DATA;  /* since we may not have done selection flushing */
+		BKE_object_handle_update(scene, em->ob);
+	}
+}
 
 void EDBM_mesh_normals_update(BMEditMesh *em)
 {
@@ -345,7 +357,6 @@ void EDBM_mesh_make(ToolSettings *ts, Scene *UNUSED(scene), Object *ob)
 	me->edit_btmesh->selectmode = me->edit_btmesh->bm->selectmode = ts->selectmode;
 	me->edit_btmesh->mat_nr = (ob->actcol > 0) ? ob->actcol - 1 : 0;
 
-	me->edit_btmesh->me = me;
 	me->edit_btmesh->ob = ob;
 }
 
@@ -536,6 +547,16 @@ static void *getEditMesh(bContext *C)
 typedef struct UndoMesh {
 	Mesh me;
 	int selectmode;
+
+	/** \note
+	 * this isn't a prefect solution, if you edit keys and change shapes this works well (fixing [#32442]),
+	 * but editing shape keys, going into object mode, removing or changing their order,
+	 * then go back into editmode and undo will give issues - where the old index will be out of sync
+	 * with the new object index.
+	 *
+	 * There are a few ways this could be made to work but for now its a known limitation with mixing
+	 * object and editmode operations - Campbell */
+	int shapenr;
 } UndoMesh;
 
 /* undo simply makes copies of a bmesh */
@@ -547,13 +568,14 @@ static void *editbtMesh_to_undoMesh(void *emv, void *obdata)
 	UndoMesh *um = MEM_callocN(sizeof(UndoMesh), "undo Mesh");
 	
 	/* make sure shape keys work */
-	um->me.key = obme->key ? copy_key_nolib(obme->key) : NULL;
+	um->me.key = obme->key ? BKE_key_copy_nolib(obme->key) : NULL;
 
 	/* BM_mesh_validate(em->bm); */ /* for troubleshooting */
 
 	BM_mesh_bm_to_me(em->bm, &um->me, FALSE);
 
 	um->selectmode = em->selectmode;
+	um->shapenr = em->bm->shapenr;
 
 	return um;
 }
@@ -565,7 +587,7 @@ static void undoMesh_to_editbtMesh(void *umv, void *em_v, void *UNUSED(obdata))
 	UndoMesh *um = umv;
 	BMesh *bm;
 
-	ob->shapenr = em->bm->shapenr;
+	ob->shapenr = em->bm->shapenr = um->shapenr;
 
 	EDBM_mesh_free(em);
 
@@ -580,6 +602,7 @@ static void undoMesh_to_editbtMesh(void *umv, void *em_v, void *UNUSED(obdata))
 	*em = *em_tmp;
 	
 	em->selectmode = um->selectmode;
+	bm->selectmode = um->selectmode;
 	em->ob = ob;
 
 	MEM_freeN(em_tmp);
@@ -991,15 +1014,15 @@ void EDBM_uv_element_map_free(UvElementMap *element_map)
 
 /* last_sel, use em->act_face otherwise get the last selected face in the editselections
  * at the moment, last_sel is mainly useful for making sure the space image dosnt flicker */
-MTexPoly *EDBM_mtexpoly_active_get(BMEditMesh *em, BMFace **r_act_efa, int sloppy)
+MTexPoly *EDBM_mtexpoly_active_get(BMEditMesh *em, BMFace **r_act_efa, int sloppy, int selected)
 {
 	BMFace *efa = NULL;
 	
 	if (!EDBM_mtexpoly_check(em))
 		return NULL;
 	
-	efa = BM_active_face_get(em->bm, sloppy);
-	
+	efa = BM_active_face_get(em->bm, sloppy, selected);
+
 	if (efa) {
 		if (r_act_efa) *r_act_efa = efa;
 		return CustomData_bmesh_get(&em->bm->pdata, efa->head.data, CD_MTEXPOLY);
@@ -1055,14 +1078,14 @@ static BMVert *cache_mirr_intptr_as_bmvert(intptr_t *index_lookup, int index)
 #define BM_CD_LAYER_ID "__mirror_index"
 void EDBM_verts_mirror_cache_begin(BMEditMesh *em, const short use_select)
 {
-	Mesh *me = em->me;
+	Mesh *me = (Mesh *)em->ob->data;
 	BMesh *bm = em->bm;
 	BMIter iter;
 	BMVert *v;
 	int li, topo = 0;
 
 	/* one or the other is used depending if topo is enabled */
-	BMBVHTree *tree = NULL;
+	struct BMBVHTree *tree = NULL;
 	MirrTopoStore_t mesh_topo_store = {NULL, -1, -1, -1};
 
 	if (me && (me->editflag & ME_EDIT_MIRROR_TOPO)) {

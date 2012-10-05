@@ -55,9 +55,9 @@
 
 /* ********* add primitive operators ************* */
 
-static void make_prim_init(bContext *C, const char *idname,
-                           float *dia, float mat[][4],
-                           int *state, const float loc[3], const float rot[3], const unsigned int layer)
+static Object *make_prim_init(bContext *C, const char *idname,
+                              float *dia, float mat[][4],
+                              int *state, const float loc[3], const float rot[3], const unsigned int layer)
 {
 	Object *obedit = CTX_data_edit_object(C);
 
@@ -74,11 +74,12 @@ static void make_prim_init(bContext *C, const char *idname,
 	}
 
 	*dia = ED_object_new_primitive_matrix(C, obedit, loc, rot, mat);
+
+	return obedit;
 }
 
-static void make_prim_finish(bContext *C, int *state, int enter_editmode)
+static void make_prim_finish(bContext *C, Object *obedit, int *state, int enter_editmode)
 {
-	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BMEdit_FromObject(obedit);
 
 	/* Primitive has all verts selected, use vert select flush
@@ -97,7 +98,6 @@ static void make_prim_finish(bContext *C, int *state, int enter_editmode)
 static int add_primitive_plane_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit;
-	Mesh *me;
 	BMEditMesh *em;
 	float loc[3], rot[3], mat[4][4], dia;
 	int enter_editmode;
@@ -105,11 +105,8 @@ static int add_primitive_plane_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 	
 	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer, NULL);
-	make_prim_init(C, "Plane", &dia, mat, &state, loc, rot, layer);
-
-	obedit = CTX_data_edit_object(C);
-	me = obedit->data;
-	em = me->edit_btmesh;
+	obedit = make_prim_init(C, "Plane", &dia, mat, &state, loc, rot, layer);
+	em = BMEdit_FromObject(obedit);
 
 	if (!EDBM_op_call_and_selectf(em, op, "vertout",
 	                              "create_grid xsegments=%i ysegments=%i size=%f mat=%m4", 1, 1, dia, mat))
@@ -117,7 +114,7 @@ static int add_primitive_plane_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	make_prim_finish(C, &state, enter_editmode);
+	make_prim_finish(C, obedit, &state, enter_editmode);
 
 	return OPERATOR_FINISHED;
 }
@@ -143,7 +140,6 @@ void MESH_OT_primitive_plane_add(wmOperatorType *ot)
 static int add_primitive_cube_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit;
-	Mesh *me;
 	BMEditMesh *em;
 	float loc[3], rot[3], mat[4][4], dia;
 	int enter_editmode;
@@ -151,18 +147,15 @@ static int add_primitive_cube_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 	
 	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer, NULL);
-	make_prim_init(C, "Cube", &dia, mat, &state, loc, rot, layer);
-
-	obedit = CTX_data_edit_object(C);
-	me = obedit->data;
-	em = me->edit_btmesh;
+	obedit = make_prim_init(C, "Cube", &dia, mat, &state, loc, rot, layer);
+	em = BMEdit_FromObject(obedit);
 
 	if (!EDBM_op_call_and_selectf(em, op, "vertout", "create_cube mat=%m4 size=%f", mat, dia * 2.0f)) {
 		return OPERATOR_CANCELLED;
 	}
 	
 	/* BMESH_TODO make plane side this: M_SQRT2 - plane (diameter of 1.41 makes it unit size) */
-	make_prim_finish(C, &state, enter_editmode);
+	make_prim_finish(C, obedit, &state, enter_editmode);
 
 	return OPERATOR_FINISHED;
 }
@@ -194,7 +187,6 @@ static const EnumPropertyItem fill_type_items[] = {
 static int add_primitive_circle_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit;
-	Mesh *me;
 	BMEditMesh *em;
 	float loc[3], rot[3], mat[4][4], dia;
 	int enter_editmode;
@@ -205,11 +197,8 @@ static int add_primitive_circle_exec(bContext *C, wmOperator *op)
 	cap_tri = (cap_end == 2);
 	
 	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer, NULL);
-	make_prim_init(C, "Circle", &dia, mat, &state, loc, rot, layer);
-
-	obedit = CTX_data_edit_object(C);
-	me = obedit->data;
-	em = me->edit_btmesh;
+	obedit = make_prim_init(C, "Circle", &dia, mat, &state, loc, rot, layer);
+	em = BMEdit_FromObject(obedit);
 
 	if (!EDBM_op_call_and_selectf(em, op, "vertout",
 	                              "create_circle segments=%i diameter=%f cap_ends=%b cap_tris=%b mat=%m4",
@@ -219,7 +208,7 @@ static int add_primitive_circle_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 	
-	make_prim_finish(C, &state, enter_editmode);
+	make_prim_finish(C, obedit, &state, enter_editmode);
 	
 	return OPERATOR_FINISHED;
 }
@@ -253,7 +242,6 @@ void MESH_OT_primitive_circle_add(wmOperatorType *ot)
 static int add_primitive_cylinder_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit;
-	Mesh *me;
 	BMEditMesh *em;
 	float loc[3], rot[3], mat[4][4], dia;
 	int enter_editmode;
@@ -264,11 +252,8 @@ static int add_primitive_cylinder_exec(bContext *C, wmOperator *op)
 	cap_tri = (cap_end == 2);
 	
 	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer, NULL);
-	make_prim_init(C, "Cylinder", &dia, mat, &state, loc, rot, layer);
-
-	obedit = CTX_data_edit_object(C);
-	me = obedit->data;
-	em = me->edit_btmesh;
+	obedit = make_prim_init(C, "Cylinder", &dia, mat, &state, loc, rot, layer);
+	em = BMEdit_FromObject(obedit);
 
 	if (!EDBM_op_call_and_selectf(
 	        em, op, "vertout",
@@ -282,7 +267,7 @@ static int add_primitive_cylinder_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 	
-	make_prim_finish(C, &state, enter_editmode);
+	make_prim_finish(C, obedit, &state, enter_editmode);
 	
 	return OPERATOR_FINISHED;
 }
@@ -318,7 +303,6 @@ void MESH_OT_primitive_cylinder_add(wmOperatorType *ot)
 static int add_primitive_cone_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit;
-	Mesh *me;
 	BMEditMesh *em;
 	float loc[3], rot[3], mat[4][4], dia;
 	int enter_editmode;
@@ -329,11 +313,8 @@ static int add_primitive_cone_exec(bContext *C, wmOperator *op)
 	cap_tri = (cap_end == 2);
 	
 	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer, NULL);
-	make_prim_init(C, "Cone", &dia, mat, &state, loc, rot, layer);
-
-	obedit = CTX_data_edit_object(C);
-	me = obedit->data;
-	em = me->edit_btmesh;
+	obedit = make_prim_init(C, "Cone", &dia, mat, &state, loc, rot, layer);
+	em = BMEdit_FromObject(obedit);
 
 	if (!EDBM_op_call_and_selectf(
 	        em, op, "vertout",
@@ -344,7 +325,7 @@ static int add_primitive_cone_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 	
-	make_prim_finish(C, &state, enter_editmode);
+	make_prim_finish(C, obedit, &state, enter_editmode);
 
 	return OPERATOR_FINISHED;
 }
@@ -382,7 +363,6 @@ void MESH_OT_primitive_cone_add(wmOperatorType *ot)
 static int add_primitive_grid_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit;
-	Mesh *me;
 	BMEditMesh *em;
 	float loc[3], rot[3], mat[4][4], dia;
 	int enter_editmode;
@@ -390,11 +370,8 @@ static int add_primitive_grid_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 	
 	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer, NULL);
-	make_prim_init(C, "Grid", &dia, mat, &state, loc, rot, layer);
-
-	obedit = CTX_data_edit_object(C);
-	me = obedit->data;
-	em = me->edit_btmesh;
+	obedit = make_prim_init(C, "Grid", &dia, mat, &state, loc, rot, layer);
+	em = BMEdit_FromObject(obedit);
 
 	if (!EDBM_op_call_and_selectf(em, op, "vertout",
 	                              "create_grid xsegments=%i ysegments=%i size=%f mat=%m4",
@@ -405,7 +382,7 @@ static int add_primitive_grid_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 	
-	make_prim_finish(C, &state, enter_editmode);
+	make_prim_finish(C, obedit, &state, enter_editmode);
 	return OPERATOR_FINISHED;
 }
 
@@ -438,7 +415,6 @@ void MESH_OT_primitive_grid_add(wmOperatorType *ot)
 static int add_primitive_monkey_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit;
-	Mesh *me;
 	BMEditMesh *em;
 	float loc[3], rot[3], mat[4][4], dia;
 	int enter_editmode;
@@ -449,17 +425,14 @@ static int add_primitive_monkey_exec(bContext *C, wmOperator *op)
 	if (!view_aligned)
 		rot[0] += (float)M_PI / 2.0f;
 	
-	make_prim_init(C, "Monkey", &dia, mat, &state, loc, rot, layer);
-
-	obedit = CTX_data_edit_object(C);
-	me = obedit->data;
-	em = me->edit_btmesh;
+	obedit = make_prim_init(C, "Monkey", &dia, mat, &state, loc, rot, layer);
+	em = BMEdit_FromObject(obedit);
 
 	if (!EDBM_op_call_and_selectf(em, op, "vertout", "create_monkey mat=%m4", mat)) {
 		return OPERATOR_CANCELLED;
 	}
 	
-	make_prim_finish(C, &state, enter_editmode);
+	make_prim_finish(C, obedit, &state, enter_editmode);
 	return OPERATOR_FINISHED;
 }
 
@@ -484,7 +457,6 @@ void MESH_OT_primitive_monkey_add(wmOperatorType *ot)
 static int add_primitive_uvsphere_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit;
-	Mesh *me;
 	BMEditMesh *em;
 	float loc[3], rot[3], mat[4][4], dia;
 	int enter_editmode;
@@ -492,11 +464,8 @@ static int add_primitive_uvsphere_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 	
 	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer, NULL);
-	make_prim_init(C, "Sphere", &dia, mat, &state, loc, rot, layer);
-
-	obedit = CTX_data_edit_object(C);
-	me = obedit->data;
-	em = me->edit_btmesh;
+	obedit = make_prim_init(C, "Sphere", &dia, mat, &state, loc, rot, layer);
+	em = BMEdit_FromObject(obedit);
 
 	if (!EDBM_op_call_and_selectf(em, op, "vertout",
 	                              "create_uvsphere segments=%i revolutions=%i diameter=%f mat=%m4",
@@ -506,7 +475,7 @@ static int add_primitive_uvsphere_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 	
-	make_prim_finish(C, &state, enter_editmode);
+	make_prim_finish(C, obedit, &state, enter_editmode);
 
 	return OPERATOR_FINISHED;	
 }
@@ -540,7 +509,6 @@ void MESH_OT_primitive_uv_sphere_add(wmOperatorType *ot)
 static int add_primitive_icosphere_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit;
-	Mesh *me;
 	BMEditMesh *em;
 	float loc[3], rot[3], mat[4][4], dia;
 	int enter_editmode;
@@ -548,11 +516,8 @@ static int add_primitive_icosphere_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 	
 	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer, NULL);
-	make_prim_init(C, "Icosphere", &dia, mat, &state, loc, rot, layer);
-
-	obedit = CTX_data_edit_object(C);
-	me = obedit->data;
-	em = me->edit_btmesh;
+	obedit = make_prim_init(C, "Icosphere", &dia, mat, &state, loc, rot, layer);
+	em = BMEdit_FromObject(obedit);
 
 	if (!EDBM_op_call_and_selectf(
 	        em, op, "vertout",
@@ -563,7 +528,7 @@ static int add_primitive_icosphere_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 	
-	make_prim_finish(C, &state, enter_editmode);
+	make_prim_finish(C, obedit, &state, enter_editmode);
 
 	return OPERATOR_FINISHED;	
 }

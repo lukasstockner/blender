@@ -98,7 +98,7 @@ int paint_convert_bb_to_rect(rcti *rect,
 				vec[1] = j ? bb_min[1] : bb_max[1];
 				vec[2] = k ? bb_min[2] : bb_max[2];
 				/* convert corner to screen space */
-				ED_view3d_project_float_v2(ar, vec, proj, projection_mat);
+				ED_view3d_project_float_v2_m4(ar, vec, proj, projection_mat);
 				/* expand 2D rectangle */
 
 				/* we could project directly to int? */
@@ -137,7 +137,7 @@ void paint_calc_redraw_planes(float planes[4][4],
 	rect.ymin -= 2;
 	rect.ymax += 2;
 
-	ED_view3d_calc_clipping(&bb, planes, &mats, &rect);
+	ED_view3d_clipping_calc(&bb, planes, &mats, &rect);
 	mul_m4_fl(planes, -1.0f);
 }
 
@@ -159,14 +159,12 @@ float paint_calc_object_space_radius(ViewContext *vc, const float center[3],
 {
 	Object *ob = vc->obact;
 	float delta[3], scale, loc[3];
-	float mval_f[2];
+	const float mval_f[2] = {pixel_radius, 0.0f};
 
 	mul_v3_m4v3(loc, ob->obmat, center);
 
 	initgrabz(vc->rv3d, loc[0], loc[1], loc[2]);
 
-	mval_f[0] = pixel_radius;
-	mval_f[1] = 0.0f;
 	ED_view3d_win_to_delta(vc->ar, mval_f, delta);
 
 	scale = fabsf(mat4_to_scale(ob->obmat));

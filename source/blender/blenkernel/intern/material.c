@@ -941,7 +941,7 @@ static void do_init_render_material(Material *ma, int r_mode, float *amb)
 			
 			if (ma->texco & (TEXCO_ORCO | TEXCO_REFL | TEXCO_NORM | TEXCO_STRAND | TEXCO_STRESS)) needuv = 1;
 			else if (ma->texco & (TEXCO_GLOB | TEXCO_UV | TEXCO_OBJECT | TEXCO_SPEED)) needuv = 1;
-			else if (ma->texco & (TEXCO_LAVECTOR | TEXCO_VIEW | TEXCO_STICKY)) needuv = 1;
+			else if (ma->texco & (TEXCO_LAVECTOR | TEXCO_VIEW)) needuv = 1;
 
 			if ((ma->mapto & MAP_NORM) && (mtex->normapspace == MTEX_NSPACE_TANGENT))
 				needtang = 1;
@@ -1327,9 +1327,9 @@ void ramp_blend(int type, float r_col[3], const float fac, const float col[3])
 				r_col[2] = facm * (r_col[2]) + fac * (r_col[2]) / col[2];
 			break;
 		case MA_RAMP_DIFF:
-			r_col[0] = facm * (r_col[0]) + fac *fabsf(r_col[0] - col[0]);
-			r_col[1] = facm * (r_col[1]) + fac *fabsf(r_col[1] - col[1]);
-			r_col[2] = facm * (r_col[2]) + fac *fabsf(r_col[2] - col[2]);
+			r_col[0] = facm * (r_col[0]) + fac * fabsf(r_col[0] - col[0]);
+			r_col[1] = facm * (r_col[1]) + fac * fabsf(r_col[1] - col[1]);
+			r_col[2] = facm * (r_col[2]) + fac * fabsf(r_col[2] - col[2]);
 			break;
 		case MA_RAMP_DARK:
 			tmp = col[0] + ((1 - col[0]) * facm);
@@ -1490,7 +1490,7 @@ void ramp_blend(int type, float r_col[3], const float fac, const float col[3])
 }
 
 /**
- * \brief copy/paste buffer, if we had a propper py api that would be better
+ * \brief copy/paste buffer, if we had a proper py api that would be better
  * \note matcopybuf.nodetree does _NOT_ use ID's
  * \todo matcopybuf.nodetree's  node->id's are NOT validated, this will crash!
  */

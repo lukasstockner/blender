@@ -230,7 +230,7 @@ static void node_socket_add_replace(Main *bmain, bNodeTree *ntree, bNode *node_t
 
 /****************************** Node Link Menu *******************************/
 
-#define UI_NODE_LINK_ADD        0
+// #define UI_NODE_LINK_ADD        0
 #define UI_NODE_LINK_DISCONNECT -1
 #define UI_NODE_LINK_REMOVE     -2
 
@@ -627,11 +627,11 @@ static void ui_node_draw_input(uiLayout *layout, bContext *C, bNodeTree *ntree, 
 				row = uiLayoutRow(split, FALSE);
 				col = uiLayoutColumn(row, FALSE);
 
-				uiItemR(col, &inputptr, "default_value", 0, "", 0);
+				uiItemR(col, &inputptr, "default_value", 0, "", ICON_NONE);
 			}
 			else {
 				row = uiLayoutRow(split, TRUE);
-				uiItemR(row, &inputptr, "default_value", 0, "", 0);
+				uiItemR(row, &inputptr, "default_value", 0, "", ICON_NONE);
 			}
 		}
 		else

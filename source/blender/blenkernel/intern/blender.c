@@ -44,7 +44,8 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
-#include <fcntl.h> // for open
+#include <fcntl.h>  /* for open */
+#include <errno.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -80,19 +81,18 @@
 #include "BKE_sound.h"
 #include "RE_pipeline.h"
 
-
 #include "BLO_undofile.h"
 #include "BLO_readfile.h" 
 #include "BLO_writefile.h" 
-
-#include "BKE_utildefines.h"
 
 #include "RNA_access.h"
 
 #include "WM_api.h" // XXXXX BAD, very BAD dependency (bad level call) - remove asap, elubie
 
+#include "IMB_colormanagement.h"
+
 #ifdef WITH_PYTHON
-#include "BPY_extern.h"
+#  include "BPY_extern.h"
 #endif
 
 Global G;
@@ -219,8 +219,6 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 	/* no load screens? */
 	if (mode) {
 		/* comes from readfile.c */
-		extern void lib_link_screen_restore(Main *, bScreen *, Scene *);
-		
 		SWAP(ListBase, G.main->wm, bfd->main->wm);
 		SWAP(ListBase, G.main->screen, bfd->main->screen);
 		SWAP(ListBase, G.main->script, bfd->main->script);
@@ -234,7 +232,7 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 		if (curscreen) curscreen->scene = curscene;  /* can run in bgmode */
 
 		/* clear_global will free G.main, here we can still restore pointers */
-		lib_link_screen_restore(bfd->main, curscreen, curscene);
+		blo_lib_link_screen_restore(bfd->main, curscreen, curscene);
 	}
 	
 	/* free G.main Main database */
@@ -324,7 +322,11 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 
 	/* baseflags, groups, make depsgraph, etc */
 	BKE_scene_set_background(G.main, CTX_data_scene(C));
-	
+
+	if (mode != 'u') {
+		IMB_colormanagement_check_file_config(G.main);
+	}
+
 	MEM_freeN(bfd);
 
 	(void)curscene; /* quiet warning */
@@ -465,11 +467,10 @@ int blender_test_break(void)
 
 #define UNDO_DISK   0
 
-#define MAXUNDONAME 64
 typedef struct UndoElem {
 	struct UndoElem *next, *prev;
 	char str[FILE_MAX];
-	char name[MAXUNDONAME];
+	char name[BKE_UNDO_STR_MAX];
 	MemFile memfile;
 	uintptr_t undosize;
 } UndoElem;
@@ -515,8 +516,13 @@ void BKE_write_undo(bContext *C, const char *name)
 	int nr /*, success */ /* UNUSED */;
 	UndoElem *uel;
 	
-	if ( (U.uiflag & USER_GLOBALUNDO) == 0) return;
-	if (U.undosteps == 0) return;
+	if ((U.uiflag & USER_GLOBALUNDO) == 0) {
+		return;
+	}
+
+	if (U.undosteps == 0) {
+		return;
+	}
 	
 	/* remove all undos after (also when curundo == NULL) */
 	while (undobase.last != curundo) {
@@ -717,38 +723,60 @@ void BKE_undo_save_quit(void)
 {
 	UndoElem *uel;
 	MemFileChunk *chunk;
-	int file;
 	char str[FILE_MAX];
-	
-	if ( (U.uiflag & USER_GLOBALUNDO) == 0) return;
-	
+	const int flag = O_BINARY + O_WRONLY + O_CREAT + O_TRUNC + O_EXCL;
+	int file;
+
+	if ((U.uiflag & USER_GLOBALUNDO) == 0) {
+		return;
+	}
+
 	uel = curundo;
 	if (uel == NULL) {
-		printf("No undo buffer to save recovery file\n");
+		fprintf(stderr, "No undo buffer to save recovery file\n");
 		return;
 	}
-	
+
 	/* no undo state to save */
-	if (undobase.first == undobase.last) return;
-		
+	if (undobase.first == undobase.last) {
+		return;
+	}
+
+	/* save the undo state as quit.blend */
 	BLI_make_file_string("/", str, BLI_temporary_dir(), "quit.blend");
 
-	file = BLI_open(str, O_BINARY + O_WRONLY + O_CREAT + O_TRUNC, 0666);
+	/* first try create the file, if it exists call without 'O_CREAT',
+	 * to avoid writing to a symlink - use 'O_EXCL' (CVE-2008-1103) */
+	errno = 0;
+	file = BLI_open(str, flag, 0666);
 	if (file == -1) {
-		//XXX error("Unable to save %s, check you have permissions", str);
+		if (errno == EEXIST) {
+			errno = 0;
+			file = BLI_open(str, flag & ~O_CREAT, 0666);
+		}
+	}
+
+	if (file == -1) {
+		fprintf(stderr, "Unable to save '%s': %s\n",
+		        str, errno ? strerror(errno) : "Unknown error opening file");
 		return;
 	}
 
-	chunk = uel->memfile.chunks.first;
-	while (chunk) {
-		if (write(file, chunk->buf, chunk->size) != chunk->size) break;
-		chunk = chunk->next;
+	for (chunk = uel->memfile.chunks.first; chunk; chunk = chunk->next) {
+		if (write(file, chunk->buf, chunk->size) != chunk->size) {
+			break;
+		}
 	}
-	
+
 	close(file);
 	
-	if (chunk) ;  //XXX error("Unable to save %s, internal error", str);
-	else printf("Saved session recovery to %s\n", str);
+	if (chunk) {
+		fprintf(stderr, "Unable to save '%s': %s\n",
+		        str, errno ? strerror(errno) : "Unknown error writing file");
+	}
+	else {
+		printf("Saved session recovery to '%s'\n", str);
+	}
 }
 
 /* sets curscene */

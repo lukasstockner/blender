@@ -76,7 +76,7 @@ typedef struct {
  */
 #define _NET_WM_STATE_REMOVE 0
 #define _NET_WM_STATE_ADD 1
-#define _NET_WM_STATE_TOGGLE 2
+// #define _NET_WM_STATE_TOGGLE 2 // UNUSED
 
 /*
    import bpy
@@ -1326,7 +1326,7 @@ GHOST_WindowX11::
 	c_owner = XGetSelectionOwner(m_display, Clipboard_atom);
 	
 	std::map<unsigned int, Cursor>::iterator it = m_standard_cursors.begin();
-	for (; it != m_standard_cursors.end(); it++) {
+	for (; it != m_standard_cursors.end(); ++it) {
 		XFreeCursor(m_display, it->second);
 	}
 
@@ -1376,8 +1376,8 @@ GHOST_WindowX11::
 
 /**
  * Tries to install a rendering context in this window.
- * @param type	The type of rendering context installed.
- * @return Indication as to whether installation has succeeded.
+ * \param type	The type of rendering context installed.
+ * \return Indication as to whether installation has succeeded.
  */
 GHOST_TSuccess
 GHOST_WindowX11::
@@ -1418,7 +1418,7 @@ installDrawingContext(
 
 /**
  * Removes the current drawing context.
- * @return Indication as to whether removal has succeeded.
+ * \return Indication as to whether removal has succeeded.
  */
 GHOST_TSuccess
 GHOST_WindowX11::

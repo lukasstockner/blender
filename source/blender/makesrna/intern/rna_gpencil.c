@@ -90,7 +90,7 @@ static void rna_GPencil_active_layer_set(PointerRNA *ptr, PointerRNA value)
 	}
 }
 
-void rna_GPencilLayer_info_set(PointerRNA *ptr, const char *value)
+static void rna_GPencilLayer_info_set(PointerRNA *ptr, const char *value)
 {
 	bGPdata *gpd = ptr->id.data;
 	bGPDlayer *gpl = ptr->data;
@@ -203,7 +203,7 @@ static void rna_def_gpencil_layer(BlenderRNA *brna)
 	RNA_def_property_editable_func(prop, "rna_GPencilLayer_active_frame_editable");
 	
 	/* Drawing Color */
-	prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR);
+	prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR_GAMMA);
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_ui_text(prop, "Color", "Color for all strokes in this layer");

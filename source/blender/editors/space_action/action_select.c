@@ -255,8 +255,8 @@ static void borderselect_action(bAnimContext *ac, rcti rect, short mode, short s
 		}
 		
 		/* perform vertical suitability check (if applicable) */
-		if ( (mode == ACTKEYS_BORDERSEL_FRAMERANGE) || 
-		     !((ymax < rectf.ymin) || (ymin > rectf.ymax)) )
+		if ((mode == ACTKEYS_BORDERSEL_FRAMERANGE) ||
+		    !((ymax < rectf.ymin) || (ymin > rectf.ymax)))
 		{
 			/* loop over data selecting */
 			if (ale->type == ANIMTYPE_GPLAYER)
@@ -309,7 +309,7 @@ static int actkeys_borderselect_exec(bContext *C, wmOperator *op)
 		 *	- the frame-range select option is favored over the channel one (x over y), as frame-range one is often
 		 *	  used for tweaking timing when "blocking", while channels is not that useful...
 		 */
-		if (BLI_RCT_SIZE_X(&rect) >= BLI_RCT_SIZE_Y(&rect))
+		if (BLI_rcti_size_x(&rect) >= BLI_rcti_size_y(&rect))
 			mode = ACTKEYS_BORDERSEL_FRAMERANGE;
 		else
 			mode = ACTKEYS_BORDERSEL_CHANNELS;
@@ -802,8 +802,8 @@ static void actkeys_select_leftright(bAnimContext *ac, short leftright, short se
 			TimeMarker *marker;
 			
 			for (marker = markers->first; marker; marker = marker->next) {
-				if ( ((leftright == ACTKEYS_LRSEL_LEFT) && (marker->frame < CFRA)) ||
-				     ((leftright == ACTKEYS_LRSEL_RIGHT) && (marker->frame >= CFRA)) )
+				if (((leftright == ACTKEYS_LRSEL_LEFT)  && (marker->frame <  CFRA)) ||
+				    ((leftright == ACTKEYS_LRSEL_RIGHT) && (marker->frame >= CFRA)))
 				{
 					marker->flag |= SELECT;
 				}
@@ -911,9 +911,6 @@ void ACTION_OT_select_leftright(wmOperatorType *ot)
  * In addition to these basic options, the SHIFT modifier can be used to toggle the 
  * selection mode between replacing the selection (without) and inverting the selection (with).
  */
-
-/* sensitivity factor for frame-selections */
-#define FRAME_CLICK_THRESH      0.1f
 
 /* ------------------- */
  

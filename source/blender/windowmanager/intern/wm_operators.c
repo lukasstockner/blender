@@ -1002,7 +1002,7 @@ static uiBlock *wm_block_create_redo(bContext *C, ARegion *ar, void *arg_op)
 	layout = uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, width, UI_UNIT_Y, style);
 
 	if (!WM_operator_check_ui_enabled(C, op->type->name))
-		uiLayoutSetEnabled(layout, 0);
+		uiLayoutSetEnabled(layout, FALSE);
 
 	if (op->type->flag & OPTYPE_MACRO) {
 		for (op = op->macro.first; op; op = op->next) {
@@ -1296,7 +1296,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	extern int datatoc_splash_png_size;
 
 	ImBuf *ibuf = IMB_ibImageFromMemory((unsigned char *)datatoc_splash_png,
-	                                    datatoc_splash_png_size, IB_rect, "<splash screen>");
+	                                    datatoc_splash_png_size, IB_rect, NULL, "<splash screen>");
 #else
 	ImBuf *ibuf = NULL;
 #endif
@@ -1693,7 +1693,7 @@ static void WM_OT_open_mainfile(wmOperatorType *ot)
 
 /* **************** link/append *************** */
 
-int wm_link_append_poll(bContext *C)
+static int wm_link_append_poll(bContext *C)
 {
 	if (WM_operator_winactive(C)) {
 		/* linking changes active object which is pretty useful in general,

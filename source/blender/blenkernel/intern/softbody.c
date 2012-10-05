@@ -143,13 +143,15 @@ typedef struct  SB_thread_context {
 } SB_thread_context;
 
 #define NLF_BUILD  1
-#define NLF_SOLVE  2
+#if 0
+#  define NLF_SOLVE  2
+#endif
 
 #define MID_PRESERVE 1
 
 #define SOFTGOALSNAP  0.999f
 /* if bp-> goal is above make it a *forced follow original* and skip all ODE stuff for this bp
- * removes *unnecessary* stiffnes from ODE system
+ * removes *unnecessary* stiffness from ODE system
  */
 #define HEUNWARNLIMIT 1 /* 500 would be fine i think for detecting severe *stiff* stuff */
 
@@ -2291,7 +2293,7 @@ static int _softbody_calc_forces_slice_in_a_thread(Scene *scene, Object *ob, flo
 			/* done goal stuff */
 
 			/* gravitation */
-			if (sb && scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY) {
+			if (scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY) {
 				float gravity[3];
 				copy_v3_v3(gravity, scene->physics_settings.gravity);
 				mul_v3_fl(gravity, sb_grav_force_scale(ob)*_final_mass(ob, bp)*sb->effector_weights->global_gravity); /* individual mass of node here */
@@ -3923,7 +3925,7 @@ static void softbody_step(Scene *scene, Object *ob, SoftBody *sb, float dtime)
 
 	sst=PIL_check_seconds_timer();
 	/* Integration back in time is possible in theory, but pretty useless here.
-	 * So we refuse to do so. Since we do not know anything about 'outside' canges
+	 * So we refuse to do so. Since we do not know anything about 'outside' changes
 	 * especially colliders we refuse to go more than 10 frames.
 	 */
 	if (dtime < 0 || dtime > 10.5f) return;

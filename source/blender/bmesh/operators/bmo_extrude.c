@@ -87,7 +87,7 @@ void bmo_extrude_discrete_faces_exec(BMesh *bm, BMOperator *op)
 		BMO_elem_flag_enable(bm, f, EXT_DEL);
 
 		f2 = BM_face_create_ngon(bm, firstv, BM_edge_other_vert(edges[0], firstv), edges, f->len, FALSE);
-		if (!f2) {
+		if (UNLIKELY(f2 == NULL)) {
 			BMO_error_raise(bm, op, BMERR_MESH_ERROR, "Extrude failed; could not create face");
 			BLI_array_free(edges);
 			return;
@@ -104,6 +104,7 @@ void bmo_extrude_discrete_faces_exec(BMesh *bm, BMOperator *op)
 			l4 = l2->next;
 
 			f3 = BM_face_create_quad_tri(bm, l3->v, l4->v, l2->v, l->v, f, FALSE);
+			/* XXX, no error check here, why? - Campbell */
 
 			l_tmp = BM_FACE_FIRST_LOOP(f3);
 
@@ -390,7 +391,7 @@ void bmo_extrude_face_region_exec(BMesh *bm, BMOperator *op)
 			if (!v1->e)
 				BM_vert_kill(bm, v1);
 			if (!v2->e)
-				BM_vert_kill(bm, v1);
+				BM_vert_kill(bm, v2);
 
 			continue;
 		}

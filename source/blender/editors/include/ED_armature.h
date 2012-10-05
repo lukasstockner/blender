@@ -94,6 +94,7 @@ typedef struct EditBone {
 
 /* useful macros */
 #define EBONE_VISIBLE(arm, ebone) (((arm)->layer & (ebone)->layer) && !((ebone)->flag & BONE_HIDDEN_A))
+#define EBONE_SELECTABLE(arm, ebone) (EBONE_VISIBLE(arm, ebone) && !(ebone->flag & BONE_UNSELECTABLE))
 #define EBONE_EDITABLE(ebone) (((ebone)->flag & BONE_SELECTED) && !((ebone)->flag & BONE_EDITMODE_LOCKED)) 
 
 /* used in bone_select_hierachy() */
@@ -148,6 +149,7 @@ void ED_armature_enter_posemode(struct bContext *C, struct Base *base);
 int ED_pose_channel_in_IK_chain(struct Object *ob, struct bPoseChannel *pchan);
 void ED_pose_deselectall(struct Object *ob, int test);
 void ED_pose_recalculate_paths(struct Scene *scene, struct Object *ob);
+struct Object *ED_pose_object_from_context(struct bContext *C);
 
 /* sketch */
 

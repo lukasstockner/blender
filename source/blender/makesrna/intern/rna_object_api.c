@@ -39,6 +39,8 @@
 #include "DNA_object_types.h"
 #include "DNA_modifier_types.h"
 
+#include "rna_internal.h"  /* own include */
+
 #ifdef RNA_RUNTIME
 #include "BLI_math.h"
 
@@ -84,7 +86,8 @@ Mesh *rna_Object_to_mesh(Object *ob, ReportList *reports, Scene *sce, int apply_
 	switch (ob->type) {
 		case OB_FONT:
 		case OB_CURVE:
-		case OB_SURF: {
+		case OB_SURF:
+		{
 			ListBase dispbase = {NULL, NULL};
 			DerivedMesh *derivedFinal = NULL;
 			int uv_from_orco;
@@ -93,7 +96,7 @@ Mesh *rna_Object_to_mesh(Object *ob, ReportList *reports, Scene *sce, int apply_
 			float (*orco)[3] = NULL;
 
 			/* copies object and modifiers (but not the data) */
-			tmpobj = BKE_object_copy(ob);
+			tmpobj = BKE_object_copy_with_caches(ob);
 			tmpcu = (Curve *)tmpobj->data;
 			tmpcu->id.us--;
 
@@ -163,7 +166,8 @@ Mesh *rna_Object_to_mesh(Object *ob, ReportList *reports, Scene *sce, int apply_
 			break;
 		}
 
-		case OB_MBALL: {
+		case OB_MBALL:
+		{
 			/* metaballs don't have modifiers, so just convert to mesh */
 			Object *basis_ob = BKE_mball_basis_find(sce, ob);
 			/* todo, re-generatre for render-res */
@@ -333,8 +337,10 @@ static void dupli_render_particle_set(Scene *scene, Object *ob, int level, int e
 		dupli_render_particle_set(scene, go->ob, level + 1, enable);
 }
 /* When no longer needed, duplilist should be freed with Object.free_duplilist */
-void rna_Object_create_duplilist(Object *ob, ReportList *reports, Scene *sce)
+void rna_Object_create_duplilist(Object *ob, ReportList *reports, Scene *sce, int settings)
 {
+	int for_render = settings == eModifierMode_Render;
+
 	if (!(ob->transflag & OB_DUPLI)) {
 		BKE_report(reports, RPT_ERROR, "Object does not have duplis");
 		return;
@@ -349,7 +355,7 @@ void rna_Object_create_duplilist(Object *ob, ReportList *reports, Scene *sce)
 	}
 	if (G.is_rendering)
 		dupli_render_particle_set(sce, ob, 0, 1);
-	ob->duplilist = object_duplilist(sce, ob);
+	ob->duplilist = object_duplilist(sce, ob, for_render);
 	if (G.is_rendering)
 		dupli_render_particle_set(sce, ob, 0, 0);
 	/* ob->duplilist should now be freed with Object.free_duplilist */
@@ -383,7 +389,7 @@ static PointerRNA rna_Object_shape_key_add(Object *ob, bContext *C, ReportList *
 	}
 }
 
-int rna_Object_is_visible(Object *ob, Scene *sce)
+static int rna_Object_is_visible(Object *ob, Scene *sce)
 {
 	return !(ob->restrictflag & OB_RESTRICT_VIEW) && (ob->lay & sce->lay);
 }
@@ -426,8 +432,8 @@ static void rna_Mesh_assign_verts_to_group(Object *ob, bDeformGroup *group, int 
 #endif
 
 /* BMESH_TODO, return polygon index, not tessface */
-void rna_Object_ray_cast(Object *ob, ReportList *reports, float ray_start[3], float ray_end[3],
-                         float r_location[3], float r_normal[3], int *index)
+static void rna_Object_ray_cast(Object *ob, ReportList *reports, float ray_start[3], float ray_end[3],
+                                float r_location[3], float r_normal[3], int *index)
 {
 	BVHTreeFromMesh treeData = {NULL};
 	
@@ -468,8 +474,8 @@ void rna_Object_ray_cast(Object *ob, ReportList *reports, float ray_start[3], fl
 	*index = -1;
 }
 
-void rna_Object_closest_point_on_mesh(Object *ob, ReportList *reports, float point_co[3], float max_dist,
-                                      float n_location[3], float n_normal[3], int *index)
+static void rna_Object_closest_point_on_mesh(Object *ob, ReportList *reports, float point_co[3], float max_dist,
+                                             float n_location[3], float n_normal[3], int *index)
 {
 	BVHTreeFromMesh treeData = {NULL};
 	
@@ -508,7 +514,7 @@ void rna_Object_closest_point_on_mesh(Object *ob, ReportList *reports, float poi
 
 /* ObjectBase */
 
-void rna_ObjectBase_layers_from_view(Base *base, View3D *v3d)
+static void rna_ObjectBase_layers_from_view(Base *base, View3D *v3d)
 {
 	base->lay = base->object->lay = v3d->lay;
 }
@@ -604,6 +610,7 @@ void RNA_api_object(StructRNA *srna)
 	                                "objects real matrix and layers");
 	parm = RNA_def_pointer(func, "scene", "Scene", "", "Scene within which to evaluate duplis");
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	parm = RNA_def_enum(func, "settings", mesh_type_items, 0, "", "Generate texture coordinates for rendering");
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
 
 	func = RNA_def_function(srna, "dupli_list_clear", "rna_Object_free_duplilist");

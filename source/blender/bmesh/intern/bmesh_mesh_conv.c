@@ -314,7 +314,7 @@ void BM_mesh_bm_from_me(BMesh *bm, Mesh *me, int set_key, int act_key_nr)
 
 		f = BM_face_create(bm, verts, fedges, mpoly->totloop, FALSE);
 
-		if (!f) {
+		if (UNLIKELY(f == NULL)) {
 			printf("%s: Warning! Bad face in mesh"
 			       " \"%s\" at index %d!, skipping\n",
 			       __func__, me->id.name + 2, i);
@@ -758,7 +758,7 @@ void BM_mesh_bm_to_me(BMesh *bm, Mesh *me, int dotess)
 			}
 
 			if (!currkey) {
-				currkey = add_keyblock(me->key, bm->vdata.layers[i].name);
+				currkey = BKE_keyblock_add(me->key, bm->vdata.layers[i].name);
 				currkey->uid = bm->vdata.layers[i].uid;
 			}
 

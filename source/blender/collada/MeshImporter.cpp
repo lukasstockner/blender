@@ -570,7 +570,7 @@ void MeshImporter::read_lines(COLLADAFW::Mesh *mesh, Mesh *me)
 	if (loose_edge_count > 0) {
 
 		unsigned int face_edge_count  = me->totedge;
-		unsigned int total_edge_count = loose_edge_count + face_edge_count;
+		/* unsigned int total_edge_count = loose_edge_count + face_edge_count; */ /* UNUSED */
 		
 		mesh_add_edges(me, loose_edge_count);
 		MEdge *med = me->medge + face_edge_count;
@@ -1061,7 +1061,7 @@ std::vector<Object *> MeshImporter::get_all_users_of(Mesh *reference_mesh)
  *
  * During import all materials have been assigned to Object.
  * Now we iterate over the imported objects and optimize
- * the assignements as follows:
+ * the assignments as follows:
  *
  * for each imported geometry:
  *     if number of users is 1:
@@ -1075,7 +1075,7 @@ std::vector<Object *> MeshImporter::get_all_users_of(Mesh *reference_mesh)
  *             adjust all other users accordingly.
  *
  **/
-void MeshImporter::optimize_material_assignements()
+void MeshImporter::optimize_material_assignments()
 {
 	for (std::vector<Object *>::iterator it = imported_objects.begin();
 	     it != imported_objects.end(); ++it)
@@ -1119,7 +1119,7 @@ void MeshImporter::optimize_material_assignements()
  * come along with different materials. So we first create the objects
  * and assign the materials to Object, then in a later cleanup we decide
  * which materials shall be moved to the created geometries. Also see
- * optimize_material_assignements() above.
+ * optimize_material_assignments() above.
  */
 MTFace *MeshImporter::assign_material_to_geom(COLLADAFW::MaterialBinding cmaterial,
                                               std::map<COLLADAFW::UniqueId, Material *>& uid_material_map,

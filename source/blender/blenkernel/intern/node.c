@@ -58,8 +58,6 @@
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
-#include "BKE_utildefines.h"
-#include "BKE_utildefines.h"
 
 #include "RNA_access.h"
 
@@ -1032,9 +1030,18 @@ void ntreeFreeTree_ex(bNodeTree *ntree, const short do_id_user)
 		next = node->next;
 
 		/* ntreeUserIncrefID inline */
+
+		/* XXX, this is correct, however when freeing the entire database
+		 * this ends up accessing freed data which isn't properly unlinking
+		 * its self from scene nodes, SO - for now prefer invalid usercounts
+		 * on free rather then bad memory access - Campbell */
+#if 0
 		if (do_id_user) {
 			id_us_min(node->id);
 		}
+#else
+		(void)do_id_user;
+#endif
 
 		nodeFreeNode(ntree, node);
 	}
@@ -2266,6 +2273,7 @@ static void registerShaderNodes(bNodeTreeType *ttype)
 	register_node_type_sh_tex_gradient(ttype);
 	register_node_type_sh_tex_magic(ttype);
 	register_node_type_sh_tex_checker(ttype);
+	register_node_type_sh_tex_brick(ttype);
 }
 
 static void registerTextureNodes(bNodeTreeType *ttype)

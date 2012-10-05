@@ -37,8 +37,6 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
-extern EnumPropertyItem blend_mode_items[];
-
 #ifdef RNA_RUNTIME
 
 //#include "DNA_anim_types.h"
@@ -83,7 +81,7 @@ static Sequence *alloc_generic_sequence(Editing *ed, const char *name, int start
 	seq->type = type;
 
 	BLI_strncpy(seq->name + 2, name, sizeof(seq->name) - 2);
-	BKE_seqence_base_unique_name_recursive(&ed->seqbase, seq);
+	BKE_sequence_base_unique_name_recursive(&ed->seqbase, seq);
 
 	seq->strip = strip = MEM_callocN(sizeof(Strip), "strip");
 	seq->strip->us = 1;
@@ -188,7 +186,8 @@ static Sequence *rna_Sequences_new_movie(ID *id, Editing *ed, ReportList *report
 	Scene *scene = (Scene *)id;
 	Sequence *seq;
 
-	struct anim *an = openanim(file, IB_rect, 0);
+	/* OCIO_TODO: support configurable color spaces for strips */
+	struct anim *an = openanim(file, IB_rect, 0, NULL);
 
 	if (an == NULL) {
 		BKE_report(reports, RPT_ERROR, "Sequences.new_movie: unable to open movie file");

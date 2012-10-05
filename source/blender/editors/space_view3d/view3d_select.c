@@ -110,17 +110,18 @@ int view3d_get_view_aligned_coordinate(ViewContext *vc, float fp[3], const int m
 {
 	float dvec[3];
 	int mval_cpy[2];
+	eV3DProjStatus ret;
 
 	mval_cpy[0] = mval[0];
 	mval_cpy[1] = mval[1];
 
-	project_int_noclip(vc->ar, fp, mval_cpy);
+	ret = ED_view3d_project_int_global(vc->ar, fp, mval_cpy, V3D_PROJ_TEST_NOP);
 
 	initgrabz(vc->rv3d, fp[0], fp[1], fp[2]);
 
-	if (mval_cpy[0] != IS_CLIPPED) {
-		float mval_f[2];
-		VECSUB2D(mval_f, mval_cpy, mval);
+	if (ret == V3D_PROJ_RET_SUCCESS) {
+		const float mval_f[2] = {(float)(mval_cpy[0] - mval[0]),
+		                         (float)(mval_cpy[1] - mval[1])};
 		ED_view3d_win_to_delta(vc->ar, mval_f, dvec);
 		sub_v3_v3(fp, dvec);
 
@@ -319,33 +320,55 @@ static int edge_inside_rect(rcti *rect, short x1, short y1, short x2, short y2)
 	return 1;
 }
 
-
-#define MOVES_GESTURE 50
-#define MOVES_LASSO 500
-
-
 /* warning; lasso select with backbuffer-check draws in backbuf with persp(PERSP_WIN) 
  * and returns with persp(PERSP_VIEW). After lasso select backbuf is not OK
  */
 static void do_lasso_select_pose(ViewContext *vc, Object *ob, int mcords[][2], short moves, short select)
 {
 	bPoseChannel *pchan;
-	float vec[3];
-	int sco1[2], sco2[2];
 	bArmature *arm = ob->data;
 	
-	if ((ob->type != OB_ARMATURE) || (ob->pose == NULL)) return;
+	if ((ob->type != OB_ARMATURE) || (ob->pose == NULL)) {
+		return;
+	}
+
+	ED_view3d_init_mats_rv3d(vc->obact, vc->rv3d);
 
 	for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
-		if (PBONE_VISIBLE(arm, pchan->bone) && (pchan->bone->flag & BONE_UNSELECTABLE) == 0) {
-			mul_v3_m4v3(vec, ob->obmat, pchan->pose_head);
-			project_int(vc->ar, vec, sco1);
-			mul_v3_m4v3(vec, ob->obmat, pchan->pose_tail);
-			project_int(vc->ar, vec, sco2);
-			
-			if (BLI_lasso_is_edge_inside(mcords, moves, sco1[0], sco1[1], sco2[0], sco2[1], IS_CLIPPED)) {
-				if (select) pchan->bone->flag |= BONE_SELECTED;
-				else pchan->bone->flag &= ~BONE_SELECTED;
+		if (PBONE_SELECTABLE(arm, pchan->bone)) {
+			int screen_co_a[2], screen_co_b[2];
+			int is_point_done = FALSE;
+			int points_proj_tot = 0;
+
+			/* project head location to screenspace */
+			if (ED_view3d_project_int_object(vc->ar, pchan->pose_head, screen_co_a,
+			                                 V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_WIN) == V3D_PROJ_RET_SUCCESS)
+			{
+				points_proj_tot++;
+				if (BLI_lasso_is_point_inside(mcords, moves, screen_co_a[0], screen_co_a[1], INT_MAX)) {
+					is_point_done = TRUE;
+				}
+			}
+
+			/* project tail location to screenspace */
+			if (ED_view3d_project_int_object(vc->ar, pchan->pose_tail, screen_co_b,
+			                                 V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_WIN) == V3D_PROJ_RET_SUCCESS)
+			{
+				points_proj_tot++;
+				if (BLI_lasso_is_point_inside(mcords, moves, screen_co_b[0], screen_co_b[1], INT_MAX)) {
+					is_point_done = TRUE;
+				}
+			}
+
+			/* if one of points selected, we skip the bone itself */
+			if ((is_point_done == TRUE) ||
+			    ((is_point_done == FALSE) && (points_proj_tot == 2) &&
+			     BLI_lasso_is_edge_inside(mcords, moves,
+			                              screen_co_a[0], screen_co_a[1],
+			                              screen_co_b[0], screen_co_b[1], INT_MAX)))
+			{
+				if (select) pchan->bone->flag |=  BONE_SELECTED;
+				else        pchan->bone->flag &= ~BONE_SELECTED;
 			}
 		}
 	}
@@ -376,7 +399,7 @@ static void do_lasso_select_objects(ViewContext *vc, int mcords[][2], short move
 
 	for (base = vc->scene->base.first; base; base = base->next) {
 		if (BASE_SELECTABLE(vc->v3d, base)) { /* use this to avoid un-needed lasso lookups */
-			project_short(vc->ar, base->object->obmat[3], &base->sx);
+			ED_view3d_project_base(vc->ar, base);
 			if (BLI_lasso_is_point_inside(mcords, moves, base->sx, base->sy, IS_CLIPPED)) {
 				
 				if (select) ED_base_object_select(base, BA_SELECT);
@@ -571,43 +594,57 @@ static void do_lasso_select_armature(ViewContext *vc, int mcords[][2], short mov
 {
 	bArmature *arm = vc->obedit->data;
 	EditBone *ebone;
-	float vec[3];
-	short sco1[2], sco2[2], didpoint;
 	int change = FALSE;
 
 	if (extend == 0 && select)
 		ED_armature_deselect_all_visible(vc->obedit);
 
+	ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d);
+
 	/* set editdata in vc */
 	
 	for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
-		if (EBONE_VISIBLE(arm, ebone) && (ebone->flag & BONE_UNSELECTABLE) == 0) {
-			mul_v3_m4v3(vec, vc->obedit->obmat, ebone->head);
-			project_short(vc->ar, vec, sco1);
-			mul_v3_m4v3(vec, vc->obedit->obmat, ebone->tail);
-			project_short(vc->ar, vec, sco2);
-			
-			didpoint = 0;
-			if (BLI_lasso_is_point_inside(mcords, moves, sco1[0], sco1[1], IS_CLIPPED)) {
-				if (select) ebone->flag |= BONE_ROOTSEL;
-				else ebone->flag &= ~BONE_ROOTSEL;
-				didpoint = 1;
-				change = TRUE;
-			}
-			if (BLI_lasso_is_point_inside(mcords, moves, sco2[0], sco2[1], IS_CLIPPED)) {
-				if (select) ebone->flag |= BONE_TIPSEL;
-				else ebone->flag &= ~BONE_TIPSEL;
-				didpoint = 1;
-				change = TRUE;
-			}
-			/* if one of points selected, we skip the bone itself */
-			if (didpoint == 0 &&
-			    BLI_lasso_is_edge_inside(mcords, moves, sco1[0], sco1[1], sco2[0], sco2[1], IS_CLIPPED))
+		if (EBONE_SELECTABLE(arm, ebone)) {
+			int screen_co_a[2], screen_co_b[2];
+			int is_point_done = FALSE;
+			int points_proj_tot = 0;
+
+			/* project head location to screenspace */
+			if (ED_view3d_project_int_object(vc->ar, ebone->head, screen_co_a,
+			                                 V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_WIN) == V3D_PROJ_RET_SUCCESS)
 			{
-				if (select) ebone->flag |= BONE_TIPSEL | BONE_ROOTSEL | BONE_SELECTED;
-				else ebone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
+				points_proj_tot++;
+				if (BLI_lasso_is_point_inside(mcords, moves, screen_co_a[0], screen_co_a[1], INT_MAX)) {
+					is_point_done = TRUE;
+					if (select) ebone->flag |=  BONE_ROOTSEL;
+					else        ebone->flag &= ~BONE_ROOTSEL;
+				}
+			}
+
+			/* project tail location to screenspace */
+			if (ED_view3d_project_int_object(vc->ar, ebone->tail, screen_co_b,
+			                                 V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_WIN) == V3D_PROJ_RET_SUCCESS)
+			{
+				points_proj_tot++;
+				if (BLI_lasso_is_point_inside(mcords, moves, screen_co_b[0], screen_co_b[1], INT_MAX)) {
+					is_point_done = TRUE;
+					if (select) ebone->flag |=  BONE_TIPSEL;
+					else        ebone->flag &= ~BONE_TIPSEL;
+				}
+			}
+
+			/* if one of points selected, we skip the bone itself */
+			if ((is_point_done == FALSE) && (points_proj_tot == 2) &&
+			    BLI_lasso_is_edge_inside(mcords, moves,
+			                             screen_co_a[0], screen_co_a[1],
+			                             screen_co_b[0], screen_co_b[1], INT_MAX))
+			{
+				if (select) ebone->flag |=  (BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
+				else        ebone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
 				change = TRUE;
 			}
+
+			change |= is_point_done;
 		}
 	}
 	
@@ -619,34 +656,34 @@ static void do_lasso_select_armature(ViewContext *vc, int mcords[][2], short mov
 }
 
 
-
-
 static void do_lasso_select_meta(ViewContext *vc, int mcords[][2], short moves, short extend, short select)
 {
 	MetaBall *mb = (MetaBall *)vc->obedit->data;
 	MetaElem *ml;
-	float vec[3];
-	short sco[2];
 
 	if (extend == 0 && select) {
+		/* XXX, make an editor function as is done elsewhere */
 		for (ml = mb->editelems->first; ml; ml = ml->next) {
 			ml->flag &= ~SELECT;
 		}
 	}
 
-	for (ml = mb->editelems->first; ml; ml = ml->next) {
-		
-		mul_v3_m4v3(vec, vc->obedit->obmat, &ml->x);
-		project_short(vc->ar, vec, sco);
+	ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d);
 
-		if (BLI_lasso_is_point_inside(mcords, moves, sco[0], sco[1], IS_CLIPPED)) {
-			if (select) ml->flag |= SELECT;
-			else ml->flag &= ~SELECT;
+	for (ml = mb->editelems->first; ml; ml = ml->next) {
+		int screen_co[2];
+		if (ED_view3d_project_int_object(vc->ar, &ml->x, screen_co,
+		                                 V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_WIN) == V3D_PROJ_RET_SUCCESS)
+		{
+			if (BLI_lasso_is_point_inside(mcords, moves, screen_co[0], screen_co[1], INT_MAX)) {
+				if (select) ml->flag |=  SELECT;
+				else        ml->flag &= ~SELECT;
+			}
 		}
 	}
 }
 
-int do_paintvert_box_select(ViewContext *vc, rcti *rect, int select, int extend)
+static int do_paintvert_box_select(ViewContext *vc, rcti *rect, int select, int extend)
 {
 	Mesh *me;
 	MVert *mvert;
@@ -654,8 +691,8 @@ int do_paintvert_box_select(ViewContext *vc, rcti *rect, int select, int extend)
 	unsigned int *rt;
 	int a, index;
 	char *selar;
-	int sx = BLI_RCT_SIZE_X(rect) + 1;
-	int sy = BLI_RCT_SIZE_Y(rect) + 1;
+	int sx = BLI_rcti_size_x(rect) + 1;
+	int sy = BLI_rcti_size_y(rect) + 1;
 
 	me = vc->obact->data;
 
@@ -1064,8 +1101,7 @@ static Base *object_mouse_select_menu(bContext *C, ViewContext *vc, unsigned int
 		}
 		else {
 			int temp, dist = 15;
-
-			project_short(vc->ar, base->object->obmat[3], &base->sx);
+			ED_view3d_project_base(vc->ar, base);
 			
 			temp = abs(base->sx - mval[0]) + abs(base->sy - mval[1]);
 			if (temp < dist)
@@ -1346,8 +1382,7 @@ static int mouse_select(bContext *C, const int mval[2], short extend, short dese
 			base = startbase;
 			while (base) {
 				if (BASE_SELECTABLE(v3d, base)) {
-					project_short(ar, base->object->obmat[3], &base->sx);
-					
+					ED_view3d_project_base(ar, base);
 					temp = abs(base->sx - mval[0]) + abs(base->sy - mval[1]);
 					if (base == BASACT) temp += 10;
 					if (temp < dist) {
@@ -1400,7 +1435,7 @@ static int mouse_select(bContext *C, const int mval[2], short extend, short dese
 							}
 
 							/* index of bundle is 1<<16-based. if there's no "bone" index
-							 * in hight word, this buffer value belongs to camera,. not to bundle */
+							 * in height word, this buffer value belongs to camera,. not to bundle */
 							if (buffer[4 * i + 3] & 0xFFFF0000) {
 								MovieClip *clip = BKE_object_movieclip_get(scene, basact->object, 0);
 								MovieTracking *tracking = &clip->tracking;
@@ -1527,10 +1562,10 @@ int edge_inside_circle(int centx, int centy, int rad, int x1, int y1, int x2, in
 	int radsq = rad * rad;
 
 	/* check points in circle itself */
-	if ( (x1 - centx) * (x1 - centx) + (y1 - centy) * (y1 - centy) <= radsq) {
+	if ((x1 - centx) * (x1 - centx) + (y1 - centy) * (y1 - centy) <= radsq) {
 		return TRUE;
 	}
-	else if ( (x2 - centx) * (x2 - centx) + (y2 - centy) * (y2 - centy) <= radsq) {
+	else if ((x2 - centx) * (x2 - centx) + (y2 - centy) * (y2 - centy) <= radsq) {
 		return TRUE;
 	}
 	else {
@@ -2027,36 +2062,6 @@ void VIEW3D_OT_select_border(wmOperatorType *ot)
 	WM_operator_properties_gesture_border(ot, TRUE);
 }
 
-/* much like facesel_face_pick()*/
-/* returns 0 if not found, otherwise 1 */
-static int vertsel_vert_pick(struct bContext *C, Mesh *me, const int mval[2], unsigned int *index, int size)
-{
-	ViewContext vc;
-	view3d_set_viewcontext(C, &vc);
-
-	if (!me || me->totvert == 0)
-		return 0;
-
-	if (size > 0) {
-		/* sample rect to increase changes of selecting, so that when clicking
-		 * on an face in the backbuf, we can still select a vert */
-
-		int dist;
-		*index = view3d_sample_backbuf_rect(&vc, mval, size, 1, me->totvert + 1, &dist, 0, NULL, NULL);
-	}
-	else {
-		/* sample only on the exact position */
-		*index = view3d_sample_backbuf(&vc, mval[0], mval[1]);
-	}
-
-	if ((*index) <= 0 || (*index) > (unsigned int)me->totvert)
-		return 0;
-
-	(*index)--;
-	
-	return 1;
-}
-
 /* mouse selection in weight paint */
 /* gets called via generic mouse select operator */
 static int mouse_weight_paint_vertex_select(bContext *C, const int mval[2], short extend, short deselect, short toggle, Object *obact)
@@ -2065,8 +2070,8 @@ static int mouse_weight_paint_vertex_select(bContext *C, const int mval[2], shor
 	unsigned int index = 0;
 	MVert *mv;
 
-	if (vertsel_vert_pick(C, me, mval, &index, 50)) {
-		mv = me->mvert + index;
+	if (ED_mesh_pick_vert(C, me, mval, &index, ED_MESH_PICK_DEFAULT_VERT_SIZE)) {
+		mv = &me->mvert[index];
 		if (extend) {
 			mv->flag |= SELECT;
 		}
@@ -2116,7 +2121,7 @@ static int view3d_select_invoke(bContext *C, wmOperator *op, wmEvent *event)
 
 	if (obedit && object == FALSE) {
 		if (obedit->type == OB_MESH)
-			retval = mouse_mesh(C, event->mval, extend, deselect, toggle);
+			retval = EDBM_select_pick(C, event->mval, extend, deselect, toggle);
 		else if (obedit->type == OB_ARMATURE)
 			retval = mouse_armature(C, event->mval, extend, deselect, toggle);
 		else if (obedit->type == OB_LATTICE)
@@ -2268,6 +2273,7 @@ static void paint_facesel_circle_select(ViewContext *vc, int select, const int m
 		/* bbsel= */ /* UNUSED */ EDBM_backbuf_circle_init(vc, mval[0], mval[1], (short)(rad + 1.0f));
 		edbm_backbuf_check_and_select_tfaces(me, select == LEFTMOUSE);
 		EDBM_backbuf_free();
+		paintface_flush_flags(ob);
 	}
 }
 
@@ -2403,30 +2409,48 @@ static void pose_circle_select(ViewContext *vc, int select, const int mval[2], f
 	/* check each PoseChannel... */
 	/* TODO: could be optimized at some point */
 	for (pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
-		short sco1[2], sco2[2], didpoint = 0;
-		float vec[3];
-		
-		/* skip invisible bones */
-		if (PBONE_VISIBLE(arm, pchan->bone) == 0)
-			continue;
-		
-		/* project head location to screenspace */
-		mul_v3_m4v3(vec, vc->obact->obmat, pchan->pose_head);
-		project_short(vc->ar, vec, sco1);
-		
-		/* project tail location to screenspace */
-		mul_v3_m4v3(vec, vc->obact->obmat, pchan->pose_tail);
-		project_short(vc->ar, vec, sco2);
-		
-		/* check if the head and/or tail is in the circle 
-		 *	- the call to check also does the selection already
-		 */
-		if (pchan_circle_doSelectJoint(&data, pchan, sco1[0], sco1[1]))
-			didpoint = 1;
-		if (pchan_circle_doSelectJoint(&data, pchan, sco2[0], sco2[1]))
-			didpoint = 1;
-		
-		change |= didpoint;
+		if (PBONE_SELECTABLE(arm, pchan->bone)) {
+			int screen_co_a[2], screen_co_b[2];
+			int is_point_done = FALSE;
+			int points_proj_tot = 0;
+
+			/* project head location to screenspace */
+			if (ED_view3d_project_int_object(vc->ar, pchan->pose_head, screen_co_a,
+			                                 V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_WIN) == V3D_PROJ_RET_SUCCESS)
+			{
+				points_proj_tot++;
+				if (pchan_circle_doSelectJoint(&data, pchan, screen_co_a[0], screen_co_a[1])) {
+					is_point_done = TRUE;
+				}
+			}
+
+			/* project tail location to screenspace */
+			if (ED_view3d_project_int_object(vc->ar, pchan->pose_tail, screen_co_b,
+			                                 V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_WIN) == V3D_PROJ_RET_SUCCESS)
+			{
+				points_proj_tot++;
+				if (pchan_circle_doSelectJoint(&data, pchan, screen_co_b[0], screen_co_b[1])) {
+					is_point_done = TRUE;
+				}
+			}
+
+			/* only if the endpoints didn't get selected, deal with the middle of the bone too
+			 * It works nicer to only do this if the head or tail are not in the circle,
+			 * otherwise there is no way to circle select joints alone */
+			if ((is_point_done == FALSE) && (points_proj_tot == 2) &&
+			    edge_inside_circle(mval[0], mval[1], rad,
+			                       screen_co_a[0], screen_co_a[1],
+			                       screen_co_b[0], screen_co_b[1]))
+			{
+				if (select)
+					pchan->bone->flag |= BONE_SELECTED;
+				else
+					pchan->bone->flag &= ~BONE_SELECTED;
+				change = TRUE;
+			}
+
+			change |= is_point_done;
+		}
 	}
 
 	if (change) {
@@ -2473,38 +2497,53 @@ static void armature_circle_select(ViewContext *vc, int select, const int mval[2
 	ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d); /* for foreach's screen/vert projection */
 	
 	/* check each EditBone... */
-	/* TODO: could be optimized at some point */
 	for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
-		short sco1[2], sco2[2], didpoint = 0;
-		float vec[3];
-		
-		/* project head location to screenspace */
-		mul_v3_m4v3(vec, vc->obedit->obmat, ebone->head);
-		project_short(vc->ar, vec, sco1);
-		
-		/* project tail location to screenspace */
-		mul_v3_m4v3(vec, vc->obedit->obmat, ebone->tail);
-		project_short(vc->ar, vec, sco2);
-		
-		/* check if the head and/or tail is in the circle 
-		 *	- the call to check also does the selection already
-		 */
-		if (armature_circle_doSelectJoint(&data, ebone, sco1[0], sco1[1], 1))
-			didpoint = 1;
-		if (armature_circle_doSelectJoint(&data, ebone, sco2[0], sco2[1], 0))
-			didpoint = 1;
-			
-		/* only if the endpoints didn't get selected, deal with the middle of the bone too */
-		/* XXX should we just do this always? */
-		if ( (didpoint == 0) && edge_inside_circle(mval[0], mval[1], rad, sco1[0], sco1[1], sco2[0], sco2[1]) ) {
-			if (select) 
-				ebone->flag |= BONE_TIPSEL | BONE_ROOTSEL | BONE_SELECTED;
-			else 
-				ebone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
-			change = TRUE;
+		if (EBONE_SELECTABLE(arm, ebone)) {
+			int screen_co_a[2], screen_co_b[2];
+			int is_point_done = FALSE;
+			int points_proj_tot = 0;
+
+			/* project head location to screenspace */
+			if (ED_view3d_project_int_object(vc->ar, ebone->head, screen_co_a,
+			                                 V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_WIN) == V3D_PROJ_RET_SUCCESS)
+			{
+				points_proj_tot++;
+				if (armature_circle_doSelectJoint(&data, ebone, screen_co_a[0], screen_co_a[1], TRUE)) {
+					is_point_done = TRUE;
+				}
+			}
+
+			/* project tail location to screenspace */
+			if (ED_view3d_project_int_object(vc->ar, ebone->tail, screen_co_b,
+			                                 V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_WIN) == V3D_PROJ_RET_SUCCESS)
+			{
+				points_proj_tot++;
+				if (armature_circle_doSelectJoint(&data, ebone, screen_co_b[0], screen_co_b[1], FALSE)) {
+					is_point_done = TRUE;
+				}
+			}
+
+			/* check if the head and/or tail is in the circle
+			 * - the call to check also does the selection already
+			 */
+
+			/* only if the endpoints didn't get selected, deal with the middle of the bone too
+			 * It works nicer to only do this if the head or tail are not in the circle,
+			 * otherwise there is no way to circle select joints alone */
+			if ((is_point_done == FALSE) && (points_proj_tot == 2) &&
+			    edge_inside_circle(mval[0], mval[1], rad,
+			                       screen_co_a[0], screen_co_a[1],
+			                       screen_co_b[0], screen_co_b[1]))
+			{
+				if (select)
+					ebone->flag |= BONE_TIPSEL | BONE_ROOTSEL | BONE_SELECTED;
+				else
+					ebone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
+				change = TRUE;
+			}
+
+			change |= is_point_done;
 		}
-		
-		change |= didpoint;
 	}
 
 	if (change) {
@@ -2590,7 +2629,7 @@ static int view3d_circle_select_exec(bContext *C, wmOperator *op)
 		select = select ? BA_SELECT : BA_DESELECT;
 		for (base = FIRSTBASE; base; base = base->next) {
 			if (BASE_SELECTABLE(v3d, base)) {
-				project_short(ar, base->object->obmat[3], &base->sx);
+				ED_view3d_project_base(ar, base);
 				if (base->sx != IS_CLIPPED) {
 					int dx = base->sx - x;
 					int dy = base->sy - y;

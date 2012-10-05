@@ -33,6 +33,7 @@
 #include <stdio.h>
 
 #include "DNA_anim_types.h"
+#include "DNA_color_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_node_types.h"
 
@@ -48,7 +49,6 @@
 #include "BKE_main.h"
 #include "BKE_node.h"
 #include "BKE_tracking.h"
-#include "BKE_utildefines.h"
 
 #include "node_common.h"
 #include "node_exec.h"
@@ -226,7 +226,7 @@ static void local_merge(bNodeTree *localtree, bNodeTree *ntree)
 			}
 			else if (lnode->type==CMP_NODE_MOVIEDISTORTION) {
 				/* special case for distortion node: distortion context is allocating in exec function
-				 * and to achive much better performance on further calls this context should be
+				 * and to achieve much better performance on further calls this context should be
 				 * copied back to original node */
 				if (lnode->storage) {
 					if (lnode->new_node->storage)
@@ -515,9 +515,9 @@ static int setExecutableNodes(bNodeTreeExec *exec, ThreadData *thd)
 static void freeExecutableNode(bNodeTreeExec *exec)
 {
 	/* node outputs can be freed when:
-	- not a render result or image node
-	- when node outputs go to nodes all being set NODE_FINISHED
-	*/
+	 * - not a render result or image node
+	 * - when node outputs go to nodes all being set NODE_FINISHED
+	 */
 	bNodeTree *ntree = exec->nodetree;
 	bNodeExec *nodeexec;
 	bNode *node;
@@ -607,11 +607,9 @@ static void ntreeCompositExecTreeOld(bNodeTree *ntree, RenderData *rd, int do_pr
 	bNode *node;
 	ListBase threads;
 	ThreadData thdata;
-	int totnode, curnode, rendering= 1, n;
-	bNodeTreeExec *exec= ntree->execdata;
-	
-	if (ntree == NULL) return;
-	
+	int totnode, curnode, rendering = TRUE, n;
+	bNodeTreeExec *exec = ntree->execdata;
+
 	if (do_preview)
 		ntreeInitPreview(ntree, 0, 0);
 	
@@ -696,7 +694,9 @@ static void ntreeCompositExecTreeOld(bNodeTree *ntree, RenderData *rd, int do_pr
 
 void *COM_linker_hack = NULL;
 
-void ntreeCompositExecTree(bNodeTree *ntree, RenderData *rd, int rendering, int do_preview)
+void ntreeCompositExecTree(bNodeTree *ntree, RenderData *rd, int rendering, int do_preview,
+                           const ColorManagedViewSettings *view_settings,
+                           const ColorManagedDisplaySettings *display_settings)
 {
 #ifdef WITH_COMPOSITOR
 #ifdef WITH_COMPOSITOR_LEGACY
@@ -707,10 +707,11 @@ void ntreeCompositExecTree(bNodeTree *ntree, RenderData *rd, int rendering, int 
 	else
 #endif
 	{
-		COM_execute(rd, ntree, rendering);
+		COM_execute(rd, ntree, rendering, view_settings, display_settings);
 	}
 #else
 	(void)ntree, (void)rd, (void)rendering, (void)do_preview;
+	(void)view_settings, (void)display_settings;
 #endif
 
 	(void)do_preview;
@@ -788,7 +789,6 @@ static void force_hidden_passes(bNode *node, int passflag)
 	if (!(passflag & SCE_PASS_TRANSM_INDIRECT)) sock->flag |= SOCK_UNAVAIL;
 	sock= BLI_findlink(&node->outputs, RRES_OUT_TRANSM_COLOR);
 	if (!(passflag & SCE_PASS_TRANSM_COLOR)) sock->flag |= SOCK_UNAVAIL;
-	sock= BLI_findlink(&node->outputs, RRES_OUT_TRANSM_COLOR);
 }
 
 /* based on rules, force sockets hidden always */

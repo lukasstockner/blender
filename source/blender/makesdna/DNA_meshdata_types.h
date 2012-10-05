@@ -119,7 +119,8 @@ typedef struct MLoopUV {
 #define MLOOPUV_PINNED	4
 
 /* at the moment alpha is abused for vertex painting
- * and not used for transparency, note that red and blue are swapped */
+ * and not used for transparency,
+ * note that red and blue are _not_ swapped, as they are with #MCol */
 typedef struct MLoopCol {
 	char r, g, b, a;
 } MLoopCol;
@@ -145,13 +146,9 @@ typedef struct MLoopCol {
 	mcol__tmp->a = mloopcol__tmp->a;            \
 } (void)0
 
-typedef struct MSticky {
-	float co[2];
-} MSticky;
-
 typedef struct MSelect {
 	int index;
-	int type; /* EDITVERT/EDITEDGE/EDITFACE */
+	int type;  /* ME_VSEL/ME_ESEL/ME_FSEL */
 } MSelect;
 
 /*tessellation uv face data*/
@@ -326,7 +323,6 @@ typedef struct MVertSkin {
 #define TF_SEL2		8
 #define TF_SEL3		16
 #define TF_SEL4		32
-#define TF_HIDE		64 /* unused, same as TF_SELECT */
 
 /* mtface->mode */
 #define TF_DYNAMIC		1

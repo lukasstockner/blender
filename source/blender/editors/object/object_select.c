@@ -198,7 +198,7 @@ enum {
 };
 
 static EnumPropertyItem prop_select_linked_types[] = {
-	//{OBJECT_SELECT_LINKED_IPO, "IPO", 0, "Object IPO", ""}, // XXX depreceated animation system stuff...
+	//{OBJECT_SELECT_LINKED_IPO, "IPO", 0, "Object IPO", ""}, // XXX deprecated animation system stuff...
 	{OBJECT_SELECT_LINKED_OBDATA, "OBDATA", 0, "Object Data", ""},
 	{OBJECT_SELECT_LINKED_MATERIAL, "MATERIAL", 0, "Material", ""},
 	{OBJECT_SELECT_LINKED_TEXTURE, "TEXTURE", 0, "Texture", ""},
@@ -723,7 +723,7 @@ static short objects_share_gameprop(Object *a, Object *b)
 	/*make a copy of all its properties*/
 
 	for (prop = a->prop.first; prop; prop = prop->next) {
-		if (get_ob_property(b, prop->name) )
+		if (BKE_bproperty_object_get(b, prop->name) )
 			return 1;
 	}
 	return 0;

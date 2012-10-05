@@ -179,7 +179,7 @@ static DMDrawOption draw_mesh_face_select__drawFaceOptsInv(void *userData, int i
 		return DM_DRAW_OPTION_SKIP;
 }
 
-void draw_mesh_face_select(RegionView3D *rv3d, Mesh *me, DerivedMesh *dm)
+static void draw_mesh_face_select(RegionView3D *rv3d, Mesh *me, DerivedMesh *dm)
 {
 	drawMeshFaceSelect_userData data;
 
@@ -372,7 +372,9 @@ static void draw_textured_begin(Scene *scene, View3D *v3d, RegionView3D *rv3d, O
 
 	Gtexdraw.ob = ob;
 	Gtexdraw.is_tex = is_tex;
-	Gtexdraw.color_profile = scene->r.color_mgt_flag & R_COLOR_MANAGEMENT;
+
+	Gtexdraw.color_profile = BKE_scene_check_color_management_enabled(scene);
+
 	memcpy(Gtexdraw.obcol, obcol, sizeof(obcol));
 	set_draw_settings_cached(1, NULL, NULL, Gtexdraw);
 	glShadeModel(GL_SMOOTH);
@@ -507,7 +509,7 @@ static void update_tface_color_layer(DerivedMesh *dm)
 					finalCol[i * 4 + j].r = 255;
 				}
 		}
-		else if (tface && mface && set_draw_settings_cached(0, tface, ma, Gtexdraw)) {
+		else if (tface && set_draw_settings_cached(0, tface, ma, Gtexdraw)) {
 			for (j = 0; j < 4; j++) {
 				finalCol[i * 4 + j].b = 255;
 				finalCol[i * 4 + j].g = 0;
@@ -630,7 +632,7 @@ static void draw_mesh_text(Scene *scene, Object *ob, int glsl)
 	MLoopCol *mloopcol = me->mloopcol;  /* why does mcol exist? */
 	MLoopCol *lcol;
 
-	bProperty *prop = get_ob_property(ob, "Text");
+	bProperty *prop = BKE_bproperty_object_get(ob, "Text");
 	GPUVertexAttribs gattribs;
 	int a, totpoly = me->totpoly;
 
@@ -706,7 +708,7 @@ static void draw_mesh_text(Scene *scene, Object *ob, int glsl)
 				unsigned int j;
 				lcol = &mloopcol[mp->loopstart];
 
-				for (j = 0; j <= totloop_clamp; j++, lcol++) {
+				for (j = 0; j < totloop_clamp; j++, lcol++) {
 					MESH_MLOOPCOL_TO_MCOL(lcol, &tmp_mcol[j]);
 				}
 			}
@@ -724,7 +726,7 @@ static void draw_mesh_text(Scene *scene, Object *ob, int glsl)
 			/* The BM_FONT handling is in the gpu module, shared with the
 			 * game engine, was duplicated previously */
 
-			set_property_valstr(prop, string);
+			BKE_bproperty_set_valstr(prop, string);
 			characters = strlen(string);
 			
 			if (!BKE_image_get_ibuf(mtpoly->tpage, NULL))
@@ -772,7 +774,8 @@ static int compareDrawOptionsEm(void *userData, int cur_index, int next_index)
 	return 1;
 }
 
-void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *ob, DerivedMesh *dm, int draw_flags)
+static void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d,
+                                   Object *ob, DerivedMesh *dm, const int draw_flags)
 {
 	Mesh *me = ob->data;
 	
@@ -823,7 +826,7 @@ void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d, Objec
 	}
 
 	/* draw game engine text hack */
-	if (get_ob_property(ob, "Text"))
+	if (BKE_bproperty_object_get(ob, "Text"))
 		draw_mesh_text(scene, ob, 0);
 
 	draw_textured_end();
@@ -871,7 +874,7 @@ static void tex_mat_set_texture_cb(void *userData, int mat_nr, void *attribs)
 	if (ED_object_get_active_image(data->ob, mat_nr, &ima, &iuser, &node)) {
 		/* get openl texture */
 		int mipmap = 1;
-		int bindcode = (ima) ? GPU_verify_image(ima, iuser, 0, 0, mipmap) : 0;
+		int bindcode = (ima) ? GPU_verify_image(ima, iuser, 0, 0, mipmap, FALSE) : 0;
 		float zero[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
 		if (bindcode) {
@@ -941,7 +944,8 @@ static int tex_mat_set_face_editmesh_cb(void *userData, int index)
 	return !BM_elem_flag_test(efa, BM_ELEM_HIDDEN);
 }
 
-void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *ob, DerivedMesh *dm, const int draw_flags)
+void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d,
+                        Object *ob, DerivedMesh *dm, const int draw_flags)
 {
 	if ((!BKE_scene_use_new_shading_nodes(scene)) || (draw_flags & DRAW_MODIFIERS_PREVIEW)) {
 		draw_mesh_textured_old(scene, v3d, rv3d, ob, dm, draw_flags);
@@ -1017,7 +1021,8 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *o
 
 /* Vertex Paint and Weight Paint */
 
-void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d, Object *ob, DerivedMesh *dm, int draw_flags)
+void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
+                     Object *ob, DerivedMesh *dm, const int draw_flags)
 {
 	DMSetDrawOptions facemask = NULL;
 	Mesh *me = ob->data;
@@ -1027,7 +1032,7 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d, Object *ob, DerivedMesh *d
 	if (draw_flags & DRAW_FACE_SELECT)
 		facemask = wpaint__setSolidDrawOptions_facemask;
 
-	if (ob && ob->mode & OB_MODE_WEIGHT_PAINT) {
+	if (ob->mode & OB_MODE_WEIGHT_PAINT) {
 
 		if (do_light) {
 			const float spec[4] = {0.47f, 0.47f, 0.47f, 0.47f};

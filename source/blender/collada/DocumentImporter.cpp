@@ -62,12 +62,12 @@ extern "C" {
 #include "BKE_texture.h"
 #include "BKE_fcurve.h"
 #include "BKE_depsgraph.h"
-#include "BLI_path_util.h"
 #include "BKE_scene.h"
 #include "BKE_global.h"
 #include "BKE_material.h"
-#include "BKE_utildefines.h"
 #include "BKE_image.h"
+
+#include "BLI_path_util.h"
 
 #include "DNA_camera_types.h"
 #include "DNA_lamp_types.h"
@@ -88,8 +88,8 @@ extern "C" {
 
 
 /*
-   COLLADA Importer limitations:
-   - no multiple scene import, all objects are added to active scene
+ * COLLADA Importer limitations:
+ * - no multiple scene import, all objects are added to active scene
  */
 
 // #define COLLADA_DEBUG
@@ -210,7 +210,7 @@ void DocumentImporter::finish()
 	}
 
 
-	mesh_importer.optimize_material_assignements();
+	mesh_importer.optimize_material_assignments();
 
 	armature_importer.set_tags_map(this->uid_tags_map);
 	armature_importer.make_armatures(mContext);
@@ -867,16 +867,18 @@ bool DocumentImporter::writeCamera(const COLLADAFW::Camera *camera)
 				{
 					double yfov = camera->getYFov().getValue();
 					double aspect = camera->getAspectRatio().getValue();
-					double xfov = aspect * yfov;
-					// xfov is in degrees, cam->lens is in millimiters
-					cam->lens = fov_to_focallength(DEG2RADF(xfov), cam->sensor_x);
+
+					// NOTE: Needs more testing (As we curretnly have no official test data for this)
+
+					double xfov = 2.0f * atanf(aspect * tanf(DEG2RADF(yfov) * 0.5f));
+					cam->lens = fov_to_focallength(xfov, cam->sensor_x);
 				}
 				break;
 			}
 		}
 		break;
 		/* XXX correct way to do following four is probably to get also render
-		   size and determine proper settings from that somehow */
+		 * size and determine proper settings from that somehow */
 		case COLLADAFW::Camera::ASPECTRATIO_AND_X:
 		case COLLADAFW::Camera::SINGLE_X:
 		case COLLADAFW::Camera::X_AND_Y:
