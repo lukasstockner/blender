@@ -171,8 +171,10 @@ help:
 	@echo ""
 	@echo "Static Source Code Checking (not associated with building blender)"
 	@echo "  * check_cppcheck    - run blender source through cppcheck (C & C++)"
+	@echo "  * check_clang_array - run blender source through clang array checking script (C & C++)"
 	@echo "  * check_splint      - run blenders source through splint (C only)"
 	@echo "  * check_sparse      - run blenders source through sparse (C only)"
+	@echo "  * check_smatch      - run blenders source through smatch (C only)"
 	@echo "  * check_spelling_c  - check for spelling errors (C/C++ only)"
 	@echo "  * check_spelling_py - check for spelling errors (Python only)"
 	@echo ""
@@ -243,6 +245,10 @@ check_cppcheck:
 	$(CMAKE_CONFIG)
 	cd $(BUILD_DIR) ; python3.2 $(BLENDER_DIR)/build_files/cmake/cmake_static_check_cppcheck.py
 
+check_clang_array:
+	$(CMAKE_CONFIG)
+	cd $(BUILD_DIR) ; python3.2 $(BLENDER_DIR)/build_files/cmake/cmake_static_check_clang_array.py
+
 check_splint:
 	$(CMAKE_CONFIG)
 	cd $(BUILD_DIR) ; python3.2 $(BLENDER_DIR)/build_files/cmake/cmake_static_check_splint.py
@@ -250,6 +256,10 @@ check_splint:
 check_sparse:
 	$(CMAKE_CONFIG)
 	cd $(BUILD_DIR) ; python3.2 $(BLENDER_DIR)/build_files/cmake/cmake_static_check_sparse.py
+
+check_smatch:
+	$(CMAKE_CONFIG)
+	cd $(BUILD_DIR) ; python3.2 $(BLENDER_DIR)/build_files/cmake/cmake_static_check_smatch.py
 
 check_spelling_py:
 	cd $(BUILD_DIR) ; PYTHONIOENCODING=utf_8 python3.2 $(BLENDER_DIR)/source/tools/spell_check_source.py $(BLENDER_DIR)/release/scripts

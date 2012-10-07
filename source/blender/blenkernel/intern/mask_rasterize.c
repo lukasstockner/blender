@@ -26,6 +26,46 @@
 
 /** \file blender/blenkernel/intern/mask_rasterize.c
  *  \ingroup bke
+ *
+ * This module exposes a rasterizer that works as a black box - implementation details are confined to this file,
+ *
+ * The basic method to access is:
+ * - create & initialize a handle from a #Mask datablock.
+ * - execute pixel lookups.
+ * - free the handle.
+ *
+ * This file is admittedly a bit confusticated, in quite few areas speed was chosen over readability,
+ * though it is commented - so shouldn't be so hard to see whats going on.
+ *
+ *
+ * Implementation:
+ *
+ * To rasterize the mask its converted into geometry that use a ray-cast for each pixel lookup.
+ *
+ * Initially 'kdopbvh' was used but this ended up being too slow.
+ *
+ * To gain some extra speed we take advantage of a few shortcuts that can be made rasterizing masks specifically.
+ * - all triangles are known to be completely white - so no depth check is done on triangle intersection.
+ * - all quads are known to be feather outlines - the 1 and 0 depths are known by the vertex order in the quad,
+ * - there is no color - just a value for each mask pixel.
+ * - the mask spacial structure always maps to space 0-1 on X and Y axis.
+ * - bucketing is used to speed up lookups for geometry.
+ *
+ * Other Details:
+ * - used unsigned values all over for some extra speed on some arch's.
+ * - anti-aliasing is faked, just ensuring at least one pixel feather - avoids oversampling.
+ * - initializing the spacial structure doesn't need to be as optimized as pixel lookups are.
+ * - mask lookups need not be pixel aligned so any sub-pixel values from x/y (0 - 1), can be found.
+ *   (perhaps masks can be used as a vector texture in 3D later on)
+ *
+ *
+ * Currently, to build the spacial structure we have to calculate the total number of faces ahead of time.
+ *
+ * This is getting a bit complicated with the addition of unfilled splines and end capping -
+ * If large changes are needed here we would be better off using an iterable
+ * BLI_mempool for triangles and converting to a contiguous array afterwards.
+ *
+ * - Campbell
  */
 
 #include "MEM_guardedalloc.h"
@@ -213,9 +253,9 @@ void BKE_maskrasterize_handle_free(MaskRasterHandle *mr_handle)
 }
 
 
-void maskrasterize_spline_differentiate_point_outset(float (*diff_feather_points)[2], float (*diff_points)[2],
-                                                     const unsigned int tot_diff_point, const float ofs,
-                                                     const short do_test)
+static void maskrasterize_spline_differentiate_point_outset(float (*diff_feather_points)[2], float (*diff_points)[2],
+                                                            const unsigned int tot_diff_point, const float ofs,
+                                                            const short do_test)
 {
 	unsigned int k_prev = tot_diff_point - 2;
 	unsigned int k_curr = tot_diff_point - 1;
@@ -370,8 +410,8 @@ static void layer_bucket_init(MaskRasterLayer *layer, const float pixel_size)
 {
 	MemArena *arena = BLI_memarena_new(1 << 16, __func__);
 
-	const float bucket_dim_x = BLI_RCT_SIZE_X(&layer->bounds);
-	const float bucket_dim_y = BLI_RCT_SIZE_Y(&layer->bounds);
+	const float bucket_dim_x = BLI_rctf_size_x(&layer->bounds);
+	const float bucket_dim_y = BLI_rctf_size_y(&layer->bounds);
 
 	layer->buckets_x = (bucket_dim_x / pixel_size) / (float)BUCKET_PIXELS_PER_CELL;
 	layer->buckets_y = (bucket_dim_y / pixel_size) / (float)BUCKET_PIXELS_PER_CELL;
@@ -1168,7 +1208,7 @@ static float maskrasterize_layer_isect(unsigned int *face, float (*cos)[3], cons
 
 			/* needs work */
 #if 1
-			/* quad check fails for bowtie, so keep using 2 tri checks */
+			/* quad check fails for bow-tie, so keep using 2 tri checks */
 			//if (isect_point_quad_v2(xy, cos[face[0]], cos[face[1]], cos[face[2]], cos[face[3]]))
 			if (isect_point_tri_v2(xy, cos[face[0]], cos[face[1]], cos[face[2]]) ||
 			    isect_point_tri_v2(xy, cos[face[0]], cos[face[2]], cos[face[3]]))
@@ -1176,7 +1216,7 @@ static float maskrasterize_layer_isect(unsigned int *face, float (*cos)[3], cons
 				return maskrasterize_layer_z_depth_quad(xy, cos[face[0]], cos[face[1]], cos[face[2]], cos[face[3]]);
 			}
 #elif 1
-			/* don't use isect_point_tri_v2_cw because we could have bowtie quads */
+			/* don't use isect_point_tri_v2_cw because we could have bow-tie quads */
 
 			if (isect_point_tri_v2(xy, cos[face[0]], cos[face[1]], cos[face[2]])) {
 				return maskrasterize_layer_z_depth_tri(xy, cos[face[0]], cos[face[1]], cos[face[2]]);
@@ -1196,7 +1236,7 @@ static float maskrasterize_layer_isect(unsigned int *face, float (*cos)[3], cons
 
 BLI_INLINE unsigned int layer_bucket_index_from_xy(MaskRasterLayer *layer, const float xy[2])
 {
-	BLI_assert(BLI_in_rctf_v(&layer->bounds, xy));
+	BLI_assert(BLI_rctf_isect_pt_v(&layer->bounds, xy));
 
 	return ( (unsigned int)((xy[0] - layer->bounds.xmin) * layer->buckets_xy_scalar[0])) +
 	       (((unsigned int)((xy[1] - layer->bounds.ymin) * layer->buckets_xy_scalar[1])) * layer->buckets_x);
@@ -1233,7 +1273,7 @@ static float layer_bucket_depth_from_xy(MaskRasterLayer *layer, const float xy[2
 float BKE_maskrasterize_handle_sample(MaskRasterHandle *mr_handle, const float xy[2])
 {
 	/* can't do this because some layers may invert */
-	/* if (BLI_in_rctf_v(&mr_handle->bounds, xy)) */
+	/* if (BLI_rctf_isect_pt_v(&mr_handle->bounds, xy)) */
 
 	const unsigned int layers_tot = mr_handle->layers_tot;
 	unsigned int i;
@@ -1246,7 +1286,7 @@ float BKE_maskrasterize_handle_sample(MaskRasterHandle *mr_handle, const float x
 		float value_layer;
 
 		/* also used as signal for unused layer (when render is disabled) */
-		if (layer->alpha != 0.0f && BLI_in_rctf_v(&layer->bounds, xy)) {
+		if (layer->alpha != 0.0f && BLI_rctf_isect_pt_v(&layer->bounds, xy)) {
 			value_layer = 1.0f - layer_bucket_depth_from_xy(layer, xy);
 
 			switch (layer->falloff) {
@@ -1282,8 +1322,11 @@ float BKE_maskrasterize_handle_sample(MaskRasterHandle *mr_handle, const float x
 		}
 
 		switch (layer->blend) {
-			case MASK_BLEND_MERGE:
+			case MASK_BLEND_MERGE_ADD:
 				value += value_layer * (1.0f - value);
+				break;
+			case MASK_BLEND_MERGE_SUBTRACT:
+				value -= value_layer * value;
 				break;
 			case MASK_BLEND_ADD:
 				value += value_layer;

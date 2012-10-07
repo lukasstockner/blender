@@ -294,7 +294,7 @@ struct ImBuf *IMB_double_y(struct ImBuf *ibuf1)
 /* result in ibuf2, scaling should be done correctly */
 void imb_onehalf_no_alloc(struct ImBuf *ibuf2, struct ImBuf *ibuf1)
 {
-    int x, y;
+	int x, y;
 	const short do_rect = (ibuf1->rect != NULL);
 	const short do_float = (ibuf1->rect_float != NULL) && (ibuf2->rect_float != NULL);
 
@@ -1051,7 +1051,7 @@ static ImBuf *scaledowny(struct ImBuf *ibuf, int newy)
 			
 			sample -= 1.0f;
 		}
-	}	
+	}
 
 	if (do_rect) {
 		// printf("%ld %ld\n", (uchar *)rect - ((uchar *)ibuf->rect), rect_size);

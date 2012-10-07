@@ -349,6 +349,44 @@ int ED_operator_editarmature(bContext *C)
 	return 0;
 }
 
+/**
+ * \brief check for pose mode (no mixed modes)
+ *
+ * We wan't to enable most pose operations in weight paint mode,
+ * when it comes to transforming bones, but managing bomes layers/groups
+ * can be left for pose mode only. (not weight paint mode)
+ */
+int ED_operator_posemode_exclusive(bContext *C)
+{
+	Object *obact = CTX_data_active_object(C);
+
+	if (obact && !(obact->mode & OB_MODE_EDIT)) {
+		Object *obpose;
+		if ((obpose = BKE_object_pose_armature_get(obact))) {
+			if (obact == obpose) {
+				return 1;
+			}
+		}
+	}
+
+	return 0;
+}
+
+/* allows for pinned pose objects to be used in the object buttons
+ * and the the non-active pose object to be used in the 3D view */
+int ED_operator_posemode_context(bContext *C)
+{
+	Object *obpose = ED_pose_object_from_context(C);
+
+	if (obpose && !(obpose->mode & OB_MODE_EDIT)) {
+		if (BKE_object_pose_context_check(obpose)) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 int ED_operator_posemode(bContext *C)
 {
 	Object *obact = CTX_data_active_object(C);
@@ -521,7 +559,7 @@ static ScrArea *screen_areahascursor(bScreen *scr, int x, int y)
 	ScrArea *sa = NULL;
 	sa = scr->areabase.first;
 	while (sa) {
-		if (BLI_in_rcti(&sa->totrct, x, y)) break;
+		if (BLI_rcti_isect_pt(&sa->totrct, x, y)) break;
 		sa = sa->next;
 	}
 	
@@ -540,7 +578,7 @@ static int actionzone_area_poll(bContext *C)
 		int y = win->eventstate->y;
 		
 		for (az = sa->actionzones.first; az; az = az->next)
-			if (BLI_in_rcti(&az->rect, x, y))
+			if (BLI_rcti_isect_pt(&az->rect, x, y))
 				return 1;
 	}	
 	return 0;
@@ -551,7 +589,7 @@ AZone *is_in_area_actionzone(ScrArea *sa, const int xy[2])
 	AZone *az = NULL;
 	
 	for (az = sa->actionzones.first; az; az = az->next) {
-		if (BLI_in_rcti_v(&az->rect, xy)) {
+		if (BLI_rcti_isect_pt_v(&az->rect, xy)) {
 			if (az->type == AZONE_AREA) {
 				/* no triangle intersect but a hotspot circle based on corner */
 				int radius = (xy[0] - az->x1) * (xy[0] - az->x1) + (xy[1] - az->y1) * (xy[1] - az->y1);
@@ -1173,9 +1211,6 @@ static void SCREEN_OT_area_move(wmOperatorType *ot)
  * call exit() or cancel() and remove handler
  */
 
-#define SPLIT_STARTED   1
-#define SPLIT_PROGRESS  2
-
 typedef struct sAreaSplitData {
 	int x, y;   /* last used mouse position */
 	
@@ -1347,12 +1382,12 @@ static int area_split_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	if (event->type == EVT_ACTIONZONE_AREA) {
 		sActionzoneData *sad = event->customdata;
 		
-		if (sad->modifier > 0) {
+		if (sad == NULL || sad->modifier > 0) {
 			return OPERATOR_PASS_THROUGH;
 		}
 		
 		/* verify *sad itself */
-		if (sad == NULL || sad->sa1 == NULL || sad->az == NULL)
+		if (sad->sa1 == NULL || sad->az == NULL)
 			return OPERATOR_PASS_THROUGH;
 		
 		/* is this our *sad? if areas not equal it should be passed on */
@@ -1612,10 +1647,10 @@ static int area_max_regionsize(ScrArea *sa, ARegion *scalear, AZEdge edge)
 	int dist;
 	
 	if (edge == AE_RIGHT_TO_TOPLEFT || edge == AE_LEFT_TO_TOPRIGHT) {
-		dist = BLI_RCT_SIZE_X(&sa->totrct);
+		dist = BLI_rcti_size_x(&sa->totrct);
 	}
 	else {  /* AE_BOTTOM_TO_TOPLEFT, AE_TOP_TO_BOTTOMRIGHT */
-		dist = sa->totrct.ymax - sa->totrct.ymin;
+		dist = BLI_rcti_size_y(&sa->totrct);
 	}
 	
 	/* subtractwidth of regions on opposite side 
@@ -2030,8 +2065,8 @@ static void SCREEN_OT_keyframe_jump(wmOperatorType *ot)
 	ot->poll = ED_operator_screenactive_norender;
 	ot->flag = OPTYPE_UNDO;
 	
-	/* rna */
-	RNA_def_boolean(ot->srna, "next", 1, "Next Keyframe", "");
+	/* properties */
+	RNA_def_boolean(ot->srna, "next", TRUE, "Next Keyframe", "");
 }
 
 /* ************** switch screen operator ***************************** */
@@ -2261,12 +2296,12 @@ static int area_join_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	if (event->type == EVT_ACTIONZONE_AREA) {
 		sActionzoneData *sad = event->customdata;
 		
-		if (sad->modifier > 0) {
+		if (sad == NULL || sad->modifier > 0) {
 			return OPERATOR_PASS_THROUGH;
 		}
 		
 		/* verify *sad itself */
-		if (sad == NULL || sad->sa1 == NULL || sad->sa2 == NULL)
+		if (sad->sa1 == NULL || sad->sa2 == NULL)
 			return OPERATOR_PASS_THROUGH;
 		
 		/* is this our *sad? if areas equal it should be passed on */
@@ -2827,35 +2862,40 @@ static void SCREEN_OT_header_flip(wmOperatorType *ot)
 }
 
 /* ************** header tools operator ***************************** */
-
-static int header_toolbox_invoke(bContext *C, wmOperator *UNUSED(op), wmEvent *UNUSED(event))
+void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void *UNUSED(arg))
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
-	uiPopupMenu *pup;
-	uiLayout *layout;
-	
-	pup = uiPupMenuBegin(C, "Header", ICON_NONE);
-	layout = uiPupMenuLayout(pup);
-	
-	// XXX SCREEN_OT_region_flip doesn't work - gets wrong context for active region, so added custom operator
+
+	/* XXX SCREEN_OT_region_flip doesn't work - gets wrong context for active region, so added custom operator. */
 	if (ar->alignment == RGN_ALIGN_TOP)
-		uiItemO(layout, "Flip to Bottom", ICON_NONE, "SCREEN_OT_header_flip");
+		uiItemO(layout, IFACE_("Flip to Bottom"), ICON_NONE, "SCREEN_OT_header_flip");
 	else
-		uiItemO(layout, "Flip to Top", ICON_NONE, "SCREEN_OT_header_flip");
-	
+		uiItemO(layout, IFACE_("Flip to Top"), ICON_NONE, "SCREEN_OT_header_flip");
+
 	uiItemS(layout);
-	
+
 	/* file browser should be fullscreen all the time, but other regions can be maximized/restored... */
 	if (sa->spacetype != SPACE_FILE) {
 		if (sa->full) 
-			uiItemO(layout, "Tile Area", ICON_NONE, "SCREEN_OT_screen_full_area");
+			uiItemO(layout, IFACE_("Tile Area"), ICON_NONE, "SCREEN_OT_screen_full_area");
 		else
-			uiItemO(layout, "Maximize Area", ICON_NONE, "SCREEN_OT_screen_full_area");
+			uiItemO(layout, IFACE_("Maximize Area"), ICON_NONE, "SCREEN_OT_screen_full_area");
 	}
-	
+}
+
+static int header_toolbox_invoke(bContext *C, wmOperator *UNUSED(op), wmEvent *UNUSED(event))
+{
+	uiPopupMenu *pup;
+	uiLayout *layout;
+
+	pup = uiPupMenuBegin(C, N_("Header"), ICON_NONE);
+	layout = uiPupMenuLayout(pup);
+
+	ED_screens_header_tools_menu_create(C, layout, NULL);
+
 	uiPupMenuEnd(C, pup);
-	
+
 	return OPERATOR_CANCELLED;
 }
 

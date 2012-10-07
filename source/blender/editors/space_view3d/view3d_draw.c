@@ -48,6 +48,7 @@
 #include "BLI_math.h"
 #include "BLI_rand.h"
 #include "BLI_utildefines.h"
+#include "BLI_endian_switch.h"
 
 #include "BKE_anim.h"
 #include "BKE_camera.h"
@@ -68,6 +69,7 @@
 
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
+#include "IMB_colormanagement.h"
 
 #include "BIF_glutil.h"
 
@@ -217,7 +219,7 @@ static void drawgrid_draw(ARegion *ar, double wx, double wy, double x, double y,
 	verts[1][1] = (float)ar->winy;
 
 	/* iter over 'X' */
-	verts[0][0] = verts[1][0] = x - dx *floor(x / dx);
+	verts[0][0] = verts[1][0] = x - dx * floor(x / dx);
 
 	while (verts[0][0] < ar->winx) {
 		gpuAppendLinef(verts[0][0], verts[0][1], verts[1][0], verts[1][1]);
@@ -229,7 +231,7 @@ static void drawgrid_draw(ARegion *ar, double wx, double wy, double x, double y,
 	verts[1][0] = (float)ar->winx;
 
 	/* iter over 'Y' */
-	verts[0][1] = verts[1][1] = y - dx *floor(y / dx);
+	verts[0][1] = verts[1][1] = y - dx * floor(y / dx);
 
 	while (verts[0][1] < ar->winy) {
 		gpuAppendLinef(verts[0][0], verts[0][1], verts[1][0], verts[1][1]);
@@ -548,24 +550,15 @@ static void drawfloor(Scene *scene, View3D *v3d, const char **grid_unit)
 
 static void drawcursor(Scene *scene, ARegion *ar, View3D *v3d)
 {
-	int mx, my, co[2];
-	int flag;
+	int co[2];
 
 	/* we don't want the clipping for cursor */
-	flag = v3d->flag;
-	v3d->flag = 0;
-	project_int(ar, give_cursor(scene, v3d), co);
-	v3d->flag = flag;
-
-	mx = co[0];
-	my = co[1];
-
-	if (mx != IS_CLIPPED) {
+	if (ED_view3d_project_int_global(ar, give_cursor(scene, v3d), co, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_SUCCESS) {
 		gpuImmediateFormat_V2(); // DOODLE: view3d cursor, 2 stippled circles, 4 mono lines
 
 		setlinestyle(0); 
 		gpuCurrentColor3x(CPACK_BLUE);
-		gpuDrawCircle((float)mx, (float)my, 10.0, 32);
+		gpuDrawCircle((float)co[0], (float)co[1], 10.0, 32);
 
 		setlinestyle(4); 
 		gpuCurrentColor3x(CPACK_WHITE);
@@ -575,10 +568,10 @@ static void drawcursor(Scene *scene, ARegion *ar, View3D *v3d)
 		gpuCurrentColor3x(CPACK_BLACK);
 
 		gpuBegin(GL_LINES);
-		gpuAppendLinei(mx - 20, my, mx - 5, my);
-		gpuAppendLinei(mx + 5, my, mx + 20, my);
-		gpuAppendLinei(mx, my - 20, mx, my - 5);
-		gpuAppendLinei(mx, my + 5, mx, my + 20);
+		gpuAppendLinei(co[0] - 20, co[1], co[0] -  5, co[1]);
+		gpuAppendLinei(co[0] +  5, co[1], co[0] + 20, co[1]);
+		gpuAppendLinei(co[0], co[1] - 20, co[0], co[1] -  5);
+		gpuAppendLinei(co[0], co[1] +  5, co[0], co[1] + 20);
 		gpuEnd();
 
 		gpuImmediateUnformat();
@@ -799,7 +792,7 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 			gpuCurrentColor4fv(color);
 			gpuBegin(GL_LINE_LOOP);
 			for (i = 0, angle = 0.f; i < ROT_AXIS_DETAIL; ++i, angle += step) {
-				float p[3] = {s *cosf(angle), s * sinf(angle), 0.0f};
+				float p[3] = {s * cosf(angle), s * sinf(angle), 0.0f};
 
 				if (!upright) {
 					mul_qt_v3(q, p);
@@ -969,7 +962,7 @@ static void draw_selected_name(Scene *scene, Object *ob)
 			
 			/* try to display active shapekey too */
 			shapes[0] = '\0';
-			key = ob_get_key(ob);
+			key = BKE_key_from_object(ob);
 			if (key) {
 				kb = BLI_findlink(&key->block, ob->shapenr - 1);
 				if (kb) {
@@ -1041,10 +1034,10 @@ static void view3d_camera_border(Scene *scene, ARegion *ar, View3D *v3d, RegionV
 	rect_camera = params.viewplane;
 
 	/* get camera border within viewport */
-	viewborder_r->xmin = ((rect_camera.xmin - rect_view.xmin) / (rect_view.xmax - rect_view.xmin)) * ar->winx;
-	viewborder_r->xmax = ((rect_camera.xmax - rect_view.xmin) / (rect_view.xmax - rect_view.xmin)) * ar->winx;
-	viewborder_r->ymin = ((rect_camera.ymin - rect_view.ymin) / (rect_view.ymax - rect_view.ymin)) * ar->winy;
-	viewborder_r->ymax = ((rect_camera.ymax - rect_view.ymin) / (rect_view.ymax - rect_view.ymin)) * ar->winy;
+	viewborder_r->xmin = ((rect_camera.xmin - rect_view.xmin) / BLI_rctf_size_x(&rect_view)) * ar->winx;
+	viewborder_r->xmax = ((rect_camera.xmax - rect_view.xmin) / BLI_rctf_size_x(&rect_view)) * ar->winx;
+	viewborder_r->ymin = ((rect_camera.ymin - rect_view.ymin) / BLI_rctf_size_y(&rect_view)) * ar->winy;
+	viewborder_r->ymax = ((rect_camera.ymax - rect_view.ymin) / BLI_rctf_size_y(&rect_view)) * ar->winy;
 }
 
 void ED_view3d_calc_camera_border_size(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D *rv3d, float size_r[2])
@@ -1052,8 +1045,8 @@ void ED_view3d_calc_camera_border_size(Scene *scene, ARegion *ar, View3D *v3d, R
 	rctf viewborder;
 
 	view3d_camera_border(scene, ar, v3d, rv3d, &viewborder, TRUE, TRUE);
-	size_r[0] = viewborder.xmax - viewborder.xmin;
-	size_r[1] = viewborder.ymax - viewborder.ymin;
+	size_r[0] = BLI_rctf_size_x(&viewborder);
+	size_r[1] = BLI_rctf_size_y(&viewborder);
 }
 
 void ED_view3d_calc_camera_border(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D *rv3d,
@@ -1389,7 +1382,7 @@ static void backdrawview3d(Scene *scene, ARegion *ar, View3D *v3d)
 		glDisable(GL_MULTISAMPLE_ARB);
 
 	region_scissor_winrct(ar, &winrct);
-	gpuScissor(winrct.xmin, winrct.ymin, winrct.xmax - winrct.xmin, winrct.ymax - winrct.ymin);
+	gpuScissor(winrct.xmin, winrct.ymin, BLI_rcti_size_x(&winrct), BLI_rcti_size_y(&winrct));
 
 	gpuSetClearColor(0.0, 0.0, 0.0, 0.0); 
 	if (v3d->zbuf) {
@@ -1438,16 +1431,21 @@ unsigned int view3d_sample_backbuf(ViewContext *vc, int x, int y)
 {
 	unsigned int col;
 	
-	if (x >= vc->ar->winx || y >= vc->ar->winy) return 0;
+	if (x >= vc->ar->winx || y >= vc->ar->winy) {
+		return 0;
+	}
+
 	x += vc->ar->winrct.xmin;
 	y += vc->ar->winrct.ymin;
 	
 	view3d_validate_backbuf(vc);
 
-	glReadPixels(x,  y, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE,  &col);
-	glReadBuffer(GL_BACK);	
+	glReadPixels(x, y, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &col);
+	glReadBuffer(GL_BACK);
 	
-	if (ENDIAN_ORDER == B_ENDIAN) SWITCH_INT(col);
+	if (ENDIAN_ORDER == B_ENDIAN) {
+		BLI_endian_switch_uint32(&col);
+	}
 	
 	return WM_framebuffer_to_index(col);
 }
@@ -1586,11 +1584,6 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 {
 	RegionView3D *rv3d = ar->regiondata;
 	BGpic *bgpic;
-	Image *ima;
-	MovieClip *clip;
-	ImBuf *ibuf = NULL, *freeibuf;
-	float vec[4], fac, asp, zoomx, zoomy;
-	float x1, y1, x2, y2, cx, cy;
 	int fg_flag = do_foreground ? V3D_BGPIC_FOREGROUND : 0;
 
 	for (bgpic = v3d->bgpicbase.first; bgpic; bgpic = bgpic->next) {
@@ -1603,6 +1596,13 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 		    (rv3d->persp == RV3D_CAMOB && bgpic->view == (1 << RV3D_VIEW_CAMERA)))
 		{
 			float image_aspect[2];
+			float fac, asp, zoomx, zoomy;
+			float x1, y1, x2, y2;
+
+			ImBuf *ibuf = NULL, *freeibuf;
+
+			Image *ima;
+			MovieClip *clip;
 
 			/* disable individual images */
 			if ((bgpic->flag & V3D_BGPIC_DISABLED))
@@ -1730,26 +1730,25 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 				}
 			}
 			else {
+				float tvec[3];
 				float sco[2];
 				const float mval_f[2] = {1.0f, 0.0f};
 
 				/* calc window coord */
 				initgrabz(rv3d, 0.0, 0.0, 0.0);
-				ED_view3d_win_to_delta(ar, mval_f, vec);
-				fac = maxf(fabsf(vec[0]), maxf(fabsf(vec[1]), fabsf(vec[2]))); /* largest abs axis */
+				ED_view3d_win_to_delta(ar, mval_f, tvec);
+				fac = maxf(fabsf(tvec[0]), maxf(fabsf(tvec[1]), fabsf(tvec[2]))); /* largest abs axis */
 				fac = 1.0f / fac;
 
-				asp = ( (float)ibuf->y) / (float)ibuf->x;
+				asp = (float)ibuf->y / (float)ibuf->x;
 
-				zero_v3(vec);
-				ED_view3d_project_float_v2(ar, vec, sco, rv3d->persmat);
-				cx = sco[0];
-				cy = sco[1];
+				zero_v3(tvec);
+				ED_view3d_project_float_v2_m4(ar, tvec, sco, rv3d->persmat);
 
-				x1 =  cx + fac * (bgpic->xof - bgpic->size);
-				y1 =  cy + asp * fac * (bgpic->yof - bgpic->size);
-				x2 =  cx + fac * (bgpic->xof + bgpic->size);
-				y2 =  cy + asp * fac * (bgpic->yof + bgpic->size);
+				x1 =  sco[0] + fac * (bgpic->xof - bgpic->size);
+				y1 =  sco[1] + asp * fac * (bgpic->yof - bgpic->size);
+				x2 =  sco[0] + fac * (bgpic->xof + bgpic->size);
+				y2 =  sco[1] + asp * fac * (bgpic->yof + bgpic->size);
 			}
 
 			/* complete clip? */
@@ -1814,8 +1813,9 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 			glDepthMask(1);
 			if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 
-			if (freeibuf)
+			if (freeibuf) {
 				IMB_freeImBuf(freeibuf);
+			}
 		}
 	}
 }
@@ -1967,7 +1967,7 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 	if (base->object->restrictflag & OB_RESTRICT_VIEW) return;
 	
 	tbase.flag = OB_FROMDUPLI | base->flag;
-	lb = object_duplilist(scene, base->object);
+	lb = object_duplilist(scene, base->object, FALSE);
 	// BLI_sortlist(lb, dupli_ob_sort); /* might be nice to have if we have a dupli list with mixed objects. */
 
 	dob = dupli_step(lb->first);
@@ -2087,8 +2087,8 @@ void view3d_update_depths_rect(ARegion *ar, ViewDepths *d, rcti *rect)
 	x = rect->xmin;
 	y = rect->ymin;
 
-	w = BLI_RCT_SIZE_X(rect);
-	h = BLI_RCT_SIZE_Y(rect);
+	w = BLI_rcti_size_x(rect);
+	h = BLI_rcti_size_y(rect);
 
 	if (w <= 0 || h <= 0) {
 		if (d->depths)
@@ -2380,7 +2380,7 @@ static void gpu_update_lamps_shadows(Scene *scene, View3D *v3d)
 		
 		if (ob->transflag & OB_DUPLI) {
 			DupliObject *dob;
-			ListBase *lb = object_duplilist(scene, ob);
+			ListBase *lb = object_duplilist(scene, ob, FALSE);
 			
 			for (dob = lb->first; dob; dob = dob->next)
 				if (dob->ob->type == OB_LAMP)
@@ -2418,7 +2418,7 @@ static void gpu_update_lamps_shadows(Scene *scene, View3D *v3d)
 		mult_m4_m4m4(rv3d.persmat, rv3d.winmat, rv3d.viewmat);
 		invert_m4_m4(rv3d.persinv, rv3d.viewinv);
 
-		ED_view3d_draw_offscreen(scene, v3d, &ar, winsize, winsize, viewmat, winmat, FALSE);
+		ED_view3d_draw_offscreen(scene, v3d, &ar, winsize, winsize, viewmat, winmat, FALSE, FALSE);
 		GPU_lamp_shadow_buffer_unbind(shadow->lamp);
 		
 		v3d->drawtype = drawtype;
@@ -2557,7 +2557,7 @@ static void view3d_main_area_setup_view(Scene *scene, View3D *v3d, ARegion *ar, 
 
 void ED_view3d_draw_offscreen(Scene *scene, View3D *v3d, ARegion *ar,
                               int winx, int winy, float viewmat[][4], float winmat[][4],
-                              int do_bgpic)
+                              int do_bgpic, int colormanage_background)
 {
 	RegionView3D *rv3d = ar->regiondata;
 	Base *base;
@@ -2596,10 +2596,25 @@ void ED_view3d_draw_offscreen(Scene *scene, View3D *v3d, ARegion *ar,
 	/* set background color, fallback on the view background color
 	 * (if active clip is set but frame is failed to load fallback to horizon color as background) */
 	if (scene->world) {
-		if (scene->r.color_mgt_flag & R_COLOR_MANAGEMENT)
+		/* NOTE: currently OpenGL is supposed to always work in sRGB space and do not
+		 *       apply any tonemaps since it's really tricky to support for all features (GLSL, textures, etc)
+		 *       but due to compatibility issues background is being affected display transform, so we can
+		 *       emulate behavior of disabled color management
+		 *       but this function is also used for sequencer's scene strips which shouldn't be affected by
+		 *       tonemaps now and should be purely sRGB, that's why we've got this colormanage_background
+		 *       we can drop this flag in cost of some compatibility loss -- background wouldn't be
+		 *       color managed in 3d viewport
+		 *       same goes to opengl rendering, where color profile should be applied as very final step
+		 */
+
+		if (colormanage_background) {
+			IMB_colormanagement_pixel_to_display_space_v3(backcol, &scene->world->horr, &scene->view_settings,
+			                                              &scene->display_settings);
+		}
+		else {
 			linearrgb_to_srgb_v3_v3(backcol, &scene->world->horr);
-		else
-			copy_v3_v3(backcol, &scene->world->horr);
+		}
+
 		gpuSetClearColorvf(backcol, 0.0);
 	}
 	else {
@@ -2704,7 +2719,8 @@ void ED_view3d_draw_offscreen(Scene *scene, View3D *v3d, ARegion *ar,
 
 /* utility func for ED_view3d_draw_offscreen */
 ImBuf *ED_view3d_draw_offscreen_imbuf(Scene *scene, View3D *v3d, ARegion *ar,
-                                      int sizex, int sizey, unsigned int flag, int draw_background, char err_out[256])
+                                      int sizex, int sizey, unsigned int flag, int draw_background,
+                                      int colormanage_background, char err_out[256])
 {
 	RegionView3D *rv3d = ar->regiondata;
 	ImBuf *ibuf;
@@ -2729,10 +2745,10 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Scene *scene, View3D *v3d, ARegion *ar,
 		BKE_camera_params_compute_viewplane(&params, sizex, sizey, scene->r.xasp, scene->r.yasp);
 		BKE_camera_params_compute_matrix(&params);
 
-		ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, params.winmat, draw_background);
+		ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, params.winmat, draw_background, colormanage_background);
 	}
 	else {
-		ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, NULL, draw_background);
+		ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, NULL, draw_background, colormanage_background);
 	}
 
 	/* read in pixels & stamp */
@@ -2757,7 +2773,8 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Scene *scene, View3D *v3d, ARegion *ar,
 
 /* creates own 3d views, used by the sequencer */
 ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Scene *scene, Object *camera, int width, int height,
-                                             unsigned int flag, int drawtype, int draw_background, char err_out[256])
+                                             unsigned int flag, int drawtype, int draw_background,
+                                             int colormanage_background, char err_out[256])
 {
 	View3D v3d = {NULL};
 	ARegion ar = {NULL};
@@ -2796,7 +2813,8 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Scene *scene, Object *camera, int w
 	mult_m4_m4m4(rv3d.persmat, rv3d.winmat, rv3d.viewmat);
 	invert_m4_m4(rv3d.persinv, rv3d.viewinv);
 
-	return ED_view3d_draw_offscreen_imbuf(scene, &v3d, &ar, width, height, flag, draw_background, err_out);
+	return ED_view3d_draw_offscreen_imbuf(scene, &v3d, &ar, width, height, flag,
+	                                      draw_background, colormanage_background, err_out);
 
 	// seq_view3d_cb(scene, cfra, render_size, seqrectx, seqrecty);
 }
@@ -2873,13 +2891,21 @@ static int view3d_main_area_draw_engine(const bContext *C, ARegion *ar, int draw
 
 	/* create render engine */
 	if (!rv3d->render_engine) {
+		RenderEngine *engine;
+
 		type = RE_engines_find(scene->r.engine);
 
 		if (!(type->view_update && type->view_draw))
 			return 0;
 
-		rv3d->render_engine = RE_engine_create(type);
-		type->view_update(rv3d->render_engine, C);
+		engine = RE_engine_create(type);
+
+		engine->tile_x = ceil(ar->winx / (float)scene->r.xparts);
+		engine->tile_y = ceil(ar->winy / (float)scene->r.yparts);
+
+		type->view_update(engine, C);
+
+		rv3d->render_engine = engine;
 	}
 
 	/* setup view matrices */
@@ -2895,10 +2921,10 @@ static int view3d_main_area_draw_engine(const bContext *C, ARegion *ar, int draw
 
 		ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, &viewborder, FALSE);
 
-		cliprct.xmin = viewborder.xmin + scene->r.border.xmin * (viewborder.xmax - viewborder.xmin);
-		cliprct.ymin = viewborder.ymin + scene->r.border.ymin * (viewborder.ymax - viewborder.ymin);
-		cliprct.xmax = viewborder.xmin + scene->r.border.xmax * (viewborder.xmax - viewborder.xmin);
-		cliprct.ymax = viewborder.ymin + scene->r.border.ymax * (viewborder.ymax - viewborder.ymin);
+		cliprct.xmin = viewborder.xmin + scene->r.border.xmin * BLI_rctf_size_x(&viewborder);
+		cliprct.ymin = viewborder.ymin + scene->r.border.ymin * BLI_rctf_size_y(&viewborder);
+		cliprct.xmax = viewborder.xmin + scene->r.border.xmax * BLI_rctf_size_x(&viewborder);
+		cliprct.ymax = viewborder.ymin + scene->r.border.ymax * BLI_rctf_size_y(&viewborder);
 
 		cliprct.xmin += ar->winrct.xmin;
 		cliprct.xmax += ar->winrct.xmin;
@@ -2912,7 +2938,7 @@ static int view3d_main_area_draw_engine(const bContext *C, ARegion *ar, int draw
 
 		if (cliprct.xmax > cliprct.xmin && cliprct.ymax > cliprct.ymin) {
 			gpuGetSizeBox(GL_SCISSOR_BOX, scissor);
-			gpuScissor(cliprct.xmin, cliprct.ymin, cliprct.xmax - cliprct.xmin, cliprct.ymax - cliprct.ymin);
+			gpuScissor(cliprct.xmin, cliprct.ymin, BLI_rcti_size_x(&cliprct), BLI_rcti_size_y(&cliprct));
 		}
 		else
 			return 0;
@@ -2971,10 +2997,9 @@ static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const 
 
 	/* clear background */
 	if ((v3d->flag2 & V3D_RENDER_OVERRIDE) && scene->world) {
-		if (scene->r.color_mgt_flag & R_COLOR_MANAGEMENT)
-			linearrgb_to_srgb_v3_v3(backcol, &scene->world->horr);
-		else
-			copy_v3_v3(backcol, &scene->world->horr);
+		IMB_colormanagement_pixel_to_display_space_v3(backcol, &scene->world->horr, &scene->view_settings,
+		                                              &scene->display_settings);
+
 		gpuSetClearColorvf(backcol, 0.0);
 	}
 	else

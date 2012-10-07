@@ -1253,7 +1253,7 @@ int BMO_error_occurred(BMesh *bm)
 	return bm->errorstack.first != NULL;
 }
 
-/* returns error code or 0 if no erro */
+/* returns error code or 0 if no error */
 int BMO_error_get(BMesh *bm, const char **msg, BMOperator **op)
 {
 	BMOpError *err = bm->errorstack.first;
@@ -1417,7 +1417,8 @@ int BMO_op_vinitf(BMesh *bm, BMOperator *op, const int flag, const char *_fmt, v
 				case '=':
 				case '%':
 					break;
-				case 'm': {
+				case 'm':
+				{
 					int size, c;
 
 					c = NEXT_CHAR(fmt);
@@ -1431,12 +1432,14 @@ int BMO_op_vinitf(BMesh *bm, BMOperator *op, const int flag, const char *_fmt, v
 					state = 1;
 					break;
 				}
-				case 'v': {
+				case 'v':
+				{
 					BMO_slot_vec_set(op, slot_name, va_arg(vlist, float *));
 					state = 1;
 					break;
 				}
-				case 'e': {
+				case 'e':
+				{
 					BMHeader *ele = va_arg(vlist, void *);
 					BMOpSlot *slot = BMO_slot_get(op, slot_name);
 
@@ -1447,7 +1450,8 @@ int BMO_op_vinitf(BMesh *bm, BMOperator *op, const int flag, const char *_fmt, v
 					state = 1;
 					break;
 				}
-				case 's': {
+				case 's':
+				{
 					BMOperator *op2 = va_arg(vlist, void *);
 					const char *slot_name2 = va_arg(vlist, char *);
 

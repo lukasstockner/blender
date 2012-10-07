@@ -149,14 +149,16 @@ static void screenshot_crop(ImBuf *ibuf, rcti crop)
 {
 	unsigned int *to = ibuf->rect;
 	unsigned int *from = ibuf->rect + crop.ymin * ibuf->x + crop.xmin;
-	int y, cropw = crop.xmax - crop.xmin, croph = crop.ymax - crop.ymin;
+	int crop_x = BLI_rcti_size_x(&crop);
+	int crop_y = BLI_rcti_size_y(&crop);
+	int y;
 
-	if (cropw > 0 && croph > 0) {
-		for (y = 0; y < croph; y++, to += cropw, from += ibuf->x)
-			memmove(to, from, sizeof(unsigned int) * cropw);
+	if (crop_x > 0 && crop_y > 0) {
+		for (y = 0; y < crop_y; y++, to += crop_x, from += ibuf->x)
+			memmove(to, from, sizeof(unsigned int) * crop_x);
 
-		ibuf->x = cropw;
-		ibuf->y = croph;
+		ibuf->x = crop_x;
+		ibuf->y = crop_y;
 	}
 }
 
@@ -243,7 +245,7 @@ static void screenshot_draw(bContext *UNUSED(C), wmOperator *op)
 
 	/* image template */
 	RNA_pointer_create(NULL, &RNA_ImageFormatSettings, &scd->im_format, &ptr);
-	uiTemplateImageSettings(layout, &ptr);
+	uiTemplateImageSettings(layout, &ptr, FALSE);
 
 	/* main draw call */
 	RNA_pointer_create(NULL, op->type->srna, op->properties, &ptr);

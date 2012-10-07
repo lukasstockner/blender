@@ -174,6 +174,8 @@ void ED_uvedit_assign_image(Main *bmain, Scene *scene, Object *obedit, Image *im
 	BMIter iter;
 	MTexPoly *tf;
 	int update = 0;
+	int sloppy = TRUE;
+	int selected = !(scene->toolsettings->uv_flag & UV_SYNC_SELECTION);
 	
 	/* skip assigning these procedural images... */
 	if (ima && (ima->type == IMA_TYPE_R_RESULT || ima->type == IMA_TYPE_COMPOSITE))
@@ -190,8 +192,7 @@ void ED_uvedit_assign_image(Main *bmain, Scene *scene, Object *obedit, Image *im
 
 	if (BKE_scene_use_new_shading_nodes(scene)) {
 		/* new shading system, assign image in material */
-		int sloppy = 1;
-		BMFace *efa = BM_active_face_get(em->bm, sloppy);
+		BMFace *efa = BM_active_face_get(em->bm, sloppy, selected);
 
 		if (efa)
 			ED_object_assign_active_image(bmain, obedit, efa->mat_nr + 1, ima);
@@ -205,8 +206,8 @@ void ED_uvedit_assign_image(Main *bmain, Scene *scene, Object *obedit, Image *im
 		ED_image_get_uv_aspect(previma, prev_aspect, prev_aspect + 1);
 		ED_image_get_uv_aspect(ima, aspect, aspect + 1);
 
-		fprev_aspect = prev_aspect[0]/prev_aspect[1];
-		faspect = aspect[0]/aspect[1];
+		fprev_aspect = prev_aspect[0] / prev_aspect[1];
+		faspect = aspect[0] / aspect[1];
 #endif
 
 		/* ensure we have a uv map */
@@ -758,14 +759,13 @@ static int nearest_uv_between(BMEditMesh *em, BMFace *efa, int UNUSED(nverts), i
 	BMLoop *l;
 	MLoopUV *luv;
 	BMIter iter;
-	float m[3], v1[3], v2[3], c1, c2, *uv1 = NULL, /* *uv2, */ /* UNUSED */ *uv3 = NULL;
+	float m[2], v1[2], v2[2], c1, c2, *uv1 = NULL, /* *uv2, */ /* UNUSED */ *uv3 = NULL;
 	int id1, id2, i;
 
 	id1 = (id + efa->len - 1) % efa->len;
 	id2 = (id + efa->len + 1) % efa->len;
 
-	m[0] = co[0] - uv[0];
-	m[1] = co[1] - uv[1];
+	sub_v2_v2v2(m, co, uv);
 
 	i = 0;
 	BM_ITER_ELEM (l, &iter, efa, BM_LOOPS_OF_FACE) {
@@ -781,8 +781,8 @@ static int nearest_uv_between(BMEditMesh *em, BMFace *efa, int UNUSED(nverts), i
 		i++;
 	}
 
-	sub_v3_v3v3(v1, uv1, uv);
-	sub_v3_v3v3(v2, uv3, uv);
+	sub_v2_v2v2(v1, uv1, uv);
+	sub_v2_v2v2(v2, uv3, uv);
 
 	/* m and v2 on same side of v-v1? */
 	c1 = v1[0] * m[1] - v1[1] * m[0];
@@ -1743,7 +1743,7 @@ static int mouse_select(bContext *C, const float co[2], int extend, int loop)
 	 * the selection rather than de-selecting the closest. */
 
 	uvedit_pixel_to_float(sima, limit, 0.05f);
-	uvedit_pixel_to_float(sima, penalty, 5.0f / sima->zoom);
+	uvedit_pixel_to_float(sima, penalty, 5.0f / (sima ? sima->zoom : 1.0f));
 
 	/* retrieve operation mode */
 	if (ts->uv_flag & UV_SYNC_SELECTION) {
@@ -2056,7 +2056,7 @@ static void UV_OT_select(wmOperatorType *ot)
 	ot->name = "Select";
 	ot->description = "Select UV vertices";
 	ot->idname = "UV_OT_select";
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	ot->flag = OPTYPE_UNDO;
 	
 	/* api callbacks */
 	ot->exec = select_exec;
@@ -2101,7 +2101,7 @@ static void UV_OT_select_loop(wmOperatorType *ot)
 	ot->name = "Loop Select";
 	ot->description = "Select a loop of connected UV vertices";
 	ot->idname = "UV_OT_select_loop";
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	ot->flag = OPTYPE_UNDO;
 	
 	/* api callbacks */
 	ot->exec = select_loop_exec;
@@ -2203,7 +2203,7 @@ static void UV_OT_select_linked_pick(wmOperatorType *ot)
 	ot->name = "Select Linked Pick";
 	ot->description = "Select all UV vertices linked under the mouse";
 	ot->idname = "UV_OT_select_linked_pick";
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	ot->flag = OPTYPE_UNDO;
 
 	/* api callbacks */
 	ot->invoke = select_linked_pick_invoke;
@@ -2567,7 +2567,7 @@ static int border_select_exec(bContext *C, wmOperator *op)
 			tf = CustomData_bmesh_get(&em->bm->pdata, efa->head.data, CD_MTEXPOLY);
 			if (uvedit_face_visible_test(scene, ima, efa, tf)) {
 				uv_poly_center(em, efa, cent);
-				if (BLI_in_rctf_v(&rectf, cent)) {
+				if (BLI_rctf_isect_pt_v(&rectf, cent)) {
 					BM_elem_flag_enable(efa, BM_ELEM_TAG);
 					change = 1;
 				}
@@ -2592,13 +2592,13 @@ static int border_select_exec(bContext *C, wmOperator *op)
 				if (!pinned || (ts->uv_flag & UV_SYNC_SELECTION) ) {
 
 					/* UV_SYNC_SELECTION - can't do pinned selection */
-					if (BLI_in_rctf_v(&rectf, luv->uv)) {
+					if (BLI_rctf_isect_pt_v(&rectf, luv->uv)) {
 						if (select) uvedit_uv_select_enable(em, scene, l, FALSE);
 						else uvedit_uv_select_disable(em, scene, l);
 					}
 				}
 				else if (pinned) {
-					if ((luv->flag & MLOOPUV_PINNED) && BLI_in_rctf_v(&rectf, luv->uv)) {
+					if ((luv->flag & MLOOPUV_PINNED) && BLI_rctf_isect_pt_v(&rectf, luv->uv)) {
 						if (select) uvedit_uv_select_enable(em, scene, l, FALSE);
 						else uvedit_uv_select_disable(em, scene, l);
 					}
@@ -2744,7 +2744,7 @@ static void UV_OT_circle_select(wmOperatorType *ot)
 
 /* ******************** lasso select operator **************** */
 
-static int do_lasso_select_mesh_uv(bContext *C, int mcords[][2], short moves, short select)
+static int do_lasso_select_mesh_uv(bContext *C, const int mcords[][2], short moves, short select)
 {
 	Image *ima = CTX_data_edit_image(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -2771,7 +2771,7 @@ static int do_lasso_select_mesh_uv(bContext *C, int mcords[][2], short moves, sh
 				float cent[2];
 				uv_poly_center(em, efa, cent);
 				UI_view2d_view_to_region(&ar->v2d, cent[0], cent[1], &screen_uv[0], &screen_uv[1]);
-				if (BLI_in_rcti_v(&rect, screen_uv) &&
+				if (BLI_rcti_isect_pt_v(&rect, screen_uv) &&
 				    BLI_lasso_is_point_inside(mcords, moves, screen_uv[0], screen_uv[1], V2D_IS_CLIPPED))
 				{
 					uvedit_face_select_enable(scene, em, efa, FALSE);
@@ -2788,7 +2788,7 @@ static int do_lasso_select_mesh_uv(bContext *C, int mcords[][2], short moves, sh
 					if ((select) != (uvedit_uv_select_test(em, scene, l))) {
 						MLoopUV *luv = CustomData_bmesh_get(&em->bm->ldata, l->head.data, CD_MLOOPUV);
 						UI_view2d_view_to_region(&ar->v2d, luv->uv[0], luv->uv[1], &screen_uv[0], &screen_uv[1]);
-						if (BLI_in_rcti_v(&rect, screen_uv) &&
+						if (BLI_rcti_isect_pt_v(&rect, screen_uv) &&
 						    BLI_lasso_is_point_inside(mcords, moves, screen_uv[0], screen_uv[1], V2D_IS_CLIPPED))
 						{
 							if (select) {
@@ -2835,7 +2835,7 @@ static int uv_lasso_select_exec(bContext *C, wmOperator *op)
 	return OPERATOR_PASS_THROUGH;
 }
 
-void UV_OT_select_lasso(wmOperatorType *ot)
+static void UV_OT_select_lasso(wmOperatorType *ot)
 {
 	ot->name = "Lasso Select UV";
 	ot->description = "Select UVs using lasso selection";

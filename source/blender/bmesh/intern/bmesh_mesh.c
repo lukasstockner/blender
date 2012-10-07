@@ -282,7 +282,7 @@ void BM_mesh_normals_update(BMesh *bm, const short skip_hidden)
 		if (skip_hidden && BM_elem_flag_test(v, BM_ELEM_HIDDEN))
 			continue;
 
-		if (normalize_v3(v->no) == 0.0f) {
+		if (UNLIKELY(normalize_v3(v->no) == 0.0f)) {
 			normalize_v3_v3(v->no, v->co);
 		}
 	}
@@ -356,7 +356,7 @@ void bmesh_edit_begin(BMesh *UNUSED(bm), int UNUSED(type_flag))
 	 * (loop cuts, edge subdivides, etc) are not reflected in the higher levels of
 	 * the mesh at all, which doesn't seem right. Turning off completely for now,
 	 * until this is shown to be better for certain types of mesh edits. */
-#if BMOP_UNTAN_MULTIRES_ENABLED
+#ifdef BMOP_UNTAN_MULTIRES_ENABLED
 	/* switch multires data out of tangent space */
 	if ((type_flag & BMO_OP_FLAG_UNTAN_MULTIRES) && CustomData_has_layer(&bm->ldata, CD_MDISPS)) {
 		bmesh_mdisps_space_set(bm, MULTIRES_SPACE_TANGENT, MULTIRES_SPACE_ABSOLUTE);
@@ -374,7 +374,7 @@ void bmesh_edit_begin(BMesh *UNUSED(bm), int UNUSED(type_flag))
 void bmesh_edit_end(BMesh *bm, int UNUSED(flag))
 {
 	/* BMO_OP_FLAG_UNTAN_MULTIRES disabled for now, see comment above in bmesh_edit_begin. */
-#if BMOP_UNTAN_MULTIRES_ENABLED
+#ifdef BMOP_UNTAN_MULTIRES_ENABLED
 	/* switch multires data into tangent space */
 	if ((flag & BMO_OP_FLAG_UNTAN_MULTIRES) && CustomData_has_layer(&bm->ldata, CD_MDISPS)) {
 		/* set normals to their previous winding */
@@ -665,7 +665,7 @@ void BM_mesh_remap(BMesh *bm, int *vert_idx, int *edge_idx, int *face_idx)
 	/* Verts' pointers, only edge pointers... */
 	if (eptr_map) {
 		BM_ITER_MESH (ve, &iter, bm, BM_VERTS_OF_MESH) {
-/*			printf("Vert e: %p -> %p\n", ve->e, BLI_ghash_lookup(eptr_map, (const void*)ve->e));*/
+/*			printf("Vert e: %p -> %p\n", ve->e, BLI_ghash_lookup(eptr_map, (const void *)ve->e));*/
 			ve->e = BLI_ghash_lookup(eptr_map, (const void *)ve->e);
 		}
 	}
@@ -675,20 +675,20 @@ void BM_mesh_remap(BMesh *bm, int *vert_idx, int *edge_idx, int *face_idx)
 	if (vptr_map || eptr_map) {
 		BM_ITER_MESH (ed, &iter, bm, BM_EDGES_OF_MESH) {
 			if (vptr_map) {
-/*				printf("Edge v1: %p -> %p\n", ed->v1, BLI_ghash_lookup(vptr_map, (const void*)ed->v1));*/
-/*				printf("Edge v2: %p -> %p\n", ed->v2, BLI_ghash_lookup(vptr_map, (const void*)ed->v2));*/
+/*				printf("Edge v1: %p -> %p\n", ed->v1, BLI_ghash_lookup(vptr_map, (const void *)ed->v1));*/
+/*				printf("Edge v2: %p -> %p\n", ed->v2, BLI_ghash_lookup(vptr_map, (const void* )ed->v2));*/
 				ed->v1 = BLI_ghash_lookup(vptr_map, (const void *)ed->v1);
 				ed->v2 = BLI_ghash_lookup(vptr_map, (const void *)ed->v2);
 			}
 			if (eptr_map) {
 /*				printf("Edge v1_disk_link prev: %p -> %p\n", ed->v1_disk_link.prev,*/
-/*				       BLI_ghash_lookup(eptr_map, (const void*)ed->v1_disk_link.prev));*/
+/*				       BLI_ghash_lookup(eptr_map, (const void *)ed->v1_disk_link.prev));*/
 /*				printf("Edge v1_disk_link next: %p -> %p\n", ed->v1_disk_link.next,*/
-/*				       BLI_ghash_lookup(eptr_map, (const void*)ed->v1_disk_link.next));*/
+/*				       BLI_ghash_lookup(eptr_map, (const void *)ed->v1_disk_link.next));*/
 /*				printf("Edge v2_disk_link prev: %p -> %p\n", ed->v2_disk_link.prev,*/
-/*				       BLI_ghash_lookup(eptr_map, (const void*)ed->v2_disk_link.prev));*/
+/*				       BLI_ghash_lookup(eptr_map, (const void *)ed->v2_disk_link.prev));*/
 /*				printf("Edge v2_disk_link next: %p -> %p\n", ed->v2_disk_link.next,*/
-/*				       BLI_ghash_lookup(eptr_map, (const void*)ed->v2_disk_link.next));*/
+/*				       BLI_ghash_lookup(eptr_map, (const void *)ed->v2_disk_link.next));*/
 				ed->v1_disk_link.prev = BLI_ghash_lookup(eptr_map, (const void *)ed->v1_disk_link.prev);
 				ed->v1_disk_link.next = BLI_ghash_lookup(eptr_map, (const void *)ed->v1_disk_link.next);
 				ed->v2_disk_link.prev = BLI_ghash_lookup(eptr_map, (const void *)ed->v2_disk_link.prev);
@@ -701,15 +701,15 @@ void BM_mesh_remap(BMesh *bm, int *vert_idx, int *edge_idx, int *face_idx)
 	BM_ITER_MESH (fa, &iter, bm, BM_FACES_OF_MESH) {
 		BM_ITER_ELEM (lo, &iterl, fa, BM_LOOPS_OF_FACE) {
 			if (vptr_map) {
-/*				printf("Loop v: %p -> %p\n", lo->v, BLI_ghash_lookup(vptr_map, (const void*)lo->v));*/
+/*				printf("Loop v: %p -> %p\n", lo->v, BLI_ghash_lookup(vptr_map, (const void *)lo->v));*/
 				lo->v = BLI_ghash_lookup(vptr_map, (const void *)lo->v);
 			}
 			if (eptr_map) {
-/*				printf("Loop e: %p -> %p\n", lo->e, BLI_ghash_lookup(eptr_map, (const void*)lo->e));*/
+/*				printf("Loop e: %p -> %p\n", lo->e, BLI_ghash_lookup(eptr_map, (const void *)lo->e));*/
 				lo->e = BLI_ghash_lookup(eptr_map, (const void *)lo->e);
 			}
 			if (fptr_map) {
-/*				printf("Loop f: %p -> %p\n", lo->f, BLI_ghash_lookup(fptr_map, (const void*)lo->f));*/
+/*				printf("Loop f: %p -> %p\n", lo->f, BLI_ghash_lookup(fptr_map, (const void *)lo->f));*/
 				lo->f = BLI_ghash_lookup(fptr_map, (const void *)lo->f);
 			}
 		}

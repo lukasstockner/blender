@@ -695,21 +695,21 @@ static int fluid_init_filepaths(Object *fsDomain, char *targetDir, char *targetF
 		outStringsChanged=1;
 	}
 	
-	// check if modified output dir is ok
+	/* check if modified output dir is ok */
 #if 0
 	if (outStringsChanged) {
 		char dispmsg[FILE_MAX+256];
 		int  selection=0;
 		BLI_strncpy(dispmsg, "Output settings set to: '", sizeof(dispmsg));
 		strcat(dispmsg, newSurfdataPath);
-		strcat(dispmsg, "'%t|Continue with changed settings%x1|Discard and abort%x0");
+		strcat(dispmsg, "'%t|Continue with changed settings %x1|Discard and abort %x0");
 		
-		// ask user if thats what he/she wants...
+		/* ask user if thats what he/she wants... */
 		selection = pupmenu(dispmsg);
-		if (selection < 1) return 0; // 0 from menu, or -1 aborted
+		if (selection < 1) return 0; /* 0 from menu, or -1 aborted */
 		BLI_strncpy(targetDir, newSurfdataPath, sizeof(targetDir));
 		strncpy(domainSettings->surfdataPath, newSurfdataPath, FILE_MAXDIR);
-		BLI_path_abs(targetDir, G.main->name); // fixed #frame-no 
+		BLI_path_abs(targetDir, G.main->name); /* fixed #frame-no */
 	}
 #endif
 	return outStringsChanged;
@@ -782,7 +782,7 @@ static void fluidbake_endjob(void *customdata)
 	}
 }
 
-int runSimulationCallback(void *data, int status, int frame)
+static int runSimulationCallback(void *data, int status, int frame)
 {
 	FluidBakeJob *fb = (FluidBakeJob *)data;
 	elbeemSimulationSettings *settings = fb->settings;
@@ -1095,7 +1095,7 @@ static int fluidsimBake(bContext *C, ReportList *reports, Object *fsDomain, shor
 	return 1;
 }
 
-void fluidsimFreeBake(Object *UNUSED(ob))
+static void UNUSED_FUNCTION(fluidsimFreeBake)(Object *UNUSED(ob))
 {
 	/* not implemented yet */
 }
@@ -1113,7 +1113,7 @@ void fluidsimSettingsFree(FluidsimSettings *UNUSED(fss))
 {
 }
 
-FluidsimSettings* fluidsimSettingsCopy(FluidsimSettings *UNUSED(fss))
+FluidsimSettings *fluidsimSettingsCopy(FluidsimSettings *UNUSED(fss))
 {
 	return NULL;
 }

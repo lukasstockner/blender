@@ -55,7 +55,7 @@ KX_BlenderCanvas::~KX_BlenderCanvas()
 void KX_BlenderCanvas::Init()
 {
 	glDepthFunc(GL_LEQUAL);
-}	
+}
 
 
 void KX_BlenderCanvas::SwapBuffers()
@@ -144,7 +144,7 @@ KX_BlenderCanvas::
 GetWindowArea(
 ) {
 	return m_area_rect;
-}	
+}
 
 	void
 KX_BlenderCanvas::

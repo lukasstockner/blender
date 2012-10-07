@@ -144,8 +144,7 @@ GLuint static compile_shader(GLenum type, const char** src, int count)
 			if(len > 0)
 			{
 				char* shadersrc = MEM_mallocN(len, "GLSLErrLog");
-				GLsizei *rlen;
-				
+
 				//glGetShaderSource(shader, len, rlen, log);
 				//printf("Objet GLSL source: \n %s", shadersrc);
 				

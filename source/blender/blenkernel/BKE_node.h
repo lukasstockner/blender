@@ -64,6 +64,8 @@ struct Tex;
 struct SpaceNode;
 struct ARegion;
 struct Object;
+struct ColorManagedViewSettings;
+struct ColorManagedDisplaySettings;
 
 /* ************** NODE TYPE DEFINITIONS ***** */
 
@@ -146,7 +148,7 @@ typedef struct bNodeType {
 	/// Additional parameters in the side panel.
 	void (*uifuncbut)(struct uiLayout *, struct bContext *C, struct PointerRNA *ptr);
 	/// Additional drawing on backdrop.
-	void (*uibackdropfunc)(struct SpaceNode* snode, struct ImBuf* backdrop, struct bNode* node, int x, int y);
+	void (*uibackdropfunc)(struct SpaceNode *snode, struct ImBuf *backdrop, struct bNode *node, int x, int y);
 
 	/// Draw a node socket. Default draws the input value button.
 	NodeSocketButtonFunction drawinputfunc;
@@ -301,21 +303,29 @@ struct bNodeType *ntreeGetNodeType(struct bNodeTree *ntree);
 struct bNodeSocketType *ntreeGetSocketType(int type);
 
 struct bNodeTree *ntreeAddTree(const char *name, int type, int nodetype);
-void            ntreeInitTypes(struct bNodeTree *ntree);
+void              ntreeInitTypes(struct bNodeTree *ntree);
 
-void            ntreeFreeTree(struct bNodeTree *ntree);
+/* copy/free funcs, need to manage ID users */
+void              ntreeFreeTree_ex(struct bNodeTree *ntree, const short do_id_user);
+void              ntreeFreeTree(struct bNodeTree *ntree);
+struct bNodeTree *ntreeCopyTree_ex(struct bNodeTree *ntree, const short do_id_user);
 struct bNodeTree *ntreeCopyTree(struct bNodeTree *ntree);
-void            ntreeSwitchID(struct bNodeTree *ntree, struct ID *sce_from, struct ID *sce_to);
-void            ntreeMakeLocal(struct bNodeTree *ntree);
-int             ntreeHasType(struct bNodeTree *ntree, int type);
+void              ntreeSwitchID_ex(struct bNodeTree *ntree, struct ID *sce_from, struct ID *sce_to, const short do_id_user);
+void              ntreeSwitchID(struct bNodeTree *ntree, struct ID *sce_from, struct ID *sce_to);
+/* node->id user count */
+void              ntreeUserIncrefID(struct bNodeTree *ntree);
+void              ntreeUserDecrefID(struct bNodeTree *ntree);
 
-void            ntreeUpdateTree(struct bNodeTree *ntree);
+
+void              ntreeMakeLocal(struct bNodeTree *ntree);
+int               ntreeHasType(struct bNodeTree *ntree, int type);
+void              ntreeUpdateTree(struct bNodeTree *ntree);
 /* XXX Currently each tree update call does call to ntreeVerifyNodes too.
  * Some day this should be replaced by a decent depsgraph automatism!
  */
-void            ntreeVerifyNodes(struct Main *main, struct ID *id);
+void              ntreeVerifyNodes(struct Main *main, struct ID *id);
 
-void            ntreeGetDependencyList(struct bNodeTree *ntree, struct bNode ***deplist, int *totnodes);
+void              ntreeGetDependencyList(struct bNodeTree *ntree, struct bNode ***deplist, int *totnodes);
 
 /* XXX old trees handle output flags automatically based on special output node types and last active selection.
  * new tree types have a per-output socket flag to indicate the final output to use explicitly.
@@ -465,6 +475,8 @@ struct bNodeSocket *node_group_add_extern_socket(struct bNodeTree *ntree, ListBa
 void register_node_type_frame(struct bNodeTreeType *ttype);
 void register_node_type_reroute(struct bNodeTreeType *ttype);
 
+void BKE_node_tree_unlink_id_cb(void *calldata, struct ID *owner_id, struct bNodeTree *ntree);
+
 /* ************** SHADER NODES *************** */
 
 struct ShadeInput;
@@ -538,6 +550,7 @@ struct ShadeResult;
 #define SH_NODE_LIGHT_FALLOFF			166
 #define SH_NODE_OBJECT_INFO				167
 #define SH_NODE_PARTICLE_INFO           168
+#define SH_NODE_TEX_BRICK				169
 
 /* custom defines options for Material node */
 #define SH_NODE_MAT_DIFF   1
@@ -672,7 +685,8 @@ void            ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMateria
 #define CMP_NODE_KEYINGSCREEN		269
 #define CMP_NODE_KEYING			270
 #define CMP_NODE_TRACKPOS		271
-#define CMP_NODE_INPAINT                272
+#define CMP_NODE_INPAINT    272
+#define CMP_NODE_DESPECKLE  273
 
 #define CMP_NODE_GLARE		301
 #define CMP_NODE_TONEMAP	302
@@ -715,7 +729,8 @@ void            ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMateria
 struct CompBuf;
 struct bNodeTreeExec *ntreeCompositBeginExecTree(struct bNodeTree *ntree, int use_tree_data);
 void ntreeCompositEndExecTree(struct bNodeTreeExec *exec, int use_tree_data);
-void ntreeCompositExecTree(struct bNodeTree *ntree, struct RenderData *rd, int rendering, int do_previews);
+void ntreeCompositExecTree(struct bNodeTree *ntree, struct RenderData *rd, int rendering, int do_previews,
+                           const struct ColorManagedViewSettings *view_settings, const struct ColorManagedDisplaySettings *display_settings);
 void ntreeCompositTagRender(struct Scene *sce);
 int ntreeCompositTagAnimated(struct bNodeTree *ntree);
 void ntreeCompositTagGenerators(struct bNodeTree *ntree);

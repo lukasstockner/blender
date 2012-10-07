@@ -367,7 +367,6 @@ void mesh_update_customdata_pointers(Mesh *me, const short do_ensure_tess_cd)
 
 	me->mvert = CustomData_get_layer(&me->vdata, CD_MVERT);
 	me->dvert = CustomData_get_layer(&me->vdata, CD_MDEFORMVERT);
-	me->msticky = CustomData_get_layer(&me->vdata, CD_MSTICKY);
 
 	me->medge = CustomData_get_layer(&me->edata, CD_MEDGE);
 
@@ -789,7 +788,7 @@ int test_index_face(MFace *mface, CustomData *fdata, int mfindex, int nr)
 		nr--;
 	}
 
-	/* check corrupt cases, bowtie geometry, cant handle these because edge data wont exist so just return 0 */
+	/* check corrupt cases, bow-tie geometry, cant handle these because edge data wont exist so just return 0 */
 	if (nr == 3) {
 		if (
 		    /* real edges */
@@ -1865,7 +1864,7 @@ void BKE_mesh_calc_normals_mapping_ex(MVert *mverts, int numVerts,
 		/* only calc poly normals */
 		mp = mpolys;
 		for (i = 0; i < numPolys; i++, mp++) {
-			mesh_calc_poly_normal(mp, mloop + mp->loopstart, mverts, pnors[i]);
+			BKE_mesh_calc_poly_normal(mp, mloop + mp->loopstart, mverts, pnors[i]);
 		}
 	}
 
@@ -1915,7 +1914,7 @@ void BKE_mesh_calc_normals(MVert *mverts, int numVerts, MLoop *mloop, MPoly *mpo
 
 	mp = mpolys;
 	for (i = 0; i < numPolys; i++, mp++) {
-		mesh_calc_poly_normal(mp, mloop + mp->loopstart, mverts, pnors[i]);
+		BKE_mesh_calc_poly_normal(mp, mloop + mp->loopstart, mverts, pnors[i]);
 		ml = mloop + mp->loopstart;
 
 		BLI_array_empty(vertcos);
@@ -1944,8 +1943,9 @@ void BKE_mesh_calc_normals(MVert *mverts, int numVerts, MLoop *mloop, MPoly *mpo
 		MVert *mv = &mverts[i];
 		float *no = tnorms[i];
 
-		if (normalize_v3(no) == 0.0f)
+		if (UNLIKELY(normalize_v3(no) == 0.0f)) {
 			normalize_v3_v3(no, mv->co);
+		}
 
 		normal_float_to_short_v3(mv->no, no);
 	}
@@ -1981,8 +1981,9 @@ void BKE_mesh_calc_normals_tessface(MVert *mverts, int numVerts, MFace *mfaces, 
 		MVert *mv = &mverts[i];
 		float *no = tnorms[i];
 		
-		if (normalize_v3(no) == 0.0f)
+		if (UNLIKELY(normalize_v3(no) == 0.0f)) {
 			normalize_v3_v3(no, mv->co);
+		}
 
 		normal_float_to_short_v3(mv->no, no);
 	}
@@ -2042,7 +2043,7 @@ static void bm_corners_to_loops_ex(ID *id, CustomData *fdata, CustomData *ldata,
 		int side, corners;
 
 		if (CustomData_external_test(fdata, CD_MDISPS)) {
-			if (id) {
+			if (id && fdata->external) {
 				CustomData_external_add(ldata, id, CD_MDISPS,
 				                        totloop, fdata->external->filename);
 			}
@@ -2702,13 +2703,13 @@ int BKE_mesh_recalc_tessellation(CustomData *fdata,
 #endif
 		{
 			/* sort loop indices to ensure winding is correct */
-			if (mf->v1 > mf->v2) SWAP(int, mf->v1, mf->v2);
-			if (mf->v2 > mf->v3) SWAP(int, mf->v2, mf->v3);
-			if (mf->v1 > mf->v2) SWAP(int, mf->v1, mf->v2);
+			if (mf->v1 > mf->v2) SWAP(unsigned int, mf->v1, mf->v2);
+			if (mf->v2 > mf->v3) SWAP(unsigned int, mf->v2, mf->v3);
+			if (mf->v1 > mf->v2) SWAP(unsigned int, mf->v1, mf->v2);
 
-			if (mf->v1 > mf->v2) SWAP(int, mf->v1, mf->v2);
-			if (mf->v2 > mf->v3) SWAP(int, mf->v2, mf->v3);
-			if (mf->v1 > mf->v2) SWAP(int, mf->v1, mf->v2);
+			if (mf->v1 > mf->v2) SWAP(unsigned int, mf->v1, mf->v2);
+			if (mf->v2 > mf->v3) SWAP(unsigned int, mf->v2, mf->v3);
+			if (mf->v1 > mf->v2) SWAP(unsigned int, mf->v1, mf->v2);
 		}
 
 		/* end abusing the edcode */
@@ -2899,8 +2900,8 @@ static void mesh_calc_ngon_normal(MPoly *mpoly, MLoop *loopstart,
 	}
 }
 
-void mesh_calc_poly_normal(MPoly *mpoly, MLoop *loopstart, 
-                           MVert *mvarray, float no[3])
+void BKE_mesh_calc_poly_normal(MPoly *mpoly, MLoop *loopstart,
+                               MVert *mvarray, float no[3])
 {
 	if (mpoly->totloop > 4) {
 		mesh_calc_ngon_normal(mpoly, loopstart, mvarray, no);
@@ -3015,7 +3016,7 @@ void BKE_mesh_calc_poly_center(MPoly *mpoly, MLoop *loopstart,
 
 /* note, passing polynormal is only a speedup so we can skip calculating it */
 float BKE_mesh_calc_poly_area(MPoly *mpoly, MLoop *loopstart,
-                              MVert *mvarray, float polynormal[3])
+                              MVert *mvarray, const float polynormal[3])
 {
 	if (mpoly->totloop == 3) {
 		return area_tri_v3(mvarray[loopstart[0].v].co,
@@ -3034,7 +3035,7 @@ float BKE_mesh_calc_poly_area(MPoly *mpoly, MLoop *loopstart,
 		int i;
 		MLoop *l_iter = loopstart;
 		float area, polynorm_local[3], (*vertexcos)[3];
-		float *no = polynormal ? polynormal : polynorm_local;
+		const float *no = polynormal ? polynormal : polynorm_local;
 		BLI_array_fixedstack_declare(vertexcos, BM_NGON_STACK_SIZE, mpoly->totloop, __func__);
 
 		/* pack vertex cos into an array for area_poly_v3 */
@@ -3044,7 +3045,7 @@ float BKE_mesh_calc_poly_area(MPoly *mpoly, MLoop *loopstart,
 
 		/* need normal for area_poly_v3 as well */
 		if (polynormal == NULL) {
-			mesh_calc_poly_normal(mpoly, loopstart, mvarray, no);
+			BKE_mesh_calc_poly_normal(mpoly, loopstart, mvarray, polynorm_local);
 		}
 
 		/* finally calculate the area */

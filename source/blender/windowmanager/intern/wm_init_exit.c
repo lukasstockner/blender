@@ -32,8 +32,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#if WIN32
-#include <Windows.h>
+#ifdef WIN32
+#  include <Windows.h>
 #endif
 
 #include "MEM_guardedalloc.h"
@@ -67,7 +67,6 @@
 #include "BKE_tracking.h" /* free tracking clipboard */
 
 #include "BLI_listbase.h"
-#include "BLI_math_color.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -172,9 +171,6 @@ void WM_init(bContext *C, int argc, const char **argv)
 
 	BLF_init(11, U.dpi); /* Please update source/gamengine/GamePlayer/GPG_ghost.cpp if you change this */
 	BLF_lang_init();
-
-	/* initialize color stuff */
-	BLI_init_srgb_conversion();
 
 	/* get the default database, plus a wm */
 	WM_homefile_read(C, NULL, G.factory_startup);
@@ -377,9 +373,8 @@ static void free_openrecent(void)
 extern void free_anim_copybuf(void);
 extern void free_anim_drivers_copybuf(void);
 extern void free_fmodifiers_copybuf(void);
-extern void free_posebuf(void);
 
-#if WIN32
+#ifdef WIN32
 /* Read console events until there is a key event.  Also returns on any error. */
 static void wait_for_console_key(void)
 {
@@ -460,7 +455,7 @@ void WM_exit_ext(bContext *C, const short do_python)
 	free_anim_copybuf();
 	free_anim_drivers_copybuf();
 	free_fmodifiers_copybuf();
-	free_posebuf();
+	ED_clipboard_posebuf_free();
 	BKE_node_clipboard_clear();
 
 	BLF_exit();

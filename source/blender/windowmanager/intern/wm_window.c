@@ -340,12 +340,6 @@ static void wm_window_add_ghostwindow(const char *title, wmWindow *win)
 	wm_get_screensize(&scr_w, &scr_h);
 	posy = (scr_h - win->posy - win->sizey);
 	
-#if defined(__APPLE__) && !defined(GHOST_COCOA)
-	{
-		extern int macPrefState; /* creator.c */
-		initial_state += macPrefState;
-	}
-#endif
 	/* Disable AA for now, as GL_SELECT (used for border, lasso, ... select)
 	 * doesn't work well when AA is initialized, even if not used. */
 	ghostwin = GHOST_CreateWindow(g_system, title,
@@ -464,8 +458,8 @@ wmWindow *WM_window_open(bContext *C, rcti *rect)
 	
 	win->posx = rect->xmin;
 	win->posy = rect->ymin;
-	win->sizex = BLI_RCT_SIZE_X(rect);
-	win->sizey = BLI_RCT_SIZE_Y(rect);
+	win->sizex = BLI_rcti_size_x(rect);
+	win->sizey = BLI_rcti_size_y(rect);
 
 	win->drawmethod = -1;
 	win->drawdata = NULL;
@@ -500,8 +494,8 @@ void WM_window_open_temp(bContext *C, rcti *position, int type)
 		win->posy = position->ymin;
 	}
 	
-	win->sizex = BLI_RCT_SIZE_X(position);
-	win->sizey = BLI_RCT_SIZE_Y(position);
+	win->sizex = BLI_rcti_size_x(position);
+	win->sizey = BLI_rcti_size_y(position);
 	
 	if (win->ghostwin) {
 		wm_window_set_size(win, win->sizex, win->sizey);
@@ -730,11 +724,13 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_ptr
 
 				break;
 			}
-			case GHOST_kEventWindowClose: {
+			case GHOST_kEventWindowClose:
+			{
 				wm_window_close(C, wm, win);
 				break;
 			}
-			case GHOST_kEventWindowUpdate: {
+			case GHOST_kEventWindowUpdate:
+			{
 				if (G.debug & G_DEBUG_EVENTS) {
 					printf("%s: ghost redraw %d\n", __func__, win->winid);
 				}
@@ -745,7 +741,8 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_ptr
 				break;
 			}
 			case GHOST_kEventWindowSize:
-			case GHOST_kEventWindowMove: {
+			case GHOST_kEventWindowMove:
+			{
 				GHOST_TWindowState state;
 				state = GHOST_GetWindowState(win->ghostwin);
 				win->windowstate = state;
@@ -936,7 +933,7 @@ static int wm_window_timer(const bContext *C)
 				wt->delta = time - wt->ltime;
 				wt->duration += wt->delta;
 				wt->ltime = time;
-				wt->ntime = wt->stime + wt->timestep *ceil(wt->duration / wt->timestep);
+				wt->ntime = wt->stime + wt->timestep * ceil(wt->duration / wt->timestep);
 
 				if (wt->event_type == TIMERJOBS)
 					wm_jobs_timer(C, wm, wt);

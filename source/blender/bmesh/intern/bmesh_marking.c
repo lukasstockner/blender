@@ -527,9 +527,9 @@ void BM_active_face_set(BMesh *bm, BMFace *efa)
 	bm->act_face = efa;
 }
 
-BMFace *BM_active_face_get(BMesh *bm, int sloppy)
+BMFace *BM_active_face_get(BMesh *bm, int sloppy, int selected)
 {
-	if (bm->act_face) {
+	if (bm->act_face && (!selected || BM_elem_flag_test(bm->act_face, BM_ELEM_SELECT))) {
 		return bm->act_face;
 	}
 	else if (sloppy) {
@@ -544,6 +544,9 @@ BMFace *BM_active_face_get(BMesh *bm, int sloppy)
 				f = (BMFace *)ese->ele;
 				
 				if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
+					f = NULL;
+				}
+				else if (selected && !BM_elem_flag_test(f, BM_ELEM_SELECT)) {
 					f = NULL;
 				}
 				else {
@@ -669,7 +672,7 @@ void BM_editselection_plane(BMEditSelection *ese, float r_plane[3])
 		 * we cant make a crossvec from a vec thats the same as the vec
 		 * unlikely but possible, so make sure if the normal is (0, 0, 1)
 		 * that vec isn't the same or in the same direction even. */
-		if (efa->len < 3) {
+		if (UNLIKELY(efa->len < 3)) {
 			/* crappy fallback method */
 			if      (efa->no[0] < 0.5f)	vec[0] = 1.0f;
 			else if (efa->no[1] < 0.5f)	vec[1] = 1.0f;
@@ -768,7 +771,7 @@ void BM_select_history_validate(BMesh *bm)
 int BM_select_history_active_get(BMesh *bm, BMEditSelection *ese)
 {
 	BMEditSelection *ese_last = bm->selected.last;
-	BMFace *efa = BM_active_face_get(bm, FALSE);
+	BMFace *efa = BM_active_face_get(bm, FALSE, FALSE);
 
 	ese->next = ese->prev = NULL;
 

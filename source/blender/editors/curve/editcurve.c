@@ -107,7 +107,7 @@ void selectend_nurb(Object *obedit, short selfirst, short doswap, short selstatu
 static void select_adjacent_cp(ListBase *editnurb, short next, short cont, short selstatus);
 
 /* still need to eradicate a few :( */
-#define callocstructN(x, y, name) (x *)MEM_callocN((y) * sizeof(x), name)
+#define CALLOC_STRUCT_N(x, y, name) (x *)MEM_callocN((y) * sizeof(x), name)
 
 static float nurbcircle[8][2] = {
 	{0.0, -1.0}, {-1.0, -1.0}, {-1.0, 0.0}, {-1.0,  1.0},
@@ -1233,12 +1233,12 @@ void make_editNurb(Object *obedit)
 	set_actNurb(obedit, NULL);
 
 	if (ELEM(obedit->type, OB_CURVE, OB_SURF)) {
-		actkey = ob_get_keyblock(obedit);
+		actkey = BKE_keyblock_from_object(obedit);
 
 		if (actkey) {
 			// XXX strcpy(G.editModeTitleExtra, "(Key) ");
 			undo_editmode_clear();
-			key_to_curve(actkey, cu, &cu->nurb);
+			BKE_key_convert_to_curve(actkey, cu, &cu->nurb);
 		}
 
 		if (editnurb) {
@@ -1938,7 +1938,7 @@ static void adduplicateflagNurb(Object *obedit, short flag)
 				}
 				else {
 
-					if (newu == 1) SWAP(short, newu, newv);
+					if (newu == 1) SWAP(int, newu, newv);
 
 					newnu = (Nurb *)MEM_mallocN(sizeof(Nurb), "adduplicateN5");
 					memcpy(newnu, nu, sizeof(Nurb));
@@ -6070,7 +6070,7 @@ void CURVE_OT_shade_flat(wmOperatorType *ot)
 }
 
 /************** join operator, to be used externally? ****************/
-
+/* TODO: shape keys - as with meshes */
 int join_curve_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Main *bmain = CTX_data_main(C);
@@ -6191,10 +6191,9 @@ static const char *get_surf_defname(int type)
 }
 
 
-Nurb *add_nurbs_primitive(bContext *C, float mat[4][4], int type, int newob)
+Nurb *add_nurbs_primitive(bContext *C, Object *obedit, float mat[4][4], int type, int newob)
 {
 	static int xzproj = 0;   /* this function calls itself... */
-	Object *obedit = CTX_data_edit_object(C);
 	ListBase *editnurb = object_editcurve_get(obedit);
 	View3D *v3d = CTX_wm_view3d(C);
 	RegionView3D *rv3d = ED_view3d_context_rv3d(C);
@@ -6265,7 +6264,7 @@ Nurb *add_nurbs_primitive(bContext *C, float mat[4][4], int type, int newob)
 				nu->pntsu = 4;
 				nu->pntsv = 1;
 				nu->orderu = 4;
-				nu->bp = callocstructN(BPoint, 4, "addNurbprim3");
+				nu->bp = CALLOC_STRUCT_N(BPoint, 4, "addNurbprim3");
 
 				bp = nu->bp;
 				for (a = 0; a < 4; a++, bp++) {
@@ -6301,7 +6300,7 @@ Nurb *add_nurbs_primitive(bContext *C, float mat[4][4], int type, int newob)
 			nu->orderu = 5;
 			nu->flagu = CU_NURB_ENDPOINT; /* endpoint */
 			nu->resolu = cu->resolu;
-			nu->bp = callocstructN(BPoint, 5, "addNurbprim3");
+			nu->bp = CALLOC_STRUCT_N(BPoint, 5, "addNurbprim3");
 
 			bp = nu->bp;
 			for (a = 0; a < 5; a++, bp++) {
@@ -6334,7 +6333,7 @@ Nurb *add_nurbs_primitive(bContext *C, float mat[4][4], int type, int newob)
 			if (cutype == CU_BEZIER) {
 				if (!force_3d) nu->flag |= CU_2D;
 				nu->pntsu = 4;
-				nu->bezt = callocstructN(BezTriple, 4, "addNurbprim1");
+				nu->bezt = CALLOC_STRUCT_N(BezTriple, 4, "addNurbprim1");
 				nu->flagu = CU_NURB_CYCLIC;
 				bezt = nu->bezt;
 
@@ -6371,7 +6370,7 @@ Nurb *add_nurbs_primitive(bContext *C, float mat[4][4], int type, int newob)
 				nu->pntsu = 8;
 				nu->pntsv = 1;
 				nu->orderu = 4;
-				nu->bp = callocstructN(BPoint, 8, "addNurbprim6");
+				nu->bp = CALLOC_STRUCT_N(BPoint, 8, "addNurbprim6");
 				nu->flagu = CU_NURB_CYCLIC;
 				bp = nu->bp;
 
@@ -6404,7 +6403,7 @@ Nurb *add_nurbs_primitive(bContext *C, float mat[4][4], int type, int newob)
 				nu->orderu = 4;
 				nu->orderv = 4;
 				nu->flag = CU_SMOOTH;
-				nu->bp = callocstructN(BPoint, 4 * 4, "addNurbprim6");
+				nu->bp = CALLOC_STRUCT_N(BPoint, 4 * 4, "addNurbprim6");
 				nu->flagu = 0;
 				nu->flagv = 0;
 				bp = nu->bp;
@@ -6431,7 +6430,7 @@ Nurb *add_nurbs_primitive(bContext *C, float mat[4][4], int type, int newob)
 			break;
 		case CU_PRIM_TUBE: /* Cylinder */
 			if (cutype == CU_NURBS) {
-				nu = add_nurbs_primitive(C, mat, CU_NURBS | CU_PRIM_CIRCLE, 0); /* circle */
+				nu = add_nurbs_primitive(C, obedit, mat, CU_NURBS | CU_PRIM_CIRCLE, 0); /* circle */
 				nu->resolu = cu->resolu;
 				nu->flag = CU_SMOOTH;
 				BLI_addtail(editnurb, nu); /* temporal for extrude and translate */
@@ -6471,7 +6470,7 @@ Nurb *add_nurbs_primitive(bContext *C, float mat[4][4], int type, int newob)
 				nu->resolu = cu->resolu;
 				nu->resolv = cu->resolv;
 				nu->flag = CU_SMOOTH;
-				nu->bp = callocstructN(BPoint, 5, "addNurbprim6");
+				nu->bp = CALLOC_STRUCT_N(BPoint, 5, "addNurbprim6");
 				nu->flagu = 0;
 				bp = nu->bp;
 
@@ -6510,7 +6509,7 @@ Nurb *add_nurbs_primitive(bContext *C, float mat[4][4], int type, int newob)
 				float tmp_vec[3] = {0.f, 0.f, 1.f};
 
 				xzproj = 1;
-				nu = add_nurbs_primitive(C, mat, CU_NURBS | CU_PRIM_CIRCLE, 0); /* circle */
+				nu = add_nurbs_primitive(C, obedit, mat, CU_NURBS | CU_PRIM_CIRCLE, 0); /* circle */
 				xzproj = 0;
 				nu->resolu = cu->resolu;
 				nu->resolv = cu->resolv;
@@ -6568,18 +6567,18 @@ static int curvesurf_prim_add(bContext *C, wmOperator *op, int type, int isSurf)
 	if (!isSurf) { /* adding curve */
 		if (obedit == NULL || obedit->type != OB_CURVE) {
 			Curve *cu;
-			
+
 			obedit = ED_object_add_type(C, OB_CURVE, loc, rot, TRUE, layer);
 			newob = 1;
 
 			cu = (Curve *)obedit->data;
 			cu->flag |= CU_DEFORM_FILL;
-			
+
 			if (type & CU_PRIM_PATH)
 				cu->flag |= CU_PATH | CU_3D;
-		} 
+		}
 		else DAG_id_tag_update(&obedit->id, OB_RECALC_DATA);
-	} 
+	}
 	else { /* adding surface */
 		if (obedit == NULL || obedit->type != OB_SURF) {
 			obedit = ED_object_add_type(C, OB_SURF, loc, rot, TRUE, layer);
@@ -6590,7 +6589,6 @@ static int curvesurf_prim_add(bContext *C, wmOperator *op, int type, int isSurf)
 
 	/* rename here, the undo stack checks name for valid undo pushes */
 	if (newob) {
-
 		if (obedit->type == OB_CURVE) {
 			rename_id((ID *)obedit, get_curve_defname(type));
 			rename_id((ID *)obedit->data, get_curve_defname(type));
@@ -6600,14 +6598,14 @@ static int curvesurf_prim_add(bContext *C, wmOperator *op, int type, int isSurf)
 			rename_id((ID *)obedit->data, get_surf_defname(type));
 		}
 	}
-	
+
 	/* ED_object_add_type doesnt do an undo, is needed for redo operator on primitive */
 	if (newob && enter_editmode)
 		ED_undo_push(C, "Enter Editmode");
-	
+
 	ED_object_new_primitive_matrix(C, obedit, loc, rot, mat);
 
-	nu = add_nurbs_primitive(C, mat, type, newob);
+	nu = add_nurbs_primitive(C, obedit, mat, type, newob);
 	editnurb = object_editcurve_get(obedit);
 	BLI_addtail(editnurb, nu);
 
@@ -6644,12 +6642,11 @@ void CURVE_OT_primitive_bezier_curve_add(wmOperatorType *ot)
 	ot->name = "Add Bezier";
 	ot->description = "Construct a Bezier Curve";
 	ot->idname = "CURVE_OT_primitive_bezier_curve_add";
-	
+
 	/* api callbacks */
-	ot->invoke = ED_object_add_generic_invoke;
 	ot->exec = add_primitive_bezier_exec;
 	ot->poll = ED_operator_scene_editable;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -6667,12 +6664,11 @@ void CURVE_OT_primitive_bezier_circle_add(wmOperatorType *ot)
 	ot->name = "Add Bezier Circle";
 	ot->description = "Construct a Bezier Circle";
 	ot->idname = "CURVE_OT_primitive_bezier_circle_add";
-	
+
 	/* api callbacks */
-	ot->invoke = ED_object_add_generic_invoke;
 	ot->exec = add_primitive_bezier_circle_exec;
 	ot->poll = ED_operator_scene_editable;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -6690,12 +6686,11 @@ void CURVE_OT_primitive_nurbs_curve_add(wmOperatorType *ot)
 	ot->name = "Add Nurbs Curve";
 	ot->description = "Construct a Nurbs Curve";
 	ot->idname = "CURVE_OT_primitive_nurbs_curve_add";
-	
+
 	/* api callbacks */
-	ot->invoke = ED_object_add_generic_invoke;
 	ot->exec = add_primitive_nurbs_curve_exec;
 	ot->poll = ED_operator_scene_editable;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -6713,12 +6708,11 @@ void CURVE_OT_primitive_nurbs_circle_add(wmOperatorType *ot)
 	ot->name = "Add Nurbs Circle";
 	ot->description = "Construct a Nurbs Circle";
 	ot->idname = "CURVE_OT_primitive_nurbs_circle_add";
-	
+
 	/* api callbacks */
-	ot->invoke = ED_object_add_generic_invoke;
 	ot->exec = add_primitive_nurbs_circle_exec;
 	ot->poll = ED_operator_scene_editable;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -6736,12 +6730,11 @@ void CURVE_OT_primitive_nurbs_path_add(wmOperatorType *ot)
 	ot->name = "Add Path";
 	ot->description = "Construct a Path";
 	ot->idname = "CURVE_OT_primitive_nurbs_path_add";
-	
+
 	/* api callbacks */
-	ot->invoke = ED_object_add_generic_invoke;
 	ot->exec = add_primitive_curve_path_exec;
 	ot->poll = ED_operator_scene_editable;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -6760,12 +6753,11 @@ void SURFACE_OT_primitive_nurbs_surface_curve_add(wmOperatorType *ot)
 	ot->name = "Add Surface Curve";
 	ot->description = "Construct a Nurbs surface Curve";
 	ot->idname = "SURFACE_OT_primitive_nurbs_surface_curve_add";
-	
+
 	/* api callbacks */
-	ot->invoke = ED_object_add_generic_invoke;
 	ot->exec = add_primitive_nurbs_surface_curve_exec;
 	ot->poll = ED_operator_scene_editable;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -6783,12 +6775,11 @@ void SURFACE_OT_primitive_nurbs_surface_circle_add(wmOperatorType *ot)
 	ot->name = "Add Surface Circle";
 	ot->description = "Construct a Nurbs surface Circle";
 	ot->idname = "SURFACE_OT_primitive_nurbs_surface_circle_add";
-	
+
 	/* api callbacks */
-	ot->invoke = ED_object_add_generic_invoke;
 	ot->exec = add_primitive_nurbs_surface_circle_exec;
 	ot->poll = ED_operator_scene_editable;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -6806,12 +6797,11 @@ void SURFACE_OT_primitive_nurbs_surface_surface_add(wmOperatorType *ot)
 	ot->name = "Add Surface Patch";
 	ot->description = "Construct a Nurbs surface Patch";
 	ot->idname = "SURFACE_OT_primitive_nurbs_surface_surface_add";
-	
+
 	/* api callbacks */
-	ot->invoke = ED_object_add_generic_invoke;
 	ot->exec = add_primitive_nurbs_surface_surface_exec;
 	ot->poll = ED_operator_scene_editable;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -6829,12 +6819,11 @@ void SURFACE_OT_primitive_nurbs_surface_cylinder_add(wmOperatorType *ot)
 	ot->name = "Add Surface Cylinder";
 	ot->description = "Construct a Nurbs surface Cylinder";
 	ot->idname = "SURFACE_OT_primitive_nurbs_surface_cylinder_add";
-	
+
 	/* api callbacks */
-	ot->invoke = ED_object_add_generic_invoke;
 	ot->exec = add_primitive_nurbs_surface_cylinder_exec;
 	ot->poll = ED_operator_scene_editable;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -6852,12 +6841,11 @@ void SURFACE_OT_primitive_nurbs_surface_sphere_add(wmOperatorType *ot)
 	ot->name = "Add Surface Sphere";
 	ot->description = "Construct a Nurbs surface Sphere";
 	ot->idname = "SURFACE_OT_primitive_nurbs_surface_sphere_add";
-	
+
 	/* api callbacks */
-	ot->invoke = ED_object_add_generic_invoke;
 	ot->exec = add_primitive_nurbs_surface_sphere_exec;
 	ot->poll = ED_operator_scene_editable;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -6875,12 +6863,11 @@ void SURFACE_OT_primitive_nurbs_surface_torus_add(wmOperatorType *ot)
 	ot->name = "Add Surface Torus";
 	ot->description = "Construct a Nurbs surface Torus";
 	ot->idname = "SURFACE_OT_primitive_nurbs_surface_torus_add";
-	
+
 	/* api callbacks */
-	ot->invoke = ED_object_add_generic_invoke;
 	ot->exec = add_primitive_nurbs_surface_torus_exec;
 	ot->poll = ED_operator_scene_editable;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 

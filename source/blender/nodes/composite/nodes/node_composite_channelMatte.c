@@ -82,15 +82,18 @@ static void do_channel_matte(bNode *node, float *out, float *in)
 	}
 	case 1: { /* Alpha=G-MAX(R, B) */
 		switch (node->custom2) {
-			case 1: {
+			case 1:
+			{
 				alpha=in[0]-MAX2(in[1], in[2]);
 				break;
 			}
-			case 2: {
+			case 2:
+			{
 				alpha=in[1]-MAX2(in[0], in[2]);
 				break;
 			}
-			case 3: {
+			case 3:
+			{
 				alpha=in[2]-MAX2(in[0], in[1]);
 				break;
 			}
@@ -189,7 +192,7 @@ static void node_composit_exec_channel_matte(void *data, bNode *node, bNodeStack
 
 #endif  /* WITH_COMPOSITOR_LEGACY */
 
-static void node_composit_init_channel_matte(bNodeTree *UNUSED(ntree), bNode* node, bNodeTemplate *UNUSED(ntemp))
+static void node_composit_init_channel_matte(bNodeTree *UNUSED(ntree), bNode *node, bNodeTemplate *UNUSED(ntemp))
 {
 	NodeChroma *c= MEM_callocN(sizeof(NodeChroma), "node chroma");
 	node->storage=c;

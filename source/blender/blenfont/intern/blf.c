@@ -51,7 +51,6 @@
 
 #include "GPU_compatibility.h"
 
-
 /* Max number of font in memory.
  * Take care that now every font have a glyph cache per size/dpi,
  * so we don't need load the same font with different size, just
@@ -807,7 +806,7 @@ void BLF_shadow_offset(int fontid, int x, int y)
 	}
 }
 
-void BLF_buffer(int fontid, float *fbuf, unsigned char *cbuf, int w, int h, int nch, int do_color_management)
+void BLF_buffer(int fontid, float *fbuf, unsigned char *cbuf, int w, int h, int nch, struct ColorManagedDisplay *display)
 {
 	FontBLF *font = BLF_get(fontid);
 
@@ -817,7 +816,7 @@ void BLF_buffer(int fontid, float *fbuf, unsigned char *cbuf, int w, int h, int 
 		font->buf_info.w = w;
 		font->buf_info.h = h;
 		font->buf_info.ch = nch;
-		font->buf_info.do_color_management = do_color_management;
+		font->buf_info.display = display;
 	}
 }
 

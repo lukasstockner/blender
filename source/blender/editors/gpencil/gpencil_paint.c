@@ -27,7 +27,6 @@
  *  \ingroup edgpencil
  */
 
-
 #include <stdio.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -281,11 +280,15 @@ static void gp_stroke_convertcoords(tGPsdata *p, const int mval[2], float out[3]
 			gp_get_3d_reference(p, rvec);
 			
 			/* method taken from editview.c - mouse_cursor() */
-			project_int_noclip(p->ar, rvec, mval_prj);
-			
-			VECSUB2D(mval_f, mval_prj, mval);
-			ED_view3d_win_to_delta(p->ar, mval_f, dvec);
-			sub_v3_v3v3(out, rvec, dvec);
+			/* TODO, use ED_view3d_project_float_global */
+			if (ED_view3d_project_int_global(p->ar, rvec, mval_prj, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_SUCCESS) {
+				VECSUB2D(mval_f, mval_prj, mval);
+				ED_view3d_win_to_delta(p->ar, mval_f, dvec);
+				sub_v3_v3v3(out, rvec, dvec);
+			}
+			else {
+				zero_v3(out);
+			}
 		}
 	}
 	
@@ -302,8 +305,8 @@ static void gp_stroke_convertcoords(tGPsdata *p, const int mval[2], float out[3]
 			out[1] = (float)(mval[1]) / (float)(p->ar->winy) * 100;
 		}
 		else { /* camera view, use subrect */
-			out[0] = ((mval[0] - p->subrect->xmin) / BLI_RCT_SIZE_X(p->subrect)) * 100;
-			out[1] = ((mval[1] - p->subrect->ymin) / BLI_RCT_SIZE_Y(p->subrect)) * 100;
+			out[0] = ((mval[0] - p->subrect->xmin) / BLI_rctf_size_x(p->subrect)) * 100;
+			out[1] = ((mval[1] - p->subrect->ymin) / BLI_rctf_size_y(p->subrect)) * 100;
 		}
 	}
 }
@@ -780,7 +783,8 @@ static short gp_stroke_eraser_splitdel(bGPDframe *gpf, bGPDstroke *gps, int i)
 }
 
 /* eraser tool - check if part of stroke occurs within last segment drawn by eraser */
-static short gp_stroke_eraser_strokeinside(int mval[], int UNUSED(mvalo[]), short rad, short x0, short y0, short x1, short y1)
+static short gp_stroke_eraser_strokeinside(const int mval[], const int UNUSED(mvalo[]),
+                                           int rad, int x0, int y0, int x1, int y1)
 {
 	/* simple within-radius check for now */
 	if (edge_inside_circle(mval[0], mval[1], rad, x0, y0, x1, y1))
@@ -792,7 +796,9 @@ static short gp_stroke_eraser_strokeinside(int mval[], int UNUSED(mvalo[]), shor
 
 /* eraser tool - evaluation per stroke */
 // TODO: this could really do with some optimization (KD-Tree/BVH?)
-static void gp_stroke_eraser_dostroke(tGPsdata *p, int mval[], int mvalo[], short rad, rcti *rect, bGPDframe *gpf, bGPDstroke *gps)
+static void gp_stroke_eraser_dostroke(tGPsdata *p,
+                                      const int mval[], const int mvalo[],
+                                      short rad, const rcti *rect, bGPDframe *gpf, bGPDstroke *gps)
 {
 	bGPDspoint *pt1, *pt2;
 	int x0 = 0, y0 = 0, x1 = 0, y1 = 0;
@@ -808,9 +814,14 @@ static void gp_stroke_eraser_dostroke(tGPsdata *p, int mval[], int mvalo[], shor
 	else if (gps->totpoints == 1) {
 		/* get coordinates */
 		if (gps->flag & GP_STROKE_3DSPACE) {
-			project_int(p->ar, &gps->points->x, xyval);
-			x0 = xyval[0];
-			y0 = xyval[1];
+			if (ED_view3d_project_int_global(p->ar, &gps->points->x, xyval, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_SUCCESS) {
+				x0 = xyval[0];
+				y0 = xyval[1];
+			}
+			else {
+				x0 = V2D_IS_CLIPPED;
+				y0 = V2D_IS_CLIPPED;
+			}
 		}
 		else if (gps->flag & GP_STROKE_2DSPACE) {			
 			UI_view2d_view_to_region(p->v2d, gps->points->x, gps->points->y, &x0, &y0);
@@ -821,15 +832,15 @@ static void gp_stroke_eraser_dostroke(tGPsdata *p, int mval[], int mvalo[], shor
 				y0 = (int)(gps->points->y / 100 * p->ar->winy);
 			}
 			else { /* camera view, use subrect */
-				x0 = (int)((gps->points->x / 100) * (p->subrect->xmax - p->subrect->xmin)) + p->subrect->xmin;
-				y0 = (int)((gps->points->y / 100) * (p->subrect->ymax - p->subrect->ymin)) + p->subrect->ymin;
+				x0 = (int)((gps->points->x / 100) * BLI_rctf_size_x(p->subrect)) + p->subrect->xmin;
+				y0 = (int)((gps->points->y / 100) * BLI_rctf_size_y(p->subrect)) + p->subrect->ymin;
 			}
 		}
 		
 		/* do boundbox check first */
-		if (BLI_in_rcti(rect, x0, y0)) {
+		if (BLI_rcti_isect_pt(rect, x0, y0)) {
 			/* only check if point is inside */
-			if ( ((x0 - mval[0]) * (x0 - mval[0]) + (y0 - mval[1]) * (y0 - mval[1])) <= rad * rad) {
+			if (((x0 - mval[0]) * (x0 - mval[0]) + (y0 - mval[1]) * (y0 - mval[1])) <= rad * rad) {
 				/* free stroke */
 				MEM_freeN(gps->points);
 				BLI_freelinkN(&gpf->strokes, gps);
@@ -847,13 +858,22 @@ static void gp_stroke_eraser_dostroke(tGPsdata *p, int mval[], int mvalo[], shor
 			
 			/* get coordinates */
 			if (gps->flag & GP_STROKE_3DSPACE) {
-				project_int(p->ar, &pt1->x, xyval);
-				x0 = xyval[0];
-				y0 = xyval[1];
-				
-				project_int(p->ar, &pt2->x, xyval);
-				x1 = xyval[0];
-				y1 = xyval[1];
+				if (ED_view3d_project_int_global(p->ar, &pt1->x, xyval, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_SUCCESS) {
+					x0 = xyval[0];
+					y0 = xyval[1];
+				}
+				else {
+					x0 = V2D_IS_CLIPPED;
+					y0 = V2D_IS_CLIPPED;
+				}
+				if (ED_view3d_project_int_global(p->ar, &pt2->x, xyval, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_SUCCESS) {
+					x1 = xyval[0];
+					y1 = xyval[1];
+				}
+				else {
+					x1 = V2D_IS_CLIPPED;
+					y1 = V2D_IS_CLIPPED;
+				}
 			}
 			else if (gps->flag & GP_STROKE_2DSPACE) {
 				UI_view2d_view_to_region(p->v2d, pt1->x, pt1->y, &x0, &y0);
@@ -868,15 +888,15 @@ static void gp_stroke_eraser_dostroke(tGPsdata *p, int mval[], int mvalo[], shor
 					y1 = (int)(pt2->y / 100 * p->ar->winy);
 				}
 				else { /* camera view, use subrect */ 
-					x0 = (int)((pt1->x / 100) * (p->subrect->xmax - p->subrect->xmin)) + p->subrect->xmin;
-					y0 = (int)((pt1->y / 100) * (p->subrect->ymax - p->subrect->ymin)) + p->subrect->ymin;
-					x1 = (int)((pt2->x / 100) * (p->subrect->xmax - p->subrect->xmin)) + p->subrect->xmin;
-					y1 = (int)((pt2->y / 100) * (p->subrect->ymax - p->subrect->ymin)) + p->subrect->ymin;
+					x0 = (int)((pt1->x / 100) * BLI_rctf_size_x(p->subrect)) + p->subrect->xmin;
+					y0 = (int)((pt1->y / 100) * BLI_rctf_size_y(p->subrect)) + p->subrect->ymin;
+					x1 = (int)((pt2->x / 100) * BLI_rctf_size_x(p->subrect)) + p->subrect->xmin;
+					y1 = (int)((pt2->y / 100) * BLI_rctf_size_y(p->subrect)) + p->subrect->ymin;
 				}
 			}
 			
 			/* check that point segment of the boundbox of the eraser stroke */
-			if (BLI_in_rcti(rect, x0, y0) || BLI_in_rcti(rect, x1, y1)) {
+			if (BLI_rcti_isect_pt(rect, x0, y0) || BLI_rcti_isect_pt(rect, x1, y1)) {
 				/* check if point segment of stroke had anything to do with
 				 * eraser region  (either within stroke painted, or on its lines)
 				 *  - this assumes that linewidth is irrelevant
@@ -1125,7 +1145,7 @@ static void gp_paint_initstroke(tGPsdata *p, short paintmode)
 	/* get active layer (or add a new one if non-existent) */
 	p->gpl = gpencil_layer_getactive(p->gpd);
 	if (p->gpl == NULL) {
-		p->gpl = gpencil_layer_addnew(p->gpd);
+		p->gpl = gpencil_layer_addnew(p->gpd, "GP_Layer", 1);
 		
 		if (p->custom_color[3])
 			copy_v3_v3(p->gpl->color, p->custom_color);
@@ -1476,7 +1496,7 @@ static void gpencil_draw_apply_event(wmOperator *op, wmEvent *event)
 	float mousef[2];
 	int tablet = 0;
 
-	/* convert from window-space to area-space mouse coordintes 
+	/* convert from window-space to area-space mouse coordinates
 	 * NOTE: float to ints conversions, +1 factor is probably used to ensure a bit more accurate rounding... 
 	 */
 	p->mval[0] = event->mval[0] + 1;
@@ -1592,7 +1612,7 @@ static int gpencil_draw_exec(bContext *C, wmOperator *op)
 	gpencil_draw_exit(C, op);
 	
 	/* refreshes */
-	WM_event_add_notifier(C, NC_SCREEN | ND_GPENCIL | NA_EDITED, NULL); // XXX need a nicer one that will work
+	WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, NULL);
 	
 	/* done */
 	return OPERATOR_FINISHED;
@@ -1653,7 +1673,7 @@ static int gpencil_draw_invoke(bContext *C, wmOperator *op, wmEvent *event)
 		//printf("\tGP - hotkey invoked... waiting for click-drag\n");
 	}
 	
-	WM_event_add_notifier(C, NC_SCREEN | ND_GPENCIL, NULL);
+	WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, NULL);
 	/* add a modal handler for this operator, so that we can then draw continuous strokes */
 	WM_event_add_modal_handler(C, op);
 	return OPERATOR_RUNNING_MODAL;
@@ -1730,25 +1750,32 @@ static int gpencil_draw_modal(bContext *C, wmOperator *op, wmEvent *event)
 
 	//printf("\tGP - handle modal event...\n");
 	
-	/* exit painting mode (and/or end current stroke) */
-	if (ELEM5(event->type, RETKEY, PADENTER, ESCKEY, SPACEKEY, RIGHTMOUSE)) {
+	/* exit painting mode (and/or end current stroke) 
+	 * NOTE: cannot do RIGHTMOUSE (as is standard for cancelling) as that would break polyline [#32647] 
+	 */
+	if (ELEM4(event->type, RETKEY, PADENTER, ESCKEY, SPACEKEY)) {
 		/* exit() ends the current stroke before cleaning up */
 		//printf("\t\tGP - end of paint op + end of stroke\n");
 		p->status = GP_STATUS_DONE;
 		estate = OPERATOR_FINISHED;
 	}
 	
-	/* toggle painting mode upon mouse-button movement */
-	if (event->type == LEFTMOUSE) {
+	/* toggle painting mode upon mouse-button movement 
+	 *  - LEFTMOUSE  = standard drawing (all) / straight line drawing (all) / polyline (toolbox only)
+	 *  - RIGHTMOUSE = polyline (hotkey) / eraser (all)
+	 *    (Disabling RIGHTMOUSE case here results in bugs like [#32647])
+	 */
+	if (ELEM(event->type, LEFTMOUSE, RIGHTMOUSE)) {
 		/* if painting, end stroke */
 		if (p->status == GP_STATUS_PAINTING) {
 			int sketch = 0;
+			
 			/* basically, this should be mouse-button up = end stroke 
 			 * BUT what happens next depends on whether we 'painting sessions' is enabled
 			 */
 			sketch |= GPENCIL_SKETCH_SESSIONS_ON(p->scene);
 			/* polyline drawing is also 'sketching' -- all knots should be added during one session */
-			sketch |= p->paintmode == GP_PAINTMODE_DRAW_POLY;
+			sketch |= (p->paintmode == GP_PAINTMODE_DRAW_POLY);
 			
 			if (sketch) {
 				/* end stroke only, and then wait to resume painting soon */
@@ -1759,7 +1786,7 @@ static int gpencil_draw_modal(bContext *C, wmOperator *op, wmEvent *event)
 				estate = OPERATOR_RUNNING_MODAL;
 				
 				/* stroke could be smoothed, send notifier to refresh screen */
-				WM_event_add_notifier(C, NC_SCREEN | ND_GPENCIL | NA_EDITED, NULL);
+				WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, NULL);
 			}
 			else {
 				//printf("\t\tGP - end of stroke + op\n");
@@ -1849,7 +1876,7 @@ static int gpencil_draw_modal(bContext *C, wmOperator *op, wmEvent *event)
 		case OPERATOR_FINISHED:
 			/* one last flush before we're done */
 			gpencil_draw_exit(C, op);
-			WM_event_add_notifier(C, NC_SCREEN | ND_GPENCIL | NA_EDITED, NULL); // XXX need a nicer one that will work
+			WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, NULL);
 			break;
 			
 		case OPERATOR_CANCELLED:

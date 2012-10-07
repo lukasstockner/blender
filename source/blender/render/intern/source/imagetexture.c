@@ -396,16 +396,16 @@ static float square_rctf(rctf *rf)
 {
 	float x, y;
 
-	x= rf->xmax- rf->xmin;
-	y= rf->ymax- rf->ymin;
-	return (x*y);
+	x = BLI_rctf_size_x(rf);
+	y = BLI_rctf_size_y(rf);
+	return x * y;
 }
 
 static float clipx_rctf(rctf *rf, float x1, float x2)
 {
 	float size;
 
-	size= rf->xmax - rf->xmin;
+	size = BLI_rctf_size_x(rf);
 
 	if (rf->xmin<x1) {
 		rf->xmin = x1;
@@ -417,8 +417,8 @@ static float clipx_rctf(rctf *rf, float x1, float x2)
 		rf->xmin = rf->xmax;
 		return 0.0;
 	}
-	else if (size!=0.0f) {
-		return (rf->xmax - rf->xmin)/size;
+	else if (size != 0.0f) {
+		return BLI_rctf_size_x(rf) / size;
 	}
 	return 1.0;
 }
@@ -427,7 +427,7 @@ static float clipy_rctf(rctf *rf, float y1, float y2)
 {
 	float size;
 
-	size= rf->ymax - rf->ymin;
+	size = BLI_rctf_size_y(rf);
 
 	if (rf->ymin<y1) {
 		rf->ymin = y1;
@@ -440,8 +440,8 @@ static float clipy_rctf(rctf *rf, float y1, float y2)
 		rf->ymin = rf->ymax;
 		return 0.0;
 	}
-	else if (size!=0.0f) {
-		return (rf->ymax - rf->ymin)/size;
+	else if (size != 0.0f) {
+		return BLI_rctf_size_y(rf) / size;
 	}
 	return 1.0;
 
@@ -717,7 +717,7 @@ static int ibuf_get_color_clip_bilerp(float col[4], ImBuf *ibuf, float u, float 
 	return ibuf_get_color_clip(col, ibuf, (int)u, (int)v, extflag);
 }
 
-static void area_sample(TexResult* texr, ImBuf* ibuf, float fx, float fy, afdata_t* AFD)
+static void area_sample(TexResult *texr, ImBuf *ibuf, float fx, float fy, afdata_t *AFD)
 {
 	int xs, ys, clip = 0;
 	float tc[4], xsd, ysd, cw = 0.f;
@@ -839,7 +839,7 @@ static void imp2radangle(float A, float B, float C, float F, float* a, float* b,
 	}
 }
 
-static void ewa_eval(TexResult* texr, ImBuf* ibuf, float fx, float fy, afdata_t* AFD)
+static void ewa_eval(TexResult *texr, ImBuf *ibuf, float fx, float fy, afdata_t *AFD)
 {
 	/* scaling dxt/dyt by full resolution can cause overflow because of huge A/B/C and esp. F values,
 	 * scaling by aspect ratio alone does the opposite, so try something in between instead... */
@@ -926,7 +926,7 @@ static void ewa_eval(TexResult* texr, ImBuf* ibuf, float fx, float fy, afdata_t*
 	texr->ta = texr->talpha ? texr->ta*d : 1.f; /* TXF alpha (clip ? cw*d : 1.f); */
 }
 
-static void feline_eval(TexResult* texr, ImBuf* ibuf, float fx, float fy, afdata_t* AFD)
+static void feline_eval(TexResult *texr, ImBuf *ibuf, float fx, float fy, afdata_t *AFD)
 {
 	const int maxn = AFD->iProbes - 1;
 	const float ll = ((AFD->majrad == AFD->minrad) ? 2.f*AFD->majrad : 2.f*(AFD->majrad - AFD->minrad)) / (maxn ? (float)maxn : 1.f);
@@ -1018,7 +1018,7 @@ static void image_mipmap_test(Tex *tex, ImBuf *ibuf)
 	
 }
 
-static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, const float texvec[3], float dxt[3], float dyt[3], TexResult *texres)
+static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, const float texvec[3], float dxt[2], float dyt[2], TexResult *texres)
 {
 	TexResult texr;
 	float fx, fy, minx, maxx, miny, maxy;
@@ -1053,6 +1053,10 @@ static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, const float tex
 	}
 
 	if ((ibuf == NULL) || ((ibuf->rect == NULL) && (ibuf->rect_float == NULL))) return retval;
+
+	if (ima) {
+		ima->flag |= IMA_USED_FOR_RENDER;
+	}
 
 	/* mipmap test */
 	image_mipmap_test(tex, ibuf);
@@ -1219,7 +1223,7 @@ static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, const float tex
 		ImBuf *previbuf, *curibuf;
 		float levf;
 		int maxlev;
-		ImBuf* mipmaps[IB_MIPMAP_LEVELS + 1];
+		ImBuf *mipmaps[IB_MIPMAP_LEVELS + 1];
 
 		/* modify ellipse minor axis if too eccentric, use for area sampling as well
 		 * scaling dxt/dyt as done in pbrt is not the same
@@ -1408,17 +1412,17 @@ static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, const float tex
 }
 
 
-int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, const float texvec[3], const float DXT[3], const float DYT[3], TexResult *texres)
+int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, const float texvec[3], const float DXT[2], const float DYT[2], TexResult *texres)
 {
 	TexResult texr;
-	float fx, fy, minx, maxx, miny, maxy, dx, dy, dxt[3], dyt[3];
+	float fx, fy, minx, maxx, miny, maxy, dx, dy, dxt[2], dyt[2];
 	float maxd, pixsize, val1, val2, val3;
 	int curmap, retval, imaprepeat, imapextend;
 
 	/* TXF: since dxt/dyt might be modified here and since they might be needed after imagewraposa() call,
 	 * make a local copy here so that original vecs remain untouched */
-	copy_v3_v3(dxt, DXT);
-	copy_v3_v3(dyt, DYT);
+	copy_v2_v2(dxt, DXT);
+	copy_v2_v2(dyt, DYT);
 
 	/* anisotropic filtering */
 	if (tex->texfilter != TXF_BOX)

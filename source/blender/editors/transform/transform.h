@@ -198,6 +198,8 @@ typedef struct TransDataSlideVert {
 	float edge_len;
 
 	float upvec[3], downvec[3];
+
+	int loop_nr;
 } TransDataSlideVert;
 
 typedef struct SlideData {
@@ -320,6 +322,8 @@ typedef struct TransInfo {
 	float		auto_values[4];
 	float		axis[3];
 	float		axis_orig[3];	/* TransCon can change 'axis', store the original value here */
+	
+	double      last_update;  /* Time of last update (in seconds) */
 
 	void		*view;
 	struct bContext *context; /* Only valid (non null) during an operator called function. */

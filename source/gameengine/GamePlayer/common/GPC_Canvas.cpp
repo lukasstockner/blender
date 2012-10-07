@@ -103,7 +103,7 @@ void GPC_Canvas::Resize(int width, int height)
 void GPC_Canvas::EndFrame()
 {
 	if (m_bannersEnabled)
-		DrawAllBanners();	
+		DrawAllBanners();
 }
 
 

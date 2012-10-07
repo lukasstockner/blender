@@ -257,7 +257,7 @@ void KX_KetsjiEngine::SetRasterizer(RAS_IRasterizer* rasterizer)
  * At the moment the bge.logic module is imported into 'pythondictionary' after this function is called.
  * if this function ever changes to assign a copy, make sure the game logic module is imported into this dictionary before hand.
  */
-void KX_KetsjiEngine::SetPyNamespace(PyObject* pythondictionary)
+void KX_KetsjiEngine::SetPyNamespace(PyObject *pythondictionary)
 {
 	MT_assert(pythondictionary);
 	m_pythondictionary = pythondictionary;
@@ -364,7 +364,7 @@ void KX_KetsjiEngine::RenderDome()
 			// no FlushDebugLines
 		}
 		m_dome->BindImages(i);
-	}	
+	}
 
 	m_canvas->EndFrame();//XXX do we really need that?
 
@@ -394,7 +394,7 @@ void KX_KetsjiEngine::RenderDome()
 	// Draw Callback for the last scene
 #ifdef WITH_PYTHON
 	scene->RunDrawingCallbacks(scene->GetPostDrawCB());
-#endif	
+#endif
 	EndFrame();
 }
 
@@ -480,7 +480,7 @@ void KX_KetsjiEngine::ClearFrame()
 		SetBackGround(firstscene->GetWorldInfo());
 
 		m_canvas->SetViewPort(clearvp.GetLeft(), clearvp.GetBottom(),
-			clearvp.GetRight(), clearvp.GetTop());	
+			clearvp.GetRight(), clearvp.GetTop());
 		m_rasterizer->ClearColorBuffer();
 	}
 }
@@ -501,7 +501,7 @@ bool KX_KetsjiEngine::BeginFrame()
 	}
 	
 	return false;
-}		
+}
 
 
 void KX_KetsjiEngine::EndFrame()
@@ -646,7 +646,7 @@ else
 				scene->GetPhysicsEnvironment()->endFrame();
 				
 				// Update scenegraph after physics step. This maps physics calculations
-				// into node positions.		
+				// into node positions.
 				//m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
 				//SG_SetActiveStage(SG_STAGE_PHYSICS1_UPDATE);
 				//scene->UpdateParents(m_frameTime);
@@ -697,7 +697,7 @@ else
 			
 			
 				if (m_animation_record)
-				{					
+				{
 					m_sceneconverter->WritePhysicsObjectToAnimationIpo(++m_currentFrame);
 				}
 
@@ -730,7 +730,7 @@ else
 	bool bUseAsyncLogicBricks= false;//true;
 
 	if (bUseAsyncLogicBricks)
-	{	
+	{
 		// Logic update sub frame: this will let some logic bricks run at the
 		// full frame rate.
 		for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); ++sceneit)
@@ -761,7 +761,7 @@ else
 				m_logger->StartLog(tc_physics, m_kxsystem->GetTimeInSeconds(), true);
 				scene->GetPhysicsEnvironment()->proceedDeltaTime(m_clockTime,timestep,timestep);
 				// Update scenegraph after physics step. This maps physics calculations
-				// into node positions.		
+				// into node positions.
 				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_PHYSICS2);
 				scene->UpdateParents(m_clockTime);
@@ -943,7 +943,7 @@ void KX_KetsjiEngine::Render()
 			//RenderFrame(scene);
 			RenderFrame(scene, cam);
 
-			list<class KX_Camera*>* cameras = scene->GetCameras();			
+			list<class KX_Camera*>* cameras = scene->GetCameras();
 	
 			// Draw the scene once for each camera with an enabled viewport
 			list<KX_Camera*>::iterator it = cameras->begin();
@@ -1018,7 +1018,7 @@ void KX_KetsjiEngine::SetBackGround(KX_WorldInfo* wi)
 	if (wi->hasWorld())
 	{
 		if (m_drawingmode == RAS_IRasterizer::KX_TEXTURED)
-		{	
+		{
 			m_rasterizer->SetBackColor(
 				wi->getBackColorRed(),
 				wi->getBackColorGreen(),
@@ -1043,7 +1043,7 @@ void KX_KetsjiEngine::SetWorldSettings(KX_WorldInfo* wi)
 		);
 
 		if (m_drawingmode >= RAS_IRasterizer::KX_SOLID)
-		{	
+		{
 			if (wi->hasMist())
 			{
 				m_rasterizer->SetFog(
@@ -1208,11 +1208,11 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 	GetSceneViewport(scene, cam, area, viewport);
 
 	// store the computed viewport in the scene
-	scene->SetSceneViewport(viewport);	
+	scene->SetSceneViewport(viewport);
 
 	// set the viewport for this frame and scene
 	m_canvas->SetViewPort(viewport.GetLeft(), viewport.GetBottom(),
-		viewport.GetRight(), viewport.GetTop());	
+		viewport.GetRight(), viewport.GetTop());
 	
 	// see KX_BlenderMaterial::Activate
 	//m_rasterizer->SetAmbient();
@@ -1353,7 +1353,7 @@ void KX_KetsjiEngine::PostRenderScene(KX_Scene* scene)
 	m_rasterizer->FlushDebugShapes();
 	scene->Render2DFilters(m_canvas);
 #ifdef WITH_PYTHON
-	scene->RunDrawingCallbacks(scene->GetPostDrawCB());	
+	scene->RunDrawingCallbacks(scene->GetPostDrawCB());
 #endif
 }
 
@@ -1373,10 +1373,10 @@ void KX_KetsjiEngine::StopEngine()
 		{
 			KX_Scene* scene = *sceneit;
 			m_sceneconverter->RemoveScene(scene);
-		}	
+		}
 		m_scenes.clear();
 
-		// cleanup all the stuff		
+		// cleanup all the stuff
 		m_rasterizer->Exit();
 	}
 }
@@ -1474,7 +1474,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 
 	/* Profile and framerate display */
 	if (m_show_profile)
-	{		
+	{
 		for (int j = tc_first; j < tc_numCategories; j++)
 		{
 			debugtxt.Format(m_profileLabels[j]);
@@ -1561,7 +1561,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 
 KX_SceneList* KX_KetsjiEngine::CurrentScenes()
 {
-	return &m_scenes;	
+	return &m_scenes;
 }
 
 
@@ -1577,7 +1577,7 @@ KX_Scene* KX_KetsjiEngine::FindScene(const STR_String& scenename)
 		sceneit++;
 	}
 
-	return ((sceneit == m_scenes.end()) ? NULL : *sceneit);	
+	return ((sceneit == m_scenes.end()) ? NULL : *sceneit);
 }
 
 
@@ -1640,7 +1640,7 @@ void KX_KetsjiEngine::RemoveScheduledScenes()
 					m_scenes.erase(sceneit);
 					break;
 				}
-			}	
+			}
 		}
 		m_removingScenes.clear();
 	}
@@ -1743,7 +1743,7 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
 			}
 		}
 		m_replace_scenes.clear();
-	}	
+	}
 }
 
 
@@ -1916,7 +1916,7 @@ void KX_KetsjiEngine::SceneListsChanged(void)
 	while ((sceneit != m_scenes.end()) && (!m_propertiesPresent))
 	{
 		KX_Scene* scene = *sceneit;
-		vector<SCA_DebugProp*>& debugproplist = scene->GetDebugProperties();	
+		vector<SCA_DebugProp*>& debugproplist = scene->GetDebugProperties();
 		m_propertiesPresent = !debugproplist.empty();
 		sceneit++;
 	}

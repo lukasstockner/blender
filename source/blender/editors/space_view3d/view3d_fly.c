@@ -355,7 +355,6 @@ static int initFlyInfo(bContext *C, FlyInfo *fly, wmOperator *op, wmEvent *event
 	/* check for flying ortho camera - which we cant support well
 	 * we _could_ also check for an ortho camera but this is easier */
 	if ((fly->rv3d->persp == RV3D_CAMOB) &&
-	    (fly->v3d->camera != NULL) &&
 	    (fly->rv3d->is_persp == FALSE))
 	{
 		((Camera *)fly->v3d->camera->data)->type = CAM_PERSP;
@@ -498,7 +497,7 @@ static void flyEvent(FlyInfo *fly, wmEvent *event)
 	else if (event->type == NDOF_MOTION) {
 		/* do these automagically get delivered? yes. */
 		// puts("ndof motion detected in fly mode!");
-		// static const char* tag_name = "3D mouse position";
+		// static const char *tag_name = "3D mouse position";
 
 		wmNDOFMotionData *incoming_ndof = (wmNDOFMotionData *)event->customdata;
 		switch (incoming_ndof->progress) {

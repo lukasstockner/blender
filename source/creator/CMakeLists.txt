@@ -303,6 +303,15 @@ if(WITH_INTERNATIONAL)
 	)
 endif()
 
+# color management
+if(WITH_OPENCOLORIO)
+	install(
+		DIRECTORY ${CMAKE_SOURCE_DIR}/release/datafiles/colormanagement
+		DESTINATION ${TARGETDIR_VER}/datafiles
+		PATTERN ".svn" EXCLUDE
+	)
+endif()
+
 # helpful tip when using make
 if("${CMAKE_GENERATOR}" MATCHES ".*Makefiles.*")
 	# message after building.
@@ -629,10 +638,27 @@ elseif(WIN32)
 
 	if(WITH_OPENIMAGEIO)
 		if(NOT MINGW)
-			set_lib_path(OIIOBIN "openimageio")
+			set(OIIOBIN ${LIBDIR}/openimageio)
 			install(
 				FILES
 					${OIIOBIN}/bin/OpenImageIO.dll
+				DESTINATION ${TARGETDIR}
+			)
+		endif()
+	endif()
+
+	if(WITH_OPENCOLORIO)
+		set(OCIOBIN ${LIBDIR}/opencolorio/bin)
+		if(NOT MINGW)
+			install(
+				FILES
+					${OCIOBIN}/OpenColorIO.dll
+				DESTINATION ${TARGETDIR}
+			)
+		else()
+			install(
+				FILES
+					${OCIOBIN}/libOpenColorIO.dll
 				DESTINATION ${TARGETDIR}
 			)
 		endif()
@@ -712,7 +738,15 @@ elseif(APPLE)
 		)
 
 	endif()
-
+	
+	#OSL shader_headers needed
+	if(WITH_CYCLES_OSL)
+		install(
+			FILES ${LIBDIR}/osl/shaders/oslutil.h ${LIBDIR}/osl/shaders/stdosl.h
+			DESTINATION ${TARGETDIR}/blender.app/Contents/shaders/
+		)
+	endif()
+	
 	# install blenderplayer bundle - copy of blender.app above. re-using macros et al
 	# note we are using OSX Bundle as base and copying Blender dummy bundle on top of it
 	if(WITH_GAMEENGINE AND WITH_PLAYER)
@@ -754,6 +788,7 @@ elseif(APPLE)
 		endif()
 
 	endif()
+		
 endif()
 
 # -----------------------------------------------------------------------------
@@ -792,6 +827,9 @@ if(WITH_CYCLES)
 		cycles_kernel
 		cycles_util
 		cycles_subd)
+	if(WITH_CYCLES_OSL)
+		list(APPEND BLENDER_LINK_LIBS cycles_kernel_osl)
+	endif()
 endif()
 
 #if(UNIX)
@@ -906,6 +944,7 @@ endif()
 		cycles_util
 		cycles_subd
 		bf_intern_raskter
+		bf_intern_opencolorio
 	)
 
 	if(WITH_COMPOSITOR)
@@ -953,6 +992,10 @@ endif()
 
 	if(WITH_GHOST_XDND)
 		list(APPEND BLENDER_SORTED_LIBS extern_xdnd)
+	endif()
+
+	if(WITH_CYCLES_OSL)
+		list_insert_after(BLENDER_SORTED_LIBS "cycles_kernel" "cycles_kernel_osl")
 	endif()
 
 	foreach(SORTLIB ${BLENDER_SORTED_LIBS})

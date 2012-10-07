@@ -699,6 +699,7 @@ void DM_init_origspace(DerivedMesh *dm);
 #ifndef NDEBUG
 char *DM_debug_info(DerivedMesh *dm);
 void DM_debug_print(DerivedMesh *dm);
+void DM_debug_print_cdlayers(CustomData *cdata);
 #endif
 
 #endif

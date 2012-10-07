@@ -179,8 +179,8 @@ static void gp_draw_stroke_point(bGPDspoint *points, short thickness, short dfla
 		/* if thickness is less than GP_DRAWTHICKNESS_SPECIAL, simple dot looks ok
 		 *  - also mandatory in if Image Editor 'image-based' dot
 		 */
-		if ( (thickness < GP_DRAWTHICKNESS_SPECIAL) ||
-		     ((dflag & GP_DRAWDATA_IEDITHACK) && (sflag & GP_STROKE_2DSPACE)) )
+		if ((thickness < GP_DRAWTHICKNESS_SPECIAL) ||
+		    ((dflag & GP_DRAWDATA_IEDITHACK) && (sflag & GP_STROKE_2DSPACE)))
 		{
 			gpuBegin(GL_POINTS);
 			gpuVertex2fv(co);
@@ -245,8 +245,8 @@ static void gp_draw_stroke(bGPDspoint *points, int totpoints, short thickness_s,
 	/* if thickness is less than GP_DRAWTHICKNESS_SPECIAL, 'smooth' opengl lines look better
 	 *  - 'smooth' opengl lines are also required if Image Editor 'image-based' stroke
 	 */
-	if ( (thickness < GP_DRAWTHICKNESS_SPECIAL) || 
-	     ((dflag & GP_DRAWDATA_IEDITHACK) && (dflag & GP_DRAWDATA_ONLYV2D)) )
+	if ((thickness < GP_DRAWTHICKNESS_SPECIAL) ||
+	    ((dflag & GP_DRAWDATA_IEDITHACK) && (dflag & GP_DRAWDATA_ONLYV2D)))
 	{
 		bGPDspoint *pt;
 		int i;
@@ -755,8 +755,8 @@ void draw_gpencil_view3d(Scene *scene, View3D *v3d, ARegion *ar, short only3d)
 {
 	bGPdata *gpd;
 	int dflag = 0;
-	rcti rect;
 	RegionView3D *rv3d = ar->regiondata;
+	int offsx,  offsy,  winx,  winy;
 
 	/* check that we have grease-pencil stuff to draw */
 	gpd = gpencil_data_get_active_v3d(scene); // XXX
@@ -767,13 +767,17 @@ void draw_gpencil_view3d(Scene *scene, View3D *v3d, ARegion *ar, short only3d)
 	if ((rv3d->persp == RV3D_CAMOB) && !(G.f & G_RENDER_OGL)) {
 		rctf rectf;
 		ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, &rectf, TRUE); /* no shift */
-		BLI_rcti_rctf_copy(&rect, &rectf);
+
+		offsx = floorf(rectf.xmin + 0.5f);
+		offsy = floorf(rectf.ymin + 0.5f);
+		winx  = floorf((rectf.xmax - rectf.xmin) + 0.5f);
+		winy  = floorf((rectf.ymax - rectf.ymin) + 0.5f);
 	}
 	else {
-		rect.xmin = 0;
-		rect.ymin = 0;
-		rect.xmax = ar->winx;
-		rect.ymax = ar->winy;
+		offsx = 0;
+		offsy = 0;
+		winx  = ar->winx;
+		winy  = ar->winy;
 	}
 
 	/* draw it! */
@@ -782,7 +786,7 @@ void draw_gpencil_view3d(Scene *scene, View3D *v3d, ARegion *ar, short only3d)
 		dflag |= (GP_DRAWDATA_ONLY3D | GP_DRAWDATA_NOSTATUS);
 	}
 
-	gp_draw_data(gpd, rect.xmin, rect.ymin, rect.xmax, rect.ymax, CFRA, dflag);
+	gp_draw_data(gpd, offsx, offsy, winx, winy, CFRA, dflag);
 }
 
 /* ************************************************** */

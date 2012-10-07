@@ -59,6 +59,7 @@ set(SRC
 	composite/nodes/node_composite_composite.c
 	composite/nodes/node_composite_crop.c
 	composite/nodes/node_composite_curves.c
+	composite/nodes/node_composite_despeckle.c
 	composite/nodes/node_composite_doubleEdgeMask.c
 	composite/nodes/node_composite_defocus.c
 	composite/nodes/node_composite_diffMatte.c
@@ -179,6 +180,7 @@ set(SRC
 	shader/nodes/node_shader_tex_voronoi.c
 	shader/nodes/node_shader_tex_wave.c
 	shader/nodes/node_shader_tex_checker.c
+	shader/nodes/node_shader_tex_brick.c
 	shader/node_shader_tree.c
 	shader/node_shader_util.c
 

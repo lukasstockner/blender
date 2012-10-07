@@ -59,10 +59,10 @@ extern "C"
 {
 #endif  // __cplusplus
 #include "MEM_guardedalloc.h"
-#include "BKE_blender.h"	
-#include "BKE_global.h"	
-#include "BKE_icons.h"	
-#include "BKE_node.h"	
+#include "BKE_blender.h"
+#include "BKE_global.h"
+#include "BKE_icons.h"
+#include "BKE_node.h"
 #include "BKE_report.h"
 #include "BKE_library.h"
 #include "BLI_threads.h"
@@ -102,7 +102,6 @@ extern char datatoc_bfont_ttf[];
 #include "RAS_IRasterizer.h"
 
 #include "BKE_main.h"
-#include "BKE_utildefines.h"
 
 #include "RNA_define.h"
 
@@ -199,7 +198,7 @@ void usage(const char* program, bool isBlenderPlayer)
 	}
 	
 	printf("usage:   %s [-w [w h l t]] [-f [fw fh fb ff]] %s[-g gamengineoptions] "
-		"[-s stereomode] [-m aasamples] %s\n", program, consoleoption, example_filename);
+	       "[-s stereomode] [-m aasamples] %s\n", program, consoleoption, example_filename);
 	printf("  -h: Prints this command summary\n\n");
 	printf("  -w: display in a window\n");
 	printf("       --Optional parameters--\n"); 
@@ -228,7 +227,7 @@ void usage(const char* program, bool isBlenderPlayer)
 	printf("       --Optional parameters--\n");
 	printf("       angle    = field of view in degrees\n");
 	printf("       tilt     = tilt angle in degrees\n");
-	printf("       warpdata = a file to use for warping the image (absolute path)\n");	
+	printf("       warpdata = a file to use for warping the image (absolute path)\n");
 	printf("       mode: fisheye                (Fisheye)\n");
 	printf("             truncatedfront         (Front-Truncated)\n");
 	printf("             truncatedrear          (Rear-Truncated)\n");
@@ -339,16 +338,16 @@ static BlendFileData *load_game_data(const char *progname, char *filename = NULL
 
 bool GPG_NextFrame(GHOST_ISystem* system, GPG_Application *app, int &exitcode, STR_String &exitstring, GlobalSettings *gs)
 {
-    bool run = true;
-    system->processEvents(false);
-    system->dispatchEvents();
-    if ((exitcode = app->getExitRequested()))
-    {
-        run = false;
-        exitstring = app->getExitString();
-        *gs = *app->getGlobalSettings();
-    }
-    return run;
+	bool run = true;
+	system->processEvents(false);
+	system->dispatchEvents();
+	app->EngineNextFrame();
+	if ((exitcode = app->getExitRequested())) {
+		run = false;
+		exitstring = app->getExitString();
+		*gs = *app->getGlobalSettings();
+	}
+	return run;
 }
 
 struct GPG_NextFrameState {
@@ -1018,12 +1017,12 @@ int main(int argc, char** argv)
 						// Enter main loop
 						bool run = true;
                         char *python_main = NULL;
-#ifdef WITH_PYTHON
 						pynextframestate.state = NULL;
 						pynextframestate.func = NULL;
-
+#ifdef WITH_PYTHON
 						python_main = KX_GetPythonMain(scene);
 #endif // WITH_PYTHON
+						if (python_main) 
 						if (python_main) 
 						{
 							char *python_code = KX_GetPythonCode(maggie, python_main);
@@ -1034,12 +1033,12 @@ int main(int argc, char** argv)
 								gpg_nextframestate.app = &app;
 								gpg_nextframestate.gs = &gs;
 								pynextframestate.state = &gpg_nextframestate;
-								pynextframestate.func = &GPG_PyNextFrame;			
+								pynextframestate.func = &GPG_PyNextFrame;
 
                                 printf("Yielding control to Python script '%s'...\n", python_main);
                                 PyRun_SimpleString(python_code);
                                 printf("Exit Python script '%s'\n", python_main);
-#endif // WITH_PYTHON				
+#endif // WITH_PYTHON
                                 MEM_freeN(python_code);
                             }
                             else {

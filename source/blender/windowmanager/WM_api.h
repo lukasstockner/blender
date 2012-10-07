@@ -71,8 +71,18 @@ void		WM_init_state_normal_set(void);
 
 void		WM_init				(struct bContext *C, int argc, const char **argv);
 void		WM_exit_ext			(struct bContext *C, const short do_python);
-void		WM_exit				(struct bContext *C);
-void		WM_main				(struct bContext *C);
+
+void		WM_exit				(struct bContext *C)
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noreturn))
+#endif
+;
+
+void		WM_main				(struct bContext *C)
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noreturn))
+#endif
+;
 
 int 		WM_init_game		(struct bContext *C);
 void		WM_init_splash		(struct bContext *C);
@@ -104,8 +114,8 @@ void		WM_cursor_set		(struct wmWindow *win, int curs);
 void		WM_cursor_modal		(struct wmWindow *win, int curs);
 void		WM_cursor_restore	(struct wmWindow *win);
 void		WM_cursor_wait		(int val);
-void		WM_cursor_grab_enable(struct wmWindow *win, int wrap, int hide, int *bounds);
-void		WM_cursor_grab_disable(struct wmWindow *win);
+void		WM_cursor_grab_enable(struct wmWindow *win, int wrap, int hide, int bounds[4]);
+void		WM_cursor_grab_disable(struct wmWindow *win, int mouse_ungrab_xy[2]);
 void		WM_cursor_time		(struct wmWindow *win, int nr);
 
 void		*WM_paint_cursor_activate(struct wmWindowManager *wm,
@@ -145,6 +155,7 @@ struct wmEventHandler *WM_event_add_dropbox_handler(ListBase *handlers, ListBase
 
 			/* mouse */
 void		WM_event_add_mousemove(struct bContext *C);
+void		WM_event_add_mousemove_window(struct wmWindow *window);
 int			WM_modal_tweak_exit(struct wmEvent *evt, int tweak_event);
 
 			/* notifiers */
@@ -245,8 +256,8 @@ void		WM_operator_py_idname(char *to, const char *from);
 /* *************** menu types ******************** */
 void                WM_menutype_init(void);
 struct MenuType    *WM_menutype_find(const char *idname, int quiet);
-int                 WM_menutype_add(struct MenuType* mt);
-void                WM_menutype_freelink(struct MenuType* mt);
+int                 WM_menutype_add(struct MenuType *mt);
+void                WM_menutype_freelink(struct MenuType *mt);
 void                WM_menutype_free(void);
 
 			/* default operator callbacks for border/circle/lasso */
@@ -262,7 +273,7 @@ int			WM_gesture_lines_cancel(struct bContext *C, struct wmOperator *op);
 int			WM_gesture_lasso_invoke(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
 int			WM_gesture_lasso_modal(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
 int			WM_gesture_lasso_cancel(struct bContext *C, struct wmOperator *op);
-int       (*WM_gesture_lasso_path_to_array(struct bContext *C, struct wmOperator *op, int *mcords_tot))[2];
+int			(*WM_gesture_lasso_path_to_array(struct bContext *C, struct wmOperator *op, int *mcords_tot))[2];
 int			WM_gesture_straightline_invoke(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
 int			WM_gesture_straightline_modal(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
 int			WM_gesture_straightline_cancel(struct bContext *C, struct wmOperator *op);
@@ -361,6 +372,8 @@ void		WM_progress_clear(struct wmWindow *win);
 
 			/* Draw (for screenshot) */
 void		WM_redraw_windows(struct bContext *C);
+
+void        WM_main_playanim(int argc, const char **argv);
 
 /* debugging only, convenience function to write on crash */
 int write_crash_blend(void);

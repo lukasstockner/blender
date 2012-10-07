@@ -56,6 +56,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_linklist.h"
 #include "BLI_utildefines.h"
+#include "BLI_threads.h"
 #include "BLI_callbacks.h"
 
 #include "BLF_translation.h"
@@ -489,6 +490,8 @@ int WM_homefile_read(bContext *C, ReportList *UNUSED(reports), short from_memory
 	char tstr[FILE_MAX];
 	int success = 0;
 
+	BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_LOAD_PRE);
+
 	G.relbase_valid = 0;
 	if (!from_memory) {
 		char *cfgdir = BLI_get_folder(BLENDER_USER_CONFIG, NULL);
@@ -565,6 +568,9 @@ int WM_homefile_read(bContext *C, ReportList *UNUSED(reports), short from_memory
 		BPY_modules_load_user(C);
 	}
 #endif
+
+	/* important to do before NULL'ing the context */
+	BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_LOAD_POST);
 
 	WM_event_add_notifier(C, NC_WM | ND_FILEREAD, NULL);
 
@@ -700,11 +706,11 @@ static ImBuf *blend_file_thumb(Scene *scene, bScreen *screen, int **thumb_pt)
 	if (scene->camera) {
 		ibuf = ED_view3d_draw_offscreen_imbuf_simple(scene, scene->camera,
 		                                             BLEN_THUMB_SIZE * 2, BLEN_THUMB_SIZE * 2,
-		                                             IB_rect, OB_SOLID, FALSE, err_out);
+		                                             IB_rect, OB_SOLID, FALSE, FALSE, err_out);
 	}
 	else {
 		ibuf = ED_view3d_draw_offscreen_imbuf(scene, v3d, ar, BLEN_THUMB_SIZE * 2, BLEN_THUMB_SIZE * 2,
-		                                      IB_rect, FALSE, err_out);
+		                                      IB_rect, FALSE, FALSE, err_out);
 	}
 
 	if (ibuf) {		
@@ -789,7 +795,7 @@ int WM_file_write(bContext *C, const char *target, int fileflags, ReportList *re
 
 	/* blend file thumbnail */
 	/* save before exit_editmode, otherwise derivedmeshes for shared data corrupt #27765) */
-	if (U.flag & USER_SAVE_PREVIEWS) {
+	if ((U.flag & USER_SAVE_PREVIEWS) && BLI_thread_is_main()) {
 		ibuf_thumb = blend_file_thumb(CTX_data_scene(C), CTX_wm_screen(C), &thumb);
 	}
 

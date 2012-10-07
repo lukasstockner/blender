@@ -409,8 +409,6 @@ static void clip_listener(ScrArea *sa, wmNotifier *wmn)
 		case NC_SCREEN:
 			switch (wmn->data) {
 				case ND_ANIMPLAY:
-				case ND_GPENCIL:
-					clip_scopes_check_gpencil_change(sa);
 					ED_area_tag_redraw(sa);
 					break;
 			}
@@ -419,6 +417,12 @@ static void clip_listener(ScrArea *sa, wmNotifier *wmn)
 			if (wmn->data == ND_SPACE_CLIP) {
 				clip_scopes_tag_refresh(sa);
 				clip_stabilization_tag_refresh(sa);
+				ED_area_tag_redraw(sa);
+			}
+			break;
+		case NC_GPENCIL:
+			if (wmn->action == NA_EDITED) {
+				clip_scopes_check_gpencil_change(sa);
 				ED_area_tag_redraw(sa);
 			}
 			break;
@@ -1038,8 +1042,8 @@ static void movieclip_main_area_set_view2d(const bContext *C, ARegion *ar)
 	if (clip)
 		h *= clip->aspy / clip->aspx / clip->tracking.camera.pixel_aspect;
 
-	winx = BLI_RCT_SIZE_X(&ar->winrct) + 1;
-	winy = BLI_RCT_SIZE_Y(&ar->winrct) + 1;
+	winx = BLI_rcti_size_x(&ar->winrct) + 1;
+	winy = BLI_rcti_size_y(&ar->winrct) + 1;
 
 	ar->v2d.tot.xmin = 0;
 	ar->v2d.tot.ymin = 0;
@@ -1133,10 +1137,13 @@ static void clip_main_area_draw(const bContext *C, ARegion *ar)
 		if (mask) {
 			ScrArea *sa = CTX_wm_area(C);
 			int width, height;
+			float aspx, aspy;
 			ED_mask_get_size(sa, &width, &height);
+			ED_space_clip_get_aspect(sc, &aspx, &aspy);
 			ED_mask_draw_region(mask, ar,
 			                    sc->mask_info.draw_flag, sc->mask_info.draw_type,
 			                    width, height,
+			                    aspx, aspy,
 			                    TRUE, TRUE,
 			                    sc->stabmat, C);
 		}
@@ -1158,8 +1165,8 @@ static void clip_main_area_listener(ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
-		case NC_SCREEN:
-			if (wmn->data == ND_GPENCIL)
+		case NC_GPENCIL:
+			if (wmn->action == NA_EDITED)
 				ED_region_tag_redraw(ar);
 			break;
 	}
@@ -1372,8 +1379,8 @@ static void clip_props_area_listener(ARegion *ar, wmNotifier *wmn)
 			if (wmn->data == ND_SPACE_CLIP)
 				ED_region_tag_redraw(ar);
 			break;
-		case NC_SCREEN:
-			if (wmn->data == ND_GPENCIL)
+		case NC_GPENCIL:
+			if (wmn->action == NA_EDITED)
 				ED_region_tag_redraw(ar);
 			break;
 	}
@@ -1405,8 +1412,8 @@ static void clip_properties_area_listener(ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
-		case NC_SCREEN:
-			if (wmn->data == ND_GPENCIL)
+		case NC_GPENCIL:
+			if (wmn->data == ND_DATA)
 				ED_region_tag_redraw(ar);
 			break;
 		case NC_BRUSH:

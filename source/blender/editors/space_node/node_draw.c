@@ -64,10 +64,8 @@
 #include "node_intern.h"  /* own include */
 #include "COM_compositor.h"
 
-/* width of socket columns in group display */
-#define NODE_GROUP_FRAME  120
 /* XXX interface.h */
-extern void ui_dropshadow(rctf *rct, float radius, float aspect, float alpha, int select);
+extern void ui_dropshadow(const rctf *rct, float radius, float aspect, float alpha, int select);
 
 /* XXX update functions for node editor are a mess, needs a clear concept */
 void ED_node_tree_update(SpaceNode *snode, Scene *scene)
@@ -228,12 +226,12 @@ void ED_node_sort(bNodeTree *ntree)
 			while (a < k && b < k && node_b) {
 				if (compare_nodes(node_a, node_b) == 0) {
 					node_a = node_a->next;
-					++a;
+					a++;
 				}
 				else {
 					tmp = node_b;
 					node_b = node_b->next;
-					++b;
+					b++;
 					BLI_remlink(&ntree->nodes, tmp);
 					BLI_insertlinkbefore(&ntree->nodes, node_a, tmp);
 				}
@@ -345,7 +343,7 @@ static void node_update_basis(const bContext *C, bNodeTree *ntree, bNode *node)
 			if (node->prvr.ymax < node->prvr.ymin) SWAP(float, node->prvr.ymax, node->prvr.ymin);
 		}
 		else {
-			float oldh = node->prvr.ymax - node->prvr.ymin;
+			float oldh = BLI_rctf_size_y(&node->prvr);
 			if (oldh == 0.0f)
 				oldh = 0.6f * node->width - NODE_DY;
 			dy -= NODE_DYS / 2;
@@ -478,12 +476,12 @@ void node_update_default(const bContext *C, bNodeTree *ntree, bNode *node)
 
 int node_select_area_default(bNode *node, int x, int y)
 {
-	return BLI_in_rctf(&node->totr, x, y);
+	return BLI_rctf_isect_pt(&node->totr, x, y);
 }
 
 int node_tweak_area_default(bNode *node, int x, int y)
 {
-	return BLI_in_rctf(&node->totr, x, y);
+	return BLI_rctf_isect_pt(&node->totr, x, y);
 }
 
 int node_get_colorid(bNode *node)
@@ -586,9 +584,9 @@ void node_socket_circle_draw(bNodeTree *UNUSED(ntree), bNodeSocket *sock, float 
 /* not a callback */
 static void node_draw_preview(bNodePreview *preview, rctf *prv)
 {
-	float xscale = (prv->xmax - prv->xmin) / ((float)preview->xsize);
-	float yscale = (prv->ymax - prv->ymin) / ((float)preview->ysize);
-	float tile = (prv->xmax - prv->xmin) / 10.0f;
+	float xscale = BLI_rctf_size_x(prv) / ((float)preview->xsize);
+	float yscale = BLI_rctf_size_y(prv) / ((float)preview->ysize);
+	float tile   = BLI_rctf_size_x(prv) / 10.0f;
 	float x, y;
 	
 	/* draw checkerboard backdrop to show alpha */
@@ -857,8 +855,8 @@ static void node_draw_hidden(const bContext *C, ARegion *ar, SpaceNode *snode, b
 {
 	bNodeSocket *sock;
 	rctf *rct = &node->totr;
-	float dx, centy = 0.5f * (rct->ymax + rct->ymin);
-	float hiddenrad = 0.5f * (rct->ymax - rct->ymin);
+	float dx, centy = BLI_rctf_cent_y(rct);
+	float hiddenrad = BLI_rctf_size_y(rct) / 2.0f;
 	float socket_size = NODE_SOCKSIZE * U.dpi / 72;
 	int color_id = node_get_colorid(node);
 	char showname[128]; /* 128 is used below */
@@ -937,7 +935,7 @@ static void node_draw_hidden(const bContext *C, ARegion *ar, SpaceNode *snode, b
 
 		uiDefBut(node->block, LABEL, 0, showname,
 		         (int)(rct->xmin + (NODE_MARGIN_X / snode->aspect_sqrt)), (int)(centy - 10),
-		         (short)(rct->xmax - rct->xmin - 18.0f - 12.0f), (short)NODE_DY,
+		         (short)(BLI_rctf_size_x(rct) - 18.0f - 12.0f), (short)NODE_DY,
 		         NULL, 0, 0, 0, 0, "");
 	}	
 
@@ -1001,7 +999,7 @@ void node_set_cursor(wmWindow *win, SpaceNode *snode)
 		else {
 			/* check nodes front to back */
 			for (node = ntree->nodes.last; node; node = node->prev) {
-				if (BLI_in_rctf(&node->totr, snode->cursor[0], snode->cursor[1]))
+				if (BLI_rctf_isect_pt(&node->totr, snode->cursor[0], snode->cursor[1]))
 					break;  /* first hit on node stops */
 			}
 			if (node) {
@@ -1103,8 +1101,6 @@ void drawnodespace(const bContext *C, ARegion *ar, View2D *v2d)
 {
 	View2DScrollers *scrollers;
 	SpaceNode *snode = CTX_wm_space_node(C);
-	Scene *scene = CTX_data_scene(C);
-	int color_manage = scene->r.color_mgt_flag & R_COLOR_MANAGEMENT;
 	bNodeLinkDrag *nldrag;
 	LinkData *linkdata;
 	
@@ -1121,7 +1117,7 @@ void drawnodespace(const bContext *C, ARegion *ar, View2D *v2d)
 	glEnable(GL_MAP1_VERTEX_3);
 
 	/* aspect+font, set each time */
-	snode->aspect = BLI_RCT_SIZE_X(&v2d->cur) / (float)ar->winx;
+	snode->aspect = BLI_rctf_size_x(&v2d->cur) / (float)ar->winx;
 	snode->aspect_sqrt = sqrtf(snode->aspect);
 	// XXX snode->curfont= uiSetCurFont_ext(snode->aspect);
 
@@ -1129,7 +1125,7 @@ void drawnodespace(const bContext *C, ARegion *ar, View2D *v2d)
 	UI_view2d_multi_grid_draw(v2d, 25.0f, 5, 2);
 
 	/* backdrop */
-	draw_nodespace_back_pix(ar, snode, color_manage);
+	draw_nodespace_back_pix(C, ar, snode);
 	
 	/* nodes */
 	snode_set_context(snode, CTX_data_scene(C));

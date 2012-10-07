@@ -92,7 +92,7 @@ void BL_SwapBuffers(wmWindow *win)
 	wm_window_swap_buffers(win);
 }
 
-void DisableForText()
+static void DisableForText()
 {
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); /* needed for texture fonts otherwise they render as wireframe */
 
@@ -154,7 +154,7 @@ void BL_print_game_line(int fontid, const char* text, int size, int dpi, float* 
 }
 
 void BL_print_gamedebug_line(const char* text, int xco, int yco, int width, int height)
-{	
+{
 	/* gl prepping */
 	DisableForText();
 	glDisable(GL_DEPTH_TEST);

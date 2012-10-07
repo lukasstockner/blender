@@ -33,8 +33,6 @@
 #include <string.h>
 #include "BLI_path_util.h"
 
-#include "BKE_utildefines.h"
-
 #include "node_composite_util.h"
 
 #include "IMB_imbuf.h"
@@ -166,7 +164,7 @@ void ntreeCompositOutputFileSetLayer(bNode *node, bNodeSocket *sock, const char 
 	ntreeCompositOutputFileUniqueLayer(&node->inputs, sock, name, '_');
 }
 
-static void init_output_file(bNodeTree *ntree, bNode* node, bNodeTemplate *ntemp)
+static void init_output_file(bNodeTree *ntree, bNode *node, bNodeTemplate *ntemp)
 {
 	NodeImageMultiFile *nimf= MEM_callocN(sizeof(NodeImageMultiFile), "node image multi file");
 	ImageFormatData *format = NULL;
@@ -268,9 +266,6 @@ static void exec_output_file_singlelayer(RenderData *rd, bNode *node, bNodeStack
 			}
 			ibuf->rect_float = cbuf->rect;
 			ibuf->dither = rd->dither_intensity;
-			
-			if (rd->color_mgt_flag & R_COLOR_MANAGEMENT)
-				ibuf->profile = IB_PROFILE_LINEAR_RGB;
 			
 			/* get full path */
 			BLI_join_dirfile(path, FILE_MAX, nimf->base_path, sockdata->path);

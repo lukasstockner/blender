@@ -258,10 +258,12 @@ void restrictbutton_gr_restrict_flag(void *poin, void *poin2, int flag)
 			/* not in editmode */
 			if (scene->obedit != gob->ob) {
 				gob->ob->restrictflag |= flag;
-				
-				if (flag == OB_RESTRICT_VIEW)
-					if ((gob->ob->flag & SELECT) == 0)
-						ED_base_object_select(BKE_scene_base_find(scene, gob->ob), BA_SELECT);
+
+				if (ELEM(flag, OB_RESTRICT_SELECT, OB_RESTRICT_VIEW)) {
+					if ((gob->ob->flag & SELECT)) {
+						ED_base_object_select(BKE_scene_base_find(scene, gob->ob), BA_DESELECT);
+					}
+				}
 			}
 		}
 	}
@@ -1281,8 +1283,8 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 		 *	we don't expand items when searching in the datablocks but we 
 		 *	still want to highlight any filter matches. 
 		 */
-		if ( (SEARCHING_OUTLINER(soops) || (soops->outlinevis == SO_DATABLOCKS && soops->search_string[0] != 0)) &&
-		     (tselem->flag & TSE_SEARCHMATCH))
+		if ((SEARCHING_OUTLINER(soops) || (soops->outlinevis == SO_DATABLOCKS && soops->search_string[0] != 0)) &&
+		    (tselem->flag & TSE_SEARCHMATCH))
 		{
 			char col[4];
 			UI_GetThemeColorType4ubv(TH_MATCH, SPACE_OUTLINER, col);

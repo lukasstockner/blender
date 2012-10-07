@@ -115,8 +115,8 @@ void wm_subwindow_getsize(wmWindow *win, int swinid, int *x, int *y)
 	wmSubWindow *swin = swin_from_swinid(win, swinid);
 
 	if (swin) {
-		*x = BLI_RCT_SIZE_X(&swin->winrct) + 1;
-		*y = BLI_RCT_SIZE_Y(&swin->winrct) + 1;
+		*x = BLI_rcti_size_x(&swin->winrct) + 1;
+		*y = BLI_rcti_size_y(&swin->winrct) + 1;
 	}
 }
 
@@ -260,16 +260,16 @@ void wmSubWindowScissorSet(wmWindow *win, int swinid, rcti *srct)
 
 	x      = _curswin->winrct.xmin;
 	y      = _curswin->winrct.ymin;
-	width  = _curswin->winrct.xmax - _curswin->winrct.xmin + 1;
-	height = _curswin->winrct.ymax - _curswin->winrct.ymin + 1;
+	width  = BLI_rcti_size_x(&_curswin->winrct) + 1;
+	height = BLI_rcti_size_y(&_curswin->winrct) + 1;
 
 	gpuViewport(x, y, width, height);
 
 	if (srct) {
 		x      = srct->xmin;
 		y      = srct->ymin;
-		width  = srct->xmax - srct->xmin + 1;
-		height = srct->ymax - srct->ymin + 1;
+		width  = BLI_rcti_size_x(srct) + 1;
+		height = BLI_rcti_size_y(srct) + 1;
 	}
 
 	gpuScissor(x, y, width, height);

@@ -502,7 +502,7 @@ static int rna_PartSettings_is_fluid_get(PointerRNA *ptr)
 	return part->type == PART_FLUID;
 }
 
-void rna_ParticleSystem_name_set(PointerRNA *ptr, const char *value)
+static void rna_ParticleSystem_name_set(PointerRNA *ptr, const char *value)
 {
 	Object *ob = ptr->id.data;
 	ParticleSystem *part = (ParticleSystem *)ptr->data;
@@ -1844,6 +1844,11 @@ static void rna_def_particle_settings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Rotation",
 	                         "Use object's rotation for duplication (global x-axis is aligned "
 	                         "particle rotation axis)");
+	RNA_def_property_update(prop, 0, "rna_Particle_redo");
+
+	prop = RNA_def_property(srna, "use_scale_dupli", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "draw", PART_DRAW_NO_SCALE_OB);
+	RNA_def_property_ui_text(prop, "Scale", "Use object's scale for duplication");
 	RNA_def_property_update(prop, 0, "rna_Particle_redo");
 
 	prop = RNA_def_property(srna, "use_render_adaptive", PROP_BOOLEAN, PROP_NONE);

@@ -421,10 +421,11 @@ static int node_group_ungroup(bNodeTree *ntree, bNode *gnode)
 		node->new_node = NULL;
 
 	/* wgroup is a temporary copy of the NodeTree we're merging in
-	 *	- all of wgroup's nodes are transferred across to their new home
-	 *	- ngroup (i.e. the source NodeTree) is left unscathed
+	 * - all of wgroup's nodes are transferred across to their new home
+	 * - ngroup (i.e. the source NodeTree) is left unscathed
+	 * - temp copy. don't change ID usercount
 	 */
-	wgroup = ntreeCopyTree(ngroup);
+	wgroup = ntreeCopyTree_ex(ngroup, FALSE);
 
 	/* add the nodes into the ntree */
 	for (node = wgroup->nodes.first; node; node = nextn) {
@@ -949,7 +950,7 @@ static int node_group_make_insert_selected(bNodeTree *ntree, bNode *gnode)
 		int toselect = (link->tonode && (link->tonode->flag & NODE_SELECT) && link->tonode != gnode);
 		linkn = link->next;
 
-		if (gnode && ((fromselect && link->tonode == gnode) || (toselect && link->fromnode == gnode))) {
+		if ((fromselect && link->tonode == gnode) || (toselect && link->fromnode == gnode)) {
 			/* remove all links to/from the gnode.
 			 * this can remove link information, but there's no general way to preserve it.
 			 */

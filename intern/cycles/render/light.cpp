@@ -67,13 +67,19 @@ static void dump_background_pixels(Device *device, DeviceScene *dscene, int res,
 	main_task.shader_x = 0;
 	main_task.shader_w = width*height;
 
+	/* disabled splitting for now, there's an issue with multi-GPU mem_copy_from */
+#if 0
 	list<DeviceTask> split_tasks;
-	main_task.split_max_size(split_tasks, 128*128);
+	main_task.split_max_size(split_tasks, 128*128); 
 
 	foreach(DeviceTask& task, split_tasks) {
 		device->task_add(task);
 		device->task_wait();
 	}
+#else
+	device->task_add(main_task);
+	device->task_wait();
+#endif
 
 	device->mem_copy_from(d_output, 0, 1, d_output.size(), sizeof(float4));
 	device->mem_free(d_input);
@@ -289,8 +295,14 @@ void LightManager::device_update_distribution(Device *device, DeviceScene *dscen
 		/* CDF */
 		device->tex_alloc("__light_distribution", dscene->light_distribution);
 	}
-	else
+	else {
 		dscene->light_distribution.clear();
+
+		kintegrator->num_distribution = 0;
+		kintegrator->num_all_lights = 0;
+		kintegrator->pdf_triangles = 0.0f;
+		kintegrator->pdf_lights = 0.0f;
+	}
 }
 
 void LightManager::device_update_background(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress)

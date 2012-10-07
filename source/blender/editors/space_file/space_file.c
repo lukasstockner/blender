@@ -252,7 +252,7 @@ static void file_refresh(const bContext *C, ScrArea *UNUSED(sa))
 
 static void file_listener(ScrArea *sa, wmNotifier *wmn)
 {
-	/* SpaceFile* sfile = (SpaceFile*)sa->spacedata.first; */
+	/* SpaceFile *sfile = (SpaceFile *)sa->spacedata.first; */
 
 	/* context changes */
 	switch (wmn->category) {
@@ -284,8 +284,6 @@ static void file_main_area_init(wmWindowManager *wm, ARegion *ar)
 
 	keymap = WM_keymap_find(wm->defaultconf, "File Browser Main", SPACE_FILE, 0);
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
-							   
-
 }
 
 static void file_main_area_listener(ARegion *ar, wmNotifier *wmn)
@@ -387,6 +385,7 @@ static void file_operatortypes(void)
 	WM_operatortype_append(FILE_OT_bookmark_toggle);
 	WM_operatortype_append(FILE_OT_bookmark_add);
 	WM_operatortype_append(FILE_OT_delete_bookmark);
+	WM_operatortype_append(FILE_OT_reset_recent);
 	WM_operatortype_append(FILE_OT_hidedot);
 	WM_operatortype_append(FILE_OT_filenum);
 	WM_operatortype_append(FILE_OT_directory_new);
@@ -417,12 +416,26 @@ static void file_keymap(struct wmKeyConfig *keyconf)
 	keymap = WM_keymap_find(keyconf, "File Browser Main", SPACE_FILE, 0);
 	kmi = WM_keymap_add_item(keymap, "FILE_OT_execute", LEFTMOUSE, KM_DBL_CLICK, 0, 0);
 	RNA_boolean_set(kmi->ptr, "need_active", TRUE);
+
+	/* left mouse selects and opens */
 	WM_keymap_add_item(keymap, "FILE_OT_select", LEFTMOUSE, KM_CLICK, 0, 0);
 	kmi = WM_keymap_add_item(keymap, "FILE_OT_select", LEFTMOUSE, KM_CLICK, KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "extend", TRUE);
 	kmi = WM_keymap_add_item(keymap, "FILE_OT_select", LEFTMOUSE, KM_CLICK, KM_ALT, 0);
 	RNA_boolean_set(kmi->ptr, "extend", TRUE);
 	RNA_boolean_set(kmi->ptr, "fill", TRUE);
+
+	/* right mouse selects without opening */
+	kmi = WM_keymap_add_item(keymap, "FILE_OT_select", RIGHTMOUSE, KM_CLICK, 0, 0);
+	RNA_boolean_set(kmi->ptr, "open", FALSE);
+	kmi = WM_keymap_add_item(keymap, "FILE_OT_select", RIGHTMOUSE, KM_CLICK, KM_SHIFT, 0);
+	RNA_boolean_set(kmi->ptr, "extend", TRUE);
+	RNA_boolean_set(kmi->ptr, "open", FALSE);
+	kmi = WM_keymap_add_item(keymap, "FILE_OT_select", RIGHTMOUSE, KM_CLICK, KM_ALT, 0);
+	RNA_boolean_set(kmi->ptr, "extend", TRUE);
+	RNA_boolean_set(kmi->ptr, "fill", TRUE);
+	RNA_boolean_set(kmi->ptr, "open", FALSE);
+
 	WM_keymap_add_item(keymap, "FILE_OT_select_all_toggle", AKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "FILE_OT_refresh", PADPERIOD, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "FILE_OT_select_border", BKEY, KM_PRESS, 0, 0);
@@ -523,7 +536,7 @@ static void file_ui_area_draw(const bContext *C, ARegion *ar)
 	gpuColorAndClearvf(col, 0.0);
 
 	/* scrolling here is just annoying, disable it */
-	ar->v2d.cur.ymax = BLI_RCT_SIZE_Y(&ar->v2d.cur);
+	ar->v2d.cur.ymax = BLI_rctf_size_y(&ar->v2d.cur);
 	ar->v2d.cur.ymin = 0;
 
 	/* set view2d view matrix for scrolling (without scrollers) */

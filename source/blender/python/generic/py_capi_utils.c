@@ -402,6 +402,15 @@ const char *PyC_UnicodeAsByte(PyObject *py_str, PyObject **coerce)
 		if (PyBytes_Check(py_str)) {
 			return PyBytes_AS_STRING(py_str);
 		}
+#ifdef WIN32
+		/* bug [#31856] oddly enough, Python3.2 --> 3.3 on Windows will throw an
+		 * exception here this needs to be fixed in python:
+		 * see: bugs.python.org/issue15859 */
+		else if (!PyUnicode_Check(py_str)) {
+			PyErr_BadArgument();
+			return NULL;
+		}
+#endif
 		else if ((*coerce = PyUnicode_EncodeFSDefault(py_str))) {
 			return PyBytes_AS_STRING(*coerce);
 		}
@@ -441,7 +450,7 @@ PyObject *PyC_UnicodeFromByte(const char *str)
  * >> foo = 10
  * >> print(__import__("__main__").foo)
  *
- * note: this overwrites __main__ which gives problems with nested calles.
+ * note: this overwrites __main__ which gives problems with nested calls.
  * be sure to run PyC_MainModule_Backup & PyC_MainModule_Restore if there is
  * any chance that python is in the call stack.
  ****************************************************************************/
@@ -523,7 +532,9 @@ void PyC_SetHomePath(const char *py_path_bundle)
 	}
 }
 
-/* Would be nice if python had this built in */
+/* Would be nice if python had this built in
+ * See: http://wiki.blender.org/index.php/Dev:Doc/Tools/Debugging/PyFromC
+ */
 void PyC_RunQuicky(const char *filepath, int n, ...)
 {
 	FILE *fp = fopen(filepath, "r");
@@ -749,7 +760,6 @@ int PyC_FlagSet_ValueFromID(PyC_FlagSet *item, const char *identifier, int *valu
 	return 0;
 }
 
-/* 'value' _must_ be a set type, error check before calling */
 int PyC_FlagSet_ToBitfield(PyC_FlagSet *items, PyObject *value, int *r_value, const char *error_prefix)
 {
 	/* set of enum items, concatenate all values with OR */
@@ -760,6 +770,13 @@ int PyC_FlagSet_ToBitfield(PyC_FlagSet *items, PyObject *value, int *r_value, co
 	Py_ssize_t hash = 0;
 	PyObject *key;
 
+	if (!PySet_Check(value)) {
+		PyErr_Format(PyExc_TypeError,
+		             "%.200s expected a set, not %.200s",
+		             error_prefix, Py_TYPE(value)->tp_name);
+		return -1;
+	}
+
 	*r_value = 0;
 
 	while (_PySet_NextEntry(value, &pos, &key, &hash)) {
@@ -767,7 +784,7 @@ int PyC_FlagSet_ToBitfield(PyC_FlagSet *items, PyObject *value, int *r_value, co
 
 		if (param == NULL) {
 			PyErr_Format(PyExc_TypeError,
-			             "%.200s expected a string, not %.200s",
+			             "%.200s set must contain strings, not %.200s",
 			             error_prefix, Py_TYPE(key)->tp_name);
 			return -1;
 		}

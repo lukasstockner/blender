@@ -59,6 +59,7 @@
 #include "BKE_modifier.h"
 #include "BKE_mesh.h"
 #include "BKE_object.h"
+#include "BKE_object_deform.h"
 #include "BKE_paint.h"
 #include "BKE_texture.h"
 #include "BKE_multires.h"
@@ -382,7 +383,7 @@ void DM_ensure_tessface(DerivedMesh *dm)
 		}
 	}
 
-	else if (dm->dirty && DM_DIRTY_TESS_CDLAYERS) {
+	else if (dm->dirty & DM_DIRTY_TESS_CDLAYERS) {
 		BLI_assert(CustomData_has_layer(&dm->faceData, CD_POLYINDEX));
 		DM_update_tessface_data(dm);
 	}
@@ -540,7 +541,7 @@ void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob)
 	CustomData_free(&me->pdata, me->totpoly);
 
 	/* ok, this should now use new CD shapekey data,
-	 * which shouuld be fed through the modifier
+	 * which should be fed through the modifier
 	 * stack*/
 	if (tmp.totvert != me->totvert && !did_shapekeys && me->key) {
 		printf("%s: YEEK! this should be recoded! Shape key loss!: ID '%s'\n", __func__, tmp.id.name);
@@ -576,6 +577,13 @@ void DM_set_only_copy(DerivedMesh *dm, CustomDataMask mask)
 	CustomData_set_only_copy(&dm->vertData, mask);
 	CustomData_set_only_copy(&dm->edgeData, mask);
 	CustomData_set_only_copy(&dm->faceData, mask);
+	/* this wasn't in 2.63 and is disabled for 2.64 because it gives problems with
+	 * weight paint mode when there are modifiers applied, needs further investigation,
+	 * see replies to r50969, Campbell */
+#if 0
+	CustomData_set_only_copy(&dm->loopData, mask);
+	CustomData_set_only_copy(&dm->polyData, mask);
+#endif
 }
 
 void DM_add_vert_layer(DerivedMesh *dm, int type, int alloctype, void *layer)
@@ -806,7 +814,7 @@ DerivedMesh *mesh_create_derived_for_modifier(Scene *scene, Object *ob,
 	if (mti->isDisabled && mti->isDisabled(md, 0)) return NULL;
 	
 	if (build_shapekey_layers && me->key && (kb = BLI_findlink(&me->key->block, ob->shapenr - 1))) {
-		key_to_mesh(kb, me);
+		BKE_key_convert_to_mesh(kb, me);
 	}
 	
 	if (mti->type == eModifierTypeType_OnlyDeform) {
@@ -876,7 +884,7 @@ static void *get_orco_coords_dm(Object *ob, BMEditMesh *em, int layer, int *free
 		 * by a more flexible customdata system, but not simple */
 		if (!em) {
 			ClothModifierData *clmd = (ClothModifierData *)modifiers_findByType(ob, eModifierType_Cloth);
-			KeyBlock *kb = key_get_keyblock(ob_get_key(ob), clmd->sim_parms->shapekey_rest);
+			KeyBlock *kb = BKE_keyblock_from_key(BKE_key_from_object(ob), clmd->sim_parms->shapekey_rest);
 
 			if (kb->data)
 				return kb->data;
@@ -1014,14 +1022,14 @@ static void calc_weightpaint_vert_color(
         unsigned char r_col[4],
         MDeformVert *dv, ColorBand *coba,
         const int defbase_tot, const int defbase_act,
-        const char *dg_flags,
-        const int selected, const int draw_flag)
+        const char *defbase_sel, const int defbase_sel_tot,
+        const int draw_flag)
 {
 	float input = 0.0f;
 	
 	int make_black = FALSE;
 
-	if ((selected > 1) && (draw_flag & CALC_WP_MULTIPAINT)) {
+	if ((defbase_sel_tot > 1) && (draw_flag & CALC_WP_MULTIPAINT)) {
 		int was_a_nonzero = FALSE;
 		unsigned int i;
 
@@ -1030,7 +1038,7 @@ static void calc_weightpaint_vert_color(
 			/* in multipaint, get the average if auto normalize is inactive
 			 * get the sum if it is active */
 			if (dw->def_nr < defbase_tot) {
-				if (dg_flags[dw->def_nr]) {
+				if (defbase_sel[dw->def_nr]) {
 					if (dw->weight) {
 						input += dw->weight;
 						was_a_nonzero = TRUE;
@@ -1044,7 +1052,7 @@ static void calc_weightpaint_vert_color(
 			make_black = TRUE;
 		}
 		else if ((draw_flag & CALC_WP_AUTO_NORMALIZE) == FALSE) {
-			input /= selected; /* get the average */
+			input /= defbase_sel_tot; /* get the average */
 		}
 	}
 	else {
@@ -1089,14 +1097,21 @@ static unsigned char *calc_weightpaint_vert_array(Object *ob, DerivedMesh *dm, i
 		/* variables for multipaint */
 		const int defbase_tot = BLI_countlist(&ob->defbase);
 		const int defbase_act = ob->actdef - 1;
-		char *dg_flags = MEM_mallocN(defbase_tot * sizeof(char), __func__);
-		const int selected = get_selected_defgroups(ob, dg_flags, defbase_tot);
 
-		for (i = numVerts; i != 0; i--, wc += 4, dv++) {
-			calc_weightpaint_vert_color(wc, dv, coba, defbase_tot, defbase_act, dg_flags, selected, draw_flag);
+		int defbase_sel_tot = 0;
+		char *defbase_sel = NULL;
+
+		if (draw_flag & CALC_WP_MULTIPAINT) {
+			defbase_sel = BKE_objdef_selected_get(ob, defbase_tot, &defbase_sel_tot);
 		}
 
-		MEM_freeN(dg_flags);
+		for (i = numVerts; i != 0; i--, wc += 4, dv++) {
+			calc_weightpaint_vert_color(wc, dv, coba, defbase_tot, defbase_act, defbase_sel, defbase_sel_tot, draw_flag);
+		}
+
+		if (defbase_sel) {
+			MEM_freeN(defbase_sel);
+		}
 	}
 	else {
 		int col_i;
@@ -1267,7 +1282,7 @@ static void shapekey_layers_to_keyblocks(DerivedMesh *dm, Mesh *me, int actshape
 		}
 		
 		if (!kb) {
-			kb = add_keyblock(me->key, layer->name);
+			kb = BKE_keyblock_add(me->key, layer->name);
 			kb->uid = layer->uid;
 		}
 		
@@ -1792,7 +1807,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 		{
 			finaldm->recalcTessellation(finaldm);
 		}
-		/* Even if tessellation is not needed, some modifiers migh have modified CD layers
+		/* Even if tessellation is not needed, some modifiers might have modified CD layers
 		 * (like mloopcol or mloopuv), hence we have to update those. */
 		else if (finaldm->dirty & DM_DIRTY_TESS_CDLAYERS) {
 			/* A tessellation already exists, it should always have a CD_POLYINDEX. */
@@ -2072,7 +2087,7 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 	if ((*final_r)->type != DM_TYPE_EDITBMESH) {
 		DM_ensure_tessface(*final_r);
 	}
-	if (cage_r) {
+	if (cage_r && *cage_r) {
 		if ((*cage_r)->type != DM_TYPE_EDITBMESH) {
 			if (*cage_r != *final_r) {
 				DM_ensure_tessface(*cage_r);
@@ -3184,6 +3199,27 @@ void DM_debug_print(DerivedMesh *dm)
 	puts(str);
 	fflush(stdout);
 	MEM_freeN(str);
+}
+
+void DM_debug_print_cdlayers(CustomData *data)
+{
+	int i;
+	CustomDataLayer *layer;
+
+	printf("{\n");
+
+	for (i = 0, layer = data->layers; i < data->totlayer; i++, layer++) {
+
+		const char *name = CustomData_layertype_name(layer->type);
+		const int size = CustomData_sizeof(layer->type);
+		const char *structname;
+		int structnum;
+		CustomData_file_write_info(layer->type, &structname, &structnum);
+		printf("        dict(name='%s', struct='%s', type=%d, ptr='%p', elem=%d, length=%d),\n",
+		       name, structname, layer->type, (void *)layer->data, size, (int)(MEM_allocN_len(layer->data) / size));
+	}
+
+	printf("}\n");
 }
 
 #endif /* NDEBUG */

@@ -45,7 +45,6 @@
 #include "BKE_main.h"
 #include "BLI_math.h"
 #include "BKE_node.h"
-#include "BKE_utildefines.h"
 
 #include "RNA_access.h"
 #include "RNA_types.h"
@@ -224,13 +223,13 @@ bNodeTemplate node_group_template(bNode *node)
 {
 	bNodeTemplate ntemp;
 	ntemp.type = NODE_GROUP;
-	ntemp.ngroup = (bNodeTree*)node->id;
+	ntemp.ngroup = (bNodeTree *)node->id;
 	return ntemp;
 }
 
 void node_group_init(bNodeTree *ntree, bNode *node, bNodeTemplate *ntemp)
 {
-	node->id = (ID*)ntemp->ngroup;
+	node->id = (ID *)ntemp->ngroup;
 	
 	/* NB: group socket input/output roles are inverted internally!
 	 * Group "inputs" work as outputs in links and vice versa.
@@ -350,7 +349,7 @@ void node_group_edit_clear(bNode *node)
 			nodeGroupEditClear(inode);
 }
 
-void node_group_link(bNodeTree *ntree, bNodeSocket *sock, int in_out)
+static void UNUSED_FUNCTION(node_group_link)(bNodeTree *ntree, bNodeSocket *sock, int in_out)
 {
 	node_group_expose_socket(ntree, sock, in_out);
 }
@@ -571,7 +570,7 @@ static ListBase node_reroute_internal_connect(bNodeTree *ntree, bNode *node)
 	return ret;
 }
 
-static void node_reroute_init(bNodeTree *ntree, bNode* node, bNodeTemplate *UNUSED(ntemp))
+static void node_reroute_init(bNodeTree *ntree, bNode *node, bNodeTemplate *UNUSED(ntemp))
 {
 	/* Note: Cannot use socket templates for this, since it would reset the socket type
 	 * on each file read via the template verification procedure.
@@ -650,4 +649,16 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
 	for (node = ntree->nodes.first; node; node = node->next)
 		if (node->type == NODE_REROUTE && !node->done)
 			node_reroute_inherit_type_recursive(ntree, node);
+}
+
+void BKE_node_tree_unlink_id_cb(void *calldata, struct ID *UNUSED(owner_id), struct bNodeTree *ntree)
+{
+	ID *id = (ID *)calldata;
+	bNode *node;
+
+	for (node = ntree->nodes.first; node; node = node->next) {
+		if (node->id == id) {
+			node->id = NULL;
+		}
+	}
 }

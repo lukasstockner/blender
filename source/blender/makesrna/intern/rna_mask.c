@@ -193,7 +193,7 @@ static void rna_MaskLayer_splines_begin(CollectionPropertyIterator *iter, Pointe
 	rna_iterator_listbase_begin(iter, &masklay->splines, NULL);
 }
 
-void rna_MaskLayer_name_set(PointerRNA *ptr, const char *value)
+static void rna_MaskLayer_name_set(PointerRNA *ptr, const char *value)
 {
 	Mask *mask = (Mask *)ptr->id.data;
 	MaskLayer *masklay = (MaskLayer *)ptr->data;
@@ -315,7 +315,7 @@ static MaskLayer *rna_Mask_layers_new(Mask *mask, const char *name)
 	return masklay;
 }
 
-void rna_Mask_layers_remove(Mask *mask, ReportList *reports, MaskLayer *masklay)
+static void rna_Mask_layers_remove(Mask *mask, ReportList *reports, MaskLayer *masklay)
 {
 	if (BLI_findindex(&mask->masklayers, masklay) == -1) {
 		BKE_reportf(reports, RPT_ERROR, "MaskLayer '%s' not found in mask '%s'", masklay->name, mask->id.name + 2);
@@ -540,6 +540,12 @@ static void rna_def_maskSpline(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem spline_offset_mode_items[] = {
+		{MASK_SPLINE_OFFSET_EVEN, "EVEN", 0, "Even", "Calculate even feather offset"},
+		{MASK_SPLINE_OFFSET_SMOOTH, "SMOOTH", 0, "Smooth", "Calculate feather offset as a second curve"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	StructRNA *srna;
 	PropertyRNA *prop;
 
@@ -547,6 +553,13 @@ static void rna_def_maskSpline(BlenderRNA *brna)
 
 	srna = RNA_def_struct(brna, "MaskSpline", NULL);
 	RNA_def_struct_ui_text(srna, "Mask spline", "Single spline used for defining mask shape");
+
+	/* offset mode */
+	prop = RNA_def_property(srna, "offset_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "offset_mode");
+	RNA_def_property_enum_items(prop, spline_offset_mode_items);
+	RNA_def_property_ui_text(prop, "Feather Offset", "The method used for calculating the feather offset");
+	RNA_def_property_update(prop, 0, "rna_Mask_update_data");
 
 	/* weight interpolation */
 	prop = RNA_def_property(srna, "weight_interpolation", PROP_ENUM, PROP_NONE);
@@ -580,7 +593,8 @@ static void rna_def_maskSpline(BlenderRNA *brna)
 static void rna_def_mask_layer(BlenderRNA *brna)
 {
 	static EnumPropertyItem masklay_blend_mode_items[] = {
-		{MASK_BLEND_MERGE, "MERGE", 0, "Merge", ""},
+		{MASK_BLEND_MERGE_ADD, "MERGE_ADD", 0, "Merge Add", ""},
+		{MASK_BLEND_MERGE_SUBTRACT, "MERGE_SUBTRACT", 0, "Merge Subtract", ""},
 		{MASK_BLEND_ADD, "ADD", 0, "Add", ""},
 		{MASK_BLEND_SUBTRACT, "SUBTRACT", 0, "Subtract", ""},
 		{MASK_BLEND_LIGHTEN, "LIGHTEN", 0, "Lighten", ""},

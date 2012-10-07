@@ -43,7 +43,6 @@
 
 #include "BKE_colortools.h"
 #include "BKE_sequencer.h"
-#include "BKE_utildefines.h"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
@@ -141,7 +140,7 @@ static void modifier_apply_threaded(ImBuf *ibuf, ImBuf *mask, modifier_apply_thr
 
 /* **** Color Balance Modifier **** */
 
-void colorBalance_init_data(SequenceModifierData *smd)
+static void colorBalance_init_data(SequenceModifierData *smd)
 {
 	ColorBalanceModifierData *cbmd = (ColorBalanceModifierData *) smd;
 	int c;
@@ -155,14 +154,11 @@ void colorBalance_init_data(SequenceModifierData *smd)
 	}
 }
 
-ImBuf *colorBalance_apply(SequenceModifierData *smd, ImBuf *ibuf, ImBuf *mask)
+static void colorBalance_apply(SequenceModifierData *smd, ImBuf *ibuf, ImBuf *mask)
 {
 	ColorBalanceModifierData *cbmd = (ColorBalanceModifierData *) smd;
-	ImBuf *ibuf_new = IMB_dupImBuf(ibuf);
 
-	BKE_sequencer_color_balance_apply(&cbmd->color_balance, ibuf_new, cbmd->color_multiply, FALSE, mask);
-
-	return ibuf_new;
+	BKE_sequencer_color_balance_apply(&cbmd->color_balance, ibuf, cbmd->color_multiply, FALSE, mask);
 }
 
 static SequenceModifierTypeInfo seqModifier_ColorBalance = {
@@ -177,21 +173,21 @@ static SequenceModifierTypeInfo seqModifier_ColorBalance = {
 
 /* **** Curves Modifier **** */
 
-void curves_init_data(SequenceModifierData *smd)
+static void curves_init_data(SequenceModifierData *smd)
 {
 	CurvesModifierData *cmd = (CurvesModifierData *) smd;
 
 	curvemapping_set_defaults(&cmd->curve_mapping, 4, 0.0f, 0.0f, 1.0f, 1.0f);
 }
 
-void curves_free_data(SequenceModifierData *smd)
+static void curves_free_data(SequenceModifierData *smd)
 {
 	CurvesModifierData *cmd = (CurvesModifierData *) smd;
 
 	curvemapping_free_data(&cmd->curve_mapping);
 }
 
-void curves_copy_data(SequenceModifierData *target, SequenceModifierData *smd)
+static void curves_copy_data(SequenceModifierData *target, SequenceModifierData *smd)
 {
 	CurvesModifierData *cmd = (CurvesModifierData *) smd;
 	CurvesModifierData *cmd_target = (CurvesModifierData *) target;
@@ -199,8 +195,8 @@ void curves_copy_data(SequenceModifierData *target, SequenceModifierData *smd)
 	curvemapping_copy_data(&cmd_target->curve_mapping, &cmd->curve_mapping);
 }
 
-void curves_apply_threaded(int width, int height, unsigned char *rect, float *rect_float,
-                           unsigned char *mask_rect, float *mask_rect_float, void *data_v)
+static void curves_apply_threaded(int width, int height, unsigned char *rect, float *rect_float,
+                                  unsigned char *mask_rect, float *mask_rect_float, void *data_v)
 {
 	CurveMapping *curve_mapping = (CurveMapping *) data_v;
 	int x, y;
@@ -253,10 +249,9 @@ void curves_apply_threaded(int width, int height, unsigned char *rect, float *re
 	}
 }
 
-ImBuf *curves_apply(struct SequenceModifierData *smd, ImBuf *ibuf, ImBuf *mask)
+static void curves_apply(struct SequenceModifierData *smd, ImBuf *ibuf, ImBuf *mask)
 {
 	CurvesModifierData *cmd = (CurvesModifierData *) smd;
-	ImBuf *ibuf_new = IMB_dupImBuf(ibuf);
 
 	float black[3] = {0.0f, 0.0f, 0.0f};
 	float white[3] = {1.0f, 1.0f, 1.0f};
@@ -266,11 +261,9 @@ ImBuf *curves_apply(struct SequenceModifierData *smd, ImBuf *ibuf, ImBuf *mask)
 	curvemapping_premultiply(&cmd->curve_mapping, 0);
 	curvemapping_set_black_white(&cmd->curve_mapping, black, white);
 
-	modifier_apply_threaded(ibuf_new, mask, curves_apply_threaded, &cmd->curve_mapping);
+	modifier_apply_threaded(ibuf, mask, curves_apply_threaded, &cmd->curve_mapping);
 
 	curvemapping_premultiply(&cmd->curve_mapping, 1);
-
-	return ibuf_new;
 }
 
 static SequenceModifierTypeInfo seqModifier_Curves = {
@@ -285,7 +278,7 @@ static SequenceModifierTypeInfo seqModifier_Curves = {
 
 /* **** Hue Correct Modifier **** */
 
-void hue_correct_init_data(SequenceModifierData *smd)
+static void hue_correct_init_data(SequenceModifierData *smd)
 {
 	HueCorrectModifierData *hcmd = (HueCorrectModifierData *) smd;
 	int c;
@@ -303,14 +296,14 @@ void hue_correct_init_data(SequenceModifierData *smd)
 	hcmd->curve_mapping.cur = 1;
 }
 
-void hue_correct_free_data(SequenceModifierData *smd)
+static void hue_correct_free_data(SequenceModifierData *smd)
 {
 	HueCorrectModifierData *hcmd = (HueCorrectModifierData *) smd;
 
 	curvemapping_free_data(&hcmd->curve_mapping);
 }
 
-void hue_correct_copy_data(SequenceModifierData *target, SequenceModifierData *smd)
+static void hue_correct_copy_data(SequenceModifierData *target, SequenceModifierData *smd)
 {
 	HueCorrectModifierData *hcmd = (HueCorrectModifierData *) smd;
 	HueCorrectModifierData *hcmd_target = (HueCorrectModifierData *) target;
@@ -318,7 +311,7 @@ void hue_correct_copy_data(SequenceModifierData *target, SequenceModifierData *s
 	curvemapping_copy_data(&hcmd_target->curve_mapping, &hcmd->curve_mapping);
 }
 
-void hue_correct_apply_threaded(int width, int height, unsigned char *rect, float *rect_float,
+static void hue_correct_apply_threaded(int width, int height, unsigned char *rect, float *rect_float,
                                 unsigned char *mask_rect, float *mask_rect_float, void *data_v)
 {
 	CurveMapping *curve_mapping = (CurveMapping *) data_v;
@@ -372,16 +365,13 @@ void hue_correct_apply_threaded(int width, int height, unsigned char *rect, floa
 	}
 }
 
-ImBuf *hue_correct_apply(struct SequenceModifierData *smd, ImBuf *ibuf, ImBuf *mask)
+static void hue_correct_apply(struct SequenceModifierData *smd, ImBuf *ibuf, ImBuf *mask)
 {
 	HueCorrectModifierData *hcmd = (HueCorrectModifierData *) smd;
-	ImBuf *ibuf_new = IMB_dupImBuf(ibuf);
 
 	curvemapping_initialize(&hcmd->curve_mapping);
 
-	modifier_apply_threaded(ibuf_new, mask, hue_correct_apply_threaded, &hcmd->curve_mapping);
-
-	return ibuf_new;
+	modifier_apply_threaded(ibuf, mask, hue_correct_apply_threaded, &hcmd->curve_mapping);
 }
 
 static SequenceModifierTypeInfo seqModifier_HueCorrect = {
@@ -394,6 +384,103 @@ static SequenceModifierTypeInfo seqModifier_HueCorrect = {
 	hue_correct_apply                 /* apply */
 };
 
+/* **** Bright/Contrast Modifier **** */
+
+typedef struct BrightContrastThreadData {
+	float bright;
+	float contrast;
+} BrightContrastThreadData;
+
+static void brightcontrast_apply_threaded(int width, int height, unsigned char *rect, float *rect_float,
+                                          unsigned char *mask_rect, float *mask_rect_float, void *data_v)
+{
+	BrightContrastThreadData *data = (BrightContrastThreadData *) data_v;
+	int x, y;
+
+	float i;
+	int c;
+	float a, b, v;
+	float brightness = data->bright / 100.0f;
+	float contrast = data->contrast;
+	float delta = contrast / 200.0f;
+
+	a = 1.0f - delta * 2.0f;
+	/*
+	 * The algorithm is by Werner D. Streidt
+	 * (http://visca.com/ffactory/archives/5-99/msg00021.html)
+	 * Extracted of OpenCV demhist.c
+	 */
+	if (contrast > 0) {
+		a = 1.0f / a;
+		b = a * (brightness - delta);
+	}
+	else {
+		delta *= -1;
+		b = a * (brightness + delta);
+	}
+
+	for (y = 0; y < height; y++) {
+		for (x = 0; x < width; x++) {
+			int pixel_index = (y * width + x) * 4;
+
+			if (rect) {
+				unsigned char *pixel = rect + pixel_index;
+
+				for (c = 0; c < 3; c++) {
+					i = pixel[c];
+					v = a * i + b;
+
+					if (mask_rect) {
+						unsigned char *m = mask_rect + pixel_index;
+						float t = (float) m[c] / 255.0f;
+
+						pixel[c] = pixel[c] * (1.0f - t) + v * t;
+					}
+					else
+						pixel[c] = v;
+				}
+			}
+			else if (rect_float) {
+				float *pixel = rect_float + pixel_index;
+
+				for (c = 0; c < 3; c++) {
+					i = pixel[c];
+					v = a * i + b;
+
+					if (mask_rect_float) {
+						float *m = mask_rect_float + pixel_index;
+
+						pixel[c] = pixel[c] * (1.0f - m[c]) + v * m[c];
+					}
+					else
+						pixel[c] = v;
+				}
+			}
+		}
+	}
+}
+
+static void brightcontrast_apply(struct SequenceModifierData *smd, ImBuf *ibuf, ImBuf *mask)
+{
+	BrightContrastModifierData *bcmd = (BrightContrastModifierData *) smd;
+	BrightContrastThreadData data;
+
+	data.bright = bcmd->bright;
+	data.contrast = bcmd->contrast;
+
+	modifier_apply_threaded(ibuf, mask, brightcontrast_apply_threaded, &data);
+}
+
+static SequenceModifierTypeInfo seqModifier_BrightContrast = {
+	"Bright/Contrast",                   /* name */
+	"BrightContrastModifierData",        /* struct_name */
+	sizeof(BrightContrastModifierData),  /* struct_size */
+	NULL,                                /* init_data */
+	NULL,                                /* free_data */
+	NULL,                                /* copy_data */
+	brightcontrast_apply                 /* apply */
+};
+
 /*********************** Modifier functions *************************/
 
 static void sequence_modifier_type_info_init(void)
@@ -403,6 +490,7 @@ static void sequence_modifier_type_info_init(void)
 	INIT_TYPE(ColorBalance);
 	INIT_TYPE(Curves);
 	INIT_TYPE(HueCorrect);
+	INIT_TYPE(BrightContrast);
 
 #undef INIT_TYPE
 }
@@ -493,9 +581,13 @@ ImBuf *BKE_sequence_modifier_apply_stack(SeqRenderData context, Sequence *seq, I
 	SequenceModifierData *smd;
 	ImBuf *processed_ibuf = ibuf;
 
+	if (seq->modifiers.first && (seq->flag & SEQ_USE_LINEAR_MODIFIERS)) {
+		processed_ibuf = IMB_dupImBuf(ibuf);
+		BKE_sequencer_imbuf_from_sequencer_space(context.scene, processed_ibuf);
+	}
+
 	for (smd = seq->modifiers.first; smd; smd = smd->next) {
 		SequenceModifierTypeInfo *smti = BKE_sequence_modifier_type_info_get(smd->type);
-		ImBuf *ibuf_new;
 
 		/* could happen if modifier is being removed or not exists in current version of blender */
 		if (!smti)
@@ -511,16 +603,15 @@ ImBuf *BKE_sequence_modifier_apply_stack(SeqRenderData context, Sequence *seq, I
 			if (processed_ibuf == ibuf)
 				processed_ibuf = IMB_dupImBuf(ibuf);
 
-			ibuf_new = smti->apply(smd, processed_ibuf, mask);
-
-			if (ibuf_new != processed_ibuf) {
-				IMB_freeImBuf(processed_ibuf);
-				processed_ibuf = ibuf_new;
-			}
+			smti->apply(smd, processed_ibuf, mask);
 
 			if (mask)
 				IMB_freeImBuf(mask);
 		}
+	}
+
+	if (seq->modifiers.first && (seq->flag & SEQ_USE_LINEAR_MODIFIERS)) {
+		BKE_sequencer_imbuf_to_sequencer_space(context.scene, processed_ibuf, FALSE);
 	}
 
 	return processed_ibuf;

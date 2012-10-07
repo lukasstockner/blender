@@ -57,6 +57,7 @@
 
 #include "BKE_anim.h"
 #include "BKE_animsys.h"
+#include "BKE_colortools.h"
 #include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_group.h"
@@ -75,6 +76,8 @@
 #include "BKE_sound.h"
 
 #include "RE_engine.h"
+
+#include "IMB_colormanagement.h"
 
 //XXX #include "BIF_previewrender.h"
 //XXX #include "BIF_editseq.h"
@@ -153,7 +156,8 @@ Scene *BKE_scene_copy(Scene *sce, int type)
 		BKE_keyingsets_copy(&(scen->keyingsets), &(sce->keyingsets));
 
 		if (sce->nodetree) {
-			scen->nodetree = ntreeCopyTree(sce->nodetree); /* copies actions */
+			/* ID's are managed on both copy and switch */
+			scen->nodetree = ntreeCopyTree(sce->nodetree);
 			ntreeSwitchID(scen->nodetree, &sce->id, &scen->id);
 		}
 
@@ -166,6 +170,11 @@ Scene *BKE_scene_copy(Scene *sce, int type)
 			obase = obase->next;
 			base = base->next;
 		}
+
+		/* copy color management settings */
+		BKE_color_managed_display_settings_copy(&scen->display_settings, &sce->display_settings);
+		BKE_color_managed_view_settings_copy(&scen->view_settings, &sce->view_settings);
+		BKE_color_managed_view_settings_copy(&scen->r.im_format.view_settings, &sce->r.im_format.view_settings);
 	}
 
 	/* tool settings */
@@ -331,6 +340,8 @@ void BKE_scene_free(Scene *sce)
 		MEM_freeN(sce->fps_info);
 
 	sound_destroy_scene(sce);
+
+	BKE_color_managed_view_settings_free(&sce->view_settings);
 }
 
 Scene *BKE_scene_add(const char *name)
@@ -371,7 +382,14 @@ Scene *BKE_scene_add(const char *name)
 	sce->r.frs_sec_base = 1;
 	sce->r.edgeint = 10;
 	sce->r.ocres = 128;
+
+	/* OCIO_TODO: for forwards compatibility only, so if no tonecurve are used,
+	 *            images would look in the same way as in current blender
+	 *
+	 *            perhaps at some point should be completely deprecated?
+	 */
 	sce->r.color_mgt_flag |= R_COLOR_MANAGEMENT;
+
 	sce->r.gauss = 1.0;
 	
 	/* deprecated but keep for upwards compat */
@@ -544,6 +562,9 @@ Scene *BKE_scene_add(const char *name)
 	sce->gm.exitkey = 218; // Blender key code for ESC
 
 	sound_create_scene(sce);
+
+	BKE_color_managed_display_settings_init(&sce->display_settings);
+	BKE_color_managed_view_settings_init(&sce->view_settings);
 
 	return sce;
 }
@@ -723,7 +744,7 @@ int BKE_scene_base_iter_next(Scene **scene, int val, Base **base, Object **ob)
 						 * this enters eternal loop because of 
 						 * makeDispListMBall getting called inside of group_duplilist */
 						if ((*base)->object->dup_group == NULL) {
-							duplilist = object_duplilist((*scene), (*base)->object);
+							duplilist = object_duplilist((*scene), (*base)->object, FALSE);
 							
 							dupob = duplilist->first;
 
@@ -1238,4 +1259,27 @@ void BKE_scene_base_flag_from_objects(struct Scene *scene)
 		base->flag = base->object->flag;
 		base = base->next;
 	}
+}
+
+void BKE_scene_disable_color_management(Scene *scene)
+{
+	ColorManagedDisplaySettings *display_settings = &scene->display_settings;
+	ColorManagedViewSettings *view_settings = &scene->view_settings;
+	const char *view;
+	const char *none_display_name;
+
+	none_display_name = IMB_colormanagement_display_get_none_name();
+
+	BLI_strncpy(display_settings->display_device, none_display_name, sizeof(display_settings->display_device));
+
+	view = IMB_colormanagement_view_get_default_name(display_settings->display_device);
+
+	if (view) {
+		BLI_strncpy(view_settings->view_transform, view, sizeof(view_settings->view_transform));
+	}
+}
+
+int BKE_scene_check_color_management_enabled(const Scene *scene)
+{
+	return strcmp(scene->display_settings.display_device, "None") != 0;
 }

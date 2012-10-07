@@ -61,7 +61,6 @@
 
 #include "BKE_blender.h"
 #include "BKE_global.h"
-#include "BKE_utildefines.h"
 
 #include "GPU_colors.h"
 #include "GPU_compatibility.h"
@@ -74,6 +73,8 @@
 #include "BLF_api.h"
 
 #include "wm_event_types.h"
+
+#include "WM_api.h"  /* only for WM_main_playanim */
 
 typedef struct PlayState {
 
@@ -145,7 +146,7 @@ static struct WindowStateGlobal {
 	eWS_Qual qual;
 } g_WS = {NULL};
 
-void playanim_window_get_size(int *width_r, int *height_r)
+static void playanim_window_get_size(int *width_r, int *height_r)
 {
 	GHOST_RectangleHandle bounds = GHOST_GetClientBounds(g_WS.ghost_window);
 	*width_r = GHOST_GetWidthRectangle(bounds);
@@ -282,7 +283,8 @@ static void build_pict_list(char *first, int totframes, int fstep, int fontid)
 	struct anim *anim;
 
 	if (IMB_isanim(first)) {
-		anim = IMB_open_anim(first, IB_rect, 0);
+		/* OCIO_TODO: support different input color space */
+		anim = IMB_open_anim(first, IB_rect, 0, NULL);
 		if (anim) {
 			int pic;
 			ibuf = IMB_anim_absolute(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
@@ -329,7 +331,11 @@ static void build_pict_list(char *first, int totframes, int fstep, int fontid)
 			int file;
 
 			file = open(filepath, O_BINARY | O_RDONLY, 0);
-			if (file < 0) return;
+			if (file < 0) {
+				/* print errno? */
+				return;
+			}
+
 			picture = (PlayAnimPict *)MEM_callocN(sizeof(PlayAnimPict), "picture");
 			if (picture == NULL) {
 				printf("Not enough memory for pict struct '%s'\n", filepath);
@@ -377,12 +383,13 @@ static void build_pict_list(char *first, int totframes, int fstep, int fontid)
 			pupdate_time();
 
 			if (ptottime > 1.0) {
+				/* OCIO_TODO: support different input color space */
 				if (picture->mem) {
 					ibuf = IMB_ibImageFromMemory((unsigned char *)picture->mem, picture->size,
-					                             picture->IB_flags, picture->name);
+					                             picture->IB_flags, NULL, picture->name);
 				}
 				else {
-					ibuf = IMB_loadiffname(picture->name, picture->IB_flags);
+					ibuf = IMB_loadiffname(picture->name, picture->IB_flags, NULL);
 				}
 				if (ibuf) {
 					playanim_toscreen(picture, ibuf, fontid);
@@ -688,7 +695,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 	return 1;
 }
 
-void playanim_window_open(const char *title, int posx, int posy, int sizex, int sizey, int start_maximized)
+static void playanim_window_open(const char *title, int posx, int posy, int sizex, int sizey, int start_maximized)
 {
 	GHOST_TWindowState inital_state;
 	GHOST_TUns32 scr_w, scr_h;
@@ -701,31 +708,17 @@ void playanim_window_open(const char *title, int posx, int posy, int sizex, int 
 		inital_state = start_maximized ? GHOST_kWindowStateFullScreen : GHOST_kWindowStateNormal;
 	else
 		inital_state = start_maximized ? GHOST_kWindowStateMaximized : GHOST_kWindowStateNormal;
-#if defined(__APPLE__) && !defined(GHOST_COCOA)
-	{
-		extern int macPrefState; /* creator.c */
-		initial_state += macPrefState;
-	}
-#endif
 
 	g_WS.ghost_window = GHOST_CreateWindow(g_WS.ghost_system,
-	                              title,
-	                              posx, posy, sizex, sizey,
-	                              inital_state,
-	                              GHOST_kDrawingContextTypeOpenGL,
-	                              FALSE /* no stereo */, FALSE);
-
-	//if (ghostwin) {
-	//if (win) {
-	// GHOST_SetWindowUserData(ghostwin, win);
-	//} else {
-	//	GHOST_DisposeWindow(g_WS.ghost_system, ghostwin);
-	//}
-	//}
+	                                       title,
+	                                       posx, posy, sizex, sizey,
+	                                       inital_state,
+	                                       GHOST_kDrawingContextTypeOpenGL,
+	                                       FALSE /* no stereo */, FALSE);
 }
 
 
-void playanim(int argc, const char **argv)
+void WM_main_playanim(int argc, const char **argv)
 {
 	struct ImBuf *ibuf = NULL;
 	char filepath[FILE_MAX];
@@ -829,7 +822,8 @@ void playanim(int argc, const char **argv)
 	}
 
 	if (IMB_isanim(filepath)) {
-		anim = IMB_open_anim(filepath, IB_rect, 0);
+		/* OCIO_TODO: support different input color spaces */
+		anim = IMB_open_anim(filepath, IB_rect, 0, NULL);
 		if (anim) {
 			ibuf = IMB_anim_absolute(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
 			IMB_close_anim(anim);
@@ -841,7 +835,8 @@ void playanim(int argc, const char **argv)
 	}
 
 	if (ibuf == NULL) {
-		ibuf = IMB_loadiffname(filepath, IB_rect);
+		/* OCIO_TODO: support different input color space */
+		ibuf = IMB_loadiffname(filepath, IB_rect, NULL);
 	}
 
 	if (ibuf == NULL) {
@@ -953,11 +948,13 @@ void playanim(int argc, const char **argv)
 				ibuf = IMB_anim_absolute(ps.picture->anim, ps.picture->frame, IMB_TC_NONE, IMB_PROXY_NONE);
 			}
 			else if (ps.picture->mem) {
+				/* use correct colorspace here */
 				ibuf = IMB_ibImageFromMemory((unsigned char *) ps.picture->mem, ps.picture->size,
-				                             ps.picture->IB_flags, ps.picture->name);
+				                             ps.picture->IB_flags, NULL, ps.picture->name);
 			}
 			else {
-				ibuf = IMB_loadiffname(ps.picture->name, ps.picture->IB_flags);
+				/* use correct colorspace here */
+				ibuf = IMB_loadiffname(ps.picture->name, ps.picture->IB_flags, NULL);
 			}
 
 			if (ibuf) {

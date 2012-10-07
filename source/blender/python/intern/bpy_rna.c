@@ -37,6 +37,8 @@
 
 #include "RNA_types.h"
 
+#include "BPY_extern.h"
+
 #include "bpy_rna.h"
 #include "bpy_rna_anim.h"
 #include "bpy_props.h"
@@ -45,7 +47,7 @@
 #include "bpy_intern_string.h"
 
 #ifdef USE_PYRNA_INVALIDATE_WEAKREF
-#include "MEM_guardedalloc.h"
+#  include "MEM_guardedalloc.h"
 #endif
 
 #include "BLI_dynstr.h"
@@ -55,7 +57,7 @@
 #include "BLI_utildefines.h"
 
 #ifdef USE_PYRNA_INVALIDATE_WEAKREF
-#include "BLI_ghash.h"
+#  include "BLI_ghash.h"
 #endif
 
 #include "RNA_enum_types.h"
@@ -78,7 +80,7 @@
 #include "../generic/py_capi_utils.h"
 
 #ifdef WITH_INTERNATIONAL
-#include "BLF_translation.h"
+#  include "BLF_translation.h"
 #endif
 
 #define USE_PEDANTIC_WRITE
@@ -369,7 +371,7 @@ static int deferred_register_prop(StructRNA *srna, PyObject *key, PyObject *item
 
 static PyObject *pyrna_prop_array_subscript_slice(BPy_PropertyArrayRNA *self, PointerRNA *ptr, PropertyRNA *prop,
                                                   Py_ssize_t start, Py_ssize_t stop, Py_ssize_t length);
-static short pyrna_rotation_euler_order_get(PointerRNA *ptr, PropertyRNA **prop_eul_order, short order_fallback);
+static short pyrna_rotation_euler_order_get(PointerRNA *ptr, PropertyRNA **prop_eul_order, const short order_fallback);
 
 /* bpyrna vector/euler/quat callbacks */
 static unsigned char mathutils_rna_array_cb_index = -1; /* index for our callbacks */
@@ -571,7 +573,7 @@ static Mathutils_Callback mathutils_rna_matrix_cb = {
 	NULL
 };
 
-static short pyrna_rotation_euler_order_get(PointerRNA *ptr, PropertyRNA **prop_eul_order, short order_fallback)
+static short pyrna_rotation_euler_order_get(PointerRNA *ptr, PropertyRNA **prop_eul_order, const short order_fallback)
 {
 	/* attempt to get order */
 	if (*prop_eul_order == NULL)
@@ -2150,10 +2152,10 @@ static PyObject *pyrna_prop_collection_subscript_str(BPy_PropertyRNA *self, cons
  * -1: exception set
  *  0: not found
  *  1: found */
-int pyrna_prop_collection_subscript_str_lib_pair_ptr(BPy_PropertyRNA *self, PyObject *key,
-                                                     const char *err_prefix, const short err_not_found,
-                                                     PointerRNA *r_ptr
-                                                     )
+static int pyrna_prop_collection_subscript_str_lib_pair_ptr(BPy_PropertyRNA *self, PyObject *key,
+                                                            const char *err_prefix, const short err_not_found,
+                                                            PointerRNA *r_ptr
+                                                            )
 {
 	char *keyname;
 
@@ -2209,7 +2211,7 @@ int pyrna_prop_collection_subscript_str_lib_pair_ptr(BPy_PropertyRNA *self, PyOb
 			return -1;
 		}
 
-		/* lib is either a valid poniter or NULL,
+		/* lib is either a valid pointer or NULL,
 		 * either way can do direct comparison with id.lib */
 
 		RNA_PROP_BEGIN (&self->ptr, itemptr, self->prop)
@@ -2418,7 +2420,7 @@ static PyObject *pyrna_prop_collection_subscript(BPy_PropertyRNA *self, PyObject
 				/* only get the length for negative values */
 				Py_ssize_t len = (Py_ssize_t)RNA_property_collection_length(&self->ptr, self->prop);
 				if (start < 0) start += len;
-				if (stop < 0) start += len;
+				if (stop  < 0) stop  += len;
 			}
 
 			if (stop - start <= 0) {
@@ -2544,7 +2546,7 @@ static int pyrna_prop_collection_ass_subscript(BPy_PropertyRNA *self, PyObject *
 				/* only get the length for negative values */
 				Py_ssize_t len = (Py_ssize_t)RNA_property_collection_length(&self->ptr, self->prop);
 				if (start < 0) start += len;
-				if (stop < 0) start += len;
+				if (stop  < 0) stop  += len;
 			}
 
 			if (stop - start <= 0) {
@@ -5908,7 +5910,7 @@ PyTypeObject pyrna_prop_collection_iter_Type = {
 	NULL
 };
 
-PyObject *pyrna_prop_collection_iter_CreatePyObject(PointerRNA *ptr, PropertyRNA *prop)
+static PyObject *pyrna_prop_collection_iter_CreatePyObject(PointerRNA *ptr, PropertyRNA *prop)
 {
 	BPy_PropertyCollectionIterRNA *self = PyObject_New(BPy_PropertyCollectionIterRNA, &pyrna_prop_collection_iter_Type);
 

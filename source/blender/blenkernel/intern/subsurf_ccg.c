@@ -513,10 +513,14 @@ static float *get_ss_weights(WeightTable *wtable, int gridCuts, int faceLen)
 					w2 = (1.0f - fx + fac2 * fx * -fac) * (fy);
 					w4 = (fx) * (1.0f - fy + -fac2 * fy * fac);
 
-					fac2 = 1.0f - (w1 + w2 + w4);
-					fac2 = fac2 / (float)(faceLen - 3);
-					for (j = 0; j < faceLen; j++)
-						w[j] = fac2;
+					/* these values aren't used for tri's and cause divide by zero */
+					if (faceLen > 3) {
+						fac2 = 1.0f - (w1 + w2 + w4);
+						fac2 = fac2 / (float)(faceLen - 3);
+						for (j = 0; j < faceLen; j++) {
+							w[j] = fac2;
+						}
+					}
 					
 					w[i] = w1;
 					w[(i - 1 + faceLen) % faceLen] = w2;
@@ -1468,9 +1472,9 @@ static void ccgdm_getVertCos(DerivedMesh *dm, float (*cos)[3])
 }
 
 static void ccgDM_foreachMappedVert(
-    DerivedMesh *dm,
-    void (*func)(void *userData, int index, const float co[3], const float no_f[3], const short no_s[3]),
-    void *userData)
+        DerivedMesh *dm,
+        void (*func)(void *userData, int index, const float co[3], const float no_f[3], const short no_s[3]),
+        void *userData)
 {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
 	CCGVertIterator *vi;
@@ -1490,9 +1494,9 @@ static void ccgDM_foreachMappedVert(
 }
 
 static void ccgDM_foreachMappedEdge(
-    DerivedMesh *dm,
-    void (*func)(void *userData, int index, const float v0co[3], const float v1co[3]),
-    void *userData)
+        DerivedMesh *dm,
+        void (*func)(void *userData, int index, const float v0co[3], const float v1co[3]),
+        void *userData)
 {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
 	CCGSubSurf *ss = ccgdm->ss;
@@ -2588,9 +2592,9 @@ static void ccgDM_drawMappedEdgesInterp(DerivedMesh *dm,
 }
 
 static void ccgDM_foreachMappedFaceCenter(
-    DerivedMesh *dm,
-    void (*func)(void *userData, int index, const float co[3], const float no[3]),
-    void *userData)
+        DerivedMesh *dm,
+        void (*func)(void *userData, int index, const float co[3], const float no[3]),
+        void *userData)
 {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
 	CCGSubSurf *ss = ccgdm->ss;

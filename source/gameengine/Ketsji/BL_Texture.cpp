@@ -181,7 +181,7 @@ void BL_Texture::InitGLTex(unsigned int *pix,int x,int y,bool mipmap)
 	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 }
 
-void BL_Texture::InitGLCompressedTex(ImBuf* ibuf, bool mipmap)
+void BL_Texture::InitGLCompressedTex(ImBuf *ibuf, bool mipmap)
 {
 #ifndef WITH_DDS
 	// Fall back to uncompressed if DDS isn't enabled
@@ -428,7 +428,7 @@ void BL_Texture::DisableAllTextures()
 		gpuMatrixMode(GL_MODELVIEW);
 		gpuMatrixCommit();
 
-		glDisable(GL_TEXTURE_2D);	
+		glDisable(GL_TEXTURE_2D);
 		glDisable(GL_TEXTURE_GEN_S);
 		glDisable(GL_TEXTURE_GEN_T);
 		glDisable(GL_TEXTURE_GEN_R);
@@ -448,14 +448,14 @@ void BL_Texture::ActivateTexture()
 
 	if (mType == GL_TEXTURE_CUBE_MAP_ARB && GLEW_ARB_texture_cube_map)
 	{
-		glBindTexture( GL_TEXTURE_CUBE_MAP_ARB, mTexture );	
+		glBindTexture( GL_TEXTURE_CUBE_MAP_ARB, mTexture );
 		glEnable(GL_TEXTURE_CUBE_MAP_ARB);
 	}
 	else {
 		if (GLEW_ARB_texture_cube_map )
 			glDisable(GL_TEXTURE_CUBE_MAP_ARB);
 
-		glBindTexture( GL_TEXTURE_2D, mTexture );	
+		glBindTexture( GL_TEXTURE_2D, mTexture );
 		glEnable(GL_TEXTURE_2D);
 	}
 }
@@ -650,7 +650,7 @@ void my_envmap_split_ima(EnvMap *env, ImBuf *ibuf)
 {
 	int dx, part;
 	
-	my_free_envmapdata(env);	
+	my_free_envmapdata(env);
 	
 	dx= ibuf->y;
 	dx/= 2;

@@ -78,8 +78,8 @@ void ED_space_image_set(SpaceImage *sima, Scene *scene, Object *obedit, Image *i
 	if (sima->image)
 		BKE_image_signal(sima->image, &sima->iuser, IMA_SIGNAL_USER_NEW_IMAGE);
 
-	if (sima->image && sima->image->id.us == 0)
-		sima->image->id.us = 1;
+	if (sima->image && ID_REAL_USERS(sima->image) <= 0)
+		sima->image->id.us = MAX2(sima->image->id.us, 0) + 1;
 
 	if (obedit)
 		WM_main_add_notifier(NC_GEOM | ND_DATA, obedit->data);
@@ -97,8 +97,8 @@ void ED_space_image_set_mask(bContext *C, SpaceImage *sima, Mask *mask)
 	sima->mask_info.mask = mask;
 
 	/* weak, but same as image/space */
-	if (sima->mask_info.mask && sima->mask_info.mask->id.us == 0)
-		sima->mask_info.mask->id.us = 1;
+	if (sima->mask_info.mask && ID_REAL_USERS(sima->mask_info.mask) <= 0)
+		sima->mask_info.mask->id.us = MAX2(sima->mask_info.mask->id.us, 0) + 1;
 
 	if (C) {
 		WM_event_add_notifier(C, NC_MASK | NA_SELECTED, mask);
@@ -120,6 +120,8 @@ ImBuf *ED_space_image_acquire_buffer(SpaceImage *sima, void **lock_r)
 		if (ibuf && (ibuf->rect || ibuf->rect_float))
 			return ibuf;
 	}
+	else
+		*lock_r = NULL;
 
 	return NULL;
 }
@@ -143,27 +145,6 @@ int ED_space_image_has_buffer(SpaceImage *sima)
 	return has_buffer;
 }
 
-void ED_image_get_size(Image *ima, int *width, int *height)
-{
-	ImBuf *ibuf = NULL;
-	void *lock;
-
-	if (ima)
-		ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
-
-	if (ibuf && ibuf->x > 0 && ibuf->y > 0) {
-		*width = ibuf->x;
-		*height = ibuf->y;
-	}
-	else {
-		*width  = IMG_SIZE_FALLBACK;
-		*height = IMG_SIZE_FALLBACK;
-	}
-
-	if (ima)
-		BKE_image_release_ibuf(ima, lock);
-}
-
 void ED_space_image_get_size(SpaceImage *sima, int *width, int *height)
 {
 	Scene *scene = sima->iuser.scene;
@@ -182,8 +163,8 @@ void ED_space_image_get_size(SpaceImage *sima, int *width, int *height)
 		*height = (scene->r.ysch * scene->r.size) / 100;
 
 		if ((scene->r.mode & R_BORDER) && (scene->r.mode & R_CROP)) {
-			*width *= (scene->r.border.xmax - scene->r.border.xmin);
-			*height *= (scene->r.border.ymax - scene->r.border.ymin);
+			*width  *= BLI_rctf_size_x(&scene->r.border);
+			*height *= BLI_rctf_size_y(&scene->r.border);
 		}
 
 	}
@@ -205,23 +186,18 @@ void ED_space_image_get_size_fl(SpaceImage *sima, float size[2])
 	size[1] = size_i[1];
 }
 
-void ED_image_get_aspect(Image *ima, float *aspx, float *aspy)
-{
-	*aspx = *aspy = 1.0;
-
-	if ((ima == NULL) || (ima->type == IMA_TYPE_R_RESULT) || (ima->type == IMA_TYPE_COMPOSITE) ||
-	    (ima->aspx == 0.0f || ima->aspy == 0.0f))
-	{
-		return;
-	}
-
-	/* x is always 1 */
-	*aspy = ima->aspy / ima->aspx;
-}
 
 void ED_space_image_get_aspect(SpaceImage *sima, float *aspx, float *aspy)
 {
-	ED_image_get_aspect(ED_space_image(sima), aspx, aspy);
+	Image *ima = sima->image;
+	if ((ima == NULL) || (ima->type == IMA_TYPE_R_RESULT) || (ima->type == IMA_TYPE_COMPOSITE) ||
+	    (ima->aspx == 0.0f || ima->aspy == 0.0f))
+	{
+		*aspx = *aspy = 1.0;
+	}
+	else {
+		BKE_image_get_aspect(ima, aspx, aspy);
+	}
 }
 
 void ED_space_image_get_zoom(SpaceImage *sima, ARegion *ar, float *zoomx, float *zoomy)
@@ -230,8 +206,8 @@ void ED_space_image_get_zoom(SpaceImage *sima, ARegion *ar, float *zoomx, float 
 
 	ED_space_image_get_size(sima, &width, &height);
 
-	*zoomx = (float)(BLI_RCT_SIZE_X(&ar->winrct) + 1) / (float)(BLI_RCT_SIZE_X(&ar->v2d.cur) * width);
-	*zoomy = (float)(BLI_RCT_SIZE_Y(&ar->winrct) + 1) / (float)(BLI_RCT_SIZE_Y(&ar->v2d.cur) * height);
+	*zoomx = (float)(BLI_rcti_size_x(&ar->winrct) + 1) / (float)(BLI_rctf_size_x(&ar->v2d.cur) * width);
+	*zoomy = (float)(BLI_rcti_size_y(&ar->winrct) + 1) / (float)(BLI_rctf_size_y(&ar->v2d.cur) * height);
 }
 
 void ED_space_image_get_uv_aspect(SpaceImage *sima, float *aspx, float *aspy)
@@ -254,15 +230,21 @@ void ED_space_image_get_uv_aspect(SpaceImage *sima, float *aspx, float *aspy)
 	}
 }
 
-void ED_image_get_uv_aspect(Image *ima, float *aspx, float *aspy)
+void ED_image_get_uv_aspect(Image *ima, ImageUser *iuser, float *aspx, float *aspy)
 {
-	int w, h;
+	if (ima) {
+		int w, h;
 
-	ED_image_get_aspect(ima, aspx, aspy);
-	ED_image_get_size(ima, &w, &h);
+		BKE_image_get_aspect(ima, aspx, aspy);
+		BKE_image_get_size(ima, iuser, &w, &h);
 
-	*aspx *= (float)w;
-	*aspy *= (float)h;
+		*aspx *= (float)w;
+		*aspy *= (float)h;
+	}
+	else {
+		*aspx = 1.0f;
+		*aspy = 1.0f;
+	}
 }
 
 /* takes event->mval */

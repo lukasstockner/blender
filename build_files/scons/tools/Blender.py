@@ -204,6 +204,11 @@ def setup_staticlibs(lenv):
         if lenv['WITH_BF_STATICOIIO']:
             statlibs += Split(lenv['BF_OIIO_LIB_STATIC'])
 
+    if lenv['WITH_BF_OCIO']:
+        libincs += Split(lenv['BF_OCIO_LIBPATH'])
+        if lenv['WITH_BF_STATICOCIO']:
+            statlibs += Split(lenv['BF_OCIO_LIB_STATIC'])
+
     if lenv['WITH_BF_BOOST']:
         libincs += Split(lenv['BF_BOOST_LIBPATH'])
         if lenv['WITH_BF_STATICBOOST']:
@@ -251,6 +256,10 @@ def setup_syslibs(lenv):
     if lenv['WITH_BF_OIIO']:
         if not lenv['WITH_BF_STATICOIIO']:
             syslibs += Split(lenv['BF_OIIO_LIB'])
+
+    if lenv['WITH_BF_OCIO']:
+        if not lenv['WITH_BF_STATICOCIO']:
+            syslibs += Split(lenv['BF_OCIO_LIB'])
 
     if lenv['WITH_BF_OPENEXR'] and not lenv['WITH_BF_STATICOPENEXR']:
         syslibs += Split(lenv['BF_OPENEXR_LIB'])
@@ -584,6 +593,9 @@ def AppIt(target=None, source=None, env=None):
         commands.getoutput(cmd)
         cmd = 'cp -R %s/release/datafiles/fonts %s/%s.app/Contents/MacOS/%s/datafiles/'%(bldroot,installdir,binary,VERSION)
         commands.getoutput(cmd)
+        if env['WITH_BF_OCIO']:
+            cmd = 'cp -R %s/release/datafiles/colormanagement %s/%s.app/Contents/MacOS/%s/datafiles/'%(bldroot,installdir,binary,VERSION)
+            commands.getoutput(cmd)
         cmd = 'cp -R %s/release/scripts %s/%s.app/Contents/MacOS/%s/'%(bldroot,installdir,binary,VERSION)
         commands.getoutput(cmd)
 
@@ -848,6 +860,8 @@ class BlenderEnvironment(SConsEnvironment):
         print bc.HEADER+'Configuring program '+bc.ENDC+bc.OKGREEN+progname+bc.ENDC
         lenv = self.Clone()
         lenv.Append(LINKFLAGS = lenv['PLATFORM_LINKFLAGS'])
+        if lenv['OURPLATFORM'] in ('win32-mingw', 'win64-mingw', 'linuxcross', 'cygwin', 'linux'):
+            lenv.Replace(LINK = '$CXX')
         if lenv['OURPLATFORM'] in ('win32-vc', 'cygwin', 'win64-vc'):
             if lenv['BF_DEBUG']:
                 lenv.Prepend(LINKFLAGS = ['/DEBUG','/PDB:'+progname+'.pdb','/NODEFAULTLIB:libcmt'])

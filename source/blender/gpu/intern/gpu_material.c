@@ -409,10 +409,12 @@ void gpu_material_add_node(GPUMaterial *material, GPUNode *node)
 
 /* Code generation */
 
-static int gpu_do_color_management(GPUMaterial *mat)
+int GPU_material_do_color_management(GPUMaterial *mat)
 {
-	return ((mat->scene->r.color_mgt_flag & R_COLOR_MANAGEMENT) &&
-	   !((mat->scene->gm.flag & GAME_GLSL_NO_COLOR_MANAGEMENT)));
+	if (!BKE_scene_check_color_management_enabled(mat->scene))
+		return FALSE;
+
+	return !((mat->scene->gm.flag & GAME_GLSL_NO_COLOR_MANAGEMENT));
 }
 
 static GPUNodeLink *lamp_get_visibility(GPUMaterial *mat, GPULamp *lamp, GPUNodeLink **lv, GPUNodeLink **dist)
@@ -667,7 +669,7 @@ static void shade_light_textures(GPUMaterial *mat, GPULamp *lamp, GPUNodeLink **
 
 			GPU_link(mat, "shade_light_texture",
 				GPU_builtin(GPU_VIEW_POSITION),
-				GPU_image(mtex->tex->ima, &mtex->tex->iuser),
+				GPU_image(mtex->tex->ima, &mtex->tex->iuser, FALSE),
 				GPU_dynamic_uniform((float*)lamp->dynpersmat, GPU_DYNAMIC_LAMP_DYNPERSMAT, lamp->ob),
 				&tex_rgb);
 			texture_rgb_blend(mat, tex_rgb, *rgb, GPU_uniform(&one), GPU_uniform(&mtex->colfac), mtex->blendtype, rgb); 
@@ -861,7 +863,7 @@ static void material_lights(GPUShadeInput *shi, GPUShadeResult *shr)
 
 		if (ob->transflag & OB_DUPLI) {
 			DupliObject *dob;
-			ListBase *lb = object_duplilist(shi->gpumat->scene, ob);
+			ListBase *lb = object_duplilist(shi->gpumat->scene, ob, FALSE);
 			
 			for (dob=lb->first; dob; dob=dob->next) {
 				Object *ob_iter = dob->ob;
@@ -1050,7 +1052,7 @@ static void do_material_tex(GPUShadeInput *shi)
 			talpha = 0;
 
 			if (tex && tex->type == TEX_IMAGE && tex->ima) {
-				GPU_link(mat, "mtex_image", texco, GPU_image(tex->ima, &tex->iuser), &tin, &trgb);
+				GPU_link(mat, "mtex_image", texco, GPU_image(tex->ima, &tex->iuser, FALSE), &tin, &trgb);
 				rgbnor= TEX_RGB;
 
 				if (tex->imaflag & TEX_USEALPHA)
@@ -1098,7 +1100,7 @@ static void do_material_tex(GPUShadeInput *shi)
 				}
 
 				if (tex->type==TEX_IMAGE)
-					if (gpu_do_color_management(mat))
+					if (GPU_material_do_color_management(mat))
 						GPU_link(mat, "srgb_to_linearrgb", tcol, &tcol);
 				
 				if (mtex->mapto & MAP_COL) {
@@ -1126,7 +1128,7 @@ static void do_material_tex(GPUShadeInput *shi)
 
 					if (tex->imaflag & TEX_NORMALMAP) {
 						/* normalmap image */
-						GPU_link(mat, "mtex_normal", texco, GPU_image(tex->ima, &tex->iuser), &tnor);
+						GPU_link(mat, "mtex_normal", texco, GPU_image(tex->ima, &tex->iuser, TRUE), &tnor);
 						
 						if (mtex->norfac < 0.0f)
 							GPU_link(mat, "mtex_negate_texnormal", tnor, &tnor);
@@ -1256,26 +1258,26 @@ static void do_material_tex(GPUShadeInput *shi)
 						
 						if (found_deriv_map) {
 							GPU_link(mat, "mtex_bump_deriv",
-							         texco, GPU_image(tex->ima, &tex->iuser), GPU_uniform(&ima_x), GPU_uniform(&ima_y), tnorfac,
+							         texco, GPU_image(tex->ima, &tex->iuser, TRUE), GPU_uniform(&ima_x), GPU_uniform(&ima_y), tnorfac,
 							         &dBs, &dBt );
 						}
 						else if ( mtex->texflag & MTEX_3TAP_BUMP)
 							GPU_link(mat, "mtex_bump_tap3",
-							         texco, GPU_image(tex->ima, &tex->iuser), tnorfac,
+							         texco, GPU_image(tex->ima, &tex->iuser, TRUE), tnorfac,
 							         &dBs, &dBt );
 						else if ( mtex->texflag & MTEX_5TAP_BUMP)
 							GPU_link(mat, "mtex_bump_tap5",
-							         texco, GPU_image(tex->ima, &tex->iuser), tnorfac,
+							         texco, GPU_image(tex->ima, &tex->iuser, TRUE), tnorfac,
 							         &dBs, &dBt );
 						else if ( mtex->texflag & MTEX_BICUBIC_BUMP ) {
 							if (GPU_bicubic_bump_support()) {
 								GPU_link(mat, "mtex_bump_bicubic",
-								         texco, GPU_image(tex->ima, &tex->iuser), tnorfac,
+								         texco, GPU_image(tex->ima, &tex->iuser, TRUE), tnorfac,
 								         &dBs, &dBt);
 							}
 							else {
 								GPU_link(mat, "mtex_bump_tap5",
-								         texco, GPU_image(tex->ima, &tex->iuser), tnorfac,
+								         texco, GPU_image(tex->ima, &tex->iuser, TRUE), tnorfac,
 								         &dBs, &dBt);
 							}
 						}
@@ -1285,7 +1287,7 @@ static void do_material_tex(GPUShadeInput *shi)
 							float imag_tspace_dimension_y = aspect*imag_tspace_dimension_x;
 							GPU_link(mat, "mtex_bump_apply_texspace",
 							         fDet, dBs, dBt, vR1, vR2,
-							         GPU_image(tex->ima, &tex->iuser), texco,
+							         GPU_image(tex->ima, &tex->iuser, TRUE), texco,
 							         GPU_uniform(&imag_tspace_dimension_x), GPU_uniform(&imag_tspace_dimension_y), vNacc,
 							         &vNacc, &shi->vn );
 						}
@@ -1394,7 +1396,7 @@ void GPU_shadeinput_set(GPUMaterial *mat, Material *ma, GPUShadeInput *shi)
 	GPU_link(mat, "set_value", GPU_uniform(&ma->amb), &shi->amb);
 	GPU_link(mat, "shade_view", GPU_builtin(GPU_VIEW_POSITION), &shi->view);
 	GPU_link(mat, "vcol_attribute", GPU_attribute(CD_MCOL, ""), &shi->vcol);
-	if (gpu_do_color_management(mat))
+	if (GPU_material_do_color_management(mat))
 		GPU_link(mat, "srgb_to_linearrgb", shi->vcol, &shi->vcol);
 	GPU_link(mat, "texco_refl", shi->vn, shi->view, &shi->ref);
 }
@@ -1418,10 +1420,10 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 		GPU_material_enable_alpha(mat);
 
 	if ((mat->scene->gm.flag & GAME_GLSL_NO_LIGHTS) || (ma->mode & MA_SHLESS)) {
-		shr->combined = shi->rgb;
-		shr->alpha = shi->alpha;
 		GPU_link(mat, "set_rgb", shi->rgb, &shr->diff);
 		GPU_link(mat, "set_rgb_zero", &shr->spec);
+		GPU_link(mat, "set_value", shi->alpha, &shr->alpha);
+		shr->combined = shr->diff;
 	}
 	else {
 		if (GPU_link_changed(shi->emit) || ma->emit != 0.0f) {
@@ -1440,7 +1442,8 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 		material_lights(shi, shr);
 
 		shr->combined = shr->diff;
-		shr->alpha = shi->alpha;
+
+		GPU_link(mat, "set_value", shi->alpha, &shr->alpha);
 
 		if (world) {
 			/* exposure correction */
@@ -1537,12 +1540,9 @@ GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma)
 		GPU_material_output_link(mat, outlink);
 	}
 
-	if (!BKE_scene_use_new_shading_nodes(scene)) {
-		if (gpu_do_color_management(mat))
-			if (mat->outlink)
-				GPU_link(mat, "linearrgb_to_srgb", mat->outlink, &mat->outlink);
-	}
-
+	if (GPU_material_do_color_management(mat))
+		if (mat->outlink)
+			GPU_link(mat, "linearrgb_to_srgb", mat->outlink, &mat->outlink);
 
 	GPU_material_construct_end(mat);
 

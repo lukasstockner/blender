@@ -394,13 +394,13 @@ int blf_glyph_render(
 	y2  = y + g->pos_y - g->height;
 
 	if (font->flags & BLF_CLIPPING) {
-		if (!BLI_in_rctf(&font->clip_rec, dx + font->pos[0], y1 + font->pos[1]))
+		if (!BLI_rctf_isect_pt(&font->clip_rec, dx + font->pos[0], y1 + font->pos[1]))
 			return FALSE;
-		if (!BLI_in_rctf(&font->clip_rec, dx + font->pos[0], y2 + font->pos[1]))
+		if (!BLI_rctf_isect_pt(&font->clip_rec, dx + font->pos[0], y2 + font->pos[1]))
 			return FALSE;
-		if (!BLI_in_rctf(&font->clip_rec, dx1 + font->pos[0], y2 + font->pos[1]))
+		if (!BLI_rctf_isect_pt(&font->clip_rec, dx1 + font->pos[0], y2 + font->pos[1]))
 			return FALSE;
-		if (!BLI_in_rctf(&font->clip_rec, dx1 + font->pos[0], y1 + font->pos[1]))
+		if (!BLI_rctf_isect_pt(&font->clip_rec, dx1 + font->pos[0], y1 + font->pos[1]))
 			return FALSE;
 	}
 
@@ -449,7 +449,7 @@ int blf_glyph_render(
 		g->uv[1][1] = ((float)(g->yoff + g->height)) / ((float)gc->p2_height);
 
 		/* update the x offset for the next glyph. */
-		gc->x_offs += (int)(BLI_RCT_SIZE_X(&g->box) + gc->pad);
+		gc->x_offs += (int)(BLI_rctf_size_x(&g->box) + gc->pad);
 
 		gc->rem_glyphs--;
 		g->build_tex = 1;

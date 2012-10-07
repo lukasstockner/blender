@@ -795,8 +795,8 @@ static PyObject *quat_mul_float(QuaternionObject *quat, const float scalar)
 	return Quaternion_CreatePyObject(tquat, Py_NEW, Py_TYPE(quat));
 }
 
-//------------------------obj * obj------------------------------
-//mulplication
+/*------------------------obj * obj------------------------------
+ * multiplication */
 static PyObject *Quaternion_mul(PyObject *q1, PyObject *q2)
 {
 	float quat[QUAT_SIZE], scalar;
@@ -903,7 +903,7 @@ static PyNumberMethods Quaternion_NumMethods = {
 	NULL,                           /*nb_divmod*/
 	NULL,                           /*nb_power*/
 	(unaryfunc)     Quaternion_neg, /*nb_negative*/
-	(unaryfunc)     0,  /*tp_positive*/
+	(unaryfunc)     Quaternion_copy,/*tp_positive*/
 	(unaryfunc)     0,  /*tp_absolute*/
 	(inquiry)   0,      /*tp_bool*/
 	(unaryfunc) 0,      /*nb_invert*/

@@ -40,6 +40,7 @@
 #include "DNA_armature_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
@@ -891,6 +892,21 @@ static void recalcData_view3d(TransInfo *t)
 /* helper for recalcData() - for sequencer transforms */
 static void recalcData_sequencer(TransInfo *t)
 {
+	TransData *td;
+	int a;
+	Sequence *seq_prev = NULL;
+
+	for (a = 0, td = t->data; a < t->total; a++, td++) {
+		TransDataSeq *tdsq = (TransDataSeq *) td->extra;
+		Sequence *seq = tdsq->seq;
+
+		if (seq != seq_prev) {
+			BKE_sequence_invalidate_dependent(t->scene, seq);
+		}
+
+		seq_prev = seq;
+	}
+
 	BKE_sequencer_preprocessed_cache_cleanup();
 
 	flushTransSeq(t);
@@ -1240,19 +1256,26 @@ void postTrans(bContext *C, TransInfo *t)
 	if (t->customFree) {
 		/* Can take over freeing t->data and data2d etc... */
 		t->customFree(t);
+		BLI_assert(t->customData == NULL);
 	}
 	else if ((t->customData != NULL) && (t->flag & T_FREE_CUSTOMDATA)) {
 		MEM_freeN(t->customData);
+		t->customData = NULL;
 	}
 
 	/* postTrans can be called when nothing is selected, so data is NULL already */
 	if (t->data) {
-		int a;
 		
 		/* free data malloced per trans-data */
-		for (a = 0, td = t->data; a < t->total; a++, td++) {
-			if (td->flag & TD_BEZTRIPLE) 
-				MEM_freeN(td->hdata);
+		if ((t->obedit && ELEM(t->obedit->type, OB_CURVE, OB_SURF)) ||
+		    (t->spacetype == SPACE_IPO))
+		{
+			int a;
+			for (a = 0, td = t->data; a < t->total; a++, td++) {
+				if (td->flag & TD_BEZTRIPLE) {
+					MEM_freeN(td->hdata);
+				}
+			}
 		}
 		MEM_freeN(t->data);
 	}

@@ -183,7 +183,7 @@ int RE_WriteEnvmapResult(struct ReportList *reports, struct Scene *scene, struct
 /* rna */
 float *give_cursor(struct Scene *scene, struct View3D *v3d) {return (float *) NULL;}
 void WM_menutype_free(void) {}
-void WM_menutype_freelink(struct MenuType* mt) {}
+void WM_menutype_freelink(struct MenuType *mt) {}
 int WM_menutype_add(struct MenuType *mt) {return 0;}
 int WM_operator_props_dialog_popup(struct bContext *C, struct wmOperator *op, int width, int height) {return 0;}
 int WM_operator_confirm(struct bContext *C, struct wmOperator *op, struct wmEvent *event) {return 0;}
@@ -418,7 +418,7 @@ void uiTemplateColorWheel(struct uiLayout *layout, struct PointerRNA *ptr, char 
 void uiTemplateHistogram(struct uiLayout *layout, struct PointerRNA *ptr, char *propname, int expand) {}
 void uiTemplateReportsBanner(struct uiLayout *layout, struct bContext *C, struct wmOperator *op) {}
 void uiTemplateWaveform(struct uiLayout *layout, struct PointerRNA *ptr, char *propname, int expand) {}
-void uiTemplateVectorscope(struct uiLayout *_self, struct PointerRNA *data, char* property, int expand) {}
+void uiTemplateVectorscope(struct uiLayout *_self, struct PointerRNA *data, char *property, int expand) {}
 void uiTemplateNodeLink(struct uiLayout *layout, struct bNodeTree *ntree, struct bNode *node, struct bNodeSocket *input) {}
 void uiTemplateNodeView(struct uiLayout *layout, struct bContext *C, struct bNodeTree *ntree, struct bNode *node, struct bNodeSocket *input) {}
 void uiTemplateTextureUser(struct uiLayout *layout, struct bContext *C) {}
@@ -428,6 +428,8 @@ void uiTemplateMovieClip(struct uiLayout *layout, struct bContext *C, struct Poi
 void uiTemplateTrack(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname) {}
 void uiTemplateMarker(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname, PointerRNA *userptr, PointerRNA *trackptr, int compact) {}
 void uiTemplateImageSettings(struct uiLayout *layout, struct PointerRNA *imfptr) {}
+void uiTemplateColorspaceSettings(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname) {}
+void uiTemplateColormanagedViewSettings(struct uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname, int show_global_settings) {}
 
 /* rna render */
 struct RenderResult *RE_engine_begin_result(struct RenderEngine *engine, int x, int y, int w, int h) {return (struct RenderResult *) NULL;}

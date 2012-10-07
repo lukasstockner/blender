@@ -52,6 +52,7 @@
 
 #include "BKE_sound.h"
 
+#include "IMB_colormanagement.h"
 #include "IMB_imbuf.h"
 
 #include "GPU_colors.h"
@@ -69,6 +70,9 @@
 #include "UI_interface.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
+
+#include "WM_api.h"
+#include "WM_types.h"
 
 /* own include */
 #include "sequencer_intern.h"
@@ -437,7 +441,7 @@ static void draw_seq_extensions(Scene *scene, ARegion *ar, Sequence *seq)
 	y1 = seq->machine + SEQ_STRIP_OFSBOTTOM;
 	y2 = seq->machine + SEQ_STRIP_OFSTOP;
 
-	pixely = BLI_RCT_SIZE_Y(&v2d->cur) / BLI_RCT_SIZE_Y(&v2d->mask);
+	pixely = BLI_rctf_size_y(&v2d->cur) / BLI_rcti_size_y(&v2d->mask);
 
 	if (pixely <= 0) return;  /* can happen when the view is split/resized */
 
@@ -736,7 +740,7 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 	
 	/* draw sound wave */
 	if (seq->type == SEQ_TYPE_SOUND_RAM) {
-		drawseqwave(scene, seq, x1, y1, x2, y2, BLI_RCT_SIZE_X(&ar->v2d.cur) / ar->winx);
+		drawseqwave(scene, seq, x1, y1, x2, y2, BLI_rctf_size_x(&ar->v2d.cur) / ar->winx);
 	}
 
 	/* draw lock */
@@ -758,7 +762,7 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 		glDisable(GL_BLEND);
 	}
 
-	if (!BKE_seqence_is_valid_check(seq)) {
+	if (!BKE_sequence_is_valid_check(seq)) {
 		glEnable(GL_POLYGON_STIPPLE);
 
 		/* panic! */
@@ -826,20 +830,103 @@ static void UNUSED_FUNCTION(set_special_seq_update) (int val)
 	else special_seq_update = NULL;
 }
 
+ImBuf *sequencer_ibuf_get(struct Main *bmain, Scene *scene, SpaceSeq *sseq, int cfra, int frame_ofs)
+{
+	SeqRenderData context;
+	ImBuf *ibuf;
+	int rectx, recty;
+	float render_size = 0.0;
+	float proxy_size = 100.0;
+
+	render_size = sseq->render_size;
+	if (render_size == 0) {
+		render_size = scene->r.size;
+	}
+	else {
+		proxy_size = render_size;
+	}
+
+	if (render_size < 0) {
+		return NULL;
+	}
+
+	rectx = (render_size * (float)scene->r.xsch) / 100.0f + 0.5f;
+	recty = (render_size * (float)scene->r.ysch) / 100.0f + 0.5f;
+
+	context = BKE_sequencer_new_render_data(bmain, scene, rectx, recty, proxy_size);
+
+	if (special_seq_update)
+		ibuf = BKE_sequencer_give_ibuf_direct(context, cfra + frame_ofs, special_seq_update);
+	else if (!U.prefetchframes) // XXX || (G.f & G_PLAYANIM) == 0) {
+		ibuf = BKE_sequencer_give_ibuf(context, cfra + frame_ofs, sseq->chanshown);
+	else
+		ibuf = BKE_sequencer_give_ibuf_threaded(context, cfra + frame_ofs, sseq->chanshown);
+
+	return ibuf;
+}
+
+static void sequencer_check_scopes(SequencerScopes *scopes, ImBuf *ibuf)
+{
+	if (scopes->reference_ibuf != ibuf) {
+		if (scopes->zebra_ibuf) {
+			IMB_freeImBuf(scopes->zebra_ibuf);
+			scopes->zebra_ibuf = NULL;
+		}
+
+		if (scopes->waveform_ibuf) {
+			IMB_freeImBuf(scopes->waveform_ibuf);
+			scopes->waveform_ibuf = NULL;
+		}
+
+		if (scopes->sep_waveform_ibuf) {
+			IMB_freeImBuf(scopes->sep_waveform_ibuf);
+			scopes->sep_waveform_ibuf = NULL;
+		}
+
+		if (scopes->vector_ibuf) {
+			IMB_freeImBuf(scopes->vector_ibuf);
+			scopes->vector_ibuf = NULL;
+		}
+
+		if (scopes->histogram_ibuf) {
+			IMB_freeImBuf(scopes->histogram_ibuf);
+			scopes->histogram_ibuf = NULL;
+		}
+	}
+}
+
+static ImBuf *sequencer_make_scope(Scene *scene, ImBuf *ibuf, ImBuf *(*make_scope_cb) (ImBuf *ibuf))
+{
+	ImBuf *display_ibuf = IMB_dupImBuf(ibuf);
+	ImBuf *scope;
+
+	if (display_ibuf->rect_float) {
+		IMB_colormanagement_imbuf_make_display_space(display_ibuf, &scene->view_settings,
+		                                             &scene->display_settings);
+	}
+
+	scope = make_scope_cb(display_ibuf);
+
+	IMB_freeImBuf(display_ibuf);
+
+	return scope;
+}
+
 void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq, int cfra, int frame_ofs, int draw_overlay)
 {
 	struct Main *bmain = CTX_data_main(C);
 	struct ImBuf *ibuf = NULL;
 	struct ImBuf *scope = NULL;
 	struct View2D *v2d = &ar->v2d;
-	int rectx, recty;
+	/* int rectx, recty; */ /* UNUSED */
 	float viewrectx, viewrecty;
 	float render_size = 0.0;
 	float proxy_size = 100.0;
 	float col[3];
 	GLuint texid;
 	GLuint last_texid;
-	SeqRenderData context;
+	unsigned char *display_buffer;
+	void *cache_handle = NULL;
 
 	render_size = sseq->render_size;
 	if (render_size == 0) {
@@ -855,8 +942,8 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	viewrectx = (render_size * (float)scene->r.xsch) / 100.0f;
 	viewrecty = (render_size * (float)scene->r.ysch) / 100.0f;
 
-	rectx = viewrectx + 0.5f;
-	recty = viewrecty + 0.5f;
+	/* rectx = viewrectx + 0.5f; */ /* UNUSED */
+	/* recty = viewrecty + 0.5f; */ /* UNUSED */
 
 	if (sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
 		viewrectx *= scene->r.xasp / scene->r.yasp;
@@ -879,52 +966,74 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	if (G.is_rendering)
 		return;
 
-	context = BKE_sequencer_new_render_data(bmain, scene, rectx, recty, proxy_size);
-
-	if (special_seq_update)
-		ibuf = BKE_sequencer_give_ibuf_direct(context, cfra + frame_ofs, special_seq_update);
-	else if (!U.prefetchframes) // XXX || (G.f & G_PLAYANIM) == 0) {
-		ibuf = BKE_sequencer_give_ibuf(context, cfra + frame_ofs, sseq->chanshown);
-	else
-		ibuf = BKE_sequencer_give_ibuf_threaded(context, cfra + frame_ofs, sseq->chanshown);
+	ibuf = sequencer_ibuf_get(bmain, scene, sseq, cfra, frame_ofs);
 	
 	if (ibuf == NULL)
 		return;
 
 	if (ibuf->rect == NULL && ibuf->rect_float == NULL)
 		return;
-	
-	switch (sseq->mainb) {
-		case SEQ_DRAW_IMG_IMBUF:
-			if (sseq->zebra != 0) {
-				scope = make_zebra_view_from_ibuf(ibuf, sseq->zebra);
-			}
-			break;
-		case SEQ_DRAW_IMG_WAVEFORM:
-			if ((sseq->flag & SEQ_DRAW_COLOR_SEPARATED) != 0) {
-				scope = make_sep_waveform_view_from_ibuf(ibuf);
-			}
-			else {
-				scope = make_waveform_view_from_ibuf(ibuf);
-			}
-			break;
-		case SEQ_DRAW_IMG_VECTORSCOPE:
-			scope = make_vectorscope_view_from_ibuf(ibuf);
-			break;
-		case SEQ_DRAW_IMG_HISTOGRAM:
-			scope = make_histogram_view_from_ibuf(ibuf);
-			break;
+
+	if (sseq->mainb != SEQ_DRAW_IMG_IMBUF || sseq->zebra != 0) {
+		SequencerScopes *scopes = &sseq->scopes;
+
+		sequencer_check_scopes(scopes, ibuf);
+
+		switch (sseq->mainb) {
+			case SEQ_DRAW_IMG_IMBUF:
+				if (!scopes->zebra_ibuf) {
+					ImBuf *display_ibuf = IMB_dupImBuf(ibuf);
+
+					if (display_ibuf->rect_float) {
+						IMB_colormanagement_imbuf_make_display_space(display_ibuf, &scene->view_settings,
+						                                             &scene->display_settings);
+					}
+					scopes->zebra_ibuf = make_zebra_view_from_ibuf(display_ibuf, sseq->zebra);
+					IMB_freeImBuf(display_ibuf);
+				}
+				scope = scopes->zebra_ibuf;
+				break;
+			case SEQ_DRAW_IMG_WAVEFORM:
+				if ((sseq->flag & SEQ_DRAW_COLOR_SEPARATED) != 0) {
+					if (!scopes->sep_waveform_ibuf)
+						scopes->sep_waveform_ibuf = sequencer_make_scope(scene, ibuf, make_sep_waveform_view_from_ibuf);
+					scope = scopes->sep_waveform_ibuf;
+				}
+				else {
+					if (!scopes->waveform_ibuf)
+						scopes->waveform_ibuf = sequencer_make_scope(scene, ibuf, make_waveform_view_from_ibuf);
+					scope = scopes->waveform_ibuf;
+				}
+				break;
+			case SEQ_DRAW_IMG_VECTORSCOPE:
+				if (!scopes->vector_ibuf)
+					scopes->vector_ibuf = sequencer_make_scope(scene, ibuf, make_vectorscope_view_from_ibuf);
+				scope = scopes->vector_ibuf;
+				break;
+			case SEQ_DRAW_IMG_HISTOGRAM:
+				if (!scopes->histogram_ibuf)
+					scopes->histogram_ibuf = sequencer_make_scope(scene, ibuf, make_histogram_view_from_ibuf);
+				scope = scopes->histogram_ibuf;
+				break;
+		}
+
+		scopes->reference_ibuf = ibuf;
 	}
 
 	if (scope) {
 		IMB_freeImBuf(ibuf);
 		ibuf = scope;
+
+		if (ibuf->rect_float && ibuf->rect == NULL) {
+			IMB_rect_from_float(ibuf);
+		}
+
+		display_buffer = (unsigned char *)ibuf->rect;
+	}
+	else {
+		display_buffer = IMB_display_buffer_acquire_ctx(C, ibuf, &cache_handle);
 	}
 
-	if (ibuf->rect_float && ibuf->rect == NULL) {
-		IMB_rect_from_float(ibuf);	
-	}
-	
 	/* setting up the view - actual drawing starts here */
 	UI_view2d_view_ortho(v2d);
 
@@ -937,16 +1046,16 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, ibuf->x, ibuf->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, ibuf->x, ibuf->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, display_buffer);
 	gpuBegin(GL_QUADS);
 
 	if (draw_overlay) {
 		if (sseq->overlay_type == SEQ_DRAW_OVERLAY_RECT) {
 			rctf tot_clip;
-			tot_clip.xmin = v2d->tot.xmin + (ABS(BLI_RCT_SIZE_X(&v2d->tot)) * scene->ed->over_border.xmin);
-			tot_clip.ymin = v2d->tot.ymin + (ABS(BLI_RCT_SIZE_Y(&v2d->tot)) * scene->ed->over_border.ymin);
-			tot_clip.xmax = v2d->tot.xmin + (ABS(BLI_RCT_SIZE_X(&v2d->tot)) * scene->ed->over_border.xmax);
-			tot_clip.ymax = v2d->tot.ymin + (ABS(BLI_RCT_SIZE_Y(&v2d->tot)) * scene->ed->over_border.ymax);
+			tot_clip.xmin = v2d->tot.xmin + (fabsf(BLI_rctf_size_x(&v2d->tot)) * scene->ed->over_border.xmin);
+			tot_clip.ymin = v2d->tot.ymin + (fabsf(BLI_rctf_size_y(&v2d->tot)) * scene->ed->over_border.ymin);
+			tot_clip.xmax = v2d->tot.xmin + (fabsf(BLI_rctf_size_x(&v2d->tot)) * scene->ed->over_border.xmax);
+			tot_clip.ymax = v2d->tot.ymin + (fabsf(BLI_rctf_size_y(&v2d->tot)) * scene->ed->over_border.ymax);
 
 			gpuTexCoord2f(scene->ed->over_border.xmin, scene->ed->over_border.ymin); gpuVertex2f(tot_clip.xmin, tot_clip.ymin);
 			gpuTexCoord2f(scene->ed->over_border.xmin, scene->ed->over_border.ymax); gpuVertex2f(tot_clip.xmin, tot_clip.ymax);
@@ -1017,7 +1126,8 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	/* draw grease-pencil (image aligned) */
 	draw_gpencil_2dimage(C);
 
-	IMB_freeImBuf(ibuf);
+	if (!scope)
+		IMB_freeImBuf(ibuf);
 	
 	/* ortho at pixel level */
 	UI_view2d_view_restore(C);
@@ -1036,6 +1146,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 
 		if (mask) {
 			int width, height;
+			float aspx = 1.0f, aspy = 1.0f;
 			// ED_mask_get_size(C, &width, &height);
 
 			//Scene *scene = CTX_data_scene(C);
@@ -1045,11 +1156,14 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 			ED_mask_draw_region(mask, ar,
 			                    0, 0,  /* TODO */
 			                    width, height,
+			                    aspx, aspy,
 			                    FALSE, TRUE,
 			                    NULL, C);
 		}
 	}
 
+	if (cache_handle)
+		IMB_display_buffer_release(cache_handle);
 }
 
 #if 0
@@ -1132,7 +1246,7 @@ static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *ar)
 	View2D *v2d = &ar->v2d;
 	Sequence *last_seq = BKE_sequencer_active_get(scene);
 	int sel = 0, j;
-	float pixelx = BLI_RCT_SIZE_X(&v2d->cur) / BLI_RCT_SIZE_X(&v2d->mask);
+	float pixelx = BLI_rctf_size_x(&v2d->cur) / BLI_rcti_size_x(&v2d->mask);
 	
 	/* loop through twice, first unselected, then selected */
 	for (j = 0; j < 2; j++) {

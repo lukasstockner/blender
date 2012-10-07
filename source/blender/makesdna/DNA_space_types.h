@@ -40,6 +40,7 @@
 #include "DNA_outliner_types.h"     /* for TreeStoreElem */
 #include "DNA_image_types.h"        /* ImageUser */
 #include "DNA_movieclip_types.h"    /* MovieClipUser */
+#include "DNA_sequence_types.h"     /* SequencerScopes */
 /* Hum ... Not really nice... but needed for spacebuts. */
 #include "DNA_view2d_types.h"
 
@@ -263,8 +264,8 @@ typedef enum eSpaceOutliner_Mode {
 	SO_SAME_TYPE = 5,
 	SO_GROUPS = 6,
 	SO_LIBRARIES = 7,
-	SO_VERSE_SESSION = 8,
-	SO_VERSE_MS = 9,
+	/* SO_VERSE_SESSION = 8, */  /* deprecated! */
+	/* SO_VERSE_MS = 9, */       /* deprecated!*/
 	SO_SEQUENCE = 10,
 	SO_DATABLOCKS = 11,
 	SO_USERDEF = 12,
@@ -375,7 +376,7 @@ typedef struct SpaceNla {
 
 /* nla->flag */
 typedef enum eSpaceNla_Flag {
-	/* flags (1<<0), (1<<1), and (1<<3) are depreceated flags from old verisons */
+	/* flags (1<<0), (1<<1), and (1<<3) are deprecated flags from old verisons */
 
 	/* draw timing in seconds instead of frames */
 	SNLA_DRAWTIME          = (1 << 2),
@@ -473,6 +474,8 @@ typedef struct SpaceSeq {
 	int overlay_type;
 
 	struct bGPdata *gpd;        /* grease-pencil data */
+
+	struct SequencerScopes scopes;  /* different scoped displayed in space */
 } SpaceSeq;
 
 
@@ -685,8 +688,9 @@ typedef struct SpaceImage {
 
 	struct Image *image;
 	struct ImageUser iuser;
-	struct CurveMapping *cumap;
-	
+
+	struct CurveMapping *cumap DNA_DEPRECATED;  /* was switched to scene's color management settings */
+
 	struct Scopes scopes;           /* histogram waveform and vectorscope */
 	struct Histogram sample_line_hist;  /* sample line histogram */
 

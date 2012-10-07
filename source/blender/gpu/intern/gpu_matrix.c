@@ -250,13 +250,13 @@ if(GPU_GLTYPE_FIXED_ENABLED)
 
 		 
 		if(curglslesi->viewmatloc!=-1)
-			glUniformMatrix4fv(curglslesi->viewmatloc, 1, 0, ms_modelview.dynstack[ms_modelview.pos]);
+			glUniformMatrix4fv(curglslesi->viewmatloc, 1, 0, ms_modelview.dynstack[ms_modelview.pos][0]);
 			
 		if(curglslesi->normalmatloc!=-1)
 		{
 			GLfloat t[3][3] = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
 			copy_m3_m4(t, ms_modelview.dynstack[ms_modelview.pos]);
-			glUniformMatrix3fv(curglslesi->normalmatloc, 1, 0, t);
+			glUniformMatrix3fv(curglslesi->normalmatloc, 1, 0, t[0]);
 		}
 		
 		
@@ -264,13 +264,13 @@ if(GPU_GLTYPE_FIXED_ENABLED)
 	if(ms_projection.changed|| glslneedupdate)
 	{
 		if(curglslesi->projectionmatloc!=-1)
-		glUniformMatrix4fv(curglslesi->projectionmatloc, 1, 0, ms_projection.dynstack[ms_projection.pos]);
+		glUniformMatrix4fv(curglslesi->projectionmatloc, 1, 0, ms_projection.dynstack[ms_projection.pos][0]);
 	}
 	
 	//if(ms_texture.changed|| glslneedupdate)
 	{
 		if(curglslesi->texturematloc!=-1)
-		glUniformMatrix4fv(curglslesi->texturematloc, 1, 0, ms_texture.dynstack[ms_texture.pos]);
+		glUniformMatrix4fv(curglslesi->texturematloc, 1, 0, ms_texture.dynstack[ms_texture.pos][0]);
 	}
 }
 

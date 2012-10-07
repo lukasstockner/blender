@@ -101,8 +101,8 @@ static void special_transvert_update(Object *obedit)
 		DAG_id_tag_update(obedit->data, 0);
 		
 		if (obedit->type == OB_MESH) {
-			Mesh *me = obedit->data;
-			BM_mesh_normals_update(me->edit_btmesh->bm, TRUE);  /* does face centers too */
+			BMEditMesh *em = BMEdit_FromObject(obedit);
+			BM_mesh_normals_update(em->bm, TRUE);  /* does face centers too */
 		}
 		else if (ELEM(obedit->type, OB_CURVE, OB_SURF)) {
 			Curve *cu = obedit->data;
@@ -229,8 +229,7 @@ static void make_trans_verts(Object *obedit, float min[3], float max[3], int mod
 	zero_v3(centroid);
 	
 	if (obedit->type == OB_MESH) {
-		Mesh *me = obedit->data;
-		BMEditMesh *em = me->edit_btmesh;
+		BMEditMesh *em = BMEdit_FromObject(obedit);
 		BMesh *bm = em->bm;
 		BMIter iter;
 		void *userdata[2] = {em, NULL};
@@ -608,9 +607,9 @@ static int snap_sel_to_grid(bContext *C, wmOperator *UNUSED(op))
 			else {
 				ob->recalc |= OB_RECALC_OB;
 				
-				vec[0] = -ob->obmat[3][0] + gridf *floorf(0.5f + ob->obmat[3][0] / gridf);
-				vec[1] = -ob->obmat[3][1] + gridf *floorf(0.5f + ob->obmat[3][1] / gridf);
-				vec[2] = -ob->obmat[3][2] + gridf *floorf(0.5f + ob->obmat[3][2] / gridf);
+				vec[0] = -ob->obmat[3][0] + gridf * floorf(0.5f + ob->obmat[3][0] / gridf);
+				vec[1] = -ob->obmat[3][1] + gridf * floorf(0.5f + ob->obmat[3][1] / gridf);
+				vec[2] = -ob->obmat[3][2] + gridf * floorf(0.5f + ob->obmat[3][2] / gridf);
 				
 				if (ob->parent) {
 					BKE_object_where_is_calc(scene, ob);
@@ -992,11 +991,11 @@ static int snap_curs_to_active(bContext *C, wmOperator *UNUSED(op))
 
 	if (obedit) {
 		if (obedit->type == OB_MESH) {
+			BMEditMesh *em = BMEdit_FromObject(obedit);
 			/* check active */
-			Mesh *me = obedit->data;
 			BMEditSelection ese;
 			
-			if (BM_select_history_active_get(me->edit_btmesh->bm, &ese)) {
+			if (BM_select_history_active_get(em->bm, &ese)) {
 				BM_editselection_center(&ese, curs);
 			}
 			

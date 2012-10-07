@@ -1003,7 +1003,7 @@ static uiBlock *wm_block_create_redo(bContext *C, ARegion *ar, void *arg_op)
 	layout = uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, width, UI_UNIT_Y, style);
 
 	if (!WM_operator_check_ui_enabled(C, op->type->name))
-		uiLayoutSetEnabled(layout, 0);
+		uiLayoutSetEnabled(layout, FALSE);
 
 	if (op->type->flag & OPTYPE_MACRO) {
 		for (op = op->macro.first; op; op = op->next) {
@@ -1297,7 +1297,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	extern int datatoc_splash_png_size;
 
 	ImBuf *ibuf = IMB_ibImageFromMemory((unsigned char *)datatoc_splash_png,
-	                                    datatoc_splash_png_size, IB_rect, "<splash screen>");
+	                                    datatoc_splash_png_size, IB_rect, NULL, "<splash screen>");
 #else
 	ImBuf *ibuf = NULL;
 #endif
@@ -1694,7 +1694,7 @@ static void WM_OT_open_mainfile(wmOperatorType *ot)
 
 /* **************** link/append *************** */
 
-int wm_link_append_poll(bContext *C)
+static int wm_link_append_poll(bContext *C)
 {
 	if (WM_operator_winactive(C)) {
 		/* linking changes active object which is pretty useful in general,
@@ -2290,6 +2290,8 @@ static int border_apply_rect(wmOperator *op)
 
 static int border_apply(bContext *C, wmOperator *op, int gesture_mode)
 {
+	int retval;
+
 	if (!border_apply_rect(op))
 		return 0;
 	
@@ -2297,7 +2299,9 @@ static int border_apply(bContext *C, wmOperator *op, int gesture_mode)
 	if (RNA_struct_find_property(op->ptr, "gesture_mode") )
 		RNA_int_set(op->ptr, "gesture_mode", gesture_mode);
 
-	op->type->exec(C, op);
+	retval = op->type->exec(C, op);
+	OPERATOR_RETVAL_CHECK(retval);
+
 	return 1;
 }
 
@@ -2423,8 +2427,11 @@ static void gesture_circle_apply(bContext *C, wmOperator *op)
 	RNA_int_set(op->ptr, "y", rect->ymin);
 	RNA_int_set(op->ptr, "radius", rect->xmax);
 	
-	if (op->type->exec)
-		op->type->exec(C, op);
+	if (op->type->exec) {
+		int retval;
+		retval = op->type->exec(C, op);
+		OPERATOR_RETVAL_CHECK(retval);
+	}
 #ifdef GESTURE_MEMORY
 	circle_select_size = rect->xmax;
 #endif
@@ -2644,8 +2651,10 @@ static void gesture_lasso_apply(bContext *C, wmOperator *op)
 	
 	wm_gesture_end(C, op);
 		
-	if (op->type->exec)
-		op->type->exec(C, op);
+	if (op->type->exec) {
+		int retval = op->type->exec(C, op);
+		OPERATOR_RETVAL_CHECK(retval);
+	}
 }
 
 int WM_gesture_lasso_modal(bContext *C, wmOperator *op, wmEvent *event)
@@ -2758,7 +2767,8 @@ int (*WM_gesture_lasso_path_to_array(bContext *UNUSED(C), wmOperator *op, int *m
 		*mcords_tot = 0;
 	}
 
-	return mcords;
+	/* cast for 'const' */
+	return (int (*)[2])mcords;
 }
 
 #if 0
@@ -2813,8 +2823,10 @@ static int straightline_apply(bContext *C, wmOperator *op)
 	RNA_int_set(op->ptr, "xend", rect->xmax);
 	RNA_int_set(op->ptr, "yend", rect->ymax);
 
-	if (op->type->exec)
-		op->type->exec(C, op);
+	if (op->type->exec) {
+		int retval = op->type->exec(C, op);
+		OPERATOR_RETVAL_CHECK(retval);
+	}
 	
 	return 1;
 }

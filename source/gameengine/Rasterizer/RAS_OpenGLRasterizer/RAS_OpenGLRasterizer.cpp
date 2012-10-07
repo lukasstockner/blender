@@ -481,7 +481,7 @@ void RAS_OpenGLRasterizer::EndFrame()
 	glDisable(GL_MULTISAMPLE_ARB);
 
 	m_2DCanvas->EndFrame();
-}	
+}
 
 void RAS_OpenGLRasterizer::SetRenderArea()
 {

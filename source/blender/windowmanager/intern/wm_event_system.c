@@ -923,7 +923,7 @@ static int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event,
 					ScrArea *sa = CTX_wm_area(C);
 
 					if (ar && ar->regiontype == RGN_TYPE_WINDOW && event &&
-					    BLI_in_rcti_v(&ar->winrct, &event->x))
+					    BLI_rcti_isect_pt_v(&ar->winrct, &event->x))
 					{
 						winrect = &ar->winrct;
 					}
@@ -1203,7 +1203,7 @@ void WM_event_remove_handlers(bContext *C, ListBase *handlers)
 				CTX_wm_region_set(C, region);
 			}
 
-			WM_cursor_grab_disable(CTX_wm_window(C));
+			WM_cursor_grab_disable(CTX_wm_window(C), NULL);
 			WM_operator_free(handler->op);
 		}
 		else if (handler->ui_remove) {
@@ -1433,7 +1433,7 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 
 				/* remove modal handler, operator itself should have been canceled and freed */
 				if (retval & (OPERATOR_CANCELLED | OPERATOR_FINISHED)) {
-					WM_cursor_grab_disable(CTX_wm_window(C));
+					WM_cursor_grab_disable(CTX_wm_window(C), NULL);
 
 					BLI_remlink(handlers, handler);
 					wm_event_free_handler(handler);
@@ -1445,14 +1445,15 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 			
 		}
 		else {
-			printf("%s: error - missing modal\n", __func__);
+			printf("%s: error '%s' missing modal\n", __func__, op->idname);
 		}
 	}
 	else {
 		wmOperatorType *ot = WM_operatortype_find(event->keymap_idname, 0);
 
-		if (ot)
+		if (ot) {
 			retval = wm_operator_invoke(C, ot, event, properties, NULL, FALSE);
+		}
 	}
 	/* Finished and pass through flag as handled */
 
@@ -1643,17 +1644,17 @@ static int handler_boundbox_test(wmEventHandler *handler, wmEvent *event)
 			rcti rect = *handler->bblocal;
 			BLI_rcti_translate(&rect, handler->bbwin->xmin, handler->bbwin->ymin);
 
-			if (BLI_in_rcti_v(&rect, &event->x))
+			if (BLI_rcti_isect_pt_v(&rect, &event->x))
 				return 1;
-			else if (event->type == MOUSEMOVE && BLI_in_rcti_v(&rect, &event->prevx))
+			else if (event->type == MOUSEMOVE && BLI_rcti_isect_pt_v(&rect, &event->prevx))
 				return 1;
 			else
 				return 0;
 		}
 		else {
-			if (BLI_in_rcti_v(handler->bbwin, &event->x))
+			if (BLI_rcti_isect_pt_v(handler->bbwin, &event->x))
 				return 1;
-			else if (event->type == MOUSEMOVE && BLI_in_rcti_v(handler->bbwin, &event->prevx))
+			else if (event->type == MOUSEMOVE && BLI_rcti_isect_pt_v(handler->bbwin, &event->prevx))
 				return 1;
 			else
 				return 0;
@@ -1889,10 +1890,10 @@ static int wm_event_inside_i(wmEvent *event, rcti *rect)
 {
 	if (wm_event_always_pass(event))
 		return 1;
-	if (BLI_in_rcti_v(rect, &event->x))
+	if (BLI_rcti_isect_pt_v(rect, &event->x))
 		return 1;
 	if (event->type == MOUSEMOVE) {
-		if (BLI_in_rcti_v(rect, &event->prevx)) {
+		if (BLI_rcti_isect_pt_v(rect, &event->prevx)) {
 			return 1;
 		}
 		return 0;
@@ -1907,7 +1908,7 @@ static ScrArea *area_event_inside(bContext *C, const int xy[2])
 	
 	if (screen)
 		for (sa = screen->areabase.first; sa; sa = sa->next)
-			if (BLI_in_rcti_v(&sa->totrct, xy))
+			if (BLI_rcti_isect_pt_v(&sa->totrct, xy))
 				return sa;
 	return NULL;
 }
@@ -1920,7 +1921,7 @@ static ARegion *region_event_inside(bContext *C, const int xy[2])
 	
 	if (screen && area)
 		for (ar = area->regionbase.first; ar; ar = ar->next)
-			if (BLI_in_rcti_v(&ar->winrct, xy))
+			if (BLI_rcti_isect_pt_v(&ar->winrct, xy))
 				return ar;
 	return NULL;
 }
@@ -1951,7 +1952,7 @@ static void wm_paintcursor_test(bContext *C, wmEvent *event)
 			wm_paintcursor_tag(C, wm->paintcursors.first, ar);
 		
 		/* if previous position was not in current region, we have to set a temp new context */
-		if (ar == NULL || !BLI_in_rcti_v(&ar->winrct, &event->prevx)) {
+		if (ar == NULL || !BLI_rcti_isect_pt_v(&ar->winrct, &event->prevx)) {
 			ScrArea *sa = CTX_wm_area(C);
 			
 			CTX_wm_area_set(C, area_event_inside(C, &event->prevx));
@@ -2021,23 +2022,26 @@ void wm_event_do_handlers(bContext *C)
 			Scene *scene = win->screen->scene;
 			
 			if (scene) {
-				int playing = sound_scene_playing(win->screen->scene);
+				int is_playing_sound = sound_scene_playing(win->screen->scene);
 				
-				if (playing != -1) {
+				if (is_playing_sound != -1) {
+					int is_playing_screen;
 					CTX_wm_window_set(C, win);
 					CTX_wm_screen_set(C, win->screen);
 					CTX_data_scene_set(C, scene);
 					
-					if (((playing == 1) && (!ED_screen_animation_playing(wm))) ||
-					    ((playing == 0) && (ED_screen_animation_playing(wm))))
+					is_playing_screen = (ED_screen_animation_playing(wm) != NULL);
+
+					if (((is_playing_sound == 1) && (is_playing_screen == 0)) ||
+					    ((is_playing_sound == 0) && (is_playing_screen == 1)))
 					{
 						ED_screen_animation_play(C, -1, 1);
 					}
 					
-					if (playing == 0) {
-						float time = sound_sync_scene(scene);
+					if (is_playing_sound == 0) {
+						const float time = sound_sync_scene(scene);
 						if (finite(time)) {
-							int ncfra = sound_sync_scene(scene) * (float)FPS + 0.5f;
+							int ncfra = time * (float)FPS + 0.5f;
 							if (ncfra != scene->r.cfra) {
 								scene->r.cfra = ncfra;
 								ED_update_for_newframe(CTX_data_main(C), scene, 1);
@@ -2126,7 +2130,7 @@ void wm_event_do_handlers(bContext *C)
 									if (CTX_wm_window(C) == NULL)
 										return;
 
-									doit |= (BLI_in_rcti_v(&ar->winrct, &event->x));
+									doit |= (BLI_rcti_isect_pt_v(&ar->winrct, &event->x));
 									
 									if (action & WM_HANDLER_BREAK)
 										break;
@@ -2469,6 +2473,11 @@ void WM_event_add_mousemove(bContext *C)
 	window->addmousemove = 1;
 }
 
+void WM_event_add_mousemove_window(wmWindow *window)
+{
+	window->addmousemove = 1;
+}
+
 /* for modal callbacks, check configuration for how to interpret exit with tweaks  */
 int WM_modal_tweak_exit(wmEvent *evt, int tweak_event)
 {
@@ -2708,7 +2717,8 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 	
 	switch (type) {
 		/* mouse move */
-		case GHOST_kEventCursorMove: {
+		case GHOST_kEventCursorMove:
+		{
 			if (win->active) {
 				GHOST_TEventCursorData *cd = customdata;
 				wmEvent *lastevent = win->queue.last;
@@ -2751,7 +2761,8 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			}
 			break;
 		}
-		case GHOST_kEventTrackpad: {
+		case GHOST_kEventTrackpad:
+		{
 			GHOST_TEventTrackpadData *pd = customdata;
 			switch (pd->subtype) {
 				case GHOST_kTrackpadEventMagnify:
@@ -2783,7 +2794,8 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 		}
 		/* mouse button */
 		case GHOST_kEventButtonDown:
-		case GHOST_kEventButtonUp: {
+		case GHOST_kEventButtonUp:
+		{
 			GHOST_TEventButtonData *bd = customdata;
 
 			event.val = (type == GHOST_kEventButtonDown) ? KM_PRESS : KM_RELEASE;
@@ -2831,7 +2843,8 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 		}
 		/* keyboard */
 		case GHOST_kEventKeyDown:
-		case GHOST_kEventKeyUp: {
+		case GHOST_kEventKeyUp:
+		{
 			GHOST_TEventKeyData *kd = customdata;
 			event.type = convert_key(kd->key);
 			event.ascii = kd->ascii;
@@ -2915,7 +2928,8 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			break;
 		}
 			
-		case GHOST_kEventWheel: {
+		case GHOST_kEventWheel:
+		{
 			GHOST_TEventWheelData *wheelData = customdata;
 			
 			if (wheelData->z > 0)
@@ -2928,7 +2942,8 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			
 			break;
 		}
-		case GHOST_kEventTimer: {
+		case GHOST_kEventTimer:
+		{
 			event.type = TIMER;
 			event.customdatatype = EVT_DATA_TIMER;
 			event.customdata = customdata;
@@ -2937,7 +2952,8 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			break;
 		}
 
-		case GHOST_kEventNDOFMotion: {
+		case GHOST_kEventNDOFMotion:
+		{
 			event.type = NDOF_MOTION;
 			attach_ndof_data(&event, customdata);
 			wm_event_add(win, &event);
@@ -2947,7 +2963,8 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			break;
 		}
 
-		case GHOST_kEventNDOFButton: {
+		case GHOST_kEventNDOFButton:
+		{
 			GHOST_TEventNDOFButtonData *e = customdata;
 
 			event.type = NDOF_BUTTON_NONE + e->button;
@@ -2991,12 +3008,12 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 		case GHOST_kNumEventTypes:
 			break;
 
-		case GHOST_kEventWindowDeactivate: {
+		case GHOST_kEventWindowDeactivate:
+		{
 			event.type = WINDEACTIVATE;
 			wm_event_add(win, &event);
 
 			break;
-			
 		}
 
 	}

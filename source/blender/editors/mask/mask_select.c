@@ -148,7 +148,7 @@ void ED_mask_select_toggle_all(Mask *mask, int action)
 		}
 
 		if (action == SEL_INVERT) {
-			/* we don't have generic functons for this, its restricted to this operator
+			/* we don't have generic functions for this, its restricted to this operator
 			 * if one day we need to re-use such functionality, they can be split out */
 
 			MaskSpline *spline;
@@ -440,7 +440,7 @@ static int border_select_exec(bContext *C, wmOperator *op)
 				/* TODO: handles? */
 				/* TODO: uw? */
 
-				if (BLI_in_rctf_v(&rectf, point_deform->bezt.vec[1])) {
+				if (BLI_rctf_isect_pt_v(&rectf, point_deform->bezt.vec[1])) {
 					BKE_mask_point_select_set(point, mode == GESTURE_MODAL_SELECT);
 					BKE_mask_point_select_set_handle(point, mode == GESTURE_MODAL_SELECT);
 				}
@@ -485,7 +485,7 @@ void MASK_OT_select_border(wmOperatorType *ot)
 	WM_operator_properties_gesture_border(ot, TRUE);
 }
 
-static int do_lasso_select_mask(bContext *C, int mcords[][2], short moves, short select)
+static int do_lasso_select_mask(bContext *C, const int mcords[][2], short moves, short select)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -525,7 +525,7 @@ static int do_lasso_select_mask(bContext *C, int mcords[][2], short moves, short
 				                           point_deform->bezt.vec[1][0], point_deform->bezt.vec[1][1],
 				                           &screen_co[0], &screen_co[1]);
 
-				if (BLI_in_rcti(&rect, screen_co[0], screen_co[1]) &&
+				if (BLI_rcti_isect_pt(&rect, screen_co[0], screen_co[1]) &&
 				    BLI_lasso_is_point_inside(mcords, moves, screen_co[0], screen_co[1], INT_MAX))
 				{
 					BKE_mask_point_select_set(point, select);

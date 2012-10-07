@@ -48,6 +48,7 @@
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
+#include "IMB_colormanagement.h"
 
 #include "GPU_colors.h"
 #include "GPU_primitives.h"
@@ -60,8 +61,6 @@
 
 /* own include */
 #include "interface_intern.h"
-
-#define UI_DISABLED_ALPHA_OFFS  -160
 
 static int roundboxtype = UI_CNR_ALL;
 
@@ -87,7 +86,7 @@ void uiDrawBox(int mode, float minx, float miny, float maxx, float maxy, float r
 	
 	/* mult */
 	for (a = 0; a < 7; a++) {
-		vec[a][0] *= rad; vec[a][1] *= rad;
+		mul_v2_fl(vec[a], rad);
 	}
 
 	gpuImmediateFormat_V2(); // DOODLE: ui box, a rounded rectangle
@@ -162,18 +161,18 @@ void uiDrawBoxShade(int mode, float minx, float miny, float maxx, float maxy, fl
 	
 	/* mult */
 	for (a = 0; a < 7; a++) {
-		vec[a][0] *= rad; vec[a][1] *= rad;
+		mul_v2_fl(vec[a], rad);
 	}
 	/* get current color, needs to be outside of gpuBegin/End */
 	gpuGetCurrentColor4fv(color);
 
 	/* 'shade' defines strength of shading */	
-	coltop[0] = color[0] + shadetop; if (coltop[0] > 1.0f) coltop[0] = 1.0f;
-	coltop[1] = color[1] + shadetop; if (coltop[1] > 1.0f) coltop[1] = 1.0f;
-	coltop[2] = color[2] + shadetop; if (coltop[2] > 1.0f) coltop[2] = 1.0f;
-	coldown[0] = color[0] + shadedown; if (coldown[0] < 0.0f) coldown[0] = 0.0f;
-	coldown[1] = color[1] + shadedown; if (coldown[1] < 0.0f) coldown[1] = 0.0f;
-	coldown[2] = color[2] + shadedown; if (coldown[2] < 0.0f) coldown[2] = 0.0f;
+	coltop[0]  = minf(1.0f, color[0] + shadetop);
+	coltop[1]  = minf(1.0f, color[1] + shadetop);
+	coltop[2]  = minf(1.0f, color[2] + shadetop);
+	coldown[0] = maxf(0.0f, color[0] + shadedown);
+	coldown[1] = maxf(0.0f, color[1] + shadedown);
+	coldown[2] = maxf(0.0f, color[2] + shadedown);
 
 	glShadeModel(GL_SMOOTH);
 	gpuBegin(mode);
@@ -271,18 +270,18 @@ void uiDrawBoxVerticalShade(int mode, float minx, float miny, float maxx, float 
 	
 	/* mult */
 	for (a = 0; a < 7; a++) {
-		vec[a][0] *= rad; vec[a][1] *= rad;
+		mul_v2_fl(vec[a], rad);
 	}
 	/* get current color, needs to be outside of gpuBegin/End */
 	gpuGetCurrentColor4fv(color);
 
 	/* 'shade' defines strength of shading */	
-	colLeft[0] = color[0] + shadeLeft; if (colLeft[0] > 1.0f) colLeft[0] = 1.0f;
-	colLeft[1] = color[1] + shadeLeft; if (colLeft[1] > 1.0f) colLeft[1] = 1.0f;
-	colLeft[2] = color[2] + shadeLeft; if (colLeft[2] > 1.0f) colLeft[2] = 1.0f;
-	colRight[0] = color[0] + shadeRight; if (colRight[0] < 0.0f) colRight[0] = 0.0f;
-	colRight[1] = color[1] + shadeRight; if (colRight[1] < 0.0f) colRight[1] = 0.0f;
-	colRight[2] = color[2] + shadeRight; if (colRight[2] < 0.0f) colRight[2] = 0.0f;
+	colLeft[0]  = minf(1.0f, color[0] + shadeLeft);
+	colLeft[1]  = minf(1.0f, color[1] + shadeLeft);
+	colLeft[2]  = minf(1.0f, color[2] + shadeLeft);
+	colRight[0] = maxf(0.0f, color[0] + shadeRight);
+	colRight[1] = maxf(0.0f, color[1] + shadeRight);
+	colRight[2] = maxf(0.0f, color[2] + shadeRight);
 
 	glShadeModel(GL_SMOOTH);
 	gpuBegin(mode);
@@ -439,8 +438,8 @@ void ui_draw_but_IMAGE(ARegion *UNUSED(ar), uiBut *but, uiWidgetColors *UNUSED(w
 	//gpuCurrentColor3x(CPACK_RED);
 	//gpuSingleWireRectf(rect->xmin, rect->ymin, rect->xmax, rect->ymax)
 
-	w = BLI_RCT_SIZE_X(rect);
-	h = BLI_RCT_SIZE_Y(rect);
+	w = BLI_rcti_size_x(rect);
+	h = BLI_rcti_size_y(rect);
 	/* prevent drawing outside widget area */
 	gpuGetSizeBox(GL_SCISSOR_BOX, scissor);
 	gpuScissor(ar->winrct.xmin + rect->xmin, ar->winrct.ymin + rect->ymin, w, h);
@@ -493,8 +492,8 @@ static void ui_draw_but_CHARTAB(uiBut *but)
 		charmax = G.charmax = 0xffff;
 
 	/* Calculate the size of the button */
-	width = absBLI_RCT_SIZE_X(rect);
-	height = absBLI_RCT_SIZE_Y(rect);
+	width  = abs(BLI_rcti_size_x(rect));
+	height = abs(BLI_rcti_size_y(rect));
 	
 	butw = floor(width / 12);
 	buth = floor(height / 6);
@@ -600,7 +599,8 @@ static void ui_draw_but_CHARTAB(uiBut *but)
 			}
 
 			/* Calculate the next position and character */
-			sx += butw; ex += butw;
+			sx += butw;
+			ex += butw;
 			cs++;
 		}
 		/* Add the y position and reset x position */
@@ -632,7 +632,7 @@ static void ui_draw_but_CHARTAB(uiBut *but)
 #endif /* WITH_INTERNATIONAL */
 #endif
 
-static void draw_scope_end(rctf *rect, GLint *scissor)
+static void draw_scope_end(const rctf *rect, GLint *scissor)
 {
 	float scaler_x1, scaler_x2;
 
@@ -640,8 +640,8 @@ static void draw_scope_end(rctf *rect, GLint *scissor)
 	gpuScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
 
 	/* scale widget */
-	scaler_x1 = rect->xmin + BLI_RCT_SIZE_X(rect) / 2 - SCOPE_RESIZE_PAD;
-	scaler_x2 = rect->xmin + BLI_RCT_SIZE_X(rect) / 2 + SCOPE_RESIZE_PAD;
+	scaler_x1 = rect->xmin + BLI_rctf_size_x(rect) / 2 - SCOPE_RESIZE_PAD;
+	scaler_x2 = rect->xmin + BLI_rctf_size_y(rect) / 2 + SCOPE_RESIZE_PAD;
 
 	gpuImmediateFormat_C4_V2(); // DOODLE: fixed number of colored lines
 	gpuBegin(GL_LINES);
@@ -739,8 +739,8 @@ void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol)
 	rect.ymin = (float)recti->ymin + SCOPE_RESIZE_PAD + 2;
 	rect.ymax = (float)recti->ymax - 1;
 	
-	w = BLI_RCT_SIZE_X(&rect);
-	h = BLI_RCT_SIZE_Y(&rect) * hist->ymax;
+	w = BLI_rctf_size_x(&rect);
+	h = BLI_rctf_size_y(&rect) * hist->ymax;
 	
 	glEnable(GL_BLEND);
 
@@ -817,9 +817,9 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 
 	if (scopes->wavefrm_yfac < 0.5f)
 		scopes->wavefrm_yfac = 0.98f;
-	w = BLI_RCT_SIZE_X(&rect) - 7;
-	h = BLI_RCT_SIZE_Y(&rect) * scopes->wavefrm_yfac;
-	yofs = rect.ymin + (BLI_RCT_SIZE_Y(&rect) - h) / 2.0f;
+	w = BLI_rctf_size_x(&rect) - 7;
+	h = BLI_rctf_size_y(&rect) * scopes->wavefrm_yfac;
+	yofs = rect.ymin + (BLI_rctf_size_y(&rect) - h) / 2.0f;
 	w3 = w / 3.0f;
 
 	/* log scale for alpha */
@@ -984,12 +984,12 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 
 static float polar_to_x(float center, float diam, float ampli, float angle)
 {
-	return center + diam *ampli *cosf(angle);
+	return center + diam *ampli * cosf(angle);
 }
 
 static float polar_to_y(float center, float diam, float ampli, float angle)
 {
-	return center + diam *ampli *sinf(angle);
+	return center + diam *ampli * sinf(angle);
 }
 
 static void vectorscope_draw_target(float centerx, float centery, float diam, const float colf[3])
@@ -1064,8 +1064,8 @@ void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wco
 	rect.ymin = (float)recti->ymin + SCOPE_RESIZE_PAD + 2;
 	rect.ymax = (float)recti->ymax - 1;
 
-	w = BLI_RCT_SIZE_X(&rect);
-	h = BLI_RCT_SIZE_Y(&rect);
+	w = BLI_rctf_size_x(&rect);
+	h = BLI_rctf_size_y(&rect);
 	centerx = rect.xmin + w / 2;
 	centery = rect.ymin + h / 2;
 	diam = (w < h) ? w : h;
@@ -1157,9 +1157,13 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 	float v3[2], v1[2], v2[2], v1a[2], v2a[2];
 	int a;
 	float pos, colf[4] = {0, 0, 0, 0}; /* initialize in case the colorband isn't valid */
+	struct ColorManagedDisplay *display = NULL;
 
 	coba = (ColorBand *)(but->editcoba ? but->editcoba : but->poin);
 	if (coba == NULL) return;
+
+	if (but->block->color_profile)
+		display = ui_block_display_get(but->block);
 
 	x1 = rect->xmin;
 	y1 = rect->ymin;
@@ -1190,18 +1194,20 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 	gpuBegin(GL_TRIANGLE_STRIP);
 
 	gpuColor4fv(&cbd->r);
-	gpuVertex2fv(v1); gpuVertex2fv(v2);
+	gpuVertex2fv(v1);
+	gpuVertex2fv(v2);
 
 	for (a = 1; a <= sizex; a++) {
 		pos = ((float)a) / (sizex - 1);
 		do_colorband(coba, pos, colf);
-		if (but->block->color_profile != BLI_PR_NONE)
-			linearrgb_to_srgb_v3_v3(colf, colf);
+		if (display)
+			IMB_colormanagement_scene_linear_to_display_v3(colf, display);
 
 		v1[0] = v2[0] = x1 + a;
 
 		gpuColor4fv(colf);
-		gpuVertex2fv(v1); gpuVertex2fv(v2);
+		gpuVertex2fv(v1);
+		gpuVertex2fv(v2);
 	}
 
 	gpuEnd();
@@ -1294,7 +1300,8 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 	
 	/* sphere color */
 	gpuMaterialfv(GL_FRONT, GL_DIFFUSE, diffn);
-	glCullFace(GL_BACK); glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+	glEnable(GL_CULL_FACE);
 	
 	/* disable blender light */
 	for (a = 0; a < 8; a++) {
@@ -1317,12 +1324,12 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 	
 	/* transform to button */
 	gpuPushMatrix();
-	gpuTranslate(rect->xmin + 0.5f * BLI_RCT_SIZE_X(rect), rect->ymin + 0.5f * BLI_RCT_SIZE_Y(rect), 0.0f);
+	gpuTranslate(rect->xmin + 0.5f * BLI_rcti_size_x(rect), rect->ymin + 0.5f * BLI_rcti_size_y(rect), 0.0f);
 	
-	if (BLI_RCT_SIZE_X(rect) < BLI_RCT_SIZE_Y(rect))
-		size = BLI_RCT_SIZE_X(rect) / 200.f;
+	if (BLI_rcti_size_x(rect) < BLI_rcti_size_y(rect))
+		size = BLI_rcti_size_x(rect) / 200.f;
 	else
-		size = BLI_RCT_SIZE_Y(rect) / 200.f;
+		size = BLI_rcti_size_y(rect) / 200.f;
 	
 	gpuScale(size, size, size);
 	
@@ -1433,11 +1440,14 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 	scissor_new.xmax = ar->winrct.xmin + rect->xmax;
 	scissor_new.ymax = ar->winrct.ymin + rect->ymax;
 	BLI_rcti_isect(&scissor_new, &ar->winrct, &scissor_new);
-	gpuScissor(scissor_new.xmin, scissor_new.ymin, scissor_new.xmax - scissor_new.xmin, scissor_new.ymax - scissor_new.ymin);
-	
+	gpuScissor(scissor_new.xmin,
+	          scissor_new.ymin,
+	          BLI_rcti_size_x(&scissor_new),
+	          BLI_rcti_size_y(&scissor_new));
+
 	/* calculate offset and zoom */
-	zoomx = (BLI_RCT_SIZE_X(rect) - 2.0f * but->aspect) / BLI_RCT_SIZE_X(&cumap->curr);
-	zoomy = (BLI_RCT_SIZE_Y(rect) - 2.0f * but->aspect) / BLI_RCT_SIZE_Y(&cumap->curr);
+	zoomx = (BLI_rcti_size_x(rect) - 2.0f * but->aspect) / BLI_rctf_size_x(&cumap->curr);
+	zoomy = (BLI_rcti_size_y(rect) - 2.0f * but->aspect) / BLI_rctf_size_y(&cumap->curr);
 	offsx = cumap->curr.xmin - but->aspect / zoomx;
 	offsy = cumap->curr.ymin - but->aspect / zoomy;
 	
@@ -1613,8 +1623,8 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 	rect.ymin = (float)recti->ymin + SCOPE_RESIZE_PAD + 2;
 	rect.ymax = (float)recti->ymax - 1;
 
-	width  = BLI_RCT_SIZE_X(&rect) + 1;
-	height = BLI_RCT_SIZE_Y(&rect);
+	width  = BLI_rctf_size_x(&rect) + 1;
+	height = BLI_rctf_size_y(&rect);
 
 	glEnable(GL_BLEND);
 
@@ -1688,8 +1698,8 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 			gpuTranslate(rect.xmin + track_pos[0], rect.ymin + track_pos[1], 0.f);
 			gpuScissor(ar->winrct.xmin + rect.xmin,
 			          ar->winrct.ymin + rect.ymin,
-			          BLI_RCT_SIZE_X(&rect),
-			          BLI_RCT_SIZE_Y(&rect));
+			          BLI_rctf_size_x(&rect),
+			          BLI_rctf_size_y(&rect));
 
 			for (a = 0; a < 2; a++) {
 				if (a == 1) {
@@ -1789,7 +1799,7 @@ void uiDrawBoxShadow(unsigned char alpha, float minx, float miny, float maxx, fl
 }
 
 
-void ui_dropshadow(rctf *rct, float radius, float aspect, float alpha, int UNUSED(select))
+void ui_dropshadow(const rctf *rct, float radius, float aspect, float alpha, int UNUSED(select))
 {
 	int i;
 	float rad;
@@ -1798,8 +1808,8 @@ void ui_dropshadow(rctf *rct, float radius, float aspect, float alpha, int UNUSE
 	
 	glEnable(GL_BLEND);
 	
-	if (radius > (rct->ymax - rct->ymin - 10.0f) / 2.0f)
-		rad = (rct->ymax - rct->ymin - 10.0f) / 2.0f;
+	if (radius > (BLI_rctf_size_y(rct) - 10.0f) / 2.0f)
+		rad = (BLI_rctf_size_y(rct) - 10.0f) / 2.0f;
 	else
 		rad = radius;
 

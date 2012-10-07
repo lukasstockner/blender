@@ -42,6 +42,7 @@
 #include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_image.h"
+#include "BKE_global.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 #include "BKE_tessmesh.h"
@@ -194,9 +195,7 @@ static SpaceLink *image_new(const bContext *UNUSED(C))
 static void image_free(SpaceLink *sl)
 {	
 	SpaceImage *simage = (SpaceImage *) sl;
-	
-	if (simage->cumap)
-		curvemapping_free(simage->cumap);
+
 	scopes_free(&simage->scopes);
 }
 
@@ -216,8 +215,6 @@ static SpaceLink *image_duplicate(SpaceLink *sl)
 	SpaceImage *simagen = MEM_dupallocN(sl);
 	
 	/* clear or remove stuff from old */
-	if (simagen->cumap)
-		simagen->cumap = curvemapping_copy(simagen->cumap);
 
 	scopes_new(&simagen->scopes);
 
@@ -373,7 +370,10 @@ static void image_refresh(const bContext *C, ScrArea *sa)
 	
 	/* check if we have to set the image from the editmesh */
 	if (ima && (ima->source == IMA_SRC_VIEWER && sima->mode == SI_MODE_MASK)) {
-		if (sima->lock) {
+		if (sima->lock == FALSE && G.moving) {
+			/* pass */
+		}
+		else {
 			if (scene->nodetree) {
 				Mask *mask = ED_space_image_get_mask(sima);
 				if (mask) {
@@ -388,11 +388,12 @@ static void image_refresh(const bContext *C, ScrArea *sa)
 	else if (obedit && obedit->type == OB_MESH) {
 		Mesh *me = (Mesh *)obedit->data;
 		struct BMEditMesh *em = me->edit_btmesh;
-		int sloppy = 1; /* partially selected face is ok */
+		int sloppy = TRUE; /* partially selected face is ok */
+		int selected = !(scene->toolsettings->uv_flag & UV_SYNC_SELECTION); /* only selected active face? */
 
 		if (BKE_scene_use_new_shading_nodes(scene)) {
 			/* new shading system, get image from material */
-			BMFace *efa = BM_active_face_get(em->bm, sloppy);
+			BMFace *efa = BM_active_face_get(em->bm, sloppy, selected);
 
 			if (efa) {
 				Image *node_ima;
@@ -407,10 +408,8 @@ static void image_refresh(const bContext *C, ScrArea *sa)
 			MTexPoly *tf;
 			
 			if (em && EDBM_mtexpoly_check(em)) {
-				sima->image = NULL;
-				
-				tf = EDBM_mtexpoly_active_get(em, NULL, TRUE); /* partially selected face is ok */
-				
+				tf = EDBM_mtexpoly_active_get(em, NULL, sloppy, selected);
+
 				if (tf) {
 					/* don't need to check for pin here, see above */
 					sima->image = tf->tpage;
@@ -437,7 +436,12 @@ static void image_listener(ScrArea *sa, wmNotifier *wmn)
 					ED_area_tag_redraw(sa);
 					break;
 				case ND_MODE:
+					if (wmn->subtype == NS_EDITMODE_MESH)
+						ED_area_tag_refresh(sa);
+					ED_area_tag_redraw(sa);
+					break;
 				case ND_RENDER_RESULT:
+				case ND_RENDER_OPTIONS:
 				case ND_COMPO_RESULT:
 					if (ED_space_image_show_render(sima))
 						image_scopes_tag_refresh(sa);
@@ -556,8 +560,8 @@ static void image_main_area_set_view2d(SpaceImage *sima, ARegion *ar)
 	if (ima)
 		h *= ima->aspy / ima->aspx;
 
-	winx = BLI_RCT_SIZE_X(&ar->winrct) + 1;
-	winy = BLI_RCT_SIZE_Y(&ar->winrct) + 1;
+	winx = BLI_rcti_size_x(&ar->winrct) + 1;
+	winy = BLI_rcti_size_y(&ar->winrct) + 1;
 		
 	ar->v2d.tot.xmin = 0;
 	ar->v2d.tot.ymin = 0;
@@ -646,7 +650,7 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 	image_main_area_set_view2d(sima, ar);
 
 	/* we draw image in pixelspace */
-	draw_image_main(sima, ar, scene);
+	draw_image_main(C, ar);
 
 	/* and uvs in 0.0-1.0 space */
 	UI_view2d_view_ortho(v2d);
@@ -676,10 +680,13 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 
 	if (mask) {
 		int width, height;
+		float aspx, aspy;
 		ED_space_image_get_size(sima, &width, &height);
+		ED_space_image_get_aspect(sima, &aspx, &aspy);
 		ED_mask_draw_region(mask, ar,
 		                    sima->mask_info.draw_flag, sima->mask_info.draw_type,
 		                    width, height,
+		                    aspx, aspy,
 		                    TRUE, FALSE,
 		                    NULL, C);
 
@@ -700,8 +707,8 @@ static void image_main_area_listener(ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
-		case NC_SCREEN:
-			if (wmn->data == ND_GPENCIL)
+		case NC_GPENCIL:
+			if (wmn->action == NA_EDITED)
 				ED_region_tag_redraw(ar);
 			break;
 	}
@@ -729,8 +736,8 @@ static void image_buttons_area_listener(ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
-		case NC_SCREEN:
-			if (wmn->data == ND_GPENCIL)
+		case NC_GPENCIL:
+			if (wmn->data == ND_DATA)
 				ED_region_tag_redraw(ar);
 			break;
 		case NC_BRUSH:
@@ -767,9 +774,9 @@ static void image_scope_area_draw(const bContext *C, ARegion *ar)
 	ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock);
 	if (ibuf) {
 		if (!sima->scopes.ok) {
-			BKE_histogram_update_sample_line(&sima->sample_line_hist, ibuf, scene->r.color_mgt_flag & R_COLOR_MANAGEMENT);
+			BKE_histogram_update_sample_line(&sima->sample_line_hist, ibuf, &scene->view_settings, &scene->display_settings);
 		}
-		scopes_update(&sima->scopes, ibuf, scene->r.color_mgt_flag & R_COLOR_MANAGEMENT);
+		scopes_update(&sima->scopes, ibuf, &scene->view_settings, &scene->display_settings);
 	}
 	ED_space_image_release_buffer(sima, lock);
 	

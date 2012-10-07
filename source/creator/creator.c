@@ -71,7 +71,6 @@
 
 #include "BLI_blenlib.h"
 
-#include "BKE_utildefines.h"
 #include "BKE_blender.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h" /* for DAG_on_visible_update */
@@ -95,7 +94,6 @@
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
-//XXX #include "playanim_ext.h"
 #include "ED_datafiles.h"
 
 #include "WM_api.h"
@@ -458,11 +456,9 @@ static int set_env(int argc, const char **argv, void *UNUSED(data))
 
 static int playback_mode(int argc, const char **argv, void *UNUSED(data))
 {
-	extern void playanim(int argc, const char **argv);
-
 	/* not if -b was given first */
 	if (G.background == 0) {
-		playanim(argc, argv); /* not the same argc and argv as before */
+		WM_main_playanim(argc, argv); /* not the same argc and argv as before */
 		exit(0); /* 2.4x didn't do this */
 	}
 
@@ -1276,6 +1272,10 @@ int main(int argc, const char **argv)
 	initglobals();  /* blender.c */
 
 	IMB_init();
+
+#ifdef WITH_FFMPEG
+	IMB_ffmpeg_init();
+#endif
 
 	BLI_callback_global_init();
 

@@ -356,7 +356,7 @@ static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
 	xpos = marker->frame;
 	
 	/* no time correction for framelen! space is drawn with old values */
-	ypixels = BLI_RCT_SIZE_Y(&v2d->mask);
+	ypixels = BLI_rcti_size_y(&v2d->mask);
 	UI_view2d_getscale(v2d, &xscale, &yscale);
 	
 	gpuScale(1.0f / xscale, 1.0f, 1.0f);
@@ -503,7 +503,7 @@ static int ed_markers_poll_markers_exist(bContext *C)
  * "custom"/third-tier invoke() callback supplied as the last arg (which would normally
  * be the operator's invoke() callback elsewhere)
  *
- * < invoke_func: (fn(bContext*, wmOperator*, wmEvent*)=int) "standard" invoke function 
+ * < invoke_func: (fn(bContext *, wmOperator *, wmEvent *)=int) "standard" invoke function
  *			that operator would otherwise have used. If NULL, the operator's standard
  *			exec() callback will be called instead in the appropriate places.
  */
@@ -772,7 +772,7 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, wmEvent *evt)
 			if (hasNumInput(&mm->num))
 				break;
 			
-			dx = BLI_RCT_SIZE_X(&v2d->cur) / BLI_RCT_SIZE_X(&v2d->mask);
+			dx = BLI_rctf_size_x(&v2d->cur) / BLI_rcti_size_x(&v2d->mask);
 			
 			if (evt->x != mm->evtx) {   /* XXX maybe init for first time */
 				int a, offs, totmark = 0;
@@ -1018,6 +1018,7 @@ static void select_timeline_marker_frame(ListBase *markers, int frame, unsigned 
 static int ed_marker_select(bContext *C, wmEvent *evt, int extend, int camera)
 {
 	ListBase *markers = ED_context_get_markers(C);
+	ARegion *ar = CTX_wm_region(C);
 	View2D *v2d = UI_view2d_fromcontext(C);
 	float viewx;
 	int x, y, cfra;
@@ -1025,8 +1026,8 @@ static int ed_marker_select(bContext *C, wmEvent *evt, int extend, int camera)
 	if (markers == NULL)
 		return OPERATOR_PASS_THROUGH;
 
-	x = evt->x - CTX_wm_region(C)->winrct.xmin;
-	y = evt->y - CTX_wm_region(C)->winrct.ymin;
+	x = evt->x - ar->winrct.xmin;
+	y = evt->y - ar->winrct.ymin;
 	
 	UI_view2d_region_to_view(v2d, x, y, &viewx, NULL);	
 	

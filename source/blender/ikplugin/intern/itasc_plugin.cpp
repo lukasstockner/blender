@@ -57,7 +57,6 @@ extern "C" {
 #include "BKE_global.h"
 #include "BKE_armature.h"
 #include "BKE_action.h"
-#include "BKE_utildefines.h"
 #include "BKE_constraint.h"
 #include "DNA_object_types.h"
 #include "DNA_action_types.h"
@@ -394,7 +393,7 @@ static bool constraint_valid(bConstraint *con)
 	return true;
 }
 
-int initialize_scene(Object *ob, bPoseChannel *pchan_tip)
+static int initialize_scene(Object *ob, bPoseChannel *pchan_tip)
 {
 	bConstraint *con;
 	int treecount;
@@ -1173,10 +1172,8 @@ static IK_Scene *convert_tree(Scene *blscene, Object *ob, bPoseChannel *pchan)
 		switch (ikchan->jointType & ~IK_TRANSY) {
 			case 0:
 				// fixed bone
-				if (!(ikchan->jointType & IK_TRANSY)) {
-					joint += ":F";
-					ret = arm->addSegment(joint, parent, KDL::Joint::None, 0.0, tip);
-				}
+				joint += ":F";
+				ret = arm->addSegment(joint, parent, KDL::Joint::None, 0.0, tip);
 				break;
 			case IK_XDOF:
 				// RX only, get the X rotation

@@ -99,14 +99,19 @@ typedef struct Strip {
 	StripProxy *proxy;
 	StripCrop *crop;
 	StripTransform *transform;
-	StripColorBalance *color_balance;
+	StripColorBalance *color_balance DNA_DEPRECATED;
 } Strip;
 
-/* The sequence structure is the basic struct used by any strip. each of the strips uses a different sequence structure.*/
-/* WATCH IT: first part identical to ID (for use in ipo's)
- * the commend above is historic, probably we can drop the ID compatibility, but take care making this change */
-
-/* WATCH ITv2, this is really a 'Strip' in the UI!, name is highly confusing */
+/**
+ * The sequence structure is the basic struct used by any strip.
+ * each of the strips uses a different sequence structure.
+ *
+ * \warning The first part identical to ID (for use in ipo's)
+ * the commend above is historic, probably we can drop the ID compatibility,
+ * but take care making this change.
+ *
+ * \warning This is really a 'Strip' in the UI!, name is highly confusing.
+ */
 typedef struct Sequence {
 	struct Sequence *next, *prev;
 	void *tmp; /* tmp var for copying, and tagging for linked selection */
@@ -144,9 +149,6 @@ typedef struct Sequence {
 
 	/* pointers for effects: */
 	struct Sequence *seq1, *seq2, *seq3;
-
-	/* maks input for effects */
-	struct Sequence *mask_sequence;
 
 	ListBase seqbase;       /* list of strips for metastrips */
 
@@ -266,6 +268,25 @@ typedef struct HueCorrectModifierData {
 	struct CurveMapping curve_mapping;
 } HueCorrectModifierData;
 
+typedef struct BrightContrastModifierData {
+	SequenceModifierData modifier;
+
+	float bright;
+	float contrast;
+} BrightContrastModifierData;
+
+/* ***************** Scopes ****************** */
+
+typedef struct SequencerScopes {
+	struct ImBuf *reference_ibuf;
+
+	struct ImBuf *zebra_ibuf;
+	struct ImBuf *waveform_ibuf;
+	struct ImBuf *sep_waveform_ibuf;
+	struct ImBuf *vector_ibuf;
+	struct ImBuf *histogram_ibuf;
+} SequencerScopes;
+
 #define MAXSEQ          32
 
 #define SELECT 1
@@ -303,11 +324,12 @@ typedef struct HueCorrectModifierData {
 #define SEQ_USE_PROXY               (1 << 15)
 #define SEQ_USE_TRANSFORM           (1 << 16)
 #define SEQ_USE_CROP                (1 << 17)
-#define SEQ_USE_COLOR_BALANCE       (1 << 18)
+/* #define SEQ_USE_COLOR_BALANCE       (1 << 18) */ /* DEPRECATED */
 #define SEQ_USE_PROXY_CUSTOM_DIR    (1 << 19)
 
 #define SEQ_USE_PROXY_CUSTOM_FILE   (1 << 21)
 #define SEQ_USE_EFFECT_DEFAULT_FADE (1 << 22)
+#define SEQ_USE_LINEAR_MODIFIERS    (1 << 23)
 
 // flags for whether those properties are animated or not
 #define SEQ_AUDIO_VOLUME_ANIMATED   (1 << 24)
@@ -372,11 +394,6 @@ enum {
 	SEQ_TYPE_EFFECT_MAX  = 31
 };
 
-#define STRIPELEM_FAILED       0
-#define STRIPELEM_OK           1
-
-#define STRIPELEM_PREVIEW_DONE  1
-
 #define SEQ_MOVIECLIP_RENDER_UNDISTORTED (1 << 0)
 #define SEQ_MOVIECLIP_RENDER_STABILIZED  (1 << 1)
 
@@ -396,6 +413,7 @@ enum {
 	seqModifierType_ColorBalance   = 1,
 	seqModifierType_Curves         = 2,
 	seqModifierType_HueCorrect     = 3,
+	seqModifierType_BrightContrast = 4,
 
 	NUM_SEQUENCE_MODIFIER_TYPES
 };

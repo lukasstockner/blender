@@ -41,6 +41,7 @@
 extern "C" {
 #endif
 
+#include "DNA_color_types.h"  /* color management */
 #include "DNA_vec_types.h"
 #include "DNA_listBase.h"
 #include "DNA_ID.h"
@@ -273,6 +274,9 @@ typedef struct ImageFormatData {
 
 	char pad[7];
 
+	/* color management */
+	ColorManagedViewSettings view_settings;
+	ColorManagedDisplaySettings display_settings;
 } ImageFormatData;
 
 
@@ -833,14 +837,15 @@ typedef struct VPaint {
 	void *paintcursor;					/* wm handle */
 } VPaint;
 
-/* VPaint flag */
-#define VP_COLINDEX	1
-#define VP_AREA		2  /* vertex paint only */
-
-#define VP_NORMALS	8
-#define VP_SPRAY	16
-// #define VP_MIRROR_X	32 // deprecated in 2.5x use (me->editflag & ME_EDIT_MIRROR_X)
-#define VP_ONLYVGROUP	128  /* weight paint only */
+/* VPaint.flag */
+enum {
+	// VP_COLINDEX  = (1 << 0),  /* only paint onto active material*/  /* deprecated since before 2.49 */
+	VP_AREA         = (1 << 1),
+	VP_NORMALS      = (1 << 3),
+	VP_SPRAY        = (1 << 4),
+	// VP_MIRROR_X  = (1 << 5),  /* deprecated in 2.5x use (me->editflag & ME_EDIT_MIRROR_X) */
+	VP_ONLYVGROUP   = (1 << 7)   /* weight paint only */
+};
 
 /* *************************************************************** */
 /* Transform Orientations */
@@ -1049,7 +1054,7 @@ typedef struct UnitSettings {
 	/* Display/Editing unit options for each scene */
 	float scale_length; /* maybe have other unit conversions? */
 	char system; /* imperial, metric etc */
-	char system_rotation; /* not implemented as a propper unit system yet */
+	char system_rotation; /* not implemented as a proper unit system yet */
 	short flag;
 } UnitSettings;
 
@@ -1141,6 +1146,11 @@ typedef struct Scene {
 
 	uint64_t customdata_mask;	/* XXX. runtime flag for drawing, actually belongs in the window, only used by BKE_object_handle_update() */
 	uint64_t customdata_mask_modal; /* XXX. same as above but for temp operator use (gl renders) */
+
+	/* Color Management */
+	ColorManagedViewSettings view_settings;
+	ColorManagedDisplaySettings display_settings;
+	ColorManagedColorspaceSettings sequencer_colorspace_settings;
 } Scene;
 
 
@@ -1159,7 +1169,7 @@ typedef struct Scene {
 #define R_EDGE			0x0020
 #define R_FIELDS		0x0040
 #define R_FIELDSTILL	0x0080
-#define R_RADIO			0x0100
+/*#define R_RADIO			0x0100 */ /* deprecated */
 #define R_BORDER		0x0200
 #define R_PANORAMA		0x0400	/* deprecated as scene option, still used in renderer */
 #define R_CROP			0x0800
@@ -1262,7 +1272,7 @@ typedef struct Scene {
 #define R_ALPHAKEY		2
 
 /* color_mgt_flag */
-#define R_COLOR_MANAGEMENT              (1 << 0)
+#define R_COLOR_MANAGEMENT              (1 << 0)  /* deprecated, should only be used in versioning code only */
 #define R_COLOR_MANAGEMENT_PREDIVIDE    (1 << 1)
 
 /* subimtype, flag options for imtype */
@@ -1356,9 +1366,6 @@ typedef struct Scene {
 #define FRA2TIME(a)           ((((double) scene->r.frs_sec_base) * (double)(a)) / (double)scene->r.frs_sec)
 #define TIME2FRA(a)           ((((double) scene->r.frs_sec) * (double)(a)) / (double)scene->r.frs_sec_base)
 #define FPS                     (((double) scene->r.frs_sec) / (double)scene->r.frs_sec_base)
-
-#define RAD_PHASE_PATCHES	1
-#define RAD_PHASE_FACES		2
 
 /* base->flag is in DNA_object_types.h */
 
