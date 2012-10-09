@@ -505,7 +505,9 @@ void RE_InitState(Render *re, Render *source, RenderData *rd, SceneRenderLayer *
 	BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
 
 	if (re->r.scemode & R_PREVIEWBUTS) {
-		if (re->result && re->result->rectx == re->rectx && re->result->recty == re->recty) ;
+		if (re->result && re->result->rectx == re->rectx && re->result->recty == re->recty) {
+			/* pass */
+		}
 		else {
 			render_result_free(re->result);
 			re->result = NULL;
@@ -654,8 +656,12 @@ static void *do_part_thread(void *pa_v)
 		}
 		else if (render_display_draw_enabled(&R)) {
 			/* on break, don't merge in result for preview renders, looks nicer */
-			if (R.test_break(R.tbh) && (R.r.scemode & R_PREVIEWBUTS)) ;
-			else render_result_merge(R.result, pa->result);
+			if (R.test_break(R.tbh) && (R.r.scemode & R_PREVIEWBUTS)) {
+				/* pass */
+			}
+			else {
+				render_result_merge(R.result, pa->result);
+			}
 		}
 	}
 	
@@ -2111,6 +2117,7 @@ static int do_write_image_or_movie(Render *re, Main *bmain, Scene *scene, bMovie
 		/* note; the way it gets 32 bits rects is weak... */
 		if (ibuf->rect == NULL) {
 			ibuf->rect = MEM_mapallocN(sizeof(int) * rres.rectx * rres.recty, "temp 32 bits rect");
+			ibuf->mall |= IB_rect;
 			RE_ResultGet32(re, ibuf->rect);
 			do_free = TRUE;
 		}
@@ -2124,6 +2131,7 @@ static int do_write_image_or_movie(Render *re, Main *bmain, Scene *scene, bMovie
 		if (do_free) {
 			MEM_freeN(ibuf->rect);
 			ibuf->rect = NULL;
+			ibuf->mall &= ~IB_rect;
 		}
 
 		/* imbuf knows which rects are not part of ibuf */

@@ -128,6 +128,10 @@
 #endif
 #endif
 
+/* can be used in simple macros */
+#define CHECK_TYPE_INLINE(val, type) \
+	((void)(((type *)0) != (val)))
+
 #ifndef SWAP
 #  define SWAP(type, a, b)  {  \
 	type sw_ap;                \
@@ -331,4 +335,4 @@
 #  define UNLIKELY(x)     (x)
 #endif
 
-#endif // __BLI_UTILDEFINES_H__
+#endif  /* __BLI_UTILDEFINES_H__ */

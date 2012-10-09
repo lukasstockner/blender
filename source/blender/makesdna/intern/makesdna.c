@@ -485,11 +485,15 @@ static int preprocess_include(char *maindata, int len)
 		}
 
 		/* do not copy when: */
-		if (comment) ;
-		else if (cp[0] == ' ' && cp[1] == ' ') ;
-		else if (cp[-1] == '*' && cp[0] == ' ') ;  /* pointers with a space */
-
-		/* skip special keywords */
+		if (comment) {
+			/* pass */
+		}
+		else if (cp[0] == ' ' && cp[1] == ' ') {
+			/* pass */
+		}
+		else if (cp[-1] == '*' && cp[0] == ' ') {
+			/* pointers with a space */
+		}	/* skip special keywords */
 		else if (strncmp("DNA_DEPRECATED", cp, 14) == 0) {
 			/* single values are skipped already, so decrement 1 less */
 			a -= 13;
@@ -1028,7 +1032,9 @@ static int make_structDNA(char *baseDirectory, FILE *file)
 
 	if (debugSDNA > -1) printf("Writing file ... ");
 		
-	if (nr_names == 0 || nr_structs == 0) ;
+	if (nr_names == 0 || nr_structs == 0) {
+		/* pass */
+	}
 	else {
 		strcpy(str, "SDNA");
 		dna_write(file, str, 4);
@@ -1186,6 +1192,9 @@ int main(int argc, char **argv)
 	return(return_status);
 }
 
+/* handy but fails on struct bounds which makesdna doesnt care about
+ * unless structs are nested */
+#if 0
 /* include files for automatic dependencies */
 
 /* extra safety check that we are aligned,
@@ -1193,6 +1202,8 @@ int main(int argc, char **argv)
 #ifdef __GNUC__
 #  pragma GCC diagnostic error "-Wpadded"
 #endif
+
+#endif /* if 0 */
 
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"

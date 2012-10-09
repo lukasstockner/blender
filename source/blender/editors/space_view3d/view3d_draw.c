@@ -355,7 +355,9 @@ static void drawgrid(UnitSettings *unit, ARegion *ar, View3D *v3d, const char **
 				if (dx < GRID_MIN_PX_D) {
 					rv3d->gridview *= sublines;
 					dx *= sublines;
-					if (dx < GRID_MIN_PX_D) ;
+					if (dx < GRID_MIN_PX_D) {
+						/* pass */
+					}
 					else {
 						UI_ThemeColor(TH_GRID);
 						drawgrid_draw(ar, wx, wy, x, y, dx);
@@ -556,7 +558,7 @@ static void drawcursor(Scene *scene, ARegion *ar, View3D *v3d)
 	int co[2];
 
 	/* we don't want the clipping for cursor */
-	if (ED_view3d_project_int_global(ar, give_cursor(scene, v3d), co, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_SUCCESS) {
+	if (ED_view3d_project_int_global(ar, give_cursor(scene, v3d), co, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) {
 		setlinestyle(0); 
 		cpack(0xFF);
 		circ((float)co[0], (float)co[1], 10.0);
@@ -2853,6 +2855,12 @@ static int view3d_main_area_draw_engine(const bContext *C, ARegion *ar, int draw
 
 		engine->tile_x = ceil(ar->winx / (float)scene->r.xparts);
 		engine->tile_y = ceil(ar->winy / (float)scene->r.yparts);
+
+		/* clamp small tile sizes to prevent inefficient threading utilization
+		 * the same happens for final renders as well
+		 */
+		engine->tile_x = MAX2(engine->tile_x, 64);
+		engine->tile_y = MAX2(engine->tile_x, 64);
 
 		type->view_update(engine, C);
 

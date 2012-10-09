@@ -131,7 +131,7 @@ unsigned int bm_solidoffs = 0, bm_wireoffs = 0, bm_vertoffs = 0;    /* set in dr
 static char *selbuf = NULL;
 
 /* opengl doesn't support concave... */
-static void draw_triangulated(int mcords[][2], short tot)
+static void draw_triangulated(const int mcords[][2], const short tot)
 {
 	ListBase lb = {NULL, NULL};
 	DispList *dl;
@@ -227,7 +227,7 @@ void EDBM_backbuf_free(void)
  * - grab again and compare
  * returns 'OK' 
  */
-int EDBM_backbuf_border_mask_init(ViewContext *vc, int mcords[][2], short tot, short xmin, short ymin, short xmax, short ymax)
+int EDBM_backbuf_border_mask_init(ViewContext *vc, const int mcords[][2], short tot, short xmin, short ymin, short xmax, short ymax)
 {
 	unsigned int *dr, *drm;
 	struct ImBuf *buf, *bufmask;
@@ -448,7 +448,7 @@ BMVert *EDBM_vert_find_nearest(ViewContext *vc, int *dist, short sel, short stri
 }
 
 /* returns labda for closest distance v1 to line-piece v2 - v3 */
-float labda_PdistVL2Dfl(const float v1[3], const float v2[3], const float v3[3])
+float labda_PdistVL2Dfl(const float v1[2], const float v2[2], const float v3[2])
 {
 	float rc[2], len;
 	
@@ -1059,11 +1059,11 @@ static void mouse_mesh_loop(bContext *C, int mval[2], short extend, short ring)
 				/* We can't be sure this has already been set... */
 				ED_view3d_init_mats_rv3d(vc.obedit, vc.rv3d);
 
-				if (ED_view3d_project_float_object(vc.ar, eed->v1->co, v1_co, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_SUCCESS) {
+				if (ED_view3d_project_float_object(vc.ar, eed->v1->co, v1_co, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) {
 					length_1 = len_squared_v2v2(mvalf, v1_co);
 				}
 
-				if (ED_view3d_project_float_object(vc.ar, eed->v2->co, v2_co, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_SUCCESS) {
+				if (ED_view3d_project_float_object(vc.ar, eed->v2->co, v2_co, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) {
 					length_2 = len_squared_v2v2(mvalf, v2_co);
 				}
 #if 0
@@ -1090,7 +1090,7 @@ static void mouse_mesh_loop(bContext *C, int mval[2], short extend, short ring)
 						float co[2], tdist;
 
 						BM_face_calc_center_mean(f, cent);
-						if (ED_view3d_project_float_object(vc.ar, cent, co, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_SUCCESS) {
+						if (ED_view3d_project_float_object(vc.ar, cent, co, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) {
 							tdist = len_squared_v2v2(mvalf, co);
 							if (tdist < best_dist) {
 /*								printf("Best face: %p (%f)\n", f, tdist);*/

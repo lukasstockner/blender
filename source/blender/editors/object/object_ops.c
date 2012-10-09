@@ -113,6 +113,7 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_delete);
 	WM_operatortype_append(OBJECT_OT_text_add);
 	WM_operatortype_append(OBJECT_OT_armature_add);
+	WM_operatortype_append(OBJECT_OT_empty_add);
 	WM_operatortype_append(OBJECT_OT_lamp_add);
 	WM_operatortype_append(OBJECT_OT_camera_add);
 	WM_operatortype_append(OBJECT_OT_speaker_add);
@@ -168,6 +169,7 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(CONSTRAINT_OT_childof_clear_inverse);
 	WM_operatortype_append(CONSTRAINT_OT_objectsolver_set_inverse);
 	WM_operatortype_append(CONSTRAINT_OT_objectsolver_clear_inverse);
+	WM_operatortype_append(CONSTRAINT_OT_followpath_path_animate);
 
 	WM_operatortype_append(OBJECT_OT_vertex_group_add);
 	WM_operatortype_append(OBJECT_OT_vertex_group_remove);
@@ -176,6 +178,7 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_vertex_group_select);
 	WM_operatortype_append(OBJECT_OT_vertex_group_deselect);
 	WM_operatortype_append(OBJECT_OT_vertex_group_copy_to_linked);
+	WM_operatortype_append(OBJECT_OT_vertex_group_transfer_weight);
 	WM_operatortype_append(OBJECT_OT_vertex_group_copy_to_selected);
 	WM_operatortype_append(OBJECT_OT_vertex_group_copy);
 	WM_operatortype_append(OBJECT_OT_vertex_group_normalize);
@@ -186,6 +189,7 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_vertex_group_levels);
 	WM_operatortype_append(OBJECT_OT_vertex_group_blend);
 	WM_operatortype_append(OBJECT_OT_vertex_group_clean);
+	WM_operatortype_append(OBJECT_OT_vertex_group_limit_total);
 	WM_operatortype_append(OBJECT_OT_vertex_group_mirror);
 	WM_operatortype_append(OBJECT_OT_vertex_group_set_active);
 	WM_operatortype_append(OBJECT_OT_vertex_group_sort);

@@ -79,6 +79,7 @@
 #include "BIF_glutil.h" /* for paint cursor */
 #include "BLF_api.h"
 
+#include "IMB_colormanagement.h"
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 
@@ -1838,6 +1839,7 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 	
 	/* mark all library linked objects to be updated */
 	recalc_all_library_objects(bmain);
+	IMB_colormanagement_check_file_config(bmain);
 
 	/* append, rather than linking */
 	if ((flag & FILE_LINK) == 0) {
@@ -2289,6 +2291,8 @@ static int border_apply_rect(wmOperator *op)
 
 static int border_apply(bContext *C, wmOperator *op, int gesture_mode)
 {
+	int retval;
+
 	if (!border_apply_rect(op))
 		return 0;
 	
@@ -2296,7 +2300,9 @@ static int border_apply(bContext *C, wmOperator *op, int gesture_mode)
 	if (RNA_struct_find_property(op->ptr, "gesture_mode") )
 		RNA_int_set(op->ptr, "gesture_mode", gesture_mode);
 
-	op->type->exec(C, op);
+	retval = op->type->exec(C, op);
+	OPERATOR_RETVAL_CHECK(retval);
+
 	return 1;
 }
 
@@ -2422,8 +2428,11 @@ static void gesture_circle_apply(bContext *C, wmOperator *op)
 	RNA_int_set(op->ptr, "y", rect->ymin);
 	RNA_int_set(op->ptr, "radius", rect->xmax);
 	
-	if (op->type->exec)
-		op->type->exec(C, op);
+	if (op->type->exec) {
+		int retval;
+		retval = op->type->exec(C, op);
+		OPERATOR_RETVAL_CHECK(retval);
+	}
 #ifdef GESTURE_MEMORY
 	circle_select_size = rect->xmax;
 #endif
@@ -2643,8 +2652,10 @@ static void gesture_lasso_apply(bContext *C, wmOperator *op)
 	
 	wm_gesture_end(C, op);
 		
-	if (op->type->exec)
-		op->type->exec(C, op);
+	if (op->type->exec) {
+		int retval = op->type->exec(C, op);
+		OPERATOR_RETVAL_CHECK(retval);
+	}
 }
 
 int WM_gesture_lasso_modal(bContext *C, wmOperator *op, wmEvent *event)
@@ -2727,7 +2738,7 @@ int WM_gesture_lines_cancel(bContext *C, wmOperator *op)
  *
  * caller must free.
  */
-int (*WM_gesture_lasso_path_to_array(bContext *UNUSED(C), wmOperator *op, int *mcords_tot))[2]
+const int (*WM_gesture_lasso_path_to_array(bContext *UNUSED(C), wmOperator *op, int *mcords_tot))[2]
 {
 	PropertyRNA *prop = RNA_struct_find_property(op->ptr, "path");
 	int (*mcords)[2] = NULL;
@@ -2757,7 +2768,8 @@ int (*WM_gesture_lasso_path_to_array(bContext *UNUSED(C), wmOperator *op, int *m
 		*mcords_tot = 0;
 	}
 
-	return mcords;
+	/* cast for 'const' */
+	return (const int (*)[2])mcords;
 }
 
 #if 0
@@ -2812,8 +2824,10 @@ static int straightline_apply(bContext *C, wmOperator *op)
 	RNA_int_set(op->ptr, "xend", rect->xmax);
 	RNA_int_set(op->ptr, "yend", rect->ymax);
 
-	if (op->type->exec)
-		op->type->exec(C, op);
+	if (op->type->exec) {
+		int retval = op->type->exec(C, op);
+		OPERATOR_RETVAL_CHECK(retval);
+	}
 	
 	return 1;
 }

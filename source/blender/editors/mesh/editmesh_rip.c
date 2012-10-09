@@ -57,9 +57,9 @@
 
 /* helper to find edge for edge_rip */
 static float edbm_rip_rip_edgedist(ARegion *ar, float mat[][4],
-                                   const float co1[3], const float co2[2], const float mvalf[2])
+                                   const float co1[3], const float co2[3], const float mvalf[2])
 {
-	float vec1[3], vec2[3];
+	float vec1[2], vec2[2];
 
 	ED_view3d_project_float_v2_m4(ar, co1, vec1, mat);
 	ED_view3d_project_float_v2_m4(ar, co2, vec2, mat);

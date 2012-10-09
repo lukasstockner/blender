@@ -150,8 +150,13 @@ int imagewrap(Tex *tex, Image *ima, ImBuf *ibuf, const float texvec[3], TexResul
 		fx-= xs;
 		fy-= ys;
 
-		if ( (tex->flag & TEX_CHECKER_ODD)==0) {
-			if ((xs+ys) & 1);else return retval;
+		if ( (tex->flag & TEX_CHECKER_ODD) == 0) {
+			if ((xs + ys) & 1) {
+				/* pass */
+			}
+			else {
+				return retval;
+			}
 		}
 		if ( (tex->flag & TEX_CHECKER_EVEN)==0) {
 			if ((xs+ys) & 1) return retval;
@@ -474,7 +479,9 @@ static void boxsampleclip(struct ImBuf *ibuf, rctf *rf, TexResult *texres)
 			
 			muly= 1.0;
 
-			if (starty==endy);
+			if (starty==endy) {
+				/* pass */
+			}
 			else {
 				if (y==starty) muly= 1.0f-(rf->ymin - y);
 				if (y==endy) muly= (rf->ymax - y);
@@ -1018,7 +1025,7 @@ static void image_mipmap_test(Tex *tex, ImBuf *ibuf)
 	
 }
 
-static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, const float texvec[3], float dxt[3], float dyt[3], TexResult *texres)
+static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, const float texvec[3], float dxt[2], float dyt[2], TexResult *texres)
 {
 	TexResult texr;
 	float fx, fy, minx, maxx, miny, maxy;
@@ -1412,17 +1419,17 @@ static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, const float tex
 }
 
 
-int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, const float texvec[3], const float DXT[3], const float DYT[3], TexResult *texres)
+int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, const float texvec[3], const float DXT[2], const float DYT[2], TexResult *texres)
 {
 	TexResult texr;
-	float fx, fy, minx, maxx, miny, maxy, dx, dy, dxt[3], dyt[3];
+	float fx, fy, minx, maxx, miny, maxy, dx, dy, dxt[2], dyt[2];
 	float maxd, pixsize, val1, val2, val3;
 	int curmap, retval, imaprepeat, imapextend;
 
 	/* TXF: since dxt/dyt might be modified here and since they might be needed after imagewraposa() call,
 	 * make a local copy here so that original vecs remain untouched */
-	copy_v3_v3(dxt, DXT);
-	copy_v3_v3(dyt, DYT);
+	copy_v2_v2(dxt, DXT);
+	copy_v2_v2(dyt, DYT);
 
 	/* anisotropic filtering */
 	if (tex->texfilter != TXF_BOX)
@@ -1453,8 +1460,12 @@ int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, const float texvec[3], const
 	image_mipmap_test(tex, ibuf);
 
 	if (tex->imaflag & TEX_USEALPHA) {
-		if (tex->imaflag & TEX_CALCALPHA);
-		else texres->talpha= 1;
+		if (tex->imaflag & TEX_CALCALPHA) {
+			/* pass */
+		}
+		else {
+			texres->talpha = TRUE;
+		}
 	}
 	
 	texr.talpha= texres->talpha;
@@ -1550,11 +1561,17 @@ int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, const float texvec[3], const
 
 			if (boundary==0) {
 				if ( (tex->flag & TEX_CHECKER_ODD)==0) {
-					if ((xs+ys) & 1);
-					else return retval;
+					if ((xs + ys) & 1) {
+						/* pass */
+					}
+					else {
+						return retval;
+					}
 				}
 				if ( (tex->flag & TEX_CHECKER_EVEN)==0) {
-					if ((xs+ys) & 1) return retval;
+					if ((xs + ys) & 1) {
+						return retval;
+					}
 				}
 				fx-= xs;
 				fy-= ys;

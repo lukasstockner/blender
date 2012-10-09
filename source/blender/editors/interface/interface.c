@@ -1152,9 +1152,15 @@ static void ui_is_but_sel(uiBut *but, double *value)
 		}
 	}
 	
-	if (is_push == 2) ;
-	else if (is_push == 1) but->flag |= UI_SELECT;
-	else but->flag &= ~UI_SELECT;
+	if (is_push == 2) {
+		/* pass */
+	}
+	else if (is_push == 1) {
+		but->flag |= UI_SELECT;
+	}
+	else {
+		but->flag &= ~UI_SELECT;
+	}
 }
 
 static uiBut *ui_find_inlink(uiBlock *block, void *poin)
@@ -3863,12 +3869,41 @@ void uiButGetStrInfo(bContext *C, uiBut *but, int nbr, ...)
 			}
 		}
 		else if (ELEM3(type, BUT_GET_RNAENUM_IDENTIFIER, BUT_GET_RNAENUM_LABEL, BUT_GET_RNAENUM_TIP)) {
+			PointerRNA *ptr = NULL;
+			PropertyRNA *prop = NULL;
+			int value = 0;
+			
+			/* get the enum property... */
 			if (but->rnaprop && RNA_property_type(but->rnaprop) == PROP_ENUM) {
+				/* enum property */
+				ptr = &but->rnapoin;
+				prop = but->rnaprop;
+				value = (but->type == ROW) ? (int)but->hardmax : (int)ui_get_but_val(but);
+			}
+			else if (but->optype) {
+				PointerRNA *opptr = uiButGetOperatorPtrRNA(but);
+				wmOperatorType *ot = but->optype;
+				
+				/* if the default property of the operator is enum and it is set, 
+				 * fetch the tooltip of the selected value so that "Snap" and "Mirror"
+				 * operator menus in the Anim Editors will show tooltips for the different
+				 * operations instead of the meaningless generic operator tooltip
+				 */
+				if (ot->prop && RNA_property_type(ot->prop) == PROP_ENUM) {
+					if (RNA_struct_contains_property(opptr, ot->prop)) {
+						ptr = opptr;
+						prop = ot->prop;
+						value = RNA_property_enum_get(opptr, ot->prop);
+					}
+				}
+			}
+			
+			/* get strings from matching enum item */
+			if (ptr && prop) {
 				if (!item) {
 					int i;
-					int value = (but->type == ROW) ? (int)but->hardmax : (int)ui_get_but_val(but);
-					RNA_property_enum_items_gettexted(C, &but->rnapoin, but->rnaprop, &items, &totitems, &free_items);
-
+					
+					RNA_property_enum_items_gettexted(C, ptr, prop, &items, &totitems, &free_items);
 					for (i = 0, item = items; i < totitems; i++, item++) {
 						if (item->identifier[0] && item->value == value)
 							break;

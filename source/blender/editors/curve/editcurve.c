@@ -1579,8 +1579,9 @@ static int deleteflagNurb(bContext *C, wmOperator *UNUSED(op), int flag)
 	BPoint *bp, *bpn, *newbp;
 	int a, b, newu, newv, sel;
 
-	if (obedit->type == OB_SURF) ;
-	else return OPERATOR_CANCELLED;
+	if (obedit->type != OB_SURF) {
+		return OPERATOR_CANCELLED;
+	}
 
 	cu->lastsel = NULL;
 
@@ -1593,8 +1594,12 @@ static int deleteflagNurb(bContext *C, wmOperator *UNUSED(op), int flag)
 		a = nu->pntsu * nu->pntsv;
 		while (a) {
 			a--;
-			if (bp->f1 & flag) ;
-			else break;
+			if (bp->f1 & flag) {
+				/* pass */
+			}
+			else {
+				break;
+			}
 			bp++;
 		}
 		if (a == 0) {
@@ -1715,8 +1720,12 @@ static short extrudeflagNurb(EditNurb *editnurb, int flag)
 			bp = nu->bp;
 			a = nu->pntsu;
 			while (a) {
-				if (bp->f1 & flag) ;
-				else break;
+				if (bp->f1 & flag) {
+					/* pass */
+				}
+				else {
+					break;
+				}
 				bp++;
 				a--;
 			}
@@ -3762,20 +3771,28 @@ static void merge_2_nurb(wmOperator *op, ListBase *editnurb, Nurb *nu1, Nurb *nu
 
 	/* first nurbs: u = resolu-1 selected */
 	
-	if (is_u_selected(nu1, nu1->pntsu - 1) ) ;
+	if (is_u_selected(nu1, nu1->pntsu - 1) ) {
+		/* pass */
+	}
 	else {
 		/* For 2D curves blender uses (orderv = 0). It doesn't make any sense mathematically. */
 		/* but after rotating (orderu = 0) will be confusing. */
 		if (nu1->orderv == 0) nu1->orderv = 1;
 
 		rotate_direction_nurb(nu1);
-		if (is_u_selected(nu1, nu1->pntsu - 1)) ;
+		if (is_u_selected(nu1, nu1->pntsu - 1)) {
+			/* pass */
+		}
 		else {
 			rotate_direction_nurb(nu1);
-			if (is_u_selected(nu1, nu1->pntsu - 1)) ;
+			if (is_u_selected(nu1, nu1->pntsu - 1)) {
+				/* pass */
+			}
 			else {
 				rotate_direction_nurb(nu1);
-				if (is_u_selected(nu1, nu1->pntsu - 1)) ;
+				if (is_u_selected(nu1, nu1->pntsu - 1)) {
+					/* pass */
+				}
 				else {
 					/* rotate again, now its OK! */
 					if (nu1->pntsv != 1) rotate_direction_nurb(nu1);
@@ -3786,17 +3803,25 @@ static void merge_2_nurb(wmOperator *op, ListBase *editnurb, Nurb *nu1, Nurb *nu
 	}
 	
 	/* 2nd nurbs: u = 0 selected */
-	if (is_u_selected(nu2, 0) ) ;
+	if (is_u_selected(nu2, 0) ) {
+		/* pass */
+	}
 	else {
 		if (nu2->orderv == 0) nu2->orderv = 1;
 		rotate_direction_nurb(nu2);
-		if (is_u_selected(nu2, 0)) ;
+		if (is_u_selected(nu2, 0)) {
+			/* pass */
+		}
 		else {
 			rotate_direction_nurb(nu2);
-			if (is_u_selected(nu2, 0)) ;
+			if (is_u_selected(nu2, 0)) {
+				/* pass */
+			}
 			else {
 				rotate_direction_nurb(nu2);
-				if (is_u_selected(nu2, 0)) ;
+				if (is_u_selected(nu2, 0)) {
+					/* pass */
+				}
 				else {
 					/* rotate again, now its OK! */
 					if (nu1->pntsu == 1) rotate_direction_nurb(nu1);
@@ -3892,15 +3917,27 @@ static int merge_nurb(bContext *C, wmOperator *op)
 
 	/* resolution match, to avoid uv rotations */
 	if (nus1->nu->pntsv == 1) {
-		if (nus1->nu->pntsu == nus2->nu->pntsu || nus1->nu->pntsu == nus2->nu->pntsv) ;
-		else ok = 0;
+		if (nus1->nu->pntsu == nus2->nu->pntsu || nus1->nu->pntsu == nus2->nu->pntsv) {
+			/* pass */
+		}
+		else {
+			ok = 0;
+		}
 	}
 	else if (nus2->nu->pntsv == 1) {
-		if (nus2->nu->pntsu == nus1->nu->pntsu || nus2->nu->pntsu == nus1->nu->pntsv) ;
-		else ok = 0;
+		if (nus2->nu->pntsu == nus1->nu->pntsu || nus2->nu->pntsu == nus1->nu->pntsv) {
+			/* pass */
+		}
+		else {
+			ok = 0;
+		}
 	}
-	else if (nus1->nu->pntsu == nus2->nu->pntsu || nus1->nu->pntsv == nus2->nu->pntsv) ;
-	else if (nus1->nu->pntsu == nus2->nu->pntsv || nus1->nu->pntsv == nus2->nu->pntsu) ;
+	else if (nus1->nu->pntsu == nus2->nu->pntsu || nus1->nu->pntsv == nus2->nu->pntsv) {
+		/* pass */
+	}
+	else if (nus1->nu->pntsu == nus2->nu->pntsv || nus1->nu->pntsv == nus2->nu->pntsu) {
+		/* pass */
+	}
 	else {
 		ok = 0;
 	}
@@ -3949,8 +3986,12 @@ static int make_segment_exec(bContext *C, wmOperator *op)
 			if (isNurbsel_count(cu, nu) == 1) {
 				/* only 1 selected, not first or last, a little complex, but intuitive */
 				if (nu->pntsv == 1) {
-					if ( (nu->bp->f1 & SELECT) || (nu->bp[nu->pntsu - 1].f1 & SELECT)) ;
-					else break;
+					if ( (nu->bp->f1 & SELECT) || (nu->bp[nu->pntsu - 1].f1 & SELECT)) {
+						/* pass */
+					}
+					else {
+						break;
+					}
 				}
 			}
 		}
@@ -5684,8 +5725,12 @@ static int delete_exec(bContext *C, wmOperator *op)
 				a = nu->pntsu;
 				if (a) {
 					while (a) {
-						if (BEZSELECTED_HIDDENHANDLES(cu, bezt) ) ;
-						else break;
+						if (BEZSELECTED_HIDDENHANDLES(cu, bezt)) {
+							/* pass */
+						}
+						else {
+							break;
+						}
 						a--;
 						bezt++;
 					}
@@ -5704,8 +5749,12 @@ static int delete_exec(bContext *C, wmOperator *op)
 				a = nu->pntsu * nu->pntsv;
 				if (a) {
 					while (a) {
-						if (bp->f1 & SELECT) ;
-						else break;
+						if (bp->f1 & SELECT) {
+							/* pass */
+						}
+						else {
+							break;
+						}
 						a--;
 						bp++;
 					}
@@ -6567,18 +6616,18 @@ static int curvesurf_prim_add(bContext *C, wmOperator *op, int type, int isSurf)
 	if (!isSurf) { /* adding curve */
 		if (obedit == NULL || obedit->type != OB_CURVE) {
 			Curve *cu;
-			
+
 			obedit = ED_object_add_type(C, OB_CURVE, loc, rot, TRUE, layer);
 			newob = 1;
 
 			cu = (Curve *)obedit->data;
 			cu->flag |= CU_DEFORM_FILL;
-			
+
 			if (type & CU_PRIM_PATH)
 				cu->flag |= CU_PATH | CU_3D;
-		} 
+		}
 		else DAG_id_tag_update(&obedit->id, OB_RECALC_DATA);
-	} 
+	}
 	else { /* adding surface */
 		if (obedit == NULL || obedit->type != OB_SURF) {
 			obedit = ED_object_add_type(C, OB_SURF, loc, rot, TRUE, layer);
@@ -6589,7 +6638,6 @@ static int curvesurf_prim_add(bContext *C, wmOperator *op, int type, int isSurf)
 
 	/* rename here, the undo stack checks name for valid undo pushes */
 	if (newob) {
-
 		if (obedit->type == OB_CURVE) {
 			rename_id((ID *)obedit, get_curve_defname(type));
 			rename_id((ID *)obedit->data, get_curve_defname(type));
@@ -6599,11 +6647,11 @@ static int curvesurf_prim_add(bContext *C, wmOperator *op, int type, int isSurf)
 			rename_id((ID *)obedit->data, get_surf_defname(type));
 		}
 	}
-	
+
 	/* ED_object_add_type doesnt do an undo, is needed for redo operator on primitive */
 	if (newob && enter_editmode)
 		ED_undo_push(C, "Enter Editmode");
-	
+
 	ED_object_new_primitive_matrix(C, obedit, loc, rot, mat);
 
 	nu = add_nurbs_primitive(C, obedit, mat, type, newob);
@@ -6643,12 +6691,11 @@ void CURVE_OT_primitive_bezier_curve_add(wmOperatorType *ot)
 	ot->name = "Add Bezier";
 	ot->description = "Construct a Bezier Curve";
 	ot->idname = "CURVE_OT_primitive_bezier_curve_add";
-	
+
 	/* api callbacks */
-	ot->invoke = ED_object_add_generic_invoke;
 	ot->exec = add_primitive_bezier_exec;
 	ot->poll = ED_operator_scene_editable;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -6666,12 +6713,11 @@ void CURVE_OT_primitive_bezier_circle_add(wmOperatorType *ot)
 	ot->name = "Add Bezier Circle";
 	ot->description = "Construct a Bezier Circle";
 	ot->idname = "CURVE_OT_primitive_bezier_circle_add";
-	
+
 	/* api callbacks */
-	ot->invoke = ED_object_add_generic_invoke;
 	ot->exec = add_primitive_bezier_circle_exec;
 	ot->poll = ED_operator_scene_editable;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -6689,12 +6735,11 @@ void CURVE_OT_primitive_nurbs_curve_add(wmOperatorType *ot)
 	ot->name = "Add Nurbs Curve";
 	ot->description = "Construct a Nurbs Curve";
 	ot->idname = "CURVE_OT_primitive_nurbs_curve_add";
-	
+
 	/* api callbacks */
-	ot->invoke = ED_object_add_generic_invoke;
 	ot->exec = add_primitive_nurbs_curve_exec;
 	ot->poll = ED_operator_scene_editable;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -6712,12 +6757,11 @@ void CURVE_OT_primitive_nurbs_circle_add(wmOperatorType *ot)
 	ot->name = "Add Nurbs Circle";
 	ot->description = "Construct a Nurbs Circle";
 	ot->idname = "CURVE_OT_primitive_nurbs_circle_add";
-	
+
 	/* api callbacks */
-	ot->invoke = ED_object_add_generic_invoke;
 	ot->exec = add_primitive_nurbs_circle_exec;
 	ot->poll = ED_operator_scene_editable;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -6735,12 +6779,11 @@ void CURVE_OT_primitive_nurbs_path_add(wmOperatorType *ot)
 	ot->name = "Add Path";
 	ot->description = "Construct a Path";
 	ot->idname = "CURVE_OT_primitive_nurbs_path_add";
-	
+
 	/* api callbacks */
-	ot->invoke = ED_object_add_generic_invoke;
 	ot->exec = add_primitive_curve_path_exec;
 	ot->poll = ED_operator_scene_editable;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -6759,12 +6802,11 @@ void SURFACE_OT_primitive_nurbs_surface_curve_add(wmOperatorType *ot)
 	ot->name = "Add Surface Curve";
 	ot->description = "Construct a Nurbs surface Curve";
 	ot->idname = "SURFACE_OT_primitive_nurbs_surface_curve_add";
-	
+
 	/* api callbacks */
-	ot->invoke = ED_object_add_generic_invoke;
 	ot->exec = add_primitive_nurbs_surface_curve_exec;
 	ot->poll = ED_operator_scene_editable;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -6782,12 +6824,11 @@ void SURFACE_OT_primitive_nurbs_surface_circle_add(wmOperatorType *ot)
 	ot->name = "Add Surface Circle";
 	ot->description = "Construct a Nurbs surface Circle";
 	ot->idname = "SURFACE_OT_primitive_nurbs_surface_circle_add";
-	
+
 	/* api callbacks */
-	ot->invoke = ED_object_add_generic_invoke;
 	ot->exec = add_primitive_nurbs_surface_circle_exec;
 	ot->poll = ED_operator_scene_editable;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -6805,12 +6846,11 @@ void SURFACE_OT_primitive_nurbs_surface_surface_add(wmOperatorType *ot)
 	ot->name = "Add Surface Patch";
 	ot->description = "Construct a Nurbs surface Patch";
 	ot->idname = "SURFACE_OT_primitive_nurbs_surface_surface_add";
-	
+
 	/* api callbacks */
-	ot->invoke = ED_object_add_generic_invoke;
 	ot->exec = add_primitive_nurbs_surface_surface_exec;
 	ot->poll = ED_operator_scene_editable;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -6828,12 +6868,11 @@ void SURFACE_OT_primitive_nurbs_surface_cylinder_add(wmOperatorType *ot)
 	ot->name = "Add Surface Cylinder";
 	ot->description = "Construct a Nurbs surface Cylinder";
 	ot->idname = "SURFACE_OT_primitive_nurbs_surface_cylinder_add";
-	
+
 	/* api callbacks */
-	ot->invoke = ED_object_add_generic_invoke;
 	ot->exec = add_primitive_nurbs_surface_cylinder_exec;
 	ot->poll = ED_operator_scene_editable;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -6851,12 +6890,11 @@ void SURFACE_OT_primitive_nurbs_surface_sphere_add(wmOperatorType *ot)
 	ot->name = "Add Surface Sphere";
 	ot->description = "Construct a Nurbs surface Sphere";
 	ot->idname = "SURFACE_OT_primitive_nurbs_surface_sphere_add";
-	
+
 	/* api callbacks */
-	ot->invoke = ED_object_add_generic_invoke;
 	ot->exec = add_primitive_nurbs_surface_sphere_exec;
 	ot->poll = ED_operator_scene_editable;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -6874,12 +6912,11 @@ void SURFACE_OT_primitive_nurbs_surface_torus_add(wmOperatorType *ot)
 	ot->name = "Add Surface Torus";
 	ot->description = "Construct a Nurbs surface Torus";
 	ot->idname = "SURFACE_OT_primitive_nurbs_surface_torus_add";
-	
+
 	/* api callbacks */
-	ot->invoke = ED_object_add_generic_invoke;
 	ot->exec = add_primitive_nurbs_surface_torus_exec;
 	ot->poll = ED_operator_scene_editable;
-	
+
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 

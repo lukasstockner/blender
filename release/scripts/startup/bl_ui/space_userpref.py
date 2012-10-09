@@ -324,6 +324,7 @@ class USERPREF_PT_edit(Panel):
         col.separator()
 
         col.prop(edit, "use_auto_keying", text="Auto Keyframing:")
+        col.prop(edit, "use_auto_keying_warning")
 
         sub = col.column()
 
@@ -1084,10 +1085,10 @@ class USERPREF_PT_addons(Panel):
                 continue
 
             # check if addon should be visible with current filters
-            if ((filter == "All") or
-                (filter == info["category"]) or
-                (filter == "Enabled" and is_enabled) or
-                (filter == "Disabled" and not is_enabled)):
+            if     ((filter == "All") or
+                    (filter == info["category"]) or
+                    (filter == "Enabled" and is_enabled) or
+                    (filter == "Disabled" and not is_enabled)):
 
                 if search and search not in info["name"].lower():
                     if info["author"]:
