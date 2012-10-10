@@ -125,7 +125,7 @@ struct SmoothView3DStore {
 /* will start timer if appropriate */
 /* the arguments are the desired situation */
 void view3d_smooth_view(bContext *C, View3D *v3d, ARegion *ar, Object *oldcamera, Object *camera,
-						float *ofs, float *quat, float *dist, float *lens)
+                        float *ofs, float *quat, float *dist, float *lens)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmWindow *win = CTX_wm_window(C);
@@ -140,7 +140,7 @@ void view3d_smooth_view(bContext *C, View3D *v3d, ARegion *ar, Object *oldcamera
 	copy_qt_qt(sms.new_quat, rv3d->viewquat);
 	sms.new_dist = rv3d->dist;
 	sms.new_lens = v3d->lens;
-	sms.to_camera = 0;
+	sms.to_camera = FALSE;
 
 	/* note on camera locking, this is a little confusing but works ok.
 	 * we may be changing the view 'as if' there is no active camera, but in fact
@@ -162,22 +162,22 @@ void view3d_smooth_view(bContext *C, View3D *v3d, ARegion *ar, Object *oldcamera
 
 	if (camera) {
 		ED_view3d_from_object(camera, sms.new_ofs, sms.new_quat, &sms.new_dist, &sms.new_lens);
-		sms.to_camera = 1; /* restore view3d values in end */
+		sms.to_camera = TRUE; /* restore view3d values in end */
 	}
 	
 	if (C && U.smooth_viewtx) {
-		int changed = 0; /* zero means no difference */
+		int changed = FALSE; /* zero means no difference */
 		
 		if (oldcamera != camera)
-			changed = 1;
+			changed = TRUE;
 		else if (sms.new_dist != rv3d->dist)
-			changed = 1;
+			changed = TRUE;
 		else if (sms.new_lens != v3d->lens)
-			changed = 1;
+			changed = TRUE;
 		else if (!equals_v3v3(sms.new_ofs, rv3d->ofs))
-			changed = 1;
+			changed = TRUE;
 		else if (!equals_v4v4(sms.new_quat, rv3d->viewquat))
-			changed = 1;
+			changed = TRUE;
 		
 		/* The new view is different from the old one
 		 * so animate the view */
@@ -241,7 +241,7 @@ void view3d_smooth_view(bContext *C, View3D *v3d, ARegion *ar, Object *oldcamera
 	
 	/* if we get here nothing happens */
 	if (ok == FALSE) {
-		if (sms.to_camera == 0) {
+		if (sms.to_camera == FALSE) {
 			copy_v3_v3(rv3d->ofs, sms.new_ofs);
 			copy_qt_qt(rv3d->viewquat, sms.new_quat);
 			rv3d->dist = sms.new_dist;
@@ -860,8 +860,7 @@ void ED_view3d_project_float_v3_m4(ARegion *ar, const float vec[3], float r_co[3
 
 eV3DProjStatus ED_view3d_project_base(struct ARegion *ar, struct Base *base)
 {
-	eV3DProjStatus ret = ED_view3d_project_short_global(ar, base->object->obmat[3], &base->sx,
-	                                                    V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_WIN);
+	eV3DProjStatus ret = ED_view3d_project_short_global(ar, base->object->obmat[3], &base->sx, V3D_PROJ_TEST_CLIP_DEFAULT);
 
 	if (ret != V3D_PROJ_RET_OK) {
 		base->sx = IS_CLIPPED;
@@ -912,9 +911,12 @@ int ED_view3d_boundbox_clip(RegionView3D *rv3d, float obmat[][4], BoundBox *bb)
  */
 static eV3DProjStatus ed_view3d_project__internal(ARegion *ar,
                                                   float perspmat[4][4], const int is_local,  /* normally hidden */
-                                                  const float co[3], float r_co[2], eV3DProjTest flag)
+                                                  const float co[3], float r_co[2], const eV3DProjTest flag)
 {
 	float fx, fy, vec4[4];
+
+	/* check for bad flags */
+	BLI_assert((flag & V3D_PROJ_TEST_ALL) == flag);
 
 	if (flag & V3D_PROJ_TEST_CLIP_BB) {
 		RegionView3D *rv3d = ar->regiondata;
@@ -953,7 +955,7 @@ static eV3DProjStatus ed_view3d_project__internal(ARegion *ar,
 }
 
 eV3DProjStatus ED_view3d_project_short_ex(ARegion *ar, float perspmat[4][4], const int is_local,
-                                          const float co[3], short r_co[2], eV3DProjTest flag)
+                                          const float co[3], short r_co[2], const eV3DProjTest flag)
 {
 	float tvec[2];
 	eV3DProjStatus ret = ed_view3d_project__internal(ar, perspmat, is_local, co, tvec, flag);
@@ -972,7 +974,7 @@ eV3DProjStatus ED_view3d_project_short_ex(ARegion *ar, float perspmat[4][4], con
 }
 
 eV3DProjStatus ED_view3d_project_int_ex(ARegion *ar, float perspmat[4][4], const int is_local,
-                                        const float co[3], int r_co[2], eV3DProjTest flag)
+                                        const float co[3], int r_co[2], const eV3DProjTest flag)
 {
 	float tvec[2];
 	eV3DProjStatus ret = ed_view3d_project__internal(ar, perspmat, is_local, co, tvec, flag);
@@ -991,7 +993,7 @@ eV3DProjStatus ED_view3d_project_int_ex(ARegion *ar, float perspmat[4][4], const
 }
 
 eV3DProjStatus ED_view3d_project_float_ex(ARegion *ar, float perspmat[4][4], const int is_local,
-                                        const float co[3], float r_co[2], eV3DProjTest flag)
+                                        const float co[3], float r_co[2], const eV3DProjTest flag)
 {
 	float tvec[2];
 	eV3DProjStatus ret = ed_view3d_project__internal(ar, perspmat, is_local, co, tvec, flag);
@@ -1009,39 +1011,39 @@ eV3DProjStatus ED_view3d_project_float_ex(ARegion *ar, float perspmat[4][4], con
 }
 
 /* --- short --- */
-eV3DProjStatus ED_view3d_project_short_global(ARegion *ar, const float co[3], short r_co[2], eV3DProjTest flag)
+eV3DProjStatus ED_view3d_project_short_global(ARegion *ar, const float co[3], short r_co[2], const eV3DProjTest flag)
 {
 	RegionView3D *rv3d = ar->regiondata;
 	return ED_view3d_project_short_ex(ar, rv3d->persmat, FALSE, co, r_co, flag);
 }
 /* object space, use ED_view3d_init_mats_rv3d before calling */
-eV3DProjStatus ED_view3d_project_short_object(ARegion *ar, const float co[3], short r_co[2], eV3DProjTest flag)
+eV3DProjStatus ED_view3d_project_short_object(ARegion *ar, const float co[3], short r_co[2], const eV3DProjTest flag)
 {
 	RegionView3D *rv3d = ar->regiondata;
 	return ED_view3d_project_short_ex(ar, rv3d->persmatob, TRUE, co, r_co, flag);
 }
 
 /* --- int --- */
-eV3DProjStatus ED_view3d_project_int_global(ARegion *ar, const float co[3], int r_co[2], eV3DProjTest flag)
+eV3DProjStatus ED_view3d_project_int_global(ARegion *ar, const float co[3], int r_co[2], const eV3DProjTest flag)
 {
 	RegionView3D *rv3d = ar->regiondata;
 	return ED_view3d_project_int_ex(ar, rv3d->persmat, FALSE, co, r_co, flag);
 }
 /* object space, use ED_view3d_init_mats_rv3d before calling */
-eV3DProjStatus ED_view3d_project_int_object(ARegion *ar, const float co[3], int r_co[2], eV3DProjTest flag)
+eV3DProjStatus ED_view3d_project_int_object(ARegion *ar, const float co[3], int r_co[2], const eV3DProjTest flag)
 {
 	RegionView3D *rv3d = ar->regiondata;
 	return ED_view3d_project_int_ex(ar, rv3d->persmatob, TRUE, co, r_co, flag);
 }
 
 /* --- float --- */
-eV3DProjStatus ED_view3d_project_float_global(ARegion *ar, const float co[3], float r_co[2], eV3DProjTest flag)
+eV3DProjStatus ED_view3d_project_float_global(ARegion *ar, const float co[3], float r_co[2], const eV3DProjTest flag)
 {
 	RegionView3D *rv3d = ar->regiondata;
 	return ED_view3d_project_float_ex(ar, rv3d->persmat, FALSE, co, r_co, flag);
 }
 /* object space, use ED_view3d_init_mats_rv3d before calling */
-eV3DProjStatus ED_view3d_project_float_object(ARegion *ar, const float co[3], float r_co[2], eV3DProjTest flag)
+eV3DProjStatus ED_view3d_project_float_object(ARegion *ar, const float co[3], float r_co[2], const eV3DProjTest flag)
 {
 	RegionView3D *rv3d = ar->regiondata;
 	return ED_view3d_project_float_ex(ar, rv3d->persmatob, TRUE, co, r_co, flag);
