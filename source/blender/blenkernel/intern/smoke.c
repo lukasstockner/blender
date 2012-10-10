@@ -295,7 +295,7 @@ static int smokeModifier_init(SmokeModifierData *smd, Object *ob, Scene *scene, 
 		/* set domain dimensions from derivedmesh */
 		smoke_set_domain_from_derivedmesh(sds, ob, dm);
 		/* reset domain values */
-		zero_v3(sds->shift);
+		zero_v3_int(sds->shift);
 		zero_v3(sds->shift_f);
 		add_v3_fl(sds->shift_f, 0.5f);
 		zero_v3(sds->prev_loc);

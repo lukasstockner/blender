@@ -8056,40 +8056,30 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				if (md->type == eModifierType_Smoke) {
 					SmokeModifierData *smd = (SmokeModifierData *)md;
 					if ((smd->type & MOD_SMOKE_TYPE_DOMAIN) && smd->domain) {
-						/* hack to keep branch changes without version number */
+						/* keep branch saves if possible */
 						if (!smd->domain->flame_max_temp) {
 							smd->domain->burning_rate = 0.75f;
 							smd->domain->flame_smoke = 1.0f;
 							smd->domain->flame_vorticity = 0.5f;
 							smd->domain->flame_ignition = 1.25f;
 							smd->domain->flame_max_temp = 1.75f;
-						}
-						if (!smd->domain->adapt_threshold) {
 							smd->domain->adapt_threshold = 0.02f;
 							smd->domain->adapt_margin = 4;
-						}
-						if (smd->branch_v < 1) {
 							smd->domain->flame_smoke_color[0] = 0.7f;
 							smd->domain->flame_smoke_color[1] = 0.7f;
 							smd->domain->flame_smoke_color[2] = 0.7f;
 						}
 					}
 					else if ((smd->type & MOD_SMOKE_TYPE_FLOW) && smd->flow) {
-						if (!smd->flow->fuel_amount) {
+						if (!smd->flow->texture_size) {
 							smd->flow->fuel_amount = 1.0;
 							smd->flow->surface_distance = 1.5;
-						}
-
-						if (smd->branch_v < 1) {
 							smd->flow->color[0] = 0.7f;
 							smd->flow->color[1] = 0.7f;
 							smd->flow->color[2] = 0.7f;
-						}
-						if (smd->branch_v < 2) {
 							smd->flow->texture_size = 1.0f;
 						}
 					}
-					smd->branch_v = 2; /* hack to keep branch changes without version number */
 				}
 			}
 		}

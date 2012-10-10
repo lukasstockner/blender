@@ -551,7 +551,6 @@ struct ShadeResult;
 #define SH_NODE_OBJECT_INFO				167
 #define SH_NODE_PARTICLE_INFO           168
 #define SH_NODE_TEX_BRICK				169
-#define SH_NODE_MYBSDF_DIFFUSE          170 //Diffuse copy node added for test purposes
 
 /* custom defines options for Material node */
 #define SH_NODE_MAT_DIFF   1

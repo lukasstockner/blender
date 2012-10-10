@@ -302,8 +302,6 @@ typedef struct SmokeModifierData {
 	struct SmokeCollSettings *coll; /* collision objects */
 	float time;
 	int type;  /* domain, inflow, outflow, ... */
-	int pad;
-	int branch_v; /* temp hack to keep track of changes at readfile.c */
 } SmokeModifierData;
 
 typedef struct DisplaceModifierData {
