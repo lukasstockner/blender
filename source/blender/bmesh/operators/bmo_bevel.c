@@ -57,16 +57,6 @@
 
 /* Constructed vertex, sometimes later instantiated as BMVert */
 typedef struct NewVert {
-	enum {
-		V_ON_MEET,		/* on edge, meet with an offset line */
-		V_OFF_MEET, 		/* off edge, meet between two offset lines */
-		V_OFF,			/* offset bevel end, but not one of previous two cases */
-		V_ON_SLIDE,		/* on edge, slid along it a bit */
-		V_ORIG,			/* an original vertex */
-		V_EXTRA,		/* an extra vertex added in special cases */
-		V_PROFILE,		/* part of a bevel edge end profile */
-		V_VMESH			/* part of interior vmesh */
-	} vkind;
 	float co[3];
 	BMVert *v;
 } NewVert;
@@ -94,7 +84,7 @@ typedef struct BoundVert {
 	NewVert nv;
 	EdgeHalf *efirst;		/* first of edges attached here: in CCW order */
 	EdgeHalf *elast;
-	EdgeHalf *ebev;		/* beveled edge whose left side is attached here, if any */
+	EdgeHalf *ebev;			/* beveled edge whose left side is attached here, if any */
 } BoundVert;
 
 /* Mesh structure replacing a vertex */
@@ -137,10 +127,9 @@ typedef struct BevelParams {
 
 /* Make a new BoundVert of the given kind, insert it at the end of the circular linked
  * list with entry point bv->boundstart, and return it. */
-static BoundVert * add_new_bound_vert(VMesh *vm, int kind, float co[3])
+static BoundVert * add_new_bound_vert(VMesh *vm, float co[3])
 {
 	BoundVert *ans = (BoundVert*) MEM_callocN(sizeof(BoundVert), "BoundVert");
-	ans->nv.vkind = kind;
 	copy_v3_v3(ans->nv.co, co);
 	if (!vm->boundstart) {
 		ans->index = 0;
@@ -187,7 +176,6 @@ static void copy_mesh_vert(VMesh *vm, int ito, int jto, int kto,
 	nvfrom = mesh_vert(vm, ifrom, jfrom, kfrom);
 	nvto->v = nvfrom->v;
 	copy_v3_v3(nvto->co, nvfrom->co);
-	nvto->vkind = nvfrom->vkind;
 }
 
 /* find the EdgeHalf in bv's array that has edge bme */
@@ -332,7 +320,7 @@ static void offset_in_two_planes(EdgeHalf *e1, EdgeHalf *e2, BMVert *v,
 	float dir1[3], dir2[3], norm_perp1[3], norm_perp2[3],
 		off1a[3], off1b[3], off2a[3], off2b[3], isect2[3];
 
-	BLI_assert(f1 != NULL && f1 != NULL);
+	BLI_assert(f1 != NULL && f2 != NULL);
 
 	/* get direction vectors for two offset lines */
 	sub_v3_v3v3(dir1, v->co, BM_edge_other_vert(e1->e, v)->co);
@@ -541,6 +529,8 @@ static void get_point_on_round_profile(float r[3], float offset, int i, int coun
 
 	sub_v3_v3v3(vva, va, v);
 	sub_v3_v3v3(vvb, vb, v);
+	normalize_v3(vva);
+	normalize_v3(vvb);
 	angle = angle_v3v3(vva, vvb);
 
 	add_v3_v3v3(center, vva, vvb);
@@ -604,6 +594,17 @@ static void get_point_on_round_edge(EdgeHalf *e, int i,
 	}
 }
 
+static void mid_v3_v3v3v3(float v[3], const float v1[3], const float v2[3], const float v3[3])
+{
+	v[0] = (v1[0] + v2[0] + v3[0]) / 3.0f;
+	v[1] = (v1[1] + v2[1] + v3[1]) / 3.0f;
+	v[2] = (v1[2] + v2[2] + v3[2]) / 3.0f;
+}
+
+/* Make a circular list of BoundVerts for bv, each of which has the coordinates
+ * of a vertex on the the boundary of the beveled vertex bv->v.
+ * Also decide on the mesh pattern that will be used inside the boundary.
+ * Doesn't make the actual BMVerts */
 static void build_boundary(BevVert *bv)
 {
 	EdgeHalf *efirst, *e;
@@ -619,11 +620,11 @@ static void build_boundary(BevVert *bv)
 		/* special case: end of wire edge */
 		/* TODO: follow wire chain to find implied plane of bevel, if any */
 		offset_in_plane(e, NULL, TRUE, co);
-		v = add_new_bound_vert(vm, V_OFF, co);
+		v = add_new_bound_vert(vm, co);
 		v->efirst = v->elast = v->ebev = e;
 		e->leftv = v;
 		offset_in_plane(e, NULL, FALSE, co);
-		v = add_new_bound_vert(vm, V_OFF, co);
+		v = add_new_bound_vert(vm, co);
 		v->efirst = v->elast = e;
 		e->rightv = v;
 		vm->mesh_kind = M_NONE;
@@ -634,17 +635,17 @@ static void build_boundary(BevVert *bv)
 		/* special case: beveled edge meets non-beveled one at valence 2 vert */
 		no = e->fprev ? e->fprev->no : (e->fnext? e->fnext->no : NULL);
 		offset_in_plane(e, no, TRUE, co);
-		v = add_new_bound_vert(vm, V_OFF, co);
+		v = add_new_bound_vert(vm, co);
 		v->efirst = v->elast = v->ebev = e;
 		e->leftv = v;
 		no = e->fnext ? e->fnext->no : (e->fprev? e->fprev->no : NULL);
 		offset_in_plane(e, no, FALSE, co);
-		v = add_new_bound_vert(vm, V_OFF, co);
+		v = add_new_bound_vert(vm, co);
 		v->efirst = v->elast = e;
 		e->rightv = v;
 		/* make artifical extra point along unbeveled edge, and form triangle */
 		slide_dist(e->next, bv->v, e->offset, co);
-		v = add_new_bound_vert(vm, V_EXTRA, co);
+		v = add_new_bound_vert(vm, co);
 		v->efirst = v->elast = e->next;
 		vm->mesh_kind = M_POLY;
 	}
@@ -657,7 +658,7 @@ static void build_boundary(BevVert *bv)
 			if (e->prev->isbev) {
 				BLI_assert(e->prev != e);  /* see: wire edge special case */
 				offset_meet(e->prev, e, bv->v, e->fprev, TRUE, co);
-				v = add_new_bound_vert(vm, V_OFF_MEET, co);
+				v = add_new_bound_vert(vm, co);
 				v->efirst = e->prev;
 				v->elast = v->ebev = e;
 				e->leftv = v;
@@ -671,7 +672,7 @@ static void build_boundary(BevVert *bv)
 					/* TODO: fix case when one or both faces in following are NULL */
 					offset_in_two_planes(e->prev->prev, e, bv->v,
 							e->prev->prev->fnext, e->fprev, co);
-					v = add_new_bound_vert(vm, V_OFF_MEET, co);
+					v = add_new_bound_vert(vm, co);
 					v->efirst = e->prev->prev;
 					v->elast = v->ebev = e;
 					e->leftv = v;
@@ -681,7 +682,7 @@ static void build_boundary(BevVert *bv)
 				else {
 					/* neither e->prev nor e->prev->prev are beveled: make on-edge on e->prev */
 					offset_meet(e->prev, e, bv->v, e->fprev, TRUE, co);
-					v = add_new_bound_vert(vm, V_ON_MEET, co);
+					v = add_new_bound_vert(vm, co);
 					v->efirst = e->prev;
 					v->elast = v->ebev = e;
 					e->leftv = v;
@@ -700,7 +701,7 @@ static void build_boundary(BevVert *bv)
 			if (e->prev->isbev) {
 				/* on-edge meet between e->prev and e */
 				offset_meet(e->prev, e, bv->v, e->fprev, TRUE, co);
-				v = add_new_bound_vert(vm, V_ON_MEET, co);
+				v = add_new_bound_vert(vm, co);
 				v->efirst = e->prev;
 				v->elast = e;
 				e->leftv = v;
@@ -713,7 +714,7 @@ static void build_boundary(BevVert *bv)
 				 * Could slide to make an even bevel plane but for now will
 				 * just use last distance a meet point moved from bv->v. */
 				slide_dist(e, bv->v, lastd, co);
-				v = add_new_bound_vert(vm, V_ON_SLIDE, co);
+				v = add_new_bound_vert(vm, co);
 				v->efirst = v->elast = e;
 				e->leftv = v;
 			}
@@ -731,6 +732,10 @@ static void build_boundary(BevVert *bv)
 	/* TODO: if vm->count == 4 and bv->selcount == 4, use M_CROSS pattern */
 }
 
+/*
+ * Given that the boundary is built and the boundary BMVerts have been made,
+ * calculate the positions of the interior mesh points for the M_ADJ pattern,
+ * then make the BMVerts and the new faces. */
 static void bevel_build_rings(BMesh *bm, BevVert *bv)
 {
 	int k, ring, i, n, ns, ns2, nn;
@@ -759,7 +764,7 @@ static void bevel_build_rings(BMesh *bm, BevVert *bv)
 				if (vprev->ebev)
 					nvprev = mesh_vert(vm, vprev->index, 0, ns - ring);
 				else
-					nvprev = mesh_vert(vm, vprev->index, 0, 0);
+					nvprev = mesh_vert(vm, vprev->index, 0, ns);
 				copy_v3_v3(coa, nvprev->co);
 				nv = mesh_vert(vm, i, ring, 0);
 				copy_v3_v3(nv->co, coa);
@@ -792,10 +797,11 @@ static void bevel_build_rings(BMesh *bm, BevVert *bv)
 		i = v->index;
 		if (v->ebev) {
 			vprev = v->prev;
+			vnext = v->next;
 			if (vprev->ebev) {
 				for (ring = 1; ring <= ns2; ring++) {
 					for (k = 1; k <= ns2; k++) {
-						if (k == ns2 && ns % 2 == 0)
+						if (ns % 2 == 0 && (k == ns2 || ring == ns2))
 							continue;  /* center line is special case: do after the rest are done */
 						nv = mesh_vert(vm, i, ring, k);
 						nvprev = mesh_vert(vm, vprev->index, k, ns - ring);
@@ -806,34 +812,71 @@ static void bevel_build_rings(BMesh *bm, BevVert *bv)
 						copy_mesh_vert(vm, vprev->index, k, ns - ring, i, ring, k);
 					}
 				}
+				if (!vprev->prev->ebev) {
+					for (ring = 1; ring <= ns2; ring++) {
+						for (k = 1; k <= ns2; k++) {
+							if (ns % 2 == 0 && (k == ns2 || ring == ns2))
+								continue;
+							create_mesh_bmvert(bm, vm, vprev->index, ring, k);
+						}
+					}
+				}
+				if (!vnext->ebev) {
+					for (ring = 1; ring <= ns2; ring++) {
+						for (k = ns - ns2; k < ns; k++) {
+							if (ns % 2 == 0 && (k == ns2 || ring == ns2))
+								continue;
+							create_mesh_bmvert(bm, vm, i, ring, k);
+						}
+					}
+				}
 			}
 		}
 		v = v->next;
 	} while (v != vm->boundstart);
 
 	if (ns % 2 == 0) {
-		/* need to set upper half of center lines */
+		/* do special case center lines */
 		v = vm->boundstart;
 		do {
 			i = v->index;
 			if (v->ebev) {
+				vprev = v->prev;
 				vnext = v->next;
-				for (i = k; k < ns2; k++) {
-					nv = mesh_vert(vm, i, ns2, ns - k);
+				for (k = 1; k < ns2; k++) {
+					nv = mesh_vert(vm, i, k, ns2);
+					if (vprev->ebev)
+						nvprev = mesh_vert(vm, vprev->index, ns2, ns - k);
 					if (vnext->ebev)
-						nvnext = mesh_vert(vm, vnext->index, k, ns2);
-					else
-						nvnext = mesh_vert(vm, vnext->index, 0, 0);
-					/* TODO: average nv's co to nvnext's and adjust both */
-					BLI_assert(nv->v == NULL && nvnext->v != NULL);
-					copy_v3_v3(nv->co, nvnext->co);
-					nv->v = nvnext->v;
+						nvnext = mesh_vert(vm, vnext->index, ns2, k);
+					if (vprev->ebev && vnext->ebev) {
+						mid_v3_v3v3v3(co, nvprev->co, nv->co, nvnext->co);
+						copy_v3_v3(nv->co, co);
+						create_mesh_bmvert(bm, vm, i, k, ns2);
+						copy_mesh_vert(vm, vprev->index, ns2, ns - k, i, k, ns2);
+						copy_mesh_vert(vm, vnext->index, ns2, k, i, k, ns2);
+						
+					}
+					else if (vprev->ebev) {
+						mid_v3_v3v3(co, nvprev->co, nv->co);
+						copy_v3_v3(nv->co, co);
+						create_mesh_bmvert(bm, vm, i, k, ns2);
+						copy_mesh_vert(vm, vprev->index, ns2, ns - k, i, k, ns2);
+					}
+					else if (vnext->ebev) {
+						mid_v3_v3v3(co, nv->co, nvnext->co);
+						copy_v3_v3(nv->co, co);
+						create_mesh_bmvert(bm, vm, i, k, ns2);
+						copy_mesh_vert(vm, vnext->index, ns2, k, i, k, ns2);
+					}
 				}
 			}
 			v = v->next;
 		} while (v != vm->boundstart);
 
 		/* center point need to be average of all centers of rings */
+		/* TODO: this is wrong if not all verts have ebev: could hae
+		 * several disconnected sections of mesh. */
 		zero_v3(midco);
 		nn = 0;
 		v = vm->boundstart;
@@ -865,36 +908,94 @@ static void bevel_build_rings(BMesh *bm, BevVert *bv)
 		v = vm->boundstart;
 		do {
 			i = v->index;
-			if (v->ebev) {
+			if (v->ebev && (v->prev->ebev || v->next->ebev)) {
 				for (k = 0; k < ns2 + (ns % 2); k++) {
 					bmv1 = mesh_vert(vm, i, ring, k)->v;
 					bmv2 = mesh_vert(vm, i, ring, k + 1)->v;
 					bmv3 = mesh_vert(vm, i, ring + 1, k + 1)->v;
 					bmv4 = mesh_vert(vm, i, ring + 1, k)->v;
 					BLI_assert(bmv1 && bmv2 && bmv3 && bmv4);
+					if (bmv3 == bmv4 || bmv1 == bmv4)
+						bmv4 = NULL;
 					BM_face_create_quad_tri(bm, bmv1, bmv2, bmv3, bmv4, NULL, 0);
+				}
+			}
+			else if (v->prev->ebev && v->prev->prev->ebev) {
+				/* finish off a sequence of beveled edges */
+				i = v->prev->index;
+				for (k = ns2 + (ns % 2); k < ns; k++) {
+					bmv1 = mesh_vert(vm, i, ring + 1, k)->v;
+					bmv2 = mesh_vert(vm, i, ring, k)->v;
+					bmv3 = mesh_vert(vm, i, ring, k + 1)->v;
+					BLI_assert(bmv1 && bmv2 && bmv3);
+					BM_face_create_quad_tri(bm, bmv1, bmv2, bmv3, NULL, NULL, 0);
 				}
 			}
 			v = v->next;
 		} while (v != vm->boundstart);
 	}
 
-	/* Make center ngon if necessary */
-	if (ns % 2 == 1) {
+	/* Make center ngon if odd number of segments and fully beveled */
+	if (ns % 2 == 1 && vm->count == bv->selcount) {
 		BMVert **vv = NULL;
 		BLI_array_declare(vv);
 
 		v = vm->boundstart;
 		do {
 			i = v->index;
-			if (v->ebev)
-				bmv1 = mesh_vert(vm, i, ns2, ns2)->v;
-			else
-				bmv1 = mesh_vert(vm, i, 0, 0)->v;
-			BLI_array_append(vv, bmv1);
+			BLI_assert(v->ebev);
+			BLI_array_append(vv, mesh_vert(vm, i, ns2, ns2)->v);
 			v = v->next;
 		} while (v != vm->boundstart);
 		bev_create_ngon(bm, vv, BLI_array_count(vv));
+
+		BLI_array_free(vv);
+	}
+
+	/* Make 'rest-of-vmesh' polygon if not fully beveled */
+	if (vm->count > bv->selcount) {
+		int j;
+		BMVert **vv = NULL;
+		BLI_array_declare(vv);
+
+		v = vm->boundstart;
+		j = 0;
+		do {
+			i = v->index;
+			if (v->ebev) {
+				if (!v->prev->ebev) {
+					for (k = 0; k < ns2; k++) {
+						bmv1 = mesh_vert(vm, i, ns2, k)->v;
+						if (!(j > 0 && bmv1 == vv[j-1])) {
+							BLI_array_append(vv, bmv1);
+							j++;
+						}
+					}
+				}
+				bmv1 = mesh_vert(vm, i, ns2, ns2)->v;
+				if (!(j > 0 && bmv1 == vv[j-1])) {
+					BLI_array_append(vv, bmv1);
+					j++;
+				}
+				if (!v->next->ebev) {
+					for (k = ns -ns2; k < ns; k++) {
+						bmv1 = mesh_vert(vm, i, ns2, k)->v;
+						if (!(j > 0 && bmv1 == vv[j-1])) {
+							BLI_array_append(vv, bmv1);
+							j++;
+						}
+					}
+				}
+			}
+			else {
+				BLI_array_append(vv, mesh_vert(vm, i, 0, 0)->v);
+				j++;
+			}
+			v = v->next;
+		} while (v != vm->boundstart);
+		if (vv[0] == vv[j-1])
+			j--;
+		bev_create_ngon(bm, vv, j);
 
 		BLI_array_free(vv);
 	}
@@ -927,11 +1028,13 @@ static void bevel_build_poly(BMesh *bm, BevVert *bv)
 	BLI_array_free(vv);
 }
 
+/* Given that the boundary is built, now make the actual BMVerts
+ * for the boundary and the interior of the vertex mesh. */
 static void build_vmesh(BMesh *bm, BevVert *bv)
 {
 	VMesh *vm = bv->vmesh;
 	BoundVert *v, *weld1, *weld2;
-	int n, ns, ns2, i, j, k, weld;
+	int n, ns, ns2, i, k, weld;
 	float *va, *vb, co[3], midco[3];
 
 	n = vm->count;
@@ -939,10 +1042,6 @@ static void build_vmesh(BMesh *bm, BevVert *bv)
 	ns2 = ns / 2;
 
 	vm->mesh = (NewVert*)MEM_callocN(n * (ns2 + 1) * (ns + 1) * sizeof(NewVert), "NewVert");
-	for (i = 0; i < n; i++)
-		for (j = 0; j <= ns2; j++)
-			for(k = 1; k < ns; k++)
-				mesh_vert(vm, i, j, k)->vkind = V_PROFILE;
 
 	/* special case: two beveled ends welded together */
 	weld = (bv->selcount == 2) && (vm->count == 2);
@@ -953,7 +1052,6 @@ static void build_vmesh(BMesh *bm, BevVert *bv)
 	do {
 		i = v->index;
 		copy_v3_v3(mesh_vert(vm, i, 0, 0)->co, v->nv.co);
-		mesh_vert(vm, i, 0, 0)->vkind = v->nv.vkind;
 		create_mesh_bmvert(bm, vm, i, 0, 0);
 		v->nv.v = mesh_vert(vm, i, 0, 0)->v;
 		if (weld && v->ebev) {
