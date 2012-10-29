@@ -616,20 +616,7 @@ static void build_boundary(BevVert *bv)
 	e = efirst = next_bev(bv, NULL);
 	vm = bv->vmesh;
 
-	if (bv->edgecount == 1) {
-		/* special case: end of wire edge */
-		/* TODO: follow wire chain to find implied plane of bevel, if any */
-		offset_in_plane(e, NULL, TRUE, co);
-		v = add_new_bound_vert(vm, co);
-		v->efirst = v->elast = v->ebev = e;
-		e->leftv = v;
-		offset_in_plane(e, NULL, FALSE, co);
-		v = add_new_bound_vert(vm, co);
-		v->efirst = v->elast = e;
-		e->rightv = v;
-		vm->mesh_kind = M_NONE;
-		return;
-	}
+	BLI_assert(bv->edgecount >= 2);  /* since bevel edges incident to 2 faces */
 
 	if (bv->edgecount == 2 && bv->selcount == 1) {
 		/* special case: beveled edge meets non-beveled one at valence 2 vert */
@@ -648,6 +635,7 @@ static void build_boundary(BevVert *bv)
 		v = add_new_bound_vert(vm, co);
 		v->efirst = v->elast = e->next;
 		vm->mesh_kind = M_POLY;
+		return;
 	}
 
 	lastd = e->offset;
@@ -723,7 +711,7 @@ static void build_boundary(BevVert *bv)
 	} while (e != efirst);
 
 	BLI_assert(vm->count >= 2);
-	if (vm->count == 2)
+	if (vm->count == 2 && bv->edgecount == 3)
 		vm->mesh_kind = M_NONE;
 	else if (efirst->seg == 1 || bv->selcount < 3)
 		vm->mesh_kind = M_POLY;
@@ -1115,12 +1103,15 @@ static void bevel_vert_construct(BMesh *bm, BevelParams *bp, BMOperator *op, BMV
 	int i, ntot, found_shared_face, ccw_test_sum;
 	int nsel = 0;
 
-	/* gather input selected edges */
+	/* Gather input selected edges.
+	 * Only bevel selected edges that have exactly two incident faces. */
 	BMO_ITER (bme, &siter, bm, op, "geom", BM_EDGE) {
 		if ((bme->v1 == v)|| (BM_edge_other_vert(bme, bme->v1) == v))
 		{
-			BMO_elem_flag_enable (bm, bme, EDGE_SELECTED);
-			nsel++;
+			if (BM_edge_face_count(bme) == 2) {
+				BMO_elem_flag_enable (bm, bme, EDGE_SELECTED);
+				nsel++;
+			}
 		}
 	}
 
@@ -1310,6 +1301,9 @@ static void bevel_build_edge_polygons(BMesh *bm, BevelParams *bp, BMEdge *bme)
 	EdgeHalf *e1, *e2;
 	int k, nseg, i1, i2;
 
+	if (BM_edge_face_count(bme) != 2)
+		return;
+
 	bv1 = find_bevvert(bp, bme->v1);
 	bv2 = find_bevvert(bp, bme->v2);
 
@@ -1486,7 +1480,8 @@ void bmo_bevel_exec(BMesh *bm, BMOperator *op)
 		}
 
 		BMO_ITER (v, &siter, bm, op, "geom", BM_VERT) {
-			BM_vert_kill(bm, v);
+			if (find_bevvert(&bp, v))
+				BM_vert_kill(bm, v);
 		}
 		free_bevel_params(&bp);
 	}
