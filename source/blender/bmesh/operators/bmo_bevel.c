@@ -161,10 +161,10 @@ static NewVert* mesh_vert(VMesh* vm, int i, int j, int k)
 	return &vm->mesh[i * nk * nj  + j * nk + k];
 }
 
-static void create_mesh_bmvert(BMesh* bm, VMesh *vm, int i, int j, int k)
+static void create_mesh_bmvert(BMesh* bm, VMesh *vm, int i, int j, int k, BMVert *eg)
 {
 	NewVert *nv = mesh_vert(vm, i, j, k);
-	nv->v = BM_vert_create(bm, nv->co, NULL);
+	nv->v = BM_vert_create(bm, nv->co, eg);
 }
 
 static void copy_mesh_vert(VMesh *vm, int ito, int jto, int kto,
@@ -219,18 +219,47 @@ static BevVert* find_bevvert(BevelParams *bp, BMVert *bmv)
 	return NULL;
 }
 
+/* Return a good respresentative face (for materials, etc.) for faces
+ * created around/near BoundVert v */
+static BMFace* boundvert_rep_face(BoundVert *v)
+{
+    BMFace *fans = NULL;
+    BMFace *firstf = NULL;
+    BMEdge *e1, *e2;
+    BMFace *f1, *f2;
+    BMIter iter1, iter2;
+
+    BLI_assert(v->efirst != NULL && v->elast != NULL);
+    e1 = v->efirst->e;
+    e2 = v->elast->e;
+    BM_ITER_ELEM(f1, &iter1, e1, BM_FACES_OF_EDGE) {
+        if (!firstf)
+            firstf = f1;
+        BM_ITER_ELEM(f2, &iter2, e2, BM_FACES_OF_EDGE) {
+            if (f1 == f2) {
+                fans = f1;
+                break;
+            }
+        }
+    }
+    if (!fans)
+        fans = firstf;
+
+    return fans;
+}
+
 /* Make ngon from verts alone.
  * Like BM_face_create_ngon_vcloud, but here we know verts are
  * in correct CCW order for desired normal direction. */
-static BMFace *bev_create_ngon(BMesh *bm, BMVert **vert_arr, int totv)
+static BMFace *bev_create_ngon(BMesh *bm, BMVert **vert_arr, int totv, BMFace *facerep)
 {
 	if (totv == 3) {
 		return BM_face_create_quad_tri(bm,
-			vert_arr[0], vert_arr[1], vert_arr[2], NULL, NULL, 0);
+			vert_arr[0], vert_arr[1], vert_arr[2], NULL, facerep, 0);
 	}
 	else if (totv == 4) {
 		return BM_face_create_quad_tri(bm,
-			vert_arr[0], vert_arr[1], vert_arr[2], vert_arr[3], NULL, 0);
+			vert_arr[0], vert_arr[1], vert_arr[2], vert_arr[3], facerep, 0);
 	}
 	else {
 		int i;
@@ -244,6 +273,8 @@ static BMFace *bev_create_ngon(BMesh *bm, BMVert **vert_arr, int totv)
 			BLI_array_append(ee, e);
 		}
 		f = BM_face_create_ngon(bm, vert_arr[0], vert_arr[1], ee, totv, FALSE);
+        if (facerep)
+            BM_elem_attrs_copy(bm, bm, facerep, f);
 		BLI_array_free(ee);
 		return f;
 	}
@@ -731,6 +762,7 @@ static void bevel_build_rings(BMesh *bm, BevVert *bv)
 	BoundVert *v, *vprev, *vnext;
 	NewVert *nv, *nvprev, *nvnext;
 	BMVert *bmv, *bmv1, *bmv2, *bmv3, *bmv4;
+    BMFace *f;
 	float co[3], coa[3], cob[3], midco[3];
 
 	n = vm->count;
@@ -796,7 +828,7 @@ static void bevel_build_rings(BMesh *bm, BevVert *bv)
 						mid_v3_v3v3(co, nv->co, nvprev->co);
 						copy_v3_v3(nv->co, co);
 						BLI_assert(nv->v == NULL && nvprev->v == NULL);
-						create_mesh_bmvert(bm, vm, i, ring, k);
+						create_mesh_bmvert(bm, vm, i, ring, k, bv->v);
 						copy_mesh_vert(vm, vprev->index, k, ns - ring, i, ring, k);
 					}
 				}
@@ -805,7 +837,7 @@ static void bevel_build_rings(BMesh *bm, BevVert *bv)
 						for (k = 1; k <= ns2; k++) {
 							if (ns % 2 == 0 && (k == ns2 || ring == ns2))
 								continue;
-							create_mesh_bmvert(bm, vm, vprev->index, ring, k);
+							create_mesh_bmvert(bm, vm, vprev->index, ring, k, bv->v);
 						}
 					}
 				}
@@ -814,7 +846,7 @@ static void bevel_build_rings(BMesh *bm, BevVert *bv)
 						for (k = ns - ns2; k < ns; k++) {
 							if (ns % 2 == 0 && (k == ns2 || ring == ns2))
 								continue;
-							create_mesh_bmvert(bm, vm, i, ring, k);
+							create_mesh_bmvert(bm, vm, i, ring, k, bv->v);
 						}
 					}
 				}
@@ -840,7 +872,7 @@ static void bevel_build_rings(BMesh *bm, BevVert *bv)
 					if (vprev->ebev && vnext->ebev) {
 						mid_v3_v3v3v3(co, nvprev->co, nv->co, nvnext->co);
 						copy_v3_v3(nv->co, co);
-						create_mesh_bmvert(bm, vm, i, k, ns2);
+						create_mesh_bmvert(bm, vm, i, k, ns2, bv->v);
 						copy_mesh_vert(vm, vprev->index, ns2, ns - k, i, k, ns2);
 						copy_mesh_vert(vm, vnext->index, ns2, k, i, k, ns2);
 						
@@ -848,13 +880,13 @@ static void bevel_build_rings(BMesh *bm, BevVert *bv)
 					else if (vprev->ebev) {
 						mid_v3_v3v3(co, nvprev->co, nv->co);
 						copy_v3_v3(nv->co, co);
-						create_mesh_bmvert(bm, vm, i, k, ns2);
+						create_mesh_bmvert(bm, vm, i, k, ns2, bv->v);
 						copy_mesh_vert(vm, vprev->index, ns2, ns - k, i, k, ns2);
 					}
 					else if (vnext->ebev) {
 						mid_v3_v3v3(co, nv->co, nvnext->co);
 						copy_v3_v3(nv->co, co);
-						create_mesh_bmvert(bm, vm, i, k, ns2);
+						create_mesh_bmvert(bm, vm, i, k, ns2, bv->v);
 						copy_mesh_vert(vm, vnext->index, ns2, k, i, k, ns2);
 					}
 				}
@@ -896,6 +928,7 @@ static void bevel_build_rings(BMesh *bm, BevVert *bv)
 		v = vm->boundstart;
 		do {
 			i = v->index;
+            f = boundvert_rep_face(v);
 			if (v->ebev && (v->prev->ebev || v->next->ebev)) {
 				for (k = 0; k < ns2 + (ns % 2); k++) {
 					bmv1 = mesh_vert(vm, i, ring, k)->v;
@@ -905,18 +938,19 @@ static void bevel_build_rings(BMesh *bm, BevVert *bv)
 					BLI_assert(bmv1 && bmv2 && bmv3 && bmv4);
 					if (bmv3 == bmv4 || bmv1 == bmv4)
 						bmv4 = NULL;
-					BM_face_create_quad_tri(bm, bmv1, bmv2, bmv3, bmv4, NULL, 0);
+					BM_face_create_quad_tri(bm, bmv1, bmv2, bmv3, bmv4, f, 0);
 				}
 			}
 			else if (v->prev->ebev && v->prev->prev->ebev) {
 				/* finish off a sequence of beveled edges */
 				i = v->prev->index;
+                f = boundvert_rep_face(v->prev);
 				for (k = ns2 + (ns % 2); k < ns; k++) {
 					bmv1 = mesh_vert(vm, i, ring + 1, k)->v;
 					bmv2 = mesh_vert(vm, i, ring, k)->v;
 					bmv3 = mesh_vert(vm, i, ring, k + 1)->v;
 					BLI_assert(bmv1 && bmv2 && bmv3);
-					BM_face_create_quad_tri(bm, bmv1, bmv2, bmv3, NULL, NULL, 0);
+					BM_face_create_quad_tri(bm, bmv1, bmv2, bmv3, NULL, f, 0);
 				}
 			}
 			v = v->next;
@@ -935,7 +969,8 @@ static void bevel_build_rings(BMesh *bm, BevVert *bv)
 			BLI_array_append(vv, mesh_vert(vm, i, ns2, ns2)->v);
 			v = v->next;
 		} while (v != vm->boundstart);
-		bev_create_ngon(bm, vv, BLI_array_count(vv));
+        f = boundvert_rep_face(vm->boundstart);
+		bev_create_ngon(bm, vv, BLI_array_count(vv), f);
 
 		BLI_array_free(vv);
 	}
@@ -947,6 +982,7 @@ static void bevel_build_rings(BMesh *bm, BevVert *bv)
 		BLI_array_declare(vv);
 
 		v = vm->boundstart;
+        f = boundvert_rep_face(v);
 		j = 0;
 		do {
 			i = v->index;
@@ -983,7 +1019,7 @@ static void bevel_build_rings(BMesh *bm, BevVert *bv)
 		} while (v != vm->boundstart);
 		if (vv[0] == vv[j-1])
 			j--;
-		bev_create_ngon(bm, vv, j);
+		bev_create_ngon(bm, vv, j, f);
 
 		BLI_array_free(vv);
 	}
@@ -1012,7 +1048,7 @@ static void bevel_build_poly(BMesh *bm, BevVert *bv)
 		v = v->next;
 	} while (v != vm->boundstart);
 	if (n > 2)
-		bev_create_ngon(bm, vv, n);
+		bev_create_ngon(bm, vv, n, boundvert_rep_face(v));
 	BLI_array_free(vv);
 }
 
@@ -1040,7 +1076,7 @@ static void build_vmesh(BMesh *bm, BevVert *bv)
 	do {
 		i = v->index;
 		copy_v3_v3(mesh_vert(vm, i, 0, 0)->co, v->nv.co);
-		create_mesh_bmvert(bm, vm, i, 0, 0);
+		create_mesh_bmvert(bm, vm, i, 0, 0, bv->v);
 		v->nv.v = mesh_vert(vm, i, 0, 0)->v;
 		if (weld && v->ebev) {
 			if (!weld1)
@@ -1064,7 +1100,7 @@ static void build_vmesh(BMesh *bm, BevVert *bv)
 				get_point_on_round_edge(v->ebev, k, va, midco, vb, co);
 				copy_v3_v3(mesh_vert(vm, i, 0, k)->co, co);
 				if (!weld)
-					create_mesh_bmvert(bm, vm, i, 0, k);
+					create_mesh_bmvert(bm, vm, i, 0, k, bv->v);
 			}
 		}
 		v = v->next;
@@ -1075,7 +1111,7 @@ static void build_vmesh(BMesh *bm, BevVert *bv)
 			mid_v3_v3v3(co, mesh_vert(vm, weld1->index, 0, k)->co,
 					mesh_vert(vm, weld2->index, 0, ns - k)->co);
 			copy_v3_v3(mesh_vert(vm, weld1->index, 0, k)->co, co);
-			create_mesh_bmvert(bm, vm, weld1->index, 0, k);
+			create_mesh_bmvert(bm, vm, weld1->index, 0, k, bv->v);
 		}
 		for (k = 1; k < ns; k++)
 			copy_mesh_vert(vm, weld2->index, 0, ns - k, weld1->index, 0, k);
@@ -1265,7 +1301,7 @@ static void rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
 			BLI_array_append(vv, l->v);
 		}
 	}
-	bev_create_ngon(bm, vv, BLI_array_count(vv));
+	bev_create_ngon(bm, vv, BLI_array_count(vv), f);
 	BLI_array_free(vv);
 }
 
@@ -1299,6 +1335,7 @@ static void bevel_build_edge_polygons(BMesh *bm, BevelParams *bp, BMEdge *bme)
 	BMVert *bmv1, *bmv2, *bmv3, *bmv4, *bmv1i, *bmv2i, *bmv3i, *bmv4i;
 	VMesh *vm1, *vm2;
 	EdgeHalf *e1, *e2;
+    BMFace *f1, *f2, *f;
 	int k, nseg, i1, i2;
 
 	if (BM_edge_face_count(bme) != 2)
@@ -1330,8 +1367,11 @@ static void bevel_build_edge_polygons(BMesh *bm, BevelParams *bp, BMEdge *bme)
 
 	BLI_assert(bmv1 && bmv2 && bmv3 && bmv4);
 
+    f1 = boundvert_rep_face(e1->leftv);
+    f2 = boundvert_rep_face(e1->rightv);
+
 	if (nseg == 1) {
-		BM_face_create_quad_tri(bm, bmv1, bmv2, bmv3, bmv4, NULL, 0);
+		BM_face_create_quad_tri(bm, bmv1, bmv2, bmv3, bmv4, f1, 0);
 	}
 	else {
 		i1 = e1->leftv->index;
@@ -1343,7 +1383,8 @@ static void bevel_build_edge_polygons(BMesh *bm, BevelParams *bp, BMEdge *bme)
 		for (k = 1; k <= nseg; k++) {
 			bmv4i = mesh_vert(vm1, i1, 0, k)->v;
 			bmv3i = mesh_vert(vm2, i2, 0, nseg - k)->v;
-			BM_face_create_quad_tri(bm, bmv1i, bmv2i, bmv3i, bmv4i, NULL, 0);
+            f = (k <= nseg / 2 + (nseg % 2)) ? f1 : f2;
+			BM_face_create_quad_tri(bm, bmv1i, bmv2i, bmv3i, bmv4i, f, 0);
 			bmv1i = bmv4i;
 			bmv2i = bmv3i;
 		}
