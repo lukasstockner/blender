@@ -158,13 +158,13 @@ void GeometryExporter::operator()(Object *ob)
 	}
     
     //shape keys
-	Key * key = ob_get_key(ob);
+	Key * key = BKE_key_from_object(ob);
 	if(key){
 		KeyBlock * kb = (KeyBlock*)key->block.first;
 		//skip the basis
 		kb = kb->next;
 		for (; kb; kb = kb->next) {
-			key_to_mesh(kb, me);
+			BKE_key_convert_to_mesh(kb, me);
 			export_key_mesh(ob, me, kb);
 		}
 	}

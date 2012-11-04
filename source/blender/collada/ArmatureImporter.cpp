@@ -663,13 +663,13 @@ void ArmatureImporter::make_shape_keys(){
 		
 		Mesh *source_me = (Mesh*) source_ob->data;
 		//insert key to source mesh
-		Key *key = source_me->key = add_key((ID *)source_me);
+		Key *key = source_me->key = BKE_key_add((ID *)source_me);
 		key->type = KEY_RELATIVE;
 		KeyBlock *kb;
 		
 		//insert basis key
-		kb = add_keyblock_ctime(key, "Basis", FALSE);
-		mesh_to_key(source_me, kb);
+		kb = BKE_keyblock_add_ctime(key, "Basis", FALSE);
+		BKE_key_convert_from_mesh(source_me, kb);
 
 		//insert other shape keys
 		for ( int i = 0 ; i < morphTargetIds.getCount() ; i++ ){
@@ -679,8 +679,8 @@ void ArmatureImporter::make_shape_keys(){
 			
 			if(me){
 				me->key = key;
-				kb = add_keyblock_ctime(key, me->id.name, FALSE);
-				mesh_to_key(me, kb);
+				kb = BKE_keyblock_add_ctime(key, me->id.name, FALSE);
+				BKE_key_convert_from_mesh(me, kb);
 				
 				//apply weights
 				weight =  morphWeights.getFloatValues()->getData()[i];

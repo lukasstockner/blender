@@ -118,7 +118,7 @@ void ControllerExporter::export_controllers(Scene *sce)
 void ControllerExporter::operator()(Object *ob)
 {
 	Object *ob_arm = bc_get_assigned_armature(ob);
-	Key *key = ob_get_key(ob);
+	Key *key = BKE_key_from_object(ob);
 
 	if (ob_arm)
 		export_skin_controller(ob, ob_arm);

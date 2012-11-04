@@ -160,7 +160,7 @@ void AnimationExporter::export_morph_animation(Object *ob)
 { 
 	FCurve *fcu;
 	char *transformName;
-	Key *key = ob_get_key(ob);
+	Key *key = BKE_key_from_object(ob);
 	if(!key) return;
 
 	if(key->adt && key->adt->action){
@@ -1327,7 +1327,7 @@ bool AnimationExporter::hasAnimations(Scene *sce)
 
 		//check shape key animation
 		if(!fcu){
-			Key *key = ob_get_key(ob);
+			Key *key = BKE_key_from_object(ob);
 			if(key && key->adt && key->adt->action)
 				fcu = (FCurve *)key->adt->action->curves.first;
 		}
