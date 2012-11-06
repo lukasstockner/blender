@@ -27,3 +27,4 @@ set(SRC
 
 # SRC_DNA_INC is defined in the parent dir
 add_executable(datatoc ${SRC})
+target_link_libraries(datatoc ${PLATFORM_LINKLIBS})

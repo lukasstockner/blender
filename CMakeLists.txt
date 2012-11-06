@@ -280,6 +280,8 @@ mark_as_advanced(WITH_ANDROID)
 option(WITH_GLES "Compiles Blender with OpenGL ES 2.0" OFF)
 mark_as_advanced(WITH_GLES)
 
+option(WITH_CODE_COVERAGE "Compile with support for generating code coverage information" OFF)
+mark_as_advanced(WITH_CODE_COVERAGE)
 
 if(APPLE)
 	if(NOT CMAKE_OSX_ARCHITECTURES)
@@ -2138,7 +2140,25 @@ if(WITH_PYTHON)
 	endif()
 endif()
 
+#-----------------------------------------------------------------------------
+# Code Coverage
+ 
+if(WITH_CODE_COVERAGE)
+    set(PLATFORM_CFLAGS    "${PLATFORM_CFLAGS} -fprofile-arcs -ftest-coverage")
+    set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -fprofile-arcs -ftest-coverage")
+     
+    if(CMAKE_COMPILER_IS_GNUCC)
+        set(PLATFORM_LINKLIBS  "${PLATFORM_LINKLIBS} -lgcov")
+    endif()
+ 
+    if(XCODE_VERSION)
+        # at this time (Oct 2012) code coverage only works with gcc not clang and Xcode defaults to clang
+        # this is kind of hackish, since it isn't future proof
+        # set(CMAKE_XCODE_ATTRIBUTE_GCC_VERSION "com.apple.compilers.llvmgcc42")
+    endif()
+endif() 
 
+#-----------------------------------------------------------------------------
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${PLATFORM_CFLAGS} ${C_WARNINGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PLATFORM_CFLAGS} ${CXX_WARNINGS}")
 

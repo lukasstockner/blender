@@ -271,6 +271,7 @@ add_executable(makesrna ${SRC} ${SRC_RNA_INC} ${SRC_DNA_INC})
 endif()
 target_link_libraries(makesrna bf_dna)
 target_link_libraries(makesrna bf_dna_blenlib)
+target_link_libraries(makesrna ${PLATFORM_LINKLIBS})
 
 # Output rna_*_gen.c
 # note (linux only): with crashes try add this after COMMAND: valgrind --leak-check=full --track-origins=yes
