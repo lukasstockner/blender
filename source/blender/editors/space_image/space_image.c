@@ -414,8 +414,9 @@ static void image_refresh(const bContext *C, ScrArea *sa)
 					/* don't need to check for pin here, see above */
 					sima->image = tf->tpage;
 					
-					if (sima->flag & SI_EDITTILE) ;
-					else sima->curtile = tf->tile;
+					if ((sima->flag & SI_EDITTILE) == 0) {
+						sima->curtile = tf->tile;
+					}
 				}
 			}
 		}
@@ -456,7 +457,7 @@ static void image_listener(ScrArea *sa, wmNotifier *wmn)
 				ED_area_tag_redraw(sa);
 			}
 			break;
-		case NC_SPACE:	
+		case NC_SPACE:
 			if (wmn->data == ND_SPACE_IMAGE) {
 				image_scopes_tag_refresh(sa);
 				ED_area_tag_redraw(sa);
@@ -549,7 +550,7 @@ static void image_main_area_set_view2d(SpaceImage *sima, ARegion *ar)
 	int width, height, winx, winy;
 	
 #if 0
-	if (image_preview_active(curarea, &width, &height)) ;
+	if (image_preview_active(curarea, &width, &height)) {}
 	else
 #endif
 	ED_space_image_get_size(sima, &width, &height);

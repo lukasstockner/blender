@@ -57,7 +57,7 @@ static void bm_mempool_init(BMesh *bm, const BMAllocTemplate *allocsize)
 	                               bm_mesh_chunksize_default.totface, BLI_MEMPOOL_ALLOW_ITER);
 
 #ifdef USE_BMESH_HOLES
-	bm->looplistpool = BLI_mempool_create(sizeof(BMLoopList), allocsize[3], allocsize[3], FALSE, FALSE);
+	bm->looplistpool = BLI_mempool_create(sizeof(BMLoopList), 512, 512, 0);
 #endif
 
 	/* allocate one flag pool that we don't get rid of. */
@@ -84,6 +84,11 @@ BMesh *BM_mesh_create(BMAllocTemplate *allocsize)
 	/* allocate one flag pool that we don't get rid of. */
 	bm->stackdepth = 1;
 	bm->totflags = 1;
+
+	CustomData_reset(&bm->vdata);
+	CustomData_reset(&bm->edata);
+	CustomData_reset(&bm->ldata);
+	CustomData_reset(&bm->pdata);
 
 	return bm;
 }
@@ -295,7 +300,7 @@ static void UNUSED_FUNCTION(bm_mdisps_space_set)(Object *ob, BMesh *bm, int from
 	/* switch multires data out of tangent space */
 	if (CustomData_has_layer(&bm->ldata, CD_MDISPS)) {
 		BMEditMesh *em = BMEdit_Create(bm, FALSE);
-		DerivedMesh *dm = CDDM_from_BMEditMesh(em, NULL, TRUE, FALSE);
+		DerivedMesh *dm = CDDM_from_editbmesh(em, TRUE, FALSE);
 		MDisps *mdisps;
 		BMFace *f;
 		BMIter iter;

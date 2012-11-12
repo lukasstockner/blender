@@ -136,6 +136,7 @@ static EnumPropertyItem field_type_items[] = {
 	{PFIELD_BOID, "BOID", ICON_FORCE_BOID, "Boid", ""},
 	{PFIELD_TURBULENCE, "TURBULENCE", ICON_FORCE_TURBULENCE, "Turbulence", ""},
 	{PFIELD_DRAG, "DRAG", ICON_FORCE_DRAG, "Drag", ""},
+	{PFIELD_SMOKEFLOW, "SMOKE", ICON_FORCE_SMOKEFLOW, "Smoke Flow", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -185,7 +186,8 @@ void ED_object_base_init_transform(bContext *C, Base *base, const float loc[3], 
 /* Uses context to figure out transform for primitive.
  * Returns standard diameter. */
 float ED_object_new_primitive_matrix(bContext *C, Object *obedit,
-                                     const float loc[3], const float rot[3], float primmat[][4])
+                                     const float loc[3], const float rot[3], float primmat[][4],
+                                     int apply_diameter)
 {
 	Scene *scene = CTX_data_scene(C);
 	View3D *v3d = CTX_wm_view3d(C);
@@ -208,8 +210,17 @@ float ED_object_new_primitive_matrix(bContext *C, Object *obedit,
 	invert_m3_m3(imat, mat);
 	mul_m3_v3(imat, primmat[3]);
 
-	if (v3d)
-		return ED_view3d_grid_scale(scene, v3d, NULL);
+	if (v3d) {
+		float dia = ED_view3d_grid_scale(scene, v3d, NULL);
+
+		if (apply_diameter) {
+			primmat[0][0] *= dia;
+			primmat[1][1] *= dia;
+			primmat[2][2] *= dia;
+		}
+
+		return dia;
+	}
 
 	return 1.0f;
 }
@@ -356,7 +367,7 @@ Object *ED_object_add_type(bContext *C, int type, const float loc[3], const floa
 	Scene *scene = CTX_data_scene(C);
 	Object *ob;
 
-	/* For as long scene has editmode... */
+	/* for as long scene has editmode... */
 	if (CTX_data_edit_object(C)) 
 		ED_object_exit_editmode(C, EM_FREEDATA | EM_FREEUNDO | EM_WAITCURSOR | EM_DO_UNDO);  /* freedata, and undo */
 
@@ -441,7 +452,7 @@ static int effector_add_exec(bContext *C, wmOperator *op)
 		rename_id(&ob->id, "CurveGuide");
 		((Curve *)ob->data)->flag |= CU_PATH | CU_3D;
 		ED_object_enter_editmode(C, 0);
-		ED_object_new_primitive_matrix(C, ob, loc, rot, mat);
+		ED_object_new_primitive_matrix(C, ob, loc, rot, mat, FALSE);
 		BLI_addtail(object_editcurve_get(ob), add_nurbs_primitive(C, ob, mat, CU_NURBS | CU_PRIM_PATH, 1));
 		if (!enter_editmode)
 			ED_object_exit_editmode(C, EM_FREEDATA);
@@ -546,6 +557,7 @@ static int object_metaball_add_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 	float loc[3], rot[3];
 	float mat[4][4];
+	float dia;
 
 	if (!ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer, NULL))
 		return OPERATOR_CANCELLED;
@@ -557,9 +569,9 @@ static int object_metaball_add_exec(bContext *C, wmOperator *op)
 	else
 		DAG_id_tag_update(&obedit->id, OB_RECALC_DATA);
 
-	ED_object_new_primitive_matrix(C, obedit, loc, rot, mat);
+	dia = ED_object_new_primitive_matrix(C, obedit, loc, rot, mat, FALSE);
 
-	add_metaball_primitive(C, obedit, mat, RNA_enum_get(op->ptr, "type"), newob);
+	add_metaball_primitive(C, obedit, mat, dia, RNA_enum_get(op->ptr, "type"), newob);
 
 	/* userdef */
 	if (newob && !enter_editmode) {
@@ -821,8 +833,6 @@ static int group_instance_add_exec(bContext *C, wmOperator *op)
 /* only used as menu */
 void OBJECT_OT_group_instance_add(wmOperatorType *ot)
 {
-	PropertyRNA *prop;
-
 	/* identifiers */
 	ot->name = "Add Group Instance";
 	ot->description = "Add a dupligroup instance";
@@ -837,9 +847,8 @@ void OBJECT_OT_group_instance_add(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	prop = RNA_def_enum(ot->srna, "group", DummyRNA_NULL_items, 0, "Group", "");
-	RNA_def_enum_funcs(prop, RNA_group_itemf);
-	ot->prop = prop;
+	ot->prop = RNA_def_enum(ot->srna, "group", DummyRNA_NULL_items, 0, "Group", "");
+	RNA_def_enum_funcs(ot->prop, RNA_group_itemf);
 	ED_object_add_generic_props(ot, FALSE);
 }
 
@@ -1112,13 +1121,13 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
 		basen->object = ob;
 
 		/* make sure apply works */
-		BKE_free_animdata(&ob->id);	
+		BKE_free_animdata(&ob->id);
 		ob->adt = NULL;
 
 		ob->parent = NULL;
 		ob->constraints.first = ob->constraints.last = NULL;
 		ob->disp.first = ob->disp.last = NULL;
-		ob->transflag &= ~OB_DUPLI;	
+		ob->transflag &= ~OB_DUPLI;
 		ob->lay = base->lay;
 
 		copy_m4_m4(ob->obmat, dob->mat);
@@ -1127,7 +1136,7 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
 		if (dupli_gh)
 			BLI_ghash_insert(dupli_gh, dob, ob);
 		if (parent_gh)
-			BLI_ghash_insert(parent_gh, BLI_ghashutil_pairalloc(dob->ob, SET_INT_IN_POINTER(dob->index)), ob);
+			BLI_ghash_insert(parent_gh, BLI_ghashutil_pairalloc(dob->ob, SET_INT_IN_POINTER(dob->persistent_id[0])), ob);
 	}
 
 	if (use_hierarchy) {
@@ -1141,7 +1150,7 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
 
 			/* find parent that was also made real */
 			if (ob_src_par) {
-				GHashPair *pair = BLI_ghashutil_pairalloc(ob_src_par, SET_INT_IN_POINTER(dob->index));
+				GHashPair *pair = BLI_ghashutil_pairalloc(ob_src_par, SET_INT_IN_POINTER(dob->persistent_id[0]));
 				ob_dst_par = BLI_ghash_lookup(parent_gh, pair);
 				BLI_ghashutil_pairfree(pair);
 			}
@@ -1398,7 +1407,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 			 * cases this doesnt give correct results (when MDEF is used for eg)
 			 */
 			dm = mesh_get_derived_final(scene, newob, CD_MASK_MESH);
-			/* dm= mesh_create_derived_no_deform(ob1, NULL);	this was called original (instead of get_derived). man o man why! (ton) */
+			// dm = mesh_create_derived_no_deform(ob1, NULL);  /* this was called original (instead of get_derived). man o man why! (ton) */
 
 			DM_to_mesh(dm, newob->data, newob);
 
@@ -1564,7 +1573,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 		/* delete original if needed */
 		if (basedel) {
 			if (!keep_original)
-				ED_base_object_free_and_unlink(bmain, scene, basedel);	
+				ED_base_object_free_and_unlink(bmain, scene, basedel);
 
 			basedel = NULL;
 		}
@@ -2048,11 +2057,11 @@ static int join_exec(bContext *C, wmOperator *op)
 	Object *ob = CTX_data_active_object(C);
 
 	if (scene->obedit) {
-		BKE_report(op->reports, RPT_ERROR, "This data does not support joining in editmode");
+		BKE_report(op->reports, RPT_ERROR, "This data does not support joining in edit mode");
 		return OPERATOR_CANCELLED;
 	}
 	else if (BKE_object_obdata_is_libdata(ob)) {
-		BKE_report(op->reports, RPT_ERROR, "Can't edit external libdata");
+		BKE_report(op->reports, RPT_ERROR, "Cannot edit external libdata");
 		return OPERATOR_CANCELLED;
 	}
 
@@ -2102,11 +2111,11 @@ static int join_shapes_exec(bContext *C, wmOperator *op)
 	Object *ob = CTX_data_active_object(C);
 
 	if (scene->obedit) {
-		BKE_report(op->reports, RPT_ERROR, "This data does not support joining in editmode");
+		BKE_report(op->reports, RPT_ERROR, "This data does not support joining in edit mode");
 		return OPERATOR_CANCELLED;
 	}
 	else if (BKE_object_obdata_is_libdata(ob)) {
-		BKE_report(op->reports, RPT_ERROR, "Can't edit external libdata");
+		BKE_report(op->reports, RPT_ERROR, "Cannot edit external libdata");
 		return OPERATOR_CANCELLED;
 	}
 

@@ -266,6 +266,16 @@ enum {
 	DEL_ONLYTAGGED
 };
 
+typedef enum {
+	BMO_SYMMETRIZE_NEGATIVE_X,
+	BMO_SYMMETRIZE_NEGATIVE_Y,
+	BMO_SYMMETRIZE_NEGATIVE_Z,
+
+	BMO_SYMMETRIZE_POSITIVE_X,
+	BMO_SYMMETRIZE_POSITIVE_Y,
+	BMO_SYMMETRIZE_POSITIVE_Z,
+} BMO_SymmDirection;
+
 void BMO_op_flag_enable(BMesh *bm, BMOperator *op, const int op_flag);
 void BMO_op_flag_disable(BMesh *bm, BMOperator *op, const int op_flag);
 
@@ -275,6 +285,8 @@ void  BMO_slot_int_set(BMOperator *op, const char *slot_name, const int i);
 int   BMO_slot_int_get(BMOperator *op, const char *slot_name);
 void  BMO_slot_bool_set(BMOperator *op, const char *slot_name, const int i);
 int   BMO_slot_bool_get(BMOperator *op, const char *slot_name);
+void *BMO_slot_as_arrayN(BMOperator *op, const char *slot_name, int *len);
+
 
 /* don't pass in arrays that are supposed to map to elements this way.
  *

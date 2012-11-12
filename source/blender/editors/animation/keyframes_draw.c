@@ -322,7 +322,7 @@ static void nupdate_abk_bezt(void *node, void *data)
 	/* just add the BezTriple to the buffer if there's space, or allocate a new one */
 	if (abk->numBezts >= MAX_ABK_BUFSIZE) {
 		// TODO: need to allocate new array to cater...
-		//bezts_extra= MEM_callocN(...);
+		//bezts_extra = MEM_callocN(...);
 		if (G.debug & G_DEBUG)
 			printf("FIXME: nupdate_abk_bezt() missing case for too many overlapping BezTriples\n");
 	}
@@ -345,7 +345,7 @@ static BezTriple *abk_get_bezt_with_value(ActBeztColumn *abk, float value)
 		return NULL;
 	
 	/* look over each BezTriple in this container */
-	for (i = 0; i < abk->numBezts; i++) {		
+	for (i = 0; i < abk->numBezts; i++) {
 		/* only do exact match for now... */
 		if (/*i >= MAX_ABK_BUFSIZE*/ 0) {
 			// TODO: this case needs special handling
@@ -551,7 +551,7 @@ static const float _unit_diamond_shape[4][2] = {
 void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel, short key_type, short mode, float alpha)
 {
 	/* tweak size of keyframe shape according to type of keyframe 
-	 * - 'proper' keyframes have key_type=0, so get drawn at full size
+	 * - 'proper' keyframes have key_type = 0, so get drawn at full size
 	 */
 	hsize -= 0.5f * key_type;
 	
@@ -939,7 +939,7 @@ void fcurve_to_keylist(AnimData *adt, FCurve *fcu, DLRBT_Tree *keys, DLRBT_Tree 
 
 	if (fcu && fcu->totvert && fcu->bezt) {
 		/* apply NLA-mapping (if applicable) */
-		if (adt)	
+		if (adt)
 			ANIM_nla_mapping_apply_fcurve(adt, fcu, 0, 0);
 		
 		/* if getting long keyframes too, grab the BezTriples in a BST for 

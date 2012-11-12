@@ -36,6 +36,8 @@
 #include "BLI_listbase.h"
 #include "BLI_array.h"
 
+#include "BLF_translation.h"
+
 #include "bmesh.h"
 #include "intern/bmesh_private.h"
 
@@ -49,16 +51,16 @@ static int bmo_opname_to_opcode(const char *opname);
 
 static const char *bmo_error_messages[] = {
 	NULL,
-	"Self intersection error",
-	"Could not dissolve vert",
-	"Could not connect vertices",
-	"Could not traverse mesh",
-	"Could not dissolve faces",
-	"Could not dissolve vertices",
-	"Tessellation error",
-	"Can not deal with non-manifold geometry",
-	"Invalid selection",
-	"Internal mesh error",
+	N_("Self intersection error"),
+	N_("Could not dissolve vert"),
+	N_("Could not connect vertices"),
+	N_("Could not traverse mesh"),
+	N_("Could not dissolve faces"),
+	N_("Could not dissolve vertices"),
+	N_("Tessellation error"),
+	N_("Cannot deal with non-manifold geometry"),
+	N_("Invalid selection"),
+	N_("Internal mesh error"),
 };
 
 
@@ -352,7 +354,7 @@ void BMO_slot_mat_set(BMOperator *op, const char *slot_name, const float *mat, i
 	else {
 		fprintf(stderr, "%s: invalid size argument %d (bmesh internal error)\n", __func__, size);
 
-		memset(slot->data.p, 0, sizeof(float) * 4 * 4);
+		zero_m4(slot->data.p);
 	}
 }
 
@@ -363,7 +365,12 @@ void BMO_slot_mat4_get(BMOperator *op, const char *slot_name, float r_mat[4][4])
 	if (!(slot->slot_type == BMO_OP_SLOT_MAT))
 		return;
 
-	copy_m4_m4(r_mat, (float (*)[4])slot->data.p);
+	if (slot->data.p) {
+		copy_m4_m4(r_mat, (float (*)[4])slot->data.p);
+	}
+	else {
+		unit_m4(r_mat);
+	}
 }
 
 void BMO_slot_mat3_set(BMOperator *op, const char *slot_name, float r_mat[3][3])
@@ -373,7 +380,12 @@ void BMO_slot_mat3_set(BMOperator *op, const char *slot_name, float r_mat[3][3])
 	if (!(slot->slot_type == BMO_OP_SLOT_MAT))
 		return;
 
-	copy_m3_m4(r_mat, slot->data.p);
+	if (slot->data.p) {
+		copy_m3_m4(r_mat, slot->data.p);
+	}
+	else {
+		unit_m3(r_mat);
+	}
 }
 
 void BMO_slot_ptr_set(BMOperator *op, const char *slot_name, void *p)
@@ -427,6 +439,20 @@ int BMO_slot_bool_get(BMOperator *op, const char *slot_name)
 	return slot->data.i;
 }
 
+/* if you want a copy of the elem buffer */
+void *BMO_slot_as_arrayN(BMOperator *op, const char *slot_name, int *len)
+{
+	BMOpSlot *slot = BMO_slot_get(op, slot_name);
+	void *ret;
+
+	/* could add support for mapping type */
+	BLI_assert(slot->slot_type == BMO_OP_SLOT_ELEMENT_BUF);
+
+	ret = MEM_mallocN(sizeof(void *) * slot->len, __func__);
+	memcpy(ret, slot->data.buf, sizeof(void *) * slot->len);
+	*len = slot->len;
+	return ret;
+}
 
 void *BMO_slot_ptr_get(BMOperator *op, const char *slot_name)
 {
@@ -1024,7 +1050,7 @@ static void bmo_flag_layer_alloc(BMesh *bm)
 	int i;
 
 	BMIter iter;
-	BLI_mempool *oldpool = bm->toolflagpool; 		/* old flag pool */
+	BLI_mempool *oldpool = bm->toolflagpool;  /* old flag pool */
 	BLI_mempool *newpool;
 	void *oldflags;
 
@@ -1241,7 +1267,9 @@ void BMO_error_raise(BMesh *bm, BMOperator *owner, int errcode, const char *msg)
 	BMOpError *err = MEM_callocN(sizeof(BMOpError), "bmop_error");
 	
 	err->errorcode = errcode;
-	if (!msg) msg = bmo_error_messages[errcode];
+	if (!msg) {
+		msg = bmo_error_messages[errcode];
+	}
 	err->msg = msg;
 	err->op = owner;
 	

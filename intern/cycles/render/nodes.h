@@ -193,7 +193,7 @@ class BsdfNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(BsdfNode)
 
-	void compile(SVMCompiler& compiler, ShaderInput *param1, ShaderInput *param2);
+	void compile(SVMCompiler& compiler, ShaderInput *param1, ShaderInput *param2, ShaderInput *param3 = NULL);
 
 	ClosureType closure;
 };
@@ -201,6 +201,7 @@ public:
 class WardBsdfNode : public BsdfNode {
 public:
 	SHADER_NODE_CLASS(WardBsdfNode)
+	void attributes(AttributeRequestSet *attributes);
 };
 
 class DiffuseBsdfNode : public BsdfNode {
@@ -239,6 +240,14 @@ public:
 	static ShaderEnum distribution_enum;
 };
 
+class RefractionBsdfNode : public BsdfNode {
+public:
+	SHADER_NODE_CLASS(RefractionBsdfNode)
+
+	ustring distribution;
+	static ShaderEnum distribution_enum;
+};
+
 class EmissionNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(EmissionNode)
@@ -254,6 +263,11 @@ public:
 class HoldoutNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(HoldoutNode)
+};
+
+class AmbientOcclusionNode : public ShaderNode {
+public:
+	SHADER_NODE_CLASS(AmbientOcclusionNode)
 };
 
 class VolumeNode : public ShaderNode {
@@ -278,6 +292,7 @@ public:
 class GeometryNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(GeometryNode)
+	void attributes(AttributeRequestSet *attributes);
 };
 
 class TextureCoordinateNode : public ShaderNode {
@@ -436,6 +451,48 @@ class RGBRampNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(RGBRampNode)
 	float4 ramp[RAMP_TABLE_SIZE];
+};
+
+class SetNormalNode : public ShaderNode {
+public:
+	SHADER_NODE_CLASS(SetNormalNode)
+};
+
+class OSLScriptNode : public ShaderNode {
+public:
+	SHADER_NODE_CLASS(OSLScriptNode)
+	string filepath;
+	string bytecode_hash;
+	
+	/* ShaderInput/ShaderOutput only stores a shallow string copy (const char *)!
+	 * The actual socket names have to be stored externally to avoid memory errors. */
+	vector<ustring> input_names;
+	vector<ustring> output_names;
+};
+
+class NormalMapNode : public ShaderNode {
+public:
+	SHADER_NODE_CLASS(NormalMapNode)
+	void attributes(AttributeRequestSet *attributes);
+
+	ustring space;
+	static ShaderEnum space_enum;
+
+	ustring attribute;
+};
+
+class TangentNode : public ShaderNode {
+public:
+	SHADER_NODE_CLASS(TangentNode)
+	void attributes(AttributeRequestSet *attributes);
+
+	ustring direction_type;
+	static ShaderEnum direction_type_enum;
+
+	ustring axis;
+	static ShaderEnum axis_enum;
+
+	ustring attribute;
 };
 
 CCL_NAMESPACE_END

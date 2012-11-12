@@ -55,12 +55,15 @@
 #include "DNA_text_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_object_types.h"
+#include "DNA_node_types.h"
+#include "DNA_material_types.h"
 
 #include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_text.h"
+#include "BKE_node.h"
 
 
 #ifdef WITH_PYTHON
@@ -314,7 +317,7 @@ int BKE_text_reload(Text *text)
 	
 	fseek(fp, 0L, SEEK_END);
 	len = ftell(fp);
-	fseek(fp, 0L, SEEK_SET);	
+	fseek(fp, 0L, SEEK_SET);
 
 	text->undo_pos = -1;
 	
@@ -370,7 +373,7 @@ int BKE_text_reload(Text *text)
 	text->curl = text->sell = text->lines.first;
 	text->curc = text->selc = 0;
 	
-	MEM_freeN(buffer);	
+	MEM_freeN(buffer);
 	return 1;
 }
 
@@ -404,7 +407,7 @@ Text *BKE_text_load(const char *file, const char *relpath)
 
 	fseek(fp, 0L, SEEK_END);
 	len = ftell(fp);
-	fseek(fp, 0L, SEEK_SET);	
+	fseek(fp, 0L, SEEK_SET);
 
 	ta->name = MEM_mallocN(strlen(file) + 1, "text_name");
 	strcpy(ta->name, file);
@@ -469,7 +472,7 @@ Text *BKE_text_load(const char *file, const char *relpath)
 	ta->curl = ta->sell = ta->lines.first;
 	ta->curc = ta->selc = 0;
 	
-	MEM_freeN(buffer);	
+	MEM_freeN(buffer);
 
 	return ta;
 }
@@ -531,6 +534,9 @@ void BKE_text_unlink(Main *bmain, Text *text)
 	bController *cont;
 	bActuator *act;
 	bConstraint *con;
+	bNodeTree *ntree;
+	bNode *node;
+	Material *mat;
 	short update;
 
 	for (ob = bmain->object.first; ob; ob = ob->id.next) {
@@ -580,6 +586,28 @@ void BKE_text_unlink(Main *bmain, Text *text)
 		
 		if (update)
 			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	}
+	
+	/* nodes */
+	for (mat = bmain->mat.first; mat; mat = mat->id.next) {
+		ntree = mat->nodetree;
+		if (!ntree)
+			continue;
+		for (node = ntree->nodes.first; node; node = node->next) {
+			if (node->type == SH_NODE_SCRIPT) {
+				Text *ntext = (Text *)node->id;
+				if (ntext == text) node->id = NULL;
+			}
+		}
+	}
+	
+	for (ntree = bmain->nodetree.first; ntree; ntree = ntree->id.next) {
+		for (node = ntree->nodes.first; node; node = node->next) {
+			if (node->type == SH_NODE_SCRIPT) {
+				Text *ntext = (Text *)node->id;
+				if (ntext == text) node->id = NULL;
+			}
+		}
 	}
 	
 	/* text space */
@@ -683,7 +711,7 @@ void txt_clean_text(Text *text)
 	if (!text->lines.first) {
 		if (text->lines.last) text->lines.first = text->lines.last;
 		else text->lines.first = text->lines.last = txt_new_line(NULL);
-	} 
+	}
 	
 	if (!text->lines.last) text->lines.last = text->lines.first;
 
@@ -732,7 +760,7 @@ int txt_get_span(TextLine *from, TextLine *to)
 		if (!tmp) ret = 0;
 	}
 
-	return ret;	
+	return ret;
 }
 
 static void txt_make_dirty(Text *text)
@@ -934,7 +962,7 @@ void txt_move_right(Text *text, short sel)
 			txt_move_down(text, sel);
 			*charp = 0;
 		}
-	} 
+	}
 	else {
 		// do nice right only if there are only spaces
 		// spaces hardcoded in DNA_text_types.h
@@ -1376,7 +1404,7 @@ int txt_find_string(Text *text, const char *findstr, int wrap, int match_case)
 		int newc = (int)(s - tl->line);
 		txt_move_to(text, newl, newc, 0);
 		txt_move_to(text, newl, newc + strlen(findstr), 1);
-		return 1;				
+		return 1;
 	}
 	else
 		return 0;
@@ -1458,7 +1486,7 @@ char *txt_sel_to_buf(Text *text)
 		length += charl;
 		
 		buf[length] = 0;
-	}	
+	}
 
 	return buf;
 }
@@ -2078,7 +2106,7 @@ void txt_do_undo(Text *text)
 			charp = op - UNDO_BS_1 + 1;
 			txt_add_char(text, txt_undo_read_unicode(text->undo_buf, &text->undo_pos, charp));
 			text->undo_pos--;
-			break;		
+			break;
 			
 		case UNDO_DEL_1: case UNDO_DEL_2: case UNDO_DEL_3: case UNDO_DEL_4: 
 			charp = op - UNDO_DEL_1 + 1;
@@ -2104,7 +2132,7 @@ void txt_do_undo(Text *text)
 			txt_curs_first(text, &holdl, &holdc);
 			holdln = txt_get_span(text->lines.first, holdl);
 			
-			txt_insert_buf(text, buf);			
+			txt_insert_buf(text, buf);
 			MEM_freeN(buf);
 
 			text->curl = text->lines.first;
@@ -2235,7 +2263,7 @@ void txt_do_redo(Text *text)
 	unsigned short charp;
 	char *buf;
 	
-	text->undo_pos++;	
+	text->undo_pos++;
 	op = text->undo_buf[text->undo_pos];
 	
 	if (!op) {
@@ -2351,7 +2379,7 @@ void txt_do_redo(Text *text)
 			text->undo_pos += linep;
 			buf[linep] = 0;
 			
-			txt_insert_buf(text, buf);			
+			txt_insert_buf(text, buf);
 			MEM_freeN(buf);
 
 			text->undo_pos++;
@@ -2369,7 +2397,7 @@ void txt_do_redo(Text *text)
 			//charp is the first char selected or 0
 			
 			linep = txt_redo_read_uint32(text->undo_buf, &text->undo_pos);
-			//linep is now the first line of the selection			
+			//linep is now the first line of the selection
 			//set the selcetion for this now
 			text->curc = charp;
 			text->curl = text->lines.first;
@@ -2476,7 +2504,7 @@ void txt_split_curline(Text *text)
 	text->curl->format = NULL;
 	text->curl->len = text->curl->len - text->curc;
 	
-	BLI_insertlinkbefore(&text->lines, text->curl, ins);	
+	BLI_insertlinkbefore(&text->lines, text->curl, ins);
 	
 	text->curc = 0;
 	
@@ -2834,7 +2862,7 @@ int txt_replace_char(Text *text, unsigned int add)
 
 void txt_indent(Text *text)
 {
-	int len, num;
+	int len, num, curc_old;
 	char *tmp;
 
 	const char *add = "\t";
@@ -2857,6 +2885,8 @@ void txt_indent(Text *text)
 		indentlen = spaceslen;
 	}
 
+	curc_old = text->curc;
+
 	num = 0;
 	while (TRUE) {
 		tmp = MEM_mallocN(text->curl->len + indentlen + 1, "textline_string");
@@ -2877,7 +2907,7 @@ void txt_indent(Text *text)
 		txt_clean_text(text);
 		
 		if (text->curl == text->sell) {
-			text->selc = text->sell->len;
+			text->selc += indentlen;
 			break;
 		}
 		else {
@@ -2885,7 +2915,9 @@ void txt_indent(Text *text)
 			num++;
 		}
 	}
-	text->curc = 0;
+	if (!curc_old) text->curc = 0;
+	else text->curc = curc_old + indentlen;
+
 	while (num > 0) {
 		text->curl = text->curl->prev;
 		num--;
@@ -2900,7 +2932,8 @@ void txt_unindent(Text *text)
 {
 	int num = 0;
 	const char *remove = "\t";
-	int indent = 1;
+	int indentlen = 1;
+	int unindented_first = FALSE;
 	
 	/* hardcoded: TXT_TABSIZE = 4 spaces: */
 	int spaceslen = TXT_TABSIZE;
@@ -2912,25 +2945,26 @@ void txt_unindent(Text *text)
 	/* insert spaces rather than tabs */
 	if (text->flags & TXT_TABSTOSPACES) {
 		remove = tab_to_spaces;
-		indent = spaceslen;
+		indentlen = spaceslen;
 	}
 
 	while (TRUE) {
 		int i = 0;
 		
-		if (BLI_strncasecmp(text->curl->line, remove, indent) == 0) {
+		if (BLI_strncasecmp(text->curl->line, remove, indentlen) == 0) {
+			if (num == 0) unindented_first = TRUE;
 			while (i < text->curl->len) {
-				text->curl->line[i] = text->curl->line[i + indent];
+				text->curl->line[i] = text->curl->line[i + indentlen];
 				i++;
 			}
-			text->curl->len -= indent;
+			text->curl->len -= indentlen;
 		}
 	
 		txt_make_dirty(text);
 		txt_clean_text(text);
 		
 		if (text->curl == text->sell) {
-			text->selc = text->sell->len;
+			if (i > 0) text->selc = MAX2(text->selc - indentlen, 0);
 			break;
 		}
 		else {
@@ -2939,7 +2973,9 @@ void txt_unindent(Text *text)
 		}
 		
 	}
-	text->curc = 0;
+
+	if (unindented_first) text->curc = MAX2(text->curc - indentlen, 0);
+
 	while (num > 0) {
 		text->curl = text->curl->prev;
 		num--;

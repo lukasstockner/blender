@@ -31,21 +31,21 @@ def act_strip(context):
 def draw_color_balance(layout, color_balance):
     col = layout.column()
     col.label(text="Lift:")
-    col.template_color_wheel(color_balance, "lift", value_slider=True, cubic=True)
+    col.template_color_picker(color_balance, "lift", value_slider=True, cubic=True)
     row = col.row()
     row.prop(color_balance, "lift", text="")
     row.prop(color_balance, "invert_lift", text="Inverse")
 
     col = layout.column()
     col.label(text="Gamma:")
-    col.template_color_wheel(color_balance, "gamma", value_slider=True, lock_luminosity=True, cubic=True)
+    col.template_color_picker(color_balance, "gamma", value_slider=True, lock_luminosity=True, cubic=True)
     row = col.row()
     row.prop(color_balance, "gamma", text="")
     row.prop(color_balance, "invert_gamma", text="Inverse")
 
     col = layout.column()
     col.label(text="Gain:")
-    col.template_color_wheel(color_balance, "gain", value_slider=True, lock_luminosity=True, cubic=True)
+    col.template_color_picker(color_balance, "gain", value_slider=True, lock_luminosity=True, cubic=True)
     row = col.row()
     row.prop(color_balance, "gain", text="")
     row.prop(color_balance, "invert_gain", text="Inverse")
@@ -601,12 +601,16 @@ class SEQUENCER_PT_input(SequencerButtonsPanel, Panel):
                 split.label(text="File:")
                 split.prop(elem, "filename", text="")  # strip.elements[0] could be a fallback
 
+            layout.prop(strip.colorspace_settings, "name")
+
             layout.operator("sequencer.change_path")
 
         elif seq_type == 'MOVIE':
             split = layout.split(percentage=0.2)
             split.label(text="Path:")
             split.prop(strip, "filepath", text="")
+
+            layout.prop(strip.colorspace_settings, "name")
 
             layout.prop(strip, "mpeg_preseek")
             layout.prop(strip, "stream_index")
@@ -860,7 +864,6 @@ class SEQUENCER_PT_preview(SequencerButtonsPanel_Output, Panel):
         render = context.scene.render
 
         col = layout.column()
-        col.active = False  # Currently only opengl preview works!
         col.prop(render, "use_sequencer_gl_preview", text="Open GL Preview")
         col = layout.column()
         #col.active = render.use_sequencer_gl_preview

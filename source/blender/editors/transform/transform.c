@@ -92,14 +92,11 @@
 #include "BLI_linklist.h"
 #include "BLI_smallhash.h"
 #include "BLI_array.h"
-#include "PIL_time.h"
 
 #include "UI_interface_icons.h"
 #include "UI_resources.h"
 
 #include "transform.h"
-
-#include <stdio.h> // XXX: duplicated???
 
 static void drawTransformApply(const struct bContext *C, ARegion *ar, void *arg);
 static int doEdgeSlide(TransInfo *t, float perc);
@@ -232,7 +229,7 @@ void projectIntView(TransInfo *t, const float vec[3], int adr[2])
 {
 	if (t->spacetype == SPACE_VIEW3D) {
 		if (t->ar->regiontype == RGN_TYPE_WINDOW) {
-			if (ED_view3d_project_int_global(t->ar, vec, adr, V3D_PROJ_TEST_NOP) != V3D_PROJ_RET_SUCCESS) {
+			if (ED_view3d_project_int_global(t->ar, vec, adr, V3D_PROJ_TEST_NOP) != V3D_PROJ_RET_OK) {
 				adr[0] = (int)2140000000.0f;  /* this is what was done in 2.64, perhaps we can be smarter? */
 				adr[1] = (int)2140000000.0f;
 			}
@@ -282,7 +279,7 @@ void projectIntView(TransInfo *t, const float vec[3], int adr[2])
 			//vec[0] = vec[0]/((t->scene->r.frs_sec / t->scene->r.frs_sec_base));
 			/* same as below */
 			UI_view2d_to_region_no_clip((View2D *)t->view, vec[0], vec[1], out, out + 1);
-		} 
+		}
 		else
 #endif
 		{
@@ -357,7 +354,7 @@ void projectFloatView(TransInfo *t, const float vec[3], float adr[2])
 		case SPACE_VIEW3D:
 		{
 			if (t->ar->regiontype == RGN_TYPE_WINDOW) {
-				if (ED_view3d_project_float_global(t->ar, vec, adr, V3D_PROJ_TEST_NOP) != V3D_PROJ_RET_SUCCESS) {
+				if (ED_view3d_project_float_global(t->ar, vec, adr, V3D_PROJ_TEST_NOP) != V3D_PROJ_RET_OK) {
 					/* XXX, 2.64 and prior did this, weak! */
 					adr[0] = t->ar->winx / 2.0f;
 					adr[1] = t->ar->winy / 2.0f;
@@ -474,11 +471,11 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
 		
 	}
 	else if (t->spacetype == SPACE_ACTION) {
-		//SpaceAction *saction= (SpaceAction *)t->sa->spacedata.first;
+		//SpaceAction *saction = (SpaceAction *)t->sa->spacedata.first;
 		WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
 	}
 	else if (t->spacetype == SPACE_IPO) {
-		//SpaceIpo *sipo= (SpaceIpo *)t->sa->spacedata.first;
+		//SpaceIpo *sipo = (SpaceIpo *)t->sa->spacedata.first;
 		WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
 	}
 	else if (t->spacetype == SPACE_NLA) {
@@ -531,6 +528,10 @@ static void viewRedrawPost(bContext *C, TransInfo *t)
 		/* if autokeying is enabled, send notifiers that keyframes were added */
 		if (IS_AUTOKEY_ON(t->scene))
 			WM_main_add_notifier(NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
+
+		/* redraw UV editor */
+		if (t->mode == TFM_EDGE_SLIDE && (t->settings->uvcalc_flag & UVCALC_TRANSFORM_CORRECT))
+			WM_event_add_notifier(C, NC_GEOM | ND_DATA, NULL);
 		
 		/* XXX temp, first hack to get auto-render in compositor work (ton) */
 		WM_event_add_notifier(C, NC_SCENE | ND_TRANSFORM_DONE, CTX_data_scene(C));
@@ -1028,7 +1029,7 @@ int transformEvent(TransInfo *t, wmEvent *event)
 				if (t->flag & T_PROP_EDIT) {
 					t->prop_size *= 1.1f;
 					if (t->spacetype == SPACE_VIEW3D && t->persp != RV3D_ORTHO)
-						t->prop_size = minf(t->prop_size, ((View3D *)t->view)->far);
+						t->prop_size = min_ff(t->prop_size, ((View3D *)t->view)->far);
 					calculatePropRatio(t);
 				}
 				t->redraw |= TREDRAW_HARD;
@@ -1198,7 +1199,7 @@ int transformEvent(TransInfo *t, wmEvent *event)
 				if (event->alt && t->flag & T_PROP_EDIT) {
 					t->prop_size *= 1.1f;
 					if (t->spacetype == SPACE_VIEW3D && t->persp != RV3D_ORTHO)
-						t->prop_size = minf(t->prop_size, ((View3D *)t->view)->far);
+						t->prop_size = min_ff(t->prop_size, ((View3D *)t->view)->far);
 					calculatePropRatio(t);
 				}
 				t->redraw = 1;
@@ -1225,6 +1226,14 @@ int transformEvent(TransInfo *t, wmEvent *event)
 				}
 				else view_editmove(event->type);
 				t->redraw = 1;
+				break;
+			case LEFTALTKEY:
+			case RIGHTALTKEY:
+				if (ELEM(t->spacetype, SPACE_SEQ, SPACE_VIEW3D)) {
+					t->flag |= T_ALT_TRANSFORM;
+					t->redraw |= TREDRAW_HARD;
+				}
+
 				break;
 			default:
 				handled = 0;
@@ -1259,6 +1268,14 @@ int transformEvent(TransInfo *t, wmEvent *event)
 ////			if (t->options & CTX_TWEAK)
 //				t->state = TRANS_CONFIRM;
 //			break;
+			case LEFTALTKEY:
+			case RIGHTALTKEY:
+				if (ELEM(t->spacetype, SPACE_SEQ, SPACE_VIEW3D)) {
+					t->flag &= ~T_ALT_TRANSFORM;
+					t->redraw |= TREDRAW_HARD;
+				}
+
+				break;
 			default:
 				handled = 0;
 				break;
@@ -1272,13 +1289,14 @@ int transformEvent(TransInfo *t, wmEvent *event)
 			}
 		}
 	}
+	else
+		handled = 0;
 
 	// Per transform event, if present
 	if (t->handleEvent)
 		t->redraw |= t->handleEvent(t, event);
 
 	if (handled || t->redraw) {
-		t->last_update = PIL_check_seconds_timer();
 		return 0;
 	}
 	else {
@@ -1492,8 +1510,8 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 				float dx = t->mval[0] - cent[0], dy = t->mval[1] - cent[1];
 				float angle = atan2f(dy, dx);
 				float dist = sqrtf(dx * dx + dy * dy);
-				float delta_angle = minf(15.0f / dist, (float)M_PI / 4.0f);
-				float spacing_angle = minf(5.0f / dist, (float)M_PI / 12.0f);
+				float delta_angle = min_ff(15.0f / dist, (float)M_PI / 4.0f);
+				float spacing_angle = min_ff(5.0f / dist, (float)M_PI / 12.0f);
 				UI_ThemeColor(TH_WIRE);
 
 				setlinestyle(3);
@@ -1843,7 +1861,7 @@ static void drawNonPropEdge(const struct bContext *C, TransInfo *t)
 			float v1[3], v2[3];
 			float interp_v;
 			TransDataSlideVert *curr_sv = &sld->sv[sld->curr_sv_index];
-			const float ctrl_size = UI_GetThemeValuef(TH_FACEDOT_SIZE) + 1.5;
+			const float ctrl_size = UI_GetThemeValuef(TH_FACEDOT_SIZE) + 1.5f;
 			const float guide_size = ctrl_size - 0.5f;
 			const float line_size = UI_GetThemeValuef(TH_OUTLINE_WIDTH) + 0.5f;
 			const int alpha_shade = -30;
@@ -1913,51 +1931,31 @@ static void drawTransformView(const struct bContext *C, ARegion *UNUSED(ar), voi
 }
 
 /* just draw a little warning message in the top-right corner of the viewport to warn that autokeying is enabled */
-static void drawAutoKeyWarning(TransInfo *t, ARegion *ar)
+static void drawAutoKeyWarning(TransInfo *UNUSED(t), ARegion *ar)
 {
-	int show_warning;
+	const char printable[] = "Auto Keying On";
+	float      printable_size[2];
+	int xco, yco;
+
+	BLF_width_and_height_default(printable, &printable_size[0], &printable_size[1]);
 	
-	/* red border around the viewport */
-	UI_ThemeColor(TH_REDALERT);
-
-	gpuImmediateFormat_V2();
-	gpuBegin(GL_LINE_LOOP);
-		gpuVertex2f(1,          1);
-		gpuVertex2f(1,          ar->winy-1);
-		gpuVertex2f(ar->winx-1, ar->winy-1);
-		gpuVertex2f(ar->winx-1, 1);
-	gpuEnd();
-	gpuImmediateUnlock();
-
-	/* Entire warning should "blink" to catch periphery attention without being overly distracting 
-	 * much like how a traditional recording sign in the corner of a camcorder works
-	 *
-	 * - Blink frequency here is 0.5 secs (i.e. a compromise between epilepsy-inducing flicker + too slow to notice).
-	 *   We multiply by two to speed up the odd/even time-in-seconds = on/off toggle.
-	 * - Always start with warning shown so that animators are more likely to notice when starting to transform
+	xco = ar->winx - (int)printable_size[0] - 10;
+	yco = ar->winy - (int)printable_size[1] - 10;
+	
+	/* warning text (to clarify meaning of overlays)
+	 * - original color was red to match the icon, but that clashes badly with a less nasty border
 	 */
-	show_warning = (int)(t->last_update * 2.0) & 1;
+	UI_ThemeColorShade(TH_TEXT_HI, -50);
+	BLF_draw_default_ascii(xco, ar->winy - 17, 0.0f, printable, sizeof(printable));
 	
-	if ((show_warning) || (t->state == TRANS_STARTING)) {
-		const char printable[] = "Auto Keying On";
-		int xco, yco;
-		
-		xco = ar->winx - BLF_width_default(printable)  - 10;
-		yco = ar->winy - BLF_height_default(printable) - 10;
-		
-		/* red warning text */
-		UI_ThemeColor(TH_REDALERT);
-		BLF_draw_default_ascii(xco, ar->winy - 17, 0.0f, printable, sizeof(printable));
-		
-		/* autokey recording icon... */
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glEnable(GL_BLEND);
-		
-		xco -= (ICON_DEFAULT_WIDTH + 2);
-		UI_icon_draw(xco, yco, ICON_REC);
-		
-		glDisable(GL_BLEND);
-	}
+	/* autokey recording icon... */
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_BLEND);
+	
+	xco -= (ICON_DEFAULT_WIDTH + 2);
+	UI_icon_draw(xco, yco, ICON_REC);
+	
+	glDisable(GL_BLEND);
 }
 
 static void drawTransformPixel(const struct bContext *UNUSED(C), ARegion *ar, void *arg)
@@ -1966,10 +1964,20 @@ static void drawTransformPixel(const struct bContext *UNUSED(C), ARegion *ar, vo
 	Scene *scene = t->scene;
 	Object *ob = OBACT;
 	
-	/* draw autokeyframing hint in the corner */
-	if (ob && autokeyframe_cfra_can_key(scene, &ob->id)) {
-		drawAutoKeyWarning(t, ar);
-	}	
+	/* draw autokeyframing hint in the corner 
+	 * - only draw if enabled (advanced users may be distracted/annoyed), 
+	 *   for objects that will be autokeyframed (no point ohterwise),
+	 *   AND only for the active region (as showing all is too overwhelming)
+	 */
+	if ((U.autokey_flag & AUTOKEY_FLAG_NOWARNING) == 0) {
+		if (ar == t->ar) {
+			if (t->flag & (T_OBJECT | T_POSE)) {
+				if (ob && autokeyframe_cfra_can_key(scene, &ob->id)) {
+					drawAutoKeyWarning(t, ar);
+				}
+			}
+		}
+	}
 }
 
 void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
@@ -3748,7 +3756,7 @@ static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short 
 				/* this function works on end result */
 				protectedAxisAngleBits(td->protectflag, td->ext->rotAxis, td->ext->rotAngle, td->ext->irotAxis, td->ext->irotAngle);
 			}
-			else { 
+			else {
 				float eulmat[3][3];
 				
 				mul_m3_m3m3(totmat, mat, td->ext->r_mtx);
@@ -4296,10 +4304,8 @@ void initShrinkFatten(TransInfo *t)
 }
 
 
-
 int ShrinkFatten(TransInfo *t, const int UNUSED(mval[2]))
 {
-	float vec[3];
 	float distance;
 	int i;
 	char str[64];
@@ -4327,17 +4333,20 @@ int ShrinkFatten(TransInfo *t, const int UNUSED(mval[2]))
 	t->values[0] = -distance;
 
 	for (i = 0; i < t->total; i++, td++) {
+		float tdistance;  /* temp dist */
 		if (td->flag & TD_NOACTION)
 			break;
 
 		if (td->flag & TD_SKIP)
 			continue;
 
-		copy_v3_v3(vec, td->axismtx[2]);
-		mul_v3_fl(vec, distance);
-		mul_v3_fl(vec, td->factor);
+		/* get the final offset */
+		tdistance = distance * td->factor;
+		if (td->ext && (t->flag & T_ALT_TRANSFORM)) {
+			tdistance *= td->ext->isize[0];  /* shell factor */
+		}
 
-		add_v3_v3v3(td->loc, td->iloc, vec);
+		madd_v3_v3v3fl(td->loc, td->iloc, td->axismtx[2], tdistance);
 	}
 
 	recalcData(t);
@@ -4388,12 +4397,15 @@ int Tilt(TransInfo *t, const int UNUSED(mval[2]))
 
 		outputNumInput(&(t->num), c);
 
-		sprintf(str, "Tilt: %s %s", &c[0], t->proptext);
+		sprintf(str, "Tilt: %s° %s", &c[0], t->proptext);
 
 		final = DEG2RADF(final);
+
+		/* XXX For some reason, this seems needed for this op, else RNA prop is not updated... :/ */
+		t->values[0] = final;
 	}
 	else {
-		sprintf(str, "Tilt: %.2f %s", RAD2DEGF(final), t->proptext);
+		sprintf(str, "Tilt: %.2f° %s", RAD2DEGF(final), t->proptext);
 	}
 
 	for (i = 0; i < t->total; i++, td++) {
@@ -5151,8 +5163,7 @@ static BMLoop *get_next_loop(BMVert *v, BMLoop *l,
 				cross_v3_v3v3(a, f2, l->f->no);
 				mul_v3_fl(a, -1.0f);
 
-				add_v3_v3(a, f3);
-				mul_v3_fl(a, 0.5f);
+				mid_v3_v3v3(a, a, f3);
 			}
 			
 			copy_v3_v3(vec, a);
@@ -5173,7 +5184,7 @@ static BMLoop *get_next_loop(BMVert *v, BMLoop *l,
 		}
 		
 		l = l->radial_next;
-	} while (l != firstl); 
+	} while (l != firstl);
 
 	if (i)
 		mul_v3_fl(a, 1.0f / (float)i);
@@ -5194,17 +5205,12 @@ static void calcNonProportionalEdgeSlide(TransInfo *t, SlideData *sld, const flo
 		float dist = 0;
 		float min_dist = FLT_MAX;
 
-		float up_p[3];
-		float dw_p[3];
-
 		for (i = 0; i < sld->totsv; i++, sv++) {
 			/* Set length */
-			add_v3_v3v3(up_p, sv->origvert.co, sv->upvec);
-			add_v3_v3v3(dw_p, sv->origvert.co, sv->downvec);
-			sv->edge_len = len_v3v3(dw_p, up_p);
+			sv->edge_len = len_v3v3(sv->upvec, sv->downvec);
 
 			mul_v3_m4v3(v_proj, t->obedit->obmat, sv->v->co);
-			if (ED_view3d_project_float_global(t->ar, v_proj, v_proj, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_SUCCESS) {
+			if (ED_view3d_project_float_global(t->ar, v_proj, v_proj, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) {
 				dist = len_squared_v2v2(mval, v_proj);
 				if (dist < min_dist) {
 					min_dist = dist;
@@ -5222,10 +5228,9 @@ static int createSlideVerts(TransInfo *t)
 {
 	BMEditMesh *em = BMEdit_FromObject(t->obedit);
 	BMesh *bm = em->bm;
-	BMIter iter, iter2;
+	BMIter iter;
 	BMEdge *e, *e1;
 	BMVert *v, *v2, *first;
-	BMLoop *l, *l1, *l2;
 	TransDataSlideVert *sv_array;
 	BMBVHTree *btree = BMBVH_NewBVH(em, BMBVH_RESPECT_HIDDEN, NULL, NULL);
 	SmallHash table;
@@ -5265,6 +5270,7 @@ static int createSlideVerts(TransInfo *t)
 	/*ensure valid selection*/
 	BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
 		if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+			BMIter iter2;
 			numsel = 0;
 			BM_ITER_ELEM (e, &iter2, v, BM_EDGES_OF_VERT) {
 				if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
@@ -5317,6 +5323,8 @@ static int createSlideVerts(TransInfo *t)
 
 	j = 0;
 	while (1) {
+		BMLoop *l, *l1, *l2;
+
 		v = NULL;
 		BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
 			if (BM_elem_flag_test(v, BM_ELEM_TAG))
@@ -5450,7 +5458,7 @@ static int createSlideVerts(TransInfo *t)
 		if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
 			BMIter iter2;
 			BMEdge *e2;
-			float vec1[3], mval[2] = {t->mval[0], t->mval[1]}, d;
+			float vec1[3], d;
 
 			/* search cross edges for visible edge to the mouse cursor,
 			 * then use the shared vertex to calculate screen vector*/
@@ -5866,7 +5874,6 @@ static int doEdgeSlide(TransInfo *t, float perc)
 {
 	SlideData *sld = t->customData;
 	TransDataSlideVert *svlist = sld->sv, *sv;
-	float vec[3];
 	int i;
 
 	sld->perc = perc;
@@ -5874,6 +5881,7 @@ static int doEdgeSlide(TransInfo *t, float perc)
 
 	if (sld->is_proportional == TRUE) {
 		for (i = 0; i < sld->totsv; i++, sv++) {
+			float vec[3];
 			if (perc > 0.0f) {
 				copy_v3_v3(vec, sv->upvec);
 				mul_v3_fl(vec, perc);
@@ -5891,20 +5899,29 @@ static int doEdgeSlide(TransInfo *t, float perc)
 		 * Implementation note, non proportional mode ignores the starting positions and uses only the
 		 * up/down verts, this could be changed/improved so the distance is still met but the verts are moved along
 		 * their original path (which may not be straight), however how it works now is OK and matches 2.4x - Campbell
+		 *
+		 * \note len_v3v3(curr_sv->upvec, curr_sv->downvec)
+		 * is the same as the distance between the original vert locations, same goes for the lines below.
 		 */
 		TransDataSlideVert *curr_sv = &sld->sv[sld->curr_sv_index];
-		const float curr_length_perc = len_v3v3(curr_sv->up->co, curr_sv->down->co) *
-		                               (((sld->flipped_vtx ? perc : -perc) + 1.0f) / 2.0f);
+		const float curr_length_perc = curr_sv->edge_len * (((sld->flipped_vtx ? perc : -perc) + 1.0f) / 2.0f);
+
+		float down_co[3];
+		float up_co[3];
 
 		for (i = 0; i < sld->totsv; i++, sv++) {
-			const float sv_length = len_v3v3(sv->up->co, sv->down->co);
-			const float fac = minf(sv_length, curr_length_perc) / sv_length;
+			if (sv->edge_len > FLT_EPSILON) {
+				const float fac = min_ff(sv->edge_len, curr_length_perc) / sv->edge_len;
 
-			if (sld->flipped_vtx) {
-				interp_v3_v3v3(sv->v->co, sv->down->co, sv->up->co, fac);
-			}
-			else {
-				interp_v3_v3v3(sv->v->co, sv->up->co, sv->down->co, fac);
+				add_v3_v3v3(up_co, sv->origvert.co, sv->upvec);
+				add_v3_v3v3(down_co, sv->origvert.co, sv->downvec);
+
+				if (sld->flipped_vtx) {
+					interp_v3_v3v3(sv->v->co, down_co, up_co, fac);
+				}
+				else {
+					interp_v3_v3v3(sv->v->co, up_co, down_co, fac);
+				}
 			}
 		}
 	}
@@ -6394,7 +6411,7 @@ static short getAnimEdit_DrawTime(TransInfo *t)
 		SpaceIpo *sipo = (SpaceIpo *)t->sa->spacedata.first;
 		
 		drawtime = (sipo->flag & SIPO_DRAWTIME) ? 1 : 0;
-	}	
+	}
 	else {
 		drawtime = 0;
 	}
@@ -6875,5 +6892,5 @@ int TimeScale(TransInfo *t, const int UNUSED(mval[2]))
 void BIF_TransformSetUndo(const char *UNUSED(str))
 {
 	// TRANSFORM_FIX_ME
-	//Trans.undostr= str;
+	//Trans.undostr = str;
 }

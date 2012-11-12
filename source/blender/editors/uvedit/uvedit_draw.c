@@ -462,8 +462,6 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 	int drawfaces, interpedges;
 	Image *ima = sima->image;
 
-	StitchPreviewer *stitch_preview = uv_get_stitch_previewer();
-
 	gpuImmediateFormat_C4_V2();
 
 	activetf = EDBM_mtexpoly_active_get(em, &efa_act, FALSE, FALSE); /* will be set to NULL if hidden */
@@ -546,7 +544,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 		BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 			tf = CustomData_bmesh_get(&bm->pdata, efa->head.data, CD_MTEXPOLY);
 
-			if (uvedit_face_visible_test(scene, ima, efa, tf)) {		
+			if (uvedit_face_visible_test(scene, ima, efa, tf)) {
 				BM_elem_flag_enable(efa, BM_ELEM_TAG);
 			}
 			else {
@@ -829,56 +827,6 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 			}
 		}
 		gpuEndSprites();	
-	}
-
-	/* finally draw stitch preview */
-	if (stitch_preview) {
-		int i, index = 0;
-		GPUarrays arrays = GPU_ARRAYS_V2F;
-
-		glEnable(GL_BLEND);
-
-		gpuImmediateFormat_V2();
-
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-		UI_ThemeColor4(TH_STITCH_PREVIEW_ACTIVE);
-		arrays.vertexPointer = stitch_preview->static_tris;
-		gpuDrawClientArrays(GL_TRIANGLES, &arrays, 0, 3 * stitch_preview->num_static_tris);
-
-		for (i = 0; i < stitch_preview->num_polys; i++) {
-			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-			UI_ThemeColor4(TH_STITCH_PREVIEW_FACE);
-			arrays.vertexPointer = stitch_preview->preview_polys;
-			gpuDrawClientArrays(GL_TRIANGLE_FAN, &arrays, index, stitch_preview->uvs_per_polygon[i]);
-
-			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-			UI_ThemeColor4(TH_STITCH_PREVIEW_EDGE);
-			gpuRepeat();
-
-			index += stitch_preview->uvs_per_polygon[i];
-		}
-		glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
-#if 0
-		UI_ThemeColor4(TH_STITCH_PREVIEW_VERT);
-		gpuDrawClientArrays_V3F(GL_TRIANGLES, stitch_preview->preview_polys, 0, 0, 3 * stitch_preview->num_tris);
-#endif
-		glDisable(GL_BLEND);
-
-		/* draw vert preview */
-
-		glPointSize(pointsize * 2.0f);
-
-		UI_ThemeColor4(TH_STITCH_PREVIEW_STITCHABLE);
-		arrays.vertexPointer = stitch_preview->preview_stitchable;
-		gpuDrawClientArrays(GL_POINTS, &arrays, 0, stitch_preview->num_stitchable);
-
-		UI_ThemeColor4(TH_STITCH_PREVIEW_UNSTITCHABLE);
-		arrays.vertexPointer = stitch_preview->preview_unstitchable;
-		gpuDrawClientArrays(GL_POINTS, &arrays, 0, stitch_preview->num_unstitchable);
-
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-		gpuImmediateUnformat();
 	}
 
 	glPointSize(1.0);

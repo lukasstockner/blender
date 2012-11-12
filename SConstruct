@@ -264,7 +264,6 @@ if 'blenderlite' in B.targets:
     target_env_defs['WITH_BF_FLUID'] = False
     target_env_defs['WITH_BF_OCEANSIM'] = False
     target_env_defs['WITH_BF_SMOKE'] = False
-    target_env_defs['WITH_BF_DECIMATE'] = False
     target_env_defs['WITH_BF_BOOLEAN'] = False
     target_env_defs['WITH_BF_REMESH'] = False
     target_env_defs['WITH_BF_PYTHON'] = False
@@ -366,6 +365,7 @@ else:
 
 # TODO, make optional
 env['CPPFLAGS'].append('-DWITH_AUDASPACE')
+env['CPPFLAGS'].append('-DWITH_AVI')
 
 # lastly we check for root_build_dir ( we should not do before, otherwise we might do wrong builddir
 B.root_build_dir = env['BF_BUILDDIR']

@@ -85,7 +85,7 @@ static int checkMissingFiles_visit_cb(void *userdata, char *UNUSED(path_dst), co
 	ReportList *reports = (ReportList *)userdata;
 
 	if (!BLI_exists(path_src)) {
-		BKE_reportf(reports, RPT_WARNING, "Path Not Found \"%s\"", path_src);
+		BKE_reportf(reports, RPT_WARNING, "Path '%s' not found", path_src);
 	}
 
 	return FALSE;
@@ -122,7 +122,7 @@ static int makeFilesRelative_visit_cb(void *userdata, char *path_dst, const char
 			data->count_changed++;
 		}
 		else {
-			BKE_reportf(data->reports, RPT_WARNING, "Path cant be made relative \"%s\"", path_src);
+			BKE_reportf(data->reports, RPT_WARNING, "Path '%s' cannot be made relative", path_src);
 			data->count_failed++;
 		}
 		return TRUE;
@@ -144,7 +144,7 @@ void BLI_bpath_relative_convert(Main *bmain, const char *basedir, ReportList *re
 	BLI_bpath_traverse_main(bmain, makeFilesRelative_visit_cb, 0, (void *)&data);
 
 	BKE_reportf(reports, data.count_failed ? RPT_WARNING : RPT_INFO,
-	            "Total files %d|Changed %d|Failed %d",
+	            "Total files %d | Changed %d | Failed %d",
 	            data.count_tot, data.count_changed, data.count_failed);
 }
 
@@ -164,7 +164,7 @@ static int makeFilesAbsolute_visit_cb(void *userdata, char *path_dst, const char
 			data->count_changed++;
 		}
 		else {
-			BKE_reportf(data->reports, RPT_WARNING, "Path cant be made absolute \"%s\"", path_src);
+			BKE_reportf(data->reports, RPT_WARNING, "Path '%s' cannot be made absolute", path_src);
 			data->count_failed++;
 		}
 		return TRUE;
@@ -187,13 +187,13 @@ void BLI_bpath_absolute_convert(Main *bmain, const char *basedir, ReportList *re
 	BLI_bpath_traverse_main(bmain, makeFilesAbsolute_visit_cb, 0, (void *)&data);
 
 	BKE_reportf(reports, data.count_failed ? RPT_WARNING : RPT_INFO,
-	            "Total files %d|Changed %d|Failed %d",
+	            "Total files %d | Changed %d | Failed %d",
 	            data.count_tot, data.count_changed, data.count_failed);
 }
 
 /**
  * find this file recursively, use the biggest file so thumbnails don't get used by mistake
- * \param filename_new: the path will be copied here, caller must initialize as empyu string.
+ * \param filename_new: the path will be copied here, caller must initialize as empty string.
  * \param dirname: subdir to search
  * \param filename: set this filename
  * \param filesize: filesize for the file
@@ -279,13 +279,13 @@ static int findMissingFiles_visit_cb(void *userdata, char *path_dst, const char 
 
 	if (filesize == -1) { /* could not open dir */
 		BKE_reportf(data->reports, RPT_WARNING,
-		            "Could open directory \"%s\"",
+		            "Could not open directory '%s'",
 		            BLI_path_basename(data->searchdir));
 		return FALSE;
 	}
 	else if (found == FALSE) {
 		BKE_reportf(data->reports, RPT_WARNING,
-		            "Could not find \"%s\" in \"%s\"",
+		            "Could not find '%s' in '%s'",
 		            BLI_path_basename((char *)path_src), data->searchdir);
 		return FALSE;
 	}
@@ -617,4 +617,74 @@ int BLI_bpath_relocate_visitor(void *pathbase_v, char *path_dst, const char *pat
 		/* Path was not relative to begin with. */
 		return FALSE;
 	}
+}
+
+
+/* -------------------------------------------------------------------- */
+/**
+ * Backup/Restore/Free functions,
+ * \note These functions assume the data won't chane order.
+ */
+
+struct PathStore {
+	struct PathStore *next, *prev;
+} PathStore;
+
+static int bpath_list_append(void *userdata, char *UNUSED(path_dst), const char *path_src)
+{
+	/* store the path and string in a single alloc */
+	ListBase *ls = userdata;
+	size_t path_size = strlen(path_src) + 1;
+	struct PathStore *path_store = MEM_mallocN(sizeof(PathStore) + path_size, __func__);
+	char *filepath = (char *)(path_store + 1);
+
+	memcpy(filepath, path_src, path_size);
+	BLI_addtail(ls, path_store);
+	return FALSE;
+}
+
+static int bpath_list_restore(void *userdata, char *path_dst, const char *path_src)
+{
+	/* assume ls->first wont be NULL because the number of paths can't change!
+	 * (if they do caller is wrong) */
+	ListBase *ls = userdata;
+	struct PathStore *path_store = ls->first;
+	const char *filepath = (char *)(path_store + 1);
+	int ret;
+
+	if (strcmp(path_src, filepath) == 0) {
+		ret = FALSE;
+	}
+	else {
+		BLI_strncpy(path_dst, filepath, FILE_MAX);
+		ret = TRUE;
+	}
+
+	BLI_freelinkN(ls, path_store);
+	return ret;
+}
+
+/* return ls_handle */
+void *BLI_bpath_list_backup(Main *bmain, const int flag)
+{
+	ListBase *ls = MEM_callocN(sizeof(ListBase), __func__);
+
+	BLI_bpath_traverse_main(bmain, bpath_list_append, flag, ls);
+
+	return ls;
+}
+
+void BLI_bpath_list_restore(Main *bmain, const int flag, void *ls_handle)
+{
+	ListBase *ls = ls_handle;
+
+	BLI_bpath_traverse_main(bmain, bpath_list_restore, flag, ls);
+}
+
+void BLI_bpath_list_free(void *ls_handle)
+{
+	ListBase *ls = ls_handle;
+	BLI_assert(ls->first == NULL);  /* assumes we were used */
+	BLI_freelistN(ls);
+	MEM_freeN(ls);
 }

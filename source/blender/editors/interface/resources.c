@@ -59,6 +59,9 @@
 
 #include "GPU_compatibility.h"
 
+/* global for themes */
+typedef void (*VectorDrawFunc)(int x, int y, int w, int h, float alpha);
+
 static bTheme *theme_active = NULL;
 static int theme_spacetype = SPACE_VIEW3D;
 static int theme_regionid = RGN_TYPE_WINDOW;
@@ -234,7 +237,7 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 					cp = ts->shade2; break;
 				case TH_HILITE:
 					cp = ts->hilite; break;
-
+				
 				case TH_GRID:
 					cp = ts->grid; break;
 				case TH_WIRE:
@@ -508,6 +511,13 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 				case TH_NLA_SOUND_SEL:
 					cp = ts->nla_sound_sel;
 					break;
+					
+				case TH_AXIS_X:
+					cp = btheme->tui.xaxis; break;
+				case TH_AXIS_Y:
+					cp = btheme->tui.yaxis; break;
+				case TH_AXIS_Z:
+					cp = btheme->tui.zaxis; break;
 			}
 		}
 	}
@@ -649,13 +659,18 @@ void ui_theme_init_default(void)
 		strcpy(btheme->name, "Default");
 	}
 	
-	UI_SetTheme(0, 0);  // make sure the global used in this file is set
+	UI_SetTheme(0, 0);  /* make sure the global used in this file is set */
 
 	/* UI buttons */
 	ui_widget_color_init(&btheme->tui);
+	
 	btheme->tui.iconfile[0] = 0;
 	btheme->tui.panel.show_header = FALSE;
 	rgba_char_args_set(btheme->tui.panel.header, 0, 0, 0, 25);
+	
+	rgba_char_args_set(btheme->tui.xaxis, 220,   0,   0, 255);
+	rgba_char_args_set(btheme->tui.yaxis,   0, 220,   0, 255);
+	rgba_char_args_set(btheme->tui.zaxis,   0,   0, 220, 255);
 
 	/* Bone Color Sets */
 	ui_theme_init_boneColorSets(btheme);
@@ -806,9 +821,9 @@ void ui_theme_init_default(void)
 	rgba_char_args_set_fl(btheme->tfile.list, 0.4, 0.4, 0.4, 1);
 	rgba_char_args_set(btheme->tfile.text,  250, 250, 250, 255);
 	rgba_char_args_set(btheme->tfile.text_hi, 15, 15, 15, 255);
-	rgba_char_args_set(btheme->tfile.panel, 145, 145, 145, 255);    // bookmark/ui regions
-	rgba_char_args_set(btheme->tfile.active, 130, 130, 130, 255); // selected files
-	rgba_char_args_set(btheme->tfile.hilite, 255, 140, 25, 255); // selected files
+	rgba_char_args_set(btheme->tfile.panel, 145, 145, 145, 255);  /* bookmark/ui regions */
+	rgba_char_args_set(btheme->tfile.active, 130, 130, 130, 255); /* selected files */
+	rgba_char_args_set(btheme->tfile.hilite, 255, 140, 25, 255);  /* selected files */
 	
 	rgba_char_args_set(btheme->tfile.grid,  250, 250, 250, 255);
 	rgba_char_args_set(btheme->tfile.image, 250, 250, 250, 255);
@@ -889,7 +904,7 @@ void ui_theme_init_default(void)
 	btheme->ttime = btheme->tv3d;
 	rgba_char_args_set_fl(btheme->ttime.back,   0.45, 0.45, 0.45, 1.0);
 	rgba_char_args_set_fl(btheme->ttime.grid,   0.36, 0.36, 0.36, 1.0);
-	rgba_char_args_set(btheme->ttime.shade1,  173, 173, 173, 255);      // sliders
+	rgba_char_args_set(btheme->ttime.shade1,  173, 173, 173, 255);      /* sliders */
 	
 	/* space node, re-uses syntax color storage */
 	btheme->tnode = btheme->tv3d;
@@ -930,7 +945,7 @@ void ui_theme_init_default(void)
 
 void UI_SetTheme(int spacetype, int regionid)
 {
-	if (spacetype == 0) { // called for safety, when delete themes
+	if (spacetype == 0) {  /* called for safety, when delete themes */
 		theme_active = U.themes.first;
 		theme_spacetype = SPACE_VIEW3D;
 		theme_regionid = RGN_TYPE_WINDOW;
@@ -948,7 +963,7 @@ bTheme *UI_GetTheme(void)
 	return U.themes.first;
 }
 
-// for space windows only
+/* for space windows only */
 void UI_ThemeColor(int colorid)
 {
 	const unsigned char *cp;
@@ -965,7 +980,7 @@ void UI_ThemeAppendColor(int colorid)
 	gpuColor3ubv(cp);
 }
 
-// plus alpha
+/* plus alpha */
 void UI_ThemeColor4(int colorid)
 {
 	const unsigned char *cp;
@@ -974,7 +989,7 @@ void UI_ThemeColor4(int colorid)
 	gpuCurrentColor4ubv(cp);
 }
 
-// set the color with offset for shades
+/* set the color with offset for shades */
 void UI_ThemeColorShade(int colorid, int offset)
 {
 	int r, g, b;
@@ -1048,7 +1063,7 @@ void UI_ThemeAppendColorShadeAlpha(int colorid, int coloffset, int alphaoffset)
 	gpuColor4ub(r, g, b, a);
 }
 
-// blend between to theme colors, and set it
+/* blend between to theme colors, and set it */
 void UI_ThemeColorBlend(int colorid1, int colorid2, float fac)
 {
 	int r, g, b;
@@ -1081,7 +1096,7 @@ void UI_ThemeAppendColorBlend(int colorid1, int colorid2, float fac)
 	gpuColor3ub(r, g, b);
 }
 
-// blend between to theme colors, shade it, and set it
+/* blend between to theme colors, shade it, and set it */
 void UI_ThemeColorBlendShade(int colorid1, int colorid2, float fac, int offset)
 {
 	int r, g, b;
@@ -1123,7 +1138,7 @@ void UI_ThemeAppendColorBlendShade(int colorid1, int colorid2, float fac, int of
 	gpuColor3ub(r, g, b);
 }
 
-// blend between to theme colors, shade it, and set it
+/* blend between to theme colors, shade it, and set it */
 void UI_ThemeColorBlendShadeAlpha(int colorid1, int colorid2, float fac, int offset, int alphaoffset)
 {
 	int r, g, b, a;
@@ -1147,28 +1162,26 @@ void UI_ThemeColorBlendShadeAlpha(int colorid1, int colorid2, float fac, int off
 }
 
 
-// get individual values, not scaled
+/* get individual values, not scaled */
 float UI_GetThemeValuef(int colorid)
 {
 	const unsigned char *cp;
 	
 	cp = UI_ThemeGetColorPtr(theme_active, theme_spacetype, colorid);
 	return ((float)cp[0]);
-
 }
 
-// get individual values, not scaled
+/* get individual values, not scaled */
 int UI_GetThemeValue(int colorid)
 {
 	const unsigned char *cp;
 	
 	cp = UI_ThemeGetColorPtr(theme_active, theme_spacetype, colorid);
 	return ((int) cp[0]);
-
 }
 
 
-// get the color, range 0.0-1.0
+/* get the color, range 0.0-1.0 */
 void UI_GetThemeColor3fv(int colorid, float col[3])
 {
 	const unsigned char *cp;
@@ -1190,7 +1203,7 @@ void UI_GetThemeColor4fv(int colorid, float col[4])
 	col[3] = ((float)cp[3]) / 255.0f;
 }
 
-// get the color, range 0.0-1.0, complete with shading offset
+/* get the color, range 0.0-1.0, complete with shading offset */
 void UI_GetThemeColorShade3fv(int colorid, int offset, float col[3])
 {
 	int r, g, b;
@@ -1229,7 +1242,7 @@ void UI_GetThemeColorShade3ubv(int colorid, int offset, unsigned char col[3])
 	col[2] = b;
 }
 
-// get the color, in char pointer
+/* get the color, in char pointer */
 void UI_GetThemeColor3ubv(int colorid, unsigned char col[3])
 {
 	const unsigned char *cp;
@@ -1240,7 +1253,7 @@ void UI_GetThemeColor3ubv(int colorid, unsigned char col[3])
 	col[2] = cp[2];
 }
 
-// get the color, in char pointer
+/* get the color, in char pointer */
 void UI_GetThemeColor4ubv(int colorid, unsigned char col[4])
 {
 	const unsigned char *cp;
@@ -1263,7 +1276,7 @@ void UI_GetThemeColorType4ubv(int colorid, int spacetype, char col[4])
 	col[3] = cp[3];
 }
 
-// blends and shades between two char color pointers
+/* blends and shades between two char color pointers */
 void UI_ColorPtrBlendShade3ubv(const unsigned char cp1[3], const unsigned char cp2[3], float fac, int offset)
 {
 	int r, g, b;
@@ -1296,7 +1309,7 @@ void UI_GetColorPtrShade3ubv(const unsigned char cp[3], unsigned char col[3], in
 	col[2] = b;
 }
 
-// get a 3 byte color, blended and shaded between two other char color pointers
+/* get a 3 byte color, blended and shaded between two other char color pointers */
 void UI_GetColorPtrBlendShade3ubv(const unsigned char cp1[3], const unsigned char cp2[3], unsigned char col[3],
                                   float fac, int offset)
 {
@@ -1325,21 +1338,20 @@ void UI_ThemeClearColor(int colorid)
 
 void UI_make_axis_color(const unsigned char src_col[3], unsigned char dst_col[3], const char axis)
 {
+	unsigned char col[3];
+	
 	switch (axis) {
 		case 'X':
-			dst_col[0] = src_col[0] > 219 ? 255 : src_col[0] + 36;
-			dst_col[1] = src_col[1] < 26 ? 0 : src_col[1] - 26;
-			dst_col[2] = src_col[2] < 26 ? 0 : src_col[2] - 26;
+			UI_GetThemeColor3ubv(TH_AXIS_X, col);
+			UI_GetColorPtrBlendShade3ubv(src_col, col, dst_col, 0.5f, -10);
 			break;
 		case 'Y':
-			dst_col[0] = src_col[0] < 46 ? 0 : src_col[0] - 36;
-			dst_col[1] = src_col[1] > 189 ? 255 : src_col[1] + 66;
-			dst_col[2] = src_col[2] < 46 ? 0 : src_col[2] - 36;
+			UI_GetThemeColor3ubv(TH_AXIS_Y, col);
+			UI_GetColorPtrBlendShade3ubv(src_col, col, dst_col, 0.5f, -10);
 			break;
 		case 'Z':
-			dst_col[0] = src_col[0] < 26 ? 0 : src_col[0] - 26;
-			dst_col[1] = src_col[1] < 26 ? 0 : src_col[1] - 26;
-			dst_col[2] = src_col[2] > 209 ? 255 : src_col[2] + 46;
+			UI_GetThemeColor3ubv(TH_AXIS_Z, col);
+			UI_GetColorPtrBlendShade3ubv(src_col, col, dst_col, 0.5f, -10);
 			break;
 		default:
 			BLI_assert(!"invalid axis arg");
@@ -1441,7 +1453,7 @@ void init_userdef_do_versions(void)
 				btheme->ttime = btheme->tv3d;
 				rgba_char_args_set_fl(btheme->ttime.back,   0.45, 0.45, 0.45, 1.0);
 				rgba_char_args_set_fl(btheme->ttime.grid,   0.36, 0.36, 0.36, 1.0);
-				rgba_char_args_set(btheme->ttime.shade1,  173, 173, 173, 255);      // sliders
+				rgba_char_args_set(btheme->ttime.shade1,  173, 173, 173, 255);  /* sliders */
 			}
 			if (btheme->text.syntaxn[3] == 0) {
 				rgba_char_args_set(btheme->text.syntaxn,    0, 0, 200, 255);    /* Numbers  Blue*/
@@ -2025,6 +2037,16 @@ void init_userdef_do_versions(void)
 
 			if (btheme->tv3d.skin_root[3] == 0)
 				rgba_char_args_set(btheme->tv3d.skin_root, 180, 77, 77, 255);
+		}
+	}
+	
+	if (bmain->versionfile < 264 || (bmain->versionfile == 264 && bmain->subversionfile < 9)) {
+		bTheme *btheme;
+		
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			rgba_char_args_set(btheme->tui.xaxis, 220,   0,   0, 255);
+			rgba_char_args_set(btheme->tui.yaxis,   0, 220,   0, 255);
+			rgba_char_args_set(btheme->tui.zaxis,   0,   0, 220, 255);
 		}
 	}
 

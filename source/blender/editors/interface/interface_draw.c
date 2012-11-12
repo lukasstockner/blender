@@ -166,13 +166,13 @@ void uiDrawBoxShade(int mode, float minx, float miny, float maxx, float maxy, fl
 	/* get current color, needs to be outside of gpuBegin/End */
 	gpuGetCurrentColor4fv(color);
 
-	/* 'shade' defines strength of shading */	
-	coltop[0]  = minf(1.0f, color[0] + shadetop);
-	coltop[1]  = minf(1.0f, color[1] + shadetop);
-	coltop[2]  = minf(1.0f, color[2] + shadetop);
-	coldown[0] = maxf(0.0f, color[0] + shadedown);
-	coldown[1] = maxf(0.0f, color[1] + shadedown);
-	coldown[2] = maxf(0.0f, color[2] + shadedown);
+	/* 'shade' defines strength of shading */
+	coltop[0]  = min_ff(1.0f, color[0] + shadetop);
+	coltop[1]  = min_ff(1.0f, color[1] + shadetop);
+	coltop[2]  = min_ff(1.0f, color[2] + shadetop);
+	coldown[0] = max_ff(0.0f, color[0] + shadedown);
+	coldown[1] = max_ff(0.0f, color[1] + shadedown);
+	coldown[2] = max_ff(0.0f, color[2] + shadedown);
 
 	glShadeModel(GL_SMOOTH);
 	gpuBegin(mode);
@@ -275,13 +275,13 @@ void uiDrawBoxVerticalShade(int mode, float minx, float miny, float maxx, float 
 	/* get current color, needs to be outside of gpuBegin/End */
 	gpuGetCurrentColor4fv(color);
 
-	/* 'shade' defines strength of shading */	
-	colLeft[0]  = minf(1.0f, color[0] + shadeLeft);
-	colLeft[1]  = minf(1.0f, color[1] + shadeLeft);
-	colLeft[2]  = minf(1.0f, color[2] + shadeLeft);
-	colRight[0] = maxf(0.0f, color[0] + shadeRight);
-	colRight[1] = maxf(0.0f, color[1] + shadeRight);
-	colRight[2] = maxf(0.0f, color[2] + shadeRight);
+	/* 'shade' defines strength of shading */
+	colLeft[0]  = min_ff(1.0f, color[0] + shadeLeft);
+	colLeft[1]  = min_ff(1.0f, color[1] + shadeLeft);
+	colLeft[2]  = min_ff(1.0f, color[2] + shadeLeft);
+	colRight[0] = max_ff(0.0f, color[0] + shadeRight);
+	colRight[1] = max_ff(0.0f, color[1] + shadeRight);
+	colRight[2] = max_ff(0.0f, color[2] + shadeRight);
 
 	glShadeModel(GL_SMOOTH);
 	gpuBegin(mode);
@@ -510,7 +510,7 @@ static void ui_draw_but_CHARTAB(uiBut *but)
 	if (G.selfont && BKE_vfont_is_builtin(G.selfont) == FALSE) {
 		/* Is the font file packed, if so then use the packed file */
 		if (G.selfont->packedfile) {
-			pf = G.selfont->packedfile;		
+			pf = G.selfont->packedfile;
 			FTF_SetFont(pf->data, pf->size, 14.0);
 		}
 		else {
@@ -608,7 +608,7 @@ static void ui_draw_but_CHARTAB(uiBut *but)
 		ey -= buth;
 		sx = rect->xmin;
 		ex = rect->xmin + butw;
-	}	
+	}
 	glShadeModel(GL_FLAT);
 
 	/* Return Font Settings to original */
@@ -641,7 +641,7 @@ static void draw_scope_end(const rctf *rect, GLint *scissor)
 
 	/* scale widget */
 	scaler_x1 = rect->xmin + BLI_rctf_size_x(rect) / 2 - SCOPE_RESIZE_PAD;
-	scaler_x2 = rect->xmin + BLI_rctf_size_y(rect) / 2 + SCOPE_RESIZE_PAD;
+	scaler_x2 = rect->xmin + BLI_rctf_size_x(rect) / 2 + SCOPE_RESIZE_PAD;
 
 	gpuImmediateFormat_C4_V2(); // DOODLE: fixed number of colored lines
 	gpuBegin(GL_LINES);
@@ -1656,17 +1656,15 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 		                                            &scopes->undist_marker, scopes->use_track_mask,
 		                                            width, height, scopes->track_pos);
 
-		if (tmpibuf->rect_float)
-			IMB_rect_from_float(tmpibuf);
+		if (tmpibuf) {
+			if (tmpibuf->rect_float)
+				IMB_rect_from_float(tmpibuf);
 
-		/* XXX: for debug only
-		 * tmpibuf->ftype = PNG;
-		 * IMB_saveiff(tmpibuf, "sample.png", IB_rect); */
-
-		if (tmpibuf->rect)
-			scopes->track_preview = tmpibuf;
-		else
-			IMB_freeImBuf(tmpibuf);
+			if (tmpibuf->rect)
+				scopes->track_preview = tmpibuf;
+			else
+				IMB_freeImBuf(tmpibuf);
+		}
 	}
 
 	if (!ok && scopes->track_preview) {
@@ -1772,7 +1770,7 @@ static void ui_shadowbox(float minx, float miny, float maxx, float maxy, float s
 
 	gpuEnd();
 	
-	/* bottom quad */		
+	/* bottom quad */
 	gpuBegin(GL_TRIANGLE_FAN);
 
 	gpuColor4x(CPACK_BLACK, alpha);

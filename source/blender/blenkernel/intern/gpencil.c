@@ -87,6 +87,7 @@ void free_gpencil_frames(bGPDlayer *gpl)
 		free_gpencil_strokes(gpf);
 		BLI_freelinkN(&gpl->frames, gpf);
 	}
+	gpl->actframe = NULL;
 }
 
 /* Free all of the gp-layers for a viewport (list should be &gpd->layers or so) */
@@ -516,7 +517,7 @@ void gpencil_layer_delete(bGPdata *gpd, bGPDlayer *gpl)
 	if (ELEM(NULL, gpd, gpl)) 
 		return;
 	
-	/* free layer */	
+	/* free layer */
 	free_gpencil_frames(gpl);
 	BLI_freelinkN(&gpd->layers, gpl);
 }

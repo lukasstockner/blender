@@ -45,6 +45,7 @@
 #include "DNA_anim_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_group_types.h"
+#include "DNA_lamp_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_key_types.h"
 #include "DNA_material_types.h"
@@ -150,8 +151,8 @@ void queue_delete(DagNodeQueue *queue)
 		MEM_freeN(temp);
 	}
 	
-	MEM_freeN(queue->freenodes);			
-	MEM_freeN(queue);			
+	MEM_freeN(queue->freenodes);
+	MEM_freeN(queue);
 }
 
 /* insert in queue, remove in front */
@@ -190,8 +191,8 @@ void push_queue(DagNodeQueue *queue, DagNode *node)
 		}
 		queue->freenodes->count = DAGQUEUEALLOC;
 			
-		elem = queue->freenodes->first;	
-		queue->freenodes->first = elem->next;	
+		elem = queue->freenodes->first;
+		queue->freenodes->first = elem->next;
 	}
 	elem->next = NULL;
 	elem->node = node;
@@ -211,7 +212,7 @@ void push_stack(DagNodeQueue *queue, DagNode *node)
 	DagNodeQueueElem *elem;
 	int i;
 
-	elem = queue->freenodes->first;	
+	elem = queue->freenodes->first;
 	if (elem != NULL) {
 		queue->freenodes->first = elem->next;
 		if (queue->freenodes->last == elem) {
@@ -235,8 +236,8 @@ void push_stack(DagNodeQueue *queue, DagNode *node)
 		}
 		queue->freenodes->count = DAGQUEUEALLOC;
 			
-		elem = queue->freenodes->first;	
-		queue->freenodes->first = elem->next;	
+		elem = queue->freenodes->first;
+		queue->freenodes->first = elem->next;
 	}
 	elem->next = queue->first;
 	elem->node = node;
@@ -302,7 +303,7 @@ DagForest *dag_init(void)
 }
 
 /* isdata = object data... */
-// XXX this needs to be extended to be more flexible (so that not only objects are evaluated via depsgraph)...
+/* XXX this needs to be extended to be more flexible (so that not only objects are evaluated via depsgraph)... */
 static void dag_add_driver_relation(AnimData *adt, DagForest *dag, DagNode *node, int isdata)
 {
 	FCurve *fcu;
@@ -350,8 +351,8 @@ static void dag_add_driver_relation(AnimData *adt, DagForest *dag, DagNode *node
 /* XXX: forward def for material driver handling... */
 static void dag_add_material_driver_relations(DagForest *dag, DagNode *node, Material *ma);
 
-/* recursive handling for material nodetree drivers */
-static void dag_add_material_nodetree_driver_relations(DagForest *dag, DagNode *node, bNodeTree *ntree)
+/* recursive handling for shader nodetree drivers */
+static void dag_add_shader_nodetree_driver_relations(DagForest *dag, DagNode *node, bNodeTree *ntree)
 {
 	bNode *n;
 
@@ -367,7 +368,7 @@ static void dag_add_material_nodetree_driver_relations(DagForest *dag, DagNode *
 				dag_add_material_driver_relations(dag, node, (Material *)n->id);
 			}
 			else if (n->type == NODE_GROUP) {
-				dag_add_material_nodetree_driver_relations(dag, node, (bNodeTree *)n->id);
+				dag_add_shader_nodetree_driver_relations(dag, node, (bNodeTree *)n->id);
 			}
 		}
 	}
@@ -386,21 +387,44 @@ static void dag_add_material_driver_relations(DagForest *dag, DagNode *node, Mat
 		ma->id.flag |= LIB_DOIT;
 	
 	/* material itself */
-	if (ma->adt) {
+	if (ma->adt)
 		dag_add_driver_relation(ma->adt, dag, node, 1);
-	}
 
 	/* textures */
 	// TODO...
 	//dag_add_texture_driver_relations(DagForest *dag, DagNode *node, ID *id);
 
 	/* material's nodetree */
-	if (ma->nodetree) {
-		dag_add_material_nodetree_driver_relations(dag, node, ma->nodetree);
-	}
+	if (ma->nodetree)
+		dag_add_shader_nodetree_driver_relations(dag, node, ma->nodetree);
 }
 
-static void dag_add_collision_field_relation(DagForest *dag, Scene *scene, Object *ob, DagNode *node)
+/* recursive handling for lamp drivers */
+static void dag_add_lamp_driver_relations(DagForest *dag, DagNode *node, Lamp *la)
+{
+	/* Prevent infinite recursion by checking (and tagging the lamp) as having been visited 
+	 * already (see build_dag()). This assumes la->id.flag & LIB_DOIT isn't set by anything else
+	 * in the meantime... [#32017]
+	 */
+	if (la->id.flag & LIB_DOIT)
+		return;
+	else
+		la->id.flag |= LIB_DOIT;
+	
+	/* lamp itself */
+	if (la->adt)
+		dag_add_driver_relation(la->adt, dag, node, 1);
+
+	/* textures */
+	// TODO...
+	//dag_add_texture_driver_relations(DagForest *dag, DagNode *node, ID *id);
+
+	/* lamp's nodetree */
+	if (la->nodetree)
+		dag_add_shader_nodetree_driver_relations(dag, node, la->nodetree);
+}
+
+static void dag_add_collision_field_relation(DagForest *dag, Scene *scene, Object *ob, DagNode *node, int skip_forcefield)
 {
 	Base *base;
 	DagNode *node2;
@@ -411,7 +435,9 @@ static void dag_add_collision_field_relation(DagForest *dag, Scene *scene, Objec
 		if ((base->lay & ob->lay) && base->object->pd) {
 			Object *ob1 = base->object;
 			if ((ob1->pd->deflect || ob1->pd->forcefield) && (ob1 != ob)) {
-				node2 = dag_get_node(dag, ob1);					
+				if (skip_forcefield && ob1->pd->forcefield == skip_forcefield)
+					continue;
+				node2 = dag_get_node(dag, ob1);
 				dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Field Collision");
 			}
 		}
@@ -443,7 +469,6 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 	if (ob->type == OB_ARMATURE) {
 		if (ob->pose) {
 			bPoseChannel *pchan;
-			bConstraint *con;
 			
 			for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 				for (con = pchan->constraints.first; con; con = con->next) {
@@ -464,7 +489,7 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 									if (ct->tar->type == OB_MESH)
 										node3->customdata_mask |= CD_MASK_MDEFORMVERT;
 								}
-								else if (ELEM3(con->type, CONSTRAINT_TYPE_FOLLOWPATH, CONSTRAINT_TYPE_CLAMPTO, CONSTRAINT_TYPE_SPLINEIK)) 	
+								else if (ELEM3(con->type, CONSTRAINT_TYPE_FOLLOWPATH, CONSTRAINT_TYPE_CLAMPTO, CONSTRAINT_TYPE_SPLINEIK))
 									dag_add_relation(dag, node3, node, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, cti->name);
 								else
 									dag_add_relation(dag, node3, node, DAG_RL_OB_DATA, cti->name);
@@ -570,12 +595,14 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 	/* softbody collision  */
 	if ((ob->type == OB_MESH) || (ob->type == OB_CURVE) || (ob->type == OB_LATTICE)) {
 		if (ob->particlesystem.first ||
-			modifiers_isModifierEnabled(ob, eModifierType_Softbody) ||
-			modifiers_isModifierEnabled(ob, eModifierType_Cloth) ||
-			modifiers_isModifierEnabled(ob, eModifierType_Smoke) ||
-			modifiers_isModifierEnabled(ob, eModifierType_DynamicPaint))
+		    modifiers_isModifierEnabled(ob, eModifierType_Softbody) ||
+		    modifiers_isModifierEnabled(ob, eModifierType_Cloth) ||
+		    modifiers_isModifierEnabled(ob, eModifierType_DynamicPaint))
 		{
-			dag_add_collision_field_relation(dag, scene, ob, node);  /* TODO: use effectorweight->group */
+			dag_add_collision_field_relation(dag, scene, ob, node, 0);  /* TODO: use effectorweight->group */
+		}
+		else if (modifiers_isModifierEnabled(ob, eModifierType_Smoke)) {
+			dag_add_collision_field_relation(dag, scene, ob, node, PFIELD_SMOKEFLOW);
 		}
 	}
 	
@@ -604,7 +631,7 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 			
 			if (mom != ob) {
 				node2 = dag_get_node(dag, mom);
-				dag_add_relation(dag, node, node2, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Metaball");  // mom depends on children!
+				dag_add_relation(dag, node, node2, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Metaball");  /* mom depends on children! */
 			}
 		}
 		break;
@@ -632,18 +659,20 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 	}
 	
 	/* material drivers */
-	//if (ob->totcol) {
-	//	int a;
-	//	
-	//	for (a = 1; a <= ob->totcol; a++) {
-	//		Material *ma = give_current_material(ob, a);
-	//		
-	//		if (ma) {
-	//			/* recursively figure out if there are drivers, and hook these up to this object */
-	//			dag_add_material_driver_relations(dag, node, ma);
-	//		}
-	//	}
-	//}
+	if (ob->totcol) {
+		int a;
+		
+		for (a = 1; a <= ob->totcol; a++) {
+			Material *ma = give_current_material(ob, a);
+			
+			if (ma) {
+				/* recursively figure out if there are drivers, and hook these up to this object */
+				dag_add_material_driver_relations(dag, node, ma);
+			}
+		}
+	}
+	else if(ob->type == OB_LAMP)
+		dag_add_lamp_driver_relations(dag, node, ob->data);
 	
 	/* particles */
 	psys = ob->particlesystem.first;
@@ -814,9 +843,10 @@ DagForest *build_dag(Main *bmain, Scene *sce, short mask)
 	
 	/* clear "LIB_DOIT" flag from all materials, to prevent infinite recursion problems later [#32017] */
 	tag_main_idcode(bmain, ID_MA, FALSE);
+	tag_main_idcode(bmain, ID_LA, FALSE);
 	
 	/* add base node for scene. scene is always the first node in DAG */
-	scenenode = dag_add_node(dag, sce);	
+	scenenode = dag_add_node(dag, sce);
 	
 	/* add current scene objects */
 	for (base = sce->base.first; base; base = base->next) {
@@ -870,7 +900,7 @@ DagForest *build_dag(Main *bmain, Scene *sce, short mask)
 	}
 	
 	/* cycle detection and solving */
-	// solve_cycles(dag);	
+	// solve_cycles(dag);
 	
 	return dag;
 }
@@ -879,23 +909,23 @@ DagForest *build_dag(Main *bmain, Scene *sce, short mask)
 void free_forest(DagForest *Dag) 
 {  /* remove all nodes and deps */
 	DagNode *tempN;
-	DagAdjList *tempA;	
+	DagAdjList *tempA;
 	DagAdjList *itA;
 	DagNode *itN = Dag->DagNode.first;
 	
 	while (itN) {
-		itA = itN->child;	
+		itA = itN->child;
 		while (itA) {
 			tempA = itA;
 			itA = itA->next;
-			MEM_freeN(tempA);			
+			MEM_freeN(tempA);
 		}
 		
-		itA = itN->parent;	
+		itA = itN->parent;
 		while (itA) {
 			tempA = itA;
 			itA = itA->next;
-			MEM_freeN(tempA);			
+			MEM_freeN(tempA);
 		}
 		
 		tempN = itN;
@@ -919,8 +949,8 @@ DagNode *dag_find_node(DagForest *forest, void *fob)
 	return NULL;
 }
 
-static int ugly_hack_sorry = 1;  // prevent type check
-static int dag_print_dependencies = 0; // debugging
+static int ugly_hack_sorry = 1;         /* prevent type check */
+static int dag_print_dependencies = 0;  /* debugging */
 
 /* no checking of existence, use dag_find_node first or dag_get_node */
 DagNode *dag_add_node(DagForest *forest, void *fob)
@@ -932,7 +962,7 @@ DagNode *dag_add_node(DagForest *forest, void *fob)
 		node->ob = fob;
 		node->color = DAG_WHITE;
 
-		if (ugly_hack_sorry) node->type = GS(((ID *) fob)->name);   // sorry, done for pose sorting
+		if (ugly_hack_sorry) node->type = GS(((ID *) fob)->name);  /* sorry, done for pose sorting */
 		if (forest->numNodes) {
 			((DagNode *) forest->DagNode.last)->next = node;
 			forest->DagNode.last = node;
@@ -1151,7 +1181,7 @@ static void dag_check_cycle(DagForest *dag)
 	for (node = dag->DagNode.first; node; node = node->next) {
 		while (node->parent) {
 			itA = node->parent->next;
-			MEM_freeN(node->parent);			
+			MEM_freeN(node->parent);
 			node->parent = itA;
 		}
 	}
@@ -1240,7 +1270,7 @@ void graph_bfs(void)
 				itA = itA->next;
 			}
 			if (pos[node->BFS_dist] > node->k) {
-				pos[node->BFS_dist] += 1;				
+				pos[node->BFS_dist] += 1;
 				node->k = (float) pos[node->BFS_dist];
 			}
 			else {
@@ -1301,7 +1331,7 @@ int pre_and_post_source_BFS(DagForest *dag, short mask, DagNode *source, graph_a
 					pre_func(node->ob, data);
 				}
 				
-				else { // back or cross edge
+				else {  /* back or cross edge */
 					retval = 1;
 				}
 				itA = itA->next;
@@ -1332,7 +1362,7 @@ DagNodeQueue *graph_dfs(void)
 	/* int	is_cycle = 0; */ /* UNUSED */
 	/*
 	 *fprintf(stderr, "starting DFS\n ------------\n");
-	 */	
+	 */
 	nqueue = queue_create(DAGQUEUEALLOC);
 	retqueue = queue_create(MainDag->numNodes);
 	for (i = 0; i < 50; i++)
@@ -1384,7 +1414,7 @@ DagNodeQueue *graph_dfs(void)
 						break;
 					}
 					else {
-						if (itA->node->color == DAG_GRAY) { // back edge
+						if (itA->node->color == DAG_GRAY) {  /* back edge */
 							fprintf(stderr, "dfs back edge :%15s %15s\n", ((ID *) node->ob)->name, ((ID *) itA->node->ob)->name);
 							/* is_cycle = 1; */ /* UNUSED */
 						}
@@ -1462,7 +1492,7 @@ int pre_and_post_source_DFS(DagForest *dag, short mask, DagNode *source, graph_a
 	int retval = 0;
 	/*
 	 * fprintf(stderr, "starting DFS\n ------------\n");
-	 */	
+	 */
 	nqueue = queue_create(DAGQUEUEALLOC);
 	
 	/* Init
@@ -1516,7 +1546,7 @@ int pre_and_post_source_DFS(DagForest *dag, short mask, DagNode *source, graph_a
 //						}
 					}
 					itA = itA->next;
-				}			
+				}
 				
 				if (!skip) {
 					node = pop_queue(nqueue);
@@ -1535,7 +1565,7 @@ int pre_and_post_source_DFS(DagForest *dag, short mask, DagNode *source, graph_a
 }
 
 
-// used to get the obs owning a datablock
+/* used to get the obs owning a datablock */
 DagNodeQueue *get_obparents(struct DagForest *dag, void *ob)
 {
 	DagNode *node, *node1;
@@ -1546,7 +1576,7 @@ DagNodeQueue *get_obparents(struct DagForest *dag, void *ob)
 	if (node == NULL) {
 		return NULL;
 	}
-	else if (node->ancestor_count == 1) { // simple case
+	else if (node->ancestor_count == 1) {  /* simple case */
 		nqueue = queue_create(1);
 		push_queue(nqueue, node);
 	}
@@ -1555,7 +1585,7 @@ DagNodeQueue *get_obparents(struct DagForest *dag, void *ob)
 		
 		node1 = dag->DagNode.first;
 		do {
-			if (node1->DFS_fntm > node->DFS_fntm) { // a parent is finished after child. must check adj list
+			if (node1->DFS_fntm > node->DFS_fntm) {  /* a parent is finished after child. must check adj list */
 				itA = node->child;
 				while (itA != NULL) {
 					if ((itA->node == node) && (itA->type == DAG_RL_DATA)) {
@@ -1583,7 +1613,7 @@ DagNodeQueue *get_first_ancestors(struct DagForest   *dag, void *ob)
 	
 	node1 = dag->DagNode.first;
 	do {
-		if (node1->DFS_fntm > node->DFS_fntm) { 
+		if (node1->DFS_fntm > node->DFS_fntm) {
 			itA = node->child;
 			while (itA != NULL) {
 				if (itA->node == node) {
@@ -1595,10 +1625,10 @@ DagNodeQueue *get_first_ancestors(struct DagForest   *dag, void *ob)
 		node1 = node1->next;
 	} while (node1);
 	
-	return nqueue;	
+	return nqueue;
 }
 
-// standard DFS list
+/* standard DFS list */
 DagNodeQueue *get_all_childs(struct DagForest    *dag, void *ob)
 {
 	DagNode *node;
@@ -1609,7 +1639,7 @@ DagNodeQueue *get_all_childs(struct DagForest    *dag, void *ob)
 	int skip = 0;
 
 	nqueue = queue_create(DAGQUEUEALLOC);
-	retqueue = queue_create(dag->numNodes); // was MainDag... why? (ton)
+	retqueue = queue_create(dag->numNodes);  /* was MainDag... why? (ton) */
 	
 	node = dag->DagNode.first;
 	while (node) {
@@ -1619,8 +1649,8 @@ DagNodeQueue *get_all_childs(struct DagForest    *dag, void *ob)
 	
 	time = 1;
 	
-	node = dag_find_node(dag, ob);   // could be done in loop above (ton)
-	if (node) { // can be null for newly added objects
+	node = dag_find_node(dag, ob);  /* could be done in loop above (ton) */
+	if (node) {                     /* can be null for newly added objects */
 		
 		node->color = DAG_GRAY;
 		time++;
@@ -1641,9 +1671,9 @@ DagNodeQueue *get_all_childs(struct DagForest    *dag, void *ob)
 					push_stack(nqueue, itA->node);
 					skip = 1;
 					break;
-				} 
+				}
 				itA = itA->next;
-			}			
+			}
 			
 			if (!skip) {
 				node = pop_queue(nqueue);
@@ -1671,7 +1701,7 @@ short   are_obs_related(struct DagForest    *dag, void *ob1, void *ob2)
 	while (itA != NULL) {
 		if (itA->node->ob == ob2) {
 			return itA->node->type;
-		} 
+		}
 		itA = itA->next;
 	}
 	return DAG_NO_RELATION;
@@ -1699,7 +1729,7 @@ void graph_print_queue(DagNodeQueue *nqueue)
 	queueElem = nqueue->first;
 	while (queueElem) {
 		fprintf(stderr, "** %s %i %i-%i ", ((ID *) queueElem->node->ob)->name, queueElem->node->color, queueElem->node->DFS_dvtm, queueElem->node->DFS_fntm);
-		queueElem = queueElem->next;		
+		queueElem = queueElem->next;
 	}
 	fprintf(stderr, "\n");
 }
@@ -1719,7 +1749,7 @@ void graph_print_queue_dist(DagNodeQueue *nqueue)
 		fputc('|', stderr);
 		fputc('\n', stderr);
 		count = 0;
-		queueElem = queueElem->next;		
+		queueElem = queueElem->next;
 	}
 	fprintf(stderr, "\n");
 }
@@ -1857,14 +1887,14 @@ void DAG_scene_sort(Main *bmain, Scene *sce)
 				push_stack(nqueue, itA->node);
 				skip = 1;
 				break;
-			} 
+			}
 			itA = itA->next;
-		}			
+		}
 		
 		if (!skip) {
 			if (node) {
 				node = pop_queue(nqueue);
-				if (node->ob == sce)    // we are done
+				if (node->ob == sce)  /* we are done */
 					break;
 				node->color = DAG_BLACK;
 				
@@ -1876,7 +1906,7 @@ void DAG_scene_sort(Main *bmain, Scene *sce)
 					BLI_remlink(&sce->base, base);
 					BLI_addhead(&tempbase, base);
 				}
-			}	
+			}
 		}
 	}
 	
@@ -2021,7 +2051,7 @@ static unsigned int flush_layer_node(Scene *sce, DagNode *node, int curtime)
 	for (itA = node->child; itA; itA = itA->next) {
 		if (itA->node->type == ID_OB) {
 			if (itA->node->lasttime != curtime) {
-				itA->lay = flush_layer_node(sce, itA->node, curtime);  // lay is only set once for each relation
+				itA->lay = flush_layer_node(sce, itA->node, curtime);  /* lay is only set once for each relation */
 			}
 			else itA->lay = itA->node->lay;
 			
@@ -2069,12 +2099,12 @@ static void dag_scene_flush_layers(Scene *sce, int lay)
 	Base *base;
 	int lasttime;
 
-	firstnode = sce->theDag->DagNode.first;  // always scene node
+	firstnode = sce->theDag->DagNode.first;  /* always scene node */
 
 	for (itA = firstnode->child; itA; itA = itA->next)
 		itA->lay = 0;
 
-	sce->theDag->time++;    // so we know which nodes were accessed
+	sce->theDag->time++;  /* so we know which nodes were accessed */
 	lasttime = sce->theDag->time;
 
 	/* update layer flags in nodes */
@@ -2146,13 +2176,13 @@ void DAG_scene_flush_update(Main *bmain, Scene *sce, unsigned int lay, const sho
 		DAG_scene_sort(bmain, sce);
 	}
 	
-	firstnode = sce->theDag->DagNode.first;  // always scene node
+	firstnode = sce->theDag->DagNode.first;  /* always scene node */
 
 	/* first we flush the layer flags */
 	dag_scene_flush_layers(sce, lay);
 
 	/* then we use the relationships + layer info to flush update events */
-	sce->theDag->time++;    // so we know which nodes were accessed
+	sce->theDag->time++;  /* so we know which nodes were accessed */
 	lasttime = sce->theDag->time;
 	for (itA = firstnode->child; itA; itA = itA->next)
 		if (itA->node->lasttime != lasttime && itA->node->type == ID_OB)
@@ -2160,7 +2190,7 @@ void DAG_scene_flush_update(Main *bmain, Scene *sce, unsigned int lay, const sho
 
 	/* if update is not due to time change, do pointcache clears */
 	if (!time) {
-		sce->theDag->time++;    // so we know which nodes were accessed
+		sce->theDag->time++;  /* so we know which nodes were accessed */
 		lasttime = sce->theDag->time;
 		for (itA = firstnode->child; itA; itA = itA->next) {
 			if (itA->node->lasttime != lasttime && itA->node->type == ID_OB) {
@@ -2378,7 +2408,7 @@ static void dag_object_time_update_flags(Object *ob)
 				}
 			}
 		}
-	}		
+	}
 
 	if (ob->recalc & OB_RECALC_OB)
 		lib_id_recalc_tag(G.main, &ob->id);
@@ -2928,9 +2958,9 @@ void DAG_pose_sort(Object *ob)
 	int skip = 0;
 	
 	dag = dag_init();
-	ugly_hack_sorry = 0; // no ID structs
+	ugly_hack_sorry = 0;  /* no ID structs */
 
-	rootnode = dag_add_node(dag, NULL); // node->ob becomes NULL
+	rootnode = dag_add_node(dag, NULL);  /* node->ob becomes NULL */
 	
 	/* we add the hierarchy and the constraints */
 	for (pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
@@ -2975,7 +3005,7 @@ void DAG_pose_sort(Object *ob)
 									dag_add_relation(dag, node2, node3, 0, "IK Constraint");
 									
 									segcount++;
-									if (segcount == data->rootbone || segcount > 255) break;  // 255 is weak
+									if (segcount == data->rootbone || segcount > 255) break;  /* 255 is weak */
 									parchan = parchan->parent;
 								}
 							}
@@ -3018,21 +3048,21 @@ void DAG_pose_sort(Object *ob)
 				push_stack(nqueue, itA->node);
 				skip = 1;
 				break;
-			} 
+			}
 			itA = itA->next;
-		}			
+		}
 		
 		if (!skip) {
 			if (node) {
 				node = pop_queue(nqueue);
-				if (node->ob == NULL)   // we are done
+				if (node->ob == NULL)  /* we are done */
 					break;
 				node->color = DAG_BLACK;
 				
 				/* put node in new list */
 				BLI_remlink(&pose->chanbase, node->ob);
 				BLI_addhead(&tempbase, node->ob);
-			}	
+			}
 		}
 	}
 	

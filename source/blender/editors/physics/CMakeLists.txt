@@ -20,6 +20,7 @@
 
 set(INC
 	../include
+	../../blenfont
 	../../blenkernel
 	../../blenlib
 	../../blenloader
@@ -53,6 +54,10 @@ endif()
 
 if(WITH_OPENMP)
 	add_definitions(-DPARALLEL=1)
+endif()
+
+if(WITH_INTERNATIONAL)
+	add_definitions(-DWITH_INTERNATIONAL)
 endif()
 
 add_definitions(-DGLEW_STATIC)

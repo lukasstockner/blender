@@ -802,7 +802,9 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 		}
 	}
 
-	if (mat->scene->gm.flag & GAME_GLSL_NO_SHADERS);
+	if (mat->scene->gm.flag & GAME_GLSL_NO_SHADERS) {
+		/* pass */
+	}
 	else if (!(lamp->mode & LA_NO_SPEC) && !(lamp->mode & LA_ONLYSHADOW) &&
 	         (GPU_link_changed(shi->spec) || ma->spec != 0.0f))
 	{
@@ -1149,7 +1151,7 @@ static void do_material_tex(GPUShadeInput *shi)
 							newnor = tnor;
 						}
 						
-						norfac = minf(fabsf(mtex->norfac), 1.0f);
+						norfac = min_ff(fabsf(mtex->norfac), 1.0f);
 						
 						if (norfac == 1.0f && !GPU_link_changed(stencil)) {
 							shi->vn = newnor;
@@ -1609,8 +1611,8 @@ void GPU_lamp_update_distance(GPULamp *lamp, float distance, float att1, float a
 
 void GPU_lamp_update_spot(GPULamp *lamp, float spotsize, float spotblend)
 {
-	lamp->spotsi= cos(M_PI*spotsize/360.0);
-	lamp->spotbl= (1.0f - lamp->spotsi)*spotblend;
+	lamp->spotsi= cosf((float)M_PI * spotsize / 360.0f);
+	lamp->spotbl= (1.0f - lamp->spotsi) * spotblend;
 }
 
 static void gpu_lamp_from_blender(Scene *scene, Object *ob, Object *par, Lamp *la, GPULamp *lamp)
@@ -1901,7 +1903,7 @@ GPUShaderExport *GPU_shader_export(struct Scene *scene, struct Material *ma)
 		GPUBuiltin gputype;
 		GPUDynamicType dynamictype;
 		GPUDataType datatype;
-	} builtins[] = { 
+	} builtins[] = {
 		{ GPU_VIEW_MATRIX, GPU_DYNAMIC_OBJECT_VIEWMAT, GPU_DATA_16F },
 		{ GPU_INVERSE_VIEW_MATRIX, GPU_DYNAMIC_OBJECT_VIEWIMAT, GPU_DATA_16F },
 		{ GPU_OBJECT_MATRIX, GPU_DYNAMIC_OBJECT_MAT, GPU_DATA_16F },

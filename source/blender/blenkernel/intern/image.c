@@ -1063,6 +1063,7 @@ char BKE_imtype_valid_channels(const char imtype)
 		case R_IMF_IMTYPE_DDS:
 		case R_IMF_IMTYPE_JP2:
 		case R_IMF_IMTYPE_QUICKTIME:
+		case R_IMF_IMTYPE_DPX:
 			chan_flag |= IMA_CHAN_FLAG_ALPHA;
 	}
 
@@ -1091,10 +1092,11 @@ char BKE_imtype_valid_depths(const char imtype)
 			return R_IMF_CHAN_DEPTH_16 | R_IMF_CHAN_DEPTH_32;
 		case R_IMF_IMTYPE_MULTILAYER:
 			return R_IMF_CHAN_DEPTH_32;
-		/* eeh, cineone does some strange 10bits per channel */
+		/* eeh, cineon does some strange 10bits per channel */
 		case R_IMF_IMTYPE_DPX:
+			return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_10 | R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16;
 		case R_IMF_IMTYPE_CINEON:
-			return R_IMF_CHAN_DEPTH_12;
+			return R_IMF_CHAN_DEPTH_10;
 		case R_IMF_IMTYPE_JP2:
 			return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16;
 		/* most formats are 8bit only */
@@ -1559,7 +1561,7 @@ void BKE_stamp_buf(Scene *scene, Object *camera, unsigned char *rect, float *rec
 
 		/* also a little of space to the background. */
 		buf_rectfill_area(rect, rectf, width, height, scene->r.bg_stamp, display,
-						  x - BUFF_MARGIN_X, y - BUFF_MARGIN_Y, w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
+		                  x - BUFF_MARGIN_X, y - BUFF_MARGIN_Y, w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
 
 		/* and draw the text. */
 		BLF_position(mono, x, y + y_ofs, 0.0);
@@ -1576,7 +1578,7 @@ void BKE_stamp_buf(Scene *scene, Object *camera, unsigned char *rect, float *rec
 
 		/* and space for background. */
 		buf_rectfill_area(rect, rectf, width, height, scene->r.bg_stamp, display,
-						  0, y - BUFF_MARGIN_Y, w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
+		                  0, y - BUFF_MARGIN_Y, w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
 
 		BLF_position(mono, x, y + y_ofs, 0.0);
 		BLF_draw_buffer(mono, stamp_data.note);
@@ -1592,7 +1594,7 @@ void BKE_stamp_buf(Scene *scene, Object *camera, unsigned char *rect, float *rec
 
 		/* and space for background. */
 		buf_rectfill_area(rect, rectf, width, height, scene->r.bg_stamp, display,
-						  0, y - BUFF_MARGIN_Y, w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
+		                  0, y - BUFF_MARGIN_Y, w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
 
 		BLF_position(mono, x, y + y_ofs, 0.0);
 		BLF_draw_buffer(mono, stamp_data.date);
@@ -1608,7 +1610,7 @@ void BKE_stamp_buf(Scene *scene, Object *camera, unsigned char *rect, float *rec
 
 		/* and space for background. */
 		buf_rectfill_area(rect, rectf, width, height, scene->r.bg_stamp, display,
-						  0, y - BUFF_MARGIN_Y, w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
+		                  0, y - BUFF_MARGIN_Y, w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
 
 		BLF_position(mono, x, y + y_ofs, 0.0);
 		BLF_draw_buffer(mono, stamp_data.rendertime);
@@ -1623,7 +1625,7 @@ void BKE_stamp_buf(Scene *scene, Object *camera, unsigned char *rect, float *rec
 
 		/* extra space for background. */
 		buf_rectfill_area(rect, rectf, width, height, scene->r.bg_stamp,  display,
-						  x - BUFF_MARGIN_X, y - BUFF_MARGIN_Y, w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
+		                  x - BUFF_MARGIN_X, y - BUFF_MARGIN_Y, w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
 
 		/* and pad the text. */
 		BLF_position(mono, x, y + y_ofs, 0.0);
@@ -1639,7 +1641,7 @@ void BKE_stamp_buf(Scene *scene, Object *camera, unsigned char *rect, float *rec
 
 		/* extra space for background */
 		buf_rectfill_area(rect, rectf, width, height, scene->r.bg_stamp, display,
-						  x - BUFF_MARGIN_X, y, x + w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
+		                  x - BUFF_MARGIN_X, y, x + w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
 
 		/* and pad the text. */
 		BLF_position(mono, x, y + y_ofs, 0.0);
@@ -1654,7 +1656,7 @@ void BKE_stamp_buf(Scene *scene, Object *camera, unsigned char *rect, float *rec
 
 		/* extra space for background. */
 		buf_rectfill_area(rect, rectf, width, height, scene->r.bg_stamp, display,
-						  x - BUFF_MARGIN_X, y - BUFF_MARGIN_Y, x + w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
+		                  x - BUFF_MARGIN_X, y - BUFF_MARGIN_Y, x + w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
 
 		/* and pad the text. */
 		BLF_position(mono, x, y + y_ofs, 0.0);
@@ -1669,7 +1671,7 @@ void BKE_stamp_buf(Scene *scene, Object *camera, unsigned char *rect, float *rec
 
 		/* extra space for background. */
 		buf_rectfill_area(rect, rectf, width, height, scene->r.bg_stamp, display,
-						  x - BUFF_MARGIN_X, y - BUFF_MARGIN_Y, x + w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
+		                  x - BUFF_MARGIN_X, y - BUFF_MARGIN_Y, x + w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
 		BLF_position(mono, x, y + y_ofs, 0.0);
 		BLF_draw_buffer(mono, stamp_data.camera);
 
@@ -1682,7 +1684,7 @@ void BKE_stamp_buf(Scene *scene, Object *camera, unsigned char *rect, float *rec
 
 		/* extra space for background. */
 		buf_rectfill_area(rect, rectf, width, height, scene->r.bg_stamp, display,
-						  x - BUFF_MARGIN_X, y - BUFF_MARGIN_Y, x + w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
+		                  x - BUFF_MARGIN_X, y - BUFF_MARGIN_Y, x + w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
 		BLF_position(mono, x, y + y_ofs, 0.0);
 		BLF_draw_buffer(mono, stamp_data.cameralens);
 	}
@@ -1695,7 +1697,7 @@ void BKE_stamp_buf(Scene *scene, Object *camera, unsigned char *rect, float *rec
 
 		/* extra space for background. */
 		buf_rectfill_area(rect, rectf, width, height, scene->r.bg_stamp, display,
-						  x - BUFF_MARGIN_X, y - BUFF_MARGIN_Y, x + w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
+		                  x - BUFF_MARGIN_X, y - BUFF_MARGIN_Y, x + w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
 
 		/* and pad the text. */
 		BLF_position(mono, x, y + y_ofs, 0.0);
@@ -1711,7 +1713,7 @@ void BKE_stamp_buf(Scene *scene, Object *camera, unsigned char *rect, float *rec
 
 		/* extra space for background. */
 		buf_rectfill_area(rect, rectf, width, height, scene->r.bg_stamp, display,
-						  x - BUFF_MARGIN_X, y - BUFF_MARGIN_Y, x + w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
+		                  x - BUFF_MARGIN_X, y - BUFF_MARGIN_Y, x + w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
 
 		BLF_position(mono, x, y + y_ofs, 0.0);
 		BLF_draw_buffer(mono, stamp_data.strip);
@@ -1825,9 +1827,33 @@ int BKE_imbuf_write(ImBuf *ibuf, const char *name, ImageFormatData *imf)
 #ifdef WITH_CINEON
 	else if (imtype == R_IMF_IMTYPE_CINEON) {
 		ibuf->ftype = CINEON;
+		if (imf->cineon_flag & R_IMF_CINEON_FLAG_LOG) {
+			ibuf->ftype |= CINEON_LOG;
+		}
+		if (imf->depth == R_IMF_CHAN_DEPTH_16) {
+			ibuf->ftype |= CINEON_16BIT;
+		}
+		else if (imf->depth == R_IMF_CHAN_DEPTH_12) {
+			ibuf->ftype |= CINEON_12BIT;
+		}
+		else if (imf->depth == R_IMF_CHAN_DEPTH_10) {
+			ibuf->ftype |= CINEON_10BIT;
+		}
 	}
 	else if (imtype == R_IMF_IMTYPE_DPX) {
 		ibuf->ftype = DPX;
+		if (imf->cineon_flag & R_IMF_CINEON_FLAG_LOG) {
+		  ibuf->ftype |= CINEON_LOG;
+		}
+		if (imf->depth == R_IMF_CHAN_DEPTH_16) {
+			ibuf->ftype |= CINEON_16BIT;
+		}
+		else if (imf->depth == R_IMF_CHAN_DEPTH_12) {
+			ibuf->ftype |= CINEON_12BIT;
+		}
+		else if (imf->depth == R_IMF_CHAN_DEPTH_10) {
+			ibuf->ftype |= CINEON_10BIT;
+		}
 	}
 #endif
 	else if (imtype == R_IMF_IMTYPE_TARGA) {
@@ -2119,6 +2145,15 @@ void BKE_image_signal(Image *ima, ImageUser *iuser, int signal)
 					}
 				}
 			}
+			break;
+		case IMA_SIGNAL_COLORMANAGE:
+			image_free_buffers(ima);
+
+			ima->ok = 1;
+
+			if (iuser)
+				iuser->ok = 1;
+
 			break;
 	}
 
@@ -2617,11 +2652,21 @@ static ImBuf *image_get_render_result(Image *ima, ImageUser *iuser, void **lock_
 	/* free rect buffer if float buffer changes, so it can be recreated with
 	 * the updated result, and also in case we got byte buffer from sequencer,
 	 * so we don't keep reference to freed buffer */
-	if (ibuf->rect_float != rectf || rect || !rectf)
+	if (ibuf->rect_float != rectf || rect)
 		imb_freerectImBuf(ibuf);
 
-	if (rect)
+	if (rect) {
 		ibuf->rect = rect;
+	}
+	else {
+		/* byte buffer of render result has been freed, make sure image buffers
+		 * does not reference to this buffer anymore
+		 * need check for whether byte buffer was allocated and owned by image itself
+		 * or if it's reusing buffer from render result
+		 */
+		if ((ibuf->mall & IB_rect) == 0)
+			ibuf->rect = NULL;
+	}
 
 	if (rectf) {
 		ibuf->rect_float = rectf;

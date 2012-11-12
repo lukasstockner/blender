@@ -58,6 +58,7 @@
 #include "GPU_material.h"
 
 #include "RE_engine.h"
+#include "RE_pipeline.h"
 
 #include "ED_node.h"
 #include "ED_render.h"
@@ -74,11 +75,18 @@ void ED_render_scene_update(Main *bmain, Scene *scene, int updated)
 	bScreen *sc;
 	ScrArea *sa;
 	ARegion *ar;
+	static int recursive_check = FALSE;
 
 	/* don't do this render engine update if we're updating the scene from
 	 * other threads doing e.g. rendering or baking jobs */
 	if (!BLI_thread_is_main())
 		return;
+
+	/* don't call this recursively for frame updates */
+	if (recursive_check)
+		return;
+	
+	recursive_check = TRUE;
 
 	C = CTX_create();
 	CTX_data_main_set(C, bmain);
@@ -114,6 +122,8 @@ void ED_render_scene_update(Main *bmain, Scene *scene, int updated)
 	}
 
 	CTX_free(C);
+
+	recursive_check = FALSE;
 }
 
 void ED_render_engine_area_exit(ScrArea *sa)
@@ -148,6 +158,8 @@ void ED_render_engine_changed(Main *bmain)
 	for (sc = bmain->screen.first; sc; sc = sc->id.next)
 		for (sa = sc->areabase.first; sa; sa = sa->next)
 			ED_render_engine_area_exit(sa);
+
+	RE_FreePersistentData();
 }
 
 /***************************** Updates ***********************************
@@ -224,8 +236,12 @@ static void material_changed(Main *bmain, Material *ma)
 
 	/* find node materials using this */
 	for (parent = bmain->mat.first; parent; parent = parent->id.next) {
-		if (parent->use_nodes && parent->nodetree && nodes_use_material(parent->nodetree, ma)) ;
-		else continue;
+		if (parent->use_nodes && parent->nodetree && nodes_use_material(parent->nodetree, ma)) {
+			/* pass */
+		}
+		else {
+			continue;
+		}
 
 		BKE_icon_changed(BKE_icon_getid(&parent->id));
 
@@ -247,9 +263,15 @@ static void texture_changed(Main *bmain, Tex *tex)
 
 	/* find materials */
 	for (ma = bmain->mat.first; ma; ma = ma->id.next) {
-		if (mtex_use_tex(ma->mtex, MAX_MTEX, tex)) ;
-		else if (ma->use_nodes && ma->nodetree && nodes_use_tex(ma->nodetree, tex)) ;
-		else continue;
+		if (mtex_use_tex(ma->mtex, MAX_MTEX, tex)) {
+			/* pass */
+		}
+		else if (ma->use_nodes && ma->nodetree && nodes_use_tex(ma->nodetree, tex)) {
+			/* pass */
+		}
+		else {
+			continue;
+		}
 
 		BKE_icon_changed(BKE_icon_getid(&ma->id));
 
@@ -259,18 +281,30 @@ static void texture_changed(Main *bmain, Tex *tex)
 
 	/* find lamps */
 	for (la = bmain->lamp.first; la; la = la->id.next) {
-		if (mtex_use_tex(la->mtex, MAX_MTEX, tex)) ;
-		else if (la->nodetree && nodes_use_tex(la->nodetree, tex)) ;
-		else continue;
+		if (mtex_use_tex(la->mtex, MAX_MTEX, tex)) {
+			/* pass */
+		}
+		else if (la->nodetree && nodes_use_tex(la->nodetree, tex)) {
+			/* pass */
+		}
+		else {
+			continue;
+		}
 
 		BKE_icon_changed(BKE_icon_getid(&la->id));
 	}
 
 	/* find worlds */
 	for (wo = bmain->world.first; wo; wo = wo->id.next) {
-		if (mtex_use_tex(wo->mtex, MAX_MTEX, tex)) ;
-		else if (wo->nodetree && nodes_use_tex(wo->nodetree, tex)) ;
-		else continue;
+		if (mtex_use_tex(wo->mtex, MAX_MTEX, tex)) {
+			/* pass */
+		}
+		else if (wo->nodetree && nodes_use_tex(wo->nodetree, tex)) {
+			/* pass */
+		}
+		else {
+			continue;
+		}
 
 		BKE_icon_changed(BKE_icon_getid(&wo->id));
 	}
@@ -347,6 +381,12 @@ static void scene_changed(Main *bmain, Scene *UNUSED(scene))
 
 void ED_render_id_flush_update(Main *bmain, ID *id)
 {
+	/* this can be called from render or baking thread when a python script makes
+	 * changes, in that case we don't want to do any editor updates, and making
+	 * GPU changes is not possible because OpenGL only works in the main thread */
+	if (!BLI_thread_is_main())
+		return;
+
 	switch (GS(id->name)) {
 		case ID_MA:
 			material_changed(bmain, (Material *)id);

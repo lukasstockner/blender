@@ -300,11 +300,11 @@ void BKE_object_free(Object *ob)
 	
 	BKE_object_free_display(ob);
 	
-	/* disconnect specific data */
+	/* disconnect specific data, but not for lib data (might be indirect data, can get relinked) */
 	if (ob->data) {
 		ID *id = ob->data;
 		id->us--;
-		if (id->us == 0) {
+		if (id->us == 0 && id->lib == NULL) {
 			switch (ob->type) {
 				case OB_MESH:
 					BKE_mesh_unlink((Mesh *)id);
@@ -454,7 +454,7 @@ void BKE_object_unlink(Object *ob)
 				if (pchan->custom == ob)
 					pchan->custom = NULL;
 			}
-		} 
+		}
 		else if (ELEM(OB_MBALL, ob->type, obt->type)) {
 			if (BKE_mball_is_basis_for(obt, ob))
 				obt->recalc |= OB_RECALC_DATA;
@@ -689,8 +689,8 @@ void BKE_object_unlink(Object *ob)
 
 					if (so->treestore) {
 						TreeStoreElem *tselem = so->treestore->data;
-						int a;
-						for (a = 0; a < so->treestore->usedelem; a++, tselem++) {
+						int i;
+						for (i = 0; i < so->treestore->usedelem; i++, tselem++) {
 							if (tselem->id == (ID *)ob) tselem->id = NULL;
 						}
 					}
@@ -854,7 +854,9 @@ Object *BKE_object_add_only_object(int type, const char *name)
 	ob->step_height = 0.15f;
 	ob->jump_speed = 10.0f;
 	ob->fall_speed = 55.0f;
-	
+	ob->col_group = 0x01;
+	ob->col_mask = 0xff;
+
 	/* NT fluid sim defaults */
 	ob->fluidsimSettings = NULL;
 
@@ -1781,7 +1783,7 @@ static void ob_parbone(Object *ob, Object *par, float mat[][4])
 	
 	/* Make sure the bone is still valid */
 	pchan = BKE_pose_channel_find_name(par->pose, ob->parsubstr);
-	if (!pchan) {
+	if (!pchan || !pchan->bone) {
 		printf("Object %s with Bone parent: bone %s doesn't exist\n", ob->id.name + 2, ob->parsubstr);
 		unit_m4(mat);
 		return;
@@ -2300,11 +2302,9 @@ void BKE_object_minmax(Object *ob, float min_r[3], float max_r[3], const short u
 				bPoseChannel *pchan;
 
 				for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
-
-					if ((use_hidden == FALSE) && (PBONE_VISIBLE(arm, pchan->bone) == FALSE)) {
-						/* pass */
-					}
-					else {
+					/* XXX pchan->bone may be NULL for duplicated bones, see duplicateEditBoneObjects() comment
+					 *     (editarmature.c:2592)... Skip in this case too! */
+					if (pchan->bone && !((use_hidden == FALSE) && (PBONE_VISIBLE(arm, pchan->bone) == FALSE))) {
 						mul_v3_m4v3(vec, ob->obmat, pchan->pose_head);
 						minmax_v3v3_v3(min_r, max_r, vec);
 						mul_v3_m4v3(vec, ob->obmat, pchan->pose_tail);
@@ -2573,9 +2573,7 @@ void BKE_object_handle_update(Scene *scene, Object *ob)
 		if (ob->recalc & OB_RECALC_DATA) {
 			ID *data_id = (ID *)ob->data;
 			AnimData *adt = BKE_animdata_from_id(data_id);
-			float ctime = (float)scene->r.cfra; // XXX this is bad...
-			ListBase pidlist;
-			PTCacheID *pid;
+			float ctime = (float)scene->r.cfra;  /* XXX this is bad... */
 			
 			if (G.debug & G_DEBUG)
 				printf("recalcdata %s\n", ob->id.name + 2);
@@ -2644,18 +2642,20 @@ void BKE_object_handle_update(Scene *scene, Object *ob)
 			 * However, not doing anything (or trying to hack around this lack) is not an option 
 			 * anymore, especially due to Cycles [#31834] 
 			 */
-			//if (ob->totcol) {
-			//	int a;
-			//	
-			//	for (a = 1; a <= ob->totcol; a++) {
-			//		Material *ma = give_current_material(ob, a);
-			//		
-			//		if (ma) {
-			//			/* recursively update drivers for this material */
-			//			material_drivers_update(scene, ma, ctime);
-			//		}
-			//	}
-			//}
+			if (ob->totcol) {
+				int a;
+				
+				for (a = 1; a <= ob->totcol; a++) {
+					Material *ma = give_current_material(ob, a);
+					
+					if (ma) {
+						/* recursively update drivers for this material */
+						material_drivers_update(scene, ma, ctime);
+					}
+				}
+			}
+			else if (ob->type == OB_LAMP)
+				lamp_drivers_update(scene, ob->data, ctime);
 			
 			/* particles */
 			if (ob->particlesystem.first) {
@@ -2698,26 +2698,8 @@ void BKE_object_handle_update(Scene *scene, Object *ob)
 						psys_get_modifier(ob, psys)->flag &= ~eParticleSystemFlag_psys_updated;
 				}
 			}
-
-			/* check if quick cache is needed */
-			BKE_ptcache_ids_from_object(&pidlist, ob, scene, MAX_DUPLI_RECUR);
-
-			for (pid = pidlist.first; pid; pid = pid->next) {
-				if ((pid->cache->flag & PTCACHE_BAKED) ||
-				    (pid->cache->flag & PTCACHE_QUICK_CACHE) == 0)
-				{
-					continue;
-				}
-
-				if (pid->cache->flag & PTCACHE_OUTDATED || (pid->cache->flag & PTCACHE_SIMULATION_VALID) == 0) {
-					scene->physics_settings.quick_cache_step =
-					        scene->physics_settings.quick_cache_step ?
-					        mini(scene->physics_settings.quick_cache_step, pid->cache->step) :
-					        pid->cache->step;
-				}
-			}
-
-			BLI_freelistN(&pidlist);
+			
+			/* quick cache removed */
 		}
 
 		/* the no-group proxy case, we call update */

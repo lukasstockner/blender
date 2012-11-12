@@ -269,8 +269,8 @@ void ANIM_draw_previewrange(const bContext *C, View2D *v2d)
 		/* only draw two separate 'curtains' if there's no overlap between them */
 		if (PSFRA < PEFRA) {
 			gpuSingleFilledRectf(v2d->cur.xmin, v2d->cur.ymin, (float)PSFRA, v2d->cur.ymax);
-			gpuSingleFilledRectf((float)PEFRA, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);	
-		} 
+			gpuSingleFilledRectf((float)PEFRA, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+		}
 		else {
 			gpuSingleFilledRectf(v2d->cur.xmin, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
 		}
@@ -389,7 +389,7 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short rest
 						return RAD2DEGF(1.0f);  /* radians to degrees */
 				}
 			}
-
+			
 			/* TODO: other rotation types here as necessary */
 		}
 	}

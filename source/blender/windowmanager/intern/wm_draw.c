@@ -86,7 +86,7 @@ static void wm_paintcursor_draw(bContext *C, ARegion *ar)
 		bScreen *screen = win->screen;
 		wmPaintCursor *pc;
 
-		if (screen->subwinactive == ar->swinid) {
+		if (ar->swinid && screen->subwinactive == ar->swinid) {
 			for (pc = wm->paintcursors.first; pc; pc = pc->next) {
 				if (pc->poll == NULL || pc->poll(C)) {
 					ARegion *ar_other = CTX_wm_region(C);
@@ -638,7 +638,7 @@ static void wm_method_draw_triple(bContext *C, wmWindow *win)
 	if (paintcursor && wm->paintcursors.first) {
 		for (sa = screen->areabase.first; sa; sa = sa->next) {
 			for (ar = sa->regionbase.first; ar; ar = ar->next) {
-				if (ar->swinid == screen->subwinactive) {
+				if (ar->swinid && ar->swinid == screen->subwinactive) {
 					CTX_wm_area_set(C, sa);
 					CTX_wm_region_set(C, ar);
 
@@ -718,12 +718,14 @@ static int wm_automatic_draw_method(wmWindow *win)
 		if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE))
 			return USER_DRAW_OVERLAP;
 		/* also Intel drivers are slow */
+		/* 2.64 BCon3 period, let's try if intel now works...
 		else if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_UNIX, GPU_DRIVER_ANY))
 			return USER_DRAW_OVERLAP;
 		else if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_WIN, GPU_DRIVER_ANY))
 			return USER_DRAW_OVERLAP_FLIP;
 		else if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_MAC, GPU_DRIVER_ANY))
 			return USER_DRAW_OVERLAP_FLIP;
+		 */
 		/* Windows software driver darkens color on each redraw */
 		else if (GPU_type_matches(GPU_DEVICE_SOFTWARE, GPU_OS_WIN, GPU_DRIVER_SOFTWARE))
 			return USER_DRAW_OVERLAP_FLIP;

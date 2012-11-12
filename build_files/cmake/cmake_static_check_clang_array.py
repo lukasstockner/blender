@@ -27,9 +27,12 @@ import subprocess
 import sys
 import os
 
+USE_QUIET = (os.environ.get("QUIET", None) is not None)
+
 CHECKER_IGNORE_PREFIX = [
     "extern",
     "intern/moto",
+    "blender/intern/opennl",
     ]
 
 CHECKER_BIN = "python2"
@@ -51,18 +54,19 @@ def main():
                [c] +
                [("-I%s" % i) for i in inc_dirs] +
                [("-D%s" % d) for d in defs]
-              )
+               )
 
         check_commands.append((c, cmd))
 
     process_functions = []
 
     def my_process(i, c, cmd):
-        percent = 100.0 * (i / (len(check_commands) - 1))
-        percent_str = "[" + ("%.2f]" % percent).rjust(7) + " %:"
+        if not USE_QUIET:
+            percent = 100.0 * (i / (len(check_commands) - 1))
+            percent_str = "[" + ("%.2f]" % percent).rjust(7) + " %:"
 
-        sys.stdout.flush()
-        sys.stdout.write("%s " % percent_str)
+            sys.stdout.flush()
+            sys.stdout.write("%s " % percent_str)
 
         return subprocess.Popen(cmd)
 

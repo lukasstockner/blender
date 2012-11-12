@@ -44,11 +44,13 @@ class OSLCompiler;
 
 enum ShaderSocketType {
 	SHADER_SOCKET_FLOAT,
+	SHADER_SOCKET_INT,
 	SHADER_SOCKET_COLOR,
 	SHADER_SOCKET_VECTOR,
 	SHADER_SOCKET_POINT,
 	SHADER_SOCKET_NORMAL,
-	SHADER_SOCKET_CLOSURE
+	SHADER_SOCKET_CLOSURE,
+	SHADER_SOCKET_STRING
 };
 
 /* Bump
@@ -112,12 +114,14 @@ public:
 		INCOMING,
 		NORMAL,
 		POSITION,
+		TANGENT,
 		NONE
 	};
 
 	ShaderInput(ShaderNode *parent, const char *name, ShaderSocketType type);
 	void set(const float3& v) { value = v; }
 	void set(float f) { value = make_float3(f, 0, 0); }
+	void set(const ustring v) { value_string = v; }
 
 	const char *name;
 	ShaderSocketType type;
@@ -127,6 +131,7 @@ public:
 
 	DefaultValue default_value;
 	float3 value;
+	ustring value_string;
 
 	int stack_offset; /* for SVM compiler */
 	bool osl_only;
@@ -234,6 +239,7 @@ protected:
 	void break_cycles(ShaderNode *node, vector<bool>& visited, vector<bool>& on_stack);
 	void clean();
 	void bump_from_displacement();
+	void refine_bump_nodes();
 	void default_inputs(bool do_osl);
 };
 

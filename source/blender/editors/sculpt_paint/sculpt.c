@@ -3076,6 +3076,7 @@ void sculpt_update_mesh_elements(Scene *scene, Sculpt *sd, Object *ob,
 	MultiresModifierData *mmd = sculpt_multires_active(scene, ob);
 
 	ss->modifiers_active = sculpt_modifiers_active(scene, sd, ob);
+	ss->show_diffuse_color = sd->flags & SCULPT_SHOW_DIFFUSE;
 
 	if (need_mask) {
 		if (mmd == NULL) {
@@ -3129,6 +3130,8 @@ void sculpt_update_mesh_elements(Scene *scene, Sculpt *sd, Object *ob,
 
 	ss->pbvh = dm->getPBVH(ob, dm);
 	ss->pmap = (need_pmap && dm->getPolyMap) ? dm->getPolyMap(ob, dm) : NULL;
+
+	pbvh_show_diffuse_color_set(ss->pbvh, ss->show_diffuse_color);
 
 	if (ss->modifiers_active) {
 		if (!ss->orig_cos) {
@@ -3513,7 +3516,7 @@ static void sculpt_update_brush_delta(Sculpt *sd, Object *ob, Brush *brush)
 		if (tool == SCULPT_TOOL_GRAB)
 			copy_v3_v3(sd->anchored_location, cache->true_location);
 		else if (tool == SCULPT_TOOL_THUMB)
-			copy_v3_v3(sd->anchored_location, cache->orig_grab_location);			
+			copy_v3_v3(sd->anchored_location, cache->orig_grab_location);
 
 		if (ELEM(tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_THUMB)) {
 			/* location stays the same for finding vertices in brush radius */
@@ -3535,8 +3538,6 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, Object *ob,
 	SculptSession *ss = ob->sculpt;
 	StrokeCache *cache = ss->cache;
 	Brush *brush = paint_brush(&sd->paint);
-
-	int dx, dy;
 
 	/* RNA_float_get_array(ptr, "location", cache->traced_location); */
 
@@ -3606,8 +3607,8 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, Object *ob,
 	if (brush->flag & BRUSH_ANCHORED) {
 		int hit = 0;
 
-		dx = cache->mouse[0] - cache->initial_mouse[0];
-		dy = cache->mouse[1] - cache->initial_mouse[1];
+		const float dx = cache->mouse[0] - cache->initial_mouse[0];
+		const float dy = cache->mouse[1] - cache->initial_mouse[1];
 
 		sd->anchored_size = cache->pixel_radius = sqrt(dx * dx + dy * dy);
 
@@ -3617,8 +3618,8 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, Object *ob,
 			float halfway[2];
 			float out[3];
 
-			halfway[0] = (float)dx * 0.5f + cache->initial_mouse[0];
-			halfway[1] = (float)dy * 0.5f + cache->initial_mouse[1];
+			halfway[0] = dx * 0.5f + cache->initial_mouse[0];
+			halfway[1] = dy * 0.5f + cache->initial_mouse[1];
 
 			if (sculpt_stroke_get_location(C, out, halfway)) {
 				copy_v3_v3(sd->anchored_location, out);
@@ -3665,8 +3666,8 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, Object *ob,
 	sculpt_update_brush_delta(sd, ob, brush);
 
 	if (brush->sculpt_tool == SCULPT_TOOL_ROTATE) {
-		dx = cache->mouse[0] - cache->initial_mouse[0];
-		dy = cache->mouse[1] - cache->initial_mouse[1];
+		const float dx = cache->mouse[0] - cache->initial_mouse[0];
+		const float dy = cache->mouse[1] - cache->initial_mouse[1];
 
 		cache->vertex_rotation = -atan2f(dx, dy) * cache->bstrength;
 
@@ -3738,7 +3739,7 @@ static void sculpt_raycast_cb(PBVHNode *node, void *data_v, float *tmin)
  * (This allows us to ignore the GL depth buffer)
  * Returns 0 if the ray doesn't hit the mesh, non-zero otherwise
  */
-int sculpt_stroke_get_location(bContext *C, float out[3], float mouse[2])
+int sculpt_stroke_get_location(bContext *C, float out[3], const float mouse[2])
 {
 	ViewContext vc;
 	Object *ob;
@@ -4153,7 +4154,7 @@ int ED_sculpt_mask_layers_ensure(Object *ob, MultiresModifierData *mmd)
 	 * isn't one already */
 	if (mmd && !CustomData_has_layer(&me->ldata, CD_GRID_PAINT_MASK)) {
 		GridPaintMask *gmask;
-		int level = MAX2(1, mmd->sculptlvl);
+		int level = max_ii(1, mmd->sculptlvl);
 		int gridsize = ccg_gridsize(level);
 		int gridarea = gridsize * gridsize;
 		int i, j;

@@ -234,7 +234,7 @@ void quat_to_mat4(float m[][4], const float q[4])
 	double q0, q1, q2, q3, qda, qdb, qdc, qaa, qab, qac, qbb, qbc, qcc;
 
 #ifdef DEBUG
-	if (!((q0 = dot_qtqt(q, q)) == 0.0f || (fabsf(q0 - 1.0) < QUAT_EPSILON))) {
+	if (!((q0 = dot_qtqt(q, q)) == 0.0 || (fabs(q0 - 1.0) < QUAT_EPSILON))) {
 		fprintf(stderr, "Warning! quat_to_mat4() called with non-normalized: size %.8f *** report a bug ***\n", (float)q0);
 	}
 #endif
@@ -288,9 +288,9 @@ void mat3_to_quat(float q[4], float wmat[][3])
 		s = sqrt(tr);
 		q[0] = (float)s;
 		s = 1.0 / (4.0 * s);
-		q[1] = (float)((mat[1][2] - mat[2][1]) * s);
-		q[2] = (float)((mat[2][0] - mat[0][2]) * s);
-		q[3] = (float)((mat[0][1] - mat[1][0]) * s);
+		q[1] = (float)((double)(mat[1][2] - mat[2][1]) * s);
+		q[2] = (float)((double)(mat[2][0] - mat[0][2]) * s);
+		q[3] = (float)((double)(mat[0][1] - mat[1][0]) * s);
 	}
 	else {
 		if (mat[0][0] > mat[1][1] && mat[0][0] > mat[2][2]) {
@@ -797,7 +797,7 @@ void mat3_to_axis_angle(float axis[3], float *angle, float mat[3][3])
 	float q[4];
 
 	/* use quaternions as intermediate representation */
-	// TODO: it would be nicer to go straight there...
+	/* TODO: it would be nicer to go straight there... */
 	mat3_to_quat(q, mat);
 	quat_to_axis_angle(axis, angle, q);
 }
@@ -808,7 +808,7 @@ void mat4_to_axis_angle(float axis[3], float *angle, float mat[4][4])
 	float q[4];
 
 	/* use quaternions as intermediate representation */
-	// TODO: it would be nicer to go straight there...
+	/* TODO: it would be nicer to go straight there... */
 	mat4_to_quat(q, mat);
 	quat_to_axis_angle(axis, angle, q);
 }
@@ -1077,11 +1077,11 @@ void compatible_eul(float eul[3], const float oldrot[3])
 	for (i = 0; i < 3; i++) {
 		deul[i] = eul[i] - oldrot[i];
 		if (deul[i] > pi_thresh) {
-			eul[i] -= floorf(( deul[i] / pi_x2) + 0.5) * pi_x2;
+			eul[i] -= floorf(( deul[i] / pi_x2) + 0.5f) * pi_x2;
 			deul[i] = eul[i] - oldrot[i];
 		}
 		else if (deul[i] < -pi_thresh) {
-			eul[i] += floorf((-deul[i] / pi_x2) + 0.5) * pi_x2;
+			eul[i] += floorf((-deul[i] / pi_x2) + 0.5f) * pi_x2;
 			deul[i] = eul[i] - oldrot[i];
 		}
 	}
@@ -1363,7 +1363,7 @@ void mat4_to_compatible_eulO(float eul[3], float oldrot[3], const short order, f
 	mat3_to_compatible_eulO(eul, oldrot, order, m);
 }
 /* rotate the given euler by the given angle on the specified axis */
-// NOTE: is this safe to do with different axis orders?
+/* NOTE: is this safe to do with different axis orders? */
 
 void rotate_eulO(float beul[3], const short order, char axis, float ang)
 {
@@ -1679,34 +1679,34 @@ void vec_apply_track(float vec[3], short axis)
 
 	switch (axis) {
 		case 0: /* pos-x */
-			/* vec[0]=  0.0; */
+			/* vec[0] =  0.0; */
 			vec[1] = tvec[2];
 			vec[2] = -tvec[1];
 			break;
 		case 1: /* pos-y */
-			/* vec[0]= tvec[0]; */
-			/* vec[1]=  0.0; */
-			/* vec[2]= tvec[2]; */
+			/* vec[0] = tvec[0]; */
+			/* vec[1] =  0.0; */
+			/* vec[2] = tvec[2]; */
 			break;
 		case 2: /* pos-z */
-			/* vec[0]= tvec[0]; */
-			/* vec[1]= tvec[1]; */
-			// vec[2]=  0.0; */
+			/* vec[0] = tvec[0]; */
+			/* vec[1] = tvec[1]; */
+			/* vec[2] =  0.0; */
 			break;
 		case 3: /* neg-x */
-			/* vec[0]=  0.0; */
+			/* vec[0] =  0.0; */
 			vec[1] = tvec[2];
 			vec[2] = -tvec[1];
 			break;
 		case 4: /* neg-y */
 			vec[0] = -tvec[2];
-			/* vec[1]=  0.0; */
+			/* vec[1] =  0.0; */
 			vec[2] = tvec[0];
 			break;
 		case 5: /* neg-z */
 			vec[0] = -tvec[0];
 			vec[1] = -tvec[1];
-			/* vec[2]=  0.0; */
+			/* vec[2] =  0.0; */
 			break;
 	}
 }

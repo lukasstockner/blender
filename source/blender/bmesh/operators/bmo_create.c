@@ -84,7 +84,7 @@ static int count_edge_faces(BMesh *bm, BMEdge *e);
 BLI_INLINE BMDiskLink *rs_edge_link_get(BMEdge *e, BMVert *v, EdgeData *e_data)
 {
 	return v == ((BMEdge *)e)->v1 ? &(((EdgeData *)e_data)->v1_disk_link) :
-	                                &(((EdgeData *)e_data)->v2_disk_link) ;
+	                                &(((EdgeData *)e_data)->v2_disk_link);
 }
 
 static int rotsys_append_edge(BMEdge *e, BMVert *v,
@@ -1177,10 +1177,10 @@ void bmo_edgenet_prepare(BMesh *bm, BMOperator *op)
 	}
 
 	if (edges1 && BLI_array_count(edges1) > 2 &&
-	    BM_edge_share_vert_count(edges1[0], edges1[BLI_array_count(edges1) - 1]))
+	    BM_edge_share_vert_check(edges1[0], edges1[BLI_array_count(edges1) - 1]))
 	{
 		if (edges2 && BLI_array_count(edges2) > 2 &&
-		    BM_edge_share_vert_count(edges2[0], edges2[BLI_array_count(edges2) - 1]))
+		    BM_edge_share_vert_check(edges2[0], edges2[BLI_array_count(edges2) - 1]))
 		{
 			BLI_array_free(edges1);
 			BLI_array_free(edges2);
@@ -1193,7 +1193,7 @@ void bmo_edgenet_prepare(BMesh *bm, BMOperator *op)
 	}
 
 	if (edges2 && BLI_array_count(edges2) > 2 &&
-	    BM_edge_share_vert_count(edges2[0], edges2[BLI_array_count(edges2) - 1]))
+	    BM_edge_share_vert_check(edges2[0], edges2[BLI_array_count(edges2) - 1]))
 	{
 		edges2 = NULL;
 	}

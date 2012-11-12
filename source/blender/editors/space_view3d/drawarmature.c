@@ -101,7 +101,7 @@ static void set_pchan_colorset(Object *ob, bPoseChannel *pchan)
 	}
 	
 	/* only try to set custom color if enabled for armature */
-	if (arm->flag & ARM_COL_CUSTOM) {	
+	if (arm->flag & ARM_COL_CUSTOM) {
 		/* currently, a bone can only use a custom color set if it's group (if it has one),
 		 * has been set to use one
 		 */
@@ -573,7 +573,7 @@ static void draw_sphere_bone_dist(float smat[][4], float imat[][4], bPoseChannel
 		/* this routine doesn't call get_matrix_editbone() that calculates it */
 		ebone->length = len_v3v3(ebone->head, ebone->tail);
 
-		/*length= ebone->length;*/ /*UNUSED*/
+		/*length = ebone->length;*/ /*UNUSED*/
 		tail = ebone->rad_tail;
 		dist = ebone->dist;
 		if (ebone->parent && (ebone->flag & BONE_CONNECTED))
@@ -584,7 +584,7 @@ static void draw_sphere_bone_dist(float smat[][4], float imat[][4], bPoseChannel
 		tailvec = ebone->tail;
 	}
 	else {
-		/*length= pchan->bone->length;*/ /*UNUSED*/
+		/*length = pchan->bone->length;*/ /*UNUSED*/
 		tail = pchan->bone->rad_tail;
 		dist = pchan->bone->dist;
 		if (pchan->parent && (pchan->bone->flag & BONE_CONNECTED))
@@ -695,7 +695,7 @@ static void draw_sphere_bone_wire(float smat[][4], float imat[][4],
 		/* this routine doesn't call get_matrix_editbone() that calculates it */
 		ebone->length = len_v3v3(ebone->head, ebone->tail);
 
-		/*length= ebone->length;*/ /*UNUSED*/
+		/*length = ebone->length;*/ /*UNUSED*/
 		tail = ebone->rad_tail;
 		if (ebone->parent && (boneflag & BONE_CONNECTED))
 			head = ebone->parent->rad_tail;
@@ -705,7 +705,7 @@ static void draw_sphere_bone_wire(float smat[][4], float imat[][4],
 		tailvec = ebone->tail;
 	}
 	else {
-		/*length= pchan->bone->length;*/ /*UNUSED*/
+		/*length = pchan->bone->length;*/ /*UNUSED*/
 		tail = pchan->bone->rad_tail;
 		if ((pchan->parent) && (boneflag & BONE_CONNECTED))
 			head = pchan->parent->bone->rad_tail;
@@ -1005,7 +1005,7 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 		gpuEnd();
 		
 		/* tip */
-		if (G.f & G_PICKSEL) {	
+		if (G.f & G_PICKSEL) {
 			/* no bitmap in selection mode, crashes 3d cards... */
 			glLoadName(id | BONESEL_TIP);
 			gpuBegin(GL_POINTS);
@@ -1174,7 +1174,7 @@ static void draw_b_bone(const short dt, int armflag, int boneflag, short constfl
 		gpuDisableColorMaterial();
 		gpuDisableLighting();
 	}
-	else {	
+	else {
 		/* wire */
 		if (armflag & ARM_POSEMODE) {
 			if (constflag) {
@@ -1190,9 +1190,9 @@ static void draw_b_bone(const short dt, int armflag, int boneflag, short constfl
 				/* restore colors */
 				set_pchan_gpuCurrentColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
 			}
-		}		
+		}
 		
-		draw_b_bone_boxes(OB_WIRE, pchan, xwidth, length, zwidth);		
+		draw_b_bone_boxes(OB_WIRE, pchan, xwidth, length, zwidth);
 	}
 }
 
@@ -1318,7 +1318,7 @@ static void draw_bone(const short dt, int armflag, int boneflag, short constflag
 		else if (armflag & ARM_POSEMODE) {
 			if (constflag) {
 				/* draw constraint colors */
-				if (set_pchan_gpuCurrentColor(PCHAN_COLOR_CONSTS, boneflag, constflag)) {	
+				if (set_pchan_gpuCurrentColor(PCHAN_COLOR_CONSTS, boneflag, constflag)) {
 					glEnable(GL_BLEND);
 					
 					draw_bone_solid_octahedral();
@@ -1329,10 +1329,10 @@ static void draw_bone(const short dt, int armflag, int boneflag, short constflag
 				/* restore colors */
 				set_pchan_gpuCurrentColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
 			}
-		}		
+		}
 		draw_bone_octahedral();
 	}
-	else {	
+	else {
 		/* solid */
 		if (armflag & ARM_POSEMODE)
 			set_pchan_gpuCurrentColor(PCHAN_COLOR_SOLID, boneflag, constflag);
@@ -1727,7 +1727,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 					
 					if (use_custom && pchan->custom_tx) {
 						gpuMultMatrix(pchan->custom_tx->pose_mat);
-					} 
+					}
 					else {
 						gpuMultMatrix(pchan->pose_mat);
 					}
@@ -1789,7 +1789,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 		 */
 		if (ELEM(arm->drawtype, ARM_LINE, ARM_WIRE) == 0 && (draw_wire == 0)) {
 			/* object tag, for bordersel optim */
-			glLoadName(index & 0xFFFF);	
+			glLoadName(index & 0xFFFF);
 			index = -1;
 		}
 	}
@@ -1816,7 +1816,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 							
 							if (pchan->custom_tx) {
 								gpuMultMatrix(pchan->custom_tx->pose_mat);
-							} 
+							}
 							else {
 								gpuMultMatrix(pchan->pose_mat);
 							}
@@ -1855,7 +1855,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 		/* stick or wire bones have not been drawn yet so don't clear object selection in this case */
 		if (ELEM(arm->drawtype, ARM_LINE, ARM_WIRE) == 0 && draw_wire) {
 			/* object tag, for bordersel optim */
-			glLoadName(index & 0xFFFF);	
+			glLoadName(index & 0xFFFF);
 			index = -1;
 		}
 	}
@@ -1926,7 +1926,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 									glLoadName(index & 0xFFFF);
 									pchan_draw_IK_root_lines(pchan, !(do_dashed & 2));
 								}
-							}	
+							}
 						}
 					}
 					
@@ -1980,7 +1980,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 		/* restore things */
 		if (!ELEM(arm->drawtype, ARM_WIRE, ARM_LINE) && (dt > OB_WIRE) && (arm->flag & ARM_POSEMODE))
 			bglPolygonOffset(rv3d->dist, 0.0);
-	}	
+	}
 	
 	/* restore */
 	glDisable(GL_CULL_FACE);
@@ -2064,7 +2064,7 @@ static void get_matrix_editbone(EditBone *eBone, float bmat[][4])
 	float mat[3][3];
 	
 	/* Compose the parent transforms (i.e. their translations) */
-	sub_v3_v3v3(delta, eBone->tail, eBone->head);	
+	sub_v3_v3v3(delta, eBone->tail, eBone->head);
 	
 	eBone->length = (float)sqrt(delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2]);
 	
@@ -2215,9 +2215,16 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 	}
 	
 	/* restore */
-	if (index != -1) glLoadName(-1);
-	if (ELEM(arm->drawtype, ARM_LINE, ARM_WIRE)) ;
-	else if (dt > OB_WIRE) bglPolygonOffset(rv3d->dist, 0.0f);
+	if (index != -1) {
+		glLoadName(-1);
+	}
+
+	if (ELEM(arm->drawtype, ARM_LINE, ARM_WIRE)) {
+		/* pass */
+	}
+	else if (dt > OB_WIRE) {
+		bglPolygonOffset(rv3d->dist, 0.0f);
+	}
 	
 	/* finally names and axes */
 	if (arm->flag & (ARM_DRAWNAMES | ARM_DRAWAXES)) {
@@ -2240,7 +2247,7 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 							mid_v3_v3v3(vec, eBone->head, eBone->tail);
 							glRasterPos3fv(vec);
 							view3d_cached_text_draw_add(vec, eBone->name, 10, 0, col);
-						}					
+						}
 						/*	Draw additional axes */
 						if (arm->flag & ARM_DRAWAXES) {
 							gpuPushMatrix();
@@ -2628,7 +2635,7 @@ int draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 						}
 						draw_pose_paths(scene, v3d, ar, ob);
 					}
-				}	
+				}
 			}
 			draw_pose_bones(scene, v3d, ar, base, dt, ob_wire_col, (dflag & DRAW_CONSTCOLOR), is_outline);
 			arm->flag &= ~ARM_POSEMODE; 

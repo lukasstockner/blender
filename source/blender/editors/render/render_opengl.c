@@ -170,11 +170,13 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 		}
 	}
 	else if (view_context) {
+		ED_view3d_draw_offscreen_init(scene, v3d);
+
 		GPU_offscreen_bind(oglrender->ofs); /* bind */
 
 		/* render 3d view */
 		if (rv3d->persp == RV3D_CAMOB && v3d->camera) {
-			/*int is_ortho= scene->r.mode & R_ORTHO;*/
+			/*int is_ortho = scene->r.mode & R_ORTHO;*/
 			camera = v3d->camera;
 			RE_GetCameraWindow(oglrender->re, camera, scene->r.cfra, winmat);
 			
@@ -188,7 +190,7 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 			else perspective_m4(winmat, viewplane.xmin, viewplane.xmax, viewplane.ymin, viewplane.ymax, clipsta, clipend);
 		}
 
-		if ((scene->r.mode & R_OSA) == 0) { 
+		if ((scene->r.mode & R_OSA) == 0) {
 			ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, winmat, TRUE, FALSE);
 			GPU_offscreen_read_pixels(oglrender->ofs, GL_FLOAT, rr->rectf);
 		}
@@ -305,7 +307,7 @@ static int screen_opengl_render_init(bContext *C, wmOperator *op)
 	char err_out[256] = "unknown";
 
 	if (G.background) {
-		BKE_report(op->reports, RPT_ERROR, "Can't use OpenGL render in background mode (no opengl context)");
+		BKE_report(op->reports, RPT_ERROR, "Cannot use OpenGL render in background mode (no opengl context)");
 		return 0;
 	}
 
@@ -326,12 +328,12 @@ static int screen_opengl_render_init(bContext *C, wmOperator *op)
 	}
 
 	if (!is_animation && is_write_still && BKE_imtype_is_movie(scene->r.im_format.imtype)) {
-		BKE_report(op->reports, RPT_ERROR, "Can't write a single file with an animation format selected");
+		BKE_report(op->reports, RPT_ERROR, "Cannot write a single file with an animation format selected");
 		return 0;
 	}
 
-	/* stop all running jobs, currently previews frustrate Render */
-	WM_jobs_stop_all(CTX_wm_manager(C));
+	/* stop all running jobs, except screen one. currently previews frustrate Render */
+	WM_jobs_kill_all_except(CTX_wm_manager(C), CTX_wm_screen(C));
 
 	/* create offscreen buffer */
 	sizex = (scene->r.size * scene->r.xsch) / 100;
@@ -341,7 +343,7 @@ static int screen_opengl_render_init(bContext *C, wmOperator *op)
 	ofs = GPU_offscreen_create(sizex, sizey, err_out);
 
 	if (!ofs) {
-		BKE_reportf(op->reports, RPT_ERROR, "Failed to create OpenGL offscreen buffer, %s", err_out);
+		BKE_reportf(op->reports, RPT_ERROR, "Failed to create OpenGL off-screen buffer, %s", err_out);
 		return 0;
 	}
 
@@ -715,7 +717,7 @@ static int screen_opengl_render_exec(bContext *C, wmOperator *op)
 		}
 	}
 
-	// no redraw needed, we leave state as we entered it
+	/* no redraw needed, we leave state as we entered it */
 //	ED_update_for_newframe(C, 1);
 	WM_event_add_notifier(C, NC_SCENE | ND_RENDER_RESULT, CTX_data_scene(C));
 

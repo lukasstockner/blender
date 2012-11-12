@@ -265,7 +265,7 @@ static void edgering_sel(RingSelOpData *lcd, int previewlines, int select)
 		lasteed = eed;
 	}
 	
-	if (lasteed != startedge && BM_edge_share_face_count(lasteed, startedge)) {
+	if (lasteed != startedge && BM_edge_share_face_check(lasteed, startedge)) {
 		v[1][0] = v[0][0];
 		v[1][1] = v[0][1];
 
@@ -420,10 +420,10 @@ static int ringcut_invoke(bContext *C, wmOperator *op, wmEvent *evt)
 	Object *obedit = CTX_data_edit_object(C);
 	RingSelOpData *lcd;
 	BMEdge *edge;
-	int dist = 75;
+	float dist = 75.0f;
 
 	if (modifiers_isDeformedByLattice(obedit) || modifiers_isDeformedByArmature(obedit))
-		BKE_report(op->reports, RPT_WARNING, "Loop cut doesn't work well on deformed edit mesh display");
+		BKE_report(op->reports, RPT_WARNING, "Loop cut does not work well on deformed edit mesh display");
 	
 	view3d_operator_needs_opengl(C);
 
@@ -509,7 +509,7 @@ static int loopcut_modal(bContext *C, wmOperator *op, wmEvent *event)
 			if (event->val == KM_RELEASE)
 				break;
 
-			cuts = MAX2(cuts - 1, 0);
+			cuts = max_ii(cuts - 1, 0);
 			RNA_int_set(op->ptr, "number_cuts", cuts);
 			ringsel_find_edge(lcd, cuts);
 			show_cuts = TRUE;
@@ -517,7 +517,7 @@ static int loopcut_modal(bContext *C, wmOperator *op, wmEvent *event)
 			ED_region_tag_redraw(lcd->ar);
 			break;
 		case MOUSEMOVE: { /* mouse moved somewhere to select another loop */
-			int dist = 75;
+			float dist = 75.0f;
 			BMEdge *edge;
 
 			lcd->vc.mval[0] = event->mval[0];
@@ -531,7 +531,7 @@ static int loopcut_modal(bContext *C, wmOperator *op, wmEvent *event)
 
 			ED_region_tag_redraw(lcd->ar);
 			break;
-		}			
+		}
 	}
 	
 	/* using the keyboard to input the number of cuts */

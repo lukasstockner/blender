@@ -106,7 +106,7 @@ int			WM_homefile_read_exec(struct bContext *C, struct wmOperator *op);
 int			WM_homefile_read(struct bContext *C, struct ReportList *reports, short from_memory);
 int			WM_homefile_write_exec(struct bContext *C, struct wmOperator *op);
 void		WM_file_read(struct bContext *C, const char *filepath, struct ReportList *reports);
-int			WM_file_write(struct bContext *C, const char *target, int fileflags, struct ReportList *reports, int copy);
+int			WM_file_write(struct bContext *C, const char *target, int fileflags, struct ReportList *reports);
 void		WM_autosave_init(struct wmWindowManager *wm);
 
 			/* mouse cursors */
@@ -214,6 +214,7 @@ int			WM_operator_call_py(struct bContext *C, struct wmOperatorType *ot, short c
 
 void		WM_operator_properties_alloc(struct PointerRNA **ptr, struct IDProperty **properties, const char *opstring); /* used for keymap and macro items */
 void		WM_operator_properties_sanitize(struct PointerRNA *ptr, const short no_context); /* make props context sensitive or not */
+int         WM_operator_properties_default(struct PointerRNA *ptr, const int do_update);
 void        WM_operator_properties_reset(struct wmOperator *op);
 void		WM_operator_properties_create(struct PointerRNA *ptr, const char *opstring);
 void		WM_operator_properties_create_ptr(struct PointerRNA *ptr, struct wmOperatorType *ot);
@@ -320,9 +321,9 @@ enum {
 	WM_JOB_SUSPEND      = (1 << 3)
 };
 
-/* identifying jobs by owner alone is unreliable, this isnt saved, order can change */
+/* identifying jobs by owner alone is unreliable, this isnt saved, order can change (keep 0 for 'any') */
 enum {
-	WM_JOB_TYPE_ANY = -1,
+	WM_JOB_TYPE_ANY = 0,
 	WM_JOB_TYPE_COMPOSITE,
 	WM_JOB_TYPE_RENDER,
 	WM_JOB_TYPE_RENDER_PREVIEW,  /* UI preview */
@@ -358,8 +359,9 @@ void        WM_jobs_callbacks(struct wmJob *,
 void		WM_jobs_start(struct wmWindowManager *wm, struct wmJob *);
 void		WM_jobs_stop(struct wmWindowManager *wm, void *owner, void *startjob);
 void		WM_jobs_kill(struct wmWindowManager *wm, void *owner, void (*)(void *, short int *, short int *, float *));
-void		WM_jobs_stop_all(struct wmWindowManager *wm);
-
+void		WM_jobs_kill_all(struct wmWindowManager *wm);
+	void		WM_jobs_kill_all_except(struct wmWindowManager *wm, void *owner);
+	
 int			WM_jobs_has_running(struct wmWindowManager *wm);
 
 			/* clipboard */

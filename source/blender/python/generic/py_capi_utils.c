@@ -504,7 +504,7 @@ void PyC_SetHomePath(const char *py_path_bundle)
 	 * but current Python lib (release 3.1.1) doesn't handle these correctly */
 	if (strchr(py_path_bundle, ':'))
 		printf("Warning : Blender application is located in a path containing : or / chars\
-			   \nThis may make python import function fail\n");
+		       \nThis may make python import function fail\n");
 #endif
 
 
@@ -542,7 +542,7 @@ void PyC_RunQuicky(const char *filepath, int n, ...)
 	if (fp) {
 		PyGILState_STATE gilstate = PyGILState_Ensure();
 
-		va_list vargs;	
+		va_list vargs;
 
 		int *sizes = PyMem_MALLOC(sizeof(int) * (n / 2));
 		int i;

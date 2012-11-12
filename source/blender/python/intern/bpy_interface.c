@@ -69,7 +69,7 @@
 
 #include "BPY_extern.h"
 
-#include "../generic/bpy_internal_import.h" // our own imports
+#include "../generic/bpy_internal_import.h"  /* our own imports */
 #include "../generic/py_capi_utils.h"
 
 /* inittab initialization functions */
@@ -180,10 +180,10 @@ void BPY_text_free_code(Text *text)
 
 void BPY_modules_update(bContext *C)
 {
-#if 0 // slow, this runs all the time poll, draw etc 100's of time a sec.
+#if 0  /* slow, this runs all the time poll, draw etc 100's of time a sec. */
 	PyObject *mod = PyImport_ImportModuleLevel("bpy", NULL, NULL, NULL, 0);
 	PyModule_AddObject(mod, "data", BPY_rna_module());
-	PyModule_AddObject(mod, "types", BPY_rna_types()); // atm this does not need updating
+	PyModule_AddObject(mod, "types", BPY_rna_types());  /* atm this does not need updating */
 #endif
 
 	/* refreshes the main struct */
@@ -268,7 +268,7 @@ void BPY_python_start(int argc, const char **argv)
 
 	Py_Initialize();
 
-	// PySys_SetArgv(argc, argv); // broken in py3, not a huge deal
+	// PySys_SetArgv(argc, argv);  /* broken in py3, not a huge deal */
 	/* sigh, why do python guys not have a (char **) version anymore? */
 	{
 		int i;
@@ -509,6 +509,18 @@ void BPY_DECREF(void *pyob_ptr)
 	Py_DECREF((PyObject *)pyob_ptr);
 	PyGILState_Release(gilstate);
 }
+
+void BPY_DECREF_RNA_INVALIDATE(void *pyob_ptr)
+{
+	PyGILState_STATE gilstate = PyGILState_Ensure();
+	const int do_invalidate = (Py_REFCNT((PyObject *)pyob_ptr) > 1);
+	Py_DECREF((PyObject *)pyob_ptr);
+	if (do_invalidate) {
+		pyrna_invalidate(pyob_ptr);
+	}
+	PyGILState_Release(gilstate);
+}
+
 
 /* return -1 on error, else 0 */
 int BPY_button_exec(bContext *C, const char *expr, double *value, const short verbose)

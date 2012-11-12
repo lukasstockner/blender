@@ -28,7 +28,7 @@
 
 #include <Cocoa/Cocoa.h>
 
-#ifndef MAC_OS_X_VERSION_10_6
+#if MAC_OS_X_VERSION_MIN_REQUIRED <= MAC_OS_X_VERSION_10_5
 //Use of the SetSystemUIMode function (64bit compatible)
 #include <Carbon/Carbon.h>
 #endif
@@ -58,7 +58,7 @@ extern "C" {
 	extern void wm_draw_update(bContext *C);
 };*/
 @interface CocoaWindowDelegate : NSObject
-#ifdef MAC_OS_X_VERSION_10_6
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
 <NSWindowDelegate>
 #endif
 {
@@ -115,12 +115,12 @@ extern "C" {
 
 - (void)windowDidResize:(NSNotification *)notification
 {
-#ifdef MAC_OS_X_VERSION_10_6
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
 	//if (![[notification object] inLiveResize]) {
 		//Send event only once, at end of resize operation (when user has released mouse button)
 #endif
 		systemCocoa->handleWindowEvent(GHOST_kEventWindowSize, associatedWindow);
-#ifdef MAC_OS_X_VERSION_10_6
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
 	//}
 #endif
 	/* Live resize ugly patch. Needed because live resize runs in a modal loop, not letting main loop run
@@ -187,7 +187,7 @@ extern "C" {
 	NSPoint mouseLocation = [sender draggingLocation];
 	
 	systemCocoa->handleDraggingEvent(GHOST_kEventDraggingUpdated, m_draggedObjectType, associatedWindow, mouseLocation.x, mouseLocation.y, nil);
-	return associatedWindow->canAcceptDragOperation()?NSDragOperationCopy:NSDragOperationNone;
+	return associatedWindow->canAcceptDragOperation() ? NSDragOperationCopy : NSDragOperationNone;
 }
 
 - (void)draggingExited:(id < NSDraggingInfo >)sender
@@ -368,7 +368,7 @@ extern "C" {
 
 - (BOOL)hasMarkedText
 {
-	return (composing)? YES: NO;
+	return (composing) ? YES : NO;
 }
 
 - (void)doCommandBySelector:(SEL)selector
@@ -392,7 +392,7 @@ extern "C" {
 
 - (NSRange)markedRange
 {
-	unsigned int length = (composing_text)? [composing_text length]: 0;
+	unsigned int length = (composing_text) ? [composing_text length] : 0;
 
 	if (composing)
 		return NSMakeRange(0, length);
@@ -402,7 +402,7 @@ extern "C" {
 
 - (NSRange)selectedRange
 {
-	unsigned int length = (composing_text)? [composing_text length]: 0;
+	unsigned int length = (composing_text) ? [composing_text length] : 0;
 	return NSMakeRange(0, length);
 }
 
@@ -637,7 +637,7 @@ void* GHOST_WindowCocoa::getOSWindow() const
 
 void GHOST_WindowCocoa::setTitle(const STR_String& title)
 {
-	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::setTitle(): window invalid")
+	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::setTitle(): window invalid");
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
 	NSString *windowTitle = [[NSString alloc] initWithCString:title encoding:NSUTF8StringEncoding];
@@ -684,7 +684,7 @@ void GHOST_WindowCocoa::setTitle(const STR_String& title)
 
 void GHOST_WindowCocoa::getTitle(STR_String& title) const
 {
-	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::getTitle(): window invalid")
+	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::getTitle(): window invalid");
 
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
@@ -701,7 +701,7 @@ void GHOST_WindowCocoa::getTitle(STR_String& title) const
 void GHOST_WindowCocoa::getWindowBounds(GHOST_Rect& bounds) const
 {
 	NSRect rect;
-	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::getWindowBounds(): window invalid")
+	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::getWindowBounds(): window invalid");
 
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	
@@ -721,7 +721,7 @@ void GHOST_WindowCocoa::getWindowBounds(GHOST_Rect& bounds) const
 void GHOST_WindowCocoa::getClientBounds(GHOST_Rect& bounds) const
 {
 	NSRect rect;
-	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::getClientBounds(): window invalid")
+	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::getClientBounds(): window invalid");
 	
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	
@@ -753,7 +753,7 @@ void GHOST_WindowCocoa::getClientBounds(GHOST_Rect& bounds) const
 
 GHOST_TSuccess GHOST_WindowCocoa::setClientWidth(GHOST_TUns32 width)
 {
-	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::setClientWidth(): window invalid")
+	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::setClientWidth(): window invalid");
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	GHOST_Rect cBnds, wBnds;
 	getClientBounds(cBnds);
@@ -770,7 +770,7 @@ GHOST_TSuccess GHOST_WindowCocoa::setClientWidth(GHOST_TUns32 width)
 
 GHOST_TSuccess GHOST_WindowCocoa::setClientHeight(GHOST_TUns32 height)
 {
-	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::setClientHeight(): window invalid")
+	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::setClientHeight(): window invalid");
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	GHOST_Rect cBnds, wBnds;
 	getClientBounds(cBnds);
@@ -787,7 +787,7 @@ GHOST_TSuccess GHOST_WindowCocoa::setClientHeight(GHOST_TUns32 height)
 
 GHOST_TSuccess GHOST_WindowCocoa::setClientSize(GHOST_TUns32 width, GHOST_TUns32 height)
 {
-	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::setClientSize(): window invalid")
+	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::setClientSize(): window invalid");
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	GHOST_Rect cBnds, wBnds;
 	getClientBounds(cBnds);
@@ -806,7 +806,7 @@ GHOST_TSuccess GHOST_WindowCocoa::setClientSize(GHOST_TUns32 width, GHOST_TUns32
 
 GHOST_TWindowState GHOST_WindowCocoa::getState() const
 {
-	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::getState(): window invalid")
+	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::getState(): window invalid");
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	GHOST_TWindowState state;
 	if (m_fullScreen) {
@@ -828,7 +828,7 @@ GHOST_TWindowState GHOST_WindowCocoa::getState() const
 
 void GHOST_WindowCocoa::screenToClient(GHOST_TInt32 inX, GHOST_TInt32 inY, GHOST_TInt32& outX, GHOST_TInt32& outY) const
 {
-	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::screenToClient(): window invalid")
+	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::screenToClient(): window invalid");
 
 	screenToClientIntern(inX, inY, outX, outY);
 
@@ -841,7 +841,7 @@ void GHOST_WindowCocoa::screenToClient(GHOST_TInt32 inX, GHOST_TInt32 inY, GHOST
 
 void GHOST_WindowCocoa::clientToScreen(GHOST_TInt32 inX, GHOST_TInt32 inY, GHOST_TInt32& outX, GHOST_TInt32& outY) const
 {
-	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::clientToScreen(): window invalid")
+	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::clientToScreen(): window invalid");
 
 	/* switch y to match ghost convention */
 	GHOST_Rect cBnds;
@@ -895,7 +895,7 @@ NSScreen* GHOST_WindowCocoa::getScreen()
  */
 GHOST_TSuccess GHOST_WindowCocoa::setState(GHOST_TWindowState state)
 {
-	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::setState(): window invalid")
+	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::setState(): window invalid");
 	switch (state) {
 		case GHOST_kWindowStateMinimized:
 			[m_window miniaturize:nil];
@@ -913,7 +913,7 @@ GHOST_TSuccess GHOST_WindowCocoa::setState(GHOST_TWindowState state)
 				 * doesn't know view/window difference. */
 				m_fullScreen = true;
 
-#ifdef MAC_OS_X_VERSION_10_6
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
 				//10.6 provides Cocoa functions to autoshow menu bar, and to change a window style
 				//Hide menu & dock if needed
 				if ([[m_window screen] isEqual:[[NSScreen screens] objectAtIndex:0]]) {
@@ -972,7 +972,7 @@ GHOST_TSuccess GHOST_WindowCocoa::setState(GHOST_TWindowState state)
 				m_fullScreen = false;
 
 				//Exit fullscreen
-#ifdef MAC_OS_X_VERSION_10_6
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
 				//Show again menu & dock if needed
 				if ([[m_window screen] isEqual:[NSScreen mainScreen]]) {
 					[NSApp setPresentationOptions:NSApplicationPresentationDefault];
@@ -1049,7 +1049,7 @@ GHOST_TSuccess GHOST_WindowCocoa::setOrder(GHOST_TWindowOrder order)
 {
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	
-	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::setOrder(): window invalid")
+	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::setOrder(): window invalid");
 	if (order == GHOST_kWindowOrderTop) {
 		[m_window makeKeyAndOrderFront:nil];
 	}
@@ -1199,7 +1199,7 @@ GHOST_TSuccess GHOST_WindowCocoa::removeDrawingContext()
 
 GHOST_TSuccess GHOST_WindowCocoa::invalidate()
 {
-	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::invalidate(): window invalid")
+	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::invalidate(): window invalid");
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	[m_openGLView setNeedsDisplay:YES];
 	[pool drain];

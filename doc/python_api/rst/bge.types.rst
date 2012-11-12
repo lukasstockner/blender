@@ -333,7 +333,8 @@ Types
 
    .. attribute:: useContinue
 
-      The actions continue option, True or False. When True, the action will always play from where last left off, otherwise negative events to this actuator will reset it to its start frame.
+      The actions continue option, True or False. When True, the action will always play from where last left off,
+      otherwise negative events to this actuator will reset it to its start frame.
 
       :type: boolean
 
@@ -879,7 +880,8 @@ Types
 
    .. note::
       
-      Calling ANY method or attribute on an object that has been removed from a scene will raise a SystemError, if an object may have been removed since last accessing it use the :data:`invalid` attribute to check.
+      Calling ANY method or attribute on an object that has been removed from a scene will raise a SystemError,
+      if an object may have been removed since last accessing it use the :data:`invalid` attribute to check.
 
    KX_GameObject can be subclassed to extend functionality. For example:
 
@@ -987,17 +989,23 @@ Types
 
       :type: :class:`KX_GameObject` or None
 	  
-   .. attribute:: members
+   .. attribute:: group_children
 
       Returns the list of group members if the object is a group object, otherwise None is returned.
 
       :type: :class:`CListValue` of :class:`KX_GameObject` or None
 
-   .. attribute:: group
+   .. attribute:: group_parent
 
       Returns the group object that the object belongs to or None if the object is not part of a group.
 
       :type: :class:`KX_GameObject` or None
+
+   .. attribute:: scene
+
+      The object's scene. (read-only).
+
+      :type: :class:`KX_Scene` or None
 
    .. attribute:: visible
 
@@ -1992,6 +2000,28 @@ Types
       :type index: integer
       :return: a polygon object.
       :rtype: :class:`PolyProxy`
+
+   .. method:: transform(matid, matrix)
+
+      Transforms the vertices of a mesh.
+
+      :arg matid: material index, -1 transforms all.
+      :type matid: integer
+      :arg matrix: transformation matrix.
+      :type matrix: 4x4 matrix [[float]]
+
+   .. method:: transform_uv(matid, matrix, uv_index=-1, uv_index_from=-1)
+
+      Transforms the vertices UV's of a mesh.
+
+      :arg matid: material index, -1 transforms all.
+      :type matid: integer
+      :arg matrix: transformation matrix.
+      :type matrix: 4x4 matrix [[float]]
+      :arg uv_index: optional uv index, -1 for all, otherwise 0 or 1.
+      :type uv_index: integer
+      :arg uv_index_from: optional uv index to copy from, -1 to transform the current uv.
+      :type uv_index_from: integer
 
 .. class:: SCA_MouseSensor(SCA_ISensor)
 
@@ -3149,6 +3179,12 @@ Types
 
       :type: list
 
+   .. attribute:: gravity
+
+      The scene gravity using the world x, y and z axis.
+
+      :type: list [fx, fy, fz]
+
    .. method:: addObject(object, other, time=0)
 
       Adds an object to the scene like the Add Object Actuator would.
@@ -3499,6 +3535,26 @@ Types
 
       :arg wheelIndex: the wheel index
       :type wheelIndex: integer
+
+.. class:: KX_CharacterWrapper(PyObjectPlus)
+
+   A wrapper to expose character physics options.
+
+   .. attribute:: onGround
+
+      Whether or not the character is on the ground. (read-only)
+
+	  :type: boolean
+
+   .. attribute:: gravity
+
+      The gravity value used for the character.
+
+      :type: float
+
+   .. method:: jump()
+
+      The character jumps based on it's jump speed.
 
 .. class:: KX_VertexProxy(SCA_IObject)
 
@@ -4608,7 +4664,9 @@ Types
    
    .. data:: KX_ACT_ARMATURE_RUN
 
-      Just make sure the armature will be updated on the next graphic frame. This is the only persistent mode of the actuator: it executes automatically once per frame until stopped by a controller
+      Just make sure the armature will be updated on the next graphic frame.
+      This is the only persistent mode of the actuator:
+      it executes automatically once per frame until stopped by a controller
       
       :value: 0
 

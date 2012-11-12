@@ -46,6 +46,7 @@
 
 #include "BKE_context.h"
 #include "BKE_screen.h"
+#include "BKE_global.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -215,7 +216,7 @@ static MenuData *decompose_menu_string(const char *str)
 				else {
 					menudata_add_item(md, nitem, nretval, nicon, 0);
 					nretval = md->nitems + 1;
-				} 
+				}
 				
 				nitem = NULL;
 				nicon = 0;
@@ -674,7 +675,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 
 	for (a = 0, fontw = 0, fonth = 0; a < data->totline; a++) {
 		w = BLF_width(data->fstyle.uifont_id, data->lines[a]);
-		fontw = MAX2(fontw, w);
+		fontw = max_ff(fontw, (float)w);
 		fonth += (a == 0) ? h : h + TIP_MARGIN_Y;
 	}
 
@@ -1163,7 +1164,7 @@ ARegion *ui_searchbox_create(bContext *C, ARegion *butregion, uiBut *but)
 	
 	/* special case, hardcoded feature, not draw backdrop when called from menus,
 	 * assume for design that popup already added it */
-	if (but->block->flag & UI_BLOCK_LOOP)
+	if (but->block->flag & UI_BLOCK_SEARCH_MENU)
 		data->noback = 1;
 	
 	if (but->a1 > 0 && but->a2 > 0) {
@@ -1173,7 +1174,7 @@ ARegion *ui_searchbox_create(bContext *C, ARegion *butregion, uiBut *but)
 	}
 	
 	/* compute position */
-	if (but->block->flag & UI_BLOCK_LOOP) {
+	if (but->block->flag & UI_BLOCK_SEARCH_MENU) {
 		/* this case is search menu inside other menu */
 		/* we copy region size */
 
@@ -1467,7 +1468,7 @@ static void ui_block_position(wmWindow *window, ARegion *butregion, uiBut *but, 
 		if (top == 0 && down == 0) {
 			if (dir1 == UI_LEFT || dir1 == UI_RIGHT) {
 				/* align with bottom of screen */
-				// yof= ysize; (not with menu scrolls)
+				// yof = ysize; (not with menu scrolls)
 			}
 		}
 		
@@ -1552,7 +1553,11 @@ static void ui_block_region_draw(const bContext *C, ARegion *ar)
 static void ui_popup_block_clip(wmWindow *window, uiBlock *block)
 {
 	int winx, winy;
-	
+
+	if (block->flag & UI_BLOCK_NO_WIN_CLIP) {
+		return;
+	}
+
 	wm_window_get_size(window, &winx, &winy);
 	
 	if (block->rect.xmin < MENU_SHADOW_SIDE)
@@ -1569,8 +1574,6 @@ static void ui_popup_block_clip(wmWindow *window, uiBlock *block)
 void ui_popup_block_scrolltest(uiBlock *block)
 {
 	uiBut *bt;
-	/* Knowing direction is necessary for multi-column menus... */
-	int is_flip = (block->direction & UI_TOP) && !(block->flag & UI_BLOCK_NO_FLIP);
 	
 	block->flag &= ~(UI_BLOCK_CLIPBOTTOM | UI_BLOCK_CLIPTOP);
 	
@@ -1580,29 +1583,27 @@ void ui_popup_block_scrolltest(uiBlock *block)
 	if (block->buttons.first == block->buttons.last)
 		return;
 	
-	/* mark buttons that are outside boundary and the ones next to it for arrow(s) */
+	/* mark buttons that are outside boundary */
 	for (bt = block->buttons.first; bt; bt = bt->next) {
 		if (bt->rect.ymin < block->rect.ymin) {
 			bt->flag |= UI_SCROLLED;
 			block->flag |= UI_BLOCK_CLIPBOTTOM;
-			/* make space for arrow */
-			if (bt->rect.ymax < block->rect.ymin + 10) {
-				if (is_flip && bt->next && bt->next->rect.ymin > bt->rect.ymin)
-					bt->next->flag |= UI_SCROLLED;
-				else if (!is_flip && bt->prev && bt->prev->rect.ymin > bt->rect.ymin)
-					bt->prev->flag |= UI_SCROLLED;
-			}
 		}
 		if (bt->rect.ymax > block->rect.ymax) {
 			bt->flag |= UI_SCROLLED;
 			block->flag |= UI_BLOCK_CLIPTOP;
-			/* make space for arrow */
-			if (bt->rect.ymin > block->rect.ymax - 10) {
-				if (!is_flip && bt->next && bt->next->rect.ymax < bt->rect.ymax)
-					bt->next->flag |= UI_SCROLLED;
-				else if (is_flip && bt->prev && bt->prev->rect.ymax < bt->rect.ymax)
-					bt->prev->flag |= UI_SCROLLED;
-			}
+		}
+	}
+
+	/* mark buttons overlapping arrows, if we have them */
+	for (bt = block->buttons.first; bt; bt = bt->next) {
+		if (block->flag & UI_BLOCK_CLIPBOTTOM) {
+			if (bt->rect.ymin < block->rect.ymin + UI_MENU_SCROLL_ARROW)
+				bt->flag |= UI_SCROLLED;
+		}
+		if (block->flag & UI_BLOCK_CLIPTOP) {
+			if (bt->rect.ymax > block->rect.ymax - UI_MENU_SCROLL_ARROW)
+				bt->flag |= UI_SCROLLED;
 		}
 	}
 }
@@ -1954,7 +1955,7 @@ static void ui_update_block_buts_rgb(uiBlock *block, const float rgb[3])
 			else if (bt->str[0] == 'V') {
 				ui_set_but_val(bt, hsv[2]);
 			}
-		}		
+		}
 
 		ui_check_but(bt);
 	}
@@ -2257,13 +2258,11 @@ uiBlock *ui_block_func_COLOR(bContext *C, uiPopupBlockHandle *handle, void *arg_
 		show_picker = (but->block->flag & UI_BLOCK_POPUP) == 0;
 	}
 	
-	uiBlockSetFlag(block, UI_BLOCK_MOVEMOUSE_QUIT);
-	
 	copy_v3_v3(handle->retvec, but->editvec);
 	
 	uiBlockPicker(block, handle->retvec, &but->rnapoin, but->rnaprop, show_picker);
 	
-	block->flag = UI_BLOCK_LOOP | UI_BLOCK_REDRAW | UI_BLOCK_KEEP_OPEN | UI_BLOCK_OUT_1;
+	block->flag = UI_BLOCK_LOOP | UI_BLOCK_REDRAW | UI_BLOCK_KEEP_OPEN | UI_BLOCK_OUT_1 | UI_BLOCK_MOVEMOUSE_QUIT;
 	uiBoundsBlock(block, 10);
 	
 	block->block_event_func = ui_picker_small_wheel_cb;
@@ -2381,7 +2380,7 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
 	uiBlockSetFlag(block, UI_BLOCK_MOVEMOUSE_QUIT);
 	
 	if (pup->popup) {
-		uiBlockSetFlag(block, UI_BLOCK_LOOP | UI_BLOCK_REDRAW | UI_BLOCK_NUMSELECT | UI_BLOCK_RET_1);
+		uiBlockSetFlag(block, UI_BLOCK_LOOP | UI_BLOCK_REDRAW | UI_BLOCK_NUMSELECT);
 		uiBlockSetDirection(block, direction);
 
 		/* offset the mouse position, possibly based on earlier selection */
@@ -2400,7 +2399,7 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
 			 * on the first item */
 			offset[0] = 0;
 			for (bt = block->buttons.first; bt; bt = bt->next)
-				offset[0] = mini(offset[0], -(bt->rect.xmin + 0.8f * BLI_rctf_size_x(&bt->rect)));
+				offset[0] = min_ii(offset[0], -(bt->rect.xmin + 0.8f * BLI_rctf_size_x(&bt->rect)));
 
 			offset[1] = 1.5 * UI_UNIT_Y;
 		}
@@ -2510,6 +2509,9 @@ uiPopupMenu *uiPupMenuBegin(bContext *C, const char *title, int icon)
 	pup->block->flag |= UI_BLOCK_POPUP_MEMORY;
 	pup->block->puphash = ui_popup_menu_hash(title);
 	pup->layout = uiBlockLayout(pup->block, UI_LAYOUT_VERTICAL, UI_LAYOUT_MENU, 0, 0, 200, 0, style);
+
+	/* note, this intentionally differs from the menu & submenu default because many operators
+	 * use popups like this to select one of their options - where having invoke doesn't make sense */
 	uiLayoutSetOperatorContext(pup->layout, WM_OP_EXEC_REGION_WIN);
 
 	/* create in advance so we can let buttons point to retval already */
@@ -2678,14 +2680,18 @@ void uiPupMenuReports(bContext *C, ReportList *reports)
 	ds = BLI_dynstr_new();
 
 	for (report = reports->list.first; report; report = report->next) {
-		if (report->type < reports->printlevel)
-			;  /* pass */
-		else if (report->type >= RPT_ERROR)
+		if (report->type < reports->printlevel) {
+			/* pass */
+		}
+		else if (report->type >= RPT_ERROR) {
 			BLI_dynstr_appendf(ds, "Error %%i%d%%t|%s", ICON_ERROR, report->message);
-		else if (report->type >= RPT_WARNING)
+		}
+		else if (report->type >= RPT_WARNING) {
 			BLI_dynstr_appendf(ds, "Warning %%i%d%%t|%s", ICON_ERROR, report->message);
-		else if (report->type >= RPT_INFO)
+		}
+		else if (report->type >= RPT_INFO) {
 			BLI_dynstr_appendf(ds, "Info %%i%d%%t|%s", ICON_INFO, report->message);
+		}
 	}
 
 	str = BLI_dynstr_get_cstring(ds);
@@ -2716,6 +2722,10 @@ void uiPupMenuInvoke(bContext *C, const char *idname)
 
 	menu.layout = layout;
 	menu.type = mt;
+
+	if (G.debug & G_DEBUG_WM) {
+		printf("%s: opening menu \"%s\"\n", __func__, idname);
+	}
 
 	mt->draw(C, &menu);
 

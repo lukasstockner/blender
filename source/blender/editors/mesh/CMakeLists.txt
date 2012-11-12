@@ -21,6 +21,7 @@
 set(INC
 	../include
 	../uvedit
+	../../blenfont
 	../../blenkernel
 	../../blenlib
 	../../blenloader
@@ -67,6 +68,14 @@ if(WITH_GAMEENGINE)
 	list(APPEND SRC
 		mesh_navmesh.c
 	)
+endif()
+
+if(WITH_INTERNATIONAL)
+	add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
+if(WITH_BULLET)
+	add_definitions(-DWITH_BULLET)
 endif()
 
 add_definitions(-DGLEW_STATIC)

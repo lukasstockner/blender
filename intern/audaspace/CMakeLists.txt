@@ -28,6 +28,7 @@ set(INC
 
 set(INC_SYS
 	${PTHREADS_INCLUDE_DIRS}
+	${BOOST_INCLUDE_DIR}
 )
 
 set(SRC
@@ -94,6 +95,7 @@ set(SRC
 	intern/AUD_IDevice.h
 	intern/AUD_IFactory.h
 	intern/AUD_IHandle.h
+	intern/AUD_ILockable.h
 	intern/AUD_IReader.h
 	intern/AUD_IWriter.h
 	intern/AUD_JOSResampleFactory.cpp
@@ -108,16 +110,17 @@ set(SRC
 	intern/AUD_Mixer.h
 	intern/AUD_MixerFactory.cpp
 	intern/AUD_MixerFactory.h
+	intern/AUD_MutexLock.h
 	intern/AUD_NULLDevice.cpp
 	intern/AUD_NULLDevice.h
 	intern/AUD_PyInit.h
 	intern/AUD_ReadDevice.cpp
 	intern/AUD_ReadDevice.h
-	intern/AUD_Reference.h
-	intern/AUD_ReferenceHandler.cpp
 	intern/AUD_ResampleFactory.h
 	intern/AUD_ResampleReader.cpp
 	intern/AUD_ResampleReader.h
+	intern/AUD_Sequencer.cpp
+	intern/AUD_Sequencer.h
 	intern/AUD_SequencerEntry.cpp
 	intern/AUD_SequencerEntry.h
 	intern/AUD_SequencerFactory.cpp
@@ -148,6 +151,7 @@ set(SRC
 	FX/AUD_DelayReader.h
 	FX/AUD_DoubleFactory.h
 	FX/AUD_DoubleReader.h
+	FX/AUD_IDynamicIIRFilterCalculator.h
 	FX/AUD_DynamicIIRFilterFactory.h
 	FX/AUD_DynamicIIRFilterReader.h
 	FX/AUD_EffectFactory.h

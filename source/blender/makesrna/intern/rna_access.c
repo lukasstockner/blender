@@ -996,7 +996,7 @@ void RNA_property_float_range(PointerRNA *ptr, PropertyRNA *prop, float *hardmin
 			IDProperty *item;
 
 			item = IDP_GetPropertyTypeFromGroup(idp_ui, "min", IDP_DOUBLE);
-			*hardmin = item ? (float)IDP_Double(item) : FLT_MIN;
+			*hardmin = item ? (float)IDP_Double(item) : -FLT_MAX;
 
 			item = IDP_GetPropertyTypeFromGroup(idp_ui, "max", IDP_DOUBLE);
 			*hardmax = item ? (float)IDP_Double(item) : FLT_MAX;
@@ -3169,7 +3169,7 @@ static int rna_raw_access(ReportList *reports, PointerRNA *ptr, PropertyRNA *pro
 						itemtype = RNA_property_type(iprop);
 					}
 					else {
-						BKE_reportf(reports, RPT_ERROR, "Property named %s not found", propname);
+						BKE_reportf(reports, RPT_ERROR, "Property named '%s' not found", propname);
 						err = 1;
 						break;
 					}
@@ -3606,7 +3606,7 @@ static char *rna_path_token(const char **path, char *fixedbuf, int fixedlen, int
 	/* copy string, taking into account escaped ] */
 	if (bracket) {
 		for (p = *path, i = 0, j = 0; i < len; i++, p++) {
-			if (*p == '\\' && *(p + 1) == quote) ;
+			if (*p == '\\' && *(p + 1) == quote) {}
 			else buf[j++] = *p;
 		}
 
@@ -3647,7 +3647,8 @@ int RNA_path_resolve(PointerRNA *ptr, const char *path, PointerRNA *r_ptr, Prope
 int RNA_path_resolve_full(PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop, int *index)
 {
 	PropertyRNA *prop;
-	PointerRNA curptr, nextptr;
+	PointerRNA curptr;
+	PointerRNA nextptr;  /* keep uninitialized, helps expose bugs in collection accessor functions */
 	char fixedbuf[256], *token;
 	int type, intkey;
 
@@ -3713,7 +3714,12 @@ int RNA_path_resolve_full(PointerRNA *ptr, const char *path, PointerRNA *r_ptr, 
 
 						/* check for "" to see if it is a string */
 						if (rna_token_strip_quotes(token)) {
-							RNA_property_collection_lookup_string(&curptr, prop, token + 1, &nextptr);
+							if (RNA_property_collection_lookup_string(&curptr, prop, token + 1, &nextptr)) {
+								/* pass */
+							}
+							else {
+								nextptr.data = NULL;
+							}
 						}
 						else {
 							/* otherwise do int lookup */
@@ -3721,7 +3727,12 @@ int RNA_path_resolve_full(PointerRNA *ptr, const char *path, PointerRNA *r_ptr, 
 							if (intkey == 0 && (token[0] != '0' || token[1] != '\0')) {
 								return 0; /* we can be sure the fixedbuf was used in this case */
 							}
-							RNA_property_collection_lookup_int(&curptr, prop, intkey, &nextptr);
+							if (RNA_property_collection_lookup_int(&curptr, prop, intkey, &nextptr)) {
+								/* pass */
+							}
+							else {
+								nextptr.data = NULL;
+							}
 						}
 
 						if (token != fixedbuf) {
@@ -3730,12 +3741,13 @@ int RNA_path_resolve_full(PointerRNA *ptr, const char *path, PointerRNA *r_ptr, 
 					}
 					else {
 						PointerRNA c_ptr;
-
-						/* ensure we quit on invalid values */
-						nextptr.data = NULL;
 	
 						if (RNA_property_collection_type_get(&curptr, prop, &c_ptr)) {
 							nextptr = c_ptr;
+						}
+						else {
+							/* ensure we quit on invalid values */
+							nextptr.data = NULL;
 						}
 					}
 					
@@ -3999,12 +4011,15 @@ static char *rna_idp_path(PointerRNA *ptr, IDProperty *haystack, IDProperty *nee
 	BLI_assert(haystack->type == IDP_GROUP);
 
 	link.up = parent_link;
+	/* always set both name and index,
+	 * else a stale value might get used */
 	link.name = NULL;
 	link.index = -1;
 
 	for (i = 0, iter = haystack->data.group.first; iter; iter = iter->next, i++) {
 		if (needle == iter) {  /* found! */
 			link.name = iter->name;
+			link.index = -1;
 			path = rna_idp_path_create(&link);
 			break;
 		}
@@ -4014,6 +4029,7 @@ static char *rna_idp_path(PointerRNA *ptr, IDProperty *haystack, IDProperty *nee
 				PointerRNA child_ptr = RNA_pointer_get(ptr, iter->name);
 				if (child_ptr.type) {
 					link.name = iter->name;
+					link.index = -1;
 					if ((path = rna_idp_path(&child_ptr, iter, needle, &link))) {
 						break;
 					}
@@ -4512,6 +4528,17 @@ int RNA_collection_length(PointerRNA *ptr, const char *name)
 	}
 }
 
+int RNA_property_is_set_ex(PointerRNA *ptr, PropertyRNA *prop, int use_ghost)
+{
+	if (prop->flag & PROP_IDPROPERTY) {
+		IDProperty *idprop = rna_idproperty_find(ptr, prop->identifier);
+		return ((idprop != NULL) && (use_ghost == FALSE || !(idprop->flag & IDP_FLAG_GHOST)));
+	}
+	else {
+		return 1;
+	}
+}
+
 int RNA_property_is_set(PointerRNA *ptr, PropertyRNA *prop)
 {
 	if (prop->flag & PROP_IDPROPERTY) {
@@ -4520,6 +4547,20 @@ int RNA_property_is_set(PointerRNA *ptr, PropertyRNA *prop)
 	}
 	else {
 		return 1;
+	}
+}
+
+int RNA_struct_property_is_set_ex(PointerRNA *ptr, const char *identifier, int use_ghost)
+{
+	PropertyRNA *prop = RNA_struct_find_property(ptr, identifier);
+
+	if (prop) {
+		return RNA_property_is_set_ex(ptr, prop, use_ghost);
+	}
+	else {
+		/* python raises an error */
+		/* printf("%s: %s.%s not found.\n", __func__, ptr->type->identifier, name); */
+		return 0;
 	}
 }
 
@@ -5219,7 +5260,7 @@ static int rna_function_format_array_length(const char *format, int ofs, int fle
 			lenbuf[idx] = format[ofs];
 
 	if (ofs < flen && format[ofs + 1] == ']') {
-		/* XXX put better error reporting for ofs>=flen or idx over lenbuf capacity */
+		/* XXX put better error reporting for (ofs >= flen) or idx over lenbuf capacity */
 		lenbuf[idx] = '\0';
 		return atoi(lenbuf);
 	}

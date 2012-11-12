@@ -41,6 +41,7 @@
 #include "BLI_string.h"
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
+#include "BLI_math.h"
 
 #include "BLF_translation.h"
 
@@ -1313,7 +1314,7 @@ static void rna_search_cb(const struct bContext *C, void *arg_but, const char *s
 				BLI_addtail(items_list, cis);
 			}
 			MEM_freeN(name);
-		}			
+		}
 
 		i++;
 	}
@@ -1376,7 +1377,7 @@ void ui_but_add_search(uiBut *but, PointerRNA *ptr, PropertyRNA *prop, PointerRN
 	/* turn button into search button */
 	if (searchprop) {
 		but->type = SEARCH_MENU;
-		but->hardmax = MAX2(but->hardmax, 256);
+		but->hardmax = MAX2(but->hardmax, 256.0f);
 		but->rnasearchpoin = *searchptr;
 		but->rnasearchprop = searchprop;
 		but->flag |= UI_ICON_LEFT | UI_TEXT_LEFT;
@@ -1449,6 +1450,11 @@ static void ui_item_menutype_func(bContext *C, uiLayout *layout, void *arg_mt)
 
 	menu.type = mt;
 	menu.layout = layout;
+
+	if (G.debug & G_DEBUG_WM) {
+		printf("%s: opening menu \"%s\"\n", __func__, mt->idname);
+	}
+
 	mt->draw(C, &menu);
 }
 
@@ -1708,7 +1714,7 @@ static void ui_litem_layout_row(uiLayout *litem)
 	int x, y, w, tot, totw, neww, itemw, minw, itemh, offset;
 	int fixedw, freew, fixedx, freex, flag = 0, lastw = 0;
 
-	/* x= litem->x; */ /* UNUSED */
+	/* x = litem->x; */ /* UNUSED */
 	y = litem->y;
 	w = litem->w;
 	totw = 0;
@@ -1774,7 +1780,7 @@ static void ui_litem_layout_row(uiLayout *litem)
 
 		if (item->flag) {
 			/* fixed minimum size items */
-			itemw = ui_item_fit(minw, fixedx, fixedw, MIN2(w, fixedw), !item->next, litem->alignment, NULL);
+			itemw = ui_item_fit(minw, fixedx, fixedw, min_ii(w, fixedw), !item->next, litem->alignment, NULL);
 			fixedx += itemw;
 		}
 		else {
@@ -1932,8 +1938,8 @@ static void ui_litem_estimate_column_flow(uiLayout *litem)
 			return;
 		}
 
-		flow->totcol = MAX2(litem->root->emw / maxw, 1);
-		flow->totcol = MIN2(flow->totcol, totitem);
+		flow->totcol = max_ii(litem->root->emw / maxw, 1);
+		flow->totcol = min_ii(flow->totcol, totitem);
 	}
 	else
 		flow->totcol = flow->number;
@@ -1953,9 +1959,9 @@ static void ui_litem_estimate_column_flow(uiLayout *litem)
 		ui_item_size(item, &itemw, &itemh);
 
 		y -= itemh + style->buttonspacey;
-		miny = MIN2(miny, y);
+		miny = min_ii(miny, y);
 		emy -= itemh;
-		maxw = MAX2(itemw, maxw);
+		maxw = max_ii(itemw, maxw);
 
 		/* decide to go to next one */
 		if (col < flow->totcol - 1 && emy <= -emh) {
@@ -2007,7 +2013,7 @@ static void ui_litem_layout_column_flow(uiLayout *litem)
 		emy -= itemh;
 		ui_item_position(item, x + offset, y, itemw, itemh);
 		y -= style->buttonspacey;
-		miny = MIN2(miny, y);
+		miny = min_ii(miny, y);
 
 		/* decide to go to next one */
 		if (col < flow->totcol - 1 && emy <= -emh) {
@@ -2038,8 +2044,8 @@ static void ui_litem_estimate_absolute(uiLayout *litem)
 		ui_item_offset(item, &itemx, &itemy);
 		ui_item_size(item, &itemw, &itemh);
 
-		minx = MIN2(minx, itemx);
-		miny = MIN2(miny, itemy);
+		minx = min_ii(minx, itemx);
+		miny = min_ii(miny, itemy);
 
 		litem->w = MAX2(litem->w, itemx + itemw);
 		litem->h = MAX2(litem->h, itemy + itemh);
@@ -2064,11 +2070,11 @@ static void ui_litem_layout_absolute(uiLayout *litem)
 		ui_item_offset(item, &itemx, &itemy);
 		ui_item_size(item, &itemw, &itemh);
 
-		minx = MIN2(minx, itemx);
-		miny = MIN2(miny, itemy);
+		minx = min_ii(minx, itemx);
+		miny = min_ii(miny, itemy);
 
-		totw = MAX2(totw, itemx + itemw);
-		toth = MAX2(toth, itemy + itemh);
+		totw = max_ii(totw, itemx + itemw);
+		toth = max_ii(toth, itemy + itemh);
 	}
 
 	totw -= minx;
@@ -2516,8 +2522,12 @@ static void ui_item_align(uiLayout *litem, short nr)
 				if (!bitem->but->alignnr)
 					bitem->but->alignnr = nr;
 		}
-		else if (item->type == ITEM_LAYOUT_ABSOLUTE) ;
-		else if (item->type == ITEM_LAYOUT_OVERLAP) ;
+		else if (item->type == ITEM_LAYOUT_ABSOLUTE) {
+			/* pass */
+		}
+		else if (item->type == ITEM_LAYOUT_OVERLAP) {
+			/* pass */
+		}
 		else if (item->type == ITEM_LAYOUT_BOX) {
 			box = (uiLayoutItemBx *)item;
 			box->roundbox->alignnr = nr;

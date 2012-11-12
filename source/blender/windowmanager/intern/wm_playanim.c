@@ -91,6 +91,8 @@ typedef struct PlayState {
 	short stopped;
 	short go;
 
+	int fstep;
+
 	/* current picture */
 	struct PlayAnimPict *picture;
 
@@ -215,7 +217,6 @@ typedef struct PlayAnimPict {
 
 static struct ListBase picsbase = {NULL, NULL};
 static int fromdisk = FALSE;
-static int fstep = 1;
 static float zoomx = 1.0, zoomy = 1.0;
 static double ptottime = 0.0, swaptime = 0.04;
 
@@ -231,7 +232,7 @@ static int pupdate_time(void)
 	return (ptottime < 0);
 }
 
-static void playanim_toscreen(PlayAnimPict *picture, struct ImBuf *ibuf, int fontid)
+static void playanim_toscreen(PlayAnimPict *picture, struct ImBuf *ibuf, int fontid, int fstep)
 {
 
 	if (ibuf == NULL) {
@@ -289,7 +290,7 @@ static void build_pict_list(char *first, int totframes, int fstep, int fontid)
 			int pic;
 			ibuf = IMB_anim_absolute(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
 			if (ibuf) {
-				playanim_toscreen(NULL, ibuf, fontid);
+				playanim_toscreen(NULL, ibuf, fontid, fstep);
 				IMB_freeImBuf(ibuf);
 			}
 
@@ -392,7 +393,7 @@ static void build_pict_list(char *first, int totframes, int fstep, int fontid)
 					ibuf = IMB_loadiffname(picture->name, picture->IB_flags, NULL);
 				}
 				if (ibuf) {
-					playanim_toscreen(picture, ibuf, fontid);
+					playanim_toscreen(picture, ibuf, fontid, fstep);
 					IMB_freeImBuf(ibuf);
 				}
 				pupdate_time();
@@ -448,34 +449,34 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 					if (val) ps->pingpong = !ps->pingpong;
 					break;
 				case GHOST_kKeyNumpad1:
-					if (val) swaptime = fstep / 60.0;
+					if (val) swaptime = ps->fstep / 60.0;
 					break;
 				case GHOST_kKeyNumpad2:
-					if (val) swaptime = fstep / 50.0;
+					if (val) swaptime = ps->fstep / 50.0;
 					break;
 				case GHOST_kKeyNumpad3:
-					if (val) swaptime = fstep / 30.0;
+					if (val) swaptime = ps->fstep / 30.0;
 					break;
 				case GHOST_kKeyNumpad4:
 					if (g_WS.qual & WS_QUAL_SHIFT)
-						swaptime = fstep / 24.0;
+						swaptime = ps->fstep / 24.0;
 					else
-						swaptime = fstep / 25.0;
+						swaptime = ps->fstep / 25.0;
 					break;
 				case GHOST_kKeyNumpad5:
-					if (val) swaptime = fstep / 20.0;
+					if (val) swaptime = ps->fstep / 20.0;
 					break;
 				case GHOST_kKeyNumpad6:
-					if (val) swaptime = fstep / 15.0;
+					if (val) swaptime = ps->fstep / 15.0;
 					break;
 				case GHOST_kKeyNumpad7:
-					if (val) swaptime = fstep / 12.0;
+					if (val) swaptime = ps->fstep / 12.0;
 					break;
 				case GHOST_kKeyNumpad8:
-					if (val) swaptime = fstep / 10.0;
+					if (val) swaptime = ps->fstep / 10.0;
 					break;
 				case GHOST_kKeyNumpad9:
-					if (val) swaptime = fstep / 6.0;
+					if (val) swaptime = ps->fstep / 6.0;
 					break;
 				case GHOST_kKeyLeftArrow:
 					if (val) {
@@ -533,10 +534,10 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 					if (val) {
 						if (g_WS.qual & WS_QUAL_SHIFT) {
 							if (ps->curframe_ibuf)
-								printf(" Name: %s | Speed: %.2f frames/s\n", ps->curframe_ibuf->name, fstep / swaptime);
+								printf(" Name: %s | Speed: %.2f frames/s\n", ps->curframe_ibuf->name, ps->fstep / swaptime);
 						}
 						else {
-							swaptime = fstep / 5.0;
+							swaptime = ps->fstep / 5.0;
 						}
 					}
 					break;
@@ -591,8 +592,8 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 					break;
 				case GHOST_kKeyNumpadPlus:
 					if (val == 0) break;
-					zoomx += 2.0;
-					zoomy += 2.0;
+					zoomx += 2.0f;
+					zoomy += 2.0f;
 					/* no break??? - is this intentional? - campbell XXX25 */
 				case GHOST_kKeyNumpadMinus:
 				{
@@ -600,8 +601,8 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 					/* int ofsx, ofsy; */ /* UNUSED */
 
 					if (val == 0) break;
-					if (zoomx > 1.0) zoomx -= 1.0;
-					if (zoomy > 1.0) zoomy -= 1.0;
+					if (zoomx > 1.0f) zoomx -= 1.0f;
+					if (zoomy > 1.0f) zoomy -= 1.0f;
 					// playanim_window_get_position(&ofsx, &ofsy);
 					playanim_window_get_size(&sizex, &sizey);
 					/* ofsx += sizex / 2; */ /* UNUSED */
@@ -666,10 +667,10 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 
 			zoomx = (float) sizex / ps->ibufx;
 			zoomy = (float) sizey / ps->ibufy;
-			zoomx = floor(zoomx + 0.5);
-			zoomy = floor(zoomy + 0.5);
-			if (zoomx < 1.0) zoomx = 1.0;
-			if (zoomy < 1.0) zoomy = 1.0;
+			zoomx = floor(zoomx + 0.5f);
+			zoomy = floor(zoomy + 0.5f);
+			if (zoomx < 1.0f) zoomx = 1.0f;
+			if (zoomy < 1.0f) zoomy = 1.0f;
 
 			sizex = zoomx * ps->ibufx;
 			sizey = zoomy * ps->ibufy;
@@ -677,7 +678,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 			glPixelZoom(zoomx, zoomy);
 			glEnable(GL_DITHER);
 			ptottime = 0.0;
-			playanim_toscreen(ps->picture, ps->curframe_ibuf, ps->fontid);
+			playanim_toscreen(ps->picture, ps->curframe_ibuf, ps->fontid, ps->fstep);
 
 			break;
 		}
@@ -749,6 +750,8 @@ void WM_main_playanim(int argc, const char **argv)
 	ps.picture   = NULL;
 	/* resetmap = FALSE */
 
+	ps.fstep     = 1;
+
 	ps.fontid = -1;
 
 	while (argc > 1) {
@@ -796,8 +799,8 @@ void WM_main_playanim(int argc, const char **argv)
 					argv++;
 					break;
 				case 'j':
-					fstep = MIN2(MAXFRAME, MAX2(1, atoi(argv[2])));
-					swaptime *= fstep;
+					ps.fstep = MIN2(MAXFRAME, MAX2(1, atoi(argv[2])));
+					swaptime *= ps.fstep;
 					argc--;
 					argv++;
 					break;
@@ -896,11 +899,11 @@ void WM_main_playanim(int argc, const char **argv)
 		efra = MAXFRAME;
 	}
 
-	build_pict_list(filepath, (efra - sfra) + 1, fstep, ps.fontid);
+	build_pict_list(filepath, (efra - sfra) + 1, ps.fstep, ps.fontid);
 
 	for (i = 2; i < argc; i++) {
 		BLI_strncpy(filepath, argv[i], sizeof(filepath));
-		build_pict_list(filepath, (efra - sfra) + 1, fstep, ps.fontid);
+		build_pict_list(filepath, (efra - sfra) + 1, ps.fstep, ps.fontid);
 	}
 
 	IMB_freeImBuf(ibuf);
@@ -972,7 +975,7 @@ void WM_main_playanim(int argc, const char **argv)
 
 				while (pupdate_time()) PIL_sleep_ms(1);
 				ptottime -= swaptime;
-				playanim_toscreen(ps.picture, ibuf, ps.fontid);
+				playanim_toscreen(ps.picture, ibuf, ps.fontid, ps.fstep);
 			} /* else deleten */
 			else {
 				printf("error: can't play this image type\n");

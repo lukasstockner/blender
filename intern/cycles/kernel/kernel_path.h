@@ -326,7 +326,7 @@ __device float4 kernel_path_progressive(KernelGlobals *kg, RNG *rng, int sample,
 
 #ifdef __AO__
 		/* ambient occlusion */
-		if(kernel_data.integrator.use_ambient_occlusion) {
+		if(kernel_data.integrator.use_ambient_occlusion || (sd.flag & SD_AO)) {
 			/* todo: solve correlation */
 			float bsdf_u = path_rng(kg, rng, sample, rng_offset + PRNG_BSDF_U);
 			float bsdf_v = path_rng(kg, rng, sample, rng_offset + PRNG_BSDF_V);
@@ -343,12 +343,13 @@ __device float4 kernel_path_progressive(KernelGlobals *kg, RNG *rng, int sample,
 				light_ray.P = ray_offset(sd.P, sd.Ng);
 				light_ray.D = ao_D;
 				light_ray.t = kernel_data.background.ao_distance;
-#ifdef __MOTION__
+#ifdef __OBJECT_MOTION__
 				light_ray.time = sd.time;
 #endif
 
 				if(!shadow_blocked(kg, &state, &light_ray, &ao_shadow)) {
 					float3 ao_bsdf = shader_bsdf_diffuse(kg, &sd)*kernel_data.background.ao_factor;
+					ao_bsdf += shader_bsdf_ao(kg, &sd);
 					path_radiance_accum_ao(&L, throughput, ao_bsdf, ao_shadow, state.bounce);
 				}
 			}
@@ -368,7 +369,7 @@ __device float4 kernel_path_progressive(KernelGlobals *kg, RNG *rng, int sample,
 				BsdfEval L_light;
 				bool is_lamp;
 
-#ifdef __MOTION__
+#ifdef __OBJECT_MOTION__
 				light_ray.time = sd.time;
 #endif
 
@@ -503,7 +504,7 @@ __device void kernel_path_indirect(KernelGlobals *kg, RNG *rng, int sample, Ray 
 
 #ifdef __AO__
 		/* ambient occlusion */
-		if(kernel_data.integrator.use_ambient_occlusion) {
+		if(kernel_data.integrator.use_ambient_occlusion || (sd.flag & SD_AO)) {
 			/* todo: solve correlation */
 			float bsdf_u = path_rng(kg, rng, sample, rng_offset + PRNG_BSDF_U);
 			float bsdf_v = path_rng(kg, rng, sample, rng_offset + PRNG_BSDF_V);
@@ -520,12 +521,13 @@ __device void kernel_path_indirect(KernelGlobals *kg, RNG *rng, int sample, Ray 
 				light_ray.P = ray_offset(sd.P, sd.Ng);
 				light_ray.D = ao_D;
 				light_ray.t = kernel_data.background.ao_distance;
-#ifdef __MOTION__
+#ifdef __OBJECT_MOTION__
 				light_ray.time = sd.time;
 #endif
 
 				if(!shadow_blocked(kg, &state, &light_ray, &ao_shadow)) {
 					float3 ao_bsdf = shader_bsdf_diffuse(kg, &sd)*kernel_data.background.ao_factor;
+					ao_bsdf += shader_bsdf_ao(kg, &sd);
 					path_radiance_accum_ao(L, throughput, ao_bsdf, ao_shadow, state.bounce);
 				}
 			}
@@ -545,7 +547,7 @@ __device void kernel_path_indirect(KernelGlobals *kg, RNG *rng, int sample, Ray 
 				BsdfEval L_light;
 				bool is_lamp;
 
-#ifdef __MOTION__
+#ifdef __OBJECT_MOTION__
 				light_ray.time = sd.time;
 #endif
 
@@ -706,7 +708,7 @@ __device float4 kernel_path_non_progressive(KernelGlobals *kg, RNG *rng, int sam
 
 #ifdef __AO__
 		/* ambient occlusion */
-		if(kernel_data.integrator.use_ambient_occlusion) {
+		if(kernel_data.integrator.use_ambient_occlusion || (sd.flag & SD_AO)) {
 			int num_samples = kernel_data.integrator.ao_samples;
 			float num_samples_inv = 1.0f/num_samples;
 			float ao_factor = kernel_data.background.ao_factor;
@@ -728,12 +730,13 @@ __device float4 kernel_path_non_progressive(KernelGlobals *kg, RNG *rng, int sam
 					light_ray.P = ray_offset(sd.P, sd.Ng);
 					light_ray.D = ao_D;
 					light_ray.t = kernel_data.background.ao_distance;
-#ifdef __MOTION__
+#ifdef __OBJECT_MOTION__
 					light_ray.time = sd.time;
 #endif
 
 					if(!shadow_blocked(kg, &state, &light_ray, &ao_shadow)) {
 						float3 ao_bsdf = shader_bsdf_diffuse(kg, &sd)*ao_factor;
+						ao_bsdf += shader_bsdf_ao(kg, &sd);
 						path_radiance_accum_ao(&L, throughput*num_samples_inv, ao_bsdf, ao_shadow, state.bounce);
 					}
 				}
@@ -748,7 +751,7 @@ __device float4 kernel_path_non_progressive(KernelGlobals *kg, RNG *rng, int sam
 			BsdfEval L_light;
 			bool is_lamp;
 
-#ifdef __MOTION__
+#ifdef __OBJECT_MOTION__
 			light_ray.time = sd.time;
 #endif
 
@@ -867,7 +870,7 @@ __device float4 kernel_path_non_progressive(KernelGlobals *kg, RNG *rng, int sam
 				bsdf_ray.dP = sd.dP;
 				bsdf_ray.dD = bsdf_domega_in;
 #endif
-#ifdef __MOTION__
+#ifdef __OBJECT_MOTION__
 				bsdf_ray.time = sd.time;
 #endif
 
@@ -925,7 +928,7 @@ __device void kernel_path_trace(KernelGlobals *kg,
 	float lens_u = path_rng(kg, &rng, sample, PRNG_LENS_U);
 	float lens_v = path_rng(kg, &rng, sample, PRNG_LENS_V);
 
-#ifdef __MOTION__
+#ifdef __CAMERA_MOTION__
 	float time = path_rng(kg, &rng, sample, PRNG_TIME);
 #else
 	float time = 0.0f;

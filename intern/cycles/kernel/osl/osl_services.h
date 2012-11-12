@@ -54,7 +54,10 @@ public:
 	bool get_inverse_matrix(OSL::Matrix44 &result, ustring to, float time);
 	
 	bool get_matrix(OSL::Matrix44 &result, OSL::TransformationPtr xform);
+	bool get_inverse_matrix(OSL::Matrix44 &result, OSL::TransformationPtr xform);
+	
 	bool get_matrix(OSL::Matrix44 &result, ustring from);
+	bool get_inverse_matrix(OSL::Matrix44 &result, ustring from);
 
 	bool get_array_attribute(void *renderstate, bool derivatives,
 	                         ustring object, TypeDesc type, ustring name,
@@ -73,8 +76,20 @@ public:
 	int pointcloud_get(ustring filename, size_t *indices, int count, ustring attr_name,
 	                   TypeDesc attr_type, void *out_data);
 
-private:
-	KernelGlobals *kernel_globals;
+	bool trace(TraceOpt &options, OSL::ShaderGlobals *sg,
+	           const OSL::Vec3 &P, const OSL::Vec3 &dPdx,
+	           const OSL::Vec3 &dPdy, const OSL::Vec3 &R,
+	           const OSL::Vec3 &dRdx, const OSL::Vec3 &dRdy);
+
+	bool getmessage(OSL::ShaderGlobals *sg, ustring source, ustring name,
+	                TypeDesc type, void *val, bool derivatives);
+
+	struct TraceData {
+		Ray ray;
+		Intersection isect;
+		ShaderData sd;
+		bool setup;
+	};
 
 	static ustring u_distance;
 	static ustring u_index;
@@ -83,6 +98,9 @@ private:
 	static ustring u_raster;
 	static ustring u_ndc;
 	static ustring u_empty;
+
+private:
+	KernelGlobals *kernel_globals;
 };
 
 CCL_NAMESPACE_END

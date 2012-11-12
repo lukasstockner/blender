@@ -442,7 +442,7 @@ int calc_manipulator_stats(const bContext *C)
 		}
 		else if (obedit->type == OB_MBALL) {
 			MetaBall *mb = (MetaBall *)obedit->data;
-			MetaElem *ml /* , *ml_sel=NULL */ /* UNUSED */;
+			MetaElem *ml /* , *ml_sel = NULL */ /* UNUSED */;
 
 			ml = mb->editelems->first;
 			while (ml) {
@@ -499,7 +499,7 @@ int calc_manipulator_stats(const bContext *C)
 		}
 	}
 	else if (ob && (ob->mode & OB_MODE_ALL_PAINT)) {
-		;
+		/* pass */
 	}
 	else if (ob && ob->mode & OB_MODE_PARTICLE_EDIT) {
 		PTCacheEdit *edit = PE_get_current(scene, ob);
@@ -745,7 +745,7 @@ static char axisBlendAngle(float angle)
 	return (char)(255.0f * (angle - 5) / 15.0f);
 }
 
-/* three colors can be set;
+/* three colors can be set:
  * gray for ghosting
  * moving: in transform theme color
  * else the red/green/blue
@@ -782,22 +782,16 @@ static void set_manipulator_color(View3D *v3d, char axis, int colcode, unsigned 
 				}
 				break;
 			case 'X':
-			col[0] = 220;
-			col[1] =   0;
-			col[2] =   0;
-			col[3] = alpha;
+				UI_GetThemeColor3ubv(TH_AXIS_X, col);
+				col[3] = alpha;
 				break;
 			case 'Y':
-			col[0] =   0;
-			col[1] = 220;
-			col[2] =   0;
-			col[3] = alpha;
+				UI_GetThemeColor3ubv(TH_AXIS_Y, col);
+				col[3] = alpha;
 				break;
 			case 'Z':
-			col[0] =  30;
-			col[1] =  30;
-			col[2] = 220;
-			col[3] = alpha;
+				UI_GetThemeColor3ubv(TH_AXIS_Z, col);
+				col[3] = alpha;
 				break;
 			default:
 				BLI_assert(!"invalid axis arg");

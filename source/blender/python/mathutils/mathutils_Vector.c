@@ -1100,12 +1100,12 @@ static PyObject *Vector_project(VectorObject *self, PyObject *value)
 	if (BaseMath_ReadCallback(self) == -1)
 		return NULL;
 
-	//get dot products
+	/* get dot products */
 	for (x = 0; x < size; x++) {
 		dot += (double)(self->vec[x] * tvec[x]);
 		dot2 += (double)(tvec[x] * tvec[x]);
 	}
-	//projection
+	/* projection */
 	dot /= dot2;
 	for (x = 0; x < size; x++) {
 		vec[x] = (float)dot * tvec[x];
@@ -1976,7 +1976,7 @@ static PyObject *Vector_subscript(VectorObject *self, PyObject *item)
 	else if (PySlice_Check(item)) {
 		Py_ssize_t start, stop, step, slicelength;
 
-		if (PySlice_GetIndicesEx((void *)item, self->size, &start, &stop, &step, &slicelength) < 0)
+		if (PySlice_GetIndicesEx(item, self->size, &start, &stop, &step, &slicelength) < 0)
 			return NULL;
 
 		if (slicelength <= 0) {
@@ -2012,7 +2012,7 @@ static int Vector_ass_subscript(VectorObject *self, PyObject *item, PyObject *va
 	else if (PySlice_Check(item)) {
 		Py_ssize_t start, stop, step, slicelength;
 
-		if (PySlice_GetIndicesEx((void *)item, self->size, &start, &stop, &step, &slicelength) < 0)
+		if (PySlice_GetIndicesEx(item, self->size, &start, &stop, &step, &slicelength) < 0)
 			return -1;
 
 		if (step == 1)
@@ -2709,11 +2709,11 @@ static int row_vector_multiplication(float r_vec[MAX_DIMENSIONS], VectorObject *
 	memcpy(vec_cpy, vec->vec, vec_size * sizeof(float));
 
 	r_vec[3] = 1.0f;
-	//muliplication
+	/* muliplication */
 	for (col = 0; col < mat->num_col; col++) {
 		double dot = 0.0;
 		for (row = 0; row < mat->num_row; row++) {
-			dot += MATRIX_ITEM(mat, row, col) * vec_cpy[row];
+			dot += (double)(MATRIX_ITEM(mat, row, col) * vec_cpy[row]);
 		}
 		r_vec[z++] = (float)dot;
 	}
@@ -2733,7 +2733,7 @@ static PyObject *Vector_negate(VectorObject *self)
 
 	negate_vn(self->vec, self->size);
 
-	(void)BaseMath_WriteCallback(self); // already checked for error
+	(void)BaseMath_WriteCallback(self);  /* already checked for error */
 	Py_RETURN_NONE;
 }
 
@@ -2829,10 +2829,10 @@ PyTypeObject vector_Type = {
 	/*** Assigned meaning in release 2.0 ***/
 
 	/* call function for all accessible objects */
-	(traverseproc)BaseMathObject_traverse,  //tp_traverse
+	(traverseproc)BaseMathObject_traverse,  /* tp_traverse */
 
 	/* delete references to contained objects */
-	(inquiry)BaseMathObject_clear,  //tp_clear
+	(inquiry)BaseMathObject_clear,  /* tp_clear */
 
 	/***  Assigned meaning in release 2.1 ***/
 	/*** rich comparisons ***/

@@ -106,9 +106,9 @@ typedef struct uiLayout uiLayout;
 /* uiBlock->flag (controls) */
 #define UI_BLOCK_LOOP           1
 #define UI_BLOCK_REDRAW         2
-#define UI_BLOCK_RET_1          4       /* XXX 2.5 not implemented */
+#define UI_BLOCK_SEARCH_MENU    4
 #define UI_BLOCK_NUMSELECT      8
-/*#define UI_BLOCK_ENTER_OK		16*/ /*UNUSED*/
+#define UI_BLOCK_NO_WIN_CLIP    16      /* don't apply window clipping */ /* was UI_BLOCK_ENTER_OK */
 #define UI_BLOCK_CLIPBOTTOM     32
 #define UI_BLOCK_CLIPTOP        64
 #define UI_BLOCK_MOVEMOUSE_QUIT 128
@@ -807,7 +807,7 @@ void uiTemplateHistogram(uiLayout *layout, struct PointerRNA *ptr, const char *p
 void uiTemplateWaveform(uiLayout *layout, struct PointerRNA *ptr, const char *propname);
 void uiTemplateVectorscope(uiLayout *layout, struct PointerRNA *ptr, const char *propname);
 void uiTemplateCurveMapping(uiLayout *layout, struct PointerRNA *ptr, const char *propname, int type, int levels, int brush);
-void uiTemplateColorWheel(uiLayout *layout, struct PointerRNA *ptr, const char *propname, int value_slider, int lock, int lock_luminosity, int cubic);
+void uiTemplateColorPicker(uiLayout *layout, struct PointerRNA *ptr, const char *propname, int value_slider, int lock, int lock_luminosity, int cubic);
 void uiTemplateLayers(uiLayout *layout, struct PointerRNA *ptr, const char *propname,
                       PointerRNA *used_ptr, const char *used_propname, int active_layer);
 void uiTemplateGameStates(uiLayout *layout, struct PointerRNA *ptr, const char *propname,

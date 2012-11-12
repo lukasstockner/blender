@@ -381,13 +381,7 @@ static void rna_PoseChannel_bone_group_index_range(PointerRNA *ptr, int *min, in
 	bPose *pose = (ob) ? ob->pose : NULL;
 	
 	*min = 0;
-	
-	if (pose) {
-		*max = BLI_countlist(&pose->agroups) - 1;
-		*max = MAX2(0, *max);
-	}
-	else
-		*max = 0;
+	*max = pose ? max_ii(0, BLI_countlist(&pose->agroups) - 1) : 0;
 }
 
 static PointerRNA rna_Pose_active_bone_group_get(PointerRNA *ptr)
@@ -419,8 +413,7 @@ static void rna_Pose_active_bone_group_index_range(PointerRNA *ptr, int *min, in
 	bPose *pose = (bPose *)ptr->data;
 
 	*min = 0;
-	*max = BLI_countlist(&pose->agroups) - 1;
-	*max = MAX2(0, *max);
+	*max = max_ii(0, BLI_countlist(&pose->agroups) - 1);
 }
 
 #if 0
@@ -497,24 +490,28 @@ static bConstraint *rna_PoseChannel_constraints_new(bPoseChannel *pchan, int typ
 	return add_pose_constraint(NULL, pchan, NULL, type);
 }
 
-static void rna_PoseChannel_constraints_remove(ID *id, bPoseChannel *pchan, ReportList *reports, bConstraint *con)
+static void rna_PoseChannel_constraints_remove(ID *id, bPoseChannel *pchan, ReportList *reports, PointerRNA *con_ptr)
 {
+	bConstraint *con = con_ptr->data;
+	const short is_ik = ELEM(con->type, CONSTRAINT_TYPE_KINEMATIC, CONSTRAINT_TYPE_SPLINEIK);
+	Object *ob = (Object *)id;
+
 	if (BLI_findindex(&pchan->constraints, con) == -1) {
 		BKE_reportf(reports, RPT_ERROR, "Constraint '%s' not found in pose bone '%s'", con->name, pchan->name);
 		return;
 	}
-	else {
-		Object *ob = (Object *)id;
-		const short is_ik = ELEM(con->type, CONSTRAINT_TYPE_KINEMATIC, CONSTRAINT_TYPE_SPLINEIK);
 
-		remove_constraint(&pchan->constraints, con);
-		ED_object_constraint_update(ob);
-		constraints_set_active(&pchan->constraints, NULL);
-		WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, id);
+	remove_constraint(&pchan->constraints, con);
+	RNA_POINTER_INVALIDATE(con_ptr);
 
-		if (is_ik) {
-			BIK_clear_data(ob->pose);
-		}
+	ED_object_constraint_update(ob);
+
+	constraints_set_active(&pchan->constraints, NULL);  /* XXX, is this really needed? - Campbell */
+
+	WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, id);
+
+	if (is_ik) {
+		BIK_clear_data(ob->pose);
 	}
 }
 
@@ -727,7 +724,8 @@ static void rna_def_pose_channel_constraints(BlenderRNA *brna, PropertyRNA *cpro
 	RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_SELF_ID); /* ID needed for refresh */
 	/* constraint to remove */
 	parm = RNA_def_pointer(func, "constraint", "Constraint", "", "Removed constraint");
-	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL | PROP_RNAPTR);
+	RNA_def_property_clear_flag(parm, PROP_THICK_WRAP);
 }
 
 static void rna_def_pose_channel(BlenderRNA *brna)

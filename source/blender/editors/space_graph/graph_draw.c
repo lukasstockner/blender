@@ -84,7 +84,7 @@ static float fcurve_display_alpha(FCurve *fcu)
 
 /* Envelope -------------- */
 
-// TODO: draw a shaded poly showing the region of influence too!!!
+/* TODO: draw a shaded poly showing the region of influence too!!! */
 static void draw_fcurve_modifier_controls_envelope(FModifier *fcm, View2D *v2d)
 {
 	FMod_Envelope *env = (FMod_Envelope *)fcm->data;
@@ -102,13 +102,13 @@ static void draw_fcurve_modifier_controls_envelope(FModifier *fcm, View2D *v2d)
 
 	gpuVertex2f(v2d->cur.xmin, env->midval + env->max);
 	gpuVertex2f(v2d->cur.xmax, env->midval + env->max);
-	gpuEnd(); // GL_LINES
+	gpuEnd();  /* GL_LINES */
 	setlinestyle(0);
 
 	/* set size of vertices (non-adjustable for now) */
 	glPointSize(2.0f);
 
-	// for now, point color is fixed, and is white
+	/* for now, point color is fixed, and is white */
 	gpuCurrentColor3x(CPACK_WHITE);
 
 	/* we use bgl points not standard gl points, to workaround vertex 
@@ -161,7 +161,7 @@ static void draw_fcurve_vertices_keyframes(FCurve *fcu, SpaceIpo *UNUSED(sipo), 
 			}
 			else {
 				/* no check for selection here, as curve is not editable... */
-				// XXX perhaps we don't want to even draw points?   maybe add an option for that later
+				/* XXX perhaps we don't want to even draw points?   maybe add an option for that later */
 				gpuSprite3fv(bezt->vec[1]);
 			}
 		}
@@ -246,7 +246,7 @@ static void set_fcurve_vertex_color(FCurve *fcu, short sel)
 		/* Curve's points ARE BEING edited */
 		if (sel) UI_ThemeColorShadeAlpha(TH_VERTEX_SELECT, 0, alphaOffset); 
 		else UI_ThemeColorShadeAlpha(TH_VERTEX, 0, alphaOffset);
-	} 
+	}
 	else {
 		/* Curve's points CANNOT BE edited */
 		if (sel) UI_ThemeColorShadeAlpha(TH_TEXT_HI, 0, alphaOffset);
@@ -302,7 +302,7 @@ static int draw_fcurve_handles_check(SpaceIpo *sipo, FCurve *fcu)
 	        )
 	{
 		return 0;
-	} 
+	}
 	else {
 		return 1;
 	}
@@ -388,7 +388,7 @@ static void draw_fcurve_handles(SpaceIpo *sipo, FCurve *fcu)
 		}
 	}
 	
-	gpuEnd(); // GL_LINES 
+	gpuEnd(); /* GL_LINES */
 }
 
 /* Samples ---------------- */
@@ -410,7 +410,7 @@ static void draw_fcurve_sample_control(float x, float y, float xscale, float ysc
 
 	gpuVertex2f(-0.7f, +0.7f);
 	gpuVertex2f(+0.7f, -0.7f);
-	gpuEnd(); // GL_LINES
+	gpuEnd(); /* GL_LINES */
 	
 	/* restore view transform */
 	gpuScale(xscale / hsize, yscale / hsize, 1.0);
@@ -487,7 +487,7 @@ static void draw_fcurve_curve(bAnimContext *ac, ID *id, FCurve *fcu, View2D *v2d
 	 *  chosen here is just the coarsest value which still looks reasonable...
 	 */
 	/* grid->dx represents the number of 'frames' between gridlines, but we divide by U.v2d_min_gridsize to get pixels-steps */
-	// TODO: perhaps we should have 1.0 frames as upper limit so that curves don't get too distorted?
+	/* TODO: perhaps we should have 1.0 frames as upper limit so that curves don't get too distorted? */
 	samplefreq = dx / U.v2d_min_gridsize;
 	if (samplefreq < 0.00001f) samplefreq = 0.00001f;
 	
@@ -533,7 +533,7 @@ static void draw_fcurve_curve_samples(bAnimContext *ac, ID *id, FCurve *fcu, Vie
 		if ((fcu->extend == FCURVE_EXTRAPOLATE_CONSTANT) || (fcu->flag & FCURVE_INT_VALUES) || (fcu->totvert == 1)) {
 			/* just extend across the first keyframe's value */
 			v[1] = prevfpt->vec[1];
-		} 
+		}
 		else {
 			/* extrapolate linear dosnt use the handle, use the next points center instead */
 			fac = (prevfpt->vec[0] - fpt->vec[0]) / (prevfpt->vec[0] - v[0]);
@@ -571,7 +571,7 @@ static void draw_fcurve_curve_samples(bAnimContext *ac, ID *id, FCurve *fcu, Vie
 		if ((fcu->extend == FCURVE_EXTRAPOLATE_CONSTANT) || (fcu->flag & FCURVE_INT_VALUES) || (fcu->totvert == 1)) {
 			/* based on last keyframe's value */
 			v[1] = prevfpt->vec[1];
-		} 
+		}
 		else {
 			/* extrapolate linear dosnt use the handle, use the previous points center instead */
 			fpt = prevfpt - 1;
@@ -614,13 +614,13 @@ static void draw_fcurve_curve_bezts(bAnimContext *ac, ID *id, FCurve *fcu, View2
 		if ((fcu->extend == FCURVE_EXTRAPOLATE_CONSTANT) || (prevbezt->ipo == BEZT_IPO_CONST) || (fcu->totvert == 1)) {
 			/* just extend across the first keyframe's value */
 			v1[1] = prevbezt->vec[1][1];
-		} 
+		}
 		else if (prevbezt->ipo == BEZT_IPO_LIN) {
 			/* extrapolate linear dosnt use the handle, use the next points center instead */
 			fac = (prevbezt->vec[1][0] - bezt->vec[1][0]) / (prevbezt->vec[1][0] - v1[0]);
 			if (fac) fac = 1.0f / fac;
 			v1[1] = prevbezt->vec[1][1] - fac * (prevbezt->vec[1][1] - bezt->vec[1][1]);
-		} 
+		}
 		else {
 			/* based on angle of handle 1 (relative to keyframe) */
 			fac = (prevbezt->vec[0][0] - prevbezt->vec[1][0]) / (prevbezt->vec[1][0] - v1[0]);
@@ -639,7 +639,7 @@ static void draw_fcurve_curve_bezts(bAnimContext *ac, ID *id, FCurve *fcu, View2
 	}
 	
 	/* draw curve between first and last keyframe (if there are enough to do so) */
-	// TODO: optimize this to not have to calc stuff out of view too?
+	/* TODO: optimize this to not have to calc stuff out of view too? */
 	while (b--) {
 		if (prevbezt->ipo == BEZT_IPO_CONST) {
 			/* Constant-Interpolation: draw segment between previous keyframe and next, but holding same value */
@@ -663,7 +663,7 @@ static void draw_fcurve_curve_bezts(bAnimContext *ac, ID *id, FCurve *fcu, View2
 			 */
 			
 			/* resol depends on distance between points (not just horizontal) OR is a fixed high res */
-			// TODO: view scale should factor into this someday too...
+			/* TODO: view scale should factor into this someday too... */
 			if (fcu->driver) 
 				resol = 32;
 			else 
@@ -677,7 +677,7 @@ static void draw_fcurve_curve_bezts(bAnimContext *ac, ID *id, FCurve *fcu, View2
 			}
 			else {
 				/* clamp resolution to max of 32 */
-				// NOTE: higher values will crash
+				/* NOTE: higher values will crash */
 				if (resol > 32) resol = 32;
 				
 				v1[0] = prevbezt->vec[1][0];
@@ -720,14 +720,14 @@ static void draw_fcurve_curve_bezts(bAnimContext *ac, ID *id, FCurve *fcu, View2
 		if ((fcu->extend == FCURVE_EXTRAPOLATE_CONSTANT) || (fcu->flag & FCURVE_INT_VALUES) || (prevbezt->ipo == BEZT_IPO_CONST) || (fcu->totvert == 1)) {
 			/* based on last keyframe's value */
 			v1[1] = prevbezt->vec[1][1];
-		} 
+		}
 		else if (prevbezt->ipo == BEZT_IPO_LIN) {
 			/* extrapolate linear dosnt use the handle, use the previous points center instead */
 			bezt = prevbezt - 1;
 			fac = (prevbezt->vec[1][0] - bezt->vec[1][0]) / (prevbezt->vec[1][0] - v1[0]);
 			if (fac) fac = 1.0f / fac;
 			v1[1] = prevbezt->vec[1][1] - fac * (prevbezt->vec[1][1] - bezt->vec[1][1]);
-		} 
+		}
 		else {
 			/* based on angle of handle 1 (relative to keyframe) */
 			fac = (prevbezt->vec[2][0] - prevbezt->vec[1][0]) / (prevbezt->vec[1][0] - v1[0]);
@@ -824,7 +824,7 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 			}
 			if (((fcu->grp) && (fcu->grp->flag & AGRP_MUTED)) || (fcu->flag & FCURVE_MUTED)) {
 				/* muted curves are drawn in a grayish hue */
-				// XXX should we have some variations?
+				/* XXX should we have some variations? */
 				UI_ThemeColorShade(TH_HEADER, 50);
 			}
 			else {
@@ -943,7 +943,7 @@ void graph_draw_channel_names(bContext *C, bAnimContext *ac, ARegion *ar)
 	height = (float)((items * ACHANNEL_STEP) + (ACHANNEL_HEIGHT * 2));
 	UI_view2d_totRect_set(v2d, ar->winx, height);
 	
-	/* loop through channels, and set up drawing depending on their type  */	
+	/* loop through channels, and set up drawing depending on their type  */
 	{   /* first pass: just the standard GL-drawing for backdrop + text */
 		y = (float)ACHANNEL_FIRST;
 		

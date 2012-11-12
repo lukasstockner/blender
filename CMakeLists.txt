@@ -186,12 +186,11 @@ unset(PLATFORM_DEFAULT)
 
 
 # Modifiers
-option(WITH_MOD_FLUID        	"Enable Elbeem Modifier (Fluid Simulation)" ON)
-option(WITH_MOD_SMOKE        	"Enable Smoke Modifier (Smoke Simulation)" ON)
-option(WITH_MOD_DECIMATE       	"Enable Decimate Modifier" ON)
-option(WITH_MOD_BOOLEAN        	"Enable Boolean Modifier" ON)
-option(WITH_MOD_REMESH        	"Enable Remesh Modifier" ON)
-option(WITH_MOD_CLOTH_ELTOPO   	"Enable Experimental cloth solver" OFF)
+option(WITH_MOD_FLUID           "Enable Elbeem Modifier (Fluid Simulation)" ON)
+option(WITH_MOD_SMOKE           "Enable Smoke Modifier (Smoke Simulation)" ON)
+option(WITH_MOD_BOOLEAN         "Enable Boolean Modifier" ON)
+option(WITH_MOD_REMESH          "Enable Remesh Modifier" ON)
+option(WITH_MOD_CLOTH_ELTOPO    "Enable Experimental cloth solver" OFF)
 mark_as_advanced(WITH_MOD_CLOTH_ELTOPO)
 option(WITH_MOD_OCEANSIM        "Enable Ocean Modifier" OFF)
 
@@ -206,6 +205,7 @@ option(WITH_IMAGE_REDCODE       "Enable RedCode Image Support" OFF)
 option(WITH_IMAGE_FRAMESERVER   "Enable image FrameServer Support for rendering" ON)
 
 # Audio/Video format support
+option(WITH_CODEC_AVI           "Enable Blenders own AVI file support (raw/jpeg)" ON)
 option(WITH_CODEC_FFMPEG        "Enable FFMPeg Support (http://ffmpeg.org)" OFF)
 
 option(WITH_CODEC_SNDFILE       "Enable libsndfile Support (http://www.mega-nerd.com/libsndfile)" OFF)
@@ -305,16 +305,16 @@ if(APPLE)
 	message(STATUS "Detected system-version: " ${OSX_SYSTEM})
 	
 	if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
-			set(CMAKE_OSX_DEPLOYMENT_TARGET "10.5" CACHE STRING "" FORCE) # 10.5 is our minimum target, if you have higher sdk, weak linking happens
+			set(CMAKE_OSX_DEPLOYMENT_TARGET "10.6" CACHE STRING "" FORCE) # 10.6 is our min. target, if you use higher sdk, weak linking happens - with 10.5 we have still not solved problems, build those with 10.5.sdk for now !!!
 	endif()
 
 	if(${CMAKE_GENERATOR} MATCHES "Xcode")
 	
-		##### workaround for actual official cmake incompatibility with xcode 4.3 #####	
+		##### workaround for actual official cmake incompatibility with xcode 4.3 #####
 		if(${XCODE_VERSION} MATCHES '') # cmake fails due looking for xcode in the wrong path, thus will be empty var
 			message("Official cmake does not yet support Xcode 4.3, get a patched version here: http://www.jensverwiebe.de/Blender/CMake%202.8-7patched.zip")
 		endif()
-		### end workaround for actual official cmake incompatibility with xcode 4.3 ###	
+		### end workaround for actual official cmake incompatibility with xcode 4.3 ###
 		
 		if(${XCODE_VERSION} VERSION_EQUAL 4 OR ${XCODE_VERSION} VERSION_GREATER 4 AND ${XCODE_VERSION} VERSION_LESS 4.3)
 			# Xcode 4 defaults to the Apple LLVM Compiler.
@@ -326,6 +326,10 @@ if(APPLE)
 		execute_process(COMMAND xcodebuild -version OUTPUT_VARIABLE XCODE_VERS_BUILD_NR)
 		string(SUBSTRING "${XCODE_VERS_BUILD_NR}" 6 3 XCODE_VERSION) # truncate away build-nr
 		unset(XCODE_VERS_BUILD_NR)
+		# force CMAKE_OSX_DEPLOYMENT_TARGET for makefiles, will not work else ( cmake bug ? )
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET}")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET}")
+		add_definitions ("-DMACOSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}")
 	endif()
 	
 	message(STATUS "Detected Xcode-version: " ${XCODE_VERSION})
@@ -350,8 +354,8 @@ if(NOT WITH_GAMEENGINE AND WITH_PLAYER)
 	message(FATAL_ERROR "WITH_PLAYER requires WITH_GAMEENGINE")
 endif()
 
-if(NOT WITH_AUDASPACE AND (WITH_OPENAL OR WITH_SDL OR WITH_JACK OR WITH_GAMEENGINE))
-	message(FATAL_ERROR "WITH_OPENAL/WITH_SDL/WITH_JACK/WITH_CODEC_FFMPEG/WITH_GAMEENGINE require WITH_AUDASPACE")
+if(NOT WITH_AUDASPACE AND (WITH_OPENAL OR WITH_JACK OR WITH_GAMEENGINE))
+	message(FATAL_ERROR "WITH_OPENAL/WITH_JACK/WITH_CODEC_FFMPEG/WITH_GAMEENGINE require WITH_AUDASPACE")
 endif()
 
 if(NOT WITH_SDL AND WITH_GHOST_SDL)
@@ -386,8 +390,8 @@ if(WITH_CYCLES)
 	set(WITH_OPENIMAGEIO ON)
 endif()
 
-# auto enable boost for cycles and booleans
-if(WITH_CYCLES OR WITH_MOD_BOOLEAN)
+# auto enable boost for cycles, booleans or audaspace
+if(WITH_CYCLES OR WITH_MOD_BOOLEAN OR WITH_AUDASPACE)
 	set(WITH_BOOST ON)
 endif()
 
@@ -756,11 +760,7 @@ if(UNIX AND NOT APPLE)
 			else()
 				set(Boost_USE_MULTITHREADED ON)
 			endif()
-			if(WITH_CYCLES_OSL)
-				find_package(Boost 1.34 COMPONENTS filesystem python3 regex system thread) # osl_nodes uses boost_python
-			else()
-				find_package(Boost 1.34 COMPONENTS filesystem regex system thread)
-			endif()
+			find_package(Boost 1.34 COMPONENTS filesystem regex system thread)
 			mark_as_advanced(Boost_DIR)  # why doesnt boost do this?
 		endif()
 
@@ -815,9 +815,9 @@ if(UNIX AND NOT APPLE)
 
 	if(WITH_LLVM)
 		set(LLVM_DIRECTORY ${LIBDIR}/llvm CACHE PATH	"Path to the LLVM installation")
-		set(LLVM_VERSION "3.0" CACHE STRING	"Version of LLVM to use" "")
+		set(LLVM_VERSION "3.0" CACHE STRING	"Version of LLVM to use")
 		set(LLVM_STATIC YES)
-		if(LLVM_DIRECTORY)
+		if(EXISTS "${LLVM_DIRECTORY}/bin/llvm-config")
 			set(LLVM_CONFIG "${LLVM_DIRECTORY}/bin/llvm-config")
 		else()
 			set(LLVM_CONFIG llvm-config)
@@ -831,23 +831,14 @@ if(UNIX AND NOT APPLE)
 		execute_process(COMMAND ${LLVM_CONFIG} --libdir
 		                OUTPUT_VARIABLE LLVM_LIB_DIR
 		                OUTPUT_STRIP_TRAILING_WHITESPACE)
-		execute_process(COMMAND ${LLVM_CONFIG} --includedir
-		                OUTPUT_VARIABLE LLVM_INCLUDES
-		                OUTPUT_STRIP_TRAILING_WHITESPACE)
 		find_library(LLVM_LIBRARY
-		             NAMES libLLVMAnalysis.a # first of a whole bunch of libs to get
+		             NAMES LLVMAnalysis # first of a whole bunch of libs to get
 		             PATHS ${LLVM_LIB_DIR})
 		message(STATUS "LLVM version  = ${LLVM_VERSION}")
 		message(STATUS "LLVM dir      = ${LLVM_DIRECTORY}")
-		message(STATUS "LLVM includes = ${LLVM_INCLUDES}")
 		message(STATUS "LLVM lib dir  = ${LLVM_LIB_DIR}")
 
-		if(LLVM_LIBRARY AND LLVM_INCLUDES AND LLVM_DIRECTORY AND LLVM_LIB_DIR)
-			# ensure include directory is added (in case of non-standard locations
-			include_directories(BEFORE "${LLVM_INCLUDES}")
-			string(REGEX REPLACE "\\." "" OSL_LLVM_VERSION ${LLVM_VERSION})
-			message(STATUS "LLVM OSL_LLVM_VERSION = ${OSL_LLVM_VERSION}")
-			add_definitions("-DOSL_LLVM_VERSION=${OSL_LLVM_VERSION}")
+		if(LLVM_LIBRARY AND LLVM_DIRECTORY AND LLVM_LIB_DIR)
 			if(LLVM_STATIC)
 				# if static LLVM libraries were requested, use llvm-config to generate
 				# the list of what libraries we need, and substitute that in the right
@@ -885,8 +876,6 @@ if(UNIX AND NOT APPLE)
 		else()
 			message(STATUS "OSL not found")
 		endif()
-	
-		include_directories(${OSL_INCLUDES})
 	endif()
 
 	# OpenSuse needs lutil, ArchLinux not, for now keep, can avoid by using --as-needed
@@ -950,7 +939,7 @@ if(UNIX AND NOT APPLE)
 	elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 		set(PLATFORM_CFLAGS "-pipe -fPIC -funsigned-char -fno-strict-aliasing")
 	# Solaris CC
-	elseif(CMAKE_CXX_COMPILER_ID MATCHES "SunPro") 
+	elseif(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
 		set(PLATFORM_CFLAGS "-pipe -features=extensions -fPIC -D__FUNCTION__=__func__")
 		
 	# Intel C++ Compiler
@@ -984,7 +973,7 @@ elseif(WIN32)
 	if(CMAKE_COMPILER_IS_GNUCC)
 		set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/mingw32)
 
-		# Setup 64bit and 64bit windows systems		
+		# Setup 64bit and 64bit windows systems
 		if(WITH_MINGW64)
 			message("Set 64 bit compiler for MinGW.")
 			set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/mingw64)
@@ -1067,8 +1056,6 @@ elseif(WIN32)
 		else()
 			message(STATUS "OSL not found")
 		endif()
-	
-		include_directories(${OSL_INCLUDES})
 	endif()
 
 	if(MSVC)
@@ -1112,7 +1099,7 @@ elseif(WIN32)
 		if(WITH_MOD_CLOTH_ELTOPO)
 			set(LAPACK ${LIBDIR}/lapack)
 			# set(LAPACK_INCLUDE_DIR ${LAPACK}/include)
-			set(LAPACK_LIBPATH ${LAPACK}/lib)	
+			set(LAPACK_LIBPATH ${LAPACK}/lib)
 			set(LAPACK_LIBRARIES
 				${LIBDIR}/lapack/lib/libf2c.lib
 				${LIBDIR}/lapack/lib/clapack_nowrap.lib
@@ -1252,7 +1239,7 @@ elseif(WIN32)
 			else()
 				set(BOOST_LIBPATH ${BOOST}/lib)
 				set(BOOST_POSTFIX "vc90-mt-s-1_49.lib")
-				set(BOOST_DEBUG_POSTFIX "vc90-mt-sgd-1_49.lib")					
+				set(BOOST_DEBUG_POSTFIX "vc90-mt-sgd-1_49.lib")
 			endif()
 			set(BOOST_LIBRARIES
 				optimized libboost_date_time-${BOOST_POSTFIX} optimized libboost_filesystem-${BOOST_POSTFIX}
@@ -1261,12 +1248,6 @@ elseif(WIN32)
 				debug libboost_date_time-${BOOST_DEBUG_POSTFIX} debug libboost_filesystem-${BOOST_DEBUG_POSTFIX}
 				debug libboost_regex-${BOOST_DEBUG_POSTFIX}
 				debug libboost_system-${BOOST_DEBUG_POSTFIX} debug libboost_thread-${BOOST_DEBUG_POSTFIX})
-				if(WITH_CYCLES_OSL)
-					set(BOOST_LIBRARIES ${BOOST_LIBRARIES}
-						optimized libboost_python3-${BOOST_POSTFIX}
-						debug libboost_python3-${BOOST_DEBUG_POSTFIX})
-				endif(WITH_CYCLES_OSL)
-				
 			set(BOOST_DEFINITIONS "-DBOOST_ALL_NO_LIB")
 		endif()
 			
@@ -1301,7 +1282,7 @@ elseif(WIN32)
 		blender_include_dirs_sys("${PTHREADS_INCLUDE_DIRS}")
 
 	elseif(CMAKE_COMPILER_IS_GNUCC)
-	# keep GCC specific stuff here		
+	# keep GCC specific stuff here
 		set(PLATFORM_LINKLIBS "-lshell32 -lshfolder -lgdi32 -lmsvcrt -lwinmm -lmingw32 -lm -lws2_32 -lz -lstdc++ -lole32 -luuid -lwsock32 -lpsapi")
 		set(PLATFORM_CFLAGS "-pipe -funsigned-char -fno-strict-aliasing")
 
@@ -1439,7 +1420,7 @@ elseif(WIN32)
 			else()
 				set(BOOST_POSTFIX "mgw46-mt-s-1_49")
 				set(BOOST_DEBUG_POSTFIX "mgw46-mt-sd-1_49")
-			endif()		
+			endif()
 			set(BOOST_LIBRARIES
 				optimized boost_date_time-${BOOST_POSTFIX} boost_filesystem-${BOOST_POSTFIX}
 				boost_regex-${BOOST_POSTFIX}
@@ -1447,12 +1428,6 @@ elseif(WIN32)
 				debug boost_date_time-${BOOST_DEBUG_POSTFIX} boost_filesystem-${BOOST_DEBUG_POSTFIX}
 				boost_regex-${BOOST_DEBUG_POSTFIX}
 				boost_system-${BOOST_DEBUG_POSTFIX} boost_thread-${BOOST_DEBUG_POSTFIX})
-				if(WITH_CYCLES_OSL)
-					set(BOOST_LIBRARIES ${BOOST_LIBRARIES}
-						optimized libboost_python3-${BOOST_POSTFIX}
-						debug libboost_python3-${BOOST_DEBUG_POSTFIX}) 
-				endif(WITH_CYCLES_OSL)
-					
 			set(BOOST_LIBPATH ${BOOST}/lib)
 			set(BOOST_DEFINITIONS "-DBOOST_ALL_NO_LIB -DBOOST_THREAD_USE_LIB ")
 		endif()
@@ -1495,7 +1470,7 @@ elseif(APPLE)
 		set(OSX_SYSROOT_PREFIX /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform)
 		set(OSX_DEVELOPER_PREFIX /Developer/SDKs/MacOSX${OSX_SYSTEM}.sdk) # use guaranteed existing sdk
 		set(CMAKE_OSX_SYSROOT ${OSX_SYSROOT_PREFIX}/${OSX_DEVELOPER_PREFIX} CACHE PATH "" FORCE)
-	endif()	
+	endif()
 	
 	if(WITH_LIBS10.5)
 		set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/darwin-9.x.universal)
@@ -1519,10 +1494,13 @@ elseif(APPLE)
 	endif()
 
 	if(WITH_JACK)
-		set(JACK /usr)
-		set(JACK_INCLUDE_DIRS ${JACK}/include/jack)
-		set(JACK_LIBRARIES jack)
-		set(JACK_LIBPATH ${JACK}/lib)
+		find_library(JACK_FRAMEWORK
+			NAMES jackmp
+		)
+		set(JACK_INCLUDE_DIRS ${JACK_FRAMEWORK}/headers)
+		if(NOT JACK_FRAMEWORK)
+			set(WITH_JACK OFF)
+		endif()
 	endif()
 
 	if(WITH_CODEC_SNDFILE)
@@ -1633,10 +1611,10 @@ elseif(APPLE)
 		if(WITH_INPUT_NDOF)
 			# This thread it *should* work and check the framework - campbell
 			# http://www.cmake.org/pipermail/cmake/2005-December/007740.html
-			find_library(3D_CONNEXION_CLIENT_LIBRARY
+			find_library(3DCONNEXION_CLIENT_FRAMEWORK
 				NAMES 3DconnexionClient
 			)
-			if(NOT 3D_CONNEXION_CLIENT_LIBRARY)
+			if(NOT 3DCONNEXION_CLIENT_FRAMEWORK)
 				set(WITH_INPUT_NDOF OFF)
 			endif()
 
@@ -1644,7 +1622,11 @@ elseif(APPLE)
 				set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -weak_framework 3DconnexionClient")
 			endif()
 		endif()
-
+		
+	if(WITH_JACK)
+		set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -weak_framework jackmp")
+	endif()
+	
 	else()
 		set(PLATFORM_CFLAGS "-pipe -funsigned-char")
 		set(PLATFORM_LINKFLAGS "-fexceptions -framework CoreServices -framework Foundation -framework IOKit -framework AppKit -framework Carbon -framework AGL -framework AudioUnit -framework AudioToolbox -framework CoreAudio -framework QuickTime")
@@ -1707,11 +1689,7 @@ elseif(APPLE)
 	if(WITH_BOOST)
 		set(BOOST ${LIBDIR}/boost)
 		set(BOOST_INCLUDE_DIR ${BOOST}/include)
-		if(WITH_CYCLES_OSL)
-			set(BOOST_LIBRARIES boost_date_time-mt boost_filesystem-mt boost_python3-mt boost_regex-mt boost_system-mt boost_thread-mt)
-		else(WITH_CYCLES_OSL)
-			set(BOOST_LIBRARIES boost_date_time-mt boost_filesystem-mt boost_regex-mt boost_system-mt boost_thread-mt)
-		endif(WITH_CYCLES_OSL)
+		set(BOOST_LIBRARIES boost_date_time-mt boost_filesystem-mt boost_regex-mt boost_system-mt boost_thread-mt)
 		set(BOOST_LIBPATH ${BOOST}/lib)
 		set(BOOST_DEFINITIONS)
 	endif()
@@ -1719,7 +1697,7 @@ elseif(APPLE)
 	if(WITH_OPENIMAGEIO)
 		set(OPENIMAGEIO ${LIBDIR}/openimageio)
 		set(OPENIMAGEIO_INCLUDE_DIRS ${OPENIMAGEIO}/include)
-		set(OPENIMAGEIO_LIBRARIES -force_load ${OPENIMAGEIO}/lib/libOpenImageIO.a ${PNG_LIBRARIES} ${JPEG_LIBRARIES} ${TIFF_LIBRARY} ${OPENEXR_LIBRARIES} ${ZLIB_LIBRARIES})
+		set(OPENIMAGEIO_LIBRARIES ${OPENIMAGEIO}/lib/libOpenImageIO.a ${PNG_LIBRARIES} ${JPEG_LIBRARIES} ${TIFF_LIBRARY} ${OPENEXR_LIBRARIES} ${ZLIB_LIBRARIES})
 		set(OPENIMAGEIO_LIBPATH ${OPENIMAGEIO}/lib ${JPEG_LIBPATH} ${PNG_LIBPATH} ${TIFF_LIBPATH} ${OPENEXR_LIBPATH} ${ZLIB_LIBPATH})
 		set(OPENIMAGEIO_DEFINITIONS "-DOIIO_STATIC_BUILD")
 	endif()
@@ -1734,9 +1712,9 @@ elseif(APPLE)
 
 	if(WITH_LLVM)
 		set(LLVM_DIRECTORY ${LIBDIR}/llvm CACHE PATH	"Path to the LLVM installation")
-		set(LLVM_VERSION "3.1" CACHE STRING	"Version of LLVM to use" "")
+		set(LLVM_VERSION "3.1" CACHE STRING	"Version of LLVM to use")
 		set(LLVM_STATIC YES)
-		if(LLVM_DIRECTORY)
+		if(EXISTS "${LLVM_DIRECTORY}/bin/llvm-config")
 			set(LLVM_CONFIG "${LLVM_DIRECTORY}/bin/llvm-config")
 		else()
 			set(LLVM_CONFIG llvm-config)
@@ -1750,23 +1728,14 @@ elseif(APPLE)
 		execute_process(COMMAND ${LLVM_CONFIG} --libdir
 		                OUTPUT_VARIABLE LLVM_LIB_DIR
 		                OUTPUT_STRIP_TRAILING_WHITESPACE)
-		execute_process(COMMAND ${LLVM_CONFIG} --includedir
-		                OUTPUT_VARIABLE LLVM_INCLUDES
-		                OUTPUT_STRIP_TRAILING_WHITESPACE)
 		find_library(LLVM_LIBRARY
-		             NAMES libLLVMAnalysis.a # first of a whole bunch of libs to get
+		             NAMES LLVMAnalysis # first of a whole bunch of libs to get
 		             PATHS ${LLVM_LIB_DIR})
 		message(STATUS "LLVM version  = ${LLVM_VERSION}")
 		message(STATUS "LLVM dir      = ${LLVM_DIRECTORY}")
-		message(STATUS "LLVM includes = ${LLVM_INCLUDES}")
 		message(STATUS "LLVM lib dir  = ${LLVM_LIB_DIR}")
 
-		if(LLVM_LIBRARY AND LLVM_INCLUDES AND LLVM_DIRECTORY AND LLVM_LIB_DIR)
-			# ensure include directory is added (in case of non-standard locations
-			include_directories(BEFORE "${LLVM_INCLUDES}")
-			string(REGEX REPLACE "\\." "" OSL_LLVM_VERSION ${LLVM_VERSION})
-			message(STATUS "LLVM OSL_LLVM_VERSION = ${OSL_LLVM_VERSION}")
-			add_definitions("-DOSL_LLVM_VERSION=${OSL_LLVM_VERSION}")
+		if(LLVM_LIBRARY AND LLVM_DIRECTORY AND LLVM_LIB_DIR)
 			if(LLVM_STATIC)
 				# if static LLVM libraries were requested, use llvm-config to generate
 				# the list of what libraries we need, and substitute that in the right
@@ -1803,8 +1772,6 @@ elseif(APPLE)
 		else()
 			message(STATUS "OSL not found")
 		endif()
-	
-		include_directories(${OSL_INCLUDES})
 	endif()
 
 	set(EXETYPE MACOSX_BUNDLE)
@@ -2006,11 +1973,15 @@ if(CMAKE_COMPILER_IS_GNUCC)
 	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_WRITE_STRINGS -Wwrite-strings)
 	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_LOGICAL_OP -Wlogical-op)
 	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_UNDEF -Wundef)
-	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_UNINITIALIZED -Wuninitialized)
 	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_INIT_SELF -Winit-self)  # needs -Wuninitialized
 	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_NO_NULL -Wnonnull)  # C only
 	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_MISSING_INCLUDE_DIRS -Wmissing-include-dirs)
 	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_NO_DIV_BY_ZERO -Wno-div-by-zero)
+
+	# gcc 4.2 gives annoying warnings on every file with this
+	if ("${CMAKE_C_COMPILER_VERSION}" VERSION_GREATER "4.2")
+		ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_UNINITIALIZED -Wuninitialized)
+	endif()
 
 	# disable because it gives warnings for printf() & friends.
 	# ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_DOUBLE_PROMOTION -Wdouble-promotion -Wno-error=double-promotion)
@@ -2023,10 +1994,14 @@ if(CMAKE_COMPILER_IS_GNUCC)
 	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_NO_INVALID_OFFSETOF -Wno-invalid-offsetof)
 	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_NO_SIGN_COMPARE -Wno-sign-compare)
 	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_LOGICAL_OP -Wlogical-op)
-	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_UNINITIALIZED -Wuninitialized)
 	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_INIT_SELF -Winit-self)  # needs -Wuninitialized
 	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_MISSING_INCLUDE_DIRS -Wmissing-include-dirs)
 	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_NO_DIV_BY_ZERO -Wno-div-by-zero)
+
+	# gcc 4.2 gives annoying warnings on every file with this
+	if ("${CMAKE_C_COMPILER_VERSION}" VERSION_GREATER "4.2")
+		ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_UNINITIALIZED -Wuninitialized)
+	endif()
 
 	# causes too many warnings
 	if(NOT APPLE)
@@ -2142,7 +2117,6 @@ endif()
 
 #-----------------------------------------------------------------------------
 # Code Coverage
- 
 if(WITH_CODE_COVERAGE)
     set(PLATFORM_CFLAGS    "${PLATFORM_CFLAGS} -fprofile-arcs -ftest-coverage")
     set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -fprofile-arcs -ftest-coverage")
@@ -2159,8 +2133,12 @@ if(WITH_CODE_COVERAGE)
 endif() 
 
 #-----------------------------------------------------------------------------
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${PLATFORM_CFLAGS} ${C_WARNINGS}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PLATFORM_CFLAGS} ${CXX_WARNINGS}")
+# Include warnings first, so its possible to disable them with user defined flags
+# eg: -Wno-uninitialized
+set(CMAKE_C_FLAGS "${C_WARNINGS} ${CMAKE_C_FLAGS} ${PLATFORM_CFLAGS}")
+set(CMAKE_CXX_FLAGS "${CXX_WARNINGS} ${CMAKE_CXX_FLAGS} ${PLATFORM_CFLAGS}")
+
+#-----------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------
 # Global Defines
@@ -2273,6 +2251,7 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_OPENAL)
 	info_cfg_option(WITH_SDL)
 	info_cfg_option(WITH_JACK)
+	info_cfg_option(WITH_CODEC_AVI)
 	info_cfg_option(WITH_CODEC_FFMPEG)
 	info_cfg_option(WITH_CODEC_SNDFILE)
 
@@ -2289,7 +2268,6 @@ if(FIRST_RUN)
 	info_cfg_text("Modifiers:")
 	info_cfg_option(WITH_MOD_BOOLEAN)
 	info_cfg_option(WITH_MOD_REMESH)
-	info_cfg_option(WITH_MOD_DECIMATE)
 	info_cfg_option(WITH_MOD_FLUID)
 	info_cfg_option(WITH_MOD_OCEANSIM)
 

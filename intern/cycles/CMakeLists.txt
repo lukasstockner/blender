@@ -41,10 +41,7 @@ endif()
 
 if(WITH_CYCLES_OSL)
 	add_definitions(-DWITH_OSL)
-endif()
-
-if(WITH_CYCLES_PARTIO)
-	add_definitions(-DWITH_PARTIO)
+	include_directories(${OSL_INCLUDES})
 endif()
 
 if(WITH_CYCLES_CUDA_BINARIES)
@@ -68,7 +65,10 @@ if(WITH_CYCLES_BLENDER)
 	add_subdirectory(blender)
 endif()
 
-add_subdirectory(app)
+if(WITH_CYCLES_TEST)
+	add_subdirectory(app)
+endif()
+
 add_subdirectory(bvh)
 add_subdirectory(device)
 add_subdirectory(doc)

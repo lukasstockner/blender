@@ -536,6 +536,9 @@
 #undef glNewList
 #define glNewList DO_NOT_USE_glNewList
 
-/* GLU Quadrics */
+/* GLU */
+#undef gluUnProject
+#define gluUnProject DO_NOT_USE_gluUnProject
+
 
 #endif /* _GPU_DEPRECATED_H_ */
