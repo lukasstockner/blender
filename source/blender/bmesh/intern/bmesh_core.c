@@ -76,7 +76,9 @@ BMVert *BM_vert_create(BMesh *bm, const float co[3], const BMVert *example)
 	}
 
 	/* allocate flag */
-	v->oflags = BLI_mempool_calloc(bm->toolflagpool);
+	if (bm->toolflagpool) {
+		v->oflags = BLI_mempool_calloc(bm->toolflagpool);
+	}
 
 	CustomData_bmesh_set_default(&bm->vdata, &v->head.data);
 	
@@ -125,12 +127,14 @@ BMEdge *BM_edge_create(BMesh *bm, BMVert *v1, BMVert *v2, const BMEdge *example,
 	e->head.htype = BM_EDGE;
 	
 	/* allocate flag */
-	e->oflags = BLI_mempool_calloc(bm->toolflagpool);
+	if (bm->toolflagpool) {
+		e->oflags = BLI_mempool_calloc(bm->toolflagpool);
+	}
 
 	e->v1 = v1;
 	e->v2 = v2;
 	
-	BM_elem_flag_enable(e, BM_ELEM_SMOOTH);
+	BM_elem_flag_enable(e, BM_ELEM_SMOOTH | BM_ELEM_DRAW);
 	
 	CustomData_bmesh_set_default(&bm->edata, &e->head.data);
 	
@@ -195,8 +199,8 @@ BMFace *BM_face_copy(BMesh *bm, BMFace *f, const short copyverts, const short co
 {
 	BMVert **verts = NULL;
 	BMEdge **edges = NULL;
-	BLI_array_fixedstack_declare(verts, BM_NGON_STACK_SIZE, f->len, __func__);
-	BLI_array_fixedstack_declare(edges, BM_NGON_STACK_SIZE, f->len, __func__);
+	BLI_array_fixedstack_declare(verts, BM_DEFAULT_NGON_STACK_SIZE, f->len, __func__);
+	BLI_array_fixedstack_declare(edges, BM_DEFAULT_NGON_STACK_SIZE, f->len, __func__);
 	BMLoop *l_iter;
 	BMLoop *l_first;
 	BMLoop *l_copy;
@@ -278,7 +282,9 @@ BLI_INLINE BMFace *bm_face_create__internal(BMesh *bm)
 	f->head.htype = BM_FACE;
 
 	/* allocate flag */
-	f->oflags = BLI_mempool_calloc(bm->toolflagpool);
+	if (bm->toolflagpool) {
+		f->oflags = BLI_mempool_calloc(bm->toolflagpool);
+	}
 
 	CustomData_bmesh_set_default(&bm->pdata, &f->head.data);
 
@@ -305,7 +311,7 @@ BMFace *BM_face_create(BMesh *bm, BMVert **verts, BMEdge **edges, const int len,
 
 	if (nodouble) {
 		/* Check if face already exists */
-		overlap = BM_face_exists(bm, verts, len, &f);
+		overlap = BM_face_exists(verts, len, &f);
 		if (overlap) {
 			return f;
 		}
@@ -495,7 +501,9 @@ static void bm_kill_only_vert(BMesh *bm, BMVert *v)
 	if (v->head.data)
 		CustomData_bmesh_free_block(&bm->vdata, &v->head.data);
 
-	BLI_mempool_free(bm->toolflagpool, v->oflags);
+	if (bm->toolflagpool) {
+		BLI_mempool_free(bm->toolflagpool, v->oflags);
+	}
 	BLI_mempool_free(bm->vpool, v);
 }
 
@@ -513,7 +521,9 @@ static void bm_kill_only_edge(BMesh *bm, BMEdge *e)
 	if (e->head.data)
 		CustomData_bmesh_free_block(&bm->edata, &e->head.data);
 
-	BLI_mempool_free(bm->toolflagpool, e->oflags);
+	if (bm->toolflagpool) {
+		BLI_mempool_free(bm->toolflagpool, e->oflags);
+	}
 	BLI_mempool_free(bm->epool, e);
 }
 
@@ -534,7 +544,9 @@ static void bm_kill_only_face(BMesh *bm, BMFace *f)
 	if (f->head.data)
 		CustomData_bmesh_free_block(&bm->pdata, &f->head.data);
 
-	BLI_mempool_free(bm->toolflagpool, f->oflags);
+	if (bm->toolflagpool) {
+		BLI_mempool_free(bm->toolflagpool, f->oflags);
+	}
 	BLI_mempool_free(bm->fpool, f);
 }
 
@@ -558,7 +570,7 @@ static void bm_kill_only_loop(BMesh *bm, BMLoop *l)
 void BM_face_edges_kill(BMesh *bm, BMFace *f)
 {
 	BMEdge **edges = NULL;
-	BLI_array_staticdeclare(edges, BM_NGON_STACK_SIZE);
+	BLI_array_staticdeclare(edges, BM_DEFAULT_NGON_STACK_SIZE);
 	BMLoop *l_iter;
 	BMLoop *l_first;
 	int i;
@@ -582,7 +594,7 @@ void BM_face_edges_kill(BMesh *bm, BMFace *f)
 void BM_face_verts_kill(BMesh *bm, BMFace *f)
 {
 	BMVert **verts = NULL;
-	BLI_array_staticdeclare(verts, BM_NGON_STACK_SIZE);
+	BLI_array_staticdeclare(verts, BM_DEFAULT_NGON_STACK_SIZE);
 	BMLoop *l_iter;
 	BMLoop *l_first;
 	int i;
@@ -734,7 +746,7 @@ static int bm_loop_reverse_loop(BMesh *bm, BMFace *f
 	const int do_disps = CustomData_has_layer(&bm->ldata, CD_MDISPS);
 	BMLoop *l_iter, *oldprev, *oldnext;
 	BMEdge **edar = NULL;
-	BLI_array_fixedstack_declare(edar, BM_NGON_STACK_SIZE, len, __func__);
+	BLI_array_fixedstack_declare(edar, BM_DEFAULT_NGON_STACK_SIZE, len, __func__);
 	int i, j, edok;
 
 	for (i = 0, l_iter = l_first; i < len; i++, l_iter = l_iter->next) {
@@ -937,9 +949,9 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const short do_del
 	BMEdge **edges = NULL;
 	BMEdge **deledges = NULL;
 	BMVert **delverts = NULL;
-	BLI_array_staticdeclare(edges,    BM_NGON_STACK_SIZE);
-	BLI_array_staticdeclare(deledges, BM_NGON_STACK_SIZE);
-	BLI_array_staticdeclare(delverts, BM_NGON_STACK_SIZE);
+	BLI_array_staticdeclare(edges,    BM_DEFAULT_NGON_STACK_SIZE);
+	BLI_array_staticdeclare(deledges, BM_DEFAULT_NGON_STACK_SIZE);
+	BLI_array_staticdeclare(delverts, BM_DEFAULT_NGON_STACK_SIZE);
 	BMVert *v1 = NULL, *v2 = NULL;
 	const char *err = NULL;
 	int i, tote = 0;
@@ -1587,7 +1599,7 @@ BMEdge *bmesh_jekv(BMesh *bm, BMEdge *ke, BMVert *kv, const short check_edge_dou
 
 				if (LIKELY(radlen)) {
 					BMLoop **loops = NULL;
-					BLI_array_fixedstack_declare(loops, BM_NGON_STACK_SIZE, radlen, __func__);
+					BLI_array_fixedstack_declare(loops, BM_DEFAULT_NGON_STACK_SIZE, radlen, __func__);
 
 					killoop = ke->l;
 
@@ -1773,14 +1785,18 @@ BMFace *bmesh_jfke(BMesh *bm, BMFace *f1, BMFace *f2, BMEdge *e)
 	bmesh_disk_edge_remove(f1loop->e, f1loop->e->v2);
 	
 	/* deallocate edge and its two loops as well as f2 */
-	BLI_mempool_free(bm->toolflagpool, f1loop->e->oflags);
+	if (bm->toolflagpool) {
+		BLI_mempool_free(bm->toolflagpool, f1loop->e->oflags);
+	}
 	BLI_mempool_free(bm->epool, f1loop->e);
 	bm->totedge--;
 	BLI_mempool_free(bm->lpool, f1loop);
 	bm->totloop--;
 	BLI_mempool_free(bm->lpool, f2loop);
 	bm->totloop--;
-	BLI_mempool_free(bm->toolflagpool, f2->oflags);
+	if (bm->toolflagpool) {
+		BLI_mempool_free(bm->toolflagpool, f2->oflags);
+	}
 	BLI_mempool_free(bm->fpool, f2);
 	bm->totface--;
 	/* account for both above */
@@ -1808,10 +1824,11 @@ BMFace *bmesh_jfke(BMesh *bm, BMFace *f1, BMFace *f2, BMEdge *e)
  */
 int BM_vert_splice(BMesh *bm, BMVert *v, BMVert *v_target)
 {
-	BMEdge *e;
-
+	void *loops_stack[BM_DEFAULT_ITER_STACK_SIZE];
 	BMLoop **loops;
 	int i, loops_tot;
+
+	BMEdge *e;
 
 	/* verts already spliced */
 	if (v == v_target) {
@@ -1819,12 +1836,16 @@ int BM_vert_splice(BMesh *bm, BMVert *v, BMVert *v_target)
 	}
 
 	/* we can't modify the vert while iterating so first allocate an array of loops */
-	loops = BM_iter_as_arrayN(bm, BM_LOOPS_OF_VERT, v, &loops_tot);
-	if (loops) {
+	loops = BM_iter_as_arrayN(bm, BM_LOOPS_OF_VERT, v, &loops_tot,
+	                          loops_stack, BM_DEFAULT_ITER_STACK_SIZE);
+
+	if (LIKELY(loops != NULL)) {
 		for (i = 0; i < loops_tot; i++) {
 			loops[i]->v = v_target;
 		}
-		MEM_freeN(loops);
+		if (loops != (BMLoop **)loops_stack) {
+			MEM_freeN(loops);
+		}
 	}
 
 	/* move all the edges from v's disk to vtarget's disk */

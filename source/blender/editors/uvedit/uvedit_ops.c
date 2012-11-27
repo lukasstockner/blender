@@ -616,7 +616,7 @@ int ED_uvedit_minmax(Scene *scene, Image *ima, Object *obedit, float r_min[2], f
 		BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 			if (uvedit_uv_select_test(em, scene, l)) {
 				luv = CustomData_bmesh_get(&em->bm->ldata, l->head.data, CD_MLOOPUV);
-				DO_MINMAX2(luv->uv, r_min, r_max);
+				minmax_v2v2_v2(r_min, r_max, luv->uv);
 				sel = 1;
 			}
 		}
@@ -1327,7 +1327,7 @@ static void weld_align_uv(bContext *C, int tool)
 			BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 				if (uvedit_uv_select_test(em, scene, l)) {
 					MLoopUV *luv = CustomData_bmesh_get(&em->bm->ldata, l->head.data, CD_MLOOPUV);
-					DO_MINMAX2(luv->uv, min, max);
+					minmax_v2v2_v2(min, max, luv->uv);
 				}
 			}
 		}
@@ -1553,7 +1553,170 @@ static void UV_OT_align(wmOperatorType *ot)
 	/* properties */
 	RNA_def_enum(ot->srna, "axis", axis_items, 'a', "Axis", "Axis to align UV locations on");
 }
+/* ******************** weld near operator **************** */
 
+typedef struct UVvert {
+	MLoopUV *uv_loop;
+	int weld;
+} UVvert;
+
+static int remove_doubles_exec(bContext *C, wmOperator *op)
+{
+	const float threshold = RNA_float_get(op->ptr, "threshold");
+	const int use_unselected = RNA_boolean_get(op->ptr, "use_unselected");
+
+	SpaceImage *sima;
+	Scene *scene;
+	Object *obedit;
+	Image *ima;
+	BMEditMesh *em;
+	MTexPoly *tf;
+	int uv_a_index;
+	int uv_b_index;
+	float *uv_a;
+	float *uv_b;
+
+	BMIter iter, liter;
+	BMFace *efa;
+	BMLoop *l;
+
+	sima = CTX_wm_space_image(C);
+	scene = CTX_data_scene(C);
+	obedit = CTX_data_edit_object(C);
+	em = BMEdit_FromObject(obedit);
+	ima = CTX_data_edit_image(C);
+
+	if (use_unselected == FALSE) {
+		UVvert *vert_arr = NULL;
+		BLI_array_declare(vert_arr);
+		MLoopUV **loop_arr = NULL;
+		BLI_array_declare(loop_arr);
+
+		/* TODO, use qsort as with MESH_OT_remove_doubles, this isn't optimal */
+		BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
+			tf = CustomData_bmesh_get(&em->bm->pdata, efa->head.data, CD_MTEXPOLY);
+			if (!uvedit_face_visible_test(scene, ima, efa, tf))
+				continue;
+
+			BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
+				if (uvedit_uv_select_test(em, scene, l)) {
+					MLoopUV *luv = CustomData_bmesh_get(&em->bm->ldata, l->head.data, CD_MLOOPUV);
+					UVvert vert;
+					vert.uv_loop = luv;
+					vert.weld = FALSE;
+					BLI_array_append(vert_arr, vert);
+				}
+
+			}
+		}
+
+		for (uv_a_index = 0; uv_a_index < BLI_array_count(vert_arr); uv_a_index++) {
+			if (vert_arr[uv_a_index].weld == FALSE) {
+				float uv_min[2];
+				float uv_max[2];
+
+				BLI_array_empty(loop_arr);
+				BLI_array_append(loop_arr, vert_arr[uv_a_index].uv_loop);
+
+				uv_a = vert_arr[uv_a_index].uv_loop->uv;
+
+				copy_v2_v2(uv_max, uv_a);
+				copy_v2_v2(uv_min, uv_a);
+
+				vert_arr[uv_a_index].weld = TRUE;
+				for (uv_b_index = uv_a_index + 1; uv_b_index < BLI_array_count(vert_arr); uv_b_index++) {
+					uv_b = vert_arr[uv_b_index].uv_loop->uv;
+					if ((vert_arr[uv_b_index].weld == FALSE) &&
+					    (len_manhattan_v2v2(uv_a, uv_b) < threshold))
+					{
+						minmax_v2v2_v2(uv_max, uv_min, uv_b);
+						BLI_array_append(loop_arr, vert_arr[uv_b_index].uv_loop);
+						vert_arr[uv_b_index].weld = TRUE;
+					}
+				}
+				if (BLI_array_count(loop_arr)) {
+					float uv_mid[2];
+					mid_v2_v2v2(uv_mid, uv_min, uv_max);
+					for (uv_b_index = 0; uv_b_index < BLI_array_count(loop_arr); uv_b_index++) {
+						copy_v2_v2(loop_arr[uv_b_index]->uv, uv_mid);
+					}
+				}
+			}
+		}
+
+		BLI_array_free(vert_arr);
+		BLI_array_free(loop_arr);
+	}
+	else {
+		/* selected -> unselected
+		 *
+		 * No need to use 'UVvert' here */
+		MLoopUV **loop_arr = NULL;
+		BLI_array_declare(loop_arr);
+		MLoopUV **loop_arr_unselected = NULL;
+		BLI_array_declare(loop_arr_unselected);
+
+		BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
+			tf = CustomData_bmesh_get(&em->bm->pdata, efa->head.data, CD_MTEXPOLY);
+			if (!uvedit_face_visible_test(scene, ima, efa, tf))
+				continue;
+
+			BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
+				MLoopUV *luv = CustomData_bmesh_get(&em->bm->ldata, l->head.data, CD_MLOOPUV);
+				if (uvedit_uv_select_test(em, scene, l)) {
+					BLI_array_append(loop_arr, luv);
+				}
+				else {
+					BLI_array_append(loop_arr_unselected, luv);
+				}
+			}
+		}
+
+		for (uv_a_index = 0; uv_a_index < BLI_array_count(loop_arr); uv_a_index++) {
+			float dist_best = FLT_MAX, dist;
+			float *uv_best = NULL;
+
+			uv_a = loop_arr[uv_a_index]->uv;
+			for (uv_b_index = 0; uv_b_index < BLI_array_count(loop_arr_unselected); uv_b_index++) {
+				uv_b = loop_arr_unselected[uv_b_index]->uv;
+				dist = len_manhattan_v2v2(uv_a, uv_b);
+				if ((dist < threshold) && (dist < dist_best)) {
+					uv_best = uv_b;
+					dist_best = dist;
+				}
+			}
+			if (uv_best) {
+				copy_v2_v2(uv_a, uv_best);
+			}
+		}
+
+		BLI_array_free(loop_arr);
+		BLI_array_free(loop_arr_unselected);
+	}
+
+	uvedit_live_unwrap_update(sima, scene, obedit);
+	DAG_id_tag_update(obedit->data, 0);
+	WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+
+	return OPERATOR_FINISHED;
+}
+
+static void UV_OT_remove_doubles(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Remove Doubles UV";
+	ot->description = "Selected UV vertices that are within a radius of each other are welded together";
+	ot->idname = "UV_OT_remove_doubles";
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	/* api callbacks */
+	ot->exec = remove_doubles_exec;
+	ot->poll = ED_operator_uvedit;
+
+	RNA_def_float(ot->srna, "threshold", 0.02f, 0.0f, 10.0f,
+	              "Merge Distance", "Maximum distance between welded vertices", 0.0f, 1.0f);
+	RNA_def_boolean(ot->srna, "use_unselected", 0, "Unselected", "Merge selected to other unselected vertices");
+}
 /* ******************** weld operator **************** */
 
 static int weld_exec(bContext *C, wmOperator *UNUSED(op))
@@ -3776,6 +3939,7 @@ void ED_operatortypes_uvedit(void)
 	WM_operatortype_append(UV_OT_seams_from_islands);
 	WM_operatortype_append(UV_OT_mark_seam);
 	WM_operatortype_append(UV_OT_weld);
+	WM_operatortype_append(UV_OT_remove_doubles);
 	WM_operatortype_append(UV_OT_pin);
 
 	WM_operatortype_append(UV_OT_average_islands_scale);

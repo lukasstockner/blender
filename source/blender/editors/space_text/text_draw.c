@@ -764,7 +764,7 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 			buffer[len] = '\0';
 			text_font_draw(st, ox, y, buffer);
 
-			y -= st->lheight;
+			y -= st->lheight + TXT_LINE_SPACING;
 			x = basex;
 			lines++;
 			start = end; mstart = mend;
@@ -1172,40 +1172,6 @@ int text_get_total_lines(SpaceText *st, ARegion *ar)
 	return drawcache->total_lines;
 }
 
-/* Move pointer to first visible line (top) */
-static TextLine *first_visible_line(SpaceText *st, ARegion *ar, int *wrap_top)
-{
-	Text *text = st->text;
-	TextLine *pline = text->lines.first;
-	int i = st->top, lineno = 0;
-
-	text_update_drawcache(st, ar);
-
-	if (wrap_top) *wrap_top = 0;
-
-	if (st->wordwrap) {
-		while (i > 0 && pline) {
-			int lines = text_get_visible_lines_no(st, lineno);
-
-			if (i - lines < 0) {
-				if (wrap_top) *wrap_top = i;
-				break;
-			}
-			else {
-				pline = pline->next;
-				i -= lines;
-				lineno++;
-			}
-		}
-	}
-	else {
-		for (i = st->top; pline->next && i > 0; i--)
-			pline = pline->next;
-	}
-
-	return pline;
-}
-
 /************************ draw scrollbar *****************************/
 
 static void calc_text_rcts(SpaceText *st, ARegion *ar, rcti *scroll, rcti *back)
@@ -1341,94 +1307,6 @@ static void draw_textscroll(SpaceText *st, rcti *scroll, rcti *back)
 	glEnable(GL_BLEND);
 	uiRoundBox(st->txtscroll.xmin + 1, st->txtscroll.ymin, st->txtscroll.xmax - 1, st->txtscroll.ymax, rad);
 	glDisable(GL_BLEND);
-}
-
-/************************** draw markers **************************/
-
-static void draw_markers(SpaceText *st, ARegion *ar)
-{
-	Text *text = st->text;
-	TextMarker *marker, *next;
-	TextLine *top, *line;
-	int offl, offc, i, x1, x2, y1, y2, x, y;
-	int topi, topy;
-
-	/* Move pointer to first visible line (top) */
-	top = first_visible_line(st, ar, NULL);
-	topi = BLI_findindex(&text->lines, top);
-
-	topy = txt_get_span(text->lines.first, top);
-
-	for (marker = text->markers.first; marker; marker = next) {
-		next = marker->next;
-
-		/* invisible line (before top) */
-		if (marker->lineno < topi) continue;
-
-		line = BLI_findlink(&text->lines, marker->lineno);
-
-		/* Remove broken markers */
-		if (marker->end > line->len || marker->start > marker->end) {
-			BLI_freelinkN(&text->markers, marker);
-			continue;
-		}
-
-		wrap_offset(st, ar, line, marker->start, &offl, &offc);
-		y1 = txt_get_span(top, line) - st->top + offl + topy;
-		x1 = text_get_char_pos(st, line->line, marker->start) - st->left + offc;
-
-		wrap_offset(st, ar, line, marker->end, &offl, &offc);
-		y2 = txt_get_span(top, line) - st->top + offl + topy;
-		x2 = text_get_char_pos(st, line->line, marker->end) - st->left + offc;
-
-		/* invisible part of line (before top, after last visible line) */
-		if (y2 < 0 || y1 > st->top + st->viewlines) continue;
-
-		gpuCurrentColor3ubv(marker->color);
-		x = st->showlinenrs ? TXT_OFFSET + TEXTXLOC : TXT_OFFSET;
-		y = ar->winy - 3;
-
-		gpuImmediateFormat_V2();
-
-		if (y1 == y2) {
-			y -= y1 * st->lheight;
-			gpuBegin(GL_LINE_LOOP);
-			gpuVertex2i(x + x2 * st->cwidth + 1, y);
-			gpuVertex2i(x + x1 * st->cwidth - 2, y);
-			gpuVertex2i(x + x1 * st->cwidth - 2, y - st->lheight);
-			gpuVertex2i(x + x2 * st->cwidth + 1, y - st->lheight);
-			gpuEnd();
-		}
-		else {
-			y -= y1 * st->lheight;
-			gpuBegin(GL_LINE_STRIP);
-			gpuVertex2i(ar->winx, y);
-			gpuVertex2i(x + x1 * st->cwidth - 2, y);
-			gpuVertex2i(x + x1 * st->cwidth - 2, y - st->lheight);
-			gpuVertex2i(ar->winx, y - st->lheight);
-			gpuEnd();
-			y -= st->lheight;
-
-			for (i = y1 + 1; i < y2; i++) {
-				gpuBegin(GL_LINES);
-				gpuVertex2i(x, y);
-				gpuVertex2i(ar->winx, y);
-				gpuVertex2i(x, y - st->lheight);
-				gpuVertex2i(ar->winx, y - st->lheight);
-				gpuEnd();
-				y -= st->lheight;
-			}
-
-			gpuBegin(GL_LINE_STRIP);
-			gpuVertex2i(x, y);
-			gpuVertex2i(x + x2 * st->cwidth + 1, y);
-			gpuVertex2i(x + x2 * st->cwidth + 1, y - st->lheight);
-			gpuVertex2i(x, y - st->lheight);
-			gpuEnd();
-		}
-
-		gpuImmediateUnformat();
-	}
 }
 
 /*********************** draw documentation *******************************/
@@ -1610,6 +1488,7 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 	Text *text = st->text;
 	int vcurl, vcurc, vsell, vselc, hidden = 0;
 	int x, y, w, i;
+	int lheight = st->lheight + TXT_LINE_SPACING;
 
 	/* Draw the selection */
 	if (text->curl != text->sell || text->curc != text->selc) {
@@ -1630,11 +1509,11 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 		y = ar->winy - 2;
 
 		if (vcurl == vsell) {
-			y -= vcurl * st->lheight;
+			y -= vcurl * lheight;
 			if (vcurc < vselc)
-				gpuSingleFilledRecti(x + vcurc * st->cwidth - 1, y, x + vselc * st->cwidth, y - st->lheight);
+				gpuSingleFilledRecti(x + vcurc * st->cwidth - 1, y, x + vselc * st->cwidth, y - st->lheight + TXT_LINE_SPACING);
 			else
-				gpuSingleFilledRecti(x + vselc * st->cwidth - 1, y, x + vcurc * st->cwidth, y - st->lheight);
+				gpuSingleFilledRecti(x + vselc * st->cwidth - 1, y, x + vcurc * st->cwidth, y - st->lheight + TXT_LINE_SPACING);
 		}
 		else {
 			int froml, fromc, tol, toc;
@@ -1648,12 +1527,13 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 				fromc = vselc; toc = vcurc;
 			}
 
-			y -= froml * st->lheight;
+			y -= froml * lheight;
 			gpuSingleFilledRecti(x + fromc * st->cwidth - 1, y, ar->winx, y - st->lheight);
 			y -= st->lheight;
+			for (i = froml + 1; i < tol; i++)
 
 			for (i = froml + 1; i < tol; i++) {
-				gpuSingleFilledRecti(x - 4, y, ar->winx, y - st->lheight);
+				gpuSingleFilledRecti(x - 4, y, ar->winx, y - st->lheight + TXT_LINE_SPACING);
 				y -= st->lheight;
 			}
 
@@ -1681,12 +1561,12 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 
 			wrap_offset_in_line(st, ar, text->sell, text->selc, &offl, &offc);
 
-			y1 = ar->winy - 2 - (vsell - offl) * st->lheight;
-			y2 = y1 - st->lheight * visible_lines + 1;
+			y1 = ar->winy - 2 - (vsell - offl) * lheight;
+			y2 = y1 - lheight * visible_lines + 1;
 		}
 		else {
-			y1 = ar->winy - 2 - vsell * st->lheight;
-			y2 = y1 - st->lheight + 1;
+			y1 = ar->winy - 2 - vsell * lheight;
+			y2 = y1 - lheight + 1;
 		}
 
 		if (!(y1 < 0 || y2 > ar->winy)) { /* check we need to draw */
@@ -1696,7 +1576,7 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 			gpuCurrentColor4x(CPACK_WHITE, 0.125f);
 			
 			glEnable(GL_BLEND);
-			gpuSingleFilledRecti(x1 - 4, y1, x2, y2);
+			gpuSingleFilledRecti(x1 - 4, y1, x2, y2 + TXT_LINE_SPACING);
 			glDisable(GL_BLEND);
 		}
 	}
@@ -1705,20 +1585,21 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 		/* Draw the cursor itself (we draw the sel. cursor as this is the leading edge) */
 		x = st->showlinenrs ? TXT_OFFSET + TEXTXLOC : TXT_OFFSET;
 		x += vselc * st->cwidth;
-		y = ar->winy - 2 - vsell * st->lheight;
+		y = ar->winy - 2 - vsell * lheight;
 		
 		if (st->overwrite) {
 			char ch = text->sell->line[text->selc];
 			
+			y += TXT_LINE_SPACING;
 			w = st->cwidth;
 			if (ch == '\t') w *= st->tabnumber - (vselc + st->left) % st->tabnumber;
 			
 			UI_ThemeColor(TH_HILITE);
-			gpuSingleFilledRecti(x, y - st->lheight - 1, x + w, y - st->lheight + 1);
+			gpuSingleFilledRecti(x, y - lheight - 1, x + w, y - lheight + 1);
 		}
 		else {
 			UI_ThemeColor(TH_HILITE);
-			gpuSingleFilledRecti(x - 1, y, x + 1, y - st->lheight);
+			gpuSingleFilledRecti(x - 1, y, x + 1, y - lheight + TXT_LINE_SPACING);
 		}
 	}
 }
@@ -1833,8 +1714,8 @@ static void draw_brackets(SpaceText *st, ARegion *ar)
 	if (viewc >= 0) {
 		viewl = txt_get_span(text->lines.first, startl) - st->top + offl;
 
-		text_font_draw_character(st, x + viewc * st->cwidth, y - viewl * st->lheight, ch);
-		text_font_draw_character(st, x + viewc * st->cwidth + 1, y - viewl * st->lheight, ch);
+		text_font_draw_character(st, x + viewc * st->cwidth, y - viewl * (st->lheight + TXT_LINE_SPACING), ch);
+		text_font_draw_character(st, x + viewc * st->cwidth + 1, y - viewl * (st->lheight + TXT_LINE_SPACING), ch);
 	}
 
 	/* draw closing bracket */
@@ -1845,8 +1726,8 @@ static void draw_brackets(SpaceText *st, ARegion *ar)
 	if (viewc >= 0) {
 		viewl = txt_get_span(text->lines.first, endl) - st->top + offl;
 
-		text_font_draw_character(st, x + viewc * st->cwidth, y - viewl * st->lheight, ch);
-		text_font_draw_character(st, x + viewc * st->cwidth + 1, y - viewl * st->lheight, ch);
+		text_font_draw_character(st, x + viewc * st->cwidth, y - viewl * (st->lheight + TXT_LINE_SPACING), ch);
+		text_font_draw_character(st, x + viewc * st->cwidth + 1, y - viewl * (st->lheight + TXT_LINE_SPACING), ch);
 	}
 }
 
@@ -1862,7 +1743,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 	int wraplinecount = 0, wrap_skip = 0;
 	int margin_column_x;
 
-	if (st->lheight) st->viewlines = (int)ar->winy / st->lheight;
+	if (st->lheight) st->viewlines = (int)ar->winy / (st->lheight + TXT_LINE_SPACING);
 	else st->viewlines = 0;
 
 	/* if no text, nothing to do */
@@ -1955,14 +1836,14 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 		if (st->wordwrap) {
 			/* draw word wrapped text */
 			int lines = text_draw_wrapped(st, tmp->line, x, y, winx - x, tmp->format, wrap_skip);
-			y -= lines * st->lheight;
+			y -= lines * (st->lheight + TXT_LINE_SPACING);
 		}
 		else {
 			/* draw unwrapped text */
 			text_draw(st, tmp->line, st->left, ar->winx / st->cwidth, 1, x, y, tmp->format);
-			y -= st->lheight;
+			y -= st->lheight + TXT_LINE_SPACING;
 		}
-
+		
 		wrap_skip = 0;
 	}
 
@@ -1987,7 +1868,6 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 
 	/* draw other stuff */
 	draw_brackets(st, ar);
-	draw_markers(st, ar);
 	gpuTranslate(GLA_PIXEL_OFS, GLA_PIXEL_OFS, 0.0f); /* XXX scroll requires exact pixel space */
 	draw_textscroll(st, &scroll, &back);
 	draw_documentation(st, ar);

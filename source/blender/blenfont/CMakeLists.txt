@@ -31,6 +31,7 @@ set(INC
 	../makesrna
 	../imbuf
 	../../../intern/guardedalloc
+	../../../intern/locale
 	../gpu
 )
 
@@ -55,9 +56,6 @@ set(SRC
 )
 
 if(WITH_INTERNATIONAL)
-	list(APPEND INC_SYS
-		${GETTEXT_INCLUDE_DIRS}
-	)
 	add_definitions(-DWITH_INTERNATIONAL)
 endif()
 

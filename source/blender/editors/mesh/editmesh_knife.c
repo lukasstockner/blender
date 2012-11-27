@@ -1828,7 +1828,7 @@ static void remerge_faces(KnifeTool_OpData *kcd)
 	BMO_op_initf(bm, &bmop, "beautify_fill faces=%ff constrain_edges=%fe", FACE_NEW, BOUNDARY);
 
 	BMO_op_exec(bm, &bmop);
-	BMO_slot_buffer_flag_enable(bm, &bmop, "geomout", BM_FACE, FACE_NEW);
+	BMO_slot_buffer_flag_enable(bm, &bmop, "geom.out", BM_FACE, FACE_NEW);
 
 	BMO_op_finish(bm, &bmop);
 
@@ -2578,8 +2578,8 @@ static void knife_make_chain_cut(KnifeTool_OpData *kcd, BMFace *f, ListBase *cha
 	int nco = BLI_countlist(chain) - 1;
 	float (*cos)[3] = NULL;
 	KnifeVert **kverts;
-	BLI_array_fixedstack_declare(cos, BM_NGON_STACK_SIZE, nco, __func__);
-	BLI_array_fixedstack_declare(kverts, BM_NGON_STACK_SIZE, nco, __func__);
+	BLI_array_fixedstack_declare(cos, BM_DEFAULT_NGON_STACK_SIZE, nco, __func__);
+	BLI_array_fixedstack_declare(kverts, BM_DEFAULT_NGON_STACK_SIZE, nco, __func__);
 
 	kfe = ((Ref *)chain->first)->ref;
 	v1 = kfe->v1->v ? kfe->v1->v : kfe->v2->v;

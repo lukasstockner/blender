@@ -65,6 +65,10 @@ if(WITH_CYCLES)
 	add_subdirectory(cycles)
 endif()
 
+if(WITH_INTERNATIONAL)
+	add_subdirectory(locale)
+endif()
+
 if(WITH_INPUT_TOUCH)
 	add_subdirectory(touch)
 endif()

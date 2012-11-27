@@ -1123,6 +1123,12 @@ static void rna_SceneRenderLayer_name_set(PointerRNA *ptr, const char *value)
 	}
 }
 
+static char *rna_SceneRenderLayer_path(PointerRNA *ptr)
+{
+	SceneRenderLayer *srl = (SceneRenderLayer*)ptr->data;
+	return BLI_sprintfN("render.layers[\"%s\"]", srl->name);
+}
+
 static int rna_RenderSettings_multiple_engines_get(PointerRNA *UNUSED(ptr))
 {
 	return (BLI_countlist(&R_engines) > 1);
@@ -2788,6 +2794,7 @@ static void rna_def_scene_render_layer(BlenderRNA *brna)
 	srna = RNA_def_struct(brna, "SceneRenderLayer", NULL);
 	RNA_def_struct_ui_text(srna, "Scene Render Layer", "Render layer");
 	RNA_def_struct_ui_icon(srna, ICON_RENDERLAYERS);
+	RNA_def_struct_path_func(srna, "rna_SceneRenderLayer_path");
 
 	rna_def_render_layer_common(srna, 1);
 }
@@ -3144,7 +3151,7 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_ui_text(prop, "Volume", "Audio volume");
-	RNA_def_property_translation_context(prop, "Audio");
+	RNA_def_property_translation_context(prop, BLF_I18NCONTEXT_ID_SOUND);
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 #endif
 
@@ -3967,6 +3974,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_sequencer_gl_preview", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "seq_flag", R_SEQ_GL_PREV);
 	RNA_def_property_ui_text(prop, "Sequencer OpenGL", "");
+	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_SceneSequencer_update");
 
 #if 0  /* see R_SEQ_GL_REND comment */
 	prop = RNA_def_property(srna, "use_sequencer_gl_render", PROP_BOOLEAN, PROP_NONE);
@@ -4565,7 +4573,7 @@ void RNA_def_scene(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "audio.volume");
 	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_ui_text(prop, "Volume", "Audio volume");
-	RNA_def_property_translation_context(prop, BLF_I18NCONTEXT_AUDIO);
+	RNA_def_property_translation_context(prop, BLF_I18NCONTEXT_ID_SOUND);
 	RNA_def_property_update(prop, NC_SCENE, NULL);
 	RNA_def_property_float_funcs(prop, NULL, "rna_Scene_volume_set", NULL);
 

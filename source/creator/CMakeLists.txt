@@ -471,20 +471,6 @@ elseif(WIN32)
 		DESTINATION ${TARGETDIR}
 	)
 
-	if(WITH_INTERNATIONAL AND (NOT WITH_MINGW64))
-		install(
-			FILES ${LIBDIR}/gettext/lib/gnu_gettext.dll
-			DESTINATION ${TARGETDIR}
-		)
-
-		if(NOT CMAKE_CL_64)
-			install(
-				FILES ${LIBDIR}/iconv/lib/iconv.dll
-				DESTINATION ${TARGETDIR}
-			)
-		endif()
-	endif()
-
 	if(WITH_PYTHON)
 		set_lib_path(PYLIB "python")
 		install(
@@ -532,7 +518,7 @@ elseif(WIN32)
 	endif()
 
 	if(CMAKE_CL_64)
-		# gettext and png are statically linked on win64
+		# png is statically linked on win64
 		install(
 			FILES ${LIBDIR}/zlib/lib/zlib.dll
 			DESTINATION ${TARGETDIR}
@@ -634,18 +620,7 @@ elseif(WIN32)
 	install( # x86 builds can run on x64 Windows, so this is required at all times
 		FILES ${LIBDIR}/thumbhandler/lib/BlendThumb64.dll
 		DESTINATION ${TARGETDIR}
-	)	
-
-	if(WITH_OPENIMAGEIO)
-		if(NOT MINGW)
-			set(OIIOBIN ${LIBDIR}/openimageio)
-			install(
-				FILES
-					${OIIOBIN}/bin/OpenImageIO.dll
-				DESTINATION ${TARGETDIR}
-			)
-		endif()
-	endif()
+	)
 
 	if(WITH_OPENCOLORIO)
 		set(OCIOBIN ${LIBDIR}/opencolorio/bin)
@@ -683,7 +658,7 @@ elseif(APPLE)
 		)
 	endmacro()
 
-	set(OSX_APP_SOURCEDIR ${CMAKE_SOURCE_DIR}/source/darwin/blender.app)
+	set(OSX_APP_SOURCEDIR ${CMAKE_SOURCE_DIR}/release/darwin/blender.app)
 
 	# setup Info.plist
 	execute_process(COMMAND date "+%Y-%m-%d" OUTPUT_VARIABLE BLENDER_DATE OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -742,7 +717,7 @@ elseif(APPLE)
 	# install blenderplayer bundle - copy of blender.app above. re-using macros et al
 	# note we are using OSX Bundle as base and copying Blender dummy bundle on top of it
 	if(WITH_GAMEENGINE AND WITH_PLAYER)
-		set(OSX_APP_PLAYER_SOURCEDIR ${CMAKE_SOURCE_DIR}/source/darwin/blenderplayer.app)
+		set(OSX_APP_PLAYER_SOURCEDIR ${CMAKE_SOURCE_DIR}/release/darwin/blenderplayer.app)
 		set(PLAYER_SOURCEINFO ${OSX_APP_PLAYER_SOURCEDIR}/Contents/Info.plist)
 		set(PLAYER_TARGETDIR_VER ${TARGETDIR}/blenderplayer.app/Contents/MacOS/${BLENDER_VERSION})
 
@@ -987,6 +962,10 @@ endif()
 
 	if(WITH_CYCLES_OSL)
 		list_insert_after(BLENDER_SORTED_LIBS "cycles_kernel" "cycles_kernel_osl")
+	endif()
+
+	if(WITH_INTERNATIONAL)
+		list(APPEND BLENDER_SORTED_LIBS bf_intern_locale)
 	endif()
 
 	foreach(SORTLIB ${BLENDER_SORTED_LIBS})

@@ -442,11 +442,9 @@ class USERPREF_PT_system(Panel):
         col.label(text="Anisotropic Filtering")
         col.prop(system, "anisotropic_filter", text="")
         col.prop(system, "use_vertex_buffer_objects")
-        # Anti-aliasing is disabled as it breaks border/lasso select
-        #~ col.prop(system, "use_antialiasing")
         col.label(text="Window Draw Method:")
         col.prop(system, "window_draw_method", text="")
-        col.prop(system, "ogl_multisamples", text="")
+        col.prop(system, "multi_sample", text="")
         col.label(text="Text Draw Options:")
         col.prop(system, "use_text_antialiasing")
         col.label(text="Textures:")

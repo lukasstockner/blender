@@ -718,14 +718,14 @@ static int wm_automatic_draw_method(wmWindow *win)
 		if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE))
 			return USER_DRAW_OVERLAP;
 		/* also Intel drivers are slow */
-		/* 2.64 BCon3 period, let's try if intel now works...
+#if 0	/* 2.64 BCon3 period, let's try if intel now works... */
 		else if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_UNIX, GPU_DRIVER_ANY))
 			return USER_DRAW_OVERLAP;
 		else if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_WIN, GPU_DRIVER_ANY))
 			return USER_DRAW_OVERLAP_FLIP;
 		else if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_MAC, GPU_DRIVER_ANY))
 			return USER_DRAW_OVERLAP_FLIP;
-		 */
+#endif
 		/* Windows software driver darkens color on each redraw */
 		else if (GPU_type_matches(GPU_DEVICE_SOFTWARE, GPU_OS_WIN, GPU_DRIVER_SOFTWARE))
 			return USER_DRAW_OVERLAP_FLIP;
@@ -760,6 +760,15 @@ void wm_draw_update(bContext *C)
 	GPU_free_unused_buffers();
 	
 	for (win = wm->windows.first; win; win = win->next) {
+		int state = GHOST_GetWindowState(win->ghostwin);;
+
+		if (state == GHOST_kWindowStateMinimized) {
+			/* do not update minimized windows, it gives issues on intel drivers (see [#33223])
+			 * anyway, it seems logical to skip update for invisile windows
+			 */
+			continue;
+		}
+
 		if (win->drawmethod != U.wmdrawmethod) {
 			wm_draw_window_clear(win);
 			win->drawmethod = U.wmdrawmethod;

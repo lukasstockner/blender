@@ -2983,7 +2983,6 @@ static void direct_link_text(FileData *fd, Text *text)
 #endif
 	
 	link_list(fd, &text->lines);
-	link_list(fd, &text->markers);
 	
 	text->curl = newdataadr(fd, text->curl);
 	text->sell = newdataadr(fd, text->sell);
@@ -3043,7 +3042,7 @@ static void direct_link_image(FileData *fd, Image *ima)
 		link_ibuf_list(fd, &ima->ibufs);
 	else
 		ima->ibufs.first = ima->ibufs.last = NULL;
-	
+
 	/* if not restored, we keep the binded opengl index */
 	if (ima->ibufs.first == NULL) {
 		ima->bindcode = 0;
@@ -8313,11 +8312,17 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 
 			for (scene = main->scene.first; scene; scene = scene->id.next) {
 				if (scene->r.tilex == 0 || scene->r.tiley == 1) {
-					/* scene could be set for panoramic rendering, so clamp with the
-					 * lowest possible tile size value
-					 */
-					scene->r.tilex = max_ii(scene->r.xsch * scene->r.size / scene->r.xparts / 100, 8);
-					scene->r.tiley = max_ii(scene->r.ysch * scene->r.size / scene->r.yparts / 100, 8);
+					if (scene->r.xparts && scene->r.yparts) {
+						/* scene could be set for panoramic rendering, so clamp with the
+						 * lowest possible tile size value
+						 */
+						scene->r.tilex = max_ii(scene->r.xsch * scene->r.size / scene->r.xparts / 100, 8);
+						scene->r.tiley = max_ii(scene->r.ysch * scene->r.size / scene->r.yparts / 100, 8);
+					}
+					else {
+						/* happens when mixing using current trunk and previous release */
+						scene->r.tilex = scene->r.tiley = 64;
+					}
 				}
 			}
 		}
@@ -8339,7 +8344,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 
 			for (clip = main->movieclip.first; clip; clip = clip->id.next) {
 				if (clip->tracking.settings.reconstruction_success_threshold == 0.0f) {
-					clip->tracking.settings.reconstruction_success_threshold = 1e-3;
+					clip->tracking.settings.reconstruction_success_threshold = 1e-3f;
 				}
 			}
 		}
@@ -8360,6 +8365,17 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				for (track = object->tracks.first; track; track = track->next) {
 					do_versions_affine_tracker_track(track);
 				}
+			}
+		}
+	}
+
+	{
+		Object *ob;
+		for (ob = main->object.first; ob; ob = ob->id.next) {
+			if (ob->step_height == 0.0f) {
+				ob->step_height = 0.15f;
+				ob->jump_speed = 10.0f;
+				ob->fall_speed = 55.0f;
 			}
 		}
 	}

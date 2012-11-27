@@ -1322,7 +1322,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 
 			BKE_tracking_undistort_v2(tracking, pos, tpos);
 
-			DO_MINMAX2(tpos, min, max);
+			minmax_v2v2_v2(min, max, tpos);
 		}
 
 		copy_v2_v2(pos, min);
@@ -1535,7 +1535,7 @@ void clip_draw_grease_pencil(bContext *C, int onlyv2d)
 
 	if (onlyv2d) {
 		/* if manual calibration is used then grease pencil data is already
-		 * drawed in draw_distortion */
+		 * drawn in draw_distortion */
 		if ((sc->flag & SC_MANUAL_CALIBRATION) == 0 || sc->mode != SC_MODE_DISTORTION) {
 			gpuPushMatrix();
 			gpuMultMatrix(sc->unistabmat);

@@ -551,7 +551,6 @@ GHOST_SystemCocoa::GHOST_SystemCocoa()
 	char *rstring = NULL;
 	
 	m_modifierMask =0;
-	m_pressedMouseButtons =0;
 	m_isGestureInProgress = false;
 	m_cursorDelta_x=0;
 	m_cursorDelta_y=0;
@@ -577,8 +576,10 @@ GHOST_SystemCocoa::GHOST_SystemCocoa()
 	sysctl( mib, 2, rstring, &len, NULL, 0 );
 	
 	//Hack on MacBook revision, as multitouch avail. function missing
+	//MacbookAir or MacBook version >= 5 (retina is MacBookPro10,1)
 	if (strstr(rstring,"MacBookAir") ||
-		(strstr(rstring,"MacBook") && (rstring[strlen(rstring)-3]>='5') && (rstring[strlen(rstring)-3]<='9')))
+		(strstr(rstring,"MacBook") && (rstring[strlen(rstring)-3]>='5') && (rstring[strlen(rstring)-3]<='9')) ||
+		(strstr(rstring,"MacBook") && (rstring[strlen(rstring)-4]>='1') && (rstring[strlen(rstring)-4]<='9')))
 		m_hasMultiTouchTrackpad = true;
 	else m_hasMultiTouchTrackpad = false;
 	
@@ -848,12 +849,14 @@ GHOST_TSuccess GHOST_SystemCocoa::getModifierKeys(GHOST_ModifierKeys& keys) cons
 
 GHOST_TSuccess GHOST_SystemCocoa::getButtons(GHOST_Buttons& buttons) const
 {
+	UInt32 button_state = GetCurrentEventButtonState();
+
 	buttons.clear();
-	buttons.set(GHOST_kButtonMaskLeft, m_pressedMouseButtons & GHOST_kButtonMaskLeft);
-	buttons.set(GHOST_kButtonMaskRight, m_pressedMouseButtons & GHOST_kButtonMaskRight);
-	buttons.set(GHOST_kButtonMaskMiddle, m_pressedMouseButtons & GHOST_kButtonMaskMiddle);
-	buttons.set(GHOST_kButtonMaskButton4, m_pressedMouseButtons & GHOST_kButtonMaskButton4);
-	buttons.set(GHOST_kButtonMaskButton5, m_pressedMouseButtons & GHOST_kButtonMaskButton5);
+	buttons.set(GHOST_kButtonMaskLeft, button_state & (1 << 0));
+	buttons.set(GHOST_kButtonMaskRight, button_state & (1 << 1));
+	buttons.set(GHOST_kButtonMaskMiddle, button_state & (1 << 2));
+	buttons.set(GHOST_kButtonMaskButton4, button_state & (1 << 3));
+	buttons.set(GHOST_kButtonMaskButton5, button_state & (1 << 4));
 	return GHOST_kSuccess;
 }
 
@@ -1591,13 +1594,17 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
 					if ((dx == 0) && (dy == 0)) break;
 					
 					/* Quadratic acceleration */
-					dx = dx*(fabs(dx)+0.5);
-					if (dx<0.0) dx-=0.5; else dx+=0.5;
-					if (dx< -deltaMax) dx= -deltaMax; else if (dx>deltaMax) dx=deltaMax;
+					dx = dx*(fabs(dx) + 0.5);
+					if (dx < 0.0) dx -= 0.5;
+					else          dx += 0.5;
+					if      (dx < -deltaMax) dx = -deltaMax;
+					else if (dx >  deltaMax) dx =  deltaMax;
 					
-					dy = dy*(fabs(dy)+0.5);
-					if (dy<0.0) dy-=0.5; else dy+=0.5;
-					if (dy< -deltaMax) dy= -deltaMax; else if (dy>deltaMax) dy=deltaMax;
+					dy = dy*(fabs(dy) + 0.5);
+					if (dy < 0.0) dy -= 0.5;
+					else          dy += 0.5;
+					if      (dy < -deltaMax) dy= -deltaMax;
+					else if (dy >  deltaMax) dy=  deltaMax;
 
 					window->clientToScreenIntern(mousePos.x, mousePos.y, x, y);
 					dy = -dy;

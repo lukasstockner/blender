@@ -164,7 +164,7 @@ typedef struct ColormanageProcessor {
  *       but they holds indexes of all transformations and color spaces, not
  *       their names.
  *
- *       This helps avoid extra colorsmace / display / view lookup without
+ *       This helps avoid extra colorspace / display / view lookup without
  *       requiring to pass all variables which affects on display buffer
  *       to color management cache system and keeps calls small and nice.
  */
@@ -2465,7 +2465,8 @@ ColormanageProcessor *IMB_colormanagement_display_processor_new(const ColorManag
 	}
 
 	display_space =  display_transform_get_colorspace(applied_view_settings, display_settings);
-	cm_processor->is_data_result = display_space->is_data;
+	if (display_space)
+		cm_processor->is_data_result = display_space->is_data;
 
 	cm_processor->processor = create_display_buffer_processor(applied_view_settings->view_transform, display_settings->display_device,
 	                                                          applied_view_settings->exposure, applied_view_settings->gamma);

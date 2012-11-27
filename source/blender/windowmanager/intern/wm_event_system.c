@@ -341,7 +341,7 @@ static int wm_handler_ui_call(bContext *C, wmEventHandler *handler, wmEvent *eve
 	int retval;
 	
 	/* UI code doesn't handle return values - it just always returns break. 
-	   to make the DBL_CLICK conversion work, we just don't send this to UI */
+	 * to make the DBL_CLICK conversion work, we just don't send this to UI */
 	if (event->val == KM_DBL_CLICK)
 		return WM_HANDLER_CONTINUE;
 	
@@ -1280,74 +1280,6 @@ int WM_userdef_event_map(int kmitype)
 	return kmitype;
 }
 
-static void wm_eventemulation(wmEvent *event)
-{
-	/* Store last mmb event value to make emulation work when modifier keys are released first. */
-	static int mmb_emulated = 0; /* this should be in a data structure somwhere */
-	
-	/* middlemouse emulation */
-	if (U.flag & USER_TWOBUTTONMOUSE) {
-		if (event->type == LEFTMOUSE) {
-			
-			if (event->val == KM_PRESS && event->alt) {
-				event->type = MIDDLEMOUSE;
-				event->alt = 0;
-				mmb_emulated = 1;
-			}
-			else if (event->val == KM_RELEASE) {
-				/* only send middle-mouse release if emulated */
-				if (mmb_emulated) {
-					event->type = MIDDLEMOUSE;
-					event->alt = 0;
-				}
-				mmb_emulated = 0;
-			}
-		}
-		
-	}
-
-#ifdef __APPLE__
-	
-	/* rightmouse emulation */
-	if (U.flag & USER_TWOBUTTONMOUSE) {
-		if (event->type == LEFTMOUSE) {
-			
-			if (event->val == KM_PRESS && event->oskey) {
-				event->type = RIGHTMOUSE;
-				event->oskey = 0;
-				mmb_emulated = 1;
-			}
-			else if (event->val == KM_RELEASE) {
-				if (mmb_emulated) {
-					event->oskey = RIGHTMOUSE;
-					event->alt = 0;
-				}
-				mmb_emulated = 0;
-			}
-		}
-		
-	}
-#endif
-
-	/* numpad emulation */
-	if (U.flag & USER_NONUMPAD) {
-		switch (event->type) {
-			case ZEROKEY: event->type = PAD0; break;
-			case ONEKEY: event->type = PAD1; break;
-			case TWOKEY: event->type = PAD2; break;
-			case THREEKEY: event->type = PAD3; break;
-			case FOURKEY: event->type = PAD4; break;
-			case FIVEKEY: event->type = PAD5; break;
-			case SIXKEY: event->type = PAD6; break;
-			case SEVENKEY: event->type = PAD7; break;
-			case EIGHTKEY: event->type = PAD8; break;
-			case NINEKEY: event->type = PAD9; break;
-			case MINUSKEY: event->type = PADMINUS; break;
-			case EQUALKEY: event->type = PADPLUSKEY; break;
-			case BACKSLASHKEY: event->type = PADSLASHKEY; break;
-		}
-	}
-}
 
 static int wm_eventmatch(wmEvent *winevent, wmKeyMapItem *kmi)
 {
@@ -1357,9 +1289,9 @@ static int wm_eventmatch(wmEvent *winevent, wmKeyMapItem *kmi)
 
 	/* the matching rules */
 	if (kmitype == KM_TEXTINPUT)
-		if (winevent->val == KM_PRESS) { // prevent double clicks			
+		if (winevent->val == KM_PRESS) {  /* prevent double clicks */
 			/* NOT using ISTEXTINPUT anymore because (at least on Windows) some key codes above 255
-			could have printable ascii keys - BUG [#30479] */
+			 * could have printable ascii keys - BUG [#30479] */
 			if (ISKEYBOARD(winevent->type) && (winevent->ascii || winevent->utf8_buf[0])) return 1; 
 		}
 
@@ -1379,7 +1311,8 @@ static int wm_eventmatch(wmEvent *winevent, wmKeyMapItem *kmi)
 	if (kmi->oskey != KM_ANY)
 		if (winevent->oskey != kmi->oskey && !(winevent->oskey & kmi->oskey)) return 0;
 	
-	if (winevent->keymodifier != kmi->keymodifier) return 0;
+	if (kmi->keymodifier)
+		if (winevent->keymodifier != kmi->keymodifier) return 0;
 		
 	
 	return 1;
@@ -1619,8 +1552,8 @@ static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHa
 				if (handler->op->reports->list.first) {
 
 					/* FIXME, temp setting window, this is really bad!
-						 * only have because lib linking errors need to be seen by users :(
-						 * it can be removed without breaking anything but then no linking errors - campbell */
+					 * only have because lib linking errors need to be seen by users :(
+					 * it can be removed without breaking anything but then no linking errors - campbell */
 					wmWindow *win_prev = CTX_wm_window(C);
 					ScrArea *area_prev = CTX_wm_area(C);
 					ARegion *ar_prev = CTX_wm_region(C);
@@ -2114,8 +2047,6 @@ void wm_event_do_handlers(bContext *C)
 			}
 #endif
 			
-			wm_eventemulation(event);
-
 			CTX_wm_window_set(C, win);
 			
 			/* we let modal handlers get active area/region, also wm_paintcursor_test needs it */
@@ -2617,6 +2548,75 @@ static int convert_key(GHOST_TKey key)
 	}
 }
 
+static void wm_eventemulation(wmEvent *event)
+{
+	/* Store last mmb event value to make emulation work when modifier keys are released first. */
+	static int mmb_emulated = 0; /* this should be in a data structure somwhere */
+	
+	/* middlemouse emulation */
+	if (U.flag & USER_TWOBUTTONMOUSE) {
+		if (event->type == LEFTMOUSE) {
+			
+			if (event->val == KM_PRESS && event->alt) {
+				event->type = MIDDLEMOUSE;
+				event->alt = 0;
+				mmb_emulated = 1;
+			}
+			else if (event->val == KM_RELEASE) {
+				/* only send middle-mouse release if emulated */
+				if (mmb_emulated) {
+					event->type = MIDDLEMOUSE;
+					event->alt = 0;
+				}
+				mmb_emulated = 0;
+			}
+		}
+		
+	}
+	
+#ifdef __APPLE__
+	
+	/* rightmouse emulation */
+	if (U.flag & USER_TWOBUTTONMOUSE) {
+		if (event->type == LEFTMOUSE) {
+			
+			if (event->val == KM_PRESS && event->oskey) {
+				event->type = RIGHTMOUSE;
+				event->oskey = 0;
+				mmb_emulated = 1;
+			}
+			else if (event->val == KM_RELEASE) {
+				if (mmb_emulated) {
+					event->oskey = RIGHTMOUSE;
+					event->alt = 0;
+				}
+				mmb_emulated = 0;
+			}
+		}
+		
+	}
+#endif
+	
+	/* numpad emulation */
+	if (U.flag & USER_NONUMPAD) {
+		switch (event->type) {
+			case ZEROKEY: event->type = PAD0; break;
+			case ONEKEY: event->type = PAD1; break;
+			case TWOKEY: event->type = PAD2; break;
+			case THREEKEY: event->type = PAD3; break;
+			case FOURKEY: event->type = PAD4; break;
+			case FIVEKEY: event->type = PAD5; break;
+			case SIXKEY: event->type = PAD6; break;
+			case SEVENKEY: event->type = PAD7; break;
+			case EIGHTKEY: event->type = PAD8; break;
+			case NINEKEY: event->type = PAD9; break;
+			case MINUSKEY: event->type = PADMINUS; break;
+			case EQUALKEY: event->type = PADPLUSKEY; break;
+			case BACKSLASHKEY: event->type = PADSLASHKEY; break;
+		}
+	}
+}
+
 /* adds customdata to event */
 static void update_tablet_data(wmWindow *win, wmEvent *event)
 {
@@ -2826,6 +2826,8 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			else
 				event.type = MIDDLEMOUSE;
 			
+			wm_eventemulation(&event);
+			
 			/* copy previous state to prev event state (two old!) */
 			evt->prevval = evt->val;
 			evt->prevtype = evt->type;
@@ -2890,6 +2892,8 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			event.ascii = kd->ascii;
 			memcpy(event.utf8_buf, kd->utf8_buf, sizeof(event.utf8_buf)); /* might be not null terminated*/
 			event.val = (type == GHOST_kEventKeyDown) ? KM_PRESS : KM_RELEASE;
+			
+			wm_eventemulation(&event);
 			
 			/* copy previous state to prev event state (two old!) */
 			evt->prevval = evt->val;

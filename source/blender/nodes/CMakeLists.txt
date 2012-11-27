@@ -84,6 +84,7 @@ set(SRC
 	composite/nodes/node_composite_lummaMatte.c
 	composite/nodes/node_composite_mapUV.c
 	composite/nodes/node_composite_mapValue.c
+	composite/nodes/node_composite_mapRange.c
 	composite/nodes/node_composite_math.c
 	composite/nodes/node_composite_mask.c
 	composite/nodes/node_composite_mixrgb.c
@@ -122,7 +123,6 @@ set(SRC
 	composite/nodes/node_composite_pixelate.c
 
 	composite/node_composite_tree.c
-	composite/node_composite_util.c
 
 	shader/nodes/node_shader_camera.c
 	shader/nodes/node_shader_common.c
@@ -222,7 +222,6 @@ set(SRC
 	intern/node_common.c
 	intern/node_socket.c
 
-	composite/node_composite_util.h
 	shader/node_shader_util.h
 	texture/node_texture_util.h
 
@@ -234,6 +233,13 @@ set(SRC
 	intern/node_exec.h
 	intern/node_common.h
 )
+
+if(WITH_COMPOSITOR_LEGACY)
+	list(APPEND SRC
+		composite/node_composite_util.h
+		composite/node_composite_util.c
+	)
+endif()
 
 if(WITH_PYTHON)
 	list(APPEND INC

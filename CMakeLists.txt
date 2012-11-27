@@ -237,6 +237,7 @@ endif()
 option(WITH_RAYOPTIMIZATION	"Enable use of SIMD (SSE) optimizations for the raytracer" ON)
 if(UNIX AND NOT APPLE)
 	option(WITH_INSTALL_PORTABLE "Install redistributeable runtime, otherwise install into CMAKE_INSTALL_PREFIX" ON)
+	option(WITH_STATIC_LIBS "Try to link with static libraries, as much as possible, to make blender more portable across distributions" OFF)
 endif()
 option(WITH_PYTHON_INSTALL       "Copy system python into the blender install folder" ON)
 option(WITH_PYTHON_INSTALL_NUMPY "Copy system numpy into the blender install folder"  ON)
@@ -303,18 +304,14 @@ if(APPLE)
 		set(OSX_SYSTEM unsupported)
 	endif()
 	message(STATUS "Detected system-version: " ${OSX_SYSTEM})
-	
-	if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
-			set(CMAKE_OSX_DEPLOYMENT_TARGET "10.6" CACHE STRING "" FORCE) # 10.6 is our min. target, if you use higher sdk, weak linking happens - with 10.5 we have still not solved problems, build those with 10.5.sdk for now !!!
-	endif()
 
 	if(${CMAKE_GENERATOR} MATCHES "Xcode")
 	
-		##### workaround for actual official cmake incompatibility with xcode 4.3 #####
+		##### cmake incompatibility with xcode  4.3 and higher #####
 		if(${XCODE_VERSION} MATCHES '') # cmake fails due looking for xcode in the wrong path, thus will be empty var
-			message("Official cmake does not yet support Xcode 4.3, get a patched version here: http://www.jensverwiebe.de/Blender/CMake%202.8-7patched.zip")
+			message(FATAL_ERROR "Xcode 4.3 and higher must be used with cmake 2.8-8 or higher")
 		endif()
-		### end workaround for actual official cmake incompatibility with xcode 4.3 ###
+		### end cmake incompatibility with xcode 4.3 and higher ###
 		
 		if(${XCODE_VERSION} VERSION_EQUAL 4 OR ${XCODE_VERSION} VERSION_GREATER 4 AND ${XCODE_VERSION} VERSION_LESS 4.3)
 			# Xcode 4 defaults to the Apple LLVM Compiler.
@@ -326,14 +323,31 @@ if(APPLE)
 		execute_process(COMMAND xcodebuild -version OUTPUT_VARIABLE XCODE_VERS_BUILD_NR)
 		string(SUBSTRING "${XCODE_VERS_BUILD_NR}" 6 3 XCODE_VERSION) # truncate away build-nr
 		unset(XCODE_VERS_BUILD_NR)
+	endif()
+	
+	message(STATUS "Detected Xcode-version: " ${XCODE_VERSION})
+
+	if(${XCODE_VERSION} VERSION_LESS 4.3)
+		set(CMAKE_OSX_SYSROOT /Developer/SDKs/MacOSX${OSX_SYSTEM}.sdk CACHE PATH "" FORCE)  # use guaranteed existing sdk
+	else()
+		# note: i don't use xcode-select path on purpose, cause also /Applications/Xcode.app would be allowed
+		# absolute pathes are more foolproof here !
+		set(OSX_SYSROOT_PREFIX /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform)
+		set(OSX_DEVELOPER_PREFIX /Developer/SDKs/MacOSX${OSX_SYSTEM}.sdk) # use guaranteed existing sdk
+		set(CMAKE_OSX_SYSROOT ${OSX_SYSROOT_PREFIX}/${OSX_DEVELOPER_PREFIX} CACHE PATH "" FORCE)
+	endif()
+	
+	if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
+			set(CMAKE_OSX_DEPLOYMENT_TARGET "10.5" CACHE STRING "" FORCE) # 10.5 is our min. target, if you use higher sdk, weak linking happens
+	endif()
+	
+	if(NOT ${CMAKE_GENERATOR} MATCHES "Xcode")
 		# force CMAKE_OSX_DEPLOYMENT_TARGET for makefiles, will not work else ( cmake bug ? )
 		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET}")
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET}")
 		add_definitions ("-DMACOSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}")
 	endif()
-	
-	message(STATUS "Detected Xcode-version: " ${XCODE_VERSION})
-	
+
 	option(WITH_COCOA	  "Use Cocoa framework instead of deprecated Carbon" ON)
 	option(USE_QTKIT	  "Use QtKit instead of Carbon quicktime (needed for having partial quicktime for 64bit)" OFF)
 	option(WITH_LIBS10.5  "Use 10.5 libs (needed for 64bit builds)" OFF)
@@ -354,12 +368,20 @@ if(NOT WITH_GAMEENGINE AND WITH_PLAYER)
 	message(FATAL_ERROR "WITH_PLAYER requires WITH_GAMEENGINE")
 endif()
 
-if(NOT WITH_AUDASPACE AND (WITH_OPENAL OR WITH_JACK OR WITH_GAMEENGINE))
-	message(FATAL_ERROR "WITH_OPENAL/WITH_JACK/WITH_CODEC_FFMPEG/WITH_GAMEENGINE require WITH_AUDASPACE")
+if(NOT WITH_AUDASPACE)
+	if(WITH_OPENAL)
+		message(FATAL_ERROR "WITH_OPENAL requires WITH_AUDASPACE")
+	endif()
+	if(WITH_JACK)
+		message(FATAL_ERROR "WITH_JACK requires WITH_AUDASPACE")
+	endif()
+	if(WITH_GAMEENGINE)
+		message(FATAL_ERROR "WITH_GAMEENGINE requires WITH_AUDASPACE")
+	endif()
 endif()
 
 if(NOT WITH_SDL AND WITH_GHOST_SDL)
-	message(FATAL_ERROR "WITH_GHOST_SDL requires WITH_SDL to be ON")
+	message(FATAL_ERROR "WITH_GHOST_SDL requires WITH_SDL")
 endif()
 
 if(WITH_IMAGE_REDCODE AND ((NOT WITH_IMAGE_OPENJPEG) OR (NOT WITH_CODEC_FFMPEG)))
@@ -390,8 +412,8 @@ if(WITH_CYCLES)
 	set(WITH_OPENIMAGEIO ON)
 endif()
 
-# auto enable boost for cycles, booleans or audaspace
-if(WITH_CYCLES OR WITH_MOD_BOOLEAN OR WITH_AUDASPACE)
+# auto enable boost for cycles, booleans, audaspace or i18n
+if(WITH_CYCLES OR WITH_MOD_BOOLEAN OR WITH_AUDASPACE OR WITH_INTERNATIONAL)
 	set(WITH_BOOST ON)
 endif()
 
@@ -520,8 +542,6 @@ endif()
 
 
 if(UNIX AND NOT APPLE)
-
-	# set lib directory if it exists
 	if(WITH_ANDROID)
 		set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/android/${ANDROID_TARGET})
 		
@@ -533,27 +553,12 @@ if(UNIX AND NOT APPLE)
 		else()
 			set(ANDROID_PROJ ${LIBDIR}/aghosty-sdl CACHE STRING  "Android Project Path")
 		endif()
-	elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")
-		if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
-			set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/linux64)
-		else()
-			set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/linux)
-		endif()
-
-		if(NOT EXISTS ${LIBDIR})
-			unset(LIBDIR)
-		endif()
-	endif()
-
-
-	if(WITH_ANDROID)
 		
-		
-
-	set(JPEG "${LIBDIR}/jpeg")
-	set(JPEG_INCLUDE_DIR "${JPEG}/include")
-	set(JPEG_LIBPATH ${JPEG}/lib)
-	set(JPEG_LIBRARIES ${JPEG_LIBPATH}/libjpeg.so)
+	
+		set(JPEG "${LIBDIR}/jpeg")
+		set(JPEG_INCLUDE_DIR "${JPEG}/include")
+		set(JPEG_LIBPATH ${JPEG}/lib)
+		set(JPEG_LIBRARIES ${JPEG_LIBPATH}/libjpeg.so)
 
 		
 		set(PNG "${LIBDIR}/png")
@@ -592,10 +597,25 @@ if(UNIX AND NOT APPLE)
 
     
 	else()
-		find_package(JPEG REQUIRED)
-		find_package(PNG REQUIRED)
-		find_package(ZLIB REQUIRED)
-		find_package(Freetype REQUIRED)
+		macro(find_package_wrapper)
+			STRING(TOUPPER ${ARGV0} _NAME_UPPER)
+			if(${WITH_STATIC_LIBS})
+				set(_cmake_find_library_suffixes_back ${CMAKE_FIND_LIBRARY_SUFFIXES})
+				set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
+
+
+			endif()
+			find_package(${ARGV})
+			if(${WITH_STATIC_LIBS})
+				set(CMAKE_FIND_LIBRARY_SUFFIXES ${_cmake_find_library_suffixes_back})
+				unset(_cmake_find_library_suffixes_back)
+			endif()
+		endmacro()
+	
+		find_package_wrapper(JPEG REQUIRED)
+		find_package_wrapper(PNG REQUIRED)
+		find_package_wrapper(ZLIB REQUIRED)
+		find_package_wrapper(Freetype REQUIRED)
 	endif()
 
 	if(WITH_PYTHON AND NOT WITH_ANDROID)
@@ -604,25 +624,28 @@ if(UNIX AND NOT APPLE)
 
 		# Use our own instead, since wothout py is such a rare case,
 		# require this package
+		# XXX Linking errors with debian static python :/
+#		find_package_wrapper(PythonLibsUnix REQUIRED)
 		find_package(PythonLibsUnix REQUIRED)
 	endif()
 
-
 	if(WITH_IMAGE_OPENEXR)
-		find_package(OpenEXR)  # our own module
+		find_package_wrapper(OpenEXR)  # our own module
 		if(NOT OPENEXR_FOUND)
 			set(WITH_IMAGE_OPENEXR OFF)
 		endif()
 	endif()
 
 	if(WITH_IMAGE_OPENJPEG)
-		find_package(OpenJPEG)
+		find_package_wrapper(OpenJPEG)
 		if(NOT OPENJPEG_FOUND)
 			set(WITH_IMAGE_OPENJPEG OFF)
 		endif()
 	endif()
 
 	if(WITH_IMAGE_TIFF)
+		# XXX Linking errors with debian static tiff :/
+#		find_package_wrapper(TIFF)
 		find_package(TIFF)
 		if(NOT TIFF_FOUND)
 			set(WITH_IMAGE_TIFF OFF)
@@ -631,14 +654,14 @@ if(UNIX AND NOT APPLE)
 
 	# Audio IO
 	if(WITH_OPENAL)
-		find_package(OpenAL)
+		find_package_wrapper(OpenAL)
 		if(NOT OPENAL_FOUND)
 			set(WITH_OPENAL OFF)
 		endif()
 	endif()
 
 	if(WITH_SDL AND NOT WITH_ANDROID)
-		find_package(SDL)
+		find_package_wrapper(SDL)
 		mark_as_advanced(
 			SDLMAIN_LIBRARY
 			SDL_INCLUDE_DIR
@@ -652,7 +675,7 @@ if(UNIX AND NOT APPLE)
 	endif()
 
 	if(WITH_JACK)
-		find_package(Jack)
+		find_package_wrapper(Jack)
 		if(NOT JACK_FOUND)
 			set(WITH_JACK OFF)
 		endif()
@@ -660,22 +683,15 @@ if(UNIX AND NOT APPLE)
 
 	# Codecs
 	if(WITH_CODEC_SNDFILE)
-		find_package(SndFile)
+		find_package_wrapper(SndFile)
 		if(NOT SNDFILE_FOUND)
 			set(WITH_CODEC_SNDFILE OFF)
 		endif()
 	endif()
 
 	if(WITH_CODEC_FFMPEG)
-		# use lib dir if available and nothing else specified
-		if(LIBDIR AND NOT FFMPEG)
-			set(FFMPEG ${LIBDIR}/ffmpeg CACHE PATH "FFMPEG Directory")
-			# XXX, some distros might need 'theoraenc theoradec' too
-			set(FFMPEG_LIBRARIES avformat avcodec avutil avdevice swscale dirac_encoder mp3lame ogg orc-0.4 schroedinger-1.0 theora vorbis vorbisenc vpx x264 xvidcore faad asound CACHE STRING "FFMPEG Libraries")
-		else()
-			set(FFMPEG /usr CACHE PATH "FFMPEG Directory")
-			set(FFMPEG_LIBRARIES avformat avcodec avutil avdevice swscale CACHE STRING "FFMPEG Libraries")
-		endif()
+		set(FFMPEG /usr CACHE PATH "FFMPEG Directory")
+		set(FFMPEG_LIBRARIES avformat avcodec avutil avdevice swscale CACHE STRING "FFMPEG Libraries")
 
 		mark_as_advanced(FFMPEG)
 
@@ -691,54 +707,32 @@ if(UNIX AND NOT APPLE)
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__STDC_CONSTANT_MACROS")
 	endif()
 
-	if(WITH_INTERNATIONAL)
-		find_library(INTL_LIBRARY
-			NAMES intl
-			PATHS
-			/sw/lib
-		)
-
-		find_library(ICONV_LIBRARY
-			NAMES iconv
-			PATHS
-			/sw/lib
-		)
-		mark_as_advanced(
-			ICONV_LIBRARY
-			INTL_LIBRARY
-		)
-
-		if(INTL_LIBRARY AND ICONV_LIBRARY)
-			set(GETTEXT_LIBRARIES ${INTL_LIBRARY} ${ICONV_LIBRARY})
-		endif()
-	endif()
-
 	if(WITH_FFTW3)
-		find_package(Fftw3)
+		find_package_wrapper(Fftw3)
 		if(NOT FFTW3_FOUND)
 			set(WITH_FFTW3 OFF)
 		endif()
 	endif()
 
 	if(WITH_OPENCOLLADA)
-		find_package(OpenCOLLADA)
+		find_package_wrapper(OpenCOLLADA)
 		if(OPENCOLLADA_FOUND)
-			find_package(XML2)
-			find_package(PCRE)
+			find_package_wrapper(XML2)
+			find_package_wrapper(PCRE)
 		else()
 			set(WITH_OPENCOLLADA OFF)
 		endif()
 	endif()
 
 	if(WITH_MEM_JEMALLOC)
-		find_package(JeMalloc)
+		find_package_wrapper(JeMalloc)
 		if(NOT JEMALLOC_FOUND)
 			set(WITH_MEM_JEMALLOC OFF)
 		endif()
 	endif()
 
 	if (WITH_INPUT_NDOF)
-		find_package(Spacenav)
+		find_package_wrapper(Spacenav)
 		if(NOT SPACENAV_FOUND)
 			set(WITH_INPUT_NDOF OFF)
 		endif()
@@ -753,14 +747,23 @@ if(UNIX AND NOT APPLE)
 	if(WITH_BOOST)
 		# uses in build instructions to override include and library variables
 		if(NOT BOOST_CUSTOM)
-			# use lib dir if available and nothing else specified
-			if(LIBDIR AND NOT BOOST_ROOT)
-				set(BOOST_ROOT ${LIBDIR}/boost)
+			# XXX No more lib dir, is this multithread stuff still needed?
+			if(${WITH_STATIC_LIBS})
+				set(Boost_USE_STATIC_LIBS ON)
+			endif()
+			if(NOT BOOST_ROOT)
 				set(Boost_USE_MULTITHREADED OFF)
 			else()
 				set(Boost_USE_MULTITHREADED ON)
 			endif()
-			find_package(Boost 1.34 COMPONENTS filesystem regex system thread)
+			set(__boost_packages filesystem regex system thread date_time)
+			if (WITH_INTERNATIONAL)
+				list(APPEND __boost_packages locale)
+			endif()
+			find_package(Boost 1.34 COMPONENTS ${__boost_packages})
+			if(Boost_USE_STATIC_LIBS AND Boost_USE_ICU)
+				find_package(IcuLinux)
+			endif()
 			mark_as_advanced(Boost_DIR)  # why doesnt boost do this?
 		endif()
 
@@ -771,12 +774,7 @@ if(UNIX AND NOT APPLE)
 	endif()
 
 	if(WITH_OPENIMAGEIO)
-		# use lib dir if available and nothing else specified
-		if(LIBDIR AND NOT OPENIMAGEIO_ROOT_DIR)
-			set(OPENIMAGEIO_ROOT_DIR ${LIBDIR}/oiio)
-		endif()
-
-		find_package(OpenImageIO)
+		find_package_wrapper(OpenImageIO)
 
 		set(OPENIMAGEIO_LIBRARIES ${OPENIMAGEIO_LIBRARIES} ${PNG_LIBRARIES} ${JPEG_LIBRARIES} ${ZLIB_LIBRARIES} ${BOOST_LIBRARIES})
 		set(OPENIMAGEIO_LIBPATH)  # TODO, remove and reference the absolute path everywhere
@@ -796,12 +794,7 @@ if(UNIX AND NOT APPLE)
 	endif()
 
 	if(WITH_OPENCOLORIO)
-		# use lib dir if available and nothing else specified
-		if(LIBDIR AND NOT OPENCOLORIO_ROOT_DIR)
-			set(OPENCOLORIO_ROOT_DIR ${LIBDIR}/ocio)
-		endif()
-
-		find_package(OpenColorIO)
+		find_package_wrapper(OpenColorIO)
 
 		set(OPENCOLORIO_LIBRARIES ${OPENCOLORIO_LIBRARIES})
 		set(OPENCOLORIO_LIBPATH)  # TODO, remove and reference the absolute path everywhere
@@ -813,14 +806,23 @@ if(UNIX AND NOT APPLE)
 		endif()
 	endif()
 
+	# XXX Maybe most of this section should go into an llvm module?
 	if(WITH_LLVM)
-		set(LLVM_DIRECTORY ${LIBDIR}/llvm CACHE PATH	"Path to the LLVM installation")
-		set(LLVM_VERSION "3.0" CACHE STRING	"Version of LLVM to use")
+		# Set llvm version if not specified
+		if(NOT LLVM_VERSION)
+			set(LLVM_VERSION "3.0")
+		endif()
 		set(LLVM_STATIC YES)
-		if(EXISTS "${LLVM_DIRECTORY}/bin/llvm-config")
-			set(LLVM_CONFIG "${LLVM_DIRECTORY}/bin/llvm-config")
+		if(LLVM_DIRECTORY)
+			FIND_PROGRAM(LLVM_CONFIG llvm-config-${LLVM_VERSION} HINTS ${LLVM_DIRECTORY}/bin NO_CMAKE_PATH)
+			if(NOT LLVM_CONFIG)
+				FIND_PROGRAM(LLVM_CONFIG llvm-config HINTS ${LLVM_DIRECTORY}/bin NO_CMAKE_PATH)
+			endif()
 		else()
-			set(LLVM_CONFIG llvm-config)
+			FIND_PROGRAM(LLVM_CONFIG llvm-config-${LLVM_VERSION})
+			if(NOT LLVM_CONFIG)
+				FIND_PROGRAM(LLVM_CONFIG llvm-config)
+			endif()
 		endif()
 		execute_process(COMMAND ${LLVM_CONFIG} --version
 		                OUTPUT_VARIABLE LLVM_VERSION
@@ -837,6 +839,8 @@ if(UNIX AND NOT APPLE)
 		message(STATUS "LLVM version  = ${LLVM_VERSION}")
 		message(STATUS "LLVM dir      = ${LLVM_DIRECTORY}")
 		message(STATUS "LLVM lib dir  = ${LLVM_LIB_DIR}")
+		set(LLVM_VERSION ${LLVM_VERSION} CACHE STRING "Version of LLVM to use")
+		set(LLVM_DIRECTORY ${LLVM_DIRECTORY} CACHE PATH "Path to the LLVM installation")
 
 		if(LLVM_LIBRARY AND LLVM_DIRECTORY AND LLVM_LIB_DIR)
 			if(LLVM_STATIC)
@@ -852,6 +856,9 @@ if(UNIX AND NOT APPLE)
 		else()
 			message(FATAL_ERROR "LLVM not found.")
 		endif()
+
+		# Fix for conflict with Mesa llvmpipe
+		set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -Wl,--version-script=${CMAKE_SOURCE_DIR}/source/creator/blender.map")
 	endif()
 
 	if(WITH_CYCLES_OSL)
@@ -924,7 +931,7 @@ if(UNIX AND NOT APPLE)
 	if(WITH_ANDROID)
 		set(PLATFORM_LINKFLAGS "-lGLESv1_CM")
 	else()
-		set(PLATFORM_LINKFLAGS "-pthread")
+		set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -pthread")
 	endif()
 
 
@@ -990,13 +997,6 @@ elseif(WIN32)
 		
 	add_definitions(-DWIN32)
 
-	if(WITH_INTERNATIONAL)
-		set(ICONV ${LIBDIR}/iconv)
-		set(ICONV_INCLUDE_DIRS ${ICONV}/include)
-		set(ICONV_LIBRARIES iconv)
-		set(ICONV_LIBPATH ${ICONV}/lib)
-	endif()
-
 	set(JPEG "${LIBDIR}/jpeg")
 	set(JPEG_INCLUDE_DIR "${JPEG}/include")
 	set(JPEG_LIBPATH ${JPEG}/lib) # not cmake defined
@@ -1043,7 +1043,6 @@ elseif(WIN32)
 		find_library(OSL_LIB_EXEC NAMES oslexec PATHS ${CYCLES_OSL}/lib)
 		find_library(OSL_LIB_COMP NAMES oslcomp PATHS ${CYCLES_OSL}/lib)
 		find_library(OSL_LIB_QUERY NAMES oslquery PATHS ${CYCLES_OSL}/lib)
-		# WARNING! depends on correct order of OSL libs linking
 		list(APPEND OSL_LIBRARIES ${OSL_LIB_COMP} ${OSL_LIB_EXEC} ${OSL_LIB_QUERY})
 		find_path(OSL_INCLUDES OSL/oslclosure.h PATHS ${CYCLES_OSL}/include)
 		find_program(OSL_COMPILER NAMES oslc PATHS ${CYCLES_OSL}/bin)
@@ -1058,8 +1057,15 @@ elseif(WIN32)
 		endif()
 	endif()
 
+	if(WITH_LLVM)
+		set(LLVM_DIRECTORY ${LIBDIR}/llvm CACHE PATH	"Path to the LLVM installation")
+		file(GLOB LLVM_LIBRARY ${LLVM_DIRECTORY}/lib/*.lib)
+		set(LLVM_STATIC YES)
+	endif()
+
+
 	if(MSVC)
-		set(PLATFORM_LINKLIBS ws2_32 vfw32 winmm kernel32 user32 gdi32 comdlg32 advapi32 shfolder shell32 ole32 oleaut32 uuid)
+		set(PLATFORM_LINKLIBS ws2_32 vfw32 winmm kernel32 user32 gdi32 comdlg32 advapi32 shfolder shell32 ole32 oleaut32 uuid psapi)
 
 		add_definitions(/D_CRT_NONSTDC_NO_DEPRECATE /D_CRT_SECURE_NO_DEPRECATE /D_SCL_SECURE_NO_DEPRECATE /D_CONSOLE /D_LIB)
 
@@ -1089,13 +1095,6 @@ elseif(WIN32)
 		set(CXX_WARNINGS "${_WARNINGS}")
 		unset(_WARNINGS)
 
-		if(WITH_INTERNATIONAL)
-			set(GETTEXT ${LIBDIR}/gettext)
-			set(GETTEXT_INCLUDE_DIRS ${GETTEXT}/include)
-			set(GETTEXT_LIBPATH ${GETTEXT}/lib)
-			set(GETTEXT_LIBRARIES gnu_gettext)
-		endif()
-		
 		if(WITH_MOD_CLOTH_ELTOPO)
 			set(LAPACK ${LIBDIR}/lapack)
 			# set(LAPACK_INCLUDE_DIR ${LAPACK}/include)
@@ -1187,6 +1186,7 @@ elseif(WIN32)
 		if(WITH_IMAGE_OPENEXR)
 			set_lib_path(OPENEXR "openexr")
 			set(OPENEXR_INCLUDE_DIR ${OPENEXR}/include)
+			set(OPENEXR_INCLUDE_DIRS ${OPENEXR}/include/OpenEXR)
 			set(OPENEXR_LIBPATH ${OPENEXR}/lib)
 			set(OPENEXR_LIBRARIES
 				${OPENEXR_LIBPATH}/Iex.lib
@@ -1194,12 +1194,6 @@ elseif(WIN32)
 				${OPENEXR_LIBPATH}/IlmImf.lib
 				${OPENEXR_LIBPATH}/Imath.lib
 				${OPENEXR_LIBPATH}/IlmThread.lib
-			)
-			set(OPENEXR_INCLUDE_DIRS
-				${OPENEXR_INCLUDE_DIR}
-				${OPENEXR_INCLUDE_DIR}/IlmImf
-				${OPENEXR_INCLUDE_DIR}/Iex
-				${OPENEXR_INCLUDE_DIR}/Imath
 			)
 		endif()
 
@@ -1248,15 +1242,20 @@ elseif(WIN32)
 				debug libboost_date_time-${BOOST_DEBUG_POSTFIX} debug libboost_filesystem-${BOOST_DEBUG_POSTFIX}
 				debug libboost_regex-${BOOST_DEBUG_POSTFIX}
 				debug libboost_system-${BOOST_DEBUG_POSTFIX} debug libboost_thread-${BOOST_DEBUG_POSTFIX})
+			if(WITH_INTERNATIONAL)
+				set(BOOST_LIBRARIES ${BOOST_LIBRARIES}
+					optimized libboost_locale-${BOOST_POSTFIX}
+					debug libboost_locale-${BOOST_DEBUG_POSTFIX})
+			endif(WITH_INTERNATIONAL)
 			set(BOOST_DEFINITIONS "-DBOOST_ALL_NO_LIB")
 		endif()
 			
 		if(WITH_OPENIMAGEIO)
 			set(OPENIMAGEIO ${LIBDIR}/openimageio)
 			set(OPENIMAGEIO_INCLUDE_DIRS ${OPENIMAGEIO}/include)
-			set(OPENIMAGEIO_LIBRARIES OpenImageIO)
+			set(OPENIMAGEIO_LIBRARIES optimized OpenImageIO debug OpenImageIO_d)
 			set(OPENIMAGEIO_LIBPATH ${OPENIMAGEIO}/lib)
-			set(OPENIMAGEIO_DEFINITIONS)
+			set(OPENIMAGEIO_DEFINITIONS "-DUSE_TBB=0")
 		endif()
 
 		if(WITH_OPENCOLORIO)
@@ -1266,6 +1265,7 @@ elseif(WIN32)
 			set(OPENCOLORIO_LIBPATH ${LIBDIR}/opencolorio/lib)
 			set(OPENCOLORIO_DEFINITIONS)
 		endif()
+
 
 		set(PLATFORM_LINKFLAGS "/SUBSYSTEM:CONSOLE /STACK:2097152 /INCREMENTAL:NO /NODEFAULTLIB:msvcrt.lib /NODEFAULTLIB:msvcmrt.lib /NODEFAULTLIB:msvcurt.lib /NODEFAULTLIB:msvcrtd.lib")
 
@@ -1301,16 +1301,8 @@ elseif(WIN32)
 
 		add_definitions(-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE)
 
-
 		add_definitions(-DFREE_WINDOWS)
 
-		if(WITH_INTERNATIONAL)
-			set(GETTEXT ${LIBDIR}/gettext)
-			set(GETTEXT_INCLUDE_DIRS ${GETTEXT}/include)
-			set(GETTEXT_LIBPATH ${GETTEXT}/lib)
-			set(GETTEXT_LIBRARIES intl)
-		endif()
-		
 		set(PNG "${LIBDIR}/png")
 		set(PNG_INCLUDE_DIR "${PNG}/include")
 		set(PNG_LIBPATH ${PNG}/lib) # not cmake defined
@@ -1428,6 +1420,11 @@ elseif(WIN32)
 				debug boost_date_time-${BOOST_DEBUG_POSTFIX} boost_filesystem-${BOOST_DEBUG_POSTFIX}
 				boost_regex-${BOOST_DEBUG_POSTFIX}
 				boost_system-${BOOST_DEBUG_POSTFIX} boost_thread-${BOOST_DEBUG_POSTFIX})
+			if(WITH_INTERNATIONAL)
+				set(BOOST_LIBRARIES ${BOOST_LIBRARIES}
+					optimized boost_locale-${BOOST_POSTFIX}
+					debug boost_locale-${BOOST_DEBUG_POSTFIX}) 
+			endif()
 			set(BOOST_LIBPATH ${BOOST}/lib)
 			set(BOOST_DEFINITIONS "-DBOOST_ALL_NO_LIB -DBOOST_THREAD_USE_LIB ")
 		endif()
@@ -1462,16 +1459,6 @@ elseif(APPLE)
 		set(WITH_LIBS10.5 ON CACHE BOOL "Use 10.5 libs" FORCE) # valid also for 10.6/10.7
 	endif()
 
-	if(${XCODE_VERSION} VERSION_LESS 4.3)
-		set(CMAKE_OSX_SYSROOT /Developer/SDKs/MacOSX${OSX_SYSTEM}.sdk CACHE PATH "" FORCE)  # use guaranteed existing sdk
-	else()
-		# note: i don't use xcode-select path on purpose, cause also /Applications/Xcode.app would be allowed
-		# absolute pathes are more foolproof here !
-		set(OSX_SYSROOT_PREFIX /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform)
-		set(OSX_DEVELOPER_PREFIX /Developer/SDKs/MacOSX${OSX_SYSTEM}.sdk) # use guaranteed existing sdk
-		set(CMAKE_OSX_SYSROOT ${OSX_SYSROOT_PREFIX}/${OSX_DEVELOPER_PREFIX} CACHE PATH "" FORCE)
-	endif()
-	
 	if(WITH_LIBS10.5)
 		set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/darwin-9.x.universal)
 	else()
@@ -1512,13 +1499,13 @@ elseif(APPLE)
 
 	if(WITH_PYTHON)
 		if(NOT WITH_PYTHON_MODULE)
-			# we use precompiled libraries for py 3.2 and up by default
+			# we use precompiled libraries for py 3.3 and up by default
 
 			# normally cached but not since we include them with blender
-			set(PYTHON_VERSION 3.2)
-			set(PYTHON_INCLUDE_DIR "${LIBDIR}/python/include/python${PYTHON_VERSION}")
+			set(PYTHON_VERSION 3.3)
+			set(PYTHON_INCLUDE_DIR "${LIBDIR}/python/include/python${PYTHON_VERSION}m")
 			# set(PYTHON_BINARY "${LIBDIR}/python/bin/python${PYTHON_VERSION}") # not used yet
-			set(PYTHON_LIBRARY python${PYTHON_VERSION})
+			set(PYTHON_LIBRARY python${PYTHON_VERSION}m)
 			set(PYTHON_LIBPATH "${LIBDIR}/python/lib/python${PYTHON_VERSION}")
 			# set(PYTHON_LINKFLAGS "-u _PyMac_Error")  # won't  build with this enabled
 		else()
@@ -1536,13 +1523,6 @@ elseif(APPLE)
 		# uncached vars
 		set(PYTHON_INCLUDE_DIRS "${PYTHON_INCLUDE_DIR}")
 		set(PYTHON_LIBRARIES  "${PYTHON_LIBRARY}")
-	endif()
-
-	if(WITH_INTERNATIONAL)
-		set(GETTEXT ${LIBDIR}/gettext)
-		set(GETTEXT_INCLUDE_DIRS "${GETTEXT}/include")
-		set(GETTEXT_LIBRARIES intl iconv)
-		set(GETTEXT_LIBPATH ${GETTEXT}/lib)
 	endif()
 
 	if(WITH_FFTW3)
@@ -1622,11 +1602,11 @@ elseif(APPLE)
 				set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -weak_framework 3DconnexionClient")
 			endif()
 		endif()
-		
+
 	if(WITH_JACK)
 		set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -weak_framework jackmp")
 	endif()
-	
+
 	else()
 		set(PLATFORM_CFLAGS "-pipe -funsigned-char")
 		set(PLATFORM_LINKFLAGS "-fexceptions -framework CoreServices -framework Foundation -framework IOKit -framework AppKit -framework Carbon -framework AGL -framework AudioUnit -framework AudioToolbox -framework CoreAudio -framework QuickTime")
@@ -1689,7 +1669,11 @@ elseif(APPLE)
 	if(WITH_BOOST)
 		set(BOOST ${LIBDIR}/boost)
 		set(BOOST_INCLUDE_DIR ${BOOST}/include)
-		set(BOOST_LIBRARIES boost_date_time-mt boost_filesystem-mt boost_regex-mt boost_system-mt boost_thread-mt)
+		set(BOOST_LIBRARIES boost_date_time-mt boost_filesystem-mt boost_regex-mt boost_system-mt boost_thread-mt boost_wave-mt)
+		if (WITH_INTERNATIONAL)
+			list(APPEND BOOST_LIBRARIES boost_locale-mt)
+			set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -liconv") # boost_locale needs it !
+		endif()
 		set(BOOST_LIBPATH ${BOOST}/lib)
 		set(BOOST_DEFINITIONS)
 	endif()
@@ -1815,6 +1799,11 @@ if(WITH_CYCLES)
 	endif()
 endif()
 
+if(WITH_INTERNATIONAL)
+	if(NOT WITH_BOOST)
+		message(FATAL_ERROR "Internationalization reqires WITH_BOOST, the library may not have been found. Configure BOOST or disable WITH_INTERNATIONAL")
+	endif()
+endif()
 
 # See TEST_SSE_SUPPORT() for how this is defined.
 

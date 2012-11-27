@@ -1200,7 +1200,8 @@ typedef struct Scene {
 #define R_NO_OVERWRITE		0x400000  /* skip existing files */
 #define R_TOUCH				0x800000  /* touch files before rendering */
 #define R_SIMPLIFY			0x1000000
-#define R_PERSISTENT_DATA	0x2000000 /* keep data around for re-render */
+#define R_EDGE_FRS			0x2000000 /* R_EDGE reserved for Freestyle */
+#define R_PERSISTENT_DATA	0x4000000 /* keep data around for re-render */
 
 /* seq_flag */
 #define R_SEQ_GL_PREV 1
@@ -1453,9 +1454,9 @@ typedef struct Scene {
 
 /* Paint.flags */
 typedef enum {
-	PAINT_SHOW_BRUSH = (1<<0),
-	PAINT_FAST_NAVIGATE = (1<<1),
-	PAINT_SHOW_BRUSH_ON_SURFACE = (1<<2),
+	PAINT_SHOW_BRUSH = (1 << 0),
+	PAINT_FAST_NAVIGATE = (1 << 1),
+	PAINT_SHOW_BRUSH_ON_SURFACE = (1 << 2),
 } PaintFlags;
 
 /* Sculpt.flags */

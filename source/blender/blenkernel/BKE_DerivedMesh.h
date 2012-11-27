@@ -75,6 +75,8 @@
 #include "BKE_customdata.h"
 #include "BKE_bvhutils.h"
 
+#include "BLI_utildefines.h"
+
 struct CCGElem;
 struct CCGKey;
 struct MVert;

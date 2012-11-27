@@ -316,6 +316,7 @@ int RE_engine_render(Render *re, int do_all)
 {
 	RenderEngineType *type = RE_engines_find(re->r.engine);
 	RenderEngine *engine;
+	int persistent_data = re->r.mode & R_PERSISTENT_DATA;
 
 	/* verify if we can render */
 	if (!type->render)
@@ -349,10 +350,16 @@ int RE_engine_render(Render *re, int do_all)
 	re->i.totface = re->i.totvert = re->i.totstrand = re->i.totlamp = re->i.tothalo = 0;
 
 	/* render */
-	if(!re->engine)
-		re->engine = RE_engine_create(type);
-
 	engine = re->engine;
+
+	if (!engine) {
+		engine = RE_engine_create(type);
+
+		if (persistent_data)
+			re->engine = engine;
+	}
+
+	engine->flag |= RE_ENGINE_RENDERING;
 
 	/* TODO: actually link to a parent which shouldn't happen */
 	engine->re = re;
@@ -369,7 +376,7 @@ int RE_engine_render(Render *re, int do_all)
 	if ((re->r.scemode & (R_NO_FRAME_UPDATE | R_PREVIEWBUTS)) == 0)
 		BKE_scene_update_for_newframe(re->main, re->scene, re->lay);
 
-	initparts(re, FALSE);
+	RE_parts_init(re, FALSE);
 	engine->tile_x = re->partx;
 	engine->tile_y = re->party;
 
@@ -382,8 +389,15 @@ int RE_engine_render(Render *re, int do_all)
 	if (type->render)
 		type->render(engine, re->scene);
 
-	if(!(re->r.mode & R_PERSISTENT_DATA)) {
-		RE_engine_free(re->engine);
+	engine->tile_x = 0;
+	engine->tile_y = 0;
+	engine->flag &= ~RE_ENGINE_RENDERING;
+
+	render_result_free_list(&engine->fullresult, engine->fullresult.first);
+
+	/* re->engine becomes zero if user changed active render engine during render */
+	if (!persistent_data || !re->engine) {
+		RE_engine_free(engine);
 		re->engine = NULL;
 	}
 
@@ -393,11 +407,7 @@ int RE_engine_render(Render *re, int do_all)
 		BLI_rw_mutex_unlock(&re->resultmutex);
 	}
 
-	engine->tile_x = 0;
-	engine->tile_y = 0;
-	freeparts(re);
-
-	render_result_free_list(&engine->fullresult, engine->fullresult.first);
+	RE_parts_free(re);
 
 	if (BKE_reports_contain(re->reports, RPT_ERROR))
 		G.is_break = TRUE;

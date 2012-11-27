@@ -99,7 +99,7 @@ BMFace *BM_face_create_quad_tri_v(BMesh *bm, BMVert **verts, int len, const BMFa
 
 	if (nodouble) {
 		/* check if face exists or overlaps */
-		is_overlap = BM_face_exists(bm, verts, len, &f);
+		is_overlap = BM_face_exists(verts, len, &f);
 	}
 
 	/* make new face */
@@ -174,9 +174,9 @@ void BM_face_copy_shared(BMesh *bm, BMFace *f)
 BMFace *BM_face_create_ngon(BMesh *bm, BMVert *v1, BMVert *v2, BMEdge **edges, int len, int nodouble)
 {
 	BMEdge **edges2 = NULL;
-	BLI_array_staticdeclare(edges2, BM_NGON_STACK_SIZE);
+	BLI_array_staticdeclare(edges2, BM_DEFAULT_NGON_STACK_SIZE);
 	BMVert **verts = NULL;
-	BLI_array_staticdeclare(verts, BM_NGON_STACK_SIZE);
+	BLI_array_staticdeclare(verts, BM_DEFAULT_NGON_STACK_SIZE);
 	BMFace *f = NULL;
 	BMEdge *e;
 	BMVert *v, *ev1, *ev2;
@@ -187,8 +187,10 @@ BMFace *BM_face_create_ngon(BMesh *bm, BMVert *v1, BMVert *v2, BMEdge **edges, i
 	 *  _and_ the old bmesh_mf functions, so its kindof smashed together
 	 * - joeedh */
 
-	if (!len || !v1 || !v2 || !edges || !bm)
+	if (!len || !v1 || !v2 || !edges || !bm) {
+		BLI_assert(0);
 		return NULL;
+	}
 
 	/* put edges in correct order */
 	for (i = 0; i < len; i++) {

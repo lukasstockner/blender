@@ -625,7 +625,7 @@ void WM_operator_properties_sanitize(PointerRNA *ptr, const short no_context)
 /** set all props to their default,
  * \param do_update Only update un-initialized props.
  *
- * \note, theres nothing spesific to operators here.
+ * \note, theres nothing specific to operators here.
  * this could be made a general function.
  */
 int WM_operator_properties_default(PointerRNA *ptr, const int do_update)
@@ -1187,6 +1187,8 @@ static void wm_operator_ui_popup_ok(struct bContext *C, void *arg, int retval)
 
 	if (op && retval > 0)
 		WM_operator_call(C, op);
+	
+	MEM_freeN(data);
 }
 
 int WM_operator_ui_popup(bContext *C, wmOperator *op, int width, int height)
@@ -1200,8 +1202,11 @@ int WM_operator_ui_popup(bContext *C, wmOperator *op, int width, int height)
 	return OPERATOR_RUNNING_MODAL;
 }
 
-/* operator menu needs undo, for redo callback */
-int WM_operator_props_popup(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
+/**
+ * For use by #WM_operator_props_popup_call, #WM_operator_props_popup only.
+ *
+ * \note operator menu needs undo flag enabled , for redo callback */
+static int wm_operator_props_popup_ex(bContext *C, wmOperator *op, const int do_call)
 {
 	
 	if ((op->type->flag & OPTYPE_REGISTER) == 0) {
@@ -1209,13 +1214,32 @@ int WM_operator_props_popup(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 		            "Operator '%s' does not have register enabled, incorrect invoke function", op->type->idname);
 		return OPERATOR_CANCELLED;
 	}
-	
+
 	ED_undo_push_op(C, op);
+
 	wm_operator_register(C, op);
 
 	uiPupBlock(C, wm_block_create_redo, op);
 
+	if (do_call) {
+		WM_operator_repeat(C, op);
+	}
+
 	return OPERATOR_RUNNING_MODAL;
+}
+
+/* Same as WM_operator_props_popup but call the operator first,
+ * This way - the button values correspond to the result of the operator.
+ * Without this, first access to a button will make the result jump,
+ * see [#32452] */
+int WM_operator_props_popup_call(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
+{
+	return wm_operator_props_popup_ex(C, op, TRUE);
+}
+
+int WM_operator_props_popup(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
+{
+	return wm_operator_props_popup_ex(C, op, FALSE);
 }
 
 int WM_operator_props_dialog_popup(bContext *C, wmOperator *op, int width, int height)
@@ -1281,6 +1305,31 @@ static void WM_OT_debug_menu(wmOperatorType *ot)
 	RNA_def_int(ot->srna, "debug_value", 0, SHRT_MIN, SHRT_MAX, "Debug Value", "", -10000, 10000);
 }
 
+/* ***************** Operator defaults ************************* */
+static int wm_operator_defaults_exec(bContext *C, wmOperator *op)
+{
+	PointerRNA ptr = CTX_data_pointer_get_type(C, "active_operator", &RNA_Operator);
+
+	if (!ptr.data) {
+		BKE_report(op->reports, RPT_ERROR, "No operator in context");
+		return OPERATOR_CANCELLED;
+	}
+
+	WM_operator_properties_reset((wmOperator *)ptr.data);
+	return OPERATOR_FINISHED;
+}
+
+/* used by operator preset menu. pre-2.65 this was a 'Reset' button */
+static void WM_OT_operator_defaults(wmOperatorType *ot)
+{
+	ot->name = "Restore Defaults";
+	ot->idname = "WM_OT_operator_defaults";
+	ot->description = "Set the active operator to its default values";
+
+	ot->exec = wm_operator_defaults_exec;
+
+	ot->flag = OPTYPE_INTERNAL;
+}
 
 /* ***************** Splash Screen ************************* */
 
@@ -1402,7 +1451,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	uiItemL(col, "Links", ICON_NONE);
 	uiItemStringO(col, IFACE_("Donations"), ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org/blenderorg/blender-foundation/donation-payment");
 	uiItemStringO(col, IFACE_("Credits"), ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org/development/credits");
-	uiItemStringO(col, IFACE_("Release Log"), ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org/development/release-logs/blender-264");
+	uiItemStringO(col, IFACE_("Release Log"), ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org/development/release-logs/blender-265");
 	uiItemStringO(col, IFACE_("Manual"), ICON_URL, "WM_OT_url_open", "url", "http://wiki.blender.org/index.php/Doc:2.6/Manual");
 	uiItemStringO(col, IFACE_("Blender Website"), ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org");
 	uiItemStringO(col, IFACE_("User Community"), ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org/community/user-community");
@@ -3766,6 +3815,7 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_memory_statistics);
 	WM_operatortype_append(WM_OT_dependency_relations);
 	WM_operatortype_append(WM_OT_debug_menu);
+	WM_operatortype_append(WM_OT_operator_defaults);
 	WM_operatortype_append(WM_OT_splash);
 	WM_operatortype_append(WM_OT_search_menu);
 	WM_operatortype_append(WM_OT_call_menu);

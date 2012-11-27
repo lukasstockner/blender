@@ -661,7 +661,7 @@ static unsigned char *get_alpha_clone_image(const bContext *C, Scene *scene, int
 	if (!brush || !brush->clone.image)
 		return NULL;
 	
-	ibuf = BKE_image_get_ibuf(brush->clone.image, NULL);
+	ibuf = BKE_image_acquire_ibuf(brush->clone.image, NULL, NULL);
 
 	if (!ibuf)
 		return NULL;
@@ -669,6 +669,7 @@ static unsigned char *get_alpha_clone_image(const bContext *C, Scene *scene, int
 	display_buffer = IMB_display_buffer_acquire_ctx(C, ibuf, &cache_handle);
 
 	if (!display_buffer) {
+		BKE_image_release_ibuf(brush->clone.image, ibuf, NULL);
 		IMB_display_buffer_release(cache_handle);
 
 		return NULL;
@@ -678,8 +679,10 @@ static unsigned char *get_alpha_clone_image(const bContext *C, Scene *scene, int
 
 	IMB_display_buffer_release(cache_handle);
 
-	if (!rect)
+	if (!rect) {
+		BKE_image_release_ibuf(brush->clone.image, ibuf, NULL);
 		return NULL;
+	}
 
 	*width = ibuf->x;
 	*height = ibuf->y;
@@ -692,6 +695,8 @@ static unsigned char *get_alpha_clone_image(const bContext *C, Scene *scene, int
 		cp[3] = alpha;
 		cp += 4;
 	}
+
+	BKE_image_release_ibuf(brush->clone.image, ibuf, NULL);
 
 	return rect;
 }
@@ -807,7 +812,7 @@ void draw_image_main(const bContext *C, ARegion *ar)
 	}
 #endif
 
-	ED_space_image_release_buffer(sima, lock);
+	ED_space_image_release_buffer(sima, ibuf, lock);
 
 	if (show_viewer) {
 		BLI_unlock_thread(LOCK_DRAW_IMAGE);

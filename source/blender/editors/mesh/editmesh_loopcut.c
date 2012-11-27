@@ -311,7 +311,8 @@ static void ringsel_find_edge(RingSelOpData *lcd, int cuts)
 static void ringsel_finish(bContext *C, wmOperator *op)
 {
 	RingSelOpData *lcd = op->customdata;
-	int cuts = RNA_int_get(op->ptr, "number_cuts");
+	const int cuts = RNA_int_get(op->ptr, "number_cuts");
+	const float smoothness = 0.292f * RNA_float_get(op->ptr, "smoothness");
 
 	if (lcd->eed) {
 		BMEditMesh *em = lcd->em;
@@ -323,7 +324,7 @@ static void ringsel_finish(bContext *C, wmOperator *op)
 			 * Note though that it will break edgeslide in this specific case.
 			 * See [#31939]. */
 			BM_mesh_esubdivide(em->bm, BM_ELEM_SELECT,
-			                   0.0f, 0.0f, 0.0f,
+			                   smoothness, 0.0f, 0.0f,
 			                   cuts,
 			                   SUBDIV_SELECT_LOOPCUT, SUBD_PATH, 0, TRUE, 0);
 
@@ -417,6 +418,7 @@ static int ringcut_cancel(bContext *C, wmOperator *op)
 
 static int ringcut_invoke(bContext *C, wmOperator *op, wmEvent *evt)
 {
+	ScrArea *sa = CTX_wm_area(C);
 	Object *obedit = CTX_data_edit_object(C);
 	RingSelOpData *lcd;
 	BMEdge *edge;
@@ -442,13 +444,17 @@ static int ringcut_invoke(bContext *C, wmOperator *op, wmEvent *evt)
 		lcd->eed = edge;
 		ringsel_find_edge(lcd, 1);
 	}
-	ED_area_headerprint(CTX_wm_area(C), "Select a ring to be cut, use mouse-wheel or page-up/down for number of cuts");
+	ED_area_headerprint(sa,
+	                    "Select a ring to be cut, "
+	                    "use mouse-wheel or page-up/down for number of cuts, "
+	                    "Hold Alt for smooth");
 	
 	return OPERATOR_RUNNING_MODAL;
 }
 
 static int loopcut_modal(bContext *C, wmOperator *op, wmEvent *event)
 {
+	float smoothness = RNA_float_get(op->ptr, "smoothness");
 	int cuts = RNA_int_get(op->ptr, "number_cuts");
 	RingSelOpData *lcd = op->customdata;
 	int show_cuts = 0;
@@ -495,11 +501,17 @@ static int loopcut_modal(bContext *C, wmOperator *op, wmEvent *event)
 		case WHEELUPMOUSE:  /* change number of cuts */
 			if (event->val == KM_RELEASE)
 				break;
-
-			cuts++;
-			RNA_int_set(op->ptr, "number_cuts", cuts);
-			ringsel_find_edge(lcd, cuts);
-			show_cuts = TRUE;
+			if (event->alt == 0) {
+				cuts++;
+				RNA_int_set(op->ptr, "number_cuts", cuts);
+				ringsel_find_edge(lcd, cuts);
+				show_cuts = TRUE;
+			}
+			else {
+				smoothness = min_ff(smoothness + 0.05f, 4.0f);
+				RNA_float_set(op->ptr, "smoothness", smoothness);
+				show_cuts = TRUE;
+			}
 			
 			ED_region_tag_redraw(lcd->ar);
 			break;
@@ -509,10 +521,17 @@ static int loopcut_modal(bContext *C, wmOperator *op, wmEvent *event)
 			if (event->val == KM_RELEASE)
 				break;
 
-			cuts = max_ii(cuts - 1, 0);
-			RNA_int_set(op->ptr, "number_cuts", cuts);
-			ringsel_find_edge(lcd, cuts);
-			show_cuts = TRUE;
+			if (event->alt == 0) {
+				cuts = max_ii(cuts - 1, 0);
+				RNA_int_set(op->ptr, "number_cuts", cuts);
+				ringsel_find_edge(lcd, cuts);
+				show_cuts = TRUE;
+			}
+			else {
+				smoothness = max_ff(smoothness - 0.05f, 0.0f);
+				RNA_float_set(op->ptr, "smoothness", smoothness);
+				show_cuts = TRUE;
+			}
 			
 			ED_region_tag_redraw(lcd->ar);
 			break;
@@ -556,7 +575,7 @@ static int loopcut_modal(bContext *C, wmOperator *op, wmEvent *event)
 	
 	if (show_cuts) {
 		char buf[64];
-		BLI_snprintf(buf, sizeof(buf), "Number of Cuts: %d", cuts);
+		BLI_snprintf(buf, sizeof(buf), "Number of Cuts: %d, Smooth: %.2f (Alt)", cuts, smoothness);
 		ED_area_headerprint(CTX_wm_area(C), buf);
 	}
 	
@@ -607,5 +626,8 @@ void MESH_OT_loopcut(wmOperatorType *ot)
 	/* properties */
 	prop = RNA_def_int(ot->srna, "number_cuts", 1, 1, INT_MAX, "Number of Cuts", "", 1, 10);
 	/* avoid re-using last var because it can cause _very_ high poly meshes and annoy users (or worse crash) */
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+	prop = RNA_def_float(ot->srna, "smoothness", 0.0f, 0.0f, FLT_MAX, "Smoothness", "Smoothness factor", 0.0f, 4.0f);
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }

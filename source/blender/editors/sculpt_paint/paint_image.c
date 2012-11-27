@@ -501,7 +501,7 @@ static void image_undo_restore(bContext *C, ListBase *lb)
 			ima = BLI_findstring(&bmain->image, tile->idname, offsetof(ID, name));
 		}
 
-		ibuf = BKE_image_get_ibuf(ima, NULL);
+		ibuf = BKE_image_acquire_ibuf(ima, NULL, NULL);
 
 		if (ima && ibuf && strcmp(tile->ibufname, ibuf->name) != 0) {
 			/* current ImBuf filename was changed, probably current frame
@@ -509,19 +509,27 @@ static void image_undo_restore(bContext *C, ListBase *lb)
 			 * full image user (which isn't so obvious, btw) try to find ImBuf with
 			 * matched file name in list of already loaded images */
 
+			BKE_image_release_ibuf(ima, ibuf, NULL);
+
 			ibuf = BLI_findstring(&ima->ibufs, tile->ibufname, offsetof(ImBuf, name));
 		}
 
-		if (!ima || !ibuf || !(ibuf->rect || ibuf->rect_float))
+		if (!ima || !ibuf || !(ibuf->rect || ibuf->rect_float)) {
+			BKE_image_release_ibuf(ima, ibuf, NULL);
 			continue;
+		}
 
-		if (ima->gen_type != tile->gen_type || ima->source != tile->source)
+		if (ima->gen_type != tile->gen_type || ima->source != tile->source) {
+			BKE_image_release_ibuf(ima, ibuf, NULL);
 			continue;
+		}
 
 		use_float = ibuf->rect_float ? 1 : 0;
 
-		if (use_float != tile->use_float)
+		if (use_float != tile->use_float) {
+			BKE_image_release_ibuf(ima, ibuf, NULL);
 			continue;
+		}
 
 		undo_copy_tile(tile, tmpibuf, ibuf, 1);
 
@@ -531,6 +539,8 @@ static void image_undo_restore(bContext *C, ListBase *lb)
 		if (ibuf->mipmap[0])
 			ibuf->userflags |= IB_MIPMAP_INVALID;  /* force mipmap recreatiom */
 		ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
+
+		BKE_image_release_ibuf(ima, ibuf, NULL);
 	}
 
 	IMB_freeImBuf(tmpibuf);
@@ -1050,11 +1060,11 @@ static int pixel_bounds_uv(
 	
 	INIT_MINMAX2(min_uv, max_uv);
 	
-	DO_MINMAX2(uv1, min_uv, max_uv);
-	DO_MINMAX2(uv2, min_uv, max_uv);
-	DO_MINMAX2(uv3, min_uv, max_uv);
+	minmax_v2v2_v2(min_uv, max_uv, uv1);
+	minmax_v2v2_v2(min_uv, max_uv, uv2);
+	minmax_v2v2_v2(min_uv, max_uv, uv3);
 	if (is_quad)
-		DO_MINMAX2(uv4, min_uv, max_uv);
+		minmax_v2v2_v2(min_uv, max_uv, uv4);
 	
 	bounds_px->xmin = (int)(ibuf_x * min_uv[0]);
 	bounds_px->ymin = (int)(ibuf_y * min_uv[1]);
@@ -1080,7 +1090,7 @@ static int pixel_bounds_array(float (*uv)[2], rcti *bounds_px, const int ibuf_x,
 	INIT_MINMAX2(min_uv, max_uv);
 	
 	while (tot--) {
-		DO_MINMAX2((*uv), min_uv, max_uv);
+		minmax_v2v2_v2(min_uv, max_uv, (*uv));
 		uv++;
 	}
 	
@@ -1399,8 +1409,8 @@ static float project_paint_uvpixel_mask(
 		Image *other_tpage = project_paint_face_image(ps, ps->dm_mtface_stencil, face_index);
 		const MTFace *tf_other = ps->dm_mtface_stencil + face_index;
 		
-		if (other_tpage && (ibuf_other = BKE_image_get_ibuf(other_tpage, NULL))) {
-			/* BKE_image_get_ibuf - TODO - this may be slow */
+		if (other_tpage && (ibuf_other = BKE_image_acquire_ibuf(other_tpage, NULL, NULL))) {
+			/* BKE_image_acquire_ibuf - TODO - this may be slow */
 			unsigned char rgba_ub[4];
 			float rgba_f[4];
 			
@@ -1412,7 +1422,9 @@ static float project_paint_uvpixel_mask(
 			else { /* from char to float */
 				mask = ((rgba_ub[0] + rgba_ub[1] + rgba_ub[2]) / (256 * 3.0f)) * (rgba_ub[3] / 256.0f);
 			}
-			
+
+			BKE_image_release_ibuf(other_tpage, ibuf_other, NULL);
+
 			if (!ps->do_layer_stencil_inv) /* matching the gimps layer mask black/white rules, white==full opacity */
 				mask = (1.0f - mask);
 
@@ -1580,8 +1592,8 @@ static ProjPixel *project_paint_uvpixel_init(
 			Image *other_tpage = project_paint_face_image(ps, ps->dm_mtface_clone, face_index);
 			const MTFace *tf_other = ps->dm_mtface_clone + face_index;
 			
-			if (other_tpage && (ibuf_other = BKE_image_get_ibuf(other_tpage, NULL))) {
-				/* BKE_image_get_ibuf - TODO - this may be slow */
+			if (other_tpage && (ibuf_other = BKE_image_acquire_ibuf(other_tpage, NULL, NULL))) {
+				/* BKE_image_acquire_ibuf - TODO - this may be slow */
 				
 				if (ibuf->rect_float) {
 					if (ibuf_other->rect_float) { /* from float to float */
@@ -1603,6 +1615,8 @@ static ProjPixel *project_paint_uvpixel_init(
 						project_face_pixel(tf_other, ibuf_other, w, side, ((ProjPixelClone *)projPixel)->clonepx.ch, NULL);
 					}
 				}
+
+				BKE_image_release_ibuf(other_tpage, ibuf_other, NULL);
 			}
 			else {
 				if (ibuf->rect_float) {
@@ -2927,7 +2941,7 @@ static void project_paint_delayed_face_init(ProjPaintState *ps, const MFace *mf,
 	fidx = mf->v4 ? 3 : 2;
 	do {
 		vCoSS = ps->screenCoords[*(&mf->v1 + fidx)];
-		DO_MINMAX2(vCoSS, min, max);
+		minmax_v2v2_v2(min, max, vCoSS);
 	} while (fidx--);
 	
 	project_paint_bucket_bounds(ps, min, max, bucketMin, bucketMax);
@@ -3192,7 +3206,7 @@ static void project_paint_begin(ProjPaintState *ps)
 			/* screen space, not clamped */
 			projScreenCo[0] = (float)(ps->winx / 2.0f) + (ps->winx / 2.0f) * projScreenCo[0];
 			projScreenCo[1] = (float)(ps->winy / 2.0f) + (ps->winy / 2.0f) * projScreenCo[1];
-			DO_MINMAX2(projScreenCo, ps->screenMin, ps->screenMax);
+			minmax_v2v2_v2(ps->screenMin, ps->screenMax, projScreenCo);
 		}
 	}
 	else {
@@ -3207,7 +3221,7 @@ static void project_paint_begin(ProjPaintState *ps)
 				projScreenCo[0] = (float)(ps->winx / 2.0f) + (ps->winx / 2.0f) * projScreenCo[0] / projScreenCo[3];
 				projScreenCo[1] = (float)(ps->winy / 2.0f) + (ps->winy / 2.0f) * projScreenCo[1] / projScreenCo[3];
 				projScreenCo[2] = projScreenCo[2] / projScreenCo[3]; /* Use the depth for bucket point occlusion */
-				DO_MINMAX2(projScreenCo, ps->screenMin, ps->screenMax);
+				minmax_v2v2_v2(ps->screenMin, ps->screenMax, projScreenCo);
 			}
 			else {
 				/* TODO - deal with cases where 1 side of a face goes behind the view ?
@@ -3409,7 +3423,7 @@ static void project_paint_begin(ProjPaintState *ps)
 				
 				image_index = BLI_linklist_index(image_LinkList, tpage);
 				
-				if (image_index == -1 && BKE_image_get_ibuf(tpage, NULL)) { /* MemArena dosnt have an append func */
+				if (image_index == -1 && BKE_image_has_ibuf(tpage, NULL)) { /* MemArena dosnt have an append func */
 					BLI_linklist_append(&image_LinkList, tpage);
 					image_index = ps->image_tot;
 					ps->image_tot++;
@@ -3432,7 +3446,7 @@ static void project_paint_begin(ProjPaintState *ps)
 	for (node = image_LinkList, i = 0; node; node = node->next, i++, projIma++) {
 		projIma->ima = node->link;
 		projIma->touch = 0;
-		projIma->ibuf = BKE_image_get_ibuf(projIma->ima, NULL);
+		projIma->ibuf = BKE_image_acquire_ibuf(projIma->ima, NULL, NULL);
 		projIma->partRedrawRect =  BLI_memarena_alloc(arena, sizeof(ImagePaintPartialRedraw) * PROJ_BOUNDBOX_SQUARED);
 		memset(projIma->partRedrawRect, 0, sizeof(ImagePaintPartialRedraw) * PROJ_BOUNDBOX_SQUARED);
 	}
@@ -3459,6 +3473,7 @@ static void project_paint_begin_clone(ProjPaintState *ps, int mouse[2])
 static void project_paint_end(ProjPaintState *ps)
 {
 	int a;
+	ProjPaintImage *projIma;
 	
 	/* build undo data from original pixel colors */
 	if (U.uiflag & USER_GLOBALUNDO) {
@@ -3546,7 +3561,14 @@ static void project_paint_end(ProjPaintState *ps)
 		if (tmpibuf_float) IMB_freeImBuf(tmpibuf_float);
 	}
 	/* done calculating undo data */
-	
+
+	/* dereference used image buffers */
+	for (a = 0, projIma = ps->projImages; a < ps->image_tot; a++, projIma++) {
+		BKE_image_release_ibuf(projIma->ima, projIma->ibuf, NULL);
+	}
+
+	BKE_image_release_ibuf(ps->reproject_image, ps->reproject_ibuf, NULL);
+
 	MEM_freeN(ps->screenCoords);
 	MEM_freeN(ps->bucketRect);
 	MEM_freeN(ps->bucketFaces);
@@ -4673,7 +4695,7 @@ static int texpaint_break_stroke(float *prevuv, float *fwuv, float *bkuv, float 
 
 static int imapaint_canvas_set(ImagePaintState *s, Image *ima)
 {
-	ImBuf *ibuf = BKE_image_get_ibuf(ima, s->sima ? &s->sima->iuser : NULL);
+	ImBuf *ibuf = BKE_image_acquire_ibuf(ima, s->sima ? &s->sima->iuser : NULL, NULL);
 	
 	/* verify that we can paint and set canvas */
 	if (ima == NULL) {
@@ -4696,10 +4718,12 @@ static int imapaint_canvas_set(ImagePaintState *s, Image *ima)
 	/* set clone canvas */
 	if (s->tool == PAINT_TOOL_CLONE) {
 		ima = s->brush->clone.image;
-		ibuf = BKE_image_get_ibuf(ima, s->sima ? &s->sima->iuser : NULL);
+		ibuf = BKE_image_acquire_ibuf(ima, s->sima ? &s->sima->iuser : NULL, NULL);
 		
-		if (!ima || !ibuf || !(ibuf->rect || ibuf->rect_float))
+		if (!ima || !ibuf || !(ibuf->rect || ibuf->rect_float)) {
+			BKE_image_release_ibuf(ima, ibuf, NULL);
 			return 0;
+		}
 
 		s->clonecanvas = ibuf;
 
@@ -4714,13 +4738,15 @@ static int imapaint_canvas_set(ImagePaintState *s, Image *ima)
 	return 1;
 }
 
-static void imapaint_canvas_free(ImagePaintState *UNUSED(s))
+static void imapaint_canvas_free(ImagePaintState *s)
 {
+	BKE_image_release_ibuf(s->image, s->canvas, NULL);
+	BKE_image_release_ibuf(s->brush->clone.image, s->clonecanvas, NULL);
 }
 
 static int imapaint_paint_sub_stroke(ImagePaintState *s, BrushPainter *painter, Image *image, short texpaint, float *uv, double time, int update, float pressure)
 {
-	ImBuf *ibuf = BKE_image_get_ibuf(image, s->sima ? &s->sima->iuser : NULL);
+	ImBuf *ibuf = BKE_image_acquire_ibuf(image, s->sima ? &s->sima->iuser : NULL, NULL);
 	float pos[2];
 	int is_data;
 
@@ -4740,9 +4766,13 @@ static int imapaint_paint_sub_stroke(ImagePaintState *s, BrushPainter *painter, 
 	if (BKE_brush_painter_paint(painter, imapaint_paint_op, pos, time, pressure, s, is_data == FALSE)) {
 		if (update)
 			imapaint_image_update(s->scene, s->sima, image, ibuf, texpaint);
+		BKE_image_release_ibuf(image, ibuf, NULL);
 		return 1;
 	}
-	else return 0;
+	else {
+		BKE_image_release_ibuf(image, ibuf, NULL);
+		return 0;
+	}
 }
 
 static int imapaint_paint_stroke(ViewContext *vc, ImagePaintState *s, BrushPainter *painter, short texpaint, const int prevmval[2], const int mval[2], double time, float pressure)
@@ -4760,7 +4790,7 @@ static int imapaint_paint_stroke(ViewContext *vc, ImagePaintState *s, BrushPaint
 			ImBuf *ibuf;
 			
 			newimage = imapaint_face_image(s, newfaceindex);
-			ibuf = BKE_image_get_ibuf(newimage, s->sima ? &s->sima->iuser : NULL);
+			ibuf = BKE_image_acquire_ibuf(newimage, s->sima ? &s->sima->iuser : NULL, NULL);
 
 			if (ibuf && ibuf->rect)
 				imapaint_pick_uv(s->scene, s->ob, newfaceindex, mval, newuv);
@@ -4768,6 +4798,8 @@ static int imapaint_paint_stroke(ViewContext *vc, ImagePaintState *s, BrushPaint
 				newimage = NULL;
 				newuv[0] = newuv[1] = 0.0f;
 			}
+
+			BKE_image_release_ibuf(newimage, ibuf, NULL);
 		}
 		else
 			newuv[0] = newuv[1] = 0.0f;
@@ -5891,7 +5923,7 @@ static int texture_paint_camera_project_exec(bContext *C, wmOperator *op)
 	}
 
 	ps.reproject_image = image;
-	ps.reproject_ibuf = BKE_image_get_ibuf(image, NULL);
+	ps.reproject_ibuf = BKE_image_acquire_ibuf(image, NULL, NULL);
 
 	if (ps.reproject_ibuf == NULL || ps.reproject_ibuf->rect == NULL) {
 		BKE_report(op->reports, RPT_ERROR, "Image data could not be found");
