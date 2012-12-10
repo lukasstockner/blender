@@ -93,7 +93,9 @@ typedef struct libmv_cameraIntrinsicsOptions {
 } libmv_cameraIntrinsicsOptions;
 
 typedef struct libmv_reconstructionOptions {
+	int select_keyframes;
 	int keyframe1, keyframe2;
+
 	int refine_intrinsics;
 
 	double success_threshold;
