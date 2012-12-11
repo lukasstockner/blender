@@ -96,7 +96,8 @@ int ED_view3d_camera_lock_check(View3D *v3d, RegionView3D *rv3d)
 void ED_view3d_camera_lock_init(View3D *v3d, RegionView3D *rv3d)
 {
 	if (ED_view3d_camera_lock_check(v3d, rv3d)) {
-		rv3d->dist = ED_view3d_offset_distance(v3d->camera->obmat, rv3d->ofs);
+		/* using a fallback dist is OK here since ED_view3d_from_object() compensates for it */
+		rv3d->dist = ED_view3d_offset_distance(v3d->camera->obmat, rv3d->ofs, VIEW3D_DIST_FALLBACK);
 		ED_view3d_from_object(v3d->camera, rv3d->ofs, rv3d->viewquat, &rv3d->dist, NULL);
 	}
 }
@@ -895,7 +896,7 @@ static int viewrotate_invoke(bContext *C, wmOperator *op, wmEvent *event)
 
 			/* changed since 2.4x, use the camera view */
 			if (vod->v3d->camera) {
-				rv3d->dist = ED_view3d_offset_distance(vod->v3d->camera->obmat, rv3d->ofs);
+				rv3d->dist = ED_view3d_offset_distance(vod->v3d->camera->obmat, rv3d->ofs, VIEW3D_DIST_FALLBACK);
 				ED_view3d_from_object(vod->v3d->camera, rv3d->ofs, rv3d->viewquat, &rv3d->dist, NULL);
 			}
 
@@ -3576,7 +3577,7 @@ static void calc_clipping_plane(float clip[6][4], BoundBox *clipbb)
 	}
 }
 
-static void calc_local_clipping(float clip_local[][4], BoundBox *clipbb, float mat[][4])
+static void calc_local_clipping(float clip_local[6][4], BoundBox *clipbb, float mat[4][4])
 {
 	BoundBox clipbb_local;
 	float imat[4][4];
@@ -3591,7 +3592,7 @@ static void calc_local_clipping(float clip_local[][4], BoundBox *clipbb, float m
 	calc_clipping_plane(clip_local, &clipbb_local);
 }
 
-void ED_view3d_clipping_local(RegionView3D *rv3d, float mat[][4])
+void ED_view3d_clipping_local(RegionView3D *rv3d, float mat[4][4])
 {
 	if (rv3d->rflag & RV3D_CLIPPING)
 		calc_local_clipping(rv3d->clip_local, rv3d->clipbb, mat);
@@ -3977,16 +3978,28 @@ int ED_view3d_autodist_depth_seg(ARegion *ar, const int mval_sta[2], const int m
 	return (*depth == FLT_MAX) ? 0 : 1;
 }
 
-float ED_view3d_offset_distance(float mat[4][4], float ofs[3]) {
+/* problem - ofs[3] can be on same location as camera itself.
+ * Blender needs proper dist value for zoom.
+ * use fallback_dist to override small values
+ */
+float ED_view3d_offset_distance(float mat[4][4], const float ofs[3], const float fallback_dist)
+{
 	float pos[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 	float dir[4] = {0.0f, 0.0f, 1.0f, 0.0f};
-
+	float dist;
+	
 	mul_m4_v4(mat, pos);
 	add_v3_v3(pos, ofs);
 	mul_m4_v4(mat, dir);
 	normalize_v3(dir);
 
-	return dot_v3v3(pos, dir);
+	dist = dot_v3v3(pos, dir);
+
+	if ((dist < FLT_EPSILON) && (fallback_dist != 0.0f)) {
+		dist = fallback_dist;
+	}
+
+	return dist;
 }
 
 /**
@@ -3997,7 +4010,7 @@ float ED_view3d_offset_distance(float mat[4][4], float ofs[3]) {
  * \param quat The view rotation, quaternion normally from RegionView3D.viewquat.
  * \param dist The view distance from ofs, normally from RegionView3D.dist.
  */
-void ED_view3d_from_m4(float mat[][4], float ofs[3], float quat[4], float *dist)
+void ED_view3d_from_m4(float mat[4][4], float ofs[3], float quat[4], float *dist)
 {
 	/* Offset */
 	if (ofs)
@@ -4034,7 +4047,7 @@ void ED_view3d_from_m4(float mat[][4], float ofs[3], float quat[4], float *dist)
  * \param quat The view rotation, quaternion normally from RegionView3D.viewquat.
  * \param dist The view distance from ofs, normally from RegionView3D.dist.
  */
-void ED_view3d_to_m4(float mat[][4], const float ofs[3], const float quat[4], const float dist)
+void ED_view3d_to_m4(float mat[4][4], const float ofs[3], const float quat[4], const float dist)
 {
 	float iviewquat[4] = {-quat[0], quat[1], quat[2], quat[3]};
 	float dvec[3] = {0.0f, 0.0f, dist};
