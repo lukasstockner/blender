@@ -24,8 +24,6 @@
 #include "libmv/multiview/fundamental.h"
 #include "libmv/simple_pipeline/keyframe_selection.h"
 
-#include <stdio.h>
-
 namespace libmv {
 
 namespace {
@@ -108,7 +106,7 @@ void ComputeHomographyFromCorrespondences(Mat &x1, Mat &x2, Mat3 *H) {
   ceres::Solver::Summary summary;
   ceres::Solve(solver_options, &problem, &summary);
 
-  LG << "Summary:\n" << summary.FullReport();
+  VLOG(1) << "Summary:\n" << summary.FullReport();
 }
 
 class FundamentalSymmetricEpipolarCostFunctor {
@@ -174,7 +172,7 @@ void ComputeFundamentalFromCorrespondences(Mat &x1, Mat &x2, Mat3 *F)
   ceres::Solver::Summary summary;
   ceres::Solve(solver_options, &problem, &summary);
 
-  LG << "Summary:\n" << summary.FullReport();
+  VLOG(1) << "Summary:\n" << summary.FullReport();
 }
 
 // P.H.S. Torr
@@ -185,15 +183,14 @@ void ComputeFundamentalFromCorrespondences(Mat &x1, Mat &x2, Mat3 *F)
 // d is the number of dimensions modeled (d = 3 for a fundamental matrix or 2 for a homography)
 // k is the number of degrees of freedom in the model (k = 7 for a fundamental matrix or 8 for a homography)
 // r is the dimension of the data (r = 4 for 2D correspondences between two frames)
-double GRIC(Vec e, int d, int k, int r) {
-  int n = e.cols();
-  double lambda1 = log((double) r);
-  double lambda2 = log((double) r * n);
+double GRIC(Vec &e, int d, int k, int r) {
+  int n = e.rows();
+  double lambda1 = log10((double) r);
+  double lambda2 = log10((double) r * n);
 
   // lambda3 limits the residual error, and this paper
-  // http://elvera.nue.tu-berlin.de/files/0990Knorr2006.pdf suggests using
-  // lambda3 of 2, but it also seems to be using base 2 for logarithms as
-  // well, so probably we need to alter coefficients above too
+  // http://elvera.nue.tu-berlin.de/files/0990Knorr2006.pdf
+  // suggests using lambda3 of 2
   double lambda3 = 2.0;
 
   // Compute squared standard deviation sigma2 of the error
@@ -236,11 +233,13 @@ void SelectkeyframesBasedOnGRIC(Tracks &tracks, vector<int> &keyframes) {
   int max_image = tracks.MaxImage();
   int image = 1, next_keyframe = 1;
 
-  // This defines Pollefeys’ approach for correspondence ratio constraint
-  //
-  // ftp://ftp.tnt.uni-hannover.de/pub/papers/2004/ECCV2004-TTHBAW.pdf
+  // Limit correspondence ratio from both sides.
+  // On the one hand if number of correspondent features is too low,
+  // triangulation will suffer.
+  // On the other hand high correspondence likely means short baseline.
+  // which also will affect om accuracy
   const double Tmin = 0.9;
-  const double Tmax = 1.0;
+  const double Tmax = 0.98;
 
   while (next_keyframe != -1) {
     int current_keyframe = next_keyframe;
@@ -279,6 +278,10 @@ void SelectkeyframesBasedOnGRIC(Tracks &tracks, vector<int> &keyframes) {
       int Tc = tracked_markers.size();
       int Tf = all_markers.size();
       double Rc = (double) Tc / (double) Tf;
+
+      LG << "Correspondence between " << current_keyframe << " and " << candidate_image
+         << ": " << Rc;
+
       if (Rc < Tmin || Rc > Tmax)
         continue;
 
@@ -297,6 +300,10 @@ void SelectkeyframesBasedOnGRIC(Tracks &tracks, vector<int> &keyframes) {
       // Degeneracy constraint
       double GRIC_H = GRIC(H_e, 2, 8, 4);
       double GRIC_F = GRIC(F_e, 3, 7, 4);
+
+      LG << "GRIC values for frames " << current_keyframe << " and " << candidate_image
+         << ", H-GRIC: " << GRIC_H << ", F-GRIC: " << GRIC_F;
+
       if (GRIC_H <= GRIC_F)
         continue;
 
