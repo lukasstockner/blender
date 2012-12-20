@@ -27,53 +27,54 @@
 namespace libmv {
 
 namespace {
-template<typename T>
-T SymmetricGeometricDistance(const Eigen::Matrix<T, 3, 3> &H,
-                                  const Eigen::Matrix<T, 2, 1> &x1,
-                                  const Eigen::Matrix<T, 2, 1> &x2) {
-  Eigen::Matrix<T, 3, 1> x(x1(0), x1(1), T(1.0));
-  Eigen::Matrix<T, 3, 1> y(x2(0), x2(1), T(1.0));
+double SymmetricGeometricDistance(Mat3 &H, Vec2 &x1, Vec2 &x2) {
+  Vec3 x(x1(0), x1(1), 1.0);
+  Vec3 y(x2(0), x2(1), 1.0);
 
-  Eigen::Matrix<T, 3, 1> H_x = H * x;
-  Eigen::Matrix<T, 3, 1> Hinv_y = H.inverse() * y;
+  Vec3 H_x = H * x;
+  Vec3 Hinv_y = H.inverse() * y;
 
   H_x /= H_x(2);
   Hinv_y /= Hinv_y(2);
 
-  return (H_x.head(2) - y.head(2)).squaredNorm() +
-         (Hinv_y.head(2) - x.head(2)).squaredNorm();
+  return (H_x.head<2>() - y.head<2>()).norm() +
+         (Hinv_y.head<2>() - x.head<2>()).norm();
 }
 
 class HomographySymmetricGeometricCostFunctor {
  public:
-  HomographySymmetricGeometricCostFunctor(Mat &x1, Mat &x2)
-      : x1_(x1),
-        x2_(x2) {
+  HomographySymmetricGeometricCostFunctor(Vec2 x, Vec2 y)
+      : x_(x),
+        y_(y) {
   }
 
   template<typename T>
   bool operator()(const T *homography_parameters, T *residuals) const {
     typedef Eigen::Matrix<T, 3, 3> Mat3;
-    typedef Eigen::Matrix<T, 2, 1> Vec2;
+    typedef Eigen::Matrix<T, 3, 1> Vec3;
 
     Mat3 H(homography_parameters);
 
-    T symmetric_error = T(0.0);
+    Vec3 x(T(x_(0)), T(x_(1)), T(1.0));
+    Vec3 y(T(y_(0)), T(y_(1)), T(1.0));
 
-    for (int i = 0; i < x1_.cols(); i++) {
-      Vec2 x1(T(x1_(0, i)), T(x1_(1, i)));
-      Vec2 x2(T(x2_(0, i)), T(x2_(1, i)));
+    Vec3 H_x = H * x;
+    Vec3 Hinv_y = H.inverse() * y;
 
-      symmetric_error += SymmetricGeometricDistance(H, x1, x2);
-    }
+    H_x /= H_x(2);
+    Hinv_y /= Hinv_y(2);
 
-    residuals[0] = symmetric_error;
+    residuals[0] = H_x(0) - T(y_(0));
+    residuals[1] = H_x(1) - T(y_(1));
+
+    residuals[2] = Hinv_y(0) - T(x_(0));
+    residuals[3] = Hinv_y(1) - T(x_(1));
 
     return true;
   }
 
-  const Mat &x1_;
-  const Mat &x2_;
+  const Vec2 x_;
+  const Vec2 y_;
 };
 
 void ComputeHomographyFromCorrespondences(Mat &x1, Mat &x2, Mat3 *H) {
@@ -83,16 +84,18 @@ void ComputeHomographyFromCorrespondences(Mat &x1, Mat &x2, Mat3 *H) {
   // Refine matrix using Ceres minimizer
   ceres::Problem problem;
 
-  HomographySymmetricGeometricCostFunctor *homography_symmetric_geometric_cost_function =
-       new HomographySymmetricGeometricCostFunctor(x1, x2);
+  for (int i = 0; i < x1.cols(); i++) {
+    HomographySymmetricGeometricCostFunctor *homography_symmetric_geometric_cost_function =
+        new HomographySymmetricGeometricCostFunctor(x1.col(i), x2.col(i));
 
-  problem.AddResidualBlock(
-      new ceres::AutoDiffCostFunction<
-          HomographySymmetricGeometricCostFunctor,
-          1, /* num_residuals */
-          9>(homography_symmetric_geometric_cost_function),
-      NULL,
-      H->data());
+    problem.AddResidualBlock(
+        new ceres::AutoDiffCostFunction<
+            HomographySymmetricGeometricCostFunctor,
+            4, /* num_residuals */
+            9>(homography_symmetric_geometric_cost_function),
+        NULL,
+        H->data());
+  }
 
   // Configure the solve.
   ceres::Solver::Options solver_options;
@@ -111,34 +114,33 @@ void ComputeHomographyFromCorrespondences(Mat &x1, Mat &x2, Mat3 *H) {
 
 class FundamentalSymmetricEpipolarCostFunctor {
  public:
-  FundamentalSymmetricEpipolarCostFunctor(Mat &x1, Mat &x2)
-      : x1_(x1),
-        x2_(x2) {
+  FundamentalSymmetricEpipolarCostFunctor(Vec2 x, Vec2 y)
+      : x_(x),
+        y_(y) {
   }
 
   template<typename T>
   bool operator()(const T *fundamental_parameters, T *residuals) const {
     typedef Eigen::Matrix<T, 3, 3> Mat3;
-    typedef Eigen::Matrix<T, 2, 1> Vec2;
+    typedef Eigen::Matrix<T, 3, 1> Vec3;
 
     Mat3 F(fundamental_parameters);
 
-    T error = T(0.0);
+    Vec3 x(T(x_(0)), T(x_(1)), T(1.0));
+    Vec3 y(T(y_(0)), T(y_(1)), T(1.0));
 
-    for (int i = 0; i < x1_.cols(); i++) {
-      Vec2 x1(T(x1_(0, i)), T(x1_(1, i)));
-      Vec2 x2(T(x2_(0, i)), T(x2_(1, i)));
+    Vec3 F_x = F * x;
+    Vec3 Ft_y = F.transpose() * y;
+    T y_F_x = y.dot(F_x);
 
-      error += SymmetricEpipolarDistance(F, x1, x2);
-    }
-
-    residuals[0] = error;
+    residuals[0] = y_F_x * T(1) / F_x.head(2).norm();
+    residuals[1] = y_F_x * T(1) / Ft_y.head(2).norm();
 
     return true;
   }
 
-  const Mat &x1_;
-  const Mat &x2_;
+  const Mat x_;
+  const Mat y_;
 };
 
 void ComputeFundamentalFromCorrespondences(Mat &x1, Mat &x2, Mat3 *F)
@@ -149,16 +151,18 @@ void ComputeFundamentalFromCorrespondences(Mat &x1, Mat &x2, Mat3 *F)
   // Refine matrix using Ceres minimizer
   ceres::Problem problem;
 
-  FundamentalSymmetricEpipolarCostFunctor *fundamental_symmetric_epipolar_cost_function =
-       new FundamentalSymmetricEpipolarCostFunctor(x1, x2);
+  for (int i = 0; i < x1.cols(); i++) {
+    FundamentalSymmetricEpipolarCostFunctor *fundamental_symmetric_epipolar_cost_function =
+        new FundamentalSymmetricEpipolarCostFunctor(x1.col(i), x2.col(i));
 
-  problem.AddResidualBlock(
-      new ceres::AutoDiffCostFunction<
-          FundamentalSymmetricEpipolarCostFunctor,
-          1, /* num_residuals */
-          9>(fundamental_symmetric_epipolar_cost_function),
-      NULL,
-      F->data());
+    problem.AddResidualBlock(
+        new ceres::AutoDiffCostFunction<
+            FundamentalSymmetricEpipolarCostFunctor,
+            2, /* num_residuals */
+            9>(fundamental_symmetric_epipolar_cost_function),
+        NULL,
+        F->data());
+  }
 
   // Configure the solve.
   ceres::Solver::Options solver_options;
@@ -185,8 +189,8 @@ void ComputeFundamentalFromCorrespondences(Mat &x1, Mat &x2, Mat3 *F)
 // r is the dimension of the data (r = 4 for 2D correspondences between two frames)
 double GRIC(Vec &e, int d, int k, int r) {
   int n = e.rows();
-  double lambda1 = log10((double) r);
-  double lambda2 = log10((double) r * n);
+  double lambda1 = log((double) r);
+  double lambda2 = log((double) r * n);
 
   // lambda3 limits the residual error, and this paper
   // http://elvera.nue.tu-berlin.de/files/0990Knorr2006.pdf
@@ -204,16 +208,15 @@ double GRIC(Vec &e, int d, int k, int r) {
     sigma2 += Square(e(i) - mean_value);
   sigma2 /= n;
 
-  // pre-compute for faster calculation of cycle body
-  double rho_max = lambda3 * (r - d);
-
   // Actual GRIC computation
   double gric_result = 0.0;
 
   for (int i = 0; i < n; i++) {
-    double rho = std::min(e(i) * e(i) / sigma2, rho_max);
-
-    gric_result += rho;
+    // disable rho stuff for now since it seems to be leading to wrong
+    // results in some cases
+    //double rho = std::min(e(i) * e(i) / sigma2, lambda3 * (r - d));
+    //gric_result += rho;
+    gric_result += e(i) * e(i) / sigma2;
   }
 
   gric_result += lambda1 * d * n;
@@ -231,7 +234,8 @@ void SelectkeyframesBasedOnGRIC(Tracks &tracks, vector<int> &keyframes) {
   // http://www.cs.ait.ac.th/~mdailey/papers/Tahir-KeyFrame.pdf
 
   int max_image = tracks.MaxImage();
-  int image = 1, next_keyframe = 1;
+  int next_keyframe = 1;
+  int number_keyframes = 0;
 
   // Limit correspondence ratio from both sides.
   // On the one hand if number of correspondent features is too low,
@@ -239,7 +243,7 @@ void SelectkeyframesBasedOnGRIC(Tracks &tracks, vector<int> &keyframes) {
   // On the other hand high correspondence likely means short baseline.
   // which also will affect om accuracy
   const double Tmin = 0.9;
-  const double Tmax = 0.98;
+  const double Tmax = 1.0;
 
   while (next_keyframe != -1) {
     int current_keyframe = next_keyframe;
@@ -247,7 +251,7 @@ void SelectkeyframesBasedOnGRIC(Tracks &tracks, vector<int> &keyframes) {
     LG << "Found keyframe " << next_keyframe;
 
     keyframes.push_back(next_keyframe);
-    image++;
+    number_keyframes++;
     next_keyframe = -1;
 
     for (int candidate_image = current_keyframe + 1;
@@ -264,15 +268,12 @@ void SelectkeyframesBasedOnGRIC(Tracks &tracks, vector<int> &keyframes) {
       CoordinatesForMarkersInImage(tracked_markers, current_keyframe, &x1);
       CoordinatesForMarkersInImage(tracked_markers, candidate_image, &x2);
 
+      LG << "Found " << x1.cols() << " correspondences between " << current_keyframe
+         << " and " << candidate_image;
+
       // Not enough points to construct fundamental matrix
       if (x1.cols() < 8 || x2.cols() < 8)
         continue;
-
-      Mat3 H, F;
-      ComputeHomographyFromCorrespondences(x1, x2, &H);
-      ComputeFundamentalFromCorrespondences(x1, x2, &F);
-
-      // TODO(sergey): Discard outlier matches
 
       // Correspondence ratio constraint
       int Tc = tracked_markers.size();
@@ -285,6 +286,12 @@ void SelectkeyframesBasedOnGRIC(Tracks &tracks, vector<int> &keyframes) {
       if (Rc < Tmin || Rc > Tmax)
         continue;
 
+      Mat3 H, F;
+      ComputeHomographyFromCorrespondences(x1, x2, &H);
+      ComputeFundamentalFromCorrespondences(x1, x2, &F);
+
+      // TODO(sergey): Discard outlier matches
+
       // Compute error values for homography and fundamental matrices
       Vec H_e, F_e;
       H_e.resize(x1.cols());
@@ -296,6 +303,9 @@ void SelectkeyframesBasedOnGRIC(Tracks &tracks, vector<int> &keyframes) {
         H_e(i) = SymmetricGeometricDistance(H, current_x1, current_x2);
         F_e(i) = SymmetricEpipolarDistance(F, current_x1, current_x2);
       }
+
+      LG << "H_e: " << H_e.transpose();
+      LG << "F_e: " << F_e.transpose();
 
       // Degeneracy constraint
       double GRIC_H = GRIC(H_e, 2, 8, 4);
@@ -311,7 +321,35 @@ void SelectkeyframesBasedOnGRIC(Tracks &tracks, vector<int> &keyframes) {
 
       next_keyframe = candidate_image;
     }
+
+    // This is a bit arbitrary and main reason of having this is to deal better
+    // with situations when there's no keyframes were found for current current
+    // keyframe this could happen when there's no so much parallax in the beginning
+    // of image sequence and then most of features are getting occluded.
+    // In this case there could be good keyframe pain in the middle of the sequence
+    //
+    // However, it's just quick hack and smarter way to do this would be nice
+    //
+    // Perhaps we shouldn't put all the keyframes inti the same plain list and
+    // use some kind of sliced list instead
+    if (next_keyframe == -1) {
+      if (number_keyframes == 1) {
+        LG << "Removing previous candidate keyframe because no other keyframe could be used with it";
+        keyframes.pop_back();
+      }
+
+      next_keyframe = current_keyframe + 10;
+      number_keyframes = 0;
+
+      if (next_keyframe >= max_image)
+        break;
+
+      LG << "Starting searching for keyframes starting from " << next_keyframe;
+    }
   }
+
+  for (int i =  0; i < keyframes.size(); i++)
+    LG << keyframes[i];
 }
 
 } // namespace libmv

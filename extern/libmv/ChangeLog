@@ -1,3 +1,55 @@
+commit 770eb0293b881c4c419c587a6cdb062c47ab6e44
+Author: Sergey Sharybin <sergey.vfx@gmail.com>
+Date:   Fri Dec 21 00:43:30 2012 +0600
+
+    Improvements for keyframe selection
+    
+    - Changed main keyframe selection cycle, so in cases there're no
+      more next keyframes for current keyframe could be found in the
+      image sequence, current keyframe would be moved forward and
+      search continues.
+    
+      This helps in cases when there's poor motion in the beginning
+      of the sequence, then markers becomes occluded. There could be
+      good keyframes in the middle of the shot still.
+    
+    - Extended keyframe_selection_test with real world cases.
+    
+    - Moved correspondences constraint to the top, so no H/F estimation
+      happens if there's bad correspondence. Makes algorithm go a bit
+      faster.
+    
+    Strangely, but using non-squared distances makes neighbor frames
+    test fail, using squared distances makes this tests pass.
+    
+    However, using non-squared distances seems to be working better
+    in real tests i've been doing. So this requires more investigation/
+
+commit 7415c62fbda36c5bd1c291bc94d535a66da896d0
+Author: Sergey Sharybin <sergey.vfx@gmail.com>
+Date:   Thu Dec 20 18:46:09 2012 +0600
+
+    Cosmetic change to correspondences reports in keyframe selection
+
+commit ceaf80c987ec0338e7e83965bc808411453eb755
+Author: Sergey Sharybin <sergey.vfx@gmail.com>
+Date:   Thu Dec 20 18:08:03 2012 +0600
+
+    Various fixes:
+    
+    - That was a typo in symmetric geometric cost functor, which
+      computed inverse distance in a wrong way.
+    
+    - Fixed compilation of unit tests
+    
+    - Added simple test for keyframe selection. Currently only
+      covers case that neighbor frames with only translation
+      (homography should be better than fundamental) are not
+      considered a keyframes.
+    
+      Still need to be investigated why it only works if tracks
+      are in pixel space and why doesn't work in normalized space.
+
 commit cfabdfe48df2add3d1f30cf4370efd0b31990ab0
 Author: Sergey Sharybin <sergey.vfx@gmail.com>
 Date:   Thu Dec 20 05:46:53 2012 +0600
@@ -702,23 +754,3 @@ Author: Sergey Sharybin <sergey.vfx@gmail.com>
 Date:   Fri Feb 17 20:54:13 2012 +0600
 
     More Windows -> Unix EOL conversions
-
-commit 18aeda58bec9556140ba617724e31ada6f5b67c0
-Author: Sergey Sharybin <sergey.vfx@gmail.com>
-Date:   Fri Feb 17 20:15:42 2012 +0600
-
-    Looks like this debug output was removed accidentally.
-
-commit 189dc0cacdee3c1eab68c43263ecb038ed244c09
-Author: Sergey Sharybin <sergey.vfx@gmail.com>
-Date:   Fri Feb 17 20:11:56 2012 +0600
-
-    Made V3D verbose again by default
-
-commit 8b3422d3eec5e450d76243886bf07fb0a3e83a81
-Author: Sergey Sharybin <sergey.vfx@gmail.com>
-Date:   Fri Feb 17 20:08:01 2012 +0600
-
-    SAD tracker now can deal with pattern size any size,
-    Very quick implementation came from Blender before Hybrid tracker was added.
-    Better to be replaced with brute tracker.
