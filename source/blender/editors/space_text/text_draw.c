@@ -29,10 +29,6 @@
  */
 
 
-#include <math.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -40,12 +36,10 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_text_types.h"
 #include "DNA_space_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_userdef_types.h"
 
 #include "BKE_context.h"
 #include "BKE_suggestions.h"
@@ -53,11 +47,12 @@
 
 #include "BIF_gl.h"
 
-#include "ED_datafiles.h"
 #include "UI_interface.h"
 #include "UI_resources.h"
+#include "UI_view2d.h"
 
 #include "text_intern.h"
+#include "text_format.h"
 
 /******************** text font drawing ******************/
 // XXX, fixme
@@ -65,7 +60,7 @@
 
 static void text_font_begin(SpaceText *st)
 {
-	BLF_size(mono, st->lheight, 72);
+	BLF_size(mono, st->lheight_dpi, 72);
 }
 
 static void text_font_end(SpaceText *UNUSED(st))
@@ -103,350 +98,6 @@ static int text_font_draw_character_utf8(SpaceText *st, int x, int y, const char
 	BLF_draw(mono, str, len);
 
 	return st->cwidth;
-}
-
-/****************** flatten string **********************/
-
-static void flatten_string_append(FlattenString *fs, const char *c, int accum, int len) 
-{
-	int i;
-	
-	if (fs->pos + len > fs->len) {
-		char *nbuf; int *naccum;
-		fs->len *= 2;
-
-		nbuf = MEM_callocN(sizeof(*fs->buf) * fs->len, "fs->buf");
-		naccum = MEM_callocN(sizeof(*fs->accum) * fs->len, "fs->accum");
-
-		memcpy(nbuf, fs->buf, fs->pos * sizeof(*fs->buf));
-		memcpy(naccum, fs->accum, fs->pos * sizeof(*fs->accum));
-		
-		if (fs->buf != fs->fixedbuf) {
-			MEM_freeN(fs->buf);
-			MEM_freeN(fs->accum);
-		}
-		
-		fs->buf = nbuf;
-		fs->accum = naccum;
-	}
-	
-	for (i = 0; i < len; i++) {
-		fs->buf[fs->pos + i] = c[i];
-		fs->accum[fs->pos + i] = accum;
-	}
-
-	fs->pos += len;
-}
-
-int flatten_string(SpaceText *st, FlattenString *fs, const char *in)
-{
-	int r, i, total = 0;
-
-	memset(fs, 0, sizeof(FlattenString));
-	fs->buf = fs->fixedbuf;
-	fs->accum = fs->fixedaccum;
-	fs->len = sizeof(fs->fixedbuf);
-
-	for (r = 0, i = 0; *in; r++) {
-		if (*in == '\t') {
-			i = st->tabnumber - (total % st->tabnumber);
-			total += i;
-			
-			while (i--)
-				flatten_string_append(fs, " ", r, 1);
-			
-			in++;
-		}
-		else {
-			size_t len = BLI_str_utf8_size_safe(in);
-			flatten_string_append(fs, in, r, len);
-			in += len;
-			total++;
-		}
-	}
-	
-	flatten_string_append(fs, "\0", r, 1);
-
-	return total;
-}
-
-void flatten_string_free(FlattenString *fs)
-{
-	if (fs->buf != fs->fixedbuf)
-		MEM_freeN(fs->buf);
-	if (fs->accum != fs->fixedaccum)
-		MEM_freeN(fs->accum);
-}
-
-/* Checks the specified source string for a Python built-in function name. This
- * name must start at the beginning of the source string and must be followed by
- * a non-identifier (see text_check_identifier(char)) or null character.
- * 
- * If a built-in function is found, the length of the matching name is returned.
- * Otherwise, -1 is returned.
- *
- * See:
- * http://docs.python.org/py3k/reference/lexical_analysis.html#keywords
- */
-
-static int find_builtinfunc(char *string)
-{
-	int a, i;
-	const char *builtinfuncs[] = {
-		/* "False", "None", "True", */ /* see find_bool() */
-		"and", "as", "assert", "break",
-		"class", "continue", "def", "del", "elif", "else", "except",
-		"finally", "for", "from", "global", "if", "import", "in",
-		"is", "lambda", "nonlocal", "not", "or", "pass", "raise",
-		"return", "try", "while", "with", "yield",
-	};
-
-	for (a = 0; a < sizeof(builtinfuncs) / sizeof(builtinfuncs[0]); a++) {
-		i = 0;
-		while (1) {
-			/* If we hit the end of a keyword... (eg. "def") */
-			if (builtinfuncs[a][i] == '\0') {
-				/* If we still have identifier chars in the source (eg. "definate") */
-				if (text_check_identifier(string[i]))
-					i = -1;  /* No match */
-				break; /* Next keyword if no match, otherwise we're done */
-				
-				/* If chars mismatch, move on to next keyword */
-			}
-			else if (string[i] != builtinfuncs[a][i]) {
-				i = -1;
-				break; /* Break inner loop, start next keyword */
-			}
-			i++;
-		}
-		if (i > 0) break;  /* If we have a match, we're done */
-	}
-	return i;
-}
-
-/* Checks the specified source string for a Python special name. This name must
- * start at the beginning of the source string and must be followed by a non-
- * identifier (see text_check_identifier(char)) or null character.
- * 
- * If a special name is found, the length of the matching name is returned.
- * Otherwise, -1 is returned. */
-
-static int find_specialvar(char *string) 
-{
-	int i = 0;
-	/* Check for "def" */
-	if (string[0] == 'd' && string[1] == 'e' && string[2] == 'f')
-		i = 3;
-	/* Check for "class" */
-	else if (string[0] == 'c' && string[1] == 'l' && string[2] == 'a' && string[3] == 's' && string[4] == 's')
-		i = 5;
-	/* If next source char is an identifier (eg. 'i' in "definate") no match */
-	if (i == 0 || text_check_identifier(string[i]))
-		return -1;
-	return i;
-}
-
-static int find_decorator(char *string) 
-{
-	if (string[0] == '@') {
-		int i = 1;
-		while (text_check_identifier(string[i])) {
-			i++;
-		}
-		return i;
-	}
-	return -1;
-}
-
-static int find_bool(char *string) 
-{
-	int i = 0;
-	/* Check for "False" */
-	if (string[0] == 'F' && string[1] == 'a' && string[2] == 'l' && string[3] == 's' && string[4] == 'e')
-		i = 5;
-	/* Check for "True" */
-	else if (string[0] == 'T' && string[1] == 'r' && string[2] == 'u' && string[3] == 'e')
-		i = 4;
-	/* Check for "None" */
-	else if (string[0] == 'N' && string[1] == 'o' && string[2] == 'n' && string[3] == 'e')
-		i = 4;
-	/* If next source char is an identifier (eg. 'i' in "definate") no match */
-	if (i == 0 || text_check_identifier(string[i]))
-		return -1;
-	return i;
-}
-
-/* Ensures the format string for the given line is long enough, reallocating
- * as needed. Allocation is done here, alone, to ensure consistency. */
-static int text_check_format_len(TextLine *line, unsigned int len)
-{
-	if (line->format) {
-		if (strlen(line->format) < len) {
-			MEM_freeN(line->format);
-			line->format = MEM_mallocN(len + 2, "SyntaxFormat");
-			if (!line->format) return 0;
-		}
-	}
-	else {
-		line->format = MEM_mallocN(len + 2, "SyntaxFormat");
-		if (!line->format) return 0;
-	}
-
-	return 1;
-}
-
-/* Formats the specified line. If do_next is set, the process will move on to
- * the succeeding line if it is affected (eg. multiline strings). Format strings
- * may contain any of the following characters:
- *  '_'  Whitespace
- *  '#'  Comment text
- *  '!'  Punctuation and other symbols
- *  'n'  Numerals
- *  'l'  String letters
- *  'v'  Special variables (class, def)
- *  'b'  Built-in names (print, for, etc.)
- *  'q'  Other text (identifiers, etc.)
- * It is terminated with a null-terminator '\0' followed by a continuation
- * flag indicating whether the line is part of a multi-line string. */
-
-static void txt_format_line(SpaceText *st, TextLine *line, int do_next)
-{
-	FlattenString fs;
-	char *str, *fmt, orig, cont, find, prev = ' ';
-	int len, i;
-
-	/* Get continuation from previous line */
-	if (line->prev && line->prev->format != NULL) {
-		fmt = line->prev->format;
-		cont = fmt[strlen(fmt) + 1]; /* Just after the null-terminator */
-	}
-	else cont = 0;
-
-	/* Get original continuation from this line */
-	if (line->format != NULL) {
-		fmt = line->format;
-		orig = fmt[strlen(fmt) + 1]; /* Just after the null-terminator */
-	}
-	else orig = 0xFF;
-
-	len = flatten_string(st, &fs, line->line);
-	str = fs.buf;
-	if (!text_check_format_len(line, len)) {
-		flatten_string_free(&fs);
-		return;
-	}
-	fmt = line->format;
-
-	while (*str) {
-		/* Handle escape sequences by skipping both \ and next char */
-		if (*str == '\\') {
-			*fmt = prev; fmt++; str++;
-			if (*str == '\0') break;
-			*fmt = prev; fmt++; str += BLI_str_utf8_size_safe(str);
-			continue;
-		}
-		/* Handle continuations */
-		else if (cont) {
-			/* Triple strings ("""...""" or '''...''') */
-			if (cont & TXT_TRISTR) {
-				find = (cont & TXT_DBLQUOTSTR) ? '"' : '\'';
-				if (*str == find && *(str + 1) == find && *(str + 2) == find) {
-					*fmt = 'l'; fmt++; str++;
-					*fmt = 'l'; fmt++; str++;
-					cont = 0;
-				}
-				/* Handle other strings */
-			}
-			else {
-				find = (cont & TXT_DBLQUOTSTR) ? '"' : '\'';
-				if (*str == find) cont = 0;
-			}
-
-			*fmt = 'l';
-			str += BLI_str_utf8_size_safe(str) - 1;
-		}
-		/* Not in a string... */
-		else {
-			/* Deal with comments first */
-			if (prev == '#' || *str == '#') {
-				*fmt = '#';
-				str += BLI_str_utf8_size_safe(str) - 1;
-			}
-			else if (*str == '"' || *str == '\'') {
-				/* Strings */
-				find = *str;
-				cont = (*str == '"') ? TXT_DBLQUOTSTR : TXT_SNGQUOTSTR;
-				if (*(str + 1) == find && *(str + 2) == find) {
-					*fmt = 'l'; fmt++; str++;
-					*fmt = 'l'; fmt++; str++;
-					cont |= TXT_TRISTR;
-				}
-				*fmt = 'l';
-			}
-			/* Whitespace (all ws. has been converted to spaces) */
-			else if (*str == ' ')
-				*fmt = '_';
-			/* Numbers (digits not part of an identifier and periods followed by digits) */
-			else if ((prev != 'q' && text_check_digit(*str)) || (*str == '.' && text_check_digit(*(str + 1))))
-				*fmt = 'n';
-			/* Booleans */
-			else if (prev != 'q' && (i = find_bool(str)) != -1)
-				if (i > 0) {
-					while (i > 1) {
-						*fmt = 'n'; fmt++; str++;
-						i--;
-					}
-					*fmt = 'n';
-				}
-				else {
-					str += BLI_str_utf8_size_safe(str) - 1;
-					*fmt = 'q';
-				}
-			/* Punctuation */
-			else if (text_check_delim(*str))
-				*fmt = '!';
-			/* Identifiers and other text (no previous ws. or delims. so text continues) */
-			else if (prev == 'q') {
-				str += BLI_str_utf8_size_safe(str) - 1;
-				*fmt = 'q';
-			}
-			/* Not ws, a digit, punct, or continuing text. Must be new, check for special words */
-			else {
-				/* Special vars(v) or built-in keywords(b) */
-				if ((i = find_specialvar(str)) != -1)
-					prev = 'v';
-				else if ((i = find_builtinfunc(str)) != -1)
-					prev = 'b';
-				else if ((i = find_decorator(str)) != -1)
-					prev = 'v';  /* could have a new color for this */
-				if (i > 0) {
-					while (i > 1) {
-						*fmt = prev; fmt++; str++;
-						i--;
-					}
-					*fmt = prev;
-				}
-				else {
-					str += BLI_str_utf8_size_safe(str) - 1;
-					*fmt = 'q';
-				}
-			}
-		}
-		prev = *fmt;
-		fmt++;
-		str++;
-	}
-
-	/* Terminate and add continuation char */
-	*fmt = '\0'; fmt++;
-	*fmt = cont;
-
-	/* If continuation has changed and we're allowed, process the next line */
-	if (cont != orig && do_next && line->next) {
-		txt_format_line(st, line->next, do_next);
-	}
-	
-	flatten_string_free(&fs);
 }
 
 #if 0
@@ -734,7 +385,7 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 				if (st->showsyntax && format) format_draw_color(format[a]);
 				x += text_font_draw_character_utf8(st, x, y, str + ma);
 			}
-			y -= st->lheight + TXT_LINE_SPACING;
+			y -= st->lheight_dpi + TXT_LINE_SPACING;
 			x = basex;
 			lines++;
 			start = end; mstart = mend;
@@ -852,7 +503,7 @@ static void text_update_drawcache(SpaceText *st, ARegion *ar)
 	full_update |= drawcache->wordwrap != st->wordwrap;       /* word-wrapping option was toggled */
 	full_update |= drawcache->showlinenrs != st->showlinenrs; /* word-wrapping option was toggled */
 	full_update |= drawcache->tabnumber != st->tabnumber;     /* word-wrapping option was toggled */
-	full_update |= drawcache->lheight != st->lheight;         /* word-wrapping option was toggled */
+	full_update |= drawcache->lheight != st->lheight_dpi;         /* word-wrapping option was toggled */
 	full_update |= drawcache->cwidth != st->cwidth;           /* word-wrapping option was toggled */
 	full_update |= strncmp(drawcache->text_id, txt->id.name, MAX_ID_NAME); /* text datablock was changed */
 
@@ -928,7 +579,7 @@ static void text_update_drawcache(SpaceText *st, ARegion *ar)
 	/* store settings */
 	drawcache->winx        = ar->winx;
 	drawcache->wordwrap    = st->wordwrap;
-	drawcache->lheight     = st->lheight;
+	drawcache->lheight     = st->lheight_dpi;
 	drawcache->cwidth      = st->cwidth;
 	drawcache->showlinenrs = st->showlinenrs;
 	drawcache->tabnumber   = st->tabnumber;
@@ -1085,12 +736,12 @@ static void calc_text_rcts(SpaceText *st, ARegion *ar, rcti *scroll, rcti *back)
 	blank_lines = st->viewlines / 2;
 	
 	/* nicer code: use scroll rect for entire bar */
-	back->xmin = ar->winx - 18;
+	back->xmin = ar->winx - (V2D_SCROLL_WIDTH + 1);
 	back->xmax = ar->winx;
 	back->ymin = 0;
 	back->ymax = ar->winy;
 	
-	scroll->xmin = ar->winx - 17;
+	scroll->xmin = ar->winx - V2D_SCROLL_WIDTH;
 	scroll->xmax = ar->winx - 5;
 	scroll->ymin = 4;
 	scroll->ymax = 4 + pix_available;
@@ -1237,9 +888,9 @@ static void draw_documentation(SpaceText *st, ARegion *ar)
 		x += SUGG_LIST_WIDTH * st->cwidth + 50;
 	}
 
-	/* top = */ /* UNUSED */ y = ar->winy - st->lheight * l - 2;
+	/* top = */ /* UNUSED */ y = ar->winy - st->lheight_dpi * l - 2;
 	boxw = DOC_WIDTH * st->cwidth + 20;
-	boxh = (DOC_HEIGHT + 1) * st->lheight;
+	boxh = (DOC_HEIGHT + 1) * st->lheight_dpi;
 
 	/* Draw panel */
 	UI_ThemeColor(TH_BACK);
@@ -1271,7 +922,7 @@ static void draw_documentation(SpaceText *st, ARegion *ar)
 		else if (*p == '\n') {
 			buf[i] = '\0';
 			if (lines >= 0) {
-				y -= st->lheight;
+				y -= st->lheight_dpi;
 				text_draw(st, buf, 0, 0, 1, x + 4, y - 3, NULL);
 			}
 			i = 0; br = DOC_WIDTH; lines++;
@@ -1280,7 +931,7 @@ static void draw_documentation(SpaceText *st, ARegion *ar)
 		if (i == DOC_WIDTH) { /* Reached the width, go to last break and wrap there */
 			buf[br] = '\0';
 			if (lines >= 0) {
-				y -= st->lheight;
+				y -= st->lheight_dpi;
 				text_draw(st, buf, 0, 0, 1, x + 4, y - 3, NULL);
 			}
 			p -= i - br - 1; /* Rewind pointer to last break */
@@ -1326,10 +977,10 @@ static void draw_suggestion_list(SpaceText *st, ARegion *ar)
 	else {
 		x = st->cwidth * (st->text->curc - st->left) + TXT_OFFSET - 4;
 	}
-	y = ar->winy - st->lheight * l - 2;
+	y = ar->winy - st->lheight_dpi * l - 2;
 
 	boxw = SUGG_LIST_WIDTH * st->cwidth + 20;
-	boxh = SUGG_LIST_SIZE * st->lheight + 8;
+	boxh = SUGG_LIST_SIZE * st->lheight_dpi + 8;
 	
 	UI_ThemeColor(TH_SHADE1);
 	glRecti(x - 1, y + 1, x + boxw + 1, y - boxh - 1);
@@ -1341,7 +992,7 @@ static void draw_suggestion_list(SpaceText *st, ARegion *ar)
 
 	for (i = 0; i < SUGG_LIST_SIZE && item; i++, item = item->next) {
 
-		y -= st->lheight;
+		y -= st->lheight_dpi;
 
 		BLI_strncpy(str, item->name, SUGG_LIST_WIDTH);
 
@@ -1349,7 +1000,7 @@ static void draw_suggestion_list(SpaceText *st, ARegion *ar)
 		
 		if (item == sel) {
 			UI_ThemeColor(TH_SHADE2);
-			glRecti(x + 16, y - 3, x + 16 + w, y + st->lheight - 3);
+			glRecti(x + 16, y - 3, x + 16 + w, y + st->lheight_dpi - 3);
 		}
 		b = 1; /* b=1 color block, text is default. b=0 no block, color text */
 		switch (item->type) {
@@ -1376,7 +1027,7 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 	Text *text = st->text;
 	int vcurl, vcurc, vsell, vselc, hidden = 0;
 	int x, y, w, i;
-	int lheight = st->lheight + TXT_LINE_SPACING;
+	int lheight = st->lheight_dpi + TXT_LINE_SPACING;
 
 	/* Draw the selection */
 	if (text->curl != text->sell || text->curc != text->selc) {
@@ -1399,9 +1050,9 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 		if (vcurl == vsell) {
 			y -= vcurl * lheight;
 			if (vcurc < vselc)
-				glRecti(x + vcurc * st->cwidth - 1, y, x + vselc * st->cwidth, y - lheight + TXT_LINE_SPACING);
+				glRecti(x + vcurc * st->cwidth - 1, y, x + vselc * st->cwidth, y - lheight);
 			else
-				glRecti(x + vselc * st->cwidth - 1, y, x + vcurc * st->cwidth, y - lheight + TXT_LINE_SPACING);
+				glRecti(x + vselc * st->cwidth - 1, y, x + vcurc * st->cwidth, y - lheight);
 		}
 		else {
 			int froml, fromc, tol, toc;
@@ -1420,7 +1071,7 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 			for (i = froml + 1; i < tol; i++)
 				glRecti(x - 4, y, ar->winx, y - lheight),  y -= lheight;
 
-			glRecti(x - 4, y, x + toc * st->cwidth, y - lheight + TXT_LINE_SPACING);  y -= lheight;
+			glRecti(x - 4, y, x + toc * st->cwidth, y - lheight);  y -= lheight;
 		}
 	}
 	else {
@@ -1445,11 +1096,11 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 			wrap_offset_in_line(st, ar, text->sell, text->selc, &offl, &offc);
 
 			y1 = ar->winy - 2 - (vsell - offl) * lheight;
-			y2 = y1 - lheight * visible_lines + 1;
+			y2 = y1 - (lheight * visible_lines + TXT_LINE_SPACING);
 		}
 		else {
 			y1 = ar->winy - 2 - vsell * lheight;
-			y2 = y1 - lheight + 1;
+			y2 = y1 - (lheight + TXT_LINE_SPACING);
 		}
 
 		if (!(y1 < 0 || y2 > ar->winy)) { /* check we need to draw */
@@ -1483,7 +1134,7 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 		}
 		else {
 			UI_ThemeColor(TH_HILITE);
-			glRecti(x - 1, y, x + 1, y - lheight + TXT_LINE_SPACING);
+			glRecti(x - 1, y, x + 1, y - lheight);
 		}
 	}
 }
@@ -1588,7 +1239,7 @@ static void draw_brackets(SpaceText *st, ARegion *ar)
 
 	UI_ThemeColor(TH_HILITE);
 	x = st->showlinenrs ? TXT_OFFSET + TEXTXLOC : TXT_OFFSET;
-	y = ar->winy - st->lheight;
+	y = ar->winy - st->lheight_dpi;
 
 	/* draw opening bracket */
 	ch = startl->line[startc];
@@ -1598,8 +1249,8 @@ static void draw_brackets(SpaceText *st, ARegion *ar)
 	if (viewc >= 0) {
 		viewl = txt_get_span(text->lines.first, startl) - st->top + offl;
 
-		text_font_draw_character(st, x + viewc * st->cwidth, y - viewl * (st->lheight + TXT_LINE_SPACING), ch);
-		text_font_draw_character(st, x + viewc * st->cwidth + 1, y - viewl * (st->lheight + TXT_LINE_SPACING), ch);
+		text_font_draw_character(st, x + viewc * st->cwidth, y - viewl * (st->lheight_dpi + TXT_LINE_SPACING), ch);
+		text_font_draw_character(st, x + viewc * st->cwidth + 1, y - viewl * (st->lheight_dpi + TXT_LINE_SPACING), ch);
 	}
 
 	/* draw closing bracket */
@@ -1610,8 +1261,8 @@ static void draw_brackets(SpaceText *st, ARegion *ar)
 	if (viewc >= 0) {
 		viewl = txt_get_span(text->lines.first, endl) - st->top + offl;
 
-		text_font_draw_character(st, x + viewc * st->cwidth, y - viewl * (st->lheight + TXT_LINE_SPACING), ch);
-		text_font_draw_character(st, x + viewc * st->cwidth + 1, y - viewl * (st->lheight + TXT_LINE_SPACING), ch);
+		text_font_draw_character(st, x + viewc * st->cwidth, y - viewl * (st->lheight_dpi + TXT_LINE_SPACING), ch);
+		text_font_draw_character(st, x + viewc * st->cwidth + 1, y - viewl * (st->lheight_dpi + TXT_LINE_SPACING), ch);
 	}
 }
 
@@ -1620,6 +1271,7 @@ static void draw_brackets(SpaceText *st, ARegion *ar)
 void draw_text_main(SpaceText *st, ARegion *ar)
 {
 	Text *text = st->text;
+	TextFormatType *tft = ED_text_format_get(text);
 	TextLine *tmp;
 	rcti scroll, back;
 	char linenr[12];
@@ -1627,7 +1279,10 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 	int wraplinecount = 0, wrap_skip = 0;
 	int margin_column_x;
 
-	if (st->lheight) st->viewlines = (int)ar->winy / (st->lheight + TXT_LINE_SPACING);
+	/* dpi controlled line height and font size */
+	st->lheight_dpi = (U.widget_unit * st->lheight) / 20;
+	
+	if (st->lheight_dpi) st->viewlines = (int)ar->winy / (st->lheight_dpi + TXT_LINE_SPACING);
 	else st->viewlines = 0;
 
 	/* if no text, nothing to do */
@@ -1648,7 +1303,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 	lineno = 0;
 	for (i = 0; i < st->top && tmp; i++) {
 		if (st->showsyntax && !tmp->format)
-			txt_format_line(st, tmp, 0);
+			tft->format_line(st, tmp, 0);
 
 		if (st->wordwrap) {
 			int lines = text_get_visible_lines_no(st, lineno);
@@ -1686,7 +1341,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 		st->linenrs_tot = 0; /* not used */
 		x = TXT_OFFSET;
 	}
-	y = ar->winy - st->lheight;
+	y = ar->winy - st->lheight_dpi;
 	winx = ar->winx - TXT_SCROLL_WIDTH;
 	
 	/* draw cursor */
@@ -1697,7 +1352,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 
 	for (i = 0; y > 0 && i < st->viewlines && tmp; i++, tmp = tmp->next) {
 		if (st->showsyntax && !tmp->format)
-			txt_format_line(st, tmp, 0);
+			tft->format_line(st, tmp, 0);
 
 		if (st->showlinenrs && !wrap_skip) {
 			/* draw line number */
@@ -1716,12 +1371,12 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 		if (st->wordwrap) {
 			/* draw word wrapped text */
 			int lines = text_draw_wrapped(st, tmp->line, x, y, winx - x, tmp->format, wrap_skip);
-			y -= lines * (st->lheight + TXT_LINE_SPACING);
+			y -= lines * (st->lheight_dpi + TXT_LINE_SPACING);
 		}
 		else {
 			/* draw unwrapped text */
 			text_draw(st, tmp->line, st->left, ar->winx / st->cwidth, 1, x, y, tmp->format);
-			y -= st->lheight + TXT_LINE_SPACING;
+			y -= st->lheight_dpi + TXT_LINE_SPACING;
 		}
 		
 		wrap_skip = 0;

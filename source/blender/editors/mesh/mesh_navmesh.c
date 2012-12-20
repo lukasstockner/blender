@@ -26,31 +26,22 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include <math.h>
-
 #include "MEM_guardedalloc.h"
 
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_modifier_types.h"
-#include "DNA_ID.h"
 
 #include "BLI_listbase.h"
-#include "BLI_utildefines.h"
 #include "BLI_math_vector.h"
 #include "BLI_linklist.h"
 
 #include "BKE_library.h"
 #include "BKE_depsgraph.h"
 #include "BKE_context.h"
-#include "BKE_main.h"
 #include "BKE_mesh.h"
-#include "BKE_modifier.h"
 #include "BKE_scene.h"
 #include "BKE_DerivedMesh.h"
-#include "BKE_cdderivedmesh.h"
 #include "BKE_report.h"
 #include "BKE_tessmesh.h"
 
@@ -58,13 +49,12 @@
 #include "ED_mesh.h"
 #include "ED_screen.h"
 
-#include "RNA_access.h"
-
 #include "WM_api.h"
 #include "WM_types.h"
 
 #include "mesh_intern.h"
 #include "recast-capi.h"
+
 
 static void createVertsTrisData(bContext *C, LinkNode *obs, int *nverts_r, float **verts_r, int *ntris_r, int **tris_r)
 {
@@ -375,7 +365,7 @@ static Object *createRepresentation(bContext *C, struct recast_polyMesh *pmesh, 
 			BM_vert_create(em->bm, co, NULL, 0);
 		}
 
-		EDBM_index_arrays_init(em, 1, 0, 0);
+		EDBM_index_arrays_ensure(em, BM_VERT);
 
 		/* create faces */
 		for (j = 0; j < trinum; j++) {
@@ -399,8 +389,6 @@ static Object *createRepresentation(bContext *C, struct recast_polyMesh *pmesh, 
 			polygonIdx = (int *)CustomData_bmesh_get(&em->bm->pdata, newFace->head.data, CD_RECAST);
 			*polygonIdx = i + 1; /* add 1 to avoid zero idx */
 		}
-		
-		EDBM_index_arrays_free(em);
 	}
 
 	recast_destroyPolyMesh(pmesh);

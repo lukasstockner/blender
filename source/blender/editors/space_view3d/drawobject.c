@@ -2838,7 +2838,7 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 		}
 	}
 	
-	EDBM_index_arrays_init(em, 1, 1, 1);
+	EDBM_index_arrays_ensure(em, BM_VERT | BM_EDGE | BM_FACE);
 
 	if (dt > OB_WIRE) {
 		if (check_object_draw_texture(scene, v3d, dt)) {
@@ -2989,8 +2989,6 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 		bglPolygonOffset(rv3d->dist, 0.0);
 		GPU_disable_material();
 	}
-
-	EDBM_index_arrays_free(em);
 }
 
 /* Mesh drawing routines */
@@ -4659,9 +4657,11 @@ static void draw_ptcache_edit(Scene *scene, View3D *v3d, PTCacheEdit *edit)
 				if (!(point->flag & PEP_HIDE))
 					totkeys += point->totkey;
 
-			if (edit->points && !(edit->points->keys->flag & PEK_USE_WCO))
-				pd = pdata = MEM_callocN(totkeys * 3 * sizeof(float), "particle edit point data");
-			cd = cdata = MEM_callocN(totkeys * (timed ? 4 : 3) * sizeof(float), "particle edit color data");
+			if (totkeys) {
+				if (edit->points && !(edit->points->keys->flag & PEK_USE_WCO))
+					pd = pdata = MEM_callocN(totkeys * 3 * sizeof(float), "particle edit point data");
+				cd = cdata = MEM_callocN(totkeys * (timed ? 4 : 3) * sizeof(float), "particle edit color data");
+			}
 
 			for (i = 0, point = edit->points; i < totpoint; i++, point++) {
 				if (point->flag & PEP_HIDE)
@@ -5432,10 +5432,10 @@ static void curve_draw_speed(Scene *scene, Object *ob)
 #endif  /* XXX old animation system stuff */
 
 
-static void draw_textcurs(float textcurs[4][2])
+static void draw_textcurs(RegionView3D *rv3d, float textcurs[4][2])
 {
 	cpack(0);
-	
+	bglPolygonOffset(rv3d->dist, -1.0);
 	set_inverted_drawing(1);
 	glBegin(GL_QUADS);
 	glVertex2fv(textcurs[0]);
@@ -5444,6 +5444,7 @@ static void draw_textcurs(float textcurs[4][2])
 	glVertex2fv(textcurs[3]);
 	glEnd();
 	set_inverted_drawing(0);
+	bglPolygonOffset(rv3d->dist, 0.0);
 }
 
 static void drawspiral(const float cent[3], float rad, float tmat[4][4], int start)
@@ -6364,7 +6365,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		case OB_FONT:
 			cu = ob->data;
 			if (cu->editfont) {
-				draw_textcurs(cu->editfont->textcurs);
+				draw_textcurs(rv3d, cu->editfont->textcurs);
 
 				if (cu->flag & CU_FAST) {
 					cpack(0xFFFFFF);
@@ -7123,7 +7124,7 @@ void draw_object_backbufsel(Scene *scene, View3D *v3d, RegionView3D *rv3d, Objec
 
 				DerivedMesh *dm = editbmesh_get_derived_cage(scene, ob, em, CD_MASK_BAREMESH);
 
-				EDBM_index_arrays_init(em, 1, 1, 1);
+				EDBM_index_arrays_ensure(em, BM_VERT | BM_EDGE | BM_FACE);
 
 				bbs_mesh_solid_EM(em, scene, v3d, ob, dm, ts->selectmode & SCE_SELECT_FACE);
 				if (ts->selectmode & SCE_SELECT_FACE)
@@ -7149,8 +7150,6 @@ void draw_object_backbufsel(Scene *scene, View3D *v3d, RegionView3D *rv3d, Objec
 				bglPolygonOffset(rv3d->dist, 0.0);
 
 				dm->release(dm);
-
-				EDBM_index_arrays_free(em);
 			}
 			else {
 				Mesh *me = ob->data;

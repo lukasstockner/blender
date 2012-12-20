@@ -1247,27 +1247,32 @@ static void object_simplify_update(Object *ob)
 	}
 }
 
-static void rna_Scene_use_simplify_update(Main *bmain, Scene *scene, PointerRNA *UNUSED(ptr))
+static void rna_Scene_use_simplify_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
 {
+	Scene *sce = ptr->id.data;
 	Scene *sce_iter;
 	Base *base;
 
-	for (SETLOOPER(scene, sce_iter, base))
+	for (SETLOOPER(sce, sce_iter, base))
 		object_simplify_update(base->object);
 	
 	DAG_ids_flush_update(bmain, 0);
 	WM_main_add_notifier(NC_GEOM | ND_DATA, NULL);
 }
 
-static void rna_Scene_simplify_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_Scene_simplify_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
 {
-	if (scene->r.mode & R_SIMPLIFY)
-		rna_Scene_use_simplify_update(bmain, scene, ptr);
+	Scene *sce = ptr->id.data;
+
+	if (sce->r.mode & R_SIMPLIFY)
+		rna_Scene_use_simplify_update(bmain, sce, ptr);
 }
 
-static void rna_Scene_use_persistent_data_update(Main *bmain, Scene *scene, PointerRNA *UNUSED(ptr))
+static void rna_Scene_use_persistent_data_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
 {
-	if (!(scene->r.mode & R_PERSISTENT_DATA))
+	Scene *sce = ptr->id.data;
+
+	if (!(sce->r.mode & R_PERSISTENT_DATA))
 		RE_FreePersistentData();
 }
 
@@ -2439,6 +2444,14 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem storage_items[] = {
+		{RAS_STORE_AUTO, "AUTO", 0, "Auto Select", "Chooses the best supported mode"},
+		{RAS_STORE_IMMEDIATE, "IMMEDIATE", 0, "Immediate Mode", "Slowest performance, requires OpenGL (any version)"},
+		{RAS_STORE_VA, "VERTEX_ARRAY", 0, "Vertex Arrays", "Better performance, requires at least OpenGL 1.1"},
+		/* VBOS are currently disabled since they cannot beat vertex array with display lists in performance. */
+		/* {RAS_STORE_VBO, "VERTEX_BUFFER_OBJECT", 0, "Vertex Buffer Objects", "Best performance, requires at least OpenGL 1.4"}, */
+		{0, NULL, 0, NULL, NULL}};
+
 	srna = RNA_def_struct(brna, "SceneGameData", NULL);
 	RNA_def_struct_sdna(srna, "GameData");
 	RNA_def_struct_nested(brna, srna, "Scene");
@@ -2472,6 +2485,12 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, event_type_items);
 	RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_exit_key_set", NULL);
 	RNA_def_property_ui_text(prop, "Exit Key",  "The key that exits the Game Engine");
+	RNA_def_property_update(prop, NC_SCENE, NULL);
+	
+	prop = RNA_def_property(srna, "raster_storage", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "raster_storage");
+	RNA_def_property_enum_items(prop, storage_items);
+	RNA_def_property_ui_text(prop, "Storage",  "Sets the storage mode used by the rasterizer");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
 	
 	/* Do we need it here ? (since we already have it in World */
@@ -3071,21 +3090,18 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "video_bitrate", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "video_bitrate");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	RNA_def_property_range(prop, 1, 64000);
 	RNA_def_property_ui_text(prop, "Bitrate", "Video bitrate (kb/s)");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	prop = RNA_def_property(srna, "minrate", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "rc_min_rate");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	RNA_def_property_range(prop, 0, 48000);
 	RNA_def_property_ui_text(prop, "Min Rate", "Rate control: min rate (kb/s)");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	prop = RNA_def_property(srna, "maxrate", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "rc_max_rate");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	RNA_def_property_range(prop, 1, 96000);
 	RNA_def_property_ui_text(prop, "Max Rate", "Rate control: max rate (kb/s)");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
@@ -3879,6 +3895,13 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	                         "Calculate heights against unsubdivided low resolution mesh");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
+	prop = RNA_def_property(srna, "bake_samples", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "bake_samples");
+	RNA_def_property_range(prop, 64, 1024);
+	RNA_def_property_int_default(prop, 256);
+	RNA_def_property_ui_text(prop, "Samples", "Number of samples used for ambient occlusion baking from multires");
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
 	/* stamp */
 	
 	prop = RNA_def_property(srna, "use_stamp_time", PROP_BOOLEAN, PROP_NONE);
@@ -3991,6 +4014,11 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "seq_rend_type");
 	RNA_def_property_enum_items(prop, viewport_shade_items);
 	RNA_def_property_ui_text(prop, "Sequencer Preview Shading", "Method to draw in the sequencer view");
+
+	prop = RNA_def_property(srna, "use_sequencer_gl_textured_solid", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "seq_flag", R_SEQ_SOLID_TEX);
+	RNA_def_property_ui_text(prop, "Textured Solid", "Draw face-assigned textures in solid draw method");
+	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_SceneSequencer_update");
 
 	/* layers */
 	prop = RNA_def_property(srna, "layers", PROP_COLLECTION, PROP_NONE);

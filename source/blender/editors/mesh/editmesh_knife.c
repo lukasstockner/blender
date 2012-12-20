@@ -38,14 +38,11 @@
 #include "BLI_blenlib.h"
 #include "BLI_array.h"
 #include "BLI_math.h"
-#include "BLI_rand.h"
 #include "BLI_smallhash.h"
-#include "BLI_scanfill.h"
 #include "BLI_memarena.h"
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_context.h"
-#include "BKE_depsgraph.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h" /* for paint cursor */
@@ -59,7 +56,6 @@
 #include "WM_types.h"
 
 #include "DNA_scene_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "BKE_tessmesh.h"
 #include "UI_resources.h"
@@ -720,7 +716,7 @@ static void knife_cut_through(KnifeTool_OpData *kcd)
 		for (r = firstfaces.first; r; r = r->next) {
 			f = r->ref;
 			found = 0;
-			for (j = 0, lh2 = kcd->linehits; j < kcd->totlinehit; j++, lh2++) {
+			for (j = 0, lh2 = kcd->linehits; j < kcd->totlinehit && !found; j++, lh2++) {
 				kfe2 = lh2->kfe;
 				for (r2 = kfe2->faces.first; r2; r2 = r2->next) {
 					if (r2->ref == f) {
@@ -750,7 +746,7 @@ static void knife_cut_through(KnifeTool_OpData *kcd)
 		for (r = kfe->faces.first; r; r = r->next) {
 			f = r->ref;
 			found = 0;
-			for (j = i + 1, lh2 = lh + 1; j < kcd->totlinehit; j++, lh2++) {
+			for (j = i + 1, lh2 = lh + 1; j < kcd->totlinehit && !found; j++, lh2++) {
 				kfe2 = lh2->kfe;
 				for (r2 = kfe2->faces.first; r2; r2 = r2->next) {
 					if (r2->ref == f) {
@@ -2830,7 +2826,7 @@ static void knife_make_cuts(KnifeTool_OpData *kcd)
 #endif
 
 /* called on tool confirmation */
-static void knifetool_finish(bContext *C, wmOperator *op)
+static void knifetool_finish(wmOperator *op)
 {
 	KnifeTool_OpData *kcd = op->customdata;
 
@@ -2841,7 +2837,7 @@ static void knifetool_finish(bContext *C, wmOperator *op)
 #endif
 
 	EDBM_mesh_normals_update(kcd->em);
-	EDBM_update_generic(C, kcd->em, TRUE);
+	EDBM_update_generic(kcd->em, TRUE, TRUE);
 }
 
 /* copied from paint_image.c */
@@ -3129,7 +3125,7 @@ static int knifetool_modal(bContext *C, wmOperator *op, wmEvent *event)
 				/* finish */
 				ED_region_tag_redraw(kcd->ar);
 
-				knifetool_finish(C, op);
+				knifetool_finish(op);
 				knifetool_exit(C, op);
 				ED_area_headerprint(CTX_wm_area(C), NULL);
 

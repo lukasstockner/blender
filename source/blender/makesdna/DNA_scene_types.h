@@ -491,7 +491,8 @@ typedef struct RenderData {
 	/* Bake Render options */
 	short bake_osa, bake_filter, bake_mode, bake_flag;
 	short bake_normal_space, bake_quad_split;
-	float bake_maxdist, bake_biasdist, bake_pad;
+	float bake_maxdist, bake_biasdist;
+	short bake_samples, bake_pad;
 
 	/* path to render output */
 	char pic[1024]; /* 1024 = FILE_MAX */
@@ -635,7 +636,8 @@ typedef struct GameData {
 	short physicsEngine;
 	short exitkey, pad;
 	short ticrate, maxlogicstep, physubstep, maxphystep;
-	short obstacleSimulation, pad1;
+	short obstacleSimulation;
+	short raster_storage;
 	float levelHeight;
 	float deactivationtime, lineardeactthreshold, angulardeactthreshold, pad2;
 } GameData;
@@ -661,6 +663,12 @@ typedef struct GameData {
 #define OBSTSIMULATION_NONE		0
 #define OBSTSIMULATION_TOI_rays		1
 #define OBSTSIMULATION_TOI_cells	2
+
+/* Raster storage */
+#define RAS_STORE_AUTO		0
+#define RAS_STORE_IMMEDIATE	1
+#define RAS_STORE_VA		2
+#define RAS_STORE_VBO		3
 
 /* GameData.flag */
 #define GAME_RESTRICT_ANIM_UPDATES			(1 << 0)
@@ -945,7 +953,7 @@ typedef struct ToolSettings {
 	short uvcalc_mapalign;
 	short uvcalc_flag;
 	short uv_flag, uv_selectmode;
-	short uv_subsurf_level;
+	short pad2;
 	
 	/* Grease Pencil */
 	short gpencil_flags;
@@ -973,7 +981,7 @@ typedef struct ToolSettings {
 
 	/* Multires */
 	char multires_subdiv_type;
-	char pad2[5];
+	char pad3[5];
 
 	/* Skeleton generation */
 	short skgen_resolution;
@@ -1198,6 +1206,7 @@ typedef struct Scene {
 /* seq_flag */
 #define R_SEQ_GL_PREV 1
 // #define R_SEQ_GL_REND 2  // UNUSED, opengl render has its own operator now.
+#define R_SEQ_SOLID_TEX 4
 
 /* displaymode */
 

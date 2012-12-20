@@ -432,8 +432,21 @@ static void viewops_data_create(bContext *C, wmOperator *op, wmEvent *event)
 	copy_v3_v3(vod->ofs, rv3d->ofs);
 
 	if (vod->use_dyn_ofs) {
-		/* If there's no selection, lastofs is unmodified and last value since static */
-		calculateTransformCenter(C, V3D_CENTROID, lastofs, NULL);
+		Scene *scene = CTX_data_scene(C);
+		Object *ob = OBACT;
+
+		if (ob && ob->mode & OB_MODE_ALL_PAINT) {
+			/* transformation is disabled for painting modes, which will make it
+			 * so previous offset is used. This is annoying when you open file
+			 * saved with active object in painting mode
+			 */
+			copy_v3_v3(lastofs, ob->obmat[3]);
+		}
+		else {
+			/* If there's no selection, lastofs is unmodified and last value since static */
+			calculateTransformCenter(C, V3D_CENTROID, lastofs, NULL);
+		}
+
 		negate_v3_v3(vod->dyn_ofs, lastofs);
 	}
 	else if (U.uiflag & USER_ZBUF_ORBIT) {
@@ -1911,7 +1924,7 @@ static int viewzoom_invoke(bContext *C, wmOperator *op, wmEvent *event)
 		viewzoom_exec(C, op);
 	}
 	else {
-		if (event->type == MOUSEZOOM) {
+		if (event->type == MOUSEZOOM || event->type == MOUSEPAN) {
 			/* Bypass Zoom invert flag for track pads (pass FALSE always) */
 
 			if (U.uiflag & USER_ZOOM_HORIZ) {
@@ -3670,10 +3683,9 @@ static int view3d_cursor3d_invoke(bContext *C, wmOperator *UNUSED(op), wmEvent *
 	ARegion *ar = CTX_wm_region(C);
 	View3D *v3d = CTX_wm_view3d(C);
 	RegionView3D *rv3d = CTX_wm_region_view3d(C);
-	float *fp = NULL;
+	float *fp = give_cursor(scene, v3d);
 	float mval_fl[2];
 	int flip;
-	fp = give_cursor(scene, v3d);
 
 	flip = initgrabz(rv3d, fp[0], fp[1], fp[2]);
 	

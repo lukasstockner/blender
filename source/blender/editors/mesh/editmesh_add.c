@@ -29,7 +29,6 @@
  *  \ingroup edmesh
  */
 
-#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
@@ -39,7 +38,6 @@
 #include "BLI_math.h"
 
 #include "BKE_context.h"
-#include "BKE_depsgraph.h"
 #include "BKE_library.h"
 #include "BKE_tessmesh.h"
 
@@ -90,7 +88,7 @@ static void make_prim_finish(bContext *C, Object *obedit, int *state, int enter_
 	EDBM_selectmode_flush_ex(em, SCE_SELECT_VERTEX);
 
 	/* only recalc editmode tessface if we are staying in editmode */
-	EDBM_update_generic(C, em, !exit_editmode);
+	EDBM_update_generic(em, !exit_editmode, TRUE);
 
 	/* userdef */
 	if (exit_editmode) {

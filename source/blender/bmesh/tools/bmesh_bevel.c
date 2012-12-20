@@ -37,6 +37,7 @@
 #include "BKE_customdata.h"
 
 #include "bmesh.h"
+#include "./intern/bmesh_private.h"
 
 
 
@@ -268,7 +269,11 @@ static BMFace *bev_create_ngon(BMesh *bm, BMVert **vert_arr, const int totv, BMF
 		for (i = 0; i < totv; i++) {
 			ee[i] = BM_edge_create(bm, vert_arr[i], vert_arr[(i + 1) % totv], NULL, BM_CREATE_NO_DOUBLE);
 		}
+#if 0
 		f = BM_face_create_ngon(bm, vert_arr[0], vert_arr[1], ee, totv, 0);
+#else
+		f = BM_face_create(bm, vert_arr, ee, totv, 0);
+#endif
 	}
 	if (facerep && f) {
 		int has_mdisps = CustomData_has_layer(&bm->ldata, CD_MDISPS);
@@ -1135,7 +1140,7 @@ static void bevel_build_rings(BMesh *bm, BevVert *bv)
 	/* Make center ngon if odd number of segments and fully beveled */
 	if (ns % 2 == 1 && vm->count == bv->selcount) {
 		BMVert **vv = NULL;
-		BLI_array_declare(vv);
+		BLI_array_staticdeclare(vv, BM_DEFAULT_NGON_STACK_SIZE);
 
 		v = vm->boundstart;
 		do {
@@ -1153,7 +1158,7 @@ static void bevel_build_rings(BMesh *bm, BevVert *bv)
 	if (vm->count > bv->selcount) {
 		int j;
 		BMVert **vv = NULL;
-		BLI_array_declare(vv);
+		BLI_array_staticdeclare(vv, BM_DEFAULT_NGON_STACK_SIZE);
 
 		v = vm->boundstart;
 		f = boundvert_rep_face(v);
@@ -1215,7 +1220,7 @@ static BMFace *bevel_build_poly_ex(BMesh *bm, BevVert *bv)
 	VMesh *vm = bv->vmesh;
 	BoundVert *v;
 	BMVert **vv = NULL;
-	BLI_array_declare(vv);
+	BLI_array_staticdeclare(vv, BM_DEFAULT_NGON_STACK_SIZE);
 
 	v = vm->boundstart;
 	n = 0;
@@ -1475,9 +1480,9 @@ static void build_vmesh(MemArena *mem_arena, BMesh *bm, BevVert *bv)
 }
 
 /* take care, this flag isn't cleared before use, it just so happens that its not set */
-#define BM_BEVEL_EDGE_TAG_ENABLE(bme)  BM_elem_flag_enable(  (bme)->l, BM_ELEM_TAG)
-#define BM_BEVEL_EDGE_TAG_DISABLE(bme) BM_elem_flag_disable( (bme)->l, BM_ELEM_TAG)
-#define BM_BEVEL_EDGE_TAG_TEST(bme)    BM_elem_flag_test(    (bme)->l, BM_ELEM_TAG)
+#define BM_BEVEL_EDGE_TAG_ENABLE(bme)  BM_ELEM_API_FLAG_ENABLE(  (bme), _FLAG_OVERLAP)
+#define BM_BEVEL_EDGE_TAG_DISABLE(bme) BM_ELEM_API_FLAG_DISABLE( (bme), _FLAG_OVERLAP)
+#define BM_BEVEL_EDGE_TAG_TEST(bme)    BM_ELEM_API_FLAG_TEST(    (bme), _FLAG_OVERLAP)
 
 /*
  * Construction around the vertex
@@ -1504,6 +1509,8 @@ static void bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
 			nsel++;
 		}
 		ntot++;
+
+		BM_BEVEL_EDGE_TAG_DISABLE(bme);
 	}
 
 	if (nsel == 0) {

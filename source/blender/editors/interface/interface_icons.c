@@ -81,9 +81,9 @@
 #define ICON_GRID_COLS      26
 #define ICON_GRID_ROWS      30
 
-#define ICON_GRID_MARGIN    5
-#define ICON_GRID_W         16
-#define ICON_GRID_H         16
+#define ICON_GRID_MARGIN    10
+#define ICON_GRID_W         32
+#define ICON_GRID_H         32
 
 typedef struct IconImage {
 	int w;
@@ -467,7 +467,10 @@ static void init_brush_icons(void)
 		bbuf = IMB_ibImageFromMemory((unsigned char *)datatoc_ ##name## _png, \
 		                             datatoc_ ##name## _png_size,             \
 		                             IB_rect, NULL, "<brush icon>");          \
-		def_internal_icon(bbuf, icon_id, 0, 0, w, ICON_TYPE_BUFFER);          \
+		if (bbuf) {                                                           \
+			IMB_premultiply_alpha(bbuf);                                      \
+			def_internal_icon(bbuf, icon_id, 0, 0, w, ICON_TYPE_BUFFER);      \
+		}                                                                     \
 		IMB_freeImBuf(bbuf);                                                  \
 	} (void)0
 	/* end INIT_BRUSH_ICON */
@@ -511,13 +514,15 @@ static void init_brush_icons(void)
 
 static void init_internal_icons(void)
 {
-	bTheme *btheme = UI_GetTheme();
-	ImBuf *bbuf = NULL;
+//	bTheme *btheme = UI_GetTheme();
+	ImBuf *b16buf = NULL, *b32buf = NULL;
 	int x, y, icontype;
-	char iconfilestr[FILE_MAX];
-	
+
+#if 0 // temp disabled
 	if ((btheme != NULL) && btheme->tui.iconfile[0]) {
 		char *icondir = BLI_get_folder(BLENDER_DATAFILES, "icons");
+		char iconfilestr[FILE_MAX];
+		
 		if (icondir) {
 			BLI_join_dirfile(iconfilestr, sizeof(iconfilestr), icondir, btheme->tui.iconfile);
 			bbuf = IMB_loadiffname(iconfilestr, IB_rect, NULL); /* if the image is missing bbuf will just be NULL */
@@ -531,11 +536,20 @@ static void init_internal_icons(void)
 			printf("%s: 'icons' data path not found, continuing\n", __func__);
 		}
 	}
-	if (bbuf == NULL)
-		bbuf = IMB_ibImageFromMemory((unsigned char *)datatoc_blender_icons_png,
-		                             datatoc_blender_icons_png_size, IB_rect, NULL, "<blender icons>");
+#endif
+	if (b16buf == NULL)
+		b16buf = IMB_ibImageFromMemory((unsigned char *)datatoc_blender_icons16_png,
+		                             datatoc_blender_icons16_png_size, IB_rect, NULL, "<blender icons>");
+	if (b16buf)
+		IMB_premultiply_alpha(b16buf);
 
-	if (bbuf) {
+	if (b32buf == NULL)
+		b32buf = IMB_ibImageFromMemory((unsigned char *)datatoc_blender_icons32_png,
+		                             datatoc_blender_icons32_png_size, IB_rect, NULL, "<blender icons>");
+	if (b32buf)
+		IMB_premultiply_alpha(b32buf);
+	
+	if (b16buf && b32buf) {
 		/* free existing texture if any */
 		if (icongltex.id) {
 			glDeleteTextures(1, &icongltex.id);
@@ -547,17 +561,29 @@ static void init_internal_icons(void)
 			glGenTextures(1, &icongltex.id);
 
 			if (icongltex.id) {
-				icongltex.w = bbuf->x;
-				icongltex.h = bbuf->y;
-				icongltex.invw = 1.0f / bbuf->x;
-				icongltex.invh = 1.0f / bbuf->y;
+				int level = 2;
+				
+				icongltex.w = b32buf->x;
+				icongltex.h = b32buf->y;
+				icongltex.invw = 1.0f / b32buf->x;
+				icongltex.invh = 1.0f / b32buf->y;
 
 				glBindTexture(GL_TEXTURE_2D, icongltex.id);
-				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bbuf->x, bbuf->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, bbuf->rect);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+				
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, b32buf->x, b32buf->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, b32buf->rect);
+				glTexImage2D(GL_TEXTURE_2D, 1, GL_RGBA, b16buf->x, b16buf->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, b16buf->rect);
+				
+				while (b16buf->x > 1) {
+					b16buf = IMB_onehalf(b16buf);
+					glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, b16buf->x, b16buf->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, b16buf->rect);
+					level++;
+				}
+				
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+				
 				glBindTexture(GL_TEXTURE_2D, 0);
-
+				
 				if (glGetError() == GL_OUT_OF_MEMORY) {
 					glDeleteTextures(1, &icongltex.id);
 					icongltex.id = 0;
@@ -571,10 +597,10 @@ static void init_internal_icons(void)
 	else
 		icontype = ICON_TYPE_BUFFER;
 	
-	if (bbuf) {
+	if (b16buf) {
 		for (y = 0; y < ICON_GRID_ROWS; y++) {
 			for (x = 0; x < ICON_GRID_COLS; x++) {
-				def_internal_icon(bbuf, BIFICONID_FIRST + y * ICON_GRID_COLS + x,
+				def_internal_icon(b32buf, BIFICONID_FIRST + y * ICON_GRID_COLS + x,
 				                  x * (ICON_GRID_W + ICON_GRID_MARGIN) + ICON_GRID_MARGIN,
 				                  y * (ICON_GRID_H + ICON_GRID_MARGIN) + ICON_GRID_MARGIN, ICON_GRID_W,
 				                  icontype);
@@ -593,7 +619,9 @@ static void init_internal_icons(void)
 	def_internal_vicon(VICO_X_VEC, vicon_x_draw);
 	def_internal_vicon(VICO_SMALL_TRI_RIGHT_VEC, vicon_small_tri_right_draw);
 
-	IMB_freeImBuf(bbuf);
+	IMB_freeImBuf(b16buf);
+	IMB_freeImBuf(b32buf);
+	
 }
 #endif  /* WITH_HEADLESS */
 
@@ -750,7 +778,7 @@ static DrawInfo *icon_create_drawinfo(void)
 	return di;
 }
 
-/* note!, returns unscaled by DPI, may need to multiply result by UI_DPI_ICON_FAC */
+/* note!, returns unscaled by DPI */
 int UI_icon_get_width(int icon_id)
 {
 	Icon *icon = NULL;
@@ -919,8 +947,8 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 {
 	float x1, x2, y1, y2;
 
-	if (rgb) glColor4f(rgb[0], rgb[1], rgb[2], alpha);
-	else glColor4f(1.0f, 1.0f, 1.0f, alpha);
+	if (rgb) glColor4f(alpha*rgb[0], rgb[1], rgb[2], alpha);
+	else glColor4f(alpha, alpha, alpha, alpha);
 
 	x1 = ix * icongltex.invw;
 	x2 = (ix + ih) * icongltex.invw;
@@ -929,6 +957,9 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, icongltex.id);
+
+	/* sharper downscaling, has no effect when scale matches with a mip level */
+	glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, -0.5f);
 
 	glBegin(GL_QUADS);
 	glTexCoord2f(x1, y1);
@@ -943,6 +974,8 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 	glTexCoord2f(x1, y2);
 	glVertex2f(x, y + h);
 	glEnd();
+
+	glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, 0.0f);
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glDisable(GL_TEXTURE_2D);
@@ -965,7 +998,7 @@ static void icon_draw_size(float x, float y, int icon_id, float aspect, float al
 	Icon *icon = NULL;
 	DrawInfo *di = NULL;
 	IconImage *iimg;
-	float fdraw_size = is_preview ? draw_size : (draw_size * UI_DPI_ICON_FAC);
+	const float fdraw_size = (float)draw_size;
 	int w, h;
 	
 	icon = BKE_icon_get(icon_id);
@@ -996,8 +1029,11 @@ static void icon_draw_size(float x, float y, int icon_id, float aspect, float al
 		di->data.vector.func((int)x, (int)y, ICON_DEFAULT_HEIGHT, ICON_DEFAULT_HEIGHT, 1.0f); 
 	}
 	else if (di->type == ICON_TYPE_TEXTURE) {
+		/* texture image use premul alpha for correct scaling */
+		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 		icon_draw_texture(x, y, (float)w, (float)h, di->data.texture.x, di->data.texture.y,
 		                  di->data.texture.w, di->data.texture.h, alpha, rgb);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
 	else if (di->type == ICON_TYPE_BUFFER) {
 		/* it is a builtin icon */
@@ -1005,7 +1041,9 @@ static void icon_draw_size(float x, float y, int icon_id, float aspect, float al
 
 		if (!iimg->rect) return;  /* something has gone wrong! */
 
+		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 		icon_draw_rect(x, y, w, h, aspect, iimg->w, iimg->h, iimg->rect, alpha, rgb, is_preview);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
 	else if (di->type == ICON_TYPE_PREVIEW) {
 		PreviewImage *pi = BKE_previewimg_get((ID *)icon->obj);
@@ -1158,9 +1196,10 @@ void UI_icon_draw_aspect_color(float x, float y, int icon_id, float aspect, cons
 	icon_draw_size(x, y, icon_id, aspect, 1.0f, rgb, ICON_SIZE_ICON, draw_size, FALSE, FALSE);
 }
 
+/* draws icon with dpi scale factor */
 void UI_icon_draw(float x, float y, int icon_id)
 {
-	UI_icon_draw_aspect(x, y, icon_id, 1.0f, 1.0f);
+	UI_icon_draw_aspect(x, y, icon_id, 1.0f / UI_DPI_FAC, 1.0f);
 }
 
 void UI_icon_draw_size(float x, float y, int size, int icon_id, float alpha)

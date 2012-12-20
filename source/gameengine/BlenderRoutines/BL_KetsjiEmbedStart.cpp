@@ -58,7 +58,6 @@
 
 #include "RAS_GLExtensionManager.h"
 #include "RAS_OpenGLRasterizer.h"
-#include "RAS_VAOpenGLRasterizer.h"
 #include "RAS_ListRasterizer.h"
 
 #include "NG_LoopBackNetworkDeviceInterface.h"
@@ -270,7 +269,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 #ifdef WITH_PYTHON
 		bool nodepwarnings = (SYS_GetCommandLineInt(syshandle, "ignore_deprecation_warnings", 0) != 0);
 #endif
-		bool novertexarrays = (SYS_GetCommandLineInt(syshandle, "novertexarrays", 0) != 0);
+		// bool novertexarrays = (SYS_GetCommandLineInt(syshandle, "novertexarrays", 0) != 0);
 		bool mouse_state = startscene->gm.flag & GAME_SHOW_MOUSE;
 		bool restrictAnimFPS = startscene->gm.flag & GAME_RESTRICT_ANIM_UPDATES;
 
@@ -287,16 +286,12 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		RAS_IRenderTools* rendertools = new KX_BlenderRenderTools();
 		RAS_IRasterizer* rasterizer = NULL;
 		
-		if (displaylists) {
-			if (GLEW_VERSION_1_1 && !novertexarrays)
-				rasterizer = new RAS_ListRasterizer(canvas, true, true);
-			else
-				rasterizer = new RAS_ListRasterizer(canvas);
-		}
-		else if (GLEW_VERSION_1_1 && !novertexarrays)
-			rasterizer = new RAS_VAOpenGLRasterizer(canvas, false);
+		//Don't use displaylists with VBOs
+		//If auto starts using VBOs, make sure to check for that here
+		if (displaylists && startscene->gm.raster_storage != RAS_STORE_VBO)
+			rasterizer = new RAS_ListRasterizer(canvas, true, startscene->gm.raster_storage);
 		else
-			rasterizer = new RAS_OpenGLRasterizer(canvas);
+			rasterizer = new RAS_OpenGLRasterizer(canvas, startscene->gm.raster_storage);
 		
 		// create the inputdevices
 		KX_BlenderKeyboardDevice* keyboarddevice = new KX_BlenderKeyboardDevice();
