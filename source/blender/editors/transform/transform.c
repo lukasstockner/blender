@@ -57,6 +57,8 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
+#include "BLF_api.h"
+
 #include "BKE_nla.h"
 #include "BKE_bmesh.h"
 #include "BKE_context.h"
@@ -89,12 +91,14 @@
 #include "BLI_linklist.h"
 #include "BLI_smallhash.h"
 #include "BLI_array.h"
+#include "PIL_time.h"
 
+#include "UI_interface_icons.h"
 #include "UI_resources.h"
 
 #include "transform.h"
 
-#include <stdio.h>
+#include <stdio.h> // XXX: duplicated???
 
 static void drawTransformApply(const struct bContext *C, ARegion *ar, void *arg);
 static int doEdgeSlide(TransInfo *t, float perc);
@@ -226,8 +230,12 @@ void convertViewVec(TransInfo *t, float r_vec[3], int dx, int dy)
 void projectIntView(TransInfo *t, const float vec[3], int adr[2])
 {
 	if (t->spacetype == SPACE_VIEW3D) {
-		if (t->ar->regiontype == RGN_TYPE_WINDOW)
-			ED_view3d_project_int_noclip(t->ar, vec, adr);
+		if (t->ar->regiontype == RGN_TYPE_WINDOW) {
+			if (ED_view3d_project_int_global(t->ar, vec, adr, V3D_PROJ_TEST_NOP) != V3D_PROJ_RET_SUCCESS) {
+				adr[0] = (int)2140000000.0f;  /* this is what was done in 2.64, perhaps we can be smarter? */
+				adr[1] = (int)2140000000.0f;
+			}
+		}
 	}
 	else if (t->spacetype == SPACE_IMAGE) {
 		SpaceImage *sima = t->sa->spacedata.first;
@@ -345,7 +353,11 @@ void projectFloatView(TransInfo *t, const float vec[3], float adr[2])
 		case SPACE_VIEW3D:
 		{
 			if (t->ar->regiontype == RGN_TYPE_WINDOW) {
-				ED_view3d_project_float_noclip(t->ar, vec, adr);
+				if (ED_view3d_project_float_global(t->ar, vec, adr, V3D_PROJ_TEST_NOP) != V3D_PROJ_RET_SUCCESS) {
+					/* XXX, 2.64 and prior did this, weak! */
+					adr[0] = t->ar->winx / 2.0f;
+					adr[1] = t->ar->winy / 2.0f;
+				}
 				return;
 			}
 			break;
@@ -820,7 +832,7 @@ int transformEvent(TransInfo *t, wmEvent *event)
 	float mati[3][3] = MAT3_UNITY;
 	char cmode = constraintModeToChar(t);
 	int handled = 1;
-
+	
 	t->redraw |= handleMouseInput(t, &t->mouse, event);
 
 	if (event->type == MOUSEMOVE) {
@@ -1264,10 +1276,13 @@ int transformEvent(TransInfo *t, wmEvent *event)
 	if (t->handleEvent)
 		t->redraw |= t->handleEvent(t, event);
 
-	if (handled || t->redraw)
+	if (handled || t->redraw) {
+		t->last_update = PIL_check_seconds_timer();
 		return 0;
-	else
+	}
+	else {
 		return OPERATOR_PASS_THROUGH;
+	}
 }
 
 int calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], int cent2d[2])
@@ -1550,14 +1565,63 @@ static void drawTransformView(const struct bContext *C, ARegion *UNUSED(ar), voi
 	drawNonPropEdge(C, t);
 }
 
-#if 0
-static void drawTransformPixel(const struct bContext *UNUSED(C), ARegion *UNUSED(ar), void *UNUSED(arg))
+/* just draw a little warning message in the top-right corner of the viewport to warn that autokeying is enabled */
+static void drawAutoKeyWarning(TransInfo *t, ARegion *ar)
 {
-//	TransInfo *t = arg;
-//
-//	drawHelpline(C, t->mval[0], t->mval[1], t);
+	int show_warning;
+	
+	/* red border around the viewport */
+	UI_ThemeColor(TH_REDALERT);
+	
+	glBegin(GL_LINE_LOOP);
+		glVertex2f(1,          1);
+		glVertex2f(1,          ar->winy-1);
+		glVertex2f(ar->winx-1, ar->winy-1);
+		glVertex2f(ar->winx-1, 1);
+	glEnd();
+	
+	/* Entire warning should "blink" to catch periphery attention without being overly distracting 
+	 * much like how a traditional recording sign in the corner of a camcorder works
+	 *
+	 * - Blink frequency here is 0.5 secs (i.e. a compromise between epilepsy-inducing flicker + too slow to notice).
+	 *   We multiply by two to speed up the odd/even time-in-seconds = on/off toggle.
+	 * - Always start with warning shown so that animators are more likely to notice when starting to transform
+	 */
+	show_warning = (int)(t->last_update * 2.0) & 1;
+	
+	if ((show_warning) || (t->state == TRANS_STARTING)) {
+		const char printable[] = "Auto Keying On";
+		int xco, yco;
+		
+		xco = ar->winx - BLF_width_default(printable)  - 10;
+		yco = ar->winy - BLF_height_default(printable) - 10;
+		
+		/* red warning text */
+		UI_ThemeColor(TH_REDALERT);
+		BLF_draw_default_ascii(xco, ar->winy - 17, 0.0f, printable, sizeof(printable));
+		
+		/* autokey recording icon... */
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glEnable(GL_BLEND);
+		
+		xco -= (ICON_DEFAULT_WIDTH + 2);
+		UI_icon_draw(xco, yco, ICON_REC);
+		
+		glDisable(GL_BLEND);
+	}
 }
-#endif
+
+static void drawTransformPixel(const struct bContext *UNUSED(C), ARegion *ar, void *arg)
+{	
+	TransInfo *t = arg;
+	Scene *scene = t->scene;
+	Object *ob = OBACT;
+	
+	/* draw autokeyframing hint in the corner */
+	if (ob && autokeyframe_cfra_can_key(scene, &ob->id)) {
+		drawAutoKeyWarning(t, ar);
+	}	
+}
 
 void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
 {
@@ -1727,7 +1791,7 @@ int initTransform(bContext *C, TransInfo *t, wmOperator *op, wmEvent *event, int
 
 		t->draw_handle_apply = ED_region_draw_cb_activate(t->ar->type, drawTransformApply, t, REGION_DRAW_PRE_VIEW);
 		t->draw_handle_view = ED_region_draw_cb_activate(t->ar->type, drawTransformView, t, REGION_DRAW_POST_VIEW);
-		//t->draw_handle_pixel = ED_region_draw_cb_activate(t->ar->type, drawTransformPixel, t, REGION_DRAW_POST_PIXEL);
+		t->draw_handle_pixel = ED_region_draw_cb_activate(t->ar->type, drawTransformPixel, t, REGION_DRAW_POST_PIXEL);
 		t->draw_handle_cursor = WM_paint_cursor_activate(CTX_wm_manager(C), helpline_poll, drawHelpline, t);
 	}
 	else if (t->spacetype == SPACE_IMAGE) {
@@ -4790,12 +4854,12 @@ static void calcNonProportionalEdgeSlide(TransInfo *t, SlideData *sld, const flo
 			sv->edge_len = len_v3v3(dw_p, up_p);
 
 			mul_v3_m4v3(v_proj, t->obedit->obmat, sv->v->co);
-			ED_view3d_project_float_noclip(t->ar, v_proj, v_proj);
-
-			dist = len_squared_v2v2(mval, v_proj);
-			if (dist < min_dist) {
-				min_dist = dist;
-				sld->curr_sv_index = i;
+			if (ED_view3d_project_float_global(t->ar, v_proj, v_proj, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_SUCCESS) {
+				dist = len_squared_v2v2(mval, v_proj);
+				if (dist < min_dist) {
+					min_dist = dist;
+					sld->curr_sv_index = i;
+				}
 			}
 		}
 	}

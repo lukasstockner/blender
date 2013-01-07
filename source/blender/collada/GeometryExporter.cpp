@@ -432,8 +432,8 @@ void GeometryExporter::createVertsSource(std::string geom_id, Mesh *me)
 	param.push_back("X");
 	param.push_back("Y");
 	param.push_back("Z");
-	/*main function, it creates <source id = "">, <float_array id = ""
-	   count = ""> */
+	/* main function, it creates <source id = "">, <float_array id = ""
+	 * count = ""> */
 	source.prepareToAppendValues();
 	//appends data to <float_array>
 	int i = 0;

@@ -2925,7 +2925,7 @@ int WM_gesture_lines_cancel(bContext *C, wmOperator *op)
  *
  * caller must free.
  */
-int (*WM_gesture_lasso_path_to_array(bContext *UNUSED(C), wmOperator *op, int *mcords_tot))[2]
+const int (*WM_gesture_lasso_path_to_array(bContext *UNUSED(C), wmOperator *op, int *mcords_tot))[2]
 {
 	PropertyRNA *prop = RNA_struct_find_property(op->ptr, "path");
 	int (*mcords)[2] = NULL;
@@ -2955,7 +2955,8 @@ int (*WM_gesture_lasso_path_to_array(bContext *UNUSED(C), wmOperator *op, int *m
 		*mcords_tot = 0;
 	}
 
-	return mcords;
+	/* cast for 'const' */
+	return (const int (*)[2])mcords;
 }
 
 #if 0

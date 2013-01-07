@@ -575,7 +575,7 @@ if(UNIX AND NOT APPLE)
 		# lame, but until we have propper find module for ffmpeg
 		set(FFMPEG_INCLUDE_DIRS ${FFMPEG}/include)
 		if(EXISTS "${FFMPEG}/include/ffmpeg/")
-			set(FFMPEG_INCLUDE_DIRS "${FFMPEG_INCLUDE_DIRS} ${FFMPEG}/include/ffmpeg")
+			list(APPEND FFMPEG_INCLUDE_DIRS "${FFMPEG}/include/ffmpeg")
 		endif()
 		# end lameness
 
