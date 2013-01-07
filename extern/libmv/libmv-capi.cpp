@@ -522,7 +522,7 @@ static bool selectTwoKeyframesBasedOnGRIC(libmv::Tracks &tracks, libmv::Tracks &
 	libmv::vector<int> keyframes;
 
 	/* Get list of all keyframe candidates first */
-	SelectkeyframesBasedOnGRIC(normalized_tracks, keyframes);
+	SelectkeyframesBasedOnGRIC(normalized_tracks, camera_intrinsics, keyframes);
 
 	if (keyframes.size() < 2) {
 		LG << "Not enough keyframes detected by GRIC";
