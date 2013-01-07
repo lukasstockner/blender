@@ -399,8 +399,8 @@ static void node_buts_curvecol(uiLayout *layout, bContext *UNUSED(C), PointerRNA
 
 static void node_buts_normal(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
-	bNodeTree *ntree = (bNodeTree*)ptr->id.data;
-	bNode *node = (bNode*)ptr->data;
+	bNodeTree *ntree = (bNodeTree *)ptr->id.data;
+	bNode *node = (bNode *)ptr->data;
 	bNodeSocket *sock = node->outputs.first;     /* first socket stores normal */
 	PointerRNA sockptr;
 
@@ -1932,9 +1932,9 @@ static void node_composit_buts_hue_sat(uiLayout *layout, bContext *UNUSED(C), Po
 
 static void node_composit_buts_dilateerode(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
-	uiItemR(layout, ptr, "type", 0, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "mode", 0, NULL, ICON_NONE);
 	uiItemR(layout, ptr, "distance", 0, NULL, ICON_NONE);
-	switch (RNA_enum_get(ptr, "type")) {
+	switch (RNA_enum_get(ptr, "mode")) {
 		case CMP_NODE_DILATEERODE_DISTANCE_THRESH:
 			uiItemR(layout, ptr, "edge", 0, NULL, ICON_NONE);
 			break;
@@ -2152,12 +2152,12 @@ static void node_composit_buts_file_output_details(uiLayout *layout, bContext *C
 	active_index = RNA_int_get(ptr, "active_input_index");
 	/* using different collection properties if multilayer format is enabled */
 	if (multilayer) {
-		uiTemplateList(col, C, ptr, "layer_slots", ptr, "active_input_index", NULL, 0, 0, 0);
+		uiTemplateList(col, C, "UI_UL_list", "", ptr, "layer_slots", ptr, "active_input_index", 0, 0, 0);
 		RNA_property_collection_lookup_int(ptr, RNA_struct_find_property(ptr, "layer_slots"),
 		                                   active_index, &active_input_ptr);
 	}
 	else {
-		uiTemplateList(col, C, ptr, "file_slots", ptr, "active_input_index", NULL, 0, 0, 0);
+		uiTemplateList(col, C, "UI_UL_list", "", ptr, "file_slots", ptr, "active_input_index", 0, 0, 0);
 		RNA_property_collection_lookup_int(ptr, RNA_struct_find_property(ptr, "file_slots"),
 		                                   active_index, &active_input_ptr);
 	}
@@ -3416,10 +3416,10 @@ int node_link_bezier_points(View2D *v2d, SpaceNode *snode, bNodeLink *link, floa
 		vec[2][0] = vec[3][0] - dist;
 		vec[2][1] = vec[3][1];
 	}
-	if (v2d && MIN4(vec[0][0], vec[1][0], vec[2][0], vec[3][0]) > v2d->cur.xmax) {
+	if (v2d && min_ffff(vec[0][0], vec[1][0], vec[2][0], vec[3][0]) > v2d->cur.xmax) {
 		/* clipped */
 	}
-	else if (v2d && MAX4(vec[0][0], vec[1][0], vec[2][0], vec[3][0]) < v2d->cur.xmin) {
+	else if (v2d && max_ffff(vec[0][0], vec[1][0], vec[2][0], vec[3][0]) < v2d->cur.xmin) {
 		/* clipped */
 	}
 	else {

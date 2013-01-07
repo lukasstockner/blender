@@ -49,6 +49,8 @@
 #include "DNA_mask_types.h"
 #include "DNA_userdef_types.h"
 
+#include "BLF_translation.h"
+
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
@@ -400,6 +402,7 @@ void SEQUENCER_OT_movieclip_strip_add(struct wmOperatorType *ot)
 	sequencer_generic_props__internal(ot, SEQPROP_STARTFRAME);
 	prop = RNA_def_enum(ot->srna, "clip", DummyRNA_NULL_items, 0, "Clip", "");
 	RNA_def_enum_funcs(prop, RNA_movieclip_itemf);
+	RNA_def_property_translation_context(prop, BLF_I18NCONTEXT_ID_MOVIECLIP);
 	ot->prop = prop;
 }
 
@@ -859,9 +862,9 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
 	 * the other strips. */
 	if (!RNA_struct_property_is_set(op->ptr, "channel")) {
 		if (seq->seq1) {
-			int chan = MAX3(seq->seq1 ? seq->seq1->machine : 0,
-			                seq->seq2 ? seq->seq2->machine : 0,
-			                seq->seq3 ? seq->seq3->machine : 0);
+			int chan = max_iii(seq->seq1 ? seq->seq1->machine : 0,
+			                   seq->seq2 ? seq->seq2->machine : 0,
+			                   seq->seq3 ? seq->seq3->machine : 0);
 			if (chan < MAXSEQ)
 				seq->machine = chan;
 		}
@@ -871,7 +874,7 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
 		if (BKE_sequence_test_overlap(ed->seqbasep, seq)) BKE_sequence_base_shuffle(ed->seqbasep, seq, scene);
 	}
 
-	BKE_sequencer_update_changed_seq_and_deps(scene, seq, 1, 1); /* runs calc_sequence */
+	BKE_sequencer_update_changed_seq_and_deps(scene, seq, 1, 1); /* runs BKE_sequence_calc */
 
 
 	/* not sure if this is needed with update_changed_seq_and_deps.

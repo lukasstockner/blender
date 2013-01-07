@@ -127,7 +127,7 @@ static float get_fluid_size_m(Scene *scene, Object *domainob, FluidsimSettings *
 		float longest_axis;
 		
 		BKE_object_dimensions_get(domainob, dim);
-		longest_axis = MAX3(dim[0], dim[1], dim[2]);
+		longest_axis = max_fff(dim[0], dim[1], dim[2]);
 		
 		return longest_axis * scene->unit.scale_length;
 	}
@@ -237,7 +237,7 @@ static void init_time(FluidsimSettings *domainSettings, FluidAnimChannels *chann
 {
 	int i;
 	
-	channels->timeAtFrame = MEM_callocN((channels->length+1)*sizeof(float), "timeAtFrame channel");
+	channels->timeAtFrame = MEM_callocN((channels->length + 1) * sizeof(float), "timeAtFrame channel");
 	
 	channels->timeAtFrame[0] = channels->timeAtFrame[1] = domainSettings->animStart; // start at index 1
 	

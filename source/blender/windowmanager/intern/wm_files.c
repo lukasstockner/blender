@@ -531,7 +531,7 @@ int wm_homefile_read(bContext *C, ReportList *UNUSED(reports), short from_memory
 	}
 	
 	if (U.themes.first == NULL) {
-		printf("\nError: No valid "STRINGIFY (BLENDER_STARTUP_FILE)", fall back to built-in default.\n\n");
+		printf("\nNote: No (valid) "STRINGIFY (BLENDER_STARTUP_FILE)" found, fall back to built-in default.\n\n");
 		success = 0;
 	}
 
@@ -549,7 +549,7 @@ int wm_homefile_read(bContext *C, ReportList *UNUSED(reports), short from_memory
 	/* check new prefs only after startup.blend was finished */
 	if (!from_memory && BLI_exists(prefstr)) {
 		int done = BKE_read_file_userdef(prefstr, NULL);
-		if (done) printf("read new prefs: %s\n", prefstr);
+		if (done) printf("Read new prefs: %s\n", prefstr);
 	}
 	
 	/* prevent buggy files that had G_FILE_RELATIVE_REMAP written out by mistake. Screws up autosaves otherwise
@@ -733,11 +733,11 @@ static ImBuf *blend_file_thumb(Scene *scene, bScreen *screen, int **thumb_pt)
 	if (scene->camera) {
 		ibuf = ED_view3d_draw_offscreen_imbuf_simple(scene, scene->camera,
 		                                             BLEN_THUMB_SIZE * 2, BLEN_THUMB_SIZE * 2,
-		                                             IB_rect, OB_SOLID, FALSE, FALSE, FALSE, err_out);
+		                                             IB_rect, OB_SOLID, FALSE, FALSE, R_ADDSKY, err_out);
 	}
 	else {
 		ibuf = ED_view3d_draw_offscreen_imbuf(scene, v3d, ar, BLEN_THUMB_SIZE * 2, BLEN_THUMB_SIZE * 2,
-		                                      IB_rect, FALSE, FALSE, err_out);
+		                                      IB_rect, FALSE, R_ADDSKY, err_out);
 	}
 
 	if (ibuf) {

@@ -62,6 +62,9 @@ public:
 	
 	virtual void RemoveScene(class KX_Scene *scene)=0;
 
+	// handle any pending merges from asynchronous loads
+	virtual void MergeAsyncLoads()=0;
+
 	virtual void	SetAlwaysUseExpandFraming(bool to_what) = 0;
 
 	virtual void	SetNewFileName(const STR_String& filename) = 0;
@@ -85,6 +88,10 @@ public:
 	// use blender glsl materials
 	virtual void SetGLSLMaterials(bool val) =0;
 	virtual bool GetGLSLMaterials()=0;
+
+	// cache materials during conversion
+	virtual void SetCacheMaterials(bool val) =0;
+	virtual bool GetCacheMaterials()=0;
 
 	virtual struct Scene* GetBlenderSceneForName(const STR_String& name)=0;
 	

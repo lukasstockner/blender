@@ -149,6 +149,13 @@ typedef struct uiPanelColors {
 	int pad;
 } uiPanelColors;
 
+typedef struct uiGradientColors {
+	char gradient[4];
+	char pad[4];
+	int show_grad;
+	int pad2;
+} uiGradientColors;
+
 typedef struct ThemeUI {
 	/* Interface Elements (buttons, menus, icons) */
 	uiWidgetColors wcol_regular, wcol_tool, wcol_text;
@@ -161,6 +168,12 @@ typedef struct ThemeUI {
 
 	uiPanelColors panel; /* depricated, but we keep it for do_versions (2.66.1) */
 
+	/* fac: 0 - 1 for blend factor, width in pixels */
+	float menu_shadow_fac;
+	short menu_shadow_width;
+	
+	short pad;
+	
 	char iconfile[256];	// FILE_MAXFILE length
 	float icon_alpha;
 
@@ -204,7 +217,9 @@ typedef struct ThemeSpace {
 	
 	/* note, cannot use name 'panel' because of DNA mapping old files */
 	uiPanelColors panelcolors;
-	
+
+	uiGradientColors gradients;
+
 	char shade1[4];
 	char shade2[4];
 	
@@ -240,11 +255,14 @@ typedef struct ThemeSpace {
 	char vertex_size, outline_width, facedot_size;
 	char noodle_curving;
 
-	char syntaxl[4], syntaxn[4], syntaxb[4]; /* syntax for textwindow and nodes */
+	/* syntax for textwindow and nodes */
+	char syntaxl[4], syntaxs[4];
+	char syntaxb[4], syntaxn[4];
 	char syntaxv[4], syntaxc[4];
+	char syntaxd[4], syntaxr[4];
 	
 	char movie[4], movieclip[4], mask[4], image[4], scene[4], audio[4];		/* for sequence editor */
-	char effect[4], hpad0[4], transition[4], meta[4];
+	char effect[4], transition[4], meta[4];
 	char editmesh_active[4]; 
 
 	char handle_vertex[4];
@@ -337,6 +355,7 @@ typedef struct bTheme {
 typedef struct bAddon {
 	struct bAddon *next, *prev;
 	char module[64];
+	IDProperty *prop;  /* User-Defined Properties on this  Addon (for storing preferences) */
 } bAddon;
 
 typedef struct SolidLight {
@@ -427,6 +446,7 @@ typedef struct UserDef {
 	int ndof_flag;			/* flags for 3D mouse */
 
 	short ogl_multisamples;	/* amount of samples for OpenGL FSA, if zero no FSA */
+
 	short pad4;
 	
 	float glalphaclip;

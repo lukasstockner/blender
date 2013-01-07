@@ -66,6 +66,7 @@ class TEXT_HT_header(Header):
                 row.operator("text.run_script")
 
                 row = layout.row()
+                row.active = text.name.endswith(".py")
                 row.prop(text, "use_module")
 
             row = layout.row()
@@ -193,14 +194,33 @@ class TEXT_MT_text(Menu):
             layout.operator("text.run_script")
 
 
+class TEXT_MT_templates_py(Menu):
+    bl_label = "Python"
+
+    def draw(self, context):
+        self.path_menu(bpy.utils.script_paths("templates_py"),
+                       "text.open",
+                       {"internal": True},
+                       )
+
+
+class TEXT_MT_templates_osl(Menu):
+    bl_label = "Open Shading Language"
+
+    def draw(self, context):
+        self.path_menu(bpy.utils.script_paths("templates_osl"),
+                       "text.open",
+                       {"internal": True},
+                       )
+
+
 class TEXT_MT_templates(Menu):
     bl_label = "Templates"
 
     def draw(self, context):
-        self.path_menu(bpy.utils.script_paths("templates"),
-                       "text.open",
-                       {"internal": True},
-                       )
+        layout = self.layout
+        layout.menu("TEXT_MT_templates_py")
+        layout.menu("TEXT_MT_templates_osl")
 
 
 class TEXT_MT_edit_select(Menu):
@@ -281,6 +301,7 @@ class TEXT_MT_edit(Menu):
 
         layout.operator("text.jump")
         layout.operator("text.properties", text="Find...")
+        layout.operator("text.autocomplete")
 
         layout.separator()
 

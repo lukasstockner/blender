@@ -233,8 +233,8 @@ static void set_rast_triangle(const MBakeRast *bake_rast, const int x, const int
 
 	if (x >= 0 && x < w && y >= 0 && y < h) {
 		if ((bake_rast->texels[y * w + x]) == 0) {
-			flush_pixel(bake_rast->data, x, y);
 			bake_rast->texels[y * w + x] = FILTER_MASK_USED;
+			flush_pixel(bake_rast->data, x, y);
 		}
 	}
 }
@@ -952,7 +952,7 @@ static void create_ao_raytree(MultiresBakeRender *bkr, MAOBakeData *ao_data)
 	RayFace *face;
 	CCGElem **grid_data;
 	CCGKey key;
-	int num_grids, grid_size, face_side, num_faces;
+	int num_grids, grid_size /*, face_side */, num_faces;
 	int i;
 
 	num_grids = hidm->getNumGrids(hidm);
@@ -960,7 +960,7 @@ static void create_ao_raytree(MultiresBakeRender *bkr, MAOBakeData *ao_data)
 	grid_data = hidm->getGridData(hidm);
 	hidm->getGridKey(hidm, &key);
 
-	face_side = (grid_size << 1) - 1;
+	/* face_side = (grid_size << 1) - 1; */  /* UNUSED */
 	num_faces = num_grids * (grid_size - 1) * (grid_size - 1);
 
 	raytree = ao_data->raytree = RE_rayobject_create(bkr->raytrace_structure, num_faces, bkr->octree_resolution);

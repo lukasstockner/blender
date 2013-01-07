@@ -40,6 +40,7 @@
 
 #include "RNA_define.h"
 #include "RNA_access.h"
+#include "RNA_enum_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_noise.h"
@@ -908,7 +909,7 @@ static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, wmEvent
 		BMOIter oiter;
 		
 		copy_v3_v3(min, curs);
-		view3d_get_view_aligned_coordinate(&vc, min, event->mval, 0);
+		view3d_get_view_aligned_coordinate(&vc, min, event->mval, FALSE);
 
 		invert_m4_m4(vc.obedit->imat, vc.obedit->obmat);
 		mul_m4_v3(vc.obedit->imat, min); // back in object space
@@ -1673,7 +1674,7 @@ static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
 	BMEditMesh *em = BMEdit_FromObject(obedit);
 	int usex = TRUE, usey = TRUE, usez = TRUE, preserve_volume = TRUE;
 	int i, repeat;
-	float lambda;
+	float lambda_factor;
 	float lambda_border;
 	BMIter fiter;
 	BMFace *f;
@@ -1694,7 +1695,7 @@ static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
 	}
 
 	repeat = RNA_int_get(op->ptr, "repeat");
-	lambda = RNA_float_get(op->ptr, "lambda");
+	lambda_factor = RNA_float_get(op->ptr, "lambda_factor");
 	lambda_border = RNA_float_get(op->ptr, "lambda_border");
 	usex = RNA_boolean_get(op->ptr, "use_x");
 	usey = RNA_boolean_get(op->ptr, "use_y");
@@ -1705,8 +1706,8 @@ static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
 	
 	for (i = 0; i < repeat; i++) {
 		if (!EDBM_op_callf(em, op,
-		                   "smooth_laplacian_vert verts=%hv lambda=%f lambda_border=%f use_x=%b use_y=%b use_z=%b preserve_volume=%b",
-		                   BM_ELEM_SELECT, lambda, lambda_border, usex, usey, usez, preserve_volume))
+		                   "smooth_laplacian_vert verts=%hv lambda_factor=%f lambda_border=%f use_x=%b use_y=%b use_z=%b preserve_volume=%b",
+		                   BM_ELEM_SELECT, lambda_factor, lambda_border, usex, usey, usez, preserve_volume))
 		{
 			return OPERATOR_CANCELLED;
 		}
@@ -1739,7 +1740,7 @@ void MESH_OT_vertices_smooth_laplacian(wmOperatorType *ot)
 
 	RNA_def_int(ot->srna, "repeat", 1, 1, 200,
 	            "Number of iterations to smooth the mesh", "", 1, 200);
-	RNA_def_float(ot->srna, "lambda", 0.00005f, 0.0000001f, 1000.0f,
+	RNA_def_float(ot->srna, "lambda_factor", 0.00005f, 0.0000001f, 1000.0f,
 	              "Lambda factor", "", 0.0000001f, 1000.0f);
 	RNA_def_float(ot->srna, "lambda_border", 0.00005f, 0.0000001f, 1000.0f,
 	              "Lambda factor in border", "", 0.0000001f, 1000.0f);
@@ -2528,7 +2529,6 @@ static void edbm_blend_from_shape_ui(bContext *C, wmOperator *op)
 void MESH_OT_blend_from_shape(wmOperatorType *ot)
 {
 	PropertyRNA *prop;
-	static EnumPropertyItem shape_items[] = {{0, NULL, 0, NULL, NULL}};
 
 	/* identifiers */
 	ot->name = "Blend From Shape";
@@ -2545,7 +2545,7 @@ void MESH_OT_blend_from_shape(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	prop = RNA_def_enum(ot->srna, "shape", shape_items, 0, "Shape", "Shape key to use for blending");
+	prop = RNA_def_enum(ot->srna, "shape", DummyRNA_NULL_items, 0, "Shape", "Shape key to use for blending");
 	RNA_def_enum_funcs(prop, shape_itemf);
 	RNA_def_float(ot->srna, "blend", 1.0f, -FLT_MAX, FLT_MAX, "Blend", "Blending factor", -2.0f, 2.0f);
 	RNA_def_boolean(ot->srna, "add", 1, "Add", "Add rather than blend between shapes");
@@ -2928,7 +2928,7 @@ static int edbm_knife_cut_exec(bContext *C, wmOperator *op)
 	screen_vert_coords = sco = MEM_mallocN(bm->totvert * sizeof(float) * 2, __func__);
 
 	BM_ITER_MESH_INDEX (bv, &iter, bm, BM_VERTS_OF_MESH, i) {
-		if (ED_view3d_project_float_object(ar, bv->co, *sco, V3D_PROJ_TEST_NOP) != V3D_PROJ_RET_OK) {
+		if (ED_view3d_project_float_object(ar, bv->co, *sco, V3D_PROJ_TEST_CLIP_NEAR) != V3D_PROJ_RET_OK) {
 			copy_v2_fl(*sco, FLT_MAX);  /* set error value */
 		}
 		BM_elem_index_set(bv, i); /* set_ok */
@@ -3582,7 +3582,7 @@ void MESH_OT_dissolve_limited(wmOperatorType *ot)
 
 	prop = RNA_def_float_rotation(ot->srna, "angle_limit", 0, NULL, 0.0f, DEG2RADF(180.0f),
 	                              "Max Angle", "Angle limit", 0.0f, DEG2RADF(180.0f));
-	RNA_def_property_float_default(prop, DEG2RADF(15.0f));
+	RNA_def_property_float_default(prop, DEG2RADF(5.0f));
 	RNA_def_boolean(ot->srna, "use_dissolve_boundaries", 0, "All Boundaries",
 	                "Dissolve all vertices inbetween face boundaries");
 }
@@ -4768,6 +4768,7 @@ static int edbm_bevel_calc(wmOperator *op)
 #ifdef NEW_BEVEL
 	float offset = RNA_float_get(op->ptr, "offset");
 	int segments = RNA_int_get(op->ptr, "segments");
+	int vertex_only = RNA_boolean_get(op->ptr, "vertex_only");
 
 	/* revert to original mesh */
 	if (opdata->is_modal) {
@@ -4775,8 +4776,8 @@ static int edbm_bevel_calc(wmOperator *op)
 	}
 
 	if (!EDBM_op_init(em, &bmop, op,
-		              "bevel geom=%hev offset=%f segments=%i",
-		              BM_ELEM_SELECT, offset, segments))
+		              "bevel geom=%hev offset=%f segments=%i vertex_only=%b",
+		              BM_ELEM_SELECT, offset, segments, vertex_only))
 	{
 		return 0;
 	}
@@ -5101,6 +5102,7 @@ void MESH_OT_bevel(wmOperatorType *ot)
 #ifdef NEW_BEVEL
 	RNA_def_float(ot->srna, "offset", 0.0f, -FLT_MAX, FLT_MAX, "Offset", "", 0.0f, 1.0f);
 	RNA_def_int(ot->srna, "segments", 1, 1, 50, "Segments", "Segments for curved edge", 1, 8);
+	RNA_def_boolean(ot->srna, "vertex_only", FALSE, "Vertex only", "Bevel only vertices");
 #else
 	/* take note, used as a factor _and_ a distance depending on 'use_dist' */
 	RNA_def_float(ot->srna, "percent", 0.0f, -FLT_MAX, FLT_MAX, "Percentage", "", 0.0f, 1.0f);
@@ -5732,18 +5734,6 @@ static int mesh_symmetrize_exec(bContext *C, wmOperator *op)
 
 void MESH_OT_symmetrize(struct wmOperatorType *ot)
 {
-	static EnumPropertyItem axis_direction_items[] = {
-		{BMO_SYMMETRIZE_NEGATIVE_X, "NEGATIVE_X", 0, "-X to +X", ""},
-		{BMO_SYMMETRIZE_POSITIVE_X, "POSITIVE_X", 0, "+X to -X", ""},
-
-		{BMO_SYMMETRIZE_NEGATIVE_Y, "NEGATIVE_Y", 0, "-Y to +Y", ""},
-		{BMO_SYMMETRIZE_POSITIVE_Y, "POSITIVE_Y", 0, "+Y to -Y", ""},
-
-		{BMO_SYMMETRIZE_NEGATIVE_Z, "NEGATIVE_Z", 0, "-Z to +Z", ""},
-		{BMO_SYMMETRIZE_POSITIVE_Z, "POSITIVE_Z", 0, "+Z to -Z", ""},
-		{0, NULL, 0, NULL, NULL},
-	};
-
 	/* identifiers */
 	ot->name = "Symmetrize";
 	ot->description = "Enforce symmetry (both form and topological) across an axis";
@@ -5756,7 +5746,7 @@ void MESH_OT_symmetrize(struct wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	ot->prop = RNA_def_enum(ot->srna, "direction", axis_direction_items,
+	ot->prop = RNA_def_enum(ot->srna, "direction", symmetrize_direction_items,
 	                        BMO_SYMMETRIZE_NEGATIVE_X,
 	                        "Direction", "Which sides to copy from and to");
 }

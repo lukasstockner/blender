@@ -400,6 +400,7 @@ static Scene *scene_add(Main *bmain, const char *name)
 
 	sce->r.im_format.planes = R_IMF_PLANES_RGB;
 	sce->r.im_format.imtype = R_IMF_IMTYPE_PNG;
+	sce->r.im_format.depth = R_IMF_CHAN_DEPTH_8;
 	sce->r.im_format.quality = 90;
 	sce->r.im_format.compress = 90;
 
@@ -433,6 +434,7 @@ static Scene *scene_add(Main *bmain, const char *name)
 	sce->r.bake_flag = R_BAKE_CLEAR;
 	sce->r.bake_normal_space = R_BAKE_SPACE_TANGENT;
 	sce->r.bake_samples = 256;
+	sce->r.bake_biasdist = 0.001;
 	sce->r.scemode = R_DOCOMP | R_DOSEQ | R_EXTENSION;
 	sce->r.stamp = R_STAMP_TIME | R_STAMP_FRAME | R_STAMP_DATE | R_STAMP_CAMERA | R_STAMP_SCENE | R_STAMP_FILENAME | R_STAMP_RENDERTIME;
 	sce->r.stamp_font_id = 12;

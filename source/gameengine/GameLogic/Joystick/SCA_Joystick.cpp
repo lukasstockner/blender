@@ -307,8 +307,11 @@ int SCA_Joystick::pGetAxis(int axisnum, int udlr)
 int SCA_Joystick::pAxisTest(int axisnum)
 {
 #ifdef WITH_SDL
-	short i1 = m_axis_array[(axisnum * 2)];
-	short i2 = m_axis_array[(axisnum * 2) + 1];
+	/* Use ints instead of shorts here to avoid problems when we get -32768.
+	 * When we take the negative of that later, we should get 32768, which is greater
+	 * than what a short can hold. In other words, abs(MIN_SHORT) > MAX_SHRT. */
+	int i1 = m_axis_array[(axisnum * 2)];
+	int i2 = m_axis_array[(axisnum * 2) + 1];
 	
 	/* long winded way to do:
 	 * return max_ff(absf(i1), absf(i2))
@@ -319,5 +322,14 @@ int SCA_Joystick::pAxisTest(int axisnum)
 	else        return i1;
 #else /* WITH_SDL */
 	return 0;
+#endif /* WITH_SDL */
+}
+
+const char *SCA_Joystick::GetName()
+{
+#ifdef WITH_SDL
+	return SDL_JoystickName(m_joyindex);
+#else /* WITH_SDL */
+	return "";
 #endif /* WITH_SDL */
 }

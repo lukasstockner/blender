@@ -192,6 +192,8 @@ extern "C" {
 }
 #endif
 
+#include "BLI_threads.h"
+
 static bool default_light_mode = 0;
 
 static std::map<int, SCA_IInputDevice::KX_EnumInputs> create_translate_table()
@@ -648,11 +650,10 @@ static bool ConvertMaterial(
 							material->texname[i] = material->img[i]->id.name;
 							material->flag[i] |= ( mttmp->tex->imaflag &TEX_MIPMAP )?MIPMAP:0;
 							// -----------------------
-							if ( mttmp->tex->imaflag &TEX_USEALPHA ) {
+							if (material->img[i] && (material->img[i]->flag & IMA_IGNORE_ALPHA) == 0)
 								material->flag[i]	|= USEALPHA;
-							}
 							// -----------------------
-							else if ( mttmp->tex->imaflag &TEX_CALCALPHA ) {
+							if ( mttmp->tex->imaflag &TEX_CALCALPHA ) {
 								material->flag[i]	|= CALCALPHA;
 							}
 							else if (mttmp->tex->flag &TEX_NEGALPHA) {
@@ -920,6 +921,9 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace
 		/* do Texture Face materials */
 		Image* bima = (tface)? (Image*)tface->tpage: NULL;
 		STR_String imastr =  (tface)? (bima? (bima)->id.name : "" ) : "";
+
+		if (!converter->GetCacheMaterials())
+			polymat = NULL;
 		
 		char alpha_blend=0;
 		short tile=0;
@@ -1042,7 +1046,8 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace
 				polymat->m_shininess = 35.0;
 			}
 			
-			converter->CachePolyMaterial(ma, polymat);
+			if (converter->GetCacheMaterials())
+				converter->CachePolyMaterial(ma, polymat);
 		}
 	}
 	
@@ -1258,7 +1263,7 @@ static PHY_MaterialProps *CreateMaterialFromBlenderObject(struct Object* blender
 	
 	MT_assert(materialProps && "Create physics material properties failed");
 		
-	Material* blendermat = give_current_material(blenderobject, 0);
+	Material* blendermat = give_current_material(blenderobject, 1);
 		
 	if (blendermat)
 	{
@@ -1342,7 +1347,9 @@ static float my_boundbox_mesh(Mesh *me, float *loc, float *size)
 	float radius=0.0f, vert_radius, *co;
 	int a;
 	
-	if (me->bb==0) me->bb= (struct BoundBox *)MEM_callocN(sizeof(BoundBox), "boundbox");
+	if (me->bb==0) {
+		me->bb = BKE_boundbox_alloc_unit();
+	}
 	bb= me->bb;
 	
 	INIT_MINMAX(min, max);
@@ -2351,6 +2358,10 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	set<Group*> grouplist;	// list of groups to be converted
 	set<Object*> allblobj;	// all objects converted
 	set<Object*> groupobj;	// objects from groups (never in active layer)
+
+	// This is bad, but we use this to make sure the first time this is called
+	// is not in a separate thread.
+	BL_Texture::GetMaxUnits();
 
 	if (alwaysUseExpandFraming) {
 		frame_type = RAS_FrameSettings::e_frame_extend;

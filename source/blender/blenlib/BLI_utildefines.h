@@ -32,12 +32,41 @@
  *  \ingroup bli
  */
 
-#ifndef FALSE
-#  define FALSE 0
+#ifndef NDEBUG /* for BLI_assert */
+#include <stdio.h>
 #endif
 
-#ifndef TRUE
-#  define TRUE 1
+/* note: use of (int, TRUE / FALSE) is deprecated,
+ * use (bool, true / false) instead */
+#ifdef HAVE_STDBOOL_H
+# include <stdbool.h>
+#else
+# ifndef HAVE__BOOL
+#  ifdef __cplusplus
+typedef bool _BLI_Bool;
+#  else
+#   define _BLI_Bool signed char
+#  endif
+# else
+#  define _BLI_Bool _Bool
+# endif
+# define bool _BLI_Bool
+# define false 0
+# define true 1
+# define __bool_true_false_are_defined 1
+#endif
+
+/* remove this when we're ready to remove TRUE/FALSE completely */
+#ifdef WITH_BOOL_COMPAT
+/* interim until all occurrences of these can be updated to stdbool */
+/* XXX Why not use the true/false velues here? */
+# ifndef FALSE
+#   define FALSE 0
+# endif
+
+# ifndef TRUE
+#   define TRUE 1
+# endif
 #endif
 
 /* useful for finding bad use of min/max */

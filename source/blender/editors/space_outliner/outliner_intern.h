@@ -103,6 +103,7 @@ typedef struct TreeElement {
 #define TSE_NLA_TRACK       33
 #define TSE_KEYMAP          34
 #define TSE_KEYMAP_ITEM     35
+#define TSE_ID_BASE			36
 
 /* button events */
 #define OL_NAMEBUTTON       1
@@ -115,8 +116,8 @@ typedef struct TreeElement {
 /* size constants */
 #define OL_Y_OFFSET 2
 
-#define OL_TOG_RESTRICT_VIEWX   (UI_UNIT_X * 3)
-#define OL_TOG_RESTRICT_SELECTX (UI_UNIT_X * 2)
+#define OL_TOG_RESTRICT_VIEWX   (UI_UNIT_X * 3.0f)
+#define OL_TOG_RESTRICT_SELECTX (UI_UNIT_X * 2.0f)
 #define OL_TOG_RESTRICT_RENDERX UI_UNIT_X
 
 #define OL_TOGW OL_TOG_RESTRICT_VIEWX

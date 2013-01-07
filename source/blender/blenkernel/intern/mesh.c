@@ -430,42 +430,6 @@ void BKE_mesh_free(Mesh *me, int unlink)
 	if (me->edit_btmesh) MEM_freeN(me->edit_btmesh);
 }
 
-void copy_dverts(MDeformVert *dst, MDeformVert *src, int copycount)
-{
-	/* Assumes dst is already set up */
-	int i;
-
-	if (!src || !dst)
-		return;
-
-	memcpy(dst, src, copycount * sizeof(MDeformVert));
-	
-	for (i = 0; i < copycount; i++) {
-		if (src[i].dw) {
-			dst[i].dw = MEM_callocN(sizeof(MDeformWeight) * src[i].totweight, "copy_deformWeight");
-			memcpy(dst[i].dw, src[i].dw, sizeof(MDeformWeight) * src[i].totweight);
-		}
-	}
-
-}
-
-void free_dverts(MDeformVert *dvert, int totvert)
-{
-	/* Instead of freeing the verts directly,
-	 * call this function to delete any special
-	 * vert data */
-	int i;
-
-	if (!dvert)
-		return;
-
-	/* Free any special data from the verts */
-	for (i = 0; i < totvert; i++) {
-		if (dvert[i].dw) MEM_freeN(dvert[i].dw);
-	}
-	MEM_freeN(dvert);
-}
-
 static void mesh_tessface_clear_intern(Mesh *mesh, int free_customdata)
 {
 	if (free_customdata) {
@@ -731,7 +695,7 @@ void BKE_mesh_texspace_get(Mesh *me, float r_loc[3], float r_rot[3], float r_siz
 	if (r_size) copy_v3_v3(r_size, me->size);
 }
 
-float *BKE_mesh_orco_verts_get(Object *ob)
+float (*BKE_mesh_orco_verts_get(Object *ob))[3]
 {
 	Mesh *me = ob->data;
 	MVert *mvert = NULL;
@@ -748,7 +712,7 @@ float *BKE_mesh_orco_verts_get(Object *ob)
 		copy_v3_v3(vcos[a], mvert->co);
 	}
 
-	return (float *)vcos;
+	return vcos;
 }
 
 void BKE_mesh_orco_verts_transform(Mesh *me, float (*orco)[3], int totvert, int invert)
@@ -2488,7 +2452,7 @@ void BKE_mesh_loops_to_mface_corners(CustomData *fdata, CustomData *ldata,
  */
 int BKE_mesh_recalc_tessellation(CustomData *fdata,
                                  CustomData *ldata, CustomData *pdata,
-                                 MVert *mvert, int totface, int UNUSED(totloop),
+                                 MVert *mvert, int totface, int totloop,
                                  int totpoly,
                                  /* when tessellating to recalculate normals after
                                   * we can skip copying here */
@@ -2503,15 +2467,15 @@ int BKE_mesh_recalc_tessellation(CustomData *fdata,
 #define TESSFACE_SCANFILL (1 << 0)
 #define TESSFACE_IS_QUAD  (1 << 1)
 
+	const int looptris_tot = poly_to_tri_count(totpoly, totloop);
+
 	MPoly *mp, *mpoly;
 	MLoop *ml, *mloop;
-	MFace *mface = NULL, *mf;
-	BLI_array_declare(mface);
+	MFace *mface, *mf;
 	ScanFillContext sf_ctx;
 	ScanFillVert *sf_vert, *sf_vert_last, *sf_vert_first;
 	ScanFillFace *sf_tri;
-	int *mface_to_poly_map = NULL;
-	BLI_array_declare(mface_to_poly_map);
+	int *mface_to_poly_map;
 	int lindex[4]; /* only ever use 3 in this case */
 	int poly_index, j, mface_index;
 
@@ -2525,8 +2489,9 @@ int BKE_mesh_recalc_tessellation(CustomData *fdata,
 
 	/* allocate the length of totfaces, avoid many small reallocs,
 	 * if all faces are tri's it will be correct, quads == 2x allocs */
-	BLI_array_reserve(mface_to_poly_map, totpoly);
-	BLI_array_reserve(mface, totpoly);
+	/* take care. we are _not_ calloc'ing so be sure to initialize each field */
+	mface_to_poly_map = MEM_mallocN(sizeof(*mface_to_poly_map) * looptris_tot, __func__);
+	mface             = MEM_mallocN(sizeof(*mface) *             looptris_tot, __func__);
 
 	mface_index = 0;
 	mp = mpoly;
@@ -2538,8 +2503,6 @@ int BKE_mesh_recalc_tessellation(CustomData *fdata,
 #ifdef USE_TESSFACE_SPEEDUP
 
 #define ML_TO_MF(i1, i2, i3)                                                  \
-		BLI_array_grow_one(mface_to_poly_map);                                \
-		BLI_array_grow_one(mface);                                            \
 		mface_to_poly_map[mface_index] = poly_index;                          \
 		mf = &mface[mface_index];                                             \
 		/* set loop indices, transformed to vert indices later */             \
@@ -2549,12 +2512,11 @@ int BKE_mesh_recalc_tessellation(CustomData *fdata,
 		mf->v4 = 0;                                                           \
 		mf->mat_nr = mp->mat_nr;                                              \
 		mf->flag = mp->flag;                                                  \
+		mf->edcode = 0;                                                       \
 		(void)0
 
 /* ALMOST IDENTICAL TO DEFINE ABOVE (see EXCEPTION) */
 #define ML_TO_MF_QUAD()                                                       \
-		BLI_array_grow_one(mface_to_poly_map);                                \
-		BLI_array_grow_one(mface);                                            \
 		mface_to_poly_map[mface_index] = poly_index;                          \
 		mf = &mface[mface_index];                                             \
 		/* set loop indices, transformed to vert indices later */             \
@@ -2564,7 +2526,7 @@ int BKE_mesh_recalc_tessellation(CustomData *fdata,
 		mf->v4 = mp->loopstart + 3; /* EXCEPTION */                           \
 		mf->mat_nr = mp->mat_nr;                                              \
 		mf->flag = mp->flag;                                                  \
-		mf->edcode |= TESSFACE_IS_QUAD; /* EXCEPTION */                       \
+		mf->edcode = TESSFACE_IS_QUAD; /* EXCEPTION */                        \
 		(void)0
 
 
@@ -2607,29 +2569,26 @@ int BKE_mesh_recalc_tessellation(CustomData *fdata,
 			BLI_scanfill_edge_add(&sf_ctx, sf_vert_last, sf_vert_first);
 			
 			totfilltri = BLI_scanfill_calc(&sf_ctx, 0);
-			if (totfilltri) {
-				BLI_array_grow_items(mface_to_poly_map, totfilltri);
-				BLI_array_grow_items(mface, totfilltri);
+			BLI_assert(totfilltri <= mp->totloop - 2);
 
-				for (sf_tri = sf_ctx.fillfacebase.first; sf_tri; sf_tri = sf_tri->next, mf++) {
-					mface_to_poly_map[mface_index] = poly_index;
-					mf = &mface[mface_index];
+			for (sf_tri = sf_ctx.fillfacebase.first; sf_tri; sf_tri = sf_tri->next, mf++) {
+				mface_to_poly_map[mface_index] = poly_index;
+				mf = &mface[mface_index];
 
-					/* set loop indices, transformed to vert indices later */
-					mf->v1 = sf_tri->v1->keyindex;
-					mf->v2 = sf_tri->v2->keyindex;
-					mf->v3 = sf_tri->v3->keyindex;
-					mf->v4 = 0;
+				/* set loop indices, transformed to vert indices later */
+				mf->v1 = sf_tri->v1->keyindex;
+				mf->v2 = sf_tri->v2->keyindex;
+				mf->v3 = sf_tri->v3->keyindex;
+				mf->v4 = 0;
 
-					mf->mat_nr = mp->mat_nr;
-					mf->flag = mp->flag;
+				mf->mat_nr = mp->mat_nr;
+				mf->flag = mp->flag;
 
 #ifdef USE_TESSFACE_SPEEDUP
-					mf->edcode |= TESSFACE_SCANFILL; /* tag for sorting loop indices */
+				mf->edcode = TESSFACE_SCANFILL; /* tag for sorting loop indices */
 #endif
 
-					mface_index++;
-				}
+				mface_index++;
 			}
 	
 			BLI_scanfill_end(&sf_ctx);
@@ -2639,9 +2598,10 @@ int BKE_mesh_recalc_tessellation(CustomData *fdata,
 	CustomData_free(fdata, totface);
 	totface = mface_index;
 
+	BLI_assert(totface <= looptris_tot);
 
 	/* not essential but without this we store over-alloc'd memory in the CustomData layers */
-	if (LIKELY((MEM_allocN_len(mface) / sizeof(*mface)) != totface)) {
+	if (LIKELY(looptris_tot != totface)) {
 		mface = MEM_reallocN(mface, sizeof(*mface) * totface);
 		mface_to_poly_map = MEM_reallocN(mface_to_poly_map, sizeof(*mface_to_poly_map) * totface);
 	}
@@ -3106,6 +3066,107 @@ void BKE_mesh_flush_hidden_from_verts(const MVert *mvert,
 		}
 	}
 }
+
+/**
+ * simple poly -> vert/edge selection.
+ */
+void BKE_mesh_flush_select_from_polys_ex(MVert *mvert,       const int totvert,
+                                         MLoop *mloop,
+                                         MEdge *medge,       const int totedge,
+                                         const MPoly *mpoly, const int totpoly)
+{
+	MVert *mv;
+	MEdge *med;
+	const MPoly *mp;
+	int i;
+
+	i = totvert;
+	for (mv = mvert; i--; mv++) {
+		mv->flag &= ~SELECT;
+	}
+
+	i = totedge;
+	for (med = medge; i--; med++) {
+		med->flag &= ~SELECT;
+	}
+
+	i = totpoly;
+	for (mp = mpoly; i--; mp++) {
+		/* assume if its selected its not hidden and none of its verts/edges are hidden
+		 * (a common assumption)*/
+		if (mp->flag & ME_FACE_SEL) {
+			MLoop *ml;
+			int j;
+			j = mp->totloop;
+			for (ml = &mloop[mp->loopstart]; j--; ml++) {
+				mvert[ml->v].flag |= SELECT;
+				medge[ml->e].flag |= SELECT;
+			}
+		}
+	}
+}
+void BKE_mesh_flush_select_from_polys(Mesh *me)
+{
+	BKE_mesh_flush_select_from_polys_ex(me->mvert, me->totvert,
+	                                 me->mloop,
+	                                 me->medge, me->totedge,
+	                                 me->mpoly, me->totpoly);
+}
+
+void BKE_mesh_flush_select_from_verts_ex(const MVert *mvert, const int UNUSED(totvert),
+                                         MLoop *mloop,
+                                         MEdge *medge,       const int totedge,
+                                         MPoly *mpoly,       const int totpoly)
+{
+	MEdge *med;
+	MPoly *mp;
+	int i;
+
+	/* edges */
+	i = totedge;
+	for (med = medge; i--; med++) {
+		if ((med->flag & ME_HIDE) == 0) {
+			if ((mvert[med->v1].flag & SELECT) && (mvert[med->v2].flag & SELECT)) {
+				med->flag |= SELECT;
+			}
+			else {
+				med->flag &= ~SELECT;
+			}
+		}
+	}
+
+	/* polys */
+	i = totpoly;
+	for (mp = mpoly; i--; mp++) {
+		if ((mp->flag & ME_HIDE) == 0) {
+			int ok = TRUE;
+			MLoop *ml;
+			int j;
+			j = mp->totloop;
+			for (ml = &mloop[mp->loopstart]; j--; ml++) {
+				if ((mvert[ml->v].flag & SELECT) == 0) {
+					ok = FALSE;
+					break;
+				}
+			}
+
+			if (ok) {
+				mp->flag |= ME_FACE_SEL;
+			}
+			else {
+				mp->flag &= ~ME_FACE_SEL;
+			}
+		}
+	}
+}
+void BKE_mesh_flush_select_from_verts(Mesh *me)
+{
+	BKE_mesh_flush_select_from_verts_ex(me->mvert, me->totvert,
+	                                    me->mloop,
+	                                    me->medge, me->totedge,
+	                                    me->mpoly, me->totpoly);
+}
+
 
 /* basic vertex data functions */
 int BKE_mesh_minmax(Mesh *me, float r_min[3], float r_max[3])

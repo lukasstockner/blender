@@ -170,7 +170,7 @@ void smoke_reallocate_fluid(SmokeDomainSettings *sds, float dx, int res[3], int 
 
 	if (free_old && sds->fluid)
 		smoke_free(sds->fluid);
-	if (!MIN3(res[0], res[1], res[2])) {
+	if (!min_iii(res[0], res[1], res[2])) {
 		sds->fluid = NULL;
 		return;
 	}
@@ -191,7 +191,7 @@ void smoke_reallocate_highres_fluid(SmokeDomainSettings *sds, float dx, int res[
 
 	if (free_old && sds->wt)
 		smoke_turbulence_free(sds->wt);
-	if (!MIN3(res[0], res[1], res[2])) {
+	if (!min_iii(res[0], res[1], res[2])) {
 		sds->wt = NULL;
 		return;
 	}
@@ -2407,7 +2407,7 @@ static void smoke_calc_transparency(SmokeDomainSettings *sds, Scene *scene)
 	bv[3] = (float)sds->res[1]; // y
 	bv[5] = (float)sds->res[2]; // z
 
-// #pragma omp parallel for schedule(static,1)
+// #pragma omp parallel for schedule(static, 1)
 	for (z = 0; z < sds->res[2]; z++)
 	{
 		size_t index = z * slabsize;

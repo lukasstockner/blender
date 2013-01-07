@@ -92,7 +92,7 @@ void GPU_render_text(MTFace *tface, int mode,
 	float *v1, float *v2, float *v3, float *v4, int glattrib)
 {
 	if ((mode & GEMAT_TEXT) && (textlen>0) && tface->tpage) {
-		Image* ima = (Image*)tface->tpage;
+		Image* ima = (Image *)tface->tpage;
 		int index, character;
 		float centerx, centery, sizex, sizey, transx, transy, movex, movey, advance;
 		float advance_tab;
@@ -101,9 +101,9 @@ void GPU_render_text(MTFace *tface, int mode,
 		float line_start= 0.0f, line_height;
 		
 		if (v4)
-			line_height= MAX4(v1[1], v2[1], v3[1], v4[2]) - MIN4(v1[1], v2[1], v3[1], v4[2]);
+			line_height = max_ffff(v1[1], v2[1], v3[1], v4[2]) - min_ffff(v1[1], v2[1], v3[1], v4[2]);
 		else
-			line_height= MAX3(v1[1], v2[1], v3[1]) - MIN3(v1[1], v2[1], v3[1]);
+			line_height = max_fff(v1[1], v2[1], v3[1]) - min_fff(v1[1], v2[1], v3[1]);
 		line_height *= 1.2f; /* could be an option? */
 		/* end multiline */
 
@@ -556,8 +556,9 @@ int GPU_verify_image(Image *ima, ImageUser *iuser, int tftile, int compare, int 
 				if (do_color_management) {
 					srgb_frect = MEM_mallocN(ibuf->x*ibuf->y*sizeof(float)*4, "floar_buf_col_cor");
 					IMB_buffer_float_from_float(srgb_frect, ibuf->rect_float,
-						ibuf->channels, IB_PROFILE_SRGB, IB_PROFILE_LINEAR_RGB, 0,
+						ibuf->channels, IB_PROFILE_SRGB, IB_PROFILE_LINEAR_RGB, TRUE,
 						ibuf->x, ibuf->y, ibuf->x, ibuf->x);
+					IMB_buffer_float_unpremultiply(srgb_frect, ibuf->x, ibuf->y);
 					/* clamp buffer colors to 1.0 to avoid artifacts due to glu for hdr images */
 					IMB_buffer_float_clamp(srgb_frect, ibuf->x, ibuf->y);
 					frect= srgb_frect + texwinsy*ibuf->x + texwinsx;
@@ -581,8 +582,9 @@ int GPU_verify_image(Image *ima, ImageUser *iuser, int tftile, int compare, int 
 				if (do_color_management) {
 					frect = srgb_frect = MEM_mallocN(ibuf->x*ibuf->y*sizeof(*srgb_frect)*4, "floar_buf_col_cor");
 					IMB_buffer_float_from_float(srgb_frect, ibuf->rect_float,
-							ibuf->channels, IB_PROFILE_SRGB, IB_PROFILE_LINEAR_RGB, 0,
+							ibuf->channels, IB_PROFILE_SRGB, IB_PROFILE_LINEAR_RGB, TRUE,
 							ibuf->x, ibuf->y, ibuf->x, ibuf->x);
+					IMB_buffer_float_unpremultiply(srgb_frect, ibuf->x, ibuf->y);
 					/* clamp buffer colors to 1.0 to avoid artifacts due to glu for hdr images */
 					IMB_buffer_float_clamp(srgb_frect, ibuf->x, ibuf->y);
 				}
@@ -773,6 +775,9 @@ int GPU_upload_dxt_texture(ImBuf *ibuf)
 
 	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
+	if (GLEW_EXT_texture_filter_anisotropic)
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, GPU_get_anisotropic());
+
 	blocksize = (ibuf->dds_data.fourcc == FOURCC_DXT1) ? 8 : 16;
 	for (i=0; i<ibuf->dds_data.nummipmaps && (width||height); ++i) {
 		if (width == 0)
@@ -810,7 +815,7 @@ void GPU_create_gl_tex_compressed(unsigned int *bind, unsigned int *pix, int x, 
 	glBindTexture(GL_TEXTURE_2D, *bind);
 
 	if (GPU_upload_dxt_texture(ibuf) == 0) {
-		glDeleteTextures(1, (GLuint*)bind);
+		glDeleteTextures(1, (GLuint *)bind);
 		GPU_create_gl_tex(bind, pix, NULL, x, y, mipmap, 0, ima);
 	}
 #endif

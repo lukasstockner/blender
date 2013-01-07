@@ -154,7 +154,7 @@ int paint_facesel_test(Object *ob)
 	return ( (ob != NULL) &&
 	         (ob->type == OB_MESH) &&
 	         (ob->data != NULL) &&
-	         (((Mesh *)ob->data)->editflag & ME_EDIT_PAINT_MASK) &&
+	         (((Mesh *)ob->data)->editflag & ME_EDIT_PAINT_FACE_SEL) &&
 	         (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT))
 	         );
 }
@@ -165,7 +165,7 @@ int paint_vertsel_test(Object *ob)
 	return ( (ob != NULL) &&
 	         (ob->type == OB_MESH) &&
 	         (ob->data != NULL) &&
-	         (((Mesh *)ob->data)->editflag & ME_EDIT_VERT_SEL) &&
+	         (((Mesh *)ob->data)->editflag & ME_EDIT_PAINT_VERT_SEL) &&
 	         (ob->mode & OB_MODE_WEIGHT_PAINT)
 	         );
 }
@@ -212,7 +212,7 @@ int paint_is_face_hidden(const MFace *f, const MVert *mvert)
 }
 
 /* returns non-zero if any of the corners of the grid
- * face whose inner corner is at (x,y) are hidden,
+ * face whose inner corner is at (x, y) are hidden,
  * zero otherwise */
 int paint_is_grid_face_hidden(const unsigned int *grid_hidden,
                               int gridsize, int x, int y)

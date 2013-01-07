@@ -1,5 +1,5 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
+ * Copyright 2012, Blender Foundation.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -14,28 +14,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
- * ***** END GPL LICENSE BLOCK *****
- */
-#ifndef __BLO_SOUNDFILE_H__
-#define __BLO_SOUNDFILE_H__
-
-/** \file BLO_soundfile.h
- *  \ingroup blenloader
  */
 
-#include "DNA_sound_types.h"
-#include "DNA_packedFile_types.h"
+#include "stdosl.h"
 
-struct bSound;
-struct PackedFile;
-
-#endif
+shader node_hair_info(
+	output float IsStrand = 0.0,
+	output float Intercept = 0.0,
+	output float Thickness = 0.0,
+	output normal TangentNormal = N)
+{
+	getattribute("geom:is_curve", IsStrand);
+	getattribute("geom:curve_intercept", Intercept);
+	getattribute("geom:curve_thickness", Thickness);
+	getattribute("geom:curve_tangent_normal", TangentNormal);
+}
 

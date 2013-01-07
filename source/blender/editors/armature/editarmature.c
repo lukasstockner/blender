@@ -812,7 +812,7 @@ static void joined_armature_fix_links(Object *tarArm, Object *srcArm, bPoseChann
 			pose = ob->pose;
 			for (pchant = pose->chanbase.first; pchant; pchant = pchant->next) {
 				for (con = pchant->constraints.first; con; con = con->next) {
-					bConstraintTypeInfo *cti = constraint_get_typeinfo(con);
+					bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
 					ListBase targets = {NULL, NULL};
 					bConstraintTarget *ct;
 					
@@ -859,7 +859,7 @@ static void joined_armature_fix_links(Object *tarArm, Object *srcArm, bPoseChann
 		/* fix object-level constraints */
 		if (ob != srcArm) {
 			for (con = ob->constraints.first; con; con = con->next) {
-				bConstraintTypeInfo *cti = constraint_get_typeinfo(con);
+				bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
 				ListBase targets = {NULL, NULL};
 				bConstraintTarget *ct;
 				
@@ -1032,7 +1032,7 @@ static void separated_armature_fix_links(Object *origArm, Object *newArm)
 		if (ob->type == OB_ARMATURE) {
 			for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 				for (con = pchan->constraints.first; con; con = con->next) {
-					bConstraintTypeInfo *cti = constraint_get_typeinfo(con);
+					bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
 					ListBase targets = {NULL, NULL};
 					bConstraintTarget *ct;
 					
@@ -1070,7 +1070,7 @@ static void separated_armature_fix_links(Object *origArm, Object *newArm)
 		/* fix object-level constraints */
 		if (ob != origArm) {
 			for (con = ob->constraints.first; con; con = con->next) {
-				bConstraintTypeInfo *cti = constraint_get_typeinfo(con);
+				bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
 				ListBase targets = {NULL, NULL};
 				bConstraintTarget *ct;
 				
@@ -1712,7 +1712,7 @@ static int armature_delete_selected_exec(bContext *C, wmOperator *UNUSED(op))
 			}
 			else {
 				for (con = pchan->constraints.first; con; con = con->next) {
-					bConstraintTypeInfo *cti = constraint_get_typeinfo(con);
+					bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
 					ListBase targets = {NULL, NULL};
 					bConstraintTarget *ct;
 					
@@ -2256,6 +2256,7 @@ void undo_push_armature(bContext *C, const char *name)
 /* *************** Adding stuff in editmode *************** */
 
 /* default bone add, returns it selected, but without tail set */
+/* XXX should be used everywhere, now it mallocs bones still locally in functions */
 EditBone *ED_armature_edit_bone_add(bArmature *arm, const char *name)
 {
 	EditBone *bone = MEM_callocN(sizeof(EditBone), "eBone");
@@ -2265,7 +2266,7 @@ EditBone *ED_armature_edit_bone_add(bArmature *arm, const char *name)
 	
 	BLI_addtail(arm->edbo, bone);
 	
-	bone->flag |= BONE_TIPSEL;
+	bone->flag |= BONE_TIPSEL | BONE_RELATIVE_PARENTING;
 	bone->weight = 1.0f;
 	bone->dist = 0.25f;
 	bone->xwidth = 0.1f;
@@ -2522,7 +2523,7 @@ void updateDuplicateSubtargetObjects(EditBone *dupBone, ListBase *editbones, Obj
 				/* does this constraint have a subtarget in
 				 * this armature?
 				 */
-				bConstraintTypeInfo *cti = constraint_get_typeinfo(curcon);
+				bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(curcon);
 				ListBase targets = {NULL, NULL};
 				bConstraintTarget *ct;
 				
@@ -3410,7 +3411,7 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
 						copy_v3_v3(newbone->tail, newbone->head);
 						newbone->parent = ebone;
 						
-						newbone->flag = ebone->flag & BONE_TIPSEL;  // copies it, in case mirrored bone
+						newbone->flag = ebone->flag & (BONE_TIPSEL | BONE_RELATIVE_PARENTING);  // copies it, in case mirrored bone
 						
 						if (newbone->parent) newbone->flag |= BONE_CONNECTED;
 					}
@@ -3419,7 +3420,7 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
 						copy_v3_v3(newbone->tail, ebone->head);
 						newbone->parent = ebone->parent;
 						
-						newbone->flag = BONE_TIPSEL;
+						newbone->flag = BONE_TIPSEL | BONE_RELATIVE_PARENTING;
 						
 						if (newbone->parent && (ebone->flag & BONE_CONNECTED)) {
 							newbone->flag |= BONE_CONNECTED;
@@ -5532,7 +5533,7 @@ static void constraint_bone_name_fix(Object *ob, ListBase *conlist, char *oldnam
 	bConstraintTarget *ct;
 	
 	for (curcon = conlist->first; curcon; curcon = curcon->next) {
-		bConstraintTypeInfo *cti = constraint_get_typeinfo(curcon);
+		bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(curcon);
 		ListBase targets = {NULL, NULL};
 		
 		if (cti && cti->get_constraint_targets) {

@@ -1101,7 +1101,7 @@ static void rna_ShaderNodeScript_mode_set(PointerRNA *ptr, int value)
 
 		/* replace text datablock by filepath */
 		if (node->id) {
-			Text *text = (Text*)node->id;
+			Text *text = (Text *)node->id;
 
 			if (value == NODE_SCRIPT_EXTERNAL && text->name) {
 				BLI_strncpy(nss->filepath, text->name, sizeof(nss->filepath));
@@ -2480,7 +2480,7 @@ static void def_cmp_dilate_erode(StructRNA *srna)
 {
 	PropertyRNA *prop;
 
-	static EnumPropertyItem type_items[] = {
+	static EnumPropertyItem mode_items[] = {
 	    {CMP_NODE_DILATEERODE_STEP,             "STEP",      0, "Step",      ""},
 	    {CMP_NODE_DILATEERODE_DISTANCE_THRESH,  "THRESHOLD", 0, "Threshold", ""},
 	    {CMP_NODE_DILATEERODE_DISTANCE,         "DISTANCE",  0, "Distance",  ""},
@@ -2488,10 +2488,10 @@ static void def_cmp_dilate_erode(StructRNA *srna)
 	    {0, NULL, 0, NULL, NULL}
 	};
 	
-	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
+	prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "custom1");
-	RNA_def_property_enum_items(prop, type_items);
-	RNA_def_property_ui_text(prop, "Distance", "Distance to grow/shrink (number of iterations)");
+	RNA_def_property_enum_items(prop, mode_items);
+	RNA_def_property_ui_text(prop, "Mode", "Growing/shrinking mode");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 	
 	prop = RNA_def_property(srna, "distance", PROP_INT, PROP_NONE);
@@ -3217,8 +3217,8 @@ static void def_cmp_premul_key(StructRNA *srna)
 	PropertyRNA *prop;
 	
 	static EnumPropertyItem type_items[] = {
-		{0, "KEY_TO_PREMUL", 0, "Key to Premul", ""},
-		{1, "PREMUL_TO_KEY", 0, "Premul to Key", ""},
+		{0, "STRAIGHT_TO_PREMUL", 0, "Straight to Premul", ""},
+		{1, "PREMUL_TO_STRAIGHT", 0, "Premul to Straight", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 	
@@ -4644,7 +4644,7 @@ static void rna_def_node(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "location", PROP_FLOAT, PROP_XYZ);
 	RNA_def_property_float_sdna(prop, NULL, "locx");
 	RNA_def_property_array(prop, 2);
-	RNA_def_property_range(prop, -10000.0f, 10000.0f);
+	RNA_def_property_range(prop, -100000.0f, 100000.0f);
 	RNA_def_property_ui_text(prop, "Location", "");
 	RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 	

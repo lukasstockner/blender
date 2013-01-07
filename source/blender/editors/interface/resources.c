@@ -170,6 +170,13 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 					else
 						cp = ts->button;
 					break;
+				case TH_BACK_GRAD:
+					cp = ts->gradients.gradient;
+					break;
+				case TH_SHOW_BACK_GRAD:
+					cp = &setting;
+					setting = ts->gradients.show_grad;
+					break;
 				case TH_TEXT:
 					if (theme_regionid == RGN_TYPE_WINDOW)
 						cp = ts->text;
@@ -358,8 +365,14 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 					cp = ts->syntaxc; break;
 				case TH_SYNTAX_L:
 					cp = ts->syntaxl; break;
+				case TH_SYNTAX_D:
+					cp = ts->syntaxd; break;
+				case TH_SYNTAX_R:
+					cp = ts->syntaxr; break;
 				case TH_SYNTAX_N:
 					cp = ts->syntaxn; break;
+				case TH_SYNTAX_S:
+					cp = ts->syntaxs; break;
 
 				case TH_NODE:
 					cp = ts->syntaxl; break;
@@ -677,6 +690,9 @@ void ui_theme_init_default(void)
 	rgba_char_args_set(btheme->tui.yaxis,   0, 220,   0, 255);
 	rgba_char_args_set(btheme->tui.zaxis,   0,   0, 220, 255);
 
+	btheme->tui.menu_shadow_fac = 0.5f;
+	btheme->tui.menu_shadow_width = 12;
+	
 	/* Bone Color Sets */
 	ui_theme_init_boneColorSets(btheme);
 	
@@ -763,7 +779,9 @@ void ui_theme_init_default(void)
 	rgba_char_args_set(btheme->tv3d.camera_path, 0x00, 0x00, 0x00, 255);
 
 	rgba_char_args_set(btheme->tv3d.skin_root, 180, 77, 77, 255);
-	
+	rgba_char_args_set(btheme->tv3d.gradients.gradient, 0, 0, 0, 0);
+	btheme->tv3d.gradients.show_grad = FALSE;
+
 	/* space buttons */
 	/* to have something initialized */
 	btheme->tbuts = btheme->tv3d;
@@ -866,8 +884,8 @@ void ui_theme_init_default(void)
 	rgba_char_args_set_fl(btheme->tima.preview_stitch_vert, 0.0, 0.0, 1.0, 0.2);
 	rgba_char_args_set_fl(btheme->tima.preview_stitch_stitchable, 0.0, 1.0, 0.0, 1.0);
 	rgba_char_args_set_fl(btheme->tima.preview_stitch_unstitchable, 1.0, 0.0, 0.0, 1.0);
-    rgba_char_args_set_fl(btheme->tima.preview_stitch_active, 0.886, 0.824, 0.765, 0.140);
-    
+	rgba_char_args_set_fl(btheme->tima.preview_stitch_active, 0.886, 0.824, 0.765, 0.140);
+
 	/* space text */
 	btheme->text = btheme->tv3d;
 	rgba_char_args_set(btheme->text.back,   153, 153, 153, 255);
@@ -877,10 +895,13 @@ void ui_theme_init_default(void)
 	
 	/* syntax highlighting */
 	rgba_char_args_set(btheme->text.syntaxn,    0, 0, 200, 255);    /* Numbers  Blue*/
-	rgba_char_args_set(btheme->text.syntaxl,    100, 0, 0, 255);    /* Strings  red */
-	rgba_char_args_set(btheme->text.syntaxc,    0, 100, 50, 255);   /* Comments greenish */
-	rgba_char_args_set(btheme->text.syntaxv,    95, 95, 0, 255);    /* Special */
-	rgba_char_args_set(btheme->text.syntaxb,    128, 0, 80, 255);   /* Builtin, red-purple */
+	rgba_char_args_set(btheme->text.syntaxl,    100, 0, 0, 255);    /* Strings  Red */
+	rgba_char_args_set(btheme->text.syntaxc,    0, 100, 50, 255);   /* Comments  Greenish */
+	rgba_char_args_set(btheme->text.syntaxv,    95, 95, 0, 255);    /* Special  Yellow*/
+	rgba_char_args_set(btheme->text.syntaxd,    50, 0, 140, 255);   /* Decorator/Preprocessor Dir.  Blue-purple */
+	rgba_char_args_set(btheme->text.syntaxr,    140, 60, 0, 255);   /* Reserved  Orange*/
+	rgba_char_args_set(btheme->text.syntaxb,    128, 0, 80, 255);   /* Builtin  Red-purple */
+	rgba_char_args_set(btheme->text.syntaxs,    76, 76, 76, 255);   /* Grey (mix between fg/bg) */
 	
 	/* space oops */
 	btheme->toops = btheme->tv3d;
@@ -1257,6 +1278,12 @@ void UI_ThemeClearColor(int colorid)
 	
 	UI_GetThemeColor3fv(colorid, col);
 	glClearColor(col[0], col[1], col[2], 0.0);
+}
+
+int UI_ThemeMenuShadowWidth(void)
+{
+	bTheme *btheme = UI_GetTheme();
+	return (int)(btheme->tui.menu_shadow_width * UI_DPI_FAC);
 }
 
 void UI_make_axis_color(const unsigned char src_col[3], unsigned char dst_col[3], const char axis)
@@ -2061,7 +2088,27 @@ void init_userdef_do_versions(void)
 		}
 	}
 	
-	
+	if (bmain->versionfile < 266) {
+		bTheme *btheme;
+		
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			/* rna definition limits fac to 0.01 */
+			if (btheme->tui.menu_shadow_fac == 0.0f) {
+				btheme->tui.menu_shadow_fac = 0.5f;
+				btheme->tui.menu_shadow_width = 12;
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(bmain, 266, 4)) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			rgba_char_args_set(btheme->text.syntaxd,    50, 0, 140, 255);   /* Decorator/Preprocessor Dir.  Blue-purple */
+			rgba_char_args_set(btheme->text.syntaxr,    140, 60, 0, 255);   /* Reserved  Orange */
+			rgba_char_args_set(btheme->text.syntaxs,    76, 76, 76, 255);   /* Grey (mix between fg/bg) */
+		}
+	}
+
 	if (U.pixelsize == 0.0f)
 		U.pixelsize = 1.0f;
 	

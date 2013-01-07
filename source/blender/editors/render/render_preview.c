@@ -84,6 +84,8 @@
 #include "IMB_imbuf_types.h"
 #include "IMB_colormanagement.h"
 
+#include "GPU_extensions.h"
+
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
@@ -278,11 +280,6 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 		else {
 			sce->r.tilex = sce->r.xsch / 4;
 			sce->r.tiley = sce->r.ysch / 4;
-		}
-		
-		/* exception: don't apply render part of display transform for texture previews or icons */
-		if ((id && sp->pr_method == PR_ICON_RENDER) || id_type == ID_TE) {
-			BKE_scene_disable_color_management(sce);
 		}
 		
 		if ((id && sp->pr_method == PR_ICON_RENDER) && id_type != ID_WO)
@@ -488,23 +485,14 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 
 /* new UI convention: draw is in pixel space already. */
 /* uses ROUNDBOX button in block to get the rect */
-static int ed_preview_draw_rect(ScrArea *sa, Scene *sce, ID *id, int split, int first, rcti *rect, rcti *newrect)
+static int ed_preview_draw_rect(ScrArea *sa, int split, int first, rcti *rect, rcti *newrect)
 {
 	Render *re;
 	RenderResult rres;
 	char name[32];
-	int do_gamma_correct = FALSE, do_predivide = FALSE;
 	int offx = 0;
 	int newx = BLI_rcti_size_x(rect);
 	int newy = BLI_rcti_size_y(rect);
-
-	if (id && GS(id->name) != ID_TE) {
-		/* exception: don't color manage texture previews - show the raw values */
-		if (sce) {
-			do_gamma_correct = TRUE;
-			do_predivide = sce->r.color_mgt_flag & R_COLOR_MANAGEMENT_PREDIVIDE;
-		}
-	}
 
 	if (!split || first) sprintf(name, "Preview %p", (void *)sa);
 	else sprintf(name, "SecondPreview %p", (void *)sa);
@@ -520,8 +508,10 @@ static int ed_preview_draw_rect(ScrArea *sa, Scene *sce, ID *id, int split, int 
 		}
 	}
 
+	/* test if something rendered ok */
 	re = RE_GetRender(name);
 	RE_AcquireResultImage(re, &rres);
+	RE_ReleaseResultImage(re);
 
 	if (rres.rectf) {
 		
@@ -531,40 +521,20 @@ static int ed_preview_draw_rect(ScrArea *sa, Scene *sce, ID *id, int split, int 
 			newrect->ymax = max_ii(newrect->ymax, rect->ymin + rres.recty);
 
 			if (rres.rectx && rres.recty) {
-				/* temporary conversion to byte for drawing */
+				unsigned char *rect_byte = MEM_mallocN(rres.rectx * rres.recty * sizeof(int), "ed_preview_draw_rect");
 				float fx = rect->xmin + offx;
 				float fy = rect->ymin;
-				int dither = 0;
-				unsigned char *rect_byte;
-
-				rect_byte = MEM_mallocN(rres.rectx * rres.recty * sizeof(int), "ed_preview_draw_rect");
-
-				if (do_gamma_correct) {
-					IMB_display_buffer_transform_apply(rect_byte, rres.rectf, rres.rectx, rres.recty, 4,
-					                                   &sce->view_settings, &sce->display_settings, do_predivide);
-
-				}
-				else {
-					/* OCIO_TODO: currently seems an exception for textures (came fro mlegacish time),
-					 *            but is it indeed expected behavior, or textures should be
-					 *            color managed as well?
-					 */
-					IMB_buffer_byte_from_float(rect_byte, rres.rectf,
-					                           4, dither, IB_PROFILE_SRGB, IB_PROFILE_SRGB, do_predivide,
-					                           rres.rectx, rres.recty, rres.rectx, rres.rectx);
-				}
-
+				
+				RE_ResultGet32(re, (unsigned int *)rect_byte);
 				glaDrawPixelsSafe(fx, fy, rres.rectx, rres.recty, rres.rectx, GL_RGBA, GL_UNSIGNED_BYTE, rect_byte);
-
+				
 				MEM_freeN(rect_byte);
+				
+				return 1;
 			}
-
-			RE_ReleaseResultImage(re);
-			return 1;
 		}
 	}
 
-	RE_ReleaseResultImage(re);
 	return 0;
 }
 
@@ -572,7 +542,6 @@ void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slotp, r
 {
 	if (idp) {
 		ScrArea *sa = CTX_wm_area(C);
-		Scene *sce = CTX_data_scene(C);
 		ID *id = (ID *)idp;
 		ID *parent = (ID *)parentp;
 		MTex *slot = (MTex *)slotp;
@@ -588,11 +557,11 @@ void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slotp, r
 		newrect.ymax = rect->ymin;
 
 		if (parent) {
-			ok = ed_preview_draw_rect(sa, sce, id, 1, 1, rect, &newrect);
-			ok &= ed_preview_draw_rect(sa, sce, parent, 1, 0, rect, &newrect);
+			ok = ed_preview_draw_rect(sa, 1, 1, rect, &newrect);
+			ok &= ed_preview_draw_rect(sa, 1, 0, rect, &newrect);
 		}
 		else
-			ok = ed_preview_draw_rect(sa, sce, id, 0, 0, rect, &newrect);
+			ok = ed_preview_draw_rect(sa, 0, 0, rect, &newrect);
 
 		if (ok)
 			*rect = newrect;
@@ -743,7 +712,7 @@ static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int firs
 	else {
 		/* validate owner */
 		//if (ri->rect == NULL)
-		//	ri->rect= MEM_mallocN(sizeof(int)*ri->pr_rectx*ri->pr_recty, "BIF_previewrender");
+		//	ri->rect= MEM_mallocN(sizeof(int) * ri->pr_rectx*ri->pr_recty, "BIF_previewrender");
 		//RE_ResultGet32(re, ri->rect);
 	}
 
@@ -917,7 +886,7 @@ static void icon_preview_startjob(void *customdata, short *stop, short *do_updat
 	ShaderPreview *sp = customdata;
 	ID *id = sp->id;
 	short idtype = GS(id->name);
-
+	
 	if (idtype == ID_IM) {
 		Image *ima = (Image *)id;
 		ImBuf *ibuf = NULL;
@@ -1040,8 +1009,27 @@ static void icon_preview_endjob(void *customdata)
 {
 	IconPreview *ip = customdata;
 
-	if (ip->id && GS(ip->id->name) == ID_BR)
-		WM_main_add_notifier(NC_BRUSH | NA_EDITED, ip->id);
+	if (ip->id) {
+
+		if (GS(ip->id->name) == ID_BR)
+			WM_main_add_notifier(NC_BRUSH | NA_EDITED, ip->id);
+#if 0		
+		if (GS(ip->id->name) == ID_MA) {
+			Material *ma = (Material *)ip->id;
+			PreviewImage *prv_img = ma->preview;
+			int i;
+
+			/* signal to gpu texture */
+			for (i = 0; i < NUM_ICON_SIZES; ++i) {
+				if (prv_img->gputexture[i]) {
+					GPU_texture_free(prv_img->gputexture[i]);
+					prv_img->gputexture[i] = NULL;
+					WM_main_add_notifier(NC_MATERIAL|ND_SHADING_DRAW, ip->id);
+				}
+			}
+		}
+#endif
+	}
 }
 
 static void icon_preview_free(void *customdata)
@@ -1077,7 +1065,7 @@ void ED_preview_icon_job(const bContext *C, void *owner, ID *id, unsigned int *r
 
 	/* setup job */
 	WM_jobs_customdata_set(wm_job, ip, icon_preview_free);
-	WM_jobs_timer(wm_job, 0.25, NC_MATERIAL, NC_MATERIAL);
+	WM_jobs_timer(wm_job, 0.1, NC_MATERIAL, NC_MATERIAL);
 	WM_jobs_callbacks(wm_job, icon_preview_startjob_all_sizes, NULL, NULL, icon_preview_endjob);
 
 	WM_jobs_start(CTX_wm_manager(C), wm_job);

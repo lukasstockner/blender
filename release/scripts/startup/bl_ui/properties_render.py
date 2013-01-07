@@ -19,7 +19,7 @@
 
 # <pep8 compliant>
 import bpy
-from bpy.types import Menu, Panel
+from bpy.types import Menu, Panel, UIList
 
 
 class RENDER_MT_presets(Menu):
@@ -42,6 +42,23 @@ class RENDER_MT_framerate_presets(Menu):
     preset_operator = "script.execute_preset"
     draw = Menu.draw_preset
 
+
+class RENDER_UL_renderlayers(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        # assert(isinstance(item, bpy.types.SceneRenderLayer)
+        layer = item
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            layout.label(layer.name, icon_value=icon)
+            layout.prop(layer, "use", text="", index=index)
+        elif self.layout_type in {'GRID'}:
+            layout.alignment = 'CENTER'
+            layout.label("", icon_value=icon)
+
+#	else if (RNA_struct_is_a(itemptr->type, &RNA_SceneRenderLayer)) {
+#		uiItemL(sub, name, icon);
+#		uiBlockSetEmboss(block, UI_EMBOSS);
+#		uiDefButR(block, OPTION, 0, "", 0, 0, UI_UNIT_X, UI_UNIT_Y, itemptr, "use", 0, 0, 0, 0, 0,  NULL);
+#	}
 
 class RenderButtonsPanel():
     bl_space_type = 'PROPERTIES'
@@ -84,7 +101,7 @@ class RENDER_PT_layers(RenderButtonsPanel, Panel):
         rd = scene.render
 
         row = layout.row()
-        row.template_list(rd, "layers", rd.layers, "active_index", rows=2)
+        row.template_list("RENDER_UL_renderlayers", "", rd, "layers", rd.layers, "active_index", rows=2)
 
         col = row.column(align=True)
         col.operator("scene.render_layer_add", icon='ZOOMIN', text="")
@@ -592,9 +609,12 @@ class RENDER_PT_bake(RenderButtonsPanel, Panel):
             split = layout.split()
 
             col = split.column()
-            col.prop(rd, "use_bake_clear")
-            col.prop(rd, "bake_margin")
-            col.prop(rd, "bake_quad_split", text="Split")
+            col.prop(rd, "use_bake_to_vertex_color")
+            sub = col.column()
+            sub.active = not rd.use_bake_to_vertex_color
+            sub.prop(rd, "use_bake_clear")
+            sub.prop(rd, "bake_margin")
+            sub.prop(rd, "bake_quad_split", text="Split")
 
             col = split.column()
             col.prop(rd, "use_bake_selected_to_active")

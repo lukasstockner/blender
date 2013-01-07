@@ -802,10 +802,25 @@ void OBJECT_OT_lamp_add(wmOperatorType *ot)
 
 static int group_instance_add_exec(bContext *C, wmOperator *op)
 {
-	Group *group = BLI_findlink(&CTX_data_main(C)->group, RNA_enum_get(op->ptr, "group"));
-
+	Group *group;
 	unsigned int layer;
 	float loc[3], rot[3];
+	
+	if (RNA_struct_property_is_set(op->ptr, "name")) {
+		char name[MAX_ID_NAME - 2];
+		
+		RNA_string_get(op->ptr, "name", name);
+		group = (Group *)BKE_libblock_find_name(ID_GR, name);
+		
+		if (0 == RNA_struct_property_is_set(op->ptr, "location")) {
+			wmEvent *event = CTX_wm_window(C)->eventstate;
+			ED_object_location_from_view(C, loc);
+			ED_view3d_cursor3d_position(C, loc, event->x, event->y);
+			RNA_float_set_array(op->ptr, "location", loc);
+		}
+	}
+	else
+		group = BLI_findlink(&CTX_data_main(C)->group, RNA_enum_get(op->ptr, "group"));
 
 	if (!ED_object_add_generic_get_opts(C, op, loc, rot, NULL, &layer, NULL))
 		return OPERATOR_CANCELLED;
@@ -847,6 +862,7 @@ void OBJECT_OT_group_instance_add(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
+	RNA_def_string(ot->srna, "name", "Group", MAX_ID_NAME - 2, "Name", "Group name to add");
 	ot->prop = RNA_def_enum(ot->srna, "group", DummyRNA_NULL_items, 0, "Group", "");
 	RNA_def_enum_funcs(ot->prop, RNA_group_itemf);
 	ED_object_add_generic_props(ot, FALSE);
@@ -1985,6 +2001,7 @@ void OBJECT_OT_duplicate(wmOperatorType *ot)
 
 static int add_named_exec(bContext *C, wmOperator *op)
 {
+	wmEvent *event = CTX_wm_window(C)->eventstate;
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	Base *basen, *base;
@@ -2017,6 +2034,8 @@ static int add_named_exec(bContext *C, wmOperator *op)
 	basen->lay = basen->object->lay = scene->lay;
 
 	ED_object_location_from_view(C, basen->object->loc);
+	ED_view3d_cursor3d_position(C, basen->object->loc, event->x, event->y);
+	
 	ED_base_object_activate(C, basen);
 
 	copy_object_set_idnew(C, dupflag);

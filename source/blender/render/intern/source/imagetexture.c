@@ -102,6 +102,11 @@ static void ibuf_get_color(float col[4], struct ImBuf *ibuf, int x, int y)
 		col[1] = ((float)rect[1])*(1.0f/255.0f);
 		col[2] = ((float)rect[2])*(1.0f/255.0f);
 		col[3] = ((float)rect[3])*(1.0f/255.0f);
+
+		/* bytes are internally straight, however render pipeline seems to expect premul */
+		col[0] *= col[3];
+		col[1] *= col[3];
+		col[2] *= col[3];
 	}
 }
 
@@ -219,10 +224,8 @@ int imagewrap(Tex *tex, Image *ima, ImBuf *ibuf, const float texvec[3], TexResul
 	}
 
 	/* keep this before interpolation [#29761] */
-	if (tex->imaflag & TEX_USEALPHA) {
-		if ((tex->imaflag & TEX_CALCALPHA) == 0) {
-			texres->talpha = TRUE;
-		}
+	if ((tex->imaflag & TEX_CALCALPHA) == 0) {
+		texres->talpha = TRUE;
 	}
 
 	/* interpolate */
@@ -286,7 +289,7 @@ int imagewrap(Tex *tex, Image *ima, ImBuf *ibuf, const float texvec[3], TexResul
 
 	if (texres->talpha) texres->tin= texres->ta;
 	else if (tex->imaflag & TEX_CALCALPHA) {
-		texres->ta= texres->tin= MAX3(texres->tr, texres->tg, texres->tb);
+		texres->ta = texres->tin = max_fff(texres->tr, texres->tg, texres->tb);
 	}
 	else texres->ta= texres->tin= 1.0;
 	
@@ -710,9 +713,10 @@ static int ibuf_get_color_clip(float col[4], ImBuf *ibuf, int x, int y, int extf
 	}
 	else {
 		char *rect = (char *)(ibuf->rect + x + y*ibuf->x);
-		col[0] = rect[0]*(1.f/255.f);
-		col[1] = rect[1]*(1.f/255.f);
-		col[2] = rect[2]*(1.f/255.f);
+		float inv_alpha_fac = (1.0f / 255.0f) * rect[3] * (1.0f / 255.0f);
+		col[0] = rect[0] * inv_alpha_fac;
+		col[1] = rect[1] * inv_alpha_fac;
+		col[2] = rect[2] * inv_alpha_fac;
 		col[3] = clip ? 0.f : rect[3]*(1.f/255.f);
 	}
 	return clip;
@@ -1088,7 +1092,8 @@ static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, const float tex
 	/* mipmap test */
 	image_mipmap_test(tex, ibuf);
 	
-	if ((tex->imaflag & TEX_USEALPHA) && ((tex->imaflag & TEX_CALCALPHA) == 0)) texres->talpha = 1;
+	if ((tex->imaflag & TEX_CALCALPHA) == 0)
+		texres->talpha = 1;
 	texr.talpha = texres->talpha;
 
 	if (tex->imaflag & TEX_IMAROT) {
@@ -1112,10 +1117,10 @@ static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, const float tex
 	}
 
 	/* pixel coordinates */
-	minx = MIN3(dxt[0], dyt[0], dxt[0] + dyt[0]);
-	maxx = MAX3(dxt[0], dyt[0], dxt[0] + dyt[0]);
-	miny = MIN3(dxt[1], dyt[1], dxt[1] + dyt[1]);
-	maxy = MAX3(dxt[1], dyt[1], dxt[1] + dyt[1]);
+	minx = min_fff(dxt[0], dyt[0], dxt[0] + dyt[0]);
+	maxx = max_fff(dxt[0], dyt[0], dxt[0] + dyt[0]);
+	miny = min_fff(dxt[1], dyt[1], dxt[1] + dyt[1]);
+	maxy = max_fff(dxt[1], dyt[1], dxt[1] + dyt[1]);
 
 	/* tex_sharper has been removed */
 	minx = (maxx - minx)*0.5f;
@@ -1416,7 +1421,7 @@ static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, const float tex
 	}
 
 	if (tex->imaflag & TEX_CALCALPHA)
-		texres->ta = texres->tin = texres->ta * MAX3(texres->tr, texres->tg, texres->tb);
+		texres->ta = texres->tin = texres->ta * max_fff(texres->tr, texres->tg, texres->tb);
 	else
 		texres->tin = texres->ta;
 	if (tex->flag & TEX_NEGALPHA) texres->ta = 1.f - texres->ta;
@@ -1501,13 +1506,8 @@ int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, const float texvec[3], const
 	/* mipmap test */
 	image_mipmap_test(tex, ibuf);
 
-	if (tex->imaflag & TEX_USEALPHA) {
-		if (tex->imaflag & TEX_CALCALPHA) {
-			/* pass */
-		}
-		else {
-			texres->talpha = TRUE;
-		}
+	if ((tex->imaflag & TEX_CALCALPHA) == 0) {
+		texres->talpha = TRUE;
 	}
 	
 	texr.talpha= texres->talpha;
@@ -1535,10 +1535,10 @@ int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, const float texvec[3], const
 	
 	/* pixel coordinates */
 
-	minx = MIN3(dxt[0], dyt[0], dxt[0] + dyt[0]);
-	maxx = MAX3(dxt[0], dyt[0], dxt[0] + dyt[0]);
-	miny = MIN3(dxt[1], dyt[1], dxt[1] + dyt[1]);
-	maxy = MAX3(dxt[1], dyt[1], dxt[1] + dyt[1]);
+	minx = min_fff(dxt[0], dyt[0], dxt[0] + dyt[0]);
+	maxx = max_fff(dxt[0], dyt[0], dxt[0] + dyt[0]);
+	miny = min_fff(dxt[1], dyt[1], dxt[1] + dyt[1]);
+	maxy = max_fff(dxt[1], dyt[1], dxt[1] + dyt[1]);
 
 	/* tex_sharper has been removed */
 	minx= (maxx-minx)/2.0f;
@@ -1826,7 +1826,7 @@ int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, const float texvec[3], const
 	}
 	
 	if (tex->imaflag & TEX_CALCALPHA) {
-		texres->ta= texres->tin= texres->ta*MAX3(texres->tr, texres->tg, texres->tb);
+		texres->ta = texres->tin = texres->ta * max_fff(texres->tr, texres->tg, texres->tb);
 	}
 	else texres->tin= texres->ta;
 

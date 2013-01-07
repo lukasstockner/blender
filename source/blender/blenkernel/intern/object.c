@@ -264,14 +264,44 @@ void free_sculptsession_deformMats(SculptSession *ss)
 	ss->deform_imats = NULL;
 }
 
+/* Write out the sculpt dynamic-topology BMesh to the Mesh */
+void sculptsession_bm_to_me(struct Object *ob, int reorder)
+{
+	if (ob && ob->sculpt) {
+		SculptSession *ss = ob->sculpt;
+
+		if (ss->bm) {
+			if (ob->data) {
+				BMIter iter;
+				BMFace *efa;
+				BM_ITER_MESH (efa, &iter, ss->bm, BM_FACES_OF_MESH) {
+					BM_elem_flag_set(efa, BM_ELEM_SMOOTH,
+					                 ss->bm_smooth_shading);
+				}
+				if (reorder)
+					BM_log_mesh_elems_reorder(ss->bm, ss->bm_log);
+				BM_mesh_bm_to_me(ss->bm, ob->data, FALSE);
+			}
+		}
+	}
+}
+
 void free_sculptsession(Object *ob)
 {
 	if (ob && ob->sculpt) {
 		SculptSession *ss = ob->sculpt;
 		DerivedMesh *dm = ob->derivedFinal;
 
+		if (ss->bm) {
+			sculptsession_bm_to_me(ob, TRUE);
+			BM_mesh_free(ss->bm);
+		}
+
 		if (ss->pbvh)
-			BLI_pbvh_free(ss->pbvh);
+			BKE_pbvh_free(ss->pbvh);
+		if (ss->bm_log)
+			BM_log_free(ss->bm_log);
+
 		if (dm && dm->getPBVH)
 			dm->getPBVH(NULL, dm);  /* signal to clear */
 
@@ -349,7 +379,7 @@ void BKE_object_free(Object *ob)
 	free_controllers(&ob->controllers);
 	free_actuators(&ob->actuators);
 	
-	free_constraints(&ob->constraints);
+	BKE_free_constraints(&ob->constraints);
 	
 	free_partdeflect(ob->pd);
 
@@ -434,7 +464,7 @@ void BKE_object_unlink(Object *ob)
 			bPoseChannel *pchan;
 			for (pchan = obt->pose->chanbase.first; pchan; pchan = pchan->next) {
 				for (con = pchan->constraints.first; con; con = con->next) {
-					bConstraintTypeInfo *cti = constraint_get_typeinfo(con);
+					bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
 					ListBase targets = {NULL, NULL};
 					bConstraintTarget *ct;
 					
@@ -465,7 +495,7 @@ void BKE_object_unlink(Object *ob)
 		sca_remove_ob_poin(obt, ob);
 		
 		for (con = obt->constraints.first; con; con = con->next) {
-			bConstraintTypeInfo *cti = constraint_get_typeinfo(con);
+			bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
 			ListBase targets = {NULL, NULL};
 			bConstraintTarget *ct;
 			
@@ -1129,7 +1159,7 @@ static void copy_object_pose(Object *obn, Object *ob)
 		}
 		
 		for (con = chan->constraints.first; con; con = con->next) {
-			bConstraintTypeInfo *cti = constraint_get_typeinfo(con);
+			bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
 			ListBase targets = {NULL, NULL};
 			bConstraintTarget *ct;
 			
@@ -1229,7 +1259,7 @@ static Object *object_copy_do(Object *ob, int copy_caches)
 			BKE_pose_rebuild(obn, obn->data);
 	}
 	defgroup_copy_list(&obn->defbase, &ob->defbase);
-	copy_constraints(&obn->constraints, &ob->constraints, TRUE);
+	BKE_copy_constraints(&obn->constraints, &ob->constraints, TRUE);
 
 	obn->mode = 0;
 	obn->sculpt = NULL;
@@ -1839,12 +1869,19 @@ static void ob_parbone(Object *ob, Object *par, float mat[4][4])
 	}
 
 	/* get bone transform */
-	copy_m4_m4(mat, pchan->pose_mat);
+	if (pchan->bone->flag & BONE_RELATIVE_PARENTING) {
+		/* the new option uses the root - expected bahaviour, but differs from old... */
+		/* XXX check on version patching? */
+		copy_m4_m4(mat, pchan->chan_mat);
+	}
+	else {
+		copy_m4_m4(mat, pchan->pose_mat);
 
-	/* but for backwards compatibility, the child has to move to the tail */
-	copy_v3_v3(vec, mat[1]);
-	mul_v3_fl(vec, pchan->bone->length);
-	add_v3_v3(mat[3], vec);
+		/* but for backwards compatibility, the child has to move to the tail */
+		copy_v3_v3(vec, mat[1]);
+		mul_v3_fl(vec, pchan->bone->length);
+		add_v3_v3(mat[3], vec);
+	}
 }
 
 static void give_parvert(Object *par, int nr, float vec[3])
@@ -1922,7 +1959,7 @@ static void give_parvert(Object *par, int nr, float vec[3])
 	}
 	else if (ELEM(par->type, OB_CURVE, OB_SURF)) {
 		Curve *cu       = par->data;
-		ListBase *nurb  = BKE_curve_nurbs_get(cu);;
+		ListBase *nurb  = BKE_curve_nurbs_get(cu);
 
 		BKE_nurbList_index_get_co(nurb, nr, vec);
 	}
@@ -2106,9 +2143,9 @@ void BKE_object_where_is_calc_time(Scene *scene, Object *ob, float ctime)
 	if (ob->constraints.first && !(ob->transflag & OB_NO_CONSTRAINTS)) {
 		bConstraintOb *cob;
 		
-		cob = constraints_make_evalob(scene, ob, NULL, CONSTRAINT_OBTYPE_OBJECT);
-		solve_constraints(&ob->constraints, cob, ctime);
-		constraints_clear_evalob(cob);
+		cob = BKE_constraints_make_evalob(scene, ob, NULL, CONSTRAINT_OBTYPE_OBJECT);
+		BKE_solve_constraints(&ob->constraints, cob, ctime);
+		BKE_constraints_clear_evalob(cob);
 	}
 	
 	/* set negative scale flag in object */
@@ -2177,9 +2214,9 @@ void BKE_object_where_is_calc_simul(Scene *scene, Object *ob)
 	if (ob->constraints.first) {
 		bConstraintOb *cob;
 		
-		cob = constraints_make_evalob(scene, ob, NULL, CONSTRAINT_OBTYPE_OBJECT);
-		solve_constraints(&ob->constraints, cob, (float)scene->r.cfra);
-		constraints_clear_evalob(cob);
+		cob = BKE_constraints_make_evalob(scene, ob, NULL, CONSTRAINT_OBTYPE_OBJECT);
+		BKE_solve_constraints(&ob->constraints, cob, (float)scene->r.cfra);
+		BKE_constraints_clear_evalob(cob);
 	}
 }
 
@@ -2778,7 +2815,7 @@ void BKE_object_sculpt_modifiers_changed(Object *ob)
 		 * changing PVBH node organization, we hope topology does not change in
 		 * the meantime .. weak */
 		if (ss->pbvh) {
-			BLI_pbvh_free(ss->pbvh);
+			BKE_pbvh_free(ss->pbvh);
 			ss->pbvh = NULL;
 		}
 
@@ -2788,10 +2825,10 @@ void BKE_object_sculpt_modifiers_changed(Object *ob)
 		PBVHNode **nodes;
 		int n, totnode;
 
-		BLI_pbvh_search_gather(ss->pbvh, NULL, NULL, &nodes, &totnode);
+		BKE_pbvh_search_gather(ss->pbvh, NULL, NULL, &nodes, &totnode);
 
 		for (n = 0; n < totnode; n++)
-			BLI_pbvh_node_mark_update(nodes[n]);
+			BKE_pbvh_node_mark_update(nodes[n]);
 
 		MEM_freeN(nodes);
 	}
@@ -2944,12 +2981,13 @@ static KeyBlock *insert_meshkey(Scene *scene, Object *ob, const char *name, int 
 	}
 	else {
 		/* copy from current values */
-		float *data = do_ob_key(scene, ob);
+		int totelem;
+		float *data = BKE_key_evaluate_object(scene, ob, &totelem);
 
 		/* create new block with prepared data */
 		kb = BKE_keyblock_add_ctime(key, name, FALSE);
 		kb->data = data;
-		kb->totelem = me->totvert;
+		kb->totelem = totelem;
 	}
 
 	return kb;
@@ -2981,11 +3019,12 @@ static KeyBlock *insert_lattkey(Scene *scene, Object *ob, const char *name, int 
 	}
 	else {
 		/* copy from current values */
-		float *data = do_ob_key(scene, ob);
+		int totelem;
+		float *data = BKE_key_evaluate_object(scene, ob, &totelem);
 
 		/* create new block with prepared data */
 		kb = BKE_keyblock_add_ctime(key, name, FALSE);
-		kb->totelem = lt->pntsu * lt->pntsv * lt->pntsw;
+		kb->totelem = totelem;
 		kb->data = data;
 	}
 
@@ -3020,11 +3059,12 @@ static KeyBlock *insert_curvekey(Scene *scene, Object *ob, const char *name, int
 	}
 	else {
 		/* copy from current values */
-		float *data = do_ob_key(scene, ob);
+		int totelem;
+		float *data = BKE_key_evaluate_object(scene, ob, &totelem);
 
 		/* create new block with prepared data */
 		kb = BKE_keyblock_add_ctime(key, name, FALSE);
-		kb->totelem = BKE_nurbList_verts_count(lb);
+		kb->totelem = totelem;
 		kb->data = data;
 	}
 
@@ -3127,11 +3167,11 @@ void BKE_object_relink(Object *ob)
 	if (ob->id.lib)
 		return;
 
-	relink_constraints(&ob->constraints);
+	BKE_relink_constraints(&ob->constraints);
 	if (ob->pose) {
 		bPoseChannel *chan;
 		for (chan = ob->pose->chanbase.first; chan; chan = chan->next) {
-			relink_constraints(&chan->constraints);
+			BKE_relink_constraints(&chan->constraints);
 		}
 	}
 	modifiers_foreachIDLink(ob, copy_object__forwardModifierLinks, NULL);

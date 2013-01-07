@@ -122,9 +122,12 @@ enum {
 
 	TH_SYNTAX_B,
 	TH_SYNTAX_V,
+	TH_SYNTAX_R,
 	TH_SYNTAX_C,
 	TH_SYNTAX_L,
+	TH_SYNTAX_D,
 	TH_SYNTAX_N,
+	TH_SYNTAX_S,
 	
 	TH_BONE_SOLID,
 	TH_BONE_POSE,
@@ -220,7 +223,10 @@ enum {
 	
 	TH_AXIS_X,		/* X/Y/Z Axis */
 	TH_AXIS_Y,
-	TH_AXIS_Z
+	TH_AXIS_Z,
+
+	TH_BACK_GRAD,
+	TH_SHOW_BACK_GRAD
 };
 /* XXX WARNING: previous is saved in file, so do not change order! */
 
@@ -286,6 +292,9 @@ void    UI_SetTheme(int spacetype, int regionid);
 
 // get current theme
 struct bTheme *UI_GetTheme(void);
+
+// return shadow width outside menus and popups */
+int UI_ThemeMenuShadowWidth(void);
 
 /* only for buttons in theme editor! */
 const unsigned char *UI_ThemeGetColorPtr(struct bTheme *btheme, int spacetype, int colorid);

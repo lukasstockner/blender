@@ -42,7 +42,6 @@
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
-#include "BLI_dynstr.h"
 #include "BLI_linklist.h"
 #include "BLI_memarena.h"
 #include "BLI_threads.h"
@@ -54,13 +53,9 @@
 #include "IMB_imbuf_types.h"
 
 #include "DNA_brush_types.h"
-#include "DNA_camera_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_texture_types.h"
 
 #include "BKE_camera.h"
 #include "BKE_context.h"
@@ -77,8 +72,7 @@
 #include "BKE_paint.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
-#include "BKE_global.h"
-#include "BKE_deform.h"
+#include "BKE_colortools.h"
 
 #include "BKE_tessmesh.h"
 
@@ -102,7 +96,6 @@
 #include "RNA_enum_types.h"
 
 #include "GPU_draw.h"
-#include "GPU_extensions.h"
 
 #include "IMB_colormanagement.h"
 
@@ -3344,7 +3337,7 @@ static void project_paint_begin(ProjPaintState *ps)
 		
 		tpage = project_paint_face_image(ps, ps->dm_mtface, face_index);
 
-		if (tpage && ((((Mesh *)ps->ob->data)->editflag & ME_EDIT_PAINT_MASK) == 0 || mf->flag & ME_FACE_SEL)) {
+		if (tpage && ((((Mesh *)ps->ob->data)->editflag & ME_EDIT_PAINT_FACE_SEL) == 0 || mf->flag & ME_FACE_SEL)) {
 			
 			float *v1coSS, *v2coSS, *v3coSS, *v4coSS = NULL;
 			
@@ -5104,7 +5097,7 @@ static int texture_paint_init(bContext *C, wmOperator *op)
 		}
 
 		pop->s.ob = ob;
-		pop->s.do_facesel = (me->editflag & ME_EDIT_PAINT_MASK) != 0;
+		pop->s.do_facesel = (me->editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
 
 		/* for non prohect paint we need */
 		/* fill in derived mesh */
@@ -5142,15 +5135,16 @@ static int texture_paint_init(bContext *C, wmOperator *op)
 			return 0;
 		}
 	}
-	
-	paint_brush_init_tex(pop->s.brush);
-	
+
 	/* note, if we have no UVs on the derived mesh, then we must return here */
 	if (pop->mode == PAINT_MODE_3D_PROJECT) {
 
 		/* initialize all data from the context */
 		project_state_init(C, OBACT, &pop->ps);
-		
+
+		/* needed so multiple threads don't try to initialize the brush at once (can leak memory) */
+		curvemapping_initialize(pop->ps.brush->curve);
+
 		paint_brush_init_tex(pop->ps.brush);
 
 		pop->ps.source = PROJ_SRC_VIEW;
@@ -5167,6 +5161,9 @@ static int texture_paint_init(bContext *C, wmOperator *op)
 		
 		if (pop->ps.dm == NULL)
 			return 0;
+	}
+	else {
+		paint_brush_init_tex(pop->s.brush);
 	}
 	
 	settings->imapaint.flag |= IMAGEPAINT_DRAWING;
@@ -5237,8 +5234,6 @@ static void paint_exit(bContext *C, wmOperator *op)
 	if (pop->restore_projection)
 		settings->imapaint.flag &= ~IMAGEPAINT_PROJECT_DISABLE;
 
-	paint_brush_exit_tex(pop->s.brush);
-	
 	settings->imapaint.flag &= ~IMAGEPAINT_DRAWING;
 	imapaint_canvas_free(&pop->s);
 	BKE_brush_painter_free(pop->painter);
@@ -5250,6 +5245,8 @@ static void paint_exit(bContext *C, wmOperator *op)
 		project_paint_end(&pop->ps);
 	}
 	else {
+		paint_brush_exit_tex(pop->s.brush);
+
 		/* non projection 3d paint, could move into own function of more needs adding */
 		if (pop->s.dm_release)
 			pop->s.dm->release(pop->s.dm);
@@ -5705,7 +5702,7 @@ static int image_paint_sample_color_poll(bContext *C)
 			if (obact && obact->mode & OB_MODE_TEXTURE_PAINT) {
 				Mesh *me = BKE_mesh_from_object(obact);
 				if (me) {
-					return !(me->editflag & ME_EDIT_PAINT_MASK);
+					return !(me->editflag & ME_EDIT_PAINT_FACE_SEL);
 				}
 			}
 		}
@@ -6041,7 +6038,7 @@ static int texture_paint_image_from_view_exec(bContext *C, wmOperator *op)
 	if (w > maxsize) w = maxsize;
 	if (h > maxsize) h = maxsize;
 
-	ibuf = ED_view3d_draw_offscreen_imbuf(CTX_data_scene(C), CTX_wm_view3d(C), CTX_wm_region(C), w, h, IB_rect, FALSE, FALSE, err_out);
+	ibuf = ED_view3d_draw_offscreen_imbuf(CTX_data_scene(C), CTX_wm_view3d(C), CTX_wm_region(C), w, h, IB_rect, FALSE, R_ALPHAPREMUL, err_out);
 	if (!ibuf) {
 		/* Mostly happens when OpenGL offscreen buffer was failed to create, */
 		/* but could be other reasons. Should be handled in the future. nazgul */

@@ -574,13 +574,7 @@ GHOST_SystemCocoa::GHOST_SystemCocoa()
 	rstring = (char*)malloc( len );
 	sysctl( mib, 2, rstring, &len, NULL, 0 );
 	
-	//Hack on MacBook revision, as multitouch avail. function missing
-	//MacbookAir or MacBook version >= 5 (retina is MacBookPro10,1)
-	if (strstr(rstring,"MacBookAir") ||
-		(strstr(rstring,"MacBook") && (rstring[strlen(rstring)-3]>='5') && (rstring[strlen(rstring)-3]<='9')) ||
-		(strstr(rstring,"MacBook") && (rstring[strlen(rstring)-4]>='1') && (rstring[strlen(rstring)-4]<='9')))
-		m_hasMultiTouchTrackpad = true;
-	else m_hasMultiTouchTrackpad = false;
+	m_hasMultiTouchTrackpad = false;
 	
 	free( rstring );
 	rstring = NULL;
@@ -1445,6 +1439,27 @@ bool GHOST_SystemCocoa::handleTabletEvent(void *eventPtr)
 
 }
 
+#if MAC_OS_X_VERSION_MAX_ALLOWED < 1070
+enum {
+    NSEventPhaseNone = 0,
+    NSEventPhaseBegan = 0x1 << 0,
+    NSEventPhaseStationary = 0x1 << 1,
+    NSEventPhaseChanged = 0x1 << 2,
+    NSEventPhaseEnded = 0x1 << 3,
+    NSEventPhaseCancelled = 0x1 << 4,
+};
+typedef NSUInteger NSEventPhase;
+
+@interface NSEvent (AvailableOn1070AndLater)
+- (BOOL)hasPreciseScrollingDeltas;
+- (CGFloat)scrollingDeltaX;
+- (CGFloat)scrollingDeltaY;
+- (NSEventPhase)momentumPhase;
+- (BOOL)isDirectionInvertedFromDevice;
+- (NSEventPhase)phase;
+@end
+#endif
+
 GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
 {
 	NSEvent *event = (NSEvent *)eventPtr;
@@ -1577,9 +1592,23 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
 			}
 			break;
 			
+			/* these events only happen on swiping trackpads */
+		case NSEventTypeBeginGesture:
+			m_hasMultiTouchTrackpad = 1;
+			break;
+		case NSEventTypeEndGesture:
+			m_hasMultiTouchTrackpad = 0;
+			break;
+			
 		case NSScrollWheel:
 			{
-				if (!m_hasMultiTouchTrackpad) {
+				int *momentum = NULL;
+				
+				if ([event respondsToSelector:@selector(momentumPhase)])
+					momentum = (int *)[event momentumPhase];
+
+				/* standard scrollwheel case, if no swiping happened, and no momentum (kinetic scroll) works */
+				if (!m_hasMultiTouchTrackpad && momentum == NULL) {
 					GHOST_TInt32 delta;
 					
 					double deltaF = [event deltaY];
@@ -1593,9 +1622,18 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
 				else {
 					NSPoint mousePos = [cocoawindow mouseLocationOutsideOfEventStream];
 					GHOST_TInt32 x, y;
-					double dx = [event deltaX];
-					double dy = -[event deltaY];
+					double dx;
+					double dy;
 					
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
+					/* with 10.7 nice scrolling deltas are supported */
+					dx = [event scrollingDeltaX];
+					dy = [event scrollingDeltaY];
+
+#else
+					/* trying to pretend you have nice scrolls... */
+					dx = [event deltaX];
+					dy = -[event deltaY];
 					const double deltaMax = 50.0;
 					
 					if ((dx == 0) && (dy == 0)) break;
@@ -1612,9 +1650,10 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
 					else          dy += 0.5;
 					if      (dy < -deltaMax) dy= -deltaMax;
 					else if (dy >  deltaMax) dy=  deltaMax;
-
-					window->clientToScreenIntern(mousePos.x, mousePos.y, x, y);
+					
 					dy = -dy;
+#endif
+					window->clientToScreenIntern(mousePos.x, mousePos.y, x, y);
 
 					pushEvent(new GHOST_EventTrackpad([event timestamp] * 1000, window, GHOST_kTrackpadEventScroll, x, y, dx, dy));
 				}

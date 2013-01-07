@@ -28,6 +28,7 @@
 #include "object.h"
 #include "scene.h"
 #include "shader.h"
+#include "curves.h"
 
 #include "device.h"
 
@@ -41,7 +42,7 @@ CCL_NAMESPACE_BEGIN
 
 /* Constructor */
 
-BlenderSync::BlenderSync(BL::RenderEngine b_engine_, BL::BlendData b_data_, BL::Scene b_scene_, Scene *scene_, bool preview_, Progress &progress_)
+BlenderSync::BlenderSync(BL::RenderEngine b_engine_, BL::BlendData b_data_, BL::Scene b_scene_, Scene *scene_, bool preview_, Progress &progress_, bool is_cpu_)
 : b_engine(b_engine_),
   b_data(b_data_), b_scene(b_scene_),
   shader_map(&scene_->shaders),
@@ -56,6 +57,7 @@ BlenderSync::BlenderSync(BL::RenderEngine b_engine_, BL::BlendData b_data_, BL::
 {
 	scene = scene_;
 	preview = preview_;
+	is_cpu = is_cpu_;
 }
 
 BlenderSync::~BlenderSync()
@@ -141,6 +143,7 @@ void BlenderSync::sync_data(BL::SpaceView3D b_v3d, BL::Object b_override, const 
 	sync_integrator();
 	sync_film();
 	sync_shaders();
+	sync_curve_settings();
 	sync_objects(b_v3d);
 	sync_motion(b_v3d, b_override);
 }
@@ -331,7 +334,13 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::Use
 	/* device default CPU */
 	params.device = devices[0];
 
-	if(RNA_enum_get(&cscene, "device") != 0) {
+	if(RNA_enum_get(&cscene, "device") == 2) {
+		/* find network device */
+		foreach(DeviceInfo& info, devices)
+			if(info.type == DEVICE_NETWORK)
+				params.device = info;
+	}
+	else if(RNA_enum_get(&cscene, "device") == 1) {
 		/* find GPU device with given id */
 		PointerRNA systemptr = b_userpref.system().ptr;
 		PropertyRNA *deviceprop = RNA_struct_find_property(&systemptr, "compute_device");

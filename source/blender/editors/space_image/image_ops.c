@@ -299,8 +299,8 @@ static int image_view_pan_invoke(bContext *C, wmOperator *op, wmEvent *event)
 		SpaceImage *sima = CTX_wm_space_image(C);
 		float offset[2];
 		
-		offset[0] = (event->x - event->prevx) / sima->zoom;
-		offset[1] = (event->y - event->prevy) / sima->zoom;
+		offset[0] = (event->prevx - event->x) / sima->zoom;
+		offset[1] = (event->prevy - event->y) / sima->zoom;
 		RNA_float_set_array(op->ptr, "offset", offset);
 
 		image_view_pan_exec(C, op);
@@ -457,14 +457,14 @@ enum {
 
 static int image_view_zoom_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
-	if (event->type == MOUSEZOOM) {
+	if (event->type == MOUSEZOOM || event->type == MOUSEPAN) {
 		SpaceImage *sima = CTX_wm_space_image(C);
 		ARegion *ar = CTX_wm_region(C);
 		float delta, factor, location[2];
 
 		UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &location[0], &location[1]);
 
-		delta = event->x - event->prevx + event->y - event->prevy;
+		delta = event->prevx - event->x + event->prevy - event->y;
 
 		if (U.uiflag & USER_ZOOM_INVERT)
 			delta *= -1;
@@ -1217,7 +1217,7 @@ static int save_image_options_init(SaveImageOptions *simopts, SpaceImage *sima, 
 			simopts->im_format.imtype = R_IMF_IMTYPE_PNG;
 		}
 		else {
-			simopts->im_format.imtype = BKE_ftype_to_imtype(ibuf->ftype);
+			BKE_imbuf_to_image_format(&simopts->im_format, ibuf);
 		}
 		//simopts->subimtype = scene->r.subimtype; /* XXX - this is lame, we need to make these available too! */
 		simopts->im_format.quality = ibuf->ftype & 0xff;
@@ -1434,7 +1434,7 @@ static int image_save_as_exec(bContext *C, wmOperator *op)
 static int image_save_as_check(bContext *UNUSED(C), wmOperator *op)
 {
 	ImageFormatData *imf = op->customdata;
-	return WM_operator_filesel_ensure_ext_imtype(op, imf->imtype);
+	return WM_operator_filesel_ensure_ext_imtype(op, imf);
 }
 
 static int image_save_as_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
@@ -1559,6 +1559,7 @@ static int image_save_exec(bContext *C, wmOperator *op)
 	Scene *scene = CTX_data_scene(C);
 	SaveImageOptions simopts;
 
+	save_image_options_defaults(&simopts);
 	if (save_image_options_init(&simopts, sima, scene, FALSE) == 0)
 		return OPERATOR_CANCELLED;
 	save_image_options_from_op(&simopts, op);

@@ -261,7 +261,7 @@ static int round_box_shadow_edges(float (*vert)[2], const rcti *rect, float rad,
 	
 	if (2.0f * rad > BLI_rcti_size_y(rect))
 		rad = 0.5f * BLI_rcti_size_y(rect);
-	
+
 	minx = rect->xmin - step;
 	miny = rect->ymin - step;
 	maxx = rect->xmax + step;
@@ -1324,11 +1324,13 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 			/* icons default draw 0.8f x height */
 			rect->xmin += (int)(0.8f * BLI_rcti_size_y(rect));
 
-			if (but->editstr || (but->flag & UI_TEXT_LEFT))
-				rect->xmin += 0.4f * U.widget_unit;
+			if (but->editstr || (but->flag & UI_TEXT_LEFT)) {
+				rect->xmin += (0.4f * U.widget_unit) / but->block->aspect;
+			}
 		}
-		else if ((but->flag & UI_TEXT_LEFT))
-			rect->xmin += 0.4f * U.widget_unit;
+		else if ((but->flag & UI_TEXT_LEFT)) {
+			rect->xmin += (0.4f * U.widget_unit) / but->block->aspect;
+		}
 
 		/* always draw text for textbutton cursor */
 		widget_draw_text(fstyle, wcol, but, rect);
@@ -1799,13 +1801,19 @@ static void widget_state_menu_item(uiWidgetType *wt, int state)
 /* ************ menu backdrop ************************* */
 
 /* outside of rect, rad to left/bottom/right */
-static void widget_softshadow(const rcti *rect, int roundboxalign, const float radin, const float radout)
+static void widget_softshadow(const rcti *rect, int roundboxalign, const float radin)
 {
+	bTheme *btheme = UI_GetTheme();
 	uiWidgetBase wtb;
 	rcti rect1 = *rect;
-	float alpha, alphastep;
+	float alphastep;
 	int step, totvert;
-	float quad_strip[WIDGET_SIZE_MAX * 2][2];
+	float quad_strip[WIDGET_SIZE_MAX * 2 + 2][2];
+	const float radout = UI_ThemeMenuShadowWidth();
+	
+	/* disabled shadow */
+	if (radout == 0.0f)
+		return;
 	
 	/* prevent tooltips to not show round shadow */
 	if (radout > 0.2f * BLI_rcti_size_y(&rect1))
@@ -1816,24 +1824,22 @@ static void widget_softshadow(const rcti *rect, int roundboxalign, const float r
 	/* inner part */
 	totvert = round_box_shadow_edges(wtb.inner_v, &rect1, radin, roundboxalign & (UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT), 0.0f);
 
-	/* inverse linear shadow alpha */
-	alpha = 0.15f;
-	if (U.pixelsize > 1.0f)
-		alphastep = 0.78f;
-	else
-		alphastep = 0.67f;
+	/* we draw a number of increasing size alpha quad strips */
+	alphastep = 3.0f * btheme->tui.menu_shadow_fac / radout;
 	
 	glEnableClientState(GL_VERTEX_ARRAY);
 
-	for (step = 1; step <= radout; step++, alpha *= alphastep) {
+	for (step = 1; step <= (int)radout; step++) {
+		float expfac = sqrt(step / radout);
+		
 		round_box_shadow_edges(wtb.outer_v, &rect1, radin, UI_CNR_ALL, (float)step);
 		
-		glColor4f(0.0f, 0.0f, 0.0f, alpha);
+		glColor4f(0.0f, 0.0f, 0.0f, alphastep * (1.0f - expfac));
 
-		widget_verts_to_quad_strip_open(&wtb, totvert, quad_strip);
+		widget_verts_to_quad_strip(&wtb, totvert, quad_strip);
 
 		glVertexPointer(2, GL_FLOAT, 0, quad_strip);
-		glDrawArrays(GL_QUAD_STRIP, 0, totvert * 2);
+		glDrawArrays(GL_QUAD_STRIP, 0, totvert * 2 + 2);
 	}
 
 	glDisableClientState(GL_VERTEX_ARRAY);
@@ -1861,7 +1867,7 @@ static void widget_menu_back(uiWidgetColors *wcol, rcti *rect, int flag, int dir
 	}
 	
 	glEnable(GL_BLEND);
-	widget_softshadow(rect, roundboxalign, 0.25f * U.widget_unit, 0.4f * U.widget_unit);
+	widget_softshadow(rect, roundboxalign, 0.25f * U.widget_unit);
 	
 	round_box_edges(&wtb, roundboxalign, rect, 0.25f * U.widget_unit);
 	wtb.emboss = 0;
@@ -2315,7 +2321,7 @@ void ui_draw_link_bezier(const rcti *rect)
 
 		glEnableClientState(GL_VERTEX_ARRAY);
 		glVertexPointer(2, GL_FLOAT, 0, coord_array);
-		glDrawArrays(GL_LINE_STRIP, 0, LINK_RESOL);
+		glDrawArrays(GL_LINE_STRIP, 0, LINK_RESOL + 1);
 		glDisableClientState(GL_VERTEX_ARRAY);
 
 		glDisable(GL_BLEND);
@@ -3409,7 +3415,7 @@ void ui_draw_search_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
 	uiWidgetType *wt = widget_type(UI_WTYPE_BOX);
 	
 	glEnable(GL_BLEND);
-	widget_softshadow(rect, UI_CNR_ALL, 0.25f * U.widget_unit, 0.4f * U.widget_unit);
+	widget_softshadow(rect, UI_CNR_ALL, 0.25f * U.widget_unit);
 	glDisable(GL_BLEND);
 
 	wt->state(wt, 0);
@@ -3463,14 +3469,14 @@ void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int ic
 	if (iconid) {
 		float height, aspect;
 		int xs = rect->xmin + 0.2f * UI_UNIT_X;
-		int ys = 1 + (rect->ymin + rect->ymax - UI_DPI_ICON_SIZE) / 2;
+		int ys = rect->ymin + 0.1f * BLI_rcti_size_y(rect);
 		
 		/* icons are 80% of height of button (16 pixels inside 20 height) */
 		height = 0.8f * BLI_rcti_size_y(rect);
 		aspect = ICON_DEFAULT_HEIGHT / height;
-
+		
 		glEnable(GL_BLEND);
-		UI_icon_draw_aspect(xs, ys, iconid, aspect, 0.5f); /* XXX scale weak get from fstyle? */
+		UI_icon_draw_aspect(xs, ys, iconid, aspect, 1.0f); /* XXX scale weak get from fstyle? */
 		glDisable(GL_BLEND);
 	}
 }

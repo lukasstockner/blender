@@ -475,6 +475,7 @@ void ED_operatortypes_paint(void)
 	WM_operatortype_append(PAINT_OT_weight_paint);
 	WM_operatortype_append(PAINT_OT_weight_set);
 	WM_operatortype_append(PAINT_OT_weight_from_bones);
+	WM_operatortype_append(PAINT_OT_weight_gradient);
 	WM_operatortype_append(PAINT_OT_weight_sample);
 	WM_operatortype_append(PAINT_OT_weight_sample_group);
 
@@ -647,6 +648,17 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	kmi = WM_keymap_add_item(keymap, "PAINT_OT_mask_flood_fill", IKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_enum_set(kmi->ptr, "mode", PAINT_MASK_INVERT);
 
+	/* Toggle dynamic topology */
+	WM_keymap_add_item(keymap, "SCULPT_OT_dynamic_topology_toggle", DKEY, KM_PRESS, KM_CTRL, 0);
+
+	/* Dynamic-topology detail size
+	 * 
+	 * This should be improved further, perhaps by showing a triangle
+	 * grid rather than brush alpha */
+	kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", DKEY, KM_PRESS, KM_SHIFT, 0);
+	set_brush_rc_props(kmi->ptr, "sculpt", "detail_size", NULL, 0);
+	RNA_string_set(kmi->ptr, "data_path_primary", "tool_settings.sculpt.detail_size");
+
 	/* multires switch */
 	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_subdivision_set", PAGEUPKEY, KM_PRESS, 0, 0);
 	RNA_int_set(kmi->ptr, "level", 1);
@@ -709,6 +721,9 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	/* these keys are from 2.4x but could be changed */
 	WM_keymap_verify_item(keymap, "PAINT_OT_weight_sample", LEFTMOUSE, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_verify_item(keymap, "PAINT_OT_weight_sample_group", LEFTMOUSE, KM_PRESS, KM_SHIFT, 0);
+
+	RNA_enum_set(WM_keymap_add_item(keymap, "PAINT_OT_weight_gradient", LEFTMOUSE, KM_PRESS, KM_ALT, 0)->ptr,           "type", WPAINT_GRADIENT_TYPE_LINEAR);
+	RNA_enum_set(WM_keymap_add_item(keymap, "PAINT_OT_weight_gradient", LEFTMOUSE, KM_PRESS, KM_ALT | KM_CTRL, 0)->ptr, "type", WPAINT_GRADIENT_TYPE_RADIAL);
 
 	WM_keymap_add_item(keymap,
 	                   "PAINT_OT_weight_set", KKEY, KM_PRESS, KM_SHIFT, 0);

@@ -112,7 +112,7 @@ static int panel_aligned(ScrArea *sa, ARegion *ar)
 	else if (sa->spacetype == SPACE_FILE && ar->regiontype == RGN_TYPE_CHANNELS)
 		return BUT_VERTICAL;
 	else if (sa->spacetype == SPACE_IMAGE && ar->regiontype == RGN_TYPE_PREVIEW)
-		return BUT_VERTICAL; 
+		return BUT_VERTICAL;
 	else if (ELEM3(ar->regiontype, RGN_TYPE_UI, RGN_TYPE_TOOLS, RGN_TYPE_TOOL_PROPS))
 		return BUT_VERTICAL;
 	
@@ -133,8 +133,6 @@ static int panels_re_align(ScrArea *sa, ARegion *ar, Panel **r_pa)
 			if (sbuts->re_align || sbuts->mainbo != sbuts->mainb)
 				return 1;
 	}
-	else if (ar->regiontype == RGN_TYPE_UI)
-		return 1;
 	else if (sa->spacetype == SPACE_IMAGE && ar->regiontype == RGN_TYPE_PREVIEW)
 		return 1;
 	else if (sa->spacetype == SPACE_FILE && ar->regiontype == RGN_TYPE_CHANNELS)
@@ -814,8 +812,8 @@ static void ui_panels_size(ScrArea *sa, ARegion *ar, int *x, int *y)
 {
 	Panel *pa;
 	int align = panel_aligned(sa, ar);
-	int sizex = UI_PANEL_WIDTH;
-	int sizey = UI_PANEL_WIDTH;
+	int sizex = 0;
+	int sizey = 0;
 
 	/* compute size taken up by panels, for setting in view2d */
 	for (pa = ar->panels.first; pa; pa = pa->next) {
@@ -836,6 +834,11 @@ static void ui_panels_size(ScrArea *sa, ARegion *ar, int *x, int *y)
 		}
 	}
 
+	if (sizex == 0)
+		sizex = UI_PANEL_WIDTH;
+	if (sizey == 0)
+		sizey = -UI_PANEL_WIDTH;
+	
 	*x = sizex;
 	*y = sizey;
 }
@@ -917,6 +920,7 @@ void uiEndPanels(const bContext *C, ARegion *ar, int *x, int *y)
 
 	/* re-align, possibly with animation */
 	if (panels_re_align(sa, ar, &pa)) {
+		/* XXX code never gets here... PNL_ANIM_ALIGN flag is never set */
 		if (pa)
 			panel_activate_state(C, pa, PANEL_STATE_ANIMATION);
 		else
@@ -953,6 +957,25 @@ void uiDrawPanels(const bContext *C, ARegion *ar)
 	for (block = ar->uiblocks.first; block; block = block->next) {
 		if (block->active && block->panel && (block->panel->flag & PNL_SELECT)) {
 			uiDrawBlock(C, block);
+		}
+	}
+}
+
+void uiScalePanels(ARegion *ar, float new_width)
+{
+	uiBlock *block;
+	uiBut *but;
+	
+	for (block = ar->uiblocks.first; block; block = block->next) {
+		if (block->panel) {
+			float fac = new_width / (float)block->panel->sizex;
+			printf("scaled %f\n", fac);
+			block->panel->sizex = new_width;
+			
+			for (but = block->buttons.first; but; but = but->next) {
+				but->rect.xmin *= fac;
+				but->rect.xmax *= fac;
+			}
 		}
 	}
 }
@@ -1150,7 +1173,7 @@ int ui_handler_panel_region(bContext *C, wmEvent *event)
 		}
 		
 		/* XXX hardcoded key warning */
-		if (inside && event->val == KM_PRESS) {
+		if ((inside || inside_header) && event->val == KM_PRESS) {
 			if (event->type == AKEY && !ELEM4(KM_MOD_FIRST, event->ctrl, event->oskey, event->shift, event->alt)) {
 				
 				if (pa->flag & PNL_CLOSEDY) {
@@ -1160,6 +1183,7 @@ int ui_handler_panel_region(bContext *C, wmEvent *event)
 				else
 					ui_handle_panel_header(C, block, mx, my, event->type, event->ctrl);
 				
+				retval = WM_UI_HANDLER_BREAK;
 				continue;
 			}
 		}

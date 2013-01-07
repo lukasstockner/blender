@@ -1253,9 +1253,9 @@ static void rna_def_space_outliner(BlenderRNA *brna)
 		{SO_SAME_TYPE, "SAME_TYPES", 0, "Same Types",
 		               "Display datablocks of all objects of same type as selected object"},
 		{SO_GROUPS, "GROUPS", 0, "Groups", "Display groups and their datablocks"},
-		{SO_LIBRARIES, "LIBRARIES", 0, "Libraries", "Display libraries"},
 		{SO_SEQUENCE, "SEQUENCE", 0, "Sequence", "Display sequence datablocks"},
-		{SO_DATABLOCKS, "DATABLOCKS", 0, "Datablocks", "Display raw datablocks"},
+		{SO_LIBRARIES, "LIBRARIES", 0, "Blender File", "Display data of current file and linked libraries"},
+		{SO_DATABLOCKS, "DATABLOCKS", 0, "Datablocks", "Display all raw datablocks"},
 		{SO_USERDEF, "USER_PREFERENCES", 0, "User Preferences", "Display the user preference datablocks"},
 		{SO_KEYMAP, "KEYMAPS", 0, "Key Maps", "Display keymap datablocks"},
 		{0, NULL, 0, NULL, NULL}
@@ -2374,11 +2374,11 @@ static void rna_def_space_dopesheet(BlenderRNA *brna)
 	
 	/* XXX: action-editor is currently for object-level only actions, so show that using object-icon hint */
 	static EnumPropertyItem mode_items[] = {
-		{SACTCONT_DOPESHEET, "DOPESHEET", ICON_OOPS, "DopeSheet", "DopeSheet Editor"},
-		{SACTCONT_ACTION, "ACTION", ICON_OBJECT_DATA, "Action Editor", "Action Editor"},
-		{SACTCONT_SHAPEKEY, "SHAPEKEY", ICON_SHAPEKEY_DATA, "ShapeKey Editor", "ShapeKey Editor"},
-		{SACTCONT_GPENCIL, "GPENCIL", ICON_GREASEPENCIL, "Grease Pencil", "Grease Pencil"},
-		{SACTCONT_MASK, "MASK", ICON_MOD_MASK, "Mask", "Mask Editor"},
+		{SACTCONT_DOPESHEET, "DOPESHEET", ICON_OOPS, "DopeSheet", "Edit all keyframes in scene"},
+		{SACTCONT_ACTION, "ACTION", ICON_OBJECT_DATA, "Action Editor", "Edit keyframes in active object's Object-level action"},
+		{SACTCONT_SHAPEKEY, "SHAPEKEY", ICON_SHAPEKEY_DATA, "ShapeKey Editor", "Edit keyframes in active object's Shape Keys action"},
+		{SACTCONT_GPENCIL, "GPENCIL", ICON_GREASEPENCIL, "Grease Pencil", "Edit timings for all Grease Pencil sketches in file"},
+		{SACTCONT_MASK, "MASK", ICON_MOD_MASK, "Mask", "Edit timings for Mask Editor splines"},
 		{0, NULL, 0, NULL, NULL}
 	};
 		
@@ -2722,6 +2722,7 @@ static void rna_def_console_line(BlenderRNA *brna)
 	                              "rna_ConsoleLine_body_set");
 	RNA_def_property_ui_text(prop, "Line", "Text in the line");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CONSOLE, NULL);
+	RNA_def_property_translation_context(prop, BLF_I18NCONTEXT_ID_TEXT);
 	
 	prop = RNA_def_property(srna, "current_character", PROP_INT, PROP_NONE); /* copied from text editor */
 	RNA_def_property_int_sdna(prop, NULL, "cursor");
