@@ -1434,7 +1434,7 @@ void BKE_sequencer_proxy_rebuild(SeqIndexBuildContext *context, short *stop, sho
 			seq_proxy_build_frame(render_context, seq, cfra, 100);
 		}
 
-		*progress = (float) cfra / (seq->enddisp - seq->endstill - seq->startdisp + seq->startstill);
+		*progress = (float) (cfra - seq->startdisp - seq->startstill) / (seq->enddisp - seq->endstill - seq->startdisp - seq->startstill);
 		*do_update = TRUE;
 
 		if (*stop || G.is_break)
@@ -1746,7 +1746,7 @@ void BKE_sequencer_color_balance_apply(StripColorBalance *cb, ImBuf *ibuf, float
 	init_data.mask = mask_input;
 
 	IMB_processor_apply_threaded(ibuf->y, sizeof(ColorBalanceThread), &init_data,
-                                 color_balance_init_handle, color_balance_do_thread);
+	                             color_balance_init_handle, color_balance_do_thread);
 
 	/* color balance either happens on float buffer or byte buffer, but never on both,
 	 * free byte buffer if there's float buffer since float buffer would be used for
@@ -1820,8 +1820,6 @@ static ImBuf *input_preprocess(SeqRenderData context, Sequence *seq, float cfra,
 		StripCrop c = {0};
 		StripTransform t = {0};
 		int sx, sy, dx, dy;
-		double xscale = 1.0;
-		double yscale = 1.0;
 
 		if (is_proxy_image) {
 			double f = seq_rendersize_to_scale_factor(context.preview_render_size);
@@ -1838,21 +1836,23 @@ static ImBuf *input_preprocess(SeqRenderData context, Sequence *seq, float cfra,
 			t = *seq->strip->transform;
 		}
 
-		xscale = context.scene->r.xsch ? ((double)context.rectx / (double)context.scene->r.xsch) : 1.0;
-		yscale = context.scene->r.ysch ? ((double)context.recty / (double)context.scene->r.ysch) : 1.0;
-
-		xscale /= (double)context.rectx / (double)ibuf->x;
-		yscale /= (double)context.recty / (double)ibuf->y;
-
-		c.left *= xscale; c.right *= xscale;
-		c.top *= yscale; c.bottom *= yscale;
-
-		t.xofs *= xscale; t.yofs *= yscale;
+		if (is_preprocessed) {
+			double xscale = context.scene->r.xsch ? ((double)context.rectx / (double)context.scene->r.xsch) : 1.0;
+			double yscale = context.scene->r.ysch ? ((double)context.recty / (double)context.scene->r.ysch) : 1.0;
+			if (seq->flag & SEQ_USE_TRANSFORM) {
+				t.xofs *= xscale;
+				t.yofs *= yscale;
+			}
+			if (seq->flag & SEQ_USE_CROP) {
+				c.left *= xscale;
+				c.right *= xscale;
+				c.top *= yscale;
+				c.bottom *= yscale;
+			}
+		}
 
 		sx = ibuf->x - c.left - c.right;
 		sy = ibuf->y - c.top - c.bottom;
-		dx = sx;
-		dy = sy;
 
 		if (seq->flag & SEQ_USE_TRANSFORM) {
 			if (is_preprocessed) {
@@ -1863,6 +1863,10 @@ static ImBuf *input_preprocess(SeqRenderData context, Sequence *seq, float cfra,
 				dx = context.scene->r.xsch;
 				dy = context.scene->r.ysch;
 			}
+		}
+		else {
+			dx = sx;
+			dy = sy;
 		}
 
 		if (c.top  + c.bottom >= ibuf->y ||

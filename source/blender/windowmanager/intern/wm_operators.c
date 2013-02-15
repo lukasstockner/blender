@@ -69,6 +69,7 @@
 #include "BKE_library.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
+#include "BKE_material.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h" /* BKE_ST_MAXNAME */
@@ -151,7 +152,7 @@ void WM_operatortype_append(void (*opfunc)(wmOperatorType *))
 	wmOperatorType *ot;
 	
 	ot = MEM_callocN(sizeof(wmOperatorType), "operatortype");
-	ot->srna = RNA_def_struct(&BLENDER_RNA, "", "OperatorProperties");
+	ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
 	/* Set the default i18n context now, so that opfunc can redefine it if needed! */
 	RNA_def_struct_translation_context(ot->srna, BLF_I18NCONTEXT_OPERATOR_DEFAULT);
 	opfunc(ot);
@@ -173,7 +174,7 @@ void WM_operatortype_append_ptr(void (*opfunc)(wmOperatorType *, void *), void *
 	wmOperatorType *ot;
 
 	ot = MEM_callocN(sizeof(wmOperatorType), "operatortype");
-	ot->srna = RNA_def_struct(&BLENDER_RNA, "", "OperatorProperties");
+	ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
 	/* Set the default i18n context now, so that opfunc can redefine it if needed! */
 	RNA_def_struct_translation_context(ot->srna, BLF_I18NCONTEXT_OPERATOR_DEFAULT);
 	opfunc(ot, userdata);
@@ -360,7 +361,7 @@ wmOperatorType *WM_operatortype_append_macro(const char *idname, const char *nam
 	}
 	
 	ot = MEM_callocN(sizeof(wmOperatorType), "operatortype");
-	ot->srna = RNA_def_struct(&BLENDER_RNA, "", "OperatorProperties");
+	ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
 	
 	ot->idname = idname;
 	ot->name = name;
@@ -390,7 +391,7 @@ void WM_operatortype_append_macro_ptr(void (*opfunc)(wmOperatorType *, void *), 
 	wmOperatorType *ot;
 
 	ot = MEM_callocN(sizeof(wmOperatorType), "operatortype");
-	ot->srna = RNA_def_struct(&BLENDER_RNA, "", "OperatorProperties");
+	ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
 
 	ot->flag = OPTYPE_MACRO;
 	ot->exec = wm_macro_exec;
@@ -561,6 +562,7 @@ char *WM_operator_pystring(bContext *C, wmOperatorType *ot, PointerRNA *opptr, i
 }
 
 /* return NULL if no match is found */
+#if 0
 static char *wm_prop_pystring_from_context(bContext *C, PointerRNA *ptr, PropertyRNA *prop, int index)
 {
 
@@ -583,7 +585,7 @@ static char *wm_prop_pystring_from_context(bContext *C, PointerRNA *ptr, Propert
 
 	for (link = lb.first; link; link = link->next) {
 		const char *identifier = link->data;
-		PointerRNA ctx_item_ptr = {{0}}; // CTX_data_pointer_get(C, identifier);
+		PointerRNA ctx_item_ptr = {{0}} // CTX_data_pointer_get(C, identifier); // XXX, this isnt working
 
 		if (ctx_item_ptr.type == NULL) {
 			continue;
@@ -624,6 +626,94 @@ static char *wm_prop_pystring_from_context(bContext *C, PointerRNA *ptr, Propert
 
 	return ret;
 }
+#else
+
+/* use hard coded checks for now */
+static char *wm_prop_pystring_from_context(bContext *C, PointerRNA *ptr, PropertyRNA *prop, int index)
+{
+	const char *member_id = NULL;
+
+	char *prop_str = NULL;
+	char *ret = NULL;
+
+	if (ptr->id.data) {
+		ID *idptr = ptr->id.data;
+
+#define CTX_TEST_PTR_ID(C, member, idptr) \
+		{ \
+			const char *ctx_member = member; \
+			PointerRNA ctx_item_ptr = CTX_data_pointer_get(C, ctx_member); \
+			if (ctx_item_ptr.id.data == idptr) { \
+				member_id = ctx_member; \
+				break; \
+			} \
+		} (void)0
+
+#define CTX_TEST_PTR_ID_CAST(C, member, member_full, cast, idptr) \
+		{ \
+			const char *ctx_member = member; \
+			const char *ctx_member_full = member_full; \
+			PointerRNA ctx_item_ptr = CTX_data_pointer_get(C, ctx_member); \
+			if (ctx_item_ptr.id.data && cast(ctx_item_ptr.id.data) == idptr) { \
+				member_id = ctx_member_full; \
+				break; \
+			} \
+		} (void)0
+
+		switch (GS(idptr->name)) {
+			case ID_SCE:
+			{
+				CTX_TEST_PTR_ID(C, "scene", ptr->id.data);
+				break;
+			}
+			case ID_OB:
+			{
+				CTX_TEST_PTR_ID(C, "object", ptr->id.data);
+				break;
+			}
+			/* from rna_Main_objects_new */
+			case OB_DATA_SUPPORT_ID_CASE:
+			{
+#define ID_CAST_OBDATA(id_pt) (((Object *)(id_pt))->data)
+				CTX_TEST_PTR_ID_CAST(C, "object", "object.data", ID_CAST_OBDATA, ptr->id.data);
+				break;
+#undef ID_CAST_OBDATA
+			}
+			case ID_MA:
+			{
+#define ID_CAST_OBMATACT(id_pt) (give_current_material(((Object *)id_pt), ((Object *)id_pt)->actcol))
+				CTX_TEST_PTR_ID_CAST(C, "object", "object.active_material", ID_CAST_OBMATACT, ptr->id.data);
+				break;
+#undef ID_CAST_OBMATACT
+			}
+			case ID_WO:
+			{
+#define ID_CAST_SCENEWORLD(id_pt) (((Scene *)(id_pt))->world)
+				CTX_TEST_PTR_ID_CAST(C, "scene", "scene.world", ID_CAST_SCENEWORLD, ptr->id.data);
+				break;
+#undef ID_CAST_SCENEWORLD
+			}
+			case ID_SCR:
+			{
+				CTX_TEST_PTR_ID(C, "screen", ptr->id.data);
+				break;
+			}
+		}
+
+		if (member_id) {
+			prop_str = RNA_path_struct_property_py(ptr, prop, index);
+			if (prop_str) {
+				ret = BLI_sprintfN("bpy.context.%s.%s", member_id, prop_str);
+				MEM_freeN(prop_str);
+			}
+		}
+#undef CTX_TEST_PTR_ID
+#undef CTX_TEST_PTR_ID_CAST
+	}
+
+	return ret;
+}
+#endif
 
 char *WM_prop_pystring_assign(bContext *C, PointerRNA *ptr, PropertyRNA *prop, int index)
 {
@@ -1114,8 +1204,13 @@ void WM_operator_properties_gesture_straightline(wmOperatorType *ot, int cursor)
 	RNA_def_int(ot->srna, "ystart", 0, INT_MIN, INT_MAX, "Y Start", "", INT_MIN, INT_MAX);
 	RNA_def_int(ot->srna, "yend", 0, INT_MIN, INT_MAX, "Y End", "", INT_MIN, INT_MAX);
 	
-	if (cursor)
-		RNA_def_int(ot->srna, "cursor", cursor, 0, INT_MAX, "Cursor", "Mouse cursor style to use during the modal operator", 0, INT_MAX);
+	if (cursor) {
+		PropertyRNA *prop;
+
+		prop = RNA_def_int(ot->srna, "cursor", cursor, 0, INT_MAX,
+		                   "Cursor", "Mouse cursor style to use during the modal operator", 0, INT_MAX);
+		RNA_def_property_flag(prop, PROP_HIDDEN);
+	}
 }
 
 
@@ -1251,7 +1346,7 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *ar, void *userData)
 	block = uiBeginBlock(C, ar, __func__, UI_EMBOSS);
 	uiBlockClearFlag(block, UI_BLOCK_LOOP);
 
-	/* intentionally don't use 'UI_BLOCK_MOVEMOUSE_QUIT', some dialogs have many items
+	/* intentionally don't use 'UI_BLOCK_MOVEMOUSE_QUIT', some dialogues have many items
 	 * where quitting by accident is very annoying */
 	uiBlockSetFlag(block, UI_BLOCK_KEEP_OPEN);
 
@@ -1558,7 +1653,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	uiBlockSetFlag(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_NO_WIN_CLIP);
 	
 	/* XXX splash scales with pixelsize, should become widget-units */
-	but = uiDefBut(block, BUT_IMAGE, 0, "", 0, 0.5f * U.widget_unit, U.pixelsize * 501, U.pixelsize  *282, ibuf, 0.0, 0.0, 0, 0, ""); /* button owns the imbuf now */
+	but = uiDefBut(block, BUT_IMAGE, 0, "", 0, 0.5f * U.widget_unit, U.pixelsize * 501, U.pixelsize * 282, ibuf, 0.0, 0.0, 0, 0, ""); /* button owns the imbuf now */
 	uiButSetFunc(but, wm_block_splash_close, block, NULL);
 	uiBlockSetFunc(block, wm_block_splash_refreshmenu, block, NULL);
 	
@@ -1589,7 +1684,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	uiItemL(col, "Links", ICON_NONE);
 	uiItemStringO(col, IFACE_("Donations"), ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org/blenderorg/blender-foundation/donation-payment");
 	uiItemStringO(col, IFACE_("Credits"), ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org/development/credits");
-	uiItemStringO(col, IFACE_("Release Log"), ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org/development/release-logs/blender-265");
+	uiItemStringO(col, IFACE_("Release Log"), ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org/development/release-logs/blender-266");
 	uiItemStringO(col, IFACE_("Manual"), ICON_URL, "WM_OT_url_open", "url", "http://wiki.blender.org/index.php/Doc:2.6/Manual");
 	uiItemStringO(col, IFACE_("Blender Website"), ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org");
 	uiItemStringO(col, IFACE_("User Community"), ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org/community/user-community");
@@ -1908,7 +2003,7 @@ static int wm_link_append_poll(bContext *C)
 	if (WM_operator_winactive(C)) {
 		/* linking changes active object which is pretty useful in general,
 		 * but which totally confuses edit mode (i.e. it becoming not so obvious
-		 * to leave from edit mode and inwalid tools in toolbar might be displayed)
+		 * to leave from edit mode and invalid tools in toolbar might be displayed)
 		 * so disable link/append when in edit mode (sergey) */
 		if (CTX_data_edit_object(C))
 			return 0;
@@ -3166,6 +3261,7 @@ static void radial_control_set_initial_mouse(RadialControl *rc, wmEvent *event)
 	rc->initial_mouse[1] = event->y;
 
 	switch (rc->subtype) {
+		case PROP_NONE:
 		case PROP_DISTANCE:
 			d[0] = rc->initial_value;
 			break;
@@ -3265,6 +3361,7 @@ static void radial_control_paint_cursor(bContext *C, int x, int y, void *customd
 	float zoom[2], col[3] = {1, 1, 1};
 
 	switch (rc->subtype) {
+		case PROP_NONE:
 		case PROP_DISTANCE:
 			r1 = rc->current_value;
 			r2 = rc->initial_value;
@@ -3503,8 +3600,8 @@ static int radial_control_invoke(bContext *C, wmOperator *op, wmEvent *event)
 
 	/* get subtype of property */
 	rc->subtype = RNA_property_subtype(rc->prop);
-	if (!ELEM3(rc->subtype, PROP_DISTANCE, PROP_FACTOR, PROP_ANGLE)) {
-		BKE_report(op->reports, RPT_ERROR, "Property must be a distance, a factor, or an angle");
+	if (!ELEM4(rc->subtype, PROP_NONE, PROP_DISTANCE, PROP_FACTOR, PROP_ANGLE)) {
+		BKE_report(op->reports, RPT_ERROR, "Property must be a none, distance, a factor, or an angle");
 		MEM_freeN(rc);
 		return OPERATOR_CANCELLED;
 	}
@@ -3588,6 +3685,7 @@ static int radial_control_modal(bContext *C, wmOperator *op, wmEvent *event)
 
 			/* calculate new value and apply snapping  */
 			switch (rc->subtype) {
+				case PROP_NONE:
 				case PROP_DISTANCE:
 					new_value = dist;
 					if (snap) new_value = ((int)new_value + 5) / 10 * 10;
@@ -3864,7 +3962,7 @@ static int wm_ndof_sensitivity_exec(bContext *UNUSED(C), wmOperator *op)
 
 static void WM_OT_ndof_sensitivity_change(wmOperatorType *ot)
 {
-	ot->name = "Change NDOF sensitivity";
+	ot->name = "Change NDOF Sensitivity";
 	ot->idname = "WM_OT_ndof_sensitivity_change";
 	ot->description = "Change NDOF sensitivity";
 	

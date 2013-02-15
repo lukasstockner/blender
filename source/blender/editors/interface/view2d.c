@@ -1029,16 +1029,16 @@ void UI_view2d_view_ortho(View2D *v2d)
 	
 	/* XXX ton: this flag set by outliner, for icons */
 	if (v2d->flag & V2D_PIXELOFS_X) {
-		curmasked.xmin = floorf(curmasked.xmin) - 0.001f;
-		curmasked.xmax = floorf(curmasked.xmax) - 0.001f;
+		curmasked.xmin = floorf(curmasked.xmin) - (0.001f + xofs);
+		curmasked.xmax = floorf(curmasked.xmax) - (0.001f + xofs);
 	}
 	if (v2d->flag & V2D_PIXELOFS_Y) {
-		curmasked.ymin = floorf(curmasked.ymin) - 0.001f;
-		curmasked.ymax = floorf(curmasked.ymax) - 0.001f;
+		curmasked.ymin = floorf(curmasked.ymin) - (0.001f + yofs);
+		curmasked.ymax = floorf(curmasked.ymax) - (0.001f + yofs);
 	}
 	
 	/* set matrix on all appropriate axes */
-	wmOrtho2(curmasked.xmin - xofs, curmasked.xmax - xofs, curmasked.ymin - yofs, curmasked.ymax - yofs);
+	wmOrtho2(curmasked.xmin, curmasked.xmax, curmasked.ymin, curmasked.ymax);
 
 	/* XXX is this necessary? */
 	glLoadIdentity();
@@ -1694,7 +1694,7 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 			
 			/* draw numbers in the appropriate range */
 			if (dfac > 0.0f) {
-				float h = 0.1f*UI_UNIT_Y + (float)(hor.ymin);
+				float h = 0.1f * UI_UNIT_Y + (float)(hor.ymin);
 				
 				for (; fac < hor.xmax - 0.5f * U.widget_unit; fac += dfac, val += grid->dx) {
 					

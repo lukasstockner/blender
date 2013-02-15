@@ -103,6 +103,8 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 	int	m_motionblur;
 	float	m_motionblurvalue;
 
+	bool m_usingoverrideshader;
+
 protected:
 	int				m_drawingmode;
 	TexCoGen		m_texco[RAS_MAX_TEXCO];
@@ -115,8 +117,9 @@ protected:
 	/** Stores the caching information for the last material activated. */
 	RAS_IPolyMaterial::TCachingInfo m_materialCachingInfo;
 
-	/** Making use of a Strategy desing pattern for storage behavior.
-	    Examples of concrete strategies: Vertex Arrays, VBOs, Immediate Mode*/
+	/**
+	 * Making use of a Strategy desing pattern for storage behavior.
+	 * Examples of concrete strategies: Vertex Arrays, VBOs, Immediate Mode*/
 	int				m_storage_type;
 	RAS_IStorage*	m_storage;
 	RAS_IStorage*	m_failsafe_storage; //So derived mesh can use immediate mode
@@ -320,6 +323,8 @@ public:
 	virtual void	SetAnisotropicFiltering(short level);
 	virtual short	GetAnisotropicFiltering();
 
+	virtual void	SetUsingOverrideShader(bool val);
+	virtual bool	GetUsingOverrideShader();
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_OpenGLRasterizer")

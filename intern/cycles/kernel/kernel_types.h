@@ -43,11 +43,11 @@ CCL_NAMESPACE_BEGIN
 #ifdef __KERNEL_CPU__
 #define __KERNEL_SHADING__
 #define __KERNEL_ADV_SHADING__
+#define __NON_PROGRESSIVE__
+#define __HAIR__
 #ifdef WITH_OSL
 #define __OSL__
 #endif
-#define __NON_PROGRESSIVE__
-#define __HAIR__
 #endif
 
 #ifdef __KERNEL_CUDA__
@@ -112,9 +112,10 @@ CCL_NAMESPACE_BEGIN
 #define __TRANSPARENT_SHADOWS__
 #define __PASSES__
 #define __BACKGROUND_MIS__
+#define __LAMP_MIS__
 #define __AO__
-#define __CAMERA_MOTION__
 #define __ANISOTROPIC__
+#define __CAMERA_MOTION__
 #define __OBJECT_MOTION__
 #endif
 //#define __SOBOL_FULL_SCREEN__
@@ -254,6 +255,10 @@ typedef struct PathRadiance {
 	float3 indirect_glossy;
 	float3 indirect_transmission;
 
+	float3 path_diffuse;
+	float3 path_glossy;
+	float3 path_transmission;
+
 	float4 shadow;
 } PathRadiance;
 
@@ -280,8 +285,9 @@ typedef enum ShaderFlag {
 	SHADER_SMOOTH_NORMAL = (1 << 31),
 	SHADER_CAST_SHADOW = (1 << 30),
 	SHADER_AREA_LIGHT = (1 << 29),
+	SHADER_USE_MIS = (1 << 28),
 
-	SHADER_MASK = ~(SHADER_SMOOTH_NORMAL|SHADER_CAST_SHADOW|SHADER_AREA_LIGHT)
+	SHADER_MASK = ~(SHADER_SMOOTH_NORMAL|SHADER_CAST_SHADOW|SHADER_AREA_LIGHT|SHADER_USE_MIS)
 } ShaderFlag;
 
 /* Light Type */
@@ -293,6 +299,7 @@ typedef enum LightType {
 	LIGHT_AREA,
 	LIGHT_AO,
 	LIGHT_SPOT,
+	LIGHT_TRIANGLE,
 	LIGHT_STRAND
 } LightType;
 
@@ -384,7 +391,7 @@ typedef enum AttributeStandard {
 
 /* Closure data */
 
-#define MAX_CLOSURE 8
+#define MAX_CLOSURE 16
 
 typedef struct ShaderClosure {
 	ClosureType type;
@@ -603,9 +610,9 @@ typedef struct KernelFilm {
 	int pass_ao;
 
 	int pass_shadow;
+	float pass_shadow_scale;
 	int pass_pad1;
 	int pass_pad2;
-	int pass_pad3;
 } KernelFilm;
 
 typedef struct KernelBackground {
@@ -636,6 +643,7 @@ typedef struct KernelIntegrator {
 	int num_all_lights;
 	float pdf_triangles;
 	float pdf_lights;
+	float inv_pdf_lights;
 	int pdf_background_res;
 
 	/* bounces */
@@ -671,7 +679,7 @@ typedef struct KernelIntegrator {
 	int transmission_samples;
 	int ao_samples;
 	int mesh_light_samples;
-	int pad1, pad2;
+	int use_lamp_mis;
 } KernelIntegrator;
 
 typedef struct KernelBVH {
@@ -694,6 +702,7 @@ typedef enum CurveFlag {
 	CURVE_KN_NORMALCORRECTION = 128,		/* correct tangent normal for slope? */
 	CURVE_KN_TRUETANGENTGNORMAL = 256,		/* use tangent normal for geometry? */
 	CURVE_KN_TANGENTGNORMAL = 512,			/* use tangent normal for shader? */
+	CURVE_KN_RIBBONS = 1024,				/* use flat curve ribbons */
 } CurveFlag;
 
 typedef struct KernelCurves {
@@ -701,7 +710,7 @@ typedef struct KernelCurves {
 	float normalmix;
 	float encasing_ratio;
 	int curveflags;
-	int pad;
+	int subdivisions;
 
 } KernelCurves;
 

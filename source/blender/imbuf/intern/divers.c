@@ -255,7 +255,7 @@ void IMB_buffer_byte_from_float(uchar *rect_to, const float *rect_from,
 				/* no color space conversion */
 				if (dither && predivide) {
 					for (x = 0; x < width; x++, from += 4, to += 4) {
-						premul_to_straight_v4(straight, from);
+						premul_to_straight_v4_v4(straight, from);
 						float_to_byte_dither_v4(to, straight, di);
 					}
 				}
@@ -265,7 +265,7 @@ void IMB_buffer_byte_from_float(uchar *rect_to, const float *rect_from,
 				}
 				else if (predivide) {
 					for (x = 0; x < width; x++, from += 4, to += 4) {
-						premul_to_straight_v4(straight, from);
+						premul_to_straight_v4_v4(straight, from);
 						rgba_float_to_uchar(to, straight);
 					}
 				}
@@ -281,7 +281,7 @@ void IMB_buffer_byte_from_float(uchar *rect_to, const float *rect_from,
 
 				if (dither && predivide) {
 					for (x = 0; x < width; x++, from += 4, to += 4) {
-						premul_to_straight_v4(straight, from);
+						premul_to_straight_v4_v4(straight, from);
 						linearrgb_to_srgb_ushort4(us, from);
 						ushort_to_byte_dither_v4(to, us, di);
 					}
@@ -294,7 +294,7 @@ void IMB_buffer_byte_from_float(uchar *rect_to, const float *rect_from,
 				}
 				else if (predivide) {
 					for (x = 0; x < width; x++, from += 4, to += 4) {
-						premul_to_straight_v4(straight, from);
+						premul_to_straight_v4_v4(straight, from);
 						linearrgb_to_srgb_ushort4(us, from);
 						ushort_to_byte_v4(to, us);
 					}
@@ -659,53 +659,6 @@ void IMB_float_from_rect(ImBuf *ibuf)
 	BLI_unlock_thread(LOCK_COLORMANAGE);
 }
 
-/* use when you need to get a buffer with a certain profile
- * if the return  */
-
-/* OCIO_TODO: used only by Cineon/DPX exporter which is still broken, so can not guarantee
- *            this function is working properly
- */
-float *IMB_float_profile_ensure(ImBuf *ibuf, int profile, int *alloc)
-{
-	int profile_from = IB_PROFILE_LINEAR_RGB;
-	int profile_to;
-
-	/* determine profile */
-	if (profile == IB_PROFILE_NONE)
-		profile_to = IB_PROFILE_LINEAR_RGB;
-	else
-		profile_to = IB_PROFILE_SRGB;
-	
-	if (profile_from == profile_to) {
-		/* simple case, just allocate the buffer and return */
-		*alloc = 0;
-
-		if (ibuf->rect_float == NULL)
-			IMB_float_from_rect(ibuf);
-
-		return ibuf->rect_float;
-	}
-	else {
-		/* conversion is needed, first check */
-		float *fbuf = MEM_mallocN(ibuf->x * ibuf->y * sizeof(float) * 4, "IMB_float_profile_ensure");
-		*alloc = 1;
-
-		if (ibuf->rect_float == NULL) {
-			IMB_buffer_float_from_byte(fbuf, (uchar *)ibuf->rect,
-			                           profile_to, profile_from, FALSE,
-			                           ibuf->x, ibuf->y, ibuf->x, ibuf->x);
-			IMB_premultiply_rect_float(ibuf->rect_float, ibuf->planes, ibuf->x, ibuf->y);
-		}
-		else {
-			IMB_buffer_float_from_float(fbuf, ibuf->rect_float,
-			                            4, profile_to, profile_from, TRUE,
-			                            ibuf->x, ibuf->y, ibuf->x, ibuf->x);
-		}
-
-		return fbuf;
-	}
-}
-
 /**************************** Color to Grayscale *****************************/
 
 /* no profile conversion */
@@ -737,20 +690,20 @@ void IMB_buffer_float_clamp(float *buf, int width, int height)
 void IMB_buffer_float_unpremultiply(float *buf, int width, int height)
 {
 	int total = width * height;
-	float *cp = buf;
+	float *fp = buf;
 	while (total--) {
-		premul_to_straight_v4(cp, cp);
-		cp += 4;
+		premul_to_straight_v4(fp);
+		fp += 4;
 	}
 }
 
 void IMB_buffer_float_premultiply(float *buf, int width, int height)
 {
 	int total = width * height;
-	float *cp = buf;
+	float *fp = buf;
 	while (total--) {
-		straight_to_premul_v4(cp, cp);
-		cp += 4;
+		straight_to_premul_v4(fp);
+		fp += 4;
 	}
 }
 

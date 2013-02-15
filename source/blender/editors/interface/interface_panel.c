@@ -247,6 +247,14 @@ Panel *uiBeginPanel(ScrArea *sa, ARegion *ar, uiBlock *block, PanelType *pt, int
 		}
 	}
 
+	/* Do not allow closed panels without headers! Else user could get "disappeared" UI! */
+	if ((pt->flag & PNL_NO_HEADER) && (pa->flag & PNL_CLOSED)) {
+		pa->flag &= ~PNL_CLOSED;
+		/* Force update of panels' positions! */
+		pa->sizex = 0;
+		pa->sizey = 0;
+	}
+
 	BLI_strncpy(pa->drawname, drawname, UI_MAX_NAME_STR);
 
 	/* if a new panel is added, we insert it right after the panel
@@ -439,8 +447,8 @@ static void ui_draw_panel_dragwidget(const rctf *rect)
 	ymin = rect->ymin;
 	ymax = rect->ymax;
 	
-	dx = 0.333f * (xmax - xmin);
-	dy = 0.333f * (ymax - ymin);
+	dx = (xmax - xmin) / 3.0f;
+	dy = (ymax - ymin) / 3.0f;
 	
 	glEnable(GL_BLEND);
 	glColor4ub(255, 255, 255, 50);
@@ -522,11 +530,9 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, rcti *rect)
 		float y = headrect.ymax;
 
 		glEnable(GL_BLEND);
-
 		
 		if (UI_GetThemeValue(TH_PANEL_SHOW_HEADER)) {
 			/* draw with background color */
-			glEnable(GL_BLEND);
 			UI_ThemeColor4(TH_PANEL_HEADER);
 			glRectf(minx, headrect.ymin + 1, maxx, y);
 
@@ -542,7 +548,6 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, rcti *rect)
 			fdrawline(minx, y, maxx, y);
 			glColor4f(1.0f, 1.0f, 1.0f, 0.25f);
 			fdrawline(minx, y - 1, maxx, y - 1);
-			glDisable(GL_BLEND);
 		}
 
 		glDisable(GL_BLEND);
@@ -870,7 +875,7 @@ static void ui_do_animate(const bContext *C, Panel *panel)
 void uiBeginPanels(const bContext *UNUSED(C), ARegion *ar)
 {
 	Panel *pa;
-  
+
 	/* set all panels as inactive, so that at the end we know
 	 * which ones were used */
 	for (pa = ar->panels.first; pa; pa = pa->next) {
@@ -1011,7 +1016,7 @@ static void check_panel_overlap(ARegion *ar, Panel *panel)
 
 /************************ panel dragging ****************************/
 
-static void ui_do_drag(const bContext *C, wmEvent *event, Panel *panel)
+static void ui_do_drag(const bContext *C, const wmEvent *event, Panel *panel)
 {
 	uiHandlePanelData *data = panel->activedata;
 	ScrArea *sa = CTX_wm_area(C);
@@ -1129,7 +1134,7 @@ static void ui_handle_panel_header(const bContext *C, uiBlock *block, int mx, in
 /* XXX should become modal keymap */
 /* AKey is opening/closing panels, independent of button state now */
 
-int ui_handler_panel_region(bContext *C, wmEvent *event)
+int ui_handler_panel_region(bContext *C, const wmEvent *event)
 {
 	ARegion *ar = CTX_wm_region(C);
 	uiBlock *block;
@@ -1156,6 +1161,9 @@ int ui_handler_panel_region(bContext *C, wmEvent *event)
 		if (pa->flag & PNL_CLOSEDX) {
 			if (block->rect.xmin <= mx && block->rect.xmin + PNL_HEADER >= mx)
 				inside_header = 1;
+		}
+		else if (block->rect.xmin > mx || block->rect.xmax < mx) {
+			/* outside left/right side */
 		}
 		else if ((block->rect.ymax <= my) && (block->rect.ymax + PNL_HEADER >= my)) {
 			inside_header = 1;
@@ -1269,7 +1277,7 @@ int ui_handler_panel_region(bContext *C, wmEvent *event)
 /**************** window level modal panel interaction **************/
 
 /* note, this is modal handler and should not swallow events for animation */
-static int ui_handler_panel(bContext *C, wmEvent *event, void *userdata)
+static int ui_handler_panel(bContext *C, const wmEvent *event, void *userdata)
 {
 	Panel *panel = userdata;
 	uiHandlePanelData *data = panel->activedata;

@@ -528,6 +528,7 @@ MINLINE float cross_v2v2(const float a[2], const float b[2])
 
 MINLINE void cross_v3_v3v3(float r[3], const float a[3], const float b[3])
 {
+	BLI_assert(r != a && r != b);
 	r[0] = a[1] * b[2] - a[2] * b[1];
 	r[1] = a[2] * b[0] - a[0] * b[2];
 	r[2] = a[0] * b[1] - a[1] * b[0];
@@ -662,7 +663,7 @@ MINLINE float normalize_v3_v3(float r[3], const float a[3])
 	float d = dot_v3v3(a, a);
 
 	/* a larger value causes normalize errors in a
-	 * scaled down models with camera xtreme close */
+	 * scaled down models with camera extreme close */
 	if (d > 1.0e-35f) {
 		d = sqrtf(d);
 		mul_v3_v3fl(r, a, 1.0f / d);
@@ -680,7 +681,7 @@ MINLINE double normalize_v3_d(double n[3])
 	double d = n[0] * n[0] + n[1] * n[1] + n[2] * n[2];
 
 	/* a larger value causes normalize errors in a
-	 * scaled down models with camera xtreme close */
+	 * scaled down models with camera extreme close */
 	if (d > 1.0e-35) {
 		double mul;
 

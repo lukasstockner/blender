@@ -35,11 +35,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_image.h"
-#include "BKE_global.h"
-#include "BKE_main.h"
-#include "BKE_report.h"
-
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_path_util.h"
@@ -47,6 +42,11 @@
 #include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
+
+#include "BKE_image.h"
+#include "BKE_global.h"
+#include "BKE_main.h"
+#include "BKE_report.h"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
@@ -1093,6 +1093,10 @@ ImBuf *render_result_rect_to_ibuf(RenderResult *rr, RenderData *rd)
 	if (ibuf->rect) {
 		if (BKE_imtype_valid_depths(rd->im_format.imtype) & (R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16 | R_IMF_CHAN_DEPTH_24 | R_IMF_CHAN_DEPTH_32)) {
 			IMB_float_from_rect(ibuf);
+		}
+		else  {
+			/* ensure no float buffer remained from previous frame */
+			ibuf->rect_float = NULL;
 		}
 	}
 

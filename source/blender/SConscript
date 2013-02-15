@@ -65,5 +65,4 @@ if env['WITH_BF_COLLADA']:
     SConscript (['collada/SConscript'])
     
 if env['WITH_BF_COMPOSITOR']:
-    SConscript (['compositor/SConscript',
-                 'opencl/SConscript'])
+    SConscript (['compositor/SConscript'])

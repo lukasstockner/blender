@@ -33,13 +33,15 @@ extern "C" {
 void BLI_timestr(double _time, char *str);
 void BKE_image_user_frame_calc(void *iuser, int cfra, int fieldnr);
 void BKE_image_user_file_path(void *iuser, void *ima, char *path);
+unsigned char *BKE_image_get_pixels_for_frame(void *image, int frame);
+float *BKE_image_get_float_pixels_for_frame(void *image, int frame);
 }
 
 CCL_NAMESPACE_BEGIN
 
-static inline BL::Mesh object_to_mesh(BL::Object self, BL::Scene scene, bool apply_modifiers, bool render)
+static inline BL::Mesh object_to_mesh(BL::BlendData data, BL::Object object, BL::Scene scene, bool apply_modifiers, bool render)
 {
-	return self.to_mesh(scene, apply_modifiers, (render)? 2: 1);
+	return data.meshes.new_from_object(scene, object, apply_modifiers, (render)? 2: 1, true);
 }
 
 static inline void colorramp_to_array(BL::ColorRamp ramp, float4 *data, int size)
@@ -98,6 +100,22 @@ static inline string image_user_file_path(BL::ImageUser iuser, BL::Image ima, in
 	BKE_image_user_frame_calc(iuser.ptr.data, cfra, 0);
 	BKE_image_user_file_path(iuser.ptr.data, ima.ptr.data, filepath);
 	return string(filepath);
+}
+
+static inline int image_user_frame_number(BL::ImageUser iuser, int cfra)
+{
+	BKE_image_user_frame_calc(iuser.ptr.data, cfra, 0);
+	return iuser.frame_current();
+}
+
+static inline unsigned char *image_get_pixels_for_frame(BL::Image image, int frame)
+{
+	return BKE_image_get_pixels_for_frame(image.ptr.data, frame);
+}
+
+static inline float *image_get_float_pixels_for_frame(BL::Image image, int frame)
+{
+	return BKE_image_get_float_pixels_for_frame(image.ptr.data, frame);
 }
 
 /* Utilities */

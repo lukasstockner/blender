@@ -167,11 +167,11 @@ void BKE_curve_free(Curve *cu)
 		MEM_freeN(cu->tb);
 }
 
-Curve *BKE_curve_add(const char *name, int type)
+Curve *BKE_curve_add(Main *bmain, const char *name, int type)
 {
 	Curve *cu;
 
-	cu = BKE_libblock_alloc(&G.main->curve, ID_CU, name);
+	cu = BKE_libblock_alloc(&bmain->curve, ID_CU, name);
 	copy_v3_fl(cu->size, 1.0f);
 	cu->flag = CU_FRONT | CU_BACK | CU_DEFORM_BOUNDS_OFF | CU_PATH_RADIUS;
 	cu->pathlen = 100;
@@ -875,7 +875,7 @@ static void basisNurb(float t, short order, short pnts, float *knots, float *bas
 
 
 void BKE_nurb_makeFaces(Nurb *nu, float *coord_array, int rowstride, int resolu, int resolv)
-/* coord_array  has to be 3*4*resolu*resolv in size, and zero-ed */
+/* coord_array  has to be (3 * 4 * resolu * resolv) in size, and zero-ed */
 {
 	BPoint *bp;
 	float *basisu, *basis, *basisv, *sum, *fp, *in;
@@ -1746,7 +1746,7 @@ static void calc_bevel_sin_cos(float x1, float y1, float x2, float y2, float *si
 	else
 		t02 = (saacos(t02)) / 2.0f;
 
-	t02 = (float)sin(t02);
+	t02 = sinf(t02);
 	if (t02 == 0.0f)
 		t02 = 1.0f;
 
@@ -2220,6 +2220,7 @@ void BKE_curve_bevelList_make(Object *ob)
 	struct bevelsort *sortdata, *sd, *sd1;
 	int a, b, nr, poly, resolu = 0, len = 0;
 	int do_tilt, do_radius, do_weight;
+	int is_editmode = 0;
 
 	/* this function needs an object, because of tflag and upflag */
 	cu = ob->data;
@@ -2233,12 +2234,17 @@ void BKE_curve_bevelList_make(Object *ob)
 	if (cu->editnurb && ob->type != OB_FONT) {
 		ListBase *nurbs = BKE_curve_editNurbs_get(cu);
 		nu = nurbs->first;
+		is_editmode = 1;
 	}
 	else {
 		nu = cu->nurb.first;
 	}
 
-	while (nu) {
+	for (; nu; nu = nu->next) {
+		
+		if (nu->hide && is_editmode)
+			continue;
+		
 		/* check if we will calculate tilt data */
 		do_tilt = CU_DO_TILT(cu, nu);
 		do_radius = CU_DO_RADIUS(cu, nu); /* normal display uses the radius, better just to calculate them */
@@ -2384,7 +2390,6 @@ void BKE_curve_bevelList_make(Object *ob)
 				}
 			}
 		}
-		nu = nu->next;
 	}
 
 	/* STEP 2: DOUBLE POINTS AND AUTOMATIC RESOLUTION, REDUCE DATABLOCKS */
@@ -3431,7 +3436,9 @@ int BKE_curve_center_median(Curve *cu, float cent[3])
 		}
 	}
 
-	mul_v3_fl(cent, 1.0f / (float)total);
+	if (total) {
+		mul_v3_fl(cent, 1.0f / (float)total);
+	}
 
 	return (total != 0);
 }

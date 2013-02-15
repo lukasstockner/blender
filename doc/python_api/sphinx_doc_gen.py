@@ -612,10 +612,10 @@ def pyfunc2sphinx(ident, fw, identifier, py_func, is_class=True):
     '''
     function or class method to sphinx
     '''
-    
+
     if type(py_func) == type(bpy.types.Space.draw_handler_add):
         return
-    
+
     arg_str = inspect.formatargspec(*inspect.getargspec(py_func))
 
     if not is_class:
@@ -696,6 +696,8 @@ def pyprop2sphinx(ident, fw, identifier, py_prop):
     write_indented_lines(ident + "   ", fw, py_prop.__doc__)
     if py_prop.fset is None:
         fw(ident + "   (readonly)\n\n")
+    else:
+        fw("\n")
 
 
 def pymodule2sphinx(basepath, module_name, module, title):
@@ -984,6 +986,7 @@ context_type_map = {
     "world": ("World", False),
 }
 
+
 def pycontext2sphinx(basepath):
     # Only use once. very irregular
 
@@ -1010,7 +1013,6 @@ def pycontext2sphinx(basepath):
         "clip_context_dir",
         "sequencer_context_dir",
     )
-
 
     unique = set()
     blend_cdll = ctypes.CDLL("")
@@ -1708,7 +1710,6 @@ def copy_handwritten_rsts(basepath):
 
     # TODO put this docs in blender's code and use import as per modules above
     handwritten_modules = [
-        "bge.types",
         "bge.logic",
         "bge.render",
         "bge.texture",
@@ -1726,6 +1727,14 @@ def copy_handwritten_rsts(basepath):
         if mod_name not in EXCLUDE_MODULES:
             # copy2 keeps time/date stamps
             shutil.copy2(os.path.join(RST_DIR, "%s.rst" % mod_name), basepath)
+
+    if "bge.types" not in EXCLUDE_MODULES:
+        shutil.copy2(os.path.join(RST_DIR, "bge.types.rst"), basepath)
+
+        bge_types_dir = os.path.join(RST_DIR, "bge_types")
+
+        for i in os.listdir(bge_types_dir):
+            shutil.copy2(os.path.join(bge_types_dir, i), basepath)
 
     # changelog
     shutil.copy2(os.path.join(RST_DIR, "change_log.rst"), basepath)
@@ -1814,7 +1823,18 @@ def refactor_sphinx_log(sphinx_logfile):
             refactored_logfile.write("%-12s %s\n             %s\n" % log)
 
 
+def monkey_patch():
+    filepath = os.path.join(SCRIPT_DIR, "sphinx_doc_gen_monkeypatch.py")
+    global_namespace = {"__file__": filepath, "__name__": "__main__"}
+    file = open(filepath, 'rb')
+    exec(compile(file.read(), filepath, 'exec'), global_namespace)
+    file.close()
+
+
 def main():
+
+    # first monkey patch to load in fake members
+    monkey_patch()
 
     # eventually, create the dirs
     for dir_path in [ARGS.output_dir, SPHINX_IN]:

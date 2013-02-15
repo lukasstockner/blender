@@ -20,17 +20,23 @@
 
 import bpy
 from bpy.types import Panel, Header, Menu, UIList
+from bpy.app.translations import pgettext_iface as iface_
 
 
 class CLIP_UL_tracking_objects(UIList):
-    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+    def draw_item(self, context, layout, data, item, icon,
+                  active_data, active_propname, index):
         # assert(isinstance(item, bpy.types.MovieTrackingObject)
         tobj = item
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.label(tobj.name, icon='CAMERA_DATA' if tobj.is_camera else 'OBJECT_DATA')
+            layout.label(text=tobj.name, translate=False,
+                         icon='CAMERA_DATA' if tobj.is_camera
+                         else 'OBJECT_DATA')
         elif self.layout_type in {'GRID'}:
             layout.alignment = 'CENTER'
-            layout.label("", icon='CAMERA_DATA' if tobj.is_camera else 'OBJECT_DATA')
+            layout.label(text="",
+                         icon='CAMERA_DATA' if tobj.is_camera
+                         else 'OBJECT_DATA')
 
 
 class CLIP_HT_header(Header):
@@ -334,7 +340,8 @@ class CLIP_PT_tools_solve(CLIP_PT_tracking_panel, Panel):
 
         col = layout.column(align=True)
         col.active = not settings.use_tripod_solver
-        col.prop(settings, "use_fallback_reconstruction", text="Allow Fallback")
+        col.prop(settings, "use_fallback_reconstruction",
+                 text="Allow Fallback")
         sub = col.column()
         sub.active = settings.use_fallback_reconstruction
         sub.prop(settings, "reconstruction_success_threshold")
@@ -483,7 +490,8 @@ class CLIP_PT_objects(CLIP_PT_clip_view_panel, Panel):
         tracking = sc.clip.tracking
 
         row = layout.row()
-        row.template_list("CLIP_UL_tracking_objects", "", tracking, "objects", tracking, "active_object_index", rows=3)
+        row.template_list("CLIP_UL_tracking_objects", "", tracking, "objects",
+                          tracking, "active_object_index", rows=3)
 
         sub = row.column(align=True)
 
@@ -739,7 +747,8 @@ class CLIP_PT_stabilization(CLIP_PT_reconstruction_panel, Panel):
         layout.active = stab.use_2d_stabilization
 
         row = layout.row()
-        row.template_list("UI_UL_list", "", stab, "tracks", stab, "active_track_index", rows=3)
+        row.template_list("UI_UL_list", "", stab, "tracks",
+                          stab, "active_track_index", rows=3)
 
         sub = row.column(align=True)
 
@@ -904,10 +913,11 @@ class CLIP_MT_view(Menu):
 
             ratios = ((1, 8), (1, 4), (1, 2), (1, 1), (2, 1), (4, 1), (8, 1))
 
+            text = iface_("Zoom %d:%d")
             for a, b in ratios:
-                text = "Zoom %d:%d" % (a, b)
                 layout.operator("clip.view_zoom_ratio",
-                                text=text).ratio = a / b
+                                text=text % (a, b),
+                                translate=False).ratio = a / b
         else:
             if sc.view == 'GRAPH':
                 layout.operator_context = 'INVOKE_REGION_PREVIEW'

@@ -41,7 +41,7 @@ CCL_NAMESPACE_BEGIN
 Session::Session(const SessionParams& params_)
 : params(params_),
   tile_manager(params.progressive, params.samples, params.tile_size, params.start_resolution,
-       params.background == false || params.progressive_refine, params.background,
+       params.background == false || params.progressive_refine, params.background, params.tile_order,
        max(params.device.multi_devices.size(), 1)),
   stats()
 {
@@ -132,6 +132,8 @@ bool Session::ready_to_reset()
 
 void Session::reset_gpu(BufferParams& buffer_params, int samples)
 {
+	thread_scoped_lock pause_lock(pause_mutex);
+
 	/* block for buffer acces and reset immediately. we can't do this
 	 * in the thread, because we need to allocate an OpenGL buffer, and
 	 * that only works in the main thread */
@@ -208,7 +210,12 @@ void Session::run_gpu()
 			 * wait for pause condition notify to wake up again */
 			thread_scoped_lock pause_lock(pause_mutex);
 
-			if(pause || no_tiles) {
+			if(!pause && !tile_manager.done()) {
+				/* reset could have happened after no_tiles was set, before this lock.
+				 * in this case we shall not wait for pause condition
+				 */
+			}
+			else if(pause || no_tiles) {
 				update_status_time(pause, no_tiles);
 
 				while(1) {
@@ -295,6 +302,7 @@ void Session::run_gpu()
 void Session::reset_cpu(BufferParams& buffer_params, int samples)
 {
 	thread_scoped_lock reset_lock(delayed_reset.mutex);
+	thread_scoped_lock pause_lock(pause_mutex);
 
 	display_outdated = true;
 	reset_time = time_dt();
@@ -381,7 +389,7 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 
 	buffer_params.get_offset_stride(rtile.offset, rtile.stride);
 
-	RenderBuffers *tilebuffers = new RenderBuffers(tile_device);
+	RenderBuffers *tilebuffers;
 
 	/* allocate buffers */
 	if(params.progressive_refine) {
@@ -484,7 +492,16 @@ void Session::run_cpu()
 			 * wait for pause condition notify to wake up again */
 			thread_scoped_lock pause_lock(pause_mutex);
 
-			if(pause || no_tiles) {
+			if(!pause && delayed_reset.do_reset) {
+				/* reset once to start */
+				thread_scoped_lock reset_lock(delayed_reset.mutex);
+				thread_scoped_lock buffers_lock(buffers_mutex);
+				thread_scoped_lock display_lock(display_mutex);
+
+				reset_(delayed_reset.params, delayed_reset.samples);
+				delayed_reset.do_reset = false;
+			}
+			else if(pause || no_tiles) {
 				update_status_time(pause, no_tiles);
 
 				while(1) {
@@ -552,7 +569,7 @@ void Session::run_cpu()
 			}
 			else if(need_tonemap) {
 				/* tonemap only if we do not reset, we don't we don't
-				 * wan't to show the result of an incomplete sample*/
+				 * want to show the result of an incomplete sample*/
 				tonemap();
 			}
 

@@ -466,7 +466,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 		data->totline++;
 	}
 
-	if (ELEM3(but->type, TEX, IDPOIN, SEARCH_MENU)) {
+	if (ELEM4(but->type, TEX, IDPOIN, SEARCH_MENU, SEARCH_MENU_UNLINK)) {
 		/* full string */
 		ui_get_but_string(but, buf, sizeof(buf));
 		if (buf[0]) {
@@ -651,7 +651,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 	ofsx = 0; //(but->block->panel) ? but->block->panel->ofsx : 0;
 	ofsy = 0; //(but->block->panel) ? but->block->panel->ofsy : 0;
 
-	rect_fl.xmin = (but->rect.xmin + but->rect.xmax) * 0.5f + ofsx - TIP_BORDER_X;
+	rect_fl.xmin = BLI_rctf_cent_x(&but->rect) + ofsx - TIP_BORDER_X;
 	rect_fl.xmax = rect_fl.xmin + fontw + TIP_BORDER_X;
 	rect_fl.ymax = but->rect.ymin + ofsy - TIP_BORDER_Y;
 	rect_fl.ymin = rect_fl.ymax - fonth  - TIP_BORDER_Y;
@@ -893,7 +893,7 @@ void ui_searchbox_apply(uiBut *but, ARegion *ar)
 	}
 }
 
-void ui_searchbox_event(bContext *C, ARegion *ar, uiBut *but, wmEvent *event)
+void ui_searchbox_event(bContext *C, ARegion *ar, uiBut *but, const wmEvent *event)
 {
 	uiSearchboxData *data = ar->regiondata;
 	int type = event->type, val = event->val;
@@ -1532,7 +1532,7 @@ static void ui_block_region_draw(const bContext *C, ARegion *ar)
 static void ui_popup_block_clip(wmWindow *window, uiBlock *block)
 {
 	uiBut *bt;
-	int width = UI_ThemeMenuShadowWidth();
+	int width = UI_SCREEN_MARGIN;
 	int winx, winy;
 
 	if (block->flag & UI_BLOCK_NO_WIN_CLIP) {
@@ -2195,7 +2195,7 @@ static void uiBlockPicker(uiBlock *block, float rgba[4], PointerRNA *ptr, Proper
 }
 
 
-static int ui_picker_small_wheel_cb(const bContext *UNUSED(C), uiBlock *block, wmEvent *event)
+static int ui_picker_small_wheel_cb(const bContext *UNUSED(C), uiBlock *block, const wmEvent *event)
 {
 	float add = 0.0f;
 	

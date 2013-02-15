@@ -540,9 +540,8 @@ void tex_set_type(Tex *tex, int type)
 
 /* ------------------------------------------------------------------------- */
 
-Tex *add_texture(const char *name)
+Tex *add_texture(Main *bmain, const char *name)
 {
-	Main *bmain = G.main;
 	Tex *tex;
 
 	tex = BKE_libblock_alloc(&bmain->tex, ID_TE, name);
@@ -615,6 +614,7 @@ void default_mtex(MTex *mtex)
 	mtex->gravityfac = 1.0f;
 	mtex->fieldfac = 1.0f;
 	mtex->normapspace = MTEX_NSPACE_TANGENT;
+	mtex->brush_map_mode = MTEX_MAP_MODE_TILED;
 }
 
 

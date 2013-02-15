@@ -1187,7 +1187,7 @@ int pyrna_set_to_enum_bitfield(EnumPropertyItem *items, PyObject *value, int *r_
 			return -1;
 		}
 
-		if (pyrna_enum_value_from_id(items, param, &ret, error_prefix) < 0) {
+		if (pyrna_enum_value_from_id(items, param, &ret, error_prefix) == -1) {
 			return -1;
 		}
 
@@ -1623,9 +1623,7 @@ static int pyrna_py_to_prop(PointerRNA *ptr, PropertyRNA *prop, void *data, PyOb
 					}
 				}
 				else {
-
 					/* Unicode String */
-
 #ifdef USE_STRING_COERCE
 					PyObject *value_coerce = NULL;
 					if (ELEM3(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_FILENAME)) {
@@ -1634,12 +1632,6 @@ static int pyrna_py_to_prop(PointerRNA *ptr, PropertyRNA *prop, void *data, PyOb
 					}
 					else {
 						param = _PyUnicode_AsString(value);
-#ifdef WITH_INTERNATIONAL
-						if (subtype == PROP_TRANSLATE) {
-							param = IFACE_(param);
-						}
-#endif  /* WITH_INTERNATIONAL */
-
 					}
 #else  /* USE_STRING_COERCE */
 					param = _PyUnicode_AsString(value);
@@ -1682,13 +1674,13 @@ static int pyrna_py_to_prop(PointerRNA *ptr, PropertyRNA *prop, void *data, PyOb
 				/* type checkins is done by each function */
 				if (RNA_property_flag(prop) & PROP_ENUM_FLAG) {
 					/* set of enum items, concatenate all values with OR */
-					if (pyrna_prop_to_enum_bitfield(ptr, prop, value, &val, error_prefix) < 0) {
+					if (pyrna_prop_to_enum_bitfield(ptr, prop, value, &val, error_prefix) == -1) {
 						return -1;
 					}
 				}
 				else {
 					/* simple enum string */
-					if (pyrna_string_to_enum(value, ptr, prop, &val, error_prefix) < 0) {
+					if (pyrna_string_to_enum(value, ptr, prop, &val, error_prefix) == -1) {
 						return -1;
 					}
 				}
@@ -4384,7 +4376,7 @@ static PyObject *foreach_getset(BPy_PropertyRNA *self, PyObject *args, int set)
 	bool attr_signed;
 	RawPropertyType raw_type;
 
-	if (foreach_parse_args(self, args, &attr, &seq, &tot, &size, &raw_type, &attr_tot, &attr_signed) < 0)
+	if (foreach_parse_args(self, args, &attr, &seq, &tot, &size, &raw_type, &attr_tot, &attr_signed) == -1)
 		return NULL;
 
 	if (tot == 0)
@@ -4524,7 +4516,7 @@ PyDoc_STRVAR(pyrna_prop_collection_foreach_get_doc,
 "\n"
 "   .. code-block:: python\n"
 "\n"
-"      collection.foreach_get(someseq, attr)\n"
+"      collection.foreach_get(attr, someseq)\n"
 "\n"
 "      # Python equivalent\n"
 "      for i in range(len(seq)): someseq[i] = getattr(collection, attr)\n"
@@ -4544,7 +4536,7 @@ PyDoc_STRVAR(pyrna_prop_collection_foreach_set_doc,
 "\n"
 "   .. code-block:: python\n"
 "\n"
-"      collection.foreach_set(seq, attr)\n"
+"      collection.foreach_set(attr, seq)\n"
 "\n"
 "      # Python equivalent\n"
 "      for i in range(len(seq)): setattr(collection[i], attr, seq[i])\n"
@@ -6539,6 +6531,9 @@ static PyObject *pyrna_basetype_dir(BPy_BaseTypeRNA *self)
 
 static PyTypeObject pyrna_basetype_Type = BLANK_PYTHON_TYPE;
 
+/**
+ * Accessed from Python as 'bpy.types'
+ */
 PyObject *BPY_rna_types(void)
 {
 	BPy_BaseTypeRNA *self;
@@ -6854,7 +6849,7 @@ static int bpy_class_validate_recursive(PointerRNA *dummyptr, StructRNA *srna, v
 		i++;
 
 		if (item == NULL) {
-			if ((flag & FUNC_REGISTER_OPTIONAL) == 0) {
+			if ((flag & (FUNC_REGISTER_OPTIONAL & ~FUNC_REGISTER)) == 0) {
 				PyErr_Format(PyExc_AttributeError,
 				             "expected %.200s, %.200s class to have an \"%.200s\" attribute",
 				             class_type, py_class_name,

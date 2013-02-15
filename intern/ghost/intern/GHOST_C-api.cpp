@@ -123,7 +123,14 @@ void GHOST_GetMainDisplayDimensions(GHOST_SystemHandle systemhandle,
 	system->getMainDisplayDimensions(*width, *height);
 }
 
+void GHOST_GetAllDisplayDimensions(GHOST_SystemHandle systemhandle,
+                                    GHOST_TUns32 *width,
+                                    GHOST_TUns32 *height)
+{
+	GHOST_ISystem *system = (GHOST_ISystem *) systemhandle;
 
+	system->getAllDisplayDimensions(*width, *height);
+}
 
 GHOST_WindowHandle GHOST_CreateWindow(GHOST_SystemHandle systemhandle,
                                       const char *title,
@@ -885,9 +892,11 @@ int GHOST_UseNativePixels(void)
 	return system->useNativePixel();
 }
 
-float GHOST_GetNativePixelSize(void)
+float GHOST_GetNativePixelSize(GHOST_WindowHandle windowhandle)
 {
-	GHOST_ISystem *system = GHOST_ISystem::getSystem();
-	return system->getNativePixelSize();
+	GHOST_IWindow *window = (GHOST_IWindow *) windowhandle;
+	if (window)
+		return window->getNativePixelSize();
+	return 1.0f;
 }
 

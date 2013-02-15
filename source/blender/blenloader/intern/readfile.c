@@ -81,6 +81,7 @@
 #include "DNA_packedFile_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_property_types.h"
+#include "DNA_rigidbody_types.h"
 #include "DNA_text_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_screen_types.h"
@@ -209,20 +210,6 @@
  * - link all LibBlocks and indirect pointers to libblocks
  * - initialize FileGlobal and copy pointers to Global
  */
-
-/* also occurs in library.c */
-/* GS reads the memory pointed at in a specific ordering. There are,
- * however two definitions for it. I have jotted them down here, both,
- * but I think the first one is actually used. The thing is that
- * big-endian systems might read this the wrong way round. OTOH, we
- * constructed the IDs that are read out with this macro explicitly as
- * well. I expect we'll sort it out soon... */
-
-/* from blendef: */
-#define GS(a)	(*((short *)(a)))
-
-/* from misc_util: flip the bytes from x  */
-/*  #define GS(x) (((unsigned char *)(x))[0] << 8 | ((unsigned char *)(x))[1]) */
 
 /***/
 
@@ -1439,6 +1426,8 @@ void blo_end_movieclip_pointer_map(FileData *fd, Main *oldmain)
 	}
 }
 
+/* XXX disabled this feature - packed files also belong in temp saves and quit.blend, to make restore work */
+
 static void insert_packedmap(FileData *fd, PackedFile *pf)
 {
 	oldnewmap_insert(fd->packedmap, pf, pf, 0);
@@ -1862,6 +1851,7 @@ static PreviewImage *direct_link_preview_image(FileData *fd, PreviewImage *old_p
 			if (prv->rect[i]) {
 				prv->rect[i] = newdataadr(fd, prv->rect[i]);
 			}
+			prv->gputexture[i] = NULL;
 		}
 	}
 	
@@ -2689,15 +2679,15 @@ static void direct_link_constraints(FileData *fd, ListBase *lb)
 				data->prop = newdataadr(fd, data->prop);
 				if (data->prop)
 					IDP_DirectLinkProperty(data->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
-			}
 				break;
+			}
 			case CONSTRAINT_TYPE_SPLINEIK:
 			{
 				bSplineIKConstraint *data= con->data;
-				
+
 				data->points= newdataadr(fd, data->points);
-			}
 				break;
+			}
 			case CONSTRAINT_TYPE_KINEMATIC:
 			{
 				bKinematicConstraint *data = con->data;
@@ -2707,14 +2697,15 @@ static void direct_link_constraints(FileData *fd, ListBase *lb)
 
 				/* version patch for runtime flag, was not cleared in some case */
 				data->flag &= ~CONSTRAINT_IK_AUTO;
+				break;
 			}
 			case CONSTRAINT_TYPE_CHILDOF:
 			{
 				/* XXX version patch, in older code this flag wasn't always set, and is inherent to type */
 				if (con->ownspace == CONSTRAINT_SPACE_POSE)
 					con->flag |= CONSTRAINT_SPACEONCE;
-			}
 				break;
+			}
 		}
 	}
 }
@@ -2723,14 +2714,15 @@ static void lib_link_pose(FileData *fd, Object *ob, bPose *pose)
 {
 	bPoseChannel *pchan;
 	bArmature *arm = ob->data;
-	int rebuild;
+	int rebuild = 0;
 	
 	if (!pose || !arm)
 		return;
 	
-	
-	/* always rebuild to match proxy or lib changes */
-	rebuild = ob->proxy || (ob->id.lib==NULL && arm->id.lib);
+	/* always rebuild to match proxy or lib changes, but on Undo */
+	if (fd->memfile == NULL)
+		if (ob->proxy || (ob->id.lib==NULL && arm->id.lib))
+			rebuild = 1;
 	
 	if (ob->proxy) {
 		/* sync proxy layer */
@@ -3340,7 +3332,7 @@ static void direct_link_texture(FileData *fd, Tex *tex)
 	tex->env = newdataadr(fd, tex->env);
 	if (tex->env) {
 		tex->env->ima = NULL;
-		memset(tex->env->cube, 0, 6*sizeof(void *));
+		memset(tex->env->cube, 0, 6 * sizeof(void *));
 		tex->env->ok= 0;
 	}
 	tex->pd = newdataadr(fd, tex->pd);
@@ -4175,8 +4167,6 @@ static void lib_link_object(FileData *fd, Main *main)
 				else {
 					/* this triggers object_update to always use a copy */
 					ob->proxy->proxy_from = ob;
-					/* force proxy updates after load/undo, a bit weak */
-					ob->recalc = ob->proxy->recalc = (OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 				}
 			}
 			ob->proxy_group = newlibadr(fd, ob->id.lib, ob->proxy_group);
@@ -4374,6 +4364,11 @@ static void lib_link_object(FileData *fd, Main *main)
 			
 			lib_link_particlesystems(fd, ob, &ob->id, &ob->particlesystem);
 			lib_link_modifiers(fd, ob);
+
+			if (ob->rigidbody_constraint) {
+				ob->rigidbody_constraint->ob1 = newlibadr(fd, ob->id.lib, ob->rigidbody_constraint->ob1);
+				ob->rigidbody_constraint->ob2 = newlibadr(fd, ob->id.lib, ob->rigidbody_constraint->ob2);
+			}
 		}
 	}
 	
@@ -4797,6 +4792,20 @@ static void direct_link_object(FileData *fd, Object *ob)
 	}
 	ob->bsoft = newdataadr(fd, ob->bsoft);
 	ob->fluidsimSettings= newdataadr(fd, ob->fluidsimSettings); /* NT */
+	
+	ob->rigidbody_object = newdataadr(fd, ob->rigidbody_object);
+	if (ob->rigidbody_object) {
+		RigidBodyOb *rbo = ob->rigidbody_object;
+		
+		/* must nullify the references to physics sim objects, since they no-longer exist 
+		 * (and will need to be recalculated) 
+		 */
+		rbo->physics_object = NULL;
+		rbo->physics_shape = NULL;
+	}
+	ob->rigidbody_constraint = newdataadr(fd, ob->rigidbody_constraint);
+	if (ob->rigidbody_constraint)
+		ob->rigidbody_constraint->physics_constraint = NULL;
 
 	link_list(fd, &ob->particlesystem);
 	direct_link_particlesystems(fd, &ob->particlesystem);
@@ -5015,6 +5024,18 @@ static void lib_link_scene(FileData *fd, Main *main)
 			BKE_sequencer_update_muting(sce->ed);
 			BKE_sequencer_update_sound_bounds_all(sce);
 			
+			
+			/* rigidbody world relies on it's linked groups */
+			if (sce->rigidbody_world) {
+				RigidBodyWorld *rbw = sce->rigidbody_world;
+				if (rbw->group)
+					rbw->group = newlibadr(fd, sce->id.lib, rbw->group);
+				if (rbw->constraints)
+					rbw->constraints = newlibadr(fd, sce->id.lib, rbw->constraints);
+				if (rbw->effector_weights)
+					rbw->effector_weights->group = newlibadr(fd, sce->id.lib, rbw->effector_weights->group);
+			}
+			
 			if (sce->nodetree) {
 				lib_link_ntree(fd, &sce->id, sce->nodetree);
 				composite_patch(sce->nodetree, sce);
@@ -5091,6 +5112,7 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 	Editing *ed;
 	Sequence *seq;
 	MetaStack *ms;
+	RigidBodyWorld *rbw;
 	
 	sce->theDag = NULL;
 	sce->dagisvalid = 0;
@@ -5124,6 +5146,16 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 		
 		sce->toolsettings->imapaint.paintcursor = NULL;
 		sce->toolsettings->particle.paintcursor = NULL;
+
+		/* in rare cases this is needed, see [#33806] */
+		if (sce->toolsettings->vpaint) {
+			sce->toolsettings->vpaint->vpaint_prev = NULL;
+			sce->toolsettings->vpaint->tot = 0;
+		}
+		if (sce->toolsettings->wpaint) {
+			sce->toolsettings->wpaint->wpaint_prev = NULL;
+			sce->toolsettings->wpaint->tot = 0;
+		}
 	}
 
 	if (sce->ed) {
@@ -5267,6 +5299,28 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 	}
 
 	direct_link_view_settings(fd, &sce->view_settings);
+	
+	sce->rigidbody_world = newdataadr(fd, sce->rigidbody_world);
+	rbw = sce->rigidbody_world;
+	if (rbw) {
+		/* must nullify the reference to physics sim object, since it no-longer exist 
+		 * (and will need to be recalculated) 
+		 */
+		rbw->physics_world = NULL;
+		rbw->objects = NULL;
+		rbw->numbodies = 0;
+
+		/* set effector weights */
+		rbw->effector_weights = newdataadr(fd, rbw->effector_weights);
+		if (!rbw->effector_weights)
+			rbw->effector_weights = BKE_add_effector_weights(NULL);
+
+		/* link cache */
+		direct_link_pointcache_list(fd, &rbw->ptcaches, &rbw->pointcache, FALSE);
+		/* make sure simulation starts from the beginning after loading file */
+		if (rbw->pointcache)
+			rbw->ltime = rbw->pointcache->startframe;
+	}
 }
 
 /* ************ READ WM ***************** */
@@ -5534,7 +5588,14 @@ static void lib_link_screen(FileData *fd, Main *main)
 	}
 }
 
-/* Only for undo files, or to restore a screen after reading without UI... */
+/**
+ * Only for undo files, or to restore a screen after reading without UI...
+ *
+ * user
+ * - 0: no usercount change
+ * - 1: ensure a user
+ * - 2: ensure a real user (even if a fake one is set)
+ */
 static void *restore_pointer_by_name(Main *mainp, ID *id, int user)
 {
 	if (id) {
@@ -5945,6 +6006,7 @@ static void direct_link_screen(FileData *fd, bScreen *sc)
 		
 		sa->handlers.first = sa->handlers.last = NULL;
 		sa->type = NULL;	/* spacetype callbacks */
+		sa->region_active_win = -1;
 		
 		for (ar = sa->regionbase.first; ar; ar = ar->next)
 			direct_link_region(fd, ar, sa->spacetype);
@@ -5993,6 +6055,7 @@ static void direct_link_screen(FileData *fd, bScreen *sc)
 				v3d->afterdraw_xray.first = v3d->afterdraw_xray.last = NULL;
 				v3d->afterdraw_xraytransp.first = v3d->afterdraw_xraytransp.last = NULL;
 				v3d->properties_storage = NULL;
+				v3d->defmaterial = NULL;
 				
 				/* render can be quite heavy, set to wire on load */
 				if (v3d->drawtype == OB_RENDER)
@@ -6862,7 +6925,7 @@ static void do_versions_nodetree_convert_angle(bNodeTree *ntree)
 			/* Convert degrees to radians. */
 			NodeDefocus *nqd = node->storage;
 			/* XXX DNA char to float conversion seems to map the char value into the [0.0f, 1.0f] range... */
-			nqd->rotation = DEG2RADF(nqd->rotation*255.0f);
+			nqd->rotation = DEG2RADF(nqd->rotation * 255.0f);
 		}
 		else if (node->type == CMP_NODE_CHROMA_MATTE) {
 			/* Convert degrees to radians. */
@@ -6874,7 +6937,7 @@ static void do_versions_nodetree_convert_angle(bNodeTree *ntree)
 			/* Convert degrees to radians. */
 			NodeGlare *ndg = node->storage;
 			/* XXX DNA char to float conversion seems to map the char value into the [0.0f, 1.0f] range... */
-			ndg->angle_ofs = DEG2RADF(ndg->angle_ofs*255.0f);
+			ndg->angle_ofs = DEG2RADF(ndg->angle_ofs * 255.0f);
 		}
 		/* XXX TexMapping struct is used by other nodes too (at least node_composite_mapValue),
 		 *     but not the rot part...
@@ -7275,6 +7338,17 @@ static void do_version_node_cleanup_dynamic_sockets_264(void *UNUSED(data), ID *
 				sock->flag &= ~SOCK_DYNAMIC;
 			for (sock = node->outputs.first; sock; sock = sock->next)
 				sock->flag &= ~SOCK_DYNAMIC;
+		}
+	}
+}
+
+static void do_version_node_fix_translate_wrapping(void *UNUSED(data), ID *UNUSED(id), bNodeTree *ntree)
+{
+	bNode *node;
+
+	for (node = ntree->nodes.first; node; node = node->next) {
+		if (node->type == CMP_NODE_TRANSLATE && node->storage == NULL) {
+			node->storage = MEM_callocN(sizeof(NodeTranslateData), "node translate data");
 		}
 	}
 }
@@ -8570,11 +8644,12 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 
 	if (main->versionfile < 265 || (main->versionfile == 265 && main->subversionfile < 5)) {
 		Scene *scene;
-		Image *image;
-		Tex *tex;
+		Image *image, *nimage;
+		Tex *tex, *otex;
 
 		for (scene = main->scene.first; scene; scene = scene->id.next) {
 			Sequence *seq;
+			bool set_premul = false;
 
 			SEQ_BEGIN (scene->ed, seq)
 			{
@@ -8585,22 +8660,152 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 
 			if (scene->r.bake_samples == 0)
 			scene->r.bake_samples = 256;
+
+			if (scene->world) {
+				World *world = blo_do_versions_newlibadr(fd, scene->id.lib, scene->world);
+
+				if (world && is_zero_v3(&world->horr)) {
+					if ((world->skytype & WO_SKYBLEND) == 0 || is_zero_v3(&world->zenr)) {
+						set_premul = true;
+					}
+				}
+			}
+			else
+				set_premul = true;
+
+			if (set_premul) {
+				printf("2.66 versioning fix: replacing black sky with premultiplied alpha for scene %s\n", scene->id.name + 2);
+				scene->r.alphamode = R_ALPHAPREMUL;
+			}
 		}
 
 		for (image = main->image.first; image; image = image->id.next) {
 			if (image->flag & IMA_DO_PREMUL)
 				image->alpha_mode = IMA_ALPHA_STRAIGHT;
+
+			image->flag &= ~IMA_DONE_TAG;
 		}
 
+		/* use alpha flag moved from texture to image datablock */
 		for (tex = main->tex.first; tex; tex = tex->id.next) {
 			if (tex->type == TEX_IMAGE && (tex->imaflag & TEX_USEALPHA) == 0) {
 				image = blo_do_versions_newlibadr(fd, tex->id.lib, tex->ima);
 
-				if (image)
+				/* skip if no image or already tested */
+				if (!image || (image->flag & (IMA_DONE_TAG|IMA_IGNORE_ALPHA)))
+					continue;
+
+				image->flag |= IMA_DONE_TAG;
+
+				/* we might have some textures using alpha and others not, so we check if
+				 * they exist and duplicate the image datablock if necessary */
+				for (otex = main->tex.first; otex; otex = otex->id.next)
+					if (otex->type == TEX_IMAGE && (otex->imaflag & TEX_USEALPHA))
+						if (image == blo_do_versions_newlibadr(fd, otex->id.lib, otex->ima))
+							break;
+
+				if (otex) {
+					/* copy image datablock */
+					nimage = BKE_image_copy(main, image);
+					nimage->flag |= IMA_IGNORE_ALPHA|IMA_DONE_TAG;
+					nimage->id.us--;
+
+					/* we need to do some trickery to make file loading think
+					 * this new datablock is part of file we're loading */
+					blo_do_versions_oldnewmap_insert(fd->libmap, nimage, nimage, 0);
+					nimage->id.lib = image->id.lib;
+					nimage->id.flag |= (image->id.flag & LIB_NEED_LINK);
+
+					/* assign new image, and update the users counts accordingly */
+					for (otex = main->tex.first; otex; otex = otex->id.next) {
+						if (otex->type == TEX_IMAGE && (otex->imaflag & TEX_USEALPHA) == 0) {
+							if (image == blo_do_versions_newlibadr(fd, otex->id.lib, otex->ima)) {
+								if (!(otex->id.flag & LIB_NEED_LINK)) {
+									image->id.us--;
+									nimage->id.us++;
+								}
+								otex->ima = nimage;
+								break;
+							}
+						}
+					}
+				}
+				else {
+					/* no other textures using alpha, just set the flag */
 					image->flag |= IMA_IGNORE_ALPHA;
+				}
+			}
+		}
+
+		for (image = main->image.first; image; image = image->id.next)
+			image->flag &= ~IMA_DONE_TAG;
+	}
+
+	if (main->versionfile < 265 || (main->versionfile == 265 && main->subversionfile < 7)) {
+		Curve *cu;
+
+		for (cu = main->curve.first; cu; cu = cu->id.next) {
+			if (cu->flag & (CU_FRONT | CU_BACK)) {
+				if ( cu->ext1 != 0.0f || cu->ext2 != 0.0f) {
+					Nurb *nu;
+
+					for (nu = cu->nurb.first; nu; nu = nu->next) {
+						int a;
+
+						if (nu->bezt) {
+							BezTriple *bezt = nu->bezt;
+							a = nu->pntsu;
+
+							while (a--) {
+								bezt->radius = 1.0f;
+								bezt++;
+							}
+						}
+						else if (nu->bp) {
+							BPoint *bp = nu->bp;
+							a = nu->pntsu * nu->pntsv;
+
+							while (a--) {
+								bp->radius = 1.0f;
+								bp++;
+							}
+						}
+					}
+				}
 			}
 		}
 	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 265, 8)) {
+		Mesh *me;
+		for (me = main->mesh.first; me; me = me->id.next) {
+			BKE_mesh_do_versions_cd_flag_init(me);
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 265, 9)) {
+		Brush *br;
+		for (br = main->brush.first; br; br = br->id.next) {
+			if (br->ob_mode & OB_MODE_TEXTURE_PAINT) {
+				br->mtex.brush_map_mode = MTEX_MAP_MODE_TILED;
+			}
+		}
+	}
+
+	// add storage for compositor translate nodes when not existing
+	if (!MAIN_VERSION_ATLEAST(main, 265, 10)) {
+		bNodeTreeType *ntreetype;
+		bNodeTree *ntree;
+
+		ntreetype = ntreeGetType(NTREE_COMPOSIT);
+		if (ntreetype && ntreetype->foreach_nodetree)
+			ntreetype->foreach_nodetree(main, NULL, do_version_node_fix_translate_wrapping);
+
+		for (ntree = main->nodetree.first; ntree; ntree = ntree->id.next)
+			do_version_node_fix_translate_wrapping(NULL, NULL, ntree);
+	}
+
+	// if (main->versionfile < 265 || (main->versionfile == 265 && main->subversionfile < 7)) {
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init has to be in editors/interface/resources.c! */
@@ -8675,6 +8880,10 @@ static BHead *read_userdef(BlendFileData *bfd, FileData *fd, BHead *bhead)
 	bAddon *addon;
 	
 	bfd->user = user= read_struct(fd, bhead, "user def");
+	
+	/* User struct has separate do-version handling */
+	user->versionfile = bfd->main->versionfile;
+	user->subversionfile = bfd->main->subversionfile;
 	
 	/* read all data into fd->datamap */
 	bhead = read_data_into_oldnewmap(fd, bhead, "user def");
@@ -8841,7 +9050,7 @@ static void sort_bhead_old_map(FileData *fd)
 	fd->tot_bheadmap = tot;
 	if (tot == 0) return;
 	
-	bhs = fd->bheadmap = MEM_mallocN(tot*sizeof(struct BHeadSort), STRINGIFY(BHeadSort));
+	bhs = fd->bheadmap = MEM_mallocN(tot * sizeof(struct BHeadSort), "BHeadSort");
 	
 	for (bhead = blo_firstbhead(fd); bhead; bhead = blo_nextbhead(fd, bhead), bhs++) {
 		bhs->bhead = bhead;
@@ -9575,7 +9784,12 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
 	
 	if (ob->pd && ob->pd->tex)
 		expand_doit(fd, mainvar, ob->pd->tex);
-	
+
+	if (ob->rigidbody_constraint) {
+		expand_doit(fd, mainvar, ob->rigidbody_constraint->ob1);
+		expand_doit(fd, mainvar, ob->rigidbody_constraint->ob2);
+	}
+
 }
 
 static void expand_scene(FileData *fd, Main *mainvar, Scene *sce)
@@ -9620,6 +9834,11 @@ static void expand_scene(FileData *fd, Main *mainvar, Scene *sce)
 			if (seq->sound) expand_doit(fd, mainvar, seq->sound);
 		}
 		SEQ_END
+	}
+	
+	if (sce->rigidbody_world) {
+		expand_doit(fd, mainvar, sce->rigidbody_world->group);
+		expand_doit(fd, mainvar, sce->rigidbody_world->constraints);
 	}
 
 #ifdef DURIAN_CAMERA_SWITCH
@@ -9712,7 +9931,7 @@ void BLO_expand_main(void *fdhandle, Main *mainvar)
 		
 		a = set_listbasepointers(mainvar, lbarray);
 		while (a--) {
-			id= lbarray[a]->first;
+			id = lbarray[a]->first;
 			while (id) {
 				if (id->flag & LIB_NEED_EXPAND) {
 					switch (GS(id->name)) {
@@ -9855,7 +10074,7 @@ static void give_base_to_objects(Main *mainvar, Scene *sce, Library *lib, const 
 				
 				if (do_it) {
 					base = MEM_callocN(sizeof(Base), "add_ext_base");
-					BLI_addtail(&(sce->base), base);
+					BLI_addtail(&sce->base, base);
 					base->lay = ob->lay;
 					base->object = ob;
 					base->flag = ob->flag;
@@ -9879,7 +10098,7 @@ static void give_base_to_groups(Main *mainvar, Scene *scene)
 			Base *base;
 			
 			/* BKE_object_add(...) messes with the selection */
-			Object *ob = BKE_object_add_only_object(OB_EMPTY, group->id.name+2);
+			Object *ob = BKE_object_add_only_object(mainvar, OB_EMPTY, group->id.name+2);
 			ob->type = OB_EMPTY;
 			ob->lay = scene->lay;
 			

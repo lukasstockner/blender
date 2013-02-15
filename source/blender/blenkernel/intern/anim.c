@@ -69,6 +69,7 @@
 #include "BKE_depsgraph.h"
 #include "BKE_anim.h"
 #include "BKE_report.h"
+#include "BKE_rigidbody.h"
 
 
 // XXX bad level call...
@@ -311,7 +312,7 @@ static void motionpaths_calc_optimise_depsgraph(Scene *scene, ListBase *targets)
 				BLI_addhead(&scene->base, base);
 				
 				mpt->ob->flag |= BA_TEMP_TAG;
-
+				
 				/* we really don't need to continue anymore once this happens, but this line might really 'break' */
 				break;
 			}
@@ -327,6 +328,7 @@ static void motionpaths_calc_update_scene(Scene *scene)
 {
 #if 1 // 'production' optimizations always on
 	Base *base, *last = NULL;
+	float ctime = BKE_scene_frame_get(scene);
 	
 	/* only stuff that moves or needs display still */
 	DAG_scene_update_flags(G.main, scene, scene->lay, TRUE);
@@ -339,6 +341,14 @@ static void motionpaths_calc_update_scene(Scene *scene)
 		if (base->object->flag & BA_TEMP_TAG)
 			last = base;
 	}
+	
+	/* run rigidbody sim 
+	 * NOTE: keep in sync with BKE_scene_update_for_newframe() in scene.c
+	 */
+	// XXX: this position may still change, objects not being updated correctly before simulation is run
+	// NOTE: current position is so that rigidbody sim affects other objects
+	if (BKE_scene_check_rigidbody_active(scene))
+		BKE_rigidbody_do_simulation(scene, ctime);
 	
 	/* perform updates for tagged objects */
 	/* XXX: this will break if rigs depend on scene or other data that
@@ -957,7 +967,7 @@ static void vertex_duplilist(ListBase *lb, ID *id, Scene *scene, Object *par, fl
 		dm = editbmesh_get_derived_cage(scene, par, em, CD_MASK_BAREMESH);
 	}
 	else
-		dm = mesh_get_derived_deform(scene, par, CD_MASK_BAREMESH);
+		dm = mesh_get_derived_final(scene, par, CD_MASK_BAREMESH);
 	
 	if (flag & DUPLILIST_FOR_RENDER) {
 		vdd.orco = (float(*)[3])BKE_mesh_orco_verts_get(par);
@@ -1084,7 +1094,7 @@ static void face_duplilist(ListBase *lb, ID *id, Scene *scene, Object *par, floa
 		dm = editbmesh_get_derived_cage(scene, par, em, CD_MASK_BAREMESH);
 	}
 	else {
-		dm = mesh_get_derived_deform(scene, par, CD_MASK_BAREMESH);
+		dm = mesh_get_derived_final(scene, par, CD_MASK_BAREMESH);
 	}
 
 	totface = dm->getNumPolys(dm);

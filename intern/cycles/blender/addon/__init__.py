@@ -34,13 +34,14 @@ import bpy
 
 from . import engine
 
+
 class CyclesRender(bpy.types.RenderEngine):
     bl_idname = 'CYCLES'
     bl_label = "Cycles Render"
     bl_use_shading_nodes = True
+    bl_use_preview = True
 
     def __init__(self):
-        engine.init()
         self.session = None
 
     def __del__(self):
@@ -48,28 +49,28 @@ class CyclesRender(bpy.types.RenderEngine):
 
     # final render
     def update(self, data, scene):
-        if not self.session:
-            engine.create(self, data, scene)
+        if self.is_preview:
+            if not self.session:
+                use_osl = bpy.context.scene.cycles.shading_system
+
+                engine.create(self, data, scene,
+                              None, None, None, use_osl)
         else:
-            engine.reset(self, data, scene)
+            if not self.session:
+                engine.create(self, data, scene)
+            else:
+                engine.reset(self, data, scene)
 
         engine.update(self, data, scene)
 
     def render(self, scene):
         engine.render(self)
 
-    # preview render
-    # def preview_update(self, context, id):
-    #    pass
-    #
-    # def preview_render(self):
-    #    pass
-
     # viewport render
     def view_update(self, context):
         if not self.session:
             engine.create(self, context.blend_data, context.scene,
-                context.region, context.space_data, context.region_data)
+                          context.region, context.space_data, context.region_data)
         engine.update(self, context.blend_data, context.scene)
 
     def view_draw(self, context):
@@ -88,6 +89,8 @@ def register():
     from . import properties
     from . import presets
 
+    engine.init()
+
     properties.register()
     ui.register()
     presets.register()
@@ -103,4 +106,3 @@ def unregister():
     properties.unregister()
     presets.unregister()
     bpy.utils.unregister_module(__name__)
-

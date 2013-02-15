@@ -242,11 +242,11 @@ void BKE_image_free(Image *ima)
 }
 
 /* only image block itself */
-static Image *image_alloc(const char *name, short source, short type)
+static Image *image_alloc(Main *bmain, const char *name, short source, short type)
 {
 	Image *ima;
 
-	ima = BKE_libblock_alloc(&G.main->image, ID_IM, name);
+	ima = BKE_libblock_alloc(&bmain->image, ID_IM, name);
 	if (ima) {
 		ima->ok = IMA_OK;
 
@@ -323,9 +323,9 @@ static void image_assign_ibuf(Image *ima, ImBuf *ibuf, int index, int frame)
 }
 
 /* empty image block, of similar type and filename */
-Image *BKE_image_copy(Image *ima)
+Image *BKE_image_copy(Main *bmain, Image *ima)
 {
-	Image *nima = image_alloc(ima->id.name + 2, ima->source, ima->type);
+	Image *nima = image_alloc(bmain, ima->id.name + 2, ima->source, ima->type);
 
 	BLI_strncpy(nima->name, ima->name, sizeof(ima->name));
 
@@ -342,6 +342,9 @@ Image *BKE_image_copy(Image *ima)
 	nima->aspy = ima->aspy;
 
 	BKE_color_managed_colorspace_settings_copy(&nima->colorspace_settings, &ima->colorspace_settings);
+
+	if (ima->packedfile)
+		nima->packedfile = dupPackedFile(ima->packedfile);
 
 	return nima;
 }
@@ -433,7 +436,7 @@ void BKE_image_make_local(struct Image *ima)
 		extern_local_image(ima);
 	}
 	else if (is_local && is_lib) {
-		Image *ima_new = BKE_image_copy(ima);
+		Image *ima_new = BKE_image_copy(bmain, ima);
 
 		ima_new->id.us = 0;
 
@@ -568,7 +571,7 @@ static void image_init_color_management(Image *ima)
 	}
 }
 
-Image *BKE_image_load(const char *filepath)
+Image *BKE_image_load(Main *bmain, const char *filepath)
 {
 	Image *ima;
 	int file, len;
@@ -576,7 +579,7 @@ Image *BKE_image_load(const char *filepath)
 	char str[FILE_MAX];
 
 	BLI_strncpy(str, filepath, sizeof(str));
-	BLI_path_abs(str, G.main->name);
+	BLI_path_abs(str, bmain->name);
 
 	/* exists? */
 	file = BLI_open(str, O_BINARY | O_RDONLY, 0);
@@ -589,7 +592,7 @@ Image *BKE_image_load(const char *filepath)
 	while (len > 0 && filepath[len - 1] != '/' && filepath[len - 1] != '\\') len--;
 	libname = filepath + len;
 
-	ima = image_alloc(libname, IMA_SRC_FILE, IMA_TYPE_IMAGE);
+	ima = image_alloc(bmain, libname, IMA_SRC_FILE, IMA_TYPE_IMAGE);
 	BLI_strncpy(ima->name, filepath, sizeof(ima->name));
 
 	if (BLI_testextensie_array(filepath, imb_ext_movie))
@@ -631,7 +634,7 @@ Image *BKE_image_load_exists(const char *filepath)
 		}
 	}
 
-	return BKE_image_load(filepath);
+	return BKE_image_load(G.main, filepath);
 }
 
 static ImBuf *add_ibuf_size(unsigned int width, unsigned int height, const char *name, int depth, int floatbuf, short gen_type,
@@ -691,10 +694,10 @@ static ImBuf *add_ibuf_size(unsigned int width, unsigned int height, const char 
 }
 
 /* adds new image block, creates ImBuf and initializes color */
-Image *BKE_image_add_generated(unsigned int width, unsigned int height, const char *name, int depth, int floatbuf, short gen_type, float color[4])
+Image *BKE_image_add_generated(Main *bmain, unsigned int width, unsigned int height, const char *name, int depth, int floatbuf, short gen_type, float color[4])
 {
 	/* on save, type is changed to FILE in editsima.c */
-	Image *ima = image_alloc(name, IMA_SRC_GENERATED, IMA_TYPE_UV_TEST);
+	Image *ima = image_alloc(bmain, name, IMA_SRC_GENERATED, IMA_TYPE_UV_TEST);
 
 	if (ima) {
 		ImBuf *ibuf;
@@ -720,7 +723,7 @@ Image *BKE_image_add_from_imbuf(ImBuf *ibuf)
 	/* on save, type is changed to FILE in editsima.c */
 	Image *ima;
 
-	ima = image_alloc(BLI_path_basename(ibuf->name), IMA_SRC_FILE, IMA_TYPE_IMAGE);
+	ima = image_alloc(G.main, BLI_path_basename(ibuf->name), IMA_SRC_FILE, IMA_TYPE_IMAGE);
 
 	if (ima) {
 		BLI_strncpy(ima->name, ibuf->name, FILE_MAX);
@@ -904,7 +907,7 @@ void BKE_image_free_all_textures(void)
 				image_free_buffers(ima);
 		}
 	}
-	/* printf("freed total %d MB\n", totsize/(1024*1024)); */
+	/* printf("freed total %d MB\n", totsize / (1024 * 1024)); */
 }
 
 /* except_frame is weak, only works for seqs without offset... */
@@ -2104,7 +2107,7 @@ Image *BKE_image_verify_viewer(int type, const char *name)
 				break;
 
 	if (ima == NULL)
-		ima = image_alloc(name, IMA_SRC_VIEWER, type);
+		ima = image_alloc(G.main, name, IMA_SRC_VIEWER, type);
 
 	/* happens on reload, imagewindow cannot be image user when hidden*/
 	if (ima->id.us == 0)
@@ -2205,9 +2208,20 @@ void BKE_image_signal(Image *ima, ImageUser *iuser, int signal)
 				}
 			}
 
+#if 0
 			/* force reload on first use, but not for multilayer, that makes nodes and buttons in ui drawing fail */
 			if (ima->type != IMA_TYPE_MULTILAYER)
 				image_free_buffers(ima);
+#else
+			/* image buffers for non-sequence multilayer will share buffers with RenderResult,
+			 * however sequence multilayer will own buffers. Such logic makes switching from
+			 * single multilayer file to sequence completely instable
+			 * since changes in nodes seems this workaround isn't needed anymore, all sockets
+			 * are nicely detecting anyway, but freeing buffers always here makes multilayer
+			 * sequences behave stable
+			 */
+			image_free_buffers(ima);
+#endif
 
 			ima->ok = 1;
 			if (iuser)
@@ -2723,6 +2737,14 @@ static ImBuf *image_get_render_result(Image *ima, ImageUser *iuser, void **lock_
 	if (rres.have_combined && layer == 0) {
 		/* pass */
 	}
+	else if (rect && layer == 0) {
+		/* rect32 is set when there's a Sequence pass, this pass seems
+		 * to have layer=0 (this is from image_buttons.c)
+		 * in this case we ignore float buffer, because it could have
+		 * hung from previous pass which was float
+		 */
+		rectf = NULL;
+	}
 	else if (rres.layers.first) {
 		RenderLayer *rl = BLI_findlink(&rres.layers, layer - (rres.have_combined ? 1 : 0));
 		if (rl) {
@@ -2811,6 +2833,28 @@ static ImBuf *image_get_render_result(Image *ima, ImageUser *iuser, void **lock_
 	return ibuf;
 }
 
+static void image_get_fame_and_index(Image *ima, ImageUser *iuser, int *frame_r, int *index_r)
+{
+	int frame = 0, index = 0;
+
+	/* see if we already have an appropriate ibuf, with image source and type */
+	if (ima->source == IMA_SRC_MOVIE) {
+		frame = iuser ? iuser->framenr : ima->lastframe;
+	}
+	else if (ima->source == IMA_SRC_SEQUENCE) {
+		if (ima->type == IMA_TYPE_IMAGE) {
+			frame = iuser ? iuser->framenr : ima->lastframe;
+		}
+		else if (ima->type == IMA_TYPE_MULTILAYER) {
+			frame = iuser ? iuser->framenr : ima->lastframe;
+			index = iuser ? iuser->multi_index : IMA_NO_INDEX;
+		}
+	}
+
+	*frame_r = frame;
+	*index_r = index;
+}
+
 static ImBuf *image_get_ibuf_threadsafe(Image *ima, ImageUser *iuser, int *frame_r, int *index_r)
 {
 	ImBuf *ibuf = NULL;
@@ -2866,6 +2910,21 @@ static ImBuf *image_get_ibuf_threadsafe(Image *ima, ImageUser *iuser, int *frame
 	return ibuf;
 }
 
+BLI_INLINE int image_quick_test(Image *ima, ImageUser *iuser)
+{
+	if (ima == NULL)
+		return FALSE;
+
+	if (iuser) {
+		if (iuser->ok == 0)
+			return FALSE;
+	}
+	else if (ima->ok == 0)
+		return FALSE;
+
+	return TRUE;
+}
+
 /* Checks optional ImageUser and verifies/creates ImBuf.
  *
  * not thread-safe, so callee should worry about thread locks
@@ -2880,14 +2939,7 @@ static ImBuf *image_acquire_ibuf(Image *ima, ImageUser *iuser, void **lock_r)
 		*lock_r = NULL;
 
 	/* quick reject tests */
-	if (ima == NULL)
-		return NULL;
-
-	if (iuser) {
-		if (iuser->ok == 0)
-			return NULL;
-	}
-	else if (ima->ok == 0)
+	if (!image_quick_test(ima, iuser))
 		return NULL;
 
 	ibuf = image_get_ibuf_threadsafe(ima, iuser, &frame, &index);
@@ -3011,14 +3063,7 @@ int BKE_image_has_ibuf(Image *ima, ImageUser *iuser)
 	ImBuf *ibuf;
 
 	/* quick reject tests */
-	if (ima == NULL)
-		return FALSE;
-
-	if (iuser) {
-		if (iuser->ok == 0)
-			return FALSE;
-	}
-	else if (ima->ok == 0)
+	if (!image_quick_test(ima, iuser))
 		return FALSE;
 
 	ibuf = image_get_ibuf_threadsafe(ima, iuser, NULL, NULL);
@@ -3035,6 +3080,122 @@ int BKE_image_has_ibuf(Image *ima, ImageUser *iuser)
 	}
 
 	return ibuf != NULL;
+}
+
+/* ******** Pool for image buffers ********  */
+
+typedef struct ImagePoolEntry {
+	struct ImagePoolEntry *next, *prev;
+	Image *image;
+	ImBuf *ibuf;
+	int index;
+	int frame;
+} ImagePoolEntry;
+
+typedef struct ImagePool {
+	ListBase image_buffers;
+} ImagePool;
+
+ImagePool *BKE_image_pool_new(void)
+{
+	ImagePool *pool = MEM_callocN(sizeof(ImagePool), "Image Pool");
+
+	return pool;
+}
+
+void BKE_image_pool_free(ImagePool *pool)
+{
+	ImagePoolEntry *entry, *next_entry;
+
+	/* use single lock to dereference all the image buffers */
+	BLI_spin_lock(&image_spin);
+
+	for (entry = pool->image_buffers.first; entry; entry = next_entry) {
+		next_entry = entry->next;
+
+		if (entry->ibuf)
+			IMB_freeImBuf(entry->ibuf);
+
+		MEM_freeN(entry);
+	}
+
+	BLI_spin_unlock(&image_spin);
+
+	MEM_freeN(pool);
+}
+
+BLI_INLINE ImBuf *image_pool_find_entry(ImagePool *pool, Image *image, int frame, int index, int *found)
+{
+	ImagePoolEntry *entry;
+
+	*found = FALSE;
+
+	for (entry = pool->image_buffers.first; entry; entry = entry->next) {
+		if (entry->image == image && entry->frame == frame && entry->index == index) {
+			*found = TRUE;
+			return entry->ibuf;
+		}
+	}
+
+	return NULL;
+}
+
+ImBuf *BKE_image_pool_acquire_ibuf(Image *ima, ImageUser *iuser, ImagePool *pool)
+{
+	ImBuf *ibuf;
+	int index, frame, found;
+
+	if (!image_quick_test(ima, iuser))
+		return NULL;
+
+	if (pool == NULL) {
+		/* pool could be NULL, in this case use general acquire function */
+		return BKE_image_acquire_ibuf(ima, iuser, NULL);
+	}
+
+	image_get_fame_and_index(ima, iuser, &frame, &index);
+
+	ibuf = image_pool_find_entry(pool, ima, frame, index, &found);
+	if (found)
+		return ibuf;
+
+	BLI_spin_lock(&image_spin);
+
+	ibuf = image_pool_find_entry(pool, ima, frame, index, &found);
+
+	/* will also create entry even in cases image buffer failed to load,
+	 * prevents trying to load the same buggy file multiple times
+	 */
+	if (!found) {
+		ImagePoolEntry *entry;
+
+		ibuf = image_acquire_ibuf(ima, iuser, NULL);
+
+		if (ibuf)
+			IMB_refImBuf(ibuf);
+
+		entry = MEM_callocN(sizeof(ImagePoolEntry), "Image Pool Entry");
+		entry->image = ima;
+		entry->frame = frame;
+		entry->index = index;
+		entry->ibuf = ibuf;
+
+		BLI_addtail(&pool->image_buffers, entry);
+	}
+
+	BLI_spin_unlock(&image_spin);
+
+	return ibuf;
+}
+
+void BKE_image_pool_release_ibuf(Image *ima, ImBuf *ibuf, ImagePool *pool)
+{
+	/* if pool wasn't actually used, use general release stuff,
+	 * for pools image buffers will be dereferenced on pool free
+	 */
+	if (pool == NULL) {
+		BKE_image_release_ibuf(ima, ibuf, NULL);
+	}
 }
 
 int BKE_image_user_frame_get(const ImageUser *iuser, int cfra, int fieldnr, short *r_is_in_range)
@@ -3198,4 +3359,58 @@ void BKE_image_get_aspect(Image *image, float *aspx, float *aspy)
 		*aspy = image->aspy / image->aspx;
 	else
 		*aspy = 1.0f;
+}
+
+unsigned char *BKE_image_get_pixels_for_frame(struct Image *image, int frame)
+{
+	ImageUser iuser = {0};
+	void *lock;
+	ImBuf *ibuf;
+	unsigned char *pixels = NULL;
+
+	iuser.framenr = frame;
+	iuser.ok = TRUE;
+
+	ibuf = BKE_image_acquire_ibuf(image, &iuser, &lock);
+
+	if (ibuf) {
+		pixels = (unsigned char *) ibuf->rect;
+
+		if (pixels)
+			pixels = MEM_dupallocN(pixels);
+
+		BKE_image_release_ibuf(image, ibuf, lock);
+	}
+
+	if (!pixels)
+		return NULL;
+
+	return pixels;
+}
+
+float *BKE_image_get_float_pixels_for_frame(struct Image *image, int frame)
+{
+	ImageUser iuser = {0};
+	void *lock;
+	ImBuf *ibuf;
+	float *pixels = NULL;
+
+	iuser.framenr = frame;
+	iuser.ok = TRUE;
+
+	ibuf = BKE_image_acquire_ibuf(image, &iuser, &lock);
+
+	if (ibuf) {
+		pixels = ibuf->rect_float;
+
+		if (pixels)
+			pixels = MEM_dupallocN(pixels);
+
+		BKE_image_release_ibuf(image, ibuf, lock);
+	}
+
+	if (!pixels)
+		return NULL;
+
+	return pixels;
 }

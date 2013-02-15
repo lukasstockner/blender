@@ -190,6 +190,11 @@ static int rna_ParticleEdit_hair_get(PointerRNA *ptr)
 	return 0;
 }
 
+static char *rna_ParticleEdit_path(PointerRNA *ptr)
+{
+	return BLI_strdup("tool_settings.particle_edit");
+}
+
 static int rna_Brush_mode_poll(PointerRNA *ptr, PointerRNA value)
 {
 	Scene *scene = (Scene *)ptr->id.data;
@@ -231,7 +236,7 @@ static void rna_Sculpt_ShowDiffuseColor_update(Main *UNUSED(bmain), Scene *scene
 {
 	Object *ob = (scene->basact) ? scene->basact->object : NULL;
 
-	if (ob) {
+	if (ob && ob->sculpt) {
 		Sculpt *sd = scene->toolsettings->sculpt;
 		ob->sculpt->show_diffuse_color = sd->flags & SCULPT_SHOW_DIFFUSE;
 
@@ -240,6 +245,38 @@ static void rna_Sculpt_ShowDiffuseColor_update(Main *UNUSED(bmain), Scene *scene
 
 		WM_main_add_notifier(NC_OBJECT | ND_DRAW, ob);
 	}
+}
+
+static char *rna_Sculpt_path(PointerRNA *ptr)
+{
+	return BLI_strdup("tool_settings.sculpt");
+}
+
+static char *rna_VertexPaint_path(PointerRNA *ptr)
+{
+	Scene *scene = (Scene *)ptr->id.data;
+	ToolSettings *ts = scene->toolsettings;
+	if (ptr->data == ts->vpaint) {
+		return BLI_strdup("tool_settings.vertex_paint");
+	}
+	else {
+		return BLI_strdup("tool_settings.weight_paint");
+	}
+}
+
+static char *rna_ImagePaintSettings_path(PointerRNA *ptr)
+{
+	return BLI_strdup("tool_settings.image_paint");
+}
+
+static char *rna_UvSculpt_path(PointerRNA *ptr)
+{
+	return BLI_strdup("tool_settings.uv_sculpt");
+}
+
+static char *rna_ParticleBrush_path(PointerRNA *ptr)
+{
+	return BLI_strdup("tool_settings.particle_edit.brush");
 }
 
 #else
@@ -283,6 +320,7 @@ static void rna_def_sculpt(BlenderRNA  *brna)
 	PropertyRNA *prop;
 
 	srna = RNA_def_struct(brna, "Sculpt", "Paint");
+	RNA_def_struct_path_func(srna, "rna_Sculpt_path");
 	RNA_def_struct_ui_text(srna, "Sculpt", "");
 
 	prop = RNA_def_property(srna, "radial_symmetry", PROP_INT, PROP_XYZ);
@@ -340,7 +378,7 @@ static void rna_def_sculpt(BlenderRNA  *brna)
 	                         "Show diffuse color of object and overlay sculpt mask on top of it");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Sculpt_ShowDiffuseColor_update");
 
-	prop = RNA_def_property(srna, "detail_size", PROP_INT, PROP_DISTANCE);
+	prop = RNA_def_property(srna, "detail_size", PROP_INT, PROP_NONE);
 	RNA_def_property_ui_range(prop, 2, 100, 0, 0);
 	RNA_def_property_ui_text(prop, "Detail Size", "Maximum edge length for dynamic topology sculpting (in pixels)");
 
@@ -368,6 +406,7 @@ static void rna_def_uv_sculpt(BlenderRNA  *brna)
 	StructRNA *srna;
 
 	srna = RNA_def_struct(brna, "UvSculpt", "Paint");
+	RNA_def_struct_path_func(srna, "rna_UvSculpt_path");
 	RNA_def_struct_ui_text(srna, "UV Sculpting", "");
 }
 
@@ -380,6 +419,7 @@ static void rna_def_vertex_paint(BlenderRNA *brna)
 
 	srna = RNA_def_struct(brna, "VertexPaint", "Paint");
 	RNA_def_struct_sdna(srna, "VPaint");
+	RNA_def_struct_path_func(srna, "rna_VertexPaint_path");
 	RNA_def_struct_ui_text(srna, "Vertex Paint", "Properties of vertex and weight paint mode");
 
 	/* vertex paint only */
@@ -408,6 +448,7 @@ static void rna_def_image_paint(BlenderRNA *brna)
 	
 	srna = RNA_def_struct(brna, "ImagePaint", "Paint");
 	RNA_def_struct_sdna(srna, "ImagePaintSettings");
+	RNA_def_struct_path_func(srna, "rna_ImagePaintSettings_path");
 	RNA_def_struct_ui_text(srna, "Image Paint", "Properties of image and texture painting mode");
 	
 	/* booleans */
@@ -492,6 +533,7 @@ static void rna_def_particle_edit(BlenderRNA *brna)
 
 	srna = RNA_def_struct(brna, "ParticleEdit", NULL);
 	RNA_def_struct_sdna(srna, "ParticleEditSettings");
+	RNA_def_struct_path_func(srna, "rna_ParticleEdit_path");
 	RNA_def_struct_ui_text(srna, "Particle Edit", "Properties of particle editing mode");
 
 	prop = RNA_def_property(srna, "tool", PROP_ENUM, PROP_NONE);
@@ -587,9 +629,10 @@ static void rna_def_particle_edit(BlenderRNA *brna)
 
 	srna = RNA_def_struct(brna, "ParticleBrush", NULL);
 	RNA_def_struct_sdna(srna, "ParticleBrushData");
+	RNA_def_struct_path_func(srna, "rna_ParticleBrush_path");
 	RNA_def_struct_ui_text(srna, "Particle Brush", "Particle editing brush");
 
-	prop = RNA_def_property(srna, "size", PROP_INT, PROP_DISTANCE);
+	prop = RNA_def_property(srna, "size", PROP_INT, PROP_NONE);
 	RNA_def_property_range(prop, 1, SHRT_MAX);
 	RNA_def_property_ui_range(prop, 1, 100, 10, 3);
 	RNA_def_property_ui_text(prop, "Radius", "Radius of the brush in pixels");
@@ -633,12 +676,15 @@ static void rna_def_particle_edit(BlenderRNA *brna)
 
 void RNA_def_sculpt_paint(BlenderRNA *brna)
 {
+	/* *** Non-Animated *** */
+	RNA_define_animate_sdna(false);
 	rna_def_paint(brna);
 	rna_def_sculpt(brna);
 	rna_def_uv_sculpt(brna);
 	rna_def_vertex_paint(brna);
 	rna_def_image_paint(brna);
 	rna_def_particle_edit(brna);
+	RNA_define_animate_sdna(true);
 }
 
 #endif

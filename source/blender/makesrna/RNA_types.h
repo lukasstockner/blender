@@ -110,10 +110,9 @@ typedef enum PropertySubType {
 	PROP_FILEPATH = 1,
 	PROP_DIRPATH = 2,
 	PROP_FILENAME = 3,
-	PROP_BYTESTRING = 4, /* a string which should be represented as bytes
-	                      * in python, still NULL terminated though. */
-	PROP_TRANSLATE = 5, /* a string which should be translated */
-	PROP_PASSWORD = 6,	/* a string which should not be displayed in UI */
+	PROP_BYTESTRING = 4, /* a string which should be represented as bytes in python, still NULL terminated though. */
+	/* 5 was used by "PROP_TRANSLATE" sub-type, which is now a flag. */
+	PROP_PASSWORD = 6, /* a string which should not be displayed in UI */
 
 	/* numbers */
 	PROP_UNSIGNED = 13,
@@ -121,6 +120,7 @@ typedef enum PropertySubType {
 	PROP_FACTOR = 15,
 	PROP_ANGLE = 16 | PROP_UNIT_ROTATION,
 	PROP_TIME = 17 | PROP_UNIT_TIME,
+	/* distance in 3d space, don't use for pixel distance for eg. */
 	PROP_DISTANCE = 18 | PROP_UNIT_LENGTH,
 
 	/* number arrays */
@@ -135,7 +135,7 @@ typedef enum PropertySubType {
 	PROP_AXISANGLE = 28,
 	PROP_XYZ = 29,
 	PROP_XYZ_LENGTH = 29 | PROP_UNIT_LENGTH,
-	PROP_COLOR_GAMMA = 30,
+	PROP_COLOR_GAMMA = 30, /* used for colors which would be color managed before display */
 	PROP_COORDS = 31, /* generic array, no units applied, only that x/y/z/w are used (python vec) */
 
 	/* booleans */
@@ -144,6 +144,7 @@ typedef enum PropertySubType {
 } PropertySubType;
 
 /* Make sure enums are updated with thses */
+/* HIGHEST FLAG IN USE: 1 << 28 */
 typedef enum PropertyFlag {
 	/* editable means the property is editable in the user
 	 * interface, properties are editable by default except
@@ -337,8 +338,8 @@ typedef enum FunctionFlag {
 	FUNC_ALLOW_WRITE = 4096,
 
 	/* registering */
-	FUNC_REGISTER = 16,
-	FUNC_REGISTER_OPTIONAL = 16 | 32,
+	FUNC_REGISTER = 32,
+	FUNC_REGISTER_OPTIONAL = 32 | 64,
 
 	/* internal flags */
 	FUNC_BUILTIN = 128,

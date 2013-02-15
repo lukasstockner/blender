@@ -119,7 +119,7 @@ static SpaceLink *node_new(const bContext *UNUSED(C))
 	snode = MEM_callocN(sizeof(SpaceNode), "initnode");
 	snode->spacetype = SPACE_NODE;
 
-	snode->flag = SNODE_SHOW_GPENCIL;
+	snode->flag = SNODE_SHOW_GPENCIL | SNODE_USE_ALPHA;
 
 	/* backdrop */
 	snode->zoom = 1.0f;
@@ -498,6 +498,7 @@ static void node_region_listener(ARegion *ar, wmNotifier *wmn)
 		case NC_SCENE:
 		case NC_MATERIAL:
 		case NC_TEXTURE:
+		case NC_WORLD:
 		case NC_NODE:
 			ED_region_tag_redraw(ar);
 			break;

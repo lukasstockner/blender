@@ -1029,6 +1029,7 @@ static int weight_sample_invoke(bContext *C, wmOperator *op, wmEvent *event)
 		unsigned int index;
 
 		view3d_operator_needs_opengl(C);
+		ED_view3d_init_mats_rv3d(vc.obact, vc.rv3d);
 
 		if (use_vert_sel) {
 			if (ED_mesh_pick_vert(C, vc.obact, event->mval, &index, ED_MESH_PICK_DEFAULT_VERT_SIZE, TRUE)) {
@@ -1118,6 +1119,7 @@ static EnumPropertyItem *weight_paint_sample_enum_itemf(bContext *C, PointerRNA 
 				               win->eventstate->y - vc.ar->winrct.ymin};
 
 				view3d_operator_needs_opengl(C);
+				ED_view3d_init_mats_rv3d(vc.obact, vc.rv3d);
 
 				if (use_vert_sel) {
 					if (ED_mesh_pick_vert(C, vc.obact, mval, &index, ED_MESH_PICK_DEFAULT_VERT_SIZE, TRUE)) {
@@ -2172,6 +2174,11 @@ static int wpaint_stroke_test_start(bContext *C, wmOperator *op, const float UNU
 	if (me->editflag & ME_EDIT_MIRROR_X) {
 		wpd->vgroup_mirror = wpaint_mirror_vgroup_ensure(ob, wpd->vgroup_active);
 	}
+
+	{
+		UnifiedPaintSettings *ups = &ts->unified_paint_settings;
+		ups->draw_pressure = true;
+	}
 	
 	return TRUE;
 }
@@ -2225,7 +2232,8 @@ static void wpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
 	indexar = wpd->indexar;
 	
 	view3d_operator_needs_opengl(C);
-		
+	ED_view3d_init_mats_rv3d(ob, vc->rv3d);
+
 	/* load projection matrix */
 	mult_m4_m4m4(mat, vc->rv3d->persmat, ob->obmat);
 
@@ -2414,6 +2422,11 @@ static void wpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
 
 	swap_m4m4(vc->rv3d->persmat, mat);
 
+	{
+		UnifiedPaintSettings *ups = &ts->unified_paint_settings;
+		ups->pressure_value = pressure;
+	}
+
 	DAG_id_tag_update(ob->data, 0);
 	ED_region_tag_redraw(vc->ar);
 }
@@ -2454,7 +2467,12 @@ static void wpaint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 			}
 		}
 	}
-	
+
+	{
+		UnifiedPaintSettings *ups = &ts->unified_paint_settings;
+		ups->draw_pressure = false;
+	}
+
 	DAG_id_tag_update(ob->data, 0);
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
@@ -2583,9 +2601,8 @@ static int set_vpaint(bContext *C, wmOperator *op)  /* toggle */
 		BKE_paint_init(&vp->paint, PAINT_CURSOR_VERTEX_PAINT);
 	}
 	
-	if (me)
-		/* update modifier stack for mapping requirements */
-		DAG_id_tag_update(&me->id, 0);
+	/* update modifier stack for mapping requirements */
+	DAG_id_tag_update(&me->id, 0);
 	
 	WM_event_add_notifier(C, NC_SCENE | ND_MODE, scene);
 	
@@ -2735,6 +2752,11 @@ static int vpaint_stroke_test_start(bContext *C, struct wmOperator *op, const fl
 	invert_m4_m4(imat, mat);
 	copy_m3_m4(vpd->vpimat, imat);
 
+	{
+		UnifiedPaintSettings *ups = &ts->unified_paint_settings;
+		ups->draw_pressure = true;
+	}
+
 	return 1;
 }
 
@@ -2844,7 +2866,8 @@ static void vpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
 	RNA_float_get_array(itemptr, "mouse", mval);
 
 	view3d_operator_needs_opengl(C);
-			
+	ED_view3d_init_mats_rv3d(ob, vc->rv3d);
+
 	/* load projection matrix */
 	mult_m4_m4m4(mat, vc->rv3d->persmat, ob->obmat);
 
@@ -2889,6 +2912,11 @@ static void vpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
 		do_shared_vertexcol(me, do_tessface);
 	}
 
+	{
+		UnifiedPaintSettings *ups = &ts->unified_paint_settings;
+		ups->pressure_value = pressure;
+	}
+
 	ED_region_tag_redraw(vc->ar);
 
 	if (vpd->use_fast_update == FALSE) {
@@ -2918,6 +2946,11 @@ static void vpaint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 
 	if (vpd->polyfacemap_arena) {
 		BLI_memarena_free(vpd->polyfacemap_arena);
+	}
+
+	{
+		UnifiedPaintSettings *ups = &ts->unified_paint_settings;
+		ups->draw_pressure = false;
 	}
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
@@ -3149,8 +3182,11 @@ static int paint_weight_gradient_modal(bContext *C, wmOperator *op, wmEvent *eve
 		VPaint *wp = ts->wpaint;
 		Object *ob = CTX_data_active_object(C);
 		Mesh *me = ob->data;
-		BKE_defvert_array_copy(me->dvert, wp->wpaint_prev, me->totvert);
-		free_wpaint_prev(wp);
+		if (wp->wpaint_prev) {
+			BKE_defvert_array_free_elems(me->dvert, me->totvert);
+			BKE_defvert_array_copy(me->dvert, wp->wpaint_prev, me->totvert);
+			free_wpaint_prev(wp);
+		}
 
 		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
@@ -3167,6 +3203,7 @@ static int paint_weight_gradient_modal(bContext *C, wmOperator *op, wmEvent *eve
 static int paint_weight_gradient_exec(bContext *C, wmOperator *op)
 {
 	wmGesture *gesture = op->customdata;
+	DMGradient_vertStore *vert_cache;
 	struct ARegion *ar = CTX_wm_region(C);
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C);
@@ -3177,24 +3214,31 @@ static int paint_weight_gradient_exec(bContext *C, wmOperator *op)
 	int y_end = RNA_int_get(op->ptr, "yend");
 	float sco_start[2] = {x_start, y_start};
 	float sco_end[2] = {x_end, y_end};
-
+	const bool is_interactive = (gesture != NULL);
 	DerivedMesh *dm = mesh_get_derived_final(scene, ob, scene->customdata_mask);
 
 	DMGradient_userData data = {0};
 
-	if (gesture->userdata == NULL) {
-		VPaint *wp = scene->toolsettings->wpaint;
+	if (is_interactive) {
+		if (gesture->userdata == NULL) {
+			VPaint *wp = scene->toolsettings->wpaint;
 
-		gesture->userdata = MEM_mallocN(sizeof(DMGradient_vertStore) * me->totvert, __func__);
-		data.is_init = TRUE;
+			gesture->userdata = MEM_mallocN(sizeof(DMGradient_vertStore) * me->totvert, __func__);
+			data.is_init = true;
 
-		copy_wpaint_prev(wp, me->dvert, me->totvert);
+			copy_wpaint_prev(wp, me->dvert, me->totvert);
 
-		/* on init only, convert face -> vert sel  */
-		if (me->editflag & ME_EDIT_PAINT_FACE_SEL) {
-			BKE_mesh_flush_select_from_polys(me);
+			/* on init only, convert face -> vert sel  */
+			if (me->editflag & ME_EDIT_PAINT_FACE_SEL) {
+				BKE_mesh_flush_select_from_polys(me);
+			}
 		}
 
+		vert_cache = gesture->userdata;
+	}
+	else {
+		data.is_init = true;
+		vert_cache = MEM_mallocN(sizeof(DMGradient_vertStore) * me->totvert, __func__);
 	}
 
 	data.ar = ar;
@@ -3205,7 +3249,7 @@ static int paint_weight_gradient_exec(bContext *C, wmOperator *op)
 	data.sco_line_div = 1.0f / len_v2v2(sco_start, sco_end);
 	data.def_nr = ob->actdef - 1;
 	data.use_select = (me->editflag & (ME_EDIT_PAINT_FACE_SEL | ME_EDIT_PAINT_VERT_SEL));
-	data.vert_cache = gesture->userdata;
+	data.vert_cache = vert_cache;
 	data.type = RNA_enum_get(op->ptr, "type");
 
 	{
@@ -3220,6 +3264,10 @@ static int paint_weight_gradient_exec(bContext *C, wmOperator *op)
 
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+
+	if (is_interactive == false) {
+		MEM_freeN(vert_cache);
+	}
 
 	return OPERATOR_FINISHED;
 }

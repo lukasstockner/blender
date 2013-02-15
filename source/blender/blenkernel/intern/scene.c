@@ -46,6 +46,7 @@
 #include "DNA_group_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
+#include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
@@ -72,6 +73,7 @@
 #include "BKE_object.h"
 #include "BKE_paint.h"
 #include "BKE_pointcache.h"
+#include "BKE_rigidbody.h"
 #include "BKE_scene.h"
 #include "BKE_sequencer.h"
 #include "BKE_world.h"
@@ -309,6 +311,9 @@ void BKE_scene_free(Scene *sce)
 
 	BKE_free_animdata((ID *)sce);
 	BKE_keyingsets_free(&sce->keyingsets);
+	
+	if (sce->rigidbody_world)
+		BKE_rigidbody_free_world(sce->rigidbody_world);
 	
 	if (sce->r.avicodecdata) {
 		free_avicodecdata(sce->r.avicodecdata);
@@ -711,7 +716,7 @@ void BKE_scene_unlink(Main *bmain, Scene *sce, Scene *newsce)
 }
 
 /* used by metaballs
- * doesnt return the original duplicated object, only dupli's
+ * doesn't return the original duplicated object, only dupli's
  */
 int BKE_scene_base_iter_next(Scene **scene, int val, Base **base, Object **ob)
 {
@@ -936,6 +941,18 @@ Base *BKE_scene_base_add(Scene *sce, Object *ob)
 	return b;
 }
 
+void BKE_scene_base_unlink(Scene *sce, Base *base)
+{
+	/* remove rigid body constraint from world before removing object */
+	if (base->object->rigidbody_constraint)
+		BKE_rigidbody_remove_constraint(sce, base->object);
+	/* remove rigid body object from world before removing object */
+	if (base->object->rigidbody_object)
+		BKE_rigidbody_remove_object(sce, base->object);
+	
+	BLI_remlink(&sce->base, base);
+}
+
 void BKE_scene_base_deselect_all(Scene *sce)
 {
 	Base *b;
@@ -1031,6 +1048,47 @@ static void scene_update_drivers(Main *UNUSED(bmain), Scene *scene)
 	}
 }
 
+/* deps hack - do extra recalcs at end */
+static void scene_depsgraph_hack(Scene *scene, Scene *scene_parent)
+{
+	Base *base;
+		
+	scene->customdata_mask = scene_parent->customdata_mask;
+	
+	/* sets first, we allow per definition current scene to have
+	 * dependencies on sets, but not the other way around. */
+	if (scene->set)
+		scene_depsgraph_hack(scene->set, scene_parent);
+	
+	for (base = scene->base.first; base; base = base->next) {
+		Object *ob = base->object;
+		
+		if (ob->depsflag) {
+			int recalc = 0;
+			// printf("depshack %s\n", ob->id.name + 2);
+			
+			if (ob->depsflag & OB_DEPS_EXTRA_OB_RECALC)
+				recalc |= OB_RECALC_OB;
+			if (ob->depsflag & OB_DEPS_EXTRA_DATA_RECALC)
+				recalc |= OB_RECALC_DATA;
+			
+			ob->recalc |= recalc;
+			BKE_object_handle_update(scene_parent, ob);
+			
+			if (ob->dup_group && (ob->transflag & OB_DUPLIGROUP)) {
+				GroupObject *go;
+				
+				for (go = ob->dup_group->gobject.first; go; go = go->next) {
+					if (go->ob)
+						go->ob->recalc |= recalc;
+				}
+				group_handle_recalc_and_update(scene_parent, ob, ob->dup_group);
+			}
+		}
+	}
+
+}
+
 static void scene_update_tagged_recursive(Main *bmain, Scene *scene, Scene *scene_parent)
 {
 	Base *base;
@@ -1066,6 +1124,7 @@ static void scene_update_tagged_recursive(Main *bmain, Scene *scene, Scene *scen
 
 	/* update masking curves */
 	BKE_mask_update_scene(bmain, scene, FALSE);
+	
 }
 
 /* this is called in main loop, doing tagged updates before redraw */
@@ -1149,6 +1208,12 @@ void BKE_scene_update_for_newframe(Main *bmain, Scene *sce, unsigned int lay)
 	BKE_animsys_evaluate_all_animation(bmain, sce, ctime);
 	/*...done with recusrive funcs */
 
+	/* run rigidbody sim */
+	// XXX: this position may still change, objects not being updated correctly before simulation is run
+	// NOTE: current position is so that rigidbody sim affects other objects
+	if (BKE_scene_check_rigidbody_active(sce))
+		BKE_rigidbody_do_simulation(sce, ctime);
+
 	/* clear "LIB_DOIT" flag from all materials, to prevent infinite recursion problems later 
 	 * when trying to find materials with drivers that need evaluating [#32017] 
 	 */
@@ -1157,6 +1222,8 @@ void BKE_scene_update_for_newframe(Main *bmain, Scene *sce, unsigned int lay)
 
 	/* BKE_object_handle_update() on all objects, groups and sets */
 	scene_update_tagged_recursive(bmain, sce, sce);
+
+	scene_depsgraph_hack(sce, sce);
 
 	/* notify editors and python about recalc */
 	BLI_callback_exec(bmain, &sce->id, BLI_CB_EVT_SCENE_UPDATE_POST);
@@ -1331,4 +1398,9 @@ void BKE_scene_disable_color_management(Scene *scene)
 int BKE_scene_check_color_management_enabled(const Scene *scene)
 {
 	return strcmp(scene->display_settings.display_device, "None") != 0;
+}
+
+int BKE_scene_check_rigidbody_active(const Scene *scene)
+{
+	return scene && scene->rigidbody_world && scene->rigidbody_world->group && !(scene->rigidbody_world->flag & RBW_FLAG_MUTED);
 }

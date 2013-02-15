@@ -39,9 +39,9 @@
 
 void cent_tri_v3(float cent[3], const float v1[3], const float v2[3], const float v3[3])
 {
-	cent[0] = 0.33333f * (v1[0] + v2[0] + v3[0]);
-	cent[1] = 0.33333f * (v1[1] + v2[1] + v3[1]);
-	cent[2] = 0.33333f * (v1[2] + v2[2] + v3[2]);
+	cent[0] = (v1[0] + v2[0] + v3[0]) / 3.0f;
+	cent[1] = (v1[1] + v2[1] + v3[1]) / 3.0f;
+	cent[2] = (v1[2] + v2[2] + v3[2]) / 3.0f;
 }
 
 void cent_quad_v3(float cent[3], const float v1[3], const float v2[3], const float v3[3], const float v4[3])
@@ -129,35 +129,59 @@ float area_tri_v3(const float v1[3], const float v2[3], const float v3[3])
 	return (len / 2.0f);
 }
 
+float area_tri_signed_v3(const float v1[3], const float v2[3], const float v3[3], const float normal[3])
+{
+	float area, vec1[3], vec2[3], n[3];
+
+	sub_v3_v3v3(vec1, v3, v2);
+	sub_v3_v3v3(vec2, v1, v2);
+	cross_v3_v3v3(n, vec1, vec2);
+	area = len_v3(n) / 2.0f;
+
+	/* negate area for flipped triangles */
+	if (dot_v3v3(n, normal) < 0.0f)
+		area = -area;
+
+	return area;
+}
+
 float area_poly_v3(int nr, float verts[][3], const float normal[3])
 {
-	float x, y, z, area, max;
-	float *cur, *prev;
-	int a, px = 0, py = 1;
-
-	/* first: find dominant axis: 0==X, 1==Y, 2==Z
-	 * don't use 'axis_dominant_v3()' because we need max axis too */
-	x = fabsf(normal[0]);
-	y = fabsf(normal[1]);
-	z = fabsf(normal[2]);
-	max = max_fff(x, y, z);
-	if (max == y) py = 2;
-	else if (max == x) {
-		px = 1;
-		py = 2;
-	}
+	int a, px, py;
+	const float max = axis_dominant_v3_max(&px, &py, normal);
+	float area;
+	float *co_curr, *co_prev;
 
 	/* The Trapezium Area Rule */
-	prev = verts[nr - 1];
-	cur = verts[0];
-	area = 0;
+	co_prev = verts[nr - 1];
+	co_curr = verts[0];
+	area = 0.0f;
 	for (a = 0; a < nr; a++) {
-		area += (cur[px] - prev[px]) * (cur[py] + prev[py]);
-		prev = verts[a];
-		cur = verts[a + 1];
+		area += (co_curr[px] - co_prev[px]) * (co_curr[py] + co_prev[py]);
+		co_prev = verts[a];
+		co_curr = verts[a + 1];
 	}
 
 	return fabsf(0.5f * area / max);
+}
+
+float area_poly_v2(int nr, float verts[][2])
+{
+	int a;
+	float area;
+	float *co_curr, *co_prev;
+
+	/* The Trapezium Area Rule */
+	co_prev = verts[nr - 1];
+	co_curr = verts[0];
+	area = 0.0f;
+	for (a = 0; a < nr; a++) {
+		area += (co_curr[0] - co_prev[0]) * (co_curr[1] + co_prev[1]);
+		co_prev = verts[a];
+		co_curr = verts[a + 1];
+	}
+
+	return fabsf(0.5f * area);
 }
 
 /********************************* Distance **********************************/
@@ -296,6 +320,15 @@ float dist_to_line_segment_v3(const float v1[3], const float v2[3], const float 
 	return len_v3v3(closest, v1);
 }
 
+float dist_to_line_v3(const float v1[3], const float v2[3], const float v3[3])
+{
+	float closest[3];
+
+	closest_to_line_v3(closest, v1, v2, v3);
+
+	return len_v3v3(closest, v1);
+}
+
 /* Adapted from "Real-Time Collision Detection" by Christer Ericson,
  * published by Morgan Kaufmann Publishers, copyright 2005 Elsevier Inc.
  * 
@@ -329,7 +362,7 @@ void closest_on_tri_to_point_v3(float r[3], const float p[3],
 		return;
 	}
 	/* Check if P in edge region of AB, if so return projection of P onto AB */
-	vc = d1*d4 - d3*d2;
+	vc = d1 * d4 - d3 * d2;
 	if (vc <= 0.0f && d1 >= 0.0f && d3 <= 0.0f) {
 		float v = d1 / (d1 - d3);
 		/* barycentric coordinates (1-v,v,0) */
@@ -346,7 +379,7 @@ void closest_on_tri_to_point_v3(float r[3], const float p[3],
 		return;
 	}
 	/* Check if P in edge region of AC, if so return projection of P onto AC */
-	vb = d5*d2 - d1*d6;
+	vb = d5 * d2 - d1 * d6;
 	if (vb <= 0.0f && d2 >= 0.0f && d6 <= 0.0f) {
 		float w = d2 / (d2 - d6);
 		/* barycentric coordinates (1-w,0,w) */
@@ -354,7 +387,7 @@ void closest_on_tri_to_point_v3(float r[3], const float p[3],
 		return;
 	}
 	/* Check if P in edge region of BC, if so return projection of P onto BC */
-	va = d3*d6 - d5*d4;
+	va = d3 * d6 - d5 * d4;
 	if (va <= 0.0f && (d4 - d3) >= 0.0f && (d5 - d6) >= 0.0f) {
 		float w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
 		/* barycentric coordinates (0,1-w,w) */
@@ -1949,19 +1982,75 @@ void plot_line_v2v2i(const int p1[2], const int p2[2], int (*callback)(int, int,
 	}
 }
 
-/****************************** Interpolation ********************************/
+/****************************** Axis Utils ********************************/
+
+/**
+ * \brief Normal to x,y matrix
+ *
+ * Creates a 3x3 matrix from a normal.
+ * This matrix can be applied to vectors so their 'z' axis runs along \a normal.
+ * In practice it means you can use x,y as 2d coords. \see
+ *
+ * \param r_mat The matrix to return.
+ * \param normal A unit length vector.
+ */
+bool axis_dominant_v3_to_m3(float r_mat[3][3], const float normal[3])
+{
+	float up[3] = {0.0f, 0.0f, 1.0f};
+	float axis[3];
+	float angle;
+
+	/* double check they are normalized */
+#ifdef DEBUG
+	float test;
+	BLI_assert(fabsf((test = len_squared_v3(normal)) - 1.0f) < 0.0001f || fabsf(test) < 0.0001f);
+#endif
+
+	cross_v3_v3v3(axis, normal, up);
+	angle = saacos(dot_v3v3(normal, up));
+
+	if (angle >= FLT_EPSILON) {
+		if (len_squared_v3(axis) < FLT_EPSILON) {
+			axis[0] = 0.0f;
+			axis[1] = 1.0f;
+			axis[2] = 0.0f;
+		}
+
+		axis_angle_to_mat3(r_mat, axis, angle);
+		return true;
+	}
+	else {
+		unit_m3(r_mat);
+		return false;
+	}
+}
 
 /* get the 2 dominant axis values, 0==X, 1==Y, 2==Z */
-void axis_dominant_v3(int *axis_a, int *axis_b, const float axis[3])
+void axis_dominant_v3(int *r_axis_a, int *r_axis_b, const float axis[3])
 {
 	const float xn = fabsf(axis[0]);
 	const float yn = fabsf(axis[1]);
 	const float zn = fabsf(axis[2]);
 
-	if      (zn >= xn && zn >= yn) { *axis_a = 0; *axis_b = 1; }
-	else if (yn >= xn && yn >= zn) { *axis_a = 0; *axis_b = 2; }
-	else                           { *axis_a = 1; *axis_b = 2; }
+	if      (zn >= xn && zn >= yn) { *r_axis_a = 0; *r_axis_b = 1; }
+	else if (yn >= xn && yn >= zn) { *r_axis_a = 0; *r_axis_b = 2; }
+	else                           { *r_axis_a = 1; *r_axis_b = 2; }
 }
+
+/* same as axis_dominant_v3 but return the max value */
+float axis_dominant_v3_max(int *r_axis_a, int *r_axis_b, const float axis[3])
+{
+	const float xn = fabsf(axis[0]);
+	const float yn = fabsf(axis[1]);
+	const float zn = fabsf(axis[2]);
+
+	if      (zn >= xn && zn >= yn) { *r_axis_a = 0; *r_axis_b = 1; return zn; }
+	else if (yn >= xn && yn >= zn) { *r_axis_a = 0; *r_axis_b = 2; return yn; }
+	else                           { *r_axis_a = 1; *r_axis_b = 2; return xn; }
+}
+
+
+/****************************** Interpolation ********************************/
 
 static float tri_signed_area(const float v1[3], const float v2[3], const float v3[3], const int i, const int j)
 {
@@ -2334,54 +2423,101 @@ void interp_weights_poly_v3(float *w, float v[][3], const int n, const float co[
 {
 	/* TODO: t1 and t2 overlap each iter, we could call this only once per iter and reuse previous value */
 	float totweight, t1, t2, len, *vmid, *vprev, *vnext;
-	int i;
+	int i, i_next, i_curr;
+	bool edge_interp = false;
 
 	totweight = 0.0f;
 
 	for (i = 0; i < n; i++) {
+		i_curr = i;
+		i_next = (i == n - 1) ? 0 : i + 1;
+
 		vmid = v[i];
 		vprev = (i == 0) ? v[n - 1] : v[i - 1];
-		vnext = (i == n - 1) ? v[0] : v[i + 1];
+		vnext = v[i_next];
+
+		/* Mark Mayer et al algorithm that is used here does not operate well if vertex is close
+		 * to borders of face. In that case, do simple linear interpolation between the two edge vertices */
+		if (dist_to_line_segment_v3(co, vmid, vnext) < 10 * FLT_EPSILON) {
+			edge_interp = true;
+			break;
+		}
 
 		t1 = mean_value_half_tan_v3(co, vprev, vmid);
 		t2 = mean_value_half_tan_v3(co, vmid, vnext);
 
 		len = len_v3v3(co, vmid);
-		w[i] = (len != 0.0f)? (t1 + t2) / len: 0.0f;
+		w[i] = (len != 0.0f) ? (t1 + t2) / len: 0.0f;
 		totweight += w[i];
 	}
 
-	if (totweight != 0.0f) {
-		for (i = 0; i < n; i++) {
-			w[i] /= totweight;
+	if (edge_interp) {
+		float len_curr = len_v3v3(co, vmid);
+		float len_next = len_v3v3(co, vnext);
+		float edge_len = len_curr + len_next;
+		for (i = 0; i < n; i++)
+			w[i] = 0.0;
+
+		w[i_curr] = len_next / edge_len;
+		w[i_next] = len_curr / edge_len;
+	}
+	else {
+		if (totweight != 0.0f) {
+			for (i = 0; i < n; i++) {
+				w[i] /= totweight;
+			}
 		}
 	}
 }
+
 
 void interp_weights_poly_v2(float *w, float v[][2], const int n, const float co[2])
 {
 	/* TODO: t1 and t2 overlap each iter, we could call this only once per iter and reuse previous value */
 	float totweight, t1, t2, len, *vmid, *vprev, *vnext;
-	int i;
+	int i, i_next, i_curr;
+	bool edge_interp = false;
 
 	totweight = 0.0f;
 
 	for (i = 0; i < n; i++) {
+		i_curr = i;
+		i_next = (i == n - 1) ? 0 : i + 1;
+
 		vmid = v[i];
 		vprev = (i == 0) ? v[n - 1] : v[i - 1];
-		vnext = (i == n - 1) ? v[0] : v[i + 1];
+		vnext = v[i_next];
+
+		/* Mark Mayer et al algorithm that is used here does not operate well if vertex is close
+		 * to borders of face. In that case, do simple linear interpolation between the two edge vertices */
+		if (dist_to_line_segment_v2(co, vmid, vnext) < 10 * FLT_EPSILON) {
+			edge_interp = true;
+			break;
+		}
 
 		t1 = mean_value_half_tan_v2(co, vprev, vmid);
 		t2 = mean_value_half_tan_v2(co, vmid, vnext);
 
 		len = len_v2v2(co, vmid);
-		w[i] = (len != 0.0f)? (t1 + t2) / len: 0.0f;
+		w[i] = (len != 0.0f) ? (t1 + t2) / len: 0.0f;
 		totweight += w[i];
 	}
 
-	if (totweight != 0.0f) {
-		for (i = 0; i < n; i++) {
-			w[i] /= totweight;
+	if (edge_interp) {
+		float len_curr = len_v2v2(co, vmid);
+		float len_next = len_v2v2(co, vnext);
+		float edge_len = len_curr + len_next;
+		for (i = 0; i < n; i++)
+			w[i] = 0.0;
+
+		w[i_curr] = len_next / edge_len;
+		w[i_next] = len_curr / edge_len;
+	}
+	else {
+		if (totweight != 0.0f) {
+			for (i = 0; i < n; i++) {
+				w[i] /= totweight;
+			}
 		}
 	}
 }
@@ -3458,44 +3594,57 @@ float form_factor_hemi_poly(float p[3], float n[3], float v1[3], float v2[3], fl
 /* evaluate if entire quad is a proper convex quad */
 int is_quad_convex_v3(const float v1[3], const float v2[3], const float v3[3], const float v4[3])
 {
-	float nor[3], nor1[3], nor2[3], vec[4][2];
-	int axis_a, axis_b;
+	float nor[3], nor_a[3], nor_b[3], vec[4][2];
+	float mat[3][3];
+	const bool is_ok_a = (normal_tri_v3(nor_a, v1, v2, v3) > FLT_EPSILON);
+	const bool is_ok_b = (normal_tri_v3(nor_b, v1, v3, v4) > FLT_EPSILON);
 
 	/* define projection, do both trias apart, quad is undefined! */
 
-	normal_tri_v3(nor1, v1, v2, v3);
-	normal_tri_v3(nor2, v1, v3, v4);
+	/* check normal length incase one size is zero area */
+	if (is_ok_a) {
+		if (is_ok_b) {
+			/* use both, most common outcome */
 
-	/* when the face is folded over as 2 tris we probably don't want to create
-	 * a quad from it, but go ahead with the intersection test since this
-	 * isn't a function for degenerate faces */
-	if (UNLIKELY(dot_v3v3(nor1, nor2) < 0.0f)) {
-		/* flip so adding normals in the opposite direction
-		 * doesnt give a zero length vector */
-		negate_v3(nor2);
+			/* when the face is folded over as 2 tris we probably don't want to create
+			 * a quad from it, but go ahead with the intersection test since this
+			 * isn't a function for degenerate faces */
+			if (UNLIKELY(dot_v3v3(nor_a, nor_b) < 0.0f)) {
+				/* flip so adding normals in the opposite direction
+				 * doesn't give a zero length vector */
+				negate_v3(nor_b);
+			}
+
+			add_v3_v3v3(nor, nor_a, nor_b);
+			normalize_v3(nor);
+		}
+		else {
+			copy_v3_v3(nor, nor_a);  /* only 'a' */
+		}
+	}
+	else {
+		if (is_ok_b) {
+			copy_v3_v3(nor, nor_b);  /* only 'b' */
+		}
+		else {
+			return false;  /* both zero, we can't do anything useful here */
+		}
 	}
 
-	add_v3_v3v3(nor, nor1, nor2);
+	axis_dominant_v3_to_m3(mat, nor);
 
-	axis_dominant_v3(&axis_a, &axis_b, nor);
-
-	vec[0][0] = v1[axis_a];
-	vec[0][1] = v1[axis_b];
-	vec[1][0] = v2[axis_a];
-	vec[1][1] = v2[axis_b];
-
-	vec[2][0] = v3[axis_a];
-	vec[2][1] = v3[axis_b];
-	vec[3][0] = v4[axis_a];
-	vec[3][1] = v4[axis_b];
+	mul_v2_m3v3(vec[0], mat, v1);
+	mul_v2_m3v3(vec[1], mat, v2);
+	mul_v2_m3v3(vec[2], mat, v3);
+	mul_v2_m3v3(vec[3], mat, v4);
 
 	/* linetests, the 2 diagonals have to instersect to be convex */
-	return (isect_line_line_v2(vec[0], vec[2], vec[1], vec[3]) > 0) ? TRUE : FALSE;
+	return (isect_line_line_v2(vec[0], vec[2], vec[1], vec[3]) > 0);
 }
 
 int is_quad_convex_v2(const float v1[2], const float v2[2], const float v3[2], const float v4[2])
 {
 	/* linetests, the 2 diagonals have to instersect to be convex */
-	return (isect_line_line_v2(v1, v3, v2, v4) > 0) ? TRUE : FALSE;
+	return (isect_line_line_v2(v1, v3, v2, v4) > 0);
 }
 

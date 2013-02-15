@@ -346,7 +346,7 @@ static void round_box__edges(uiWidgetBase *wt, int roundboxalign, const rcti *re
 	                  (roundboxalign & (UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT)) == (UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT)) ? 1 : 2;
 
 	minsize = min_ii(BLI_rcti_size_x(rect) * hnum,
-	               BLI_rcti_size_y(rect) * vnum);
+	                 BLI_rcti_size_y(rect) * vnum);
 	
 	if (2.0f * rad > minsize)
 		rad = 0.5f * minsize;
@@ -646,8 +646,8 @@ static void widget_verts_to_quad_strip_open(uiWidgetBase *wtb, const int totvert
 	for (a = 0; a < totvert; a++) {
 		quad_strip[a * 2][0] = wtb->outer_v[a][0];
 		quad_strip[a * 2][1] = wtb->outer_v[a][1];
-		quad_strip[a * 2 + 1][0] = wtb->inner_v[a][0];
-		quad_strip[a * 2 + 1][1] = wtb->inner_v[a][1];
+		quad_strip[a * 2 + 1][0] = wtb->outer_v[a][0];
+		quad_strip[a * 2 + 1][1] = wtb->outer_v[a][1] - 1.0f;
 	}
 }
 
@@ -897,7 +897,7 @@ static void widget_draw_icon(uiBut *but, BIFIconID icon, float alpha, const rcti
 				}
 			}
 			else if (but->block->flag & UI_BLOCK_LOOP) {
-				if (but->type == SEARCH_MENU)
+				if (ELEM(but->type, SEARCH_MENU, SEARCH_MENU_UNLINK))
 					xs = rect->xmin + 4.0f * ofs;
 				else
 					xs = rect->xmin + ofs;
@@ -1283,7 +1283,7 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 	else if (ELEM4(but->type, NUM, NUMABS, NUMSLI, SLI)) {
 		ui_text_clip_right_label(fstyle, but, rect);
 	}
-	else if (ELEM(but->type, TEX, SEARCH_MENU)) {
+	else if (ELEM3(but->type, TEX, SEARCH_MENU, SEARCH_MENU_UNLINK)) {
 		ui_text_clip_left(fstyle, but, rect);
 	}
 	else if ((but->block->flag & UI_BLOCK_LOOP) && (but->type == BUT)) {
@@ -1325,11 +1325,19 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 			rect->xmin += (int)(0.8f * BLI_rcti_size_y(rect));
 
 			if (but->editstr || (but->flag & UI_TEXT_LEFT)) {
-				rect->xmin += (0.4f * U.widget_unit) / but->block->aspect;
+				rect->xmin += (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
 			}
 		}
 		else if ((but->flag & UI_TEXT_LEFT)) {
-			rect->xmin += (0.4f * U.widget_unit) / but->block->aspect;
+			rect->xmin += (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
+		}
+		
+		/* unlink icon for this button type */
+		if (but->type == SEARCH_MENU_UNLINK && but->drawstr[0]) {
+			rcti temp = *rect;
+			
+			temp.xmin = temp.xmax - BLI_rcti_size_y(rect);
+			widget_draw_icon(but, ICON_X, 1.0f, &temp);
 		}
 
 		/* always draw text for textbutton cursor */
@@ -1786,11 +1794,19 @@ static void widget_state_menu_item(uiWidgetType *wt, int state)
 {
 	wt->wcol = *(wt->wcol_theme);
 	
-	if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
-		wt->wcol.text[0] = 0.5f * (wt->wcol.text[0] + wt->wcol.text_sel[0]);
-		wt->wcol.text[1] = 0.5f * (wt->wcol.text[1] + wt->wcol.text_sel[1]);
-		wt->wcol.text[2] = 0.5f * (wt->wcol.text[2] + wt->wcol.text_sel[2]);
+	/* active and disabled (not so common) */
+	if ((state & UI_BUT_DISABLED) && (state & UI_ACTIVE)) {
+		widget_state_blend(wt->wcol.text, wt->wcol.text_sel, 0.5f);
+		/* draw the backdrop at low alpha, helps navigating with keys
+		 * when disabled items are active */
+		copy_v4_v4_char(wt->wcol.inner, wt->wcol.inner_sel);
+		wt->wcol.inner[3] = 64;
 	}
+	/* regular disabled */
+	else if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
+		widget_state_blend(wt->wcol.text, wt->wcol.text_sel, 0.5f);
+	}
+	/* regular active */
 	else if (state & UI_ACTIVE) {
 		copy_v4_v4_char(wt->wcol.inner, wt->wcol.inner_sel);
 		copy_v3_v3_char(wt->wcol.text, wt->wcol.text_sel);
@@ -1884,12 +1900,12 @@ static void ui_hsv_cursor(float x, float y)
 	glTranslatef(x, y, 0.0f);
 	
 	glColor3f(1.0f, 1.0f, 1.0f);
-	glutil_draw_filled_arc(0.0f, M_PI * 2.0, 3.0f, 8);
+	glutil_draw_filled_arc(0.0f, M_PI * 2.0, 3.0f * U.pixelsize, 8);
 	
 	glEnable(GL_BLEND);
 	glEnable(GL_LINE_SMOOTH);
 	glColor3f(0.0f, 0.0f, 0.0f);
-	glutil_draw_lined_arc(0.0f, M_PI * 2.0, 3.0f, 12);
+	glutil_draw_lined_arc(0.0f, M_PI * 2.0, 3.0f * U.pixelsize, 12);
 	glDisable(GL_BLEND);
 	glDisable(GL_LINE_SMOOTH);
 	
@@ -1913,7 +1929,7 @@ void ui_hsvcircle_vals_from_pos(float *val_rad, float *val_dist, const rcti *rec
 
 static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *rect)
 {
-	const int tot = 32;
+	const int tot = 64;
 	const float radstep = 2.0f * (float)M_PI / (float)tot;
 
 	const float centx = BLI_rcti_cent_x_fl(rect);
@@ -3215,7 +3231,8 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 			case TEX:
 				wt = widget_type(UI_WTYPE_NAME);
 				break;
-				
+			
+			case SEARCH_MENU_UNLINK:
 			case SEARCH_MENU:
 				wt = widget_type(UI_WTYPE_NAME);
 				if (but->block->flag & UI_BLOCK_LOOP)
@@ -3434,7 +3451,7 @@ void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int ic
 	uiWidgetType *wt = widget_type(UI_WTYPE_MENU_ITEM);
 	rcti _rect = *rect;
 	char *cpoin;
-	
+
 	wt->state(wt, state);
 	wt->draw(&wt->wcol, rect, 0, 0);
 	

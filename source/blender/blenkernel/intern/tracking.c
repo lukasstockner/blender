@@ -169,8 +169,9 @@ void BKE_tracking_settings_init(MovieTracking *tracking)
 
 	tracking->settings.default_motion_model = TRACK_MOTION_MODEL_TRANSLATION;
 	tracking->settings.default_minimum_correlation = 0.75;
-	tracking->settings.default_pattern_size = 11;
+	tracking->settings.default_pattern_size = 15;
 	tracking->settings.default_search_size = 61;
+	tracking->settings.default_algorithm_flag |= TRACK_ALGORITHM_FLAG_USE_BRUTE;
 	tracking->settings.dist = 1;
 	tracking->settings.object_distance = 1;
 	tracking->settings.reconstruction_success_threshold = 1e-3;
@@ -1681,7 +1682,7 @@ ImBuf *BKE_tracking_sample_pattern(int frame_width, int frame_height, ImBuf *sea
 	/* real sampling requires libmv, but areas are supposing pattern would be
 	 * sampled if search area does exists, so we'll need to create empty
 	 * pattern area here to prevent adding NULL-checks all over just to deal
-	 * with situation when lubmv is disabled
+	 * with situation when libmv is disabled
 	 */
 
 	(void) frame_width;

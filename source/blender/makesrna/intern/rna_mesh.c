@@ -1233,6 +1233,26 @@ static char *rna_MeshStringProperty_path(PointerRNA *ptr)
 	return rna_PolyCustomData_data_path(ptr, "layers_string", CD_PROP_STR);
 }
 
+/* XXX, we dont have propper byte string support yet, so for now use the (bytes + 1)
+ * bmesh API exposes correct python/bytestring access */
+void rna_MeshStringProperty_s_get(PointerRNA *ptr, char *value)
+{
+	MStringProperty *ms = (MStringProperty *)ptr->data;
+	BLI_strncpy(value, ms->s, (int)ms->s_len + 1);
+}
+
+int rna_MeshStringProperty_s_length(PointerRNA *ptr)
+{
+	MStringProperty *ms = (MStringProperty *)ptr->data;
+	return (int)ms->s_len + 1;
+}
+
+void rna_MeshStringProperty_s_set(PointerRNA *ptr, const char *value)
+{
+	MStringProperty *ms = (MStringProperty *)ptr->data;
+	BLI_strncpy(ms->s, value, sizeof(ms->s));
+}
+
 static int rna_Mesh_tot_vert_get(PointerRNA *ptr)
 {
 	Mesh *me = rna_mesh(ptr);
@@ -2161,6 +2181,7 @@ static void rna_def_mproperties(BlenderRNA *brna)
 	/* low level mesh data access, treat as bytes */
 	prop = RNA_def_property(srna, "value", PROP_STRING, PROP_BYTESTRING);
 	RNA_def_property_string_sdna(prop, NULL, "s");
+	RNA_def_property_string_funcs(prop, "rna_MeshStringProperty_s_get", "rna_MeshStringProperty_s_length", "rna_MeshStringProperty_s_set");
 	RNA_def_property_ui_text(prop, "Value", "");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 }
@@ -2401,7 +2422,7 @@ static void rna_def_loop_colors(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_property_struct_type(prop, "MeshLoopColorLayer");
 	RNA_def_property_pointer_funcs(prop, "rna_Mesh_vertex_color_active_get",
 	                               "rna_Mesh_vertex_color_active_set", NULL, NULL);
-	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_UNLINK);
 	RNA_def_property_ui_text(prop, "Active Vertex Color Layer", "Active vertex color layer");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
@@ -2429,7 +2450,7 @@ static void rna_def_uv_layers(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_property_struct_type(prop, "MeshUVLoopLayer");
 	RNA_def_property_pointer_funcs(prop, "rna_Mesh_uv_layer_active_get",
 	                               "rna_Mesh_uv_layer_active_set", NULL, NULL);
-	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_UNLINK);
 	RNA_def_property_ui_text(prop, "Active UV loop layer", "Active UV loop layer");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
@@ -2579,7 +2600,7 @@ static void rna_def_uv_textures(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_property_struct_type(prop, "MeshTexturePolyLayer");
 	RNA_def_property_pointer_funcs(prop, "rna_Mesh_uv_texture_active_get",
 	                               "rna_Mesh_uv_texture_active_set", NULL, NULL);
-	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_UNLINK);
 	RNA_def_property_ui_text(prop, "Active UV Map", "Active UV Map");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
@@ -2879,11 +2900,6 @@ static void rna_def_mesh(BlenderRNA *brna)
 	                         "Display selected edges using highlights in the 3D view and UV editor");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_draw");
 
-	prop = RNA_def_property(srna, "show_all_edges", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "drawflag", ME_ALLEDGES);
-	RNA_def_property_ui_text(prop, "All Edges", "Display all edges for wireframe in all view modes in the 3D view");
-	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
-
 	prop = RNA_def_property(srna, "show_faces", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "drawflag", ME_DRAWFACES);
 	RNA_def_property_ui_text(prop, "Draw Faces", "Display all faces as shades in the 3D view and UV editor");
@@ -2976,6 +2992,22 @@ static void rna_def_mesh(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Vertex Selection", "Vertex selection masking for painting (weight paint only)");
 	RNA_def_property_ui_icon(prop, ICON_VERTEXSEL, 0);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_Mesh_update_vertmask");
+
+
+
+	/* customdata flags */
+	prop = RNA_def_property(srna, "use_customdata_vertex_bevel", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "cd_flag", ME_CDFLAG_VERT_BWEIGHT);
+	RNA_def_property_ui_text(prop, "Store Vertex Bevel Weight", "");
+
+	prop = RNA_def_property(srna, "use_customdata_edge_bevel", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "cd_flag", ME_CDFLAG_EDGE_BWEIGHT);
+	RNA_def_property_ui_text(prop, "Store Edge Bevel Weight", "");
+
+	prop = RNA_def_property(srna, "use_customdata_edge_crease", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "cd_flag", ME_CDFLAG_EDGE_CREASE);
+	RNA_def_property_ui_text(prop, "Store Edge Crease", "");
+
 
 	/* readonly editmesh info - use for extrude menu */
 	prop = RNA_def_property(srna, "total_vert_sel", PROP_INT, PROP_UNSIGNED);

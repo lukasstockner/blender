@@ -684,8 +684,6 @@ void psys_render_set(Object *ob, ParticleSystem *psys, float viewmat[4][4], floa
 	ParticleRenderData *data;
 	ParticleSystemModifierData *psmd = psys_get_modifier(ob, psys);
 
-	if (G.is_rendering == FALSE)
-		return;
 	if (psys->renderdata)
 		return;
 
@@ -2384,7 +2382,7 @@ void psys_find_parents(ParticleSimulationData *sim)
 	int from = PART_FROM_FACE;
 	totparent = (int)(totchild * part->parents * 0.3f);
 
-	if (G.is_rendering && part->child_nbr && part->ren_child_nbr)
+	if ((sim->psys->renderdata || G.is_rendering) && part->child_nbr && part->ren_child_nbr)
 		totparent *= (float)part->child_nbr / (float)part->ren_child_nbr;
 
 	tree = BLI_kdtree_new(totparent);
@@ -2461,7 +2459,7 @@ static int psys_threads_init_path(ParticleThread *threads, Scene *scene, float c
 	if (totchild && part->childtype == PART_CHILD_FACES) {
 		totparent = (int)(totchild * part->parents * 0.3f);
 		
-		if (G.is_rendering && part->child_nbr && part->ren_child_nbr)
+		if ((psys->renderdata || G.is_rendering) && part->child_nbr && part->ren_child_nbr)
 			totparent *= (float)part->child_nbr / (float)part->ren_child_nbr;
 
 		/* part->parents could still be 0 so we can't test with totparent */
@@ -3849,7 +3847,7 @@ static void get_cpa_texture(DerivedMesh *dm, ParticleSystem *psys, ParticleSetti
 					break;
 			}
 
-			externtex(mtex, texvec, &value, rgba, rgba + 1, rgba + 2, rgba + 3, 0);
+			externtex(mtex, texvec, &value, rgba, rgba + 1, rgba + 2, rgba + 3, 0, NULL);
 
 			if ((event & mtex->mapto) & PAMAP_ROUGH)
 				ptex->rough1 = ptex->rough2 = ptex->roughe = texture_value_blend(def, ptex->rough1, value, mtex->roughfac, blend);
@@ -3920,7 +3918,7 @@ void psys_get_texture(ParticleSimulationData *sim, ParticleData *pa, ParticleTex
 					break;
 			}
 
-			externtex(mtex, texvec, &value, rgba, rgba + 1, rgba + 2, rgba + 3, 0);
+			externtex(mtex, texvec, &value, rgba, rgba + 1, rgba + 2, rgba + 3, 0, NULL);
 
 			if ((event & mtex->mapto) & PAMAP_TIME) {
 				/* the first time has to set the base value for time regardless of blend mode */

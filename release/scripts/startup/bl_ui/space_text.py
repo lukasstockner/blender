@@ -19,6 +19,7 @@
 # <pep8-80 compliant>
 import bpy
 from bpy.types import Header, Menu, Panel
+from bpy.app.translations import pgettext_iface as iface_
 
 
 class TEXT_HT_header(Header):
@@ -72,11 +73,11 @@ class TEXT_HT_header(Header):
             row = layout.row()
             if text.filepath:
                 if text.is_dirty:
-                    row.label(text="File" + ": *%r " %
-                              text.filepath + "(unsaved)")
+                    row.label(text=iface_("File: *%r (unsaved)") %
+                              text.filepath, translate=False)
                 else:
-                    row.label(text="File" + ": %r" %
-                              text.filepath)
+                    row.label(text=iface_("File: %r") %
+                              text.filepath, translate=False)
             else:
                 row.label(text="Text: External"
                           if text.library
@@ -152,7 +153,7 @@ class TEXT_MT_view(Menu):
         layout = self.layout
 
         layout.operator("text.properties", icon='MENU_PANEL')
-        
+
         layout.separator()
 
         layout.operator("text.move",

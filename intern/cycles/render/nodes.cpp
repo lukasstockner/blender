@@ -141,9 +141,11 @@ ImageTextureNode::ImageTextureNode()
 	image_manager = NULL;
 	slot = -1;
 	is_float = -1;
+	is_linear = false;
 	filename = "";
+	builtin_data = NULL;
 	color_space = ustring("Color");
-	projection = ustring("Flat");;
+	projection = ustring("Flat");
 	projection_blend = 0.0f;
 	animated = false;
 
@@ -155,7 +157,7 @@ ImageTextureNode::ImageTextureNode()
 ImageTextureNode::~ImageTextureNode()
 {
 	if(image_manager)
-		image_manager->remove_image(filename);
+		image_manager->remove_image(filename, builtin_data);
 }
 
 ShaderNode *ImageTextureNode::clone() const
@@ -164,6 +166,7 @@ ShaderNode *ImageTextureNode::clone() const
 	node->image_manager = NULL;
 	node->slot = -1;
 	node->is_float = -1;
+	node->is_linear = false;
 	return node;
 }
 
@@ -176,7 +179,7 @@ void ImageTextureNode::compile(SVMCompiler& compiler)
 	image_manager = compiler.image_manager;
 	if(is_float == -1) {
 		bool is_float_bool;
-		slot = image_manager->add_image(filename, animated, is_float_bool);
+		slot = image_manager->add_image(filename, builtin_data, animated, is_float_bool, is_linear);
 		is_float = (int)is_float_bool;
 	}
 
@@ -188,7 +191,7 @@ void ImageTextureNode::compile(SVMCompiler& compiler)
 	if(slot != -1) {
 		compiler.stack_assign(vector_in);
 
-		int srgb = (is_float || color_space != "Color")? 0: 1;
+		int srgb = (is_linear || color_space != "Color")? 0: 1;
 		int vector_offset = vector_in->stack_offset;
 
 		if(!tex_mapping.skip()) {
@@ -237,10 +240,10 @@ void ImageTextureNode::compile(OSLCompiler& compiler)
 	tex_mapping.compile(compiler);
 
 	if(is_float == -1)
-		is_float = (int)image_manager->is_float_image(filename);
+		is_float = (int)image_manager->is_float_image(filename, NULL, is_linear);
 
 	compiler.parameter("filename", filename.c_str());
-	if(is_float || color_space != "Color")
+	if(is_linear || color_space != "Color")
 		compiler.parameter("color_space", "Linear");
 	else
 		compiler.parameter("color_space", "sRGB");
@@ -270,7 +273,9 @@ EnvironmentTextureNode::EnvironmentTextureNode()
 	image_manager = NULL;
 	slot = -1;
 	is_float = -1;
+	is_linear = false;
 	filename = "";
+	builtin_data = NULL;
 	color_space = ustring("Color");
 	projection = ustring("Equirectangular");
 	animated = false;
@@ -283,7 +288,7 @@ EnvironmentTextureNode::EnvironmentTextureNode()
 EnvironmentTextureNode::~EnvironmentTextureNode()
 {
 	if(image_manager)
-		image_manager->remove_image(filename);
+		image_manager->remove_image(filename, builtin_data);
 }
 
 ShaderNode *EnvironmentTextureNode::clone() const
@@ -292,6 +297,7 @@ ShaderNode *EnvironmentTextureNode::clone() const
 	node->image_manager = NULL;
 	node->slot = -1;
 	node->is_float = -1;
+	node->is_linear = false;
 	return node;
 }
 
@@ -304,7 +310,7 @@ void EnvironmentTextureNode::compile(SVMCompiler& compiler)
 	image_manager = compiler.image_manager;
 	if(slot == -1) {
 		bool is_float_bool;
-		slot = image_manager->add_image(filename, animated, is_float_bool);
+		slot = image_manager->add_image(filename, builtin_data, animated, is_float_bool, is_linear);
 		is_float = (int)is_float_bool;
 	}
 
@@ -316,7 +322,7 @@ void EnvironmentTextureNode::compile(SVMCompiler& compiler)
 	if(slot != -1) {
 		compiler.stack_assign(vector_in);
 
-		int srgb = (is_float || color_space != "Color")? 0: 1;
+		int srgb = (is_linear || color_space != "Color")? 0: 1;
 		int vector_offset = vector_in->stack_offset;
 
 		if(!tex_mapping.skip()) {
@@ -354,11 +360,11 @@ void EnvironmentTextureNode::compile(OSLCompiler& compiler)
 	tex_mapping.compile(compiler);
 
 	if(is_float == -1)
-		is_float = (int)image_manager->is_float_image(filename);
+		is_float = (int)image_manager->is_float_image(filename, NULL, is_linear);
 
 	compiler.parameter("filename", filename.c_str());
 	compiler.parameter("projection", projection);
-	if(is_float || color_space != "Color")
+	if(is_linear || color_space != "Color")
 		compiler.parameter("color_space", "Linear");
 	else
 		compiler.parameter("color_space", "sRGB");
@@ -3255,6 +3261,8 @@ void NormalMapNode::attributes(AttributeRequestSet *attributes)
 			attributes->add(ustring((string(attribute.c_str()) + ".tangent").c_str()));
 			attributes->add(ustring((string(attribute.c_str()) + ".tangent_sign").c_str()));
 		}
+
+		attributes->add(ATTR_STD_VERTEX_NORMAL);
 	}
 	
 	ShaderNode::attributes(attributes);

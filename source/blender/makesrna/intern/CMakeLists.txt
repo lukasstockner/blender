@@ -70,6 +70,7 @@ set(DEFSRC
 	rna_pose.c
 	rna_property.c
 	rna_render.c
+	rna_rigidbody.c
 	rna_rna.c
 	rna_scene.c
 	rna_screen.c
@@ -104,6 +105,7 @@ set(APISRC
 	rna_main_api.c
 	rna_material_api.c
 	rna_mesh_api.c
+	rna_meta_api.c
 	rna_texture_api.c
 	rna_object_api.c
 	rna_pose_api.c
@@ -235,6 +237,13 @@ endif()
 
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
+if(WITH_BULLET)
+	list(APPEND INC
+		../../../../intern/rigidbody
+	)
+	add_definitions(-DWITH_BULLET)
 endif()
 
 # Build makesrna executable

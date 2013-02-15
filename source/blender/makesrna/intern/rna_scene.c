@@ -35,6 +35,7 @@
 #include "DNA_group_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_particle_types.h"
+#include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_world_types.h"
@@ -275,9 +276,11 @@ EnumPropertyItem image_color_mode_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
+#ifdef RNA_RUNTIME
 #define IMAGE_COLOR_MODE_BW   image_color_mode_items[0]
 #define IMAGE_COLOR_MODE_RGB  image_color_mode_items[1]
 #define IMAGE_COLOR_MODE_RGBA image_color_mode_items[2]
+#endif
 
 EnumPropertyItem image_color_depth_items[] = {
 	/* 1 (monochrome) not used */
@@ -403,7 +406,7 @@ static void rna_Scene_object_unlink(Scene *scene, ReportList *reports, Object *o
 		scene->basact = NULL;
 	}
 
-	BLI_remlink(&scene->base, base);
+	BKE_scene_base_unlink(scene, base);
 	MEM_freeN(base);
 
 	ob->id.us--;
@@ -1418,6 +1421,11 @@ static void rna_UnifiedPaintSettings_unprojected_radius_set(PointerRNA *ptr, flo
 	ups->unprojected_radius = value;
 }
 
+static char *rna_UnifiedPaintSettings_path(PointerRNA *ptr)
+{
+	return BLI_strdup("tool_settings.unified_paint_settings");
+}
+
 /* note: without this, when Multi-Paint is activated/deactivated, the colors
  * will not change right away when multiple bones are selected, this function
  * is not for general use and only for the few cases where changing scene
@@ -1445,6 +1453,11 @@ static void rna_SceneSequencer_update(Main *UNUSED(bmain), Scene *UNUSED(scene),
 {
 	BKE_sequencer_cache_cleanup();
 	BKE_sequencer_preprocessed_cache_cleanup();
+}
+
+static char *rna_ToolSettings_path(PointerRNA *ptr)
+{
+	return BLI_strdup("tool_settings");
 }
 
 #else
@@ -1518,6 +1531,7 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	};
 
 	srna = RNA_def_struct(brna, "ToolSettings", NULL);
+	RNA_def_struct_path_func(srna, "rna_ToolSettings_path");
 	RNA_def_struct_ui_text(srna, "Tool Settings", "");
 	
 	prop = RNA_def_property(srna, "sculpt", PROP_POINTER, PROP_NONE);
@@ -1760,28 +1774,29 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	/* etch-a-ton */
 	prop = RNA_def_property(srna, "use_bone_sketching", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "bone_sketching", BONE_SKETCHING);
-	RNA_def_property_ui_text(prop, "Use Bone Sketching", "DOC BROKEN");
+	RNA_def_property_ui_text(prop, "Use Bone Sketching", "Use sketching to create and edit bones");
 /*	RNA_def_property_ui_icon(prop, ICON_EDIT, 0); */
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	prop = RNA_def_property(srna, "use_etch_quick", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "bone_sketching", BONE_SKETCHING_QUICK);
-	RNA_def_property_ui_text(prop, "Quick Sketching", "DOC BROKEN");
+	RNA_def_property_ui_text(prop, "Quick Sketching", "Automatically convert and delete on stroke end");
 
 	prop = RNA_def_property(srna, "use_etch_overdraw", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "bone_sketching", BONE_SKETCHING_ADJUST);
-	RNA_def_property_ui_text(prop, "Overdraw Sketching", "DOC BROKEN");
+	RNA_def_property_ui_text(prop, "Overdraw Sketching", "Adjust strokes by drawing near them");
 	
 	prop = RNA_def_property(srna, "use_etch_autoname", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "skgen_retarget_options", SK_RETARGET_AUTONAME);
-	RNA_def_property_ui_text(prop, "Autoname", "DOC BROKEN");
+	RNA_def_property_ui_text(prop, "Autoname Bones", "Automatically generate values to replace &N and &S suffix placeholders in template names");
 
 	prop = RNA_def_property(srna, "etch_number", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "skgen_num_string");
-	RNA_def_property_ui_text(prop, "Number", "DOC BROKEN");
+	RNA_def_property_ui_text(prop, "Number", "Text to replace &N with (e.g. 'Finger.&N' -> 'Finger.1' or 'Finger.One')");
 
 	prop = RNA_def_property(srna, "etch_side", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "skgen_num_string");
-	RNA_def_property_ui_text(prop, "Side", "DOC BROKEN");
+	RNA_def_property_ui_text(prop, "Side", "Text to replace &S with (e.g. 'Arm.&S' -> 'Arm.R' or 'Arm.Right')");
 
 	prop = RNA_def_property(srna, "etch_template", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "skgen_template");
@@ -1800,14 +1815,14 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	RNA_def_property_float_sdna(prop, NULL, "skgen_correlation_limit");
 	RNA_def_property_range(prop, 0.00001, 1.0);
 	RNA_def_property_ui_range(prop, 0.01, 1.0, 0.01, 2);
-	RNA_def_property_ui_text(prop, "Limit", "Number of bones in the subdivided stroke");
+	RNA_def_property_ui_text(prop, "Limit", "Correlation threshold for number of bones in the subdivided stroke");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	prop = RNA_def_property(srna, "etch_length_limit", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "skgen_length_limit");
 	RNA_def_property_range(prop, 0.00001, 100000.0);
 	RNA_def_property_ui_range(prop, 0.001, 100.0, 0.1, 3);
-	RNA_def_property_ui_text(prop, "Length", "Number of bones in the subdivided stroke");
+	RNA_def_property_ui_text(prop, "Length", "Maximum length of the subdivided bones");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	prop = RNA_def_property(srna, "etch_roll_mode", PROP_ENUM, PROP_NONE);
@@ -1834,6 +1849,7 @@ static void rna_def_unified_paint_settings(BlenderRNA  *brna)
 	PropertyRNA *prop;
 
 	srna = RNA_def_struct(brna, "UnifiedPaintSettings", NULL);
+	RNA_def_struct_path_func(srna, "rna_UnifiedPaintSettings_path");
 	RNA_def_struct_ui_text(srna, "Unified Paint Settings", "Overrides for some of the active brush's settings");
 
 	/* high-level flags to enable or disable unified paint settings */
@@ -1854,7 +1870,7 @@ static void rna_def_unified_paint_settings(BlenderRNA  *brna)
 
 	/* unified paint settings that override the equivalent settings
 	 * from the active brush */
-	prop = RNA_def_property(srna, "size", PROP_INT, PROP_DISTANCE);
+	prop = RNA_def_property(srna, "size", PROP_INT, PROP_NONE);
 	RNA_def_property_int_funcs(prop, NULL, "rna_UnifiedPaintSettings_size_set", NULL);
 	RNA_def_property_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS * 10);
 	RNA_def_property_ui_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS, 1, 0);
@@ -2546,7 +2562,7 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "eyeseparation");
 	RNA_def_property_range(prop, 0.01, 5.0);
 	RNA_def_property_ui_text(prop, "Eye Separation",
-	                         "Set the distance between the eyes - the camera focal length/30 should be fine");
+	                         "Set the distance between the eyes - the camera focal distance/30 should be fine");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
 	
 	/* Dome */
@@ -2671,10 +2687,12 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_SCENE, NULL);
 
 	/* mode */
+	/* not used  *//* deprecated !!!!!!!!!!!!! */
 	prop = RNA_def_property(srna, "use_occlusion_culling", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", WO_DBVT_CULLING);
-	RNA_def_property_ui_text(prop, "DBVT culling",
-	                         "Use optimized Bullet DBVT tree for view frustum and occlusion culling");
+	RNA_def_property_ui_text(prop, "DBVT Culling",
+	                         "Use optimized Bullet DBVT tree for view frustum and occlusion culling (more efficient, "
+	                         "but it can waste unnecessary CPU if the scene doesn't have occluder objects)");
 	
 	/* not used  *//* deprecated !!!!!!!!!!!!! */
 	prop = RNA_def_property(srna, "use_activity_culling", PROP_BOOLEAN, PROP_NONE);
@@ -3695,7 +3713,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "motion_blur_shutter", PROP_FLOAT, PROP_UNSIGNED);
 	RNA_def_property_float_sdna(prop, NULL, "blurfac");
-	RNA_def_property_ui_range(prop, 0.01f, 2.0f, 1, 0);
+	RNA_def_property_ui_range(prop, 0.01f, 2.0f, 1, 1);
 	RNA_def_property_ui_text(prop, "Shutter", "Time taken in frames between shutter open and close");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_glsl_update");
@@ -3709,27 +3727,33 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	                         "(note that this disables save_buffers and full_sample)");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
+	
+	
 	prop = RNA_def_property(srna, "border_min_x", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "border.xmin");
 	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Border Minimum X", "Minimum X value to for the render border");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	prop = RNA_def_property(srna, "border_min_y", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "border.ymin");
 	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Border Minimum Y", "Minimum Y value for the render border");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	prop = RNA_def_property(srna, "border_max_x", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "border.xmax");
 	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Border Maximum X", "Maximum X value for the render border");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	prop = RNA_def_property(srna, "border_max_y", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "border.ymax");
 	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Border Maximum Y", "Maximum Y value for the render border");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 	
@@ -4539,6 +4563,13 @@ void RNA_def_scene(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_SCENE | ND_KEYINGSET, NULL);
 	rna_def_scene_keying_sets_all(brna, prop);
 	
+	/* Rigid Body Simulation */
+	prop = RNA_def_property(srna, "rigidbody_world", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "rigidbody_world");
+	RNA_def_property_struct_type(prop, "RigidBodyWorld");
+	RNA_def_property_ui_text(prop, "Rigid Body World", "");
+	RNA_def_property_update(prop, NC_SCENE, NULL);
+	
 	/* Tool Settings */
 	prop = RNA_def_property(srna, "tool_settings", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
@@ -4677,15 +4708,19 @@ void RNA_def_scene(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Sequencer Color Space Settings", "Settings of color space sequencer is working in");
 
 	/* Nestled Data  */
+	/* *** Non-Animated *** */
+	RNA_define_animate_sdna(false);
 	rna_def_tool_settings(brna);
 	rna_def_unified_paint_settings(brna);
 	rna_def_unit_settings(brna);
 	rna_def_scene_image_format_data(brna);
-	rna_def_scene_render_data(brna);
 	rna_def_scene_game_data(brna);
-	rna_def_scene_render_layer(brna);
 	rna_def_transform_orientation(brna);
 	rna_def_selected_uv_element(brna);
+	RNA_define_animate_sdna(true);
+	/* *** Animated *** */
+	rna_def_scene_render_data(brna);
+	rna_def_scene_render_layer(brna);
 	
 	/* Scene API */
 	RNA_api_scene(srna);

@@ -151,12 +151,31 @@ float voronoi_CrS(point p) { return 2.0 * voronoi_Cr(p) - 1.0; }
 
 /* Noise Bases */
 
+float safe_noise(point p, int type)
+{
+	float f = 0.0;
+	
+	/* Perlin noise in range -1..1 */
+	if (type == 0)
+		f = noise("perlin", p);
+	
+	/* Perlin noise in range 0..1 */
+	else
+		f = noise(p);
+
+	/* can happen for big coordinates, things even out to 0.5 then anyway */
+	if(!isfinite(f))
+		return 0.5;
+	
+	return f;
+}
+
 float noise_basis(point p, string basis)
 {
 	float result = 0.0;
 
 	if (basis == "Perlin")
-		result = noise(p); /* returns perlin noise in range 0..1 */
+		result = safe_noise(p, 1);
 	if (basis == "Voronoi F1")
 		result = voronoi_F1S(p);
 	if (basis == "Voronoi F2")

@@ -18,6 +18,7 @@
 #include "mesh.h"
 #include "object.h"
 #include "scene.h"
+#include "curves.h"
 
 #include "bvh.h"
 #include "bvh_build.h"
@@ -29,6 +30,7 @@
 #include "util_foreach.h"
 #include "util_map.h"
 #include "util_progress.h"
+#include "util_system.h"
 #include "util_types.h"
 
 CCL_NAMESPACE_BEGIN
@@ -70,6 +72,7 @@ BVH *BVH::create(const BVHParams& params, const vector<Object*>& objects)
 
 bool BVH::cache_read(CacheData& key)
 {
+	key.add(system_cpu_bits());
 	key.add(&params, sizeof(params));
 
 	foreach(Object *ob, objects) {
@@ -339,6 +342,10 @@ void BVH::pack_primitives()
 			Object *ob = objects[tob];
 			pack.prim_visibility[i] = ob->visibility;
 		}
+		else {
+			memset(&pack.tri_woop[i * nsize], 0, sizeof(float4)*3);
+			pack.prim_visibility[i] = 0;
+		}
 	}
 }
 
@@ -475,7 +482,7 @@ void BVH::pack_instances(size_t nodes_size)
 		}
 
 		/* merge nodes */
-		if( bvh->pack.nodes.size()) {
+		if(bvh->pack.nodes.size()) {
 			size_t nsize_bbox = (use_qbvh)? nsize-2: nsize-1;
 			int4 *bvh_nodes = &bvh->pack.nodes[0];
 			size_t bvh_nodes_size = bvh->pack.nodes.size(); 
@@ -631,8 +638,19 @@ void RegularBVH::refit_node(int idx, bool leaf, BoundBox& bbox, uint& visibility
 					int k0 = mesh->curves[pidx - str_offset].first_key + pack.prim_segment[prim]; // XXX!
 					int k1 = k0 + 1;
 
-					bbox.grow(mesh->curve_keys[k0].co, mesh->curve_keys[k0].radius);
-					bbox.grow(mesh->curve_keys[k1].co, mesh->curve_keys[k1].radius);
+					float3 p[4];
+					p[0] = mesh->curve_keys[max(k0 - 1,mesh->curves[pidx - str_offset].first_key)].co;
+					p[1] = mesh->curve_keys[k0].co;
+					p[2] = mesh->curve_keys[k1].co;
+					p[3] = mesh->curve_keys[min(k1 + 1,mesh->curves[pidx - str_offset].first_key + mesh->curves[pidx - str_offset].num_keys - 1)].co;
+					float3 lower;
+					float3 upper;
+					curvebounds(&lower.x, &upper.x, p, 0);
+					curvebounds(&lower.y, &upper.y, p, 1);
+					curvebounds(&lower.z, &upper.z, p, 2);
+					float mr = max(mesh->curve_keys[k0].radius,mesh->curve_keys[k1].radius);
+					bbox.grow(lower, mr);
+					bbox.grow(upper, mr);
 				}
 				else {
 					/* triangles */

@@ -361,8 +361,8 @@ int *RE_vlakren_get_origindex(ObjectRen *obr, VlakRen *vlak, int verify)
 	int nr= vlak->index>>8;
 
 	origindex= obr->vlaknodes[nr].origindex;
-	if(origindex==NULL) {
-		if(verify)
+	if (origindex==NULL) {
+		if (verify)
 			origindex= obr->vlaknodes[nr].origindex= MEM_callocN(256*RE_VLAK_ORIGINDEX_ELEMS*sizeof(int), "origindex table");
 		else
 			return NULL;
@@ -440,7 +440,7 @@ VlakRen *RE_vlakren_copy(ObjectRen *obr, VlakRen *vlr)
 	}
 
 	origindex= RE_vlakren_get_origindex(obr, vlr, 0);
-	if(origindex) {
+	if (origindex) {
 		origindex1= RE_vlakren_get_origindex(obr, vlr1, 1);
 		/* Just an int, but memcpy for consistency. */
 		memcpy(origindex1, origindex, sizeof(int)*RE_VLAK_ORIGINDEX_ELEMS);
@@ -791,7 +791,7 @@ void free_renderdata_vlaknodes(VlakTableNode *vlaknodes)
 			MEM_freeN(vlaknodes[a].mtface);
 		if (vlaknodes[a].mcol)
 			MEM_freeN(vlaknodes[a].mcol);
-		if(vlaknodes[a].origindex)
+		if (vlaknodes[a].origindex)
 			MEM_freeN(vlaknodes[a].origindex);
 		if (vlaknodes[a].surfnor)
 			MEM_freeN(vlaknodes[a].surfnor);
@@ -1051,7 +1051,7 @@ HaloRen *RE_inithalo(Render *re, ObjectRen *obr, Material *ma,
 				}
 			}
 
-			externtex(mtex, texvec, &tin, &tr, &tg, &tb, &ta, 0);
+			externtex(mtex, texvec, &tin, &tr, &tg, &tb, &ta, 0, re->pool);
 
 			yn= tin*mtex->colfac;
 			//zn= tin*mtex->alphafac;
@@ -1069,6 +1069,8 @@ HaloRen *RE_inithalo(Render *re, ObjectRen *obr, Material *ma,
 				har->alfa= tin;
 		}
 	}
+
+	har->pool = re->pool;
 
 	return har;
 }
@@ -1180,7 +1182,7 @@ HaloRen *RE_inithalo_particle(Render *re, ObjectRen *obr, DerivedMesh *dm, Mater
 				copy_v3_v3(texvec, orco);
 			}
 
-			hasrgb = externtex(mtex, texvec, &tin, &tr, &tg, &tb, &ta, 0);
+			hasrgb = externtex(mtex, texvec, &tin, &tr, &tg, &tb, &ta, 0, re->pool);
 
 			//yn= tin*mtex->colfac;
 			//zn= tin*mtex->alphafac;
@@ -1222,6 +1224,8 @@ HaloRen *RE_inithalo_particle(Render *re, ObjectRen *obr, DerivedMesh *dm, Mater
 			//	har->alfa= tin;
 			//}
 		}
+
+	har->pool = re->pool;
 
 	return har;
 }

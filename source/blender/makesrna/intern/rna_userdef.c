@@ -325,6 +325,11 @@ static void rna_userdef_addon_remove(ReportList *reports, PointerRNA *bext_ptr)
 		return;
 	}
 
+	if (bext->prop) {
+		IDP_FreeProperty(bext->prop);
+		MEM_freeN(bext->prop);
+	}
+
 	BLI_freelinkN(&U.addons, bext);
 	RNA_POINTER_INVALIDATE(bext_ptr);
 }
@@ -343,6 +348,11 @@ static void rna_userdef_text_update(Main *UNUSED(bmain), Scene *UNUSED(scene), P
 static PointerRNA rna_Theme_space_generic_get(PointerRNA *ptr)
 {
 	return rna_pointer_inherit_refine(ptr, &RNA_ThemeSpaceGeneric, ptr->data);
+}
+
+static PointerRNA rna_Theme_space_gradient_get(PointerRNA *ptr)
+{
+	return rna_pointer_inherit_refine(ptr, &RNA_ThemeSpaceGradient, ptr->data);
 }
 
 static PointerRNA rna_Theme_space_list_generic_get(PointerRNA *ptr)
@@ -471,7 +481,7 @@ static void rna_AddonPref_unregister(Main *UNUSED(bmain), StructRNA *type)
 	RNA_struct_free(&BLENDER_RNA, type);
 
 	/* update while blender is running */
-	WM_main_add_notifier(NC_SCREEN | NA_EDITED, NULL);
+	WM_main_add_notifier(NC_WINDOW, NULL);
 }
 
 static StructRNA *rna_AddonPref_register(Main *bmain, ReportList *reports, void *data, const char *identifier,
@@ -509,7 +519,7 @@ static StructRNA *rna_AddonPref_register(Main *bmain, ReportList *reports, void 
 	memcpy(apt, &dummyapt, sizeof(dummyapt));
 	BKE_addon_pref_type_add(apt);
 
-	apt->ext.srna = RNA_def_struct(&BLENDER_RNA, identifier, "AddonPreferences");
+	apt->ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, identifier, &RNA_AddonPreferences);
 	apt->ext.data = data;
 	apt->ext.call = call;
 	apt->ext.free = free;
@@ -518,7 +528,7 @@ static StructRNA *rna_AddonPref_register(Main *bmain, ReportList *reports, void 
 //	apt->draw = (have_function[0]) ? header_draw : NULL;
 
 	/* update while blender is running */
-	WM_main_add_notifier(NC_SCREEN | NA_EDITED, NULL);
+	WM_main_add_notifier(NC_WINDOW, NULL);
 
 	return apt->ext.srna;
 }
@@ -598,22 +608,14 @@ static void rna_def_userdef_theme_ui_style(BlenderRNA *brna)
 	RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 	RNA_def_struct_ui_text(srna, "Style", "Theme settings for style sets");
 	
-	/* (not used yet) */
-#if 0
-	prop = RNA_def_property(srna, "panelzoom", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_range(prop, 0.5, 2.0);
-	RNA_def_property_ui_text(prop, "Panel Zoom", "Default zoom level for panel areas");
-#endif
 
-	/*	(not used yet) */
-#if 0
-	prop = RNA_def_property(srna, "group_label", PROP_POINTER, PROP_NONE);
+	prop = RNA_def_property(srna, "panel_title", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
-	RNA_def_property_pointer_sdna(prop, NULL, "grouplabel");
+	RNA_def_property_pointer_sdna(prop, NULL, "paneltitle");
 	RNA_def_property_struct_type(prop, "ThemeFontStyle");
-	RNA_def_property_ui_text(prop, "Group Label Font", "");
+	RNA_def_property_ui_text(prop, "Panel Title Font", "");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
-#endif
+
 	prop = RNA_def_property(srna, "widget_label", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
 	RNA_def_property_pointer_sdna(prop, NULL, "widgetlabel");
@@ -766,15 +768,21 @@ static void rna_def_userdef_theme_ui_gradient(BlenderRNA *brna)
 	srna = RNA_def_struct(brna, "ThemeGradientColors", NULL);
 	RNA_def_struct_sdna(srna, "uiGradientColors");
 	RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
-	RNA_def_struct_ui_text(srna, "Theme Gradient Color", "Theme settings for gradient colors");
-
-	prop = RNA_def_property(srna, "gradient", PROP_FLOAT, PROP_COLOR_GAMMA);
-	RNA_def_property_ui_text(prop, "Gradient Color", "");
-	RNA_def_property_update(prop, 0, "rna_userdef_update");
+	RNA_def_struct_ui_text(srna, "Theme Background Color", "Theme settings for background colors and gradient");
 
 	prop = RNA_def_property(srna, "show_grad", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Use Gradient",
 	                         "Do a gradient for the background of the viewport working area");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "gradient", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Gradient Low", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "high_gradient", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Gradient High/Off", "");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 }
 
@@ -997,6 +1005,83 @@ static void rna_def_userdef_theme_space_generic(BlenderRNA *brna)
 /*	} */
 }
 
+static void rna_def_userdef_theme_space_gradient(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "ThemeSpaceGradient", NULL);
+	RNA_def_struct_sdna(srna, "ThemeSpace");
+	RNA_def_struct_ui_text(srna, "Theme Space Settings", "");
+
+	/* window */
+	prop = RNA_def_property(srna, "title", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Title", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "text", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Text", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "text_hi", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Text Highlight", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	/* header */
+	prop = RNA_def_property(srna, "header", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Header", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "header_text", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Header Text", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "header_text_hi", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Header Text Highlight", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	/* panel settings */
+	prop = RNA_def_property(srna, "panelcolors", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_NEVER_NULL);
+	RNA_def_property_ui_text(prop, "Panel Colors", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	/* gradient/background settings */
+	prop = RNA_def_property(srna, "gradients", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_NEVER_NULL);
+	RNA_def_property_ui_text(prop, "Gradient Colors", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	/* buttons */
+/*	if (! ELEM(spacetype, SPACE_BUTS, SPACE_OUTLINER)) { */
+	prop = RNA_def_property(srna, "button", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_array(prop, 4);
+	RNA_def_property_ui_text(prop, "Region Background", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "button_title", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Region Text Titles", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "button_text", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Region Text", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "button_text_hi", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Region Text Highlight", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+/*	} */
+}
+
 /* list / channels */
 static void rna_def_userdef_theme_space_list_generic(BlenderRNA *brna)
 {
@@ -1036,6 +1121,17 @@ static void rna_def_userdef_theme_spaces_main(StructRNA *srna)
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
 	RNA_def_property_struct_type(prop, "ThemeSpaceGeneric");
 	RNA_def_property_pointer_funcs(prop, "rna_Theme_space_generic_get", NULL, NULL, NULL);
+	RNA_def_property_ui_text(prop, "Theme Space", "Settings for space");
+}
+
+static void rna_def_userdef_theme_spaces_gradient(StructRNA *srna)
+{
+	PropertyRNA *prop;
+
+	prop = RNA_def_property(srna, "space", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_NEVER_NULL);
+	RNA_def_property_struct_type(prop, "ThemeSpaceGradient");
+	RNA_def_property_pointer_funcs(prop, "rna_Theme_space_gradient_get", NULL, NULL, NULL);
 	RNA_def_property_ui_text(prop, "Theme Space", "Settings for space");
 }
 
@@ -1243,7 +1339,7 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
 	RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 	RNA_def_struct_ui_text(srna, "Theme 3D View", "Theme settings for the 3D View");
 
-	rna_def_userdef_theme_spaces_main(srna);
+	rna_def_userdef_theme_spaces_gradient(srna);
 
 	prop = RNA_def_property(srna, "grid", PROP_FLOAT, PROP_COLOR_GAMMA);
 	RNA_def_property_array(prop, 3);
@@ -1380,11 +1476,6 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "skin_root", PROP_FLOAT, PROP_COLOR_GAMMA);
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_ui_text(prop, "Skin Root", "");
-	RNA_def_property_update(prop, 0, "rna_userdef_update");
-
-	prop = RNA_def_property(srna, "gradients", PROP_POINTER, PROP_NONE);
-	RNA_def_property_flag(prop, PROP_NEVER_NULL);
-	RNA_def_property_ui_text(prop, "Gradient", "");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 }
 
@@ -1784,6 +1875,18 @@ static void rna_def_userdef_theme_space_node(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "movie");
 	RNA_def_property_array(prop, 4);
 	RNA_def_property_ui_text(prop, "Frame Node", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+	
+	prop = RNA_def_property(srna, "matte_node", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "syntaxs");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Matte Node", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "distor_node", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "syntaxd");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Distort Node", "");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
 	prop = RNA_def_property(srna, "noodle_curving", PROP_INT, PROP_NONE);
@@ -2562,6 +2665,7 @@ static void rna_def_userdef_dothemes(BlenderRNA *brna)
 	rna_def_userdef_theme_ui(brna);
 
 	rna_def_userdef_theme_space_generic(brna);
+	rna_def_userdef_theme_space_gradient(brna);
 	rna_def_userdef_theme_space_list_generic(brna);
 	
 	rna_def_userdef_theme_space_view3d(brna);
@@ -3216,7 +3320,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "dpi", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "dpi");
-	RNA_def_property_range(prop, 48, 128);
+	RNA_def_property_range(prop, 48, 144);
 	RNA_def_property_ui_text(prop, "DPI", "Font size and resolution for display");
 	RNA_def_property_update(prop, 0, "rna_userdef_dpi_update");
 	
@@ -3445,7 +3549,6 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 	                         "Draw tool/property regions over the main region, when using Triple Buffer");
 	RNA_def_property_update(prop, 0, "rna_userdef_dpi_update");
 	
-
 #ifdef WITH_CYCLES
 	prop = RNA_def_property(srna, "compute_device_type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_ENUM_NO_CONTEXT);
@@ -3651,6 +3754,11 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0, 32);
 	RNA_def_property_ui_text(prop, "Wheel Scroll Lines", "Number of lines scrolled at a time with the mouse wheel");
 	
+	prop = RNA_def_property(srna, "use_trackpad_natural", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "uiflag2", USER_TRACKPAD_NATURAL);
+	RNA_def_property_ui_text(prop, "Trackpad Natural",
+	                         "If your system uses 'natural' scrolling, this option keeps consistent trackpad usage throughout the UI");
+
 	prop = RNA_def_property(srna, "active_keyconfig", PROP_STRING, PROP_DIRPATH);
 	RNA_def_property_string_sdna(prop, NULL, "keyconfigstr");
 	RNA_def_property_ui_text(prop, "Key Config", "The name of the active key configuration");

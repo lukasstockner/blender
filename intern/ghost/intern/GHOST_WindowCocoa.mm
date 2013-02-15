@@ -58,9 +58,7 @@ extern "C" {
 	extern void wm_draw_update(bContext *C);
 };*/
 @interface CocoaWindowDelegate : NSObject
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
 <NSWindowDelegate>
-#endif
 {
 	GHOST_SystemCocoa *systemCocoa;
 	GHOST_WindowCocoa *associatedWindow;
@@ -74,7 +72,9 @@ extern "C" {
 - (void)windowDidMove:(NSNotification *)notification;
 - (void)windowWillMove:(NSNotification *)notification;
 - (BOOL)windowShouldClose:(id)sender;	
+- (void)windowDidChangeBackingProperties:(NSNotification *)notification;
 @end
+
 
 @implementation CocoaWindowDelegate : NSObject
 - (void)setSystemAndWindowCocoa:(GHOST_SystemCocoa *)sysCocoa windowCocoa:(GHOST_WindowCocoa *)winCocoa
@@ -126,6 +126,11 @@ extern "C" {
 		wm_event_do_notifiers(ghostC);
 		wm_draw_update(ghostC);
 	}*/
+}
+
+- (void)windowDidChangeBackingProperties:(NSNotification *)notification
+{
+	systemCocoa->handleWindowEvent(GHOST_kEventNativeResolutionChange, associatedWindow);
 }
 
 - (BOOL)windowShouldClose:(id)sender;
@@ -428,6 +433,14 @@ extern "C" {
 
 #pragma mark initialization / finalization
 
+#if MAC_OS_X_VERSION_MAX_ALLOWED < 1070
+@interface NSView (NSOpenGLSurfaceResolution)
+- (BOOL)wantsBestResolutionOpenGLSurface;
+- (void)setWantsBestResolutionOpenGLSurface:(BOOL)flag;
+- (NSRect)convertRectToBacking:(NSRect)bounds;
+@end
+#endif
+
 NSOpenGLContext* GHOST_WindowCocoa::s_firstOpenGLcontext = nil;
 
 GHOST_WindowCocoa::GHOST_WindowCocoa(
@@ -473,8 +486,8 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 	[m_window setSystemAndWindowCocoa:systemCocoa windowCocoa:this];
 	
 	//Forbid to resize the window below the blender defined minimum one
-	minSize.width = 640;
-	minSize.height = 480;
+	minSize.width = 320;
+	minSize.height = 240;
 	[m_window setContentMinSize:minSize];
 	
 	setTitle(title);
@@ -579,13 +592,15 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 	setDrawingContextType(type);
 	updateDrawingContext();
 	activateDrawingContext();
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070	// retina support started with 10.7.4 afaik
+
 	if (m_systemCocoa->m_nativePixel) {
-		[m_openGLView setWantsBestResolutionOpenGLSurface:YES];
-		NSRect backingBounds = [m_openGLView convertRectToBacking:[m_openGLView bounds]];
-		m_systemCocoa->m_nativePixelSize = (float)backingBounds.size.width / (float)rect.size.width;
+		if ([m_openGLView respondsToSelector:@selector(setWantsBestResolutionOpenGLSurface:)]) {
+			[m_openGLView setWantsBestResolutionOpenGLSurface:YES];
+		
+			NSRect backingBounds = [m_openGLView convertRectToBacking:[m_openGLView bounds]];
+			m_nativePixelSize = (float)backingBounds.size.width / (float)rect.size.width;
+		}
 	}
-#endif
 	
 	m_tablet.Active = GHOST_kTabletModeNone;
 	
@@ -901,6 +916,19 @@ NSScreen* GHOST_WindowCocoa::getScreen()
 	return [m_window screen];
 }
 
+/* called for event, when window leaves monitor to another */
+void GHOST_WindowCocoa::setNativePixelSize(void)
+{
+	/* make sure 10.6 keeps running */
+	if ([m_openGLView respondsToSelector:@selector(setWantsBestResolutionOpenGLSurface:)]) {
+		NSRect backingBounds = [m_openGLView convertRectToBacking:[m_openGLView bounds]];
+		
+		GHOST_Rect rect;
+		getClientBounds(rect);
+
+		m_nativePixelSize = (float)backingBounds.size.width / (float)rect.getWidth();
+	}
+}
 
 /**
  * \note Fullscreen switch is not actual fullscreen with display capture.
@@ -968,9 +996,7 @@ GHOST_TSuccess GHOST_WindowCocoa::setState(GHOST_TWindowState state)
 				//Show the new window
 				[tmpWindow makeKeyAndOrderFront:m_openGLView];
 				//Close and release old window
-				[m_window setDelegate:nil]; // To avoid the notification of "window closed" event
 				[m_window close];
-				[m_window release];
 				m_window = tmpWindow;
 #endif
 			
@@ -1019,7 +1045,7 @@ GHOST_TSuccess GHOST_WindowCocoa::setState(GHOST_TWindowState state)
 				[tmpWindow registerForDraggedTypes:[NSArray arrayWithObjects:NSFilenamesPboardType,
 												   NSStringPboardType, NSTIFFPboardType, nil]];
 				//Forbid to resize the window below the blender defined minimum one
-				[tmpWindow setContentMinSize:NSMakeSize(640, 480)];
+				[tmpWindow setContentMinSize:NSMakeSize(320, 240)];
 				
 				//Assign the openGL view to the new window
 				[tmpWindow setContentView:m_openGLView];
@@ -1027,9 +1053,7 @@ GHOST_TSuccess GHOST_WindowCocoa::setState(GHOST_TWindowState state)
 				//Show the new window
 				[tmpWindow makeKeyAndOrderFront:nil];
 				//Close and release old window
-				[m_window setDelegate:nil]; // To avoid the notification of "window closed" event
 				[m_window close];
-				[m_window release];
 				m_window = tmpWindow;
 #endif
 			

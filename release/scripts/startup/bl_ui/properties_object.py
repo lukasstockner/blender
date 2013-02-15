@@ -230,6 +230,7 @@ class OBJECT_PT_display(ObjectButtonsPanel, Panel):
         col.prop(ob, "show_x_ray", text="X-Ray")
         if ob.type == 'MESH':
             col.prop(ob, "show_transparent", text="Transparency")
+            col.prop(ob, "show_all_edges")
 
 
 class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
@@ -288,6 +289,9 @@ class OBJECT_PT_relations_extras(ObjectButtonsPanel, Panel):
         row = col.row()
         row.active = ((ob.parent is not None) and (ob.use_slow_parent))
         row.prop(ob, "slow_parent_offset", text="Offset")
+
+        layout.prop(ob, "extra_recalc_object")
+        layout.prop(ob, "extra_recalc_data")
 
 
 from bl_ui.properties_animviz import (MotionPathButtonsPanel,

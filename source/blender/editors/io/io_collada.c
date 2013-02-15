@@ -84,6 +84,7 @@ static int wm_collada_export_exec(bContext *C, wmOperator *op)
 	int selected;
 	int include_children;
 	int include_armatures;
+	int include_shapekeys;
 	int deform_bones_only;
 
 	int include_uv_textures;
@@ -109,6 +110,7 @@ static int wm_collada_export_exec(bContext *C, wmOperator *op)
 	selected                 = RNA_boolean_get(op->ptr, "selected");
 	include_children         = RNA_boolean_get(op->ptr, "include_children");
 	include_armatures        = RNA_boolean_get(op->ptr, "include_armatures");
+	include_shapekeys        = RNA_boolean_get(op->ptr, "include_shapekeys");
 	deform_bones_only        = RNA_boolean_get(op->ptr, "deform_bones_only");
 
 	include_uv_textures      = RNA_boolean_get(op->ptr, "include_uv_textures");
@@ -130,6 +132,7 @@ static int wm_collada_export_exec(bContext *C, wmOperator *op)
 	                   selected,
 	                   include_children,
 	                   include_armatures,
+	                   include_shapekeys,
 	                   deform_bones_only,
 
 	                   active_uv_only,
@@ -174,6 +177,10 @@ static void uiCollada_exportSettings(uiLayout *layout, PointerRNA *imfptr)
 
 	row = uiLayoutRow(box, FALSE);
 	uiItemR(row, imfptr, "include_armatures", 0, NULL, ICON_NONE);
+	uiLayoutSetEnabled(row, RNA_boolean_get(imfptr, "selected"));
+
+	row = uiLayoutRow(box, FALSE);
+	uiItemR(row, imfptr, "include_shapekeys", 0, NULL, ICON_NONE);
 	uiLayoutSetEnabled(row, RNA_boolean_get(imfptr, "selected"));
 
 	/* Texture options */
@@ -266,6 +273,9 @@ void WM_OT_collada_export(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "include_armatures", 0, "Include Armatures",
 	                "Export related armatures (even if not selected)");
 
+	RNA_def_boolean(ot->srna, "include_shapekeys", 1, "Include Shape Keys",
+	                "Export all Shape Keys from Mesh Objects");
+
 	RNA_def_boolean(ot->srna, "deform_bones_only", 0, "Deform Bones only",
 	                "Only export deforming bones with armatures");
 
@@ -298,18 +308,45 @@ void WM_OT_collada_export(wmOperatorType *ot)
 static int wm_collada_import_exec(bContext *C, wmOperator *op)
 {
 	char filename[FILE_MAX];
+	int import_units;
 
 	if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
 		BKE_report(op->reports, RPT_ERROR, "No filename given");
 		return OPERATOR_CANCELLED;
 	}
 
+	/* Options panel */
+	import_units = RNA_boolean_get(op->ptr, "import_units");
+
 	RNA_string_get(op->ptr, "filepath", filename);
-	if (collada_import(C, filename)) return OPERATOR_FINISHED;
+	if (collada_import(C, filename, import_units)) {
+		return OPERATOR_FINISHED;
+	}
+	else {
+		BKE_report(op->reports, RPT_ERROR, "Errors found during parsing COLLADA document (see console for details)");
+		return OPERATOR_CANCELLED;
+	}
+}
 
-	BKE_report(op->reports, RPT_ERROR, "Errors found during parsing COLLADA document (see console for details)");
+static void uiCollada_importSettings(uiLayout *layout, PointerRNA *imfptr)
+{
+	uiLayout *box, *row;
 
-	return OPERATOR_FINISHED;
+	/* Import Options: */
+	box = uiLayoutBox(layout);
+	row = uiLayoutRow(box, FALSE);
+	uiItemL(row, IFACE_("Import Data Options:"), ICON_MESH_DATA);
+
+	row = uiLayoutRow(box, FALSE);
+	uiItemR(row, imfptr, "import_units", 0, NULL, ICON_NONE);
+}
+
+static void wm_collada_import_draw(bContext *UNUSED(C), wmOperator *op)
+{
+	PointerRNA ptr;
+
+	RNA_pointer_create(NULL, op->type->srna, op->properties, &ptr);
+	uiCollada_importSettings(op->layout, &ptr);
 }
 
 void WM_OT_collada_import(wmOperatorType *ot)
@@ -322,7 +359,17 @@ void WM_OT_collada_import(wmOperatorType *ot)
 	ot->exec = wm_collada_import_exec;
 	ot->poll = WM_operator_winactive;
 
+	//ot->flag |= OPTYPE_PRESET;
+
+	ot->ui = wm_collada_import_draw;
+
 	WM_operator_properties_filesel(ot, FOLDERFILE | COLLADAFILE, FILE_BLENDER, FILE_OPENFILE,
 	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
+
+	RNA_def_boolean(ot->srna,
+	                "import_units", 0, "Import Units",
+	                "If disabled match import to Blender's current Unit settings, "
+	                "otherwise use the settings from the Imported scene");
+
 }
 #endif

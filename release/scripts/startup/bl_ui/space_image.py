@@ -19,7 +19,8 @@
 # <pep8 compliant>
 import bpy
 from bpy.types import Header, Menu, Panel
-from bl_ui.properties_paint_common import UnifiedPaintPanel
+from bl_ui.properties_paint_common import UnifiedPaintPanel, brush_texture_settings
+from bpy.app.translations import pgettext_iface as iface_
 
 
 class ImagePaintPanel(UnifiedPaintPanel):
@@ -71,7 +72,7 @@ class IMAGE_MT_view(Menu):
         ratios = ((1, 8), (1, 4), (1, 2), (1, 1), (2, 1), (4, 1), (8, 1))
 
         for a, b in ratios:
-            layout.operator("image.view_zoom_ratio", text="Zoom" + " %d:%d" % (a, b)).ratio = a / b
+            layout.operator("image.view_zoom_ratio", text=iface_("Zoom %d:%d") % (a, b), translate=False).ratio = a / b
 
         layout.separator()
 
@@ -146,9 +147,7 @@ class IMAGE_MT_image(Menu):
             if not show_render:
                 layout.separator()
 
-                if ima.packed_file:
-                    layout.operator("image.unpack")
-                else:
+                if not ima.packed_file:
                     layout.operator("image.pack")
 
                 # only for dirty && specific image types, perhaps
@@ -722,7 +721,8 @@ class IMAGE_PT_tools_brush_texture(BrushButtonsPanel, Panel):
 
         col = layout.column()
         col.template_ID_preview(brush, "texture", new="texture.new", rows=3, cols=8)
-        col.prop(brush, "use_fixed_texture")
+        
+        brush_texture_settings(col, brush, 0)
 
 
 class IMAGE_PT_tools_brush_tool(BrushButtonsPanel, Panel):

@@ -198,7 +198,7 @@ static PyObject *gp_OrigPythonSysModules= NULL;
 
 /* Macro for building the keyboard translation */
 //#define KX_MACRO_addToDict(dict, name) PyDict_SetItemString(dict, #name, PyLong_FromLong(SCA_IInputDevice::KX_##name))
-#define KX_MACRO_addToDict(dict, name) PyDict_SetItemString(dict, #name, item=PyLong_FromLong(name)); Py_DECREF(item)
+//#define KX_MACRO_addToDict(dict, name) PyDict_SetItemString(dict, #name, item=PyLong_FromLong(name)); Py_DECREF(item)
 /* For the defines for types from logic bricks, we do stuff explicitly... */
 #define KX_MACRO_addTypesToDict(dict, name, name2) PyDict_SetItemString(dict, #name, item=PyLong_FromLong(name2)); Py_DECREF(item)
 
@@ -1428,15 +1428,15 @@ PyObject *initGameLogic(KX_KetsjiEngine *engine, KX_Scene* scene) // quick hack 
 	PyDict_SetItemString(d, "mouse", gp_PythonMouse->NewProxy(true));
 
 	PyObject* joylist = PyList_New(JOYINDEX_MAX);
-	SCA_JoystickManager* joyevent = (SCA_JoystickManager*)gp_KetsjiScene->GetLogicManager()->FindEventManager(SCA_EventManager::JOY_EVENTMGR);
 	for (int i=0; i<JOYINDEX_MAX; ++i) {
-		SCA_Joystick* joy = joyevent->GetJoystickDevice(i);
+		SCA_Joystick* joy = SCA_Joystick::GetInstance(i);
 		if (joy && joy->Connected()) {
 			gp_PythonJoysticks[i] = new SCA_PythonJoystick(joy);
 			PyObject* tmp = gp_PythonJoysticks[i]->NewProxy(true);
 			Py_INCREF(tmp);
 			PyList_SET_ITEM(joylist, i, tmp);
 		} else 	{
+			joy->ReleaseInstance();
 			Py_INCREF(Py_None);
 			PyList_SET_ITEM(joylist, i, Py_None);
 		}

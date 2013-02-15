@@ -147,6 +147,8 @@ enum {
 	TH_NODE_CONVERTOR,
 	TH_NODE_GROUP,
 	TH_NODE_FRAME,
+	TH_NODE_MATTE,
+	TH_NODE_DISTORT,
 	
 	TH_CONSOLE_OUTPUT,
 	TH_CONSOLE_INPUT,
@@ -225,7 +227,8 @@ enum {
 	TH_AXIS_Y,
 	TH_AXIS_Z,
 
-	TH_BACK_GRAD,
+	TH_LOW_GRAD,
+	TH_HIGH_GRAD,
 	TH_SHOW_BACK_GRAD
 };
 /* XXX WARNING: previous is saved in file, so do not change order! */

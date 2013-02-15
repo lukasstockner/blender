@@ -1121,8 +1121,10 @@ static void node_update_reroute(const bContext *UNUSED(C), bNodeTree *UNUSED(ntr
 static void node_draw_reroute(const bContext *C, ARegion *ar, SpaceNode *UNUSED(snode),  bNodeTree *ntree, bNode *node)
 {
 	bNodeSocket *sock;
-#if 0   /* UNUSED */
+	char showname[128]; /* 128 used below */
 	rctf *rct = &node->totr;
+
+#if 0   /* UNUSED */
 	float size = NODE_REROUTE_SIZE;
 #endif
 	float socket_size = NODE_SOCKSIZE;
@@ -1162,6 +1164,15 @@ static void node_draw_reroute(const bContext *C, ARegion *ar, SpaceNode *UNUSED(
 		glDisable(GL_BLEND);
 	}
 #endif
+
+	if (node->label[0] != '\0') {
+		/* draw title (node label) */
+		BLI_strncpy(showname, node->label, sizeof(showname));
+		uiDefBut(node->block, LABEL, 0, showname,
+		         (int)(rct->xmin - NODE_DYS), (int)(rct->ymax),
+		         (short)512, (short)NODE_DY,
+		         NULL, 0, 0, 0, 0, NULL);
+	}
 
 	/* only draw input socket. as they all are placed on the same position.
 	 * highlight also if node itself is selected, since we don't display the node body separately!
@@ -1972,7 +1983,7 @@ static void node_composit_buts_distance_matte(uiLayout *layout, bContext *UNUSED
 	uiLayout *col, *row;
 	
 	col = uiLayoutColumn(layout, TRUE);
-   
+
 	uiItemL(layout, IFACE_("Color Space:"), ICON_NONE);
 	row = uiLayoutRow(layout, FALSE);
 	uiItemR(row, ptr, "channel", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
@@ -2368,6 +2379,12 @@ static void node_composit_buts_stabilize2d(uiLayout *layout, bContext *C, Pointe
 	uiItemR(layout, ptr, "filter_type", 0, "", ICON_NONE);
 }
 
+static void node_composit_buts_translate(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	uiItemR(layout, ptr, "use_relative", 0, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "wrap_axis", 0, NULL, ICON_NONE);
+}
+
 static void node_composit_buts_transform(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiItemR(layout, ptr, "filter_type", 0, "", ICON_NONE);
@@ -2637,10 +2654,21 @@ static void node_composit_buts_ellipsemask(uiLayout *layout, bContext *UNUSED(C)
 	uiItemR(layout, ptr, "mask_type", 0, NULL, ICON_NONE);
 }
 
+static void node_composit_buts_composite(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	uiItemR(layout, ptr, "use_alpha", 0, NULL, ICON_NONE);
+}
+
+static void node_composit_buts_viewer(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	uiItemR(layout, ptr, "use_alpha", 0, NULL, ICON_NONE);
+}
+
 static void node_composit_buts_viewer_but(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiLayout *col;
 	
+	uiItemR(layout, ptr, "use_alpha", 0, NULL, ICON_NONE);
 	uiItemR(layout, ptr, "tile_order", 0, NULL, ICON_NONE);
 	if (RNA_enum_get(ptr, "tile_order") == 0) {
 		col = uiLayoutColumn(layout, TRUE);
@@ -2920,6 +2948,9 @@ static void node_composit_set_butfunc(bNodeType *ntype)
 		case CMP_NODE_TRANSFORM:
 			ntype->uifunc = node_composit_buts_transform;
 			break;
+		case CMP_NODE_TRANSLATE:
+			ntype->uifunc = node_composit_buts_translate;
+			break;
 		case CMP_NODE_MOVIEDISTORTION:
 			ntype->uifunc = node_composit_buts_moviedistortion;
 			break;
@@ -2945,9 +2976,12 @@ static void node_composit_set_butfunc(bNodeType *ntype)
 			ntype->uifunc = node_composit_buts_bokehblur;
 			break;
 		case CMP_NODE_VIEWER:
-			ntype->uifunc = NULL;
+			ntype->uifunc = node_composit_buts_viewer;
 			ntype->uifuncbut = node_composit_buts_viewer_but;
 			ntype->uibackdropfunc = node_composit_backdrop_viewer;
+			break;
+		case CMP_NODE_COMPOSITE:
+			ntype->uifunc = node_composit_buts_composite;
 			break;
 		case CMP_NODE_MASK:
 			ntype->uifunc = node_composit_buts_mask;
@@ -3271,7 +3305,7 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode)
 				}
 				else {
 					glPixelZoom(snode->zoom, snode->zoom);
-					
+
 					glaDrawPixelsSafe(x, y, ibuf->x, ibuf->y, ibuf->x, GL_RGBA, GL_UNSIGNED_BYTE, display_buffer);
 					
 					glPixelZoom(1.0f, 1.0f);

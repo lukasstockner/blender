@@ -188,7 +188,7 @@ enum {
 #define WM_UI_HANDLER_CONTINUE	0
 #define WM_UI_HANDLER_BREAK		1
 
-typedef int (*wmUIHandlerFunc)(struct bContext *C, struct wmEvent *event, void *userdata);
+typedef int (*wmUIHandlerFunc)(struct bContext *C, const struct wmEvent *event, void *userdata);
 typedef void (*wmUIHandlerRemoveFunc)(struct bContext *C, void *userdata);
 
 /* ************** Notifiers ****************** */
@@ -445,7 +445,10 @@ typedef struct wmEvent {
 	
 	/* keymap item, set by handler (weak?) */
 	const char *keymap_idname;
-	
+
+	/* tablet info, only use when the tablet is active */
+	struct wmTabletData *tablet_data;
+
 	/* custom data */
 	short custom;		/* custom data type, stylus, 6dof, see wm_event_types.h */
 	short customdatafree;

@@ -45,6 +45,16 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_math.h"
+#include "BLI_rect.h"
+#include "BLI_listbase.h"
+#include "BLI_string.h"
+#include "BLI_path_util.h"
+#include "BLI_fileops.h"
+#include "BLI_threads.h"
+#include "BLI_rand.h"
+#include "BLI_callbacks.h"
+
 #include "BKE_animsys.h"  /* <------ should this be here?, needed for sequencer update */
 #include "BKE_camera.h"
 #include "BKE_global.h"
@@ -56,16 +66,6 @@
 #include "BKE_scene.h"
 #include "BKE_sequencer.h"
 #include "BKE_writeavi.h"  /* <------ should be replaced once with generic movie module */
-
-#include "BLI_math.h"
-#include "BLI_rect.h"
-#include "BLI_listbase.h"
-#include "BLI_string.h"
-#include "BLI_path_util.h"
-#include "BLI_fileops.h"
-#include "BLI_threads.h"
-#include "BLI_rand.h"
-#include "BLI_callbacks.h"
 
 #include "PIL_time.h"
 #include "IMB_colormanagement.h"
@@ -469,7 +469,7 @@ void RE_InitState(Render *re, Render *source, RenderData *rd, SceneRenderLayer *
 		re->recty = winy;
 	}
 	
-	if (re->rectx < 2 || re->recty < 2 || (BKE_imtype_is_movie(rd->im_format.imtype) &&
+	if (re->rectx < 1 || re->recty < 1 || (BKE_imtype_is_movie(rd->im_format.imtype) &&
 	                                       (re->rectx < 16 || re->recty < 16) ))
 	{
 		BKE_report(re->reports, RPT_ERROR, "Image too small");
@@ -1322,6 +1322,7 @@ static void render_scene(Render *re, Scene *sce, int cfra)
 	resc->main = re->main;
 	resc->scene = sce;
 	resc->lay = sce->lay;
+	resc->scene_color_manage = BKE_scene_check_color_management_enabled(sce);
 	
 	/* ensure scene has depsgraph, base flags etc OK */
 	BKE_scene_set_background(re->main, sce);
@@ -1355,6 +1356,19 @@ static int composite_needs_render(Scene *sce, int this_scene)
 	return 0;
 }
 
+static bool rlayer_node_uses_alpha(bNodeTree *ntree, bNode *node)
+{
+	bNodeSocket *sock;
+
+	for (sock = node->outputs.first; sock; sock = sock->next) {
+		/* Weak! but how to make it better? */
+		if (!strcmp(sock->name, "Alpha") && nodeCountSocketLinks(ntree, sock) > 0)
+			return true;
+	}
+
+	return false;
+}
+
 static void tag_scenes_for_render(Render *re)
 {
 	bNode *node;
@@ -1372,6 +1386,21 @@ static void tag_scenes_for_render(Render *re)
 	for (node = re->scene->nodetree->nodes.first; node; node = node->next) {
 		if (node->type == CMP_NODE_R_LAYERS) {
 			if (node->id) {
+				if (!MAIN_VERSION_ATLEAST(re->main, 265, 5)) {
+					if (rlayer_node_uses_alpha(re->scene->nodetree, node)) {
+						Scene *scene = (Scene*) node->id;
+
+						if (scene->r.alphamode != R_ALPHAPREMUL) {
+							BKE_reportf(re->reports, RPT_WARNING, "Setting scene %s alpha mode to Premul\n", scene->id.name + 2);
+
+							/* also print, so feedback is immediate */
+							printf("2.66 versioning fix: setting scene %s alpha mode to Premul\n", scene->id.name + 2);
+
+							scene->r.alphamode = R_ALPHAPREMUL;
+						}
+					}
+				}
+
 				if (node->id != (ID *)re->scene)
 					node->id->flag |= LIB_DOIT;
 			}
@@ -1799,7 +1828,12 @@ static void do_render_all_options(Render *re)
 		re->display_draw(re->ddh, re->result, NULL);
 	}
 	else {
+		re->pool = BKE_image_pool_new();
+
 		do_render_composite_fields_blur_3d(re);
+
+		BKE_image_pool_free(re->pool);
+		re->pool = NULL;
 	}
 	
 	re->i.lastframetime = PIL_check_seconds_timer() - re->i.starttime;
@@ -2385,6 +2419,8 @@ void RE_PreviewRender(Render *re, Main *bmain, Scene *sce)
 
 	RE_InitState(re, NULL, &sce->r, NULL, winx, winy, NULL);
 
+	re->pool = BKE_image_pool_new();
+
 	re->main = bmain;
 	re->scene = sce;
 	re->scene_color_manage = BKE_scene_check_color_management_enabled(sce);
@@ -2394,6 +2430,9 @@ void RE_PreviewRender(Render *re, Main *bmain, Scene *sce)
 	RE_SetCamera(re, camera);
 
 	do_render_3d(re);
+
+	BKE_image_pool_free(re->pool);
+	re->pool = NULL;
 }
 
 /* note; repeated win/disprect calc... solve that nicer, also in compo */

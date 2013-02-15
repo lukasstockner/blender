@@ -31,6 +31,7 @@
 #include "DocumentExporter.h"
 #include "DocumentImporter.h"
 #include "ExportSettings.h"
+#include "ImportSettings.h"
 
 extern "C"
 {
@@ -42,9 +43,17 @@ extern "C"
 #include "BLI_path_util.h"
 #include "BLI_linklist.h"
 
-int collada_import(bContext *C, const char *filepath)
+int collada_import(bContext *C,
+				   const char *filepath,
+				   int import_units)
 {
-	DocumentImporter imp(C, filepath);
+
+	ImportSettings import_settings;
+	import_settings.filepath = (char *)filepath;
+
+	import_settings.import_units =  import_units != 0;
+
+	DocumentImporter imp(C, &import_settings);
 	if (imp.import()) return 1;
 
 	return 0;
@@ -59,6 +68,7 @@ int collada_export(Scene *sce,
                    int selected,
                    int include_children,
                    int include_armatures,
+				   int include_shapekeys,
                    int deform_bones_only,
 
 				   int active_uv_only,
@@ -89,6 +99,7 @@ int collada_export(Scene *sce,
 	export_settings.selected                 = selected          != 0;
 	export_settings.include_children         = include_children  != 0;
 	export_settings.include_armatures        = include_armatures != 0;
+	export_settings.include_shapekeys        = include_shapekeys != 0;
 	export_settings.deform_bones_only        = deform_bones_only != 0;
 
 	export_settings.active_uv_only           = active_uv_only != 0;

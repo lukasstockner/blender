@@ -719,6 +719,11 @@ void GHOST_SystemCocoa::getMainDisplayDimensions(GHOST_TUns32& width, GHOST_TUns
 	[pool drain];
 }
 
+void GHOST_SystemCocoa::getAllDisplayDimensions(GHOST_TUns32& width, GHOST_TUns32& height) const
+{
+	/* TODO! */
+	getMainDisplayDimensions(width, height);
+}
 
 GHOST_IWindow* GHOST_SystemCocoa::createWindow(
 	const STR_String& title, 
@@ -1023,8 +1028,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleWindowEvent(GHOST_TEventType eventType, 
 	if (!validWindow(window)) {
 		return GHOST_kFailure;
 	}
-		switch(eventType) 
-		{
+		switch (eventType) {
 			case GHOST_kEventWindowClose:
 				pushEvent( new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowClose, window) );
 				break;
@@ -1038,6 +1042,10 @@ GHOST_TSuccess GHOST_SystemCocoa::handleWindowEvent(GHOST_TEventType eventType, 
 				pushEvent( new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowDeactivate, window) );
 				break;
 			case GHOST_kEventWindowUpdate:
+				if (m_nativePixel) {
+					window->setNativePixelSize();
+					pushEvent( new GHOST_Event(getMilliSeconds(), GHOST_kEventNativeResolutionChange, window) );
+				}
 				pushEvent( new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowUpdate, window) );
 				break;
 			case GHOST_kEventWindowMove:
@@ -1054,6 +1062,13 @@ GHOST_TSuccess GHOST_SystemCocoa::handleWindowEvent(GHOST_TEventType eventType, 
 					//m_ignoreWindowSizedMessages = true;
 				}
 				break;
+			case GHOST_kEventNativeResolutionChange:
+				
+				if (m_nativePixel) {
+					window->setNativePixelSize();
+					pushEvent( new GHOST_Event(getMilliSeconds(), GHOST_kEventNativeResolutionChange, window) );
+				}
+
 			default:
 				return GHOST_kFailure;
 				break;
@@ -1070,8 +1085,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleDraggingEvent(GHOST_TEventType eventType
 	if (!validWindow(window)) {
 		return GHOST_kFailure;
 	}
-	switch(eventType) 
-	{
+	switch (eventType) {
 		case GHOST_kEventDraggingEntered:
 		case GHOST_kEventDraggingUpdated:
 		case GHOST_kEventDraggingExited:
@@ -1592,7 +1606,8 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
 			}
 			break;
 			
-			/* these events only happen on swiping trackpads */
+			/* these events only happen on swiping trackpads or tablets */
+			/* warning: using tablet + trackpad at same time frustrates this static variable */
 		case NSEventTypeBeginGesture:
 			m_hasMultiTouchTrackpad = 1;
 			break;
@@ -1626,9 +1641,17 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
 					double dy;
 					
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
+					int phase = [event phase];
+					
 					/* with 10.7 nice scrolling deltas are supported */
 					dx = [event scrollingDeltaX];
 					dy = [event scrollingDeltaY];
+					
+					/* however, wacom tablet (intuos5) needs old deltas, it then has momentum and phase at zero */
+					if (phase == 0 && momentum==NULL) {
+						dx = [event deltaX];
+						dy = [event deltaY];
+					}
 
 #else
 					/* trying to pretend you have nice scrolls... */

@@ -199,7 +199,6 @@ __device void camera_sample_panorama(KernelGlobals *kg, float raster_x, float ra
 
 	Pcamera = transform_perspective(&rastertocamera, make_float3(raster_x, raster_y + 1.0f, 0.0f));
 	ray->dD.dy = normalize(transform_direction(&cameratoworld, panorama_to_direction(kg, Pcamera.x, Pcamera.y))) - ray->D;
-
 #endif
 }
 
@@ -214,7 +213,7 @@ __device void camera_sample(KernelGlobals *kg, int x, int y, float filter_u, flo
 
 #ifdef __CAMERA_MOTION__
 	/* motion blur */
-	if(kernel_data.cam.shuttertime == 0.0f)
+	if(kernel_data.cam.shuttertime == -1.0f)
 		ray->time = TIME_INVALID;
 	else
 		ray->time = 0.5f + 0.5f*(time - 0.5f)*kernel_data.cam.shuttertime;

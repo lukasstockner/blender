@@ -429,6 +429,13 @@ static void rna_def_brush_texture_slot(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem prop_tex_paint_map_mode_items[] = {
+		{MTEX_MAP_MODE_VIEW, "VIEW_PLANE", 0, "View Plane", ""},
+		{MTEX_MAP_MODE_TILED, "TILED", 0, "Tiled", ""},
+		{MTEX_MAP_MODE_3D, "3D", 0, "3D", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "BrushTextureSlot", "TextureSlot");
 	RNA_def_struct_sdna(srna, "MTex");
 	RNA_def_struct_ui_text(srna, "Brush Texture Slot", "Texture slot for textures in a Brush datablock");
@@ -442,6 +449,12 @@ static void rna_def_brush_texture_slot(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "map_mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "brush_map_mode");
 	RNA_def_property_enum_items(prop, prop_map_mode_items);
+	RNA_def_property_ui_text(prop, "Mode", "");
+	RNA_def_property_update(prop, 0, "rna_TextureSlot_update");
+
+	prop = RNA_def_property(srna, "tex_paint_map_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "brush_map_mode");
+	RNA_def_property_enum_items(prop, prop_tex_paint_map_mode_items);
 	RNA_def_property_ui_text(prop, "Mode", "");
 	RNA_def_property_update(prop, 0, "rna_TextureSlot_update");
 }
@@ -605,7 +618,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 	
 	/* number values */
-	prop = RNA_def_property(srna, "size", PROP_INT, PROP_DISTANCE);
+	prop = RNA_def_property(srna, "size", PROP_INT, PROP_NONE);
 	RNA_def_property_int_funcs(prop, NULL, "rna_Brush_set_size", NULL);
 	RNA_def_property_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS * 10);
 	RNA_def_property_ui_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS, 1, 0);
@@ -632,7 +645,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Spacing", "Spacing between brush daubs as a percentage of brush diameter");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-	prop = RNA_def_property(srna, "smooth_stroke_radius", PROP_INT, PROP_DISTANCE);
+	prop = RNA_def_property(srna, "smooth_stroke_radius", PROP_INT, PROP_NONE);
 	RNA_def_property_range(prop, 10, 200);
 	RNA_def_property_ui_text(prop, "Smooth Stroke Radius", "Minimum distance from last point before stroke continues");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
@@ -854,11 +867,6 @@ static void rna_def_brush(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_restore_mesh", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_RESTORE_MESH);
 	RNA_def_property_ui_text(prop, "Restore Mesh", "Allow a single dot to be carefully positioned");
-	RNA_def_property_update(prop, 0, "rna_Brush_update");
-
-	prop = RNA_def_property(srna, "use_fixed_texture", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_FIXED_TEX);
-	RNA_def_property_ui_text(prop, "Fixed Texture", "Keep texture origin in fixed position");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 	
 	/* only for projection paint, TODO, other paint modes */

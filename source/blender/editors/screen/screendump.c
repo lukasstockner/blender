@@ -86,8 +86,8 @@ static unsigned int *screenshot(bContext *C, int *dumpsx, int *dumpsy)
 
 	x = 0;
 	y = 0;
-	*dumpsx = win->sizex;
-	*dumpsy = win->sizey;
+	*dumpsx = WM_window_pixels_x(win);
+	*dumpsy = WM_window_pixels_y(win);
 
 	if (*dumpsx && *dumpsy) {
 		
@@ -272,7 +272,8 @@ void SCREEN_OT_screenshot(wmOperatorType *ot)
 	
 	WM_operator_properties_filesel(ot, FOLDERFILE | IMAGEFILE, FILE_SPECIAL, FILE_SAVE,
 	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
-	RNA_def_boolean(ot->srna, "full", 1, "Full Screen", "Screenshot the whole Blender window");
+	RNA_def_boolean(ot->srna, "full", 1, "Full Screen",
+	                "Capture the whole window (otherwise only capture the active area)");
 }
 
 /* *************** screenshot movie job ************************* */
@@ -457,8 +458,8 @@ static int screencast_exec(bContext *C, wmOperator *op)
 		wmWindow *win = CTX_wm_window(C);
 		sj->x = 0;
 		sj->y = 0;
-		sj->dumpsx = win->sizex;
-		sj->dumpsy = win->sizey;
+		sj->dumpsx = WM_window_pixels_x(win);
+		sj->dumpsy = WM_window_pixels_y(win);
 	}
 	else {
 		ScrArea *curarea = CTX_wm_area(C);
@@ -500,5 +501,6 @@ void SCREEN_OT_screencast(wmOperatorType *ot)
 	ot->flag = 0;
 	
 	RNA_def_property(ot->srna, "filepath", PROP_STRING, PROP_FILEPATH);
-	RNA_def_boolean(ot->srna, "full", 1, "Full Screen", "Screencast the whole Blender window");
+	RNA_def_boolean(ot->srna, "full", 1, "Full Screen",
+	                "Capture the whole window (otherwise only capture the active area)");
 }

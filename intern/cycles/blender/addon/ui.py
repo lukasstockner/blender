@@ -168,6 +168,19 @@ class CyclesRender_PT_film(CyclesButtonsPanel, Panel):
         if cscene.filter_type != 'BOX':
             sub.prop(cscene, "filter_width", text="Width")
 
+        layout.separator()
+
+        rd = scene.render
+        col = layout.column()
+
+        split = col.split(percentage=0.40)
+        split.prop(rd, "use_antialiasing", "OpenGL AA")
+        row = split.row()
+        row.active = rd.use_antialiasing
+        row.prop(rd, "antialiasing_samples", expand=True)
+
+        col.prop(rd, "alpha_mode", text="OpenGL Alpha")
+
 
 class CyclesRender_PT_performance(CyclesButtonsPanel, Panel):
     bl_label = "Performance"
@@ -191,7 +204,8 @@ class CyclesRender_PT_performance(CyclesButtonsPanel, Panel):
         sub.prop(rd, "threads")
 
         sub = col.column(align=True)
-        sub.label(text="Tile Size:")
+        sub.label(text="Tiles:")
+        sub.prop(cscene, "tile_order", text="")
 
         sub.prop(rd, "tile_x", text="X")
         sub.prop(rd, "tile_y", text="Y")
@@ -521,6 +535,19 @@ def panel_node_draw(layout, id_data, output_type, input_name):
     return True
 
 
+class CyclesLamp_PT_preview(CyclesButtonsPanel, Panel):
+    bl_label = "Preview"
+    bl_context = "data"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.lamp and CyclesButtonsPanel.poll(context)
+
+    def draw(self, context):
+        self.layout.template_preview(context.lamp)
+
+
 class CyclesLamp_PT_lamp(CyclesButtonsPanel, Panel):
     bl_label = "Lamp"
     bl_context = "data"
@@ -559,6 +586,8 @@ class CyclesLamp_PT_lamp(CyclesButtonsPanel, Panel):
 
         col = split.column()
         col.prop(clamp, "cast_shadow")
+
+        layout.prop(clamp, "use_multiple_importance_sampling")
 
         if lamp.type == 'HEMI':
             layout.label(text="Not supported, interpreted as sun lamp.")
@@ -603,6 +632,19 @@ class CyclesLamp_PT_spot(CyclesButtonsPanel, Panel):
 
         col = split.column()
         col.prop(lamp, "show_cone")
+
+
+class CyclesWorld_PT_preview(CyclesButtonsPanel, Panel):
+    bl_label = "Preview"
+    bl_context = "world"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.world and CyclesButtonsPanel.poll(context)
+
+    def draw(self, context):
+        self.layout.template_preview(context.world)
 
 
 class CyclesWorld_PT_surface(CyclesButtonsPanel, Panel):
@@ -691,6 +733,19 @@ class CyclesWorld_PT_settings(CyclesButtonsPanel, Panel):
             sub.prop(cworld, "samples")
 
 
+class CyclesMaterial_PT_preview(CyclesButtonsPanel, Panel):
+    bl_label = "Preview"
+    bl_context = "material"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.material and CyclesButtonsPanel.poll(context)
+
+    def draw(self, context):
+        self.layout.template_preview(context.material)
+
+
 class CyclesMaterial_PT_surface(CyclesButtonsPanel, Panel):
     bl_label = "Surface"
     bl_context = "material"
@@ -767,8 +822,9 @@ class CyclesMaterial_PT_settings(CyclesButtonsPanel, Panel):
         col.prop(mat, "diffuse_color", text="Viewport Color")
 
         col = split.column()
-        col.prop(cmat, "sample_as_light")
         col.prop(mat, "pass_index")
+
+        layout.prop(cmat, "sample_as_light")
 
 
 class CyclesTexture_PT_context(CyclesButtonsPanel, Panel):
@@ -807,24 +863,8 @@ class CyclesTexture_PT_context(CyclesButtonsPanel, Panel):
                 split = layout.split(percentage=0.2)
                 split.label(text="Type:")
                 split.prop(tex, "type", text="")
-
-
-class CyclesTexture_PT_nodes(CyclesButtonsPanel, Panel):
-    bl_label = "Nodes"
-    bl_context = "texture"
-
-    @classmethod
-    def poll(cls, context):
-        tex = context.texture
-        return (tex and tex.use_nodes) and CyclesButtonsPanel.poll(context)
-
-    def draw(self, context):
-        layout = self.layout
-
-        tex = context.texture
-        panel_node_draw(layout, tex, 'OUTPUT_TEXTURE', 'Color')
-
-
+                
+                
 class CyclesTexture_PT_node(CyclesButtonsPanel, Panel):
     bl_label = "Node"
     bl_context = "texture"
@@ -848,14 +888,12 @@ class CyclesTexture_PT_mapping(CyclesButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        tex = context.texture
         node = context.texture_node
-        return (node or (tex and tex.use_nodes)) and CyclesButtonsPanel.poll(context)
+        return node and CyclesButtonsPanel.poll(context)
 
     def draw(self, context):
         layout = self.layout
-
-        # tex = context.texture
+        
         node = context.texture_node
 
         mapping = node.texture_mapping
@@ -881,15 +919,13 @@ class CyclesTexture_PT_colors(CyclesButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        # tex = context.texture
         # node = context.texture_node
         return False
-        #return (node or (tex and tex.use_nodes)) and CyclesButtonsPanel.poll(context)
+        #return node and CyclesButtonsPanel.poll(context)
 
     def draw(self, context):
         layout = self.layout
-
-        # tex = context.texture
+        
         node = context.texture_node
 
         mapping = node.color_mapping
@@ -945,84 +981,96 @@ class CyclesParticle_PT_textures(CyclesButtonsPanel, Panel):
             slot = part.texture_slots[part.active_texture_index]
             layout.template_ID(slot, "texture", new="texture.new")
 
+
 class CyclesRender_PT_CurveRendering(CyclesButtonsPanel, Panel):
     bl_label = "Cycles Hair Rendering"
     bl_context = "particle"
-    
+
     @classmethod
     def poll(cls, context):
+        scene = context.scene
+        cscene = scene.cycles
         psys = context.particle_system
         device_type = context.user_preferences.system.compute_device_type
-        experimental = context.scene.cycles.feature_set == 'EXPERIMENTAL' and (context.scene.cycles.device == 'CPU' or device_type == 'NONE')
+        experimental = ((cscene.feature_set == 'EXPERIMENTAL') and (cscene.device == 'CPU' or device_type == 'NONE'))
         return CyclesButtonsPanel.poll(context) and experimental and psys
-        
+
     def draw_header(self, context):
-        cscene = context.scene.cycles_curves
-        self.layout.prop(cscene, "use_curves", text="")
-    
+        ccscene = context.scene.cycles_curves
+        self.layout.prop(ccscene, "use_curves", text="")
+
     def draw(self, context):
         layout = self.layout
-        
+
         scene = context.scene
-        cscene = scene.cycles_curves
-        
-        layout.active = cscene.use_curves
-        
-        layout.prop(cscene, "preset", text="Mode")
-        
-        if cscene.preset == 'CUSTOM':
-            layout.prop(cscene, "primitive", text="Primitive")
-        
-            if cscene.primitive == 'TRIANGLES':
-                layout.prop(cscene, "triangle_method", text="Method")
-                if cscene.triangle_method == 'TESSELLATED':
-                    layout.prop(cscene, "resolution", text="Resolution")
-                layout.prop(cscene, "use_smooth", text="Smooth")
-            elif cscene.primitive == 'LINE_SEGMENTS':
-                layout.prop(cscene, "use_backfacing", text="Check back-faces")
-                
+        ccscene = scene.cycles_curves
+
+        layout.active = ccscene.use_curves
+
+        layout.prop(ccscene, "preset", text="Mode")
+
+        if ccscene.preset == 'CUSTOM':
+            layout.prop(ccscene, "primitive", text="Primitive")
+
+            if ccscene.primitive == 'TRIANGLES':
+                layout.prop(ccscene, "triangle_method", text="Method")
+                if ccscene.triangle_method == 'TESSELLATED_TRIANGLES':
+                    layout.prop(ccscene, "resolution", text="Resolution")
+                layout.prop(ccscene, "use_smooth", text="Smooth")
+            elif ccscene.primitive == 'LINE_SEGMENTS':
+                layout.prop(ccscene, "use_backfacing", text="Check back-faces")
+
                 row = layout.row()
-                row.prop(cscene, "use_encasing", text="Exclude encasing")
+                row.prop(ccscene, "use_encasing", text="Exclude encasing")
                 sub = row.row()
-                sub.active = cscene.use_encasing
-                sub.prop(cscene, "encasing_ratio", text="Ratio for encasing")
-                
-                layout.prop(cscene, "line_method", text="Method")
-                layout.prop(cscene, "use_tangent_normal", text="Use tangent normal as default")
-                layout.prop(cscene, "use_tangent_normal_geometry", text="Use tangent normal geometry")
-                layout.prop(cscene, "use_tangent_normal_correction", text="Correct tangent normal for slope")
-                layout.prop(cscene, "interpolation", text="Interpolation")
-                
+                sub.active = ccscene.use_encasing
+                sub.prop(ccscene, "encasing_ratio", text="Ratio for encasing")
+
+                layout.prop(ccscene, "line_method", text="Method")
+                layout.prop(ccscene, "use_tangent_normal", text="Use tangent normal as default")
+                layout.prop(ccscene, "use_tangent_normal_geometry", text="Use tangent normal geometry")
+                layout.prop(ccscene, "use_tangent_normal_correction", text="Correct tangent normal for slope")
+                layout.prop(ccscene, "interpolation", text="Interpolation")
+
                 row = layout.row()
-                row.prop(cscene, "segments", text="Segments")
-                row.prop(cscene, "normalmix", text="Ray Mix")
-            
+                row.prop(ccscene, "segments", text="Segments")
+                row.prop(ccscene, "normalmix", text="Ray Mix")
+            elif ccscene.primitive in {'CURVE_SEGMENTS', 'CURVE_RIBBONS'}:
+                layout.prop(ccscene, "subdivisions", text="Curve subdivisions")
+                layout.prop(ccscene, "use_backfacing", text="Check back-faces")
+
+                layout.prop(ccscene, "interpolation", text="Interpolation")
+                row = layout.row()
+                row.prop(ccscene, "segments", text="Segments")
+
             row = layout.row()
-            row.prop(cscene, "use_cache", text="Export cache with children")
-            if cscene.use_cache:
-                row.prop(cscene, "use_parents", text="Include parents")  
-            
+            row.prop(ccscene, "use_parents", text="Include parents")
+
+
 class CyclesParticle_PT_CurveSettings(CyclesButtonsPanel, Panel):
     bl_label = "Cycles Hair Settings"
     bl_context = "particle"
-    
+
     @classmethod
     def poll(cls, context):
-        use_curves = context.scene.cycles_curves.use_curves and context.particle_system
+        scene = context.scene
+        cscene = scene.cycles
+        ccscene = scene.cycles_curves
+        use_curves = ccscene.use_curves and context.particle_system
         device_type = context.user_preferences.system.compute_device_type
-        experimental = context.scene.cycles.feature_set == 'EXPERIMENTAL' and (context.scene.cycles.device == 'CPU' or device_type == 'NONE')
+        experimental = cscene.feature_set == 'EXPERIMENTAL' and (cscene.device == 'CPU' or device_type == 'NONE')
         return CyclesButtonsPanel.poll(context) and experimental and use_curves
 
     def draw(self, context):
         layout = self.layout
-        
+
         psys = context.particle_settings
         cpsys = psys.cycles
-        
+
         row = layout.row()
         row.prop(cpsys, "shape", text="Shape")
         row.prop(cpsys, "use_closetip", text="Close tip")
-        
+
         layout.label(text="Width multiplier:")
         row = layout.row()
         row.prop(cpsys, "root_width", text="Root")
@@ -1089,74 +1137,89 @@ def draw_pause(self, context):
 
 
 def get_panels():
+    types = bpy.types
     return (
-        bpy.types.RENDER_PT_render,
-        bpy.types.RENDER_PT_output,
-        bpy.types.RENDER_PT_encoding,
-        bpy.types.RENDER_PT_dimensions,
-        bpy.types.RENDER_PT_stamp,
-        bpy.types.SCENE_PT_scene,
-        bpy.types.SCENE_PT_audio,
-        bpy.types.SCENE_PT_unit,
-        bpy.types.SCENE_PT_keying_sets,
-        bpy.types.SCENE_PT_keying_set_paths,
-        bpy.types.SCENE_PT_physics,
-        bpy.types.WORLD_PT_context_world,
-        bpy.types.DATA_PT_context_mesh,
-        bpy.types.DATA_PT_context_camera,
-        bpy.types.DATA_PT_context_lamp,
-        bpy.types.DATA_PT_context_speaker,
-        bpy.types.DATA_PT_texture_space,
-        bpy.types.DATA_PT_curve_texture_space,
-        bpy.types.DATA_PT_mball_texture_space,
-        bpy.types.DATA_PT_vertex_groups,
-        bpy.types.DATA_PT_shape_keys,
-        bpy.types.DATA_PT_uv_texture,
-        bpy.types.DATA_PT_vertex_colors,
-        bpy.types.DATA_PT_camera,
-        bpy.types.DATA_PT_camera_display,
-        bpy.types.DATA_PT_lens,
-        bpy.types.DATA_PT_speaker,
-        bpy.types.DATA_PT_distance,
-        bpy.types.DATA_PT_cone,
-        bpy.types.DATA_PT_customdata,
-        bpy.types.DATA_PT_custom_props_mesh,
-        bpy.types.DATA_PT_custom_props_camera,
-        bpy.types.DATA_PT_custom_props_lamp,
-        bpy.types.DATA_PT_custom_props_speaker,
-        bpy.types.TEXTURE_PT_clouds,
-        bpy.types.TEXTURE_PT_wood,
-        bpy.types.TEXTURE_PT_marble,
-        bpy.types.TEXTURE_PT_magic,
-        bpy.types.TEXTURE_PT_blend,
-        bpy.types.TEXTURE_PT_stucci,
-        bpy.types.TEXTURE_PT_image,
-        bpy.types.TEXTURE_PT_image_sampling,
-        bpy.types.TEXTURE_PT_image_mapping,
-        bpy.types.TEXTURE_PT_musgrave,
-        bpy.types.TEXTURE_PT_voronoi,
-        bpy.types.TEXTURE_PT_distortednoise,
-        bpy.types.TEXTURE_PT_voxeldata,
-        bpy.types.TEXTURE_PT_pointdensity,
-        bpy.types.TEXTURE_PT_pointdensity_turbulence,
-        bpy.types.TEXTURE_PT_mapping,
-        bpy.types.TEXTURE_PT_influence,
-        bpy.types.TEXTURE_PT_colors,
-        bpy.types.PARTICLE_PT_context_particles,
-        bpy.types.PARTICLE_PT_emission,
-        bpy.types.PARTICLE_PT_hair_dynamics,
-        bpy.types.PARTICLE_PT_cache,
-        bpy.types.PARTICLE_PT_velocity,
-        bpy.types.PARTICLE_PT_rotation,
-        bpy.types.PARTICLE_PT_physics,
-        bpy.types.PARTICLE_PT_boidbrain,
-        bpy.types.PARTICLE_PT_render,
-        bpy.types.PARTICLE_PT_draw,
-        bpy.types.PARTICLE_PT_children,
-        bpy.types.PARTICLE_PT_field_weights,
-        bpy.types.PARTICLE_PT_force_fields,
-        bpy.types.PARTICLE_PT_vertexgroups,
-        bpy.types.PARTICLE_PT_custom_props,
+        types.RENDER_PT_render,
+        types.RENDER_PT_output,
+        types.RENDER_PT_encoding,
+        types.RENDER_PT_dimensions,
+        types.RENDER_PT_stamp,
+        types.SCENE_PT_scene,
+        types.SCENE_PT_color_management,
+        types.SCENE_PT_custom_props,
+        types.SCENE_PT_audio,
+        types.SCENE_PT_unit,
+        types.SCENE_PT_keying_sets,
+        types.SCENE_PT_keying_set_paths,
+        types.SCENE_PT_physics,
+        types.WORLD_PT_context_world,
+        types.WORLD_PT_custom_props,
+        types.DATA_PT_context_mesh,
+        types.DATA_PT_context_camera,
+        types.DATA_PT_context_lamp,
+        types.DATA_PT_context_speaker,
+        types.DATA_PT_texture_space,
+        types.DATA_PT_curve_texture_space,
+        types.DATA_PT_mball_texture_space,
+        types.DATA_PT_vertex_groups,
+        types.DATA_PT_shape_keys,
+        types.DATA_PT_uv_texture,
+        types.DATA_PT_vertex_colors,
+        types.DATA_PT_camera,
+        types.DATA_PT_camera_display,
+        types.DATA_PT_lens,
+        types.DATA_PT_speaker,
+        types.DATA_PT_distance,
+        types.DATA_PT_cone,
+        types.DATA_PT_customdata,
+        types.DATA_PT_custom_props_mesh,
+        types.DATA_PT_custom_props_camera,
+        types.DATA_PT_custom_props_lamp,
+        types.DATA_PT_custom_props_speaker,
+        types.DATA_PT_custom_props_arm,
+        types.DATA_PT_custom_props_curve,
+        types.DATA_PT_custom_props_lattice,
+        types.DATA_PT_custom_props_metaball,
+        types.TEXTURE_PT_custom_props,
+        types.TEXTURE_PT_clouds,
+        types.TEXTURE_PT_wood,
+        types.TEXTURE_PT_marble,
+        types.TEXTURE_PT_magic,
+        types.TEXTURE_PT_blend,
+        types.TEXTURE_PT_stucci,
+        types.TEXTURE_PT_image,
+        types.TEXTURE_PT_image_sampling,
+        types.TEXTURE_PT_image_mapping,
+        types.TEXTURE_PT_musgrave,
+        types.TEXTURE_PT_voronoi,
+        types.TEXTURE_PT_distortednoise,
+        types.TEXTURE_PT_voxeldata,
+        types.TEXTURE_PT_pointdensity,
+        types.TEXTURE_PT_pointdensity_turbulence,
+        types.TEXTURE_PT_mapping,
+        types.TEXTURE_PT_influence,
+        types.TEXTURE_PT_colors,
+        types.PARTICLE_PT_context_particles,
+        types.PARTICLE_PT_custom_props,
+        types.PARTICLE_PT_emission,
+        types.PARTICLE_PT_hair_dynamics,
+        types.PARTICLE_PT_cache,
+        types.PARTICLE_PT_velocity,
+        types.PARTICLE_PT_rotation,
+        types.PARTICLE_PT_physics,
+        types.SCENE_PT_rigid_body_world,
+        types.SCENE_PT_rigid_body_cache,
+        types.SCENE_PT_rigid_body_field_weights,
+        types.PARTICLE_PT_boidbrain,
+        types.PARTICLE_PT_render,
+        types.PARTICLE_PT_draw,
+        types.PARTICLE_PT_children,
+        types.PARTICLE_PT_field_weights,
+        types.PARTICLE_PT_force_fields,
+        types.PARTICLE_PT_vertexgroups,
+        types.MATERIAL_PT_custom_props,
+        types.BONE_PT_custom_props,
+        types.OBJECT_PT_custom_props,
         )
 
 

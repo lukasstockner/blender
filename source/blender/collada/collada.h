@@ -46,7 +46,10 @@ struct Scene;
 /*
  * both return 1 on success, 0 on error
  */
-int collada_import(bContext *C, const char *filepath);
+int collada_import(bContext *C,
+				   const char *filepath,
+				   int import_units);
+
 int collada_export(Scene *sce,
                    const char *filepath,
                    int apply_modifiers,
@@ -55,6 +58,7 @@ int collada_export(Scene *sce,
                    int selected,
                    int include_children,
                    int include_armatures,
+                   int include_shapekeys,
                    int deform_bones_only,
 
 				   int active_uv_only,

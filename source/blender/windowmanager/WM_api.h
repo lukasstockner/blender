@@ -131,6 +131,7 @@ void		*WM_paint_cursor_activate(struct wmWindowManager *wm,
 void		WM_paint_cursor_end(struct wmWindowManager *wm, void *handle);
 
 void		WM_cursor_warp		(struct wmWindow *win, int x, int y);
+float		WM_cursor_pressure	(const struct wmWindow *win);
 
 			/* event map */
 int			WM_userdef_event_map(int kmitype);
@@ -147,11 +148,11 @@ void		WM_event_remove_keymap_handler(ListBase *handlers, wmKeyMap *keymap);
 
 struct wmEventHandler *WM_event_add_ui_handler(
 		const struct bContext *C, ListBase *handlers,
-		int (*func)(struct bContext *C, struct wmEvent *event, void *userdata),
+		int (*func)(struct bContext *C, const struct wmEvent *event, void *userdata),
 		void (*remove)(struct bContext *C, void *userdata), void *userdata);
 
 void		WM_event_remove_ui_handler(ListBase *handlers,
-                                       int (*func)(struct bContext *C, struct wmEvent *event, void *userdata),
+                                       int (*func)(struct bContext *C, const struct wmEvent *event, void *userdata),
                                        void (*remove)(struct bContext *C, void *userdata),
                                        void *userdata, int postpone);
 void		WM_event_remove_area_handler(struct ListBase *handlers, void *area);
@@ -170,7 +171,7 @@ int			WM_modal_tweak_exit(struct wmEvent *evt, int tweak_event);
 void		WM_event_add_notifier(const struct bContext *C, unsigned int type, void *reference);
 void		WM_main_add_notifier(unsigned int type, void *reference);
 
-void		wm_event_add		(struct wmWindow *win, struct wmEvent *event_to_add); /* XXX only for warning */
+void		wm_event_add(struct wmWindow *win, const struct wmEvent *event_to_add);
 
 			/* at maximum, every timestep seconds it triggers event_type events */
 struct wmTimer *WM_event_add_timer(struct wmWindowManager *wm, struct wmWindow *win, int event_type, double timestep);
@@ -201,12 +202,13 @@ int			WM_operator_confirm_message(struct bContext *C, struct wmOperator *op, con
 		/* operator api */
 void		WM_operator_free		(struct wmOperator *op);
 void		WM_operator_stack_clear(struct wmWindowManager *wm);
+void		WM_operator_handlers_clear(wmWindowManager *wm, struct wmOperatorType *ot);
 
 struct wmOperatorType *WM_operatortype_find(const char *idnamem, int quiet);
 struct GHashIterator  *WM_operatortype_iter(void);
-void		WM_operatortype_append	(void (*opfunc)(struct wmOperatorType*));
-void		WM_operatortype_append_ptr	(void (*opfunc)(struct wmOperatorType*, void *), void *userdata);
-void		WM_operatortype_append_macro_ptr	(void (*opfunc)(struct wmOperatorType*, void *), void *userdata);
+void		WM_operatortype_append(void (*opfunc)(struct wmOperatorType *));
+void		WM_operatortype_append_ptr(void (*opfunc)(struct wmOperatorType *, void *), void *userdata);
+void		WM_operatortype_append_macro_ptr(void (*opfunc)(struct wmOperatorType *, void *), void *userdata);
 int			WM_operatortype_remove(const char *idname);
 
 struct wmOperatorType *WM_operatortype_append_macro(const char *idname, const char *name, const char *description, int flag);
@@ -308,6 +310,8 @@ void		WM_event_fileselect_event(struct bContext *C, void *ophandle, int eventval
 #ifndef NDEBUG
 void		WM_event_print(struct wmEvent *event);
 #endif
+
+void		WM_operator_region_active_win_set(struct bContext *C);
 
 			/* drag and drop */
 struct wmDrag		*WM_event_start_drag(struct bContext *C, int icon, int type, void *poin, double value);

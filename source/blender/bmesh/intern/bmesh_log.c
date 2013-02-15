@@ -165,13 +165,13 @@ static BMFace *bm_log_face_from_id(BMLog *log, unsigned int id)
  * Returns zero if no paint-mask layer is present */
 static float vert_mask_get(BMesh *bm, BMVert *v)
 {
-	CustomData *cd = &bm->vdata;
-	if (CustomData_has_layer(&bm->vdata, CD_PAINT_MASK)) {
-		float *mask = CustomData_bmesh_get(cd, v->head.data, CD_PAINT_MASK);
+	float *mask = CustomData_bmesh_get(&bm->vdata, v->head.data, CD_PAINT_MASK);
+	BLI_assert((CustomData_has_layer(&bm->vdata, CD_PAINT_MASK) == 0) == (mask == NULL));
+	if (mask) {
 		return *mask;
 	}
 	else {
-		return 0;
+		return 0.0f;
 	}
 }
 
@@ -180,10 +180,10 @@ static float vert_mask_get(BMesh *bm, BMVert *v)
  * Has no effect is no paint-mask layer is present */
 static void vert_mask_set(BMesh *bm, BMVert *v, float new_mask)
 {
-	CustomData *cd = &bm->vdata;
-	if (CustomData_has_layer(cd, CD_PAINT_MASK)) {
-		float *mask = CustomData_bmesh_get(cd, v->head.data, CD_PAINT_MASK);
-		(*mask) = new_mask;
+	float *mask = CustomData_bmesh_get(&bm->vdata, v->head.data, CD_PAINT_MASK);
+	BLI_assert((CustomData_has_layer(&bm->vdata, CD_PAINT_MASK) == 0) == (mask == NULL));
+	if (*mask) {
+		*mask = new_mask;
 	}
 }
 
@@ -215,7 +215,8 @@ static BMLogFace *bm_log_face_alloc(BMLog *log, BMFace *f)
 
 	BLI_assert(f->len == 3);
 
-	BM_iter_as_array(NULL, BM_VERTS_OF_FACE, f, (void **)v, 3);
+	// BM_iter_as_array(NULL, BM_VERTS_OF_FACE, f, (void **)v, 3);
+	BM_face_as_array_vert_tri(f, v);
 
 	lf->v_ids[0] = bm_log_vert_id_get(log, v[0]);
 	lf->v_ids[1] = bm_log_vert_id_get(log, v[1]);
@@ -251,8 +252,22 @@ static void bm_log_faces_unmake(BMesh *bm, BMLog *log, GHash *faces)
 		void *key = BLI_ghashIterator_getKey(&gh_iter);
 		unsigned int id = GET_INT_FROM_POINTER(key);
 		BMFace *f = bm_log_face_from_id(log, id);
+		BMEdge *e_tri[3];
+		BMLoop *l_iter;
+		int i;
 
+		l_iter = BM_FACE_FIRST_LOOP(f);
+		for (i = 0; i < 3; i++, l_iter = l_iter->next) {
+			e_tri[i] = l_iter->e;
+		}
+
+		/* Remove any unused edges */
 		BM_face_kill(bm, f);
+		for (i = 0; i < 3; i++) {
+			if (BM_edge_is_wire(e_tri[i])) {
+				BM_edge_kill(bm, e_tri[i]);
+			}
+		}
 	}
 }
 
@@ -276,11 +291,11 @@ static void bm_log_faces_restore(BMesh *bm, BMLog *log, GHash *faces)
 		void *key = BLI_ghashIterator_getKey(&gh_iter);
 		BMLogFace *lf = BLI_ghashIterator_getValue(&gh_iter);
 		BMVert *v[3] = {bm_log_vert_from_id(log, lf->v_ids[0]),
-						bm_log_vert_from_id(log, lf->v_ids[1]),
-						bm_log_vert_from_id(log, lf->v_ids[2])};
+		                bm_log_vert_from_id(log, lf->v_ids[1]),
+		                bm_log_vert_from_id(log, lf->v_ids[2])};
 		BMFace *f;
 
-		f = BM_face_create_quad_tri_v(bm, v, 3, NULL, FALSE);
+		f = BM_face_create_quad_tri_v(bm, v, 3, NULL, false);
 		bm_log_face_id_set(log, f, GET_INT_FROM_POINTER(key));
 	}
 }
@@ -451,7 +466,8 @@ BMLog *BM_log_from_existing_entries_create(BMesh *bm, BMLogEntry *entry)
 
 	/* Let BMLog manage the entry list again */
 	log->entries.first = log->entries.last = entry;
-	if (entry) {
+
+	{
 		while (entry->prev) {
 			entry = entry->prev;
 			log->entries.first = entry;
@@ -523,14 +539,14 @@ void BM_log_mesh_elems_reorder(BMesh *bm, BMLog *log)
 	i = 0;
 	varr = MEM_mallocN(sizeof(int) * bm->totvert, AT);
 	BM_ITER_MESH (v, &bm_iter, bm, BM_VERTS_OF_MESH) {
-		((unsigned int*)varr)[i++] = bm_log_vert_id_get(log, v);
+		((unsigned int *)varr)[i++] = bm_log_vert_id_get(log, v);
 	}
 
 	/* Put all face IDs into an array */
 	i = 0;
 	farr = MEM_mallocN(sizeof(int) * bm->totface, AT);
 	BM_ITER_MESH (f, &bm_iter, bm, BM_FACES_OF_MESH) {
-		((unsigned int*)farr)[i++] = bm_log_face_id_get(log, f);
+		((unsigned int *)farr)[i++] = bm_log_face_id_get(log, f);
 	}
 
 	/* Create BMVert index remap array */
@@ -720,7 +736,7 @@ void BM_log_redo(BMesh *bm, BMLog *log)
  * vertex in the map of added vertices.
  *
  * If the vertex already existed prior to the current log entry, a
- * seperate key/value map of modified vertices is used (using the
+ * separate key/value map of modified vertices is used (using the
  * vertex's ID as the key). The values stored in that case are
  * the vertex's original state so that an undo can restore the
  * previous state.
@@ -805,8 +821,11 @@ void BM_log_vert_removed(BMesh *bm, BMLog *log, BMVert *v)
 	unsigned int v_id = bm_log_vert_id_get(log, v);
 	void *key = SET_INT_IN_POINTER(v_id);
 
-	if (BLI_ghash_lookup(entry->added_verts, key)) {
-		BLI_ghash_remove(entry->added_verts, key, NULL, NULL);
+	/* if it has a key, it shouldn't be NULL */
+	BLI_assert(!!BLI_ghash_lookup(entry->added_verts, key) ==
+	           !!BLI_ghash_haskey(entry->added_verts, key));
+
+	if (BLI_ghash_remove(entry->added_verts, key, NULL, NULL)) {
 		range_tree_uint_release(log->unused_ids, v_id);
 	}
 	else {
@@ -843,8 +862,11 @@ void BM_log_face_removed(BMLog *log, BMFace *f)
 	unsigned int f_id = bm_log_face_id_get(log, f);
 	void *key = SET_INT_IN_POINTER(f_id);
 
-	if (BLI_ghash_lookup(entry->added_faces, key)) {
-		BLI_ghash_remove(entry->added_faces, key, NULL, NULL);
+	/* if it has a key, it shouldn't be NULL */
+	BLI_assert(!!BLI_ghash_lookup(entry->added_faces, key) ==
+	           !!BLI_ghash_haskey(entry->added_faces, key));
+
+	if (BLI_ghash_remove(entry->added_faces, key, NULL, NULL)) {
 		range_tree_uint_release(log->unused_ids, f_id);
 	}
 	else {

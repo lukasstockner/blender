@@ -54,6 +54,7 @@
 #include "BKE_action.h"
 #include "BKE_armature.h"
 #include "BKE_depsgraph.h"
+#include "BKE_global.h"
 #include "BKE_idprop.h"
 #include "BKE_library.h"
 #include "BKE_object.h"
@@ -196,7 +197,7 @@ static bAction *poselib_init_new(Object *ob)
 	/* init object's poselib action (unlink old one if there) */
 	if (ob->poselib)
 		id_us_min(&ob->poselib->id);
-	ob->poselib = add_empty_action("PoseLib");
+	ob->poselib = add_empty_action(G.main, "PoseLib");
 	
 	return ob->poselib;
 }
@@ -662,7 +663,7 @@ static int poselib_rename_exec(bContext *C, wmOperator *op)
 	}
 	
 	/* get index (and pointer) of pose to remove */
-	marker = BLI_findlink(&act->markers, RNA_int_get(op->ptr, "pose"));
+	marker = BLI_findlink(&act->markers, RNA_enum_get(op->ptr, "pose"));
 	if (marker == NULL) {
 		BKE_report(op->reports, RPT_ERROR, "Invalid index for pose");
 		return OPERATOR_CANCELLED;

@@ -1124,7 +1124,7 @@ static int sequencer_snap_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(ev
 void SEQUENCER_OT_snap(struct wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Snap strips";
+	ot->name = "Snap Strips";
 	ot->idname = "SEQUENCER_OT_snap";
 	ot->description = "Frame where selected strips will be snapped";
 	
@@ -2463,9 +2463,15 @@ void SEQUENCER_OT_strip_jump(wmOperatorType *ot)
 static void swap_sequence(Scene *scene, Sequence *seqa, Sequence *seqb)
 {
 	int gap = seqb->startdisp - seqa->enddisp;
-	seqb->start = (seqb->start - seqb->startdisp) + seqa->startdisp;
+	int seq_a_start;
+	int seq_b_start;
+
+	seq_b_start = (seqb->start - seqb->startdisp) + seqa->startdisp;
+	BKE_sequence_translate(scene, seqb, seq_b_start - seqb->start);
 	BKE_sequence_calc(scene, seqb);
-	seqa->start = (seqa->start - seqa->startdisp) + seqb->enddisp + gap;
+
+	seq_a_start = (seqa->start - seqa->startdisp) + seqb->enddisp + gap;
+	BKE_sequence_translate(scene, seqa, seq_a_start - seqa->start);
 	BKE_sequence_calc(scene, seqa);
 }
 

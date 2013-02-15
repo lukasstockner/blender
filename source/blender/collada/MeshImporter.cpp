@@ -63,10 +63,9 @@ extern "C" {
 
 // get node name, or fall back to original id if not present (name is optional)
 template<class T>
-static const char *bc_get_dae_name(T *node)
+static const std::string bc_get_dae_name(T *node)
 {
-	const std::string& name = node->getName();
-	return name.size() ? name.c_str() : node->getOriginalId().c_str();
+	return node->getName().size() ? node->getName(): node->getOriginalId();
 }
 
 static const char *bc_primTypeToStr(COLLADAFW::MeshPrimitive::PrimitiveType type)
@@ -268,7 +267,7 @@ bool MeshImporter::is_nice_mesh(COLLADAFW::Mesh *mesh)  // checks if mesh has su
 {
 	COLLADAFW::MeshPrimitiveArray& prim_arr = mesh->getMeshPrimitives();
 
-	const char *name = bc_get_dae_name(mesh);
+	const std::string &name = bc_get_dae_name(mesh);
 	
 	for (unsigned i = 0; i < prim_arr.getCount(); i++) {
 		
@@ -287,7 +286,7 @@ bool MeshImporter::is_nice_mesh(COLLADAFW::Mesh *mesh)  // checks if mesh has su
 				int count = vca[j];
 				if (count < 3) {
 					fprintf(stderr, "Primitive %s in %s has at least one face with vertex count < 3\n",
-					        type_str, name);
+					        type_str, name.c_str());
 					return false;
 				}
 			}
@@ -305,7 +304,7 @@ bool MeshImporter::is_nice_mesh(COLLADAFW::Mesh *mesh)  // checks if mesh has su
 	}
 	
 	if (mesh->getPositions().empty()) {
-		fprintf(stderr, "Mesh %s has no vertices.\n", name);
+		fprintf(stderr, "Mesh %s has no vertices.\n", name.c_str());
 		return false;
 	}
 
@@ -946,6 +945,20 @@ Object *MeshImporter::get_object_by_geom_uid(const COLLADAFW::UniqueId& geom_uid
 	return NULL;
 }
 
+Mesh *MeshImporter::get_mesh_by_geom_uid(const COLLADAFW::UniqueId& mesh_uid)
+{
+	if (uid_mesh_map.find(mesh_uid) != uid_mesh_map.end())
+		return uid_mesh_map[mesh_uid];
+	return NULL;
+}
+
+std::string *MeshImporter::get_geometry_name(const std::string &mesh_name)
+{
+	if (this->mesh_geom_map.find(mesh_name) != this->mesh_geom_map.end())
+		return &this->mesh_geom_map[mesh_name];
+	return NULL;
+}
+
 MTex *MeshImporter::assign_textures_to_uvlayer(COLLADAFW::TextureCoordinateBinding &ctexture,
                                                Mesh *me, TexIndexTextureArrayMap& texindex_texarray_map,
                                                MTex *color_texture)
@@ -1061,7 +1074,7 @@ std::vector<Object *> MeshImporter::get_all_users_of(Mesh *reference_mesh)
  *
  * During import all materials have been assigned to Object.
  * Now we iterate over the imported objects and optimize
- * the assignments as follows:
+ * the assignements as follows:
  *
  * for each imported geometry:
  *     if number of users is 1:
@@ -1075,7 +1088,7 @@ std::vector<Object *> MeshImporter::get_all_users_of(Mesh *reference_mesh)
  *             adjust all other users accordingly.
  *
  **/
-void MeshImporter::optimize_material_assignments()
+void MeshImporter::optimize_material_assignements()
 {
 	for (std::vector<Object *>::iterator it = imported_objects.begin();
 	     it != imported_objects.end(); ++it)
@@ -1119,7 +1132,7 @@ void MeshImporter::optimize_material_assignments()
  * come along with different materials. So we first create the objects
  * and assign the materials to Object, then in a later cleanup we decide
  * which materials shall be moved to the created geometries. Also see
- * optimize_material_assignments() above.
+ * optimize_material_assignements() above.
  */
 MTFace *MeshImporter::assign_material_to_geom(COLLADAFW::MaterialBinding cmaterial,
                                               std::map<COLLADAFW::UniqueId, Material *>& uid_material_map,
@@ -1284,17 +1297,19 @@ bool MeshImporter::write_geometry(const COLLADAFW::Geometry *geom)
 	COLLADAFW::Mesh *mesh = (COLLADAFW::Mesh *)geom;
 	
 	if (!is_nice_mesh(mesh)) {
-		fprintf(stderr, "Ignoring mesh %s\n", bc_get_dae_name(mesh));
+		fprintf(stderr, "Ignoring mesh %s\n", bc_get_dae_name(mesh).c_str());
 		return true;
 	}
 	
 	const std::string& str_geom_id = mesh->getName().size() ? mesh->getName() : mesh->getOriginalId();
-	Mesh *me = BKE_mesh_add((char *)str_geom_id.c_str());
+	Mesh *me = BKE_mesh_add(G.main, (char *)str_geom_id.c_str());
 	me->id.us--; // is already 1 here, but will be set later in set_mesh
 
 	// store the Mesh pointer to link it later with an Object
 	this->uid_mesh_map[mesh->getUniqueId()] = me;
-	
+	// needed to map mesh to its geometry name (needed for shape key naming)
+	this->mesh_geom_map[std::string(me->id.name)] = str_geom_id;
+
 	int new_tris = 0;
 	
 	read_vertices(mesh, me);

@@ -150,6 +150,7 @@ static HaloRen *initstar(Render *re, ObjectRen *obr, const float vec[3], float h
 	har->hasize= hasize;
 	
 	har->zd= 0.0;
+	har->pool = re->pool;
 	
 	return har;
 }
@@ -3282,7 +3283,7 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 	}
 	
 	/* origindex currently only used when baking to vertex colors */
-	if(re->flag & R_BAKING && re->r.bake_flag & R_BAKE_VCOL)
+	if (re->flag & R_BAKING && re->r.bake_flag & R_BAKE_VCOL)
 		need_origindex= 1;
 
 	/* check autosmooth and displacement, we then have to skip only-verts optimize */
@@ -4769,7 +4770,7 @@ static int allow_render_dupli_instance(Render *UNUSED(re), DupliObject *dob, Obj
 
 	if (totmaterial) {
 		for (a= 0; a<*totmaterial; a++) {
-			ma= give_current_material(obd, a);
+			ma= give_current_material(obd, a + 1);
 			if (ma && (ma->material_type == MA_TYPE_HALO))
 				return 0;
 		}
@@ -5081,8 +5082,8 @@ void RE_Database_FromScene(Render *re, Main *bmain, Scene *scene, unsigned int l
 		 * following calls don't depend on 'RE_SetCamera' */
 		RE_SetCamera(re, camera);
 
-		normalize_m4(camera->obmat);
-		invert_m4_m4(mat, camera->obmat);
+		normalize_m4_m4(mat, camera->obmat);
+		invert_m4(mat);
 		RE_SetView(re, mat);
 		camera->recalc= OB_RECALC_OB; /* force correct matrix for scaled cameras */
 	}
@@ -5231,8 +5232,8 @@ static void database_fromscene_vectors(Render *re, Scene *scene, unsigned int la
 	
 	/* if no camera, viewmat should have been set! */
 	if (camera) {
-		normalize_m4(camera->obmat);
-		invert_m4_m4(mat, camera->obmat);
+		normalize_m4_m4(mat, camera->obmat);
+		invert_m4(mat);
 		RE_SetView(re, mat);
 	}
 	
@@ -5771,8 +5772,8 @@ void RE_Database_Baking(Render *re, Main *bmain, Scene *scene, unsigned int lay,
 	
 	/* if no camera, set unit */
 	if (camera) {
-		normalize_m4(camera->obmat);
-		invert_m4_m4(mat, camera->obmat);
+		normalize_m4_m4(mat, camera->obmat);
+		invert_m4(mat);
 		RE_SetView(re, mat);
 	}
 	else {

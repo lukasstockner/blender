@@ -57,6 +57,7 @@
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "BLI_threads.h"
+#include "BLI_rect.h"
 
 #include "BKE_colortools.h"
 #include "BKE_context.h"
@@ -351,9 +352,9 @@ static unsigned char *colormanage_cache_get(ImBuf *ibuf, const ColormanageCacheV
 
 		if (cache_data->exposure != view_settings->exposure ||
 		    cache_data->gamma != view_settings->gamma ||
-			cache_data->flag != view_settings->flag ||
-			cache_data->curve_mapping != curve_mapping ||
-			cache_data->curve_mapping_timestamp != curve_mapping_timestamp)
+		    cache_data->flag != view_settings->flag ||
+		    cache_data->curve_mapping != curve_mapping ||
+		    cache_data->curve_mapping_timestamp != curve_mapping_timestamp)
 		{
 			*cache_handle = NULL;
 
@@ -681,7 +682,7 @@ static ColorSpace *display_transform_get_colorspace(const ColorManagedViewSettin
 }
 
 static OCIO_ConstProcessorRcPtr *create_display_buffer_processor(const char *view_transform, const char *display,
-                                                            float exposure, float gamma)
+                                                                 float exposure, float gamma)
 {
 	OCIO_ConstConfigRcPtr *config = OCIO_getCurrentConfig();
 	OCIO_DisplayTransformRcPtr *dt;
@@ -698,7 +699,7 @@ static OCIO_ConstProcessorRcPtr *create_display_buffer_processor(const char *vie
 	if (exposure != 0.0f) {
 		OCIO_MatrixTransformRcPtr *mt;
 		float gain = powf(2.0f, exposure);
-		const float scale4f[] = {gain, gain, gain, gain};
+		const float scale4f[] = {gain, gain, gain, 1.0f};
 		float m44[16], offset4[4];
 
 		OCIO_matrixTransformScale(m44, offset4, scale4f);
@@ -731,7 +732,7 @@ static OCIO_ConstProcessorRcPtr *create_display_buffer_processor(const char *vie
 }
 
 static OCIO_ConstProcessorRcPtr *create_colorspace_transform_processor(const char *from_colorspace,
-                                                                  const char *to_colorspace)
+                                                                       const char *to_colorspace)
 {
 	OCIO_ConstConfigRcPtr *config = OCIO_getCurrentConfig();
 	OCIO_ConstProcessorRcPtr *processor;
@@ -1222,7 +1223,7 @@ static void *display_buffer_apply_get_linear_buffer(DisplayBufferThread *handle)
 			}
 			else if (channels == 4) {
 				rgba_uchar_to_float(fp, cp);
-				straight_to_premul_v4(fp, fp);
+				straight_to_premul_v4(fp);
 			}
 			else {
 				BLI_assert(!"Buffers of 3 or 4 channels are only supported here");
@@ -1353,6 +1354,23 @@ static void display_buffer_apply_threaded(ImBuf *ibuf, float *buffer, unsigned c
 	                             display_buffer_init_handle, do_display_buffer_apply_thread);
 }
 
+static int is_ibuf_rect_in_display_space(ImBuf *ibuf, const ColorManagedViewSettings *view_settings,
+                                         const ColorManagedDisplaySettings *display_settings)
+{
+	if ((view_settings->flag & COLORMANAGE_VIEW_USE_CURVES) == 0 &&
+	    view_settings->exposure == 0.0f &&
+	    view_settings->gamma == 1.0f)
+	{
+		const char *from_colorspace = ibuf->rect_colorspace->name;
+		const char *to_colorspace = display_transform_get_colorspace_name(view_settings, display_settings);
+
+		if (to_colorspace && !strcmp(from_colorspace, to_colorspace))
+			return TRUE;
+	}
+
+	return FALSE;
+}
+
 static void colormanage_display_buffer_process_ex(ImBuf *ibuf, float *display_buffer, unsigned char *display_buffer_byte,
                                                   const ColorManagedViewSettings *view_settings,
                                                   const ColorManagedDisplaySettings *display_settings)
@@ -1366,16 +1384,7 @@ static void colormanage_display_buffer_process_ex(ImBuf *ibuf, float *display_bu
 	 * computation noticeable faster
 	 */
 	if (ibuf->rect_float == NULL && ibuf->rect_colorspace) {
-		if ((view_settings->flag & COLORMANAGE_VIEW_USE_CURVES) == 0 &&
-		    view_settings->exposure == 0.0f &&
-		    view_settings->gamma == 1.0f)
-		{
-			const char *from_colorspace = ibuf->rect_colorspace->name;
-			const char *to_colorspace = display_transform_get_colorspace_name(view_settings, display_settings);
-
-			if (to_colorspace && !strcmp(from_colorspace, to_colorspace))
-				skip_transform = TRUE;
-		}
+		skip_transform = is_ibuf_rect_in_display_space(ibuf, view_settings, display_settings);
 	}
 
 	if (skip_transform == FALSE)
@@ -1591,14 +1600,14 @@ void IMB_colormanagement_colorspace_to_scene_linear(float *buffer, int width, in
 		OCIO_PackedImageDesc *img;
 
 		img = OCIO_createOCIO_PackedImageDesc(buffer, width, height, channels, sizeof(float),
-		                                 channels * sizeof(float), channels * sizeof(float) * width);
+		                                      channels * sizeof(float), channels * sizeof(float) * width);
 
 		if (predivide)
 			OCIO_processorApply_predivide(processor, img);
 		else
 			OCIO_processorApply(processor, img);
 
-		OCIO_OCIO_PackedImageDescRelease(img);
+		OCIO_PackedImageDescRelease(img);
 	}
 }
 
@@ -1814,6 +1823,18 @@ unsigned char *IMB_display_buffer_acquire(ImBuf *ibuf, const ColorManagedViewSet
 
 		colormanage_view_settings_to_cache(&cache_view_settings, applied_view_settings);
 		colormanage_display_settings_to_cache(&cache_display_settings, display_settings);
+
+		if (ibuf->invalid_rect.xmin != ibuf->invalid_rect.xmax) {
+			if ((ibuf->userflags & IB_DISPLAY_BUFFER_INVALID) == 0) {
+				IMB_partial_display_buffer_update(ibuf, ibuf->rect_float, (unsigned char *) ibuf->rect,
+				                                  ibuf->x, 0, 0, applied_view_settings, display_settings,
+				                                  ibuf->invalid_rect.xmin, ibuf->invalid_rect.ymin,
+				                                  ibuf->invalid_rect.xmax, ibuf->invalid_rect.ymax,
+				                                  FALSE);
+			}
+
+			BLI_rcti_init(&ibuf->invalid_rect, 0, 0, 0, 0);
+		}
 
 		BLI_lock_thread(LOCK_COLORMANAGE);
 
@@ -2110,7 +2131,7 @@ static void colormanage_description_strip(char *description)
 {
 	int i, n;
 
-	for (i = strlen(description) - 1; i >= 0; i--) {
+	for (i = (int)strlen(description) - 1; i >= 0; i--) {
 		if (ELEM(description[i], '\r', '\n')) {
 			description[i] = '\0';
 		}
@@ -2332,37 +2353,67 @@ static void partial_buffer_update_rect(ImBuf *ibuf, unsigned char *display_buffe
 	int is_data = ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA;
 
 	if (dither != 0.0f) {
+		/* cm_processor is NULL in cases byte_buffer's space matches display
+		 * buffer's space
+		 * in this case we could skip extra transform and only apply dither
+		 * use 4 channels for easier byte->float->byte conversion here so
+		 * (this is only needed to apply dither, in other cases we'll convert
+		 * byte buffer to display directly)
+		 */
+		if (!cm_processor)
+			channels = 4;
+
 		display_buffer_float = MEM_callocN(channels * width * height * sizeof(float), "display buffer for dither");
 	}
 
-	for (y = ymin; y < ymax; y++) {
-		for (x = xmin; x < xmax; x++) {
-			int display_index = (y * display_stride + x) * channels;
-			int linear_index = ((y - linear_offset_y) * linear_stride + (x - linear_offset_x)) * channels;
-			float pixel[4];
+	if (cm_processor) {
+		for (y = ymin; y < ymax; y++) {
+			for (x = xmin; x < xmax; x++) {
+				int display_index = (y * display_stride + x) * channels;
+				int linear_index = ((y - linear_offset_y) * linear_stride + (x - linear_offset_x)) * channels;
+				float pixel[4];
 
-			if (linear_buffer) {
-				copy_v4_v4(pixel, (float *) linear_buffer + linear_index);
-			}
-			else if (byte_buffer) {
-				rgba_uchar_to_float(pixel, byte_buffer + linear_index);
-				IMB_colormanagement_colorspace_to_scene_linear_v3(pixel, rect_colorspace);
-				straight_to_premul_v4(pixel, pixel);
-			}
+				if (linear_buffer) {
+					copy_v4_v4(pixel, (float *) linear_buffer + linear_index);
+				}
+				else if (byte_buffer) {
+					rgba_uchar_to_float(pixel, byte_buffer + linear_index);
+					IMB_colormanagement_colorspace_to_scene_linear_v3(pixel, rect_colorspace);
+					straight_to_premul_v4(pixel);
+				}
 
-			if (!is_data) {
-				IMB_colormanagement_processor_apply_v4_predivide(cm_processor, pixel);
-			}
+				if (!is_data) {
+					IMB_colormanagement_processor_apply_v4_predivide(cm_processor, pixel);
+				}
 
-			if (display_buffer_float) {
-				int index = ((y - ymin) * width + (x - xmin)) * channels;
+				if (display_buffer_float) {
+					int index = ((y - ymin) * width + (x - xmin)) * channels;
 
-				copy_v4_v4(display_buffer_float + index, pixel);
+					copy_v4_v4(display_buffer_float + index, pixel);
+				}
+				else {
+					float pixel_straight[4];
+					premul_to_straight_v4_v4(pixel_straight, pixel);
+					rgba_float_to_uchar(display_buffer + display_index, pixel_straight);
+				}
 			}
-			else {
-				float pixel_straight[4];
-				premul_to_straight_v4(pixel_straight, pixel);
-				rgba_float_to_uchar(display_buffer + display_index, pixel_straight);
+		}
+	}
+	else {
+		if (display_buffer_float) {
+			/* huh, for dither we need float buffer first, no cheaper way. currently */
+			IMB_buffer_float_from_byte(display_buffer_float, byte_buffer,
+			                           IB_PROFILE_SRGB, IB_PROFILE_SRGB, TRUE,
+			                           width, height, width, display_stride);
+		}
+		else {
+			int i, width = xmax - xmin;
+
+			for (i = ymin; i < ymax; i++) {
+				int byte_offset = (linear_stride * i + xmin) * 4;
+				int display_offset = (display_stride * i + xmin) * 4;
+
+				memcpy(display_buffer + display_offset, byte_buffer + byte_offset, 4 * sizeof(char) * width);
 			}
 		}
 	}
@@ -2371,7 +2422,7 @@ static void partial_buffer_update_rect(ImBuf *ibuf, unsigned char *display_buffe
 		int display_index = (ymin * display_stride + xmin) * channels;
 
 		IMB_buffer_byte_from_float(display_buffer + display_index, display_buffer_float, channels, dither,
-		                           IB_PROFILE_SRGB, IB_PROFILE_SRGB, FALSE, width, height, display_stride, width);
+		                           IB_PROFILE_SRGB, IB_PROFILE_SRGB, TRUE, width, height, display_stride, width);
 
 		MEM_freeN(display_buffer_float);
 	}
@@ -2426,17 +2477,39 @@ void IMB_partial_display_buffer_update(ImBuf *ibuf, const float *linear_buffer, 
 		BLI_unlock_thread(LOCK_COLORMANAGE);
 
 		if (display_buffer) {
-			ColormanageProcessor *cm_processor;
+			ColormanageProcessor *cm_processor = NULL;
+			int skip_transform = 0;
 
-			cm_processor = IMB_colormanagement_display_processor_new(view_settings, display_settings);
+			/* byte buffer is assumed to be in imbuf's rect space, so if byte buffer
+			 * is known we could skip display->linear->display conversion in case
+			 * display color space matches imbuf's rect space
+			 */
+			if (byte_buffer != NULL)
+				skip_transform = is_ibuf_rect_in_display_space(ibuf, view_settings, display_settings);
+
+			if (!skip_transform)
+				cm_processor = IMB_colormanagement_display_processor_new(view_settings, display_settings);
 
 			partial_buffer_update_rect(ibuf, display_buffer, linear_buffer, byte_buffer, buffer_width, stride,
 			                           offset_x, offset_y, cm_processor, xmin, ymin, xmax, ymax);
 
-			IMB_colormanagement_processor_free(cm_processor);
+			if (cm_processor)
+				IMB_colormanagement_processor_free(cm_processor);
 
 			IMB_display_buffer_release(cache_handle);
 		}
+	}
+}
+
+void IMB_partial_display_buffer_update_delayed(ImBuf *ibuf, int xmin, int ymin, int xmax, int ymax)
+{
+	if (ibuf->invalid_rect.xmin == ibuf->invalid_rect.xmax) {
+		BLI_rcti_init(&ibuf->invalid_rect, xmin, xmax, ymin, ymax);
+	}
+	else {
+		rcti rect;
+		BLI_rcti_init(&rect, xmin, xmax, ymin, ymax);
+		BLI_rcti_union(&ibuf->invalid_rect, &rect);
 	}
 }
 
@@ -2538,14 +2611,14 @@ void IMB_colormanagement_processor_apply(ColormanageProcessor *cm_processor, flo
 
 		/* apply OCIO processor */
 		img = OCIO_createOCIO_PackedImageDesc(buffer, width, height, channels, sizeof(float),
-		                                 channels * sizeof(float), channels * sizeof(float) * width);
+		                                      channels * sizeof(float), channels * sizeof(float) * width);
 
 		if (predivide)
 			OCIO_processorApply_predivide(cm_processor->processor, img);
 		else
 			OCIO_processorApply(cm_processor->processor, img);
 
-		OCIO_OCIO_PackedImageDescRelease(img);
+		OCIO_PackedImageDescRelease(img);
 	}
 }
 

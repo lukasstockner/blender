@@ -46,7 +46,7 @@ void nodestack_get_vec(float *in, short type_in, bNodeStack *ns)
 		if (ns->sockettype==SOCK_FLOAT)
 			*in= *from;
 		else 
-			*in= 0.333333f*(from[0]+from[1]+from[2]);
+			*in= (from[0]+from[1]+from[2]) / 3.0f;
 	}
 	else if (type_in==SOCK_VECTOR) {
 		if (ns->sockettype==SOCK_FLOAT) {
@@ -221,6 +221,7 @@ void node_gpu_stack_from_data(struct GPUNodeStack *gs, int type, bNodeStack *ns)
 
 void node_data_from_gpu_stack(bNodeStack *ns, GPUNodeStack *gs)
 {
+	copy_v4_v4(ns->vec, gs->vec);
 	ns->data= gs->link;
 	ns->sockettype= gs->sockettype;
 }
@@ -276,7 +277,7 @@ void ntreeExecGPUNodes(bNodeTreeExec *exec, GPUMaterial *mat, int do_outputs)
 	bNodeStack *stack;
 	bNodeStack *nsin[MAX_SOCKET];	/* arbitrary... watch this */
 	bNodeStack *nsout[MAX_SOCKET];	/* arbitrary... watch this */
-	GPUNodeStack gpuin[MAX_SOCKET+1], gpuout[MAX_SOCKET+1];
+	GPUNodeStack gpuin[MAX_SOCKET + 1], gpuout[MAX_SOCKET + 1];
 	int do_it;
 
 	stack= exec->stack;

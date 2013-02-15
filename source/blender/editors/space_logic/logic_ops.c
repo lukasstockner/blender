@@ -54,6 +54,8 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "UI_view2d.h"
+
 #include "logic_intern.h"
 
 // temporary new includes for texface functions
@@ -328,8 +330,10 @@ static void LOGIC_OT_sensor_add(wmOperatorType *ot)
 	/* properties */
 	ot->prop = prop = RNA_def_enum(ot->srna, "type", DummyRNA_NULL_items, SENS_ALWAYS, "Type", "Type of sensor to add");
 	RNA_def_enum_funcs(prop, rna_Sensor_type_itemf);
-	RNA_def_string(ot->srna, "name", "", MAX_NAME, "Name", "Name of the Sensor to add");
-	RNA_def_string(ot->srna, "object", "", MAX_NAME, "Object", "Name of the Object to add the Sensor to");
+	prop = RNA_def_string(ot->srna, "name", "", MAX_NAME, "Name", "Name of the Sensor to add");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	prop = RNA_def_string(ot->srna, "object", "", MAX_NAME, "Object", "Name of the Object to add the Sensor to");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /* ************* Add/Remove Controller Operator ************* */
@@ -427,6 +431,8 @@ static int controller_add_exec(bContext *C, wmOperator *op)
 
 static void LOGIC_OT_controller_add(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+
 	/* identifiers */
 	ot->name = "Add Controller";
 	ot->description = "Add a controller to the active object";
@@ -442,8 +448,10 @@ static void LOGIC_OT_controller_add(wmOperatorType *ot)
 	
 	/* properties */
 	ot->prop = RNA_def_enum(ot->srna, "type", controller_type_items, CONT_LOGIC_AND, "Type", "Type of controller to add");
-	RNA_def_string(ot->srna, "name", "", MAX_NAME, "Name", "Name of the Controller to add");
-	RNA_def_string(ot->srna, "object", "", MAX_NAME, "Object", "Name of the Object to add the Controller to");
+	prop = RNA_def_string(ot->srna, "name", "", MAX_NAME, "Name", "Name of the Controller to add");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	prop = RNA_def_string(ot->srna, "object", "", MAX_NAME, "Object", "Name of the Object to add the Controller to");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /* ************* Add/Remove Actuator Operator ************* */
@@ -545,8 +553,10 @@ static void LOGIC_OT_actuator_add(wmOperatorType *ot)
 	/* properties */
 	ot->prop = prop = RNA_def_enum(ot->srna, "type", DummyRNA_NULL_items, CONT_LOGIC_AND, "Type", "Type of actuator to add");
 	RNA_def_enum_funcs(prop, rna_Actuator_type_itemf);
-	RNA_def_string(ot->srna, "name", "", MAX_NAME, "Name", "Name of the Actuator to add");
-	RNA_def_string(ot->srna, "object", "", MAX_NAME, "Object", "Name of the Object to add the Actuator to");
+	prop = RNA_def_string(ot->srna, "name", "", MAX_NAME, "Name", "Name of the Actuator to add");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	prop = RNA_def_string(ot->srna, "object", "", MAX_NAME, "Object", "Name of the Object to add the Actuator to");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /* ************* Move Logic Bricks Operator ************* */
@@ -723,6 +733,39 @@ static void LOGIC_OT_texface_convert(wmOperatorType *ot)
 }
 
 
+/* ************************ view ********************* */
+
+static int logic_view_all_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	ARegion *ar = CTX_wm_region(C);
+	rctf cur_new = ar->v2d.tot;
+	float aspect = BLI_rctf_size_y(&ar->v2d.cur) / BLI_rctf_size_x(&ar->v2d.cur);
+	
+	/* force the view2d code to zoom to width, not height */
+	cur_new.ymin = cur_new.ymax - BLI_rctf_size_x(&cur_new) * aspect;
+	
+	UI_view2d_smooth_view(C, ar, &cur_new);
+
+	return OPERATOR_FINISHED;
+}
+
+static void LOGIC_OT_view_all(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "View All";
+	ot->idname = "LOGIC_OT_view_all";
+	ot->description = "Resize view so you can see all logic bricks";
+	
+	/* api callbacks */
+	ot->exec = logic_view_all_exec;
+	ot->poll = ED_operator_logic_active;
+	
+	/* flags */
+	ot->flag = 0;
+}
+
+/* ************************* */
+
 void ED_operatortypes_logic(void)
 {
 	WM_operatortype_append(LOGIC_OT_sensor_remove);
@@ -735,4 +778,5 @@ void ED_operatortypes_logic(void)
 	WM_operatortype_append(LOGIC_OT_actuator_add);
 	WM_operatortype_append(LOGIC_OT_actuator_move);
 	WM_operatortype_append(LOGIC_OT_texface_convert);
+	WM_operatortype_append(LOGIC_OT_view_all);
 }

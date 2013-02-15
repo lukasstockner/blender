@@ -43,9 +43,12 @@
 
 #include "BKE_brush.h"
 #include "BKE_context.h"
+#include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_paint.h"
 #include "BKE_subsurf.h"
+
+#include "bmesh.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -177,7 +180,7 @@ void BKE_paint_init(Paint *p, const char col[3])
 	/* If there's no brush, create one */
 	brush = paint_brush(p);
 	if (brush == NULL)
-		brush = BKE_brush_add("Brush");
+		brush = BKE_brush_add(G.main, "Brush");
 	paint_brush_set(p, brush);
 
 	memcpy(p->paint_cursor_col, col, 3);
@@ -222,6 +225,22 @@ int paint_is_grid_face_hidden(const unsigned int *grid_hidden,
 	        BLI_BITMAP_GET(grid_hidden, y * gridsize + x + 1) ||
 	        BLI_BITMAP_GET(grid_hidden, (y + 1) * gridsize + x + 1) ||
 	        BLI_BITMAP_GET(grid_hidden, (y + 1) * gridsize + x));
+}
+
+/* Return TRUE if all vertices in the face are visible, FALSE otherwise */
+int paint_is_bmesh_face_hidden(BMFace *f)
+{
+	BMLoop *l_iter;
+	BMLoop *l_first;
+
+	l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+	do {
+		if (BM_elem_flag_test(l_iter->v, BM_ELEM_HIDDEN)) {
+			return true;
+		}
+	} while ((l_iter = l_iter->next) != l_first);
+
+	return false;
 }
 
 float paint_grid_paint_mask(const GridPaintMask *gpm, unsigned level,

@@ -42,6 +42,7 @@ struct ID;
 struct Main;
 struct ListBase;
 struct ARegion;
+struct ARegionType;
 struct ScrArea;
 struct wmWindow;
 struct wmWindowManager;
@@ -83,6 +84,9 @@ typedef struct uiLayout uiLayout;
 /* names */
 #define UI_MAX_DRAW_STR 400
 #define UI_MAX_NAME_STR 128
+
+/* use for clamping popups within the screen */
+#define UI_SCREEN_MARGIN 10
 
 /* uiBlock->dt */
 #define UI_EMBOSS       0   /* use widget style for drawing */
@@ -218,7 +222,7 @@ typedef enum {
 	NUMSLI        = (14 << 9),
 	COLOR         = (15 << 9),
 	IDPOIN        = (16 << 9),
-	HSVSLI        = (17 << 9),
+	HSVSLI        = (17 << 9),  /* UNUSED, but code still references */
 	SCROLL        = (18 << 9),
 	BLOCK         = (19 << 9),
 	BUTM          = (20 << 9),
@@ -253,7 +257,8 @@ typedef enum {
 	HISTOGRAM     = (48 << 9),
 	WAVEFORM      = (49 << 9),
 	VECTORSCOPE   = (50 << 9),
-	PROGRESSBAR   = (51 << 9)
+	PROGRESSBAR   = (51 << 9),
+	SEARCH_MENU_UNLINK   = (52 << 9)
 } eButType;
 
 #define BUTTYPE     (63 << 9)
@@ -805,6 +810,7 @@ uiLayout *uiTemplateModifier(uiLayout *layout, struct bContext *C, struct Pointe
 uiLayout *uiTemplateConstraint(uiLayout *layout, struct PointerRNA *ptr);
 void uiTemplatePreview(uiLayout *layout, struct ID *id, int show_buttons, struct ID *parent, struct MTex *slot);
 void uiTemplateColorRamp(uiLayout *layout, struct PointerRNA *ptr, const char *propname, int expand);
+void uiTemplateIconView(uiLayout *layout, struct PointerRNA *ptr, const char *propname);
 void uiTemplateHistogram(uiLayout *layout, struct PointerRNA *ptr, const char *propname);
 void uiTemplateWaveform(uiLayout *layout, struct PointerRNA *ptr, const char *propname);
 void uiTemplateVectorscope(uiLayout *layout, struct PointerRNA *ptr, const char *propname);

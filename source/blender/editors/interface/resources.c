@@ -170,8 +170,11 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 					else
 						cp = ts->button;
 					break;
-				case TH_BACK_GRAD:
+				case TH_LOW_GRAD:
 					cp = ts->gradients.gradient;
+					break;
+				case TH_HIGH_GRAD:
+					cp = ts->gradients.high_gradient;
 					break;
 				case TH_SHOW_BACK_GRAD:
 					cp = &setting;
@@ -386,6 +389,10 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 					cp = ts->syntaxc; break;
 				case TH_NODE_FRAME:
 					cp = ts->movie; break;
+				case TH_NODE_MATTE:
+					cp = ts->syntaxs; break;
+				case TH_NODE_DISTORT:
+					cp = ts->syntaxd; break;
 				case TH_NODE_CURVING:
 					cp = &ts->noodle_curving; break;
 
@@ -780,6 +787,7 @@ void ui_theme_init_default(void)
 
 	rgba_char_args_set(btheme->tv3d.skin_root, 180, 77, 77, 255);
 	rgba_char_args_set(btheme->tv3d.gradients.gradient, 0, 0, 0, 0);
+	rgba_char_args_set(btheme->tv3d.gradients.high_gradient, 58, 58, 58, 255);
 	btheme->tv3d.gradients.show_grad = FALSE;
 
 	/* space buttons */
@@ -1314,7 +1322,6 @@ void UI_make_axis_color(const unsigned char src_col[3], unsigned char dst_col[3]
 void init_userdef_do_versions(void)
 {
 	Main *bmain = G.main;
-//	countall();
 	
 	/* the UserDef struct is not corrected with do_versions() .... ugh! */
 	if (U.wheellinescroll == 0) U.wheellinescroll = 3;
@@ -2087,8 +2094,9 @@ void init_userdef_do_versions(void)
 			btheme->tclip.panelcolors = btheme->tui.panel;
 		}
 	}
-	
-	if (bmain->versionfile < 266) {
+
+	/* NOTE!! from now on use U.versionfile and U.subversionfile */
+	if (U.versionfile < 266) {
 		bTheme *btheme;
 		
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
@@ -2100,7 +2108,7 @@ void init_userdef_do_versions(void)
 		}
 	}
 
-	if (!MAIN_VERSION_ATLEAST(bmain, 266, 4)) {
+	if (U.versionfile < 265 || (U.versionfile == 265 && U.subversionfile < 4)) {
 		bTheme *btheme;
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
 			rgba_char_args_set(btheme->text.syntaxd,    50, 0, 140, 255);   /* Decorator/Preprocessor Dir.  Blue-purple */
@@ -2109,6 +2117,24 @@ void init_userdef_do_versions(void)
 		}
 	}
 
+	if (U.versionfile < 265 || (U.versionfile == 265 && U.subversionfile < 6)) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			copy_v4_v4_char(btheme->tv3d.gradients.high_gradient, btheme->tv3d.back);
+		}
+	}
+
+	if (U.versionfile < 265 || (U.versionfile == 265 && U.subversionfile < 9)) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			rgba_char_args_test_set(btheme->tnode.syntaxs, 151, 116, 116, 255);  /* matte nodes */
+			rgba_char_args_test_set(btheme->tnode.syntaxd, 116, 151, 151, 255);  /* distort nodes */
+		}
+	}
+
+	/* NOTE!! from now on use U.versionfile and U.subversionfile */
+	
+	
 	if (U.pixelsize == 0.0f)
 		U.pixelsize = 1.0f;
 	

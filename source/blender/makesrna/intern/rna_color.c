@@ -424,7 +424,7 @@ static void rna_ColorManagedViewSettings_view_transform_set(PointerRNA *ptr, int
 	}
 }
 
-static EnumPropertyItem* rna_ColorManagedViewSettings_view_transform_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), int *free)
+static EnumPropertyItem *rna_ColorManagedViewSettings_view_transform_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), int *free)
 {
 	Scene *scene = CTX_data_scene(C);
 	EnumPropertyItem *items = NULL;
@@ -848,7 +848,7 @@ static void rna_def_histogram(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "show_line", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", HISTO_FLAG_LINE);
-	RNA_def_property_ui_text(prop, "Show Line", "Display lines rather then filled shapes");
+	RNA_def_property_ui_text(prop, "Show Line", "Display lines rather than filled shapes");
 	RNA_def_property_ui_icon(prop, ICON_IPO, 0);
 }
 

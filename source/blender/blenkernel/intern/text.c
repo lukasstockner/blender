@@ -38,12 +38,12 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_utildefines.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "BLI_string_cursor_utf8.h"
 #include "BLI_string_utf8.h"
 #include "BLI_listbase.h"
-#include "BLI_utildefines.h"
 #include "BLI_fileops.h"
 
 #include "DNA_constraint_types.h"
@@ -171,9 +171,8 @@ void BKE_text_free(Text *text)
 #endif
 }
 
-Text *BKE_text_add(const char *name) 
+Text *BKE_text_add(Main *bmain, const char *name) 
 {
-	Main *bmain = G.main;
 	Text *ta;
 	TextLine *tmp;
 	
@@ -363,9 +362,8 @@ int BKE_text_reload(Text *text)
 	return 1;
 }
 
-Text *BKE_text_load(const char *file, const char *relpath)
+Text *BKE_text_load(Main *bmain, const char *file, const char *relpath)
 {
-	Main *bmain = G.main;
 	FILE *fp;
 	int i, llen, len;
 	unsigned char *buffer;
@@ -938,7 +936,7 @@ void txt_move_right(Text *text, short sel)
 	if (!sel) txt_pop_sel(text);
 }
 
-void txt_jump_left(Text *text, short sel)
+void txt_jump_left(Text *text, bool sel, bool use_init_step)
 {
 	TextLine **linep;
 	int *charp;
@@ -950,12 +948,12 @@ void txt_jump_left(Text *text, short sel)
 
 	BLI_str_cursor_step_utf8((*linep)->line, (*linep)->len,
 	                         charp, STRCUR_DIR_PREV,
-	                         STRCUR_JUMP_DELIM);
+	                         STRCUR_JUMP_DELIM, use_init_step);
 	
 	if (!sel) txt_pop_sel(text);
 }
 
-void txt_jump_right(Text *text, short sel)
+void txt_jump_right(Text *text, bool sel, bool use_init_step)
 {
 	TextLine **linep;
 	int *charp;
@@ -967,7 +965,7 @@ void txt_jump_right(Text *text, short sel)
 	
 	BLI_str_cursor_step_utf8((*linep)->line, (*linep)->len,
 	                         charp, STRCUR_DIR_NEXT,
-	                         STRCUR_JUMP_DELIM);
+	                         STRCUR_JUMP_DELIM, use_init_step);
 	
 	if (!sel) txt_pop_sel(text);
 }
@@ -2404,7 +2402,7 @@ void txt_delete_char(Text *text)
 
 void txt_delete_word(Text *text)
 {
-	txt_jump_right(text, 1);
+	txt_jump_right(text, true, true);
 	txt_delete_sel(text);
 }
 
@@ -2453,7 +2451,7 @@ void txt_backspace_char(Text *text)
 
 void txt_backspace_word(Text *text)
 {
-	txt_jump_left(text, 1);
+	txt_jump_left(text, true, true);
 	txt_delete_sel(text);
 }
 
@@ -2923,6 +2921,16 @@ int text_check_identifier(const char ch)
 {
 	if (ch < '0') return 0;
 	if (ch <= '9') return 1;
+	if (ch < 'A') return 0;
+	if (ch <= 'Z' || ch == '_') return 1;
+	if (ch < 'a') return 0;
+	if (ch <= 'z') return 1;
+	return 0;
+}
+
+int text_check_identifier_nodigit(const char ch)
+{
+	if (ch <= '9') return 0;
 	if (ch < 'A') return 0;
 	if (ch <= 'Z' || ch == '_') return 1;
 	if (ch < 'a') return 0;

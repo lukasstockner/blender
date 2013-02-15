@@ -27,7 +27,6 @@
  *  \ingroup bke
  */
 
- 
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -663,7 +662,7 @@ int IDP_EqualsProperties_ex(IDProperty *prop1, IDProperty *prop2, const int is_s
 		{
 			IDProperty *link1, *link2;
 
-			if (is_strict && BLI_countlist(&prop1->data.group) != BLI_countlist(&prop2->data.group))
+			if (is_strict && prop1->len != prop2->len)
 				return 0;
 
 			for (link1 = prop1->data.group.first; link1; link1 = link1->next) {

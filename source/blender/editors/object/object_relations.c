@@ -35,6 +35,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_anim_types.h"
+#include "DNA_armature_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_group_types.h"
@@ -354,7 +355,7 @@ static int make_proxy_exec(bContext *C, wmOperator *op)
 		
 		/* remove base, leave user count of object, it gets linked in BKE_object_make_proxy */
 		if (gob == NULL) {
-			BLI_remlink(&scene->base, oldbase);
+			BKE_scene_base_unlink(scene, oldbase);
 			MEM_freeN(oldbase);
 		}
 		
@@ -578,6 +579,7 @@ EnumPropertyItem prop_make_parent_types[] = {
 	{PAR_ARMATURE_AUTO, "ARMATURE_AUTO", 0, "   With Automatic Weights", ""},
 	{PAR_ARMATURE_ENVELOPE, "ARMATURE_ENVELOPE", 0, "   With Envelope Weights", ""},
 	{PAR_BONE, "BONE", 0, "Bone", ""},
+	{PAR_BONE_RELATIVE, "BONE_RELATIVE", 0, "Bone Relative", ""},
 	{PAR_CURVE, "CURVE", 0, "Curve Deform", ""},
 	{PAR_FOLLOW, "FOLLOW", 0, "Follow Path", ""},
 	{PAR_PATH_CONST, "PATH_CONST", 0, "Path Constraint", ""},
@@ -624,7 +626,7 @@ int ED_object_parent_set(ReportList *reports, Main *bmain, Scene *scene, Object 
 				partype = PAR_OBJECT;
 		}
 	}
-	else if (partype == PAR_BONE) {
+	else if (ELEM(partype, PAR_BONE, PAR_BONE_RELATIVE)) {
 		pchan = BKE_pose_channel_active(par);
 		
 		if (pchan == NULL) {
@@ -705,8 +707,16 @@ int ED_object_parent_set(ReportList *reports, Main *bmain, Scene *scene, Object 
 					}
 				}
 			}
-			else if (partype == PAR_BONE)
+			else if (partype == PAR_BONE) {
 				ob->partype = PARBONE;  /* note, dna define, not operator property */
+				if (pchan->bone)
+					pchan->bone->flag &= ~BONE_RELATIVE_PARENTING;
+			}
+			else if (partype == PAR_BONE_RELATIVE) {
+				ob->partype = PARBONE;  /* note, dna define, not operator property */
+				if (pchan->bone)
+					pchan->bone->flag |= BONE_RELATIVE_PARENTING;
+			}
 			else
 				ob->partype = PAROBJECT;  /* note, dna define, not operator property */
 			
@@ -815,6 +825,7 @@ static int parent_set_invoke(bContext *C, wmOperator *UNUSED(op), wmEvent *UNUSE
 		uiItemEnumO_ptr(layout, ot, NULL, 0, "type", PAR_ARMATURE_ENVELOPE);
 		uiItemEnumO_ptr(layout, ot, NULL, 0, "type", PAR_ARMATURE_AUTO);
 		uiItemEnumO_ptr(layout, ot, NULL, 0, "type", PAR_BONE);
+		uiItemEnumO_ptr(layout, ot, NULL, 0, "type", PAR_BONE_RELATIVE);
 	}
 	else if (ob->type == OB_CURVE) {
 		uiItemEnumO_ptr(layout, ot, NULL, 0, "type", PAR_CURVE);
@@ -1069,7 +1080,7 @@ static int object_track_clear_exec(bContext *C, wmOperator *op)
 void OBJECT_OT_track_clear(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Clear track";
+	ot->name = "Clear Track";
 	ot->description = "Clear tracking constraint or flag from object";
 	ot->idname = "OBJECT_OT_track_clear";
 	
@@ -2168,7 +2179,7 @@ void OBJECT_OT_drop_named_material(wmOperatorType *ot)
 	ot->poll = ED_operator_objectmode;
 	
 	/* flags */
-	ot->flag = OPTYPE_UNDO;
+	ot->flag = OPTYPE_UNDO | OPTYPE_INTERNAL;
 	
 	/* properties */
 	RNA_def_string(ot->srna, "name", "Material", MAX_ID_NAME - 2, "Name", "Material name to assign");

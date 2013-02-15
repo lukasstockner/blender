@@ -66,6 +66,7 @@ set(SRC_DNA_INC
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_packedFile_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_particle_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_property_types.h
+	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_rigidbody_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_scene_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_screen_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_sdna_types.h
@@ -107,7 +108,6 @@ add_subdirectory(makesdna)
 add_subdirectory(makesrna)
 
 if(WITH_COMPOSITOR)
-	add_subdirectory(opencl)  # later on this may be used more generally
 	add_subdirectory(compositor)
 endif()
 

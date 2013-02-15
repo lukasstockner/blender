@@ -319,6 +319,7 @@ static void ui_popup_bounds_block(const bContext *C, uiBlock *block, eBlockBound
 	wmWindow *window = CTX_wm_window(C);
 	int startx, starty, endx, endy, width, height, oldwidth, oldheight;
 	int oldbounds, xmax, ymax;
+	const int margin = UI_SCREEN_MARGIN;
 
 	oldbounds = block->bounds;
 
@@ -356,20 +357,20 @@ static void ui_popup_bounds_block(const bContext *C, uiBlock *block, eBlockBound
 	startx = window->eventstate->x + block->rect.xmin + (block->mx * width) / oldwidth;
 	starty = window->eventstate->y + block->rect.ymin + (block->my * height) / oldheight;
 
-	if (startx < 10)
-		startx = 10;
-	if (starty < 10)
-		starty = 10;
+	if (startx < margin)
+		startx = margin;
+	if (starty < margin)
+		starty = margin;
 
 	endx = startx + width;
 	endy = starty + height;
 
 	if (endx > xmax) {
-		endx = xmax - 10;
+		endx = xmax - margin;
 		startx = endx - width;
 	}
-	if (endy > ymax - 20) {
-		endy = ymax - 20;
+	if (endy > ymax - margin) {
+		endy = ymax - margin;
 		starty = endy - height;
 	}
 
@@ -927,6 +928,8 @@ void uiEndBlock(const bContext *C, uiBlock *block)
 		block->auto_open = block->oldblock->auto_open;
 		block->auto_open_last = block->oldblock->auto_open_last;
 		block->tooltipdisabled = block->oldblock->tooltipdisabled;
+		copy_v3_v3(ui_block_hsv_get(block),
+		           ui_block_hsv_get(block->oldblock));
 
 		block->oldblock = NULL;
 	}
@@ -997,7 +1000,7 @@ void ui_fontscale(short *points, float aspect)
 /* project button or block (but==NULL) to pixels in regionspace */
 static void ui_but_to_pixelrect(rcti *rect, const ARegion *ar, uiBlock *block, uiBut *but)
 {
-	rctf rectf = (but)? but->rect: block->rect;
+	rctf rectf = (but) ? but->rect : block->rect;
 	
 	ui_block_to_window_fl(ar, block, &rectf.xmin, &rectf.ymin);
 	ui_block_to_window_fl(ar, block, &rectf.xmax, &rectf.ymax);
@@ -1605,7 +1608,7 @@ void ui_set_but_val(uiBut *but, double value)
 
 int ui_get_but_string_max_length(uiBut *but)
 {
-	if (ELEM(but->type, TEX, SEARCH_MENU))
+	if (ELEM3(but->type, TEX, SEARCH_MENU, SEARCH_MENU_UNLINK))
 		return but->hardmax;
 	else if (but->type == IDPOIN)
 		return MAX_ID_NAME - 2;
@@ -1688,7 +1691,7 @@ static float ui_get_but_step_unit(uiBut *but, float step_default)
 
 void ui_get_but_string(uiBut *but, char *str, size_t maxlen)
 {
-	if (but->rnaprop && ELEM3(but->type, TEX, IDPOIN, SEARCH_MENU)) {
+	if (but->rnaprop && ELEM4(but->type, TEX, IDPOIN, SEARCH_MENU, SEARCH_MENU_UNLINK)) {
 		PropertyType type;
 		const char *buf = NULL;
 		int buf_len;
@@ -1742,7 +1745,7 @@ void ui_get_but_string(uiBut *but, char *str, size_t maxlen)
 		BLI_strncpy(str, but->poin, maxlen);
 		return;
 	}
-	else if (but->type == SEARCH_MENU) {
+	else if (ELEM(but->type, SEARCH_MENU, SEARCH_MENU_UNLINK)) {
 		/* string */
 		BLI_strncpy(str, but->poin, maxlen);
 		return;
@@ -1797,9 +1800,9 @@ int ui_set_but_string_eval_num(bContext *C, uiBut *but, const char *str, double 
 #ifdef WITH_PYTHON
 
 	if (str[0] != '\0') {
-		int is_unit_but = ui_is_but_unit(but);
+		bool is_unit_but = (ui_is_but_float(but) && ui_is_but_unit(but));
 		/* only enable verbose if we won't run again with units */
-		if (BPY_button_exec(C, str, value, is_unit_but == FALSE) != -1) {
+		if (BPY_button_exec(C, str, value, is_unit_but == false) != -1) {
 			/* if the value parsed ok without unit conversion this button may still need a unit multiplier */
 			if (is_unit_but) {
 				char str_new[128];
@@ -1833,7 +1836,7 @@ int ui_set_but_string_eval_num(bContext *C, uiBut *but, const char *str, double 
 
 int ui_set_but_string(bContext *C, uiBut *but, const char *str)
 {
-	if (but->rnaprop && ELEM3(but->type, TEX, IDPOIN, SEARCH_MENU)) {
+	if (but->rnaprop && ELEM4(but->type, TEX, IDPOIN, SEARCH_MENU, SEARCH_MENU_UNLINK)) {
 		if (RNA_property_editable(&but->rnapoin, but->rnaprop)) {
 			PropertyType type;
 
@@ -1890,7 +1893,7 @@ int ui_set_but_string(bContext *C, uiBut *but, const char *str)
 
 		return 1;
 	}
-	else if (but->type == SEARCH_MENU) {
+	else if (ELEM(but->type, SEARCH_MENU, SEARCH_MENU_UNLINK)) {
 		/* string */
 		BLI_strncpy(but->poin, str, but->hardmax);
 		return 1;
@@ -2360,6 +2363,7 @@ void ui_check_but(uiBut *but)
 		case IDPOIN:
 		case TEX:
 		case SEARCH_MENU:
+		case SEARCH_MENU_UNLINK:
 			if (!but->editstr) {
 				char str[UI_MAX_DRAW_STR];
 
@@ -2741,7 +2745,7 @@ static uiBut *ui_def_but(uiBlock *block, int type, int retval, const char *str,
 	}
 
 	if ((block->flag & UI_BLOCK_LOOP) ||
-	    ELEM8(but->type, MENU, TEX, LABEL, IDPOIN, BLOCK, BUTM, SEARCH_MENU, PROGRESSBAR))
+	    ELEM9(but->type, MENU, TEX, LABEL, IDPOIN, BLOCK, BUTM, SEARCH_MENU, PROGRESSBAR, SEARCH_MENU_UNLINK))
 	{
 		but->flag |= (UI_TEXT_LEFT | UI_ICON_LEFT);
 	}
@@ -2777,21 +2781,21 @@ static uiBut *ui_def_but(uiBlock *block, int type, int retval, const char *str,
 	return but;
 }
 
-/* ui_def_but_rna_propname and ui_def_but_rna
+static void ui_def_but_rna__disable(uiBut *but)
+{
+	but->flag |= UI_BUT_DISABLED;
+	but->lock = true;
+	but->lockstr = "";
+}
+
+/**
+ * ui_def_but_rna_propname and ui_def_but_rna
  * both take the same args except for propname vs prop, this is done so we can
  * avoid an extra lookup on 'prop' when its already available.
  *
  * When this kind of change won't disrupt branches, best look into making more
  * of our UI functions take prop rather then propname.
  */
-
-#define UI_DEF_BUT_RNA_DISABLE(but)  { \
-		but->flag |= UI_BUT_DISABLED;  \
-		but->lock = TRUE;              \
-		but->lockstr = "";             \
-	} (void)0
-
-
 static uiBut *ui_def_but_rna(uiBlock *block, int type, int retval, const char *str,
                              int x, int y, short width, short height,
                              PointerRNA *ptr, PropertyRNA *prop, int index,
@@ -2928,7 +2932,7 @@ static uiBut *ui_def_but_rna(uiBlock *block, int type, int retval, const char *s
 	}
 	
 	if (!RNA_property_editable(&but->rnapoin, prop)) {
-		UI_DEF_BUT_RNA_DISABLE(but);
+		ui_def_but_rna__disable(but);
 	}
 
 	if (but->flag & UI_BUT_UNDO && (ui_but_is_rna_undo(but) == FALSE)) {
@@ -2958,7 +2962,7 @@ static uiBut *ui_def_but_rna_propname(uiBlock *block, int type, int retval, cons
 	else {
 		but = ui_def_but(block, type, retval, propname, x, y, width, height, NULL, min, max, a1, a2, tip);
 
-		UI_DEF_BUT_RNA_DISABLE(but);
+		ui_def_but_rna__disable(but);
 	}
 
 	return but;

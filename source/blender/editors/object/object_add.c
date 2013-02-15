@@ -941,7 +941,7 @@ static void object_delete_check_glsl_update(Object *ob)
 void ED_base_object_free_and_unlink(Main *bmain, Scene *scene, Base *base)
 {
 	DAG_id_type_tag(bmain, ID_OB);
-	BLI_remlink(&scene->base, base);
+	BKE_scene_base_unlink(scene, base);
 	object_delete_check_glsl_update(base->object);
 	BKE_libblock_free_us(&bmain->object, base->object);
 	if (scene->basact == base) scene->basact = NULL;
@@ -1558,7 +1558,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 				mb = newob->data;
 				mb->id.us--;
 
-				newob->data = BKE_mesh_add("Mesh");
+				newob->data = BKE_mesh_add(bmain, "Mesh");
 				newob->type = OB_MESH;
 
 				me = newob->data;
@@ -1698,7 +1698,11 @@ static Base *object_add_duplicate_internal(Main *bmain, Scene *scene, Base *base
 		BLI_addhead(&scene->base, basen);   /* addhead: prevent eternal loop */
 		basen->object = obn;
 
-		if (basen->flag & OB_FROMGROUP) {
+		/* 1) duplis should end up in same group as the original
+		 * 2) Rigid Body sim participants MUST always be part of a group...
+		 */
+		// XXX: is 2) really a good measure here?
+		if ((basen->flag & OB_FROMGROUP) || ob->rigidbody_object || ob->rigidbody_constraint) {
 			Group *group;
 			for (group = bmain->group.first; group; group = group->id.next) {
 				if (object_in_group(ob, group))
@@ -2001,7 +2005,8 @@ void OBJECT_OT_duplicate(wmOperatorType *ot)
 
 static int add_named_exec(bContext *C, wmOperator *op)
 {
-	wmEvent *event = CTX_wm_window(C)->eventstate;
+	wmWindow *win = CTX_wm_window(C);
+	wmEvent *event = win ? win->eventstate : NULL;
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	Base *basen, *base;
@@ -2033,8 +2038,10 @@ static int add_named_exec(bContext *C, wmOperator *op)
 
 	basen->lay = basen->object->lay = scene->lay;
 
-	ED_object_location_from_view(C, basen->object->loc);
-	ED_view3d_cursor3d_position(C, basen->object->loc, event->x, event->y);
+	if (event) {
+		ED_object_location_from_view(C, basen->object->loc);
+		ED_view3d_cursor3d_position(C, basen->object->loc, event->x, event->y);
+	}
 	
 	ED_base_object_activate(C, basen);
 

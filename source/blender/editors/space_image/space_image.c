@@ -38,6 +38,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
+#include "BLI_threads.h"
 
 #include "BKE_colortools.h"
 #include "BKE_context.h"
@@ -151,7 +152,7 @@ static SpaceLink *image_new(const bContext *UNUSED(C))
 	simage->spacetype = SPACE_IMAGE;
 	simage->zoom = 1.0f;
 	simage->lock = TRUE;
-	simage->flag = SI_SHOW_GPENCIL;
+	simage->flag = SI_SHOW_GPENCIL | SI_USE_ALPHA;
 
 	simage->iuser.ok = TRUE;
 	simage->iuser.fie_ima = 2;
@@ -692,10 +693,25 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 	}
 
 	if (mask) {
-		int width, height;
+		Image *image = ED_space_image(sima);
+		int width, height, show_viewer;
 		float aspx, aspy;
+
+		show_viewer = (image && image->source == IMA_SRC_VIEWER);
+
+		if (show_viewer) {
+			/* ED_space_image_get* will acquire image buffer which requires
+			 * lock here by the same reason why lock is needed in draw_image_main
+			 */
+			BLI_lock_thread(LOCK_DRAW_IMAGE);
+		}
+
 		ED_space_image_get_size(sima, &width, &height);
 		ED_space_image_get_aspect(sima, &aspx, &aspy);
+
+		if (show_viewer)
+			BLI_unlock_thread(LOCK_DRAW_IMAGE);
+
 		ED_mask_draw_region(mask, ar,
 		                    sima->mask_info.draw_flag, sima->mask_info.draw_type,
 		                    width, height,
@@ -734,6 +750,7 @@ static void image_buttons_area_init(wmWindowManager *wm, ARegion *ar)
 {
 	wmKeyMap *keymap;
 
+	ar->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
 	ED_region_panels_init(wm, ar);
 	
 	keymap = WM_keymap_find(wm->defaultconf, "Image Generic", SPACE_IMAGE, 0);
@@ -773,6 +790,7 @@ static void image_scope_area_init(wmWindowManager *wm, ARegion *ar)
 {
 	wmKeyMap *keymap;
 	
+	ar->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
 	ED_region_panels_init(wm, ar);
 	
 	keymap = WM_keymap_find(wm->defaultconf, "Image Generic", SPACE_IMAGE, 0);

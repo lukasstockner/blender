@@ -1436,7 +1436,7 @@ static BMOpDefine bmo_beautify_fill_def = {
 	"beautify_fill",
 	/* slots_in */
 	{{"faces", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}}, /* input faces */
-	 {"constrain_edges", BMO_OP_SLOT_ELEMENT_BUF, {BM_EDGE}}, /* edges that can't be flipped */
+	 {"edges", BMO_OP_SLOT_ELEMENT_BUF, {BM_EDGE}}, /* edges that can be flipped */
 	 {{'\0'}},
 	},
 	/* slots_out */
@@ -1455,7 +1455,8 @@ static BMOpDefine bmo_beautify_fill_def = {
 static BMOpDefine bmo_triangle_fill_def = {
 	"triangle_fill",
 	/* slots_in */
-	{{"edges", BMO_OP_SLOT_ELEMENT_BUF, {BM_EDGE}},    /* input edges */
+	{{"use_beauty", BMO_OP_SLOT_BOOL},
+	 {"edges", BMO_OP_SLOT_ELEMENT_BUF, {BM_EDGE}},    /* input edges */
 	 {{'\0'}},
 	},
 	/* slots_out */
@@ -1534,27 +1535,6 @@ static BMOpDefine bmo_wireframe_def = {
 	},
 	bmo_wireframe_exec,
 	0
-};
-
-/*
- * Vertex Slide.
- *
- * Translates verts along an edge
- */
-static BMOpDefine bmo_slide_vert_def = {
-	"slide_vert",
-	/* slots_in */
-	{{"vert", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT | BMO_OP_SLOT_SUBTYPE_ELEM_IS_SINGLE}},
-	 {"edges", BMO_OP_SLOT_ELEMENT_BUF, {BM_EDGE}},
-	 {"factor", BMO_OP_SLOT_FLT},
-	 {{'\0'}},
-	},
-	/* slots_out */
-	{{"verts.out", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT}},
-	 {{'\0'}},
-	},
-	bmo_slide_vert_exec,
-	BMO_OP_FLAG_UNTAN_MULTIRES
 };
 
 #ifdef WITH_BULLET
@@ -1676,7 +1656,6 @@ const BMOpDefine *bmo_opdefines[] = {
 	&bmo_similar_edges_def,
 	&bmo_similar_faces_def,
 	&bmo_similar_verts_def,
-	&bmo_slide_vert_def,
 	&bmo_smooth_vert_def,
 	&bmo_smooth_laplacian_vert_def,
 	&bmo_solidify_def,

@@ -161,11 +161,12 @@ void text_update_edited(Text *text)
 static int text_new_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	SpaceText *st = CTX_wm_space_text(C);
+	Main *bmain = CTX_data_main(C);
 	Text *text;
 	PointerRNA ptr, idptr;
 	PropertyRNA *prop;
 
-	text = BKE_text_add("Text");
+	text = BKE_text_add(bmain, "Text");
 
 	/* hook into UI */
 	uiIDContextProperty(C, &ptr, &prop);
@@ -226,6 +227,7 @@ static int text_open_cancel(bContext *UNUSED(C), wmOperator *op)
 static int text_open_exec(bContext *C, wmOperator *op)
 {
 	SpaceText *st = CTX_wm_space_text(C);
+	Main *bmain = CTX_data_main(C);
 	Text *text;
 	PropertyPointerRNA *pprop;
 	PointerRNA idptr;
@@ -234,7 +236,7 @@ static int text_open_exec(bContext *C, wmOperator *op)
 
 	RNA_string_get(op->ptr, "filepath", str);
 
-	text = BKE_text_load(str, G.main->name);
+	text = BKE_text_load(bmain, str, G.main->name);
 
 	if (!text) {
 		if (op->customdata) MEM_freeN(op->customdata);
@@ -1310,9 +1312,11 @@ void TEXT_OT_select_line(wmOperatorType *ot)
 static int text_select_word_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Text *text = CTX_data_edit_text(C);
+	/* don't advance cursor before stepping */
+	const bool use_init_step = false;
 
-	txt_jump_left(text, 0);
-	txt_jump_right(text, 1);
+	txt_jump_left(text, false, use_init_step);
+	txt_jump_right(text, true, use_init_step);
 
 	text_update_cursor_moved(C);
 	WM_event_add_notifier(C, NC_TEXT | NA_EDITED, text);
@@ -1814,11 +1818,11 @@ static int text_move_cursor(bContext *C, int type, int select)
 			break;
 
 		case PREV_WORD:
-			txt_jump_left(text, select);
+			txt_jump_left(text, select, true);
 			break;
 
 		case NEXT_WORD:
-			txt_jump_right(text, select);
+			txt_jump_right(text, select, true);
 			break;
 
 		case PREV_CHAR:

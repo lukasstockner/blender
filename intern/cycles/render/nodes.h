@@ -69,7 +69,9 @@ public:
 	ImageManager *image_manager;
 	int slot;
 	int is_float;
+	bool is_linear;
 	string filename;
+	void *builtin_data;
 	ustring color_space;
 	ustring projection;
 	float projection_blend;
@@ -88,7 +90,9 @@ public:
 	ImageManager *image_manager;
 	int slot;
 	int is_float;
+	bool is_linear;
 	string filename;
+	void *builtin_data;
 	ustring color_space;
 	ustring projection;
 	bool animated;

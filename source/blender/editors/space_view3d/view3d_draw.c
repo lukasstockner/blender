@@ -315,7 +315,7 @@ static void drawgrid(UnitSettings *unit, ARegion *ar, View3D *v3d, const char **
 	UI_ThemeColor(TH_GRID);
 	
 	if (unit->system) {
-		/* Use GRID_MIN_PX*2 for units because very very small grid
+		/* Use GRID_MIN_PX * 2 for units because very very small grid
 		 * items are less useful when dealing with units */
 		void *usys;
 		int len, i;
@@ -381,7 +381,7 @@ static void drawgrid(UnitSettings *unit, ARegion *ar, View3D *v3d, const char **
 					drawgrid_draw(ar, wx, wy, x, y, sublines * dx);
 				}
 			}
-			else {  /* start blending out (GRID_MIN_PX < dx < (GRID_MIN_PX*10)) */
+			else {  /* start blending out (GRID_MIN_PX < dx < (GRID_MIN_PX * 10)) */
 				UI_ThemeColorBlend(TH_BACK, TH_GRID, dx / (GRID_MIN_PX_D * 6.0));
 				drawgrid_draw(ar, wx, wy, x, y, dx);
 
@@ -599,7 +599,7 @@ static void draw_view_axis(RegionView3D *rv3d, rcti *rect)
 	float startx = k + 1.0f; /* axis center in screen coordinates, x=y */
 	float starty = k + 1.0f;
 	float ydisp = 0.0;          /* vertical displacement to allow obj info text */
-	int bright = 25 * (float)U.rvibright + 5; /* axis alpha (rvibright has range 0-10) */
+	int bright = - 20 * (10 - U.rvibright); /* axis alpha offset (rvibright has range 0-10) */
 	float vec[3];
 	float dx, dy;
 	
@@ -871,7 +871,7 @@ static void draw_viewport_name(ARegion *ar, View3D *v3d, rcti *rect)
 static void draw_selected_name(Scene *scene, Object *ob, rcti *rect)
 {
 	char info[256], *markern;
-	short offset = 30 + rect->xmin;
+	short offset = 1.5f * UI_UNIT_X + rect->xmin;
 	
 	/* get name of marker on current frame (if available) */
 	markern = BKE_scene_find_marker_name(scene, CFRA);
@@ -1927,7 +1927,8 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 	BoundBox bb, *bb_tmp; /* use a copy because draw_object, calls clear_mesh_caches */
 	GLuint displist = 0;
 	short transflag, use_displist = -1;  /* -1 is initialize */
-	char dt, dtx;
+	char dt;
+	short dtx;
 	
 	if (base->object->restrictflag & OB_RESTRICT_VIEW) return;
 	
@@ -2882,7 +2883,7 @@ static int view3d_main_area_draw_engine(const bContext *C, ARegion *ar, int draw
 		if (!(type->view_update && type->view_draw))
 			return 0;
 
-		engine = RE_engine_create(type);
+		engine = RE_engine_create_ex(type, TRUE);
 
 		engine->tile_x = scene->r.tilex;
 		engine->tile_y = scene->r.tiley;
@@ -3108,10 +3109,10 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 
 			glShadeModel(GL_SMOOTH);
 			glBegin(GL_QUADS);
-			UI_ThemeColor(TH_BACK_GRAD);
+			UI_ThemeColor(TH_LOW_GRAD);
 			glVertex2f(-1.0, -1.0);
 			glVertex2f(1.0, -1.0);
-			UI_ThemeColor(TH_BACK);
+			UI_ThemeColor(TH_HIGH_GRAD);
 			glVertex2f(1.0, 1.0);
 			glVertex2f(-1.0, 1.0);
 			glEnd();
@@ -3124,7 +3125,7 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			glPopMatrix();
 		}
 		else {
-			UI_ThemeClearColor(TH_BACK);
+			UI_ThemeClearColor(TH_HIGH_GRAD);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		}
 	}
@@ -3458,14 +3459,14 @@ static void bl_debug_draw(void)
 	if (_bl_debug_draw_quads_tot) {
 		int i;
 		cpack(0x00FF0000);
-		glBegin(GL_LINE_LOOP);
 		for (i = 0; i < _bl_debug_draw_quads_tot; i ++) {
+			glBegin(GL_LINE_LOOP);
 			glVertex3fv(_bl_debug_draw_quads[i][0]);
 			glVertex3fv(_bl_debug_draw_quads[i][1]);
 			glVertex3fv(_bl_debug_draw_quads[i][2]);
 			glVertex3fv(_bl_debug_draw_quads[i][3]);
+			glEnd();
 		}
-		glEnd();
 	}
 	if (_bl_debug_draw_edges_tot) {
 		int i;

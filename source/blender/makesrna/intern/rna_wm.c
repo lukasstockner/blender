@@ -853,8 +853,11 @@ static void rna_Operator_unregister(struct Main *bmain, StructRNA *type)
 
 	/* update while blender is running */
 	wm = bmain->wm.first;
-	if (wm)
+	if (wm) {
 		WM_operator_stack_clear(wm);
+
+		WM_operator_handlers_clear(wm, ot);
+	}
 	WM_main_add_notifier(NC_SCREEN | NA_EDITED, NULL);
 
 	RNA_struct_free_extension(type, &ot->ext);
@@ -1138,7 +1141,7 @@ static StructRNA *rna_Operator_register(Main *bmain, ReportList *reports, void *
 	 * for now just remove from dir(bpy.types) */
 
 	/* create a new operator type */
-	dummyot.ext.srna = RNA_def_struct(&BLENDER_RNA, dummyot.idname, "Operator");
+	dummyot.ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, dummyot.idname, &RNA_Operator);
 	RNA_def_struct_flag(dummyot.ext.srna, STRUCT_NO_IDPROPERTIES); /* operator properties are registered separately */
 	dummyot.ext.data = data;
 	dummyot.ext.call = call;
@@ -1219,7 +1222,7 @@ static StructRNA *rna_MacroOperator_register(Main *bmain, ReportList *reports, v
 	 * for now just remove from dir(bpy.types) */
 
 	/* create a new operator type */
-	dummyot.ext.srna = RNA_def_struct(&BLENDER_RNA, dummyot.idname, "Operator");
+	dummyot.ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, dummyot.idname, &RNA_Operator);
 	dummyot.ext.data = data;
 	dummyot.ext.call = call;
 	dummyot.ext.free = free;
@@ -1330,9 +1333,6 @@ static void rna_def_operator(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_REGISTER | PROP_NEVER_CLAMP);
 	RNA_def_struct_name_property(srna, prop);
 
-	/* operator's label indeed doesn't need PROP_TRANSLATE flag: translation of label happens in runtime
-	 * when drawing panel and having this flag set will make runtime switching of language much more tricky
-	 * because label will be stored translated */
 	prop = RNA_def_property(srna, "bl_label", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "type->name");
 	RNA_def_property_string_maxlength(prop, RNA_DYN_DESCR_MAX); /* else it uses the pointer size! */
@@ -1397,9 +1397,6 @@ static void rna_def_macro_operator(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_REGISTER | PROP_NEVER_CLAMP);
 	RNA_def_struct_name_property(srna, prop);
 
-	/* menu's label indeed doesn't need PROP_TRANSLATE flag: translation of label happens in runtime
-	 * when drawing panel and having this flag set will make runtime switching of language much more tricky
-	 * because label will be stored translated */
 	prop = RNA_def_property(srna, "bl_label", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "type->name");
 	RNA_def_property_string_maxlength(prop, RNA_DYN_DESCR_MAX); /* else it uses the pointer size! */

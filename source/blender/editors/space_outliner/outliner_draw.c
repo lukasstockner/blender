@@ -1066,7 +1066,8 @@ static void tselem_draw_icon(uiBlock *block, int xmax, float x, float y, TreeSto
 						UI_icon_draw(x, y, ICON_MOD_SKIN); break;
 					case eModifierType_Triangulate:
 						UI_icon_draw(x, y, ICON_MOD_TRIANGULATE); break;
-
+					case eModifierType_MeshCache:
+						UI_icon_draw(x, y, ICON_MOD_MESHDEFORM); break;  /* XXX, needs own icon */
 					/* Default */
 					case eModifierType_None:
 					case eModifierType_ShapeKey:
@@ -1676,7 +1677,7 @@ void draw_outliner(const bContext *C)
 		 *				 (OL_RNA_COL_X), whichever is wider...
 		 *	- column 2 is fixed at OL_RNA_COL_SIZEX
 		 *
-		 *  (*) XXX max width for now is a fixed factor of UI_UNIT_X*(max_indention+100)
+		 *  (*) XXX max width for now is a fixed factor of (UI_UNIT_X * (max_indention + 100))
 		 */
 		 
 		/* get actual width of column 1 */

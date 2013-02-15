@@ -424,7 +424,7 @@ static void dag_add_lamp_driver_relations(DagForest *dag, DagNode *node, Lamp *l
 		dag_add_shader_nodetree_driver_relations(dag, node, la->nodetree);
 }
 
-static void dag_add_collision_field_relation(DagForest *dag, Scene *scene, Object *ob, DagNode *node, int skip_forcefield)
+static void dag_add_collision_field_relation(DagForest *dag, Scene *scene, Object *ob, DagNode *node, int skip_forcefield, bool no_collision)
 {
 	Base *base;
 	DagNode *node2;
@@ -435,7 +435,7 @@ static void dag_add_collision_field_relation(DagForest *dag, Scene *scene, Objec
 		if ((base->lay & ob->lay) && base->object->pd) {
 			Object *ob1 = base->object;
 			if ((ob1->pd->deflect || ob1->pd->forcefield) && (ob1 != ob)) {
-				if (skip_forcefield && ob1->pd->forcefield == skip_forcefield)
+				if ((skip_forcefield && ob1->pd->forcefield == skip_forcefield) || (no_collision && ob1->pd->forcefield == 0))
 					continue;
 				node2 = dag_get_node(dag, ob1);
 				dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Field Collision");
@@ -599,10 +599,13 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 		    modifiers_isModifierEnabled(ob, eModifierType_Cloth) ||
 		    modifiers_isModifierEnabled(ob, eModifierType_DynamicPaint))
 		{
-			dag_add_collision_field_relation(dag, scene, ob, node, 0);  /* TODO: use effectorweight->group */
+			dag_add_collision_field_relation(dag, scene, ob, node, 0, false);  /* TODO: use effectorweight->group */
 		}
 		else if (modifiers_isModifierEnabled(ob, eModifierType_Smoke)) {
-			dag_add_collision_field_relation(dag, scene, ob, node, PFIELD_SMOKEFLOW);
+			dag_add_collision_field_relation(dag, scene, ob, node, PFIELD_SMOKEFLOW, false);
+		}
+		else if (ob->rigidbody_object) {
+			dag_add_collision_field_relation(dag, scene, ob, node, 0, true);
 		}
 	}
 	
@@ -2290,7 +2293,7 @@ static short animdata_use_time(AnimData *adt)
 	return 0;
 }
 
-static void dag_object_time_update_flags(Object *ob)
+static void dag_object_time_update_flags(Scene *scene, Object *ob)
 {
 	if (ob->constraints.first) {
 		bConstraint *con;
@@ -2349,6 +2352,9 @@ static void dag_object_time_update_flags(Object *ob)
 	
 	if (object_modifiers_use_time(ob)) ob->recalc |= OB_RECALC_DATA;
 	if ((ob->pose) && (ob->pose->flag & POSE_CONSTRAINTS_TIMEDEPEND)) ob->recalc |= OB_RECALC_DATA;
+	
+	if (ob->rigidbody_object && BKE_scene_check_rigidbody_active(scene))
+		ob->recalc |= OB_RECALC_OB;
 	
 	{
 		AnimData *adt = BKE_animdata_from_id((ID *)ob->data);
@@ -2434,7 +2440,7 @@ void DAG_scene_update_flags(Main *bmain, Scene *scene, unsigned int lay, const s
 		if (do_time) {
 			/* now if DagNode were part of base, the node->lay could be checked... */
 			/* we do all now, since the scene_flush checks layers and clears recalc flags even */
-			dag_object_time_update_flags(ob);
+			dag_object_time_update_flags(scene, ob);
 		}
 
 		/* handled in next loop */
@@ -2447,7 +2453,7 @@ void DAG_scene_update_flags(Main *bmain, Scene *scene, unsigned int lay, const s
 		for (group = bmain->group.first; group; group = group->id.next) {
 			if (group->id.flag & LIB_DOIT) {
 				for (go = group->gobject.first; go; go = go->next) {
-					dag_object_time_update_flags(go->ob);
+					dag_object_time_update_flags(scene, go->ob);
 				}
 			}
 		}
@@ -2466,7 +2472,7 @@ void DAG_scene_update_flags(Main *bmain, Scene *scene, unsigned int lay, const s
 
 		/* hrmf... an exception to look at once, for invisible camera object we do it over */
 		if (scene->camera)
-			dag_object_time_update_flags(scene->camera);
+			dag_object_time_update_flags(scene, scene->camera);
 	}
 
 	/* and store the info in groupobject */

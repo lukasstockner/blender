@@ -83,6 +83,7 @@ LANGUAGES = (
     (37, "Amharic (አማርኛ)", "am_ET"),
     (38, "Uzbek (Oʻzbek)", "uz_UZ"),
     (39, "Uzbek Cyrillic (Ўзбек)", "uz_UZ@cyrillic"),
+    (40, "Hindi (मानक हिन्दी)", "hi_IN"),
 )
 
 # Name of language file used by Blender to generate translations' menu.
@@ -93,16 +94,65 @@ LANGUAGES_FILE = "languages"
 IMPORT_MIN_LEVEL = -1
 
 # Languages in /branches we do not want to import in /trunk currently...
-IMPORT_LANGUAGES_SKIP = {'am', 'bg', 'fi', 'el', 'et', 'ko', 'ne', 'pl', 'ro', 'uz', 'uz@cyrillic'}
+IMPORT_LANGUAGES_SKIP = {'am', 'bg', 'fi', 'el', 'et', 'hi', 'ne', 'pl', 'ro', 'uz', 'uz@cyrillic'}
 
 # The comment prefix used in generated messages.txt file.
-COMMENT_PREFIX = "#~ "
+MSG_COMMENT_PREFIX = "#~ "
+
+# The comment prefix used in generated messages.txt file.
+MSG_CONTEXT_PREFIX = "MSGCTXT:"
+
+# The default comment prefix used in po's.
+PO_COMMENT_PREFIX= "# "
 
 # The comment prefix used to mark sources of msgids, in po's.
-COMMENT_PREFIX_SOURCE = "#: "
+PO_COMMENT_PREFIX_SOURCE = "#: "
 
-# The comment prefix used in generated messages.txt file.
-CONTEXT_PREFIX = "MSGCTXT:"
+# The comment prefix used to mark sources of msgids, in po's.
+PO_COMMENT_PREFIX_SOURCE_CUSTOM = "#. :src: "
+
+# The comment prefix used to comment entries in po's.
+PO_COMMENT_PREFIX_MSG= "#~ "
+
+# The comment prefix used to mark fuzzy msgids, in po's.
+PO_COMMENT_FUZZY = "#, fuzzy"
+
+# The prefix used to define context, in po's.
+PO_MSGCTXT = "msgctxt "
+
+# The prefix used to define msgid, in po's.
+PO_MSGID = "msgid "
+
+# The prefix used to define msgstr, in po's.
+PO_MSGSTR = "msgstr "
+
+# The 'header' key of po files.
+PO_HEADER_KEY = ("", "")
+
+PO_HEADER_MSGSTR = (
+    "Project-Id-Version: Blender {blender_ver} (r{blender_rev})\\n\n"
+    "Report-Msgid-Bugs-To: \\n\n"
+    "POT-Creation-Date: {time}\\n\n"
+    "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\\n\n"
+    "Last-Translator: FULL NAME <EMAIL@ADDRESS>\\n\n"
+    "Language-Team: LANGUAGE <LL@li.org>\\n\n"
+    "Language: {iso}\\n\n"
+    "MIME-Version: 1.0\\n\n"
+    "Content-Type: text/plain; charset=UTF-8\\n\n"
+    "Content-Transfer-Encoding: 8bit\n"
+)
+PO_HEADER_COMMENT_COPYRIGHT = (
+    "# Blender's translation file (po format).\n"
+    "# Copyright (C) {year} The Blender Foundation.\n"
+    "# This file is distributed under the same license as the Blender package.\n"
+    "#\n"
+)
+PO_HEADER_COMMENT = (
+    "# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.\n"
+    "#"
+)
+
+TEMPLATE_ISO_ID = "__TEMPLATE__"
 
 # Default context.
 CONTEXT_DEFAULT = ""
@@ -121,8 +171,7 @@ PYGETTEXT_ALLOWED_EXTS = {".c", ".cpp", ".cxx", ".hpp", ".hxx", ".h"}
 PYGETTEXT_MAX_MULTI_CTXT = 16
 
 # Where to search contexts definitions, relative to SOURCE_DIR (defined below).
-PYGETTEXT_CONTEXTS_DEFSRC = os.path.join("source", "blender", "blenfont",
-                                         "BLF_translation.h")
+PYGETTEXT_CONTEXTS_DEFSRC = os.path.join("source", "blender", "blenfont", "BLF_translation.h")
 
 # Regex to extract contexts defined in BLF_translation.h
 # XXX Not full-proof, but should be enough here!
@@ -146,11 +195,21 @@ _str_base = (
     "(?P={_}2)"  # And closing quote.
 )
 str_clean_re = _str_base.format(_="g", capt="P<clean>")
+_inbetween_str_re = (
+    # XXX Strings may have comments between their pieces too, not only spaces!
+    r"(?:\s*(?:"
+        # A C comment
+        r"/\*.*(?!\*/).\*/|"
+        # Or a C++ one!
+        r"//[^\n]*\n"
+    # And we are done!
+    r")?)*"
+)
 # Here we have to consider two different cases (empty string and other).
 _str_whole_re = (
     _str_base.format(_="{_}1_", capt=":") +
     # Optional loop start, this handles "split" strings...
-    "(?:(?<=[\"'])\\s*(?=[\"'])(?:"
+    "(?:(?<=[\"'])" + _inbetween_str_re + "(?=[\"'])(?:"
         + _str_base.format(_="{_}2_", capt=":") +
     # End of loop.
     "))*"
@@ -231,6 +290,8 @@ WARN_MSGID_NOT_CAPITALIZED_ALLOWED = {
 }
 WARN_MSGID_NOT_CAPITALIZED_ALLOWED |= set(lng[2] for lng in LANGUAGES)
 
+PARSER_CACHE_HASH = 'sha1'
+
 
 ###############################################################################
 # PATHS
@@ -246,6 +307,10 @@ PYTHON3_EXEC = "python3"
 # The Blender executable!
 # This is just an example, you’ll most likely have to edit it in your user_settings.py!
 BLENDER_EXEC = os.path.abspath(os.path.join(TOOLS_DIR, "..", "..", "..", "..", "blender"))
+# check for blender.bin
+if not os.path.exists(BLENDER_EXEC):
+    if os.path.exists(BLENDER_EXEC + ".bin"):
+        BLENDER_EXEC = BLENDER_EXEC + ".bin"
 
 # The xgettext tool. You’ll likely have to edit it in your user_settings.py if you’re under Windows.
 GETTEXT_XGETTEXT_EXECUTABLE = "xgettext"

@@ -43,6 +43,7 @@
 
 #include "GHOST_C-api.h"
 
+#include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
@@ -75,6 +76,11 @@
 
 #include "UI_interface.h"
 
+/* for assert */
+#ifndef NDEBUG
+#  include "BLI_threads.h"
+#endif
+
 /* the global to talk to ghost */
 static GHOST_SystemHandle g_system = NULL;
 
@@ -105,6 +111,17 @@ void wm_get_screensize(int *width_r, int *height_r)
 	unsigned int uiheight;
 	
 	GHOST_GetMainDisplayDimensions(g_system, &uiwidth, &uiheight);
+	*width_r = uiwidth;
+	*height_r = uiheight;
+}
+
+/* size of all screens, useful since the mouse is bound by this */
+void wm_get_screensize_all(int *width_r, int *height_r)
+{
+	unsigned int uiwidth;
+	unsigned int uiheight;
+
+	GHOST_GetAllDisplayDimensions(g_system, &uiwidth, &uiheight);
 	*width_r = uiwidth;
 	*height_r = uiheight;
 }
@@ -377,7 +394,7 @@ static void wm_window_add_ghostwindow(const char *title, wmWindow *win)
 		
 		/* displays with larger native pixels, like Macbook. Used to scale dpi with */
 		/* needed here, because it's used before it reads userdef */
-		U.pixelsize = GHOST_GetNativePixelSize();
+		U.pixelsize = GHOST_GetNativePixelSize(win->ghostwin);
 		BKE_userdef_state();
 		
 		/* store actual window size in blender window */
@@ -420,10 +437,19 @@ void wm_window_add_ghostwindows(wmWindowManager *wm)
 			wm_set_apple_prefsize(wm_init_state.size_x, wm_init_state.size_y);
 		}
 #else
+		/* note!, this isnt quite correct, active screen maybe offset 1000s if PX,
+		 * we'd need a wm_get_screensize like function that gives offset,
+		 * in practice the window manager will likely move to the correct monitor */
 		wm_init_state.start_x = 0;
 		wm_init_state.start_y = 0;
-		
 #endif
+
+#if !defined(__APPLE__) && !defined(WIN32)  /* X11 */
+		/* X11, start maximized but use default same size */
+		wm_init_state.size_x = min_ii(wm_init_state.size_x, WM_WIN_INIT_SIZE_X);
+		wm_init_state.size_y = min_ii(wm_init_state.size_y, WM_WIN_INIT_SIZE_Y);
+#endif
+
 	}
 	
 	for (win = wm->windows.first; win; win = win->next) {
@@ -434,8 +460,18 @@ void wm_window_add_ghostwindows(wmWindowManager *wm)
 				win->sizex = wm_init_state.size_x;
 				win->sizey = wm_init_state.size_y;
 
-				/* we can't properly resize a maximized window */
+#if !defined(__APPLE__) && !defined(WIN32)  /* X11 */
+				if (wm_init_state.override_flag & WIN_OVERRIDE_GEOM) {
+					/* we can't properly resize a maximized window */
+					win->windowstate = GHOST_kWindowStateNormal;
+				}
+				else {
+					/* loading without userpref, default to maximized */
+					win->windowstate = GHOST_kWindowStateMaximized;
+				}
+#else
 				win->windowstate = GHOST_kWindowStateNormal;
+#endif
 
 				wm_init_state.override_flag &= ~WIN_OVERRIDE_GEOM;
 			}
@@ -595,12 +631,13 @@ int wm_window_fullscreen_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 
 static void wm_convert_cursor_position(wmWindow *win, int *x, int *y)
 {
-
+	float fac = GHOST_GetNativePixelSize(win->ghostwin);
+	
 	GHOST_ScreenToClient(win->ghostwin, *x, *y, x, y);
-	*x *= GHOST_GetNativePixelSize();
+	*x *= fac;
 	
 	*y = (win->sizey - 1) - *y;
-	*y *= GHOST_GetNativePixelSize();
+	*y *= fac;
 }
 
 
@@ -661,6 +698,10 @@ void wm_window_make_drawable(bContext *C, wmWindow *win)
 			printf("%s: set drawable %d\n", __func__, win->winid);
 		}
 		GHOST_ActivateWindowDrawingContext(win->ghostwin);
+		
+		/* this can change per window */
+		U.pixelsize = GHOST_GetNativePixelSize(win->ghostwin);
+		BKE_userdef_state();
 	}
 }
 
@@ -701,12 +742,21 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_ptr
 			case GHOST_kEventWindowDeactivate:
 				wm_event_add_ghostevent(wm, win, type, time, data);
 				win->active = 0; /* XXX */
+				
+				/* clear modifiers for inactive windows */
+				win->eventstate->alt = 0;
+				win->eventstate->ctrl = 0;
+				win->eventstate->shift = 0;
+				win->eventstate->oskey = 0;
+				win->eventstate->keymodifier = 0;
+
 				break;
 			case GHOST_kEventWindowActivate: 
 			{
 				GHOST_TEventKeyData kdata;
 				wmEvent event;
 				int wx, wy;
+				bool is_key;
 				
 				wm->winactive = win; /* no context change! c->wm->windrawable is drawable, or for area queues */
 				
@@ -716,21 +766,21 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_ptr
 				/* bad ghost support for modifier keys... so on activate we set the modifiers again */
 				kdata.ascii = '\0';
 				kdata.utf8_buf[0] = '\0';
-				if (win->eventstate->shift && !query_qual(SHIFT)) {
+				if ((win->eventstate->shift != 0) != ((is_key = query_qual(SHIFT)) != 0)) {
 					kdata.key = GHOST_kKeyLeftShift;
-					wm_event_add_ghostevent(wm, win, GHOST_kEventKeyUp, time, &kdata);
+					wm_event_add_ghostevent(wm, win, is_key ? GHOST_kEventKeyDown : GHOST_kEventKeyUp, time, &kdata);
 				}
-				if (win->eventstate->ctrl && !query_qual(CONTROL)) {
+				if ((win->eventstate->ctrl != 0) != ((is_key = query_qual(CONTROL)) != 0)) {
 					kdata.key = GHOST_kKeyLeftControl;
-					wm_event_add_ghostevent(wm, win, GHOST_kEventKeyUp, time, &kdata);
+					wm_event_add_ghostevent(wm, win, is_key ? GHOST_kEventKeyDown : GHOST_kEventKeyUp, time, &kdata);
 				}
-				if (win->eventstate->alt && !query_qual(ALT)) {
+				if ((win->eventstate->alt != 0) != ((is_key = query_qual(ALT)) != 0)) {
 					kdata.key = GHOST_kKeyLeftAlt;
-					wm_event_add_ghostevent(wm, win, GHOST_kEventKeyUp, time, &kdata);
+					wm_event_add_ghostevent(wm, win, is_key ? GHOST_kEventKeyDown : GHOST_kEventKeyUp, time, &kdata);
 				}
-				if (win->eventstate->oskey && !query_qual(OS)) {
+				if ((win->eventstate->oskey != 0) != ((is_key = query_qual(OS)) != 0)) {
 					kdata.key = GHOST_kKeyOS;
-					wm_event_add_ghostevent(wm, win, GHOST_kEventKeyUp, time, &kdata);
+					wm_event_add_ghostevent(wm, win, is_key ? GHOST_kEventKeyDown : GHOST_kEventKeyUp, time, &kdata);
 				}
 				/* keymodifier zero, it hangs on hotkeys that open windows otherwise */
 				win->eventstate->keymodifier = 0;
@@ -802,7 +852,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_ptr
 					
 					GHOST_DisposeRectangle(client_rect);
 					
-					wm_get_screensize(&scr_w, &scr_h);
+					wm_get_screensize_all(&scr_w, &scr_h);
 					sizex = r - l;
 					sizey = b - t;
 					posx = l;
@@ -939,6 +989,15 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_ptr
 				
 				break;
 			}
+			case GHOST_kEventNativeResolutionChange:
+				// printf("change, pixel size %f\n", GHOST_GetNativePixelSize(win->ghostwin));
+				
+				U.pixelsize = GHOST_GetNativePixelSize(win->ghostwin);
+				BKE_userdef_state();
+				WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, NULL);
+				WM_event_add_notifier(C, NC_WINDOW | NA_EDITED, NULL);
+
+				break;
 			case GHOST_kEventTrackpad:
 			{
 				GHOST_TEventTrackpadData *pd = data;
@@ -1014,8 +1073,12 @@ static int wm_window_timer(const bContext *C)
 
 void wm_window_process_events(const bContext *C) 
 {
-	int hasevent = GHOST_ProcessEvents(g_system, 0); /* 0 is no wait */
-	
+	int hasevent;
+
+	BLI_assert(BLI_thread_is_main());
+
+	hasevent = GHOST_ProcessEvents(g_system, 0); /* 0 is no wait */
+
 	if (hasevent)
 		GHOST_DispatchEvents(g_system);
 	
@@ -1037,7 +1100,9 @@ void wm_window_testbreak(void)
 {
 	static double ltime = 0;
 	double curtime = PIL_check_seconds_timer();
-	
+
+	BLI_assert(BLI_thread_is_main());
+
 	/* only check for breaks every 50 milliseconds
 	 * if we get called more often.
 	 */
@@ -1281,7 +1346,7 @@ void WM_init_native_pixels(int do_it)
 void WM_cursor_warp(wmWindow *win, int x, int y)
 {
 	if (win && win->ghostwin) {
-		float f = GHOST_GetNativePixelSize();
+		float f = GHOST_GetNativePixelSize(win->ghostwin);
 		int oldx = x, oldy = y;
 
 		x = x / f;
@@ -1296,18 +1361,33 @@ void WM_cursor_warp(wmWindow *win, int x, int y)
 	}
 }
 
+/**
+ * Get the cursor pressure, in most cases you'll want to use wmTabletData from the event
+ */
+float WM_cursor_pressure(const struct wmWindow *win)
+{
+	const GHOST_TabletData *td = GHOST_GetTabletData(win->ghostwin);
+	/* if there's tablet data from an active tablet device then add it */
+	if ((td != NULL) && td->Active != GHOST_kTabletModeNone) {
+		return td->Pressure;
+	}
+	else {
+		return -1.0f;
+	}
+}
+
 /* support for native pixel size */
 /* mac retina opens window in size X, but it has up to 2 x more pixels */
 int WM_window_pixels_x(wmWindow *win)
 {
-	float f = GHOST_GetNativePixelSize();
+	float f = GHOST_GetNativePixelSize(win->ghostwin);
 	
 	return (int)(f * (float)win->sizex);
 }
 
 int WM_window_pixels_y(wmWindow *win)
 {
-	float f = GHOST_GetNativePixelSize();
+	float f = GHOST_GetNativePixelSize(win->ghostwin);
 	
 	return (int)(f * (float)win->sizey);
 	

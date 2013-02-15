@@ -19,6 +19,7 @@
 # <pep8 compliant>
 import bpy
 from bpy.types import Panel, Menu
+from bpy.app.translations import pgettext_iface as iface_
 
 
 class FLUID_MT_presets(Menu):
@@ -64,7 +65,8 @@ class PHYSICS_PT_fluid(PhysicButtonsPanel, Panel):
 
         if fluid.type == 'DOMAIN':
             # odd formatting here so translation script can extract string
-            layout.operator("fluid.bake", text="Bake (Req. Memory:" + " %s)" % fluid.memory_estimate, icon='MOD_FLUIDSIM')
+            layout.operator("fluid.bake", text=iface_("Bake (Req. Memory: %s)") % fluid.memory_estimate,
+                            translate=False, icon='MOD_FLUIDSIM')
             split = layout.split()
 
             col = split.column()

@@ -108,7 +108,7 @@ def validate_arguments(args, bc):
             'WITH_BF_STATICFFMPEG', 'BF_FFMPEG_LIB_STATIC',
             'WITH_BF_OGG', 'BF_OGG', 'BF_OGG_LIB',
             'WITH_BF_FRAMESERVER',
-            'WITH_BF_COMPOSITOR', 'WITH_BF_COMPOSITOR_LEGACY',
+            'WITH_BF_COMPOSITOR',
             'WITH_BF_JPEG', 'BF_JPEG', 'BF_JPEG_INC', 'BF_JPEG_LIB', 'BF_JPEG_LIBPATH', 'WITH_BF_STATICJPEG', 'BF_JPEG_LIB_STATIC',
             'WITH_BF_OPENJPEG', 'BF_OPENJPEG', 'BF_OPENJPEG_INC', 'BF_OPENJPEG_LIB', 'BF_OPENJPEG_LIBPATH',
             'WITH_BF_REDCODE', 'BF_REDCODE', 'BF_REDCODE_INC', 'BF_REDCODE_LIB', 'BF_REDCODE_LIBPATH',
@@ -215,7 +215,8 @@ def print_targets(targs, bc):
 def validate_targets(targs, bc):
     valid_list = ['.', 'blender', 'blenderstatic', 'blenderplayer', 'webplugin',
             'blendernogame', 'blenderstaticnogame', 'blenderlite', 'release',
-            'everything', 'clean', 'install-bin', 'install', 'nsis','buildslave']
+            'everything', 'clean', 'install-bin', 'install', 'nsis','buildslave',
+            'cudakernels']
     oklist = []
     for t in targs:
         if t in valid_list:
@@ -598,7 +599,6 @@ def read_opts(env, cfg, args):
         ('BF_BOOST_LIB_STATIC', 'Boost static library', ''),
 
         (BoolVariable('WITH_GHOST_XDND', 'Build with drag-n-drop support on Linux platforms using XDND protocol', True)),
-        (BoolVariable('WITH_BF_COMPOSITOR_LEGACY', 'Enable the legacy compositor', False)),
 
         (BoolVariable('WITH_BF_CYCLES_OSL', 'Build with OSL sypport in Cycles', False)),
         (BoolVariable('WITH_BF_STATICOSL', 'Staticly link to OSL', False)),
@@ -825,6 +825,18 @@ def NSIS_Installer(target=None, source=None, env=None):
         print
         print data.strip().split("\n")[-1]
     return rv
+
+def cudakernels_print(target, source, env):
+    return "Running cudakernels target"
+
+def cudakernels(target=None, source=None, env=None):
+    """
+    Builder for cuda kernels compilation. Used by release build environment only
+    """
+
+    # Currently nothing to do, everything is handled by a dependency resolver
+
+    pass
 
 def check_environ():
     problematic_envvars = ""

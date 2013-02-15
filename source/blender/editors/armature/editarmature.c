@@ -563,7 +563,9 @@ void docenter_armature(Scene *scene, Object *ob, float cursor[3], int centermode
 				add_v3_v3(cent, ebone->head);
 				add_v3_v3(cent, ebone->tail);
 			}
-			mul_v3_fl(cent, 1.0f / (float)total);
+			if (total) {
+				mul_v3_fl(cent, 1.0f / (float)total);
+			}
 		}
 		else {
 			float min[3], max[3];
@@ -2002,7 +2004,7 @@ float ED_rollBoneToVector(EditBone *bone, const float align_axis[3], const short
 
 	sub_v3_v3v3(nor, bone->tail, bone->head);
 	vec_roll_to_mat3(nor, 0.0f, mat);
-
+	
 	/* check the bone isn't aligned with the axis */
 	if (!is_zero_v3(align_axis) && angle_v3v3(align_axis, mat[2]) > FLT_EPSILON) {
 		float vec[3], align_axis_proj[3], roll;
@@ -2266,7 +2268,7 @@ EditBone *ED_armature_edit_bone_add(bArmature *arm, const char *name)
 	
 	BLI_addtail(arm->edbo, bone);
 	
-	bone->flag |= BONE_TIPSEL | BONE_RELATIVE_PARENTING;
+	bone->flag |= BONE_TIPSEL;
 	bone->weight = 1.0f;
 	bone->dist = 0.25f;
 	bone->xwidth = 0.1f;
@@ -3420,7 +3422,7 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
 						copy_v3_v3(newbone->tail, ebone->head);
 						newbone->parent = ebone->parent;
 						
-						newbone->flag = BONE_TIPSEL | BONE_RELATIVE_PARENTING;
+						newbone->flag = BONE_TIPSEL;
 						
 						if (newbone->parent && (ebone->flag & BONE_CONNECTED)) {
 							newbone->flag |= BONE_CONNECTED;
@@ -3658,6 +3660,16 @@ void ARMATURE_OT_subdivide(wmOperatorType *ot)
  * easy to retrieve any hierarchical/chain relationships which are necessary for
  * this to be done easily.
  */
+ 
+/* helper to clear BONE_TRANSFORM flags */
+static void armature_clear_swap_done_flags(bArmature *arm)
+{
+	EditBone *ebone;
+	
+	for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
+		ebone->flag &= ~BONE_TRANSFORM;
+	}
+}
 
 static int armature_switch_direction_exec(bContext *C, wmOperator *UNUSED(op)) 
 {
@@ -3669,9 +3681,16 @@ static int armature_switch_direction_exec(bContext *C, wmOperator *UNUSED(op))
 	/* get chains of bones (ends on chains) */
 	chains_find_tips(arm->edbo, &chains);
 	if (chains.first == NULL) return OPERATOR_CANCELLED;
-
+	
+	/* ensure that mirror bones will also be operated on */
 	armature_tag_select_mirrored(arm);
-
+	
+	/* clear BONE_TRANSFORM flags 
+	 * - used to prevent duplicate/cancelling operations from occurring [#34123] 
+	 * - BONE_DONE cannot be used here as that's already used for mirroring
+	 */
+	armature_clear_swap_done_flags(arm);
+	
 	/* loop over chains, only considering selected and visible bones */
 	for (chain = chains.first; chain; chain = chain->next) {
 		EditBone *ebo, *child = NULL, *parent = NULL;
@@ -3684,51 +3703,59 @@ static int armature_switch_direction_exec(bContext *C, wmOperator *UNUSED(op))
 			 */
 			parent = ebo->parent;
 			
-			/* only if selected and editable */
-			if (EBONE_VISIBLE(arm, ebo) && EBONE_EDITABLE(ebo)) {
-				/* swap head and tail coordinates */
-				SWAP(float, ebo->head[0], ebo->tail[0]);
-				SWAP(float, ebo->head[1], ebo->tail[1]);
-				SWAP(float, ebo->head[2], ebo->tail[2]);
-				
-				/* do parent swapping:
-				 *	- use 'child' as new parent
-				 *	- connected flag is only set if points are coincidental
-				 */
-				ebo->parent = child;
-				if ((child) && equals_v3v3(ebo->head, child->tail))
-					ebo->flag |= BONE_CONNECTED;
-				else
-					ebo->flag &= ~BONE_CONNECTED;
-				
-				/* get next bones 
-				 *	- child will become the new parent of next bone
-				 */
-				child = ebo;
-			}
-			else {
-				/* not swapping this bone, however, if its 'parent' got swapped, unparent us from it 
-				 * as it will be facing in opposite direction
-				 */
-				if ((parent) && (EBONE_VISIBLE(arm, parent) && EBONE_EDITABLE(parent))) {
-					ebo->parent = NULL;
-					ebo->flag &= ~BONE_CONNECTED;
+			/* skip bone if already handled... [#34123] */
+			if ((ebo->flag & BONE_TRANSFORM) == 0) {
+				/* only if selected and editable */
+				if (EBONE_VISIBLE(arm, ebo) && EBONE_EDITABLE(ebo)) {
+					/* swap head and tail coordinates */
+					SWAP(float, ebo->head[0], ebo->tail[0]);
+					SWAP(float, ebo->head[1], ebo->tail[1]);
+					SWAP(float, ebo->head[2], ebo->tail[2]);
+					
+					/* do parent swapping:
+					 *	- use 'child' as new parent
+					 *	- connected flag is only set if points are coincidental
+					 */
+					ebo->parent = child;
+					if ((child) && equals_v3v3(ebo->head, child->tail))
+						ebo->flag |= BONE_CONNECTED;
+					else
+						ebo->flag &= ~BONE_CONNECTED;
+					
+					/* get next bones 
+					 *	- child will become the new parent of next bone
+					 */
+					child = ebo;
+				}
+				else {
+					/* not swapping this bone, however, if its 'parent' got swapped, unparent us from it 
+					 * as it will be facing in opposite direction
+					 */
+					if ((parent) && (EBONE_VISIBLE(arm, parent) && EBONE_EDITABLE(parent))) {
+						ebo->parent = NULL;
+						ebo->flag &= ~BONE_CONNECTED;
+					}
+					
+					/* get next bones
+					 *	- child will become new parent of next bone (not swapping occurred, 
+					 *	  so set to NULL to prevent infinite-loop)
+					 */
+					child = NULL;
 				}
 				
-				/* get next bones
-				 *	- child will become new parent of next bone (not swapping occurred, 
-				 *	  so set to NULL to prevent infinite-loop)
-				 */
-				child = NULL;
+				/* tag as done (to prevent double-swaps) */
+				ebo->flag |= BONE_TRANSFORM;
 			}
 		}
 	}
 	
 	/* free chains */
 	BLI_freelistN(&chains);
-
+	
+	/* clear temp flags */
+	armature_clear_swap_done_flags(arm);
 	armature_tag_unselect(arm);
-
+	
 	/* note, notifier might evolve */
 	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
 	
@@ -4349,7 +4376,7 @@ void ARMATURE_OT_select_hierarchy(wmOperatorType *ot)
 	/* props */
 	RNA_def_enum(ot->srna, "direction", direction_items,
 	             BONE_SELECT_PARENT, "Direction", "");
-	RNA_def_boolean(ot->srna, "extend", 0, "Add to Selection", "");
+	RNA_def_boolean(ot->srna, "extend", false, "Extend", "Extend the selection");
 }
 
 /* ***************** EditBone Alignment ********************* */
@@ -4997,13 +5024,18 @@ void create_vgroups_from_armature(ReportList *reports, Scene *scene, Object *ob,
 	bArmature *arm = par->data;
 
 	if (mode == ARM_GROUPS_NAME) {
+		const int defbase_tot = BLI_countlist(&ob->defbase);
+		int defbase_add;
 		/* Traverse the bone list, trying to create empty vertex 
 		 * groups corresponding to the bone.
 		 */
-		bone_looper(ob, arm->bonebase.first, NULL, vgroup_add_unique_bone_cb);
+		defbase_add = bone_looper(ob, arm->bonebase.first, NULL, vgroup_add_unique_bone_cb);
 
-		if (ob->type == OB_MESH)
-			ED_vgroup_data_create(ob->data);
+		if (defbase_add) {
+			/* its possible there are DWeight's outside the range of the current
+			 * objects deform groups, in this case the new groups wont be empty [#33889] */
+			ED_vgroup_data_clamp_range(ob->data, defbase_tot);
+		}
 	}
 	else if (mode == ARM_GROUPS_ENVELOPE || mode == ARM_GROUPS_AUTO) {
 		/* Traverse the bone list, trying to create vertex groups 

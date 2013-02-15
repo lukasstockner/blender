@@ -274,7 +274,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	step_tot = ((step_tot + 1) * ltmd->iter) - (ltmd->iter - 1);
 
 	/* will the screw be closed?
-	 * Note! smaller then FLT_EPSILON*100 gives problems with float precision so its never closed. */
+	 * Note! smaller then FLT_EPSILON * 100 gives problems with float precision so its never closed. */
 	if (fabsf(screw_ofs) <= (FLT_EPSILON * 100.0f) &&
 	    fabsf(fabsf(angle) - ((float)M_PI * 2.0f)) <= (FLT_EPSILON * 100.0f))
 	{
@@ -314,11 +314,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		CustomData_add_layer(&result->polyData, CD_ORIGINDEX, CD_CALLOC, NULL, maxPolys);
 	}
 
-#if 0 // trunk
-	origindex = result->getPolyDataArray(result, CD_ORIGINDEX);
-#else // bmesh
 	origindex = CustomData_get_layer(&result->polyData, CD_ORIGINDEX);
-#endif
 
 	DM_copy_vert_data(dm, result, 0, 0, totvert); /* copy first otherwise this overwrites our own vertex normals */
 	

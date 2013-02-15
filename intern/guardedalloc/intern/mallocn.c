@@ -52,6 +52,10 @@
 #  include <sys/mman.h>
 #endif
 
+#if defined(_MSC_VER)
+#  define __func__ __FUNCTION__
+#endif
+
 #include "MEM_guardedalloc.h"
 
 /* Only for debugging:
@@ -67,6 +71,17 @@
  * in situations where the leak is predictable */
 
 //#define DEBUG_MEMCOUNTER
+
+/* Only for debugging:
+ * defining DEBUG_THREADS will enable check whether memory manager
+ * is locked with a mutex when allocation is called from non-main
+ * thread.
+ *
+ * This helps troubleshooting memory issues caused by the fact
+ * guarded allocator is not thread-safe, however this check will
+ * fail to check allocations from openmp threads.
+ */
+//#define DEBUG_THREADS
 
 #ifdef DEBUG_MEMCOUNTER
    /* set this to the value that isn't being freed */
@@ -120,6 +135,12 @@ typedef struct MemHead {
 #  include <omp.h>
 #  define DEBUG_OMP_MALLOC
 #endif
+#endif
+
+#ifdef DEBUG_THREADS
+#  include <assert.h>
+#  include <pthread.h>
+static pthread_t mainid;
 #endif
 
 typedef struct MemTail {
@@ -206,6 +227,20 @@ static void print_error(const char *str, ...)
 
 static void mem_lock_thread(void)
 {
+#ifdef DEBUG_THREADS
+	static int initialized = 0;
+
+	if (initialized == 0) {
+		/* assume first allocation happens from main thread */
+		mainid = pthread_self();
+		initialized = 1;
+	}
+
+	if (!pthread_equal(pthread_self(), mainid) && thread_lock_callback == NULL) {
+		assert(!"Memory function is called from non-main thread without lock");
+	}
+#endif
+
 #ifdef DEBUG_OMP_MALLOC
 	assert(omp_in_parallel() == 0);
 #endif
@@ -329,6 +364,9 @@ void *MEM_reallocN(void *vmemh, size_t len)
 
 		MEM_freeN(vmemh);
 	}
+	else {
+		newp = MEM_mallocN(len, __func__);
+	}
 
 	return newp;
 }
@@ -359,6 +397,9 @@ void *MEM_recallocN(void *vmemh, size_t len)
 		}
 
 		MEM_freeN(vmemh);
+	}
+	else {
+		newp = MEM_callocN(len, __func__);
 	}
 
 	return newp;

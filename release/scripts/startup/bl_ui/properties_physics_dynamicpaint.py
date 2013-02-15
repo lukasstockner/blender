@@ -33,7 +33,7 @@ class PHYSICS_UL_dynapaint_surfaces(UIList):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             row = layout.row(align=True)
             row.label(text="", icon_value=icon)
-            row.label(text=surf.name, icon_value=sticon)
+            row.label(text=surf.name, translate=False, icon_value=sticon)
             row = layout.row(align=True)
             if surf.use_color_preview:
                 row.prop(surf, "show_preview", text="", emboss=False,
@@ -80,7 +80,7 @@ class PHYSICS_PT_dynamic_paint(PhysicButtonsPanel, Panel):
 
                 row = layout.row()
                 row.template_list("PHYSICS_UL_dynapaint_surfaces", "", canvas, "canvas_surfaces",
-                                   canvas.canvas_surfaces, "active_index", rows=2)
+                                  canvas.canvas_surfaces, "active_index", rows=2)
 
                 col = row.column(align=True)
                 col.operator("dpaint.surface_slot_add", icon='ZOOMIN', text="")

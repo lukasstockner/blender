@@ -66,7 +66,7 @@ typedef struct uiFont {
 	short blf_id;		/* from blfont lib */
 	short uifont_id;	/* own id */
 	short r_to_l;		/* fonts that read from left to right */
-	short pad;
+	short hinting;
 } uiFont;
 
 /* this state defines appearance of text */
@@ -151,7 +151,7 @@ typedef struct uiPanelColors {
 
 typedef struct uiGradientColors {
 	char gradient[4];
-	char pad[4];
+	char high_gradient[4];
 	int show_grad;
 	int pad2;
 } uiGradientColors;
@@ -364,6 +364,9 @@ typedef struct SolidLight {
 } SolidLight;
 
 typedef struct UserDef {
+	/* UserDef has separate do-version handling, and can be read from other files */
+	int versionfile, subversionfile;
+	
 	int flag, dupflag;
 	int savetime;
 	char tempdir[768];	/* FILE_MAXDIR length */
@@ -568,7 +571,8 @@ typedef enum eUserpref_UI_Flag {
 /* uiflag2 */
 typedef enum eUserpref_UI_Flag2 {
 	USER_KEEP_SESSION		= (1 << 0),
-	USER_REGION_OVERLAP		= (1 << 1)
+	USER_REGION_OVERLAP		= (1 << 1),
+	USER_TRACKPAD_NATURAL	= (1 << 2)
 } eUserpref_UI_Flag2;
 	
 /* Auto-Keying mode */

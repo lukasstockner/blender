@@ -62,11 +62,12 @@ static int brush_add_exec(bContext *C, wmOperator *UNUSED(op))
 	/*int type = RNA_enum_get(op->ptr, "type");*/
 	Paint *paint = paint_get_active_from_context(C);
 	struct Brush *br = paint_brush(paint);
+	Main *bmain = CTX_data_main(C);
 
 	if (br)
 		br = BKE_brush_copy(br);
 	else
-		br = BKE_brush_add("Brush");
+		br = BKE_brush_add(bmain, "Brush");
 
 	paint_brush_set(paint, br);
 
@@ -272,7 +273,7 @@ static int brush_generic_tool_set(Main *bmain, Paint *paint, const int tool,
 		brush = brush_tool_cycle(bmain, brush_orig, tool, tool_offset, ob_mode);
 
 	if (!brush && brush_tool(brush_orig, tool_offset) != tool && create_missing) {
-		brush = BKE_brush_add(tool_name);
+		brush = BKE_brush_add(bmain, tool_name);
 		brush_tool_set(brush, tool_offset, tool);
 		brush->ob_mode = ob_mode;
 		brush->toggle_brush = brush_orig;
@@ -681,6 +682,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	keymap_brush_select(keymap, OB_MODE_SCULPT, SCULPT_TOOL_FLATTEN, TKEY, KM_SHIFT);
 	keymap_brush_select(keymap, OB_MODE_SCULPT, SCULPT_TOOL_CLAY, CKEY, 0);
 	keymap_brush_select(keymap, OB_MODE_SCULPT, SCULPT_TOOL_CREASE, CKEY, KM_SHIFT);
+	keymap_brush_select(keymap, OB_MODE_SCULPT, SCULPT_TOOL_SNAKE_HOOK, KKEY, 0);
 	kmi = keymap_brush_select(keymap, OB_MODE_SCULPT, SCULPT_TOOL_MASK, MKEY, 0);
 	RNA_boolean_set(kmi->ptr, "toggle", 1);
 	RNA_boolean_set(kmi->ptr, "create_missing", 1);
@@ -719,8 +721,8 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	WM_keymap_verify_item(keymap, "PAINT_OT_weight_paint", LEFTMOUSE, KM_PRESS, 0, 0);
 
 	/* these keys are from 2.4x but could be changed */
-	WM_keymap_verify_item(keymap, "PAINT_OT_weight_sample", LEFTMOUSE, KM_PRESS, KM_CTRL, 0);
-	WM_keymap_verify_item(keymap, "PAINT_OT_weight_sample_group", LEFTMOUSE, KM_PRESS, KM_SHIFT, 0);
+	WM_keymap_verify_item(keymap, "PAINT_OT_weight_sample", ACTIONMOUSE, KM_PRESS, KM_CTRL, 0);
+	WM_keymap_verify_item(keymap, "PAINT_OT_weight_sample_group", ACTIONMOUSE, KM_PRESS, KM_SHIFT, 0);
 
 	RNA_enum_set(WM_keymap_add_item(keymap, "PAINT_OT_weight_gradient", LEFTMOUSE, KM_PRESS, KM_ALT, 0)->ptr,           "type", WPAINT_GRADIENT_TYPE_LINEAR);
 	RNA_enum_set(WM_keymap_add_item(keymap, "PAINT_OT_weight_gradient", LEFTMOUSE, KM_PRESS, KM_ALT | KM_CTRL, 0)->ptr, "type", WPAINT_GRADIENT_TYPE_RADIAL);

@@ -45,7 +45,7 @@ struct Object;
  * pointers. this is a requirement of mempool's method of
  * iteration.
  *
- * hrm. it doesn't but stull works ok, remove the comment above? - campbell.
+ * hrm. it doesn't but still works ok, remove the comment above? - campbell.
  */
 
 // #pragma GCC diagnostic error "-Wpadded"
@@ -253,6 +253,17 @@ enum {
 };
 
 /* defines */
+#define BM_ELEM_CD_GET_VOID_P(ele, offset) \
+	(assert(offset != -1), (void *)((char *)(ele)->head.data + (offset)))
+
+#define BM_ELEM_CD_SET_FLOAT(ele, offset, f) \
+	{ assert(offset != -1); *((float *)((char *)(ele)->head.data + (offset))) = (f); } (void)0
+
+#define BM_ELEM_CD_GET_FLOAT(ele, offset) \
+	(assert(offset != -1), *((float *)((char *)(ele)->head.data + (offset))))
+
+#define BM_ELEM_CD_GET_FLOAT_AS_UCHAR(ele, offset) \
+	(assert(offset != -1), (unsigned char)(BM_ELEM_CD_GET_FLOAT(ele, offset) * 255.0f))
 
 /*forward declarations*/
 

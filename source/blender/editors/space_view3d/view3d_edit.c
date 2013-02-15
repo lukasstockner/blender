@@ -83,6 +83,9 @@
 
 #include "view3d_intern.h"  /* own include */
 
+/* for ndof prints */
+// #define DEBUG_NDOF_MOTION
+
 /* ********************** view3d_edit: view manipulations ********************* */
 
 int ED_view3d_camera_lock_check(View3D *v3d, RegionView3D *rv3d)
@@ -921,8 +924,12 @@ static int viewrotate_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	}
 	
 	if (event->type == MOUSEPAN) {
-		/* invert it, trackpad scroll then follows how you mapped it globally */
-		viewrotate_apply(vod, 2 * event->x - event->prevx, 2 * event->y - event->prevy);
+		/* Rotate direction we keep always same */
+		if (U.uiflag2 & USER_TRACKPAD_NATURAL)
+			viewrotate_apply(vod, 2 * event->x - event->prevx, 2 * event->y - event->prevy);
+		else
+			viewrotate_apply(vod, event->prevx, event->prevy);
+			
 		ED_view3d_depth_tag_update(rv3d);
 		
 		viewops_data_free(C, op);
@@ -972,7 +979,7 @@ static int viewrotate_cancel(bContext *C, wmOperator *op)
 void VIEW3D_OT_rotate(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Rotate view";
+	ot->name = "Rotate View";
 	ot->description = "Rotate the view";
 	ot->idname = "VIEW3D_OT_rotate";
 
@@ -1039,11 +1046,10 @@ static int ndof_orbit_invoke(bContext *C, wmOperator *op, wmEvent *event)
 			float view_inv[4];
 			invert_qt_qt(view_inv, rv3d->viewquat);
 
-			/* #define DEBUG_NDOF_MOTION */
-			#ifdef DEBUG_NDOF_MOTION
+#ifdef DEBUG_NDOF_MOTION
 			printf("ndof: T=(%.2f,%.2f,%.2f) R=(%.2f,%.2f,%.2f) dt=%.3f delivered to 3D view\n",
 			       ndof->tx, ndof->ty, ndof->tz, ndof->rx, ndof->ry, ndof->rz, ndof->dt);
-			#endif
+#endif
 
 			if (rv3d->viewlock == RV3D_LOCKED) {
 				/* rotation not allowed -- explore panning options instead */
@@ -1200,11 +1206,10 @@ static int ndof_orbit_zoom_invoke(bContext *C, wmOperator *op, wmEvent *event)
 			float view_inv[4];
 			invert_qt_qt(view_inv, rv3d->viewquat);
 
-			/* #define DEBUG_NDOF_MOTION */
-			#ifdef DEBUG_NDOF_MOTION
+#ifdef DEBUG_NDOF_MOTION
 			printf("ndof: T=(%.2f,%.2f,%.2f) R=(%.2f,%.2f,%.2f) dt=%.3f delivered to 3D view\n",
 			       ndof->tx, ndof->ty, ndof->tz, ndof->rx, ndof->ry, ndof->rz, ndof->dt);
-			#endif
+#endif
 
 			if (ndof->tz) {
 				/* Zoom!
@@ -1330,7 +1335,7 @@ static int ndof_orbit_zoom_invoke(bContext *C, wmOperator *op, wmEvent *event)
 void VIEW3D_OT_ndof_orbit_zoom(struct wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "NDOF Orbit View with zoom";
+	ot->name = "NDOF Orbit View with Zoom";
 	ot->description = "Explore every angle of an object using the 3D mouse";
 	ot->idname = "VIEW3D_OT_ndof_orbit_zoom";
 
@@ -1590,7 +1595,7 @@ static int ndof_all_invoke(bContext *C, wmOperator *op, wmEvent *event)
 void VIEW3D_OT_ndof_all(struct wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "NDOF move View";
+	ot->name = "NDOF Move View";
 	ot->description = "Position your viewpoint with the 3D mouse";
 	ot->idname = "VIEW3D_OT_ndof_all";
 
@@ -1753,7 +1758,7 @@ void VIEW3D_OT_move(wmOperatorType *ot)
 {
 
 	/* identifiers */
-	ot->name = "Move view";
+	ot->name = "Move View";
 	ot->description = "Move the view";
 	ot->idname = "VIEW3D_OT_move";
 
@@ -2375,7 +2380,7 @@ static int viewdolly_cancel(bContext *C, wmOperator *op)
 void VIEW3D_OT_dolly(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Dolly view";
+	ot->name = "Dolly View";
 	ot->description = "Dolly in/out in the view";
 	ot->idname = "VIEW3D_OT_dolly";
 
@@ -3457,7 +3462,7 @@ void VIEW3D_OT_viewnumpad(wmOperatorType *ot)
 	PropertyRNA *prop;
 
 	/* identifiers */
-	ot->name = "View numpad";
+	ot->name = "View Numpad";
 	ot->description = "Use a preset viewpoint";
 	ot->idname = "VIEW3D_OT_viewnumpad";
 

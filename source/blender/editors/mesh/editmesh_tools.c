@@ -387,7 +387,7 @@ static short edbm_extrude_edge(Object *obedit, BMEditMesh *em, const char hflag,
 		if (ele->head.htype == BM_FACE) {
 			f = (BMFace *)ele;
 			add_normal_aligned(nor, f->no);
-		};
+		}
 	}
 
 	normalize_v3(nor);
@@ -3190,8 +3190,7 @@ static int mesh_separate_loose(Main *bmain, Scene *scene, Base *base_old, BMesh 
 		         BMW_FLAG_NOP,
 		         BMW_NIL_LAY);
 
-		e = BMW_begin(&walker, v_seed);
-		for (; e; e = BMW_step(&walker)) {
+		for (e = BMW_begin(&walker, v_seed); e; e = BMW_step(&walker)) {
 			if (!BM_elem_flag_test(e->v1, BM_ELEM_TAG)) { BM_elem_flag_enable(e->v1, BM_ELEM_TAG); tot++; }
 			if (!BM_elem_flag_test(e->v2, BM_ELEM_TAG)) { BM_elem_flag_enable(e->v2, BM_ELEM_TAG); tot++; }
 		}
@@ -3315,9 +3314,12 @@ static int edbm_fill_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BMEdit_FromObject(obedit);
+	int use_beauty = RNA_boolean_get(op->ptr, "use_beauty");
 	BMOperator bmop;
 	
-	if (!EDBM_op_init(em, &bmop, op, "triangle_fill edges=%he", BM_ELEM_SELECT)) {
+	if (!EDBM_op_init(em, &bmop, op,
+	                  "triangle_fill edges=%he use_beauty=%b",
+	                  BM_ELEM_SELECT, use_beauty)) {
 		return OPERATOR_CANCELLED;
 	}
 	
@@ -3349,6 +3351,8 @@ void MESH_OT_fill(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	RNA_def_boolean(ot->srna, "use_beauty", true, "Beauty", "Use best triangulation division");
 }
 
 static int edbm_beautify_fill_exec(bContext *C, wmOperator *op)
@@ -3356,7 +3360,7 @@ static int edbm_beautify_fill_exec(bContext *C, wmOperator *op)
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BMEdit_FromObject(obedit);
 
-	if (!EDBM_op_callf(em, op, "beautify_fill faces=%hf", BM_ELEM_SELECT))
+	if (!EDBM_op_callf(em, op, "beautify_fill faces=%hf edges=ae", BM_ELEM_SELECT))
 		return OPERATOR_CANCELLED;
 
 	EDBM_update_generic(em, TRUE, TRUE);
@@ -3385,10 +3389,22 @@ static int edbm_quads_convert_to_tris_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BMEdit_FromObject(obedit);
+	BMOperator bmop;
 	int use_beauty = RNA_boolean_get(op->ptr, "use_beauty");
 
-	if (!EDBM_op_callf(em, op, "triangulate faces=%hf use_beauty=%b", BM_ELEM_SELECT, use_beauty))
+	EDBM_op_init(em, &bmop, op, "triangulate faces=%hf use_beauty=%b", BM_ELEM_SELECT, use_beauty);
+	BMO_op_exec(em->bm, &bmop);
+
+	/* now call beauty fill */
+	if (use_beauty) {
+		EDBM_op_callf(em, op,
+		              "beautify_fill faces=%S edges=%S",
+		              &bmop, "faces.out", &bmop, "edges.out");
+	}
+
+	if (!EDBM_op_finish(em, &bmop, op, TRUE)) {
 		return OPERATOR_CANCELLED;
+	}
 
 	EDBM_update_generic(em, TRUE, TRUE);
 
@@ -3409,7 +3425,7 @@ void MESH_OT_quads_convert_to_tris(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	RNA_def_boolean(ot->srna, "use_beauty", 1, "Beauty", "Use best triangulation division (currently quads only)");
+	RNA_def_boolean(ot->srna, "use_beauty", 1, "Beauty", "Use best triangulation division");
 }
 
 static int edbm_tris_convert_to_quads_exec(bContext *C, wmOperator *op)
@@ -3838,6 +3854,9 @@ static int edbm_select_face_by_sides_exec(bContext *C, wmOperator *op)
 	const int numverts = RNA_int_get(op->ptr, "number");
 	const int type = RNA_enum_get(op->ptr, "type");
 
+	if (!RNA_boolean_get(op->ptr, "extend"))
+		EDBM_flag_disable_all(em, BM_ELEM_SELECT);
+
 	BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
 
 		int select;
@@ -3897,15 +3916,19 @@ void MESH_OT_select_face_by_sides(wmOperatorType *ot)
 	/* properties */
 	RNA_def_int(ot->srna, "number", 4, 3, INT_MAX, "Number of Vertices", "", 3, INT_MAX);
 	RNA_def_enum(ot->srna, "type", type_items, 1, "Type", "Type of comparison to make");
+	RNA_def_boolean(ot->srna, "extend", TRUE, "Extend", "Extend the selection");
 }
 
-static int edbm_select_loose_verts_exec(bContext *C, wmOperator *UNUSED(op))
+static int edbm_select_loose_verts_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BMEdit_FromObject(obedit);
 	BMVert *eve;
 	BMEdge *eed;
 	BMIter iter;
+
+	if (!RNA_boolean_get(op->ptr, "extend"))
+		EDBM_flag_disable_all(em, BM_ELEM_SELECT);
 
 	BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
 		if (!eve->e) {
@@ -3938,6 +3961,9 @@ void MESH_OT_select_loose_verts(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	/* props */
+	RNA_def_boolean(ot->srna, "extend", false, "Extend", "Extend the selection");
 }
 
 static int edbm_select_mirror_exec(bContext *C, wmOperator *op)
@@ -3946,9 +3972,11 @@ static int edbm_select_mirror_exec(bContext *C, wmOperator *op)
 	BMEditMesh *em = BMEdit_FromObject(obedit);
 	int extend = RNA_boolean_get(op->ptr, "extend");
 
-	EDBM_select_mirrored(obedit, em, extend);
-	EDBM_selectmode_flush(em);
-	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+	if (em->bm->totvert && em->bm->totvertsel) {
+		EDBM_select_mirrored(obedit, em, extend);
+		EDBM_selectmode_flush(em);
+		WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+	}
 
 	return OPERATOR_FINISHED;
 }
@@ -4593,7 +4621,7 @@ static int edbm_noise_exec(bContext *C, wmOperator *op)
 		BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
 			if (BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
 				float tin, dum;
-				externtex(ma->mtex[0], eve->co, &tin, &dum, &dum, &dum, &dum, 0);
+				externtex(ma->mtex[0], eve->co, &tin, &dum, &dum, &dum, &dum, 0, NULL);
 				eve->co[2] += fac * tin;
 			}
 		}
@@ -4949,7 +4977,7 @@ static float edbm_bevel_mval_factor(wmOperator *op, wmEvent *event)
 	if (event->shift) {
 		if (opdata->shift_factor < 0.0f) {
 #ifdef NEW_BEVEL
-			opdata->shift_factor = RNA_float_get(op->ptr, "percent");
+			opdata->shift_factor = RNA_float_get(op->ptr, "offset");
 #else
 			opdata->shift_factor = RNA_float_get(op->ptr, "factor");
 #endif

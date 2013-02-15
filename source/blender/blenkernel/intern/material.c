@@ -206,11 +206,11 @@ void init_material(Material *ma)
 	ma->preview = NULL;
 }
 
-Material *BKE_material_add(const char *name)
+Material *BKE_material_add(Main *bmain, const char *name)
 {
 	Material *ma;
 
-	ma = BKE_libblock_alloc(&G.main->mat, ID_MA, name);
+	ma = BKE_libblock_alloc(&bmain->mat, ID_MA, name);
 	
 	init_material(ma);
 	
@@ -680,19 +680,6 @@ Material *give_node_material(Material *ma)
 
 	return NULL;
 }
-
-/* GS reads the memory pointed at in a specific ordering. There are,
- * however two definitions for it. I have jotted them down here, both,
- * but I think the first one is actually used. The thing is that
- * big-endian systems might read this the wrong way round. OTOH, we
- * constructed the IDs that are read out with this macro explicitly as
- * well. I expect we'll sort it out soon... */
-
-/* from blendef: */
-#define GS(a)   (*((short *)(a)))
-
-/* from misc_util: flip the bytes from x  */
-/*  #define GS(x) (((unsigned char *)(x))[0] << 8 | ((unsigned char *)(x))[1]) */
 
 void resize_object_material(Object *ob, const short totcol)
 {
@@ -1791,7 +1778,7 @@ static short convert_tfacenomaterial(Main *main, Mesh *me, MTFace *tf, int flag)
 	}
 	/* create a new material */
 	else {
-		ma = BKE_material_add(idname + 2);
+		ma = BKE_material_add(main, idname + 2);
 
 		if (ma) {
 			printf("TexFace Convert: Material \"%s\" created.\n", idname + 2);
