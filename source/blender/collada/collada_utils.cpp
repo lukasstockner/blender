@@ -85,7 +85,6 @@ int bc_test_parent_loop(Object *par, Object *ob)
 int bc_set_parent(Object *ob, Object *par, bContext *C, bool is_parent_space)
 {
 	Object workob;
-	Main *bmain = CTX_data_main(C);
 	Scene *sce = CTX_data_scene(C);
 	
 	if (!par || bc_test_parent_loop(par, ob))
@@ -113,12 +112,11 @@ int bc_set_parent(Object *ob, Object *par, bContext *C, bool is_parent_space)
 	BKE_object_workob_calc_parent(sce, ob, &workob);
 	invert_m4_m4(ob->parentinv, workob.obmat);
 
-	ob->recalc |= OB_RECALC_OB | OB_RECALC_DATA;
-	par->recalc |= OB_RECALC_OB;
+	DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA);
+	DAG_id_tag_update(&par->id, OB_RECALC_OB);
 
 	/** done once after import
-	DAG_scene_sort(bmain, sce);
-	DAG_ids_flush_update(bmain, 0);
+	DAG_relations_tag_update(bmain);
 	WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, NULL);
     */
 
@@ -132,7 +130,7 @@ Object *bc_add_object(Scene *scene, int type, const char *name)
 
 	ob->data = BKE_object_obdata_add_from_type(type);
 	ob->lay = scene->lay;
-	ob->recalc |= OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME;
+	DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 
 	BKE_scene_base_select(scene, BKE_scene_base_add(scene, ob));
 
@@ -351,6 +349,10 @@ void bc_match_scale(std::vector<Object *> *objects_done,
 	rescale[0] = rescale[1] = rescale[2] = scale_conv;
 
 	float size_mat4[4][4];
+
+	float axis_mat4[4][4];
+	unit_m4(axis_mat4);
+
 	size_to_mat4(size_mat4, rescale);
 
 	for (std::vector<Object *>::iterator it = objects_done->begin();
@@ -359,6 +361,7 @@ void bc_match_scale(std::vector<Object *> *objects_done,
 	{
 		ob = *it;
 		mult_m4_m4m4(ob->obmat, size_mat4, ob->obmat);
+		mult_m4_m4m4(ob->obmat, bc_unit.get_rotation(), ob->obmat);
 		BKE_object_apply_mat4(ob, ob->obmat, 0, 0);
 	}
 

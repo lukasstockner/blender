@@ -635,6 +635,9 @@ void BKE_rigidbody_validate_sim_constraint(RigidBodyWorld *rbw, Object *ob, shor
 					break;
 			}
 		}
+		else { /* can't create constraint without both rigid bodies */
+			return;
+		}
 
 		RB_constraint_set_enabled(rbc->physics_constraint, rbc->flag & RBC_FLAG_ENABLED);
 
@@ -1130,11 +1133,9 @@ static void rigidbody_update_simulation_post_step(RigidBodyWorld *rbw)
 		}
 	}
 }
-
 /* Sync rigid body and object transformations */
-void BKE_rigidbody_sync_transforms(Scene *scene, Object *ob, float ctime)
+void BKE_rigidbody_sync_transforms(RigidBodyWorld *rbw, Object *ob, float ctime)
 {
-	RigidBodyWorld *rbw = scene->rigidbody_world;
 	RigidBodyOb *rbo = ob->rigidbody_object;
 
 	/* keep original transform for kinematic and passive objects */
@@ -1165,6 +1166,7 @@ void BKE_rigidbody_sync_transforms(Scene *scene, Object *ob, float ctime)
 	}
 }
 
+/* Used when cancelling transforms - return rigidbody and object to initial states */
 void BKE_rigidbody_aftertrans_update(Object *ob, float loc[3], float rot[3], float quat[4], float rotAxis[3], float rotAngle)
 {
 	RigidBodyOb *rbo = ob->rigidbody_object;
@@ -1216,6 +1218,8 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 	BKE_ptcache_id_time(&pid, scene, ctime, &startframe, &endframe, NULL);
 	cache = rbw->pointcache;
 
+	rbw->flag &= ~RBW_FLAG_FRAME_UPDATE;
+
 	/* flag cache as outdated if we don't have a world or number of objects in the simulation has changed */
 	if (rbw->physics_world == NULL || rbw->numbodies != BLI_countlist(&rbw->group->gobject)) {
 		cache->flag |= PTCACHE_OUTDATED;
@@ -1258,7 +1262,7 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 	}
 
 	/* advance simulation, we can only step one frame forward */
-	if (ctime == rbw->ltime + 1) {
+	if (ctime == rbw->ltime + 1 && !(cache->flag & PTCACHE_BAKED)) {
 		/* write cache for first frame when on second frame */
 		if (rbw->ltime == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact == 0)) {
 			BKE_ptcache_write(&pid, startframe);
@@ -1307,7 +1311,7 @@ struct RigidBodyCon *BKE_rigidbody_create_constraint(Scene *scene, Object *ob, s
 struct RigidBodyWorld *BKE_rigidbody_get_world(Scene *scene) { return NULL; }
 void BKE_rigidbody_remove_object(Scene *scene, Object *ob) {}
 void BKE_rigidbody_remove_constraint(Scene *scene, Object *ob) {}
-void BKE_rigidbody_sync_transforms(Scene *scene, Object *ob, float ctime) {}
+void BKE_rigidbody_sync_transforms(RigidBodyWorld *rbw, Object *ob, float ctime) {}
 void BKE_rigidbody_aftertrans_update(Object *ob, float loc[3], float rot[3], float quat[4], float rotAxis[3], float rotAngle) {}
 void BKE_rigidbody_cache_reset(RigidBodyWorld *rbw) {}
 void BKE_rigidbody_do_simulation(Scene *scene, float ctime) {}

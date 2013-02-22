@@ -94,7 +94,7 @@ LANGUAGES_FILE = "languages"
 IMPORT_MIN_LEVEL = -1
 
 # Languages in /branches we do not want to import in /trunk currently...
-IMPORT_LANGUAGES_SKIP = {'am', 'bg', 'fi', 'el', 'et', 'hi', 'ne', 'pl', 'ro', 'uz', 'uz@cyrillic'}
+IMPORT_LANGUAGES_SKIP = {'am', 'bg', 'fi', 'el', 'et', 'ne', 'pl', 'ro', 'uz', 'uz@cyrillic'}
 
 # The comment prefix used in generated messages.txt file.
 MSG_COMMENT_PREFIX = "#~ "
@@ -227,9 +227,10 @@ PYGETTEXT_KEYWORDS = (() +
           for it in ("CTX_IFACE_", "CTX_TIP_", "CTX_N_")) + 
 
     tuple(("{}\\((?:[^\"',]+,){{1,2}}\\s*" + _msg_re + r"\s*(?:\)|,)").format(it)
-          for it in ("BKE_report", "BKE_reportf", "BKE_reports_prepend", "BKE_reports_prependf")) +
+          for it in ("BKE_report", "BKE_reportf", "BKE_reports_prepend", "BKE_reports_prependf",
+                     "CTX_wm_operator_poll_msg_set")) +
 
-    tuple(("{}\\((?:[^\"',]+,){{3}}\\s*" + _msg_re + r"\s*,").format(it)
+    tuple(("{}\\((?:[^\"',]+,){{3}}\\s*" + _msg_re + r"\s*\)").format(it)
           for it in ("BMO_error_raise",)) +
 
     tuple(("{}\\((?:[^\"',]+,)\\s*" + _msg_re + r"\s*(?:\)|,)").format(it)
@@ -368,7 +369,10 @@ FILE_NAME_POT = os.path.join(TRUNK_PO_DIR, ".".join((DOMAIN, "pot")))
 
 # Other py files that should be searched for ui strings, relative to SOURCE_DIR.
 # Needed for Cycles, currently...
-CUSTOM_PY_UI_FILES = [os.path.join("intern", "cycles", "blender", "addon", "ui.py"),]
+CUSTOM_PY_UI_FILES = [
+    os.path.join("intern", "cycles", "blender", "addon", "ui.py"),
+    os.path.join("release", "scripts", "modules", "rna_prop_ui.py"),
+]
 
 
 # A cache storing validated msgids, to avoid re-spellchecking them.

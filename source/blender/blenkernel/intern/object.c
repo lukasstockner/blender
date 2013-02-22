@@ -58,6 +58,7 @@
 #include "DNA_world_types.h"
 #include "DNA_object_types.h"
 #include "DNA_property_types.h"
+#include "DNA_rigidbody_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
@@ -73,6 +74,7 @@
 #include "BKE_bullet.h"
 #include "BKE_colortools.h"
 #include "BKE_deform.h"
+#include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_animsys.h"
 #include "BKE_anim.h"
@@ -405,7 +407,8 @@ static void unlink_object__unlinkModifierLinks(void *userData, Object *ob, Objec
 
 	if (*obpoin == unlinkOb) {
 		*obpoin = NULL;
-		ob->recalc |= OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME; // XXX: should this just be OB_RECALC_DATA?
+		// XXX: should this just be OB_RECALC_DATA?
+		DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 	}
 }
 
@@ -439,14 +442,14 @@ void BKE_object_unlink(Object *ob)
 			obt->proxy = NULL;
 		if (obt->proxy_from == ob) {
 			obt->proxy_from = NULL;
-			obt->recalc |= OB_RECALC_OB;
+			DAG_id_tag_update(&obt->id, OB_RECALC_OB);
 		}
 		if (obt->proxy_group == ob)
 			obt->proxy_group = NULL;
 		
 		if (obt->parent == ob) {
 			obt->parent = NULL;
-			obt->recalc |= OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME;
+			DAG_id_tag_update(&obt->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 		}
 		
 		modifiers_foreachObjectLink(obt, unlink_object__unlinkModifierLinks, ob);
@@ -456,15 +459,15 @@ void BKE_object_unlink(Object *ob)
 
 			if (cu->bevobj == ob) {
 				cu->bevobj = NULL;
-				obt->recalc |= OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME;
+				DAG_id_tag_update(&obt->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 			}
 			if (cu->taperobj == ob) {
 				cu->taperobj = NULL;
-				obt->recalc |= OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME;
+				DAG_id_tag_update(&obt->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 			}
 			if (cu->textoncurve == ob) {
 				cu->textoncurve = NULL;
-				obt->recalc |= OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME;
+				DAG_id_tag_update(&obt->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 			}
 		}
 		else if (obt->type == OB_ARMATURE && obt->pose) {
@@ -482,7 +485,7 @@ void BKE_object_unlink(Object *ob)
 							if (ct->tar == ob) {
 								ct->tar = NULL;
 								ct->subtarget[0] = '\0';
-								obt->recalc |= OB_RECALC_DATA;
+								DAG_id_tag_update(&obt->id, OB_RECALC_DATA);
 							}
 						}
 						
@@ -496,7 +499,7 @@ void BKE_object_unlink(Object *ob)
 		}
 		else if (ELEM(OB_MBALL, ob->type, obt->type)) {
 			if (BKE_mball_is_basis_for(obt, ob))
-				obt->recalc |= OB_RECALC_DATA;
+				DAG_id_tag_update(&obt->id, OB_RECALC_DATA);
 		}
 		
 		sca_remove_ob_poin(obt, ob);
@@ -513,7 +516,7 @@ void BKE_object_unlink(Object *ob)
 					if (ct->tar == ob) {
 						ct->tar = NULL;
 						ct->subtarget[0] = '\0';
-						obt->recalc |= OB_RECALC_DATA;
+						DAG_id_tag_update(&obt->id, OB_RECALC_DATA);
 					}
 				}
 				
@@ -525,12 +528,12 @@ void BKE_object_unlink(Object *ob)
 		/* object is deflector or field */
 		if (ob->pd) {
 			if (obt->soft)
-				obt->recalc |= OB_RECALC_DATA;
+				DAG_id_tag_update(&obt->id, OB_RECALC_DATA);
 
 			/* cloth */
 			for (md = obt->modifiers.first; md; md = md->next)
 				if (md->type == eModifierType_Cloth)
-					obt->recalc |= OB_RECALC_DATA;
+					DAG_id_tag_update(&obt->id, OB_RECALC_DATA);
 		}
 		
 		/* strips */
@@ -559,14 +562,14 @@ void BKE_object_unlink(Object *ob)
 				for (; pt; pt = pt->next) {
 					if (pt->ob == ob) {
 						pt->ob = NULL;
-						obt->recalc |= OB_RECALC_DATA;
+						DAG_id_tag_update(&obt->id, OB_RECALC_DATA);
 						break;
 					}
 				}
 
 				if (tpsys->target_ob == ob) {
 					tpsys->target_ob = NULL;
-					obt->recalc |= OB_RECALC_DATA;
+					DAG_id_tag_update(&obt->id, OB_RECALC_DATA);
 				}
 
 				if (tpsys->part->dup_ob == ob)
@@ -601,7 +604,7 @@ void BKE_object_unlink(Object *ob)
 				}
 			}
 			if (ob->pd)
-				obt->recalc |= OB_RECALC_DATA;
+				DAG_id_tag_update(&obt->id, OB_RECALC_DATA);
 		}
 
 		obt = obt->id.next;
@@ -969,7 +972,7 @@ Object *BKE_object_add(struct Scene *scene, int type)
 	base = BKE_scene_base_add(scene, ob);
 	BKE_scene_base_deselect_all(scene);
 	BKE_scene_base_select(scene, base);
-	ob->recalc |= OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME;
+	DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 
 	return ob;
 }
@@ -1479,7 +1482,8 @@ void BKE_object_make_proxy(Object *ob, Object *target, Object *gob)
 	ob->proxy_group = gob;
 	id_lib_extern(&target->id);
 	
-	ob->recalc = target->recalc = OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME;
+	DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+	DAG_id_tag_update(&target->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 	
 	/* copy transform
 	 * - gob means this proxy comes from a group, just apply the matrix
@@ -2116,7 +2120,9 @@ static int where_is_object_parslow(Object *ob, float obmat[4][4], float slowmat[
 	return 1;
 }
 
-void BKE_object_where_is_calc_time(Scene *scene, Object *ob, float ctime)
+/* note, scene is the active scene while actual_scene is the scene the object resides in */
+void BKE_object_where_is_calc_time_ex(Scene *scene, Object *ob, float ctime,
+                                      RigidBodyWorld *rbw)
 {
 	if (ob == NULL) return;
 	
@@ -2141,8 +2147,11 @@ void BKE_object_where_is_calc_time(Scene *scene, Object *ob, float ctime)
 	else {
 		BKE_object_to_mat4(ob, ob->obmat);
 	}
-	
-	BKE_rigidbody_sync_transforms(scene, ob, ctime);
+
+	/* try to fall back to the scene rigid body world if none given */
+	rbw = rbw ? rbw : scene->rigidbody_world;
+	/* read values pushed into RBO from sim/cache... */
+	BKE_rigidbody_sync_transforms(rbw, ob, ctime);
 	
 	/* solve constraints */
 	if (ob->constraints.first && !(ob->transflag & OB_NO_CONSTRAINTS)) {
@@ -2156,6 +2165,11 @@ void BKE_object_where_is_calc_time(Scene *scene, Object *ob, float ctime)
 	/* set negative scale flag in object */
 	if (is_negative_m4(ob->obmat)) ob->transflag |= OB_NEG_SCALE;
 	else ob->transflag &= ~OB_NEG_SCALE;
+}
+
+void BKE_object_where_is_calc_time(Scene *scene, Object *ob, float ctime)
+{
+	BKE_object_where_is_calc_time_ex(scene, ob, ctime, NULL);
 }
 
 /* get object transformation matrix without recalculating dependencies and
@@ -2179,15 +2193,19 @@ void BKE_object_where_is_calc_mat4(Scene *scene, Object *ob, float obmat[4][4])
 	}
 }
 
-void BKE_object_where_is_calc(struct Scene *scene, Object *ob)
+void BKE_object_where_is_calc_ex(Scene *scene, RigidBodyWorld *rbw, Object *ob)
 {
-	BKE_object_where_is_calc_time(scene, ob, BKE_scene_frame_get(scene));
+	BKE_object_where_is_calc_time_ex(scene, ob, BKE_scene_frame_get(scene), rbw);
+}
+void BKE_object_where_is_calc(Scene *scene, Object *ob)
+{
+	BKE_object_where_is_calc_time_ex(scene, ob, BKE_scene_frame_get(scene), NULL);
 }
 
-void BKE_object_where_is_calc_simul(Scene *scene, Object *ob)
 /* was written for the old game engine (until 2.04) */
 /* It seems that this function is only called
  * for a lamp that is the child of another object */
+void BKE_object_where_is_calc_simul(Scene *scene, Object *ob)
 {
 	Object *par;
 	float *fp1, *fp2;
@@ -2617,7 +2635,9 @@ int BKE_object_parent_loop_check(const Object *par, const Object *ob)
 
 /* the main object update call, for object matrix, constraints, keys and displist (modifiers) */
 /* requires flags to be set! */
-void BKE_object_handle_update(Scene *scene, Object *ob)
+/* Ideally we shouldn't have to pass the rigid body world, but need bigger restructuring to avoid id */
+void BKE_object_handle_update_ex(Scene *scene, Object *ob,
+                                 RigidBodyWorld *rbw)
 {
 	if (ob->recalc & OB_RECALC_ALL) {
 		/* speed optimization for animation lookups */
@@ -2658,7 +2678,7 @@ void BKE_object_handle_update(Scene *scene, Object *ob)
 					copy_m4_m4(ob->obmat, ob->proxy_from->obmat);
 			}
 			else
-				BKE_object_where_is_calc(scene, ob);
+				BKE_object_where_is_calc_ex(scene, rbw, ob);
 		}
 		
 		if (ob->recalc & OB_RECALC_DATA) {
@@ -2811,6 +2831,15 @@ void BKE_object_handle_update(Scene *scene, Object *ob)
 		ob->proxy->proxy_from = ob;
 		// printf("set proxy pointer for later group stuff %s\n", ob->id.name);
 	}
+}
+/* WARNING: "scene" here may not be the scene object actually resides in. 
+ * When dealing with background-sets, "scene" is actually the active scene.
+ * e.g. "scene" <-- set 1 <-- set 2 ("ob" lives here) <-- set 3 <-- ... <-- set n
+ * rigid bodies depend on their world so use BKE_object_handle_update_ex() to also pass along the corrent rigid body world
+ */
+void BKE_object_handle_update(Scene *scene, Object *ob)
+{
+	BKE_object_handle_update_ex(scene, ob, NULL);
 }
 
 void BKE_object_sculpt_modifiers_changed(Object *ob)

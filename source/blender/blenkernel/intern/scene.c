@@ -173,6 +173,7 @@ Scene *BKE_scene_copy(Scene *sce, int type)
 		scen->obedit = NULL;
 		scen->stats = NULL;
 		scen->fps_info = NULL;
+		scen->rigidbody_world = NULL; /* RB_TODO figure out a way of copying the rigid body world */
 
 		BLI_duplicatelist(&(scen->markers), &(sce->markers));
 		BLI_duplicatelist(&(scen->transform_spaces), &(sce->transform_spaces));
@@ -378,7 +379,7 @@ void BKE_scene_free(Scene *sce)
 	BKE_color_managed_view_settings_free(&sce->view_settings);
 }
 
-static Scene *scene_add(Main *bmain, const char *name)
+Scene *BKE_scene_add(Main *bmain, const char *name)
 {
 	Scene *sce;
 	ParticleEditSettings *pset;
@@ -613,11 +614,6 @@ static Scene *scene_add(Main *bmain, const char *name)
 	return sce;
 }
 
-Scene *BKE_scene_add(Main *bmain, const char *name)
-{
-	return scene_add(bmain, name);
-}
-
 Base *BKE_scene_base_find(Scene *scene, Object *ob)
 {
 	return BLI_findptr(&scene->base, ob, offsetof(Base, object));
@@ -653,12 +649,11 @@ void BKE_scene_set_background(Main *bmain, Scene *scene)
 	}
 
 	/* sort baselist */
-	DAG_scene_sort(bmain, scene);
+	DAG_scene_relations_rebuild(bmain, scene);
 	
 	/* ensure dags are built for sets */
-	for (sce = scene->set; sce; sce = sce->set)
-		if (sce->theDag == NULL)
-			DAG_scene_sort(bmain, sce);
+	for (sce = scene; sce; sce = sce->set)
+		DAG_scene_relations_update(bmain, sce);
 
 	/* copy layers and flags from bases to objects */
 	for (base = scene->base.first; base; base = base->next) {
@@ -1089,10 +1084,18 @@ static void scene_depsgraph_hack(Scene *scene, Scene *scene_parent)
 
 }
 
+static void scene_flag_rbw_recursive(Scene *scene)
+{
+	if (scene->set)
+		scene_flag_rbw_recursive(scene->set);
+
+	if (BKE_scene_check_rigidbody_active(scene))
+		scene->rigidbody_world->flag |= RBW_FLAG_FRAME_UPDATE;
+}
+
 static void scene_update_tagged_recursive(Main *bmain, Scene *scene, Scene *scene_parent)
 {
 	Base *base;
-	
 	
 	scene->customdata_mask = scene_parent->customdata_mask;
 
@@ -1101,11 +1104,27 @@ static void scene_update_tagged_recursive(Main *bmain, Scene *scene, Scene *scen
 	if (scene->set)
 		scene_update_tagged_recursive(bmain, scene->set, scene_parent);
 	
+	/* run rigidbody sim 
+	 * - calculate/read values from cache into RBO's, to get flushed 
+	 *   later when objects are evaluated (if they're tagged for eval)
+	 */
+	// XXX: this position may still change, objects not being updated correctly before simulation is run
+	// NOTE: current position is so that rigidbody sim affects other objects
+	if (BKE_scene_check_rigidbody_active(scene) && scene->rigidbody_world->flag & RBW_FLAG_FRAME_UPDATE) {
+		/* we use frame time of parent (this is "scene" itself for top-level of sets recursion), 
+		 * as that is the active scene controlling all timing in file at the moment
+		 */
+		float ctime = BKE_scene_frame_get(scene_parent);
+		
+		/* however, "scene" contains the rigidbody world needed for eval... */
+		BKE_rigidbody_do_simulation(scene, ctime);
+	}
+	
 	/* scene objects */
 	for (base = scene->base.first; base; base = base->next) {
 		Object *ob = base->object;
 		
-		BKE_object_handle_update(scene_parent, ob);
+		BKE_object_handle_update_ex(scene_parent, ob, scene->rigidbody_world);
 		
 		if (ob->dup_group && (ob->transflag & OB_DUPLIGROUP))
 			group_handle_recalc_and_update(scene_parent, ob, ob->dup_group);
@@ -1130,8 +1149,14 @@ static void scene_update_tagged_recursive(Main *bmain, Scene *scene, Scene *scen
 /* this is called in main loop, doing tagged updates before redraw */
 void BKE_scene_update_tagged(Main *bmain, Scene *scene)
 {
+	Scene *sce_iter;
+	
 	/* keep this first */
 	BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_SCENE_UPDATE_PRE);
+
+	/* (re-)build dependency graph if needed */
+	for (sce_iter = scene; sce_iter; sce_iter = sce_iter->set)
+		DAG_scene_relations_update(bmain, sce_iter);
 
 	/* flush recalc flags to dependencies */
 	DAG_ids_flush_tagged(bmain);
@@ -1183,10 +1208,8 @@ void BKE_scene_update_for_newframe(Main *bmain, Scene *sce, unsigned int lay)
 	/* clear animation overrides */
 	/* XXX TODO... */
 
-	for (sce_iter = sce; sce_iter; sce_iter = sce_iter->set) {
-		if (sce_iter->theDag == NULL)
-			DAG_scene_sort(bmain, sce_iter);
-	}
+	for (sce_iter = sce; sce_iter; sce_iter = sce_iter->set)
+		DAG_scene_relations_update(bmain, sce_iter);
 
 	/* flush recalc flags to dependencies, if we were only changing a frame
 	 * this would not be necessary, but if a user or a script has modified
@@ -1206,19 +1229,16 @@ void BKE_scene_update_for_newframe(Main *bmain, Scene *sce, unsigned int lay)
 	 * such as Scene->World->MTex/Texture) can still get correctly overridden.
 	 */
 	BKE_animsys_evaluate_all_animation(bmain, sce, ctime);
-	/*...done with recusrive funcs */
-
-	/* run rigidbody sim */
-	// XXX: this position may still change, objects not being updated correctly before simulation is run
-	// NOTE: current position is so that rigidbody sim affects other objects
-	if (BKE_scene_check_rigidbody_active(sce))
-		BKE_rigidbody_do_simulation(sce, ctime);
+	/*...done with recursive funcs */
 
 	/* clear "LIB_DOIT" flag from all materials, to prevent infinite recursion problems later 
 	 * when trying to find materials with drivers that need evaluating [#32017] 
 	 */
 	tag_main_idcode(bmain, ID_MA, FALSE);
 	tag_main_idcode(bmain, ID_LA, FALSE);
+
+	/* flag rigid body worlds for update */
+	scene_flag_rbw_recursive(sce);
 
 	/* BKE_object_handle_update() on all objects, groups and sets */
 	scene_update_tagged_recursive(bmain, sce, sce);

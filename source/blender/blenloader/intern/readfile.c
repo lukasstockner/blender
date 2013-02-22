@@ -117,6 +117,7 @@
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_deform.h"
+#include "BKE_depsgraph.h"
 #include "BKE_effect.h"
 #include "BKE_fcurve.h"
 #include "BKE_global.h" // for G
@@ -2754,7 +2755,7 @@ static void lib_link_pose(FileData *fd, Object *ob, bPose *pose)
 	}
 	
 	if (rebuild) {
-		ob->recalc = (OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+		DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 		pose->flag |= POSE_RECALC;
 	}
 }
@@ -5115,7 +5116,6 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 	RigidBodyWorld *rbw;
 	
 	sce->theDag = NULL;
-	sce->dagisvalid = 0;
 	sce->obedit = NULL;
 	sce->stats = NULL;
 	sce->fps_info = NULL;
@@ -8654,8 +8654,12 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 
 			SEQ_BEGIN (scene->ed, seq)
 			{
-				if (seq->flag & SEQ_MAKE_PREMUL)
+				if (seq->flag & SEQ_MAKE_PREMUL) {
 					seq->alpha_mode = SEQ_ALPHA_STRAIGHT;
+				}
+				else {
+					BKE_sequence_alpha_mode_from_extension(seq);
+				}
 			}
 			SEQ_END
 
@@ -8681,8 +8685,12 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 
 		for (image = main->image.first; image; image = image->id.next) {
-			if (image->flag & IMA_DO_PREMUL)
+			if (image->flag & IMA_DO_PREMUL) {
 				image->alpha_mode = IMA_ALPHA_STRAIGHT;
+			}
+			else {
+				BKE_image_alpha_mode_from_extension(image);
+			}
 
 			image->flag &= ~IMA_DONE_TAG;
 		}
@@ -10107,7 +10115,7 @@ static void give_base_to_groups(Main *mainvar, Scene *scene)
 			base = BKE_scene_base_add(scene, ob);
 			base->flag |= SELECT;
 			base->object->flag= base->flag;
-			ob->recalc |= OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME;
+			DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 			scene->basact = base;
 			
 			/* assign the group */

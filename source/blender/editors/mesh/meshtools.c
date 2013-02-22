@@ -502,6 +502,9 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 
 	/* tessface data removed above, no need to update */
 	mesh_update_customdata_pointers(me, FALSE);
+
+	/* update normals in case objects with non-uniform scale are joined */
+	ED_mesh_calc_normals(me);
 	
 	/* old material array */
 	for (a = 1; a <= ob->totcol; a++) {
@@ -556,7 +559,7 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 	}
 
 
-	DAG_scene_sort(bmain, scene);   // removed objects, need to rebuild dag before editmode call
+	DAG_relations_tag_update(bmain);   // removed objects, need to rebuild dag
 
 #if 0
 	ED_object_enter_editmode(C, EM_WAITCURSOR);
