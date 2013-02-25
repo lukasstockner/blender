@@ -41,6 +41,7 @@
 #include <math.h> // for fabs
 #include <stdarg.h> /* for va_start/end */
 
+#include "BLI_utildefines.h"
 #ifndef WIN32
 #  include <unistd.h> // for read close
 #else
@@ -829,7 +830,7 @@ static int read_file_dna(FileData *fd)
 	
 	for (bhead = blo_firstbhead(fd); bhead; bhead = blo_nextbhead(fd, bhead)) {
 		if (bhead->code == DNA1) {
-			int do_endian_swap = (fd->flags & FD_FLAGS_SWITCH_ENDIAN) ? 1 : 0;
+			const bool do_endian_swap = (fd->flags & FD_FLAGS_SWITCH_ENDIAN) != 0;
 			
 			fd->filesdna = DNA_sdna_from_data(&bhead[1], bhead->len, do_endian_swap);
 			if (fd->filesdna) {
@@ -952,11 +953,11 @@ static FileData *filedata_new(void)
 	fd->filedes = -1;
 	fd->gzfiledes = NULL;
 	
-		/* XXX, this doesn't need to be done all the time,
-		 * but it keeps us re-entrant,  remove once we have
-		 * a lib that provides a nice lock. - zr
-		 */
-	fd->memsdna = DNA_sdna_from_data(DNAstr,  DNAlen,  0);
+	/* XXX, this doesn't need to be done all the time,
+	 * but it keeps us re-entrant,  remove once we have
+	 * a lib that provides a nice lock. - zr
+	 */
+	fd->memsdna = DNA_sdna_from_data(DNAstr, DNAlen, false);
 	
 	fd->datamap = oldnewmap_new();
 	fd->globmap = oldnewmap_new();
@@ -2711,7 +2712,7 @@ static void direct_link_constraints(FileData *fd, ListBase *lb)
 	}
 }
 
-static void lib_link_pose(FileData *fd, Object *ob, bPose *pose)
+static void lib_link_pose(FileData *fd, Main *bmain, Object *ob, bPose *pose)
 {
 	bPoseChannel *pchan;
 	bArmature *arm = ob->data;
@@ -2755,7 +2756,7 @@ static void lib_link_pose(FileData *fd, Object *ob, bPose *pose)
 	}
 	
 	if (rebuild) {
-		DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+		DAG_id_tag_update_ex(bmain, &ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 		pose->flag |= POSE_RECALC;
 	}
 }
@@ -4220,7 +4221,7 @@ static void lib_link_object(FileData *fd, Main *main)
 			/* if id.us==0 a new base will be created later on */
 			
 			/* WARNING! Also check expand_object(), should reflect the stuff below. */
-			lib_link_pose(fd, ob, ob->pose);
+			lib_link_pose(fd, main, ob, ob->pose);
 			lib_link_constraints(fd, &ob->id, &ob->constraints);
 			
 // XXX deprecated - old animation system <<<
@@ -8713,7 +8714,10 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 						if (image == blo_do_versions_newlibadr(fd, otex->id.lib, otex->ima))
 							break;
 
-				if (otex) {
+				/* no duplication if the texture and image datablock are not
+				 * from the same .blend file, the image datablock may not have
+				 * been loaded from a library file otherwise */
+				if (otex && (tex->id.lib == image->id.lib)) {
 					/* copy image datablock */
 					nimage = BKE_image_copy(main, image);
 					nimage->flag |= IMA_IGNORE_ALPHA|IMA_DONE_TAG;
@@ -10154,7 +10158,8 @@ static ID *append_named_part(Main *mainl, FileData *fd, const char *idname, cons
 				}
 				else {
 					/* already linked */
-					printf("append: already linked\n");
+					if (G.debug)
+						printf("append: already linked\n");
 					oldnewmap_insert(fd->libmap, bhead->old, id, bhead->code);
 					if (id->flag & LIB_INDIRECT) {
 						id->flag -= LIB_INDIRECT;

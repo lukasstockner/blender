@@ -25,14 +25,44 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Physics/common/PHY_IGraphicController.cpp
- *  \ingroup phys
+/** \file KX_IpoConvert.h
+ *  \ingroup bgeconv
  */
 
-#include "PHY_IGraphicController.h"
+#ifndef __KX_IPOCONVERT_H__
+#define __KX_IPOCONVERT_H__
 
-PHY_IGraphicController::~PHY_IGraphicController()
-{
+struct Object;
+struct bAction;
+class SG_Controller;
+class KX_GameObject;
+class KX_BlenderSceneConverter;
 
-}
+SG_Controller *BL_CreateIPO(bAction *action,
+	KX_GameObject* gameobj,
+	KX_BlenderSceneConverter *converter);
 
+SG_Controller *BL_CreateObColorIPO(bAction *action,
+	KX_GameObject* gameobj,
+	KX_BlenderSceneConverter *converter);
+
+SG_Controller *BL_CreateLampIPO(bAction *action,
+	KX_GameObject* lightobj,
+	KX_BlenderSceneConverter *converter);
+
+void BL_ConvertWorldIpos(struct World* blenderworld, 
+	KX_BlenderSceneConverter *converter);
+
+SG_Controller *BL_CreateCameraIPO(bAction *action,
+	KX_GameObject* cameraobj,
+	KX_BlenderSceneConverter *converter);
+
+SG_Controller *BL_CreateMaterialIpo(
+	bAction *action,
+	class Material* blendermaterial,
+	dword matname_hash,
+	KX_GameObject* gameobj,
+	KX_BlenderSceneConverter *converter);
+
+
+#endif  /* __KX_IPOCONVERT_H__ */

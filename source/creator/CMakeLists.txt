@@ -689,7 +689,7 @@ elseif(APPLE)
 	)
 
 	# python
-	if(WITH_PYTHON AND NOT WITH_PYTHON_MODULE)
+	if(WITH_PYTHON AND NOT WITH_PYTHON_MODULE AND NOT WITH_PYTHON_FRAMEWORK)
 		# the python zip is first extract as part of the build process,
 		# and then later installed as part of make install. this is much
 		# quicker, and means we can easily exclude files on copy
@@ -742,7 +742,7 @@ elseif(APPLE)
 		)
 
 		# python
-		if(WITH_PYTHON)
+		if(WITH_PYTHON AND NOT WITH_PYTHON_FRAMEWORK)
 			add_custom_command(
 				OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/python
 				COMMAND rm -rf ${CMAKE_CURRENT_BINARY_DIR}/python/
@@ -884,7 +884,6 @@ endif()
 		extern_colamd
 		ge_logic_ketsji
 		extern_recastnavigation
-		ge_phys_common
 		ge_logic
 		ge_rasterizer
 		ge_oglrasterizer
