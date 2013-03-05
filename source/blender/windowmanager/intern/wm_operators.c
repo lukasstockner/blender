@@ -110,6 +110,8 @@
 
 static GHash *global_ops_hash = NULL;
 
+#define UNDOCUMENTED_OPERATOR_TIP N_("(undocumented operator)")
+
 /* ************ operator API, exported ********** */
 
 
@@ -163,7 +165,7 @@ void WM_operatortype_append(void (*opfunc)(wmOperatorType *))
 	}
 
 	/* XXX All ops should have a description but for now allow them not to. */
-	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description ? ot->description : N_("(undocumented operator)"));
+	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description ? ot->description : UNDOCUMENTED_OPERATOR_TIP);
 	RNA_def_struct_identifier(ot->srna, ot->idname);
 
 	BLI_ghash_insert(global_ops_hash, (void *)ot->idname, ot);
@@ -178,7 +180,7 @@ void WM_operatortype_append_ptr(void (*opfunc)(wmOperatorType *, void *), void *
 	/* Set the default i18n context now, so that opfunc can redefine it if needed! */
 	RNA_def_struct_translation_context(ot->srna, BLF_I18NCONTEXT_OPERATOR_DEFAULT);
 	opfunc(ot, userdata);
-	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description ? ot->description : N_("(undocumented operator)"));
+	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description ? ot->description : UNDOCUMENTED_OPERATOR_TIP);
 	RNA_def_struct_identifier(ot->srna, ot->idname);
 
 	BLI_ghash_insert(global_ops_hash, (void *)ot->idname, ot);
@@ -375,7 +377,7 @@ wmOperatorType *WM_operatortype_append_macro(const char *idname, const char *nam
 	ot->poll = NULL;
 
 	if (!ot->description) /* XXX All ops should have a description but for now allow them not to. */
-		ot->description = N_("(undocumented operator)");
+		ot->description = UNDOCUMENTED_OPERATOR_TIP;
 	
 	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description);
 	RNA_def_struct_identifier(ot->srna, ot->idname);
@@ -401,7 +403,7 @@ void WM_operatortype_append_macro_ptr(void (*opfunc)(wmOperatorType *, void *), 
 	ot->poll = NULL;
 
 	if (!ot->description)
-		ot->description = N_("(undocumented operator)");
+		ot->description = UNDOCUMENTED_OPERATOR_TIP;
 
 	/* Set the default i18n context now, so that opfunc can redefine it if needed! */
 	RNA_def_struct_translation_context(ot->srna, BLF_I18NCONTEXT_OPERATOR_DEFAULT);
@@ -1596,14 +1598,14 @@ static void wm_block_splash_refreshmenu(bContext *UNUSED(C), void *UNUSED(arg_bl
 static int wm_resource_check_prev(void)
 {
 
-	char *res = BLI_get_folder_version(BLENDER_RESOURCE_PATH_USER, BLENDER_VERSION, TRUE);
+	const char *res = BLI_get_folder_version(BLENDER_RESOURCE_PATH_USER, BLENDER_VERSION, true);
 
 	// if (res) printf("USER: %s\n", res);
 
 #if 0 /* ignore the local folder */
 	if (res == NULL) {
 		/* with a local dir, copying old files isn't useful since local dir get priority for config */
-		res = BLI_get_folder_version(BLENDER_RESOURCE_PATH_LOCAL, BLENDER_VERSION, TRUE);
+		res = BLI_get_folder_version(BLENDER_RESOURCE_PATH_LOCAL, BLENDER_VERSION, true);
 	}
 #endif
 
@@ -1612,7 +1614,7 @@ static int wm_resource_check_prev(void)
 		return FALSE;
 	}
 	else {
-		return (BLI_get_folder_version(BLENDER_RESOURCE_PATH_USER, BLENDER_VERSION - 1, TRUE) != NULL);
+		return (BLI_get_folder_version(BLENDER_RESOURCE_PATH_USER, BLENDER_VERSION - 1, true) != NULL);
 	}
 }
 
@@ -1846,6 +1848,7 @@ static void WM_OT_call_menu(wmOperatorType *ot)
 {
 	ot->name = "Call Menu";
 	ot->idname = "WM_OT_call_menu";
+	ot->description = "Call (draw) a pre-defined menu";
 
 	ot->exec = wm_call_menu_exec;
 	ot->poll = WM_operator_winactive;
@@ -2316,7 +2319,7 @@ static void WM_OT_recover_auto_save(wmOperatorType *ot)
 static void untitled(char *filepath)
 {
 	if (G.save_over == 0 && strlen(filepath) < FILE_MAX - 16) {
-		char *c = BLI_last_slash(filepath);
+		char *c = (char *)BLI_last_slash(filepath);
 		
 		if (c)
 			strcpy(&c[1], "untitled.blend");
@@ -2406,7 +2409,7 @@ static int blend_save_check(bContext *UNUSED(C), wmOperator *op)
 	RNA_string_get(op->ptr, "filepath", filepath);
 	if (!BLO_has_bfile_extension(filepath)) {
 		/* some users would prefer BLI_replace_extension(),
-		 * we keep getting knit-picking bug reports about this - campbell */
+		 * we keep getting nitpicking bug reports about this - campbell */
 		BLI_ensure_extension(filepath, FILE_MAX, ".blend");
 		RNA_string_set(op->ptr, "filepath", filepath);
 		return TRUE;
@@ -2784,7 +2787,18 @@ int WM_gesture_circle_modal(bContext *C, wmOperator *op, wmEvent *event)
 			gesture_circle_apply(C, op);
 	}
 	else if (event->type == EVT_MODAL_MAP) {
+		float fac;
+		
 		switch (event->val) {
+			case GESTURE_MODAL_CIRCLE_SIZE:
+				fac = 0.3f * (event->y - event->prevy);
+				if (fac > 0)
+					rect->xmax += ceil(fac);
+				else
+					rect->xmax += floor(fac);
+				if (rect->xmax < 1) rect->xmax = 1;
+				wm_gesture_tag_redraw(C);
+				break;
 			case GESTURE_MODAL_CIRCLE_ADD:
 				rect->xmax += 2 + rect->xmax / 10;
 				wm_gesture_tag_redraw(C);
@@ -4059,6 +4073,7 @@ static void gesture_circle_modal_keymap(wmKeyConfig *keyconf)
 		{GESTURE_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
 		{GESTURE_MODAL_CIRCLE_ADD, "ADD", 0, "Add", ""},
 		{GESTURE_MODAL_CIRCLE_SUB, "SUBTRACT", 0, "Subtract", ""},
+		{GESTURE_MODAL_CIRCLE_SIZE, "SIZE", 0, "Size", ""},
 
 		{GESTURE_MODAL_SELECT,  "SELECT", 0, "Select", ""},
 		{GESTURE_MODAL_DESELECT, "DESELECT", 0, "DeSelect", ""},
@@ -4097,6 +4112,7 @@ static void gesture_circle_modal_keymap(wmKeyConfig *keyconf)
 	WM_modalkeymap_add_item(keymap, PADMINUS, KM_PRESS, 0, 0, GESTURE_MODAL_CIRCLE_SUB);
 	WM_modalkeymap_add_item(keymap, WHEELDOWNMOUSE, KM_PRESS, 0, 0, GESTURE_MODAL_CIRCLE_ADD);
 	WM_modalkeymap_add_item(keymap, PADPLUSKEY, KM_PRESS, 0, 0, GESTURE_MODAL_CIRCLE_ADD);
+	WM_modalkeymap_add_item(keymap, MOUSEPAN, 0, 0, 0, GESTURE_MODAL_CIRCLE_SIZE);
 
 	/* assign map to operators */
 	WM_modalkeymap_assign(keymap, "VIEW3D_OT_select_circle");

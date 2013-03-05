@@ -571,6 +571,12 @@ void nodeInternalRelink(bNodeTree *ntree, bNode *node)
 					link->fromnode = fromlink->fromnode;
 					link->fromsock = fromlink->fromsock;
 					
+					/* if the up- or downstream link is invalid,
+					 * the replacement link will be invalid too.
+					 */
+					if (!(fromlink->flag & NODE_LINK_VALID))
+						link->flag &= ~NODE_LINK_VALID;
+					
 					ntree->update |= NTREE_UPDATE_LINKS;
 				}
 				else
@@ -991,6 +997,12 @@ void nodeFreeNode(bNodeTree *ntree, bNode *node)
 
 		if (treetype->free_node_cache)
 			treetype->free_node_cache(ntree, node);
+		
+		/* texture node has bad habit of keeping exec data around */
+		if (ntree->type == NTREE_TEXTURE && ntree->execdata) {
+			ntreeTexEndExecTree(ntree->execdata, 1);
+			ntree->execdata = NULL;
+		}
 	}
 	
 	/* since it is called while free database, node->id is undefined */
@@ -1040,6 +1052,7 @@ void ntreeFreeTree_ex(bNodeTree *ntree, const short do_id_user)
 				break;
 			case NTREE_TEXTURE:
 				ntreeTexEndExecTree(ntree->execdata, 1);
+				ntree->execdata = NULL;
 				break;
 		}
 	}

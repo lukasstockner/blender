@@ -967,7 +967,20 @@ static void threaded_tile_processor(Render *re)
 		if ((g_break=re->test_break(re->tbh)))
 			break;
 	}
-	
+
+	if (g_break) {
+		/* review the done queue and handle all the render parts,
+		 * so no unfreed render result are lurking around
+		 */
+		BLI_thread_queue_nowait(donequeue);
+		while ((pa = BLI_thread_queue_pop(donequeue))) {
+			if (pa->result) {
+				render_result_free_list(&pa->fullresult, pa->result);
+				pa->result = NULL;
+			}
+		}
+	}
+
 	BLI_thread_queue_free(donequeue);
 	BLI_thread_queue_free(workqueue);
 	
@@ -1441,7 +1454,7 @@ static void tag_scenes_for_render(Render *re)
 						Scene *scene = (Scene*) node->id;
 
 						if (scene->r.alphamode != R_ALPHAPREMUL) {
-							BKE_reportf(re->reports, RPT_WARNING, "Setting scene %s alpha mode to Premul\n", scene->id.name + 2);
+							BKE_reportf(re->reports, RPT_WARNING, "Setting scene %s alpha mode to Premul", scene->id.name + 2);
 
 							/* also print, so feedback is immediate */
 							printf("2.66 versioning fix: setting scene %s alpha mode to Premul\n", scene->id.name + 2);
@@ -1999,7 +2012,7 @@ int RE_is_rendering_allowed(Scene *scene, Object *camera_override, ReportList *r
 		
 		render_result_exr_file_path(scene, "", 0, str);
 		
-		if (BLI_file_is_writable(str) == 0) {
+		if (!BLI_file_is_writable(str)) {
 			BKE_report(reports, RPT_ERROR, "Cannot save render buffers, check the temp default path");
 			return 0;
 		}
@@ -2429,7 +2442,7 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 				/* remove touched file */
 				if (BKE_imtype_is_movie(scene->r.im_format.imtype) == 0) {
 					if (scene->r.mode & R_TOUCH && BLI_exists(name) && BLI_file_size(name) == 0) {
-						BLI_delete(name, 0, 0);
+						BLI_delete(name, false, false);
 					}
 				}
 				

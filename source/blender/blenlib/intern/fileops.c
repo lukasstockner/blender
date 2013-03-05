@@ -155,37 +155,38 @@ char *BLI_file_ungzip_to_mem(const char *from_file, int *size_r)
 	return mem;
 }
 
-
-/* return 1 when file can be written */
-int BLI_file_is_writable(const char *filename)
+/**
+ * Returns true if the file with the specified name can be written.
+ * This implementation uses access(2), which makes the check according
+ * to the real UID and GID of the process, not its effective UID and GID.
+ * This shouldn't matter for Blender, which is not going to run privileged
+ * anyway.
+ */
+bool BLI_file_is_writable(const char *filename)
 {
-	int file;
-	
-	/* first try to open without creating */
-	file = BLI_open(filename, O_BINARY | O_RDWR, 0666);
-	
-	if (file < 0) {
-		/* now try to open and create. a test without actually
-		 * creating a file would be nice, but how? */
-		file = BLI_open(filename, O_BINARY | O_RDWR | O_CREAT, 0666);
-		
-		if (file < 0) {
-			return 0;
-		}
-		else {
-			/* success, delete the file we create */
-			close(file);
-			BLI_delete(filename, 0, 0);
-			return 1;
-		}
+	bool writable;
+	if (access(filename, W_OK) == 0) {
+		/* file exists and I can write to it */
+		writable = true;
+	}
+	else if (errno != ENOENT) {
+		/* most likely file or containing directory cannot be accessed */
+		writable = false;
 	}
 	else {
-		close(file);
-		return 1;
+		/* file doesn't exist -- check I can create it in parent directory */
+		char parent[FILE_MAX];
+		BLI_split_dirfile(filename, parent, NULL, sizeof(parent), 0);
+		writable = access(parent, X_OK | W_OK) == 0;
 	}
+	return writable;
 }
 
-int BLI_file_touch(const char *file)
+/**
+ * Creates the file with nothing in it, or updates its last-modified date if it already exists.
+ * Returns true if successful. (like the unix touch command)
+ */
+bool BLI_file_touch(const char *file)
 {
 	FILE *f = BLI_fopen(file, "r+b");
 	if (f != NULL) {
@@ -198,9 +199,9 @@ int BLI_file_touch(const char *file)
 	}
 	if (f) {
 		fclose(f);
-		return 1;
+		return true;
 	}
-	return 0;
+	return false;
 }
 
 #ifdef WIN32
@@ -255,7 +256,7 @@ int   BLI_open(const char *filename, int oflag, int pmode)
 	return uopen(filename, oflag, pmode);
 }
 
-int BLI_delete(const char *file, int dir, int recursive)
+int BLI_delete(const char *file, bool dir, bool recursive)
 {
 	int err;
 	
@@ -391,7 +392,7 @@ int BLI_rename(const char *from, const char *to)
 
 	/* make sure the filenames are different (case insensitive) before removing */
 	if (BLI_exists(to) && BLI_strcasecmp(from, to))
-		if (BLI_delete(to, 0, 0)) return 1;
+		if (BLI_delete(to, false, false)) return 1;
 	
 	return urename(from, to);
 }
@@ -589,7 +590,11 @@ int BLI_open(const char *filename, int oflag, int pmode)
 	return open(filename, oflag, pmode);
 }
 
-int BLI_delete(const char *file, int dir, int recursive) 
+/**
+ * Deletes the specified file or directory (depending on dir), optionally
+ * doing recursive delete of directory contents.
+ */
+int BLI_delete(const char *file, bool dir, bool recursive)
 {
 	if (strchr(file, '"')) {
 		printf("Error: not deleted file %s because of quote!\n", file);
@@ -608,20 +613,26 @@ int BLI_delete(const char *file, int dir, int recursive)
 	return -1;
 }
 
-static int check_the_same(const char *path_a, const char *path_b)
+/**
+ * Do the two paths denote the same filesystem object?
+ */
+static bool check_the_same(const char *path_a, const char *path_b)
 {
 	struct stat st_a, st_b;
 
 	if (lstat(path_a, &st_a))
-		return 0;
+		return false;
 
 	if (lstat(path_b, &st_b))
-		return 0;
+		return false;
 
 	return st_a.st_dev == st_b.st_dev && st_a.st_ino == st_b.st_ino;
 }
 
-static int set_permissions(const char *file, struct stat *st)
+/**
+ * Sets the mode and ownership of file to the values from st.
+ */
+static int set_permissions(const char *file, const struct stat *st)
 {
 	if (chown(file, st->st_uid, st->st_gid)) {
 		perror("chown");
@@ -806,7 +817,8 @@ static char *check_destination(const char *file, const char *to)
 
 	if (!stat(to, &st)) {
 		if (S_ISDIR(st.st_mode)) {
-			char *str, *filename, *path;
+			char *str, *path;
+			const char *filename;
 			size_t len = 0;
 
 			str = strip_last_slash(file);
@@ -875,7 +887,7 @@ void BLI_dir_create_recursive(const char *dirname)
 
 	BLI_strncpy(tmp, dirname, size);
 		
-	lslash = BLI_last_slash(tmp);
+	lslash = (char *)BLI_last_slash(tmp);
 	if (lslash) {
 		/* Split about the last slash and recurse */
 		*lslash = 0;
@@ -893,10 +905,9 @@ int BLI_rename(const char *from, const char *to)
 	if (!BLI_exists(from)) return 0;
 	
 	if (BLI_exists(to))
-		if (BLI_delete(to, 0, 0)) return 1;
+		if (BLI_delete(to, false, false)) return 1;
 
 	return rename(from, to);
 }
 
 #endif
-

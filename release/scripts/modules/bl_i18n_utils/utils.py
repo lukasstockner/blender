@@ -29,6 +29,7 @@ import re
 import struct
 import sys
 import tempfile
+#import time
 
 from bl_i18n_utils import settings, rtl_utils
 
@@ -257,15 +258,23 @@ class I18nMessage:
     @classmethod
     def do_escape(cls, txt):
         """Replace some chars by their escaped versions!"""
-        txt = txt.replace("\n", "\\n").replace("\t", "\\t")
-        txt = cls._esc_quotes.sub(r'\1\"', txt)
+        if "\n" in txt:
+            txt = txt.replace("\n", r"\n")
+        if "\t" in txt:
+            txt.replace("\t", r"\t")
+        if '"' in txt:
+            txt = cls._esc_quotes.sub(r'\1\"', txt)
         return txt
 
     @classmethod
     def do_unescape(cls, txt):
         """Replace escaped chars by real ones!"""
-        txt = txt.replace("\\n", "\n").replace("\\t", "\t")
-        txt = cls._unesc_quotes.sub(r'\1"', txt)
+        if r"\n" in txt:
+            txt = txt.replace(r"\n", "\n")
+        if r"\t" in txt:
+            txt = txt.replace(r"\t", "\t")
+        if r'\"' in txt:
+            txt = cls._unesc_quotes.sub(r'\1"', txt)
         return txt
 
     def escape(self, do_all=False):
@@ -277,8 +286,6 @@ class I18nMessage:
         names = self._esc_names_all if do_all else self._esc_names
         for name in names:
             setattr(self, name, [self.do_unescape(l) for l in getattr(self, name)])
-            if None in getattr(self, name):
-                print(getattr(self, name))
 
 
 class I18nMessages:
@@ -430,7 +437,6 @@ class I18nMessages:
             msg, refmsg = self.msgs[key], ref.msgs[key]
             msg.sources = refmsg.sources
             msg.is_commented = refmsg.is_commented
-            msg.is_fuzzy = refmsg.is_fuzzy
             msgs[key] = msg
 
         # Next process new keys.
@@ -438,8 +444,6 @@ class I18nMessages:
             with concurrent.futures.ProcessPoolExecutor() as exctr:
                 for key, msgid in exctr.map(get_best_similar,
                                             tuple((nk, use_similar, tuple(similar_pool.keys())) for nk in new_keys)):
-                #for key, msgid in map(get_best_similar,
-                                      #tuple((nk, use_similar, tuple(similar_pool.keys())) for nk in new_keys)):
                     if msgid:
                         # Try to get the same context, else just get one...
                         skey = (key[0], msgid)

@@ -105,9 +105,10 @@ void  ED_view3d_depth_tag_update(struct RegionView3D *rv3d);
 typedef enum {
 	V3D_PROJ_RET_OK   = 0,
 	V3D_PROJ_RET_CLIP_NEAR = 1,  /* can't avoid this when in perspective mode, (can't avoid) */
-	V3D_PROJ_RET_CLIP_BB   = 2,  /* bounding box clip - RV3D_CLIPPING */
-	V3D_PROJ_RET_CLIP_WIN  = 3,  /* outside window bounds */
-	V3D_PROJ_RET_OVERFLOW  = 4   /* outside range (mainly for short), (can't avoid) */
+	V3D_PROJ_RET_CLIP_ZERO = 2,  /* so close to zero we can't apply a perspective matrix usefully */
+	V3D_PROJ_RET_CLIP_BB   = 3,  /* bounding box clip - RV3D_CLIPPING */
+	V3D_PROJ_RET_CLIP_WIN  = 4,  /* outside window bounds */
+	V3D_PROJ_RET_OVERFLOW  = 5   /* outside range (mainly for short), (can't avoid) */
 } eV3DProjStatus;
 
 /* some clipping tests are optional */
@@ -116,10 +117,13 @@ typedef enum {
 	V3D_PROJ_TEST_CLIP_BB    = (1 << 0),
 	V3D_PROJ_TEST_CLIP_WIN   = (1 << 1),
 	V3D_PROJ_TEST_CLIP_NEAR  = (1 << 2),
+	V3D_PROJ_TEST_CLIP_ZERO  = (1 << 3)
 } eV3DProjTest;
 
-#define V3D_PROJ_TEST_CLIP_DEFAULT (V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_WIN | V3D_PROJ_TEST_CLIP_NEAR)
-#define V3D_PROJ_TEST_ALL          (V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_WIN | V3D_PROJ_TEST_CLIP_NEAR)
+#define V3D_PROJ_TEST_CLIP_DEFAULT \
+	(V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_WIN | V3D_PROJ_TEST_CLIP_NEAR)
+#define V3D_PROJ_TEST_ALL \
+	(V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_WIN | V3D_PROJ_TEST_CLIP_NEAR | V3D_PROJ_TEST_CLIP_ZERO)
 
 
 /* view3d_iterators.c */
@@ -215,7 +219,7 @@ void ED_view3d_calc_camera_border_size(struct Scene *scene, struct ARegion *ar, 
 
 void ED_view3d_clipping_calc(struct BoundBox *bb, float planes[4][4], struct bglMats *mats, const struct rcti *rect);
 void ED_view3d_clipping_local(struct RegionView3D *rv3d, float mat[4][4]);
-int  ED_view3d_clipping_test(struct RegionView3D *rv3d, const float vec[3], const int is_local);
+int  ED_view3d_clipping_test(struct RegionView3D *rv3d, const float co[3], const bool is_local);
 void ED_view3d_clipping_set(struct RegionView3D *rv3d);
 void ED_view3d_clipping_enable(void);
 void ED_view3d_clipping_disable(void);

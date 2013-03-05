@@ -34,21 +34,8 @@
 
 #include "libmv-capi.h"
 
-#include "third_party/gflags/gflags/gflags.h"
-#include "glog/logging.h"
 #include "libmv/logging/logging.h"
 
-#include "Math/v3d_optimization.h"
-
-#include "libmv/numeric/numeric.h"
-
-#include "libmv/tracking/esm_region_tracker.h"
-#include "libmv/tracking/brute_region_tracker.h"
-#include "libmv/tracking/hybrid_region_tracker.h"
-#include "libmv/tracking/klt_region_tracker.h"
-#include "libmv/tracking/trklt_region_tracker.h"
-#include "libmv/tracking/lmicklt_region_tracker.h"
-#include "libmv/tracking/pyramid_region_tracker.h"
 #include "libmv/tracking/track_region.h"
 
 #include "libmv/simple_pipeline/callbacks.h"
@@ -58,7 +45,6 @@
 #include "libmv/simple_pipeline/detect.h"
 #include "libmv/simple_pipeline/pipeline.h"
 #include "libmv/simple_pipeline/camera_intrinsics.h"
-#include "libmv/simple_pipeline/rigid_registration.h"
 #include "libmv/simple_pipeline/modal_solver.h"
 #include "libmv/simple_pipeline/keyframe_selection.h"
 
@@ -97,7 +83,6 @@ void libmv_initLogging(const char *argv0)
 	google::SetCommandLineOption("v", "0");
 	google::SetCommandLineOption("stderrthreshold", "7");
 	google::SetCommandLineOption("minloglevel", "7");
-	V3D::optimizerVerbosenessLevel = 0;
 }
 
 void libmv_startDebugLogging(void)
@@ -106,7 +91,6 @@ void libmv_startDebugLogging(void)
 	google::SetCommandLineOption("v", "2");
 	google::SetCommandLineOption("stderrthreshold", "1");
 	google::SetCommandLineOption("minloglevel", "0");
-	V3D::optimizerVerbosenessLevel = 1;
 }
 
 void libmv_setLoggingVerbosity(int verbosity)
@@ -115,7 +99,6 @@ void libmv_setLoggingVerbosity(int verbosity)
 	snprintf(val, sizeof(val), "%d", verbosity);
 
 	google::SetCommandLineOption("v", val);
-	V3D::optimizerVerbosenessLevel = verbosity;
 }
 
 /* ************ Utility ************ */
@@ -443,12 +426,15 @@ int libmv_refineParametersAreValid(int parameters) {
 	                       LIBMV_REFINE_RADIAL_DISTORTION_K1   |
 	                       LIBMV_REFINE_RADIAL_DISTORTION_K2)) ||
 	       (parameters == (LIBMV_REFINE_FOCAL_LENGTH           |
-	                       LIBMV_REFINE_RADIAL_DISTORTION_K1));
+	                       LIBMV_REFINE_RADIAL_DISTORTION_K1)) ||
+	       (parameters == (LIBMV_REFINE_RADIAL_DISTORTION_K1   |
+	                       LIBMV_REFINE_RADIAL_DISTORTION_K2));
 }
 
 static void libmv_solveRefineIntrinsics(libmv::Tracks *tracks, libmv::CameraIntrinsics *intrinsics,
 			libmv::EuclideanReconstruction *reconstruction, int refine_intrinsics,
-			reconstruct_progress_update_cb progress_update_callback, void *callback_customdata)
+			reconstruct_progress_update_cb progress_update_callback, void *callback_customdata,
+			int bundle_constraints = libmv::BUNDLE_NO_CONSTRAINTS)
 {
 	/* only a few combinations are supported but trust the caller */
 	int libmv_refine_flags = 0;
@@ -469,7 +455,7 @@ static void libmv_solveRefineIntrinsics(libmv::Tracks *tracks, libmv::CameraIntr
 	progress_update_callback(callback_customdata, 1.0, "Refining solution");
 
 	libmv::EuclideanBundleCommonIntrinsics(*(libmv::Tracks *)tracks, libmv_refine_flags,
-		reconstruction, intrinsics);
+		reconstruction, intrinsics, bundle_constraints);
 }
 
 static void cameraIntrinsicsFromOptions(libmv::CameraIntrinsics *camera_intrinsics,
@@ -645,6 +631,7 @@ libmv_Reconstruction *libmv_solveReconstruction(libmv_Tracks *libmv_tracks,
 
 struct libmv_Reconstruction *libmv_solveModal(struct libmv_Tracks *libmv_tracks,
 			libmv_cameraIntrinsicsOptions *libmv_camera_intrinsics_options,
+			libmv_reconstructionOptions *libmv_reconstruction_options,
 			reconstruct_progress_update_cb progress_update_callback,
 			void *callback_customdata)
 {
@@ -659,13 +646,28 @@ struct libmv_Reconstruction *libmv_solveModal(struct libmv_Tracks *libmv_tracks,
 
 	cameraIntrinsicsFromOptions(camera_intrinsics, libmv_camera_intrinsics_options);
 
-	/* Invert the camera intrinsics */
+	/* Invert the camera intrinsics. */
 	libmv::Tracks normalized_tracks = getNormalizedTracks(tracks, camera_intrinsics);
 
-	/* actual reconstruction */
+	/* Actual reconstruction. */
 	libmv::ModalSolver(normalized_tracks, reconstruction, &update_callback);
 
-	/* finish reconstruction */
+	libmv::CameraIntrinsics empty_intrinsics;
+	libmv::EuclideanBundleCommonIntrinsics(normalized_tracks,
+	                                       libmv::BUNDLE_NO_INTRINSICS,
+	                                       reconstruction,
+	                                       &empty_intrinsics,
+	                                       libmv::BUNDLE_NO_TRANSLATION);
+
+	/* Refinement. */
+	if (libmv_reconstruction_options->refine_intrinsics) {
+		libmv_solveRefineIntrinsics((libmv::Tracks *)tracks, camera_intrinsics, reconstruction,
+			libmv_reconstruction_options->refine_intrinsics,
+			progress_update_callback, callback_customdata,
+			libmv::BUNDLE_NO_TRANSLATION);
+	}
+
+	/* Finish reconstruction. */
 	finishReconstruction(tracks, camera_intrinsics, libmv_reconstruction,
 	                     progress_update_callback, callback_customdata);
 
@@ -1027,57 +1029,4 @@ void libmv_InvertIntrinsics(libmv_cameraIntrinsicsOptions *libmv_camera_intrinsi
 
 		camera_intrinsics.InvertIntrinsics(x, y, x1, y1);
 	}
-}
-
-/* ************ point clouds ************ */
-
-static void libmvTransformToMat4(libmv::Mat3 &R, libmv::Vec3 &S, libmv::Vec3 &t, double M[4][4])
-{
-	for (int j = 0; j < 3; ++j)
-		for (int k = 0; k < 3; ++k)
-			M[j][k] = R(k, j) * S(j);
-
-	for (int i = 0; i < 3; ++i) {
-		M[3][0] = t(0);
-		M[3][1] = t(1);
-		M[3][2] = t(2);
-
-		M[0][3] = M[1][3] = M[2][3] = 0;
-	}
-
-	M[3][3] = 1.0;
-}
-
-void libmv_rigidRegistration(float (*reference_points)[3], float (*points)[3], int total_points,
-                             int use_scale, int use_translation, double M[4][4])
-{
-	libmv::Mat3 R;
-	libmv::Vec3 S;
-	libmv::Vec3 t;
-	libmv::vector<libmv::Vec3> reference_points_vector, points_vector;
-
-	for (int i = 0; i < total_points; i++) {
-		reference_points_vector.push_back(libmv::Vec3(reference_points[i][0],
-		                                              reference_points[i][1],
-		                                              reference_points[i][2]));
-
-		points_vector.push_back(libmv::Vec3(points[i][0],
-		                                    points[i][1],
-		                                    points[i][2]));
-	}
-
-	if (use_scale && use_translation) {
-		libmv::RigidRegistration(reference_points_vector, points_vector, R, S, t);
-	}
-	else if (use_translation) {
-		S = libmv::Vec3(1.0, 1.0, 1.0);
-		libmv::RigidRegistration(reference_points_vector, points_vector, R, t);
-	}
-	else {
-		S = libmv::Vec3(1.0, 1.0, 1.0);
-		t = libmv::Vec3::Zero();
-		libmv::RigidRegistration(reference_points_vector, points_vector, R);
-	}
-
-	libmvTransformToMat4(R, S, t, M);
 }

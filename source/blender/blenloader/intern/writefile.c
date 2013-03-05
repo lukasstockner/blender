@@ -798,14 +798,15 @@ typedef struct RenderInfo {
 static void write_renderinfo(WriteData *wd, Main *mainvar)
 {
 	bScreen *curscreen;
-	Scene *sce;
+	Scene *sce, *curscene = NULL;
 	RenderInfo data;
 
 	/* XXX in future, handle multiple windows with multiple screens? */
 	current_screen_compat(mainvar, &curscreen);
-
+	if (curscreen) curscene = curscreen->scene;
+	
 	for (sce= mainvar->scene.first; sce; sce= sce->id.next) {
-		if (sce->id.lib == NULL && (sce == curscreen->scene || (sce->r.scemode & R_BG_RENDER))) {
+		if (sce->id.lib == NULL && (sce == curscene || (sce->r.scemode & R_BG_RENDER))) {
 			data.sfra = sce->r.sfra;
 			data.efra = sce->r.efra;
 			memset(data.scene_name, 0, sizeof(data.scene_name));
@@ -2574,7 +2575,7 @@ static void write_libraries(WriteData *wd, Main *main)
 		
 		/* to be able to restore quit.blend and temp saves, the packed blend has to be in undo buffers... */
 		/* XXX needs rethink, just like save UI in undo files now - would be nice to append things only for the]
-		   quit.blend and temp saves */
+		 * quit.blend and temp saves */
 		if (foundone) {
 			writestruct(wd, ID_LI, "Library", 1, main->curlib);
 
@@ -3160,7 +3161,7 @@ int BLO_write_file(Main *mainvar, const char *filepath, int write_flags, ReportL
 				return 0;
 			}
 
-			BLI_delete(tempname, 0, 0);
+			BLI_delete(tempname, false, false);
 		}
 		else if (-1==ret) {
 			BKE_report(reports, RPT_ERROR, "Failed opening .gz file");

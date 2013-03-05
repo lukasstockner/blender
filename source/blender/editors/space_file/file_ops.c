@@ -30,6 +30,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
+#include "BLI_fileops_types.h"
 
 #include "BKE_context.h"
 #include "BKE_screen.h"
@@ -1178,11 +1179,10 @@ static void file_expand_directory(bContext *C)
 			get_default_root(sfile->params->dir);
 		}
 		/* change "C:" --> "C:\", [#28102] */
-		else if (   (isalpha(sfile->params->dir[0]) &&
-		             (sfile->params->dir[1] == ':')) &&
-		            (sfile->params->dir[2] == '\0')
-
-		            ) {
+		else if ((isalpha(sfile->params->dir[0]) &&
+		          (sfile->params->dir[1] == ':')) &&
+		         (sfile->params->dir[2] == '\0'))
+		{
 			sfile->params->dir[2] = '\\';
 			sfile->params->dir[3] = '\0';
 		}
@@ -1228,7 +1228,6 @@ int file_directory_exec(bContext *C, wmOperator *UNUSED(unused))
 		}
 
 		BLI_cleanup_dir(G.main->name, sfile->params->dir);
-		BLI_add_slash(sfile->params->dir);
 		file_change_dir(C, 1);
 
 		WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_LIST, NULL);
@@ -1484,7 +1483,7 @@ int file_delete_exec(bContext *C, wmOperator *UNUSED(op))
 	
 	file = filelist_file(sfile->files, sfile->params->active_file);
 	BLI_make_file_string(G.main->name, str, sfile->params->dir, file->relname);
-	BLI_delete(str, 0, 0);
+	BLI_delete(str, false, false);
 	ED_fileselect_clear(C, sfile);
 	WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_LIST, NULL);
 	

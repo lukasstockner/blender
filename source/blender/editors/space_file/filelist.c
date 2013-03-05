@@ -48,6 +48,7 @@
 #include "BLI_linklist.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
+#include "BLI_fileops_types.h"
 
 #ifdef WIN32
 #  include "BLI_winstuff.h"
@@ -545,8 +546,6 @@ FileList *filelist_new(short type)
 
 void filelist_free(struct FileList *filelist)
 {
-	int i;
-
 	if (!filelist) {
 		printf("Attempting to delete empty filelist.\n");
 		return;
@@ -557,23 +556,8 @@ void filelist_free(struct FileList *filelist)
 		filelist->fidx = NULL;
 	}
 
-	for (i = 0; i < filelist->numfiles; ++i) {
-		if (filelist->filelist[i].image) {
-			IMB_freeImBuf(filelist->filelist[i].image);
-		}
-		filelist->filelist[i].image = NULL;
-		if (filelist->filelist[i].relname)
-			MEM_freeN(filelist->filelist[i].relname);
-		if (filelist->filelist[i].path)
-			MEM_freeN(filelist->filelist[i].path);
-		filelist->filelist[i].relname = NULL;
-		if (filelist->filelist[i].string)
-			MEM_freeN(filelist->filelist[i].string);
-		filelist->filelist[i].string = NULL;
-	}
-	
+	BLI_free_filelist(filelist->filelist, filelist->numfiles);
 	filelist->numfiles = 0;
-	free(filelist->filelist);
 	filelist->filelist = NULL;
 	filelist->filter = 0;
 	filelist->filter_glob[0] = '\0';
@@ -874,18 +858,14 @@ static void filelist_setfiletypes(struct FileList *filelist)
 
 static void filelist_read_dir(struct FileList *filelist)
 {
-	char wdir[FILE_MAX] = "";
 	if (!filelist) return;
 
 	filelist->fidx = NULL;
 	filelist->filelist = NULL;
 
-	BLI_current_working_dir(wdir, sizeof(wdir));  /* backup cwd to restore after */
-
 	BLI_cleanup_dir(G.main->name, filelist->dir);
 	filelist->numfiles = BLI_dir_contents(filelist->dir, &(filelist->filelist));
 
-	if (!chdir(wdir)) {} /* fix warning about not checking return value */
 	filelist_setfiletypes(filelist);
 	filelist_filter(filelist);
 }
@@ -1033,7 +1013,7 @@ static int groupname_to_code(const char *group)
 	char *lslash;
 	
 	BLI_strncpy(buf, group, sizeof(buf));
-	lslash = BLI_last_slash(buf);
+	lslash = (char *)BLI_last_slash(buf);
 	if (lslash)
 		lslash[0] = '\0';
 

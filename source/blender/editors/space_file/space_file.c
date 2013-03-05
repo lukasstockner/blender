@@ -45,6 +45,7 @@
 #include "BLI_math.h"
 #include "BLI_rand.h"
 #include "BLI_utildefines.h"
+#include "BLI_fileops_types.h"
 
 #include "BKE_context.h"
 #include "BKE_screen.h"
@@ -629,7 +630,7 @@ void ED_spacetype_file(void)
 
 void ED_file_init(void)
 {
-	char *cfgdir = BLI_get_folder(BLENDER_USER_CONFIG, NULL);
+	const char * const cfgdir = BLI_get_folder(BLENDER_USER_CONFIG, NULL);
 	
 	fsmenu_read_system(fsmenu_get(), TRUE);
 

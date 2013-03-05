@@ -75,6 +75,7 @@ int collada_export(Scene *sce,
 				   int include_material_textures,
 				   int use_texture_copies,
 
+                   int triangulate,
                    int use_object_instantiation,
                    int sort_by_name,
                    int second_life)
@@ -84,7 +85,7 @@ int collada_export(Scene *sce,
 	/* annoying, collada crashes if file cant be created! [#27162] */
 	if (!BLI_exists(filepath)) {
 		BLI_make_existing_file(filepath);     /* makes the dir if its not there */
-		if (BLI_file_touch(filepath) == 0) {
+		if (!BLI_file_touch(filepath)) {
 			fprintf(stdout, "Collada export: Can not create: %s\n", filepath);
 			return 0;
 		}
@@ -106,6 +107,7 @@ int collada_export(Scene *sce,
 	export_settings.include_material_textures= include_material_textures != 0;
 	export_settings.use_texture_copies       = use_texture_copies != 0;
 
+	export_settings.triangulate              = triangulate != 0;
 	export_settings.use_object_instantiation = use_object_instantiation != 0;
 	export_settings.sort_by_name             = sort_by_name != 0;
 	export_settings.second_life              = second_life != 0;

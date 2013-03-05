@@ -49,11 +49,11 @@
 #include "DNA_vfont_types.h"
 #include "DNA_actuator_types.h"
 
+#include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_string.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_anim.h"
 #include "BKE_animsys.h"
@@ -777,16 +777,16 @@ static int empty_drop_named_image_invoke(bContext *C, wmOperator *op, wmEvent *e
 			return OPERATOR_CANCELLED;
 
 		ob = ED_object_add_type(C, OB_EMPTY, NULL, rot, FALSE, layer);
-		ob->empty_drawtype = OB_EMPTY_IMAGE;
 
 		/* add under the mouse */
 		ED_object_location_from_view(C, ob->loc);
 		ED_view3d_cursor3d_position(C, ob->loc, event->mval);
 	}
 
+	ob->empty_drawtype = OB_EMPTY_IMAGE;
 	ob->data = ima;
 
- 	return OPERATOR_FINISHED;
+	return OPERATOR_FINISHED;
 }
 
 void OBJECT_OT_drop_named_image(wmOperatorType *ot)
@@ -2112,6 +2112,7 @@ static int add_named_exec(bContext *C, wmOperator *op)
 	}
 
 	basen->lay = basen->object->lay = scene->lay;
+	basen->object->restrictflag &= ~OB_RESTRICT_VIEW;
 
 	if (event) {
 		ARegion *ar = CTX_wm_region(C);
@@ -2121,6 +2122,7 @@ static int add_named_exec(bContext *C, wmOperator *op)
 		ED_view3d_cursor3d_position(C, basen->object->loc, mval);
 	}
 	
+	ED_base_object_select(basen, BA_SELECT);
 	ED_base_object_activate(C, basen);
 
 	copy_object_set_idnew(C, dupflag);

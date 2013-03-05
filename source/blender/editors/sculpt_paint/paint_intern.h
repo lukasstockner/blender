@@ -144,6 +144,7 @@ float paint_calc_object_space_radius(struct ViewContext *vc, const float center[
 float paint_get_tex_pixel(struct Brush *br, float u, float v, struct ImagePool *pool);
 int imapaint_pick_face(struct ViewContext *vc, const int mval[2], unsigned int *index, unsigned int totface);
 void imapaint_pick_uv(struct Scene *scene, struct Object *ob, unsigned int faceindex, const int xy[2], float uv[2]);
+void brush_drawcursor_texpaint_uvsculpt(struct bContext *C, int x, int y, void *customdata);
 
 void paint_sample_color(const struct bContext *C, struct ARegion *ar, int x, int y);
 void BRUSH_OT_curve_preset(struct wmOperatorType *ot);
@@ -151,12 +152,10 @@ void BRUSH_OT_curve_preset(struct wmOperatorType *ot);
 void PAINT_OT_face_select_linked(struct wmOperatorType *ot);
 void PAINT_OT_face_select_linked_pick(struct wmOperatorType *ot);
 void PAINT_OT_face_select_all(struct wmOperatorType *ot);
-void PAINT_OT_face_select_inverse(struct wmOperatorType *ot);
 void PAINT_OT_face_select_hide(struct wmOperatorType *ot);
 void PAINT_OT_face_select_reveal(struct wmOperatorType *ot);
 
 void PAINT_OT_vert_select_all(struct wmOperatorType *ot);
-void PAINT_OT_vert_select_inverse(struct wmOperatorType *ot);
 int vert_paint_poll(struct bContext *C);
 int mask_paint_poll(struct bContext *C);
 

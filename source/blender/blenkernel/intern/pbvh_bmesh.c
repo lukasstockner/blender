@@ -20,6 +20,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_utildefines.h"
 #include "BLI_buffer.h"
 #include "BLI_ghash.h"
 #include "BLI_heap.h"
@@ -805,7 +806,8 @@ static void pbvh_bmesh_collapse_edge(PBVH *bvh, BMEdge *e, BMVert *v1,
 
 			/* Ensure that v1 is in the new face's node */
 			if (!BLI_ghash_haskey(n->bm_unique_verts, v1) &&
-				!BLI_ghash_haskey(n->bm_other_verts, v1)) {
+			    !BLI_ghash_haskey(n->bm_other_verts,  v1))
+			{
 				BLI_ghash_insert(n->bm_other_verts, v1, NULL);
 			}
 		}

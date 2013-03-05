@@ -56,6 +56,7 @@ extern "C" {
 
 #include "WM_api.h" // XXX hrm, see if we can do without this
 #include "WM_types.h"
+#include "bmesh.h"
 }
 
 float bc_get_float_value(const COLLADAFW::FloatOrDoubleArray& array, unsigned int index)
@@ -115,11 +116,11 @@ int bc_set_parent(Object *ob, Object *par, bContext *C, bool is_parent_space)
 	DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA);
 	DAG_id_tag_update(&par->id, OB_RECALC_OB);
 
-	/** done once after import
+	/** done once after import */
+#if 0
 	DAG_relations_tag_update(bmain);
 	WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, NULL);
-    */
-
+#endif
 
 	return true;
 }
@@ -137,25 +138,38 @@ Object *bc_add_object(Scene *scene, int type, const char *name)
 	return ob;
 }
 
-Mesh *bc_to_mesh_apply_modifiers(Scene *scene, Object *ob, BC_export_mesh_type export_mesh_type)
+Mesh *bc_get_mesh_copy(Scene *scene, Object *ob, BC_export_mesh_type export_mesh_type, bool apply_modifiers, bool triangulate)
 {
 	Mesh *tmpmesh;
 	CustomDataMask mask = CD_MASK_MESH;
 	DerivedMesh *dm = NULL;
-	switch (export_mesh_type) {
-		case BC_MESH_TYPE_VIEW: {
-			dm = mesh_create_derived_view(scene, ob, mask);
-			break;
+	if(apply_modifiers) {
+		switch (export_mesh_type) {
+			case BC_MESH_TYPE_VIEW: {
+				dm = mesh_create_derived_view(scene, ob, mask);
+				break;
+			}
+			case BC_MESH_TYPE_RENDER: {
+				dm = mesh_create_derived_render(scene, ob, mask);
+				break;
+			}
 		}
-		case BC_MESH_TYPE_RENDER: {
-			dm = mesh_create_derived_render(scene, ob, mask);
-			break;
-		}
+	}
+	else {
+		dm = mesh_create_derived((Mesh *)ob->data, ob, NULL);
 	}
 
 	tmpmesh = BKE_mesh_add(G.main, "ColladaMesh"); // name is not important here
 	DM_to_mesh(dm, tmpmesh, ob);
 	dm->release(dm);
+
+	if (triangulate) {
+		bc_triangulate_mesh(tmpmesh);
+	}
+
+	// XXX Not sure if we need that for ngon_export as well.
+	BKE_mesh_tessface_ensure(tmpmesh);
+
 	return tmpmesh;
 }
 
@@ -285,15 +299,17 @@ int bc_get_active_UVLayer(Object *ob)
 	return CustomData_get_active_layer_index(&me->fdata, CD_MTFACE);
 }
 
-std::string bc_url_encode(std::string data) {
+std::string bc_url_encode(std::string data)
+{
 	/* XXX We probably do not need to do a full encoding.
-	   But in case that is necessary,then it can be added here.
-	*/
+	 * But in case that is necessary,then it can be added here.
+	 */
 	return bc_replace_string(data,"#", "%23");
 }
 
 std::string bc_replace_string(std::string data, const std::string& pattern,
-							  const std::string& replacement) {
+                              const std::string& replacement)
+{
 	size_t pos = 0;
 	while((pos = data.find(pattern, pos)) != std::string::npos) {
 		data.replace(pos, pattern.length(), replacement);
@@ -303,15 +319,15 @@ std::string bc_replace_string(std::string data, const std::string& pattern,
 }
 
 /**
-	Calculate a rescale factor such that the imported scene's scale
-	is preserved. I.e. 1 meter in the import will also be
-	1 meter in the current scene.
-	XXX : I am not sure if it is correct to map 1 Blender Unit
-	to 1 Meter for unit type NONE. But it looks reasonable to me.
-*/
+ * Calculate a rescale factor such that the imported scene's scale
+ * is preserved. I.e. 1 meter in the import will also be
+ * 1 meter in the current scene.
+ * XXX : I am not sure if it is correct to map 1 Blender Unit
+ * to 1 Meter for unit type NONE. But it looks reasonable to me.
+ */
 void bc_match_scale(std::vector<Object *> *objects_done, 
-					Scene &sce, 
-					UnitConverter &bc_unit) {
+                    Scene &sce,
+                    UnitConverter &bc_unit) {
 
 	Object *ob = NULL;
 
@@ -365,4 +381,15 @@ void bc_match_scale(std::vector<Object *> *objects_done,
 		BKE_object_apply_mat4(ob, ob->obmat, 0, 0);
 	}
 
+}
+
+void bc_triangulate_mesh(Mesh *me) {
+	bool use_beauty = false;
+	bool tag_only   = false;
+	 
+	BMesh *bm = BM_mesh_create(&bm_mesh_allocsize_default);
+	BM_mesh_bm_from_me(bm, me, FALSE, 0);
+	BM_mesh_triangulate(bm, use_beauty, tag_only, NULL, NULL);
+	BM_mesh_bm_to_me(bm, me, FALSE);
+	BM_mesh_free(bm);
 }

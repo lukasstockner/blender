@@ -1097,34 +1097,29 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 
 /* ************* EVENTS ************* */
 
-static void ui_is_but_sel(uiBut *but, double *value)
+int ui_is_but_push_ex(uiBut *but, double *value)
 {
-	short is_push = 0;  /* (0 == UNSELECT), (1 == SELECT), (2 == DO-NOHING) */
-	short is_true = TRUE;
-
-	if (ELEM3(but->type, TOGN, ICONTOGN, OPTIONN)) {
-		is_true = FALSE;
-	}
+	int is_push = false;  /* (0 == UNSELECT), (1 == SELECT), (-1 == DO-NOHING) */
 
 	if (but->bit) {
+		const bool state = ELEM3(but->type, TOGN, ICONTOGN, OPTIONN) ? false : true;
 		int lvalue;
 		UI_GET_BUT_VALUE_INIT(but, *value);
 		lvalue = (int)*value;
 		if (UI_BITBUT_TEST(lvalue, (but->bitnr))) {
-			is_push = is_true;
+			is_push = state;
 		}
 		else {
-			is_push = !is_true;
+			is_push = !state;
 		}
 	}
 	else {
 		switch (but->type) {
 			case BUT:
-				is_push = 2;
-				break;
 			case HOTKEYEVT:
 			case KEYEVT:
-				is_push = 2;
+			case COLOR:
+				is_push = -1;
 				break;
 			case TOGBUT:
 			case TOG:
@@ -1134,42 +1129,48 @@ static void ui_is_but_sel(uiBut *but, double *value)
 			case ICONTOG:
 			case OPTION:
 				UI_GET_BUT_VALUE_INIT(but, *value);
-				if (*value != (double)but->hardmin) is_push = 1;
+				if (*value != (double)but->hardmin) is_push = true;
 				break;
 			case ICONTOGN:
 			case TOGN:
 			case OPTIONN:
 				UI_GET_BUT_VALUE_INIT(but, *value);
-				if (*value == 0.0) is_push = 1;
+				if (*value == 0.0) is_push = true;
 				break;
 			case ROW:
 			case LISTROW:
 				UI_GET_BUT_VALUE_INIT(but, *value);
 				/* support for rna enum buts */
 				if (but->rnaprop && (RNA_property_flag(but->rnaprop) & PROP_ENUM_FLAG)) {
-					if ((int)*value & (int)but->hardmax) is_push = 1;
+					if ((int)*value & (int)but->hardmax) is_push = true;
 				}
 				else {
-					if (*value == (double)but->hardmax) is_push = 1;
+					if (*value == (double)but->hardmax) is_push = true;
 				}
 				break;
-			case COLOR:
-				is_push = 2;
-				break;
 			default:
-				is_push = 2;
+				is_push = -1;
 				break;
 		}
 	}
-	
-	if (is_push == 2) {
-		/* pass */
-	}
-	else if (is_push == 1) {
-		but->flag |= UI_SELECT;
-	}
-	else {
-		but->flag &= ~UI_SELECT;
+
+	return is_push;
+}
+int ui_is_but_push(uiBut *but)
+{
+	double value = UI_BUT_VALUE_UNSET;
+	return ui_is_but_push_ex(but, &value);
+}
+
+static void ui_check_but_select(uiBut *but, double *value)
+{
+	switch (ui_is_but_push_ex(but, value)) {
+		case true:
+			but->flag |= UI_SELECT;
+			break;
+		case false:
+			but->flag &= ~UI_SELECT;
+			break;
 	}
 }
 
@@ -1620,8 +1621,7 @@ void ui_set_but_val(uiBut *but, double value)
 			value = *((float *)but->poin) = (float)value;
 	}
 
-	/* update select flag */
-	ui_is_but_sel(but, &value);
+	ui_check_but_select(but, &value);
 }
 
 int ui_get_but_string_max_length(uiBut *but)
@@ -1674,18 +1674,28 @@ void ui_convert_to_unit_alt_name(uiBut *but, char *str, size_t maxlen)
 	}
 }
 
-static void ui_get_but_string_unit(uiBut *but, char *str, int len_max, double value, int pad)
+/**
+ * \param float_precision  Override the button precision.
+ */
+static void ui_get_but_string_unit(uiBut *but, char *str, int len_max, double value, int pad, int float_precision)
 {
 	UnitSettings *unit = but->block->unit;
 	int do_split = unit->flag & USER_UNIT_OPT_SPLIT;
 	int unit_type = uiButGetUnitType(but);
-	int precision = but->a2;
+	int precision;
 
 	if (unit->scale_length < 0.0001f) unit->scale_length = 1.0f;  // XXX do_versions
 
-	/* Sanity checks */
-	if (precision > PRECISION_FLOAT_MAX) precision = PRECISION_FLOAT_MAX;
-	else if (precision == 0) precision = 2;
+	/* Use precision override? */
+	if (float_precision == -1) {
+		/* Sanity checks */
+		precision = (int)but->a2;
+		if      (precision > PRECISION_FLOAT_MAX) precision = PRECISION_FLOAT_MAX;
+		else if (precision == 0)                  precision = 2;
+	}
+	else {
+		precision = float_precision;
+	}
 
 	bUnit_AsString(str, len_max, ui_get_but_scale_unit(but, value), precision,
 	               unit->system, RNA_SUBTYPE_UNIT_VALUE(unit_type), do_split, pad);
@@ -1706,8 +1716,10 @@ static float ui_get_but_step_unit(uiBut *but, float step_default)
 	}
 }
 
-
-void ui_get_but_string(uiBut *but, char *str, size_t maxlen)
+/**
+ * \param float_precision  For number buttons the precission to use or -1 to fallback to the button default.
+ */
+void ui_get_but_string_ex(uiBut *but, char *str, const size_t maxlen, const int float_precision)
 {
 	if (but->rnaprop && ELEM4(but->type, TEX, IDPOIN, SEARCH_MENU, SEARCH_MENU_UNLINK)) {
 		PropertyType type;
@@ -1779,16 +1791,20 @@ void ui_get_but_string(uiBut *but, char *str, size_t maxlen)
 
 		if (ui_is_but_float(but)) {
 			if (ui_is_but_unit(but)) {
-				ui_get_but_string_unit(but, str, maxlen, value, 0);
+				ui_get_but_string_unit(but, str, maxlen, value, 0, float_precision);
 			}
 			else {
-				const int prec = ui_but_float_precision(but, value);
+				const int prec = (float_precision == -1) ? ui_but_float_precision(but, value) : float_precision;
 				BLI_snprintf(str, maxlen, "%.*f", prec, value);
 			}
 		}
 		else
 			BLI_snprintf(str, maxlen, "%d", (int)value);
 	}
+}
+void ui_get_but_string(uiBut *but, char *str, const size_t maxlen)
+{
+	ui_get_but_string_ex(but, str, maxlen, -1);
 }
 
 #ifdef WITH_PYTHON
@@ -2256,7 +2272,7 @@ void ui_check_but(uiBut *but)
 	double value = UI_BUT_VALUE_UNSET;
 //	float okwidth; // UNUSED
 	
-	ui_is_but_sel(but, &value);
+	ui_check_but_select(but, &value);
 	
 	/* only update soft range while not editing */
 	if (but->rnaprop && !(but->editval || but->editstr || but->editvec)) {
@@ -2345,7 +2361,7 @@ void ui_check_but(uiBut *but)
 				/* support length type buttons */
 				else if (ui_is_but_unit(but)) {
 					char new_str[sizeof(but->drawstr)];
-					ui_get_but_string_unit(but, new_str, sizeof(new_str), value, TRUE);
+					ui_get_but_string_unit(but, new_str, sizeof(new_str), value, TRUE, -1);
 					BLI_snprintf(but->drawstr, sizeof(but->drawstr), "%s%s", but->str, new_str);
 				}
 				else {

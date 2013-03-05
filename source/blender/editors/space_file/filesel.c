@@ -58,6 +58,7 @@
 #include "BLI_linklist.h"
 #include "BLI_dynstr.h"
 #include "BLI_utildefines.h"
+#include "BLI_fileops_types.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -583,7 +584,7 @@ void file_change_dir(bContext *C, int checkdir)
 
 		ED_fileselect_clear(C, sfile);
 
-		if (checkdir && BLI_is_dir(sfile->params->dir) == 0) {
+		if (checkdir && !BLI_is_dir(sfile->params->dir)) {
 			BLI_strncpy(sfile->params->dir, filelist_dir(sfile->files), sizeof(sfile->params->dir));
 			/* could return but just refresh the current dir */
 		}

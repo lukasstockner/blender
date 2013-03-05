@@ -112,6 +112,7 @@ struct libmv_Reconstruction *libmv_solveReconstruction(struct libmv_Tracks *libm
 			void *callback_customdata);
 struct libmv_Reconstruction *libmv_solveModal(struct libmv_Tracks *libmv_tracks,
 			libmv_cameraIntrinsicsOptions *libmv_camera_intrinsics_options,
+			libmv_reconstructionOptions *libmv_reconstruction_options,
 			reconstruct_progress_update_cb progress_update_callback,
 			void *callback_customdata);
 int libmv_reporojectionPointForTrack(struct libmv_Reconstruction *libmv_reconstruction, int track, double pos[3]);
@@ -162,10 +163,6 @@ void libmv_applyCameraIntrinsics(libmv_cameraIntrinsicsOptions *libmv_camera_int
 			double x, double y, double *x1, double *y1);
 void libmv_InvertIntrinsics(libmv_cameraIntrinsicsOptions *libmv_camera_intrinsics_options,
 			double x, double y, double *x1, double *y1);
-
-/* point clouds */
-void libmv_rigidRegistration(float (*reference_points)[3], float (*points)[3], int total_points,
-                             int use_scale, int use_translation, double M[4][4]);
 
 #ifdef __cplusplus
 }

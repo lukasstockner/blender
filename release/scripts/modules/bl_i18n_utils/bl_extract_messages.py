@@ -408,6 +408,14 @@ def dump_py_messages_from_files(msgs, reports, files, settings):
 
     bpy_struct = bpy.types.ID.__base__
 
+    root_paths = tuple(bpy.utils.resource_path(t) for t in ('USER', 'LOCAL', 'SYSTEM'))
+    def make_rel(path):
+        for rp in root_paths:
+            if path.startswith(rp):
+                return os.path.relpath(path, rp)
+        # Use binary's dir as fallback...
+        return os.path.relpath(path, os.path.dirname(bpy.app.binary_path))
+
     # Helper function
     def extract_strings_ex(node, is_split=False):
         """
@@ -559,7 +567,7 @@ def dump_py_messages_from_files(msgs, reports, files, settings):
         with open(fp, 'r', encoding="utf8") as filedata:
             root_node = ast.parse(filedata.read(), fp, 'exec')
 
-        fp_rel = os.path.relpath(fp, settings.SOURCE_DIR)
+        fp_rel = make_rel(fp)
 
         for node in ast.walk(root_node):
             if type(node) == ast.Call:
@@ -623,19 +631,22 @@ def dump_py_messages_from_files(msgs, reports, files, settings):
                             reports["py_messages"].append((msgctxt, estr, msgsrc))
 
 
-def dump_py_messages(msgs, reports, addons, settings):
+def dump_py_messages(msgs, reports, addons, settings, addons_only=False):
     def _get_files(path):
+        if not os.path.exists(path):
+            return []
         if os.path.isdir(path):
-            # XXX use walk instead of listdir?
-            return [os.path.join(path, fn) for fn in sorted(os.listdir(path))
-                                              if not fn.startswith("_") and fn.endswith(".py")]
+            return [os.path.join(dpath, fn) for dpath, _, fnames in os.walk(path) for fn in fnames
+                                            if not fn.startswith("_") and fn.endswith(".py")]
         return [path]
 
     files = []
-    for path in settings.CUSTOM_PY_UI_FILES:
-        files += _get_files(path)
+    if not addons_only:
+        for path in settings.CUSTOM_PY_UI_FILES:
+            for root in (bpy.utils.resource_path(t) for t in ('USER', 'LOCAL', 'SYSTEM')):
+                files += _get_files(os.path.join(root, path))
 
-    # Add all addons we support in main translation file!
+    # Add all given addons.
     for mod in addons:
         fn = mod.__file__
         if os.path.basename(fn) == "__init__.py":
@@ -643,7 +654,7 @@ def dump_py_messages(msgs, reports, addons, settings):
         else:
             files.append(fn)
 
-    dump_py_messages_from_files(msgs, reports, files, settings)
+    dump_py_messages_from_files(msgs, reports, sorted(files), settings)
 
 
 ##### C source code #####
@@ -777,9 +788,7 @@ def dump_messages(do_messages, do_checks, settings):
     dump_src_messages(msgs, reports, settings)
 
     # Get strings from addons' categories.
-    print("foo, bar", bpy.types.WindowManager.addon_filter[1]['items'](bpy.context.window_manager, bpy.context))
     for uid, label, tip in bpy.types.WindowManager.addon_filter[1]['items'](bpy.context.window_manager, bpy.context):
-        print(uid, label, tip)
         process_msg(msgs, settings.DEFAULT_CONTEXT, label, "Addons' categories", reports, None, settings)
         if tip:
             process_msg(msgs, settings.DEFAULT_CONTEXT, tip, "Addons' categories", reports, None, settings)
@@ -855,7 +864,7 @@ def dump_addon_messages(module_name, messages_formats, do_checks, settings):
 
     # get strings from UI layout definitions text="..." args
     reports["check_ctxt"] = check_ctxt
-    dump_messages_pytext(msgs, reports, addons, settings)
+    dump_messages_pytext(msgs, reports, addons, settings, addons_only=True)
 
     print_info(reports, pot)
 
