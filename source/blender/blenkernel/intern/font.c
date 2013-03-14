@@ -101,9 +101,9 @@ void BKE_vfont_free(struct VFont *vf)
 static void *builtin_font_data = NULL;
 static int builtin_font_size = 0;
 
-int  BKE_vfont_is_builtin(struct VFont *vfont)
+bool BKE_vfont_is_builtin(struct VFont *vfont)
 {
-	return (strcmp(vfont->name, FO_BUILTIN_NAME) == 0);
+	return STREQ(vfont->name, FO_BUILTIN_NAME);
 }
 
 void BKE_vfont_builtin_register(void *mem, int size)
@@ -188,7 +188,7 @@ VFont *BKE_vfont_load(Main *bmain, const char *name)
 	PackedFile *temp_pf = NULL;
 	int is_builtin;
 	
-	if (strcmp(name, FO_BUILTIN_NAME) == 0) {
+	if (STREQ(name, FO_BUILTIN_NAME)) {
 		BLI_strncpy(filename, name, sizeof(filename));
 		
 		pf = get_builtin_packedfile();
@@ -943,10 +943,13 @@ makebreak:
 			ct = chartransdata;
 			for (i = 0; i < slen; i++) {
 				if (ct->linenr == lnr) {
-					if (ct->charnr == cnr) break;
-					if ( (ct + 1)->charnr == 0) break;
+					if ((ct->charnr == cnr) || ((ct + 1)->charnr == 0)) {
+						break;
+					}
 				}
-				else if (ct->linenr > lnr) break;
+				else if (ct->linenr > lnr) {
+					break;
+				}
 				cu->pos++;
 				ct++;
 			}

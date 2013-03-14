@@ -294,7 +294,7 @@ static void select_linked_tfaces_with_seams(int mode, Mesh *me, unsigned int ind
 	MEM_freeN(linkflag);
 }
 
-void paintface_select_linked(bContext *UNUSED(C), Object *ob, int UNUSED(mval[2]), int mode)
+void paintface_select_linked(bContext *UNUSED(C), Object *ob, const int UNUSED(mval[2]), int mode)
 {
 	Mesh *me;
 	unsigned int index = 0;
@@ -525,7 +525,9 @@ int paintface_mouse_select(struct bContext *C, Object *ob, const int mval[2], in
 		else
 			mpoly_sel->flag |= ME_FACE_SEL;
 	}
-	else mpoly_sel->flag |= ME_FACE_SEL;
+	else {
+		mpoly_sel->flag |= ME_FACE_SEL;
+	}
 	
 	/* image window redraw */
 	

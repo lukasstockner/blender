@@ -891,7 +891,7 @@ static int nlaedit_duplicate_exec(bContext *C, wmOperator *UNUSED(op))
 		return OPERATOR_CANCELLED;
 }
 
-static int nlaedit_duplicate_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
+static int nlaedit_duplicate_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	nlaedit_duplicate_exec(C, op);
 	
@@ -1947,7 +1947,7 @@ void NLA_OT_snap(wmOperatorType *ot)
 /* ******************** Add F-Modifier Operator *********************** */
 
 /* present a special customised popup menu for this, with some filtering */
-static int nla_fmodifier_add_invoke(bContext *C, wmOperator *UNUSED(op), wmEvent *UNUSED(event))
+static int nla_fmodifier_add_invoke(bContext *C, wmOperator *UNUSED(op), const wmEvent *UNUSED(event))
 {
 	uiPopupMenu *pup;
 	uiLayout *layout;
@@ -2021,8 +2021,9 @@ static int nla_fmodifier_add_exec(bContext *C, wmOperator *op)
 			/* add F-Modifier of specified type to selected, and make it the active one */
 			fcm = add_fmodifier(&strip->modifiers, type);
 			
-			if (fcm)
+			if (fcm) {
 				set_active_fmodifier(&strip->modifiers, fcm);
+			}
 			else {
 				BKE_reportf(op->reports, RPT_ERROR,
 				            "Modifier could not be added to (%s : %s) (see console for details)",

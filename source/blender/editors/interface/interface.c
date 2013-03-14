@@ -231,7 +231,9 @@ static void ui_text_bounds_block(uiBlock *block, float offset)
 			nextcol = 1;
 			col++;
 		}
-		else nextcol = 0;
+		else {
+			nextcol = 0;
+		}
 		
 		bt->rect.xmin = x1addval;
 		bt->rect.xmax = bt->rect.xmin + i + block->bounds;
@@ -1644,6 +1646,9 @@ static double ui_get_but_scale_unit(uiBut *but, double value)
 	if (unit_type == PROP_UNIT_LENGTH) {
 		return value * (double)unit->scale_length;
 	}
+	else if (unit_type == PROP_UNIT_CAMERA) {
+		return value * (double)unit->scale_length;
+	}
 	else if (unit_type == PROP_UNIT_AREA) {
 		return value * pow(unit->scale_length, 2);
 	}
@@ -2555,7 +2560,9 @@ static void ui_block_do_align_but(uiBut *first, short nr)
 					else
 						flag = UI_BUT_ALIGN_TOP | UI_BUT_ALIGN_LEFT;
 				}
-				else flag = UI_BUT_ALIGN_TOP;
+				else {
+					flag = UI_BUT_ALIGN_TOP;
+				}
 			}
 		}
 		else if (buts_are_horiz(but, next)) {
@@ -2575,7 +2582,9 @@ static void ui_block_do_align_but(uiBut *first, short nr)
 					if (bt == NULL || bt->alignnr != nr) flag = UI_BUT_ALIGN_TOP | UI_BUT_ALIGN_RIGHT;
 				}
 			}
-			else flag |= UI_BUT_ALIGN_LEFT;
+			else {
+				flag |= UI_BUT_ALIGN_LEFT;
+			}
 		}
 		else {
 			if (cols == 0) {
@@ -3041,7 +3050,7 @@ static uiBut *ui_def_but_operator_ptr(uiBlock *block, int type, wmOperatorType *
 }
 
 #if 0 /* UNUSED */
-static uiBut *UNUSED_FUNCTION(ui_def_but_operator) (uiBlock * block, int type, const char *opname, int opcontext, const char *str, int x, int y, short width, short height, const char *tip)
+static uiBut *UNUSED_FUNCTION(ui_def_but_operator) (uiBlock *block, int type, const char *opname, int opcontext, const char *str, int x, int y, short width, short height, const char *tip)
 {
 	wmOperatorType *ot = WM_operatortype_find(opname, 0);
 	if (str == NULL && ot == NULL) str = opname;

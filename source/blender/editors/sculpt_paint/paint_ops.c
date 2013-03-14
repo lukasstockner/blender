@@ -533,7 +533,7 @@ static void ed_keymap_paint_brush_size(wmKeyMap *keymap, const char *UNUSED(path
 typedef enum {
 	RC_COLOR = 1,
 	RC_ROTATION = 2,
-	RC_ZOOM = 4,
+	RC_ZOOM = 4
 } RCFlags;
 
 static void set_brush_rc_path(PointerRNA *ptr, const char *brush_path,

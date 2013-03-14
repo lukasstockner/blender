@@ -357,7 +357,7 @@ static void laplacian_relaxation_iteration_uv(BMEditMesh *em, UvSculptData *scul
 }
 
 
-static void uv_sculpt_stroke_apply(bContext *C, wmOperator *op, wmEvent *event, Object *obedit)
+static void uv_sculpt_stroke_apply(bContext *C, wmOperator *op, const wmEvent *event, Object *obedit)
 {
 	float co[2], radius, radius_root;
 	Scene *scene = CTX_data_scene(C);
@@ -527,7 +527,7 @@ static int uv_edge_compare(const void *a, const void *b)
 }
 
 
-static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, wmEvent *event)
+static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	Scene *scene = CTX_data_scene(C);
 	Object *obedit = CTX_data_edit_object(C);
@@ -712,7 +712,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, wmEvent 
 			return NULL;
 		}
 		/* fill the edges with data */
-		for (i = 0; !BLI_ghashIterator_isDone(ghi); BLI_ghashIterator_step(ghi)) {
+		for (i = 0; BLI_ghashIterator_notDone(ghi); BLI_ghashIterator_step(ghi)) {
 			data->uvedges[i++] = *((UvEdge *)BLI_ghashIterator_getKey(ghi));
 		}
 		data->totalUvEdges = BLI_ghash_size(edgeHash);
@@ -794,7 +794,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, wmEvent 
 	return op->customdata;
 }
 
-static int uv_sculpt_stroke_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int uv_sculpt_stroke_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	UvSculptData *data;
 	Object *obedit = CTX_data_edit_object(C);
@@ -817,7 +817,7 @@ static int uv_sculpt_stroke_invoke(bContext *C, wmOperator *op, wmEvent *event)
 }
 
 
-static int uv_sculpt_stroke_modal(bContext *C, wmOperator *op, wmEvent *event)
+static int uv_sculpt_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	UvSculptData *data = (UvSculptData *)op->customdata;
 	Object *obedit = CTX_data_edit_object(C);

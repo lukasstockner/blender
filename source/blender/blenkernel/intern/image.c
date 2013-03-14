@@ -1042,7 +1042,7 @@ char BKE_ftype_to_imtype(const int ftype)
 }
 
 
-int BKE_imtype_is_movie(const char imtype)
+bool BKE_imtype_is_movie(const char imtype)
 {
 	switch (imtype) {
 		case R_IMF_IMTYPE_AVIRAW:
@@ -1053,9 +1053,9 @@ int BKE_imtype_is_movie(const char imtype)
 		case R_IMF_IMTYPE_THEORA:
 		case R_IMF_IMTYPE_XVID:
 		case R_IMF_IMTYPE_FRAMESERVER:
-			return 1;
+			return true;
 	}
-	return 0;
+	return false;
 }
 
 int BKE_imtype_supports_zbuf(const char imtype)
@@ -1567,7 +1567,9 @@ static void stampdata(Scene *scene, Object *camera, StampData *stamp_data, int d
 		if (camera && camera->type == OB_CAMERA) {
 			BLI_snprintf(text, sizeof(text), "%.2f", ((Camera *)camera->data)->lens);
 		}
-		else BLI_strncpy(text, "<none>", sizeof(text));
+		else {
+			BLI_strncpy(text, "<none>", sizeof(text));
+		}
 
 		BLI_snprintf(stamp_data->cameralens, sizeof(stamp_data->cameralens), do_prefix ? "Lens %s" : "%s", text);
 	}

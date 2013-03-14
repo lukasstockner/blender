@@ -44,6 +44,7 @@
 
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
+#include "GPU_simple_shader.h"
 #include "gpu_codegen.h"
 
 #include <stdlib.h>
@@ -206,14 +207,14 @@ void GPU_extensions_init(void)
 	GG.os = GPU_OS_UNIX;
 #endif
 
-	GPU_fixed_materials_init();
+	GPU_simple_shaders_init();
 }
 
 void GPU_extensions_exit(void)
 {
 	gpu_extensions_init = 0;
 	GPU_codegen_exit();
-	GPU_fixed_materials_exit();
+	GPU_simple_shaders_exit();
 }
 
 int GPU_glsl_support(void)
@@ -1127,6 +1128,19 @@ static void shader_print_errors(const char *task, char *log, const char *code)
 	fprintf(stderr, "%s\n", log);
 }
 
+static const char *gpu_shader_standard_defines(void)
+{
+	/* some useful defines to detect GPU type */
+	if(GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY))
+		return "#define GPU_ATI\n";
+	else if(GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_ANY))
+		return "#define GPU_NVIDIA\n";
+	else if(GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_ANY))
+		return "#define GPU_INTEL\n";
+	
+	return "";
+}
+
 GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const char *libcode, const char *defines)
 {
 	GLint status;
@@ -1155,8 +1169,10 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 	}
 
 	if (vertexcode) {
-		const char *source[2];
+		const char *source[3];
 		int num_source = 0;
+
+		source[num_source++] = gpu_shader_standard_defines();
 
 		if (defines) source[num_source++] = defines;
 		if (vertexcode) source[num_source++] = vertexcode;
@@ -1177,8 +1193,10 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 	}
 
 	if (fragcode) {
-		const char *source[3];
+		const char *source[4];
 		int num_source = 0;
+
+		source[num_source++] = gpu_shader_standard_defines();
 
 		if (defines) source[num_source++] = defines;
 		if (libcode) source[num_source++] = libcode;
@@ -1264,7 +1282,7 @@ void GPU_shader_bind(GPUShader *shader)
 	GPU_print_error("Post Shader Bind");
 }
 
-void GPU_shader_unbind()
+void GPU_shader_unbind(void)
 {
 	GPU_print_error("Pre Shader Unbind");
 	glUseProgramObjectARB(0);

@@ -24,19 +24,20 @@
  *  \ingroup RNA
  */
 
-
 #include <stdlib.h>
+
+#include "DNA_screen_types.h"
+#include "DNA_space_types.h"
+#include "DNA_userdef_types.h"
+#include "DNA_windowmanager_types.h"
+
+#include "BLI_utildefines.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
 #include "rna_internal.h"
-
-#include "DNA_screen_types.h"
-#include "DNA_space_types.h"
-#include "DNA_userdef_types.h"
-#include "DNA_windowmanager_types.h"
 
 #include "WM_types.h"
 
@@ -466,7 +467,7 @@ static StructRNA *rna_OperatorProperties_refine(PointerRNA *ptr)
 		return ptr->type;
 }
 
-static IDProperty *rna_OperatorProperties_idprops(PointerRNA *ptr, int create)
+static IDProperty *rna_OperatorProperties_idprops(PointerRNA *ptr, bool create)
 {
 	if (create && !ptr->data) {
 		IDPropertyTemplate val = {0};
@@ -946,7 +947,7 @@ static int operator_check(bContext *C, wmOperator *op)
 	return result;
 }
 
-static int operator_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int operator_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	extern FunctionRNA rna_Operator_invoke_func;
 
@@ -973,7 +974,7 @@ static int operator_invoke(bContext *C, wmOperator *op, wmEvent *event)
 }
 
 /* same as invoke */
-static int operator_modal(bContext *C, wmOperator *op, wmEvent *event)
+static int operator_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	extern FunctionRNA rna_Operator_modal_func;
 

@@ -281,11 +281,13 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
 				if (id->flag & LIB_FAKEUSER) id_us_plus(id);
 				else id_us_min(id);
 			}
-			else return;
+			else {
+				return;
+			}
 			break;
 		case UI_ID_LOCAL:
 			if (id) {
-				if (id_make_local(id, 0)) {
+				if (id_make_local(id, false)) {
 					/* reassign to get get proper updates/notifiers */
 					idptr = RNA_property_pointer_get(&template->ptr, template->prop);
 					RNA_property_pointer_set(&template->ptr, template->prop, idptr);
@@ -459,7 +461,7 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 			else {
 				but = uiDefIconBut(block, BUT, 0, ICON_LIBRARY_DATA_DIRECT, 0, 0, UI_UNIT_X, UI_UNIT_Y,
 				                   NULL, 0, 0, 0, 0, TIP_("Direct linked library datablock, click to make local"));
-				if (!id_make_local(id, 1 /* test */) || (idfrom && idfrom->lib))
+				if (!id_make_local(id, true /* test */) || (idfrom && idfrom->lib))
 					uiButSetFlag(but, UI_BUT_DISABLED);
 			}
 
@@ -477,7 +479,7 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 
 			uiButSetNFunc(but, template_id_cb, MEM_dupallocN(template), SET_INT_IN_POINTER(UI_ID_ALONE));
 			if (/* test only */
-			    (id_copy(id, NULL, 1) == FALSE) ||
+			    (id_copy(id, NULL, true) == false) ||
 			    (idfrom && idfrom->lib) ||
 			    (editable == FALSE) ||
 			    /* object in editmode - don't change data */
@@ -2718,7 +2720,7 @@ static void operator_search_cb(const bContext *C, void *UNUSED(arg), const char 
 {
 	GHashIterator *iter = WM_operatortype_iter();
 
-	for (; !BLI_ghashIterator_isDone(iter); BLI_ghashIterator_step(iter)) {
+	for (; BLI_ghashIterator_notDone(iter); BLI_ghashIterator_step(iter)) {
 		wmOperatorType *ot = BLI_ghashIterator_getValue(iter);
 
 		if ((ot->flag & OPTYPE_INTERNAL) && (G.debug & G_DEBUG_WM) == 0)

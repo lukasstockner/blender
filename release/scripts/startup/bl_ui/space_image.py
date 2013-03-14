@@ -698,7 +698,12 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
             self.prop_unified_strength(row, context, brush, "use_pressure_strength")
 
             row = col.row(align=True)
-            row.prop(brush, "jitter", slider=True)
+            if(brush.use_relative_jitter):
+                row.prop(brush, "use_relative_jitter", text="", icon='LOCKED')
+                row.prop(brush, "jitter", slider=True)
+            else:
+                row.prop(brush, "use_relative_jitter", text="", icon='UNLOCKED')
+                row.prop(brush, "jitter_absolute")
             row.prop(brush, "use_pressure_jitter", toggle=True, text="")
 
             col.prop(brush, "blend", text="Blend")
@@ -721,7 +726,7 @@ class IMAGE_PT_tools_brush_texture(BrushButtonsPanel, Panel):
 
         col = layout.column()
         col.template_ID_preview(brush, "texture", new="texture.new", rows=3, cols=8)
-        
+
         brush_texture_settings(col, brush, 0)
 
 
@@ -752,6 +757,8 @@ class IMAGE_PT_paint_stroke(BrushButtonsPanel, Panel):
 
         toolsettings = context.tool_settings.image_paint
         brush = toolsettings.brush
+        
+        layout.prop(toolsettings, "input_samples")
 
         layout.prop(brush, "use_airbrush")
         row = layout.row()

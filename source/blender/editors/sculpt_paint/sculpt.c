@@ -43,6 +43,8 @@
 #include "BLI_threads.h"
 #include "BLI_rand.h"
 
+#include "BLF_translation.h"
+
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_node_types.h"
@@ -243,7 +245,6 @@ typedef struct StrokeCache {
 	float pressure;
 	float mouse[2];
 	float bstrength;
-	float tex_mouse[2];
 
 	/* The rest is temporary storage that isn't saved as a property */
 
@@ -257,8 +258,8 @@ typedef struct StrokeCache {
 	Brush *brush;
 
 	float (*face_norms)[3]; /* Copy of the mesh faces' normals */
-	float special_rotation; /* Texture rotation (radians) for anchored and rake modes */
-	int pixel_radius, previous_pixel_radius;
+
+	float special_rotation;
 	float grab_delta[3], grab_delta_symmetry[3];
 	float old_grab_location[3], orig_grab_location[3];
 
@@ -282,8 +283,8 @@ typedef struct StrokeCache {
 	int radial_symmetry_pass;
 	float symm_rot_mat[4][4];
 	float symm_rot_mat_inv[4][4];
-	float last_rake[2]; /* Last location of updating rake rotation */
 	int original;
+	float anchored_location[3];
 
 	float vertex_rotation;
 
@@ -316,8 +317,8 @@ typedef struct {
 /* Initialize a SculptOrigVertData for accessing original vertex data;
  * handles BMesh, mesh, and multires */
 static void sculpt_orig_vert_data_unode_init(SculptOrigVertData *data,
-											 Object *ob,
-											 SculptUndoNode *unode)
+                                             Object *ob,
+                                             SculptUndoNode *unode)
 {
 	SculptSession *ss = ob->sculpt;
 	BMesh *bm = ss->bm;
@@ -338,19 +339,18 @@ static void sculpt_orig_vert_data_unode_init(SculptOrigVertData *data,
 /* Initialize a SculptOrigVertData for accessing original vertex data;
  * handles BMesh, mesh, and multires */
 static void sculpt_orig_vert_data_init(SculptOrigVertData *data,
-									   Object *ob,
-									   PBVHNode *node)
+                                       Object *ob,
+                                       PBVHNode *node)
 {
 	SculptUndoNode *unode;
 	unode = sculpt_undo_push_node(ob, node, SCULPT_UNDO_COORDS);
 	sculpt_orig_vert_data_unode_init(data, ob, unode);
-									 
 }
 
 /* Update a SculptOrigVertData for a particular vertex from the PBVH
  * iterator */
 static void sculpt_orig_vert_data_update(SculptOrigVertData *orig_data,
-										 PBVHVertexIter *iter)
+                                         PBVHVertexIter *iter)
 {
 	if (orig_data->unode->type == SCULPT_UNDO_COORDS) {
 		if (orig_data->coords) {
@@ -387,30 +387,30 @@ static void sculpt_orig_vert_data_update(SculptOrigVertData *orig_data,
    Others, like smooth, are better without. Same goes for alt-
    key smoothing. */
 static int sculpt_stroke_dynamic_topology(const SculptSession *ss,
-										  const Brush *brush)
+                                          const Brush *brush)
 {
 	return ((BKE_pbvh_type(ss->pbvh) == PBVH_BMESH) &&
 
-			(!ss->cache || (!ss->cache->alt_smooth)) &&
+	        (!ss->cache || (!ss->cache->alt_smooth)) &&
 
-			/* Requires mesh restore, which doesn't work with
-			 * dynamic-topology */
-			!(brush->flag & BRUSH_ANCHORED) &&
-			!(brush->flag & BRUSH_RESTORE_MESH) &&
+	        /* Requires mesh restore, which doesn't work with
+	         * dynamic-topology */
+	        !(brush->flag & BRUSH_ANCHORED) &&
+	        !(brush->flag & BRUSH_RESTORE_MESH) &&
+        
+	        (!ELEM6(brush->sculpt_tool,
+	                /* These brushes, as currently coded, cannot
+	                 * support dynamic topology */
+	                SCULPT_TOOL_GRAB,
+	                SCULPT_TOOL_ROTATE,
+	                SCULPT_TOOL_THUMB,
+	                SCULPT_TOOL_LAYER,
 
-			(!ELEM6(brush->sculpt_tool,
-					/* These brushes, as currently coded, cannot
-					 * support dynamic topology */
-					SCULPT_TOOL_GRAB,
-					SCULPT_TOOL_ROTATE,
-					SCULPT_TOOL_THUMB,
-					SCULPT_TOOL_LAYER,
-
-					/* These brushes could handle dynamic topology,
-					 * but user feedback indicates it's better not
-					 * to */
-					SCULPT_TOOL_SMOOTH,
-					SCULPT_TOOL_MASK)));
+	                /* These brushes could handle dynamic topology,
+	                 * but user feedback indicates it's better not
+	                 * to */
+	                SCULPT_TOOL_SMOOTH,
+	                SCULPT_TOOL_MASK)));
 }
 
 /*** paint mesh ***/
@@ -439,7 +439,7 @@ static void paint_mesh_restore_co(Sculpt *sd, Object *ob)
 	for (n = 0; n < totnode; n++) {
 		SculptUndoNode *unode;
 		SculptUndoType type = (brush->sculpt_tool == SCULPT_TOOL_MASK ?
-							   SCULPT_UNDO_MASK : SCULPT_UNDO_COORDS);
+		                       SCULPT_UNDO_MASK : SCULPT_UNDO_COORDS);
 
 		if (ss->bm) {
 			unode = sculpt_undo_push_node(ob, nodes[n], type);
@@ -922,25 +922,22 @@ static float tex_strength(SculptSession *ss, Brush *br,
                           const float fno[3],
                           const float mask)
 {
+	const Scene *scene = ss->cache->vc->scene;
 	MTex *mtex = &br->mtex;
 	float avg = 1;
+	float rgba[4];
 
 	if (!mtex->tex) {
 		avg = 1;
 	}
 	else if (mtex->brush_map_mode == MTEX_MAP_MODE_3D) {
-		float jnk;
-
 		/* Get strength by feeding the vertex 
 		 * location directly into a texture */
-		externtex(mtex, point, &avg,
-		          &jnk, &jnk, &jnk, &jnk, 0, ss->tex_pool);
+		avg = BKE_brush_sample_tex_3D(scene, br, point, rgba, 0, ss->tex_pool);
 	}
 	else if (ss->texcache) {
-		float rotation = -mtex->rot;
 		float symm_point[3], point_2d[2];
 		float x = 0.0f, y = 0.0f; /* Quite warnings */
-		float radius = 1.0f; /* Quite warnings */
 
 		/* if the active area is being applied for symmetry, flip it
 		 * across the symmetry axis and rotate it back to the original
@@ -954,76 +951,32 @@ static float tex_strength(SculptSession *ss, Brush *br,
 
 		ED_view3d_project_float_v2_m4(ss->cache->vc->ar, symm_point, point_2d, ss->cache->projection_mat);
 
-		if (mtex->brush_map_mode == MTEX_MAP_MODE_VIEW) {
-			/* keep coordinates relative to mouse */
-
-			rotation += ss->cache->special_rotation;
-
-			point_2d[0] -= ss->cache->tex_mouse[0];
-			point_2d[1] -= ss->cache->tex_mouse[1];
-
-			/* use pressure adjusted size for fixed mode */
-			radius = ss->cache->pixel_radius;
-
-			x = point_2d[0];
-			y = point_2d[1];
-		}
-		else if (mtex->brush_map_mode == MTEX_MAP_MODE_TILED) {
-			/* leave the coordinates relative to the screen */
-
-			/* use unadjusted size for tiled mode */
-			radius = BKE_brush_size_get(ss->cache->vc->scene, br);
-		
-			x = point_2d[0];
-			y = point_2d[1];
-		}
-		else if (mtex->brush_map_mode == MTEX_MAP_MODE_AREA) {
+		/* still no symmetry supported for other paint modes.
+		 * Sculpt does it DIY */
+		if (mtex->brush_map_mode == MTEX_MAP_MODE_AREA) {
 			/* Similar to fixed mode, but projects from brush angle
 			 * rather than view direction */
-
-			/* Rotation is handled by the brush_local_mat */
-			rotation = 0;
 
 			mul_m4_v3(ss->cache->brush_local_mat, symm_point);
 
 			x = symm_point[0];
 			y = symm_point[1];
+
+			x *= br->mtex.size[0];
+			y *= br->mtex.size[1];
+
+			x += br->mtex.ofs[0];
+			y += br->mtex.ofs[1];
+
+			avg = paint_get_tex_pixel(br, x, y, ss->tex_pool);
+
+			avg += br->texture_sample_bias;
 		}
-
-		if (mtex->brush_map_mode != MTEX_MAP_MODE_AREA) {
-			x /= ss->cache->vc->ar->winx;
-			y /= ss->cache->vc->ar->winy;
-
-			if (mtex->brush_map_mode == MTEX_MAP_MODE_TILED) {
-				x -= 0.5f;
-				y -= 0.5f;
-			}
-		
-			x *= ss->cache->vc->ar->winx / radius;
-			y *= ss->cache->vc->ar->winy / radius;
+		else {
+			const float point_3d[3] = {point_2d[0], point_2d[1], 0.0f};
+			avg = BKE_brush_sample_tex_3D(scene, br, point_3d, rgba, 0, ss->tex_pool);
 		}
-
-		/* it is probably worth optimizing for those cases where 
-		 * the texture is not rotated by skipping the calls to
-		 * atan2, sqrtf, sin, and cos. */
-		if (rotation > 0.001f || rotation < -0.001f) {
-			const float angle    = atan2f(y, x) + rotation;
-			const float flen     = sqrtf(x * x + y * y);
-
-			x = flen * cosf(angle);
-			y = flen * sinf(angle);
-		}
-
-		x *= br->mtex.size[0];
-		y *= br->mtex.size[1];
-
-		x += br->mtex.ofs[0];
-		y += br->mtex.ofs[1];
-
-		avg = paint_get_tex_pixel(br, x, y, ss->tex_pool);
 	}
-
-	avg += br->texture_sample_bias;
 
 	/* Falloff curve */
 	avg *= BKE_brush_curve_strength(br, len, ss->cache->radius);
@@ -1235,11 +1188,12 @@ static void calc_local_y(ViewContext *vc, const float center[3], float y[3])
 {
 	Object *ob = vc->obact;
 	float loc[3], mval_f[2] = {0.0f, 1.0f};
+	float zfac;
 
 	mul_v3_m4v3(loc, ob->imat, center);
-	initgrabz(vc->rv3d, loc[0], loc[1], loc[2]);
+	zfac = ED_view3d_calc_zfac(vc->rv3d, loc, NULL);
 
-	ED_view3d_win_to_delta(vc->ar, mval_f, y);
+	ED_view3d_win_to_delta(vc->ar, mval_f, y, zfac);
 	normalize_v3(y);
 
 	add_v3_v3(y, ob->loc);
@@ -3205,8 +3159,8 @@ static void sculpt_combine_proxies(Sculpt *sd, Object *ob)
 				if (use_orco) {
 					if (ss->bm) {
 						copy_v3_v3(val,
-								   BM_log_original_vert_co(ss->bm_log,
-								   vd.bm_vert));
+						           BM_log_original_vert_co(ss->bm_log,
+						           vd.bm_vert));
 					}
 					else
 						copy_v3_v3(val, orco[vd.i]);
@@ -3374,7 +3328,7 @@ static void sculpt_fix_noise_tear(Sculpt *sd, Object *ob)
 }
 
 static void do_symmetrical_brush_actions(Sculpt *sd, Object *ob,
-										 BrushActionFunc action)
+                                         BrushActionFunc action)
 {
 	Brush *brush = paint_brush(&sd->paint);
 	SculptSession *ss = ob->sculpt;
@@ -3512,7 +3466,9 @@ void sculpt_update_mesh_elements(Scene *scene, Sculpt *sd, Object *ob,
 			}
 		}
 	}
-	else free_sculptsession_deformMats(ss);
+	else {
+		free_sculptsession_deformMats(ss);
+	}
 
 	/* if pbvh is deformed, key block is already applied to it */
 	if (ss->kb && !BKE_pbvh_isDeformed(ss->pbvh)) {
@@ -3711,21 +3667,21 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 	ss->cache = cache;
 
 	/* Set scaling adjustment */
-	ss->cache->scale[0] = 1.0f / ob->size[0];
-	ss->cache->scale[1] = 1.0f / ob->size[1];
-	ss->cache->scale[2] = 1.0f / ob->size[2];
+	cache->scale[0] = 1.0f / ob->size[0];
+	cache->scale[1] = 1.0f / ob->size[1];
+	cache->scale[2] = 1.0f / ob->size[2];
 
-	ss->cache->plane_trim_squared = brush->plane_trim * brush->plane_trim;
+	cache->plane_trim_squared = brush->plane_trim * brush->plane_trim;
 
-	ss->cache->flag = 0;
+	cache->flag = 0;
 
 	sculpt_init_mirror_clipping(ob, ss);
 
 	/* Initial mouse location */
 	if (mouse)
-		copy_v2_v2(ss->cache->initial_mouse, mouse);
+		copy_v2_v2(cache->initial_mouse, mouse);
 	else
-		zero_v2(ss->cache->initial_mouse);
+		zero_v2(cache->initial_mouse);
 
 	mode = RNA_enum_get(op->ptr, "mode");
 	cache->invert = mode == BRUSH_STROKE_INVERT;
@@ -3737,7 +3693,7 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 	else brush->flag &= ~BRUSH_INVERTED;
 
 	/* Alt-Smooth */
-	if (ss->cache->alt_smooth) {
+	if (cache->alt_smooth) {
 		if (brush->sculpt_tool == SCULPT_TOOL_MASK) {
 			cache->saved_mask_brush_tool = brush->mask_tool;
 			brush->mask_tool = BRUSH_MASK_SMOOTH;
@@ -3758,7 +3714,7 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 	}
 
 	copy_v2_v2(cache->mouse, cache->initial_mouse);
-	copy_v2_v2(cache->tex_mouse, cache->initial_mouse);
+	copy_v2_v2(ups->tex_mouse, cache->initial_mouse);
 
 	/* Truly temporary data that isn't stored in properties */
 
@@ -3780,7 +3736,9 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 				ss->layer_co = MEM_mallocN(sizeof(float) * 3 * ss->totvert,
 				                           "sculpt mesh vertices copy");
 
-			if (ss->deform_cos) memcpy(ss->layer_co, ss->deform_cos, ss->totvert);
+			if (ss->deform_cos) {
+				memcpy(ss->layer_co, ss->deform_cos, ss->totvert);
+			}
 			else {
 				for (i = 0; i < ss->totvert; ++i) {
 					copy_v3_v3(ss->layer_co[i], ss->mvert[i].co);
@@ -3810,8 +3768,6 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 			cache->original = 1;
 		}
 	}
-
-	cache->special_rotation = (brush->flag & BRUSH_RAKE) ? ups->last_angle : 0;
 
 	cache->first_time = 1;
 
@@ -3846,8 +3802,6 @@ static void sculpt_update_brush_delta(UnifiedPaintSettings *ups, Object *ob, Bru
 
 		/* compute 3d coordinate at same z from original location + mouse */
 		mul_v3_m4v3(loc, ob->obmat, cache->orig_grab_location);
-		initgrabz(cache->vc->rv3d, loc[0], loc[1], loc[2]);
-
 		ED_view3d_win_to_3d(cache->vc->ar, loc, mouse, grab_location);
 
 		/* compute delta to move verts by */
@@ -3885,9 +3839,9 @@ static void sculpt_update_brush_delta(UnifiedPaintSettings *ups, Object *ob, Bru
 		copy_v3_v3(cache->old_grab_location, grab_location);
 
 		if (tool == SCULPT_TOOL_GRAB)
-			copy_v3_v3(ups->anchored_location, cache->true_location);
+			copy_v3_v3(cache->anchored_location, cache->true_location);
 		else if (tool == SCULPT_TOOL_THUMB)
-			copy_v3_v3(ups->anchored_location, cache->orig_grab_location);
+			copy_v3_v3(cache->anchored_location, cache->orig_grab_location);
 
 		if (ELEM(tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_THUMB)) {
 			/* location stays the same for finding vertices in brush radius */
@@ -3895,7 +3849,7 @@ static void sculpt_update_brush_delta(UnifiedPaintSettings *ups, Object *ob, Bru
 
 			ups->draw_anchored = 1;
 			copy_v2_v2(ups->anchored_initial_mouse, cache->initial_mouse);
-			ups->anchored_size = cache->pixel_radius;
+			ups->anchored_size = ups->pixel_radius;
 		}
 	}
 }
@@ -3930,18 +3884,11 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, Object *ob,
 	 *      brush coord/pressure/etc.
 	 *      It's more an events design issue, which doesn't split coordinate/pressure/angle
 	 *      changing events. We should avoid this after events system re-design */
-	if (paint_supports_dynamic_size(brush) || cache->first_time) {
+	if (paint_supports_dynamic_size(brush, PAINT_SCULPT) || cache->first_time) {
 		cache->pressure = RNA_float_get(ptr, "pressure");
 	}
 
 	/* Truly temporary data that isn't stored in properties */
-
-	ups->draw_pressure =  1;
-	ups->pressure_value = cache->pressure;
-
-	cache->previous_pixel_radius = cache->pixel_radius;
-	cache->pixel_radius = BKE_brush_size_get(scene, brush);
-
 	if (cache->first_time) {
 		if (!BKE_brush_use_locked_size(scene, brush)) {
 			cache->initial_radius = paint_calc_object_space_radius(cache->vc,
@@ -3954,8 +3901,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, Object *ob,
 		}
 	}
 
-	if (BKE_brush_use_size_pressure(scene, brush) && paint_supports_dynamic_size(brush)) {
-		cache->pixel_radius *= cache->pressure;
+	if (BKE_brush_use_size_pressure(scene, brush) && paint_supports_dynamic_size(brush, PAINT_SCULPT)) {
 		cache->radius = cache->initial_radius * cache->pressure;
 	}
 	else {
@@ -3964,77 +3910,25 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, Object *ob,
 
 	cache->radius_squared = cache->radius * cache->radius;
 
-	if (!(brush->flag & BRUSH_ANCHORED ||
-	      ELEM4(brush->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_SNAKE_HOOK,
-	            SCULPT_TOOL_THUMB, SCULPT_TOOL_ROTATE)))
-	{
-		copy_v2_v2(cache->tex_mouse, cache->mouse);
-
-		if ((brush->mtex.brush_map_mode == MTEX_MAP_MODE_VIEW) &&
-		    (brush->flag & BRUSH_RANDOM_ROTATION) &&
-		    !(brush->flag & BRUSH_RAKE))
-		{
-			cache->special_rotation = 2.0f * (float)M_PI * BLI_frand();
-		}
-	}
-
 	if (brush->flag & BRUSH_ANCHORED) {
-		int hit = 0;
-
-		const float dx = cache->mouse[0] - cache->initial_mouse[0];
-		const float dy = cache->mouse[1] - cache->initial_mouse[1];
-
-		ups->anchored_size = cache->pixel_radius = sqrt(dx * dx + dy * dy);
-
-		cache->special_rotation = atan2(dx, dy) + M_PI;
-
 		if (brush->flag & BRUSH_EDGE_TO_EDGE) {
 			float halfway[2];
 			float out[3];
-
-			halfway[0] = dx * 0.5f + cache->initial_mouse[0];
-			halfway[1] = dy * 0.5f + cache->initial_mouse[1];
+			halfway[0] = 0.5f * (cache->mouse[0] + cache->initial_mouse[0]);
+			halfway[1] = 0.5f * (cache->mouse[1] + cache->initial_mouse[1]);
 
 			if (sculpt_stroke_get_location(C, out, halfway)) {
-				copy_v3_v3(ups->anchored_location, out);
-				copy_v2_v2(ups->anchored_initial_mouse, halfway);
-				copy_v2_v2(cache->tex_mouse, halfway);
-				copy_v3_v3(cache->true_location, ups->anchored_location);
-				ups->anchored_size /= 2.0f;
-				cache->pixel_radius  /= 2.0f;
-				hit = 1;
+				copy_v3_v3(cache->anchored_location, out);
+				copy_v3_v3(cache->true_location, cache->anchored_location);
 			}
 		}
 
-		if (!hit)
-			copy_v2_v2(ups->anchored_initial_mouse, cache->initial_mouse);
-
 		cache->radius = paint_calc_object_space_radius(paint_stroke_view_context(stroke),
 		                                               cache->true_location,
-		                                               cache->pixel_radius);
+		                                               ups->pixel_radius);
 		cache->radius_squared = cache->radius * cache->radius;
 
-		copy_v3_v3(ups->anchored_location, cache->true_location);
-
-		ups->draw_anchored = 1;
-	}
-	else if (brush->flag & BRUSH_RAKE) {
-		const float u = 0.5f;
-		const float v = 1 - u;
-		const float r = 20;
-
-		const float dx = cache->last_rake[0] - cache->mouse[0];
-		const float dy = cache->last_rake[1] - cache->mouse[1];
-
-		if (cache->first_time) {
-			copy_v2_v2(cache->last_rake, cache->mouse);
-		}
-		else if (dx * dx + dy * dy >= r * r) {
-			cache->special_rotation = atan2(dx, dy);
-
-			cache->last_rake[0] = u * cache->last_rake[0] + v * cache->mouse[0];
-			cache->last_rake[1] = u * cache->last_rake[1] + v * cache->mouse[1];
-		}
+		copy_v3_v3(cache->anchored_location, cache->true_location);
 	}
 
 	sculpt_update_brush_delta(ups, ob, brush);
@@ -4047,14 +3941,14 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, Object *ob,
 
 		ups->draw_anchored = 1;
 		copy_v2_v2(ups->anchored_initial_mouse, cache->initial_mouse);
-		copy_v3_v3(ups->anchored_location, cache->true_location);
-		ups->anchored_size = cache->pixel_radius;
+		copy_v3_v3(cache->anchored_location, cache->true_location);
+		ups->anchored_size = ups->pixel_radius;
 	}
 
-	ups->special_rotation = cache->special_rotation;
+	cache->special_rotation = ups->brush_rotation;
 }
 
-/* Returns true iff any of the smoothing modes are active (currently
+/* Returns true if any of the smoothing modes are active (currently
  * one of smooth brush, autosmooth, mask smooth, or shift-key
  * smooth) */
 static int sculpt_any_smooth_mode(const Brush *brush,
@@ -4307,6 +4201,7 @@ static int sculpt_stroke_test_start(bContext *C, struct wmOperator *op,
 
 static void sculpt_stroke_update_step(bContext *C, struct PaintStroke *stroke, PointerRNA *itemptr)
 {
+	UnifiedPaintSettings *ups = &CTX_data_tool_settings(C)->unified_paint_settings;
 	Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
 	Object *ob = CTX_data_active_object(C);
 	SculptSession *ss = ob->sculpt;
@@ -4317,9 +4212,9 @@ static void sculpt_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
 	sculpt_restore_mesh(sd, ob);
 
 	BKE_pbvh_bmesh_detail_size_set(ss->pbvh,
-								   (ss->cache->radius /
-									(float)ss->cache->pixel_radius) *
-								   (float)sd->detail_size);
+	                               (ss->cache->radius /
+	                                (float)ups->pixel_radius) *
+	                               (float)sd->detail_size);
 
 	if (sculpt_stroke_dynamic_topology(ss, brush)) {
 		do_symmetrical_brush_actions(sd, ob, sculpt_topology_update);
@@ -4363,7 +4258,6 @@ static void sculpt_stroke_done(const bContext *C, struct PaintStroke *UNUSED(str
 	/* reset values used to draw brush after completing the stroke */
 	ups->draw_anchored = 0;
 	ups->draw_pressure = 0;
-	ups->special_rotation = 0;
 
 	/* Finished */
 	if (ss->cache) {
@@ -4418,7 +4312,7 @@ static void sculpt_stroke_done(const bContext *C, struct PaintStroke *UNUSED(str
 	sculpt_brush_exit_tex(sd);
 }
 
-static int sculpt_brush_stroke_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int sculpt_brush_stroke_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	struct PaintStroke *stroke;
 	int ignore_background_click;
@@ -4435,8 +4329,7 @@ static int sculpt_brush_stroke_invoke(bContext *C, wmOperator *op, wmEvent *even
 	op->customdata = stroke;
 
 	/* For tablet rotation */
-	ignore_background_click = RNA_boolean_get(op->ptr,
-	                                          "ignore_background_click");
+	ignore_background_click = RNA_boolean_get(op->ptr, "ignore_background_click");
 
 	if (ignore_background_click && !over_mesh(C, op, event->x, event->y)) {
 		paint_stroke_data_free(op);
@@ -4515,8 +4408,7 @@ static void SCULPT_OT_brush_stroke(wmOperatorType *ot)
 
 	/* properties */
 
-	RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement,
-	                           "Stroke", "");
+	RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement, "Stroke", "");
 
 	RNA_def_enum(ot->srna, "mode", stroke_mode_items, BRUSH_STROKE_NORMAL, 
 	             "Sculpt Stroke Mode",
@@ -4598,7 +4490,7 @@ void sculpt_dynamic_topology_enable(bContext *C)
 	sculpt_pbvh_clear(ob);
 
 	ss->bm_smooth_shading = (scene->toolsettings->sculpt->flags &
-							 SCULPT_DYNTOPO_SMOOTH_SHADING);
+	                         SCULPT_DYNTOPO_SMOOTH_SHADING);
 
 	/* Create triangles-only BMesh */
 	ss->bm = BM_mesh_create(&bm_mesh_allocsize_default);
@@ -4624,7 +4516,7 @@ void sculpt_dynamic_topology_enable(bContext *C)
  * If 'unode' is given, the BMesh's data is copied out to the unode
  * before the BMesh is deleted so that it can be restored from */
 void sculpt_dynamic_topology_disable(bContext *C,
-									 SculptUndoNode *unode)
+                                     SculptUndoNode *unode)
 {
 	Object *ob = CTX_data_active_object(C);
 	SculptSession *ss = ob->sculpt;
@@ -4647,13 +4539,13 @@ void sculpt_dynamic_topology_disable(bContext *C,
 		me->totedge = unode->bm_enter_totedge;
 		me->totface = 0;
 		CustomData_copy(&unode->bm_enter_vdata, &me->vdata, CD_MASK_MESH,
-						CD_DUPLICATE, unode->bm_enter_totvert);
+		                CD_DUPLICATE, unode->bm_enter_totvert);
 		CustomData_copy(&unode->bm_enter_edata, &me->edata, CD_MASK_MESH,
-						CD_DUPLICATE, unode->bm_enter_totedge);
+		                CD_DUPLICATE, unode->bm_enter_totedge);
 		CustomData_copy(&unode->bm_enter_ldata, &me->ldata, CD_MASK_MESH,
-						CD_DUPLICATE, unode->bm_enter_totloop);
+		                CD_DUPLICATE, unode->bm_enter_totloop);
 		CustomData_copy(&unode->bm_enter_pdata, &me->pdata, CD_MASK_MESH,
-						CD_DUPLICATE, unode->bm_enter_totpoly);
+		                CD_DUPLICATE, unode->bm_enter_totpoly);
 
 		mesh_update_customdata_pointers(me, FALSE);
 	}
@@ -4693,28 +4585,23 @@ static int sculpt_dynamic_topology_toggle_exec(bContext *C, wmOperator *UNUSED(o
 	return OPERATOR_FINISHED;
 }
 
-static int sculpt_dynamic_topology_toggle_invoke(bContext *C, wmOperator *op,
-                                                 wmEvent *UNUSED(event))
+static int sculpt_dynamic_topology_toggle_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	Object *ob = CTX_data_active_object(C);
 	Mesh *me = ob->data;
 	SculptSession *ss = ob->sculpt;
-	const char *msg = "Dynamic-topology sculpting will not preserve"
-	                  "vertex colors, UVs, or other customdata";
+	const char *msg = TIP_("Dynamic-topology sculpting will not preserve vertex colors, UVs, or other customdata");
 
 	if (!ss->bm) {
 		int i;
 
 		for (i = 0; i < CD_NUMTYPES; i++) {
-			if (!ELEM7(i, CD_MVERT, CD_MEDGE, CD_MFACE,
-			           CD_MLOOP, CD_MPOLY, CD_PAINT_MASK,
-			           CD_ORIGINDEX) &&
+			if (!ELEM7(i, CD_MVERT, CD_MEDGE, CD_MFACE, CD_MLOOP, CD_MPOLY, CD_PAINT_MASK, CD_ORIGINDEX) &&
 			    (CustomData_has_layer(&me->vdata, i) ||
 			     CustomData_has_layer(&me->edata, i) ||
 			     CustomData_has_layer(&me->fdata, i)))
 			{
-				/* The mesh has customdata that will be lost, let the
-				 * user confirm this is OK */
+				/* The mesh has customdata that will be lost, let the user confirm this is OK */
 				return WM_operator_confirm_message(C, op, msg);
 			}
 		}

@@ -865,11 +865,11 @@ static void setNearestAxis2d(TransInfo *t)
 	/* no correction needed... just use whichever one is lower */
 	if (abs(t->mval[0] - t->con.imval[0]) < abs(t->mval[1] - t->con.imval[1]) ) {
 		t->con.mode |= CON_AXIS1;
-		BLI_snprintf(t->con.text, sizeof(t->con.text), IFACE_(" along Y axis"));
+		BLI_strncpy(t->con.text, IFACE_(" along Y axis"), sizeof(t->con.text));
 	}
 	else {
 		t->con.mode |= CON_AXIS0;
-		BLI_snprintf(t->con.text, sizeof(t->con.text), IFACE_(" along X axis"));
+		BLI_strncpy(t->con.text, IFACE_(" along X axis"), sizeof(t->con.text));
 	}
 }
 
@@ -890,9 +890,9 @@ static void setNearestAxis3d(TransInfo *t)
 	 * and to overflow the short integers.
 	 * The formula used is a bit stupid, just a simplification of the subtraction
 	 * of two 2D points 30 pixels apart (that's the last factor in the formula) after
-	 * projecting them with window_to_3d_delta and then get the length of that vector.
+	 * projecting them with ED_view3d_win_to_delta and then get the length of that vector.
 	 */
-	zfac = t->persmat[0][3] * t->center[0] + t->persmat[1][3] * t->center[1] + t->persmat[2][3] * t->center[2] + t->persmat[3][3];
+	zfac = mul_project_m4_v3_zfac(t->persmat, t->center);
 	zfac = len_v3(t->persinv[0]) * 2.0f / t->ar->winx * zfac * 30.0f;
 
 	for (i = 0; i < 3; i++) {

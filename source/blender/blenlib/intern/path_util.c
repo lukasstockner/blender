@@ -83,9 +83,6 @@ static char bprogname[FILE_MAX];    /* full path to program executable */
 static char bprogdir[FILE_MAX];     /* full path to directory in which executable is located */
 static char btempdir[FILE_MAX];     /* temporary directory */
 
-static int add_win32_extension(char *name);
-static char *blender_version_decimal(const int ver);
-
 /* implementation */
 
 /**
@@ -150,10 +147,7 @@ int BLI_stringdec(const char *string, char *head, char *tail, unsigned short *nu
  */
 void BLI_stringenc(char *string, const char *head, const char *tail, unsigned short numlen, int pic)
 {
-	char fmtstr[16] = "";
-	if (pic < 0) pic = 0;
-	sprintf(fmtstr, "%%s%%.%dd%%s", numlen);
-	sprintf(string, fmtstr, head, pic, tail);
+	sprintf(string, "%s%.*d%s", head, numlen, MAX2(0, pic), tail);
 }
 
 /**
@@ -162,42 +156,41 @@ void BLI_stringenc(char *string, const char *head, const char *tail, unsigned sh
  * Returns the length of *left.
  *
  * Foo.001 -> "Foo", 1
- * Returns the length of "Foo"
+ * Returning the length of "Foo"
  *
  * \param left  Where to return copy of part preceding delim
  * \param nr  Where to return value of numeric suffix
  * \param name  String to split
  * \param delim  Delimiter character
+ * \return  Length of \a left
  */
 int BLI_split_name_num(char *left, int *nr, const char *name, const char delim)
 {
-	int a;
+	const int name_len = strlen(name);
 
 	*nr = 0;
-	a = strlen(name);
-	memcpy(left, name, (a + 1) * sizeof(char));
+	memcpy(left, name, (name_len + 1) * sizeof(char));
 
-	if (a > 1 && name[a - 1] == delim) return a;
-	
-	while (a--) {
-		if (name[a] == delim) {
-			left[a] = 0;
-			*nr = atol(name + a + 1);
-			/* casting down to an int, can overflow for large numbers */
-			if (*nr < 0)
-				*nr = 0;
-			return a;
+	/* name doesn't end with a delimiter "foo." */
+	if ((name_len > 1 && name[name_len - 1] == delim) == 0) {
+		int a = name_len;
+		while (a--) {
+			if (name[a] == delim) {
+				left[a] = '\0';  /* truncate left part here */
+				*nr = atol(name + a + 1);
+				/* casting down to an int, can overflow for large numbers */
+				if (*nr < 0)
+					*nr = 0;
+				return a;
+			}
+			else if (isdigit(name[a]) == 0) {
+				/* non-numeric suffix - give up */
+				break;
+			}
 		}
-		/* non-numeric suffix--give up */
-		if (isdigit(name[a]) == 0) break;
-		
-		left[a] = 0;
 	}
 
-	for (a = 0; name[a]; a++)
-		left[a] = name[a];
-
-	return a;
+	return name_len;
 }
 
 /**
@@ -362,7 +355,7 @@ void BLI_cleanup_path(const char *relabase, char *path)
 			if (path[2] == '\0') {
 				return; /* path is "//" - cant clean it */
 			}
-			path = path + 2; /* skip the first // */
+			path = path + 2;  /* leave the initial "//" untouched */
 		}
 	}
 	
@@ -414,25 +407,27 @@ void BLI_cleanup_path(const char *relabase, char *path)
 		return;
 	}
 
-	/* support for odd paths: eg /../home/me --> /home/me
-	 * this is a valid path in blender but we cant handle this the usual way below
-	 * simply strip this prefix then evaluate the path as usual. pythons os.path.normpath() does this */
-	while ((strncmp(path, "/../", 4) == 0)) {
-		memmove(path, path + 4, strlen(path + 4) + 1);
-	}
-
 	while ( (start = strstr(path, "/../")) ) {
-		eind = start + (4 - 1) /* strlen("/../") - 1 */;
 		a = start - path - 1;
-		while (a > 0) {
-			if (path[a] == '/') break;
-			a--;
-		}
-		if (a < 0) {
-			break;
+		if (a > 0) {
+			/* <prefix>/<parent>/../<postfix> => <prefix>/<postfix> */
+			eind = start + (4 - 1) /* strlen("/../") - 1 */; /* strip "/.." and keep last "/" */
+			while (a > 0 && path[a] != '/') { /* find start of <parent> */
+				a--;
+			}
+			memmove(path + a, eind, strlen(eind) + 1);
 		}
 		else {
-			memmove(path + a, eind, strlen(eind) + 1);
+			/* support for odd paths: eg /../home/me --> /home/me
+			 * this is a valid path in blender but we cant handle this the usual way below
+			 * simply strip this prefix then evaluate the path as usual.
+			 * pythons os.path.normpath() does this */
+
+			/* Note: previous version of following call used an offset of 3 instead of 4,
+			 * which meant that the "/../home/me" example actually became "home/me".
+			 * Using offset of 3 gives behaviour consistent with the abovementioned
+			 * Python routine. */
+			memmove(path, path + 3, strlen(path + 3) + 1);
 		}
 	}
 
@@ -1417,7 +1412,6 @@ void BLI_make_exist(char *dir)
 void BLI_make_existing_file(const char *name)
 {
 	char di[FILE_MAX];
-	BLI_strncpy(di, name, sizeof(di));
 	BLI_split_dir_part(name, di, sizeof(di));
 
 	/* make if if the dir doesn't exist */

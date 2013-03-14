@@ -26,12 +26,12 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_heap.h"
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_array.h"
 #include "BLI_smallhash.h"
 #include "BLI_rand.h"
+#include "BLI_heap.h"
 
 #include "bmesh.h"
 
@@ -1491,6 +1491,7 @@ void bmo_contextual_create_exec(BMesh *bm, BMOperator *op)
 			if (use_smooth) {
 				BM_elem_flag_enable(f, BM_ELEM_SMOOTH);
 			}
+			BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "faces.out", BM_FACE, ELE_OUT);
 		}
 
 		MEM_freeN(vert_arr);

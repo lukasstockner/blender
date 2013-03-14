@@ -98,7 +98,7 @@ public:
 			{ this->sw = sw; }
 	
 
-	void exportAnimations(Scene *sce);
+	bool exportAnimations(Scene *sce);
 
 	// called for each exported object
 	void operator() (Object *ob); 
@@ -184,6 +184,7 @@ protected:
 	char *extract_transform_name(char *rna_path);
 
 	std::string getObjectBoneName(Object *ob, const FCurve * fcu);
+	std::string getAnimationPathId(const FCurve *fcu);
 
 	void getBakedPoseData(Object *obarm, int startFrame, int endFrame, bool ActionBake, bool ActionBakeFirstFrame);
 

@@ -968,7 +968,7 @@ static void draw_selected_name(Scene *scene, Object *ob, rcti *rect)
 }
 
 static void view3d_camera_border(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D *rv3d,
-                                 rctf *viewborder_r, short no_shift, short no_zoom)
+                                 rctf *r_viewborder, const bool no_shift, const bool no_zoom)
 {
 	CameraParams params;
 	rctf rect_view, rect_camera;
@@ -992,25 +992,25 @@ static void view3d_camera_border(Scene *scene, ARegion *ar, View3D *v3d, RegionV
 	rect_camera = params.viewplane;
 
 	/* get camera border within viewport */
-	viewborder_r->xmin = ((rect_camera.xmin - rect_view.xmin) / BLI_rctf_size_x(&rect_view)) * ar->winx;
-	viewborder_r->xmax = ((rect_camera.xmax - rect_view.xmin) / BLI_rctf_size_x(&rect_view)) * ar->winx;
-	viewborder_r->ymin = ((rect_camera.ymin - rect_view.ymin) / BLI_rctf_size_y(&rect_view)) * ar->winy;
-	viewborder_r->ymax = ((rect_camera.ymax - rect_view.ymin) / BLI_rctf_size_y(&rect_view)) * ar->winy;
+	r_viewborder->xmin = ((rect_camera.xmin - rect_view.xmin) / BLI_rctf_size_x(&rect_view)) * ar->winx;
+	r_viewborder->xmax = ((rect_camera.xmax - rect_view.xmin) / BLI_rctf_size_x(&rect_view)) * ar->winx;
+	r_viewborder->ymin = ((rect_camera.ymin - rect_view.ymin) / BLI_rctf_size_y(&rect_view)) * ar->winy;
+	r_viewborder->ymax = ((rect_camera.ymax - rect_view.ymin) / BLI_rctf_size_y(&rect_view)) * ar->winy;
 }
 
-void ED_view3d_calc_camera_border_size(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D *rv3d, float size_r[2])
+void ED_view3d_calc_camera_border_size(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D *rv3d, float r_size[2])
 {
 	rctf viewborder;
 
 	view3d_camera_border(scene, ar, v3d, rv3d, &viewborder, TRUE, TRUE);
-	size_r[0] = BLI_rctf_size_x(&viewborder);
-	size_r[1] = BLI_rctf_size_y(&viewborder);
+	r_size[0] = BLI_rctf_size_x(&viewborder);
+	r_size[1] = BLI_rctf_size_y(&viewborder);
 }
 
 void ED_view3d_calc_camera_border(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D *rv3d,
-                                  rctf *viewborder_r, short no_shift)
+                                  rctf *viewborder_r, const bool no_shift)
 {
-	view3d_camera_border(scene, ar, v3d, rv3d, viewborder_r, no_shift, FALSE);
+	view3d_camera_border(scene, ar, v3d, rv3d, viewborder_r, no_shift, false);
 }
 
 static void drawviewborder_grid3(float x1, float x2, float y1, float y2, float fac)
@@ -1313,11 +1313,6 @@ static void backdrawview3d(Scene *scene, ARegion *ar, View3D *v3d)
 	{
 		/* do nothing */
 	}
-	else if ((base && (base->object->mode & OB_MODE_TEXTURE_PAINT)) &&
-	         scene->toolsettings && (scene->toolsettings->imapaint.flag & IMAGEPAINT_PROJECT_DISABLE))
-	{
-		/* do nothing */
-	}
 	else if ((base && (base->object->mode & OB_MODE_PARTICLE_EDIT)) &&
 	         v3d->drawtype > OB_WIRE && (v3d->flag & V3D_ZBUF_SELECT))
 	{
@@ -1570,7 +1565,7 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 			float fac, asp, zoomx, zoomy;
 			float x1, y1, x2, y2;
 
-			ImBuf *ibuf = NULL, *freeibuf;
+			ImBuf *ibuf = NULL, *freeibuf, *releaseibuf;
 
 			Image *ima;
 			MovieClip *clip;
@@ -1580,6 +1575,7 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 				continue;
 
 			freeibuf = NULL;
+			releaseibuf = NULL;
 			if (bgpic->source == V3D_BGPIC_IMAGE) {
 				ima = bgpic->ima;
 				if (ima == NULL)
@@ -1590,7 +1586,7 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 				}
 				else {
 					ibuf = BKE_image_acquire_ibuf(ima, &bgpic->iuser, NULL);
-					freeibuf = ibuf;
+					releaseibuf = ibuf;
 				}
 
 				image_aspect[0] = ima->aspx;
@@ -1605,7 +1601,9 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 					if (scene->camera)
 						clip = BKE_object_movieclip_get(scene, scene->camera, 1);
 				}
-				else clip = bgpic->clip;
+				else {
+					clip = bgpic->clip;
+				}
 
 				if (clip == NULL)
 					continue;
@@ -1633,6 +1631,8 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 			if ((ibuf->rect == NULL && ibuf->rect_float == NULL) || ibuf->channels != 4) { /* invalid image format */
 				if (freeibuf)
 					IMB_freeImBuf(freeibuf);
+				if (releaseibuf)
+					BKE_image_release_ibuf(ima, releaseibuf, NULL);
 
 				continue;
 			}
@@ -1705,10 +1705,12 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 				float tvec[3];
 				float sco[2];
 				const float mval_f[2] = {1.0f, 0.0f};
+				const float co_zero[3] = {0};
+				float zfac;
 
 				/* calc window coord */
-				initgrabz(rv3d, 0.0, 0.0, 0.0);
-				ED_view3d_win_to_delta(ar, mval_f, tvec);
+				zfac = ED_view3d_calc_zfac(rv3d, co_zero, NULL);
+				ED_view3d_win_to_delta(ar, mval_f, tvec, zfac);
 				fac = max_ff(fabsf(tvec[0]), max_ff(fabsf(tvec[1]), fabsf(tvec[2]))); /* largest abs axis */
 				fac = 1.0f / fac;
 
@@ -1728,6 +1730,8 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 			if (x2 < 0 || y2 < 0 || x1 > ar->winx || y1 > ar->winy) {
 				if (freeibuf)
 					IMB_freeImBuf(freeibuf);
+				if (releaseibuf)
+					BKE_image_release_ibuf(ima, releaseibuf, NULL);
 
 				continue;
 			}
@@ -1786,9 +1790,10 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 			glDepthMask(1);
 			if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 
-			if (freeibuf) {
+			if (freeibuf)
 				IMB_freeImBuf(freeibuf);
-			}
+			if (releaseibuf)
+				BKE_image_release_ibuf(ima, releaseibuf, NULL);
 		}
 	}
 }

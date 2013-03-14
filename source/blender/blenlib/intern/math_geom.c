@@ -106,12 +106,12 @@ float area_quad_v3(const float v1[3], const float v2[3], const float v3[3], cons
 	sub_v3_v3v3(vec1, v2, v1);
 	sub_v3_v3v3(vec2, v4, v1);
 	cross_v3_v3v3(n, vec1, vec2);
-	len = normalize_v3(n);
+	len = len_v3(n);
 
 	sub_v3_v3v3(vec1, v4, v3);
 	sub_v3_v3v3(vec2, v2, v3);
 	cross_v3_v3v3(n, vec1, vec2);
-	len += normalize_v3(n);
+	len += len_v3(n);
 
 	return (len / 2.0f);
 }
@@ -119,14 +119,13 @@ float area_quad_v3(const float v1[3], const float v2[3], const float v3[3], cons
 /* Triangles */
 float area_tri_v3(const float v1[3], const float v2[3], const float v3[3])
 {
-	float len, vec1[3], vec2[3], n[3];
+	float vec1[3], vec2[3], n[3];
 
 	sub_v3_v3v3(vec1, v3, v2);
 	sub_v3_v3v3(vec2, v1, v2);
 	cross_v3_v3v3(n, vec1, vec2);
-	len = normalize_v3(n);
 
-	return (len / 2.0f);
+	return len_v3(n) / 2.0f;
 }
 
 float area_tri_signed_v3(const float v1[3], const float v2[3], const float v3[3], const float normal[3])
@@ -2219,6 +2218,13 @@ void barycentric_weights_v2_quad(const float v1[2], const float v2[2], const flo
 	    len_v2(dirs[3]),
 	};
 
+	/* variable 'area' is just for storage,
+	 * the order its initialized doesn't matter */
+#ifdef __clang__
+#  pragma clang diagnostic push
+#  pragma clang diagnostic ignored "-Wunsequenced"
+#endif
+
 	/* inline mean_value_half_tan four times here */
 	float t[4] = {
 	    MEAN_VALUE_HALF_TAN_V2(area, 0, 1),
@@ -2226,6 +2232,10 @@ void barycentric_weights_v2_quad(const float v1[2], const float v2[2], const flo
 	    MEAN_VALUE_HALF_TAN_V2(area, 2, 3),
 	    MEAN_VALUE_HALF_TAN_V2(area, 3, 0),
 	};
+
+#ifdef __clang__
+#  pragma clang diagnostic pop
+#endif
 
 #undef MEAN_VALUE_HALF_TAN_V2
 
@@ -2564,7 +2574,9 @@ void resolve_tri_uv(float r_uv[2], const float st[2], const float st0[2], const 
 		r_uv[0] = (float)((d * x[0] - b * x[1]) / det);
 		r_uv[1] = (float)(((-c) * x[0] + a * x[1]) / det);
 	}
-	else zero_v2(r_uv);
+	else {
+		zero_v2(r_uv);
+	}
 }
 
 /* bilinear reverse */
@@ -3063,7 +3075,9 @@ void vcloud_estimate_transform(int list_size, float (*pos)[3], float *weight, fl
 				add_v3_v3(accu_com, v);
 				accu_weight += weight[a];
 			}
-			else add_v3_v3(accu_com, pos[a]);
+			else {
+				add_v3_v3(accu_com, pos[a]);
+			}
 
 			if (rweight) {
 				float v[3];
@@ -3072,8 +3086,9 @@ void vcloud_estimate_transform(int list_size, float (*pos)[3], float *weight, fl
 				add_v3_v3(accu_rcom, v);
 				accu_rweight += rweight[a];
 			}
-			else add_v3_v3(accu_rcom, rpos[a]);
-
+			else {
+				add_v3_v3(accu_rcom, rpos[a]);
+			}
 		}
 		if (!weight || !rweight) {
 			accu_weight = accu_rweight = list_size;

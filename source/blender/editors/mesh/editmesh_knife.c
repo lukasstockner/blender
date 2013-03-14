@@ -104,7 +104,7 @@ typedef struct KnifeEdge {
 	ListBase faces;
 	int draw;
 
-	BMEdge *e, *oe; /* non-NULL if this is an original edge */
+	BMEdge *e /* , *e_old */; /* non-NULL if this is an original edge */
 } KnifeEdge;
 
 typedef struct BMEdgeHit {
@@ -174,9 +174,9 @@ typedef struct KnifeTool_OpData {
 	KnifeColors colors;
 
 	/* operatpr options */
-	char cut_through;    /* preference, can be modified at runtime (that feature may go) */
-	char only_select;    /* set on initialization */
-	char select_result;  /* set on initialization */
+	bool cut_through;    /* preference, can be modified at runtime (that feature may go) */
+	bool only_select;    /* set on initialization */
+	bool select_result;  /* set on initialization */
 
 	short is_ortho;
 	float ortho_extent;
@@ -1994,14 +1994,14 @@ static void knifenet_fill_faces(KnifeTool_OpData *kcd)
 		i++;
 
 		if (kfe->e && kfe->v1->v == kfe->e->v1 && kfe->v2->v == kfe->e->v2) {
-			kfe->oe = kfe->e;
+			kfe->e_old = kfe->e;
 			continue;
 		}
 
 		j++;
 
 		if (kfe->e) {
-			kfe->oe = kfe->e;
+			kfe->e_old = kfe->e;
 
 			BMO_elem_flag_enable(bm, kfe->e, DEL);
 			BMO_elem_flag_disable(bm, kfe->e, BOUNDARY);
@@ -2027,13 +2027,13 @@ static void knifenet_fill_faces(KnifeTool_OpData *kcd)
 
 		if (!kfe->v1 || !kfe->v2 || kfe->v1->inspace || kfe->v2->inspace)
 			continue;
-		if (!(kfe->oe && kfe->v1->v == kfe->oe->v1 && kfe->v2->v == kfe->oe->v2))
+		if (!(kfe->e_old && kfe->v1->v == kfe->e_old->v1 && kfe->v2->v == kfe->e_old->v2))
 			continue;
 
 		k++;
 
 		BMO_elem_flag_enable(bm, kfe->e, BOUNDARY);
-		kfe->oe = kfe->e;
+		kfe->e_old = kfe->e;
 
 		for (ref = kfe->faces.first; ref; ref = ref->next) {
 			f = ref->ref;
@@ -2096,7 +2096,7 @@ static void knifenet_fill_faces(KnifeTool_OpData *kcd)
 			if (sf_vert->poly_nr > 1 && sf_vert_last->poly_nr > 1) {
 				ScanFillEdge *sf_edge;
 				sf_edge = BLI_scanfill_edge_add(&sf_ctx, sf_vert_last, sf_vert);
-				if (entry->kfe->oe)
+				if (entry->kfe->e_old)
 					sf_edge->f = SF_EDGE_BOUNDARY;  /* mark as original boundary edge */
 
 				BMO_elem_flag_disable(bm, entry->kfe->e->v1, DEL);
@@ -2867,28 +2867,14 @@ static void knifetool_finish(wmOperator *op)
 	EDBM_update_generic(kcd->em, TRUE, TRUE);
 }
 
-/* copied from paint_image.c */
-static int project_knife_view_clip(View3D *v3d, RegionView3D *rv3d, float *clipsta, float *clipend)
-{
-	int orth = ED_view3d_clip_range_get(v3d, rv3d, clipsta, clipend);
-
-	if (orth) { /* only needed for ortho */
-		float fac = 2.0f / ((*clipend) - (*clipsta));
-		*clipsta *= fac;
-		*clipend *= fac;
-	}
-
-	return orth;
-}
-
 static void knife_recalc_projmat(KnifeTool_OpData *kcd)
 {
 	invert_m4_m4(kcd->ob->imat, kcd->ob->obmat);
 	ED_view3d_ob_project_mat_get(kcd->ar->regiondata, kcd->ob, kcd->projmat);
 	//mult_m4_m4m4(kcd->projmat, kcd->vc.rv3d->winmat, kcd->vc.rv3d->viewmat);
 
-	kcd->is_ortho = project_knife_view_clip(kcd->vc.v3d, kcd->vc.rv3d, 
-	                                        &kcd->clipsta, &kcd->clipend);
+	kcd->is_ortho = ED_view3d_clip_range_get(kcd->vc.v3d, kcd->vc.rv3d,
+	                                         &kcd->clipsta, &kcd->clipend, true);
 }
 
 /* called when modal loop selection is done... */
@@ -2944,7 +2930,7 @@ static void cage_mapped_verts_callback(void *userData, int index, const float co
 	}
 }
 
-static void knifetool_update_mval(KnifeTool_OpData *kcd, int mval_i[2])
+static void knifetool_update_mval(KnifeTool_OpData *kcd, const int mval_i[2])
 {
 	knife_recalc_projmat(kcd);
 	kcd->vc.mval[0] = mval_i[0];
@@ -2956,18 +2942,14 @@ static void knifetool_update_mval(KnifeTool_OpData *kcd, int mval_i[2])
 }
 
 /* called when modal loop selection gets set up... */
-static int knifetool_init(bContext *C, wmOperator *op, int UNUSED(do_cut))
+static void knifetool_init(bContext *C, KnifeTool_OpData *kcd,
+                           const bool only_select, const bool cut_through)
 {
-	KnifeTool_OpData *kcd;
 	Scene *scene = CTX_data_scene(C);
 	Object *obedit = CTX_data_edit_object(C);
 	DerivedMesh *cage, *final;
 	SmallHash shash;
 	void *data[3];
-	const short only_select = RNA_boolean_get(op->ptr, "only_selected");
-
-	/* alloc new customdata */
-	kcd = op->customdata = MEM_callocN(sizeof(KnifeTool_OpData), "knifetool Modal Op Data");
 
 	/* assign the drawing handle for drawing preview line... */
 	kcd->ob = obedit;
@@ -3013,7 +2995,7 @@ static int knifetool_init(bContext *C, wmOperator *op, int UNUSED(do_cut))
 	kcd->kedgefacemap = BLI_ghash_ptr_new("knife origvertmap");
 
 	/* cut all the way through the mesh if use_occlude_geometry button not pushed */
-	kcd->cut_through = !RNA_boolean_get(op->ptr, "use_occlude_geometry");
+	kcd->cut_through = cut_through;
 	kcd->only_select = only_select;
 
 	/* can't usefully select resulting edges in face mode */
@@ -3023,8 +3005,6 @@ static int knifetool_init(bContext *C, wmOperator *op, int UNUSED(do_cut))
 	knife_pos_data_clear(&kcd->prev);
 
 	knife_init_colors(&kcd->colors);
-
-	return 1;
 }
 
 static int knifetool_cancel(bContext *C, wmOperator *op)
@@ -3034,21 +3014,26 @@ static int knifetool_cancel(bContext *C, wmOperator *op)
 	return OPERATOR_CANCELLED;
 }
 
-static int knifetool_invoke(bContext *C, wmOperator *op, wmEvent *evt)
+static int knifetool_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+	const bool only_select = RNA_boolean_get(op->ptr, "only_selected");
+	const bool cut_through = !RNA_boolean_get(op->ptr, "use_occlude_geometry");
+
 	KnifeTool_OpData *kcd;
 
 	view3d_operator_needs_opengl(C);
 
-	if (!knifetool_init(C, op, 0))
-		return OPERATOR_CANCELLED;
+	/* alloc new customdata */
+	kcd = op->customdata = MEM_callocN(sizeof(KnifeTool_OpData), __func__);
+
+	knifetool_init(C, kcd, only_select, cut_through);
 
 	/* add a modal handler for this operator - handles loop selection */
 	WM_cursor_modal(CTX_wm_window(C), BC_KNIFECURSOR);
 	WM_event_add_modal_handler(C, op);
 
 	kcd = op->customdata;
-	knifetool_update_mval(kcd, evt->mval);
+	knifetool_update_mval(kcd, event->mval);
 
 	knife_update_header(C, kcd);
 
@@ -3119,7 +3104,7 @@ wmKeyMap *knifetool_modal_keymap(wmKeyConfig *keyconf)
 	return keymap;
 }
 
-static int knifetool_modal(bContext *C, wmOperator *op, wmEvent *event)
+static int knifetool_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	KnifeTool_OpData *kcd = op->customdata;
