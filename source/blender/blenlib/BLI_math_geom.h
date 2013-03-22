@@ -118,7 +118,7 @@ int isect_ray_plane_v3(const float p1[3], const float d[3],
                        float *r_lambda, const int clip);
 
 int isect_line_plane_v3(float out[3], const float l1[3], const float l2[3],
-                        const float plane_co[3], const float plane_no[3], const short no_flip);
+                        const float plane_co[3], const float plane_no[3], const bool no_flip);
 
 void isect_plane_plane_v3(float r_isect_co[3], float r_isect_no[3],
                           const float plane_a_co[3], const float plane_a_no[3],
@@ -135,13 +135,15 @@ int isect_ray_tri_epsilon_v3(const float p1[3], const float d[3],
                              const float v0[3], const float v1[3], const float v2[3], float *r_lambda, float r_uv[2], const float epsilon);
 
 /* point in polygon */
+bool isect_point_poly_v2(const float pt[2], const float verts[][2], const int nr);
+bool isect_point_poly_v2_int(const int pt[2], const int verts[][2], const int nr);
+
 int isect_point_quad_v2(const float p[2], const float a[2], const float b[2], const float c[2], const float d[2]);
 
 int isect_point_tri_v2(const float pt[2], const float v1[2], const float v2[2], const float v3[2]);
 int isect_point_tri_v2_cw(const float pt[2], const float v1[2], const float v2[2], const float v3[2]);
 int isect_point_tri_v2_int(const int x1, const int y1, const int x2, const int y2, const int a, const int b);
 int isect_point_tri_prism_v3(const float p[3], const float v1[3], const float v2[3], const float v3[3]);
-
 void isect_point_quad_uv_v2(const float v0[2], const float v1[2], const float v2[2], const float v3[2],
                             const float pt[2], float r_uv[2]);
 void isect_point_face_uv_v2(const int isquad, const float v0[2], const float v1[2], const float v2[2],
@@ -168,7 +170,7 @@ int isect_axial_line_tri_v3(const int axis, const float co1[3], const float co2[
 
 int clip_line_plane(float p1[3], float p2[3], const float plane[4]);
 
-void plot_line_v2v2i(const int p1[2], const int p2[2], int (*callback)(int, int, void *), void *userData);
+void plot_line_v2v2i(const int p1[2], const int p2[2], bool (*callback)(int, int, void *), void *userData);
 
 /****************************** Interpolation ********************************/
 

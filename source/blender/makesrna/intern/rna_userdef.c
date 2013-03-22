@@ -1884,6 +1884,12 @@ static void rna_def_userdef_theme_space_node(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Group Node", "");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
+	prop = RNA_def_property(srna, "group_socket_node", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "console_output");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Group Socket Node", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
 	prop = RNA_def_property(srna, "frame_node", PROP_FLOAT, PROP_COLOR_GAMMA);
 	RNA_def_property_float_sdna(prop, NULL, "movie");
 	RNA_def_property_array(prop, 4);
@@ -3360,12 +3366,17 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "use_translate_tooltips", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "transopts", USER_TR_TOOLTIPS);
-	RNA_def_property_ui_text(prop, "Translate Tooltips", "Translate Tooltips");
+	RNA_def_property_ui_text(prop, "Translate Tooltips", "Translate tooltips");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
 	prop = RNA_def_property(srna, "use_translate_interface", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "transopts", USER_TR_IFACE);
-	RNA_def_property_ui_text(prop, "Translate Interface", "Translate Interface");
+	RNA_def_property_ui_text(prop, "Translate Interface", "Translate interface");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "use_translate_new_dataname", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "transopts", USER_TR_NEWDATANAME);
+	RNA_def_property_ui_text(prop, "Translate New Names", "Translate new data names (when adding/creating some)");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
 	prop = RNA_def_property(srna, "use_textured_fonts", PROP_BOOLEAN, PROP_NONE);
@@ -3456,6 +3467,12 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "GPU Mipmap Generation", "Generate Image Mipmaps on the GPU");
 	RNA_def_property_update(prop, 0, "rna_userdef_gl_gpu_mipmaps");
 
+	prop = RNA_def_property(srna, "image_gpubuffer_limit", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "image_gpubuffer_limit");
+	RNA_def_property_range(prop, 0, 128);
+	RNA_def_property_ui_text(prop, "Image GPU draw limit", "If set, amount of Mega Pixels to use for drawing Images as GPU textures");
+	
+	
 	prop = RNA_def_property(srna, "use_vertex_buffer_objects", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "gameflags", USER_DISABLE_VBO);
 	RNA_def_property_ui_text(prop, "VBOs",

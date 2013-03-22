@@ -82,17 +82,18 @@ static void image_info(Scene *scene, ImageUser *iuser, Image *ima, ImBuf *ibuf, 
 		return;
 
 	if (ibuf == NULL) {
-		ofs += BLI_snprintf(str + ofs, len - ofs, "%s", IFACE_("Can't Load Image"));
+		ofs += BLI_strncpy_rlen(str + ofs, IFACE_("Can't Load Image"), len - ofs);
 	}
 	else {
 		if (ima->source == IMA_SRC_MOVIE) {
-			ofs += BLI_snprintf(str + ofs, len - ofs, "%s", IFACE_("Movie"));
+			ofs += BLI_strncpy_rlen(str + ofs, IFACE_("Movie"), len - ofs);
 			if (ima->anim)
 				ofs += BLI_snprintf(str + ofs, len - ofs, IFACE_(" %d frs"),
 				                    IMB_anim_get_duration(ima->anim, IMB_TC_RECORD_RUN));
 		}
-		else
-			ofs += BLI_snprintf(str, len - ofs, "%s", IFACE_("Image"));
+		else {
+			ofs += BLI_strncpy_rlen(str, IFACE_("Image"), len - ofs);
+		}
 
 		ofs += BLI_snprintf(str + ofs, len - ofs, IFACE_(": size %d x %d,"), ibuf->x, ibuf->y);
 
@@ -101,18 +102,18 @@ static void image_info(Scene *scene, ImageUser *iuser, Image *ima, ImBuf *ibuf, 
 				ofs += BLI_snprintf(str + ofs, len - ofs, IFACE_("%d float channel(s)"), ibuf->channels);
 			}
 			else if (ibuf->planes == R_IMF_PLANES_RGBA)
-				ofs += BLI_snprintf(str + ofs, len - ofs, "%s", IFACE_(" RGBA float"));
+				ofs += BLI_strncpy_rlen(str + ofs, IFACE_(" RGBA float"), len - ofs);
 			else
-				ofs += BLI_snprintf(str + ofs, len - ofs, "%s", IFACE_(" RGB float"));
+				ofs += BLI_strncpy_rlen(str + ofs, IFACE_(" RGB float"), len - ofs);
 		}
 		else {
 			if (ibuf->planes == R_IMF_PLANES_RGBA)
-				ofs += BLI_snprintf(str + ofs, len - ofs, "%s", IFACE_(" RGBA byte"));
+				ofs += BLI_strncpy_rlen(str + ofs, IFACE_(" RGBA byte"), len - ofs);
 			else
-				ofs += BLI_snprintf(str + ofs, len - ofs, "%s", IFACE_(" RGB byte"));
+				ofs += BLI_strncpy_rlen(str + ofs, IFACE_(" RGB byte"), len - ofs);
 		}
 		if (ibuf->zbuf || ibuf->zbuf_float)
-			ofs += BLI_snprintf(str + ofs, len - ofs, "%s", IFACE_(" + Z"));
+			ofs += BLI_strncpy_rlen(str + ofs, IFACE_(" + Z"), len - ofs);
 
 		if (ima->source == IMA_SRC_SEQUENCE) {
 			const char *file = BLI_last_slash(ibuf->name);
@@ -547,7 +548,6 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 	RNAUpdateCb *cb;
 	Image *ima;
 	ImageUser *iuser;
-	ImBuf *ibuf;
 	Scene *scene = CTX_data_scene(C);
 	uiLayout *row, *split, *col;
 	uiBlock *block;
@@ -594,7 +594,7 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 		uiBlockSetNFunc(block, rna_update_cb, MEM_dupallocN(cb), NULL);
 
 		if (ima->source == IMA_SRC_VIEWER) {
-			ibuf = BKE_image_acquire_ibuf(ima, iuser, &lock);
+			ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, &lock);
 			image_info(scene, iuser, ima, ibuf, str, MAX_INFO_LEN);
 			BKE_image_release_ibuf(ima, ibuf, lock);
 
@@ -664,7 +664,7 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 			}
 			else if (ima->source != IMA_SRC_GENERATED) {
 				if (compact == 0) {
-					ibuf = BKE_image_acquire_ibuf(ima, iuser, &lock);
+					ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, &lock);
 					image_info(scene, iuser, ima, ibuf, str, MAX_INFO_LEN);
 					BKE_image_release_ibuf(ima, ibuf, lock);
 					uiItemL(layout, str, ICON_NONE);

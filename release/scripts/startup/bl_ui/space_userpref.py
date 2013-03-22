@@ -480,6 +480,10 @@ class USERPREF_PT_system(Panel):
         col.prop(system, "texture_collection_rate", text="Collection Rate")
 
         col.separator()
+
+        col.label(text="Images:")
+        col.prop(system, "image_gpubuffer_limit")
+
         col.separator()
         col.separator()
 
@@ -524,9 +528,11 @@ class USERPREF_PT_system(Panel):
             if system.use_international_fonts:
                 column.prop(system, "language")
                 row = column.row()
-                row.label(text="Translate:")
-                row.prop(system, "use_translate_interface", text="Interface")
-                row.prop(system, "use_translate_tooltips", text="Tooltips")
+                row.label(text="Translate:", text_ctxt=bpy.app.translations.contexts.id_windowmanager)
+                row = column.row(True)
+                row.prop(system, "use_translate_interface", text="Interface", toggle=True)
+                row.prop(system, "use_translate_tooltips", text="Tooltips", toggle=True)
+                row.prop(system, "use_translate_new_dataname", text="New Data", toggle=True)
 
 
 class USERPREF_MT_interface_theme_presets(Menu):
@@ -1240,7 +1246,7 @@ class USERPREF_PT_addons(Panel):
                         split = colsub.row().split(percentage=0.15)
                         split.label(text="Internet:")
                         if info["wiki_url"]:
-                            split.operator("wm.url_open", text="Link to the Wiki", icon='HELP').url = info["wiki_url"]
+                            split.operator("wm.url_open", text="Documentation", icon='HELP').url = info["wiki_url"]
                         if info["tracker_url"]:
                             split.operator("wm.url_open", text="Report a Bug", icon='URL').url = info["tracker_url"]
                         if user_addon:

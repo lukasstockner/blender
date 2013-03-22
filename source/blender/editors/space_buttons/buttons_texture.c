@@ -118,10 +118,10 @@ static void buttons_texture_users_find_nodetree(ListBase *users, ID *id,
 			if (node->typeinfo->nclass == NODE_CLASS_TEXTURE) {
 				PointerRNA ptr;
 				/* PropertyRNA *prop; */ /* UNUSED */
-
+				
 				RNA_pointer_create(&ntree->id, &RNA_Node, node, &ptr);
 				/* prop = RNA_struct_find_property(&ptr, "texture"); */ /* UNUSED */
-
+				
 				buttons_texture_user_node_add(users, id, ntree, node,
 				                              category, RNA_struct_ui_icon(ptr.type), node->name);
 			}
@@ -404,7 +404,7 @@ void uiTemplateTextureUser(uiLayout *layout, bContext *C)
 	}
 
 	/* create button */
-	BLI_snprintf(name, UI_MAX_NAME_STR, "%s", user->name);
+	BLI_strncpy(name, user->name, UI_MAX_NAME_STR);
 
 	if (user->icon) {
 		but = uiDefIconTextMenuBut(block, template_texture_user_menu, NULL,

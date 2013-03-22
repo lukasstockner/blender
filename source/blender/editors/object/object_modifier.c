@@ -198,7 +198,7 @@ static int object_has_modifier(const Object *ob, const ModifierData *exclude,
  * If the callback ever returns TRUE, iteration will stop and the
  * function value will be TRUE. Otherwise the function returns FALSE.
  */
-int ED_object_iter_other(Main *bmain, Object *orig_ob, int include_orig,
+int ED_object_iter_other(Main *bmain, Object *orig_ob, const bool include_orig,
                          int (*callback)(Object *ob, void *callback_data),
                          void *callback_data)
 {
@@ -1754,7 +1754,7 @@ static Object *modifier_skin_armature_create(struct Scene *scene,
 	arm->edbo = MEM_callocN(sizeof(ListBase), "edbo armature");
 
 	mvert_skin = CustomData_get_layer(&me->vdata, CD_MVERT_SKIN);
-	create_vert_edge_map(&emap, &emap_mem,
+	BKE_mesh_vert_edge_map_create(&emap, &emap_mem,
 	                     me->medge, me->totvert, me->totedge);
 
 	edges_visited = BLI_BITMAP_NEW(me->totedge, "edge_visited");

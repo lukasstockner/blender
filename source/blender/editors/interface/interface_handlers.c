@@ -235,14 +235,13 @@ void ui_pan_to_scroll(const wmEvent *event, int *type, int *val)
 	BLI_assert(*type == MOUSEPAN);
 
 	/* sign differs, reset */
-	if ((dy > 0 && lastdy < 0) || (dy < 0 && lastdy > 0))
+	if ((dy > 0 && lastdy < 0) || (dy < 0 && lastdy > 0)) {
 		lastdy = dy;
+	}
 	else {
 		lastdy += dy;
 		
 		if (ABS(lastdy) > (int)UI_UNIT_Y) {
-			int dy = event->prevy - event->y;
-			
 			if (U.uiflag2 & USER_TRACKPAD_NATURAL)
 				dy = -dy;
 			
@@ -804,8 +803,6 @@ static void ui_drag_toggle_set(bContext *C, uiDragToggleHandle *drag_info, const
 	 * button we mouse over is X or Y aligned, then lock the mouse to that axis after.
 	 */
 	if (drag_info->xy_lock[0] == false && drag_info->xy_lock[1] == false) {
-		ARegion *ar = CTX_wm_region(C);
-
 		/* first store the buttons original coords */
 		uiBut *but = ui_but_find_mouse_over(ar, xy_input[0], xy_input[1]);
 		if (but) {
@@ -2335,7 +2332,7 @@ static void ui_numedit_begin(uiBut *but, uiHandleButtonData *data)
 		data->coba = (ColorBand *)but->poin;
 		but->editcoba = data->coba;
 	}
-	else if (ELEM3(but->type, BUT_NORMAL, HSVCUBE, HSVCIRCLE)) {
+	else if (ELEM4(but->type, BUT_NORMAL, HSVCUBE, HSVCIRCLE, COLOR)) {
 		ui_get_but_vectorf(but, data->origvec);
 		copy_v3_v3(data->vec, data->origvec);
 		but->editvec = data->vec;
@@ -3157,9 +3154,6 @@ static bool ui_numedit_but_SLI(uiBut *but, uiHandleButtonData *data,
 		BLI_rctf_clamp_pt_v(&but->rect, data->ungrab_mval);
 	}
 #endif
-	if (is_horizontal == false) {
-		mx_fl = my_fl;
-	}
 	/* done correcting mouse */
 
 
@@ -4164,20 +4158,27 @@ static int ui_do_but_COLORBAND(bContext *C, uiBlock *block, uiBut *but, uiHandle
 	return WM_UI_HANDLER_CONTINUE;
 }
 
-static int ui_numedit_but_CURVE(uiBut *but, uiHandleButtonData *data, int snap,
-                                float mx, float my, const short shift)
+static int ui_numedit_but_CURVE(uiBlock *block, uiBut *but, uiHandleButtonData *data, int snap,
+                                int evtx, int evty, const short shift)
 {
 	CurveMapping *cumap = (CurveMapping *)but->poin;
 	CurveMap *cuma = cumap->cm + cumap->cur;
 	CurveMapPoint *cmp = cuma->curve;
-	float fx, fy, zoomx, zoomy /*, offsx, offsy */ /* UNUSED */;
+	float fx, fy, zoomx, zoomy;
+	int mx, my, dragx, dragy;
 	int a, changed = 0;
 
+	/* evtx evty and drag coords are absolute mousecoords, prevents errors when editing when layout changes */
+	mx = evtx;
+	my = evty;
+	ui_window_to_block(data->region, block, &mx, &my);
+	dragx = data->draglastx;
+	dragy = data->draglasty;
+	ui_window_to_block(data->region, block, &dragx, &dragy);
+	
 	zoomx = BLI_rctf_size_x(&but->rect) / BLI_rctf_size_x(&cumap->curr);
 	zoomy = BLI_rctf_size_y(&but->rect) / BLI_rctf_size_y(&cumap->curr);
-	/* offsx = cumap->curr.xmin; */
-	/* offsy = cumap->curr.ymin; */
-
+	
 	if (snap) {
 		float d[2];
 
@@ -4193,8 +4194,8 @@ static int ui_numedit_but_CURVE(uiBut *but, uiHandleButtonData *data, int snap,
 		const float mval_factor = ui_mouse_scale_warp_factor(shift);
 		int moved_point = 0;     /* for ctrl grid, can't use orig coords because of sorting */
 
-		fx = (mx - data->draglastx) / zoomx;
-		fy = (my - data->draglasty) / zoomy;
+		fx = (mx - dragx) / zoomx;
+		fy = (my - dragy) / zoomy;
 
 		fx *= mval_factor;
 		fy *= mval_factor;
@@ -4218,8 +4219,8 @@ static int ui_numedit_but_CURVE(uiBut *but, uiHandleButtonData *data, int snap,
 		curvemapping_changed(cumap, FALSE);
 		
 		if (moved_point) {
-			data->draglastx = mx;
-			data->draglasty = my;
+			data->draglastx = evtx;
+			data->draglasty = evty;
 			changed = 1;
 
 #ifdef USE_CONT_MOUSE_CORRECT
@@ -4238,8 +4239,8 @@ static int ui_numedit_but_CURVE(uiBut *but, uiHandleButtonData *data, int snap,
 		data->dragchange = 1; /* mark for selection */
 	}
 	else {
-		fx = (mx - data->draglastx) / zoomx;
-		fy = (my - data->draglasty) / zoomy;
+		fx = (mx - dragx) / zoomx;
+		fy = (my - dragy) / zoomy;
 		
 		/* clamp for clip */
 		if (cumap->flag & CUMA_DO_CLIP) {
@@ -4258,8 +4259,8 @@ static int ui_numedit_but_CURVE(uiBut *but, uiHandleButtonData *data, int snap,
 		cumap->curr.xmax -= fx;
 		cumap->curr.ymax -= fy;
 		
-		data->draglastx = mx;
-		data->draglasty = my;
+		data->draglastx = evtx;
+		data->draglasty = evty;
 
 		changed = 1;
 	}
@@ -4274,7 +4275,7 @@ static int ui_do_but_CURVE(bContext *C, uiBlock *block, uiBut *but, uiHandleButt
 	mx = event->x;
 	my = event->y;
 	ui_window_to_block(data->region, block, &mx, &my);
-
+	
 	if (data->state == BUTTON_STATE_HIGHLIGHT) {
 		if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
 			CurveMapping *cumap = (CurveMapping *)but->poin;
@@ -4364,11 +4365,11 @@ static int ui_do_but_CURVE(bContext *C, uiBlock *block, uiBut *but, uiHandleButt
 			}
 
 			data->dragsel = sel;
-
-			data->dragstartx = mx;
-			data->dragstarty = my;
-			data->draglastx = mx;
-			data->draglasty = my;
+			
+			data->dragstartx = event->x;
+			data->dragstarty = event->y;
+			data->draglastx = event->x;
+			data->draglasty = event->y;
 
 			button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
 			return WM_UI_HANDLER_BREAK;
@@ -4376,8 +4377,9 @@ static int ui_do_but_CURVE(bContext *C, uiBlock *block, uiBut *but, uiHandleButt
 	}
 	else if (data->state == BUTTON_STATE_NUM_EDITING) {
 		if (event->type == MOUSEMOVE) {
-			if (mx != data->draglastx || my != data->draglasty) {
-				if (ui_numedit_but_CURVE(but, data, event->ctrl, mx, my, event->shift))
+			if (event->x != data->draglastx || event->y != data->draglasty) {
+				
+				if (ui_numedit_but_CURVE(block, but, data, event->ctrl, event->x, event->y, event->shift))
 					ui_numedit_apply(C, block, but, data);
 			}
 		}
@@ -5432,6 +5434,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
 		case LISTROW:
 		case BUT_IMAGE:
 		case PROGRESSBAR:
+		case NODESOCKET:
 			retval = ui_do_but_EXIT(C, but, data, event);
 			break;
 		case HISTOGRAM:

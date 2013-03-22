@@ -124,7 +124,7 @@ mark_as_advanced(WITH_PYTHON_SECURITY)  # some distributions see this as a secur
 
 option(WITH_PYTHON_SAFETY "Enable internal API error checking to track invalid data to prevent crash on access (at the expense of some effeciency, only enable for development)." OFF)
 option(WITH_PYTHON_MODULE "Enable building as a python module which runs without a user interface, like running regular blender in background mode (experimental, only enable for development)" OFF)
-if (APPLE)
+if(APPLE)
 	option(WITH_PYTHON_FRAMEWORK "Enable building using the Python available in the framework (OSX only)" OFF)
 endif()
 
@@ -278,6 +278,10 @@ mark_as_advanced(WITH_ASSERT_ABORT)
 
 option(WITH_BOOST					"Enable features depending no boost" ON)
 
+if(CMAKE_COMPILER_IS_GNUCC)
+	option(WITH_GCC_MUDFLAP			"Enable mudflap" OFF)
+	mark_as_advanced(WITH_GCC_MUDFLAP)
+endif()
 
 if(APPLE)
 	cmake_minimum_required(VERSION 2.8.8)
@@ -290,9 +294,9 @@ if(APPLE)
 	endif()
 	
 	execute_process(COMMAND uname -r OUTPUT_VARIABLE MAC_SYS) # check for actual system-version
-	if (${MAC_SYS} MATCHES 12)
+	if(${MAC_SYS} MATCHES 12)
 		set(OSX_SYSTEM 10.8)
-	elseif (${MAC_SYS} MATCHES 11)
+	elseif(${MAC_SYS} MATCHES 11)
 		set(OSX_SYSTEM 10.7)
 	elseif(${MAC_SYS} MATCHES 10)
 		set(OSX_SYSTEM 10.6)
@@ -532,7 +536,7 @@ set(PLATFORM_LINKFLAGS_DEBUG "")
 
 if(UNIX AND NOT APPLE)
 	macro(find_package_wrapper)
-		STRING(TOUPPER ${ARGV0} _NAME_UPPER)
+		string(TOUPPER ${ARGV0} _NAME_UPPER)
 		if(${WITH_STATIC_LIBS})
 			set(_cmake_find_library_suffixes_back ${CMAKE_FIND_LIBRARY_SUFFIXES})
 			set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
@@ -662,7 +666,7 @@ if(UNIX AND NOT APPLE)
 		endif()
 	endif()
 
-	if (WITH_INPUT_NDOF)
+	if(WITH_INPUT_NDOF)
 		find_package_wrapper(Spacenav)
 		if(NOT SPACENAV_FOUND)
 			set(WITH_INPUT_NDOF OFF)
@@ -683,10 +687,11 @@ if(UNIX AND NOT APPLE)
 			endif()
 			set(Boost_USE_MULTITHREADED ON)
 			set(__boost_packages filesystem regex system thread date_time)
-			if (WITH_INTERNATIONAL)
+			if(WITH_INTERNATIONAL)
 				list(APPEND __boost_packages locale)
 			endif()
 			find_package(Boost 1.48 COMPONENTS ${__boost_packages})
+			unset(__boost_packages)
 			if(Boost_USE_STATIC_LIBS AND WITH_BOOST_ICU)
 				find_package(IcuLinux)
 			endif()
@@ -704,7 +709,7 @@ if(UNIX AND NOT APPLE)
 
 		set(OPENIMAGEIO_LIBRARIES ${OPENIMAGEIO_LIBRARIES} ${PNG_LIBRARIES} ${JPEG_LIBRARIES} ${ZLIB_LIBRARIES} ${BOOST_LIBRARIES})
 		set(OPENIMAGEIO_LIBPATH)  # TODO, remove and reference the absolute path everywhere
-		set(OPENIMAGEIO_DEFINITIONS)
+		set(OPENIMAGEIO_DEFINITIONS "")
 
 		if(WITH_IMAGE_TIFF)
 			list(APPEND OPENIMAGEIO_LIBRARIES "${TIFF_LIBRARY}")
@@ -895,7 +900,7 @@ elseif(WIN32)
 
 	if(CMAKE_COMPILER_IS_GNUCC)
 		set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/mingw32)
-		INCLUDE (CheckCSourceCompiles) 
+		include(CheckCSourceCompiles)
 		# Setup 64bit and 64bit windows systems
 		CHECK_C_SOURCE_COMPILES("
 			#ifndef __MINGW64__
@@ -1131,7 +1136,7 @@ elseif(WIN32)
 			endif()
 
 			set_lib_path(PYTHON "python")
-			STRING(REPLACE "." "" _PYTHON_VERSION_NO_DOTS ${PYTHON_VERSION})
+			string(REPLACE "." "" _PYTHON_VERSION_NO_DOTS ${PYTHON_VERSION})
 			# Use shared libs for vc2008 and vc2010 until we actually have vc2010 libs
 			set(PYTHON_LIBRARY ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}.lib)
 			# set(PYTHON_LIBRARY ${PYTHON}/lib/python${_PYTHON_VERSION_NO_DOTS}.lib) #CACHE FILEPATH
@@ -1373,7 +1378,7 @@ elseif(WIN32)
 			set(OPENIMAGEIO_INCLUDE_DIRS ${OPENIMAGEIO}/include)
 			set(OPENIMAGEIO_LIBRARIES OpenImageIO)
 			set(OPENIMAGEIO_LIBPATH ${OPENIMAGEIO}/lib)
-			set(OPENIMAGEIO_DEFINITIONS)
+			set(OPENIMAGEIO_DEFINITIONS "")
 		endif()
 		
 		if(WITH_LLVM)
@@ -1626,7 +1631,7 @@ elseif(APPLE)
 		set(TIFF_LIBPATH ${TIFF}/lib)
 	endif()
 
-	if (WITH_INPUT_NDOF)
+	if(WITH_INPUT_NDOF)
 		# linker needs "-weak_framework 3DconnexionClient"
 	endif()
 
@@ -1634,7 +1639,7 @@ elseif(APPLE)
 		set(BOOST ${LIBDIR}/boost)
 		set(BOOST_INCLUDE_DIR ${BOOST}/include)
 		set(BOOST_LIBRARIES boost_date_time-mt boost_filesystem-mt boost_regex-mt boost_system-mt boost_thread-mt boost_wave-mt)
-		if (WITH_INTERNATIONAL)
+		if(WITH_INTERNATIONAL)
 			list(APPEND BOOST_LIBRARIES boost_locale-mt)
 			set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -liconv") # boost_locale needs it !
 		endif()
@@ -1924,11 +1929,16 @@ if(CMAKE_COMPILER_IS_GNUCC)
 	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_NO_NULL -Wnonnull)  # C only
 	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_MISSING_INCLUDE_DIRS -Wmissing-include-dirs)
 	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_NO_DIV_BY_ZERO -Wno-div-by-zero)
-	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_REDUNDANT_DECLS -Wredundant-decls)
 
 	# gcc 4.2 gives annoying warnings on every file with this
-	if (NOT "${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "4.3")
+	if(NOT "${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "4.3")
 		ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_UNINITIALIZED -Wuninitialized)
+	endif()
+
+	# versions before gcc4.6 give many BLI_math warnings
+	if(NOT "${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "4.6")
+		ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_REDUNDANT_DECLS       -Wredundant-decls)
+		ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_REDUNDANT_DECLS -Wredundant-decls)
 	endif()
 
 	# disable because it gives warnings for printf() & friends.
@@ -1945,10 +1955,9 @@ if(CMAKE_COMPILER_IS_GNUCC)
 	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_INIT_SELF -Winit-self)  # needs -Wuninitialized
 	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_MISSING_INCLUDE_DIRS -Wmissing-include-dirs)
 	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_NO_DIV_BY_ZERO -Wno-div-by-zero)
-	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_REDUNDANT_DECLS -Wredundant-decls)
 
 	# gcc 4.2 gives annoying warnings on every file with this
-	if (NOT "${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "4.3")
+	if(NOT "${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "4.3")
 		ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_UNINITIALIZED -Wuninitialized)
 	endif()
 
@@ -2032,7 +2041,7 @@ if(WITH_PYTHON)
 
 	if(WITH_PYTHON_INSTALL AND WITH_PYTHON_INSTALL_NUMPY)
 		# set but invalid
-        # -- disabled until we make numpy bundled with blender - campbell
+		# -- disabled until we make numpy bundled with blender - campbell
 		if((NOT ${PYTHON_NUMPY_PATH} STREQUAL "") AND (NOT ${PYTHON_NUMPY_PATH} MATCHES NOTFOUND))
 #			if(NOT EXISTS "${PYTHON_NUMPY_PATH}/numpy")
 #				message(WARNING "PYTHON_NUMPY_PATH is invalid, numpy not found in '${PYTHON_NUMPY_PATH}' "
@@ -2074,6 +2083,13 @@ if(WITH_PYTHON)
 			unset(_PY_VER_MAJOR)
 		endif()
 	endif()
+endif()
+
+if(WITH_GCC_MUDFLAP)
+	set(PLATFORM_CFLAGS "${PLATFORM_CFLAGS} -fmudflapth -funwind-tables")
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lpthread -lmudflapth -rdynamic")
+	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS     C_WARN_NO_ERROR_MUDFLAP   -Wno-error=mudflap)
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_NO_ERROR_MUDFLAP -Wno-error=mudflap)
 endif()
 
 # Include warnings first, so its possible to disable them with user defined flags

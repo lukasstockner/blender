@@ -31,10 +31,10 @@
 
 #include <Python.h>
 
+#include "BLI_utildefines.h"
+
 #include "WM_api.h"
 #include "WM_types.h"
-
-#include "BLI_utildefines.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -127,6 +127,11 @@ void operator_wrapper(wmOperatorType *ot, void *userdata)
 	*ot = *((wmOperatorType *)userdata);
 	ot->srna = srna; /* restore */
 
+	/* Use i18n context from ext.srna if possible (py operators). */
+	if (ot->ext.srna) {
+		RNA_def_struct_translation_context(ot->srna, RNA_struct_translation_context(ot->ext.srna));
+	}
+
 	operator_properties_init(ot);
 }
 
@@ -142,6 +147,11 @@ void macro_wrapper(wmOperatorType *ot, void *userdata)
 	ot->pyop_poll = data->pyop_poll;
 	ot->ui = data->ui;
 	ot->ext = data->ext;
+
+	/* Use i18n context from ext.srna if possible (py operators). */
+	if (ot->ext.srna) {
+		RNA_def_struct_translation_context(ot->srna, RNA_struct_translation_context(ot->ext.srna));
+	}
 
 	operator_properties_init(ot);
 }

@@ -451,7 +451,7 @@ typedef struct UserDef {
 
 	short ogl_multisamples;	/* amount of samples for OpenGL FSA, if zero no FSA */
 
-	short pad4;
+	short image_gpubuffer_limit; /* If set, amount of mega-pixels to use for texture drawing of images */
 	
 	float glalphaclip;
 	
@@ -606,12 +606,13 @@ typedef enum eAutokey_Flag {
 typedef enum eUserpref_Translation_Flags {
 	USER_TR_TOOLTIPS		= (1 << 0),
 	USER_TR_IFACE			= (1 << 1),
-/*	USER_TR_MENUS			= (1 << 2)	deprecated */
-/*	USER_TR_FILESELECT	= (1 << 3)	deprecated */
-/*	USER_TR_TEXTEDIT		= (1 << 4)	deprecated */
+/*	USER_TR_MENUS			= (1 << 2),  deprecated */
+/*	USER_TR_FILESELECT		= (1 << 3),  deprecated */
+/*	USER_TR_TEXTEDIT		= (1 << 4),  deprecated */
 	USER_DOTRANSLATE		= (1 << 5),
 	USER_USETEXTUREFONT		= (1 << 6),
-/*	CONVERT_TO_UTF8			= (1 << 7)	deprecated */
+/*	CONVERT_TO_UTF8			= (1 << 7),  deprecated */
+	USER_TR_NEWDATANAME		= (1 << 8),
 } eUserpref_Translation_Flags;
 
 /* dupflag */

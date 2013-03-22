@@ -2746,8 +2746,8 @@ static uiBut *ui_def_but(uiBlock *block, int type, int retval, const char *str,
 	but->retval = retval;
 
 	slen = strlen(str);
-	if (slen >= UI_MAX_NAME_STR - 1) {
-		but->str = MEM_mallocN(slen + 2, "ui_def_but str"); /* why +2 ? */
+	if (slen >= UI_MAX_NAME_STR) {
+		but->str = MEM_mallocN(slen + 1, "ui_def_but str");
 	}
 	else {
 		but->str = but->strdata;
@@ -3963,7 +3963,7 @@ void uiButGetStrInfo(bContext *C, uiBut *but, ...)
 			}
 		}
 		else if (type == BUT_GET_RNA_LABEL_CONTEXT) {
-			const char *_tmp = NULL;
+			const char *_tmp = BLF_I18NCONTEXT_DEFAULT;
 			if (but->rnaprop)
 				_tmp = RNA_property_translation_context(but->rnaprop);
 			else if (but->optype)
@@ -3973,8 +3973,8 @@ void uiButGetStrInfo(bContext *C, uiBut *but, ...)
 				if (mt)
 					_tmp = RNA_struct_translation_context(mt->ext.srna);
 			}
-			if (!_tmp) {  /* _tmp == BLF_I18NCONTEXT_DEFAULT */
-				_tmp = BLF_I18NCONTEXT_DEFAULT_BPY;
+			if (BLF_is_default_context(_tmp)) {
+				_tmp = BLF_I18NCONTEXT_DEFAULT_BPYRNA;
 			}
 			tmp = BLI_strdup(_tmp);
 		}

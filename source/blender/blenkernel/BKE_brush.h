@@ -42,6 +42,11 @@ struct Scene;
 struct wmOperator;
 // enum CurveMappingPreset;
 
+
+/* globals for brush execution */
+void BKE_brush_system_init(void);
+void BKE_brush_system_exit(void);
+
 /* datablock functions */
 struct Brush *BKE_brush_add(struct Main *bmain, const char *name);
 struct Brush *BKE_brush_copy(struct Brush *brush);
@@ -72,7 +77,7 @@ float BKE_brush_curve_strength(struct Brush *br, float p, const float len); /* u
 float BKE_brush_sample_tex_3D(const Scene *scene, struct Brush *br, const float point[3],
                               float rgba[4], const int thread, struct ImagePool *pool);
 float BKE_brush_sample_tex_2D(const struct Scene *scene, struct Brush *brush, const float xy[2],
-                              float rgba[4], struct ImagePool *pool);
+                              float rgba[4]);
 void BKE_brush_imbuf_new(const struct Scene *scene, struct Brush *brush, short flt, short texfalloff, int size,
                          struct ImBuf **imbuf, int use_color_correction);
 

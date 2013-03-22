@@ -1583,6 +1583,26 @@ void IMB_colormanagement_scene_linear_to_colorspace_v3(float pixel[3], ColorSpac
 		OCIO_processorApplyRGB(processor, pixel);
 }
 
+void IMB_colormanagement_colorspace_to_scene_linear_v4(float pixel[4], int predivide, ColorSpace *colorspace)
+{
+	OCIO_ConstProcessorRcPtr *processor;
+
+	if (!colorspace) {
+		/* should never happen */
+		printf("%s: perform conversion from unknown color space\n", __func__);
+		return;
+	}
+
+	processor = colorspace_to_scene_linear_processor(colorspace);
+
+	if (processor) {
+		if (predivide)
+			OCIO_processorApplyRGBA_predivide(processor, pixel);
+		else
+			OCIO_processorApplyRGBA(processor, pixel);
+	}
+}
+
 void IMB_colormanagement_colorspace_to_scene_linear(float *buffer, int width, int height, int channels, struct ColorSpace *colorspace, int predivide)
 {
 	OCIO_ConstProcessorRcPtr *processor;
@@ -1851,6 +1871,14 @@ unsigned char *IMB_display_buffer_acquire(ImBuf *ibuf, const ColorManagedViewSet
 
 			init_default_view_settings(display_settings,  &default_view_settings);
 			applied_view_settings = &default_view_settings;
+		}
+
+		/* early out: no float buffer and byte buffer is already in display space,
+		 * let's just use if
+		 */
+		if (ibuf->rect_float == NULL && ibuf->rect_colorspace) {
+			if (is_ibuf_rect_in_display_space(ibuf, applied_view_settings, display_settings))
+				return (unsigned char *) ibuf->rect;
 		}
 
 		colormanage_view_settings_to_cache(&cache_view_settings, applied_view_settings);

@@ -1819,7 +1819,7 @@ void BKE_stamp_buf(Scene *scene, Object *camera, unsigned char *rect, float *rec
 	}
 
 	/* cleanup the buffer. */
-	BLF_buffer(mono, NULL, NULL, 0, 0, 0, FALSE);
+	BLF_buffer(mono, NULL, NULL, 0, 0, 0, NULL);
 
 #undef BUFF_MARGIN_X
 #undef BUFF_MARGIN_Y
@@ -1946,7 +1946,7 @@ int BKE_imbuf_write(ImBuf *ibuf, const char *name, ImageFormatData *imf)
 	else if (imtype == R_IMF_IMTYPE_DPX) {
 		ibuf->ftype = DPX;
 		if (imf->cineon_flag & R_IMF_CINEON_FLAG_LOG) {
-		  ibuf->ftype |= CINEON_LOG;
+			ibuf->ftype |= CINEON_LOG;
 		}
 		if (imf->depth == R_IMF_CHAN_DEPTH_16) {
 			ibuf->ftype |= CINEON_16BIT;
@@ -2171,7 +2171,7 @@ void BKE_image_walk_all_users(const Main *mainp, void *customdata,
 				}
 				else if (sa->spacetype == SPACE_NODE) {
 					SpaceNode *snode = sa->spacedata.first;
-					if ((snode->treetype == NTREE_COMPOSIT) && (snode->nodetree)) {
+					if (snode->nodetree && snode->nodetree->type == NTREE_COMPOSIT) {
 						bNode *node;
 						for (node = snode->nodetree->nodes.first; node; node = node->next) {
 							if (node->id && node->type == CMP_NODE_IMAGE) {
@@ -3379,7 +3379,7 @@ void BKE_image_get_aspect(Image *image, float *aspx, float *aspy)
 
 unsigned char *BKE_image_get_pixels_for_frame(struct Image *image, int frame)
 {
-	ImageUser iuser = {0};
+	ImageUser iuser = {NULL};
 	void *lock;
 	ImBuf *ibuf;
 	unsigned char *pixels = NULL;
@@ -3406,7 +3406,7 @@ unsigned char *BKE_image_get_pixels_for_frame(struct Image *image, int frame)
 
 float *BKE_image_get_float_pixels_for_frame(struct Image *image, int frame)
 {
-	ImageUser iuser = {0};
+	ImageUser iuser = {NULL};
 	void *lock;
 	ImBuf *ibuf;
 	float *pixels = NULL;

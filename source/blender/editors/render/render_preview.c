@@ -188,11 +188,11 @@ typedef struct IconPreview {
 
 /* *************************** Preview for buttons *********************** */
 
-static Main *pr_main = NULL;
-static Main *pr_main_cycles = NULL;
+static Main *G_pr_main = NULL;
+static Main *G_pr_main_cycles = NULL;
 
 #ifndef WITH_HEADLESS
-static Main *load_main_from_memory(char *blend, int blend_size)
+static Main *load_main_from_memory(const void *blend, int blend_size)
 {
 	const int fileflags = G.fileflags;
 	Main *bmain = NULL;
@@ -214,18 +214,18 @@ static Main *load_main_from_memory(char *blend, int blend_size)
 void ED_preview_init_dbase(void)
 {
 #ifndef WITH_HEADLESS
-	pr_main = load_main_from_memory(datatoc_preview_blend, datatoc_preview_blend_size);
-	pr_main_cycles = load_main_from_memory(datatoc_preview_cycles_blend, datatoc_preview_cycles_blend_size);
+	G_pr_main = load_main_from_memory(datatoc_preview_blend, datatoc_preview_blend_size);
+	G_pr_main_cycles = load_main_from_memory(datatoc_preview_cycles_blend, datatoc_preview_cycles_blend_size);
 #endif
 }
 
 void ED_preview_free_dbase(void)
 {
-	if (pr_main)
-		free_main(pr_main);
+	if (G_pr_main)
+		free_main(G_pr_main);
 
-	if (pr_main_cycles)
-		free_main(pr_main_cycles);
+	if (G_pr_main_cycles)
+		free_main(G_pr_main_cycles);
 }
 
 static int preview_mat_has_sss(Material *mat, bNodeTree *ntree)
@@ -378,8 +378,8 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 					sce->lay = 1 << mat->pr_type;
 					if (mat->nodetree && sp->pr_method == PR_NODE_RENDER) {
 						/* two previews, they get copied by wmJob */
-						ntreeInitPreview(mat->nodetree, sp->sizex, sp->sizey);
-						ntreeInitPreview(origmat->nodetree, sp->sizex, sp->sizey);
+						BKE_node_preview_init_tree(mat->nodetree, sp->sizex, sp->sizey, TRUE);
+						BKE_node_preview_init_tree(origmat->nodetree, sp->sizex, sp->sizey, TRUE);
 					}
 				}
 			}
@@ -442,8 +442,8 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 
 			if (tex && tex->nodetree && sp->pr_method == PR_NODE_RENDER) {
 				/* two previews, they get copied by wmJob */
-				ntreeInitPreview(origtex->nodetree, sp->sizex, sp->sizey);
-				ntreeInitPreview(tex->nodetree, sp->sizex, sp->sizey);
+				BKE_node_preview_init_tree(origtex->nodetree, sp->sizex, sp->sizey, TRUE);
+				BKE_node_preview_init_tree(tex->nodetree, sp->sizex, sp->sizey, TRUE);
 			}
 		}
 		else if (id_type == ID_LA) {
@@ -479,8 +479,8 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 
 			if (la && la->nodetree && sp->pr_method == PR_NODE_RENDER) {
 				/* two previews, they get copied by wmJob */
-				ntreeInitPreview(origla->nodetree, sp->sizex, sp->sizey);
-				ntreeInitPreview(la->nodetree, sp->sizex, sp->sizey);
+				BKE_node_preview_init_tree(origla->nodetree, sp->sizex, sp->sizey, TRUE);
+				BKE_node_preview_init_tree(la->nodetree, sp->sizex, sp->sizey, TRUE);
 			}
 		}
 		else if (id_type == ID_WO) {
@@ -497,8 +497,8 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 
 			if (wrld && wrld->nodetree && sp->pr_method == PR_NODE_RENDER) {
 				/* two previews, they get copied by wmJob */
-				ntreeInitPreview(wrld->nodetree, sp->sizex, sp->sizey);
-				ntreeInitPreview(origwrld->nodetree, sp->sizex, sp->sizey);
+				BKE_node_preview_init_tree(wrld->nodetree, sp->sizex, sp->sizey, TRUE);
+				BKE_node_preview_init_tree(origwrld->nodetree, sp->sizex, sp->sizey, TRUE);
 			}
 		}
 		
@@ -1028,7 +1028,7 @@ static void icon_preview_startjob_all_sizes(void *customdata, short *stop, short
 		sp->pr_method = PR_ICON_RENDER;
 		sp->pr_rect = cur_size->rect;
 		sp->id = ip->id;
-		sp->pr_main = pr_main;
+		sp->pr_main = G_pr_main;
 
 		common_preview_startjob(sp, stop, do_update, progress);
 		shader_preview_free(sp);
@@ -1131,9 +1131,9 @@ void ED_preview_shader_job(const bContext *C, void *owner, ID *id, ID *parent, M
 	/* hardcoded preview .blend for cycles/internal, this should be solved
 	 * once with custom preview .blend path for external engines */
 	if (BKE_scene_use_new_shading_nodes(scene))
-		sp->pr_main = pr_main_cycles;
+		sp->pr_main = G_pr_main_cycles;
 	else
-		sp->pr_main = pr_main;
+		sp->pr_main = G_pr_main;
 
 	if (ob && ob->totcol) copy_v4_v4(sp->col, ob->col);
 	else sp->col[0] = sp->col[1] = sp->col[2] = sp->col[3] = 1.0f;

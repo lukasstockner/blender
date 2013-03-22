@@ -48,10 +48,12 @@
 #include "BKE_object.h"
 #include "BKE_screen.h"
 
+#include "ED_render.h"
 #include "ED_space_api.h"
 #include "ED_screen.h"
 #include "ED_object.h"
 
+#include "GPU_extensions.h"
 #include "GPU_material.h"
 
 #include "BIF_gl.h"
@@ -157,12 +159,12 @@ RegionView3D *ED_view3d_context_rv3d(bContext *C)
 
 /* ideally would return an rv3d but in some cases the region is needed too
  * so return that, the caller can then access the ar->regiondata */
-int ED_view3d_context_user_region(bContext *C, View3D **v3d_r, ARegion **ar_r)
+bool ED_view3d_context_user_region(bContext *C, View3D **r_v3d, ARegion **r_ar)
 {
 	ScrArea *sa = CTX_wm_area(C);
 
-	*v3d_r = NULL;
-	*ar_r = NULL;
+	*r_v3d = NULL;
+	*r_ar = NULL;
 
 	if (sa && sa->spacetype == SPACE_VIEW3D) {
 		ARegion *ar = CTX_wm_region(C);
@@ -171,9 +173,9 @@ int ED_view3d_context_user_region(bContext *C, View3D **v3d_r, ARegion **ar_r)
 		if (ar) {
 			RegionView3D *rv3d = ar->regiondata;
 			if (rv3d && rv3d->viewlock == 0) {
-				*v3d_r = v3d;
-				*ar_r = ar;
-				return 1;
+				*r_v3d = v3d;
+				*r_ar = ar;
+				return true;
 			}
 			else {
 				ARegion *ar_unlock_user = NULL;
@@ -194,21 +196,21 @@ int ED_view3d_context_user_region(bContext *C, View3D **v3d_r, ARegion **ar_r)
 
 				/* camera/perspective view get priority when the active region is locked */
 				if (ar_unlock_user) {
-					*v3d_r = v3d;
-					*ar_r = ar_unlock_user;
-					return 1;
+					*r_v3d = v3d;
+					*r_ar = ar_unlock_user;
+					return true;
 				}
 
 				if (ar_unlock) {
-					*v3d_r = v3d;
-					*ar_r = ar_unlock;
-					return 1;
+					*r_v3d = v3d;
+					*r_ar = ar_unlock;
+					return true;
 				}
 			}
 		}
 	}
 
-	return 0;
+	return false;
 }
 
 /* Most of the time this isn't needed since you could assume the view matrix was
@@ -350,7 +352,7 @@ static void view3d_free(SpaceLink *sl)
 
 
 /* spacetype; init callback */
-static void view3d_init(struct wmWindowManager *UNUSED(wm), ScrArea *UNUSED(sa))
+static void view3d_init(wmWindowManager *UNUSED(wm), ScrArea *UNUSED(sa))
 {
 
 }
@@ -467,6 +469,21 @@ static void view3d_main_area_init(wmWindowManager *wm, ARegion *ar)
 	
 	WM_event_add_dropbox_handler(&ar->handlers, lb);
 	
+}
+
+static void view3d_main_area_exit(wmWindowManager *UNUSED(wm), ARegion *ar)
+{
+	RegionView3D *rv3d = ar->regiondata;
+
+	if (rv3d->render_engine) {
+		RE_engine_free(rv3d->render_engine);
+		rv3d->render_engine = NULL;
+	}
+
+	if (rv3d->gpuoffscreen) {
+		GPU_offscreen_free(rv3d->gpuoffscreen);
+		rv3d->gpuoffscreen = NULL;
+	}
 }
 
 static int view3d_ob_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
@@ -615,6 +632,10 @@ static void view3d_main_area_free(ARegion *ar)
 		if (rv3d->sms) {
 			MEM_freeN(rv3d->sms);
 		}
+		if (rv3d->gpuoffscreen) {
+			GPU_offscreen_free(rv3d->gpuoffscreen);
+		}
+
 		MEM_freeN(rv3d);
 		ar->regiondata = NULL;
 	}
@@ -633,6 +654,7 @@ static void *view3d_main_area_duplicate(void *poin)
 			new->clipbb = MEM_dupallocN(rv3d->clipbb);
 		
 		new->depths = NULL;
+		new->gpuoffscreen = NULL;
 		new->ri = NULL;
 		new->render_engine = NULL;
 		new->gpd = NULL;
@@ -1216,6 +1238,7 @@ void ED_spacetype_view3d(void)
 	art->keymapflag = ED_KEYMAP_GPENCIL;
 	art->draw = view3d_main_area_draw;
 	art->init = view3d_main_area_init;
+	art->exit = view3d_main_area_exit;
 	art->free = view3d_main_area_free;
 	art->duplicate = view3d_main_area_duplicate;
 	art->listener = view3d_main_area_listener;

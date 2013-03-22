@@ -1483,15 +1483,15 @@ static int image_save_as_cancel(bContext *UNUSED(C), wmOperator *op)
 	return OPERATOR_CANCELLED;
 }
 
-static int image_save_as_draw_check_prop(PointerRNA *ptr, PropertyRNA *prop)
+static bool image_save_as_draw_check_prop(PointerRNA *ptr, PropertyRNA *prop)
 {
 	const char *prop_id = RNA_property_identifier(prop);
 
-	return !(strcmp(prop_id, "filepath") == 0 ||
-	         strcmp(prop_id, "directory") == 0 ||
-	         strcmp(prop_id, "filename") == 0 ||
+	return !(STREQ(prop_id, "filepath") ||
+	         STREQ(prop_id, "directory") ||
+	         STREQ(prop_id, "filename") ||
 	         /* when saving a copy, relative path has no effect */
-	         ((strcmp(prop_id, "relative_path") == 0) && RNA_boolean_get(ptr, "copy"))
+	         ((STREQ(prop_id, "relative_path")) && RNA_boolean_get(ptr, "copy"))
 	         );
 }
 
@@ -2079,6 +2079,7 @@ typedef struct ImageSampleInfo {
 
 	unsigned char col[4];
 	float colf[4];
+	float linearcol[4];
 	int z;
 	float zf;
 
@@ -2099,7 +2100,7 @@ static void image_sample_draw(const bContext *C, ARegion *ar, void *arg_info)
 		Scene *scene = CTX_data_scene(C);
 
 		ED_image_draw_info(scene, ar, info->color_manage, info->use_default_view, info->channels,
-		                   info->x, info->y, info->colp, info->colfp, info->zp, info->zfp);
+		                   info->x, info->y, info->colp, info->colfp, info->linearcol, info->zp, info->zfp);
 	}
 }
 
@@ -2198,7 +2199,10 @@ static void image_sample_apply(bContext *C, wmOperator *op, const wmEvent *event
 			info->colf[3] = (float)cp[3] / 255.0f;
 			info->colfp = info->colf;
 
-			info->color_manage = FALSE;
+			copy_v4_v4(info->linearcol, info->colf);
+			IMB_colormanagement_colorspace_to_scene_linear_v4(info->linearcol, false, ibuf->rect_colorspace);
+
+			info->color_manage = TRUE;
 		}
 		if (ibuf->rect_float) {
 			fp = (ibuf->rect_float + (ibuf->channels) * (y * ibuf->x + x));
@@ -2208,6 +2212,8 @@ static void image_sample_apply(bContext *C, wmOperator *op, const wmEvent *event
 			info->colf[2] = fp[2];
 			info->colf[3] = fp[3];
 			info->colfp = info->colf;
+
+			copy_v4_v4(info->linearcol, info->colf);
 
 			info->color_manage = TRUE;
 		}

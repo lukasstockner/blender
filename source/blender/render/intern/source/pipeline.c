@@ -1458,7 +1458,7 @@ static bool rlayer_node_uses_alpha(bNodeTree *ntree, bNode *node)
 
 	for (sock = node->outputs.first; sock; sock = sock->next) {
 		/* Weak! but how to make it better? */
-		if (!strcmp(sock->name, "Alpha") && nodeCountSocketLinks(ntree, sock) > 0)
+		if (STREQ(sock->name, "Alpha") && nodeCountSocketLinks(ntree, sock) > 0)
 			return true;
 	}
 
@@ -1484,7 +1484,7 @@ static void tag_scenes_for_render(Render *re)
 			if (node->id) {
 				if (!MAIN_VERSION_ATLEAST(re->main, 265, 5)) {
 					if (rlayer_node_uses_alpha(re->scene->nodetree, node)) {
-						Scene *scene = (Scene*) node->id;
+						Scene *scene = (Scene *)node->id;
 
 						if (scene->r.alphamode != R_ALPHAPREMUL) {
 							BKE_reportf(re->reports, RPT_WARNING, "Setting scene %s alpha mode to Premul", scene->id.name + 2);

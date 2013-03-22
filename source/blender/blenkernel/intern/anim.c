@@ -1154,10 +1154,6 @@ static void face_duplilist(ListBase *lb, ID *id, Scene *scene, Object *par, floa
 					if (ob->type != OB_MBALL) ob->flag |= OB_DONE;  /* doesnt render */
 
 					for (a = 0, mp = mpoly; a < totface; a++, mp++) {
-						int mv1;
-						int mv2;
-						int mv3;
-						/* int mv4; */ /* UNUSED */
 						float *v1;
 						float *v2;
 						float *v3;
@@ -1171,9 +1167,9 @@ static void face_duplilist(ListBase *lb, ID *id, Scene *scene, Object *par, floa
 						}
 						else {
 							BKE_mesh_calc_poly_normal(mp, mloop + mp->loopstart, mvert, f_no);
-							v1 = mvert[(mv1 = loopstart[0].v)].co;
-							v2 = mvert[(mv2 = loopstart[1].v)].co;
-							v3 = mvert[(mv3 = loopstart[2].v)].co;
+							v1 = mvert[loopstart[0].v].co;
+							v2 = mvert[loopstart[1].v].co;
+							v3 = mvert[loopstart[2].v].co;
 						}
 
 						/* translation */
@@ -1716,7 +1712,7 @@ static void object_duplilist_recursive(ID *id, Scene *scene, Object *ob, ListBas
 
 /* Returns a list of DupliObject
  * note; group dupli's already set transform matrix. see note in group_duplilist() */
-ListBase *object_duplilist_ex(Scene *sce, Object *ob, int update, int for_render)
+ListBase *object_duplilist_ex(Scene *sce, Object *ob, bool update, bool for_render)
 {
 	ListBase *duplilist = MEM_mallocN(sizeof(ListBase), "duplilist");
 	int persistent_id[MAX_DUPLI_RECUR] = {0};
@@ -1732,9 +1728,9 @@ ListBase *object_duplilist_ex(Scene *sce, Object *ob, int update, int for_render
 
 /* note: previously updating was always done, this is why it defaults to be on
  * but there are likely places it can be called without updating */
-ListBase *object_duplilist(Scene *sce, Object *ob, int for_render)
+ListBase *object_duplilist(Scene *sce, Object *ob, bool for_render)
 {
-	return object_duplilist_ex(sce, ob, TRUE, for_render);
+	return object_duplilist_ex(sce, ob, true, for_render);
 }
 
 

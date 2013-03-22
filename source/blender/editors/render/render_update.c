@@ -377,7 +377,7 @@ static void texture_changed(Main *bmain, Tex *tex)
 		if (scene->use_nodes && scene->nodetree) {
 			for (node = scene->nodetree->nodes.first; node; node = node->next) {
 				if (node->id == &tex->id)
-					ED_node_changed_update(&scene->id, node);
+					ED_node_tag_update_id(&scene->id);
 			}
 		}
 
@@ -394,8 +394,6 @@ static void texture_changed(Main *bmain, Tex *tex)
 
 			if (dm && totmaterial && material) {
 				for (a = 0; a < *totmaterial; a++) {
-					Material *ma;
-
 					if (ob->matbits && ob->matbits[a])
 						ma = ob->mat[a];
 					else

@@ -458,6 +458,78 @@ static int rna_validate_identifier(const char *identifier, char *error, int prop
 	return 1;
 }
 
+void RNA_identifier_sanitize(char *identifier, int property)
+{
+	int a = 0;
+	
+	/*  list from http://docs.python.org/py3k/reference/lexical_analysis.html#keywords */
+	static const char *kwlist[] = {
+		/* "False", "None", "True", */
+		"and", "as", "assert", "break",
+		"class", "continue", "def", "del", "elif", "else", "except",
+		"finally", "for", "from", "global", "if", "import", "in",
+		"is", "lambda", "nonlocal", "not", "or", "pass", "raise",
+		"return", "try", "while", "with", "yield", NULL
+	};
+	
+	
+	if (!isalpha(identifier[0])) {
+		/* first character failed isalpha() check */
+		identifier[0] = '_';
+	}
+	
+	for (a = 0; identifier[a]; a++) {
+		if (DefRNA.preprocess && property) {
+			if (isalpha(identifier[a]) && isupper(identifier[a])) {
+				/* property names must contain lower case characters only */
+				identifier[a] = tolower(identifier[a]);
+			}
+		}
+		
+		if (identifier[a] == '_') {
+			continue;
+		}
+
+		if (identifier[a] == ' ') {
+			/* spaces are not okay in identifier names */
+			identifier[a] = '_';
+		}
+
+		if (isalnum(identifier[a]) == 0) {
+			/* one of the characters failed an isalnum() check and is not an underscore */
+			identifier[a] = '_';
+		}
+	}
+	
+	for (a = 0; kwlist[a]; a++) {
+		if (strcmp(identifier, kwlist[a]) == 0) {
+			/* this keyword is reserved by python.
+			 * just replace the last character by '_' to keep it readable.
+			 */
+			identifier[strlen(identifier) - 1] = '_';
+			break;
+		}
+	}
+
+	if (property) {
+		static const char *kwlist_prop[] = {
+			/* not keywords but reserved all the same because py uses */
+			"keys", "values", "items", "get",
+			NULL
+		};
+
+		for (a = 0; kwlist_prop[a]; a++) {
+			if (strcmp(identifier, kwlist_prop[a]) == 0) {
+				/* this keyword is reserved by python.
+				* just replace the last character by '_' to keep it readable.
+				*/
+				identifier[strlen(identifier) - 1] = '_';
+				break;
+			}
+		}
+	}
+}
+
 /* Blender Data Definition */
 
 BlenderRNA *RNA_create(void)
@@ -669,6 +741,8 @@ StructRNA *RNA_def_struct_ptr(BlenderRNA *brna, const char *identifier, StructRN
 	srna->identifier = identifier;
 	srna->name = identifier; /* may be overwritten later RNA_def_struct_ui_text */
 	srna->description = "";
+	/* may be overwritten later RNA_def_struct_translation_context */
+	srna->translation_context = BLF_I18NCONTEXT_DEFAULT_BPYRNA;
 	srna->flag |= STRUCT_UNDO;
 	if (!srnafrom)
 		srna->icon = ICON_DOT;
@@ -912,7 +986,7 @@ void RNA_def_struct_ui_icon(StructRNA *srna, int icon)
 
 void RNA_def_struct_translation_context(StructRNA *srna, const char *context)
 {
-	srna->translation_context = context;
+	srna->translation_context = context ? context : BLF_I18NCONTEXT_DEFAULT_BPYRNA;
 }
 
 /* Property Definition */
@@ -1041,6 +1115,7 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_, const char *identifier
 	prop->subtype = subtype;
 	prop->name = identifier;
 	prop->description = "";
+	prop->translation_context = BLF_I18NCONTEXT_DEFAULT_BPYRNA;
 	/* a priori not raw editable */
 	prop->rawtype = -1;
 
@@ -1985,7 +2060,7 @@ void RNA_def_property_collection_sdna(PropertyRNA *prop, const char *structname,
 
 void RNA_def_property_translation_context(PropertyRNA *prop, const char *context)
 {
-	prop->translation_context = context;
+	prop->translation_context = context ? context : BLF_I18NCONTEXT_DEFAULT_BPYRNA;
 }
 
 /* Functions */

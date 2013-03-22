@@ -1137,7 +1137,11 @@ void ED_screens_initialize(wmWindowManager *wm)
 
 void ED_region_exit(bContext *C, ARegion *ar)
 {
+	wmWindowManager *wm = CTX_wm_manager(C);
 	ARegion *prevar = CTX_wm_region(C);
+
+	if (ar->type && ar->type->exit)
+		ar->type->exit(wm, ar);
 
 	CTX_wm_region_set(C, ar);
 	WM_event_remove_handlers(C, &ar->handlers);
@@ -1157,18 +1161,12 @@ void ED_region_exit(bContext *C, ARegion *ar)
 
 void ED_area_exit(bContext *C, ScrArea *sa)
 {
+	wmWindowManager *wm = CTX_wm_manager(C);
 	ScrArea *prevsa = CTX_wm_area(C);
 	ARegion *ar;
 
-	if (sa->spacetype == SPACE_FILE) {
-		SpaceLink *sl = sa->spacedata.first;
-		if (sl && sl->spacetype == SPACE_FILE) {
-			ED_fileselect_exit(C, (SpaceFile *)sl);
-		}
-	}
-	else if (sa->spacetype == SPACE_VIEW3D) {
-		ED_render_engine_area_exit(sa);
-	}
+	if (sa->type && sa->type->exit)
+		sa->type->exit(wm, sa);
 
 	CTX_wm_area_set(C, sa);
 	for (ar = sa->regionbase.first; ar; ar = ar->next)
@@ -1460,7 +1458,7 @@ void ED_screen_set_scene(bContext *C, bScreen *screen, Scene *scene)
 		return;
 	
 	if (ed_screen_used(CTX_wm_manager(C), screen))
-		ED_object_exit_editmode(C, EM_FREEDATA | EM_DO_UNDO);
+		ED_object_editmode_exit(C, EM_FREEDATA | EM_DO_UNDO);
 
 	for (sc = CTX_data_main(C)->screen.first; sc; sc = sc->id.next) {
 		if ((U.flag & USER_SCENEGLOBAL) || sc == screen) {

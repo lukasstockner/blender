@@ -3661,6 +3661,7 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 	Brush *brush = paint_brush(&sd->paint);
 	ViewContext *vc = paint_stroke_view_context(op->customdata);
 	Object *ob = CTX_data_active_object(C);
+	float rot[3][3], scale[3], loc[3];
 	int i;
 	int mode;
 
@@ -3725,7 +3726,12 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 	/* cache projection matrix */
 	ED_view3d_ob_project_mat_get(cache->vc->rv3d, ob, cache->projection_mat);
 
+	mat4_to_loc_rot_size(loc, rot, scale, ob->obmat);
+	/* transposing an orthonormal matrix inverts */
+	transpose_m3(rot);
 	ED_view3d_global_to_vector(cache->vc->rv3d, cache->vc->rv3d->twmat[3], cache->true_view_normal);
+	/* This takes care of rotated mesh. Instead of rotating every normal, we inverse rotate view normal. */
+	mul_m3_v3(rot, cache->true_view_normal);
 	/* Initialize layer brush displacements and persistent coords */
 	if (brush->sculpt_tool == SCULPT_TOOL_LAYER) {
 		/* not supported yet for multires or dynamic topology */
@@ -4067,7 +4073,7 @@ static void sculpt_brush_init_tex(const Scene *scene, Sculpt *sd, SculptSession 
 
 	/* init mtex nodes */
 	if (mtex->tex && mtex->tex->nodetree)
-		ntreeTexBeginExecTree(mtex->tex->nodetree, 1);  /* has internal flag to detect it only does it once */
+		ntreeTexBeginExecTree(mtex->tex->nodetree);  /* has internal flag to detect it only does it once */
 
 	/* TODO: Shouldn't really have to do this at the start of every
 	 * stroke, but sculpt would need some sort of notification when
@@ -4243,7 +4249,7 @@ static void sculpt_brush_exit_tex(Sculpt *sd)
 	MTex *mtex = &brush->mtex;
 
 	if (mtex->tex && mtex->tex->nodetree)
-		ntreeTexEndExecTree(mtex->tex->nodetree->execdata, 1);
+		ntreeTexEndExecTree(mtex->tex->nodetree->execdata);
 }
 
 static void sculpt_stroke_done(const bContext *C, struct PaintStroke *UNUSED(stroke))
@@ -4547,7 +4553,7 @@ void sculpt_dynamic_topology_disable(bContext *C,
 		CustomData_copy(&unode->bm_enter_pdata, &me->pdata, CD_MASK_MESH,
 		                CD_DUPLICATE, unode->bm_enter_totpoly);
 
-		mesh_update_customdata_pointers(me, FALSE);
+		BKE_mesh_update_customdata_pointers(me, false);
 	}
 	else {
 		sculptsession_bm_to_me(ob, TRUE);

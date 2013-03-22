@@ -259,7 +259,8 @@ typedef enum {
 	WAVEFORM      = (49 << 9),
 	VECTORSCOPE   = (50 << 9),
 	PROGRESSBAR   = (51 << 9),
-	SEARCH_MENU_UNLINK   = (52 << 9)
+	SEARCH_MENU_UNLINK   = (52 << 9),
+	NODESOCKET    = (53 << 9)
 } eButType;
 
 #define BUTTYPE     (63 << 9)
@@ -607,7 +608,7 @@ uiBut *uiDefHotKeyevtButS(uiBlock *block, int retval, const char *str, int x, in
 uiBut *uiDefSearchBut(uiBlock *block, void *arg, int retval, int icon, int maxlen, int x, int y, short width, short height, float a1, float a2, const char *tip);
 
 uiBut *uiDefAutoButR(uiBlock *block, struct PointerRNA *ptr, struct PropertyRNA *prop, int index, const char *name, int icon, int x1, int y1, int x2, int y2);
-int uiDefAutoButsRNA(uiLayout *layout, struct PointerRNA *ptr, int (*check_prop)(struct PointerRNA *, struct PropertyRNA *), const char label_align);
+int uiDefAutoButsRNA(uiLayout *layout, struct PointerRNA *ptr, bool (*check_prop)(struct PointerRNA *, struct PropertyRNA *), const char label_align);
 
 /* Links
  *
@@ -761,7 +762,7 @@ void uiLayoutSetContextPointer(uiLayout *layout, const char *name, struct Pointe
 void uiLayoutContextCopy(uiLayout *layout, struct bContextStore *context);
 const char *uiLayoutIntrospect(uiLayout *layout); // XXX - testing
 void uiLayoutOperatorButs(const struct bContext *C, struct uiLayout *layout, struct wmOperator *op,
-                          int (*check_prop)(struct PointerRNA *, struct PropertyRNA *),
+                          bool (*check_prop)(struct PointerRNA *, struct PropertyRNA *),
                           const char label_align, const short flag);
 struct MenuType *uiButGetMenuType(uiBut *but);
 
@@ -835,6 +836,8 @@ void uiTemplateEditModeSelection(uiLayout *layout, struct bContext *C);
 void uiTemplateTextureImage(uiLayout *layout, struct bContext *C, struct Tex *tex);
 void uiTemplateReportsBanner(uiLayout *layout, struct bContext *C);
 void uiTemplateKeymapItemProperties(uiLayout *layout, struct PointerRNA *ptr);
+void uiTemplateComponentMenu(uiLayout *layout, struct PointerRNA *ptr, const char *propname, const char *name);
+void uiTemplateNodeSocket(uiLayout *layout, struct bContext *C, float *color);
 
 /* Default UIList class name, keep in sync with its declaration in bl_ui/__init__.py */
 #define UI_UL_DEFAULT_CLASS_NAME "UI_UL_list"

@@ -96,6 +96,7 @@ typedef struct BrushPainterCache {
 	int lastsize;
 	float lastalpha;
 	float lastjitter;
+	float last_rotation;
 
 	ImBuf *ibuf;
 	ImBuf *texibuf;
@@ -234,7 +235,7 @@ static void brush_painter_2d_do_partial(BrushPainter *painter, ImBuf *oldtexibuf
 					xy[0] = x + xoff;
 					xy[1] = y + yoff;
 
-					BKE_brush_sample_tex_2D(scene, brush, xy, tf, NULL);
+					BKE_brush_sample_tex_2D(scene, brush, xy, tf);
 				}
 
 				bf[0] = tf[0] * mf[0];
@@ -265,7 +266,7 @@ static void brush_painter_2d_do_partial(BrushPainter *painter, ImBuf *oldtexibuf
 					xy[0] = x + xoff;
 					xy[1] = y + yoff;
 
-					BKE_brush_sample_tex_2D(scene, brush, xy, rgba, NULL);
+					BKE_brush_sample_tex_2D(scene, brush, xy, rgba);
 					rgba_float_to_uchar(t, rgba);
 				}
 
@@ -335,6 +336,7 @@ static void brush_painter_2d_tiled_tex_partial_update(BrushPainter *painter, con
 static void brush_painter_2d_refresh_cache(BrushPainter *painter, const float pos[2], int use_color_correction)
 {
 	const Scene *scene = painter->scene;
+	UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
 	Brush *brush = painter->brush;
 	BrushPainterCache *cache = &painter->cache;
 	MTex *mtex = &brush->mtex;
@@ -343,10 +345,16 @@ static void brush_painter_2d_refresh_cache(BrushPainter *painter, const float po
 	const int diameter = 2 * BKE_brush_size_get(scene, brush);
 	const float alpha = BKE_brush_alpha_get(scene, brush);
 	const bool do_tiled = ELEM(brush->mtex.brush_map_mode, MTEX_MAP_MODE_TILED, MTEX_MAP_MODE_3D);
+	float rotation = -mtex->rot;
+
+	if (mtex->brush_map_mode == MTEX_MAP_MODE_VIEW) {
+		rotation += ups->brush_rotation;
+	}
 
 	if (diameter != cache->lastsize ||
 	    alpha != cache->lastalpha ||
-	    brush->jitter != cache->lastjitter)
+	    brush->jitter != cache->lastjitter ||
+	    rotation != cache->last_rotation)
 	{
 		if (cache->ibuf) {
 			IMB_freeImBuf(cache->ibuf);
@@ -370,6 +378,7 @@ static void brush_painter_2d_refresh_cache(BrushPainter *painter, const float po
 		cache->lastsize = diameter;
 		cache->lastalpha = alpha;
 		cache->lastjitter = brush->jitter;
+		cache->last_rotation = rotation;
 	}
 	else if (do_tiled && mtex && mtex->tex) {
 		int dx = (int)painter->lastpaintpos[0] - (int)pos[0];
@@ -695,7 +704,7 @@ int paint_2d_stroke(void *ps, const int prev_mval[2], const int mval[2], int era
 	ImagePaintState *s = ps;
 	BrushPainter *painter = s->painter;
 	ImBuf *ibuf = BKE_image_acquire_ibuf(s->image, s->sima ? &s->sima->iuser : NULL, NULL);
-	int	is_data = ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA;
+	const bool is_data = (ibuf && ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA);
 
 	if (!ibuf)
 		return 0;
@@ -730,7 +739,7 @@ int paint_2d_stroke(void *ps, const int prev_mval[2], const int mval[2], int era
 	brush_painter_2d_require_imbuf(painter, ((ibuf->rect_float) ? 1 : 0), 0, 0);
 
 	if (painter->cache.enabled)
-		brush_painter_2d_refresh_cache(painter, newuv, is_data == FALSE);
+		brush_painter_2d_refresh_cache(painter, newuv, is_data == false);
 
 	if (paint_2d_op(s, painter->cache.ibuf, olduv, newuv)) {
 		imapaint_image_update(s->sima, s->image, ibuf, false);

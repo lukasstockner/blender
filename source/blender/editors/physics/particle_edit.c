@@ -430,15 +430,6 @@ static int key_test_depth(PEData *data, const float co[3], const int screen_co[2
 	gluProject(co[0], co[1], co[2], data->mats.modelview, data->mats.projection,
 	           (GLint *)data->mats.viewport, &ux, &uy, &uz);
 
-#if 0 /* works well but too slow on some systems [#23118] */
-	screen_co[0] += (short)data->vc.ar->winrct.xmin;
-	screen_co[1] += (short)data->vc.ar->winrct.ymin;
-
-	/* PE_set_view3d_data calls this. no need to call here */
-	/* view3d_validate_backbuf(&data->vc); */
-	glReadPixels(screen_co[0], screen_co[1], 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
-#else /* faster to use depths, these are calculated in PE_set_view3d_data */
-
 	/* check if screen_co is within bounds because brush_cut uses out of screen coords */
 	if (screen_co[0] >= 0 && screen_co[0] < vd->w && screen_co[1] >= 0 && screen_co[1] < vd->h) {
 		BLI_assert(vd && vd->depths);
@@ -447,7 +438,6 @@ static int key_test_depth(PEData *data, const float co[3], const int screen_co[2
 	}
 	else
 		return 0;
-#endif
 
 	if ((float)uz - 0.00001f > depth)
 		return 0;
@@ -1413,7 +1403,7 @@ void PARTICLE_OT_select_all(wmOperatorType *ot)
 
 /************************ pick select operator ************************/
 
-int PE_mouse_particles(bContext *C, const int mval[2], int extend, int deselect, int toggle)
+int PE_mouse_particles(bContext *C, const int mval[2], bool extend, bool deselect, bool toggle)
 {
 	PEData data;
 	Scene *scene= CTX_data_scene(C);
@@ -1594,7 +1584,7 @@ void PE_deselect_all_visible(PTCacheEdit *edit)
 	}
 }
 
-int PE_border_select(bContext *C, rcti *rect, int select, int extend)
+int PE_border_select(bContext *C, rcti *rect, bool select, bool extend)
 {
 	Scene *scene= CTX_data_scene(C);
 	Object *ob= CTX_data_active_object(C);
@@ -1646,7 +1636,7 @@ int PE_circle_select(bContext *C, int selecting, const int mval[2], float rad)
 
 /************************ lasso select operator ************************/
 
-int PE_lasso_select(bContext *C, const int mcords[][2], const short moves, short extend, short select)
+int PE_lasso_select(bContext *C, const int mcords[][2], const short moves, bool extend, bool select)
 {
 	Scene *scene= CTX_data_scene(C);
 	Object *ob= CTX_data_active_object(C);

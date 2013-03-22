@@ -195,7 +195,7 @@ static void layerCopy_bmesh_elem_py_ptr(const void *UNUSED(source), void *dest,
 }
 
 #ifndef WITH_PYTHON
-void bpy_bm_generic_invalidate(void *UNUSED(self))
+void bpy_bm_generic_invalidate(struct BPy_BMGeneric *UNUSED(self))
 {
 	/* dummy */
 }
@@ -203,8 +203,6 @@ void bpy_bm_generic_invalidate(void *UNUSED(self))
 
 static void layerFree_bmesh_elem_py_ptr(void *data, int count, int size)
 {
-	extern void bpy_bm_generic_invalidate(void *self);
-
 	int i;
 
 	for (i = 0; i < count; ++i) {
@@ -1459,6 +1457,14 @@ int CustomData_get_stencil_layer_index(const CustomData *data, int type)
 
 /* -------------------------------------------------------------------- */
 /* index values per layer type */
+
+int CustomData_get_named_layer(const struct CustomData *data, int type, const char *name)
+{
+	const int named_index = CustomData_get_named_layer_index(data, type, name);
+	const int layer_index = data->typemap[type];
+	BLI_assert(customdata_typemap_is_valid(data));
+	return (named_index != -1) ? named_index - layer_index : -1;
+}
 
 int CustomData_get_active_layer(const CustomData *data, int type)
 {

@@ -293,7 +293,7 @@ static void do_shared_vertexcol(Mesh *me, int do_tessface)
 	/* if no mloopcol: do not do */
 	/* if mtexpoly: only the involved faces, otherwise all */
 
-	if (me->mloopcol == 0 || me->totvert == 0 || me->totpoly == 0) return;
+	if (me->mloopcol == NULL || me->totvert == 0 || me->totpoly == 0) return;
 
 	scol = MEM_callocN(sizeof(float) * me->totvert * 5, "scol");
 
@@ -354,7 +354,7 @@ static void make_vertexcol(Object *ob)  /* single ob */
 		if (!me->mloopcol) {
 			CustomData_add_layer(&me->ldata, CD_MLOOPCOL, CD_DEFAULT, NULL, me->totloop);
 		}
-		mesh_update_customdata_pointers(me, TRUE);
+		BKE_mesh_update_customdata_pointers(me, true);
 	}
 
 	update_tessface_data(ob, me);
@@ -1478,7 +1478,7 @@ static void enforce_locks(MDeformVert *odv, MDeformVert *ndv,
 	MDeformWeight *ndw;
 	MDeformWeight *odw;
 
-	float changed_sum = 0.0f;
+	// float changed_sum = 0.0f;  // UNUSED
 
 	char *change_status;
 
@@ -1507,7 +1507,7 @@ static void enforce_locks(MDeformVert *odv, MDeformVert *ndv,
 		}
 		else if (ndw->weight != odw->weight) { /* changed groups are handled here */
 			totchange += ndw->weight - odw->weight;
-			changed_sum += ndw->weight;
+			// changed_sum += ndw->weight;  // UNUSED
 			change_status[i] = 2; /* was altered already */
 			total_changed++;
 		} /* unchanged, unlocked bone groups are handled here */

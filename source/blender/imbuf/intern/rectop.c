@@ -121,7 +121,7 @@ static void blend_color_darken(char cp[3], const char cp1[3], const char cp2[3],
 	}
 }
 
-static void blend_color_erase_alpha(char cp[3], const char cp1[3], const char cp2[3], const int fac)
+static void blend_color_erase_alpha(char cp[4], const char cp1[4], const char cp2[4], const int fac)
 {
 	int temp = (cp1[3] - fac * cp2[3] / 255);
 
@@ -131,14 +131,14 @@ static void blend_color_erase_alpha(char cp[3], const char cp1[3], const char cp
 	cp[3] = (temp < 0) ? 0 : temp;
 }
 
-static void blend_color_add_alpha(char cp[3], const char cp1[3], const char cp2[3], const int fac)
+static void blend_color_add_alpha(char cp[4], const char cp1[4], const char cp2[4], const int fac)
 {
 	int temp = (cp1[3] + fac * cp2[3] / 255);
 
 	cp[0] = cp1[0];
 	cp[1] = cp1[1];
 	cp[2] = cp1[2];
-	cp[3] = (temp < 0) ? 0 : temp;
+	cp[3] = (temp > 255)? 255 : ((temp < 0) ? 0 : temp);
 }
 
 
@@ -251,7 +251,7 @@ static void blend_color_darken_float(float cp[3], const float cp1[3], const floa
 		blend_color_mix_float(cp, cp1, cp2, fac);
 }
 
-static void blend_color_erase_alpha_float(float cp[3], const float cp1[3], const float cp2[3], const float fac)
+static void blend_color_erase_alpha_float(float cp[4], const float cp1[4], const float cp2[4], const float fac)
 {
 	cp[0] = cp1[0];
 	cp[1] = cp1[1];
@@ -261,7 +261,7 @@ static void blend_color_erase_alpha_float(float cp[3], const float cp1[3], const
 	if (cp[3] < 0.0f) cp[3] = 0.0f;
 }
 
-static void blend_color_add_alpha_float(float cp[3], const float cp1[3], const float cp2[3], const float fac)
+static void blend_color_add_alpha_float(float cp[4], const float cp1[4], const float cp2[4], const float fac)
 {
 	cp[0] = cp1[0];
 	cp[1] = cp1[1];
@@ -269,6 +269,7 @@ static void blend_color_add_alpha_float(float cp[3], const float cp1[3], const f
 
 	cp[3] = (cp1[3] + fac * cp2[3]);
 	if (cp[3] < 0.0f) cp[3] = 0.0f;
+	if (cp[3] > 1.0f) cp[3] = 1.0f;
 }
 
 void IMB_blend_color_float(float *dst, float *src1, float *src2, float fac, IMB_BlendMode mode)
@@ -517,7 +518,7 @@ void IMB_rectblend(struct ImBuf *dbuf, struct ImBuf *sbuf, int destx,
 				dr = drect;
 				sr = srect;
 				for (x = width; x > 0; x--, dr++, sr++) {
-					if (*sr & IB_ALPHA_MASK)
+					if (((char *)sr)[3])
 						func((char *)dr, (char *)dr, (char *)sr, ((char *)sr)[3]);
 				}
 

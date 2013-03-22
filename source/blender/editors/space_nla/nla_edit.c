@@ -200,7 +200,7 @@ static int nlaedit_disable_tweakmode_exec(bContext *C, wmOperator *op)
 	for (ale = anim_data.first; ale; ale = ale->next) {
 		AnimData *adt = ale->data;
 		
-		/* try entering tweakmode if valid */
+		/* to be sure, just exit tweakmode... */
 		BKE_nla_tweakmode_exit(adt);
 	}
 	
@@ -1627,7 +1627,7 @@ void NLA_OT_action_sync_length(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec = nlaedit_sync_actlen_exec;
-	ot->poll = ED_operator_nla_active; // XXX: is this satisfactory... probably requires a check for active strip...
+	ot->poll = nlaop_poll_tweakmode_off;
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -1801,7 +1801,7 @@ void NLA_OT_clear_scale(wmOperatorType *ot)
 
 /* defines for snap keyframes tool */
 static EnumPropertyItem prop_nlaedit_snap_types[] = {
-	{NLAEDIT_SNAP_CFRA, "CFRA", 0, "Current frame", ""},
+	{NLAEDIT_SNAP_CFRA, "CFRA", 0, "Current Frame", ""},
 	{NLAEDIT_SNAP_NEAREST_FRAME, "NEAREST_FRAME", 0, "Nearest Frame", ""}, // XXX as single entry?
 	{NLAEDIT_SNAP_NEAREST_SECOND, "NEAREST_SECOND", 0, "Nearest Second", ""}, // XXX as single entry?
 	{NLAEDIT_SNAP_NEAREST_MARKER, "NEAREST_MARKER", 0, "Nearest Marker", ""},
@@ -2102,8 +2102,10 @@ static int nla_fmodifier_copy_exec(bContext *C, wmOperator *op)
 		BKE_report(op->reports, RPT_ERROR, "No F-Modifiers available to be copied");
 		return OPERATOR_CANCELLED;
 	}
-	else
+	else {
+		/* no updates needed - copy is non-destructive operation */
 		return OPERATOR_FINISHED;
+	}
 }
  
 void NLA_OT_fmodifier_copy(wmOperatorType *ot)
@@ -2157,8 +2159,6 @@ static int nla_fmodifier_paste_exec(bContext *C, wmOperator *op)
 	
 	/* successful or not? */
 	if (ok) {
-		/* set notifier that things have changed */
-		/* set notifier that things have changed */
 		WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, NULL);
 		return OPERATOR_FINISHED;
 	}

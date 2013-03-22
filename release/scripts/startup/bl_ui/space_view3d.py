@@ -111,6 +111,11 @@ class VIEW3D_HT_header(Header):
             elif snap_element == 'FACE':
                 row.prop(toolsettings, "use_snap_project", text="")
 
+        # AutoMerge editing
+        if obj:
+            if (mode == 'EDIT' and obj.type == 'MESH'):
+                layout.prop(toolsettings, "use_mesh_automerge", text="", icon='AUTOMERGE_ON')
+
         # OpenGL render
         row = layout.row(align=True)
         row.operator("render.opengl", text="", icon='RENDER_STILL')
@@ -580,6 +585,7 @@ class VIEW3D_MT_select_edit_mesh(Menu):
 
         layout.separator()
 
+        layout.operator("mesh.select_ungrouped", text="Ungrouped Verts")
         layout.operator("mesh.select_random", text="Random")
         layout.operator("mesh.select_nth")
         layout.operator("mesh.edges_select_sharp", text="Sharp Edges")
@@ -704,6 +710,10 @@ class VIEW3D_MT_select_edit_lattice(Menu):
         layout.operator("lattice.select_all").action = 'TOGGLE'
         layout.operator("lattice.select_all", text="Inverse").action = 'INVERT'
 
+        layout.separator()
+
+        layout.operator("lattice.select_ungrouped", text="Ungrouped Verts")
+
 
 class VIEW3D_MT_select_edit_armature(Menu):
     bl_label = "Select"
@@ -769,6 +779,10 @@ class VIEW3D_MT_select_paint_mask_vertex(Menu):
 
         layout.operator("paint.vert_select_all").action = 'TOGGLE'
         layout.operator("paint.vert_select_all", text="Inverse").action = 'INVERT'
+
+        layout.separator()
+
+        layout.operator("paint.vert_select_ungrouped", text="Ungrouped Verts")
 
 
 # ********** Object menu **********
