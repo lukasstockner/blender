@@ -110,6 +110,16 @@ int av_opt_set_double(void *obj, const char *name, double val, int search_flags)
 #define AV_OPT_TYPE_FLOAT   FF_OPT_TYPE_FLOAT
 #endif
 
+#if ((LIBAVUTIL_VERSION_MAJOR < 51) || (LIBAVUTIL_VERSION_MAJOR == 51) && (LIBAVUTIL_VERSION_MINOR < 54))
+static inline
+enum AVSampleFormat av_get_packed_sample_fmt(enum AVSampleFormat sample_fmt)
+{
+    if (sample_fmt < 0 || sample_fmt >= AV_SAMPLE_FMT_NB)
+        return AV_SAMPLE_FMT_NONE;
+    return sample_fmt;
+}
+#endif
+
 #if ((LIBAVFORMAT_VERSION_MAJOR < 53) || ((LIBAVFORMAT_VERSION_MAJOR == 53) && (LIBAVFORMAT_VERSION_MINOR < 24)) || ((LIBAVFORMAT_VERSION_MAJOR == 53) && (LIBAVFORMAT_VERSION_MINOR < 24) && (LIBAVFORMAT_VERSION_MICRO < 2)))
 #define avformat_close_input(x) av_close_input_file(*(x))
 #endif
@@ -159,6 +169,20 @@ void av_update_cur_dts(AVFormatContext *s, AVStream *ref_st, int64_t timestamp)
 {
 	my_update_cur_dts(s, ref_st, timestamp);
 }
+#endif
+
+#if ((LIBAVCODEC_VERSION_MAJOR < 54) || (LIBAVCODEC_VERSION_MAJOR == 54 && LIBAVCODEC_VERSION_MINOR < 28))
+static inline
+void avcodec_free_frame(AVFrame **frame)
+{
+	/* don't need to do anything with old AVFrame
+	 * since it does not have malloced members */
+	(void)frame;
+}
+#endif
+
+#if ((LIBAVCODEC_VERSION_MAJOR > 54) || (LIBAVCODEC_VERSION_MAJOR == 54 && LIBAVCODEC_VERSION_MINOR >= 13))
+#define FFMPEG_HAVE_FRAME_CHANNEL_LAYOUT
 #endif
 
 #ifndef FFMPEG_HAVE_AVIO

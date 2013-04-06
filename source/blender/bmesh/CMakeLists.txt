@@ -39,11 +39,14 @@ set(INC_SYS
 )
 
 set(SRC
+	operators/bmo_beautify.c
 	operators/bmo_bevel.c
 	operators/bmo_connect.c
 	operators/bmo_create.c
 	operators/bmo_dissolve.c
 	operators/bmo_dupe.c
+	operators/bmo_edgeloop_fill.c
+	operators/bmo_edgenet.c
 	operators/bmo_edgesplit.c
 	operators/bmo_extrude.c
 	operators/bmo_hull.c
@@ -51,6 +54,7 @@ set(SRC
 	operators/bmo_join_triangles.c
 	operators/bmo_mesh_conv.c
 	operators/bmo_mirror.c
+	operators/bmo_poke.c
 	operators/bmo_primitive.c
 	operators/bmo_removedoubles.c
 	operators/bmo_similar.c

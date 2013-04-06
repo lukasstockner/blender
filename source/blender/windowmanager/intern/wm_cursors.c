@@ -164,7 +164,7 @@ void WM_cursor_restore(wmWindow *win)
 }
 
 /* to allow usage all over, we do entire WM */
-void WM_cursor_wait(int val)
+void WM_cursor_wait(bool val)
 {
 	if (!G.background) {
 		wmWindowManager *wm = G.main->wm.first;
@@ -184,7 +184,7 @@ void WM_cursor_wait(int val)
 /**
  * \param bounds can be NULL
  */
-void WM_cursor_grab_enable(wmWindow *win, int wrap, int hide, int bounds[4])
+void WM_cursor_grab_enable(wmWindow *win, bool wrap, bool hide, int bounds[4])
 {
 	/* Only grab cursor when not running debug.
 	 * It helps not to get a stuck WM when hitting a breakpoint  

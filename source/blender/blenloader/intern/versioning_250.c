@@ -647,7 +647,7 @@ static void do_version_constraints_radians_degrees_250(ListBase *lb)
 }
 
 /* NOTE: this version patch is intended for versions < 2.52.2, but was initially introduced in 2.27 already */
-static void do_versions_seq_unique_name_all_strips(Scene * sce, ListBase *seqbasep)
+static void do_versions_seq_unique_name_all_strips(Scene *sce, ListBase *seqbasep)
 {
 	Sequence * seq = seqbasep->first;
 
@@ -740,22 +740,6 @@ static void do_versions_socket_default_value_259(bNodeSocket *sock)
 			copy_v4_v4(valrgba->value, sock->ns.vec);
 			break;
 	}
-}
-
-static void do_versions_nodetree_default_value_259(bNodeTree *ntree)
-{
-	bNode *node;
-	bNodeSocket *sock;
-	for (node=ntree->nodes.first; node; node=node->next) {
-		for (sock = node->inputs.first; sock; sock = sock->next)
-			do_versions_socket_default_value_259(sock);
-		for (sock = node->outputs.first; sock; sock = sock->next)
-			do_versions_socket_default_value_259(sock);
-	}
-	for (sock = ntree->inputs.first; sock; sock = sock->next)
-		do_versions_socket_default_value_259(sock);
-	for (sock = ntree->outputs.first; sock; sock = sock->next)
-		do_versions_socket_default_value_259(sock);
 }
 
 void blo_do_versions_250(FileData *fd, Library *lib, Main *main)
@@ -1070,7 +1054,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *main)
 			sce->gm.dome.warptext = sce->r.dometext;
 
 			/* Stand Alone */
-			sce->gm.playerflag |= (sce->r.fullscreen?GAME_PLAYER_FULLSCREEN:0);
+			sce->gm.playerflag |= (sce->r.fullscreen ? GAME_PLAYER_FULLSCREEN : 0);
 			sce->gm.xplay = sce->r.xplay;
 			sce->gm.yplay = sce->r.yplay;
 			sce->gm.freqplay = sce->r.freqplay;
@@ -1678,6 +1662,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *main)
 		/* brush texture changes */
 		for (brush = main->brush.first; brush; brush = brush->id.next) {
 			default_mtex(&brush->mtex);
+			default_mtex(&brush->mask_mtex);
 		}
 
 		for (ma = main->mat.first; ma; ma = ma->id.next) {
@@ -2735,33 +2720,25 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *main)
 	if (main->versionfile < 259 || (main->versionfile == 259 && main->subversionfile < 2)) {
 		{
 			/* Convert default socket values from bNodeStack */
-			Scene *sce;
-			Material *mat;
-			Tex *tex;
-			bNodeTree *ntree;
-
-			for (ntree = main->nodetree.first; ntree; ntree = ntree->id.next) {
-				do_versions_nodetree_default_value_259(ntree);
+			FOREACH_NODETREE(main, ntree, id) {
+				bNode *node;
+				bNodeSocket *sock;
+				
+				for (node=ntree->nodes.first; node; node=node->next) {
+					for (sock = node->inputs.first; sock; sock = sock->next)
+						do_versions_socket_default_value_259(sock);
+					for (sock = node->outputs.first; sock; sock = sock->next)
+						do_versions_socket_default_value_259(sock);
+				}
+				
+				for (sock = ntree->inputs.first; sock; sock = sock->next)
+					do_versions_socket_default_value_259(sock);
+				for (sock = ntree->outputs.first; sock; sock = sock->next)
+					do_versions_socket_default_value_259(sock);
+				
 				ntree->update |= NTREE_UPDATE;
 			}
-
-			for (sce = main->scene.first; sce; sce = sce->id.next)
-				if (sce->nodetree) {
-					do_versions_nodetree_default_value_259(sce->nodetree);
-					sce->nodetree->update |= NTREE_UPDATE;
-				}
-
-			for (mat = main->mat.first; mat; mat = mat->id.next)
-				if (mat->nodetree) {
-					do_versions_nodetree_default_value_259(mat->nodetree);
-					mat->nodetree->update |= NTREE_UPDATE;
-				}
-
-			for (tex = main->tex.first; tex; tex = tex->id.next)
-				if (tex->nodetree) {
-					do_versions_nodetree_default_value_259(tex->nodetree);
-					tex->nodetree->update |= NTREE_UPDATE;
-				}
+			FOREACH_NODETREE_END
 		}
 
 		{

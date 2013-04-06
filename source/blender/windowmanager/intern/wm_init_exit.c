@@ -47,6 +47,7 @@
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
+#include "BLI_callbacks.h"
 #include "BLI_listbase.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
@@ -220,8 +221,17 @@ void WM_init(bContext *C, int argc, const char **argv)
 #endif
 	
 	/* load last session, uses regular file reading so it has to be in end (after init py etc) */
-	if (U.uiflag2 & USER_KEEP_SESSION)
+	if (U.uiflag2 & USER_KEEP_SESSION) {
 		wm_recover_last_session(C, NULL);
+	}
+	else {
+		/* normally 'wm_homefile_read' will do this,
+		 * however python is not initialized when called from this function.
+		 *
+		 * unlikey any handlers are set but its possible,
+		 * note that recovering the last session does its own callbacks. */
+		BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_LOAD_POST);
+	}
 }
 
 void WM_init_splash(bContext *C)
@@ -238,7 +248,7 @@ void WM_init_splash(bContext *C)
 	}
 }
 
-int WM_init_game(bContext *C)
+bool WM_init_game(bContext *C)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmWindow *win;
@@ -308,7 +318,7 @@ int WM_init_game(bContext *C)
 
 		sound_exit();
 
-		return 1;
+		return true;
 	}
 	else {
 		ReportTimerInfo *rti;
@@ -323,8 +333,9 @@ int WM_init_game(bContext *C)
 
 		rti = MEM_callocN(sizeof(ReportTimerInfo), "ReportTimerInfo");
 		wm->reports.reporttimer->customdata = rti;
+
+		return false;
 	}
-	return 0;
 }
 
 /* free strings of open recent files */

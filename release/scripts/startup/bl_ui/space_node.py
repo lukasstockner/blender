@@ -44,7 +44,7 @@ class NODE_HT_header(Header):
             row.menu("NODE_MT_node")
 
         layout.prop(snode, "tree_type", text="", expand=True)
-        
+
         if snode.tree_type == 'ShaderNodeTree':
             if scene.render.use_shading_nodes:
                 layout.prop(snode, "shader_type", text="", expand=True)
@@ -84,7 +84,7 @@ class NODE_HT_header(Header):
                 row = layout.row(align=True)
                 row.prop(snode, "backdrop_channels", text="", expand=True)
             layout.prop(snode, "use_auto_render")
-        
+
         else:
             # Custom node tree is edited as independent ID block
             layout.template_ID(snode, "node_tree", new="node.new_node_tree")
@@ -151,9 +151,16 @@ class NODE_MT_select(Menu):
         layout.operator("node.select_all", text="Inverse").action = 'INVERT'
         layout.operator("node.select_linked_from")
         layout.operator("node.select_linked_to")
+	
+        layout.separator()
+
         layout.operator("node.select_same_type")
-        layout.operator("node.select_same_type_next")
-        layout.operator("node.select_same_type_prev")
+        layout.operator("node.select_same_type_step").prev = True
+        layout.operator("node.select_same_type_step").prev = False
+
+        layout.separator()
+
+        layout.operator("node.find_node")
 
 
 class NODE_MT_node(Menu):
@@ -292,7 +299,7 @@ class NODE_UL_interface_sockets(bpy.types.UIList):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             row = layout.row(align=True)
 
-      	    # inputs get icon on the left
+            # inputs get icon on the left
             if socket.in_out == 'IN':
                 row.template_node_socket(color)
 

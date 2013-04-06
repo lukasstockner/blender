@@ -1113,7 +1113,7 @@ static void rna_SceneRenderLayer_name_set(PointerRNA *ptr, const char *value)
 	Scene *scene = (Scene *)ptr->id.data;
 	SceneRenderLayer *rl = (SceneRenderLayer *)ptr->data;
 	BLI_strncpy_utf8(rl->name, value, sizeof(rl->name));
-	BLI_uniquename(&scene->r.layers, rl, "RenderLayer", '.', offsetof(SceneRenderLayer, name), sizeof(rl->name));
+	BLI_uniquename(&scene->r.layers, rl, DATA_("RenderLayer"), '.', offsetof(SceneRenderLayer, name), sizeof(rl->name));
 
 	if (scene->nodetree) {
 		bNode *node;
@@ -3645,13 +3645,6 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", R_ENVMAP);
 	RNA_def_property_ui_text(prop, "Environment Maps", "Calculate environment maps while rendering");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
-
-#if 0
-	prop = RNA_def_property(srna, "use_radiosity", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "mode", R_RADIO);
-	RNA_def_property_ui_text(prop, "Radiosity", "Calculate radiosity in a pre-process before rendering");
-	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
-#endif
 	
 	prop = RNA_def_property(srna, "use_sss", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", R_SSS);
@@ -3718,7 +3711,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "motion_blur_shutter", PROP_FLOAT, PROP_UNSIGNED);
 	RNA_def_property_float_sdna(prop, NULL, "blurfac");
-	RNA_def_property_ui_range(prop, 0.01f, 2.0f, 1, 1);
+	RNA_def_property_ui_range(prop, 0.01f, 2.0f, 1, 2);
 	RNA_def_property_ui_text(prop, "Shutter", "Time taken in frames between shutter open and close");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_glsl_update");

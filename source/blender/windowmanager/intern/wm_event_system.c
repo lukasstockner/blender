@@ -339,7 +339,7 @@ void wm_event_do_notifiers(bContext *C)
 static int wm_event_always_pass(wmEvent *event)
 {
 	/* some events we always pass on, to ensure proper communication */
-	return ISTIMER(event->type) || (event->type == WINDEACTIVATE);
+	return ISTIMER(event->type) || (event->type == WINDEACTIVATE) || (event->type == EVT_BUT_OPEN);
 }
 
 /* ********************* ui handler ******************* */
@@ -796,10 +796,10 @@ static void wm_region_mouse_co(bContext *C, wmEvent *event)
 	}
 }
 
-#if 1 /* disabling for 2.63 release, since we keep getting reports some menu items are leaving props undefined */
-int WM_operator_last_properties_init(wmOperator *op)
+#if 1 /* may want to disable operator remembering previous state for testing */
+bool WM_operator_last_properties_init(wmOperator *op)
 {
-	int change = FALSE;
+	bool change = false;
 
 	if (op->type->last_properties) {
 		PropertyRNA *iterprop;
@@ -825,7 +825,7 @@ int WM_operator_last_properties_init(wmOperator *op)
 						idp_dst->flag |= IDP_FLAG_GHOST;
 
 						IDP_ReplaceInGroup(op->properties, idp_dst);
-						change = TRUE;
+						change = true;
 					}
 				}
 			}
@@ -836,7 +836,7 @@ int WM_operator_last_properties_init(wmOperator *op)
 	return change;
 }
 
-int WM_operator_last_properties_store(wmOperator *op)
+bool WM_operator_last_properties_store(wmOperator *op)
 {
 	if (op->type->last_properties) {
 		IDP_FreeProperty(op->type->last_properties);
@@ -849,10 +849,10 @@ int WM_operator_last_properties_store(wmOperator *op)
 			printf("%s: storing properties for '%s'\n", __func__, op->type->idname);
 		}
 		op->type->last_properties = IDP_CopyProperty(op->properties);
-		return TRUE;
+		return true;
 	}
 	else {
-		return FALSE;
+		return false;
 	}
 }
 
@@ -987,7 +987,7 @@ static int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event,
 					}
 				}
 
-				WM_cursor_grab_enable(CTX_wm_window(C), wrap, FALSE, bounds);
+				WM_cursor_grab_enable(CTX_wm_window(C), wrap, false, bounds);
 			}
 
 			/* cancel UI handlers, typically tooltips that can hang around
@@ -2403,9 +2403,17 @@ wmEventHandler *WM_event_add_ui_handler(const bContext *C, ListBase *handlers,
 	handler->ui_handle = func;
 	handler->ui_remove = remove;
 	handler->ui_userdata = userdata;
-	handler->ui_area = (C) ? CTX_wm_area(C) : NULL;
-	handler->ui_region = (C) ? CTX_wm_region(C) : NULL;
-	handler->ui_menu = (C) ? CTX_wm_menu(C) : NULL;
+	if (C) {
+		handler->ui_area    = CTX_wm_area(C);
+		handler->ui_region  = CTX_wm_region(C);
+		handler->ui_menu    = CTX_wm_menu(C);
+	}
+	else {
+		handler->ui_area    = NULL;
+		handler->ui_region  = NULL;
+		handler->ui_menu    = NULL;
+	}
+
 	
 	BLI_addhead(handlers, handler);
 	
@@ -2414,7 +2422,7 @@ wmEventHandler *WM_event_add_ui_handler(const bContext *C, ListBase *handlers,
 
 /* set "postpone" for win->modalhandlers, this is in a running for () loop in wm_handlers_do() */
 void WM_event_remove_ui_handler(ListBase *handlers,
-                                wmUIHandlerFunc func, wmUIHandlerRemoveFunc remove, void *userdata, int postpone)
+                                wmUIHandlerFunc func, wmUIHandlerRemoveFunc remove, void *userdata, const bool postpone)
 {
 	wmEventHandler *handler;
 	

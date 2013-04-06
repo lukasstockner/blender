@@ -100,7 +100,7 @@
 /* Find the first available, non-duplicate name for a given constraint */
 void BKE_unique_constraint_name(bConstraint *con, ListBase *list)
 {
-	BLI_uniquename(list, con, "Const", '.', offsetof(bConstraint, name), sizeof(con->name));
+	BLI_uniquename(list, con, DATA_("Const"), '.', offsetof(bConstraint, name), sizeof(con->name));
 }
 
 /* ----------------- Evaluation Loop Preparation --------------- */
@@ -1204,8 +1204,8 @@ static void followpath_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstra
 					vec_to_quat(quat, dir, (short)data->trackflag, (short)data->upflag);
 					
 					normalize_v3(dir);
-					q[0] = (float)cos(0.5 * vec[3]);
-					x1 = (float)sin(0.5 * vec[3]);
+					q[0] = cosf(0.5 * vec[3]);
+					x1 = sinf(0.5 * vec[3]);
 					q[1] = -x1 * dir[0];
 					q[2] = -x1 * dir[1];
 					q[3] = -x1 * dir[2];

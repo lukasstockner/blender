@@ -57,7 +57,7 @@
 #include "BLI_utildefines.h"
 
 #include "bmesh.h"
-#include "intern/bmesh_private.h"
+#include "intern/bmesh_operators_private.h"
 
 /* The formatting of these bmesh operators is parsed by
  * 'doc/python_api/rst_from_bmesh_opdefines.py'
@@ -527,6 +527,30 @@ static BMOpDefine bmo_bridge_loops_def = {
 };
 
 /*
+ * Edge Loop Fill.
+ *
+ * Create faces defined by one or more non overlapping edge loops.
+ */
+static BMOpDefine bmo_edgeloop_fill_def = {
+	"edgeloop_fill",
+	/* slots_in */
+	{{"edges", BMO_OP_SLOT_ELEMENT_BUF, {BM_EDGE}}, /* input edges */
+	/* restricts edges to groups.  maps edges to integer */
+	 {"mat_nr",         BMO_OP_SLOT_INT},      /* material to use */
+	 {"use_smooth",        BMO_OP_SLOT_BOOL},  /* smooth state to use */
+	 {{'\0'}},
+	},
+	/* slots_out */
+	/* maps new faces to the group numbers they came from */
+	{{"faces.out", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}},     /* new faces */
+	 {{'\0'}},
+	},
+	bmo_edgeloop_fill_exec,
+	0,
+};
+
+
+/*
  * Edge Net Fill.
  *
  * Create faces defined by enclosed edges.
@@ -541,7 +565,7 @@ static BMOpDefine bmo_edgenet_fill_def = {
 	 {"use_fill_check",        BMO_OP_SLOT_BOOL},
 	 {"exclude_faces", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}}, /* list of faces to ignore for manifold check */
 	 {"mat_nr",         BMO_OP_SLOT_INT},      /* material to use */
-	 {"use_smooth",        BMO_OP_SLOT_BOOL},  /* material to use */
+	 {"use_smooth",        BMO_OP_SLOT_BOOL},  /* smooth state to use */
 	 {{'\0'}},
 	},
 	/* slots_out */
@@ -1476,12 +1500,34 @@ static BMOpDefine bmo_solidify_def = {
 };
 
 /*
- * Face Inset.
+ * Face Inset (Individual).
  *
- * Inset or outset faces.
+ * Insets individual faces.
  */
-static BMOpDefine bmo_inset_def = {
-	"inset",
+static BMOpDefine bmo_inset_individual_def = {
+	"inset_individual",
+	/* slots_in */
+	{{"faces", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}},    /* input faces */
+	 {"thickness", BMO_OP_SLOT_FLT},
+	 {"depth", BMO_OP_SLOT_FLT},
+	 {"use_even_offset", BMO_OP_SLOT_BOOL},
+	 {{'\0'}},
+	},
+	/* slots_out */
+	{{"faces.out", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}}, /* output faces */
+	 {{'\0'}},
+	},
+	bmo_inset_individual_exec,
+	0
+};
+
+/*
+ * Face Inset (Regions).
+ *
+ * Inset or outset face regions.
+ */
+static BMOpDefine bmo_inset_region_def = {
+	"inset_region",
 	/* slots_in */
 	{{"faces", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}},    /* input faces */
 	 {"use_boundary", BMO_OP_SLOT_BOOL},
@@ -1496,7 +1542,7 @@ static BMOpDefine bmo_inset_def = {
 	{{"faces.out", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}}, /* output faces */
 	 {{'\0'}},
 	},
-	bmo_inset_exec,
+	bmo_inset_region_exec,
 	0
 };
 
@@ -1522,6 +1568,29 @@ static BMOpDefine bmo_wireframe_def = {
 	 {{'\0'}},
 	},
 	bmo_wireframe_exec,
+	0
+};
+
+/*
+ * Pokes a face.
+ *
+ * Splits a face into a triangle fan.
+ */
+static BMOpDefine bmo_poke_def = {
+	"poke",
+	/* slots_in */
+	{{"faces", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}},   /* input faces */
+	 {"offset", BMO_OP_SLOT_FLT}, /* center vertex offset along normal */
+	 {"center_mode", BMO_OP_SLOT_INT}, /* calculation mode for center vertex */
+	 {"use_relative_offset", BMO_OP_SLOT_BOOL}, /* apply offset */
+	 {{'\0'}},
+	},
+	/* slots_out */
+	{{"verts.out", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT}}, /* output verts */
+	 {"faces.out", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}}, /* output faces */
+	 {{'\0'}},
+	},
+	bmo_poke_exec,
 	0
 };
 
@@ -1615,6 +1684,7 @@ const BMOpDefine *bmo_opdefines[] = {
 	&bmo_dissolve_limit_def,
 	&bmo_dissolve_verts_def,
 	&bmo_duplicate_def,
+	&bmo_edgeloop_fill_def,
 	&bmo_edgenet_fill_def,
 	&bmo_edgenet_prepare_def,
 	&bmo_extrude_discrete_faces_def,
@@ -1622,13 +1692,15 @@ const BMOpDefine *bmo_opdefines[] = {
 	&bmo_extrude_face_region_def,
 	&bmo_extrude_vert_indiv_def,
 	&bmo_find_doubles_def,
-	&bmo_inset_def,
+	&bmo_inset_individual_def,
+	&bmo_inset_region_def,
 	&bmo_join_triangles_def,
 	&bmo_mesh_to_bmesh_def,
 	&bmo_mirror_def,
 	&bmo_object_load_bmesh_def,
 	&bmo_pointmerge_def,
 	&bmo_pointmerge_facedata_def,
+	&bmo_poke_def,
 	&bmo_recalc_face_normals_def,
 	&bmo_region_extend_def,
 	&bmo_remove_doubles_def,

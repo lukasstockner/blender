@@ -61,7 +61,8 @@
 #endif
 
 #ifdef WIN32
-#include "utf_winfunc.h"
+#  include "utf_winfunc.h"
+#  include "utfconv.h"
 #  include <io.h>
 #  ifdef _WIN32_IE
 #    undef _WIN32_IE
@@ -122,6 +123,7 @@ int BLI_stringdec(const char *string, char *head, char *tail, unsigned short *nu
 			if (found_digit) break;
 		}
 	}
+
 	if (found_digit) {
 		if (tail) strcpy(tail, &string[nume + 1]);
 		if (head) {
@@ -131,13 +133,17 @@ int BLI_stringdec(const char *string, char *head, char *tail, unsigned short *nu
 		if (numlen) *numlen = nume - nums + 1;
 		return ((int)atoi(&(string[nums])));
 	}
-	if (tail) strcpy(tail, string + name_end);
-	if (head) {
-		strncpy(head, string, name_end);
-		head[name_end] = '\0';
+	else {
+		if (tail) strcpy(tail, string + name_end);
+		if (head) {
+			/* name_end points to last character of head,
+			 * make it +1 so null-terminator is nicely placed
+			 */
+			BLI_strncpy(head, string, name_end + 1);
+		}
+		if (numlen) *numlen = 0;
+		return 0;
 	}
-	if (numlen) *numlen = 0;
-	return 0;
 }
 
 
@@ -230,7 +236,7 @@ void BLI_newname(char *name, int add)
  * \param name_len  Maximum length of name area
  * \return true if there if the name was changed
  */
-bool BLI_uniquename_cb(bool (*unique_check)(void * arg, const char *name),
+bool BLI_uniquename_cb(bool (*unique_check)(void *arg, const char *name),
                        void *arg, const char *defname, char delim, char *name, short name_len)
 {
 	if (name[0] == '\0') {
@@ -1364,7 +1370,12 @@ void BLI_clean(char *path)
 }
 
 /**
- * Replaces occurrences of from with to in *string.
+ * Change every \a from in \a string into \a to. The
+ * result will be in \a string
+ *
+ * \param string The string to work on
+ * \param from The character to replace
+ * \param to The character to replace with
  */
 void BLI_char_switch(char *string, char from, char to) 
 {
@@ -2060,11 +2071,17 @@ void BLI_init_program_path(const char *argv0)
 	BLI_split_dir_part(bprogname, bprogdir, sizeof(bprogdir));
 }
 
+/**
+ * Path to executable
+ */
 const char *BLI_program_path(void)
 {
 	return bprogname;
 }
 
+/**
+ * Path to directory of executable
+ */
 const char *BLI_program_dir(void)
 {
 	return bprogdir;
@@ -2137,7 +2154,7 @@ void BLI_init_temporary_dir(char *userdir)
 }
 
 /**
- * Returns the path to the temporary directory.
+ * Path to temporary directory (with trailing slash)
  */
 const char *BLI_temporary_dir(void)
 {
@@ -2145,7 +2162,7 @@ const char *BLI_temporary_dir(void)
 }
 
 /**
- * Puts in *dir path to OS-specific temporary directory.
+ * Path to the system temporary directory (with trailing slash)
  */
 void BLI_system_temporary_dir(char *dir)
 {

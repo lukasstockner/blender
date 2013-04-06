@@ -236,16 +236,6 @@ static void clip_stabilization_tag_refresh(ScrArea *sa)
 	}
 }
 
-static void clip_prefetch_tag_refresh(ScrArea *sa)
-{
-	SpaceClip *sc = (SpaceClip *) sa->spacedata.first;
-	MovieClip *clip = ED_space_clip_get_clip(sc);
-
-	if (clip) {
-		clip->prefetch_ok = FALSE;
-	}
-}
-
 /* ******************** default callbacks for clip space ***************** */
 
 static SpaceLink *clip_new(const bContext *C)
@@ -327,8 +317,6 @@ static void clip_free(SpaceLink *sl)
 
 	if (sc->scopes.track_search)
 		IMB_freeImBuf(sc->scopes.track_search);
-
-	ED_space_clip_free_texture_buffer(sc);
 }
 
 /* spacetype; init callback */
@@ -348,7 +336,6 @@ static SpaceLink *clip_duplicate(SpaceLink *sl)
 	scn->scopes.track_search = NULL;
 	scn->scopes.track_preview = NULL;
 	scn->scopes.ok = FALSE;
-	scn->draw_context = NULL;
 
 	return (SpaceLink *)scn;
 }
@@ -361,7 +348,6 @@ static void clip_listener(ScrArea *sa, wmNotifier *wmn)
 			switch (wmn->data) {
 				case ND_FRAME:
 					clip_scopes_tag_refresh(sa);
-					clip_prefetch_tag_refresh(sa);
 					/* no break! */
 
 				case ND_FRAME_RANGE:
@@ -370,19 +356,11 @@ static void clip_listener(ScrArea *sa, wmNotifier *wmn)
 			}
 			break;
 		case NC_MOVIECLIP:
-			if (wmn->data == 0 && wmn->action == 0) {
-				/* a nit funky, happens from prefetch job to update
-				 * cache line and job progress
-				 */
-				ED_area_tag_redraw(sa);
-			}
-
 			switch (wmn->data) {
 				case ND_DISPLAY:
 				case ND_SELECT:
 					clip_scopes_tag_refresh(sa);
 					ED_area_tag_redraw(sa);
-					clip_prefetch_tag_refresh(sa);
 					break;
 			}
 			switch (wmn->action) {
@@ -426,7 +404,6 @@ static void clip_listener(ScrArea *sa, wmNotifier *wmn)
 		case NC_SCREEN:
 			switch (wmn->data) {
 				case ND_ANIMPLAY:
-					clip_prefetch_tag_refresh(sa);
 					ED_area_tag_redraw(sa);
 					break;
 			}
@@ -435,7 +412,6 @@ static void clip_listener(ScrArea *sa, wmNotifier *wmn)
 			if (wmn->data == ND_SPACE_CLIP) {
 				clip_scopes_tag_refresh(sa);
 				clip_stabilization_tag_refresh(sa);
-				clip_prefetch_tag_refresh(sa);
 				ED_area_tag_redraw(sa);
 			}
 			break;
@@ -444,10 +420,6 @@ static void clip_listener(ScrArea *sa, wmNotifier *wmn)
 				clip_scopes_check_gpencil_change(sa);
 				ED_area_tag_redraw(sa);
 			}
-			break;
-		case NC_WM:
-			if (wmn->data == ND_FILEREAD)
-				clip_prefetch_tag_refresh(sa);
 			break;
 	}
 }
@@ -468,6 +440,7 @@ static void clip_operatortypes(void)
 	WM_operatortype_append(CLIP_OT_rebuild_proxy);
 	WM_operatortype_append(CLIP_OT_mode_set);
 	WM_operatortype_append(CLIP_OT_view_ndof);
+	WM_operatortype_append(CLIP_OT_prefetch);
 
 	/* ** clip_toolbar.c ** */
 	WM_operatortype_append(CLIP_OT_tools);
@@ -600,6 +573,9 @@ static void clip_keymap(struct wmKeyConfig *keyconf)
 
 	kmi = WM_keymap_add_item(keymap, "CLIP_OT_set_solver_keyframe", EKEY, KM_PRESS, 0, 0);
 	RNA_enum_set(kmi->ptr, "keyframe", 1);
+
+	/* io/playback */
+	WM_keymap_add_item(keymap, "CLIP_OT_prefetch", PKEY, KM_PRESS, 0, 0);
 
 	/* ******** Hotkeys avalaible for main region only ******** */
 

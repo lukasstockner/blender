@@ -506,8 +506,8 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 					Object *ob = (Object *)tselem->id; // id = object
 					bActionGroup *grp = te->directdata;
 					
-					BLI_uniquename(&ob->pose->agroups, grp, "Group", '.', offsetof(bActionGroup, name),
-					               sizeof(grp->name));
+					BLI_uniquename(&ob->pose->agroups, grp, CTX_DATA_(BLF_I18NCONTEXT_ID_ACTION, "Group"), '.',
+					               offsetof(bActionGroup, name), sizeof(grp->name));
 					WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
 				}
 				break;
@@ -754,7 +754,7 @@ static void operator_search_cb(const struct bContext *UNUSED(C), void *UNUSED(ar
 			/* display name for menu */
 			WM_operator_py_idname(name, ot->idname);
 			
-			if (0 == uiSearchItemAdd(items, name, ot, 0))
+			if (false == uiSearchItemAdd(items, name, ot, 0))
 				break;
 		}
 	}
@@ -1043,8 +1043,9 @@ static void outliner_buttons(const bContext *C, uiBlock *block, ARegion *ar, Spa
 				uiButSetRenameFunc(bt, namebutton_cb, tselem);
 				
 				/* returns false if button got removed */
-				if (0 == uiButActiveOnly(C, block, bt) )
+				if (false == uiButActiveOnly(C, ar, block, bt)) {
 					tselem->flag &= ~TSE_TEXTBUT;
+				}
 			}
 		}
 		

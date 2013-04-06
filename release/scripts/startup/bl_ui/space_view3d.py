@@ -20,6 +20,7 @@
 import bpy
 from bpy.types import Header, Menu, Panel
 from bl_ui.properties_paint_common import UnifiedPaintPanel
+from bpy.app.translations import contexts as i18n_contexts
 
 
 class VIEW3D_HT_header(Header):
@@ -994,20 +995,20 @@ class VIEW3D_MT_object_apply(Menu):
     def draw(self, context):
         layout = self.layout
 
-        props = layout.operator("object.transform_apply", text="Location")
+        props = layout.operator("object.transform_apply", text="Location", text_ctxt=i18n_contexts.default)
         props.location, props.rotation, props.scale = True, False, False
 
-        props = layout.operator("object.transform_apply", text="Rotation")
+        props = layout.operator("object.transform_apply", text="Rotation", text_ctxt=i18n_contexts.default)
         props.location, props.rotation, props.scale = False, True, False
 
-        props = layout.operator("object.transform_apply", text="Scale")
+        props = layout.operator("object.transform_apply", text="Scale", text_ctxt=i18n_contexts.default)
         props.location, props.rotation, props.scale = False, False, True
-        props = layout.operator("object.transform_apply", text="Rotation & Scale")
+        props = layout.operator("object.transform_apply", text="Rotation & Scale", text_ctxt=i18n_contexts.default)
         props.location, props.rotation, props.scale = False, True, True
 
         layout.separator()
 
-        layout.operator("object.visual_transform_apply", text="Visual Transform")
+        layout.operator("object.visual_transform_apply", text="Visual Transform", text_ctxt=i18n_contexts.default)
         layout.operator("object.duplicates_make_real")
 
 
@@ -1112,7 +1113,7 @@ class VIEW3D_MT_make_links(Menu):
     def draw(self, context):
         layout = self.layout
         operator_context_default = layout.operator_context
-        if(len(bpy.data.scenes) > 10):
+        if len(bpy.data.scenes) > 10:
             layout.operator_context = 'INVOKE_REGION_WIN'
             layout.operator("object.make_links_scene", text="Objects to Scene...", icon='OUTLINER_OB_EMPTY')
         else:
@@ -1640,6 +1641,12 @@ class VIEW3D_MT_pose_specials(Menu):
 
     def draw(self, context):
         layout = self.layout
+        
+        layout.operator("paint.weight_from_bones", text="Assign Automatic from Bones").type="AUTOMATIC"
+        layout.operator("paint.weight_from_bones", text="Assign from Bone Envelopes").type="ENVELOPES"
+        
+        layout.separator()
+        
         layout.operator("pose.select_constraint_target")
         layout.operator("pose.flip_names")
         layout.operator("pose.paths_calculate")
@@ -1656,8 +1663,6 @@ class VIEW3D_MT_pose_specials(Menu):
 class BoneOptions:
     def draw(self, context):
         layout = self.layout
-
-        default_context = bpy.app.translations.contexts.default
 
         options = [
             "show_wire",
@@ -1679,7 +1684,7 @@ class BoneOptions:
 
         for opt in options:
             props = layout.operator("wm.context_collection_boolean_set", text=bone_props[opt].name,
-                                    text_ctxt=default_context)
+                                    text_ctxt=i18n_contexts.default)
             props.data_path_iter = data_path_iter
             props.data_path_item = opt_suffix + opt
             props.type = self.type
@@ -1947,6 +1952,7 @@ class VIEW3D_MT_edit_mesh_faces(Menu):
 
         layout.separator()
 
+        layout.operator("mesh.poke")
         layout.operator("mesh.quads_convert_to_tris")
         layout.operator("mesh.tris_convert_to_quads")
 
@@ -2544,7 +2550,7 @@ class VIEW3D_PT_view3d_meshdisplay(Panel):
         col = split.column()
         col.label()
         col.prop(mesh, "show_edge_seams", text="Seams")
-        col.prop(mesh, "show_edge_sharp", text="Sharp")
+        col.prop(mesh, "show_edge_sharp", text="Sharp", text_ctxt=i18n_contexts.plural)
         col.prop(mesh, "show_edge_bevel_weight", text="Weights")
 
         col = layout.column()
@@ -2564,6 +2570,7 @@ class VIEW3D_PT_view3d_meshdisplay(Panel):
         col.separator()
         col.label(text="Numerics:")
         col.prop(mesh, "show_extra_edge_length")
+        col.prop(mesh, "show_extra_edge_angle")
         col.prop(mesh, "show_extra_face_angle")
         col.prop(mesh, "show_extra_face_area")
         if bpy.app.debug:

@@ -252,7 +252,6 @@ static ShaderNode *add_node(Scene *scene, BL::BlendData b_data, BL::Scene b_scen
 	else if (b_node.is_a(&RNA_ShaderNodeNormal)) {
 		BL::Node::outputs_iterator out_it;
 		b_node.outputs.begin(out_it);
-		BL::NodeSocket vec_sock(*out_it);
 		
 		NormalNode *norm = new NormalNode();
 		norm->direction = get_node_output_vector(b_node, "Normal");
@@ -301,6 +300,9 @@ static ShaderNode *add_node(Scene *scene, BL::BlendData b_data, BL::Scene b_scen
 	}
 	else if (b_node.is_a(&RNA_ShaderNodeBsdfDiffuse)) {
 		node = new DiffuseBsdfNode();
+	}
+	else if (b_node.is_a(&RNA_ShaderNodeSubsurfaceScattering)) {
+		node = new SubsurfaceScatteringNode();
 	}
 	else if (b_node.is_a(&RNA_ShaderNodeBsdfGlossy)) {
 		BL::ShaderNodeBsdfGlossy b_glossy_node(b_node);
@@ -697,6 +699,8 @@ static void add_nodes(Scene *scene, BL::BlendData b_data, BL::Scene b_scene, Sha
 				group_proxy_map[b_input->identifier()] = proxy;
 				
 				input_map[b_input->ptr.data] = proxy->inputs[0];
+				
+				set_default_value(proxy->inputs[0], *b_node, *b_input, b_data, b_ntree);
 			}
 			for(b_node->outputs.begin(b_output); b_output != b_node->outputs.end(); ++b_output) {
 				ProxyNode *proxy = new ProxyNode(convert_socket_type(*b_output));

@@ -26,7 +26,15 @@
  */
 
 #include <iostream>
+#include <sstream>
 #include <string.h>
+
+#ifdef __APPLE__
+#include <OpenGL/gl.h>
+#include <OpenGL/glu.h>
+#else
+#include <GL/glew.h>
+#endif
 
 #include <OpenColorIO/OpenColorIO.h>
 
@@ -49,6 +57,8 @@ using namespace OCIO_NAMESPACE;
 
 #define MEM_NEW(type) new(MEM_mallocN(sizeof(type), __func__)) type()
 #define MEM_DELETE(what, type) if(what) { ((type*)(what))->~type(); MEM_freeN(what); } (void)0
+
+static const int LUT3D_EDGE_SIZE = 32;
 
 static void OCIO_reportError(const char *err)
 {

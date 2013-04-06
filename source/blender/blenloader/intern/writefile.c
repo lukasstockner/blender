@@ -726,6 +726,9 @@ static void write_node_socket_interface(WriteData *wd, bNodeTree *UNUSED(ntree),
 
 	if (sock->prop)
 		IDP_WriteProperty(sock->prop, wd);
+	
+	if (sock->default_value)
+		writedata(wd, DATA, MEM_allocN_len(sock->default_value), sock->default_value);
 }
 /* this is only direct data, tree itself should have been written */
 static void write_nodetree(WriteData *wd, bNodeTree *ntree)
@@ -800,9 +803,9 @@ static void current_screen_compat(Main *mainvar, bScreen **screen)
 
 	/* find a global current screen in the first open window, to have
 	 * a reasonable default for reading in older versions */
-	wm= mainvar->wm.first;
-	window= (wm)? wm->windows.first: NULL;
-	*screen= (window)? window->screen: NULL;
+	wm = mainvar->wm.first;
+	window = (wm) ? wm->windows.first : NULL;
+	*screen = (window) ? window->screen : NULL;
 }
 
 typedef struct RenderInfo {
@@ -2865,6 +2868,7 @@ static void write_brushes(WriteData *wd, ListBase *idbase)
 			if (brush->id.properties) IDP_WriteProperty(brush->id.properties, wd);
 			
 			writestruct(wd, DATA, "MTex", 1, &brush->mtex);
+			writestruct(wd, DATA, "MTex", 1, &brush->mask_mtex);
 			
 			if (brush->curve)
 				write_curvemapping(wd, brush->curve);
@@ -3013,7 +3017,7 @@ static void write_global(WriteData *wd, int fileflags, Main *mainvar)
 
 	/* XXX still remap G */
 	fg.curscreen= screen;
-	fg.curscene= screen? screen->scene : NULL;
+	fg.curscene= screen ? screen->scene : NULL;
 	fg.displaymode= G.displaymode;
 	fg.winpos= G.winpos;
 
@@ -3074,7 +3078,11 @@ static int write_file_handle(Main *mainvar, int handle, MemFile *compare, MemFil
 	}
 #endif
 
-	sprintf(buf, "BLENDER%c%c%.3d", (sizeof(void*)==8)?'-':'_', (ENDIAN_ORDER==B_ENDIAN)?'V':'v', BLENDER_VERSION);
+	sprintf(buf, "BLENDER%c%c%.3d",
+	        (sizeof(void *) == 8)      ? '-' : '_',
+	        (ENDIAN_ORDER == B_ENDIAN) ? 'V' : 'v',
+	        BLENDER_VERSION);
+
 	mywrite(wd, buf, 12);
 
 	write_renderinfo(wd, mainvar);

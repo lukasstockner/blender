@@ -22,6 +22,8 @@
 
 /** \file blender/bmesh/operators/bmo_dissolve.c
  *  \ingroup bmesh
+ *
+ * Removes isolated geometry regions without creating holes in the mesh.
  */
 
 #include "MEM_guardedalloc.h"
@@ -30,9 +32,8 @@
 #include "BLI_math.h"
 
 #include "bmesh.h"
-#include "intern/bmesh_private.h"
+#include "intern/bmesh_operators_private.h"
 
-#include "intern/bmesh_operators_private.h" /* own include */
 
 #define FACE_MARK   1
 #define FACE_ORIG   2

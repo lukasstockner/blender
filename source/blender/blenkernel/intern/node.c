@@ -126,11 +126,11 @@ static void node_init(const struct bContext *C, bNodeTree *ntree, bNode *node)
 	/* initialize the node name with the node label.
 	 * note: do this after the initfunc so nodes get their data set which may be used in naming
 	 * (node groups for example) */
-	/* XXX Do not use nodeLabel() here, it returns translated content, which should *only* be used
-	 *     in UI, *never* in data...
+	/* XXX Do not use nodeLabel() here, it returns translated content for UI, which should *only* be used
+	 *     in UI, *never* in data... Data have their own translation option!
 	 *     This solution may be a bit rougher than nodeLabel()'s returned string, but it's simpler
-	 *     than adding a "no translate" flag to this func (and labelfunc() as well). */
-	BLI_strncpy(node->name, ntype->ui_name, NODE_MAXSTR);
+	 *     than adding "do_translate" flags to this func (and labelfunc() as well). */
+	BLI_strncpy(node->name, DATA_(ntype->ui_name), NODE_MAXSTR);
 	nodeUniqueName(ntree, node);
 	
 	node_add_sockets_from_type(ntree, node, ntype);
@@ -190,7 +190,10 @@ static void node_socket_set_typeinfo(bNodeTree *ntree, bNodeSocket *sock, bNodeS
 {
 	if (typeinfo) {
 		sock->typeinfo = typeinfo;
-	
+		
+		/* deprecated integer type */
+		sock->type = typeinfo->type;
+		
 		if (sock->default_value == NULL) {
 			/* initialize the default_value pointer used by standard socket types */
 			node_socket_init_default_value(sock);
@@ -433,28 +436,6 @@ bool nodeSocketIsRegistered(bNodeSocket *sock)
 GHashIterator *nodeSocketTypeGetIterator(void)
 {
 	return BLI_ghashIterator_new(nodesockettypes_hash);
-}
-
-void nodeMakeDynamicType(bNode *UNUSED(node))
-{
-	#if 0	/* XXX deprecated */
-	/* find SH_DYNAMIC_NODE ntype */
-	bNodeType *ntype = ntreeType_Shader->node_types.first;
-	while (ntype) {
-		if (ntype->type == NODE_DYNAMIC)
-			break;
-		ntype = ntype->next;
-	}
-
-	/* make own type struct to fill */
-	if (ntype) {
-		/*node->typeinfo= MEM_dupallocN(ntype);*/
-		bNodeType *newtype = MEM_callocN(sizeof(bNodeType), "dynamic bNodeType");
-		*newtype = *ntype;
-		BLI_strncpy(newtype->name, ntype->name, sizeof(newtype->name));
-		node->typeinfo = newtype;
-	}
-	#endif
 }
 
 struct bNodeSocket *nodeFindSocket(bNode *node, int in_out, const char *identifier)
@@ -792,7 +773,7 @@ int nodeFindNode(bNodeTree *ntree, bNodeSocket *sock, bNode **nodep, int *sockin
 /* Find the first available, non-duplicate name for a given node */
 void nodeUniqueName(bNodeTree *ntree, bNode *node)
 {
-	BLI_uniquename(&ntree->nodes, node, "Node", '.', offsetof(bNode, name), sizeof(node->name));
+	BLI_uniquename(&ntree->nodes, node, DATA_("Node"), '.', offsetof(bNode, name), sizeof(node->name));
 }
 
 bNode *nodeAddNode(const struct bContext *C, bNodeTree *ntree, const char *idname)
@@ -816,7 +797,7 @@ bNode *nodeAddStaticNode(const struct bContext *C, bNodeTree *ntree, int type)
 	
 	NODE_TYPES_BEGIN(ntype)
 		if (ntype->type == type) {
-			idname = ntype->idname;
+			idname = DATA_(ntype->idname);
 			break;
 		}
 	NODE_TYPES_END
@@ -1349,7 +1330,7 @@ static void node_preview_init_tree_recursive(bNodeInstanceHash *previews, bNodeT
 			BKE_node_preview_verify(previews, key, xsize, ysize, create);
 		}
 		
-		if (node->type == NODE_GROUP)
+		if (node->type == NODE_GROUP && node->id)
 			node_preview_init_tree_recursive(previews, (bNodeTree *)node->id, key, xsize, ysize, create);
 	}
 }
@@ -1374,7 +1355,7 @@ static void node_preview_tag_used_recursive(bNodeInstanceHash *previews, bNodeTr
 		if (BKE_node_preview_used(node))
 			BKE_node_instance_hash_tag_key(previews, key);
 		
-		if (node->type == NODE_GROUP)
+		if (node->type == NODE_GROUP && node->id)
 			node_preview_tag_used_recursive(previews, (bNodeTree *)node->id, key);
 	}
 }
@@ -1453,18 +1434,38 @@ void BKE_node_preview_sync_tree(bNodeTree *to_ntree, bNodeTree *from_ntree)
 	}
 }
 
-void BKE_node_preview_merge_tree(bNodeTree *to_ntree, bNodeTree *from_ntree)
+void BKE_node_preview_merge_tree(bNodeTree *to_ntree, bNodeTree *from_ntree, bool remove_old)
 {
-	/* free old previews */
-	if (to_ntree->previews)
-		BKE_node_instance_hash_free(to_ntree->previews, (bNodeInstanceValueFP)BKE_node_preview_free);
-	
-	/* transfer previews */
-	to_ntree->previews = from_ntree->previews;
-	from_ntree->previews = NULL;
-	
-	/* clean up, in case any to_ntree nodes have been removed */
-	BKE_node_preview_remove_unused(to_ntree);
+	if (remove_old || !to_ntree->previews) {
+		/* free old previews */
+		if (to_ntree->previews)
+			BKE_node_instance_hash_free(to_ntree->previews, (bNodeInstanceValueFP)BKE_node_preview_free);
+		
+		/* transfer previews */
+		to_ntree->previews = from_ntree->previews;
+		from_ntree->previews = NULL;
+		
+		/* clean up, in case any to_ntree nodes have been removed */
+		BKE_node_preview_remove_unused(to_ntree);
+	}
+	else {
+		bNodeInstanceHashIterator iter;
+		
+		if (from_ntree->previews) {
+			NODE_INSTANCE_HASH_ITER(iter, from_ntree->previews) {
+				bNodeInstanceKey key = BKE_node_instance_hash_iterator_get_key(&iter);
+				bNodePreview *preview = BKE_node_instance_hash_iterator_get_value(&iter);
+				
+				/* replace existing previews */
+				BKE_node_instance_hash_remove(to_ntree->previews, key, (bNodeInstanceValueFP)BKE_node_preview_free);
+				BKE_node_instance_hash_insert(to_ntree->previews, key, preview);
+			}
+			
+			/* Note: NULL free function here, because pointers have already been moved over to to_ntree->previews! */
+			BKE_node_instance_hash_free(from_ntree->previews, NULL);
+			from_ntree->previews = NULL;
+		}
+	}
 }
 
 /* hack warning! this function is only used for shader previews, and 
@@ -1648,7 +1649,6 @@ static void node_socket_interface_free(bNodeTree *UNUSED(ntree), bNodeSocket *so
 		MEM_freeN(sock->prop);
 	}
 	
-	/* can be left over from old files */
 	if (sock->default_value)
 		MEM_freeN(sock->default_value);
 }
@@ -1965,12 +1965,6 @@ bNodeTree *ntreeLocalize(bNodeTree *ntree)
 void ntreeLocalSync(bNodeTree *localtree, bNodeTree *ntree)
 {
 	if (localtree && ntree) {
-		/* XXX syncing was disabled for compositor nodes.
-		 * It has to be ensured that there is no concurrent read/write access!
-		 * Possibly needs a mutex lock or a flag to disable for certain tree types ...
-		 */
-		BKE_node_preview_sync_tree(ntree, localtree);
-		
 		if (ntree->typeinfo->local_sync)
 			ntree->typeinfo->local_sync(localtree, ntree);
 	}
@@ -1981,8 +1975,6 @@ void ntreeLocalSync(bNodeTree *localtree, bNodeTree *ntree)
 void ntreeLocalMerge(bNodeTree *localtree, bNodeTree *ntree)
 {
 	if (localtree && ntree) {
-		BKE_node_preview_merge_tree(ntree, localtree);
-		
 		if (ntree->typeinfo->local_merge)
 			ntree->typeinfo->local_merge(localtree, ntree);
 		
@@ -1994,21 +1986,16 @@ void ntreeLocalMerge(bNodeTree *localtree, bNodeTree *ntree)
 
 /* ************ NODE TREE INTERFACE *************** */
 
-static bNodeSocket *make_socket_template(bNodeTree *ntree, int in_out,
+static bNodeSocket *make_socket_interface(bNodeTree *ntree, int in_out,
                                          const char *idname, const char *name)
 {
 	bNodeSocketType *stype = nodeSocketTypeFind(idname);
 	bNodeSocket *sock;
 	int own_index = ntree->cur_index++;
 	
-	if (stype == NULL) {
-		printf("Error: node socket type '%s' undefined\n", idname);
-		return NULL;
-	}
-	
 	sock = MEM_callocN(sizeof(bNodeSocket), "socket template");
-	sock->typeinfo = stype;
 	BLI_strncpy(sock->idname, stype->idname, sizeof(sock->idname));
+	node_socket_set_typeinfo(ntree, sock, stype);
 	sock->in_out = in_out;
 	sock->type = SOCK_CUSTOM;	/* int type undefined by default */
 	
@@ -2061,7 +2048,7 @@ bNodeSocket *ntreeAddSocketInterface(bNodeTree *ntree, int in_out, const char *i
 {
 	bNodeSocket *iosock;
 	
-	iosock = make_socket_template(ntree, in_out, idname, name);
+	iosock = make_socket_interface(ntree, in_out, idname, name);
 	if (in_out == SOCK_IN) {
 		BLI_addtail(&ntree->inputs, iosock);
 		ntree->update |= NTREE_UPDATE_GROUP_IN;
@@ -2079,7 +2066,7 @@ bNodeSocket *ntreeInsertSocketInterface(bNodeTree *ntree, int in_out, const char
 {
 	bNodeSocket *iosock;
 	
-	iosock = make_socket_template(ntree, in_out, idname, name);
+	iosock = make_socket_interface(ntree, in_out, idname, name);
 	if (in_out == SOCK_IN) {
 		BLI_insertlinkbefore(&ntree->inputs, next_sock, iosock);
 		ntree->update |= NTREE_UPDATE_GROUP_IN;
@@ -3432,6 +3419,7 @@ static void registerShaderNodes(void)
 	register_node_type_sh_holdout();
 	//register_node_type_sh_volume_transparent();
 	//register_node_type_sh_volume_isotropic();
+	register_node_type_sh_subsurface_scattering();
 	register_node_type_sh_mix_shader();
 	register_node_type_sh_add_shader();
 
@@ -3580,4 +3568,57 @@ void clear_scene_in_nodes(Main *bmain, Scene *sce)
 			}
 		}
 	}
+}
+
+
+/* -------------------------------------------------------------------- */
+/* NodeTree Iterator Helpers (FOREACH_NODETREE) */
+
+void BKE_node_tree_iter_init(struct NodeTreeIterStore *ntreeiter, struct Main *bmain)
+{
+	ntreeiter->ngroup = bmain->nodetree.first;
+	ntreeiter->scene = bmain->scene.first;
+	ntreeiter->mat = bmain->mat.first;
+	ntreeiter->tex = bmain->tex.first;
+	ntreeiter->lamp = bmain->lamp.first;
+	ntreeiter->world = bmain->world.first;
+}
+bool BKE_node_tree_iter_step(struct NodeTreeIterStore *ntreeiter,
+                             bNodeTree **r_nodetree, struct ID **r_id)
+{
+	if (ntreeiter->ngroup) {
+		*r_nodetree =       ntreeiter->ngroup;
+		*r_id       = (ID *)ntreeiter->ngroup;
+		ntreeiter->ngroup = ntreeiter->ngroup->id.next;
+	}
+	else if (ntreeiter->scene) {
+		*r_nodetree =       ntreeiter->scene->nodetree;
+		*r_id       = (ID *)ntreeiter->scene;
+		ntreeiter->scene =  ntreeiter->scene->id.next;
+	}
+	else if (ntreeiter->mat) {
+		*r_nodetree =       ntreeiter->mat->nodetree;
+		*r_id       = (ID *)ntreeiter->mat;
+		ntreeiter->mat =    ntreeiter->mat->id.next;
+	}
+	else if (ntreeiter->tex) {
+		*r_nodetree =       ntreeiter->tex->nodetree;
+		*r_id       = (ID *)ntreeiter->tex;
+		ntreeiter->tex =    ntreeiter->tex->id.next;
+	}
+	else if (ntreeiter->lamp) {
+		*r_nodetree =       ntreeiter->lamp->nodetree;
+		*r_id       = (ID *)ntreeiter->lamp;
+		ntreeiter->lamp =   ntreeiter->lamp->id.next;
+	}
+	else if (ntreeiter->world) {
+		*r_nodetree =       ntreeiter->world->nodetree;
+		*r_id       = (ID *)ntreeiter->world;
+		ntreeiter->world  = ntreeiter->world->id.next;
+	}
+	else {
+		return false;
+	}
+
+	return true;
 }

@@ -47,10 +47,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_vfontdata.h"
-#include "BLI_blenlib.h"
-#include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_vfontdata.h"
+#include "BLI_listbase.h"
+#include "BLI_string.h"
+#include "BLI_math.h"
 
 #include "DNA_vfont_types.h"
 #include "DNA_packedFile_types.h"
@@ -467,7 +468,14 @@ static int check_freetypefont(PackedFile *pf)
 	return success;
 }
 
-
+/**
+ * Construct a new VFontData structure from
+ * Freetype font data in a PackedFile.
+ *
+ * \param pf The font data.
+ * \retval A new VFontData structure, or NULL
+ * if unable to load.
+ */
 VFontData *BLI_vfontdata_from_freetypefont(PackedFile *pf)
 {
 	VFontData *vfd = NULL;

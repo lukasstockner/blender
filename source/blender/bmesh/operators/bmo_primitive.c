@@ -22,6 +22,8 @@
 
 /** \file blender/bmesh/operators/bmo_primitive.c
  *  \ingroup bmesh
+ *
+ * Primitive shapes.
  */
 
 #include "MEM_guardedalloc.h"
@@ -29,9 +31,8 @@
 #include "BLI_math.h"
 
 #include "bmesh.h"
-#include "intern/bmesh_private.h"
+#include "intern/bmesh_operators_private.h"
 
-#include "intern/bmesh_operators_private.h" /* own include */
 
 /* ************************ primitives ******************* */
 

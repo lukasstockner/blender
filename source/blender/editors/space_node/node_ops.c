@@ -31,9 +31,9 @@
 
 #include "DNA_node_types.h"
 
-#include "BKE_context.h"
-
 #include "BLI_utildefines.h"
+
+#include "BKE_context.h"
 
 #include "ED_node.h"  /* own include */
 #include "ED_screen.h"
@@ -58,9 +58,10 @@ void node_operatortypes(void)
 	WM_operatortype_append(NODE_OT_select_border);
 	WM_operatortype_append(NODE_OT_select_lasso);
 	WM_operatortype_append(NODE_OT_select_same_type);
-	WM_operatortype_append(NODE_OT_select_same_type_next);
-	WM_operatortype_append(NODE_OT_select_same_type_prev);
-
+	WM_operatortype_append(NODE_OT_select_same_type_step);
+	
+	WM_operatortype_append(NODE_OT_find_node);
+	
 	WM_operatortype_append(NODE_OT_view_all);
 	WM_operatortype_append(NODE_OT_view_selected);
 
@@ -281,7 +282,7 @@ void node_keymap(struct wmKeyConfig *keyconf)
 
 	kmi = WM_keymap_add_item(keymap, "NODE_OT_link_make", FKEY, KM_PRESS, 0, 0);
 	RNA_boolean_set(kmi->ptr, "replace", FALSE);
-	kmi = WM_keymap_add_item(keymap, "NODE_OT_link_make", FKEY, KM_PRESS, KM_CTRL, 0);
+	kmi = WM_keymap_add_item(keymap, "NODE_OT_link_make", FKEY, KM_PRESS, KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "replace", TRUE);
 
 	WM_keymap_add_menu(keymap, "NODE_MT_add", AKEY, KM_PRESS, KM_SHIFT, 0);
@@ -318,9 +319,14 @@ void node_keymap(struct wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "NODE_OT_select_linked_to", LKEY, KM_PRESS, KM_SHIFT, 0);
 	WM_keymap_add_item(keymap, "NODE_OT_select_linked_from", LKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "NODE_OT_select_same_type", GKEY, KM_PRESS, KM_SHIFT, 0);
-	WM_keymap_add_item(keymap, "NODE_OT_select_same_type_next", RIGHTBRACKETKEY, KM_PRESS, KM_SHIFT, 0);
-	WM_keymap_add_item(keymap, "NODE_OT_select_same_type_prev", LEFTBRACKETKEY, KM_PRESS, KM_SHIFT, 0);
 
+	kmi = WM_keymap_add_item(keymap, "NODE_OT_select_same_type_step", RIGHTBRACKETKEY, KM_PRESS, KM_SHIFT, 0);
+	RNA_boolean_set(kmi->ptr, "prev", FALSE);
+	kmi = WM_keymap_add_item(keymap, "NODE_OT_select_same_type_step", LEFTBRACKETKEY, KM_PRESS, KM_SHIFT, 0);
+	RNA_boolean_set(kmi->ptr, "prev", TRUE);
+	
+	WM_keymap_add_item(keymap, "NODE_OT_find_node", FKEY, KM_PRESS, KM_CTRL, 0);
+	
 	node_group_operators(keymap, "ShaderNodeGroup");
 	node_group_operators(keymap, "CompositorNodeGroup");
 	node_group_operators(keymap, "TextureNodeGroup");

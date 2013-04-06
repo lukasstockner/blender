@@ -229,6 +229,9 @@ option(WITH_OPENCOLLADA		"Enable OpenCollada Support (http://www.opencollada.org
 option(WITH_SDL           "Enable SDL for sound and joystick support" ON)
 option(WITH_OPENAL        "Enable OpenAL Support (http://www.openal.org)" ON)
 option(WITH_JACK          "Enable Jack Support (http://www.jackaudio.org)" OFF)
+if(UNIX AND NOT APPLE)
+	option(WITH_JACK_DYNLOAD  "Enable runtime dynamic Jack libraries loading" OFF)
+endif()
 
 # Compression
 option(WITH_LZO           "Enable fast LZO compression (used for pointcache)" ON)
@@ -405,11 +408,6 @@ if(WITH_PYTHON_MODULE)
 	set(WITH_HEADLESS ON)
 endif()
 
-# auto enable openimageio for cycles
-if(WITH_CYCLES)
-	set(WITH_OPENIMAGEIO ON)
-endif()
-
 # enable boost for cycles, booleans, audaspace or i18n
 # otherwise if the user disabled
 if(NOT WITH_BOOST)
@@ -426,6 +424,17 @@ elseif(WITH_CYCLES OR WITH_MOD_BOOLEAN OR WITH_AUDASPACE OR WITH_INTERNATIONAL)
 else()
 	# Enabled but we don't need it
 	set(WITH_BOOST OFF)
+endif()
+
+# auto enable openimageio for cycles
+if(WITH_CYCLES)
+	set(WITH_OPENIMAGEIO ON)
+endif()
+
+# auto enable openimageio linking dependencies
+if(WITH_OPENIMAGEIO)
+	set(WITH_IMAGE_OPENEXR ON)
+	set(WITH_IMAGE_TIFF ON)
 endif()
 
 # auto enable llvm for cycles_osl
@@ -1058,28 +1067,28 @@ elseif(WIN32)
 			set(OPENCOLLADA ${LIBDIR}/opencollada)
 
 			set(OPENCOLLADA_INCLUDE_DIRS
-				${LIBDIR}/opencollada/include/COLLADAStreamWriter/include
-				${LIBDIR}/opencollada/include/COLLADABaseUtils/include
-				${LIBDIR}/opencollada/include/COLLADAFramework/include
-				${LIBDIR}/opencollada/include/COLLADASaxFrameworkLoader/include
-				${LIBDIR}/opencollada/include/GeneratedSaxParser/include
+				${OPENCOLLADA}/include/opencollada/COLLADAStreamWriter
+				${OPENCOLLADA}/include/opencollada/COLLADABaseUtils
+				${OPENCOLLADA}/include/opencollada/COLLADAFramework
+				${OPENCOLLADA}/include/opencollada/COLLADASaxFrameworkLoader
+				${OPENCOLLADA}/include/opencollada/GeneratedSaxParser
 			)
 			set_lib_path(OPENCOLLADA_LIBPATH "opencollada")
 
 			set(OPENCOLLADA_LIBRARIES
-				${OPENCOLLADA_LIBPATH}/lib/OpenCOLLADASaxFrameworkLoader.lib
-				${OPENCOLLADA_LIBPATH}/lib/OpenCOLLADAFramework.lib
-				${OPENCOLLADA_LIBPATH}/lib/OpenCOLLADABaseUtils.lib
-				${OPENCOLLADA_LIBPATH}/lib/OpenCOLLADAStreamWriter.lib
-				${OPENCOLLADA_LIBPATH}/lib/MathMLSolver.lib
-				${OPENCOLLADA_LIBPATH}/lib/GeneratedSaxParser.lib
-				${OPENCOLLADA_LIBPATH}/lib/xml2.lib
-				${OPENCOLLADA_LIBPATH}/lib/buffer.lib
-				${OPENCOLLADA_LIBPATH}/lib/ftoa.lib
-				${OPENCOLLADA_LIBPATH}/lib/UTF.lib
+				${OPENCOLLADA_LIBPATH}/lib/opencollada/OpenCOLLADASaxFrameworkLoader.lib
+				${OPENCOLLADA_LIBPATH}/lib/opencollada/OpenCOLLADAFramework.lib
+				${OPENCOLLADA_LIBPATH}/lib/opencollada/OpenCOLLADABaseUtils.lib
+				${OPENCOLLADA_LIBPATH}/lib/opencollada/OpenCOLLADAStreamWriter.lib
+				${OPENCOLLADA_LIBPATH}/lib/opencollada/MathMLSolver.lib
+				${OPENCOLLADA_LIBPATH}/lib/opencollada/GeneratedSaxParser.lib
+				${OPENCOLLADA_LIBPATH}/lib/opencollada/xml.lib
+				${OPENCOLLADA_LIBPATH}/lib/opencollada/buffer.lib
+				${OPENCOLLADA_LIBPATH}/lib/opencollada/ftoa.lib
+				${OPENCOLLADA_LIBPATH}/lib/opencollada/UTF.lib
 			)
 			set(PCRE_LIBRARIES
-				${OPENCOLLADA_LIBPATH}/lib/pcre.lib
+				${OPENCOLLADA_LIBPATH}/lib/opencollada/pcre.lib
 			)
 			
 			unset(OPENCOLLADA_LIBPATH)
@@ -1280,18 +1289,14 @@ elseif(WIN32)
 		if(WITH_OPENCOLLADA)
 			set(OPENCOLLADA ${LIBDIR}/opencollada)
 			set(OPENCOLLADA_INCLUDE_DIRS
-				${LIBDIR}/opencollada/include/COLLADAStreamWriter/include
-				${LIBDIR}/opencollada/include/COLLADABaseUtils/include
-				${LIBDIR}/opencollada/include/COLLADAFramework/include
-				${LIBDIR}/opencollada/include/COLLADASaxFrameworkLoader/include
-				${LIBDIR}/opencollada/include/GeneratedSaxParser/include
+				${OPENCOLLADA}/include/opencollada/COLLADAStreamWriter
+				${OPENCOLLADA}/include/opencollada/COLLADABaseUtils
+				${OPENCOLLADA}/include/opencollada/COLLADAFramework
+				${OPENCOLLADA}/include/opencollada/COLLADASaxFrameworkLoader
+				${OPENCOLLADA}/include/opencollada/GeneratedSaxParser
 			)
-			set(OPENCOLLADA_LIBPATH ${OPENCOLLADA}/lib ${OPENCOLLADA}/lib)
-			if(WITH_MINGW64)
-				set(OPENCOLLADA_LIBRARIES OpenCOLLADAStreamWriter OpenCOLLADASaxFrameworkLoader OpenCOLLADAFramework OpenCOLLADABaseUtils GeneratedSaxParser UTF MathMLSolver pcre buffer ftoa xml)
-			else()
-				set(OPENCOLLADA_LIBRARIES OpenCOLLADAStreamWriter OpenCOLLADASaxFrameworkLoader OpenCOLLADAFramework OpenCOLLADABaseUtils GeneratedSaxParser UTF MathMLSolver expat pcre buffer ftoa)
-			endif()
+			set(OPENCOLLADA_LIBPATH ${OPENCOLLADA}/lib/opencollada)
+			set(OPENCOLLADA_LIBRARIES OpenCOLLADAStreamWriter OpenCOLLADASaxFrameworkLoader OpenCOLLADAFramework OpenCOLLADABaseUtils GeneratedSaxParser UTF MathMLSolver buffer ftoa xml)
 			set(PCRE_LIBRARIES pcre)
 		endif()
 
@@ -1404,8 +1409,8 @@ elseif(WIN32)
 				LLVMX86Disassembler LLVMX86Info
 				LLVMX86Utils LLVMipa
 				LLVMipo LLVMCore)
-				#imagehelp is needed by LLVM 3.1 on MinGW, check lib\Support\Windows\Signals.inc
-				set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} -limagehlp")
+			#imagehelp is needed by LLVM 3.1 on MinGW, check lib\Support\Windows\Signals.inc
+			set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} -limagehlp")
 			set(LLVM_STATIC YES)
 		endif()
 		
@@ -2202,6 +2207,7 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_OPENAL)
 	info_cfg_option(WITH_SDL)
 	info_cfg_option(WITH_JACK)
+	info_cfg_option(WITH_JACK_DYNLOAD)
 	info_cfg_option(WITH_CODEC_AVI)
 	info_cfg_option(WITH_CODEC_FFMPEG)
 	info_cfg_option(WITH_CODEC_SNDFILE)

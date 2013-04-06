@@ -284,6 +284,9 @@ class SEQUENCER_MT_strip(Menu):
 
         layout.operator("transform.transform", text="Grab/Move").mode = 'TRANSLATION'
         layout.operator("transform.transform", text="Grab/Extend from frame").mode = 'TIME_EXTEND'
+        layout.operator("sequencer.gap_remove")
+        layout.operator("sequencer.gap_insert")
+
         #  uiItemO(layout, NULL, 0, "sequencer.strip_snap"); // TODO - add this operator
         layout.separator()
 
@@ -510,9 +513,6 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
                 else:
                     layout.prop(strip, "speed_factor", text="Frame number")
                     layout.prop(strip, "scale_to_length")
-
-            #doesn't work currently
-            #layout.prop(strip, "use_frame_blend")
 
         elif strip.type == 'TRANSFORM':
             layout = self.layout

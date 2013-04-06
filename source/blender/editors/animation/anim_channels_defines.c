@@ -3289,13 +3289,13 @@ static void draw_setting_widget(bAnimContext *ac, bAnimListElem *ale, bAnimChann
 			break;
 			
 		case ACHANNEL_SETTING_EXPAND: /* expanded triangle */
-			//icon = ((enabled)? ICON_TRIA_DOWN : ICON_TRIA_RIGHT);
+			//icon = ((enabled) ? ICON_TRIA_DOWN : ICON_TRIA_RIGHT);
 			icon = ICON_TRIA_RIGHT;
 			tooltip = TIP_("Make channels grouped under this channel visible");
 			break;
 			
 		case ACHANNEL_SETTING_SOLO: /* NLA Tracks only */
-			//icon = ((enabled)? ICON_LAYER_ACTIVE : ICON_LAYER_USED);
+			//icon = ((enabled) ? ICON_LAYER_ACTIVE : ICON_LAYER_USED);
 			icon = ICON_LAYER_USED;
 			tooltip = TIP_("NLA Track is the only one evaluated for the AnimData block it belongs to");
 			break;
@@ -3304,13 +3304,13 @@ static void draw_setting_widget(bAnimContext *ac, bAnimListElem *ale, bAnimChann
 		
 		case ACHANNEL_SETTING_PROTECT: /* protected lock */
 			// TODO: what about when there's no protect needed?
-			//icon = ((enabled)? ICON_LOCKED : ICON_UNLOCKED);
+			//icon = ((enabled) ? ICON_LOCKED : ICON_UNLOCKED);
 			icon = ICON_UNLOCKED;
 			tooltip = TIP_("Editability of keyframes for this channel");
 			break;
 			
 		case ACHANNEL_SETTING_MUTE: /* muted speaker */
-			//icon = ((enabled)? ICON_MUTE_IPO_ON : ICON_MUTE_IPO_OFF);
+			//icon = ((enabled) ? ICON_MUTE_IPO_ON : ICON_MUTE_IPO_OFF);
 			icon = ICON_MUTE_IPO_OFF;
 			
 			if (ale->type == ALE_FCURVE) 
@@ -3445,7 +3445,7 @@ void ANIM_channel_draw_widgets(bContext *C, bAnimContext *ac, bAnimListElem *ale
 				but = uiDefButR(block, TEX, 1, "", offset + 3, yminc, RENAME_TEXT_WIDTH, channel_height,
 				                &ptr, RNA_property_identifier(prop), -1, 0, 0, -1, -1, NULL);
 				uiButSetFunc(but, achannel_setting_rename_done_cb, ac->ads, NULL);
-				uiButActiveOnly(C, block, but);
+				uiButActiveOnly(C, ac->ar, block, but);
 				
 				uiBlockSetEmboss(block, UI_EMBOSSN);
 			}

@@ -28,10 +28,13 @@
  *  \ingroup spnode
  */
 
+#include <stdlib.h>
+
 #include "DNA_node_types.h"
 
 #include "BLI_rect.h"
 #include "BLI_lasso.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.h"
@@ -48,6 +51,8 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "UI_interface.h"
+#include "UI_resources.h"
 #include "UI_view2d.h"
 
 #include "MEM_guardedalloc.h"
@@ -762,57 +767,195 @@ void NODE_OT_select_same_type(wmOperatorType *ot)
 
 /* ****** Select The Next/Prev Node Of The Same Type ****** */
 
-static int node_select_same_type_next_exec(bContext *C, wmOperator *UNUSED(op))
+/* ************************** */
+
+
+static int node_select_same_type_step_exec(bContext *C, wmOperator *op)
 {
 	SpaceNode *snode = CTX_wm_space_node(C);
+	ARegion *ar = CTX_wm_region(C);
+	bNode **node_array;
+	bNode *active = nodeGetActive(snode->edittree);
+	int totnodes;
+	int revert = RNA_boolean_get(op->ptr, "prev");
+	int same_type = 1;
+	
+	ntreeGetDependencyList(snode->edittree, &node_array, &totnodes);
+	
+	if (totnodes > 1) {
+		int a;
+		
+		for (a = 0; a < totnodes; a++) {
+			if (node_array[a] == active)
+				break;
+		}
+		
+		if (same_type) {
+			bNode *node = NULL;
+			
+			while (node == NULL) {
+				if (revert) a--;
+				else a++;
+				
+				if (a < 0 || a >= totnodes)
+					break;
+				
+				node = node_array[a];
+				
+				if (node->type == active->type)
+					break;
+				else node = NULL;
+			}
+			if (node)
+				active = node;
+		}
+		else {
+			if (revert) {
+				if (a == 0)
+					active = node_array[totnodes - 1];
+				else
+					active = node_array[a - 1];
+			}
+			else {
+				if (a == totnodes - 1)
+					active = node_array[0];
+				else
+					active = node_array[a + 1];
+			}
+		}
+		
+		node_select_single(C, active);
 
-	node_select_same_type_np(snode, 0);
-
-	ED_node_sort(snode->edittree);
-
-	WM_event_add_notifier(C, NC_NODE | NA_SELECTED, NULL);
-
+		/* is note outside view? */
+		if (active->totr.xmax < ar->v2d.cur.xmin || active->totr.xmin > ar->v2d.cur.xmax ||
+		    active->totr.ymax < ar->v2d.cur.ymin || active->totr.ymin > ar->v2d.cur.ymax)
+		{
+			space_node_view_flag(C, snode, CTX_wm_region(C), NODE_SELECT);
+		}
+	}
+	
+	if (node_array)
+		MEM_freeN(node_array);
+	
 	return OPERATOR_FINISHED;
 }
 
-void NODE_OT_select_same_type_next(wmOperatorType *ot)
+void NODE_OT_select_same_type_step(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Select Same Type Next";
-	ot->description = "Select the next node of the same type";
-	ot->idname = "NODE_OT_select_same_type_next";
+	ot->name = "Activate Same Type Next/Prev";
+	ot->description = "Activate and view same node type, step by step";
+	ot->idname = "NODE_OT_select_same_type_step";
 	
 	/* api callbacks */
-	ot->exec = node_select_same_type_next_exec;
+	ot->exec = node_select_same_type_step_exec;
 	ot->poll = ED_operator_node_active;
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	
+	RNA_def_boolean(ot->srna, "prev", 0, "Previous", "");
+
 }
 
-static int node_select_same_type_prev_exec(bContext *C, wmOperator *UNUSED(op))
+/* *************** find a node **************** */
+
+/* generic  search invoke */
+static void node_find_cb(const struct bContext *C, void *UNUSED(arg), const char *str, uiSearchItems *items)
 {
 	SpaceNode *snode = CTX_wm_space_node(C);
-
-	node_select_same_type_np(snode, 1);
-
-	ED_node_sort(snode->edittree);
-
-	WM_event_add_notifier(C, NC_NODE | NA_SELECTED, NULL);
-	return OPERATOR_FINISHED;
+	bNode *node;
+	
+	for (node = snode->edittree->nodes.first; node; node = node->next) {
+		
+		if (BLI_strcasestr(node->name, str) || BLI_strcasestr(node->label, str)) {
+			char name[256];
+			
+			if (node->label[0])
+				BLI_snprintf(name, 256, "%s (%s)", node->name, node->label);
+			else
+				BLI_strncpy(name, node->name, 256);
+			if (false == uiSearchItemAdd(items, name, node, 0))
+				break;
+		}
+	}
 }
 
-void NODE_OT_select_same_type_prev(wmOperatorType *ot)
+static void node_find_call_cb(struct bContext *C, void *UNUSED(arg1), void *arg2)
+{
+	SpaceNode *snode = CTX_wm_space_node(C);
+	bNode *active = arg2;
+	
+	if (active) {
+		ARegion *ar = CTX_wm_region(C);
+		node_select_single(C, active);
+		
+		/* is note outside view? */
+		if (active->totr.xmax < ar->v2d.cur.xmin || active->totr.xmin > ar->v2d.cur.xmax ||
+		    active->totr.ymax < ar->v2d.cur.ymin || active->totr.ymin > ar->v2d.cur.ymax)
+		{
+			space_node_view_flag(C, snode, ar, NODE_SELECT);
+		}
+
+	}
+}
+
+static uiBlock *node_find_menu(bContext *C, ARegion *ar, void *arg_op)
+{
+	static char search[256] = "";
+	wmEvent event;
+	wmWindow *win = CTX_wm_window(C);
+	uiBlock *block;
+	uiBut *but;
+	wmOperator *op = (wmOperator *)arg_op;
+	
+	block = uiBeginBlock(C, ar, "_popup", UI_EMBOSS);
+	uiBlockSetFlag(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
+	
+	but = uiDefSearchBut(block, search, 0, ICON_VIEWZOOM, sizeof(search), 10, 10, 9 * UI_UNIT_X, UI_UNIT_Y, 0, 0, "");
+	uiButSetSearchFunc(but, node_find_cb, op->type, node_find_call_cb, NULL);
+	
+	/* fake button, it holds space for search items */
+	uiDefBut(block, LABEL, 0, "", 10, 10 - uiSearchBoxHeight(), uiSearchBoxWidth(), uiSearchBoxHeight(), NULL, 0, 0, 0, 0, NULL);
+	
+	uiPopupBoundsBlock(block, 6, 0, -UI_UNIT_Y); /* move it downwards, mouse over button */
+	uiEndBlock(C, block);
+	
+	//	uiButActiveOnly(C, ar, block, but); XXX using this here makes Blender hang - investigate
+	event = *(win->eventstate);  /* XXX huh huh? make api call */
+	event.type = EVT_BUT_OPEN;
+	event.val = KM_PRESS;
+	event.customdata = but;
+	event.customdatafree = FALSE;
+	wm_event_add(win, &event);
+	
+	return block;
+}
+
+
+static int node_find_node_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+{
+	uiPupBlock(C, node_find_menu, op);
+	return OPERATOR_CANCELLED;
+}
+
+
+void NODE_OT_find_node(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Select Same Type Prev";
-	ot->description = "Select the prev node of the same type";
-	ot->idname = "NODE_OT_select_same_type_prev";
+	ot->name = "Find Node";
+	ot->description = "Search for named node and allow to select and activate it";
+	ot->idname = "NODE_OT_find_node";
 	
 	/* api callbacks */
-	ot->exec = node_select_same_type_prev_exec;
+	ot->invoke = node_find_node_invoke;
 	ot->poll = ED_operator_node_active;
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	
+	RNA_def_boolean(ot->srna, "prev", 0, "Previous", "");
+	
 }
+
+

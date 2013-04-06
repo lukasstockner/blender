@@ -26,12 +26,12 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_context.h"
-
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_edgehash.h"
 #include "BLI_ghash.h"
+
+#include "BKE_context.h"
 
 #include "reeb.h"
 
@@ -52,9 +52,11 @@ static ReebGraph *FILTERED_RG = NULL;
  * SIGGRAPH 2007
  * 
  * */
- 
+
+#if 0
 #define DEBUG_REEB
 #define DEBUG_REEB_NODE
+#endif
 
 /* place-holders! */
 typedef struct EditEdge {

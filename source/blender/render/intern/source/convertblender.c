@@ -517,68 +517,68 @@ typedef struct {
 /* interface */
 #include "mikktspace.h"
 
-static int GetNumFaces(const SMikkTSpaceContext * pContext)
+static int GetNumFaces(const SMikkTSpaceContext *pContext)
 {
-	SRenderMeshToTangent * pMesh = (SRenderMeshToTangent *) pContext->m_pUserData;
+	SRenderMeshToTangent *pMesh = (SRenderMeshToTangent *) pContext->m_pUserData;
 	return pMesh->obr->totvlak;
 }
 
-static int GetNumVertsOfFace(const SMikkTSpaceContext * pContext, const int face_num)
+static int GetNumVertsOfFace(const SMikkTSpaceContext *pContext, const int face_num)
 {
-	SRenderMeshToTangent * pMesh = (SRenderMeshToTangent *) pContext->m_pUserData;
+	SRenderMeshToTangent *pMesh = (SRenderMeshToTangent *) pContext->m_pUserData;
 	VlakRen *vlr= RE_findOrAddVlak(pMesh->obr, face_num);
 	return vlr->v4!=NULL ? 4 : 3;
 }
 
-static void GetPosition(const SMikkTSpaceContext * pContext, float fPos[], const int face_num, const int vert_index)
+static void GetPosition(const SMikkTSpaceContext *pContext, float r_co[3], const int face_num, const int vert_index)
 {
 	//assert(vert_index>=0 && vert_index<4);
-	SRenderMeshToTangent * pMesh = (SRenderMeshToTangent *) pContext->m_pUserData;
+	SRenderMeshToTangent *pMesh = (SRenderMeshToTangent *) pContext->m_pUserData;
 	VlakRen *vlr= RE_findOrAddVlak(pMesh->obr, face_num);
-	const float *co= (&vlr->v1)[vert_index]->co;
-	copy_v3_v3(fPos, co);
+	const float *co = (&vlr->v1)[vert_index]->co;
+	copy_v3_v3(r_co, co);
 }
 
-static void GetTextureCoordinate(const SMikkTSpaceContext * pContext, float fUV[], const int face_num, const int vert_index)
+static void GetTextureCoordinate(const SMikkTSpaceContext *pContext, float r_uv[2], const int face_num, const int vert_index)
 {
 	//assert(vert_index>=0 && vert_index<4);
-	SRenderMeshToTangent * pMesh = (SRenderMeshToTangent *) pContext->m_pUserData;
+	SRenderMeshToTangent *pMesh = (SRenderMeshToTangent *) pContext->m_pUserData;
 	VlakRen *vlr= RE_findOrAddVlak(pMesh->obr, face_num);
 	MTFace *tface= RE_vlakren_get_tface(pMesh->obr, vlr, pMesh->obr->actmtface, NULL, 0);
 	const float *coord;
 	
-	if (tface != NULL) {
+	if (tface  != NULL) {
 		coord= tface->uv[vert_index];
-		fUV[0]= coord[0]; fUV[1]= coord[1];
+		copy_v2_v2(r_uv, coord);
 	}
-	else if ((coord= (&vlr->v1)[vert_index]->orco)) {
-		map_to_sphere(&fUV[0], &fUV[1], coord[0], coord[1], coord[2]);
+	else if ((coord = (&vlr->v1)[vert_index]->orco)) {
+		map_to_sphere(&r_uv[0], &r_uv[1], coord[0], coord[1], coord[2]);
 	}
 	else { /* else we get un-initialized value, 0.0 ok default? */
-		fUV[0]= fUV[1]= 0.0f;
+		zero_v2(r_uv);
 	}
 }
 
-static void GetNormal(const SMikkTSpaceContext * pContext, float fNorm[], const int face_num, const int vert_index)
+static void GetNormal(const SMikkTSpaceContext *pContext, float r_no[3], const int face_num, const int vert_index)
 {
 	//assert(vert_index>=0 && vert_index<4);
-	SRenderMeshToTangent * pMesh = (SRenderMeshToTangent *) pContext->m_pUserData;
+	SRenderMeshToTangent *pMesh = (SRenderMeshToTangent *) pContext->m_pUserData;
 	VlakRen *vlr= RE_findOrAddVlak(pMesh->obr, face_num);
 
 	if (vlr->flag & ME_SMOOTH) {
 		const float *n = (&vlr->v1)[vert_index]->n;
-		copy_v3_v3(fNorm, n);
+		copy_v3_v3(r_no, n);
 	}
 	else {
-		negate_v3_v3(fNorm, vlr->n);
+		negate_v3_v3(r_no, vlr->n);
 	}
 }
-static void SetTSpace(const SMikkTSpaceContext * pContext, const float fvTangent[], const float fSign, const int face_num, const int iVert)
+static void SetTSpace(const SMikkTSpaceContext *pContext, const float fvTangent[3], const float fSign, const int face_num, const int iVert)
 {
 	//assert(vert_index>=0 && vert_index<4);
-	SRenderMeshToTangent * pMesh = (SRenderMeshToTangent *) pContext->m_pUserData;
-	VlakRen *vlr= RE_findOrAddVlak(pMesh->obr, face_num);
-	float * ftang= RE_vlakren_get_nmap_tangent(pMesh->obr, vlr, 1);
+	SRenderMeshToTangent *pMesh = (SRenderMeshToTangent *) pContext->m_pUserData;
+	VlakRen *vlr = RE_findOrAddVlak(pMesh->obr, face_num);
+	float *ftang = RE_vlakren_get_nmap_tangent(pMesh->obr, vlr, 1);
 	if (ftang!=NULL) {
 		copy_v3_v3(&ftang[iVert*4+0], fvTangent);
 		ftang[iVert*4+3]=fSign;
@@ -2781,11 +2781,11 @@ static void init_render_surf(Render *re, ObjectRen *obr, int timeoffset)
 
 	if (ob->parent && (ob->parent->type==OB_LATTICE)) need_orco= 1;
 
-	BKE_displist_make_surf(re->scene, ob, &displist, &dm, 1, 0);
+	BKE_displist_make_surf(re->scene, ob, &displist, &dm, 1, 0, 1);
 
 	if (dm) {
 		if (need_orco) {
-			orco= BKE_displist_make_orco(re->scene, ob, dm, 1);
+			orco= BKE_displist_make_orco(re->scene, ob, dm, 1, 1);
 			if (orco) {
 				set_object_orco(re, ob, orco);
 			}
@@ -2831,7 +2831,7 @@ static void init_render_curve(Render *re, ObjectRen *obr, int timeoffset)
 	if (ob->type==OB_FONT && cu->str==NULL) return;
 	else if (ob->type==OB_CURVE && cu->nurb.first==NULL) return;
 
-	BKE_displist_make_curveTypes_forRender(re->scene, ob, &disp, &dm, 0);
+	BKE_displist_make_curveTypes_forRender(re->scene, ob, &disp, &dm, 0, 1);
 	dl= disp.first;
 	if (dl==NULL) return;
 	
@@ -2856,7 +2856,7 @@ static void init_render_curve(Render *re, ObjectRen *obr, int timeoffset)
 
 	if (dm) {
 		if (need_orco) {
-			orco= BKE_displist_make_orco(re->scene, ob, dm, 1);
+			orco= BKE_displist_make_orco(re->scene, ob, dm, 1, 1);
 			if (orco) {
 				set_object_orco(re, ob, orco);
 			}

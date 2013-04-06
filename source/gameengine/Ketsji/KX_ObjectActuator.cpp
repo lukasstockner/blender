@@ -215,8 +215,8 @@ bool KX_ObjectActuator::Update()
 			m_previous_error = e;
 			m_error_accumulator = I;
 			parent->ApplyForce(m_force,(m_bitLocalFlag.LinearVelocity) != 0);
-		} else if(m_bitLocalFlag.CharacterMotion)
-		{
+		}
+		else if (m_bitLocalFlag.CharacterMotion) {
 			MT_Vector3 dir = m_dloc;
 
 			if (m_bitLocalFlag.AddOrSetCharLoc) {
@@ -496,7 +496,7 @@ static int mathutils_obactu_vector_set_index(BaseMathObject *bmo, int subtype, i
 	return mathutils_obactu_vector_set(bmo, subtype);
 }
 
-Mathutils_Callback mathutils_obactu_vector_cb = {
+static Mathutils_Callback mathutils_obactu_vector_cb = {
 	mathutils_obactu_generic_check,
 	mathutils_obactu_vector_get,
 	mathutils_obactu_vector_set,

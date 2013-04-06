@@ -189,7 +189,7 @@ float texture_value_blend(float tex, float out, float fact, float facg, int blen
 void texture_rgb_blend(float *in, float *tex, float *out, float fact, float facg, int blendtype) {}
 char stipple_quarttone[1]; //GLubyte stipple_quarttone[128]
 double elbeemEstimateMemreq(int res, float sx, float sy, float sz, int refine, char *retstr) {return 0.0f;}
-struct Render *RE_NewRender(const char *name) {return (struct Render*) NULL;}
+struct Render *RE_NewRender(const char *name) {return (struct Render *) NULL;}
 void RE_SwapResult(struct Render *re, struct RenderResult **rr) {}
 void RE_BlenderFrame(struct Render *re, struct Scene *scene, int frame) {}
 int RE_WriteEnvmapResult(struct ReportList *reports, struct Scene *scene, struct EnvMap *env, const char *relpath, const char imtype, float layout[12]) { return 0; }
@@ -239,7 +239,7 @@ void UI_view2d_view_to_region(struct View2D *v2d, float x, float y, int *regionx
 void UI_view2d_to_region_no_clip(struct View2D *v2d, float x, float y, int *regionx, int *region_y) {}
 
 struct EditBone *ED_armature_bone_get_mirrored(struct ListBase *edbo, struct EditBone *ebo) {return (struct EditBone *) NULL;}
-struct EditBone *ED_armature_edit_bone_add(struct bArmature *arm, char *name) {return (struct EditBone*) NULL;}
+struct EditBone *ED_armature_edit_bone_add(struct bArmature *arm, char *name) {return (struct EditBone *) NULL;}
 struct ListBase *get_active_constraints (struct Object *ob) {return (struct ListBase *) NULL;}
 struct ListBase *get_constraint_lb(struct Object *ob, struct bConstraint *con, struct bPoseChannel **pchan_r) {return (struct ListBase *) NULL;}
 int ED_pose_channel_in_IK_chain(struct Object *ob, struct bPoseChannel *pchan) {return 0;}
@@ -253,6 +253,7 @@ struct ImBuf *ED_space_image_buffer(struct SpaceImage *sima) {return (struct ImB
 void ED_space_image_uv_sculpt_update(struct wmWindowManager *wm, struct ToolSettings *settings) {}
 
 void ED_screen_set_scene(struct bContext *C, struct Scene *scene) {}
+struct MovieClip *ED_space_clip_get_clip(struct SpaceClip *sc) {return (struct MovieClip *) NULL;}
 void ED_space_clip_set_clip(struct bContext *C, struct SpaceClip *sc, struct MovieClip *clip) {}
 void ED_space_clip_set_mask(struct bContext *C, struct SpaceClip *sc, struct Mask *mask) {}
 void ED_space_image_set_mask(struct bContext *C, struct SpaceImage *sima, struct Mask *mask) {}
@@ -406,11 +407,11 @@ void uiItemR(struct uiLayout *layout, struct PointerRNA *ptr, char *propname, in
 
 struct PointerRNA uiItemFullO(struct uiLayout *layout, char *idname, char *name, int icon, struct IDProperty *properties, int context, int flag) {struct PointerRNA a = {{0}}; return a;}
 PointerRNA uiItemFullO_ptr(struct uiLayout *layout, struct wmOperatorType *ot, const char *name, int icon, struct IDProperty *properties, int context, int flag) {struct PointerRNA a = {{0}}; return a;}
-struct uiLayout *uiLayoutRow(struct uiLayout *layout, int align) {return (struct uiLayout *) NULL;}
-struct uiLayout *uiLayoutColumn(struct uiLayout *layout, int align) {return (struct uiLayout *) NULL;}
-struct uiLayout *uiLayoutColumnFlow(struct uiLayout *layout, int number, int align) {return (struct uiLayout *) NULL;}
+struct uiLayout *uiLayoutRow(struct uiLayout *layout, bool align) {return (struct uiLayout *) NULL;}
+struct uiLayout *uiLayoutColumn(struct uiLayout *layout, bool align) {return (struct uiLayout *) NULL;}
+struct uiLayout *uiLayoutColumnFlow(struct uiLayout *layout, int number, bool align) {return (struct uiLayout *) NULL;}
 struct uiLayout *uiLayoutBox(struct uiLayout *layout) {return (struct uiLayout *) NULL;}
-struct uiLayout *uiLayoutSplit(struct uiLayout *layout, float percentage, int align) {return (struct uiLayout *) NULL;}
+struct uiLayout *uiLayoutSplit(struct uiLayout *layout, float percentage, bool align) {return (struct uiLayout *) NULL;}
 int uiLayoutGetRedAlert(struct uiLayout *layout) {return 0;}
 void uiLayoutSetRedAlert(struct uiLayout *layout, int redalert) {}
 void uiItemsEnumR(struct uiLayout *layout, struct PointerRNA *ptr, char *propname) {}
@@ -432,7 +433,7 @@ void uiItemFullR(struct uiLayout *layout, struct PointerRNA *ptr, struct Propert
 void uiLayoutSetContextPointer(struct uiLayout *layout, char *name, struct PointerRNA *ptr) {}
 char *uiLayoutIntrospect(struct uiLayout *layout) {return (char *)NULL;}
 void UI_reinit_font(void) {}
-int UI_rnaptr_icon_get(struct bContext *C, struct PointerRNA *ptr, int rnaicon, int big) {return 0;}
+int UI_rnaptr_icon_get(struct bContext *C, struct PointerRNA *ptr, int rnaicon, const bool big) {return 0;}
 struct bTheme *UI_GetTheme(void) {return (struct bTheme *) NULL;};
 
 /* rna template */
@@ -455,9 +456,7 @@ void uiTemplateRunningJobs(struct uiLayout *layout, struct bContext *C) {}
 void uiTemplateOperatorSearch(struct uiLayout *layout) {}
 void uiTemplateHeader3D(struct uiLayout *layout, struct bContext *C) {}
 void uiTemplateEditModeSelection(struct uiLayout *layout, struct bContext *C) {}
-void uiTemplateTextureImage(struct uiLayout *layout, struct bContext *C, struct Tex *tex) {}
 void uiTemplateImage(struct uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, char *propname, struct PointerRNA *userptr, int compact) {}
-void uiTemplateDopeSheetFilter(struct uiLayout *layout, struct bContext *C, struct PointerRNA *ptr) {}
 void uiTemplateColorPicker(struct uiLayout *layout, struct PointerRNA *ptr, char *propname, int value_slider) {}
 void uiTemplateHistogram(struct uiLayout *layout, struct PointerRNA *ptr, char *propname, int expand) {}
 void uiTemplateReportsBanner(struct uiLayout *layout, struct bContext *C, struct wmOperator *op) {}
@@ -517,8 +516,8 @@ void WM_operator_properties_free(struct PointerRNA *ptr) {}
 void WM_operator_properties_create(struct PointerRNA *ptr, const char *opstring) {}
 void WM_operator_properties_create_ptr(struct PointerRNA *ptr, struct wmOperatorType *ot) {}
 void WM_operator_properties_sanitize(struct PointerRNA *ptr, const short no_context) {};
-void WM_operatortype_append_ptr(void (*opfunc)(struct wmOperatorType*, void *), void *userdata) {}
-void WM_operatortype_append_macro_ptr(void (*opfunc)(struct wmOperatorType*, void *), void *userdata) {}
+void WM_operatortype_append_ptr(void (*opfunc)(struct wmOperatorType *, void *), void *userdata) {}
+void WM_operatortype_append_macro_ptr(void (*opfunc)(struct wmOperatorType *, void *), void *userdata) {}
 void WM_operator_bl_idname(char *to, const char *from) {}
 void WM_operator_py_idname(char *to, const char *from) {}
 void WM_operator_ui_popup(struct bContext *C, struct wmOperator *op, int width, int height) {}

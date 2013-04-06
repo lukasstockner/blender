@@ -255,7 +255,8 @@ struct ParticleSystem *psys_get_current(struct Object *ob);
 /* for rna */
 short psys_get_current_num(struct Object *ob);
 void psys_set_current_num(Object *ob, int index);
-struct Object *psys_find_object(struct Scene *scene, struct ParticleSystem *psys);
+/* UNUSED */
+// struct Object *psys_find_object(struct Scene *scene, struct ParticleSystem *psys);
 
 struct Object *psys_get_lattice(struct ParticleSimulationData *sim);
 
@@ -321,7 +322,7 @@ void psys_get_dupli_path_transform(struct ParticleSimulationData *sim, struct Pa
 ParticleThread *psys_threads_create(struct ParticleSimulationData *sim);
 void psys_threads_free(ParticleThread *threads);
 
-void psys_make_billboard(ParticleBillboardData * bb, float xvec[3], float yvec[3], float zvec[3], float center[3]);
+void psys_make_billboard(ParticleBillboardData *bb, float xvec[3], float yvec[3], float zvec[3], float center[3]);
 void psys_apply_hair_lattice(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
 
 /* particle_system.c */

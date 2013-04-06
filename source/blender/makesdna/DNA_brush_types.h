@@ -56,6 +56,7 @@ typedef struct Brush {
 	struct BrushClone clone;
 	struct CurveMapping *curve; /* falloff curve */
 	struct MTex mtex;
+	struct MTex mask_mtex;
 
 	struct Brush *toggle_brush;
 
@@ -104,6 +105,9 @@ typedef struct Brush {
 
 	float add_col[3];
 	float sub_col[3];
+
+	float stencil_pos[2];
+	float stencil_dimension[2];
 } Brush;
 
 /* Brush.flag */

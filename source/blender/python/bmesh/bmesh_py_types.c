@@ -423,6 +423,15 @@ static PyObject *bpy_bmedge_is_contiguous_get(BPy_BMEdge *self)
 	return PyBool_FromLong(BM_edge_is_contiguous(self->e));
 }
 
+PyDoc_STRVAR(bpy_bmedge_is_convex_doc,
+"True when this edge joins 2 convex faces, depends on a valid face normal (read-only).\n\n:type: boolean"
+);
+static PyObject *bpy_bmedge_is_convex_get(BPy_BMEdge *self)
+{
+	BPY_BM_CHECK_OBJ(self);
+	return PyBool_FromLong(BM_edge_is_convex(self->e));
+}
+
 PyDoc_STRVAR(bpy_bmedge_is_wire_doc,
 "True when this edge is not connected to any faces (read-only).\n\n:type: boolean"
 );
@@ -569,10 +578,10 @@ static PyObject *bpy_bmloop_link_loop_radial_prev_get(BPy_BMLoop *self)
 	return BPy_BMLoop_CreatePyObject(self->bm, self->l->radial_prev);
 }
 
-PyDoc_STRVAR(bpy_bm_is_convex_doc,
-"True when this loop is at the convex corner of a face, depends on a valid face normal (read-only).\n\n:type: :class:`BMLoop`"
+PyDoc_STRVAR(bpy_bmloop_is_convex_doc,
+"True when this loop is at the convex corner of a face, depends on a valid face normal (read-only).\n\n:type: boolean"
 );
-static PyObject *bpy_bm_is_convex_get(BPy_BMLoop *self)
+static PyObject *bpy_bmloop_is_convex_get(BPy_BMLoop *self)
 {
 	BPY_BM_CHECK_OBJ(self);
 	return PyBool_FromLong(BM_loop_is_convex(self->l));
@@ -690,6 +699,7 @@ static PyGetSetDef bpy_bmedge_getseters[] = {
 	/* readonly checks */
 	{(char *)"is_manifold",   (getter)bpy_bmedge_is_manifold_get,   (setter)NULL, (char *)bpy_bmedge_is_manifold_doc, NULL},
 	{(char *)"is_contiguous", (getter)bpy_bmedge_is_contiguous_get, (setter)NULL, (char *)bpy_bmedge_is_contiguous_doc, NULL},
+	{(char *)"is_convex",     (getter)bpy_bmedge_is_convex_get,     (setter)NULL, (char *)bpy_bmedge_is_convex_doc, NULL},
 	{(char *)"is_wire",       (getter)bpy_bmedge_is_wire_get,       (setter)NULL, (char *)bpy_bmedge_is_wire_doc, NULL},
 	{(char *)"is_boundary",   (getter)bpy_bmedge_is_boundary_get,   (setter)NULL, (char *)bpy_bmedge_is_boundary_doc, NULL},
 	{(char *)"is_valid",      (getter)bpy_bm_is_valid_get,          (setter)NULL, (char *)bpy_bm_is_valid_doc, NULL},
@@ -741,8 +751,8 @@ static PyGetSetDef bpy_bmloop_getseters[] = {
 	{(char *)"link_loop_radial_prev", (getter)bpy_bmloop_link_loop_radial_prev_get, (setter)NULL, (char *)bpy_bmloop_link_loop_radial_prev_doc, NULL},
 
 	/* readonly checks */
-	{(char *)"is_convex",  (getter)bpy_bm_is_convex_get, (setter)NULL, (char *)bpy_bm_is_convex_doc, NULL},
-	{(char *)"is_valid",   (getter)bpy_bm_is_valid_get,  (setter)NULL, (char *)bpy_bm_is_valid_doc,  NULL},
+	{(char *)"is_convex",  (getter)bpy_bmloop_is_convex_get, (setter)NULL, (char *)bpy_bmloop_is_convex_doc, NULL},
+	{(char *)"is_valid",   (getter)bpy_bm_is_valid_get,      (setter)NULL, (char *)bpy_bm_is_valid_doc,  NULL},
 
 	{NULL, NULL, NULL, NULL, NULL} /* Sentinel */
 };
@@ -1398,6 +1408,18 @@ static PyObject *bpy_bmedge_calc_face_angle(BPy_BMEdge *self)
 	return PyFloat_FromDouble(BM_edge_calc_face_angle(self->e));
 }
 
+PyDoc_STRVAR(bpy_bmedge_calc_face_angle_signed_doc,
+".. method:: calc_face_angle_signed()\n"
+"\n"
+"   :return: The angle between 2 connected faces in radians (negative for concave join).\n"
+"   :rtype: float\n"
+);
+static PyObject *bpy_bmedge_calc_face_angle_signed(BPy_BMEdge *self)
+{
+	BPY_BM_CHECK_OBJ(self);
+	return PyFloat_FromDouble(BM_edge_calc_face_angle_signed(self->e));
+}
+
 PyDoc_STRVAR(bpy_bmedge_calc_tangent_doc,
 ".. method:: calc_tangent(loop)\n"
 "\n"
@@ -1605,6 +1627,22 @@ static PyObject *bpy_bmface_calc_center_mean(BPy_BMFace *self)
 	return Vector_CreatePyObject(cent, 3, Py_NEW, NULL);
 }
 
+PyDoc_STRVAR(bpy_bmface_calc_center_mean_weighted_doc,
+".. method:: calc_center_median_weighted()\n"
+"\n"
+"   Return median center of the face weighted by edge lengths.\n"
+"\n"
+"   :return: a 3D vector.\n"
+"   :rtype: :class:`mathutils.Vector`\n"
+);
+static PyObject *bpy_bmface_calc_center_mean_weighted(BPy_BMFace *self)
+{
+	float cent[3];
+
+	BPY_BM_CHECK_OBJ(self);
+	BM_face_calc_center_mean_weighted(self->f, cent);
+	return Vector_CreatePyObject(cent, 3, Py_NEW, NULL);
+}
 
 PyDoc_STRVAR(bpy_bmface_calc_center_bounds_doc,
 ".. method:: calc_center_bounds()\n"
@@ -2440,6 +2478,7 @@ static struct PyMethodDef bpy_bmedge_methods[] = {
 
 	{"calc_length",     (PyCFunction)bpy_bmedge_calc_length,     METH_NOARGS,  bpy_bmedge_calc_length_doc},
 	{"calc_face_angle", (PyCFunction)bpy_bmedge_calc_face_angle, METH_NOARGS,  bpy_bmedge_calc_face_angle_doc},
+	{"calc_face_angle_signed", (PyCFunction)bpy_bmedge_calc_face_angle_signed, METH_NOARGS,  bpy_bmedge_calc_face_angle_signed_doc},
 	{"calc_tangent",    (PyCFunction)bpy_bmedge_calc_tangent,    METH_VARARGS, bpy_bmedge_calc_tangent_doc},
 
 	{"normal_update",  (PyCFunction)bpy_bmedge_normal_update,  METH_NOARGS,  bpy_bmedge_normal_update_doc},
@@ -2459,6 +2498,7 @@ static struct PyMethodDef bpy_bmface_methods[] = {
 	{"calc_area",          (PyCFunction)bpy_bmface_calc_area,          METH_NOARGS, bpy_bmface_calc_area_doc},
 	{"calc_perimeter",     (PyCFunction)bpy_bmface_calc_perimeter,     METH_NOARGS, bpy_bmface_calc_perimeter_doc},
 	{"calc_center_median", (PyCFunction)bpy_bmface_calc_center_mean,   METH_NOARGS, bpy_bmface_calc_center_mean_doc},
+	{"calc_center_median_weighted", (PyCFunction)bpy_bmface_calc_center_mean_weighted, METH_NOARGS, bpy_bmface_calc_center_mean_weighted_doc},
 	{"calc_center_bounds", (PyCFunction)bpy_bmface_calc_center_bounds, METH_NOARGS, bpy_bmface_calc_center_bounds_doc},
 
 	{"normal_update",  (PyCFunction)bpy_bmface_normal_update,  METH_NOARGS,  bpy_bmface_normal_update_doc},
@@ -3620,7 +3660,8 @@ char *BPy_BMElem_StringFromHType_ex(const char htype, char ret[32])
 	if (htype & BM_FACE) ret_ptr += sprintf(ret_ptr, "/%s", BPy_BMFace_Type.tp_name);
 	if (htype & BM_LOOP) ret_ptr += sprintf(ret_ptr, "/%s", BPy_BMLoop_Type.tp_name);
 	ret[0]   = '(';
-	*ret_ptr = ')';
+	*ret_ptr++ = ')';
+	*ret_ptr   = '\0';
 	return ret;
 }
 char *BPy_BMElem_StringFromHType(const char htype)

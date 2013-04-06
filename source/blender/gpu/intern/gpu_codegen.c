@@ -475,7 +475,7 @@ static void codegen_print_uniforms_functions(DynStr *ds, ListBase *nodes)
 				/* create exactly one sampler for each texture */
 				if (codegen_input_has_texture(input) && input->bindtex)
 					BLI_dynstr_appendf(ds, "uniform %s samp%d;\n",
-						(input->textype == GPU_TEX2D)? "sampler2D": "sampler2DShadow",
+						(input->textype == GPU_TEX2D) ? "sampler2D" : "sampler2DShadow",
 						input->texid);
 			}
 			else if (input->source == GPU_SOURCE_BUILTIN) {
@@ -680,12 +680,6 @@ void GPU_code_generate_glsl_lib(void)
 
 	ds = BLI_dynstr_new();
 
-	if (GPU_bicubic_bump_support()) {
-		BLI_dynstr_append(ds, "/* These are needed for high quality bump mapping */\n"
-				"#version 130\n"
-				"#extension GL_ARB_texture_query_lod: enable\n"
-				"#define BUMP_BICUBIC\n");
-	}
 	BLI_dynstr_append(ds, datatoc_gpu_shader_material_glsl);
 
 

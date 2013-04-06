@@ -22,15 +22,15 @@
 
 /** \file blender/bmesh/operators/bmo_hull.c
  *  \ingroup bmesh
+ *
+ * Create a convex hull using bullet physics library.
  */
 
 #ifdef WITH_BULLET
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_array.h"
-#include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 
@@ -38,7 +38,6 @@
 
 /* XXX: using 128 for totelem and pchunk of mempool, no idea what good
  * values would be though */
-#include "BLI_mempool.h"
 
 #include "bmesh.h"
 

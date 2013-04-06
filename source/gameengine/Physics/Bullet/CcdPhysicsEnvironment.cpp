@@ -1576,7 +1576,7 @@ struct OcclusionBuffer
 				}
 			}
 		}
-		else if (width == 1)  {
+		else if (width == 1) {
 			// Degenerated in at least 2 vertical lines
 			// The algorithm below doesn't work when face has a single pixel width
 			// We cannot use general formulas because the plane is degenerated. 
@@ -1799,7 +1799,7 @@ struct	DbvtCullingCallback : btDbvt::ICollide
 		btBroadphaseProxy*	proxy=(btBroadphaseProxy*)leaf->data;
 		// the client object is a graphic controller
 		CcdGraphicController* ctrl = static_cast<CcdGraphicController*>(proxy->m_clientObject);
-		KX_ClientObjectInfo* info = (KX_ClientObjectInfo*)ctrl->getNewClientInfo();
+		KX_ClientObjectInfo *info = (KX_ClientObjectInfo*)ctrl->getNewClientInfo();
 		if (m_ocb)
 		{
 			// means we are doing occlusion culling. Check if this object is an occluders

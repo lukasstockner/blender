@@ -1349,8 +1349,8 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 		/* unlink icon for this button type */
 		if (but->type == SEARCH_MENU_UNLINK && but->drawstr[0]) {
 			rcti temp = *rect;
-			
-			temp.xmin = temp.xmax - BLI_rcti_size_y(rect);
+
+			temp.xmin = temp.xmax - (BLI_rcti_size_y(rect) * 1.08f);
 			widget_draw_icon(but, ICON_X, alpha, &temp);
 		}
 
@@ -2506,8 +2506,8 @@ static void widget_progressbar(uiBut *but, uiWidgetColors *wcol, rcti *rect, int
 	
 	/* make the progress bar a proportion of the original height */
 	/* hardcoded 4px high for now */
-	rect_prog.ymax = rect_prog.ymin + 4;
-	rect_bar.ymax = rect_bar.ymin + 4;
+	rect_prog.ymax = rect_prog.ymin + 4 * UI_DPI_FAC;
+	rect_bar.ymax = rect_bar.ymin + 4 * UI_DPI_FAC;
 	
 	w = value * BLI_rcti_size_x(&rect_prog);
 	
@@ -2520,8 +2520,8 @@ static void widget_progressbar(uiBut *but, uiWidgetColors *wcol, rcti *rect, int
 	uiWidgetScrollDraw(wcol, &rect_prog, &rect_bar, UI_SCROLL_NO_OUTLINE);
 	
 	/* raise text a bit */
-	rect->ymin += 6;
-	rect->xmin -= 6;
+	rect->ymin += 6 * UI_DPI_FAC;
+	rect->xmin -= 6 * UI_DPI_FAC;
 }
 
 static void widget_link(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
@@ -3224,7 +3224,6 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 				break;
 				
 			case NUMSLI:
-			case HSVSLI:
 				wt = widget_type(UI_WTYPE_SLIDER);
 				break;
 				
@@ -3528,7 +3527,6 @@ void ui_draw_preview_item(uiFontStyle *fstyle, rcti *rect, const char *name, int
 	rcti trect = *rect, bg_rect;
 	float font_dims[2] = {0.0f, 0.0f};
 	uiWidgetType *wt = widget_type(UI_WTYPE_MENU_ITEM);
-	unsigned char bg_col[3];
 	
 	wt->state(wt, state);
 	wt->draw(&wt->wcol, rect, 0, 0);
@@ -3554,16 +3552,12 @@ void ui_draw_preview_item(uiFontStyle *fstyle, rcti *rect, const char *name, int
 	if (bg_rect.xmax > rect->xmax - PREVIEW_PAD)
 		bg_rect.xmax = rect->xmax - PREVIEW_PAD;
 
-	UI_GetThemeColor3ubv(TH_BUTBACK, bg_col);
-	glColor4ubv((unsigned char *)wt->wcol.item);
+	glColor4ubv((unsigned char *)wt->wcol_theme->inner_sel);
 	glEnable(GL_BLEND);
 	glRecti(bg_rect.xmin, bg_rect.ymin, bg_rect.xmax, bg_rect.ymax);
 	glDisable(GL_BLEND);
 	
-	if (state == UI_ACTIVE)
-		glColor4ubv((unsigned char *)wt->wcol.text);
-	else
-		glColor4ubv((unsigned char *)wt->wcol.text_sel);
+	glColor3ubv((unsigned char *)wt->wcol.text);
 
 	uiStyleFontDraw(fstyle, &trect, name);
 }

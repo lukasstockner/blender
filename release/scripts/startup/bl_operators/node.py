@@ -29,10 +29,14 @@ class NodeAddOperator():
     def store_mouse_cursor(context, event):
         space = context.space_data
         v2d = context.region.view2d
+        tree = space.edit_tree
 
         # convert mouse position to the View2D for later node placement
-        space.cursor_location = v2d.region_to_view(event.mouse_region_x,
+        if context.region.type == 'WINDOW':
+            space.cursor_location = v2d.region_to_view(event.mouse_region_x,
                                                    event.mouse_region_y)
+        else:
+            space.cursor_location = tree.view_center
 
     def create_node(self, context, node_type):
         space = context.space_data
@@ -43,6 +47,9 @@ class NodeAddOperator():
             n.select = False
 
         node = tree.nodes.new(type=node_type)
+
+        if space.use_hidden_preview:
+            node.show_preview = False
 
         node.select = True
         tree.nodes.active = node
@@ -124,7 +131,8 @@ def node_class_items_iter(node_class, context):
         tree_idname = context.space_data.edit_tree.bl_idname
         for group in bpy.data.node_groups:
             if group.bl_idname == tree_idname:
-                yield (group.name, "", {"node_tree":group}) # XXX empty string should be replaced by description from tree
+                # XXX empty string should be replaced by description from tree
+                yield (group.name, "", {"node_tree": group})
     else:
         yield (node_class.bl_rna.name, node_class.bl_rna.description, {})
 
@@ -166,7 +174,7 @@ class NODE_OT_add_search(NodeAddOperator, Operator):
         for index, item in enumerate(node_items_iter(context)):
             if str(index) == self.type:
                 node = self.create_node(context, item[0].bl_rna.identifier)
-                for prop,value in item[3].items():
+                for prop, value in item[3].items():
                     setattr(node, prop, value)
                 break
         return {'FINISHED'}
@@ -254,4 +262,3 @@ class NODE_OT_tree_path_parent(Operator):
         space.path.pop()
 
         return {'FINISHED'}
-

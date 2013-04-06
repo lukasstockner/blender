@@ -1172,9 +1172,8 @@ void KX_Scene::ReplaceMesh(class CValue* obj,void* meshobj, bool use_gfx, bool u
 					);
 				}
 				newobj->SetDeformer(modifierDeformer);
-			} 
-			else 	if (bHasShapeKey)
-			{
+			}
+			else if (bHasShapeKey) {
 				BL_ShapeDeformer* shapeDeformer;
 				if (bHasArmature) 
 				{
@@ -1469,7 +1468,7 @@ void KX_Scene::MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj,KX_Cam
 	}
 }
 
-void KX_Scene::PhysicsCullingCallback(KX_ClientObjectInfo* objectInfo, void* cullingInfo)
+void KX_Scene::PhysicsCullingCallback(KX_ClientObjectInfo *objectInfo, void* cullingInfo)
 {
 	KX_GameObject* gameobj = objectInfo->m_gameobject;
 	if (!gameobj->GetVisible())
@@ -2065,7 +2064,7 @@ static PyObject *Map_GetItem(PyObject *self_v, PyObject *item)
 	PyObject *pyconvert;
 	
 	if (self == NULL) {
-		PyErr_SetString(PyExc_SystemError, "val = scene[key]: KX_Scene, "BGE_PROXY_ERROR_MSG);
+		PyErr_SetString(PyExc_SystemError, "val = scene[key]: KX_Scene, " BGE_PROXY_ERROR_MSG);
 		return NULL;
 	}
 
@@ -2095,7 +2094,7 @@ static int Map_SetItem(PyObject *self_v, PyObject *key, PyObject *val)
 		PyErr_Clear();
 	
 	if (self == NULL) {
-		PyErr_SetString(PyExc_SystemError, "scene[key] = value: KX_Scene, "BGE_PROXY_ERROR_MSG);
+		PyErr_SetString(PyExc_SystemError, "scene[key] = value: KX_Scene, " BGE_PROXY_ERROR_MSG);
 		return -1;
 	}
 
@@ -2142,7 +2141,7 @@ static int Seq_Contains(PyObject *self_v, PyObject *value)
 	KX_Scene* self = static_cast<KX_Scene*>BGE_PROXY_REF(self_v);
 	
 	if (self == NULL) {
-		PyErr_SetString(PyExc_SystemError, "val in scene: KX_Scene, "BGE_PROXY_ERROR_MSG);
+		PyErr_SetString(PyExc_SystemError, "val in scene: KX_Scene, " BGE_PROXY_ERROR_MSG);
 		return -1;
 	}
 

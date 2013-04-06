@@ -549,7 +549,7 @@ void OBJECT_OT_parent_clear(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	
-	ot->prop = RNA_def_enum(ot->srna, "type", prop_clear_parent_types, 0, "Type", "");
+	ot->prop = RNA_def_enum(ot->srna, "type", prop_clear_parent_types, CLEAR_PARENT_ALL, "Type", "");
 }
 
 /* ******************** Make Parent Operator *********************** */
@@ -1486,7 +1486,7 @@ static int make_links_data_exec(bContext *C, wmOperator *op)
 						/* now add in the groups from the link nodes */
 						for (group_node = ob_groups; group_node; group_node = group_node->next) {
 							if (ob_dst->dup_group != group_node->link) {
-								add_to_group(group_node->link, ob_dst, scene, base_dst);
+								BKE_group_object_add(group_node->link, ob_dst, scene, base_dst);
 							}
 							else {
 								is_cycle = TRUE;

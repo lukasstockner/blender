@@ -1601,7 +1601,7 @@ static void stampdata(Scene *scene, Object *camera, StampData *stamp_data, int d
 		RenderStats *stats = re ? RE_GetStats(re) : NULL;
 
 		if (stats && (scene->r.stamp & R_STAMP_RENDERTIME)) {
-			BLI_timestr(stats->lastframetime, text);
+			BLI_timestr(stats->lastframetime, text, sizeof(text));
 
 			BLI_snprintf(stamp_data->rendertime, sizeof(stamp_data->rendertime), do_prefix ? "RenderTime %s" : "%s", text);
 		}
@@ -3011,7 +3011,7 @@ static ImBuf *image_acquire_ibuf(Image *ima, ImageUser *iuser, void **lock_r)
 					*lock_r = ima;
 
 					/* XXX anim play for viewer nodes not yet supported */
-					frame = 0; // XXX iuser?iuser->framenr:0;
+					frame = 0; // XXX iuser ? iuser->framenr : 0;
 					ibuf = image_get_ibuf(ima, 0, frame);
 
 					if (!ibuf) {
@@ -3429,4 +3429,16 @@ float *BKE_image_get_float_pixels_for_frame(struct Image *image, int frame)
 		return NULL;
 
 	return pixels;
+}
+
+int BKE_image_sequence_guess_offset(Image *image)
+{
+	unsigned short numlen;
+	char head[FILE_MAX], tail[FILE_MAX];
+	char num[FILE_MAX] = {0};
+
+	BLI_stringdec(image->name, head, tail, &numlen);
+	BLI_strncpy(num, image->name + strlen(head), numlen + 1);
+
+	return atoi(num);
 }

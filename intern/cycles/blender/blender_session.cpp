@@ -126,8 +126,8 @@ void BlenderSession::reset_session(BL::BlendData b_data_, BL::Scene b_scene_)
 	SceneParams scene_params = BlenderSync::get_scene_params(b_scene, background);
 	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background);
 
-	width = b_render.resolution_x();
-	height = b_render.resolution_y();
+	width = (int)(b_render.resolution_x()*b_render.resolution_percentage()/100);
+	height = (int)(b_render.resolution_y()*b_render.resolution_percentage()/100);
 
 	if(scene->params.modified(scene_params) ||
 	   session->params.modified(session_params) ||
@@ -549,7 +549,7 @@ void BlenderSession::get_progress(float& progress, double& total_time)
 	session->progress.get_tile(tile, total_time, tile_time);
 
 	sample = session->progress.get_sample();
-	samples_per_tile = session->params.samples;
+	samples_per_tile = session->tile_manager.num_samples;
 
 	if(samples_per_tile && tile_total)
 		progress = ((float)sample / (float)(tile_total * samples_per_tile));
@@ -576,7 +576,7 @@ void BlenderSession::update_status_progress()
 		timestatus += ", "  + b_rlay_name;
 	timestatus += " | ";
 
-	BLI_timestr(total_time, time_str);
+	BLI_timestr(total_time, time_str, sizeof(time_str));
 	timestatus += "Elapsed: " + string(time_str) + " | ";
 
 	if(substatus.size() > 0)

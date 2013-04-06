@@ -83,7 +83,7 @@ struct GHashIterator;
 #define BMO_elem_flag_toggle(   bm, ele, oflag)      _bmo_elem_flag_toggle   (bm, (ele)->oflags, oflag)
 
 BLI_INLINE short _bmo_elem_flag_test(     BMesh *bm, BMFlagLayer *oflags, const short oflag);
-BLI_INLINE short _bmo_elem_flag_test_bool(BMesh *bm, BMFlagLayer *oflags, const short oflag);
+BLI_INLINE bool  _bmo_elem_flag_test_bool(BMesh *bm, BMFlagLayer *oflags, const short oflag);
 BLI_INLINE void  _bmo_elem_flag_enable(   BMesh *bm, BMFlagLayer *oflags, const short oflag);
 BLI_INLINE void  _bmo_elem_flag_disable(  BMesh *bm, BMFlagLayer *oflags, const short oflag);
 BLI_INLINE void  _bmo_elem_flag_set(      BMesh *bm, BMFlagLayer *oflags, const short oflag, int val);
@@ -391,10 +391,6 @@ int BMO_slot_map_count(BMOpSlot slot_args[BMO_OP_MAX_SLOTS], const char *slot_na
 void BMO_slot_map_insert(BMOperator *op, BMOpSlot *slot,
                          const void *element, const void *data, const int len);
 
-/* Counts the number of edges with tool flag toolflag around
- */
-int BMO_vert_edge_flags_count(BMesh *bm, BMVert *v, const short oflag);
-
 /* flags all elements in a mapping.  note that the mapping must only have
  * bmesh elements in it.*/
 void BMO_slot_map_to_flag(BMesh *bm, BMOpSlot slot_args[BMO_OP_MAX_SLOTS],
@@ -485,6 +481,8 @@ typedef struct BMOElemMapping {
 #define BMO_OP_SLOT_MAPPING_DATA(var) (void *)(((BMOElemMapping *)var) + 1)
 
 extern const int BMO_OPSLOT_TYPEINFO[BMO_OP_SLOT_TOTAL_TYPES];
+
+int BMO_opcode_from_opname(const char *opname);
 
 #ifdef __cplusplus
 }

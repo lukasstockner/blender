@@ -146,6 +146,7 @@
 #include "BKE_screen.h"
 #include "BKE_sequencer.h"
 #include "BKE_text.h" // for txt_extended_ascii_as_utf8
+#include "BKE_texture.h"
 #include "BKE_tracking.h"
 #include "BKE_sound.h"
 
@@ -1019,7 +1020,7 @@ static int fd_read_gzip_from_memory(FileData *filedata, void *buffer, unsigned i
 	if (err == Z_STREAM_END) {
 		return 0;
 	}
-	else if (err != Z_OK)  {
+	else if (err != Z_OK) {
 		printf("fd_read_gzip_from_memory: zlib error\n");
 		return 0;
 	}
@@ -1811,6 +1812,7 @@ static void lib_link_brush(FileData *fd, Main *main)
 			brush->id.flag -= LIB_NEED_LINK;
 			
 			brush->mtex.tex = newlibadr_us(fd, brush->id.lib, brush->mtex.tex);
+			brush->mask_mtex.tex = newlibadr_us(fd, brush->id.lib, brush->mask_mtex.tex);
 			brush->clone.image = newlibadr_us(fd, brush->id.lib, brush->clone.image);
 		}
 	}
@@ -2371,7 +2373,7 @@ static void lib_node_do_versions_group_indices(bNode *gnode)
 		int old_index = sock->to_index;
 		
 		for (link = ngroup->links.first; link; link = link->next) {
-			if (link->tonode->type == NODE_GROUP_OUTPUT && link->fromsock->own_index == old_index) {
+			if (link->tonode == NULL && link->fromsock->own_index == old_index) {
 				strcpy(sock->identifier, link->fromsock->identifier);
 				/* deprecated */
 				sock->own_index = link->fromsock->own_index;
@@ -2384,7 +2386,7 @@ static void lib_node_do_versions_group_indices(bNode *gnode)
 		int old_index = sock->to_index;
 		
 		for (link = ngroup->links.first; link; link = link->next) {
-			if (link->fromnode->type == NODE_GROUP_INPUT && link->tosock->own_index == old_index) {
+			if (link->fromnode == NULL && link->tosock->own_index == old_index) {
 				strcpy(sock->identifier, link->tosock->identifier);
 				/* deprecated */
 				sock->own_index = link->tosock->own_index;
@@ -4772,11 +4774,14 @@ static void direct_link_object(FileData *fd, Object *ob)
 	
 	/* weak weak... this was only meant as draw flag, now is used in give_base_to_objects too */
 	ob->flag &= ~OB_FROMGROUP;
-	
+
 	/* loading saved files with editmode enabled works, but for undo we like
-	 * to stay in object mode during undo presses so keep editmode disabled */
-	if (fd->memfile)
+	 * to stay in object mode during undo presses so keep editmode disabled.
+	 *
+	 * Also when linking in a file don't allow editmode: [#34776] */
+	if (fd->memfile || (ob->id.flag & (LIB_EXTERN | LIB_INDIRECT))) {
 		ob->mode &= ~(OB_MODE_EDIT | OB_MODE_PARTICLE_EDIT);
+	}
 	
 	ob->disp.first = ob->disp.last = NULL;
 	
@@ -6345,7 +6350,6 @@ static void direct_link_screen(FileData *fd, bScreen *sc)
 				
 				sclip->scopes.track_search = NULL;
 				sclip->scopes.track_preview = NULL;
-				sclip->draw_context = NULL;
 				sclip->scopes.ok = 0;
 			}
 		}
@@ -6531,7 +6535,7 @@ static void lib_link_group(FileData *fd, Main *main)
 				}
 			}
 			if (add_us) group->id.us++;
-			rem_from_group(group, NULL, NULL, NULL);	/* removes NULL entries */
+			BKE_group_object_unlink(group, NULL, NULL, NULL);	/* removes NULL entries */
 		}
 	}
 }
@@ -6583,8 +6587,6 @@ static void direct_link_movieclip(FileData *fd, MovieClip *clip)
 	clip->tracking.dopesheet.ok = 0;
 	clip->tracking.dopesheet.channels.first = clip->tracking.dopesheet.channels.last = NULL;
 	clip->tracking.dopesheet.coverage_segments.first = clip->tracking.dopesheet.coverage_segments.last = NULL;
-
-	clip->prefetch_ok = FALSE;
 
 	link_list(fd, &tracking->objects);
 	
@@ -7558,10 +7560,21 @@ static void do_versions_userdef(FileData *fd, BlendFileData *bfd)
 	
 	if (user == NULL) return;
 	
+	if (MAIN_VERSION_OLDER(bmain, 266, 4)) {
+		bTheme *btheme;
+		
+		/* themes for Node and Sequence editor were not using grid color, but back. we copy this over then */
+		for (btheme = user->themes.first; btheme; btheme = btheme->next) {
+			copy_v4_v4_char(btheme->tnode.grid, btheme->tnode.back);
+			copy_v4_v4_char(btheme->tseq.grid, btheme->tseq.back);
+		}
+	}
+	
 	if (bmain->versionfile < 267) {
 	
 		if (!DNA_struct_elem_find(fd->filesdna, "UserDef", "short", "image_gpubuffer_limit"))
-			user->image_gpubuffer_limit = 10;
+			user->image_gpubuffer_limit = 20;
+		
 	}
 }
 static void do_versions(FileData *fd, Library *lib, Main *main)
@@ -7920,7 +7933,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 						if (ba->axis==(float) 'x') ba->axis=OB_POSX;
 						else if (ba->axis==(float)'y') ba->axis=OB_POSY;
 						/* don't do an if/else to avoid imediate subversion bump*/
-//					ba->axis=((ba->axis == (float) 'x')?OB_POSX_X:OB_POSY);
+//						ba->axis=((ba->axis == (float)'x') ? OB_POSX_X : OB_POSY);
 					}
 				}
 			}
@@ -8672,7 +8685,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		/* Fix for bug #32982, internal_links list could get corrupted from r51630 onward.
 		 * Simply remove bad internal_links lists to avoid NULL pointers.
 		 */
-		FOREACH_NODETREE(main, ntree, id)
+		FOREACH_NODETREE(main, ntree, id) {
 			bNode *node;
 			bNodeLink *link, *nextlink;
 			
@@ -8684,7 +8697,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 					}
 				}
 			}
-		FOREACH_NODETREE_END
+		} FOREACH_NODETREE_END
 	}
 	
 	if (main->versionfile < 264 || (main->versionfile == 264 && main->subversionfile < 6)) {
@@ -8974,13 +8987,13 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		} FOREACH_NODETREE_END
 	}
 
-	if (!MAIN_VERSION_ATLEAST(main, 266, 2)) {
+	if (MAIN_VERSION_OLDER(main, 266, 2)) {
 		FOREACH_NODETREE(main, ntree, id) {
 			do_versions_nodetree_customnodes(ntree, ((ID *)ntree == id));
 		} FOREACH_NODETREE_END
 	}
 
-	if (!MAIN_VERSION_ATLEAST(main, 266, 2)) {
+	if (MAIN_VERSION_OLDER(main, 266, 2)) {
 		bScreen *sc;
 		for (sc= main->screen.first; sc; sc= sc->id.next) {
 			ScrArea *sa;
@@ -9028,13 +9041,13 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			
 			/* Only add interface nodes once.
 			 * In old Blender versions they will be removed automatically due to undefined type */
-			if (!MAIN_VERSION_ATLEAST(main, 266, 2))
+			if (MAIN_VERSION_OLDER(main, 266, 2))
 				ntree->flag |= NTREE_DO_VERSIONS_CUSTOMNODES_GROUP_CREATE_INTERFACE;
 		}
 		FOREACH_NODETREE_END
 	}
 
-	if (!MAIN_VERSION_ATLEAST(main, 266, 3)) {
+	if (MAIN_VERSION_OLDER(main, 266, 3)) {
 		{
 			/* Fix for a very old issue:
 			 * Node names were nominally made unique in r24478 (2.50.8), but the do_versions check
@@ -9054,8 +9067,26 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 
+	if (!MAIN_VERSION_ATLEAST(main, 266, 4)) {
+		Brush *brush;
+		for (brush = main->brush.first; brush; brush = brush->id.next) {
+			default_mtex(&brush->mask_mtex);
+		}
+	}
+
 	if (main->versionfile < 267) {
-		
+		//if(!DNA_struct_elem_find(fd->filesdna, "Brush", "int", "stencil_pos")) {
+		Brush *brush;
+
+		for (brush = main->brush.first; brush; brush = brush->id.next) {
+			if (brush->stencil_dimension[0] == 0) {
+				brush->stencil_dimension[0] = 256;
+				brush->stencil_dimension[1] = 256;
+				brush->stencil_pos[0] = 256;
+				brush->stencil_pos[1] = 256;
+			}
+		}
+
 		/* TIP: to initialize new variables added, use the new function
 		   DNA_struct_elem_find(fd->filesdna, "structname", "typename", "varname")
 		   example: 
@@ -10291,7 +10322,7 @@ static int object_in_any_scene(Main *mainvar, Object *ob)
 	return 0;
 }
 
-static void give_base_to_objects(Main *mainvar, Scene *sce, Library *lib, const short idcode, const short is_link)
+static void give_base_to_objects(Main *mainvar, Scene *sce, Library *lib, const short idcode, const short is_link, const short active_lay)
 {
 	Object *ob;
 	Base *base;
@@ -10335,6 +10366,9 @@ static void give_base_to_objects(Main *mainvar, Scene *sce, Library *lib, const 
 				if (do_it) {
 					base = MEM_callocN(sizeof(Base), "add_ext_base");
 					BLI_addtail(&sce->base, base);
+					
+					if (active_lay) ob->lay = sce->lay;
+					
 					base->lay = ob->lay;
 					base->object = ob;
 					base->flag = ob->flag;
@@ -10487,13 +10521,13 @@ static ID *append_named_part_ex(const bContext *C, Main *mainl, FileData *fd, co
 	return id;
 }
 
-ID *BLO_library_append_named_part(Main *mainl, BlendHandle** bh, const char *idname, const int idcode)
+ID *BLO_library_append_named_part(Main *mainl, BlendHandle **bh, const char *idname, const int idcode)
 {
 	FileData *fd = (FileData*)(*bh);
 	return append_named_part(mainl, fd, idname, idcode);
 }
 
-ID *BLO_library_append_named_part_ex(const bContext *C, Main *mainl, BlendHandle** bh, const char *idname, const int idcode, const short flag)
+ID *BLO_library_append_named_part_ex(const bContext *C, Main *mainl, BlendHandle **bh, const char *idname, const int idcode, const short flag)
 {
 	FileData *fd = (FileData*)(*bh);
 	return append_named_part_ex(C, mainl, fd, idname, idcode, flag);
@@ -10541,7 +10575,7 @@ static Main *library_append_begin(Main *mainvar, FileData **fd, const char *file
 	return mainl;
 }
 
-Main *BLO_library_append_begin(Main *mainvar, BlendHandle** bh, const char *filepath)
+Main *BLO_library_append_begin(Main *mainvar, BlendHandle **bh, const char *filepath)
 {
 	FileData *fd = (FileData*)(*bh);
 	return library_append_begin(mainvar, &fd, filepath);
@@ -10593,7 +10627,7 @@ static void library_append_end(const bContext *C, Main *mainl, FileData **fd, in
 				/* don't instance anything when linking in scenes, assume the scene its self instances the data */
 			}
 			else {
-				give_base_to_objects(mainvar, scene, curlib, idcode, is_link);
+				give_base_to_objects(mainvar, scene, curlib, idcode, is_link, flag & FILE_ACTIVELAY);
 				
 				if (flag & FILE_GROUP_INSTANCE) {
 					give_base_to_groups(mainvar, scene);
@@ -10615,7 +10649,7 @@ static void library_append_end(const bContext *C, Main *mainl, FileData **fd, in
 	}
 }
 
-void BLO_library_append_end(const bContext *C, struct Main *mainl, BlendHandle** bh, int idcode, short flag)
+void BLO_library_append_end(const bContext *C, struct Main *mainl, BlendHandle **bh, int idcode, short flag)
 {
 	FileData *fd = (FileData*)(*bh);
 	library_append_end(C, mainl, &fd, idcode, flag);

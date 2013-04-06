@@ -71,11 +71,13 @@
 #include "BLI_blenlib.h"
 #include "BLI_dynstr.h"
 #include "BLI_utildefines.h"
-#include "BKE_bpath.h"
+
+#include "BLF_translation.h"
 
 #include "BKE_action.h"
 #include "BKE_animsys.h"
 #include "BKE_armature.h"
+#include "BKE_bpath.h"
 #include "BKE_brush.h"
 #include "BKE_camera.h"
 #include "BKE_context.h"
@@ -1048,6 +1050,7 @@ ID *BKE_libblock_find_name(const short type, const char *name)      /* type: "OB
 	return BLI_findstring(lb, name, offsetof(ID, name) + 2);
 }
 
+#if 0 /* UNUSED */
 static void get_flags_for_id(ID *id, char *buf) 
 {
 	int isfake = id->flag & LIB_FAKEUSER;
@@ -1128,7 +1131,6 @@ static void IDnames_to_dyn_pupstring(DynStr *pupds, ListBase *lb, ID *link, shor
 	}
 }
 
-
 /* used by headerbuttons.c buttons.c editobject.c editseq.c */
 /* if (nr == NULL) no MAX_IDPUP, this for non-header browsing */
 void IDnames_to_pupstring(const char **str, const char *title, const char *extraops, ListBase *lb, ID *link, short *nr)
@@ -1153,7 +1155,6 @@ void IDnames_to_pupstring(const char **str, const char *title, const char *extra
 }
 
 /* skips viewer images */
-#if 0 /* unused */
 void IMAnames_to_pupstring(const char **str, const char *title, const char *extraops, ListBase *lb, ID *link, short *nr)
 {
 	DynStr *pupds = BLI_dynstr_new();
@@ -1355,25 +1356,23 @@ bool new_id(ListBase *lb, ID *id, const char *tname)
 	char name[MAX_ID_NAME - 2];
 
 	/* if library, don't rename */
-	if (id->lib) return false;
+	if (id->lib)
+		return false;
 
 	/* if no libdata given, look up based on ID */
-	if (lb == NULL) lb = which_libbase(G.main, GS(id->name));
+	if (lb == NULL)
+		lb = which_libbase(G.main, GS(id->name));
 
 	/* if no name given, use name of current ID
 	 * else make a copy (tname args can be const) */
 	if (tname == NULL)
 		tname = id->name + 2;
 
-	strncpy(name, tname, sizeof(name) - 1);
-
-	/* if result > MAX_ID_NAME-3, strncpy don't put the final '\0' to name.
-	 * easier to assign each time then to check if its needed */
-	name[sizeof(name) - 1] = 0;
+	BLI_strncpy(name, tname, sizeof(name));
 
 	if (name[0] == '\0') {
 		/* disallow empty names */
-		strcpy(name, ID_FALLBACK_NAME);
+		BLI_strncpy(name, DATA_(ID_FALLBACK_NAME), sizeof(name));
 	}
 	else {
 		/* disallow non utf8 chars,

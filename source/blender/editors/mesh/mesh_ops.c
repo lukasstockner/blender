@@ -28,12 +28,7 @@
  *  \ingroup edmesh
  */
 
-
-
-
-
 #include "BLI_math.h"
-
 
 #include "RNA_access.h"
 
@@ -44,8 +39,7 @@
 #include "ED_mesh.h"
 #include "ED_screen.h"
 
-
-#include "mesh_intern.h"
+#include "mesh_intern.h"  /* own include */
 
 /**************************** registration **********************************/
 
@@ -158,6 +152,7 @@ void ED_operatortypes_mesh(void)
 
 	WM_operatortype_append(MESH_OT_bridge_edge_loops);
 	WM_operatortype_append(MESH_OT_inset);
+	WM_operatortype_append(MESH_OT_poke);
 	WM_operatortype_append(MESH_OT_wireframe);
 	WM_operatortype_append(MESH_OT_edge_split);
 
@@ -266,7 +261,7 @@ void ED_keymap_mesh(wmKeyConfig *keyconf)
 	
 	WM_keymap_add_item(keymap, "MESH_OT_loopcut_slide", RKEY, KM_PRESS, KM_CTRL, 0);	
 	WM_keymap_add_item(keymap, "MESH_OT_inset", IKEY, KM_PRESS, 0, 0);
-
+	WM_keymap_add_item(keymap, "MESH_OT_poke", PKEY, KM_PRESS, KM_ALT, 0);
 	kmi = WM_keymap_add_item(keymap, "MESH_OT_bevel", BKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_boolean_set(kmi->ptr, "vertex_only", false);
 	kmi = WM_keymap_add_item(keymap, "MESH_OT_bevel", BKEY, KM_PRESS, KM_CTRL | KM_SHIFT, 0);

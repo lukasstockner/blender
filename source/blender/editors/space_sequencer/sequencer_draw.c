@@ -896,11 +896,9 @@ static ImBuf *sequencer_make_scope(Scene *scene, ImBuf *ibuf, ImBuf *(*make_scop
 {
 	ImBuf *display_ibuf = IMB_dupImBuf(ibuf);
 	ImBuf *scope;
-
-	if (display_ibuf->rect_float) {
-		IMB_colormanagement_imbuf_make_display_space(display_ibuf, &scene->view_settings,
+	
+	IMB_colormanagement_imbuf_make_display_space(display_ibuf, &scene->view_settings,
 		                                             &scene->display_settings);
-	}
 
 	scope = make_scope_cb(display_ibuf);
 
@@ -922,9 +920,11 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	float col[3];
 	GLuint texid;
 	GLuint last_texid;
-	unsigned char *display_buffer;
+	void *display_buffer;
 	void *cache_handle = NULL;
 	const int is_imbuf = ED_space_sequencer_check_show_imbuf(sseq);
+	int format, type;
+	bool glsl_used = false;
 
 	if (G.is_rendering == FALSE && (scene->r.seq_flag & R_SEQ_GL_PREV) == 0) {
 		/* stop all running jobs, except screen one. currently previews frustrate Render
@@ -1042,13 +1042,61 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		}
 
 		display_buffer = (unsigned char *)ibuf->rect;
+		format = GL_RGBA;
+		type = GL_UNSIGNED_BYTE;
 	}
 	else {
-		display_buffer = IMB_display_buffer_acquire_ctx(C, ibuf, &cache_handle);
+		if (ibuf->rect_float) {
+			display_buffer = ibuf->rect_float;
+
+			if (ibuf->channels == 4) {
+				format = GL_RGBA;
+			}
+			else if (ibuf->channels == 3) {
+				format = GL_RGB;
+			}
+			else {
+				BLI_assert(!"Incompatible number of channels for float buffer in sequencer");
+				format = GL_RGBA;
+				display_buffer = NULL;
+			}
+
+			type = GL_FLOAT;
+
+			if (ibuf->float_colorspace) {
+				glsl_used = IMB_colormanagement_setup_glsl_draw_from_space_ctx(C, ibuf->float_colorspace, TRUE);
+			}
+			else {
+				glsl_used = IMB_colormanagement_setup_glsl_draw_ctx(C, TRUE);
+			}
+		}
+		else if (ibuf->rect) {
+			display_buffer = ibuf->rect;
+			format = GL_RGBA;
+			type = GL_UNSIGNED_BYTE;
+
+			glsl_used = IMB_colormanagement_setup_glsl_draw_from_space_ctx(C, ibuf->rect_colorspace, FALSE);
+		}
+		else {
+			format = GL_RGBA;
+			type = GL_UNSIGNED_BYTE;
+			display_buffer = NULL;
+		}
 	}
 
 	/* setting up the view - actual drawing starts here */
 	UI_view2d_view_ortho(v2d);
+
+	/* only draw alpha for main buffer */
+	if (sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
+		if (sseq->flag & SEQ_USE_ALPHA) {
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+			fdrawcheckerboard(v2d->tot.xmin, v2d->tot.ymin, v2d->tot.xmax, v2d->tot.ymax);
+			glColor4f(1.0, 1.0, 1.0, 1.0);
+		}
+	}
 
 	last_texid = glaGetOneInteger(GL_TEXTURE_2D);
 	glEnable(GL_TEXTURE_2D);
@@ -1059,12 +1107,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, ibuf->x, ibuf->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, display_buffer);
-
-	if (sseq->flag & SEQ_USE_ALPHA) {
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	}
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, ibuf->x, ibuf->y, 0, format, type, display_buffer);
 
 	glBegin(GL_QUADS);
 
@@ -1097,9 +1140,12 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	glEnd();
 	glBindTexture(GL_TEXTURE_2D, last_texid);
 	glDisable(GL_TEXTURE_2D);
-	if (sseq->flag & SEQ_USE_ALPHA)
+	if (sseq->mainb == SEQ_DRAW_IMG_IMBUF && sseq->flag & SEQ_USE_ALPHA)
 		glDisable(GL_BLEND);
 	glDeleteTextures(1, &texid);
+
+	if (glsl_used)
+		IMB_colormanagement_finish_glsl_draw();
 
 	if (sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
 

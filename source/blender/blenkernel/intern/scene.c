@@ -57,6 +57,8 @@
 #include "BLI_callbacks.h"
 #include "BLI_string.h"
 
+#include "BLF_translation.h"
+
 #include "BKE_anim.h"
 #include "BKE_animsys.h"
 #include "BKE_action.h"
@@ -76,9 +78,8 @@
 #include "BKE_rigidbody.h"
 #include "BKE_scene.h"
 #include "BKE_sequencer.h"
-#include "BKE_world.h"
-
 #include "BKE_sound.h"
+#include "BKE_world.h"
 
 #include "RE_engine.h"
 
@@ -1078,7 +1079,7 @@ static void scene_depsgraph_hack(Scene *scene, Scene *scene_parent)
 					if (go->ob)
 						go->ob->recalc |= recalc;
 				}
-				group_handle_recalc_and_update(scene_parent, ob, ob->dup_group);
+				BKE_group_handle_recalc_and_update(scene_parent, ob, ob->dup_group);
 			}
 		}
 	}
@@ -1121,7 +1122,7 @@ static void scene_update_tagged_recursive(Main *bmain, Scene *scene, Scene *scen
 		BKE_object_handle_update_ex(scene_parent, ob, scene->rigidbody_world);
 		
 		if (ob->dup_group && (ob->transflag & OB_DUPLIGROUP))
-			group_handle_recalc_and_update(scene_parent, ob, ob->dup_group);
+			BKE_group_handle_recalc_and_update(scene_parent, ob, ob->dup_group);
 			
 		/* always update layer, so that animating layers works (joshua july 2010) */
 		/* XXX commented out, this has depsgraph issues anyway - and this breaks setting scenes
@@ -1262,11 +1263,11 @@ SceneRenderLayer *BKE_scene_add_render_layer(Scene *sce, const char *name)
 	SceneRenderLayer *srl;
 
 	if (!name)
-		name = "RenderLayer";
+		name = DATA_("RenderLayer");
 
 	srl = MEM_callocN(sizeof(SceneRenderLayer), "new render layer");
 	BLI_strncpy(srl->name, name, sizeof(srl->name));
-	BLI_uniquename(&sce->r.layers, srl, "RenderLayer", '.', offsetof(SceneRenderLayer, name), sizeof(srl->name));
+	BLI_uniquename(&sce->r.layers, srl, DATA_("RenderLayer"), '.', offsetof(SceneRenderLayer, name), sizeof(srl->name));
 	BLI_addtail(&sce->r.layers, srl);
 
 	/* note, this is also in render, pipeline.c, to make layer when scenedata doesnt have it */

@@ -43,12 +43,12 @@
 #endif   
 #include "MEM_guardedalloc.h"
 
-#include "BLO_readfile.h" 
-
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
+
+#include "BLO_readfile.h"
 
 #include "DNA_world_types.h"
 #include "DNA_camera_types.h"
@@ -304,7 +304,17 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 			sce->r.alphamode = R_ADDSKY;
 
 		sce->r.cfra = scene->r.cfra;
-		BLI_strncpy(sce->r.engine, scene->r.engine, sizeof(sce->r.engine));
+
+		if (id_type == ID_TE && sp->pr_method == PR_ICON_RENDER) {
+			/* force blender internal for texture icons render,
+			 * seems commonly used render engines does not support
+			 * such kind of rendering
+			 */
+			BLI_strncpy(sce->r.engine, "BLENDER_RENDER", sizeof(sce->r.engine));
+		}
+		else {
+			BLI_strncpy(sce->r.engine, scene->r.engine, sizeof(sce->r.engine));
+		}
 		
 		if (id_type == ID_MA) {
 			Material *mat = NULL, *origmat = (Material *)id;

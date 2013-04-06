@@ -120,6 +120,7 @@ typedef struct bNodeSocketType {
 	void (*interface_draw_color)(struct bContext *C, struct PointerRNA *ptr, float *r_color);
 	void (*interface_register_properties)(struct bNodeTree *ntree, struct bNodeSocket *stemp, struct StructRNA *data_srna);
 	void (*interface_init_socket)(struct bNodeTree *ntree, struct bNodeSocket *stemp, struct bNode *node, struct bNodeSocket *sock, const char *data_path);
+	void (*interface_verify_socket)(struct bNodeTree *ntree, struct bNodeSocket *stemp, struct bNode *node, struct bNodeSocket *sock, const char *data_path);
 	void (*interface_from_socket)(struct bNodeTree *ntree, struct bNodeSocket *stemp, struct bNode *node, struct bNodeSocket *sock);
 	
 	/* RNA integration */
@@ -443,9 +444,6 @@ const char *	nodeStaticSocketInterfaceType(int type, int subtype);
 	BLI_ghashIterator_free(__node_socket_type_iter__); \
 }
 
-void			nodeMakeDynamicType(struct bNode *node);
-int				nodeDynamicUnlinkText(struct ID *txtid);
-
 struct bNodeSocket *nodeFindSocket(struct bNode *node, int in_out, const char *identifier);
 struct bNodeSocket *nodeAddSocket(struct bNodeTree *ntree, struct bNode *node, int in_out, const char *idname,
                                   const char *identifier, const char *name);
@@ -566,7 +564,7 @@ void            BKE_node_preview_clear(struct bNodePreview *preview);
 void            BKE_node_preview_clear_tree(struct bNodeTree *ntree);
 
 void            BKE_node_preview_sync_tree(struct bNodeTree *to_ntree, struct bNodeTree *from_ntree);
-void            BKE_node_preview_merge_tree(struct bNodeTree *to_ntree, struct bNodeTree *from_ntree);
+void            BKE_node_preview_merge_tree(struct bNodeTree *to_ntree, struct bNodeTree *from_ntree, bool remove_old);
 
 void            BKE_node_preview_set_pixel(struct bNodePreview *preview, const float col[4], int x, int y, int do_manage);
 
@@ -574,9 +572,6 @@ void            BKE_node_preview_set_pixel(struct bNodePreview *preview, const f
 /* ************** NODE TYPE ACCESS *************** */
 
 const char     *nodeLabel(struct bNode *node);
-struct bNodeTree *nodeGroupEditGet(struct bNode *node);
-struct bNodeTree *nodeGroupEditSet(struct bNode *node, int edit);
-void            nodeGroupEditClear(struct bNode *node);
 
 int				nodeGroupPoll(struct bNodeTree *nodetree, struct bNodeTree *grouptree);
 
@@ -628,70 +623,46 @@ void BKE_node_tree_unlink_id(ID *id, struct bNodeTree *ntree);
  *
  * Examples:
  *
- * FOREACH_NODETREE(bmain, nodetree)
+ * FOREACH_NODETREE(bmain, nodetree) {
  *     if (id == nodetree)
  *         printf("This is a linkable node tree");
- * FOREACH_NODETREE_END
+ * } FOREACH_NODETREE_END
  *
- * FOREACH_NODETREE(bmain, nodetree)
+ * FOREACH_NODETREE(bmain, nodetree) {
  *     if (nodetree->idname == "ShaderNodeTree")
  *         printf("This is a shader node tree);
  *     if (GS(id) == ID_MA)
  *         printf(" and it's owned by a material");
- * FOREACH_NODETREE_END
+ * } FOREACH_NODETREE_END
  */
+
+/* should be an opaque type, only for internal use by BKE_node_tree_iter_*** */
+struct NodeTreeIterStore {
+	bNodeTree *ngroup;
+	Scene *scene;
+	Material *mat;
+	Tex *tex;
+	Lamp *lamp;
+	World *world;
+};
+
+void BKE_node_tree_iter_init(struct NodeTreeIterStore *ntreeiter, struct Main *bmain);
+bool BKE_node_tree_iter_step(struct NodeTreeIterStore *ntreeiter,
+                             struct bNodeTree **r_nodetree, struct ID **r_id);
 
 #define FOREACH_NODETREE(bmain, _nodetree, _id) \
 { \
+	struct NodeTreeIterStore _nstore; \
 	bNodeTree *_nodetree; \
 	ID *_id; \
-	bNodeTree *_ngroup = bmain->nodetree.first; \
-	Scene *_scene = bmain->scene.first; \
-	Material *_mat = bmain->mat.first; \
-	Tex *_tex = bmain->tex.first; \
-	Lamp *_lamp = bmain->lamp.first; \
-	World *_world = bmain->world.first; \
 	/* avoid compiler warning about unused variables */ \
-	(void)_id; \
-	(void)_nodetree; \
-	do { \
-		if (_ngroup) { \
-			_nodetree = _ngroup; \
-			_id = (ID *)_ngroup; \
-			_ngroup = _ngroup->id.next; \
-		} \
-		else if (_scene) { \
-			_nodetree = _scene->nodetree; \
-			_id = (ID *)_scene; \
-			_scene = _scene->id.next; \
-		} \
-		else if (_mat) { \
-			_nodetree = _mat->nodetree; \
-			_id = (ID *)_mat; \
-			_mat = _mat->id.next; \
-		} \
-		else if (_tex) { \
-			_nodetree = _tex->nodetree; \
-			_id = (ID *)_tex; \
-			_tex = _tex->id.next; \
-		} \
-		else if (_lamp) { \
-			_nodetree = _lamp->nodetree; \
-			_id = (ID *)_lamp; \
-			_lamp = _lamp->id.next; \
-		} \
-		else if (_world) { \
-			_nodetree = _world->nodetree; \
-			_id = (ID *)_world; \
-			_world = _world->id.next; \
-		} \
-		else \
-			break; \
+	BKE_node_tree_iter_init(&_nstore, bmain); \
+	while (BKE_node_tree_iter_step(&_nstore, &_nodetree, &_id) == true) { \
 		if (_nodetree) {
 
 #define FOREACH_NODETREE_END \
 		} \
-	} while (TRUE); \
+	} \
 }
 
 /* ************** SHADER NODES *************** */
@@ -775,6 +746,7 @@ struct ShadeResult;
 #define SH_NODE_TANGENT					174
 #define SH_NODE_NORMAL_MAP				175
 #define SH_NODE_HAIR_INFO				176
+#define SH_NODE_SUBSURFACE_SCATTERING	177
 
 /* custom defines options for Material node */
 #define SH_NODE_MAT_DIFF   1

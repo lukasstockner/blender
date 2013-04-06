@@ -30,7 +30,6 @@
  */
 
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 
 #include "BLI_math.h"
 
@@ -50,7 +49,7 @@
 #include "ED_screen.h"
 #include "ED_object.h"
 
-#include "mesh_intern.h"
+#include "mesh_intern.h"  /* own include */
 
 /* ********* add primitive operators ************* */
 
@@ -108,7 +107,7 @@ static int add_primitive_plane_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 
 	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer, NULL);
-	obedit = make_prim_init(C, DATA_("Plane"), &dia, mat, &state, loc, rot, layer);
+	obedit = make_prim_init(C, CTX_DATA_(BLF_I18NCONTEXT_ID_MESH, "Plane"), &dia, mat, &state, loc, rot, layer);
 	em = BMEdit_FromObject(obedit);
 
 	if (!EDBM_op_call_and_selectf(em, op, "verts.out",
@@ -149,7 +148,7 @@ static int add_primitive_cube_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 
 	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer, NULL);
-	obedit = make_prim_init(C, DATA_("Cube"), &dia, mat, &state, loc, rot, layer);
+	obedit = make_prim_init(C, CTX_DATA_(BLF_I18NCONTEXT_ID_MESH, "Cube"), &dia, mat, &state, loc, rot, layer);
 	em = BMEdit_FromObject(obedit);
 
 	if (!EDBM_op_call_and_selectf(em, op, "verts.out", "create_cube matrix=%m4 size=%f", mat, dia * 2.0f)) {
@@ -198,7 +197,7 @@ static int add_primitive_circle_exec(bContext *C, wmOperator *op)
 	cap_tri = (cap_end == 2);
 
 	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer, NULL);
-	obedit = make_prim_init(C, DATA_("Circle"), &dia, mat, &state, loc, rot, layer);
+	obedit = make_prim_init(C, CTX_DATA_(BLF_I18NCONTEXT_ID_MESH, "Circle"), &dia, mat, &state, loc, rot, layer);
 	em = BMEdit_FromObject(obedit);
 
 	if (!EDBM_op_call_and_selectf(em, op, "verts.out",
@@ -253,7 +252,7 @@ static int add_primitive_cylinder_exec(bContext *C, wmOperator *op)
 	cap_tri = (cap_end == 2);
 
 	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer, NULL);
-	obedit = make_prim_init(C, DATA_("Cylinder"), &dia, mat, &state, loc, rot, layer);
+	obedit = make_prim_init(C, CTX_DATA_(BLF_I18NCONTEXT_ID_MESH, "Cylinder"), &dia, mat, &state, loc, rot, layer);
 	em = BMEdit_FromObject(obedit);
 
 	if (!EDBM_op_call_and_selectf(
@@ -314,7 +313,7 @@ static int add_primitive_cone_exec(bContext *C, wmOperator *op)
 	cap_tri = (cap_end == 2);
 
 	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer, NULL);
-	obedit = make_prim_init(C, DATA_("Cone"), &dia, mat, &state, loc, rot, layer);
+	obedit = make_prim_init(C, CTX_DATA_(BLF_I18NCONTEXT_ID_MESH, "Cone"), &dia, mat, &state, loc, rot, layer);
 	em = BMEdit_FromObject(obedit);
 
 	if (!EDBM_op_call_and_selectf(
@@ -371,7 +370,7 @@ static int add_primitive_grid_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 
 	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer, NULL);
-	obedit = make_prim_init(C, DATA_("Grid"), &dia, mat, &state, loc, rot, layer);
+	obedit = make_prim_init(C, CTX_DATA_(BLF_I18NCONTEXT_ID_MESH, "Grid"), &dia, mat, &state, loc, rot, layer);
 	em = BMEdit_FromObject(obedit);
 
 	if (!EDBM_op_call_and_selectf(em, op, "verts.out",
@@ -427,7 +426,7 @@ static int add_primitive_monkey_exec(bContext *C, wmOperator *op)
 	if (!view_aligned)
 		rot[0] += (float)M_PI / 2.0f;
 
-	obedit = make_prim_init(C, DATA_("Suzanne"), &dia, mat, &state, loc, rot, layer);
+	obedit = make_prim_init(C, CTX_DATA_(BLF_I18NCONTEXT_ID_MESH, "Suzanne"), &dia, mat, &state, loc, rot, layer);
 	mat[0][0] *= dia;
 	mat[1][1] *= dia;
 	mat[2][2] *= dia;
@@ -470,7 +469,7 @@ static int add_primitive_uvsphere_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 
 	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer, NULL);
-	obedit = make_prim_init(C, DATA_("Sphere"), &dia, mat, &state, loc, rot, layer);
+	obedit = make_prim_init(C, CTX_DATA_(BLF_I18NCONTEXT_ID_MESH, "Sphere"), &dia, mat, &state, loc, rot, layer);
 	em = BMEdit_FromObject(obedit);
 
 	if (!EDBM_op_call_and_selectf(em, op, "verts.out",
@@ -522,7 +521,7 @@ static int add_primitive_icosphere_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 
 	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer, NULL);
-	obedit = make_prim_init(C, DATA_("Icosphere"), &dia, mat, &state, loc, rot, layer);
+	obedit = make_prim_init(C, CTX_DATA_(BLF_I18NCONTEXT_ID_MESH, "Icosphere"), &dia, mat, &state, loc, rot, layer);
 	em = BMEdit_FromObject(obedit);
 
 	if (!EDBM_op_call_and_selectf(

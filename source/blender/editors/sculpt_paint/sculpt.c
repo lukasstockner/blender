@@ -968,7 +968,7 @@ static float tex_strength(SculptSession *ss, Brush *br,
 			x += br->mtex.ofs[0];
 			y += br->mtex.ofs[1];
 
-			avg = paint_get_tex_pixel(br, x, y, ss->tex_pool);
+			avg = paint_get_tex_pixel(&br->mtex, x, y, ss->tex_pool);
 
 			avg += br->texture_sample_bias;
 		}
@@ -3220,8 +3220,15 @@ static void sculpt_flush_stroke_deform(Sculpt *sd, Object *ob)
 		PBVHNode **nodes;
 		float (*vertCos)[3] = NULL;
 
-		if (ss->kb)
-			vertCos = MEM_callocN(sizeof(*vertCos) * me->totvert, "flushStrokeDeofrm keyVerts");
+		if (ss->kb) {
+			vertCos = MEM_mallocN(sizeof(*vertCos) * me->totvert, "flushStrokeDeofrm keyVerts");
+
+			/* mesh could have isolated verts which wouldn't be in BVH,
+			 * to deal with this we copy old coordinates over new ones
+			 * and then update coordinates for all vertices from BVH
+			 */
+			memcpy(vertCos, ss->orig_cos, 3 * sizeof(float) * me->totvert);
+		}
 
 		BKE_pbvh_search_gather(ss->pbvh, NULL, NULL, &nodes, &totnode);
 
@@ -3456,7 +3463,7 @@ void sculpt_update_mesh_elements(Scene *scene, Sculpt *sd, Object *ob,
 
 			free_sculptsession_deformMats(ss);
 
-			ss->orig_cos = (ss->kb) ? BKE_key_convert_to_vertcos(ob, ss->kb) : mesh_getVertexCos(me, NULL);
+			ss->orig_cos = (ss->kb) ? BKE_key_convert_to_vertcos(ob, ss->kb) : BKE_mesh_vertexCos_get(me, NULL);
 
 			crazyspace_build_sculpt(scene, ob, &ss->deform_imats, &ss->deform_cos);
 			BKE_pbvh_apply_vertCos(ss->pbvh, ss->deform_cos);

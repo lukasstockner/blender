@@ -37,11 +37,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_context.h"
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
-#include "BKE_mask.h"
-
 #include "IMB_colormanagement.h"
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
@@ -51,6 +46,11 @@
 #include "BLI_string.h"
 #include "BLI_rect.h"
 #include "BLI_math_base.h"
+
+#include "BKE_context.h"
+#include "BKE_movieclip.h"
+#include "BKE_tracking.h"
+#include "BKE_mask.h"
 
 #include "ED_screen.h"
 #include "ED_clip.h"
@@ -261,62 +261,34 @@ static void draw_movieclip_buffer(const bContext *C, SpaceClip *sc, ARegion *ar,
 		glRectf(x, y, x + zoomx * width, y + zoomy * height);
 	}
 	else {
-		unsigned char *display_buffer;
-		void *cache_handle;
+		MovieClip *clip = ED_space_clip_get_clip(sc);
+		int filter = GL_LINEAR;
 
-		display_buffer = IMB_display_buffer_acquire_ctx(C, ibuf, &cache_handle);
+		/* checkerboard for case alpha */
+		if (ibuf->planes == 32) {
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-		if (display_buffer) {
-			int need_fallback = 1;
-
-			/* checkerboard for case alpha */
-			if (ibuf->planes == 32) {
-				glEnable(GL_BLEND);
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-				fdrawcheckerboard(x, y, x + zoomx * ibuf->x, y + zoomy * ibuf->y);
-			}
-
-			if (ED_space_clip_texture_buffer_supported(sc)) {
-				if (ED_space_clip_load_movieclip_buffer(sc, ibuf, display_buffer)) {
-					glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-
-					glPushMatrix();
-					glTranslatef(x, y, 0.0f);
-					glScalef(zoomx, zoomy, 1.0f);
-
-					glBegin(GL_QUADS);
-					glTexCoord2f(0.0f, 0.0f); glVertex2f(0.0f,  0.0f);
-					glTexCoord2f(1.0f, 0.0f); glVertex2f(width, 0.0f);
-					glTexCoord2f(1.0f, 1.0f); glVertex2f(width, height);
-					glTexCoord2f(0.0f, 1.0f); glVertex2f(0.0f,  height);
-					glEnd();
-
-					glPopMatrix();
-
-					ED_space_clip_unload_movieclip_buffer(sc);
-
-					need_fallback = 0;
-				}
-			}
-
-			/* if texture buffers aren't efficiently supported or texture is too large to
-			 * be binder fallback to simple draw pixels solution */
-			if (need_fallback) {
-				/* set zoom */
-				glPixelZoom(zoomx * width / ibuf->x, zoomy * height / ibuf->y);
-
-				glaDrawPixelsAuto(x, y, ibuf->x, ibuf->y, GL_UNSIGNED_BYTE, GL_NEAREST, display_buffer);
-
-				/* reset zoom */
-				glPixelZoom(1.0f, 1.0f);
-			}
-
-			if (ibuf->planes == 32)
-				glDisable(GL_BLEND);
+			fdrawcheckerboard(x, y, x + zoomx * ibuf->x, y + zoomy * ibuf->y);
 		}
 
-		IMB_display_buffer_release(cache_handle);
+		/* non-scaled proxy shouldn't use filtering */
+		if ((clip->flag & MCLIP_USE_PROXY) == 0 ||
+		    ELEM(sc->user.render_size, MCLIP_PROXY_RENDER_SIZE_FULL, MCLIP_PROXY_RENDER_SIZE_100))
+		{
+			filter = GL_NEAREST;
+		}
+
+		/* set zoom */
+		glPixelZoom(zoomx * width / ibuf->x, zoomy * height / ibuf->y);
+
+		glaDrawImBuf_glsl_ctx(C, ibuf, x, y, filter);
+
+		/* reset zoom */
+		glPixelZoom(1.0f, 1.0f);
+
+		if (ibuf->planes == 32)
+			glDisable(GL_BLEND);
 	}
 }
 
@@ -1484,8 +1456,6 @@ void clip_draw_main(const bContext *C, SpaceClip *sc, ARegion *ar)
 	if (ibuf) {
 		draw_movieclip_buffer(C, sc, ar, ibuf, width, height, zoomx, zoomy);
 		IMB_freeImBuf(ibuf);
-
-		clip_start_prefetch_job(C);
 	}
 	else {
 		ED_region_grid_draw(ar, zoomx, zoomy);

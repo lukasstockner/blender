@@ -393,7 +393,7 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 
 		if (fpixels) {
 			glTexSubImage1D(tex->target, 0, 0, w, format, type,
-				pixels? pixels: fpixels);
+				pixels ? pixels : fpixels);
 
 			if (tex->w > w)
 				GPU_glTexSubImageEmpty(tex->target, format, w, 0,
@@ -402,11 +402,11 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 	}
 	else {
 		glTexImage2D(tex->target, 0, internalformat, tex->w, tex->h, 0,
-			format, type, NULL);
+		             format, type, NULL);
 
 		if (fpixels) {
 			glTexSubImage2D(tex->target, 0, 0, 0, w, h,
-				format, type, pixels? pixels: fpixels);
+				format, type, pixels ? pixels : fpixels);
 
 			if (tex->w > w)
 				GPU_glTexSubImageEmpty(tex->target, format, w, 0, tex->w-w, tex->h);
@@ -677,7 +677,7 @@ GPUTexture *GPU_texture_create_vsm_shadow_map(int size, char err_out[256])
 		/* Now we tweak some of the settings */
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, size, size, 0, GL_RG, GL_FLOAT, 0);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, size, size, 0, GL_RG, GL_FLOAT, NULL);
 
 		GPU_texture_unbind(tex);
 	}
@@ -1136,6 +1136,18 @@ static void shader_print_errors(const char *task, char *log, const char *code)
 	fprintf(stderr, "%s\n", log);
 }
 
+static const char *gpu_shader_standard_extensions(void)
+{
+	/* need this extensions for high quality bump mapping */
+	if(GPU_bicubic_bump_support()) {
+		return "#version 130\n"
+		       "#extension GL_ARB_texture_query_lod: enable\n"
+		       "#define BUMP_BICUBIC\n";
+	}
+
+	return "";
+}
+
 static const char *gpu_shader_standard_defines(void)
 {
 	/* some useful defines to detect GPU type */
@@ -1177,9 +1189,10 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 	}
 
 	if (vertexcode) {
-		const char *source[3];
+		const char *source[4];
 		int num_source = 0;
 
+		source[num_source++] = gpu_shader_standard_extensions();
 		source[num_source++] = gpu_shader_standard_defines();
 
 		if (defines) source[num_source++] = defines;
@@ -1201,9 +1214,10 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 	}
 
 	if (fragcode) {
-		const char *source[4];
+		const char *source[5];
 		int num_source = 0;
 
+		source[num_source++] = gpu_shader_standard_extensions();
 		source[num_source++] = gpu_shader_standard_defines();
 
 		if (defines) source[num_source++] = defines;

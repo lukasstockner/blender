@@ -452,7 +452,7 @@ static int effector_add_exec(bContext *C, wmOperator *op)
 		if (!ob)
 			return OPERATOR_CANCELLED;
 
-		rename_id(&ob->id, DATA_("CurveGuide"));
+		rename_id(&ob->id, CTX_DATA_(BLF_I18NCONTEXT_ID_OBJECT, "CurveGuide"));
 		((Curve *)ob->data)->flag |= CU_PATH | CU_3D;
 		ED_object_editmode_enter(C, 0);
 		ED_object_new_primitive_matrix(C, ob, loc, rot, mat, FALSE);
@@ -465,7 +465,7 @@ static int effector_add_exec(bContext *C, wmOperator *op)
 		if (!ob)
 			return OPERATOR_CANCELLED;
 
-		rename_id(&ob->id, DATA_("Field"));
+		rename_id(&ob->id, CTX_DATA_(BLF_I18NCONTEXT_ID_OBJECT, "Field"));
 		if (ELEM(type, PFIELD_WIND, PFIELD_VORTEX))
 			ob->empty_drawtype = OB_SINGLE_ARROW;
 	}
@@ -822,13 +822,13 @@ void OBJECT_OT_drop_named_image(wmOperatorType *ot)
 static const char *get_lamp_defname(int type)
 {
 	switch (type) {
-		case LA_LOCAL: return DATA_("Point");
-		case LA_SUN: return DATA_("Sun");
-		case LA_SPOT: return DATA_("Spot");
-		case LA_HEMI: return DATA_("Hemi");
-		case LA_AREA: return DATA_("Area");
+		case LA_LOCAL: return CTX_DATA_(BLF_I18NCONTEXT_ID_LAMP, "Point");
+		case LA_SUN: return CTX_DATA_(BLF_I18NCONTEXT_ID_LAMP, "Sun");
+		case LA_SPOT: return CTX_DATA_(BLF_I18NCONTEXT_ID_LAMP, "Spot");
+		case LA_HEMI: return CTX_DATA_(BLF_I18NCONTEXT_ID_LAMP, "Hemi");
+		case LA_AREA: return CTX_DATA_(BLF_I18NCONTEXT_ID_LAMP, "Area");
 		default:
-			return DATA_("Lamp");
+			return CTX_DATA_(BLF_I18NCONTEXT_ID_LAMP, "Lamp");
 	}
 }
 
@@ -1786,8 +1786,8 @@ static Base *object_add_duplicate_internal(Main *bmain, Scene *scene, Base *base
 		if ((basen->flag & OB_FROMGROUP) || ob->rigidbody_object || ob->rigidbody_constraint) {
 			Group *group;
 			for (group = bmain->group.first; group; group = group->id.next) {
-				if (object_in_group(ob, group))
-					add_to_group(group, obn, scene, basen);
+				if (BKE_group_object_exists(group, ob))
+					BKE_group_object_add(group, obn, scene, basen);
 			}
 		}
 

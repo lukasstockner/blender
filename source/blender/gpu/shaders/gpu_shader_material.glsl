@@ -93,7 +93,7 @@ void hsv_to_rgb(vec4 hsv, out vec4 outcol)
 float srgb_to_linearrgb(float c)
 {
 	if(c < 0.04045)
-		return (c < 0.0)? 0.0: c * (1.0/12.92);
+		return (c < 0.0) ? 0.0: c * (1.0 / 12.92);
 	else
 		return pow((c + 0.055)*(1.0/1.055), 2.4);
 }
@@ -101,7 +101,7 @@ float srgb_to_linearrgb(float c)
 float linearrgb_to_srgb(float c)
 {
 	if(c < 0.0031308)
-		return (c < 0.0)? 0.0: c * 12.92;
+		return (c < 0.0) ? 0.0: c * 12.92;
 	else
 		return 1.055 * pow(c, 1.0/2.4) - 0.055;
 }
@@ -2074,6 +2074,11 @@ void node_bsdf_velvet(vec4 color, float sigma, vec3 N, out vec4 result)
 	node_bsdf_diffuse(color, 0.0, N, result);
 }
 
+void node_subsurface_scattering(vec4 color, float roughness, vec3 N, out vec4 result)
+{
+	node_bsdf_diffuse(color, 0.0, N, result);
+}
+
 /* emission */
 
 void node_emission(vec4 color, float strength, vec3 N, out vec4 result)
@@ -2098,7 +2103,7 @@ void node_add_shader(vec4 shader1, vec4 shader2, out vec4 shader)
 void node_fresnel(float ior, vec3 N, vec3 I, out float result)
 {
 	float eta = max(ior, 0.00001);
-	result = fresnel_dielectric(I, N, eta); //backfacing()? 1.0/eta: eta);
+	result = fresnel_dielectric(I, N, eta); //backfacing() ? 1.0/eta: eta);
 }
 
 /* geometry */

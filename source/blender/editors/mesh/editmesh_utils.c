@@ -33,7 +33,6 @@
 
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 
 #include "BLI_math.h"
 
@@ -51,10 +50,10 @@
 #include "WM_types.h"
 
 #include "ED_mesh.h"
+#include "ED_screen.h"
 #include "ED_util.h"
 
-
-#include "mesh_intern.h"
+#include "mesh_intern.h"  /* own include */
 
 /* mesh backup implementation. This would greatly benefit from some sort of binary diffing
  * just as the undo stack would. So leaving this as an interface for further work */
@@ -817,7 +816,7 @@ UvMapVert *EDBM_uv_vert_map_at_index(UvVertMap *vmap, unsigned int v)
 
 
 /* A specialized vert map used by stitch operator */
-UvElementMap *EDBM_uv_element_map_create(BMEditMesh *em, int selected, int do_islands)
+UvElementMap *EDBM_uv_element_map_create(BMEditMesh *em, const bool selected, const bool do_islands)
 {
 	BMVert *ev;
 	BMFace *efa;
@@ -1071,7 +1070,7 @@ UvElement *ED_uv_element_get(UvElementMap *map, BMFace *efa, BMLoop *l)
 
 /* last_sel, use em->act_face otherwise get the last selected face in the editselections
  * at the moment, last_sel is mainly useful for making sure the space image dosnt flicker */
-MTexPoly *EDBM_mtexpoly_active_get(BMEditMesh *em, BMFace **r_act_efa, int sloppy, int selected)
+MTexPoly *EDBM_mtexpoly_active_get(BMEditMesh *em, BMFace **r_act_efa, const bool sloppy, const bool selected)
 {
 	BMFace *efa = NULL;
 	
@@ -1090,14 +1089,14 @@ MTexPoly *EDBM_mtexpoly_active_get(BMEditMesh *em, BMFace **r_act_efa, int slopp
 }
 
 /* can we edit UV's for this mesh?*/
-int EDBM_mtexpoly_check(BMEditMesh *em)
+bool EDBM_mtexpoly_check(BMEditMesh *em)
 {
 	/* some of these checks could be a touch overkill */
 	return em && em->bm->totface && CustomData_has_layer(&em->bm->pdata, CD_MTEXPOLY) &&
 	       CustomData_has_layer(&em->bm->ldata, CD_MLOOPUV);
 }
 
-int EDBM_vert_color_check(BMEditMesh *em)
+bool EDBM_vert_color_check(BMEditMesh *em)
 {
 	/* some of these checks could be a touch overkill */
 	return em && em->bm->totface && CustomData_has_layer(&em->bm->ldata, CD_MLOOPCOL);
@@ -1266,11 +1265,12 @@ void EDBM_verts_mirror_apply(BMEditMesh *em, const int sel_from, const int sel_t
 
 
 /* swap is 0 or 1, if 1 it hides not selected */
-void EDBM_mesh_hide(BMEditMesh *em, int swap)
+void EDBM_mesh_hide(BMEditMesh *em, bool swap)
 {
 	BMIter iter;
 	BMElem *ele;
 	int itermode;
+	char hflag_swap = swap ? BM_ELEM_SELECT : 0;
 
 	if (em == NULL) return;
 
@@ -1282,7 +1282,7 @@ void EDBM_mesh_hide(BMEditMesh *em, int swap)
 		itermode = BM_FACES_OF_MESH;
 
 	BM_ITER_MESH (ele, &iter, em->bm, itermode) {
-		if (BM_elem_flag_test(ele, BM_ELEM_SELECT) ^ swap)
+		if (BM_elem_flag_test(ele, BM_ELEM_SELECT) ^ hflag_swap)
 			BM_elem_hide_set(em->bm, ele, true);
 	}
 
@@ -1366,4 +1366,13 @@ void EDBM_update_generic(BMEditMesh *em, const bool do_tessface, const bool is_d
 		/* in debug mode double check we didn't need to recalculate */
 		BLI_assert(EDBM_index_arrays_check(em) == true);
 	}
+}
+
+/* poll call for mesh operators requiring a view3d context */
+int EDBM_view3d_poll(bContext *C)
+{
+	if (ED_operator_editmesh(C) && ED_operator_view3d_active(C))
+		return 1;
+
+	return 0;
 }

@@ -208,12 +208,6 @@ struct uiBut {
 
 	struct bContextStore *context;
 
-	/* not used yet, was used in 2.4x for ui_draw_pulldown_round & friends */
-#if 0
-	void (*embossfunc)(int, int, float, float, float, float, float, int);
-	void (*sliderfunc)(int, float, float, float, float, float, float, int);
-#endif
-
 	uiButCompleteFunc autocomplete_func;
 	void *autofunc_arg;
 	
@@ -397,18 +391,18 @@ extern void ui_hsvcircle_vals_from_pos(float *val_rad, float *val_dist, const rc
 extern void ui_get_but_string_ex(uiBut *but, char *str, const size_t maxlen, const int float_precision);
 extern void ui_get_but_string(uiBut *but, char *str, const size_t maxlen);
 extern void ui_convert_to_unit_alt_name(uiBut *but, char *str, size_t maxlen);
-extern int ui_set_but_string(struct bContext *C, uiBut *but, const char *str);
-extern int ui_get_but_string_max_length(uiBut *but);
-extern int ui_set_but_string_eval_num(struct bContext *C, uiBut *but, const char *str, double *value);
+extern bool ui_set_but_string(struct bContext *C, uiBut *but, const char *str);
+extern bool ui_set_but_string_eval_num(struct bContext *C, uiBut *but, const char *str, double *value);
+extern int  ui_get_but_string_max_length(uiBut *but);
 
 extern void ui_set_but_default(struct bContext *C, short all);
 
 extern void ui_check_but(uiBut *but);
-extern int  ui_is_but_float(uiBut *but);
-extern int  ui_is_but_bool(uiBut *but);
-extern int  ui_is_but_unit(uiBut *but);
-extern int  ui_is_but_rna_valid(uiBut *but);
-extern int  ui_is_but_utf8(uiBut *but);
+extern bool ui_is_but_float(uiBut *but);
+extern bool ui_is_but_bool(uiBut *but);
+extern bool ui_is_but_unit(uiBut *but);
+extern bool ui_is_but_rna_valid(uiBut *but);
+extern bool ui_is_but_utf8(uiBut *but);
 extern bool ui_is_but_interactive(uiBut *but);
 
 extern int  ui_is_but_push_ex(uiBut *but, double *value);
@@ -430,9 +424,9 @@ struct uiPopupBlockHandle {
 	struct ARegion *region;
 	int towardsx, towardsy;
 	double towardstime;
-	int dotowards;
+	bool dotowards;
 
-	int popup;
+	bool popup;
 	void (*popup_func)(struct bContext *C, void *arg, int event);
 	void (*cancel_func)(struct bContext *C, void *arg);
 	void *popup_arg;
@@ -470,8 +464,8 @@ void ui_popup_block_scrolltest(struct uiBlock *block);
 
 /* searchbox for string button */
 ARegion *ui_searchbox_create(struct bContext *C, struct ARegion *butregion, uiBut *but);
-int ui_searchbox_inside(struct ARegion *ar, int x, int y);
-void ui_searchbox_update(struct bContext *C, struct ARegion *ar, uiBut *but, int reset);
+bool ui_searchbox_inside(struct ARegion *ar, int x, int y);
+void ui_searchbox_update(struct bContext *C, struct ARegion *ar, uiBut *but, const bool reset);
 void ui_searchbox_autocomplete(struct bContext *C, struct ARegion *ar, uiBut *but, char *str);
 void ui_searchbox_event(struct bContext *C, struct ARegion *ar, uiBut *but, const struct wmEvent *event);
 void ui_searchbox_apply(uiBut *but, struct ARegion *ar);
@@ -517,7 +511,7 @@ extern void ui_pan_to_scroll(const struct wmEvent *event, int *type, int *val);
 extern void ui_button_activate_do(struct bContext *C, struct ARegion *ar, uiBut *but);
 extern void ui_button_execute_do(struct bContext *C, struct ARegion *ar, uiBut *but);
 extern void ui_button_active_free(const struct bContext *C, uiBut *but);
-extern int ui_button_is_active(struct ARegion *ar);
+extern bool ui_button_is_active(struct ARegion *ar);
 extern int ui_button_open_menu_direction(uiBut *but);
 extern void ui_button_text_password_hide(char password_str[UI_MAX_DRAW_STR], uiBut *but, int restore);
 
@@ -526,9 +520,9 @@ void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y
 void ui_draw_anti_roundbox(int mode, float minx, float miny, float maxx, float maxy, float rad, bool use_alpha);
 void ui_draw_menu_back(struct uiStyle *style, uiBlock *block, rcti *rect);
 uiWidgetColors *ui_tooltip_get_theme(void);
-void ui_draw_tooltip_background(uiStyle *UNUSED(style), uiBlock * block, rcti * rect);
+void ui_draw_tooltip_background(uiStyle *UNUSED(style), uiBlock *block, rcti *rect);
 void ui_draw_search_back(struct uiStyle *style, uiBlock *block, rcti *rect);
-int ui_link_bezier_points(const rcti * rect, float coord_array[][2], int resol);
+int ui_link_bezier_points(const rcti *rect, float coord_array[][2], int resol);
 void ui_draw_link_bezier(const rcti *rect);
 
 extern void ui_draw_but(const struct bContext *C, ARegion *ar, struct uiStyle *style, uiBut *but, rcti *rect);
@@ -550,7 +544,7 @@ extern unsigned char checker_stipple_sml[32 * 32 / 8];
 void uiStyleInit(void);
 
 /* interface_icons.c */
-int ui_id_icon_get(struct bContext *C, struct ID *id, int preview);
+int ui_id_icon_get(struct bContext *C, struct ID *id, const bool big);
 
 /* resources.c */
 void init_userdef_do_versions(void);
@@ -562,7 +556,7 @@ void ui_resources_free(void);
 void ui_layout_add_but(uiLayout *layout, uiBut *but);
 int ui_but_can_align(uiBut *but);
 void ui_but_add_search(uiBut *but, PointerRNA *ptr, PropertyRNA *prop, PointerRNA *searchptr, PropertyRNA *searchprop);
-void ui_but_add_shortcut(uiBut *but, const char *key_str, const short do_strip);
+void ui_but_add_shortcut(uiBut *but, const char *key_str, const bool do_strip);
 
 /* interface_anim.c */
 void ui_but_anim_flag(uiBut *but, float cfra);

@@ -20,6 +20,7 @@
 import bpy
 from bpy.types import Menu
 from bpy.app.translations import pgettext_iface as iface_
+from bpy.app.translations import contexts as i18n_contexts
 
 
 class USERPREF_MT_keyconfigs(Menu):
@@ -79,7 +80,7 @@ class InputKeyMapPanel:
 
         row = col.row()
         row.prop(km, "show_expanded_children", text="", emboss=False)
-        row.label(text=km.name)
+        row.label(text=km.name, text_ctxt=i18n_contexts.id_windowmanager)
 
         row.label()
         row.label()
@@ -110,7 +111,8 @@ class InputKeyMapPanel:
                 # "Add New" at end of keymap item list
                 col = self.indented_layout(col, level + 1)
                 subcol = col.split(percentage=0.2).column()
-                subcol.operator("wm.keyitem_add", text="Add New", icon='ZOOMIN')
+                subcol.operator("wm.keyitem_add", text="Add New", text_ctxt=i18n_contexts.id_windowmanager,
+                                icon='ZOOMIN')
 
             col.separator()
 

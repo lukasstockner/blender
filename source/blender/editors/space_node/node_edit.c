@@ -115,7 +115,7 @@ static void compo_tag_output_nodes(bNodeTree *nodetree, int recalc_flags)
 			if (recalc_flags & COM_RECALC_COMPOSITE)
 				node->flag |= NODE_DO_OUTPUT_RECALC;
 		}
-		else if (node->type == CMP_NODE_VIEWER) {
+		else if (node->type == CMP_NODE_VIEWER || node->type == CMP_NODE_SPLITVIEWER) {
 			if (recalc_flags & COM_RECALC_VIEWER)
 				node->flag |= NODE_DO_OUTPUT_RECALC;
 		}
@@ -1978,7 +1978,7 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
 	bNodeLink *link;
 	int num_nodes;
 	float center[2];
-	int is_clipboard_valid;
+	int is_clipboard_valid, all_nodes_valid;
 
 	/* validate pointers in the clipboard */
 	is_clipboard_valid = BKE_node_clipboard_validate();
@@ -1999,6 +1999,17 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
 	if (is_clipboard_valid == FALSE) {
 		BKE_report(op->reports, RPT_WARNING, "Some nodes references could not be restored, will be left empty");
 	}
+
+	/* make sure all clipboard nodes would be valid in the target tree */
+	all_nodes_valid = TRUE;
+	for (node = clipboard_nodes_lb->first; node; node = node->next) {
+		if (!node->typeinfo->poll_instance(node, ntree)) {
+			all_nodes_valid = FALSE;
+			BKE_reportf(op->reports, RPT_ERROR, "Cannot add node %s into node tree %s", node->name, ntree->id.name + 2);
+		}
+	}
+	if (!all_nodes_valid)
+		return OPERATOR_CANCELLED;
 
 	ED_preview_kill_jobs(C);
 
@@ -2364,7 +2375,7 @@ static int node_shader_script_update_exec(bContext *C, wmOperator *op)
 
 	RE_engine_free(engine);
 
-	return (found)? OPERATOR_FINISHED: OPERATOR_CANCELLED;
+	return (found) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
 void NODE_OT_shader_script_update(wmOperatorType *ot)

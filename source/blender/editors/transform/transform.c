@@ -112,6 +112,7 @@ static bool transdata_check_local_center(TransInfo *t)
 	return ((t->around == V3D_LOCAL) && (
 	            (t->flag & (T_OBJECT | T_POSE)) ||
 	            (t->obedit && t->obedit->type == OB_MESH && (t->settings->selectmode & (SCE_SELECT_EDGE | SCE_SELECT_FACE))) ||
+	            (t->obedit && t->obedit->type == OB_MBALL) ||
 	            (t->obedit && t->obedit->type == OB_ARMATURE) ||
 	            (t->spacetype == SPACE_IPO))
 	        );
@@ -1406,11 +1407,15 @@ int calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], int c
 
 	t->state = TRANS_RUNNING;
 
-	t->options = CTX_NONE;
+	/* avoid calculating PET */
+	t->options = CTX_NONE | CTX_NO_PET;
 
 	t->mode = TFM_DUMMY;
 
 	initTransInfo(C, t, NULL, NULL);    // internal data, mouse, vectors
+
+	/* avoid doing connectivity lookups (when V3D_LOCAL is set) */
+	t->around = V3D_CENTER;
 
 	createTransData(C, t);              // make TransData structs from selection
 
@@ -2757,8 +2762,8 @@ int Warp(TransInfo *t, const int UNUSED(mval[2]))
 		
 		vec[1] = (vec[1] - cursor[1]);
 		
-		co = (float)cos(phi0);
-		si = (float)sin(phi0);
+		co = cosf(phi0);
+		si = sinf(phi0);
 		loc[0] = -si * vec[1] + cursor[0];
 		loc[1] = co * vec[1] + cursor[1];
 		loc[2] = vec[2];

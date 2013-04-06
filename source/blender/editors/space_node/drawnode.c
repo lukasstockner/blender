@@ -2811,14 +2811,14 @@ void ED_init_custom_node_socket_type(bNodeSocketType *stype)
 
 /* maps standard socket integer type to a color */
 static const float std_node_socket_colors[][4] = {
-    {0.63, 0.63, 0.63, 1.0},    /* SOCK_FLOAT */
-    {0.39, 0.39, 0.78, 1.0},    /* SOCK_VECTOR */
-    {0.78, 0.78, 0.16, 1.0},    /* SOCK_RGBA */
-    {0.39, 0.78, 0.39, 1.0},    /* SOCK_SHADER */
-    {0.70, 0.65, 0.19, 1.0},    /* SOCK_BOOLEAN */
-    {0.0, 0.0, 0.0, 1.0},       /*__SOCK_MESH (deprecated) */
-    {0.06, 0.52, 0.15, 1.0},    /* SOCK_INT */
-    {1.0, 1.0, 1.0, 1.0},       /* SOCK_STRING */
+	{0.63, 0.63, 0.63, 1.0},    /* SOCK_FLOAT */
+	{0.39, 0.39, 0.78, 1.0},    /* SOCK_VECTOR */
+	{0.78, 0.78, 0.16, 1.0},    /* SOCK_RGBA */
+	{0.39, 0.78, 0.39, 1.0},    /* SOCK_SHADER */
+	{0.70, 0.65, 0.19, 1.0},    /* SOCK_BOOLEAN */
+	{0.0, 0.0, 0.0, 1.0},       /*__SOCK_MESH (deprecated) */
+	{0.06, 0.52, 0.15, 1.0},    /* SOCK_INT */
+	{1.0, 1.0, 1.0, 1.0},       /* SOCK_STRING */
 };
 
 /* common color callbacks for standard types */
@@ -2872,10 +2872,57 @@ static void std_node_socket_draw(bContext *C, uiLayout *layout, PointerRNA *ptr,
 	}
 }
 
+static void std_node_socket_interface_draw(bContext *UNUSED(C), uiLayout *layout, PointerRNA *ptr)
+{
+	bNodeSocket *sock = ptr->data;
+	int type = sock->typeinfo->type;
+	/*int subtype = sock->typeinfo->subtype;*/
+	
+	switch (type) {
+		case SOCK_FLOAT: {
+			uiLayout *row;
+			uiItemR(layout, ptr, "default_value", 0, NULL, 0);
+			row = uiLayoutRow(layout, true);
+			uiItemR(row, ptr, "min_value", 0, "min", 0);
+			uiItemR(row, ptr, "max_value", 0, "max", 0);
+			break;
+		}
+		case SOCK_INT: {
+			uiLayout *row;
+			uiItemR(layout, ptr, "default_value", 0, NULL, 0);
+			row = uiLayoutRow(layout, true);
+			uiItemR(row, ptr, "min_value", 0, "min", 0);
+			uiItemR(row, ptr, "max_value", 0, "max", 0);
+			break;
+		}
+		case SOCK_BOOLEAN: {
+			uiItemR(layout, ptr, "default_value", 0, NULL, 0);
+			break;
+		}
+		case SOCK_VECTOR: {
+			uiLayout *row;
+			uiItemR(layout, ptr, "default_value", UI_ITEM_R_EXPAND, NULL, 0);
+			row = uiLayoutRow(layout, true);
+			uiItemR(row, ptr, "min_value", 0, "min", 0);
+			uiItemR(row, ptr, "max_value", 0, "max", 0);
+			break;
+		}
+		case SOCK_RGBA: {
+			uiItemR(layout, ptr, "default_value", 0, NULL, 0);
+			break;
+		}
+		case SOCK_STRING: {
+			uiItemR(layout, ptr, "default_value", 0, NULL, 0);
+			break;
+		}
+	}
+}
+
 void ED_init_standard_node_socket_type(bNodeSocketType *stype)
 {
 	stype->draw = std_node_socket_draw;
 	stype->draw_color = std_node_socket_draw_color;
+	stype->interface_draw = std_node_socket_interface_draw;
 	stype->interface_draw_color = std_node_socket_interface_draw_color;
 }
 
@@ -2901,8 +2948,6 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode)
 		ImBuf *ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
 		if (ibuf) {
 			float x, y; 
-			unsigned char *display_buffer;
-			void *cache_handle;
 			
 			glMatrixMode(GL_PROJECTION);
 			glPushMatrix();
@@ -2920,13 +2965,15 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode)
 			
 			x = (ar->winx - snode->zoom * ibuf->x) / 2 + snode->xof;
 			y = (ar->winy - snode->zoom * ibuf->y) / 2 + snode->yof;
-			
 
-			display_buffer = IMB_display_buffer_acquire_ctx(C, ibuf, &cache_handle);
+			if (ibuf->rect || ibuf->rect_float) {
+				unsigned char *display_buffer = NULL;
+				void *cache_handle = NULL;
 
-			if (display_buffer) {
 				if (snode->flag & (SNODE_SHOW_R | SNODE_SHOW_G | SNODE_SHOW_B)) {
 					int ofs;
+
+					display_buffer = IMB_display_buffer_acquire_ctx(C, ibuf, &cache_handle);
 
 #ifdef __BIG_ENDIAN__
 					if      (snode->flag & SNODE_SHOW_R) ofs = 2;
@@ -2947,6 +2994,8 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode)
 					glPixelZoom(1.0f, 1.0f);
 				}
 				else if (snode->flag & SNODE_SHOW_ALPHA) {
+					display_buffer = IMB_display_buffer_acquire_ctx(C, ibuf, &cache_handle);
+
 					glPixelZoom(snode->zoom, snode->zoom);
 					/* swap bytes, so alpha is most significant one, then just draw it as luminance int */
 #ifdef __BIG_ENDIAN__
@@ -2964,7 +3013,7 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode)
 					glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 					glPixelZoom(snode->zoom, snode->zoom);
 					
-					glaDrawPixelsAuto(x, y, ibuf->x, ibuf->y, GL_UNSIGNED_BYTE, GL_NEAREST, display_buffer);
+					glaDrawImBuf_glsl_ctx(C, ibuf, x, y, GL_NEAREST);
 					
 					glPixelZoom(1.0f, 1.0f);
 					glDisable(GL_BLEND);
@@ -2972,13 +3021,14 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode)
 				else {
 					glPixelZoom(snode->zoom, snode->zoom);
 
-					glaDrawPixelsAuto(x, y, ibuf->x, ibuf->y, GL_UNSIGNED_BYTE, GL_NEAREST, display_buffer);
+					glaDrawImBuf_glsl_ctx(C, ibuf, x, y, GL_NEAREST);
 					
 					glPixelZoom(1.0f, 1.0f);
 				}
-			}
 
-			IMB_display_buffer_release(cache_handle);
+				if (cache_handle)
+					IMB_display_buffer_release(cache_handle);
+			}
 
 			/** @note draw selected info on backdrop */
 			if (snode->edittree) {

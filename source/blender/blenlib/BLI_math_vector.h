@@ -92,6 +92,7 @@ MINLINE void add_v3_fl(float r[3], float f);
 MINLINE void add_v4_fl(float r[4], float f);
 MINLINE void add_v2_v2(float r[2], const float a[2]);
 MINLINE void add_v2_v2v2(float r[2], const float a[2], const float b[2]);
+MINLINE void add_v2_v2v2_int(int r[2], const int a[2], const int b[2]);
 MINLINE void add_v3_v3(float r[3], const float a[3]);
 MINLINE void add_v3_v3v3(float r[3], const float a[3], const float b[3]);
 MINLINE void add_v4_v4(float r[4], const float a[4]);
@@ -99,6 +100,7 @@ MINLINE void add_v4_v4v4(float r[4], const float a[4], const float b[4]);
 
 MINLINE void sub_v2_v2(float r[2], const float a[2]);
 MINLINE void sub_v2_v2v2(float r[2], const float a[2], const float b[2]);
+MINLINE void sub_v2_v2v2_int(int r[2], const int a[2], const int b[2]);
 MINLINE void sub_v3_v3(float r[3], const float a[3]);
 MINLINE void sub_v3_v3v3(float r[3], const float a[3], const float b[3]);
 MINLINE void sub_v4_v4(float r[4], const float a[4]);
@@ -241,6 +243,8 @@ void minmax_v2v2_v2(float min[2], float max[2], const float vec[2]);
 
 void dist_ensure_v3_v3fl(float v1[3], const float v2[3], const float dist);
 void dist_ensure_v2_v2fl(float v1[2], const float v2[2], const float dist);
+
+void axis_sort_v3(const float axis_values[3], int r_axis_order[3]);
 
 /***************************** Array Functions *******************************/
 /* attempted to follow fixed length vertex functions. names could be improved*/

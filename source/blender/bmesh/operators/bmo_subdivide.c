@@ -22,6 +22,8 @@
 
 /** \file blender/bmesh/operators/bmo_subdivide.c
  *  \ingroup bmesh
+ *
+ * Edge based subdivision with various subdivision patterns.
  */
 
 #include "MEM_guardedalloc.h"
@@ -33,12 +35,11 @@
 
 #include "BKE_customdata.h"
 
-#include "DNA_object_types.h"
 
 #include "bmesh.h"
 #include "intern/bmesh_private.h"
+#include "intern/bmesh_operators_private.h"
 
-#include "intern/bmesh_operators_private.h" /* own include */
 
 typedef struct SubDParams {
 	int numcuts;

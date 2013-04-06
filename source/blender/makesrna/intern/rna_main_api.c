@@ -312,7 +312,7 @@ Mesh *rna_Main_meshes_new_from_object(
 			copycu->editnurb = tmpcu->editnurb;
 
 			/* get updated display list, and convert to a mesh */
-			BKE_displist_make_curveTypes_forRender(sce, tmpobj, &dispbase, &derivedFinal, FALSE);
+			BKE_displist_make_curveTypes_forRender(sce, tmpobj, &dispbase, &derivedFinal, FALSE, render);
 
 			copycu->editfont = NULL;
 			copycu->editnurb = NULL;
@@ -680,7 +680,7 @@ static void rna_Main_worlds_remove(Main *bmain, ReportList *reports, PointerRNA 
 
 static Group *rna_Main_groups_new(Main *bmain, const char *name)
 {
-	return add_group(bmain, name);
+	return BKE_group_add(bmain, name);
 }
 static void rna_Main_groups_remove(Main *bmain, PointerRNA *group_ptr)
 {
