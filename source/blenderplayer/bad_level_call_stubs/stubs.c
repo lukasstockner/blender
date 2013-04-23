@@ -56,6 +56,10 @@ struct FCurve;
 struct Heap;
 struct HeapNode;
 struct ID;
+#ifdef WITH_FREESTYLE
+struct FreestyleConfig;
+struct FreestyleLineSet;
+#endif
 struct ImBuf;
 struct Image;
 struct ImageUser;
@@ -85,6 +89,9 @@ struct RenderLayer;
 struct RenderResult;
 struct Scene;
 struct Scene;
+#ifdef WITH_FREESTYLE
+struct SceneRenderLayer;
+#endif
 struct ScrArea;
 struct SculptSession;
 struct ShadeInput;
@@ -210,6 +217,9 @@ void WM_jobs_kill_all_except(struct wmWindowManager *wm) {}
 
 char *WM_clipboard_text_get(int selection) {return (char *)0;}
 void WM_clipboard_text_set(char *buf, int selection) {}
+
+void	WM_cursor_restore(struct wmWindow *win) {}
+void	WM_cursor_time(struct wmWindow *win, int nr) {}
 
 void                WM_uilisttype_init(void) {}
 struct uiListType  *WM_uilisttype_find(const char *idname, int quiet) {return (struct uiListType *)NULL;}
@@ -396,6 +406,8 @@ void ED_nurb_set_spline_type(struct Nurb *nu, int type) {}
 
 void ED_mball_transform(struct MetaBall *mb, float *mat) {}
 
+bool snapObjectsRayEx(struct Scene *scene, struct Base *base_act) {return 0;}
+
 void make_editLatt(struct Object *obedit) {}
 void load_editLatt(struct Object *obedit) {}
 
@@ -468,6 +480,7 @@ void uiTemplateTextureUser(struct uiLayout *layout, struct bContext *C) {}
 void uiTemplateTextureShow(struct uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop) {}
 void uiTemplateKeymapItemProperties(struct uiLayout *layout, struct PointerRNA *ptr) {}
 void uiTemplateMovieClip(struct uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname, int compact) {}
+void uiTemplateMovieclipInformation(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname, struct PointerRNA *userptr) {}
 void uiTemplateTrack(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname) {}
 void uiTemplateMarker(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname, PointerRNA *userptr, PointerRNA *trackptr, int compact) {}
 void uiTemplateImageSettings(struct uiLayout *layout, struct PointerRNA *imfptr) {}
@@ -556,6 +569,16 @@ struct PyObject *pyrna_id_CreatePyObject(struct ID *id) {return NULL; }
 void BPY_context_update(struct bContext *C) {};
 const char *BPY_app_translations_py_pgettext(const char *msgctxt, const char *msgid) { return msgid; }
 
+#ifdef WITH_FREESTYLE
+/* Freestyle */
+void FRS_init_freestyle_config(struct FreestyleConfig *config) {}
+void FRS_free_freestyle_config(struct FreestyleConfig *config) {} 
+void FRS_copy_freestyle_config(struct FreestyleConfig *new_config, struct FreestyleConfig *config) {}
+struct FreestyleLineSet *FRS_get_active_lineset(struct FreestyleConfig *config) { return NULL; }
+short FRS_get_active_lineset_index(struct FreestyleConfig *config) { return 0; }
+void FRS_set_active_lineset_index(struct FreestyleConfig *config, short index) {}
+void FRS_unlink_target_object(struct FreestyleConfig *config, struct Object *ob) {}
+#endif
 /* intern/dualcon */
 struct DualConMesh;
 struct DualConMesh *dualcon(const struct DualConMesh *input_mesh,

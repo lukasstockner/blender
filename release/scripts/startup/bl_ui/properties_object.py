@@ -222,9 +222,9 @@ class OBJECT_PT_display(ObjectButtonsPanel, Panel):
         col = split.column()
         col.prop(obj, "show_name", text="Name")
         col.prop(obj, "show_axis", text="Axis")
-        
+
         obj_type = obj.type
-        
+
         if obj_type in {'MESH', 'CURVE', 'SURFACE', 'META', 'FONT'}:
             # Makes no sense for cameras, armtures, etc.!
             col.prop(obj, "show_wire", text="Wire")
@@ -297,8 +297,8 @@ class OBJECT_PT_relations_extras(ObjectButtonsPanel, Panel):
         row.active = ((ob.parent is not None) and (ob.use_slow_parent))
         row.prop(ob, "slow_parent_offset", text="Offset")
 
-        layout.prop(ob, "extra_recalc_object")
-        layout.prop(ob, "extra_recalc_data")
+        layout.prop(ob, "use_extra_recalc_object")
+        layout.prop(ob, "use_extra_recalc_data")
 
 
 from bl_ui.properties_animviz import (MotionPathButtonsPanel,

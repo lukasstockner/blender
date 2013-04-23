@@ -166,6 +166,7 @@ struct Render
 	float grvec[3];			/* for world */
 	float imat[3][3];		/* copy of viewinv */
 	float viewmat[4][4], viewinv[4][4];
+	float viewmat_orig[4][4];	/* for incremental render */
 	float winmat[4][4];
 	
 	/* clippping */
@@ -234,6 +235,10 @@ struct Render
 	ListBase render_volumes_inside;
 	ListBase volumes;
 	ListBase volume_precache_parts;
+
+#ifdef WITH_FREESTYLE
+	ListBase freestyle_renders;
+#endif
 
 	/* arena for allocating data for use during render, for
 	 * example dynamic TFaces to go in the VlakRen structure.
@@ -390,6 +395,10 @@ typedef struct VlakRen {
 	struct Material *mat;
 	char puno;
 	char flag, ec;
+#ifdef WITH_FREESTYLE
+	char freestyle_edge_mark;
+	char freestyle_face_mark;
+#endif
 	int index;
 } VlakRen;
 
@@ -621,6 +630,15 @@ typedef struct LampRen {
 /* vertex normals are tangent or view-corrected vector, for hair strands */
 #define R_TANGENT		64		
 #define R_TRACEBLE		128
+
+/* vlakren->freestyle_edge_mark */
+#ifdef WITH_FREESTYLE
+#  define R_EDGE_V1V2		1
+#  define R_EDGE_V2V3		2
+#  define R_EDGE_V3V4		4
+#  define R_EDGE_V3V1		4
+#  define R_EDGE_V4V1		8
+#endif
 
 /* strandbuffer->flag */
 #define R_STRAND_BSPLINE	1

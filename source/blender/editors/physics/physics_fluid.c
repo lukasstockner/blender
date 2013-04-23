@@ -631,7 +631,7 @@ static int fluid_validate_scene(ReportList *reports, Scene *scene, Object *fsDom
 	}
 	
 	if (channelObjCount >= 255) {
-		BKE_report(reports, RPT_ERROR, "Cannot bake with more then 256 objects");
+		BKE_report(reports, RPT_ERROR, "Cannot bake with more than 256 objects");
 		return 0;
 	}
 	
@@ -994,7 +994,7 @@ static int fluidsimBake(bContext *C, ReportList *reports, Object *fsDomain, shor
 	/* ******** export domain to elbeem ******** */
 	elbeemResetSettings(fsset);
 	fsset->version = 1;
-
+	fsset->threads = domainSettings->threads;
 	// setup global settings
 	copy_v3_v3(fsset->geoStart, domainSettings->bbStart);
 	copy_v3_v3(fsset->geoSize, domainSettings->bbSize);

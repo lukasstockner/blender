@@ -148,6 +148,7 @@ const char *BLF_translate_do_new_dataname(const char *msgctxt, const char *msgid
 #define BLF_I18NCONTEXT_ID_BRUSH                "Brush"
 #define BLF_I18NCONTEXT_ID_CAMERA               "Camera"
 #define BLF_I18NCONTEXT_ID_CURVE                "Curve"
+#define BLF_I18NCONTEXT_ID_FREESTYLELINESTYLE   "FreestyleLineStyle"
 #define BLF_I18NCONTEXT_ID_GPENCIL              "GPencil"
 #define BLF_I18NCONTEXT_ID_GROUP                "Group"
 #define BLF_I18NCONTEXT_ID_ID                   "ID"
@@ -196,6 +197,7 @@ typedef struct
 	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_BRUSH, "id_brush"),                                                       \
 	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_CAMERA, "id_camera"),                                                     \
 	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_CURVE, "id_curve"),                                                       \
+	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_FREESTYLELINESTYLE, "id_fs_linestyle"),                                   \
 	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_GPENCIL, "id_gpencil"),                                                   \
 	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_GROUP, "id_group"),                                                       \
 	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_ID, "id_id"),                                                             \

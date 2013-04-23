@@ -113,6 +113,7 @@ bool		WM_is_draw_triple(struct wmWindow *win);
 			/* files */
 void		WM_file_read(struct bContext *C, const char *filepath, struct ReportList *reports);
 void		WM_autosave_init(struct wmWindowManager *wm);
+void		WM_recover_last_session(struct bContext *C, struct ReportList *reports);
 
 			/* mouse cursors */
 void		WM_cursor_set		(struct wmWindow *win, int curs);
@@ -170,6 +171,7 @@ int			WM_modal_tweak_exit(const struct wmEvent *event, int tweak_event);
 			/* notifiers */
 void		WM_event_add_notifier(const struct bContext *C, unsigned int type, void *reference);
 void		WM_main_add_notifier(unsigned int type, void *reference);
+void		WM_main_remove_notifier_reference(const void *reference);
 
 void		wm_event_add(struct wmWindow *win, const struct wmEvent *event_to_add);
 

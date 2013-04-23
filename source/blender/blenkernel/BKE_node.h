@@ -222,14 +222,6 @@ typedef struct bNodeType {
 	/* gpu */
 	NodeGPUExecFunction gpufunc;
 	
-	/* Group type static info
-	 * 
-	 * XXX This data is needed by group operators. If these operators could be implemented completely in Python,
-	 * the static data could instead be stored in Python classes and would need no special treatment.
-	 * Due to the way group operators move nodes between data blocks this is currently not possible.
-	 */
-	char group_tree_idname[64];		/* tree type associated to the group node type */
-	
 	/* RNA integration */
 	ExtensionRNA ext;
 } bNodeType;
@@ -305,8 +297,6 @@ typedef struct bNodeTreeType {
 	void (*free_cache)(struct bNodeTree *ntree);
 	void (*free_node_cache)(struct bNodeTree *ntree, struct bNode *node);
 	void (*foreach_nodeclass)(struct Scene *scene, void *calldata, bNodeClassCallback func);	/* iteration over all node classes */
-	/* Add menu for this node tree. */
-	void (*draw_add_menu)(const struct bContext *C, struct uiLayout *layout, struct bNodeTree *ntree);
 	/* Check visibility in the node editor */
 	int (*poll)(const struct bContext *C, struct bNodeTreeType *ntreetype);
 	/* Select a node tree from the context */

@@ -1388,7 +1388,7 @@ void BKE_ptcache_ids_from_object(ListBase *lb, Object *ob, Scene *scene, int dup
 /* Takes an Object ID and returns a unique name
  * - id: object id
  * - cfra: frame for the cache, can be negative
- * - stack_index: index in the modifier stack. we can have cache for more then one stack_index
+ * - stack_index: index in the modifier stack. we can have cache for more than one stack_index
  */
 
 #define MAX_PTCACHE_PATH FILE_MAX
@@ -3118,8 +3118,9 @@ static void *ptcache_bake_thread(void *ptr)
 	}
 
 	if (use_timer) {
+		/* start with newline because of \r above */
 		ptcache_dt_to_str(run, PIL_check_seconds_timer()-stime);
-		printf("Bake %s %s (%i frames simulated).\n", (data->break_operation ? "canceled after" : "finished in"), run, *data->cfra_ptr-sfra);
+		printf("\nBake %s %s (%i frames simulated).\n", (data->break_operation ? "canceled after" : "finished in"), run, *data->cfra_ptr-sfra);
 	}
 
 	data->thread_ended = TRUE;

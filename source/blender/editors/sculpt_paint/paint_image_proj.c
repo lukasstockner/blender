@@ -74,7 +74,7 @@
 #include "BKE_scene.h"
 #include "BKE_colortools.h"
 
-#include "BKE_tessmesh.h"
+#include "BKE_editmesh.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -87,6 +87,8 @@
 #include "ED_uvedit.h"
 #include "ED_view3d.h"
 #include "ED_mesh.h"
+
+#include "GPU_extensions.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -319,7 +321,7 @@ typedef struct ProjPixel {
 	PixelStore newColor;
 	PixelPointer pixel;
 
-	short image_index; /* if anyone wants to paint onto more then 32768 images they can bite me */
+	short image_index; /* if anyone wants to paint onto more than 32768 images they can bite me */
 	unsigned char bb_cell_index;
 } ProjPixel;
 
@@ -3794,6 +3796,7 @@ static void *do_projectpaint_thread(void *ph_v)
 	/* for smear only */
 	float pos_ofs[2] = {0};
 	float co[2];
+	float texmask = 1.0;
 	float mask = 1.0f; /* airbrush wont use mask */
 	unsigned short mask_short;
 	const float radius = (float)BKE_brush_size_get(ps->scene, brush);
@@ -3907,7 +3910,8 @@ static void *do_projectpaint_thread(void *ph_v)
 						}
 
 						if (ps->is_maskbrush) {
-							alpha *= BKE_brush_sample_masktex(ps->scene, ps->brush, projPixel->projCoSS, thread_index, pool);
+							texmask = BKE_brush_sample_masktex(ps->scene, ps->brush, projPixel->projCoSS, thread_index, pool);
+							alpha *= texmask;
 						}
 
 						if (!ps->do_masking) {
@@ -3920,7 +3924,7 @@ static void *do_projectpaint_thread(void *ph_v)
 							falloff = 1.0f - falloff;
 							falloff = 1.0f - (falloff * falloff);
 
-							mask_short = (unsigned short)(projPixel->mask * (BKE_brush_alpha_get(ps->scene, brush) * falloff));
+							mask_short = (unsigned short)(projPixel->mask * (BKE_brush_alpha_get(ps->scene, brush) * falloff)) * texmask;
 							if (mask_short > projPixel->mask_max) {
 								mask = ((float)mask_short) / 65535.0f;
 								projPixel->mask_max = mask_short;
@@ -4151,14 +4155,16 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 
 	/* brush */
 	ps->mode = mode;
-	ps->brush = paint_brush(&settings->imapaint.paint);
+	ps->brush = BKE_paint_brush(&settings->imapaint.paint);
 	if (ps->brush) {
 		Brush *brush = ps->brush;
 		ps->tool = brush->imagepaint_tool;
 		ps->blend = brush->blend;
 
 		/* disable for 3d mapping also because painting on mirrored mesh can create "stripes" */
-		ps->do_masking = (brush->flag & BRUSH_AIRBRUSH || brush->mtex.brush_map_mode != MTEX_MAP_MODE_TILED) ? false : true;
+		ps->do_masking = (brush->flag & BRUSH_AIRBRUSH || (brush->mtex.tex &&
+		                 !ELEM(brush->mtex.brush_map_mode, MTEX_MAP_MODE_TILED, MTEX_MAP_MODE_STENCIL)))
+		                 ? false : true;
 		ps->is_texbrush = (brush->mtex.tex && brush->imagepaint_tool == PAINT_TOOL_DRAW) ? true : false;
 		ps->is_maskbrush = (brush->mask_mtex.tex) ? true : false;
 	}
@@ -4409,7 +4415,7 @@ static int texture_paint_image_from_view_exec(bContext *C, wmOperator *op)
 
 	RNA_string_get(op->ptr, "filepath", filename);
 
-	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxsize);
+	maxsize = GPU_max_texture_size();
 
 	if (w > maxsize) w = maxsize;
 	if (h > maxsize) h = maxsize;

@@ -47,11 +47,25 @@
 static void (*BLI_localErrorCallBack)(const char *) = NULL;
 static int (*BLI_localInterruptCallBack)(void) = NULL;
 
+/**
+ * Set a function taking a (char *) as argument to flag errors. If the
+ * callback is not set, the error is discarded.
+ * \param f The function to use as callback
+ * \attention used in creator.c
+ */
 void BLI_setErrorCallBack(void (*f)(const char *))
 {
 	BLI_localErrorCallBack = f;
 }
 
+/**
+ * Set a function to be able to interrupt the execution of processing
+ * in this module. If the function returns true, the execution will
+ * terminate gracefully. If the callback is not set, interruption is
+ * not possible.
+ * \param f The function to use as callback
+ * \attention used in creator.c
+ */
 void BLI_setInterruptCallBack(int (*f)(void))
 {
 	BLI_localInterruptCallBack = f;
@@ -442,13 +456,13 @@ static void testvertexnearedge(ScanFillContext *sf_ctx)
 
 			for (eed = sf_ctx->filledgebase.first; eed; eed = eed->next) {
 				if (eve != eed->v1 && eve != eed->v2 && eve->poly_nr == eed->poly_nr) {
-					if (compare_v3v3(eve->co, eed->v1->co, SF_EPSILON)) {
+					if (compare_v2v2(eve->xy, eed->v1->xy, SF_EPSILON)) {
 						ed1->v2 = eed->v1;
 						eed->v1->edge_tot++;
 						eve->edge_tot = 0;
 						break;
 					}
-					else if (compare_v3v3(eve->co, eed->v2->co, SF_EPSILON)) {
+					else if (compare_v2v2(eve->xy, eed->v2->xy, SF_EPSILON)) {
 						ed1->v2 = eed->v2;
 						eed->v2->edge_tot++;
 						eve->edge_tot = 0;
@@ -718,11 +732,11 @@ static int scanfill(ScanFillContext *sf_ctx, PolyFill *pf, const int flag)
 										
 										/* prevent angle calc for the simple cases only 1 vertex is found */
 										if (firsttime == false) {
-											best_angle = angle_v2v2v2(v2->co, v1->co, best_sc->vert->co);
+											best_angle = angle_v2v2v2(v2->xy, v1->xy, best_sc->vert->xy);
 											firsttime = true;
 										}
 
-										angle = angle_v2v2v2(v2->co, v1->co, sc1->vert->co);
+										angle = angle_v2v2v2(v2->xy, v1->xy, sc1->vert->xy);
 										if (angle < best_angle) {
 											best_sc = sc1;
 											best_angle = angle;
@@ -826,11 +840,9 @@ static int scanfill(ScanFillContext *sf_ctx, PolyFill *pf, const int flag)
 }
 
 
-int BLI_scanfill_begin(ScanFillContext *sf_ctx)
+void BLI_scanfill_begin(ScanFillContext *sf_ctx)
 {
 	memset(sf_ctx, 0, sizeof(*sf_ctx));
-
-	return 1;
 }
 
 int BLI_scanfill_calc(ScanFillContext *sf_ctx, const int flag)

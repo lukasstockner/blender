@@ -630,7 +630,7 @@ PropertyRNA *RNA_struct_find_property(PointerRNA *ptr, const char *identifier)
 		/* id prop lookup, not so common */
 		PropertyRNA *r_prop = NULL;
 		PointerRNA r_ptr; /* only support single level props */
-		if (RNA_path_resolve(ptr, identifier, &r_ptr, &r_prop) && r_ptr.type == ptr->type && r_ptr.data == ptr->data)
+		if (RNA_path_resolve(ptr, identifier, &r_ptr, &r_prop) && (r_ptr.type == ptr->type) && (r_ptr.data == ptr->data))
 			return r_prop;
 	}
 	else {
@@ -1533,7 +1533,7 @@ bool RNA_property_path_from_ID_check(PointerRNA *ptr, PropertyRNA *prop)
 		PropertyRNA *r_prop;
 
 		RNA_id_pointer_create(ptr->id.data, &id_ptr);
-		if (RNA_path_resolve(&id_ptr, path, &r_ptr, &r_prop) == TRUE) {
+		if (RNA_path_resolve(&id_ptr, path, &r_ptr, &r_prop) == true) {
 			ret = (prop == r_prop);
 		}
 		MEM_freeN(path);
@@ -2871,6 +2871,7 @@ void RNA_property_collection_add(PointerRNA *ptr, PropertyRNA *prop, PointerRNA 
 		IDP_AppendArray(idprop, item);
 		/* IDP_FreeProperty(item);  *//* IDP_AppendArray does a shallow copy (memcpy), only free memory  */
 		MEM_freeN(item);
+		rna_idproperty_touch(idprop);
 	}
 	else if (prop->flag & PROP_IDPROPERTY) {
 		IDProperty *group, *item;
@@ -3001,8 +3002,10 @@ void RNA_property_collection_clear(PointerRNA *ptr, PropertyRNA *prop)
 
 	BLI_assert(RNA_property_type(prop) == PROP_COLLECTION);
 
-	if ((idprop = rna_idproperty_check(&prop, ptr)))
+	if ((idprop = rna_idproperty_check(&prop, ptr))) {
 		IDP_ResizeIDPArray(idprop, 0);
+		rna_idproperty_touch(idprop);
+	}
 }
 
 int RNA_property_collection_lookup_index(PointerRNA *ptr, PropertyRNA *prop, PointerRNA *t_ptr)
@@ -3788,13 +3791,40 @@ static int rna_token_strip_quotes(char *token)
 	return 0;
 }
 
-/* Resolve the given RNA path to find the pointer+property indicated at the end of the path */
-int RNA_path_resolve(PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop)
+/* Resolve the given RNA Path to find both the pointer AND property indicated by fully resolving the path
+ * ! This is a convenience method to avoid logic errors and ugly syntax
+ * ! Assumes all pointers provided are valid
+ * > returns: True only if both a valid pointer and property are found after resolving the path 
+ */
+bool RNA_path_resolve_property(PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop)
+{
+	return RNA_path_resolve_full(ptr, path, r_ptr, r_prop, NULL) && (*r_prop != NULL);
+}
+
+/* Resolve the given RNA Path to find the pointer AND property (as well as the array index) indicated by fully resolving the path
+ * ! This is a convenience method to avoid logic errors and ugly syntax
+ * ! Assumes all pointers provided are valid
+ * > returns: True only if both a valid pointer and property are found after resolving the path
+ */
+bool RNA_path_resolve_property_full(PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop, int *index)
+{
+	return RNA_path_resolve_full(ptr, path, r_ptr, r_prop, index) && (*r_prop != NULL);
+}
+
+/* Resolve the given RNA Path to find the pointer and/or property indicated by fully resolving the path 
+ * ! Assumes all pointers provided are valid
+ * > returns: True if path can be resolved to a valid "pointer + property" OR "pointer only"
+ */
+bool RNA_path_resolve(PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop)
 {
 	return RNA_path_resolve_full(ptr, path, r_ptr, r_prop, NULL);
 }
 
-int RNA_path_resolve_full(PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop, int *index)
+/* Resolve the given RNA Path to find the pointer and/or property + array index indicated by fully resolving the path 
+ * ! Assumes all pointers provided are valid
+ * > returns: True if path can be resolved to a valid "pointer + property" OR "pointer only"
+ */
+bool RNA_path_resolve_full(PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop, int *index)
 {
 	PropertyRNA *prop;
 	PointerRNA curptr;
@@ -4348,6 +4378,7 @@ char *RNA_path_full_struct_py(struct PointerRNA *ptr)
 	                   id_path, data_path);
 
 	MEM_freeN(data_path);
+	MEM_freeN(id_path);
 
 	return ret;
 }

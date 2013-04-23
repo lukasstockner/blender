@@ -94,6 +94,13 @@
 
 static void ui_free_but(const bContext *C, uiBut *but);
 
+bool ui_block_is_menu(const uiBlock *block)
+{
+	return (((block->flag & UI_BLOCK_LOOP) != 0) &&
+	        /* non-menu popups use keep-open, so check this is off */
+	        ((block->flag & UI_BLOCK_KEEP_OPEN) == 0));
+}
+
 /* ************* window matrix ************** */
 
 void ui_block_to_window_fl(const ARegion *ar, uiBlock *block, float *x, float *y)
@@ -442,7 +449,7 @@ static int ui_but_float_precision(uiBut *but, double value)
 	int prec;
 
 	/* first check if prec is 0 and fallback to a simple default */
-	if ((prec = (int)but->a2) == 0) {
+	if ((prec = (int)but->a2) == -1) {
 		prec = (but->hardmax < 10.001f) ? 3 : 2;
 	}
 
@@ -483,7 +490,7 @@ static int ui_but_float_precision(uiBut *but, double value)
 		}
 	}
 
-	CLAMP(prec, 1, PRECISION_FLOAT_MAX);
+	CLAMP(prec, 0, PRECISION_FLOAT_MAX);
 
 	return prec;
 }
@@ -645,6 +652,10 @@ static int ui_but_update_from_old_block(const bContext *C, uiBlock *block, uiBut
 				/* still stuff needs to be copied */
 				oldbut->rect = but->rect;
 				oldbut->context = but->context; /* set by Layout */
+
+				/* drawing */
+				oldbut->icon = but->icon;
+				oldbut->iconadd = but->iconadd;
 				
 				/* typically the same pointers, but not on undo/redo */
 				/* XXX some menu buttons store button itself in but->poin. Ugly */
@@ -1672,7 +1683,7 @@ static void ui_get_but_string_unit(uiBut *but, char *str, int len_max, double va
 		/* Sanity checks */
 		precision = (int)but->a2;
 		if      (precision > PRECISION_FLOAT_MAX) precision = PRECISION_FLOAT_MAX;
-		else if (precision == 0)                  precision = 2;
+		else if (precision == -1)                 precision = 2;
 	}
 	else {
 		precision = float_precision;
@@ -1984,7 +1995,7 @@ static double soft_range_round_down(double value, double max)
 /* note: this could be split up into functions which handle arrays and not */
 static void ui_set_but_soft_range(uiBut *but)
 {
-	/* ideally we would not limit this but practically, its more then
+	/* ideally we would not limit this but practically, its more than
 	 * enough worst case is very long vectors wont use a smart soft-range
 	 * which isn't so bad. */
 
@@ -3613,13 +3624,13 @@ void uiBlockSetFunc(uiBlock *block, uiButHandleFunc func, void *arg1, void *arg2
 	block->func_arg2 = arg2;
 }
 
-void uiBlockSetNFunc(uiBlock *block, uiButHandleFunc func, void *argN, void *arg2)
+void uiBlockSetNFunc(uiBlock *block, uiButHandleNFunc funcN, void *argN, void *arg2)
 {
 	if (block->func_argN) {
 		MEM_freeN(block->func_argN);
 	}
 
-	block->funcN = func;
+	block->funcN = funcN;
 	block->func_argN = argN;
 	block->func_arg2 = arg2;
 }
@@ -3826,6 +3837,82 @@ void uiButSetSearchFunc(uiBut *but, uiButSearchFunc sfunc, void *arg, uiButHandl
 		if (but->drawstr[0])
 			ui_but_search_test(but);
 	}
+}
+
+/* Callbacks for operator search button. */
+static void operator_enum_search_cb(const struct bContext *C, void *but, const char *str, uiSearchItems *items)
+{
+	wmOperatorType *ot = ((uiBut *)but)->optype;
+	PropertyRNA *prop = ot->prop;
+
+	if (prop == NULL) {
+		printf("%s: %s has no enum property set\n",
+		       __func__, ot->idname);
+	}
+	else if (RNA_property_type(prop) != PROP_ENUM) {
+		printf("%s: %s \"%s\" is not an enum property\n",
+		       __func__, ot->idname, RNA_property_identifier(prop));
+	}
+	else {
+		PointerRNA *ptr = uiButGetOperatorPtrRNA(but);  /* Will create it if needed! */
+		EnumPropertyItem *item, *item_array;
+		int do_free;
+
+		RNA_property_enum_items((bContext *)C, ptr, prop, &item_array, NULL, &do_free);
+
+		for (item = item_array; item->identifier; item++) {
+			/* note: need to give the index rather than the identifier because the enum can be freed */
+			if (BLI_strcasestr(item->name, str)) {
+				if (false == uiSearchItemAdd(items, item->name, SET_INT_IN_POINTER(item->value), 0))
+					break;
+			}
+		}
+
+		if (do_free)
+			MEM_freeN(item_array);
+	}
+}
+
+static void operator_enum_call_cb(struct bContext *UNUSED(C), void *but, void *arg2)
+{
+	wmOperatorType *ot = ((uiBut *)but)->optype;
+	PointerRNA *opptr = uiButGetOperatorPtrRNA(but);  /* Will create it if needed! */
+
+	if (ot) {
+		if (ot->prop) {
+			RNA_property_enum_set(opptr, ot->prop, GET_INT_FROM_POINTER(arg2));
+			/* We do not call op from here, will be called by button code.
+			 * ui_apply_but_funcs_after() (in interface_handlers.c) called this func before checking operators,
+			 * because one of its parameters is the button itself!
+			 */
+		}
+		else {
+			printf("%s: op->prop for '%s' is NULL\n", __func__, ot->idname);
+		}
+	}
+}
+
+/* Same parameters as for uiDefSearchBut, with additional operator type and properties, used by callback
+ * to call again the right op with the right options (properties values). */
+uiBut *uiDefSearchButO_ptr(uiBlock *block, wmOperatorType *ot, IDProperty *properties,
+                           void *arg, int retval, int icon, int maxlen, int x, int y,
+                           short width, short height, float a1, float a2, const char *tip)
+{
+	uiBut *but;
+
+	but = uiDefSearchBut(block, arg, retval, icon, maxlen, x, y, width, height, a1, a2, tip);
+	uiButSetSearchFunc(but, operator_enum_search_cb, but, operator_enum_call_cb, NULL);
+
+	but->optype = ot;
+	but->opcontext = WM_OP_EXEC_DEFAULT;
+
+	if (properties) {
+		PointerRNA *ptr = uiButGetOperatorPtrRNA(but);
+		/* Copy idproperties. */
+		ptr->data = IDP_CopyProperty(properties);
+	}
+
+	return but;
 }
 
 /* push a new event onto event queue to activate the given button 

@@ -349,7 +349,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		 * The new array for vert_connect must be at least sizeof(ScrewVertConnect) * totvert
 		 * and the size of our resulting meshes array is sizeof(MVert) * totvert * 3
 		 * so its safe to use the second 2 thrids of MVert the array for vert_connect,
-		 * just make sure ScrewVertConnect struct is no more then twice as big as MVert,
+		 * just make sure ScrewVertConnect struct is no more than twice as big as MVert,
 		 * at the moment there is no chance of that being a problem,
 		 * unless MVert becomes half its current size.
 		 *
@@ -697,7 +697,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		step_angle = (angle / (step_tot - (!close))) * step;
 
 		if (ltmd->ob_axis) {
-			axis_angle_to_mat3(mat3, axis_vec, step_angle);
+			axis_angle_normalized_to_mat3(mat3, axis_vec, step_angle);
 			copy_m4_m3(mat, mat3);
 		}
 		else {

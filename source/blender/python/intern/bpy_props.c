@@ -49,7 +49,7 @@
 
 #include "../generic/py_capi_utils.h"
 
-/* initial definition of callback slots we'll probably have more then 1 */
+/* initial definition of callback slots we'll probably have more than 1 */
 #define BPY_DATA_CB_SLOT_SIZE 3
 
 #define BPY_DATA_CB_SLOT_UPDATE 0
@@ -2228,6 +2228,8 @@ BPY_PROPDEF_DESC_DOC
 "   :type subtype: string\n"
 BPY_PROPDEF_UNIT_DOC
 BPY_PROPDEF_UPDATE_DOC
+"   :arg precision: Number of digits of precision to display.\n"
+"   :type precision: int\n"
 );
 static PyObject *BPy_FloatProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
@@ -2333,6 +2335,8 @@ BPY_PROPDEF_DESC_DOC
 BPY_PROPDEF_UNIT_DOC
 "   :arg size: Vector dimensions in [1, and " STRINGIFY(PYRNA_STACK_ARRAY) "].\n"
 "   :type size: int\n"
+"   :arg precision: Number of digits of precision to display.\n"
+"   :type precision: int\n"
 BPY_PROPDEF_UPDATE_DOC
 );
 static PyObject *BPy_FloatVectorProperty(PyObject *self, PyObject *args, PyObject *kw)
@@ -2518,9 +2522,8 @@ PyDoc_STRVAR(BPy_EnumProperty_doc,
 "\n"
 BPY_PROPDEF_NAME_DOC
 BPY_PROPDEF_DESC_DOC
-"   :arg default: The default value for this enum, A string when *ENUM_FLAG*\n"
-"      is disabled otherwise a set which may only contain string identifiers\n"
-"      used in *items*.\n"
+"   :arg default: The default value for this enum, a string from the identifiers used in *items*.\n"
+"      If the *ENUM_FLAG* option is used this must be a set of such string identifiers instead.\n"
 "   :type default: string or set\n"
 "   :arg options: Enumerator in ['HIDDEN', 'SKIP_SAVE', 'ANIMATABLE', 'ENUM_FLAG', 'LIBRARY_EDITABLE'].\n"
 "   :type options: set\n"

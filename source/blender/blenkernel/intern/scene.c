@@ -65,6 +65,7 @@
 #include "BKE_colortools.h"
 #include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
+#include "BKE_freestyle.h"
 #include "BKE_global.h"
 #include "BKE_group.h"
 #include "BKE_idprop.h"
@@ -141,6 +142,7 @@ static void remove_sequencer_fcurves(Scene *sce)
 Scene *BKE_scene_copy(Scene *sce, int type)
 {
 	Scene *scen;
+	SceneRenderLayer *srl, *new_srl;
 	ToolSettings *ts;
 	Base *base, *obase;
 	
@@ -208,6 +210,13 @@ Scene *BKE_scene_copy(Scene *sce, int type)
 		/* remove animation used by sequencer */
 		if (type != SCE_COPY_FULL)
 			remove_sequencer_fcurves(scen);
+
+		/* copy Freestyle settings */
+		new_srl = scen->r.layers.first;
+		for (srl = sce->r.layers.first; srl; srl = srl->next) {
+			BKE_freestyle_config_copy(&new_srl->freestyleConfig, &srl->freestyleConfig);
+			new_srl = new_srl->next;
+		}
 	}
 
 	/* tool settings */
@@ -290,6 +299,7 @@ Scene *BKE_scene_copy(Scene *sce, int type)
 void BKE_scene_free(Scene *sce)
 {
 	Base *base;
+	SceneRenderLayer *srl;
 
 	/* check all sequences */
 	BKE_sequencer_clear_scene_in_allseqs(G.main, sce);
@@ -334,6 +344,10 @@ void BKE_scene_free(Scene *sce)
 		IDP_FreeProperty(sce->r.ffcodecdata.properties);
 		MEM_freeN(sce->r.ffcodecdata.properties);
 		sce->r.ffcodecdata.properties = NULL;
+	}
+	
+	for (srl = sce->r.layers.first; srl; srl = srl->next) {
+		BKE_freestyle_config_free(&srl->freestyleConfig);
 	}
 	
 	BLI_freelistN(&sce->markers);
@@ -505,6 +519,17 @@ Scene *BKE_scene_add(Main *bmain, const char *name)
 	sce->toolsettings->skgen_subdivisions[0] = SKGEN_SUB_CORRELATION;
 	sce->toolsettings->skgen_subdivisions[1] = SKGEN_SUB_LENGTH;
 	sce->toolsettings->skgen_subdivisions[2] = SKGEN_SUB_ANGLE;
+
+	sce->toolsettings->statvis.overhang_axis = OB_NEGZ;
+	sce->toolsettings->statvis.overhang_min = 0;
+	sce->toolsettings->statvis.overhang_max = DEG2RADF(45.0f);
+	sce->toolsettings->statvis.thickness_max = 0.1f;
+	sce->toolsettings->statvis.thickness_samples = 1;
+	sce->toolsettings->statvis.distort_min = DEG2RADF(5.0f);
+	sce->toolsettings->statvis.distort_max = DEG2RADF(45.0f);
+
+	sce->toolsettings->statvis.sharp_min = DEG2RADF(90.0f);
+	sce->toolsettings->statvis.sharp_max = DEG2RADF(180.0f);
 
 	sce->toolsettings->proportional_size = 1.0f;
 
@@ -906,7 +931,7 @@ char *BKE_scene_find_marker_name(Scene *scene, int frame)
 }
 
 /* return the current marker for this frame,
- * we can have more then 1 marker per frame, this just returns the first :/ */
+ * we can have more than 1 marker per frame, this just returns the first :/ */
 char *BKE_scene_find_last_marker_name(Scene *scene, int frame)
 {
 	TimeMarker *marker, *best_marker = NULL;
@@ -1038,6 +1063,15 @@ static void scene_update_drivers(Main *UNUSED(bmain), Scene *scene)
 	/* nodes */
 	if (scene->nodetree) {
 		ID *nid = (ID *)scene->nodetree;
+		AnimData *adt = BKE_animdata_from_id(nid);
+		
+		if (adt && adt->drivers.first)
+			BKE_animsys_evaluate_animdata(scene, nid, adt, ctime, ADT_RECALC_DRIVERS);
+	}
+
+	/* world nodes */
+	if (scene->world && scene->world->nodetree) {
+		ID *nid = (ID *)scene->world->nodetree;
 		AnimData *adt = BKE_animdata_from_id(nid);
 		
 		if (adt && adt->drivers.first)
@@ -1274,6 +1308,7 @@ SceneRenderLayer *BKE_scene_add_render_layer(Scene *sce, const char *name)
 	srl->lay = (1 << 20) - 1;
 	srl->layflag = 0x7FFF;   /* solid ztra halo edge strand */
 	srl->passflag = SCE_PASS_COMBINED | SCE_PASS_Z;
+	BKE_freestyle_config_init(&srl->freestyleConfig);
 
 	return srl;
 }

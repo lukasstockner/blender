@@ -59,7 +59,7 @@
 #include "BKE_depsgraph.h"
 #include "BKE_main.h"
 #include "BKE_mesh.h"
-#include "BKE_tessmesh.h"
+#include "BKE_editmesh.h"
 #include "BKE_report.h"
 
 #include "ED_mesh.h" /* XXX Bad level call */
@@ -126,6 +126,15 @@ static void rna_Mesh_update_data(Main *bmain, Scene *scene, PointerRNA *ptr)
 	if (id->us > 0) {
 		DAG_id_tag_update(id, 0);
 		WM_main_add_notifier(NC_GEOM | ND_DATA, id);
+	}
+}
+
+static void rna_Mesh_update_data_edit_color(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	Mesh *me = rna_mesh(ptr);
+	rna_Mesh_update_data(bmain, scene, ptr);
+	if (me->edit_btmesh) {
+		BKE_editmesh_color_free(me->edit_btmesh);
 	}
 }
 
@@ -2919,6 +2928,11 @@ static void rna_def_mesh(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Draw Vertex Normals", "Display vertex normals as lines");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_draw");
 
+	prop = RNA_def_property(srna, "show_weight", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "drawflag", ME_DRAWEIGHT);
+	RNA_def_property_ui_text(prop, "Show Weights", "Draw weights in editmode");
+	RNA_def_property_update(prop, 0, "rna_Mesh_update_data_edit_color");  /* needs to rebuild 'dm' */
+
 	prop = RNA_def_property(srna, "show_edge_crease", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "drawflag", ME_DRAWCREASES);
 	RNA_def_property_ui_text(prop, "Draw Creases", "Display creases created for subsurf weighting");
@@ -2938,6 +2952,21 @@ static void rna_def_mesh(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "drawflag", ME_DRAWSHARP);
 	RNA_def_property_ui_text(prop, "Draw Sharp", "Display sharp edges, used with the EdgeSplit modifier");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_draw");
+
+	prop = RNA_def_property(srna, "show_freestyle_edge_marks", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "drawflag", ME_DRAW_FREESTYLE_EDGE);
+	RNA_def_property_ui_text(prop, "Draw Freestyle Edge Marks", "Display Freestyle edge marks, used with the Freestyle renderer");
+	RNA_def_property_update(prop, 0, "rna_Mesh_update_draw");
+
+	prop = RNA_def_property(srna, "show_freestyle_face_marks", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "drawflag", ME_DRAW_FREESTYLE_FACE);
+	RNA_def_property_ui_text(prop, "Draw Freestyle Face Marks", "Display Freestyle face marks, used with the Freestyle renderer");
+	RNA_def_property_update(prop, 0, "rna_Mesh_update_draw");
+
+	prop = RNA_def_property(srna, "show_statvis", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "drawflag", ME_DRAW_STATVIS);
+	RNA_def_property_ui_text(prop, "Stat Vis", "Display statistical information about the mesh");
+	RNA_def_property_update(prop, 0, "rna_Mesh_update_data_edit_color");
 
 	prop = RNA_def_property(srna, "show_extra_edge_length", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "drawflag", ME_DRAWEXTRA_EDGELEN);

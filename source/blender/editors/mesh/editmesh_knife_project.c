@@ -39,7 +39,7 @@
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_cdderivedmesh.h"
-#include "BKE_tessmesh.h"
+#include "BKE_editmesh.h"
 #include "BKE_report.h"
 
 #include "MEM_guardedalloc.h"
@@ -116,7 +116,7 @@ static int knifeproject_exec(bContext *C, wmOperator *op)
 	ARegion *ar = CTX_wm_region(C);
 	Scene *scene = CTX_data_scene(C);
 	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BMEdit_FromObject(obedit);
+	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
 	LinkNode *polys = NULL;
 

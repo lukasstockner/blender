@@ -79,6 +79,7 @@ typedef struct GPUShaders {
 } GPUShaders;
 
 static struct GPUGlobal {
+	GLint maxtexsize;
 	GLint maxtextures;
 	GLuint currentfb;
 	int glslsupport;
@@ -107,6 +108,11 @@ void GPU_extensions_disable(void)
 	GG.extdisabled = 1;
 }
 
+int GPU_max_texture_size(void)
+{
+	return GG.maxtexsize;
+}
+
 void GPU_extensions_init(void)
 {
 	GLint r, g, b;
@@ -123,6 +129,8 @@ void GPU_extensions_init(void)
 
 	if (GLEW_ARB_multitexture)
 		glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS_ARB, &GG.maxtextures);
+
+	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &GG.maxtexsize);
 
 	GG.glslsupport = 1;
 	if (!GLEW_ARB_multitexture) GG.glslsupport = 0;
@@ -892,8 +900,7 @@ void GPU_framebuffer_texture_detach(GPUFrameBuffer *fb, GPUTexture *tex)
 void GPU_framebuffer_texture_bind(GPUFrameBuffer *UNUSED(fb), GPUTexture *tex, int w, int h)
 {
 	/* push attributes */
-	glPushAttrib(GL_ENABLE_BIT);
-	glPushAttrib(GL_VIEWPORT_BIT);
+	glPushAttrib(GL_ENABLE_BIT | GL_VIEWPORT_BIT);
 	glDisable(GL_SCISSOR_TEST);
 
 	/* bind framebuffer */
@@ -918,7 +925,6 @@ void GPU_framebuffer_texture_unbind(GPUFrameBuffer *UNUSED(fb), GPUTexture *UNUS
 	glPopMatrix();
 
 	/* restore attributes */
-	glPopAttrib();
 	glPopAttrib();
 	glEnable(GL_SCISSOR_TEST);
 }

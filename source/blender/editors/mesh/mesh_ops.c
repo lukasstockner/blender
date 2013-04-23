@@ -106,6 +106,9 @@ void ED_operatortypes_mesh(void)
 	WM_operatortype_append(MESH_OT_faces_shade_smooth);
 	WM_operatortype_append(MESH_OT_faces_shade_flat);
 	WM_operatortype_append(MESH_OT_sort_elements);
+#ifdef WITH_FREESTYLE
+	WM_operatortype_append(MESH_OT_mark_freestyle_face);
+#endif
 
 	WM_operatortype_append(MESH_OT_delete);
 	WM_operatortype_append(MESH_OT_edge_collapse);
@@ -121,6 +124,9 @@ void ED_operatortypes_mesh(void)
 	WM_operatortype_append(MESH_OT_loop_multi_select);
 	WM_operatortype_append(MESH_OT_mark_seam);
 	WM_operatortype_append(MESH_OT_mark_sharp);
+#ifdef WITH_FREESTYLE
+	WM_operatortype_append(MESH_OT_mark_freestyle_edge);
+#endif
 	WM_operatortype_append(MESH_OT_vertices_smooth);
 	WM_operatortype_append(MESH_OT_vertices_smooth_laplacian);
 	WM_operatortype_append(MESH_OT_noise);
@@ -176,7 +182,7 @@ static int ED_operator_editmesh_face_select(bContext *C)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	if (obedit && obedit->type == OB_MESH) {
-		BMEditMesh *em = BMEdit_FromObject(obedit);
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
 		if (em && em->selectmode & SCE_SELECT_FACE) {
 			return 1;
 		}

@@ -145,6 +145,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 	WM_uilisttype_init();
 
 	set_free_windowmanager_cb(wm_close_and_free);   /* library.c */
+	set_free_notifier_reference_cb(WM_main_remove_notifier_reference);   /* library.c */
 	set_blender_test_break_cb(wm_window_testbreak); /* blender.c */
 	DAG_editors_update_cb(ED_render_id_flush_update, ED_render_scene_update); /* depsgraph.c */
 	
@@ -222,7 +223,8 @@ void WM_init(bContext *C, int argc, const char **argv)
 	
 	/* load last session, uses regular file reading so it has to be in end (after init py etc) */
 	if (U.uiflag2 & USER_KEEP_SESSION) {
-		wm_recover_last_session(C, NULL);
+		/* calling WM_recover_last_session(C, NULL) has been moved to creator.c */
+		/* that prevents loading both the kept session, and the file on the command line */
 	}
 	else {
 		/* normally 'wm_homefile_read' will do this,
@@ -436,6 +438,10 @@ void WM_exit_ext(bContext *C, const short do_python)
 	
 	BKE_mball_cubeTable_free();
 	
+	/* render code might still access databases */
+	RE_FreeAllRender();
+	RE_engines_exit();
+	
 	ED_preview_free_dbase();  /* frees a Main dbase, before free_blender! */
 
 	if (C && wm)
@@ -465,9 +471,6 @@ void WM_exit_ext(bContext *C, const short do_python)
 #endif
 	
 	ANIM_keyingset_infos_exit();
-	
-	RE_FreeAllRender();
-	RE_engines_exit();
 	
 //	free_txt_data();
 	

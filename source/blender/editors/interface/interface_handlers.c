@@ -63,6 +63,7 @@
 #include "BKE_texture.h"
 #include "BKE_tracking.h"
 #include "BKE_unit.h"
+#include "BKE_paint.h"
 
 #include "ED_screen.h"
 #include "ED_util.h"
@@ -84,10 +85,18 @@
 /* support dragging toggle buttons */
 #define USE_DRAG_TOGGLE
 
+/* so we can avoid very small mouse-moves from jumping away from keyboard navigation [#34936] */
+#define USE_KEYNAV_LIMIT
+
 /* proto */
 static void ui_add_smart_controller(bContext *C, uiBut *from, uiBut *to);
 static void ui_add_link(bContext *C, uiBut *from, uiBut *to);
 static int ui_do_but_EXIT(bContext *C, uiBut *but, struct uiHandleButtonData *data, const wmEvent *event);
+
+#ifdef USE_KEYNAV_LIMIT
+static void ui_mouse_motion_keynav_init(struct uiKeyNavLock *keynav, const wmEvent *event);
+static bool ui_mouse_motion_keynav_test(struct uiKeyNavLock *keynav, const wmEvent *event);
+#endif
 
 /***************** structs and defines ****************/
 
@@ -96,6 +105,8 @@ static int ui_do_but_EXIT(bContext *C, uiBut *but, struct uiHandleButtonData *da
 #define MENU_SCROLL_INTERVAL        0.1
 #define BUTTON_AUTO_OPEN_THRESH     0.3
 #define BUTTON_MOUSE_TOWARDS_THRESH 1.0
+/* pixels to move the cursor to get out of keyboard navigation */
+#define BUTTON_KEYNAV_PX_LIMIT      4
 
 typedef enum uiButtonActivateType {
 	BUTTON_ACTIVATE_OVER,
@@ -173,6 +184,9 @@ typedef struct uiHandleButtonData {
 	
 	/* search box (watch uiFreeActiveButtons) */
 	ARegion *searchbox;
+#ifdef USE_KEYNAV_LIMIT
+	struct uiKeyNavLock searchbox_keynav_state;
+#endif
 
 	/* post activate */
 	uiButtonActivateType posttype;
@@ -185,7 +199,6 @@ typedef struct uiAfterFunc {
 	uiButHandleFunc func;
 	void *func_arg1;
 	void *func_arg2;
-	void *func_arg3;
 	
 	uiButHandleNFunc funcN;
 	void *func_argN;
@@ -372,7 +385,6 @@ static void ui_apply_but_func(bContext *C, uiBut *but)
 
 		after->func_arg1 = but->func_arg1;
 		after->func_arg2 = but->func_arg2;
-		after->func_arg3 = but->func_arg3;
 
 		after->funcN = but->funcN;
 		after->func_argN = MEM_dupallocN(but->func_argN);
@@ -2118,12 +2130,20 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 	bool changed = false, inbox = false, update = false;
 
 	switch (event->type) {
-		case WHEELUPMOUSE:
-		case WHEELDOWNMOUSE:
 		case MOUSEMOVE:
 		case MOUSEPAN:
-			if (data->searchbox)
+			if (data->searchbox) {
+#ifdef USE_KEYNAV_LIMIT
+				if ((event->type == MOUSEMOVE) && ui_mouse_motion_keynav_test(&data->searchbox_keynav_state, event)) {
+					/* pass */
+				}
+				else {
+					ui_searchbox_event(C, data->searchbox, but, event);
+				}
+#else
 				ui_searchbox_event(C, data->searchbox, but, event);
+#endif
+			}
 			
 			break;
 		case RIGHTMOUSE:
@@ -2194,8 +2214,12 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 				                 event->shift, event->ctrl ? STRCUR_JUMP_DELIM : STRCUR_JUMP_NONE);
 				retval = WM_UI_HANDLER_BREAK;
 				break;
+			case WHEELDOWNMOUSE:
 			case DOWNARROWKEY:
 				if (data->searchbox) {
+#ifdef USE_KEYNAV_LIMIT
+					ui_mouse_motion_keynav_init(&data->searchbox_keynav_state, event);
+#endif
 					ui_searchbox_event(C, data->searchbox, but, event);
 					break;
 				}
@@ -2205,8 +2229,12 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 				                 event->shift, STRCUR_JUMP_ALL);
 				retval = WM_UI_HANDLER_BREAK;
 				break;
+			case WHEELUPMOUSE:
 			case UPARROWKEY:
 				if (data->searchbox) {
+#ifdef USE_KEYNAV_LIMIT
+					ui_mouse_motion_keynav_init(&data->searchbox_keynav_state, event);
+#endif
 					ui_searchbox_event(C, data->searchbox, but, event);
 					break;
 				}
@@ -4294,6 +4322,7 @@ static int ui_do_but_CURVE(bContext *C, uiBlock *block, uiBut *but, uiHandleButt
 {
 	int mx, my, a;
 	bool changed = false;
+	Scene *scene = CTX_data_scene(C);
 
 	mx = event->x;
 	my = event->y;
@@ -4422,6 +4451,7 @@ static int ui_do_but_CURVE(bContext *C, uiBlock *block, uiBut *but, uiHandleButt
 				}
 				else {
 					curvemapping_changed(cumap, true);  /* remove doubles */
+					BKE_paint_invalidate_cursor_overlay(scene, cumap);
 				}
 			}
 
@@ -5308,7 +5338,9 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 	}
 
 	/* perhaps we should move this into (G.debug & G_DEBUG) - campbell */
-	uiItemFullO(layout, "UI_OT_editsource", NULL, ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, 0);
+	if (ui_block_is_menu(but->block) == false) {
+		uiItemFullO(layout, "UI_OT_editsource", NULL, ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, 0);
+	}
 	uiItemFullO(layout, "UI_OT_edittranslation_init", NULL, ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, 0);
 
 	uiPupMenuEnd(C, pup);
@@ -6727,6 +6759,26 @@ static bool ui_mouse_motion_towards_check(uiBlock *block, uiPopupBlockHandle *me
 	return menu->dotowards;
 }
 
+#ifdef USE_KEYNAV_LIMIT
+static void ui_mouse_motion_keynav_init(struct uiKeyNavLock *keynav, const wmEvent *event)
+{
+	keynav->is_keynav = true;
+	copy_v2_v2_int(keynav->event_xy, &event->x);
+}
+/**
+ * Return true if keyinput isn't blocking mouse-motion,
+ * or if the mouse-motion is enough to disable keyinput.
+ */
+static bool ui_mouse_motion_keynav_test(struct uiKeyNavLock *keynav, const wmEvent *event)
+{
+	if (keynav->is_keynav && (len_manhattan_v2v2_int(keynav->event_xy, &event->x) > BUTTON_KEYNAV_PX_LIMIT)) {
+		keynav->is_keynav = false;
+	}
+
+	return keynav->is_keynav;
+}
+#endif  /* USE_KEYNAV_LIMIT */
+
 static char ui_menu_scroll_test(uiBlock *block, int my)
 {
 	if (block->flag & (UI_BLOCK_CLIPTOP | UI_BLOCK_CLIPBOTTOM)) {
@@ -6917,6 +6969,10 @@ static int ui_handle_menu_event(bContext *C, const wmEvent *event, uiPopupBlockH
 							const eButType type_flip = BUT | ROW;
 
 							PASS_EVENT_TO_PARENT_IF_NONACTIVE;
+
+#ifdef USE_KEYNAV_LIMIT
+							ui_mouse_motion_keynav_init(&menu->keynav_state, event);
+#endif
 
 							but = ui_but_find_activated(ar);
 							if (but) {
@@ -7132,6 +7188,12 @@ static int ui_handle_menu_event(bContext *C, const wmEvent *event, uiPopupBlockH
 			if (menu->menuretval) {
 				/* pass */
 			}
+#ifdef USE_KEYNAV_LIMIT
+			else if ((event->type == MOUSEMOVE) && ui_mouse_motion_keynav_test(&menu->keynav_state, event)) {
+				/* don't handle the mousemove if we're using key-navigation */
+				retval = WM_UI_HANDLER_BREAK;
+			}
+#endif
 			else if (event->type == ESCKEY && event->val == KM_PRESS) {
 				/* esc cancels this and all preceding menus */
 				menu->menuretval = UI_RETURN_CANCEL;

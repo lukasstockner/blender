@@ -56,7 +56,7 @@
 #include "BKE_material.h"
 #include "BKE_paint.h"
 #include "BKE_property.h"
-#include "BKE_tessmesh.h"
+#include "BKE_editmesh.h"
 #include "BKE_scene.h"
 
 #include "BIF_gl.h"
@@ -180,7 +180,7 @@ static DMDrawOption draw_mesh_face_select__drawFaceOptsInv(void *userData, int i
 		return DM_DRAW_OPTION_SKIP;
 }
 
-static void draw_mesh_face_select(RegionView3D *rv3d, Mesh *me, DerivedMesh *dm)
+void draw_mesh_face_select(RegionView3D *rv3d, Mesh *me, DerivedMesh *dm)
 {
 	drawMeshFaceSelect_userData data;
 

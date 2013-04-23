@@ -119,6 +119,10 @@
 
 #include "BLI_scanfill.h" /* for BLI_setErrorCallBack, TODO, move elsewhere */
 
+#ifdef WITH_FREESTYLE
+#  include "FRS_freestyle.h"
+#endif
+
 #ifdef WITH_BUILDINFO_HEADER
 #  define BUILD_DATE
 #endif
@@ -191,6 +195,7 @@ static void fpe_handler(int UNUSED(sig))
 #endif
 
 /* handling ctrl-c event in console */
+#if !(defined(WITH_PYTHON_MODULE) || defined(WITH_HEADLESS))
 static void blender_esc(int sig)
 {
 	static int count = 0;
@@ -206,6 +211,7 @@ static void blender_esc(int sig)
 		count++;
 	}
 }
+#endif
 
 static int print_version(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
@@ -1339,6 +1345,11 @@ static void setupArguments(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 #ifdef WITH_FFMPEG
 	BLI_argsAdd(ba, 1, NULL, "--debug-ffmpeg", "\n\tEnable debug messages from FFmpeg library", debug_mode_generic, (void *)G_DEBUG_FFMPEG);
 #endif
+
+#ifdef WITH_FREESTYLE
+	BLI_argsAdd(ba, 1, NULL, "--debug-freestyle", "\n\tEnable debug/profiling messages from Freestyle rendering", debug_mode_generic, (void *)G_DEBUG_FREESTYLE);
+#endif
+
 	BLI_argsAdd(ba, 1, NULL, "--debug-python", "\n\tEnable debug messages for python", debug_mode_generic, (void *)G_DEBUG_PYTHON);
 	BLI_argsAdd(ba, 1, NULL, "--debug-events", "\n\tEnable debug messages for the event system", debug_mode_generic, (void *)G_DEBUG_EVENTS);
 	BLI_argsAdd(ba, 1, NULL, "--debug-handlers", "\n\tEnable debug messages for event handling", debug_mode_generic, (void *)G_DEBUG_HANDLERS);
@@ -1584,9 +1595,22 @@ int main(int argc, const char **argv)
 	CTX_py_init_set(C, 1);
 	WM_keymap_init(C);
 
+#ifdef WITH_FREESTYLE
+	/* initialize Freestyle */
+	FRS_initialize();
+	FRS_set_context(C);
+#endif
+
 	/* OK we are ready for it */
 #ifndef WITH_PYTHON_MODULE
 	BLI_argsParse(ba, 4, load_file, C);
+	
+	if (G.background == 0) {
+		if (!G.file_loaded)
+			if (U.uiflag2 & USER_KEEP_SESSION)
+				WM_recover_last_session(C, NULL);
+	}
+
 #endif
 
 #ifndef WITH_PYTHON_MODULE

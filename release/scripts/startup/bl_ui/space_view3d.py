@@ -323,7 +323,7 @@ class VIEW3D_MT_uv_map(Menu):
 
         layout.separator()
 
-        layout.operator_context = 'EXEC_REGION_WIN'
+        layout.operator_context = 'INVOKE_REGION_WIN'
         layout.operator("uv.project_from_view").scale_to_bounds = False
         layout.operator("uv.project_from_view", text="Project from View (Bounds)").scale_to_bounds = True
 
@@ -515,6 +515,7 @@ class VIEW3D_MT_select_pose(Menu):
         layout = self.layout
 
         layout.operator("view3d.select_border")
+        layout.operator("view3d.select_circle")
 
         layout.separator()
 
@@ -705,6 +706,7 @@ class VIEW3D_MT_select_edit_lattice(Menu):
         layout = self.layout
 
         layout.operator("view3d.select_border")
+        layout.operator("view3d.select_circle")
 
         layout.separator()
 
@@ -723,6 +725,7 @@ class VIEW3D_MT_select_edit_armature(Menu):
         layout = self.layout
 
         layout.operator("view3d.select_border")
+        layout.operator("view3d.select_circle")
 
         layout.separator()
 
@@ -1641,12 +1644,12 @@ class VIEW3D_MT_pose_specials(Menu):
 
     def draw(self, context):
         layout = self.layout
-        
-        layout.operator("paint.weight_from_bones", text="Assign Automatic from Bones").type="AUTOMATIC"
-        layout.operator("paint.weight_from_bones", text="Assign from Bone Envelopes").type="ENVELOPES"
-        
+
+        layout.operator("paint.weight_from_bones", text="Assign Automatic from Bones").type = 'AUTOMATIC'
+        layout.operator("paint.weight_from_bones", text="Assign from Bone Envelopes").type = 'ENVELOPES'
+
         layout.separator()
-        
+
         layout.operator("pose.select_constraint_target")
         layout.operator("pose.flip_names")
         layout.operator("pose.paths_calculate")
@@ -1888,6 +1891,7 @@ class VIEW3D_MT_edit_mesh_edges(Menu):
 
     def draw(self, context):
         layout = self.layout
+        with_freestyle = bpy.app.build_options.freestyle
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
@@ -1912,12 +1916,18 @@ class VIEW3D_MT_edit_mesh_edges(Menu):
 
         layout.separator()
 
+        if with_freestyle:
+            layout.operator("mesh.mark_freestyle_edge").clear = False
+            layout.operator("mesh.mark_freestyle_edge", text="Clear Freestyle Edge").clear = True
+
+        layout.separator()
+
         layout.operator("mesh.edge_rotate", text="Rotate Edge CW").use_ccw = False
         layout.operator("mesh.edge_rotate", text="Rotate Edge CCW").use_ccw = True
 
         layout.separator()
 
-        layout.operator("mesh.bevel")
+        layout.operator("mesh.bevel").vertex_only = False
         layout.operator("mesh.edge_split")
         layout.operator("mesh.bridge_edge_loops")
         layout.operator("mesh.sort_elements", text="Sort Edges").elements = {'EDGE'}
@@ -1937,6 +1947,7 @@ class VIEW3D_MT_edit_mesh_faces(Menu):
 
     def draw(self, context):
         layout = self.layout
+        with_freestyle = bpy.app.build_options.freestyle
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
@@ -1945,10 +1956,16 @@ class VIEW3D_MT_edit_mesh_faces(Menu):
         layout.operator("mesh.fill")
         layout.operator("mesh.beautify_fill")
         layout.operator("mesh.inset")
-        layout.operator("mesh.bevel")
+        layout.operator("mesh.bevel").vertex_only = False
         layout.operator("mesh.solidify")
         layout.operator("mesh.wireframe")
         layout.operator("mesh.sort_elements", text="Sort Faces").elements = {'FACE'}
+
+        layout.separator()
+
+        if with_freestyle:
+            layout.operator("mesh.mark_freestyle_face").clear = False
+            layout.operator("mesh.mark_freestyle_face", text="Clear Freestyle Face").clear = True
 
         layout.separator()
 
@@ -2375,6 +2392,7 @@ class VIEW3D_PT_view3d_properties(Panel):
 
         col = layout.column(align=True)
         col.prop(view, "use_render_border")
+        col.active = view.region_3d.view_perspective != 'CAMERA'
 
 
 class VIEW3D_PT_view3d_cursor(Panel):
@@ -2536,8 +2554,11 @@ class VIEW3D_PT_view3d_meshdisplay(Panel):
 
     def draw(self, context):
         layout = self.layout
+        with_freestyle = bpy.app.build_options.freestyle
 
         mesh = context.active_object.data
+
+        layout.prop(mesh, "show_weight")
 
         split = layout.split()
 
@@ -2546,12 +2567,18 @@ class VIEW3D_PT_view3d_meshdisplay(Panel):
         col.prop(mesh, "show_faces", text="Faces")
         col.prop(mesh, "show_edges", text="Edges")
         col.prop(mesh, "show_edge_crease", text="Creases")
+        if with_freestyle:
+            col.prop(mesh, "show_edge_seams", text="Seams")
 
         col = split.column()
         col.label()
-        col.prop(mesh, "show_edge_seams", text="Seams")
+        if not with_freestyle:
+            col.prop(mesh, "show_edge_seams", text="Seams")
         col.prop(mesh, "show_edge_sharp", text="Sharp", text_ctxt=i18n_contexts.plural)
-        col.prop(mesh, "show_edge_bevel_weight", text="Weights")
+        col.prop(mesh, "show_edge_bevel_weight", text="Bevel")
+        if with_freestyle:
+            col.prop(mesh, "show_freestyle_edge_marks", text="Edge Marks")
+            col.prop(mesh, "show_freestyle_face_marks", text="Face Marks")
 
         col = layout.column()
 
@@ -2568,13 +2595,63 @@ class VIEW3D_PT_view3d_meshdisplay(Panel):
         sub.prop(context.scene.tool_settings, "normal_size", text="Size")
 
         col.separator()
-        col.label(text="Numerics:")
-        col.prop(mesh, "show_extra_edge_length")
-        col.prop(mesh, "show_extra_edge_angle")
-        col.prop(mesh, "show_extra_face_angle")
-        col.prop(mesh, "show_extra_face_area")
+        split = layout.split()
+        col = split.column()
+        col.label(text="Edge Info:")
+        col.prop(mesh, "show_extra_edge_length", text="Length")
+        col.prop(mesh, "show_extra_edge_angle", text="Angle")
+        col = split.column()
+        col.label(text="Face Info:")
+        col.prop(mesh, "show_extra_face_area", text="Area")
+        col.prop(mesh, "show_extra_face_angle", text="Angle")
         if bpy.app.debug:
-            col.prop(mesh, "show_extra_indices")
+            layout.prop(mesh, "show_extra_indices")
+
+
+class VIEW3D_PT_view3d_meshstatvis(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_label = "Mesh Analysis"
+
+    @classmethod
+    def poll(cls, context):
+        # The active object check is needed because of local-mode
+        return (context.active_object and (context.mode == 'EDIT_MESH'))
+
+    def draw_header(self, context):
+        mesh = context.active_object.data
+
+        self.layout.prop(mesh, "show_statvis", text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+        mesh = context.active_object.data
+        statvis = context.tool_settings.statvis
+        layout.active = mesh.show_statvis
+
+        layout.prop(statvis, "type")
+        statvis_type = statvis.type
+        if statvis_type == 'OVERHANG':
+            row = layout.row(align=True)
+            row.prop(statvis, "overhang_min", text="")
+            row.prop(statvis, "overhang_max", text="")
+            layout.prop(statvis, "overhang_axis", expand=True)
+        elif statvis_type == 'THICKNESS':
+            row = layout.row(align=True)
+            row.prop(statvis, "thickness_min", text="")
+            row.prop(statvis, "thickness_max", text="")
+            layout.prop(statvis, "thickness_samples")
+        elif statvis_type == 'INTERSECT':
+            pass
+        elif statvis_type == 'DISTORT':
+            row = layout.row(align=True)
+            row.prop(statvis, "distort_min", text="")
+            row.prop(statvis, "distort_max", text="")
+        elif statvis_type == 'SHARP':
+            row = layout.row(align=True)
+            row.prop(statvis, "sharp_min", text="")
+            row.prop(statvis, "sharp_max", text="")
 
 
 class VIEW3D_PT_view3d_curvedisplay(Panel):
@@ -2672,13 +2749,10 @@ class VIEW3D_PT_background_image(Panel):
                 if has_bg:
                     col = box.column()
                     col.prop(bg, "opacity", slider=True)
-
-                    rowsub = col.row()
-                    rowsub.prop(bg, "draw_depth", expand=True)
+                    col.row().prop(bg, "draw_depth", expand=True)
 
                     if bg.view_axis in {'CAMERA', 'ALL'}:
-                        rowsub = col.row()
-                        rowsub.prop(bg, "frame_method", expand=True)
+                        col.row().prop(bg, "frame_method", expand=True)
 
                     row = col.row(align=True)
                     row.prop(bg, "offset_x", text="X")

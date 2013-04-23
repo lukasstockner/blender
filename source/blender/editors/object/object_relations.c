@@ -85,7 +85,7 @@
 #include "BKE_scene.h"
 #include "BKE_speaker.h"
 #include "BKE_texture.h"
-#include "BKE_tessmesh.h"
+#include "BKE_editmesh.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -140,7 +140,7 @@ static int vertex_parent_set_exec(bContext *C, wmOperator *op)
 		em = me->edit_btmesh;
 
 		EDBM_mesh_normals_update(em);
-		BMEdit_RecalcTessellation(em);
+		BKE_editmesh_tessface_calc(em);
 
 		/* derivedMesh might be needed for solving parenting,
 		 * so re-create it here */
@@ -344,7 +344,7 @@ static int make_proxy_exec(bContext *C, wmOperator *op)
 		char name[MAX_ID_NAME + 4];
 		
 		/* Add new object for the proxy */
-		newob = BKE_object_add(scene, OB_EMPTY);
+		newob = BKE_object_add(bmain, scene, OB_EMPTY);
 
 		BLI_snprintf(name, sizeof(name), "%s_proxy", ((ID *)(gob ? gob : ob))->name + 2);
 
@@ -736,9 +736,7 @@ int ED_object_parent_set(ReportList *reports, Main *bmain, Scene *scene, Object 
 				BKE_get_constraint_target_matrix(scene, con, 0, CONSTRAINT_OBTYPE_OBJECT, NULL, cmat, scene->r.cfra);
 				sub_v3_v3v3(vec, ob->obmat[3], cmat[3]);
 				
-				ob->loc[0] = vec[0];
-				ob->loc[1] = vec[1];
-				ob->loc[2] = vec[2];
+				copy_v3_v3(ob->loc, vec);
 			}
 			else if (pararm && ob->type == OB_MESH && par->type == OB_ARMATURE) {
 				if (partype == PAR_ARMATURE_NAME)
@@ -1461,7 +1459,7 @@ static int make_links_data_exec(bContext *C, wmOperator *op)
 						ob_dst->data = id;
 
 						/* if amount of material indices changed: */
-						test_object_materials(ob_dst->data);
+						test_object_materials(bmain, ob_dst->data);
 
 						DAG_id_tag_update(&ob_dst->id, OB_RECALC_DATA);
 						break;

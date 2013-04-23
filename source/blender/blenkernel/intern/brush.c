@@ -111,6 +111,9 @@ static void brush_defaults(Brush *brush)
 
 	brush->texture_sample_bias = 0; /* value to added to texture samples */
 	brush->texture_overlay_alpha = 33;
+	brush->mask_overlay_alpha = 33;
+	brush->cursor_overlay_alpha = 33;
+	brush->overlay_flags = 0;
 
 	/* brush appearance  */
 
@@ -224,7 +227,7 @@ void BKE_brush_make_local(Brush *brush)
 	}
 
 	for (scene = bmain->scene.first; scene && ELEM(0, is_lib, is_local); scene = scene->id.next) {
-		if (paint_brush(&scene->toolsettings->imapaint.paint) == brush) {
+		if (BKE_paint_brush(&scene->toolsettings->imapaint.paint) == brush) {
 			if (scene->id.lib) is_lib = TRUE;
 			else is_local = TRUE;
 		}
@@ -249,9 +252,9 @@ void BKE_brush_make_local(Brush *brush)
 		BKE_id_lib_local_paths(bmain, brush->id.lib, &brush_new->id);
 		
 		for (scene = bmain->scene.first; scene; scene = scene->id.next) {
-			if (paint_brush(&scene->toolsettings->imapaint.paint) == brush) {
+			if (BKE_paint_brush(&scene->toolsettings->imapaint.paint) == brush) {
 				if (scene->id.lib == NULL) {
-					paint_brush_set(&scene->toolsettings->imapaint.paint, brush_new);
+					BKE_paint_brush_set(&scene->toolsettings->imapaint.paint, brush_new);
 				}
 			}
 		}
@@ -274,6 +277,11 @@ void BKE_brush_debug_print_state(Brush *br)
 	else if (!(br->flag & _f) && (def.flag & _f))	\
 		printf("br->flag &= ~" #_f ";\n")
 	
+#define BR_TEST_FLAG_OVERLAY(_f)							\
+	if ((br->overlay_flags & _f) && !(def.overlay_flags & _f))		\
+		printf("br->overlay_flags |= " #_f ";\n");			\
+	else if (!(br->overlay_flags & _f) && (def.overlay_flags & _f))	\
+		printf("br->overlay_flags &= ~" #_f ";\n")
 
 	/* print out any non-default brush state */
 	BR_TEST(normal_weight, f);
@@ -301,7 +309,6 @@ void BKE_brush_debug_print_state(Brush *br)
 	BR_TEST_FLAG(BRUSH_SPACE_ATTEN);
 	BR_TEST_FLAG(BRUSH_ADAPTIVE_SPACE);
 	BR_TEST_FLAG(BRUSH_LOCK_SIZE);
-	BR_TEST_FLAG(BRUSH_TEXTURE_OVERLAY);
 	BR_TEST_FLAG(BRUSH_EDGE_TO_EDGE);
 	BR_TEST_FLAG(BRUSH_RESTORE_MESH);
 	BR_TEST_FLAG(BRUSH_INVERSE_SMOOTH_PRESSURE);
@@ -309,6 +316,13 @@ void BKE_brush_debug_print_state(Brush *br)
 	BR_TEST_FLAG(BRUSH_PLANE_TRIM);
 	BR_TEST_FLAG(BRUSH_FRONTFACE);
 	BR_TEST_FLAG(BRUSH_CUSTOM_ICON);
+
+	BR_TEST_FLAG_OVERLAY(BRUSH_OVERLAY_CURSOR);
+	BR_TEST_FLAG_OVERLAY(BRUSH_OVERLAY_PRIMARY);
+	BR_TEST_FLAG_OVERLAY(BRUSH_OVERLAY_SECONDARY);
+	BR_TEST_FLAG_OVERLAY(BRUSH_OVERLAY_CURSOR_OVERRIDE_ON_STROKE);
+	BR_TEST_FLAG_OVERLAY(BRUSH_OVERLAY_PRIMARY_OVERRIDE_ON_STROKE);
+	BR_TEST_FLAG_OVERLAY(BRUSH_OVERLAY_SECONDARY_OVERRIDE_ON_STROKE);
 
 	BR_TEST(jitter, f);
 	BR_TEST(spacing, d);
@@ -548,11 +562,11 @@ float BKE_brush_sample_tex_3D(const Scene *scene, Brush *br,
 		x /= (br->stencil_dimension[0]);
 		y /= (br->stencil_dimension[1]);
 
-		x *= br->mtex.size[0];
-		y *= br->mtex.size[1];
+		x *= mtex->size[0];
+		y *= mtex->size[1];
 
-		co[0] = x + br->mtex.ofs[0];
-		co[1] = y + br->mtex.ofs[1];
+		co[0] = x + mtex->ofs[0];
+		co[1] = y + mtex->ofs[1];
 		co[2] = 0.0f;
 
 		hasrgb = externtex(mtex, co, &intensity,
@@ -608,11 +622,11 @@ float BKE_brush_sample_tex_3D(const Scene *scene, Brush *br,
 			y = flen * sinf(angle);
 		}
 
-		x *= br->mtex.size[0];
-		y *= br->mtex.size[1];
+		x *= mtex->size[0];
+		y *= mtex->size[1];
 
-		co[0] = x + br->mtex.ofs[0];
-		co[1] = y + br->mtex.ofs[1];
+		co[0] = x + mtex->ofs[0];
+		co[1] = y + mtex->ofs[1];
 		co[2] = 0.0f;
 
 		hasrgb = externtex(mtex, co, &intensity,
@@ -638,26 +652,83 @@ float BKE_brush_sample_masktex(const Scene *scene, Brush *br,
 {
 	UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
 	MTex *mtex = &br->mask_mtex;
+	float rgba[4], intensity;
 
-	if (mtex && mtex->tex) {
+	if (!mtex->tex) {
+		return 1.0f;
+	}
+	if (mtex->brush_map_mode == MTEX_MAP_MODE_STENCIL) {
 		float rotation = -mtex->rot;
 		float point_2d[2] = {point[0], point[1]};
 		float x = 0.0f, y = 0.0f; /* Quite warnings */
-		float radius = 1.0f; /* Quite warnings */
 		float co[3];
-		float rgba[4], intensity = 1.0;
 
-		point_2d[0] -= ups->tex_mouse[0];
-		point_2d[1] -= ups->tex_mouse[1];
+		x = point_2d[0] - br->mask_stencil_pos[0];
+		y = point_2d[1] - br->mask_stencil_pos[1];
 
-		/* use pressure adjusted size for fixed mode */
-		radius = ups->pixel_radius;
+		if (rotation > 0.001f || rotation < -0.001f) {
+			const float angle    = atan2f(y, x) + rotation;
+			const float flen     = sqrtf(x * x + y * y);
 
-		x = point_2d[0];
-		y = point_2d[1];
+			x = flen * cosf(angle);
+			y = flen * sinf(angle);
+		}
 
-		x /= radius;
-		y /= radius;
+		if (fabsf(x) > br->mask_stencil_dimension[0] || fabsf(y) > br->mask_stencil_dimension[1]) {
+			zero_v4(rgba);
+			return 0.0f;
+		}
+		x /= (br->mask_stencil_dimension[0]);
+		y /= (br->mask_stencil_dimension[1]);
+
+		x *= mtex->size[0];
+		y *= mtex->size[1];
+
+		co[0] = x + mtex->ofs[0];
+		co[1] = y + mtex->ofs[1];
+		co[2] = 0.0f;
+
+		externtex(mtex, co, &intensity,
+		          rgba, rgba + 1, rgba + 2, rgba + 3, thread, pool);
+	}
+	else {
+		float rotation = -mtex->rot;
+		float point_2d[2] = {point[0], point[1]};
+		float x = 0.0f, y = 0.0f; /* Quite warnings */
+		float invradius = 1.0f; /* Quite warnings */
+		float co[3];
+
+		if (mtex->brush_map_mode == MTEX_MAP_MODE_VIEW) {
+			/* keep coordinates relative to mouse */
+
+			rotation += ups->brush_rotation;
+
+			x = point_2d[0] - ups->mask_tex_mouse[0];
+			y = point_2d[1] - ups->mask_tex_mouse[1];
+
+			/* use pressure adjusted size for fixed mode */
+			invradius = 1.0f / ups->pixel_radius;
+		}
+		else if (mtex->brush_map_mode == MTEX_MAP_MODE_TILED) {
+			/* leave the coordinates relative to the screen */
+
+			/* use unadjusted size for tiled mode */
+			invradius = 1.0f / BKE_brush_size_get(scene, br);
+
+			x = point_2d[0];
+			y = point_2d[1];
+		}
+		else if (mtex->brush_map_mode == MTEX_MAP_MODE_RANDOM) {
+			rotation += ups->brush_rotation;
+			/* these contain a random coordinate */
+			x = point_2d[0] - ups->mask_tex_mouse[0];
+			y = point_2d[1] - ups->mask_tex_mouse[1];
+
+			invradius = 1.0f / ups->pixel_radius;
+		}
+
+		x *= invradius;
+		y *= invradius;
 
 		/* it is probably worth optimizing for those cases where
 		 * the texture is not rotated by skipping the calls to
@@ -670,21 +741,18 @@ float BKE_brush_sample_masktex(const Scene *scene, Brush *br,
 			y = flen * sinf(angle);
 		}
 
-		x *= br->mask_mtex.size[0];
-		y *= br->mask_mtex.size[1];
+		x *= mtex->size[0];
+		y *= mtex->size[1];
 
-		co[0] = x + br->mask_mtex.ofs[0];
-		co[1] = y + br->mask_mtex.ofs[1];
+		co[0] = x + mtex->ofs[0];
+		co[1] = y + mtex->ofs[1];
 		co[2] = 0.0f;
 
 		externtex(mtex, co, &intensity,
-		                   rgba, rgba + 1, rgba + 2, rgba + 3, thread, pool);
+		          rgba, rgba + 1, rgba + 2, rgba + 3, thread, pool);
+	}
 
-		return intensity;
-	}
-	else {
-		return 1.0f;
-	}
+	return intensity;
 }
 
 /* Brush Sampling for 2D brushes. when we unify the brush systems this will be necessarily a separate function */
@@ -1032,12 +1100,18 @@ void BKE_brush_jitter_pos(const Scene *scene, Brush *brush, const float pos[2], 
 	}
 }
 
-void BKE_brush_randomize_texture_coordinates(UnifiedPaintSettings *ups)
+void BKE_brush_randomize_texture_coordinates(UnifiedPaintSettings *ups, bool mask)
 {
 	/* we multiply with brush radius as an optimization for the brush
 	 * texture sampling functions */
-	ups->tex_mouse[0] = BLI_rng_get_float(brush_rng) * ups->pixel_radius;
-	ups->tex_mouse[1] = BLI_rng_get_float(brush_rng) * ups->pixel_radius;
+	if (mask) {
+		ups->mask_tex_mouse[0] = BLI_rng_get_float(brush_rng) * ups->pixel_radius;
+		ups->mask_tex_mouse[1] = BLI_rng_get_float(brush_rng) * ups->pixel_radius;
+	}
+	else {
+		ups->tex_mouse[0] = BLI_rng_get_float(brush_rng) * ups->pixel_radius;
+		ups->tex_mouse[1] = BLI_rng_get_float(brush_rng) * ups->pixel_radius;
+	}
 }
 
 /* Uses the brush curve control to find a strength value between 0 and 1 */

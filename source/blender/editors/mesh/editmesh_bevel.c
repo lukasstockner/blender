@@ -35,7 +35,7 @@
 
 #include "BKE_context.h"
 #include "BKE_global.h"
-#include "BKE_tessmesh.h"
+#include "BKE_editmesh.h"
 
 #include "RNA_define.h"
 #include "RNA_access.h"
@@ -91,14 +91,14 @@ static void edbm_bevel_update_header(wmOperator *op, bContext *C)
 	}
 }
 
-static int edbm_bevel_init(bContext *C, wmOperator *op, const bool is_modal)
+static bool edbm_bevel_init(bContext *C, wmOperator *op, const bool is_modal)
 {
 	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BMEdit_FromObject(obedit);
+	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	BevelData *opdata;
 
-	if (em == NULL) {
-		return 0;
+	if (em->bm->totvertsel == 0) {
+		return false;
 	}
 
 	op->customdata = opdata = MEM_mallocN(sizeof(BevelData), "beveldata_mesh_operator");
@@ -122,10 +122,10 @@ static int edbm_bevel_init(bContext *C, wmOperator *op, const bool is_modal)
 		v3d->twtype = 0;
 	}
 
-	return 1;
+	return true;
 }
 
-static int edbm_bevel_calc(wmOperator *op)
+static bool edbm_bevel_calc(wmOperator *op)
 {
 	BevelData *opdata = op->customdata;
 	BMEditMesh *em = opdata->em;
@@ -139,12 +139,9 @@ static int edbm_bevel_calc(wmOperator *op)
 		EDBM_redo_state_restore(opdata->mesh_backup, em, false);
 	}
 
-	if (!EDBM_op_init(em, &bmop, op,
-		              "bevel geom=%hev offset=%f segments=%i vertex_only=%b",
-		              BM_ELEM_SELECT, offset, segments, vertex_only))
-	{
-		return 0;
-	}
+	EDBM_op_init(em, &bmop, op,
+	             "bevel geom=%hev offset=%f segments=%i vertex_only=%b",
+	             BM_ELEM_SELECT, offset, segments, vertex_only);
 
 	BMO_op_exec(em->bm, &bmop);
 
@@ -157,13 +154,13 @@ static int edbm_bevel_calc(wmOperator *op)
 
 	/* no need to de-select existing geometry */
 	if (!EDBM_op_finish(em, &bmop, op, true))
-		return 0;
+		return false;
 
 	EDBM_mesh_normals_update(opdata->em);
 
 	EDBM_update_generic(opdata->em, true, true);
 
-	return 1;
+	return true;
 }
 
 static void edbm_bevel_exit(bContext *C, wmOperator *op)
@@ -207,7 +204,6 @@ static int edbm_bevel_cancel(bContext *C, wmOperator *op)
 static int edbm_bevel_exec(bContext *C, wmOperator *op)
 {
 	if (!edbm_bevel_init(C, op, false)) {
-		edbm_bevel_exit(C, op);
 		return OPERATOR_CANCELLED;
 	}
 
@@ -339,7 +335,7 @@ static int edbm_bevel_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			return OPERATOR_FINISHED;
 
 		case WHEELUPMOUSE:  /* change number of segments */
-		case PAGEUPKEY:
+		case PADPLUSKEY:
 			if (event->val == KM_RELEASE)
 				break;
 
@@ -350,7 +346,7 @@ static int edbm_bevel_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			break;
 
 		case WHEELDOWNMOUSE:  /* change number of segments */
-		case PAGEDOWNKEY:
+		case PADMINUS:
 			if (event->val == KM_RELEASE)
 				break;
 

@@ -1800,11 +1800,11 @@ static void ui_block_func_MENUSTR(bContext *UNUSED(C), uiLayout *layout, void *a
 		}
 		else if (entry->icon) {
 			uiDefIconTextButF(block, BUTM, B_NOP, entry->icon, entry->str, 0, 0,
-			                  UI_UNIT_X * 5, UI_UNIT_Y, &handle->retvalue, (float) entry->retval, 0.0, 0, 0, "");
+			                  UI_UNIT_X * 5, UI_UNIT_Y, &handle->retvalue, (float) entry->retval, 0.0, 0, -1, "");
 		}
 		else {
 			uiDefButF(block, BUTM, B_NOP, entry->str, 0, 0,
-			          UI_UNIT_X * 5, UI_UNIT_X, &handle->retvalue, (float) entry->retval, 0.0, 0, 0, "");
+			          UI_UNIT_X * 5, UI_UNIT_X, &handle->retvalue, (float) entry->retval, 0.0, 0, -1, "");
 		}
 	}
 	
@@ -1822,7 +1822,7 @@ void ui_block_func_ICONROW(bContext *UNUSED(C), uiLayout *layout, void *arg_but)
 	
 	for (a = (int)but->hardmin; a <= (int)but->hardmax; a++)
 		uiDefIconButF(block, BUTM, B_NOP, but->icon + (a - but->hardmin), 0, 0, UI_UNIT_X * 5, UI_UNIT_Y,
-		              &handle->retvalue, (float)a, 0.0, 0, 0, "");
+		              &handle->retvalue, (float)a, 0.0, 0, -1, "");
 }
 
 void ui_block_func_ICONTEXTROW(bContext *UNUSED(C), uiLayout *layout, void *arg_but)
@@ -1852,7 +1852,7 @@ void ui_block_func_ICONTEXTROW(bContext *UNUSED(C), uiLayout *layout, void *arg_
 			uiItemS(layout);
 		else
 			uiDefIconTextButF(block, BUTM, B_NOP, (short)((but->icon) + (entry->retval - but->hardmin)), entry->str,
-			                  0, 0, UI_UNIT_X * 5, UI_UNIT_Y, &handle->retvalue, (float) entry->retval, 0.0, 0, 0, "");
+			                  0, 0, UI_UNIT_X * 5, UI_UNIT_Y, &handle->retvalue, (float) entry->retval, 0.0, 0, -1, "");
 	}
 
 	menudata_free(md);
@@ -2175,7 +2175,7 @@ static void uiBlockPicker(uiBlock *block, float rgba[4], PointerRNA *ptr, Proper
 	uiBlockEndAlign(block);
 
 	if (rgba[3] != FLT_MAX) {
-		bt = uiDefButR_prop(block, NUMSLI, 0, IFACE_("A "),  0, yco -= UI_UNIT_Y, butwidth, UI_UNIT_Y, ptr, prop, 3, 0.0, 0.0, 0, 0, TIP_("Alpha"));
+		bt = uiDefButR_prop(block, NUMSLI, 0, IFACE_("A "),  0, yco -= UI_UNIT_Y, butwidth, UI_UNIT_Y, ptr, prop, 3, 0.0, 0.0, 0, 3, TIP_("Alpha"));
 		uiButSetFunc(bt, do_picker_rna_cb, bt, NULL);
 	}
 	else {
@@ -2323,7 +2323,8 @@ struct uiPopupMenu {
 	uiLayout *layout;
 	uiBut *but;
 
-	int mx, my, popup, slideout;
+	int mx, my;
+	bool popup, slideout;
 	int startx, starty, maxrow;
 
 	uiMenuCreateFunc menu_func;
@@ -2440,7 +2441,7 @@ uiPopupBlockHandle *ui_popup_menu_create(bContext *C, ARegion *butregion, uiBut 
 	pup->block = uiBeginBlock(C, NULL, __func__, UI_EMBOSSP);
 	pup->block->flag |= UI_BLOCK_NUMSELECT;  /* default menus to numselect */
 	pup->layout = uiBlockLayout(pup->block, UI_LAYOUT_VERTICAL, UI_LAYOUT_MENU, 0, 0, 200, 0, style);
-	pup->slideout = (but && (but->block->flag & UI_BLOCK_LOOP));
+	pup->slideout = but ? ui_block_is_menu(but->block) : false;
 	pup->but = but;
 	uiLayoutSetOperatorContext(pup->layout, WM_OP_INVOKE_REGION_WIN);
 
@@ -2448,7 +2449,7 @@ uiPopupBlockHandle *ui_popup_menu_create(bContext *C, ARegion *butregion, uiBut 
 		/* no button to start from, means we are a popup */
 		pup->mx = window->eventstate->x;
 		pup->my = window->eventstate->y;
-		pup->popup = 1;
+		pup->popup = true;
 		pup->block->flag |= UI_BLOCK_NO_FLIP;
 	}
 	/* some enums reversing is strange, currently we have no good way to

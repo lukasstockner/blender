@@ -111,6 +111,7 @@
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_lamp_types.h"
+#include "DNA_linestyle_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -341,12 +342,12 @@ static int endwrite(WriteData *wd)
 
 /* ********** WRITE FILE ****************** */
 
-static void writestruct(WriteData *wd, int filecode, const char *structname, int nr, void *adr)
+static void writestruct_at_address(WriteData *wd, int filecode, const char *structname, int nr, void *adr, void *data)
 {
 	BHead bh;
 	short *sp;
 
-	if (adr==NULL || nr==0) return;
+	if (adr==NULL || data==NULL || nr==0) return;
 
 	/* init BHead */
 	bh.code= filecode;
@@ -365,7 +366,12 @@ static void writestruct(WriteData *wd, int filecode, const char *structname, int
 	if (bh.len==0) return;
 
 	mywrite(wd, &bh, sizeof(BHead));
-	mywrite(wd, adr, bh.len);
+	mywrite(wd, data, bh.len);
+}
+
+static void writestruct(WriteData *wd, int filecode, const char *structname, int nr, void *adr)
+{
+	writestruct_at_address(wd, filecode, structname, nr, adr, adr);
 }
 
 static void writedata(WriteData *wd, int filecode, int len, const void *adr)  /* do not use for structs */
@@ -1806,20 +1812,21 @@ static void write_meshs(WriteData *wd, ListBase *idbase)
 			if (!save_for_old_blender) {
 
 #ifdef USE_BMESH_SAVE_WITHOUT_MFACE
-				Mesh backup_mesh = {{NULL}};
-				/* cache only - don't write */
-				backup_mesh.mface = mesh->mface;
-				mesh->mface = NULL;
-				/* -- */
-				backup_mesh.totface = mesh->totface;
-				mesh->totface = 0;
-				/* -- */
-				backup_mesh.fdata = mesh->fdata;
-				memset(&mesh->fdata, 0, sizeof(mesh->fdata));
-				/* -- */
-#endif /* USE_BMESH_SAVE_WITHOUT_MFACE */
+				/* write a copy of the mesh, don't modify in place because it is
+				 * not thread safe for threaded renders that are reading this */
+				Mesh *old_mesh = mesh;
+				Mesh copy_mesh = *mesh;
+				mesh = &copy_mesh;
 
+				/* cache only - don't write */
+				mesh->mface = NULL;
+				mesh->totface = 0;
+				memset(&mesh->fdata, 0, sizeof(mesh->fdata));
+
+				writestruct_at_address(wd, ID_ME, "Mesh", 1, old_mesh, mesh);
+#else
 				writestruct(wd, ID_ME, "Mesh", 1, mesh);
+#endif /* USE_BMESH_SAVE_WITHOUT_MFACE */
 
 				/* direct data */
 				if (mesh->id.properties) IDP_WriteProperty(mesh->id.properties, wd);
@@ -1836,58 +1843,37 @@ static void write_meshs(WriteData *wd, ListBase *idbase)
 				write_customdata(wd, &mesh->id, mesh->totpoly, &mesh->pdata, -1, 0);
 
 #ifdef USE_BMESH_SAVE_WITHOUT_MFACE
-				/* cache only - don't write */
-				mesh->mface = backup_mesh.mface;
-				/* -- */
-				mesh->totface = backup_mesh.totface;
-				/* -- */
-				mesh->fdata = backup_mesh.fdata;
+				/* restore pointer */
+				mesh = old_mesh;
 #endif /* USE_BMESH_SAVE_WITHOUT_MFACE */
 
 			}
 			else {
 
 #ifdef USE_BMESH_SAVE_AS_COMPAT
+				/* write a copy of the mesh, don't modify in place because it is
+				 * not thread safe for threaded renders that are reading this */
+				Mesh *old_mesh = mesh;
+				Mesh copy_mesh = *mesh;
+				mesh = &copy_mesh;
 
-				Mesh backup_mesh = {{NULL}};
-
-				/* backup */
-				backup_mesh.mpoly = mesh->mpoly;
 				mesh->mpoly = NULL;
-				/* -- */
-				backup_mesh.mface = mesh->mface;
 				mesh->mface = NULL;
-				/* -- */
-				backup_mesh.totface = mesh->totface;
 				mesh->totface = 0;
-				/* -- */
-				backup_mesh.totpoly = mesh->totpoly;
 				mesh->totpoly = 0;
-				/* -- */
-				backup_mesh.totloop = mesh->totloop;
 				mesh->totloop = 0;
-				/* -- */
-				backup_mesh.fdata = mesh->fdata;
 				CustomData_reset(&mesh->fdata);
-				/* -- */
-				backup_mesh.pdata = mesh->pdata;
 				CustomData_reset(&mesh->pdata);
-				/* -- */
-				backup_mesh.ldata = mesh->ldata;
 				CustomData_reset(&mesh->ldata);
-				/* -- */
-				backup_mesh.edit_btmesh = mesh->edit_btmesh;
 				mesh->edit_btmesh = NULL;
-				/* backup */
-
 
 				/* now fill in polys to mfaces */
-				mesh->totface = BKE_mesh_mpoly_to_mface(&mesh->fdata, &backup_mesh.ldata, &backup_mesh.pdata,
-				                                        mesh->totface, backup_mesh.totloop, backup_mesh.totpoly);
+				mesh->totface = BKE_mesh_mpoly_to_mface(&mesh->fdata, &old_mesh->ldata, &old_mesh->pdata,
+				                                        mesh->totface, old_mesh->totloop, old_mesh->totpoly);
 
 				BKE_mesh_update_customdata_pointers(mesh, false);
 
-				writestruct(wd, ID_ME, "Mesh", 1, mesh);
+				writestruct_at_address(wd, ID_ME, "Mesh", 1, old_mesh, mesh);
 
 				/* direct data */
 				if (mesh->id.properties) IDP_WriteProperty(mesh->id.properties, wd);
@@ -1905,28 +1891,10 @@ static void write_meshs(WriteData *wd, ListBase *idbase)
 				write_customdata(wd, &mesh->id, mesh->totpoly, &mesh->pdata, -1, 0);
 #endif
 
-				/* restore */
-				mesh->mpoly = backup_mesh.mpoly;
-				/* -- */
-				mesh->mface = backup_mesh.mface;
-				/* -- */
 				CustomData_free(&mesh->fdata, mesh->totface);
-				/* -- */
-				mesh->fdata= backup_mesh.fdata;
-				/* -- */
-				mesh->pdata= backup_mesh.pdata;
-				/* -- */
-				mesh->ldata= backup_mesh.ldata;
-				/* -- */
-				mesh->totface = backup_mesh.totface;
-				mesh->totpoly = backup_mesh.totpoly;
-				mesh->totloop = backup_mesh.totloop;
-				/* -- */
-				BKE_mesh_update_customdata_pointers(mesh, false);
-				/* --*/
-				mesh->edit_btmesh = backup_mesh.edit_btmesh; /* keep this after updating custom pointers */
-				/* restore */
 
+				/* restore pointer */
+				mesh = old_mesh;
 #endif /* USE_BMESH_SAVE_AS_COMPAT */
 			}
 		}
@@ -2198,6 +2166,8 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 	TransformOrientation *ts;
 	SceneRenderLayer *srl;
 	ToolSettings *tos;
+	FreestyleModuleConfig *fmc;
+	FreestyleLineSet *fls;
 	
 	sce= scebase->first;
 	while (sce) {
@@ -2321,8 +2291,15 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 		for (ts = sce->transform_spaces.first; ts; ts = ts->next)
 			writestruct(wd, DATA, "TransformOrientation", 1, ts);
 		
-		for (srl= sce->r.layers.first; srl; srl= srl->next)
+		for (srl = sce->r.layers.first; srl; srl = srl->next) {
 			writestruct(wd, DATA, "SceneRenderLayer", 1, srl);
+			for (fmc = srl->freestyleConfig.modules.first; fmc; fmc = fmc->next) {
+				writestruct(wd, DATA, "FreestyleModuleConfig", 1, fmc);
+			}
+			for (fls = srl->freestyleConfig.linesets.first; fls; fls = fls->next) {
+				writestruct(wd, DATA, "FreestyleLineSet", 1, fls);
+			}
+		}
 		
 		if (sce->nodetree) {
 			writestruct(wd, DATA, "bNodeTree", 1, sce->nodetree);
@@ -3000,6 +2977,207 @@ static void write_masks(WriteData *wd, ListBase *idbase)
 	mywrite(wd, MYWRITE_FLUSH, 0);
 }
 
+static void write_linestyle_color_modifiers(WriteData *wd, ListBase *modifiers)
+{
+	LineStyleModifier *m;
+	const char *struct_name;
+
+	for (m = modifiers->first; m; m = m->next) {
+		switch (m->type) {
+		case LS_MODIFIER_ALONG_STROKE:
+			struct_name = "LineStyleColorModifier_AlongStroke";
+			break;
+		case LS_MODIFIER_DISTANCE_FROM_CAMERA:
+			struct_name = "LineStyleColorModifier_DistanceFromCamera";
+			break;
+		case LS_MODIFIER_DISTANCE_FROM_OBJECT:
+			struct_name = "LineStyleColorModifier_DistanceFromObject";
+			break;
+		case LS_MODIFIER_MATERIAL:
+			struct_name = "LineStyleColorModifier_Material";
+			break;
+		default:
+			struct_name = "LineStyleColorModifier"; /* this should not happen */
+		}
+		writestruct(wd, DATA, struct_name, 1, m);
+	}
+	for (m = modifiers->first; m; m = m->next) {
+		switch (m->type) {
+		case LS_MODIFIER_ALONG_STROKE:
+			writestruct(wd, DATA, "ColorBand", 1, ((LineStyleColorModifier_AlongStroke *)m)->color_ramp);
+			break;
+		case LS_MODIFIER_DISTANCE_FROM_CAMERA:
+			writestruct(wd, DATA, "ColorBand", 1, ((LineStyleColorModifier_DistanceFromCamera *)m)->color_ramp);
+			break;
+		case LS_MODIFIER_DISTANCE_FROM_OBJECT:
+			writestruct(wd, DATA, "ColorBand", 1, ((LineStyleColorModifier_DistanceFromObject *)m)->color_ramp);
+			break;
+		case LS_MODIFIER_MATERIAL:
+			writestruct(wd, DATA, "ColorBand", 1, ((LineStyleColorModifier_Material *)m)->color_ramp);
+			break;
+		}
+	}
+}
+
+static void write_linestyle_alpha_modifiers(WriteData *wd, ListBase *modifiers)
+{
+	LineStyleModifier *m;
+	const char *struct_name;
+
+	for (m = modifiers->first; m; m = m->next) {
+		switch (m->type) {
+		case LS_MODIFIER_ALONG_STROKE:
+			struct_name = "LineStyleAlphaModifier_AlongStroke";
+			break;
+		case LS_MODIFIER_DISTANCE_FROM_CAMERA:
+			struct_name = "LineStyleAlphaModifier_DistanceFromCamera";
+			break;
+		case LS_MODIFIER_DISTANCE_FROM_OBJECT:
+			struct_name = "LineStyleAlphaModifier_DistanceFromObject";
+			break;
+		case LS_MODIFIER_MATERIAL:
+			struct_name = "LineStyleAlphaModifier_Material";
+			break;
+		default:
+			struct_name = "LineStyleAlphaModifier"; /* this should not happen */
+		}
+		writestruct(wd, DATA, struct_name, 1, m);
+	}
+	for (m = modifiers->first; m; m = m->next) {
+		switch (m->type) {
+		case LS_MODIFIER_ALONG_STROKE:
+			write_curvemapping(wd, ((LineStyleAlphaModifier_AlongStroke *)m)->curve);
+			break;
+		case LS_MODIFIER_DISTANCE_FROM_CAMERA:
+			write_curvemapping(wd, ((LineStyleAlphaModifier_DistanceFromCamera *)m)->curve);
+			break;
+		case LS_MODIFIER_DISTANCE_FROM_OBJECT:
+			write_curvemapping(wd, ((LineStyleAlphaModifier_DistanceFromObject *)m)->curve);
+			break;
+		case LS_MODIFIER_MATERIAL:
+			write_curvemapping(wd, ((LineStyleAlphaModifier_Material *)m)->curve);
+			break;
+		}
+	}
+}
+
+static void write_linestyle_thickness_modifiers(WriteData *wd, ListBase *modifiers)
+{
+	LineStyleModifier *m;
+	const char *struct_name;
+
+	for (m = modifiers->first; m; m = m->next) {
+		switch (m->type) {
+		case LS_MODIFIER_ALONG_STROKE:
+			struct_name = "LineStyleThicknessModifier_AlongStroke";
+			break;
+		case LS_MODIFIER_DISTANCE_FROM_CAMERA:
+			struct_name = "LineStyleThicknessModifier_DistanceFromCamera";
+			break;
+		case LS_MODIFIER_DISTANCE_FROM_OBJECT:
+			struct_name = "LineStyleThicknessModifier_DistanceFromObject";
+			break;
+		case LS_MODIFIER_MATERIAL:
+			struct_name = "LineStyleThicknessModifier_Material";
+			break;
+		case LS_MODIFIER_CALLIGRAPHY:
+			struct_name = "LineStyleThicknessModifier_Calligraphy";
+			break;
+		default:
+			struct_name = "LineStyleThicknessModifier"; /* this should not happen */
+		}
+		writestruct(wd, DATA, struct_name, 1, m);
+	}
+	for (m = modifiers->first; m; m = m->next) {
+		switch (m->type) {
+		case LS_MODIFIER_ALONG_STROKE:
+			write_curvemapping(wd, ((LineStyleThicknessModifier_AlongStroke *)m)->curve);
+			break;
+		case LS_MODIFIER_DISTANCE_FROM_CAMERA:
+			write_curvemapping(wd, ((LineStyleThicknessModifier_DistanceFromCamera *)m)->curve);
+			break;
+		case LS_MODIFIER_DISTANCE_FROM_OBJECT:
+			write_curvemapping(wd, ((LineStyleThicknessModifier_DistanceFromObject *)m)->curve);
+			break;
+		case LS_MODIFIER_MATERIAL:
+			write_curvemapping(wd, ((LineStyleThicknessModifier_Material *)m)->curve);
+			break;
+		}
+	}
+}
+
+static void write_linestyle_geometry_modifiers(WriteData *wd, ListBase *modifiers)
+{
+	LineStyleModifier *m;
+	const char *struct_name;
+
+	for (m = modifiers->first; m; m = m->next) {
+		switch (m->type) {
+		case LS_MODIFIER_SAMPLING:
+			struct_name = "LineStyleGeometryModifier_Sampling";
+			break;
+		case LS_MODIFIER_BEZIER_CURVE:
+			struct_name = "LineStyleGeometryModifier_BezierCurve";
+			break;
+		case LS_MODIFIER_SINUS_DISPLACEMENT:
+			struct_name = "LineStyleGeometryModifier_SinusDisplacement";
+			break;
+		case LS_MODIFIER_SPATIAL_NOISE:
+			struct_name = "LineStyleGeometryModifier_SpatialNoise";
+			break;
+		case LS_MODIFIER_PERLIN_NOISE_1D:
+			struct_name = "LineStyleGeometryModifier_PerlinNoise1D";
+			break;
+		case LS_MODIFIER_PERLIN_NOISE_2D:
+			struct_name = "LineStyleGeometryModifier_PerlinNoise2D";
+			break;
+		case LS_MODIFIER_BACKBONE_STRETCHER:
+			struct_name = "LineStyleGeometryModifier_BackboneStretcher";
+			break;
+		case LS_MODIFIER_TIP_REMOVER:
+			struct_name = "LineStyleGeometryModifier_TipRemover";
+			break;
+		case LS_MODIFIER_POLYGONIZATION:
+			struct_name = "LineStyleGeometryModifier_Polygonalization";
+			break;
+		case LS_MODIFIER_GUIDING_LINES:
+			struct_name = "LineStyleGeometryModifier_GuidingLines";
+			break;
+		case LS_MODIFIER_BLUEPRINT:
+			struct_name = "LineStyleGeometryModifier_Blueprint";
+			break;
+		case LS_MODIFIER_2D_OFFSET:
+			struct_name = "LineStyleGeometryModifier_2DOffset";
+			break;
+		case LS_MODIFIER_2D_TRANSFORM:
+			struct_name = "LineStyleGeometryModifier_2DTransform";
+			break;
+		default:
+			struct_name = "LineStyleGeometryModifier"; /* this should not happen */
+		}
+		writestruct(wd, DATA, struct_name, 1, m);
+	}
+}
+
+static void write_linestyles(WriteData *wd, ListBase *idbase)
+{
+	FreestyleLineStyle *linestyle;
+
+	for (linestyle = idbase->first; linestyle; linestyle = linestyle->id.next) {
+		if (linestyle->id.us>0 || wd->current) {
+			writestruct(wd, ID_LS, "FreestyleLineStyle", 1, linestyle);
+			if (linestyle->id.properties)
+				IDP_WriteProperty(linestyle->id.properties, wd);
+			if (linestyle->adt)
+				write_animdata(wd, linestyle->adt);
+			write_linestyle_color_modifiers(wd, &linestyle->color_modifiers);
+			write_linestyle_alpha_modifiers(wd, &linestyle->alpha_modifiers);
+			write_linestyle_thickness_modifiers(wd, &linestyle->thickness_modifiers);
+			write_linestyle_geometry_modifiers(wd, &linestyle->geometry_modifiers);
+		}
+	}
+}
+
 /* context is usually defined by WM, two cases where no WM is available:
  * - for forward compatibility, curscreen has to be saved
  * - for undofile, curscene needs to be saved */
@@ -3118,6 +3296,7 @@ static int write_file_handle(Main *mainvar, int handle, MemFile *compare, MemFil
 	write_brushes  (wd, &mainvar->brush);
 	write_scripts  (wd, &mainvar->script);
 	write_gpencils (wd, &mainvar->gpencil);
+	write_linestyles(wd, &mainvar->linestyle);
 	write_libraries(wd,  mainvar->next);
 
 	if (write_user_block) {

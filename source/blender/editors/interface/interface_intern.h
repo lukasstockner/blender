@@ -201,7 +201,6 @@ struct uiBut {
 	uiButHandleFunc func;
 	void *func_arg1;
 	void *func_arg2;
-	void *func_arg3;
 
 	uiButHandleNFunc funcN;
 	void *func_argN;
@@ -251,7 +250,6 @@ struct uiBut {
 
 	/* Operator data */
 	struct wmOperatorType *optype;
-	struct IDProperty *opproperties;
 	struct PointerRNA *opptr;
 	short opcontext;
 	unsigned char menu_key; /* 'a'-'z', always lower case */
@@ -372,6 +370,7 @@ extern void ui_delete_linkline(uiLinkLine *line, uiBut *but);
 
 void ui_fontscale(short *points, float aspect);
 
+extern bool ui_block_is_menu(const uiBlock *block);
 extern void ui_block_to_window_fl(const struct ARegion *ar, uiBlock *block, float *x, float *y);
 extern void ui_block_to_window(const struct ARegion *ar, uiBlock *block, int *x, int *y);
 extern void ui_block_to_window_rct(const struct ARegion *ar, uiBlock *block, const rctf *graph, rcti *winr);
@@ -419,6 +418,13 @@ void ui_block_to_scene_linear_v3(uiBlock *block, float pixel[3]);
 
 /* interface_regions.c */
 
+struct uiKeyNavLock {
+	/* set when we're using keyinput */
+	bool is_keynav;
+	/* only used to check if we've moved the cursor */
+	int event_xy[2];
+};
+
 struct uiPopupBlockHandle {
 	/* internal */
 	struct ARegion *region;
@@ -432,6 +438,8 @@ struct uiPopupBlockHandle {
 	void *popup_arg;
 	
 	struct wmTimer *scrolltimer;
+
+	struct uiKeyNavLock keynav_state;
 
 	/* for operator popups */
 	struct wmOperatorType *optype;

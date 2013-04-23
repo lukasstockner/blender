@@ -445,6 +445,8 @@ static int new_node_tree_exec(bContext *C, wmOperator *op)
 	}
 	else if (snode)
 		idname = snode->tree_idname;
+	else
+		return OPERATOR_CANCELLED;
 	
 	if (RNA_struct_property_is_set(op->ptr, "name")) {
 		RNA_string_get(op->ptr, "name", treename);
@@ -464,12 +466,13 @@ static int new_node_tree_exec(bContext *C, wmOperator *op)
 	uiIDContextProperty(C, &ptr, &prop);
 
 	if (prop) {
-		RNA_id_pointer_create(&ntree->id, &idptr);
-		RNA_property_pointer_set(&ptr, prop, idptr);
 		/* RNA_property_pointer_set increases the user count,
 		 * fixed here as the editor is the initial user.
 		 */
-		ntree->id.us++;
+		ntree->id.us--;
+
+		RNA_id_pointer_create(&ntree->id, &idptr);
+		RNA_property_pointer_set(&ptr, prop, idptr);
 		RNA_property_update(C, &ptr, prop);
 	}
 	else if (snode) {

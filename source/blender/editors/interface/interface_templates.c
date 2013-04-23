@@ -334,6 +334,7 @@ static const char *template_id_browse_tip(StructRNA *type)
 			case ID_MA:  return N_("Browse Material to be linked");
 			case ID_TE:  return N_("Browse Texture to be linked");
 			case ID_IM:  return N_("Browse Image to be linked");
+			case ID_LS:  return N_("Browse Line Style Data to be linked");
 			case ID_LT:  return N_("Browse Lattice Data to be linked");
 			case ID_LA:  return N_("Browse Lamp Data to be linked");
 			case ID_CA:  return N_("Browse Camera Data to be linked");
@@ -369,6 +370,7 @@ static const char *template_id_context(StructRNA *type)
 			case ID_MA:  return BLF_I18NCONTEXT_ID_MATERIAL;
 			case ID_TE:  return BLF_I18NCONTEXT_ID_TEXTURE;
 			case ID_IM:  return BLF_I18NCONTEXT_ID_IMAGE;
+			case ID_LS:  return BLF_I18NCONTEXT_ID_FREESTYLELINESTYLE;
 			case ID_LT:  return BLF_I18NCONTEXT_ID_LATTICE;
 			case ID_LA:  return BLF_I18NCONTEXT_ID_LAMP;
 			case ID_CA:  return BLF_I18NCONTEXT_ID_CAMERA;
@@ -526,6 +528,7 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 		                                 BLF_I18NCONTEXT_ID_BRUSH,
 		                                 BLF_I18NCONTEXT_ID_PARTICLESETTINGS,
 		                                 BLF_I18NCONTEXT_ID_GPENCIL,
+		                                 BLF_I18NCONTEXT_ID_FREESTYLELINESTYLE,
 		);
 		
 		if (newop) {
@@ -544,7 +547,7 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 	}
 
 	/* Due to space limit in UI - skip the "open" icon for packed data, and allow to unpack.
-	   Only for images, sound and fonts */
+	 * Only for images, sound and fonts */
 	if (id && BKE_pack_check(id)) {
 		but = uiDefIconButO(block, BUT, "FILE_OT_unpack_item", WM_OP_INVOKE_REGION_WIN, ICON_PACKAGE, 0, 0,
 		                    UI_UNIT_X, UI_UNIT_Y, TIP_("Packed File, click to unpack"));
@@ -1875,13 +1878,13 @@ static uiBlock *curvemap_clipping_func(bContext *C, ARegion *ar, void *cumap_v)
 
 	uiBlockBeginAlign(block);
 	uiDefButF(block, NUM, 0, IFACE_("Min X "),   0, 4 * UI_UNIT_Y, width, UI_UNIT_Y,
-	          &cumap->clipr.xmin, -100.0, cumap->clipr.xmax, 10, 0, "");
+	          &cumap->clipr.xmin, -100.0, cumap->clipr.xmax, 10, 2, "");
 	uiDefButF(block, NUM, 0, IFACE_("Min Y "),   0, 3 * UI_UNIT_Y, width, UI_UNIT_Y,
-	          &cumap->clipr.ymin, -100.0, cumap->clipr.ymax, 10, 0, "");
+	          &cumap->clipr.ymin, -100.0, cumap->clipr.ymax, 10, 2, "");
 	uiDefButF(block, NUM, 0, IFACE_("Max X "),   0, 2 * UI_UNIT_Y, width, UI_UNIT_Y,
-	          &cumap->clipr.xmax, cumap->clipr.xmin, 100.0, 10, 0, "");
+	          &cumap->clipr.xmax, cumap->clipr.xmin, 100.0, 10, 2, "");
 	uiDefButF(block, NUM, 0, IFACE_("Max Y "),   0, UI_UNIT_Y, width, UI_UNIT_Y,
-	          &cumap->clipr.ymax, cumap->clipr.ymin, 100.0, 10, 0, "");
+	          &cumap->clipr.ymax, cumap->clipr.ymin, 100.0, 10, 2, "");
 
 	uiBlockSetDirection(block, UI_RIGHT);
 

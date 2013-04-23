@@ -85,6 +85,12 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
             sub.prop(cscene, "mesh_light_samples", text="Mesh Light")
             sub.prop(cscene, "subsurface_samples", text="Subsurface")
 
+        for rl in scene.render.layers:
+            if rl.samples > 0:
+                layout.separator()
+                layout.row().prop(cscene, "use_layer_samples")
+                break
+
 
 class CyclesRender_PT_light_paths(CyclesButtonsPanel, Panel):
     bl_label = "Light Paths"
@@ -244,27 +250,40 @@ class CyclesRender_PT_opengl(CyclesButtonsPanel, Panel):
 
 
 class CyclesRender_PT_layers(CyclesButtonsPanel, Panel):
-    bl_label = "Layers"
-    bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    bl_label = "Layer List"
+    bl_context = "render_layer"
+    bl_options = {'HIDE_HEADER'}
 
     def draw(self, context):
         layout = self.layout
 
         scene = context.scene
         rd = scene.render
+        rl = rd.layers.active
 
         row = layout.row()
-        row.template_list("RENDER_UL_renderlayers", "", rd, "layers", rd.layers, "active_index", rows=2)
+        row.template_list("RENDERLAYER_UL_renderlayers", "", rd, "layers", rd.layers, "active_index", rows=2)
 
         col = row.column(align=True)
         col.operator("scene.render_layer_add", icon='ZOOMIN', text="")
         col.operator("scene.render_layer_remove", icon='ZOOMOUT', text="")
 
         row = layout.row()
-        rl = rd.layers.active
-        row.prop(rl, "name")
+        if rl:
+            row.prop(rl, "name")
         row.prop(rd, "use_single_layer", text="", icon_only=True)
+
+
+class CyclesRender_PT_layer_options(CyclesButtonsPanel, Panel):
+    bl_label = "Layer"
+    bl_context = "render_layer"
+
+    def draw(self, context):
+        layout = self.layout
+
+        scene = context.scene
+        rd = scene.render
+        rl = rd.layers.active
 
         split = layout.split()
 
@@ -274,8 +293,7 @@ class CyclesRender_PT_layers(CyclesButtonsPanel, Panel):
 
         col = split.column()
         col.prop(rl, "layers", text="Layer")
-        col.label(text="Mask Layers:")
-        col.prop(rl, "layers_zmask", text="")
+        col.prop(rl, "layers_zmask", text="Mask Layer")
 
         split = layout.split()
 
@@ -287,10 +305,22 @@ class CyclesRender_PT_layers(CyclesButtonsPanel, Panel):
         col.prop(rl, "samples")
         col.prop(rl, "use_sky", "Use Environment")
 
+
+class CyclesRender_PT_layer_passes(CyclesButtonsPanel, Panel):
+    bl_label = "Passes"
+    bl_context = "render_layer"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        scene = context.scene
+        rd = scene.render
+        rl = rd.layers.active
+
         split = layout.split()
 
         col = split.column()
-        col.label(text="Passes:")
         col.prop(rl, "use_pass_combined")
         col.prop(rl, "use_pass_z")
         col.prop(rl, "use_pass_normal")
@@ -1055,6 +1085,10 @@ class CyclesRender_PT_CurveRendering(CyclesButtonsPanel, Panel):
 
             row = layout.row()
             row.prop(ccscene, "use_parents", text="Include parents")
+        
+        row = layout.row()
+        row.prop(ccscene, "minimum_width", text="Min Pixels")
+        row.prop(ccscene, "maximum_width", text="Max Ext.")
 
 
 class CyclesParticle_PT_CurveSettings(CyclesButtonsPanel, Panel):
@@ -1079,12 +1113,15 @@ class CyclesParticle_PT_CurveSettings(CyclesButtonsPanel, Panel):
 
         row = layout.row()
         row.prop(cpsys, "shape", text="Shape")
-        row.prop(cpsys, "use_closetip", text="Close tip")
 
-        layout.label(text="Width multiplier:")
+        layout.label(text="Thickness:")
         row = layout.row()
         row.prop(cpsys, "root_width", text="Root")
         row.prop(cpsys, "tip_width", text="Tip")
+        
+        row = layout.row()
+        row.prop(cpsys, "radius_scale", text="Scaling")
+        row.prop(cpsys, "use_closetip", text="Close tip")
 
 
 class CyclesScene_PT_simplify(CyclesButtonsPanel, Panel):

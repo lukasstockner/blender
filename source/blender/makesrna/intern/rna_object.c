@@ -42,7 +42,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_paint.h"
-#include "BKE_tessmesh.h"
+#include "BKE_editmesh.h"
 #include "BKE_group.h" /* needed for BKE_group_object_exists() */
 
 #include "RNA_access.h"
@@ -181,6 +181,7 @@ EnumPropertyItem object_axis_items[] = {
 #include "BKE_curve.h"
 #include "BKE_depsgraph.h"
 #include "BKE_effect.h"
+#include "BKE_global.h"
 #include "BKE_key.h"
 #include "BKE_object.h"
 #include "BKE_material.h"
@@ -275,7 +276,7 @@ static void rna_Object_active_shape_update(Main *bmain, Scene *scene, PointerRNA
 				EDBM_mesh_load(ob);
 				EDBM_mesh_make(scene->toolsettings, scene, ob);
 				EDBM_mesh_normals_update(((Mesh *)ob->data)->edit_btmesh);
-				BMEdit_RecalcTessellation(((Mesh *)ob->data)->edit_btmesh);
+				BKE_editmesh_tessface_calc(((Mesh *)ob->data)->edit_btmesh);
 				break;
 			case OB_CURVE:
 			case OB_SURF:
@@ -396,7 +397,7 @@ static void rna_Object_data_set(PointerRNA *ptr, PointerRNA value)
 		}
 
 		ob->data = id;
-		test_object_materials(id);
+		test_object_materials(G.main, id);
 
 		if (GS(id->name) == ID_CU)
 			BKE_curve_type_test(ob);
@@ -2478,11 +2479,11 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_OBJECT | ND_TRANSFORM, "rna_Object_internal_update");
 	
 	/* depsgraph hack */
-	prop = RNA_def_property(srna, "extra_recalc_object", PROP_BOOLEAN, PROP_NONE);
+	prop = RNA_def_property(srna, "use_extra_recalc_object", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "depsflag", OB_DEPS_EXTRA_OB_RECALC);
 	RNA_def_property_ui_text(prop, "Extra Object Update", "Refresh this object again on frame changes, dependency graph hack");
 	
-	prop = RNA_def_property(srna, "extra_recalc_data", PROP_BOOLEAN, PROP_NONE);
+	prop = RNA_def_property(srna, "use_extra_recalc_data", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "depsflag", OB_DEPS_EXTRA_DATA_RECALC);
 	RNA_def_property_ui_text(prop, "Extra Data Update", "Refresh this object's data again on frame changes, dependency graph hack");
 	
@@ -2537,14 +2538,14 @@ static void rna_def_object(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "dupli_frames_on", PROP_INT, PROP_NONE | PROP_UNIT_TIME);
 	RNA_def_property_int_sdna(prop, NULL, "dupon");
 	RNA_def_property_range(prop, MINFRAME, MAXFRAME);
-	RNA_def_property_ui_range(prop, 1, 1500, 1, 0);
+	RNA_def_property_ui_range(prop, 1, 1500, 1, -1);
 	RNA_def_property_ui_text(prop, "Dupli Frames On", "Number of frames to use between DupOff frames");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update");
 
 	prop = RNA_def_property(srna, "dupli_frames_off", PROP_INT, PROP_NONE | PROP_UNIT_TIME);
 	RNA_def_property_int_sdna(prop, NULL, "dupoff");
 	RNA_def_property_range(prop, 0, MAXFRAME);
-	RNA_def_property_ui_range(prop, 0, 1500, 1, 0);
+	RNA_def_property_ui_range(prop, 0, 1500, 1, -1);
 	RNA_def_property_ui_text(prop, "Dupli Frames Off", "Recurring frames to exclude from the Dupliframes");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update");
 

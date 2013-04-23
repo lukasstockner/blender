@@ -60,7 +60,7 @@
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
-#include "BKE_tessmesh.h"
+#include "BKE_editmesh.h"
 #include "BKE_sound.h"
 #include "BKE_mask.h"
 
@@ -333,7 +333,7 @@ int ED_operator_editmesh(bContext *C)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	if (obedit && obedit->type == OB_MESH)
-		return NULL != BMEdit_FromObject(obedit);
+		return NULL != BKE_editmesh_from_object(obedit);
 	return 0;
 }
 
@@ -421,13 +421,20 @@ int ED_operator_uvedit(bContext *C)
 	return ED_space_image_show_uvedit(sima, obedit);
 }
 
+int ED_operator_uvedit_space_image(bContext *C)
+{
+	SpaceImage *sima = CTX_wm_space_image(C);
+	Object *obedit = CTX_data_edit_object(C);
+	return sima && ED_space_image_show_uvedit(sima, obedit);
+}
+
 int ED_operator_uvmap(bContext *C)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = NULL;
 	
 	if (obedit && obedit->type == OB_MESH) {
-		em = BMEdit_FromObject(obedit);
+		em = BKE_editmesh_from_object(obedit);
 	}
 	
 	if (em && (em->bm->totface)) {
@@ -899,6 +906,9 @@ static int area_dupli_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	/* adds window to WM */
 	rect = sa->totrct;
 	BLI_rcti_translate(&rect, win->posx, win->posy);
+	rect.xmax = rect.xmin + BLI_rcti_size_x(&rect) / U.pixelsize;
+	rect.ymax = rect.ymin + BLI_rcti_size_y(&rect) / U.pixelsize;
+
 	newwin = WM_window_open(C, &rect);
 	
 	/* allocs new screen and adds to newly created window, using window size */

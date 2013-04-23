@@ -280,6 +280,11 @@ static void rna_def_fluidsim_domain(BlenderRNA *brna)
 
 	/* standard settings */
 
+	prop = RNA_def_property(srna, "threads", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "threads");
+	RNA_def_property_range(prop, 1, 32);
+	RNA_def_property_ui_text(prop, "Simulation Threads", "Threads used to calculate the simulation");
+	
 	prop = RNA_def_property(srna, "resolution", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "resolutionxyz");
 	RNA_def_property_range(prop, 1, 1024);
@@ -411,7 +416,7 @@ static void rna_def_fluidsim_domain(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Generate Speed Vectors", "Generate speed vectors for vector blur");
 
 	/* no collision object surface */
-	prop = RNA_def_property(srna, "surface_noobs", PROP_BOOLEAN, PROP_NONE);
+	prop = RNA_def_property(srna, "use_surface_noobs", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "typeFlags", OB_FSSG_NOOBS);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Remove air bubbles",

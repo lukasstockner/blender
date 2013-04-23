@@ -63,8 +63,8 @@
 static int brush_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	/*int type = RNA_enum_get(op->ptr, "type");*/
-	Paint *paint = paint_get_active_from_context(C);
-	Brush *br = paint_brush(paint);
+	Paint *paint = BKE_paint_get_active_from_context(C);
+	Brush *br = BKE_paint_brush(paint);
 	Main *bmain = CTX_data_main(C);
 
 	if (br)
@@ -72,7 +72,7 @@ static int brush_add_exec(bContext *C, wmOperator *UNUSED(op))
 	else
 		br = BKE_brush_add(bmain, "Brush");
 
-	paint_brush_set(paint, br);
+	BKE_paint_brush_set(paint, br);
 
 	return OPERATOR_FINISHED;
 }
@@ -95,8 +95,8 @@ static void BRUSH_OT_add(wmOperatorType *ot)
 static int brush_scale_size_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
-	Paint  *paint =  paint_get_active_from_context(C);
-	Brush  *brush =  paint_brush(paint);
+	Paint  *paint =  BKE_paint_get_active_from_context(C);
+	Brush  *brush =  BKE_paint_brush(paint);
 	// Object *ob = CTX_data_active_object(C);
 	float scalar = RNA_float_get(op->ptr, "scalar");
 
@@ -177,8 +177,8 @@ static void PAINT_OT_vertex_color_set(wmOperatorType *ot)
 
 static int brush_reset_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	Paint *paint = paint_get_active_from_context(C);
-	Brush *brush = paint_brush(paint);
+	Paint *paint = BKE_paint_get_active_from_context(C);
+	Brush *brush = BKE_paint_brush(paint);
 	Object *ob = CTX_data_active_object(C);
 
 	if (!ob || !brush) return OPERATOR_CANCELLED;
@@ -268,7 +268,7 @@ static int brush_generic_tool_set(Main *bmain, Paint *paint, const int tool,
                                   const char *tool_name, int create_missing,
                                   int toggle)
 {
-	Brush *brush, *brush_orig = paint_brush(paint);
+	Brush *brush, *brush_orig = BKE_paint_brush(paint);
 
 	if (toggle)
 		brush = brush_tool_toggle(bmain, brush_orig, tool, tool_offset, ob_mode);
@@ -283,7 +283,8 @@ static int brush_generic_tool_set(Main *bmain, Paint *paint, const int tool,
 	}
 
 	if (brush) {
-		paint_brush_set(paint, brush);
+		BKE_paint_brush_set(paint, brush);
+		BKE_paint_invalidate_overlay_all();
 		WM_main_add_notifier(NC_BRUSH | NA_EDITED, brush);
 		return OPERATOR_FINISHED;
 	}
@@ -450,14 +451,20 @@ static void BRUSH_OT_uv_sculpt_tool_set(wmOperatorType *ot)
 /***** Stencil Control *****/
 
 typedef enum {
-STENCIL_TRANSLATE,
-STENCIL_SCALE,
-STENCIL_ROTATE
+	STENCIL_TRANSLATE,
+	STENCIL_SCALE,
+	STENCIL_ROTATE
 } StencilControlMode;
 
 typedef enum {
-STENCIL_CONSTRAINT_X = 1,
-STENCIL_CONSTRAINT_Y = 2
+	STENCIL_PRIMARY = 0,
+	STENCIL_SECONDARY = 1
+} StencilTextureMode;
+
+
+typedef enum {
+	STENCIL_CONSTRAINT_X = 1,
+	STENCIL_CONSTRAINT_Y = 2
 } StencilConstraint;
 
 typedef struct {
@@ -467,29 +474,77 @@ typedef struct {
 	float init_rot;
 	float init_angle;
 	float lenorig;
+	float area_size[2];
 	StencilControlMode mode;
 	StencilConstraint constrain_mode;
+	int mask; /* we are twaking mask or colour stencil */
 	Brush *br;
+	float *dim_target;
+	float *rot_target;
+	float *pos_target;
+	short event_type;
 } StencilControlData;
+
+static void stencil_set_target(StencilControlData *scd)
+{
+	Brush *br = scd->br;
+	float mdiff[2];
+	if (scd->mask) {
+		copy_v2_v2(scd->init_sdim, br->mask_stencil_dimension);
+		copy_v2_v2(scd->init_spos, br->mask_stencil_pos);
+		scd->init_rot = br->mask_mtex.rot;
+
+		scd->dim_target = br->mask_stencil_dimension;
+		scd->rot_target = &br->mask_mtex.rot;
+		scd->pos_target = br->mask_stencil_pos;
+	}
+	else {
+		copy_v2_v2(scd->init_sdim, br->stencil_dimension);
+		copy_v2_v2(scd->init_spos, br->stencil_pos);
+		scd->init_rot = br->mtex.rot;
+
+		scd->dim_target = br->stencil_dimension;
+		scd->rot_target = &br->mtex.rot;
+		scd->pos_target = br->stencil_pos;
+	}
+
+	sub_v2_v2v2(mdiff, scd->init_mouse, br->stencil_pos);
+	scd->lenorig = len_v2(mdiff);
+
+	scd->init_angle = atan2(mdiff[1], mdiff[0]);
+}
 
 static int stencil_control_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	Paint *paint = paint_get_active_from_context(C);
-	Brush *br = paint_brush(paint);
-	float mdiff[2];
+	Paint *paint = BKE_paint_get_active_from_context(C);
+	Brush *br = BKE_paint_brush(paint);
 	float mvalf[2] = {event->mval[0], event->mval[1]};
+	ARegion *ar = CTX_wm_region(C);
+	StencilControlData *scd;
+	int mask = RNA_enum_get(op->ptr, "texmode");
 
-	StencilControlData *scd = MEM_mallocN(sizeof(StencilControlData), "stencil_control");
+	if (mask) {
+		if (br->mask_mtex.brush_map_mode != MTEX_MAP_MODE_STENCIL)
+			return OPERATOR_CANCELLED;
+	}
+	else {
+		if (br->mtex.brush_map_mode != MTEX_MAP_MODE_STENCIL)
+			return OPERATOR_CANCELLED;
+	}
+
+	scd = MEM_mallocN(sizeof(StencilControlData), "stencil_control");
+	scd->mask = mask;
+	scd->br = br;
 
 	copy_v2_v2(scd->init_mouse, mvalf);
-	copy_v2_v2(scd->init_sdim, br->stencil_dimension);
-	copy_v2_v2(scd->init_spos, br->stencil_pos);
-	sub_v2_v2v2(mdiff, mvalf, br->stencil_pos);
-	scd->lenorig = len_v2(mdiff);
-	scd->br = br;
-	scd->init_rot = br->mtex.rot;
-	scd->init_angle = atan2(mdiff[1], mdiff[0]);
+
+	stencil_set_target(scd);
+
 	scd->mode = RNA_enum_get(op->ptr, "mode");
+	scd->event_type = event->type;
+	scd->area_size[0] = ar->winx;
+	scd->area_size[1] = ar->winy;
+
 
 	op->customdata = scd;
 	WM_event_add_modal_handler(C, op);
@@ -497,71 +552,89 @@ static int stencil_control_invoke(bContext *C, wmOperator *op, const wmEvent *ev
 	return OPERATOR_RUNNING_MODAL;
 }
 
+static void stencil_restore(StencilControlData *scd)
+{
+	copy_v2_v2(scd->dim_target, scd->init_sdim);
+	copy_v2_v2(scd->pos_target, scd->init_spos);
+	*scd->rot_target = scd->init_rot;
+}
 
 static int stencil_control_cancel(bContext *UNUSED(C), wmOperator *op)
 {
 	StencilControlData *scd = op->customdata;
-	Brush *br = scd->br;
 
-	copy_v2_v2(br->stencil_dimension, scd->init_sdim);
-	copy_v2_v2(br->stencil_pos, scd->init_spos);
-	br->mtex.rot = scd->init_rot;
+	stencil_restore(scd);
 	MEM_freeN(op->customdata);
 	return OPERATOR_CANCELLED;
+}
+
+static void stencil_control_calculate(StencilControlData *scd, const int mval[2])
+{
+#define PIXEL_MARGIN 5
+
+	float mdiff[2];
+	float mvalf[2] = {mval[0], mval[1]};
+	switch (scd->mode) {
+		case STENCIL_TRANSLATE:
+			sub_v2_v2v2(mdiff, mvalf, scd->init_mouse);
+			add_v2_v2v2(scd->pos_target, scd->init_spos,
+			            mdiff);
+			CLAMP(scd->pos_target[0],
+			      -scd->dim_target[0] + PIXEL_MARGIN,
+			      scd->area_size[0] + scd->dim_target[0] - PIXEL_MARGIN);
+
+			CLAMP(scd->pos_target[1],
+			      -scd->dim_target[1] + PIXEL_MARGIN,
+			      scd->area_size[1] + scd->dim_target[1] - PIXEL_MARGIN);
+
+			break;
+		case STENCIL_SCALE:
+		{
+			float len, factor;
+			sub_v2_v2v2(mdiff, mvalf, scd->pos_target);
+			len = len_v2(mdiff);
+			factor = len / scd->lenorig;
+			copy_v2_v2(mdiff, scd->init_sdim);
+			if (scd->constrain_mode != STENCIL_CONSTRAINT_Y)
+				mdiff[0] = factor * scd->init_sdim[0];
+			if (scd->constrain_mode != STENCIL_CONSTRAINT_X)
+				mdiff[1] = factor * scd->init_sdim[1];
+			CLAMP(mdiff[0], 5.0f, 10000.0f);
+			CLAMP(mdiff[1], 5.0f, 10000.0f);
+			copy_v2_v2(scd->dim_target, mdiff);
+			break;
+		}
+		case STENCIL_ROTATE:
+		{
+			float angle;
+			sub_v2_v2v2(mdiff, mvalf, scd->pos_target);
+			angle = atan2(mdiff[1], mdiff[0]);
+			angle = scd->init_rot + angle - scd->init_angle;
+			if (angle < 0.0f)
+				angle += (float)(2 * M_PI);
+			if (angle > (float)(2 * M_PI))
+				angle -= (float)(2 * M_PI);
+			*scd->rot_target = angle;
+			break;
+		}
+	}
+#undef PIXEL_MARGIN
 }
 
 static int stencil_control_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	StencilControlData *scd = op->customdata;
 
+	if (event->type == scd->event_type && event->val == KM_RELEASE) {
+		MEM_freeN(op->customdata);
+		WM_event_add_notifier(C, NC_WINDOW, NULL);
+		return OPERATOR_FINISHED;
+	}
+
 	switch (event->type) {
 		case MOUSEMOVE:
-			{
-				float mdiff[2];
-				float mvalf[2] = {event->mval[0], event->mval[1]};
-				switch (scd->mode) {
-					case STENCIL_TRANSLATE:
-						sub_v2_v2v2(mdiff, mvalf, scd->init_mouse);
-						add_v2_v2v2(scd->br->stencil_pos, scd->init_spos,
-						            mdiff);
-						break;
-					case STENCIL_SCALE:
-					{
-						float len, factor;
-						sub_v2_v2v2(mdiff, mvalf, scd->br->stencil_pos);
-						len = len_v2(mdiff);
-						factor = len / scd->lenorig;
-						copy_v2_v2(mdiff, scd->init_sdim);
-						if (scd->constrain_mode != STENCIL_CONSTRAINT_Y)
-							mdiff[0] = factor * scd->init_sdim[0];
-						if (scd->constrain_mode != STENCIL_CONSTRAINT_X)
-							mdiff[1] = factor * scd->init_sdim[1];
-						copy_v2_v2(scd->br->stencil_dimension, mdiff);
-						break;
-					}
-					case STENCIL_ROTATE:
-					{
-						float angle;
-						sub_v2_v2v2(mdiff, mvalf, scd->br->stencil_pos);
-						angle = atan2(mdiff[1], mdiff[0]);
-						angle = scd->init_rot + angle - scd->init_angle;
-						if (angle < 0.0f)
-							angle += (float)(2 * M_PI);
-						if (angle > (float)(2 * M_PI))
-							angle -= (float)(2 * M_PI);
-						scd->br->mtex.rot = angle;
-						break;
-					}
-				}
-			}
+			stencil_control_calculate(scd, event->mval);
 			break;
-		/* XXX hardcoded! */
-		case RIGHTMOUSE:
-			if (event->val == KM_RELEASE) {
-				MEM_freeN(op->customdata);
-				WM_event_add_notifier(C, NC_WINDOW, NULL);
-				return OPERATOR_FINISHED;
-			}
 		case ESCKEY:
 			if (event->val == KM_PRESS) {
 				stencil_control_cancel(C, op);
@@ -575,6 +648,8 @@ static int stencil_control_modal(bContext *C, wmOperator *op, const wmEvent *eve
 					scd->constrain_mode = 0;
 				else
 					scd->constrain_mode = STENCIL_CONSTRAINT_X;
+
+				stencil_control_calculate(scd, event->mval);
 			}
 			break;
 		case YKEY:
@@ -583,6 +658,8 @@ static int stencil_control_modal(bContext *C, wmOperator *op, const wmEvent *eve
 					scd->constrain_mode = 0;
 				else
 					scd->constrain_mode = STENCIL_CONSTRAINT_Y;
+
+				stencil_control_calculate(scd, event->mval);
 			}
 			break;
 		default:
@@ -596,10 +673,12 @@ static int stencil_control_modal(bContext *C, wmOperator *op, const wmEvent *eve
 
 static int stencil_control_poll(bContext *C)
 {
-	Paint *paint = paint_get_active_from_context(C);
-	Brush *br = paint_brush(paint);
+	Paint *paint = BKE_paint_get_active_from_context(C);
+	Brush *br = BKE_paint_brush(paint);
 
-	return (br && br->mtex.brush_map_mode == MTEX_MAP_MODE_STENCIL);
+	return (br &&
+	        (br->mtex.brush_map_mode == MTEX_MAP_MODE_STENCIL ||
+	         br->mask_mtex.brush_map_mode == MTEX_MAP_MODE_STENCIL));
 }
 
 static void BRUSH_OT_stencil_control(wmOperatorType *ot)
@@ -608,6 +687,12 @@ static void BRUSH_OT_stencil_control(wmOperatorType *ot)
 		{STENCIL_TRANSLATE, "TRANSLATION", 0, "Translation", ""},
 		{STENCIL_SCALE, "SCALE", 0, "Scale", ""},
 		{STENCIL_ROTATE, "ROTATION", 0, "Rotation", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	static EnumPropertyItem stencil_texture_items[] = {
+		{STENCIL_PRIMARY, "PRIMARY", 0, "Primary", ""},
+		{STENCIL_SECONDARY, "SECONDARY", 0, "Secondary", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 	/* identifiers */
@@ -624,15 +709,24 @@ static void BRUSH_OT_stencil_control(wmOperatorType *ot)
 	/* flags */
 	ot->flag = 0;
 
-	RNA_def_enum(ot->srna, "mode", stencil_control_items, 0, "Tool", "");
+	RNA_def_enum(ot->srna, "mode", stencil_control_items, STENCIL_TRANSLATE, "Tool", "");
+	RNA_def_enum(ot->srna, "texmode", stencil_texture_items, STENCIL_PRIMARY, "Tool", "");
 }
 
 
-static int stencil_fit_image_aspect_exec(bContext *C, wmOperator *UNUSED(op))
+static int stencil_fit_image_aspect_exec(bContext *C, wmOperator *op)
 {
-	Paint *paint = paint_get_active_from_context(C);
-	Brush *br = paint_brush(paint);
-	Tex *tex = (br)? br->mtex.tex : NULL;
+	Paint *paint = BKE_paint_get_active_from_context(C);
+	Brush *br = BKE_paint_brush(paint);
+	bool use_scale = RNA_boolean_get(op->ptr, "use_scale");
+	bool use_repeat = RNA_boolean_get(op->ptr, "use_repeat");
+	bool do_mask = RNA_boolean_get(op->ptr, "mask");
+	Tex *tex = NULL;
+	MTex *mtex = NULL;
+	if (br) {
+		mtex = do_mask ? &br->mask_mtex : &br->mtex;
+		tex = mtex->tex;
+	}
 
 	if (tex && tex->type == TEX_IMAGE && tex->ima) {
 		float aspx, aspy;
@@ -640,14 +734,39 @@ static int stencil_fit_image_aspect_exec(bContext *C, wmOperator *UNUSED(op))
 		float orig_area, stencil_area, factor;
 		ED_image_get_uv_aspect(ima, NULL, &aspx, &aspy);
 
-		orig_area = aspx*aspy;
-		stencil_area = br->stencil_dimension[0]*br->stencil_dimension[1];
+		if (use_scale) {
+			aspx *= mtex->size[0];
+			aspy *= mtex->size[1];
+		}
 
-		factor = sqrt(stencil_area/orig_area);
+		if (use_repeat && tex->extend == TEX_REPEAT) {
+			aspx *= tex->xrepeat;
+			aspy *= tex->yrepeat;
+		}
 
-		br->stencil_dimension[0] = factor*aspx;
-		br->stencil_dimension[1] = factor*aspy;
+		orig_area = aspx * aspy;
+
+		if (do_mask) {
+			stencil_area = br->mask_stencil_dimension[0] * br->mask_stencil_dimension[1];
+		}
+		else {
+			stencil_area = br->stencil_dimension[0] * br->stencil_dimension[1];
+		}
+
+		factor = sqrt(stencil_area / orig_area);
+
+		if (do_mask) {
+			br->mask_stencil_dimension[0] = factor * aspx;
+			br->mask_stencil_dimension[1] = factor * aspy;
+
+		}
+		else {
+			br->stencil_dimension[0] = factor * aspx;
+			br->stencil_dimension[1] = factor * aspy;
+		}
 	}
+
+	WM_event_add_notifier(C, NC_WINDOW, NULL);
 
 	return OPERATOR_FINISHED;
 }
@@ -665,7 +784,11 @@ static void BRUSH_OT_stencil_fit_image_aspect(wmOperatorType *ot)
 	ot->poll = stencil_control_poll;
 
 	/* flags */
-	ot->flag = 0;
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	RNA_def_boolean(ot->srna, "use_repeat", 1, "Use Repeat", "Use repeat mapping values");
+	RNA_def_boolean(ot->srna, "use_scale", 1, "Use Scale", "Use texture scale values");
+	RNA_def_boolean(ot->srna, "mask", 0, "Modify Mask Stencil", "Modify either the primary or mask stencil");
 }
 
 
@@ -680,6 +803,15 @@ static void ed_keymap_stencil(wmKeyMap *keymap)
 	kmi = WM_keymap_add_item(keymap, "BRUSH_OT_stencil_control", RIGHTMOUSE, KM_PRESS, KM_CTRL, 0);
 	RNA_enum_set(kmi->ptr, "mode", STENCIL_ROTATE);
 
+	kmi = WM_keymap_add_item(keymap, "BRUSH_OT_stencil_control", RIGHTMOUSE, KM_PRESS, KM_ALT, 0);
+	RNA_enum_set(kmi->ptr, "mode", STENCIL_TRANSLATE);
+	RNA_enum_set(kmi->ptr, "texmode", STENCIL_SECONDARY);
+	kmi = WM_keymap_add_item(keymap, "BRUSH_OT_stencil_control", RIGHTMOUSE, KM_PRESS, KM_SHIFT | KM_ALT, 0);
+	RNA_enum_set(kmi->ptr, "texmode", STENCIL_SECONDARY);
+	RNA_enum_set(kmi->ptr, "mode", STENCIL_SCALE);
+	kmi = WM_keymap_add_item(keymap, "BRUSH_OT_stencil_control", RIGHTMOUSE, KM_PRESS, KM_CTRL | KM_ALT, 0);
+	RNA_enum_set(kmi->ptr, "texmode", STENCIL_SECONDARY);
+	RNA_enum_set(kmi->ptr, "mode", STENCIL_ROTATE);
 }
 
 /**************************** registration **********************************/
@@ -767,9 +899,10 @@ static void ed_keymap_paint_brush_size(wmKeyMap *keymap, const char *UNUSED(path
 }
 
 typedef enum {
-	RC_COLOR = 1,
+	RC_COLOR    = 1,
 	RC_ROTATION = 2,
-	RC_ZOOM = 4
+	RC_ZOOM     = 4,
+	RC_WEIGHT   = 8
 } RCFlags;
 
 static void set_brush_rc_path(PointerRNA *ptr, const char *brush_path,
@@ -829,8 +962,10 @@ static void ed_keymap_paint_brush_radial_control(wmKeyMap *keymap, const char *p
 	kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, KM_SHIFT, 0);
 	set_brush_rc_props(kmi->ptr, paint, "strength", "use_unified_strength", flags_nozoom);
 
-	kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", WKEY, KM_PRESS, 0, 0);
-	set_brush_rc_props(kmi->ptr, paint, "weight", "use_unified_weight", flags_nozoom);
+	if (flags & RC_WEIGHT) {
+		kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", WKEY, KM_PRESS, 0, 0);
+		set_brush_rc_props(kmi->ptr, paint, "weight", "use_unified_weight", flags_nozoom);
+	}
 
 	if (flags & RC_ROTATION) {
 		kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, KM_CTRL, 0);
@@ -979,7 +1114,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 
 	ed_keymap_paint_brush_switch(keymap, "weight_paint");
 	ed_keymap_paint_brush_size(keymap, "tool_settings.weight_paint.brush.size");
-	ed_keymap_paint_brush_radial_control(keymap, "weight_paint", 0);
+	ed_keymap_paint_brush_radial_control(keymap, "weight_paint", RC_WEIGHT);
 
 	ed_keymap_stencil(keymap);
 

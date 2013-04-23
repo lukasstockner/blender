@@ -90,7 +90,7 @@ typedef struct Mesh {
 	struct MCol *mcol;
 	struct Mesh *texcomesh;
 
-	/* When the object is available, the preferred access method is: BMEdit_FromObject(ob) */
+	/* When the object is available, the preferred access method is: BKE_editmesh_from_object(ob) */
 	struct BMEditMesh *edit_btmesh;	/* not saved in file! */
 
 	struct CustomData vdata, edata, fdata;
@@ -116,7 +116,8 @@ typedef struct Mesh {
 	float size[3];
 	float rot[3];
 
-	short texflag, drawflag;
+	int drawflag;
+	short texflag, pad2[3];
 	short smoothresh, flag;
 
 	/* customdata flag, for bevel-weight and crease, which are now optional */
@@ -186,7 +187,7 @@ typedef struct TFace {
 #define ME_DRAWNORMALS	(1 << 2)
 #define ME_DRAW_VNORMALS (1 << 3)
 
-// #define ME_ALLEDGES		(1 << 4)
+#define ME_DRAWEIGHT	(1 << 4)
 #define ME_HIDDENEDGES  (1 << 5)
 
 #define ME_DRAWCREASES	(1 << 6)
@@ -201,6 +202,12 @@ typedef struct TFace {
 
 /* debug only option */
 #define ME_DRAWEXTRA_INDICES (1 << 14)
+
+#define ME_DRAW_FREESTYLE_EDGE (1 << 15)
+#define ME_DRAW_FREESTYLE_FACE (1 << 16)
+
+/* draw stats */
+#define ME_DRAW_STATVIS (1 << 17)
 
 /* Subsurf Type */
 #define ME_CC_SUBSURF 		0

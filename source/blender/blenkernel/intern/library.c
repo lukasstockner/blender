@@ -95,6 +95,7 @@
 #include "BKE_lamp.h"
 #include "BKE_lattice.h"
 #include "BKE_library.h"
+#include "BKE_linestyle.h"
 #include "BKE_mesh.h"
 #include "BKE_material.h"
 #include "BKE_main.h"
@@ -118,8 +119,6 @@
 #ifdef WITH_PYTHON
 #include "BPY_extern.h"
 #endif
-
-#define MAX_IDPUP  60  /* was 24 */
 
 /* GS reads the memory pointed at in a specific ordering. 
  * only use this definition, makes little and big endian systems
@@ -281,6 +280,8 @@ bool id_make_local(ID *id, bool test)
 			return false; /* can't be linked */
 		case ID_GD:
 			return false; /* not implemented */
+		case ID_LS:
+			return 0; /* not implemented */
 	}
 
 	return false;
@@ -379,6 +380,9 @@ bool id_copy(ID *id, ID **newid, bool test)
 		case ID_MSK:
 			if (!test) *newid = (ID *)BKE_mask_copy((Mask *)id);
 			return true;
+		case ID_LS:
+			if (!test) *newid = (ID *)BKE_copy_linestyle((FreestyleLineStyle *)id);
+			return 1;
 	}
 	
 	return false;
@@ -509,6 +513,8 @@ ListBase *which_libbase(Main *mainlib, short type)
 			return &(mainlib->movieclip);
 		case ID_MSK:
 			return &(mainlib->mask);
+		case ID_LS:
+			return &(mainlib->linestyle);
 	}
 	return NULL;
 }
@@ -594,6 +600,7 @@ int set_listbasepointers(Main *main, ListBase **lb)
 	lb[a++] = &(main->world);
 	lb[a++] = &(main->screen);
 	lb[a++] = &(main->object);
+	lb[a++] = &(main->linestyle); /* referenced by scenes */
 	lb[a++] = &(main->scene);
 	lb[a++] = &(main->library);
 	lb[a++] = &(main->wm);
@@ -717,6 +724,9 @@ static ID *alloc_libblock_notest(short type)
 		case ID_MSK:
 			id = MEM_callocN(sizeof(Mask), "Mask");
 			break;
+		case ID_LS:
+			id = MEM_callocN(sizeof(FreestyleLineStyle), "Freestyle Line Style");
+			break;
 	}
 	return id;
 }
@@ -810,6 +820,14 @@ void set_free_windowmanager_cb(void (*func)(bContext *C, wmWindowManager *) )
 {
 	free_windowmanager_cb = func;
 }
+
+static void (*free_notifier_reference_cb)(const void *) = NULL;
+
+void set_free_notifier_reference_cb(void (*func)(const void *) )
+{
+	free_notifier_reference_cb = func;
+}
+
 
 static void animdata_dtar_clear_cb(ID *UNUSED(id), AnimData *adt, void *userdata)
 {
@@ -952,7 +970,14 @@ void BKE_libblock_free(ListBase *lb, void *idv)
 		case ID_MSK:
 			BKE_mask_free(bmain, (Mask *)id);
 			break;
+		case ID_LS:
+			BKE_free_linestyle((FreestyleLineStyle *)id);
+			break;
 	}
+
+	/* avoid notifying on removed data */
+	if (free_notifier_reference_cb)
+		free_notifier_reference_cb(id);
 
 	BLI_remlink(lb, id);
 
@@ -1051,6 +1076,8 @@ ID *BKE_libblock_find_name(const short type, const char *name)      /* type: "OB
 }
 
 #if 0 /* UNUSED */
+#define MAX_IDPUP  60  /* was 24 */
+
 static void get_flags_for_id(ID *id, char *buf) 
 {
 	int isfake = id->flag & LIB_FAKEUSER;

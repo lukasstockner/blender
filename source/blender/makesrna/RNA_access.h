@@ -243,6 +243,10 @@ extern StructRNA RNA_FluidFluidSettings;
 extern StructRNA RNA_FluidSettings;
 extern StructRNA RNA_FluidSimulationModifier;
 extern StructRNA RNA_FollowPathConstraint;
+extern StructRNA RNA_FreestyleLineStyle;
+extern StructRNA RNA_FreestyleLineSet;
+extern StructRNA RNA_FreestyleModuleSettings;
+extern StructRNA RNA_FreestyleSettings;
 extern StructRNA RNA_Function;
 extern StructRNA RNA_GPencilFrame;
 extern StructRNA RNA_GPencilLayer;
@@ -299,6 +303,37 @@ extern StructRNA RNA_LimitDistanceConstraint;
 extern StructRNA RNA_LimitLocationConstraint;
 extern StructRNA RNA_LimitRotationConstraint;
 extern StructRNA RNA_LimitScaleConstraint;
+extern StructRNA RNA_LineStyleAlphaModifier;
+extern StructRNA RNA_LineStyleAlphaModifier_AlongStroke;
+extern StructRNA RNA_LineStyleAlphaModifier_DistanceFromCamera;
+extern StructRNA RNA_LineStyleAlphaModifier_DistanceFromObject;
+extern StructRNA RNA_LineStyleAlphaModifier_Material;
+extern StructRNA RNA_LineStyleColorModifier;
+extern StructRNA RNA_LineStyleColorModifier_AlongStroke;
+extern StructRNA RNA_LineStyleColorModifier_DistanceFromCamera;
+extern StructRNA RNA_LineStyleColorModifier_DistanceFromObject;
+extern StructRNA RNA_LineStyleColorModifier_Material;
+extern StructRNA RNA_LineStyleGeometryModifier;
+extern StructRNA RNA_LineStyleGeometryModifier_2DOffset;
+extern StructRNA RNA_LineStyleGeometryModifier_2DTransform;
+extern StructRNA RNA_LineStyleGeometryModifier_BackboneStretcher;
+extern StructRNA RNA_LineStyleGeometryModifier_BezierCurve;
+extern StructRNA RNA_LineStyleGeometryModifier_Blueprint;
+extern StructRNA RNA_LineStyleGeometryModifier_GuidingLines;
+extern StructRNA RNA_LineStyleGeometryModifier_PerlinNoise1D;
+extern StructRNA RNA_LineStyleGeometryModifier_PerlinNoise2D;
+extern StructRNA RNA_LineStyleGeometryModifier_Polygonalization;
+extern StructRNA RNA_LineStyleGeometryModifier_Sampling;
+extern StructRNA RNA_LineStyleGeometryModifier_SinusDisplacement;
+extern StructRNA RNA_LineStyleGeometryModifier_SpatialNoise;
+extern StructRNA RNA_LineStyleGeometryModifier_TipRemover;
+extern StructRNA RNA_LineStyleModifier;
+extern StructRNA RNA_LineStyleThicknessModifier;
+extern StructRNA RNA_LineStyleThicknessModifier_AlongStroke;
+extern StructRNA RNA_LineStyleThicknessModifier_Calligraphy;
+extern StructRNA RNA_LineStyleThicknessModifier_DistanceFromCamera;
+extern StructRNA RNA_LineStyleThicknessModifier_DistanceFromObject;
+extern StructRNA RNA_LineStyleThicknessModifier_Material;
 extern StructRNA RNA_LockedTrackConstraint;
 extern StructRNA RNA_Macro;
 extern StructRNA RNA_MagicTexture;
@@ -863,10 +898,18 @@ char *RNA_path_append(const char *path, PointerRNA *ptr, PropertyRNA *prop,
                       int intkey, const char *strkey);
 char *RNA_path_back(const char *path);
 
-int RNA_path_resolve(PointerRNA *ptr, const char *path,
+/* path_resolve() variants only ensure that a valid pointer (and optionally property) exist */
+bool RNA_path_resolve(PointerRNA *ptr, const char *path,
                      PointerRNA *r_ptr, PropertyRNA **r_prop);
 
-int RNA_path_resolve_full(PointerRNA *ptr, const char *path,
+bool RNA_path_resolve_full(PointerRNA *ptr, const char *path,
+                          PointerRNA *r_ptr, PropertyRNA **r_prop, int *index);
+						  
+/* path_resolve_property() variants ensure that pointer + property both exist */
+bool RNA_path_resolve_property(PointerRNA *ptr, const char *path,
+                     PointerRNA *r_ptr, PropertyRNA **r_prop);
+
+bool RNA_path_resolve_property_full(PointerRNA *ptr, const char *path,
                           PointerRNA *r_ptr, PropertyRNA **r_prop, int *index);
 
 char *RNA_path_from_ID_to_struct(PointerRNA *ptr);

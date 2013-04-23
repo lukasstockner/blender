@@ -153,6 +153,7 @@ void init_material(Material *ma)
 	ma->tx_limit = 0.0;
 	ma->tx_falloff = 1.0;
 	ma->shad_alpha = 1.0f;
+	ma->vcol_alpha = 0;
 	
 	ma->gloss_mir = ma->gloss_tra = 1.0;
 	ma->samp_gloss_mir = ma->samp_gloss_tra = 18;
@@ -567,7 +568,7 @@ void material_append_id(ID *id, Material *ma)
 		(*matar)[(*totcol)++] = ma;
 
 		id_us_plus((ID *)ma);
-		test_object_materials(id);
+		test_object_materials(G.main, id);
 	}
 }
 
@@ -600,7 +601,7 @@ Material *material_pop_id(ID *id, int index_i, int remove_material_slot)
 					MEM_freeN(*matar);
 
 					*matar = mat;
-					test_object_materials(id);
+					test_object_materials(G.main, id);
 				}
 
 				/* decrease mat_nr index */
@@ -711,7 +712,7 @@ void resize_object_material(Object *ob, const short totcol)
 	if (ob->actcol > ob->totcol) ob->actcol = ob->totcol;
 }
 
-void test_object_materials(ID *id)
+void test_object_materials(Main *bmain, ID *id)
 {
 	/* make the ob mat-array same size as 'ob->data' mat-array */
 	Object *ob;
@@ -721,7 +722,7 @@ void test_object_materials(ID *id)
 		return;
 	}
 
-	for (ob = G.main->object.first; ob; ob = ob->id.next) {
+	for (ob = bmain->object.first; ob; ob = ob->id.next) {
 		if (ob->data == id) {
 			resize_object_material(ob, *totcol);
 		}
@@ -767,7 +768,7 @@ void assign_material_id(ID *id, Material *ma, short act)
 	if (ma)
 		id_us_plus((ID *)ma);
 
-	test_object_materials(id);
+	test_object_materials(G.main, id);
 }
 
 void assign_material(Object *ob, Material *ma, short act, int assign_type)
@@ -854,7 +855,7 @@ void assign_material(Object *ob, Material *ma, short act, int assign_type)
 
 	if (ma)
 		id_us_plus((ID *)ma);
-	test_object_materials(ob->data);
+	test_object_materials(G.main, ob->data);
 }
 
 /* XXX - this calls many more update calls per object then are needed, could be optimized */

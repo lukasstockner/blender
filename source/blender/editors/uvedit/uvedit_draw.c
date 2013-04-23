@@ -47,7 +47,7 @@
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_mesh.h"
-#include "BKE_tessmesh.h"
+#include "BKE_editmesh.h"
 
 #include "BLI_array.h"
 #include "BLI_buffer.h"
@@ -128,7 +128,7 @@ static int draw_uvs_face_check(Scene *scene)
 
 static void draw_uvs_shadow(Object *obedit)
 {
-	BMEditMesh *em = BMEdit_FromObject(obedit);
+	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	BMesh *bm = em->bm;
 	BMFace *efa;
 	BMLoop *l;

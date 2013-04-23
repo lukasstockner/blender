@@ -79,7 +79,7 @@
 #include "BKE_sca.h"
 #include "BKE_softbody.h"
 #include "BKE_modifier.h"
-#include "BKE_tessmesh.h"
+#include "BKE_editmesh.h"
 
 #include "ED_armature.h"
 #include "ED_curve.h"
@@ -476,11 +476,11 @@ void ED_object_editmode_enter(bContext *C, int flag)
 
 		EDBM_mesh_make(CTX_data_tool_settings(C), scene, ob);
 
-		em = BMEdit_FromObject(ob);
+		em = BKE_editmesh_from_object(ob);
 		if (LIKELY(em)) {
 			/* order doesn't matter */
 			EDBM_mesh_normals_update(em);
-			BMEdit_RecalcTessellation(em);
+			BKE_editmesh_tessface_calc(em);
 
 			BM_mesh_select_mode_flush(em->bm);
 		}
@@ -1350,7 +1350,7 @@ void OBJECT_OT_shade_flat(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Shade Flat";
-	ot->description = "Display faces 'flat'";
+	ot->description = "Render and display faces uniform, using Face Normals";
 	ot->idname = "OBJECT_OT_shade_flat";
 	
 	/* api callbacks */
@@ -1365,7 +1365,7 @@ void OBJECT_OT_shade_smooth(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Shade Smooth";
-	ot->description = "Display faces 'smooth' (using vertex normals)";
+	ot->description = "Render and display faces smooth, using interpolated Vertex Normals";
 	ot->idname = "OBJECT_OT_shade_smooth";
 	
 	/* api callbacks */

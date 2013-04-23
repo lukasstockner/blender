@@ -95,7 +95,8 @@ static bool ED_view3d_snap_ray(bContext *C, float r_co[3],
 {
 	float dist_px = 12;  /* snap dist */
 	float r_no_dummy[3];
-	bool ret = false;
+	float ray_dist = TRANSFORM_DIST_MAX_RAY;
+	bool ret;
 
 	Scene *scene = CTX_data_scene(C);
 	View3D *v3d = CTX_wm_view3d(C);
@@ -104,7 +105,7 @@ static bool ED_view3d_snap_ray(bContext *C, float r_co[3],
 
 	/* try snap edge, then face if it fails */
 	ret = snapObjectsRayEx(scene, NULL, v3d, ar, obedit, SCE_SNAP_MODE_FACE,
-	                       ray_start, ray_normal,
+	                       ray_start, ray_normal, &ray_dist,
 	                       NULL, &dist_px, r_co, r_no_dummy, SNAP_ALL);
 
 	return ret;
@@ -155,8 +156,11 @@ typedef struct RulerInfo {
 	int flag;
 	int snap_flag;
 	int state;
+	float drag_start_co[3];
 
-	/* --- */
+	/* wm state */
+	wmWindow *win;
+	ScrArea *sa;
 	ARegion *ar;
 	void *draw_handle_pixel;
 } RulerInfo;
@@ -674,6 +678,8 @@ static bool view3d_ruler_item_mousemove(bContext *C, RulerInfo *ruler_info, cons
 
 	if (ruler_item) {
 		float *co = ruler_item->co[ruler_item->co_index];
+		/* restore the initial depth */
+		copy_v3_v3(co, ruler_info->drag_start_co);
 		view3d_ruler_item_project(ruler_info, co, mval);
 		if (do_thickness && ruler_item->co_index != 1) {
 			const float mval_fl[2] = {UNPACK2(mval)};
@@ -736,6 +742,8 @@ static int view3d_ruler_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSE
 
 	op->customdata = ruler_info;
 
+	ruler_info->win = win;
+	ruler_info->sa = sa;
 	ruler_info->ar = ar;
 	ruler_info->draw_handle_pixel = ED_region_draw_cb_activate(ar->type, ruler_info_draw_pixel,
 	                                                           ruler_info, REGION_DRAW_POST_PIXEL);
@@ -764,10 +772,15 @@ static int view3d_ruler_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	bool do_draw = false;
 	int exit_code = OPERATOR_RUNNING_MODAL;
 	RulerInfo *ruler_info = op->customdata;
+	ScrArea *sa = ruler_info->sa;
 	ARegion *ar = ruler_info->ar;
 	RegionView3D *rv3d = ar->regiondata;
 
-	(void)C;
+	/* its possible to change  spaces while running the operator [#34894] */
+	if (UNLIKELY(ar != CTX_wm_region(C))) {
+		exit_code = OPERATOR_FINISHED;
+		goto exit;
+	}
 
 	switch (event->type) {
 		case LEFTMOUSE:
@@ -792,6 +805,7 @@ static int view3d_ruler_modal(bContext *C, wmOperator *op, const wmEvent *event)
 					    (ruler_info->items.first == NULL))
 					{
 						/* Create new line */
+						RulerItem *ruler_item_prev = ruler_item_active_get(ruler_info);
 						RulerItem *ruler_item;
 						/* check if we want to drag an existing point or add a new one */
 						ruler_info->state = RULER_STATE_DRAG;
@@ -799,14 +813,16 @@ static int view3d_ruler_modal(bContext *C, wmOperator *op, const wmEvent *event)
 						ruler_item = ruler_item_add(ruler_info);
 						ruler_item_active_set(ruler_info, ruler_item);
 
-						negate_v3_v3(ruler_item->co[0], rv3d->ofs);
-						view3d_ruler_item_project(ruler_info, ruler_item->co[0], event->mval);
-
-						/* snap the first point added, not essential but handy */
-						{
-							ruler_item->co_index = 0;
-							view3d_ruler_item_mousemove(C, ruler_info, event->mval, event->shift != 0, true);
+						/* initial depth either previous ruler, view offset */
+						if (ruler_item_prev) {
+							copy_v3_v3(ruler_info->drag_start_co, ruler_item_prev->co[ruler_item_prev->co_index]);
 						}
+						else {
+							negate_v3_v3(ruler_info->drag_start_co, rv3d->ofs);
+						}
+
+						copy_v3_v3(ruler_item->co[0], ruler_info->drag_start_co);
+						view3d_ruler_item_project(ruler_info, ruler_item->co[0], event->mval);
 
 						copy_v3_v3(ruler_item->co[2], ruler_item->co[0]);
 						ruler_item->co_index = 2;
@@ -854,6 +870,10 @@ static int view3d_ruler_modal(bContext *C, wmOperator *op, const wmEvent *event)
 								ruler_item_active_set(ruler_info, ruler_item_pick);
 								ruler_item_pick->co_index = co_index;
 								ruler_info->state = RULER_STATE_DRAG;
+
+								/* store the initial depth */
+								copy_v3_v3(ruler_info->drag_start_co, ruler_item_pick->co[ruler_item_pick->co_index]);
+
 								do_draw = true;
 							}
 						}
@@ -916,8 +936,9 @@ static int view3d_ruler_modal(bContext *C, wmOperator *op, const wmEvent *event)
 				if (ruler_info->state == RULER_STATE_NORMAL) {
 					RulerItem *ruler_item = ruler_item_active_get(ruler_info);
 					if (ruler_item) {
+						RulerItem *ruler_item_other = ruler_item->prev ? ruler_item->prev : ruler_item->next;
 						ruler_item_remove(ruler_info, ruler_item);
-						ruler_info->item_active = -1;
+						ruler_item_active_set(ruler_info, ruler_item_other);
 						do_draw = true;
 					}
 				}
@@ -931,19 +952,15 @@ static int view3d_ruler_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	}
 
 	if (do_draw) {
-		ScrArea *sa = CTX_wm_area(C);
-
 		view3d_ruler_header_update(sa);
 
 		/* all 3d views draw rulers */
 		WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 	}
 
+exit:
 	if (ELEM(exit_code, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
-		wmWindow *win = CTX_wm_window(C);
-		ScrArea *sa = CTX_wm_area(C);
-
-		WM_cursor_restore(win);
+		WM_cursor_restore(ruler_info->win);
 
 		view3d_ruler_end(C, ruler_info);
 		view3d_ruler_free(ruler_info);

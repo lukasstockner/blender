@@ -38,7 +38,7 @@
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_bmesh.h"
-#include "BKE_tessmesh.h"
+#include "BKE_editmesh.h"
 
 /**
  * The main function for copying DerivedMesh data into BMesh.
@@ -217,11 +217,11 @@ BMEditMesh *DM_to_editbmesh(DerivedMesh *dm, BMEditMesh *existing, int do_tessel
 	DM_to_bmesh_ex(dm, bm);
 
 	if (!em) {
-		em = BMEdit_Create(bm, do_tessellate);
+		em = BKE_editmesh_create(bm, do_tessellate);
 	}
 	else {
 		if (do_tessellate) {
-			BMEdit_RecalcTessellation(em);
+			BKE_editmesh_tessface_calc(em);
 		}
 	}
 

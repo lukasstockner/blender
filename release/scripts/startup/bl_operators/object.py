@@ -132,6 +132,7 @@ class SelectCamera(Operator):
             if not self.extend:
                 bpy.ops.object.select_all(action='DESELECT')
             context.scene.objects.active = camera
+            camera.hide = False
             camera.select = True
             return {'FINISHED'}
 
@@ -473,7 +474,8 @@ class ShapeTransfer(Operator):
 
 
 class JoinUVs(Operator):
-    """Transfer UV Layouts from active to selected objects (needs matching geometry)"""
+    """Transfer UV Layouts from active to selected objects """ \
+    """(needs matching geometry)"""
     bl_idname = "object.join_uvs"
     bl_label = "Transfer UV Layouts"
 

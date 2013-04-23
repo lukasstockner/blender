@@ -37,9 +37,9 @@
 
 #include "BLO_sys_types.h"
 
+#include "BLI_utildefines.h"
 #include "BLI_edgehash.h"
 #include "BLI_math_base.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_deform.h"
 #include "BKE_depsgraph.h"
@@ -474,7 +474,7 @@ int BKE_mesh_validate_arrays(Mesh *mesh,
 					*v = ml->v;
 				}
 
-				/* is the same vertex used more then once */
+				/* is the same vertex used more than once */
 				if (!sp->invalid) {
 					v = sp->verts;
 					for (j = 0; j < mp->totloop; j++, v++) {

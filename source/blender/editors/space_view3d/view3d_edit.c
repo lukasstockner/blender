@@ -441,11 +441,18 @@ static void viewops_data_create(bContext *C, wmOperator *op, const wmEvent *even
 		Object *ob = OBACT;
 
 		if (ob && (ob->mode & OB_MODE_ALL_PAINT) && (BKE_object_pose_armature_get(ob) == NULL)) {
-			/* transformation is disabled for painting modes, which will make it
-			 * so previous offset is used. This is annoying when you open file
-			 * saved with active object in painting mode
+			/* in case of sculpting use last average stroke position as a rotation
+			 * center, in other cases it's not clear what rotation center shall be
+			 * so just rotate around object origin
 			 */
-			copy_v3_v3(lastofs, ob->obmat[3]);
+			if (ob->mode & OB_MODE_SCULPT) {
+				float stroke[3];
+				ED_sculpt_get_average_stroke(ob, stroke);
+				copy_v3_v3(lastofs, stroke);
+			}
+			else {
+				copy_v3_v3(lastofs, ob->obmat[3]);
+			}
 		}
 		else {
 			/* If there's no selection, lastofs is unmodified and last value since static */
@@ -523,7 +530,7 @@ static void viewops_data_create(bContext *C, wmOperator *op, const wmEvent *even
 static void viewops_data_free(bContext *C, wmOperator *op)
 {
 	ARegion *ar;
-	Paint *p = paint_get_active_from_context(C);
+	Paint *p = BKE_paint_get_active_from_context(C);
 
 	if (op->customdata) {
 		ViewOpsData *vod = op->customdata;
@@ -3465,7 +3472,9 @@ static EnumPropertyItem prop_view_pan_items[] = {
 
 static int viewpan_exec(bContext *C, wmOperator *op)
 {
+	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
+	View3D *v3d = CTX_wm_view3d(C);
 	RegionView3D *rv3d = CTX_wm_region_view3d(C);
 	float vec[3];
 	const float co_zero[3] = {0.0f};
@@ -3474,6 +3483,8 @@ static int viewpan_exec(bContext *C, wmOperator *op)
 	int pandir;
 
 	pandir = RNA_enum_get(op->ptr, "type");
+
+	ED_view3d_camera_lock_init(v3d, rv3d);
 
 	zfac = ED_view3d_calc_zfac(rv3d, co_zero, NULL);
 	if      (pandir == V3D_VIEW_PANRIGHT)  { mval_f[0] = -32.0f; }
@@ -3484,7 +3495,11 @@ static int viewpan_exec(bContext *C, wmOperator *op)
 	add_v3_v3(rv3d->ofs, vec);
 
 	if (rv3d->viewlock & RV3D_BOXVIEW)
-		view3d_boxview_sync(CTX_wm_area(C), ar);
+		view3d_boxview_sync(sa, ar);
+
+	ED_view3d_depth_tag_update(rv3d);
+
+	ED_view3d_camera_lock_sync(v3d, rv3d);
 
 	ED_region_tag_redraw(ar);
 
@@ -3961,7 +3976,7 @@ static float view_autodist_depth_margin(ARegion *ar, const int mval[2], int marg
 bool ED_view3d_autodist(Scene *scene, ARegion *ar, View3D *v3d, const int mval[2], float mouse_worldloc[3], bool alphaoverride)
 {
 	bglMats mats; /* ZBuffer depth vars */
-	float depth_close = FLT_MAX;
+	float depth_close;
 	double cent[2],  p[3];
 
 	/* Get Z Depths, needed for perspective, nice for ortho */

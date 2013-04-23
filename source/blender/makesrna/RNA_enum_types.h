@@ -106,9 +106,9 @@ extern EnumPropertyItem object_type_items[];
 
 extern EnumPropertyItem object_type_curve_items[];
 
-extern EnumPropertyItem rigidbody_ob_type_items[];
-extern EnumPropertyItem rigidbody_ob_shape_items[];
-extern EnumPropertyItem rigidbody_con_type_items[];
+extern EnumPropertyItem rigidbody_object_type_items[];
+extern EnumPropertyItem rigidbody_object_shape_items[];
+extern EnumPropertyItem rigidbody_constraint_type_items[];
 
 extern EnumPropertyItem object_axis_items[];
 
@@ -162,6 +162,11 @@ extern EnumPropertyItem clip_editor_mode_items[];
 
 extern EnumPropertyItem icon_items[];
 extern EnumPropertyItem uilist_layout_type_items[];
+
+extern EnumPropertyItem linestyle_color_modifier_type_items[];
+extern EnumPropertyItem linestyle_alpha_modifier_type_items[];
+extern EnumPropertyItem linestyle_thickness_modifier_type_items[];
+extern EnumPropertyItem linestyle_geometry_modifier_type_items[];
 
 struct bContext;
 struct PointerRNA;

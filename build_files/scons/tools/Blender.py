@@ -389,6 +389,10 @@ def creator(env):
         if env['BF_DEBUG']:
             defs.append('_DEBUG')
 
+    if env['WITH_BF_FREESTYLE']:
+        incs.append('#/source/blender/freestyle')
+        defs.append('WITH_FREESTYLE')
+
     if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'linuxcross', 'win64-vc', 'win64-mingw'):
         incs.append(env['BF_PTHREADS_INC'])
         incs.append('#/intern/utfconv')
@@ -689,10 +693,6 @@ def AppIt(target=None, source=None, env=None):
         commands.getoutput(cmd)
         cmd = 'install_name_tool -change %s/lib/libgcc_s.1.dylib  @executable_path/lib/libgcc_s.1.dylib %s/%s.app/Contents/MacOS/%s'%(instname, installdir, binary, binary)
         commands.getoutput(cmd)
-        cmd = 'rm -rf  %s/set_simulation_threads.app'%(installdir) # first clear omp_num_threads applescript
-        commands.getoutput(cmd)
-        cmd = 'cp -R %s/release/darwin/set_simulation_threads.app %s/'%(bldroot, installdir) # copy the omp_num_threads applescript
-        commands.getoutput(cmd)
 
 # extract copy system python, be sure to update other build systems
 # when making changes to the files that are copied.
@@ -762,6 +762,14 @@ def UnixPyBundle(target=None, source=None, env=None):
             print '\t"%s"\n' % numpy_target
 
             run("cp -R '%s' '%s'" % (numpy_src, os.path.dirname(numpy_target)))
+            run("rm -rf '%s/distutils'" % numpy_target)
+            run("rm -rf '%s/oldnumeric'" % numpy_target)
+            run("rm -rf '%s/doc'" % numpy_target)
+            run("rm -rf '%s/tests'" % numpy_target)
+            run("rm -rf '%s/f2py'" % numpy_target)
+            run("find '%s' -type d -name 'include' -prune -exec rm -rf {} ';'" % numpy_target)
+            run("find '%s' -type d -name '*.h' -prune -exec rm -rf {} ';'" % numpy_target)
+            run("find '%s' -type d -name '*.a' -prune -exec rm -rf {} ';'" % numpy_target)
         else:
             print 'Failed to find numpy at %s, skipping copying' % numpy_src
 
