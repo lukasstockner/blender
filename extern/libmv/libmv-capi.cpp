@@ -461,7 +461,7 @@ static void libmv_solveRefineIntrinsics(libmv::Tracks *tracks, libmv::CameraIntr
 	progress_update_callback(callback_customdata, 1.0, "Refining solution");
 
 	libmv::EuclideanBundleCommonIntrinsics(*(libmv::Tracks *)tracks, libmv_refine_flags,
-		reconstruction, intrinsics, bundle_constraints);
+			bundle_constraints, reconstruction, intrinsics, NULL);
 }
 
 static void cameraIntrinsicsFromOptions(libmv::CameraIntrinsics *camera_intrinsics,
@@ -664,9 +664,10 @@ struct libmv_Reconstruction *libmv_solveModal(struct libmv_Tracks *libmv_tracks,
 	libmv::CameraIntrinsics empty_intrinsics;
 	libmv::EuclideanBundleCommonIntrinsics(normalized_tracks,
 	                                       libmv::BUNDLE_NO_INTRINSICS,
+	                                       libmv::BUNDLE_NO_TRANSLATION,
 	                                       reconstruction,
 	                                       &empty_intrinsics,
-	                                       libmv::BUNDLE_NO_TRANSLATION);
+	                                       NULL);
 
 	/* Refinement. */
 	if (libmv_reconstruction_options->refine_intrinsics) {
