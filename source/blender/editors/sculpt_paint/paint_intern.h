@@ -90,8 +90,10 @@ int weight_paint_mode_poll(struct bContext *C);
 int vertex_paint_poll(struct bContext *C);
 int vertex_paint_mode_poll(struct bContext *C);
 
-void vpaint_fill(struct Object *ob, unsigned int paintcol);
-void wpaint_fill(struct VPaint *wp, struct Object *ob, float paintweight);
+bool ED_vpaint_fill(struct Object *ob, unsigned int paintcol);
+bool ED_wpaint_fill(struct VPaint *wp, struct Object *ob, float paintweight);
+
+bool ED_vpaint_smooth(struct Object *ob);
 
 void PAINT_OT_weight_paint_toggle(struct wmOperatorType *ot);
 void PAINT_OT_weight_paint(struct wmOperatorType *ot);
@@ -178,7 +180,6 @@ void paint_calc_redraw_planes(float planes[4][4],
                               struct Object *ob,
                               const struct rcti *screen_rect);
 
-void projectf(struct bglMats *mats, const float v[3], float p[2]);
 float paint_calc_object_space_radius(struct ViewContext *vc, const float center[3], float pixel_radius);
 float paint_get_tex_pixel(struct MTex *mtex, float u, float v, struct ImagePool *pool);
 void paint_get_tex_pixel_col(struct MTex *mtex, float u, float v, float rgba[4], struct ImagePool *pool);
