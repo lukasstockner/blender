@@ -2541,6 +2541,8 @@ static int ui_do_but_BUT(bContext *C, uiBut *but, uiHandleButtonData *data, cons
 			return WM_UI_HANDLER_BREAK;
 		}
 		else if (event->type == LEFTMOUSE && but->block->handle) {
+			if (!(but->flag & UI_SELECT))
+				data->cancel = true;
 			button_activate_state(C, but, BUTTON_STATE_EXIT);
 			return WM_UI_HANDLER_BREAK;
 		}
@@ -2676,7 +2678,7 @@ static int ui_do_but_SEARCH_UNLINK(bContext *C, uiBlock *block, uiBut *but, uiHa
 {
 	/* unlink icon is on right */
 	if (ELEM(event->type, LEFTMOUSE, EVT_BUT_OPEN) && event->val == KM_PRESS) {
-		ARegion *ar = CTX_wm_region(C);
+		ARegion *ar = data->region;
 		rcti rect;
 		int x = event->x, y = event->y;
 		
@@ -6893,17 +6895,64 @@ static int ui_menu_scroll(ARegion *ar, uiBlock *block, int my, uiBut *to_bt)
 	return 0;
 }
 
+/**
+ * Special function to handle nested menus.
+ * let the parent menu get the event.
+ *
+ * This allows a menu to be open,
+ * but send key events to the parent if theres no active buttons.
+ *
+ * Without this keyboard navigation from menu's wont work.
+ */
+static bool ui_menu_pass_event_to_parent_if_nonactive(uiPopupBlockHandle *menu, const uiBut *but,
+                                                      const int level, const int retval)
+{
+	if ((level != 0) && (but == NULL)) {
+		menu->menuretval = UI_RETURN_OUT | UI_RETURN_OUT_PARENT;
+		BLI_assert(retval == WM_UI_HANDLER_CONTINUE);
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+static int ui_handle_menu_button(bContext *C, const wmEvent *event, uiPopupBlockHandle *menu)
+{
+	ARegion *ar = menu->region;
+	uiBut *but = ui_but_find_activated(ar);
+	int retval;
+
+	if (but) {
+		ScrArea *ctx_area = CTX_wm_area(C);
+		ARegion *ctx_region = CTX_wm_region(C);
+
+		if (menu->ctx_area) CTX_wm_area_set(C, menu->ctx_area);
+		if (menu->ctx_region) CTX_wm_region_set(C, menu->ctx_region);
+
+		retval = ui_handle_button_event(C, event, but);
+
+		if (menu->ctx_area) CTX_wm_area_set(C, ctx_area);
+		if (menu->ctx_region) CTX_wm_region_set(C, ctx_region);
+	}
+	else {
+		retval = ui_handle_button_over(C, event, ar);
+	}
+
+	return retval;
+}
+
 static int ui_handle_menu_event(bContext *C, const wmEvent *event, uiPopupBlockHandle *menu, int level)
 {
 	ARegion *ar;
 	uiBlock *block;
 	uiBut *but, *bt;
-	int inside, act, count, mx, my, retval;
+	int mx, my, retval;
+	bool inside;
 
 	ar = menu->region;
 	block = ar->uiblocks.first;
-	
-	act = 0;
+
 	retval = WM_UI_HANDLER_CONTINUE;
 
 	mx = event->x;
@@ -6915,7 +6964,8 @@ static int ui_handle_menu_event(bContext *C, const wmEvent *event, uiPopupBlockH
 
 	/* if there's an active modal button, don't check events or outside, except for search menu */
 	but = ui_but_find_activated(ar);
-	if (but && button_modal_state(but->active->state) && but->type != SEARCH_MENU && but->type != SEARCH_MENU_UNLINK) {
+
+	if (but && button_modal_state(but->active->state)) {
 		/* if a button is activated modal, always reset the start mouse
 		 * position of the towards mechanism to avoid loosing focus,
 		 * and don't handle events */
@@ -6941,18 +6991,10 @@ static int ui_handle_menu_event(bContext *C, const wmEvent *event, uiPopupBlockH
 		if (block->block_event_func && block->block_event_func(C, block, event)) {
 			/* pass */
 		}   /* events not for active search menu button */
-		else if (but == NULL || (but->type != SEARCH_MENU && but->type != SEARCH_MENU_UNLINK)) {
+		else {
+			int act = 0;
+
 			switch (event->type) {
-
-
-			/* let the parent menu get the event */
-#define     PASS_EVENT_TO_PARENT_IF_NONACTIVE                                 \
-				if ((level != 0) && (but == NULL)) {                          \
-					menu->menuretval = UI_RETURN_OUT | UI_RETURN_OUT_PARENT;  \
-					BLI_assert(retval == WM_UI_HANDLER_CONTINUE);             \
-					break;                                                    \
-				} (void)0
-
 
 				/* closing sublevels of pulldowns */
 				case LEFTARROWKEY:
@@ -6967,7 +7009,8 @@ static int ui_handle_menu_event(bContext *C, const wmEvent *event, uiPopupBlockH
 				case RIGHTARROWKEY:
 					if (event->val == KM_PRESS && (block->flag & UI_BLOCK_LOOP)) {
 
-						PASS_EVENT_TO_PARENT_IF_NONACTIVE;
+						if (ui_menu_pass_event_to_parent_if_nonactive(menu, but, level, retval))
+							break;
 
 						but = ui_but_find_activated(ar);
 
@@ -7004,7 +7047,8 @@ static int ui_handle_menu_event(bContext *C, const wmEvent *event, uiPopupBlockH
 						if (val == KM_PRESS) {
 							const eButType type_flip = BUT | ROW;
 
-							PASS_EVENT_TO_PARENT_IF_NONACTIVE;
+							if (ui_menu_pass_event_to_parent_if_nonactive(menu, but, level, retval))
+								break;
 
 #ifdef USE_KEYNAV_LIMIT
 							ui_mouse_motion_keynav_init(&menu->keynav_state, event);
@@ -7092,8 +7136,10 @@ static int ui_handle_menu_event(bContext *C, const wmEvent *event, uiPopupBlockH
 					if (act == 0) act = 10;
 
 					if ((block->flag & UI_BLOCK_NUMSELECT) && event->val == KM_PRESS) {
+						int count;
 
-						PASS_EVENT_TO_PARENT_IF_NONACTIVE;
+						if (ui_menu_pass_event_to_parent_if_nonactive(menu, but, level, retval))
+							break;
 
 						if (event->alt) act += 10;
 
@@ -7172,7 +7218,8 @@ static int ui_handle_menu_event(bContext *C, const wmEvent *event, uiPopupBlockH
 					    (event->ctrl  == FALSE) &&
 					    (event->oskey == FALSE))
 					{
-						PASS_EVENT_TO_PARENT_IF_NONACTIVE;
+						if (ui_menu_pass_event_to_parent_if_nonactive(menu, but, level, retval))
+							break;
 
 						for (but = block->buttons.first; but; but = but->next) {
 
@@ -7273,8 +7320,6 @@ static int ui_handle_menu_event(bContext *C, const wmEvent *event, uiPopupBlockH
 			}
 
 			/* end switch */
-#undef PASS_EVENT_TO_PARENT_IF_NONACTIVE
-
 		}
 	}
 
@@ -7285,22 +7330,7 @@ static int ui_handle_menu_event(bContext *C, const wmEvent *event, uiPopupBlockH
 	if ((event->type == TIMER) ||
 	    (/*inside &&*/ (!menu->menuretval || (menu->menuretval & UI_RETURN_UPDATE)) && retval == WM_UI_HANDLER_CONTINUE))
 	{
-		but = ui_but_find_activated(ar);
-
-		if (but) {
-			ScrArea *ctx_area = CTX_wm_area(C);
-			ARegion *ctx_region = CTX_wm_region(C);
-			
-			if (menu->ctx_area) CTX_wm_area_set(C, menu->ctx_area);
-			if (menu->ctx_region) CTX_wm_region_set(C, menu->ctx_region);
-			
-			retval = ui_handle_button_event(C, event, but);
-			
-			if (menu->ctx_area) CTX_wm_area_set(C, ctx_area);
-			if (menu->ctx_region) CTX_wm_region_set(C, ctx_region);
-		}
-		else
-			retval = ui_handle_button_over(C, event, ar);
+		ui_handle_menu_button(C, event, menu);
 	}
 
 	/* if we set a menu return value, ensure we continue passing this on to
@@ -7380,19 +7410,25 @@ static int ui_handle_menus_recursive(bContext *C, const wmEvent *event, uiPopupB
 
 	/* now handle events for our own menu */
 	if (retval == WM_UI_HANDLER_CONTINUE || event->type == TIMER) {
+		const bool do_but_search = (but && ELEM(but->type, SEARCH_MENU, SEARCH_MENU_UNLINK));
 		if (submenu && submenu->menuretval) {
-			int do_ret_out_parent = (submenu->menuretval & UI_RETURN_OUT_PARENT);
+			const bool do_ret_out_parent = (submenu->menuretval & UI_RETURN_OUT_PARENT) != 0;
 			retval = ui_handle_menu_return_submenu(C, event, menu);
 			submenu = NULL;  /* hint not to use this, it may be freed by call above */
 			(void)submenu;
 			/* we may want to quit the submenu and handle the even in this menu,
 			 * if its important to use it, check 'data->menu' first */
-			if ((retval == WM_UI_HANDLER_BREAK) && do_ret_out_parent) {
-				retval = ui_handle_menu_event(C, event, menu, level);
+			if (((retval == WM_UI_HANDLER_BREAK) && do_ret_out_parent) == 0) {
+				/* skip applying the event */
+				return retval;
 			}
 		}
+
+		if (do_but_search) {
+			retval = ui_handle_menu_button(C, event, menu);
+		}
 		else {
-			retval = ui_handle_menu_event(C, event, menu, level);  /* same as above */
+			retval = ui_handle_menu_event(C, event, menu, level);
 		}
 	}
 

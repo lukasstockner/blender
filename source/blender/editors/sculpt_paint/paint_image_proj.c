@@ -290,8 +290,8 @@ typedef struct ProjPixel {
 	/* Only used when the airbrush is disabled.
 	 * Store the max mask value to avoid painting over an area with a lower opacity
 	 * with an advantage that we can avoid touching the pixel at all, if the
-	 * new mask value is lower then mask_max */
-	unsigned short mask_max;
+	 * new mask value is lower then mask_accum */
+	unsigned short mask_accum;
 
 	/* for various reasons we may want to mask out painting onto this pixel */
 	unsigned short mask;
@@ -1343,7 +1343,7 @@ static ProjPixel *project_paint_uvpixel_init(
 	projPixel->y_px = y_px;
 
 	projPixel->mask = (unsigned short)(mask * 65535);
-	projPixel->mask_max = 0;
+	projPixel->mask_accum = 0;
 
 	/* which bounding box cell are we in?, needed for undo */
 	projPixel->bb_cell_index = ((int)(((float)x_px / (float)ibuf->x) * PROJ_BOUNDBOX_DIV)) +
@@ -3860,7 +3860,7 @@ static void *do_projectpaint_thread(void *ph_v)
 
 					if (falloff > 0.0f) {
 						float texrgb[3];
-						float mask = falloff * brush_alpha;
+						float mask = falloff;
 
 						if (ps->is_texbrush) {
 							MTex *mtex = &brush->mtex;
@@ -3887,22 +3887,34 @@ static void *do_projectpaint_thread(void *ph_v)
 							mask *= BKE_brush_sample_masktex(ps->scene, ps->brush, projPixel->projCoSS, thread_index, pool);
 						}
 
-						if (!ps->do_masking) {
-							/* for an aurbrush there is no real mask, so just multiply the alpha by it */
-							mask *= ((float)projPixel->mask) * (1.0f / 65535.0f);
-						}
-						else {
-							mask_short = (unsigned short)(projPixel->mask * mask);
+						CLAMP(mask, 0.0f, 1.0f);
 
-							if (mask_short > projPixel->mask_max) {
-								mask = ((float)mask_short) * (1.0f / 65535.0f);
-								projPixel->mask_max = mask_short;
+						if (ps->do_masking) {
+							/* masking to keep brush contribution to a pixel limited. note we do not do
+							 * a simple max(mask, mask_accum), as this is very sensitive to spacing and
+							 * gives poor results for strokes crossing themselves.
+							 * 
+							 * Instead we use a formula that adds up but approaches brush_alpha slowly
+							 * and never exceeds it, which gives nice smooth results. */
+							float mask_accum = projPixel->mask_accum;
+
+							mask = mask_accum + (brush_alpha * 65535.0f - mask_accum) * mask;
+							mask_short = (unsigned short)mask;
+
+							if (mask_short > projPixel->mask_accum) {
+								projPixel->mask_accum = mask_short;
+								mask = mask_short * (1.0f / 65535.0f);
 							}
 							else {
 								/* Go onto the next pixel */
 								continue;
 							}
 						}
+						else
+							mask *= brush_alpha;
+
+						/* extra mask for normal, layer stencil, .. */
+						mask *= ((float)projPixel->mask) * (1.0f / 65535.0f);
 
 						if (mask > 0.0f) {
 
