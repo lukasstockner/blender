@@ -74,7 +74,7 @@ typedef struct TexSnapshot {
 	int winy;
 	bool init;
 	int old_size;
-	int old_zoom;
+	float old_zoom;
 	bool old_col;
 } TexSnapshot;
 
@@ -93,7 +93,8 @@ static int same_tex_snap(TexSnapshot *snap, MTex *mtex, ViewContext *vc, bool co
 	        (mtex->brush_map_mode != MTEX_MAP_MODE_TILED ||
 	         (vc->ar->winx == snap->winx &&
 	          vc->ar->winy == snap->winy)) &&
-	        snap->old_zoom == zoom &&
+	        (mtex->brush_map_mode == MTEX_MAP_MODE_STENCIL ||
+	        snap->old_zoom == zoom) &&
 	        snap->old_col == col
 	        );
 }
@@ -376,10 +377,8 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
 				len = sqrtf(x * x + y * y);
 
 				if (len <= 1) {
-					float avg = BKE_brush_curve_strength(br, len, 1.0f);  /* Falloff curve */
+					float avg = BKE_brush_curve_strength_clamp(br, len, 1.0f);  /* Falloff curve */
 
-					/* clamp to avoid precision overflow */
-					CLAMP(avg, 0.0f, 1.0f);
 					buffer[index] = 255 - (GLubyte)(255 * avg);
 
 				}

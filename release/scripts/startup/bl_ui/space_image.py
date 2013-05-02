@@ -728,6 +728,7 @@ class IMAGE_PT_tools_brush_texture(BrushButtonsPanel, Panel):
 
         toolsettings = context.tool_settings.image_paint
         brush = toolsettings.brush
+        tex_slot = brush.texture_slot
 
         col = layout.column()
         col.template_ID_preview(brush, "texture", new="texture.new", rows=3, cols=8)
@@ -740,13 +741,15 @@ class IMAGE_PT_tools_brush_texture(BrushButtonsPanel, Panel):
         col.label(text="Overlay:")
 
         row = col.row()
-        if brush.use_primary_overlay:
-            row.prop(brush, "use_primary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
-        else:
-            row.prop(brush, "use_primary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
+        if tex_slot.map_mode != 'STENCIL':
+            if brush.use_primary_overlay:
+                row.prop(brush, "use_primary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
+            else:
+                row.prop(brush, "use_primary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
+
         sub = row.row()
         sub.prop(brush, "texture_overlay_alpha", text="Alpha")
-        sub.prop(brush, "use_cursor_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
+        sub.prop(brush, "use_primary_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
 
 
 
@@ -778,8 +781,8 @@ class IMAGE_PT_tools_mask_texture(BrushButtonsPanel, Panel):
                 row.prop(brush, "use_secondary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
         
         sub = row.row()
-        sub.prop(brush, "texture_overlay_alpha", text="Alpha")
-        sub.prop(brush, "use_cursor_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
+        sub.prop(brush, "mask_overlay_alpha", text="Alpha")
+        sub.prop(brush, "use_secondary_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
 
 
 class IMAGE_PT_tools_brush_tool(BrushButtonsPanel, Panel):
@@ -877,6 +880,35 @@ class IMAGE_PT_paint_curve(BrushButtonsPanel, Panel):
         row.operator("brush.curve_preset", icon='SHARPCURVE', text="").shape = 'SHARP'
         row.operator("brush.curve_preset", icon='LINCURVE', text="").shape = 'LINE'
         row.operator("brush.curve_preset", icon='NOCURVE', text="").shape = 'MAX'
+
+
+class IMAGE_PT_tools_brush_appearance(BrushButtonsPanel, Panel):
+    bl_label = "Appearance"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        toolsettings = context.tool_settings.image_paint
+        brush = toolsettings.brush
+
+        if brush is None:  # unlikely but can happen
+            layout.label(text="Brush Unset")
+            return
+
+        col = layout.column()
+        col.prop(toolsettings, "show_brush");
+
+        col = col.column()
+        col.prop(brush, "cursor_color_add", text="")
+        col.active = toolsettings.show_brush
+
+        layout.separator()
+
+        col = layout.column(align=True)
+        col.prop(brush, "use_custom_icon")
+        if brush.use_custom_icon:
+            col.prop(brush, "icon_filepath", text="")
 
 
 class IMAGE_UV_sculpt_curve(Panel):

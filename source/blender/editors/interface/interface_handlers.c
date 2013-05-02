@@ -2034,7 +2034,10 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
 		data->searchbox = ui_searchbox_create(C, data->region, but);
 		ui_searchbox_update(C, data->searchbox, but, true); /* true = reset */
 	}
-	
+
+	/* reset alert flag (avoid confusion, will refresh on exit) */
+	but->flag &= ~UI_BUT_REDALERT;
+
 	ui_check_but(but);
 	
 	WM_cursor_modal(CTX_wm_window(C), BC_TEXTEDITCURSOR);
@@ -2053,8 +2056,13 @@ static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
 		}
 		
 		if (data->searchbox) {
-			if (data->cancel == false)
-				ui_searchbox_apply(but, data->searchbox);
+			if (data->cancel == false) {
+				if ((ui_searchbox_apply(but, data->searchbox) == false) ||
+				    (ui_searchbox_find_index(data->searchbox, but->editstr) == -1))
+				{
+					data->cancel = true;
+				}
+			}
 
 			ui_searchbox_free(C, data->searchbox);
 			data->searchbox = NULL;
