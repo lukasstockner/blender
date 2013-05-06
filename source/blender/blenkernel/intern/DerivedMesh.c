@@ -470,7 +470,7 @@ void DM_update_tessface_data(DerivedMesh *dm)
 	dm->dirty &= ~DM_DIRTY_TESS_CDLAYERS;
 }
 
-void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob)
+void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob, CustomDataMask mask)
 {
 	/* dm might depend on me, so we need to do everything with a local copy */
 	Mesh tmp = *me;
@@ -489,10 +489,10 @@ void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob)
 	totpoly = tmp.totpoly = dm->getNumPolys(dm);
 	tmp.totface = 0;
 
-	CustomData_copy(&dm->vertData, &tmp.vdata, CD_MASK_MESH, CD_DUPLICATE, totvert);
-	CustomData_copy(&dm->edgeData, &tmp.edata, CD_MASK_MESH, CD_DUPLICATE, totedge);
-	CustomData_copy(&dm->loopData, &tmp.ldata, CD_MASK_MESH, CD_DUPLICATE, totloop);
-	CustomData_copy(&dm->polyData, &tmp.pdata, CD_MASK_MESH, CD_DUPLICATE, totpoly);
+	CustomData_copy(&dm->vertData, &tmp.vdata, mask, CD_DUPLICATE, totvert);
+	CustomData_copy(&dm->edgeData, &tmp.edata, mask, CD_DUPLICATE, totedge);
+	CustomData_copy(&dm->loopData, &tmp.ldata, mask, CD_DUPLICATE, totloop);
+	CustomData_copy(&dm->polyData, &tmp.pdata, mask, CD_DUPLICATE, totpoly);
 	tmp.cd_flag = dm->cd_flag;
 
 	if (CustomData_has_layer(&dm->vertData, CD_SHAPEKEY)) {
@@ -1244,22 +1244,22 @@ void DM_update_weight_mcol(Object *ob, DerivedMesh *dm, int const draw_flag,
 		unsigned char(*wtcol_l)[4] = CustomData_get_layer(dm->getLoopDataLayout(dm), CD_PREVIEW_MLOOPCOL);
 		MLoop *mloop = dm->getLoopArray(dm), *ml;
 		MPoly *mp = dm->getPolyArray(dm);
-		int totloop;
+		int l_index;
 		int j;
 
 		/* now add to loops, so the data can be passed through the modifier stack */
 		/* If no CD_PREVIEW_MLOOPCOL existed yet, we have to add a new one! */
 		if (!wtcol_l) {
 			wtcol_l = MEM_mallocN(sizeof(*wtcol_l) * dm_totloop, __func__);
-			CustomData_add_layer(&dm->loopData, CD_PREVIEW_MLOOPCOL, CD_ASSIGN, wtcol_l, totloop);
+			CustomData_add_layer(&dm->loopData, CD_PREVIEW_MLOOPCOL, CD_ASSIGN, wtcol_l, dm_totloop);
 		}
 
-		totloop = 0;
+		l_index = 0;
 		for (i = 0; i < dm_totpoly; i++, mp++) {
 			ml = mloop + mp->loopstart;
 
-			for (j = 0; j < mp->totloop; j++, ml++, totloop++) {
-				copy_v4_v4_char((char *)&wtcol_l[totloop],
+			for (j = 0; j < mp->totloop; j++, ml++, l_index++) {
+				copy_v4_v4_char((char *)&wtcol_l[l_index],
 				                (char *)&wtcol_v[ml->v]);
 			}
 		}
@@ -1692,7 +1692,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 				DM_set_only_copy(orcodm, nextmask | CD_MASK_ORIGINDEX |
 				                 (mti->requiredDataMask ?
 				                  mti->requiredDataMask(ob, md) : 0));
-				ndm = mti->applyModifier(md, ob, orcodm, app_flags & ~MOD_APPLY_USECACHE);
+				ndm = mti->applyModifier(md, ob, orcodm, (app_flags & ~MOD_APPLY_USECACHE) | MOD_APPLY_ORCO);
 
 				if (ndm) {
 					/* if the modifier returned a new dm, release the old one */
@@ -1708,7 +1708,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 
 				nextmask &= ~CD_MASK_CLOTH_ORCO;
 				DM_set_only_copy(clothorcodm, nextmask | CD_MASK_ORIGINDEX);
-				ndm = mti->applyModifier(md, ob, clothorcodm, app_flags & ~MOD_APPLY_USECACHE);
+				ndm = mti->applyModifier(md, ob, clothorcodm, (app_flags & ~MOD_APPLY_USECACHE) | MOD_APPLY_ORCO);
 
 				if (ndm) {
 					/* if the modifier returned a new dm, release the old one */
@@ -2031,9 +2031,9 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 				DM_set_only_copy(orcodm, mask | CD_MASK_ORIGINDEX);
 
 				if (mti->applyModifierEM)
-					ndm = mti->applyModifierEM(md, ob, em, orcodm);
+					ndm = mti->applyModifierEM(md, ob, em, orcodm, MOD_APPLY_ORCO);
 				else
-					ndm = mti->applyModifier(md, ob, orcodm, 0);
+					ndm = mti->applyModifier(md, ob, orcodm, MOD_APPLY_ORCO);
 
 				if (ndm) {
 					/* if the modifier returned a new dm, release the old one */
@@ -2055,9 +2055,9 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 			}
 			
 			if (mti->applyModifierEM)
-				ndm = mti->applyModifierEM(md, ob, em, dm);
+				ndm = mti->applyModifierEM(md, ob, em, dm, MOD_APPLY_USECACHE);
 			else
-				ndm = mti->applyModifier(md, ob, dm, 0);
+				ndm = mti->applyModifier(md, ob, dm, MOD_APPLY_USECACHE);
 
 			if (ndm) {
 				if (dm && dm != ndm)
