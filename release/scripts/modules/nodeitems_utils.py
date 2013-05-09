@@ -26,21 +26,17 @@ class NodeCategory():
     def poll(cls, context):
         return True
 
-    @property
-    def items(self):
-        if hasattr(self, '_items'):
-            return self._items
-        elif hasattr(self, '_itemfunc'):
-            return self._itemfunc(self)
-
-    def __init__(self, identifier, name, description="", items=[]):
+    def __init__(self, identifier, name, description="", items=None):
         self.identifier = identifier
         self.name = name
         self.description = description
-        if callable(items):
-            self._itemfunc = items
+
+        if items is None:
+            self.items = lambda context: []
+        elif callable(items):
+            self.items = items
         else:
-            self._items = items
+            self.items = lambda context: items
 
 class NodeItem():
     def __init__(self, nodetype, label=None, settings={}):
@@ -69,13 +65,13 @@ def register_node_categories(identifier, cat_list):
         layout = self.layout
         col = layout.column()
         default_context = bpy.app.translations.contexts.default
-        for item in self.category.items:
-            op = col.operator("node.add_node", text=item.label, text_ctxt=default_context)
-            op.type = item.nodetype
-            op.use_transform = True
+        for item in self.category.items(context):
+            props = col.operator("node.add_node", text=item.label, text_ctxt=default_context)
+            props.type = item.nodetype
+            props.use_transform = True
 
             for setting in item.settings.items():
-                ops = op.settings.add()
+                ops = props.settings.add()
                 ops.name = setting[0]
                 ops.value = setting[1]
 
@@ -116,6 +112,19 @@ def register_node_categories(identifier, cat_list):
 
     # stores: (categories list, menu draw function, submenu types, panel types)
     _node_categories[identifier] = (cat_list, draw_add_menu, menu_types, panel_types)
+
+
+def node_categories_iter(context):
+    for cat_type in _node_categories.values():
+        for cat in cat_type[0]:
+            if cat.poll and cat.poll(context):
+                yield cat
+
+
+def node_items_iter(context):
+    for cat in node_categories_iter(context):
+        for item in cat.items(context):
+            yield item
 
 
 def unregister_node_cat_types(cats):

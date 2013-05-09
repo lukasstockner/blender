@@ -69,7 +69,7 @@ EnumPropertyItem space_type_items[] = {
 	{SPACE_INFO, "INFO", 0, "Info", ""},
 	{SPACE_SEQ, "SEQUENCE_EDITOR", 0, "Sequence Editor", ""},
 	{SPACE_TEXT, "TEXT_EDITOR", 0, "Text Editor", ""},
-	{SPACE_ACTION, "DOPESHEET_EDITOR", 0, "DopeSheet Editor", ""},
+	{SPACE_ACTION, "DOPESHEET_EDITOR", 0, "Dope Sheet Editor", ""},
 	{SPACE_NLA, "NLA_EDITOR", 0, "NLA Editor", ""},
 	{SPACE_TIME, "TIMELINE", 0, "Timeline", ""},
 	{SPACE_NODE, "NODE_EDITOR", 0, "Node Editor", ""},
@@ -2541,9 +2541,9 @@ static void rna_def_space_dopesheet(BlenderRNA *brna)
 	
 	/* XXX: action-editor is currently for object-level only actions, so show that using object-icon hint */
 	static EnumPropertyItem mode_items[] = {
-		{SACTCONT_DOPESHEET, "DOPESHEET", ICON_OOPS, "DopeSheet", "Edit all keyframes in scene"},
+		{SACTCONT_DOPESHEET, "DOPESHEET", ICON_OOPS, "Dope Sheet", "Edit all keyframes in scene"},
 		{SACTCONT_ACTION, "ACTION", ICON_OBJECT_DATA, "Action Editor", "Edit keyframes in active object's Object-level action"},
-		{SACTCONT_SHAPEKEY, "SHAPEKEY", ICON_SHAPEKEY_DATA, "ShapeKey Editor", "Edit keyframes in active object's Shape Keys action"},
+		{SACTCONT_SHAPEKEY, "SHAPEKEY", ICON_SHAPEKEY_DATA, "Shape Key Editor", "Edit keyframes in active object's Shape Keys action"},
 		{SACTCONT_GPENCIL, "GPENCIL", ICON_GREASEPENCIL, "Grease Pencil", "Edit timings for all Grease Pencil sketches in file"},
 		{SACTCONT_MASK, "MASK", ICON_MOD_MASK, "Mask", "Edit timings for Mask Editor splines"},
 		{0, NULL, 0, NULL, NULL}
@@ -2552,7 +2552,7 @@ static void rna_def_space_dopesheet(BlenderRNA *brna)
 	
 	srna = RNA_def_struct(brna, "SpaceDopeSheetEditor", "Space");
 	RNA_def_struct_sdna(srna, "SpaceAction");
-	RNA_def_struct_ui_text(srna, "Space DopeSheet Editor", "DopeSheet space data");
+	RNA_def_struct_ui_text(srna, "Space Dope Sheet Editor", "Dope Sheet space data");
 
 	/* data */
 	prop = RNA_def_property(srna, "action", PROP_POINTER, PROP_NONE);
@@ -2619,7 +2619,7 @@ static void rna_def_space_dopesheet(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "dopesheet", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "DopeSheet");
 	RNA_def_property_pointer_sdna(prop, NULL, "ads");
-	RNA_def_property_ui_text(prop, "DopeSheet", "Settings for filtering animation data");
+	RNA_def_property_ui_text(prop, "Dope Sheet", "Settings for filtering animation data");
 
 	/* autosnap */
 	prop = RNA_def_property(srna, "auto_snap", PROP_ENUM, PROP_NONE);
@@ -2743,7 +2743,7 @@ static void rna_def_space_graph(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "dopesheet", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "DopeSheet");
 	RNA_def_property_pointer_sdna(prop, NULL, "ads");
-	RNA_def_property_ui_text(prop, "DopeSheet", "Settings for filtering animation data");
+	RNA_def_property_ui_text(prop, "Dope Sheet", "Settings for filtering animation data");
 
 	/* autosnap */
 	prop = RNA_def_property(srna, "auto_snap", PROP_ENUM, PROP_NONE);
@@ -2798,7 +2798,7 @@ static void rna_def_space_nla(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "dopesheet", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "DopeSheet");
 	RNA_def_property_pointer_sdna(prop, NULL, "ads");
-	RNA_def_property_ui_text(prop, "DopeSheet", "Settings for filtering animation data");
+	RNA_def_property_ui_text(prop, "Dope Sheet", "Settings for filtering animation data");
 
 	/* autosnap */
 	prop = RNA_def_property(srna, "auto_snap", PROP_ENUM, PROP_NONE);
