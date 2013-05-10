@@ -1,3 +1,110 @@
+commit 42da053c6410b4f3fb13798c7e9c5f4a861b6825
+Author: Sergey Sharybin <sergey.vfx@gmail.com>
+Date:   Fri May 10 18:30:40 2013 +0600
+
+    Keyframe selection improvements
+    
+    Added additional criteria, which ignores
+    keyframe pair if success intersection factor
+    is lower than current candidate pair factor.
+    
+    This solves issue with keyframe pair at which
+    most of the tracks are intersecting behind the
+    camera is accepted (because variance in this
+    case is really small),
+    
+    Also tweaked generalized inverse function,
+    which now doesn't scale epsilon by maximal
+    matrix element. This gave issues at really bad
+    candidates with unstable covariance. In this
+    case almost all eigen values getting zeroed
+    on inverse leading to small expected error.
+
+commit f3eb090f7240f86799099fe86ce9386eb2bd3007
+Author: Sergey Sharybin <sergey.vfx@gmail.com>
+Date:   Fri May 10 17:59:40 2013 +0600
+
+    Keyframe selection code cleanup
+    
+    - Updated comments in code.
+    - Removed currently unused functions.
+      Actually, they'd better be moved to some generic
+      logging module, but we don't have it now so was
+      lazy to create one now. Could happen later using
+      code from git history
+    - Renamed function to match better to what's going
+      on in it.
+
+commit b917b48bd877eedd17dec907cacf0b27a36e717d
+Author: Sergey Sharybin <sergey.vfx@gmail.com>
+Date:   Fri May 10 17:44:49 2013 +0600
+
+    Optimization for reconstruction variance
+    
+    Achieved by replacing SVD-based pseudo-inverse with
+    an eigen solver pseudo inverse.
+    
+    New function works in the same way: it decomposes
+    matrix to V*D*V^-1, then inverts diagonal of D
+    and composes matrix back.
+    
+    The same way is used to deal with gauges - last
+    7 eigen values are getting zeroed.
+    
+    In own tests gives approx 2x boost, without
+    visible affect on selected keyframe quality.
+
+commit 041b4b54fff66311347a307a5922c2516c76ee44
+Author: Sergey Sharybin <sergey.vfx@gmail.com>
+Date:   Thu Mar 14 14:53:42 2013 +0600
+
+    Initial commit of reconstruction variance criteria
+    which is an addition for GRIC-based keyframe selection.
+    
+    Uses paper Keyframe Selection for Camera Motion and Structure
+    Estimation from Multiple Views,
+    ftp://ftp.tnt.uni-hannover.de/pub/papers/2004/ECCV2004-TTHBAW.pdf
+    as a basis.
+    
+    Currently implemented camera positions reconstructions,
+    bundle positions estimation and bundle adjustment step.
+    
+    Covariance matrix is estimating using generalized inverse
+    with 7 (by the number of gauge freedoms) zeroed eigen values
+    of J^T * J.
+    
+    Additional changes:
+    - Added utility function FundamentalToEssential to extract
+      E from F matrix, used by both final reconstruction pipeline
+      and reconstruction variance code.
+    
+    - Refactored bundler a bit, so now it's possible to return
+      different evaluation data, such as number of cameras and
+      points being minimized and also jacobian.
+    
+      Jacobian currently contains only camera and points columns,
+      no intrinsics there yet. It is also currently converting to
+      an Eigen dense matrix. A bit weak, but speed is nice for
+      tests.
+    
+      Columns in jacobian are ordered in the following way:
+      first columns are cameras (3 cols for rotation and 3 cols
+      for translation), then goes 3D point columns.
+    
+    - Switched F and H refining to normalized space. Apparently,
+      refining F in pixel space squeezes it a lot making it wrong.
+    
+    - EuclideanIntersect will not add point to reconstruction if
+      it happened to be behind the camera.
+    
+    - Cleaned style a bit.
+
+commit 94c4654f1145f86779bd0a7e8cda1fd2c751d27d
+Author: Sergey Sharybin <sergey.vfx@gmail.com>
+Date:   Fri May 10 13:27:21 2013 +0600
+
+    Left extra debugging print in reconstruction scale by accident.
+
 commit 3886b488575ec5e79debce7b9f2e9824f5297c0f
 Author: Sergey Sharybin <sergey.vfx@gmail.com>
 Date:   Fri May 10 12:23:03 2013 +0600
@@ -559,91 +666,3 @@ Date:   Mon Feb 25 20:00:48 2013 +0000
     
     EuclideanBundle:
     - Fix RMSE logging.
-
-commit 1696342954614b54133780d74d6ee0fbcbe224f0
-Author: Sergey Sharybin <sergey.vfx@gmail.com>
-Date:   Tue Feb 26 18:10:33 2013 +0600
-
-    Upgrade ceres to latest upstream version
-    
-    This is needed because of some features of new Ceres
-    for further development.
-
-commit 575336f794841ada90aacd783285014081b8318c
-Author: Sergey Sharybin <sergey.vfx@gmail.com>
-Date:   Mon Jan 7 15:58:40 2013 +0600
-
-    Fixed for keyframe selection
-    
-    - Calculate residuals for GRIC in pixel space rather than
-      in normalized space.
-    
-      This seems to be how it's intended to be used.
-    
-      Algebraic H and F will still use normalized coordinates which
-      are more stable, after this matrices are converted to pixel
-      space and Ceres refinement happens in pixel space.
-    
-    - Standard deviation calculation was wrong in GRIC. It shouldn't
-      be deviation of residuals, but as per Torr it should be deviation
-      of measurement error, which is constant (in our case 0.1)
-    
-      Not sure if using squared cost function is correct for GRIC,
-      but cost function is indeed squared and in most papers cost
-      function is used for GRIC. After some further tests we could
-      switch GRIC residuals to non-squared distance.
-    
-    - Bring back rho part of GRIC, in unit tests it doesn't make
-      sense whether it's enabled or not, lets see how it'll behave
-      in real-life footage.
-    
-    - Added one more unit test based on elevator scene and manual
-      keyframe selection.
-
-commit 24117f3c3fc5531beb6497d79bb6f1780a998081
-Author: Sergey Sharybin <sergey.vfx@gmail.com>
-Date:   Sun Jan 6 19:07:06 2013 +0600
-
-    Added test for keyframe selection based on manual selection
-    
-    Additional changes:
-    
-    - Reduce minimal correspondence to match real-world manually
-      tracked footage
-    
-    - Returned back squares to SymmetricEpipolarDistance and
-      SymmetricGeometricDistance -- this is actually a cost
-      functions, not distances and they shall be squared.
-
-commit 770eb0293b881c4c419c587a6cdb062c47ab6e44
-Author: Sergey Sharybin <sergey.vfx@gmail.com>
-Date:   Fri Dec 21 00:43:30 2012 +0600
-
-    Improvements for keyframe selection
-    
-    - Changed main keyframe selection cycle, so in cases there're no
-      more next keyframes for current keyframe could be found in the
-      image sequence, current keyframe would be moved forward and
-      search continues.
-    
-      This helps in cases when there's poor motion in the beginning
-      of the sequence, then markers becomes occluded. There could be
-      good keyframes in the middle of the shot still.
-    
-    - Extended keyframe_selection_test with real world cases.
-    
-    - Moved correspondences constraint to the top, so no H/F estimation
-      happens if there's bad correspondence. Makes algorithm go a bit
-      faster.
-    
-    Strangely, but using non-squared distances makes neighbor frames
-    test fail, using squared distances makes this tests pass.
-    
-    However, using non-squared distances seems to be working better
-    in real tests i've been doing. So this requires more investigation/
-
-commit 7415c62fbda36c5bd1c291bc94d535a66da896d0
-Author: Sergey Sharybin <sergey.vfx@gmail.com>
-Date:   Thu Dec 20 18:46:09 2012 +0600
-
-    Cosmetic change to correspondences reports in keyframe selection

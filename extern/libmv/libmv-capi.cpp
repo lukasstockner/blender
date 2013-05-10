@@ -506,15 +506,20 @@ static void finishReconstruction(libmv::Tracks *tracks, libmv::CameraIntrinsics 
 	libmv_reconstruction->error = libmv::EuclideanReprojectionError(*tracks, *reconstruction, *camera_intrinsics);
 }
 
-static bool selectTwoKeyframesBasedOnGRIC(libmv::Tracks &tracks, libmv::Tracks &normalized_tracks,
-                                          libmv::CameraIntrinsics &camera_intrinsics,
-                                          libmv::ReconstructionOptions &reconstruction_options,
-                                          int &keyframe1, int &keyframe2)
+static bool selectTwoKeyframesBasedOnGRICAndVariance(
+                          libmv::Tracks &tracks,
+                          libmv::Tracks &normalized_tracks,
+                          libmv::CameraIntrinsics &camera_intrinsics,
+                          libmv::ReconstructionOptions &reconstruction_options,
+                          int &keyframe1,
+                          int &keyframe2)
 {
 	libmv::vector<int> keyframes;
 
-	/* Get list of all keyframe candidates first */
-	SelectkeyframesBasedOnGRIC(normalized_tracks, camera_intrinsics, keyframes);
+	/* Get list of all keyframe candidates first. */
+	SelectkeyframesBasedOnGRICAndVariance(normalized_tracks,
+	                                      camera_intrinsics,
+	                                      keyframes);
 
 	if (keyframes.size() < 2) {
 		LG << "Not enough keyframes detected by GRIC";
@@ -526,9 +531,13 @@ static bool selectTwoKeyframesBasedOnGRIC(libmv::Tracks &tracks, libmv::Tracks &
 		return true;
 	}
 
-	/* Now choose two keyframes with minimal reprojection error after initial reconstruction
-	 * choose keyframes with the least reprojection error after solving from two candidate
-	 * keyframes
+	/* Now choose two keyframes with minimal reprojection error after initial
+	 * reconstruction choose keyframes with the least reprojection error after
+	 * solving from two candidate keyframes.
+	 *
+	 * In fact, currently libmv returns single pair only, so this code will
+	 * not actually run. But in the future this could change, so let's stay
+	 * prepared.
 	 */
 	int previous_keyframe = keyframes[0];
 	double best_error = std::numeric_limits<double>::max();
@@ -537,20 +546,26 @@ static bool selectTwoKeyframesBasedOnGRIC(libmv::Tracks &tracks, libmv::Tracks &
 		int current_keyframe = keyframes[i];
 
 		libmv::vector<libmv::Marker> keyframe_markers =
-			normalized_tracks.MarkersForTracksInBothImages(previous_keyframe, current_keyframe);
+			normalized_tracks.MarkersForTracksInBothImages(previous_keyframe,
+			                                               current_keyframe);
 
 		libmv::Tracks keyframe_tracks(keyframe_markers);
 
 		/* get a solution from two keyframes only */
 		libmv::EuclideanReconstructTwoFrames(keyframe_markers, &reconstruction);
 		libmv::EuclideanBundle(keyframe_tracks, &reconstruction);
-		libmv::EuclideanCompleteReconstruction(reconstruction_options, keyframe_tracks,
+		libmv::EuclideanCompleteReconstruction(reconstruction_options,
+		                                       keyframe_tracks,
 		                                       &reconstruction, NULL);
 
 		double current_error =
-			libmv::EuclideanReprojectionError(tracks, reconstruction, camera_intrinsics);
+			libmv::EuclideanReprojectionError(tracks,
+			                                  reconstruction,
+			                                  camera_intrinsics);
 
-		LG << "Error between " << previous_keyframe << " and " << current_keyframe << ": " << current_error;
+		LG << "Error between " << previous_keyframe
+		   << " and " << current_keyframe
+		   << ": " << current_error;
 
 		if (current_error < best_error) {
 			best_error = current_error;
@@ -598,8 +613,12 @@ libmv_Reconstruction *libmv_solveReconstruction(libmv_Tracks *libmv_tracks,
 
 		update_callback.invoke(0, "Selecting keyframes");
 
-		selectTwoKeyframesBasedOnGRIC(*tracks, normalized_tracks, *camera_intrinsics,
-		                              reconstruction_options, keyframe1, keyframe2);
+		selectTwoKeyframesBasedOnGRICAndVariance(*tracks,
+		                                         normalized_tracks,
+		                                         *camera_intrinsics,
+		                                         reconstruction_options,
+		                                         keyframe1,
+		                                         keyframe2);
 
 		/* so keyframes in the interface would be updated */
 		libmv_reconstruction_options->keyframe1 = keyframe1;
