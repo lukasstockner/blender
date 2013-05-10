@@ -1,47 +1,25 @@
-commit a9006989e45afe6179b22f89f7245d4f6fffd6f2
+commit 3886b488575ec5e79debce7b9f2e9824f5297c0f
 Author: Sergey Sharybin <sergey.vfx@gmail.com>
-Date:   Thu Mar 14 14:53:42 2013 +0600
+Date:   Fri May 10 12:23:03 2013 +0600
 
-    Initial commit of reconstruction variance criteria
-    which is an addition for GRIC-based keyframe selection.
+    Add check for points behind camera in euclidan BA cost functor
     
-    Uses paper Keyframe Selection for Camera Motion and Structure
-    Estimation from Multiple Views,
-    ftp://ftp.tnt.uni-hannover.de/pub/papers/2004/ECCV2004-TTHBAW.pdf
-    as a basis.
+    In cases keyframes are no so good, algebraic two frames construction
+    could produce result, for which more aggressive Ceres-based BA code
+    will fall to a solution for which points goes behind the camera,
+    which is not so nice.
     
-    Currently implemented camera positions reconstructions,
-    bundle positions estimation and bundle adjustment step.
+    Seems in newer Ceres returning false from cost functor wouldn't
+    abort solution, but will restrict solver from moving points behind
+    the camera.
     
-    Covariance matrix is estimating using generalized inverse
-    with 7 (by the number of gauge freedoms) zeroed eigen values
-    of J^T * J.
-    
-    Additional changes:
-    - Added utility function FundamentalToEssential to extract
-      E from F matrix, used by both final reconstruction pipeline
-      and reconstruction variance code.
-    
-    - Refactored bundler a bit, so now it's possible to return
-      different evaluation data, such as number of cameras and
-      points being minimized and also jacobian.
-    
-      Jacobian currently contains only camera and points columns,
-      no intrinsics there yet. It is also currently converting to
-      an Eigen dense matrix. A bit weak, but speed is nice for
-      tests.
-    
-      Columns in jacobian are ordered in the following way:
-      first columns are cameras (3 cols for rotation and 3 cols
-      for translation), then goes 3D point columns.
-    
-    - Switched F and H refining to normalized space. Apparently,
-      refining F in pixel space squeezes it a lot making it wrong.
-    
-    - EuclideanIntersect will not add point to reconstruction if
-      it happened to be behind the camera.
-    
-    - Cleaned style a bit.
+    Works fine in own tests, but requires more tests.
+
+commit a5699d7dbe126024673f51aaa570f9f244f8da2f
+Author: Sergey Sharybin <sergey.vfx@gmail.com>
+Date:   Wed Apr 24 22:06:38 2013 +0600
+
+    Forgot to add reconstruction scale to CMakeLists
 
 commit 2b7d2b44e6446bbcc23038f5dbb824feca888069
 Author: Sergey Sharybin <sergey.vfx@gmail.com>
@@ -669,22 +647,3 @@ Author: Sergey Sharybin <sergey.vfx@gmail.com>
 Date:   Thu Dec 20 18:46:09 2012 +0600
 
     Cosmetic change to correspondences reports in keyframe selection
-
-commit ceaf80c987ec0338e7e83965bc808411453eb755
-Author: Sergey Sharybin <sergey.vfx@gmail.com>
-Date:   Thu Dec 20 18:08:03 2012 +0600
-
-    Various fixes:
-    
-    - That was a typo in symmetric geometric cost functor, which
-      computed inverse distance in a wrong way.
-    
-    - Fixed compilation of unit tests
-    
-    - Added simple test for keyframe selection. Currently only
-      covers case that neighbor frames with only translation
-      (homography should be better than fundamental) are not
-      considered a keyframes.
-    
-      Still need to be investigated why it only works if tracks
-      are in pixel space and why doesn't work in normalized space.
