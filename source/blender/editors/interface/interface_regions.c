@@ -447,7 +447,14 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 
 	/* Tip */
 	if (but_tip.strinfo) {
-		BLI_strncpy(data->lines[data->totline], but_tip.strinfo, sizeof(data->lines[0]));
+		/* Expanded Bit-flag enums have a specific way to select multiple... */
+		if ((but->type & ROW) && but->rnaprop && RNA_property_flag(but->rnaprop) & PROP_ENUM_FLAG) {
+			BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]),
+			             "%s %s", but_tip.strinfo, IFACE_("(Shift-click to select multiple)"));
+		}
+		else {
+			BLI_strncpy(data->lines[data->totline], but_tip.strinfo, sizeof(data->lines[0]));
+		}
 		data->color_id[data->totline] = UI_TIP_LC_MAIN;
 		data->totline++;
 	}
@@ -1553,6 +1560,7 @@ static void ui_block_region_draw(const bContext *C, ARegion *ar)
 static void ui_popup_block_clip(wmWindow *window, uiBlock *block)
 {
 	uiBut *bt;
+	float xofs = 0.0f;
 	int width = UI_SCREEN_MARGIN;
 	int winx, winy;
 
@@ -1563,10 +1571,18 @@ static void ui_popup_block_clip(wmWindow *window, uiBlock *block)
 	winx = WM_window_pixels_x(window);
 	winy = WM_window_pixels_y(window);
 	
-	if (block->rect.xmin < width)
-		block->rect.xmin = width;
-	if (block->rect.xmax > winx - width)
-		block->rect.xmax = winx - width;
+	/* shift menus to right if outside of view */
+	if (block->rect.xmin < width) {
+		xofs = (width - block->rect.xmin);
+		block->rect.xmin += xofs;
+		block->rect.xmax += xofs;
+	}
+	/* or shift to left if outside of view */
+	if (block->rect.xmax > winx - width) {
+		xofs = winx - width - block->rect.xmax;
+		block->rect.xmin += xofs;
+		block->rect.xmax += xofs;
+	}
 	
 	if (block->rect.ymin < width)
 		block->rect.ymin = width;
@@ -1575,10 +1591,8 @@ static void ui_popup_block_clip(wmWindow *window, uiBlock *block)
 	
 	/* ensure menu items draw inside left/right boundary */
 	for (bt = block->buttons.first; bt; bt = bt->next) {
-		if (bt->rect.xmin < block->rect.xmin)
-			bt->rect.xmin = block->rect.xmin;
-		if (bt->rect.xmax > block->rect.xmax)
-			bt->rect.xmax = block->rect.xmax;
+		bt->rect.xmin += xofs;
+		bt->rect.xmax += xofs;
 	}
 
 }

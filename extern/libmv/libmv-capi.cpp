@@ -420,23 +420,6 @@ protected:
 	void *callback_customdata_;
 };
 
-int libmv_refineParametersAreValid(int parameters) {
-	return (parameters == (LIBMV_REFINE_FOCAL_LENGTH))         ||
-	       (parameters == (LIBMV_REFINE_FOCAL_LENGTH           |
-	                       LIBMV_REFINE_PRINCIPAL_POINT))      ||
-	       (parameters == (LIBMV_REFINE_FOCAL_LENGTH           |
-	                       LIBMV_REFINE_PRINCIPAL_POINT        |
-	                       LIBMV_REFINE_RADIAL_DISTORTION_K1   |
-	                       LIBMV_REFINE_RADIAL_DISTORTION_K2)) ||
-	       (parameters == (LIBMV_REFINE_FOCAL_LENGTH           |
-	                       LIBMV_REFINE_RADIAL_DISTORTION_K1   |
-	                       LIBMV_REFINE_RADIAL_DISTORTION_K2)) ||
-	       (parameters == (LIBMV_REFINE_FOCAL_LENGTH           |
-	                       LIBMV_REFINE_RADIAL_DISTORTION_K1)) ||
-	       (parameters == (LIBMV_REFINE_RADIAL_DISTORTION_K1   |
-	                       LIBMV_REFINE_RADIAL_DISTORTION_K2));
-}
-
 static void libmv_solveRefineIntrinsics(libmv::Tracks *tracks, libmv::CameraIntrinsics *intrinsics,
 			libmv::EuclideanReconstruction *reconstruction, int refine_intrinsics,
 			reconstruct_progress_update_cb progress_update_callback, void *callback_customdata,
@@ -1046,7 +1029,7 @@ void libmv_CameraIntrinsicsDistortFloat(struct libmv_CameraIntrinsics *libmvIntr
 
 /* ************ utils ************ */
 
-void libmv_applyCameraIntrinsics(libmv_cameraIntrinsicsOptions *libmv_camera_intrinsics_options,
+void libmv_ApplyCameraIntrinsics(libmv_cameraIntrinsicsOptions *libmv_camera_intrinsics_options,
                                  double x, double y, double *x1, double *y1)
 {
 	libmv::CameraIntrinsics camera_intrinsics;
@@ -1060,8 +1043,8 @@ void libmv_applyCameraIntrinsics(libmv_cameraIntrinsicsOptions *libmv_camera_int
 	}
 }
 
-void libmv_InvertIntrinsics(libmv_cameraIntrinsicsOptions *libmv_camera_intrinsics_options,
-                            double x, double y, double *x1, double *y1)
+void libmv_InvertCameraIntrinsics(libmv_cameraIntrinsicsOptions *libmv_camera_intrinsics_options,
+                                  double x, double y, double *x1, double *y1)
 {
 	libmv::CameraIntrinsics camera_intrinsics;
 

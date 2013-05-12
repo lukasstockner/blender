@@ -110,6 +110,8 @@ void CLIP_OT_view_ndof(struct wmOperatorType *ot);
 
 void CLIP_OT_prefetch(struct wmOperatorType *ot);
 
+void CLIP_OT_set_scene_frames(wmOperatorType *ot);
+
 /* clip_toolbar.c */
 struct ARegion *ED_clip_has_properties_region(struct ScrArea *sa);
 void CLIP_OT_tools(struct wmOperatorType *ot);
@@ -147,6 +149,7 @@ void CLIP_OT_delete_track(struct wmOperatorType *ot);
 void CLIP_OT_delete_marker(struct wmOperatorType *ot);
 
 void CLIP_OT_track_markers(struct wmOperatorType *ot);
+void CLIP_OT_refine_markers(struct wmOperatorType *ot);
 void CLIP_OT_solve_camera(struct wmOperatorType *ot);
 void CLIP_OT_clear_solution(struct wmOperatorType *ot);
 
