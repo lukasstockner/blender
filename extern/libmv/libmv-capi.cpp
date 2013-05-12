@@ -426,25 +426,28 @@ static void libmv_solveRefineIntrinsics(libmv::Tracks *tracks, libmv::CameraIntr
 			int bundle_constraints = libmv::BUNDLE_NO_CONSTRAINTS)
 {
 	/* only a few combinations are supported but trust the caller */
-	int libmv_refine_flags = 0;
+	int bundle_intrinsics = 0;
 
 	if (refine_intrinsics & LIBMV_REFINE_FOCAL_LENGTH) {
-		libmv_refine_flags |= libmv::BUNDLE_FOCAL_LENGTH;
+		bundle_intrinsics |= libmv::BUNDLE_FOCAL_LENGTH;
 	}
 	if (refine_intrinsics & LIBMV_REFINE_PRINCIPAL_POINT) {
-		libmv_refine_flags |= libmv::BUNDLE_PRINCIPAL_POINT;
+		bundle_intrinsics |= libmv::BUNDLE_PRINCIPAL_POINT;
 	}
 	if (refine_intrinsics & LIBMV_REFINE_RADIAL_DISTORTION_K1) {
-		libmv_refine_flags |= libmv::BUNDLE_RADIAL_K1;
+		bundle_intrinsics |= libmv::BUNDLE_RADIAL_K1;
 	}
 	if (refine_intrinsics & LIBMV_REFINE_RADIAL_DISTORTION_K2) {
-		libmv_refine_flags |= libmv::BUNDLE_RADIAL_K2;
+		bundle_intrinsics |= libmv::BUNDLE_RADIAL_K2;
 	}
 
 	progress_update_callback(callback_customdata, 1.0, "Refining solution");
 
-	libmv::EuclideanBundleCommonIntrinsics(*(libmv::Tracks *)tracks, libmv_refine_flags,
-			bundle_constraints, reconstruction, intrinsics, NULL);
+	libmv::EuclideanBundleCommonIntrinsics(*(libmv::Tracks *)tracks,
+	                                       bundle_intrinsics,
+	                                       bundle_constraints,
+	                                       reconstruction,
+	                                       intrinsics);
 }
 
 static void cameraIntrinsicsFromOptions(libmv::CameraIntrinsics *camera_intrinsics,
@@ -668,8 +671,7 @@ struct libmv_Reconstruction *libmv_solveModal(struct libmv_Tracks *libmv_tracks,
 	                                       libmv::BUNDLE_NO_INTRINSICS,
 	                                       libmv::BUNDLE_NO_TRANSLATION,
 	                                       reconstruction,
-	                                       &empty_intrinsics,
-	                                       NULL);
+	                                       &empty_intrinsics);
 
 	/* Refinement. */
 	if (libmv_reconstruction_options->refine_intrinsics) {

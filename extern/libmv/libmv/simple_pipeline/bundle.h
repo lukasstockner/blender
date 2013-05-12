@@ -87,15 +87,6 @@ void EuclideanBundle(const Tracks &tracks,
 
     The cameras, bundles, and intrinsics are refined in-place.
 
-    The only supported combinations of bundle parameters are:
-
-    BUNDLE_NO_INTRINSICS
-    BUNDLE_FOCAL_LENGTH
-    BUNDLE_FOCAL_LENGTH | BUNDLE_PRINCIPAL_POINT
-    BUNDLE_FOCAL_LENGTH | BUNDLE_PRINCIPAL_POINT | BUNDLE_RADIAL
-    BUNDLE_FOCAL_LENGTH | BUNDLE_PRINCIPAL_POINT | BUNDLE_RADIAL | BUNDLE_TANGENTIAL
-    BUNDLE_RADIAL
-
     Constraints denotes which blocks to keep constant during bundling.
     For example it is useful to keep camera translations constant
     when bundling tripod motions.
@@ -124,11 +115,11 @@ enum BundleConstraints {
   BUNDLE_NO_TRANSLATION = 1,
 };
 void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
-                                     int bundle_intrinsics,
-                                     int bundle_constraints,
+                                     const int bundle_intrinsics,
+                                     const int bundle_constraints,
                                      EuclideanReconstruction *reconstruction,
                                      CameraIntrinsics *intrinsics,
-                                     BundleEvaluation *evaluation);
+                                     BundleEvaluation *evaluation = NULL);
 
 /*!
     Refine camera poses and 3D coordinates using bundle adjustment.
@@ -142,7 +133,7 @@ void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
     The cameras and bundles (homogeneous 3D points) are refined in-place.
 
     \note This assumes an outlier-free set of markers.
-    \note This assumes that radial distortion is already corrected for, but 
+    \note This assumes that radial distortion is already corrected for, but
           does not assume that that other intrinsics are.
 
     \sa ProjectiveResect, ProjectiveIntersect, ProjectiveReconstructTwoFrames

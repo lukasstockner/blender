@@ -1,3 +1,44 @@
+commit f003b9e3031db4592c2d91b1ea2538c73b7e767d
+Author: Sergey Sharybin <sergey.vfx@gmail.com>
+Date:   Sun May 12 22:34:54 2013 +0600
+
+    Cleanup in simple pipeline's bundler
+    
+    - Better match Google's code style conventions.
+    - Move evaluation part into own function, makes
+      bundling itself easier to follow.
+    - Made evaluation an optional parameter.
+    - Removed note about unsupported camera intrinsics
+      refining flags. Technically, all combinations
+      are possible.
+
+commit f0e68f69e5c5f0fd82334246d382e59f1eb20164
+Author: Sergey Sharybin <sergey.vfx@gmail.com>
+Date:   Sun May 12 22:19:31 2013 +0600
+
+    Remove check for zero focal length in BA cost functor
+    
+    This check is actually redundant, because empty intrinsics
+    will have focal length of 1.0, which means original comment
+    about BundleIntrinsics was not truth.
+    
+    It is possible that external user will send focal length of
+    zero to be refined, but blender prevents this from happening.
+
+commit 7ed5e4da65d2c0df63a08b1e1f4b4de1855f1bf0
+Author: Sergey Sharybin <sergey.vfx@gmail.com>
+Date:   Sat May 11 20:33:54 2013 +0600
+
+    Fix compilation error with msvc2012
+    
+    Using change from glog's upstream for this.
+
+commit 7e162266f96abc25d80e2352cd77f21ed93593b7
+Author: Sergey Sharybin <sergey.vfx@gmail.com>
+Date:   Sat May 11 19:50:57 2013 +0600
+
+    Style cleanup, mainly pointed by Sameer in Ceres's codereview
+
 commit 42da053c6410b4f3fb13798c7e9c5f4a861b6825
 Author: Sergey Sharybin <sergey.vfx@gmail.com>
 Date:   Fri May 10 18:30:40 2013 +0600
@@ -600,69 +641,3 @@ Date:   Fri Mar 1 17:33:27 2013 +0600
     Use threaded cost function, jacobian and linear solver
     computation, so bundling is as fast as it could be with
     current parameter block structure.
-
-commit 931fe37a10212b91b525d4f6eb753990a338b471
-Author: Sergey Sharybin <sergey.vfx@gmail.com>
-Date:   Fri Mar 1 17:29:21 2013 +0600
-
-    Fixed comment for euclidean bundling,
-    which is now supports raidal bundling independently
-    from other intrinsics.
-
-commit 217d8e6edc3de1a853fb84275d2d2dd898e7529c
-Author: Sergey Sharybin <sergey.vfx@gmail.com>
-Date:   Tue Feb 26 18:19:01 2013 +0600
-
-    Allow K1,K2 refirement combination
-    
-    It is now possible to refine only radial distortion
-    with new Ceres based bundler and this new combination
-    is already used in Blender.
-
-commit d8850addc944d400f7a9c358396c437d9e4acc70
-Author: Sergey Sharybin <sergey.vfx@gmail.com>
-Date:   Tue Feb 26 18:17:09 2013 +0600
-
-    Switch euclidean intersection code to use Ceres
-    
-    Would not expect any significant changes in solver
-    behavior, but it could be more accurate in some cases.
-    
-    Switching projective intersection to ceres is marked
-    as a TODO for now.
-
-commit 6990b7946ec96b3cb2dcfc8a1beaaba9538b0802
-Author: Keir Mierle <mierle@gmail.com>
-Date:   Mon Feb 25 20:00:48 2013 +0000
-
-    Switch motion tracker bundle adjustment to Ceres.
-    
-    Patch originally written by me, then finished by Sergey. Big
-    thanks to Sergey for troopering through and fixing the many issues
-    with my original (not compilable) patch.
-    
-    The Ceres implementation uses 2 parameter blocks for each camera
-    (1 for rotation and 1 for translation), 1 parameter block for
-    common intrinsics (focal length etc) and 1 parameter block for
-    each track (e.g. bundle or 3D point).
-    
-    We turn on some fancy optimizer options to get better performance,
-    in particular:
-    
-      options.preconditioner_type = ceres::SCHUR_JACOBI;
-      options.linear_solver_type = ceres::ITERATIVE_SCHUR;
-      options.use_inner_iterations = true;
-      options.use_nonmonotonic_steps = true;
-      options.max_num_iterations = 100;
-    
-    Special thanks to Sameer Agarwal of Ceres fame for splitting out
-    the SCHUR_JACOBI preconditioner so that it didn't depend on
-    CHOLMOD.  Previously we could not use that preconditioner in
-    Blender because CHOLMOD is too large of a dependency for Blender.
-    
-    BundleIntrinsicsLogMessage:
-    - Moved bunch of if(foo) LG << "bar" into this function, to make
-      EuclideanBundleCommonIntrinsics a little bit easier to follow.
-    
-    EuclideanBundle:
-    - Fix RMSE logging.
