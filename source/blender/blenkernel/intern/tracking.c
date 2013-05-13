@@ -1572,7 +1572,7 @@ void BKE_tracking_distortion_update(MovieDistortion *distortion, MovieTracking *
 	cameraIntrinscisOptionsFromTracking(&camera_intrinsics_options, tracking,
 	                                    calibration_width, calibration_height);
 
-	libmv_CameraIntrinsicsUpdate(distortion->intrinsics, &camera_intrinsics_options);
+	libmv_CameraIntrinsicsUpdate(&camera_intrinsics_options, distortion->intrinsics);
 }
 
 void BKE_tracking_distortion_set_threads(MovieDistortion *distortion, int threads)
@@ -3368,6 +3368,49 @@ int BKE_tracking_reconstruction_finish(MovieReconstructContext *context, MovieTr
 		return FALSE;
 
 	return TRUE;
+}
+
+static void tracking_scale_reconstruction(ListBase *tracksbase, MovieTrackingReconstruction *reconstruction,
+                                          float scale[3])
+{
+	MovieTrackingTrack *track;
+	int i;
+	float first_camera_delta[3] = {0.0f, 0.0f, 0.0f};
+
+	if (reconstruction->camnr > 0) {
+		mul_v3_v3v3(first_camera_delta, reconstruction->cameras[0].mat[3], scale);
+	}
+
+	for (i = 0; i < reconstruction->camnr; i++) {
+		MovieReconstructedCamera *camera = &reconstruction->cameras[i];
+		mul_v3_v3(camera->mat[3], scale);
+		sub_v3_v3(camera->mat[3], first_camera_delta);
+	}
+
+	for (track = tracksbase->first; track; track = track->next) {
+		if (track->flag & TRACK_HAS_BUNDLE) {
+			mul_v3_v3(track->bundle_pos, scale);
+			sub_v3_v3(track->bundle_pos, first_camera_delta);
+		}
+	}
+}
+
+/* Apply scale on all reconstructed cameras and bundles,
+ * used by camera scale apply operator.
+ */
+void BKE_tracking_reconstruction_scale(MovieTracking *tracking, float scale[3])
+{
+	MovieTrackingObject *object;
+
+	for (object = tracking->objects.first; object; object = object->next) {
+		ListBase *tracksbase;
+		MovieTrackingReconstruction *reconstruction;
+
+		tracksbase = BKE_tracking_object_get_tracks(tracking, object);
+		reconstruction = BKE_tracking_object_get_reconstruction(tracking, object);
+
+		tracking_scale_reconstruction(tracksbase, reconstruction, scale);
+	}
 }
 
 /*********************** Feature detection *************************/
