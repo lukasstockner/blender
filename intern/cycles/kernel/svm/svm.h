@@ -151,6 +151,7 @@ CCL_NAMESPACE_END
 #include "svm_convert.h"
 #include "svm_displace.h"
 #include "svm_fresnel.h"
+#include "svm_wireframe.h"
 #include "svm_camera.h"
 #include "svm_geometry.h"
 #include "svm_hsv.h"
@@ -273,7 +274,7 @@ __device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, ShaderT
 				svm_node_tex_magic(kg, sd, stack, node, &offset);
 				break;
 			case NODE_TEX_CHECKER:
-				svm_node_tex_checker(kg, sd, stack, node, &offset);
+				svm_node_tex_checker(kg, sd, stack, node);
 				break;
 			case NODE_TEX_BRICK:
 				svm_node_tex_brick(kg, sd, stack, node, &offset);
@@ -356,6 +357,9 @@ __device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, ShaderT
 				break;
 			case NODE_LAYER_WEIGHT:
 				svm_node_layer_weight(sd, stack, node);
+				break;
+			case NODE_WIREFRAME:
+				svm_node_wireframe(kg, sd, stack, node.y, node.z, node.w);
 				break;
 #ifdef __EXTRA_NODES__
 			case NODE_SET_DISPLACEMENT:

@@ -382,7 +382,7 @@ static float2 sky_spherical_coordinates(float3 dir)
 
 static float sky_perez_function(float lam[6], float theta, float gamma)
 {
-	return (1.f + lam[0]*expf(lam[1]/cosf(theta))) * (1.f + lam[2]*expf(lam[3]*gamma)  + lam[4]*cosf(gamma)*cosf(gamma));
+	return (1.0f + lam[0]*expf(lam[1]/cosf(theta))) * (1.0f + lam[2]*expf(lam[3]*gamma)  + lam[4]*cosf(gamma)*cosf(gamma));
 }
 
 static void sky_texture_precompute(KernelSunSky *ksunsky, float3 dir, float turbidity)
@@ -2891,6 +2891,33 @@ void LayerWeightNode::compile(OSLCompiler& compiler)
 	compiler.add(this, "node_layer_weight");
 }
 
+/* Wireframe */
+
+WireframeNode::WireframeNode()
+: ShaderNode("Wireframe")
+{
+	add_input("Size", SHADER_SOCKET_FLOAT, 0.01f);
+	add_output("Fac", SHADER_SOCKET_FLOAT);
+	
+	use_pixel_size = false;
+}
+
+void WireframeNode::compile(SVMCompiler& compiler)
+{
+	ShaderInput *size_in = input("Size");
+	ShaderOutput *fac_out = output("Fac");
+
+	compiler.stack_assign(size_in);
+	compiler.stack_assign(fac_out);
+	compiler.add_node(NODE_WIREFRAME, size_in->stack_offset, fac_out->stack_offset, use_pixel_size);
+}
+
+void WireframeNode::compile(OSLCompiler& compiler)
+{
+	compiler.parameter("use_pixel_size", use_pixel_size);
+	compiler.add(this, "node_wireframe");
+}
+
 /* Output */
 
 OutputNode::OutputNode()
@@ -2959,6 +2986,7 @@ static ShaderEnum math_type_init()
 	enm.insert("Round", NODE_MATH_ROUND);
 	enm.insert("Less Than", NODE_MATH_LESS_THAN);
 	enm.insert("Greater Than", NODE_MATH_GREATER_THAN);
+	enm.insert("Modulo", NODE_MATH_MODULO);
 
 	return enm;
 }

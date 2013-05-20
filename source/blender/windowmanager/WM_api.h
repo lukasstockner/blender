@@ -159,6 +159,9 @@ void		WM_event_remove_ui_handler(ListBase *handlers,
                                        void (*remove)(struct bContext *C, void *userdata),
                                        void *userdata, const bool postpone);
 void		WM_event_remove_area_handler(struct ListBase *handlers, void *area);
+void		WM_event_free_ui_handler_all(struct bContext *C, ListBase *handlers,
+                                         int (*func)(struct bContext *C, const struct wmEvent *event, void *userdata),
+                                         void (*remove)(struct bContext *C, void *userdata));
 
 struct wmEventHandler *WM_event_add_modal_handler(struct bContext *C, struct wmOperator *op);
 void		WM_event_remove_handlers(struct bContext *C, ListBase *handlers);
@@ -167,7 +170,6 @@ struct wmEventHandler *WM_event_add_dropbox_handler(ListBase *handlers, ListBase
 
 			/* mouse */
 void		WM_event_add_mousemove(struct bContext *C);
-void		WM_event_add_mousemove_window(struct wmWindow *window);
 int			WM_modal_tweak_exit(const struct wmEvent *event, int tweak_event);
 
 			/* notifiers */
@@ -243,6 +245,7 @@ void		WM_operator_properties_gesture_border(struct wmOperatorType *ot, bool exte
 void        WM_operator_properties_mouse_select(struct wmOperatorType *ot);
 void		WM_operator_properties_gesture_straightline(struct wmOperatorType *ot, bool cursor);
 void		WM_operator_properties_select_all(struct wmOperatorType *ot);
+void		WM_operator_properties_select_action(struct wmOperatorType *ot, int default_action);
 
 bool        WM_operator_check_ui_enabled(const struct bContext *C, const char *idname);
 wmOperator *WM_operator_last_redo(const struct bContext *C);

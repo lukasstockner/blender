@@ -87,7 +87,6 @@
 #include "BKE_fcurve.h"
 #include "BKE_group.h"
 #include "BKE_icons.h"
-#include "BKE_image.h"
 #include "BKE_key.h"
 #include "BKE_lamp.h"
 #include "BKE_lattice.h"
@@ -242,108 +241,44 @@ void BKE_object_link_modifiers(struct Object *ob_dst, struct Object *ob_src)
 	/* TODO: smoke?, cloth? */
 }
 
-/* here we will collect all local displist stuff */
-/* also (ab)used in depsgraph */
-void BKE_object_free_display(Object *ob)
+/* free data derived from mesh, called when mesh changes or is freed */
+void BKE_object_free_derived_caches(Object *ob)
 {
-	if (ob->derivedDeform) {
-		ob->derivedDeform->needsFree = 1;
-		ob->derivedDeform->release(ob->derivedDeform);
-		ob->derivedDeform = NULL;
+	/* also serves as signal to remake texspace */
+	if (ob->type == OB_MESH) {
+		Mesh *me = ob->data;
+
+		if (me->bb) {
+			MEM_freeN(me->bb);
+			me->bb = NULL;
+		}
 	}
+
+	if (ob->bb) {
+		MEM_freeN(ob->bb);
+		ob->bb = NULL;
+	}
+
 	if (ob->derivedFinal) {
 		ob->derivedFinal->needsFree = 1;
 		ob->derivedFinal->release(ob->derivedFinal);
 		ob->derivedFinal = NULL;
 	}
+	if (ob->derivedDeform) {
+		ob->derivedDeform->needsFree = 1;
+		ob->derivedDeform->release(ob->derivedDeform);
+		ob->derivedDeform = NULL;
+	}
 	
 	BKE_displist_free(&ob->disp);
 }
-
-void free_sculptsession_deformMats(SculptSession *ss)
-{
-	if (ss->orig_cos) MEM_freeN(ss->orig_cos);
-	if (ss->deform_cos) MEM_freeN(ss->deform_cos);
-	if (ss->deform_imats) MEM_freeN(ss->deform_imats);
-
-	ss->orig_cos = NULL;
-	ss->deform_cos = NULL;
-	ss->deform_imats = NULL;
-}
-
-/* Write out the sculpt dynamic-topology BMesh to the Mesh */
-void sculptsession_bm_to_me(struct Object *ob, int reorder)
-{
-	if (ob && ob->sculpt) {
-		SculptSession *ss = ob->sculpt;
-
-		if (ss->bm) {
-			if (ob->data) {
-				BMIter iter;
-				BMFace *efa;
-				BM_ITER_MESH (efa, &iter, ss->bm, BM_FACES_OF_MESH) {
-					BM_elem_flag_set(efa, BM_ELEM_SMOOTH,
-					                 ss->bm_smooth_shading);
-				}
-				if (reorder)
-					BM_log_mesh_elems_reorder(ss->bm, ss->bm_log);
-				BM_mesh_bm_to_me(ss->bm, ob->data, FALSE);
-			}
-		}
-
-		/* ensure the objects DerivedMesh mesh doesn't hold onto arrays now realloc'd in the mesh [#34473] */
-		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
-	}
-}
-
-void free_sculptsession(Object *ob)
-{
-	if (ob && ob->sculpt) {
-		SculptSession *ss = ob->sculpt;
-		DerivedMesh *dm = ob->derivedFinal;
-
-		if (ss->bm) {
-			sculptsession_bm_to_me(ob, TRUE);
-			BM_mesh_free(ss->bm);
-		}
-
-		if (ss->pbvh)
-			BKE_pbvh_free(ss->pbvh);
-		if (ss->bm_log)
-			BM_log_free(ss->bm_log);
-
-		if (dm && dm->getPBVH)
-			dm->getPBVH(NULL, dm);  /* signal to clear */
-
-		if (ss->texcache)
-			MEM_freeN(ss->texcache);
-
-		if (ss->tex_pool)
-			BKE_image_pool_free(ss->tex_pool);
-
-		if (ss->layer_co)
-			MEM_freeN(ss->layer_co);
-
-		if (ss->orig_cos)
-			MEM_freeN(ss->orig_cos);
-		if (ss->deform_cos)
-			MEM_freeN(ss->deform_cos);
-		if (ss->deform_imats)
-			MEM_freeN(ss->deform_imats);
-
-		MEM_freeN(ss);
-
-		ob->sculpt = NULL;
-	}
-}
-
 
 /* do not free object itself */
 void BKE_object_free(Object *ob)
 {
 	int a;
 	
-	BKE_object_free_display(ob);
+	BKE_object_free_derived_caches(ob);
 	
 	/* disconnect specific data, but not for lib data (might be indirect data, can get relinked) */
 	if (ob->data) {
@@ -2700,6 +2635,7 @@ void BKE_object_handle_update_ex(Scene *scene, Object *ob,
 		if (ob->recalc & OB_RECALC_DATA) {
 			ID *data_id = (ID *)ob->data;
 			AnimData *adt = BKE_animdata_from_id(data_id);
+			Key *key;
 			float ctime = BKE_scene_frame_get(scene);
 			
 			if (G.debug & G_DEBUG)
@@ -2709,6 +2645,12 @@ void BKE_object_handle_update_ex(Scene *scene, Object *ob,
 				/* evaluate drivers - datalevel */
 				/* XXX: for mesh types, should we push this to derivedmesh instead? */
 				BKE_animsys_evaluate_animdata(scene, data_id, adt, ctime, ADT_RECALC_DRIVERS);
+			}
+			
+			key = BKE_key_from_object(ob);
+			if (key && key->block.first) {
+				if (!(ob->shapeflag & OB_SHAPE_LOCK))
+					BKE_animsys_evaluate_animdata(scene, &key->id, key->adt, ctime, ADT_RECALC_DRIVERS);
 			}
 
 			/* includes all keys and modifiers */
@@ -2862,27 +2804,29 @@ void BKE_object_sculpt_modifiers_changed(Object *ob)
 {
 	SculptSession *ss = ob->sculpt;
 
-	if (!ss->cache) {
-		/* we free pbvh on changes, except during sculpt since it can't deal with
-		 * changing PVBH node organization, we hope topology does not change in
-		 * the meantime .. weak */
-		if (ss->pbvh) {
-			BKE_pbvh_free(ss->pbvh);
-			ss->pbvh = NULL;
+	if (ss) {
+		if (!ss->cache) {
+			/* we free pbvh on changes, except during sculpt since it can't deal with
+			 * changing PVBH node organization, we hope topology does not change in
+			 * the meantime .. weak */
+			if (ss->pbvh) {
+				BKE_pbvh_free(ss->pbvh);
+				ss->pbvh = NULL;
+			}
+
+			free_sculptsession_deformMats(ob->sculpt);
 		}
+		else {
+			PBVHNode **nodes;
+			int n, totnode;
 
-		free_sculptsession_deformMats(ob->sculpt);
-	}
-	else {
-		PBVHNode **nodes;
-		int n, totnode;
+			BKE_pbvh_search_gather(ss->pbvh, NULL, NULL, &nodes, &totnode);
 
-		BKE_pbvh_search_gather(ss->pbvh, NULL, NULL, &nodes, &totnode);
+			for (n = 0; n < totnode; n++)
+				BKE_pbvh_node_mark_update(nodes[n]);
 
-		for (n = 0; n < totnode; n++)
-			BKE_pbvh_node_mark_update(nodes[n]);
-
-		MEM_freeN(nodes);
+			MEM_freeN(nodes);
+		}
 	}
 }
 

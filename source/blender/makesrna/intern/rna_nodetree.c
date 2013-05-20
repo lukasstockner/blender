@@ -127,6 +127,7 @@ EnumPropertyItem node_math_items[] = {
 	{14, "ROUND",        0, "Round",        ""},
 	{15, "LESS_THAN",    0, "Less Than",    ""},
 	{16, "GREATER_THAN", 0, "Greater Than", ""},
+	{17, "MODULO", 		 0, "Modulo", 		""},		
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -3402,6 +3403,16 @@ static void def_sh_tex_coord(StructRNA *srna)
 	prop = RNA_def_property(srna, "from_dupli", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "custom1", 1);
 	RNA_def_property_ui_text(prop, "From Dupli", "Use the parent of the dupli object if possible");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_sh_tex_wireframe(StructRNA *srna)
+{
+	PropertyRNA *prop;
+	
+	prop = RNA_def_property(srna, "use_pixel_size", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "custom1", 1);
+	RNA_def_property_ui_text(prop, "Pixel Size", "Use screen pixel size instead of world units");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
@@ -6888,7 +6899,10 @@ static void rna_def_nodetree_nodes_api(BlenderRNA *brna, PropertyRNA *cprop)
 	func = RNA_def_function(srna, "new", "rna_NodeTree_node_new");
 	RNA_def_function_ui_description(func, "Add a node to this node tree");
 	RNA_def_function_flag(func, FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
-	parm = RNA_def_string(func, "type", "", MAX_NAME, "Type", "Type of node to add");
+	/* XXX warning note should eventually be removed,
+	 * added this here to avoid frequent confusion with API changes from "type" to "bl_idname"
+	 */
+	parm = RNA_def_string(func, "type", "", MAX_NAME, "Type", "Type of node to add (Warning: should be same as node.bl_idname, not node.type!)");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	/* return value */
 	parm = RNA_def_pointer(func, "node", "Node", "", "New node");

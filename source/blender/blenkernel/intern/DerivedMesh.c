@@ -1066,7 +1066,7 @@ static void calc_weightpaint_vert_color(
         MDeformVert *dv, 
         DMWeightColorInfo *dm_wcinfo,
         const int defbase_tot, const int defbase_act,
-        const char *defbase_sel, const int defbase_sel_tot,
+        const bool *defbase_sel, const int defbase_sel_tot,
         const int draw_flag)
 {
 	float input = 0.0f;
@@ -1154,7 +1154,7 @@ static void calc_weightpaint_vert_array(Object *ob, DerivedMesh *dm, int const d
 		const int defbase_act = ob->actdef - 1;
 
 		int defbase_sel_tot = 0;
-		char *defbase_sel = NULL;
+		bool *defbase_sel = NULL;
 
 		if (draw_flag & CALC_WP_MULTIPAINT) {
 			defbase_sel = BKE_objdef_selected_get(ob, defbase_tot, &defbase_sel_tot);
@@ -1527,7 +1527,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 		{
 			int unsupported = 0;
 
-			if (sculpt_dyntopo)
+			if (sculpt_dyntopo && !useRenderParams)
 				unsupported = TRUE;
 
 			if (scene->toolsettings->sculpt->flags & SCULPT_ONLY_DEFORM)
@@ -2163,38 +2163,6 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 		MEM_freeN(deformedVerts);
 }
 
-static void clear_mesh_caches(Object *ob)
-{
-	Mesh *me = ob->data;
-
-	/* also serves as signal to remake texspace */
-	if (ob->bb) {
-		MEM_freeN(ob->bb);
-		ob->bb = NULL;
-	}
-	if (me->bb) {
-		MEM_freeN(me->bb);
-		me->bb = NULL;
-	}
-
-	BKE_displist_free(&ob->disp);
-
-	if (ob->derivedFinal) {
-		ob->derivedFinal->needsFree = 1;
-		ob->derivedFinal->release(ob->derivedFinal);
-		ob->derivedFinal = NULL;
-	}
-	if (ob->derivedDeform) {
-		ob->derivedDeform->needsFree = 1;
-		ob->derivedDeform->release(ob->derivedDeform);
-		ob->derivedDeform = NULL;
-	}
-
-	if (ob->sculpt) {
-		BKE_object_sculpt_modifiers_changed(ob);
-	}
-}
-
 static void mesh_build_data(Scene *scene, Object *ob, CustomDataMask dataMask,
                             int build_shapekey_layers)
 {
@@ -2205,7 +2173,8 @@ static void mesh_build_data(Scene *scene, Object *ob, CustomDataMask dataMask,
 
 	BLI_assert(ob->type == OB_MESH);
 
-	clear_mesh_caches(ob);
+	BKE_object_free_derived_caches(ob);
+	BKE_object_sculpt_modifiers_changed(ob);
 
 	mesh_calc_modifiers(scene, ob, NULL, &ob->derivedDeform,
 	                    &ob->derivedFinal, 0, 1,
@@ -2226,7 +2195,8 @@ static void mesh_build_data(Scene *scene, Object *ob, CustomDataMask dataMask,
 
 static void editbmesh_build_data(Scene *scene, Object *obedit, BMEditMesh *em, CustomDataMask dataMask)
 {
-	clear_mesh_caches(obedit);
+	BKE_object_free_derived_caches(obedit);
+	BKE_object_sculpt_modifiers_changed(obedit);
 
 	if (em->derivedFinal) {
 		if (em->derivedFinal != em->derivedCage) {
