@@ -434,6 +434,24 @@ static void set_marker_coords_from_tracking(int frame_width, int frame_height, M
 	marker->pos[1] += marker_unified[1];
 }
 
+void BKE_frame_unified_to_search_pixel(MovieTrackingMarker *marker,
+                                       int frame_width, int frame_height,
+                                       float unified_x, float unified_y,
+                                       float *search_x, float *search_y)
+{
+	float unified_coords[2];
+	float pixel_coords[2];
+
+	unified_coords[0] = unified_x;
+	unified_coords[1] = unified_y;
+
+	marker_unified_to_search_pixel(frame_width, frame_height, marker,
+	                               unified_coords, pixel_coords);
+
+	*search_x = pixel_coords[0];
+	*search_y = pixel_coords[1];
+}
+
 /*********************** clipboard *************************/
 
 /* Free clipboard by freeing memory used by all tracks in it. */
@@ -2347,6 +2365,24 @@ static void uint8_rgba_to_float_gray(const unsigned char *rgba, float *gray, int
 	}
 }
 
+static float *imbuf_to_grayscale_pixels(const ImBuf *ibuf)
+{
+	float *gray_pixels;
+
+	gray_pixels = MEM_mallocN(ibuf->x * ibuf->y * sizeof(float), "tracking floatBuf");
+
+	if (ibuf->rect_float) {
+		float_rgba_to_gray(ibuf->rect_float, gray_pixels, ibuf->x * ibuf->y,
+		                   0.2126f, 0.7152f, 0.0722f);
+	}
+	else {
+		uint8_rgba_to_float_gray((unsigned char *)ibuf->rect, gray_pixels, ibuf->x * ibuf->y,
+		                         0.2126f, 0.7152f, 0.0722f);
+	}
+
+	return gray_pixels;
+}
+
 /* Get grayscale float search buffer for given marker and frame. */
 static float *track_get_search_floatbuf(ImBuf *ibuf, MovieTrackingTrack *track, MovieTrackingMarker *marker,
                                         int *width_r, int *height_r)
@@ -2366,17 +2402,7 @@ static float *track_get_search_floatbuf(ImBuf *ibuf, MovieTrackingTrack *track, 
 	width = searchibuf->x;
 	height = searchibuf->y;
 
-	gray_pixels = MEM_callocN(width * height * sizeof(float), "tracking floatBuf");
-
-	if (searchibuf->rect_float) {
-		float_rgba_to_gray(searchibuf->rect_float, gray_pixels, width * height,
-		                   0.2126f, 0.7152f, 0.0722f);
-	}
-	else {
-		uint8_rgba_to_float_gray((unsigned char *)searchibuf->rect, gray_pixels, width * height,
-		                         0.2126f, 0.7152f, 0.0722f);
-	}
-
+	gray_pixels = imbuf_to_grayscale_pixels(searchibuf);
 	IMB_freeImBuf(searchibuf);
 
 	*width_r = width;
@@ -2524,7 +2550,7 @@ static bool track_context_update_reference(MovieTrackingContext *context, TrackC
 }
 
 /* Fill in libmv tracker options structure with settings need to be used to perform track. */
-static void tracking_configure_tracker(MovieTrackingTrack *track, float *mask,
+static void tracking_configure_tracker(const MovieTrackingTrack *track, float *mask,
                                        struct libmv_trackRegionOptions *options)
 {
 	options->motion_model = track->motion_model;
@@ -2851,6 +2877,86 @@ void BKE_tracking_refine_marker(MovieClip *clip, MovieTrackingTrack *track, Movi
 		MEM_freeN(mask);
 	IMB_freeImBuf(reference_ibuf);
 	IMB_freeImBuf(destination_ibuf);
+}
+
+bool BKE_tracking_track_region(const MovieTrackingTrack *track,
+                               const MovieTrackingMarker *old_marker,
+                               const ImBuf *old_search_ibuf,
+                               const ImBuf *new_search_ibuf,
+                               const int frame_width,
+                               const int frame_height,
+                               float *mask,
+                               MovieTrackingMarker *new_marker)
+{
+	/* To convert to the x/y split array format for libmv. */
+	double src_pixel_x[5], src_pixel_y[5];
+	double dst_pixel_x[5], dst_pixel_y[5];
+
+	/* Settings for the tracker */
+	struct libmv_trackRegionOptions options = {0};
+	struct libmv_trackRegionResult result;
+
+	float *old_search, *new_search;
+	bool tracked;
+
+	/* configure the tracker */
+	tracking_configure_tracker(track, mask, &options);
+
+	/* Convert the marker corners and center into
+	 * pixel coordinates in the search/destination images.
+	 */
+	get_marker_coords_for_tracking(frame_width, frame_height,
+	                               old_marker, src_pixel_x, src_pixel_y);
+	get_marker_coords_for_tracking(frame_width, frame_height,
+	                               new_marker, dst_pixel_x, dst_pixel_y);
+
+	old_search = imbuf_to_grayscale_pixels(old_search_ibuf);
+	new_search = imbuf_to_grayscale_pixels(new_search_ibuf);
+
+	/* run the tracker! */
+	tracked = libmv_trackRegion(&options,
+	                            old_search,
+	                            old_search_ibuf->x,
+	                            old_search_ibuf->y,
+	                            new_search,
+	                            new_search_ibuf->x,
+	                            new_search_ibuf->y,
+	                            src_pixel_x, src_pixel_y,
+	                            &result,
+	                            dst_pixel_x, dst_pixel_y);
+
+	set_marker_coords_from_tracking(frame_width, frame_height,
+	                                new_marker,
+	                                dst_pixel_x, dst_pixel_y);
+
+	MEM_freeN(old_search);
+	MEM_freeN(new_search);
+
+	return tracked;
+}
+
+void BKE_tracking_apply_inverse_homography(const MovieTrackingMarker *marker,
+                                           int frame_width, int frame_height,
+                                           float x, float y,
+                                           int num_samples_x, int num_samples_y,
+                                           float *warped_position_x,
+                                           float *warped_position_y)
+{
+	double xs[5], ys[5];
+	double warped_position_x_double,
+	       warped_position_y_double;
+
+	get_marker_coords_for_tracking(frame_width, frame_height, marker, xs, ys);
+
+	libmv_ApplyInverseCanonicalHomography(x - 0.5f, y - 0.5f,
+	                                      xs, ys,
+	                                      num_samples_x,
+	                                      num_samples_y,
+	                                      &warped_position_x_double,
+	                                      &warped_position_y_double);
+
+	*warped_position_x = warped_position_x_double;
+	*warped_position_y = warped_position_y_double;
 }
 
 /*********************** Camera solving *************************/

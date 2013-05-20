@@ -198,6 +198,54 @@ class CLIP_PT_reconstruction_panel:
         return clip and sc.mode == 'RECONSTRUCTION' and sc.view == 'CLIP'
 
 
+def _draw_default_tracker_settings(layout, settings):
+        col = layout.column()
+        row = col.row(align=True)
+        label = CLIP_MT_tracking_settings_presets.bl_label
+        row.menu('CLIP_MT_tracking_settings_presets', text=label)
+        row.operator("clip.tracking_settings_preset_add",
+                     text="", icon='ZOOMIN')
+        props = row.operator("clip.tracking_settings_preset_add",
+                             text="", icon='ZOOMOUT')
+        props.remove_active = True
+
+        col.separator()
+
+        row = col.row(align=True)
+        row.prop(settings, "use_default_red_channel",
+                 text="R", toggle=True)
+        row.prop(settings, "use_default_green_channel",
+                 text="G", toggle=True)
+        row.prop(settings, "use_default_blue_channel",
+                 text="B", toggle=True)
+
+        col.separator()
+
+        sub = col.column(align=True)
+        sub.prop(settings, "default_pattern_size")
+        sub.prop(settings, "default_search_size")
+
+        col.label(text="Tracker:")
+        col.prop(settings, "default_motion_model")
+        col.prop(settings, "use_default_brute")
+        col.prop(settings, "use_default_normalization")
+        col.prop(settings, "use_default_mask")
+        col.prop(settings, "default_correlation_min")
+
+        col.separator()
+
+        sub = col.column(align=True)
+        sub.prop(settings, "default_frames_limit")
+        sub.prop(settings, "default_margin")
+
+        col.label(text="Match:")
+        col.prop(settings, "default_pattern_match", text="")
+
+        col.separator()
+        col.operator("clip.track_settings_as_default",
+                     text="Copy From Active Track")
+
+
 class CLIP_PT_tools_marker(CLIP_PT_tracking_panel, Panel):
     bl_space_type = 'CLIP_EDITOR'
     bl_region_type = 'TOOLS'
@@ -221,51 +269,27 @@ class CLIP_PT_tools_marker(CLIP_PT_tracking_panel, Panel):
         row.label(text="Tracking Settings")
 
         if settings.show_default_expanded:
-            col = box.column()
-            row = col.row(align=True)
-            label = CLIP_MT_tracking_settings_presets.bl_label
-            row.menu('CLIP_MT_tracking_settings_presets', text=label)
-            row.operator("clip.tracking_settings_preset_add",
-                         text="", icon='ZOOMIN')
-            props = row.operator("clip.tracking_settings_preset_add",
-                                 text="", icon='ZOOMOUT')
-            props.remove_active = True
+          _draw_default_tracker_settings(box, settings)
 
-            col.separator()
 
-            row = col.row(align=True)
-            row.prop(settings, "use_default_red_channel",
-                     text="R", toggle=True)
-            row.prop(settings, "use_default_green_channel",
-                     text="G", toggle=True)
-            row.prop(settings, "use_default_blue_channel",
-                     text="B", toggle=True)
+class CLIP_PT_tools_default_tracking_settings(Panel):
+    bl_space_type = 'CLIP_EDITOR'
+    bl_region_type = 'TOOLS'
+    bl_label = "Default Settings"
 
-            col.separator()
+    @classmethod
+    def poll(cls, context):
+        sc = context.space_data
+        clip = sc.clip
 
-            sub = col.column(align=True)
-            sub.prop(settings, "default_pattern_size")
-            sub.prop(settings, "default_search_size")
+        return clip and sc.mode == 'MASK'
 
-            col.label(text="Tracker:")
-            col.prop(settings, "default_motion_model")
-            col.prop(settings, "use_default_brute")
-            col.prop(settings, "use_default_normalization")
-            col.prop(settings, "use_default_mask")
-            col.prop(settings, "default_correlation_min")
-
-            col.separator()
-
-            sub = col.column(align=True)
-            sub.prop(settings, "default_frames_limit")
-            sub.prop(settings, "default_margin")
-
-            col.label(text="Match:")
-            col.prop(settings, "default_pattern_match", text="")
-
-            col.separator()
-            col.operator("clip.track_settings_as_default",
-                         text="Copy From Active Track")
+    def draw(self, context):
+        layout = self.layout
+        sc = context.space_data
+        clip = sc.clip
+        settings = clip.tracking.settings
+        _draw_default_tracker_settings(layout, settings)
 
 
 class CLIP_PT_tools_tracking(CLIP_PT_tracking_panel, Panel):

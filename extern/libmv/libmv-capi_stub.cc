@@ -274,4 +274,14 @@ void libmv_InvertCameraIntrinsics(const libmv_cameraIntrinsicsOptions *libmv_cam
 	*y1 = (y - principal_y) / focal_length;
 }
 
+void libmv_ApplyInverseCanonicalHomography(double x, double y,
+                                           const double *xs, const double *ys,
+                                           int num_samples_x, int num_samples_y,
+                                           double *warped_position_x,
+                                           double *warped_position_y)
+{
+	*warped_position_x = (double) num_samples_x * 0.5;
+	*warped_position_y = (double) num_samples_y * 0.5;
+}
+
 #endif  // ifndef WITH_LIBMV

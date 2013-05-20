@@ -50,6 +50,11 @@ struct rcti;
 
 /* **** Common functions **** */
 
+void BKE_frame_unified_to_search_pixel(struct MovieTrackingMarker *marker,
+                                       int frame_width, int frame_height,
+                                       float unified_x, float unified_y,
+                                       float *search_x, float *search_y);
+
 void BKE_tracking_free(struct MovieTracking *tracking);
 
 void BKE_tracking_settings_init(struct MovieTracking *tracking);
@@ -181,6 +186,22 @@ void BKE_tracking_context_sync(struct MovieTrackingContext *context);
 void BKE_tracking_context_sync_user(const struct MovieTrackingContext *context, struct MovieClipUser *user);
 int BKE_tracking_context_step(struct MovieTrackingContext *context);
 void BKE_tracking_refine_marker(struct MovieClip *clip, struct MovieTrackingTrack *track, struct MovieTrackingMarker *marker, int backwards);
+
+bool BKE_tracking_track_region(const struct MovieTrackingTrack *track,
+                               const struct MovieTrackingMarker *old_marker,
+                               const struct ImBuf *old_search_ibuf,
+                               const struct ImBuf *new_search_ibuf,
+                               const int frame_width,
+                               const int frame_height,
+                               float *mask,
+                               struct MovieTrackingMarker *new_marker);
+
+void BKE_tracking_apply_inverse_homography(const struct MovieTrackingMarker *marker,
+                                           int frame_width, int frame_height,
+                                           float x, float y,
+                                           int num_samples_x, int num_samples_y,
+                                           float *warped_position_x,
+                                           float *warped_position_y);
 
 /* **** Camera solving **** */
 int BKE_tracking_reconstruction_check(struct MovieTracking *tracking, struct MovieTrackingObject *object,

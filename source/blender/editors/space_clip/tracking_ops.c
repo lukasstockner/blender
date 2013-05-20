@@ -34,6 +34,7 @@
 #include "DNA_camera_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_gpencil_types.h"
+#include "DNA_mask_types.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_object_types.h"   /* SELECT */
 #include "DNA_scene_types.h"
@@ -55,6 +56,7 @@
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_library.h"
+#include "BKE_mask.h"
 #include "BKE_sound.h"
 
 #include "WM_api.h"
@@ -3601,4 +3603,845 @@ void CLIP_OT_paste_tracks(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/********************** Track mask operator *********************/
+
+typedef struct TrackMaskContext {
+	Main *bmain;
+	Scene *scene;
+	Mask *mask;
+
+	/* Layer of a mask for which splines are tracking.
+	 * This is an actual mask layer for single-frame
+	 * tracking and it's a copy of that layer for sequence
+	 * tracking which happens in separate thread.
+	 */
+	MaskLayer *mask_layer;
+
+	/* Clip mask is tracking for. */
+	MovieClip *clip;
+
+	/* Runtime user used to acquire original frames from a clip. */
+	MovieClipUser clip_user;
+
+	/* Tracking operator settings. */
+	bool backwards;
+	bool sequence;
+
+	/* In case of sequence tracking indicates how many frames
+	 * (or tracking steps) are needed.
+	 */
+	int steps;
+
+	/* Last frame number for which keyframe is set for sure. */
+	int last_keyframe_inserted;
+
+	MaskSpline *active_mask_spline;
+	int active_point_index;
+
+	/* Delay between next frame is being tracked. */
+	float delay;
+} TrackMaskContext;
+
+static void configure_dummy_track(const MovieTracking *tracking,
+                                  MovieTrackingTrack *track)
+{
+	const MovieTrackingSettings *settings = &tracking->settings;
+
+	/* Fill track's settings from default tracking settings. */
+	track->motion_model = settings->default_motion_model;
+	track->minimum_correlation = settings->default_minimum_correlation;
+	track->margin = settings->default_margin;
+	track->pattern_match = settings->default_pattern_match;
+	track->frames_limit = settings->default_frames_limit;
+	track->flag = settings->default_flag;
+	track->algorithm_flag = settings->default_algorithm_flag;
+
+	/* We always using mask for the track. */
+	track->algorithm_flag |= TRACK_ALGORITHM_FLAG_USE_MASK;
+}
+
+static void compute_spline_points_boundbox(MaskSpline *mask_spline,
+                                           float (*diff_points)[2],
+                                           unsigned int tot_diff_point,
+                                           float corner_min[2],
+                                           float corner_max[2])
+{
+	MaskSplinePoint *spline_points, *current_spline_point;
+	int i;
+	float *current_diff_point;
+
+	INIT_MINMAX(corner_min, corner_max);
+
+	spline_points = mask_spline->points;
+	for (i = 0, current_spline_point = spline_points;
+	     i < mask_spline->tot_point;
+	     i++, current_spline_point++)
+	{
+		BezTriple *bezt = &current_spline_point->bezt;
+
+		DO_MINMAX(bezt->vec[0], corner_min, corner_max);
+		DO_MINMAX(bezt->vec[1], corner_min, corner_max);
+		DO_MINMAX(bezt->vec[2], corner_min, corner_max);
+	}
+
+	for (i = 0, current_diff_point = diff_points[0];
+	     i < tot_diff_point;
+	     i++, current_diff_point += 2)
+	{
+		DO_MINMAX(current_diff_point, corner_min, corner_max);
+	}
+}
+
+static bool configure_dummy_marker(MovieClip *clip, MovieClipUser *user,
+                                   MaskSpline *mask_spline,
+                                   MovieTrackingMarker *marker)
+{
+	float (*diff_points)[2];
+	unsigned int tot_diff_point;
+	float spline_corner_min[2], spline_corner_max[2];
+
+	diff_points = BKE_mask_spline_differentiate(mask_spline,
+	                                            &tot_diff_point);
+
+	if (diff_points == NULL) {
+		/* Failed to rasterize spline, or spline is ampty. */
+		return false;
+	}
+
+	/* Compute bounding box of the spline */
+	/* TODO(sergey): consider taking feather into account */
+	compute_spline_points_boundbox(mask_spline,
+	                               diff_points,
+	                               tot_diff_point,
+	                               spline_corner_min,
+	                               spline_corner_max);
+
+	/* Convert corner coorinates from mask's square space
+	 * to movie clip frame space.
+	 */
+	BKE_mask_coord_to_movieclip(clip, user,
+	                            spline_corner_min,
+	                            spline_corner_min);
+
+	BKE_mask_coord_to_movieclip(clip, user,
+	                            spline_corner_max,
+	                            spline_corner_max);
+
+	/* Marker position is at the center of spline bounding box. */
+	interp_v2_v2v2(marker->pos,
+	               spline_corner_min,
+	               spline_corner_max,
+	               0.5f);
+
+	/* Marker corners matches bounding box.
+	 *
+	 * Could be useful to store previous homography
+	 * for more accurate tracking.
+	 */
+	sub_v2_v2v2(marker->pattern_corners[0],
+	            spline_corner_min,
+	            marker->pos);
+
+	sub_v2_v2v2(marker->pattern_corners[2],
+	            spline_corner_max,
+	            marker->pos);
+
+	marker->pattern_corners[1][0] = marker->pattern_corners[2][0];
+	marker->pattern_corners[1][1] = marker->pattern_corners[0][1];
+
+	marker->pattern_corners[3][0] = marker->pattern_corners[0][0];
+	marker->pattern_corners[3][1] = marker->pattern_corners[2][1];
+
+	/* Search is 1.5 times larger than pattern for now. */
+	mul_v2_v2fl(marker->search_min, marker->pattern_corners[0], 1.5f);
+	mul_v2_v2fl(marker->search_max, marker->pattern_corners[2], 1.5f);
+
+	MEM_freeN(diff_points);
+
+	return true;
+}
+
+static void convert_delta_to_mask_space(MovieClip *clip, MovieClipUser *user,
+                                        const float old_pos[2], const float new_pos[2],
+                                        float delta[2])
+{
+	float old_pos_in_mask_space[2], new_pos_in_mask_space[2];
+
+	BKE_mask_coord_from_movieclip(clip, user, old_pos_in_mask_space, old_pos);
+	BKE_mask_coord_from_movieclip(clip, user, new_pos_in_mask_space, new_pos);
+
+	sub_v2_v2v2(delta, new_pos_in_mask_space, old_pos_in_mask_space);
+}
+
+static void configure_dummy_mask(const Mask *orig_mask,
+                                 MaskSpline *mask_spline,
+                                 Mask *dummy_mask)
+{
+	MaskLayer *dummy_mask_layer;
+	MaskSpline *dummy_mask_spline;
+
+	/* Use original mask as a reference for all the settings. */
+	*dummy_mask = *orig_mask;
+
+	/* And use own layer with single spline only. */
+	dummy_mask->masklayers.first = dummy_mask->masklayers.last = NULL;
+
+	dummy_mask_layer = BKE_mask_layer_new(dummy_mask, "Dummy Layer");
+	dummy_mask_spline = BKE_mask_spline_copy(mask_spline);
+
+	BLI_addtail(&dummy_mask_layer->splines, dummy_mask_spline);
+}
+
+static void free_dummy_mask(Mask *dummy_mask)
+{
+	BKE_mask_layer_free_list(&dummy_mask->masklayers);
+}
+
+static ImBuf *get_rasterized_mask_spline_buffer(const Mask *mask,
+                                                MaskSpline *mask_spline,
+                                                int frame_width,
+                                                int frame_height)
+{
+	Mask dummy_mask;
+	MaskRasterHandle *mask_rasterizer_handle;
+	ImBuf *rasterized_ibuf;
+	float *rasterized_buffer;
+	int i;
+
+	configure_dummy_mask(mask, mask_spline, &dummy_mask);
+
+	rasterized_buffer = MEM_mallocN(sizeof(float) * frame_width * frame_height,
+	                                "rasterized spline buffer");
+
+	mask_rasterizer_handle = BKE_maskrasterize_handle_new();
+
+	BKE_maskrasterize_handle_init(mask_rasterizer_handle, &dummy_mask,
+	                              frame_width, frame_height,
+	                              TRUE, TRUE, TRUE);
+
+	BKE_maskrasterize_buffer(mask_rasterizer_handle,
+	                         frame_width, frame_height,
+	                         rasterized_buffer);
+
+	BKE_maskrasterize_handle_free(mask_rasterizer_handle);
+
+	rasterized_ibuf = IMB_allocImBuf(frame_width, frame_height,
+	                                 32, IB_rectfloat);
+
+	for (i = 0; i < frame_width * frame_height; i++) {
+		float *pixel = rasterized_ibuf->rect_float + 4 * i;
+
+		pixel[0] = pixel[1] = pixel[2] = rasterized_buffer[i];
+		pixel[3] = 1.0f;
+	}
+
+	MEM_freeN(rasterized_buffer);
+	free_dummy_mask(&dummy_mask);
+
+	return rasterized_ibuf;
+}
+
+static float *tracking_mask_from_ibuf(ImBuf *ibuf)
+{
+	float *mask = MEM_mallocN(sizeof(float) * ibuf->x * ibuf->y, "mask tracking mask");
+	int i;
+
+	for (i = 0; i < ibuf->x * ibuf->y; i++) {
+		float *pixel = ibuf->rect_float + ibuf->channels * i;
+
+		mask[i] = pixel[0];
+	}
+
+	return mask;
+}
+
+static void deform_spline_points_by_marker(MovieClip *clip, MovieClipUser *user,
+                                           MaskSpline *mask_spline,
+                                           MovieTrackingMarker *old_marker,
+                                           MovieTrackingMarker *new_marker)
+{
+	MaskSplinePoint *spline_points, *current_spline_point;
+	int i, frame_width, frame_height;
+	float corners_delta[4][2];
+
+	BKE_movieclip_get_size(clip, user, &frame_width, &frame_height);
+
+	/* First we compute delta of all pattern corners in mask space. */
+	for (i = 0; i < 4; i++) {
+		float old_corner[2], new_corner[2];
+
+		add_v2_v2v2(old_corner,
+		            old_marker->pattern_corners[i],
+		            old_marker->pos);
+
+		add_v2_v2v2(new_corner,
+		            new_marker->pattern_corners[i],
+		            new_marker->pos);
+
+		convert_delta_to_mask_space(clip, user,
+		                            old_corner, new_corner,
+		                            corners_delta[i]);
+	}
+
+	/* Then we iterate all mask spline points and moving them
+	 * by an interpolated coordinate delta.
+	 */
+	spline_points = mask_spline->points;
+	for (i = 0, current_spline_point = spline_points;
+	     i < mask_spline->tot_point;
+	     i++, current_spline_point++)
+	{
+		BezTriple *bezt = &current_spline_point->bezt;
+		int j;
+
+		for (j = 0; j < 3; j++) {
+			float delta[2];
+			float pos_in_marker_space[2];
+			float pos_in_search_space[2];
+			float pos_in_homography_space[2];
+			float left_side_point[2],
+			      right_side_point[2];
+
+			/* Compute spline point coordinate relative to marker's center.
+			 * This is still in normalized space.
+			 */
+			BKE_mask_coord_to_movieclip(clip, user,
+			                            pos_in_marker_space,
+			                            bezt->vec[j]);
+			sub_v2_v2(pos_in_marker_space, old_marker->pos);
+
+			/* Then convert coordinate from normalized space to a pixel
+			 * space relative to marker search area origin.
+			 */
+			BKE_frame_unified_to_search_pixel(old_marker,
+			                                  frame_width, frame_height,
+			                                  pos_in_marker_space[0],
+			                                  pos_in_marker_space[1],
+			                                  &pos_in_search_space[0],
+			                                  &pos_in_search_space[1]);
+
+			/* And finally apply an inverse homography to get spline point
+			 * coordinate in pattern patch coordinates.
+			 * Using number of samples of 1 so this coordinates could be
+			 * used as weights for bilinear interpolation.
+			 */
+			BKE_tracking_apply_inverse_homography(old_marker,
+			                                      frame_width, frame_height,
+			                                      pos_in_search_space[0],
+			                                      pos_in_search_space[1],
+			                                      1, 1,
+			                                      &pos_in_homography_space[0],
+			                                      &pos_in_homography_space[1]);
+
+			/* Do bilinear interpolation. */
+			interp_v2_v2v2(left_side_point,
+			               corners_delta[0],
+			               corners_delta[1],
+			               pos_in_homography_space[1]);
+
+			interp_v2_v2v2(right_side_point,
+			               corners_delta[1],
+			               corners_delta[2],
+			               pos_in_homography_space[1]);
+
+			interp_v2_v2v2(delta,
+			               left_side_point,
+			               right_side_point,
+			               pos_in_homography_space[0]);
+
+			/* Apply delta on bezier point/handle. */
+			add_v2_v2(bezt->vec[j], delta);
+		}
+	}
+
+	/* Need to update handles after points were deformed. */
+	for (i = 0; i < mask_spline->tot_point; i++) {
+		BKE_mask_calc_handle_point(mask_spline, &spline_points[i]);
+	}
+}
+
+static bool mask_track_context_init(const bContext *C,
+                                    const wmOperator *op,
+                                    bool duplicate_layer,
+                                    TrackMaskContext *track_mask_context)
+{
+	SpaceClip *sc = CTX_wm_space_clip(C);
+	Mask *mask = CTX_data_edit_mask(C);
+	MaskLayer *mask_layer = BKE_mask_layer_active(mask);
+	Scene *scene = CTX_data_scene(C);
+
+	if (mask == NULL || mask_layer == NULL) {
+		return false;
+	}
+
+	BKE_mask_evaluate(mask, sc->user.framenr, TRUE);
+
+	if (mask_layer->act_spline && mask_layer->act_point) {
+		track_mask_context->active_point_index =
+			mask_layer->act_point - mask_layer->act_spline->points;
+	}
+	else {
+		track_mask_context->active_point_index = -1;
+	}
+
+	if (duplicate_layer) {
+		int active_spline_index =
+			BLI_findindex(&mask_layer->splines, mask_layer->act_spline);
+
+		mask_layer = BKE_mask_layer_copy(mask_layer);
+
+		track_mask_context->active_mask_spline =
+			BLI_findlink(&mask_layer->splines, active_spline_index);
+	}
+	else {
+		track_mask_context->active_mask_spline = mask_layer->act_spline;
+	}
+
+	/* We don't need deformed spline hanging around.
+	 *
+	 * This is because differentiation will use deformed
+	 * points if they present and this is something we
+	 * don't want to happen (sine deformed points are
+	 * not being updated during tracking).
+	 */
+	BKE_mask_layer_free_deform(mask_layer);
+
+	track_mask_context->bmain = CTX_data_main(C);
+	track_mask_context->scene = scene;
+	track_mask_context->mask = mask;
+	track_mask_context->mask_layer = mask_layer;
+	track_mask_context->clip = ED_space_clip_get_clip(sc);
+	track_mask_context->clip_user = sc->user;
+	track_mask_context->backwards = RNA_boolean_get(op->ptr, "backwards");
+	track_mask_context->sequence = RNA_boolean_get(op->ptr, "sequence");
+	track_mask_context->delay = 1.0f / scene->r.frs_sec * 1000.0f;
+
+	if (track_mask_context->sequence) {
+		if (track_mask_context->backwards) {
+			track_mask_context->steps = CFRA - SFRA;
+		}
+		else {
+			track_mask_context->steps = EFRA - CFRA;
+		}
+	}
+	else {
+		track_mask_context->steps = 1;
+	}
+
+	return true;
+}
+
+static bool track_mask_step(TrackMaskContext *track_mask_context)
+{
+	Mask *mask = track_mask_context->mask;
+	MaskLayer *mask_layer = track_mask_context->mask_layer;
+	MaskSpline *mask_spline;
+	MovieClip *clip = track_mask_context->clip;
+	MovieClipUser *user = &track_mask_context->clip_user;
+	MovieTracking *tracking = &clip->tracking;
+	ImBuf *old_ibuf, *new_ibuf;
+	int frame_delta = track_mask_context->backwards ? -1 : 1;
+	int clip_flag = clip->flag & MCLIP_TIMECODE_FLAGS;
+
+	/* Image buffer we're tracking from */
+	old_ibuf = BKE_movieclip_get_ibuf_flag(clip, user, clip_flag,
+	                                       MOVIECLIP_CACHE_SKIP);
+
+	if (!old_ibuf) {
+		return false;
+	}
+
+	/* Image buffer we're tracking on */
+	user->framenr += frame_delta;
+	new_ibuf = BKE_movieclip_get_ibuf_flag(clip, user, clip_flag,
+	                                       MOVIECLIP_CACHE_SKIP);
+	if (!new_ibuf) {
+		IMB_freeImBuf(old_ibuf);
+		return false;
+	}
+
+	for (mask_spline = mask_layer->splines.first;
+	     mask_spline;
+	     mask_spline = mask_spline->next)
+	{
+		if (mask_spline->flag & SELECT) {
+			MovieTrackingMarker marker = {{0}};
+			ImBuf *old_search_ibuf, *new_search_ibuf;
+
+			BLI_assert(mask_spline->points_deform == NULL);
+
+			/* Try creating dummy marker for tracking from current spline. */
+			if (configure_dummy_marker(clip, user, mask_spline, &marker)) {
+				MovieTrackingTrack track = {0};
+				MovieTrackingMarker new_marker = {{0}};
+				ImBuf *rasterized_spline_ibuf, *mask_ibuf;
+				bool tracked;
+				float *tracking_mask;
+
+				/* Configure dummy track. */
+				configure_dummy_track(tracking, &track);
+
+				/* Create image buffer for search area at old and new frames. */
+				old_search_ibuf =
+					BKE_tracking_get_search_imbuf(old_ibuf,
+					                              &track, &marker,
+					                              FALSE, FALSE);
+
+				new_search_ibuf =
+					BKE_tracking_get_search_imbuf(new_ibuf,
+					                             &track, &marker,
+					                              FALSE, FALSE);
+
+				/* Compute mask. */
+				rasterized_spline_ibuf =
+					get_rasterized_mask_spline_buffer(mask,
+					                            mask_spline,
+					                            old_ibuf->x,
+					                            old_ibuf->y);
+
+				mask_ibuf =
+					BKE_tracking_get_search_imbuf(rasterized_spline_ibuf,
+				                                  &track, &marker,
+					                              FALSE, FALSE);
+
+				tracking_mask = tracking_mask_from_ibuf(mask_ibuf);
+
+				/* Use old position as an initial guess. */
+				new_marker = marker;
+
+				/* Run the tracker. */
+				tracked = BKE_tracking_track_region(&track, &marker,
+				                                    old_search_ibuf,
+				                                    new_search_ibuf,
+				                                    old_ibuf->x, old_ibuf->y,
+				                                    tracking_mask,
+				                                    &new_marker);
+
+				if (tracked) {
+					MaskLayerShape *mask_layer_shape;
+
+					/* Move the mask to new position. */
+					deform_spline_points_by_marker(clip, user, mask_spline,
+					                               &marker, &new_marker);
+
+					/* Create shape key for tracked mask position. */
+					mask_layer_shape =
+						BKE_mask_layer_shape_varify_frame(mask_layer,
+						                                  user->framenr);
+
+					BKE_mask_layer_shape_from_mask(mask_layer,
+					                               mask_layer_shape);
+
+					/* We store frame number of latest keyframes inserted to
+					 * deal with threading synchronization between main thread
+					 * and tracking thread.
+					 * Basically, main thread need to set current clip editor's
+					 * frame to latest tracked frame, which is not always equal to
+					 * context user's frame due to latency between altering
+					 * that frame number and actual keyframe is being created here.
+					 */
+					track_mask_context->last_keyframe_inserted = user->framenr;
+				}
+
+				/* Free memory used. */
+				IMB_freeImBuf(old_search_ibuf);
+				IMB_freeImBuf(new_search_ibuf);
+				IMB_freeImBuf(mask_ibuf);
+				IMB_freeImBuf(rasterized_spline_ibuf);
+
+				MEM_freeN(tracking_mask);
+			}
+		}
+	}
+
+	IMB_freeImBuf(old_ibuf);
+	IMB_freeImBuf(new_ibuf);
+
+	return true;
+}
+
+static bool track_mask_do_locked(bContext *C, wmOperator *op)
+{
+	TrackMaskContext track_mask_context;
+	Scene *scene;
+	Mask *mask;
+	MovieClip *clip;
+	int i, framenr;
+
+	if (!mask_track_context_init(C, op, false, &track_mask_context)) {
+		return false;
+	}
+
+	scene = track_mask_context.scene;
+	mask = track_mask_context.mask;
+	clip = track_mask_context.clip;
+
+	for (i = 0; i < track_mask_context.steps; i++) {
+		if (!track_mask_step(&track_mask_context)) {
+			break;
+		}
+	}
+
+	/* Update scene current frame. */
+	framenr = track_mask_context.clip_user.framenr;
+	scene->r.cfra =
+		BKE_movieclip_remap_clip_to_scene_frame(clip, framenr);
+
+	WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+	WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
+	DAG_id_tag_update(&mask->id, 0);
+
+	return true;
+}
+
+static int track_mask_testbreak(void)
+{
+	return G.is_break;
+}
+
+static void track_mask_startjob(void *custom_data, short *stop,
+                                short *do_update, float *progress)
+{
+	TrackMaskContext *track_mask_context = custom_data;
+	int i;
+
+	for (i = 0; i < track_mask_context->steps; i++) {
+		double start_time = PIL_check_seconds_timer();
+
+		if (*stop || track_mask_testbreak())
+			break;
+
+		if (track_mask_step(track_mask_context)) {
+			double exec_time = PIL_check_seconds_timer() - start_time;
+
+			if (track_mask_context->delay > (float)exec_time)
+				PIL_sleep_ms(track_mask_context->delay - (float)exec_time);
+
+			*progress = (float) i / track_mask_context->steps;
+			*do_update = 1;
+		}
+		else {
+			break;
+		}
+	}
+}
+
+static void update_space_clip_user(Main *bmain, int framenr)
+{
+	bScreen *scr;
+
+	for (scr = bmain->screen.first; scr; scr = scr->id.next) {
+		ScrArea *area;
+		for (area = scr->areabase.first; area; area = area->next) {
+			SpaceLink *sl;
+			for (sl = area->spacedata.first; sl; sl = sl->next) {
+				switch (sl->spacetype) {
+					case SPACE_CLIP:
+					{
+						SpaceClip *space_clip = (SpaceClip *)sl;
+						space_clip->user.framenr = framenr;
+						break;
+					}
+				}
+			}
+		}
+	}
+}
+
+static void mask_layer_set_data_from_other(const TrackMaskContext *track_mask_context,
+                                           const MaskLayer *mask_layer_from,
+                                           MaskLayer *mask_layer_to)
+{
+	MaskSpline *current_spline;
+	MaskLayerShape *current_shape;
+
+	/* Free old data. */
+	BKE_mask_layer_free_shapes(mask_layer_to);
+	BKE_mask_spline_free_list(&mask_layer_to->splines);
+
+	mask_layer_to->act_spline = NULL;
+	mask_layer_to->act_point = NULL;
+
+	/* Copy splines. */
+	for (current_spline = mask_layer_from->splines.first;
+	     current_spline;
+	     current_spline = current_spline->next)
+	{
+		MaskSpline *new_spline = BKE_mask_spline_copy(current_spline);
+		BLI_addtail(&mask_layer_to->splines, new_spline);
+		if (current_spline == track_mask_context->active_mask_spline) {
+			mask_layer_to->act_spline = new_spline;
+		}
+	}
+
+	/* Update active spline point pointer. */
+	if (mask_layer_to->act_spline &&
+	    track_mask_context->active_point_index > 0)
+	{
+		mask_layer_to->act_point =
+			mask_layer_to->act_spline->points +
+			track_mask_context->active_point_index;
+	}
+
+	/* Copy shapes. */
+	for (current_shape = mask_layer_from->splines_shapes.first;
+	     current_shape;
+	     current_shape = current_shape->next)
+	{
+		MaskLayerShape *new_shape =
+			BKE_mask_layer_shape_duplicate(current_shape);
+		BLI_addtail(&mask_layer_to->splines_shapes, new_shape);
+	}
+}
+
+static void mask_layer_merge_to_origin(const TrackMaskContext *track_mask_context)
+{
+	Mask *mask = track_mask_context->mask;
+	MaskLayer *mask_layer = track_mask_context->mask_layer;
+	MaskLayer *current_mask_layer;
+
+	for (current_mask_layer = mask->masklayers.first;
+	     current_mask_layer;
+	     current_mask_layer = current_mask_layer->next)
+	{
+		if (!strcmp(current_mask_layer->name, mask_layer->name)) {
+			mask_layer_set_data_from_other(track_mask_context,
+			                               mask_layer,
+			                               current_mask_layer);
+
+			break;
+		}
+	}
+}
+
+static void track_mask_updatejob(void *custom_data)
+{
+	TrackMaskContext *track_mask_context = custom_data;
+	Main *bmain = track_mask_context->bmain;
+	Mask *mask = track_mask_context->mask;
+	int framenr = track_mask_context->last_keyframe_inserted;
+
+	mask_layer_merge_to_origin(track_mask_context);
+	update_space_clip_user(bmain, framenr);
+
+	WM_main_add_notifier(NC_MASK | NA_EDITED, mask);
+	DAG_id_tag_update(&mask->id, 0);
+}
+
+static void track_mask_freejob(void *custom_data)
+{
+	TrackMaskContext *track_mask_context = custom_data;
+	Scene *scene = track_mask_context->scene;
+	Mask *mask = track_mask_context->mask;
+	MovieClip *clip = track_mask_context->clip;
+	int framenr = track_mask_context->clip_user.framenr;
+
+	scene->r.cfra =
+		BKE_movieclip_remap_clip_to_scene_frame(clip, framenr);
+
+	BKE_mask_layer_free(track_mask_context->mask_layer);
+	MEM_freeN(track_mask_context);
+
+	WM_main_add_notifier(NC_SCENE | ND_FRAME, scene);
+	WM_main_add_notifier(NC_MASK | NA_EDITED, mask);
+}
+
+static int track_mask_invoke(bContext *C, wmOperator *op,
+                             const wmEvent *UNUSED(event))
+{
+	wmWindowManager *window_manager = CTX_wm_manager(C);
+	wmWindow *window = CTX_wm_window(C);
+	ScrArea *screen_area = CTX_wm_area(C);
+	TrackMaskContext *track_mask_context;
+	bool sequence = RNA_boolean_get(op->ptr, "sequence");
+	wmJob *wm_job;
+
+	if (sequence == false) {
+		if (track_mask_do_locked(C, op)) {
+			return OPERATOR_FINISHED;
+		}
+		else {
+			return OPERATOR_CANCELLED;
+		}
+	}
+
+	if (WM_jobs_test(window_manager, screen_area, WM_JOB_TYPE_ANY)) {
+		/* Only one tracking is allowed at a time. */
+		return OPERATOR_CANCELLED;
+	}
+
+	track_mask_context = MEM_mallocN(sizeof(TrackMaskContext),
+	                                 "mask tracking context");
+
+	if (!mask_track_context_init(C, op, true, track_mask_context)) {
+		MEM_freeN(track_mask_context);
+		return OPERATOR_CANCELLED;
+	}
+
+	/* Setup job. */
+	wm_job = WM_jobs_get(window_manager, window, screen_area, "Track Mask",
+	                     WM_JOB_PROGRESS, WM_JOB_TYPE_CLIP_TRACK_MARKERS);
+	WM_jobs_customdata_set(wm_job, track_mask_context, track_mask_freejob);
+	WM_jobs_timer(wm_job, track_mask_context->delay / 1000.0f,
+	              NC_MASK | ND_DATA, 0);
+	WM_jobs_callbacks(wm_job, track_mask_startjob, NULL,
+	                  track_mask_updatejob, NULL);
+
+	G.is_break = FALSE;
+
+	WM_jobs_start(window_manager, wm_job);
+
+	/* add modal handler for ESC */
+	WM_event_add_modal_handler(C, op);
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+static int track_mask_modal(bContext *C, wmOperator *UNUSED(op),
+                           const wmEvent *event)
+{
+	/* no running tracking, remove handler and pass through */
+	if (0 == WM_jobs_test(CTX_wm_manager(C), CTX_wm_area(C), WM_JOB_TYPE_ANY))
+		return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
+
+	/* running tracking */
+	switch (event->type) {
+		case ESCKEY:
+			return OPERATOR_RUNNING_MODAL;
+			break;
+	}
+
+	return OPERATOR_PASS_THROUGH;
+}
+
+static int track_mask_exec(bContext *C, wmOperator *op)
+{
+	if (track_mask_do_locked(C, op)) {
+		return OPERATOR_FINISHED;
+	}
+	else {
+		return OPERATOR_CANCELLED;
+	}
+}
+
+void CLIP_OT_track_mask(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Track Mask";
+	ot->description = "Track Mask";
+	ot->idname = "CLIP_OT_track_mask";
+
+	/* api callbacks */
+	ot->invoke = track_mask_invoke;
+	ot->exec = track_mask_exec;
+	ot->modal = track_mask_modal;
+	ot->poll = ED_space_clip_maskedit_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	RNA_def_boolean(ot->srna, "backwards", 0, "Backwards", "Do backwards tracking");
+	RNA_def_boolean(ot->srna, "sequence", 0, "Track Sequence", "Track marker during image sequence rather than single image");
 }

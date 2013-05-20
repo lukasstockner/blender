@@ -516,6 +516,9 @@ static void clip_operatortypes(void)
 	WM_operatortype_append(CLIP_OT_copy_tracks);
 	WM_operatortype_append(CLIP_OT_paste_tracks);
 
+	/* test */
+	WM_operatortype_append(CLIP_OT_track_mask);
+
 	/* ** clip_graph_ops.c  ** */
 
 	/* graph editing */
@@ -563,6 +566,20 @@ static void clip_keymap(struct wmKeyConfig *keyconf)
 	RNA_boolean_set(kmi->ptr, "backwards", FALSE);
 	RNA_boolean_set(kmi->ptr, "sequence", TRUE);
 	kmi = WM_keymap_add_item(keymap, "CLIP_OT_track_markers", TKEY, KM_PRESS, KM_SHIFT | KM_CTRL, 0);
+	RNA_boolean_set(kmi->ptr, "backwards", TRUE);
+	RNA_boolean_set(kmi->ptr, "sequence", TRUE);
+
+	/* Mask tracking */
+	kmi = WM_keymap_add_item(keymap, "CLIP_OT_track_mask", LEFTARROWKEY, KM_PRESS, KM_ALT, 0);
+	RNA_boolean_set(kmi->ptr, "backwards", TRUE);
+	RNA_boolean_set(kmi->ptr, "sequence", FALSE);
+	kmi = WM_keymap_add_item(keymap, "CLIP_OT_track_mask", RIGHTARROWKEY, KM_PRESS, KM_ALT, 0);
+	RNA_boolean_set(kmi->ptr, "backwards", FALSE);
+	RNA_boolean_set(kmi->ptr, "sequence", FALSE);
+	kmi = WM_keymap_add_item(keymap, "CLIP_OT_track_mask", TKEY, KM_PRESS, KM_CTRL, 0);
+	RNA_boolean_set(kmi->ptr, "backwards", FALSE);
+	RNA_boolean_set(kmi->ptr, "sequence", TRUE);
+	kmi = WM_keymap_add_item(keymap, "CLIP_OT_track_mask", TKEY, KM_PRESS, KM_SHIFT | KM_CTRL, 0);
 	RNA_boolean_set(kmi->ptr, "backwards", TRUE);
 	RNA_boolean_set(kmi->ptr, "sequence", TRUE);
 

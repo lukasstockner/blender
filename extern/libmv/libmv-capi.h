@@ -166,6 +166,12 @@ void libmv_ApplyCameraIntrinsics(const libmv_cameraIntrinsicsOptions *libmv_came
 void libmv_InvertCameraIntrinsics(const libmv_cameraIntrinsicsOptions *libmv_camera_intrinsics_options,
 			double x, double y, double *x1, double *y1);
 
+void libmv_ApplyInverseCanonicalHomography(double x, double y,
+                                           const double *xs, const double *ys,
+                                           int num_samples_x, int num_samples_y,
+                                           double *warped_position_x,
+                                           double *warped_position_y);
+
 #ifdef __cplusplus
 }
 #endif

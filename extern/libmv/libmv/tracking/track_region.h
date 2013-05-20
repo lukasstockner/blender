@@ -151,6 +151,12 @@ bool SamplePlanarPatch(const FloatImage &image,
                        FloatImage *mask, FloatImage *patch,
                        double *warped_position_x, double *warped_position_y);
 
+ void ApplyInverseCanonicalHomography(const double x, const double y,
+                                      const double *xs, const double *ys,
+                                      int num_samples_x, int num_samples_y,
+                                      double *warped_position_x,
+                                      double *warped_position_y);
+
 }  // namespace libmv
 
 #endif  // LIBMV_TRACKING_TRACK_REGION_H_

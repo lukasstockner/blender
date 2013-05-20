@@ -1560,4 +1560,22 @@ bool SamplePlanarPatch(const FloatImage &image,
   return true;
 }
 
+void ApplyInverseCanonicalHomography(const double x, const double y,
+                                     const double *xs, const double *ys,
+                                     int num_samples_x, int num_samples_y,
+                                     double *warped_position_x,
+                                     double *warped_position_y) {
+  //int num_samples_x, num_samples_y;
+  //PickSampling(xs, ys, xs, ys, &num_samples_x, &num_samples_y);
+
+  // Compute the warp from rectangular coordinates.
+  Mat3 canonical_homography = ComputeCanonicalHomography(xs, ys,
+                                                         num_samples_x,
+                                                         num_samples_y);
+
+  Vec3 warped_position = canonical_homography.inverse() * Vec3(x, y, 1);
+  *warped_position_x = warped_position(0) / warped_position(2);
+  *warped_position_y = warped_position(1) / warped_position(2);
+}
+
 }  // namespace libmv

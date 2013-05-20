@@ -806,6 +806,19 @@ void BKE_mask_spline_free(MaskSpline *spline)
 	MEM_freeN(spline);
 }
 
+void BKE_mask_spline_free_list(ListBase *splines)
+{
+	MaskSpline *spline = splines->first;
+	while (spline) {
+		MaskSpline *next_spline = spline->next;
+
+		BLI_remlink(splines, spline);
+		BKE_mask_spline_free(spline);
+
+		spline = next_spline;
+	}
+}
+
 static MaskSplinePoint *mask_spline_points_copy(MaskSplinePoint *points, int tot_point)
 {
 	MaskSplinePoint *npoints;
@@ -880,20 +893,30 @@ void BKE_mask_layer_free_shapes(MaskLayer *masklay)
 	}
 }
 
+void BKE_mask_layer_free_deform(MaskLayer *mask_layer)
+{
+	MaskSpline *mask_spline;
+
+	for (mask_spline = mask_layer->splines.first;
+	     mask_spline;
+	     mask_spline = mask_spline->next)
+	{
+		if (mask_spline->points_deform) {
+			int i;
+			MaskSplinePoint *points_deform = mask_spline->points_deform;
+			for (i = i; i < mask_spline->tot_point; i++) {
+				BKE_mask_point_free(&points_deform[i]);
+			}
+			MEM_freeN(points_deform);
+			mask_spline->points_deform = NULL;
+		}
+	}
+}
+
 void BKE_mask_layer_free(MaskLayer *masklay)
 {
-	MaskSpline *spline;
-
 	/* free splines */
-	spline = masklay->splines.first;
-	while (spline) {
-		MaskSpline *next_spline = spline->next;
-
-		BLI_remlink(&masklay->splines, spline);
-		BKE_mask_spline_free(spline);
-
-		spline = next_spline;
-	}
+	BKE_mask_spline_free_list(&masklay->splines);
 
 	/* free animation data */
 	BKE_mask_layer_free_shapes(masklay);

@@ -192,6 +192,8 @@ void CLIP_OT_tracking_object_remove(struct wmOperatorType *ot);
 void CLIP_OT_copy_tracks(struct wmOperatorType *ot);
 void CLIP_OT_paste_tracks(struct wmOperatorType *ot);
 
+void CLIP_OT_track_mask(struct wmOperatorType *ot);
+
 /* tracking_select.c */
 void CLIP_OT_select(struct wmOperatorType *ot);
 void CLIP_OT_select_all(struct wmOperatorType *ot);
