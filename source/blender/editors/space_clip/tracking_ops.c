@@ -3673,7 +3673,7 @@ static void compute_spline_points_boundbox(MaskSpline *mask_spline,
 	int i;
 	float *current_diff_point;
 
-	INIT_MINMAX(corner_min, corner_max);
+	INIT_MINMAX2(corner_min, corner_max);
 
 	spline_points = mask_spline->points;
 	for (i = 0, current_spline_point = spline_points;
@@ -3682,16 +3682,16 @@ static void compute_spline_points_boundbox(MaskSpline *mask_spline,
 	{
 		BezTriple *bezt = &current_spline_point->bezt;
 
-		DO_MINMAX(bezt->vec[0], corner_min, corner_max);
-		DO_MINMAX(bezt->vec[1], corner_min, corner_max);
-		DO_MINMAX(bezt->vec[2], corner_min, corner_max);
+		DO_MINMAX2(bezt->vec[0], corner_min, corner_max);
+		DO_MINMAX2(bezt->vec[1], corner_min, corner_max);
+		DO_MINMAX2(bezt->vec[2], corner_min, corner_max);
 	}
 
 	for (i = 0, current_diff_point = diff_points[0];
 	     i < tot_diff_point;
 	     i++, current_diff_point += 2)
 	{
-		DO_MINMAX(current_diff_point, corner_min, corner_max);
+		DO_MINMAX2(current_diff_point, corner_min, corner_max);
 	}
 }
 

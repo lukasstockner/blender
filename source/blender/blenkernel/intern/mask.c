@@ -904,7 +904,7 @@ void BKE_mask_layer_free_deform(MaskLayer *mask_layer)
 		if (mask_spline->points_deform) {
 			int i;
 			MaskSplinePoint *points_deform = mask_spline->points_deform;
-			for (i = i; i < mask_spline->tot_point; i++) {
+			for (i = 0; i < mask_spline->tot_point; i++) {
 				BKE_mask_point_free(&points_deform[i]);
 			}
 			MEM_freeN(points_deform);
