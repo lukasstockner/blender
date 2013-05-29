@@ -117,7 +117,7 @@ static void node_init(const struct bContext *C, bNodeTree *ntree, bNode *node)
 	if (node->flag & NODE_INIT)
 		return;
 	
-	node->flag = NODE_SELECT | ntype->flag;
+	node->flag = NODE_SELECT | NODE_OPTIONS | ntype->flag;
 	node->width = ntype->width;
 	node->miniwidth = 42.0f;
 	node->height = ntype->height;
@@ -3204,8 +3204,11 @@ void node_type_size_preset(struct bNodeType *ntype, eNodeSizePreset size)
 		case NODE_SIZE_SMALL:
 			node_type_size(ntype, 100, 80, 320);
 			break;
+		case NODE_SIZE_MIDDLE:
+			node_type_size(ntype, 150, 120, 320);
+			break;
 		case NODE_SIZE_LARGE:
-			node_type_size(ntype, 140, 120, 500);
+			node_type_size(ntype, 240, 140, 320);
 			break;
 	}
 }
@@ -3432,6 +3435,7 @@ static void registerShaderNodes(void)
 	register_node_type_sh_bsdf_translucent();
 	register_node_type_sh_bsdf_transparent();
 	register_node_type_sh_bsdf_velvet();
+	register_node_type_sh_bsdf_toon();
 	register_node_type_sh_emission();
 	register_node_type_sh_holdout();
 	//register_node_type_sh_volume_transparent();

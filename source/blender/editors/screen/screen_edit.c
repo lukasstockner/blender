@@ -664,15 +664,15 @@ static void screen_test_scale(bScreen *sc, int winsizex, int winsizey)
 			 * need some way to store these as floats internally and re-apply from there. */
 			tempf = ((float)sv->vec.x) * facx;
 			sv->vec.x = (short)(tempf + 0.5f);
-			sv->vec.x += AREAGRID - 1;
-			sv->vec.x -=  (sv->vec.x % AREAGRID);
+			//sv->vec.x += AREAGRID - 1;
+			//sv->vec.x -=  (sv->vec.x % AREAGRID);
 
 			CLAMP(sv->vec.x, 0, winsizex);
 			
 			tempf = ((float)sv->vec.y) * facy;
 			sv->vec.y = (short)(tempf + 0.5f);
-			sv->vec.y += AREAGRID - 1;
-			sv->vec.y -=  (sv->vec.y % AREAGRID);
+			//sv->vec.y += AREAGRID - 1;
+			//sv->vec.y -=  (sv->vec.y % AREAGRID);
 
 			CLAMP(sv->vec.y, 0, winsizey);
 		}
@@ -1880,10 +1880,6 @@ void ED_update_for_newframe(Main *bmain, Scene *scene, int UNUSED(mute))
 
 	//extern void audiostream_scrub(unsigned int frame);	/* seqaudio.c */
 	
-	/* update animated image textures for gpu, etc,
-	 * call before BKE_scene_update_for_newframe so modifiers with textures don't lag 1 frame */
-	ED_image_update_frame(bmain, scene->r.cfra);
-
 	ED_clip_update_frame(bmain, scene->r.cfra);
 
 	/* get layers from all windows */

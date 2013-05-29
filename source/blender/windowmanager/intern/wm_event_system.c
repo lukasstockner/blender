@@ -247,8 +247,7 @@ void wm_event_do_notifiers(bContext *C)
 			if (note->window == win) {
 				if (note->category == NC_SCREEN) {
 					if (note->data == ND_SCREENBROWSE) {
-						/* free popup handlers */
-						WM_event_remove_handlers(C, &win->modalhandlers);
+						/* do not free handlers here! [#35434] */
 
 						ED_screen_set(C, note->reference);  // XXX hrms, think this over!
 						if (G.debug & G_DEBUG_EVENTS)
@@ -719,9 +718,10 @@ int WM_operator_repeat_check(const bContext *UNUSED(C), wmOperator *op)
 	}
 	else if (op->opm) {
 		/* for macros, check all have exec() we can call */
-		wmOperator *opm;
-		for (opm = op->opm->type->macro.first; opm; opm = opm->next) {
-			if (opm->type->exec == NULL) {
+		wmOperatorTypeMacro *otmacro;
+		for (otmacro = op->opm->type->macro.first; otmacro; otmacro = otmacro->next) {
+			wmOperatorType *otm = WM_operatortype_find(otmacro->idname, 0);
+			if (otm && otm->exec == NULL) {
 				return false;
 			}
 		}

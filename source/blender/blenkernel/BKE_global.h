@@ -36,6 +36,7 @@
  *   any data in Blender. This block is not serialized, but built anew
  *   for every fresh Blender run.
  */
+
 #include "DNA_listBase.h"
 
 #ifdef __cplusplus
@@ -55,18 +56,21 @@ typedef struct Global {
 	/* strings: lastsaved */
 	char ima[1024], lib[1024]; /* 1024 = FILE_MAX */
 
-	/* flag: if != 0 G.main->name contains valid relative base path */
-	int relbase_valid;
+	/* when set: G.main->name contains valid relative base path */
+	bool relbase_valid;
+	bool file_loaded;
+	bool save_over;
 
 	/* strings of recent opened files */
 	struct ListBase recent_files;
 
 	/* has escape been pressed or Ctrl+C pressed in background mode, used for render quit */
-	short is_break;
+	bool is_break;
 
-	short moving, file_loaded;
-	char background;
-	char factory_startup;
+	bool background;
+	bool factory_startup;
+
+	short moving;
 	short winpos, displaymode;  /* used to be in Render */
 
 	/* to indicate render is busy, prevent renderwindow events etc */
@@ -82,25 +86,12 @@ typedef struct Global {
 	/* debug flag, G_DEBUG, G_DEBUG_PYTHON & friends, set python or command line args */
 	int debug;
 
-	/* Used for BMesh transformations */
-	struct BME_Glob *editBMesh;
-
-	/* Frank's variables */
-	int save_over;
-
-	/* Rob's variables (keep here for WM recode) */
-	int have_quicktime;
-	int ui_international;
-	int charstart;
-	int charmin;
-	int charmax;
-	struct VFont *selfont;
-	struct ListBase ttfdata;
+	bool have_quicktime;
 
 	/* this variable is written to / read from FileGlobal->fileflags */
 	int fileflags;
 
-	/* save the allowed windowstate of blender when using -W or -w */
+	/* save the allowed windowstate of blender when using -W or -w (GHOST_TWindowState) */
 	int windowstate;
 } Global;
 
@@ -172,11 +163,6 @@ enum {
 #define G_FILE_SAVE_COPY         (1 << 27)              /* restore paths after editing them */
 
 #define G_FILE_FLAGS_RUNTIME (G_FILE_NO_UI | G_FILE_RELATIVE_REMAP | G_FILE_MESH_COMPAT | G_FILE_SAVE_COPY)
-
-/* G.windowstate */
-#define G_WINDOWSTATE_USERDEF       0
-#define G_WINDOWSTATE_BORDER        1
-#define G_WINDOWSTATE_FULLSCREEN    2
 
 /* ENDIAN_ORDER: indicates what endianness the platform where the file was
  * written had. */

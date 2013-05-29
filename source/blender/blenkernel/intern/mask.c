@@ -271,6 +271,17 @@ MaskSpline *BKE_mask_spline_add(MaskLayer *masklay)
 	return spline;
 }
 
+bool BKE_mask_spline_remove(MaskLayer *mask_layer, MaskSpline *spline)
+{
+	if (BLI_remlink_safe(&mask_layer->splines, spline) == FALSE) {
+		return false;
+	}
+
+	BKE_mask_spline_free(spline);
+
+	return true;
+}
+
 void BKE_mask_point_direction_switch(MaskSplinePoint *point)
 {
 	const int tot_uw = point->tot_uw;
@@ -1851,7 +1862,7 @@ static void interp_weights_uv_v2_apply(const float uv[2], float r_pt[2], const f
 	r_pt[1] +=  dvec[0] * uv[1];
 }
 
-/* when a now points added - resize all shapekey array  */
+/* when a new points added - resize all shapekey array  */
 void BKE_mask_layer_shape_changed_add(MaskLayer *masklay, int index,
                                       int do_init, int do_init_interpolate)
 {

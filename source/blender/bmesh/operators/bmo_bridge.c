@@ -37,6 +37,7 @@
 #include "intern/bmesh_operators_private.h" /* own include */
 
 #define EDGE_MARK	4
+#define EDGE_OUT	8
 #define FACE_OUT	16
 
 /* el_a and el_b _must_ be same size */
@@ -67,29 +68,24 @@ static void bm_bridge_splice_loops(BMesh *bm, LinkData *el_a, LinkData *el_b, co
  * if that fails just get any loop thats on the vert (the first one) */
 static void bm_vert_loop_pair(BMesh *bm, BMVert *v1, BMVert *v2, BMLoop **l1, BMLoop **l2)
 {
-	BMIter liter;
-	BMLoop *l;
+	BMEdge *e = BM_edge_exists(v1, v2);
+	BMLoop *l = e->l;
 
-	if ((v1->e && v1->e->l) &&
-	    (v2->e && v2->e->l))
-	{
-		BM_ITER_ELEM (l, &liter, v1, BM_LOOPS_OF_VERT) {
-			if (l->prev->v == v2) {
-				*l1 = l;
-				*l2 = l->prev;
-				return;
-			}
-			else if (l->next->v == v2) {
-				*l1 = l;
-				*l2 = l->next;
-				return;
-			}
+	if (l) {
+		if (l->v == v1) {
+			*l1 = l;
+			*l2 = l->next;
+		}
+		else {
+			*l2 = l;
+			*l1 = l->next;
 		}
 	}
-
-	/* fallback to _any_ loop */
-	*l1 = BM_iter_at_index(bm, BM_LOOPS_OF_VERT, v1, 0);
-	*l2 = BM_iter_at_index(bm, BM_LOOPS_OF_VERT, v2, 0);
+	else {
+		/* fallback to _any_ loop */
+		*l1 = BM_iter_at_index(bm, BM_LOOPS_OF_VERT, v1, 0);
+		*l2 = BM_iter_at_index(bm, BM_LOOPS_OF_VERT, v2, 0);
+	}
 }
 
 /* el_b can have any offset */
@@ -129,6 +125,15 @@ static void bm_bridge_best_rotation(struct BMEdgeLoopStore *el_store_a, struct B
 	}
 }
 
+static void bm_face_edges_tag_out(BMesh *bm, BMFace *f)
+{
+	BMLoop *l_iter, *l_first;
+	l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+	do {
+		BMO_elem_flag_enable(bm, l_iter->e, EDGE_OUT);
+	} while ((l_iter = l_iter->next) != l_first);
+}
+
 static bool bm_edge_test_cb(BMEdge *e, void *bm_v)
 {
 	return BMO_elem_flag_test((BMesh *)bm_v, e, EDGE_MARK);
@@ -144,6 +149,7 @@ static void bridge_loop_pair(BMesh *bm,
 	int el_store_a_len, el_store_b_len;
 	bool el_store_b_free = false;
 	float el_dir[3];
+	const bool use_edgeout = true;
 
 	el_store_a_len = BM_edgeloop_length_get((struct BMEdgeLoopStore *)el_store_a);
 	el_store_b_len = BM_edgeloop_length_get((struct BMEdgeLoopStore *)el_store_b);
@@ -188,7 +194,7 @@ static void bridge_loop_pair(BMesh *bm,
 			for (i = 0; i < 2; i++, winding_dir = -winding_dir) {
 				LinkData *el;
 				for (el = BM_edgeloop_verts_get(estore_pair[i])->first; el; el = el->next) {
-					LinkData *el_next = BM_EDGELOOP_NEXT(estore_pair[i], el);
+					LinkData *el_next = BM_EDGELINK_NEXT(estore_pair[i], el);
 					if (el_next) {
 						BMEdge *e = BM_edge_exists(el->data, el_next->data);
 						if (e && BM_edge_is_boundary(e)) {
@@ -236,14 +242,14 @@ static void bridge_loop_pair(BMesh *bm,
 			BMLoop *l_iter;
 			BMVert *v_a, *v_b, *v_a_next, *v_b_next;
 
-			BMLoop *l_1 = NULL;
-			BMLoop *l_2 = NULL;
-			BMLoop *l_1_next = NULL;
-			BMLoop *l_2_next = NULL;
+			BMLoop *l_a = NULL;
+			BMLoop *l_b = NULL;
+			BMLoop *l_a_next = NULL;
+			BMLoop *l_b_next = NULL;
 
 			if (is_closed) {
-				el_a_next = BM_EDGELOOP_NEXT(el_store_a, el_a);
-				el_b_next = BM_EDGELOOP_NEXT(el_store_b, el_b);
+				el_a_next = BM_EDGELINK_NEXT(el_store_a, el_a);
+				el_b_next = BM_EDGELINK_NEXT(el_store_b, el_b);
 			}
 			else {
 				el_a_next = el_a->next;
@@ -260,22 +266,20 @@ static void bridge_loop_pair(BMesh *bm,
 
 			/* get loop data - before making the face */
 			if (v_b != v_b_next) {
-				bm_vert_loop_pair(bm, v_a, v_b, &l_1, &l_2);
-				bm_vert_loop_pair(bm, v_a_next, v_b_next, &l_1_next, &l_2_next);
+				bm_vert_loop_pair(bm, v_a, v_a_next, &l_a, &l_a_next);
+				bm_vert_loop_pair(bm, v_b, v_b_next, &l_b, &l_b_next);
 			}
 			else {
 				/* lazy, could be more clever here */
-				l_1      = BM_iter_at_index(bm, BM_LOOPS_OF_VERT, v_a, 0);
-				l_1_next = BM_iter_at_index(bm, BM_LOOPS_OF_VERT, v_a_next, 0);
-				l_2      = BM_iter_at_index(bm, BM_LOOPS_OF_VERT, v_b, 0);
-				l_2_next = l_2;
+				bm_vert_loop_pair(bm, v_a, v_a_next, &l_a, &l_a_next);
+				l_b = l_b_next = BM_iter_at_index(bm, BM_LOOPS_OF_VERT, v_b, 0);
 			}
 
-			if (l_1 && l_1_next == NULL) l_1_next = l_1;
-			if (l_1_next && l_1 == NULL) l_1 = l_1_next;
-			if (l_2 && l_2_next == NULL) l_2_next = l_2;
-			if (l_2_next && l_2 == NULL) l_2 = l_2_next;
-			f_example = l_1 ? l_1->f : (l_2 ? l_2->f : NULL);
+			if (l_a && l_a_next == NULL) l_a_next = l_a;
+			if (l_a_next && l_a == NULL) l_a = l_a_next;
+			if (l_b && l_b_next == NULL) l_b_next = l_b;
+			if (l_b_next && l_b == NULL) l_b = l_b_next;
+			f_example = l_a ? l_a->f : (l_b ? l_b->f : NULL);
 
 			if (v_b != v_b_next) {
 				BMVert *v_arr[4] = {v_a, v_b, v_b_next, v_a_next};
@@ -284,10 +288,10 @@ static void bridge_loop_pair(BMesh *bm,
 					f = BM_face_create_ngon_verts(bm, v_arr, 4, 0, false, true);
 
 					l_iter = BM_FACE_FIRST_LOOP(f);
-					if (l_1)      BM_elem_attrs_copy(bm, bm, l_1,      l_iter); l_iter = l_iter->next;
-					if (l_2)      BM_elem_attrs_copy(bm, bm, l_2,      l_iter); l_iter = l_iter->next;
-					if (l_2_next) BM_elem_attrs_copy(bm, bm, l_2_next, l_iter); l_iter = l_iter->next;
-					if (l_1_next) BM_elem_attrs_copy(bm, bm, l_1_next, l_iter);
+					if (l_b)      BM_elem_attrs_copy(bm, bm, l_b,      l_iter); l_iter = l_iter->next;
+					if (l_b_next) BM_elem_attrs_copy(bm, bm, l_b_next, l_iter); l_iter = l_iter->next;
+					if (l_a_next) BM_elem_attrs_copy(bm, bm, l_a_next, l_iter); l_iter = l_iter->next;
+					if (l_a)      BM_elem_attrs_copy(bm, bm, l_a,      l_iter);
 				}
 			}
 			else {
@@ -297,9 +301,9 @@ static void bridge_loop_pair(BMesh *bm,
 					f = BM_face_create_ngon_verts(bm, v_arr, 3, 0, false, true);
 
 					l_iter = BM_FACE_FIRST_LOOP(f);
-					if (l_1)      BM_elem_attrs_copy(bm, bm, l_1,      l_iter); l_iter = l_iter->next;
-					if (l_2)      BM_elem_attrs_copy(bm, bm, l_2,      l_iter); l_iter = l_iter->next;
-					if (l_1_next) BM_elem_attrs_copy(bm, bm, l_1_next, l_iter);
+					if (l_b)      BM_elem_attrs_copy(bm, bm, l_b,      l_iter); l_iter = l_iter->next;
+					if (l_a_next) BM_elem_attrs_copy(bm, bm, l_a_next, l_iter); l_iter = l_iter->next;
+					if (l_a)      BM_elem_attrs_copy(bm, bm, l_a,      l_iter);
 				}
 			}
 
@@ -308,6 +312,11 @@ static void bridge_loop_pair(BMesh *bm,
 			}
 			BMO_elem_flag_enable(bm, f, FACE_OUT);
 			BM_elem_flag_enable(f, BM_ELEM_TAG);
+
+			/* tag all edges of the face, untag the loop edges after */
+			if (use_edgeout) {
+				bm_face_edges_tag_out(bm, f);
+			}
 
 			if (el_a_next == el_a_first) {
 				break;
@@ -349,10 +358,50 @@ static void bridge_loop_pair(BMesh *bm,
 		BMO_op_initf(bm, &op_sub, 0,
 		             "beautify_fill faces=%hf edges=ae use_restrict_tag=%b",
 		             BM_ELEM_TAG, true);
+
+		if (use_edgeout) {
+			BMOIter siter;
+			BMFace *f;
+			BMO_ITER (f, &siter, op_sub.slots_in, "faces", BM_FACE) {
+				BMO_elem_flag_enable(bm, f, FACE_OUT);
+				bm_face_edges_tag_out(bm, f);
+			}
+		}
+
 		BMO_op_exec(bm, &op_sub);
 		/* there may also be tagged faces that didnt rotate, mark input */
-		BMO_slot_buffer_flag_enable(bm, op_sub.slots_out, "geom.out", BM_FACE, FACE_OUT);
+
+		if (use_edgeout) {
+			BMOIter siter;
+			BMFace *f;
+			BMO_ITER (f, &siter, op_sub.slots_out, "geom.out", BM_FACE) {
+				BMO_elem_flag_enable(bm, f, FACE_OUT);
+				bm_face_edges_tag_out(bm, f);
+			}
+		}
+		else {
+			BMO_slot_buffer_flag_enable(bm, op_sub.slots_out, "geom.out", BM_FACE, FACE_OUT);
+		}
+
 		BMO_op_finish(bm, &op_sub);
+	}
+
+	if (use_edgeout && use_merge == false) {
+		/* we've enabled all face edges above, now disable all loop edges */
+		struct BMEdgeLoopStore *estore_pair[2] = {el_store_a, el_store_b};
+		int i;
+		for (i = 0; i < 2; i++) {
+			LinkData *el;
+			for (el = BM_edgeloop_verts_get(estore_pair[i])->first; el; el = el->next) {
+				LinkData *el_next = BM_EDGELINK_NEXT(estore_pair[i], el);
+				if (el_next) {
+					if (el->data != el_next->data) {
+						BMEdge *e = BM_edge_exists(el->data, el_next->data);
+						BMO_elem_flag_disable(bm, e, EDGE_OUT);
+					}
+				}
+			}
+		}
 	}
 
 	if (el_store_b_free) {
@@ -434,22 +483,13 @@ void bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
 		change = true;
 	}
 
-	if ((count == 2) && (BM_edgeloop_length_get(eloops.first) == BM_edgeloop_length_get(eloops.last))) {
-
-
-
-	}
-	else if (count == 2) {
-
-	}
-	else {
-
-	}
-
 cleanup:
 	BM_mesh_edgeloops_free(&eloops);
 
 	if (change) {
-		BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "faces.out", BM_FACE, FACE_OUT);
+		if (use_merge == false) {
+			BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "faces.out", BM_FACE, FACE_OUT);
+			BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "edges.out", BM_EDGE, EDGE_OUT);
+		}
 	}
 }

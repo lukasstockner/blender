@@ -2063,6 +2063,11 @@ void node_bsdf_glass(vec4 color, float roughness, float ior, vec3 N, out vec4 re
 	node_bsdf_diffuse(color, 0.0, N, result);
 }
 
+void node_bsdf_toon(vec4 color, float size, float tsmooth, vec3 N, out vec4 result)
+{
+	node_bsdf_diffuse(color, 0.0, N, result);
+}
+
 void node_bsdf_translucent(vec4 color, vec3 N, out vec4 result)
 {
 	node_bsdf_diffuse(color, 0.0, N, result);
@@ -2266,6 +2271,11 @@ void node_object_info(out vec3 location, out float object_index, out float mater
 	object_index = 0.0;
 	material_index = 0.0;
 	random = 0.0;
+}
+
+void node_normal_map(float strength, vec4 color, vec3 N, out vec3 result)
+{
+	result = N;
 }
 
 void node_bump(float strength, float dist, float height, vec3 N, out vec3 result)

@@ -869,6 +869,10 @@ typedef struct NodeShaderNormalMap {
 #define SHD_GLOSSY_SHARP	1
 #define SHD_GLOSSY_GGX		2
 
+/* toon modes */
+#define SHD_TOON_DIFFUSE	0
+#define SHD_TOON_GLOSSY		1
+
 /* blend texture */
 #define SHD_BLEND_LINEAR			0
 #define SHD_BLEND_QUADRATIC			1
@@ -940,9 +944,11 @@ typedef struct NodeShaderNormalMap {
 #define SHD_TANGENT_AXIS_Z			2
 
 /* normal map space */
-#define SHD_NORMAL_MAP_TANGENT		0
-#define SHD_NORMAL_MAP_OBJECT		1
-#define SHD_NORMAL_MAP_WORLD		2
+#define SHD_NORMAL_MAP_TANGENT			0
+#define SHD_NORMAL_MAP_OBJECT			1
+#define SHD_NORMAL_MAP_WORLD			2
+#define SHD_NORMAL_MAP_BLENDER_OBJECT	3
+#define SHD_NORMAL_MAP_BLENDER_WORLD	4
 
 /* blur node */
 #define CMP_NODE_BLUR_ASPECT_NONE		0

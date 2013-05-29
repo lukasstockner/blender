@@ -34,7 +34,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLO_sys_types.h" /* for intptr_t support */
+#include "BLI_sys_types.h" /* for intptr_t support */
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -166,7 +166,7 @@ static void clipMirrorModifier(TransInfo *t, Object *ob)
 						float obinv[4][4];
 						
 						invert_m4_m4(obinv, mmd->mirror_ob->obmat);
-						mult_m4_m4m4(mtx, obinv, ob->obmat);
+						mul_m4_m4m4(mtx, obinv, ob->obmat);
 						invert_m4_m4(imtx, mtx);
 					}
 					

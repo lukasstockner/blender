@@ -82,7 +82,7 @@
 
 /********************** add marker operator *********************/
 
-static void add_marker(const bContext *C, float x, float y)
+static bool add_marker(const bContext *C, float x, float y)
 {
 	SpaceClip *sc = CTX_wm_space_clip(C);
 	MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -94,11 +94,17 @@ static void add_marker(const bContext *C, float x, float y)
 
 	ED_space_clip_get_size(sc, &width, &height);
 
+	if (width == 0 || height == 0) {
+		return false;
+	}
+
 	track = BKE_tracking_track_add(tracking, tracksbase, x, y, framenr, width, height);
 
 	BKE_tracking_track_select(tracksbase, track, TRACK_AREA_ALL, 0);
 
 	clip->tracking.act_track = track;
+
+	return true;
 }
 
 static int add_marker_exec(bContext *C, wmOperator *op)
@@ -106,16 +112,12 @@ static int add_marker_exec(bContext *C, wmOperator *op)
 	SpaceClip *sc = CTX_wm_space_clip(C);
 	MovieClip *clip = ED_space_clip_get_clip(sc);
 	float pos[2];
-	int width, height;
-
-	ED_space_clip_get_size(sc, &width, &height);
-
-	if (!width || !height)
-		return OPERATOR_CANCELLED;
 
 	RNA_float_get_array(op->ptr, "location", pos);
 
-	add_marker(C, pos[0], pos[1]);
+	if (!add_marker(C, pos[0], pos[1])) {
+		return OPERATOR_CANCELLED;
+	}
 
 	/* reset offset from locked position, so frame jumping wouldn't be so confusing */
 	sc->xlockof = 0;
@@ -159,6 +161,48 @@ void CLIP_OT_add_marker(wmOperatorType *ot)
 	/* properties */
 	RNA_def_float_vector(ot->srna, "location", 2, NULL, -FLT_MAX, FLT_MAX,
 	                     "Location", "Location of marker on frame", -1.0f, 1.0f);
+}
+
+/********************** add marker operator *********************/
+
+static int add_marker_at_center_invoke(bContext *C, wmOperator *UNUSED(op), const wmEvent *UNUSED(event))
+{
+	SpaceClip *sc = CTX_wm_space_clip(C);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
+	ARegion *ar = CTX_wm_region(C);
+	float pos[2];
+
+	ED_clip_point_stable_pos(sc, ar,
+	                         BLI_rcti_size_x(&ar->winrct) / 2.0f,
+	                         BLI_rcti_size_y(&ar->winrct) / 2.0f,
+	                         &pos[0], &pos[1]);
+
+	if (!add_marker(C, pos[0], pos[1])) {
+		return OPERATOR_CANCELLED;
+	}
+
+	/* reset offset from locked position, so frame jumping wouldn't be so confusing */
+	sc->xlockof = 0;
+	sc->ylockof = 0;
+
+	WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
+
+	return OPERATOR_FINISHED;
+}
+
+void CLIP_OT_add_marker_at_center(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Add Marker at Center";
+	ot->idname = "CLIP_OT_add_marker_at_center";
+	ot->description = "Place new marker at the center of visible frame";
+
+	/* api callbacks */
+	ot->invoke = add_marker_at_center_invoke;
+	ot->poll = ED_space_clip_tracking_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 /********************** delete track operator *********************/
@@ -1862,7 +1906,7 @@ static void object_solver_inverted_matrix(Scene *scene, Object *ob, float invmat
 				BKE_object_where_is_calc_mat4(scene, cam, invmat);
 			}
 
-			mult_m4_m4m4(invmat, invmat, data->invmat);
+			mul_m4_m4m4(invmat, invmat, data->invmat);
 
 			found = TRUE;
 		}
@@ -2066,7 +2110,7 @@ static void set_axis(Scene *scene,  Object *ob, MovieClip *clip, MovieTrackingOb
 	if (is_camera) {
 		invert_m4(mat);
 
-		mult_m4_m4m4(mat, mat, obmat);
+		mul_m4_m4m4(mat, mat, obmat);
 	}
 	else {
 		if (!flip) {
@@ -2083,7 +2127,7 @@ static void set_axis(Scene *scene,  Object *ob, MovieClip *clip, MovieTrackingOb
 			mul_serie_m4(mat, lmat, mat, ilmat, obmat, NULL, NULL, NULL, NULL);
 		}
 		else {
-			mult_m4_m4m4(mat, obmat, mat);
+			mul_m4_m4m4(mat, obmat, mat);
 		}
 	}
 
@@ -2175,14 +2219,14 @@ static int set_plane_exec(bContext *C, wmOperator *op)
 		invert_m4(mat);
 
 		BKE_object_to_mat4(object, obmat);
-		mult_m4_m4m4(mat, mat, obmat);
-		mult_m4_m4m4(newmat, rot, mat);
+		mul_m4_m4m4(mat, mat, obmat);
+		mul_m4_m4m4(newmat, rot, mat);
 		BKE_object_apply_mat4(object, newmat, 0, 0);
 
 		/* make camera have positive z-coordinate */
 		if (object->loc[2] < 0) {
 			invert_m4(rot);
-			mult_m4_m4m4(newmat, rot, mat);
+			mul_m4_m4m4(newmat, rot, mat);
 			BKE_object_apply_mat4(object, newmat, 0, 0);
 		}
 	}

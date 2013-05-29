@@ -3108,32 +3108,31 @@ static int edbm_select_linked_flat_faces_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
+	BMesh *bm = em->bm;
+
+	BMFace **stack = MEM_mallocN(sizeof(BMFace *) * bm->totface, __func__);
+	STACK_DECLARE(stack);
+
 	BMIter iter, liter, liter2;
-	BMFace *f, **stack = NULL;
-	BLI_array_declare(stack);
+	BMFace *f;
 	BMLoop *l, *l2;
-	const float sharp = RNA_float_get(op->ptr, "sharpness");
-	int i;
+	const float angle_limit = RNA_float_get(op->ptr, "sharpness");
 
-	BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
-		BM_elem_flag_disable(f, BM_ELEM_TAG);
-	}
+	BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, false);
 
-	BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
-		if (BM_elem_flag_test(f, BM_ELEM_HIDDEN) || !BM_elem_flag_test(f, BM_ELEM_SELECT) || BM_elem_flag_test(f, BM_ELEM_TAG))
+
+	BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+		if ((BM_elem_flag_test(f, BM_ELEM_HIDDEN) != 0) ||
+		    (BM_elem_flag_test(f, BM_ELEM_TAG)    != 0) ||
+		    (BM_elem_flag_test(f, BM_ELEM_SELECT) == 0))
+		{
 			continue;
+		}
 
-		BLI_array_empty(stack);
-		i = 1;
+		STACK_INIT(stack);
 
-		BLI_array_grow_one(stack);
-		stack[i - 1] = f;
-
-		while (i) {
-			f = stack[i - 1];
-			i--;
-
-			BM_face_select_set(em->bm, f, true);
+		do {
+			BM_face_select_set(bm, f, true);
 
 			BM_elem_flag_enable(f, BM_ELEM_TAG);
 
@@ -3141,24 +3140,25 @@ static int edbm_select_linked_flat_faces_exec(bContext *C, wmOperator *op)
 				BM_ITER_ELEM (l2, &liter2, l, BM_LOOPS_OF_LOOP) {
 					float angle;
 
-					if (BM_elem_flag_test(l2->f, BM_ELEM_TAG) || BM_elem_flag_test(l2->f, BM_ELEM_HIDDEN))
+					if (BM_elem_flag_test(l2->f, BM_ELEM_TAG) ||
+					    BM_elem_flag_test(l2->f, BM_ELEM_HIDDEN))
+					{
 						continue;
+					}
 
-					/* edge has exactly two neighboring faces, check angle */
 					angle = angle_normalized_v3v3(f->no, l2->f->no);
 
-					/* invalidate: edge too sharp */
-					if (angle < sharp) {
-						BLI_array_grow_one(stack);
-						stack[i] = l2->f;
-						i++;
+					if (angle < angle_limit) {
+						STACK_PUSH(stack, l2->f);
 					}
 				}
 			}
-		}
+		} while ((f = STACK_POP(stack)));
 	}
 
-	BLI_array_free(stack);
+	STACK_FREE(stack);
+
+	MEM_freeN(stack);
 
 	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 
@@ -3312,11 +3312,12 @@ static int edbm_select_ungrouped_poll(bContext *C)
 	if (ED_operator_editmesh(C)) {
 		Object *obedit = CTX_data_edit_object(C);
 		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+		const int cd_dvert_offset = CustomData_get_offset(&em->bm->vdata, CD_MDEFORMVERT);
 
 		if ((em->selectmode & SCE_SELECT_VERTEX) == 0) {
 			CTX_wm_operator_poll_msg_set(C, "Must be in vertex selection mode");
 		}
-		else if (obedit->defbase.first == NULL) {
+		else if (obedit->defbase.first == NULL || cd_dvert_offset == -1) {
 			CTX_wm_operator_poll_msg_set(C, "No weights/vertex groups on object");
 		}
 		else {
@@ -3330,6 +3331,8 @@ static int edbm_select_ungrouped_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
+	const int cd_dvert_offset = CustomData_get_offset(&em->bm->vdata, CD_MDEFORMVERT);
+
 	BMVert *eve;
 	BMIter iter;
 
@@ -3339,7 +3342,7 @@ static int edbm_select_ungrouped_exec(bContext *C, wmOperator *op)
 
 	BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
 		if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
-			MDeformVert *dv = CustomData_bmesh_get(&em->bm->vdata, eve->head.data, CD_MDEFORMVERT);
+			MDeformVert *dv = BM_ELEM_CD_GET_VOID_P(eve, cd_dvert_offset);
 			/* no dv or dv set with no weight */
 			if (ELEM(NULL, dv, dv->dw)) {
 				BM_vert_select_set(em->bm, eve, true);

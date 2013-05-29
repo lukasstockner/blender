@@ -1336,9 +1336,6 @@ static bNodeType *rna_Node_register_base(Main *bmain, ReportList *reports, Struc
 	nt->freefunc_api = (have_function[5]) ? rna_Node_free : NULL;
 	nt->uifunc = (have_function[6]) ? rna_Node_draw_buttons : NULL;
 	nt->uifuncbut = (have_function[7]) ? rna_Node_draw_buttons_ext : NULL;
-	/* node buttons are only drawn if the options flag is set */
-	if (nt->uifunc || nt->uifuncbut)
-		nt->flag |= NODE_OPTIONS;
 	
 	/* sanitize size values in case not all have been registered */
 	if (nt->maxwidth < nt->minwidth)
@@ -2329,6 +2326,11 @@ static void rna_NodeInternal_draw_buttons_ext(ID *id, bNode *node, struct bConte
 		RNA_pointer_create(id, &RNA_Node, node, &ptr);
 		node->typeinfo->uifuncbut(layout, C, &ptr);
 	}
+	else if (node->typeinfo->uifunc) {
+		PointerRNA ptr;
+		RNA_pointer_create(id, &RNA_Node, node, &ptr);
+		node->typeinfo->uifunc(layout, C, &ptr);
+	}
 }
 
 static void rna_CompositorNode_tag_need_exec(bNode *node)
@@ -2812,6 +2814,12 @@ static EnumPropertyItem node_glossy_items[] = {
 	{SHD_GLOSSY_SHARP,    "SHARP",    0, "Sharp",    ""},
 	{SHD_GLOSSY_BECKMANN, "BECKMANN", 0, "Beckmann", ""},
 	{SHD_GLOSSY_GGX,      "GGX",      0, "GGX",      ""},
+	{0, NULL, 0, NULL, NULL}
+};
+
+static EnumPropertyItem node_toon_items[] = {
+	{SHD_TOON_DIFFUSE,    "DIFFUSE",  0, "Diffuse", ""},
+	{SHD_TOON_GLOSSY,     "GLOSSY",   0, "Glossy",  ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -3427,6 +3435,17 @@ static void def_glossy(StructRNA *srna)
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
+static void def_toon(StructRNA *srna)
+{
+	PropertyRNA *prop;
+	
+	prop = RNA_def_property(srna, "component", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "custom1");
+	RNA_def_property_enum_items(prop, node_toon_items);
+	RNA_def_property_ui_text(prop, "Component", "");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
 static void def_sh_bump(StructRNA *srna)
 {
 	PropertyRNA *prop;
@@ -3443,6 +3462,8 @@ static void def_sh_normal_map(StructRNA *srna)
 		{SHD_NORMAL_MAP_TANGENT, "TANGENT", 0, "Tangent Space", "Tangent space normal mapping"},
 		{SHD_NORMAL_MAP_OBJECT, "OBJECT", 0, "Object Space", "Object space normal mapping"},
 		{SHD_NORMAL_MAP_WORLD, "WORLD", 0, "World Space", "World space normal mapping"},
+		{SHD_NORMAL_MAP_BLENDER_OBJECT, "BLENDER_OBJECT", 0, "Blender Object Space", "Object space normal mapping, compatible with Blender render baking"},
+		{SHD_NORMAL_MAP_BLENDER_WORLD, "BLENDER_WORLD", 0, "Blender World Space", "World space normal mapping, compatible with Blender render baking"},
 		{0, NULL, 0, NULL, NULL}
 	};
 

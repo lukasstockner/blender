@@ -873,72 +873,83 @@ static void draw_viewport_name(ARegion *ar, View3D *v3d, rcti *rect)
 /* draw info beside axes in bottom left-corner: 
  * framenum, object name, bone name (if available), marker name (if available)
  */
+
+#define BREAD_CRUMB_SEPARATOR " : "
+#define SHAPE_KEY_PINNED " (Pinned)"
+
 static void draw_selected_name(Scene *scene, Object *ob, rcti *rect)
 {
 	char info[256], *markern;
 	short offset = 1.5f * UI_UNIT_X + rect->xmin;
+
+	/* 
+	* breadcrumbs can contain 3 object names (MAX_NAME)
+	* and 2 BREAD_CRUMB_SEPARATORs (6)
+	* and a SHAPE_KEY_PINNED marker and a trailing '\0' (9+1)
+	*/
+	char bread_crumbs[3 * MAX_NAME + 6 + 10];
+	bread_crumbs[0] = '\0';
 	
 	/* get name of marker on current frame (if available) */
 	markern = BKE_scene_find_marker_name(scene, CFRA);
 	
 	/* check if there is an object */
 	if (ob) {
+		strcat(bread_crumbs, " ");
+		strcat(bread_crumbs, ob->id.name + 2);
+
 		/* name(s) to display depends on type of object */
 		if (ob->type == OB_ARMATURE) {
 			bArmature *arm = ob->data;
-			char *name = NULL;
 			
 			/* show name of active bone too (if possible) */
 			if (arm->edbo) {
 
-				if (arm->act_edbone)
-					name = ((EditBone *)arm->act_edbone)->name;
-
+				if (arm->act_edbone) {
+					strcat(bread_crumbs, BREAD_CRUMB_SEPARATOR);
+					strcat(bread_crumbs, ((EditBone *)arm->act_edbone)->name);
+				}
 			}
 			else if (ob->mode & OB_MODE_POSE) {
 				if (arm->act_bone) {
 
-					if (arm->act_bone->layer & arm->layer)
-						name = arm->act_bone->name;
-
+					if (arm->act_bone->layer & arm->layer) {
+						strcat(bread_crumbs, BREAD_CRUMB_SEPARATOR);
+						strcat(bread_crumbs, arm->act_bone->name);
+					}
 				}
 			}
-			if (name && markern)
-				BLI_snprintf(info, sizeof(info), "(%d) %s %s <%s>", CFRA, ob->id.name + 2, name, markern);
-			else if (name)
-				BLI_snprintf(info, sizeof(info), "(%d) %s %s", CFRA, ob->id.name + 2, name);
-			else
-				BLI_snprintf(info, sizeof(info), "(%d) %s", CFRA, ob->id.name + 2);
 		}
 		else if (ELEM3(ob->type, OB_MESH, OB_LATTICE, OB_CURVE)) {
 			Key *key = NULL;
 			KeyBlock *kb = NULL;
-			char shapes[MAX_NAME + 10];
-			
-			/* try to display active shapekey too */
-			shapes[0] = '\0';
+
+			/* try to display active bone and active shapekey too (if they exist) */
+
+			if (ob->type == OB_MESH && ob->mode & OB_MODE_WEIGHT_PAINT) {
+				Object *armobj = BKE_object_pose_armature_get(ob);
+				if (armobj  && armobj->mode & OB_MODE_POSE) {
+					bArmature *arm = armobj->data;
+					if (arm->act_bone) {
+						if (arm->act_bone->layer & arm->layer) {
+							strcat(bread_crumbs, BREAD_CRUMB_SEPARATOR);
+							strcat(bread_crumbs, arm->act_bone->name);
+						}
+					}
+				}
+			}
+
 			key = BKE_key_from_object(ob);
 			if (key) {
 				kb = BLI_findlink(&key->block, ob->shapenr - 1);
 				if (kb) {
-					BLI_snprintf(shapes, sizeof(shapes), ": %s ", kb->name);
+					strcat(bread_crumbs, BREAD_CRUMB_SEPARATOR);
+					strcat(bread_crumbs, kb->name);
 					if (ob->shapeflag == OB_SHAPE_LOCK) {
-						strcat(shapes, IFACE_(" (Pinned)"));
+						strcat(bread_crumbs, IFACE_(SHAPE_KEY_PINNED));
 					}
 				}
 			}
-			
-			if (markern)
-				BLI_snprintf(info, sizeof(info), "(%d) %s %s <%s>", CFRA, ob->id.name + 2, shapes, markern);
-			else
-				BLI_snprintf(info, sizeof(info), "(%d) %s %s", CFRA, ob->id.name + 2, shapes);
-		}
-		else {
-			/* standard object */
-			if (markern)
-				BLI_snprintf(info, sizeof(info), "(%d) %s <%s>", CFRA, ob->id.name + 2, markern);
-			else
-				BLI_snprintf(info, sizeof(info), "(%d) %s", CFRA, ob->id.name + 2);
 		}
 		
 		/* color depends on whether there is a keyframe */
@@ -948,15 +959,15 @@ static void draw_selected_name(Scene *scene, Object *ob, rcti *rect)
 			UI_ThemeColor(TH_TEXT_HI);
 	}
 	else {
-		/* no object */
-		if (markern)
-			BLI_snprintf(info, sizeof(info), "(%d) <%s>", CFRA, markern);
-		else
-			BLI_snprintf(info, sizeof(info), "(%d)", CFRA);
-		
+		/* no object */		
 		/* color is always white */
 		UI_ThemeColor(TH_TEXT_HI);
 	}
+
+	if (markern)
+		BLI_snprintf(info, sizeof(info), "(%d)%s <%s>", CFRA, bread_crumbs, markern);
+	else
+		BLI_snprintf(info, sizeof(info), "(%d)%s", CFRA, bread_crumbs);
 	
 	if (U.uiflag & USER_SHOW_ROTVIEWICON)
 		offset = U.widget_unit + (U.rvisize * 2) + rect->xmin;
@@ -2227,7 +2238,7 @@ void draw_depth_gpencil(Scene *scene, ARegion *ar, View3D *v3d)
 	setwinmatrixview3d(ar, v3d, NULL);
 	setviewmatrixview3d(scene, v3d, rv3d);  /* note: calls BKE_object_where_is_calc for camera... */
 
-	mult_m4_m4m4(rv3d->persmat, rv3d->winmat, rv3d->viewmat);
+	mul_m4_m4m4(rv3d->persmat, rv3d->winmat, rv3d->viewmat);
 	invert_m4_m4(rv3d->persinv, rv3d->persmat);
 	invert_m4_m4(rv3d->viewinv, rv3d->viewmat);
 
@@ -2264,7 +2275,7 @@ void draw_depth(Scene *scene, ARegion *ar, View3D *v3d, int (*func)(void *), boo
 	setwinmatrixview3d(ar, v3d, NULL);
 	setviewmatrixview3d(scene, v3d, rv3d);  /* note: calls BKE_object_where_is_calc for camera... */
 	
-	mult_m4_m4m4(rv3d->persmat, rv3d->winmat, rv3d->viewmat);
+	mul_m4_m4m4(rv3d->persmat, rv3d->winmat, rv3d->viewmat);
 	invert_m4_m4(rv3d->persinv, rv3d->persmat);
 	invert_m4_m4(rv3d->viewinv, rv3d->viewmat);
 	
@@ -2456,7 +2467,7 @@ static void gpu_update_lamps_shadows(Scene *scene, View3D *v3d)
 		copy_m4_m4(rv3d.winmat, winmat);
 		copy_m4_m4(rv3d.viewmat, viewmat);
 		invert_m4_m4(rv3d.viewinv, rv3d.viewmat);
-		mult_m4_m4m4(rv3d.persmat, rv3d.winmat, rv3d.viewmat);
+		mul_m4_m4m4(rv3d.persmat, rv3d.winmat, rv3d.viewmat);
 		invert_m4_m4(rv3d.persinv, rv3d.viewinv);
 
 		/* no need to call ED_view3d_draw_offscreen_init since shadow buffers were already updated */
@@ -2529,7 +2540,7 @@ void ED_view3d_update_viewmat(Scene *scene, View3D *v3d, ARegion *ar, float view
 		setviewmatrixview3d(scene, v3d, rv3d);  /* note: calls BKE_object_where_is_calc for camera... */
 
 	/* update utilitity matrices */
-	mult_m4_m4m4(rv3d->persmat, rv3d->winmat, rv3d->viewmat);
+	mul_m4_m4m4(rv3d->persmat, rv3d->winmat, rv3d->viewmat);
 	invert_m4_m4(rv3d->persinv, rv3d->persmat);
 	invert_m4_m4(rv3d->viewinv, rv3d->viewmat);
 
@@ -2829,7 +2840,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Scene *scene, Object *camera, int w
 		v3d.lens = params.lens;
 	}
 
-	mult_m4_m4m4(rv3d.persmat, rv3d.winmat, rv3d.viewmat);
+	mul_m4_m4m4(rv3d.persmat, rv3d.winmat, rv3d.viewmat);
 	invert_m4_m4(rv3d.persinv, rv3d.viewinv);
 
 	return ED_view3d_draw_offscreen_imbuf(scene, &v3d, &ar, width, height, flag,
