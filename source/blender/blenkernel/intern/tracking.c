@@ -2963,7 +2963,7 @@ void BKE_tracking_apply_inverse_homography(const MovieTrackingMarker *marker,
 
 typedef struct MovieReconstructContext {
 	struct libmv_Tracks *tracks;
-	int select_keyframes;
+	bool select_keyframes;
 	int keyframe1, keyframe2;
 	short refine_flags;
 
@@ -3276,7 +3276,8 @@ MovieReconstructContext *BKE_tracking_reconstruction_context_new(MovieTracking *
 	context->is_camera = object->flag & TRACKING_OBJECT_CAMERA;
 	context->motion_flag = tracking->settings.motion_flag;
 
-	context->select_keyframes = tracking->settings.reconstruction_flag & TRACKING_USE_KEYFRAME_SELECTION;
+	context->select_keyframes =
+		(tracking->settings.reconstruction_flag & TRACKING_USE_KEYFRAME_SELECTION) != 0;
 
 	context->focal_length = camera->focal;
 	context->principal_point[0] = camera->principal[0];
