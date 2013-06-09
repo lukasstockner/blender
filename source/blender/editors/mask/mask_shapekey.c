@@ -38,6 +38,7 @@
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_mask.h"
+#include "BKE_report.h"
 
 #include "DNA_object_types.h"
 #include "DNA_mask_types.h"
@@ -123,6 +124,9 @@ static int mask_shape_key_clear_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 
 	if (change) {
+		Scene *scene = CTX_data_scene(C);
+		BKE_mask_evaluate(mask, CFRA, TRUE);
+
 		WM_event_add_notifier(C, NC_MASK | ND_DATA, mask);
 		DAG_id_tag_update(&mask->id, 0);
 
@@ -449,4 +453,115 @@ int ED_mask_layer_shape_auto_key_select(Mask *mask, const int frame)
 	}
 
 	return change;
+}
+
+/******************** shape key cleanup operator *********************/
+
+static int mask_shape_key_cleanup_exec(bContext *C, wmOperator *op)
+{
+	Mask *mask = CTX_data_edit_mask(C);
+	MaskLayer *mask_layer = BKE_mask_layer_active(mask);
+	MaskLayerShape *current_shape, *next_shape;
+	int removed_count = 0;
+	const float tolerance = RNA_float_get(op->ptr, "tolerance");
+	const float tolerance_squared = tolerance * tolerance;
+	int width, height;
+	float side;
+
+	if (mask_layer == NULL) {
+		return OPERATOR_CANCELLED;
+	}
+
+	ED_mask_get_size(CTX_wm_area(C), &width, &height);
+	side = max_ff(width, height);
+
+	for (current_shape = mask_layer->splines_shapes.first;
+	     current_shape;
+	     current_shape = next_shape)
+	{
+		MaskLayerShape *previous_shape = current_shape->prev;
+		MaskLayerShapeElem *previous_elements, *current_elements, *next_elements;
+		int i;
+		float interpolation_factor, inv_interpolation_factor;
+		float average_error;
+
+		next_shape = current_shape->next;
+
+		if (previous_shape == NULL || next_shape == NULL) {
+			continue;
+		}
+
+		previous_elements = (MaskLayerShapeElem *) previous_shape->data;
+		current_elements = (MaskLayerShapeElem *) current_shape->data;
+		next_elements = (MaskLayerShapeElem *) next_shape->data;
+
+		if (previous_shape->tot_vert != current_shape->tot_vert ||
+		    previous_shape->tot_vert != next_shape->tot_vert ||
+		    current_shape->tot_vert != next_shape->tot_vert)
+		{
+			printf("%s: unexpected mistmatch between shapes vertices number.\n", __func__);
+			continue;
+		}
+
+		interpolation_factor = (float)(current_shape->frame - previous_shape->frame) /
+		                       (float)(next_shape->frame - previous_shape->frame);
+		inv_interpolation_factor = 1.0f - interpolation_factor;
+
+		average_error = 0.0f;
+		for (i = 0; i < current_shape->tot_vert; i++) {
+			int j;
+			for (j = 0; j < MASK_OBJECT_SHAPE_ELEM_SIZE; j++) {
+				float interpolated_value;
+				float current_error;
+				interpolated_value = inv_interpolation_factor * previous_elements[i].value[j] +
+				                     interpolation_factor * next_elements[i].value[j];
+				current_error = (current_elements[i].value[j] - interpolated_value) * side;
+				average_error += current_error * current_error;
+			}
+		}
+		average_error /= (float) current_shape->tot_vert;
+
+		if (ELEM(current_shape->frame, 3, 9)) {
+			printf("%d %f\n", current_shape->frame, average_error);
+		}
+
+		if (average_error < tolerance_squared) {
+			BLI_remlink(&mask_layer->splines_shapes, current_shape);
+			BKE_mask_layer_shape_free(current_shape);
+			removed_count++;
+		}
+	}
+
+	if (removed_count > 0) {
+		Scene *scene = CTX_data_scene(C);
+		BKE_mask_evaluate(mask, CFRA, TRUE);
+
+		WM_event_add_notifier(C, NC_MASK | ND_DATA, mask);
+		DAG_id_tag_update(&mask->id, 0);
+	}
+
+	BKE_reportf(op->reports, RPT_INFO, "Removed %d keys", removed_count);
+
+	return OPERATOR_FINISHED;
+}
+
+void MASK_OT_shape_key_cleanup(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Cleanup Shape Keys";
+	ot->description = "Remove keyframes which doesn't have much affect on mask shape";
+	ot->idname = "MASK_OT_shape_key_cleanup";
+
+	/* api callbacks */
+	ot->exec = mask_shape_key_cleanup_exec;
+	ot->poll = ED_maskedit_mask_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	/* properties */
+	RNA_def_float(ot->srna, "tolerance", 0.8f, -FLT_MAX, FLT_MAX,
+	              "Tolerance", "Average distance in pixels which mask is allowed to "
+	                           "slide off after removing shapekey",
+	              -100.0f, 100.0f);
 }

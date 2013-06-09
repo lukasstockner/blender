@@ -107,5 +107,6 @@ void MASK_OT_shape_key_insert(struct wmOperatorType *ot);
 void MASK_OT_shape_key_clear(struct wmOperatorType *ot);
 void MASK_OT_shape_key_feather_reset(struct wmOperatorType *ot);
 void MASK_OT_shape_key_rekey(struct wmOperatorType *ot);
+void MASK_OT_shape_key_cleanup(struct wmOperatorType *ot);
 
 #endif /* __MASK_INTERN_H__ */

@@ -262,6 +262,7 @@ class MASK_PT_tools():
         col.operator("mask.shape_key_insert")
         col.operator("mask.shape_key_feather_reset")
         col.operator("mask.shape_key_rekey")
+        col.operator("mask.shape_key_cleanup")
 
 
 class MASK_MT_mask(Menu):
@@ -324,6 +325,7 @@ class MASK_MT_animation(Menu):
         layout.operator("mask.shape_key_insert")
         layout.operator("mask.shape_key_feather_reset")
         layout.operator("mask.shape_key_rekey")
+        layout.operator("mask.shape_key_cleanup")
 
 
 class MASK_MT_select(Menu):
