@@ -860,56 +860,59 @@ void ui_but_add_shortcut(uiBut *but, const char *shortcut_str, const bool do_str
 	}
 }
 
+static bool ui_but_event_operator_string(const bContext *C, uiBut *but, char *buf, const size_t buf_len)
+{
+	MenuType *mt;
+	bool found = false;
+
+	if (but->optype) {
+		IDProperty *prop = (but->opptr) ? but->opptr->data : NULL;
+
+		if (WM_key_event_operator_string(C, but->optype->idname, but->opcontext, prop, true,
+		                                 buf, buf_len))
+		{
+			found = true;
+		}
+	}
+	else if ((mt = uiButGetMenuType(but))) {
+		IDProperty *prop_menu;
+		IDProperty *prop_menu_name;
+
+		/* annoying, create a property */
+		IDPropertyTemplate val = {0};
+		prop_menu = IDP_New(IDP_GROUP, &val, __func__); /* dummy, name is unimportant  */
+		IDP_AddToGroup(prop_menu, (prop_menu_name = IDP_NewString("", "name", sizeof(mt->idname))));
+
+		IDP_AssignString(prop_menu_name, mt->idname, sizeof(mt->idname));
+
+		if (WM_key_event_operator_string(C, "WM_OT_call_menu", WM_OP_INVOKE_REGION_WIN, prop_menu, true,
+		                                 buf, buf_len))
+		{
+			found = true;
+		}
+
+		IDP_FreeProperty(prop_menu);
+		MEM_freeN(prop_menu);
+	}
+
+	return found;
+}
+
 static void ui_menu_block_set_keymaps(const bContext *C, uiBlock *block)
 {
 	uiBut *but;
 	char buf[128];
-
-	/* for menu's */
-	MenuType *mt;
-	IDProperty *prop_menu = NULL;
-	IDProperty *prop_menu_name = NULL;
 
 	/* only do it before bounding */
 	if (block->rect.xmin != block->rect.xmax)
 		return;
 
 	for (but = block->buttons.first; but; but = but->next) {
-		if (but->optype) {
-			IDProperty *prop = (but->opptr) ? but->opptr->data : NULL;
 
-			if (WM_key_event_operator_string(C, but->optype->idname, but->opcontext, prop, true,
-			                                 buf, sizeof(buf)))
-			{
-				ui_but_add_shortcut(but, buf, FALSE);
-			}
-		}
-		else if ((mt = uiButGetMenuType(but))) {
-			/* only allocate menu property once */
-			if (prop_menu == NULL) {
-				/* annoying, create a property */
-				IDPropertyTemplate val = {0};
-				prop_menu = IDP_New(IDP_GROUP, &val, __func__); /* dummy, name is unimportant  */
-				IDP_AddToGroup(prop_menu, (prop_menu_name = IDP_NewString("", "name", sizeof(mt->idname))));
-			}
-
-			IDP_AssignString(prop_menu_name, mt->idname, sizeof(mt->idname));
-
-			if (WM_key_event_operator_string(C, "WM_OT_call_menu", WM_OP_INVOKE_REGION_WIN, prop_menu, true,
-			                                 buf, sizeof(buf)))
-			{
-				ui_but_add_shortcut(but, buf, FALSE);
-			}
+		if (ui_but_event_operator_string(C, but, buf, sizeof(buf))) {
+			ui_but_add_shortcut(but, buf, FALSE);
 		}
 	}
-
-	if (prop_menu) {
-		IDP_FreeProperty(prop_menu);
-		MEM_freeN(prop_menu);
-	}
-
-#undef UI_MENU_KEY_STR_CAT
-
 }
 
 void uiEndBlock(const bContext *C, uiBlock *block)
@@ -1137,9 +1140,6 @@ int ui_is_but_push_ex(uiBut *but, double *value)
 				break;
 			case TOGBUT:
 			case TOG:
-			case TOGR:
-			case TOG3:
-			case BUT_TOGDUAL:
 			case ICONTOG:
 			case OPTION:
 				UI_GET_BUT_VALUE_INIT(but, *value);
@@ -1417,7 +1417,7 @@ bool ui_is_but_float(uiBut *but)
 
 bool ui_is_but_bool(uiBut *but)
 {
-	if (ELEM5(but->type, TOG, TOGN, TOGR, ICONTOG, ICONTOGN))
+	if (ELEM4(but->type, TOG, TOGN, ICONTOG, ICONTOGN))
 		return true;
 
 	if (but->rnaprop && RNA_property_type(but->rnaprop) == PROP_BOOLEAN)
@@ -1617,8 +1617,6 @@ int ui_get_but_string_max_length(uiBut *but)
 {
 	if (ELEM3(but->type, TEX, SEARCH_MENU, SEARCH_MENU_UNLINK))
 		return but->hardmax;
-	else if (but->type == IDPOIN)
-		return MAX_ID_NAME - 2;
 	else
 		return UI_MAX_DRAW_STR;
 }
@@ -1713,7 +1711,7 @@ static float ui_get_but_step_unit(uiBut *but, float step_default)
  */
 void ui_get_but_string_ex(uiBut *but, char *str, const size_t maxlen, const int float_precision)
 {
-	if (but->rnaprop && ELEM4(but->type, TEX, IDPOIN, SEARCH_MENU, SEARCH_MENU_UNLINK)) {
+	if (but->rnaprop && ELEM3(but->type, TEX, SEARCH_MENU, SEARCH_MENU_UNLINK)) {
 		PropertyType type;
 		const char *buf = NULL;
 		int buf_len;
@@ -1749,18 +1747,6 @@ void ui_get_but_string_ex(uiBut *but, char *str, const size_t maxlen, const int 
 			memcpy(str, buf, MIN2(maxlen, (size_t)buf_len + 1));
 			MEM_freeN((void *)buf);
 		}
-	}
-	else if (but->type == IDPOIN) {
-		/* ID pointer */
-		if (but->idpoin_idpp) { /* Can be NULL for ID properties by python */
-			ID *id = *(but->idpoin_idpp);
-			if (id) {
-				BLI_strncpy(str, id->name + 2, maxlen);
-				return;
-			}
-		}
-		str[0] = '\0';
-		return;
 	}
 	else if (but->type == TEX) {
 		/* string */
@@ -1862,7 +1848,7 @@ bool ui_set_but_string_eval_num(bContext *C, uiBut *but, const char *str, double
 
 bool ui_set_but_string(bContext *C, uiBut *but, const char *str)
 {
-	if (but->rnaprop && ELEM4(but->type, TEX, IDPOIN, SEARCH_MENU, SEARCH_MENU_UNLINK)) {
+	if (but->rnaprop && ELEM3(but->type, TEX, SEARCH_MENU, SEARCH_MENU_UNLINK)) {
 		if (RNA_property_editable(&but->rnapoin, but->rnaprop)) {
 			PropertyType type;
 
@@ -1907,11 +1893,6 @@ bool ui_set_but_string(bContext *C, uiBut *but, const char *str)
 			}
 		}
 	}
-	else if (but->type == IDPOIN) {
-		/* ID pointer */
-		but->idpoin_func(C, str, but->idpoin_idpp);
-		return true;
-	}
 	else if (but->type == TEX) {
 		/* string */
 		if (ui_is_but_utf8(but)) BLI_strncpy_utf8(but->poin, str, but->hardmax);
@@ -1941,7 +1922,6 @@ bool ui_set_but_string(bContext *C, uiBut *but, const char *str)
 		}
 
 		if (!ui_is_but_float(but)) value = (int)floor(value + 0.5);
-		if (but->type == NUMABS) value = fabs(value);
 
 		/* not that we use hard limits here */
 		if (value < (double)but->hardmin) value = but->hardmin;
@@ -2282,7 +2262,6 @@ void ui_check_but(uiBut *but)
 	/* test for min and max, icon sliders, etc */
 	switch (but->type) {
 		case NUM:
-		case SLI:
 		case SCROLL:
 		case NUMSLI:
 			UI_GET_BUT_VALUE_INIT(but, value);
@@ -2290,15 +2269,6 @@ void ui_check_but(uiBut *but)
 			else if (value > (double)but->hardmax) ui_set_but_val(but, but->hardmax);
 			break;
 			
-		case NUMABS:
-		{
-			double value_abs;
-			UI_GET_BUT_VALUE_INIT(but, value);
-			value_abs = fabs(value);
-			if (value_abs < (double)but->hardmin) ui_set_but_val(but, but->hardmin);
-			else if (value_abs > (double)but->hardmax) ui_set_but_val(but, but->hardmax);
-			break;
-		}
 		case ICONTOG: 
 		case ICONTOGN:
 			if (!but->rnaprop || (RNA_property_flag(but->rnaprop) & PROP_ICONS_CONSECUTIVE)) {
@@ -2307,20 +2277,6 @@ void ui_check_but(uiBut *but)
 			}
 			break;
 			
-		case ICONROW:
-			if (!but->rnaprop || (RNA_property_flag(but->rnaprop) & PROP_ICONS_CONSECUTIVE)) {
-				UI_GET_BUT_VALUE_INIT(but, value);
-				but->iconadd = (int)value - (int)(but->hardmin);
-			}
-			break;
-			
-		case ICONTEXTROW:
-			if (!but->rnaprop || (RNA_property_flag(but->rnaprop) & PROP_ICONS_CONSECUTIVE)) {
-				UI_GET_BUT_VALUE_INIT(but, value);
-				but->iconadd = (int)value - (int)(but->hardmin);
-			}
-			break;
-
 			/* quiet warnings for unhandled types */
 		default:
 			break;
@@ -2334,7 +2290,6 @@ void ui_check_but(uiBut *but)
 	switch (but->type) {
 	
 		case MENU:
-		case ICONTEXTROW:
 		
 			if (BLI_rctf_size_x(&but->rect) > 24.0f) {
 				UI_GET_BUT_VALUE_INIT(but, value);
@@ -2344,7 +2299,6 @@ void ui_check_but(uiBut *but)
 	
 		case NUM:
 		case NUMSLI:
-		case NUMABS:
 
 			UI_GET_BUT_VALUE_INIT(but, value);
 
@@ -2391,7 +2345,6 @@ void ui_check_but(uiBut *but)
 		
 			break;
 
-		case IDPOIN:
 		case TEX:
 		case SEARCH_MENU:
 		case SEARCH_MENU_UNLINK:
@@ -2441,14 +2394,6 @@ void ui_check_but(uiBut *but)
 
 			break;
 
-		case BUT_TOGDUAL:
-			/* trying to get the dual-icon to left of text... not very nice */
-			if (but->str[0]) {
-				BLI_strncpy(but->drawstr, "  ", UI_MAX_DRAW_STR);
-				BLI_strncpy(but->drawstr + 2, but->str, UI_MAX_DRAW_STR - 2);
-			}
-			break;
-		
 		case HSVCUBE:
 		case HSVCIRCLE:
 			break;
@@ -2768,7 +2713,7 @@ static uiBut *ui_def_but(uiBlock *block, int type, int retval, const char *str,
 	
 	but->pos = -1;   /* cursor invisible */
 
-	if (ELEM3(but->type, NUM, NUMABS, NUMSLI)) {    /* add a space to name */
+	if (ELEM(but->type, NUM, NUMSLI)) {    /* add a space to name */
 		/* slen remains unchanged from previous assignment, ensure this stays true */
 		if (slen > 0 && slen < UI_MAX_NAME_STR - 2) {
 			if (but->str[slen - 1] != ' ') {
@@ -2779,12 +2724,9 @@ static uiBut *ui_def_but(uiBlock *block, int type, int retval, const char *str,
 	}
 
 	if ((block->flag & UI_BLOCK_LOOP) ||
-	    ELEM9(but->type, MENU, TEX, LABEL, IDPOIN, BLOCK, BUTM, SEARCH_MENU, PROGRESSBAR, SEARCH_MENU_UNLINK))
+	    ELEM8(but->type, MENU, TEX, LABEL, BLOCK, BUTM, SEARCH_MENU, PROGRESSBAR, SEARCH_MENU_UNLINK))
 	{
 		but->flag |= (UI_TEXT_LEFT | UI_ICON_LEFT);
-	}
-	else if (but->type == BUT_TOGDUAL) {
-		but->flag |= UI_ICON_LEFT;
 	}
 
 	but->flag |= (block->flag & UI_BUT_ALIGN);
@@ -3159,26 +3101,6 @@ void autocomplete_end(AutoComplete *autocpl, char *autoname)
 	}
 	MEM_freeN(autocpl->truncate);
 	MEM_freeN(autocpl);
-}
-
-/* autocomplete callback for ID buttons */
-static void autocomplete_id(bContext *C, char *str, void *arg_v)
-{
-	int blocktype = (intptr_t)arg_v;
-	ListBase *listb = which_libbase(CTX_data_main(C), blocktype);
-	
-	if (listb == NULL) return;
-	
-	/* search if str matches the beginning of an ID struct */
-	if (str[0]) {
-		AutoComplete *autocpl = autocomplete_begin(str, MAX_ID_NAME - 2);
-		ID *id;
-		
-		for (id = listb->first; id; id = id->next)
-			autocomplete_do_name(autocpl, id->name + 2);
-
-		autocomplete_end(autocpl, str);
-	}
 }
 
 static void ui_check_but_and_iconize(uiBut *but, int icon)
@@ -3672,19 +3594,6 @@ void uiButSetCompleteFunc(uiBut *but, uiButCompleteFunc func, void *arg)
 	but->autofunc_arg = arg;
 }
 
-uiBut *uiDefIDPoinBut(uiBlock *block, uiIDPoinFuncFP func, short blocktype, int retval, const char *str, int x, int y, short width, short height, void *idpp, const char *tip)
-{
-	uiBut *but = ui_def_but(block, IDPOIN, retval, str, x, y, width, height, NULL, 0.0, 0.0, 0.0, 0.0, tip);
-	but->idpoin_func = func;
-	but->idpoin_idpp = (ID **) idpp;
-	ui_check_but(but);
-	
-	if (blocktype)
-		uiButSetCompleteFunc(but, autocomplete_id, (void *)(intptr_t)blocktype);
-
-	return but;
-}
-
 uiBut *uiDefBlockBut(uiBlock *block, uiBlockCreateFunc func, void *arg, const char *str, int x, int y, short width, short height, const char *tip)
 {
 	uiBut *but = ui_def_but(block, BLOCK, 0, str, x, y, width, height, arg, 0.0, 0.0, 0.0, 0.0, tip);
@@ -4088,14 +3997,9 @@ void uiButGetStrInfo(bContext *C, uiBut *but, ...)
 			}
 		}
 		else if (type == BUT_GET_OP_KEYMAP) {
-			if (but->optype && !(but->block->flag & UI_BLOCK_LOOP)) {
-				/* operator keymap (not menus, they already have it) */
-				IDProperty *prop = (but->opptr) ? but->opptr->data : NULL;
-				char buf[512];
-
-				if (WM_key_event_operator_string(C, but->optype->idname, but->opcontext, prop, true,
-				                                 buf, sizeof(buf)))
-				{
+			if (!ui_block_is_menu(but->block)) {
+				char buf[128];
+				if (ui_but_event_operator_string(C, but, buf, sizeof(buf))) {
 					tmp = BLI_strdup(buf);
 				}
 			}

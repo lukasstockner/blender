@@ -56,9 +56,8 @@ class RENDER_PT_freestyle(RenderFreestyleButtonsPanel, Panel):
         row.label(text="Line Thickness:")
         row.prop(rd, "line_thickness_mode", expand=True)
         
-        row = layout.row()
-        row.active = (rd.line_thickness_mode == 'ABSOLUTE')
-        row.prop(rd, "line_thickness")
+        if (rd.line_thickness_mode == 'ABSOLUTE'):
+            layout.prop(rd, "line_thickness")
 
         row = layout.row()
         row.label(text="Line style settings are found in the Render Layers context")
@@ -161,6 +160,7 @@ class RENDERLAYER_PT_freestyle(RenderLayerFreestyleButtonsPanel, Panel):
                 row = box.row(align=True)
                 row.prop(module, "use", text="")
                 row.prop(module, "script", text="")
+                row.operator("scene.freestyle_module_open", icon='FILESEL', text="")
                 row.operator("scene.freestyle_module_remove", icon='X', text="")
                 row.operator("scene.freestyle_module_move", icon='TRIA_UP', text="").direction = 'UP'
                 row.operator("scene.freestyle_module_move", icon='TRIA_DOWN', text="").direction = 'DOWN'

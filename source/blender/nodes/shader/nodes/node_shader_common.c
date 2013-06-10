@@ -89,7 +89,8 @@ static void group_freeexec(bNode *UNUSED(node), void *nodedata)
 {
 	bNodeTreeExec *gexec = (bNodeTreeExec *)nodedata;
 	
-	ntreeShaderEndExecTree_internal(gexec);
+	if (gexec)
+		ntreeShaderEndExecTree_internal(gexec);
 }
 
 /* Copy inputs to the internal stack.
@@ -239,7 +240,7 @@ void register_node_type_sh_group(void)
 	
 	node_type_compatibility(&ntype, NODE_OLD_SHADING | NODE_NEW_SHADING);
 	node_type_socket_templates(&ntype, NULL, NULL);
-	node_type_size(&ntype, 120, 60, 200);
+	node_type_size(&ntype, 120, 60, 400);
 	node_type_label(&ntype, node_group_label);
 	node_type_update(&ntype, NULL, node_group_verify);
 	node_type_exec(&ntype, group_initexec, group_freeexec, group_execute);

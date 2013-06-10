@@ -100,7 +100,7 @@ class NodeAddOperator():
     def poll(cls, context):
         space = context.space_data
         # needs active node editor and a tree to add nodes to
-        return (space.type == 'NODE_EDITOR' and space.edit_tree)
+        return (space.type == 'NODE_EDITOR' and space.edit_tree and not space.edit_tree.library)
 
     # Default execute simply adds a node
     def execute(self, context):
@@ -173,9 +173,10 @@ class NODE_OT_add_search(NodeAddOperator, Operator):
         enum_items.clear()
 
         for index, item in enumerate(nodeitems_utils.node_items_iter(context)):
-            nodetype = getattr(bpy.types, item.nodetype, None)
-            if nodetype:
-                enum_items.append((str(index), item.label, nodetype.bl_rna.description, index))
+            if isinstance(item, nodeitems_utils.NodeItem):
+                nodetype = getattr(bpy.types, item.nodetype, None)
+                if nodetype:
+                    enum_items.append((str(index), item.label, nodetype.bl_rna.description, index))
         return enum_items
 
     # Look up the item based on index
@@ -231,7 +232,7 @@ class NODE_OT_collapse_hide_unused_toggle(Operator):
     def poll(cls, context):
         space = context.space_data
         # needs active node editor and a tree
-        return (space.type == 'NODE_EDITOR' and space.edit_tree)
+        return (space.type == 'NODE_EDITOR' and space.edit_tree and not space.edit_tree.library)
 
     def execute(self, context):
         space = context.space_data

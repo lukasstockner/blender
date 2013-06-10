@@ -897,8 +897,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 #endif
 
 	if ((ltmd->flag & MOD_SCREW_NORMAL_CALC) == 0) {
-		/* BMESH_TODO, we only need to get vertex normals here, this is way overkill */
-		CDDM_calc_normals(result);
+		result->dirty |= DM_DIRTY_NORMALS;
 	}
 
 	return result;
@@ -931,12 +930,6 @@ static void foreachObjectLink(
 	walk(userData, ob, &ltmd->ob_axis);
 }
 
-static int dependsOnTime(ModifierData *UNUSED(md))
-{
-	return 0;
-}
-
-
 ModifierTypeInfo modifierType_Screw = {
 	/* name */              "Screw",
 	/* structName */        "ScrewModifierData",
@@ -960,7 +953,7 @@ ModifierTypeInfo modifierType_Screw = {
 	/* freeData */          NULL,
 	/* isDisabled */        NULL,
 	/* updateDepgraph */    updateDepgraph,
-	/* dependsOnTime */     dependsOnTime,
+	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ foreachObjectLink,
 	/* foreachIDLink */     NULL,

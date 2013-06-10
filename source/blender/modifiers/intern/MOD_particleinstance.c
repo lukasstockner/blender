@@ -77,12 +77,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 	tpimd->random_position = pimd->random_position;
 }
 
-static int dependsOnTime(ModifierData *UNUSED(md))
-{
-	return 0;
-}
-
-static int isDisabled(ModifierData *md, int useRenderParams)
+static bool isDisabled(ModifierData *md, int useRenderParams)
 {
 	ParticleInstanceModifierData *pimd = (ParticleInstanceModifierData *)md;
 	ParticleSystem *psys;
@@ -391,7 +386,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	if (size)
 		MEM_freeN(size);
 
-	CDDM_calc_normals(result);
+	result->dirty |= DM_DIRTY_NORMALS;
 
 	return result;
 }
@@ -417,7 +412,7 @@ ModifierTypeInfo modifierType_ParticleInstance = {
 	/* freeData */          NULL,
 	/* isDisabled */        isDisabled,
 	/* updateDepgraph */    updateDepgraph,
-	/* dependsOnTime */     dependsOnTime,
+	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */  NULL,
 	/* foreachObjectLink */ foreachObjectLink,
 	/* foreachIDLink */     NULL,

@@ -624,7 +624,7 @@ class VIEW3D_MT_select_edit_mesh(Menu):
         layout.operator("mesh.select_axis", text="Side of Active")
 
         layout.operator("mesh.select_linked", text="Linked")
-        layout.operator("mesh.select_vertex_path", text="Vertex Path")
+        layout.operator("mesh.shortest_path_select", text="Shortest Path")
         layout.operator("mesh.loop_multi_select", text="Edge Loop").ring = False
         layout.operator("mesh.loop_multi_select", text="Edge Ring").ring = True
 
@@ -903,7 +903,9 @@ class VIEW3D_MT_object_specials(Menu):
     def draw(self, context):
         layout = self.layout
 
+        scene = context.scene
         obj = context.object
+
         if obj.type == 'CAMERA':
             layout.operator_context = 'INVOKE_REGION_WIN'
 
@@ -959,17 +961,23 @@ class VIEW3D_MT_object_specials(Menu):
         if obj.type == 'LAMP':
             layout.operator_context = 'INVOKE_REGION_WIN'
 
-            props = layout.operator("wm.context_modal_mouse", text="Energy")
-            props.data_path_iter = "selected_editable_objects"
-            props.data_path_item = "data.energy"
-            props.header_text = "Lamp Energy: %.3f"
-
-            if obj.data.type in {'SPOT', 'AREA', 'POINT'}:
-                props = layout.operator("wm.context_modal_mouse", text="Falloff Distance")
+            if scene.render.use_shading_nodes:
+                props = layout.operator("wm.context_modal_mouse", text="Size")
                 props.data_path_iter = "selected_editable_objects"
-                props.data_path_item = "data.distance"
-                props.input_scale = 0.1
-                props.header_text = "Lamp Falloff Distance: %.1f"
+                props.data_path_item = "data.shadow_soft_size"
+                props.header_text = "Lamp Size: %.3f"
+            else:
+                props = layout.operator("wm.context_modal_mouse", text="Energy")
+                props.data_path_iter = "selected_editable_objects"
+                props.data_path_item = "data.energy"
+                props.header_text = "Lamp Energy: %.3f"
+
+                if obj.data.type in {'SPOT', 'AREA', 'POINT'}:
+                    props = layout.operator("wm.context_modal_mouse", text="Falloff Distance")
+                    props.data_path_iter = "selected_editable_objects"
+                    props.data_path_item = "data.distance"
+                    props.input_scale = 0.1
+                    props.header_text = "Lamp Falloff Distance: %.1f"
 
             if obj.data.type == 'SPOT':
                 layout.separator()
@@ -985,17 +993,18 @@ class VIEW3D_MT_object_specials(Menu):
                 props.input_scale = -0.01
                 props.header_text = "Spot Blend: %.2f"
 
-                props = layout.operator("wm.context_modal_mouse", text="Clip Start")
-                props.data_path_iter = "selected_editable_objects"
-                props.data_path_item = "data.shadow_buffer_clip_start"
-                props.input_scale = 0.05
-                props.header_text = "Clip Start: %.2f"
+                if not scene.render.use_shading_nodes:
+                    props = layout.operator("wm.context_modal_mouse", text="Clip Start")
+                    props.data_path_iter = "selected_editable_objects"
+                    props.data_path_item = "data.shadow_buffer_clip_start"
+                    props.input_scale = 0.05
+                    props.header_text = "Clip Start: %.2f"
 
-                props = layout.operator("wm.context_modal_mouse", text="Clip End")
-                props.data_path_iter = "selected_editable_objects"
-                props.data_path_item = "data.shadow_buffer_clip_end"
-                props.input_scale = 0.05
-                props.header_text = "Clip End: %.2f"
+                    props = layout.operator("wm.context_modal_mouse", text="Clip End")
+                    props.data_path_iter = "selected_editable_objects"
+                    props.data_path_item = "data.shadow_buffer_clip_end"
+                    props.input_scale = 0.05
+                    props.header_text = "Clip End: %.2f"
 
         layout.separator()
 
@@ -1764,9 +1773,8 @@ class VIEW3D_MT_edit_mesh(Menu):
 
         layout.separator()
         layout.operator("mesh.symmetrize")
-        layout.operator("view3d.edit_mesh_extrude_move_normal", text="Extrude Region")
-        layout.operator("view3d.edit_mesh_extrude_individual_move", text="Extrude Individual")
         layout.operator("mesh.duplicate_move")
+        layout.menu("VIEW3D_MT_edit_mesh_extrude")
         layout.menu("VIEW3D_MT_edit_mesh_delete")
 
         layout.separator()
@@ -1830,7 +1838,7 @@ class VIEW3D_MT_edit_mesh_specials(Menu):
 
         layout.operator("mesh.blend_from_shape")
         layout.operator("mesh.shape_propagate_to_all")
-        layout.operator("mesh.select_vertex_path")
+        layout.operator("mesh.shortest_path_select")
         layout.operator("mesh.sort_elements")
         layout.operator("mesh.symmetrize")
 
@@ -1902,8 +1910,6 @@ class VIEW3D_MT_edit_mesh_vertices(Menu):
         layout.operator("mesh.vertices_smooth")
         layout.operator("mesh.remove_doubles")
         layout.operator("mesh.sort_elements", text="Sort Vertices").elements = {'VERT'}
-
-        layout.operator("mesh.select_vertex_path")
 
         layout.operator("mesh.blend_from_shape")
 

@@ -1869,7 +1869,7 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	RNA_def_property_float_sdna(prop, NULL, "vgroup_weight");
 	RNA_def_property_ui_text(prop, "Vertex Group Weight", "Weight to assign in vertex groups");
 
-	/* use with MESH_OT_select_shortest_path */
+	/* use with MESH_OT_shortest_path_pick */
 	prop = RNA_def_property(srna, "edge_path_mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "edge_mode");
 	RNA_def_property_enum_items(prop, edge_tag_items);
@@ -3490,7 +3490,7 @@ static void rna_def_scene_render_layer(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Freestyle Settings", "");
 }
 
-/* curve.splines */
+/* Render Layers */
 static void rna_def_render_layers(BlenderRNA *brna, PropertyRNA *cprop)
 {
 	StructRNA *srna;
@@ -3523,7 +3523,7 @@ static void rna_def_render_layers(BlenderRNA *brna, PropertyRNA *cprop)
 	func = RNA_def_function(srna, "new", "rna_RenderLayer_new");
 	RNA_def_function_ui_description(func, "Add a render layer to scene");
 	RNA_def_function_flag(func, FUNC_USE_SELF_ID);
-	parm = RNA_def_string(func, "name", "RenderLayer", 0, "", "New name for the marker (not unique)");
+	parm = RNA_def_string(func, "name", "RenderLayer", 0, "", "New name for the render layer (not unique)");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	parm = RNA_def_pointer(func, "result", "SceneRenderLayer", "", "Newly created render layer");
 	RNA_def_function_return(func, parm);
@@ -3531,7 +3531,7 @@ static void rna_def_render_layers(BlenderRNA *brna, PropertyRNA *cprop)
 	func = RNA_def_function(srna, "remove", "rna_RenderLayer_remove");
 	RNA_def_function_ui_description(func, "Remove a render layer");
 	RNA_def_function_flag(func, FUNC_USE_MAIN | FUNC_USE_REPORTS | FUNC_USE_SELF_ID);
-	parm = RNA_def_pointer(func, "layer", "SceneRenderLayer", "", "Timeline marker to remove");
+	parm = RNA_def_pointer(func, "layer", "SceneRenderLayer", "", "Render layer to remove");
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL | PROP_RNAPTR);
 	RNA_def_property_clear_flag(parm, PROP_THICK_WRAP);
 }

@@ -42,6 +42,8 @@
 #include "BLI_math_rotation.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_editmesh.h"
+
 #include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_types.h"
@@ -49,6 +51,13 @@
 #include "rna_internal.h"
 
 #include "WM_types.h"
+
+EnumPropertyItem mesh_delimit_mode_items[] = {
+	{BMO_DELIM_NORMAL, "NORMAL", 0, "Normal", "Delimit by face directions"},
+	{BMO_DELIM_MATERIAL, "MATERIAL", 0, "Material", "Delimit by face material"},
+	{BMO_DELIM_SEAM, "SEAM", 0, "Seam", "Delimit by edge seams"},
+	{0, NULL, 0, NULL, NULL},
+};
 
 #ifdef RNA_RUNTIME
 
@@ -60,7 +69,6 @@
 #include "BKE_depsgraph.h"
 #include "BKE_main.h"
 #include "BKE_mesh.h"
-#include "BKE_editmesh.h"
 #include "BKE_report.h"
 
 #include "ED_mesh.h" /* XXX Bad level call */
@@ -318,8 +326,15 @@ static void rna_MeshPolygon_normal_get(PointerRNA *ptr, float *values)
 	Mesh *me = rna_mesh(ptr);
 	MPoly *mp = (MPoly *)ptr->data;
 
-	/* BMESH_TODO: might be faster to look for a CD_NORMALS layer and use that */
 	BKE_mesh_calc_poly_normal(mp, me->mloop + mp->loopstart, me->mvert, values);
+}
+
+static void rna_MeshPolygon_center_get(PointerRNA *ptr, float *values)
+{
+	Mesh *me = rna_mesh(ptr);
+	MPoly *mp = (MPoly *)ptr->data;
+
+	BKE_mesh_calc_poly_center(mp, me->mloop + mp->loopstart, me->mvert, values);
 }
 
 static float rna_MeshPolygon_area_get(PointerRNA *ptr)
@@ -1871,6 +1886,12 @@ static void rna_def_mpolygon(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_float_funcs(prop, "rna_MeshPolygon_normal_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Face normal", "Local space unit length normal vector for this polygon");
+
+	prop = RNA_def_property(srna, "center", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_float_funcs(prop, "rna_MeshPolygon_center_get", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Face center", "Center of the polygon");
 
 	prop = RNA_def_property(srna, "area", PROP_FLOAT, PROP_UNSIGNED);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);

@@ -648,7 +648,6 @@ static char *wm_prop_pystring_from_context(bContext *C, PointerRNA *ptr, Propert
 	char *ret = NULL;
 
 	if (ptr->id.data) {
-		ID *idptr = ptr->id.data;
 
 #define CTX_TEST_PTR_ID(C, member, idptr) \
 		{ \
@@ -671,7 +670,16 @@ static char *wm_prop_pystring_from_context(bContext *C, PointerRNA *ptr, Propert
 			} \
 		} (void)0
 
-		switch (GS(idptr->name)) {
+#define CTX_TEST_PTR_DATA_TYPE(C, member, rna_type, rna_ptr, dataptr_cmp) \
+		{ \
+			const char *ctx_member = member; \
+			if (RNA_struct_is_a((ptr)->type, &(rna_type)) && (ptr)->data == (dataptr_cmp)) { \
+				member_id = ctx_member; \
+				break; \
+			} \
+		} (void)0
+
+		switch (GS(((ID *)ptr->id.data)->name)) {
 			case ID_SCE:
 			{
 				CTX_TEST_PTR_ID(C, "scene", ptr->id.data);
@@ -707,6 +715,11 @@ static char *wm_prop_pystring_from_context(bContext *C, PointerRNA *ptr, Propert
 			case ID_SCR:
 			{
 				CTX_TEST_PTR_ID(C, "screen", ptr->id.data);
+
+				CTX_TEST_PTR_DATA_TYPE(C, "space_data", RNA_Space, ptr, CTX_wm_space_data(C));
+				CTX_TEST_PTR_DATA_TYPE(C, "area", RNA_Area, ptr, CTX_wm_area(C));
+				CTX_TEST_PTR_DATA_TYPE(C, "region", RNA_Region, ptr, CTX_wm_region(C));
+
 				break;
 			}
 		}
@@ -1903,19 +1916,26 @@ static void WM_OT_read_factory_settings(wmOperatorType *ot)
 
 /* *************** open file **************** */
 
-static void open_set_load_ui(wmOperator *op)
+static void open_set_load_ui(wmOperator *op, bool use_prefs)
 {
-	if (!RNA_struct_property_is_set(op->ptr, "load_ui"))
-		RNA_boolean_set(op->ptr, "load_ui", !(U.flag & USER_FILENOUI));
+	PropertyRNA *prop = RNA_struct_find_property(op->ptr, "load_ui");
+	if (!RNA_property_is_set(op->ptr, prop)) {
+		RNA_property_boolean_set(op->ptr, prop, use_prefs ?
+		                         (U.flag & USER_FILENOUI) == 0 :
+		                         (G.fileflags & G_FILE_NO_UI) == 0);
+	}
 }
 
-static void open_set_use_scripts(wmOperator *op)
+static void open_set_use_scripts(wmOperator *op, bool use_prefs)
 {
-	if (!RNA_struct_property_is_set(op->ptr, "use_scripts")) {
+	PropertyRNA *prop = RNA_struct_find_property(op->ptr, "use_scripts");
+	if (!RNA_property_is_set(op->ptr, prop)) {
 		/* use G_SCRIPT_AUTOEXEC rather than the userpref because this means if
 		 * the flag has been disabled from the command line, then opening
 		 * from the menu wont enable this setting. */
-		RNA_boolean_set(op->ptr, "use_scripts", (G.f & G_SCRIPT_AUTOEXEC));
+		RNA_property_boolean_set(op->ptr, prop, use_prefs ?
+		                         (U.flag & USER_SCRIPT_AUTOEXEC_DISABLE) == 0 :
+		                         (G.f & G_SCRIPT_AUTOEXEC) != 0);
 	}
 }
 
@@ -1938,8 +1958,8 @@ static int wm_open_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent *U
 	}
 
 	RNA_string_set(op->ptr, "filepath", openname);
-	open_set_load_ui(op);
-	open_set_use_scripts(op);
+	open_set_load_ui(op, true);
+	open_set_use_scripts(op, true);
 
 	WM_event_add_fileselect(C, op);
 
@@ -1951,8 +1971,10 @@ static int wm_open_mainfile_exec(bContext *C, wmOperator *op)
 	char path[FILE_MAX];
 
 	RNA_string_get(op->ptr, "filepath", path);
-	open_set_load_ui(op);
-	open_set_use_scripts(op);
+
+	/* re-use last loaded setting so we can reload a file without changing */
+	open_set_load_ui(op, false);
+	open_set_use_scripts(op, false);
 
 	if (RNA_boolean_get(op->ptr, "load_ui"))
 		G.fileflags &= ~G_FILE_NO_UI;

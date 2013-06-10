@@ -110,12 +110,6 @@ enum {
 	SIMVERT_EDGE
 };
 
-/* vertex path selection values */
-enum {
-	VPATH_SELECT_EDGE_LENGTH = 0,
-	VPATH_SELECT_TOPOLOGICAL
-};
-
 /* Poke face center calculation */
 enum {
 	BMOP_POKE_MEAN_WEIGHTED = 0,
@@ -128,7 +122,7 @@ extern const int         bmo_opdefines_total;
 
 /*------specific operator helper functions-------*/
 void BM_mesh_esubdivide(BMesh *bm, const char edge_hflag,
-                        const float smooth, const short smooth_falloff,
+                        const float smooth, const short smooth_falloff, const bool use_smooth_even,
                         const float fractal, const float along_normal,
                         const int numcuts,
                         const int seltype, const int cornertype,

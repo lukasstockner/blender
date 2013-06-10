@@ -539,7 +539,7 @@ BMesh *BKE_mesh_to_bmesh(Mesh *me, Object *ob)
 
 	bm = BM_mesh_create(&bm_mesh_allocsize_default);
 
-	BM_mesh_bm_from_me(bm, me, true, ob->shapenr);
+	BM_mesh_bm_from_me(bm, me, false, true, ob->shapenr);
 
 	return bm;
 }
@@ -1998,16 +1998,24 @@ void BKE_mesh_calc_normals_poly(MVert *mverts, int numVerts, MLoop *mloop, MPoly
 {
 	float (*pnors)[3] = r_polynors;
 	float (*tnorms)[3];
-	float tpnor[3];  /* temp poly normal */
 	int i;
 	MPoly *mp;
 
 	/* first go through and calculate normals for all the polys */
 	tnorms = MEM_callocN(sizeof(*tnorms) * numVerts, __func__);
 
-	mp = mpolys;
-	for (i = 0; i < numPolys; i++, mp++) {
-		mesh_calc_normals_poly_accum(mp, mloop + mp->loopstart, mverts, pnors ? pnors[i] : tpnor, tnorms);
+	if (pnors) {
+		mp = mpolys;
+		for (i = 0; i < numPolys; i++, mp++) {
+			mesh_calc_normals_poly_accum(mp, mloop + mp->loopstart, mverts, pnors[i], tnorms);
+		}
+	}
+	else {
+		float tpnor[3];  /* temp poly normal */
+		mp = mpolys;
+		for (i = 0; i < numPolys; i++, mp++) {
+			mesh_calc_normals_poly_accum(mp, mloop + mp->loopstart, mverts, tpnor, tnorms);
+		}
 	}
 
 	/* following Mesh convention; we use vertex coordinate itself for normal in this case */

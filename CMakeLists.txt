@@ -118,9 +118,10 @@ mark_as_advanced(WITH_BLENDER)
 option(WITH_INTERNATIONAL "Enable I18N (International fonts and text)" ON)
 
 option(WITH_PYTHON        "Enable Embedded Python API  (only disable for development)" ON)
-option(WITH_PYTHON_SECURITY "Disables execution of scripts within blend files by default (recommend to leave off)" OFF)
+option(WITH_PYTHON_SECURITY "Disables execution of scripts within blend files by default" ON) 
 mark_as_advanced(WITH_PYTHON)  # dont want people disabling this unless they really know what they are doing.
 mark_as_advanced(WITH_PYTHON_SECURITY)  # some distributions see this as a security issue, rather than have them patch it, make a build option.
+set(WITH_PYTHON_SECURITY ON CACHE BOOL "ON" FORCE) # temp force on. 
 
 option(WITH_PYTHON_SAFETY "Enable internal API error checking to track invalid data to prevent crash on access (at the expense of some effeciency, only enable for development)." OFF)
 option(WITH_PYTHON_MODULE "Enable building as a python module which runs without a user interface, like running regular blender in background mode (experimental, only enable for development)" OFF)
@@ -931,20 +932,26 @@ elseif(WIN32)
 	#  include(${CMAKE_ROOT}/Modules/Platform/Windows-cl.cmake)
 
 	if(CMAKE_COMPILER_IS_GNUCC)
-		set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/mingw32)
 		include(CheckCSourceCompiles)
 		# Setup 64bit and 64bit windows systems
 		CHECK_C_SOURCE_COMPILES("
 			#ifndef __MINGW64__
 			#error
 			#endif
-			main(){}
+			int main(void) { return 0; }
 			" 
 			WITH_MINGW64)
 		
 		if(WITH_MINGW64)
 			message(STATUS "Compiling for 64 bit with MinGW-w64.")
 			set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/mingw64)
+		else()
+			message(STATUS "Compiling for 32 bit with MinGW-w32.")
+			set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/mingw32)
+			
+			if(WITH_RAYOPTIMIZATION)
+				message(WARNING "MinGW-w32 is known to be unstable with 'WITH_RAYOPTIMIZATION' option enabled.")
+			endif()
 		endif()
 	else()
 		# Setup 64bit and 64bit windows systems
@@ -1088,11 +1095,7 @@ elseif(WIN32)
 		set(PNG_LIBPATH ${PNG}/lib) # not cmake defined
 
 		set(ZLIB_INCLUDE_DIRS ${LIBDIR}/zlib/include)
-		if(CMAKE_CL_64)
-			set(ZLIB_LIBRARIES ${LIBDIR}/zlib/lib/libz.lib)
-		else()
-			set(ZLIB_LIBRARIES ${LIBDIR}/zlib/lib/zlib.lib)
-		endif()
+		set(ZLIB_LIBRARIES ${LIBDIR}/zlib/lib/libz_st.lib)
 
 		set(PTHREADS_INCLUDE_DIRS ${LIBDIR}/pthreads/include)
 		set(PTHREADS_LIBRARIES ${LIBDIR}/pthreads/lib/pthreadVC2.lib)

@@ -113,7 +113,7 @@ static DerivedMesh *applyModifier(ModifierData *md, struct Object *ob,
 	const bool vertex_only = (bmd->flags & BME_BEVEL_VERT) != 0;
 	const bool do_clamp = !(bmd->flags & BME_BEVEL_OVERLAP_OK);
 
-	bm = DM_to_bmesh(dm);
+	bm = DM_to_bmesh(dm, true);
 
 	if (vertex_only) {
 		if ((bmd->lim_flags & BME_BEVEL_VGROUP) && bmd->defgrp_name[0]) {
@@ -171,7 +171,7 @@ static DerivedMesh *applyModifier(ModifierData *md, struct Object *ob,
 	           bm->ftoolflagpool == NULL);  /* make sure we never alloc'd these */
 	BM_mesh_free(bm);
 
-	CDDM_calc_normals(result);
+	result->dirty |= DM_DIRTY_NORMALS;
 
 	return result;
 }
@@ -208,7 +208,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
 
 	/* until we allow for dirty normal flag, always calc,
 	 * note: calculating on the CDDM is faster then the BMesh equivalent */
-	CDDM_calc_normals(result);
+	result->dirty |= DM_DIRTY_NORMALS;
 
 	return result;
 }

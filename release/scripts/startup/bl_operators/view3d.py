@@ -96,6 +96,7 @@ class VIEW3D_OT_select_or_deselect_all(Operator):
     "Select element under the mouse, deselect everything is there's nothing under the mouse"
     bl_label = "Select or Deselect All"
     bl_idname = "view3d.select_or_deselect_all"
+    bl_options = {'UNDO'}
 
     extend = BoolProperty(
             name="Extend",
@@ -137,7 +138,7 @@ class VIEW3D_OT_select_or_deselect_all(Operator):
         x = event.mouse_region_x
         y = event.mouse_region_y
 
-        if self.extend == False and self.toggle == False:
+        if self.extend == False and self.toggle == False and self.deselect == False:
             active_object = context.active_object
 
             if active_object:

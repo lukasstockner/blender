@@ -330,7 +330,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	result = mirrorModifier__doMirror(mmd, ob, derivedData);
 
 	if (result != derivedData)
-		CDDM_calc_normals(result);
+		result->dirty |= DM_DIRTY_NORMALS;
 	
 	return result;
 }
@@ -345,7 +345,9 @@ ModifierTypeInfo modifierType_Mirror = {
 	                        eModifierTypeFlag_SupportsMapping |
 	                        eModifierTypeFlag_SupportsEditmode |
 	                        eModifierTypeFlag_EnableInEditmode |
-	                        eModifierTypeFlag_AcceptsCVs,
+	                        eModifierTypeFlag_AcceptsCVs |
+	                        /* this is only the case when 'MOD_MIR_VGROUP' is used */
+	                        eModifierTypeFlag_UsesPreview,
 
 	/* copyData */          copyData,
 	/* deformVerts */       NULL,

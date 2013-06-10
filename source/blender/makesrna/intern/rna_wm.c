@@ -450,6 +450,8 @@ EnumPropertyItem wm_report_items[] = {
 
 #include "WM_api.h"
 
+#include "UI_interface.h"
+
 #include "BKE_idprop.h"
 
 #include "MEM_guardedalloc.h"
@@ -561,6 +563,17 @@ static int rna_Event_unicode_length(PointerRNA *ptr)
 	}
 }
 
+static PointerRNA rna_PopupMenu_layout_get(PointerRNA *ptr)
+{
+	struct uiPopupMenu *pup = ptr->data;
+	uiLayout *layout = uiPupMenuLayout(pup);
+
+	PointerRNA rptr;
+	RNA_pointer_create(ptr->id.data, &RNA_UILayout, layout, &rptr);
+
+	return rptr;
+}
+
 static void rna_Window_screen_set(PointerRNA *ptr, PointerRNA value)
 {
 	wmWindow *win = (wmWindow *)ptr->data;
@@ -571,6 +584,14 @@ static void rna_Window_screen_set(PointerRNA *ptr, PointerRNA value)
 	/* exception: can't set screens inside of area/region handlers */
 	win->newscreen = value.data;
 }
+
+int rna_Window_screen_assign_poll(PointerRNA *ptr, PointerRNA value)
+{
+	bScreen *screen = (bScreen *)value.id.data;
+
+	return !screen->temp;
+}
+
 
 static void rna_Window_screen_update(bContext *C, PointerRNA *ptr)
 {
@@ -1659,6 +1680,26 @@ static void rna_def_timer(BlenderRNA *brna)
 	RNA_define_verify_sdna(1); /* not in sdna */
 }
 
+static void rna_def_popupmenu(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "UIPopupMenu", NULL);
+	RNA_def_struct_ui_text(srna, "PopupMenu", "");
+	RNA_def_struct_sdna(srna, "uiPopupMenu");
+
+	RNA_define_verify_sdna(0); /* not in sdna */
+
+	/* could wrap more, for now this is enough */
+	prop = RNA_def_property(srna, "layout", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "UILayout");
+	RNA_def_property_pointer_funcs(prop, "rna_PopupMenu_layout_get",
+	                               NULL, NULL, NULL);
+
+	RNA_define_verify_sdna(1); /* not in sdna */
+}
+
 static void rna_def_window(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -1673,7 +1714,7 @@ static void rna_def_window(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "Screen");
 	RNA_def_property_ui_text(prop, "Screen", "Active screen showing in the window");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
-	RNA_def_property_pointer_funcs(prop, NULL, "rna_Window_screen_set", NULL, NULL);
+	RNA_def_property_pointer_funcs(prop, NULL, "rna_Window_screen_set", NULL, "rna_Window_screen_assign_poll");
 	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 	RNA_def_property_update(prop, 0, "rna_Window_screen_update");
 
@@ -2018,6 +2059,7 @@ void RNA_def_wm(BlenderRNA *brna)
 	rna_def_operator_type_macro(brna);
 	rna_def_event(brna);
 	rna_def_timer(brna);
+	rna_def_popupmenu(brna);
 	rna_def_window(brna);
 	rna_def_windowmanager(brna);
 	rna_def_keyconfig(brna);

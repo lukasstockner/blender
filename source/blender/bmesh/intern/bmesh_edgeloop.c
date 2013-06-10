@@ -47,7 +47,7 @@ typedef struct BMEdgeLoopStore {
 } BMEdgeLoopStore;
 
 #define BM_EDGELOOP_IS_CLOSED (1 << 0)
-
+#define EDGELOOP_EPS 0.00001f
 
 /* -------------------------------------------------------------------- */
 /* BM_mesh_edgeloops_find & Util Functions  */
@@ -383,6 +383,14 @@ void BM_mesh_edgeloops_calc_normal(BMesh *bm, ListBase *eloops)
 	}
 }
 
+void BM_mesh_edgeloops_calc_normal_aligned(BMesh *bm, ListBase *eloops, const float no_align[3])
+{
+	BMEdgeLoopStore *el_store;
+	for (el_store = eloops->first; el_store; el_store = el_store->next) {
+		BM_edgeloop_calc_normal_aligned(bm, el_store, no_align);
+	}
+}
+
 void BM_mesh_edgeloops_calc_order(BMesh *UNUSED(bm), ListBase *eloops, const bool use_normals)
 {
 	ListBase eloops_ordered = {NULL};
@@ -418,6 +426,10 @@ void BM_mesh_edgeloops_calc_order(BMesh *UNUSED(bm), ListBase *eloops, const boo
 		const float *co = ((BMEdgeLoopStore *)eloops_ordered.last)->co;
 		const float *no = ((BMEdgeLoopStore *)eloops_ordered.last)->no;
 		float len_best = FLT_MAX;
+
+		if (use_normals)
+			BLI_assert(fabsf(len_squared_v3(no) - 1.0f) < FLT_EPSILON);
+
 		for (el_store = eloops->first; el_store; el_store = el_store->next) {
 			float len;
 			if (use_normals) {
@@ -568,11 +580,13 @@ void BM_edgeloop_calc_center(BMesh *UNUSED(bm), BMEdgeLoopStore *el_store)
 
 }
 
-void BM_edgeloop_calc_normal(BMesh *UNUSED(bm), BMEdgeLoopStore *el_store)
+bool BM_edgeloop_calc_normal(BMesh *UNUSED(bm), BMEdgeLoopStore *el_store)
 {
 	LinkData *node_curr = el_store->verts.first;
 	float const *v_prev = NODE_AS_CO(el_store->verts.last);
 	float const *v_curr = NODE_AS_CO(node_curr);
+
+	zero_v3(el_store->no);
 
 	/* Newell's Method */
 	do {
@@ -587,10 +601,56 @@ void BM_edgeloop_calc_normal(BMesh *UNUSED(bm), BMEdgeLoopStore *el_store)
 		}
 	} while (true);
 
-	if (UNLIKELY(normalize_v3(el_store->no) == 0.0f)) {
+	if (UNLIKELY(normalize_v3(el_store->no) < EDGELOOP_EPS)) {
 		el_store->no[2] = 1.0f; /* other axis set to 0.0 */
+		return false;
+
+	}
+	else {
+		return true;
 	}
 }
+
+/**
+ * For open loops that are stright lines,
+ * calculating the normal as if it were a polygon is meaningless.
+ *
+ * Instead use an alignment vector and calculate the normal based on that.
+ */
+bool BM_edgeloop_calc_normal_aligned(BMesh *UNUSED(bm), BMEdgeLoopStore *el_store, const float no_align[3])
+{
+	LinkData *node_curr = el_store->verts.first;
+	float const *v_prev = NODE_AS_CO(el_store->verts.last);
+	float const *v_curr = NODE_AS_CO(node_curr);
+
+	zero_v3(el_store->no);
+
+	/* Own Method */
+	do {
+		float cross[3], no[3], dir[3];
+		sub_v3_v3v3(dir, v_curr, v_prev);
+		cross_v3_v3v3(cross, no_align, dir);
+		cross_v3_v3v3(no, dir, cross);
+		add_v3_v3(el_store->no, no);
+
+		if ((node_curr = node_curr->next)) {
+			v_prev = v_curr;
+			v_curr = NODE_AS_CO(node_curr);
+		}
+		else {
+			break;
+		}
+	} while (true);
+
+	if (UNLIKELY(normalize_v3(el_store->no) < EDGELOOP_EPS)) {
+		el_store->no[2] = 1.0f; /* other axis set to 0.0 */
+		return false;
+	}
+	else {
+		return true;
+	}
+}
+
 
 
 void BM_edgeloop_flip(BMesh *UNUSED(bm), BMEdgeLoopStore *el_store)

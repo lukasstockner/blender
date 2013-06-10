@@ -119,8 +119,6 @@ __device_inline void bvh_node_intersect(KernelGlobals *kg,
 	bool *closestChild1, int *nodeAddr0, int *nodeAddr1,
 	float3 P, float3 idir, float t, uint visibility, int nodeAddr, float difl, float extmax)
 {
-	float hdiff = 1.0f + difl;
-	float ldiff = 1.0f - difl;
 #else
 __device_inline void bvh_node_intersect(KernelGlobals *kg,
 	bool *traverseChild0, bool *traverseChild1,
@@ -157,6 +155,8 @@ __device_inline void bvh_node_intersect(KernelGlobals *kg,
 
 #ifdef __HAIR__
 	if(difl != 0.0f) {
+		float hdiff = 1.0f + difl;
+		float ldiff = 1.0f - difl;
 		if(__float_as_int(cnodes.z) & PATH_RAY_CURVE) {
 			c0min = max(ldiff * c0min, c0min - extmax);
 			c0max = min(hdiff * c0max, c0max + extmax);
@@ -171,8 +171,8 @@ __device_inline void bvh_node_intersect(KernelGlobals *kg,
 	/* decide which nodes to traverse next */
 #ifdef __VISIBILITY_FLAG__
 	/* this visibility test gives a 5% performance hit, how to solve? */
-	*traverseChild0 = (c0max >= c0min) && (__float_as_int(cnodes.z) & visibility);
-	*traverseChild1 = (c1max >= c1min) && (__float_as_int(cnodes.w) & visibility);
+	*traverseChild0 = (c0max >= c0min) && (__float_as_uint(cnodes.z) & visibility);
+	*traverseChild1 = (c1max >= c1min) && (__float_as_uint(cnodes.w) & visibility);
 #else
 	*traverseChild0 = (c0max >= c0min);
 	*traverseChild1 = (c1max >= c1min);
@@ -298,7 +298,7 @@ __device_inline void bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersectio
 
 	/*obtain curve parameters*/
 	{
-		/*ray transform created - this shold be created at beginning of intersection loop*/
+		/*ray transform created - this should be created at beginning of intersection loop*/
 		Transform htfm;
 		float d = sqrtf(dir.x * dir.x + dir.z * dir.z);
 		htfm = make_transform(

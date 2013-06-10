@@ -247,7 +247,10 @@ void wm_event_do_notifiers(bContext *C)
 			if (note->window == win) {
 				if (note->category == NC_SCREEN) {
 					if (note->data == ND_SCREENBROWSE) {
-						/* do not free handlers here! [#35434] */
+						/* free popup handlers only [#35434] */
+						wmWindow *win = CTX_wm_window(C);
+						UI_remove_popup_handlers_all(C, &win->modalhandlers);
+
 
 						ED_screen_set(C, note->reference);  // XXX hrms, think this over!
 						if (G.debug & G_DEBUG_EVENTS)
@@ -377,8 +380,8 @@ static int wm_handler_ui_call(bContext *C, wmEventHandler *handler, wmEvent *eve
 	int retval;
 	
 	/* UI code doesn't handle return values - it just always returns break. 
-	 * to make the DBL_CLICK conversion work, we just don't send this to UI */
-	if (event->val == KM_DBL_CLICK)
+	 * to make the DBL_CLICK conversion work, we just don't send this to UI, except mouse clicks */
+	if (event->type != LEFTMOUSE && event->val == KM_DBL_CLICK)
 		return WM_HANDLER_CONTINUE;
 	
 	/* UI is quite aggressive with swallowing events, like scrollwheel */
