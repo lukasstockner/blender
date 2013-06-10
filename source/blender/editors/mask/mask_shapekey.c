@@ -124,9 +124,6 @@ static int mask_shape_key_clear_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 
 	if (change) {
-		Scene *scene = CTX_data_scene(C);
-		BKE_mask_evaluate(mask, CFRA, TRUE);
-
 		WM_event_add_notifier(C, NC_MASK | ND_DATA, mask);
 		DAG_id_tag_update(&mask->id, OB_RECALC_DATA);
 
@@ -533,11 +530,8 @@ static int mask_shape_key_cleanup_exec(bContext *C, wmOperator *op)
 	}
 
 	if (removed_count > 0) {
-		Scene *scene = CTX_data_scene(C);
-		BKE_mask_evaluate(mask, CFRA, TRUE);
-
 		WM_event_add_notifier(C, NC_MASK | ND_DATA, mask);
-		DAG_id_tag_update(&mask->id, 0);
+		DAG_id_tag_update(&mask->id, OB_RECALC_DATA);
 	}
 
 	BKE_reportf(op->reports, RPT_INFO, "Removed %d keys", removed_count);
