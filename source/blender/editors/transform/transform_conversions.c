@@ -196,7 +196,7 @@ static void sort_trans_data(TransInfo *t)
 
 /* distance calculated from not-selected vertex to nearest selected vertex
  * warning; this is loops inside loop, has minor N^2 issues, but by sorting list it is OK */
-static void set_prop_dist(TransInfo *t, short with_dist)
+static void set_prop_dist(TransInfo *t, const bool with_dist)
 {
 	TransData *tob;
 	int a;
@@ -216,12 +216,9 @@ static void set_prop_dist(TransInfo *t, short with_dist)
 				if (td->flag & TD_SELECTED) {
 					sub_v3_v3v3(vec, tob->center, td->center);
 					mul_m3_v3(tob->mtx, vec);
-					dist = normalize_v3(vec);
-					if (tob->rdist == -1.0f) {
-						tob->rdist = dist;
-					}
-					else if (dist < tob->rdist) {
-						tob->rdist = dist;
+					dist = len_squared_v3(vec);
+					if ((tob->rdist == -1.0f) || (dist < (tob->rdist * tob->rdist))) {
+						tob->rdist = sqrtf(dist);
 					}
 				}
 				else {
@@ -5161,6 +5158,40 @@ static void special_aftertrans_update__mask(bContext *C, TransInfo *t)
 	}
 }
 
+static void special_aftertrans_update__mesh(bContext *UNUSED(C), TransInfo *t)
+{
+	/* so automerge supports mirror */
+	if ((t->scene->toolsettings->automerge) &&
+	    (t->obedit && t->obedit->type == OB_MESH))
+	{
+		BMEditMesh *em = BKE_editmesh_from_object(t->obedit);
+		BMesh *bm = em->bm;
+		char hflag;
+
+		if (t->flag & T_MIRROR) {
+			TransData *td;
+			int i;
+
+			/* rather then adjusting the selection (which the user would notice)
+			 * tag all mirrored verts, then automerge those */
+			BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, false);
+
+			for (i = 0, td = t->data; i < t->total; i++, td++) {
+				if (td->extra) {
+					BM_elem_flag_enable((BMVert *)td->extra, BM_ELEM_TAG);
+				}
+			}
+
+			hflag = BM_ELEM_SELECT | BM_ELEM_TAG;
+		}
+		else {
+			hflag = BM_ELEM_SELECT;
+		}
+
+		EDBM_automerge(t->scene, t->obedit, true, hflag);
+	}
+}
+
 /* inserting keys, pointcache, redraw events... */
 /* 
  * note: sequencer freeing has its own function now because of a conflict with transform's order of freeing (campbell)
@@ -5193,7 +5224,10 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 					 * during cleanup - psy-fi */
 					freeEdgeSlideTempFaces(sld);
 				}
-				EDBM_automerge(t->scene, t->obedit, true);
+
+				if (t->obedit->type == OB_MESH) {
+					special_aftertrans_update__mesh(C, t);
+				}
 			}
 			else {
 				if (t->mode == TFM_EDGE_SLIDE) {
