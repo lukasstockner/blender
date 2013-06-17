@@ -229,17 +229,22 @@ void BKE_rigidbody_relink_constraint(RigidBodyCon *rbc)
 static rbCollisionShape *rigidbody_get_shape_convexhull_from_mesh(Object *ob, float margin, bool *can_embed)
 {
 	rbCollisionShape *shape = NULL;
-	Mesh *me = NULL;
+	DerivedMesh *dm = NULL;
+	MVert *mvert = NULL;
+	int totvert = 0;
 
 	if (ob->type == OB_MESH && ob->data) {
-		me = ob->data;
+		BLI_assert(ob->derivedDeform != NULL); // RB_TODO need to make sure there's no case where deform derived mesh doesn't exist
+		dm = ob->derivedDeform;
+		mvert   = (dm) ? dm->getVertArray(dm) : NULL;
+		totvert = (dm) ? dm->getNumVerts(dm) : 0;
 	}
 	else {
 		printf("ERROR: cannot make Convex Hull collision shape for non-Mesh object\n");
 	}
 
-	if (me && me->totvert) {
-		shape = RB_shape_new_convex_hull((float *)me->mvert, sizeof(MVert), me->totvert, margin, can_embed);
+	if (totvert) {
+		shape = RB_shape_new_convex_hull((float *)mvert, sizeof(MVert), totvert, margin, can_embed);
 	}
 	else {
 		printf("ERROR: no vertices to define Convex Hull collision shape with\n");
@@ -256,7 +261,7 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
 	rbCollisionShape *shape = NULL;
 
 	if (ob->type == OB_MESH) {
-		DerivedMesh *dm = CDDM_from_mesh(ob->data, ob);
+		DerivedMesh *dm = ob->derivedDeform;
 
 		MVert *mvert;
 		MFace *mface;
@@ -264,6 +269,7 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
 		int totface;
 
 		/* ensure mesh validity, then grab data */
+		BLI_assert(dm!= NULL); // RB_TODO need to make sure there's no case where deform derived mesh doesn't exist
 		DM_ensure_tessface(dm);
 
 		mvert   = (dm) ? dm->getVertArray(dm) : NULL;
