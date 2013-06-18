@@ -75,6 +75,7 @@ typedef struct BrushPainterCache {
 	bool use_float;              /* need float imbuf? */
 	bool use_color_correction;   /* use color correction for float */
 	bool use_masking;            /* use masking? */
+	bool invert_color;
 
 	bool is_texbrush;
 	bool is_maskbrush;
@@ -140,7 +141,7 @@ typedef struct ImagePaintState {
 } ImagePaintState;
 
 
-static BrushPainter *brush_painter_2d_new(Scene *scene, Brush *brush)
+static BrushPainter *brush_painter_2d_new(Scene *scene, Brush *brush, bool invert)
 {
 	BrushPainter *painter = MEM_callocN(sizeof(BrushPainter), "BrushPainter");
 
@@ -148,6 +149,7 @@ static BrushPainter *brush_painter_2d_new(Scene *scene, Brush *brush)
 	painter->scene = scene;
 	painter->firsttouch = 1;
 	painter->cache.lastsize = -1; /* force ibuf create in refresh */
+	painter->cache.invert_color = invert;
 
 	return painter;
 }
@@ -255,7 +257,10 @@ static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size)
 
 	/* get brush color */
 	if (brush->imagepaint_tool == PAINT_TOOL_DRAW) {
-		copy_v3_v3(brush_rgb, brush->rgb);
+		if (painter->cache.invert_color)
+			copy_v3_v3(brush_rgb, brush->secondary_rgb);
+		else
+			copy_v3_v3(brush_rgb, brush->rgb);
 
 		if (use_color_correction)
 			srgb_to_linearrgb_v3_v3(brush_rgb, brush_rgb);
@@ -1058,7 +1063,7 @@ void paint_2d_stroke(void *ps, const float prev_mval[2], const float mval[2], in
 	BKE_image_release_ibuf(s->image, ibuf, NULL);
 }
 
-void *paint_2d_new_stroke(bContext *C, wmOperator *op)
+void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
 {
 	Scene *scene = CTX_data_scene(C);
 	ToolSettings *settings = scene->toolsettings;
@@ -1090,7 +1095,7 @@ void *paint_2d_new_stroke(bContext *C, wmOperator *op)
 	paint_brush_init_tex(s->brush);
 
 	/* create painter */
-	s->painter = brush_painter_2d_new(scene, s->brush);
+	s->painter = brush_painter_2d_new(scene, s->brush, mode == BRUSH_STROKE_INVERT);
 
 	return s;
 }

@@ -138,7 +138,7 @@ void imapaint_clear_partial_redraw(void);
 void imapaint_dirty_region(struct Image *ima, struct ImBuf *ibuf, int x, int y, int w, int h);
 void imapaint_region_tiles(struct ImBuf *ibuf, int x, int y, int w, int h, int *tx, int *ty, int *tw, int *th);
 int get_imapaint_zoom(struct bContext *C, float *zoomx, float *zoomy);
-void *paint_2d_new_stroke(struct bContext *, struct wmOperator *);
+void *paint_2d_new_stroke(struct bContext *, struct wmOperator *, int mode);
 void paint_2d_redraw(const bContext *C, void *ps, bool final);
 void paint_2d_stroke_done(void *ps);
 void paint_2d_stroke(void *ps, const float prev_mval[2], const float mval[2], int eraser);
@@ -151,6 +151,7 @@ void paint_brush_exit_tex(struct Brush *brush);
 
 void PAINT_OT_grab_clone(struct wmOperatorType *ot);
 void PAINT_OT_sample_color(struct wmOperatorType *ot);
+void PAINT_OT_texture_colors_flip(struct wmOperatorType *ot);
 void PAINT_OT_texture_paint_toggle(struct wmOperatorType *ot);
 void PAINT_OT_project_image(struct wmOperatorType *ot);
 void PAINT_OT_image_from_view(struct wmOperatorType *ot);
@@ -191,7 +192,7 @@ int imapaint_pick_face(struct ViewContext *vc, const int mval[2], unsigned int *
 void imapaint_pick_uv(struct Scene *scene, struct Object *ob, unsigned int faceindex, const int xy[2], float uv[2]);
 void brush_drawcursor_texpaint_uvsculpt(struct bContext *C, int x, int y, void *customdata);
 
-void paint_sample_color(const struct bContext *C, struct ARegion *ar, int x, int y);
+void paint_sample_color(const struct bContext *C, struct ARegion *ar, int x, int y, bool foreground);
 void BRUSH_OT_curve_preset(struct wmOperatorType *ot);
 
 void PAINT_OT_face_select_linked(struct wmOperatorType *ot);

@@ -496,7 +496,7 @@ static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, float mou
 	}
 	else {
 		pop->mode = PAINT_MODE_2D;
-		pop->custom_paint = paint_2d_new_stroke(C, op);
+		pop->custom_paint = paint_2d_new_stroke(C, op, mode);
 	}
 
 	if (!pop->custom_paint) {
@@ -926,9 +926,9 @@ static int sample_color_exec(bContext *C, wmOperator *op)
 	Brush *brush = image_paint_brush(C);
 	ARegion *ar = CTX_wm_region(C);
 	int location[2];
-
+	bool foreground = RNA_boolean_get(op->ptr, "foreground");
 	RNA_int_get_array(op->ptr, "location", location);
-	paint_sample_color(C, ar, location[0], location[1]);
+	paint_sample_color(C, ar, location[0], location[1], foreground);
 
 	WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
 	
@@ -1000,6 +1000,7 @@ void PAINT_OT_sample_color(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_int_vector(ot->srna, "location", 2, NULL, 0, INT_MAX, "Location", "Cursor location in region coordinates", 0, 16384);
+	RNA_def_boolean(ot->srna, "foreground", true, "Foreground", "Sample for the foreground color");
 }
 
 /******************** texture paint toggle operator ********************/
@@ -1081,6 +1082,42 @@ void PAINT_OT_texture_paint_toggle(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
+
+static int texture_colors_flip_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Brush *br = image_paint_brush(C);
+	swap_v3_v3(br->rgb, br->secondary_rgb);
+
+	return OPERATOR_FINISHED;
+}
+
+static int texture_colors_flip_poll(bContext *C)
+{
+	if (image_paint_poll(C)) {
+		Brush *br = image_paint_brush(C);
+		if(br->imagepaint_tool == PAINT_TOOL_DRAW)
+			return 1;
+	}
+
+	return 0;
+}
+
+void PAINT_OT_texture_colors_flip(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Texture Colors Flip";
+	ot->idname = "PAINT_OT_texture_colors_flip";
+	ot->description = "Toggle foreground and background texture paint colors";
+
+	/* api callbacks */
+	ot->exec = texture_colors_flip_exec;
+	ot->poll = texture_colors_flip_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+
 static int texture_paint_poll(bContext *C)
 {
 	if (texture_paint_toggle_poll(C))
@@ -1109,4 +1146,3 @@ int mask_paint_poll(bContext *C)
 {
 	return paint_facesel_test(CTX_data_active_object(C)) || paint_vertsel_test(CTX_data_active_object(C));
 }
-

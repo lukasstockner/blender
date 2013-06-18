@@ -187,6 +187,9 @@ typedef struct ProjPaintState {
 	Scene *scene;
 	int source; /* PROJ_SRC_**** */
 
+	/* the paint color. It can change depending of interted mode or not */
+	float paint_color[3];
+
 	Brush *brush;
 	short tool, blend, mode;
 	int orig_brush_size;
@@ -3664,7 +3667,7 @@ static void do_projectpaint_draw(ProjPaintState *ps, ProjPixel *projPixel, const
 	float rgb[3];
 	unsigned char rgba_ub[4];
 
-	copy_v3_v3(rgb, ps->brush->rgb);
+	copy_v3_v3(rgb, ps->paint_color);
 
 	if (ps->is_texbrush) {
 		/* XXX actually should convert texrgb from linear to srgb here */
@@ -3686,7 +3689,7 @@ static void do_projectpaint_draw_f(ProjPaintState *ps, ProjPixel *projPixel, con
 {
 	float rgba[4];
 
-	srgb_to_linearrgb_v3_v3(rgba, ps->brush->rgb);
+	srgb_to_linearrgb_v3_v3(rgba, ps->paint_color);
 
 	if (ps->is_texbrush)
 		mul_v3_v3(rgba, texrgb);
@@ -4177,6 +4180,12 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 	if (ps->normal_angle_range <= 0.0f)
 		ps->do_mask_normal = FALSE;  /* no need to do blending */
 
+	if (ps->tool == PAINT_TOOL_DRAW) {
+		if (mode == BRUSH_STROKE_INVERT)
+			copy_v3_v3(ps->paint_color, ps->brush->secondary_rgb);
+		else
+			copy_v3_v3(ps->paint_color, ps->brush->rgb);
+	}
 	return;
 }
 

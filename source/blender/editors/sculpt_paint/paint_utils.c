@@ -343,7 +343,7 @@ int imapaint_pick_face(ViewContext *vc, const int mval[2], unsigned int *index, 
 }
 
 /* used for both 3d view and image window */
-void paint_sample_color(const bContext *C, ARegion *ar, int x, int y)    /* frontbuf */
+void paint_sample_color(const bContext *C, ARegion *ar, int x, int y, bool foreground)    /* frontbuf */
 {
 	Brush *br = BKE_paint_brush(BKE_paint_get_active_from_context(C));
 	unsigned int col;
@@ -359,9 +359,16 @@ void paint_sample_color(const bContext *C, ARegion *ar, int x, int y)    /* fron
 	cp = (char *)&col;
 	
 	if (br) {
-		br->rgb[0] = cp[0] / 255.0f;
-		br->rgb[1] = cp[1] / 255.0f;
-		br->rgb[2] = cp[2] / 255.0f;
+		if (foreground) {
+			br->rgb[0] = cp[0] / 255.0f;
+			br->rgb[1] = cp[1] / 255.0f;
+			br->rgb[2] = cp[2] / 255.0f;
+		}
+		else {
+			br->secondary_rgb[0] = cp[0] / 255.0f;
+			br->secondary_rgb[1] = cp[1] / 255.0f;
+			br->secondary_rgb[2] = cp[2] / 255.0f;
+		}
 	}
 }
 

@@ -95,6 +95,10 @@ static void brush_defaults(Brush *brush)
 	brush->rgb[1] = 1.0f;
 	brush->rgb[2] = 1.0f;
 
+	brush->secondary_rgb[0] = 0.0f;
+	brush->secondary_rgb[1] = 0.0f;
+	brush->secondary_rgb[2] = 0.0f;
+
 	/* BRUSH STROKE SETTINGS */
 	brush->flag |= (BRUSH_SPACE | BRUSH_SPACE_ATTEN);
 	brush->spacing = 10; /* how far each brush dot should be spaced as a percentage of brush diameter */
