@@ -562,9 +562,7 @@ static int rna_SpaceView3D_viewport_shade_get(PointerRNA *ptr)
 	View3D *v3d = (View3D *)ptr->data;
 	int drawtype = v3d->drawtype;
 
-	if (drawtype == OB_MATERIAL && !BKE_scene_use_new_shading_nodes(scene))
-		return OB_SOLID;
-	else if (drawtype == OB_RENDER && !(type && type->view_draw))
+	if (drawtype == OB_RENDER && !(type && type->view_draw))
 		return OB_SOLID;
 
 	return drawtype;
@@ -583,9 +581,7 @@ static EnumPropertyItem *rna_SpaceView3D_viewport_shade_itemf(bContext *UNUSED(C
 	RNA_enum_items_add_value(&item, &totitem, viewport_shade_items, OB_WIRE);
 	RNA_enum_items_add_value(&item, &totitem, viewport_shade_items, OB_SOLID);
 	RNA_enum_items_add_value(&item, &totitem, viewport_shade_items, OB_TEXTURE);
-
-	if (BKE_scene_use_new_shading_nodes(scene))
-		RNA_enum_items_add_value(&item, &totitem, viewport_shade_items, OB_MATERIAL);
+	RNA_enum_items_add_value(&item, &totitem, viewport_shade_items, OB_MATERIAL);
 	
 	if (type && type->view_draw)
 		RNA_enum_items_add_value(&item, &totitem, viewport_shade_items, OB_RENDER);

@@ -49,6 +49,7 @@
 #include "BKE_texture.h"
 
 #include "ED_node.h"
+#include "ED_view3d.h"
 #include "WM_api.h"
 #include "WM_types.h"
 
@@ -131,12 +132,12 @@ static StructRNA *rna_Lamp_refine(struct PointerRNA *ptr)
 	}
 }
 
-static void rna_Lamp_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *ptr)
+static void rna_Lamp_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	Lamp *la = ptr->id.data;
 
 	DAG_id_tag_update(&la->id, 0);
-	if (scene->gm.matmode == GAME_MAT_GLSL)
+	if (scene->gm.matmode == GAME_MAT_GLSL || ED_is_view3d_in_material_mode(bmain))
 		WM_main_add_notifier(NC_LAMP | ND_LIGHTING_DRAW, la);
 	else
 		WM_main_add_notifier(NC_LAMP | ND_LIGHTING, la);

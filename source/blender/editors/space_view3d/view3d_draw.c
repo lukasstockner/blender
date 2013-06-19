@@ -49,6 +49,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_endian_switch.h"
 
+#include "BKE_main.h"
 #include "BKE_anim.h"
 #include "BKE_camera.h"
 #include "BKE_context.h"
@@ -2502,7 +2503,7 @@ CustomDataMask ED_view3d_datamask(Scene *scene, View3D *v3d)
 				mask |= CD_MASK_ORCO;
 		}
 		else {
-			if (scene->gm.matmode == GAME_MAT_GLSL)
+			if (scene->gm.matmode == GAME_MAT_GLSL || v3d->drawtype == OB_MATERIAL)
 				mask |= CD_MASK_ORCO;
 		}
 	}
@@ -3506,6 +3507,28 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 	view3d_main_area_draw_info(C, ar, grid_unit, render_border);
 
 	v3d->flag |= V3D_INVALID_BACKBUF;
+}
+
+
+bool ED_is_view3d_in_material_mode(Main *bmain)
+{
+	wmWindowManager *wm = bmain->wm.first;
+	wmWindow *win;
+	ScrArea *sa;
+
+	for (win = wm->windows.first; win; win = win->next) {
+		bScreen *screen = win->screen;
+
+		for (sa = screen->areabase.first; sa; sa = sa->next) {
+			if (sa && sa->spacetype == SPACE_VIEW3D) {
+					View3D *v3d = sa->spacedata.first;
+					if (v3d->drawtype == OB_MATERIAL)
+						return true;
+				}
+		}
+	}
+
+	return false;
 }
 
 #ifdef DEBUG_DRAW
