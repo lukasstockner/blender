@@ -821,7 +821,7 @@ class IMAGE_PT_paint_stroke(BrushButtonsPanel, Panel):
 
         col.label(text="Stroke Method:")
 
-        col.prop(brush, "stroke_method", text="")
+        col.prop(brush, "texpaint_stroke_method", text="")
 
         if brush.use_anchor:
             col.separator()

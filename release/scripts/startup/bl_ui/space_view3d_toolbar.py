@@ -888,6 +888,8 @@ class VIEW3D_PT_tools_brush_stroke(Panel, View3DPaintPanel):
 
         if context.sculpt_object:
             col.prop(brush, "sculpt_stroke_method", text="")
+        elif context.image_paint_object:
+            col.prop(brush, "texpaint_stroke_method", text="")
         else:
             col.prop(brush, "stroke_method", text="")
 
