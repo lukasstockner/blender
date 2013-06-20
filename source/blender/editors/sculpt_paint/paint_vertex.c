@@ -2145,7 +2145,7 @@ struct WPaintData {
 };
 
 /* ensure we have data on wpaint start, add if needed */
-static int wpaint_ensure_data(bContext *C, wmOperator *op)
+static bool wpaint_ensure_data(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C);
@@ -2346,7 +2346,7 @@ static void wpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
 
 	use_vert_sel = (me->editflag & ME_EDIT_PAINT_VERT_SEL) != 0;
 	use_face_sel = (me->editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
-	use_depth = (vc->v3d->flag & V3D_ZBUF_SELECT);
+	use_depth = (vc->v3d->flag & V3D_ZBUF_SELECT) != 0;
 
 	/* which faces are involved */
 	if (use_depth) {
@@ -3390,6 +3390,10 @@ static int paint_weight_gradient_exec(bContext *C, wmOperator *op)
 		vert_cache = gesture->userdata;
 	}
 	else {
+		if (wpaint_ensure_data(C, op) == FALSE) {
+			return OPERATOR_CANCELLED;
+		}
+
 		data.is_init = true;
 		vert_cache = MEM_mallocN(sizeof(DMGradient_vertStore) * me->totvert, __func__);
 	}

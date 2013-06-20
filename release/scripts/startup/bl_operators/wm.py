@@ -32,30 +32,6 @@ from rna_prop_ui import rna_idprop_ui_prop_get, rna_idprop_ui_prop_clear
 from bpy.app.translations import pgettext_tip as tip_
 
 
-class MESH_OT_delete_edgeloop(Operator):
-    """Delete an edge loop by merging the faces on each side """ \
-    """to a single face loop"""
-    bl_idname = "mesh.delete_edgeloop"
-    bl_label = "Delete Edge Loop"
-    bl_options = {'UNDO', 'REGISTER'}
-
-    @classmethod
-    def poll(cls, context):
-        return bpy.ops.transform.edge_slide.poll()
-
-    def execute(self, context):
-        mesh = context.object.data
-        use_mirror_x = mesh.use_mirror_x
-        mesh.use_mirror_x = False
-        if 'FINISHED' in bpy.ops.transform.edge_slide(value=1.0, correct_uv=True):
-            bpy.ops.mesh.select_more()
-            bpy.ops.mesh.remove_doubles()
-            ret = {'FINISHED'}
-        else:
-            ret = {'CANCELLED'}
-        mesh.use_mirror_x = use_mirror_x
-        return ret
-
 rna_path_prop = StringProperty(
         name="Context Attributes",
         description="RNA context string",
@@ -1598,8 +1574,15 @@ class WM_OT_addon_enable(Operator):
 
     def execute(self, context):
         import addon_utils
+        
+        err_str = ""
+        def err_cb():
+            import traceback
+            nonlocal err_str
+            err_str = traceback.format_exc()
+            print(err_str)
 
-        mod = addon_utils.enable(self.module)
+        mod = addon_utils.enable(self.module, handle_error=err_cb)
 
         if mod:
             info = addon_utils.module_bl_info(mod)
@@ -1614,6 +1597,10 @@ class WM_OT_addon_enable(Operator):
                                          info_ver)
             return {'FINISHED'}
         else:
+
+            if err_str:
+                self.report({'ERROR'}, err_str)
+
             return {'CANCELLED'}
 
 
@@ -1630,7 +1617,18 @@ class WM_OT_addon_disable(Operator):
     def execute(self, context):
         import addon_utils
 
-        addon_utils.disable(self.module)
+        err_str = ""
+        def err_cb():
+            import traceback
+            nonlocal err_str
+            err_str = traceback.format_exc()
+            print(err_str)
+
+        addon_utils.disable(self.module, handle_error=err_cb)
+
+        if err_str:
+            self.report({'ERROR'}, err_str)
+
         return {'FINISHED'}
 
 

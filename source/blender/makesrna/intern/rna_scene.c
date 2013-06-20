@@ -120,6 +120,8 @@ EnumPropertyItem proportional_falloff_curve_only_items[] = {
 EnumPropertyItem proportional_editing_items[] = {
 	{PROP_EDIT_OFF, "DISABLED", ICON_PROP_OFF, "Disable", "Proportional Editing disabled"},
 	{PROP_EDIT_ON, "ENABLED", ICON_PROP_ON, "Enable", "Proportional Editing enabled"},
+	{PROP_EDIT_PROJECTED, "PROJECTED", ICON_PROP_ON, "Projected (2D)",
+	                      "Proportional Editing using screen space locations"},
 	{PROP_EDIT_CONNECTED, "CONNECTED", ICON_PROP_CON, "Connected",
 	                      "Proportional Editing using connected geometry only"},
 	{0, NULL, 0, NULL, NULL}
@@ -1195,7 +1197,7 @@ static void rna_SceneRenderLayer_pass_update(Main *bmain, Scene *activescene, Po
 	Scene *scene = (Scene *)ptr->id.data;
 
 	if (scene->nodetree)
-		ntreeCompositForceHidden(scene->nodetree, scene);
+		ntreeCompositForceHidden(scene->nodetree);
 	
 	rna_Scene_glsl_update(bmain, activescene, ptr);
 }

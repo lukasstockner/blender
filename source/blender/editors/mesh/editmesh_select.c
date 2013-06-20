@@ -92,7 +92,7 @@ void EDBM_select_mirrored(BMEditMesh *em, bool extend,
 		}
 	}
 
-	EDBM_verts_mirror_cache_begin(em, true, true);
+	EDBM_verts_mirror_cache_begin(em, 0, true, true);
 
 	if (!extend)
 		EDBM_flag_disable_all(em, BM_ELEM_SELECT);
@@ -119,26 +119,17 @@ void EDBM_select_mirrored(BMEditMesh *em, bool extend,
 	*r_totfail = totfail;
 }
 
-void EDBM_automerge(Scene *scene, Object *obedit, bool update)
+void EDBM_automerge(Scene *scene, Object *obedit, bool update, const char hflag)
 {
-	
-	if ((scene->toolsettings->automerge) &&
-	    (obedit && obedit->type == OB_MESH))
-	{
-		int ok;
-		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+	int ok;
+	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
-		if (!em) {
-			return;
-		}
+	ok = BMO_op_callf(em->bm, BMO_FLAG_DEFAULTS,
+	                  "automerge verts=%hv dist=%f",
+	                  hflag, scene->toolsettings->doublimit);
 
-		ok = BMO_op_callf(em->bm, BMO_FLAG_DEFAULTS,
-		                  "automerge verts=%hv dist=%f",
-		                  BM_ELEM_SELECT, scene->toolsettings->doublimit);
-
-		if (LIKELY(ok) && update) {
-			EDBM_update_generic(em, true, true);
-		}
+	if (LIKELY(ok) && update) {
+		EDBM_update_generic(em, true, true);
 	}
 }
 

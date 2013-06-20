@@ -369,7 +369,7 @@ void ui_fontscale(short *points, float aspect);
 extern bool ui_block_is_menu(const uiBlock *block);
 extern void ui_block_to_window_fl(const struct ARegion *ar, uiBlock *block, float *x, float *y);
 extern void ui_block_to_window(const struct ARegion *ar, uiBlock *block, int *x, int *y);
-extern void ui_block_to_window_rct(const struct ARegion *ar, uiBlock *block, const rctf *graph, rcti *winr);
+extern void ui_block_to_window_rctf(const struct ARegion *ar, uiBlock *block, rctf *rct_dst, const rctf *rct_src);
 extern void ui_window_to_block_fl(const struct ARegion *ar, uiBlock *block, float *x, float *y);
 extern void ui_window_to_block(const struct ARegion *ar, uiBlock *block, int *x, int *y);
 extern void ui_window_to_region(const ARegion *ar, int *x, int *y);
@@ -426,7 +426,7 @@ struct uiKeyNavLock {
 struct uiPopupBlockHandle {
 	/* internal */
 	struct ARegion *region;
-	int towardsx, towardsy;
+	float towards_xy[2];
 	double towardstime;
 	bool dotowards;
 
@@ -471,7 +471,7 @@ ARegion *ui_searchbox_create(struct bContext *C, struct ARegion *butregion, uiBu
 bool ui_searchbox_inside(struct ARegion *ar, int x, int y);
 int  ui_searchbox_find_index(struct ARegion *ar, const char *name);
 void ui_searchbox_update(struct bContext *C, struct ARegion *ar, uiBut *but, const bool reset);
-void ui_searchbox_autocomplete(struct bContext *C, struct ARegion *ar, uiBut *but, char *str);
+bool ui_searchbox_autocomplete(struct bContext *C, struct ARegion *ar, uiBut *but, char *str);
 void ui_searchbox_event(struct bContext *C, struct ARegion *ar, uiBut *but, const struct wmEvent *event);
 bool ui_searchbox_apply(uiBut *but, struct ARegion *ar);
 void ui_searchbox_free(struct bContext *C, struct ARegion *ar);

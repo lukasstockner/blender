@@ -966,26 +966,30 @@ class VIEW3D_MT_object_specials(Menu):
             if scene.render.use_shading_nodes:
                 try:
                     value = lamp.node_tree.nodes["Emission"].inputs["Strength"].default_value
+                except AttributeError:
+                    value = None
 
+                if value is not None:
                     props = layout.operator("wm.context_modal_mouse", text="Strength")
                     props.data_path_iter = "selected_editable_objects"
                     props.data_path_item = "data.node_tree.nodes[\"Emission\"].inputs[\"Strength\"].default_value"
                     props.header_text = "Lamp Strength: %.3f"
                     props.input_scale = 0.1
-                except AttributeError:
-                    pass
+                del value
 
-                if lamp.type == 'AREA' and lamp.shape == 'RECTANGLE':
+                if lamp.type == 'AREA':
                     props = layout.operator("wm.context_modal_mouse", text="Size X")
                     props.data_path_iter = "selected_editable_objects"
                     props.data_path_item = "data.size"
                     props.header_text = "Lamp Size X: %.3f"
 
-                    props = layout.operator("wm.context_modal_mouse", text="Size Y")
-                    props.data_path_iter = "selected_editable_objects"
-                    props.data_path_item = "data.size"
-                    props.header_text = "Lamp Size Y: %.3f"
-                elif lamp.type in  {'SPOT', 'AREA', 'POINT', 'SUN'}:
+                    if lamp.shape == 'RECTANGLE':
+                        props = layout.operator("wm.context_modal_mouse", text="Size Y")
+                        props.data_path_iter = "selected_editable_objects"
+                        props.data_path_item = "data.size_y"
+                        props.header_text = "Lamp Size Y: %.3f"
+
+                elif lamp.type in  {'SPOT', 'POINT', 'SUN'}:
                     props = layout.operator("wm.context_modal_mouse", text="Size")
                     props.data_path_iter = "selected_editable_objects"
                     props.data_path_item = "data.shadow_soft_size"
@@ -1797,6 +1801,8 @@ class VIEW3D_MT_edit_mesh(Menu):
 
         layout.separator()
         layout.operator("mesh.symmetrize")
+        layout.operator("mesh.symmetry_snap")
+        layout.separator()
         layout.operator("mesh.duplicate_move")
         layout.menu("VIEW3D_MT_edit_mesh_extrude")
         layout.menu("VIEW3D_MT_edit_mesh_delete")
@@ -2075,13 +2081,11 @@ class VIEW3D_MT_edit_mesh_delete(Menu):
 
         layout.separator()
 
-        mesh_select_mode = context.tool_settings.mesh_select_mode[:]
-        if mesh_select_mode[2]:
-            layout.operator("mesh.dissolve_faces")
-        elif mesh_select_mode[1]:
-            layout.operator("mesh.dissolve_edges")
-        elif mesh_select_mode[0]:
-            layout.operator("mesh.dissolve_verts")
+        layout.operator("mesh.dissolve_verts")
+        layout.operator("mesh.dissolve_edges")
+        layout.operator("mesh.dissolve_faces")
+
+        layout.separator()
 
         layout.operator("mesh.dissolve_limited")
 
