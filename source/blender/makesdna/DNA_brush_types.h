@@ -71,6 +71,7 @@ typedef struct Brush {
 	float weight;       /* brush weight */
 	int size;           /* brush diameter */
 	int flag;           /* general purpose flag */
+	int mask_pressure;	/* pressure influence for mask */
 	float jitter;       /* jitter the position of the brush */
 	int jitter_absolute;	/* absolute jitter in pixels */
 	int overlay_flags;
@@ -83,7 +84,6 @@ typedef struct Brush {
 	float alpha;            /* opacity */
 
 	float secondary_rgb[3];	/* background color */
-	float pad;
 
 	int sculpt_plane;       /* the direction of movement for sculpt vertices */
 
@@ -155,6 +155,11 @@ typedef enum BrushFlags {
 	BRUSH_INVERTED = (1 << 29),
 	BRUSH_ABSOLUTE_JITTER = (1 << 30)
 } BrushFlags;
+
+typedef enum {
+	BRUSH_MASK_PRESSURE_RAMP = (1 << 1),
+	BRUSH_MASK_PRESSURE_CUTOFF = (1 << 2)
+} BrushMaskPressureFlags;
 
 /* Brush.overlay_flags */
 typedef enum OverlayFlags {
