@@ -966,26 +966,30 @@ class VIEW3D_MT_object_specials(Menu):
             if scene.render.use_shading_nodes:
                 try:
                     value = lamp.node_tree.nodes["Emission"].inputs["Strength"].default_value
+                except AttributeError:
+                    value = None
 
+                if value is not None:
                     props = layout.operator("wm.context_modal_mouse", text="Strength")
                     props.data_path_iter = "selected_editable_objects"
                     props.data_path_item = "data.node_tree.nodes[\"Emission\"].inputs[\"Strength\"].default_value"
                     props.header_text = "Lamp Strength: %.3f"
                     props.input_scale = 0.1
-                except AttributeError:
-                    pass
+                del value
 
-                if lamp.type == 'AREA' and lamp.shape == 'RECTANGLE':
+                if lamp.type == 'AREA':
                     props = layout.operator("wm.context_modal_mouse", text="Size X")
                     props.data_path_iter = "selected_editable_objects"
                     props.data_path_item = "data.size"
                     props.header_text = "Lamp Size X: %.3f"
 
-                    props = layout.operator("wm.context_modal_mouse", text="Size Y")
-                    props.data_path_iter = "selected_editable_objects"
-                    props.data_path_item = "data.size"
-                    props.header_text = "Lamp Size Y: %.3f"
-                elif lamp.type in  {'SPOT', 'AREA', 'POINT', 'SUN'}:
+                    if lamp.shape == 'RECTANGLE':
+                        props = layout.operator("wm.context_modal_mouse", text="Size Y")
+                        props.data_path_iter = "selected_editable_objects"
+                        props.data_path_item = "data.size_y"
+                        props.header_text = "Lamp Size Y: %.3f"
+
+                elif lamp.type in  {'SPOT', 'POINT', 'SUN'}:
                     props = layout.operator("wm.context_modal_mouse", text="Size")
                     props.data_path_iter = "selected_editable_objects"
                     props.data_path_item = "data.shadow_soft_size"
@@ -1796,7 +1800,7 @@ class VIEW3D_MT_edit_mesh(Menu):
         layout.menu("VIEW3D_MT_uv_map", text="UV Unwrap...")
 
         layout.separator()
-        layout.operator("mesh.symmetrize")
+
         layout.operator("mesh.duplicate_move")
         layout.menu("VIEW3D_MT_edit_mesh_extrude")
         layout.menu("VIEW3D_MT_edit_mesh_delete")
@@ -1807,6 +1811,12 @@ class VIEW3D_MT_edit_mesh(Menu):
         layout.menu("VIEW3D_MT_edit_mesh_edges")
         layout.menu("VIEW3D_MT_edit_mesh_faces")
         layout.menu("VIEW3D_MT_edit_mesh_normals")
+
+        layout.separator()
+
+        layout.operator("mesh.symmetrize")
+        layout.operator("mesh.symmetry_snap")
+        layout.operator_menu_enum("mesh.sort_elements", "type", text="Sort Elements...")
 
         layout.separator()
 
@@ -1865,6 +1875,7 @@ class VIEW3D_MT_edit_mesh_specials(Menu):
         layout.operator("mesh.shortest_path_select")
         layout.operator("mesh.sort_elements")
         layout.operator("mesh.symmetrize")
+        layout.operator("mesh.symmetry_snap")
 
 
 class VIEW3D_MT_edit_mesh_select_mode(Menu):
@@ -1933,7 +1944,6 @@ class VIEW3D_MT_edit_mesh_vertices(Menu):
         layout.operator("mesh.bevel").vertex_only = True
         layout.operator("mesh.vertices_smooth")
         layout.operator("mesh.remove_doubles")
-        layout.operator("mesh.sort_elements", text="Sort Vertices").elements = {'VERT'}
 
         layout.operator("mesh.blend_from_shape")
 
@@ -1990,7 +2000,6 @@ class VIEW3D_MT_edit_mesh_edges(Menu):
         layout.operator("mesh.bevel").vertex_only = False
         layout.operator("mesh.edge_split")
         layout.operator("mesh.bridge_edge_loops")
-        layout.operator("mesh.sort_elements", text="Sort Edges").elements = {'EDGE'}
 
         layout.separator()
 
@@ -2020,7 +2029,6 @@ class VIEW3D_MT_edit_mesh_faces(Menu):
         layout.operator("mesh.bevel").vertex_only = False
         layout.operator("mesh.solidify")
         layout.operator("mesh.wireframe")
-        layout.operator("mesh.sort_elements", text="Sort Faces").elements = {'FACE'}
 
         layout.separator()
 
