@@ -605,7 +605,8 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 	    brush->jitter != cache->lastjitter ||
 	    tex_rotation != cache->last_tex_rotation ||
 	    mask_rotation != cache->last_mask_rotation ||
-	    do_random)
+	    do_random ||
+	    brush->mask_pressure)
 	{
 		if (cache->ibuf) {
 			IMB_freeImBuf(cache->ibuf);
