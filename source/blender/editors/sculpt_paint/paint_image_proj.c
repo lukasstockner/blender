@@ -4120,7 +4120,8 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 		ps->is_maskbrush = false;
 		ps->is_maskbrush_tiled = false;
 		if (brush->mask_mtex.tex) {
-			if (ELEM(brush->mask_mtex.brush_map_mode, MTEX_MAP_MODE_STENCIL, MTEX_MAP_MODE_TILED)) {
+			if (ELEM(brush->mask_mtex.brush_map_mode, MTEX_MAP_MODE_STENCIL, MTEX_MAP_MODE_TILED)
+			    && !brush->mask_pressure) {
 				ps->is_maskbrush_tiled = true;
 			}
 			else {
