@@ -252,7 +252,6 @@ typedef struct ProjPaintState {
 	bool do_masking;              /* use masking during painting. Some operations such as airbrush may disable */
 	bool is_texbrush;              /* only to avoid running  */
 	bool is_maskbrush;            /* mask brush is applied before masking */
-	bool is_maskbrush_tiled;      /* mask brush is applied after masking */
 #ifndef PROJ_DEBUG_NOSEAMBLEED
 	float seam_bleed_px;
 #endif
@@ -3895,10 +3894,6 @@ static void *do_projectpaint_thread(void *ph_v)
 							mask *= texrgba[3];
 						}
 
-						if (ps->is_maskbrush_tiled) {
-							mask *= BKE_brush_sample_masktex(ps->scene, ps->brush, projPixel->projCoSS, thread_index, pool);
-						}
-
 						/* extra mask for normal, layer stencil, .. */
 						mask *= ((float)projPixel->mask) * (1.0f / 65535.0f);
 
@@ -4117,24 +4112,13 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 		                  (brush->mtex.tex && !ELEM3(brush->mtex.brush_map_mode, MTEX_MAP_MODE_TILED, MTEX_MAP_MODE_STENCIL, MTEX_MAP_MODE_3D)))
 		                 ? false : true;
 		ps->is_texbrush = (brush->mtex.tex && brush->imagepaint_tool == PAINT_TOOL_DRAW) ? true : false;
-		ps->is_maskbrush = false;
-		ps->is_maskbrush_tiled = false;
-		if (brush->mask_mtex.tex) {
-			if (ELEM(brush->mask_mtex.brush_map_mode, MTEX_MAP_MODE_STENCIL, MTEX_MAP_MODE_TILED)
-			    && !brush->mask_pressure) {
-				ps->is_maskbrush_tiled = true;
-			}
-			else {
-				ps->is_maskbrush = true;
-			}
-		}
+		ps->is_maskbrush = (brush->mask_mtex.tex)? true : false;
 	}
 	else {
 		/* brush may be NULL*/
 		ps->do_masking = false;
 		ps->is_texbrush = false;
 		ps->is_maskbrush = false;
-		ps->is_maskbrush_tiled = false;
 	}
 
 	/* sizeof(ProjPixel), since we alloc this a _lot_ */
@@ -4325,7 +4309,6 @@ static int texture_paint_camera_project_exec(bContext *C, wmOperator *op)
 	/* override */
 	ps.is_texbrush = false;
 	ps.is_maskbrush = false;
-	ps.is_maskbrush_tiled = false;
 	ps.do_masking = false;
 	orig_brush_size = BKE_brush_size_get(scene, ps.brush);
 	BKE_brush_size_set(scene, ps.brush, 32); /* cover the whole image */
