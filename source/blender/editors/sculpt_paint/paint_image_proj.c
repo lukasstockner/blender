@@ -4109,7 +4109,8 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 		/* disable for 3d mapping also because painting on mirrored mesh can create "stripes" */
 		ps->do_masking = (brush->flag & BRUSH_AIRBRUSH ||
 		                  (brush->imagepaint_tool == PAINT_TOOL_SMEAR) ||
-		                  (brush->mtex.tex && !ELEM3(brush->mtex.brush_map_mode, MTEX_MAP_MODE_TILED, MTEX_MAP_MODE_STENCIL, MTEX_MAP_MODE_3D)))
+		                  (brush->mtex.tex && !ELEM3(brush->mtex.brush_map_mode, MTEX_MAP_MODE_TILED, MTEX_MAP_MODE_STENCIL, MTEX_MAP_MODE_3D)) ||
+		                  brush->flag & BRUSH_ACCUMULATE)
 		                 ? false : true;
 		ps->is_texbrush = (brush->mtex.tex && brush->imagepaint_tool == PAINT_TOOL_DRAW) ? true : false;
 		ps->is_maskbrush = (brush->mask_mtex.tex)? true : false;

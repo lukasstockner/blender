@@ -695,6 +695,8 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
         col.template_ID_preview(toolsettings, "brush", new="brush.add", rows=2, cols=6)
 
         if brush:
+            capabilities = brush.imapaint_capabilities
+
             col = layout.column()
 
             if brush.image_tool == 'DRAW' and brush.blend not in ('ERASE_ALPHA', 'ADD_ALPHA'):
@@ -718,6 +720,13 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
                 col.separator()
                 col.prop(brush, "clone_image", text="Image")
                 col.prop(brush, "clone_alpha", text="Alpha")
+            
+            # use_accumulate
+            if capabilities.has_accumulate:
+                col.separator()
+
+                col.prop(brush, "use_accumulate")
+
 
 
 class IMAGE_PT_tools_brush_texture(BrushButtonsPanel, Panel):
@@ -881,6 +890,10 @@ class IMAGE_PT_paint_curve(BrushButtonsPanel, Panel):
         row.operator("brush.curve_preset", icon='SHARPCURVE', text="").shape = 'SHARP'
         row.operator("brush.curve_preset", icon='LINCURVE', text="").shape = 'LINE'
         row.operator("brush.curve_preset", icon='NOCURVE', text="").shape = 'MAX'
+
+        sub = row.row()
+        sub.prop(brush, "cursor_overlay_alpha", text="Alpha")
+        sub.prop(brush, "use_cursor_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
 
 
 class IMAGE_PT_tools_brush_appearance(BrushButtonsPanel, Panel):
