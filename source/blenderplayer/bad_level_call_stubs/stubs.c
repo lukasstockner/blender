@@ -329,6 +329,7 @@ struct BGpic *ED_view3D_background_image_new(struct View3D *v3d) {STUB_ASSERT(0)
 void ED_view3D_background_image_remove(struct View3D *v3d, struct BGpic *bgpic) {STUB_ASSERT(0);}
 void ED_view3D_background_image_clear(struct View3D *v3d) {STUB_ASSERT(0);}
 void ED_view3d_update_viewmat(struct Scene *scene, struct View3D *v3d, struct ARegion *ar, float viewmat[4][4], float winmat[4][4]) {STUB_ASSERT(0);}
+bool ED_is_view3d_in_material_mode(struct Main *main){STUB_ASSERT(0); return false;}
 float ED_view3d_grid_scale(struct Scene *scene, struct View3D *v3d, const char **grid_unit) {STUB_ASSERT(0); return 0.0f;}
 void view3d_apply_mat4(float mat[4][4], float *ofs, float *quat, float *dist) {STUB_ASSERT(0);}
 int text_file_modified(struct Text *text) {STUB_ASSERT(0); return 0;}
