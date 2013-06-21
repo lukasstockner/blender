@@ -824,6 +824,7 @@ static const char *get_obdata_defname(int type)
 Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
 {
 	Object *ob;
+	LodLevel *base;
 
 	if (!name)
 		name = get_obdata_defname(type);
@@ -902,6 +903,13 @@ Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
 	/* Animation Visualization defaults */
 	animviz_settings_init(&ob->avs);
 
+	/* LoD defaults */
+	BKE_object_lod_add(ob);
+	base = BLI_findlink(&ob->lodlevels, 0);
+	base->distance = 0.0;
+	base->use_logic = base->use_mat = base->use_mesh = 1;
+	base->source = ob;
+
 	return ob;
 }
 
@@ -926,6 +934,28 @@ Object *BKE_object_add(Main *bmain, Scene *scene, int type)
 	DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 
 	return ob;
+}
+
+void BKE_object_lod_add(struct Object *ob)
+{
+	LodLevel *lod = MEM_callocN(sizeof(LodLevel), "LoD Level");
+	LodLevel *last = ob->lodlevels.last;
+	
+	lod->distance = (last) ? last->distance + 10.0f : 10.0f;
+	lod->use_mesh = lod->use_mat = 1;
+
+	BLI_addtail(&ob->lodlevels, lod);
+}
+
+void BKE_object_lod_remove(struct Object *ob, int level)
+{
+	LodLevel *rem;
+
+	if (level < 1 || level > BLI_countlist(&ob->lodlevels))
+		return;
+
+	rem = BLI_findlink(&ob->lodlevels, level);
+	BLI_remlink(&ob->lodlevels, rem);
 }
 
 SoftBody *copy_softbody(SoftBody *sb, int copy_caches)

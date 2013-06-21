@@ -84,6 +84,9 @@ struct Object *BKE_object_add_only_object(struct Main *bmain, int type, const ch
 struct Object *BKE_object_add(struct Main *bmain, struct Scene *scene, int type);
 void *BKE_object_obdata_add_from_type(struct Main *bmain, int type);
 
+void BKE_object_lod_add(struct Object *ob);
+void BKE_object_lod_remove(struct Object *ob, int level);
+
 struct Object *BKE_object_copy_ex(struct Main *bmain, struct Object *ob, int copy_caches);
 struct Object *BKE_object_copy(struct Object *ob);
 void BKE_object_make_local(struct Object *ob);

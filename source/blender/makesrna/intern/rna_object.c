@@ -2005,6 +2005,41 @@ static void rna_def_object_vertex_groups(BlenderRNA *brna, PropertyRNA *cprop)
 }
 
 
+static void rna_def_object_lodlevel(BlenderRNA* brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "LodLevel", NULL);
+	RNA_def_struct_sdna(srna, "LodLevel");
+
+	prop = RNA_def_property(srna, "distance", PROP_FLOAT, PROP_DISTANCE);
+	RNA_def_property_float_sdna(prop, NULL, "distance");
+	RNA_def_property_ui_text(prop, "Distance", "Distance to begin using this level of detail");
+
+	prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "source");
+	RNA_def_property_struct_type(prop, "Object");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Object", "Object to use for this level of detail");
+
+	prop = RNA_def_property(srna, "use_mesh", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "use_mesh", 0);
+	RNA_def_property_ui_text(prop, "Use Mesh", "Use the mesh from this object at this level of detail");
+	RNA_def_property_ui_icon(prop, ICON_MESH_DATA, 0);
+
+	prop = RNA_def_property(srna, "use_material", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "use_mat", 0);
+	RNA_def_property_ui_text(prop, "Use Material", "Use the material from this object at this level of detail");
+	RNA_def_property_ui_icon(prop, ICON_MATERIAL, 0);
+
+	prop = RNA_def_property(srna, "use_logic", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "use_logic", 0);
+	RNA_def_property_ui_text(prop, "Use Logic", "Use the logic from this object at this level of detail");
+	RNA_def_property_ui_icon(prop, ICON_LOGIC, 0);
+}
+
+
 static void rna_def_object(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -2665,6 +2700,12 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Dynamic Topology Sculpting", NULL);
 
+	/* Levels of Detail */
+	prop = RNA_def_property(srna, "lod_levels", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "lodlevels", NULL);
+	RNA_def_property_struct_type(prop, "LodLevel");
+	RNA_def_property_ui_text(prop, "Level of Detail Levels", "A collection of detail levels to automatically switch between");
+
 	RNA_api_object(srna);
 }
 
@@ -2772,6 +2813,7 @@ void RNA_def_object(BlenderRNA *brna)
 	rna_def_vertex_group(brna);
 	rna_def_material_slot(brna);
 	rna_def_dupli_object(brna);
+	rna_def_object_lodlevel(brna);
 }
 
 #endif

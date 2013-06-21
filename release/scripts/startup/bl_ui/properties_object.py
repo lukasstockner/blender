@@ -126,6 +126,33 @@ class OBJECT_PT_transform_locks(ObjectButtonsPanel, Panel):
             sub.prop(ob, "lock_rotation_w", text="W")
 
 
+class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
+    bl_label = "Levels of Detail"
+
+    def draw(self, context):
+        layout = self.layout
+        ob = context.object
+
+        col = layout.column()
+        col.operator("object.lod_add", text="Add Level of Detail", icon='ZOOMIN')
+
+        for i, level in enumerate(ob.lod_levels):
+            if i == 0: continue
+            # col.label("LOD%d:" %(i))
+            box = col.box()
+            row = box.row()
+            row.prop(level, "object", text="")
+            row.operator("object.lod_remove", text="", icon='PANEL_CLOSE').index = i
+
+            # split = box.split(0.6)
+            row = box.row()
+            row.prop(level, "distance")
+            row = row.row(align=True)
+            row.prop(level, "use_mesh", text="")
+            row.prop(level, "use_material", text="")
+            # row.prop(level, "use_logic", text="")
+
+
 class OBJECT_PT_relations(ObjectButtonsPanel, Panel):
     bl_label = "Relations"
 

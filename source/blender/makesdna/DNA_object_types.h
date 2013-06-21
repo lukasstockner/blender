@@ -102,6 +102,13 @@ typedef struct BoundBox {
 /* boundbox flag */
 #define OB_BB_DISABLED	1
 
+typedef struct LodLevel {
+	struct LodLevel *next, *prev;
+	struct Object *source;
+	char use_mesh, use_mat, use_logic, pad;
+	float distance;
+} LodLevel;
+
 typedef struct Object {
 	ID id;
 	struct AnimData *adt;		/* animation data (must be immediately after id for utilities to use it) */ 
@@ -276,6 +283,8 @@ typedef struct Object {
 	struct RigidBodyCon *rigidbody_constraint;	/* settings for Bullet constraint */
 
 	float ima_ofs[2];		/* offset for image empties */
+
+	ListBase lodlevels;		/* contains data for levels of detail */
 } Object;
 
 /* Warning, this is not used anymore because hooks are now modifiers */
