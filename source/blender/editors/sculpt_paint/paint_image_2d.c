@@ -587,8 +587,12 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 		}
 		else if (brush->mask_mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM)
 			do_random = true;
-		else if (!brush->mask_pressure)
+		else
 			do_partial_update = true;
+
+		/* explicilty disable partial update even if it has been enabled above */
+		if (brush->mask_pressure)
+			do_partial_update = false;
 
 		brush_painter_2d_tex_mapping(s, size, painter->startpaintpos, pos, mouse,
 		                             brush->mask_mtex.brush_map_mode, &painter->mask_mapping);
