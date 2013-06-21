@@ -267,6 +267,7 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
 		MFace *mface;
 		int totvert;
 		int totface;
+		int tottris = 0;
 
 		/* ensure mesh validity, then grab data */
 		BLI_assert(dm!= NULL); // RB_TODO need to make sure there's no case where deform derived mesh doesn't exist
@@ -285,8 +286,13 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
 			rbMeshData *mdata;
 			int i;
 
+			/* count triangles */
+			for (i = 0; (i < totface) && (mface); i++) {
+				(mface->v4) ? (tottris += 2) : (tottris += 1);
+			}
+
 			/* init mesh data for collision shape */
-			mdata = RB_trimesh_data_new();
+			mdata = RB_trimesh_data_new(tottris, totvert);
 
 			/* loop over all faces, adding them as triangles to the collision shape
 			 * (so for some faces, more than triangle will get added)

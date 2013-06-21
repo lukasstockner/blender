@@ -752,10 +752,15 @@ rbCollisionShape *RB_shape_new_convex_hull(float *verts, int stride, int count, 
  * we get nasty crashes...
  */
 
-rbMeshData *RB_trimesh_data_new()
+rbMeshData *RB_trimesh_data_new(int num_tris, int num_verts)
 {
 	// XXX: welding threshold?
-	return (rbMeshData *) new btTriangleMesh(true, false);
+	btTriangleMesh *mesh = new btTriangleMesh(true, false);
+	
+	mesh->preallocateIndices(num_tris * 3);
+	mesh->preallocateVertices(num_verts);
+	
+	return (rbMeshData *) mesh;
 }
  
 void RB_trimesh_add_triangle(rbMeshData *mesh, const float v1[3], const float v2[3], const float v3[3])

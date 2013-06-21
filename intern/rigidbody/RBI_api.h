@@ -227,7 +227,7 @@ extern rbCollisionShape *RB_shape_new_convex_hull(float *verts, int stride, int 
 /* Setup (Triangle Mesh) ---------- */
 
 /* 1 */
-extern rbMeshData *RB_trimesh_data_new(void);
+extern rbMeshData *RB_trimesh_data_new(int num_tris, int num_verts);
 extern void RB_trimesh_add_triangle(rbMeshData *mesh, const float v1[3], const float v2[3], const float v3[3]);
 /* 2a - Triangle Meshes */
 extern rbCollisionShape *RB_shape_new_trimesh(rbMeshData *mesh);
