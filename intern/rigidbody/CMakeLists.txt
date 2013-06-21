@@ -23,6 +23,7 @@
 
 set(INC
 	.
+	../../source/blender/gpu
 	../../extern/bullet2/src
 )
 

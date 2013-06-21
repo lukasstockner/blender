@@ -3357,6 +3357,9 @@ static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const 
 				draw_object(scene, ar, v3d, base, 0);
 		}
 	}
+	
+	// HACK draw bullet debug world
+	GPU_debug_draw();
 
 //	REEB_draw();
 

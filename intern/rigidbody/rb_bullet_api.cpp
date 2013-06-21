@@ -58,6 +58,8 @@ subject to the following restrictions:
 
 #include <stdio.h>
 
+#include "GPU_draw.h"
+
 #include "RBI_api.h"
 
 #include "btBulletDynamicsCommon.h"
@@ -106,6 +108,49 @@ struct rbFilterCallback : public btOverlapFilterCallback
 	}
 };
 
+class rbDebugDraw : public btIDebugDraw {
+private:
+	int debug_mode;
+public:
+	rbDebugDraw() { }
+	virtual void drawLine(const btVector3& from,const btVector3& to,const btVector3& color)
+	{
+		float root[3] = {from.x(), from.y(), from.z()};
+		float tip[3] = {to.x(), to.y(), to.z()};
+		float col[3] = {color.x(), color.y(), color.z()};
+		GPU_debug_add_line(root, tip, col);
+	}
+	virtual void drawContactPoint(const btVector3& PointOnB,const btVector3& normalOnB,btScalar distance,int lifeTime,const btVector3& color)
+	{
+		float root[3] = {PointOnB.x(), PointOnB.y(), PointOnB.z()};
+		btVector3 to = PointOnB + normalOnB;
+		float nor_tip[3] = {to.x(), to.y(), to.z()};
+		
+		float col[3] = {0.0f, 1.0f, 1.0f};
+		GPU_debug_add_point(root, col);
+		col[0] = 1.0f;
+		col[1] = 0.0f;
+		col[2] = 1.0f;
+		GPU_debug_add_line(root, nor_tip, col);
+	}
+	virtual void reportErrorWarning(const char *warningString)
+	{
+		
+	}
+	virtual void draw3dText(const btVector3& location,const char *textString)
+	{
+		
+	}
+	virtual void setDebugMode(int debugMode)
+	{
+		debug_mode = debugMode;
+	}
+	virtual int getDebugMode() const
+	{
+		return debug_mode;
+	}
+};
+
 static inline void copy_v3_btvec3(float vec[3], const btVector3 &btvec)
 {
 	vec[0] = (float)btvec[0];
@@ -150,6 +195,18 @@ rbDynamicsWorld *RB_dworld_new(const float gravity[3])
 	                                                   world->collisionConfiguration);
 
 	RB_dworld_set_gravity(world, gravity);
+	
+	// HACK set debug drawer, this is only temporary
+	btIDebugDraw *debugDrawer = new rbDebugDraw();
+	debugDrawer->setDebugMode(btIDebugDraw::DBG_DrawWireframe |
+	                          btIDebugDraw::DBG_DrawAabb |
+	                          btIDebugDraw::DBG_DrawContactPoints |
+	                          btIDebugDraw::DBG_DrawText |
+	                          btIDebugDraw::DBG_DrawConstraintLimits |
+	                          btIDebugDraw::DBG_DrawConstraints |
+	                          btIDebugDraw::DBG_DrawConstraintLimits
+	);
+	world->dynamicsWorld->setDebugDrawer(debugDrawer);
 	
 	return world;
 }
@@ -200,6 +257,10 @@ void RB_dworld_set_split_impulse(rbDynamicsWorld *world, int split_impulse)
 void RB_dworld_step_simulation(rbDynamicsWorld *world, float timeStep, int maxSubSteps, float timeSubStep)
 {
 	world->dynamicsWorld->stepSimulation(timeStep, maxSubSteps, timeSubStep);
+	
+	// draw debug information
+	GPU_debug_reset();
+	world->dynamicsWorld->debugDrawWorld();
 }
 
 /* Export -------------------------- */

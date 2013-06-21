@@ -45,6 +45,17 @@ struct View3D;
 struct RegionView3D;
 struct SmokeModifierData;
 
+// HACK bullet debug draw functions
+typedef struct GPUDebugVert {
+	float pos[3];
+	float col[3];
+} GPUDebugVert;
+
+void GPU_debug_add_line(float p1[3], float p2[3], float col[3]);
+void GPU_debug_add_point(float pos[3], float col[3]);
+void GPU_debug_draw(void);
+void GPU_debug_reset(void);
+
 /* OpenGL drawing functions related to shading. These are also
  * shared with the game engine, where there were previously
  * duplicates of some of these functions. */

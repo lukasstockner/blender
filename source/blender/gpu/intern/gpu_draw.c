@@ -74,6 +74,11 @@
 
 extern Material defmaterial; /* from material.c */
 
+static GPUDebugVert GPU_varr[100000];
+static int GPU_varr_numverts = 0;
+static GPUDebugVert GPU_parr[100000];
+static int GPU_parr_numverts = 0;
+
 /* These are some obscure rendering functions shared between the
  * game engine and the blender, in this module to avoid duplicaten
  * and abstract them away from the rest a bit */
@@ -85,6 +90,57 @@ static void gpu_mcol(unsigned int ucol)
 	/* mcol order is swapped */
 	char *cp= (char *)&ucol;
 	glColor3ub(cp[3], cp[2], cp[1]);
+}
+
+// HACK bullet debug draw functions
+void GPU_debug_add_line(float p1[3], float p2[3], float col[3])
+{
+	if (G.debug_value == 616) {
+	copy_v3_v3(GPU_varr[GPU_varr_numverts].pos, p1);
+	copy_v3_v3(GPU_varr[GPU_varr_numverts].col, col);
+	GPU_varr_numverts++;
+	copy_v3_v3(GPU_varr[GPU_varr_numverts].pos, p2);
+	copy_v3_v3(GPU_varr[GPU_varr_numverts].col, col);
+	GPU_varr_numverts++;
+	}
+}
+void GPU_debug_add_point(float pos[3], float col[3])
+{
+	if (G.debug_value == 616) {
+		copy_v3_v3(GPU_parr[GPU_parr_numverts].pos, pos);
+		copy_v3_v3(GPU_parr[GPU_parr_numverts].col, col);
+		GPU_parr_numverts++;
+	}
+}
+void GPU_debug_draw(void)
+{
+	if (G.debug_value == 616) {
+//	glDisable(GL_DEPTH_TEST);
+	
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_COLOR_ARRAY);
+	
+	glVertexPointer(3, GL_FLOAT, sizeof(GPUDebugVert), GPU_varr);
+	glColorPointer(3, GL_FLOAT, sizeof(GPUDebugVert), &(GPU_varr->col[0]));
+	glDrawArrays(GL_LINES, 0, GPU_varr_numverts);
+	
+	glDisable(GL_DEPTH_TEST);
+	glPointSize(5.0f);
+	
+	glVertexPointer(3, GL_FLOAT, sizeof(GPUDebugVert), GPU_parr);
+	glColorPointer(3, GL_FLOAT, sizeof(GPUDebugVert), &(GPU_parr->col[0]));
+	glDrawArrays(GL_POINTS, 0, GPU_parr_numverts);
+	
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_COLOR_ARRAY);
+	
+	glEnable(GL_DEPTH_TEST);
+	}
+}
+void GPU_debug_reset(void)
+{
+	GPU_varr_numverts = 0;
+	GPU_parr_numverts = 0;
 }
 
 void GPU_render_text(MTFace *tface, int mode,
