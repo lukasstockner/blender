@@ -909,6 +909,7 @@ Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
 	base->distance = 0.0;
 	base->use_logic = base->use_mat = base->use_mesh = 1;
 	base->source = ob;
+	ob->currentlod = base;
 
 	return ob;
 }
@@ -956,6 +957,45 @@ void BKE_object_lod_remove(struct Object *ob, int level)
 
 	rem = BLI_findlink(&ob->lodlevels, level);
 	BLI_remlink(&ob->lodlevels, rem);
+}
+
+static LodLevel* lod_level_select(struct Object *ob, float cam_loc[3])
+{
+	LodLevel *current = ob->currentlod;
+	float ob_loc[3], delta[3];
+	float distance2;
+
+	if (!current) return NULL;
+
+	copy_v3_v3(ob_loc, ob->obmat[3]);
+	sub_v3_v3v3(delta, ob_loc, cam_loc);
+	distance2 = len_squared_v3(delta);
+
+	/* check for higher LoD */
+	if (distance2 < current->distance*current->distance) {
+		while (current->prev && distance2 > current->prev->distance*current->prev->distance) {
+			current = current->prev;
+		}
+	}
+	/* check for lower LoD */
+	else {
+		while (current->next && distance2 > current->next->distance*current->next->distance) {
+			current = current->next;
+		}
+	}
+
+	return current;
+}
+
+void BKE_object_lod_update(struct Object *ob, float camera_position[3])
+{
+	LodLevel* cur_level = ob->currentlod;
+	LodLevel* new_level = lod_level_select(ob, camera_position);
+
+	if (new_level != cur_level) {
+		printf("Level Switch!\n");
+		ob->currentlod = new_level;
+	}
 }
 
 SoftBody *copy_softbody(SoftBody *sb, int copy_caches)

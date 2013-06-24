@@ -3227,6 +3227,18 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 	}
 }
 
+static void update_lods(Scene *scene, float camera_pos[3])
+{
+	Scene *sce_iter;
+	Base *base;
+	Object *ob;
+
+	for (SETLOOPER(scene, sce_iter, base)) {
+		ob = base->object;
+		BKE_object_lod_update(ob, camera_pos);
+	}
+}
+
 /* warning: this function has duplicate drawing in ED_view3d_draw_offscreen() */
 static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const char **grid_unit)
 {
@@ -3234,6 +3246,7 @@ static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const 
 	View3D *v3d = CTX_wm_view3d(C);
 	RegionView3D *rv3d = CTX_wm_region_view3d(C);
 	Base *base;
+	float camera_pos[3];
 	unsigned int lay_used;
 
 	/* shadow buffers, before we setup matrices */
@@ -3248,6 +3261,10 @@ static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const 
 
 	/* setup view matrices */
 	view3d_main_area_setup_view(scene, v3d, ar, NULL, NULL);
+
+	/* Make sure LoDs are up to date */
+	copy_v3_v3(camera_pos, rv3d->viewinv[3]);
+	update_lods(scene, camera_pos);
 
 	/* clear the background */
 	view3d_main_area_clear(scene, v3d, ar);

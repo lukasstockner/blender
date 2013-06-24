@@ -86,6 +86,7 @@ void *BKE_object_obdata_add_from_type(struct Main *bmain, int type);
 
 void BKE_object_lod_add(struct Object *ob);
 void BKE_object_lod_remove(struct Object *ob, int level);
+void BKE_object_lod_update(struct Object *ob, float camera_position[3]);
 
 struct Object *BKE_object_copy_ex(struct Main *bmain, struct Object *ob, int copy_caches);
 struct Object *BKE_object_copy(struct Object *ob);

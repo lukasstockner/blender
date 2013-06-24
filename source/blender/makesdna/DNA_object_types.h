@@ -285,6 +285,7 @@ typedef struct Object {
 	float ima_ofs[2];		/* offset for image empties */
 
 	ListBase lodlevels;		/* contains data for levels of detail */
+	LodLevel *currentlod;
 } Object;
 
 /* Warning, this is not used anymore because hooks are now modifiers */
