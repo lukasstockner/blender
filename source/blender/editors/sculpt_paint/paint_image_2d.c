@@ -609,7 +609,9 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 	if (painter->cache.is_maskbrush) {
 		bool renew_maxmask = false;
 		/* invalidate case for all mapping modes */
-		if (diameter != cache->lastsize) {
+		if (diameter != cache->lastsize ||
+		    alpha != cache->lastalpha)
+		{
 			renew_maxmask = true;
 		}
 		if (brush->mask_mtex.brush_map_mode == MTEX_MAP_MODE_VIEW) {
@@ -662,8 +664,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 	    brush->jitter != cache->lastjitter ||
 	    tex_rotation != cache->last_tex_rotation ||
 	    mask_rotation != cache->last_mask_rotation ||
-	    do_random ||
-	    brush->mask_pressure)
+	    do_random)
 	{
 		if (cache->ibuf) {
 			IMB_freeImBuf(cache->ibuf);
