@@ -4493,6 +4493,13 @@ static void lib_link_object(FileData *fd, Main *main)
 				ob->rigidbody_constraint->ob1 = newlibadr(fd, ob->id.lib, ob->rigidbody_constraint->ob1);
 				ob->rigidbody_constraint->ob2 = newlibadr(fd, ob->id.lib, ob->rigidbody_constraint->ob2);
 			}
+
+			{
+				LodLevel *level;
+				for (level = ob->lodlevels.first; level; level = level->next) {
+					level->source = newlibadr(fd, ob->id.lib, level->source);
+				}
+			}
 		}
 	}
 	
@@ -5018,6 +5025,9 @@ static void direct_link_object(FileData *fd, Object *ob)
 	if (ob->sculpt) {
 		ob->sculpt = MEM_callocN(sizeof(SculptSession), "reload sculpt session");
 	}
+
+	link_list(fd, &ob->lodlevels);
+	ob->currentlod = ob->lodlevels.first;
 }
 
 /* ************ READ SCENE ***************** */
@@ -9520,7 +9530,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		LodLevel *base;
 
 		for (ob = main->object.first; ob; ob = ob->id.next) {
-			if (BLI_countlist(&ob->lodlevels) == 0) {
+			if (!ob->lodlevels.first) {
 				BKE_object_lod_add(ob);
 				base = BLI_findlink(&ob->lodlevels, 0);
 				base->distance = 0.0;
