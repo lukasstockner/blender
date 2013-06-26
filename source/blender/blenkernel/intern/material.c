@@ -623,7 +623,7 @@ Material *give_current_material(Object *ob, short act)
 	Material ***matarar, *ma;
 	short *totcolp;
 	
-	if (BKE_object_lod_check(ob, NULL)) {
+	if (ob && BKE_object_lod_check(ob, NULL)) {
 		ob = BKE_object_lod_matob_get(ob);
 	}
 
