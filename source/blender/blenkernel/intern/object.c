@@ -1001,13 +1001,12 @@ void BKE_object_lod_update(struct Object *ob, float camera_position[3])
 struct Object *BKE_object_lod_meshob_get(struct Object *ob)
 {
 	LodLevel *current = ob->currentlod;
-	Object *mesh_ob = current->source;
 
-	while( current->prev && (!current->use_mesh || current->source->type == OB_MESH)) {
+	while( current->prev && (!current->use_mesh || current->source->type != OB_MESH)) {
 		current = current->prev;
 	}
 
-	return mesh_ob;
+	return current->source;
 }
 
 SoftBody *copy_softbody(SoftBody *sb, int copy_caches)
