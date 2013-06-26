@@ -839,6 +839,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *pa)
 		const bool *vgroup_validmap;
 		eVGroupSelect subset_type = ts->vgroupsubset;
 		int yco = 0;
+		int locked = 0;
 
 		uiBlockSetHandleFunc(block, do_view3d_vgroup_buttons, NULL);
 
@@ -877,6 +878,10 @@ static void view3d_panel_vgroup(const bContext *C, Panel *pa)
 					                xco, yco, (x = UI_UNIT_X * 4), UI_UNIT_Y,
 					                &dw->weight, 0.0, 1.0, 1, 3, "");
 					uiButSetFlag(but, UI_TEXT_LEFT);
+					if (dg->flag & DG_LOCK_WEIGHT) {
+						uiButSetFlag(but, UI_BUT_DISABLED);
+						locked++;
+					}
 					xco += x;
 
 					/* The weight group paste function */
@@ -905,14 +910,17 @@ static void view3d_panel_vgroup(const bContext *C, Panel *pa)
 		col = uiLayoutColumn(pa->layout, true);
 		row = uiLayoutRow(col, true);
 
-		ot = WM_operatortype_find("OBJECT_OT_vertex_weight_normalize_active", 1);
+		ot = WM_operatortype_find("OBJECT_OT_vertex_weight_normalize_active_vertex", 1);
 		but = uiDefButO_ptr(block, BUT, ot, WM_OP_EXEC_DEFAULT, "Normalize",
-		                    0, yco,UI_UNIT_X * 5, UI_UNIT_Y,
-		                    TIP_("Normalize active vertex weights"));
+		                    0, yco, UI_UNIT_X * 5, UI_UNIT_Y,
+		                    TIP_("Normalize weights of active vertex (if affected groups are unlocked"));
+		if (locked) {
+			uiButSetFlag(but, UI_BUT_DISABLED);
+		}
 
 		ot = WM_operatortype_find("OBJECT_OT_vertex_weight_copy", 1);
 		but = uiDefButO_ptr(block, BUT, ot, WM_OP_EXEC_DEFAULT, "Copy",
-		                    UI_UNIT_X * 5, yco,UI_UNIT_X * 5, UI_UNIT_Y,
+		                    UI_UNIT_X * 5, yco, UI_UNIT_X * 5, UI_UNIT_Y,
 		                    TIP_("Copy active vertex to other selected verts"));
 
 	}

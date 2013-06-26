@@ -3509,28 +3509,6 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 	v3d->flag |= V3D_INVALID_BACKBUF;
 }
 
-
-bool ED_is_view3d_in_material_mode(Main *bmain)
-{
-	wmWindowManager *wm = bmain->wm.first;
-	wmWindow *win;
-	ScrArea *sa;
-
-	for (win = wm->windows.first; win; win = win->next) {
-		bScreen *screen = win->screen;
-
-		for (sa = screen->areabase.first; sa; sa = sa->next) {
-			if (sa && sa->spacetype == SPACE_VIEW3D) {
-					View3D *v3d = sa->spacedata.first;
-					if (v3d->drawtype == OB_MATERIAL)
-						return true;
-				}
-		}
-	}
-
-	return false;
-}
-
 #ifdef DEBUG_DRAW
 /* debug drawing */
 #define _DEBUG_DRAW_QUAD_TOT 1024

@@ -91,21 +91,13 @@ EnumPropertyItem ramp_blend_items[] = {
 #include "BKE_paint.h"
 
 #include "ED_node.h"
-#include "ED_view3d.h"
 
 static void rna_Material_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	Material *ma = ptr->id.data;
 
 	DAG_id_tag_update(&ma->id, 0);
-	if (scene) {  /* can be NULL, see [#30025] */
-		if (scene->gm.matmode == GAME_MAT_GLSL || ED_is_view3d_in_material_mode(bmain)) {
-			WM_main_add_notifier(NC_MATERIAL | ND_SHADING_DRAW, ma);
-		}
-		else {
-			WM_main_add_notifier(NC_MATERIAL | ND_SHADING, ma);
-		}
-	}
+	WM_main_add_notifier(NC_MATERIAL | ND_SHADING, ma);
 }
 
 static void rna_Material_update_previews(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -115,9 +107,8 @@ static void rna_Material_update_previews(Main *bmain, Scene *scene, PointerRNA *
 	if (ma->nodetree)
 		BKE_node_preview_clear_tree(ma->nodetree);
 		
-	WM_main_add_notifier(NC_MATERIAL | ND_SHADING, ma);
+	WM_main_add_notifier(NC_MATERIAL | ND_SHADING_PREVIEW, ma);
 }
-
 
 static void rna_Material_draw_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *ptr)
 {

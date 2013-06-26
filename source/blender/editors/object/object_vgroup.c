@@ -2477,8 +2477,8 @@ void ED_vgroup_mirror(Object *ob,
 					if (u != u_inv) {
 						BPoint *bp, *bp_mirr;
 
-						i1 = LT_INDEX(lt, u, v, w);
-						i2 = LT_INDEX(lt, u_inv, v, w);
+						i1 = BKE_lattice_index_from_uvw(lt, u, v, w);
+						i2 = BKE_lattice_index_from_uvw(lt, u_inv, v, w);
 
 						bp = &lt->def[i1];
 						bp_mirr = &lt->def[i2];
@@ -4121,8 +4121,8 @@ void OBJECT_OT_vertex_weight_paste(wmOperatorType *ot)
 	ot->idname = "OBJECT_OT_vertex_weight_paste";
 	ot->description = "Copy this group's weight to other selected verts";
 
-	prop = RNA_def_int(ot->srna, "weight_group",
-			-1, 0, 0, "Weight Index", "Index of source weight in active Weight Group", 0, 0);
+	prop = RNA_def_int(ot->srna, "weight_group", -1, -1, INT_MAX, "Weight Index",
+	                   "Index of source weight in active Weight Group", -1, INT_MAX);
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 
 	/* api callbacks */
@@ -4153,8 +4153,8 @@ void OBJECT_OT_vertex_weight_delete(wmOperatorType *ot)
 	ot->idname = "OBJECT_OT_vertex_weight_delete";
 	ot->description = "Delete this weight from the vertex";
 
-	prop = RNA_def_int(ot->srna, "weight_group",
-			-1, 0, 0, "Weight Index", "Index of source weight in active Weight Group", 0, 0);
+	prop = RNA_def_int(ot->srna, "weight_group", -1, -1, INT_MAX, "Weight Index",
+	                   "Index of source weight in active Weight Group", -1, INT_MAX);
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 
 	/* api callbacks */
@@ -4187,8 +4187,8 @@ void OBJECT_OT_vertex_weight_set_active(wmOperatorType *ot)
 	ot->idname = "OBJECT_OT_vertex_weight_set_active";
 	ot->description = "Set as active Vertex Group";
 
-	prop = RNA_def_int(ot->srna, "weight_group",
-			-1, 0, 0, "Weight Index", "Index of source weight in active Weight Group", 0, 0);
+	prop = RNA_def_int(ot->srna, "weight_group", -1, -1, INT_MAX, "Weight Index",
+	                   "Index of source weight in active Weight Group", -1, INT_MAX);
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 
 	/* api callbacks */
@@ -4199,7 +4199,7 @@ void OBJECT_OT_vertex_weight_set_active(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int vertex_weight_normalize_active(bContext *C, wmOperator *UNUSED(op))
+static int vertex_weight_normalize_active_vertex(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob = ED_object_context(C);
 	ToolSettings *ts = CTX_data_tool_settings(C);
@@ -4213,16 +4213,16 @@ static int vertex_weight_normalize_active(bContext *C, wmOperator *UNUSED(op))
 	return OPERATOR_FINISHED;
 }
 
-void OBJECT_OT_vertex_weight_normalize_active(wmOperatorType *ot)
+void OBJECT_OT_vertex_weight_normalize_active_vertex(wmOperatorType *ot)
 {
 
 	ot->name = "Normalize Active";
-	ot->idname = "OBJECT_OT_vertex_weight_normalize_active";
+	ot->idname = "OBJECT_OT_vertex_weight_normalize_active_vertex";
 	ot->description = "Normalize Active Vert Weights";
 
 	/* api callbacks */
 	ot->poll = vertex_group_poll;
-	ot->exec = vertex_weight_normalize_active;
+	ot->exec = vertex_weight_normalize_active_vertex;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
