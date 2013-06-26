@@ -1846,6 +1846,7 @@ class VIEW3D_MT_edit_mesh_specials(Menu):
         layout.operator("mesh.flip_normals")
         layout.operator("mesh.vertices_smooth", text="Smooth")
         layout.operator("mesh.vertices_smooth_laplacian", text="Laplacian Smooth")
+        layout.operator("mesh.vertices_deform_laplacian", text="Laplacian Deform")
 
         layout.separator()
 

@@ -29,6 +29,7 @@ set(INC
 	../blenkernel
 	../blenlib
 	../makesdna
+	../../../extern/Eigen3
 	../../../intern/guardedalloc
 	../../../extern/rangetree
 	../../../intern/opennl/extern
@@ -44,6 +45,9 @@ set(SRC
 	operators/bmo_bridge.c
 	operators/bmo_connect.c
 	operators/bmo_create.c
+	operators/bmo_deform_laplacian.c
+	operators/bmo_deform_utils.cpp
+	operators/bmo_deform_utils.h
 	operators/bmo_dissolve.c
 	operators/bmo_dupe.c
 	operators/bmo_edgenet.c
