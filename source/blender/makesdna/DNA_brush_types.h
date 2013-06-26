@@ -89,6 +89,9 @@ typedef struct Brush {
 
 	float plane_offset;     /* offset for plane brushes (clay, flatten, fill, scrape) */
 
+	float gravity_factor;   /* gravity factor for sculpting */
+	int pad;
+
 	char sculpt_tool;       /* active sculpt tool */
 	char vertexpaint_tool;  /* active vertex/weight paint blend mode (poorly named) */
 	char imagepaint_tool;   /* active image paint tool */
@@ -195,7 +198,8 @@ typedef enum BrushSculptTool {
 	SCULPT_TOOL_CREASE = 16,
 	SCULPT_TOOL_BLOB = 17,
 	SCULPT_TOOL_CLAY_STRIPS = 18,
-	SCULPT_TOOL_MASK = 19
+	SCULPT_TOOL_MASK = 19,
+	SCULPT_TOOL_GRAVITY = 20
 } BrushSculptTool;
 
 /* ImagePaintSettings.tool */

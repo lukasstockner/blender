@@ -68,6 +68,7 @@ EnumPropertyItem brush_sculpt_tool_items[] = {
 	{SCULPT_TOOL_SMOOTH, "SMOOTH", ICON_BRUSH_SMOOTH, "Smooth", ""},
 	{SCULPT_TOOL_SNAKE_HOOK, "SNAKE_HOOK", ICON_BRUSH_SNAKE_HOOK, "Snake Hook", ""},
 	{SCULPT_TOOL_THUMB, "THUMB", ICON_BRUSH_THUMB, "Thumb", ""},
+	{SCULPT_TOOL_GRAVITY, "GRAVITY", ICON_BRUSH_SCULPT_DRAW, "Gravity", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -234,6 +235,12 @@ static int rna_SculptToolCapabilities_has_strength_get(PointerRNA *ptr)
 {
 	Brush *br = (Brush *)ptr->data;
 	return !ELEM(br->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_SNAKE_HOOK);
+}
+
+static int rna_SculptToolCapabilities_has_gravity_get(PointerRNA *ptr)
+{
+	Brush *br = (Brush *)ptr->data;
+	return !ELEM(br->sculpt_tool, SCULPT_TOOL_MASK, SCULPT_TOOL_GRAVITY);
 }
 
 static int rna_BrushCapabilities_has_texture_angle_get(PointerRNA *ptr)
@@ -572,6 +579,7 @@ static void rna_def_sculpt_capabilities(BlenderRNA *brna)
 	SCULPT_TOOL_CAPABILITY(has_smooth_stroke, "Has Smooth Stroke");
 	SCULPT_TOOL_CAPABILITY(has_space_attenuation, "Has Space Attenuation");
 	SCULPT_TOOL_CAPABILITY(has_strength, "Has Strength");
+	SCULPT_TOOL_CAPABILITY(has_gravity, "Has Gravity");
 
 #undef SCULPT_CAPABILITY
 }
@@ -847,7 +855,14 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 0.01f, 1.0f, 1, 3);
 	RNA_def_property_ui_text(prop, "Rate", "Interval between paints for Airbrush");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
-	
+
+	prop = RNA_def_property(srna, "gravity", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "gravity_factor");
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.1, 3);
+	RNA_def_property_ui_text(prop, "Gravity", "Amount of gravity after each dab");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
 	prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR_GAMMA);
 	RNA_def_property_range(prop, 0.0, 1.0);
 	RNA_def_property_float_sdna(prop, NULL, "rgb");

@@ -673,15 +673,10 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                     col.prop(brush, "use_persistent")
                     col.operator("sculpt.set_persistent_base")
 
-            col = layout.column(align=True)
-            col.label(text="Overlay:")
-
-            row = col.row()
-            if brush.use_cursor_overlay:
-                row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
-            else:
-                row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
-
+            if capabilities.has_gravity:
+                col.separator()
+                
+                col.prop(brush, "gravity", slider=True)
         # Texture Paint Mode #
 
         elif context.image_paint_object and brush:
@@ -715,15 +710,6 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                 col.separator()
 
                 col.prop(brush, "use_accumulate")
-
-            col = layout.column(align=True)
-            col.label(text="Overlay:")
-
-            row = col.row()            
-            if brush.use_cursor_overlay:
-                row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
-            else:
-                row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
 
 
         # Weight Paint Mode #
@@ -768,15 +754,6 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             #row.prop(brush, "use_pressure_jitter", toggle=True, text="")
 
             col.prop(brush, "vertex_tool", text="Blend")
-
-            col = layout.column(align=True)
-            col.label(text="Overlay:")
-
-            row = col.row()
-            if brush.use_cursor_overlay:
-                row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
-            else:
-                row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
 
 
 class VIEW3D_PT_tools_brush_texture(Panel, View3DPaintPanel):
@@ -966,17 +943,26 @@ class VIEW3D_PT_tools_brush_curve(Panel, View3DPaintPanel):
 
         layout.template_curve_mapping(brush, "curve", brush=True)
 
-        row = layout.row(align=True)
+        col = layout.column(align=True)
+        row = col.row(align=True)
         row.operator("brush.curve_preset", icon='SMOOTHCURVE', text="").shape = 'SMOOTH'
         row.operator("brush.curve_preset", icon='SPHERECURVE', text="").shape = 'ROUND'
         row.operator("brush.curve_preset", icon='ROOTCURVE', text="").shape = 'ROOT'
         row.operator("brush.curve_preset", icon='SHARPCURVE', text="").shape = 'SHARP'
         row.operator("brush.curve_preset", icon='LINCURVE', text="").shape = 'LINE'
         row.operator("brush.curve_preset", icon='NOCURVE', text="").shape = 'MAX'
+                   
+        col = layout.column(align=True)
+        col.separator()
         
-        sub = row.row()
-        sub.prop(brush, "cursor_overlay_alpha", text="Alpha")
-        sub.prop(brush, "use_cursor_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
+        col.label(text="Overlay:")
+        row = col.row(align=True)
+        if brush.use_cursor_overlay:
+            row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
+        else:
+            row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
+        row.prop(brush, "cursor_overlay_alpha", text="Alpha")
+        row.prop(brush, "use_cursor_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
 
 
 class VIEW3D_PT_sculpt_topology(Panel, View3DPaintPanel):

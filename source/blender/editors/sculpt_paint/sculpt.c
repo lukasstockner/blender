@@ -866,6 +866,7 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache, float feather)
 		case SCULPT_TOOL_CLAY:
 		case SCULPT_TOOL_CLAY_STRIPS:
 		case SCULPT_TOOL_DRAW:
+		case SCULPT_TOOL_GRAVITY:
 		case SCULPT_TOOL_LAYER:
 			return alpha * flip * pressure * overlap * feather;
 			
@@ -1286,14 +1287,15 @@ static int brush_needs_sculpt_normal(const Brush *brush)
 	         ((brush->normal_weight > 0) ||
 	          (brush->flag & BRUSH_FRONTFACE))) ||
 
-	        ELEM7(brush->sculpt_tool,
+	        ELEM8(brush->sculpt_tool,
 	              SCULPT_TOOL_BLOB,
 	              SCULPT_TOOL_CREASE,
 	              SCULPT_TOOL_DRAW,
 	              SCULPT_TOOL_LAYER,
 	              SCULPT_TOOL_NUDGE,
 	              SCULPT_TOOL_ROTATE,
-	              SCULPT_TOOL_THUMB) ||
+	              SCULPT_TOOL_THUMB,
+	              SCULPT_TOOL_GRAVITY) ||
 
 	        (brush->mtex.brush_map_mode == MTEX_MAP_MODE_AREA));
 }
@@ -2909,6 +2911,61 @@ static void do_scrape_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnod
 	}
 }
 
+static void gravity(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode, float bstrength)
+{
+	SculptSession *ss = ob->sculpt;
+	Brush *brush = BKE_paint_brush(&sd->paint);
+
+	float offset[3]/*, an[3]*/;
+	int n;
+	float gravity[3];
+
+	gravity[0]= gravity[1]= 0;
+	gravity[2]= -ss->cache->radius_squared;
+
+	/* offset with as much as possible factored in already */
+	mul_v3_v3v3(offset, gravity, ss->cache->scale);
+	mul_v3_fl(offset, bstrength);
+
+	/* threaded loop over nodes */
+	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
+	for(n=0; n<totnode; n++) {
+		PBVHVertexIter vd;
+		SculptBrushTest test;
+		float (*proxy)[3];
+
+		proxy = BKE_pbvh_node_add_proxy(ss->pbvh, nodes[n])->co;
+
+		sculpt_brush_test_init(ss, &test);
+
+		BKE_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
+			if (sculpt_brush_test_sq(&test, vd.co)) {
+			//if(paint_stroke_test_cyl(&test, vd.co, bspace->location, an)) {
+				/* offset vertex */
+				//float fade = tex_strength(stroke, brush, vd.co, vd.mask_combined, test.dist)*frontface(brush, bspace->frontface_start, bspace->frontface_range, an, orig_no[vd.i]);
+				const float fade = bstrength * tex_strength(ss, brush, vd.co,
+				                                            sqrt(test.dist),
+				                                            ss->cache->sculpt_normal_symm, vd.no,
+				                                            vd.fno, vd.mask ? *vd.mask : 0.0f);
+
+				mul_v3_v3fl(proxy[vd.i], offset, fade);
+
+				if(vd.mvert)
+					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+			}
+		}
+		BKE_pbvh_vertex_iter_end;
+	}
+}
+
+static void do_gravity_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
+{
+	SculptSession *ss = ob->sculpt;
+
+	gravity(sd, ob, nodes, totnode, ss->cache->bstrength);
+}
+
+
 void sculpt_vertcos_to_key(Object *ob, KeyBlock *kb, float (*vertCos)[3])
 {
 	Mesh *me = (Mesh *)ob->data;
@@ -3119,6 +3176,9 @@ static void do_brush_action(Sculpt *sd, Object *ob, Brush *brush)
 			case SCULPT_TOOL_MASK:
 				do_mask_brush(sd, ob, nodes, totnode);
 				break;
+			case SCULPT_TOOL_GRAVITY:
+				do_gravity_brush(sd, ob, nodes, totnode);
+				break;
 		}
 
 		if (!ELEM(brush->sculpt_tool, SCULPT_TOOL_SMOOTH, SCULPT_TOOL_MASK) &&
@@ -3131,6 +3191,9 @@ static void do_brush_action(Sculpt *sd, Object *ob, Brush *brush)
 				smooth(sd, ob, nodes, totnode, brush->autosmooth_factor, FALSE);
 			}
 		}
+
+		if (brush->sculpt_tool != SCULPT_TOOL_GRAVITY && brush->gravity_factor > 0)
+			gravity(sd, ob, nodes, totnode, brush->gravity_factor);
 
 		MEM_freeN(nodes);
 
@@ -3585,6 +3648,8 @@ static const char *sculpt_tool_name(Sculpt *sd)
 			return "Mask Brush";
 		case SCULPT_TOOL_SIMPLIFY:
 			return "Simplify Brush";
+		case SCULPT_TOOL_GRAVITY:
+			return "Gravity Brush";
 	}
 
 	return "Sculpting";
@@ -3809,10 +3874,10 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 		cache->original = 1;
 	}
 
-	if (ELEM8(brush->sculpt_tool,
+	if (ELEM9(brush->sculpt_tool,
 	          SCULPT_TOOL_DRAW, SCULPT_TOOL_CREASE, SCULPT_TOOL_BLOB,
 	          SCULPT_TOOL_LAYER, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY,
-	          SCULPT_TOOL_CLAY_STRIPS, SCULPT_TOOL_ROTATE))
+	          SCULPT_TOOL_CLAY_STRIPS, SCULPT_TOOL_ROTATE, SCULPT_TOOL_GRAVITY))
 	{
 		if (!(brush->flag & BRUSH_ACCUMULATE)) {
 			cache->original = 1;

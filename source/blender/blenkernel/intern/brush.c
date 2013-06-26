@@ -135,6 +135,8 @@ static void brush_defaults(Brush *brush)
 
 	brush->stencil_dimension[0] = 256;
 	brush->stencil_dimension[1] = 256;
+
+	brush->gravity_factor = 0.0;
 }
 
 /* Datablock add/copy/free/make_local */
