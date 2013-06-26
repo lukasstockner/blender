@@ -3231,9 +3231,8 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 	DerivedMesh *dm = mesh_get_derived_final(scene, ob, scene->customdata_mask);
 	const bool is_obact = (ob == OBACT);
 	int draw_flags = (is_obact && paint_facesel_test(ob)) ? DRAW_FACE_SELECT : 0;
-	bool draw_lod = (ob->mode == OB_MODE_OBJECT || !is_obact);
 
-	if (draw_lod) {
+	if (BKE_object_lod_check(ob, scene)) {
 		ob = BKE_object_lod_meshob_get(ob);
 		me = ob->data;
 		dm->release(dm);

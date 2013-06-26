@@ -987,6 +987,12 @@ static LodLevel* lod_level_select(struct Object *ob, float cam_loc[3])
 	return current;
 }
 
+bool BKE_object_lod_check(struct Object *ob, struct Scene *scene)
+{
+	bool active = (scene) ? ob == OBACT : 0;
+	return (ob->mode == OB_MODE_OBJECT || !active);
+}
+
 void BKE_object_lod_update(struct Object *ob, float camera_position[3])
 {
 	LodLevel* cur_level = ob->currentlod;
@@ -1003,6 +1009,17 @@ struct Object *BKE_object_lod_meshob_get(struct Object *ob)
 	LodLevel *current = ob->currentlod;
 
 	while( current->prev && (!current->use_mesh || current->source->type != OB_MESH)) {
+		current = current->prev;
+	}
+
+	return current->source;
+}
+
+struct Object *BKE_object_lod_matob_get(struct Object *ob)
+{
+	LodLevel *current = ob->currentlod;
+
+	while( current->prev && (!current->use_mat || current->source->type != OB_MESH)) {
 		current = current->prev;
 	}
 
