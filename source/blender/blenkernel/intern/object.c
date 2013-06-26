@@ -1008,7 +1008,7 @@ struct Object *BKE_object_lod_meshob_get(struct Object *ob)
 {
 	LodLevel *current = ob->currentlod;
 
-	while( current->prev && (!current->use_mesh || current->source->type != OB_MESH)) {
+	while( current->prev && (!current->use_mesh || !current->source || current->source->type != OB_MESH)) {
 		current = current->prev;
 	}
 
@@ -1019,7 +1019,7 @@ struct Object *BKE_object_lod_matob_get(struct Object *ob)
 {
 	LodLevel *current = ob->currentlod;
 
-	while( current->prev && (!current->use_mat || current->source->type != OB_MESH)) {
+	while( current->prev && (!current->use_mat || !current->source || current->source->type != OB_MESH)) {
 		current = current->prev;
 	}
 
