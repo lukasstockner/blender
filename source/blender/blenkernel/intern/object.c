@@ -340,6 +340,8 @@ void BKE_object_free(Object *ob)
 	free_sculptsession(ob);
 
 	if (ob->pc_ids.first) BLI_freelistN(&ob->pc_ids);
+
+	BLI_freelistN(&ob->lodlevels);
 }
 
 static void unlink_object__unlinkModifierLinks(void *userData, Object *ob, Object **obpoin)
