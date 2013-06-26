@@ -956,7 +956,13 @@ void BKE_object_lod_remove(struct Object *ob, int level)
 		return;
 
 	rem = BLI_findlink(&ob->lodlevels, level);
+
+	if (rem == ob->currentlod) {
+		ob->currentlod = rem->prev;
+	}
+
 	BLI_remlink(&ob->lodlevels, rem);
+	MEM_freeN(rem);
 }
 
 static LodLevel* lod_level_select(struct Object *ob, float cam_loc[3])

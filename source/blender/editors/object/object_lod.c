@@ -33,6 +33,7 @@
 #include "DNA_object_types.h"
 
 #include "BKE_context.h"
+#include "BKE_main.h"
 #include "BKE_object.h"
 
 #include "ED_screen.h"
@@ -76,6 +77,8 @@ static int object_lod_remove_exec(bContext *C, wmOperator *op)
 	Object *ob = ED_object_context(C);
 	int index = RNA_int_get(op->ptr, "index");
 	BKE_object_lod_remove(ob, index);
+
+	WM_event_add_notifier(C, NC_LOD, CTX_wm_view3d(C));
 	return OPERATOR_FINISHED;
 }
 

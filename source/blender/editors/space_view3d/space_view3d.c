@@ -877,6 +877,10 @@ static void view3d_main_area_listener(ARegion *ar, wmNotifier *wmn)
 			if (wmn->action == NA_EDITED)
 				ED_region_tag_redraw(ar);
 			break;
+		case NC_LOD:
+			/* all lod ops for now */
+			ED_region_tag_redraw(ar);
+			break;
 	}
 }
 
