@@ -973,7 +973,7 @@ static LodLevel* lod_level_select(struct Object *ob, float cam_loc[3])
 
 	/* check for higher LoD */
 	if (distance2 < current->distance*current->distance) {
-		while (current->prev && distance2 > current->prev->distance*current->prev->distance) {
+		while (current->prev && distance2 < current->distance*current->distance) {
 			current = current->prev;
 		}
 	}
