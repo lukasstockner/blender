@@ -3234,6 +3234,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 
 	if (BKE_object_lod_check(ob, scene)) {
 		ob = BKE_object_lod_meshob_get(ob);
+		if (!ob) ob = base->object;
 		me = ob->data;
 		dm->release(dm);
 		dm = mesh_get_derived_final(scene, ob, scene->customdata_mask);
