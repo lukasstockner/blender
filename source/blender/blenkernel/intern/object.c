@@ -374,6 +374,7 @@ void BKE_object_unlink(Object *ob)
 	ModifierData *md;
 	ARegion *ar;
 	RegionView3D *rv3d;
+	LodLevel *lod;
 	int a, found;
 	
 	unlink_controllers(&ob->controllers);
@@ -550,6 +551,12 @@ void BKE_object_unlink(Object *ob)
 			}
 			if (ob->pd)
 				DAG_id_tag_update(&obt->id, OB_RECALC_DATA);
+		}
+
+		/* levels of detail */
+		for (lod = obt->lodlevels.first; lod; lod = lod->next) {
+			if (lod->source == ob)
+				lod->source = NULL;
 		}
 
 		obt = obt->id.next;
