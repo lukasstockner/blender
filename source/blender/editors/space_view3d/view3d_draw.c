@@ -3246,7 +3246,6 @@ static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const 
 	View3D *v3d = CTX_wm_view3d(C);
 	RegionView3D *rv3d = CTX_wm_region_view3d(C);
 	Base *base;
-	float camera_pos[3];
 	unsigned int lay_used;
 
 	/* shadow buffers, before we setup matrices */
@@ -3263,8 +3262,7 @@ static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const 
 	view3d_main_area_setup_view(scene, v3d, ar, NULL, NULL);
 
 	/* Make sure LoDs are up to date */
-	copy_v3_v3(camera_pos, rv3d->viewinv[3]);
-	update_lods(scene, camera_pos);
+	update_lods(scene, rv3d->viewinv[3]);
 
 	/* clear the background */
 	view3d_main_area_clear(scene, v3d, ar);
