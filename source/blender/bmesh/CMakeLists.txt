@@ -44,6 +44,7 @@ set(SRC
 	operators/bmo_bevel.c
 	operators/bmo_bridge.c
 	operators/bmo_connect.c
+	operators/bmo_connect_pair.c
 	operators/bmo_create.c
 	operators/bmo_deform_laplacian.c
 	operators/bmo_deform_utils.cpp

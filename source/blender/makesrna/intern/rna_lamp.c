@@ -136,10 +136,7 @@ static void rna_Lamp_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *ptr)
 	Lamp *la = ptr->id.data;
 
 	DAG_id_tag_update(&la->id, 0);
-	if (scene->gm.matmode == GAME_MAT_GLSL)
-		WM_main_add_notifier(NC_LAMP | ND_LIGHTING_DRAW, la);
-	else
-		WM_main_add_notifier(NC_LAMP | ND_LIGHTING, la);
+	WM_main_add_notifier(NC_LAMP | ND_LIGHTING, la);
 }
 
 static void rna_Lamp_draw_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
@@ -675,6 +672,7 @@ static void rna_def_lamp_shadow(StructRNA *srna, int spot, int area)
 
 	prop = RNA_def_property(srna, "shadow_soft_size", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "area_size");
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0, 100, 0.1, 3);
 	RNA_def_property_ui_text(prop, "Shadow Soft Size", "Light size for ray shadow sampling (Raytraced shadows)");
 	RNA_def_property_update(prop, 0, "rna_Lamp_update");
@@ -739,11 +737,13 @@ static void rna_def_area_lamp(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "size", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "area_size");
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0, 100, 0.1, 3);
 	RNA_def_property_ui_text(prop, "Size", "Size of the area of the area Lamp, X direction size for Rectangle shapes");
 	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
 
 	prop = RNA_def_property(srna, "size_y", PROP_FLOAT, PROP_DISTANCE);
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
 	RNA_def_property_float_sdna(prop, NULL, "area_sizey");
 	RNA_def_property_ui_range(prop, 0, 100, 0.1, 3);
 	RNA_def_property_ui_text(prop, "Size Y",

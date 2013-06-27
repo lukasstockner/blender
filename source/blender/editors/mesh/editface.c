@@ -74,6 +74,8 @@ void paintface_flush_flags(Object *ob)
 	if (me == NULL)
 		return;
 
+	/* note, call #BKE_mesh_flush_hidden_from_verts_ex first when changing hidden flags */
+
 	/* we could call this directly in all areas that change selection,
 	 * since this could become slow for realtime updates (circle-select for eg) */
 	BKE_mesh_flush_select_from_polys(me);
@@ -139,18 +141,20 @@ void paintface_hide(Object *ob, const bool unselected)
 	a = me->totpoly;
 	while (a--) {
 		if ((mpoly->flag & ME_HIDE) == 0) {
-			if (unselected) {
-				if ((mpoly->flag & ME_FACE_SEL) == 0) mpoly->flag |= ME_HIDE;
-			}
-			else {
-				if ((mpoly->flag & ME_FACE_SEL)) mpoly->flag |= ME_HIDE;
+			if (((mpoly->flag & ME_FACE_SEL) == 0) == unselected) {
+				mpoly->flag |= ME_HIDE;
 			}
 		}
-		if (mpoly->flag & ME_HIDE) mpoly->flag &= ~ME_FACE_SEL;
+
+		if (mpoly->flag & ME_HIDE) {
+			mpoly->flag &= ~ME_FACE_SEL;
+		}
 		
 		mpoly++;
 	}
 	
+	BKE_mesh_flush_hidden_from_polys(me);
+
 	paintface_flush_flags(ob);
 }
 
@@ -173,6 +177,8 @@ void paintface_reveal(Object *ob)
 		}
 		mpoly++;
 	}
+
+	BKE_mesh_flush_hidden_from_polys(me);
 
 	paintface_flush_flags(ob);
 }
@@ -617,6 +623,17 @@ void paintvert_deselect_all_visible(Object *ob, int action, bool flush_flags)
 			}
 			mvert++;
 		}
+	}
+
+	/* handle mselect */
+	if (action == SEL_SELECT) {
+		/* pass */
+	}
+	else if (ELEM(action, SEL_DESELECT, SEL_INVERT)) {
+		BKE_mesh_mselect_clear(me);
+	}
+	else {
+		BKE_mesh_mselect_validate(me);
 	}
 
 	if (flush_flags) {

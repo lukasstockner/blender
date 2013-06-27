@@ -92,7 +92,7 @@ void EDBM_select_mirrored(BMEditMesh *em, bool extend,
 		}
 	}
 
-	EDBM_verts_mirror_cache_begin(em, true, true);
+	EDBM_verts_mirror_cache_begin(em, 0, true, true);
 
 	if (!extend)
 		EDBM_flag_disable_all(em, BM_ELEM_SELECT);
@@ -119,26 +119,17 @@ void EDBM_select_mirrored(BMEditMesh *em, bool extend,
 	*r_totfail = totfail;
 }
 
-void EDBM_automerge(Scene *scene, Object *obedit, bool update)
+void EDBM_automerge(Scene *scene, Object *obedit, bool update, const char hflag)
 {
-	
-	if ((scene->toolsettings->automerge) &&
-	    (obedit && obedit->type == OB_MESH))
-	{
-		int ok;
-		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+	int ok;
+	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
-		if (!em) {
-			return;
-		}
+	ok = BMO_op_callf(em->bm, BMO_FLAG_DEFAULTS,
+	                  "automerge verts=%hv dist=%f",
+	                  hflag, scene->toolsettings->doublimit);
 
-		ok = BMO_op_callf(em->bm, BMO_FLAG_DEFAULTS,
-		                  "automerge verts=%hv dist=%f",
-		                  BM_ELEM_SELECT, scene->toolsettings->doublimit);
-
-		if (LIKELY(ok) && update) {
-			EDBM_update_generic(em, true, true);
-		}
+	if (LIKELY(ok) && update) {
+		EDBM_update_generic(em, true, true);
 	}
 }
 
@@ -1213,7 +1204,7 @@ static void mouse_mesh_loop(bContext *C, const int mval[2], bool extend, bool de
 					}
 				}
 				if (efa) {
-					BM_active_face_set(em->bm, efa);
+					BM_mesh_active_face_set(em->bm, efa);
 					BM_select_history_store(em->bm, efa);
 				}
 			}
@@ -1380,7 +1371,7 @@ bool EDBM_select_pick(bContext *C, const int mval[2], bool extend, bool deselect
 		if (efa) {
 			if (extend) {
 				/* set the last selected face */
-				BM_active_face_set(vc.em->bm, efa);
+				BM_mesh_active_face_set(vc.em->bm, efa);
 
 				/* Work-around: deselect first, so we can guarantee it will */
 				/* be active even if it was already selected */
@@ -1395,7 +1386,7 @@ bool EDBM_select_pick(bContext *C, const int mval[2], bool extend, bool deselect
 			}
 			else {
 				/* set the last selected face */
-				BM_active_face_set(vc.em->bm, efa);
+				BM_mesh_active_face_set(vc.em->bm, efa);
 
 				if (!BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
 					BM_select_history_store(vc.em->bm, efa);
@@ -2392,25 +2383,25 @@ static void deselect_nth_active(BMEditMesh *em, BMVert **r_eve, BMEdge **r_eed, 
 	BMEdge *e;
 	BMFace *f;
 	BMIter iter;
-	BMEditSelection *ese;
+	BMElem *ele;
 
 	*r_eve = NULL;
 	*r_eed = NULL;
 	*r_efa = NULL;
 
 	EDBM_selectmode_flush(em);
-	ese = (BMEditSelection *)em->bm->selected.last;
+	ele = BM_mesh_active_elem_get(em->bm);
 
-	if (ese) {
-		switch (ese->htype) {
+	if (ele) {
+		switch (ele->head.htype) {
 			case BM_VERT:
-				*r_eve = (BMVert *)ese->ele;
+				*r_eve = (BMVert *)ele;
 				return;
 			case BM_EDGE:
-				*r_eed = (BMEdge *)ese->ele;
+				*r_eed = (BMEdge *)ele;
 				return;
 			case BM_FACE:
-				*r_efa = (BMFace *)ese->ele;
+				*r_efa = (BMFace *)ele;
 				return;
 		}
 	}
@@ -2432,7 +2423,7 @@ static void deselect_nth_active(BMEditMesh *em, BMVert **r_eve, BMEdge **r_eed, 
 		}
 	}
 	else if (em->selectmode & SCE_SELECT_FACE) {
-		f = BM_active_face_get(em->bm, true, false);
+		f = BM_mesh_active_face_get(em->bm, true, false);
 		if (f) {
 			*r_efa = f;
 			return;
@@ -2841,39 +2832,40 @@ static int edbm_select_axis_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-	BMEditSelection *ese = em->bm->selected.last;
+	BMesh *bm = em->bm;
+	BMVert *v_act = BM_mesh_active_vert_get(bm);
 	const int axis = RNA_enum_get(op->ptr, "axis");
 	const int mode = RNA_enum_get(op->ptr, "mode"); /* -1 == aligned, 0 == neg, 1 == pos */
 
-	if (ese == NULL || ese->htype != BM_VERT) {
+	if (v_act == NULL) {
 		BKE_report(op->reports, RPT_WARNING, "This operator requires an active vertex (last selected)");
 		return OPERATOR_CANCELLED;
 	}
 	else {
-		BMVert *ev, *act_vert = (BMVert *)ese->ele;
+		BMVert *v;
 		BMIter iter;
-		float value = act_vert->co[axis];
-		float limit =  CTX_data_tool_settings(C)->doublimit; // XXX
+		const float limit =  CTX_data_tool_settings(C)->doublimit; // XXX
+		float value = v_act->co[axis];
 
 		if (mode == 0)
 			value -= limit;
 		else if (mode == 1)
 			value += limit;
 
-		BM_ITER_MESH (ev, &iter, em->bm, BM_VERTS_OF_MESH) {
-			if (!BM_elem_flag_test(ev, BM_ELEM_HIDDEN)) {
+		BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+			if (!BM_elem_flag_test(v, BM_ELEM_HIDDEN)) {
 				switch (mode) {
 					case -1: /* aligned */
-						if (fabsf(ev->co[axis] - value) < limit)
-							BM_vert_select_set(em->bm, ev, true);
+						if (fabsf(v->co[axis] - value) < limit)
+							BM_vert_select_set(bm, v, true);
 						break;
 					case 0: /* neg */
-						if (ev->co[axis] > value)
-							BM_vert_select_set(em->bm, ev, true);
+						if (v->co[axis] > value)
+							BM_vert_select_set(bm, v, true);
 						break;
 					case 1: /* pos */
-						if (ev->co[axis] < value)
-							BM_vert_select_set(em->bm, ev, true);
+						if (v->co[axis] < value)
+							BM_vert_select_set(bm, v, true);
 						break;
 				}
 			}
@@ -3196,6 +3188,8 @@ static int edbm_loop_to_region_exec(bContext *C, wmOperator *op)
 		}
 	}
 	
+	EDBM_selectmode_flush(em);
+
 	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 	return OPERATOR_FINISHED;
 }

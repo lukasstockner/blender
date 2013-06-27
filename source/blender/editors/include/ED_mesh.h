@@ -74,9 +74,12 @@ struct Object;
 struct rcti;
 struct MeshStatVis;
 
-
 /* editmesh_utils.c */
-void           EDBM_verts_mirror_cache_begin(struct BMEditMesh *em, const bool use_self, const bool use_select);
+void           EDBM_verts_mirror_cache_begin_ex(struct BMEditMesh *em, const int axis,
+                                                const bool use_self, const bool use_select,
+                                                const bool is_topo, float maxdist, int *r_index);
+void           EDBM_verts_mirror_cache_begin(struct BMEditMesh *em, const int axis,
+                                             const bool use_self, const bool use_select);
 void           EDBM_verts_mirror_apply(struct BMEditMesh *em, const int sel_from, const int sel_to);
 struct BMVert *EDBM_verts_mirror_get(struct BMEditMesh *em, struct BMVert *v);
 void           EDBM_verts_mirror_cache_clear(struct BMEditMesh *em, struct BMVert *v);
@@ -143,7 +146,7 @@ bool BMBVH_EdgeVisible(struct BMBVHTree *tree, struct BMEdge *e,
 /* editmesh_select.c */
 void EDBM_select_mirrored(struct BMEditMesh *em, bool extend,
                           int *r_totmirr, int *r_totfail);
-void EDBM_automerge(struct Scene *scene, struct Object *ob, bool update);
+void EDBM_automerge(struct Scene *scene, struct Object *ob, bool update, const char hflag);
 
 bool EDBM_backbuf_border_init(struct ViewContext *vc, short xmin, short ymin, short xmax, short ymax);
 int  EDBM_backbuf_check(unsigned int index);
@@ -246,6 +249,7 @@ bool                 ED_vgroup_object_is_edit_mode(struct Object *ob);
 void                 ED_vgroup_vert_add(struct Object *ob, struct bDeformGroup *dg, int vertnum,  float weight, int assignmode);
 void                 ED_vgroup_vert_remove(struct Object *ob, struct bDeformGroup *dg, int vertnum);
 float                ED_vgroup_vert_weight(struct Object *ob, struct bDeformGroup *dg, int vertnum);
+void                 ED_vgroup_vert_active_mirror(struct Object *ob, int def_nr);
 
 
 /* mesh_data.c */
@@ -307,6 +311,11 @@ int           *mesh_get_x_mirror_faces(struct Object *ob, struct BMEditMesh *em)
 bool ED_mesh_pick_vert(struct bContext *C,      struct Object *ob, const int mval[2], unsigned int *index, int size, bool use_zbuf);
 bool ED_mesh_pick_face(struct bContext *C,      struct Object *ob, const int mval[2], unsigned int *index, int size);
 bool ED_mesh_pick_face_vert(struct bContext *C, struct Object *ob, const int mval[2], unsigned int *index, int size);
+
+
+struct MDeformVert *ED_mesh_active_dvert_get_em(struct Object *ob, struct BMVert **r_eve);
+struct MDeformVert *ED_mesh_active_dvert_get_ob(struct Object *ob, int *r_index);
+struct MDeformVert *ED_mesh_active_dvert_get_only(struct Object *ob);
 
 #define ED_MESH_PICK_DEFAULT_VERT_SIZE 50
 #define ED_MESH_PICK_DEFAULT_FACE_SIZE 3

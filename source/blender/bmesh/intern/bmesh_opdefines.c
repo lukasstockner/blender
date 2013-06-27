@@ -864,6 +864,26 @@ static BMOpDefine bmo_connect_verts_def = {
 };
 
 /*
+ * Connect Verts.
+ *
+ * Split faces by adding edges that connect **verts**.
+ */
+static BMOpDefine bmo_connect_vert_pair_def = {
+	"connect_vert_pair",
+	/* slots_in */
+	{{"verts", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT}},
+	 {{'\0'}},
+	},
+	/* slots_out */
+	{{"edges.out", BMO_OP_SLOT_ELEMENT_BUF, {BM_EDGE}},
+	 {{'\0'}},
+	},
+	bmo_connect_vert_pair_exec,
+	BMO_OPTYPE_FLAG_UNTAN_MULTIRES | BMO_OPTYPE_FLAG_NORMALS_CALC | BMO_OPTYPE_FLAG_SELECT_FLUSH,
+};
+
+
+/*
  * Extrude Faces.
  *
  * Extrude operator (does not transform)
@@ -907,6 +927,7 @@ static BMOpDefine bmo_dissolve_edges_def = {
 	/* slots_in */
 	{{"edges", BMO_OP_SLOT_ELEMENT_BUF, {BM_EDGE}},
 	 {"use_verts", BMO_OP_SLOT_BOOL},  /* dissolve verts left between only 2 edges. */
+	 {"use_face_split", BMO_OP_SLOT_BOOL},
 	 {{'\0'}},
 	},
 	/* slots_out */
@@ -914,23 +935,6 @@ static BMOpDefine bmo_dissolve_edges_def = {
 	 {{'\0'}},
 	},
 	bmo_dissolve_edges_exec,
-	BMO_OPTYPE_FLAG_UNTAN_MULTIRES | BMO_OPTYPE_FLAG_NORMALS_CALC | BMO_OPTYPE_FLAG_SELECT_FLUSH,
-};
-
-/*
- * Dissolve Edge Loop.
- */
-static BMOpDefine bmo_dissolve_edge_loop_def = {
-	"dissolve_edge_loop",
-	/* slots_in */
-	{{"edges", BMO_OP_SLOT_ELEMENT_BUF, {BM_EDGE}},
-	 {{'\0'}},
-	},
-	/* slots_out */
-	{{"region.out", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}},
-	 {{'\0'}},
-	},
-	bmo_dissolve_edgeloop_exec,
 	BMO_OPTYPE_FLAG_UNTAN_MULTIRES | BMO_OPTYPE_FLAG_NORMALS_CALC | BMO_OPTYPE_FLAG_SELECT_FLUSH,
 };
 
@@ -1724,6 +1728,7 @@ const BMOpDefine *bmo_opdefines[] = {
 	&bmo_collapse_def,
 	&bmo_collapse_uvs_def,
 	&bmo_connect_verts_def,
+	&bmo_connect_vert_pair_def,
 	&bmo_contextual_create_def,
 #ifdef WITH_BULLET
 	&bmo_convex_hull_def,
@@ -1738,7 +1743,6 @@ const BMOpDefine *bmo_opdefines[] = {
 	&bmo_create_vert_def,
 	&bmo_deform_laplacian_vert_def,
 	&bmo_delete_def,
-	&bmo_dissolve_edge_loop_def,
 	&bmo_dissolve_edges_def,
 	&bmo_dissolve_faces_def,
 	&bmo_dissolve_limit_def,
