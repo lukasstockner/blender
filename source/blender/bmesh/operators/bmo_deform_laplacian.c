@@ -36,11 +36,13 @@
 struct BLaplacianSystem {
 	float *vweights;			/* Total sum of weights per vertice*/
 	float (*delta)[3];			/* Differential Coordinates*/
+	BMVert **uverts;				/* Unit vectors of projected edges onto the plane orthogonal to  n*/
 	int numVerts;				/* Number of verts*/
 	/* Pointers to data*/
 	BMesh *bm;
 	BMOperator *op;
-	NLContext *context;
+	NLContext *context;			/* System for solve general implicit rotations*/
+	NLContext *contextrot;		/* System for solve general Laplacian with rotated differential coordinates*/
 	vptrSpMatrixD spLapMatrix;  /* Sparse Laplacian Matrix*/
 	vptrVectorD VectorB;		/* Array to store vertex positions of handlers*/
 	vptrVectorD VectorX;		/* Array to  store solution */
@@ -80,8 +82,12 @@ static void delete_laplacian_system(LaplacianSystem *sys)
 	if(!sys) return;
 	delete_void_pointer(sys->vweights);
 	delete_void_pointer(sys->delta);
+	delete_void_pointer(sys->uverts);
 	if (sys->context) {
 		nlDeleteContext(sys->context);
+	}
+	if (sys->contextrot) {
+		nlDeleteContext(sys->contextrot);
 	}
 	if (sys->spLapMatrix) {
 		delete_spmatrix(sys->spLapMatrix);
@@ -145,6 +151,12 @@ static LaplacianSystem *init_laplacian_system(int a_numVerts, int rows, int cols
 		return NULL;
 	}
 
+	sys->uverts =  (BMVert **)MEM_callocN(sizeof(BMVert *) * sys->numVerts, "bmoLaplDeformuverts");
+	if (!sys->uverts) {
+		delete_laplacian_system(sys);
+		return NULL;
+	}
+
 	sys->delta =  (float (*)[3])MEM_callocN(sizeof(float) * sys->numVerts * 3, "bmoLaplDeformDelta");
 	if (!sys->delta) {
 		delete_laplacian_system(sys);
@@ -189,6 +201,7 @@ static void init_laplacian_matrix(LaplacianSystem *sys)
 			idv[2] = idv3;
 			idv[3] = idv4;
 
+			nlMakeCurrent(sys->context);
 			nlRightHandSideAdd(0, idv1						, 0.0f);
 			nlRightHandSideAdd(0, sys->numVerts + idv1		, 0.0f);
 			nlRightHandSideAdd(0, 2*sys->numVerts + idv1	, 0.0f);
@@ -214,9 +227,13 @@ static void init_laplacian_matrix(LaplacianSystem *sys)
 					sys->delta[idv1][1] -=  v4[1] * w4;
 					sys->delta[idv1][2] -=  v4[2] * w4;
 
+					nlMakeCurrent(sys->context);
 					nlMatrixAdd(idv1					, idv4						, -w4 );
 					nlMatrixAdd(sys->numVerts + idv1	, sys->numVerts + idv4		, -w4 );
 					nlMatrixAdd(sys->numVerts*2 + idv1	, sys->numVerts*2 + idv4	, -w4 );
+
+					nlMakeCurrent(sys->contextrot);
+					nlMatrixAdd(idv1					, idv4						, -w4 );
 
 					push_back_triplet(sys->tripletList, idv1					, idv4						, -w4 );
 					push_back_triplet(sys->tripletList, sys->numVerts + idv1	, sys->numVerts + idv4		, -w4 );
@@ -244,6 +261,7 @@ static void init_laplacian_matrix(LaplacianSystem *sys)
 				sys->delta[idv1][1] -=  v3[1] * w3;
 				sys->delta[idv1][2] -=  v3[2] * w3;
 
+				nlMakeCurrent(sys->context);
 				nlMatrixAdd(idv1					, idv2						, -w2);
 				nlMatrixAdd(sys->numVerts + idv1	, sys->numVerts + idv2		, -w2);
 				nlMatrixAdd(sys->numVerts*2 + idv1	, sys->numVerts*2 + idv2	, -w2);
@@ -255,6 +273,11 @@ static void init_laplacian_matrix(LaplacianSystem *sys)
 				nlMatrixAdd(idv1					, idv1						, w2 + w3 + w4);
 				nlMatrixAdd(sys->numVerts + idv1	, sys->numVerts + idv1		, w2 + w3 + w4);
 				nlMatrixAdd(sys->numVerts*2 + idv1	, sys->numVerts*2 + idv1	, w2 + w3 + w4);
+
+				nlMakeCurrent(sys->contextrot);
+				nlMatrixAdd(idv1					, idv2						, -w2);
+				nlMatrixAdd(idv1					, idv3						, -w3);
+				nlMatrixAdd(idv1					, idv1						, w2 + w3 + w4);
 
 				push_back_triplet(sys->tripletList, idv1					, idv2						, -w2);
 				push_back_triplet(sys->tripletList, sys->numVerts + idv1	, sys->numVerts + idv2		, -w2);
@@ -281,10 +304,12 @@ static void compute_implicit_rotations(LaplacianSystem * sys)
 	BMVert *v;
 	BMVert *v2;
 	BMVert ** vn = NULL;
+	float minj, mjt, *qj, *qi, vj[3];
 	int i, j, ln, jid;
 	vptrMatrixD C, TDelta;
 	BLI_array_declare(vn);
 
+	nlMakeCurrent(sys->context);
 	BM_ITER_MESH (v, &viter, sys->bm, BM_VERTS_OF_MESH) {
 		i = BM_elem_index_get(v);
 		
@@ -298,6 +323,19 @@ static void compute_implicit_rotations(LaplacianSystem * sys)
 		}
 		BLI_array_append(vn, v);
 		ln = BLI_array_count(vn);
+		minj = 1000000.0f;
+		for (j = 0; j < (ln-1); j++) {
+			qj = vn[j]->co;
+			sub_v3_v3v3(vj, qj, v->co);
+			normalize_v3(vj);
+			mjt = fabs(dot_v3v3(vj, v->no));
+			if (mjt < minj) {
+				minj = mjt;
+				sys->uverts[i] = vn[j];
+				//copy_v3_v3(sys->uverts[i], vn[j]->co);
+			}
+		}
+
 		C = new_matrixd( ln*3, 7);
 		for (j = 0; j < ln; j++) {
 			v2 = vn[j];
@@ -361,6 +399,107 @@ static void compute_implicit_rotations(LaplacianSystem * sys)
 	}
 }
 
+/*
+	for i=1:n
+        j = nbr_i(i);
+        pi = xyz(i, :);
+        ni = normal(:, i)';
+        pj = xyz(j, :);
+        uij = pj -pi;
+        uij = uij - (dot(uij,ni))*ni;
+        uij = uij/max(norm(uij), 0.00001);
+        e2 = cross(ni, uij);
+        deltai = delta(i,:);
+        alpha = dot(ni,deltai);
+        beta = dot(uij,deltai);
+        gamma = dot(e2,deltai);
+        
+        pi = xyz_prime_nonh(i,:);
+        ni = normal_deform(:, i)';
+        pj = xyz_prime_nonh(j,:);
+        uij = pj -pi;
+        uij = uij - (dot(uij,ni))*ni;
+        uij = uij/max(norm(uij), 0.000001);
+        e2 = cross(ni, uij);  
+        
+        new_d = alpha*ni + beta*uij + gamma*e2;
+        new_delta(i,:) = new_d;
+    end
+		*/
+void rotate_differential_coordinates(LaplacianSystem *sys) 
+{
+	BMFace *f;
+	BMVert *v, *v2;
+	BMIter fiter;
+	BMIter viter, viter2;
+	float alpha, beta, gamma,
+		pj[3], ni[3], di[3], rdelta[3],
+		uij[3], dun[3], e2[3], pi[3], fni[3], vn[4][3];
+	int i, j, *vin, lvin, num_fni;
+
+	BLI_array_declare(vin);
+
+	BM_ITER_MESH (v, &viter, sys->bm, BM_VERTS_OF_MESH) {
+		i = BM_elem_index_get(v);
+		copy_v3_v3(pi, v->co);
+		copy_v3_v3(ni, v->no);
+		copy_v3_v3(pj, sys->uverts[i]->co);
+		sub_v3_v3v3(uij, pj, pi);
+		mul_v3_v3fl(dun, ni, dot_v3v3(uij, ni));
+		sub_v3_v3(uij, dun);
+		normalize_v3(uij);
+		cross_v3_v3v3(e2, ni, uij);
+		copy_v3_v3(di, sys->delta[i]);
+		alpha = dot_v3v3(ni, di);
+        beta = dot_v3v3(uij, di);
+        gamma = dot_v3v3(e2, di);
+
+		pi[0] = nlGetVariable(0, i);
+		pi[1] = nlGetVariable(0, i + sys->numVerts);
+		pi[2] = nlGetVariable(0, i + sys->numVerts*2);
+		ni[0] = 0.0f;	ni[1] = 0.0f;	ni[2] = 0.0f;
+		num_fni = 0;
+		nlMakeCurrent(sys->context);
+		BM_ITER_ELEM_INDEX(f, &fiter, v, BM_FACES_OF_VERT, num_fni) {
+			BM_ITER_ELEM(v2, &viter2, f, BM_VERTS_OF_FACE) {
+				BLI_array_append(vin, BM_elem_index_get(v2));
+			}
+			lvin = BLI_array_count(vin);
+			
+			for (j=0; j<lvin; j++ ) {
+				vn[j][0] = nlGetVariable(0, vin[j]);
+				vn[j][1] = nlGetVariable(0, vin[j] + sys->numVerts);
+				vn[j][2] = nlGetVariable(0, vin[j] + sys->numVerts*2);
+				if (j == BM_elem_index_get(sys->uverts[i])) {
+					copy_v3_v3(pj, vn[j]);
+				}
+			}
+			if (lvin == 3) {
+				normal_tri_v3(fni, vn[0], vn[1], vn[2]);
+			} 
+			else if(lvin == 4) {
+				normal_quad_v3(fni, vn[0], vn[1], vn[2], vn[3]);
+			} 
+			add_v3_v3(ni, fni);
+			BLI_array_free(vin);
+			BLI_array_empty(vin);
+			vin = NULL;
+		}
+		if (num_fni>0) mul_v3_fl(fni, 1.0f/num_fni);
+		sub_v3_v3v3(uij, pj, pi);
+		mul_v3_v3fl(dun, ni, dot_v3v3(uij, ni));
+		sub_v3_v3(uij, dun);
+		normalize_v3(uij);
+		cross_v3_v3v3(e2, ni, uij);
+
+		nlMakeCurrent(sys->contextrot);
+		nlRightHandSideSet(0, i, alpha*ni[0] + beta*uij[0] + gamma*e2[0]);
+		nlRightHandSideSet(1, i, alpha*ni[1] + beta*uij[1] + gamma*e2[1]);
+		nlRightHandSideSet(2, i, alpha*ni[2] + beta*uij[2] + gamma*e2[2]);
+	}
+	
+}
+
 void bmo_deform_laplacian_vert_exec(BMesh *bm, BMOperator *op)
 {
 	int vid;
@@ -378,13 +517,28 @@ void bmo_deform_laplacian_vert_exec(BMesh *bm, BMOperator *op)
 
 	nlNewContext();
 	sys->context = nlGetCurrent();
+	nlNewContext();
+	sys->contextrot = nlGetCurrent();
 
+	nlMakeCurrent(sys->context);
 	nlSolverParameteri(NL_NB_VARIABLES, bm->totvert*3);
 	nlSolverParameteri(NL_SYMMETRIC, NL_FALSE);
 	nlSolverParameteri(NL_LEAST_SQUARES, NL_TRUE);
 	nlSolverParameteri(NL_NB_ROWS, bm->totvert*3 + 40*3);
 	nlSolverParameteri(NL_NB_RIGHT_HAND_SIDES, 1);
 
+	nlMakeCurrent(sys->contextrot);
+	nlSolverParameteri(NL_NB_VARIABLES, bm->totvert);
+	nlSolverParameteri(NL_SYMMETRIC, NL_FALSE);
+	nlSolverParameteri(NL_LEAST_SQUARES, NL_TRUE);
+	nlSolverParameteri(NL_NB_ROWS, bm->totvert + 40);
+	nlSolverParameteri(NL_NB_RIGHT_HAND_SIDES, 3);
+
+	nlMakeCurrent(sys->context);
+	nlBegin(NL_SYSTEM);
+	nlBegin(NL_MATRIX);
+
+	nlMakeCurrent(sys->contextrot);
 	nlBegin(NL_SYSTEM);
 	nlBegin(NL_MATRIX);
 	
@@ -395,18 +549,25 @@ void bmo_deform_laplacian_vert_exec(BMesh *bm, BMOperator *op)
 	BMO_ITER (v, &siter, sys->op->slots_in, "verts", BM_VERT) {
 		vid = BM_elem_index_get(v);
 		if (vid < 10) {
+			nlMakeCurrent(sys->context);
 			nlRightHandSideAdd(0, bm->totvert * 3 + vid * 3	 	, v->co[0]);
 			nlRightHandSideAdd(0, bm->totvert * 3 + vid * 3 + 1	, v->co[1]);
 			nlRightHandSideAdd(0, bm->totvert * 3 + vid * 3 + 2	, v->co[2]);
 
-			set_vectord(sys->VectorB, bm->totvert * 3 + vid * 3	 	, v->co[0]);
-			set_vectord(sys->VectorB, bm->totvert * 3 + vid * 3 + 1	, v->co[1]);
-			set_vectord(sys->VectorB, bm->totvert * 3 + vid * 3 + 2	, v->co[2]);
-			
-
 			nlMatrixAdd(bm->totvert * 3 + vid * 3		, vid					, 1.0f);
 			nlMatrixAdd(bm->totvert * 3	+ vid * 3 + 1   , bm->totvert + vid		, 1.0f);
 			nlMatrixAdd(bm->totvert * 3	+ vid * 3 + 2	, 2*bm->totvert + vid	, 1.0f);
+
+			nlMakeCurrent(sys->contextrot);
+			nlRightHandSideAdd(0, bm->totvert + vid 	 	, v->co[0]);
+			nlRightHandSideAdd(1, bm->totvert + vid 		, v->co[1]);
+			nlRightHandSideAdd(2, bm->totvert + vid 		, v->co[2]);
+
+			nlMatrixAdd(bm->totvert + vid 		, vid					, 1.0f);
+
+			set_vectord(sys->VectorB, bm->totvert * 3 + vid * 3	 	, v->co[0]);
+			set_vectord(sys->VectorB, bm->totvert * 3 + vid * 3 + 1	, v->co[1]);
+			set_vectord(sys->VectorB, bm->totvert * 3 + vid * 3 + 2	, v->co[2]);
 
 			push_back_triplet(sys->tripletList, bm->totvert * 3 + vid * 3		, vid					, 1.0f);
 			push_back_triplet(sys->tripletList, bm->totvert * 3	+ vid * 3 + 1   , bm->totvert + vid		, 1.0f);
@@ -414,18 +575,25 @@ void bmo_deform_laplacian_vert_exec(BMesh *bm, BMOperator *op)
 			
 
 		} else if (vid <= 39) {
-			nlRightHandSideAdd(0, bm->totvert * 3 + vid * 3	 	, v->co[0]+2.0f);
-			nlRightHandSideAdd(0, bm->totvert * 3 + vid * 3 + 1	, v->co[1]+2.0f);
+			nlMakeCurrent(sys->context);
+			nlRightHandSideAdd(0, bm->totvert * 3 + vid * 3	 	, v->co[0]*2.0f+2.0f);
+			nlRightHandSideAdd(0, bm->totvert * 3 + vid * 3 + 1	, v->co[1]*2.0f+2.0f);
 			nlRightHandSideAdd(0, bm->totvert * 3 + vid * 3 + 2	, v->co[2]);
-
-			set_vectord(sys->VectorB, bm->totvert * 3 + vid * 3	 	, v->co[0]+2.0f);
-			set_vectord(sys->VectorB, bm->totvert * 3 + vid * 3 + 1	, v->co[1]+2.0f);
-			set_vectord(sys->VectorB, bm->totvert * 3 + vid * 3 + 2	, v->co[2]);
-			
 
 			nlMatrixAdd(bm->totvert * 3 + vid * 3		, vid					, 1.0f);
 			nlMatrixAdd(bm->totvert * 3	+ vid * 3 + 1   , bm->totvert + vid		, 1.0f);
 			nlMatrixAdd(bm->totvert * 3	+ vid * 3 + 2	, 2*bm->totvert + vid	, 1.0f);
+
+			nlMakeCurrent(sys->contextrot);
+			nlRightHandSideAdd(0, bm->totvert + vid 	 	, v->co[0]*2.0f+2.0f);
+			nlRightHandSideAdd(1, bm->totvert + vid			, v->co[1]*2.0f+2.0f);
+			nlRightHandSideAdd(2, bm->totvert + vid			, v->co[2]);
+
+			nlMatrixAdd(bm->totvert + vid 		, vid					, 1.0f);
+
+			set_vectord(sys->VectorB, bm->totvert * 3 + vid * 3	 	, v->co[0]+2.0f);
+			set_vectord(sys->VectorB, bm->totvert * 3 + vid * 3 + 1	, v->co[1]+2.0f);
+			set_vectord(sys->VectorB, bm->totvert * 3 + vid * 3 + 2	, v->co[2]);
 
 			push_back_triplet(sys->tripletList, bm->totvert * 3 + vid * 3		, vid					, 1.0f);
 			push_back_triplet(sys->tripletList, bm->totvert * 3	+ vid * 3 + 1   , bm->totvert + vid		, 1.0f);
@@ -434,6 +602,7 @@ void bmo_deform_laplacian_vert_exec(BMesh *bm, BMOperator *op)
 	}
 
 
+	nlMakeCurrent(sys->context);
 	nlEnd(NL_MATRIX);
 	nlEnd(NL_SYSTEM);
 
@@ -442,15 +611,21 @@ void bmo_deform_laplacian_vert_exec(BMesh *bm, BMOperator *op)
 	//solve_system(sys->spLapMatrix, sys->VectorB, sys->VectorX);
 
 	if (nlSolveAdvanced(NULL, NL_TRUE) ) {
-		BMO_ITER (v, &siter, sys->op->slots_in, "verts", BM_VERT) {
-			vid = BM_elem_index_get(v);
-			/* Solve system with Eigen3*/
-			//v->co[0] = get_vectord(sys->VectorX, vid);
-			//v->co[1] = get_vectord(sys->VectorX, sys->numVerts + vid);
-			//v->co[2] = get_vectord(sys->VectorX, 2*sys->numVerts + vid);
-			v->co[0] = nlGetVariable(0, vid);
-			v->co[1] = nlGetVariable(0, sys->numVerts + vid);
-			v->co[2] = nlGetVariable(0, 2*sys->numVerts + vid);
+		rotate_differential_coordinates(sys);
+		nlMakeCurrent(sys->contextrot);
+		nlEnd(NL_MATRIX);
+		nlEnd(NL_SYSTEM);
+		if (nlSolveAdvanced(NULL, NL_TRUE) ) {
+			BMO_ITER (v, &siter, sys->op->slots_in, "verts", BM_VERT) {
+				vid = BM_elem_index_get(v);
+				/* Solve system with Eigen3*/
+				//v->co[0] = get_vectord(sys->VectorX, vid);
+				//v->co[1] = get_vectord(sys->VectorX, sys->numVerts + vid);
+				//v->co[2] = get_vectord(sys->VectorX, 2*sys->numVerts + vid);
+				v->co[0] = nlGetVariable(0, vid);
+				v->co[1] = nlGetVariable(1, vid);
+				v->co[2] = nlGetVariable(2, vid);
+			}
 		}
 	}
 
