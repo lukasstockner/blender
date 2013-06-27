@@ -1252,6 +1252,32 @@ static void copy_object_pose(Object *obn, Object *ob)
 	}
 }
 
+static void copy_object_lod(Object *obn, Object *ob)
+{
+	LodLevel *nlod, *lod;
+
+	obn->lodlevels.first = obn->lodlevels.last = NULL;
+
+	BKE_object_lod_add(obn);
+	nlod = obn->lodlevels.first;
+	nlod->distance = 0.0;
+	nlod->use_logic = nlod->use_mat =nlod->use_mesh = 1;
+	nlod->source = obn;
+	obn->currentlod = nlod;
+
+	lod = ((LodLevel*)ob->lodlevels.first)->next;
+	for (; lod; lod = lod->next) {
+		BKE_object_lod_add(obn);
+		nlod = nlod->next;
+
+		nlod->distance = lod->distance;
+		nlod->source = lod->source;
+		nlod->use_logic = lod->use_logic;
+		nlod->use_mat = lod->use_mat;
+		nlod->use_mesh = lod->use_mesh;
+	}
+}
+
 bool BKE_object_pose_context_check(Object *ob)
 {
 	if ((ob) &&
@@ -1368,6 +1394,8 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, int copy_caches)
 	obn->pc_ids.first = obn->pc_ids.last = NULL;
 
 	obn->mpath = NULL;
+
+	copy_object_lod(obn, ob);
 	
 	return obn;
 }
