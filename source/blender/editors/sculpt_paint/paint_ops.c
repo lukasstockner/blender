@@ -1263,7 +1263,6 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "PAINT_OT_texture_colors_flip", XKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "PAINT_OT_grab_clone", RIGHTMOUSE, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "PAINT_OT_sample_color", SKEY, KM_PRESS, 0, 0);
-	RNA_boolean_set(WM_keymap_add_item(keymap, "PAINT_OT_sample_color", SKEY, KM_PRESS, KM_SHIFT, 0)->ptr, "foreground", FALSE);
 	ed_keymap_paint_brush_switch(keymap, "image_paint");
 	ed_keymap_paint_brush_size(keymap, "tool_settings.image_paint.brush.size");
 	ed_keymap_paint_brush_radial_control(keymap, "image_paint", RC_COLOR | RC_ZOOM | RC_ROTATION);

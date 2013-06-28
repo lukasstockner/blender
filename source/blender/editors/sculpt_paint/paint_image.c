@@ -962,6 +962,7 @@ static int sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	return OPERATOR_RUNNING_MODAL;
 }
 
+#if 0
 /* same as image_paint_poll but fail when face mask mode is enabled */
 static int image_paint_sample_color_poll(bContext *C)
 {
@@ -981,6 +982,7 @@ static int image_paint_sample_color_poll(bContext *C)
 
 	return 0;
 }
+#endif
 
 void PAINT_OT_sample_color(wmOperatorType *ot)
 {
@@ -993,7 +995,7 @@ void PAINT_OT_sample_color(wmOperatorType *ot)
 	ot->exec = sample_color_exec;
 	ot->invoke = sample_color_invoke;
 	ot->modal = sample_color_modal;
-	ot->poll = image_paint_sample_color_poll;
+	ot->poll = image_paint_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

@@ -1326,6 +1326,12 @@ static void backdrawview3d(Scene *scene, ARegion *ar, View3D *v3d)
 	{
 		/* do nothing */
 	}
+	/* texture paint mode sampling */
+	if (base && (base->object->mode & OB_MODE_TEXTURE_PAINT) &&
+	             v3d->drawtype > OB_WIRE)
+	{
+		/* do nothing */
+	}
 	else if ((base && (base->object->mode & OB_MODE_PARTICLE_EDIT)) &&
 	         v3d->drawtype > OB_WIRE && (v3d->flag & V3D_ZBUF_SELECT))
 	{

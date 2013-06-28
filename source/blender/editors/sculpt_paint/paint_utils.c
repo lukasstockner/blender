@@ -40,16 +40,19 @@
 #include "DNA_brush_types.h"
 
 #include "BLI_math.h"
+#include "BLI_math_color.h"
 #include "BLI_utildefines.h"
 #include "BLI_rect.h"
 
 #include "BLF_translation.h"
 
+#include "BKE_scene.h"
 #include "BKE_brush.h"
 #include "BKE_context.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_paint.h"
 #include "BKE_report.h"
+#include "BKE_image.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -62,6 +65,10 @@
 
 #include "ED_view3d.h"
 #include "ED_screen.h"
+#include "ED_uvedit.h"
+
+#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.h"
 
 #include "BLI_sys_types.h"
 #include "ED_mesh.h" /* for face mask functions */
@@ -342,8 +349,27 @@ int imapaint_pick_face(ViewContext *vc, const int mval[2], unsigned int *index, 
 	return 1;
 }
 
+static Image *imapaint_face_image(DerivedMesh *dm, Scene *scene, Object *ob, int face_index)
+{
+	Image *ima;
+
+	MFace *dm_mface = dm->getTessFaceArray(dm);
+	MTFace *dm_mtface = dm->getTessFaceDataArray(dm, CD_MTFACE);
+
+	if (BKE_scene_use_new_shading_nodes(scene)) {
+		MFace *mf = &dm_mface[face_index];
+		ED_object_get_active_image(ob, mf->mat_nr + 1, &ima, NULL, NULL);
+	}
+	else {
+		MTFace *tf = &dm_mtface[face_index];
+		ima = tf->tpage;
+	}
+
+	return ima;
+}
+
 /* used for both 3d view and image window */
-void paint_sample_color(const bContext *C, ARegion *ar, int x, int y, bool foreground)    /* frontbuf */
+void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool foreground)    /* frontbuf */
 {
 	Brush *br = BKE_paint_brush(BKE_paint_get_active_from_context(C));
 	unsigned int col;
@@ -352,10 +378,76 @@ void paint_sample_color(const bContext *C, ARegion *ar, int x, int y, bool foreg
 	CLAMP(x, 0, ar->winx);
 	CLAMP(y, 0, ar->winy);
 	
-	glReadBuffer(GL_FRONT);
-	glReadPixels(x + ar->winrct.xmin, y + ar->winrct.ymin, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &col);
-	glReadBuffer(GL_BACK);
+	if (CTX_wm_view3d(C)) {
+		/* first try getting a colour directly from the mesh faces if possible */
+		Scene *scene = CTX_data_scene(C);
+		Object *ob = OBACT;
+		bool sample_success = false;
 
+		if (ob) {
+			DerivedMesh *dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
+
+			ViewContext vc;
+			const int mval[2] = {x, y};
+			unsigned int faceindex;
+			unsigned int totface = dm->getNumTessFaces(dm);
+
+			view3d_set_viewcontext(C, &vc);
+
+			view3d_operator_needs_opengl(C);
+
+			if(imapaint_pick_face(&vc, mval, &faceindex, totface)) {
+				float uv[2];
+				Image *image = imapaint_face_image(dm, scene, ob, faceindex);
+
+				ImBuf *ibuf = BKE_image_acquire_ibuf(image, NULL, NULL);
+				if (ibuf && ibuf->rect) {
+					float u, v;
+					imapaint_pick_uv(scene, ob, faceindex, mval, uv);
+					sample_success = true;
+
+					u = (float)fmodf(uv[0], 1.0f);
+					v = (float)fmodf(uv[1], 1.0f);
+
+					if (u < 0.0f) u += 1.0f;
+					if (v < 0.0f) v += 1.0f;
+
+					u = u * ibuf->x - 0.5f;
+					v = v * ibuf->y - 0.5f;
+
+					if (ibuf->rect_float) {
+						float rgba_fp[4];
+						bilinear_interpolation_color_wrap(ibuf, NULL, rgba_fp, u, v);
+						straight_to_premul_v4(rgba_fp);
+						linearrgb_to_srgb_v3_v3(rgba_fp, rgba_fp);
+						copy_v3_v3(br->rgb, rgba_fp);
+					}
+					else {
+						unsigned char rgba[4];
+						float rgba_fp[4];
+						bilinear_interpolation_color_wrap(ibuf, rgba, NULL, u, v);
+						rgba_uchar_to_float(rgba_fp, rgba);
+						copy_v3_v3(br->rgb, rgba_fp);
+					}
+				}
+
+				BKE_image_release_ibuf(image, ibuf, NULL);
+			}
+			dm->release(dm);
+
+		}
+
+		if (!sample_success) {
+			glReadBuffer(GL_FRONT);
+			glReadPixels(x + ar->winrct.xmin, y + ar->winrct.ymin, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &col);
+			glReadBuffer(GL_BACK);
+		} else
+			return;
+	} else {
+		glReadBuffer(GL_FRONT);
+		glReadPixels(x + ar->winrct.xmin, y + ar->winrct.ymin, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &col);
+		glReadBuffer(GL_BACK);
+	}
 	cp = (char *)&col;
 	
 	if (br) {
