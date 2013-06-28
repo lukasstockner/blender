@@ -59,8 +59,9 @@
 
 #include "BIF_gl.h"
 
-#include "DNA_object_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_object_types.h"
 
 #include "GPU_extensions.h"
 
@@ -76,10 +77,12 @@
 void EDBM_select_mirrored(BMEditMesh *em, bool extend,
                           int *r_totmirr, int *r_totfail)
 {
+	Mesh *me = (Mesh *)em->ob->data;
 	BMVert *v1, *v2;
 	BMIter iter;
 	int totmirr = 0;
 	int totfail = 0;
+	bool use_topology = (me && (me->editflag & ME_EDIT_MIRROR_TOPO));
 
 	*r_totmirr = *r_totfail = 0;
 
@@ -92,7 +95,7 @@ void EDBM_select_mirrored(BMEditMesh *em, bool extend,
 		}
 	}
 
-	EDBM_verts_mirror_cache_begin(em, 0, true, true);
+	EDBM_verts_mirror_cache_begin(em, 0, true, true, use_topology);
 
 	if (!extend)
 		EDBM_flag_disable_all(em, BM_ELEM_SELECT);
@@ -2392,16 +2395,18 @@ static void deselect_nth_active(BMEditMesh *em, BMVert **r_eve, BMEdge **r_eed, 
 	EDBM_selectmode_flush(em);
 	ele = BM_mesh_active_elem_get(em->bm);
 
-	switch (ele->head.htype) {
-		case BM_VERT:
-			*r_eve = (BMVert *)ele;
-			return;
-		case BM_EDGE:
-			*r_eed = (BMEdge *)ele;
-			return;
-		case BM_FACE:
-			*r_efa = (BMFace *)ele;
-			return;
+	if (ele) {
+		switch (ele->head.htype) {
+			case BM_VERT:
+				*r_eve = (BMVert *)ele;
+				return;
+			case BM_EDGE:
+				*r_eed = (BMEdge *)ele;
+				return;
+			case BM_FACE:
+				*r_efa = (BMFace *)ele;
+				return;
+		}
 	}
 
 	if (em->selectmode & SCE_SELECT_VERTEX) {
@@ -3186,6 +3191,8 @@ static int edbm_loop_to_region_exec(bContext *C, wmOperator *op)
 		}
 	}
 	
+	EDBM_selectmode_flush(em);
+
 	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 	return OPERATOR_FINISHED;
 }
