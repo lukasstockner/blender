@@ -263,6 +263,7 @@ mark_as_advanced(PYTHON_NUMPY_PATH)
 option(WITH_CYCLES					"Enable cycles Render Engine" ON)
 option(WITH_CYCLES_TEST				"Build cycles test application" OFF)
 option(WITH_CYCLES_OSL				"Build Cycles with OSL support" OFF)
+option(WITH_CYCLES_OPENVDB			"Build Cycles with OpenVDB support (http://www.openvdb.org)" ON)
 option(WITH_CYCLES_CUDA_BINARIES	"Build cycles CUDA binaries" OFF)
 set(CYCLES_CUDA_BINARIES_ARCH sm_20 sm_21 sm_30 sm_35 CACHE STRING "CUDA architectures to build binaries for")
 mark_as_advanced(CYCLES_CUDA_BINARIES_ARCH)
@@ -848,6 +849,14 @@ if(UNIX AND NOT APPLE)
 		endif()
 	endif()
 
+	if(WITH_CYCLES_OPENVDB)
+		find_package_wrapper(OpenVDB)
+		if(NOT OpenVDB_FOUND)
+			set(WITH_CYCLES_OPENVDB OFF)
+			message(STATUS "OpenVDB was not found. Turning option off.")
+		endif()
+	endif()
+
 	# OpenSuse needs lutil, ArchLinux not, for now keep, can avoid by using --as-needed
 	set(PLATFORM_LINKLIBS "-lutil -lc -lm -lpthread -lstdc++")
 
@@ -1248,6 +1257,19 @@ elseif(WIN32)
 			set(OPENIMAGEIO_LIBRARIES optimized OpenImageIO debug OpenImageIO_d)
 			set(OPENIMAGEIO_LIBPATH ${OPENIMAGEIO}/lib)
 			set(OPENIMAGEIO_DEFINITIONS "-DUSE_TBB=0")
+		endif()
+
+		if(WITH_CYCLES_OPENVDB) #requires tbb and glfw
+			set(TBB ${LIBDIR}/tbb)
+			set(TBB_INCLUDE_DIRS ${TBB}/include)
+			#set(TBB_LIBRARIES optimized OpenImageIO debug OpenImageIO_d)
+			set(TBB_LIBPATH ${TBB}/lib)
+			set(TBB_DEFINITIONS "")
+
+			set(GLFW ${LIBDIR}/glfw)
+			set(GLFW_INCLUDE_DIRS ${GLFW}/include)
+			set(GLFW_LIBPATH ${GLFW}/lib)
+			set(GLFW_DEFINITIONS "")
 		endif()
 
 		if(WITH_LLVM)
@@ -1874,6 +1896,11 @@ if(WITH_IMAGE_REDCODE)
 	set(REDCODE_INC ${REDCODE})
 endif()
 
+
+if(WITH_CYCLES_OPENVDB)
+	set(OPENVDB_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/extern/openvdb")
+endif()
+
 #-----------------------------------------------------------------------------
 # Blender WebPlugin
 
@@ -2215,6 +2242,7 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_INTERNATIONAL)
 	info_cfg_option(WITH_INPUT_NDOF)
 	info_cfg_option(WITH_CYCLES)
+	info_cfg_option(WITH_CYCLES_OPENVDB)
 	info_cfg_option(WITH_FREESTYLE)
 	info_cfg_option(WITH_OPENCOLORIO)
 
