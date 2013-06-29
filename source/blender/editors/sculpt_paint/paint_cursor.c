@@ -829,12 +829,12 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 		/* only do if brush is over the mesh */
 		if (hit)
 			paint_cursor_on_hit(ups, brush, &vc, location);
+	}
 
-		if (ups->draw_anchored) {
-			final_radius = ups->anchored_size;
-			translation[0] = ups->anchored_initial_mouse[0];
-			translation[1] = ups->anchored_initial_mouse[1];
-		}
+	if (ups->draw_anchored) {
+		final_radius = ups->anchored_size;
+		translation[0] = ups->anchored_initial_mouse[0];
+		translation[1] = ups->anchored_initial_mouse[1];
 	}
 
 	/* make lines pretty */

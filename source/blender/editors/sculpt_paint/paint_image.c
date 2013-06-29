@@ -518,11 +518,6 @@ static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, float mou
 	undo_paint_push_begin(UNDO_PAINT_IMAGE, op->type->name,
 	                      image_undo_restore, image_undo_free);
 
-	{
-		UnifiedPaintSettings *ups = &settings->unified_paint_settings;
-		ups->draw_pressure = true;
-	}
-
 	return pop;
 }
 
@@ -622,11 +617,6 @@ static void paint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 		BKE_reportf(op->reports, RPT_WARNING, "Packed MultiLayer files cannot be painted: %s", pop->s.warnpackedfile);
 #endif
 	MEM_freeN(pop);
-
-	{
-		UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
-		ups->draw_pressure = false;
-	}
 }
 
 static int paint_stroke_test_start(bContext *UNUSED(C), wmOperator *UNUSED(op), const float UNUSED(mouse[2]))

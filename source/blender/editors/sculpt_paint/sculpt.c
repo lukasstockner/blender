@@ -4406,16 +4406,11 @@ static void sculpt_brush_exit_tex(Sculpt *sd)
 
 static void sculpt_stroke_done(const bContext *C, struct PaintStroke *UNUSED(stroke))
 {
-	UnifiedPaintSettings *ups = &CTX_data_tool_settings(C)->unified_paint_settings;
 	Object *ob = CTX_data_active_object(C);
 	SculptSession *ss = ob->sculpt;
 	Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
 
 	sculpt_omp_done(ss);
-
-	/* reset values used to draw brush after completing the stroke */
-	ups->draw_anchored = 0;
-	ups->draw_pressure = 0;
 
 	/* Finished */
 	if (ss->cache) {

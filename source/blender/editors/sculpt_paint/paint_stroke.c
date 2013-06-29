@@ -173,7 +173,7 @@ static void paint_brush_update(bContext *C, Brush *brush, PaintMode mode,
 
 	/* Truly temporary data that isn't stored in properties */
 
-	ups->draw_pressure = TRUE;
+	ups->draw_pressure = true;
 	ups->pressure_value = stroke->cached_pressure;
 
 	ups->pixel_radius = BKE_brush_size_get(scene, brush);
@@ -493,6 +493,11 @@ void paint_stroke_data_free(struct wmOperator *op)
 static void stroke_done(struct bContext *C, struct wmOperator *op)
 {
 	struct PaintStroke *stroke = op->customdata;
+	Scene *scene = CTX_data_scene(C);
+	UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+
+	ups->draw_anchored = false;
+	ups->draw_pressure = false;
 
 	if (stroke->stroke_started) {
 		if (stroke->redraw)
