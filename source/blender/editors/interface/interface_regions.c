@@ -632,6 +632,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 	memset(&type, 0, sizeof(ARegionType));
 	type.draw = ui_tooltip_region_draw_cb;
 	type.free = ui_tooltip_region_free_cb;
+	type.regionid = RGN_TYPE_TEMPORARY;
 	ar->type = &type;
 	
 	/* set font, get bb */
@@ -1039,18 +1040,20 @@ void ui_searchbox_update(bContext *C, ARegion *ar, uiBut *but, const bool reset)
 	ED_region_tag_redraw(ar);
 }
 
-void ui_searchbox_autocomplete(bContext *C, ARegion *ar, uiBut *but, char *str)
+bool ui_searchbox_autocomplete(bContext *C, ARegion *ar, uiBut *but, char *str)
 {
 	uiSearchboxData *data = ar->regiondata;
+	bool changed = false;
 
 	if (str[0]) {
 		data->items.autocpl = autocomplete_begin(str, ui_get_but_string_max_length(but));
 
 		but->search_func(C, but->search_arg, but->editstr, &data->items);
 
-		autocomplete_end(data->items.autocpl, str);
+		changed = autocomplete_end(data->items.autocpl, str);
 		data->items.autocpl = NULL;
 	}
+	return changed;
 }
 
 static void ui_searchbox_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
@@ -1157,6 +1160,7 @@ ARegion *ui_searchbox_create(bContext *C, ARegion *butregion, uiBut *but)
 	memset(&type, 0, sizeof(ARegionType));
 	type.draw = ui_searchbox_region_draw_cb;
 	type.free = ui_searchbox_region_free_cb;
+	type.regionid = RGN_TYPE_TEMPORARY;
 	ar->type = &type;
 	
 	/* create searchbox data */
@@ -1249,8 +1253,11 @@ ARegion *ui_searchbox_create(bContext *C, ARegion *butregion, uiBut *but)
 		}
 
 		if (rect_i.ymin < 0) {
-			int newy1;
-			UI_view2d_to_region_no_clip(&butregion->v2d, 0, but->rect.ymax + ofsy, NULL, &newy1);
+			int newy1 = but->rect.ymax + ofsy;
+
+			if (butregion->v2d.cur.xmin != butregion->v2d.cur.xmax)
+				UI_view2d_to_region_no_clip(&butregion->v2d, 0, newy1, NULL, &newy1);
+
 			newy1 += butregion->winrct.ymin;
 
 			rect_i.ymax = BLI_rcti_size_y(&rect_i) + newy1;
@@ -1667,6 +1674,7 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C, ARegion *butregion, uiBut
 
 	memset(&type, 0, sizeof(ARegionType));
 	type.draw = ui_block_region_draw;
+	type.regionid = RGN_TYPE_TEMPORARY;
 	ar->type = &type;
 
 	UI_add_region_handlers(&ar->handlers);

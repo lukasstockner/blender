@@ -3110,7 +3110,7 @@ void accumulate_vertex_normals(float n1[3], float n2[3], float n3[3],
 /* Add weighted face normal component into normals of the face vertices.
  * Caller must pass pre-allocated vdiffs of nverts length. */
 void accumulate_vertex_normals_poly(float **vertnos, const float polyno[3],
-                                    const float **vertcos, float vdiffs[][3], int nverts)
+                                    const float **vertcos, float vdiffs[][3], const int nverts)
 {
 	int i;
 
@@ -3621,7 +3621,7 @@ static float ff_quad_form_factor(float *p, float *n, float *q0, float *q1, float
 static __m128 sse_approx_acos(__m128 x)
 {
 	/* needs a better approximation than taylor expansion of acos, since that
-	 * gives big erros for near 1.0 values, sqrt(2 * x) * acos(1 - x) should work
+	 * gives big errors for near 1.0 values, sqrt(2 * x) * acos(1 - x) should work
 	 * better, see http://www.tom.womack.net/projects/sse-fast-arctrig.html */
 
 	return _mm_set_ps1(1.0f);

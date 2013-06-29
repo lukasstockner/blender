@@ -28,6 +28,8 @@
  *  \ingroup edmesh
  */
 
+#include "DNA_scene_types.h"
+
 #include "BLI_math.h"
 
 #include "RNA_access.h"
@@ -117,7 +119,6 @@ void ED_operatortypes_mesh(void)
 
 	WM_operatortype_append(MESH_OT_delete);
 	WM_operatortype_append(MESH_OT_edge_collapse);
-	WM_operatortype_append(MESH_OT_edge_collapse_loop);
 
 	WM_operatortype_append(MESH_OT_separate);
 	WM_operatortype_append(MESH_OT_dupli_extrude_cursor);
@@ -172,6 +173,7 @@ void ED_operatortypes_mesh(void)
 #endif
 
 	WM_operatortype_append(MESH_OT_symmetrize);
+	WM_operatortype_append(MESH_OT_symmetry_snap);
 
 #ifdef WITH_GAMEENGINE
 	WM_operatortype_append(MESH_OT_navmesh_make);

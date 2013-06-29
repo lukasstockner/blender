@@ -411,6 +411,7 @@ void RE_FreeRender(Render *re)
 	
 	/* main dbase can already be invalid now, some database-free code checks it */
 	re->main = NULL;
+	re->scene = NULL;
 	
 	RE_Database_Free(re);	/* view render can still have full database */
 	free_sample_tables(re);
@@ -702,7 +703,7 @@ void RE_progress_cb(Render *re, void *handle, void (*f)(void *handle, float))
 void RE_draw_lock_cb(Render *re, void *handle, void (*f)(void *handle, int i))
 {
 	re->draw_lock = f;
-	re->tbh = handle;
+	re->dlh = handle;
 }
 
 void RE_test_break_cb(Render *re, void *handle, int (*f)(void *handle))
@@ -1406,6 +1407,16 @@ static void do_render_fields_3d(Render *re)
 	re->display_draw(re->ddh, re->result, NULL);
 }
 
+/* make sure disprect is not affected by the render border */
+static void render_result_disprect_to_full_resolution(Render *re)
+{
+	re->disprect.xmin = re->disprect.ymin = 0;
+	re->disprect.xmax = re->winx;
+	re->disprect.ymax = re->winy;
+	re->rectx = re->winx;
+	re->recty = re->winy;
+}
+
 /* main render routine, no compositing */
 static void do_render_fields_blur_3d(Render *re)
 {
@@ -1438,13 +1449,8 @@ static void do_render_fields_blur_3d(Render *re)
 				/* sub-rect for merge call later on */
 				re->result->tilerect = re->disprect;
 				
-				/* this copying sequence could become function? */
 				/* weak is: it chances disprect from border */
-				re->disprect.xmin = re->disprect.ymin = 0;
-				re->disprect.xmax = re->winx;
-				re->disprect.ymax = re->winy;
-				re->rectx = re->winx;
-				re->recty = re->winy;
+				render_result_disprect_to_full_resolution(re);
 				
 				rres = render_result_new(re, &re->disprect, 0, RR_USE_MEM, RR_ALL_LAYERS);
 				
@@ -1910,6 +1916,9 @@ static void do_render_composite_fields_blur_3d(Render *re)
 		BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
 		
 		render_result_free(re->result);
+		if ((re->r.mode & R_CROP) == 0) {
+			render_result_disprect_to_full_resolution(re);
+		}
 		re->result = render_result_new(re, &re->disprect, 0, RR_USE_MEM, RR_ALL_LAYERS);
 
 		BLI_rw_mutex_unlock(&re->resultmutex);
@@ -2371,6 +2380,7 @@ static int render_initialize_from_main(Render *re, Main *bmain, Scene *scene, Sc
 	re->scene_color_manage = BKE_scene_check_color_management_enabled(scene);
 	re->camera_override = camera_override;
 	re->lay = lay;
+	re->i.localview = (lay & 0xFF000000) != 0;
 	
 	/* not too nice, but it survives anim-border render */
 	if (anim) {
