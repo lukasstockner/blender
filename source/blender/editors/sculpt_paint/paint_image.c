@@ -150,10 +150,20 @@ static void undo_copy_tile(UndoImageTile *tile, ImBuf *tmpibuf, ImBuf *ibuf, int
 	else {
 		SWAP(unsigned int *, tmpibuf->rect, tile->rect.uint);
 	}
-	
-	if (restore)
+
+	if (restore) {
 		IMB_rectcpy(ibuf, tmpibuf, tile->x * IMAPAINT_TILE_SIZE,
 		            tile->y * IMAPAINT_TILE_SIZE, 0, 0, IMAPAINT_TILE_SIZE, IMAPAINT_TILE_SIZE);
+
+		/* swap the contents back or the undo tiles will now contain the dirty version
+		 * of the image that was copied to temporary imbuf at start of function */
+		if (ibuf->rect_float) {
+			SWAP(float *, tmpibuf->rect_float, tile->rect.fp);
+		}
+		else {
+			SWAP(unsigned int *, tmpibuf->rect, tile->rect.uint);
+		}
+	}
 }
 
 void *image_undo_find_tile(Image *ima, ImBuf *ibuf, int x_tile, int y_tile, unsigned short **mask)
@@ -516,6 +526,23 @@ static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, float mou
 	return pop;
 }
 
+/* restore painting image to previous state. Used for anchored and drag-dot style brushes*/
+static void paint_stroke_restore(bContext *C)
+{
+	ListBase *lb = undo_paint_push_get_list(UNDO_PAINT_IMAGE);
+	image_undo_restore(C, lb);
+
+/* keep these here, it helps to not traverse the whole undo tree if user is
+ * stroking all over the image, but this is not the ideal use case.
+ * There is a tradeoff between undo initialization time and restore time.
+ * Since the stroke is ideally localized, better optimize the initialization case */
+#if 0
+	image_undo_free(lb);
+	BLI_freelistN(lb);
+	undo_paint_push_count_reset(UNDO_PAINT_IMAGE);
+#endif
+}
+
 static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, PointerRNA *itemptr)
 {
 	PaintOperation *pop = paint_stroke_mode_data(stroke);
@@ -538,6 +565,10 @@ static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, Po
 		BKE_brush_alpha_set(scene, brush, max_ff(0.0f, startalpha * pressure));
 	if (BKE_brush_use_size_pressure(scene, brush))
 		BKE_brush_size_set(scene, brush, max_ff(1.0f, startsize * pressure));
+
+	if ((brush->flag & BRUSH_RESTORE_MESH) || (brush->flag & BRUSH_ANCHORED)) {
+		paint_stroke_restore(C);
+	}
 
 	if (pop->mode == PAINT_MODE_3D_PROJECT) {
 		paint_proj_stroke(C, pop->custom_paint, pop->prevmouse, mouse);

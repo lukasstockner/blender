@@ -833,7 +833,7 @@ class IMAGE_PT_paint_stroke(BrushButtonsPanel, Panel):
 
         col.label(text="Stroke Method:")
 
-        col.prop(brush, "texpaint_stroke_method", text="")
+        col.prop(brush, "stroke_method", text="")
 
         if brush.use_anchor:
             col.separator()
@@ -886,7 +886,8 @@ class IMAGE_PT_paint_curve(BrushButtonsPanel, Panel):
 
         layout.template_curve_mapping(brush, "curve")
 
-        row = layout.row(align=True)
+        col = layout.column(align=True)
+        row = col.row(align=True)
         row.operator("brush.curve_preset", icon='SMOOTHCURVE', text="").shape = 'SMOOTH'
         row.operator("brush.curve_preset", icon='SPHERECURVE', text="").shape = 'ROUND'
         row.operator("brush.curve_preset", icon='ROOTCURVE', text="").shape = 'ROOT'
@@ -894,9 +895,17 @@ class IMAGE_PT_paint_curve(BrushButtonsPanel, Panel):
         row.operator("brush.curve_preset", icon='LINCURVE', text="").shape = 'LINE'
         row.operator("brush.curve_preset", icon='NOCURVE', text="").shape = 'MAX'
 
-        sub = row.row()
-        sub.prop(brush, "cursor_overlay_alpha", text="Alpha")
-        sub.prop(brush, "use_cursor_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
+        col = layout.column(align=True)
+        col.separator()
+        
+        col.label(text="Overlay:")
+        row = col.row(align=True)
+        if brush.use_cursor_overlay:
+            row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
+        else:
+            row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
+        row.prop(brush, "cursor_overlay_alpha", text="Alpha")
+        row.prop(brush, "use_cursor_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
 
 
 class IMAGE_PT_tools_brush_appearance(BrushButtonsPanel, Panel):

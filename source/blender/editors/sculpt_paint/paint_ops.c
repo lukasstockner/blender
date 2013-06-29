@@ -1169,7 +1169,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 
 	/* */
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_menu_enum", AKEY, KM_PRESS, 0, 0);
-	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.brush.sculpt_stroke_method");
+	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.brush.stroke_method");
 
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle", SKEY, KM_PRESS, KM_SHIFT, 0);
 	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.brush.use_smooth_stroke");
@@ -1203,7 +1203,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	RNA_string_set(kmi->ptr, "data_path", "tool_settings.vertex_paint.brush.texture_angle_source_random");
 
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_menu_enum", AKEY, KM_PRESS, 0, 0);
-	RNA_string_set(kmi->ptr, "data_path", "tool_settings.vertex_paint.brush.stroke_method");
+	RNA_string_set(kmi->ptr, "data_path", "tool_settings.vertex_paint.brush.stroke_method_limited");
 
 	/* Weight Paint mode */
 	keymap = WM_keymap_find(keyconf, "Weight Paint", 0, 0);
@@ -1228,7 +1228,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	ed_keymap_stencil(keymap);
 
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_menu_enum", AKEY, KM_PRESS, 0, 0);
-	RNA_string_set(kmi->ptr, "data_path", "tool_settings.vertex_paint.brush.stroke_method");
+	RNA_string_set(kmi->ptr, "data_path", "tool_settings.vertex_paint.brush.stroke_method_limited");
 
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle", MKEY, KM_PRESS, 0, 0); /* face mask toggle */
 	RNA_string_set(kmi->ptr, "data_path", "weight_paint_object.data.use_paint_mask");
@@ -1279,7 +1279,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	RNA_string_set(kmi->ptr, "data_path", "tool_settings.image_paint.brush.texture_angle_source_random");
 
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_menu_enum", AKEY, KM_PRESS, 0, 0);
-	RNA_string_set(kmi->ptr, "data_path", "tool_settings.image_paint.brush.texpaint_stroke_method");
+	RNA_string_set(kmi->ptr, "data_path", "tool_settings.image_paint.brush.stroke_method");
 
 	/* face-mask mode */
 	keymap = WM_keymap_find(keyconf, "Face Mask", 0, 0);

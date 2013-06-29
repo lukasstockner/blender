@@ -1045,7 +1045,9 @@ static int paint_2d_canvas_set(ImagePaintState *s, Image *ima)
 	}
 
 	/* set masking */
-	s->do_masking = (s->brush->flag & BRUSH_AIRBRUSH ||
+	s->do_masking = ((s->brush->flag & BRUSH_AIRBRUSH) ||
+	                 (s->brush->flag & BRUSH_RESTORE_MESH) ||
+	                 (s->brush->flag & BRUSH_ANCHORED) ||
 	                 (s->brush->imagepaint_tool == PAINT_TOOL_SMEAR) ||
 	                 (s->brush->mtex.tex && !ELEM3(s->brush->mtex.brush_map_mode, MTEX_MAP_MODE_TILED, MTEX_MAP_MODE_STENCIL, MTEX_MAP_MODE_3D)) ||
 	                 s->brush->flag & BRUSH_ACCUMULATE)

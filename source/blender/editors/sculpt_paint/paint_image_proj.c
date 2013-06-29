@@ -3263,11 +3263,8 @@ static void paint_proj_begin_clone(ProjPaintState *ps, const float mouse[2])
 	}
 }
 
-static void project_paint_end(ProjPaintState *ps)
+static void project_paint_undo_push(ProjPaintState *ps)
 {
-	int a;
-	ProjPaintImage *projIma;
-
 	/* build undo data from original pixel colors */
 	if (U.uiflag & USER_GLOBALUNDO) {
 		ProjPixel *projPixel;
@@ -3279,6 +3276,7 @@ static void project_paint_end(ProjPaintState *ps)
 		int bucket_tot = (ps->buckets_x * ps->buckets_y); /* we could get an X/Y but easier to loop through all possible buckets */
 		int bucket_index;
 		int tile_index;
+		int a;
 		int x_round, y_round;
 		int x_tile, y_tile;
 		int is_float = -1;
@@ -3353,7 +3351,15 @@ static void project_paint_end(ProjPaintState *ps)
 		if (tmpibuf) IMB_freeImBuf(tmpibuf);
 		if (tmpibuf_float) IMB_freeImBuf(tmpibuf_float);
 	}
-	/* done calculating undo data */
+}
+
+
+static void project_paint_end(ProjPaintState *ps)
+{
+	int a;
+	ProjPaintImage *projIma;
+
+	project_paint_undo_push(ps);
 
 	/* dereference used image buffers */
 	for (a = 0, projIma = ps->projImages; a < ps->image_tot; a++, projIma++) {
@@ -4126,6 +4132,10 @@ void paint_proj_stroke(bContext *C, void *pps, const float prev_pos[2], const fl
 
 	if (project_paint_op(ps, prev_pos, pos))
 		ps->need_redraw = true;
+
+	if ((ps->brush->flag & BRUSH_RESTORE_MESH) ||
+	    (ps->brush->flag & BRUSH_ANCHORED))
+		project_paint_undo_push(ps);
 }
 
 
@@ -4144,7 +4154,9 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 		ps->blend = brush->blend;
 
 		/* disable for 3d mapping also because painting on mirrored mesh can create "stripes" */
-		ps->do_masking = (brush->flag & BRUSH_AIRBRUSH ||
+		ps->do_masking = ((brush->flag & BRUSH_AIRBRUSH) ||
+	                      (brush->flag & BRUSH_RESTORE_MESH) ||
+	                      (brush->flag & BRUSH_ANCHORED) ||
 		                  (brush->imagepaint_tool == PAINT_TOOL_SMEAR) ||
 		                  (brush->mtex.tex && !ELEM3(brush->mtex.brush_map_mode, MTEX_MAP_MODE_TILED, MTEX_MAP_MODE_STENCIL, MTEX_MAP_MODE_3D)) ||
 		                  brush->flag & BRUSH_ACCUMULATE)

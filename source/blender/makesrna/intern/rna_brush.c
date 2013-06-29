@@ -687,14 +687,6 @@ static void rna_def_brush(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
-	static EnumPropertyItem texpaint_stroke_method_items[] = {
-		{0, "DOTS", 0, "Dots", "Apply paint on each mouse move step"},
-		{BRUSH_RESTORE_MESH, "DRAG_DOT", 0, "Drag Dot", "Allows a single dot to be carefully positioned"},
-		{BRUSH_SPACE, "SPACE", 0, "Space", "Limit brush application to the distance specified by spacing"},
-		{BRUSH_AIRBRUSH, "AIRBRUSH", 0, "Airbrush", "Keep applying paint effect while holding mouse (spray)"},
-		{0, NULL, 0, NULL, NULL}
-	};
-
 	static EnumPropertyItem texture_angle_source_items[] = {
 		{0, "USER", 0, "User", "Rotate the brush texture by given angle"},
 		{BRUSH_RAKE, "RAKE", 0, "Rake", "Rotate the brush texture to match the stroke direction"},
@@ -764,19 +756,13 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Direction", "");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-	prop = RNA_def_property(srna, "stroke_method", PROP_ENUM, PROP_NONE);
+	prop = RNA_def_property(srna, "stroke_method_limited", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");
 	RNA_def_property_enum_items(prop, brush_stroke_method_items);
 	RNA_def_property_ui_text(prop, "Stroke Method", "");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-	prop = RNA_def_property(srna, "texpaint_stroke_method", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");
-	RNA_def_property_enum_items(prop, texpaint_stroke_method_items);
-	RNA_def_property_ui_text(prop, "Stroke Method", "");
-	RNA_def_property_update(prop, 0, "rna_Brush_update");
-
-	prop = RNA_def_property(srna, "sculpt_stroke_method", PROP_ENUM, PROP_NONE);
+	prop = RNA_def_property(srna, "stroke_method", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");
 	RNA_def_property_enum_items(prop, sculpt_stroke_method_items);
 	RNA_def_property_ui_text(prop, "Stroke Method", "");

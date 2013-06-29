@@ -229,6 +229,14 @@ void undo_paint_push_count_alloc(int type, int size)
 		MeshUndoStack.current->undosize += size;
 }
 
+void undo_paint_push_count_reset(int type)
+{
+	if (type == UNDO_PAINT_IMAGE)
+		ImageUndoStack.current->undosize = 0;
+	else if (type == UNDO_PAINT_MESH)
+		MeshUndoStack.current->undosize = 0;
+}
+
 void undo_paint_push_end(int type)
 {
 	if (type == UNDO_PAINT_IMAGE)

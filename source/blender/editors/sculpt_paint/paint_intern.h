@@ -237,6 +237,7 @@ typedef void (*UndoFreeCb)(struct ListBase *lb);
 void undo_paint_push_begin(int type, const char *name, UndoRestoreCb restore, UndoFreeCb free);
 struct ListBase *undo_paint_push_get_list(int type);
 void undo_paint_push_count_alloc(int type, int size);
+void undo_paint_push_count_reset(int type);
 void undo_paint_push_end(int type);
 
 /* paint_hide.c */
