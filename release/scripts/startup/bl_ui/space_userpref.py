@@ -734,8 +734,9 @@ class USERPREF_PT_theme(Panel):
             padding = subsplit.split(percentage=0.15)
             colsub = padding.column()
             colsub = padding.column()
-            colsub.active = False
-            colsub.row().prop(ui, "icon_file")
+            # Not working yet.
+            #~ colsub.active = False
+            #~ colsub.row().prop(ui, "icon_file")
 
             subsplit = row.split(percentage=0.85)
 
@@ -1170,12 +1171,12 @@ class USERPREF_PT_addons(Panel):
                 continue
 
             # check if addon should be visible with current filters
-            if     ((filter == "All") or
-                    (filter == info["category"]) or
-                    (filter == "Enabled" and is_enabled) or
-                    (filter == "Disabled" and not is_enabled) or
-                    (filter == "User" and (mod.__file__.startswith((scripts_addons_folder, userpref_addons_folder))))
-                    ):
+            if ((filter == "All") or
+                (filter == info["category"]) or
+                (filter == "Enabled" and is_enabled) or
+                (filter == "Disabled" and not is_enabled) or
+                (filter == "User" and (mod.__file__.startswith((scripts_addons_folder, userpref_addons_folder))))
+                ):
 
                 if search and search not in info["name"].lower():
                     if info["author"]:

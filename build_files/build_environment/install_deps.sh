@@ -229,7 +229,7 @@ LLVM_FORCE_REBUILD=false
 LLVM_SKIP=false
 
 # OSL needs to be compiled for now!
-OSL_VERSION="1.3.0"
+OSL_VERSION="1.3.2"
 OSL_SOURCE="https://github.com/imageworks/OpenShadingLanguage/archive/Release-$OSL_VERSION.tar.gz"
 OSL_FORCE_REBUILD=false
 OSL_SKIP=false
@@ -1527,7 +1527,7 @@ clean_OSL() {
 
 compile_OSL() {
   # To be changed each time we make edits that would modify the compiled result!
-  osl_magic=9
+  osl_magic=10
   _init_osl
 
   # Clean install if needed!
@@ -1550,7 +1550,7 @@ compile_OSL() {
       tar -C $SRC --transform "s,(.*/?)OpenShadingLanguage-[^/]*(.*),\1OpenShadingLanguage-$OSL_VERSION\2,x" \
           -xf $_src.tar.gz
       cd $_src
-      git checkout blender-fixes
+      #git checkout blender-fixes
       cd $CWD
     fi
 
@@ -2278,8 +2278,18 @@ install_RPM() {
     fi
 
     _suse_rel="`grep VERSION /etc/SuSE-release | gawk '{print $3}'`"
-    sudo zypper ar -f http://packman.inode.at/suse/openSUSE_$_suse_rel/ packman
 
+    INFO ""
+    INFO "About to add 'packman' repository from http://packman.inode.at/suse/openSUSE_$_suse_rel/"
+    INFO "This is only needed if you do not already have a packman repository enabled..."
+    read -p "Do you want to add this repo (Y/n)?"
+    if [ "$(echo ${REPLY:=Y} | tr [:upper:] [:lower:])" == "y" ]; then
+      INFO "    Installing packman..."
+      sudo zypper ar --refresh --name 'Packman Repository' http://ftp.gwdg.de/pub/linux/packman/suse/openSUSE_$_suse_rel/ ftp.gwdg.de-suse
+      INFO "    Done."
+    else
+      INFO "    Skipping packman installation."
+    fi
     sudo zypper --non-interactive --gpg-auto-import-keys update --auto-agree-with-licenses
   fi
 

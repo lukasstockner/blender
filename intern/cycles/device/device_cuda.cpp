@@ -607,13 +607,8 @@ public:
 		cuda_assert(cuParamSetSize(cuPathTrace, offset))
 
 		/* launch kernel: todo find optimal size, cache config for fermi */
-#ifndef __APPLE__
 		int xthreads = 16;
 		int ythreads = 16;
-#else
-		int xthreads = 8;
-		int ythreads = 8;
-#endif
 		int xblocks = (rtile.w + xthreads - 1)/xthreads;
 		int yblocks = (rtile.h + ythreads - 1)/ythreads;
 
@@ -676,13 +671,8 @@ public:
 		cuda_assert(cuParamSetSize(cuFilmConvert, offset))
 
 		/* launch kernel: todo find optimal size, cache config for fermi */
-#ifndef __APPLE__
 		int xthreads = 16;
 		int ythreads = 16;
-#else
-		int xthreads = 8;
-		int ythreads = 8;
-#endif
 		int xblocks = (task.w + xthreads - 1)/xthreads;
 		int yblocks = (task.h + ythreads - 1)/ythreads;
 
@@ -704,7 +694,7 @@ public:
 
 		CUfunction cuDisplace;
 		CUdeviceptr d_input = cuda_device_ptr(task.shader_input);
-		CUdeviceptr d_offset = cuda_device_ptr(task.shader_output);
+		CUdeviceptr d_output = cuda_device_ptr(task.shader_output);
 
 		/* get kernel function */
 		cuda_assert(cuModuleGetFunction(&cuDisplace, cuModule, "kernel_cuda_shader"))
@@ -715,8 +705,8 @@ public:
 		cuda_assert(cuParamSetv(cuDisplace, offset, &d_input, sizeof(d_input)))
 		offset += sizeof(d_input);
 
-		cuda_assert(cuParamSetv(cuDisplace, offset, &d_offset, sizeof(d_offset)))
-		offset += sizeof(d_offset);
+		cuda_assert(cuParamSetv(cuDisplace, offset, &d_output, sizeof(d_output)))
+		offset += sizeof(d_output);
 
 		int shader_eval_type = task.shader_eval_type;
 		offset = align_up(offset, __alignof(shader_eval_type));
@@ -730,11 +720,7 @@ public:
 		cuda_assert(cuParamSetSize(cuDisplace, offset))
 
 		/* launch kernel: todo find optimal size, cache config for fermi */
-#ifndef __APPLE__
 		int xthreads = 16;
-#else
-		int xthreads = 8;
-#endif
 		int xblocks = (task.shader_w + xthreads - 1)/xthreads;
 
 		cuda_assert(cuFuncSetCacheConfig(cuDisplace, CU_FUNC_CACHE_PREFER_L1))

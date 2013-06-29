@@ -411,6 +411,7 @@ void RE_FreeRender(Render *re)
 	
 	/* main dbase can already be invalid now, some database-free code checks it */
 	re->main = NULL;
+	re->scene = NULL;
 	
 	RE_Database_Free(re);	/* view render can still have full database */
 	free_sample_tables(re);
@@ -702,7 +703,7 @@ void RE_progress_cb(Render *re, void *handle, void (*f)(void *handle, float))
 void RE_draw_lock_cb(Render *re, void *handle, void (*f)(void *handle, int i))
 {
 	re->draw_lock = f;
-	re->tbh = handle;
+	re->dlh = handle;
 }
 
 void RE_test_break_cb(Render *re, void *handle, int (*f)(void *handle))
@@ -2379,6 +2380,7 @@ static int render_initialize_from_main(Render *re, Main *bmain, Scene *scene, Sc
 	re->scene_color_manage = BKE_scene_check_color_management_enabled(scene);
 	re->camera_override = camera_override;
 	re->lay = lay;
+	re->i.localview = (lay & 0xFF000000) != 0;
 	
 	/* not too nice, but it survives anim-border render */
 	if (anim) {

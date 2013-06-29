@@ -1160,8 +1160,8 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 		short axis;
 		
 		/* setup a 45 degree rotation matrix */
-		vec_rot_to_mat3(mat, imat[2], (float)M_PI / 4.0f);
-		
+		axis_angle_normalized_to_mat3(mat, imat[2], (float)M_PI / 4.0f);
+
 		/* vectors */
 		mul_v3_v3fl(v1, imat[0], circrad * 1.2f);
 		mul_v3_v3fl(v2, imat[0], circrad * 2.5f);
@@ -2685,7 +2685,7 @@ static void draw_em_measure_stats(ARegion *ar, View3D *v3d, Object *ob, BMEditMe
 	float grid = unit->system ? unit->scale_length : v3d->grid;
 	const bool do_split = (unit->flag & USER_UNIT_OPT_SPLIT) != 0;
 	const bool do_global = (v3d->flag & V3D_GLOBAL_STATS) != 0;
-	const bool do_moving = G.moving;
+	const bool do_moving = (G.moving & G_TRANSFORM_EDIT) != 0;
 	float clip_planes[4][4];
 
 	BMIter iter;
@@ -3004,7 +3004,7 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 {
 	RegionView3D *rv3d = ar->regiondata;
 	Mesh *me = ob->data;
-	BMFace *efa_act = BM_active_face_get(em->bm, false, true); /* annoying but active faces is stored differently */
+	BMFace *efa_act = BM_mesh_active_face_get(em->bm, false, true); /* annoying but active faces is stored differently */
 	BMEdge *eed_act = NULL;
 	BMVert *eve_act = NULL;
 	
