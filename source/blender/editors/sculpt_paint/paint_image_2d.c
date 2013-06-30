@@ -971,9 +971,9 @@ static int paint_2d_op(void *state, ImBuf *ibufb, unsigned short *maskb, unsigne
 					int origy = region[a].desty - ty * IMAPAINT_TILE_SIZE;
 
 					if (s->canvas->rect_float)
-						tmpbuf->rect_float = image_undo_find_tile(s->image, s->canvas, tx, ty, &mask);
+						tmpbuf->rect_float = image_undo_find_tile(s->image, s->canvas, tx, ty, &mask, false);
 					else
-						tmpbuf->rect = image_undo_find_tile(s->image, s->canvas, tx, ty, &mask);
+						tmpbuf->rect = image_undo_find_tile(s->image, s->canvas, tx, ty, &mask, false);
 
 					IMB_rectblend(s->canvas, tmpbuf, frombuf, mask,
 					              maskb, mmask, mask_max,

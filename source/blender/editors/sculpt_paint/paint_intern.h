@@ -141,7 +141,7 @@ typedef struct ImagePaintPartialRedraw {
 #define IMAPAINT_TILE_NUMBER(size)  (((size) + IMAPAINT_TILE_SIZE - 1) >> IMAPAINT_TILE_BITS)
 
 int image_texture_paint_poll(struct bContext *C);
-void *image_undo_find_tile(struct Image *ima, struct ImBuf *ibuf, int x_tile, int y_tile, unsigned short **mask);
+void *image_undo_find_tile(struct Image *ima, struct ImBuf *ibuf, int x_tile, int y_tile, unsigned short **mask, bool validate);
 void *image_undo_push_tile(struct Image *ima, struct ImBuf *ibuf, struct ImBuf **tmpibuf, int x_tile, int y_tile);
 void image_undo_remove_masks(void);
 void image_undo_restore(struct bContext *C, struct ListBase *lb);
@@ -237,7 +237,6 @@ typedef void (*UndoFreeCb)(struct ListBase *lb);
 void undo_paint_push_begin(int type, const char *name, UndoRestoreCb restore, UndoFreeCb free);
 struct ListBase *undo_paint_push_get_list(int type);
 void undo_paint_push_count_alloc(int type, int size);
-void undo_paint_push_count_reset(int type);
 void undo_paint_push_end(int type);
 
 /* paint_hide.c */

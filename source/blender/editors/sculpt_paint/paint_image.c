@@ -119,6 +119,7 @@ typedef struct UndoImageTile {
 
 	short source, use_float;
 	char gen_type;
+	bool valid;
 } UndoImageTile;
 
 /* this is a static resource for non-globality,
@@ -140,23 +141,30 @@ void set_imapaintpartial(struct ImagePaintPartialRedraw *ippr)
 
 static void undo_copy_tile(UndoImageTile *tile, ImBuf *tmpibuf, ImBuf *ibuf, int restore)
 {
-	/* copy or swap contents of tile->rect and region in ibuf->rect */
-	IMB_rectcpy(tmpibuf, ibuf, 0, 0, tile->x * IMAPAINT_TILE_SIZE,
-	            tile->y * IMAPAINT_TILE_SIZE, IMAPAINT_TILE_SIZE, IMAPAINT_TILE_SIZE);
-
-	if (ibuf->rect_float) {
-		SWAP(float *, tmpibuf->rect_float, tile->rect.fp);
-	}
-	else {
-		SWAP(unsigned int *, tmpibuf->rect, tile->rect.uint);
-	}
-
 	if (restore) {
+		/* swap to the tmpbuf for easy copying */
+		if (ibuf->rect_float) {
+			SWAP(float *, tmpibuf->rect_float, tile->rect.fp);
+		}
+		else {
+			SWAP(unsigned int *, tmpibuf->rect, tile->rect.uint);
+		}
+
 		IMB_rectcpy(ibuf, tmpibuf, tile->x * IMAPAINT_TILE_SIZE,
 		            tile->y * IMAPAINT_TILE_SIZE, 0, 0, IMAPAINT_TILE_SIZE, IMAPAINT_TILE_SIZE);
 
-		/* swap the contents back or the undo tiles will now contain the dirty version
-		 * of the image that was copied to temporary imbuf at start of function */
+		if (ibuf->rect_float) {
+			SWAP(float *, tmpibuf->rect_float, tile->rect.fp);
+		}
+		else {
+			SWAP(unsigned int *, tmpibuf->rect, tile->rect.uint);
+		}
+	}
+	else {
+		/* copy or swap contents of tile->rect and region in ibuf->rect */
+		IMB_rectcpy(tmpibuf, ibuf, 0, 0, tile->x * IMAPAINT_TILE_SIZE,
+		            tile->y * IMAPAINT_TILE_SIZE, IMAPAINT_TILE_SIZE, IMAPAINT_TILE_SIZE);
+
 		if (ibuf->rect_float) {
 			SWAP(float *, tmpibuf->rect_float, tile->rect.fp);
 		}
@@ -166,7 +174,7 @@ static void undo_copy_tile(UndoImageTile *tile, ImBuf *tmpibuf, ImBuf *ibuf, int
 	}
 }
 
-void *image_undo_find_tile(Image *ima, ImBuf *ibuf, int x_tile, int y_tile, unsigned short **mask)
+void *image_undo_find_tile(Image *ima, ImBuf *ibuf, int x_tile, int y_tile, unsigned short **mask, bool validate)
 {
 	ListBase *lb = undo_paint_push_get_list(UNDO_PAINT_IMAGE);
 	UndoImageTile *tile;
@@ -185,6 +193,8 @@ void *image_undo_find_tile(Image *ima, ImBuf *ibuf, int x_tile, int y_tile, unsi
 
 						*mask = tile->mask;
 					}
+					if (validate)
+						tile->valid = true;
 
 					return tile->rect.pt;
 				}
@@ -204,7 +214,7 @@ void *image_undo_push_tile(Image *ima, ImBuf *ibuf, ImBuf **tmpibuf, int x_tile,
 	void *data;
 
 	/* check if tile is already pushed */
-	data = image_undo_find_tile(ima, ibuf, x_tile, y_tile, NULL);
+	data = image_undo_find_tile(ima, ibuf, x_tile, y_tile, NULL, true);
 	if (data)
 		return data;
 	
@@ -225,6 +235,7 @@ void *image_undo_push_tile(Image *ima, ImBuf *ibuf, ImBuf **tmpibuf, int x_tile,
 	tile->gen_type = ima->gen_type;
 	tile->source = ima->source;
 	tile->use_float = use_float;
+	tile->valid = true;
 
 	undo_copy_tile(tile, *tmpibuf, ibuf, 0);
 	undo_paint_push_count_alloc(UNDO_PAINT_IMAGE, allocsize);
@@ -319,6 +330,22 @@ void image_undo_free(ListBase *lb)
 
 	for (tile = lb->first; tile; tile = tile->next)
 		MEM_freeN(tile->rect.pt);
+}
+
+static void image_undo_end(void)
+{
+	ListBase *lb = undo_paint_push_get_list(UNDO_PAINT_IMAGE);
+	UndoImageTile *tile;
+
+	/* first dispose of invalid tiles (may happen due to drag dot for instance) */
+	for (tile = lb->first; tile; tile = tile->next) {
+		if (!tile->valid) {
+			MEM_freeN(tile->rect.pt);
+			BLI_freelinkN (lb, tile);
+		}
+	}
+
+	undo_paint_push_end(UNDO_PAINT_IMAGE);
 }
 
 /* Imagepaint Partial Redraw & Dirty Region */
@@ -524,18 +551,12 @@ static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, float mou
 /* restore painting image to previous state. Used for anchored and drag-dot style brushes*/
 static void paint_stroke_restore(bContext *C)
 {
+	UndoImageTile *tile;
 	ListBase *lb = undo_paint_push_get_list(UNDO_PAINT_IMAGE);
 	image_undo_restore(C, lb);
 
-/* keep these here, it helps to not traverse the whole undo tree if user is
- * stroking all over the image, but this is not the ideal use case.
- * There is a tradeoff between undo initialization time and restore time.
- * Since the stroke is ideally localized, better optimize the initialization case */
-#if 0
-	image_undo_free(lb);
-	BLI_freelistN(lb);
-	undo_paint_push_count_reset(UNDO_PAINT_IMAGE);
-#endif
+	for (tile = lb->first; tile; tile = tile->next)
+		tile->valid = false;
 }
 
 static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, PointerRNA *itemptr)
@@ -607,7 +628,7 @@ static void paint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 		paint_2d_stroke_done(pop->custom_paint);
 	}
 
-	undo_paint_push_end(UNDO_PAINT_IMAGE);
+	image_undo_end();
 
 	/* duplicate warning, see texpaint_init */
 #if 0
