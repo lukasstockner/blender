@@ -64,7 +64,6 @@
 #include "BKE_material.h"
 #include "BKE_mesh.h"
 #include "BKE_node.h"
-#include "BKE_object.h"
 #include "BKE_curve.h"
 
 #include "GPU_material.h"
@@ -622,10 +621,6 @@ Material *give_current_material(Object *ob, short act)
 {
 	Material ***matarar, *ma;
 	short *totcolp;
-	
-	if (ob && BKE_object_lod_check(ob, NULL)) {
-		ob = BKE_object_lod_matob_get(ob);
-	}
 
 	if (ob == NULL) return NULL;
 	
