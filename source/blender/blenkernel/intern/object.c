@@ -1008,7 +1008,7 @@ bool BKE_object_lod_check(struct Object *ob, struct Scene *scene)
 	return (ob->mode == OB_MODE_OBJECT || !active);
 }
 
-void BKE_object_lod_update(struct Object *ob, float camera_position[3])
+bool BKE_object_lod_update(struct Object *ob, float camera_position[3])
 {
 	LodLevel* cur_level = ob->currentlod;
 	LodLevel* new_level = lod_level_select(ob, camera_position);
@@ -1016,7 +1016,10 @@ void BKE_object_lod_update(struct Object *ob, float camera_position[3])
 	if (new_level != cur_level) {
 		printf("Level Switch!\n");
 		ob->currentlod = new_level;
+		return true;
 	}
+
+	return false;
 }
 
 struct Object *BKE_object_lod_meshob_get(struct Object *ob)
