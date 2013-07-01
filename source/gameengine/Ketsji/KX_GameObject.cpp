@@ -70,6 +70,8 @@ typedef unsigned long uint_ptr;
 #include "NG_NetworkScene.h" //Needed for sendMessage()
 #include "KX_ObstacleSimulation.h"
 
+#include "BKE_object.h"
+
 #include "BL_ActionManager.h"
 
 #include "PyObjectPlus.h" /* python stuff */
@@ -712,6 +714,18 @@ void KX_GameObject::RemoveMeshes()
 	//note: meshes can be shared, and are deleted by KX_BlenderSceneConverter
 
 	m_meshes.clear();
+}
+
+void KX_GameObject::UpdateLod(float cam_pos[3])
+{
+	if (this->m_lodmeshes.empty()) return;
+
+	Object* bob = this->GetBlenderObject();
+	if (BKE_object_lod_update(bob, cam_pos)) {
+		LodLevel* lod = bob->currentlod;
+		RAS_MeshObject* mesh = this->m_lodmeshes[lod->level];
+		this->GetScene()->ReplaceMesh(this, mesh, true, false);
+	}
 }
 
 void KX_GameObject::UpdateTransform()

@@ -96,6 +96,7 @@
 #include "KX_SoftBodyDeformer.h"
 //#include "BL_ArmatureController.h"
 #include "BLI_utildefines.h"
+#include "BLI_listbase.h"
 #include "BlenderWorldInfo.h"
 
 #include "KX_KetsjiEngine.h"
@@ -1076,8 +1077,12 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	RAS_MeshObject *meshobj;
 	int lightlayer = blenderobj ? blenderobj->lay:(1<<20)-1; // all layers if no object.
 
-	if ((meshobj = converter->FindGameMesh(mesh/*, ob->lay*/)) != NULL)
-		return meshobj;
+	if ((meshobj = converter->FindGameMesh(mesh/*, ob->lay*/)) != NULL) {
+		STR_String bge_name = meshobj->GetName();
+		STR_String blender_name = ((Mesh*)blenderobj->data)->id.name+2;
+		if (bge_name == blender_name)
+			return meshobj;
+	}
 	// Get DerivedMesh data
 	DerivedMesh *dm = CDDM_from_mesh(mesh, blenderobj);
 	DM_ensure_tessface(dm);
@@ -1989,6 +1994,23 @@ static KX_GameObject *gameobject_from_blenderobject(
 	
 		// set transformation
 		gameobj->AddMesh(meshobj);
+
+		if (BLI_countlist(&ob->lodlevels) > 1) {
+			LodLevel *lod = ((LodLevel*)ob->lodlevels.first)->next;
+			Mesh* lodmesh = mesh;
+			Object* lodmatob = ob;
+			gameobj->AddLodMesh(meshobj);
+			for (int i = 1; lod; lod = lod->next, i++) {
+				lod->level = i;
+				if (lod->use_mesh) {
+					lodmesh = static_cast<Mesh*>(lod->source->data);
+				}
+				if (lod->use_mat) {
+					lodmatob = lod->source;
+				}
+				gameobj->AddLodMesh(BL_ConvertMesh(lodmesh, lodmatob, kxscene, converter, libloading));
+			}
+		}
 	
 		// for all objects: check whether they want to
 		// respond to updates

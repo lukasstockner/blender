@@ -1644,6 +1644,18 @@ void KX_Scene::RenderFonts()
 	}
 }
 
+void KX_Scene::UpdateObjectLods(void)
+{
+	KX_GameObject* gameobj;
+	float cam_pos[3];
+	this->m_active_camera->NodeGetWorldPosition().getValue(cam_pos);
+
+	for (int i = 0; i < this->GetObjectList()->GetCount(); i++) {
+		gameobj = (KX_GameObject*) GetObjectList()->GetValue(i);
+		gameobj->UpdateLod(cam_pos);
+	}
+}
+
 void KX_Scene::UpdateObjectActivity(void) 
 {
 	if (m_activity_culling) {

@@ -88,6 +88,7 @@ protected:
 	STR_String							m_text;
 	int									m_layer;
 	std::vector<RAS_MeshObject*>		m_meshes;
+	std::vector<RAS_MeshObject*>		m_lodmeshes;
 	SG_QList							m_meshSlots;	// head of mesh slots of this 
 	struct Object*						m_pBlenderObject;
 	struct Object*						m_pBlenderGroupObject;
@@ -754,6 +755,25 @@ public:
 	) {
 		m_meshes.push_back(mesh);
 	}
+
+	/**
+	 * Add a level of detail mesh to the object. These should
+	 * be added in order.
+	 */
+		void
+	AddLodMesh(
+		RAS_MeshObject* mesh
+	) {
+		m_lodmeshes.push_back(mesh);
+	}
+
+	/**
+	 * Updates the current lod level based on distance from camera.
+	 */
+		void
+	UpdateLod(
+		float cam_pos[3]
+	);
 
 	/**
 	 * Pick out a mesh associated with the integer 'num'.

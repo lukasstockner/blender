@@ -324,6 +324,9 @@ void KX_KetsjiEngine::RenderDome()
 			// pass the scene's worldsettings to the rasterizer
 			SetWorldSettings(scene->GetWorldInfo());
 
+			// update levels of detail
+			scene->UpdateObjectLods();
+
 			// shadow buffers
 			if (i == 0) {
 				RenderShadowBuffers(scene);
@@ -893,6 +896,9 @@ void KX_KetsjiEngine::Render()
 
 		// this is now done incrementatlly in KX_Scene::CalculateVisibleMeshes
 		//scene->UpdateMeshTransformations();
+
+		// update levels of detail
+		scene->UpdateObjectLods();
 
 		// shadow buffers
 		RenderShadowBuffers(scene);
