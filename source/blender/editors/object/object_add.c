@@ -1762,7 +1762,7 @@ void OBJECT_OT_convert(wmOperatorType *ot)
 
 /* 
  * dupflag: a flag made from constants declared in DNA_userdef_types.h
- * The flag tells adduplicate() weather to copy data linked to the object, or to reference the existing data.
+ * The flag tells adduplicate() whether to copy data linked to the object, or to reference the existing data.
  * U.dupflag for default operations or you can construct a flag as python does
  * if the dupflag is 0 then no data will be copied (linked duplicate) */
 
@@ -2038,7 +2038,7 @@ static int duplicate_exec(bContext *C, wmOperator *op)
 	clear_id_newpoins();
 	clear_sca_new_poins();  /* sensor/contr/act */
 
-	CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases)
+	CTX_DATA_BEGIN (C, Base *, base, selected_bases)
 	{
 		Base *basen = object_add_duplicate_internal(bmain, scene, base, dupflag);
 

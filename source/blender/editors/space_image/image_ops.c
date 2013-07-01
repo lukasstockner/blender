@@ -48,6 +48,7 @@
 
 #include "BKE_colortools.h"
 #include "BKE_context.h"
+#include "BKE_icons.h"
 #include "BKE_image.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
@@ -1122,6 +1123,7 @@ static int image_replace_exec(bContext *C, wmOperator *op)
 	/* XXX unpackImage frees image buffers */
 	ED_preview_kill_jobs(C);
 	
+	BKE_icon_changed(BKE_icon_getid(&sima->image->id));
 	BKE_image_signal(sima->image, &sima->iuser, IMA_SIGNAL_RELOAD);
 	WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, sima->image);
 
@@ -1340,7 +1342,7 @@ static void save_image_doit(bContext *C, SpaceImage *sima, wmOperator *op, SaveI
 			Scene *scene = CTX_data_scene(C);
 			RenderResult *rr = BKE_image_acquire_renderresult(scene, ima);
 			if (rr) {
-				RE_WriteRenderResult(op->reports, rr, simopts->filepath, simopts->im_format.quality);
+				RE_WriteRenderResult(op->reports, rr, simopts->filepath, simopts->im_format.exr_codec);
 				ok = TRUE;
 			}
 			else {
@@ -1439,7 +1441,7 @@ static int image_save_as_exec(bContext *C, wmOperator *op)
 }
 
 
-static int image_save_as_check(bContext *UNUSED(C), wmOperator *op)
+static bool image_save_as_check(bContext *UNUSED(C), wmOperator *op)
 {
 	ImageFormatData *imf = op->customdata;
 	return WM_operator_filesel_ensure_ext_imtype(op, imf);

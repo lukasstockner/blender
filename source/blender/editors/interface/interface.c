@@ -138,15 +138,11 @@ void ui_block_to_window(const ARegion *ar, uiBlock *block, int *x, int *y)
 	*y = (int)(fy + 0.5f);
 }
 
-void ui_block_to_window_rct(const ARegion *ar, uiBlock *block, const rctf *graph, rcti *winr)
+void ui_block_to_window_rctf(const ARegion *ar, uiBlock *block, rctf *rct_dst, const rctf *rct_src)
 {
-	rctf tmpr;
-
-	tmpr = *graph;
-	ui_block_to_window_fl(ar, block, &tmpr.xmin, &tmpr.ymin);
-	ui_block_to_window_fl(ar, block, &tmpr.xmax, &tmpr.ymax);
-
-	BLI_rcti_rctf_copy(winr, &tmpr);
+	*rct_dst = *rct_src;
+	ui_block_to_window_fl(ar, block, &rct_dst->xmin, &rct_dst->ymin);
+	ui_block_to_window_fl(ar, block, &rct_dst->xmax, &rct_dst->ymax);
 }
 
 void ui_window_to_block_fl(const ARegion *ar, uiBlock *block, float *x, float *y)   /* for mouse cursor */
@@ -447,17 +443,24 @@ void uiExplicitBoundsBlock(uiBlock *block, int minx, int miny, int maxx, int max
 static int ui_but_float_precision(uiBut *but, double value)
 {
 	int prec;
+	const double pow10_neg[PRECISION_FLOAT_MAX + 1] = {1.0, 0.1, 0.01, 0.001, 0.0001, 0.00001, 0.000001};
 
 	/* first check if prec is 0 and fallback to a simple default */
 	if ((prec = (int)but->a2) == -1) {
 		prec = (but->hardmax < 10.001f) ? 3 : 2;
 	}
 
+	BLI_assert(prec <= PRECISION_FLOAT_MAX);
+	BLI_assert(pow10_neg[prec] == pow(10, -prec));
+
 	/* check on the number of decimal places need to display
 	 * the number, this is so 0.00001 is not displayed as 0.00,
 	 * _but_, this is only for small values si 10.0001 will not get
 	 * the same treatment */
-	if (value != 0.0 && (value = ABS(value)) < 0.1) {
+	value = ABS(value);
+	if ((value < pow10_neg[prec]) &&
+	    (value > (1.0 / PRECISION_FLOAT_MAX_POW)))
+	{
 		int value_i = (int)((value * PRECISION_FLOAT_MAX_POW) + 0.5);
 		if (value_i != 0) {
 			const int prec_span = 3; /* show: 0.01001, 5 would allow 0.0100001 for eg. */
@@ -1023,11 +1026,10 @@ void ui_fontscale(short *points, float aspect)
 /* project button or block (but==NULL) to pixels in regionspace */
 static void ui_but_to_pixelrect(rcti *rect, const ARegion *ar, uiBlock *block, uiBut *but)
 {
-	rctf rectf = (but) ? but->rect : block->rect;
-	
-	ui_block_to_window_fl(ar, block, &rectf.xmin, &rectf.ymin);
-	ui_block_to_window_fl(ar, block, &rectf.xmax, &rectf.ymax);
-	
+	rctf rectf;
+
+	ui_block_to_window_rctf(ar, block, &rectf, (but) ? &but->rect : &block->rect);
+
 	rectf.xmin -= ar->winrct.xmin;
 	rectf.ymin -= ar->winrct.ymin;
 	rectf.xmax -= ar->winrct.xmin;
@@ -2376,13 +2378,13 @@ void ui_check_but(uiBut *but)
 					char *str = but->drawstr;
 
 					if (but->modifier_key & KM_SHIFT)
-						str = strcat(str, "Shift ");
+						str += BLI_strcpy_rlen(str, "Shift ");
 					if (but->modifier_key & KM_CTRL)
-						str = strcat(str, "Ctrl ");
+						str += BLI_strcpy_rlen(str, "Ctrl ");
 					if (but->modifier_key & KM_ALT)
-						str = strcat(str, "Alt ");
+						str += BLI_strcpy_rlen(str, "Alt ");
 					if (but->modifier_key & KM_OSKEY)
-						str = strcat(str, "Cmd ");
+						str += BLI_strcpy_rlen(str, "Cmd ");
 
 					(void)str; /* UNUSED */
 				}
@@ -3091,16 +3093,21 @@ void autocomplete_do_name(AutoComplete *autocpl, const char *name)
 	}
 }
 
-void autocomplete_end(AutoComplete *autocpl, char *autoname)
+bool autocomplete_end(AutoComplete *autocpl, char *autoname)
 {	
-	if (autocpl->truncate[0])
+	bool change = false;
+	if (autocpl->truncate[0]) {
 		BLI_strncpy(autoname, autocpl->truncate, autocpl->maxlen);
+		change = true;
+	}
 	else {
-		if (autoname != autocpl->startname) /* don't copy a string over its self */
+		if (autoname != autocpl->startname) {  /* don't copy a string over its self */
 			BLI_strncpy(autoname, autocpl->startname, autocpl->maxlen);
+		}
 	}
 	MEM_freeN(autocpl->truncate);
 	MEM_freeN(autocpl);
+	return change;
 }
 
 static void ui_check_but_and_iconize(uiBut *but, int icon)
