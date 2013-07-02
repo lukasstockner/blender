@@ -978,7 +978,7 @@ static int sample_color_exec(bContext *C, wmOperator *op)
 	paint_sample_color(C, ar, location[0], location[1], foreground);
 
 	WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -1128,6 +1128,8 @@ static int texture_colors_flip_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Brush *br = image_paint_brush(C);
 	swap_v3_v3(br->rgb, br->secondary_rgb);
+
+	WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, br);
 
 	return OPERATOR_FINISHED;
 }
