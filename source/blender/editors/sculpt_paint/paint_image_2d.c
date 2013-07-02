@@ -235,7 +235,7 @@ static unsigned short *brush_painter_max_mask_new(BrushPainter *painter, int siz
 }
 
 
-/* create a mask with the falloff strength and optionally brush alpha */
+/* create a mask with the falloff strength */
 static unsigned short *brush_painter_curve_mask_new(BrushPainter *painter, int size)
 {
 	Scene *scene = painter->scene;
@@ -281,7 +281,8 @@ static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size)
 
 	int x, y, thread = 0;
 	float brush_rgb[3];
-	float alpha = BKE_brush_alpha_get(scene, brush) * 65535.0f;
+	float alpha = (is_maskbrush)? BKE_brush_alpha_get(scene, brush) :
+	                              BKE_brush_alpha_get(scene, brush) * 65535.0f;
 
 	unsigned short *mask = painter->cache.curve_mask;
 	unsigned short *max_mask = painter->cache.max_mask;
@@ -324,7 +325,7 @@ static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size)
 			/* when not using masking, multiply in falloff and strength */
 			if (!use_masking) {
 				unsigned short *m = mask + (y * ibuf->x + x);
-				unsigned short max_m = (is_maskbrush)? *(max_mask + (y * ibuf->x + x)) : alpha;
+				unsigned short max_m = (is_maskbrush)? *(max_mask + (y * ibuf->x + x)) * alpha : alpha;
 				rgba[3] *= (*m) * (1.0f / 65535.0f) * (max_m) * (1.0f / 65535.0f);
 			}
 
@@ -364,7 +365,8 @@ static void brush_painter_imbuf_update(BrushPainter *painter, ImBuf *oldtexibuf,
 	bool is_maskbrush = painter->cache.is_maskbrush;
 	bool use_texture_old = (oldtexibuf != NULL);
 
-	float alpha = BKE_brush_alpha_get(scene, brush) * 65535.0f;
+	float alpha = (is_maskbrush)? BKE_brush_alpha_get(scene, brush) :
+	                              BKE_brush_alpha_get(scene, brush) * 65535.0f;
 
 	int x, y, thread = 0;
 	float brush_rgb[3];
@@ -422,7 +424,7 @@ static void brush_painter_imbuf_update(BrushPainter *painter, ImBuf *oldtexibuf,
 				/* if not using masking, multiply in the mask now */
 				if (!use_masking) {
 					unsigned short *m = mask + (y * ibuf->x + x);
-					unsigned short max_m = (is_maskbrush)? *(max_mask + (y * ibuf->x + x)) : alpha;
+					unsigned short max_m = (is_maskbrush)? *(max_mask + (y * ibuf->x + x)) * alpha : alpha;
 					rgba[3] *= (*m) * (1.0f / 65535.0f) * (max_m) * (1.0f / 65535.0f);
 				}
 
@@ -457,7 +459,7 @@ static void brush_painter_imbuf_update(BrushPainter *painter, ImBuf *oldtexibuf,
 				/* if not using masking, multiply in the mask now */
 				if (!use_masking) {
 					unsigned short *m = mask + (y * ibuf->x + x);
-					unsigned short max_m = (is_maskbrush)? *(max_mask + (y * ibuf->x + x)) : alpha;
+					unsigned short max_m = (is_maskbrush)? *(max_mask + (y * ibuf->x + x)) * alpha : alpha;
 					crgba[3] = crgba[3] * (*m) * 1/(65535.0f) * (max_m) * 1/(65535.0f);
 				}
 
