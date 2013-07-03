@@ -610,6 +610,8 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 
 	if (painter->cache.is_maskbrush) {
 		bool renew_maxmask = false;
+		bool do_view_mask = false;
+		//bool do_partial_update_mask = false;
 		/* invalidate case for all mapping modes */
 		if (diameter != cache->lastsize ||
 		    alpha != cache->lastalpha)
@@ -617,21 +619,31 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 			renew_maxmask = true;
 		}
 		if (brush->mask_mtex.brush_map_mode == MTEX_MAP_MODE_VIEW) {
-			do_view = true;
+			do_view_mask = true;
 			mask_rotation += ups->brush_rotation;
 		}
 		else if (brush->mask_mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM) {
-			do_random = true;
+			/* we need to force random to take new mask values into account */
+			if (!painter->cache.use_masking)
+				do_random = true;
 			renew_maxmask = true;
+			//do_partial_update_mask = false;
 		}
 		else {
-			do_partial_update = true;
+			/* we need to do partial update to take new mask values into account */
+			if (!painter->cache.use_masking)
+				do_partial_update = true;
+			//do_partial_update_mask = true;
 			renew_maxmask = true;
 		}
 		/* explicilty disable partial update even if it has been enabled above */
 		if (brush->mask_pressure) {
-			do_partial_update = false;
+			//do_partial_update_mask = false;
 			renew_maxmask = true;
+		}
+
+		if (do_view_mask) {
+			//do_partial_update_mask = false;
 		}
 
 		brush_painter_2d_tex_mapping(s, size, painter->startpaintpos, pos, mouse,
@@ -674,7 +686,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 		}
 
 		if (do_partial_update) {
-			/* do partial update of texture + recreate mask */
+			/* do partial update of texture */
 			brush_painter_imbuf_partial_update(painter, pos);
 		}
 		else {
