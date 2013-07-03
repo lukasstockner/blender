@@ -1647,8 +1647,7 @@ void KX_Scene::RenderFonts()
 void KX_Scene::UpdateObjectLods(void)
 {
 	KX_GameObject* gameobj;
-	float cam_pos[3];
-	this->m_active_camera->NodeGetWorldPosition().getValue(cam_pos);
+	MT_Vector3 cam_pos = this->m_active_camera->NodeGetWorldPosition();
 
 	for (int i = 0; i < this->GetObjectList()->GetCount(); i++) {
 		gameobj = (KX_GameObject*) GetObjectList()->GetValue(i);

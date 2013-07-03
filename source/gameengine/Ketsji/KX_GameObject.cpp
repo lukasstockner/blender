@@ -716,14 +716,31 @@ void KX_GameObject::RemoveMeshes()
 	m_meshes.clear();
 }
 
-void KX_GameObject::UpdateLod(float cam_pos[3])
+void KX_GameObject::UpdateLod(MT_Vector3 &cam_pos)
 {
+	if (this->m_pInstanceObjects) {
+		KX_GameObject * instob;
+		int count = this->m_pInstanceObjects->GetCount();
+		for (int i = 0; i < count; i++) {
+			instob = (KX_GameObject*)this->m_pInstanceObjects->GetValue(i);
+			instob->UpdateLod(cam_pos);
+		}
+	}
+
 	if (this->m_lodmeshes.empty()) return;
 
-	Object* bob = this->GetBlenderObject();
-	if (BKE_object_lod_update(bob, cam_pos)) {
-		LodLevel* lod = bob->currentlod;
-		RAS_MeshObject* mesh = this->m_lodmeshes[lod->level];
+	MT_Vector3 delta = this->NodeGetWorldPosition() - cam_pos;
+	float distance2 = delta.dot(delta);
+
+	Object *bob = this->GetBlenderObject();
+	LodLevel *lod = (LodLevel*) bob->lodlevels.first;
+	for (int i = 0; lod; lod = lod->next, i++) {
+		if (!lod->next || lod->next->distance * lod->next->distance > distance2) break;
+	}
+
+	RAS_MeshObject *mesh = this->m_lodmeshes[lod->level];
+
+	if (mesh != this->m_meshes[0]) {
 		this->GetScene()->ReplaceMesh(this, mesh, true, false);
 	}
 }

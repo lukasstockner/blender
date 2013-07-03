@@ -772,7 +772,7 @@ public:
 	 */
 		void
 	UpdateLod(
-		float cam_pos[3]
+		MT_Vector3 &cam_pos
 	);
 
 	/**
