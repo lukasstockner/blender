@@ -176,6 +176,8 @@ typedef struct ProjPaintImage {
 	ImBuf *ibuf;
 	ImagePaintPartialRedraw *partRedrawRect;
 	void **undoRect; /* only used to build undo tiles after painting */
+	void **maskRect; /* the mask accumulation must happen on canvas, not on space screen bucket.
+	                  * Here we store the mask rectangle */
 	int touch;
 } ProjPaintImage;
 
@@ -2167,7 +2169,7 @@ static int IsectPoly2Df_twoside(const float pt[2], float uv[][2], const int tot)
 
 /* One of the most important function for projection painting, since it selects the pixels to be added into each bucket.
  * initialize pixels from this face where it intersects with the bucket_index, optionally initialize pixels for removing seams */
-static void project_paint_face_init(const ProjPaintState *ps, const int thread_index, const int bucket_index, const int face_index, const int image_index, rctf *bucket_bounds, const ImBuf *ibuf, const short clamp_u, const short clamp_v)
+static void project_paint_face_init(const ProjPaintState *ps, const int thread_index, const int bucket_index, const int face_index, const int image_index, rctf *bucket_bounds, ImBuf *ibuf, const short clamp_u, const short clamp_v)
 {
 	/* Projection vars, to get the 3D locations into screen space  */
 	MemArena *arena = ps->arena_mt[thread_index];
@@ -2182,6 +2184,7 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 	int y; /* Image Y-Pixel */
 	float mask;
 	float uv[2]; /* Image floating point UV - same as x, y but from 0.0-1.0 */
+	int tile_width;
 
 	int side;
 	float *v1coSS, *v2coSS, *v3coSS; /* vert co screen-space, these will be assigned to mf->v1,2,3 or mf->v1,3,4 */
@@ -2252,6 +2255,8 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 		side = 0;
 	}
 
+	tile_width =  IMAPAINT_TILE_NUMBER(ibuf->x);
+
 	do {
 		if (side == 1) {
 			i1 = 0; i2 = 2; i3 = 3;
@@ -2284,6 +2289,9 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 #endif
 
 		if (pixel_bounds_array(uv_clip, &bounds_px, ibuf->x, ibuf->y, uv_clip_tot)) {
+			int tilex, tiley, tilew, tileh, tx, ty;
+			ImBuf *tmpibuf = NULL;
+			unsigned short *maskrect;
 
 			if (clamp_u) {
 				CLAMP(bounds_px.xmin, 0, ibuf->x);
@@ -2294,6 +2302,35 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 				CLAMP(bounds_px.ymin, 0, ibuf->y);
 				CLAMP(bounds_px.ymax, 0, ibuf->y);
 			}
+
+			/* find the tiles covered by this face and make sure they are initialized */
+			imapaint_region_tiles(ibuf, bounds_px.xmin, bounds_px.ymin,
+			                      bounds_px.xmax - bounds_px.xmin, bounds_px.ymax - bounds_px.ymin,
+			                      &tilex, &tiley, &tilew, &tileh);
+
+			if (ps->thread_tot > 1)
+				BLI_lock_thread(LOCK_CUSTOM1);  /* Other threads could be modifying these vars */
+
+			for (ty = tiley; ty <= tileh; ty++) {
+				for (tx = tilex; tx <= tilew; tx++) {
+					int tileindex = tx + tile_width * ty;
+
+					if (!ps->projImages[image_index].undoRect[tileindex]) {
+						ps->projImages[image_index].undoRect[tileindex] = image_undo_push_tile(ps->projImages[image_index].ima, ibuf, &tmpibuf, tx, ty, &maskrect);
+						ps->projImages[image_index].maskRect[tileindex] = maskrect;
+						ibuf->userflags |= IB_BITMAPDIRTY;
+					}
+					else {
+
+					}
+				}
+			}
+
+			if (tmpibuf)
+				IMB_freeImBuf(tmpibuf);
+
+			if (ps->thread_tot > 1)
+				BLI_unlock_thread(LOCK_CUSTOM1);
 
 			/* clip face and */
 
@@ -3237,11 +3274,17 @@ static void project_paint_begin(ProjPaintState *ps)
 	projIma = ps->projImages = (ProjPaintImage *)BLI_memarena_alloc(arena, sizeof(ProjPaintImage) * ps->image_tot);
 
 	for (node = image_LinkList, i = 0; node; node = node->next, i++, projIma++) {
+		int size;
 		projIma->ima = node->link;
 		projIma->touch = 0;
 		projIma->ibuf = BKE_image_acquire_ibuf(projIma->ima, NULL, NULL);
+		size = sizeof(void **) * IMAPAINT_TILE_NUMBER(projIma->ibuf->x) * IMAPAINT_TILE_NUMBER(projIma->ibuf->y);
 		projIma->partRedrawRect =  BLI_memarena_alloc(arena, sizeof(ImagePaintPartialRedraw) * PROJ_BOUNDBOX_SQUARED);
 		memset(projIma->partRedrawRect, 0, sizeof(ImagePaintPartialRedraw) * PROJ_BOUNDBOX_SQUARED);
+		projIma->undoRect = (void **) BLI_memarena_alloc(arena, size);
+		memset(projIma->undoRect, 0, size);
+		projIma->maskRect = (void **) BLI_memarena_alloc(arena, size);
+		memset(projIma->maskRect, 0, size);
 	}
 
 	/* we have built the array, discard the linked list */
@@ -3263,8 +3306,9 @@ static void paint_proj_begin_clone(ProjPaintState *ps, const float mouse[2])
 	}
 }
 
-static void project_paint_undo_push(ProjPaintState *ps)
+static void project_paint_undo_push(ProjPaintState *UNUSED(ps))
 {
+#if 0
 	/* build undo data from original pixel colors */
 	if (U.uiflag & USER_GLOBALUNDO) {
 		ProjPixel *projPixel;
@@ -3328,7 +3372,7 @@ static void project_paint_undo_push(ProjPaintState *ps)
 
 					if (last_projIma->undoRect[tile_index] == NULL) {
 						/* add the undo tile from the modified image, then write the original colors back into it */
-						tilerect = last_projIma->undoRect[tile_index] = image_undo_push_tile(last_projIma->ima, last_projIma->ibuf, is_float ? (&tmpibuf_float) : (&tmpibuf), x_tile, y_tile);
+						tilerect = last_projIma->undoRect[tile_index] = image_undo_push_tile(last_projIma->ima, last_projIma->ibuf, is_float ? (&tmpibuf_float) : (&tmpibuf), x_tile, y_tile, NULL);
 					}
 					else {
 						tilerect = last_projIma->undoRect[tile_index];
@@ -3351,6 +3395,7 @@ static void project_paint_undo_push(ProjPaintState *ps)
 		if (tmpibuf) IMB_freeImBuf(tmpibuf);
 		if (tmpibuf_float) IMB_freeImBuf(tmpibuf_float);
 	}
+#endif
 }
 
 
@@ -3359,6 +3404,7 @@ static void project_paint_end(ProjPaintState *ps)
 	int a;
 	ProjPaintImage *projIma;
 
+	image_undo_remove_masks();
 	project_paint_undo_push(ps);
 
 	/* dereference used image buffers */

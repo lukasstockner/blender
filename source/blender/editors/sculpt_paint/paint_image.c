@@ -205,7 +205,7 @@ void *image_undo_find_tile(Image *ima, ImBuf *ibuf, int x_tile, int y_tile, unsi
 	return NULL;
 }
 
-void *image_undo_push_tile(Image *ima, ImBuf *ibuf, ImBuf **tmpibuf, int x_tile, int y_tile)
+void *image_undo_push_tile(Image *ima, ImBuf *ibuf, ImBuf **tmpibuf, int x_tile, int y_tile, unsigned short **mask)
 {
 	ListBase *lb = undo_paint_push_get_list(UNDO_PAINT_IMAGE);
 	UndoImageTile *tile;
@@ -214,7 +214,7 @@ void *image_undo_push_tile(Image *ima, ImBuf *ibuf, ImBuf **tmpibuf, int x_tile,
 	void *data;
 
 	/* check if tile is already pushed */
-	data = image_undo_find_tile(ima, ibuf, x_tile, y_tile, NULL, true);
+	data = image_undo_find_tile(ima, ibuf, x_tile, y_tile, mask, true);
 	if (data)
 		return data;
 	
@@ -225,6 +225,11 @@ void *image_undo_push_tile(Image *ima, ImBuf *ibuf, ImBuf **tmpibuf, int x_tile,
 	BLI_strncpy(tile->idname, ima->id.name, sizeof(tile->idname));
 	tile->x = x_tile;
 	tile->y = y_tile;
+
+	/* add mask explicitly here */
+	if (mask)
+		*mask = tile->mask = MEM_callocN(sizeof(unsigned short) * IMAPAINT_TILE_SIZE * IMAPAINT_TILE_SIZE,
+		                         "UndoImageTile.mask");
 
 	allocsize = IMAPAINT_TILE_SIZE * IMAPAINT_TILE_SIZE * 4;
 	allocsize *= (ibuf->rect_float) ? sizeof(float) : sizeof(char);
@@ -396,7 +401,7 @@ void imapaint_dirty_region(Image *ima, ImBuf *ibuf, int x, int y, int w, int h)
 
 	for (ty = tiley; ty <= tileh; ty++)
 		for (tx = tilex; tx <= tilew; tx++)
-			image_undo_push_tile(ima, ibuf, &tmpibuf, tx, ty);
+			image_undo_push_tile(ima, ibuf, &tmpibuf, tx, ty, NULL);
 
 	ibuf->userflags |= IB_BITMAPDIRTY;
 	
