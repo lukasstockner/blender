@@ -146,6 +146,7 @@ void *image_undo_push_tile(struct Image *ima, struct ImBuf *ibuf, struct ImBuf *
 void image_undo_remove_masks(void);
 void image_undo_restore(struct bContext *C, struct ListBase *lb);
 void image_undo_free(struct ListBase *lb);
+void image_undo_invalidate(void);
 void imapaint_image_update(struct SpaceImage *sima, struct Image *image, struct ImBuf *ibuf, short texpaint);
 struct ImagePaintPartialRedraw *get_imapaintpartial(void);
 void set_imapaintpartial(struct ImagePaintPartialRedraw *ippr);

@@ -353,6 +353,15 @@ static void image_undo_end(void)
 	undo_paint_push_end(UNDO_PAINT_IMAGE);
 }
 
+void image_undo_invalidate(void)
+{
+	UndoImageTile *tile;
+	ListBase *lb = undo_paint_push_get_list(UNDO_PAINT_IMAGE);
+
+	for (tile = lb->first; tile; tile = tile->next)
+		tile->valid = false;
+}
+
 /* Imagepaint Partial Redraw & Dirty Region */
 
 void imapaint_clear_partial_redraw(void)
@@ -556,12 +565,9 @@ static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, float mou
 /* restore painting image to previous state. Used for anchored and drag-dot style brushes*/
 static void paint_stroke_restore(bContext *C)
 {
-	UndoImageTile *tile;
 	ListBase *lb = undo_paint_push_get_list(UNDO_PAINT_IMAGE);
 	image_undo_restore(C, lb);
-
-	for (tile = lb->first; tile; tile = tile->next)
-		tile->valid = false;
+	image_undo_invalidate();
 }
 
 static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, PointerRNA *itemptr)

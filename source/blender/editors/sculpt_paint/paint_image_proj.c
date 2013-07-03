@@ -3306,22 +3306,19 @@ static void paint_proj_begin_clone(ProjPaintState *ps, const float mouse[2])
 	}
 }
 
-static void project_paint_undo_push(ProjPaintState *UNUSED(ps))
+static void project_paint_undo_end(ProjPaintState *ps)
 {
-#if 0
 	/* build undo data from original pixel colors */
 	if (U.uiflag & USER_GLOBALUNDO) {
 		ProjPixel *projPixel;
 		ImBuf *tmpibuf = NULL, *tmpibuf_float = NULL;
 		LinkNode *pixel_node;
-		void *tilerect;
 		MemArena *arena = ps->arena_mt[0]; /* threaded arena re-used for non threaded case */
 
 		int bucket_tot = (ps->buckets_x * ps->buckets_y); /* we could get an X/Y but easier to loop through all possible buckets */
 		int bucket_index;
-		int tile_index;
 		int a;
-		int x_round, y_round;
+		//int x_round, y_round;
 		int x_tile, y_tile;
 		int is_float = -1;
 
@@ -3329,6 +3326,9 @@ static void project_paint_undo_push(ProjPaintState *UNUSED(ps))
 		ProjPaintImage *last_projIma;
 		int last_image_index = -1;
 		int last_tile_width = 0;
+
+		/* first invalidate all undo rectangles */
+		image_undo_invalidate();
 
 		for (a = 0, last_projIma = ps->projImages; a < ps->image_tot; a++, last_projIma++) {
 			int size = sizeof(void **) * IMAPAINT_TILE_NUMBER(last_projIma->ibuf->x) * IMAPAINT_TILE_NUMBER(last_projIma->ibuf->y);
@@ -3365,29 +3365,11 @@ static void project_paint_undo_push(ProjPaintState *UNUSED(ps))
 					x_tile =  projPixel->x_px >> IMAPAINT_TILE_BITS;
 					y_tile =  projPixel->y_px >> IMAPAINT_TILE_BITS;
 
-					x_round = x_tile * IMAPAINT_TILE_SIZE;
-					y_round = y_tile * IMAPAINT_TILE_SIZE;
+					//x_round = x_tile * IMAPAINT_TILE_SIZE;
+					//y_round = y_tile * IMAPAINT_TILE_SIZE;
 
-					tile_index = x_tile + y_tile * last_tile_width;
-
-					if (last_projIma->undoRect[tile_index] == NULL) {
-						/* add the undo tile from the modified image, then write the original colors back into it */
-						tilerect = last_projIma->undoRect[tile_index] = image_undo_push_tile(last_projIma->ima, last_projIma->ibuf, is_float ? (&tmpibuf_float) : (&tmpibuf), x_tile, y_tile, NULL);
-					}
-					else {
-						tilerect = last_projIma->undoRect[tile_index];
-					}
-
-					/* This is a BIT ODD, but overwrite the undo tiles image info with this pixels original color
-					 * because allocating the tiles along the way slows down painting */
-
-					if (is_float) {
-						float *rgba_fp = (float *)tilerect + (((projPixel->x_px - x_round) + (projPixel->y_px - y_round) * IMAPAINT_TILE_SIZE)) * 4;
-						copy_v4_v4(rgba_fp, projPixel->origColor.f);
-					}
-					else {
-						((unsigned int *)tilerect)[(projPixel->x_px - x_round) + (projPixel->y_px - y_round) * IMAPAINT_TILE_SIZE] = projPixel->origColor.uint;
-					}
+					/* validate the tile here */
+					image_undo_find_tile(last_projIma->ima, last_projIma->ibuf, x_tile, y_tile, NULL, true);
 				}
 			}
 		}
@@ -3395,7 +3377,6 @@ static void project_paint_undo_push(ProjPaintState *UNUSED(ps))
 		if (tmpibuf) IMB_freeImBuf(tmpibuf);
 		if (tmpibuf_float) IMB_freeImBuf(tmpibuf_float);
 	}
-#endif
 }
 
 
@@ -3405,7 +3386,7 @@ static void project_paint_end(ProjPaintState *ps)
 	ProjPaintImage *projIma;
 
 	image_undo_remove_masks();
-	project_paint_undo_push(ps);
+	project_paint_undo_end(ps);
 
 	/* dereference used image buffers */
 	for (a = 0, projIma = ps->projImages; a < ps->image_tot; a++, projIma++) {
@@ -4178,10 +4159,6 @@ void paint_proj_stroke(bContext *C, void *pps, const float prev_pos[2], const fl
 
 	if (project_paint_op(ps, prev_pos, pos))
 		ps->need_redraw = true;
-
-	if ((ps->brush->flag & BRUSH_RESTORE_MESH) ||
-	    (ps->brush->flag & BRUSH_ANCHORED))
-		project_paint_undo_push(ps);
 }
 
 
