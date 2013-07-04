@@ -732,13 +732,15 @@ void KX_GameObject::UpdateLod(MT_Vector3 &cam_pos)
 	MT_Vector3 delta = this->NodeGetWorldPosition() - cam_pos;
 	float distance2 = delta.dot(delta);
 
+	int level = 0;
 	Object *bob = this->GetBlenderObject();
 	LodLevel *lod = (LodLevel*) bob->lodlevels.first;
-	for (int i = 0; lod; lod = lod->next, i++) {
+	for (; lod; lod = lod->next, level++) {
+		if (!lod->source) level--;
 		if (!lod->next || lod->next->distance * lod->next->distance > distance2) break;
 	}
 
-	RAS_MeshObject *mesh = this->m_lodmeshes[lod->level];
+	RAS_MeshObject *mesh = this->m_lodmeshes[level];
 
 	if (mesh != this->m_meshes[0]) {
 		this->GetScene()->ReplaceMesh(this, mesh, true, false);

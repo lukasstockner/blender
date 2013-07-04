@@ -105,8 +105,7 @@ typedef struct BoundBox {
 typedef struct LodLevel {
 	struct LodLevel *next, *prev;
 	struct Object *source;
-	char level;		/* for BGE usage to handle lookups */
-	char use_mesh, use_mat, use_logic;
+	char use_mesh, use_mat, use_logic, pad;
 	float distance;
 } LodLevel;
 

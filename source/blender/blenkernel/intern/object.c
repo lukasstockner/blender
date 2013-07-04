@@ -1014,7 +1014,6 @@ bool BKE_object_lod_update(struct Object *ob, float camera_position[3])
 	LodLevel* new_level = lod_level_select(ob, camera_position);
 
 	if (new_level != cur_level) {
-		printf("Level Switch!\n");
 		ob->currentlod = new_level;
 		return true;
 	}
