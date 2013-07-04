@@ -179,7 +179,7 @@ static void ob_wire_color_blend_theme_id(const unsigned char ob_wire_col[4], con
 }
 
 /* this condition has been made more complex since editmode can draw textures */
-static bool check_object_draw_texture(Scene *scene, View3D *v3d, int drawtype)
+static bool check_object_draw_texture(Scene *scene, View3D *v3d, const char drawtype)
 {
 	/* texture and material draw modes */
 	if (ELEM(v3d->drawtype, OB_TEXTURE, OB_MATERIAL) && drawtype > OB_SOLID) {
@@ -198,6 +198,18 @@ static bool check_object_draw_texture(Scene *scene, View3D *v3d, int drawtype)
 		return true;
 	}
 	
+	return false;
+}
+
+static bool check_object_draw_editweight(Mesh *me, DerivedMesh *finalDM)
+{
+	if (me->drawflag & ME_DRAWEIGHT) {
+		/* editmesh handles its own weight drawing */
+		if (finalDM->type != DM_TYPE_EDITBMESH) {
+			return true;
+		}
+	}
+
 	return false;
 }
 
@@ -1160,8 +1172,8 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 		short axis;
 		
 		/* setup a 45 degree rotation matrix */
-		vec_rot_to_mat3(mat, imat[2], (float)M_PI / 4.0f);
-		
+		axis_angle_normalized_to_mat3(mat, imat[2], (float)M_PI / 4.0f);
+
 		/* vectors */
 		mul_v3_v3fl(v1, imat[0], circrad * 1.2f);
 		mul_v3_v3fl(v2, imat[0], circrad * 2.5f);
@@ -2685,7 +2697,7 @@ static void draw_em_measure_stats(ARegion *ar, View3D *v3d, Object *ob, BMEditMe
 	float grid = unit->system ? unit->scale_length : v3d->grid;
 	const bool do_split = (unit->flag & USER_UNIT_OPT_SPLIT) != 0;
 	const bool do_global = (v3d->flag & V3D_GLOBAL_STATS) != 0;
-	const bool do_moving = G.moving;
+	const bool do_moving = (G.moving & G_TRANSFORM_EDIT) != 0;
 	float clip_planes[4][4];
 
 	BMIter iter;
@@ -3004,7 +3016,7 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 {
 	RegionView3D *rv3d = ar->regiondata;
 	Mesh *me = ob->data;
-	BMFace *efa_act = BM_active_face_get(em->bm, false, true); /* annoying but active faces is stored differently */
+	BMFace *efa_act = BM_mesh_active_face_get(em->bm, false, true); /* annoying but active faces is stored differently */
 	BMEdge *eed_act = NULL;
 	BMVert *eve_act = NULL;
 	
@@ -3030,7 +3042,21 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 	
 	EDBM_index_arrays_ensure(em, BM_VERT | BM_EDGE | BM_FACE);
 
-	if (dt > OB_WIRE) {
+	if (check_object_draw_editweight(me, finalDM)) {
+		if (dt > OB_WIRE) {
+			draw_mesh_paint_weight_faces(finalDM, true, draw_em_fancy__setFaceOpts, me->edit_btmesh);
+
+			bglPolygonOffset(rv3d->dist, 1.0);
+			glDepthMask(0);
+		}
+		else {
+			glEnable(GL_DEPTH_TEST);
+			draw_mesh_paint_weight_faces(finalDM, false, draw_em_fancy__setFaceOpts, me->edit_btmesh);
+			draw_mesh_paint_weight_edges(rv3d, finalDM, true, draw_dm_edges__setDrawOptions, me->edit_btmesh);
+			glDisable(GL_DEPTH_TEST);
+		}
+	}
+	else if (dt > OB_WIRE) {
 		if (check_object_draw_texture(scene, v3d, dt)) {
 			if (draw_glsl_material(scene, ob, v3d, dt)) {
 				glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);

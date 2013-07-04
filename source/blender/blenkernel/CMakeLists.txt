@@ -137,7 +137,6 @@ set(SRC
 	intern/sca.c
 	intern/scene.c
 	intern/screen.c
-	intern/script.c
 	intern/seqcache.c
 	intern/seqeffects.c
 	intern/seqmodifier.c
@@ -231,7 +230,6 @@ set(SRC
 	BKE_sca.h
 	BKE_scene.h
 	BKE_screen.h
-	BKE_script.h
 	BKE_sequencer.h
 	BKE_shrinkwrap.h
 	BKE_sketch.h

@@ -229,7 +229,7 @@ LLVM_FORCE_REBUILD=false
 LLVM_SKIP=false
 
 # OSL needs to be compiled for now!
-OSL_VERSION="1.3.0"
+OSL_VERSION="1.3.2"
 OSL_SOURCE="https://github.com/imageworks/OpenShadingLanguage/archive/Release-$OSL_VERSION.tar.gz"
 OSL_FORCE_REBUILD=false
 OSL_SKIP=false
@@ -1142,6 +1142,9 @@ EOF
   fi
 
   _with_built_openexr=true
+
+  # Just always run it, much simpler this way!
+  _need_openexr_ldconfig=true
 }
 
 #### Build OIIO ####
@@ -1527,7 +1530,7 @@ clean_OSL() {
 
 compile_OSL() {
   # To be changed each time we make edits that would modify the compiled result!
-  osl_magic=9
+  osl_magic=10
   _init_osl
 
   # Clean install if needed!
@@ -3134,6 +3137,9 @@ if [ $_need_boost_ldconfig == true ]; then
 fi
 if [ $_need_oiio_ldconfig == true ]; then
   sudo sh -c "echo \"$INST/oiio/lib\" > /etc/ld.so.conf.d/oiio.conf"
+fi
+if [ $_need_openexr_ldconfig == true ]; then
+  sudo sh -c "echo \"$INST/openexr/lib\" > /etc/ld.so.conf.d/openexr.conf"
 fi
 sudo /sbin/ldconfig  # XXX OpenSuse does not include sbin in command path with sudo!!!
 INFO ""

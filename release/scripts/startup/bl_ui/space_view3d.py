@@ -238,8 +238,10 @@ class VIEW3D_MT_transform_armature(VIEW3D_MT_transform_base):
         layout.separator()
 
         obj = context.object
-        if     (obj.type == 'ARMATURE' and obj.mode in {'EDIT', 'POSE'} and
-                obj.data.draw_type in {'BBONE', 'ENVELOPE'}):
+        if (obj.type == 'ARMATURE' and obj.mode in {'EDIT', 'POSE'} and
+            obj.data.draw_type in {'BBONE', 'ENVELOPE'}
+            ):
+
             layout.operator("transform.transform", text="Scale Envelope/BBone").mode = 'BONE_SIZE'
 
         if context.edit_object and context.edit_object.type == 'ARMATURE':
@@ -989,7 +991,7 @@ class VIEW3D_MT_object_specials(Menu):
                         props.data_path_item = "data.size_y"
                         props.header_text = "Lamp Size Y: %.3f"
 
-                elif lamp.type in  {'SPOT', 'POINT', 'SUN'}:
+                elif lamp.type in {'SPOT', 'POINT', 'SUN'}:
                     props = layout.operator("wm.context_modal_mouse", text="Size")
                     props.data_path_iter = "selected_editable_objects"
                     props.data_path_item = "data.shadow_soft_size"
@@ -1310,15 +1312,15 @@ class VIEW3D_MT_vertex_group(Menu):
         layout = self.layout
 
         layout.operator_context = 'EXEC_AREA'
-        layout.operator("object.vertex_group_assign", text="Assign to New Group").new = True
+        layout.operator("object.vertex_group_assign_new")
 
         ob = context.active_object
         if ob.mode == 'EDIT' or (ob.mode == 'WEIGHT_PAINT' and ob.type == 'MESH' and ob.data.use_paint_mask_vertex):
             if ob.vertex_groups.active:
                 layout.separator()
-                layout.operator("object.vertex_group_assign", text="Assign to Active Group").new = False
-                layout.operator("object.vertex_group_remove_from", text="Remove from Active Group").all = False
-                layout.operator("object.vertex_group_remove_from", text="Remove from All").all = True
+                layout.operator("object.vertex_group_assign", text="Assign to Active Group")
+                layout.operator("object.vertex_group_remove_from", text="Remove from Active Group").use_all_groups = False
+                layout.operator("object.vertex_group_remove_from", text="Remove from All").use_all_groups = True
                 layout.separator()
 
         if ob.vertex_groups.active:
@@ -1936,8 +1938,8 @@ class VIEW3D_MT_edit_mesh_vertices(Menu):
         layout.operator("mesh.rip_move_fill")
         layout.operator("mesh.split")
         layout.operator_menu_enum("mesh.separate", "type")
-        layout.operator("mesh.vert_connect")
-        layout.operator("transform.vert_slide")
+        layout.operator("mesh.vert_connect", text="Connect")
+        layout.operator("transform.vert_slide", text="Slide")
 
         layout.separator()
 
@@ -2217,6 +2219,10 @@ class VIEW3D_MT_edit_font(Menu):
         layout.operator("font.style_toggle", text="Toggle Italic").style = 'ITALIC'
         layout.operator("font.style_toggle", text="Toggle Underline").style = 'UNDERLINE'
         layout.operator("font.style_toggle", text="Toggle Small Caps").style = 'SMALL_CAPS'
+
+        layout.separator()
+
+        layout.operator("font.insert_lorem")
 
 
 class VIEW3D_MT_edit_text_chars(Menu):

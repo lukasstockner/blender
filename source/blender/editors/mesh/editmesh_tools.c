@@ -37,6 +37,7 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_noise.h"
@@ -406,34 +407,6 @@ void MESH_OT_edge_collapse(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int edbm_collapse_edge_loop_exec(bContext *C, wmOperator *op)
-{
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-
-	if (!EDBM_op_callf(em, op, "dissolve_edge_loop edges=%he", BM_ELEM_SELECT))
-		return OPERATOR_CANCELLED;
-
-	EDBM_update_generic(em, true, true);
-
-	return OPERATOR_FINISHED;
-}
-
-void MESH_OT_edge_collapse_loop(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Edge Collapse Loop";
-	ot->description = "Collapse selected edge loops";
-	ot->idname = "MESH_OT_edge_collapse_loop";
-
-	/* api callbacks */
-	ot->exec = edbm_collapse_edge_loop_exec;
-	ot->poll = ED_operator_editmesh;
-
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
-
 static int edbm_add_edge_face__smooth_get(BMesh *bm)
 {
 	BMEdge *e;
@@ -778,13 +751,30 @@ static int edbm_vert_connect(bContext *C, wmOperator *op)
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	BMesh *bm = em->bm;
 	BMOperator bmop;
-	int len = 0;
+	const bool is_pair = (bm->totvertsel == 2);
+	int len;
 	
-	if (!EDBM_op_init(em, &bmop, op, "connect_verts verts=%hv", BM_ELEM_SELECT)) {
-		return OPERATOR_CANCELLED;
+	if (is_pair) {
+		if (!EDBM_op_init(em, &bmop, op, "connect_vert_pair verts=%hv", BM_ELEM_SELECT)) {
+			return OPERATOR_CANCELLED;
+		}
 	}
+	else {
+		if (!EDBM_op_init(em, &bmop, op, "connect_verts verts=%hv", BM_ELEM_SELECT)) {
+			return OPERATOR_CANCELLED;
+		}
+	}
+
 	BMO_op_exec(bm, &bmop);
 	len = BMO_slot_get(bmop.slots_out, "edges.out")->len;
+
+	if (len) {
+		if (is_pair) {
+			/* new verts have been added, we have to select the edges, not just flush */
+			BMO_slot_buffer_hflag_enable(em->bm, bmop.slots_out, "edges.out", BM_EDGE, BM_ELEM_SELECT, true);
+		}
+	}
+
 	if (!EDBM_op_finish(em, &bmop, op, true)) {
 		return OPERATOR_CANCELLED;
 	}
@@ -1109,11 +1099,13 @@ void MESH_OT_normals_make_consistent(wmOperatorType *ot)
 static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit = CTX_data_edit_object(C);
+	Mesh *me = obedit->data;
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	ModifierData *md;
 	int mirrx = false, mirry = false, mirrz = false;
 	int i, repeat;
 	float clip_dist = 0.0f;
+	bool use_topology = (me->editflag & ME_EDIT_MIRROR_TOPO) != 0;
 
 	const bool xaxis = RNA_boolean_get(op->ptr, "xaxis");
 	const bool yaxis = RNA_boolean_get(op->ptr, "yaxis");
@@ -1121,7 +1113,7 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
 
 	/* mirror before smooth */
 	if (((Mesh *)obedit->data)->editflag & ME_EDIT_MIRROR_X) {
-		EDBM_verts_mirror_cache_begin(em, 0, false, true);
+		EDBM_verts_mirror_cache_begin(em, 0, false, true, use_topology);
 	}
 
 	/* if there is a mirror modifier with clipping, flag the verts that
@@ -1193,6 +1185,8 @@ static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
+	Mesh *me = obedit->data;
+	bool use_topology = (me->editflag & ME_EDIT_MIRROR_TOPO) != 0;
 	int usex = true, usey = true, usez = true, preserve_volume = true;
 	int i, repeat;
 	float lambda_factor;
@@ -1212,7 +1206,7 @@ static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
 
 	/* mirror before smooth */
 	if (((Mesh *)obedit->data)->editflag & ME_EDIT_MIRROR_X) {
-		EDBM_verts_mirror_cache_begin(em, 0, false, true);
+		EDBM_verts_mirror_cache_begin(em, 0, false, true, use_topology);
 	}
 
 	repeat = RNA_int_get(op->ptr, "repeat");
@@ -2745,7 +2739,7 @@ static int edbm_fill_grid_exec(bContext *C, wmOperator *op)
 void MESH_OT_fill_grid(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Fill Grid";
+	ot->name = "Grid Fill";
 	ot->description = "Fill grid from two loops";
 	ot->idname = "MESH_OT_fill_grid";
 
@@ -4267,7 +4261,7 @@ static int mesh_symmetry_snap_exec(bContext *C, wmOperator *op)
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	BMesh *bm = em->bm;
 	int *index = MEM_mallocN(bm->totvert * sizeof(*index), __func__);
-	const bool is_topo = false;
+	const bool use_topology = false;
 
 	const float thresh = RNA_float_get(op->ptr, "threshold");
 	const float fac = RNA_float_get(op->ptr, "factor");
@@ -4286,7 +4280,7 @@ static int mesh_symmetry_snap_exec(bContext *C, wmOperator *op)
 	BMVert *v;
 	int i;
 
-	EDBM_verts_mirror_cache_begin_ex(em, axis, true, true, is_topo, thresh, index);
+	EDBM_verts_mirror_cache_begin_ex(em, axis, true, true, use_topology, thresh, index);
 
 	EDBM_index_arrays_ensure(em, BM_VERT);
 
