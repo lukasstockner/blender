@@ -201,14 +201,14 @@ static void paint_brush_update(bContext *C, UnifiedPaintSettings *ups,
 		else {
 			copy_v2_v2(ups->tex_mouse, mouse);
 		}
-	}
 
-	/* take care of mask texture, if any */
-	if (brush->mask_mtex.tex) {
-		if (brush->mask_mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM)
-			BKE_brush_randomize_texture_coordinates(ups, true);
-		else {
-			copy_v2_v2(ups->mask_tex_mouse, mouse);
+		/* take care of mask texture, if any */
+		if (brush->mask_mtex.tex) {
+			if (brush->mask_mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM)
+				BKE_brush_randomize_texture_coordinates(ups, true);
+			else {
+				copy_v2_v2(ups->mask_tex_mouse, mouse);
+			}
 		}
 	}
 
@@ -241,6 +241,7 @@ static void paint_brush_update(bContext *C, UnifiedPaintSettings *ups,
 		if (hit) {
 			copy_v2_v2(ups->anchored_initial_mouse, halfway);
 			copy_v2_v2(ups->tex_mouse, halfway);
+			copy_v2_v2(ups->mask_tex_mouse, halfway);
 			copy_v2_v2(mouse, halfway);
 			ups->anchored_size /= 2.0f;
 			ups->pixel_radius  /= 2.0f;
