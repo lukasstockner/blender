@@ -134,9 +134,13 @@ static void wm_reports_free(wmWindowManager *wm)
 void wm_operator_register(bContext *C, wmOperator *op)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
-	int tot;
 
 	BLI_addtail(&wm->operators, op);
+
+	/* The operator stack is limited by the undo stacks, and therefore we do not
+	 * have to check for MAX_OP_REGISTERED. */
+#if 0
+	int tot;
 	tot = BLI_countlist(&wm->operators);
 	
 	while (tot > MAX_OP_REGISTERED) {
@@ -145,6 +149,7 @@ void wm_operator_register(bContext *C, wmOperator *op)
 		WM_operator_free(opt);
 		tot--;
 	}
+#endif
 	
 	/* so the console is redrawn */
 	WM_event_add_notifier(C, NC_SPACE | ND_SPACE_INFO_REPORT, NULL);
@@ -162,6 +167,39 @@ void WM_operator_stack_clear(wmWindowManager *wm)
 	}
 	
 	WM_main_add_notifier(NC_WM | ND_HISTORY, NULL);
+}
+
+/* This ugly little duckling is used to be able to access both the 
+   edit mode and object mode UndoElems. */
+typedef struct UndoElem {
+	struct UndoElem *next, *prev;
+	wmOperator * op;
+} UndoElem;
+
+void WM_operator_build_stack(bContext *C, const ListBase *uels, bool notify)
+{
+	wmWindowManager *wm = CTX_wm_manager(C);
+
+	wm->operators.first = NULL;
+	wm->operators.last = NULL;
+
+	UndoElem *uel;
+	for(uel = uels->first; uel && uel->prev != uels->last; uel = uel->next)
+	{
+		if(uel->op
+		   && uel->op->type
+		   && uel->op->type->flag & OPTYPE_REGISTER
+		   && uel->op->type->flag & OPTYPE_UNDO)
+		{
+			BLI_addtail(&wm->operators, uel->op);
+		}
+	}
+
+	if(notify)
+	{
+		WM_event_add_notifier(C, NC_SPACE | ND_SPACE_INFO_REPORT, NULL);
+		WM_event_add_notifier(C, NC_WM | ND_HISTORY, NULL);
+	}
 }
 
 /**
@@ -407,7 +445,6 @@ void wm_add_default(bContext *C)
 void wm_close_and_free(bContext *C, wmWindowManager *wm)
 {
 	wmWindow *win;
-	wmOperator *op;
 	wmKeyConfig *keyconf;
 
 	if (wm->autosavetimer)
@@ -420,10 +457,13 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
 		wm_window_free(C, wm, win);
 	}
 	
+#if 0
+// we're freeing the operators from the undo system
 	while ((op = wm->operators.first)) {
 		BLI_remlink(&wm->operators, op);
 		WM_operator_free(op);
 	}
+#endif
 
 	while ((keyconf = wm->keyconfigs.first)) {
 		BLI_remlink(&wm->keyconfigs, keyconf);

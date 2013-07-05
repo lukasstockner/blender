@@ -492,7 +492,7 @@ void WM_exit_ext(bContext *C, const short do_python)
 	GPU_free_unused_buffers();
 	GPU_extensions_exit();
 
-	BKE_reset_undo(); 
+	BKE_reset_undo(C);
 	
 	ED_file_exit(); /* for fsmenu */
 

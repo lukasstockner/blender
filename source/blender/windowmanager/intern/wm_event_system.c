@@ -595,6 +595,7 @@ static void wm_operator_reports(bContext *C, wmOperator *op, int retval, int cal
 	}
 }
 
+#if 0
 /* this function is mainly to check that the rules for freeing
  * an operator are kept in sync.
  */
@@ -602,8 +603,9 @@ static int wm_operator_register_check(wmWindowManager *wm, wmOperatorType *ot)
 {
 	return wm && (wm->op_undo_depth == 0) && (ot->flag & OPTYPE_REGISTER);
 }
+#endif
 
-static void wm_operator_finished(bContext *C, wmOperator *op, int repeat)
+static void wm_operator_finished(bContext *C, wmOperator *op, int UNUSED(repeat))
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 
@@ -612,10 +614,14 @@ static void wm_operator_finished(bContext *C, wmOperator *op, int repeat)
 	/* we don't want to do undo pushes for operators that are being
 	 * called from operators that already do an undo push. usually
 	 * this will happen for python operators that call C operators */
-	if (wm->op_undo_depth == 0)
-		if (op->type->flag & OPTYPE_UNDO)
-			ED_undo_push_op(C, op);
-	
+	if (wm->op_undo_depth == 0
+		&& op->type->flag & OPTYPE_UNDO)
+		ED_undo_push_op(C, op);
+	else
+		WM_operator_free(op);
+
+#if 0
+// operators are registered and freed from the undo system.
 	if (repeat == 0) {
 		if (G.debug & G_DEBUG_WM) {
 			char *buf = WM_operator_pystring(C, op->type, op->ptr, 1);
@@ -634,6 +640,7 @@ static void wm_operator_finished(bContext *C, wmOperator *op, int repeat)
 			WM_operator_free(op);
 		}
 	}
+#endif
 }
 
 /* if repeat is true, it doesn't register again, nor does it free */
@@ -828,6 +835,25 @@ static wmOperator *wm_operator_create(wmWindowManager *wm, wmOperatorType *ot,
 	WM_operator_properties_sanitize(op->ptr, 0);
 
 	return op;
+}
+
+wmOperator *WM_operator_copy(bContext *C, wmOperator *op, bool copylink)
+{
+	/* The logic wm_operator_create is used as it already
+	 * creates copies of the properties. Note that the
+	 * report list is not copied. */
+	wmWindowManager *wm = CTX_wm_manager(C);
+	wmOperator *newop = wm_operator_create(wm, op->type, op->ptr, NULL);
+
+	/* This likely isn't necessary, have to look closer at
+	 * what BLI_addTail does, or whether these links are
+	 * used in anywhere. However, better safe than sorry. */
+	if(!copylink)
+	{
+		newop->next = NULL;
+		newop->prev = NULL;
+	}
+	return newop;
 }
 
 static void wm_region_mouse_co(bContext *C, wmEvent *event)

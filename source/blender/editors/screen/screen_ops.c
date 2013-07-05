@@ -2604,9 +2604,13 @@ static void SCREEN_OT_spacedata_cleanup(wmOperatorType *ot)
 static int repeat_last_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	wmOperator *lastop = CTX_wm_manager(C)->operators.last;
-	
-	if (lastop)
-		WM_operator_repeat(C, lastop);
+	wmOperator *newop;
+    
+    if (lastop)
+    {
+		newop = WM_operator_copy(C, lastop, false);
+        WM_operator_call(C, newop);
+    }
 	
 	return OPERATOR_CANCELLED;
 }
@@ -2651,14 +2655,17 @@ static int repeat_history_invoke(bContext *C, wmOperator *op, const wmEvent *UNU
 static int repeat_history_exec(bContext *C, wmOperator *op)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
+	wmOperator *newop;
 	
 	op = BLI_findlink(&wm->operators, RNA_int_get(op->ptr, "index"));
 	if (op) {
-		/* let's put it as last operator in list */
-		BLI_remlink(&wm->operators, op);
-		BLI_addtail(&wm->operators, op);
-		
-		WM_operator_repeat(C, op);
+		/* Let's copy the operator and add it to the end of the list.
+		 * Conceptually we haven't changed the order of the operators, but
+		 * we have applied the operator twice. The two applications should have
+		 * two different wmOperator instances. This also makes it consistent with
+		 * the link between the undobase lists. */
+		newop = WM_operator_copy(C, op, false);
+		WM_operator_call(C, newop);
 	}
 	
 	return OPERATOR_FINISHED;
@@ -2685,7 +2692,7 @@ static void SCREEN_OT_repeat_history(wmOperatorType *ot)
 static int redo_last_invoke(bContext *C, wmOperator *UNUSED(op), const wmEvent *UNUSED(event))
 {
 	wmOperator *lastop = WM_operator_last_redo(C);
-	
+
 	if (lastop)
 		WM_operator_redo_popup(C, lastop);
 	

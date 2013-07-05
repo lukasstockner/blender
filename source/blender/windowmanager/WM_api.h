@@ -210,6 +210,7 @@ int			WM_operator_confirm_message(struct bContext *C, struct wmOperator *op, con
 void		WM_operator_free		(struct wmOperator *op);
 void		WM_operator_type_set(struct wmOperator *op, struct wmOperatorType *ot);
 void		WM_operator_stack_clear(struct wmWindowManager *wm);
+void		WM_operator_build_stack(struct bContext *C, const ListBase *uels, bool notify);
 void		WM_operator_handlers_clear(wmWindowManager *wm, struct wmOperatorType *ot);
 
 struct wmOperatorType *WM_operatortype_find(const char *idname, bool quiet);
@@ -251,6 +252,7 @@ void		WM_operator_properties_select_action(struct wmOperatorType *ot, int defaul
 bool        WM_operator_check_ui_enabled(const struct bContext *C, const char *idname);
 wmOperator *WM_operator_last_redo(const struct bContext *C);
 
+wmOperator *WM_operator_copy(struct bContext *C, wmOperator *op, bool copylink);
 bool        WM_operator_last_properties_init(struct wmOperator *op);
 bool        WM_operator_last_properties_store(struct wmOperator *op);
 

@@ -151,7 +151,7 @@ void create_vgroups_from_armature(struct ReportList *reports, struct Scene *scen
 void unique_editbone_name(struct ListBase *ebones, char *name, EditBone *bone); /* if bone is already in list, pass it as param to ignore it */
 void ED_armature_bone_rename(struct bArmature *arm, const char *oldnamep, const char *newnamep);
 
-void undo_push_armature(struct bContext *C, const char *name);
+void undo_push_armature(struct bContext *C, const char *name, struct wmOperator *op);
 
 /* poseobject.c */
 void ED_armature_exit_posemode(struct bContext *C, struct Base *base);

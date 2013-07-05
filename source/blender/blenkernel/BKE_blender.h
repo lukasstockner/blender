@@ -63,6 +63,7 @@ struct ReportList;
 struct Scene;
 struct Main;
 struct ID;
+struct wmOperator;
 
 int BKE_read_file(struct bContext *C, const char *filepath, struct ReportList *reports);
 
@@ -92,10 +93,12 @@ int blender_test_break(void);
 
 /* global undo */
 extern void BKE_write_undo(struct bContext *C, const char *name);
+extern void BKE_write_undo_op(struct bContext *C, const char *name, struct wmOperator *op);
 extern void BKE_undo_step(struct bContext *C, int step);
+extern void BKE_undo_op(struct bContext *C, const struct wmOperator *op);
 extern void BKE_undo_name(struct bContext *C, const char *name);
 extern int BKE_undo_valid(const char *name);
-extern void BKE_reset_undo(void);
+extern void BKE_reset_undo(struct bContext *C);
 extern void BKE_undo_number(struct bContext *C, int nr);
 extern const char *BKE_undo_get_name(int nr, int *active);
 extern int BKE_undo_save_file(const char *filename);

@@ -1231,8 +1231,10 @@ static void wm_block_redo_cb(bContext *C, void *arg_op, int UNUSED(arg_event))
 	}
 	else {
 		/* operator not executed yet, call it */
-		ED_undo_push_op(C, op);
-		wm_operator_register(C, op);
+		/* -- When does this happen?
+		   -- Also, the undo stack should be updated when the operator finishes
+		   ~ ack-err */
+		//ED_undo_push_op(C, op);
 
 		WM_operator_repeat(C, op);
 	}

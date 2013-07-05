@@ -37,6 +37,7 @@
 
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_dynstr.h"
@@ -46,9 +47,13 @@
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_global.h"
+#include "BKE_main.h"
 
 #include "ED_util.h"
 #include "ED_mesh.h"
+
+#include "WM_api.h"
+#include "WM_types.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -80,8 +85,11 @@
 static void error(const char *UNUSED(arg)) {}
 /* ****** XXX ***** */
 
+/* op should be in the third position so it
+   correctly maps to UndoElem in wm.c */
 typedef struct UndoElem {
 	struct UndoElem *next, *prev;
+	wmOperator *op;
 	ID id;          // copy of editmode object ID
 	Object *ob;     // pointer to edited object
 	int type;       // type of edited object
@@ -101,20 +109,23 @@ static UndoElem *curundo = NULL;
 
 /* ********************* xtern api calls ************* */
 
-static void undo_restore(UndoElem *undo, void *editdata, void *obdata)
+static void undo_restore(bContext *C, UndoElem *undo, void *editdata, void *obdata)
 {
 	if (undo) {
 		undo->to_editmode(undo->undodata, editdata, obdata);
+		ListBase included_in_stack = {undobase.first, undo};
+		WM_operator_build_stack(C, &included_in_stack, true);
 	}
 }
 
 /* name can be a dynamic string */
 void undo_editmode_push(bContext *C, const char *name, 
-                        void * (*getdata)(bContext * C),
-                        void (*freedata)(void *),
-                        void (*to_editmode)(void *, void *, void *),
-                        void *(*from_editmode)(void *, void *),
-                        int (*validate_undo)(void *, void *))
+						void * (*getdata)(bContext * C),
+						void (*freedata)(void *),
+						void (*to_editmode)(void *, void *, void *),
+						void *(*from_editmode)(void *, void *),
+						int (*validate_undo)(void *, void *),
+						wmOperator *op)
 {
 	UndoElem *uel;
 	Object *obedit = CTX_data_edit_object(C);
@@ -128,6 +139,9 @@ void undo_editmode_push(bContext *C, const char *name,
 	/* remove all undos after (also when curundo == NULL) */
 	while (undobase.last != curundo) {
 		uel = undobase.last;
+		// Don't free the op if it is repeated!
+		if(uel->op && uel->op != op)
+			WM_operator_free(uel->op);
 		uel->freedata(uel->undodata);
 		BLI_freelinkN(&undobase, uel);
 	}
@@ -142,6 +156,7 @@ void undo_editmode_push(bContext *C, const char *name,
 	uel->to_editmode = to_editmode;
 	uel->from_editmode = from_editmode;
 	uel->validate_undo = validate_undo;
+	uel->op = op;
 	
 	/* limit amount to the maximum amount*/
 	nr = 0;
@@ -154,6 +169,8 @@ void undo_editmode_push(bContext *C, const char *name,
 	if (uel) {
 		while (undobase.first != uel) {
 			UndoElem *first = undobase.first;
+			if(first->op)
+				WM_operator_free(first->op);
 			first->freedata(first->undodata);
 			BLI_freelinkN(&undobase, first);
 		}
@@ -186,11 +203,15 @@ void undo_editmode_push(bContext *C, const char *name,
 
 			while (undobase.first != uel) {
 				UndoElem *first = undobase.first;
+				if(first->op)
+					WM_operator_free(first->op);
 				first->freedata(first->undodata);
 				BLI_freelinkN(&undobase, first);
 			}
 		}
 	}
+
+	WM_operator_build_stack(C, &undobase, true);
 }
 
 /* helper to remove clean other objects from undo stack */
@@ -222,7 +243,8 @@ static void undo_clean_stack(bContext *C)
 		else {
 			if (uel == curundo)
 				curundo = NULL;
-
+			if(uel->op)
+				WM_operator_free(uel->op);
 			uel->freedata(uel->undodata);
 			BLI_freelinkN(&undobase, uel);
 		}
@@ -242,7 +264,7 @@ void undo_editmode_step(bContext *C, int step)
 	undo_clean_stack(C);
 	
 	if (step == 0) {
-		undo_restore(curundo, curundo->getdata(C), obedit->data);
+		undo_restore(C, curundo, curundo->getdata(C), obedit->data);
 	}
 	else if (step == 1) {
 		
@@ -252,7 +274,7 @@ void undo_editmode_step(bContext *C, int step)
 		else {
 			if (G.debug & G_DEBUG) printf("undo %s\n", curundo->name);
 			curundo = curundo->prev;
-			undo_restore(curundo, curundo->getdata(C), obedit->data);
+			undo_restore(C, curundo, curundo->getdata(C), obedit->data);
 		}
 	}
 	else {
@@ -262,7 +284,7 @@ void undo_editmode_step(bContext *C, int step)
 			error("No more steps to redo");
 		}
 		else {
-			undo_restore(curundo->next, curundo->getdata(C), obedit->data);
+			undo_restore(C, curundo->next, curundo->getdata(C), obedit->data);
 			curundo = curundo->next;
 			if (G.debug & G_DEBUG) printf("redo %s\n", curundo->name);
 		}
@@ -284,6 +306,8 @@ void undo_editmode_clear(void)
 	
 	uel = undobase.first;
 	while (uel) {
+		if(uel->op)
+			WM_operator_free(uel->op);
 		uel->freedata(uel->undodata);
 		uel = uel->next;
 	}
@@ -304,12 +328,12 @@ void undo_editmode_number(bContext *C, int nr)
 	undo_editmode_step(C, 0);
 }
 
-void undo_editmode_name(bContext *C, const char *undoname)
+void undo_editmode_op(bContext *C, const wmOperator* op)
 {
 	UndoElem *uel;
 	
 	for (uel = undobase.last; uel; uel = uel->prev) {
-		if (strcmp(undoname, uel->name) == 0)
+		if (uel->op == op)
 			break;
 	}
 	if (uel && uel->prev) {

@@ -44,6 +44,7 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -727,8 +728,8 @@ static void *get_editlatt(bContext *C)
 }
 
 /* and this is all the undo system needs to know */
-void undo_push_lattice(bContext *C, const char *name)
+void undo_push_lattice(bContext *C, const char *name, wmOperator *op)
 {
-	undo_editmode_push(C, name, get_editlatt, free_undoLatt, undoLatt_to_editLatt, editLatt_to_undoLatt, validate_undoLatt);
+	undo_editmode_push(C, name, get_editlatt, free_undoLatt, undoLatt_to_editLatt, editLatt_to_undoLatt, validate_undoLatt, op);
 }
 

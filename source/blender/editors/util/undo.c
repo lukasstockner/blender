@@ -77,7 +77,7 @@
 
 /* ***************** generic undo system ********************* */
 
-void ED_undo_push(bContext *C, const char *str)
+static void ed_undo_push_internal(bContext *C, const char *str, wmOperator *op)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	Object *obedit = CTX_data_edit_object(C);
@@ -90,25 +90,26 @@ void ED_undo_push(bContext *C, const char *str)
 		if (U.undosteps == 0) return;
 		
 		if (obedit->type == OB_MESH)
-			undo_push_mesh(C, str);
+			undo_push_mesh(C, str, op);
 		else if (ELEM(obedit->type, OB_CURVE, OB_SURF))
-			undo_push_curve(C, str);
+			undo_push_curve(C, str, op);
 		else if (obedit->type == OB_FONT)
-			undo_push_font(C, str);
+			undo_push_font(C, str, op);
 		else if (obedit->type == OB_MBALL)
-			undo_push_mball(C, str);
+			undo_push_mball(C, str, op);
 		else if (obedit->type == OB_LATTICE)
-			undo_push_lattice(C, str);
+			undo_push_lattice(C, str, op);
 		else if (obedit->type == OB_ARMATURE)
-			undo_push_armature(C, str);
+			undo_push_armature(C, str, op);
 	}
+	// not sure what to do with the partice edit undo stack ~ ack-err
 	else if (obact && obact->mode & OB_MODE_PARTICLE_EDIT) {
 		if (U.undosteps == 0) return;
 		
 		PE_undo_push(CTX_data_scene(C), str);
 	}
 	else {
-		BKE_write_undo(C, str);
+		BKE_write_undo_op(C, str, op);
 	}
 	
 	if (wm->file_saved) {
@@ -118,8 +119,13 @@ void ED_undo_push(bContext *C, const char *str)
 	}
 }
 
+void ED_undo_push(bContext *C, const char *str)
+{
+	ed_undo_push_internal(C, str, NULL);
+}
+
 /* note: also check undo_history_exec() in bottom if you change notifiers */
-static int ed_undo_step(bContext *C, int step, const char *undoname)
+static int ed_undo_step(bContext *C, int step, const char *undoname, const wmOperator *op)
 {	
 	Object *obedit = CTX_data_edit_object(C);
 	Object *obact = CTX_data_active_object(C);
@@ -139,10 +145,12 @@ static int ed_undo_step(bContext *C, int step, const char *undoname)
 	if (sa && (sa->spacetype == SPACE_IMAGE)) {
 		SpaceImage *sima = (SpaceImage *)sa->spacedata.first;
 		
-		if ((obact && (obact->mode & OB_MODE_TEXTURE_PAINT)) || (sima->mode == SI_MODE_PAINT)) {
-			if (!ED_undo_paint_step(C, UNDO_PAINT_IMAGE, step, undoname) && undoname)
+		if ((obact && (obact->mode & OB_MODE_TEXTURE_PAINT)) || (sima->mode == SI_MODE_PAINT))
+		{
+			// N.B. the paint undo system works by undonames
+			if (!ED_undo_paint_step(C, UNDO_PAINT_IMAGE, step, undoname ? undoname : op->type->name))
 				if (U.uiflag & USER_GLOBALUNDO)
-					BKE_undo_name(C, undoname);
+					BKE_undo_name(C, undoname ? undoname : op->type->name);
 			
 			WM_event_add_notifier(C, NC_WINDOW, NULL);
 			return OPERATOR_FINISHED;
@@ -154,8 +162,8 @@ static int ed_undo_step(bContext *C, int step, const char *undoname)
 	}
 	else if (obedit) {
 		if (OB_TYPE_SUPPORT_EDITMODE(obedit->type)) {
-			if (undoname)
-				undo_editmode_name(C, undoname);
+			if (op)
+				undo_editmode_op(C, op);
 			else
 				undo_editmode_step(C, step);
 			
@@ -192,8 +200,8 @@ static int ed_undo_step(bContext *C, int step, const char *undoname)
 			/* for example, texface stores image pointers */
 			undo_editmode_clear();
 			
-			if (undoname)
-				BKE_undo_name(C, undoname);
+			if (op)
+				BKE_undo_op(C, op);
 			else
 				BKE_undo_step(C, step);
 				
@@ -208,23 +216,23 @@ static int ed_undo_step(bContext *C, int step, const char *undoname)
 
 void ED_undo_pop(bContext *C)
 {
-	ed_undo_step(C, 1, NULL);
+	ed_undo_step(C, 1, NULL, NULL);
 }
 void ED_undo_redo(bContext *C)
 {
-	ed_undo_step(C, -1, NULL);
+	ed_undo_step(C, -1, NULL, NULL);
 }
 
 void ED_undo_push_op(bContext *C, wmOperator *op)
 {
 	/* in future, get undo string info? */
-	ED_undo_push(C, op->type->name);
+	ed_undo_push_internal(C, op->type->name, op);
 }
 
 void ED_undo_pop_op(bContext *C, wmOperator *op)
 {
-	/* search back a couple of undo's, in case something else added pushes */
-	ed_undo_step(C, 0, op->type->name);
+	/* go back to the given op exactly */
+	ed_undo_step(C, 0, NULL, op);
 }
 
 /* name optionally, function used to check for operator redo panel */
@@ -275,9 +283,7 @@ int ED_undo_valid(const bContext *C, const char *undoname)
 
 static int ed_undo_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	/* "last operator" should disappear, later we can tie this with undo stack nicer */
-	WM_operator_stack_clear(CTX_wm_manager(C));
-	return ed_undo_step(C, 1, NULL);
+	return ed_undo_step(C, 1, NULL, NULL);
 }
 
 static int ed_undo_push_exec(bContext *C, wmOperator *op)
@@ -290,7 +296,7 @@ static int ed_undo_push_exec(bContext *C, wmOperator *op)
 
 static int ed_redo_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	return ed_undo_step(C, -1, NULL);
+	return ed_undo_step(C, -1, NULL, NULL);
 }
 
 
@@ -367,9 +373,11 @@ int ED_undo_operator_repeat(bContext *C, struct wmOperator *op)
 				printf("redo_cb: operator redo %s\n", op->type->name);
 			ED_undo_pop_op(C, op);
 
+#if 0
 			if (op->type->check) {
 				op->type->check(C, op); /* ignore return value since its running again anyway */
 			}
+#endif
 
 			retval = WM_operator_repeat(C, op);
 			if ((retval & OPERATOR_FINISHED) == 0) {

@@ -56,7 +56,7 @@ void CU_select_all(struct Object *obedit);
 void CU_select_swap(struct Object *obedit);
 
 
-void    undo_push_curve(struct bContext *C, const char *name);
+void    undo_push_curve(struct bContext *C, const char *name, struct wmOperator *op);
 ListBase *object_editcurve_get(struct Object *ob);
 
 void    load_editNurb(struct Object *obedit);
@@ -72,7 +72,7 @@ int     isNurbsel(struct Nurb *nu);
 int     join_curve_exec(struct bContext *C, struct wmOperator *op);
 
 /* editfont.h */
-void    undo_push_font(struct bContext *C, const char *name);
+void    undo_push_font(struct bContext *C, const char *name, struct wmOperator *op);
 void    make_editText(struct Object *obedit);
 void    load_editText(struct Object *obedit);
 void    free_editText(struct Object *obedit);

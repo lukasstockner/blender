@@ -35,6 +35,7 @@ struct bContext;
 struct MetaBall;
 struct Object;
 struct wmKeyConfig;
+struct wmOperator;
 
 void ED_operatortypes_metaball(void);
 void ED_keymap_metaball(struct wmKeyConfig *keyconf);
@@ -47,7 +48,7 @@ void free_editMball(struct Object *obedit);
 void make_editMball(struct Object *obedit);
 void load_editMball(struct Object *obedit);
 
-void undo_push_mball(struct bContext *C, const char *name);
+void undo_push_mball(struct bContext *C, const char *name, struct wmOperator *op);
 
 void ED_mball_transform(struct MetaBall *mb, float *mat);
 

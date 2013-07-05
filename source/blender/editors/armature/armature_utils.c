@@ -29,6 +29,7 @@
 
 #include "DNA_armature_types.h"
 #include "DNA_object_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -673,8 +674,8 @@ static void *get_armature_edit(bContext *C)
 }
 
 /* and this is all the undo system needs to know */
-void undo_push_armature(bContext *C, const char *name)
+void undo_push_armature(bContext *C, const char *name, wmOperator *op)
 {
 	// XXX solve getdata()
-	undo_editmode_push(C, name, get_armature_edit, free_undoBones, undoBones_to_editBones, editBones_to_undoBones, NULL);
+	undo_editmode_push(C, name, get_armature_edit, free_undoBones, undoBones_to_editBones, editBones_to_undoBones, NULL, op);
 }

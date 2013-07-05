@@ -33,6 +33,7 @@
 
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "BLI_math.h"
 
@@ -683,7 +684,7 @@ static void free_undo(void *me_v)
 }
 
 /* and this is all the undo system needs to know */
-void undo_push_mesh(bContext *C, const char *name)
+void undo_push_mesh(bContext *C, const char *name, wmOperator *op)
 {
 	/* em->ob gets out of date and crashes on mesh undo,
 	 * this is an easy way to ensure its OK
@@ -692,7 +693,7 @@ void undo_push_mesh(bContext *C, const char *name)
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	em->ob = obedit;
 
-	undo_editmode_push(C, name, getEditMesh, free_undo, undoMesh_to_editbtMesh, editbtMesh_to_undoMesh, NULL);
+	undo_editmode_push(C, name, getEditMesh, free_undo, undoMesh_to_editbtMesh, editbtMesh_to_undoMesh, NULL, op);
 }
 
 /**

@@ -558,8 +558,11 @@ int blender_test_break(void)
 
 #define UNDO_DISK   0
 
+/* N.B. the pointer to the wmOperator needs to be third so that it 
+ * maps correctly to the UndoElem in wm.c. This is far from pretty. */
 typedef struct UndoElem {
 	struct UndoElem *next, *prev;
+	wmOperator * op;
 	char str[FILE_MAX];
 	char name[BKE_UNDO_STR_MAX];
 	MemFile memfile;
@@ -592,6 +595,9 @@ static int read_undosave(bContext *C, UndoElem *uel)
 	BLI_strncpy(G.main->name, mainstr, sizeof(G.main->name)); /* restore */
 	G.fileflags = fileflags;
 
+	ListBase included_ops = {undobase.first, uel};
+	WM_operator_build_stack(C, &included_ops, true);
+
 	if (success) {
 		/* important not to update time here, else non keyed tranforms are lost */
 		DAG_on_visible_update(G.main, FALSE);
@@ -600,13 +606,18 @@ static int read_undosave(bContext *C, UndoElem *uel)
 	return success;
 }
 
-/* name can be a dynamic string */
 void BKE_write_undo(bContext *C, const char *name)
+{
+	BKE_write_undo_op(C, name, NULL);
+}
+
+/* name can be a dynamic string */
+void BKE_write_undo_op(bContext *C, const char *name, wmOperator *op)
 {
 	uintptr_t maxmem, totmem, memused;
 	int nr /*, success */ /* UNUSED */;
 	UndoElem *uel;
-	
+
 	if ((U.uiflag & USER_GLOBALUNDO) == 0) {
 		return;
 	}
@@ -620,6 +631,10 @@ void BKE_write_undo(bContext *C, const char *name)
 		uel = undobase.last;
 		BLI_remlink(&undobase, uel);
 		BLO_free_memfile(&uel->memfile);
+		/* Don't remove the op if it is a repeat, and the
+		 * uel->op is the same as the function's argument op. */
+		if(uel->op && uel->op != op)
+			WM_operator_free(uel->op);
 		MEM_freeN(uel);
 	}
 	
@@ -627,6 +642,7 @@ void BKE_write_undo(bContext *C, const char *name)
 	curundo = uel = MEM_callocN(sizeof(UndoElem), "undo file");
 	BLI_strncpy(uel->name, name, sizeof(uel->name));
 	BLI_addtail(&undobase, uel);
+	uel->op = op;
 	
 	/* and limit amount to the maximum */
 	nr = 0;
@@ -642,6 +658,8 @@ void BKE_write_undo(bContext *C, const char *name)
 			BLI_remlink(&undobase, first);
 			/* the merge is because of compression */
 			BLO_merge_memfile(&first->memfile, &first->next->memfile);
+			if(first->op)
+				WM_operator_free(first->op);
 			MEM_freeN(first);
 		}
 	}
@@ -697,10 +715,14 @@ void BKE_write_undo(bContext *C, const char *name)
 				BLI_remlink(&undobase, first);
 				/* the merge is because of compression */
 				BLO_merge_memfile(&first->memfile, &first->next->memfile);
+				if(first->op)
+					WM_operator_free(first->op);
 				MEM_freeN(first);
 			}
 		}
 	}
+	
+	WM_operator_build_stack(C, &undobase, true);
 }
 
 /* 1 = an undo, -1 is a redo. we have to make sure 'curundo' remains at current situation */
@@ -735,18 +757,22 @@ void BKE_undo_step(bContext *C, int step)
 	}
 }
 
-void BKE_reset_undo(void)
+void BKE_reset_undo(bContext *C)
 {
 	UndoElem *uel;
 	
 	uel = undobase.first;
 	while (uel) {
 		BLO_free_memfile(&uel->memfile);
+		if(uel->op)
+			WM_operator_free(uel->op);
 		uel = uel->next;
 	}
 	
 	BLI_freelistN(&undobase);
 	curundo = NULL;
+
+	WM_operator_build_stack(C, &undobase, false);
 }
 
 /* based on index nr it does a restore */
@@ -756,15 +782,37 @@ void BKE_undo_number(bContext *C, int nr)
 	BKE_undo_step(C, 0);
 }
 
-/* go back to the last occurance of name in stack */
-void BKE_undo_name(bContext *C, const char *name)
+/* go back to the last occurance of the given name, or the 
+ * given operator */
+static void undo_op_name(bContext *C, const wmOperator *op, const char *name)
 {
-	UndoElem *uel = BLI_rfindstring(&undobase, name, offsetof(UndoElem, name));
-
+	ListBase included_ops;
+	included_ops.first = undobase.first;
+	included_ops.last = curundo ? curundo : undobase.last;
+	UndoElem *uel;
+	
+	if(op)
+		uel = BLI_findptr(&included_ops, op, offsetof(UndoElem, op));
+	else
+		uel = BLI_rfindstring(&included_ops, name, offsetof(UndoElem, name));
+	
 	if (uel && uel->prev) {
 		curundo = uel->prev;
 		BKE_undo_step(C, 0);
 	}
+}
+
+/* go back to the last occurance of name in stack */
+void BKE_undo_name(bContext *C, const char *name)
+{
+	undo_op_name(C, NULL, name);
+}
+
+
+/* go back to the last occurance of the given operator */
+void BKE_undo_op(bContext *C, const wmOperator *op)
+{
+	undo_op_name(C, op, NULL);
 }
 
 /* name optional */

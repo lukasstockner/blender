@@ -484,7 +484,7 @@ void WM_file_read(bContext *C, const char *filepath, ReportList *reports)
 		}
 #endif
 
-		BKE_reset_undo();
+		BKE_reset_undo(C);
 		BKE_write_undo(C, "original");  /* save current state */
 	}
 	else if (retval == BKE_READ_EXOTIC_OK_OTHER)
@@ -594,7 +594,7 @@ int wm_homefile_read(bContext *C, ReportList *UNUSED(reports), short from_memory
 //	refresh_interface_font();
 	
 //	undo_editmode_clear();
-	BKE_reset_undo();
+	BKE_reset_undo(C);
 	BKE_write_undo(C, "original");  /* save current state */
 
 	ED_editors_init(C);

@@ -117,7 +117,7 @@ void EDBM_selectmode_flush(struct BMEditMesh *em);
 void EDBM_deselect_flush(struct BMEditMesh *em);
 void EDBM_select_flush(struct BMEditMesh *em);
 
-void undo_push_mesh(struct bContext *C, const char *name);
+void undo_push_mesh(struct bContext *C, const char *name, struct wmOperator *op);
 
 bool EDBM_vert_color_check(struct BMEditMesh *em);
 

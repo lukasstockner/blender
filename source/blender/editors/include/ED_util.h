@@ -72,8 +72,8 @@ void undo_editmode_push(struct bContext *C, const char *name,
                         void (*freedata)(void *),
                         void (*to_editmode)(void *, void *, void *),
                         void *(*from_editmode)(void *, void *),
-                        int (*validate_undo)(void *, void *));
-
+                        int (*validate_undo)(void *, void *),
+						struct wmOperator * op);
 
 void    undo_editmode_clear(void);
 
