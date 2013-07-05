@@ -582,16 +582,18 @@ static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, Po
 
 	float mouse[2];
 	float pressure;
+	float size;
 	int eraser;
 
 	RNA_float_get_array(itemptr, "mouse", mouse);
 	pressure = RNA_float_get(itemptr, "pressure");
 	eraser = RNA_boolean_get(itemptr, "pen_flip");
+	size = RNA_float_get(itemptr, "size");
 
 	if (BKE_brush_use_alpha_pressure(scene, brush))
 		BKE_brush_alpha_set(scene, brush, max_ff(0.0f, startalpha * pressure));
-	if (BKE_brush_use_size_pressure(scene, brush))
-		BKE_brush_size_set(scene, brush, max_ff(1.0f, startsize * pressure));
+
+	BKE_brush_size_set(scene, brush, max_ff(1.0f, size));
 
 	if ((brush->flag & BRUSH_RESTORE_MESH) || (brush->flag & BRUSH_ANCHORED)) {
 		paint_stroke_restore(C);

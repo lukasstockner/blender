@@ -4028,16 +4028,9 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, Object *ob,
 	cache->radius_squared = cache->radius * cache->radius;
 
 	if (brush->flag & BRUSH_ANCHORED) {
+		/* true location has been calculated as part of the stroke system already here */
 		if (brush->flag & BRUSH_EDGE_TO_EDGE) {
-			float halfway[2];
-			float out[3];
-			halfway[0] = 0.5f * (cache->mouse[0] + cache->initial_mouse[0]);
-			halfway[1] = 0.5f * (cache->mouse[1] + cache->initial_mouse[1]);
-
-			if (sculpt_stroke_get_location(C, out, halfway)) {
-				copy_v3_v3(cache->anchored_location, out);
-				copy_v3_v3(cache->true_location, cache->anchored_location);
-			}
+			RNA_float_get_array(ptr, "location", cache->true_location);
 		}
 
 		cache->radius = paint_calc_object_space_radius(cache->vc,

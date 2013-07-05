@@ -152,13 +152,16 @@ static float event_tablet_data(const wmEvent *event, int *pen_flip)
 
 
 /* Initialize the stroke cache variants from operator properties */
-static void paint_brush_update(bContext *C, Brush *brush, PaintMode mode,
+static void paint_brush_update(bContext *C, UnifiedPaintSettings *ups,
+                                         Brush *brush,
+                                         PaintMode mode,
                                          struct PaintStroke *stroke,
-                                         const float mouse[2], float pressure)
+                                         const float mouse_init[2],
+                                         float mouse[2], float pressure,
+                                         float location[3])
 {
 	Scene *scene = CTX_data_scene(C);
-	UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
-
+	bool location_sampled = false;
 	/* XXX: Use pressure value from first brush step for brushes which don't
 	 *      support strokes (grab, thumb). They depends on initial state and
 	 *      brush coord/pressure/etc.
@@ -222,14 +225,13 @@ static void paint_brush_update(bContext *C, Brush *brush, PaintMode mode,
 		ups->brush_rotation = atan2(dx, dy) + M_PI;
 
 		if (brush->flag & BRUSH_EDGE_TO_EDGE) {
-			float out[3];
-
 			halfway[0] = dx * 0.5f + stroke->initial_mouse[0];
 			halfway[1] = dy * 0.5f + stroke->initial_mouse[1];
 
 			if (stroke->get_location) {
-				if (stroke->get_location(C, out, halfway)) {
+				if (stroke->get_location(C, location, halfway)) {
 					hit = true;
+					location_sampled = true;
 				}
 			}
 			else {
@@ -239,19 +241,31 @@ static void paint_brush_update(bContext *C, Brush *brush, PaintMode mode,
 		if (hit) {
 			copy_v2_v2(ups->anchored_initial_mouse, halfway);
 			copy_v2_v2(ups->tex_mouse, halfway);
+			copy_v2_v2(mouse, halfway);
 			ups->anchored_size /= 2.0f;
 			ups->pixel_radius  /= 2.0f;
 		}
-		else
+		else {
 			copy_v2_v2(ups->anchored_initial_mouse, stroke->initial_mouse);
-
+			copy_v2_v2(mouse, stroke->initial_mouse);
+		}
+		ups->pixel_radius /= stroke->zoom_2d;
 		ups->draw_anchored = 1;
 	}
 	else if (brush->flag & BRUSH_RAKE) {
+		/* here we are using the initial mouse coordinate because we do not want the rake
+		 * result to depend on jittering */
 		if (!stroke->brush_init)
-			copy_v2_v2(ups->last_rake, mouse);
+			copy_v2_v2(ups->last_rake, mouse_init);
 		else
-			paint_calculate_rake_rotation(ups, mouse);
+			paint_calculate_rake_rotation(ups, mouse_init);
+	}
+
+	if (!location_sampled) {
+		if (stroke->get_location)
+			stroke->get_location(C, location, mouse);
+		else
+			zero_v3(location);
 	}
 
 	stroke->brush_init = TRUE;
@@ -262,6 +276,7 @@ static void paint_brush_update(bContext *C, Brush *brush, PaintMode mode,
 static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, const float mouse_in[2], float pressure)
 {
 	Scene *scene = CTX_data_scene(C);
+	UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
 	wmWindow *window = CTX_wm_window(C);
 	ARegion *ar = CTX_wm_region(C);
 	Paint *paint = BKE_paint_get_active_from_context(C);
@@ -293,8 +308,6 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, const float
 	copy_v2_v2(stroke->last_mouse_position, mouse_in);
 	stroke->last_pressure = pressure;
 
-	paint_brush_update(C, brush, mode, stroke, mouse_in, pressure);
-
 	{
 		float delta[2];
 		float factor = stroke->zoom_2d;
@@ -314,15 +327,11 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, const float
 		}
 	}
 
-	/* TODO: can remove the if statement once all modes have this */
-	if (stroke->get_location)
-		stroke->get_location(C, location, mouse_out);
-	else
-		zero_v3(location);
+	paint_brush_update(C, ups, brush, mode, stroke, mouse_in, mouse_out, pressure, location);
 
 	/* Add to stroke */
 	RNA_collection_add(op->ptr, "stroke", &itemptr);
-
+	RNA_float_set(&itemptr, "size", ups->pixel_radius);
 	RNA_float_set_array(&itemptr, "location", location);
 	RNA_float_set_array(&itemptr, "mouse", mouse_out);
 	RNA_boolean_set(&itemptr, "pen_flip", stroke->pen_flip);

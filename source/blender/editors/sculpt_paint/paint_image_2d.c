@@ -601,7 +601,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 		}
 		else if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM)
 			do_random = true;
-		else
+		else if (!(brush->flag & BRUSH_ANCHORED))
 			do_partial_update = true;
 
 		brush_painter_2d_tex_mapping(s, size, painter->startpaintpos, pos, mouse,
