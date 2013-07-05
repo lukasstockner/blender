@@ -298,14 +298,14 @@ typedef struct ProjPixel {
 	 * Store the max mask value to avoid painting over an area with a lower opacity
 	 * with an advantage that we can avoid touching the pixel at all, if the
 	 * new mask value is lower then mask_accum */
-	unsigned short mask_accum;
+	unsigned short *mask_accum;
 
 	/* for various reasons we may want to mask out painting onto this pixel */
 	unsigned short mask;
 
 	short x_px, y_px;
 
-	PixelStore origColor;
+	PixelPointer origColor;
 	PixelStore newColor;
 	PixelPointer pixel;
 
@@ -1341,18 +1341,20 @@ static int project_paint_pixel_sizeof(const short tool)
 static ProjPixel *project_paint_uvpixel_init(
         const ProjPaintState *ps,
         MemArena *arena,
-        const ImBuf *ibuf,
+        const ProjPaintImage *projima,
         short x_px, short y_px,
         const float mask,
         const int face_index,
-        const int image_index,
         const float pixelScreenCo[4],
         const float world_spaceCo[3],
         const int side,
-        const float w[3])
+        const float w[3],
+        const int tile_offset,
+        const int tile_index)
 {
 	ProjPixel *projPixel;
 
+	ImBuf *ibuf = projima->ibuf;
 	/* wrap pixel location */
 	x_px = x_px % ibuf->x;
 	if (x_px < 0) x_px += ibuf->x;
@@ -1365,15 +1367,12 @@ static ProjPixel *project_paint_uvpixel_init(
 
 	if (ibuf->rect_float) {
 		projPixel->pixel.f_pt = ibuf->rect_float + ((x_px + y_px * ibuf->x) * 4);
-		projPixel->origColor.f[0] = projPixel->pixel.f_pt[0];
-		projPixel->origColor.f[1] = projPixel->pixel.f_pt[1];
-		projPixel->origColor.f[2] = projPixel->pixel.f_pt[2];
-		projPixel->origColor.f[3] = projPixel->pixel.f_pt[3];
+		projPixel->origColor.f_pt = (float *)projima->undoRect[tile_index] + 4 * tile_offset;
 		zero_v4(projPixel->newColor.f);
 	}
 	else {
 		projPixel->pixel.ch_pt = ((unsigned char *)ibuf->rect + ((x_px + y_px * ibuf->x) * 4));
-		projPixel->origColor.uint = *projPixel->pixel.uint_pt;
+		projPixel->origColor.uint_pt = (unsigned int *)projima->undoRect[tile_index] + tile_offset;
 		projPixel->newColor.uint = 0;
 	}
 
@@ -1388,7 +1387,10 @@ static ProjPixel *project_paint_uvpixel_init(
 	projPixel->y_px = y_px;
 
 	projPixel->mask = (unsigned short)(mask * 65535);
-	projPixel->mask_accum = 0;
+	if (ps->do_masking)
+		projPixel->mask_accum = (unsigned short *)projima->maskRect[tile_index] + tile_offset;
+	else
+		projPixel->mask_accum = NULL;
 
 	/* which bounding box cell are we in?, needed for undo */
 	projPixel->bb_cell_index = ((int)(((float)x_px / (float)ibuf->x) * PROJ_BOUNDBOX_DIV)) +
@@ -1463,7 +1465,8 @@ static ProjPixel *project_paint_uvpixel_init(
 	if (ibuf->rect_float) projPixel->pixel.f_pt[0] = 0;
 	else                  projPixel->pixel.ch_pt[0] = 0;
 #endif
-	projPixel->image_index = image_index;
+	/* pointer arithmetics */
+	projPixel->image_index = projima - ps->projImages;
 
 	return projPixel;
 }
@@ -2167,9 +2170,46 @@ static int IsectPoly2Df_twoside(const float pt[2], float uv[][2], const int tot)
 	return 1;
 }
 
+static void project_paint_undo_tiles_init(rcti *bounds_px, ProjPaintImage *pjIma, ImBuf **tmpibuf, int tile_width, bool threaded, bool do_masking)
+{
+	int tilex, tiley, tilew, tileh, tx, ty;
+	unsigned short *maskrect;
+
+	/* find the tiles covered by this face and make sure they are initialized */
+	imapaint_region_tiles(pjIma->ibuf, bounds_px->xmin, bounds_px->ymin,
+	                      bounds_px->xmax - bounds_px->xmin, bounds_px->ymax - bounds_px->ymin,
+	                      &tilex, &tiley, &tilew, &tileh);
+
+	if (threaded)
+		BLI_lock_thread(LOCK_CUSTOM1);  /* Other threads could be modifying these vars */
+
+	for (ty = tiley; ty <= tileh; ty++) {
+		for (tx = tilex; tx <= tilew; tx++) {
+			int tileindex = tx + tile_width * ty;
+
+			if (!pjIma->undoRect[tileindex]) {
+				if (do_masking) {
+					pjIma->undoRect[tileindex] = image_undo_push_tile(pjIma->ima, pjIma->ibuf, tmpibuf, tx, ty, &maskrect);
+					pjIma->maskRect[tileindex] = maskrect;
+				}
+				else
+					pjIma->undoRect[tileindex] = image_undo_push_tile(pjIma->ima, pjIma->ibuf, tmpibuf, tx, ty, NULL);
+
+				pjIma->ibuf->userflags |= IB_BITMAPDIRTY;
+			}
+			else {
+
+			}
+		}
+	}
+
+	if (threaded)
+		BLI_unlock_thread(LOCK_CUSTOM1);
+}
+
 /* One of the most important function for projection painting, since it selects the pixels to be added into each bucket.
  * initialize pixels from this face where it intersects with the bucket_index, optionally initialize pixels for removing seams */
-static void project_paint_face_init(const ProjPaintState *ps, const int thread_index, const int bucket_index, const int face_index, const int image_index, rctf *bucket_bounds, ImBuf *ibuf, const short clamp_u, const short clamp_v)
+static void project_paint_face_init(const ProjPaintState *ps, const int thread_index, const int bucket_index, const int face_index, const int image_index, rctf *bucket_bounds, ImBuf *ibuf, ImBuf **tmpibuf, const short clamp_u, const short clamp_v)
 {
 	/* Projection vars, to get the 3D locations into screen space  */
 	MemArena *arena = ps->arena_mt[thread_index];
@@ -2197,6 +2237,7 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 	float pixelScreenCo[4];
 	bool do_3d_mapping = ps->brush->mtex.brush_map_mode == MTEX_MAP_MODE_3D;
 
+	bool threaded = (ps->thread_tot > 1);
 	rcti bounds_px; /* ispace bounds */
 	/* vars for getting uvspace bounds */
 
@@ -2289,10 +2330,6 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 #endif
 
 		if (pixel_bounds_array(uv_clip, &bounds_px, ibuf->x, ibuf->y, uv_clip_tot)) {
-			int tilex, tiley, tilew, tileh, tx, ty;
-			ImBuf *tmpibuf = NULL;
-			unsigned short *maskrect;
-
 			if (clamp_u) {
 				CLAMP(bounds_px.xmin, 0, ibuf->x);
 				CLAMP(bounds_px.xmax, 0, ibuf->x);
@@ -2303,34 +2340,8 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 				CLAMP(bounds_px.ymax, 0, ibuf->y);
 			}
 
-			/* find the tiles covered by this face and make sure they are initialized */
-			imapaint_region_tiles(ibuf, bounds_px.xmin, bounds_px.ymin,
-			                      bounds_px.xmax - bounds_px.xmin, bounds_px.ymax - bounds_px.ymin,
-			                      &tilex, &tiley, &tilew, &tileh);
-
-			if (ps->thread_tot > 1)
-				BLI_lock_thread(LOCK_CUSTOM1);  /* Other threads could be modifying these vars */
-
-			for (ty = tiley; ty <= tileh; ty++) {
-				for (tx = tilex; tx <= tilew; tx++) {
-					int tileindex = tx + tile_width * ty;
-
-					if (!ps->projImages[image_index].undoRect[tileindex]) {
-						ps->projImages[image_index].undoRect[tileindex] = image_undo_push_tile(ps->projImages[image_index].ima, ibuf, &tmpibuf, tx, ty, &maskrect);
-						ps->projImages[image_index].maskRect[tileindex] = maskrect;
-						ibuf->userflags |= IB_BITMAPDIRTY;
-					}
-					else {
-
-					}
-				}
-			}
-
-			if (tmpibuf)
-				IMB_freeImBuf(tmpibuf);
-
-			if (ps->thread_tot > 1)
-				BLI_unlock_thread(LOCK_CUSTOM1);
+			project_paint_undo_tiles_init(&bounds_px, ps->projImages + image_index, tmpibuf,
+			                              tile_width, threaded, ps->do_masking);
 
 			/* clip face and */
 
@@ -2373,10 +2384,21 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 							mask = project_paint_uvpixel_mask(ps, face_index, side, w);
 
 							if (mask > 0.0f) {
+								/* calculate the undo tile offset of the pixel, used to store the original
+								 * pixel colour and acculmuated mask if any */
+								int x_tile =  x >> IMAPAINT_TILE_BITS;
+								int y_tile =  y >> IMAPAINT_TILE_BITS;
+
+								int x_round = x_tile * IMAPAINT_TILE_SIZE;
+								int y_round = y_tile * IMAPAINT_TILE_SIZE;
+
+								int tile_offset = (x - x_round) + (y - y_round) * IMAPAINT_TILE_SIZE;
+								int tile_index = x_tile + y_tile * tile_width;
+
 								BLI_linklist_prepend_arena(
 								        bucketPixelNodes,
-								        project_paint_uvpixel_init(ps, arena, ibuf, x, y, mask, face_index,
-								                                   image_index, pixelScreenCo, wco, side, w),
+								        project_paint_uvpixel_init(ps, arena, ps->projImages + image_index, x, y, mask, face_index,
+								                                   pixelScreenCo, wco, side, w, tile_offset, tile_index),
 								        arena
 								        );
 							}
@@ -2408,7 +2430,7 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 	if (ps->seam_bleed_px > 0.0f) {
 		int face_seam_flag;
 
-		if (ps->thread_tot > 1)
+		if (threaded)
 			BLI_lock_thread(LOCK_CUSTOM1);  /* Other threads could be modifying these vars */
 
 		face_seam_flag = ps->faceSeamFlags[face_index];
@@ -2426,7 +2448,7 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 
 		if ((face_seam_flag & (PROJ_FACE_SEAM1 | PROJ_FACE_SEAM2 | PROJ_FACE_SEAM3 | PROJ_FACE_SEAM4)) == 0) {
 
-			if (ps->thread_tot > 1)
+			if (threaded)
 				BLI_unlock_thread(LOCK_CUSTOM1);  /* Other threads could be modifying these vars */
 
 		}
@@ -2451,7 +2473,7 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 				uv_image_outset(tf_uv_pxoffset, outset_uv, ps->seam_bleed_px, ibuf->x, ibuf->y, mf->v4);
 
 			/* ps->faceSeamUVs cant be modified when threading, now this is done we can unlock */
-			if (ps->thread_tot > 1)
+			if (threaded)
 				BLI_unlock_thread(LOCK_CUSTOM1);  /* Other threads could be modifying these vars */
 
 			vCoSS[0] = ps->screenCoords[mf->v1];
@@ -2505,6 +2527,9 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 
 						if (pixel_bounds_uv(seam_subsection[0], seam_subsection[1], seam_subsection[2], seam_subsection[3], &bounds_px, ibuf->x, ibuf->y, 1)) {
 							/* bounds between the seam rect and the uvspace bucket pixels */
+
+							project_paint_undo_tiles_init(&bounds_px, ps->projImages + image_index, tmpibuf,
+			                                              tile_width, threaded, ps->do_masking);
 
 							has_isect = 0;
 							for (y = bounds_px.ymin; y < bounds_px.ymax; y++) {
@@ -2593,9 +2618,21 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 											mask = project_paint_uvpixel_mask(ps, face_index, side, w);
 
 											if (mask > 0.0f) {
+												/* calculate the undo tile offset of the pixel, used to store the original
+												 * pixel colour and acculmuated mask if any */
+												int x_tile =  x >> IMAPAINT_TILE_BITS;
+												int y_tile =  y >> IMAPAINT_TILE_BITS;
+
+												int x_round = x_tile * IMAPAINT_TILE_SIZE;
+												int y_round = y_tile * IMAPAINT_TILE_SIZE;
+
+												int tile_offset = (x - x_round) + (y - y_round) * IMAPAINT_TILE_SIZE;
+												int tile_index = x_tile + y_tile * tile_width;
+
 												BLI_linklist_prepend_arena(
 												        bucketPixelNodes,
-												        project_paint_uvpixel_init(ps, arena, ibuf, x, y, mask, face_index, image_index, pixelScreenCo, wco, side, w),
+												        project_paint_uvpixel_init(ps, arena, ps->projImages + image_index, x, y, mask, face_index,
+												        pixelScreenCo, wco, side, w, tile_offset, tile_index),
 												        arena
 												        );
 											}
@@ -2664,6 +2701,7 @@ static void project_bucket_init(const ProjPaintState *ps, const int thread_index
 	ImBuf *ibuf = NULL;
 	Image *tpage_last = NULL, *tpage;
 	Image *ima = NULL;
+	ImBuf *tmpibuf = NULL;
 
 	if (ps->image_tot == 1) {
 		/* Simple loop, no context switching */
@@ -2671,11 +2709,10 @@ static void project_bucket_init(const ProjPaintState *ps, const int thread_index
 		ima = ps->projImages[0].ima;
 
 		for (node = ps->bucketFaces[bucket_index]; node; node = node->next) {
-			project_paint_face_init(ps, thread_index, bucket_index, GET_INT_FROM_POINTER(node->link), 0, bucket_bounds, ibuf, ima->tpageflag & IMA_CLAMP_U, ima->tpageflag & IMA_CLAMP_V);
+			project_paint_face_init(ps, thread_index, bucket_index, GET_INT_FROM_POINTER(node->link), 0, bucket_bounds, ibuf, &tmpibuf, ima->tpageflag & IMA_CLAMP_U, ima->tpageflag & IMA_CLAMP_V);
 		}
 	}
 	else {
-
 		/* More complicated loop, switch between images */
 		for (node = ps->bucketFaces[bucket_index]; node; node = node->next) {
 			face_index = GET_INT_FROM_POINTER(node->link);
@@ -2695,9 +2732,12 @@ static void project_bucket_init(const ProjPaintState *ps, const int thread_index
 			}
 			/* context switching done */
 
-			project_paint_face_init(ps, thread_index, bucket_index, face_index, image_index, bucket_bounds, ibuf, ima->tpageflag & IMA_CLAMP_U, ima->tpageflag & IMA_CLAMP_V);
+			project_paint_face_init(ps, thread_index, bucket_index, face_index, image_index, bucket_bounds, ibuf, &tmpibuf, ima->tpageflag & IMA_CLAMP_U, ima->tpageflag & IMA_CLAMP_V);
 		}
 	}
+
+	if (tmpibuf)
+		IMB_freeImBuf(tmpibuf);
 
 	ps->bucketFlags[bucket_index] |= PROJ_BUCKET_INIT;
 }
@@ -3325,7 +3365,6 @@ static void project_paint_undo_end(ProjPaintState *ps)
 		/* context */
 		ProjPaintImage *last_projIma;
 		int last_image_index = -1;
-		int last_tile_width = 0;
 
 		/* first invalidate all undo rectangles */
 		image_undo_invalidate();
@@ -3348,17 +3387,16 @@ static void project_paint_undo_end(ProjPaintState *ps)
 					/* set the context */
 					last_image_index = projPixel->image_index;
 					last_projIma =     ps->projImages + last_image_index;
-					last_tile_width =  IMAPAINT_TILE_NUMBER(last_projIma->ibuf->x);
 					is_float =         last_projIma->ibuf->rect_float ? 1 : 0;
 				}
 
 
-				if ((is_float == 0 && projPixel->origColor.uint != *projPixel->pixel.uint_pt) ||
+				if ((is_float == 0 && *projPixel->origColor.uint_pt != *projPixel->pixel.uint_pt) ||
 				    (is_float == 1 &&
-				     (projPixel->origColor.f[0] != projPixel->pixel.f_pt[0] ||
-				      projPixel->origColor.f[1] != projPixel->pixel.f_pt[1] ||
-				      projPixel->origColor.f[2] != projPixel->pixel.f_pt[2] ||
-				      projPixel->origColor.f[3] != projPixel->pixel.f_pt[3]))
+				     (projPixel->origColor.f_pt[0] != projPixel->pixel.f_pt[0] ||
+				      projPixel->origColor.f_pt[1] != projPixel->pixel.f_pt[1] ||
+				      projPixel->origColor.f_pt[2] != projPixel->pixel.f_pt[2] ||
+				      projPixel->origColor.f_pt[3] != projPixel->pixel.f_pt[3]))
 				    )
 				{
 
@@ -3600,7 +3638,7 @@ static void do_projectpaint_clone(ProjPaintState *ps, ProjPixel *projPixel, floa
 		clone_rgba[3] = (unsigned char)(clone_pt[3] * mask);
 
 		if (ps->do_masking) {
-			IMB_blend_color_byte(projPixel->pixel.ch_pt, projPixel->origColor.ch, clone_rgba, ps->blend);
+			IMB_blend_color_byte(projPixel->pixel.ch_pt, projPixel->origColor.ch_pt, clone_rgba, ps->blend);
 		}
 		else {
 			IMB_blend_color_byte(projPixel->pixel.ch_pt, projPixel->pixel.ch_pt, clone_rgba, ps->blend);
@@ -3618,7 +3656,7 @@ static void do_projectpaint_clone_f(ProjPaintState *ps, ProjPixel *projPixel, fl
 		mul_v4_v4fl(clone_rgba, clone_pt, mask);
 
 		if (ps->do_masking) {
-			IMB_blend_color_float(projPixel->pixel.f_pt, projPixel->origColor.f, clone_rgba, ps->blend);
+			IMB_blend_color_float(projPixel->pixel.f_pt, projPixel->origColor.f_pt, clone_rgba, ps->blend);
 		}
 		else {
 			IMB_blend_color_float(projPixel->pixel.f_pt, projPixel->pixel.f_pt, clone_rgba, ps->blend);
@@ -3747,7 +3785,7 @@ static void do_projectpaint_draw(ProjPaintState *ps, ProjPixel *projPixel, const
 	rgba_ub[3] = FTOCHAR(mask);
 
 	if (ps->do_masking) {
-		IMB_blend_color_byte(projPixel->pixel.ch_pt, projPixel->origColor.ch, rgba_ub, ps->blend);
+		IMB_blend_color_byte(projPixel->pixel.ch_pt, projPixel->origColor.ch_pt, rgba_ub, ps->blend);
 	}
 	else {
 		IMB_blend_color_byte(projPixel->pixel.ch_pt, projPixel->pixel.ch_pt, rgba_ub, ps->blend);
@@ -3767,7 +3805,7 @@ static void do_projectpaint_draw_f(ProjPaintState *ps, ProjPixel *projPixel, con
 	rgba[3] = mask;
 
 	if (ps->do_masking) {
-		IMB_blend_color_float(projPixel->pixel.f_pt, projPixel->origColor.f, rgba, ps->blend);
+		IMB_blend_color_float(projPixel->pixel.f_pt, projPixel->origColor.f_pt, rgba, ps->blend);
 	}
 	else {
 		IMB_blend_color_float(projPixel->pixel.f_pt, projPixel->pixel.f_pt, rgba, ps->blend);
@@ -3869,7 +3907,7 @@ static void *do_projectpaint_thread(void *ph_v)
 						IMB_colormanagement_colorspace_to_scene_linear_v4(newColor_f, TRUE, ps->reproject_ibuf->rect_colorspace);
 						mul_v4_v4fl(newColor_f, newColor_f, mask);
 
-						blend_color_mix_float(projPixel->pixel.f_pt,  projPixel->origColor.f,
+						blend_color_mix_float(projPixel->pixel.f_pt,  projPixel->origColor.f_pt,
 						                      newColor_f);
 					}
 				}
@@ -3881,7 +3919,7 @@ static void *do_projectpaint_thread(void *ph_v)
 						float mask = ((float)projPixel->mask) * (1.0f / 65535.0f);
 						projPixel->newColor.ch[3] *= mask;
 
-						blend_color_mix_byte(projPixel->pixel.ch_pt,  projPixel->origColor.ch,
+						blend_color_mix_byte(projPixel->pixel.ch_pt,  projPixel->origColor.ch_pt,
 						                     projPixel->newColor.ch);
 					}
 				}
@@ -3913,7 +3951,7 @@ static void *do_projectpaint_thread(void *ph_v)
 							 * 
 							 * Instead we use a formula that adds up but approaches brush_alpha slowly
 							 * and never exceeds it, which gives nice smooth results. */
-							float mask_accum = projPixel->mask_accum;
+							float mask_accum = *projPixel->mask_accum;
 
 							if (ps->is_maskbrush) {
 								float texmask = BKE_brush_sample_masktex(ps->scene, ps->brush, projPixel->projCoSS, thread_index, pool);
@@ -3925,8 +3963,8 @@ static void *do_projectpaint_thread(void *ph_v)
 							}
 							mask_short = (unsigned short)mask;
 
-							if (mask_short > projPixel->mask_accum) {
-								projPixel->mask_accum = mask_short;
+							if (mask_short > *projPixel->mask_accum) {
+								*projPixel->mask_accum = mask_short;
 								mask = mask_short * (1.0f / 65535.0f);
 							}
 							else {
@@ -4010,8 +4048,8 @@ static void *do_projectpaint_thread(void *ph_v)
 						}
 
 						if (lock_alpha) {
-							if (is_floatbuf) projPixel->pixel.f_pt[3] = projPixel->origColor.f[3];
-							else projPixel->pixel.ch_pt[3] = projPixel->origColor.ch[3];
+							if (is_floatbuf) projPixel->pixel.f_pt[3] = projPixel->origColor.f_pt[3];
+							else projPixel->pixel.ch_pt[3] = projPixel->origColor.ch_pt[3];
 						}
 
 						/* done painting */
