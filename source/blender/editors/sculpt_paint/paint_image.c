@@ -117,6 +117,7 @@ typedef struct UndoImageTile {
 
 	int x, y;
 
+	Image *ima;
 	short source, use_float;
 	char gen_type;
 	bool valid;
@@ -138,10 +139,30 @@ void set_imapaintpartial(struct ImagePaintPartialRedraw *ippr)
 }
 
 /* UNDO */
+typedef enum {
+	COPY = 0,
+	RESTORE = 1,
+	RESTORE_COPY = 2
+} CopyMode;
 
-static void undo_copy_tile(UndoImageTile *tile, ImBuf *tmpibuf, ImBuf *ibuf, int restore)
+static void undo_copy_tile(UndoImageTile *tile, ImBuf *tmpibuf, ImBuf *ibuf, CopyMode mode)
 {
-	if (restore) {
+	if (mode == COPY) {
+		/* copy or swap contents of tile->rect and region in ibuf->rect */
+		IMB_rectcpy(tmpibuf, ibuf, 0, 0, tile->x * IMAPAINT_TILE_SIZE,
+		            tile->y * IMAPAINT_TILE_SIZE, IMAPAINT_TILE_SIZE, IMAPAINT_TILE_SIZE);
+
+		if (ibuf->rect_float) {
+			SWAP(float *, tmpibuf->rect_float, tile->rect.fp);
+		}
+		else {
+			SWAP(unsigned int *, tmpibuf->rect, tile->rect.uint);
+		}
+	}
+	else {
+		if (mode == RESTORE_COPY)
+			IMB_rectcpy(tmpibuf, ibuf, 0, 0, tile->x * IMAPAINT_TILE_SIZE,
+		                tile->y * IMAPAINT_TILE_SIZE, IMAPAINT_TILE_SIZE, IMAPAINT_TILE_SIZE);
 		/* swap to the tmpbuf for easy copying */
 		if (ibuf->rect_float) {
 			SWAP(float *, tmpibuf->rect_float, tile->rect.fp);
@@ -153,23 +174,13 @@ static void undo_copy_tile(UndoImageTile *tile, ImBuf *tmpibuf, ImBuf *ibuf, int
 		IMB_rectcpy(ibuf, tmpibuf, tile->x * IMAPAINT_TILE_SIZE,
 		            tile->y * IMAPAINT_TILE_SIZE, 0, 0, IMAPAINT_TILE_SIZE, IMAPAINT_TILE_SIZE);
 
-		if (ibuf->rect_float) {
-			SWAP(float *, tmpibuf->rect_float, tile->rect.fp);
-		}
-		else {
-			SWAP(unsigned int *, tmpibuf->rect, tile->rect.uint);
-		}
-	}
-	else {
-		/* copy or swap contents of tile->rect and region in ibuf->rect */
-		IMB_rectcpy(tmpibuf, ibuf, 0, 0, tile->x * IMAPAINT_TILE_SIZE,
-		            tile->y * IMAPAINT_TILE_SIZE, IMAPAINT_TILE_SIZE, IMAPAINT_TILE_SIZE);
-
-		if (ibuf->rect_float) {
-			SWAP(float *, tmpibuf->rect_float, tile->rect.fp);
-		}
-		else {
-			SWAP(unsigned int *, tmpibuf->rect, tile->rect.uint);
+		if (mode == RESTORE) {
+			if (ibuf->rect_float) {
+				SWAP(float *, tmpibuf->rect_float, tile->rect.fp);
+			}
+			else {
+				SWAP(unsigned int *, tmpibuf->rect, tile->rect.uint);
+			}
 		}
 	}
 }
@@ -241,8 +252,9 @@ void *image_undo_push_tile(Image *ima, ImBuf *ibuf, ImBuf **tmpibuf, int x_tile,
 	tile->source = ima->source;
 	tile->use_float = use_float;
 	tile->valid = true;
+	tile->ima = ima;
 
-	undo_copy_tile(tile, *tmpibuf, ibuf, 0);
+	undo_copy_tile(tile, *tmpibuf, ibuf, COPY);
 	undo_paint_push_count_alloc(UNDO_PAINT_IMAGE, allocsize);
 
 	BLI_addtail(lb, tile);
@@ -254,13 +266,39 @@ void image_undo_remove_masks(void)
 {
 	ListBase *lb = undo_paint_push_get_list(UNDO_PAINT_IMAGE);
 	UndoImageTile *tile;
-
 	for (tile = lb->first; tile; tile = tile->next) {
 		if (tile->mask) {
 			MEM_freeN(tile->mask);
 			tile->mask = NULL;
 		}
 	}
+}
+
+static void image_undo_restore_runtime(ListBase *lb)
+{
+	ImBuf *ibuf, *tmpibuf;
+	UndoImageTile *tile;
+
+	tmpibuf = IMB_allocImBuf(IMAPAINT_TILE_SIZE, IMAPAINT_TILE_SIZE, 32,
+	                         IB_rectfloat | IB_rect);
+
+	for (tile = lb->first; tile; tile = tile->next) {
+		Image *ima = tile->ima;
+		ibuf = BKE_image_acquire_ibuf(ima, NULL, NULL);
+
+		undo_copy_tile(tile, tmpibuf, ibuf, RESTORE);
+
+		GPU_free_image(ima); /* force OpenGL reload (maybe partial update will operate better?) */
+		if (ibuf->rect_float)
+			ibuf->userflags |= IB_RECT_INVALID; /* force recreate of char rect */
+		if (ibuf->mipmap[0])
+			ibuf->userflags |= IB_MIPMAP_INVALID;  /* force mipmap recreatiom */
+		ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
+
+		BKE_image_release_ibuf(ima, ibuf, NULL);
+	}
+
+	IMB_freeImBuf(tmpibuf);
 }
 
 void image_undo_restore(bContext *C, ListBase *lb)
@@ -314,7 +352,7 @@ void image_undo_restore(bContext *C, ListBase *lb)
 			continue;
 		}
 
-		undo_copy_tile(tile, tmpibuf, ibuf, 1);
+		undo_copy_tile(tile, tmpibuf, ibuf, RESTORE_COPY);
 
 		GPU_free_image(ima); /* force OpenGL reload */
 		if (ibuf->rect_float)
@@ -341,14 +379,25 @@ static void image_undo_end(void)
 {
 	ListBase *lb = undo_paint_push_get_list(UNDO_PAINT_IMAGE);
 	UndoImageTile *tile;
+	int deallocsize = 0;
+	int allocsize = IMAPAINT_TILE_SIZE * IMAPAINT_TILE_SIZE * 4;
 
 	/* first dispose of invalid tiles (may happen due to drag dot for instance) */
-	for (tile = lb->first; tile; tile = tile->next) {
+	for (tile = lb->first; tile;) {
 		if (!tile->valid) {
+			UndoImageTile *tmp_tile = tile->next;
+			deallocsize += allocsize * ((tile->use_float) ? sizeof(float) : sizeof(char));
 			MEM_freeN(tile->rect.pt);
 			BLI_freelinkN (lb, tile);
+			tile = tmp_tile;
+		}
+		else {
+			tile = tile->next;
 		}
 	}
+
+	/* don't forget to remove the size of deallocated tiles */
+	undo_paint_push_count_alloc(UNDO_PAINT_IMAGE, -deallocsize);
 
 	undo_paint_push_end(UNDO_PAINT_IMAGE);
 }
@@ -563,10 +612,10 @@ static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, float mou
 }
 
 /* restore painting image to previous state. Used for anchored and drag-dot style brushes*/
-static void paint_stroke_restore(bContext *C)
+static void paint_stroke_restore(void)
 {
 	ListBase *lb = undo_paint_push_get_list(UNDO_PAINT_IMAGE);
-	image_undo_restore(C, lb);
+	image_undo_restore_runtime(lb);
 	image_undo_invalidate();
 }
 
@@ -596,7 +645,7 @@ static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, Po
 	BKE_brush_size_set(scene, brush, max_ff(1.0f, size));
 
 	if ((brush->flag & BRUSH_RESTORE_MESH) || (brush->flag & BRUSH_ANCHORED)) {
-		paint_stroke_restore(C);
+		paint_stroke_restore();
 	}
 
 	if (pop->mode == PAINT_MODE_3D_PROJECT) {
