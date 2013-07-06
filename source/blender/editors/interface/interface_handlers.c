@@ -1852,7 +1852,6 @@ enum {
 
 static bool ui_textedit_copypaste(uiBut *but, uiHandleButtonData *data, const int mode)
 {
-	char buf[UI_MAX_DRAW_STR] = {0};
 	char *str, *p, *pbuf;
 	int x;
 	bool changed = false;
@@ -1868,6 +1867,7 @@ static bool ui_textedit_copypaste(uiBut *but, uiHandleButtonData *data, const in
 		p = pbuf = WM_clipboard_text_get(0);
 
 		if (p && p[0]) {
+			char buf[UI_MAX_DRAW_STR] = {0};
 			unsigned int y;
 			buf_len = 0;
 			while (*p && *p != '\r' && *p != '\n' && buf_len < UI_MAX_DRAW_STR - 1) {
@@ -1904,14 +1904,12 @@ static bool ui_textedit_copypaste(uiBut *but, uiHandleButtonData *data, const in
 	/* cut & copy */
 	else if (ELEM(mode, UI_TEXTEDIT_COPY, UI_TEXTEDIT_CUT)) {
 		/* copy the contents to the copypaste buffer */
-		for (x = but->selsta; x <= but->selend; x++) {
-			if (x == but->selend)
-				buf[x] = '\0';
-			else
-				buf[(x - but->selsta)] = str[x];
-		}
+		int sellen = but->selend - but->selsta;
+		char *buf = MEM_mallocN(sizeof(char) * (sellen + 1), "ui_textedit_copypaste");
 
+		BLI_strncpy(buf, str + but->selsta, sellen + 1);
 		WM_clipboard_text_set(buf, 0);
+		MEM_freeN(buf);
 		
 		/* for cut only, delete the selection afterwards */
 		if (mode == UI_TEXTEDIT_CUT) {
@@ -5317,7 +5315,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
 		/* this should become disabled button .. */
 		if (but->lock == true) {
 			if (but->lockstr) {
-				BKE_report(NULL, RPT_WARNING, but->lockstr);
+				WM_report(C, RPT_INFO, but->lockstr);
 				button_activate_state(C, but, BUTTON_STATE_EXIT);
 				return WM_UI_HANDLER_BREAK;
 			}
@@ -5740,6 +5738,10 @@ static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState s
 	}
 	else if (data->state == BUTTON_STATE_NUM_EDITING) {
 		ui_numedit_end(but, data);
+
+		if (but->flag & UI_BUT_DRIVEN)
+			WM_report(C, RPT_INFO, "Can't edit driven number value, see graph editor for the driver setup.");
+
 		if (ui_is_a_warp_but(but)) {
 
 #ifdef USE_CONT_MOUSE_CORRECT
