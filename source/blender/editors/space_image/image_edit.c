@@ -304,6 +304,13 @@ int ED_space_image_show_paint(SpaceImage *sima)
 	return (sima->mode == SI_MODE_PAINT);
 }
 
+int ED_space_image_show_texpaint(SpaceImage *sima, Object *ob)
+{
+	return (ob && ob->type == OB_MESH &&
+	        ob->mode == OB_MODE_TEXTURE_PAINT &&
+	        !(sima->flag & SI_NO_DRAW_TEXPAINT));
+}
+
 int ED_space_image_show_uvedit(SpaceImage *sima, Object *obedit)
 {
 	if (sima && (ED_space_image_show_render(sima) || ED_space_image_show_paint(sima)))
@@ -333,7 +340,7 @@ int ED_space_image_show_uvshadow(SpaceImage *sima, Object *obedit)
 
 			ret = EDBM_mtexpoly_check(em);
 
-			return ret;
+			return ret && !(sima->flag & SI_NO_DRAW_TEXPAINT);
 		}
 
 	return 0;

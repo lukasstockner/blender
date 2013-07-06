@@ -48,6 +48,7 @@ class IMAGE_MT_view(Menu):
         sima = context.space_data
         uv = sima.uv_editor
         toolsettings = context.tool_settings
+        paint = toolsettings.image_paint
 
         show_uvedit = sima.show_uvedit
         show_render = sima.show_render
@@ -62,6 +63,8 @@ class IMAGE_MT_view(Menu):
             layout.prop(toolsettings, "show_uv_local_view")
 
         layout.prop(uv, "show_other_objects")
+        if paint.brush and (context.image_paint_object or sima.mode == 'PAINT'):
+            layout.prop(uv, "show_texpaint")
 
         layout.separator()
 

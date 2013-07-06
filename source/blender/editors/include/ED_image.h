@@ -69,6 +69,7 @@ void ED_image_point_pos__reverse(struct SpaceImage *sima, struct ARegion *ar, co
 int ED_space_image_show_render(struct SpaceImage *sima);
 int ED_space_image_show_paint(struct SpaceImage *sima);
 int ED_space_image_show_uvedit(struct SpaceImage *sima, struct Object *obedit);
+int ED_space_image_show_texpaint(struct SpaceImage *sima, struct Object *ob);
 int ED_space_image_show_uvshadow(struct SpaceImage *sima, struct Object *obedit);
 
 int ED_space_image_check_show_maskedit(struct Scene *scene, struct SpaceImage *sima);

@@ -809,7 +809,7 @@ void draw_uvedit_main(SpaceImage *sima, ARegion *ar, Scene *scene, Object *obedi
 	ToolSettings *toolsettings = scene->toolsettings;
 	int show_uvedit, show_uvshadow, show_texpaint_uvshadow;
 
-	show_texpaint_uvshadow = (obact && obact->type == OB_MESH && obact->mode == OB_MODE_TEXTURE_PAINT);
+	show_texpaint_uvshadow = ED_space_image_show_texpaint(sima, obact);
 	show_uvedit = ED_space_image_show_uvedit(sima, obedit);
 	show_uvshadow = ED_space_image_show_uvshadow(sima, obedit);
 
