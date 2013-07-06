@@ -909,6 +909,8 @@ static int check_seam(const ProjPaintState *ps, const int orig_face, const int o
 
 			/* Only need to check if 'i2_fidx' is valid because we know i1_fidx is the same vert on both faces */
 			if (i2_fidx != -1) {
+				bool winding1 = orig_i1_fidx == (orig_i2_fidx + 1) % ((orig_mf->v4)? 4 : 3);
+				bool winding2 = i1_fidx == (i2_fidx + 1)  % ((mf->v4)? 4 : 3);
 				Image *tpage = project_paint_face_image(ps, ps->dm_mtface, face_index);
 				Image *orig_tpage = project_paint_face_image(ps, ps->dm_mtface, orig_face);
 
@@ -919,10 +921,14 @@ static int check_seam(const ProjPaintState *ps, const int orig_face, const int o
 				*other_face = face_index;
 				*orig_fidx = (i1_fidx < i2_fidx) ? i1_fidx : i2_fidx;
 
-				/* first test if they have the same image */
+				/* first test if they have the same image, then if uvs coincide.
+				 * last check detects if faces are pointing to opposite ways. For
+				 * well behaved UV maps, the winding of the faces at the connnection edge
+				 * should be opposing */
 				if ((orig_tpage == tpage) &&
 				    cmp_uv(orig_tf->uv[orig_i1_fidx], tf->uv[i1_fidx]) &&
-				    cmp_uv(orig_tf->uv[orig_i2_fidx], tf->uv[i2_fidx]) )
+				    cmp_uv(orig_tf->uv[orig_i2_fidx], tf->uv[i2_fidx]) &&
+				    (winding1 == winding2))
 				{
 					// printf("SEAM (NONE)\n");
 					return 0;
