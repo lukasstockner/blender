@@ -4149,10 +4149,15 @@ static void set_renderlayer_lightgroups(Render *re, Scene *sce)
 
 void init_render_world(Render *re)
 {
+	void *wrld_prev[2] = {
+	    re->wrld.aotables,
+	    re->wrld.aosphere,
+	};
+
 	int a;
 	
 	if (re->scene && re->scene->world) {
-		re->wrld= *(re->scene->world);
+		re->wrld = *(re->scene->world);
 
 		copy_v3_v3(re->grvec, re->viewmat[2]);
 		normalize_v3(re->grvec);
@@ -4181,6 +4186,10 @@ void init_render_world(Render *re)
 	
 	re->wrld.linfac= 1.0f + powf((2.0f*re->wrld.exp + 0.5f), -10);
 	re->wrld.logfac= logf((re->wrld.linfac-1.0f)/re->wrld.linfac) / re->wrld.range;
+
+	/* restore runtime vars, needed for viewport rendering [#36005] */
+	re->wrld.aotables = wrld_prev[0];
+	re->wrld.aosphere = wrld_prev[1];
 }
 
 
@@ -4563,7 +4572,7 @@ static int render_object_type(short type)
 	return OB_TYPE_SUPPORT_MATERIAL(type);
 }
 
-static void find_dupli_instances(Render *re, ObjectRen *obr)
+static void find_dupli_instances(Render *re, ObjectRen *obr, DupliObject *dob)
 {
 	ObjectInstanceRen *obi;
 	float imat[4][4], obmat[4][4], obimat[4][4], nmat[3][3];
@@ -4588,6 +4597,12 @@ static void find_dupli_instances(Render *re, ObjectRen *obr)
 			invert_m3_m3(obi->nmat, nmat);
 			transpose_m3(obi->nmat);
 
+			if (dob) {
+				copy_v3_v3(obi->dupliorco, dob->orco);
+				obi->dupliuv[0]= dob->uv[0];
+				obi->dupliuv[1]= dob->uv[1];
+			}
+
 			if (!first) {
 				re->totvert += obr->totvert;
 				re->totvlak += obr->totvlak;
@@ -4600,7 +4615,7 @@ static void find_dupli_instances(Render *re, ObjectRen *obr)
 	}
 }
 
-static void assign_dupligroup_dupli(Render *re, ObjectInstanceRen *obi, ObjectRen *obr)
+static void assign_dupligroup_dupli(Render *re, ObjectInstanceRen *obi, ObjectRen *obr, DupliObject *dob)
 {
 	float imat[4][4], obmat[4][4], obimat[4][4], nmat[3][3];
 
@@ -4617,6 +4632,12 @@ static void assign_dupligroup_dupli(Render *re, ObjectInstanceRen *obi, ObjectRe
 	copy_m3_m4(nmat, obi->mat);
 	invert_m3_m3(obi->nmat, nmat);
 	transpose_m3(obi->nmat);
+
+	if (dob) {
+		copy_v3_v3(obi->dupliorco, dob->orco);
+		obi->dupliuv[0]= dob->uv[0];
+		obi->dupliuv[1]= dob->uv[1];
+	}
 
 	re->totvert += obr->totvert;
 	re->totvlak += obr->totvlak;
@@ -4681,6 +4702,12 @@ static void set_dupli_tex_mat(Render *re, ObjectInstanceRen *obi, DupliObject *d
 		obi->duplitexmat= BLI_memarena_alloc(re->memArena, sizeof(float)*4*4);
 		invert_m4_m4(imat, dob->mat);
 		mul_serie_m4(obi->duplitexmat, re->viewmat, dob->omat, imat, re->viewinv, 0, 0, 0, 0);
+	}
+
+	if (dob) {
+		copy_v3_v3(obi->dupliorco, dob->orco);
+		obi->dupliuv[0]= dob->uv[0];
+		obi->dupliuv[1]= dob->uv[1];
 	}
 }
 
@@ -4765,7 +4792,7 @@ static void add_render_object(Render *re, Object *ob, Object *par, DupliObject *
 			if (dob) set_dupli_tex_mat(re, obi, dob);
 		}
 		else
-			find_dupli_instances(re, obr);
+			find_dupli_instances(re, obr, dob);
 			
 		for (i=1; i<=ob->totcol; i++) {
 			Material* ma = give_render_material(re, ob, i);
@@ -4796,7 +4823,7 @@ static void add_render_object(Render *re, Object *ob, Object *par, DupliObject *
 				if (dob) set_dupli_tex_mat(re, obi, dob);
 			}
 			else
-				find_dupli_instances(re, obr);
+				find_dupli_instances(re, obr, dob);
 		}
 	}
 }
@@ -4876,13 +4903,13 @@ void RE_Database_Free(Render *re)
 	if (re->wrld.aosphere) {
 		MEM_freeN(re->wrld.aosphere);
 		re->wrld.aosphere= NULL;
-		if (re->scene)
+		if (re->scene && re->scene->world)
 			re->scene->world->aosphere= NULL;
 	}
 	if (re->wrld.aotables) {
 		MEM_freeN(re->wrld.aotables);
 		re->wrld.aotables= NULL;
-		if (re->scene)
+		if (re->scene && re->scene->world)
 			re->scene->world->aotables= NULL;
 	}
 	if (re->r.mode & R_RAYTRACE)
@@ -5154,9 +5181,9 @@ static void database_init_objects(Render *re, unsigned int renderlay, int nolamp
 								 * created object, and possibly setup instances if this object
 								 * itself was duplicated. for the first case find_dupli_instances
 								 * will be called later. */
-								assign_dupligroup_dupli(re, obi, obr);
+								assign_dupligroup_dupli(re, obi, obr, dob);
 								if (obd->transflag & OB_RENDER_DUPLI)
-									find_dupli_instances(re, obr);
+									find_dupli_instances(re, obr, dob);
 							}
 						}
 
@@ -5176,9 +5203,9 @@ static void database_init_objects(Render *re, unsigned int renderlay, int nolamp
 									obi->dupliuv[1]= dob->uv[1];
 								}
 								else {
-									assign_dupligroup_dupli(re, obi, obr);
+									assign_dupligroup_dupli(re, obi, obr, dob);
 									if (obd->transflag & OB_RENDER_DUPLI)
-										find_dupli_instances(re, obr);
+										find_dupli_instances(re, obr, dob);
 								}
 							}
 						}
@@ -5229,6 +5256,9 @@ void RE_Database_FromScene(Render *re, Main *bmain, Scene *scene, unsigned int l
 	re->main= bmain;
 	re->scene= scene;
 	re->lay= lay;
+
+	if (re->r.scemode & R_VIEWPORT_PREVIEW)
+		re->scene_color_manage = BKE_scene_check_color_management_enabled(scene);
 	
 	/* scene needs to be set to get camera */
 	camera= RE_GetCamera(re);
