@@ -2001,7 +2001,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 			Object* lodmatob = ob;
 			gameobj->AddLodMesh(meshobj);
 			for (; lod; lod = lod->next) {
-				if (!lod->source) continue;
+				if (!lod->source || lod->source->type != OB_MESH) continue;
 				if (lod->use_mesh) {
 					lodmesh = static_cast<Mesh*>(lod->source->data);
 				}
