@@ -391,50 +391,52 @@ void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool foreground)
 			const int mval[2] = {x, y};
 			unsigned int faceindex;
 			unsigned int totface = dm->getNumTessFaces(dm);
+			MTFace *dm_mtface = dm->getTessFaceDataArray(dm, CD_MTFACE);
 
-			view3d_set_viewcontext(C, &vc);
+			if (dm_mtface) {
+				view3d_set_viewcontext(C, &vc);
 
-			view3d_operator_needs_opengl(C);
+				view3d_operator_needs_opengl(C);
 
-			if(imapaint_pick_face(&vc, mval, &faceindex, totface)) {
-				float uv[2];
-				Image *image = imapaint_face_image(dm, scene, ob, faceindex);
+				if(imapaint_pick_face(&vc, mval, &faceindex, totface)) {
+					Image *image = imapaint_face_image(dm, scene, ob, faceindex);
 
-				ImBuf *ibuf = BKE_image_acquire_ibuf(image, NULL, NULL);
-				if (ibuf && ibuf->rect) {
-					float u, v;
-					imapaint_pick_uv(scene, ob, faceindex, mval, uv);
-					sample_success = true;
+					ImBuf *ibuf = BKE_image_acquire_ibuf(image, NULL, NULL);
+					if (ibuf && ibuf->rect) {
+						float uv[2];
+						float u, v;
+						imapaint_pick_uv(scene, ob, faceindex, mval, uv);
+						sample_success = true;
 
-					u = (float)fmodf(uv[0], 1.0f);
-					v = (float)fmodf(uv[1], 1.0f);
+						u = (float)fmodf(uv[0], 1.0f);
+						v = (float)fmodf(uv[1], 1.0f);
 
-					if (u < 0.0f) u += 1.0f;
-					if (v < 0.0f) v += 1.0f;
+						if (u < 0.0f) u += 1.0f;
+						if (v < 0.0f) v += 1.0f;
 
-					u = u * ibuf->x - 0.5f;
-					v = v * ibuf->y - 0.5f;
+						u = u * ibuf->x - 0.5f;
+						v = v * ibuf->y - 0.5f;
 
-					if (ibuf->rect_float) {
-						float rgba_fp[4];
-						bilinear_interpolation_color_wrap(ibuf, NULL, rgba_fp, u, v);
-						straight_to_premul_v4(rgba_fp);
-						linearrgb_to_srgb_v3_v3(rgba_fp, rgba_fp);
-						copy_v3_v3(br->rgb, rgba_fp);
+						if (ibuf->rect_float) {
+							float rgba_fp[4];
+							bilinear_interpolation_color_wrap(ibuf, NULL, rgba_fp, u, v);
+							straight_to_premul_v4(rgba_fp);
+							linearrgb_to_srgb_v3_v3(rgba_fp, rgba_fp);
+							copy_v3_v3(br->rgb, rgba_fp);
+						}
+						else {
+							unsigned char rgba[4];
+							float rgba_fp[4];
+							bilinear_interpolation_color_wrap(ibuf, rgba, NULL, u, v);
+							rgba_uchar_to_float(rgba_fp, rgba);
+							copy_v3_v3(br->rgb, rgba_fp);
+						}
 					}
-					else {
-						unsigned char rgba[4];
-						float rgba_fp[4];
-						bilinear_interpolation_color_wrap(ibuf, rgba, NULL, u, v);
-						rgba_uchar_to_float(rgba_fp, rgba);
-						copy_v3_v3(br->rgb, rgba_fp);
-					}
+
+					BKE_image_release_ibuf(image, ibuf, NULL);
 				}
-
-				BKE_image_release_ibuf(image, ibuf, NULL);
+				dm->release(dm);
 			}
-			dm->release(dm);
-
 		}
 
 		if (!sample_success) {
