@@ -927,6 +927,29 @@ static int check_seam(const ProjPaintState *ps, const int orig_face, const int o
 				    cmp_uv(orig_tf->uv[orig_i1_fidx], tf->uv[i1_fidx]) &&
 				    cmp_uv(orig_tf->uv[orig_i2_fidx], tf->uv[i2_fidx]))
 				{
+					/* as extra check, we need to check if the polygons occupy the same uv space. To test
+					 * that, we generate a point slightly to the side of the uv edge and check for intersection */
+					float uv_edge[2] = {tf->uv[i1_fidx][0] - tf->uv[i2_fidx][0],
+					                    tf->uv[i1_fidx][1] - tf->uv[i2_fidx][1]};
+					float uv_normal[2];
+					float uv_point[2];
+					bool isect_orig, isect;
+					normalize_v2_v2(uv_normal, uv_edge);
+					SWAP(float, uv_normal[0], uv_normal[1]);
+					uv_normal[0] = -uv_normal[0];
+					mul_v2_fl(uv_normal, PROJ_GEOM_TOLERANCE * 1.5);
+
+					add_v2_v2v2(uv_point, tf->uv[i1_fidx], tf->uv[i2_fidx]);
+					mul_v2_fl(uv_point, 0.5);
+					add_v2_v2(uv_point, uv_normal);
+
+					/* we now have a point in the middle of the uv edge, slightly offset in uv space.
+					 * Test if it is within both faces */
+					isect_orig = isect_point_poly_v2(uv_point, orig_tf->uv, ((orig_mf->v4) ? 4 : 3));
+					isect = isect_point_poly_v2(uv_point, ((const MTFace *)tf)->uv, ((mf->v4) ? 4 : 3));
+
+					if (isect_orig == isect)
+						return 1;
 					// printf("SEAM (NONE)\n");
 					return 0;
 				}
