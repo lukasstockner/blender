@@ -179,11 +179,11 @@ typedef struct UndoElem {
 void WM_operator_build_stack(bContext *C, const ListBase *uels, bool notify)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
+	UndoElem *uel;
 
 	wm->operators.first = NULL;
 	wm->operators.last = NULL;
 
-	UndoElem *uel;
 	for(uel = uels->first; uel && uel->prev != uels->last; uel = uel->next)
 	{
 		if(uel->op

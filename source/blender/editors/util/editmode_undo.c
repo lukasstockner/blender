@@ -112,8 +112,8 @@ static UndoElem *curundo = NULL;
 static void undo_restore(bContext *C, UndoElem *undo, void *editdata, void *obdata)
 {
 	if (undo) {
-		undo->to_editmode(undo->undodata, editdata, obdata);
 		ListBase included_ops;
+		undo->to_editmode(undo->undodata, editdata, obdata);
 		included_ops.first = undobase.first;
 		included_ops.last = undo;
 		WM_operator_build_stack(C, &included_ops, true);

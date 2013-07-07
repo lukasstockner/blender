@@ -577,6 +577,7 @@ static int read_undosave(bContext *C, UndoElem *uel)
 {
 	char mainstr[sizeof(G.main->name)];
 	int success = 0, fileflags;
+	ListBase included_ops;
 	
 	/* This is needed so undoing/redoing doesn't crash with threaded previews going */
 	WM_jobs_kill_all_except(CTX_wm_manager(C), CTX_wm_screen(C));
@@ -595,7 +596,6 @@ static int read_undosave(bContext *C, UndoElem *uel)
 	BLI_strncpy(G.main->name, mainstr, sizeof(G.main->name)); /* restore */
 	G.fileflags = fileflags;
 
-	ListBase included_ops;
 	included_ops.first = undobase.first;
 	included_ops.last = uel;
 	WM_operator_build_stack(C, &included_ops, true);
