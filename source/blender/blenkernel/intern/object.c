@@ -975,12 +975,12 @@ void BKE_object_lod_add(struct Object *ob)
 	BLI_addtail(&ob->lodlevels, lod);
 }
 
-void BKE_object_lod_remove(struct Object *ob, int level)
+bool BKE_object_lod_remove(struct Object *ob, int level)
 {
 	LodLevel *rem;
 
-	if (level < 1 || level > BLI_countlist(&ob->lodlevels))
-		return;
+	if (level < 1 || level > BLI_countlist(&ob->lodlevels) - 1)
+		return false;
 
 	rem = BLI_findlink(&ob->lodlevels, level);
 
@@ -990,6 +990,8 @@ void BKE_object_lod_remove(struct Object *ob, int level)
 
 	BLI_remlink(&ob->lodlevels, rem);
 	MEM_freeN(rem);
+
+	return true;
 }
 
 static LodLevel* lod_level_select(struct Object *ob, float cam_loc[3])

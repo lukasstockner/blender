@@ -84,7 +84,7 @@ struct Object *BKE_object_add(struct Main *bmain, struct Scene *scene, int type)
 void *BKE_object_obdata_add_from_type(struct Main *bmain, int type);
 
 void BKE_object_lod_add(struct Object *ob);
-void BKE_object_lod_remove(struct Object *ob, int level);
+bool BKE_object_lod_remove(struct Object *ob, int level);
 bool BKE_object_lod_update(struct Object *ob, float camera_position[3]);
 bool BKE_object_lod_check(struct Object *ob, struct Scene *scene);
 struct Object *BKE_object_lod_meshob_get(struct Object *ob);

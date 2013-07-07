@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 import bpy
-from bpy.types import Panel
+from bpy.types import Menu, Panel
 from rna_prop_ui import PropertyPanel
 
 
@@ -126,6 +126,17 @@ class OBJECT_PT_transform_locks(ObjectButtonsPanel, Panel):
             sub.prop(ob, "lock_rotation_w", text="W")
 
 
+class OBJECT_MT_lod_tools(Menu):
+    bl_label = "Level Of Detail Tools"
+
+    def draw(self, context):
+        layout = self.layout
+        
+        layout.operator("object.lod_by_name", text="Set By Name")
+        # layout.operator("object.lod_by_name", text="Generate")
+        layout.operator("object.lod_clear_all", text="Clear All", icon='PANEL_CLOSE')
+
+
 class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
     bl_label = "Levels of Detail"
 
@@ -134,23 +145,23 @@ class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
         ob = context.object
 
         col = layout.column()
-        col.operator("object.lod_add", text="Add Level of Detail", icon='ZOOMIN')
 
         for i, level in enumerate(ob.lod_levels):
             if i == 0: continue
-            # col.label("LOD%d:" %(i))
             box = col.box()
             row = box.row()
             row.prop(level, "object", text="")
             row.operator("object.lod_remove", text="", icon='PANEL_CLOSE').index = i
 
-            # split = box.split(0.6)
             row = box.row()
             row.prop(level, "distance")
             row = row.row(align=True)
             row.prop(level, "use_mesh", text="")
             row.prop(level, "use_material", text="")
-            # row.prop(level, "use_logic", text="")
+
+        row = col.row(align=True)
+        row.operator("object.lod_add", text="Add", icon='ZOOMIN')
+        row.menu("OBJECT_MT_lod_tools", text="", icon='TRIA_DOWN')
 
 
 class OBJECT_PT_relations(ObjectButtonsPanel, Panel):

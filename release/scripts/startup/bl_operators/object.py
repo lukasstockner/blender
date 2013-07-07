@@ -775,3 +775,77 @@ class DupliOffsetFromCursor(Operator):
         ob.users_group[group].dupli_offset = scene.cursor_location
 
         return {'FINISHED'}
+
+
+
+class LodByName(Operator):
+    """Add levels of detail to this object based on object names"""
+    bl_idname = "object.lod_by_name"
+    bl_label = "Setup Level of Details By Name"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return (context.active_object is not None)
+
+    def execute(self, context):
+        scene = context.scene
+        ob = context.active_object
+        
+        prefix = ""
+        suffix = ""
+        name = ""
+        ob.name.lower()
+        if ob.name.lower().startswith("lod0"):
+            prefix = ob.name[:4]
+            name = ob.name[4:]
+        elif ob.name.lower().endswith("lod0"):
+            name = ob.name[:-4]
+            suffix = ob.name[-4:]
+        else:
+            return {'CANCELLED'}
+
+        level = 0
+        while True:
+            level += 1
+
+            if prefix:
+                prefix = prefix[:3] + str(level)
+            if suffix:
+                suffix = suffix[:3] + str(level)
+
+            lod = None
+            try:
+                lod = bpy.data.objects[prefix + name + suffix]
+            except KeyError:
+                break
+
+            try:
+                ob.lod_levels[level]
+            except IndexError:
+                bpy.ops.object.lod_add()
+
+            ob.lod_levels[level].object = lod
+
+        return {'FINISHED'}
+
+
+class LodClearAll(Operator):
+    """Remove all levels of detail from this object"""
+    bl_idname = "object.lod_clear_all"
+    bl_label = "Clear All Levels of Detail"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return (context.active_object is not None)
+
+    def execute(self, context):
+        scene = context.scene
+        ob = context.active_object
+
+        if ob.lod_levels:
+            while 'CANCELLED' not in bpy.ops.object.lod_remove():
+                pass
+
+        return {'FINISHED'}
