@@ -595,7 +595,9 @@ static int read_undosave(bContext *C, UndoElem *uel)
 	BLI_strncpy(G.main->name, mainstr, sizeof(G.main->name)); /* restore */
 	G.fileflags = fileflags;
 
-	ListBase included_ops = {undobase.first, uel};
+	ListBase included_ops;
+	included_ops.first = undobase.first;
+	included_ops.last = uel;
 	WM_operator_build_stack(C, &included_ops, true);
 
 	if (success) {
