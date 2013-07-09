@@ -4503,6 +4503,9 @@ static void lib_link_object(FileData *fd, Main *main)
 				LodLevel *level;
 				for (level = ob->lodlevels.first; level; level = level->next) {
 					level->source = newlibadr(fd, ob->id.lib, level->source);
+
+					if (!level->source && level == ob->lodlevels.first)
+						level->source = ob;
 				}
 			}
 		}
