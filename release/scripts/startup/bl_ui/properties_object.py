@@ -133,7 +133,7 @@ class OBJECT_MT_lod_tools(Menu):
         layout = self.layout
         
         layout.operator("object.lod_by_name", text="Set By Name")
-        # layout.operator("object.lod_by_name", text="Generate")
+        layout.operator("object.lod_generate", text="Generate")
         layout.operator("object.lod_clear_all", text="Clear All", icon='PANEL_CLOSE')
 
 
