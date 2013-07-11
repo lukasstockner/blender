@@ -891,8 +891,11 @@ class LodGenerate(Operator):
         for i in range(1, self.count):
             scene.objects.active = ob
             bpy.ops.object.duplicate()
-            bpy.ops.object.lod_add()
             lod = bpy.context.selected_objects[0]
+
+            scene.objects.active = ob
+            bpy.ops.object.lod_add()
+            scene.objects.active = lod
 
             if lod_prefix:
                 lod.name = lod_prefix + str(i) + lod_name
