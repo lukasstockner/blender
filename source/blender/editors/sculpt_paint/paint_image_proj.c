@@ -938,7 +938,7 @@ static int check_seam(const ProjPaintState *ps, const int orig_face, const int o
 					normalize_v2_v2(uv_normal, uv_edge);
 					SWAP(float, uv_normal[0], uv_normal[1]);
 					uv_normal[0] = -uv_normal[0];
-					mul_v2_fl(uv_normal, PROJ_GEOM_TOLERANCE * 1.5);
+					mul_v2_fl(uv_normal, FLT_EPSILON*5);
 
 					add_v2_v2v2(uv_point, tf->uv[i1_fidx], tf->uv[i2_fidx]);
 					mul_v2_fl(uv_point, 0.5);
