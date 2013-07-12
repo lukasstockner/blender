@@ -969,7 +969,7 @@ void BKE_object_lod_add(struct Object *ob)
 	LodLevel *lod = MEM_callocN(sizeof(LodLevel), "LoD Level");
 	LodLevel *last = ob->lodlevels.last;
 	
-	lod->distance = (last) ? last->distance + 10.0f : 10.0f;
+	lod->distance = (last) ? last->distance + 25.0f : 25.0f;
 	lod->use_mesh = lod->use_mat = 1;
 
 	BLI_addtail(&ob->lodlevels, lod);
