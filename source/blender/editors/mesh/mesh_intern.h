@@ -117,6 +117,9 @@ void EDBM_mesh_knife(struct bContext *C, struct LinkNode *polys, bool use_tag);
 
 struct wmKeyMap *knifetool_modal_keymap(struct wmKeyConfig *keyconf);
 
+/* *** editmesh_deform_laplacian.c *** */
+void MESH_OT_vertices_laplacian_deform(struct wmOperatorType *ot);
+struct wmKeyMap *laplacian_deform_modal_keymap(struct wmKeyConfig *keyconf);
 
 /* *** editmesh_loopcut.c *** */
 void MESH_OT_loopcut(struct wmOperatorType *ot);
