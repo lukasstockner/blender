@@ -858,7 +858,8 @@ class LodGenerate(Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     count = bpy.props.IntProperty(name="Count", default=3)
-    target = bpy.props.FloatProperty(name="Target Size", default=0.1)
+    target = bpy.props.FloatProperty(name="Target Size", default=0.1,
+                                        min=0.0, max=1.0)
     package = bpy.props.BoolProperty(name="Package into Group", default=False)
     
     @classmethod
