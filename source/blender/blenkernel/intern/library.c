@@ -515,7 +515,7 @@ ListBase *which_libbase(Main *mainlib, short type)
 			return &(mainlib->mask);
 		case ID_LS:
 			return &(mainlib->linestyle);
-		case ID_PALETTE:
+		case ID_PAL:
 			return &(mainlib->palettes);
 	}
 	return NULL;
@@ -730,7 +730,7 @@ static ID *alloc_libblock_notest(short type)
 		case ID_LS:
 			id = MEM_callocN(sizeof(FreestyleLineStyle), "Freestyle Line Style");
 			break;
-		case ID_PALETTE:
+		case ID_PAL:
 			id = MEM_callocN(sizeof(Palette), "Palette");
 			break;
 	}
@@ -979,7 +979,7 @@ void BKE_libblock_free(ListBase *lb, void *idv)
 		case ID_LS:
 			BKE_free_linestyle((FreestyleLineStyle *)id);
 			break;
-		case ID_PALETTE:
+		case ID_PAL:
 			break;
 	}
 

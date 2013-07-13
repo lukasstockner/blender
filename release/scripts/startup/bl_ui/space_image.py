@@ -710,6 +710,7 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
                 col.template_color_picker(brush, "color", value_slider=True)
                 col.prop(brush, "color", text="")
                 col.prop(brush, "secondary_color", text="")
+                col.template_ID(toolsettings, "palette", new="palette.new")
 
             row = col.row(align=True)
             self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")

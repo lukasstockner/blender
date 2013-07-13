@@ -287,6 +287,15 @@ static void rna_Paint_brush_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Po
 }
 #else
 
+static void rna_def_palette(BlenderRNA *brna)
+{
+	StructRNA *srna;
+
+	srna = RNA_def_struct(brna, "Palette", "ID");
+	RNA_def_struct_ui_text(srna, "Palette", "");
+}
+
+
 static void rna_def_paint(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -301,6 +310,11 @@ static void rna_def_paint(BlenderRNA *brna)
 	RNA_def_property_pointer_funcs(prop, NULL, NULL, NULL, "rna_Brush_mode_poll");
 	RNA_def_property_ui_text(prop, "Brush", "Active Brush");
 	RNA_def_property_update(prop, 0, "rna_Paint_brush_update");
+
+	prop = RNA_def_property(srna, "palette", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_pointer_funcs(prop, NULL, NULL, NULL, NULL);
+	RNA_def_property_ui_text(prop, "Palette", "Active Palette");
 
 	prop = RNA_def_property(srna, "show_brush", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", PAINT_SHOW_BRUSH);
@@ -679,6 +693,7 @@ void RNA_def_sculpt_paint(BlenderRNA *brna)
 {
 	/* *** Non-Animated *** */
 	RNA_define_animate_sdna(false);
+	rna_def_palette(brna);
 	rna_def_paint(brna);
 	rna_def_sculpt(brna);
 	rna_def_uv_sculpt(brna);

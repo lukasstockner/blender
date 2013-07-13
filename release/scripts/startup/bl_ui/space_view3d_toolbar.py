@@ -689,6 +689,7 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                 col.template_color_picker(brush, "color", value_slider=True)
                 col.prop(brush, "color", text="")
                 col.prop(brush, "secondary_color", text="")
+                col.template_ID(settings, "palette", new="palette.new")
 
             row = col.row(align=True)
             self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
@@ -741,6 +742,7 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             col = layout.column()
             col.template_color_picker(brush, "color", value_slider=True)
             col.prop(brush, "color", text="")
+            col.template_ID(settings, "palette", new="palette.new")
 
             row = col.row(align=True)
             self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")

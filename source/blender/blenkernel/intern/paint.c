@@ -286,7 +286,7 @@ Palette *BKE_palette_add(Main *bmain, const char *name)
 {
 	Palette *palette;
 
-	palette = BKE_libblock_alloc(&bmain->palettes, ID_PALETTE, name);
+	palette = BKE_libblock_alloc(&bmain->palettes, ID_PAL, name);
 
 	/* enable fake user by default */
 	palette->id.flag |= LIB_FAKEUSER;
