@@ -84,6 +84,7 @@ typedef struct Main {
 	ListBase nodetree;
 	ListBase brush;
 	ListBase particle;
+	ListBase palettes;
 	ListBase wm;
 	ListBase gpencil;
 	ListBase movieclip;

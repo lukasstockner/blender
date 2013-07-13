@@ -122,6 +122,18 @@ typedef struct Brush {
 	float mask_stencil_dimension[2];
 } Brush;
 
+
+typedef struct Palette
+{
+	ID id;
+
+	/* pointer to individual colours */
+	float *colours[3];
+
+	int num_of_colours;
+	int pad;
+} Palette;
+
 /* Brush.flag */
 typedef enum BrushFlags {
 	BRUSH_AIRBRUSH = (1 << 0),

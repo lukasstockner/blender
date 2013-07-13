@@ -46,6 +46,7 @@
 #include "BLI_math_vector.h"
 
 #include "BKE_brush.h"
+#include "BKE_main.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_global.h"
@@ -267,6 +268,33 @@ void BKE_paint_brush_set(Paint *p, Brush *br)
 	}
 }
 
+Palette *BKE_paint_palette(Paint *p)
+{
+	return p ? p->palette : NULL;
+}
+
+void BKE_paint_palette_set(Paint *p, Palette *palette)
+{
+	if (p) {
+		id_us_min((ID *)p->palette);
+		id_us_plus((ID *)palette);
+		p->palette = palette;
+	}
+}
+
+Palette *BKE_palette_add(Main *bmain, const char *name)
+{
+	Palette *palette;
+
+	palette = BKE_libblock_alloc(&bmain->palettes, ID_PALETTE, name);
+
+	/* enable fake user by default */
+	palette->id.flag |= LIB_FAKEUSER;
+
+	return palette;
+}
+
+
 /* are we in vertex paint or weight pain face select mode? */
 int paint_facesel_test(Object *ob)
 {
@@ -292,12 +320,18 @@ int paint_vertsel_test(Object *ob)
 void BKE_paint_init(Paint *p, const char col[3])
 {
 	Brush *brush;
+	Palette *palette;
 
 	/* If there's no brush, create one */
 	brush = BKE_paint_brush(p);
+	palette = BKE_paint_palette(p);
 	if (brush == NULL)
 		brush = BKE_brush_add(G.main, "Brush");
+	if (palette == NULL)
+		palette = BKE_palette_add(G.main, "Palette");
+
 	BKE_paint_brush_set(p, brush);
+	BKE_paint_palette_set(p, palette);
 
 	memcpy(p->paint_cursor_col, col, 3);
 	p->paint_cursor_col[3] = 128;
@@ -308,6 +342,7 @@ void BKE_paint_init(Paint *p, const char col[3])
 void BKE_paint_free(Paint *paint)
 {
 	id_us_min((ID *)paint->brush);
+	id_us_min((ID *)paint->palette);
 }
 
 /* called when copying scene settings, so even if 'src' and 'tar' are the same
@@ -318,6 +353,7 @@ void BKE_paint_copy(Paint *src, Paint *tar)
 {
 	tar->brush = src->brush;
 	id_us_plus((ID *)tar->brush);
+	id_us_plus((ID *)tar->palette);
 }
 
 /* returns non-zero if any of the face's vertices

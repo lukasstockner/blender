@@ -92,7 +92,6 @@ static void BRUSH_OT_add(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-
 static int brush_scale_size_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
@@ -149,6 +148,37 @@ static void BRUSH_OT_scale_size(wmOperatorType *ot)
 
 	RNA_def_float(ot->srna, "scalar", 1, 0, 2, "Scalar", "Factor to scale brush size by", 0, 2);
 }
+
+/* Palette operators */
+
+static int palette_new_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	/*int type = RNA_enum_get(op->ptr, "type");*/
+	Paint *paint = BKE_paint_get_active_from_context(C);
+	Main *bmain = CTX_data_main(C);
+	Palette *palette;
+
+	palette = BKE_palette_add(bmain, "Palette");
+
+	BKE_paint_palette_set(paint, palette);
+
+	return OPERATOR_FINISHED;
+}
+
+static void PALETTE_OT_new(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Add New Palette";
+	ot->description = "Add New Palette";
+	ot->idname = "PALETTE_OT_new";
+
+	/* api callbacks */
+	ot->exec = palette_new_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
 
 static int vertex_color_set_exec(bContext *C, wmOperator *UNUSED(op))
 {
@@ -924,6 +954,9 @@ static void ed_keymap_stencil(wmKeyMap *keymap)
 
 void ED_operatortypes_paint(void)
 {
+	/* palette */
+	WM_operatortype_append(PALETTE_OT_new);
+
 	/* brush */
 	WM_operatortype_append(BRUSH_OT_add);
 	WM_operatortype_append(BRUSH_OT_scale_size);

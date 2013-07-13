@@ -747,7 +747,8 @@ typedef struct TimeMarker {
 /* Paint Tool Base */
 typedef struct Paint {
 	struct Brush *brush;
-	
+	struct Palette *palette;
+
 	/* WM Paint cursor */
 	void *paint_cursor;
 	unsigned char paint_cursor_col[4];
