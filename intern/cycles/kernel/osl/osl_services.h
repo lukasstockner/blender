@@ -30,6 +30,8 @@
 #include <OSL/oslexec.h>
 #include <OSL/oslclosure.h>
 
+#include<openvdb/openvdb.h>
+
 CCL_NAMESPACE_BEGIN
 
 class Object;

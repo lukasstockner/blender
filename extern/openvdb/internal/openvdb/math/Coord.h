@@ -31,7 +31,9 @@
 #ifndef OPENVDB_MATH_COORD_HAS_BEEN_INCLUDED
 #define OPENVDB_MATH_COORD_HAS_BEEN_INCLUDED
 
+#ifdef _WIN32
 #define NOMINMAX
+#endif
 
 #include <openvdb/Platform.h>
 #include "Math.h"

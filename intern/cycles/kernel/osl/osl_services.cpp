@@ -789,7 +789,12 @@ bool OSLRenderServices::texture3d(ustring filename, TextureOpt &options,
                                   OSL::ShaderGlobals *sg, const OSL::Vec3 &P,
                                   const OSL::Vec3 &dPdx, const OSL::Vec3 &dPdy,
                                   const OSL::Vec3 &dPdz, float *result)
-{
+{ 
+	//test call
+	openvdb::initialize();
+
+	openvdb::FloatGrid::Ptr grid = openvdb::FloatGrid::create();
+	
 	OSL::TextureSystem *ts = osl_ts;
 	bool status = ts->texture3d(filename, options, P, dPdx, dPdy, dPdz, result);
 

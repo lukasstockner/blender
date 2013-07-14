@@ -66,6 +66,12 @@ include_directories(
 	${OPENIMAGEIO_INCLUDE_DIRS}/OpenImageIO
 	${OPENEXR_INCLUDE_DIR})
 
+if(WITH_CYCLES_OPENVDB)
+	include_directories(
+	${OPENVDB_INCLUDE_DIRS}
+	${TBB_INCLUDE_DIRS})
+endif()
+
 # Subdirectories
 
 if(WITH_CYCLES_BLENDER)

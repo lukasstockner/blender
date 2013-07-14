@@ -1898,7 +1898,7 @@ endif()
 
 
 if(WITH_CYCLES_OPENVDB)
-	set(OPENVDB_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/extern/openvdb")
+	set(OPENVDB_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/extern/openvdb/internal")
 endif()
 
 #-----------------------------------------------------------------------------

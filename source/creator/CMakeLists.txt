@@ -836,6 +836,9 @@ if(WITH_CYCLES)
 	if(WITH_CYCLES_OSL)
 		list(APPEND BLENDER_LINK_LIBS cycles_kernel_osl)
 	endif()
+	if(WITH_CYCLES_OPENVDB)
+		blender_include_dirs(../../extern/openvdb)
+	endif()
 endif()
 
 #if(UNIX)
@@ -1002,6 +1005,10 @@ endif()
 
 	if(WITH_CYCLES_OSL)
 		list_insert_after(BLENDER_SORTED_LIBS "cycles_kernel" "cycles_kernel_osl")
+	endif()
+
+	if(WITH_CYCLES_OPENVDB)
+		list(APPEND BLENDER_SORTED_LIBS extern_openvdb)
 	endif()
 
 	if(WITH_INTERNATIONAL)

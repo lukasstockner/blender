@@ -39,7 +39,6 @@
 #include <string>
 #include <vector>
 
-
 namespace openvdb {
 OPENVDB_USE_VERSION_NAMESPACE
 namespace OPENVDB_VERSION_NAME {

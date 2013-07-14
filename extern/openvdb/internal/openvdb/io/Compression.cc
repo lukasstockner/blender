@@ -28,8 +28,6 @@
 //
 ///////////////////////////////////////////////////////////////////////////
 
-#define ZLIB_WINAPI  
-
 #include "Compression.h"
 
 #include <boost/algorithm/string/join.hpp>
