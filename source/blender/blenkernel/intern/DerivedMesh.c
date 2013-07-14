@@ -655,21 +655,25 @@ void DM_add_poly_layer(DerivedMesh *dm, int type, int alloctype, void *layer)
 
 void *DM_get_vert_data(DerivedMesh *dm, int index, int type)
 {
+	BLI_assert(index >= 0 && index < dm->getNumVerts(dm));
 	return CustomData_get(&dm->vertData, index, type);
 }
 
 void *DM_get_edge_data(DerivedMesh *dm, int index, int type)
 {
+	BLI_assert(index >= 0 && index < dm->getNumEdges(dm));
 	return CustomData_get(&dm->edgeData, index, type);
 }
 
 void *DM_get_tessface_data(DerivedMesh *dm, int index, int type)
 {
+	BLI_assert(index >= 0 && index < dm->getNumTessFaces(dm));
 	return CustomData_get(&dm->faceData, index, type);
 }
 
 void *DM_get_poly_data(DerivedMesh *dm, int index, int type)
 {
+	BLI_assert(index >= 0 && index < dm->getNumPolys(dm));
 	return CustomData_get(&dm->polyData, index, type);
 }
 
@@ -1946,9 +1950,9 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
                                      DerivedMesh **final_r,
                                      CustomDataMask dataMask)
 {
-	ModifierData *md;
+	ModifierData *md, *previewmd = NULL;
 	float (*deformedVerts)[3] = NULL;
-	CustomDataMask mask;
+	CustomDataMask mask, previewmask = 0, append_mask = 0;
 	DerivedMesh *dm, *orcodm = NULL;
 	int i, numVerts = 0, cageIndex = modifiers_getCageIndex(scene, ob, NULL, 1);
 	CDMaskLink *datamasks, *curr;
@@ -1962,6 +1966,7 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 	const int do_final_wmcol = FALSE;
 	int do_init_wmcol = ((((Mesh *)ob->data)->drawflag & ME_DRAWEIGHT) && !do_final_wmcol);
 	int do_init_statvis = ((((Mesh *)ob->data)->drawflag & ME_DRAW_STATVIS) && !do_init_wmcol);
+	const int do_mod_wmcol = do_init_wmcol;
 
 	modifiers_clearErrors(ob);
 
@@ -1972,7 +1977,18 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 	dm = NULL;
 	md = modifiers_getVirtualModifierList(ob);
 
-	datamasks = modifiers_calcDataMasks(scene, ob, md, dataMask, required_mode, NULL, 0);
+	/* copied from mesh_calc_modifiers */
+	if (do_mod_wmcol) {
+		previewmd = modifiers_getLastPreview(scene, md, required_mode);
+		/* even if the modifier doesn't need the data, to make a preview it may */
+		if (previewmd) {
+			if (do_mod_wmcol) {
+				previewmask = CD_MASK_MDEFORMVERT;
+			}
+		}
+	}
+
+	datamasks = modifiers_calcDataMasks(scene, ob, md, dataMask, required_mode, previewmd, previewmask);
 
 	curr = datamasks;
 	for (i = 0; md; i++, md = md->next, curr = curr->next) {
@@ -2071,6 +2087,7 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 			}
 
 			/* set the DerivedMesh to only copy needed data */
+			mask |= append_mask;
 			mask = curr->mask; /* CD_MASK_ORCO may have been cleared above */
 
 			DM_set_only_copy(dm, mask | CD_MASK_ORIGINDEX);
@@ -2098,6 +2115,12 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 					deformedVerts = NULL;
 				}
 			}
+		}
+
+		/* In case of active preview modifier, make sure preview mask remains for following modifiers. */
+		if ((md == previewmd) && (do_mod_wmcol)) {
+			DM_update_weight_mcol(ob, dm, draw_flag, NULL, 0, NULL);
+			append_mask |= CD_MASK_PREVIEW_MLOOPCOL;
 		}
 
 		if (cage_r && i == cageIndex) {

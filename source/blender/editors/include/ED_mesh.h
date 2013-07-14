@@ -82,6 +82,8 @@ void           EDBM_verts_mirror_cache_begin(struct BMEditMesh *em, const int ax
                                              const bool use_self, const bool use_select, const bool use_toplogy);
 void           EDBM_verts_mirror_apply(struct BMEditMesh *em, const int sel_from, const int sel_to);
 struct BMVert *EDBM_verts_mirror_get(struct BMEditMesh *em, struct BMVert *v);
+struct BMEdge *EDBM_verts_mirror_get_edge(struct BMEditMesh *em, struct BMEdge *e);
+struct BMFace *EDBM_verts_mirror_get_face(struct BMEditMesh *em, struct BMFace *f);
 void           EDBM_verts_mirror_cache_clear(struct BMEditMesh *em, struct BMVert *v);
 void           EDBM_verts_mirror_cache_end(struct BMEditMesh *em);
 
@@ -93,6 +95,7 @@ void EDBM_selectmode_to_scene(struct bContext *C);
 void EDBM_mesh_make(struct ToolSettings *ts, struct Scene *scene, struct Object *ob);
 void EDBM_mesh_free(struct BMEditMesh *em);
 void EDBM_mesh_load(struct Object *ob);
+struct DerivedMesh *EDBM_mesh_deform_dm_get(struct BMEditMesh *em);
 
 void           EDBM_index_arrays_ensure(struct BMEditMesh *em, const char htype);
 void           EDBM_index_arrays_init(struct BMEditMesh *em, const char htype);
@@ -202,7 +205,7 @@ void paintface_flush_flags(struct Object *ob);
 bool paintface_mouse_select(struct bContext *C, struct Object *ob, const int mval[2], bool extend, bool deselect, bool toggle);
 int  do_paintface_box_select(struct ViewContext *vc, struct rcti *rect, bool select, bool extend);
 void paintface_deselect_all_visible(struct Object *ob, int action, bool flush_flags);
-void paintface_select_linked(struct bContext *C, struct Object *ob, const int mval[2], int mode);
+void paintface_select_linked(struct bContext *C, struct Object *ob, const int mval[2], const bool select);
 bool paintface_minmax(struct Object *ob, float r_min[3], float r_max[3]);
 
 void paintface_hide(struct Object *ob, const bool unselected);
@@ -231,6 +234,7 @@ void ED_mesh_mirrtopo_free(MirrTopoStore_t *mesh_topo_store);
 #define WEIGHT_ADD 2
 #define WEIGHT_SUBTRACT 3
 
+bool                 ED_vgroup_sync_from_pose(struct Object *ob);
 struct bDeformGroup *ED_vgroup_add(struct Object *ob);
 struct bDeformGroup *ED_vgroup_add_name(struct Object *ob, const char *name);
 void                 ED_vgroup_delete(struct Object *ob, struct bDeformGroup *defgroup);
@@ -281,6 +285,8 @@ bool ED_mesh_color_remove_active(struct Mesh *me);
 bool ED_mesh_color_remove_named(struct Mesh *me, const char *name);
 
 void ED_mesh_report_mirror(struct wmOperator *op, int totmirr, int totfail);
+void ED_mesh_report_mirror_ex(struct wmOperator *op, int totmirr, int totfail,
+                              char selectmode);
 
 /* mesh backup */
 typedef struct BMBackup {

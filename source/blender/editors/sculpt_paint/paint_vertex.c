@@ -380,11 +380,9 @@ static int wpaint_mirror_vgroup_ensure(Object *ob, const int vgroup_active)
 		flip_side_name(name, defgroup->name, FALSE);
 		mirrdef = defgroup_name_index(ob, name);
 		if (mirrdef == -1) {
-			int olddef = ob->actdef;  /* tsk, ED_vgroup_add sets the active defgroup */
-			if (ED_vgroup_add_name(ob, name)) {
+			if (BKE_defgroup_new(ob, name)) {
 				mirrdef = BLI_countlist(&ob->defbase) - 1;
 			}
-			ob->actdef = olddef;
 		}
 
 		/* curdef should never be NULL unless this is
@@ -2049,8 +2047,6 @@ static int set_wpaint(bContext *C, wmOperator *UNUSED(op))  /* toggle */
 	DAG_id_tag_update(&me->id, 0);
 	
 	if (ob->mode & OB_MODE_WEIGHT_PAINT) {
-		Object *par;
-		
 		if (wp == NULL)
 			wp = scene->toolsettings->wpaint = new_vpaint(1);
 
@@ -2059,14 +2055,7 @@ static int set_wpaint(bContext *C, wmOperator *UNUSED(op))  /* toggle */
 		
 		mesh_octree_table(ob, NULL, NULL, 's');
 		
-		/* verify if active weight group is also active bone */
-		par = modifiers_isDeformedByArmature(ob);
-		if (par && (par->mode & OB_MODE_POSE)) {
-			bArmature *arm = par->data;
-
-			if (arm->act_bone)
-				ED_vgroup_select_by_name(ob, arm->act_bone->name);
-		}
+		ED_vgroup_sync_from_pose(ob);
 	}
 	else {
 		mesh_octree_table(NULL, NULL, NULL, 'e');
@@ -2342,10 +2331,16 @@ static void wpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
 	/* which faces are involved */
 	if (use_depth) {
 		if (wp->flag & VP_AREA) {
+			char editflag_prev = me->editflag;
+
 			/* Ugly hack, to avoid drawing vertex index when getting the face index buffer - campbell */
 			me->editflag &= ~ME_EDIT_PAINT_VERT_SEL;
+			if (use_vert_sel) {
+				/* Ugly x2, we need this so hidden faces don't draw */
+				me->editflag |= ME_EDIT_PAINT_FACE_SEL;
+			}
 			totindex = sample_backbuf_area(vc, indexar, me->totpoly, mval[0], mval[1], brush_size_pressure);
-			me->editflag |= use_vert_sel ? ME_EDIT_PAINT_VERT_SEL : 0;
+			me->editflag = editflag_prev;
 		}
 		else {
 			indexar[0] = view3d_sample_backbuf(vc, mval[0], mval[1]);

@@ -1698,7 +1698,7 @@ static DerivedMesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd,
 	if (pmd->canvas && !(pmd->canvas->flags & MOD_DPAINT_BAKING)) {
 
 		DynamicPaintSurface *surface;
-		int update_normals = 0;
+		bool update_normals = false;
 
 		/* loop through surfaces */
 		for (surface = pmd->canvas->surfaces.first; surface; surface = surface->next) {
@@ -1881,19 +1881,21 @@ static DerivedMesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd,
 							normal_short_to_float_v3(normal, mvert[i].no);
 							madd_v3_v3fl(mvert[i].co, normal, wPoint[i].height);
 						}
-						update_normals = 1;
+						update_normals = true;
 					}
 
 					/* displace */
 					if (surface->type == MOD_DPAINT_SURFACE_T_DISPLACE) {
 						dynamicPaint_applySurfaceDisplace(surface, result);
-						update_normals = 1;
+						update_normals = true;
 					}
 				}
 			}
 		}
 
-		result->dirty |= DM_DIRTY_NORMALS;
+		if (update_normals) {
+			result->dirty |= DM_DIRTY_NORMALS;
+		}
 	}
 	/* make a copy of dm to use as brush data */
 	if (pmd->brush) {
@@ -1940,6 +1942,7 @@ static void dynamicPaint_frameUpdate(DynamicPaintModifierData *pmd, Scene *scene
 		/* loop through surfaces */
 		for (; surface; surface = surface->next) {
 			int current_frame = (int)scene->r.cfra;
+			bool no_surface_data;
 
 			/* free bake data if not required anymore */
 			surface_freeUnusedData(surface);
@@ -1949,12 +1952,13 @@ static void dynamicPaint_frameUpdate(DynamicPaintModifierData *pmd, Scene *scene
 			if (!(surface->flags & MOD_DPAINT_ACTIVE)) continue;
 
 			/* make sure surface is valid */
+			no_surface_data = surface->data == NULL;
 			if (!dynamicPaint_checkSurfaceData(surface)) continue;
 
 			/* limit frame range */
 			CLAMP(current_frame, surface->start_frame, surface->end_frame);
 
-			if (current_frame != surface->current_frame || (int)scene->r.cfra == surface->start_frame) {
+			if (no_surface_data || current_frame != surface->current_frame || (int)scene->r.cfra == surface->start_frame) {
 				PointCache *cache = surface->pointcache;
 				PTCacheID pid;
 				surface->current_frame = current_frame;

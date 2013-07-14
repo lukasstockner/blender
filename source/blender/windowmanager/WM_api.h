@@ -178,6 +178,14 @@ void		WM_event_add_notifier(const struct bContext *C, unsigned int type, void *r
 void		WM_main_add_notifier(unsigned int type, void *reference);
 void		WM_main_remove_notifier_reference(const void *reference);
 
+			/* reports */
+void        WM_report(const struct bContext *C, ReportType type, const char *message);
+void        WM_reportf(const struct bContext *C, ReportType type, const char *format, ...)
+#ifdef __GNUC__
+__attribute__ ((format(printf, 3, 4)))
+#endif
+;
+
 void		wm_event_add(struct wmWindow *win, const struct wmEvent *event_to_add);
 
 			/* at maximum, every timestep seconds it triggers event_type events */
@@ -244,7 +252,7 @@ void        WM_operator_properties_border(struct wmOperatorType *ot);
 void        WM_operator_properties_border_to_rcti(struct wmOperator *op, struct rcti *rect);
 void		WM_operator_properties_gesture_border(struct wmOperatorType *ot, bool extend);
 void        WM_operator_properties_mouse_select(struct wmOperatorType *ot);
-void		WM_operator_properties_gesture_straightline(struct wmOperatorType *ot, bool cursor);
+void		WM_operator_properties_gesture_straightline(struct wmOperatorType *ot, int cursor);
 void		WM_operator_properties_select_all(struct wmOperatorType *ot);
 void		WM_operator_properties_select_action(struct wmOperatorType *ot, int default_action);
 
@@ -395,6 +403,9 @@ void		WM_jobs_kill_all_except(struct wmWindowManager *wm, void *owner);
 void		WM_jobs_kill_type(struct wmWindowManager *wm, int job_type);
 
 int			WM_jobs_has_running(struct wmWindowManager *wm);
+
+void		WM_job_main_thread_lock_acquire(struct wmJob *job);
+void		WM_job_main_thread_lock_release(struct wmJob *job);
 
 			/* clipboard */
 char       *WM_clipboard_text_get(int selection);
