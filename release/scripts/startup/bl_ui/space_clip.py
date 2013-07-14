@@ -346,6 +346,19 @@ class CLIP_PT_tools_solve(CLIP_PT_tracking_panel, Panel):
         col.prop(settings, "refine_intrinsics", text="")
 
         col = layout.column(align=True)
+        col.active = "FOCAL_LENGTH" in settings.refine_intrinsics
+        col.prop(settings, "use_focal_length_constraint");
+        row = col.row()
+        row.active = settings.use_focal_length_constraint
+        if tracking.camera.units == 'MILLIMETERS':
+            row.prop(settings, "focal_length_min_mm")
+            row.prop(settings, "focal_length_max_mm")
+        else:
+            row.prop(settings, "focal_length_min_px")
+            row.prop(settings, "focal_length_max_px")
+
+
+        col = layout.column(align=True)
         col.active = not settings.use_tripod_solver
         col.prop(settings, "use_fallback_reconstruction",
                  text="Allow Fallback")

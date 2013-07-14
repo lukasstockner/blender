@@ -498,9 +498,9 @@ void SelectkeyframesBasedOnGRICAndVariance(const Tracks &tracks,
       BundleEvaluation evaluation;
       evaluation.evaluate_jacobian = true;
 
+      BundleOptions bundle_options;
       EuclideanBundleCommonIntrinsics(two_frames_tracks,
-                                      BUNDLE_NO_INTRINSICS,
-                                      BUNDLE_NO_CONSTRAINTS,
+                                      bundle_options,
                                       &reconstruction,
                                       &empty_intrinsics,
                                       &evaluation);

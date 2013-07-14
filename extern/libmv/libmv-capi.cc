@@ -403,6 +403,17 @@ void libmv_tracksDestroy(libmv_Tracks *libmv_tracks)
 
 /* ************ Reconstruction solver ************ */
 
+class LoggingCallback : public ceres::IterationCallback {
+ public:
+  ~LoggingCallback() {}
+
+  ceres::CallbackReturnType operator()(const ceres::IterationSummary &summary) {
+    LG << "Iteration #" << summary.iteration
+       << ": " << summary.cost;
+    return ceres::SOLVER_CONTINUE;
+  }
+};
+
 class ReconstructUpdateCallback : public libmv::ProgressUpdateCallback {
 public:
 	ReconstructUpdateCallback(reconstruct_progress_update_cb progress_update_callback,
@@ -424,7 +435,7 @@ protected:
 };
 
 static void libmv_solveRefineIntrinsics(const libmv::Tracks &tracks,
-                                        const int refine_intrinsics,
+                                        const libmv_reconstructionOptions &reconstruction_options,
                                         const int bundle_constraints,
                                         reconstruct_progress_update_cb progress_update_callback,
                                         void *callback_customdata,
@@ -432,26 +443,35 @@ static void libmv_solveRefineIntrinsics(const libmv::Tracks &tracks,
                                         libmv::CameraIntrinsics *intrinsics)
 {
 	/* only a few combinations are supported but trust the caller */
-	int bundle_intrinsics = 0;
+	const int refine_intrinsics = reconstruction_options.refine_intrinsics;
+	libmv::BundleOptions bundle_options;
+	bundle_options.constraints = bundle_constraints;
+
+	LoggingCallback callback;
+	bundle_options.iteration_callback = &callback;
 
 	if (refine_intrinsics & LIBMV_REFINE_FOCAL_LENGTH) {
-		bundle_intrinsics |= libmv::BUNDLE_FOCAL_LENGTH;
+		bundle_options.intrinsics |= libmv::BUNDLE_FOCAL_LENGTH;
+		if (refine_intrinsics & LIBMV_CONSTRAIN_FOCAL_LENGTH) {
+			bundle_options.constraints |= libmv::BUNDLE_CONSTRAIN_FOCAL_LENGTH;
+			bundle_options.focal_length_min = reconstruction_options.focal_length_min;
+			bundle_options.focal_length_max = reconstruction_options.focal_length_max;
+		}
 	}
 	if (refine_intrinsics & LIBMV_REFINE_PRINCIPAL_POINT) {
-		bundle_intrinsics |= libmv::BUNDLE_PRINCIPAL_POINT;
+		bundle_options.intrinsics |= libmv::BUNDLE_PRINCIPAL_POINT;
 	}
 	if (refine_intrinsics & LIBMV_REFINE_RADIAL_DISTORTION_K1) {
-		bundle_intrinsics |= libmv::BUNDLE_RADIAL_K1;
+		bundle_options.intrinsics |= libmv::BUNDLE_RADIAL_K1;
 	}
 	if (refine_intrinsics & LIBMV_REFINE_RADIAL_DISTORTION_K2) {
-		bundle_intrinsics |= libmv::BUNDLE_RADIAL_K2;
+		bundle_options.intrinsics |= libmv::BUNDLE_RADIAL_K2;
 	}
 
 	progress_update_callback(callback_customdata, 1.0, "Refining solution");
 
 	libmv::EuclideanBundleCommonIntrinsics(tracks,
-	                                       bundle_intrinsics,
-	                                       bundle_constraints,
+	                                       bundle_options,
 	                                       reconstruction,
 	                                       intrinsics);
 }
@@ -635,7 +655,7 @@ libmv_Reconstruction *libmv_solveReconstruction(const libmv_Tracks *libmv_tracks
 	/* refinement */
 	if (libmv_reconstruction_options->refine_intrinsics) {
 		libmv_solveRefineIntrinsics(tracks,
-		                            libmv_reconstruction_options->refine_intrinsics,
+		                            *libmv_reconstruction_options,
 		                            libmv::BUNDLE_NO_CONSTRAINTS,
 		                            progress_update_callback,
 		                            callback_customdata,
@@ -676,17 +696,20 @@ struct libmv_Reconstruction *libmv_solveModal(const libmv_Tracks *libmv_tracks,
 	/* Actual reconstruction. */
 	libmv::ModalSolver(normalized_tracks, &reconstruction, &update_callback);
 
+	libmv::BundleOptions bundle_options;
+	bundle_options.intrinsics = libmv::BUNDLE_NO_INTRINSICS;
+	bundle_options.constraints = libmv::BUNDLE_NO_TRANSLATION;
+
 	libmv::CameraIntrinsics empty_intrinsics;
-	libmv::EuclideanBundleCommonIntrinsics(normalized_tracks,
-	                                       libmv::BUNDLE_NO_INTRINSICS,
-	                                       libmv::BUNDLE_NO_TRANSLATION,
+	libmv::EuclideanBundleCommonIntrinsics(tracks,
+	                                       bundle_options,
 	                                       &reconstruction,
 	                                       &empty_intrinsics);
 
 	/* Refinement. */
 	if (libmv_reconstruction_options->refine_intrinsics) {
 		libmv_solveRefineIntrinsics(tracks,
-		                            libmv_reconstruction_options->refine_intrinsics,
+		                            *libmv_reconstruction_options,
 		                            libmv::BUNDLE_NO_TRANSLATION,
 		                            progress_update_callback, callback_customdata,
 		                            &reconstruction,

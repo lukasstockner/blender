@@ -21,6 +21,10 @@
 #ifndef LIBMV_SIMPLE_PIPELINE_BUNDLE_H
 #define LIBMV_SIMPLE_PIPELINE_BUNDLE_H
 
+#include <iostream>
+
+#include "ceres/types.h"
+#include "ceres/iteration_callback.h"
 #include "libmv/numeric/numeric.h"
 
 namespace libmv {
@@ -91,7 +95,7 @@ void EuclideanBundle(const Tracks &tracks,
     For example it is useful to keep camera translations constant
     when bundling tripod motions.
 
-    If evaluaiton is not null, different evaluation statistics is filled in
+    If evaluation is not null, different evaluation statistics is filled in
     there, plus all the requested additional information (like jacobian) is
     also calculating there. Also see comments for BundleEvaluation.
 
@@ -110,13 +114,34 @@ enum BundleIntrinsics {
   BUNDLE_TANGENTIAL_P2 = 32,
   BUNDLE_TANGENTIAL = 48,
 };
+
 enum BundleConstraints {
   BUNDLE_NO_CONSTRAINTS = 0,
   BUNDLE_NO_TRANSLATION = 1,
+  BUNDLE_CONSTRAIN_FOCAL_LENGTH = 2
 };
+
+struct BundleOptions {
+  BundleOptions();
+
+  // Bitfield denoting the camera intrinsics to adjust during
+  // bundling. Use BundleIntrinsics flags.
+  int intrinsics;
+
+  // Bitfield denoting the constraints to place on bundle parameters.
+  // Use BundleConstraints flags.
+  int constraints;
+
+  // Minimum and maximum constraints for the focal length. To be useful,
+  // BUNDLE_CONSTRAIN_FOCAL_LENGTH flag must be set on constraints.
+  double focal_length_min, focal_length_max;
+
+  // Callback which is called after each iteration of the solver.
+  ceres::IterationCallback *iteration_callback;
+};
+
 void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
-                                     const int bundle_intrinsics,
-                                     const int bundle_constraints,
+                                     const BundleOptions &bundle_options,
                                      EuclideanReconstruction *reconstruction,
                                      CameraIntrinsics *intrinsics,
                                      BundleEvaluation *evaluation = NULL);

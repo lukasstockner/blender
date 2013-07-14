@@ -2870,6 +2870,7 @@ typedef struct MovieReconstructContext {
 	bool select_keyframes;
 	int keyframe1, keyframe2;
 	short refine_flags;
+	double focal_length_min, focal_length_max;
 
 	struct libmv_Reconstruction *reconstruction;
 
@@ -3096,8 +3097,11 @@ static int reconstruct_refine_intrinsics_get_flags(MovieTracking *tracking, Movi
 	if ((object->flag & TRACKING_OBJECT_CAMERA) == 0)
 		return 0;
 
-	if (refine & REFINE_FOCAL_LENGTH)
+	if (refine & REFINE_FOCAL_LENGTH) {
 		flags |= LIBMV_REFINE_FOCAL_LENGTH;
+		if (refine & CONSTRAIN_FOCAL_LENGTH)
+			flags |= LIBMV_CONSTRAIN_FOCAL_LENGTH;
+	}
 
 	if (refine & REFINE_PRINCIPAL_POINT)
 		flags |= LIBMV_REFINE_PRINCIPAL_POINT;
@@ -3235,6 +3239,8 @@ MovieReconstructContext *BKE_tracking_reconstruction_context_new(MovieTracking *
 	context->keyframe1 = keyframe1;
 	context->keyframe2 = keyframe2;
 	context->refine_flags = reconstruct_refine_intrinsics_get_flags(tracking, object);
+	context->focal_length_min = tracking->settings.focal_length_min;
+	context->focal_length_max = tracking->settings.focal_length_max;
 
 	return context;
 }
@@ -3266,7 +3272,7 @@ static void reconstruct_update_solve_cb(void *customdata, double progress, const
 }
 
 /* FIll in camera intrinsics structure from reconstruction context. */
-static void camraIntrincicsOptionsFromContext(libmv_cameraIntrinsicsOptions *camera_intrinsics_options,
+static void cameraIntrinsicsOptionsFromContext(libmv_cameraIntrinsicsOptions *camera_intrinsics_options,
                                               MovieReconstructContext *context)
 {
 	camera_intrinsics_options->focal_length = context->focal_length;
@@ -3292,6 +3298,8 @@ static void reconstructionOptionsFromContext(libmv_reconstructionOptions *recons
 	reconstruction_options->keyframe2 = context->keyframe2;
 
 	reconstruction_options->refine_intrinsics = context->refine_flags;
+	reconstruction_options->focal_length_min = context->focal_length_min;
+	reconstruction_options->focal_length_max = context->focal_length_max;
 
 	reconstruction_options->success_threshold = context->success_threshold;
 	reconstruction_options->use_fallback_reconstruction = context->use_fallback_reconstruction;
@@ -3322,7 +3330,7 @@ void BKE_tracking_reconstruction_solve(MovieReconstructContext *context, short *
 	progressdata.stats_message = stats_message;
 	progressdata.message_size = message_size;
 
-	camraIntrincicsOptionsFromContext(&camera_intrinsics_options, context);
+	cameraIntrinsicsOptionsFromContext(&camera_intrinsics_options, context);
 	reconstructionOptionsFromContext(&reconstruction_options, context);
 
 	if (context->motion_flag & TRACKING_MOTION_MODAL) {

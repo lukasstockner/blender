@@ -21,8 +21,10 @@
 #include "libmv/simple_pipeline/bundle.h"
 
 #include <map>
+#include <cmath>
 
 #include "ceres/ceres.h"
+#include "ceres/iteration_callback.h"
 #include "ceres/rotation.h"
 #include "libmv/base/vector.h"
 #include "libmv/logging/logging.h"
@@ -54,14 +56,42 @@ enum {
 
 namespace {
 
+// Convert a constrained focal length into an uncontrained bundle parameter for
+// passing to Ceres.
+template <typename T>
+T ConstrainFocalLength(const T focal_length,
+                       const double min_focal,
+                       const double max_focal) {
+  using std::asin;
+  return asin(-T(1) + (((focal_length - T(min_focal))
+                    / (T(max_focal) - T(min_focal)))
+                    * T(2.0)));
+}
+
+// Convert an unconstrained bundle parameter received from Ceres back to the
+// corresponding constrained focal length.
+template <typename T>
+T UnconstrainFocalLength(const T bundled_focal,
+                         const double min_focal,
+                         const double max_focal) {
+  using std::sin;
+  return T(min_focal) + (T(max_focal) - T(min_focal))
+                      * (T(1) + sin(bundled_focal))
+                      / T(2.0);
+}
+
 // Cost functor which computes reprojection error of 3D point X
 // on camera defined by angle-axis rotation and it's translation
 // (which are in the same block due to optimization reasons).
 //
 // This functor uses a radial distortion model.
 struct OpenCVReprojectionError {
-  OpenCVReprojectionError(const double observed_x, const double observed_y)
-      : observed_x(observed_x), observed_y(observed_y) {}
+  OpenCVReprojectionError(const double observed_x, const double observed_y,
+                          const double focal_length_min = 0.0,
+                          const double focal_length_max = 0.0)
+      : observed_x(observed_x), observed_y(observed_y),
+        focal_length_min(focal_length_min),
+        focal_length_max(focal_length_max) {}
 
   template <typename T>
   bool operator()(const T* const intrinsics,
@@ -98,11 +128,17 @@ struct OpenCVReprojectionError {
 
     T predicted_x, predicted_y;
 
+    T unconstrained_focal = focal_length;
+    if (focal_length_min != 0.0 || focal_length_max != 0.0) {
+      unconstrained_focal = UnconstrainFocalLength(
+          focal_length, focal_length_min, focal_length_max);
+    }
+
     // Apply distortion to the normalized points to get (xd, yd).
     // TODO(keir): Do early bailouts for zero distortion; these are expensive
     // jet operations.
-    ApplyRadialDistortionCameraIntrinsics(focal_length,
-                                          focal_length,
+    ApplyRadialDistortionCameraIntrinsics(unconstrained_focal,
+                                          unconstrained_focal,
                                           principal_point_x,
                                           principal_point_y,
                                           k1, k2, k3,
@@ -119,6 +155,8 @@ struct OpenCVReprojectionError {
 
   const double observed_x;
   const double observed_y;
+  const double focal_length_min;
+  const double focal_length_max;
 };
 
 // Print a message to the log which camera intrinsics are gonna to be optimixed.
@@ -148,10 +186,19 @@ void BundleIntrinsicsLogMessage(const int bundle_intrinsics) {
 }
 
 // Pack intrinsics from object to an array for easier
-// and faster minimization.
-void PackIntrinisicsIntoArray(const CameraIntrinsics &intrinsics,
-                              double ceres_intrinsics[8]) {
-  ceres_intrinsics[OFFSET_FOCAL_LENGTH]       = intrinsics.focal_length();
+// and faster minimization, constraining the focal length
+// according to the given BundleOptions.
+void PackIntrinsicsIntoArray(const CameraIntrinsics &intrinsics,
+                             const BundleOptions &bundle_options,
+                             double ceres_intrinsics[8]) {
+  if (bundle_options.constraints & BUNDLE_CONSTRAIN_FOCAL_LENGTH) {
+    ceres_intrinsics[OFFSET_FOCAL_LENGTH] = ConstrainFocalLength(
+        intrinsics.focal_length(),
+        bundle_options.focal_length_min,
+        bundle_options.focal_length_max);
+  } else {
+    ceres_intrinsics[OFFSET_FOCAL_LENGTH] = intrinsics.focal_length();
+  }
   ceres_intrinsics[OFFSET_PRINCIPAL_POINT_X]  = intrinsics.principal_point_x();
   ceres_intrinsics[OFFSET_PRINCIPAL_POINT_Y]  = intrinsics.principal_point_y();
   ceres_intrinsics[OFFSET_K1]                 = intrinsics.k1();
@@ -163,19 +210,35 @@ void PackIntrinisicsIntoArray(const CameraIntrinsics &intrinsics,
 
 // Unpack intrinsics back from an array to an object.
 void UnpackIntrinsicsFromArray(const double ceres_intrinsics[8],
-                                 CameraIntrinsics *intrinsics) {
+                               CameraIntrinsics *intrinsics) {
+}
+
+// Unpack intrinsics back from an array to an object, converting
+// unconstrained bundle parameter to constrained focal length.
+void UnpackIntrinsicsFromArray(const double ceres_intrinsics[8],
+                               const BundleOptions &bundle_options,
+                               CameraIntrinsics *intrinsics) {
+  if (bundle_options.constraints & BUNDLE_CONSTRAIN_FOCAL_LENGTH) {
+    double focal_length = UnconstrainFocalLength(
+        ceres_intrinsics[OFFSET_FOCAL_LENGTH],
+        bundle_options.focal_length_min,
+        bundle_options.focal_length_max);
+    intrinsics->SetFocalLength(focal_length, focal_length);
+  } else {
     intrinsics->SetFocalLength(ceres_intrinsics[OFFSET_FOCAL_LENGTH],
                                ceres_intrinsics[OFFSET_FOCAL_LENGTH]);
+  }
 
-    intrinsics->SetPrincipalPoint(ceres_intrinsics[OFFSET_PRINCIPAL_POINT_X],
-                                  ceres_intrinsics[OFFSET_PRINCIPAL_POINT_Y]);
+  intrinsics->SetPrincipalPoint(ceres_intrinsics[OFFSET_PRINCIPAL_POINT_X],
+                                ceres_intrinsics[OFFSET_PRINCIPAL_POINT_Y]);
 
-    intrinsics->SetRadialDistortion(ceres_intrinsics[OFFSET_K1],
-                                    ceres_intrinsics[OFFSET_K2],
-                                    ceres_intrinsics[OFFSET_K3]);
+  intrinsics->SetRadialDistortion(ceres_intrinsics[OFFSET_K1],
+                                  ceres_intrinsics[OFFSET_K2],
+                                  ceres_intrinsics[OFFSET_K3]);
 
-    intrinsics->SetTangentialDistortion(ceres_intrinsics[OFFSET_P1],
-                                        ceres_intrinsics[OFFSET_P2]);
+  intrinsics->SetTangentialDistortion(ceres_intrinsics[OFFSET_P1],
+                                      ceres_intrinsics[OFFSET_P2]);
+
 }
 
 // Get a vector of camera's rotations denoted by angle axis
@@ -312,23 +375,33 @@ void EuclideanBundlerPerformEvaluation(const Tracks &tracks,
 
 }  // namespace
 
+BundleOptions::BundleOptions() :
+  intrinsics(BUNDLE_NO_INTRINSICS),
+  constraints(BUNDLE_NO_CONSTRAINTS),
+  focal_length_min(0.0),
+  focal_length_max(0.0),
+  iteration_callback(NULL) {
+}
+
 void EuclideanBundle(const Tracks &tracks,
                      EuclideanReconstruction *reconstruction) {
   CameraIntrinsics intrinsics;
-  EuclideanBundleCommonIntrinsics(tracks,
-                                  BUNDLE_NO_INTRINSICS,
-                                  BUNDLE_NO_CONSTRAINTS,
-                                  reconstruction,
-                                  &intrinsics,
-                                  NULL);
-}
 
+  BundleOptions bundle_options;
+  EuclideanBundleCommonIntrinsics(tracks,
+                                  bundle_options,
+                                  reconstruction,
+                                  &intrinsics);
+}
+ 
 void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
-                                     const int bundle_intrinsics,
-                                     const int bundle_constraints,
+                                     const BundleOptions &bundle_options,
                                      EuclideanReconstruction *reconstruction,
                                      CameraIntrinsics *intrinsics,
                                      BundleEvaluation *evaluation) {
+  const int bundle_intrinsics = bundle_options.intrinsics;
+  const int bundle_constraints = bundle_options.constraints;
+
   LG << "Original intrinsics: " << *intrinsics;
   vector<Marker> markers = tracks.AllMarkers();
 
@@ -339,7 +412,9 @@ void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
   // intrinsics into a single block and rely on local parameterizations to
   // control which intrinsics are allowed to vary.
   double ceres_intrinsics[8];
-  PackIntrinisicsIntoArray(*intrinsics, ceres_intrinsics);
+  PackIntrinsicsIntoArray(*intrinsics,
+                          bundle_options,
+                          ceres_intrinsics);
 
   // Convert cameras rotations to angle axis and merge with translation
   // into single parameter block for maximal minimization speed.
@@ -378,11 +453,18 @@ void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
     // camera translaiton.
     double *current_camera_R_t = &all_cameras_R_t[camera->image](0);
 
+    OpenCVReprojectionError *cost_function;
+    if (bundle_options.constraints & BUNDLE_CONSTRAIN_FOCAL_LENGTH) {
+      cost_function = new OpenCVReprojectionError(
+          marker.x, marker.y,
+          bundle_options.focal_length_min,
+          bundle_options.focal_length_max);
+    } else {
+      cost_function = new OpenCVReprojectionError(marker.x, marker.y);
+    }
+                                                  
     problem.AddResidualBlock(new ceres::AutoDiffCostFunction<
-        OpenCVReprojectionError, 2, 8, 6, 3>(
-            new OpenCVReprojectionError(
-                marker.x,
-                marker.y)),
+        OpenCVReprojectionError, 2, 8, 6, 3>(cost_function),
         NULL,
         ceres_intrinsics,
         current_camera_R_t,
@@ -448,6 +530,9 @@ void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
   options.linear_solver_type = ceres::ITERATIVE_SCHUR;
   options.use_inner_iterations = true;
   options.max_num_iterations = 100;
+  if (bundle_options.iteration_callback != NULL) {
+    options.callbacks.push_back(bundle_options.iteration_callback);
+  }
 
 #ifdef _OPENMP
   options.num_threads = omp_get_max_threads();
@@ -466,8 +551,11 @@ void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
                                       reconstruction);
 
   // Copy intrinsics back.
-  if (bundle_intrinsics != BUNDLE_NO_INTRINSICS)
-    UnpackIntrinsicsFromArray(ceres_intrinsics, intrinsics);
+  if (bundle_intrinsics != BUNDLE_NO_INTRINSICS) {
+    UnpackIntrinsicsFromArray(ceres_intrinsics,
+                              bundle_options,
+                              intrinsics);
+  }
 
   LG << "Final intrinsics: " << *intrinsics;
 

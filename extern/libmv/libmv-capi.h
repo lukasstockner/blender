@@ -82,6 +82,7 @@ void libmv_tracksDestroy(struct libmv_Tracks *libmv_tracks);
 #define LIBMV_REFINE_PRINCIPAL_POINT       (1 << 1)
 #define LIBMV_REFINE_RADIAL_DISTORTION_K1  (1 << 2)
 #define LIBMV_REFINE_RADIAL_DISTORTION_K2  (1 << 4)
+#define LIBMV_CONSTRAIN_FOCAL_LENGTH       (1 << 8)
 
 typedef struct libmv_cameraIntrinsicsOptions {
 	double focal_length;
@@ -96,6 +97,7 @@ typedef struct libmv_reconstructionOptions {
 	int keyframe1, keyframe2;
 
 	int refine_intrinsics;
+	double focal_length_min, focal_length_max;
 
 	double success_threshold;
 	int use_fallback_reconstruction;

@@ -55,6 +55,82 @@
 
 #include "WM_api.h"
 
+static void rna_trackingSettings_focal_length_min_px_set(PointerRNA *ptr, float value)
+{
+	MovieClip *clip = (MovieClip *)ptr->id.data;
+	MovieTrackingSettings *settings = &clip->tracking.settings;
+	MovieTrackingCamera *camera = &clip->tracking.camera;
+
+	if (value > camera->focal) {
+		settings->focal_length_min = camera->focal; 
+	}
+	else {
+		settings->focal_length_min = value;
+	}
+}
+
+static void rna_trackingSettings_focal_length_max_px_set(PointerRNA *ptr, float value)
+{
+	MovieClip *clip = (MovieClip *)ptr->id.data;
+	MovieTrackingSettings *settings = &clip->tracking.settings;
+	MovieTrackingCamera *camera = &clip->tracking.camera;
+
+	if (value < camera->focal) {
+		settings->focal_length_max = camera->focal; 
+	}
+	else {
+		settings->focal_length_max = value;
+	}
+}
+
+static float rna_trackingSettings_focal_length_min_mm_get(PointerRNA *ptr)
+{
+	MovieClip *clip = (MovieClip *)ptr->id.data;
+	MovieTrackingSettings *settings = &clip->tracking.settings;
+	MovieTrackingCamera *camera = &clip->tracking.camera;
+	float value = settings->focal_length_min;
+
+	if (clip->lastsize[0])
+		value = value * camera->sensor_width / (float)clip->lastsize[0];
+	
+	return value;
+}
+
+static void rna_trackingSettings_focal_length_min_mm_set(PointerRNA *ptr, float value)
+{
+	MovieClip *clip = (MovieClip *)ptr->id.data;
+	MovieTrackingCamera *camera = &clip->tracking.camera;
+
+	if (clip->lastsize[0])
+		value = clip->lastsize[0] * value / camera->sensor_width;
+
+	rna_trackingSettings_focal_length_min_px_set(ptr, value);
+}
+
+static float rna_trackingSettings_focal_length_max_mm_get(PointerRNA *ptr)
+{
+	MovieClip *clip = (MovieClip *)ptr->id.data;
+	MovieTrackingSettings *settings = &clip->tracking.settings;
+	MovieTrackingCamera *camera = &clip->tracking.camera;
+	float value = settings->focal_length_max;
+
+	if (clip->lastsize[0])
+		value = value * camera->sensor_width / (float)clip->lastsize[0];
+	
+	return value;
+}
+
+static void rna_trackingSettings_focal_length_max_mm_set(PointerRNA *ptr, float value)
+{
+	MovieClip *clip = (MovieClip *)ptr->id.data;
+	MovieTrackingCamera *camera = &clip->tracking.camera;
+
+	if (clip->lastsize[0])
+		value = clip->lastsize[0] * value / camera->sensor_width;
+
+	rna_trackingSettings_focal_length_max_px_set(ptr, value);
+}
+
 static char *rna_tracking_path(PointerRNA *UNUSED(ptr))
 {
 	return BLI_sprintfN("tracking");
@@ -202,6 +278,22 @@ static char *rna_trackingCamera_path(PointerRNA *UNUSED(ptr))
 	return BLI_sprintfN("tracking.camera");
 }
 
+static void rna_trackingCamera_focal_px_set(PointerRNA *ptr, float value)
+{
+	MovieClip *clip = (MovieClip *)ptr->id.data;
+	MovieTrackingSettings *settings = &clip->tracking.settings;
+	MovieTrackingCamera *camera = &clip->tracking.camera;
+
+	if (settings->refine_camera_intrinsics & CONSTRAIN_FOCAL_LENGTH) {
+		if (value < settings->focal_length_min) {
+			value = settings->focal_length_min;
+		} else if (value > settings->focal_length_max) {
+			value = settings->focal_length_max;
+		}
+	}
+	camera->focal = value;
+}
+
 static float rna_trackingCamera_focal_mm_get(PointerRNA *ptr)
 {
 	MovieClip *clip = (MovieClip *)ptr->id.data;
@@ -223,7 +315,7 @@ static void rna_trackingCamera_focal_mm_set(PointerRNA *ptr, float value)
 		value = clip->lastsize[0] * value / camera->sensor_width;
 
 	if (value >= 0.0001f)
-		camera->focal = value;
+		rna_trackingCamera_focal_px_set(ptr, value);
 }
 
 static char *rna_trackingStabilization_path(PointerRNA *UNUSED(ptr))
@@ -623,10 +715,53 @@ static void rna_def_trackingSettings(BlenderRNA *brna)
 
 	/* intrinsics refinement during bundle adjustment */
 	prop = RNA_def_property(srna, "refine_intrinsics", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "refine_camera_intrinsics");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_enum_bitflag_sdna(prop, NULL, "refine_camera_intrinsics");
 	RNA_def_property_enum_items(prop, refine_items);
 	RNA_def_property_ui_text(prop, "Refine", "Refine intrinsics during camera solving");
+
+	/* constrain focal length for intrinsics refinement */
+	prop = RNA_def_property(srna, "use_focal_length_constraint", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_boolean_sdna(prop, NULL, "refine_camera_intrinsics", CONSTRAIN_FOCAL_LENGTH);
+	RNA_def_property_ui_text(prop, "Constrain Focal Length",
+	                         "Constrain the focal length during intrinsics refinement");
+
+	/* focal length constraint values in pixels */
+	prop = RNA_def_property(srna, "focal_length_min_px", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_float_sdna(prop, NULL, "focal_length_min");
+	RNA_def_property_range(prop, 0.0f, 10000.0f);
+	RNA_def_property_float_default(prop, 0.0f);
+	RNA_def_property_float_funcs(prop, NULL, "rna_trackingSettings_focal_length_min_px_set", NULL);
+	RNA_def_property_ui_text(prop, "Min Focal Length",
+	                         "Minimum focal length in pixels");
+
+	prop = RNA_def_property(srna, "focal_length_max_px", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_float_sdna(prop, NULL, "focal_length_max");
+	RNA_def_property_range(prop, 0.0f, 10000.0f);
+	RNA_def_property_float_default(prop, 10000.0f);
+	RNA_def_property_float_funcs(prop, NULL, "rna_trackingSettings_focal_length_max_px_set", NULL);
+	RNA_def_property_ui_text(prop, "Max Focal Length",
+	                         "Maximum focal length in pixels");
+
+	/* focal length constraint values in millimeters */
+	prop = RNA_def_property(srna, "focal_length_min_mm", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_range(prop, 0.0f, 10000.0f);
+	RNA_def_property_float_funcs(prop, "rna_trackingSettings_focal_length_min_mm_get",
+	                                   "rna_trackingSettings_focal_length_min_mm_set", NULL);
+	RNA_def_property_ui_text(prop, "Min Focal Length",
+	                         "Minimum focal length in millimeters");
+
+	prop = RNA_def_property(srna, "focal_length_max_mm", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_range(prop, 0.0f, 10000.0f);
+	RNA_def_property_float_funcs(prop, "rna_trackingSettings_focal_length_max_mm_get",
+	                                   "rna_trackingSettings_focal_length_max_mm_set", NULL);
+	RNA_def_property_ui_text(prop, "Max Focal Length",
+	                         "Maximum focal length in millimeters");
 
 	/* tool settings */
 
@@ -816,6 +951,7 @@ static void rna_def_trackingCamera(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "focal");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_range(prop, 0.0f, 5000.0f);
+	RNA_def_property_float_funcs(prop, NULL, "rna_trackingCamera_focal_px_set", NULL);
 	RNA_def_property_ui_text(prop, "Focal Length", "Camera's focal length");
 	RNA_def_property_update(prop, NC_MOVIECLIP | NA_EDITED, NULL);
 
@@ -823,9 +959,9 @@ static void rna_def_trackingCamera(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "units", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "units");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_enum_items(prop, camera_units_items);
 	RNA_def_property_ui_text(prop, "Units", "Units used for camera focal length");
+	RNA_def_property_update(prop, NC_MOVIECLIP | NA_EDITED, NULL);
 
 	/* Principal Point */
 	prop = RNA_def_property(srna, "principal", PROP_FLOAT, PROP_NONE);
