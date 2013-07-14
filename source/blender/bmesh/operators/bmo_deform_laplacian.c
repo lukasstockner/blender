@@ -485,7 +485,7 @@ void rotate_differential_coordinates(LaplacianSystem *sys)
 			BLI_array_empty(vin);
 			vin = NULL;
 		}
-		if (num_fni>0) mul_v3_fl(fni, 1.0f/num_fni);
+		if (num_fni>0) mul_v3_fl(ni, 1.0f/num_fni);
 		sub_v3_v3v3(uij, pj, pi);
 		mul_v3_v3fl(dun, ni, dot_v3v3(uij, ni));
 		sub_v3_v3(uij, dun);
