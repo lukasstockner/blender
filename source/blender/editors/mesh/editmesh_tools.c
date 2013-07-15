@@ -1066,7 +1066,7 @@ static int edbm_normals_make_consistent_exec(bContext *C, wmOperator *op)
 	
 	/* doflip has to do with bmesh_rationalize_normals, it's an internal
 	 * thing */
-	if (!EDBM_op_callf(em, op, "recalc_face_normals faces=%hf use_face_tag=%b", BM_ELEM_SELECT, true))
+	if (!EDBM_op_callf(em, op, "recalc_face_normals faces=%hf", BM_ELEM_SELECT))
 		return OPERATOR_CANCELLED;
 
 	if (RNA_boolean_get(op->ptr, "inside"))
@@ -4089,8 +4089,9 @@ static int edbm_bridge_edge_loops_exec(bContext *C, wmOperator *op)
 	}
 
 	if (!EDBM_op_finish(em, &bmop, op, true)) {
-		return OPERATOR_CANCELLED;
-
+		/* grr, need to return finished so the user can select different options */
+		//return OPERATOR_CANCELLED;
+		return OPERATOR_FINISHED;
 	}
 	else {
 		EDBM_update_generic(em, true, true);

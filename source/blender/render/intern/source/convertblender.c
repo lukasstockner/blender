@@ -3478,9 +3478,14 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 				ma= give_render_material(re, ob, a1+1);
 				
 				/* test for 100% transparent */
-				ok= 1;
-				if (ma->alpha==0.0f && ma->spectra==0.0f && ma->spectra==0.0f && ma->filter==0.0f && (ma->mode & MA_TRANSP) && (ma->mode & (MA_RAYTRANSP | MA_RAYMIRROR))==0 ) {
-					ok= 0;
+				ok = 1;
+				if ((ma->alpha == 0.0f) &&
+				    (ma->spectra == 0.0f) &&
+				    (ma->filter == 0.0f) &&
+				    (ma->mode & MA_TRANSP) &&
+				    (ma->mode & (MA_RAYTRANSP | MA_RAYMIRROR)) == 0)
+				{
+					ok = 0;
 					/* texture on transparency? */
 					for (a=0; a<MAX_MTEX; a++) {
 						if (ma->mtex[a] && ma->mtex[a]->tex) {
@@ -4863,7 +4868,11 @@ static void init_render_object(Render *re, Object *ob, Object *par, DupliObject 
 void RE_Database_Free(Render *re)
 {
 	LampRen *lar;
-	
+
+	/* will crash if we try to free empty database */
+	if (!re->i.convertdone)
+		return;
+
 	/* statistics for debugging render memory usage */
 	if ((G.debug & G_DEBUG) && (G.is_rendering)) {
 		if ((re->r.scemode & (R_BUTS_PREVIEW|R_VIEWPORT_PREVIEW))==0) {
@@ -5321,13 +5330,9 @@ void RE_Database_FromScene(Render *re, Main *bmain, Scene *scene, unsigned int l
 	database_init_objects(re, lay, 0, 0, 0, 0);
 	
 	if (!re->test_break(re->tbh)) {
-		int tothalo;
-
 		set_material_lightgroups(re);
 		for (sce= re->scene; sce; sce= sce->set)
 			set_renderlayer_lightgroups(re, sce);
-		
-		slurph_opt= 1;
 		
 		/* for now some clumsy copying still */
 		re->i.totvert= re->totvert;
@@ -5336,7 +5341,16 @@ void RE_Database_FromScene(Render *re, Main *bmain, Scene *scene, unsigned int l
 		re->i.tothalo= re->tothalo;
 		re->i.totlamp= re->totlamp;
 		re->stats_draw(re->sdh, &re->i);
-		
+	}
+
+	slurph_opt= 1;
+}
+
+void RE_Database_Preprocess(Render *re)
+{
+	if (!re->test_break(re->tbh)) {
+		int tothalo;
+
 		/* don't sort stars */
 		tothalo= re->tothalo;
 		if (!re->test_break(re->tbh)) {
@@ -5392,13 +5406,12 @@ void RE_Database_FromScene(Render *re, Main *bmain, Scene *scene, unsigned int l
 		if (!re->test_break(re->tbh))
 			if (re->r.mode & R_RAYTRACE)
 				volume_precache(re);
-		
 	}
 	
+	re->i.convertdone = TRUE;
+
 	if (re->test_break(re->tbh))
 		RE_Database_Free(re);
-	else
-		re->i.convertdone = TRUE;
 	
 	re->i.infostr = NULL;
 	re->stats_draw(re->sdh, &re->i);
@@ -5848,6 +5861,7 @@ void RE_Database_FromScene_Vectors(Render *re, Main *bmain, Scene *sce, unsigned
 	/* free dbase and make the future one */
 	strandsurface= re->strandsurface;
 	memset(&re->strandsurface, 0, sizeof(ListBase));
+	re->i.convertdone = TRUE;
 	RE_Database_Free(re);
 	re->strandsurface= strandsurface;
 	
@@ -5863,11 +5877,14 @@ void RE_Database_FromScene_Vectors(Render *re, Main *bmain, Scene *sce, unsigned
 	/* free dbase and make the real one */
 	strandsurface= re->strandsurface;
 	memset(&re->strandsurface, 0, sizeof(ListBase));
+	re->i.convertdone = TRUE;
 	RE_Database_Free(re);
 	re->strandsurface= strandsurface;
 	
-	if (!re->test_break(re->tbh))
+	if (!re->test_break(re->tbh)) {
 		RE_Database_FromScene(re, bmain, sce, lay, 1);
+		RE_Database_Preprocess(re);
+	}
 	
 	if (!re->test_break(re->tbh)) {
 		int vectorlay= get_vector_renderlayers(re->scene);
@@ -6069,4 +6086,6 @@ void RE_Database_Baking(Render *re, Main *bmain, Scene *scene, unsigned int lay,
 		if (re->wrld.ao_gather_method == WO_AOGATHER_APPROX)
 			if (re->r.mode & R_SHADOW)
 				make_occ_tree(re);
+
+	re->i.convertdone = true;
 }
