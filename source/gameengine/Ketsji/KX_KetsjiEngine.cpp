@@ -54,7 +54,6 @@
 #include "MT_Transform.h"
 #include "SCA_IInputDevice.h"
 #include "KX_Camera.h"
-#include "KX_FontObject.h"
 #include "KX_Dome.h"
 #include "KX_Light.h"
 #include "KX_PythonInit.h"
@@ -340,7 +339,7 @@ void KX_KetsjiEngine::RenderDome()
 				// do the rendering
 				m_dome->RenderDomeFrame(scene,cam, i);
 				//render all the font objects for this scene
-				RenderFonts(scene);
+				scene->RenderFonts();
 			}
 			
 			list<class KX_Camera*>* cameras = scene->GetCameras();
@@ -358,7 +357,7 @@ void KX_KetsjiEngine::RenderDome()
 					// do the rendering
 					m_dome->RenderDomeFrame(scene, (*it),i);
 					//render all the font objects for this scene
-					RenderFonts(scene);
+					scene->RenderFonts();
 				}
 				
 				it++;
@@ -1339,21 +1338,10 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 	scene->RenderBuckets(camtrans, m_rasterizer, m_rendertools);
 
 	//render all the font objects for this scene
-	RenderFonts(scene);
+	scene->RenderFonts();
 	
 	if (scene->GetPhysicsEnvironment())
 		scene->GetPhysicsEnvironment()->debugDrawWorld();
-}
-
-void KX_KetsjiEngine::RenderFonts(KX_Scene* scene)
-{
-	list<class KX_FontObject*>* fonts = scene->GetFonts();
-	
-	list<KX_FontObject*>::iterator it = fonts->begin();
-	while (it != fonts->end()) {
-		(*it)->DrawText();
-		++it;
-	}
 }
 
 /*
@@ -1649,10 +1637,10 @@ void KX_KetsjiEngine::ConvertAndAddScene(const STR_String& scenename,bool overla
 	}
 	else {
 		if (overlay) {
-			m_addingOverlayScenes.insert(scenename);
+			m_addingOverlayScenes.push_back(scenename);
 		}
 		else {
-			m_addingBackgroundScenes.insert(scenename);
+			m_addingBackgroundScenes.push_back(scenename);
 		}
 	}
 }
@@ -1664,7 +1652,7 @@ void KX_KetsjiEngine::RemoveScene(const STR_String& scenename)
 {
 	if (FindScene(scenename))
 	{
-		m_removingScenes.insert(scenename);
+		m_removingScenes.push_back(scenename);
 	}
 	else
 	{
@@ -1679,7 +1667,7 @@ void KX_KetsjiEngine::RemoveScheduledScenes()
 {
 	if (m_removingScenes.size())
 	{
-		set<STR_String>::iterator scenenameit;
+		vector<STR_String>::iterator scenenameit;
 		for (scenenameit=m_removingScenes.begin();scenenameit != m_removingScenes.end();scenenameit++)
 		{
 			STR_String scenename = *scenenameit;
@@ -1725,7 +1713,7 @@ KX_Scene* KX_KetsjiEngine::CreateScene(const STR_String& scenename)
 
 void KX_KetsjiEngine::AddScheduledScenes()
 {
-	set<STR_String>::iterator scenenameit;
+	vector<STR_String>::iterator scenenameit;
 
 	if (m_addingOverlayScenes.size())
 	{
@@ -1761,7 +1749,7 @@ void KX_KetsjiEngine::AddScheduledScenes()
 
 void KX_KetsjiEngine::ReplaceScene(const STR_String& oldscene,const STR_String& newscene)
 {
-	m_replace_scenes.insert(std::make_pair(oldscene,newscene));
+	m_replace_scenes.push_back(std::make_pair(oldscene,newscene));
 }
 
 // replace scene is not the same as removing and adding because the
@@ -1772,7 +1760,7 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
 {
 	if (m_replace_scenes.size())
 	{
-		set<pair<STR_String,STR_String> >::iterator scenenameit;
+		vector<pair<STR_String,STR_String> >::iterator scenenameit;
 		
 		for (scenenameit = m_replace_scenes.begin();
 			scenenameit != m_replace_scenes.end();

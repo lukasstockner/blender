@@ -276,7 +276,7 @@ void ui_pan_to_scroll(const wmEvent *event, int *type, int *val)
 
 static bool ui_but_editable(uiBut *but)
 {
-	return ELEM5(but->type, LABEL, SEPR, ROUNDBOX, LISTBOX, PROGRESSBAR);
+	return ELEM6(but->type, LABEL, LISTLABEL, SEPR, ROUNDBOX, LISTBOX, PROGRESSBAR);
 }
 
 static uiBut *ui_but_prev(uiBut *but)
@@ -875,6 +875,10 @@ static bool ui_but_start_drag(bContext *C, uiBut *but, uiHandleButtonData *data,
 			uiDragToggleHandle *drag_info = MEM_callocN(sizeof(*drag_info), __func__);
 			ARegion *ar_prev;
 
+			/* call here because regular mouse-up event wont run,
+			 * typically 'button_activate_exit()' handles this */
+			ui_apply_autokey(C, but);
+
 			drag_info->is_set = ui_is_but_push(but);
 			drag_info->but_cent_start[0] = BLI_rctf_cent_x(&but->rect);
 			drag_info->but_cent_start[1] = BLI_rctf_cent_y(&but->rect);
@@ -1297,9 +1301,14 @@ static void ui_but_drop(bContext *C, const wmEvent *event, uiBut *but, uiHandleB
 			if (ELEM3(but->type, TEX, SEARCH_MENU, SEARCH_MENU_UNLINK)) {
 				ID *id = (ID *)wmd->poin;
 				
-				if (but->poin == NULL && but->rnapoin.data == NULL) {}
 				button_activate_state(C, but, BUTTON_STATE_TEXT_EDITING);
 				BLI_strncpy(data->str, id->name + 2, data->maxlen);
+
+				if (ELEM(but->type, SEARCH_MENU, SEARCH_MENU_UNLINK)) {
+					but->changed = true;
+					ui_searchbox_update(C, data->searchbox, but, true);
+				}
+
 				button_activate_state(C, but, BUTTON_STATE_EXIT);
 			}
 		}
@@ -1420,6 +1429,7 @@ static void ui_but_copy_paste(bContext *C, uiBut *but, uiHandleButtonData *data,
 
 			if (ELEM(but->type, SEARCH_MENU, SEARCH_MENU_UNLINK)) {
 				/* else uiSearchboxData.active member is not updated [#26856] */
+				but->changed = true;
 				ui_searchbox_update(C, data->searchbox, but, true);
 			}
 			button_activate_state(C, but, BUTTON_STATE_EXIT);
@@ -1828,20 +1838,19 @@ static bool ui_textedit_delete(uiBut *but, uiHandleButtonData *data, int directi
 static bool ui_textedit_autocomplete(bContext *C, uiBut *but, uiHandleButtonData *data)
 {
 	char *str;
-	/* TODO, should return false if it cant autocomp. */
-	bool changed = true;
+	bool change = true;
 
 	str = data->str;
 
 	if (data->searchbox)
-		ui_searchbox_autocomplete(C, data->searchbox, but, data->str);
+		change = ui_searchbox_autocomplete(C, data->searchbox, but, data->str);
 	else
-		but->autocomplete_func(C, str, but->autofunc_arg);
+		change = but->autocomplete_func(C, str, but->autofunc_arg);
 
 	but->pos = strlen(str);
 	but->selsta = but->selend = but->pos;
 
-	return changed;
+	return change;
 }
 
 /* mode for ui_textedit_copypaste() */
@@ -1853,7 +1862,6 @@ enum {
 
 static bool ui_textedit_copypaste(uiBut *but, uiHandleButtonData *data, const int mode)
 {
-	char buf[UI_MAX_DRAW_STR] = {0};
 	char *str, *p, *pbuf;
 	int x;
 	bool changed = false;
@@ -1869,6 +1877,7 @@ static bool ui_textedit_copypaste(uiBut *but, uiHandleButtonData *data, const in
 		p = pbuf = WM_clipboard_text_get(0);
 
 		if (p && p[0]) {
+			char buf[UI_MAX_DRAW_STR] = {0};
 			unsigned int y;
 			buf_len = 0;
 			while (*p && *p != '\r' && *p != '\n' && buf_len < UI_MAX_DRAW_STR - 1) {
@@ -1905,14 +1914,12 @@ static bool ui_textedit_copypaste(uiBut *but, uiHandleButtonData *data, const in
 	/* cut & copy */
 	else if (ELEM(mode, UI_TEXTEDIT_COPY, UI_TEXTEDIT_CUT)) {
 		/* copy the contents to the copypaste buffer */
-		for (x = but->selsta; x <= but->selend; x++) {
-			if (x == but->selend)
-				buf[x] = '\0';
-			else
-				buf[(x - but->selsta)] = str[x];
-		}
+		int sellen = but->selend - but->selsta;
+		char *buf = MEM_mallocN(sizeof(char) * (sellen + 1), "ui_textedit_copypaste");
 
+		BLI_strncpy(buf, str + but->selsta, sellen + 1);
 		WM_clipboard_text_set(buf, 0);
+		MEM_freeN(buf);
 		
 		/* for cut only, delete the selection afterwards */
 		if (mode == UI_TEXTEDIT_CUT) {
@@ -2011,7 +2018,7 @@ static void ui_textedit_next_but(uiBlock *block, uiBut *actbut, uiHandleButtonDa
 	uiBut *but;
 
 	/* label and roundbox can overlap real buttons (backdrops...) */
-	if (ELEM4(actbut->type, LABEL, SEPR, ROUNDBOX, LISTBOX))
+	if (ELEM5(actbut->type, LABEL, LISTLABEL, SEPR, ROUNDBOX, LISTBOX))
 		return;
 
 	for (but = actbut->next; but; but = but->next) {
@@ -2039,7 +2046,7 @@ static void ui_textedit_prev_but(uiBlock *block, uiBut *actbut, uiHandleButtonDa
 	uiBut *but;
 
 	/* label and roundbox can overlap real buttons (backdrops...) */
-	if (ELEM4(actbut->type, LABEL, SEPR, ROUNDBOX, LISTBOX))
+	if (ELEM5(actbut->type, LABEL, LISTLABEL, SEPR, ROUNDBOX, LISTBOX))
 		return;
 
 	for (but = actbut->prev; but; but = but->prev) {
@@ -3714,7 +3721,7 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data, int mx,
 
 			break;
 		default:
-			assert(!"invalid hsv type");
+			BLI_assert(0);
 	}
 
 	hsv_to_rgb_v(hsv, rgb);
@@ -3784,6 +3791,7 @@ static void ui_ndofedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data, wmNDOF
 			hsv[2] += ndof->rx * sensitivity;
 			
 			CLAMP(hsv[2], but->softmin, but->softmax);
+			break;
 		default:
 			assert(!"invalid hsv type");
 	}
@@ -5318,7 +5326,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
 		/* this should become disabled button .. */
 		if (but->lock == true) {
 			if (but->lockstr) {
-				BKE_report(NULL, RPT_WARNING, but->lockstr);
+				WM_report(C, RPT_INFO, but->lockstr);
 				button_activate_state(C, but, BUTTON_STATE_EXIT);
 				return WM_UI_HANDLER_BREAK;
 			}
@@ -5362,6 +5370,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
 		case ROUNDBOX:
 		case LISTBOX:
 		case LABEL:
+		case LISTLABEL:
 		case ROW:
 		case LISTROW:
 		case BUT_IMAGE:
@@ -5559,7 +5568,7 @@ static bool ui_mouse_inside_button(ARegion *ar, uiBut *but, int x, int y)
 bool ui_is_but_interactive(uiBut *but)
 {
 	/* note, LABEL is included for highlights, this allows drags */
-	if (but->type == LABEL && but->dragpoin == NULL)
+	if (ELEM(but->type, LABEL, LISTLABEL) && but->dragpoin == NULL)
 		return false;
 	if (ELEM3(but->type, ROUNDBOX, SEPR, LISTBOX))
 		return false;
@@ -5740,6 +5749,10 @@ static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState s
 	}
 	else if (data->state == BUTTON_STATE_NUM_EDITING) {
 		ui_numedit_end(but, data);
+
+		if (but->flag & UI_BUT_DRIVEN)
+			WM_report(C, RPT_INFO, "Can't edit driven number value, see graph editor for the driver setup.");
+
 		if (ui_is_a_warp_but(but)) {
 
 #ifdef USE_CONT_MOUSE_CORRECT
@@ -6411,7 +6424,6 @@ static int ui_handle_list_event(bContext *C, const wmEvent *event, ARegion *ar)
 {
 	uiBut *but = ui_list_find_mouse_over(ar, event->x, event->y);
 	int retval = WM_UI_HANDLER_CONTINUE;
-	int value, min, max;
 	int type = event->type, val = event->val;
 
 	if (but) {
@@ -6434,8 +6446,11 @@ static int ui_handle_list_event(bContext *C, const wmEvent *event, ARegion *ar)
 				if (ELEM(type, UPARROWKEY, DOWNARROWKEY) ||
 					((ELEM(type, WHEELUPMOUSE, WHEELDOWNMOUSE) && event->alt)))
 				{
+					const int value_orig = RNA_property_int_get(&but->rnapoin, but->rnaprop);
+					int value, min, max;
+
 					/* activate up/down the list */
-					value = RNA_property_int_get(&but->rnapoin, but->rnaprop);
+					value = value_orig;
 
 					if (ELEM(type, UPARROWKEY, WHEELUPMOUSE))
 						value--;
@@ -6452,9 +6467,13 @@ static int ui_handle_list_event(bContext *C, const wmEvent *event, ARegion *ar)
 					RNA_property_int_range(&but->rnapoin, but->rnaprop, &min, &max);
 					value = CLAMPIS(value, min, max);
 
-					RNA_property_int_set(&but->rnapoin, but->rnaprop, value);
-					RNA_property_update(C, &but->rnapoin, but->rnaprop);
-					ED_region_tag_redraw(ar);
+					if (value != value_orig) {
+						RNA_property_int_set(&but->rnapoin, but->rnaprop, value);
+						RNA_property_update(C, &but->rnapoin, but->rnaprop);
+
+						ui_apply_undo(but);
+						ED_region_tag_redraw(ar);
+					}
 
 					retval = WM_UI_HANDLER_BREAK;
 				}
@@ -6581,7 +6600,8 @@ static void ui_mouse_motion_towards_reinit(uiPopupBlockHandle *menu, const int x
 	ui_mouse_motion_towards_init_ex(menu, xy, true);
 }
 
-static bool ui_mouse_motion_towards_check(uiBlock *block, uiPopupBlockHandle *menu, const int xy[2])
+static bool ui_mouse_motion_towards_check(uiBlock *block, uiPopupBlockHandle *menu, const int xy[2],
+                                          const bool use_wiggle_room)
 {
 	float p1[2], p2[2], p3[2], p4[2];
 	float oldp[2] = {menu->towards_xy[0], menu->towards_xy[1]};
@@ -6615,8 +6635,8 @@ static bool ui_mouse_motion_towards_check(uiBlock *block, uiPopupBlockHandle *me
 	p4[1] = rect_px.ymax + margin;
 
 	/* allow for some wiggle room, if the user moves a few pixels away,
-	 * don't immediately quit */
-	{
+	 * don't immediately quit (only for top level menus) */
+	if (use_wiggle_room) {
 		const float cent[2] = {
 		    BLI_rctf_cent_x(&rect_px),
 		    BLI_rctf_cent_y(&rect_px)};
@@ -6789,7 +6809,8 @@ static int ui_handle_menu_button(bContext *C, const wmEvent *event, uiPopupBlock
 	return retval;
 }
 
-static int ui_handle_menu_event(bContext *C, const wmEvent *event, uiPopupBlockHandle *menu, int level)
+static int ui_handle_menu_event(bContext *C, const wmEvent *event, uiPopupBlockHandle *menu,
+                                int level, const bool is_parent_inside)
 {
 	ARegion *ar;
 	uiBlock *block;
@@ -6994,7 +7015,7 @@ static int ui_handle_menu_event(bContext *C, const wmEvent *event, uiPopupBlockH
 						for (but = block->buttons.first; but; but = but->next) {
 							int doit = FALSE;
 							
-							if (but->type != LABEL && but->type != SEPR)
+							if (but->type != LABEL && but->type != LISTLABEL && but->type != SEPR)
 								count++;
 							
 							/* exception for rna layer buts */
@@ -7130,7 +7151,7 @@ static int ui_handle_menu_event(bContext *C, const wmEvent *event, uiPopupBlockH
 					menu->menuretval = UI_RETURN_CANCEL | UI_RETURN_POPUP_OK;
 			}
 			else {
-				ui_mouse_motion_towards_check(block, menu, &event->x);
+				ui_mouse_motion_towards_check(block, menu, &event->x, is_parent_inside == false);
 
 				/* check mouse moving outside of the menu */
 				if (inside == 0 && (block->flag & UI_BLOCK_MOVEMOUSE_QUIT)) {
@@ -7233,7 +7254,8 @@ static int ui_handle_menu_return_submenu(bContext *C, const wmEvent *event, uiPo
 		return WM_UI_HANDLER_BREAK;
 }
 
-static int ui_handle_menus_recursive(bContext *C, const wmEvent *event, uiPopupBlockHandle *menu, int level)
+static int ui_handle_menus_recursive(bContext *C, const wmEvent *event, uiPopupBlockHandle *menu,
+                                     int level, const bool is_parent_inside)
 {
 	uiBut *but;
 	uiHandleButtonData *data;
@@ -7246,8 +7268,21 @@ static int ui_handle_menus_recursive(bContext *C, const wmEvent *event, uiPopupB
 	data = (but) ? but->active : NULL;
 	submenu = (data) ? data->menu : NULL;
 
-	if (submenu)
-		retval = ui_handle_menus_recursive(C, event, submenu, level + 1);
+	if (submenu) {
+		bool inside = false;
+
+		if (is_parent_inside == false) {
+			int mx, my;
+			uiBlock *block = menu->region->uiblocks.first;
+
+			mx = event->x;
+			my = event->y;
+			ui_window_to_block(menu->region, block, &mx, &my);
+			inside = BLI_rctf_isect_pt(&block->rect, mx, my);
+		}
+
+		retval = ui_handle_menus_recursive(C, event, submenu, level + 1, is_parent_inside || inside);
+	}
 
 	/* now handle events for our own menu */
 	if (retval == WM_UI_HANDLER_CONTINUE || event->type == TIMER) {
@@ -7275,7 +7310,7 @@ static int ui_handle_menus_recursive(bContext *C, const wmEvent *event, uiPopupB
 			}
 		}
 		else {
-			retval = ui_handle_menu_event(C, event, menu, level);
+			retval = ui_handle_menu_event(C, event, menu, level, is_parent_inside);
 		}
 	}
 
@@ -7371,7 +7406,7 @@ static int ui_handler_region_menu(bContext *C, const wmEvent *event, void *UNUSE
 			/* handle events for menus and their buttons recursively,
 			 * this will handle events from the top to the bottom menu */
 			if (data->menu)
-				retval = ui_handle_menus_recursive(C, event, data->menu, 0);
+				retval = ui_handle_menus_recursive(C, event, data->menu, 0, false);
 
 			/* handle events for the activated button */
 			if ((data->menu && (retval == WM_UI_HANDLER_CONTINUE)) ||
@@ -7417,7 +7452,7 @@ static int ui_handler_popup(bContext *C, const wmEvent *event, void *userdata)
 		retval = WM_UI_HANDLER_CONTINUE;
 	}
 
-	ui_handle_menus_recursive(C, event, menu, 0);
+	ui_handle_menus_recursive(C, event, menu, 0, false);
 
 	/* free if done, does not free handle itself */
 	if (menu->menuretval) {

@@ -1126,6 +1126,33 @@ static char *rna_Node_path(PointerRNA *ptr)
 	return BLI_sprintfN("nodes[\"%s\"]", name_esc);
 }
 
+char *rna_Node_ImageUser_path(PointerRNA *ptr)
+{
+	bNodeTree *ntree = (bNodeTree *)ptr->id.data;
+	bNode *node;
+	char name_esc[sizeof(node->name) * 2];
+
+	for (node = ntree->nodes.first; node; node = node->next) {
+		if (node->type == SH_NODE_TEX_ENVIRONMENT) {
+			NodeTexEnvironment *data = node->storage;
+			if (&data->iuser != ptr->data)
+				continue;
+		}
+		else if (node->type == SH_NODE_TEX_IMAGE) {
+			NodeTexImage *data = node->storage;
+			if (&data->iuser != ptr->data)
+				continue;
+		}
+		else
+			continue;
+
+		BLI_strescape(name_esc, node->name, sizeof(name_esc));
+		return BLI_sprintfN("nodes[\"%s\"].image_user", name_esc);
+	}
+
+	return NULL;
+}
+
 static int rna_Node_poll(bNodeType *ntype, bNodeTree *ntree)
 {
 	extern FunctionRNA rna_Node_poll_func;
@@ -5120,6 +5147,11 @@ static void def_cmp_zcombine(StructRNA *srna)
 	prop = RNA_def_property(srna, "use_alpha", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "custom1", 0);
 	RNA_def_property_ui_text(prop, "Use Alpha", "Take Alpha channel into account when doing the Z operation");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+	prop = RNA_def_property(srna, "use_antialias_z", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "custom2", 0);
+	RNA_def_property_ui_text(prop, "Anti-Alias Z", "Anti-alias the z-buffer to try to avoid artifacts, mostly useful for Blender renders");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 

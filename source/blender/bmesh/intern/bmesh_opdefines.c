@@ -150,7 +150,6 @@ static BMOpDefine bmo_recalc_face_normals_def = {
 	"recalc_face_normals",
 	/* slots_in */
 	{{"faces", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}},
-	 {"use_face_tag", BMO_OP_SLOT_BOOL},  /* Tag faces that have been flipped */
 	 {{'\0'}},
 	},
 	{{{'\0'}}},  /* no output */
@@ -839,6 +838,26 @@ static BMOpDefine bmo_connect_verts_def = {
 	bmo_connect_verts_exec,
 	BMO_OPTYPE_FLAG_UNTAN_MULTIRES | BMO_OPTYPE_FLAG_NORMALS_CALC | BMO_OPTYPE_FLAG_SELECT_FLUSH,
 };
+
+/*
+ * Connect Verts.
+ *
+ * Split faces by adding edges that connect **verts**.
+ */
+static BMOpDefine bmo_connect_vert_pair_def = {
+	"connect_vert_pair",
+	/* slots_in */
+	{{"verts", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT}},
+	 {{'\0'}},
+	},
+	/* slots_out */
+	{{"edges.out", BMO_OP_SLOT_ELEMENT_BUF, {BM_EDGE}},
+	 {{'\0'}},
+	},
+	bmo_connect_vert_pair_exec,
+	BMO_OPTYPE_FLAG_UNTAN_MULTIRES | BMO_OPTYPE_FLAG_NORMALS_CALC | BMO_OPTYPE_FLAG_SELECT_FLUSH,
+};
+
 
 /*
  * Extrude Faces.
@@ -1685,6 +1704,7 @@ const BMOpDefine *bmo_opdefines[] = {
 	&bmo_collapse_def,
 	&bmo_collapse_uvs_def,
 	&bmo_connect_verts_def,
+	&bmo_connect_vert_pair_def,
 	&bmo_contextual_create_def,
 #ifdef WITH_BULLET
 	&bmo_convex_hull_def,

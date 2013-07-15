@@ -138,18 +138,26 @@ int BKE_mesh_edge_other_vert(const struct MEdge *e, int v);
 
 /* update the hide flag for edges and polys from the corresponding
  * flag in verts */
-void BKE_mesh_flush_hidden_from_verts(const struct MVert *mvert,
-                                      const struct MLoop *mloop,
-                                      struct MEdge *medge, int totedge,
-                                      struct MPoly *mpoly, int totpoly);
+void BKE_mesh_flush_hidden_from_verts_ex(const struct MVert *mvert,
+                                         const struct MLoop *mloop,
+                                         struct MEdge *medge, const int totedge,
+                                         struct MPoly *mpoly, const int totpoly);
+void BKE_mesh_flush_hidden_from_verts(struct Mesh *me);
+
+void BKE_mesh_flush_hidden_from_polys_ex(struct MVert *mvert,
+                                         const struct MLoop *mloop,
+                                         struct MEdge *medge, const int totedge,
+                                         const struct MPoly *mpoly, const int totpoly);
+void BKE_mesh_flush_hidden_from_polys(struct Mesh *me);
+
 
 void BKE_mesh_flush_select_from_polys_ex(struct MVert *mvert,       const int totvert,
-                                         struct MLoop *mloop,
+                                         const struct MLoop *mloop,
                                          struct MEdge *medge,       const int totedge,
                                          const struct MPoly *mpoly, const int totpoly);
 void BKE_mesh_flush_select_from_polys(struct Mesh *me);
 void BKE_mesh_flush_select_from_verts_ex(const struct MVert *mvert, const int totvert,
-                                         struct MLoop *mloop,
+                                         const struct MLoop *mloop,
                                          struct MEdge *medge,       const int totedge,
                                          struct MPoly *mpoly,       const int totpoly);
 void BKE_mesh_flush_select_from_verts(struct Mesh *me);
@@ -201,6 +209,7 @@ const char *BKE_mesh_cmp(struct Mesh *me1, struct Mesh *me2, float thresh);
 
 struct BoundBox *BKE_mesh_boundbox_get(struct Object *ob);
 void BKE_mesh_texspace_get(struct Mesh *me, float r_loc[3], float r_rot[3], float r_size[3]);
+void BKE_mesh_texspace_copy_from_object(struct Mesh *me, struct Object *ob);
 
 /* if old, it converts mface->edcode to edge drawflags */
 void BKE_mesh_make_edges(struct Mesh *me, const bool use_old);
@@ -358,6 +367,7 @@ void BKE_mesh_loops_to_mface_corners(struct CustomData *fdata, struct CustomData
                                      const int numTex, const int numCol, const int hasPCol, const int hasOrigSpace);
 
 void BKE_mesh_poly_edgehash_insert(struct EdgeHash *ehash, const struct MPoly *mp, const struct MLoop *mloop);
+void BKE_mesh_poly_edgebitmap_insert(unsigned int *edge_bitmap, const struct MPoly *mp, const struct MLoop *mloop);
 
 void BKE_mesh_do_versions_cd_flag_init(struct Mesh *mesh);
 

@@ -439,6 +439,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 	uiStringInfo enum_label = {BUT_GET_RNAENUM_LABEL, NULL};
 	uiStringInfo enum_tip = {BUT_GET_RNAENUM_TIP, NULL};
 	uiStringInfo op_keymap = {BUT_GET_OP_KEYMAP, NULL};
+	uiStringInfo prop_keymap = {BUT_GET_PROP_KEYMAP, NULL};
 	uiStringInfo rna_struct = {BUT_GET_RNASTRUCT_IDENTIFIER, NULL};
 	uiStringInfo rna_prop = {BUT_GET_RNAPROP_IDENTIFIER, NULL};
 
@@ -448,7 +449,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 	/* create tooltip data */
 	data = MEM_callocN(sizeof(uiTooltipData), "uiTooltipData");
 
-	uiButGetStrInfo(C, but, &but_tip, &enum_label, &enum_tip, &op_keymap, &rna_struct, &rna_prop, NULL);
+	uiButGetStrInfo(C, but, &but_tip, &enum_label, &enum_tip, &op_keymap, &prop_keymap, &rna_struct, &rna_prop, NULL);
 
 	/* special case, enum rna buttons only have enum item description,
 	 * use general enum description too before the specific one */
@@ -477,6 +478,13 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 	/* Op shortcut */
 	if (op_keymap.strinfo) {
 		BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), TIP_("Shortcut: %s"), op_keymap.strinfo);
+		data->color_id[data->totline] = UI_TIP_LC_NORMAL;
+		data->totline++;
+	}
+	
+	/* Property context-toggle shortcut */
+	if (prop_keymap.strinfo) {
+		BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), TIP_("Shortcut: %s"), prop_keymap.strinfo);
 		data->color_id[data->totline] = UI_TIP_LC_NORMAL;
 		data->totline++;
 	}
@@ -516,7 +524,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 
 		if (but->rnapoin.id.data) {
 			ID *id = but->rnapoin.id.data;
-			if (id->lib && id->lib->name) {
+			if (id->lib) {
 				BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), TIP_("Library: %s"), id->lib->name);
 				data->color_id[data->totline] = UI_TIP_LC_NORMAL;
 				data->totline++;
@@ -614,6 +622,8 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 		MEM_freeN(enum_tip.strinfo);
 	if (op_keymap.strinfo)
 		MEM_freeN(op_keymap.strinfo);
+	if (prop_keymap.strinfo)
+		MEM_freeN(prop_keymap.strinfo);
 	if (rna_struct.strinfo)
 		MEM_freeN(rna_struct.strinfo);
 	if (rna_prop.strinfo)
@@ -632,6 +642,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 	memset(&type, 0, sizeof(ARegionType));
 	type.draw = ui_tooltip_region_draw_cb;
 	type.free = ui_tooltip_region_free_cb;
+	type.regionid = RGN_TYPE_TEMPORARY;
 	ar->type = &type;
 	
 	/* set font, get bb */
@@ -1039,18 +1050,20 @@ void ui_searchbox_update(bContext *C, ARegion *ar, uiBut *but, const bool reset)
 	ED_region_tag_redraw(ar);
 }
 
-void ui_searchbox_autocomplete(bContext *C, ARegion *ar, uiBut *but, char *str)
+bool ui_searchbox_autocomplete(bContext *C, ARegion *ar, uiBut *but, char *str)
 {
 	uiSearchboxData *data = ar->regiondata;
+	bool changed = false;
 
 	if (str[0]) {
 		data->items.autocpl = autocomplete_begin(str, ui_get_but_string_max_length(but));
 
 		but->search_func(C, but->search_arg, but->editstr, &data->items);
 
-		autocomplete_end(data->items.autocpl, str);
+		changed = autocomplete_end(data->items.autocpl, str);
 		data->items.autocpl = NULL;
 	}
+	return changed;
 }
 
 static void ui_searchbox_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
@@ -1157,6 +1170,7 @@ ARegion *ui_searchbox_create(bContext *C, ARegion *butregion, uiBut *but)
 	memset(&type, 0, sizeof(ARegionType));
 	type.draw = ui_searchbox_region_draw_cb;
 	type.free = ui_searchbox_region_free_cb;
+	type.regionid = RGN_TYPE_TEMPORARY;
 	ar->type = &type;
 	
 	/* create searchbox data */
@@ -1249,8 +1263,11 @@ ARegion *ui_searchbox_create(bContext *C, ARegion *butregion, uiBut *but)
 		}
 
 		if (rect_i.ymin < 0) {
-			int newy1;
-			UI_view2d_to_region_no_clip(&butregion->v2d, 0, but->rect.ymax + ofsy, NULL, &newy1);
+			int newy1 = but->rect.ymax + ofsy;
+
+			if (butregion->v2d.cur.xmin != butregion->v2d.cur.xmax)
+				UI_view2d_to_region_no_clip(&butregion->v2d, 0, newy1, NULL, &newy1);
+
 			newy1 += butregion->winrct.ymin;
 
 			rect_i.ymax = BLI_rcti_size_y(&rect_i) + newy1;
@@ -1667,6 +1684,7 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C, ARegion *butregion, uiBut
 
 	memset(&type, 0, sizeof(ARegionType));
 	type.draw = ui_block_region_draw;
+	type.regionid = RGN_TYPE_TEMPORARY;
 	ar->type = &type;
 
 	UI_add_region_handlers(&ar->handlers);
@@ -2098,7 +2116,7 @@ static void uiBlockPicker(uiBlock *block, float rgba[4], PointerRNA *ptr, Proper
 	static char tip[50];
 	static char hexcol[128];
 	float rgb_gamma[3];
-	float min, max, step, precision;
+	float softmin, softmax, hardmin, hardmax, step, precision;
 	float *hsv = ui_block_hsv_get(block);
 	int yco;
 	
@@ -2124,7 +2142,8 @@ static void uiBlockPicker(uiBlock *block, float rgba[4], PointerRNA *ptr, Proper
 	/* sneaky way to check for alpha */
 	rgba[3] = FLT_MAX;
 
-	RNA_property_float_ui_range(ptr, prop, &min, &max, &step, &precision);
+	RNA_property_float_ui_range(ptr, prop, &softmin, &softmax, &step, &precision);
+	RNA_property_float_range(ptr, prop, &hardmin, &hardmax);
 	RNA_property_float_get_array(ptr, prop, rgba);
 
 	switch (U.color_picker_type) {
@@ -2178,7 +2197,8 @@ static void uiBlockPicker(uiBlock *block, float rgba[4], PointerRNA *ptr, Proper
 	uiButSetFunc(bt, do_hsv_rna_cb, bt, hsv);
 	bt = uiDefButF(block, NUMSLI, 0, IFACE_("S "),   0, yco -= UI_UNIT_Y, butwidth, UI_UNIT_Y, hsv + 1, 0.0, 1.0, 10, 3, TIP_("Saturation"));
 	uiButSetFunc(bt, do_hsv_rna_cb, bt, hsv);
-	bt = uiDefButF(block, NUMSLI, 0, IFACE_("V "),   0, yco -= UI_UNIT_Y, butwidth, UI_UNIT_Y, hsv + 2, 0.0, max, 10, 3, TIP_("Value"));
+	bt = uiDefButF(block, NUMSLI, 0, IFACE_("V "),   0, yco -= UI_UNIT_Y, butwidth, UI_UNIT_Y, hsv + 2, 0.0, softmax, 10, 3, TIP_("Value"));
+	bt->hardmax = hardmax;  /* not common but rgb  may be over 1.0 */
 	uiButSetFunc(bt, do_hsv_rna_cb, bt, hsv);
 	uiBlockEndAlign(block);
 

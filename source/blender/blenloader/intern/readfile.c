@@ -4148,6 +4148,11 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 	mesh->bb = NULL;
 	mesh->edit_btmesh = NULL;
 	
+	/* happens with old files */
+	if (mesh->mselect == NULL) {
+		mesh->totselect = 0;
+	}
+
 	/* Multires data */
 	mesh->mr= newdataadr(fd, mesh->mr);
 	if (mesh->mr) {
@@ -5703,8 +5708,9 @@ static void lib_link_screen(FileData *fd, Main *main)
 						ntree = nodetree_from_id(snode->id);
 						if (ntree)
 							snode->nodetree = ntree;
-						else
-							snode->nodetree = newlibadr(fd, sc->id.lib, snode->nodetree);
+						else {
+							snode->nodetree = newlibadr_us(fd, sc->id.lib, snode->nodetree);
+						}
 						
 						for (path = snode->treepath.first; path; path = path->next) {
 							if (path == snode->treepath.first) {
@@ -5712,7 +5718,7 @@ static void lib_link_screen(FileData *fd, Main *main)
 								path->nodetree = snode->nodetree;
 							}
 							else
-								path->nodetree = newlibadr(fd, sc->id.lib, path->nodetree);
+								path->nodetree = newlibadr_us(fd, sc->id.lib, path->nodetree);
 							
 							if (!path->nodetree)
 								break;
@@ -6041,7 +6047,7 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 							path->nodetree = snode->nodetree;
 						}
 						else
-							path->nodetree= restore_pointer_by_name(newmain, (ID*)path->nodetree, 0);
+							path->nodetree= restore_pointer_by_name(newmain, (ID*)path->nodetree, 2);
 						
 						if (!path->nodetree)
 							break;
@@ -9331,7 +9337,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	}
 
 	if (main->versionfile < 267) {
-		//if(!DNA_struct_elem_find(fd->filesdna, "Brush", "int", "stencil_pos")) {
+		//if (!DNA_struct_elem_find(fd->filesdna, "Brush", "int", "stencil_pos")) {
 		Brush *brush;
 
 		for (brush = main->brush.first; brush; brush = brush->id.next) {
@@ -9605,6 +9611,7 @@ static BHead *read_userdef(BlendFileData *bfd, FileData *fd, BHead *bhead)
 	link_list(fd, &user->themes);
 	link_list(fd, &user->user_keymaps);
 	link_list(fd, &user->addons);
+	link_list(fd, &user->autoexec_paths);
 	
 	for (keymap=user->user_keymaps.first; keymap; keymap=keymap->next) {
 		keymap->modal_items= NULL;
