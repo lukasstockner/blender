@@ -2861,11 +2861,12 @@ static void write_palettes(WriteData *wd, ListBase *idbase)
 
 	for (palette = idbase->first; palette; palette= palette->id.next) {
 		if (palette->id.us > 0 || wd->current) {
+			PaletteColor *color;
 			writestruct(wd, ID_PAL, "Palette", 1, palette);
 			if (palette->id.properties) IDP_WriteProperty(palette->id.properties, wd);
 
-			if (palette->colours)
-				writedata(wd, DATA, palette->num_of_colours, palette->colours);
+			for (color = palette->colors.first; color; color= color->next)
+				writestruct(wd, DATA, "PaletteColor", 1, color);
 		}
 	}
 }

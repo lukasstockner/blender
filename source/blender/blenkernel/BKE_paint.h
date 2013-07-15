@@ -52,6 +52,7 @@ struct Tex;
 struct ImagePool;
 struct UnifiedPaintSettings;
 struct Palette;
+struct PaletteColor;
 struct Main;
 
 enum OverlayFlags;
@@ -96,7 +97,9 @@ void BKE_paint_init(struct Paint *p, const char col[3]);
 void BKE_paint_free(struct Paint *p);
 void BKE_paint_copy(struct Paint *src, struct Paint *tar);
 
+void BKE_free_palette(struct Palette *palette);
 struct Palette *BKE_palette_add(struct Main *bmain, const char *name);
+struct PaletteColor *BKE_palette_color_add(struct Palette *palette);
 
 struct Paint *BKE_paint_get_active(struct Scene *sce);
 struct Paint *BKE_paint_get_active_from_context(const struct bContext *C);

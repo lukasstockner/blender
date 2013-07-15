@@ -44,6 +44,7 @@
 #include "BLI_bitmap.h"
 #include "BLI_utildefines.h"
 #include "BLI_math_vector.h"
+#include "BLI_listbase.h"
 
 #include "BKE_brush.h"
 #include "BKE_main.h"
@@ -294,6 +295,16 @@ Palette *BKE_palette_add(Main *bmain, const char *name)
 	return palette;
 }
 
+void BKE_free_palette (Palette *palette) {
+	BLI_freelistN(&palette->colors);
+}
+
+PaletteColor *BKE_palette_color_add(Palette *palette)
+{
+	PaletteColor *color = MEM_callocN(sizeof(*color), "Pallete Color");
+	BLI_addtail(&palette->colors, color);
+	return color;
+}
 
 /* are we in vertex paint or weight pain face select mode? */
 int paint_facesel_test(Object *ob)
@@ -327,8 +338,12 @@ void BKE_paint_init(Paint *p, const char col[3])
 	palette = BKE_paint_palette(p);
 	if (brush == NULL)
 		brush = BKE_brush_add(G.main, "Brush");
-	if (palette == NULL)
-		palette = BKE_palette_add(G.main, "Palette");
+	if (palette == NULL) {
+		if (G.main->palettes.first)
+			palette = (Palette *) G.main->palettes.first;
+		else
+			palette = BKE_palette_add(G.main, "Palette");
+	}
 
 	BKE_paint_brush_set(p, brush);
 	BKE_paint_palette_set(p, palette);

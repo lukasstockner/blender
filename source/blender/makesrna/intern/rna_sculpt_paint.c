@@ -287,13 +287,43 @@ static void rna_Paint_brush_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Po
 }
 #else
 
+static void rna_def_palettecolor(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "PaletteColor", NULL);
+	RNA_def_struct_ui_text(srna, "Palette Color", "");
+
+	prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_range(prop, 0.0, 1.0);
+	RNA_def_property_float_sdna(prop, NULL, "rgb");
+	RNA_def_property_ui_text(prop, "Color", "");
+
+	prop = RNA_def_property(srna, "strength", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0, 1.0);
+	RNA_def_property_float_sdna(prop, NULL, "value");
+	RNA_def_property_ui_text(prop, "Value", "");
+
+	prop = RNA_def_property(srna, "weight", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0, 1.0);
+	RNA_def_property_float_sdna(prop, NULL, "value");
+	RNA_def_property_ui_text(prop, "Weight", "");
+}
+
+
 static void rna_def_palette(BlenderRNA *brna)
 {
 	StructRNA *srna;
+	PropertyRNA *prop;
 
 	srna = RNA_def_struct(brna, "Palette", "ID");
 	RNA_def_struct_ui_text(srna, "Palette", "");
 	RNA_def_struct_ui_icon(srna, ICON_COLOR);
+
+	prop = RNA_def_property(srna, "colors", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_struct_type(prop, "PaletteColor");
+	RNA_def_property_ui_text(prop, "Palette Color", "Colors that are part of this palette");
 }
 
 
@@ -694,6 +724,7 @@ void RNA_def_sculpt_paint(BlenderRNA *brna)
 {
 	/* *** Non-Animated *** */
 	RNA_define_animate_sdna(false);
+	rna_def_palettecolor(brna);
 	rna_def_palette(brna);
 	rna_def_paint(brna);
 	rna_def_sculpt(brna);

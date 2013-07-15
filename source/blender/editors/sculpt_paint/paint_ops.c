@@ -169,12 +169,61 @@ static void PALETTE_OT_new(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Add New Palette";
-	ot->description = "Add New Palette";
+	ot->description = "Add new palette";
 	ot->idname = "PALETTE_OT_new";
 
 	/* api callbacks */
 	ot->exec = palette_new_exec;
 
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static int palette_color_add_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	/*int type = RNA_enum_get(op->ptr, "type");*/
+	Paint *paint = BKE_paint_get_active_from_context(C);
+	Brush *brush = paint->brush;
+	PaintMode mode = BKE_paintmode_get_active_from_context(C);
+	Palette *palette = paint->palette;
+	PaletteColor *color = BKE_palette_color_add(palette);
+
+	if (ELEM3(mode, PAINT_TEXTURE_PROJECTIVE, PAINT_TEXTURE_2D, PAINT_VERTEX)) {
+		copy_v3_v3(color->rgb, brush->rgb);
+		color->value = 0.0;
+	}
+	else if (mode == PAINT_WEIGHT) {
+		zero_v3(color->rgb);
+		color->value = brush->weight;
+	}
+	else if (mode == PAINT_WEIGHT) {
+		zero_v3(color->rgb);
+		color->value = brush->alpha;
+	}
+
+	return OPERATOR_FINISHED;
+}
+
+static int palette_color_add_poll(bContext *C)
+{
+	Paint *paint = BKE_paint_get_active_from_context(C);
+
+	if (paint && paint->palette != NULL)
+		return TRUE;
+
+	return FALSE;
+}
+
+static void PALETTE_OT_color_add(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "New Palette Color";
+	ot->description = "Add new color to active palette";
+	ot->idname = "PALETTE_OT_color_add";
+
+	/* api callbacks */
+	ot->exec = palette_color_add_exec;
+	ot->poll = palette_color_add_poll;
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
@@ -957,7 +1006,7 @@ void ED_operatortypes_paint(void)
 {
 	/* palette */
 	WM_operatortype_append(PALETTE_OT_new);
-
+	WM_operatortype_append(PALETTE_OT_color_add);
 	/* brush */
 	WM_operatortype_append(BRUSH_OT_add);
 	WM_operatortype_append(BRUSH_OT_scale_size);

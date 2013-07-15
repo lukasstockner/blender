@@ -122,13 +122,20 @@ typedef struct Brush {
 	float mask_stencil_dimension[2];
 } Brush;
 
+typedef struct PaletteColor
+{
+	struct PaletteColor *next, *prev;
+	/* two values, one to store rgb, other to store values for sculpt/weight */
+	float rgb[3];
+	float value;
+} PaletteColor;
 
 typedef struct Palette
 {
 	ID id;
 
 	/* pointer to individual colours */
-	float (*colours)[3];
+	ListBase colors;
 
 	int num_of_colours;
 	int pad;

@@ -104,6 +104,7 @@
 #include "BKE_mask.h"
 #include "BKE_node.h"
 #include "BKE_object.h"
+#include "BKE_paint.h"
 #include "BKE_particle.h"
 #include "BKE_packedFile.h"
 #include "BKE_speaker.h"
@@ -980,6 +981,7 @@ void BKE_libblock_free(ListBase *lb, void *idv)
 			BKE_free_linestyle((FreestyleLineStyle *)id);
 			break;
 		case ID_PAL:
+			BKE_free_palette((Palette *)id);
 			break;
 	}
 

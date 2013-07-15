@@ -1840,7 +1840,7 @@ static void direct_link_brush(FileData *fd, Brush *brush)
 }
 
 /* ************ READ Palette *************** */
-static void lib_link_palette(FileData *UNUSED(fd), Main *main)
+static void lib_link_palette(FileData *fd, Main *main)
 {
 	Palette *palette;
 
@@ -1848,6 +1848,8 @@ static void lib_link_palette(FileData *UNUSED(fd), Main *main)
 	for (palette = main->palettes.first; palette; palette = palette->id.next) {
 		if (palette->id.flag & LIB_NEED_LINK) {
 			palette->id.flag -= LIB_NEED_LINK;
+
+			if (palette->id.properties) IDP_LibLinkProperty(palette->id.properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 		}
 	}
 }
@@ -1855,7 +1857,7 @@ static void lib_link_palette(FileData *UNUSED(fd), Main *main)
 static void direct_link_palette(FileData *fd, Palette *palette)
 {
 	/* palette itself has been read */
-	palette->colours = newdataadr(fd, palette->colours);
+	link_list(fd, &palette->colors);
 }
 
 
