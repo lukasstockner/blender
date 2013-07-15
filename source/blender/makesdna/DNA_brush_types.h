@@ -128,7 +128,7 @@ typedef struct Palette
 	ID id;
 
 	/* pointer to individual colours */
-	float *colours[3];
+	float (*colours)[3];
 
 	int num_of_colours;
 	int pad;

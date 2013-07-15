@@ -2855,6 +2855,21 @@ static void write_brushes(WriteData *wd, ListBase *idbase)
 	}
 }
 
+static void write_palettes(WriteData *wd, ListBase *idbase)
+{
+	Palette *palette;
+
+	for (palette = idbase->first; palette; palette= palette->id.next) {
+		if (palette->id.us > 0 || wd->current) {
+			writestruct(wd, ID_PAL, "Palette", 1, palette);
+			if (palette->id.properties) IDP_WriteProperty(palette->id.properties, wd);
+
+			if (palette->colours)
+				writestruct(wd, DATA, "PaletteColors", palette->num_of_colours, palette->colours);
+		}
+	}
+}
+
 static void write_scripts(WriteData *wd, ListBase *idbase)
 {
 	Script *script;
@@ -3296,6 +3311,7 @@ static int write_file_handle(Main *mainvar, int handle, MemFile *compare, MemFil
 	write_particlesettings(wd, &mainvar->particle);
 	write_nodetrees(wd, &mainvar->nodetree);
 	write_brushes  (wd, &mainvar->brush);
+	write_palettes (wd, &mainvar->palettes);
 	write_scripts  (wd, &mainvar->script);
 	write_gpencils (wd, &mainvar->gpencil);
 	write_linestyles(wd, &mainvar->linestyle);

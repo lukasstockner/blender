@@ -1839,6 +1839,26 @@ static void direct_link_brush(FileData *fd, Brush *brush)
 	brush->icon_imbuf = NULL;
 }
 
+/* ************ READ Palette *************** */
+static void lib_link_palette(FileData *UNUSED(fd), Main *main)
+{
+	Palette *palette;
+
+	/* only link ID pointers */
+	for (palette = main->palettes.first; palette; palette = palette->id.next) {
+		if (palette->id.flag & LIB_NEED_LINK) {
+			palette->id.flag -= LIB_NEED_LINK;
+		}
+	}
+}
+
+static void direct_link_palette(FileData *fd, Palette *palette)
+{
+	/* palette itself has been read */
+	palette->colours = newdataadr(fd, palette->colours);
+}
+
+
 static void direct_link_script(FileData *UNUSED(fd), Script *script)
 {
 	script->id.us = 1;
@@ -5042,6 +5062,7 @@ static void link_paint(FileData *fd, Scene *sce, Paint *p)
 {
 	if (p) {
 		p->brush = newlibadr_us(fd, sce->id.lib, p->brush);
+		p->palette = newlibadr_us(fd, sce->id.lib, p->palette);
 		p->paint_cursor = NULL;
 	}
 }
@@ -7177,6 +7198,9 @@ static BHead *read_libblock(FileData *fd, Main *main, BHead *bhead, int flag, ID
 			break;
 		case ID_LS:
 			direct_link_linestyle(fd, (FreestyleLineStyle *)id);
+			break;
+		case ID_PAL:
+			direct_link_palette(fd, (Palette *)id);
 			break;
 	}
 	
@@ -9566,6 +9590,7 @@ static void lib_link_all(FileData *fd, Main *main)
 	lib_link_vfont(fd, main);
 	lib_link_nodetree(fd, main);	/* has to be done after scene/materials, this will verify group nodes */
 	lib_link_brush(fd, main);
+	lib_link_palette(fd, main);
 	lib_link_particlesettings(fd, main);
 	lib_link_movieclip(fd, main);
 	lib_link_mask(fd, main);
