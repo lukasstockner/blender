@@ -1383,7 +1383,7 @@ static uiBlock *wm_operator_ui_create(bContext *C, ARegion *ar, void *userData)
 	layout = uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, data->width, data->height, style);
 
 	/* since ui is defined the auto-layout args are not used */
-	uiLayoutOperatorButs(C, layout, op, NULL, 'V', 0);
+	uiLayoutOperatorButs(C, layout, op, NULL, 'H', 0);
 
 	uiPopupBoundsBlock(block, 4, 0, 0);
 	uiEndBlock(C, block);

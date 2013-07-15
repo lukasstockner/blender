@@ -70,7 +70,7 @@
 
 static void view3d_panel_operator_redo_buts(const bContext *C, Panel *pa, wmOperator *op)
 {
-	uiLayoutOperatorButs(C, pa->layout, op, NULL, 'V', 0);
+	uiLayoutOperatorButs(C, pa->layout, op, NULL, 'H', 0);
 }
 
 static void view3d_panel_operator_redo_header(const bContext *C, Panel *pa)
