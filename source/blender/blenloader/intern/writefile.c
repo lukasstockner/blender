@@ -2865,7 +2865,7 @@ static void write_palettes(WriteData *wd, ListBase *idbase)
 			if (palette->id.properties) IDP_WriteProperty(palette->id.properties, wd);
 
 			if (palette->colours)
-				writestruct(wd, DATA, "PaletteColors", palette->num_of_colours, palette->colours);
+				writedata(wd, DATA, palette->num_of_colours, palette->colours);
 		}
 	}
 }
