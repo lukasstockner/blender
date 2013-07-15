@@ -708,9 +708,11 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
 
             if brush.image_tool == 'DRAW' and brush.blend not in ('ERASE_ALPHA', 'ADD_ALPHA'):
                 col.template_color_picker(brush, "color", value_slider=True)
+                col = layout.column(align=True)
                 col.prop(brush, "color", text="")
                 col.prop(brush, "secondary_color", text="")
-                col.template_ID(toolsettings, "palette", new="palette.new")
+                col = layout.column()
+                col.template_ID(settings, "palette", new="palette.new")
 
             row = col.row(align=True)
             self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")

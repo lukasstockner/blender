@@ -293,6 +293,7 @@ static void rna_def_palette(BlenderRNA *brna)
 
 	srna = RNA_def_struct(brna, "Palette", "ID");
 	RNA_def_struct_ui_text(srna, "Palette", "");
+	RNA_def_struct_ui_icon(srna, ICON_COLOR);
 }
 
 
