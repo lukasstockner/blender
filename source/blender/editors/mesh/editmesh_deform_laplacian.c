@@ -60,6 +60,7 @@ struct BStaticAnchors {
 	int * list_index;			/* Static vertex index list*/
 	float (*co)[3];				/* Original vertex coordinates*/
 	float (*no)[3];				/* Original vertex normal*/
+	BMVert ** list_verts;		/* Vertex order by index*/
 };
 typedef struct BStaticAnchors StaticAnchors;
 
@@ -73,7 +74,6 @@ struct BLaplacianSystem {
 	float *vweights;			/* Total sum of weights per vertice*/
 	float (*delta)[3];			/* Differential Coordinates*/
 	int *list_uverts;			/* Unit vectors of projected edges onto the plane orthogonal to  n*/
-	BMVert ** list_verts;		/* Vertex order by index*/
 	/* Pointers to data*/
 	int numVerts;
 	int numHandlers;
@@ -151,8 +151,10 @@ static StaticAnchors * init_static_anchors(int numv, int nums)
 	sa->numVerts = numv;
 	sa->numStatics = nums;
 	sa->list_index = (int *)MEM_callocN(sizeof(int)*(sa->numStatics), "LapListStatics");
+	sa->list_verts = (BMVert**)MEM_callocN(sizeof(BMVert*)*(sa->numVerts), "LapListverts");
 	sa->co = (float (*)[3])MEM_callocN(sizeof(float)*(sa->numVerts*3), "LapCoordinates");
 	sa->no = (float (*)[3])MEM_callocN(sizeof(float)*(sa->numVerts*3), "LapNormals");
+	memset(sa->no, 0.0, sizeof(float) * sa->numVerts * 3);
 	return sa;
 }
 
@@ -185,7 +187,6 @@ static LaplacianSystem * init_laplacian_system(int numv, int nums, int numh)
 	sys->vweights = (float *)MEM_callocN(sizeof(float) * sys->numVerts, "LapVweights");
 	sys->list_uverts = (int *)MEM_callocN(sizeof(BMVert *) * sys->numVerts, "LapUverts");
 	sys->delta = (float (*)[3])MEM_callocN(sizeof(float) * sys->numVerts * 3, "LapDelta");
-	sys->list_verts = (BMVert**)MEM_callocN(sizeof(BMVert*) * sys->numVerts, "LapVerts");
 	memset(sys->vweights, 0.0 , sizeof(float) * sys->numVerts);
 	memset(sys->delta, 0.0, sizeof(float) * sys->numVerts * 3);
 	return sys;
@@ -197,6 +198,7 @@ static void delete_static_anchors(StaticAnchors * sa)
 	delete_void_pointer(sa->co);
 	delete_void_pointer(sa->list_index);
 	delete_void_pointer(sa->no);
+	delete_void_pointer(sa->list_verts);
 	delete_void_pointer(sa);
 	sa = NULL;
 }
@@ -215,7 +217,6 @@ static void delete_laplacian_system(LaplacianSystem *sys)
 	delete_void_pointer(sys->vweights);
 	delete_void_pointer(sys->delta);
 	delete_void_pointer(sys->list_uverts);
-	delete_void_pointer(sys->list_verts);
 	sys->bm = NULL;
 	if (sys->context) nlDeleteContext(sys->context);
 	if (sys->contextrot) nlDeleteContext(sys->contextrot);
@@ -320,7 +321,8 @@ static void laplacian_deform_mark_static(bContext *C, wmOperator *op)
 	BM_ITER_MESH (v, &viter, em->bm, BM_VERTS_OF_MESH) {
 		vid = BM_elem_index_get(v);
 		copy_v3_v3(data->sa->co[vid], v->co);
-		copy_v3_v3(data->sa->no[vid], v->no);
+		//copy_v3_v3(data->sa->no[vid], v->no);
+		data->sa->list_verts[vid] = v;
 		if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
 			data->sa->list_index[i] = vid;
 			i = i + 1;
@@ -372,7 +374,7 @@ static float cotan_weight(float *v1, float *v2, float *v3)
 
 static void init_laplacian_matrix( SystemCustomData * data)
 {
-	float v1[3], v2[3], v3[3], v4[3];
+	float v1[3], v2[3], v3[3], v4[3], no[3];
 	float w2, w3, w4;
 	int i, j, vid, vidf[4];
 	bool has_4_vert;
@@ -395,16 +397,30 @@ static void init_laplacian_matrix( SystemCustomData * data)
 		idv2 = vidf[1];
 		idv3 = vidf[2];
 		idv4 = has_4_vert ? vidf[3] : 0;
+		if (has_4_vert) {
+			normal_quad_v3(no, sa->co[idv1], sa->co[idv2], sa->co[idv3], sa->co[idv4]); 
+			add_v3_v3(sa->no[idv1], no);
+			add_v3_v3(sa->no[idv2], no);
+			add_v3_v3(sa->no[idv3], no);
+			add_v3_v3(sa->no[idv4], no);
+		} 
+		else {
+			normal_tri_v3(no, sa->co[idv1], sa->co[idv2], sa->co[idv3]); 
+			add_v3_v3(sa->no[idv1], no);
+			add_v3_v3(sa->no[idv2], no);
+			add_v3_v3(sa->no[idv3], no);
+		}
+
 
 		idv[0] = idv1;
 		idv[1] = idv2;
 		idv[2] = idv3;
 		idv[3] = idv4;
 
-		nlMakeCurrent(sys->context);
-		nlRightHandSideAdd(0, idv1						, 0.0f);
-		nlRightHandSideAdd(0, sys->numVerts + idv1		, 0.0f);
-		nlRightHandSideAdd(0, 2*sys->numVerts + idv1	, 0.0f);
+		/*nlMakeCurrent(sys->context);
+		nlRightHandSideSet(0, idv1						, 0.0f);
+		nlRightHandSideSet(0, sys->numVerts + idv1		, 0.0f);
+		nlRightHandSideSet(0, 2*sys->numVerts + idv1	, 0.0f);*/
 
 		for (j = 0; j < i; j++) {
 			idv1 = idv[j];
@@ -426,6 +442,11 @@ static void init_laplacian_matrix( SystemCustomData * data)
 				sys->delta[idv1][0] -=  v4[0] * w4;
 				sys->delta[idv1][1] -=  v4[1] * w4;
 				sys->delta[idv1][2] -=  v4[2] * w4;
+
+				nlMakeCurrent(sys->context);
+				nlRightHandSideAdd(0, idv1						, -v4[0] * w4);
+				nlRightHandSideAdd(0, sys->numVerts + idv1		, -v4[1] * w4);
+				nlRightHandSideAdd(0, 2*sys->numVerts + idv1	, -v4[2] * w4);
 
 				nlMakeCurrent(sys->context);
 				nlMatrixAdd(idv1					, idv4						, -w4 );
@@ -460,6 +481,19 @@ static void init_laplacian_matrix( SystemCustomData * data)
 			sys->delta[idv1][0] -=  v3[0] * w3;
 			sys->delta[idv1][1] -=  v3[1] * w3;
 			sys->delta[idv1][2] -=  v3[2] * w3;
+
+			nlMakeCurrent(sys->context);
+			nlRightHandSideAdd(0, idv1						, v1[0] * (w2 + w3 + w4));
+			nlRightHandSideAdd(0, sys->numVerts + idv1		, v1[1] * (w2 + w3 + w4));
+			nlRightHandSideAdd(0, 2*sys->numVerts + idv1	, v1[2] * (w2 + w3 + w4));
+
+			nlRightHandSideAdd(0, idv1						, -v2[0] * w2);
+			nlRightHandSideAdd(0, sys->numVerts + idv1		, -v2[1] * w2);
+			nlRightHandSideAdd(0, 2*sys->numVerts + idv1	, -v2[2] * w2);
+
+			nlRightHandSideAdd(0, idv1						, -v3[0] * w3);
+			nlRightHandSideAdd(0, sys->numVerts + idv1		, -v3[1] * w3);
+			nlRightHandSideAdd(0, 2*sys->numVerts + idv1	, -v3[2] * w3);
 
 			nlMakeCurrent(sys->context);
 			nlMatrixAdd(idv1					, idv2						, -w2);
@@ -512,7 +546,7 @@ static void compute_implict_rotations(SystemCustomData * data)
 	nlMakeCurrent(sys->context);
 	BM_ITER_MESH (v, &viter, sys->bm, BM_VERTS_OF_MESH) {
 		i = BM_elem_index_get(v);
-		sys->list_verts[i] = v;
+		normalize_v3( sa->no[i]);
 		BM_ITER_ELEM(e, &eiter, v, BM_EDGES_OF_VERT) {
 			vid = BM_elem_index_get(e->v1);
 			if (vid == i) {
@@ -571,7 +605,7 @@ static void compute_implict_rotations(SystemCustomData * data)
 		
 		for (j = 0; j < ln; j++) {
 			jid = vidn[j];
-			nlMatrixAdd(i,						jid						, - get_matrixd(TDelta, 0, j));
+			/*nlMatrixAdd(i,						jid						, - get_matrixd(TDelta, 0, j));
 			nlMatrixAdd(i,						sys->numVerts + jid		, - get_matrixd(TDelta, 0, j + ln));
 			nlMatrixAdd(i,						sys->numVerts*2 + jid	, - get_matrixd(TDelta, 0, j + ln *2));
 			nlMatrixAdd(i + sys->numVerts,		jid						, - get_matrixd(TDelta, 1, j));
@@ -579,7 +613,7 @@ static void compute_implict_rotations(SystemCustomData * data)
 			nlMatrixAdd(i + sys->numVerts,		sys->numVerts*2 + jid	, - get_matrixd(TDelta, 1, j + ln *2));
 			nlMatrixAdd(i + sys->numVerts*2,	jid						, - get_matrixd(TDelta, 2, j));
 			nlMatrixAdd(i + sys->numVerts*2,	sys->numVerts + jid		, - get_matrixd(TDelta, 2, j + ln));
-			nlMatrixAdd(i + sys->numVerts*2,	sys->numVerts*2 + jid	, - get_matrixd(TDelta, 2, j + ln *2));
+			nlMatrixAdd(i + sys->numVerts*2,	sys->numVerts*2 + jid	, - get_matrixd(TDelta, 2, j + ln *2));*/
 
 			push_back_triplet(sys->tripletList, i,						jid						, - get_matrixd(TDelta, 0, j));
 			push_back_triplet(sys->tripletList, i,						sys->numVerts + jid		, - get_matrixd(TDelta, 0, j + ln));
@@ -664,7 +698,7 @@ static void rotate_differential_coordinates(SystemCustomData * data)
 
 		}
 
-		if (num_fni>0) mul_v3_fl(ni, 1.0f/((float)num_fni));
+		normalize_v3(ni);
 		sub_v3_v3v3(uij, pj, pi);
 		mul_v3_v3fl(dun, ni, dot_v3v3(uij, ni));
 		sub_v3_v3(uij, dun);
@@ -853,24 +887,24 @@ static void laplacian_deform_preview(bContext *C, wmOperator *op)
 		{
 			vid = shs->list_handlers[i];
 			nlMakeCurrent(sys->context);
-			nlRightHandSideAdd(0, (n + ns + i)*3	 	, sys->list_verts[vid]->co[0]);
-			nlRightHandSideAdd(0, (n + ns + i)*3 + 1	, sys->list_verts[vid]->co[1]);
-			nlRightHandSideAdd(0, (n + ns + i)*3 + 2	, sys->list_verts[vid]->co[2]);
+			nlRightHandSideAdd(0, (n + ns + i)*3	 	, sa->list_verts[vid]->co[0]);
+			nlRightHandSideAdd(0, (n + ns + i)*3 + 1	, sa->list_verts[vid]->co[1]);
+			nlRightHandSideAdd(0, (n + ns + i)*3 + 2	, sa->list_verts[vid]->co[2]);
 
 			nlMatrixAdd((n + ns + i)*3		, vid		, 1.0f);
 			nlMatrixAdd((n + ns + i)*3 + 1  , n + vid	, 1.0f);
 			nlMatrixAdd((n + ns + i)*3 + 2	, 2*n + vid	, 1.0f);
 
 			nlMakeCurrent(sys->contextrot);
-			nlRightHandSideAdd(0, n + ns + i 	, sys->list_verts[vid]->co[0]);
-			nlRightHandSideAdd(1, n + ns + i	, sys->list_verts[vid]->co[1]);
-			nlRightHandSideAdd(2, n + ns + i	, sys->list_verts[vid]->co[2]);
+			nlRightHandSideAdd(0, n + ns + i 	, sa->list_verts[vid]->co[0]);
+			nlRightHandSideAdd(1, n + ns + i	, sa->list_verts[vid]->co[1]);
+			nlRightHandSideAdd(2, n + ns + i	, sa->list_verts[vid]->co[2]);
 
 			nlMatrixAdd(n + ns + i 		, vid					, 1.0f);
 
-			set_vectord(sys->VectorB, (n + ns + i)*3	 	, sys->list_verts[vid]->co[0]);
-			set_vectord(sys->VectorB, (n + ns + i)*3 + 1	, sys->list_verts[vid]->co[1]);
-			set_vectord(sys->VectorB, (n + ns + i)*3 + 2	, sys->list_verts[vid]->co[2]);
+			set_vectord(sys->VectorB, (n + ns + i)*3	 	, sa->list_verts[vid]->co[0]);
+			set_vectord(sys->VectorB, (n + ns + i)*3 + 1	, sa->list_verts[vid]->co[1]);
+			set_vectord(sys->VectorB, (n + ns + i)*3 + 2	, sa->list_verts[vid]->co[2]);
 
 			push_back_triplet(sys->tripletList, (n + ns + i)*3			, vid		, 1.0f);
 			push_back_triplet(sys->tripletList, (n + ns + i)*3 + 1		, n + vid	, 1.0f);
@@ -887,6 +921,7 @@ static void laplacian_deform_preview(bContext *C, wmOperator *op)
 
 		if (nlSolveAdvanced(NULL, NL_TRUE) ) {
 			rotate_differential_coordinates(data);
+			//nlMakeCurrent(sys->context);
 			nlMakeCurrent(sys->contextrot);
 			nlEnd(NL_MATRIX);
 			nlEnd(NL_SYSTEM);
@@ -900,9 +935,9 @@ static void laplacian_deform_preview(bContext *C, wmOperator *op)
 					v->co[0] = nlGetVariable(0, vid);
 					v->co[1] = nlGetVariable(1, vid);
 					v->co[2] = nlGetVariable(2, vid);
-					//v->co[0] = nlGetVariable(0, vid);
-					//v->co[1] = nlGetVariable(0, vid + n);
-					//v->co[2] = nlGetVariable(0, vid + 2*n);
+					/*v->co[0] = nlGetVariable(0, vid);
+					v->co[1] = nlGetVariable(0, vid + n);
+					v->co[2] = nlGetVariable(0, vid + 2*n);*/
 				}			
 			}
 			printf("\nSystem solved");
