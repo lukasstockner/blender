@@ -82,7 +82,7 @@ if(WITH_CYCLES_BLENDER)
 	add_subdirectory(blender)
 endif()
 
-if(WITH_CYCLES_TEST OR WITH_CYCLES_NETWORK)
+if(WITH_CYCLES_TEST OR WITH_CYCLES_NETWORK OR WITH_CYCLES_OPENVDB)
 	add_subdirectory(app)
 endif()
 
@@ -93,4 +93,3 @@ add_subdirectory(kernel)
 add_subdirectory(render)
 add_subdirectory(subd)
 add_subdirectory(util)
-

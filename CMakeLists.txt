@@ -1259,17 +1259,12 @@ elseif(WIN32)
 			set(OPENIMAGEIO_DEFINITIONS "-DUSE_TBB=0")
 		endif()
 
-		if(WITH_CYCLES_OPENVDB) #requires tbb and glfw
+		if(WITH_CYCLES_OPENVDB) #requires tbb 
 			set(TBB ${LIBDIR}/tbb)
 			set(TBB_INCLUDE_DIRS ${TBB}/include)
-			#set(TBB_LIBRARIES optimized OpenImageIO debug OpenImageIO_d)
+			set(TBB_LIBRARIES tbb tbb_debug)
 			set(TBB_LIBPATH ${TBB}/lib)
 			set(TBB_DEFINITIONS "")
-
-			set(GLFW ${LIBDIR}/glfw)
-			set(GLFW_INCLUDE_DIRS ${GLFW}/include)
-			set(GLFW_LIBPATH ${GLFW}/lib)
-			set(GLFW_DEFINITIONS "")
 		endif()
 
 		if(WITH_LLVM)
