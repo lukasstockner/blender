@@ -47,8 +47,6 @@
 #include "BLI_array.h"
 #include "ONL_opennl.h"
 
-#include "editmesh_deform_utils.h"
-
 #include "ED_screen.h"
 #include "ED_space_api.h"
 #include "ED_view3d.h"
@@ -71,7 +69,6 @@ struct BHandlerAnchors {
 typedef struct BHandlerAnchors HandlerAnchors;
 
 struct BLaplacianSystem {
-	float *vweights;			/* Total sum of weights per vertice*/
 	float (*delta)[3];			/* Differential Coordinates*/
 	int *list_uverts;			/* Unit vectors of projected edges onto the plane orthogonal to  n*/
 	/* Pointers to data*/
@@ -81,10 +78,6 @@ struct BLaplacianSystem {
 	BMesh *bm;
 	NLContext *context;			/* System for solve general implicit rotations*/
 	NLContext *contextrot;		/* System for solve general Laplacian with rotated differential coordinates*/
-	vptrSpMatrixD spLapMatrix;  /* Sparse Laplacian Matrix*/
-	vptrVectorD VectorB;		/* Array to store vertex positions of handlers*/
-	vptrVectorD VectorX;		/* Array to  store solution */
-	vptrTripletD tripletList;	/* List of triplets in Laplacian Matrix*/
 };
 typedef struct BLaplacianSystem LaplacianSystem;
 
@@ -121,6 +114,7 @@ static StaticAnchors * init_static_anchors(int numv, int nums);
 static HandlerAnchors * init_handler_anchors(int numh);
 static LaplacianSystem * init_laplacian_system(int numv, int nums, int numh);
 static float cotan_weight(float *v1, float *v2, float *v3);
+static float div_fl_fl(float x, float y);
 static int laplacian_deform_invoke(struct bContext *C, struct wmOperator *op, const struct wmEvent *evt);
 static int laplacian_deform_modal(bContext *C, wmOperator *op, const wmEvent *event);
 static int laplacian_deform_cancel(bContext *C, wmOperator *op);
@@ -180,14 +174,8 @@ static LaplacianSystem * init_laplacian_system(int numv, int nums, int numh)
 	sys->numHandlers = numh;
 	rows = (sys->numVerts + sys->numStatics + sys->numHandlers) * 3;
 	cols = sys->numVerts * 3;
-	sys->spLapMatrix = new_spmatrix(rows, cols);
-	sys->VectorB = new_vectord(rows);
-	sys->VectorX = new_vectord(cols);
-	sys->tripletList = new_triplet(sys->numVerts*18);
-	sys->vweights = (float *)MEM_callocN(sizeof(float) * sys->numVerts, "LapVweights");
 	sys->list_uverts = (int *)MEM_callocN(sizeof(BMVert *) * sys->numVerts, "LapUverts");
 	sys->delta = (float (*)[3])MEM_callocN(sizeof(float) * sys->numVerts * 3, "LapDelta");
-	memset(sys->vweights, 0.0 , sizeof(float) * sys->numVerts);
 	memset(sys->delta, 0.0, sizeof(float) * sys->numVerts * 3);
 	return sys;
 }
@@ -214,16 +202,11 @@ static void delete_handler_anchors(HandlerAnchors * sh)
 static void delete_laplacian_system(LaplacianSystem *sys)
 {
 	if (!sys) return;
-	delete_void_pointer(sys->vweights);
 	delete_void_pointer(sys->delta);
 	delete_void_pointer(sys->list_uverts);
 	sys->bm = NULL;
 	if (sys->context) nlDeleteContext(sys->context);
 	if (sys->contextrot) nlDeleteContext(sys->contextrot);
-	delete_spmatrix(sys->spLapMatrix);
-	delete_vectord(sys->VectorB);
-	delete_vectord(sys->VectorX);
-	delete_triplet(sys->tripletList);
 	delete_void_pointer(sys);
 	sys = NULL;
 }
@@ -321,14 +304,12 @@ static void laplacian_deform_mark_static(bContext *C, wmOperator *op)
 	BM_ITER_MESH (v, &viter, em->bm, BM_VERTS_OF_MESH) {
 		vid = BM_elem_index_get(v);
 		copy_v3_v3(data->sa->co[vid], v->co);
-		//copy_v3_v3(data->sa->no[vid], v->no);
 		data->sa->list_verts[vid] = v;
 		if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
 			data->sa->list_index[i] = vid;
 			i = i + 1;
 		}
 	}
-
 	update_system_state(data, LAP_STATE_HAS_STATIC);
 }
 
@@ -365,11 +346,15 @@ static float cotan_weight(float *v1, float *v2, float *v3)
 	cross_v3_v3v3(c, a, b);
 
 	clen = len_v3(c);
-	
 	if (clen < FLT_EPSILON)
 		return 0.0f;
 
 	return dot_v3v3(a, b) / clen;
+}
+
+static float div_fl_fl(float x, float y){
+	if (fabs(y) > 0.0f) return x/y;
+	return 0.0f;
 }
 
 static void init_laplacian_matrix( SystemCustomData * data)
@@ -454,21 +439,13 @@ static void init_laplacian_matrix( SystemCustomData * data)
 				nlMatrixAdd(sys->numVerts*2 + idv1	, sys->numVerts*2 + idv4	, -w4 );
 
 				nlMakeCurrent(sys->contextrot);
-				nlMatrixAdd(idv1					, idv4						, -w4 );
-
-				push_back_triplet(sys->tripletList, idv1					, idv4						, -w4 );
-				push_back_triplet(sys->tripletList, sys->numVerts + idv1	, sys->numVerts + idv4		, -w4 );
-				push_back_triplet(sys->tripletList, sys->numVerts*2 + idv1	, sys->numVerts*2 + idv4	, -w4 );
-				
-				
+				nlMatrixAdd(idv1					, idv4						, -w4 );				
 			}
 			else {
 				w2 = cotan_weight(v3, v1, v2);
 				w3 = cotan_weight(v2, v3, v1);
 				w4 = 0.0f;
 			}
-
-			sys->vweights[idv1] += w2 + w3 + w4;
 
 			sys->delta[idv1][0] +=  v1[0] * (w2 + w3 + w4);
 			sys->delta[idv1][1] +=  v1[1] * (w2 + w3 + w4);
@@ -512,22 +489,11 @@ static void init_laplacian_matrix( SystemCustomData * data)
 			nlMatrixAdd(idv1					, idv2						, -w2);
 			nlMatrixAdd(idv1					, idv3						, -w3);
 			nlMatrixAdd(idv1					, idv1						, w2 + w3 + w4);
-
-			push_back_triplet(sys->tripletList, idv1					, idv2						, -w2);
-			push_back_triplet(sys->tripletList, sys->numVerts + idv1	, sys->numVerts + idv2		, -w2);
-			push_back_triplet(sys->tripletList, sys->numVerts*2 + idv1	, sys->numVerts*2 + idv2	, -w2);
-
-			push_back_triplet(sys->tripletList, idv1					, idv3						, -w3);
-			push_back_triplet(sys->tripletList, sys->numVerts + idv1	, sys->numVerts + idv3		, -w3);
-			push_back_triplet(sys->tripletList, sys->numVerts*2 + idv1	, sys->numVerts*2 + idv3	, -w3);
-
-			push_back_triplet(sys->tripletList, idv1					, idv1						, w2 + w3 + w4);
-			push_back_triplet(sys->tripletList, sys->numVerts + idv1	, sys->numVerts + idv1		, w2 + w3 + w4);
-			push_back_triplet(sys->tripletList, sys->numVerts*2 + idv1	, sys->numVerts*2 + idv1	, w2 + w3 + w4);
 			
 		}
 	}
 }
+
 
 static void compute_implict_rotations(SystemCustomData * data)
 {
@@ -537,8 +503,7 @@ static void compute_implict_rotations(SystemCustomData * data)
 	BMVert *v;
 	int vid, * vidn = NULL;
 	float minj, mjt, qj[3], vj[3];
-	int i, j, ln, jid, k;
-	vptrMatrixD C, TDelta;
+	int i, j, ln;
 	LaplacianSystem * sys = data->sys;
 	StaticAnchors * sa = data->sa;
 	BLI_array_declare(vidn);
@@ -569,69 +534,12 @@ static void compute_implict_rotations(SystemCustomData * data)
 			if (mjt < minj) {
 				minj = mjt;
 				sys->list_uverts[i] = vidn[j];
-				//copy_v3_v3(sys->uverts[i], vn[j]->co);
 			}
 		}
-
-		C = new_matrixd( ln*3, 7);
-		for (j = 0; j < ln; j++) {
-			k = vidn[j];
-			set_matrixd(C, j, 0, sa->co[k][0]);	//set_matrixd(C, j, 0, v2->co[0]);		
-			set_matrixd(C, j, 1, 0.0f);		
-			set_matrixd(C, j, 2, sa->co[k][2]);	//set_matrixd(C, j, 2, v2->co[2]);		
-			set_matrixd(C, j, 3, -sa->co[k][1]);		//set_matrixd(C, j, 3, -v2->co[1]);
-			set_matrixd(C, j, 4, 1.0f);
-			set_matrixd(C, j, 5, 0.0f);
-			set_matrixd(C, j, 6, 0.0f);
-
-			set_matrixd(C, ln + j, 0, sa->co[k][1]);		//set_matrixd(C, ln + j, 0, v2->co[1]);		
-			set_matrixd(C, ln + j, 1, -sa->co[k][2]);		//set_matrixd(C, ln + j, 1, -v2->co[2]);		
-			set_matrixd(C, ln + j, 2, 0.0f);		
-			set_matrixd(C, ln + j, 3, sa->co[k][0]);		//set_matrixd(C, ln + j, 3, v2->co[0]);
-			set_matrixd(C, ln + j, 4, 0.0f);
-			set_matrixd(C, ln + j, 5, 1.0f);
-			set_matrixd(C, ln + j, 6, 0.0f);
-
-			set_matrixd(C, ln*2 + j, 0, sa->co[k][2]);		//set_matrixd(C, ln*2 + j, 0, v2->co[2]);		
-			set_matrixd(C, ln*2 + j, 1, sa->co[k][1]);		//set_matrixd(C, ln*2 + j, 1, v2->co[1]);		
-			set_matrixd(C, ln*2 + j, 2, -sa->co[k][0]);	//set_matrixd(C, ln*2 + j, 2, -v2->co[0]);		
-			set_matrixd(C, ln*2 + j, 3, 0.0f);
-			set_matrixd(C, ln*2 + j, 4, 0.0f);
-			set_matrixd(C, ln*2 + j, 5, 0.0f);
-			set_matrixd(C, ln*2 + j, 6, 1.0f);
-		}
-		TDelta = new_matrixd(3, ln * 3);
-		compute_delta_rotations_matrixd(C, TDelta, sys->delta[i][0], sys->delta[i][1], sys->delta[i][2]);
 		
-		for (j = 0; j < ln; j++) {
-			jid = vidn[j];
-			/*nlMatrixAdd(i,						jid						, - get_matrixd(TDelta, 0, j));
-			nlMatrixAdd(i,						sys->numVerts + jid		, - get_matrixd(TDelta, 0, j + ln));
-			nlMatrixAdd(i,						sys->numVerts*2 + jid	, - get_matrixd(TDelta, 0, j + ln *2));
-			nlMatrixAdd(i + sys->numVerts,		jid						, - get_matrixd(TDelta, 1, j));
-			nlMatrixAdd(i + sys->numVerts,		sys->numVerts + jid		, - get_matrixd(TDelta, 1, j + ln));
-			nlMatrixAdd(i + sys->numVerts,		sys->numVerts*2 + jid	, - get_matrixd(TDelta, 1, j + ln *2));
-			nlMatrixAdd(i + sys->numVerts*2,	jid						, - get_matrixd(TDelta, 2, j));
-			nlMatrixAdd(i + sys->numVerts*2,	sys->numVerts + jid		, - get_matrixd(TDelta, 2, j + ln));
-			nlMatrixAdd(i + sys->numVerts*2,	sys->numVerts*2 + jid	, - get_matrixd(TDelta, 2, j + ln *2));*/
-
-			push_back_triplet(sys->tripletList, i,						jid						, - get_matrixd(TDelta, 0, j));
-			push_back_triplet(sys->tripletList, i,						sys->numVerts + jid		, - get_matrixd(TDelta, 0, j + ln));
-			push_back_triplet(sys->tripletList, i,						sys->numVerts*2 + jid	, - get_matrixd(TDelta, 0, j + ln *2));
-			push_back_triplet(sys->tripletList, i + sys->numVerts,		jid						, - get_matrixd(TDelta, 1, j));
-			push_back_triplet(sys->tripletList, i + sys->numVerts,		sys->numVerts + jid		, - get_matrixd(TDelta, 1, j + ln));
-			push_back_triplet(sys->tripletList, i + sys->numVerts,		sys->numVerts*2 + jid	, - get_matrixd(TDelta, 1, j + ln *2));
-			push_back_triplet(sys->tripletList, i + sys->numVerts*2,	jid						, - get_matrixd(TDelta, 2, j));
-			push_back_triplet(sys->tripletList, i + sys->numVerts*2,	sys->numVerts + jid		, - get_matrixd(TDelta, 2, j + ln));
-			push_back_triplet(sys->tripletList, i + sys->numVerts*2,	sys->numVerts*2 + jid	, - get_matrixd(TDelta, 2, j + ln *2));
-
-		}
 		BLI_array_free(vidn);
 		BLI_array_empty(vidn);
 		vidn = NULL;
-		delete_matrixd(C);
-		delete_matrixd(TDelta);
-
 	}
 }
 
@@ -874,13 +782,6 @@ static void laplacian_deform_preview(bContext *C, wmOperator *op)
 
 			nlMatrixAdd(n + i, vid, 1.0f);
 
-			set_vectord(sys->VectorB, (n + i)*3	 	, sa->co[vid][0]);
-			set_vectord(sys->VectorB, (n + i)*3 + 1	, sa->co[vid][1]);
-			set_vectord(sys->VectorB, (n + i)*3 + 2	, sa->co[vid][2]);
-
-			push_back_triplet(sys->tripletList, (n + i)*3			, vid		, 1.0f);
-			push_back_triplet(sys->tripletList, (n + i)*3 + 1		, n + vid	, 1.0f);
-			push_back_triplet(sys->tripletList, (n + i)*3 + 2		, 2*n + vid	, 1.0f);
 		}
 
 		for (i=0; i<nh; i++)
@@ -902,22 +803,10 @@ static void laplacian_deform_preview(bContext *C, wmOperator *op)
 
 			nlMatrixAdd(n + ns + i 		, vid					, 1.0f);
 
-			set_vectord(sys->VectorB, (n + ns + i)*3	 	, sa->list_verts[vid]->co[0]);
-			set_vectord(sys->VectorB, (n + ns + i)*3 + 1	, sa->list_verts[vid]->co[1]);
-			set_vectord(sys->VectorB, (n + ns + i)*3 + 2	, sa->list_verts[vid]->co[2]);
-
-			push_back_triplet(sys->tripletList, (n + ns + i)*3			, vid		, 1.0f);
-			push_back_triplet(sys->tripletList, (n + ns + i)*3 + 1		, n + vid	, 1.0f);
-			push_back_triplet(sys->tripletList, (n + ns + i)*3 + 2		, 2*n + vid	, 1.0f);
 		}
 		nlMakeCurrent(sys->context);
 		nlEnd(NL_MATRIX);
 		nlEnd(NL_SYSTEM);
-
-
-		/* Solve system with Eigen3*/
-		//set_spmatrix_from_triplets(sys->spLapMatrix, sys->tripletList);
-		//solve_system(sys->spLapMatrix, sys->VectorB, sys->VectorX);
 
 		if (nlSolveAdvanced(NULL, NL_TRUE) ) {
 			rotate_differential_coordinates(data);
@@ -926,12 +815,9 @@ static void laplacian_deform_preview(bContext *C, wmOperator *op)
 			nlEnd(NL_MATRIX);
 			nlEnd(NL_SYSTEM);
 			if (nlSolveAdvanced(NULL, NL_TRUE) ) {
+				//nlMakeCurrent(sys->context);
 				BM_ITER_MESH (v, &viter, em->bm, BM_VERTS_OF_MESH) {
 					vid = BM_elem_index_get(v);
-					/* Solve system with Eigen3*/
-					//v->co[0] = get_vectord(sys->VectorX, vid);
-					//v->co[1] = get_vectord(sys->VectorX, sys->numVerts + vid);
-					//v->co[2] = get_vectord(sys->VectorX, 2*sys->numVerts + vid);
 					v->co[0] = nlGetVariable(0, vid);
 					v->co[1] = nlGetVariable(1, vid);
 					v->co[2] = nlGetVariable(2, vid);

@@ -142,29 +142,6 @@ static BMOpDefine bmo_smooth_laplacian_vert_def = {
 };
 
 /*
- * Vertext deform Laplacian.
- *
- * Deform vertices by using Laplacian coordinates.
- * bmo_deform_laplacian_vert_exec
- */
-static BMOpDefine bmo_deform_laplacian_vert_def = {
-	"deform_laplacian_vert",
-	/* slots_in */
-	{{"verts", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT}},    /* input vertices */
-	 {"lambda_factor", BMO_OP_SLOT_FLT},           /* lambda param */
-	 {"lambda_border", BMO_OP_SLOT_FLT},    /* lambda param in border */
-	 {"use_x", BMO_OP_SLOT_BOOL},           /* Smooth object along X axis */
-	 {"use_y", BMO_OP_SLOT_BOOL},           /* Smooth object along Y axis */
-	 {"use_z", BMO_OP_SLOT_BOOL},           /* Smooth object along Z axis */
-	 {"preserve_volume", BMO_OP_SLOT_BOOL}, /* Apply volume preservation after smooth */
-	{{'\0'}},
-	},
-	{{{'\0'}}},  /* no output */
-	bmo_deform_laplacian_vert_exec,
-	BMO_OPTYPE_FLAG_NORMALS_CALC,
-};
-
-/*
  * Right-Hand Faces.
  *
  * Computes an "outside" normal for the specified input faces.
@@ -1740,7 +1717,6 @@ const BMOpDefine *bmo_opdefines[] = {
 	&bmo_create_monkey_def,
 	&bmo_create_uvsphere_def,
 	&bmo_create_vert_def,
-	&bmo_deform_laplacian_vert_def,
 	&bmo_delete_def,
 	&bmo_dissolve_edges_def,
 	&bmo_dissolve_faces_def,

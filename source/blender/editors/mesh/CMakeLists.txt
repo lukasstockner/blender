@@ -32,7 +32,6 @@ set(INC
 	../../render/extern/include
 	../../windowmanager
 	../../../../intern/guardedalloc
-	../../../../extern/Eigen3
 	../../../../intern/opennl/extern
 )
 
@@ -45,8 +44,6 @@ set(SRC
 	editmesh_add.c
 	editmesh_bevel.c
 	editmesh_deform_laplacian.c
-	editmesh_deform_utils.cpp
-	editmesh_deform_utils.h
 	editmesh_extrude.c
 	editmesh_inset.c
 	editmesh_knife.c

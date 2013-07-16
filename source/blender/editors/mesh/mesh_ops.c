@@ -135,7 +135,6 @@ void ED_operatortypes_mesh(void)
 #endif
 	WM_operatortype_append(MESH_OT_vertices_smooth);
 	WM_operatortype_append(MESH_OT_vertices_smooth_laplacian);
-	WM_operatortype_append(MESH_OT_vertices_deform_laplacian);
 	WM_operatortype_append(MESH_OT_vertices_laplacian_deform);
 	WM_operatortype_append(MESH_OT_noise);
 	WM_operatortype_append(MESH_OT_flip_normals);
