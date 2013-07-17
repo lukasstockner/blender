@@ -806,11 +806,19 @@ static int ui_handler_region_drag_color(bContext *C, const wmEvent *event, void 
 		{
 			if (event->val != KM_PRESS) {
 				wmWindow *win = CTX_wm_window(C);
-				ARegion *ar = CTX_wm_region(C);
+				ARegion *ar;
+				ScrArea *sa;
+				uiBut *but = NULL;
+				bool found = false;
 
 				/* find button under mouse, check if it has RNA color property and
 				 * if it does copy the data */
-				uiBut *but = ui_but_find_mouse_over(ar, event->x, event->y);
+				for (sa = win->screen->areabase.first; sa && !found; sa = sa->next) {
+					for (ar = sa->regionbase.first; ar && !found; ar = ar->next) {
+						if ((but = ui_but_find_mouse_over(ar, event->x, event->y)) != NULL)
+							found = true;
+					}
+				}
 
 				if (but && but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
 					if (!drag_info->gamma_corrected)
