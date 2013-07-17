@@ -2307,10 +2307,10 @@ void uiTemplatePalette(uiLayout *layout, PointerRNA *ptr, const char *propname, 
 	PointerRNA cptr;
 	Palette *palette;
 	PaletteColor *color;
-	uiBlock *block = uiLayoutGetBlock(layout);
+	uiBlock *block;
 	uiLayout *col;
 	int row_cols = 0;
-	int max_palette_cols = 8;
+	int cols_per_row = MAX2(uiLayoutGetWidth(layout) / UI_UNIT_X, 1);
 
 	if (!prop) {
 		RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
@@ -2321,6 +2321,8 @@ void uiTemplatePalette(uiLayout *layout, PointerRNA *ptr, const char *propname, 
 	if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_Palette))
 		return;
 
+	block = uiLayoutGetBlock(layout);
+
 	palette = cptr.data;
 	color = palette->colors.first;
 
@@ -2330,17 +2332,21 @@ void uiTemplatePalette(uiLayout *layout, PointerRNA *ptr, const char *propname, 
 	for (; color; color = color->next) {
 		PointerRNA ptr;
 
-		if (row_cols >= max_palette_cols) {
+		if (row_cols >= cols_per_row) {
 			uiLayoutRow(col, TRUE);
 			row_cols = 0;
 		}
 
 		RNA_pointer_create(&palette->id, &RNA_PaletteColor, color, &ptr);
-		uiDefButR(block, COLOR, 0, "", 0, 0, 18, 18, &ptr, "color",
-			               -1, 0.0, 1.0, 0.0, 0.0, "");
+		uiDefButR(block, COLOR, 0, "", 0, 0, UI_UNIT_X, UI_UNIT_Y, &ptr, "color",
+		          -1, 0.0, 1.0, 0.0, 0.0, "");
 
 		row_cols++;
 	}
+
+	col = uiLayoutColumn(layout, TRUE);
+	uiLayoutRow(col, TRUE);
+	uiDefIconButO(block, BUT, "PALETTE_OT_color_add", WM_OP_INVOKE_DEFAULT, ICON_PLUS, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL);
 }
 
 
