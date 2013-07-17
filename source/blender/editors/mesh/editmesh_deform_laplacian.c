@@ -45,7 +45,9 @@
 #include "MEM_guardedalloc.h"
 #include "BLI_math.h"
 #include "BLI_array.h"
+#include "BLI_string.h"
 #include "ONL_opennl.h"
+#include "BLF_translation.h"
 
 #include "ED_screen.h"
 #include "ED_space_api.h"
@@ -105,7 +107,8 @@ enum {
 	LAP_MODAL_CONFIRM,
 	LAP_MODAL_PREVIEW,
 	LAP_MODAL_MARK_STATIC,
-	LAP_MODAL_MARK_HANDLER
+	LAP_MODAL_MARK_HANDLER,
+	LAP_MODAL_TRANSFORM
 };
 
 wmKeyMap * laplacian_deform_modal_keymap(wmKeyConfig *keyconf);
@@ -118,6 +121,7 @@ static float div_fl_fl(float x, float y);
 static int laplacian_deform_invoke(struct bContext *C, struct wmOperator *op, const struct wmEvent *evt);
 static int laplacian_deform_modal(bContext *C, wmOperator *op, const wmEvent *event);
 static int laplacian_deform_cancel(bContext *C, wmOperator *op);
+static void laplacian_deform_update_header(bContext *C);
 static void compute_implict_rotations(SystemCustomData * data);
 static void delete_void_pointer(void *data);
 static void delete_static_anchors(StaticAnchors * sa);
@@ -272,6 +276,7 @@ static int laplacian_deform_invoke(struct bContext *C, struct wmOperator *op, co
 	BM_mesh_elem_index_ensure(em->bm, BM_VERT);
 
 	WM_event_add_modal_handler(C, op);
+	laplacian_deform_update_header(C);
 	return OPERATOR_RUNNING_MODAL;
 }
 
@@ -635,14 +640,22 @@ static int laplacian_deform_modal(bContext *C, wmOperator *op, const wmEvent *ev
 			case LAP_MODAL_MARK_HANDLER:
 				printf("\nLAP_MODAL_MARK_HANDLER\n");
 				laplacian_deform_mark_handlers(C, op);
+				laplacian_deform_update_header(C);
 				break;
 			case LAP_MODAL_MARK_STATIC:
 				printf("\nLAP_MODAL_MARK_STATIC\n");
 				laplacian_deform_mark_static(C, op);
+				laplacian_deform_update_header(C);
 				break;
 			case LAP_MODAL_PREVIEW:
 				printf("\nLAP_MODAL_PREVIEW\n");
 				laplacian_deform_preview(C, op);
+				laplacian_deform_update_header(C);
+				ED_region_tag_redraw(CTX_wm_region(C));
+				break;
+			case LAP_MODAL_TRANSFORM:
+				printf("\nLAP_MODAL_TRANSFORM\n");
+				return OPERATOR_PASS_THROUGH;
 				break;
 			/*default:
 				return OPERATOR_PASS_THROUGH;
@@ -650,7 +663,9 @@ static int laplacian_deform_modal(bContext *C, wmOperator *op, const wmEvent *ev
 		}
 	}
 	else {
-		return OPERATOR_PASS_THROUGH;
+		if (event->type >= LEFTMOUSE && event->type <= WHEELOUTMOUSE) {
+			return OPERATOR_PASS_THROUGH;
+		}
 	}
 	return OPERATOR_RUNNING_MODAL;
 
@@ -680,6 +695,7 @@ wmKeyMap * laplacian_deform_modal_keymap(wmKeyConfig *keyconf)
 		{LAP_MODAL_PREVIEW, "PREVIEW", 0, "Preview", ""},
 		{LAP_MODAL_MARK_STATIC, "MARK_STATIC", 0, "Mark Vertex as Static", ""},
 		{LAP_MODAL_MARK_HANDLER, "MARK_HANDLER", 0, "Mark Vertex as Handler", ""},
+		{LAP_MODAL_TRANSFORM, "TRANSFROM", 0, "Transform Verts", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -696,13 +712,45 @@ wmKeyMap * laplacian_deform_modal_keymap(wmKeyConfig *keyconf)
 	WM_modalkeymap_add_item(keymap, SPACEKEY, KM_PRESS, KM_ANY, 0, LAP_MODAL_CONFIRM);
 
 	WM_modalkeymap_add_item(keymap, QKEY, KM_PRESS, 0, 0, LAP_MODAL_CANCEL);
-	WM_modalkeymap_add_item(keymap, SKEY, KM_PRESS, 0, 0, LAP_MODAL_MARK_STATIC);
+	WM_modalkeymap_add_item(keymap, JKEY, KM_PRESS, 0, 0, LAP_MODAL_MARK_STATIC);
 	WM_modalkeymap_add_item(keymap, HKEY, KM_PRESS, 0, 0, LAP_MODAL_MARK_HANDLER);
 	WM_modalkeymap_add_item(keymap, PKEY, KM_PRESS, 0, 0, LAP_MODAL_PREVIEW);
+
+	WM_modalkeymap_add_item(keymap, SKEY, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
+	WM_modalkeymap_add_item(keymap, RKEY, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
+	WM_modalkeymap_add_item(keymap, TKEY, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
+	WM_modalkeymap_add_item(keymap, BKEY, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
+	WM_modalkeymap_add_item(keymap, CKEY, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
+	WM_modalkeymap_add_item(keymap, AKEY, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
+	WM_modalkeymap_add_item(keymap, GKEY, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
+	WM_modalkeymap_add_item(keymap, PAD0, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
+	WM_modalkeymap_add_item(keymap, PAD1, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
+	WM_modalkeymap_add_item(keymap, PAD2, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
+	WM_modalkeymap_add_item(keymap, PAD3, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
+	WM_modalkeymap_add_item(keymap, PAD4, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
+	WM_modalkeymap_add_item(keymap, PAD5, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
+	WM_modalkeymap_add_item(keymap, PAD6, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
+	WM_modalkeymap_add_item(keymap, PAD7, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
+	WM_modalkeymap_add_item(keymap, PAD8, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
+	WM_modalkeymap_add_item(keymap, PAD9, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
+	WM_modalkeymap_add_item(keymap, PADMINUS, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
+	WM_modalkeymap_add_item(keymap, PADPLUSKEY, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
+	
 
 	WM_modalkeymap_assign(keymap, "MESH_OT_vertices_laplacian_deform");
 
 	return keymap;
+}
+
+static void laplacian_deform_update_header(bContext *C)
+{
+	#define HEADER_LENGTH 256
+	char header[HEADER_LENGTH];
+
+	BLI_snprintf(header, HEADER_LENGTH, IFACE_("First Mark Static Anchors J, Second Mark Handler Anchors H, "
+		"Third Transform Handler Anchors, Fourth Compute solution P, Esc or Q: cancel, "));
+
+	ED_area_headerprint(CTX_wm_area(C), header);
 }
 
 static void laplacian_deform_preview(bContext *C, wmOperator *op)
