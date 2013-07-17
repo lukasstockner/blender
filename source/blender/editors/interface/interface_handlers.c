@@ -958,6 +958,9 @@ static bool ui_but_start_drag(bContext *C, uiBut *but, uiHandleButtonData *data,
 			} else if (but->pointype == UI_BUT_POIN_FLOAT) {
 				copy_v3_v3(drag_info->color, (float *)but->poin);
 				valid = true;
+			} else if (but->pointype == UI_BUT_POIN_CHAR) {
+				rgba_uchar_to_float(drag_info->color, but->poin);
+				valid = true;
 			}
 
 			if (valid)
@@ -965,6 +968,9 @@ static bool ui_but_start_drag(bContext *C, uiBut *but, uiHandleButtonData *data,
 			                        ui_handler_region_drag_color,
 			                        ui_handler_region_drag_color_remove,
 			                        drag_info);
+			else {
+				MEM_freeN(drag_info);
+			}
 		}
 		else
 		{
