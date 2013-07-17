@@ -692,7 +692,9 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                 col.prop(brush, "secondary_color", text="")
                 col = layout.column()
                 col.template_ID(settings, "palette", new="palette.new")
-            
+                if settings.palette:
+                    col.template_palette(settings, "palette", color=True)      
+                          
             col = layout.column()
             row = col.row(align=True)
             self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
