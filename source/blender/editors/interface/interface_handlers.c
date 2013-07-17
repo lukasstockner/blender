@@ -673,6 +673,10 @@ static void ui_apply_but_CURVE(bContext *C, uiBut *but, uiHandleButtonData *data
 
 #ifdef USE_DRAG_TOGGLE
 
+typedef struct uiDragColorHandle {
+	float color[3];
+} uiDragColorHandle;
+
 typedef struct uiDragToggleHandle {
 	/* init */
 	bool is_init;
@@ -785,6 +789,50 @@ static void ui_drag_toggle_set(bContext *C, uiDragToggleHandle *drag_info, const
 	copy_v2_v2_int(drag_info->xy_last, xy);
 }
 
+
+static void ui_handler_region_drag_color_remove(bContext *UNUSED(C), void *userdata)
+{
+	uiDragColorHandle *drag_info = userdata;
+	MEM_freeN(drag_info);
+}
+
+static int ui_handler_region_drag_color(bContext *C, const wmEvent *event, void *userdata)
+{
+	uiDragColorHandle *drag_info = userdata;
+
+	switch (event->type) {
+		case LEFTMOUSE:
+		{
+			if (event->val != KM_PRESS) {
+				wmWindow *win = CTX_wm_window(C);
+				ARegion *ar = CTX_wm_region(C);
+
+				/* find button under mouse, check if it has RNA color property and
+				 * if it does copy the data */
+				uiBut *but = ui_but_find_mouse_over(ar, event->x, event->y);
+
+				if (but && but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
+					RNA_property_float_set_array(&but->rnapoin, but->rnaprop, drag_info->color);
+					RNA_property_update(C, &but->rnapoin, but->rnaprop);
+				}
+
+				WM_event_remove_ui_handler(&win->modalhandlers,
+				                           ui_handler_region_drag_color,
+				                           ui_handler_region_drag_color_remove,
+				                           drag_info, false);
+				ui_handler_region_drag_color_remove(C, drag_info);
+
+				WM_event_add_mousemove(C);
+				return WM_UI_HANDLER_BREAK;
+			}
+			break;
+		}
+	}
+
+	return WM_UI_HANDLER_CONTINUE;
+}
+
+
 static void ui_handler_region_drag_toggle_remove(bContext *UNUSED(C), void *userdata)
 {
 	uiDragToggleHandle *drag_info = userdata;
@@ -846,7 +894,7 @@ static bool ui_but_mouse_inside_icon(uiBut *but, ARegion *ar, const wmEvent *eve
 	
 	BLI_rcti_rctf_copy(&rect, &but->rect);
 	
-	if (but->imb) {
+	if (but->imb || but->type == COLOR) {
 		/* use button size itself */
 	}
 	else if (but->flag & UI_ICON_LEFT) {
@@ -899,6 +947,26 @@ static bool ui_but_start_drag(bContext *C, uiBut *but, uiHandleButtonData *data,
 		}
 		else
 #endif
+		if (but->type == COLOR) {
+			bool valid = false;
+			uiDragColorHandle *drag_info = MEM_callocN(sizeof(*drag_info), __func__);
+
+			/* TODO support more button pointer types */
+			if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
+				RNA_property_float_get_array(&but->rnapoin, but->rnaprop, drag_info->color);
+				valid = true;
+			} else if (but->pointype == UI_BUT_POIN_FLOAT) {
+				copy_v3_v3(drag_info->color, (float *)but->poin);
+				valid = true;
+			}
+
+			if (valid)
+				WM_event_add_ui_handler(C, &data->window->modalhandlers,
+			                        ui_handler_region_drag_color,
+			                        ui_handler_region_drag_color_remove,
+			                        drag_info);
+		}
+		else
 		{
 			wmDrag *drag;
 
@@ -3422,7 +3490,7 @@ static int ui_do_but_BLOCK(bContext *C, uiBut *but, uiHandleButtonData *data, co
 			}
 		}
 #ifdef USE_DRAG_TOGGLE
-		if (event->type == LEFTMOUSE && ui_is_but_bool(but)) {
+		if (event->type == LEFTMOUSE && (ui_is_but_bool(but) || but->type == COLOR)) {
 			button_activate_state(C, but, BUTTON_STATE_WAIT_DRAG);
 			data->dragstartx = event->x;
 			data->dragstarty = event->y;
