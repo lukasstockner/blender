@@ -208,7 +208,7 @@ int imapaint_pick_face(struct ViewContext *vc, const int mval[2], unsigned int *
 void imapaint_pick_uv(struct Scene *scene, struct Object *ob, unsigned int faceindex, const int xy[2], float uv[2]);
 void brush_drawcursor_texpaint_uvsculpt(struct bContext *C, int x, int y, void *customdata);
 
-void paint_sample_color(bContext *C, struct ARegion *ar, int x, int y, bool foreground);
+void paint_sample_color(bContext *C, struct ARegion *ar, int x, int y, bool texpaint_proj);
 void BRUSH_OT_curve_preset(struct wmOperatorType *ot);
 
 void PAINT_OT_face_select_linked(struct wmOperatorType *ot);

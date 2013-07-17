@@ -369,7 +369,7 @@ static Image *imapaint_face_image(DerivedMesh *dm, Scene *scene, Object *ob, int
 }
 
 /* used for both 3d view and image window */
-void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool foreground)    /* frontbuf */
+void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool texpaint_proj)    /* frontbuf */
 {
 	Brush *br = BKE_paint_brush(BKE_paint_get_active_from_context(C));
 	unsigned int col;
@@ -378,7 +378,7 @@ void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool foreground)
 	CLAMP(x, 0, ar->winx);
 	CLAMP(y, 0, ar->winy);
 	
-	if (CTX_wm_view3d(C)) {
+	if (CTX_wm_view3d(C) && texpaint_proj) {
 		/* first try getting a colour directly from the mesh faces if possible */
 		Scene *scene = CTX_data_scene(C);
 		Object *ob = OBACT;
@@ -453,16 +453,9 @@ void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool foreground)
 	cp = (char *)&col;
 	
 	if (br) {
-		if (foreground) {
-			br->rgb[0] = cp[0] / 255.0f;
-			br->rgb[1] = cp[1] / 255.0f;
-			br->rgb[2] = cp[2] / 255.0f;
-		}
-		else {
-			br->secondary_rgb[0] = cp[0] / 255.0f;
-			br->secondary_rgb[1] = cp[1] / 255.0f;
-			br->secondary_rgb[2] = cp[2] / 255.0f;
-		}
+		br->rgb[0] = cp[0] / 255.0f;
+		br->rgb[1] = cp[1] / 255.0f;
+		br->rgb[2] = cp[2] / 255.0f;
 	}
 }
 

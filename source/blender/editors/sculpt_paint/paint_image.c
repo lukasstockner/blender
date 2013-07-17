@@ -1033,11 +1033,11 @@ typedef struct {
 static int sample_color_exec(bContext *C, wmOperator *op)
 {
 	Brush *brush = image_paint_brush(C);
+	PaintMode mode = BKE_paintmode_get_active_from_context(C);
 	ARegion *ar = CTX_wm_region(C);
 	int location[2];
-	bool foreground = RNA_boolean_get(op->ptr, "foreground");
 	RNA_int_get_array(op->ptr, "location", location);
-	paint_sample_color(C, ar, location[0], location[1], foreground);
+	paint_sample_color(C, ar, location[0], location[1], mode == PAINT_TEXTURE_PROJECTIVE);
 
 	WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
 
@@ -1085,6 +1085,11 @@ static int sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	return OPERATOR_RUNNING_MODAL;
 }
 
+static int sample_color_poll(bContext *C)
+{
+	return image_paint_poll(C) || vertex_paint_poll(C);
+}
+
 void PAINT_OT_sample_color(wmOperatorType *ot)
 {
 	/* identifiers */
@@ -1096,14 +1101,13 @@ void PAINT_OT_sample_color(wmOperatorType *ot)
 	ot->exec = sample_color_exec;
 	ot->invoke = sample_color_invoke;
 	ot->modal = sample_color_modal;
-	ot->poll = image_paint_poll;
+	ot->poll = sample_color_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
 	RNA_def_int_vector(ot->srna, "location", 2, NULL, 0, INT_MAX, "Location", "Cursor location in region coordinates", 0, 16384);
-	RNA_def_boolean(ot->srna, "foreground", true, "Foreground", "Sample for the foreground color");
 }
 
 /******************** texture paint toggle operator ********************/

@@ -1007,6 +1007,7 @@ void ED_operatortypes_paint(void)
 	/* palette */
 	WM_operatortype_append(PALETTE_OT_new);
 	WM_operatortype_append(PALETTE_OT_color_add);
+
 	/* brush */
 	WM_operatortype_append(BRUSH_OT_add);
 	WM_operatortype_append(BRUSH_OT_scale_size);
