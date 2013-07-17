@@ -79,7 +79,6 @@ struct BLaplacianSystem {
 	int numStatics;
 	BMesh *bm;
 	NLContext *context;			/* System for solve general implicit rotations*/
-	NLContext *contextrot;		/* System for solve general Laplacian with rotated differential coordinates*/
 };
 typedef struct BLaplacianSystem LaplacianSystem;
 
@@ -97,6 +96,7 @@ struct BSystemCustomData {
 	StaticAnchors  * sa;
 	HandlerAnchors * shs;
 	int stateSystem;
+	bool update_required;
 };
 
 typedef struct BSystemCustomData SystemCustomData;
@@ -108,7 +108,8 @@ enum {
 	LAP_MODAL_PREVIEW,
 	LAP_MODAL_MARK_STATIC,
 	LAP_MODAL_MARK_HANDLER,
-	LAP_MODAL_TRANSFORM
+	LAP_MODAL_TRANSFORM, 
+	LAP_MODAL_NOTHING 
 };
 
 wmKeyMap * laplacian_deform_modal_keymap(wmKeyConfig *keyconf);
@@ -117,7 +118,6 @@ static StaticAnchors * init_static_anchors(int numv, int nums);
 static HandlerAnchors * init_handler_anchors(int numh);
 static LaplacianSystem * init_laplacian_system(int numv, int nums, int numh);
 static float cotan_weight(float *v1, float *v2, float *v3);
-static float div_fl_fl(float x, float y);
 static int laplacian_deform_invoke(struct bContext *C, struct wmOperator *op, const struct wmEvent *evt);
 static int laplacian_deform_modal(bContext *C, wmOperator *op, const wmEvent *event);
 static int laplacian_deform_cancel(bContext *C, wmOperator *op);
@@ -210,7 +210,6 @@ static void delete_laplacian_system(LaplacianSystem *sys)
 	delete_void_pointer(sys->list_uverts);
 	sys->bm = NULL;
 	if (sys->context) nlDeleteContext(sys->context);
-	if (sys->contextrot) nlDeleteContext(sys->contextrot);
 	delete_void_pointer(sys);
 	sys = NULL;
 }
@@ -357,11 +356,6 @@ static float cotan_weight(float *v1, float *v2, float *v3)
 	return dot_v3v3(a, b) / clen;
 }
 
-static float div_fl_fl(float x, float y){
-	if (fabs(y) > 0.0f) return x/y;
-	return 0.0f;
-}
-
 static void init_laplacian_matrix( SystemCustomData * data)
 {
 	float v1[3], v2[3], v3[3], v4[3], no[3];
@@ -425,26 +419,19 @@ static void init_laplacian_matrix( SystemCustomData * data)
 
 			if (has_4_vert) {
 
-				w2 = (cotan_weight(v4, v1, v2) + cotan_weight(v3, v1, v2)) ;
-				w3 = (cotan_weight(v2, v3, v1) + cotan_weight(v4, v1, v3)) ;
-				w4 = (cotan_weight(v2, v4, v1) + cotan_weight(v3, v4, v1)) ;
+				w2 = (cotan_weight(v4, v1, v2) + cotan_weight(v3, v1, v2)) /2.0f ;
+				w3 = (cotan_weight(v2, v3, v1) + cotan_weight(v4, v1, v3)) /2.0f ;
+				w4 = (cotan_weight(v2, v4, v1) + cotan_weight(v3, v4, v1)) /2.0f;
 
 				sys->delta[idv1][0] -=  v4[0] * w4;
 				sys->delta[idv1][1] -=  v4[1] * w4;
 				sys->delta[idv1][2] -=  v4[2] * w4;
 
-				nlMakeCurrent(sys->context);
-				nlRightHandSideAdd(0, idv1						, -v4[0] * w4);
-				nlRightHandSideAdd(0, sys->numVerts + idv1		, -v4[1] * w4);
-				nlRightHandSideAdd(0, 2*sys->numVerts + idv1	, -v4[2] * w4);
+				nlRightHandSideAdd(0, idv1, -v4[0] * w4);
+				nlRightHandSideAdd(1, idv1, -v4[1] * w4);
+				nlRightHandSideAdd(2, idv1, -v4[2] * w4);
 
-				nlMakeCurrent(sys->context);
-				nlMatrixAdd(idv1					, idv4						, -w4 );
-				nlMatrixAdd(sys->numVerts + idv1	, sys->numVerts + idv4		, -w4 );
-				nlMatrixAdd(sys->numVerts*2 + idv1	, sys->numVerts*2 + idv4	, -w4 );
-
-				nlMakeCurrent(sys->contextrot);
-				nlMatrixAdd(idv1					, idv4						, -w4 );				
+				nlMatrixAdd(idv1, idv4, -w4 );				
 			}
 			else {
 				w2 = cotan_weight(v3, v1, v2);
@@ -464,36 +451,21 @@ static void init_laplacian_matrix( SystemCustomData * data)
 			sys->delta[idv1][1] -=  v3[1] * w3;
 			sys->delta[idv1][2] -=  v3[2] * w3;
 
-			nlMakeCurrent(sys->context);
-			nlRightHandSideAdd(0, idv1						, v1[0] * (w2 + w3 + w4));
-			nlRightHandSideAdd(0, sys->numVerts + idv1		, v1[1] * (w2 + w3 + w4));
-			nlRightHandSideAdd(0, 2*sys->numVerts + idv1	, v1[2] * (w2 + w3 + w4));
+			nlRightHandSideAdd(0, idv1	, v1[0] * (w2 + w3 + w4));
+			nlRightHandSideAdd(1, idv1	, v1[1] * (w2 + w3 + w4));
+			nlRightHandSideAdd(2, idv1	, v1[2] * (w2 + w3 + w4));
 
-			nlRightHandSideAdd(0, idv1						, -v2[0] * w2);
-			nlRightHandSideAdd(0, sys->numVerts + idv1		, -v2[1] * w2);
-			nlRightHandSideAdd(0, 2*sys->numVerts + idv1	, -v2[2] * w2);
+			nlRightHandSideAdd(0, idv1	, -v2[0] * w2);
+			nlRightHandSideAdd(1, idv1	, -v2[1] * w2);
+			nlRightHandSideAdd(2, idv1	, -v2[2] * w2);
 
-			nlRightHandSideAdd(0, idv1						, -v3[0] * w3);
-			nlRightHandSideAdd(0, sys->numVerts + idv1		, -v3[1] * w3);
-			nlRightHandSideAdd(0, 2*sys->numVerts + idv1	, -v3[2] * w3);
+			nlRightHandSideAdd(0, idv1	, -v3[0] * w3);
+			nlRightHandSideAdd(1, idv1	, -v3[1] * w3);
+			nlRightHandSideAdd(2, idv1	, -v3[2] * w3);
 
-			nlMakeCurrent(sys->context);
-			nlMatrixAdd(idv1					, idv2						, -w2);
-			nlMatrixAdd(sys->numVerts + idv1	, sys->numVerts + idv2		, -w2);
-			nlMatrixAdd(sys->numVerts*2 + idv1	, sys->numVerts*2 + idv2	, -w2);
-
-			nlMatrixAdd(idv1					, idv3						, -w3);
-			nlMatrixAdd(sys->numVerts + idv1	, sys->numVerts + idv3		, -w3);
-			nlMatrixAdd(sys->numVerts*2 + idv1	, sys->numVerts*2 + idv3	, -w3);
-
-			nlMatrixAdd(idv1					, idv1						, w2 + w3 + w4);
-			nlMatrixAdd(sys->numVerts + idv1	, sys->numVerts + idv1		, w2 + w3 + w4);
-			nlMatrixAdd(sys->numVerts*2 + idv1	, sys->numVerts*2 + idv1	, w2 + w3 + w4);
-
-			nlMakeCurrent(sys->contextrot);
-			nlMatrixAdd(idv1					, idv2						, -w2);
-			nlMatrixAdd(idv1					, idv3						, -w3);
-			nlMatrixAdd(idv1					, idv1						, w2 + w3 + w4);
+			nlMatrixAdd(idv1, idv2, -w2);
+			nlMatrixAdd(idv1, idv3, -w3);
+			nlMatrixAdd(idv1, idv1, w2 + w3 + w4);
 			
 		}
 	}
@@ -513,7 +485,6 @@ static void compute_implict_rotations(SystemCustomData * data)
 	StaticAnchors * sa = data->sa;
 	BLI_array_declare(vidn);
 
-	nlMakeCurrent(sys->context);
 	BM_ITER_MESH (v, &viter, sys->bm, BM_VERTS_OF_MESH) {
 		i = BM_elem_index_get(v);
 		normalize_v3( sa->no[i]);
@@ -578,10 +549,9 @@ static void rotate_differential_coordinates(SystemCustomData * data)
         beta = dot_v3v3(uij, di);
         gamma = dot_v3v3(e2, di);
 
-		nlMakeCurrent(sys->context);
 		pi[0] = nlGetVariable(0, i);
-		pi[1] = nlGetVariable(0, i + sys->numVerts);
-		pi[2] = nlGetVariable(0, i + sys->numVerts*2);
+		pi[1] = nlGetVariable(1, i);
+		pi[2] = nlGetVariable(2, i);
 		ni[0] = 0.0f;	ni[1] = 0.0f;	ni[2] = 0.0f;
 		num_fni = 0;
 		BM_ITER_ELEM_INDEX(f, &fiter, v, BM_FACES_OF_VERT, num_fni) {
@@ -593,8 +563,8 @@ static void rotate_differential_coordinates(SystemCustomData * data)
 			
 			for (j=0; j<lvin; j++ ) {
 				vn[j][0] = nlGetVariable(0, vin[j]);
-				vn[j][1] = nlGetVariable(0, vin[j] + sys->numVerts);
-				vn[j][2] = nlGetVariable(0, vin[j] + sys->numVerts*2);
+				vn[j][1] = nlGetVariable(1, vin[j]);
+				vn[j][2] = nlGetVariable(2, vin[j]);
 				if (vin[j] == sys->list_uverts[i]) {
 					copy_v3_v3(pj, vn[j]);
 				}
@@ -618,8 +588,6 @@ static void rotate_differential_coordinates(SystemCustomData * data)
 		normalize_v3(uij);
 		cross_v3_v3v3(e2, ni, uij);
 
-
-		nlMakeCurrent(sys->contextrot);
 		nlRightHandSideSet(0, i, alpha*ni[0] + beta*uij[0] + gamma*e2[0]);
 		nlRightHandSideSet(1, i, alpha*ni[1] + beta*uij[1] + gamma*e2[1]);
 		nlRightHandSideSet(2, i, alpha*ni[2] + beta*uij[2] + gamma*e2[2]);
@@ -630,11 +598,21 @@ static void rotate_differential_coordinates(SystemCustomData * data)
 
 static int laplacian_deform_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
+	SystemCustomData * data =  op->customdata;
+	if (data) if (data->update_required) {
+		data->update_required = false;
+		printf("\nLAP_MODAL_PREVIEW\n");
+		laplacian_deform_preview(C, op);
+		laplacian_deform_update_header(C);
+		ED_region_tag_redraw(CTX_wm_region(C));
+		return OPERATOR_RUNNING_MODAL;
+	}
 
 	if(event->type == EVT_MODAL_MAP) {
 		switch (event->val) {
 			case LAP_MODAL_CANCEL:
 				printf("\nLAP_MODAL_CANCEL\n");
+				ED_area_headerprint(CTX_wm_area(C), NULL);
 				laplacian_deform_cancel(C, op);
 				return OPERATOR_CANCELLED;
 			case LAP_MODAL_MARK_HANDLER:
@@ -655,6 +633,13 @@ static int laplacian_deform_modal(bContext *C, wmOperator *op, const wmEvent *ev
 				break;
 			case LAP_MODAL_TRANSFORM:
 				printf("\nLAP_MODAL_TRANSFORM\n");
+				if (data) {
+					data->update_required = true;
+				}
+				return OPERATOR_PASS_THROUGH;
+				break;
+			case LAP_MODAL_NOTHING:
+				printf("\nLAP_MODAL_NOTHING\n");
 				return OPERATOR_PASS_THROUGH;
 				break;
 			/*default:
@@ -718,23 +703,26 @@ wmKeyMap * laplacian_deform_modal_keymap(wmKeyConfig *keyconf)
 
 	WM_modalkeymap_add_item(keymap, SKEY, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
 	WM_modalkeymap_add_item(keymap, RKEY, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
-	WM_modalkeymap_add_item(keymap, TKEY, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
-	WM_modalkeymap_add_item(keymap, BKEY, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
-	WM_modalkeymap_add_item(keymap, CKEY, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
-	WM_modalkeymap_add_item(keymap, AKEY, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
 	WM_modalkeymap_add_item(keymap, GKEY, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
-	WM_modalkeymap_add_item(keymap, PAD0, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
-	WM_modalkeymap_add_item(keymap, PAD1, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
-	WM_modalkeymap_add_item(keymap, PAD2, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
-	WM_modalkeymap_add_item(keymap, PAD3, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
-	WM_modalkeymap_add_item(keymap, PAD4, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
-	WM_modalkeymap_add_item(keymap, PAD5, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
-	WM_modalkeymap_add_item(keymap, PAD6, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
-	WM_modalkeymap_add_item(keymap, PAD7, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
-	WM_modalkeymap_add_item(keymap, PAD8, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
-	WM_modalkeymap_add_item(keymap, PAD9, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
-	WM_modalkeymap_add_item(keymap, PADMINUS, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
-	WM_modalkeymap_add_item(keymap, PADPLUSKEY, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
+
+	WM_modalkeymap_add_item(keymap, ZKEY, KM_PRESS, 0, 0, LAP_MODAL_NOTHING);
+	WM_modalkeymap_add_item(keymap, TKEY, KM_PRESS, 0, 0, LAP_MODAL_NOTHING);
+	WM_modalkeymap_add_item(keymap, NKEY, KM_PRESS, 0, 0, LAP_MODAL_NOTHING);
+	WM_modalkeymap_add_item(keymap, BKEY, KM_PRESS, 0, 0, LAP_MODAL_NOTHING);
+	WM_modalkeymap_add_item(keymap, CKEY, KM_PRESS, 0, 0, LAP_MODAL_NOTHING);
+	WM_modalkeymap_add_item(keymap, AKEY, KM_PRESS, 0, 0, LAP_MODAL_NOTHING);
+	WM_modalkeymap_add_item(keymap, PAD0, KM_PRESS, 0, 0, LAP_MODAL_NOTHING);
+	WM_modalkeymap_add_item(keymap, PAD1, KM_PRESS, 0, 0, LAP_MODAL_NOTHING);
+	WM_modalkeymap_add_item(keymap, PAD2, KM_PRESS, 0, 0, LAP_MODAL_NOTHING);
+	WM_modalkeymap_add_item(keymap, PAD3, KM_PRESS, 0, 0, LAP_MODAL_NOTHING);
+	WM_modalkeymap_add_item(keymap, PAD4, KM_PRESS, 0, 0, LAP_MODAL_NOTHING);
+	WM_modalkeymap_add_item(keymap, PAD5, KM_PRESS, 0, 0, LAP_MODAL_NOTHING);
+	WM_modalkeymap_add_item(keymap, PAD6, KM_PRESS, 0, 0, LAP_MODAL_NOTHING);
+	WM_modalkeymap_add_item(keymap, PAD7, KM_PRESS, 0, 0, LAP_MODAL_NOTHING);
+	WM_modalkeymap_add_item(keymap, PAD8, KM_PRESS, 0, 0, LAP_MODAL_NOTHING);
+	WM_modalkeymap_add_item(keymap, PAD9, KM_PRESS, 0, 0, LAP_MODAL_NOTHING);
+	WM_modalkeymap_add_item(keymap, PADMINUS, KM_PRESS, 0, 0, LAP_MODAL_NOTHING);
+	WM_modalkeymap_add_item(keymap, PADPLUSKEY, KM_PRESS, 0, 0, LAP_MODAL_NOTHING);
 	
 
 	WM_modalkeymap_assign(keymap, "MESH_OT_vertices_laplacian_deform");
@@ -768,7 +756,7 @@ static void laplacian_deform_preview(bContext *C, wmOperator *op)
 
 	if (data->stateSystem < LAP_STATE_HAS_STATIC_AND_HANDLER) return;
 
-	if (data->stateSystem >= LAP_STATE_HAS_STATIC_AND_HANDLER ) {
+	if (data->stateSystem == LAP_STATE_HAS_STATIC_AND_HANDLER ) {
 		if (data->sys) {
 			delete_laplacian_system(data->sys);
 		}
@@ -780,98 +768,68 @@ static void laplacian_deform_preview(bContext *C, wmOperator *op)
 		n = sys->numVerts;
 		ns = sa->numStatics;
 		nh = shs->numHandlers;
-
 		nlNewContext();
 		sys->context = nlGetCurrent();
-		nlNewContext();
-		sys->contextrot = nlGetCurrent();
 
-		nlMakeCurrent(sys->context);
-		nlSolverParameteri(NL_NB_VARIABLES, n*3);
-		nlSolverParameteri(NL_SYMMETRIC, NL_FALSE);
-		nlSolverParameteri(NL_LEAST_SQUARES, NL_TRUE);
-		nlSolverParameteri(NL_NB_ROWS, (n + nh + ns)*3);
-		nlSolverParameteri(NL_NB_RIGHT_HAND_SIDES, 1);
-
-		nlMakeCurrent(sys->contextrot);
 		nlSolverParameteri(NL_NB_VARIABLES, n);
 		nlSolverParameteri(NL_SYMMETRIC, NL_FALSE);
 		nlSolverParameteri(NL_LEAST_SQUARES, NL_TRUE);
 		nlSolverParameteri(NL_NB_ROWS, n + nh + ns);
 		nlSolverParameteri(NL_NB_RIGHT_HAND_SIDES, 3);
 
-		nlMakeCurrent(sys->context);
-		nlBegin(NL_SYSTEM);
-		nlBegin(NL_MATRIX);
-
-		nlMakeCurrent(sys->contextrot);
 		nlBegin(NL_SYSTEM);
 		nlBegin(NL_MATRIX);
 
 		init_laplacian_matrix(data);
 		compute_implict_rotations(data);
 
-
 		for (i=0; i<ns; i++) {
 			vid = sa->list_index[i];
-			nlMakeCurrent(sys->context);
-			nlRightHandSideAdd(0, (n + i)*3	 	, sa->co[vid][0]);
-			nlRightHandSideAdd(0, (n + i)*3 + 1	, sa->co[vid][1]);
-			nlRightHandSideAdd(0, (n + i)*3 + 2	, sa->co[vid][2]);
-
-			nlMatrixAdd((n + i)*3		, vid		, 1.0f);
-			nlMatrixAdd((n + i)*3 + 1	, n + vid	, 1.0f);
-			nlMatrixAdd((n + i)*3 + 2	, 2*n + vid	, 1.0f);
-
-			nlMakeCurrent(sys->contextrot);
 			nlRightHandSideAdd(0, n + i , sa->co[vid][0]);
 			nlRightHandSideAdd(1, n + i , sa->co[vid][1]);
 			nlRightHandSideAdd(2, n + i , sa->co[vid][2]);
-
 			nlMatrixAdd(n + i, vid, 1.0f);
-
 		}
 
 		for (i=0; i<nh; i++)
 		{
 			vid = shs->list_handlers[i];
-			nlMakeCurrent(sys->context);
-			nlRightHandSideAdd(0, (n + ns + i)*3	 	, sa->list_verts[vid]->co[0]);
-			nlRightHandSideAdd(0, (n + ns + i)*3 + 1	, sa->list_verts[vid]->co[1]);
-			nlRightHandSideAdd(0, (n + ns + i)*3 + 2	, sa->list_verts[vid]->co[2]);
-
-			nlMatrixAdd((n + ns + i)*3		, vid		, 1.0f);
-			nlMatrixAdd((n + ns + i)*3 + 1  , n + vid	, 1.0f);
-			nlMatrixAdd((n + ns + i)*3 + 2	, 2*n + vid	, 1.0f);
-
-			nlMakeCurrent(sys->contextrot);
 			nlRightHandSideAdd(0, n + ns + i 	, sa->list_verts[vid]->co[0]);
 			nlRightHandSideAdd(1, n + ns + i	, sa->list_verts[vid]->co[1]);
 			nlRightHandSideAdd(2, n + ns + i	, sa->list_verts[vid]->co[2]);
-
 			nlMatrixAdd(n + ns + i 		, vid					, 1.0f);
-
 		}
-		nlMakeCurrent(sys->context);
 		nlEnd(NL_MATRIX);
 		nlEnd(NL_SYSTEM);
 
 		if (nlSolveAdvanced(NULL, NL_TRUE) ) {
+			
+			nlBegin(NL_SYSTEM);
+			nlBegin(NL_MATRIX);
 			rotate_differential_coordinates(data);
-			//nlMakeCurrent(sys->context);
-			nlMakeCurrent(sys->contextrot);
+
+			for (i=0; i<ns; i++) {
+				vid = sa->list_index[i];
+				nlRightHandSideAdd(0, n + i , sa->co[vid][0]);
+				nlRightHandSideAdd(1, n + i , sa->co[vid][1]);
+				nlRightHandSideAdd(2, n + i , sa->co[vid][2]);
+			}
+
+			for (i=0; i<nh; i++)
+			{
+				vid = shs->list_handlers[i];
+				nlRightHandSideAdd(0, n + ns + i 	, sa->list_verts[vid]->co[0]);
+				nlRightHandSideAdd(1, n + ns + i	, sa->list_verts[vid]->co[1]);
+				nlRightHandSideAdd(2, n + ns + i	, sa->list_verts[vid]->co[2]);
+			}
 			nlEnd(NL_MATRIX);
 			nlEnd(NL_SYSTEM);
-			if (nlSolveAdvanced(NULL, NL_TRUE) ) {
-				//nlMakeCurrent(sys->context);
+			if (nlSolveAdvanced(NULL, NL_FALSE) ) {
 				BM_ITER_MESH (v, &viter, em->bm, BM_VERTS_OF_MESH) {
 					vid = BM_elem_index_get(v);
 					v->co[0] = nlGetVariable(0, vid);
 					v->co[1] = nlGetVariable(1, vid);
 					v->co[2] = nlGetVariable(2, vid);
-					/*v->co[0] = nlGetVariable(0, vid);
-					v->co[1] = nlGetVariable(0, vid + n);
-					v->co[2] = nlGetVariable(0, vid + 2*n);*/
 				}			
 			}
 			printf("\nSystem solved");
@@ -880,5 +838,78 @@ static void laplacian_deform_preview(bContext *C, wmOperator *op)
 			printf("\nNo solution found");
 		}
 		update_system_state(data, LAP_STATE_HAS_L_COMPUTE);
+	} else if (data->stateSystem == LAP_STATE_HAS_L_COMPUTE ) {
+		sys = data->sys;
+		sa = data->sa;
+		shs = data->shs;
+		sys->bm = bm;
+		n = sys->numVerts;
+		ns = sa->numStatics;
+		nh = shs->numHandlers;
+
+		nlBegin(NL_SYSTEM);
+		nlBegin(NL_MATRIX);
+
+		for (i=0; i<n; i++) {
+			nlRightHandSideAdd(0, i  , sys->delta[i][0]);
+			nlRightHandSideAdd(1, i  , sys->delta[i][1]);
+			nlRightHandSideAdd(2, i  , sys->delta[i][2]);
+		}
+		for (i=0; i<ns; i++) {
+			vid = sa->list_index[i];
+			nlRightHandSideAdd(0, n + i , sa->co[vid][0]);
+			nlRightHandSideAdd(1, n + i , sa->co[vid][1]);
+			nlRightHandSideAdd(2, n + i , sa->co[vid][2]);
+			nlMatrixAdd(n + i, vid, 1.0f);
+		}
+
+		for (i=0; i<nh; i++)
+		{
+			vid = shs->list_handlers[i];
+			nlRightHandSideAdd(0, n + ns + i 	, sa->list_verts[vid]->co[0]);
+			nlRightHandSideAdd(1, n + ns + i	, sa->list_verts[vid]->co[1]);
+			nlRightHandSideAdd(2, n + ns + i	, sa->list_verts[vid]->co[2]);
+			nlMatrixAdd(n + ns + i 		, vid					, 1.0f);
+		}
+		nlEnd(NL_MATRIX);
+		nlEnd(NL_SYSTEM);
+
+		if (nlSolveAdvanced(NULL, NL_FALSE) ) {
+			
+			nlBegin(NL_SYSTEM);
+			nlBegin(NL_MATRIX);
+			rotate_differential_coordinates(data);
+
+			for (i=0; i<ns; i++) {
+				vid = sa->list_index[i];
+				nlRightHandSideAdd(0, n + i , sa->co[vid][0]);
+				nlRightHandSideAdd(1, n + i , sa->co[vid][1]);
+				nlRightHandSideAdd(2, n + i , sa->co[vid][2]);
+			}
+
+			for (i=0; i<nh; i++)
+			{
+				vid = shs->list_handlers[i];
+				nlRightHandSideAdd(0, n + ns + i 	, sa->list_verts[vid]->co[0]);
+				nlRightHandSideAdd(1, n + ns + i	, sa->list_verts[vid]->co[1]);
+				nlRightHandSideAdd(2, n + ns + i	, sa->list_verts[vid]->co[2]);
+			}
+			nlEnd(NL_MATRIX);
+			nlEnd(NL_SYSTEM);
+			if (nlSolveAdvanced(NULL, NL_FALSE) ) {
+				BM_ITER_MESH (v, &viter, em->bm, BM_VERTS_OF_MESH) {
+					vid = BM_elem_index_get(v);
+					v->co[0] = nlGetVariable(0, vid);
+					v->co[1] = nlGetVariable(1, vid);
+					v->co[2] = nlGetVariable(2, vid);
+				}			
+			}
+			printf("\nSystem solved 2");
+		}
+		else{
+			printf("\nNo solution found 2");
+		}
+		update_system_state(data, LAP_STATE_HAS_L_COMPUTE);
+
 	}
 }
