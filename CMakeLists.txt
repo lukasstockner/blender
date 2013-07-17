@@ -2069,6 +2069,10 @@ else()
 	endif()
 endif()
 
+if(NOT WITH_GL_SYSTEM_LEGACY)
+	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_NO_GLU")
+endif()
+
 #-----------------------------------------------------------------------------
 # Configure Bullet
 

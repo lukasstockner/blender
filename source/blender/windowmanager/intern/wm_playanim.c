@@ -748,10 +748,10 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 			glScissor(0, 0, ps->win_x, ps->win_y);
 			
 			/* unified matrix, note it affects offset for drawing */
-			glMatrixMode(GL_PROJECTION);
-			glLoadIdentity();
-			glOrtho(0.0f, 1.0f, 0.0f, 1.0f, -1.0f, 1.0f);
-			glMatrixMode(GL_MODELVIEW);
+			gpuMatrixMode(GL_PROJECTION);
+			gpuLoadIdentity();
+			gpuOrtho(0.0f, 1.0f, 0.0f, 1.0f, -1.0f, 1.0f);
+			gpuMatrixMode(GL_MODELVIEW);
 
 			glPixelZoom(ps->zoom, ps->zoom);
 			ptottime = 0.0;
@@ -971,10 +971,10 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 		playanim_window_open("Blender:Anim", start_x, start_y, ibuf->x, ibuf->y);
 
 		/* unified matrix, note it affects offset for drawing */
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-		glOrtho(0.0f, 1.0f, 0.0f, 1.0f, -1.0f, 1.0f);
-		glMatrixMode(GL_MODELVIEW);
+		gpuMatrixMode(GL_PROJECTION);
+		gpuLoadIdentity();
+		gpuOrtho(0.0f, 1.0f, 0.0f, 1.0f, -1.0f, 1.0f);
+		gpuMatrixMode(GL_MODELVIEW);
 	}
 
 	GHOST_GetMainDisplayDimensions(g_WS.ghost_system, &maxwinx, &maxwiny);

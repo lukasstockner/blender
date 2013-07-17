@@ -58,11 +58,19 @@
         return ret;                     \
     }
 
+#if WITH_ASSERT_ABORT
+#define GPU_ABORT abort
+#else
+#define GPU_ABORT() ((void)0)
+#endif
+
 #else
 
 #define GPU_ASSERT(test)
 
 #define GPU_SAFE_RETURN(test, var, ret) { (void)var; }
+
+#define GPU_ABORT() ((void)0)
 
 #endif /* GPU_SAFETY */
 

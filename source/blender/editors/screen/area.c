@@ -356,8 +356,8 @@ static void region_draw_azones(ScrArea *sa, ARegion *ar)
 
 	glEnable(GL_BLEND);
 
-	glPushMatrix();
-	glTranslatef(-ar->winrct.xmin, -ar->winrct.ymin, 0.0f);
+	gpuPushMatrix();
+	gpuTranslate(-ar->winrct.xmin, -ar->winrct.ymin, 0.0f);
 	
 	for (az = sa->actionzones.first; az; az = az->next) {
 		/* test if action zone is over this region */
@@ -387,7 +387,7 @@ static void region_draw_azones(ScrArea *sa, ARegion *ar)
 		}
 	}
 
-	glPopMatrix();
+	gpuPopMatrix();
 
 	glDisable(GL_BLEND);
 }

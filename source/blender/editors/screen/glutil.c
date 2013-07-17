@@ -983,20 +983,20 @@ int glaBufferTransformFromRole_glsl(float *buffer, int width, int height, int ro
 
 	BLI_rcti_init(&display_rect, 0, width, 0, height);
 
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
+	gpuMatrixMode(GL_PROJECTION);
+	gpuPushMatrix();
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuPushMatrix();
 
 	glaDefine2DArea(&display_rect);
 
 	glaDrawPixelsTex(0, 0, width, height, GL_RGBA, GL_FLOAT,
 	                 GL_NEAREST, buffer);
 
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
+	gpuMatrixMode(GL_PROJECTION);
+	gpuPopMatrix();
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuPopMatrix();
 
 	GPU_offscreen_read_pixels(ofs, GL_FLOAT, buffer);
 

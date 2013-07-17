@@ -404,9 +404,9 @@ static void screenshot_startjob(void *sjv, short *stop, short *do_update, float 
 static void screencast_draw_cursor(bContext *UNUSED(C), int x, int y, void *UNUSED(p_ptr))
 {
 	
-	glPushMatrix();
+	gpuPushMatrix();
 	
-	glTranslatef((float)x, (float)y, 0.0f);
+	gpuTranslate((float)x, (float)y, 0.0f);
 	
 	
 	glEnable(GL_LINE_SMOOTH);
@@ -421,7 +421,7 @@ static void screencast_draw_cursor(bContext *UNUSED(C), int x, int y, void *UNUS
 	glDisable(GL_BLEND);
 	glDisable(GL_LINE_SMOOTH);
 	
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 /* Turn brush cursor in 3D view on/off */

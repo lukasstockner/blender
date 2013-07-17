@@ -108,12 +108,12 @@ static void draw_render_info(Scene *scene, Image *ima, ARegion *ar, float zoomx,
 			/* find window pixel coordinates of origin */
 			UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &x, &y);
 
-			glPushMatrix();
-			glTranslatef(x, y, 0.0f);
-			glScalef(zoomx, zoomy, 1.0f);
+			gpuPushMatrix();
+			gpuTranslate(x, y, 0.0f);
+			gpuScale(zoomx, zoomy, 1.0f);
 
 			if (scene->r.mode & R_BORDER) {
-				glTranslatef((int)(-scene->r.border.xmin * scene->r.xsch * scene->r.size / 100.0f),
+				gpuTranslate((int)(-scene->r.border.xmin * scene->r.xsch * scene->r.size / 100.0f),
 				             (int)(-scene->r.border.ymin * scene->r.ysch * scene->r.size / 100.0f),
 				             0.0f);
 			}
@@ -162,7 +162,7 @@ static void draw_render_info(Scene *scene, Image *ima, ARegion *ar, float zoomx,
 
 			MEM_freeN(tiles);
 
-			glPopMatrix();
+			gpuPopMatrix();
 		}
 	}
 }

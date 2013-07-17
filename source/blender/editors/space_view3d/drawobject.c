@@ -6161,11 +6161,10 @@ static void draw_bb_quadric(BoundBox *bb, char type)
 		GPUprim3 prim = GPU_PRIM_LOFI_WIRE;
 		float radius = size[0] > size[1] ? size[0] : size[1];
 		float length = size[2] > radius ? 2.0f * (size[2] - radius) : 0.0f;
-		gpuImmediateFormat_V3();
-		glTranslatef(cent[0], cent[1], cent[2] - length * 0.5f);
+		gpuTranslate(cent[0], cent[1], cent[2] - length * 0.5f);
 		gpuSingleCylinder(&prim, radius, radius, 1);
 		gpuSingleSphere(&prim, radius);
-		glTranslatef(0.0, 0.0, length);
+		gpuTranslate(0.0, 0.0, length);
 		gpuSingleSphere(&prim, radius);
 	}
 

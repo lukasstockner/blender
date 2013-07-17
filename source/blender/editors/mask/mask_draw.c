@@ -596,9 +596,9 @@ void ED_mask_draw_region(Mask *mask, ARegion *ar,
 	}
 
 	/* apply transformation so mask editing tools will assume drawing from the origin in normalized space */
-	glPushMatrix();
-	glTranslatef(x + xofs, y + yofs, 0);
-	glScalef(maxdim * zoomx, maxdim * zoomy, 0);
+	gpuPushMatrix();
+	gpuTranslate(x + xofs, y + yofs, 0);
+	gpuScale(maxdim * zoomx, maxdim * zoomy, 0);
 
 	if (stabmat) {
 		gpuMultMatrix(stabmat);
@@ -615,7 +615,7 @@ void ED_mask_draw_region(Mask *mask, ARegion *ar,
 		ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_VIEW);
 	}
 
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 void ED_mask_draw_frames(Mask *mask, ARegion *ar, const int cfra, const int sfra, const int efra)

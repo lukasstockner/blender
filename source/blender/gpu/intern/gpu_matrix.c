@@ -7,7 +7,7 @@
  * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * but WITHOUT ANY WARRANTY; without even the ipmlied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
@@ -25,11 +25,9 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file GPU_compatibility.h
+/** \file GPU_copmatibility.h
  *  \ingroup gpu
  */
-
-#include <assert.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -43,100 +41,114 @@
 #define GPU_MAT_CAST_ANY 0
 #include "GPU_matrix.h"
 
-
 #include "gpu_object_gles.h"
 #include "GPU_extensions.h"
 
-#if WITH_GPU_SAFETY
-#define GPU_STACK_DEBUG
-#endif
 
-static GLint glslneedupdate = 1;
 
 typedef GLfloat GPU_matrix[4][4];
 
 typedef struct GPU_matrix_stack
 {
-	GLint size;
-	GLint pos;
-	GLint changed;
-	GPU_matrix * dynstack;
-
-
+	GLsizei     size;
+	GLsizei     pos;
+	GLboolean   changed;
+	GPU_matrix* dynstack;
 } GPU_matrix_stack;
+
+
+
+static GLboolean glslneedupdate = GL_TRUE;
 
 static GPU_matrix_stack ms_modelview;
 static GPU_matrix_stack ms_projection;
 static GPU_matrix_stack ms_texture;
 
-static GPU_matrix_stack * ms_current;
+static GPU_matrix_stack* ms_current;
 static GLenum ms_current_mode;
+
+static GLint glstackpos[3];
+static GLint glstackmode;
+
+
+
 
 void GPU_matrix_forced_update(void)
 {
-
-	glslneedupdate = 1;
-		gpuMatrixCommit();
-	glslneedupdate = 1;	
-	
+	glslneedupdate = GL_TRUE;
+	gpuMatrixCommit();
+	glslneedupdate = GL_TRUE;
 }
 
-#define CURMATRIX (ms_current->dynstack[ms_current->pos])
+
+
+#define current_matrix() (ms_current->dynstack[ms_current->pos])
+
 
 
 /* Check if we have a good matrix */
 #if WITH_GPU_SAFETY
+
 static void checkmat(GLfloat *m)
 {
 	GLint i;
-	for(i=0;i<16;i++) {
+
+	for(i = 0; i < 16; i++) {
 #if _MSC_VER
-		BLI_assert(_finite(m[i]));
+		GPU_ASSERT(_finite(m[i]));
 #else
-		BLI_assert(!isinf(m[i]));
+		GPU_ASSERT(!isinf(m[i]));
 #endif
 	}
 }
 
-#define CHECKMAT checkmat((GLfloat*)CURMATRIX);
+#define CHECKMAT(m) checkmat((GLfloat*)m)
+
 #else
-#define CHECKMAT
+
+#define CHECKMAT(m)
+
 #endif
 
-static void ms_init(GPU_matrix_stack * ms, GLint initsize)
+
+
+static void ms_init(GPU_matrix_stack* ms, GLint initsize)
 {
-	if(initsize == 0)
-		initsize = 32;
-	ms->size = initsize;
-	ms->pos = 0;
-	ms->changed = 1;
-	ms->dynstack = MEM_mallocN(ms->size*sizeof(*(ms->dynstack)), "MatrixStack");
-	//gpuLoadIdentity();
+	BLI_assert(initsize > 0);
+
+	ms->size     = initsize;
+	ms->pos      = 0;
+	ms->changed  = GL_TRUE;
+	ms->dynstack = (GPU_matrix*)MEM_mallocN(ms->size*sizeof(*(ms->dynstack)), "MatrixStack");
 }
+
+
 
 static void ms_free(GPU_matrix_stack * ms)
 {
-	ms->size = 0;
-	ms->pos = 0;
+	ms->size     = 0;
+	ms->pos      = 0;
+	ms->changed  = GL_FALSE;
 	MEM_freeN(ms->dynstack);
 	ms->dynstack = NULL;
 }
 
 
-static GLint glstackpos[3] = {0};
-static GLint glstackmode;
 
 void GPU_ms_init(void)
 {
-	ms_init(&ms_modelview, 32);
+	ms_init(&ms_texture,    16);
 	ms_init(&ms_projection, 16);
-	ms_init(&ms_texture, 16);
+	ms_init(&ms_modelview,  32);
 
-	ms_current = &ms_modelview;
-	ms_current_mode = GL_MODELVIEW;
+	gpuMatrixMode(GL_TEXTURE);
+	gpuLoadIdentity();
 
+	gpuMatrixMode(GL_PROJECTION);
+	gpuLoadIdentity();
 
-
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuLoadIdentity();
 }
 
 void GPU_ms_exit(void)
@@ -144,176 +156,88 @@ void GPU_ms_exit(void)
 	ms_free(&ms_modelview);
 	ms_free(&ms_projection);
 	ms_free(&ms_texture);
-}
 
-void gpuMatrixLock(void)
-{
-#ifndef WITH_GLES
-	GPU_matrix tm;
-	glGetIntegerv(GL_MODELVIEW_STACK_DEPTH, glstackpos);
-	glGetIntegerv(GL_PROJECTION_STACK_DEPTH, glstackpos+1);
-	glGetIntegerv(GL_TEXTURE_STACK_DEPTH, glstackpos+2);
-	glGetIntegerv(GL_MATRIX_MODE, &glstackmode);
-
-	glGetFloatv(GL_MODELVIEW_MATRIX, (GLfloat*)tm);
-	gpuMatrixMode(GL_MODELVIEW);
-	gpuLoadMatrix((GLfloat*)tm);
-
-	glGetFloatv(GL_PROJECTION_MATRIX, (GLfloat*)tm);
-	gpuMatrixMode(GL_PROJECTION);
-	gpuLoadMatrix((GLfloat*)tm);
-
-	glGetFloatv(GL_TEXTURE_MATRIX, (GLfloat*)tm);
-	gpuMatrixMode(GL_TEXTURE);
-	gpuLoadMatrix((GLfloat*)tm);
-
-
-
-
-	glMatrixMode(GL_TEXTURE);
-	glPushMatrix();
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-
-	glMatrixMode(glstackmode);
-	gpuMatrixMode(glstackmode);
-
-#endif
-
+	ms_current_mode = 0;
+	ms_current      = NULL;
 }
 
 
-void gpuMatrixUnlock(void)
-{
-
-#ifndef WITH_GLES
-	GLint curval;
-
-
-	glMatrixMode(GL_TEXTURE);
-	glPopMatrix();
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
-
-	glGetIntegerv(GL_MODELVIEW_STACK_DEPTH, &curval);
-
-
-	glGetIntegerv(GL_PROJECTION_STACK_DEPTH, &curval);
-	glGetIntegerv(GL_TEXTURE_STACK_DEPTH, &curval);
-
-
-
-
-
-
-	glMatrixMode(glstackmode);
-
-#endif
-
-}
 
 void gpuMatrixCommit(void)
 {
-if(GPU_GLTYPE_FIXED_ENABLED)
-{
-#ifndef WITH_GLES
-	if(ms_modelview.changed)
-	{
-		ms_modelview.changed = 0;
+#if defined(WITH_GL_PROFILE_COMPATIBILITY) || defined(WITH_GL_PROFILE_ES20)
+	if(ms_modelview.changed) {
+		ms_modelview.changed = GL_FALSE;
 		glMatrixMode(GL_MODELVIEW);
 		glLoadMatrixf((GLfloat*)ms_modelview.dynstack[ms_modelview.pos]);
 	}
-	if(ms_projection.changed)
-	{
-		ms_projection.changed = 0;
+
+	if(ms_projection.changed) {
+		ms_projection.changed = GL_FALSE;
 		glMatrixMode(GL_PROJECTION);
 		glLoadMatrixf((GLfloat*)ms_projection.dynstack[ms_projection.pos]);
 	}
-	if(ms_texture.changed)
-	{
-		ms_texture.changed = 0;
+
+	if(ms_texture.changed) {
+		ms_texture.changed = GL_FALSE;
 		glMatrixMode(GL_TEXTURE);
 		glLoadMatrixf((GLfloat*)ms_texture.dynstack[ms_texture.pos]);
 	}
-
 #endif
-} else if(curglslesi)
-{
-//#include REAL_GL_MODE
 
-	if(ms_modelview.changed || glslneedupdate)
-	{
+#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
+	if (curglslesi) {
+		if(ms_modelview.changed || glslneedupdate) {
+			if(curglslesi->viewmatloc!=-1) {
+				glUniformMatrix4fv(curglslesi->viewmatloc, 1, 0, ms_modelview.dynstack[ms_modelview.pos][0]);
+			}
 
-		 
-		if(curglslesi->viewmatloc!=-1)
-			glUniformMatrix4fv(curglslesi->viewmatloc, 1, 0, ms_modelview.dynstack[ms_modelview.pos][0]);
-			
-		if(curglslesi->normalmatloc!=-1)
-		{
-			GLfloat t[3][3] = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
-			copy_m3_m4(t, ms_modelview.dynstack[ms_modelview.pos]);
-			glUniformMatrix3fv(curglslesi->normalmatloc, 1, 0, t[0]);
+			if(curglslesi->normalmatloc!=-1) {
+				GLfloat t[3][3] = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
+				copy_m3_m4(t, ms_modelview.dynstack[ms_modelview.pos]);
+				glUniformMatrix3fv(curglslesi->normalmatloc, 1, 0, t[0]);
+			}
 		}
-		
-		
-	}
-	if(ms_projection.changed|| glslneedupdate)
-	{
-		if(curglslesi->projectionmatloc!=-1)
-		glUniformMatrix4fv(curglslesi->projectionmatloc, 1, 0, ms_projection.dynstack[ms_projection.pos][0]);
-	}
+
+		if(ms_projection.changed || glslneedupdate) {
+			if(curglslesi->projectionmatloc!=-1) {
+				glUniformMatrix4fv(curglslesi->projectionmatloc, 1, 0, ms_projection.dynstack[ms_projection.pos][0]);
+			}
+		}
 	
-	//if(ms_texture.changed|| glslneedupdate)
-	{
-		if(curglslesi->texturematloc!=-1)
-		glUniformMatrix4fv(curglslesi->texturematloc, 1, 0, ms_texture.dynstack[ms_texture.pos][0]);
+		if(ms_texture.changed|| glslneedupdate) {
+			if(curglslesi->texturematloc != -1) {
+				glUniformMatrix4fv(curglslesi->texturematloc, 1, 0, ms_texture.dynstack[ms_texture.pos][0]);
+			}
+		}
 	}
+#endif
 }
-
-}
-
 
 
 
 void gpuPushMatrix(void)
 {
 	ms_current->pos++;
-	
-	if(ms_current->pos >= ms_current->size)
-	{
-		ms_current->size += ((ms_current->size-1)>>1)+1; 
-		/* increases size by 50% */
-		ms_current->dynstack = MEM_reallocN(ms_current->dynstack,
-											ms_current->size*sizeof(*(ms_current->dynstack)));
-											
-	
-	}
+
+	GPU_ASSERT(ms_current->pos < ms_current->size);
 
 	gpuLoadMatrix((GLfloat*)ms_current->dynstack[ms_current->pos-1]);
-	CHECKMAT
-
 }
+
+
 
 void gpuPopMatrix(void)
 {
+	GPU_ASSERT(ms_current->pos != 0);
+
 	ms_current->pos--;
 
+	ms_current->changed = GL_TRUE;
 
-
-
-	ms_current->changed = 1;
-
-
-#ifdef GPU_STACK_DEBUG
-	if(ms_current->pos < 0)
-		assert(0);
-#endif	
-	CHECKMAT
+	CHECKMAT(ms_current);
 }
+
 
 
 void gpuMatrixMode(GLenum mode)
@@ -322,8 +246,7 @@ void gpuMatrixMode(GLenum mode)
 
 	ms_current_mode = mode;
 
-	switch(mode)
-	{
+	switch(mode) {
 		case GL_MODELVIEW:
 			ms_current = &ms_modelview;
 			break;
@@ -331,36 +254,41 @@ void gpuMatrixMode(GLenum mode)
 			ms_current = &ms_projection;
 			break;
 		case GL_TEXTURE:
-			ms_current = & ms_texture;
+			ms_current = &ms_texture;
 			break;
 		default:
 			/* ignore */
 			break;
 	}
-
-CHECKMAT
 }
+
+
 
 GLenum gpuGetMatrixMode(void)
 {
 	return ms_current_mode;
 }
 
-void gpuLoadMatrix(const GLfloat * m)
+
+
+void gpuLoadMatrix(const GLfloat* m)
 {
-	copy_m4_m4((GLfloat (*)[4])CURMATRIX, (GLfloat (*)[4])m);
-	ms_current->changed = 1;
-	CHECKMAT
+	copy_m4_m4(current_matrix(), (GLfloat (*)[4])m);
+
+	ms_current->changed = GL_TRUE;
+
+	CHECKMAT(ms_current);
 }
 
-const GLfloat * gpuGetMatrix(GLenum type, GLfloat *m)
+
+
+const GLfloat* gpuGetMatrix(GLenum type, GLfloat *m)
 {
-	GPU_matrix_stack * ms_select;
+	GPU_matrix_stack* ms_select;
 
 	GPU_ASSERT(ELEM3(type, GL_MODELVIEW_MATRIX, GL_PROJECTION_MATRIX, GL_TEXTURE_MATRIX));
 
-	switch(type)
-	{
+	switch(type) {
 		case GL_MODELVIEW_MATRIX:
 			ms_select = &ms_modelview;
 			break;
@@ -368,108 +296,134 @@ const GLfloat * gpuGetMatrix(GLenum type, GLfloat *m)
 			ms_select = &ms_projection;
 			break;
 		case GL_TEXTURE_MATRIX:
-			ms_select = & ms_texture;
+			ms_select = &ms_texture;
 			break;
 		default:
-			return 0;
+			return NULL;
 	}
 
-	if (m)
+	if (m) {
 		copy_m4_m4((GLfloat (*)[4])m, ms_select->dynstack[ms_select->pos]);
-	else
+		return m;
+	}
+	else {
 		return (GLfloat*)(ms_select->dynstack[ms_select->pos]);
-
-	return 0;
-
-
+	}
 }
+
+
 
 void gpuLoadIdentity(void)
 {
-	unit_m4(CURMATRIX);
-	ms_current->changed = 1;
-	CHECKMAT
-}
+	unit_m4(current_matrix());
 
+	ms_current->changed = GL_TRUE;
+
+	CHECKMAT(ms_current);
+}
 
 
 
 void gpuTranslate(GLfloat x, GLfloat y, GLfloat z)
 {
+	translate_m4(current_matrix(), x, y, z);
 
-	translate_m4(CURMATRIX, x, y, z);
-	ms_current->changed = 1;
-	CHECKMAT
+	ms_current->changed = GL_TRUE;
 
+	CHECKMAT(ms_current);
 }
+
+
 
 void gpuScale(GLfloat x, GLfloat y, GLfloat z)
 {
+	scale_m4(current_matrix(), x, y, z);
 
-	scale_m4(CURMATRIX, x, y, z);
-	ms_current->changed = 1;
-	CHECKMAT
+	ms_current->changed = GL_TRUE;
+
+	CHECKMAT(ms_current);
 }
+
 
 
 void gpuMultMatrix(const GLfloat *m)
 {
 	GPU_matrix cm;
 
-	copy_m4_m4((GLfloat (*)[4])cm, (GLfloat (*)[4])CURMATRIX);
+	copy_m4_m4(cm, current_matrix());
+	mult_m4_m4m4_q(current_matrix(), cm, (GLfloat (*)[4])m);
 
-	mult_m4_m4m4_q(CURMATRIX, cm, (GLfloat (*)[4])m);
-	ms_current->changed = 1;
-	CHECKMAT
+	ms_current->changed = GL_TRUE;
 
+	CHECKMAT(ms_current);
 }
 
 
-void gpuMultMatrixd(const double *m)
+
+#if defined(WITH_GL_PROFILE_COMPATIBILITY) || defined(WITH_GL_PROFILE_CORE)
+void gpuMultMatrixd(const GLdouble *m)
 {
 	GLfloat mf[16];
 	GLint i;
-	for(i=0; i<16; i++)
+
+	for(i = 0; i < 16; i++) {
 		mf[i] = m[i];
+	}
+
 	gpuMultMatrix(mf);
-
 }
+#endif
 
 
-void gpuRotateVector(GLfloat angle, GLfloat * vector)
+
+void gpuRotateVector(GLfloat deg, GLfloat vector[3])
 {
 	float rm[3][3];
 	GPU_matrix cm;
-	copy_m4_m4((GLfloat (*)[4])cm, (GLfloat (*)[4])CURMATRIX);
 
-	axis_angle_to_mat3(rm, vector, angle);
-	mult_m4_m3m4_q(CURMATRIX, cm, rm);
+	axis_angle_to_mat3(rm, vector, DEG2RADF(deg));
 
-	ms_current->changed = 1;
+	copy_m4_m4(cm, current_matrix());
+	mult_m4_m3m4_q(current_matrix(), cm, rm);
 
+	ms_current->changed = GL_TRUE;
+
+	CHECKMAT(ms_current);
 }
 
-void gpuRotateAxis(GLfloat angle, char axis)
+
+
+void gpuRotateAxis(GLfloat deg, char axis)
 {
+	rotate_m4(current_matrix(), axis, DEG2RADF(deg));
 
-	rotate_m4((GLfloat (*)[4])CURMATRIX, axis, angle);
-	ms_current->changed = 1;
+	ms_current->changed = GL_TRUE;
+
+	CHECKMAT(ms_current);
 }
+
+
 
 void gpuRotateRight(char type)
 {
-	rotate_m4_right((GLfloat (*)[4])CURMATRIX, type);
+	rotate_m4_right(current_matrix(), type);
 
-	ms_current->changed = 1;
+	ms_current->changed = GL_TRUE;
 
+	CHECKMAT(ms_current);
 }
+
+
 
 void gpuLoadOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat nearVal, GLfloat farVal)
 {
-	mat4_ortho_set(CURMATRIX, left, right, bottom, top, nearVal, farVal);
-	ms_current->changed = 1;
-	CHECKMAT
+	mat4_ortho_set(current_matrix(), left, right, bottom, top, nearVal, farVal);
+
+	ms_current->changed = GL_TRUE;
+
+	CHECKMAT(ms_current);
 }
+
 
 
 void gpuOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat nearVal, GLfloat farVal)
@@ -479,29 +433,34 @@ void gpuOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat 
 	mat4_ortho_set(om, left, right, bottom, top, nearVal, farVal);
 
 	gpuMultMatrix((GLfloat*)om);
-	CHECKMAT
 }
+
 
 
 void gpuFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat nearVal, GLfloat farVal)
 {
 	GPU_matrix fm;
+
 	mat4_frustum_set(fm, left, right, bottom, top, nearVal, farVal);
+
 	gpuMultMatrix((GLfloat*) fm);
-	CHECKMAT
 }
+
+
 
 void gpuLoadFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat nearVal, GLfloat farVal)
 {
-	mat4_frustum_set(CURMATRIX, left, right, bottom, top, nearVal, farVal);
-	ms_current->changed = 1;
-	CHECKMAT
+	mat4_frustum_set(current_matrix(), left, right, bottom, top, nearVal, farVal);
+
+	ms_current->changed = GL_TRUE;
+
+	CHECKMAT(ms_current);
 }
+
 
 
 void gpuLookAt(GLfloat eyeX, GLfloat eyeY, GLfloat eyeZ, GLfloat centerX, GLfloat centerY, GLfloat centerZ, GLfloat upX, GLfloat upY, GLfloat upZ)
 {
-
 	GPU_matrix cm;
 	GLfloat lookdir[3];
 	GLfloat camup[3] = {upX, upY, upZ};
@@ -513,11 +472,10 @@ void gpuLookAt(GLfloat eyeX, GLfloat eyeY, GLfloat eyeZ, GLfloat centerX, GLfloa
 	mat4_look_from_origin(cm, lookdir, camup);
 
 	gpuMultMatrix((GLfloat*) cm);
-
 	gpuTranslate(-eyeX, -eyeY, -eyeZ);
-	CHECKMAT
-
 }
+
+
 
 void gpuProject(const GLfloat obj[3], const GLfloat model[4][4], const GLfloat proj[4][4], const GLint view[4], GLfloat win[3])
 {
@@ -532,46 +490,47 @@ void gpuProject(const GLfloat obj[3], const GLfloat model[4][4], const GLfloat p
 }
 
 
-int gpuUnProject(const GLfloat win[3], const GLfloat model[4][4], const GLfloat proj[4][4], const GLint view[4], GLfloat obj[3])
+
+GLboolean gpuUnProject(const GLfloat win[3], const GLfloat model[4][4], const GLfloat proj[4][4], const GLint view[4], GLfloat obj[3])
 {
+	GLfloat pm[4][4];
+	GLfloat in[4];
+	GLfloat out[4];
 
-	float v[3];
-	GPU_matrix pm;
+	mul_m4_m4m4(pm, proj, model);
 
-	int i;
-	double modeld[16], projd[16];
-	double objd[3] = {0};
-	for(i=0; i<16; i++)
-	{
-		modeld[i] = model[0][i];
-		projd[i] = proj[0][i];
+	if (!invert_m4(pm)) {
+		return GL_FALSE;
 	}
-	if(!gluUnProject(win[0], win[1], win[2], modeld, projd, view, objd, objd+1, objd+2))
-		BLI_assert(0);
 
-	mult_m4_m4m4_q(pm, proj, model);
+	in[0]=win[0];
+	in[1]=win[1];
+	in[2]=win[2];
+	in[3]=1;
 
-	if(!invert_m4(pm))
-		return FALSE;
+	/* Map x and y from window coordinates */
+	in[0] = (in[0] - view[0]) / view[2];
+	in[1] = (in[1] - view[1]) / view[3];
 
+	/* Map to range -1 to 1 */
+	in[0] = 2 * in[0] - 1;
+	in[1] = 2 * in[1] - 1;
+	in[2] = 2 * in[2] - 1;
 
+	mul_v4_m4v3(out, pm, in);
 
+	if (out[3] == 0.0) {
+		return GL_FALSE;
+	}
+	else {
+		out[0] /= out[3];
+		out[1] /= out[3];
+		out[2] /= out[3];
 
-	v[0] = 2.0*(win[0]-view[0])/view[2] - 1.0f;
-	v[1] = 2.0*(win[1]-view[1])/view[3] - 1.0f;
-	v[2] = 2.0*(win[2]		   )		 - 1.0f;
+		obj[0] = out[0];
+		obj[1] = out[1];
+		obj[2] = out[2];
 
-
-	mul_v3_m4v3_q(obj, pm, v);
-	/*obj[0]/=10;
-obj[1]/=10;
-obj[2]/=10;
-obj[0]=0;
-obj[1]=0;
-obj[2]=0;*/
-	obj[0] = objd[0];
-	obj[1] = objd[1];
-	obj[2] = objd[2];
-	return TRUE;
-
+		return GL_TRUE;
+	}
 }

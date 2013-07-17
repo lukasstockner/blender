@@ -542,7 +542,7 @@ static void paint_draw_tex_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		if (mtex->brush_map_mode == MTEX_MAP_MODE_VIEW) {
 			/* brush rotation */
 			gpuTranslate(0.5, 0.5, 0);
-			gpuRotateAxis((double)RAD2DEGF(ups->brush_rotation), 'Z');
+			gpuRotateAxis(RAD2DEGF(ups->brush_rotation), 'Z');
 			gpuTranslate(-0.5f, -0.5f, 0);
 
 			/* scale based on tablet pressure */
@@ -594,7 +594,7 @@ static void paint_draw_tex_overlay(UnifiedPaintSettings *ups, Brush *brush,
 			else
 				gpuTranslate(brush->mask_stencil_pos[0], brush->mask_stencil_pos[1], 0);
 			gpuRotateAxis(RAD2DEGF(mtex->rot), 'Z');
-			glMatrixMode(GL_TEXTURE);
+			gpuMatrixMode(GL_TEXTURE);
 		}
 
 		/* set quad color. Colored overlay does not get blending */
@@ -626,8 +626,8 @@ static void paint_draw_tex_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		gpuPopMatrix();
 
 		if (mtex->brush_map_mode == MTEX_MAP_MODE_STENCIL) {
-			glMatrixMode(GL_MODELVIEW);
-			glPopMatrix();
+			gpuMatrixMode(GL_MODELVIEW);
+			gpuPopMatrix();
 		}
 	}
 }
@@ -653,9 +653,9 @@ static void paint_draw_cursor_overlay(UnifiedPaintSettings *ups, Brush *brush,
 
 		/* scale based on tablet pressure */
 		if (ups->draw_pressure && BKE_brush_use_size_pressure(vc->scene, brush)) {
-			glTranslatef(0.5f, 0.5f, 0);
-			glScalef(1.0f / ups->pressure_value, 1.0f / ups->pressure_value, 1);
-			glTranslatef(-0.5f, -0.5f, 0);
+			gpuTranslate(0.5f, 0.5f, 0);
+			gpuScale(1.0f / ups->pressure_value, 1.0f / ups->pressure_value, 1);
+			gpuTranslate(-0.5f, -0.5f, 0);
 		}
 
 		if (ups->draw_anchored) {

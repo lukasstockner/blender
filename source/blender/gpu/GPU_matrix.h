@@ -43,9 +43,6 @@ void GPU_matrix_forced_update(void);
 void GPU_ms_init(void);
 void GPU_ms_exit(void);
 
-void gpuMatrixLock(void);
-void gpuMatrixUnlock(void);
-
 void gpuMatrixCommit(void);
 
 void gpuPushMatrix(void);
@@ -60,12 +57,14 @@ const GLfloat * gpuGetMatrix(GLenum type, GLfloat * m);
 void gpuLoadIdentity(void);
 
 void gpuMultMatrix(const GLfloat *m);
-void gpuMultMatrixd(const double *m);
+#if defined(WITH_GL_PROFILE_COMPATIBILITY) || defined(WITH_GL_PROFILE_CORE)
+void gpuMultMatrixd(const GLdouble *m);
+#endif
 
 void gpuTranslate(GLfloat x, GLfloat y, GLfloat z);
 void gpuScale(GLfloat x, GLfloat y, GLfloat z);
-void gpuRotateVector(GLfloat angle, GLfloat * vector);
-void gpuRotateAxis(GLfloat angle, char axis);
+void gpuRotateVector(GLfloat deg, GLfloat vector[3]);
+void gpuRotateAxis(GLfloat deg, char axis);
 void gpuRotateRight(char type);
 
 void gpuOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat nearVal, GLfloat farVal);
@@ -77,7 +76,7 @@ void gpuLoadFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GL
 void gpuLookAt(GLfloat eyeX, GLfloat eyeY, GLfloat eyeZ, GLfloat centerX, GLfloat centerY, GLfloat centerZ, GLfloat upX, GLfloat upY, GLfloat upZ);
 
 void gpuProject(const GLfloat obj[3], const GLfloat model[4][4], const GLfloat proj[4][4], const GLint view[4], GLfloat win[3]);
-int gpuUnProject(const GLfloat win[3], const GLfloat model[4][4], const GLfloat proj[4][4], const GLint view[4], GLfloat obj[3]);
+GLboolean gpuUnProject(const GLfloat win[3], const GLfloat model[4][4], const GLfloat proj[4][4], const GLint view[4], GLfloat obj[3]);
 
 
 #ifndef GPU_MAT_CAST_ANY

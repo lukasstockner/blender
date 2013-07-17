@@ -546,4 +546,65 @@
 #undef glRecti
 #define glRecti DO_NOT_USE_glRecti
 
+/* Matrixes */
+//#undef GL_MATRIX_MODE
+//#define GL_MATRIX_MODE DO_NOT_USE_GL_MATRIX_MODE
+//#undef GL_COLOR_MATRIX
+//#define GL_COLOR_MATRIX DO_NOT_USE_GL_COLOR_MATRIX
+//#undef GL_MODELVIEW_MATRIX
+//#define GL_MODELVIEW_MATRIX DO_NOT_USE_GL_MODELVIEW_MATRIX
+//#undef GL_PROJECTION_MATRIX
+//#define GL_PROJECTION_MATRIX DO_NOT_USE_GL_PROJECTION_MATRIX
+//#undef GL_TEXTURE_MATRIX
+//#define GL_TEXTURE_MATRIX DO_NOT_USE_GL_TEXTURE_MATRIX
+//#undef GL_COLOR
+//#define GL_COLOR DO_NOT_USE_GL_COLOR
+//#undef GL_MODELVIEW
+//#define GL_MODELVIEW DO_NOT_USE_GL_MODELVIEW
+//#undef GL_PROJECTION
+//#define GL_PROJECTION DO_NOT_USE_GL_PROJECTION
+//#undef GL_TEXTURE
+//#define GL_TEXTURE DO_NOT_USE_GL_TEXTURE
+
+#undef glMatrixMode
+#define glMatrixMode DO_NOT_USE_glMatrixMode
+#undef glMultMatrixf
+#define glMultMatrixf DO_NOT_USE_glMultMatrixf
+#undef glMultMatrixd
+#define glMultMatrixd DO_NOT_USE_glMultMatrixd
+#undef glMultTransposeMatrixf
+#define glMultTransposeMatrixf DO_NOT_USE_glMultTransposeMatrixf
+#undef glMultTransposeMatrixd
+#define glMultTransposeMatrixd DO_NOT_USE_glMultTransposeMatrixd
+#undef glLoadMatrixf
+#define glLoadMatrixf DO_NOT_USE_glLoadMatrixf
+#undef glLoadMatrixd
+#define glLoadMatrixd DO_NOT_USE_glLoadMatrixd
+#undef glLoadTransposeMatrixf
+#define glLoadTransposeMatrixf DO_NOT_USE_glLoadTransposeMatrixf
+#undef glLoadTransposeMatrixd
+#define glLoadTransposeMatrixd DO_NOT_USE_glLoadTransposeMatrixd
+#undef glPopMatrix
+#define glPopMatrix DO_NOT_USE_glPopMatrix
+#undef glPushMatrix
+#define glPushMatrix DO_NOT_USE_glPushMatrix
+#undef glTranslatef
+#define glTranslatef DO_NOT_USE_glTranslatef
+#undef glTranslated
+#define glTranslated DO_NOT_USE_glTranslated
+#undef glScalef
+#define glScalef DO_NOT_USE_glScalef
+#undef glScaled
+#define glScaled DO_NOT_USE_glScaled
+#undef glRotatef
+#define glRotatef DO_NOT_USE_glRotatef
+#undef glRotated
+#define glRotated DO_NOT_USE_glRotated
+#undef glOrtho
+#define glOrtho DO_NOT_USE_glOrtho
+#undef glFrustum
+#define glFrustum DO_NOT_USE_glFrustum
+#undef glLoadIdentity
+#define glLoadItentity DO_NOT_USE_glLoadIdentity
+
 #endif /* _GPU_DEPRECATED_H_ */
