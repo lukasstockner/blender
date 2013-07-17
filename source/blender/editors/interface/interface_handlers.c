@@ -833,6 +833,8 @@ static int ui_handler_region_drag_color(bContext *C, const wmEvent *event, void 
 				ui_handler_region_drag_color_remove(C, drag_info);
 
 				WM_event_add_mousemove(C);
+				ED_region_tag_redraw(ar);
+
 				return WM_UI_HANDLER_BREAK;
 			}
 			break;
@@ -970,7 +972,7 @@ static bool ui_but_start_drag(bContext *C, uiBut *but, uiHandleButtonData *data,
 				RNA_property_float_get_array(&but->rnapoin, but->rnaprop, drag_info->color);
 				drag_info->gamma_corrected = false;
 				valid = true;
-			}else if (but->pointype == UI_BUT_POIN_FLOAT) {
+			} else if (but->pointype == UI_BUT_POIN_FLOAT) {
 				copy_v3_v3(drag_info->color, (float *)but->poin);
 				valid = true;
 			} else if (but->pointype == UI_BUT_POIN_CHAR) {
@@ -978,13 +980,15 @@ static bool ui_but_start_drag(bContext *C, uiBut *but, uiHandleButtonData *data,
 				valid = true;
 			}
 
-			if (valid)
+			if (valid) {
 				WM_event_add_ui_handler(C, &data->window->modalhandlers,
 			                        ui_handler_region_drag_color,
 			                        ui_handler_region_drag_color_remove,
 			                        drag_info);
+			}
 			else {
 				MEM_freeN(drag_info);
+				return false;
 			}
 		}
 		else
@@ -3511,7 +3515,9 @@ static int ui_do_but_BLOCK(bContext *C, uiBut *but, uiHandleButtonData *data, co
 			}
 		}
 #ifdef USE_DRAG_TOGGLE
-		if (event->type == LEFTMOUSE && (ui_is_but_bool(but) || but->type == COLOR)) {
+		if (event->type == LEFTMOUSE && event->val == KM_PRESS
+		    && (ui_is_but_bool(but) || but->type == COLOR))
+		{
 			button_activate_state(C, but, BUTTON_STATE_WAIT_DRAG);
 			data->dragstartx = event->x;
 			data->dragstarty = event->y;
@@ -3594,7 +3600,7 @@ static int ui_do_but_BLOCK(bContext *C, uiBut *but, uiHandleButtonData *data, co
 			data->cancel = true;
 			return WM_UI_HANDLER_BREAK;
 		}
-		
+
 		if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
 			button_activate_state(C, but, BUTTON_STATE_MENU_OPEN);
 			return WM_UI_HANDLER_BREAK;
