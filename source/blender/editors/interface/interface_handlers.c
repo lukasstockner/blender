@@ -675,6 +675,7 @@ static void ui_apply_but_CURVE(bContext *C, uiBut *but, uiHandleButtonData *data
 
 typedef struct uiDragColorHandle {
 	float color[3];
+	bool gamma_corrected;
 } uiDragColorHandle;
 
 typedef struct uiDragToggleHandle {
@@ -812,6 +813,15 @@ static int ui_handler_region_drag_color(bContext *C, const wmEvent *event, void 
 				uiBut *but = ui_but_find_mouse_over(ar, event->x, event->y);
 
 				if (but && but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
+					if (!drag_info->gamma_corrected)
+						linearrgb_to_srgb_v3_v3(drag_info->color, drag_info->color);
+					RNA_property_float_set_array(&but->rnapoin, but->rnaprop, drag_info->color);
+					RNA_property_update(C, &but->rnapoin, but->rnaprop);
+				}
+
+				if (but && but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
+					if (drag_info->gamma_corrected)
+						srgb_to_linearrgb_v3_v3(drag_info->color, drag_info->color);
 					RNA_property_float_set_array(&but->rnapoin, but->rnaprop, drag_info->color);
 					RNA_property_update(C, &but->rnapoin, but->rnaprop);
 				}
@@ -954,12 +964,17 @@ static bool ui_but_start_drag(bContext *C, uiBut *but, uiHandleButtonData *data,
 			/* TODO support more button pointer types */
 			if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
 				RNA_property_float_get_array(&but->rnapoin, but->rnaprop, drag_info->color);
+				drag_info->gamma_corrected = true;
 				valid = true;
-			} else if (but->pointype == UI_BUT_POIN_FLOAT) {
+			} else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
+				RNA_property_float_get_array(&but->rnapoin, but->rnaprop, drag_info->color);
+				drag_info->gamma_corrected = false;
+				valid = true;
+			}else if (but->pointype == UI_BUT_POIN_FLOAT) {
 				copy_v3_v3(drag_info->color, (float *)but->poin);
 				valid = true;
 			} else if (but->pointype == UI_BUT_POIN_CHAR) {
-				rgba_uchar_to_float(drag_info->color, but->poin);
+				rgba_uchar_to_float(drag_info->color, (unsigned char *)but->poin);
 				valid = true;
 			}
 
