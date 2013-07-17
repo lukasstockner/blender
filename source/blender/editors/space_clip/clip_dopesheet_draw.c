@@ -49,7 +49,9 @@
 #include "ED_screen.h"
 #include "ED_clip.h"
 
-#include "BIF_gl.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
+
 #include "BIF_glutil.h"
 
 #include "WM_types.h"
@@ -89,41 +91,14 @@ static void draw_keyframe_shape(float x, float y, float xscale, float yscale, sh
 		{0.0f, -1.0f},  /* bottom vert */
 		{-1.0f, 0.0f}   /* mid-left */
 	};
-	static GLuint displist1 = 0;
-	static GLuint displist2 = 0;
+
 	int hsize = STRIP_HEIGHT_HALF;
 
-	/* initialize 2 display lists for diamond shape - one empty, one filled */
-	if (displist1 == 0) {
-		displist1 = glGenLists(1);
-		glNewList(displist1, GL_COMPILE);
-
-		glBegin(GL_LINE_LOOP);
-		glVertex2fv(_unit_diamond_shape[0]);
-		glVertex2fv(_unit_diamond_shape[1]);
-		glVertex2fv(_unit_diamond_shape[2]);
-		glVertex2fv(_unit_diamond_shape[3]);
-		glEnd();
-		glEndList();
-	}
-	if (displist2 == 0) {
-		displist2 = glGenLists(1);
-		glNewList(displist2, GL_COMPILE);
-
-		glBegin(GL_QUADS);
-		glVertex2fv(_unit_diamond_shape[0]);
-		glVertex2fv(_unit_diamond_shape[1]);
-		glVertex2fv(_unit_diamond_shape[2]);
-		glVertex2fv(_unit_diamond_shape[3]);
-		glEnd();
-		glEndList();
-	}
-
-	glPushMatrix();
+	gpuPushMatrix();
 
 	/* adjust view transform before starting */
-	glTranslatef(x, y, 0.0f);
-	glScalef(1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
+	gpuTranslate(x, y, 0.0f);
+	gpuScale(1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
 
 	/* anti-aliased lines for more consistent appearance */
 	glEnable(GL_LINE_SMOOTH);
@@ -131,18 +106,28 @@ static void draw_keyframe_shape(float x, float y, float xscale, float yscale, sh
 	if (sel)
 		UI_ThemeColorShadeAlpha(TH_STRIP_SELECT, 50, -255 * (1.0f - alpha));
 	else
-		glColor4f(0.91f, 0.91f, 0.91f, alpha);
+		gpuCurrentGray4f(0.910f, alpha);
 
-	glCallList(displist2);
+	gpuBegin(GL_QUADS);
+	gpuVertex2fv(_unit_diamond_shape[0]);
+	gpuVertex2fv(_unit_diamond_shape[1]);
+	gpuVertex2fv(_unit_diamond_shape[2]);
+	gpuVertex2fv(_unit_diamond_shape[3]);
+	gpuEnd();
 
 	/* exterior - black frame */
-	glColor4f(0.0f, 0.0f, 0.0f, alpha);
-	glCallList(displist1);
+	gpuCurrentColor4x(CPACK_BLACK, alpha);
+	gpuBegin(GL_LINE_LOOP);
+	gpuVertex2fv(_unit_diamond_shape[0]);
+	gpuVertex2fv(_unit_diamond_shape[1]);
+	gpuVertex2fv(_unit_diamond_shape[2]);
+	gpuVertex2fv(_unit_diamond_shape[3]);
+	gpuEnd();
 
 	glDisable(GL_LINE_SMOOTH);
 
 	/* restore view transform */
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 static void clip_draw_dopesheet_background(ARegion *ar, MovieClip *clip)
@@ -161,11 +146,11 @@ static void clip_draw_dopesheet_background(ARegion *ar, MovieClip *clip)
 			int end_frame = BKE_movieclip_remap_clip_to_scene_frame(clip, coverage_segment->end_frame);
 
 			if (coverage_segment->coverage == TRACKING_COVERAGE_BAD)
-				glColor4f(1.0f, 0.0f, 0.0f, 0.07f);
+				gpuColor4f(1.0f, 0.0f, 0.0f, 0.07f);
 			else
-				glColor4f(1.0f, 1.0f, 0.0f, 0.07f);
+				gpuColor4f(1.0f, 1.0f, 0.0f, 0.07f);
 
-			glRectf(start_frame, v2d->cur.ymin, end_frame, v2d->cur.ymax);
+			gpuSingleFilledRectf(start_frame, v2d->cur.ymin, end_frame, v2d->cur.ymax);
 		}
 	}
 }
@@ -224,9 +209,9 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *ar, Scene *scene)
 					float default_color[4] = {0.8f, 0.93f, 0.8f, 0.3f};
 
 					track_channel_color(track, default_color, color);
-					glColor4fv(color);
+					gpuCurrentColor4fv(color);
 
-					glRectf(v2d->cur.xmin, (float) y - CHANNEL_HEIGHT_HALF,
+					gpuSingleFilledRectf(v2d->cur.xmin, (float) y - CHANNEL_HEIGHT_HALF,
 					        v2d->cur.xmax + EXTRA_SCROLL_PAD, (float) y + CHANNEL_HEIGHT_HALF);
 				}
 
@@ -238,12 +223,12 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *ar, Scene *scene)
 					int end_frame = BKE_movieclip_remap_clip_to_scene_frame(clip, channel->segments[2 * i + 1]);
 
 					if (sel)
-						glColor4fv(selected_strip);
+						gpuCurrentColor4fv(selected_strip);
 					else
-						glColor4fv(strip);
+						gpuCurrentColor4fv(strip);
 
 					if (start_frame != end_frame) {
-						glRectf(start_frame, (float) y - STRIP_HEIGHT_HALF,
+						gpuSingleFilledRectf(start_frame, (float) y - STRIP_HEIGHT_HALF,
 						        end_frame, (float) y + STRIP_HEIGHT_HALF);
 						draw_keyframe_shape(start_frame, y, xscale, yscale, sel, alpha);
 						draw_keyframe_shape(end_frame, y, xscale, yscale, sel, alpha);
@@ -331,9 +316,9 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *ar)
 			int sel = track->flag & TRACK_DOPE_SEL;
 
 			track_channel_color(track, NULL, color);
-			glColor3fv(color);
+			gpuCurrentColor3fv(color);
 
-			glRectf(v2d->cur.xmin, (float) y - CHANNEL_HEIGHT_HALF,
+			gpuSingleFilledRectf(v2d->cur.xmin, (float) y - CHANNEL_HEIGHT_HALF,
 			        v2d->cur.xmax + EXTRA_SCROLL_PAD, (float) y + CHANNEL_HEIGHT_HALF);
 
 			if (sel)

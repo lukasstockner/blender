@@ -43,7 +43,6 @@
 
 #include "BLI_blenlib.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "BLF_translation.h"
@@ -60,6 +59,8 @@
 #include "ED_sculpt.h"
 #include "ED_space_api.h"
 #include "ED_util.h"
+
+#include "GPU_compatibility.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -264,9 +265,11 @@ void ED_region_draw_mouse_line_cb(const bContext *C, ARegion *ar, void *arg_info
 
 	UI_ThemeColor(TH_WIRE);
 	setlinestyle(3);
-	glBegin(GL_LINE_STRIP);
-	glVertex2iv(mval_dst);
-	glVertex2iv(mval_src);
-	glEnd();
+	gpuImmediateFormat_V3();
+	gpuBegin(GL_LINE_STRIP);
+	gpuVertex2iv(mval_dst);
+	gpuVertex2iv(mval_src);
+	gpuEnd();
+	gpuImmediateUnformat();
 	setlinestyle(0);
 }

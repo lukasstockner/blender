@@ -291,6 +291,10 @@ target_link_libraries(makesrna bf_dna_blenlib)
 # too many warnings with clang
 remove_cc_flag("-Wmissing-prototypes")
 
+if(WITH_CODE_COVERAGE AND (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+    target_link_libraries(makesrna ${PLATFORM_LINKLIBS})
+endif()
+
 # Output rna_*_gen.c
 # note (linux only): with crashes try add this after COMMAND: valgrind --leak-check=full --track-origins=yes
 add_custom_command(
@@ -309,5 +313,7 @@ set(SRC
 	rna_internal_types.h
 	rna_mesh_utils.h
 )
+
+add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(bf_rna "${SRC}" "${INC}" "${INC_SYS}")

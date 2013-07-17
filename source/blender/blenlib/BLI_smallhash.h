@@ -32,6 +32,10 @@
  *  \ingroup bli
  */
 
+#if !defined(_MSC_VER)
+#include <stdint.h>
+#endif
+
 /* a light stack-friendly hash library,
  * (it uses stack space for smallish hash tables) */
 

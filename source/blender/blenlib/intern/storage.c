@@ -455,7 +455,7 @@ void BLI_free_filelist(struct direntry *filelist, unsigned int nrentries)
 /**
  * Returns the file size of an opened file descriptor.
  */
-size_t BLI_file_descriptor_size(int file)
+bli_off_t BLI_file_descriptor_size(int file)
 {
 	struct stat st;
 	if ((file < 0) || (fstat(file, &st) == -1))
@@ -466,7 +466,7 @@ size_t BLI_file_descriptor_size(int file)
 /**
  * Returns the size of a file.
  */
-size_t BLI_file_size(const char *path)
+bli_off_t BLI_file_size(const char *path)
 {
 	struct stat stats;
 	if (BLI_stat(path, &stats) == -1)
@@ -527,7 +527,7 @@ int BLI_stat(const char *path, struct stat *buffer)
 
 	/* workaround error in MinGW64 headers, normally, a wstat should work */
 	#ifndef __MINGW64__
-	r = _wstat(path_16, buffer);
+	r = wstat(path_16, buffer);
 	#else
 	r = _wstati64(path_16, buffer);
 	#endif

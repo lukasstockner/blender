@@ -32,7 +32,6 @@
  *  \ingroup wm
  */
 
-
 #include <string.h>
 
 #include "MEM_guardedalloc.h"
@@ -44,12 +43,12 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
+#include "BIF_glutil.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
 
-#include "BIF_gl.h"
-
+#include "GPU_compatibility.h"
 #include "GPU_extensions.h"
 
 #include "WM_api.h"
@@ -143,8 +142,9 @@ void wm_subwindow_getmatrix(wmWindow *win, int swinid, float mat[4][4])
 			wm_subwindow_getsize(win, swin->swinid, &width, &height);
 			orthographic_m4(mat, -GLA_PIXEL_OFS, (float)width - GLA_PIXEL_OFS, -GLA_PIXEL_OFS, (float)height - GLA_PIXEL_OFS, -100, 100);
 		}
-		else
-			glGetFloatv(GL_PROJECTION_MATRIX, (float *)mat);
+		else {
+			gpuGetMatrix(GL_PROJECTION_MATRIX, (float *)mat);
+		}
 	}
 }
 
@@ -172,7 +172,7 @@ int wm_subwindow_open(wmWindow *win, rcti *winrct)
 	/* extra service */
 	wm_subwindow_getsize(win, swin->swinid, &width, &height);
 	wmOrtho2(-GLA_PIXEL_OFS, (float)width - GLA_PIXEL_OFS, -GLA_PIXEL_OFS, (float)height - GLA_PIXEL_OFS);
-	glLoadIdentity();
+	gpuLoadIdentity();
 
 	return swin->swinid;
 }
@@ -236,38 +236,55 @@ void wm_subwindow_position(wmWindow *win, int swinid, rcti *winrct)
 /* ----------------- exported in WM_api.h ------------------------------------------------------ */
 
 /* internal state, no threaded opengl! XXX */
-static wmWindow *_curwindow = NULL;
-static wmSubWindow *_curswin = NULL;
+static wmWindow    *_curwindow  = NULL;
+static wmSubWindow *_curswin    = NULL;
 
 void wmSubWindowScissorSet(wmWindow *win, int swinid, rcti *srct)
 {
-	int width, height;
+	int x, y, width, height;
 	_curswin = swin_from_swinid(win, swinid);
-	
+
 	if (_curswin == NULL) {
 		printf("%s %d: doesn't exist\n", __func__, swinid);
 		return;
 	}
-	
+
 	win->curswin = _curswin;
 	_curwindow = win;
-	
+
+	x      = _curswin->winrct.xmin;
+	y      = _curswin->winrct.ymin;
 	width  = BLI_rcti_size_x(&_curswin->winrct) + 1;
 	height = BLI_rcti_size_y(&_curswin->winrct) + 1;
-	glViewport(_curswin->winrct.xmin, _curswin->winrct.ymin, width, height);
-	
+
+	gpuViewport(
+		x,
+		y,
+		width,
+		height);
+
+	wmOrtho2(
+		-GLA_PIXEL_OFS,
+		(float)width - GLA_PIXEL_OFS,
+		-GLA_PIXEL_OFS,
+		(float)height - GLA_PIXEL_OFS);
+
 	if (srct) {
-		int scissor_width  = BLI_rcti_size_x(srct) + 1; /* only here */
-		int scissor_height = BLI_rcti_size_y(srct) + 1;
-		glScissor(srct->xmin, srct->ymin, scissor_width, scissor_height);
+		gpuScissor(
+			srct->xmin,
+			srct->ymin,
+			BLI_rcti_size_x(srct) + 1,
+			BLI_rcti_size_y(srct) + 1);
 	}
-	else
-		glScissor(_curswin->winrct.xmin, _curswin->winrct.ymin, width, height);
-	
-	wmOrtho2(-GLA_PIXEL_OFS, (float)width - GLA_PIXEL_OFS, -GLA_PIXEL_OFS, (float)height - GLA_PIXEL_OFS);
-	glLoadIdentity();
-	
-	glFlush();
+	else {
+		gpuScissor(
+			x,
+			y,
+			width,
+			height);
+	}
+
+	gpuLoadIdentity(); /* reset MODELVIEW */
 }
 
 /* enable the WM versions of opengl calls */
@@ -278,27 +295,29 @@ void wmSubWindowSet(wmWindow *win, int swinid)
 
 void wmFrustum(float x1, float x2, float y1, float y2, float n, float f)
 {
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glFrustum(x1, x2, y1, y2, n, f);
-	glMatrixMode(GL_MODELVIEW);
+	gpuMatrixMode(GL_PROJECTION);
+	gpuLoadFrustum(x1, x2, y1, y2, n, f);
+	gpuMatrixMode(GL_MODELVIEW);
 }
 
 void wmOrtho(float x1, float x2, float y1, float y2, float n, float f)
 {
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-
-	glOrtho(x1, x2, y1, y2, n, f);
-
-	glMatrixMode(GL_MODELVIEW);
+	gpuMatrixMode(GL_PROJECTION);
+	gpuLoadOrtho(x1, x2, y1, y2, n, f);
+	gpuMatrixMode(GL_MODELVIEW);
 }
 
 void wmOrtho2(float x1, float x2, float y1, float y2)
 {
-	/* prevent opengl from generating errors */
-	if (x1 == x2) x2 += 1.0f;
-	if (y1 == y2) y2 += 1.0f;
+	/* make sure the window rectangle is not degenerate */
+
+	if (x1 == x2) {
+		x2 += 1.0f;
+	}
+
+	if (y1 == y2) {
+		y2 += 1.0f;
+	}
 
 	wmOrtho(x1, x2, y1, y2, -100, 100);
 }
@@ -373,8 +392,12 @@ unsigned int index_to_framebuffer(int index)
 
 void WM_framebuffer_index_set(int index)
 {
-	const int col = index_to_framebuffer(index);
-	cpack(col);
+	gpuColor3x(index_to_framebuffer(index));
+}
+
+void WM_set_framebuffer_index_current_color(int index)
+{
+	gpuCurrentColor3x(index_to_framebuffer(index));
 }
 
 int WM_framebuffer_to_index(unsigned int col)
@@ -398,4 +421,3 @@ int WM_framebuffer_to_index(unsigned int col)
 
 
 /* ********** END MY WINDOW ************** */
-

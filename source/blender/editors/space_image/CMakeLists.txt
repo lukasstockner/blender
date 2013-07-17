@@ -25,6 +25,7 @@ set(INC
 	../../blenlib
 	../../imbuf
 	../../bmesh
+	../../gpu
 	../../makesdna
 	../../makesrna
 	../../render/extern/include
@@ -65,5 +66,7 @@ endif()
 if(WITH_IMAGE_CINEON)
 	add_definitions(-DWITH_CINEON)
 endif()
+
+add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(bf_editor_space_image "${SRC}" "${INC}" "${INC_SYS}")

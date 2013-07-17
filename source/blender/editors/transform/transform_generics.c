@@ -60,9 +60,6 @@
 
 #include "RNA_access.h"
 
-#include "BIF_gl.h"
-#include "BIF_glutil.h"
-
 #include "BIK_api.h"
 
 #include "BKE_animsys.h"
@@ -964,44 +961,6 @@ void recalcData(TransInfo *t)
 	}
 	else if (t->spacetype == SPACE_CLIP) {
 		recalcData_spaceclip(t);
-	}
-}
-
-void drawLine(TransInfo *t, const float center[3], const float dir[3], char axis, short options)
-{
-	float v1[3], v2[3], v3[3];
-	unsigned char col[3], col2[3];
-
-	if (t->spacetype == SPACE_VIEW3D) {
-		View3D *v3d = t->view;
-		
-		glPushMatrix();
-		
-		//if (t->obedit) glLoadMatrixf(t->obedit->obmat);	// sets opengl viewing
-		
-		
-		copy_v3_v3(v3, dir);
-		mul_v3_fl(v3, v3d->far);
-		
-		sub_v3_v3v3(v2, center, v3);
-		add_v3_v3v3(v1, center, v3);
-		
-		if (options & DRAWLIGHT) {
-			col[0] = col[1] = col[2] = 220;
-		}
-		else {
-			UI_GetThemeColor3ubv(TH_GRID, col);
-		}
-		UI_make_axis_color(col, col2, axis);
-		glColor3ubv(col2);
-		
-		setlinestyle(0);
-		glBegin(GL_LINE_STRIP);
-		glVertex3fv(v1);
-		glVertex3fv(v2);
-		glEnd();
-		
-		glPopMatrix();
 	}
 }
 

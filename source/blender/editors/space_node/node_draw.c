@@ -48,9 +48,11 @@
 #include "BKE_main.h"
 #include "BKE_node.h"
 
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
 #include "BLF_api.h"
 
-#include "BIF_gl.h"
+
 #include "BIF_glutil.h"
 
 #include "WM_api.h"
@@ -605,13 +607,13 @@ static void node_circle_draw(float x, float y, float size, float *col, int highl
 	};
 	int a;
 	
-	glColor4fv(col);
-	
+	gpuCurrentColor4fv(col);
+
 	glEnable(GL_BLEND);
-	glBegin(GL_POLYGON);
+	gpuBegin(GL_TRIANGLE_FAN);
 	for (a = 0; a < 16; a++)
-		glVertex2f(x + size * si[a], y + size * co[a]);
-	glEnd();
+		gpuVertex2f(x  +  size*si[a], y + size*co[a]);
+	gpuEnd();
 	glDisable(GL_BLEND);
 	
 	if (highlight) {
@@ -619,14 +621,14 @@ static void node_circle_draw(float x, float y, float size, float *col, int highl
 		glLineWidth(1.5f);
 	}
 	else {
-		glColor4ub(0, 0, 0, 150);
+		gpuCurrentColor4x(CPACK_BLACK, 0.588f);
 	}
 	glEnable(GL_BLEND);
 	glEnable(GL_LINE_SMOOTH);
-	glBegin(GL_LINE_LOOP);
+	gpuBegin(GL_LINE_LOOP);
 	for (a = 0; a < 16; a++)
-		glVertex2f(x + size * si[a], y + size * co[a]);
-	glEnd();
+		gpuVertex2f(x + size*si[a], y + size*co[a]);
+	gpuEnd();
 	glDisable(GL_LINE_SMOOTH);
 	glDisable(GL_BLEND);
 	glLineWidth(1.0f);
@@ -650,10 +652,11 @@ static void node_draw_preview_background(float tile, rctf *rect)
 	float x, y;
 	
 	/* draw checkerboard backdrop to show alpha */
-	glColor3ub(120, 120, 120);
-	glRectf(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
-	glColor3ub(160, 160, 160);
-	
+	gpuCurrentGray3f(0.471f);
+	gpuSingleFilledRectf(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
+
+	gpuCurrentGray3f(0.627f);
+
 	for (y = rect->ymin; y < rect->ymax; y += tile * 2) {
 		for (x = rect->xmin; x < rect->xmax; x += tile * 2) {
 			float tilex = tile, tiley = tile;
@@ -663,7 +666,7 @@ static void node_draw_preview_background(float tile, rctf *rect)
 			if (y + tile > rect->ymax)
 				tiley = rect->ymax - y;
 
-			glRectf(x, y, x + tilex, y + tiley);
+			gpuSingleFilledRectf(x, y, x + tilex, y + tiley);
 		}
 	}
 	for (y = rect->ymin + tile; y < rect->ymax; y += tile * 2) {
@@ -675,7 +678,7 @@ static void node_draw_preview_background(float tile, rctf *rect)
 			if (y + tile > rect->ymax)
 				tiley = rect->ymax - y;
 
-			glRectf(x, y, x + tilex, y + tiley);
+			gpuSingleFilledRectf(x, y, x + tilex, y + tiley);
 		}
 	}
 }
@@ -707,10 +710,9 @@ static void node_draw_preview(bNodePreview *preview, rctf *prv)
 	
 	node_draw_preview_background(BLI_rctf_size_x(prv) / 10.0f, &draw_rect);
 	
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  /* premul graphics */
+	glEnable(GL_BLEND);  /* premul graphics */
 	
-	glColor4f(1.0, 1.0, 1.0, 1.0);
+	gpuCurrentColor3x(CPACK_WHITE);
 	glPixelZoom(scale, scale);
 	glaDrawPixelsTex(draw_rect.xmin, draw_rect.ymin, preview->xsize, preview->ysize, GL_RGBA, GL_UNSIGNED_BYTE, GL_LINEAR, preview->rect);
 	glPixelZoom(1.0f, 1.0f);
@@ -718,7 +720,7 @@ static void node_draw_preview(bNodePreview *preview, rctf *prv)
 	glDisable(GL_BLEND);
 
 	UI_ThemeColorShadeAlpha(TH_BACK, -15, +100);
-	fdrawbox(draw_rect.xmin, draw_rect.ymin, draw_rect.xmax, draw_rect.ymax);
+	gpuSingleWireRectf(draw_rect.xmin, draw_rect.ymin, draw_rect.xmax, draw_rect.ymax);
 }
 
 /* common handle function for operator buttons that need to select the node first */
@@ -742,8 +744,8 @@ void node_draw_shadow(SpaceNode *snode, bNode *node, float radius, float alpha)
 		ui_dropshadow(rct, radius, snode->aspect, alpha, node->flag & SELECT);
 	else {
 		const float margin = 3.0f;
-		
-		glColor4f(0.0f, 0.0f, 0.0f, 0.33f);
+
+		gpuCurrentColor4x(CPACK_BLACK, 0.333f);
 		glEnable(GL_BLEND);
 		uiRoundBox(rct->xmin - margin, rct->ymin - margin,
 		           rct->xmax + margin, rct->ymax + margin, radius + margin);
@@ -781,7 +783,7 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	if (color_id == TH_NODE) {
 		float col[3];
 		UI_GetThemeColorShade3fv(color_id, -20, col);
-		glColor4f(col[0], col[1], col[2], 1.0f);
+		gpuCurrentColor4f(col[0], col[1], col[2], 1.0f);
 	}
 	else
 		UI_ThemeColor(color_id);
@@ -875,7 +877,7 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	if (!nodeIsRegistered(node))
 		UI_ThemeColor4(TH_REDALERT);	/* use warning color to indicate undefined types */
 	else if (node->flag & NODE_CUSTOM_COLOR)
-		glColor3fv(node->color);
+		gpuCurrentColor3fv(node->color);
 	else
 		UI_ThemeColor4(TH_NODE);
 	glEnable(GL_BLEND);
@@ -905,23 +907,26 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	if (node->flag & NODE_MUTED)
 		node_draw_mute_line(v2d, snode, node);
 
-	
+	gpuImmediateFormat_C4_V2();
+
 	/* socket inputs, buttons */
 	for (sock = node->inputs.first; sock; sock = sock->next) {
 		if (nodeSocketIsHidden(sock))
 			continue;
-		
+
 		node_socket_circle_draw(C, ntree, node, sock, NODE_SOCKSIZE, sock->flag & SELECT);
 	}
-	
+
 	/* socket outputs */
 	for (sock = node->outputs.first; sock; sock = sock->next) {
 		if (nodeSocketIsHidden(sock))
 			continue;
-		
+
 		node_socket_circle_draw(C, ntree, node, sock, NODE_SOCKSIZE, sock->flag & SELECT);
 	}
-	
+
+	gpuImmediateUnformat();
+
 	/* preview */
 	if (node->flag & NODE_PREVIEW) {
 		bNodePreview *preview = previews ? BKE_node_instance_hash_lookup(previews, key) : NULL;
@@ -986,7 +991,7 @@ static void node_draw_hidden(const bContext *C, ARegion *ar, SpaceNode *snode, b
 		glEnable(GL_BLEND);
 		glEnable(GL_LINE_SMOOTH);
 
-		glColor3fv(node->color);
+		gpuCurrentColor3fv(node->color);
 		uiDrawBox(GL_LINE_LOOP, rct->xmin + 1, rct->ymin + 1, rct->xmax -1, rct->ymax - 1, hiddenrad);
 
 		glDisable(GL_LINE_SMOOTH);
@@ -1036,16 +1041,23 @@ static void node_draw_hidden(const bContext *C, ARegion *ar, SpaceNode *snode, b
 		         NULL, 0, 0, 0, 0, "");
 	}
 
+	gpuImmediateFormat_C4_V2(); // DOODLE: 4 theme colored lines
+	gpuBegin(GL_LINES);
+
 	/* scale widget thing */
-	UI_ThemeColorShade(color_id, -10);
+
 	dx = 10.0f;
-	fdrawline(rct->xmax - dx, centy - 4.0f, rct->xmax - dx, centy + 4.0f);
-	fdrawline(rct->xmax - dx - 3.0f * snode->aspect, centy - 4.0f, rct->xmax - dx - 3.0f * snode->aspect, centy + 4.0f);
-	
-	UI_ThemeColorShade(color_id, +30);
+	UI_ThemeAppendColorShade(color_id, -10);
+	gpuAppendLinef(rct->xmax - dx, centy - 4.0f, rct->xmax-dx, centy+4.0f);
+	gpuAppendLinef(rct->xmax - dx - 3.0f*snode->aspect, centy - 4.0f, rct->xmax - dx - 3.0f*snode->aspect, centy + 4.0f);
+
 	dx -= snode->aspect;
-	fdrawline(rct->xmax - dx, centy - 4.0f, rct->xmax - dx, centy + 4.0f);
-	fdrawline(rct->xmax - dx - 3.0f * snode->aspect, centy - 4.0f, rct->xmax - dx - 3.0f * snode->aspect, centy + 4.0f);
+	UI_ThemeAppendColorShade(color_id, +30);
+	gpuAppendLinef(rct->xmax - dx, centy - 4.0f, rct->xmax - dx, centy + 4.0f);
+	gpuAppendLinef(rct->xmax - dx - 3.0f*snode->aspect, centy - 4.0f, rct->xmax - dx - 3.0f*snode->aspect, centy + 4.0f);
+
+	gpuEnd();
+	gpuImmediateUnformat();
 
 	/* sockets */
 	for (sock = node->inputs.first; sock; sock = sock->next) {
@@ -1256,14 +1268,13 @@ void drawnodespace(const bContext *C, ARegion *ar)
 	View2D *v2d = &ar->v2d;
 
 	UI_ThemeClearColor(TH_BACK);
-	glClear(GL_COLOR_BUFFER_BIT);
+	gpuClear(GL_COLOR_BUFFER_BIT);
 
 	UI_view2d_view_ortho(v2d);
 
 	ED_region_draw_cb_draw(C, ar, REGION_DRAW_PRE_VIEW);
 
 	/* only set once */
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_MAP1_VERTEX_3);
 	
 	/* nodes */

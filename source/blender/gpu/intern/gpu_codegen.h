@@ -34,8 +34,9 @@
 #define __GPU_CODEGEN_H__
 
 #include "DNA_listBase.h"
+
+#include "GPU_compatibility.h"
 #include "GPU_material.h"
-#include "GL/glew.h"
 
 struct ListBase;
 struct GPUShader;
@@ -134,7 +135,7 @@ typedef struct GPUInput {
 	int attribid;			/* id for vertex attributes */
 	int bindtex;			/* input is responsible for binding the texture? */
 	int definetex;			/* input is responsible for defining the pixel? */
-	int textarget;			/* GL_TEXTURE_* */
+	int textarget;			/* GL texture enum */
 	int textype;			/* datatype */
 
 	struct Image *ima;		/* image */

@@ -71,6 +71,8 @@ void BLF_size(int fontid, int size, int dpi);
 void BLF_matrix(int fontid, const double m[16]);
 
 /* Draw the string using the default font, size and dpi. */
+void BLF_draw_default_lock(void);
+void BLF_draw_default_unlock(void);
 void BLF_draw_default(float x, float y, float z, const char *str, size_t len);
 void BLF_draw_default_ascii(float x, float y, float z, const char *str, size_t len);
 
@@ -78,6 +80,11 @@ void BLF_draw_default_ascii(float x, float y, float z, const char *str, size_t l
 void BLF_draw(int fontid, const char *str, size_t len);
 void BLF_draw_ascii(int fontid, const char *str, size_t len);
 int BLF_draw_mono(int fontid, const char *str, size_t len, int cwidth);
+
+/* Draw large blocks of text more efficiently by
+   explicitely reserving OpenGL for that purpose*/
+void BLF_draw_lock(int fontid);
+void BLF_draw_unlock(int fontid);
 
 /* This function return the bounding box of the string
  * and are not multiplied by the aspect.

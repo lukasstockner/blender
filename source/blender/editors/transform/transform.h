@@ -614,8 +614,6 @@ void autokeyframe_pose_cb_func(struct bContext *C, struct Scene *scene, struct V
 
 /*********************** Constraints *****************************/
 
-void drawConstraint(TransInfo *t);
-
 void getConstraintMatrix(TransInfo *t);
 void setConstraint(TransInfo *t, float space[3][3], int mode, const char text[]);
 void setAxisMatrixConstraint(TransInfo *t, int mode, const char text[]);
@@ -656,7 +654,6 @@ void applyProject(TransInfo *t);
 void applySnapping(TransInfo *t, float *vec);
 void resetSnapping(TransInfo *t);
 bool handleSnapping(TransInfo *t, const struct wmEvent *event);
-void drawSnapping(const struct bContext *C, TransInfo *t);
 bool usingSnappingNormal(TransInfo *t);
 bool validSnappingNormal(TransInfo *t);
 
@@ -697,7 +694,7 @@ void postTrans(struct bContext *C, TransInfo *t);
 void resetTransModal(TransInfo *t);
 void resetTransRestrictions(TransInfo *t);
 
-void drawLine(TransInfo *t, const float center[3], const float dir[3], char axis, short options);
+void drawConstraintLine(TransInfo *t, const float center[3], const float dir[3], char axis, short options);
 
 /* DRAWLINE options flags */
 #define DRAWLIGHT	1

@@ -261,8 +261,7 @@ macro(setup_liblinks
 	set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} ${PLATFORM_LINKFLAGS_DEBUG}")
 
 	target_link_libraries(${target}
-			${OPENGL_gl_LIBRARY}
-			${OPENGL_glu_LIBRARY}
+			${SYSTEM_GL_LIBRARIES}
 			${PNG_LIBRARIES}
 			${ZLIB_LIBRARIES}
 			${FREETYPE_LIBRARY})
@@ -336,9 +335,11 @@ macro(setup_liblinks
 	endif()
 	if(WITH_CODEC_FFMPEG)
 
-		# Strange!, without this ffmpeg gives linking errors (on linux)
-		# even though its linked above
-		target_link_libraries(${target} ${OPENGL_glu_LIBRARY})
+		# Strange! Without this ffmpeg gives linking errors (on linux),
+		# even though it's linked above.
+		if (WITH_GL_SYSTEM_LEGACY)
+			target_link_libraries(${target} ${OPENGL_glu_LIBRARY})
+		endif()
 
 		target_link_libraries(${target} ${FFMPEG_LIBRARIES})
 	endif()

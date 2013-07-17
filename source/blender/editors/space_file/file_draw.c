@@ -41,7 +41,9 @@
 #  include "BLI_winstuff.h"
 #endif
 
-#include "BIF_gl.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
+
 #include "BIF_glutil.h"
 
 #include "BKE_context.h"
@@ -367,9 +369,7 @@ static void file_draw_preview(uiBlock *block, struct direntry *file, int sx, int
 		dy = (fy + 0.5f - layout->prv_border_y);
 		xco = sx + (int)dx;
 		yco = sy - layout->prv_h + (int)dy;
-		
-		glBlendFunc(GL_SRC_ALPHA,  GL_ONE_MINUS_SRC_ALPHA);
-		
+
 		/* shadow */
 		if (dropshadow)
 			uiDrawBoxShadow(220, (float)xco, (float)yco, (float)(xco + ex), (float)(yco + ey));
@@ -377,13 +377,13 @@ static void file_draw_preview(uiBlock *block, struct direntry *file, int sx, int
 		glEnable(GL_BLEND);
 		
 		/* the image */
-		glColor4f(1.0, 1.0, 1.0, 1.0);
+		gpuCurrentColor3x(CPACK_WHITE);
 		glaDrawPixelsTexScaled((float)xco, (float)yco, imb->x, imb->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST, imb->rect, scale, scale);
 		
 		/* border */
 		if (dropshadow) {
-			glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
-			fdrawbox((float)xco, (float)yco, (float)(xco + ex), (float)(yco + ey));
+			gpuCurrentColor4x(CPACK_BLACK, 0.400f);
+			gpuSingleWireRectf((float)xco, (float)yco, (float)(xco + ex), (float)(yco + ey));
 		}
 		
 		/* dragregion */
@@ -431,7 +431,7 @@ static void draw_background(FileLayout *layout, View2D *v2d)
 		sy = (int)v2d->cur.ymax - i * (layout->tile_h + 2 * layout->tile_border_y) - layout->tile_border_y;
 
 		UI_ThemeColorShade(TH_BACK, -7);
-		glRectf(v2d->cur.xmin, (float)sy, v2d->cur.xmax, (float)(sy + layout->tile_h + 2 * layout->tile_border_y));
+		gpuSingleFilledRectf(v2d->cur.xmin, (float)sy, v2d->cur.xmax, (float)(sy + layout->tile_h + 2 * layout->tile_border_y));
 		
 	}
 }
@@ -444,11 +444,17 @@ static void draw_dividers(FileLayout *layout, View2D *v2d)
 	sx = (int)v2d->tot.xmin;
 	while (sx < v2d->cur.xmax) {
 		sx += (layout->tile_w + 2 * layout->tile_border_x);
-		
-		UI_ThemeColorShade(TH_BACK, 30);
-		sdrawline(sx + 1, (short)(v2d->cur.ymax - layout->tile_border_y),  sx + 1,  (short)v2d->cur.ymin);
-		UI_ThemeColorShade(TH_BACK, -30);
-		sdrawline(sx, (short)(v2d->cur.ymax - layout->tile_border_y),  sx,  (short)v2d->cur.ymin); 
+
+		gpuImmediateFormat_C4_V2(); // DOODLE: two theme colored lines
+		gpuBegin(GL_LINES);
+
+		UI_ThemeAppendColorShade(TH_BACK, 30);
+		gpuAppendLinei(sx+1, (short)(v2d->cur.ymax - layout->tile_border_y),  sx+1,  (short)v2d->cur.ymin); 
+		UI_ThemeAppendColorShade(TH_BACK, -30);
+		gpuAppendLinei(sx, (short)(v2d->cur.ymax - layout->tile_border_y),  sx,  (short)v2d->cur.ymin); 
+
+		gpuEnd();
+		gpuImmediateUnformat();
 	}
 }
 

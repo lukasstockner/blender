@@ -27,6 +27,7 @@ set(INC
 	../../bmesh
 	../../gpu
 	../../imbuf
+	../../gpu
 	../../makesdna
 	../../makesrna
 	../../render/extern/include
@@ -82,5 +83,7 @@ endif()
 if(WITH_BULLET)
 	add_definitions(-DWITH_BULLET)
 endif()
+
+add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(bf_editor_mesh "${SRC}" "${INC}" "${INC_SYS}")

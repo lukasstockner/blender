@@ -201,9 +201,11 @@ static DMDrawOption CheckTexDM(MTFace *tface, int has_mcol, int matnr)
 			glColor4ubv((const GLubyte *)rgba);
 			return DM_DRAW_OPTION_NO_MCOL;
 		}
-		return DM_DRAW_OPTION_NORMAL;
+		return DM_DRAW_OPTION_NORMALLY;
 	}
 	return DM_DRAW_OPTION_SKIP;
+
+
 }
 
 void RAS_StorageIM::IndexPrimitivesInternal(RAS_MeshSlot& ms, bool multi)

@@ -58,7 +58,9 @@
 #include "BKE_image.h"
 #include "BKE_paint.h"
 
-#include "BIF_gl.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
+
 #include "BIF_glutil.h"
 
 #include "BLF_api.h"
@@ -118,6 +120,8 @@ static void draw_render_info(Scene *scene, Image *ima, ARegion *ar, float zoomx,
 
 			UI_ThemeColor(TH_FACE_SELECT);
 
+			gpuImmediateFormat_V3();
+
 			for (i = 0, tile = tiles; i < total_tiles; i++, tile++) {
 				float delta_x = 4.0f * UI_DPI_FAC / zoomx;
 				float delta_y = 4.0f * UI_DPI_FAC / zoomy;
@@ -126,33 +130,35 @@ static void draw_render_info(Scene *scene, Image *ima, ARegion *ar, float zoomx,
 				delta_y = min_ff(delta_y, tile->ymax - tile->ymin);
 
 				/* left bottom corner */
-				glBegin(GL_LINE_STRIP);
-				glVertex2f(tile->xmin, tile->ymin + delta_y);
-				glVertex2f(tile->xmin, tile->ymin);
-				glVertex2f(tile->xmin + delta_x, tile->ymin);
-				glEnd();
+				gpuBegin(GL_LINE_STRIP);
+				gpuVertex2f(tile->xmin, tile->ymin + delta_y);
+				gpuVertex2f(tile->xmin, tile->ymin);
+				gpuVertex2f(tile->xmin + delta_x, tile->ymin);
+				gpuEnd();
 
 				/* left top corner */
-				glBegin(GL_LINE_STRIP);
-				glVertex2f(tile->xmin, tile->ymax - delta_y);
-				glVertex2f(tile->xmin, tile->ymax);
-				glVertex2f(tile->xmin + delta_x, tile->ymax);
-				glEnd();
+				gpuBegin(GL_LINE_STRIP);
+				gpuVertex2f(tile->xmin, tile->ymax - delta_y);
+				gpuVertex2f(tile->xmin, tile->ymax);
+				gpuVertex2f(tile->xmin + delta_x, tile->ymax);
+				gpuEnd();
 
 				/* right bottom corner */
-				glBegin(GL_LINE_STRIP);
-				glVertex2f(tile->xmax - delta_x, tile->ymin);
-				glVertex2f(tile->xmax, tile->ymin);
-				glVertex2f(tile->xmax, tile->ymin + delta_y);
-				glEnd();
+				gpuBegin(GL_LINE_STRIP);
+				gpuVertex2f(tile->xmax - delta_x, tile->ymin);
+				gpuVertex2f(tile->xmax, tile->ymin);
+				gpuVertex2f(tile->xmax, tile->ymin + delta_y);
+				gpuEnd();
 
 				/* right top corner */
-				glBegin(GL_LINE_STRIP);
-				glVertex2f(tile->xmax - delta_x, tile->ymax);
-				glVertex2f(tile->xmax, tile->ymax);
-				glVertex2f(tile->xmax, tile->ymax - delta_y);
-				glEnd();
+				gpuBegin(GL_LINE_STRIP);
+				gpuVertex2f(tile->xmax - delta_x, tile->ymax);
+				gpuVertex2f(tile->xmax, tile->ymax);
+				gpuVertex2f(tile->xmax, tile->ymax - delta_y);
+				gpuEnd();
 			}
+
+			gpuImmediateUnformat();
 
 			MEM_freeN(tiles);
 
@@ -181,31 +187,30 @@ void ED_image_draw_info(Scene *scene, ARegion *ar, int color_manage, int use_def
 	float hue = 0, sat = 0, val = 0, lum = 0, u = 0, v = 0;
 	float col[4], finalcol[4];
 
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
 
 	/* noisy, high contrast make impossible to read if lower alpha is used. */
-	glColor4ub(0, 0, 0, 190);
-	glRecti(0.0, 0.0, BLI_rcti_size_x(&ar->winrct) + 1, UI_UNIT_Y);
+	gpuCurrentColor4x(CPACK_BLACK, 0.745f);
+	gpuSingleFilledRecti(0.0, 0.0, BLI_rcti_size_x(&ar->winrct) + 1, UI_UNIT_Y);
 	glDisable(GL_BLEND);
 
 	BLF_size(blf_mono_font, 11 * U.pixelsize, U.dpi);
 
-	glColor3ub(255, 255, 255);
+	gpuCurrentColor3x(CPACK_WHITE);
 	BLI_snprintf(str, sizeof(str), "X:%-4d  Y:%-4d |", x, y);
 	BLF_position(blf_mono_font, dx, 0.3f * UI_UNIT_Y, 0);
 	BLF_draw_ascii(blf_mono_font, str, sizeof(str));
 	dx += BLF_width(blf_mono_font, str);
 
 	if (zp) {
-		glColor3ub(255, 255, 255);
+		gpuCurrentColor3x(CPACK_WHITE);
 		BLI_snprintf(str, sizeof(str), " Z:%-.4f |", 0.5f + 0.5f * (((float)*zp) / (float)0x7fffffff));
 		BLF_position(blf_mono_font, dx, 0.3f * UI_UNIT_X, 0);
 		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
 		dx += BLF_width(blf_mono_font, str);
 	}
 	if (zpf) {
-		glColor3ub(255, 255, 255);
+		gpuCurrentColor3x(CPACK_WHITE);
 		BLI_snprintf(str, sizeof(str), " Z:%-.3f |", *zpf);
 		BLF_position(blf_mono_font, dx, 0.3f * UI_UNIT_X, 0);
 		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
@@ -213,7 +218,7 @@ void ED_image_draw_info(Scene *scene, ARegion *ar, int color_manage, int use_def
 	}
 
 	if (channels >= 3) {
-		glColor3ubv(red);
+		gpuCurrentColor3ubv(red);
 		if (fp)
 			BLI_snprintf(str, sizeof(str), "  R:%-.5f", fp[0]);
 		else if (cp)
@@ -224,7 +229,7 @@ void ED_image_draw_info(Scene *scene, ARegion *ar, int color_manage, int use_def
 		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
 		dx += BLF_width(blf_mono_font, str);
 		
-		glColor3ubv(green);
+		gpuCurrentColor3ubv(green);
 		if (fp)
 			BLI_snprintf(str, sizeof(str), "  G:%-.5f", fp[1]);
 		else if (cp)
@@ -235,7 +240,7 @@ void ED_image_draw_info(Scene *scene, ARegion *ar, int color_manage, int use_def
 		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
 		dx += BLF_width(blf_mono_font, str);
 		
-		glColor3ubv(blue);
+		gpuCurrentColor3ubv(blue);
 		if (fp)
 			BLI_snprintf(str, sizeof(str), "  B:%-.5f", fp[2]);
 		else if (cp)
@@ -247,7 +252,7 @@ void ED_image_draw_info(Scene *scene, ARegion *ar, int color_manage, int use_def
 		dx += BLF_width(blf_mono_font, str);
 		
 		if (channels == 4) {
-			glColor3ub(255, 255, 255);
+			gpuCurrentColor3x(CPACK_WHITE);
 			if (fp)
 				BLI_snprintf(str, sizeof(str), "  A:%-.4f", fp[3]);
 			else if (cp)
@@ -318,27 +323,33 @@ void ED_image_draw_info(Scene *scene, ARegion *ar, int color_manage, int use_def
 	}
 
 	glDisable(GL_BLEND);
-	glColor3fv(finalcol);
+
+	gpuImmediateFormat_C4_V2();
+	
 	dx += 0.25f * UI_UNIT_X;
-	glBegin(GL_QUADS);
-	glVertex2f(dx, 0.15f * UI_UNIT_Y);
-	glVertex2f(dx, 0.85f * UI_UNIT_Y);
-	glVertex2f(dx + 1.5f * UI_UNIT_X, 0.85 * UI_UNIT_Y);
-	glVertex2f(dx + 1.5f * UI_UNIT_X, 0.15f * UI_UNIT_Y);
-	glEnd();
+
+	gpuCurrentColor3fv(finalcol);
+	gpuBegin(GL_TRIANGLE_FAN);
+	gpuVertex2f(dx, 0.15f * UI_UNIT_Y);
+	gpuVertex2f(dx, 0.85f * UI_UNIT_Y);
+	gpuVertex2f(dx + 1.5f * UI_UNIT_X, 0.85 * UI_UNIT_Y);
+	gpuVertex2f(dx + 1.5f * UI_UNIT_X, 0.15f * UI_UNIT_Y);
+	gpuEnd();
 
 	/* draw outline */
-	glColor3ub(128, 128, 128);
-	glBegin(GL_LINE_LOOP);
-	glVertex2f(dx, 0.15f * UI_UNIT_Y);
-	glVertex2f(dx, 0.85f * UI_UNIT_Y);
-	glVertex2f(dx + 1.5f * UI_UNIT_X, 0.85f * UI_UNIT_Y);
-	glVertex2f(dx + 1.5f * UI_UNIT_X, 0.15f * UI_UNIT_Y);
-	glEnd();
+	gpuCurrentGray3f(0.500f);
+	gpuBegin(GL_LINE_LOOP);
+	gpuVertex2f(dx, 0.15f * UI_UNIT_Y);
+	gpuVertex2f(dx, 0.85f * UI_UNIT_Y);
+	gpuVertex2f(dx + 1.5f * UI_UNIT_X, 0.85f * UI_UNIT_Y);
+	gpuVertex2f(dx + 1.5f * UI_UNIT_X, 0.15f * UI_UNIT_Y);
+	gpuEnd();
+
+	gpuImmediateUnformat();
 
 	dx += 1.75f * UI_UNIT_X;
 
-	glColor3ub(255, 255, 255);
+	gpuCurrentColor3x(CPACK_WHITE);
 	if (channels == 1) {
 		if (fp) {
 			rgb_to_hsv(fp[0], fp[0], fp[0], &hue, &sat, &val);
@@ -397,13 +408,17 @@ void ED_image_draw_info(Scene *scene, ARegion *ar, int color_manage, int use_def
 
 static void sima_draw_alpha_pixels(float x1, float y1, int rectx, int recty, unsigned int *recti)
 {
-	
 	/* swap bytes, so alpha is most significant one, then just draw it as luminance int */
-	if (ENDIAN_ORDER == B_ENDIAN)
-		glPixelStorei(GL_UNPACK_SWAP_BYTES, 1);
+
+#if ENDIAN_ORDER == B_ENDIAN
+	glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_TRUE);
+#endif
 
 	glaDrawPixelsSafe(x1, y1, rectx, recty, rectx, GL_LUMINANCE, GL_UNSIGNED_INT, recti);
-	glPixelStorei(GL_UNPACK_SWAP_BYTES, 0);
+
+#if ENDIAN_ORDER == B_ENDIAN
+	glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE); /* restore default value */
+#endif
 }
 
 static void sima_draw_alpha_pixelsf(float x1, float y1, int rectx, int recty, float *rectf)
@@ -508,7 +523,6 @@ static void draw_image_buffer(const bContext *C, SpaceImage *sima, ARegion *ar, 
 	else {
 		if (sima->flag & SI_USE_ALPHA) {
 			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 			fdrawcheckerboard(x, y, x + ibuf->x * zoomx, y + ibuf->y * zoomy);
 		}
@@ -642,18 +656,18 @@ void draw_image_sample_line(SpaceImage *sima)
 	if (sima->sample_line_hist.flag & HISTO_FLAG_SAMPLELINE) {
 		Histogram *hist = &sima->sample_line_hist;
 
-		glBegin(GL_LINES);
-		glColor3ub(0, 0, 0);
-		glVertex2fv(hist->co[0]);
-		glVertex2fv(hist->co[1]);
-		glEnd();
+		gpuBegin(GL_LINES);
+		gpuColor3x(CPACK_BLACK);
+		gpuVertex2fv(hist->co[0]);
+		gpuVertex2fv(hist->co[1]);
+		gpuEnd();
 
 		setlinestyle(1);
-		glBegin(GL_LINES);
-		glColor3ub(255, 255, 255);
-		glVertex2fv(hist->co[0]);
-		glVertex2fv(hist->co[1]);
-		glEnd();
+		gpuBegin(GL_LINES);
+		gpuColor3x(CPACK_WHITE);
+		gpuVertex2fv(hist->co[0]);
+		gpuVertex2fv(hist->co[1]);
+		gpuEnd();
 		setlinestyle(0);
 
 	}
@@ -763,7 +777,6 @@ static void draw_image_paint_helpers(const bContext *C, ARegion *ar, Scene *scen
 			glPixelZoom(zoomx, zoomy);
 
 			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			glaDrawPixelsSafe(x, y, w, h, w, GL_RGBA, GL_UNSIGNED_BYTE, clonerect);
 			glDisable(GL_BLEND);
 
@@ -847,11 +860,11 @@ void draw_image_main(const bContext *C, ARegion *ar)
 		if (image_preview_active(sa, &xim, &yim)) {
 			xoffs = scene->r.disprect.xmin;
 			yoffs = scene->r.disprect.ymin;
-			glColor3ub(0, 0, 0);
+			gpuCurrentColor3x(CPACK_BLACK);
 			calc_image_view(sima, 'f');
 			myortho2(G.v2d->cur.xmin, G.v2d->cur.xmax, G.v2d->cur.ymin, G.v2d->cur.ymax);
-			glRectf(0.0f, 0.0f, 1.0f, 1.0f);
-			glLoadIdentity();
+			gpuSingleFilledRectf(0.0f, 0.0f, 1.0f, 1.0f);
+			gpuLoadIdentity();
 		}
 	}
 #endif

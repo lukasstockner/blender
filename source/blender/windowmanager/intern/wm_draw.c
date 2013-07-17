@@ -31,7 +31,9 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <GL/glew.h>
+
+#include "GPU_compatibility.h"
+#include "GPU_colors.h"
 
 #include "DNA_listBase.h"
 #include "DNA_screen_types.h"
@@ -45,8 +47,6 @@
 #include "BLI_utildefines.h"
 #include "BLI_math_base.h"
 
-#include "BIF_gl.h"
-
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_screen.h"
@@ -58,6 +58,8 @@
 
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
+
+#include "BIF_glutil.h"
 
 #include "RE_engine.h"
 
@@ -525,20 +527,25 @@ static void wm_triple_draw_textures(wmWindow *win, wmDrawTriple *triple, float a
 
 			glBindTexture(triple->target, triple->bind[x + y * triple->nx]);
 
-			glColor4f(1.0f, 1.0f, 1.0f, alpha);
-			glBegin(GL_QUADS);
-			glTexCoord2f(halfx, halfy);
-			glVertex2f(offx, offy);
+			gpuCurrentColor4x(CPACK_WHITE, alpha);
 
-			glTexCoord2f(ratiox + halfx, halfy);
-			glVertex2f(offx + sizex, offy);
+			gpuImmediateFormat_T2_V2(); // DOODLE: triple backbuffer
 
-			glTexCoord2f(ratiox + halfx, ratioy + halfy);
-			glVertex2f(offx + sizex, offy + sizey);
+			gpuBegin(GL_TRIANGLE_FAN);
+			gpuTexCoord2f(halfx, halfy);
+			gpuVertex2f(offx, offy);
 
-			glTexCoord2f(halfx, ratioy + halfy);
-			glVertex2f(offx, offy + sizey);
-			glEnd();
+			gpuTexCoord2f(ratiox + halfx, halfy);
+			gpuVertex2f(offx + sizex, offy);
+
+			gpuTexCoord2f(ratiox + halfx, ratioy + halfy);
+			gpuVertex2f(offx + sizex, offy + sizey);
+
+			gpuTexCoord2f(halfx, ratioy + halfy);
+			gpuVertex2f(offx, offy + sizey);
+			gpuEnd();
+
+			gpuImmediateUnformat();
 		}
 	}
 
@@ -587,8 +594,8 @@ static void wm_method_draw_triple(bContext *C, wmWindow *win)
 	int copytex = 0, paintcursor = 1;
 
 	if (win->drawdata) {
-		glClearColor(0, 0, 0, 0);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		gpuClearColor(0, 0, 0, 0);
+		gpuClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		wmSubWindowSet(win, screen->mainwin);
 
@@ -834,6 +841,9 @@ void wm_draw_update(bContext *C)
 
 			drawmethod = wm_automatic_draw_method(win);
 
+#ifdef WITH_GLES
+			wm_method_draw_full(C, win);
+#else
 			if (win->drawfail)
 				wm_method_draw_overlap_all(C, win, 0);
 			else if (drawmethod == USER_DRAW_FULL)
@@ -844,6 +854,7 @@ void wm_draw_update(bContext *C)
 				wm_method_draw_overlap_all(C, win, 1);
 			else // if (drawmethod == USER_DRAW_TRIPLE)
 				wm_method_draw_triple(C, win);
+#endif
 
 			win->screen->do_draw_gesture = FALSE;
 			win->screen->do_draw_paintcursor = FALSE;

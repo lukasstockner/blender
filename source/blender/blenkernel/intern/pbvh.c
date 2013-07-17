@@ -1536,7 +1536,9 @@ int BKE_pbvh_node_raycast(PBVH *bvh, PBVHNode *node, float (*origco)[3], int use
 	return hit;
 }
 
-//#include <GL/glew.h>
+#if 0
+#include "GPU_compatibility.h"
+#endif
 
 typedef struct {
 	DMSetMaterial setMaterial;
@@ -1559,9 +1561,9 @@ void BKE_pbvh_node_draw(PBVHNode *node, void *data_v)
 		for (i = 0; i < 3; ++i)
 			col[i] = (rand() / (float)RAND_MAX) * 0.3 + 0.7;
 	}
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, col);
+	gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, col);
 
-	glColor3f(1, 0, 0);
+	gpuCurrentColor3f(1, 0, 0);
 #endif
 
 	if (!(node->flag & PBVH_FullyHidden)) {

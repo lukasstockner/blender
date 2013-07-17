@@ -116,7 +116,7 @@ int BLI_file_gzip(const char *from, const char *to)
 /* gzip the file in from_file and write it to memory to_mem, at most size bytes.
  * return the unziped size
  */
-char *BLI_file_ungzip_to_mem(const char *from_file, int *size_r)
+char *BLI_file_ungzip_to_mem(const char *from_file, bli_off_t *size_r)
 {
 	gzFile gzfile;
 	int readsize, size, alloc_size = 0;

@@ -50,7 +50,8 @@
 
 #include "WM_api.h"
 
-#include "BIF_gl.h"
+#include "GPU_primitives.h"
+
 #include "BIF_glutil.h"
 
 #include "ED_view3d.h"
@@ -534,22 +535,21 @@ static void paint_draw_tex_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		glDepthMask(GL_FALSE);
 		glDepthFunc(GL_ALWAYS);
 
-		glMatrixMode(GL_TEXTURE);
-		glPushMatrix();
-		glLoadIdentity();
+		gpuMatrixMode(GL_TEXTURE);
+		gpuPushMatrix();
+		gpuLoadIdentity();
 
 		if (mtex->brush_map_mode == MTEX_MAP_MODE_VIEW) {
 			/* brush rotation */
-			glTranslatef(0.5, 0.5, 0);
-			glRotatef((double)RAD2DEGF(ups->brush_rotation),
-			          0.0, 0.0, 1.0);
-			glTranslatef(-0.5f, -0.5f, 0);
+			gpuTranslate(0.5, 0.5, 0);
+			gpuRotateAxis((double)RAD2DEGF(ups->brush_rotation), 'Z');
+			gpuTranslate(-0.5f, -0.5f, 0);
 
 			/* scale based on tablet pressure */
 			if (primary && ups->draw_pressure && BKE_brush_use_size_pressure(vc->scene, brush)) {
-				glTranslatef(0.5f, 0.5f, 0);
-				glScalef(1.0f / ups->pressure_value, 1.0f / ups->pressure_value, 1);
-				glTranslatef(-0.5f, -0.5f, 0);
+				gpuTranslate(0.5f, 0.5f, 0);
+				gpuScale(1.0f / ups->pressure_value, 1.0f / ups->pressure_value, 1);
+				gpuTranslate(-0.5f, -0.5f, 0);
 			}
 
 			if (ups->draw_anchored) {
@@ -587,41 +587,43 @@ static void paint_draw_tex_overlay(UnifiedPaintSettings *ups, Brush *brush,
 				quad.xmax = brush->mask_stencil_dimension[0];
 				quad.ymax = brush->mask_stencil_dimension[1];
 			}
-			glMatrixMode(GL_MODELVIEW);
-			glPushMatrix();
+			gpuMatrixMode(GL_MODELVIEW);
+			gpuPushMatrix();
 			if (primary)
-				glTranslatef(brush->stencil_pos[0], brush->stencil_pos[1], 0);
+				gpuTranslate(brush->stencil_pos[0], brush->stencil_pos[1], 0);
 			else
-				glTranslatef(brush->mask_stencil_pos[0], brush->mask_stencil_pos[1], 0);
-			glRotatef(RAD2DEGF(mtex->rot), 0, 0, 1);
+				gpuTranslate(brush->mask_stencil_pos[0], brush->mask_stencil_pos[1], 0);
+			gpuRotateAxis(RAD2DEGF(mtex->rot), 'Z');
 			glMatrixMode(GL_TEXTURE);
 		}
 
 		/* set quad color. Colored overlay does not get blending */
 		if (col)
-			glColor4f(1.0,
-				      1.0,
-				      1.0,
-				      overlay_alpha / 100.0f);
+			gpuCurrentColor4f(
+				1.0,
+				1.0,
+				1.0,
+				overlay_alpha / 100.0f);
 		else
-			glColor4f(U.sculpt_paint_overlay_col[0],
-				      U.sculpt_paint_overlay_col[1],
-				      U.sculpt_paint_overlay_col[2],
-				      overlay_alpha / 100.0f);
+			gpuCurrentColor4f(
+				U.sculpt_paint_overlay_col[0],
+				U.sculpt_paint_overlay_col[1],
+				U.sculpt_paint_overlay_col[2],
+				overlay_alpha / 100.0f);
 
 		/* draw textured quad */
-		glBegin(GL_QUADS);
-		glTexCoord2f(0, 0);
-		glVertex2f(quad.xmin, quad.ymin);
-		glTexCoord2f(1, 0);
-		glVertex2f(quad.xmax, quad.ymin);
-		glTexCoord2f(1, 1);
-		glVertex2f(quad.xmax, quad.ymax);
-		glTexCoord2f(0, 1);
-		glVertex2f(quad.xmin, quad.ymax);
-		glEnd();
+		gpuBegin(GL_TRIANGLE_FAN);
+		gpuTexCoord2f(0, 0);
+		gpuVertex2f(quad.xmin, quad.ymin);
+		gpuTexCoord2f(1, 0);
+		gpuVertex2f(quad.xmax, quad.ymin);
+		gpuTexCoord2f(1, 1);
+		gpuVertex2f(quad.xmax, quad.ymax);
+		gpuTexCoord2f(0, 1);
+		gpuVertex2f(quad.xmin, quad.ymax);
+		gpuEnd();
 
-		glPopMatrix();
+		gpuPopMatrix();
 
 		if (mtex->brush_map_mode == MTEX_MAP_MODE_STENCIL) {
 			glMatrixMode(GL_MODELVIEW);
@@ -671,22 +673,25 @@ static void paint_draw_cursor_overlay(UnifiedPaintSettings *ups, Brush *brush,
 			quad.ymax = y + radius;
 		}
 
-		glColor4f(U.sculpt_paint_overlay_col[0],
+		gpuCurrentColor4f(
+				U.sculpt_paint_overlay_col[0],
 		        U.sculpt_paint_overlay_col[1],
 		        U.sculpt_paint_overlay_col[2],
 		        brush->cursor_overlay_alpha / 100.0f);
 
 		/* draw textured quad */
-		glBegin(GL_QUADS);
-		glTexCoord2f(0, 0);
-		glVertex2f(quad.xmin, quad.ymin);
-		glTexCoord2f(1, 0);
-		glVertex2f(quad.xmax, quad.ymin);
-		glTexCoord2f(1, 1);
-		glVertex2f(quad.xmax, quad.ymax);
-		glTexCoord2f(0, 1);
-		glVertex2f(quad.xmin, quad.ymax);
-		glEnd();
+		gpuImmediateFormat_T2_V2();
+		gpuBegin(GL_QUADS);
+		gpuTexCoord2f(0, 0);
+		gpuVertex2f(quad.xmin, quad.ymin);
+		gpuTexCoord2f(1, 0);
+		gpuVertex2f(quad.xmax, quad.ymin);
+		gpuTexCoord2f(1, 1);
+		gpuVertex2f(quad.xmax, quad.ymax);
+		gpuTexCoord2f(0, 1);
+		gpuVertex2f(quad.xmin, quad.ymax);
+		gpuEnd();
+		gpuImmediateUnformat();
 	}
 }
 
@@ -842,20 +847,18 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 	glEnable(GL_LINE_SMOOTH);
 
 	/* set brush color */
-	glColor4f(outline_col[0], outline_col[1], outline_col[2], outline_alpha);
+	gpuCurrentColor4f(outline_col[0], outline_col[1], outline_col[2], outline_alpha);
 
 	/* draw brush outline */
-	glTranslatef(translation[0], translation[1], 0);
+	gpuSingleCircle(translation[0], translation[1], final_radius, 40);
 
 	/* draw an inner brush */
 	if (ups->draw_pressure && BKE_brush_use_size_pressure(scene, brush)) {
 		/* inner at full alpha */
-		glutil_draw_lined_arc(0.0, M_PI * 2.0, final_radius * ups->pressure_value, 40);
+		gpuSingleCircle(translation[0], translation[1], final_radius * ups->pressure_value, 40);
 		/* outer at half alpha */
-		glColor4f(outline_col[0], outline_col[1], outline_col[2], outline_alpha * 0.5f);
+		gpuCurrentColor4f(outline_col[0], outline_col[1], outline_col[2], outline_alpha * 0.5f);
 	}
-	glutil_draw_lined_arc(0.0, M_PI * 2.0, final_radius, 40);
-	glTranslatef(-translation[0], -translation[1], 0);
 
 	/* restore GL state */
 	glDisable(GL_BLEND);

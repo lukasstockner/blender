@@ -47,7 +47,7 @@
 #include "ED_space_api.h"
 #include "ED_screen.h"
 
-#include "BIF_gl.h"
+#include "GPU_compatibility.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -155,7 +155,7 @@ static void info_main_area_draw(const bContext *C, ARegion *ar)
 
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);
-	glClear(GL_COLOR_BUFFER_BIT);
+	gpuClear(GL_COLOR_BUFFER_BIT);
 
 	/* quick way to avoid drawing if not bug enough */
 	if (ar->winy < 16)

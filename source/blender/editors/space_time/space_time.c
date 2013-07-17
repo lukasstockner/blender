@@ -53,7 +53,9 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "BIF_gl.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
+
 #include "BIF_glutil.h"
 
 #include "UI_resources.h"
@@ -71,23 +73,28 @@ static void time_draw_sfra_efra(Scene *scene, View2D *v2d)
 	/* draw darkened area outside of active timeline 
 	 * frame range used is preview range or scene range 
 	 */
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	gpuImmediateFormat_V2(); // DOODLE: two lines, start frame & end frame
+
 	glEnable(GL_BLEND);
-	glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
+	gpuCurrentColor4x(CPACK_BLACK, 0.400f);
 		
 	if (PSFRA < PEFRA) {
-		glRectf(v2d->cur.xmin, v2d->cur.ymin, (float)PSFRA, v2d->cur.ymax);
-		glRectf((float)PEFRA, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+		gpuDrawFilledRectf(v2d->cur.xmin, v2d->cur.ymin, (float)PSFRA, v2d->cur.ymax);
+		gpuDrawFilledRectf((float)PEFRA, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
 	}
 	else {
-		glRectf(v2d->cur.xmin, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+		gpuDrawFilledRectf(v2d->cur.xmin, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
 	}
 	glDisable(GL_BLEND);
 
 	UI_ThemeColorShade(TH_BACK, -60);
+	
 	/* thin lines where the actual frames are */
-	fdrawline((float)PSFRA, v2d->cur.ymin, (float)PSFRA, v2d->cur.ymax);
-	fdrawline((float)PEFRA, v2d->cur.ymin, (float)PEFRA, v2d->cur.ymax);
+	gpuBegin(GL_LINES);
+	gpuAppendLinef((float)PSFRA, v2d->cur.ymin, (float)PSFRA, v2d->cur.ymax);
+	gpuAppendLinef((float)PEFRA, v2d->cur.ymin, (float)PEFRA, v2d->cur.ymax);
+	gpuEnd();
+	gpuImmediateUnformat();
 }
 
 #define CACHE_DRAW_HEIGHT   3.0f
@@ -103,6 +110,8 @@ static void time_draw_cache(SpaceTime *stime, Object *ob, Scene *scene)
 		return;
 
 	BKE_ptcache_ids_from_object(&pidlist, ob, scene, 0);
+
+	glEnable(GL_BLEND);
 
 	/* iterate over pointcaches on the active object, 
 	 * add spacetimecache and vertex array for each */
@@ -170,9 +179,9 @@ static void time_draw_cache(SpaceTime *stime, Object *ob, Scene *scene)
 			}
 		}
 		
-		glPushMatrix();
-		glTranslatef(0.0, (float)V2D_SCROLL_HEIGHT + yoffs, 0.0);
-		glScalef(1.0, CACHE_DRAW_HEIGHT, 0.0);
+		gpuPushMatrix();
+		gpuTranslate(0.0, (float)V2D_SCROLL_HEIGHT + yoffs, 0.0);
+		gpuScale(1.0, CACHE_DRAW_HEIGHT, 0.0);
 		
 		switch (pid->type) {
 			case PTCACHE_TYPE_SOFTBODY:
@@ -205,34 +214,31 @@ static void time_draw_cache(SpaceTime *stime, Object *ob, Scene *scene)
 				col[0] = 1.0;   col[1] = 0.0;   col[2] = 1.0;
 				col[3] = 0.1;
 		}
-		glColor4fv(col);
-		
-		glEnable(GL_BLEND);
-		
-		glRectf((float)sta, 0.0, (float)end, 1.0);
-		
+
+
+		gpuCurrentColor4fv(col);
+		gpuSingleFilledRectf((float)sta, 0, (float)end, 1);
+
 		col[3] = 0.4f;
+
 		if (pid->cache->flag & PTCACHE_BAKED) {
 			col[0] -= 0.4f; col[1] -= 0.4f; col[2] -= 0.4f;
 		}
 		else if (pid->cache->flag & PTCACHE_OUTDATED) {
 			col[0] += 0.4f; col[1] += 0.4f; col[2] += 0.4f;
 		}
-		glColor4fv(col);
-		
-		glEnableClientState(GL_VERTEX_ARRAY);
-		glVertexPointer(2, GL_FLOAT, 0, stc->array);
-		glDrawArrays(GL_QUADS, 0, (fp - stc->array) / 2);
-		glDisableClientState(GL_VERTEX_ARRAY);
-		
-		glDisable(GL_BLEND);
-		
-		glPopMatrix();
-		
+
+		gpuCurrentColor4fv(col);
+		gpuSingleClientArrays_V2F(GL_QUADS, stc->array, 0, 0, (fp - (stc->array)) / 2);
+
+		gpuPopMatrix();
+
 		yoffs += CACHE_DRAW_HEIGHT;
 
 		stc = stc->next;
 	}
+
+	glDisable(GL_BLEND);
 
 	BLI_freelistN(&pidlist);
 
@@ -320,16 +326,14 @@ static void time_draw_idblock_keyframes(View2D *v2d, ID *id, short onlysel)
 	 *	  the first visible keyframe (last one can then be easily checked)
 	 *	- draw within a single GL block to be faster
 	 */
-	glBegin(GL_LINES);
 	for (ak = time_cfra_find_ak(keys.root, v2d->cur.xmin);
 	     (ak) && (ak->cfra <= v2d->cur.xmax);
 	     ak = ak->next)
 	{
-		glVertex2f(ak->cfra, v2d->tot.ymin);
-		glVertex2f(ak->cfra, v2d->tot.ymax);
+		gpuVertex2f(ak->cfra, v2d->tot.ymin);
+		gpuVertex2f(ak->cfra, v2d->tot.ymax);
 	}
-	glEnd(); // GL_LINES
-		
+
 	/* free temp stuff */
 	BLI_dlrbTree_free(&keys);
 }
@@ -342,13 +346,16 @@ static void time_draw_keyframes(const bContext *C, SpaceTime *stime, ARegion *ar
 	View2D *v2d = &ar->v2d;
 	short onlysel = (stime->flag & TIME_ONLYACTSEL);
 	
+	gpuImmediateFormat_C4_V2();
+	gpuBegin(GL_LINES);
+
 	/* draw scene keyframes first 
 	 *	- don't try to do this when only drawing active/selected data keyframes,
 	 *	  since this can become quite slow
 	 */
 	if (scene && onlysel == 0) {
 		/* set draw color */
-		glColor3ub(0xDD, 0xA7, 0x00);
+		gpuColor3x(0xDDA700);
 		time_draw_idblock_keyframes(v2d, (ID *)scene, onlysel);
 	}
 	
@@ -357,7 +364,7 @@ static void time_draw_keyframes(const bContext *C, SpaceTime *stime, ARegion *ar
 	 *    OR the onlysel flag was set, which means that only active object's keyframes should
 	 *    be considered
 	 */
-	glColor3ub(0xDD, 0xD7, 0x00);
+	gpuColor3x(0xDDD700);
 	
 	if (ob && ((ob->mode == OB_MODE_POSE) || onlysel)) {
 		/* draw keyframes for active object only */
@@ -382,6 +389,9 @@ static void time_draw_keyframes(const bContext *C, SpaceTime *stime, ARegion *ar
 		if (ob && (active_done == 0))
 			time_draw_idblock_keyframes(v2d, (ID *)ob, 0);
 	}
+
+	gpuEnd(); // GL_LINES
+	gpuImmediateUnformat();
 }
 
 /* ---------------- */
@@ -477,7 +487,7 @@ static void time_main_area_draw(const bContext *C, ARegion *ar)
 	
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);
-	glClear(GL_COLOR_BUFFER_BIT);
+	gpuClear(GL_COLOR_BUFFER_BIT);
 	
 	UI_view2d_view_ortho(v2d);
 	

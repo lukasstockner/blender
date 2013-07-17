@@ -66,8 +66,8 @@
 #include "BKE_material.h"
 #include "BKE_global.h"     // XXX remove me!
 
-
-#include "BIF_gl.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
 
 #include "UI_resources.h"
 #include "UI_view2d.h"
@@ -550,45 +550,14 @@ static const float _unit_diamond_shape[4][2] = {
 /* draw a simple diamond shape with OpenGL */
 void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel, short key_type, short mode, float alpha)
 {
-	static GLuint displist1 = 0;
-	static GLuint displist2 = 0;
-	
-	/* initialize 2 display lists for diamond shape - one empty, one filled */
-	if (displist1 == 0) {
-		displist1 = glGenLists(1);
-		glNewList(displist1, GL_COMPILE);
-			
-		glBegin(GL_LINE_LOOP);
-		glVertex2fv(_unit_diamond_shape[0]);
-		glVertex2fv(_unit_diamond_shape[1]);
-		glVertex2fv(_unit_diamond_shape[2]);
-		glVertex2fv(_unit_diamond_shape[3]);
-		glEnd();
-
-		glEndList();
-	}
-	if (displist2 == 0) {
-		displist2 = glGenLists(1);
-		glNewList(displist2, GL_COMPILE);
-			
-		glBegin(GL_QUADS);
-		glVertex2fv(_unit_diamond_shape[0]);
-		glVertex2fv(_unit_diamond_shape[1]);
-		glVertex2fv(_unit_diamond_shape[2]);
-		glVertex2fv(_unit_diamond_shape[3]);
-		glEnd();
-
-		glEndList();
-	}
-	
 	/* tweak size of keyframe shape according to type of keyframe 
 	 * - 'proper' keyframes have key_type = 0, so get drawn at full size
 	 */
 	hsize -= 0.5f * key_type;
 	
 	/* adjust view transform before starting */
-	glTranslatef(x, y, 0.0f);
-	glScalef(1.0f / xscale * hsize, hsize, 1.0f);
+	gpuTranslate(x, y, 0.0f);
+	gpuScale(1.0f / xscale * hsize, hsize, 1.0f);
 	
 	/* anti-aliased lines for more consistent appearance */
 	glEnable(GL_LINE_SMOOTH);
@@ -599,22 +568,22 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 		switch (key_type) {
 			case BEZT_KEYTYPE_BREAKDOWN: /* bluish frames for now */
 			{
-				if (sel) glColor4f(0.33f, 0.75f, 0.93f, alpha);
-				else glColor4f(0.70f, 0.86f, 0.91f, alpha);
+				if (sel) gpuCurrentColor4f(0.33f, 0.75f, 0.93f, alpha);
+				else gpuCurrentColor4f(0.70f, 0.86f, 0.91f, alpha);
 			}
 			break;
 				
 			case BEZT_KEYTYPE_EXTREME: /* redish frames for now */
 			{
-				if (sel) glColor4f(0.95f, 0.5f, 0.5f, alpha);
-				else glColor4f(0.91f, 0.70f, 0.80f, alpha);
+				if (sel) gpuCurrentColor4f(0.95f, 0.5f, 0.5f, alpha);
+				else gpuCurrentColor4f(0.91f, 0.70f, 0.80f, alpha);
 			}
 			break;
 				
 			case BEZT_KEYTYPE_JITTER: /* greenish frames for now? */
 			{
-				if (sel) glColor4f(0.38f, 0.75f, 0.26f, alpha);
-				else glColor4f(0.58f, 0.90f, 0.46f, alpha);
+				if (sel) gpuCurrentColor4f(0.38f, 0.75f, 0.26f, alpha);
+				else gpuCurrentColor4f(0.58f, 0.90f, 0.46f, alpha);
 			}
 			break;
 				
@@ -622,26 +591,36 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 			default:
 			{
 				if (sel) UI_ThemeColorShadeAlpha(TH_STRIP_SELECT, 50, -255 * (1.0f - alpha));
-				else glColor4f(0.91f, 0.91f, 0.91f, alpha);
+				else gpuCurrentColor4f(0.91f, 0.91f, 0.91f, alpha);
 			}
 			break;
 		}
 		
-		glCallList(displist2);
+		gpuBegin(GL_QUADS);
+		gpuVertex2fv(_unit_diamond_shape[0]);
+		gpuVertex2fv(_unit_diamond_shape[1]);
+		gpuVertex2fv(_unit_diamond_shape[2]);
+		gpuVertex2fv(_unit_diamond_shape[3]);
+		gpuEnd();
 	}
 	
 	if (ELEM(mode, KEYFRAME_SHAPE_FRAME, KEYFRAME_SHAPE_BOTH)) {
 		/* exterior - black frame */
-		glColor4f(0.0f, 0.0f, 0.0f, alpha);
+		gpuCurrentColor4x(CPACK_BLACK, alpha);
 		
-		glCallList(displist1);
+		gpuBegin(GL_LINE_LOOP);
+		gpuVertex2fv(_unit_diamond_shape[0]);
+		gpuVertex2fv(_unit_diamond_shape[1]);
+		gpuVertex2fv(_unit_diamond_shape[2]);
+		gpuVertex2fv(_unit_diamond_shape[3]);
+		gpuEnd();
 	}
 	
 	glDisable(GL_LINE_SMOOTH);
 	
 	/* restore view transform */
-	glScalef(xscale / hsize, 1.0f / hsize, 1.0f);
-	glTranslatef(-x, -y, 0.0f);
+	gpuScale(xscale / hsize, 1.0f / hsize, 1.0f);
+	gpuTranslate(-x, -y, 0.0f);
 }
 
 static void draw_keylist(View2D *v2d, DLRBT_Tree *keys, DLRBT_Tree *blocks, float ypos, short channelLocked)
@@ -665,7 +644,7 @@ static void draw_keylist(View2D *v2d, DLRBT_Tree *keys, DLRBT_Tree *blocks, floa
 				else
 					UI_ThemeColor4(TH_STRIP);
 				
-				glRectf(ab->start, ypos - iconsize, ab->end, ypos + iconsize);
+				gpuSingleFilledRectf(ab->start, ypos - iconsize, ab->end, ypos + iconsize);
 			}
 		}
 	}

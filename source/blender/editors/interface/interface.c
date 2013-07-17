@@ -57,7 +57,8 @@
 #include "BKE_screen.h"
 #include "BKE_idprop.h"
 
-#include "BIF_gl.h"
+#include "GPU_colors.h"
+#include "GPU_compatibility.h"
 
 #include "BLF_api.h"
 #include "BLF_translation.h"
@@ -507,11 +508,11 @@ static void ui_draw_linkline(uiLinkLine *line, int highlightActiveLines)
 	rect.ymax = BLI_rctf_cent_y(&line->to->rect);
 	
 	if (line->flag & UI_SELECT)
-		glColor3ub(100, 100, 100);
+		gpuCurrentGray3f(0.392f);
 	else if (highlightActiveLines && ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE)))
 		UI_ThemeColor(TH_TEXT_HI);
 	else 
-		glColor3ub(0, 0, 0);
+		gpuCurrentColor3x(CPACK_BLACK);
 
 	ui_draw_link_bezier(&rect);
 }
@@ -1061,9 +1062,6 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 	if (multisample_enabled)
 		glDisable(GL_MULTISAMPLE_ARB);
 
-	/* we set this only once */
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	
 	/* scale fonts */
 	ui_fontscale(&style.paneltitle.points, block->aspect);
 	ui_fontscale(&style.grouplabel.points, block->aspect);
@@ -1074,11 +1072,11 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 	ui_but_to_pixelrect(&rect, ar, block, NULL);
 	
 	/* pixel space for AA widgets */
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
+	gpuMatrixMode(GL_PROJECTION);
+	gpuPushMatrix();
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuPushMatrix();
+	gpuLoadIdentity();
 	
 	wmOrtho2(-0.01f, ar->winx - 0.01f, -0.01f, ar->winy - 0.01f);
 	
@@ -1101,10 +1099,10 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 	}
 	
 	/* restore matrix */
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
+	gpuMatrixMode(GL_PROJECTION);
+	gpuPopMatrix();
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuPopMatrix();
 
 	if (multisample_enabled)
 		glEnable(GL_MULTISAMPLE_ARB);

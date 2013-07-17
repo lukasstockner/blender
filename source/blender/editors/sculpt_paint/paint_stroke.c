@@ -50,13 +50,14 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "ED_screen.h"
 #include "ED_view3d.h"
 
 #include "paint_intern.h"
+
+#include "GPU_primitives.h"
 
 #include <float.h>
 #include <math.h>
@@ -119,12 +120,18 @@ static void paint_draw_smooth_stroke(bContext *C, int x, int y, void *customdata
 	PaintStroke *stroke = customdata;
 
 	if (stroke && brush && (brush->flag & BRUSH_SMOOTH_STROKE)) {
-		glColor4ubv(paint->paint_cursor_col);
+		gpuColor4ubv(paint->paint_cursor_col);
+
 		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_BLEND);
 
-		sdrawline(x, y, (int)stroke->last_mouse_position[0],
-		          (int)stroke->last_mouse_position[1]);
+		// DOODLE: single line
+		gpuSingleLinei(
+			x,
+			y,
+			(int)stroke->last_mouse_position[0] - stroke->vc.ar->winrct.xmin,
+			(int)stroke->last_mouse_position[1] - stroke->vc.ar->winrct.ymin);
+
 		glDisable(GL_BLEND);
 		glDisable(GL_LINE_SMOOTH);
 	}

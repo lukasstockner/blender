@@ -29,6 +29,8 @@
  *  \ingroup edarmature
  */
 
+#include <stddef.h>
+
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_object_types.h"

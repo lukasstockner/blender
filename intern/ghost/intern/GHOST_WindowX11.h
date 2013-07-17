@@ -35,7 +35,14 @@
 
 #include "GHOST_Window.h"
 #include <X11/Xlib.h>
-#include <GL/glx.h>
+#include <X11/Xutil.h>
+
+#ifndef GLEW_INC_EGL
+#include <GL/glxew.h>
+#else
+#include <GL/eglew.h>
+#endif
+
 // For tablets
 #ifdef WITH_X11_XINPUT
 #  include <X11/extensions/XInput.h>
@@ -337,14 +344,25 @@ private:
 	void initXInputDevices();
 #endif
 	
+#ifndef GLEW_INC_EGL
+	EGLContext m_context;
+	EGLSurface gl_surface;
+	EGLDisplay gl_display;
+#else
 	GLXContext m_context;
+#endif
+
 	Window m_window;
 	Display     *m_display;
 	XVisualInfo *m_visual;
 	GHOST_TWindowState m_normal_state;
 
 	/** The first created OpenGL context (for sharing display lists) */
+#ifndef GLEW_INC_EGL
+	static EGLContext s_firstContext;
+#else    
 	static GLXContext s_firstContext;
+#endif
 
 	/// A pointer to the typed system class.
 	

@@ -74,7 +74,6 @@ void ED_init_custom_node_socket_type(struct bNodeSocketType *stype);
 void ED_init_standard_node_socket_type(struct bNodeSocketType *stype);
 void ED_init_node_socket_type_virtual(struct bNodeSocketType *stype);
 void ED_node_sample_set(const float col[4]);
-void ED_node_draw_snap(struct View2D *v2d, const float cent[2], float size, NodeBorder border);
 
 /* node_draw.c */
 void ED_node_tree_update(const struct bContext *C);

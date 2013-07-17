@@ -52,7 +52,8 @@
 #include "BKE_report.h"
 #include "BKE_writeavi.h"
 
-#include "BIF_gl.h"
+#include "GPU_compatibility.h"
+#include "GPU_primitives.h"
 #include "BIF_glutil.h"
 
 #include "RNA_access.h"
@@ -411,11 +412,11 @@ static void screencast_draw_cursor(bContext *UNUSED(C), int x, int y, void *UNUS
 	glEnable(GL_LINE_SMOOTH);
 	glEnable(GL_BLEND);
 	
-	glColor4ub(0, 0, 0, 32);
-	glutil_draw_filled_arc(0.0, M_PI * 2.0, 20, 40);
+	gpuCurrentColor4ub(0, 0, 0, 32);
+	gpuSingleArc(0, 0, 0, 2*M_PI, 20, 20, 40);
 	
-	glColor4ub(255, 255, 255, 128);
-	glutil_draw_lined_arc(0.0, M_PI * 2.0, 20, 40);
+	gpuCurrentColor4ub(255, 255, 255, 128);
+	gpuSingleArc(0, 0, 0, 2*M_PI, 20, 20, 40);
 	
 	glDisable(GL_BLEND);
 	glDisable(GL_LINE_SMOOTH);

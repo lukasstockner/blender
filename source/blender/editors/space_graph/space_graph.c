@@ -52,7 +52,7 @@
 #include "ED_anim_api.h"
 #include "ED_markers.h"
 
-#include "BIF_gl.h"
+#include "GPU_primitives.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -231,8 +231,7 @@ static void graph_main_area_draw(const bContext *C, ARegion *ar)
 	
 	/* clear and setup matrix */
 	UI_GetThemeColor3fv(TH_BACK, col);
-	glClearColor(col[0], col[1], col[2], 0.0);
-	glClear(GL_COLOR_BUFFER_BIT);
+	gpuColorAndClearvf(col, 0.0);
 	
 	UI_view2d_view_ortho(v2d);
 	
@@ -264,22 +263,20 @@ static void graph_main_area_draw(const bContext *C, ARegion *ar)
 	
 	/* horizontal component of value-cursor (value line before the current frame line) */
 	if ((sipo->flag & SIPO_NODRAWCURSOR) == 0) {
-		float vec[2];
-		
 		/* Draw a green line to indicate the cursor value */
-		vec[1] = sipo->cursorVal;
-		
+
 		UI_ThemeColorShadeAlpha(TH_CFRAME, -10, -50);
 		glLineWidth(2.0);
-		
+
 		glEnable(GL_BLEND);
-		glBegin(GL_LINE_STRIP);
-		vec[0] = v2d->cur.xmin;
-		glVertex2fv(vec);
-			
-		vec[0] = v2d->cur.xmax;
-		glVertex2fv(vec);
-		glEnd(); // GL_LINE_STRIP
+
+		// DOODLE single 2D line
+		gpuSingleLinef(
+			v2d->cur.xmin,
+			sipo->cursorVal,
+			v2d->cur.xmax,
+			sipo->cursorVal);
+
 		glDisable(GL_BLEND);
 	}
 	
@@ -290,7 +287,7 @@ static void graph_main_area_draw(const bContext *C, ARegion *ar)
 	
 	/* markers */
 	UI_view2d_view_orthoSpecial(ar, v2d, 1);
-	draw_markers_time(C, 0);
+	draw_markers_time(C, 0); // DOODLE multiple lines with labels
 	
 	/* preview range */
 	UI_view2d_view_ortho(v2d);
@@ -338,8 +335,7 @@ static void graph_channel_area_draw(const bContext *C, ARegion *ar)
 	
 	/* clear and setup matrix */
 	UI_GetThemeColor3fv(TH_BACK, col);
-	glClearColor(col[0], col[1], col[2], 0.0);
-	glClear(GL_COLOR_BUFFER_BIT);
+	gpuColorAndClearvf(col, 0.0);
 	
 	UI_view2d_view_ortho(v2d);
 	

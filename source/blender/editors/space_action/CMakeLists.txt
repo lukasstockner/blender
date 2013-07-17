@@ -22,6 +22,7 @@ set(INC
 	../include
 	../../blenkernel
 	../../blenlib
+	../../gpu
 	../../makesdna
 	../../makesrna
 	../../windowmanager
@@ -41,5 +42,7 @@ set(SRC
 
 	action_intern.h
 )
+
+add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(bf_editor_space_action "${SRC}" "${INC}" "${INC_SYS}")

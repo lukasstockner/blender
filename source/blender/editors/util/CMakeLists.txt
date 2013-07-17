@@ -24,6 +24,7 @@ set(INC
 	../../blenkernel
 	../../blenlib
 	../../bmesh
+	../../gpu
 	../../makesdna
 	../../makesrna
 	../../windowmanager
@@ -43,7 +44,6 @@ set(SRC
 
 	util_intern.h
 	# general includes
-	../include/BIF_gl.h
 	../include/BIF_glutil.h
 	../include/ED_anim_api.h
 	../include/ED_armature.h
@@ -89,7 +89,7 @@ set(SRC
 	../include/UI_view2d.h
 )
 
-add_definitions(-DGLEW_STATIC)
+add_definitions(${GL_DEFINITIONS})
 
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)

@@ -45,11 +45,12 @@
 
 #include "BLI_math.h"
 
-#include "BIF_gl.h"
 #include "BLF_api.h"
 
 #include "blf_internal_types.h"
 #include "blf_internal.h"
+
+#include "GPU_compatibility.h"
 
 /* Max number of font in memory.
  * Take care that now every font have a glyph cache per size/dpi,
@@ -155,10 +156,10 @@ static int blf_global_font_init(void)
 
 	if (global_font_default == -1) {
 		printf("Warning: Can't find default font!\n");
-		return 0;
+		return FALSE;
 	}
 	else {
-		return 1;
+		return TRUE;
 	}
 }
 
@@ -453,31 +454,36 @@ void BLF_blur(int fontid, int size)
 	}
 }
 
+void BLF_draw_default_lock(void)
+{
+	if (blf_global_font_init()) {
+		BLF_draw_lock(global_font_default);
+	}
+}
+
+void BLF_draw_default_unlock(void)
+{
+	if (blf_global_font_init()) {
+		BLF_draw_unlock(global_font_default);
+	}
+}
+
 void BLF_draw_default(float x, float y, float z, const char *str, size_t len)
 {
-	if (!str)
-		return;
-
-	if (!blf_global_font_init())
-		return;
-
-	BLF_size(global_font_default, global_font_points, global_font_dpi);
-	BLF_position(global_font_default, x, y, z);
-	BLF_draw(global_font_default, str, len);
+	if (str && blf_global_font_init()) {
+		BLF_size(global_font_default, global_font_points, global_font_dpi);
+		BLF_position(global_font_default, x, y, z);
+		BLF_draw(global_font_default, str, len);
+	}
 }
 
 /* same as above but call 'BLF_draw_ascii' */
 void BLF_draw_default_ascii(float x, float y, float z, const char *str, size_t len)
 {
-	if (!str)
-		return;
-
-	if (!blf_global_font_init())
-		return;
-
-	BLF_size(global_font_default, global_font_points, global_font_dpi);
-	BLF_position(global_font_default, x, y, z);
-	BLF_draw_ascii(global_font_default, str, len); /* XXX, use real length */
+	if (str && blf_global_font_init()) {
+		BLF_position(global_font_default, x, y, z);
+		BLF_draw(global_font_default, str, len);  /* XXX, use real length */
+	}
 }
 
 void BLF_rotation_default(float angle)
@@ -489,103 +495,153 @@ void BLF_rotation_default(float angle)
 	}
 }
 
-static void blf_draw__start(FontBLF *font, GLint *mode, GLint *param)
+static void draw_lock(FontBLF *font)
 {
-	/*
-	 * The pixmap alignment hack is handle
-	 * in BLF_position (old ui_rasterpos_safe).
-	 */
+	if (!font) {
+		return;
+	}
 
-	glEnable(GL_BLEND);
-	glEnable(GL_TEXTURE_2D);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	if (font->locked == 0) {
+		if (font->shadow || font->blur) {
+			gpuImmediateFormat_T2_C4_V2(); // DOODLE: blurred and/or shadowed text
+		}
+		else {
+			gpuImmediateFormat_T2_V2();    // DOODLE: normal text
+		}
 
-	/* Save the current matrix mode. */
-	glGetIntegerv(GL_MATRIX_MODE, mode);
+		/* one-time GL setup */
+		glEnable(GL_TEXTURE_2D);
+		glEnable(GL_BLEND);
+	}
 
-	glMatrixMode(GL_TEXTURE);
-	glPushMatrix();
-	glLoadIdentity();
+	font->locked++;
+}
 
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
+static void draw_unlock(FontBLF *font)
+{
+	if (!font) {
+		return;
+	}
 
-	if (font->flags & BLF_MATRIX)
-		glMultMatrixd((GLdouble *)&font->m);
+	GPU_ASSERT(font->locked > 0);
 
-	glTranslatef(font->pos[0], font->pos[1], font->pos[2]);
+	font->locked--;
+
+	if (font->locked == 0) {
+		glDisable(GL_BLEND);
+		glDisable(GL_TEXTURE_2D);
+
+		gpuImmediateUnformat();
+	}
+}
+
+void BLF_draw_lock(int fontid)
+{
+	draw_lock(blf_get(fontid));
+}
+
+void BLF_draw_unlock(int fontid)
+{
+	draw_unlock(blf_get(fontid));
+}
+
+static void blf_draw__start(FontBLF *font)
+{
+	/* The pixmap alignment hack is handled
+	   in BLF_position (old ui_rasterpos_safe). */
+
+#if GPU_SAFETY
+	{
+	GLenum param;
+	glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &param);
+	GPU_ASSERT(param == GL_MODULATE);
+
+	GPU_ASSERT(gpuGetMatrixMode() == GL_MODELVIEW);
+	}
+#endif
+
+	gpuMatrixMode(GL_TEXTURE);
+	gpuPushMatrix();
+	gpuLoadIdentity();
+
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuPushMatrix();
+
+
+	if (font->flags & BLF_MATRIX) {
+		gpuMultMatrixd((GLdouble *)&font->m);
+	}
+
+	gpuTranslate(font->pos[0], font->pos[1], font->pos[2]);
 
 	if (font->flags & BLF_ASPECT)
-		glScalef(font->aspect[0], font->aspect[1], font->aspect[2]);
+		gpuScale(font->aspect[0], font->aspect[1], font->aspect[2]);
 
 	if (font->flags & BLF_ROTATION)  /* radians -> degrees */
-		glRotatef(font->angle * (float)(180.0 / M_PI), 0.0f, 0.0f, 1.0f);
+		gpuRotateAxis(font->angle * (float)(180.0 / M_PI), 'Z');
 
-	if (font->shadow || font->blur)
-		glGetFloatv(GL_CURRENT_COLOR, font->orig_col);
+	if (font->shadow || font->blur) 
+		gpuGetCurrentColor4fv(font->orig_col);
 
 	/* always bind the texture for the first glyph */
 	font->tex_bind_state = -1;
 
-	/* Save the current parameter to restore it later. */
-	glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, param);
-	if (*param != GL_MODULATE)
-		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	gpuMatrixCommit();
+
+	draw_lock(font);
 }
 
-static void blf_draw__end(GLint mode, GLint param)
+static void blf_draw__end(FontBLF *font)
 {
-	/* and restore the original value. */
-	if (param != GL_MODULATE)
-		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, param);
+	draw_unlock(font);
 
-	glMatrixMode(GL_TEXTURE);
-	glPopMatrix();
+	gpuMatrixMode(GL_TEXTURE);
+	gpuPopMatrix();
 
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuPopMatrix();
 
-	if (mode != GL_MODELVIEW)
-		glMatrixMode(mode);
-
-	glDisable(GL_BLEND);
-	glDisable(GL_TEXTURE_2D);
+	/* XXX: current color becomes undefined due to use of vertex arrays,
+	        but a lot of code relies on it remaining the same */
+	if (font->shadow || font->blur) 
+		gpuCurrentColor4fv(font->orig_col);
 }
 
 void BLF_draw(int fontid, const char *str, size_t len)
 {
-	FontBLF *font = blf_get(fontid);
-	GLint mode, param;
+	if (len > 0 && str[0]) {
+		FontBLF *font = blf_get(fontid);
 
-	if (font && font->glyph_cache) {
-		blf_draw__start(font, &mode, &param);
-		blf_font_draw(font, str, len);
-		blf_draw__end(mode, param);
+		if (font && font->glyph_cache) {
+			blf_draw__start(font);
+			blf_font_draw(font, str, len);
+			blf_draw__end(font);
+		}
 	}
 }
 
 void BLF_draw_ascii(int fontid, const char *str, size_t len)
 {
-	FontBLF *font = blf_get(fontid);
-	GLint mode, param;
+	if (len > 0 && str[0]) {
+		FontBLF *font = blf_get(fontid);
 
-	if (font && font->glyph_cache) {
-		blf_draw__start(font, &mode, &param);
-		blf_font_draw_ascii(font, str, len);
-		blf_draw__end(mode, param);
+		if (font && font->glyph_cache) {
+			blf_draw__start(font);
+			blf_font_draw_ascii(font, str, len);
+			blf_draw__end(font);
+		}
 	}
 }
 
 int BLF_draw_mono(int fontid, const char *str, size_t len, int cwidth)
 {
 	FontBLF *font = blf_get(fontid);
-	GLint mode, param;
 	int columns = 0;
 
 	if (font && font->glyph_cache) {
-		blf_draw__start(font, &mode, &param);
+		blf_draw__start(font);
 		columns = blf_font_draw_mono(font, str, len, cwidth);
-		blf_draw__end(mode, param);
+		blf_draw__end(font);
 	}
 
 	return columns;

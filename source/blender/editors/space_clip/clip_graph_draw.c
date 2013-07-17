@@ -46,7 +46,9 @@
 #include "ED_screen.h"
 #include "ED_clip.h"
 
-#include "BIF_gl.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
+
 #include "BIF_glutil.h"
 
 #include "WM_types.h"
@@ -61,37 +63,20 @@
 
 static void draw_curve_knot(float x, float y, float xscale, float yscale, float hsize)
 {
-	static GLuint displist = 0;
+	gpuPushMatrix();
+	gpuTranslate(x, y, 0.0f);
+	gpuScale(1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
 
-	/* initialize round circle shape */
-	if (displist == 0) {
-		GLUquadricObj *qobj;
+	gpuSingleCircle(0, 0, 0.7, 8);
 
-		displist = glGenLists(1);
-		glNewList(displist, GL_COMPILE);
-
-		qobj = gluNewQuadric();
-		gluQuadricDrawStyle(qobj, GLU_SILHOUETTE);
-		gluDisk(qobj, 0,  0.7, 8, 1);
-		gluDeleteQuadric(qobj);
-
-		glEndList();
-	}
-
-	glPushMatrix();
-
-	glTranslatef(x, y, 0.0f);
-	glScalef(1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
-	glCallList(displist);
-
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 static void tracking_segment_point_cb(void *UNUSED(userdata), MovieTrackingTrack *UNUSED(track),
                                       MovieTrackingMarker *UNUSED(marker), int UNUSED(coord),
                                       int scene_framenr, float val)
 {
-	glVertex2f(scene_framenr, val);
+	gpuVertex2f(scene_framenr, val);
 }
 
 static void tracking_segment_start_cb(void *userdata, MovieTrackingTrack *track, int coord)
@@ -111,14 +96,14 @@ static void tracking_segment_start_cb(void *userdata, MovieTrackingTrack *track,
 		glLineWidth(1.0f);
 	}
 
-	glColor4fv(col);
+	gpuCurrentColor4fv(col);
 
-	glBegin(GL_LINE_STRIP);
+	gpuBegin(GL_LINE_STRIP);
 }
 
 static void tracking_segment_end_cb(void *UNUSED(userdata))
 {
-	glEnd();
+	gpuEnd();
 
 	glLineWidth(1.0f);
 }
@@ -186,30 +171,30 @@ static void draw_frame_curves(SpaceClip *sc)
 	MovieTrackingReconstruction *reconstruction = BKE_tracking_get_active_reconstruction(tracking);
 	int i, lines = 0, prevfra = 0;
 
-	glColor3f(0.0f, 0.0f, 1.0f);
+	gpuColor3x(CPACK_BLUE);
 
 	for (i = 0; i < reconstruction->camnr; i++) {
 		MovieReconstructedCamera *camera = &reconstruction->cameras[i];
 		int framenr;
 
 		if (lines && camera->framenr != prevfra + 1) {
-			glEnd();
+			gpuEnd();
 			lines = 0;
 		}
 
 		if (!lines) {
-			glBegin(GL_LINE_STRIP);
+			gpuBegin(GL_LINE_STRIP);
 			lines = 1;
 		}
 
 		framenr = BKE_movieclip_remap_clip_to_scene_frame(clip, camera->framenr);
-		glVertex2f(framenr, camera->error);
+		gpuVertex2f(framenr, camera->error);
 
 		prevfra = camera->framenr;
 	}
 
 	if (lines)
-		glEnd();
+		gpuEnd();
 }
 
 void clip_draw_graph(SpaceClip *sc, ARegion *ar, Scene *scene)

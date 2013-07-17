@@ -45,7 +45,11 @@
 #include "BKE_suggestions.h"
 #include "BKE_text.h"
 
-#include "BIF_gl.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
+#include "GPU_utility.h"
+
+#include "BIF_glutil.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -85,6 +89,7 @@ static int text_font_draw_character(SpaceText *st, int x, int y, char c)
 	return st->cwidth;
 }
 
+#if 0
 static int text_font_draw_character_utf8(SpaceText *st, int x, int y, const char *c)
 {
 	int columns;
@@ -96,7 +101,7 @@ static int text_font_draw_character_utf8(SpaceText *st, int x, int y, const char
 	return st->cwidth * columns;
 }
 
-#if 0
+
 /* Formats every line of the current text */
 static void txt_format_text(SpaceText *st) 
 {
@@ -379,6 +384,7 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 	int a, fstart, fpos;                     /* utf8 chars */
 	int mi, ma, mstart, mend;                /* mem */
 	char fmt_prev = 0xff;
+    const bool showsyntax = st->showsyntax && format;
 	
 	flatten_string(st, &fs, str);
 	str = fs.buf;
@@ -386,7 +392,7 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 	if (max < 8) max = 8;
 	basex = x;
 	lines = 1;
-	
+
 	fpos = fstart = 0; mstart = 0;
 	mend = txt_utf8_forward_columns(str, max, &padding) - str;
 	end = wrap = max - padding;
@@ -394,6 +400,10 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 	for (i = 0, mi = 0; str[mi]; i += columns, mi += BLI_str_utf8_size_safe(str + mi)) {
 		columns = BLI_str_utf8_char_width_safe(str + mi);
 		if (i + columns > end) {
+            int ox;
+			char buffer[BLF_DRAW_STR_DUMMY_MAX];
+			size_t len = 0;
+
 			/* skip hidden part of line */
 			if (skip) {
 				skip--;
@@ -403,14 +413,47 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 				continue;
 			}
 
+			if (st->showsyntax && format) {
+				fmt_prev = format[fstart];
+				format_draw_color(fmt_prev);
+			}
+
+            ox = x;
+            
+			ma = mstart;
+
+            a = fstart;
+
 			/* Draw the visible portion of text on the overshot line */
-			for (a = fstart, ma = mstart; ma < mend; a++, ma += BLI_str_utf8_size_safe(str + ma)) {
-				if (st->showsyntax && format) {
-					if (fmt_prev != format[a]) format_draw_color(fmt_prev = format[a]);
+			while (ma < mend) {
+				size_t char_len;
+
+				if (showsyntax && (fmt_prev != format[a])) {
+					memcpy(buffer, str + ma - len, len);
+					buffer[len] = '\0';
+					x += text_font_draw(st, ox, y, buffer);
+
+                    ox  = x;
+					len = 0;
+
+					fmt_prev = format[a];
+					format_draw_color(fmt_prev);
 				}
-				x += text_font_draw_character_utf8(st, x, y, str + ma);
+
+				char_len = BLI_str_utf8_size_safe(str + ma);
+				len += char_len;
+				ma  += char_len;
+
+                a++;
+                
 				fpos++;
 			}
+
+			/* draw last chunk */
+			memcpy(buffer, str + ma - len, len);
+			buffer[len] = '\0';
+			text_font_draw(st, ox, y, buffer);
+
 			y -= st->lheight_dpi + TXT_LINE_SPACING;
 			x = basex;
 			lines++;
@@ -426,12 +469,48 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 	}
 
 	/* Draw the remaining text */
-	for (a = fstart, ma = mstart; str[ma] && y > 0; a++, ma += BLI_str_utf8_size_safe(str + ma)) {
-		if (st->showsyntax && format) {
-			if (fmt_prev != format[a]) format_draw_color(fmt_prev = format[a]);
+	if (y > 0) {
+		int ox;
+		char buffer[BLF_DRAW_STR_DUMMY_MAX];
+		size_t len = 0;
+
+		if (showsyntax && (fmt_prev != format[fstart])) {
+			fmt_prev = format[fstart];
+			format_draw_color(fmt_prev);
 		}
 
-		x += text_font_draw_character_utf8(st, x, y, str + ma);
+		ox = x;
+
+		ma = mstart;
+        
+        a = fstart;
+        
+		while (str[ma]) {
+			size_t char_len;
+
+			if (showsyntax && (fmt_prev != format[a])) {
+				memcpy(buffer, str + ma - len, len);
+				buffer[len] = '\0';
+				x += text_font_draw(st, ox, y, buffer);
+
+				ox  = x;
+				len = 0;
+
+				fmt_prev = format[a];
+				format_draw_color(fmt_prev);
+			}
+
+			char_len = BLI_str_utf8_size(str + ma);
+			len += char_len;
+			ma  += char_len;
+            
+            a++;
+		}
+
+		/* draw last chunk */
+		memcpy(buffer, str + ma - len, len);
+		buffer[len] = '\0';
+		text_font_draw(st, ox, y, buffer);
 	}
 
 	flatten_string_free(&fs);
@@ -445,6 +524,8 @@ static void text_draw(SpaceText *st, char *str, int cshift, int maxwidth, int x,
 	int columns, size, n, w = 0, padding, amount = 0;
 	const char *in = NULL;
 
+    maxwidth = MIN2(maxwidth, BLF_DRAW_STR_DUMMY_MAX);
+    
 	for (n = flatten_string(st, &fs, str), str = fs.buf; n > 0; n--) {
 		columns = BLI_str_utf8_char_width_safe(str);
 		size = BLI_str_utf8_size_safe(str);
@@ -472,16 +553,44 @@ static void text_draw(SpaceText *st, char *str, int cshift, int maxwidth, int x,
 	}
 
 	x += st->cwidth * padding;
-
+    
 	if (st->showsyntax && format) {
-		int a, str_shift = 0;
-		char fmt_prev = 0xff;
+		int a;
+		int str_shift = 0;
+		int ox;
+		char fmt_prev;
+		char buffer[BLF_DRAW_STR_DUMMY_MAX];
+		size_t len = 0;
+
+		fmt_prev = format[0];
+		format_draw_color(fmt_prev);
+
+		ox = x;
 
 		for (a = 0; a < amount; a++) {
-			if (format[a] != fmt_prev) format_draw_color(fmt_prev = format[a]);
-			x += text_font_draw_character_utf8(st, x, y, in + str_shift);
-			str_shift += BLI_str_utf8_size_safe(in + str_shift);
+			size_t char_len;
+
+			if (fmt_prev != format[a]) {
+				memcpy(buffer, in + str_shift - len, len);
+				buffer[len] = '\0';
+				text_font_draw(st, ox, y, buffer);
+
+				ox  = x;
+				len = 0;
+
+				fmt_prev = format[a];
+				format_draw_color(fmt_prev);
+			}
+
+			char_len = BLI_str_utf8_size(in + str_shift);
+			str_shift += char_len;
+			len       += char_len;
 		}
+
+		/* draw last chunk */
+		memcpy(buffer, in + str_shift - len, len);
+		buffer[len] = '\0';
+		text_font_draw(st, ox, y, buffer);
 	}
 	else {
 		text_font_draw(st, x, y, in);
@@ -883,7 +992,7 @@ static void draw_textscroll(SpaceText *st, rcti *scroll, rcti *back)
 	float rad;
 	
 	UI_ThemeColor(TH_BACK);
-	glRecti(back->xmin, back->ymin, back->xmax, back->ymax);
+	gpuSingleFilledRecti(back->xmin, back->ymin, back->xmax, back->ymax);
 
 	uiWidgetScrollDraw(&wcol, scroll, &st->txtbar, (st->flags & ST_SCROLL_SELECT) ? UI_SCROLL_PRESSED : 0);
 
@@ -891,7 +1000,7 @@ static void draw_textscroll(SpaceText *st, rcti *scroll, rcti *back)
 	rad = 0.4f * min_ii(BLI_rcti_size_x(&st->txtscroll), BLI_rcti_size_y(&st->txtscroll));
 	UI_GetThemeColor3ubv(TH_HILITE, col);
 	col[3] = 48;
-	glColor4ubv(col);
+	gpuCurrentColor4ubv(col);
 	glEnable(GL_BLEND);
 	uiRoundBox(st->txtscroll.xmin + 1, st->txtscroll.ymin, st->txtscroll.xmax - 1, st->txtscroll.ymax, rad);
 	glDisable(GL_BLEND);
@@ -933,25 +1042,29 @@ static void draw_documentation(SpaceText *st, ARegion *ar)
 
 	/* Draw panel */
 	UI_ThemeColor(TH_BACK);
-	glRecti(x, y, x + boxw, y - boxh);
+	gpuSingleFilledRecti(x, y, x + boxw, y - boxh);
 	UI_ThemeColor(TH_SHADE1);
-	glBegin(GL_LINE_LOOP);
-	glVertex2i(x, y);
-	glVertex2i(x + boxw, y);
-	glVertex2i(x + boxw, y - boxh);
-	glVertex2i(x, y - boxh);
-	glEnd();
-	glBegin(GL_LINE_LOOP);
-	glVertex2i(x + boxw - 10, y - 7);
-	glVertex2i(x + boxw - 4, y - 7);
-	glVertex2i(x + boxw - 7, y - 2);
-	glEnd();
-	glBegin(GL_LINE_LOOP);
-	glVertex2i(x + boxw - 10, y - boxh + 7);
-	glVertex2i(x + boxw - 4, y - boxh + 7);
-	glVertex2i(x + boxw - 7, y - boxh + 2);
-	glEnd();
+	gpuImmediateFormat_V2();
+	gpuBegin(GL_LINE_LOOP);
+	gpuVertex2i(x, y);
+	gpuVertex2i(x + boxw, y);
+	gpuVertex2i(x + boxw, y - boxh);
+	gpuVertex2i(x, y - boxh);
+	gpuEnd();
+	gpuBegin(GL_LINE_LOOP);
+	gpuVertex2i(x + boxw - 10, y - 7);
+	gpuVertex2i(x + boxw - 4, y - 7);
+	gpuVertex2i(x + boxw - 7, y - 2);
+	gpuEnd();
+	gpuBegin(GL_LINE_LOOP);
+	gpuVertex2i(x + boxw - 10, y - boxh + 7);
+	gpuVertex2i(x + boxw - 4, y - boxh + 7);
+	gpuVertex2i(x + boxw - 7, y - boxh + 2);
+	gpuEnd();
+	gpuImmediateUnformat();
 	UI_ThemeColor(TH_TEXT);
+
+	BLF_draw_lock(mono);
 
 	i = 0; br = DOC_WIDTH; lines = 0; // XXX -doc_scroll;
 	for (p = docs; *p; p++) {
@@ -978,6 +1091,8 @@ static void draw_documentation(SpaceText *st, ARegion *ar)
 		}
 		if (lines >= DOC_HEIGHT) break;
 	}
+
+	BLF_draw_unlock(mono);
 
 	if (0 /* XXX doc_scroll*/ > 0 && lines < DOC_HEIGHT) {
 		// XXX doc_scroll--;
@@ -1030,9 +1145,11 @@ static void draw_suggestion_list(SpaceText *st, ARegion *ar)
 	uiDrawBoxShadow(220, x, y - boxh, x + boxw, y);
 
 	UI_ThemeColor(TH_SHADE1);
-	glRecti(x - 1, y + 1, x + boxw + 1, y - boxh - 1);
+	gpuSingleFilledRecti(x - 1, y + 1, x + boxw + 1, y - boxh - 1);
 	UI_ThemeColorShade(TH_BACK, 16);
-	glRecti(x, y, x + boxw, y - boxh);
+	gpuSingleFilledRecti(x, y, x + boxw, y - boxh);
+
+	BLF_draw_lock(mono);
 
 	/* Set the top 'item' of the visible list */
 	for (i = 0, item = first; i < *top && item->next; i++, item = item->next) ;
@@ -1048,7 +1165,7 @@ static void draw_suggestion_list(SpaceText *st, ARegion *ar)
 		
 		if (item == sel) {
 			UI_ThemeColor(TH_SHADE2);
-			glRecti(x + margin_x, y - 3, x + margin_x + w, y + lheight - 3);
+			gpuSingleFilledRecti(x + margin_x, y - 3, x + margin_x + w, y + lheight - 3);
 		}
 
 		format_draw_color(item->type);
@@ -1056,6 +1173,8 @@ static void draw_suggestion_list(SpaceText *st, ARegion *ar)
 
 		if (item == last) break;
 	}
+
+	BLF_draw_unlock(mono);
 }
 
 /*********************** draw cursor ************************/
@@ -1088,9 +1207,9 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 		if (vcurl == vsell) {
 			y -= vcurl * lheight;
 			if (vcurc < vselc)
-				glRecti(x + vcurc * st->cwidth - 1, y, x + vselc * st->cwidth, y - lheight);
+				gpuSingleFilledRecti(x + vcurc * st->cwidth - 1, y, x + vselc * st->cwidth, y - lheight);
 			else
-				glRecti(x + vselc * st->cwidth - 1, y, x + vcurc * st->cwidth, y - lheight);
+				gpuSingleFilledRecti(x + vselc * st->cwidth - 1, y, x + vcurc * st->cwidth, y - lheight);
 		}
 		else {
 			int froml, fromc, tol, toc;
@@ -1105,11 +1224,16 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 			}
 
 			y -= froml * lheight;
-			glRecti(x + fromc * st->cwidth - 1, y, ar->winx, y - lheight); y -= lheight;
+			gpuSingleFilledRecti(x + fromc * st->cwidth - 1, y, ar->winx, y - st->lheight);
+			y -= st->lheight;
 			for (i = froml + 1; i < tol; i++)
-				glRecti(x - 4, y, ar->winx, y - lheight),  y -= lheight;
 
-			glRecti(x - 4, y, x + toc * st->cwidth, y - lheight);  y -= lheight;
+			for (i = froml + 1; i < tol; i++) {
+				gpuSingleFilledRecti(x - 4, y, ar->winx, y - st->lheight + TXT_LINE_SPACING);
+				y -= st->lheight;
+			}
+
+			gpuSingleFilledRecti(x - 4, y, x + toc * st->cwidth, y - lheight);  y -= lheight;
 		}
 	}
 	else {
@@ -1145,15 +1269,14 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 			x1 = st->showlinenrs ? TXT_OFFSET + TEXTXLOC : TXT_OFFSET;
 			x2 = x1 + ar->winx;
 
-			glColor4ub(255, 255, 255, 32);
+			gpuCurrentColor4x(CPACK_WHITE, 0.125f);
 			
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			glEnable(GL_BLEND);
-			glRecti(x1 - 4, y1, x2, y2 + TXT_LINE_SPACING);
+			gpuSingleFilledRecti(x1 - 4, y1, x2, y2 + TXT_LINE_SPACING);
 			glDisable(GL_BLEND);
 		}
 	}
-	
+
 	if (!hidden) {
 		/* Draw the cursor itself (we draw the sel. cursor as this is the leading edge) */
 		x = st->showlinenrs ? TXT_OFFSET + TEXTXLOC : TXT_OFFSET;
@@ -1168,11 +1291,11 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 			if (ch == '\t') w *= st->tabnumber - (vselc + st->left) % st->tabnumber;
 			
 			UI_ThemeColor(TH_HILITE);
-			glRecti(x, y - lheight - 1, x + w, y - lheight + 1);
+			gpuSingleFilledRecti(x, y - lheight - 1, x + w, y - lheight + 1);
 		}
 		else {
 			UI_ThemeColor(TH_HILITE);
-			glRecti(x - 1, y, x + 1, y - lheight);
+			gpuSingleFilledRecti(x - 1, y, x + 1, y - lheight);
 		}
 	}
 }
@@ -1374,7 +1497,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 		x = TXT_OFFSET + TEXTXLOC;
 
 		UI_ThemeColor(TH_GRID);
-		glRecti((TXT_OFFSET - 12), 0, (TXT_OFFSET - 5) + TEXTXLOC, ar->winy - 2);
+		gpuSingleFilledRecti((TXT_OFFSET - 12), 0, (TXT_OFFSET - 5) + TEXTXLOC, ar->winy - 2);
 	}
 	else {
 		st->linenrs_tot = 0; /* not used */
@@ -1388,6 +1511,10 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 
 	/* draw the text */
 	UI_ThemeColor(TH_TEXT);
+
+	GPU_STRING_MARKER("draw_text_main:begin");
+
+	BLF_draw_lock(mono);
 
 	for (i = 0; y > 0 && i < st->viewlines && tmp; i++, tmp = tmp->next) {
 		if (st->showsyntax && !tmp->format)
@@ -1420,23 +1547,29 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 		
 		wrap_skip = 0;
 	}
-	
+
+	BLF_draw_unlock(mono);
+
+	GPU_STRING_MARKER("draw_text_main:end");
+
 	if (st->flags & ST_SHOW_MARGIN) {
 		UI_ThemeColor(TH_HILITE);
 
 		margin_column_x = x + st->cwidth * (st->margin_column - st->left);
 		
 		if (margin_column_x >= x) {
-			glBegin(GL_LINES);
-			glVertex2i(margin_column_x, 0);
-			glVertex2i(margin_column_x, ar->winy - 2);
-			glEnd();
+			gpuImmediateFormat_V2();
+			gpuBegin(GL_LINES);
+			gpuVertex2i(x + st->cwidth * st->margin_column, 0);
+			gpuVertex2i(x + st->cwidth * st->margin_column, ar->winy - 2);
+			gpuEnd();
+			gpuImmediateUnformat();
 		}
 	}
 
 	/* draw other stuff */
 	draw_brackets(st, ar);
-	glTranslatef(GLA_PIXEL_OFS, GLA_PIXEL_OFS, 0.0f); /* XXX scroll requires exact pixel space */
+	gpuTranslate(GLA_PIXEL_OFS, GLA_PIXEL_OFS, 0.0f); /* XXX scroll requires exact pixel space */
 	draw_textscroll(st, &scroll, &back);
 	draw_documentation(st, ar);
 	draw_suggestion_list(st, ar);

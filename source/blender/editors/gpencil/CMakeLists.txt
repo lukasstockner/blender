@@ -27,6 +27,7 @@ set(INC
 	../../makesdna
 	../../makesrna
 	../../windowmanager
+	../../gpu
 	../../../../intern/guardedalloc
 )
 
@@ -49,5 +50,7 @@ set(SRC
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
 endif()
+
+add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(bf_editor_gpencil "${SRC}" "${INC}" "${INC_SYS}")

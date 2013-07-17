@@ -30,6 +30,7 @@
 
 
 #include <string.h>
+#include <stddef.h>
 
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"

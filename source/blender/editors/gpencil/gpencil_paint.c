@@ -61,7 +61,6 @@
 #include "ED_view3d.h"
 #include "ED_clip.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "RNA_access.h"
@@ -69,6 +68,9 @@
 
 #include "WM_api.h"
 #include "WM_types.h"
+
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
 
 #include "gpencil_intern.h"
 
@@ -1392,21 +1394,15 @@ static void gpencil_draw_eraser(bContext *UNUSED(C), int x, int y, void *p_ptr)
 	tGPsdata *p = (tGPsdata *)p_ptr;
 	
 	if (p->paintmode == GP_PAINTMODE_ERASER) {
-		glPushMatrix();
-		
-		glTranslatef((float)x, (float)y, 0.0f);
-		
-		glColor4ub(255, 255, 255, 128);
+		gpuCurrentColor4x(CPACK_WHITE, 0.500f);
 		
 		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_BLEND);
-		
-		glutil_draw_lined_arc(0.0, M_PI * 2.0, p->radius, 40);
-		
+
+		gpuSingleCircle(x, y, p->radius, 40);
+
 		glDisable(GL_BLEND);
 		glDisable(GL_LINE_SMOOTH);
-		
-		glPopMatrix();
 	}
 }
 

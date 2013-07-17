@@ -43,7 +43,9 @@
 #include "BKE_report.h"
 #include "BKE_editmesh.h"
 
-#include "BIF_gl.h"
+#include "GPU_colors.h"
+#include "GPU_compatibility.h"
+
 
 #include "ED_screen.h"
 #include "ED_space_api.h"
@@ -94,18 +96,20 @@ static void ringsel_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		if (v3d && v3d->zbuf)
 			glDisable(GL_DEPTH_TEST);
 
-		glPushMatrix();
-		glMultMatrixf(lcd->ob->obmat);
+		gpuPushMatrix();
+		gpuMultMatrix(lcd->ob->obmat);
 
-		glColor3ub(255, 0, 255);
-		glBegin(GL_LINES);
+		gpuImmediateFormat_V3();
+		gpuCurrentColor3x(CPACK_MAGENTA);
+		gpuBegin(GL_LINES);
 		for (i = 0; i < lcd->totedge; i++) {
-			glVertex3fv(lcd->edges[i][0]);
-			glVertex3fv(lcd->edges[i][1]);
+			gpuVertex3fv(lcd->edges[i][0]);
+			gpuVertex3fv(lcd->edges[i][1]);
 		}
-		glEnd();
+		gpuEnd();
+		gpuImmediateUnformat();
 
-		glPopMatrix();
+		gpuPopMatrix();
 		if (v3d && v3d->zbuf)
 			glEnable(GL_DEPTH_TEST);
 	}

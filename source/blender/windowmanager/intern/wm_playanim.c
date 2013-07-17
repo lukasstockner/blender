@@ -63,7 +63,9 @@
 #include "BKE_global.h"
 #include "BKE_image.h"
 
-#include "BIF_gl.h"
+#include "GPU_colors.h"
+#include "GPU_compatibility.h"
+
 #include "BIF_glutil.h"
 
 #include "DNA_scene_types.h"
@@ -288,7 +290,7 @@ static void playanim_toscreen(PlayState *ps, PlayAnimPict *picture, struct ImBuf
 		int sizex, sizey;
 		float fsizex_inv, fsizey_inv;
 		char str[32 + FILE_MAX];
-		cpack(-1);
+		gpuCurrentColor3x(CPACK_WHITE);
 		BLI_snprintf(str, sizeof(str), "%s | %.2f frames/s", picture->name, fstep / swaptime);
 
 		playanim_window_get_size(&sizex, &sizey);

@@ -33,11 +33,28 @@
  *  \brief Some types for dealing with directories.
  */
 
+#include <sys/types.h>
 #include <sys/stat.h>
 
-#if defined(WIN32) && !defined(FREE_WINDOWS)
+#ifdef WIN32
+
+#ifdef _MSC_VER
 typedef unsigned int mode_t;
 #endif
+
+#  ifdef _USE_32BIT_TIME_T
+#    error The _USE_32BIT_TIME_T option and BLI_fileops are not compatible.
+#  endif
+
+/* Use stat, wstat, and fstat to make a small and consistent API for
+   all Windows build systems.  _stati64 is used because it has 64-bit time and
+   file size, and is available in all versions of MSVCRT with 64-bit support */
+#  define  stat  _stati64 /* use only as struct, never as function */
+#  define wstat _wstati64 /* use only as function, takes UTF16 path */
+#  define fstat _fstati64 /* use only as function, takes file descriptor */
+
+#endif
+
 
 struct ImBuf;
 
@@ -45,13 +62,7 @@ struct direntry {
 	mode_t  type;
 	char   *relname;
 	char   *path;
-#if (defined(WIN32) || defined(WIN64)) && !defined(__MINGW32__) && (_MSC_VER >= 1500)
-	struct _stat64 s;
-#elif defined(__MINGW32__)
-	struct _stati64 s;
-#else
-	struct  stat s;
-#endif
+	struct stat s;
 	unsigned int flags;
 	char    size[16];
 	char    mode1[4];
@@ -73,4 +84,3 @@ struct dirlink {
 };
 
 #endif /* __BLI_FILEOPS_TYPES_H__ */
-

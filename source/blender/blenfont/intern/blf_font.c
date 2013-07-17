@@ -50,13 +50,14 @@
 #include "BLI_string_utf8.h"
 #include "BLI_linklist.h"  /* linknode */
 
-#include "BIF_gl.h"
 #include "BLF_api.h"
 
 #include "IMB_colormanagement.h"
 
 #include "blf_internal_types.h"
 #include "blf_internal.h"
+
+#include "GPU_compatibility.h"
 
 #ifdef __GNUC__
 #  pragma GCC diagnostic error "-Wsign-conversion"
@@ -172,6 +173,7 @@ void blf_font_draw(FontBLF *font, const char *str, size_t len)
 	int pen_x = 0, pen_y = 0;
 	size_t i = 0;
 	GlyphBLF **glyph_ascii_table = font->glyph_cache->glyph_ascii_table;
+	int needs_end = FALSE;
 
 	BLF_KERNING_VARS(font, has_kerning, kern_mode);
 
@@ -188,10 +190,15 @@ void blf_font_draw(FontBLF *font, const char *str, size_t len)
 			BLF_KERNING_STEP(font, kern_mode, g_prev, g, delta, pen_x);
 
 		/* do not return this loop if clipped, we want every character tested */
-		blf_glyph_render(font, g, (float)pen_x, (float)pen_y);
+		/* blf_glyph_render calls gpuBegin */
+		blf_glyph_render(font, g, (float)pen_x, (float)pen_y, &needs_end);
 
 		pen_x += g->advance;
 		g_prev = g;
+	}
+
+	if (needs_end) {
+		gpuEnd();
 	}
 }
 
@@ -203,6 +210,7 @@ void blf_font_draw_ascii(FontBLF *font, const char *str, size_t len)
 	FT_Vector delta;
 	int pen_x = 0, pen_y = 0;
 	GlyphBLF **glyph_ascii_table = font->glyph_cache->glyph_ascii_table;
+	int needs_end = FALSE;
 
 	BLF_KERNING_VARS(font, has_kerning, kern_mode);
 
@@ -215,10 +223,15 @@ void blf_font_draw_ascii(FontBLF *font, const char *str, size_t len)
 			BLF_KERNING_STEP(font, kern_mode, g_prev, g, delta, pen_x);
 
 		/* do not return this loop if clipped, we want every character tested */
-		blf_glyph_render(font, g, (float)pen_x, (float)pen_y);
+		/* blf_glyph_render calls gpuBegin */
+		blf_glyph_render(font, g, (float)pen_x, (float)pen_y, &needs_end);
 
 		pen_x += g->advance;
 		g_prev = g;
+	}
+
+	if (needs_end) {
+		gpuEnd();
 	}
 }
 
@@ -231,6 +244,7 @@ int blf_font_draw_mono(FontBLF *font, const char *str, size_t len, int cwidth)
 	int pen_x = 0, pen_y = 0;
 	size_t i = 0;
 	GlyphBLF **glyph_ascii_table = font->glyph_cache->glyph_ascii_table;
+	int needs_end = FALSE;
 
 	blf_font_ensure_ascii_table(font);
 
@@ -243,7 +257,8 @@ int blf_font_draw_mono(FontBLF *font, const char *str, size_t len, int cwidth)
 			continue;
 
 		/* do not return this loop if clipped, we want every character tested */
-		blf_glyph_render(font, g, (float)pen_x, (float)pen_y);
+		/* blf_glyph_render calls gpuBegin */
+		blf_glyph_render(font, g, (float)pen_x, (float)pen_y, &needs_end);
 
 		col = BLI_wcwidth((wchar_t)c);
 		if (col < 0)
@@ -253,6 +268,10 @@ int blf_font_draw_mono(FontBLF *font, const char *str, size_t len, int cwidth)
 		pen_x += cwidth * col;
 	}
 
+	if (needs_end) {
+		gpuEnd();
+	}
+    
 	return columns;
 }
 

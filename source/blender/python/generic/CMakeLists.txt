@@ -45,6 +45,6 @@ set(SRC
 	py_capi_utils.h
 )
 
-add_definitions(-DGLEW_STATIC)
+add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(bf_python_ext "${SRC}" "${INC}" "${INC_SYS}")

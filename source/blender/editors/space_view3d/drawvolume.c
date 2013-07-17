@@ -67,8 +67,9 @@
 
 #include "smoke_API.h"
 
-#include "BIF_gl.h"
 
+#include "GPU_compatibility.h"
+#include "GPU_colors.h"
 #include "GPU_extensions.h"
 
 #include "ED_mesh.h"
@@ -221,8 +222,7 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 	        "CMP result.color, render.r, temp, spec;\n"
 	        "END\n";
 
-	GLuint prog;
-
+	static GLuint prog;
 	
 	float size[3];
 
@@ -363,7 +363,7 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 	// printf("i: %d\n", i);
 	// printf("point %f, %f, %f\n", cv[i][0], cv[i][1], cv[i][2]);
 
-	if (GL_TRUE == glewIsSupported("GL_ARB_fragment_program")) {
+	if (prog == 0 && GLEW_ARB_fragment_program) {
 		glEnable(GL_FRAGMENT_PROGRAM_ARB);
 		glGenProgramsARB(1, &prog);
 
@@ -453,30 +453,37 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 			}
 
 			/* render fire slice */
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE); /* non-default blend function */
 			glProgramLocalParameter4fARB(GL_FRAGMENT_PROGRAM_ARB, 2, 1.0, 0.0, 0.0, 0.0);
-			glBegin(GL_POLYGON);
-			glColor3f(1.0, 1.0, 1.0);
+			gpuImmediateFormat_T3_C4_V3();
+			gpuBegin(GL_TRIANGLE_FAN);
+			gpuCurrentColor3x(CPACK_WHITE);
 			for (i = 0; i < numpoints; i++) {
-				glTexCoord3d((points[i * 3 + 0] - min[0]) * cor[0] / size[0],
-				             (points[i * 3 + 1] - min[1]) * cor[1] / size[1],
-				             (points[i * 3 + 2] - min[2]) * cor[2] / size[2]);
-				glVertex3f(points[i * 3 + 0] / ob->size[0], points[i * 3 + 1] / ob->size[1], points[i * 3 + 2] / ob->size[2]);
+				gpuTexCoord3f(
+					(points[i * 3 + 0] - min[0]) * cor[0] / size[0],
+					(points[i * 3 + 1] - min[1]) * cor[1] / size[1],
+					(points[i * 3 + 2] - min[2]) * cor[2] / size[2]);
+				gpuVertex3f(
+					points[i * 3 + 0] / ob->size[0],
+					points[i * 3 + 1] / ob->size[1],
+					points[i * 3 + 2] / ob->size[2]);
 			}
-			glEnd();
+			gpuEnd();
 
 			/* render smoke slice */
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			glProgramLocalParameter4fARB(GL_FRAGMENT_PROGRAM_ARB, 2, -1.0, 0.0, 0.0, 0.0);
-			glBegin(GL_POLYGON);
-			glColor3f(1.0, 1.0, 1.0);
+			gpuBegin(GL_POLYGON);
+			gpuColor3f(1.0, 1.0, 1.0);
 			for (i = 0; i < numpoints; i++) {
-				glTexCoord3d((points[i * 3 + 0] - min[0]) * cor[0] / size[0],
-				             (points[i * 3 + 1] - min[1]) * cor[1] / size[1],
-				             (points[i * 3 + 2] - min[2]) * cor[2] / size[2]);
-				glVertex3f(points[i * 3 + 0] / ob->size[0], points[i * 3 + 1] / ob->size[1], points[i * 3 + 2] / ob->size[2]);
+				gpuTexCoord3f((points[i * 3 + 0] - min[0]) * cor[0] / size[0],
+				              (points[i * 3 + 1] - min[1]) * cor[1] / size[1],
+				              (points[i * 3 + 2] - min[2]) * cor[2] / size[2]);
+				gpuVertex3f(points[i * 3 + 0] / ob->size[0], points[i * 3 + 1] / ob->size[1], points[i * 3 + 2] / ob->size[2]);
 			}
-			glEnd();
+			gpuEnd();
+			gpuImmediateUnformat();
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); /* return to default blend function */
 		}
 		n++;
 	}
@@ -500,9 +507,8 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 
 	if (GLEW_ARB_fragment_program) {
 		glDisable(GL_FRAGMENT_PROGRAM_ARB);
-		glDeleteProgramsARB(1, &prog);
+		/* XXX: should eventually delete 'prog' but when and how? */
 	}
-
 
 	MEM_freeN(points);
 

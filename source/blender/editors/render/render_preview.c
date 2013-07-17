@@ -35,6 +35,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <stddef.h>
 
 #ifndef WIN32
 #include <unistd.h>
@@ -86,13 +87,13 @@
 
 #include "GPU_extensions.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "PIL_time.h"
 
 #include "RE_pipeline.h"
 
+#include "GPU_compatibility.h"
 #include "WM_api.h"
 #include "WM_types.h"
 

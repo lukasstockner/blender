@@ -33,6 +33,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
+#include <stddef.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -76,7 +77,8 @@
 
 #include "BKE_editmesh.h"
 
-#include "BIF_gl.h"
+#include "GPU_primitives.h"
+
 #include "BIF_glutil.h"
 
 #include "UI_view2d.h"
@@ -751,15 +753,15 @@ void brush_drawcursor_texpaint_uvsculpt(bContext *C, int x, int y, void *UNUSED(
 			alpha *= (pixel_size - PX_SIZE_FADE_MIN) / (PX_SIZE_FADE_MAX - PX_SIZE_FADE_MIN);
 		}
 
-		glPushMatrix();
+		gpuPushMatrix();
 
-		glTranslatef((float)x, (float)y, 0.0f);
+		gpuTranslate((float)x, (float)y, 0.0f);
 
 		/* No need to scale for uv sculpting, on the contrary it might be useful to keep un-scaled */
 		if (use_zoom)
-			glScalef(zoomx, zoomy, 1.0f);
+			gpuScale(zoomx, zoomy, 1.0f);
 
-		glColor4f(brush->add_col[0], brush->add_col[1], brush->add_col[2], alpha);
+		gpuCurrentColor4f(brush->add_col[0], brush->add_col[1], brush->add_col[2], alpha);
 		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_BLEND);
 		{
@@ -767,16 +769,16 @@ void brush_drawcursor_texpaint_uvsculpt(bContext *C, int x, int y, void *UNUSED(
 			/* hrmf, duplicate paint_draw_cursor logic here */
 			if (ups->draw_pressure && BKE_brush_use_size_pressure(scene, brush)) {
 				/* inner at full alpha */
-				glutil_draw_lined_arc(0, (float)(M_PI * 2.0), size * ups->pressure_value, 40);
+				gpuSingleCircle(0, 0, size * ups->pressure_value, 40);
 				/* outer at half alpha */
-				glColor4f(brush->add_col[0], brush->add_col[1], brush->add_col[2], alpha * 0.5f);
+				gpuCurrentColor4f(brush->add_col[0], brush->add_col[1], brush->add_col[2], alpha * 0.5f);
 			}
 		}
-		glutil_draw_lined_arc(0, (float)(M_PI * 2.0), size, 40);
+		gpuSingleCircle(0, 0, size, 40);
 		glDisable(GL_BLEND);
 		glDisable(GL_LINE_SMOOTH);
 
-		glPopMatrix();
+		gpuPopMatrix();
 	}
 #undef PX_SIZE_FADE_MAX
 #undef PX_SIZE_FADE_MIN

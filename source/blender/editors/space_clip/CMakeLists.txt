@@ -56,6 +56,8 @@ set(SRC
 	clip_intern.h
 )
 
+add_definitions(${GL_DEFINITIONS})
+
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
 endif()

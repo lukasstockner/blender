@@ -53,7 +53,6 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 
-#include "BIF_gl.h"
 
 #include "RNA_access.h"
 
@@ -70,6 +69,7 @@
 
 #include "PIL_time.h"
 
+#include "GPU_compatibility.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 
@@ -385,10 +385,10 @@ static void wm_window_add_ghostwindow(const char *title, wmWindow *win)
 			win->eventstate = MEM_callocN(sizeof(wmEvent), "window event state");
 		
 		/* until screens get drawn, make it nice gray */
-		glClearColor(0.55, 0.55, 0.55, 0.0);
+		gpuClearColor(0.55, 0.55, 0.55, 0.0);
 		/* Crash on OSS ATI: bugs.launchpad.net/ubuntu/+source/mesa/+bug/656100 */
 		if (!GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE)) {
-			glClear(GL_COLOR_BUFFER_BIT);
+			gpuClear(GL_COLOR_BUFFER_BIT);
 		}
 		
 		/* displays with larger native pixels, like Macbook. Used to scale dpi with */

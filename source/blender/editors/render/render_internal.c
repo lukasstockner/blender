@@ -76,9 +76,10 @@
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
+#include "GPU_compatibility.h"
+#include "GPU_colors.h"
 #include "GPU_extensions.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "RNA_access.h"
@@ -1048,7 +1049,7 @@ void render_view3d_draw(RenderEngine *engine, const bContext *C)
 		if (force_fallback == false) {
 			if (IMB_colormanagement_setup_glsl_draw(NULL, &scene->display_settings, TRUE)) {
 				glEnable(GL_BLEND);
-				glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+				gpuCurrentColor3x(CPACK_WHITE);
 				glaDrawPixelsTex(rres.xof, rres.yof, rres.rectx, rres.recty, GL_RGBA, GL_FLOAT,
 				                 GL_LINEAR, rres.rectf);
 				glDisable(GL_BLEND);
@@ -1067,7 +1068,7 @@ void render_view3d_draw(RenderEngine *engine, const bContext *C)
 			                                              4, dither, NULL, &scene->display_settings);
 
 			glEnable(GL_BLEND);
-			glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+			gpuCurrentColor3x(CPACK_WHITE);
 			glaDrawPixelsAuto(rres.xof, rres.yof, rres.rectx, rres.recty, GL_RGBA, GL_UNSIGNED_BYTE,
 			                  GL_LINEAR, display_buffer);
 			glDisable(GL_BLEND);

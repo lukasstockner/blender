@@ -294,6 +294,53 @@ if(CMAKE_COMPILER_IS_GNUCC)
 	mark_as_advanced(WITH_GCC_MUDFLAP)
 endif()
 
+# OpenGL
+
+option(WITH_GL_EXPERIMENTAL_GLEW "Switches to experimental copy of GLEW that has support for OpenGL ES. (temporary option for development purposes)" OFF)
+mark_as_advanced(WITH_GL_EXPERIMENTAL_GLEW)
+
+option(WITH_GL_SYSTEM_LEGACY "Support using AGL/WGL/XGL system library (without extensions) to initialize OpenGL. Can only access pre 3.1 'legacy' profile. (deprecated)" ON)
+mark_as_advanced(WITH_GL_SYSTEM_LEGACY)
+
+option(WITH_GL_SYSTEM_DESKTOP "Support using the AGL/WGL/XGL system library to initialize OpenGL. Can access 3.1+ core, compatibility, and 2.0 es profiles." OFF)
+mark_as_advanced(WITH_GL_SYSTEM_DESKTOP)
+
+option(WITH_GL_SYSTEM_EMBEDDED "Support using the EGL system library to initialize OpenGL ES." OFF)
+mark_as_advanced(WITH_GL_SYSTEM_EMBEDDED)
+
+option(WITH_GL_PROFILE_COMPATIBILITY "Support using the OpenGL 'compatibility' profile. (deprecated)" ON)
+mark_as_advanced(WITH_GL_PROFILE_COMPATIBILITY)
+
+option(WITH_GL_PROFILE_CORE "Support using the OpenGL 3.1+ 'core' profile." OFF)
+mark_as_advanced(WITH_GL_PROFILE_CORE)
+
+option(WITH_GL_PROFILE_ES20 "Support using OpenGL ES 2.0. (thru either EGL or the AGL/WGL/XGL 'es20' profile)" OFF)
+mark_as_advanced(WITH_GL_PROFILE_ES20)
+
+option(WITH_GPU_SAFETY "Perform extensive runtime tests to catch certain graphics API usage errors. (degrades performance)" OFF)
+mark_as_advanced(WITH_GPU_SAFETY)
+
+if(WIN32)
+	option(WITH_ANGLE "Link with the ANGLE library, an OpenGL ES 2.0 implementation based on Direct3D, instead of the system OpenGL library." OFF)
+
+	# ToDo: Add ANGLE to the lib directory
+	set(ANGLE_INCLUDE_PATH "" CACHE PATH "Path to ANGLE include files")
+	set(ANGLE_LIBRARY      "" CACHE PATH "Path to ANGLE library file")
+
+	mark_as_advanced(
+		WITH_ANGLE
+		ANGLE_INCLUDE_PATH
+		ANGLE_LIBRARY
+	)
+endif()
+
+# Code Coverage
+
+option(WITH_CODE_COVERAGE "Compile with support for generating code coverage information" OFF)
+mark_as_advanced(WITH_CODE_COVERAGE)
+
+# Apple
+
 if(APPLE)
 	cmake_minimum_required(VERSION 2.8.8)
 	cmake_policy(VERSION 2.8.8)
@@ -1902,10 +1949,63 @@ endif()
 
 #-----------------------------------------------------------------------------
 # Configure OpenGL.
-find_package(OpenGL)
-blender_include_dirs_sys("${OPENGL_INCLUDE_DIR}")
-# unset(OPENGL_LIBRARIES CACHE) # not compat with older cmake
-# unset(OPENGL_xmesa_INCLUDE_DIR CACHE) # not compat with older cmake
+
+if(WITH_GL_SYSTEM_EMBEDDED AND (WITH_GL_SYSTEM_LEGACY OR WITH_GL_SYSTEM_DESKTOP))
+	message(FATAL_ERROR "WITH_GL_SYSTEM_EMBEDDED cannot be used at the same time as WITH_GL_SYSTEM_LEGACY or WITH_GL_SYSTEM_DESKTOP")
+endif()
+
+if(WITH_GL_SYSTEM_EMBEDDED)
+	if(WITH_ANGLE)
+		set(ANGLE_INCLUDE_DIR "" CACHE PATH     "Path to ANGLE include files")
+		set(ANGLE_LIBRARY     "" CACHE FILEPATH "ANGLE library file")
+
+		mark_as_advanced(
+			ANGLE_INCLUDE_DIR
+			ANGLE_LIBRARY
+		)
+
+		set(SYSTEM_GL_INCLUDE_DIR "${ANGLE_INCLUDE_DIR}")
+		set(SYSTEM_GL_LIBRARIES   "${ANGLE_LIBRARY}")
+	else()
+		set(OPENGLES_INCLUDE_DIR "" CACHE PATH     "Path to OpenGL ES include files")
+		set(OPENGLES_LIBRARIES   "" CACHE FILEPATH "OpenGL ES library file")
+
+		mark_as_advanced(
+			OPENGLES_INCLUDE_DIR
+			OPENGLES_LIBRARY
+		)
+
+		set(SYSTEM_GL_INCLUDE_DIR "${OPENGLES_INCLUDE_DIR}")
+		set(SYSTEM_GL_LIBRARIES   "${OPENGLES_LIBRARY}")
+	endif()
+else(WITH_GL_SYSTEM_LEGACY OR WITH_GL_SYSTEM_DESKTOP)
+	find_package(OpenGL)
+
+	set(SYSTEM_GL_INCLUDE_DIR "${OPENGL_INCLUDE_DIR}")
+	set(SYSTEM_GL_LIBRARIES   "${OPENGL_gl_LIBRARY}")
+
+	if(WITH_GL_SYSTEM_LEGACY)
+		list(APPEND SYSTEM_GL_LIBRARIES "${OPENGL_glu_LIBRARY}")
+	endif()
+endif()
+
+blender_include_dirs_sys("${SYSTEM_GL_INCLUDE_DIR}")
+
+if(WITH_GL_PROFILE_COMPATIBILITY)
+	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_GL_PROFILE_COMPATIBILITY")
+endif()
+
+if(WITH_GL_PROFILE_CORE)
+	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_GL_PROFILE_CORE")
+endif()
+
+if(WITH_GL_PROFILE_ES20)
+	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_GL_PROFILE_ES20")
+endif()
+
+if(WITH_GPU_SAFETY)
+	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_GPU_SAFETY")
+endif()
 
 #-----------------------------------------------------------------------------
 # Configure OpenMP.
@@ -1943,10 +2043,31 @@ if(WITH_SYSTEM_GLEW)
 		GLEW_INCLUDE_PATH
 	)
 else()
-	# set(GLEW_LIBRARY "")  # unused
-	set(GLEW_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/extern/glew/include")
-endif()
+	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_STATIC")
 
+	if(WITH_GL_EXPERIMENTAL_GLEW)
+		set(GLEW_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/extern/glew-es/include")
+
+		# this isn't strictly required, but potentally makes GLEW smaller and helps catch unguarded API usage
+		if(NOT WITH_GL_PROFILE_ES20)
+			# no es functions are needed
+			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_NO_ES")
+		elseif(NOT (WITH_GL_PROFILE_CORE OR WITH_GL_PROFILE_COMPATIBILITY))
+			# es is enabled, but the other functions are all disabled
+			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_ES_ONLY")
+		endif()
+
+		if (WITH_GL_PROFILE_ES20)
+			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_USE_LIB_ES2_0")
+		endif()
+
+		if(WITH_GL_SYSTEM_EMBEDDED)
+			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_INC_EGL")
+		endif()
+	else()
+		set(GLEW_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/extern/glew/include")
+	endif()
+endif()
 
 #-----------------------------------------------------------------------------
 # Configure Bullet
@@ -2155,6 +2276,18 @@ if(WITH_GCC_MUDFLAP)
 	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_NO_ERROR_MUDFLAP -Wno-error=mudflap)
 endif()
 
+#-----------------------------------------------------------------------------
+# Code Coverage
+if(WITH_CODE_COVERAGE)
+    set(PLATFORM_CFLAGS    "${PLATFORM_CFLAGS} -fprofile-arcs -ftest-coverage")
+    set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -fprofile-arcs -ftest-coverage")
+     
+    if(CMAKE_COMPILER_IS_GNUCC)
+        set(PLATFORM_LINKLIBS  "${PLATFORM_LINKLIBS} -lgcov")
+    endif()
+endif() 
+
+#-----------------------------------------------------------------------------
 # Include warnings first, so its possible to disable them with user defined flags
 # eg: -Wno-uninitialized
 set(CMAKE_C_FLAGS "${C_WARNINGS} ${CMAKE_C_FLAGS} ${PLATFORM_CFLAGS}")
@@ -2289,6 +2422,19 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_MOD_REMESH)
 	info_cfg_option(WITH_MOD_FLUID)
 	info_cfg_option(WITH_MOD_OCEANSIM)
+
+	info_cfg_text("OpenGL:")
+	info_cfg_option(WITH_GL_EXPERIMENTAL_GLEW)
+	info_cfg_option(WITH_GL_SYSTEM_LEGACY)
+	info_cfg_option(WITH_GL_SYSTEM_DESKTOP)
+	info_cfg_option(WITH_GL_SYSTEM_EMBEDDED)
+	info_cfg_option(WITH_GL_PROFILE_COMPATIBILITY)
+	info_cfg_option(WITH_GL_PROFILE_CORE)
+	info_cfg_option(WITH_GL_PROFILE_ES20)
+	info_cfg_option(WITH_GPU_SAFETY)
+	if(WIN32)
+		info_cfg_option(WITH_ANGLE)
+	endif()
 
 	# debug
 	message(STATUS "HAVE_STDBOOL_H = ${HAVE_STDBOOL_H}")

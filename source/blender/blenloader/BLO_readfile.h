@@ -32,6 +32,8 @@
  *  \brief external readfile function prototypes.
  */
 
+#include "BLI_fileops.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -244,7 +246,7 @@ void BLO_library_append_all(struct Main *mainl, BlendHandle *bh);
 
 void *BLO_library_read_struct(struct FileData *fd, struct BHead *bh, const char *blockname);
 
-BlendFileData *blo_read_blendafterruntime(int file, const char *name, int actualsize, struct ReportList *reports);
+BlendFileData *blo_read_blendafterruntime(int file, const char *name, bli_off_t actualsize, struct ReportList *reports);
 	
 /* internal function but we need to expose it */
 void blo_lib_link_screen_restore(struct Main *newmain, struct bScreen *curscreen, struct Scene *curscene);

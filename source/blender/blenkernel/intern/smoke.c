@@ -33,8 +33,6 @@
 
 /* Part of the code copied from elbeem fluid library, copyright by Nils Thuerey */
 
-#include <GL/glew.h>
-
 #include "MEM_guardedalloc.h"
 
 #include <float.h>
@@ -84,6 +82,8 @@
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
 #include "BKE_smoke.h"
+
+#include "GPU_compatibility.h"
 
 #include "RE_shader_ext.h"
 

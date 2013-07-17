@@ -36,7 +36,7 @@ set(INC
 )
 
 set(INC_SYS
-
+	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
@@ -57,6 +57,8 @@ set(SRC
 
 	object_intern.h
 )
+
+add_definitions(${GL_DEFINITIONS})
 
 if(WITH_PYTHON)
 	add_definitions(-DWITH_PYTHON)

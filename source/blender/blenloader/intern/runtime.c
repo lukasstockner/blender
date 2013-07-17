@@ -98,7 +98,7 @@ cleanup:
 BlendFileData *BLO_read_runtime(const char *path, ReportList *reports)
 {
 	BlendFileData *bfd = NULL;
-	size_t actualsize;
+	bli_off_t actualsize;
 	int fd, datastart;
 	char buf[8];
 

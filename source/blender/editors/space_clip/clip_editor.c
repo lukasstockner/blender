@@ -60,6 +60,7 @@
 #include "BKE_tracking.h"
 #include "BKE_library.h"
 
+#include "GPU_compatibility.h"
 #include "GPU_extensions.h"
 
 #include "IMB_colormanagement.h"

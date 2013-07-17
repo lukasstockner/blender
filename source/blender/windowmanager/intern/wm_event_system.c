@@ -66,8 +66,6 @@
 
 #include "RNA_access.h"
 
-#include "BIF_gl.h"
-
 #include "UI_interface.h"
 
 #include "PIL_time.h"
@@ -83,6 +81,8 @@
 #ifndef NDEBUG
 #  include "RNA_enum_types.h"
 #endif
+
+#include "GPU_extensions.h"
 
 static void update_tablet_data(wmWindow *win, wmEvent *event);
 
@@ -2275,12 +2275,7 @@ void wm_event_do_handlers(bContext *C)
 	/* update key configuration after handling events */
 	WM_keyconfig_update(wm);
 
-	if (G.debug) {
-		GLenum error = glGetError();
-		if (error != GL_NO_ERROR) {
-			printf("GL error: %s\n", gluErrorString(error));
-		}
-	}
+	GPU_print_error("wm_event_do_handlers");
 }
 
 /* ********** filesector handling ************ */

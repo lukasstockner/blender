@@ -54,8 +54,9 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
+
+#include "GPU_compatibility.h"
 
 #include "RE_shader_ext.h"
 #include "RE_render_ext.h"
@@ -70,6 +71,8 @@
 #include "WM_types.h"
 
 #include "paint_intern.h"
+
+#include "GPU_compatibility.h"
 
 /* Convert the object-space axis-aligned bounding box (expressed as
  * its minimum and maximum corners) into a screen-space rectangle,
@@ -218,9 +221,9 @@ static void imapaint_tri_weights(Object *ob,
 	/* compute barycentric coordinates */
 
 	/* get the needed opengl matrices */
-	glGetIntegerv(GL_VIEWPORT, view);
-	glGetFloatv(GL_MODELVIEW_MATRIX,  (float *)model);
-	glGetFloatv(GL_PROJECTION_MATRIX, (float *)proj);
+	gpuGetSizeBox(GL_VIEWPORT, view);
+	gpuGetMatrix(GL_MODELVIEW_MATRIX,  (float *)model);
+	gpuGetMatrix(GL_PROJECTION_MATRIX, (float *)proj);
 	view[0] = view[1] = 0;
 
 	/* project the verts */

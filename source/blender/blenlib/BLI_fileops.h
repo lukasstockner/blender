@@ -34,14 +34,18 @@
 #define __BLI_FILEOPS_H__
 
 #include <stdio.h>
-#include <sys/stat.h>
+
+#include "BLI_fileops_types.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* for size_t (needed on windows) */
-#include <stddef.h>
+#ifdef WIN32
+typedef __int64 bli_off_t;
+#else
+typedef off_t bli_off_t;
+#endif
 
 struct gzFile;
 
@@ -79,10 +83,10 @@ bool   BLI_file_is_writable(const char *file);
 bool   BLI_file_touch(const char *file);
 
 int    BLI_file_gzip(const char *from, const char *to);
-char  *BLI_file_ungzip_to_mem(const char *from_file, int *size_r);
+char  *BLI_file_ungzip_to_mem(const char *from_file, bli_off_t *size_r); /* assumes unzipped files are less than 2GiB */
 
-size_t BLI_file_descriptor_size(int file);
-size_t BLI_file_size(const char *file);
+bli_off_t BLI_file_descriptor_size(int file);
+bli_off_t BLI_file_size(const char *file);
 
 /* compare if one was last modified before the other */
 bool   BLI_file_older(const char *file1, const char *file2);
@@ -91,12 +95,7 @@ bool   BLI_file_older(const char *file1, const char *file2);
 struct LinkNode *BLI_file_read_as_lines(const char *file);
 void   BLI_file_free_lines(struct LinkNode *lines);
 
-/* this weirdo pops up in two places ... */
-#if !defined(WIN32)
-#  ifndef O_BINARY
-#    define O_BINARY 0
-#  endif
-#else
+#ifdef WIN32
 void BLI_get_short_name(char short_name[256], const char *filename);
 #endif
 

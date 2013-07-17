@@ -48,11 +48,16 @@
 
 #include "RNA_access.h"
 
-#include "BIF_gl.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
+
+#include "BIF_glutil.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
+
+#include "GPU_compatibility.h"
 
 /* *************************************************** */
 /* TIME CODE FORMATTING */
@@ -185,7 +190,7 @@ static void draw_cfra_number(Scene *scene, View2D *v2d, float cfra, short time)
 	
 	/* because the frame number text is subject to the same scaling as the contents of the view */
 	UI_view2d_getscale(v2d, &xscale, &yscale);
-	glScalef(1.0f / xscale, 1.0f, 1.0f);
+	gpuScale(1.0f / xscale, 1.0f, 1.0f);
 	
 	/* get timecode string 
 	 *	- padding on str-buf passed so that it doesn't sit on the frame indicator
@@ -204,14 +209,14 @@ static void draw_cfra_number(Scene *scene, View2D *v2d, float cfra, short time)
 	
 	/* draw green box around/behind text */
 	UI_ThemeColorShade(TH_CFRAME, 0);
-	glRectf(x, y,  x + slen,  y + 0.75f * U.widget_unit);
+	gpuSingleFilledRectf(x, y,  x + slen,  y + 0.75f * U.widget_unit);
 	
 	/* draw current frame number - black text */
 	UI_ThemeColor(TH_TEXT);
 	UI_DrawString(x - 0.25f * U.widget_unit, y + 0.15f * U.widget_unit, numstr);
 	
 	/* restore view transform */
-	glScalef(xscale, 1.0, 1.0);
+	gpuScale(xscale, 1.0, 1.0);
 }
 
 /* General call for drawing current frame indicator in animation editor */
@@ -219,26 +224,30 @@ void ANIM_draw_cfra(const bContext *C, View2D *v2d, short flag)
 {
 	Scene *scene = CTX_data_scene(C);
 	float vec[2];
-	
+
 	/* Draw a light green line to indicate current frame */
 	vec[0] = (float)(scene->r.cfra * scene->r.framelen);
-	
+
 	UI_ThemeColor(TH_CFRAME);
 	if (flag & DRAWCFRA_WIDE)
 		glLineWidth(3.0);
 	else
 		glLineWidth(2.0);
-	
-	glBegin(GL_LINE_STRIP);
+
+	gpuImmediateFormat_V2();
+
+	gpuBegin(GL_LINE_STRIP);
 	vec[1] = v2d->cur.ymin - 500.0f;    /* XXX arbitrary... want it go to bottom */
-	glVertex2fv(vec);
-		
+	gpuVertex2fv(vec);
+
 	vec[1] = v2d->cur.ymax;
-	glVertex2fv(vec);
-	glEnd();
-	
+	gpuVertex2fv(vec);
+	gpuEnd();
+
+	gpuImmediateUnformat();
+
 	glLineWidth(1.0);
-	
+
 	/* Draw current frame number in a little box */
 	if (flag & DRAWCFRA_SHOW_NUMBOX) {
 		UI_view2d_view_orthoSpecial(CTX_wm_region(C), v2d, 1);
@@ -257,17 +266,16 @@ void ANIM_draw_previewrange(const bContext *C, View2D *v2d, int end_frame_width)
 	
 	/* only draw this if preview range is set */
 	if (PRVRANGEON) {
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glEnable(GL_BLEND);
-		glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
+		gpuCurrentColor4x(CPACK_BLACK, 0.4f);
 		
 		/* only draw two separate 'curtains' if there's no overlap between them */
 		if (PSFRA < PEFRA + end_frame_width) {
-			glRectf(v2d->cur.xmin, v2d->cur.ymin, (float)PSFRA, v2d->cur.ymax);
-			glRectf((float)(PEFRA + end_frame_width), v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+			gpuSingleFilledRectf(v2d->cur.xmin, v2d->cur.ymin, (float)PSFRA, v2d->cur.ymax);
+			gpuSingleFilledRectf((float)(PEFRA + end_frame_width), v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
 		}
 		else {
-			glRectf(v2d->cur.xmin, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+			gpuSingleFilledRectf(v2d->cur.xmin, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
 		}
 		
 		glDisable(GL_BLEND);

@@ -52,7 +52,9 @@
 #include "BLI_array.h"
 #include "BLI_buffer.h"
 
-#include "BIF_gl.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
+
 #include "BIF_glutil.h"
 
 #include "ED_util.h"
@@ -76,36 +78,43 @@ void draw_image_cursor(SpaceImage *sima, ARegion *ar)
 	x_fac = zoom[0];
 	y_fac = zoom[1];
 	
-	cpack(0xFFFFFF);
-	glTranslatef(sima->cursor[0], sima->cursor[1], 0.0);
-	fdrawline(-0.05f * x_fac, 0, 0, 0.05f * y_fac);
-	fdrawline(0, 0.05f * y_fac, 0.05f * x_fac, 0.0f);
-	fdrawline(0.05f * x_fac, 0.0f, 0.0f, -0.05f * y_fac);
-	fdrawline(0.0f, -0.05f * y_fac, -0.05f * x_fac, 0.0f);
+	gpuTranslate(sima->cursor[0], sima->cursor[1], 0.0);
+
+	gpuImmediateFormat_C4_V2(); // DOODLE: uvedit cursor sima, 16 colored lines
+	gpuBegin(GL_LINES);
+
+	gpuColor3x(CPACK_WHITE);
+	gpuAppendLinef(-0.05f * x_fac, 0, 0, 0.05f * y_fac);
+	gpuAppendLinef(0, 0.05f * y_fac, 0.05f * x_fac, 0.0f);
+	gpuAppendLinef(0.05f * x_fac, 0.0f, 0.0f, -0.05f * y_fac);
+	gpuAppendLinef(0.0f, -0.05f * y_fac, -0.05f * x_fac, 0.0f);
 
 	setlinestyle(4);
-	cpack(0xFF);
-	fdrawline(-0.05f * x_fac, 0.0f, 0.0f, 0.05f * y_fac);
-	fdrawline(0.0f, 0.05f * y_fac, 0.05f * x_fac, 0.0f);
-	fdrawline(0.05f * x_fac, 0.0f, 0.0f, -0.05f * y_fac);
-	fdrawline(0.0f, -0.05f * y_fac, -0.05f * x_fac, 0.0f);
+	gpuColor3x(CPACK_BLUE);
+	gpuAppendLinef(-0.05f * x_fac, 0.0f, 0.0f, 0.05f * y_fac);
+	gpuAppendLinef(0.0f, 0.05f * y_fac, 0.05f * x_fac, 0.0f);
+	gpuAppendLinef(0.05f * x_fac, 0.0f, 0.0f, -0.05f * y_fac);
+	gpuAppendLinef(0.0f, -0.05f * y_fac, -0.05f * x_fac, 0.0f);
 
 
 	setlinestyle(0.0f);
-	cpack(0x0);
-	fdrawline(-0.020f * x_fac, 0.0f, -0.1f * x_fac, 0.0f);
-	fdrawline(0.1f * x_fac, 0.0f, 0.020f * x_fac, 0.0f);
-	fdrawline(0.0f, -0.020f * y_fac, 0.0f, -0.1f * y_fac);
-	fdrawline(0.0f, 0.1f * y_fac, 0.0f, 0.020f * y_fac);
+	gpuColor3x(CPACK_BLACK);
+	gpuAppendLinef(-0.020f * x_fac, 0.0f, -0.1f * x_fac, 0.0f);
+	gpuAppendLinef(0.1f * x_fac, 0.0f, 0.020f * x_fac, 0.0f);
+	gpuAppendLinef(0.0f, -0.020f * y_fac, 0.0f, -0.1f * y_fac);
+	gpuAppendLinef(0.0f, 0.1f * y_fac, 0.0f, 0.020f * y_fac);
 
 	setlinestyle(1);
-	cpack(0xFFFFFF);
-	fdrawline(-0.020f * x_fac, 0.0f, -0.1f * x_fac, 0.0f);
-	fdrawline(0.1f * x_fac, 0.0f, 0.020f * x_fac, 0.0f);
-	fdrawline(0.0f, -0.020f * y_fac, 0.0f, -0.1f * y_fac);
-	fdrawline(0.0f, 0.1f * y_fac, 0.0f, 0.020f * y_fac);
+	gpuColor3x(CPACK_WHITE);
+	gpuAppendLinef(-0.020f * x_fac, 0.0f, -0.1f * x_fac, 0.0f);
+	gpuAppendLinef(0.1f * x_fac, 0.0f, 0.020f * x_fac, 0.0f);
+	gpuAppendLinef(0.0f, -0.020f * y_fac, 0.0f, -0.1f * y_fac);
+	gpuAppendLinef(0.0f, 0.1f * y_fac, 0.0f, 0.020f * y_fac);
 
-	glTranslatef(-sima->cursor[0], -sima->cursor[1], 0.0);
+	gpuEnd();
+	gpuImmediateUnformat();
+
+	gpuTranslate(-sima->cursor[0], -sima->cursor[1], 0.0);
 	setlinestyle(0);
 }
 
@@ -138,15 +147,15 @@ static void draw_uvs_shadow(Object *obedit)
 	const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_MLOOPUV);
 
 	/* draws the gray mesh when painting */
-	glColor3ub(112, 112, 112);
+	gpuCurrentGray3f(0.439f);
 
 	BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
-		glBegin(GL_LINE_LOOP);
+		gpuBegin(GL_LINE_LOOP);
 		BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 			luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-			glVertex2fv(luv->uv);
+			gpuVertex2fv(luv->uv);
 		}
-		glEnd();
+		gpuEnd();
 	}
 }
 
@@ -155,7 +164,7 @@ static int draw_uvs_dm_shadow(DerivedMesh *dm)
 	/* draw shadow mesh - this is the mesh with the modifier applied */
 
 	if (dm && dm->drawUVEdges && CustomData_has_layer(&dm->loopData, CD_MLOOPUV)) {
-		glColor3ub(112, 112, 112);
+		gpuCurrentGray3f(0.439f);
 		dm->drawUVEdges(dm);
 		return 1;
 	}
@@ -217,15 +226,15 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTe
 			if (totarea < FLT_EPSILON || totuvarea < FLT_EPSILON) {
 				col[0] = 1.0;
 				col[1] = col[2] = 0.0;
-				glColor3fv(col);
+				gpuCurrentColor3fv(col);
 				BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 					if (BM_elem_flag_test(efa, BM_ELEM_TAG)) {
-						glBegin(GL_POLYGON);
+						gpuBegin(GL_TRIANGLE_FAN);
 						BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 							luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-							glVertex2fv(luv->uv);
+							gpuVertex2fv(luv->uv);
 						}
-						glEnd();
+						gpuEnd();
 					}
 				}
 			}
@@ -255,14 +264,14 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTe
 							areadiff = 1.0f - (area / uvarea);
 						
 						weight_to_rgb(col, areadiff);
-						glColor3fv(col);
+						gpuCurrentColor3fv(col);
 						
-						glBegin(GL_POLYGON);
+						gpuBegin(GL_TRIANGLE_FAN);
 						BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 							luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-							glVertex2fv(luv->uv);
+							gpuVertex2fv(luv->uv);
 						}
-						glEnd();
+						gpuEnd();
 					}
 				}
 			}
@@ -321,15 +330,15 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTe
 						ang[i] = angle_normalized_v3v3(av[i], av[(i + 1) % efa_len]);
 					}
 
-					glBegin(GL_POLYGON);
+					gpuBegin(GL_TRIANGLE_FAN);
 					BM_ITER_ELEM_INDEX (l, &liter, efa, BM_LOOPS_OF_FACE, i) {
 						luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
 						a = fabsf(uvang[i] - ang[i]) / (float)M_PI;
 						weight_to_rgb(col, 1.0f - powf((1.0f - a), 2.0f));
-						glColor3fv(col);
-						glVertex2fv(luv->uv);
+						gpuColor3fv(col);
+						gpuVertex2fv(luv->uv);
 					}
-					glEnd();
+					gpuEnd();
 				}
 				else {
 					if (tf == activetf)
@@ -357,7 +366,7 @@ static void draw_uvs_other(Scene *scene, Object *obedit, Image *curimage)
 {
 	Base *base;
 
-	glColor3ub(96, 96, 96);
+	gpuCurrentGray3f(0.376f);
 
 	for (base = scene->base.first; base; base = base->next) {
 		Object *ob = base->object;
@@ -377,13 +386,13 @@ static void draw_uvs_other(Scene *scene, Object *obedit, Image *curimage)
 
 				for (a = me->totpoly; a > 0; a--, mtpoly++, mpoly++) {
 					if (mtpoly->tpage == curimage) {
-						glBegin(GL_LINE_LOOP);
+						gpuBegin(GL_LINE_LOOP);
 
 						mloopuv = me->mloopuv + mpoly->loopstart;
 						for (b = 0; b < mpoly->totloop; b++, mloopuv++) {
-							glVertex2fv(mloopuv->uv);
+							gpuVertex2fv(mloopuv->uv);
 						}
-						glEnd();
+						gpuEnd();
 					}
 				}
 			}
@@ -399,7 +408,7 @@ static void draw_uvs_texpaint(SpaceImage *sima, Scene *scene, Object *ob)
 	if (sima->flag & SI_DRAW_OTHER)
 		draw_uvs_other(scene, ob, curimage);
 
-	glColor3ub(112, 112, 112);
+	gpuCurrentGray3f(0.439f);
 
 	if (me->mtpoly) {
 		MPoly *mpoly = me->mpoly;
@@ -409,13 +418,13 @@ static void draw_uvs_texpaint(SpaceImage *sima, Scene *scene, Object *ob)
 
 		for (a = me->totpoly; a > 0; a--, tface++, mpoly++) {
 			if (tface->tpage == curimage) {
-				glBegin(GL_LINE_LOOP);
+				gpuBegin(GL_LINE_LOOP);
 
 				mloopuv = me->mloopuv + mpoly->loopstart;
 				for (b = 0; b < mpoly->totloop; b++, mloopuv++) {
-					glVertex2fv(mloopuv->uv);
+					gpuVertex2fv(mloopuv->uv);
 				}
-				glEnd();
+				gpuEnd();
 			}
 		}
 	}
@@ -441,6 +450,9 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 
 	const int cd_loop_uv_offset  = CustomData_get_offset(&bm->ldata, CD_MLOOPUV);
 	const int cd_poly_tex_offset = CustomData_get_offset(&bm->pdata, CD_MTEXPOLY);
+
+	gpuImmediateFormat_C4_V2();
+
 
 	activetf = EDBM_mtexpoly_active_get(em, &efa_act, FALSE, FALSE); /* will be set to NULL if hidden */
 	activef = BM_active_face_get(bm, FALSE, FALSE);
@@ -487,7 +499,6 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 		/* draw transparent faces */
 		UI_GetThemeColor4ubv(TH_FACE, col1);
 		UI_GetThemeColor4ubv(TH_FACE_SELECT, col2);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glEnable(GL_BLEND);
 		
 		BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
@@ -498,16 +509,16 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 				if (tf == activetf) continue;  /* important the temp boolean is set above */
 
 				if (uvedit_face_select_test(scene, efa, cd_loop_uv_offset))
-					glColor4ubv((GLubyte *)col2);
+					gpuCurrentColor4ubv((GLubyte *)col2);
 				else
-					glColor4ubv((GLubyte *)col1);
+					gpuCurrentColor4ubv((GLubyte *)col1);
 				
-				glBegin(GL_POLYGON);
+				gpuBegin(GL_TRIANGLE_FAN);
 				BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 					luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-					glVertex2fv(luv->uv);
+					gpuVertex2fv(luv->uv);
 				}
-				glEnd();
+				gpuEnd();
 			}
 			else {
 				if (tf == activetf)
@@ -541,18 +552,17 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 		tf = BM_ELEM_CD_GET_VOID_P(activef, cd_poly_tex_offset);
 		if (uvedit_face_visible_test(scene, ima, activef, tf)) {
 			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			UI_ThemeColor4(TH_EDITMESH_ACTIVE);
 
 			glEnable(GL_POLYGON_STIPPLE);
 			glPolygonStipple(stipple_quarttone);
 
-			glBegin(GL_POLYGON);
+			gpuBegin(GL_TRIANGLE_FAN);
 			BM_ITER_ELEM (l, &liter, activef, BM_LOOPS_OF_FACE) {
 				luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-				glVertex2fv(luv->uv);
+				gpuVertex2fv(luv->uv);
 			}
-			glEnd();
+			gpuEnd();
 
 			glDisable(GL_POLYGON_STIPPLE);
 			glDisable(GL_BLEND);
@@ -564,7 +574,6 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 	if (sima->flag & SI_SMOOTH_UV) {
 		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
 	
 	switch (sima->dt_uv) {
@@ -575,24 +584,24 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 				tf = BM_ELEM_CD_GET_VOID_P(efa, cd_poly_tex_offset);
 
 				if (tf) {
-					cpack(0x111111);
+					gpuCurrentGray3f(0.067f);
 
-					glBegin(GL_LINE_LOOP);
+					gpuBegin(GL_LINE_LOOP);
 					BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 						luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-						glVertex2fv(luv->uv);
+						gpuVertex2fv(luv->uv);
 					}
-					glEnd();
+					gpuEnd();
 
 					setlinestyle(2);
-					cpack(0x909090);
+					gpuCurrentGray3f(0.565f);
 
-					glBegin(GL_LINE_LOOP);
+					gpuBegin(GL_LINE_LOOP);
 					BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 						luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-						glVertex2fv(luv->uv);
+						gpuVertex2fv(luv->uv);
 					}
-					glEnd();
+					gpuEnd();
 
 					setlinestyle(0);
 				}
@@ -600,40 +609,40 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 			break;
 		case SI_UVDT_BLACK: /* black/white */
 		case SI_UVDT_WHITE: 
-			if (sima->dt_uv == SI_UVDT_WHITE) glColor3f(1.0f, 1.0f, 1.0f);
-			else glColor3f(0.0f, 0.0f, 0.0f);
+			gpuCurrentColor3x(
+				sima->dt_uv == SI_UVDT_WHITE ? CPACK_WHITE : CPACK_BLACK);
 
 			BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 				if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
 					continue;
 
-				glBegin(GL_LINE_LOOP);
+				gpuBegin(GL_LINE_LOOP);
 				BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 					luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-					glVertex2fv(luv->uv);
+					gpuVertex2fv(luv->uv);
 				}
-				glEnd();
+				gpuEnd();
 			}
 			break;
 		case SI_UVDT_OUTLINE:
 			glLineWidth(3);
-			cpack(0x0);
+			gpuCurrentColor3x(CPACK_BLACK);
 			
 			BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 				if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
 					continue;
 
-				glBegin(GL_LINE_LOOP);
+				gpuBegin(GL_LINE_LOOP);
 				BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 					luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-					glVertex2fv(luv->uv);
+					gpuVertex2fv(luv->uv);
 				}
-				glEnd();
+				gpuEnd();
 			}
 			
 			glLineWidth(1);
 			col2[0] = col2[1] = col2[2] = 192; col2[3] = 255;
-			glColor4ubv((unsigned char *)col2); 
+			gpuCurrentColor4ubv((unsigned char *)col2); 
 			
 			if (me->drawflag & ME_DRAWEDGES) {
 				int sel, lastsel = -1;
@@ -646,15 +655,15 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 						if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
 							continue;
 
-						glBegin(GL_LINE_LOOP);
+						gpuBegin(GL_LINE_LOOP);
 						BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 							sel = uvedit_uv_select_test(scene, l, cd_loop_uv_offset);
-							glColor4ubv(sel ? (GLubyte *)col1 : (GLubyte *)col2);
+							gpuColor4ubv(sel ? (GLubyte *)col1 : (GLubyte *)col2);
 
 							luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-							glVertex2fv(luv->uv);
+							gpuVertex2fv(luv->uv);
 						}
-						glEnd();
+						gpuEnd();
 					}
 
 					glShadeModel(GL_FLAT);
@@ -664,19 +673,19 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 						if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
 							continue;
 
-						glBegin(GL_LINES);
+						gpuBegin(GL_LINES);
 						BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 							sel = uvedit_edge_select_test(scene, l, cd_loop_uv_offset);
 							if (sel != lastsel) {
-								glColor4ubv(sel ? (GLubyte *)col1 : (GLubyte *)col2);
+								gpuColor4ubv(sel ? (GLubyte *)col1 : (GLubyte *)col2);
 								lastsel = sel;
 							}
 							luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-							glVertex2fv(luv->uv);
+							gpuVertex2fv(luv->uv);
 							luv = BM_ELEM_CD_GET_VOID_P(l->next, cd_loop_uv_offset);
-							glVertex2fv(luv->uv);
+							gpuVertex2fv(luv->uv);
 						}
-						glEnd();
+						gpuEnd();
 					}
 				}
 			}
@@ -686,12 +695,12 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 					if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
 						continue;
 				
-					glBegin(GL_LINE_LOOP);
+					gpuBegin(GL_LINE_LOOP);
 					BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 						luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-						glVertex2fv(luv->uv);
+						gpuVertex2fv(luv->uv);
 					}
-					glEnd();
+					gpuEnd();
 				}
 			}
 			
@@ -714,32 +723,32 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 		/* unselected faces */
 		UI_ThemeColor(TH_WIRE);
 
-		bglBegin(GL_POINTS);
+		gpuBeginSprites();
 		BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 			if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
 				continue;
 
 			if (!uvedit_face_select_test(scene, efa, cd_loop_uv_offset)) {
 				uv_poly_center(efa, cent, cd_loop_uv_offset);
-				bglVertex2fv(cent);
+				gpuSprite2fv(cent);
 			}
 		}
-		bglEnd();
+		gpuEndSprites();
 
 		/* selected faces */
 		UI_ThemeColor(TH_FACE_DOT);
 
-		bglBegin(GL_POINTS);
+		gpuBeginSprites();
 		BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 			if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
 				continue;
 
 			if (uvedit_face_select_test(scene, efa, cd_loop_uv_offset)) {
 				uv_poly_center(efa, cent, cd_loop_uv_offset);
-				bglVertex2fv(cent);
+				gpuSprite2fv(cent);
 			}
 		}
-		bglEnd();
+		gpuEndSprites();
 	}
 
 	/* 6. draw uv vertices */
@@ -750,7 +759,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 		pointsize = UI_GetThemeValuef(TH_VERTEX_SIZE);
 		glPointSize(pointsize);
 	
-		bglBegin(GL_POINTS);
+		gpuBeginSprites();
 		BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 			if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
 				continue;
@@ -758,17 +767,17 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 			BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 				luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
 				if (!uvedit_uv_select_test(scene, l, cd_loop_uv_offset))
-					bglVertex2fv(luv->uv);
+					gpuSprite2fv(luv->uv);
 			}
 		}
-		bglEnd();
-	
+		gpuEndSprites();
+
 		/* pinned uvs */
 		/* give odd pointsizes odd pin pointsizes */
 		glPointSize(pointsize * 2 + (((int)pointsize % 2) ? (-1) : 0));
-		cpack(0xFF);
-	
-		bglBegin(GL_POINTS);
+		gpuCurrentColor3x(CPACK_BLUE);
+
+		gpuBeginSprites();
 		BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 			if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
 				continue;
@@ -777,16 +786,16 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 				luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
 
 				if (luv->flag & MLOOPUV_PINNED)
-					bglVertex2fv(luv->uv);
+					gpuSprite2fv(luv->uv);
 			}
 		}
-		bglEnd();
+		gpuEndSprites();
 	
 		/* selected uvs */
 		UI_ThemeColor(TH_VERTEX_SELECT);
 		glPointSize(pointsize);
 	
-		bglBegin(GL_POINTS);
+		gpuBeginSprites();
 		BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 			if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
 				continue;
@@ -795,13 +804,15 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 				luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
 
 				if (uvedit_uv_select_test(scene, l, cd_loop_uv_offset))
-					bglVertex2fv(luv->uv);
+					gpuSprite2fv(luv->uv);
 			}
 		}
-		bglEnd();
+		gpuEndSprites();	
 	}
 
 	glPointSize(1.0);
+
+	gpuImmediateUnformat();
 }
 
 void draw_uvedit_main(SpaceImage *sima, ARegion *ar, Scene *scene, Object *obedit, Object *obact)

@@ -41,10 +41,10 @@
 
 #include "BKE_report.h"
 
-
 #include "MEM_guardedalloc.h"
 
-#include "BIF_gl.h"
+#include "GPU_primitives.h"
+
 #include "BIF_glutil.h"
 
 #include "ED_datafiles.h"
@@ -193,9 +193,9 @@ static int console_textview_line_color(struct TextViewContext *tvc, unsigned cha
 
 		/* cursor */
 		UI_GetThemeColor3ubv(TH_CONSOLE_CURSOR, fg);
-		glColor3ubv(fg);
+		gpuCurrentColor3ubv(fg);
 
-		glRecti((xy[0] + pen[0]) - 1,
+		gpuSingleFilledRecti((xy[0] + pen[0]) - 1,
 		        (xy[1] + pen[1]),
 		        (xy[0] + pen[0]) + 1,
 		        (xy[1] + pen[1] + tvc->lheight)

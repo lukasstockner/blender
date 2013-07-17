@@ -33,8 +33,6 @@
 #include <math.h>
 #include <string.h>
 
-#include "GL/glew.h"
-
 #include "MEM_guardedalloc.h"
 
 #include "DNA_lamp_types.h"
@@ -61,8 +59,14 @@
 
 #include "GPU_extensions.h"
 #include "GPU_material.h"
+#include "GPU_compatibility.h"
 
 #include "gpu_codegen.h"
+
+#ifdef WITH_GLES
+#include "gpu_object_gles.h"
+#endif
+
 
 #include <string.h>
 
@@ -74,6 +78,7 @@ typedef enum DynMatProperty {
 	DYN_LAMP_IMAT = 4,
 	DYN_LAMP_PERSMAT = 8,
 } DynMatProperty;
+
 
 struct GPUMaterial {
 	Scene *scene;
@@ -95,7 +100,11 @@ struct GPUMaterial {
 	int viewmatloc, invviewmatloc;
 	int obmatloc, invobmatloc;
 	int obcolloc, obautobumpscaleloc;
-
+	
+#ifdef WITH_GLES	
+	struct GPUGLSL_ES_info glslloc;
+#endif
+	
 	ListBase lamps;
 };
 
@@ -222,6 +231,11 @@ static int GPU_material_construct_end(GPUMaterial *material)
 			material->obcolloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_OBCOLOR));
 		if (material->builtins & GPU_AUTO_BUMPSCALE)
 			material->obautobumpscaleloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_AUTO_BUMPSCALE));
+
+		#ifdef WITH_GLES
+		gpu_assign_gles_loc(&material->glslloc, shader->object);
+		#endif					
+			
 		return 1;
 	}
 
@@ -339,6 +353,9 @@ void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[4][4], float 
 		if (material->builtins & GPU_AUTO_BUMPSCALE) {
 			GPU_shader_uniform_vector(shader, material->obautobumpscaleloc, 1, 1, &autobumpscale);
 		}
+#ifdef WITH_GLES
+		gpu_set_shader_es(&material->glslloc,1);
+#endif
 	}
 }
 
@@ -1006,10 +1023,10 @@ static void do_material_tex(GPUShadeInput *shi)
 				texco= shi->ref;
 			}
 			else if (mtex->texco==TEXCO_UV) {
-				if (1) { //!(texco_uv && strcmp(mtex->uvname, lastuvname) == 0)) {
+				//if (!(texco_uv && strcmp(mtex->uvname, lastuvname) == 0)) {
 					GPU_link(mat, "texco_uv", GPU_attribute(CD_MTFACE, mtex->uvname), &texco_uv);
 					/*lastuvname = mtex->uvname;*/ /*UNUSED*/
-				}
+				//}
 				texco= texco_uv;
 			}
 			else
@@ -2124,4 +2141,3 @@ void GPU_free_shader_export(GPUShaderExport *shader)
 
 	MEM_freeN(shader);
 }
-

@@ -72,8 +72,8 @@
 #include "ED_anim_api.h"
 #include "ED_keyframing.h"
 
-#include "BIF_gl.h"
-#include "BIF_glutil.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -113,14 +113,14 @@ static void acf_generic_root_backdrop(bAnimContext *ac, bAnimListElem *ale, floa
 	short expanded = ANIM_channel_setting_get(ac, ale, ACHANNEL_SETTING_EXPAND) != 0;
 	short offset = (acf->get_offset) ? acf->get_offset(ac, ale) : 0;
 	float color[3];
-	
+
 	/* set backdrop drawing color */
 	acf->get_backdrop_color(ac, ale, color);
-	glColor3fv(color);
-	
+	gpuCurrentColor3fv(color);
+
 	/* rounded corners on LHS only - top only when expanded, but bottom too when collapsed */
 	uiSetRoundBox((expanded) ? UI_CNR_TOP_LEFT : (UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT));
-	uiDrawBox(GL_POLYGON, offset,  yminc, v2d->cur.xmax + EXTRA_SCROLL_PAD, ymaxc, 8);
+	uiDrawBox(GL_TRIANGLE_FAN, offset,  yminc, v2d->cur.xmax + EXTRA_SCROLL_PAD, ymaxc, 8);
 }
 
 
@@ -141,10 +141,10 @@ static void acf_generic_dataexpand_backdrop(bAnimContext *ac, bAnimListElem *ale
 	
 	/* set backdrop drawing color */
 	acf->get_backdrop_color(ac, ale, color);
-	glColor3fv(color);
+	gpuCurrentColor3fv(color);
 	
 	/* no rounded corner - just rectangular box */
-	glRectf(offset, yminc,  v2d->cur.xmax + EXTRA_SCROLL_PAD, ymaxc);
+	gpuSingleFilledRectf(offset, yminc,  v2d->cur.xmax + EXTRA_SCROLL_PAD, ymaxc);
 }
 
 /* helper method to test if group colors should be drawn */
@@ -222,10 +222,10 @@ static void acf_generic_channel_backdrop(bAnimContext *ac, bAnimListElem *ale, f
 	
 	/* set backdrop drawing color */
 	acf->get_backdrop_color(ac, ale, color);
-	glColor3fv(color);
+	gpuCurrentColor3fv(color);
 	
 	/* no rounded corners - just rectangular box */
-	glRectf(offset, yminc,  v2d->cur.xmax + EXTRA_SCROLL_PAD, ymaxc);
+	gpuSingleFilledRectf(offset, yminc,  v2d->cur.xmax + EXTRA_SCROLL_PAD, ymaxc);
 }
 
 /* Indention + Offset ------------------------------------------- */
@@ -413,14 +413,14 @@ static void acf_summary_backdrop(bAnimContext *ac, bAnimListElem *ale, float ymi
 	
 	/* set backdrop drawing color */
 	acf->get_backdrop_color(ac, ale, color);
-	glColor3fv(color);
+	gpuCurrentColor3fv(color);
 	
 	/* rounded corners on LHS only 
 	 *	- top and bottom 
 	 *	- special hack: make the top a bit higher, since we are first... 
 	 */
 	uiSetRoundBox(UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT);
-	uiDrawBox(GL_POLYGON, 0,  yminc - 2, v2d->cur.xmax + EXTRA_SCROLL_PAD, ymaxc, 8);
+	uiDrawBox(GL_TRIANGLE_FAN, 0,  yminc - 2, v2d->cur.xmax + EXTRA_SCROLL_PAD, ymaxc, 8);
 }
 
 /* name for summary entries */
@@ -786,11 +786,11 @@ static void acf_group_backdrop(bAnimContext *ac, bAnimListElem *ale, float yminc
 	
 	/* set backdrop drawing color */
 	acf->get_backdrop_color(ac, ale, color);
-	glColor3fv(color);
+	gpuCurrentColor3fv(color);
 	
 	/* rounded corners on LHS only - top only when expanded, but bottom too when collapsed */
 	uiSetRoundBox(expanded ? UI_CNR_TOP_LEFT : (UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT));
-	uiDrawBox(GL_POLYGON, offset,  yminc, v2d->cur.xmax + EXTRA_SCROLL_PAD, ymaxc, 8);
+	uiDrawBox(GL_TRIANGLE_FAN, offset,  yminc, v2d->cur.xmax + EXTRA_SCROLL_PAD, ymaxc, 8);
 }
 
 /* name for group entries */
@@ -3047,17 +3047,15 @@ void ANIM_channel_draw(bAnimContext *ac, bAnimListElem *ale, float yminc, float 
 	ymid = y - 0.5f * ICON_WIDTH;
 	/* y-coordinates for text is only 4 down from middle */
 	ytext = y - 0.2f * U.widget_unit;
-	
+
 	/* check if channel is selected */
 	if (acf->has_setting(ac, ale, ACHANNEL_SETTING_SELECT))
 		selected = ANIM_channel_setting_get(ac, ale, ACHANNEL_SETTING_SELECT);
 	else
 		selected = 0;
-		
-	/* set blending again, as may not be set in previous step */
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 	glEnable(GL_BLEND);
-	
+
 	/* step 1) draw backdrop ...........................................  */
 	if (acf->draw_backdrop)
 		acf->draw_backdrop(ac, ale, yminc, ymaxc);
@@ -3090,11 +3088,11 @@ void ANIM_channel_draw(bAnimContext *ac, bAnimListElem *ale, float yminc, float 
 				/* F-Curve channels need to have a special 'color code' box drawn, which is colored with whatever 
 				 * color the curve has stored 
 				 */
-				glColor3fv(fcu->color);
+				gpuCurrentColor3fv(fcu->color);
 				
 				/* just a solid color rect
 				 */
-				glRectf(offset, yminc, offset + ICON_WIDTH, ymaxc);
+				gpuSingleFilledRectf(offset, yminc, offset + ICON_WIDTH, ymaxc);
 			}
 			
 			/* icon is drawn as widget now... */
@@ -3127,10 +3125,9 @@ void ANIM_channel_draw(bAnimContext *ac, bAnimListElem *ale, float yminc, float 
 		/* draw red underline if channel is disabled */
 		if ((ale->type == ANIMTYPE_FCURVE) && (ale->flag & FCURVE_DISABLED)) {
 			/* FIXME: replace hardcoded color here, and check on extents! */
-			glColor3f(1.0f, 0.0f, 0.0f);
+			gpuCurrentColor3x(CPACK_RED);
 			glLineWidth(2.0);
-			fdrawline((float)(offset), yminc,
-			          (float)(v2d->cur.xmax), yminc);
+			gpuSingleLinef(offset, yminc, v2d->cur.xmax, yminc); // DOODLE: single thick colored line
 			glLineWidth(1.0);
 		}
 	}
@@ -3147,7 +3144,7 @@ void ANIM_channel_draw(bAnimContext *ac, bAnimListElem *ale, float yminc, float 
 		
 		/* get and set backdrop color */
 		acf->get_backdrop_color(ac, ale, color);
-		glColor3fv(color);
+		gpuCurrentColor3fv(color);
 		
 		/* check if we need to show the sliders */
 		if ((ac->sl) && ELEM(ac->spacetype, SPACE_ACTION, SPACE_IPO)) {
@@ -3192,7 +3189,7 @@ void ANIM_channel_draw(bAnimContext *ac, bAnimListElem *ale, float yminc, float 
 		 *	- starts from the point where the first toggle/slider starts, 
 		 *	- ends past the space that might be reserved for a scroller
 		 */
-		glRectf(v2d->cur.xmax - (float)offset, yminc, v2d->cur.xmax + EXTRA_SCROLL_PAD, ymaxc);
+		gpuSingleFilledRectf(v2d->cur.xmax - offset, yminc, v2d->cur.xmax + EXTRA_SCROLL_PAD, ymaxc);
 	}
 }
 

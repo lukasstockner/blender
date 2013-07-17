@@ -50,7 +50,8 @@
 #include "BKE_editmesh.h"
 #include "BKE_editmesh_bvh.h"
 
-#include "BIF_gl.h"
+#include "GPU_compatibility.h"
+
 #include "BIF_glutil.h" /* for paint cursor */
 
 #include "ED_screen.h"
@@ -901,14 +902,14 @@ static void knife_finish_cut(KnifeTool_OpData *UNUSED(kcd))
 static void knifetool_draw_angle_snapping(const KnifeTool_OpData *kcd)
 {
 	bglMats mats;
-	double u[3], u1[2], u2[2], v1[3], v2[3], dx, dy;
+	float u[3], u1[3], u2[3], v1[3], v2[3], dx, dy;
 	double wminx, wminy, wmaxx, wmaxy;
 
 	/* make u the window coords of prevcage */
 	view3d_get_transformation(kcd->ar, kcd->vc.rv3d, kcd->ob, &mats);
-	gluProject(kcd->prev.cage[0], kcd->prev.cage[1], kcd->prev.cage[2],
+	gpuProject(kcd->prev.cage,
 	           mats.modelview, mats.projection, mats.viewport,
-	           &u[0], &u[1], &u[2]);
+			   u);
 
 	/* make u1, u2 the points on window going through u at snap angle */
 	wminx = kcd->ar->winrct.xmin;
@@ -979,20 +980,21 @@ static void knifetool_draw_angle_snapping(const KnifeTool_OpData *kcd)
 			return;
 	}
 
+	u1[2] = u2[2] = 0.0f;
 	/* unproject u1 and u2 back into object space */
-	gluUnProject(u1[0], u1[1], 0.0,
+	gpuUnProject(u1,
 	             mats.modelview, mats.projection, mats.viewport,
-	             &v1[0], &v1[1], &v1[2]);
-	gluUnProject(u2[0], u2[1], 0.0,
+				 v1);
+	gpuUnProject(u2,
 	             mats.modelview, mats.projection, mats.viewport,
-	             &v2[0], &v2[1], &v2[2]);
+				 v2);
 
 	UI_ThemeColor(TH_TRANSFORM);
 	glLineWidth(2.0);
-	glBegin(GL_LINES);
-	glVertex3dv(v1);
-	glVertex3dv(v2);
-	glEnd();
+	gpuBegin(GL_LINES);
+	gpuVertex3fv(v1);
+	gpuVertex3fv(v2);
+	gpuEnd();
 }
 
 static void knife_init_colors(KnifeColors *colors)
@@ -1020,52 +1022,54 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 
 	glPolygonOffset(1.0f, 1.0f);
 
-	glPushMatrix();
-	glMultMatrixf(kcd->ob->obmat);
+	gpuImmediateFormat_V3();
+
+	gpuPushMatrix();
+	gpuMultMatrix(kcd->ob->obmat);
 
 	if (kcd->mode == MODE_DRAGGING) {
 		if (kcd->angle_snapping != ANGLE_FREE)
 			knifetool_draw_angle_snapping(kcd);
 
-		glColor3ubv(kcd->colors.line);
+		gpuCurrentColor3ubv(kcd->colors.line);
 		
 		glLineWidth(2.0);
 
-		glBegin(GL_LINES);
-		glVertex3fv(kcd->prev.cage);
-		glVertex3fv(kcd->curr.cage);
-		glEnd();
+		gpuBegin(GL_LINES);
+		gpuVertex3fv(kcd->prev.cage);
+		gpuVertex3fv(kcd->curr.cage);
+		gpuEnd();
 
 		glLineWidth(1.0);
 	}
 
 	if (kcd->curr.edge) {
-		glColor3ubv(kcd->colors.edge);
+		gpuCurrentColor3ubv(kcd->colors.edge);
 		glLineWidth(2.0);
 
-		glBegin(GL_LINES);
-		glVertex3fv(kcd->curr.edge->v1->cageco);
-		glVertex3fv(kcd->curr.edge->v2->cageco);
-		glEnd();
+		gpuBegin(GL_LINES);
+		gpuVertex3fv(kcd->curr.edge->v1->cageco);
+		gpuVertex3fv(kcd->curr.edge->v2->cageco);
+		gpuEnd();
 
 		glLineWidth(1.0);
 	}
 	else if (kcd->curr.vert) {
-		glColor3ubv(kcd->colors.point);
+		gpuCurrentColor3ubv(kcd->colors.point);
 		glPointSize(11);
 
-		glBegin(GL_POINTS);
-		glVertex3fv(kcd->curr.cage);
-		glEnd();
+		gpuBegin(GL_POINTS);
+		gpuVertex3fv(kcd->curr.cage);
+		gpuEnd();
 	}
 
 	if (kcd->curr.bmface) {
-		glColor3ubv(kcd->colors.curpoint);
+		gpuCurrentColor3ubv(kcd->colors.curpoint);
 		glPointSize(9);
 
-		glBegin(GL_POINTS);
-		glVertex3fv(kcd->curr.cage);
-		glEnd();
+		gpuBegin(GL_POINTS);
+		gpuVertex3fv(kcd->curr.cage);
+		gpuEnd();
 	}
 
 	if (kcd->totlinehit > 0) {
@@ -1076,12 +1080,11 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		int i;
 
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 		/* draw any snapped verts first */
-		glColor4ubv(kcd->colors.point_a);
+		gpuCurrentColor4ubv(kcd->colors.point_a);
 		glPointSize(11);
-		glBegin(GL_POINTS);
+		gpuBegin(GL_POINTS);
 		lh = kcd->linehits;
 		for (i = 0; i < kcd->totlinehit; i++, lh++) {
 			float sv1[2], sv2[2];
@@ -1092,26 +1095,26 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 
 			if (len_squared_v2v2(lh->schit, sv1) < vthresh4_sq) {
 				copy_v3_v3(lh->cagehit, lh->kfe->v1->cageco);
-				glVertex3fv(lh->cagehit);
+				gpuVertex3fv(lh->cagehit);
 				lh->v = lh->kfe->v1;
 			}
 			else if (len_squared_v2v2(lh->schit, sv2) < vthresh4_sq) {
 				copy_v3_v3(lh->cagehit, lh->kfe->v2->cageco);
-				glVertex3fv(lh->cagehit);
+				gpuVertex3fv(lh->cagehit);
 				lh->v = lh->kfe->v2;
 			}
 		}
-		glEnd();
+		gpuEnd();
 
 		/* now draw the rest */
-		glColor4ubv(kcd->colors.curpoint_a);
+		gpuCurrentColor4ubv(kcd->colors.curpoint_a);
 		glPointSize(7);
-		glBegin(GL_POINTS);
+		gpuBegin(GL_POINTS);
 		lh = kcd->linehits;
 		for (i = 0; i < kcd->totlinehit; i++, lh++) {
-			glVertex3fv(lh->cagehit);
+			gpuVertex3fv(lh->cagehit);
 		}
-		glEnd();
+		gpuEnd();
 		glDisable(GL_BLEND);
 	}
 
@@ -1120,20 +1123,20 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		KnifeEdge *kfe;
 
 		glLineWidth(1.0);
-		glBegin(GL_LINES);
+		gpuBegin(GL_LINES);
 
 		BLI_mempool_iternew(kcd->kedges, &iter);
 		for (kfe = BLI_mempool_iterstep(&iter); kfe; kfe = BLI_mempool_iterstep(&iter)) {
 			if (!kfe->draw)
 				continue;
 
-			glColor3ubv(kcd->colors.line);
+			gpuColor3ubv(kcd->colors.line);
 
-			glVertex3fv(kfe->v1->cageco);
-			glVertex3fv(kfe->v2->cageco);
+			gpuVertex3fv(kfe->v1->cageco);
+			gpuVertex3fv(kfe->v2->cageco);
 		}
 
-		glEnd();
+		gpuEnd();
 		glLineWidth(1.0);
 	}
 
@@ -1143,21 +1146,23 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 
 		glPointSize(5.0);
 
-		glBegin(GL_POINTS);
+		gpuBegin(GL_POINTS);
 		BLI_mempool_iternew(kcd->kverts, &iter);
 		for (kfv = BLI_mempool_iterstep(&iter); kfv; kfv = BLI_mempool_iterstep(&iter)) {
 			if (!kfv->draw)
 				continue;
 
-			glColor3ubv(kcd->colors.point);
+			gpuColor3ubv(kcd->colors.point);
 
-			glVertex3fv(kfv->cageco);
+			gpuVertex3fv(kfv->cageco);
 		}
 
-		glEnd();
+		gpuEnd();
 	}
 
-	glPopMatrix();
+	gpuPopMatrix();
+
+	gpuImmediateUnformat();
 
 	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 }

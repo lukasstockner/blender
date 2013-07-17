@@ -65,4 +65,6 @@ if(WITH_COMPOSITOR)
 	add_definitions(-DWITH_COMPOSITOR)
 endif()
 
+add_definitions(${GL_DEFINITIONS})
+
 blender_add_lib(bf_editor_space_node "${SRC}" "${INC}" "${INC_SYS}")

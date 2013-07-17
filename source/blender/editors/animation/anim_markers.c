@@ -53,7 +53,6 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "UI_interface.h"
@@ -69,6 +68,9 @@
 #include "ED_object.h"
 #include "ED_transform.h"
 #include "ED_types.h"
+
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
 
 /* ************* Marker API **************** */
 
@@ -358,10 +360,9 @@ static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
 	ypixels = BLI_rcti_size_y(&v2d->mask);
 	UI_view2d_getscale(v2d, &xscale, &yscale);
 	
-	glScalef(1.0f / xscale, 1.0f, 1.0f);
+	gpuScale(1.0f / xscale, 1.0f, 1.0f);
 	
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	
 	/* vertical line - dotted */
 #ifdef DURIAN_CAMERA_SWITCH
@@ -371,17 +372,18 @@ static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
 #endif
 	{
 		setlinestyle(3);
-		
-		if (marker->flag & SELECT)
-			glColor4ub(255, 255, 255, 96);
-		else
-			glColor4ub(0, 0, 0, 96);
-		
-		glBegin(GL_LINES);
-		glVertex2f((xpos * xscale) + 0.5f, 12.0f);
-		glVertex2f((xpos * xscale) + 0.5f, (v2d->cur.ymax + 12.0f) * yscale);
-		glEnd();
-		
+
+		gpuCurrentColor4x(
+			(marker->flag & SELECT) ? CPACK_WHITE : CPACK_BLACK,
+			0.376f);
+
+		// DOODLE single 2D line, stippled
+		gpuSingleLinef(
+			(xpos * xscale) + 0.5f,
+			12.0f,
+			(xpos * xscale) + 0.5f,
+			(v2d->cur.ymax + 12.0f) * yscale);
+
 		setlinestyle(0);
 	}
 	
@@ -428,17 +430,14 @@ static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
 
 #ifdef DURIAN_CAMERA_SWITCH
 		if (marker->camera && (marker->camera->restrictflag & OB_RESTRICT_RENDER)) {
-			float col[4];
-			glGetFloatv(GL_CURRENT_COLOR, col);
-			col[3] = 0.4;
-			glColor4fv(col);
+			gpuCurrentAlpha(0.4f);
 		}
 #endif
 
-		UI_DrawString(x, y, marker->name);
+		UI_DrawString(x, y, marker->name); // DOODLE text label
 	}
 	
-	glScalef(xscale, 1.0f, 1.0f);
+	gpuScale(xscale, 1.0f, 1.0f);
 }
 
 /* Draw Scene-Markers in time window */

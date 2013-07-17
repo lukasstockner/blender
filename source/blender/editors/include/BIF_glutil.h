@@ -33,18 +33,15 @@
 struct rcti;
 struct rctf;
 
+//void fdrawbezier(float vec[4][3]);
+
 struct ImBuf;
 struct bContext;
 struct ColorManagedViewSettings;
 struct ColorManagedDisplaySettings;
 
-void fdrawbezier(float vec[4][3]);
-void fdrawline(float x1, float y1, float x2, float y2);
-void fdrawbox(float x1, float y1, float x2, float y2);
-void sdrawline(short x1, short y1, short x2, short y2);
 void sdrawtri(short x1, short y1, short x2, short y2);
 void sdrawtrifill(short x1, short y1, short x2, short y2);
-void sdrawbox(short x1, short y1, short x2, short y2);
 
 void sdrawXORline(int x0, int y0, int x1, int y1);
 void sdrawXORline4(int nr, int x0, int y0, int x1, int y1);
@@ -61,31 +58,6 @@ extern const unsigned char stipple_quarttone[128];
 extern const unsigned char stipple_diag_stripes_pos[128];
 extern const unsigned char stipple_diag_stripes_neg[128];
 
-/**
- * Draw a lined (non-looping) arc with the given
- * \a radius, starting at angle \a start and arcing
- * through \a angle. The arc is centered at the origin
- * and drawn in the XY plane.
- *
- * \param start The initial angle (in radians).
- * \param angle The length of the arc (in radians).
- * \param radius The arc radius.
- * \param nsegments The number of segments to use in drawing the arc.
- */
-void glutil_draw_lined_arc(float start, float angle, float radius, int nsegments);
-
-/**
- * Draw a filled arc with the given \a radius,
- * starting at angle \a start and arcing through
- * \a angle. The arc is centered at the origin
- * and drawn in the XY plane.
- *
- * \param start The initial angle (in radians).
- * \param angle The length of the arc (in radians).
- * \param radius The arc radius.
- * \param nsegments The number of segments to use in drawing the arc.
- */
-void glutil_draw_filled_arc(float start, float angle, float radius, int nsegments);
 
 /**
  * Routines an integer value as obtained by glGetIntegerv.
@@ -189,15 +161,6 @@ void gla2DGetMap(gla2DDrawInfo *di, struct rctf *rect);
 void gla2DSetMap(gla2DDrawInfo *di, struct rctf *rect);
 #endif
 
-/* use this for platform hacks. glPointSize is solved here */
-void bglBegin(int mode);
-void bglEnd(void);
-// int bglPointHack(void); /* UNUSED */
-void bglVertex3fv(const float vec[3]);
-void bglVertex3f(float x, float y, float z);
-void bglVertex2fv(const float vec[2]);
-/* intel gfx cards frontbuffer problem */
-// void bglFlush(void); /* UNUSED */
 void set_inverted_drawing(int enable);
 void setlinestyle(int nr);
 
@@ -206,11 +169,13 @@ void bglPolygonOffset(float viewdist, float dist);
 
 /* For caching opengl matrices (gluProject/gluUnProject) */
 typedef struct bglMats {
-	double modelview[16];
-	double projection[16];
+	float modelview[16];
+	float projection[16];
 	int viewport[4];
 } bglMats;
 void bgl_get_mats(bglMats *mats);
+
+#define GLA_PIXEL_OFS 0.375f
 
 /* **** Color management helper functions for GLSL display/transform ***** */
 

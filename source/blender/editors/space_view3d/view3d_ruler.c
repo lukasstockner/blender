@@ -26,6 +26,8 @@
 
 /* defines VIEW3D_OT_ruler modal operator */
 
+#include <stddef.h>
+
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
 #include "DNA_gpencil_types.h"
@@ -39,8 +41,6 @@
 #include "BKE_unit.h"
 #include "BKE_gpencil.h"
 
-#include "BIF_gl.h"
-
 #include "WM_api.h"
 #include "WM_types.h"
 
@@ -49,6 +49,9 @@
 
 #include "BLF_api.h"
 #include "BIF_glutil.h"
+
+#include "GPU_compatibility.h"
+#include "GPU_primitives.h"
 
 #include "UI_resources.h"
 #include "UI_interface.h"
@@ -473,21 +476,23 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 
 		glEnable(GL_BLEND);
 
-		cpack(is_act ? color_act : color_base);
+		gpuCurrentColor3x(is_act ? color_act : color_base);
+
+		gpuImmediateFormat_V3();
 
 		if (ruler_item->flag & RULERITEM_USE_ANGLE) {
-			glBegin(GL_LINE_STRIP);
+			gpuBegin(GL_LINE_STRIP);
 			for (j = 0; j < 3; j++) {
-				glVertex2fv(co_ss[j]);
+				gpuVertex2fv(co_ss[j]);
 			}
-			glEnd();
-			cpack(0xaaaaaa);
+			gpuEnd();
+			gpuCurrentColor3x(0xaaaaaa);
 			setlinestyle(3);
-			glBegin(GL_LINE_STRIP);
+			gpuBegin(GL_LINE_STRIP);
 			for (j = 0; j < 3; j++) {
-				glVertex2fv(co_ss[j]);
+				gpuVertex2fv(co_ss[j]);
 			}
-			glEnd();
+			gpuEnd();
 			setlinestyle(0);
 
 			/* arc */
@@ -518,7 +523,7 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 
 				copy_v3_v3(dir_tmp, dir_a);
 
-				glColor3ubv(color_wire);
+				gpuCurrentColor3ubv(color_wire);
 
 				for (j = 0; j <= arc_steps; j++) {
 					madd_v3_v3v3fl(co_tmp, ruler_item->co[1], dir_tmp, px_scale);
@@ -526,11 +531,14 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 					mul_qt_v3(quat, dir_tmp);
 				}
 
-				glEnableClientState(GL_VERTEX_ARRAY);
-				glVertexPointer(2, GL_FLOAT, 0, arc_ss_coords);
-				glDrawArrays(GL_LINE_STRIP, 0, arc_steps + 1);
-				glDisableClientState(GL_VERTEX_ARRAY);
+				{
+					GPUarrays arrays = GPU_ARRAYS_V2F;
+					arrays.vertexPointer = arc_ss_coords;
+					gpuDrawClientArrays(GL_LINE_STRIP, &arrays, 0, arc_steps + 1);
+				}
 			}
+
+			gpuImmediateUnformat();
 
 			/* text */
 			{
@@ -547,13 +555,13 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 				pos[1] = co_ss[1][1] - (numstr_size[1] / 2.0f);
 
 				/* draw text (bg) */
-				glColor4ubv(color_back);
+				gpuCurrentColor4ubv(color_back);
 				uiSetRoundBox(UI_CNR_ALL);
 				uiRoundBox(pos[0] - bg_margin,                  pos[1] - bg_margin,
 				           pos[0] + bg_margin + numstr_size[0], pos[1] + bg_margin + numstr_size[1],
 				           bg_radius);
 				/* draw text */
-				glColor3ubv(color_text);
+				gpuCurrentColor3ubv(color_text);
 				BLF_position(blf_mono_font, pos[0], pos[1], 0.0f);
 				BLF_rotation(blf_mono_font, 0.0f);
 				BLF_draw(blf_mono_font, numstr, sizeof(numstr));
@@ -577,43 +585,56 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 
 				glEnable(GL_BLEND);
 
-				glColor3ubv(color_wire);
+				gpuCurrentColor3ubv(color_wire);
 
-				glBegin(GL_LINES);
+				gpuImmediateFormat_V2();
+
+				gpuBegin(GL_LINES);
 
 				madd_v2_v2v2fl(cap, co_ss[0], rot_90_vec_a, cap_size);
-				glVertex2fv(cap);
+				gpuVertex2fv(cap);
 				madd_v2_v2v2fl(cap, co_ss[0], rot_90_vec_a, -cap_size);
-				glVertex2fv(cap);
+				gpuVertex2fv(cap);
 
 				madd_v2_v2v2fl(cap, co_ss[2], rot_90_vec_b, cap_size);
-				glVertex2fv(cap);
+				gpuVertex2fv(cap);
 				madd_v2_v2v2fl(cap, co_ss[2], rot_90_vec_b, -cap_size);
-				glVertex2fv(cap);
+				gpuVertex2fv(cap);
 
 				/* angle vertex */
-				glVertex2f(co_ss[1][0] - cap_size, co_ss[1][1] - cap_size);
-				glVertex2f(co_ss[1][0] + cap_size, co_ss[1][1] + cap_size);
-				glVertex2f(co_ss[1][0] - cap_size, co_ss[1][1] + cap_size);
-				glVertex2f(co_ss[1][0] + cap_size, co_ss[1][1] - cap_size);
-				glEnd();
+				gpuVertex2f(co_ss[1][0] - cap_size, co_ss[1][1] - cap_size);
+				gpuVertex2f(co_ss[1][0] + cap_size, co_ss[1][1] + cap_size);
+				gpuVertex2f(co_ss[1][0] - cap_size, co_ss[1][1] + cap_size);
+				gpuVertex2f(co_ss[1][0] + cap_size, co_ss[1][1] - cap_size);
+				gpuEnd();
+
+				gpuImmediateUnlock();
 
 				glDisable(GL_BLEND);
 			}
 		}
 		else {
-			glBegin(GL_LINE_STRIP);
+
+			gpuImmediateFormat_V2();
+
+			gpuBegin(GL_LINE_STRIP);
 			for (j = 0; j < 3; j += 2) {
-				glVertex2fv(co_ss[j]);
+				gpuVertex2fv(co_ss[j]);
 			}
-			glEnd();
-			cpack(0xaaaaaa);
+			gpuEnd();
+
+			gpuCurrentColor3x(0xaaaaaa);
+
 			setlinestyle(3);
-			glBegin(GL_LINE_STRIP);
+
+			gpuBegin(GL_LINE_STRIP);
 			for (j = 0; j < 3; j += 2) {
-				glVertex2fv(co_ss[j]);
+				gpuVertex2fv(co_ss[j]);
 			}
-			glEnd();
+			gpuEnd();
+
+			gpuImmediateUnformat();
+
 			setlinestyle(0);
 
 			sub_v2_v2v2(dir_ruler, co_ss[0], co_ss[2]);
@@ -636,13 +657,13 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 				pos[1] -= numstr_size[1] / 2.0f;
 
 				/* draw text (bg) */
-				glColor4ubv(color_back);
+				gpuCurrentColor4ubv(color_back);
 				uiSetRoundBox(UI_CNR_ALL);
 				uiRoundBox(pos[0] - bg_margin,                  pos[1] - bg_margin,
 				           pos[0] + bg_margin + numstr_size[0], pos[1] + bg_margin + numstr_size[1],
 				           bg_radius);
 				/* draw text */
-				glColor3ubv(color_text);
+				gpuCurrentColor3ubv(color_text);
 				BLF_position(blf_mono_font, pos[0], pos[1], 0.0f);
 				BLF_draw(blf_mono_font, numstr, sizeof(numstr));
 			}
@@ -655,19 +676,23 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 				normalize_v2(rot_90_vec);
 
 				glEnable(GL_BLEND);
-				glColor3ubv(color_wire);
+				gpuCurrentColor3ubv(color_wire);
 
-				glBegin(GL_LINES);
+				gpuImmediateFormat_V2();
+
+				gpuBegin(GL_LINES);
 				madd_v2_v2v2fl(cap, co_ss[0], rot_90_vec, cap_size);
-				glVertex2fv(cap);
+				gpuVertex2fv(cap);
 				madd_v2_v2v2fl(cap, co_ss[0], rot_90_vec, -cap_size);
-				glVertex2fv(cap);
+				gpuVertex2fv(cap);
 
 				madd_v2_v2v2fl(cap, co_ss[2], rot_90_vec, cap_size);
-				glVertex2fv(cap);
+				gpuVertex2fv(cap);
 				madd_v2_v2v2fl(cap, co_ss[2], rot_90_vec, -cap_size);
-				glVertex2fv(cap);
-				glEnd();
+				gpuVertex2fv(cap);
+				gpuEnd();
+
+				gpuImmediateUnformat();
 
 				glDisable(GL_BLEND);
 			}
@@ -689,8 +714,8 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 			float co_ss[3];
 			ED_view3d_project_float_global(ar, ruler_item->co[ruler_item->co_index], co_ss, V3D_PROJ_TEST_NOP);
 
-			cpack(color_act);
-			circ(co_ss[0], co_ss[1], size * U.pixelsize);
+			gpuCurrentColor3x(color_act);
+			gpuSingleDisk(co_ss[0], co_ss[1], size * U.pixelsize, 32);
 		}
 	}
 

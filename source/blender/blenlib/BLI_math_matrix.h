@@ -55,10 +55,10 @@ void zero_m4(float R[4][4]);
 void unit_m3(float R[3][3]);
 void unit_m4(float R[4][4]);
 
-void copy_m3_m3(float R[3][3], float A[3][3]);
-void copy_m4_m4(float R[4][4], float A[4][4]);
-void copy_m3_m4(float R[3][3], float A[4][4]);
-void copy_m4_m3(float R[4][4], float A[3][3]);
+void copy_m3_m3(float R[3][3], const float A[3][3]);
+void copy_m4_m4(float R[4][4], const float A[4][4]);
+void copy_m3_m4(float R[3][3], const float A[4][4]);
+void copy_m4_m3(float R[4][4], const float A[3][3]);
 
 void swap_m3m3(float A[3][3], float B[3][3]);
 void swap_m4m4(float A[4][4], float B[4][4]);
@@ -71,11 +71,14 @@ void add_m4_m4m4(float R[4][4], float A[4][4], float B[4][4]);
 void sub_m3_m3m3(float R[3][3], float A[3][3], float B[3][3]);
 void sub_m4_m4m4(float R[4][4], float A[4][4], float B[4][4]);
 
-void mul_m3_m3m3(float R[3][3], float A[3][3], float B[3][3]);
-void mul_m4_m3m4(float R[4][4], float A[3][3], float B[4][4]);
-void mul_m4_m4m3(float R[4][4], float A[4][4], float B[3][3]);
-void mul_m4_m4m4(float R[4][4], float A[4][4], float B[4][4]);
-void mul_m3_m3m4(float R[3][3], float A[4][4], float B[3][3]);
+void mul_m3_m3m3(float R[3][3], const float A[3][3], const float B[3][3]);
+void mul_m4_m3m4(float R[4][4], const float A[3][3], const float B[4][4]);
+void mul_m4_m4m3(float R[4][4], const float A[4][4], const float B[3][3]);
+void mul_m4_m4m4(float R[4][4], const float A[4][4], const float B[4][4]);
+void mul_m3_m3m4(float R[3][3], const float A[4][4], const float B[3][3]);
+
+void mult_m4_m4m4_q(float m1[4][4], const float m3[4][4], const float m2[4][4]);
+void mult_m4_m3m4_q(float m1[4][4], const float m3[4][4], const float m2[3][3]);
 
 void mul_serie_m3(float R[3][3],
                   float M1[3][3], float M2[3][3], float M3[3][3], float M4[3][3],
@@ -88,9 +91,11 @@ void mul_m4_v3(float M[4][4], float r[3]);
 void mul_v3_m4v3(float r[3], float M[4][4], const float v[3]);
 void mul_v2_m4v3(float r[2], float M[4][4], const float v[3]);
 void mul_v2_m2v2(float r[2], float M[2][2], const float v[2]);
+void mul_v4_m4v3(float r[4], const float M[4][4], const float v[3]);
+void mul_v3_m4v3_q(float r[3], float M[4][4], const float v[3]);
 void mul_mat3_m4_v3(float M[4][4], float r[3]);
-void mul_m4_v4(float M[4][4], float r[4]);
-void mul_v4_m4v4(float r[4], float M[4][4], const float v[4]);
+void mul_m4_v4(const float M[4][4], float r[4]);
+void mul_v4_m4v4(float r[4], const float M[4][4], const float v[4]);
 void mul_project_m4_v3(float M[4][4], float vec[3]);
 void mul_v2_project_m4_v3(float r[2], float M[4][4], const float vec[3]);
 
@@ -163,6 +168,8 @@ void pseudoinverse_m3_m3(float Ainv[3][3], float A[3][3], float epsilon);
 void scale_m3_fl(float R[3][3], float scale);
 void scale_m4_fl(float R[4][4], float scale);
 
+void scale_m4(float m[][4], float x, float y, float z);
+
 float mat3_to_scale(float M[3][3]);
 float mat4_to_scale(float M[4][4]);
 
@@ -174,6 +181,7 @@ void mat4_to_size(float r[3], float M[4][4]);
 
 void translate_m4(float mat[4][4], float tx, float ty, float tz);
 void rotate_m4(float mat[4][4], const char axis, const float angle);
+void rotate_m4_right(float mat[4][4], const char axis);
 void rotate_m2(float mat[2][2], const float angle);
 
 
@@ -196,6 +204,13 @@ void blend_m4_m4m4(float R[4][4], float A[4][4], float B[4][4], const float t);
 
 int is_negative_m3(float mat[3][3]);
 int is_negative_m4(float mat[4][4]);
+
+/******************************** Projections ********************************/
+
+void mat4_ortho_set(float m[4][4], float left, float right, float bottom, float top, float nearVal, float farVal);
+void mat4_frustum_set(float m[4][4], float left, float right, float bottom, float top, float nearVal, float farVal);
+
+void mat4_look_from_origin(float m[4][4], float lookdir[3], float camup[3]);
 
 /*********************************** Other ***********************************/
 

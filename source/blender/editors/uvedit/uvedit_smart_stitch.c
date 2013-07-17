@@ -47,8 +47,6 @@
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 
-#include "BIF_gl.h"
-
 #include "BKE_context.h"
 #include "BKE_customdata.h"
 #include "BKE_depsgraph.h"
@@ -68,6 +66,8 @@
 
 #include "UI_view2d.h"
 #include "UI_resources.h"
+
+#include "GPU_compatibility.h"
 
 #include "uvedit_intern.h"
 

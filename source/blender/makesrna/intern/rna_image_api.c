@@ -38,7 +38,8 @@
 
 #include "BLI_utildefines.h"
 
-#include "BIF_gl.h"
+#include "GPU_compatibility.h"
+
 
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
@@ -56,7 +57,6 @@
 #include "IMB_imbuf.h"
 #include "IMB_colormanagement.h"
 
-#include "BIF_gl.h"
 #include "GPU_draw.h"
 
 #include "DNA_image_types.h"
@@ -230,7 +230,7 @@ static int rna_Image_gl_load(Image *image, ReportList *reports, int filter, int 
 		error = (int)gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGBA, ibuf->x, ibuf->y, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect);
 
 	if (!error) {
-		/* clean glError buffer */
+		/* clean GL error buffer */
 		while (glGetError() != GL_NO_ERROR) {}
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, image->tpageflag & IMA_CLAMP_U ? GL_CLAMP : GL_REPEAT);

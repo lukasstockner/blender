@@ -256,7 +256,7 @@ set(SRC
 	intern/pbvh_intern.h
 )
 
-add_definitions(-DGLEW_STATIC)
+add_definitions(${GL_DEFINITIONS})
 
 if(WITH_AUDASPACE)
 	list(APPEND INC

@@ -285,7 +285,7 @@ ImBuf *IMB_thumb_create(const char *path, ThumbSize size, ThumbSource source, Im
 
 	/* exception, skip images over 100mb */
 	if (source == THB_SOURCE_IMAGE) {
-		const size_t file_size = BLI_file_size(path);
+		const bli_off_t file_size = BLI_file_size(path);
 		if (file_size != -1 && file_size > THUMB_SIZE_MAX) {
 			// printf("file too big: %d, skipping %s\n", (int)size, path);
 			return NULL;

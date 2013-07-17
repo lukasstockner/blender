@@ -241,7 +241,7 @@ static int findFileRecursive(char *filename_new,
 		if (S_ISREG(status.st_mode)) { /* is file */
 			if (strncmp(filename, de->d_name, FILE_MAX) == 0) { /* name matches */
 				/* open the file to read its size */
-				size = status.st_size;
+				size = (int)status.st_size; /* assumes files can't be bigger than 2GiB */
 				if ((size > 0) && (size > *filesize)) { /* find the biggest file */
 					*filesize = size;
 					BLI_strncpy(filename_new, path, FILE_MAX);

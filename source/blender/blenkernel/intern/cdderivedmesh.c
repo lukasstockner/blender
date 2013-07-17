@@ -34,8 +34,6 @@
  *  \ingroup bke
  */
 
-#include "GL/glew.h"
-
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_edgehash.h"
@@ -64,6 +62,7 @@
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"
+#include "GPU_compatibility.h"
 
 #include <string.h>
 #include <limits.h>
@@ -333,13 +332,16 @@ static void cdDM_drawVerts(DerivedMesh *dm)
 	int i;
 
 	if (GPU_buffer_legacy(dm)) {
-		glBegin(GL_POINTS);
+		gpuImmediateFormat_V3();
+		gpuBegin(GL_POINTS);
 		for (i = 0; i < dm->numVertData; i++, mv++)
-			glVertex3fv(mv->co);
-		glEnd();
+			gpuVertex3fv(mv->co);
+		gpuEnd();
+		gpuImmediateUnformat();
 	}
 	else {  /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
 		GPU_vertex_setup(dm);
+		gpuMatrixCommit();
 		if (!GPU_buffer_legacy(dm)) {
 			if (dm->drawObject->tot_triangle_point)
 				glDrawArrays(GL_POINTS, 0, dm->drawObject->tot_triangle_point);
@@ -359,29 +361,29 @@ static void cdDM_drawUVEdges(DerivedMesh *dm)
 
 	if (mf) {
 		if (GPU_buffer_legacy(dm)) {
-			glBegin(GL_LINES);
+			gpuBegin(GL_LINES);
 			for (i = 0; i < dm->numTessFaceData; i++, mf++, tf++) {
 				if (!(mf->flag & ME_HIDE)) {
-					glVertex2fv(tf->uv[0]);
-					glVertex2fv(tf->uv[1]);
+					gpuVertex2fv(tf->uv[0]);
+					gpuVertex2fv(tf->uv[1]);
 
-					glVertex2fv(tf->uv[1]);
-					glVertex2fv(tf->uv[2]);
+					gpuVertex2fv(tf->uv[1]);
+					gpuVertex2fv(tf->uv[2]);
 
 					if (!mf->v4) {
-						glVertex2fv(tf->uv[2]);
-						glVertex2fv(tf->uv[0]);
+						gpuVertex2fv(tf->uv[2]);
+						gpuVertex2fv(tf->uv[0]);
 					}
 					else {
-						glVertex2fv(tf->uv[2]);
-						glVertex2fv(tf->uv[3]);
+						gpuVertex2fv(tf->uv[2]);
+						gpuVertex2fv(tf->uv[3]);
 
-						glVertex2fv(tf->uv[3]);
-						glVertex2fv(tf->uv[0]);
+						gpuVertex2fv(tf->uv[3]);
+						gpuVertex2fv(tf->uv[0]);
 					}
 				}
 			}
-			glEnd();
+			gpuEnd();
 		}
 		else {
 			int prevstart = 0;
@@ -390,6 +392,7 @@ static void cdDM_drawUVEdges(DerivedMesh *dm)
 			int curpos = 0;
 
 			GPU_uvedge_setup(dm);
+			gpuMatrixCommit();
 			if (!GPU_buffer_legacy(dm)) {
 				for (i = 0; i < dm->numTessFaceData; i++, mf++) {
 					if (!(mf->flag & ME_HIDE)) {
@@ -438,16 +441,24 @@ static void cdDM_drawEdges(DerivedMesh *dm, int drawLooseEdges, int drawAllEdges
 	
 	if (GPU_buffer_legacy(dm)) {
 		DEBUG_VBO("Using legacy code. cdDM_drawEdges\n");
-		glBegin(GL_LINES);
+		gpuImmediateFormat_V3();
+		gpuBegin(GL_LINES);
 		for (i = 0; i < dm->numEdgeData; i++, medge++) {
-			if ((drawAllEdges || (medge->flag & ME_EDGEDRAW)) &&
-			    (drawLooseEdges || !(medge->flag & ME_LOOSEEDGE)))
-			{
-				glVertex3fv(mvert[medge->v1].co);
-				glVertex3fv(mvert[medge->v2].co);
+			#define is_visible     (drawAllEdges   ||  (medge->flag & ME_EDGEDRAW))
+			#define is_not_loose   (drawLooseEdges || !(medge->flag & ME_LOOSEEDGE))
+			#define is_interesting (medge->flag & (ME_SEAM|ME_SHARP))
+
+			if ((is_visible && is_not_loose) || is_interesting) {
+				gpuVertex3fv(mvert[medge->v1].co);
+				gpuVertex3fv(mvert[medge->v2].co);
 			}
+
+			#undef is_visible
+			#undef is_not_loose
+			#undef is_interesting
 		}
-		glEnd();
+		gpuEnd();
+		gpuImmediateUnformat();
 	}
 	else {  /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
 		int prevstart = 0;
@@ -490,14 +501,16 @@ static void cdDM_drawLooseEdges(DerivedMesh *dm)
 
 	if (GPU_buffer_legacy(dm)) {
 		DEBUG_VBO("Using legacy code. cdDM_drawLooseEdges\n");
-		glBegin(GL_LINES);
+		gpuImmediateFormat_V3();
+		gpuBegin(GL_LINES);
 		for (i = 0; i < dm->numEdgeData; i++, medge++) {
 			if (medge->flag & ME_LOOSEEDGE) {
-				glVertex3fv(mvert[medge->v1].co);
-				glVertex3fv(mvert[medge->v2].co);
+				gpuVertex3fv(mvert[medge->v1].co);
+				gpuVertex3fv(mvert[medge->v2].co);
 			}
 		}
-		glEnd();
+		gpuEnd();
+		gpuImmediateUnformat();
 	}
 	else {  /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
 		int prevstart = 0;
@@ -542,9 +555,9 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 #define PASSVERT(index) {						\
 	if (shademodel == GL_SMOOTH) {				\
 		short *no = mvert[index].no;			\
-		glNormal3sv(no);						\
+		gpuNormal3sv(no);						\
 	}											\
-	glVertex3fv(mvert[index].co);				\
+	gpuVertex3fv(mvert[index].co);				\
 } (void)0
 
 	if (cddm->pbvh && cddm->pbvh_draw) {
@@ -561,7 +574,8 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 
 	if (GPU_buffer_legacy(dm)) {
 		DEBUG_VBO("Using legacy code. cdDM_drawFacesSolid\n");
-		glBegin(glmode = GL_QUADS);
+		gpuImmediateFormat_N3_V3();
+		gpuBegin(glmode = GL_QUADS);
 		for (a = 0; a < dm->numTessFaceData; a++, mface++) {
 			int new_glmode, new_matnr, new_shademodel;
 
@@ -570,18 +584,18 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 			new_shademodel = (mface->flag & ME_SMOOTH) ? GL_SMOOTH : GL_FLAT;
 			
 			if (new_glmode != glmode || new_matnr != matnr || new_shademodel != shademodel) {
-				glEnd();
+				gpuEnd();
 
 				drawCurrentMat = setMaterial(matnr = new_matnr, NULL);
 
 				glShadeModel(shademodel = new_shademodel);
-				glBegin(glmode = new_glmode);
+				gpuBegin(glmode = new_glmode);
 			}
 			
 			if (drawCurrentMat) {
 				if (shademodel == GL_FLAT) {
 					if (nors) {
-						glNormal3fv(nors);
+						gpuNormal3fv(nors);
 					}
 					else {
 						/* TODO make this better (cache facenormals as layer?) */
@@ -592,7 +606,7 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 						else {
 							normal_tri_v3(nor, mvert[mface->v1].co, mvert[mface->v2].co, mvert[mface->v3].co);
 						}
-						glNormal3fv(nor);
+						gpuNormal3fv(nor);
 					}
 				}
 
@@ -606,7 +620,8 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 
 			if (nors) nors += 3;
 		}
-		glEnd();
+		gpuEnd();
+		gpuImmediateUnformat();
 	}
 	else {  /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
 		GPU_vertex_setup(dm);
@@ -680,6 +695,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 
 	if (GPU_buffer_legacy(dm)) {
 		DEBUG_VBO("Using legacy code. cdDM_drawFacesTex_common\n");
+		gpuImmediateFormat_T2_C4_N3_V3();
 		for (i = 0; i < dm->numTessFaceData; i++, mf++) {
 			MVert *mvert;
 			DMDrawOption draw_option;
@@ -695,7 +711,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 						/* XXX, this is not really correct
 						 * it will draw the previous faces context for this one when we don't know its settings.
 						 * but better then skipping it altogether. - campbell */
-						draw_option = DM_DRAW_OPTION_NORMAL;
+						draw_option = DM_DRAW_OPTION_NORMALLY;
 					}
 					else if (drawParamsMapped) {
 						draw_option = drawParamsMapped(userData, orig);
@@ -724,7 +740,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 
 				if (!(mf->flag & ME_SMOOTH)) {
 					if (nors) {
-						glNormal3fv(nors);
+						gpuCurrentNormal3fv(nors);
 					}
 					else {
 						float nor[3];
@@ -734,41 +750,42 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 						else {
 							normal_tri_v3(nor, mv[mf->v1].co, mv[mf->v2].co, mv[mf->v3].co);
 						}
-						glNormal3fv(nor);
+						gpuCurrentNormal3fv(nor);
 					}
 				}
 
-				glBegin(mf->v4 ? GL_QUADS : GL_TRIANGLES);
-				if (tf) glTexCoord2fv(tf[i].uv[0]);
-				if (cp) glColor3ub(cp[3], cp[2], cp[1]);
+				gpuBegin(mf->v4 ? GL_QUADS : GL_TRIANGLES);
+				if (tf) gpuTexCoord2fv(tf[i].uv[0]);
+				if (cp) gpuColor3ub(cp[3], cp[2], cp[1]);
 				mvert = &mv[mf->v1];
-				if (mf->flag & ME_SMOOTH) glNormal3sv(mvert->no);
-				glVertex3fv(mvert->co);
+				if (mf->flag & ME_SMOOTH) gpuNormal3sv(mvert->no);
+				gpuVertex3fv(mvert->co);
 					
-				if (tf) glTexCoord2fv(tf[i].uv[1]);
-				if (cp) glColor3ub(cp[7], cp[6], cp[5]);
+				if (tf) gpuTexCoord2fv(tf[i].uv[1]);
+				if (cp) gpuColor3ub(cp[7], cp[6], cp[5]);
 				mvert = &mv[mf->v2];
-				if (mf->flag & ME_SMOOTH) glNormal3sv(mvert->no);
-				glVertex3fv(mvert->co);
+				if (mf->flag & ME_SMOOTH) gpuNormal3sv(mvert->no);
+				gpuVertex3fv(mvert->co);
 
-				if (tf) glTexCoord2fv(tf[i].uv[2]);
-				if (cp) glColor3ub(cp[11], cp[10], cp[9]);
+				if (tf) gpuTexCoord2fv(tf[i].uv[2]);
+				if (cp) gpuColor3ub(cp[11], cp[10], cp[9]);
 				mvert = &mv[mf->v3];
-				if (mf->flag & ME_SMOOTH) glNormal3sv(mvert->no);
-				glVertex3fv(mvert->co);
+				if (mf->flag & ME_SMOOTH) gpuNormal3sv(mvert->no);
+				gpuVertex3fv(mvert->co);
 
 				if (mf->v4) {
-					if (tf) glTexCoord2fv(tf[i].uv[3]);
-					if (cp) glColor3ub(cp[15], cp[14], cp[13]);
+					if (tf) gpuTexCoord2fv(tf[i].uv[3]);
+					if (cp) gpuColor3ub(cp[15], cp[14], cp[13]);
 					mvert = &mv[mf->v4];
-					if (mf->flag & ME_SMOOTH) glNormal3sv(mvert->no);
-					glVertex3fv(mvert->co);
+					if (mf->flag & ME_SMOOTH) gpuNormal3sv(mvert->no);
+					gpuVertex3fv(mvert->co);
 				}
-				glEnd();
+				gpuEnd();
 			}
 			
 			if (nors) nors += 3;
 		}
+		gpuImmediateUnformat();
 	}
 	else { /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
 		GPU_vertex_setup(dm);
@@ -786,7 +803,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 			/* lastFlag = 0; */ /* UNUSED */
 			for (i = 0; i < tottri; i++) {
 				int actualFace = next_actualFace;
-				DMDrawOption draw_option = DM_DRAW_OPTION_NORMAL;
+				DMDrawOption draw_option = DM_DRAW_OPTION_NORMALLY;
 				int flush = 0;
 
 				if (i != tottri - 1)
@@ -802,7 +819,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 							/* XXX, this is not really correct
 							 * it will draw the previous faces context for this one when we don't know its settings.
 							 * but better then skipping it altogether. - campbell */
-							draw_option = DM_DRAW_OPTION_NORMAL;
+							draw_option = DM_DRAW_OPTION_NORMALLY;
 						}
 						else if (drawParamsMapped) {
 							draw_option = drawParamsMapped(userData, orig);
@@ -832,7 +849,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 							GPU_color_switch(1);
 						else
 							GPU_color_switch(0);
-
+						gpuMatrixCommit();
 						glDrawArrays(GL_TRIANGLES, first, count);
 					}
 
@@ -854,49 +871,80 @@ static void cdDM_drawFacesTex(DerivedMesh *dm,
 	cdDM_drawFacesTex_common(dm, setDrawOptions, NULL, compareDrawOptions, userData);
 }
 
-static void cdDM_drawMappedFaces(DerivedMesh *dm,
-                                 DMSetDrawOptions setDrawOptions,
-                                 DMSetMaterial setMaterial,
-                                 DMCompareDrawOptions compareDrawOptions,
-                                 void *userData, DMDrawFlag flag)
+static void cdDM_drawMappedFaces(
+	DerivedMesh *dm,
+	DMSetDrawOptions setDrawOptions,
+	DMSetMaterial setMaterial,
+	DMCompareDrawOptions compareDrawOptions,
+	void *userData, 
+	DMDrawFlag flag)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *) dm;
 	MVert *mv = cddm->mvert;
 	MFace *mf = cddm->mface;
+	float *nors;
 	MCol *mcol;
-	float *nors = DM_get_tessface_data_layer(dm, CD_NORMAL);
-	int colType, useColors = flag & DM_DRAW_USE_COLORS;
-	int i, orig;
+	int *index;
+    int colType;
+	int useColors = flag & DM_DRAW_USE_COLORS;
+	int i;
+    int orig;
+	int *index_mf_to_mpoly;
+	int *index_mp_to_orig;
 
-
+    
 	/* double lookup */
-	const int *index_mf_to_mpoly = dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
-	const int *index_mp_to_orig  = dm->getPolyDataArray(dm, CD_ORIGINDEX);
+	index_mf_to_mpoly = dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
+	index_mp_to_orig = dm->getPolyDataArray(dm, CD_ORIGINDEX);
 	if (index_mf_to_mpoly == NULL) {
 		index_mp_to_orig = NULL;
 	}
 
+ 
+	if (flag & DM_DRAW_USE_COLORS) {
+        colType = CD_ID_MCOL;
+        mcol = DM_get_tessface_data_layer(dm, colType);
 
-	colType = CD_ID_MCOL;
-	mcol = DM_get_tessface_data_layer(dm, colType);
-	if (!mcol) {
-		colType = CD_PREVIEW_MCOL;
-		mcol = DM_get_tessface_data_layer(dm, colType);
+        if (!mcol) {
+            colType = CD_PREVIEW_MCOL;
+            mcol = DM_get_tessface_data_layer(dm, colType);
+
+            if (!mcol) {
+                colType = CD_MCOL;
+                mcol = DM_get_tessface_data_layer(dm, colType);
+           }
+        }
 	}
-	if (!mcol) {
-		colType = CD_MCOL;
-		mcol = DM_get_tessface_data_layer(dm, colType);
+    else {
+        mcol = NULL;
+    }
+    
+
+	if (flag & DM_DRAW_USE_NORMALS) {
+		nors = DM_get_tessface_data_layer(dm, CD_NORMAL);
+
+		cdDM_update_normals_from_pbvh(dm);
+	}
+	else {
+		nors = NULL;
 	}
 
-	cdDM_update_normals_from_pbvh(dm);
+    
+	index = DM_get_tessface_data_layer(dm, CD_ORIGINDEX);
 
+    
 	/* back-buffer always uses legacy since VBO's would need the
 	 * color array temporarily overwritten for drawing, then reset. */
 	if (GPU_buffer_legacy(dm) || G.f & G_BACKBUFSEL) {
 		DEBUG_VBO("Using legacy code. cdDM_drawMappedFaces\n");
+
+		/* no need to set shading mode to flat because
+		 *  normals are already used to change shading */
+		glShadeModel(GL_SMOOTH);
+
 		for (i = 0; i < dm->numTessFaceData; i++, mf++) {
 			int drawSmooth = (flag & DM_DRAW_ALWAYS_SMOOTH) ? 1 : (mf->flag & ME_SMOOTH);
-			DMDrawOption draw_option = DM_DRAW_OPTION_NORMAL;
+			DMDrawOption draw_option;
 
 			orig = (index_mf_to_mpoly) ? DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, i) : i;
 			
@@ -904,6 +952,8 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm,
 				draw_option = setMaterial(mf->mat_nr + 1, NULL);
 			else if (setDrawOptions != NULL)
 				draw_option = setDrawOptions(userData, orig);
+			else
+				draw_option = DM_DRAW_OPTION_NORMALLY;
 
 			if (draw_option != DM_DRAW_OPTION_SKIP) {
 				unsigned char *cp = NULL;
@@ -919,11 +969,10 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm,
 				/* no need to set shading mode to flat because
 				 *  normals are already used to change shading */
 				glShadeModel(GL_SMOOTH);
-				glBegin(mf->v4 ? GL_QUADS : GL_TRIANGLES);
-
+				gpuBegin(mf->v4 ? GL_QUADS : GL_TRIANGLES);
 				if (!drawSmooth) {
 					if (nors) {
-						glNormal3fv(nors);
+						gpuNormal3fv(nors);
 					}
 					else {
 						float nor[3];
@@ -933,38 +982,38 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm,
 						else {
 							normal_tri_v3(nor, mv[mf->v1].co, mv[mf->v2].co, mv[mf->v3].co);
 						}
-						glNormal3fv(nor);
+						gpuNormal3fv(nor);
 					}
 
-					if (cp) glColor3ub(cp[3], cp[2], cp[1]);
-					glVertex3fv(mv[mf->v1].co);
-					if (cp) glColor3ub(cp[7], cp[6], cp[5]);
-					glVertex3fv(mv[mf->v2].co);
-					if (cp) glColor3ub(cp[11], cp[10], cp[9]);
-					glVertex3fv(mv[mf->v3].co);
+					if (cp) gpuColor3ub(cp[3], cp[2], cp[1]);
+					gpuVertex3fv(mv[mf->v1].co);
+					if (cp) gpuColor3ub(cp[7], cp[6], cp[5]);
+					gpuVertex3fv(mv[mf->v2].co);
+					if (cp) gpuColor3ub(cp[11], cp[10], cp[9]);
+					gpuVertex3fv(mv[mf->v3].co);
 					if (mf->v4) {
-						if (cp) glColor3ub(cp[15], cp[14], cp[13]);
-						glVertex3fv(mv[mf->v4].co);
+						if (cp) gpuColor3ub(cp[15], cp[14], cp[13]);
+						gpuVertex3fv(mv[mf->v4].co);
 					}
 				}
 				else {
-					if (cp) glColor3ub(cp[3], cp[2], cp[1]);
-					glNormal3sv(mv[mf->v1].no);
-					glVertex3fv(mv[mf->v1].co);
-					if (cp) glColor3ub(cp[7], cp[6], cp[5]);
-					glNormal3sv(mv[mf->v2].no);
-					glVertex3fv(mv[mf->v2].co);
-					if (cp) glColor3ub(cp[11], cp[10], cp[9]);
-					glNormal3sv(mv[mf->v3].no);
-					glVertex3fv(mv[mf->v3].co);
+					if (cp) gpuColor3ub(cp[3], cp[2], cp[1]);
+					if (nors) gpuNormal3sv(mv[mf->v1].no);
+					gpuVertex3fv(mv[mf->v1].co);
+					if (cp) gpuColor3ub(cp[7], cp[6], cp[5]);
+					if (nors) gpuNormal3sv(mv[mf->v2].no);
+					gpuVertex3fv(mv[mf->v2].co);
+					if (cp) gpuColor3ub(cp[11], cp[10], cp[9]);
+					if (nors) gpuNormal3sv(mv[mf->v3].no);
+					gpuVertex3fv(mv[mf->v3].co);
 					if (mf->v4) {
-						if (cp) glColor3ub(cp[15], cp[14], cp[13]);
-						glNormal3sv(mv[mf->v4].no);
-						glVertex3fv(mv[mf->v4].co);
+						if (cp) gpuColor3ub(cp[15], cp[14], cp[13]);
+						if (nors) gpuNormal3sv(mv[mf->v4].no);
+						gpuVertex3fv(mv[mf->v4].co);
 					}
 				}
 
-				glEnd();
+				gpuEnd();
 
 				if (draw_option == DM_DRAW_OPTION_STIPPLE)
 					glDisable(GL_POLYGON_STIPPLE);
@@ -975,11 +1024,17 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm,
 	}
 	else { /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
 		int prevstart = 0;
+
 		GPU_vertex_setup(dm);
-		GPU_normal_setup(dm);
-		if (useColors && mcol) {
+
+		if (nors) {
+			GPU_normal_setup(dm);
+		}
+
+		if (mcol) {
 			GPU_color_setup(dm, colType);
 		}
+
 		if (!GPU_buffer_legacy(dm)) {
 			int tottri = dm->drawObject->tot_triangle_point / 3;
 			glShadeModel(GL_SMOOTH);
@@ -989,6 +1044,7 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm,
 			}
 			if (setDrawOptions == NULL) {
 				/* just draw the entire face array */
+				gpuMatrixCommit();
 				glDrawArrays(GL_TRIANGLES, 0, (tottri) * 3);
 			}
 			else {
@@ -1000,7 +1056,7 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm,
 					int actualFace = next_actualFace;
 					MFace *mface = mf + actualFace;
 					/*int drawSmooth = (flag & DM_DRAW_ALWAYS_SMOOTH) ? 1 : (mface->flag & ME_SMOOTH);*/ /* UNUSED */
-					DMDrawOption draw_option = DM_DRAW_OPTION_NORMAL;
+					DMDrawOption draw_option = DM_DRAW_OPTION_NORMALLY;
 					int flush = 0;
 
 					if (i != tottri - 1)
@@ -1038,7 +1094,10 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm,
 						int count = (i - prevstart + (draw_option != DM_DRAW_OPTION_SKIP ? 1 : 0)) * 3;
 
 						if (count)
+						{
+							gpuMatrixCommit();
 							glDrawArrays(GL_TRIANGLES, first, count);
+						}
 
 						prevstart = i + 1;
 
@@ -1062,16 +1121,100 @@ static void cdDM_drawMappedFacesTex(DerivedMesh *dm,
 	cdDM_drawFacesTex_common(dm, NULL, setDrawOptions, compareDrawOptions, userData);
 }
 
+static void cddm_format_attrib_vertex(DMVertexAttribs *attribs)
+{
+	int b;
+
+	GLboolean texco = GL_FALSE;
+	GLint texSize[1];
+
+	GLint attribMap_f[16];
+	GLint attribSize_f[16];
+	GLint attrib_f = 0;
+
+	GLint attribMap_ub[16];
+	GLint attribSize_ub[16];
+	GLint attrib_ub = 0;
+
+	/* orco texture coordinates */
+	if (attribs->totorco) {
+		if (attribs->orco.gl_texco) {
+			texco = GL_TRUE;
+			texSize[0] = 3;
+		}
+		else {
+			attribMap_f[attrib_f] = attribs->orco.gl_index;
+			attribSize_f[attrib_f] = 3;
+			attrib_f++;
+		}
+	}
+
+	/* uv texture coordinates */
+	for (b = 0; b < attribs->tottface; b++) {
+		if (attribs->tface[b].gl_texco) {
+			texco = GL_TRUE;
+			texSize[0] = 2;
+		}
+		else {
+			attribMap_f[attrib_f] = attribs->tface[b].gl_index;
+			attribSize_f[attrib_f] = 2;
+			attrib_f++;
+		}
+	}
+
+	/* vertex colors */
+	for (b = 0; b < attribs->totmcol; b++) {
+		attribMap_ub[attrib_ub] = attribs->mcol[b].gl_index;
+		attribSize_ub[attrib_ub] = 4;
+		attrib_ub++;
+	}
+
+	/* tangent for normal mapping */
+	if (attribs->tottang) {
+		attribMap_f[attrib_f] = attribs->tang.gl_index;
+		attribSize_f[attrib_f] = 4;
+		attrib_f++;
+	}
+
+	gpuImmediateFormatReset();
+
+	gpuImmediateElementSizes(3, 3, 0);
+
+	if (texco) {
+		static const GLenum texmap[1] = { GL_TEXTURE0 };
+		gpuImmediateTextureUnitCount(1);
+		gpuImmediateTextureUnitMap(texmap);
+		gpuImmediateTexCoordSizes(texSize);
+	}
+
+	gpuImmediateFloatAttribCount(attrib_f);
+	gpuImmediateFloatAttribIndexMap(attribMap_f);
+	gpuImmediateFloatAttribSizes(attribSize_f);
+
+	gpuImmediateUbyteAttribCount(attrib_ub);
+	gpuImmediateUbyteAttribIndexMap(attribMap_ub);
+	gpuImmediateUbyteAttribSizes(attribSize_ub);
+
+	gpuImmediateLock();
+}
+
+static void cddm_unformat_attrib_vertex(void)
+{
+	gpuImmediateUnlock();
+}
+
 static void cddm_draw_attrib_vertex(DMVertexAttribs *attribs, MVert *mvert, int a, int index, int vert, int smoothnormal)
 {
 	int b;
+	GLint attrib_f = 0;
+	GLint attrib_ub = 0;
 
 	/* orco texture coordinates */
 	if (attribs->totorco) {
 		if (attribs->orco.gl_texco)
-			glTexCoord3fv(attribs->orco.array[index]);
+			gpuTexCoord3fv(attribs->orco.array[index]);
 		else
-			glVertexAttrib3fvARB(attribs->orco.gl_index, attribs->orco.array[index]);
+			gpuVertexAttrib3fv(attrib_f++, attribs->orco.array[index]);
 	}
 
 	/* uv texture coordinates */
@@ -1079,9 +1222,9 @@ static void cddm_draw_attrib_vertex(DMVertexAttribs *attribs, MVert *mvert, int 
 		MTFace *tf = &attribs->tface[b].array[a];
 
 		if (attribs->tface[b].gl_texco)
-			glTexCoord2fv(tf->uv[vert]);
+			gpuTexCoord2fv(tf->uv[vert]);
 		else
-			glVertexAttrib2fvARB(attribs->tface[b].gl_index, tf->uv[vert]);
+			gpuVertexAttrib2fv(attrib_f++, tf->uv[vert]);
 	}
 
 	/* vertex colors */
@@ -1089,21 +1232,21 @@ static void cddm_draw_attrib_vertex(DMVertexAttribs *attribs, MVert *mvert, int 
 		MCol *cp = &attribs->mcol[b].array[a * 4 + vert];
 		GLubyte col[4];
 		col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
-		glVertexAttrib4ubvARB(attribs->mcol[b].gl_index, col);
+		gpuVertexAttrib4ubv(attrib_ub++, col);
 	}
 
 	/* tangent for normal mapping */
 	if (attribs->tottang) {
 		float *tang = attribs->tang.array[a * 4 + vert];
-		glVertexAttrib4fvARB(attribs->tang.gl_index, tang);
+		gpuVertexAttrib4fv(attrib_f++, tang);
 	}
 
 	/* vertex normal */
 	if (smoothnormal)
-		glNormal3sv(mvert[index].no);
+		gpuNormal3sv(mvert[index].no);
 	
 	/* vertex coordinate */
-	glVertex3fv(mvert[index].co);
+	gpuVertex3fv(mvert[index].co);
 }
 
 static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
@@ -1152,20 +1295,23 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 		DEBUG_VBO("Using legacy code. cdDM_drawMappedFacesGLSL\n");
 		memset(&attribs, 0, sizeof(attribs));
 
-		glBegin(GL_QUADS);
+		cddm_format_attrib_vertex(&attribs); /* XXX: jwilkins, just to make this simple to write for now */
+		gpuBegin(GL_QUADS);
 
 		for (a = 0; a < dm->numTessFaceData; a++, mface++) {
 			const int smoothnormal = (mface->flag & ME_SMOOTH);
 			new_matnr = mface->mat_nr + 1;
 
 			if (new_matnr != matnr) {
-				glEnd();
+				gpuEnd();
+				cddm_unformat_attrib_vertex();
 
 				do_draw = setMaterial(matnr = new_matnr, &gattribs);
 				if (do_draw)
 					DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
 
-				glBegin(GL_QUADS);
+				cddm_format_attrib_vertex(&attribs);
+				gpuBegin(GL_QUADS);
 			}
 
 			if (!do_draw) {
@@ -1186,7 +1332,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 
 			if (!smoothnormal) {
 				if (nors) {
-					glNormal3fv(nors[a]);
+					gpuNormal3fv(nors[a]);
 				}
 				else {
 					/* TODO ideally a normal layer should always be available */
@@ -1197,7 +1343,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 					else {
 						normal_tri_v3(nor, mvert[mface->v1].co, mvert[mface->v2].co, mvert[mface->v3].co);
 					}
-					glNormal3fv(nor);
+					gpuNormal3fv(nor);
 				}
 			}
 
@@ -1210,7 +1356,8 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 			else
 				cddm_draw_attrib_vertex(&attribs, mvert, a, mface->v3, 2, smoothnormal);
 		}
-		glEnd();
+		gpuEnd();
+		cddm_unformat_attrib_vertex();
 	}
 	else {
 		GPUBuffer *buffer = NULL;
@@ -1227,6 +1374,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 		GPU_normal_setup(dm);
 
 		if (!GPU_buffer_legacy(dm)) {
+			gpuMatrixCommit();
 			for (i = 0; i < dm->drawObject->tot_triangle_point / 3; i++) {
 
 				a = dm->drawObject->triangle_to_mface[i];
@@ -1406,6 +1554,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 						GPU_buffer_unlock(buffer);
 						GPU_interleaved_attrib_setup(buffer, datatypes, numdata);
 					}
+					gpuMatrixCommit();
 					glDrawArrays(GL_TRIANGLES, start * 3, (curface - start) * 3);
 				}
 			}
@@ -1463,7 +1612,8 @@ static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
 
 	memset(&attribs, 0, sizeof(attribs));
 
-	glBegin(GL_QUADS);
+	cddm_format_attrib_vertex(&attribs); /* XXX: jwilkins, just to make this simple to write for now */
+	gpuBegin(GL_QUADS);
 
 	for (a = 0; a < dm->numTessFaceData; a++, mf++) {
 		const int smoothnormal = (mf->flag & ME_SMOOTH);
@@ -1472,12 +1622,14 @@ static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
 		new_matnr = mf->mat_nr + 1;
 
 		if (new_matnr != matnr) {
-			glEnd();
+			gpuEnd();
+			cddm_unformat_attrib_vertex();
 
 			setMaterial(userData, matnr = new_matnr, &gattribs);
 			DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
 
-			glBegin(GL_QUADS);
+			cddm_format_attrib_vertex(&attribs);
+			gpuBegin(GL_QUADS);
 		}
 
 		/* skipping faces */
@@ -1491,7 +1643,7 @@ static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
 		/* smooth normal */
 		if (!smoothnormal) {
 			if (nors) {
-				glNormal3fv(nors[a]);
+				gpuNormal3fv(nors[a]);
 			}
 			else {
 				/* TODO ideally a normal layer should always be available */
@@ -1502,7 +1654,7 @@ static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
 				else
 					normal_tri_v3(nor, mvert[mf->v1].co, mvert[mf->v2].co, mvert[mf->v3].co);
 
-				glNormal3fv(nor);
+				gpuNormal3fv(nor);
 			}
 		}
 
@@ -1516,7 +1668,8 @@ static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
 		else
 			cddm_draw_attrib_vertex(&attribs, mvert, a, mf->v3, 2, smoothnormal);
 	}
-	glEnd();
+	gpuEnd();
+	cddm_unformat_attrib_vertex();
 
 	glShadeModel(GL_FLAT);
 }
@@ -1528,21 +1681,25 @@ static void cdDM_drawMappedEdges(DerivedMesh *dm, DMSetDrawOptions setDrawOption
 	MEdge *edge = cddm->medge;
 	int i, orig, *index = DM_get_edge_data_layer(dm, CD_ORIGINDEX);
 
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	for (i = 0; i < dm->numEdgeData; i++, edge++) {
 		if (index) {
 			orig = *index++;
-			if (setDrawOptions && orig == ORIGINDEX_NONE) continue;
+
+			if (setDrawOptions && orig == ORIGINDEX_NONE) {
+				continue;
+			}
 		}
-		else
+		else {
 			orig = i;
+		}
 
 		if (!setDrawOptions || (setDrawOptions(userData, orig) != DM_DRAW_OPTION_SKIP)) {
-			glVertex3fv(vert[edge->v1].co);
-			glVertex3fv(vert[edge->v2].co);
+			gpuVertex3fv(vert[edge->v1].co);
+			gpuVertex3fv(vert[edge->v2].co);
 		}
 	}
-	glEnd();
+	gpuEnd();
 }
 
 static void cdDM_foreachMappedVert(

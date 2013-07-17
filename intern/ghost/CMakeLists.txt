@@ -129,7 +129,6 @@ if(WITH_HEADLESS OR WITH_GHOST_SDL)
 		add_definitions(-DWITH_GHOST_SDL)
 	endif()
 
-
 	# ack, this is still system dependant
 	if(APPLE)
 		if(WITH_COCOA)
@@ -157,7 +156,6 @@ if(WITH_HEADLESS OR WITH_GHOST_SDL)
 	elseif(WIN32)
 		list(APPEND SRC
 			intern/GHOST_SystemPathsWin32.cpp
-
 			intern/GHOST_SystemPathsWin32.h
 		)
 
@@ -172,148 +170,204 @@ if(WITH_HEADLESS OR WITH_GHOST_SDL)
 		)
 	endif()
 
-elseif(APPLE)
-	if(WITH_COCOA)
+else()
+	if(WITH_GL_SYSTEM_EMBEDDED)
 		list(APPEND SRC
-			intern/GHOST_DisplayManagerCocoa.mm
-			intern/GHOST_SystemCocoa.mm
-			intern/GHOST_SystemPathsCocoa.mm
-			intern/GHOST_WindowCocoa.mm
-
-			intern/GHOST_DisplayManagerCocoa.h
-			intern/GHOST_SystemCocoa.h
-			intern/GHOST_SystemPathsCocoa.h
-			intern/GHOST_WindowCocoa.h
+			intern/GHOST_ContextEGL.cpp
+			
+			intern/GHOST_ContextEGL.h
 		)
 
-		if(WITH_INPUT_NDOF)
+		add_definitions(-DWITH_GL_SYSTEM_EMBEDDED)
+	endif()
+
+	if(WITH_GL_SYSTEM_LEGACY)
+		add_definitions(-DWITH_GL_SYSTEM_LEGACY)
+	endif()
+
+	if(WITH_GL_SYSTEM_DESKTOP)
+		add_definitions(-DWITH_GL_SYSTEM_DESKTOP)
+	endif()
+
+	if(APPLE)
+		if(WITH_COCOA)
 			list(APPEND SRC
-				intern/GHOST_NDOFManagerCocoa.mm
-				intern/GHOST_NDOFManagerCocoa.h
+				intern/GHOST_DisplayManagerCocoa.mm
+				intern/GHOST_SystemCocoa.mm
+				intern/GHOST_SystemPathsCocoa.mm
+				intern/GHOST_WindowCocoa.mm
+
+				intern/GHOST_DisplayManagerCocoa.h
+				intern/GHOST_SystemCocoa.h
+				intern/GHOST_SystemPathsCocoa.h
+				intern/GHOST_WindowCocoa.h
+			)
+			
+			if (WITH_GL_SYSTEM_LEGACY OR WITH_GL_SYSTEM_DESKTOP)
+				list(APPEND SRC
+					intern/GHOST_ContextCGL.mm
+					
+					intern/GHOST_ContextCGL.h
+				)
+			endif()
+
+			if(WITH_INPUT_NDOF)
+				list(APPEND SRC
+					intern/GHOST_NDOFManagerCocoa.mm
+					
+					intern/GHOST_NDOFManagerCocoa.h
+				)
+			endif()
+
+		else()
+			list(APPEND SRC
+				intern/GHOST_DisplayManagerCarbon.cpp
+				intern/GHOST_SystemCarbon.cpp
+				intern/GHOST_SystemPathsCarbon.cpp
+				intern/GHOST_WindowCarbon.cpp
+
+				intern/GHOST_DisplayManagerCarbon.h
+				intern/GHOST_SystemCarbon.h
+				intern/GHOST_SystemPathsCarbon.h
+				intern/GHOST_WindowCarbon.h
+			)
+
+			if (WITH_GL_SYSTEM_LEGACY OR WITH_GL_SYSTEM_DESKTOP)
+				list(APPEND SRC
+					intern/GHOST_ContextAGL.cpp
+					
+					intern/GHOST_ContextAGL.h
+				)
+			endif()
+
+			endif()
+
+		if(WITH_CODEC_QUICKTIME)
+			add_definitions(-DWITH_QUICKTIME)
+		endif()
+
+	elseif(UNIX)
+
+		list(APPEND INC_SYS
+			${X11_X11_INCLUDE_PATH}
+		)
+
+		list(APPEND SRC
+			intern/GHOST_DisplayManagerX11.cpp
+			intern/GHOST_SystemX11.cpp
+			intern/GHOST_SystemPathsX11.cpp
+			intern/GHOST_WindowX11.cpp
+
+			intern/GHOST_DisplayManagerX11.h
+			intern/GHOST_SystemX11.h
+			intern/GHOST_SystemPathsX11.h
+			intern/GHOST_WindowX11.h
+		)
+
+		if (WITH_GL_SYSTEM_LEGACY OR WITH_GL_SYSTEM_DESKTOP)
+			list(APPEND SRC
+				intern/GHOST_ContextXGL.cpp
+				
+				intern/GHOST_ContextXGL.h
+			)
+		endif()
+		
+		if(WITH_GHOST_XDND)
+			add_definitions(-DWITH_XDND)
+
+			list(APPEND INC
+				../../extern/xdnd
+			)
+
+			list(APPEND SRC
+				intern/GHOST_DropTargetX11.cpp
+
+				intern/GHOST_DropTargetX11.h
 			)
 		endif()
 
-	else()
-		list(APPEND SRC
-			intern/GHOST_DisplayManagerCarbon.cpp
-			intern/GHOST_SystemCarbon.cpp
-			intern/GHOST_SystemPathsCarbon.cpp
-			intern/GHOST_WindowCarbon.cpp
+		if(X11_XF86keysym_INCLUDE_PATH)
+			add_definitions(-DWITH_XF86KEYSYM)
+			list(APPEND INC_SYS
+				${X11_XF86keysym_INCLUDE_PATH}
+			)
+		endif()
 
-			intern/GHOST_DisplayManagerCarbon.h
-			intern/GHOST_SystemCarbon.h
-			intern/GHOST_SystemPathsCarbon.h
-			intern/GHOST_WindowCarbon.h
+		if(WITH_X11_XF86VMODE)
+			add_definitions(-DWITH_X11_XF86VMODE)
+			list(APPEND INC_SYS
+				${X11_xf86vmode_INCLUDE_PATH}
+			)
+		endif()
+
+		if(WITH_INPUT_NDOF)
+			list(APPEND SRC
+				intern/GHOST_NDOFManagerX11.cpp
+
+				intern/GHOST_NDOFManagerX11.h
+			)
+		endif()
+
+		if(NOT WITH_INSTALL_PORTABLE)
+			add_definitions(-DPREFIX="${CMAKE_INSTALL_PREFIX}")
+		endif()
+
+		if(WITH_X11_XINPUT)
+			add_definitions(-DWITH_X11_XINPUT)
+			list(APPEND INC_SYS
+				${X11_Xinput_INCLUDE_PATH}
+			)
+		endif()
+
+	elseif(WIN32)
+		## Warnings as errors, this is too strict!
+		#if(MSVC)
+		#	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX")
+		#endif()
+
+		list(APPEND INC_SYS
+			${WINTAB_INC}
 		)
-	endif()
-
-	if(WITH_CODEC_QUICKTIME)
-		add_definitions(-DWITH_QUICKTIME)
-	endif()
-
-elseif(UNIX)
-
-	list(APPEND INC_SYS
-		${X11_X11_INCLUDE_PATH}
-	)
-
-	list(APPEND SRC
-		intern/GHOST_DisplayManagerX11.cpp
-		intern/GHOST_SystemX11.cpp
-		intern/GHOST_SystemPathsX11.cpp
-		intern/GHOST_WindowX11.cpp
-
-		intern/GHOST_DisplayManagerX11.h
-		intern/GHOST_SystemX11.h
-		intern/GHOST_SystemPathsX11.h
-		intern/GHOST_WindowX11.h
-	)
-
-	if(WITH_GHOST_XDND)
-		add_definitions(-DWITH_XDND)
 
 		list(APPEND INC
-			../../extern/xdnd
+			../utfconv
 		)
 
 		list(APPEND SRC
-			intern/GHOST_DropTargetX11.cpp
+			intern/GHOST_DisplayManagerWin32.cpp
+			intern/GHOST_SystemWin32.cpp
+			intern/GHOST_SystemPathsWin32.cpp
+			intern/GHOST_WindowWin32.cpp
+			intern/GHOST_DropTargetWin32.cpp
 
-			intern/GHOST_DropTargetX11.h
+			intern/GHOST_DisplayManagerWin32.h
+			intern/GHOST_DropTargetWin32.h
+			intern/GHOST_SystemWin32.h
+			intern/GHOST_SystemPathsWin32.h
+			intern/GHOST_WindowWin32.h
+			intern/GHOST_TaskbarWin32.h
 		)
-	endif()
 
-	if(X11_XF86keysym_INCLUDE_PATH)
-		add_definitions(-DWITH_XF86KEYSYM)
-		list(APPEND INC_SYS
-			${X11_XF86keysym_INCLUDE_PATH}
-		)
-	endif()
+		if (WITH_GL_SYSTEM_LEGACY OR WITH_GL_SYSTEM_DESKTOP)
+			list(APPEND SRC
+				intern/GHOST_ContextWGL.cpp
+				
+				intern/GHOST_ContextWGL.h
+			)
+		endif()
+		
+		if(WITH_INPUT_NDOF)
+			list(APPEND SRC
+				intern/GHOST_NDOFManagerWin32.cpp
 
-	if(WITH_X11_XF86VMODE)
-		add_definitions(-DWITH_X11_XF86VMODE)
-		list(APPEND INC_SYS
-			${X11_xf86vmode_INCLUDE_PATH}
-		)
-	endif()
+				intern/GHOST_NDOFManagerWin32.h
+			)
+		endif()
 
-	if(WITH_INPUT_NDOF)
-		list(APPEND SRC
-			intern/GHOST_NDOFManagerX11.cpp
-
-			intern/GHOST_NDOFManagerX11.h
-		)
-	endif()
-
-	if(NOT WITH_INSTALL_PORTABLE)
-		add_definitions(-DPREFIX="${CMAKE_INSTALL_PREFIX}")
-	endif()
-
-	if(WITH_X11_XINPUT)
-		add_definitions(-DWITH_X11_XINPUT)
-		list(APPEND INC_SYS
-			${X11_Xinput_INCLUDE_PATH}
-		)
-	endif()
-
-elseif(WIN32)
-	## Warnings as errors, this is too strict!
-	#if(MSVC)
-	#	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX")
-	#endif()
-
-	list(APPEND INC_SYS
-		${WINTAB_INC}
-	)
-
-	list(APPEND INC
-		../utfconv
-	)
-
-	list(APPEND SRC
-		intern/GHOST_DisplayManagerWin32.cpp
-		intern/GHOST_SystemWin32.cpp
-		intern/GHOST_SystemPathsWin32.cpp
-		intern/GHOST_WindowWin32.cpp
-		intern/GHOST_DropTargetWin32.cpp
-
-		intern/GHOST_DisplayManagerWin32.h
-		intern/GHOST_DropTargetWin32.h
-		intern/GHOST_SystemWin32.h
-		intern/GHOST_SystemPathsWin32.h
-		intern/GHOST_WindowWin32.h
-		intern/GHOST_TaskbarWin32.h
-	)
-
-	if(WITH_INPUT_NDOF)
-		list(APPEND SRC
-			intern/GHOST_NDOFManagerWin32.cpp
-
-			intern/GHOST_NDOFManagerWin32.h
-		)
 	endif()
 
 endif()
 
-blender_add_lib(bf_intern_ghost "${SRC}" "${INC}" "${INC_SYS}")
+add_definitions(${GL_DEFINITIONS})
 
+blender_add_lib(bf_intern_ghost "${SRC}" "${INC}" "${INC_SYS}")

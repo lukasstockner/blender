@@ -112,6 +112,9 @@
 #include "GPU_buffers.h"
 #include "GPU_extensions.h"
 #include "GPU_draw.h"
+#include "GPU_compatibility.h"
+#include "GPU_object.h"
+#include "GPU_functions.h"
 
 #include "BKE_depsgraph.h"
 #include "BKE_sound.h"
@@ -128,6 +131,9 @@ static void wm_free_reports(bContext *C)
 
 bool wm_start_with_console = false; /* used in creator.c */
 
+static GPUimmediate* immediate;
+static GPUindex*     gindex;
+
 /* only called once, for startup */
 void WM_init(bContext *C, int argc, const char **argv)
 {
@@ -135,6 +141,22 @@ void WM_init(bContext *C, int argc, const char **argv)
 	if (!G.background) {
 		wm_ghost_init(C);   /* note: it assigns C to ghost! */
 		wm_init_cursor_data();
+
+		/* begin - init opengl compatibility layer */
+		GPU_init_graphics_type();
+		GPU_ms_init();
+		GPU_init_object_func();
+
+		immediate = gpuNewImmediate();
+		gpuImmediateMakeCurrent(immediate);
+		gpuImmediateMaxVertexCount(500000); // XXX: temporary!
+
+		gindex = gpuNewIndex();
+		gpuImmediateIndex(gindex);
+		gpuImmediateMaxIndexCount(500000); // XXX: temporary!
+
+		gpuInitializeLighting();
+		/* end - init opengl compatibility layer */
 	}
 	GHOST_CreateSystemPaths();
 
@@ -197,8 +219,6 @@ void WM_init(bContext *C, int argc, const char **argv)
 	clear_matcopybuf();
 	ED_render_clear_mtex_copybuf();
 
-	// glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		
 	ED_preview_init_dbase();
 	
 	wm_read_history();
@@ -492,6 +512,16 @@ void WM_exit_ext(bContext *C, const short do_python)
 	GPU_free_unused_buffers();
 	GPU_extensions_exit();
 
+
+		gpuShutdownLighting();
+
+		gpuDeleteIndex(gindex);
+		gpuImmediateIndex(NULL);
+
+		gpuImmediateMakeCurrent(NULL);
+		gpuDeleteImmediate(immediate);
+
+		GPU_ms_exit();
 	BKE_reset_undo(); 
 	
 	ED_file_exit(); /* for fsmenu */

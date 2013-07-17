@@ -49,7 +49,9 @@
 #include "BKE_screen.h"
 #include "BKE_scene.h"
 
-#include "BIF_gl.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
+
 #include "BIF_glutil.h"
 
 #include "WM_api.h"
@@ -796,18 +798,18 @@ static void draw_horizontal_join_shape(ScrArea *sa, char dir)
 		}
 	}
 
-	glBegin(GL_POLYGON);
+	gpuBegin(GL_TRIANGLE_FAN);
 	for (i = 0; i < 5; i++)
-		glVertex2f(points[i].x, points[i].y);
-	glEnd();
-	glBegin(GL_POLYGON);
+		gpuVertex2f(points[i].x, points[i].y);
+	gpuEnd();
+	gpuBegin(GL_TRIANGLE_FAN);
 	for (i = 4; i < 8; i++)
-		glVertex2f(points[i].x, points[i].y);
-	glVertex2f(points[0].x, points[0].y);
-	glEnd();
+		gpuVertex2f(points[i].x, points[i].y);
+	gpuVertex2f(points[0].x, points[0].y);
+	gpuEnd();
 
-	glRectf(points[2].x, points[2].y, points[8].x, points[8].y);
-	glRectf(points[6].x, points[6].y, points[9].x, points[9].y);
+	gpuDrawFilledRectf(points[2].x, points[2].y, points[8].x, points[8].y);
+	gpuDrawFilledRectf(points[6].x, points[6].y, points[9].x, points[9].y);
 }
 
 /* draw vertical shape visualizing future joining (up/down direction) */
@@ -868,35 +870,38 @@ static void draw_vertical_join_shape(ScrArea *sa, char dir)
 		}
 	}
 
-	glBegin(GL_POLYGON);
+	gpuBegin(GL_TRIANGLE_FAN);
 	for (i = 0; i < 5; i++)
-		glVertex2f(points[i].x, points[i].y);
-	glEnd();
-	glBegin(GL_POLYGON);
+		gpuVertex2f(points[i].x, points[i].y);
+	gpuEnd();
+	gpuBegin(GL_TRIANGLE_FAN);
 	for (i = 4; i < 8; i++)
-		glVertex2f(points[i].x, points[i].y);
-	glVertex2f(points[0].x, points[0].y);
-	glEnd();
+		gpuVertex2f(points[i].x, points[i].y);
+	gpuVertex2f(points[0].x, points[0].y);
+	gpuEnd();
 
-	glRectf(points[2].x, points[2].y, points[8].x, points[8].y);
-	glRectf(points[6].x, points[6].y, points[9].x, points[9].y);
+	gpuDrawFilledRectf(points[2].x, points[2].y, points[8].x, points[8].y);
+	gpuDrawFilledRectf(points[6].x, points[6].y, points[9].x, points[9].y);
 }
 
 /* draw join shape due to direction of joining */
 static void draw_join_shape(ScrArea *sa, char dir)
 {
+	gpuImmediateFormat_V2();
+
 	if (dir == 'u' || dir == 'd')
 		draw_vertical_join_shape(sa, dir);
 	else
 		draw_horizontal_join_shape(sa, dir);
+
+	gpuImmediateUnformat();
 }
 
 /* draw screen area darker with arrow (visualization of future joining) */
 static void scrarea_draw_shape_dark(ScrArea *sa, char dir)
 {
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
-	glColor4ub(0, 0, 0, 50);
+	gpuCurrentColor4x(CPACK_BLACK, 0.196f);
 	draw_join_shape(sa, dir);
 	glDisable(GL_BLEND);
 }
@@ -904,33 +909,39 @@ static void scrarea_draw_shape_dark(ScrArea *sa, char dir)
 /* draw screen area ligher with arrow shape ("eraser" of previous dark shape) */
 static void scrarea_draw_shape_light(ScrArea *sa, char UNUSED(dir))
 {
-	glBlendFunc(GL_DST_COLOR, GL_SRC_ALPHA);
+	glBlendFunc(GL_DST_COLOR, GL_SRC_ALPHA); /* non-standard blend function */
 	glEnable(GL_BLEND);
 	/* value 181 was hardly computed: 181~105 */
-	glColor4ub(255, 255, 255, 50);
+	gpuCurrentColor4x(CPACK_WHITE, 0.196f);
 	/* draw_join_shape(sa, dir); */
-	glRecti(sa->v1->vec.x, sa->v1->vec.y, sa->v3->vec.x, sa->v3->vec.y);
+	gpuSingleFilledRecti(sa->v1->vec.x, sa->v1->vec.y, sa->v3->vec.x, sa->v3->vec.y);
 	glDisable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); /* reset blender default */
 }
 
 static void drawscredge_area_draw(int sizex, int sizey, short x1, short y1, short x2, short y2, short a) 
 {
+	gpuImmediateFormat_V2(); // DOODLE: up to 4 lines, mono
+	gpuBegin(GL_LINES);
+
 	/* right border area */
 	if (x2 < sizex - 1)
-		sdrawline(x2 + a, y1, x2 + a, y2);
-	
+		gpuAppendLinei(x2 + a, y1, x2 + a, y2);
+
 	/* left border area */
 	if (x1 > 0) /* otherwise it draws the emboss of window over */
-		sdrawline(x1 + a, y1, x1 + a, y2);
-	
+		gpuAppendLinei(x1 + a, y1, x1 + a, y2);
+
 	/* top border area */
 	if (y2 < sizey - 1)
-		sdrawline(x1, y2 + a, x2, y2 + a);
-	
+		gpuAppendLinei(x1, y2 + a, x2, y2 + a);
+
 	/* bottom border area */
 	if (y1 > 0)
-		sdrawline(x1, y1 + a, x2, y1 + a);
-	
+		gpuAppendLinei(x1, y1 + a, x2, y1 + a);
+
+	gpuEnd();
+	gpuImmediateUnformat();
 }
 
 /** screen edges drawing **/
@@ -943,15 +954,14 @@ static void drawscredge_area(ScrArea *sa, int sizex, int sizey, int center)
 	
 	if (center == 0) {
 		if (U.pixelsize > 1.0f) {
-		
-			glColor3ub(0x50, 0x50, 0x50);
+			gpuCurrentGray3f(0.314f);
 			glLineWidth(1.5f * U.pixelsize);
 			drawscredge_area_draw(sizex, sizey, x1, y1, x2, y2, 0);
 			glLineWidth(1.0f);
 		}
 	}
 	else {
-		glColor3ub(0, 0, 0);
+		gpuCurrentColor3x(CPACK_BLACK);
 		drawscredge_area_draw(sizex, sizey, x1, y1, x2, y2, 0);
 	}
 }
@@ -1070,19 +1080,26 @@ void ED_screen_draw(wmWindow *win)
 	/* splitpoint */
 	if (sa3) {
 		glEnable(GL_BLEND);
-		glColor4ub(255, 255, 255, 100);
-		
+
+		gpuImmediateFormat_C4_V2(); // DOODLE: 2 lines, colored
+		gpuBegin(GL_LINES);
+
+		gpuCurrentColor4x(CPACK_WHITE, 0.392f);
+
 		if (sa3->flag & AREA_FLAG_DRAWSPLIT_H) {
-			sdrawline(sa3->totrct.xmin, win->eventstate->y, sa3->totrct.xmax, win->eventstate->y);
-			glColor4ub(0, 0, 0, 100);
-			sdrawline(sa3->totrct.xmin, win->eventstate->y + 1, sa3->totrct.xmax, win->eventstate->y + 1);
+			gpuAppendLinei(sa3->totrct.xmin, win->eventstate->y, sa3->totrct.xmax, win->eventstate->y);
+			gpuColor4x(CPACK_BLACK, 0.392f);
+			gpuAppendLinei(sa3->totrct.xmin, win->eventstate->y + 1, sa3->totrct.xmax, win->eventstate->y + 1);
 		}
 		else {
-			sdrawline(win->eventstate->x, sa3->totrct.ymin, win->eventstate->x, sa3->totrct.ymax);
-			glColor4ub(0, 0, 0, 100);
-			sdrawline(win->eventstate->x + 1, sa3->totrct.ymin, win->eventstate->x + 1, sa3->totrct.ymax);
+			gpuAppendLinei(win->eventstate->x, sa3->totrct.ymin, win->eventstate->x, sa3->totrct.ymax);
+			gpuColor4x(CPACK_BLACK, 0.392f);
+			gpuAppendLinei(win->eventstate->x + 1, sa3->totrct.ymin, win->eventstate->x + 1, sa3->totrct.ymax);
 		}
-		
+
+		gpuEnd();
+		gpuImmediateUnformat();
+
 		glDisable(GL_BLEND);
 	}
 	

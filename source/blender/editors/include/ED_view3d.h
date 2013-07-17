@@ -237,8 +237,6 @@ float ED_view3d_pixel_size(struct RegionView3D *rv3d, const float co[3]);
 float ED_view3d_radius_to_persp_dist(const float angle, const float radius);
 float ED_view3d_radius_to_ortho_dist(const float lens, const float radius);
 
-void drawcircball(int mode, const float cent[3], float rad, float tmat[4][4]);
-
 /* backbuffer select and draw support */
 void view3d_validate_backbuf(struct ViewContext *vc);
 struct ImBuf *view3d_read_backbuf(struct ViewContext *vc, short xmin, short ymin, short xmax, short ymax);

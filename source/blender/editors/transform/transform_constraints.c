@@ -46,7 +46,8 @@
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 
-#include "BIF_gl.h"
+#include "GPU_primitives.h"
+
 #include "BIF_glutil.h"
 
 #include "BLI_math.h"
@@ -655,71 +656,6 @@ void setUserConstraint(TransInfo *t, short orientation, int mode, const char fte
 	t->con.mode |= CON_USER;
 }
 
-/*----------------- DRAWING CONSTRAINTS -------------------*/
-
-void drawConstraint(TransInfo *t)
-{
-	TransCon *tc = &(t->con);
-
-	if (!ELEM3(t->spacetype, SPACE_VIEW3D, SPACE_IMAGE, SPACE_NODE))
-		return;
-	if (!(tc->mode & CON_APPLY))
-		return;
-	if (t->flag & T_USES_MANIPULATOR)
-		return;
-	if (t->flag & T_NO_CONSTRAINT)
-		return;
-
-	/* nasty exception for Z constraint in camera view */
-	// TRANSFORM_FIX_ME
-//	if ((t->flag & T_OBJECT) && G.vd->camera==OBACT && G.vd->persp==V3D_CAMOB)
-//		return;
-
-	if (tc->drawExtra) {
-		tc->drawExtra(t);
-	}
-	else {
-		if (tc->mode & CON_SELECT) {
-			float vec[3];
-			char col2[3] = {255, 255, 255};
-			int depth_test_enabled;
-
-			convertViewVec(t, vec, (t->mval[0] - t->con.imval[0]), (t->mval[1] - t->con.imval[1]));
-			add_v3_v3(vec, tc->center);
-
-			drawLine(t, tc->center, tc->mtx[0], 'X', 0);
-			drawLine(t, tc->center, tc->mtx[1], 'Y', 0);
-			drawLine(t, tc->center, tc->mtx[2], 'Z', 0);
-
-			glColor3ubv((GLubyte *)col2);
-
-			depth_test_enabled = glIsEnabled(GL_DEPTH_TEST);
-			if (depth_test_enabled)
-				glDisable(GL_DEPTH_TEST);
-
-			setlinestyle(1);
-			glBegin(GL_LINE_STRIP);
-			glVertex3fv(tc->center);
-			glVertex3fv(vec);
-			glEnd();
-			setlinestyle(0);
-
-			if (depth_test_enabled)
-				glEnable(GL_DEPTH_TEST);
-		}
-
-		if (tc->mode & CON_AXIS0) {
-			drawLine(t, tc->center, tc->mtx[0], 'X', DRAWLIGHT);
-		}
-		if (tc->mode & CON_AXIS1) {
-			drawLine(t, tc->center, tc->mtx[1], 'Y', DRAWLIGHT);
-		}
-		if (tc->mode & CON_AXIS2) {
-			drawLine(t, tc->center, tc->mtx[2], 'Z', DRAWLIGHT);
-		}
-	}
-}
-
 /* called from drawview.c, as an extra per-window draw option */
 void drawPropCircle(const struct bContext *C, TransInfo *t)
 {
@@ -739,7 +675,7 @@ void drawPropCircle(const struct bContext *C, TransInfo *t)
 			unit_m4(imat);
 		}
 
-		glPushMatrix();
+		gpuPushMatrix();
 
 		copy_v3_v3(center, t->center);
 
@@ -756,14 +692,14 @@ void drawPropCircle(const struct bContext *C, TransInfo *t)
 			else {
 				ED_space_image_get_uv_aspect(t->sa->spacedata.first, &aspx, &aspy);
 			}
-			glScalef(1.0f / aspx, 1.0f / aspy, 1.0);
+			gpuScale(1.0f / aspx, 1.0f / aspy, 1.0);
 		}
 
 		set_inverted_drawing(1);
-		drawcircball(GL_LINE_LOOP, center, t->prop_size, imat);
+		gpuSingleFastBall(GL_LINE_LOOP, center, t->prop_size, imat);
 		set_inverted_drawing(0);
 
-		glPopMatrix();
+		gpuPopMatrix();
 	}
 }
 
@@ -779,6 +715,10 @@ static void drawObjectConstraint(TransInfo *t)
 	TransData *td = t->data;
 	int i;
 	float tmp_axismtx[3][3];
+
+	gpuImmediateFormat_C4_V3();
+
+	gpuBegin(GL_LINES);
 
 	for (i = 0; i < t->total; i++, td++) {
 		float co[3];
@@ -804,16 +744,22 @@ static void drawObjectConstraint(TransInfo *t)
 		}
 
 		if (t->con.mode & CON_AXIS0) {
-			drawLine(t, co, axismtx[0], 'X', options);
+			drawConstraintLine(t, co, axismtx[0], 'X', options);
 		}
+
 		if (t->con.mode & CON_AXIS1) {
-			drawLine(t, co, axismtx[1], 'Y', options);
+			drawConstraintLine(t, co, axismtx[1], 'Y', options);
 		}
+
 		if (t->con.mode & CON_AXIS2) {
-			drawLine(t, co, axismtx[2], 'Z', options);
+			drawConstraintLine(t, co, axismtx[2], 'Z', options);
 		}
 		options &= ~DRAWLIGHT;
 	}
+
+	gpuEnd();
+
+	gpuImmediateUnformat();
 }
 
 /*--------------------- START / STOP CONSTRAINTS ---------------------- */

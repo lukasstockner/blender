@@ -40,8 +40,6 @@
 #include "BKE_deform.h"
 #include "BKE_report.h"
 
-#include "BIF_gl.h"
-
 #include "RNA_access.h"
 #include "RNA_define.h"
 
@@ -51,6 +49,8 @@
 #include "ED_armature.h"
 #include "ED_screen.h"
 #include "ED_view3d.h"
+
+#include "GPU_compatibility.h"
 
 #include "armature_intern.h"
 

@@ -27,3 +27,7 @@ set(SRC
 
 # SRC_DNA_INC is defined in the parent dir
 add_executable(datatoc ${SRC})
+
+if(WITH_CODE_COVERAGE AND (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+    target_link_libraries(datatoc ${PLATFORM_LINKLIBS})
+endif()

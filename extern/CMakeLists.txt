@@ -47,7 +47,11 @@ if(WITH_BINRELOC)
 endif()
 
 if(NOT WITH_SYSTEM_GLEW)
-	add_subdirectory(glew)
+	if(WITH_GL_EXPERIMENTAL_GLEW)
+		add_subdirectory(glew-es)
+	else()
+		add_subdirectory(glew)
+	endif()
 endif()
 
 if(WITH_GAMEENGINE)

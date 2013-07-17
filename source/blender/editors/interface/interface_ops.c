@@ -54,7 +54,7 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "BIF_gl.h"
+#include "GPU_compatibility.h"
 
 #include "UI_interface.h"
 

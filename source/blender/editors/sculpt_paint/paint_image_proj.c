@@ -77,7 +77,6 @@
 
 #include "BKE_editmesh.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h"
 
 #include "UI_view2d.h"
@@ -99,6 +98,7 @@
 #include "RNA_enum_types.h"
 
 #include "GPU_draw.h"
+#include "GPU_compatibility.h"
 
 #include "IMB_colormanagement.h"
 

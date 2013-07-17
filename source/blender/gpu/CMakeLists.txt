@@ -47,17 +47,55 @@ set(INC_SYS
 set(SRC
 	intern/gpu_buffers.c
 	intern/gpu_codegen.c
+	intern/gpu_debug.c
 	intern/gpu_draw.c
 	intern/gpu_extensions.c
+	intern/gpu_immediate.c
+	intern/gpu_immediate_glsl.c
+	intern/gpu_immediate_gl11.c
+	intern/gpu_immediate_vbo.c
+	intern/gpu_lighting.c
+	intern/gpu_lighting_gl11.c
+	intern/gpu_lighting_glsl.c
 	intern/gpu_material.c
+	intern/gpu_matrix.c
 	intern/gpu_simple_shader.c
+	intern/gpu_primitives.c
+	intern/gpu_object.c
+	intern/gpu_object_gles.c
+	intern/gpu_object_gl11.c
+	intern/gpu_functions.c
+	intern/gpu_view.c
+	intern/gpu_view_gl.c
 
 	GPU_buffers.h
+	GPU_colors.h
+	GPU_compatibility.h
 	GPU_draw.h
 	GPU_extensions.h
 	GPU_material.h
+	GPU_utility.h
 	GPU_simple_shader.h
+	GPU_matrix.h
+	GPU_primitives.h
+	GPU_object.h
+	GPU_functions.h
+
 	intern/gpu_codegen.h
+	intern/gpu_deprecated.h
+	intern/gpu_glew.h
+	intern/gpu_immediate.h
+	intern/gpu_immediate_inline.h
+	intern/gpu_immediate_internal.h
+	intern/gpu_lighting.h
+	intern/gpu_lighting_inline.h
+	intern/gpu_lighting_internal.h
+	intern/gpu_object_gles.h
+	intern/gpu_object_gl11.h
+	intern/gpu_primitives_inline.h
+	intern/gpu_safety.h
+	intern/gpu_view.h
+	intern/gpu_view_gl.h
 )
 
 data_to_c_simple(shaders/gpu_shader_material.glsl SRC)
@@ -73,12 +111,11 @@ if(WITH_MOD_SMOKE)
 	add_definitions(-DWITH_SMOKE)
 endif()
 
-add_definitions(-DGLEW_STATIC)
-
 if(WITH_IMAGE_DDS)
 	add_definitions(-DWITH_DDS)
 endif()
 
+add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(bf_gpu "${SRC}" "${INC}" "${INC_SYS}")
 

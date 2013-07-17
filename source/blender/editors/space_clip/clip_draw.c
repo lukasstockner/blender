@@ -57,7 +57,9 @@
 #include "ED_mask.h"
 #include "ED_gpencil.h"
 
-#include "BIF_gl.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
+
 #include "BIF_glutil.h"
 
 #include "WM_api.h"
@@ -88,7 +90,7 @@ void clip_draw_curfra_label(const int framenr, const float x, const float y)
 
 	BLF_width_and_height(fontid, numstr, &font_dims[0], &font_dims[1]);
 
-	glRecti(x, y, x + font_dims[0] + 6.0f, y + font_dims[1] + 4.0f);
+	gpuSingleFilledRecti(x, y, x + font_dims[0] + 6.0f, y + font_dims[1] + 4.0f);
 
 	UI_ThemeColor(TH_TEXT);
 	BLF_position(fontid, x + 2.0f, y + 2.0f, 0.0f);
@@ -101,13 +103,13 @@ static void draw_keyframe(int frame, int cfra, int sfra, float framelen, int wid
 	int x = (frame - sfra) * framelen;
 
 	if (width == 1) {
-		glBegin(GL_LINES);
-		glVertex2i(x, 0);
-		glVertex2i(x, height * UI_DPI_FAC);
-		glEnd();
+		gpuBegin(GL_LINES);
+		gpuVertex2i(x, 0);
+		gpuVertex2i(x, height * UI_DPI_FAC);
+		gpuEnd();
 	}
 	else {
-		glRecti(x, 0, x + width, height * UI_DPI_FAC);
+		gpuDrawFilledRecti(x, 0, x + width, height * UI_DPI_FAC);
 	}
 }
 
@@ -124,13 +126,13 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 	glEnable(GL_BLEND);
 
 	/* cache background */
-	glColor4ub(128, 128, 255, 64);
-	glRecti(0, 0, ar->winx, 8 * UI_DPI_FAC);
+	gpuCurrentColor4ub(128, 128, 255, 64);
+	gpuSingleFilledRecti(0, 0, ar->winx, 8 * UI_DPI_FAC);
 
 	/* cached segments -- could be usefu lto debug caching strategies */
 	BKE_movieclip_get_cache_segments(clip, &sc->user, &totseg, &points);
 	if (totseg) {
-		glColor4ub(128, 128, 255, 128);
+		gpuCurrentColor4ub(128, 128, 255, 128);
 
 		for (a = 0; a < totseg; a++) {
 			float x1, x2;
@@ -138,7 +140,7 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 			x1 = (points[a * 2] - sfra) / (efra - sfra + 1) * ar->winx;
 			x2 = (points[a * 2 + 1] - sfra + 1) / (efra - sfra + 1) * ar->winx;
 
-			glRecti(x1, 0, x2, 8 * UI_DPI_FAC);
+			gpuSingleFilledRecti(x1, 0, x2, 8 * UI_DPI_FAC);
 		}
 	}
 
@@ -169,13 +171,13 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 				framenr = marker->framenr;
 
 				if (framenr != i)
-					glColor4ub(128, 128, 0, 96);
+					gpuCurrentColor4ub(128, 128, 0, 96);
 				else if ((marker->flag & MARKER_TRACKED) == 0)
-					glColor4ub(255, 255, 0, 196);
+					gpuCurrentColor4x(CPACK_YELLOW, 0.769f);
 				else
-					glColor4ub(255, 255, 0, 96);
+					gpuCurrentColor4x(CPACK_YELLOW, 0.376f);
 
-				glRecti((i - sfra + clip->start_frame - 1) * framelen, 0, (i - sfra + clip->start_frame) * framelen, 4 * UI_DPI_FAC);
+				gpuSingleFilledRecti((i - sfra + clip->start_frame - 1) * framelen, 0, (i - sfra + clip->start_frame) * framelen, 4 * UI_DPI_FAC);
 			}
 		}
 	}
@@ -185,7 +187,7 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 		int n = reconstruction->camnr;
 		MovieReconstructedCamera *cameras = reconstruction->cameras;
 
-		glColor4ub(255, 0, 0, 96);
+		gpuCurrentColor4x(CPACK_RED, 0.376f);
 
 		for (i = sfra, a = 0; i <= efra; i++) {
 			int ok = FALSE;
@@ -203,7 +205,7 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 			}
 
 			if (!ok)
-				glRecti((i - sfra + clip->start_frame - 1) * framelen, 0, (i - sfra + clip->start_frame) * framelen, 8 * UI_DPI_FAC);
+				gpuSingleFilledRecti((i - sfra + clip->start_frame - 1) * framelen, 0, (i - sfra + clip->start_frame) * framelen, 8 * UI_DPI_FAC);
 		}
 	}
 
@@ -213,14 +215,16 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 	x = (sc->user.framenr - sfra) / (efra - sfra + 1) * ar->winx;
 
 	UI_ThemeColor(TH_CFRAME);
-	glRecti(x, 0, x + ceilf(framelen), 8 * UI_DPI_FAC);
+	gpuSingleFilledRecti(x, 0, x + ceilf(framelen), 8 * UI_DPI_FAC);
 
 	clip_draw_curfra_label(sc->user.framenr, x, 8.0f * UI_DPI_FAC);
 
 	/* solver keyframes */
-	glColor4ub(175, 255, 0, 255);
+	gpuCurrentColor4ub(175, 255, 0, 255);
+	gpuImmediateFormat_V2();
 	draw_keyframe(act_object->keyframe1 + clip->start_frame - 1, CFRA, sfra, framelen, 2);
 	draw_keyframe(act_object->keyframe2 + clip->start_frame - 1, CFRA, sfra, framelen, 2);
+	gpuImmediateUnformat();
 
 	/* movie clip animation */
 	if ((sc->mode == SC_MODE_MASKEDIT) && sc->mask_info.mask) {
@@ -259,8 +263,8 @@ static void draw_movieclip_buffer(const bContext *C, SpaceClip *sc, ARegion *ar,
 	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &x, &y);
 
 	if (sc->flag & SC_MUTE_FOOTAGE) {
-		glColor3f(0.0f, 0.0f, 0.0f);
-		glRectf(x, y, x + zoomx * width, y + zoomy * height);
+		gpuCurrentColor3f(0.0f, 0.0f, 0.0f);
+		gpuSingleFilledRectf(x, y, x + zoomx * width, y + zoomy * height);
 	}
 	else {
 		MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -304,26 +308,27 @@ static void draw_stabilization_border(SpaceClip *sc, ARegion *ar, int width, int
 
 	/* draw boundary border for frame if stabilization is enabled */
 	if (sc->flag & SC_SHOW_STABLE && clip->tracking.stabilization.flag & TRACKING_2D_STABILIZATION) {
-		glColor3f(0.0f, 0.0f, 0.0f);
+		gpuCurrentColor3x(CPACK_BLACK);
+
 		glLineStipple(3, 0xaaaa);
 		glEnable(GL_LINE_STIPPLE);
 		glEnable(GL_COLOR_LOGIC_OP);
 		glLogicOp(GL_NOR);
 
-		glPushMatrix();
-		glTranslatef(x, y, 0.0f);
+		gpuPushMatrix();
+		gpuTranslate(x, y, 0.0f);
 
-		glScalef(zoomx, zoomy, 1.0f);
-		glMultMatrixf(sc->stabmat);
+		gpuScale(zoomx, zoomy, 1.0f);
+		gpuMultMatrix(sc->stabmat);
 
-		glBegin(GL_LINE_LOOP);
-		glVertex2f(0.0f, 0.0f);
-		glVertex2f(width, 0.0f);
-		glVertex2f(width, height);
-		glVertex2f(0.0f, height);
-		glEnd();
+		gpuBegin(GL_LINE_LOOP);
+		gpuVertex2f(0, 0);
+		gpuVertex2f(width, 0);
+		gpuVertex2f(width, height);
+		gpuVertex2f(0, height);
+		gpuEnd();
 
-		glPopMatrix();
+		gpuPopMatrix();
 
 		glDisable(GL_COLOR_LOGIC_OP);
 		glDisable(GL_LINE_STIPPLE);
@@ -395,19 +400,21 @@ static void draw_track_path(SpaceClip *sc, MovieClip *UNUSED(clip), MovieTrackin
 
 		if (TRACK_VIEW_SELECTED(sc, track)) {
 			glPointSize(5.0f);
-			glBegin(GL_POINTS);
+			gpuBegin(GL_POINTS);
 			for (i = a; i < b; i++) {
-				if (i != curindex)
-					glVertex2f(path[i][0], path[i][1]);
+				if (i != curindex) {
+					gpuVertex2f(path[i][0], path[i][1]);
+				}
 			}
-			glEnd();
+			gpuEnd();
 		}
 
 		glLineWidth(3.0f);
-		glBegin(GL_LINE_STRIP);
-		for (i = a; i < b; i++)
-			glVertex2f(path[i][0], path[i][1]);
-		glEnd();
+		gpuBegin(GL_LINE_STRIP);
+		for (i = a; i < b; i++) {
+			gpuVertex2f(path[i][0], path[i][1]);
+		}
+		gpuEnd();
 		glLineWidth(1.0f);
 	}
 
@@ -415,27 +422,30 @@ static void draw_track_path(SpaceClip *sc, MovieClip *UNUSED(clip), MovieTrackin
 
 	if (TRACK_VIEW_SELECTED(sc, track)) {
 		glPointSize(3.0f);
-		glBegin(GL_POINTS);
+		gpuBegin(GL_POINTS);
 		for (i = a; i < b; i++) {
-			if (i == count + 1)
+			if (i == count + 1) {
 				UI_ThemeColor(TH_PATH_AFTER);
+			}
 
-			if (i != curindex)
-				glVertex2f(path[i][0], path[i][1]);
+			if (i != curindex) {
+				gpuVertex2f(path[i][0], path[i][1]);
+			}
 		}
-		glEnd();
+		gpuEnd();
 	}
 
 	UI_ThemeColor(TH_PATH_BEFORE);
 
-	glBegin(GL_LINE_STRIP);
+	gpuBegin(GL_LINE_STRIP);
 	for (i = a; i < b; i++) {
-		if (i == count + 1)
+		if (i == count + 1) {
 			UI_ThemeColor(TH_PATH_AFTER);
+		}
 
-		glVertex2f(path[i][0], path[i][1]);
+		gpuVertex2f(path[i][0], path[i][1]);
 	}
-	glEnd();
+	gpuEnd();
 	glPointSize(1.0f);
 }
 
@@ -464,59 +474,73 @@ static void draw_marker_outline(SpaceClip *sc, MovieTrackingTrack *track, MovieT
 		if (isect_point_quad_v2(p, marker->pattern_corners[0], marker->pattern_corners[1],
 		                        marker->pattern_corners[2], marker->pattern_corners[3]))
 		{
-			if (tiny) glPointSize(3.0f);
-			else glPointSize(4.0f);
-			glBegin(GL_POINTS);
-			glVertex2f(pos[0], pos[1]);
-			glEnd();
+			if (tiny) {
+				glPointSize(3.0f);
+			}
+			else {
+				glPointSize(4.0f);
+			}
+
+			gpuBegin(GL_POINTS);
+			gpuVertex2f(pos[0], pos[1]);
+			gpuEnd();
+			
 			glPointSize(1.0f);
 		}
 		else {
-			if (!tiny) glLineWidth(3.0f);
-			glBegin(GL_LINES);
-			glVertex2f(pos[0] + px[0] * 2, pos[1]);
-			glVertex2f(pos[0] + px[0] * 8, pos[1]);
+			if (!tiny) {
+				glLineWidth(3.0f);
+			}
+			
+			gpuBegin(GL_LINES);
+			
+			gpuVertex2f(pos[0] + px[0]*2, pos[1]);
+			gpuVertex2f(pos[0] + px[0]*8, pos[1]);
 
-			glVertex2f(pos[0] - px[0] * 2, pos[1]);
-			glVertex2f(pos[0] - px[0] * 8, pos[1]);
+			gpuVertex2f(pos[0] - px[0]*2, pos[1]);
+			gpuVertex2f(pos[0] - px[0]*8, pos[1]);
 
-			glVertex2f(pos[0], pos[1] - px[1] * 2);
-			glVertex2f(pos[0], pos[1] - px[1] * 8);
+			gpuVertex2f(pos[0], pos[1] - px[1]*2);
+			gpuVertex2f(pos[0], pos[1] - px[1]*8);
 
-			glVertex2f(pos[0], pos[1] + px[1] * 2);
-			glVertex2f(pos[0], pos[1] + px[1] * 8);
-			glEnd();
-			if (!tiny) glLineWidth(1.0f);
+			gpuVertex2f(pos[0], pos[1] + px[1]*2);
+			gpuVertex2f(pos[0], pos[1] + px[1]*8);
+			
+			gpuEnd();
+			
+			if (!tiny) {
+				glLineWidth(1.0f);
+			}
 		}
 	}
 
 	/* pattern and search outline */
-	glPushMatrix();
-	glTranslatef(marker_pos[0], marker_pos[1], 0);
+	gpuPushMatrix();
+	gpuTranslate(marker_pos[0], marker_pos[1], 0);
 
 	if (!tiny)
 		glLineWidth(3.0f);
 
 	if (sc->flag & SC_SHOW_MARKER_PATTERN) {
-		glBegin(GL_LINE_LOOP);
-		glVertex2fv(marker->pattern_corners[0]);
-		glVertex2fv(marker->pattern_corners[1]);
-		glVertex2fv(marker->pattern_corners[2]);
-		glVertex2fv(marker->pattern_corners[3]);
-		glEnd();
+		gpuBegin(GL_LINE_LOOP);
+		gpuVertex2fv(marker->pattern_corners[0]);
+		gpuVertex2fv(marker->pattern_corners[1]);
+		gpuVertex2fv(marker->pattern_corners[2]);
+		gpuVertex2fv(marker->pattern_corners[3]);
+		gpuEnd();
 	}
 
 	show_search = TRACK_VIEW_SELECTED(sc, track) &&
 	              ((marker->flag & MARKER_DISABLED) == 0 || (sc->flag & SC_SHOW_MARKER_PATTERN) == 0);
 	if (sc->flag & SC_SHOW_MARKER_SEARCH && show_search) {
-		glBegin(GL_LINE_LOOP);
-		glVertex2f(marker->search_min[0], marker->search_min[1]);
-		glVertex2f(marker->search_max[0], marker->search_min[1]);
-		glVertex2f(marker->search_max[0], marker->search_max[1]);
-		glVertex2f(marker->search_min[0], marker->search_max[1]);
-		glEnd();
+		gpuBegin(GL_LINE_LOOP);
+		gpuVertex2f(marker->search_min[0], marker->search_min[1]);
+		gpuVertex2f(marker->search_max[0], marker->search_min[1]);
+		gpuVertex2f(marker->search_max[0], marker->search_max[1]);
+		gpuVertex2f(marker->search_min[0], marker->search_max[1]);
+		gpuEnd();
 	}
-	glPopMatrix();
+	gpuPopMatrix();
 
 	if (!tiny)
 		glLineWidth(1.0f);
@@ -568,9 +592,9 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 		}
 		else {
 			if (track->flag & SELECT)
-				glColor3fv(scol);
+				gpuCurrentColor3fv(scol);
 			else
-				glColor3fv(col);
+				gpuCurrentColor3fv(col);
 		}
 
 		add_v2_v2v2(pos, marker->pos, track->offset);
@@ -584,38 +608,42 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 			if (!tiny)
 				glPointSize(2.0f);
 
-			glBegin(GL_POINTS);
-			glVertex2f(pos[0], pos[1]);
-			glEnd();
+			gpuBegin(GL_POINTS);
+			gpuVertex2f(pos[0], pos[1]);
+			gpuEnd();
 
 			if (!tiny)
 				glPointSize(1.0f);
 		}
 		else {
-			glBegin(GL_LINES);
-			glVertex2f(pos[0] + px[0] * 3, pos[1]);
-			glVertex2f(pos[0] + px[0] * 7, pos[1]);
+			gpuBegin(GL_LINES);
+			
+			gpuVertex2f(pos[0] + 3*px[0], pos[1]);
+			gpuVertex2f(pos[0] + 7*px[0], pos[1]);
 
-			glVertex2f(pos[0] - px[0] * 3, pos[1]);
-			glVertex2f(pos[0] - px[0] * 7, pos[1]);
+			gpuVertex2f(pos[0] - 3*px[0], pos[1]);
+			gpuVertex2f(pos[0] - 7*px[0], pos[1]);
 
-			glVertex2f(pos[0], pos[1] - px[1] * 3);
-			glVertex2f(pos[0], pos[1] - px[1] * 7);
+			gpuVertex2f(pos[0], pos[1] - 3*px[1]);
+			gpuVertex2f(pos[0], pos[1] - 7*px[1]);
 
-			glVertex2f(pos[0], pos[1] + px[1] * 3);
-			glVertex2f(pos[0], pos[1] + px[1] * 7);
-			glEnd();
+			gpuVertex2f(pos[0], pos[1] + 3*px[1]);
+			gpuVertex2f(pos[0], pos[1] + 7*px[1]);
+			
+			gpuEnd();
 
-			glColor3f(0.0f, 0.0f, 0.0f);
-			glLineStipple(3, 0xaaaa);
+			gpuCurrentColor3x(CPACK_BLACK);
+
 			glEnable(GL_LINE_STIPPLE);
+			glLineStipple(3, 0xAAAA);
+
 			glEnable(GL_COLOR_LOGIC_OP);
 			glLogicOp(GL_NOR);
 
-			glBegin(GL_LINES);
-			glVertex2fv(pos);
-			glVertex2fv(marker_pos);
-			glEnd();
+			gpuBegin(GL_LINES);
+			gpuVertex2fv(pos);
+			gpuVertex2fv(marker_pos);
+			gpuEnd();
 
 			glDisable(GL_COLOR_LOGIC_OP);
 			glDisable(GL_LINE_STIPPLE);
@@ -623,8 +651,8 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 	}
 
 	/* pattern */
-	glPushMatrix();
-	glTranslatef(marker_pos[0], marker_pos[1], 0);
+	gpuPushMatrix();
+	gpuTranslate(marker_pos[0], marker_pos[1], 0);
 
 	if (tiny) {
 		glLineStipple(3, 0xaaaa);
@@ -648,16 +676,16 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 		}
 		else {
 			if (track->pat_flag & SELECT)
-				glColor3fv(scol);
-			else glColor3fv(col);
+				gpuCurrentColor3fv(scol);
+			else gpuCurrentColor3fv(col);
 		}
 
-		glBegin(GL_LINE_LOOP);
-		glVertex2fv(marker->pattern_corners[0]);
-		glVertex2fv(marker->pattern_corners[1]);
-		glVertex2fv(marker->pattern_corners[2]);
-		glVertex2fv(marker->pattern_corners[3]);
-		glEnd();
+		gpuBegin(GL_LINE_LOOP);
+		gpuVertex2fv(marker->pattern_corners[0]);
+		gpuVertex2fv(marker->pattern_corners[1]);
+		gpuVertex2fv(marker->pattern_corners[2]);
+		gpuVertex2fv(marker->pattern_corners[3]);
+		gpuEnd();
 	}
 
 	/* search */
@@ -680,23 +708,23 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 		}
 		else {
 			if (track->search_flag & SELECT)
-				glColor3fv(scol);
+				gpuCurrentColor3fv(scol);
 			else
-				glColor3fv(col);
+				gpuCurrentColor3fv(col);
 		}
 
-		glBegin(GL_LINE_LOOP);
-		glVertex2f(marker->search_min[0], marker->search_min[1]);
-		glVertex2f(marker->search_max[0], marker->search_min[1]);
-		glVertex2f(marker->search_max[0], marker->search_max[1]);
-		glVertex2f(marker->search_min[0], marker->search_max[1]);
-		glEnd();
+		gpuBegin(GL_LINE_LOOP);
+		gpuVertex2f(marker->search_min[0], marker->search_min[1]);
+		gpuVertex2f(marker->search_max[0], marker->search_min[1]);
+		gpuVertex2f(marker->search_max[0], marker->search_max[1]);
+		gpuVertex2f(marker->search_min[0], marker->search_max[1]);
+		gpuEnd();
 	}
 
 	if (tiny)
 		glDisable(GL_LINE_STIPPLE);
 
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 static float get_shortest_pattern_side(MovieTrackingMarker *marker)
@@ -729,12 +757,12 @@ static void draw_marker_slide_square(float x, float y, float dx, float dy, int o
 		tdy += px[1];
 	}
 
-	glBegin(GL_QUADS);
-	glVertex3f(x - tdx, y + tdy, 0.0f);
-	glVertex3f(x + tdx, y + tdy, 0.0f);
-	glVertex3f(x + tdx, y - tdy, 0.0f);
-	glVertex3f(x - tdx, y - tdy, 0.0f);
-	glEnd();
+	gpuBegin(GL_TRIANGLE_FAN);
+	gpuVertex3f(x - tdx, y + tdy, 0.0f);
+	gpuVertex3f(x + tdx, y + tdy, 0.0f);
+	gpuVertex3f(x + tdx, y - tdy, 0.0f);
+	gpuVertex3f(x - tdx, y - tdy, 0.0f);
+	gpuEnd();
 }
 
 static void draw_marker_slide_triangle(float x, float y, float dx, float dy, int outline, float px[2])
@@ -749,11 +777,11 @@ static void draw_marker_slide_triangle(float x, float y, float dx, float dy, int
 		tdy += px[1];
 	}
 
-	glBegin(GL_TRIANGLES);
-	glVertex3f(x,       y,       0.0f);
-	glVertex3f(x - tdx, y,       0.0f);
-	glVertex3f(x,       y + tdy, 0.0f);
-	glEnd();
+	gpuBegin(GL_TRIANGLES);
+	gpuVertex3f(x,       y,       0.0f);
+	gpuVertex3f(x - tdx, y,       0.0f);
+	gpuVertex3f(x,       y + tdy, 0.0f);
+	gpuEnd();
 }
 
 static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, MovieTrackingMarker *marker,
@@ -776,8 +804,8 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 		UI_ThemeColor(TH_MARKER_OUTLINE);
 	}
 
-	glPushMatrix();
-	glTranslatef(marker_pos[0], marker_pos[1], 0);
+	gpuPushMatrix();
+	gpuTranslate(marker_pos[0], marker_pos[1], 0);
 
 	dx = 6.0f / width / sc->zoom;
 	dy = 6.0f / height / sc->zoom;
@@ -795,9 +823,9 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 	if ((sc->flag & SC_SHOW_MARKER_SEARCH) && ((track->search_flag & SELECT) == sel || outline)) {
 		if (!outline) {
 			if (track->search_flag & SELECT)
-				glColor3fv(scol);
+				gpuCurrentColor3fv(scol);
 			else
-				glColor3fv(col);
+				gpuCurrentColor3fv(col);
 		}
 
 		/* search offset square */
@@ -815,9 +843,9 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 
 		if (!outline) {
 			if (track->pat_flag & SELECT)
-				glColor3fv(scol);
+				gpuCurrentColor3fv(scol);
 			else
-				glColor3fv(col);
+				gpuCurrentColor3fv(col);
 		}
 
 		/* pattern's corners sliding squares */
@@ -832,17 +860,16 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 		BKE_tracking_marker_pattern_minmax(marker, pat_min, pat_max);
 
 		glEnable(GL_LINE_STIPPLE);
-		glLineStipple(3, 0xaaaa);
+		glLineStipple(3, 0xAAAA);
 
 #if 0
 		/* TODO: disable for now, needs better approach visualizing this */
 
-		glBegin(GL_LINE_LOOP);
-		glVertex2f(pat_min[0] - dx, pat_min[1] - dy);
-		glVertex2f(pat_max[0] + dx, pat_min[1] - dy);
-		glVertex2f(pat_max[0] + dx, pat_max[1] + dy);
-		glVertex2f(pat_min[0] - dx, pat_max[1] + dy);
-		glEnd();
+		gpuBegin(GL_LINE_LOOP);
+		gpuVertex2f(pat_min[0] - dx, pat_min[1] - dy);
+		gpuVertex2f(pat_max[0] + dx, pat_min[1] - dy);
+		gpuVertex2f(pat_max[0] + dx, pat_max[1] + dy);
+		gpuVertex2f(pat_min[0] - dx, pat_max[1] + dy);
 
 		/* marker's offset slider */
 		draw_marker_slide_square(pat_min[0] - dx, pat_max[1] + dy, patdx, patdy, outline, px);
@@ -851,10 +878,10 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 		draw_marker_slide_triangle(pat_max[0] + dx, pat_min[1] - dy, patdx, patdy, outline, px);
 #endif
 
-		glBegin(GL_LINES);
-		glVertex2f(0.0f, 0.0f);
-		glVertex2fv(tilt_ctrl);
-		glEnd();
+		gpuBegin(GL_LINES);
+		gpuVertex2f(0.0f, 0.0f);
+		gpuVertex2fv(tilt_ctrl);
+		gpuEnd();
 
 		glDisable(GL_LINE_STIPPLE);
 
@@ -863,7 +890,7 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 		draw_marker_slide_square(tilt_ctrl[0], tilt_ctrl[1], patdx, patdy, outline, px);
 	}
 
-	glPopMatrix();
+	gpuPopMatrix();
 
 	if (outline)
 		glLineWidth(1.0f);
@@ -982,13 +1009,13 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 
 	view2d_to_region_float(&ar->v2d, 0.0f, 0.0f, &x, &y);
 
-	glPushMatrix();
-	glTranslatef(x, y, 0);
+	gpuPushMatrix();
+	gpuTranslate(x, y, 0);
 
-	glPushMatrix();
-	glScalef(zoomx, zoomy, 0);
-	glMultMatrixf(sc->stabmat);
-	glScalef(width, height, 0);
+	gpuPushMatrix();
+	gpuScale(zoomx, zoomy, 0);
+	gpuMultMatrix(sc->stabmat);
+	gpuScale(width, height, 0);
 
 	act_track = BKE_tracking_track_get_active(tracking);
 
@@ -1139,16 +1166,18 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 						sub_v2_v2(vec, npos);
 
 						if (len_v2(vec) < 3.0f)
-							glColor3f(0.0f, 1.0f, 0.0f);
+							gpuCurrentColor3x(CPACK_GREEN);
 						else
-							glColor3f(1.0f, 0.0f, 0.0f);
+							gpuCurrentColor3x(CPACK_RED);
 
-						glBegin(GL_POINTS);
+						gpuBegin(GL_POINTS);
+
 						if (undistort)
-							glVertex3f(pos[0] / width, pos[1] / (height * aspy), 0);
+							gpuVertex3f(pos[0] / width, pos[1] / (height * aspy), 0);
 						else
-							glVertex3f(npos[0] / width, npos[1] / (height * aspy), 0);
-						glEnd();
+							gpuVertex3f(npos[0] / width, npos[1] / (height * aspy), 0);
+						
+						gpuEnd();
 					}
 				}
 			}
@@ -1160,7 +1189,7 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 		glDisable(GL_POINT_SMOOTH);
 	}
 
-	glPopMatrix();
+	gpuPopMatrix();
 
 	if (sc->flag & SC_SHOW_NAMES) {
 		/* scaling should be cleared before drawing texts, otherwise font would also be scaled */
@@ -1186,7 +1215,7 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 		}
 	}
 
-	glPopMatrix();
+	gpuPopMatrix();
 
 	if (marker_pos)
 		MEM_freeN(marker_pos);
@@ -1216,11 +1245,11 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 
 	view2d_to_region_float(&ar->v2d, 0.0f, 0.0f, &x, &y);
 
-	glPushMatrix();
-	glTranslatef(x, y, 0);
-	glScalef(zoomx, zoomy, 0);
-	glMultMatrixf(sc->stabmat);
-	glScalef(width, height, 0);
+	gpuPushMatrix();
+	gpuTranslate(x, y, 0);
+	gpuScale(zoomx, zoomy, 0);
+	gpuMultMatrix(sc->stabmat);
+	gpuScale(width, height, 0);
 
 	/* grid */
 	if (sc->flag & SC_SHOW_GRID) {
@@ -1292,22 +1321,22 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 			pos[1] += dy;
 		}
 
-		glColor3f(1.0f, 0.0f, 0.0f);
+		gpuCurrentColor3x(CPACK_RED);
 
 		for (i = 0; i <= n; i++) {
-			glBegin(GL_LINE_STRIP);
+			gpuBegin(GL_LINE_STRIP);
 			for (j = 0; j <= n; j++) {
-				glVertex2fv(grid[i][j]);
+				gpuVertex2fv(grid[i][j]);
 			}
-			glEnd();
+			gpuEnd();
 		}
 
 		for (j = 0; j <= n; j++) {
-			glBegin(GL_LINE_STRIP);
+			gpuBegin(GL_LINE_STRIP);
 			for (i = 0; i <= n; i++) {
-				glVertex2fv(grid[i][j]);
+				gpuVertex2fv(grid[i][j]);
 			}
-			glEnd();
+			gpuEnd();
 		}
 	}
 
@@ -1340,7 +1369,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 				continue;
 			}
 
-			glColor4fv(layer->color);
+			gpuCurrentColor4fv(layer->color);
 			glLineWidth(layer->thickness);
 			glPointSize((float)(layer->thickness + 2));
 
@@ -1350,7 +1379,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 				while (stroke) {
 					if (stroke->flag & GP_STROKE_2DSPACE) {
 						if (stroke->totpoints > 1) {
-							glBegin(GL_LINE_STRIP);
+							gpuBegin(GL_LINE_STRIP);
 							for (i = 0; i < stroke->totpoints - 1; i++) {
 								float npos[2], dpos[2], len;
 								int steps;
@@ -1375,17 +1404,17 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 
 								for (j = 0; j <= steps; j++) {
 									BKE_tracking_distort_v2(tracking, pos, tpos);
-									glVertex2f(tpos[0] / width, tpos[1] / (height * aspy));
+										gpuVertex2f(tpos[0] / width, tpos[1] / (height*aspy));
 
 									add_v2_v2(pos, dpos);
 								}
 							}
-							glEnd();
+							gpuEnd();
 						}
 						else if (stroke->totpoints == 1) {
-							glBegin(GL_POINTS);
-							glVertex2f(stroke->points[0].x + offsx, stroke->points[0].y + offsy);
-							glEnd();
+							gpuBegin(GL_POINTS);
+							gpuVertex2f(stroke->points[0].x + offsx, stroke->points[0].y + offsy);
+							gpuEnd();
 						}
 					}
 
@@ -1402,7 +1431,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 		glPointSize(1.0f);
 	}
 
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 void clip_draw_main(const bContext *C, SpaceClip *sc, ARegion *ar)
@@ -1486,8 +1515,8 @@ void clip_draw_grease_pencil(bContext *C, int onlyv2d)
 		/* if manual calibration is used then grease pencil data is already
 		 * drawn in draw_distortion */
 		if ((sc->flag & SC_MANUAL_CALIBRATION) == 0 || sc->mode != SC_MODE_DISTORTION) {
-			glPushMatrix();
-			glMultMatrixf(sc->unistabmat);
+			gpuPushMatrix();
+			gpuMultMatrix(sc->unistabmat);
 
 			if (sc->gpencil_src == SC_GPENCIL_SRC_TRACK) {
 				MovieTrackingTrack *track = BKE_tracking_track_get_active(&sc->clip->tracking);
@@ -1496,13 +1525,13 @@ void clip_draw_grease_pencil(bContext *C, int onlyv2d)
 					int framenr = ED_space_clip_get_clip_frame_number(sc);
 					MovieTrackingMarker *marker = BKE_tracking_marker_get(track, framenr);
 
-					glTranslatef(marker->pos[0], marker->pos[1], 0.0f);
+					gpuTranslate(marker->pos[0], marker->pos[1], 0.0f);
 				}
 			}
 
 			draw_gpencil_2dimage(C);
 
-			glPopMatrix();
+			gpuPopMatrix();
 		}
 	}
 	else {

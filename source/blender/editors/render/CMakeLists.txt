@@ -64,6 +64,8 @@ if(WITH_HEADLESS)
 	add_definitions(-DWITH_HEADLESS)
 endif()
 
+add_definitions(${GL_DEFINITIONS})
+
 if(WITH_FREESTYLE)
 	list(APPEND INC
 		../../freestyle

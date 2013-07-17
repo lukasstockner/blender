@@ -60,7 +60,7 @@
 #include "ED_screen.h"
 #include "ED_uvedit.h"
 
-#include "BIF_gl.h"
+#include "GPU_compatibility.h"
 
 #include "RNA_access.h"
 
@@ -646,8 +646,7 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 	
 	/* clear and setup matrix */
 	UI_GetThemeColor3fv(TH_BACK, col);
-	glClearColor(col[0], col[1], col[2], 0.0);
-	glClear(GL_COLOR_BUFFER_BIT);
+	gpuColorAndClearvf(col, 0.0);
 
 	/* put scene context variable in iuser */
 	sima->iuser.scene = scene;

@@ -29,6 +29,8 @@
  *  \ingroup bke
  */
 
+#include <stddef.h>
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_freestyle_types.h"

@@ -43,7 +43,9 @@
 #include "BKE_tracking.h"
 #include "BKE_depsgraph.h"
 
-#include "BIF_gl.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
+
 #include "BIF_glutil.h"
 
 #include "WM_api.h"
@@ -241,21 +243,15 @@ void clip_draw_cfra(SpaceClip *sc, ARegion *ar, Scene *scene)
 {
 	View2D *v2d = &ar->v2d;
 	float xscale, yscale;
-	float vec[2];
+	float c;
 
 	/* Draw a light green line to indicate current frame */
-	vec[0] = (float)(sc->user.framenr * scene->r.framelen);
+	c = (float)(sc->user.framenr * scene->r.framelen);
 
 	UI_ThemeColor(TH_CFRAME);
 	glLineWidth(2.0);
 
-	glBegin(GL_LINE_STRIP);
-	vec[1] = v2d->cur.ymin;
-	glVertex2fv(vec);
-
-	vec[1] = v2d->cur.ymax;
-	glVertex2fv(vec);
-	glEnd();
+	gpuSingleLinef(c, v2d->cur.ymin, c, v2d->cur.ymax);
 
 	glLineWidth(1.0);
 
@@ -263,12 +259,12 @@ void clip_draw_cfra(SpaceClip *sc, ARegion *ar, Scene *scene)
 
 	/* because the frame number text is subject to the same scaling as the contents of the view */
 	UI_view2d_getscale(v2d, &xscale, &yscale);
-	glScalef(1.0f / xscale, 1.0f, 1.0f);
+	gpuScale(1.0f / xscale, 1.0f, 1.0f);
 
 	clip_draw_curfra_label(sc->user.framenr, (float)sc->user.framenr * xscale, 18);
 
 	/* restore view transform */
-	glScalef(xscale, 1.0, 1.0);
+	gpuScale(xscale, 1.0, 1.0);
 }
 
 void clip_draw_sfra_efra(View2D *v2d, Scene *scene)
@@ -276,17 +272,23 @@ void clip_draw_sfra_efra(View2D *v2d, Scene *scene)
 	UI_view2d_view_ortho(v2d);
 
 	/* currently clip editor supposes that editing clip length is equal to scene frame range */
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glEnable(GL_BLEND);
-	glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
 
-	glRectf(v2d->cur.xmin, v2d->cur.ymin, (float)SFRA, v2d->cur.ymax);
-	glRectf((float)EFRA, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+	glEnable(GL_BLEND);
+	
+	gpuCurrentColor4x(CPACK_BLACK, 0.400f);
+
+	gpuSingleFilledRectf(v2d->cur.xmin, v2d->cur.ymin, (float)SFRA, v2d->cur.ymax);
+	gpuSingleFilledRectf((float)EFRA, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+
 	glDisable(GL_BLEND);
 
 	UI_ThemeColorShade(TH_BACK, -60);
 
 	/* thin lines where the actual frames are */
-	fdrawline((float)SFRA, v2d->cur.ymin, (float)SFRA, v2d->cur.ymax);
-	fdrawline((float)EFRA, v2d->cur.ymin, (float)EFRA, v2d->cur.ymax);
+	gpuImmediateFormat_V2(); // DOODLE: pair of mono lines
+	gpuBegin(GL_LINES);
+	gpuAppendLinef((float)SFRA, v2d->cur.ymin, (float)SFRA, v2d->cur.ymax);
+	gpuAppendLinef((float)EFRA, v2d->cur.ymin, (float)EFRA, v2d->cur.ymax);
+	gpuEnd();
+	gpuImmediateUnformat();
 }

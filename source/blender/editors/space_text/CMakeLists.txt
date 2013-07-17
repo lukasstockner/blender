@@ -23,6 +23,7 @@ set(INC
 	../../blenfont
 	../../blenkernel
 	../../blenlib
+	../../gpu
 	../../makesdna
 	../../makesrna
 	../../windowmanager
@@ -47,6 +48,8 @@ set(SRC
 	text_format.h
 	text_intern.h
 )
+
+add_definitions(${GL_DEFINITIONS})
 
 if(WITH_PYTHON)
 	list(APPEND INC

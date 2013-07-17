@@ -25,6 +25,7 @@ set(INC
 	../../blenlib
 	../../blenloader
 	../../imbuf
+	../../gpu
 	../../makesdna
 	../../makesrna
 	../../render/extern/include
@@ -81,6 +82,8 @@ endif()
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
 endif()
+
+add_definitions(${GL_DEFINITIONS})
 
 if(WITH_FREESTYLE)
 	add_definitions(-DWITH_FREESTYLE)

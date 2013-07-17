@@ -51,7 +51,9 @@
 
 #include "NOD_texture.h"
 
-#include "BIF_gl.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
+
 #include "BIF_glutil.h"
 
 #include "BLF_translation.h"
@@ -121,21 +123,21 @@ static void node_draw_socket_new(bNodeSocket *sock, float size)
 		0.15142777f, 0.52896401f, 0.82076344f, 0.97952994f,
 	};
 	int a;
-	
-	glColor3ub(180, 180, 180);
-	
-	glBegin(GL_POLYGON);
-	for (a = 0; a < 16; a++)
-		glVertex2f(x + size * si[a], y + size * co[a]);
-	glEnd();
-	
-	glColor4ub(0, 0, 0, 150);
+
+	gpuCurrentGray3f(0.706f);
+
+	gpuBegin(GL_TRIANGLE_FAN);
+	for (a=0; a<16; a++)
+		gpuVertex2f(x+size*si[a], y+size*co[a]);
+	gpuEnd();
+
+	gpuCurrentColor4x(CPACK_BLACK, 0.588f);
 	glEnable(GL_BLEND);
 	glEnable(GL_LINE_SMOOTH);
-	glBegin(GL_LINE_LOOP);
-	for (a = 0; a < 16; a++)
-		glVertex2f(x + size * si[a], y + size * co[a]);
-	glEnd();
+	gpuBegin(GL_LINE_LOOP);
+	for (a=0; a<16; a++)
+		gpuVertex2f(x+size*si[a], y+size*co[a]);
+	gpuEnd();
 	glDisable(GL_LINE_SMOOTH);
 	glDisable(GL_BLEND);
 }
@@ -452,7 +454,7 @@ static void node_draw_frame(const bContext *C, ARegion *ar, SpaceNode *snode,
 	
 	/* body */
 	if (node->flag & NODE_CUSTOM_COLOR)
-		glColor4f(node->color[0], node->color[1], node->color[2], alpha);
+		gpuCurrentColor4f(node->color[0], node->color[1], node->color[2], alpha);
 	else
 		UI_ThemeColor4(TH_NODE_FRAME);
 	glEnable(GL_BLEND);
@@ -1994,14 +1996,14 @@ static void node_composit_backdrop_viewer(SpaceNode *snode, ImBuf *backdrop, bNo
 		const float cx  = x + snode->zoom * backdropWidth * node->custom3;
 		const float cy = y + snode->zoom * backdropHeight * node->custom4;
 
-		glColor3f(1.0, 1.0, 1.0);
+		gpuCurrentColor3x(CPACK_WHITE);
 
-		glBegin(GL_LINES);
-		glVertex2f(cx - 25, cy - 25);
-		glVertex2f(cx + 25, cy + 25);
-		glVertex2f(cx + 25, cy - 25);
-		glVertex2f(cx - 25, cy + 25);
-		glEnd();
+		gpuBegin(GL_LINES);
+		gpuVertex2f(cx-25, cy-25);
+		gpuVertex2f(cx+25, cy+25);
+		gpuVertex2f(cx+25, cy-25);
+		gpuVertex2f(cx-25, cy+25);
+		gpuEnd();
 	}
 }
 
@@ -2024,7 +2026,7 @@ static void node_composit_backdrop_boxmask(SpaceNode *snode, ImBuf *backdrop, bN
 	/* keep this, saves us from a version patch */
 	if (snode->zoom == 0.0f) snode->zoom = 1.0f;
 
-	glColor3f(1.0, 1.0, 1.0);
+	gpuCurrentColor3x(CPACK_WHITE);
 
 	cx  = x + snode->zoom * backdropWidth * boxmask->x;
 	cy = y + snode->zoom * backdropHeight * boxmask->y;
@@ -2038,12 +2040,12 @@ static void node_composit_backdrop_boxmask(SpaceNode *snode, ImBuf *backdrop, bN
 	y3 = cy - (-sine * -halveBoxWidth + cosine * -halveBoxHeight) * snode->zoom;
 	y4 = cy - (-sine * halveBoxWidth + cosine * -halveBoxHeight) * snode->zoom;
 
-	glBegin(GL_LINE_LOOP);
-	glVertex2f(x1, y1);
-	glVertex2f(x2, y2);
-	glVertex2f(x3, y3);
-	glVertex2f(x4, y4);
-	glEnd();
+	gpuBegin(GL_LINE_LOOP);
+	gpuVertex2f(x1, y1);
+	gpuVertex2f(x2, y2);
+	gpuVertex2f(x3, y3);
+	gpuVertex2f(x4, y4);
+	gpuEnd();
 }
 
 static void node_composit_backdrop_ellipsemask(SpaceNode *snode, ImBuf *backdrop, bNode *node, int x, int y)
@@ -2065,7 +2067,7 @@ static void node_composit_backdrop_ellipsemask(SpaceNode *snode, ImBuf *backdrop
 	/* keep this, saves us from a version patch */
 	if (snode->zoom == 0.0f) snode->zoom = 1.0f;
 
-	glColor3f(1.0, 1.0, 1.0);
+	gpuCurrentColor3x(CPACK_WHITE);
 
 	cx  = x + snode->zoom * backdropWidth * ellipsemask->x;
 	cy = y + snode->zoom * backdropHeight * ellipsemask->y;
@@ -2079,13 +2081,13 @@ static void node_composit_backdrop_ellipsemask(SpaceNode *snode, ImBuf *backdrop
 	y3 = cy - (-sine * -halveBoxWidth + cosine * -halveBoxHeight) * snode->zoom;
 	y4 = cy - (-sine * halveBoxWidth + cosine * -halveBoxHeight) * snode->zoom;
 
-	glBegin(GL_LINE_LOOP);
+	gpuBegin(GL_LINE_LOOP);
 
-	glVertex2f(x1, y1);
-	glVertex2f(x2, y2);
-	glVertex2f(x3, y3);
-	glVertex2f(x4, y4);
-	glEnd();
+	gpuVertex2f(x1, y1);
+	gpuVertex2f(x2, y2);
+	gpuVertex2f(x3, y3);
+	gpuVertex2f(x4, y4);
+	gpuEnd();
 }
 
 static void node_composit_buts_ellipsemask(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
@@ -2881,10 +2883,10 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 	if (ibuf) {
 		float x, y; 
 		
-		glMatrixMode(GL_PROJECTION);
-		glPushMatrix();
-		glMatrixMode(GL_MODELVIEW);
-		glPushMatrix();
+		gpuMatrixMode(GL_PROJECTION);
+		gpuPushMatrix();
+		gpuMatrixMode(GL_MODELVIEW);
+		gpuPushMatrix();
 		
 		/* keep this, saves us from a version patch */
 		if (snode->zoom == 0.0f) snode->zoom = 1.0f;
@@ -2918,6 +2920,7 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 #endif
 				
 				glPixelZoom(snode->zoom, snode->zoom);
+
 				/* swap bytes, so alpha is most significant one, then just draw it as luminance int */
 				
 				glaDrawPixelsSafe(x, y, ibuf->x, ibuf->y, ibuf->x, GL_LUMINANCE, GL_UNSIGNED_INT,
@@ -2936,13 +2939,12 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 				glaDrawPixelsSafe(x, y, ibuf->x, ibuf->y, ibuf->x, GL_LUMINANCE, GL_UNSIGNED_INT, display_buffer);
 				
 #ifdef __BIG_ENDIAN__
-				glPixelStorei(GL_UNPACK_SWAP_BYTES, 0);
+				glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE); /* restore default value */
 #endif
 				glPixelZoom(1.0f, 1.0f);
 			}
 			else if (snode->flag & SNODE_USE_ALPHA) {
 				glEnable(GL_BLEND);
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 				glPixelZoom(snode->zoom, snode->zoom);
 				
 				glaDrawImBuf_glsl_ctx(C, ibuf, x, y, GL_NEAREST);
@@ -2981,9 +2983,10 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 			{
 				glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 				setlinestyle(3);
-				cpack(0x4040FF);
+				gpuColor3x(0x4040FF);
 				
-				glRectf(x + snode->zoom * viewer_border->xmin * ibuf->x,
+				gpuSingleFilledRectf(
+				        x + snode->zoom * viewer_border->xmin * ibuf->x,
 				        y + snode->zoom * viewer_border->ymin * ibuf->y,
 				        x + snode->zoom * viewer_border->xmax * ibuf->x,
 				        y + snode->zoom * viewer_border->ymax * ibuf->y);
@@ -2993,10 +2996,10 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 			}
 		}
 		
-		glMatrixMode(GL_PROJECTION);
-		glPopMatrix();
-		glMatrixMode(GL_MODELVIEW);
-		glPopMatrix();
+		gpuMatrixMode(GL_PROJECTION);
+		gpuPopMatrix();
+		gpuMatrixMode(GL_MODELVIEW);
+		gpuPopMatrix();
 	}
 	
 	BKE_image_release_ibuf(ima, ibuf, lock);
@@ -3103,7 +3106,9 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 		dist = 1.0f / (float)LINK_RESOL;
 		
 		glEnable(GL_LINE_SMOOTH);
-		
+
+		gpuImmediateFormat_V2();
+
 		drawarrow = ((link->tonode && (link->tonode->type == NODE_REROUTE)) &&
 		             (link->fromnode && (link->fromnode->type == NODE_REROUTE)));
 
@@ -3124,19 +3129,22 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 		if (do_triple) {
 			UI_ThemeColorShadeAlpha(th_col3, -80, -120);
 			glLineWidth(4.0f);
-			
-			glBegin(GL_LINE_STRIP);
-			for (i = 0; i <= LINK_RESOL; i++) {
-				glVertex2fv(coord_array[i]);
+
+			gpuBegin(GL_LINE_STRIP);
+
+			for (i=0; i<=LINK_RESOL; i++) {
+				gpuVertex2fv(coord_array[i]);
 			}
-			glEnd();
+
+			gpuEnd();
+
 			if (drawarrow) {
-				glBegin(GL_LINE_STRIP);
-				glVertex2fv(arrow1);
-				glVertex2fv(arrow);
-				glVertex2fv(arrow);
-				glVertex2fv(arrow2);
-				glEnd();
+				gpuBegin(GL_LINE_STRIP);
+				gpuVertex2fv(arrow1);
+				gpuVertex2fv(arrow);
+				gpuVertex2fv(arrow);
+				gpuVertex2fv(arrow2);
+				gpuEnd();
 			}
 		}
 		
@@ -3146,40 +3154,42 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 		 */
 		glLineWidth(1.5f);
 		if (do_shaded) {
-			glBegin(GL_LINES);
-			for (i = 0; i < LINK_RESOL; i++) {
-				UI_ThemeColorBlend(th_col1, th_col2, spline_step);
-				glVertex2fv(coord_array[i]);
+			gpuBegin(GL_LINES);
+			for (i=0; i<LINK_RESOL; i++) {
+				UI_ThemeAppendColorBlend(th_col1, th_col2, spline_step);
+				gpuVertex2fv(coord_array[i]);
 				
-				UI_ThemeColorBlend(th_col1, th_col2, spline_step + dist);
-				glVertex2fv(coord_array[i + 1]);
+				UI_ThemeAppendColorBlend(th_col1, th_col2, spline_step+dist);
+				gpuVertex2fv(coord_array[i+1]);
 				
 				spline_step += dist;
 			}
-			glEnd();
+			gpuEnd();
 		}
 		else {
 			UI_ThemeColor(th_col1);
-			glBegin(GL_LINE_STRIP);
-			for (i = 0; i <= LINK_RESOL; i++) {
-				glVertex2fv(coord_array[i]);
+			gpuBegin(GL_LINE_STRIP);
+			for (i=0; i<=LINK_RESOL; i++) {
+				gpuVertex2fv(coord_array[i]);
 			}
-			glEnd();
+			gpuEnd();
 		}
 		
 		if (drawarrow) {
-			glBegin(GL_LINE_STRIP);
-			glVertex2fv(arrow1);
-			glVertex2fv(arrow);
-			glVertex2fv(arrow);
-			glVertex2fv(arrow2);
-			glEnd();
+			gpuBegin(GL_LINE_STRIP);
+			gpuVertex2fv(arrow1);
+			gpuVertex2fv(arrow);
+			gpuVertex2fv(arrow);
+			gpuVertex2fv(arrow2);
+			gpuEnd();
 		}
 		
 		glDisable(GL_LINE_SMOOTH);
 		
 		/* restore previuos linewidth */
 		glLineWidth(1.0f);
+
+		gpuImmediateUnformat();
 	}
 }
 
@@ -3224,10 +3234,10 @@ void node_draw_link_straight(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 		UI_ThemeColorShadeAlpha(th_col3, -80, -120);
 		glLineWidth(4.0f);
 		
-		glBegin(GL_LINES);
-		glVertex2fv(coord_array[0]);
-		glVertex2fv(coord_array[1]);
-		glEnd();
+		gpuBegin(GL_LINES);
+		gpuVertex2fv(coord_array[0]);
+		gpuVertex2fv(coord_array[1]);
+		gpuEnd();
 	}
 	
 	UI_ThemeColor(th_col1);
@@ -3238,28 +3248,28 @@ void node_draw_link_straight(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 	 * changing color in begin/end blocks.
 	 */
 	if (do_shaded) {
-		glBegin(GL_LINES);
-		for (i = 0; i < LINK_RESOL - 1; ++i) {
-			float t = (float)i / (float)(LINK_RESOL - 1);
+		gpuBegin(GL_LINES);
+		for (i=0; i < LINK_RESOL-1; ++i) {
+			float t= (float)i/(float)(LINK_RESOL-1);
 			UI_ThemeColorBlend(th_col1, th_col2, t);
-			glVertex2f((1.0f - t) * coord_array[0][0] + t * coord_array[1][0],
-			           (1.0f - t) * coord_array[0][1] + t * coord_array[1][1]);
+			gpuVertex2f((1.0f - t) * coord_array[0][0] + t * coord_array[1][0],
+			            (1.0f - t) * coord_array[0][1] + t * coord_array[1][1]);
 			
 			t = (float)(i + 1) / (float)(LINK_RESOL - 1);
 			UI_ThemeColorBlend(th_col1, th_col2, t);
-			glVertex2f((1.0f - t) * coord_array[0][0] + t * coord_array[1][0],
-			           (1.0f - t) * coord_array[0][1] + t * coord_array[1][1]);
+			gpuVertex2f((1.0f - t) * coord_array[0][0] + t * coord_array[1][0],
+			            (1.0f - t) * coord_array[0][1] + t * coord_array[1][1]);
 		}
-		glEnd();
+		gpuEnd();
 	}
 	else {
-		glBegin(GL_LINE_STRIP);
-		for (i = 0; i < LINK_RESOL; ++i) {
-			float t = (float)i / (float)(LINK_RESOL - 1);
-			glVertex2f((1.0f - t) * coord_array[0][0] + t * coord_array[1][0],
-			           (1.0f - t) * coord_array[0][1] + t * coord_array[1][1]);
+		gpuBegin(GL_LINE_STRIP);
+		for (i=0; i < LINK_RESOL; ++i) {
+			float t= (float)i/(float)(LINK_RESOL-1);
+			gpuVertex2f((1.0f - t) * coord_array[0][0] + t * coord_array[1][0],
+			            (1.0f - t) * coord_array[0][1] + t * coord_array[1][1]);
 		}
-		glEnd();
+		gpuEnd();
 	}
 	
 	glDisable(GL_LINE_SMOOTH);
@@ -3312,29 +3322,4 @@ void node_draw_link(View2D *v2d, SpaceNode *snode, bNodeLink *link)
 	
 	node_draw_link_bezier(v2d, snode, link, th_col1, do_shaded, th_col2, do_triple, th_col3);
 //	node_draw_link_straight(v2d, snode, link, th_col1, do_shaded, th_col2, do_triple, th_col3);
-}
-
-void ED_node_draw_snap(View2D *v2d, const float cent[2], float size, NodeBorder border)
-{
-	glBegin(GL_LINES);
-	
-	if (border & (NODE_LEFT | NODE_RIGHT)) {
-		glVertex2f(cent[0], v2d->cur.ymin);
-		glVertex2f(cent[0], v2d->cur.ymax);
-	}
-	else {
-		glVertex2f(cent[0], cent[1] - size);
-		glVertex2f(cent[0], cent[1] + size);
-	}
-	
-	if (border & (NODE_TOP | NODE_BOTTOM)) {
-		glVertex2f(v2d->cur.xmin, cent[1]);
-		glVertex2f(v2d->cur.xmax, cent[1]);
-	}
-	else {
-		glVertex2f(cent[0] - size, cent[1]);
-		glVertex2f(cent[0] + size, cent[1]);
-	}
-	
-	glEnd();
 }

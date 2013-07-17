@@ -4,8 +4,8 @@ set(INC
 )
 
 set(INC_SYS
+	${SYSTEM_GL_INCLUDE_DIR}
 	${GLEW_INCLUDE_PATH}
-	${OPENGL_INCLUDE_DIR}
 )
 
 set(SRC
@@ -69,3 +69,7 @@ include_directories(${INC})
 include_directories(SYSTEM ${INC_SYS})
 
 add_library(cycles_util ${SRC} ${SRC_HEADERS})
+
+add_definitions(-DGLEW_STATIC)
+
+add_definitions(-DGLEW_STATIC)

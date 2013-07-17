@@ -66,7 +66,9 @@
 
 #include "BKE_pointcache.h"
 
-#include "BIF_gl.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
+
 #include "BIF_glutil.h"
 
 #include "ED_physics.h"
@@ -417,8 +419,8 @@ static void PE_set_view3d_data(bContext *C, PEData *data)
 static int key_test_depth(PEData *data, const float co[3], const int screen_co[2])
 {
 	View3D *v3d= data->vc.v3d;
+	GLfloat u[3];
 	ViewDepths *vd = data->vc.rv3d->depths;
-	double ux, uy, uz;
 	float depth;
 
 	/* nothing to do */
@@ -434,8 +436,8 @@ static int key_test_depth(PEData *data, const float co[3], const int screen_co[2
 	}
 #endif
 
-	gluProject(co[0], co[1], co[2], data->mats.modelview, data->mats.projection,
-	           (GLint *)data->mats.viewport, &ux, &uy, &uz);
+	gpuProject(co, data->mats.modelview, data->mats.projection,
+			   (GLint *)data->mats.viewport, u);
 
 	/* check if screen_co is within bounds because brush_cut uses out of screen coords */
 	if (screen_co[0] >= 0 && screen_co[0] < vd->w && screen_co[1] >= 0 && screen_co[1] < vd->h) {
@@ -446,7 +448,7 @@ static int key_test_depth(PEData *data, const float co[3], const int screen_co[2
 	else
 		return 0;
 
-	if ((float)uz - 0.00001f > depth)
+	if (u[2] - 0.00001f > depth)
 		return 0;
 	else
 		return 1;
@@ -2559,18 +2561,12 @@ static void brush_drawcursor(bContext *C, int x, int y, void *UNUSED(customdata)
 	brush= &pset->brush[pset->brushtype];
 
 	if (brush) {
-		glPushMatrix();
-
-		glTranslatef((float)x, (float)y, 0.0f);
-
-		glColor4ub(255, 255, 255, 128);
+		gpuCurrentColor4x(CPACK_WHITE, 0.500f);
 		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_BLEND);
-		glutil_draw_lined_arc(0.0, M_PI*2.0, pe_brush_size_get(scene, brush), 40);
+		gpuSingleCircle((float)x, (float)y, pe_brush_size_get(scene, brush), 40);
 		glDisable(GL_BLEND);
 		glDisable(GL_LINE_SMOOTH);
-		
-		glPopMatrix();
 	}
 }
 

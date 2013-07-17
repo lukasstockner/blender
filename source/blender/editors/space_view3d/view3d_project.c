@@ -35,7 +35,6 @@
 
 #include "BLI_sys_types.h"  /* int64_t */
 
-#include "BIF_gl.h"  /* bglMats */
 #include "BIF_glutil.h"  /* bglMats */
 
 #include "BLI_math_vector.h"
@@ -43,6 +42,8 @@
 #include "BKE_screen.h"
 
 #include "ED_view3d.h"  /* own include */
+
+#include "GPU_compatibility.h"
 
 #define BL_NEAR_CLIP 0.001
 #define BL_ZERO_CLIP 0.001
@@ -555,12 +556,11 @@ void ED_view3d_ob_project_mat_get(const RegionView3D *rv3d, Object *ob, float pm
  * modelspace */
 void ED_view3d_unproject(bglMats *mats, float out[3], const float x, const float y, const float z)
 {
-	double ux, uy, uz;
+	float w[3];
 
-	gluUnProject(x, y, z, mats->modelview, mats->projection,
-	             (GLint *)mats->viewport, &ux, &uy, &uz);
+	w[0] = x;
+	w[1] = y;
+	w[2] = z;
 
-	out[0] = ux;
-	out[1] = uy;
-	out[2] = uz;
+	gpuUnProject(w, mats->modelview, mats->projection, (GLint *)mats->viewport, out);
 }
