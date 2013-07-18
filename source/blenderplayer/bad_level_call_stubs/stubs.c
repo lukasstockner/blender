@@ -482,7 +482,7 @@ void uiTemplateColorspaceSettings(struct uiLayout *layout, struct PointerRNA *pt
 void uiTemplateColormanagedViewSettings(struct uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname, int show_global_settings) {STUB_ASSERT(0);}
 void uiTemplateComponentMenu(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname, const char *name){}
 void uiTemplateNodeSocket(struct uiLayout *layout, struct bContext *C, float *color) {STUB_ASSERT(0);}
-
+void uiTemplatePalette(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname, int color) {STUB_ASSERT(0);}
 /* rna render */
 struct RenderResult *RE_engine_begin_result(struct RenderEngine *engine, int x, int y, int w, int h) {STUB_ASSERT(0); return (struct RenderResult *) NULL;}
 struct RenderResult *RE_AcquireResultRead(struct Render *re) {STUB_ASSERT(0); return (struct RenderResult *) NULL;}
