@@ -4119,7 +4119,6 @@ static void WM_OT_ndof_sensitivity_change(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "fast", 0, "Fast NDOF sensitivity change", "If true then sensitivity changes 50%, otherwise 10%");
 } 
 
-
 static void operatortype_ghash_free_cb(wmOperatorType *ot)
 {
 	if (ot->last_properties) {

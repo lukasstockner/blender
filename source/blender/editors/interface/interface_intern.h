@@ -410,7 +410,6 @@ extern int  ui_is_but_push(uiBut *but);
 extern void ui_bounds_block(uiBlock *block);
 extern void ui_block_translate(uiBlock *block, int x, int y);
 extern void ui_block_do_align(uiBlock *block);
-
 extern struct ColorManagedDisplay *ui_block_display_get(uiBlock *block);
 void ui_block_to_display_space_v3(uiBlock *block, float pixel[3]);
 void ui_block_to_scene_linear_v3(uiBlock *block, float pixel[3]);
@@ -520,6 +519,7 @@ extern void ui_button_active_free(const struct bContext *C, uiBut *but);
 extern bool ui_button_is_active(struct ARegion *ar);
 extern int ui_button_open_menu_direction(uiBut *but);
 extern void ui_button_text_password_hide(char password_str[UI_MAX_DRAW_STR], uiBut *but, int restore);
+extern uiBut *ui_but_find_activated(struct ARegion *ar);
 
 /* interface_widgets.c */
 void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y3);
@@ -581,5 +581,10 @@ int ui_but_anim_expression_get(uiBut *but, char *str, size_t maxlen);
 int ui_but_anim_expression_set(uiBut *but, const char *str);
 int ui_but_anim_expression_create(uiBut *but, const char *str);
 void ui_but_anim_autokey(struct bContext *C, uiBut *but, struct Scene *scene, float cfra);
+
+typedef struct uiDragColorHandle {
+	float color[3];
+	bool gamma_corrected;
+} uiDragColorHandle;
 
 #endif

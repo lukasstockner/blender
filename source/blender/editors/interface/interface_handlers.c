@@ -673,11 +673,6 @@ static void ui_apply_but_CURVE(bContext *C, uiBut *but, uiHandleButtonData *data
 
 #ifdef USE_DRAG_TOGGLE
 
-typedef struct uiDragColorHandle {
-	float color[3];
-	bool gamma_corrected;
-} uiDragColorHandle;
-
 typedef struct uiDragToggleHandle {
 	/* init */
 	bool is_init;
@@ -789,69 +784,6 @@ static void ui_drag_toggle_set(bContext *C, uiDragToggleHandle *drag_info, const
 
 	copy_v2_v2_int(drag_info->xy_last, xy);
 }
-
-
-static void ui_handler_region_drag_color_remove(bContext *UNUSED(C), void *userdata)
-{
-	uiDragColorHandle *drag_info = userdata;
-	MEM_freeN(drag_info);
-}
-
-static int ui_handler_region_drag_color(bContext *C, const wmEvent *event, void *userdata)
-{
-	uiDragColorHandle *drag_info = userdata;
-
-	switch (event->type) {
-		case LEFTMOUSE:
-		{
-			if (event->val != KM_PRESS) {
-				wmWindow *win = CTX_wm_window(C);
-				ARegion *ar;
-				ScrArea *sa;
-				uiBut *but = NULL;
-				bool found = false;
-
-				/* find button under mouse, check if it has RNA color property and
-				 * if it does copy the data */
-				for (sa = win->screen->areabase.first; sa && !found; sa = sa->next) {
-					for (ar = sa->regionbase.first; ar && !found; ar = ar->next) {
-						if ((but = ui_but_find_mouse_over(ar, event->x, event->y)) != NULL)
-							found = true;
-					}
-				}
-
-				if (but && but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
-					if (!drag_info->gamma_corrected)
-						linearrgb_to_srgb_v3_v3(drag_info->color, drag_info->color);
-					RNA_property_float_set_array(&but->rnapoin, but->rnaprop, drag_info->color);
-					RNA_property_update(C, &but->rnapoin, but->rnaprop);
-				}
-
-				if (but && but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
-					if (drag_info->gamma_corrected)
-						srgb_to_linearrgb_v3_v3(drag_info->color, drag_info->color);
-					RNA_property_float_set_array(&but->rnapoin, but->rnaprop, drag_info->color);
-					RNA_property_update(C, &but->rnapoin, but->rnaprop);
-				}
-
-				WM_event_remove_ui_handler(&win->modalhandlers,
-				                           ui_handler_region_drag_color,
-				                           ui_handler_region_drag_color_remove,
-				                           drag_info, false);
-				ui_handler_region_drag_color_remove(C, drag_info);
-
-				WM_event_add_mousemove(C);
-				ED_region_tag_redraw(ar);
-
-				return WM_UI_HANDLER_BREAK;
-			}
-			break;
-		}
-	}
-
-	return WM_UI_HANDLER_CONTINUE;
-}
-
 
 static void ui_handler_region_drag_toggle_remove(bContext *UNUSED(C), void *userdata)
 {
@@ -989,10 +921,7 @@ static bool ui_but_start_drag(bContext *C, uiBut *but, uiHandleButtonData *data,
 			}
 
 			if (valid) {
-				WM_event_add_ui_handler(C, &data->window->modalhandlers,
-			                        ui_handler_region_drag_color,
-			                        ui_handler_region_drag_color_remove,
-			                        drag_info);
+				WM_event_start_drag(C, ICON_COLOR, WM_DRAG_COLOR, drag_info, 0.0, WM_DRAG_FREE_DATA);
 			}
 			else {
 				MEM_freeN(drag_info);
@@ -1003,7 +932,7 @@ static bool ui_but_start_drag(bContext *C, uiBut *but, uiHandleButtonData *data,
 		{
 			wmDrag *drag;
 
-			drag = WM_event_start_drag(C, but->icon, but->dragtype, but->dragpoin, ui_get_but_val(but));
+			drag = WM_event_start_drag(C, but->icon, but->dragtype, but->dragpoin, ui_get_but_val(but), 0);
 			if (but->imb)
 				WM_event_drag_image(drag, but->imb, but->imb_scale, BLI_rctf_size_x(&but->rect), BLI_rctf_size_y(&but->rect));
 		}
@@ -5550,7 +5479,7 @@ static bool ui_but_contains_pt(uiBut *but, int mx, int my)
 	return BLI_rctf_isect_pt(&but->rect, mx, my);
 }
 
-static uiBut *ui_but_find_activated(ARegion *ar)
+uiBut *ui_but_find_activated(ARegion *ar)
 {
 	uiBlock *block;
 	uiBut *but;
@@ -5602,6 +5531,17 @@ int UI_but_active_drop_name(bContext *C)
 			return 1;
 	}
 	
+	return 0;
+}
+
+int UI_but_active_drop_color(bContext *C)
+{
+	ARegion *ar = CTX_wm_region(C);
+	uiBut *but = ui_but_find_activated(ar);
+
+	if (but && but->type == COLOR)
+		return 1;
+
 	return 0;
 }
 

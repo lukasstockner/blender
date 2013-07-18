@@ -108,8 +108,14 @@ void wm_event_free(wmEvent *event)
 	if (event->customdata) {
 		if (event->customdatafree) {
 			/* note: pointer to listbase struct elsewhere */
-			if (event->custom == EVT_DATA_LISTBASE)
-				BLI_freelistN(event->customdata);
+			if (event->custom == EVT_DATA_DRAGDROP) {
+				ListBase *lb = event->customdata;
+				wmDrag *drag;
+				while ((drag = lb->first)) {
+					BLI_remlink(lb, drag);
+					WM_drag_free(drag);
+				}
+			}
 			else
 				MEM_freeN(event->customdata);
 		}
@@ -1884,17 +1890,20 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 					wmDropBox *drop = handler->dropboxes->first;
 					for (; drop; drop = drop->next) {
 						/* other drop custom types allowed */
-						if (event->custom == EVT_DATA_LISTBASE) {
+						if (event->custom == EVT_DATA_DRAGDROP) {
 							ListBase *lb = (ListBase *)event->customdata;
 							wmDrag *drag;
 							
 							for (drag = lb->first; drag; drag = drag->next) {
 								if (drop->poll(C, drag, event)) {
-									
 									drop->copy(drag, drop);
 									
 									/* free the drags before calling operator */
-									BLI_freelistN(event->customdata);
+									while ((drag = lb->first)) {
+										BLI_remlink(lb, drag);
+										WM_drag_free(drag);
+									}
+
 									event->customdata = NULL;
 									event->custom = 0;
 									
@@ -2092,7 +2101,12 @@ static void wm_event_drag_test(wmWindowManager *wm, wmWindow *win, wmEvent *even
 	if (event->type == MOUSEMOVE)
 		win->screen->do_draw_drag = TRUE;
 	else if (event->type == ESCKEY) {
-		BLI_freelistN(&wm->drags);
+		wmDrag *drag;
+		while ((drag = wm->drags.first)) {
+			BLI_remlink(&wm->drags, drag);
+			WM_drag_free(drag);
+		}
+
 		win->screen->do_draw_drag = TRUE;
 	}
 	else if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
@@ -2104,7 +2118,7 @@ static void wm_event_drag_test(wmWindowManager *wm, wmWindow *win, wmEvent *even
 				MEM_freeN(event->customdata);
 		}
 		
-		event->custom = EVT_DATA_LISTBASE;
+		event->custom = EVT_DATA_DRAGDROP;
 		event->customdata = &wm->drags;
 		event->customdatafree = 1;
 		
