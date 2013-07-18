@@ -436,22 +436,26 @@ protected:
 
 static void libmv_solveRefineIntrinsics(const libmv::Tracks &tracks,
                                         const libmv_reconstructionOptions &reconstruction_options,
-                                        const int bundle_constraints,
                                         reconstruct_progress_update_cb progress_update_callback,
                                         void *callback_customdata,
                                         libmv::EuclideanReconstruction *reconstruction,
                                         libmv::CameraIntrinsics *intrinsics)
 {
 	/* only a few combinations are supported but trust the caller */
-	const int refine_intrinsics = reconstruction_options.refine_intrinsics;
 	libmv::BundleOptions bundle_options;
-	bundle_options.constraints = bundle_constraints;
 
 	LoggingCallback callback;
 	bundle_options.iteration_callback = &callback;
 
+	const int motion_flag = reconstruction_options.motion_flag;
+	const int refine_intrinsics = reconstruction_options.refine_intrinsics;
+
+	if (motion_flag & LIBMV_TRACKING_MOTION_MODAL) {
+		bundle_options.constraints |= libmv::BUNDLE_NO_TRANSLATION;
+	}
+
 	if (refine_intrinsics & LIBMV_REFINE_FOCAL_LENGTH) {
-		bundle_options.intrinsics |= libmv::BUNDLE_FOCAL_LENGTH;
+		bundle_options.bundle_intrinsics |= libmv::BUNDLE_FOCAL_LENGTH;
 		if (refine_intrinsics & LIBMV_CONSTRAIN_FOCAL_LENGTH) {
 			bundle_options.constraints |= libmv::BUNDLE_CONSTRAIN_FOCAL_LENGTH;
 			bundle_options.focal_length_min = reconstruction_options.focal_length_min;
@@ -459,13 +463,13 @@ static void libmv_solveRefineIntrinsics(const libmv::Tracks &tracks,
 		}
 	}
 	if (refine_intrinsics & LIBMV_REFINE_PRINCIPAL_POINT) {
-		bundle_options.intrinsics |= libmv::BUNDLE_PRINCIPAL_POINT;
+		bundle_options.bundle_intrinsics |= libmv::BUNDLE_PRINCIPAL_POINT;
 	}
 	if (refine_intrinsics & LIBMV_REFINE_RADIAL_DISTORTION_K1) {
-		bundle_options.intrinsics |= libmv::BUNDLE_RADIAL_K1;
+		bundle_options.bundle_intrinsics |= libmv::BUNDLE_RADIAL_K1;
 	}
 	if (refine_intrinsics & LIBMV_REFINE_RADIAL_DISTORTION_K2) {
-		bundle_options.intrinsics |= libmv::BUNDLE_RADIAL_K2;
+		bundle_options.bundle_intrinsics |= libmv::BUNDLE_RADIAL_K2;
 	}
 
 	progress_update_callback(callback_customdata, 1.0, "Refining solution");
@@ -591,7 +595,7 @@ static bool selectTwoKeyframesBasedOnGRICAndVariance(
 	return true;
 }
 
-libmv_Reconstruction *libmv_solveReconstruction(const libmv_Tracks *libmv_tracks,
+static libmv_Reconstruction *libmv_solveReconstruction(const libmv_Tracks *libmv_tracks,
 			const libmv_cameraIntrinsicsOptions *libmv_camera_intrinsics_options,
 			libmv_reconstructionOptions *libmv_reconstruction_options,
 			reconstruct_progress_update_cb progress_update_callback,
@@ -656,7 +660,6 @@ libmv_Reconstruction *libmv_solveReconstruction(const libmv_Tracks *libmv_tracks
 	if (libmv_reconstruction_options->refine_intrinsics) {
 		libmv_solveRefineIntrinsics(tracks,
 		                            *libmv_reconstruction_options,
-		                            libmv::BUNDLE_NO_CONSTRAINTS,
 		                            progress_update_callback,
 		                            callback_customdata,
 		                            &reconstruction,
@@ -673,7 +676,7 @@ libmv_Reconstruction *libmv_solveReconstruction(const libmv_Tracks *libmv_tracks
 	return (libmv_Reconstruction *)libmv_reconstruction;
 }
 
-struct libmv_Reconstruction *libmv_solveModal(const libmv_Tracks *libmv_tracks,
+static struct libmv_Reconstruction *libmv_solveModal(const libmv_Tracks *libmv_tracks,
 			const libmv_cameraIntrinsicsOptions *libmv_camera_intrinsics_options,
 			const libmv_reconstructionOptions *libmv_reconstruction_options,
 			reconstruct_progress_update_cb progress_update_callback,
@@ -697,7 +700,7 @@ struct libmv_Reconstruction *libmv_solveModal(const libmv_Tracks *libmv_tracks,
 	libmv::ModalSolver(normalized_tracks, &reconstruction, &update_callback);
 
 	libmv::BundleOptions bundle_options;
-	bundle_options.intrinsics = libmv::BUNDLE_NO_INTRINSICS;
+	bundle_options.bundle_intrinsics = libmv::BUNDLE_NO_INTRINSICS;
 	bundle_options.constraints = libmv::BUNDLE_NO_TRANSLATION;
 
 	libmv::CameraIntrinsics empty_intrinsics;
@@ -710,7 +713,6 @@ struct libmv_Reconstruction *libmv_solveModal(const libmv_Tracks *libmv_tracks,
 	if (libmv_reconstruction_options->refine_intrinsics) {
 		libmv_solveRefineIntrinsics(tracks,
 		                            *libmv_reconstruction_options,
-		                            libmv::BUNDLE_NO_TRANSLATION,
 		                            progress_update_callback, callback_customdata,
 		                            &reconstruction,
 		                            &camera_intrinsics);
@@ -721,6 +723,28 @@ struct libmv_Reconstruction *libmv_solveModal(const libmv_Tracks *libmv_tracks,
 	                     progress_update_callback, callback_customdata);
 
 	return (libmv_Reconstruction *)libmv_reconstruction;
+}
+
+libmv_Reconstruction *libmv_solve(const libmv_Tracks *libmv_tracks,
+			const libmv_cameraIntrinsicsOptions *libmv_camera_intrinsics_options,
+			libmv_reconstructionOptions *libmv_reconstruction_options,
+			reconstruct_progress_update_cb progress_update_callback,
+			void *callback_customdata)
+{	
+	if (libmv_reconstruction_options->motion_flag & LIBMV_TRACKING_MOTION_MODAL) {
+    return libmv_solveModal(libmv_tracks,
+		                        libmv_camera_intrinsics_options,
+		                        libmv_reconstruction_options,
+		                        progress_update_callback,
+		                        callback_customdata);
+	}
+	else {
+		return libmv_solveReconstruction(libmv_tracks,
+		                                 libmv_camera_intrinsics_options,
+		                                 libmv_reconstruction_options,
+		                                 progress_update_callback,
+		                                 callback_customdata);
+	}
 }
 
 int libmv_reporojectionPointForTrack(const libmv_Reconstruction *libmv_reconstruction, int track, double pos[3])

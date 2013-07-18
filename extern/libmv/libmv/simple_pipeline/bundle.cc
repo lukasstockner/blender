@@ -376,7 +376,7 @@ void EuclideanBundlerPerformEvaluation(const Tracks &tracks,
 }  // namespace
 
 BundleOptions::BundleOptions() :
-  intrinsics(BUNDLE_NO_INTRINSICS),
+  bundle_intrinsics(BUNDLE_NO_INTRINSICS),
   constraints(BUNDLE_NO_CONSTRAINTS),
   focal_length_min(0.0),
   focal_length_max(0.0),
@@ -399,7 +399,7 @@ void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
                                      EuclideanReconstruction *reconstruction,
                                      CameraIntrinsics *intrinsics,
                                      BundleEvaluation *evaluation) {
-  const int bundle_intrinsics = bundle_options.intrinsics;
+  const int bundle_intrinsics = bundle_options.bundle_intrinsics;
   const int bundle_constraints = bundle_options.constraints;
 
   LG << "Original intrinsics: " << *intrinsics;

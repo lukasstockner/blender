@@ -2869,8 +2869,9 @@ typedef struct MovieReconstructContext {
 	struct libmv_Tracks *tracks;
 	bool select_keyframes;
 	int keyframe1, keyframe2;
-	short refine_flags;
-	double focal_length_min, focal_length_max;
+	short refine_intrinsics;
+	short constrain_intrinsics;
+	float focal_length_min, focal_length_max;
 
 	struct libmv_Reconstruction *reconstruction;
 
@@ -3089,30 +3090,34 @@ static int reconstruct_retrieve_libmv(MovieReconstructContext *context, MovieTra
 }
 
 /* Convert blender's refinement flags to libmv's. */
-static int reconstruct_refine_intrinsics_get_flags(MovieTracking *tracking, MovieTrackingObject *object)
+static void reconstruct_refine_intrinsics_get_flags(const MovieTracking *tracking,
+                                                    const MovieTrackingObject *object,
+                                                    MovieReconstructContext *context)
 {
-	int refine = tracking->settings.refine_camera_intrinsics;
-	int flags = 0;
+	short refine = tracking->settings.refine_intrinsics;
+	short constrain = tracking->settings.constrain_intrinsics;
+	short *libmv_refine = &context->refine_intrinsics;
+	short *libmv_constrain = &context->constrain_intrinsics;
 
-	if ((object->flag & TRACKING_OBJECT_CAMERA) == 0)
-		return 0;
+	if ((object->flag & TRACKING_OBJECT_CAMERA) == 0) {
+		*libmv_refine = 0;
+		return;
+	}
 
 	if (refine & REFINE_FOCAL_LENGTH) {
-		flags |= LIBMV_REFINE_FOCAL_LENGTH;
-		if (refine & CONSTRAIN_FOCAL_LENGTH)
-			flags |= LIBMV_CONSTRAIN_FOCAL_LENGTH;
+		*libmv_refine |= LIBMV_REFINE_FOCAL_LENGTH;
+		if (constrain & CONSTRAIN_FOCAL_LENGTH)
+			*libmv_constrain |= LIBMV_CONSTRAIN_FOCAL_LENGTH;
 	}
 
 	if (refine & REFINE_PRINCIPAL_POINT)
-		flags |= LIBMV_REFINE_PRINCIPAL_POINT;
+		*libmv_refine |= LIBMV_REFINE_PRINCIPAL_POINT;
 
 	if (refine & REFINE_RADIAL_DISTORTION_K1)
-		flags |= LIBMV_REFINE_RADIAL_DISTORTION_K1;
+		*libmv_refine |= LIBMV_REFINE_RADIAL_DISTORTION_K1;
 
 	if (refine & REFINE_RADIAL_DISTORTION_K2)
-		flags |= LIBMV_REFINE_RADIAL_DISTORTION_K2;
-
-	return flags;
+		*libmv_refine |= LIBMV_REFINE_RADIAL_DISTORTION_K2;
 }
 
 /* Count tracks which has markers at both of keyframes. */
@@ -3238,7 +3243,8 @@ MovieReconstructContext *BKE_tracking_reconstruction_context_new(MovieTracking *
 	context->tracks = libmv_tracks_new(tracksbase, width, height * aspy);
 	context->keyframe1 = keyframe1;
 	context->keyframe2 = keyframe2;
-	context->refine_flags = reconstruct_refine_intrinsics_get_flags(tracking, object);
+
+	reconstruct_refine_intrinsics_get_flags(tracking, object, context);
 	context->focal_length_min = tracking->settings.focal_length_min;
 	context->focal_length_max = tracking->settings.focal_length_max;
 
@@ -3272,8 +3278,8 @@ static void reconstruct_update_solve_cb(void *customdata, double progress, const
 }
 
 /* FIll in camera intrinsics structure from reconstruction context. */
-static void cameraIntrinsicsOptionsFromContext(libmv_cameraIntrinsicsOptions *camera_intrinsics_options,
-                                              MovieReconstructContext *context)
+static void cameraIntrinsicsOptionsFromContext(const MovieReconstructContext *context,
+                                               libmv_cameraIntrinsicsOptions *camera_intrinsics_options)
 {
 	camera_intrinsics_options->focal_length = context->focal_length;
 
@@ -3289,15 +3295,18 @@ static void cameraIntrinsicsOptionsFromContext(libmv_cameraIntrinsicsOptions *ca
 }
 
 /* Fill in reconstruction options structure from reconstruction context. */
-static void reconstructionOptionsFromContext(libmv_reconstructionOptions *reconstruction_options,
-                                             MovieReconstructContext *context)
+static void reconstructionOptionsFromContext(const MovieReconstructContext *context,
+                                             libmv_reconstructionOptions *reconstruction_options)
 {
 	reconstruction_options->select_keyframes = context->select_keyframes;
 
 	reconstruction_options->keyframe1 = context->keyframe1;
 	reconstruction_options->keyframe2 = context->keyframe2;
 
-	reconstruction_options->refine_intrinsics = context->refine_flags;
+	reconstruction_options->motion_flag = context->motion_flag;
+
+	reconstruction_options->refine_intrinsics = context->refine_intrinsics;
+	reconstruction_options->constrain_intrinsics = context->constrain_intrinsics;
 	reconstruction_options->focal_length_min = context->focal_length_min;
 	reconstruction_options->focal_length_max = context->focal_length_max;
 
@@ -3330,26 +3339,20 @@ void BKE_tracking_reconstruction_solve(MovieReconstructContext *context, short *
 	progressdata.stats_message = stats_message;
 	progressdata.message_size = message_size;
 
-	cameraIntrinsicsOptionsFromContext(&camera_intrinsics_options, context);
-	reconstructionOptionsFromContext(&reconstruction_options, context);
+	cameraIntrinsicsOptionsFromContext(context, &camera_intrinsics_options);
+	reconstructionOptionsFromContext(context, &reconstruction_options);
 
-	if (context->motion_flag & TRACKING_MOTION_MODAL) {
-		context->reconstruction = libmv_solveModal(context->tracks,
-		                                           &camera_intrinsics_options,
-		                                           &reconstruction_options,
-		                                           reconstruct_update_solve_cb, &progressdata);
-	}
-	else {
-		context->reconstruction = libmv_solveReconstruction(context->tracks,
-		                                                    &camera_intrinsics_options,
-		                                                    &reconstruction_options,
-		                                                    reconstruct_update_solve_cb, &progressdata);
-
-		if (context->select_keyframes) {
-			/* store actual keyframes used for reconstruction to update them in the interface later */
-			context->keyframe1 = reconstruction_options.keyframe1;
-			context->keyframe2 = reconstruction_options.keyframe2;
-		}
+	context->reconstruction = libmv_solve(context->tracks,
+	                                      &camera_intrinsics_options,
+	                                      &reconstruction_options,
+	                                      reconstruct_update_solve_cb,
+	                                      &progressdata);
+	if ((context->motion_flag & TRACKING_MOTION_MODAL) &&
+	    context->select_keyframes)
+	{
+		/* store actual keyframes used for reconstruction to update them in the interface later */
+		context->keyframe1 = reconstruction_options.keyframe1;
+		context->keyframe2 = reconstruction_options.keyframe2;
 	}
 
 	error = libmv_reprojectionError(context->reconstruction);

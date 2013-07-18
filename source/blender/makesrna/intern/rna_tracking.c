@@ -284,7 +284,7 @@ static void rna_trackingCamera_focal_px_set(PointerRNA *ptr, float value)
 	MovieTrackingSettings *settings = &clip->tracking.settings;
 	MovieTrackingCamera *camera = &clip->tracking.camera;
 
-	if (settings->refine_camera_intrinsics & CONSTRAIN_FOCAL_LENGTH) {
+	if (settings->constrain_intrinsics & CONSTRAIN_FOCAL_LENGTH) {
 		if (value < settings->focal_length_min) {
 			value = settings->focal_length_min;
 		} else if (value > settings->focal_length_max) {
@@ -716,14 +716,14 @@ static void rna_def_trackingSettings(BlenderRNA *brna)
 	/* intrinsics refinement during bundle adjustment */
 	prop = RNA_def_property(srna, "refine_intrinsics", PROP_ENUM, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	RNA_def_property_enum_bitflag_sdna(prop, NULL, "refine_camera_intrinsics");
+	RNA_def_property_enum_sdna(prop, NULL, "refine_intrinsics");
 	RNA_def_property_enum_items(prop, refine_items);
 	RNA_def_property_ui_text(prop, "Refine", "Refine intrinsics during camera solving");
 
 	/* constrain focal length for intrinsics refinement */
 	prop = RNA_def_property(srna, "use_focal_length_constraint", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	RNA_def_property_boolean_sdna(prop, NULL, "refine_camera_intrinsics", CONSTRAIN_FOCAL_LENGTH);
+	RNA_def_property_boolean_sdna(prop, NULL, "constrain_intrinsics", CONSTRAIN_FOCAL_LENGTH);
 	RNA_def_property_ui_text(prop, "Constrain Focal Length",
 	                         "Constrain the focal length during intrinsics refinement");
 

@@ -78,11 +78,14 @@ void libmv_tracksDestroy(struct libmv_Tracks *libmv_tracks);
 
 /* Reconstruction solver */
 
+#define LIBMV_TRACKING_MOTION_MODAL        (1 << 0)
+
 #define LIBMV_REFINE_FOCAL_LENGTH          (1 << 0)
 #define LIBMV_REFINE_PRINCIPAL_POINT       (1 << 1)
 #define LIBMV_REFINE_RADIAL_DISTORTION_K1  (1 << 2)
 #define LIBMV_REFINE_RADIAL_DISTORTION_K2  (1 << 4)
-#define LIBMV_CONSTRAIN_FOCAL_LENGTH       (1 << 8)
+
+#define LIBMV_CONSTRAIN_FOCAL_LENGTH       (1 << 0)
 
 typedef struct libmv_cameraIntrinsicsOptions {
 	double focal_length;
@@ -96,7 +99,10 @@ typedef struct libmv_reconstructionOptions {
 	int select_keyframes;
 	int keyframe1, keyframe2;
 
-	int refine_intrinsics;
+	short motion_flag;
+
+	short refine_intrinsics;
+	short constrain_intrinsics;
 	double focal_length_min, focal_length_max;
 
 	double success_threshold;
@@ -105,14 +111,9 @@ typedef struct libmv_reconstructionOptions {
 
 typedef void (*reconstruct_progress_update_cb) (void *customdata, double progress, const char *message);
 
-struct libmv_Reconstruction *libmv_solveReconstruction(const struct libmv_Tracks *libmv_tracks,
+struct libmv_Reconstruction *libmv_solve(const struct libmv_Tracks *libmv_tracks,
 			const libmv_cameraIntrinsicsOptions *libmv_camera_intrinsics_options,
 			libmv_reconstructionOptions *libmv_reconstruction_options,
-			reconstruct_progress_update_cb progress_update_callback,
-			void *callback_customdata);
-struct libmv_Reconstruction *libmv_solveModal(const struct libmv_Tracks *libmv_tracks,
-			const libmv_cameraIntrinsicsOptions *libmv_camera_intrinsics_options,
-			const libmv_reconstructionOptions *libmv_reconstruction_options,
 			reconstruct_progress_update_cb progress_update_callback,
 			void *callback_customdata);
 int libmv_reporojectionPointForTrack(const struct libmv_Reconstruction *libmv_reconstruction, int track, double pos[3]);

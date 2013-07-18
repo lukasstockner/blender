@@ -126,7 +126,7 @@ struct BundleOptions {
 
   // Bitfield denoting the camera intrinsics to adjust during
   // bundling. Use BundleIntrinsics flags.
-  int intrinsics;
+  short bundle_intrinsics;
 
   // Bitfield denoting the constraints to place on bundle parameters.
   // Use BundleConstraints flags.

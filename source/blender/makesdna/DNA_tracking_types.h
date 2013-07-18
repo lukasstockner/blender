@@ -173,7 +173,8 @@ typedef struct MovieTrackingSettings {
 	int reconstruction_flag;
 
 	/* refinement */
-	short refine_camera_intrinsics, pad;      /* which camera intrinsics to refine and constrain, according to the REFINE_* and CONSTRAIN_* flags */
+	short refine_intrinsics;                  /* which camera intrinsics to refine */
+	short constrain_intrinsics;               /* which camera intrinsics to constrain */
 	float focal_length_min, focal_length_max; /* minimum and maximum values for focal length refinement in pixels */
 
 	/* ** tool settings ** */
@@ -373,13 +374,17 @@ enum {
 	TRACKING_USE_KEYFRAME_SELECTION      = (1 << 1)
 };
 
-/* MovieTrackingSettings->refine_camera_intrinsics */
+/* MovieTrackingSettings->refine_intrinsics */
 enum {
 	REFINE_FOCAL_LENGTH         = (1 << 0),
 	REFINE_PRINCIPAL_POINT      = (1 << 1),
 	REFINE_RADIAL_DISTORTION_K1 = (1 << 2),
 	REFINE_RADIAL_DISTORTION_K2 = (1 << 4),
-	CONSTRAIN_FOCAL_LENGTH      = (1 << 8)
+};
+
+/* MovieTrackingSettings->constrain_intrinsics */
+enum {
+	CONSTRAIN_FOCAL_LENGTH      = (1 << 0)
 };
 
 /* MovieTrackingStrabilization->flag */
