@@ -36,35 +36,14 @@
 extern "C" {
 #endif
 
-extern unsigned int GPU_ext_config ;
-extern unsigned int GPU_gl_type ;
-
-#define GPU_EXT_GLSL (1<<0)
-#define GPU_EXT_GLSL_ENABLED (GPU_ext_config & GPU_EXT_GLSL)
-#define GPU_EXT_GLSL_VERTEX (1<<1)
-#define GPU_EXT_GLSL_VERTEX_ENABLED (GPU_ext_config & GPU_EXT_GLSL_VERTEX)
-#define GPU_EXT_GLSL_FRAGMENT (1<<2)
-#define GPU_EXT_GLSL_FRAGMENT_ENABLED (GPU_ext_config & GPU_EXT_GLSL_FRAGMENT)
-#define GPU_EXT_FRAMEBUFFERS (1<<3)
-#define GPU_EXT_FRAMEBUFFERS_ENABLED (GPU_ext_config & GPU_EXT_FRAMEBUFFERS)
-#define GPU_EXT_MAPBUFFER (1<<4)
-#define GPU_EXT_MAPBUFFER_ENABLED (GPU_ext_config & GPU_EXT_MAPBUFFER)
-
-#ifdef WITH_GLES
-#define GPU_GLTYPE_FIXED_ENABLED (0)
-#else
-#define GPU_GLTYPE_FIXED (1<<0)
-#define GPU_GLTYPE_FIXED_ENABLED (GPU_gl_type & GPU_GLTYPE_FIXED)
-#endif
-
 /* GPUShader */
 
 struct GPUShader {
-	unsigned int object;		/* handle for full shader */
-	unsigned int vertex;		/* handle for vertex shader */
-	unsigned int fragment;	/* handle for fragment shader */
-	unsigned int lib;		/* handle for libment shader */
-	int totattrib;			/* total number of attributes */
+	unsigned int object;   /* handle for full shader     */
+	unsigned int vertex;   /* handle for vertex shader   */
+	unsigned int fragment; /* handle for fragment shader */
+	unsigned int lib;      /* handle for libment shader  */
+	int totattrib;         /* total number of attributes */
 };
 
 struct Image;
@@ -86,7 +65,6 @@ typedef struct GPUShader GPUShader;
 /* GPU extensions support */
 
 void GPU_extensions_disable(void);
-void GPU_init_graphics_type(void);
 void GPU_extensions_init(void); /* call this before running any of the functions below */
 void GPU_extensions_exit(void);
 int GPU_print_error(const char *str);
@@ -234,6 +212,8 @@ typedef struct GPUVertexAttribs {
 
 	int totlayer;
 } GPUVertexAttribs;
+
+int GPU_max_textures(void);
 
 #ifdef __cplusplus
 }

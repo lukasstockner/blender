@@ -29,7 +29,9 @@
  *  \ingroup gpu
  */
 
-#ifndef WITH_GLES
+#if defined(WITH_GL_PROFILE_COMPAT)
+
+#include "gpu_object_gl11.h"
 
 #include "intern/gpu_glew.h"
 
@@ -37,10 +39,10 @@
 
 struct GPU_object_gl11_data
 {
-		char norma;
-		char cola;	char texta;
-
-} static od = {0};
+	char norma;
+	char cola;
+	char texta;
+} static od;
 
 
 
@@ -54,29 +56,22 @@ void gpuNormalPointer_gl11(int type, int stride, const void *pointer)
 {
 	glEnableClientState(GL_NORMAL_ARRAY); od.norma = 1;
 	glNormalPointer(type, stride, pointer);
-
 }
 
 void gpuColorPointer_gl11 (int size, int type, int stride, const void *pointer)
 {
-
 	glEnableClientState(GL_COLOR_ARRAY); od.cola = 1;
 	glColorPointer(size, type, stride, pointer);
-
-
-
 }
 
 void gpuTexCoordPointer_gl11(int size, int type, int stride, const void *pointer)
 {
-	if(od.texta==0)
-	{
+	if(od.texta == 0) {
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 		od.texta = 1;
-
 	}
-	glTexCoordPointer(size, type, stride, pointer);
 
+	glTexCoordPointer(size, type, stride, pointer);
 }
 
 void gpuClientActiveTexture_gl11(int texture)
@@ -96,8 +91,10 @@ void gpuCleanupAfterDraw_gl11(void)
 		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 
 	od.norma = 0;
-	od.cola = 0;
+	od.cola  = 0;
 	od.texta = 0;
 }
 
-#endif /* WITH_GLES */
+
+
+#endif

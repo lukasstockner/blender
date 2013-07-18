@@ -29,6 +29,9 @@
  *  \ingroup gpu
  */
 
+#ifndef __GPU_COLORS__
+#define __GPU_COLORS__
+
 #define CPACK_BLACK   0x000000
 #define CPACK_WHITE   0xFFFFFF
 
@@ -39,3 +42,5 @@
 #define CPACK_YELLOW  0xFFFF00
 #define CPACK_CYAN    0x00FFFF
 #define CPACK_MAGENTA 0xFF00FF
+
+#endif

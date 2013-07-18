@@ -28,7 +28,9 @@
 /** \file gpu_lighting.c
  *  \ingroup gpu
  */
-#ifndef WITH_GLES
+
+#if defined(WITH_GL_PROFILE_COMPAT)
+
 #include "gpu_lighting_internal.h"
 
 
@@ -141,5 +143,7 @@ GLboolean gpu_is_lighting_enabled_gl11(void)
 {
 	return glIsEnabled(GL_LIGHTING);
 }
+
+
 
 #endif

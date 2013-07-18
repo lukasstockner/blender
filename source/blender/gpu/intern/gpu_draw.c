@@ -251,23 +251,36 @@ void GPU_set_gpu_mipmapping(int gpu_mipmap)
 	}
 }
 
-static void gpu_generate_mipmap(GLenum target)
+static void GPU_generate_mipmap(GLenum target)
 {
-	int is_ati = GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY);
-	int target_enabled = 0;
+	GLboolean workaround;
 
-	/* work around bug in ATI driver, need to have GL_TEXTURE_2D enabled
+	/* Work around bug in ATI driver, need to have GL_TEXTURE_2D enabled.
 	 * http://www.opengl.org/wiki/Common_Mistakes#Automatic_mipmap_generation */
-	if (is_ati) {
-		target_enabled = glIsEnabled(target);
-		if (!target_enabled)
+	if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY)) {
+		workaround = !glIsEnabled(target);
+
+		if (workaround) {
 			glEnable(target);
+		}
+	}
+	else {
+		workaround = GL_FALSE;
 	}
 
-	glGenerateMipmapEXT(target);
+	if (GLEW_VERSION_3_0 || GLEW_ARB_framebuffer_object) {
+		glGenerateMipmap(target);
+	}
+	else if (GLEW_OES_framebuffer_object) {
+		glGenerateMipmapOES(target);
+	}
+	else if (GLEW_EXT_framebuffer_object) {
+		glGenerateMipmapEXT(target);
+	}
 
-	if (is_ati && !target_enabled)
+	if (workaround) {
 		glDisable(target);
+	}
 }
 
 void GPU_set_mipmap(int mipmap)
@@ -456,6 +469,9 @@ static void gpu_verify_reflection(Image *ima)
 	}
 }
 
+
+// XXX jwilkins: I don't think this box filter is gamma correct (should take into account color correction)
+
 #define BOX_FILTER_HALF_ONLY \
 	for(y=0; y<hightout; y++)\
 	{\
@@ -520,35 +536,54 @@ static void ScaleHalfImageFloat(int size, float *imgin, int widthin, int hightin
 
 #undef BOX_FILTER_HALF_ONLY
 
-#ifndef WITH_GLES
-static void GenerateMipmapRGBA(int high_bit, int w, int h, void * data)
+static void GPU_mipmap_2D(GLboolean genmip, GLenum internalFormat, int w, int h, GLenum type, void* data)
 {
-	if (GLEW_EXT_framebuffer_object) {
-		/* use hardware accelerated mipmap generation */
-		if (high_bit)
-			glTexImage2D(GL_TEXTURE_2D, 0,  GL_RGBA16,  w, h, 0, GL_RGBA, GL_FLOAT, data);
-		else
-			glTexImage2D(GL_TEXTURE_2D, 0,  GL_RGBA,  w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-		glGenerateMipmap(GL_TEXTURE_2D);
-	} else {
-		if (high_bit)
-			gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGBA16, w, h, GL_RGBA, GL_FLOAT, data);
-		else
-			gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGBA, w, h, GL_RGBA, GL_UNSIGNED_BYTE, data);
+	if (GLEW_VERSION_3_0            ||
+		GLEW_ARB_framebuffer_object ||
+		GLEW_EXT_framebuffer_object ||
+		GLEW_ES_VERSION_2_0         ||
+		GLEW_OES_framebuffer_object)
+	{
+		glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, w, h, 0, GL_RGBA, type, data);
+
+		if (genmip) {
+			glHint(GL_GENERATE_MIPMAP_HINT, GL_NICEST);
+			GPU_generate_mipmap(GL_TEXTURE_2D);
+			glHint(GL_GENERATE_MIPMAP_HINT, GL_DONT_CARE); // return to default value
+		}
+
+		return;
 	}
-}
-#else	
-static void GenerateMipmapRGBA(int high_bit, int w, int h, void * data)
-{
-//#include REAL_GL_MODE
-		if (high_bit)
-			glTexImage2D(GL_TEXTURE_2D, 0,  GL_RGBA16,  w, h, 0, GL_RGBA, GL_FLOAT, data);
-		else
-			glTexImage2D(GL_TEXTURE_2D, 0,  GL_RGBA,  w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-		gpu_generate_mipmap(GL_TEXTURE_2D);
-//#include FAKE_GL_MODE
-}
+
+#if defined(WITH_GL_PROFILE_COMPAT)
+	if (GLEW_VERSION_1_4) {
+		if (genmip) {
+			glHint(GL_GENERATE_MIPMAP_HINT, GL_NICEST);
+			glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
+		}
+
+		glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, w, h, 0, GL_RGBA, type, data);
+
+		if (genmip) {
+			glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_FALSE);
+			glHint(GL_GENERATE_MIPMAP_HINT, GL_DONT_CARE); // return to default value
+		}
+
+		return;
+	}
 #endif
+
+#if defined(WITH_GLU)
+	if (genmip) {
+		gluBuild2DMipmaps(GL_TEXTURE_2D, internalFormat, w, h, GL_RGBA, type, data);
+	}
+	else {
+		glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, w, h, 0, GL_RGBA, type, data);
+	}
+#else
+	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, w, h, 0, GL_RGBA, type, data);
+#endif
+}
 
 int GPU_verify_image(Image *ima, ImageUser *iuser, int tftile, int compare, int mipmap, bool is_data)
 {
@@ -705,6 +740,7 @@ int GPU_verify_image(Image *ima, ImageUser *iuser, int tftile, int compare, int 
 		/* enable opengl drawing with textures */
 //#include REAL_GL_MODE
 		glBindTexture(GL_TEXTURE_2D, *bind);
+//#include FAKE_GL_MODE
 		BKE_image_release_ibuf(ima, ibuf, NULL);
 		return *bind;
 	}
@@ -790,53 +826,47 @@ void GPU_create_gl_tex(unsigned int *bind, unsigned int *pix, float *frect, int 
 		recth= smaller_power_of_2_limit(recth);
 		
 		if (use_high_bit_depth) {
-			fscalerect= MEM_mallocN(rectw*recth*sizeof(*fscalerect)*4, "fscalerect");
+			fscalerect = MEM_mallocN(rectw*recth*sizeof(*fscalerect)*4, "fscalerect");
 			ScaleHalfImageFloat(4, (float*)pix, tpx, tpy, (float*)fscalerect, rectw, recth);
 			frect = fscalerect;
 		}
 		else {
-			scalerect= MEM_mallocN(rectw*recth*sizeof(*scalerect), "scalerect");
+			scalerect = MEM_mallocN(rectw*recth*sizeof(*scalerect), "scalerect");
 			ScaleHalfImageChar(4, (unsigned char*)pix, tpx, tpy, (unsigned char*)scalerect, rectw, recth);
 
-			pix= scalerect;
+			pix = scalerect;
 		}
 	}
+
+//#include REAL_GL_MODE
 
 	/* create image */
 	glGenTextures(1, (GLuint *)bind);
 	glBindTexture(GL_TEXTURE_2D, *bind);
 
-	if (!(GPU_get_mipmap() && mipmap)) {
-		if (use_high_bit_depth)
-			glTexImage2D(GL_TEXTURE_2D, 0,  GL_RGBA16,  rectw, recth, 0, GL_RGBA, GL_FLOAT, frect);
-		else
-			glTexImage2D(GL_TEXTURE_2D, 0,  GL_RGBA,  rectw, recth, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gpu_get_mipmap_filter(1));
+	mipmap = mipmap && GPU_get_mipmap();
+
+	if (use_high_bit_depth) {
+		GPU_mipmap_2D(mipmap, GL_RGBA16, rectw, recth, GL_FLOAT, frect);
 	}
 	else {
-	
-		GenerateMipmapRGBA(use_high_bit_depth, rectw, recth, use_high_bit_depth? (void*)frect: (void*)pix);
-
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gpu_get_mipmap_filter(0));
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gpu_get_mipmap_filter(1));
-//#include FAKE_GL_MODE
-		if (ima)
-			ima->tpageflag |= IMA_MIPMAP_COMPLETE;
+		GPU_mipmap_2D(mipmap, GL_RGBA, rectw, recth, GL_UNSIGNED_BYTE, pix);
 	}
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gpu_get_mipmap_filter(0));
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gpu_get_mipmap_filter(1));
+
+//#include FAKE_GL_MODE
+
+	if (ima && mipmap)
+		ima->tpageflag |= IMA_MIPMAP_COMPLETE;
 
 	if (GLEW_EXT_texture_filter_anisotropic)
 		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, GPU_get_anisotropic());
-		
-#ifndef WITH_GLES
-	/* set to modulate with vertex color */
-	/* we don't have it in OpenGL ES 2.0 */
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-
-#endif
 
 	if (scalerect)
 		MEM_freeN(scalerect);
+
 	if (fscalerect)
 		MEM_freeN(fscalerect);
 }
@@ -1059,7 +1089,7 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 			/* we have already accounted for the case where GTS.gpu_mipmap is false
 			 * so we will be using GPU mipmap generation here */
 			if (GPU_get_mipmap()) {
-				gpu_generate_mipmap(GL_TEXTURE_2D);
+				GPU_generate_mipmap(GL_TEXTURE_2D);
 			}
 			else {
 				ima->tpageflag &= ~IMA_MIPMAP_COMPLETE;
@@ -1094,7 +1124,7 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 
 		/* see comment above as to why we are using gpu mipmap generation here */
 		if (GPU_get_mipmap()) {
-			gpu_generate_mipmap(GL_TEXTURE_2D);
+			GPU_generate_mipmap(GL_TEXTURE_2D);
 		}
 		else {
 			ima->tpageflag &= ~IMA_MIPMAP_COMPLETE;

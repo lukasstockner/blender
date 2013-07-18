@@ -165,7 +165,7 @@ void GPU_ms_exit(void)
 
 void gpuMatrixCommit(void)
 {
-#if defined(WITH_GL_PROFILE_COMPATIBILITY) || defined(WITH_GL_PROFILE_ES20)
+#if defined(WITH_GL_PROFILE_COMPAT)
 	if(ms_modelview.changed) {
 		ms_modelview.changed = GL_FALSE;
 		glMatrixMode(GL_MODELVIEW);
@@ -360,8 +360,7 @@ void gpuMultMatrix(const GLfloat *m)
 
 
 
-#if defined(WITH_GL_PROFILE_COMPATIBILITY) || defined(WITH_GL_PROFILE_CORE)
-void gpuMultMatrixd(const GLdouble *m)
+void gpuMultMatrixd(const double *m)
 {
 	GLfloat mf[16];
 	GLint i;
@@ -372,7 +371,6 @@ void gpuMultMatrixd(const GLdouble *m)
 
 	gpuMultMatrix(mf);
 }
-#endif
 
 
 

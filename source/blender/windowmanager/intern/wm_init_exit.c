@@ -114,7 +114,6 @@
 #include "GPU_draw.h"
 #include "GPU_compatibility.h"
 #include "GPU_object.h"
-#include "GPU_functions.h"
 
 #include "BKE_depsgraph.h"
 #include "BKE_sound.h"
@@ -143,7 +142,6 @@ void WM_init(bContext *C, int argc, const char **argv)
 		wm_init_cursor_data();
 
 		/* begin - init opengl compatibility layer */
-		GPU_init_graphics_type();
 		GPU_ms_init();
 		GPU_init_object_func();
 

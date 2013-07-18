@@ -616,9 +616,6 @@ static char *code_generate_fragment(ListBase *nodes, GPUOutput *output, const ch
 	code = BLI_dynstr_get_cstring(ds);
 	BLI_dynstr_free(ds);
 	
-#ifdef WITH_GLES	
-	printf("%s\n", code);
-#endif
 	//if (G.debug & G_DEBUG) printf("%s\n", code);
 
 	return code;
@@ -631,28 +628,24 @@ static char *code_generate_vertex(ListBase *nodes)
 	GPUInput *input;
 	char *code;
 
-#ifdef WITH_GLES
+#if defined(WITH_GL_PROFILE_ES20) || defined(WITH_GL_PROFILE_CORE)
+	BLI_dynstr_append(ds,
+		"#define gl_ModelViewMatrix b_ModelViewMatrix\n"
+		"#define gl_ProjectionMatrix b_ProjectionMatrix\n"
+		"#define gl_NormalMatrix b_NormalMatrix\n"
 
-BLI_dynstr_append(ds, 
-"#define gl_ModelViewMatrix b_ModelViewMatrix\n"
-"#define gl_ProjectionMatrix b_ProjectionMatrix\n"
-"#define gl_NormalMatrix b_NormalMatrix\n"
+		"#define gl_Vertex b_Vertex\n"
+		"#define gl_Normal b_Normal\n"
 
-"#define gl_Vertex b_Vertex\n"
-"#define gl_Normal b_Normal\n"
+		"uniform mat4 b_ProjectionMatrix ;\n"
+		"uniform mat4 b_ModelViewMatrix ;\n"
+		"uniform mat3 b_NormalMatrix ;\n"
 
-"uniform mat4 b_ProjectionMatrix ;	\n"
-"uniform mat4 b_ModelViewMatrix ;	\n"
-"uniform mat3 b_NormalMatrix ;	\n"
+		"attribute vec4 b_Vertex;\n"
+		"attribute vec3 b_Normal;\n"
+		"\n");
+#endif
 
-"attribute vec4 b_Vertex;	\n"
-"attribute vec3 b_Normal;	\n"
-"\n");
-
-
-
-#endif	
-	
 	for (node=nodes->first; node; node=node->next) {
 		for (input=node->inputs.first; input; input=input->next) {
 			if (input->source == GPU_SOURCE_ATTRIB && input->attribfirst) {
@@ -704,17 +697,14 @@ void GPU_code_generate_glsl_lib(void)
 
 	ds = BLI_dynstr_new();
 
-#ifdef WITH_GLES
-		BLI_dynstr_append(ds, 
+#if defined(WITH_GL_PROFILE_ES20)
+	BLI_dynstr_append(ds, 
 		"#define B_GLES\n"
-		"precision mediump float;		\n"
-		
-		);
+		"precision mediump float;\n"
+		"\n");
 #endif
 
-
 	BLI_dynstr_append(ds, datatoc_gpu_shader_material_glsl);
-
 
 	glsl_material_library = BLI_dynstr_get_cstring(ds);
 

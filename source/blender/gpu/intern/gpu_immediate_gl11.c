@@ -28,7 +28,9 @@
 /** \file blender/gpu/intern/gpu_immediate_gl11.c
 *  \ingroup gpu
 */
-#ifndef WITH_GLES
+
+#if defined(WITH_GL_PROFILE_COMPAT)
+
 #include "gpu_immediate_internal.h"
 #include "GPU_matrix.h"
 #include "MEM_guardedalloc.h"
@@ -42,9 +44,7 @@ typedef struct bufferDataGL11 {
 	GLubyte* ptr;
 } bufferDataGL11;
 
-#ifdef WITH_GLES
-#define glClientActiveTexture
-#endif
+
 
 static void allocate(void)
 {
@@ -449,4 +449,7 @@ void gpu_draw_range_elements_gl11(void)
 
 	GPU_CHECK_NO_ERROR();
 }
+
+
+
 #endif

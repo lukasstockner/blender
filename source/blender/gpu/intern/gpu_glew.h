@@ -29,12 +29,38 @@
 *  \ingroup gpu
 */
 
-#ifndef GPU_GLEW_H
-#define GPU_GLEW_H
+#ifndef __GPU_GLEW_H__
+#define __GPU_GLEW_H__
 
 
 
 #include <GL/glew.h>
+
+
+
+#if !defined(WITH_GLEW_ES)
+
+#if !GL_OES_framebuffer_object
+#define GLEW_OES_framebuffer_object 0
+#define glGenerateMipmapOES glGenerateMipmap
+#endif
+
+#if !GL_OES_mapbuffer
+#define GLEW_OES_mapbuffer 0
+#define glMapBufferOES glMapBuffer
+#define glUnmapBufferOES glUnmapBuffer
+#endif
+
+#if !GL_OES_framebuffer_object
+#define GLEW_OES_framebuffer_object 0
+#define glGenFramebuffersOES glGenFramebuffers
+#define glBindFramebufferOES glBindFramebuffer
+#define glDeleteFramebuffersOES glDeleteFramebuffers
+#endif
+
+#define GLEW_ES_VERSION_2_0 0
+
+#endif
 
 
 

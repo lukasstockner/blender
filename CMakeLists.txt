@@ -296,8 +296,11 @@ endif()
 
 # OpenGL
 
-option(WITH_GL_EXPERIMENTAL_GLEW "Switches to experimental copy of GLEW that has support for OpenGL ES. (temporary option for development purposes)" OFF)
-mark_as_advanced(WITH_GL_EXPERIMENTAL_GLEW)
+option(WITH_GLEW_ES "Switches to experimental copy of GLEW that has support for OpenGL ES. (temporary option for development purposes)" OFF)
+mark_as_advanced(WITH_GLEW_ES)
+
+option(WITH_GLU "Provide the GL Utility Library (GLU). Only works with the 'compatibiity' profile. (deprecated)" ON)
+mark_as_advanced(WITH_GLU_ES)
 
 option(WITH_GL_SYSTEM_LEGACY "Support using AGL/WGL/XGL system library (without extensions) to initialize OpenGL. Can only access pre 3.1 'legacy' profile. (deprecated)" ON)
 mark_as_advanced(WITH_GL_SYSTEM_LEGACY)
@@ -308,8 +311,8 @@ mark_as_advanced(WITH_GL_SYSTEM_DESKTOP)
 option(WITH_GL_SYSTEM_EMBEDDED "Support using the EGL system library to initialize OpenGL ES." OFF)
 mark_as_advanced(WITH_GL_SYSTEM_EMBEDDED)
 
-option(WITH_GL_PROFILE_COMPATIBILITY "Support using the OpenGL 'compatibility' profile. (deprecated)" ON)
-mark_as_advanced(WITH_GL_PROFILE_COMPATIBILITY)
+option(WITH_GL_PROFILE_COMPAT "Support using the OpenGL 'compatibility' profile. (deprecated)" ON)
+mark_as_advanced(WITH_GL_PROFILE_COMPAT)
 
 option(WITH_GL_PROFILE_CORE "Support using the OpenGL 3.1+ 'core' profile." OFF)
 mark_as_advanced(WITH_GL_PROFILE_CORE)
@@ -1984,15 +1987,15 @@ else(WITH_GL_SYSTEM_LEGACY OR WITH_GL_SYSTEM_DESKTOP)
 	set(SYSTEM_GL_INCLUDE_DIR "${OPENGL_INCLUDE_DIR}")
 	set(SYSTEM_GL_LIBRARIES   "${OPENGL_gl_LIBRARY}")
 
-	if(WITH_GL_SYSTEM_LEGACY)
+	if(WITH_GLU)
 		list(APPEND SYSTEM_GL_LIBRARIES "${OPENGL_glu_LIBRARY}")
 	endif()
 endif()
 
 blender_include_dirs_sys("${SYSTEM_GL_INCLUDE_DIR}")
 
-if(WITH_GL_PROFILE_COMPATIBILITY)
-	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_GL_PROFILE_COMPATIBILITY")
+if(WITH_GL_PROFILE_COMPAT)
+	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_GL_PROFILE_COMPAT")
 endif()
 
 if(WITH_GL_PROFILE_CORE)
@@ -2001,6 +2004,18 @@ endif()
 
 if(WITH_GL_PROFILE_ES20)
 	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_GL_PROFILE_ES20")
+endif()
+
+if(WITH_GL_SYSTEM_LEGACY)
+	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_GL_SYSTEM_LEGACY")
+endif()
+
+if(WITH_GL_SYSTEM_DESKTOP)
+	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_GL_SYSTEM_DESKTOP")
+endif()
+
+if(WITH_GL_SYSTEM_EMBEDDED)
+	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_GL_SYSTEM_EMBEDDED")
 endif()
 
 if(WITH_GPU_SAFETY)
@@ -2045,14 +2060,16 @@ if(WITH_SYSTEM_GLEW)
 else()
 	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_STATIC")
 
-	if(WITH_GL_EXPERIMENTAL_GLEW)
+	if(WITH_GLEW_ES)
 		set(GLEW_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/extern/glew-es/include")
+
+		set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_GLEW_ES")
 
 		# this isn't strictly required, but potentally makes GLEW smaller and helps catch unguarded API usage
 		if(NOT WITH_GL_PROFILE_ES20)
 			# no es functions are needed
 			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_NO_ES")
-		elseif(NOT (WITH_GL_PROFILE_CORE OR WITH_GL_PROFILE_COMPATIBILITY))
+		elseif(NOT (WITH_GL_PROFILE_CORE OR WITH_GL_PROFILE_COMPAT))
 			# es is enabled, but the other functions are all disabled
 			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_ES_ONLY")
 		endif()
@@ -2069,7 +2086,7 @@ else()
 	endif()
 endif()
 
-if(NOT WITH_GL_SYSTEM_LEGACY)
+if(NOT WITH_GLU)
 	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_NO_GLU")
 endif()
 
@@ -2428,11 +2445,11 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_MOD_OCEANSIM)
 
 	info_cfg_text("OpenGL:")
-	info_cfg_option(WITH_GL_EXPERIMENTAL_GLEW)
+	info_cfg_option(WITH_GLEW_ES)
 	info_cfg_option(WITH_GL_SYSTEM_LEGACY)
 	info_cfg_option(WITH_GL_SYSTEM_DESKTOP)
 	info_cfg_option(WITH_GL_SYSTEM_EMBEDDED)
-	info_cfg_option(WITH_GL_PROFILE_COMPATIBILITY)
+	info_cfg_option(WITH_GL_PROFILE_COMPAT)
 	info_cfg_option(WITH_GL_PROFILE_CORE)
 	info_cfg_option(WITH_GL_PROFILE_ES20)
 	info_cfg_option(WITH_GPU_SAFETY)

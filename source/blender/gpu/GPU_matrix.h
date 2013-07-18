@@ -57,9 +57,7 @@ const GLfloat * gpuGetMatrix(GLenum type, GLfloat * m);
 void gpuLoadIdentity(void);
 
 void gpuMultMatrix(const GLfloat *m);
-#if defined(WITH_GL_PROFILE_COMPATIBILITY) || defined(WITH_GL_PROFILE_CORE)
-void gpuMultMatrixd(const GLdouble *m);
-#endif
+void gpuMultMatrixd(const double *m);
 
 void gpuTranslate(GLfloat x, GLfloat y, GLfloat z);
 void gpuScale(GLfloat x, GLfloat y, GLfloat z);

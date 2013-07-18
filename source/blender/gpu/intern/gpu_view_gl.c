@@ -25,23 +25,28 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "gpu_glew.h"
 #include "gpu_view_gl.h"
+#include "gpu_glew.h"
+
 //#include REAL_GL_MODE
-#include <stdlib.h>
+
+
+
 void gpuColorAndClear_gl(float r, float g, float b, float a)
 {
 	gpuClearColor_gl(r, g, b, a);
 	glClear(GL_COLOR_BUFFER_BIT);
-
 }
+
+
 
 void gpuClearColor_gl(float r, float g, float b, float a)
 {
 	glClearColor(r, g, b, a);
 	//glClearColor((float)rand()/RAND_MAX,(float)rand()/RAND_MAX,(float)rand()/RAND_MAX,0);
-
 }
+
+
 
 void gpuColorAndClearvf_gl(float c[3], float a)
 {
@@ -49,45 +54,53 @@ void gpuColorAndClearvf_gl(float c[3], float a)
 	glClear(GL_COLOR_BUFFER_BIT);
 }
 
+
+
 void gpuClearColorvf_gl(float c[3], float a)
 {
 	glClearColor(c[0], c[1], c[2], a);
 	//glClearColor((float)rand()/RAND_MAX,(float)rand()/RAND_MAX,(float)rand()/RAND_MAX,0);
-
 }
+
+
 
 void gpuGetClearColor_gl(float r[4])
 {
-
 	glGetFloatv(GL_COLOR_CLEAR_VALUE, r);
 }
+
 
 
 void gpuViewport_gl(int x, int y, unsigned int width, unsigned int height)
 {
 	glViewport(x, y, width, height);
-
 }
+
 
 
 void gpuScissor_gl(int x, int y, unsigned int width, unsigned int height)
 {
-glEnable(GL_SCISSOR_TEST);
+	glEnable(GL_SCISSOR_TEST);
 	glScissor(x, y, width, height);
 	//gpuColorAndClear_gl((float)rand()/RAND_MAX,(float)rand()/RAND_MAX,(float)rand()/RAND_MAX,0);
 	//gpuClearColor_gl((float)rand()/RAND_MAX,(float)rand()/RAND_MAX,(float)rand()/RAND_MAX,0);
 }
+
+
 
 void gpuGetSizeBox_gl(int type, int *box)
 {
 	glGetIntegerv(type, box);
 }
 
+
+
 void gpuViewportScissor_gl(int x, int y, unsigned int width, unsigned int height)
 {
 	gpuViewport_gl(x, y, width, height);
 	gpuScissor_gl(x, y, width, height);
 }
+
 
 
 void gpuClear_gl(int mask)

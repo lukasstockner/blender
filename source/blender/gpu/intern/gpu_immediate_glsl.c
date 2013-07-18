@@ -28,6 +28,7 @@
 /** \file blender/gpu/intern/gpu_immediate_glsl.c
 *  \ingroup gpu
 */
+
 #include "gpu_immediate_internal.h"
 #include "GPU_matrix.h"
 #include "MEM_guardedalloc.h"
@@ -35,10 +36,11 @@
 
 #include <string.h>
 
-#include "GPU_functions.h"
+#include "gpu_extension_wrapper.h"
 #include "gpu_glew.h"
 #include "gpu_object_gles.h"
 #include "GPU_object.h"
+
 //#include REAL_GL_MODE
 
 typedef struct bufferDataGLSL {

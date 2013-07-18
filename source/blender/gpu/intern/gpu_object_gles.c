@@ -1,11 +1,42 @@
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * The Original Code is Copyright (C) 2005 Blender Foundation.
+ * All rights reserved.
+ *
+ * The Original Code is: all of this file.
+ *
+ * Contributor(s):
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
+
+/** \file gpu_object_gles.c
+ *  \ingroup gpu
+ */
 
 #include "gpu_glew.h"
 #include "gpu_object_gles.h"
 
-#include "GPU_functions.h"
+#include "gpu_extension_wrapper.h"
 #include "MEM_guardedalloc.h"
 
 //#include REAL_GL_MODE
+
 struct GPUGLSL_ES_info *curglslesi = 0;
 
 
@@ -91,21 +122,21 @@ void gpu_set_shader_es(struct GPUGLSL_ES_info * s, int update)
 }
 
 
+
 void gpu_assign_gles_loc(GPUGLSL_ES_info * glslesinfo, unsigned int program)
 {
-		glslesinfo->normalmatloc = gpu_glGetUniformLocation(program, "b_NormalMatrix");	
-		glslesinfo->viewmatloc = gpu_glGetUniformLocation(program, "b_ModelViewMatrix");	
-		glslesinfo->projectionmatloc = gpu_glGetUniformLocation(program, "b_ProjectionMatrix");
-		glslesinfo->texturematloc = gpu_glGetUniformLocation(program, "b_TextureMatrix");
-		
-		glslesinfo->texidloc = gpu_glGetUniformLocation(program, "v_texid");
-		
-		glslesinfo->vertexloc = gpu_glGetAttribLocation(program, "b_Vertex");
-		glslesinfo->normalloc = gpu_glGetAttribLocation(program, "b_Normal");
-		glslesinfo->colorloc = gpu_glGetAttribLocation(program, "b_Color");
-		glslesinfo->texturecoordloc = gpu_glGetAttribLocation(program, "b_Coord");
-}
+	glslesinfo->normalmatloc     = gpu_glGetUniformLocation(program, "b_NormalMatrix");
+	glslesinfo->viewmatloc       = gpu_glGetUniformLocation(program, "b_ModelViewMatrix");
+	glslesinfo->projectionmatloc = gpu_glGetUniformLocation(program, "b_ProjectionMatrix");
+	glslesinfo->texturematloc    = gpu_glGetUniformLocation(program, "b_TextureMatrix");
 
+	glslesinfo->texidloc         = gpu_glGetUniformLocation(program, "v_texid");
+
+	glslesinfo->vertexloc        = gpu_glGetAttribLocation(program, "b_Vertex");
+	glslesinfo->normalloc        = gpu_glGetAttribLocation(program, "b_Normal");
+	glslesinfo->colorloc         = gpu_glGetAttribLocation(program, "b_Color");
+	glslesinfo->texturecoordloc  = gpu_glGetAttribLocation(program, "b_Coord");
+}
 
 
 
@@ -285,5 +316,3 @@ void gpu_object_init_gles(void)
 	
 	gpu_assign_gles_loc(&shader_alphatexture_info, shader_alphatexture);
 }
-
-

@@ -746,6 +746,9 @@ static int wm_draw_update_test_window(wmWindow *win)
 
 static int wm_automatic_draw_method(wmWindow *win)
 {
+#if defined(WITH_GL_PROFILE_ES20)
+	return USER_DRAW_FULL; /* XXX jwilkins: this needs to be smarter! */
+#else
 	/* Ideally all cards would work well with triple buffer, since if it works
 	 * well gives the least redraws and is considerably faster at partial redraw
 	 * for sculpting or drawing overlapping menus. For typically lower end cards
@@ -777,6 +780,7 @@ static int wm_automatic_draw_method(wmWindow *win)
 	}
 	else
 		return win->drawmethod;
+#endif
 }
 
 bool WM_is_draw_triple(wmWindow *win)
@@ -841,9 +845,6 @@ void wm_draw_update(bContext *C)
 
 			drawmethod = wm_automatic_draw_method(win);
 
-#ifdef WITH_GLES
-			wm_method_draw_full(C, win);
-#else
 			if (win->drawfail)
 				wm_method_draw_overlap_all(C, win, 0);
 			else if (drawmethod == USER_DRAW_FULL)
@@ -854,7 +855,6 @@ void wm_draw_update(bContext *C)
 				wm_method_draw_overlap_all(C, win, 1);
 			else // if (drawmethod == USER_DRAW_TRIPLE)
 				wm_method_draw_triple(C, win);
-#endif
 
 			win->screen->do_draw_gesture = FALSE;
 			win->screen->do_draw_paintcursor = FALSE;

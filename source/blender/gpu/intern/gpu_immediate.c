@@ -142,43 +142,6 @@ GLint gpuImmediateLockCount(void)
 
 
 
-#if GPU_SAFETY
-static void calc_last_texture(GPUimmediate* immediate)
-{
-	GLint maxTextureUnits;
-	GLint maxTextureCoords;
-	GLint maxCombinedTextureImageUnits;
-
-	if (GLEW_VERSION_1_3 || GLEW_ARB_multitexture) {
-		glGetIntegerv(
-			GL_MAX_TEXTURE_UNITS,
-			&maxTextureUnits);
-	}
-	else {
-		maxTextureUnits = 1;
-	}
-
-	if (GLEW_VERSION_2_0 || GLEW_ARB_fragment_program) {
-		glGetIntegerv(
-			GL_MAX_TEXTURE_COORDS,
-			&maxTextureCoords);
-
-		glGetIntegerv(
-			GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,
-			&maxCombinedTextureImageUnits);
-	}
-	else {
-		maxTextureCoords             = 0;
-		maxCombinedTextureImageUnits = 0;
-	}
-
-	immediate->lastTexture =
-		GL_TEXTURE0 + MAX3(maxTextureUnits, maxTextureCoords, maxCombinedTextureImageUnits) - 1;
-}
-#endif
-
-
-
 static void gpu_copy_vertex(void);
 
 static void gpu_append_client_arrays(
@@ -197,64 +160,58 @@ GPUimmediate* gpuNewImmediate(void)
 
 	immediate->format.vertexSize = 3;
 
-	immediate->copyVertex   = gpu_copy_vertex;
+	immediate->copyVertex         = gpu_copy_vertex;
 	immediate->appendClientArrays = gpu_append_client_arrays;
 
+#if defined(WITH_GL_PROFILE_ES20) || defined(WITH_GL_PROFILE_CORE)
+	immediate->lockBuffer          = gpu_lock_buffer_glsl;
+	immediate->unlockBuffer        = gpu_unlock_buffer_glsl;
+	immediate->beginBuffer         = gpu_begin_buffer_glsl;
+	immediate->endBuffer           = gpu_end_buffer_glsl;
+	immediate->shutdownBuffer      = gpu_shutdown_buffer_glsl;
+	immediate->currentColor        = gpu_current_color_glsl;
+	immediate->getCurrentColor     = gpu_get_current_color_glsl;
+	immediate->currentNormal       = gpu_current_normal_glsl;
+	immediate->indexBeginBuffer    = gpu_index_begin_buffer_glsl;
+	immediate->indexShutdownBuffer = gpu_index_shutdown_buffer_glsl;
+	immediate->indexEndBuffer      = gpu_index_end_buffer_glsl;
+	immediate->drawElements        = gpu_draw_elements_glsl;
+	immediate->drawRangeElements   = gpu_draw_range_elements_glsl;
 
-	if(!GPU_GLTYPE_FIXED_ENABLED)
-	{
-		immediate->lockBuffer          = gpu_lock_buffer_glsl;
-		immediate->unlockBuffer        = gpu_unlock_buffer_glsl;
-		immediate->beginBuffer         = gpu_begin_buffer_glsl;
-		immediate->endBuffer           = gpu_end_buffer_glsl;
-		immediate->shutdownBuffer      = gpu_shutdown_buffer_glsl;
-		immediate->currentColor        = gpu_current_color_glsl;
-		immediate->getCurrentColor     = gpu_get_current_color_glsl;
-		immediate->currentNormal       = gpu_current_normal_glsl;
-		immediate->indexBeginBuffer    = gpu_index_begin_buffer_glsl;
-		immediate->indexShutdownBuffer = gpu_index_shutdown_buffer_glsl;
-		immediate->indexEndBuffer      = gpu_index_end_buffer_glsl;
-		immediate->drawElements        = gpu_draw_elements_glsl;
-		immediate->drawRangeElements   = gpu_draw_range_elements_glsl;
-		
-		gpu_quad_elements_init();
-		
-		
-	}
-	// else {
-	//	immediate->lockBuffer          = gpu_lock_buffer_vbo;
-	//	immediate->beginBuffer         = gpu_begin_buffer_vbo;
-	//	immediate->endBuffer           = gpu_end_buffer_vbo;
-	//	immediate->unlockBuffer        = gpu_unlock_buffer_vbo;
-	//	immediate->shutdownBuffer      = gpu_shutdown_buffer_vbo;
-	//	immediate->currentColor        = gpu_current_color_vbo;
-	//	immediate->getCurrentColor     = gpu_get_current_color_vbo;
-	//	immediate->currentNormal       = gpu_current_normal_vbo;
-	//	immediate->indexBeginBuffer    = gpu_index_begin_buffer_vbo;
-	//	immediate->indexEndBuffe r     = gpu_index_end_buffer_vbo;
-	//	immediate->indexShutdownBuffer = gpu_index_shutdown_buffer_vbo;
-	//	immediate->drawElements        = gpu_draw_elements_vbo;
-	//	immediate->drawRangeElements   = gpu_draw_range_elements_vbo;
-	//}	
-	#ifndef WITH_GLES
-	else {
-		immediate->lockBuffer          = gpu_lock_buffer_gl11;
-		immediate->unlockBuffer        = gpu_unlock_buffer_gl11;
-		immediate->beginBuffer         = gpu_begin_buffer_gl11;
-		immediate->endBuffer           = gpu_end_buffer_gl11;
-		immediate->shutdownBuffer      = gpu_shutdown_buffer_gl11;
-		immediate->currentColor        = gpu_current_color_gl11;
-		immediate->getCurrentColor     = gpu_get_current_color_gl11;
-		immediate->currentNormal       = gpu_current_normal_gl11;
-		immediate->indexBeginBuffer    = gpu_index_begin_buffer_gl11;
-		immediate->indexShutdownBuffer = gpu_index_shutdown_buffer_gl11;
-		immediate->indexEndBuffer      = gpu_index_end_buffer_gl11;
-		immediate->drawElements        = gpu_draw_elements_gl11;
-		immediate->drawRangeElements   = gpu_draw_range_elements_gl11;
-	}
-	#endif
+	gpu_quad_elements_init();
+#else
+	immediate->lockBuffer          = gpu_lock_buffer_gl11;
+	immediate->unlockBuffer        = gpu_unlock_buffer_gl11;
+	immediate->beginBuffer         = gpu_begin_buffer_gl11;
+	immediate->endBuffer           = gpu_end_buffer_gl11;
+	immediate->shutdownBuffer      = gpu_shutdown_buffer_gl11;
+	immediate->currentColor        = gpu_current_color_gl11;
+	immediate->getCurrentColor     = gpu_get_current_color_gl11;
+	immediate->currentNormal       = gpu_current_normal_gl11;
+	immediate->indexBeginBuffer    = gpu_index_begin_buffer_gl11;
+	immediate->indexShutdownBuffer = gpu_index_shutdown_buffer_gl11;
+	immediate->indexEndBuffer      = gpu_index_end_buffer_gl11;
+	immediate->drawElements        = gpu_draw_elements_gl11;
+	immediate->drawRangeElements   = gpu_draw_range_elements_gl11;
+#endif
+
+	//immediate->lockBuffer          = gpu_lock_buffer_vbo;
+	//immediate->beginBuffer         = gpu_begin_buffer_vbo;
+	//immediate->endBuffer           = gpu_end_buffer_vbo;
+	//immediate->unlockBuffer        = gpu_unlock_buffer_vbo;
+	//immediate->shutdownBuffer      = gpu_shutdown_buffer_vbo;
+	//immediate->currentColor        = gpu_current_color_vbo;
+	//immediate->getCurrentColor     = gpu_get_current_color_vbo;
+	//immediate->currentNormal       = gpu_current_normal_vbo;
+	//immediate->indexBeginBuffer    = gpu_index_begin_buffer_vbo;
+	//immediate->indexEndBuffe r     = gpu_index_end_buffer_vbo;
+	//immediate->indexShutdownBuffer = gpu_index_shutdown_buffer_vbo;
+	//immediate->drawElements        = gpu_draw_elements_vbo;
+	//immediate->drawRangeElements   = gpu_draw_range_elements_vbo;
+
 #if GPU_SAFETY
-	calc_last_texture(immediate);
+	immediate->lastTexture =
+		GL_TEXTURE0 + GPU_max_textures() - 1;
 #endif
 
 	return immediate;

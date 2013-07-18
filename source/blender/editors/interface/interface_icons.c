@@ -1056,6 +1056,7 @@ static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect),
 	}
 }
 
+//#include REAL_GL_MODE
 static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy,
                               int UNUSED(iw), int ih, float alpha, const float rgb[3])
 {
@@ -1072,7 +1073,6 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 	x2 = (ix + ih) * icongltex.invw;
 	y1 = iy * icongltex.invh;
 	y2 = (iy + ih) * icongltex.invh;
-//#include REAL_GL_MODE
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, icongltex.id);
 
@@ -1101,9 +1101,9 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 	glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, 0.0f);
 
 	glBindTexture(GL_TEXTURE_2D, 0);
-//#include FAKE_GL_MODE
 	glDisable(GL_TEXTURE_2D);
 }
+//#include FAKE_GL_MODE
 
 /* Drawing size for preview images */
 static int get_draw_size(enum eIconSizes size)

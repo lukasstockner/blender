@@ -24,11 +24,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/gpu/GPU_functions.h
+/** \file blender/gpu/gpu_extension_wrapper.h
  *  \ingroup gpu
  */
-#ifndef GPU_FUNCTIONS_H
-#define GPU_FUNTCIONS_H
+
+#ifndef __GPU_EXTENSION_WRAPPER_H__
+#define __GPU_EXTENSION_WRAPPER_H__
 
 #include "intern/gpu_immediate.h" /* XXX: temporary, will re-factor header files later */
 
@@ -173,7 +174,7 @@ typedef _W64 int ptrdiff_t;
 #  endif
 #endif
 
-/* XXX: assuming gcc compiling for android? also this got plopped in middle of verbatim code copied from glew... */
+/* XXX jwilkins: assuming gcc compiling for android? also this got plopped in middle of verbatim code copied from glew... */
 #ifdef WITH_ANDROID
 #undef GLEWAPI
 #   define GLEWAPI extern __attribute__ ((visibility("default")))
@@ -252,10 +253,10 @@ GPUFUNC void (GLAPIENTRY* gpu_glDeleteBuffers)(GLsizei  n, const GLuint * buffer
 GPUFUNC void * (GLAPIENTRY* gpu_glMapBuffer)(GLenum target, GLenum access);
 GPUFUNC GLboolean (GLAPIENTRY* gpu_glUnmapBuffer)(GLenum  target);
 
-GPUFUNC const void * (GLAPIENTRY* gpuBufferStartUpdate)(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage);
-GPUFUNC void (GLAPIENTRY* gpuBufferFinishUpdate)(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage);
+GPUFUNC const void * (GLAPIENTRY* GPU_buffer_start_update)(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage);
+GPUFUNC void (GLAPIENTRY* GPU_buffer_finish_update)(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage);
 
-void GPU_func_comp_init(void);
+void GPU_wrap_extensions(GLboolean* glslsupport_out, GLboolean* framebuffersupport_out);
 
 
 #ifdef __cplusplus
@@ -263,7 +264,7 @@ void GPU_func_comp_init(void);
 #endif
 
 
-#ifndef GIVE_ME_APIENTRY
+#ifndef GPU_FUNC_INTERN
 
 /***** BEGIN:THIS CODE WAS COPIED DIRECTLY FROM glew.h *****/
 
@@ -291,4 +292,4 @@ void GPU_func_comp_init(void);
 
 #endif
 
-#endif /* GPU_FUNCTIONS_H */
+#endif

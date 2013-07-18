@@ -50,6 +50,7 @@ set(SRC
 	intern/gpu_debug.c
 	intern/gpu_draw.c
 	intern/gpu_extensions.c
+	intern/gpu_extension_wrapper.c
 	intern/gpu_immediate.c
 	intern/gpu_immediate_glsl.c
 	intern/gpu_immediate_gl11.c
@@ -64,7 +65,6 @@ set(SRC
 	intern/gpu_object.c
 	intern/gpu_object_gles.c
 	intern/gpu_object_gl11.c
-	intern/gpu_functions.c
 	intern/gpu_view.c
 	intern/gpu_view_gl.c
 
@@ -79,10 +79,10 @@ set(SRC
 	GPU_matrix.h
 	GPU_primitives.h
 	GPU_object.h
-	GPU_functions.h
 
 	intern/gpu_codegen.h
 	intern/gpu_deprecated.h
+	intern/gpu_extension_wrapper.h
 	intern/gpu_glew.h
 	intern/gpu_immediate.h
 	intern/gpu_immediate_inline.h

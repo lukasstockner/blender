@@ -173,8 +173,7 @@ BLI_INLINE void GPU_CHECK_NO_ERROR(void)
 
 GLsizei gpu_calc_stride(void);
 
-#ifndef WITH_GLES
-
+#if defined(WITH_GL_PROFILE_COMPAT)
 void gpu_lock_buffer_gl11(void);
 void gpu_unlock_buffer_gl11(void);
 void gpu_begin_buffer_gl11(void);
@@ -188,7 +187,6 @@ void gpu_index_end_buffer_gl11(void);
 void gpu_index_shutdown_buffer_gl11(GPUindex *restrict index);
 void gpu_draw_elements_gl11(void);
 void gpu_draw_range_elements_gl11(void);
-
 #endif
 
 void gpu_lock_buffer_glsl(void);
@@ -205,7 +203,7 @@ void gpu_index_shutdown_buffer_glsl(GPUindex *restrict index);
 void gpu_draw_elements_glsl(void);
 void gpu_draw_range_elements_glsl(void);
 
-void gpu_quad_elements_init(void);
+void gpu_quad_elements_init(void); // XXX jwilkins: combine into one init function
 
 void gpu_lock_buffer_vbo(void);
 void gpu_unlock_buffer_vbo(void);

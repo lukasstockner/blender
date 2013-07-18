@@ -44,7 +44,7 @@
 #include "intern/gpu_codegen.h"
 #include "GPU_simple_shader.h"
 #include "GPU_compatibility.h"
-#include "GPU_functions.h"
+#include "gpu_extension_wrapper.h"
 #include "gpu_object_gles.h"
 
 #include <stdlib.h>
@@ -84,7 +84,8 @@ static struct GPUGlobal {
 	GLint maxtexsize;
 	GLint maxtextures;
 	GLuint currentfb;
-	int glslsupport;
+	GLboolean glslsupport;
+	GLboolean framebuffersupport;
 	int extdisabled;
 	int colordepth;
 	int npotdisabled; /* ATI 3xx-5xx (and more) chipsets support NPoT partially (== not enough) */
@@ -110,18 +111,51 @@ void GPU_extensions_disable(void)
 	GG.extdisabled = 1;
 }
 
-void GPU_init_graphics_type(void)
-{
-#ifndef WITH_GLES
-	GPU_gl_type |= GPU_GLTYPE_FIXED;
-#endif
-}
-
 int GPU_max_texture_size(void)
 {
 	return GG.maxtexsize;
 }
 
+int GPU_max_textures(void)
+{
+	return GG.maxtextures;
+}
+
+//#include READ_GL_MODE
+static GLint calc_max_textures(void)
+{
+	GLint maxTextureUnits;
+	GLint maxTextureCoords;
+	GLint maxCombinedTextureImageUnits;
+
+	if (GLEW_VERSION_1_3 || GLEW_ARB_multitexture) {
+		glGetIntegerv(
+			GL_MAX_TEXTURE_UNITS,
+			&maxTextureUnits);
+	}
+	else {
+		maxTextureUnits = 1;
+	}
+
+	if (GLEW_VERSION_2_0 || GLEW_ARB_fragment_program) {
+		glGetIntegerv(
+			GL_MAX_TEXTURE_COORDS,
+			&maxTextureCoords);
+
+		glGetIntegerv(
+			GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,
+			&maxCombinedTextureImageUnits);
+	}
+	else {
+		maxTextureCoords             = 0;
+		maxCombinedTextureImageUnits = 0;
+	}
+
+	return MAX3(maxTextureUnits, maxTextureCoords, maxCombinedTextureImageUnits);
+}
+//#include FAKE_GL_MODE
+
+//#include REAL_GL_MODE
 void GPU_extensions_init(void)
 {
 	GLint r, g, b;
@@ -134,36 +168,17 @@ void GPU_extensions_init(void)
 	gpu_extensions_init= 1;
 
 	glewInit();
-	GPU_func_comp_init();
+	GPU_wrap_extensions(&(GG.glslsupport), &(GG.framebuffersupport));
 	gpuInitializeViewFuncs();
 	GPU_codegen_init();
-	
-	if(!GPU_GLTYPE_FIXED_ENABLED)
-		gpu_object_init_gles();
-	
-	
-	/* glewIsSupported("GL_VERSION_2_0") */
-//#include REAL_GL_MODE
-	if (GLEW_ARB_multitexture)
-		glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &GG.maxtextures);
-	/* GL_MAX_TEXTURE_IMAGE_UNITS == GL_MAX_TEXTURE_IMAGE_UNITS_ARB */
 
-	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &GG.maxtexsize);
-	
-	GG.glslsupport = 1;
-#ifndef WITH_GLES
-	if (!GLEW_ARB_multitexture) GG.glslsupport = 0;
-	if (!GLEW_ARB_vertex_shader) GG.glslsupport = 0;
-	if (!GLEW_ARB_fragment_shader) GG.glslsupport = 0;
-	if (GLEW_VERSION_2_0) GG.glslsupport = 1;
-	if (GLEW_EXT_framebuffer_object || GLEW_VERSION_3_0) GPU_ext_config |= GPU_EXT_FRAMEBUFFERS;
-#else 
-	GPU_ext_config |= GPU_EXT_FRAMEBUFFERS;
+#if defined(WITH_GL_PROFILE_ES20) || defined(WITH_GL_PROFILE_CORE)
+	gpu_object_init_gles();
 #endif
 
+	GG.maxtexsize = calc_max_textures();
 
-	if(GG.glslsupport)
-		GPU_ext_config |= GPU_EXT_GLSL | GPU_EXT_GLSL_FRAGMENT | GPU_EXT_GLSL_VERTEX;
+	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &GG.maxtexsize);
 
 	glGetIntegerv(GL_RED_BITS, &r);
 	glGetIntegerv(GL_GREEN_BITS, &g);
@@ -280,27 +295,27 @@ int GPU_print_error(const char *str)
 			return 1;
 		}
 	}
-//#include FAKE_GL_MODE
 	return 0;
 }
+//#include FAKE_GL_MODE
 
 static void GPU_print_framebuffer_error(GLenum status, char err_out[256])
 {
 	const char *err= "unknown";
 
 	switch (status) {
-		case GL_FRAMEBUFFER_COMPLETE_EXT:
+		case GL_FRAMEBUFFER_COMPLETE:
 			break;
 		case GL_INVALID_OPERATION:
 			err= "Invalid operation";
 			break;
-		case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT_EXT:
+		case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
 			err= "Incomplete attachment";
 			break;
-		case GL_FRAMEBUFFER_UNSUPPORTED_EXT:
+		case GL_FRAMEBUFFER_UNSUPPORTED:
 			err= "Unsupported framebuffer format";
 			break;
-		case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT_EXT:
+		case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
 			err= "Missing attachment";
 			break;
 		case GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS_EXT:
@@ -309,10 +324,10 @@ static void GPU_print_framebuffer_error(GLenum status, char err_out[256])
 		case GL_FRAMEBUFFER_INCOMPLETE_FORMATS_EXT:
 			err= "Attached images must have same format";
 			break;
-		case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER_EXT:
+		case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
 			err= "Missing draw buffer";
 			break;
-		case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER_EXT:
+		case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
 			err= "Missing read buffer";
 			break;
 	}
@@ -456,7 +471,7 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 	if (depth) {
 		glTexParameteri(tex->target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(tex->target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(tex->target, GL_TEXTURE_COMPARE_MODE_ARB, GL_COMPARE_R_TO_TEXTURE);
+		glTexParameteri(tex->target, GL_TEXTURE_COMPARE_MODE_ARB, GL_COMPARE_REF_TO_TEXTURE);
 		glTexParameteri(tex->target, GL_TEXTURE_COMPARE_FUNC_ARB, GL_LEQUAL);
 		glTexParameteri(tex->target, GL_DEPTH_TEXTURE_MODE_ARB, GL_INTENSITY);  
 	}
@@ -826,27 +841,36 @@ struct GPUFrameBuffer {
 	GPUTexture *colortex;
 	GPUTexture *depthtex;
 };
+
 //#include REAL_GL_MODE
 GPUFrameBuffer *GPU_framebuffer_create(void)
 {
-	GPUFrameBuffer *fb;
+	if (GG.framebuffersupport) {
+		GPUFrameBuffer *fb;
 
-	if (!GPU_EXT_FRAMEBUFFERS)
-		return NULL;
-	
-	fb= MEM_callocN(sizeof(GPUFrameBuffer), "GPUFrameBuffer");
-	gpu_glGenFramebuffers(1, &fb->object);
+		fb = MEM_callocN(sizeof(GPUFrameBuffer), "GPUFrameBuffer");
+		gpu_glGenFramebuffers(1, &fb->object);
 
-	if (!fb->object) {
-		fprintf(stderr, "GPUFFrameBuffer: framebuffer gen failed. %s\n",
-			gpuErrorString(glGetError()));
-		GPU_framebuffer_free(fb);
+		if (!fb->object) {
+			fprintf(
+				stderr,
+				"GPUFFrameBuffer: framebuffer gen failed. %s\n",
+				gpuErrorString(glGetError()));
+
+			GPU_framebuffer_free(fb);
+
+			return NULL;
+		}
+		else {
+			return fb;
+		}
+	}
+	else {
 		return NULL;
 	}
-
-	return fb;
 }
 //#include FAKE_GL_MODE
+
 int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, char err_out[256])
 {
 	GLenum status;
@@ -1198,10 +1222,12 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 	GLsizei length = 0;
 	GPUShader *shader;
 
-#ifndef WITH_GLES
-	if (!GLEW_ARB_vertex_shader || !GLEW_ARB_fragment_shader)
+	if (GLEW_VERSION_2_0 ||
+		GLEW_ES_VERSION_2_0 ||
+		(GLEW_ARB_vertex_shader && GLEW_ARB_fragment_shader))
+	{
 		return NULL;
-#endif
+	}
 
 	shader = MEM_callocN(sizeof(GPUShader), "GPUShader");
 

@@ -63,9 +63,7 @@
 
 #include "gpu_codegen.h"
 
-#ifdef WITH_GLES
 #include "gpu_object_gles.h"
-#endif
 
 
 #include <string.h>
@@ -101,9 +99,7 @@ struct GPUMaterial {
 	int obmatloc, invobmatloc;
 	int obcolloc, obautobumpscaleloc;
 	
-#ifdef WITH_GLES	
 	struct GPUGLSL_ES_info glslloc;
-#endif
 	
 	ListBase lamps;
 };
@@ -202,7 +198,7 @@ static void gpu_material_set_attrib_id(GPUMaterial *material)
 	attribs->totlayer = b;
 }
 
-static int GPU_material_construct_end(GPUMaterial *material)
+static bool GPU_material_construct_end(GPUMaterial *material)
 {
 	if (material->outlink) {
 		GPUNodeLink *outlink;
@@ -232,14 +228,14 @@ static int GPU_material_construct_end(GPUMaterial *material)
 		if (material->builtins & GPU_AUTO_BUMPSCALE)
 			material->obautobumpscaleloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_AUTO_BUMPSCALE));
 
-		#ifdef WITH_GLES
+#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
 		gpu_assign_gles_loc(&material->glslloc, shader->object);
-		#endif					
-			
-		return 1;
+#endif
+
+		return true;
 	}
 
-	return 0;
+	return false;
 }
 
 void GPU_material_free(Material *ma)
@@ -353,7 +349,8 @@ void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[4][4], float 
 		if (material->builtins & GPU_AUTO_BUMPSCALE) {
 			GPU_shader_uniform_vector(shader, material->obautobumpscaleloc, 1, 1, &autobumpscale);
 		}
-#ifdef WITH_GLES
+
+#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
 		gpu_set_shader_es(&material->glslloc,1);
 #endif
 	}
