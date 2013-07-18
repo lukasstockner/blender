@@ -440,9 +440,9 @@ void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool texpaint_pr
 							bilinear_interpolation_color_wrap(ibuf, rgba, NULL, u, v);
 							if (use_palette) {
 								PaletteColor *color = BKE_palette_color_add(palette);
-								rgba_uchar_to_float(color->rgb, rgba);
+								rgb_uchar_to_float(color->rgb, rgba);
 							} else if (br) {
-								rgba_uchar_to_float(br->rgb, rgba);
+								rgb_uchar_to_float(br->rgb, rgba);
 							}
 						}
 					}
@@ -468,9 +468,9 @@ void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool texpaint_pr
 	
 	if (use_palette && palette) {
 		PaletteColor *color = BKE_palette_color_add(palette);
-		rgba_uchar_to_float(color->rgb, cp);
+		rgb_uchar_to_float(color->rgb, cp);
 	} else if (br) {
-		rgba_uchar_to_float(br->rgb, cp);
+		rgb_uchar_to_float(br->rgb, cp);
 	}
 }
 
