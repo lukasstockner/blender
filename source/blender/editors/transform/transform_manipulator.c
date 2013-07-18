@@ -1511,10 +1511,10 @@ static void draw_manipulator_translate(View3D *v3d, RegionView3D *rv3d, int UNUS
 					if (G.f & G_PICKSEL) {
 						glLoadName(MAN_TRANS_X);
 					}
-					gpuRotateAxis(90.0, 'X');
+					gpuRotateAxis(90.0, 'Y');
 					set_manipulator_color(v3d, 'X', colcode, axisBlendAngle(rv3d->twangle[0]));
 					gpuDrawElements(GL_TRIANGLES);
-					gpuRotateAxis(-90.0, 'X');
+					gpuRotateAxis(-90.0, 'Y');
 					gpuTranslate(-dz, 0.0, 0.0);
 				}
 				break;
