@@ -1036,8 +1036,10 @@ static int sample_color_exec(bContext *C, wmOperator *op)
 	PaintMode mode = BKE_paintmode_get_active_from_context(C);
 	ARegion *ar = CTX_wm_region(C);
 	int location[2];
+	bool use_palette;
 	RNA_int_get_array(op->ptr, "location", location);
-	paint_sample_color(C, ar, location[0], location[1], mode == PAINT_TEXTURE_PROJECTIVE);
+	use_palette = RNA_boolean_get(op->ptr, "palette");
+	paint_sample_color(C, ar, location[0], location[1], mode == PAINT_TEXTURE_PROJECTIVE, use_palette);
 
 	WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
 
@@ -1080,6 +1082,14 @@ static int sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			RNA_int_set_array(op->ptr, "location", event->mval);
 			sample_color_exec(C, op);
 			break;
+
+		case LEFTMOUSE:
+			if (event->val == KM_PRESS) {
+				RNA_boolean_set(op->ptr, "palette", true);
+				sample_color_exec(C, op);
+				RNA_boolean_set(op->ptr, "palette", false);
+			}
+			break;
 	}
 
 	return OPERATOR_RUNNING_MODAL;
@@ -1108,6 +1118,7 @@ void PAINT_OT_sample_color(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_int_vector(ot->srna, "location", 2, NULL, 0, INT_MAX, "Location", "Cursor location in region coordinates", 0, 16384);
+	RNA_def_boolean(ot->srna, "palette", 0, "Palette", "Add color to palette");
 }
 
 /******************** texture paint toggle operator ********************/

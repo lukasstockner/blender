@@ -331,22 +331,13 @@ int paint_vertsel_test(Object *ob)
 void BKE_paint_init(Paint *p, const char col[3])
 {
 	Brush *brush;
-	Palette *palette;
 
 	/* If there's no brush, create one */
 	brush = BKE_paint_brush(p);
-	palette = BKE_paint_palette(p);
 	if (brush == NULL)
 		brush = BKE_brush_add(G.main, "Brush");
-	if (palette == NULL) {
-		if (G.main->palettes.first)
-			palette = (Palette *) G.main->palettes.first;
-		else
-			palette = BKE_palette_add(G.main, "Palette");
-	}
 
 	BKE_paint_brush_set(p, brush);
-	BKE_paint_palette_set(p, palette);
 
 	memcpy(p->paint_cursor_col, col, 3);
 	p->paint_cursor_col[3] = 128;
