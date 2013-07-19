@@ -2060,9 +2060,6 @@ else()
 		set(GLEW_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/extern/glew-es/include")
 
 		set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_GLEW_ES")
-		set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGL_ES_VERSION_1_0=0")
-		set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGL_ES_VERSION_CL_1_1=0")
-		set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGL_ES_VERSION_CM_1_1=0")
 
 		# this isn't strictly required, but potentally makes GLEW smaller and helps catch unguarded API usage
 		if(NOT WITH_GL_PROFILE_ES20)
@@ -2075,6 +2072,14 @@ else()
 
 		if (WITH_GL_PROFILE_ES20)
 			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_USE_LIB_ES20")
+			
+			# XXX jwilkins: this is just an experiment to eliminate ES 1 symbols,
+			# GLEW doesn't really properly provide this level of control (it eliminates too many symbols, for example),
+			# so there are lots of modifications to GLEW to make this work,
+			# and no attempt to make it work beyond Blender at this point
+			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGL_ES_VERSION_1_0=0")
+			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGL_ES_VERSION_CL_1_1=0")
+			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGL_ES_VERSION_CM_1_1=0")
 		endif()
 
 		if(WITH_GL_SYSTEM_EMBEDDED)

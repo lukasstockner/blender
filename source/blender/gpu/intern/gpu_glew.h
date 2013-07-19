@@ -38,9 +38,35 @@
 
 
 
+/*
+The following section is for any simple stuff that is missing from GLEW when
+compiled with either the GLEW_ES_ONLY or the GLEW_NO_ES flag.
+
+Should limit this to simple things.
+More complex version shims should be placed elsewhere.
+
+Also, only put in stuff as it is needed.
+*/
+
+
+
 #if defined(GLEW_ES_ONLY)
 
-// XXX jwilkins: need to check ALL of these to make sure you didn't cover an unguarded use of an extension/version
+
+
+/* ES does not support the GLdouble type. */
+// XXX jwilkins: Beyond the scope of this would be making it possible to compile Blender with configurable precision.
+
+#ifndef GLdouble
+#define GLdouble double
+#endif
+
+
+
+/*
+Need stubs for these version checks if compiling with only ES support.
+Rely on compiler to eliminate unreachable code when version checks become constants
+*/
 
 #ifndef GLEW_VERSION_1_1
 #define GLEW_VERSION_1_1 0
@@ -134,6 +160,19 @@
 #define GLEW_ARB_texture_query_lod 0
 #endif
 
+
+
+/*
+The following symbolic constants are missing from an ES only header,
+so alias them to their (same valued) extension versions which are available in the header.
+
+Be careful that this does not lead to unguarded use of what are extensions in ES!
+
+Some of these may be here simply to patch inconsistencies in the header files.
+*/
+
+// XXX jwilkins: need to check ALL of these to make sure you didn't cover an unguarded use of an extension/version
+
 #ifndef GL_TEXTURE_3D
 #define GL_TEXTURE_3D GL_TEXTURE_3D_OES
 #endif
@@ -187,18 +226,20 @@
 #endif
 
 #ifndef GL_WRITE_ONLY
-#define GL_WRITE_ONLY GL_WRITE_ONLY_OES // XXX jwilkins: similar to GLdouble
+#define GL_WRITE_ONLY GL_WRITE_ONLY_OES
 #endif
 
-#ifndef GLdouble
-#define GLdouble double // XXX jwilkins: what to do about this?
-#endif
-
-#endif /* GLEW_ES_ONLY */
 
 
+/* end of defined(GLEW_ES_ONLY) */
+#elif defined(GLEW_NO_ES)
 
-#if defined(GLEW_NO_ES)
+
+
+/*
+Need stubs for these version checks if compiling without any support.
+Rely on compiler to eliminate unreachable code when version checks become constants
+*/
 
 #ifndef GLEW_ES_VERSION_2_0
 #define GLEW_ES_VERSION_2_0 0
@@ -240,13 +281,21 @@
 #define GLEW_OES_texture_3D 0
 #endif
 
-#ifndef GLEW_ARB_texture_rg
-#define GLEW_ARB_texture_rg 0
-#endif
-
 #ifndef GLEW_EXT_texture_rg
 #define GLEW_EXT_texture_rg 0
 #endif
+
+
+
+/*
+The following symbolic constants are missing when there is no ES support,
+so alias them to their (same valued) extension versions which are available in the header.
+
+Desktop GL typically does not have any extensions that originated from ES,
+unlike ES which has many extensions to replace what was taken out.
+
+For that reason these aliases are more likely just patching inconsistencies in the header files.
+*/
 
 #ifndef GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS
 #define GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS_EXT

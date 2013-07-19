@@ -8243,16 +8243,18 @@ static GLboolean _glewInit_GL_EXT_secondary_color (GLEW_CONTEXT_ARG_DEF_INIT)
 
 #ifdef GL_EXT_separate_shader_objects
 
+#if defined(GLEW_NO_ES) // XXX jwilkins: there is an inconsistency between the ES and None-ES versions of this extension??
 static GLboolean _glewInit_GL_EXT_separate_shader_objects (GLEW_CONTEXT_ARG_DEF_INIT)
 {
   GLboolean r = GL_FALSE;
 
-  r = ((glActiveShaderProgramEXT = (PFNGLACTIVESHADERPROGRAMEXTPROC)glewGetProcAddress((const GLubyte*)"glActiveShaderProgramEXT")) == NULL) || r; // XXX jwilkins: incorrect function name??
-  r = ((glCreateShaderProgramvEXT = (PFNGLCREATESHADERPROGRAMVEXTPROC)glewGetProcAddress((const GLubyte*)"glCreateShaderProgramvEXT")) == NULL) || r; // XXX jwilkins: incorrect function name??
-  r = ((glUseProgramStagesEXT = (PFNGLUSEPROGRAMSTAGESEXTPROC)glewGetProcAddress((const GLubyte*)"glUseProgramStagesEXT")) == NULL) || r; // XXX jwilkins: incorrect function name??
+  r = ((glActiveProgramEXT = (PFNGLACTIVEPROGRAMEXTPROC)glewGetProcAddress((const GLubyte*)"glActiveProgramEXT")) == NULL) || r; // XXX jwilkins: may be modified
+  r = ((glCreateShaderProgramEXT = (PFNGLCREATESHADERPROGRAMEXTPROC)glewGetProcAddress((const GLubyte*)"glCreateShaderProgramEXT")) == NULL) || r; // XXX jwilkins: may be modified
+  r = ((glUseShaderProgramEXT = (PFNGLUSESHADERPROGRAMEXTPROC)glewGetProcAddress((const GLubyte*)"glUseShaderProgramEXT")) == NULL) || r; // XXX jwilkins: may be modified
 
   return r;
 }
+#endif // XXX
 
 #endif /* GL_EXT_separate_shader_objects */
 
