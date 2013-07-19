@@ -498,7 +498,7 @@ static int paint_space_stroke(bContext *C, wmOperator *op, const float final_mou
 				mouse[1] = stroke->last_mouse_position[1] + dmouse[1] * spacing;
 				pressure = stroke->last_pressure + (spacing / length) * dpressure;
 
-				ups->overlap_factor = paint_stroke_integrate_overlap(stroke->brush, spacing);
+				ups->overlap_factor = paint_stroke_integrate_overlap(stroke->brush, spacing/stroke->zoom_2d);
 
 				paint_brush_stroke_add_step(C, op, mouse, pressure);
 
@@ -530,6 +530,8 @@ PaintStroke *paint_stroke_new(bContext *C,
 	ToolSettings *toolsettings = CTX_data_tool_settings(C);
 	UnifiedPaintSettings *ups = &toolsettings->unified_paint_settings;
 	Brush *br = stroke->brush = BKE_paint_brush(BKE_paint_get_active_from_context(C));
+	float zoomx, zoomy;
+
 	view3d_set_viewcontext(C, &stroke->vc);
 	if (stroke->vc.v3d)
 		view3d_get_transformation(stroke->vc.ar, stroke->vc.rv3d, stroke->vc.obact, &stroke->mats);
@@ -541,6 +543,8 @@ PaintStroke *paint_stroke_new(bContext *C,
 	stroke->done = done;
 	stroke->event_type = event_type; /* for modal, return event */
 	stroke->ups = ups;
+	get_imapaint_zoom(C, &zoomx, &zoomy);
+	stroke->zoom_2d = max_ff(zoomx, zoomy);
 
 	/* initialize here */
 	ups->overlap_factor = 1.0;
@@ -729,7 +733,6 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	float mouse[2];
 	bool first_dab = false;
 	bool first_modal = false;
-	float zoomx, zoomy;
 	bool redraw = false;
 	float pressure;
 
@@ -738,9 +741,6 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 	paint_stroke_add_sample(p, stroke, event->mval[0], event->mval[1], pressure);
 	paint_stroke_sample_average(stroke, &sample_average);
-
-	get_imapaint_zoom(C, &zoomx, &zoomy);
-	stroke->zoom_2d = max_ff(zoomx, zoomy);
 
 	/* let NDOF motion pass through to the 3D view so we can paint and rotate simultaneously!
 	 * this isn't perfect... even when an extra MOUSEMOVE is spoofed, the stroke discards it

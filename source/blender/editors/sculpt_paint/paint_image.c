@@ -627,6 +627,8 @@ static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, Po
 	UnifiedPaintSettings *ups = &toolsettings->unified_paint_settings;
 	Brush *brush = BKE_paint_brush(&toolsettings->imapaint.paint);
 
+	float alphafac = (brush->flag & BRUSH_ACCUMULATE)? ups->overlap_factor : 1.0;
+
 	/* initial brush values. Maybe it should be considered moving these to stroke system */
 	float startsize = (float)BKE_brush_size_get(scene, brush);
 	float startalpha = BKE_brush_alpha_get(scene, brush);
@@ -642,7 +644,7 @@ static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, Po
 	size = RNA_float_get(itemptr, "size");
 
 	if (BKE_brush_use_alpha_pressure(scene, brush))
-		BKE_brush_alpha_set(scene, brush, max_ff(0.0f, startalpha * pressure * ups->overlap_factor));
+		BKE_brush_alpha_set(scene, brush, max_ff(0.0f, startalpha * pressure * alphafac));
 
 	BKE_brush_size_set(scene, brush, max_ff(1.0f, size));
 
