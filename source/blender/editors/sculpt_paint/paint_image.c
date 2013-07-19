@@ -1028,7 +1028,28 @@ void PAINT_OT_grab_clone(wmOperatorType *ot)
 typedef struct {
 	bool show_cursor;
 	short event_type;
+	float initcolor[3];
+	bool sample_palette;
 }	SampleColorData;
+
+
+#define HEADER_LENGTH 150
+static void sample_color_update_header(SampleColorData *data, bContext *C)
+{
+	static char str[] = "Sample color for %s";
+
+	char msg[HEADER_LENGTH];
+	ScrArea *sa = CTX_wm_area(C);
+
+	if (sa) {
+		BLI_snprintf(msg, HEADER_LENGTH, str,
+		             !data->sample_palette?
+		             "brush. Use Left Click to sample for palette instead" :
+		             "palette. Use Left Click to sample more colors");
+		ED_area_headerprint(sa, msg);
+	}
+}
+#undef HEADER_LENGTH
 
 static int sample_color_exec(bContext *C, wmOperator *op)
 {
@@ -1049,12 +1070,16 @@ static int sample_color_exec(bContext *C, wmOperator *op)
 static int sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	Paint *paint = &(CTX_data_tool_settings(C)->imapaint.paint);
+	Brush *brush = BKE_paint_brush(paint);
 	SampleColorData *data = MEM_mallocN(sizeof(SampleColorData), "sample color custom data");
 	data->event_type = event->type;
 	data->show_cursor = ((paint->flags & PAINT_SHOW_BRUSH) != 0);
-
+	copy_v3_v3(data->initcolor, brush->rgb);
+	data->sample_palette = false;
 	op->customdata = data;
 	paint->flags &= ~PAINT_SHOW_BRUSH;
+
+	sample_color_update_header(data, C);
 
 	WM_event_add_modal_handler(C, op);
 
@@ -1068,12 +1093,23 @@ static int sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event
 static int sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	SampleColorData *data = op->customdata;
+
 	if ((event->type == data->event_type) && (event->val == KM_RELEASE)) {
 		Paint *paint = &(CTX_data_tool_settings(C)->imapaint.paint);
+		ScrArea *sa = CTX_wm_area(C);
+
 		if(data->show_cursor) {
 			paint->flags |= PAINT_SHOW_BRUSH;
 		}
+
+		if (data->sample_palette) {
+			Brush *brush = BKE_paint_brush(paint);
+			copy_v3_v3(brush->rgb, data->initcolor);
+			RNA_boolean_set(op->ptr, "palette", true);
+		}
 		MEM_freeN(data);
+		ED_area_headerprint(sa, NULL);
+
 		return OPERATOR_FINISHED;
 	}
 
@@ -1085,9 +1121,14 @@ static int sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 		case LEFTMOUSE:
 			if (event->val == KM_PRESS) {
+				RNA_int_set_array(op->ptr, "location", event->mval);
 				RNA_boolean_set(op->ptr, "palette", true);
 				sample_color_exec(C, op);
 				RNA_boolean_set(op->ptr, "palette", false);
+				if (!data->sample_palette) {
+					data->sample_palette = true;
+					sample_color_update_header(data, C);
+				}
 			}
 			break;
 	}
