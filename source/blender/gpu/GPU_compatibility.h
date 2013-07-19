@@ -55,4 +55,8 @@ GLenum GPU_mipmap_2D(GLboolean genmip, GLenum internalFormat, int w, int h, GLen
 
 
 
+#define GPU_LEGACY 1 // XXX jwilkins: ToDo, will be runtime variable indicating that legacy opengl is in use or compatibility profile is loaded
+
+
+
 #endif /* __GPU_COMPATIBILITY_H_ */

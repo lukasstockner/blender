@@ -117,37 +117,46 @@ int GPU_max_texture_size(void)
 	return GG.maxtexsize;
 }
 
-static GLint calc_max_textures(void)
+/*
+Computes the maximum number of textures 'n' that
+can be referenced by ActiveTexture(TEXTURE0+n-1)
+
+This is for any use of ActiveTexture.
+
+Individual limits, such as for the multitexture extension, gl_TexCoord,
+vertex shaders, fragment shader, etc. will each have different limits.
+*/
+static GLint get_max_textures(void)
 {
 	GLint maxTextureUnits;
 	GLint maxTextureCoords;
 	GLint maxCombinedTextureImageUnits;
 
-	if (GLEW_VERSION_1_3 || GLEW_ARB_multitexture) {
-		glGetIntegerv(
-			GL_MAX_TEXTURE_UNITS,
-			&maxTextureUnits);
-	}
-	else {
-		maxTextureUnits = 1;
-	}
+	/* There has to be at least one texture so count that here */
+	maxTextureUnits = 1;
 
-	if (GLEW_VERSION_2_0 || GLEW_ARB_fragment_program) {
 #if !defined(GLEW_ES_ONLY)
-		maxTextureCoords = 0; // in case of error
-		glGetIntegerv(
-			GL_MAX_TEXTURE_COORDS,
-			&maxTextureCoords);
+	if (GPU_LEGACY && (GLEW_VERSION_1_3 || GLEW_ARB_multitexture)) {
+		/* Multitexture typically supports only 2 or 4 texture stages even on modern hardware. */
+		glGetIntegerv(GL_MAX_TEXTURE_UNITS, &maxTextureUnits);
+	}
 #endif
 
-		maxCombinedTextureImageUnits = 0; // in case of error
-		glGetIntegerv(
-			GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,
-			&maxCombinedTextureImageUnits);
-	}
-	else {
-		maxTextureCoords             = 0;
-		maxCombinedTextureImageUnits = 0;
+	/* Set to zero here in case they do not get set later */
+	maxTextureCoords             = 0;
+	maxCombinedTextureImageUnits = 0;
+
+	if (GLEW_VERSION_2_0 || GLEW_ES_VERSION_2_0 || GLEW_ARB_fragment_program) {
+#if !defined(GLEW_ES_ONLY)
+		if (GPU_LEGACY) {
+			/* size of gl_TexCoord array in GLSL */
+			glGetIntegerv(GL_MAX_TEXTURE_COORDS, &maxTextureCoords);
+		}
+#endif
+
+		/* Number of textures accessible by vertex, fragment, and geometry shaders combined. */
+		/* Individually the limits for each of those programmable units may be smaller. */
+		glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &maxCombinedTextureImageUnits);
 	}
 
 	return MAX3(maxTextureUnits, maxTextureCoords, maxCombinedTextureImageUnits);
@@ -173,7 +182,7 @@ void GPU_extensions_init(void)
 	gpuInitializeViewFuncs();
 	GPU_codegen_init();
 
-	GG.maxtextures = calc_max_textures();
+	GG.maxtextures = get_max_textures();
 
 #if defined(WITH_GL_PROFILE_ES20) || defined(WITH_GL_PROFILE_CORE)
 	gpu_object_init_gles();
