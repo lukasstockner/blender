@@ -100,6 +100,7 @@ void BKE_paint_copy(struct Paint *src, struct Paint *tar);
 void BKE_free_palette(struct Palette *palette);
 struct Palette *BKE_palette_add(struct Main *bmain, const char *name);
 struct PaletteColor *BKE_palette_color_add(struct Palette *palette);
+void BKE_palette_remove_color (struct Palette *palette, struct PaletteColor *colour);
 
 struct Paint *BKE_paint_get_active(struct Scene *sce);
 struct Paint *BKE_paint_get_active_from_context(const struct bContext *C);

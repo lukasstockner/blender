@@ -38,6 +38,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_brush_types.h"
 #include "DNA_sensor_types.h"
 #include "DNA_controller_types.h"
 #include "DNA_actuator_types.h"
@@ -928,8 +929,7 @@ static bool ui_but_start_drag(bContext *C, uiBut *but, uiHandleButtonData *data,
 				return false;
 			}
 		}
-		else
-		{
+		else {
 			wmDrag *drag;
 
 			drag = WM_event_start_drag(C, but->icon, but->dragtype, but->dragpoin, ui_get_but_val(but), 0);
@@ -3453,7 +3453,7 @@ static int ui_do_but_BLOCK(bContext *C, uiBut *but, uiHandleButtonData *data, co
 		}
 #ifdef USE_DRAG_TOGGLE
 		if (event->type == LEFTMOUSE && event->val == KM_PRESS
-		    && (ui_is_but_bool(but) || but->type == COLOR))
+		    && (ui_is_but_bool(but)))
 		{
 			button_activate_state(C, but, BUTTON_STATE_WAIT_DRAG);
 			data->dragstartx = event->x;
@@ -3498,31 +3498,6 @@ static int ui_do_but_BLOCK(bContext *C, uiBut *but, uiHandleButtonData *data, co
 				return WM_UI_HANDLER_BREAK;
 			}
 		}
-		else if (but->type == COLOR) {
-			if (ELEM3(event->type, MOUSEPAN, WHEELDOWNMOUSE, WHEELUPMOUSE) && event->alt) {
-				float *hsv = ui_block_hsv_get(but->block);
-				float col[3];
-				
-				ui_get_but_vectorf(but, col);
-				rgb_to_hsv_compat_v(col, hsv);
-
-				if (event->type == WHEELDOWNMOUSE)
-					hsv[2] = CLAMPIS(hsv[2] - 0.05f, 0.0f, 1.0f);
-				else if (event->type == WHEELUPMOUSE)
-					hsv[2] = CLAMPIS(hsv[2] + 0.05f, 0.0f, 1.0f);
-				else {
-					float fac = 0.005 * (event->y - event->prevy);
-					hsv[2] = CLAMPIS(hsv[2] + fac, 0.0f, 1.0f);
-				}
-				
-				hsv_to_rgb_v(hsv, data->vec);
-				ui_set_but_vectorf(but, data->vec);
-				
-				button_activate_state(C, but, BUTTON_STATE_EXIT);
-				ui_apply_button(C, but->block, but, data, true);
-				return WM_UI_HANDLER_BREAK;
-			}
-		}
 	}
 	else if (data->state == BUTTON_STATE_WAIT_DRAG) {
 		
@@ -3540,6 +3515,109 @@ static int ui_do_but_BLOCK(bContext *C, uiBut *but, uiHandleButtonData *data, co
 
 		if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
 			button_activate_state(C, but, BUTTON_STATE_MENU_OPEN);
+			return WM_UI_HANDLER_BREAK;
+		}
+	}
+
+	return WM_UI_HANDLER_CONTINUE;
+}
+
+static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
+{
+
+	if (data->state == BUTTON_STATE_HIGHLIGHT) {
+
+		/* first handle click on icondrag type button */
+		if (event->type == LEFTMOUSE && but->dragpoin && event->val == KM_PRESS) {
+			if (ui_but_mouse_inside_icon(but, data->region, event)) {
+				button_activate_state(C, but, BUTTON_STATE_WAIT_DRAG);
+				data->dragstartx = event->x;
+				data->dragstarty = event->y;
+				return WM_UI_HANDLER_BREAK;
+			}
+		}
+#ifdef USE_DRAG_TOGGLE
+		if (event->type == LEFTMOUSE && event->val == KM_PRESS)
+		{
+			button_activate_state(C, but, BUTTON_STATE_WAIT_DRAG);
+			data->dragstartx = event->x;
+			data->dragstarty = event->y;
+			return WM_UI_HANDLER_BREAK;
+		}
+#endif
+		/* regular open menu */
+		if (ELEM3(event->type, LEFTMOUSE, PADENTER, RETKEY) && event->val == KM_PRESS) {
+			button_activate_state(C, but, BUTTON_STATE_MENU_OPEN);
+			return WM_UI_HANDLER_BREAK;
+		}
+		else if (ELEM3(event->type, MOUSEPAN, WHEELDOWNMOUSE, WHEELUPMOUSE) && event->alt) {
+			float *hsv = ui_block_hsv_get(but->block);
+			float col[3];
+
+			ui_get_but_vectorf(but, col);
+			rgb_to_hsv_compat_v(col, hsv);
+
+			if (event->type == WHEELDOWNMOUSE)
+				hsv[2] = CLAMPIS(hsv[2] - 0.05f, 0.0f, 1.0f);
+			else if (event->type == WHEELUPMOUSE)
+				hsv[2] = CLAMPIS(hsv[2] + 0.05f, 0.0f, 1.0f);
+			else {
+				float fac = 0.005 * (event->y - event->prevy);
+				hsv[2] = CLAMPIS(hsv[2] + fac, 0.0f, 1.0f);
+			}
+
+			hsv_to_rgb_v(hsv, data->vec);
+			ui_set_but_vectorf(but, data->vec);
+
+			button_activate_state(C, but, BUTTON_STATE_EXIT);
+			ui_apply_button(C, but->block, but, data, true);
+			return WM_UI_HANDLER_BREAK;
+		}
+		else if ((int)(but->a1) == UI_COLOR_PALETTE &&
+		         ELEM(event->type, XKEY, DELKEY) && event->val == KM_PRESS)
+		{
+			Scene *scene = CTX_data_scene(C);
+			Paint *paint = BKE_paint_get_active(scene);
+			Palette *palette = BKE_paint_palette(paint);
+			PaletteColor *color = but->rnapoin.data;
+
+			BKE_palette_remove_color(palette, color);
+
+			button_activate_state(C, but, BUTTON_STATE_EXIT);
+			return WM_UI_HANDLER_BREAK;
+		}
+	}
+	else if (data->state == BUTTON_STATE_WAIT_DRAG) {
+
+		/* this function also ends state */
+		if (ui_but_start_drag(C, but, data, event)) {
+			return WM_UI_HANDLER_BREAK;
+		}
+
+		/* outside icon quit, not needed if drag activated */
+		if (0 == ui_but_mouse_inside_icon(but, data->region, event)) {
+			button_activate_state(C, but, BUTTON_STATE_EXIT);
+			data->cancel = true;
+			return WM_UI_HANDLER_BREAK;
+		}
+
+		if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
+			if ((int)(but->a1) == UI_COLOR_PALETTE && !event->ctrl) {
+				Scene *scene = CTX_data_scene(C);
+				Paint *paint = BKE_paint_get_active(scene);
+				Brush *brush = BKE_paint_brush(paint);
+
+				if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
+					RNA_property_float_get_array(&but->rnapoin, but->rnaprop, brush->rgb);
+				} else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
+					float color[3];
+					RNA_property_float_get_array(&but->rnapoin, but->rnaprop, color);
+					linearrgb_to_srgb_v3_v3(brush->rgb, color);
+				}
+				button_activate_state(C, but, BUTTON_STATE_EXIT);
+			} else {
+				button_activate_state(C, but, BUTTON_STATE_MENU_OPEN);
+			}
 			return WM_UI_HANDLER_BREAK;
 		}
 
@@ -5438,7 +5516,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
 			if (but->a1 == UI_GRAD_V_ALT)  /* signal to prevent calling up color picker */
 				retval = ui_do_but_EXIT(C, but, data, event);
 			else
-				retval = ui_do_but_BLOCK(C, but, data, event);
+				retval = ui_do_but_COLOR(C, but, data, event);
 			break;
 		case BUT_NORMAL:
 			retval = ui_do_but_NORMAL(C, block, but, data, event);

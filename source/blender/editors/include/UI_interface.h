@@ -272,6 +272,8 @@ typedef enum {
 
 #define UI_GRAD_V_ALT   9
 
+#define UI_COLOR_PALETTE 20
+
 /* Drawing
  *
  * Functions to draw various shapes, taking theme settings into account.

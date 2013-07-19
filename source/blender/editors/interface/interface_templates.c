@@ -2339,7 +2339,7 @@ void uiTemplatePalette(uiLayout *layout, PointerRNA *ptr, const char *propname, 
 
 		RNA_pointer_create(&palette->id, &RNA_PaletteColor, color, &ptr);
 		uiDefButR(block, COLOR, 0, "", 0, 0, UI_UNIT_X, UI_UNIT_Y, &ptr, "color",
-		          -1, 0.0, 1.0, 0.0, 0.0, "");
+		          -1, 0.0, 1.0, UI_COLOR_PALETTE, 0.0, "");
 
 		row_cols++;
 	}

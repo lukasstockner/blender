@@ -283,6 +283,13 @@ void BKE_paint_palette_set(Paint *p, Palette *palette)
 	}
 }
 
+/* remove colour from palette. Must be certain colour is inside the palette! */
+void BKE_palette_remove_color (Palette *palette, PaletteColor *colour)
+{
+	BLI_remlink(&palette->colors, colour);
+	MEM_freeN(colour);
+}
+
 Palette *BKE_palette_add(Main *bmain, const char *name)
 {
 	Palette *palette;
