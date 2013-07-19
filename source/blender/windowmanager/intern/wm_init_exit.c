@@ -141,21 +141,11 @@ void WM_init(bContext *C, int argc, const char **argv)
 		wm_ghost_init(C);   /* note: it assigns C to ghost! */
 		wm_init_cursor_data();
 
-		/* begin - init opengl compatibility layer */
+		gpuInitializeLighting(); // XXX jwilkins: sort out this initialization order
 		GPU_ms_init();
 		GPU_init_object_func();
-
-		immediate = gpuNewImmediate();
-		gpuImmediateMakeCurrent(immediate);
-		gpuImmediateMaxVertexCount(500000); // XXX: temporary!
-
-		gindex = gpuNewIndex();
-		gpuImmediateIndex(gindex);
-		gpuImmediateMaxIndexCount(500000); // XXX: temporary!
-
-		gpuInitializeLighting();
-		/* end - init opengl compatibility layer */
 	}
+
 	GHOST_CreateSystemPaths();
 
 	BKE_addon_pref_type_init();
@@ -210,6 +200,18 @@ void WM_init(bContext *C, int argc, const char **argv)
 		GPU_set_mipmap(!(U.gameflags & USER_DISABLE_MIPMAP));
 		GPU_set_anisotropic(U.anisotropic_filter);
 		GPU_set_gpu_mipmapping(U.use_gpu_mipmap);
+
+		/* begin - init opengl compatibility layer */
+
+		immediate = gpuNewImmediate();
+		gpuImmediateMakeCurrent(immediate);
+		gpuImmediateMaxVertexCount(500000); // XXX: temporary!
+
+		gindex = gpuNewIndex();
+		gpuImmediateIndex(gindex);
+		gpuImmediateMaxIndexCount(500000); // XXX: temporary!
+
+		/* end - init opengl compatibility layer */
 
 		UI_init();
 	}

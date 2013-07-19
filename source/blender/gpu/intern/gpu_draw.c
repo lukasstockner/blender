@@ -820,7 +820,7 @@ void GPU_create_gl_tex(unsigned int *bind, unsigned int *pix, float *frect, int 
 	mipmap = mipmap && GPU_get_mipmap();
 
 	if (use_high_bit_depth) {
-		if (GLEW_VERSION_3_0 || GL_ARB_texture_float || GL_EXT_texture_storage || GL_EXT_color_buffer_half_float) {
+		if (GLEW_VERSION_3_0 || GLEW_ARB_texture_float || GLEW_EXT_texture_storage || GLEW_EXT_color_buffer_half_float) {
 			GPU_mipmap_2D(mipmap, GL_RGBA16F, rectw, recth, GL_FLOAT, frect);
 		}
 		else {

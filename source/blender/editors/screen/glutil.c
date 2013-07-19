@@ -451,7 +451,7 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 		 *       it's possible to use GL_RGBA16F
 		 */
 
-		if (GLEW_VERSION_3_0 || GL_ARB_texture_float || GL_EXT_texture_storage || GL_EXT_color_buffer_half_float) {
+		if (GLEW_VERSION_3_0 || GLEW_ARB_texture_float || GLEW_EXT_texture_storage || GLEW_EXT_color_buffer_half_float) {
 			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, tex_w, tex_h, 0, format, GL_FLOAT, NULL);
 		}
 		else {

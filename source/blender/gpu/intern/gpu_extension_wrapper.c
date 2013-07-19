@@ -267,7 +267,7 @@ static GLboolean init_framebuffer_object(void)
 		gpu_glGenFramebuffers        = glGenFramebuffersEXT;
 		gpu_glBindFramebuffer        = glBindFramebufferEXT;
 		gpu_glDeleteFramebuffers     = glDeleteFramebuffersEXT;
-		gpu_glFramebufferTexture2D   = glFramebufferTextureEXT;
+		gpu_glFramebufferTexture2D   = glFramebufferTexture2DEXT;
 		gpu_glCheckFramebufferStatus = glCheckFramebufferStatusEXT;
 
 		return GL_TRUE;

@@ -110,8 +110,8 @@
 #define GLEW_ARB_shadow 0
 #endif
 
-#ifndef GL_ARB_texture_float
-#define GL_ARB_texture_float 0
+#ifndef GLEW_ARB_texture_float
+#define GLEW_ARB_texture_float 0
 #endif
 
 #ifndef GLEW_ARB_texture_non_power_of_two
@@ -200,20 +200,60 @@
 
 #if defined(GLEW_NO_ES)
 
-#ifndef GL_OES_framebuffer_object
+#ifndef GLEW_ES_VERSION_2_0
+#define GLEW_ES_VERSION_2_0 0
+#endif
+
+#ifndef GLEW_EXT_texture_storage
+#define GLEW_EXT_texture_storage 0
+#endif
+
+#ifndef GLEW_OES_framebuffer_object
 #define GLEW_OES_framebuffer_object 0
 #endif
 
-#ifndef GL_OES_mapbuffer
+#ifndef GLEW_OES_mapbuffer
 #define GLEW_OES_mapbuffer 0
 #endif
 
-#ifndef GL_OES_framebuffer_object
-#define GLEW_OES_framebuffer_object 0
+#ifndef GLEW_OES_required_internalformat
+#define GLEW_OES_required_internalformat 0
 #endif
 
-#ifndef GLEW_ES_VERSION_2_0
-#define GLEW_ES_VERSION_2_0 0
+#ifndef GLEW_EXT_color_buffer_half_float
+#define GLEW_EXT_color_buffer_half_float 0
+#endif
+
+#ifndef GLEW_OES_depth_texture
+#define GLEW_OES_depth_texture 0
+#endif
+
+#ifndef GLEW_EXT_shadow_samplers
+#define GLEW_EXT_shadow_samplers 0
+#endif
+
+#ifndef GLEW_ARB_texture3D
+#define GLEW_ARB_texture3D 0
+#endif
+
+#ifndef GLEW_OES_texture_3D
+#define GLEW_OES_texture_3D 0
+#endif
+
+#ifndef GLEW_ARB_texture_rg
+#define GLEW_ARB_texture_rg 0
+#endif
+
+#ifndef GLEW_EXT_texture_rg
+#define GLEW_EXT_texture_rg 0
+#endif
+
+#ifndef GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS
+#define GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS_EXT
+#endif
+
+#ifndef GL_FRAMEBUFFER_INCOMPLETE_FORMATS
+#define GL_FRAMEBUFFER_INCOMPLETE_FORMATS GL_FRAMEBUFFER_INCOMPLETE_FORMATS_EXT
 #endif
 
 #endif /* defined(GLEW_NO_ES) */

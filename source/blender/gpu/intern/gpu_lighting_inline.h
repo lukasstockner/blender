@@ -35,6 +35,8 @@
 #include "gpu_lighting.h"
 
 
+// XXX jwilkins: need rudimentary gpu safety
+
 
 BLI_INLINE void gpuMaterialfv(GLenum face, GLenum pname, const GLfloat *params)
 {

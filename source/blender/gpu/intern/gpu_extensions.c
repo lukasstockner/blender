@@ -117,12 +117,6 @@ int GPU_max_texture_size(void)
 	return GG.maxtexsize;
 }
 
-int GPU_max_textures(void)
-{
-	return GG.maxtextures;
-}
-
-//#include READ_GL_MODE
 static GLint calc_max_textures(void)
 {
 	GLint maxTextureUnits;
@@ -158,15 +152,17 @@ static GLint calc_max_textures(void)
 
 	return MAX3(maxTextureUnits, maxTextureCoords, maxCombinedTextureImageUnits);
 }
-//#include FAKE_GL_MODE
 
-//#include REAL_GL_MODE
+int GPU_max_textures(void)
+{
+	return GG.maxtextures;
+}
+
 void GPU_extensions_init(void)
 {
 	GLint r, g, b;
 	const char *vendor, *renderer;
 	int bdepth = -1;
-
 
 	/* can't avoid calling this multiple times, see wm_window_add_ghostwindow */
 	if (gpu_extensions_init) return;
@@ -177,11 +173,11 @@ void GPU_extensions_init(void)
 	gpuInitializeViewFuncs();
 	GPU_codegen_init();
 
+	GG.maxtextures = calc_max_textures();
+
 #if defined(WITH_GL_PROFILE_ES20) || defined(WITH_GL_PROFILE_CORE)
 	gpu_object_init_gles();
 #endif
-
-	GG.maxtexsize = calc_max_textures();
 
 	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &GG.maxtexsize);
 
@@ -782,7 +778,7 @@ GPUTexture *GPU_texture_create_vsm_shadow_map(int size, char err_out[256])
 		/* Now we tweak some of the settings */
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F_EXT, size, size, 0, GL_RG_EXT, GL_FLOAT, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, size, size, 0, GL_RG, GL_FLOAT, NULL);
 
 		GPU_texture_unbind(tex);
 	}
