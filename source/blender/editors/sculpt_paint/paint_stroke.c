@@ -806,9 +806,9 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	 * instead of waiting till we have moved the space distance */
 	if (first_dab &&
 	    paint_space_stroke_enabled(stroke->brush, mode) &&
-	    !(stroke->brush->flag & BRUSH_ANCHORED) &&
 	    !(stroke->brush->flag & BRUSH_SMOOTH_STROKE))
 	{
+		stroke->ups->overlap_factor = paint_stroke_integrate_overlap(stroke->brush, stroke->brush->spacing);
 		paint_brush_stroke_add_step(C, op, mouse, pressure);
 		redraw = true;
 	}
