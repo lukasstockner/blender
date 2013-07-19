@@ -900,13 +900,16 @@ typedef struct UnifiedPaintSettings {
 
 	/* record movement of mouse so that rake can start at an intuitive angle */
 	float last_rake[2];
-	int pad;
 
 	float brush_rotation;
 
-	// all this below is used to communicate with the cursor drawing routine
+	/* all this below is used as a cache to communicate with the cursor drawing routine
+	 * and texture sampling functions. Probably a better place should be used than this */
 	int draw_anchored;
 	int   anchored_size;
+	float overlap_factor; /* normalization factor due to accumulated value of curve along spacing.
+	                       * Calculated when brush spacing changes to dampen strength of stroke
+	                       * if space attenuation is used*/
 	float anchored_initial_mouse[2];
 
 	/* drawing pressure */
@@ -920,7 +923,7 @@ typedef struct UnifiedPaintSettings {
 	float mask_tex_mouse[2];
 
 	/* radius of brush, premultiplied with pressure.
-	 * In case of anchored brushes contains that radius */
+	 * In case of anchored brushes contains the anchored radius */
 	float pixel_radius;
 } UnifiedPaintSettings;
 

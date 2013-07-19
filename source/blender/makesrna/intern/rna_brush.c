@@ -225,6 +225,12 @@ static int rna_SculptToolCapabilities_has_space_attenuation_get(PointerRNA *ptr)
 	               SCULPT_TOOL_SMOOTH, SCULPT_TOOL_SNAKE_HOOK));
 }
 
+static int rna_ImapaintToolCapabilities_has_space_attenuation_get(PointerRNA *ptr)
+{
+	Brush *br = (Brush *)ptr->data;
+	return ((br->flag & BRUSH_SPACE) && (br->flag & BRUSH_ACCUMULATE));
+}
+
 static int rna_BrushCapabilities_has_spacing_get(PointerRNA *ptr)
 {
 	Brush *br = (Brush *)ptr->data;
@@ -337,7 +343,6 @@ static void rna_Brush_size_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 static void rna_Brush_sculpt_tool_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	Brush *br = (Brush *)ptr->data;
-	BKE_paint_invalidate_overlay_all();
 	rna_Brush_reset_icon(br, "sculpt");
 	rna_Brush_update(bmain, scene, ptr);
 }
@@ -345,7 +350,6 @@ static void rna_Brush_sculpt_tool_update(Main *bmain, Scene *scene, PointerRNA *
 static void rna_Brush_vertex_tool_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	Brush *br = (Brush *)ptr->data;
-	BKE_paint_invalidate_overlay_all();
 	rna_Brush_reset_icon(br, "vertex_paint");
 	rna_Brush_update(bmain, scene, ptr);
 }
@@ -353,7 +357,6 @@ static void rna_Brush_vertex_tool_update(Main *bmain, Scene *scene, PointerRNA *
 static void rna_Brush_imagepaint_tool_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	Brush *br = (Brush *)ptr->data;
-	BKE_paint_invalidate_overlay_all();
 	rna_Brush_reset_icon(br, "image_paint");
 	rna_Brush_update(bmain, scene, ptr);
 }
@@ -636,6 +639,7 @@ static void rna_def_imapaint_capabilities(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, ui_name_, NULL)
 
 	IMAPAINT_TOOL_CAPABILITY(has_accumulate, "Has Accumulate");
+	IMAPAINT_TOOL_CAPABILITY(has_space_attenuation, "Has Space Attenuation");
 
 #undef IMAPAINT_TOOL_CAPABILITY
 }

@@ -117,6 +117,7 @@ void BKE_paint_set_overlay_override(OverlayFlags flags)
 	}
 }
 
+
 void BKE_paint_reset_overlay_invalid(OverlayControlFlags flag)
 {
 	overlay_flags &= ~(flag);

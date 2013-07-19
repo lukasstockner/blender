@@ -713,46 +713,6 @@ static int sculpt_brush_test_cyl(SculptBrushTest *test, float co[3], float locat
  *
  */
 
-static float overlapped_curve(Brush *br, float x)
-{
-	int i;
-	const int n = 100 / br->spacing;
-	const float h = br->spacing / 50.0f;
-	const float x0 = x - 1;
-
-	float sum;
-
-	sum = 0;
-	for (i = 0; i < n; i++) {
-		float xx;
-
-		xx = fabs(x0 + i * h);
-
-		if (xx < 1.0f)
-			sum += BKE_brush_curve_strength(br, xx, 1);
-	}
-
-	return sum;
-}
-
-static float integrate_overlap(Brush *br)
-{
-	int i;
-	int m = 10;
-	float g = 1.0f / m;
-	float max;
-
-	max = 0;
-	for (i = 0; i < m; i++) {
-		float overlap = overlapped_curve(br, i * g);
-
-		if (overlap > max)
-			max = overlap;
-	}
-
-	return max;
-}
-
 /* Uses symm to selectively flip any axis of a coordinate. */
 static void flip_v3_v3(float out[3], const float in[3], const char symm)
 {
@@ -841,7 +801,7 @@ static float calc_symmetry_feather(Sculpt *sd, StrokeCache *cache)
 /* Return modified brush strength. Includes the direction of the brush, positive
  * values pull vertices, negative values push. Uses tablet pressure and a
  * special multiplier found experimentally to scale the strength factor. */
-static float brush_strength(Sculpt *sd, StrokeCache *cache, float feather)
+static float brush_strength(Sculpt *sd, StrokeCache *cache, float feather, UnifiedPaintSettings *ups)
 {
 	const Scene *scene = cache->vc->scene;
 	Brush *brush = BKE_paint_brush(&sd->paint);
@@ -853,13 +813,10 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache, float feather)
 	float pressure     = BKE_brush_use_alpha_pressure(scene, brush) ? cache->pressure : 1;
 	float pen_flip     = cache->pen_flip ? -1 : 1;
 	float invert       = cache->invert ? -1 : 1;
-	float accum        = integrate_overlap(brush);
+	float overlap       = ups->overlap_factor;
 	/* spacing is integer percentage of radius, divide by 50 to get
 	 * normalized diameter */
-	float overlap      = (brush->flag & BRUSH_SPACE_ATTEN &&
-	                      brush->flag & BRUSH_SPACE &&
-	                      !(brush->flag & BRUSH_ANCHORED) &&
-	                      (brush->spacing < 100)) ? 1.0f / accum : 1;
+
 	float flip         = dir * invert * pen_flip;
 
 	switch (brush->sculpt_tool) {
@@ -3435,7 +3392,7 @@ static void sculpt_fix_noise_tear(Sculpt *sd, Object *ob)
 }
 
 static void do_symmetrical_brush_actions(Sculpt *sd, Object *ob,
-                                         BrushActionFunc action)
+                                         BrushActionFunc action, UnifiedPaintSettings *ups)
 {
 	Brush *brush = BKE_paint_brush(&sd->paint);
 	SculptSession *ss = ob->sculpt;
@@ -3445,7 +3402,7 @@ static void do_symmetrical_brush_actions(Sculpt *sd, Object *ob,
 
 	float feather = calc_symmetry_feather(sd, ss->cache);
 
-	cache->bstrength = brush_strength(sd, cache, feather);
+	cache->bstrength = brush_strength(sd, cache, feather, ups);
 	cache->symmetry = symm;
 
 	/* symm is a bit combination of XYZ - 1 is mirror X; 2 is Y; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ */ 
@@ -4375,11 +4332,11 @@ static void sculpt_stroke_update_step(bContext *C, struct PaintStroke *UNUSED(st
 	                               (float)sd->detail_size);
 
 	if (sculpt_stroke_dynamic_topology(ss, brush)) {
-		do_symmetrical_brush_actions(sd, ob, sculpt_topology_update);
+		do_symmetrical_brush_actions(sd, ob, sculpt_topology_update, ups);
 	}
 
 	if (BKE_paint_brush(&sd->paint)->sculpt_tool != SCULPT_TOOL_SIMPLIFY)
-		do_symmetrical_brush_actions(sd, ob, do_brush_action);
+		do_symmetrical_brush_actions(sd, ob, do_brush_action, ups);
 
 	sculpt_combine_proxies(sd, ob);
 

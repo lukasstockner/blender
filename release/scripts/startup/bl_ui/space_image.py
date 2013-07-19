@@ -720,6 +720,12 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
             self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
             self.prop_unified_size(row, context, brush, "use_pressure_size")
 
+            if capabilities.has_space_attenuation:
+                if brush.use_space_attenuation:
+                    row.prop(brush, "use_space_attenuation", toggle=True, text="", icon='LOCKED')
+                else:
+                    row.prop(brush, "use_space_attenuation", toggle=True, text="", icon='UNLOCKED')
+            
             row = col.row(align=True)
             self.prop_unified_strength(row, context, brush, "strength", slider=True, text="Strength")
             self.prop_unified_strength(row, context, brush, "use_pressure_strength")

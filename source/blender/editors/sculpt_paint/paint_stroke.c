@@ -75,6 +75,7 @@ typedef struct PaintStroke {
 	ViewContext vc;
 	bglMats mats;
 	Brush *brush;
+	UnifiedPaintSettings *ups;
 
 	/* Paint stroke can use up to PAINT_MAX_INPUT_SAMPLES prior inputs
 	 * to smooth the stroke */
@@ -152,7 +153,7 @@ static float event_tablet_data(const wmEvent *event, int *pen_flip)
 
 
 /* Initialize the stroke cache variants from operator properties */
-static void paint_brush_update(bContext *C, UnifiedPaintSettings *ups,
+static void paint_brush_update(bContext *C,
                                          Brush *brush,
                                          PaintMode mode,
                                          struct PaintStroke *stroke,
@@ -161,6 +162,7 @@ static void paint_brush_update(bContext *C, UnifiedPaintSettings *ups,
                                          float location[3])
 {
 	Scene *scene = CTX_data_scene(C);
+	UnifiedPaintSettings *ups = stroke->ups;
 	bool location_sampled = false;
 	/* XXX: Use pressure value from first brush step for brushes which don't
 	 *      support strokes (grab, thumb). They depends on initial state and
@@ -277,13 +279,13 @@ static void paint_brush_update(bContext *C, UnifiedPaintSettings *ups,
 static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, const float mouse_in[2], float pressure)
 {
 	Scene *scene = CTX_data_scene(C);
-	UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
 	wmWindow *window = CTX_wm_window(C);
 	ARegion *ar = CTX_wm_region(C);
 	Paint *paint = BKE_paint_get_active_from_context(C);
 	PaintMode mode = BKE_paintmode_get_active_from_context(C);
 	Brush *brush = BKE_paint_brush(paint);
 	PaintStroke *stroke = op->customdata;
+	UnifiedPaintSettings *ups = stroke->ups;
 	float mouse_out[2];
 	PointerRNA itemptr;
 	float location[3];
@@ -328,7 +330,7 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, const float
 		}
 	}
 
-	paint_brush_update(C, ups, brush, mode, stroke, mouse_in, mouse_out, pressure, location);
+	paint_brush_update(C, brush, mode, stroke, mouse_in, mouse_out, pressure, location);
 
 	/* Add to stroke */
 	RNA_collection_add(op->ptr, "stroke", &itemptr);
@@ -394,6 +396,53 @@ static float paint_space_stroke_spacing(const Scene *scene, PaintStroke *stroke,
 	return (size_clamp * spacing / 50.0f);
 }
 
+
+
+static float paint_stroke_overlapped_curve(Brush *br, float x, float spacing)
+{
+	int i;
+	const int n = 100 / spacing;
+	const float h = spacing / 50.0f;
+	const float x0 = x - 1;
+
+	float sum;
+
+	sum = 0;
+	for (i = 0; i < n; i++) {
+		float xx;
+
+		xx = fabs(x0 + i * h);
+
+		if (xx < 1.0f)
+			sum += BKE_brush_curve_strength(br, xx, 1);
+	}
+
+	return sum;
+}
+
+static float paint_stroke_integrate_overlap(Brush *br, float spacing)
+{
+	int i;
+	int m;
+	float g;
+	float max;
+
+	if (!(br->flag & BRUSH_SPACE_ATTEN && (br->spacing < 100)))
+		return 1.0;
+
+	m = 10;
+	g = 1.0f / m;
+	max = 0;
+	for (i = 0; i < m; i++) {
+		float overlap = paint_stroke_overlapped_curve(br, i * g, spacing);
+
+		if (overlap > max)
+			max = overlap;
+	}
+
+	return 1.0/max;
+}
+
 static float paint_space_stroke_spacing_variable(const Scene *scene, PaintStroke *stroke, float pressure, float dpressure, float length)
 {
 	if (BKE_brush_use_size_pressure(scene, stroke->brush)) {
@@ -425,6 +474,7 @@ static int paint_space_stroke(bContext *C, wmOperator *op, const float final_mou
 {
 	const Scene *scene = CTX_data_scene(C);
 	PaintStroke *stroke = op->customdata;
+	UnifiedPaintSettings *ups = stroke->ups;
 	PaintMode mode = BKE_paintmode_get_active_from_context(C);
 	int cnt = 0;
 
@@ -447,6 +497,8 @@ static int paint_space_stroke(bContext *C, wmOperator *op, const float final_mou
 				mouse[0] = stroke->last_mouse_position[0] + dmouse[0] * spacing;
 				mouse[1] = stroke->last_mouse_position[1] + dmouse[1] * spacing;
 				pressure = stroke->last_pressure + (spacing / length) * dpressure;
+
+				ups->overlap_factor = paint_stroke_integrate_overlap(stroke->brush, spacing);
 
 				paint_brush_stroke_add_step(C, op, mouse, pressure);
 
@@ -475,7 +527,8 @@ PaintStroke *paint_stroke_new(bContext *C,
                               StrokeDone done, int event_type)
 {
 	PaintStroke *stroke = MEM_callocN(sizeof(PaintStroke), "PaintStroke");
-
+	ToolSettings *toolsettings = CTX_data_tool_settings(C);
+	UnifiedPaintSettings *ups = &toolsettings->unified_paint_settings;
 	Brush *br = stroke->brush = BKE_paint_brush(BKE_paint_get_active_from_context(C));
 	view3d_set_viewcontext(C, &stroke->vc);
 	if (stroke->vc.v3d)
@@ -487,6 +540,10 @@ PaintStroke *paint_stroke_new(bContext *C,
 	stroke->redraw = redraw;
 	stroke->done = done;
 	stroke->event_type = event_type; /* for modal, return event */
+	stroke->ups = ups;
+
+	/* initialize here */
+	ups->overlap_factor = 1.0;
 	
 	BKE_paint_set_overlay_override(br->overlay_flags);
 
@@ -503,8 +560,7 @@ void paint_stroke_data_free(struct wmOperator *op)
 static void stroke_done(struct bContext *C, struct wmOperator *op)
 {
 	struct PaintStroke *stroke = op->customdata;
-	Scene *scene = CTX_data_scene(C);
-	UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+	UnifiedPaintSettings *ups = stroke->ups;
 
 	ups->draw_anchored = false;
 	ups->draw_pressure = false;
