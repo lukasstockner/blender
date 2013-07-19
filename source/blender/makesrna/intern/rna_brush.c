@@ -268,10 +268,12 @@ static int rna_ImapaintToolCapabilities_has_accumulate_get(PointerRNA *ptr)
 	/* only support for draw tool */
 	Brush *br = (Brush *)ptr->data;
 
-	return (ELEM3(br->flag, BRUSH_AIRBRUSH, BRUSH_ANCHORED, BRUSH_RESTORE_MESH) ||
-	       (br->imagepaint_tool == PAINT_TOOL_SMEAR) ||
-	       (br->mtex.tex && !ELEM3(br->mtex.brush_map_mode, MTEX_MAP_MODE_TILED, MTEX_MAP_MODE_STENCIL, MTEX_MAP_MODE_3D))
-	       ) ? false : true;
+	return ((br->flag & BRUSH_AIRBRUSH) ||
+	        (br->flag & BRUSH_RESTORE_MESH) ||
+	        (br->flag & BRUSH_ANCHORED) ||
+	        (br->imagepaint_tool == PAINT_TOOL_SMEAR) ||
+	        (br->mtex.tex && !ELEM3(br->mtex.brush_map_mode, MTEX_MAP_MODE_TILED, MTEX_MAP_MODE_STENCIL, MTEX_MAP_MODE_3D))
+	        ) ? false : true;
 }
 
 
