@@ -74,6 +74,7 @@ void libmv_samplePlanarPatch(const float *image, int width, int height,
 /* Tracks */
 struct libmv_Tracks *libmv_tracksNew(void);
 void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int image, int track, double x, double y);
+void libmv_tracksInsertMultiview(struct libmv_Tracks *libmv_tracks, int view, int image, int track, double x, double y);
 void libmv_tracksDestroy(struct libmv_Tracks *libmv_tracks);
 
 /* Reconstruction solver */
@@ -112,7 +113,7 @@ typedef struct libmv_reconstructionOptions {
 typedef void (*reconstruct_progress_update_cb) (void *customdata, double progress, const char *message);
 
 struct libmv_Reconstruction *libmv_solve(const struct libmv_Tracks *libmv_tracks,
-			const libmv_cameraIntrinsicsOptions *libmv_camera_intrinsics_options,
+			const libmv_cameraIntrinsicsOptions libmv_camera_intrinsics_options[],
 			libmv_reconstructionOptions *libmv_reconstruction_options,
 			reconstruct_progress_update_cb progress_update_callback,
 			void *callback_customdata);

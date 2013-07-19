@@ -396,6 +396,11 @@ void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int image, int track,
 	((libmv::Tracks*)libmv_tracks)->Insert(image, track, x, y);
 }
 
+void libmv_tracksInsertMultiview(struct libmv_Tracks *libmv_tracks, int view, int image, int track, double x, double y)
+{
+	((libmv::Tracks*)libmv_tracks)->Insert(view, image, track, x, y);
+}
+
 void libmv_tracksDestroy(libmv_Tracks *libmv_tracks)
 {
 	delete (libmv::Tracks*)libmv_tracks;
@@ -726,24 +731,31 @@ static struct libmv_Reconstruction *libmv_solveModal(const libmv_Tracks *libmv_t
 }
 
 libmv_Reconstruction *libmv_solve(const libmv_Tracks *libmv_tracks,
-			const libmv_cameraIntrinsicsOptions *libmv_camera_intrinsics_options,
+			const libmv_cameraIntrinsicsOptions libmv_camera_intrinsics_options[],
 			libmv_reconstructionOptions *libmv_reconstruction_options,
 			reconstruct_progress_update_cb progress_update_callback,
 			void *callback_customdata)
 {	
-	if (libmv_reconstruction_options->motion_flag & LIBMV_TRACKING_MOTION_MODAL) {
-    return libmv_solveModal(libmv_tracks,
-		                        libmv_camera_intrinsics_options,
-		                        libmv_reconstruction_options,
-		                        progress_update_callback,
-		                        callback_customdata);
+	libmv::Tracks &tracks = *((libmv::Tracks *) libmv_tracks);
+	if (tracks.MaxView() == 0) {
+		if (libmv_reconstruction_options->motion_flag & LIBMV_TRACKING_MOTION_MODAL) {
+			return libmv_solveModal(libmv_tracks,
+			                        libmv_camera_intrinsics_options,
+			                        libmv_reconstruction_options,
+			                        progress_update_callback,
+			                        callback_customdata);
+		}
+		else {
+			return libmv_solveReconstruction(libmv_tracks,
+			                                 libmv_camera_intrinsics_options,
+			                                 libmv_reconstruction_options,
+			                                 progress_update_callback,
+			                                 callback_customdata);
+		}
 	}
 	else {
-		return libmv_solveReconstruction(libmv_tracks,
-		                                 libmv_camera_intrinsics_options,
-		                                 libmv_reconstruction_options,
-		                                 progress_update_callback,
-		                                 callback_customdata);
+		//TODO(sftrabbit): Perform multiview reconstruction
+		return NULL;
 	}
 }
 

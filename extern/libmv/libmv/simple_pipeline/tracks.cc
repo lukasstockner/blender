@@ -34,23 +34,38 @@ Tracks::Tracks(const Tracks &other) {
 
 Tracks::Tracks(const vector<Marker> &markers) : markers_(markers) {}
 
-void Tracks::Insert(int image, int track, double x, double y) {
+void Tracks::Insert(int view, int image, int track, double x, double y) {
   // TODO(keir): Wow, this is quadratic for repeated insertions. Fix this by
   // adding a smarter data structure like a set<>.
   for (int i = 0; i < markers_.size(); ++i) {
-    if (markers_[i].image == image &&
+    if (markers_[i].view == view &&
+        markers_[i].image == image &&
         markers_[i].track == track) {
       markers_[i].x = x;
       markers_[i].y = y;
       return;
     }
   }
-  Marker marker = { image, track, x, y };
+  Marker marker = { view, image, track, x, y };
   markers_.push_back(marker);
+}
+
+void Tracks::Insert(int image, int track, double x, double y) {
+  this->Insert(0, image, track, x, y);
 }
 
 vector<Marker> Tracks::AllMarkers() const {
   return markers_;
+}
+
+vector<Marker> Tracks::MarkersInView(int view) const {
+  vector<Marker> markers;
+  for (int i = 0; i < markers_.size(); ++i) {
+    if (view == markers_[i].view) {
+      markers.push_back(markers_[i]);
+    }
+  }
+  return markers;
 }
 
 vector<Marker> Tracks::MarkersInImage(int image) const {
@@ -122,8 +137,18 @@ Marker Tracks::MarkerInImageForTrack(int image, int track) const {
       return markers_[i];
     }
   }
-  Marker null = { -1, -1, -1, -1 };
+  Marker null = { -1, -1, -1, -1, -1 };
   return null;
+}
+
+void Tracks::RemoveMarkersForView(int view) {
+  int size = 0;
+  for (int i = 0; i < markers_.size(); ++i) {
+    if (markers_[i].view != view) {
+      markers_[size++] = markers_[i];
+    }
+  }
+  markers_.resize(size);
 }
 
 void Tracks::RemoveMarkersForTrack(int track) {
@@ -136,14 +161,29 @@ void Tracks::RemoveMarkersForTrack(int track) {
   markers_.resize(size);
 }
 
-void Tracks::RemoveMarker(int image, int track) {
+void Tracks::RemoveMarker(int view, int image, int track) {
   int size = 0;
   for (int i = 0; i < markers_.size(); ++i) {
-    if (markers_[i].image != image || markers_[i].track != track) {
+    if (markers_[i].view != view ||
+        markers_[i].image != image ||
+        markers_[i].track != track) {
       markers_[size++] = markers_[i];
     }
   }
   markers_.resize(size);
+}
+
+void Tracks::RemoveMarker(int image, int track) {
+  this->RemoveMarker(0, image, track);
+}
+
+int Tracks::MaxView() const {
+  // TODO(MatthiasF): maintain a max_view_ member (updated on Insert)
+  int max_view = 0;
+  for (int i = 0; i < markers_.size(); ++i) {
+    max_view = std::max(markers_[i].view, max_view);
+  }
+  return max_view;
 }
 
 int Tracks::MaxImage() const {
