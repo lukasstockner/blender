@@ -1603,7 +1603,7 @@ static void draw_pose_dofs(Object *ob)
 							
 							if (pchan->ikflag & BONE_IK_XLIMIT) {
 								/* OpenGL requires rotations in degrees; so we're taking the average angle here */
-								theta = RAD2DEGF(0.5f * (pchan->limitmin[0] + pchan->limitmax[0]));
+								theta = 0.5f * (pchan->limitmin[0] + pchan->limitmax[0]);
 								gpuRotateAxis(theta, 'X');
 								
 								gpuCurrentColor3ub(255, 50, 50);    /* Red, X axis limit */

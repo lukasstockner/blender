@@ -51,5 +51,8 @@
 
 
 
+GLenum GPU_mipmap_2D(GLboolean genmip, GLenum internalFormat, int w, int h, GLenum type, void* data); // XXX jwilkins: this belongs somewhere else
+
+
 
 #endif /* __GPU_COMPATIBILITY_H_ */

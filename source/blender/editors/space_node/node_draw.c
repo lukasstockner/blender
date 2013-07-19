@@ -1274,9 +1274,11 @@ void drawnodespace(const bContext *C, ARegion *ar)
 
 	ED_region_draw_cb_draw(C, ar, REGION_DRAW_PRE_VIEW);
 
+#if defined(WITH_GL_PROFILE_COMPAT) // XXX jwilkins: Is this even used?
 	/* only set once */
 	glEnable(GL_MAP1_VERTEX_3);
-	
+#endif
+
 	/* nodes */
 	snode_set_context(C);
 	

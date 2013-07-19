@@ -287,8 +287,20 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 	if (mtex->brush_map_mode == MTEX_MAP_MODE_VIEW) {
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+		GLenum wrapmode; // XXX jwilkins: this could probably be a function
+#if !defined(GLEW_ES_ONLY)
+		if (GLEW_VERSION_1_3 || GLEW_ARB_texture_border_clamp)
+		{
+			wrapmode = GL_CLAMP_TO_BORDER;
+		}
+		else
+#endif
+		{
+			wrapmode = GL_CLAMP_TO_EDGE;
+		}
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapmode);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapmode);
 	}
 
 	BKE_paint_reset_overlay_invalid(invalid);
@@ -412,8 +424,22 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+	{
+		GLenum wrapmode; // XXX jwilkins: this could probably be a function
+	#if !defined(GLEW_ES_ONLY)
+		if (GLEW_VERSION_1_3 || GLEW_ARB_texture_border_clamp)
+		{
+			wrapmode = GL_CLAMP_TO_BORDER;
+		}
+		else
+	#endif
+		{
+			wrapmode = GL_CLAMP_TO_EDGE;
+		}
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapmode);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapmode);
+	}
 
 	BKE_paint_reset_overlay_invalid(PAINT_INVALID_OVERLAY_CURVE);
 

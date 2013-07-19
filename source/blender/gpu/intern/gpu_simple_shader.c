@@ -182,6 +182,7 @@ void GPU_simple_shader_bind(int options)
 			GPU_shader_bind(shader);
 	}
 	else {
+#if defined(WITH_GL_PROFILE_COMPAT)
 		// XXX where does this fit, depends on ortho/persp?
 
 		if (options & GPU_SHADER_LIGHTING)
@@ -197,6 +198,7 @@ void GPU_simple_shader_bind(int options)
 
 		if (options & GPU_SHADER_TEXTURE_2D)
 			glEnable(GL_TEXTURE_2D);
+#endif
 	}
 
 	/* temporary hack, should be solved outside of this file */
@@ -209,10 +211,12 @@ void GPU_simple_shader_unbind(void)
 		GPU_shader_unbind();
 	}
 	else {
+#if defined(WITH_GL_PROFILE_COMPAT)
 		glDisable(GL_LIGHTING);
 		glDisable(GL_COLOR_MATERIAL);
 		glDisable(GL_TEXTURE_2D);
 		glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
+#endif
 	}
 }
 
@@ -229,9 +233,11 @@ void GPU_simple_shader_colors(const float diffuse[3], const float specular[3],
 	copy_v3_v3(gl_specular, specular);
 	gl_specular[3] = 1.0f;
 
+#if defined(WITH_GL_PROFILE_COMPAT)
 	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, gl_diffuse);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, gl_specular);
 	glMateriali(GL_FRONT_AND_BACK, GL_SHININESS, CLAMPIS(shininess, 1, 128));
+#endif
 }
 
 bool GPU_simple_shader_need_normals(void)
@@ -247,6 +253,7 @@ void GPU_simple_shader_light_set(int light_num, GPULightData *light)
 	GPU_MATERIAL_STATE.lights_directional &= ~light_bit;
 
 	if (light) {
+#if defined(WITH_GL_PROFILE_COMPAT)
 		glEnable(GL_LIGHT0+light_num);
 
 		glLightfv(GL_LIGHT0+light_num, GL_POSITION, light->position); 
@@ -260,6 +267,7 @@ void GPU_simple_shader_light_set(int light_num, GPULightData *light)
 		glLightfv(GL_LIGHT0+light_num, GL_SPOT_DIRECTION, light->spot_direction);
 		glLightf(GL_LIGHT0+light_num, GL_SPOT_CUTOFF, light->spot_cutoff);
 		glLightf(GL_LIGHT0+light_num, GL_SPOT_EXPONENT, light->spot_exponent);
+#endif
 
 		GPU_MATERIAL_STATE.lights_enabled |= light_bit;
 		if (light->position[3] == 0.0f)
@@ -268,16 +276,19 @@ void GPU_simple_shader_light_set(int light_num, GPULightData *light)
 	else {
 		const float zero[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
+#if defined(WITH_GL_PROFILE_COMPAT)
 		glLightfv(GL_LIGHT0+light_num, GL_POSITION, zero); 
 		glLightfv(GL_LIGHT0+light_num, GL_DIFFUSE, zero); 
 		glLightfv(GL_LIGHT0+light_num, GL_SPECULAR, zero);
 
 		glDisable(GL_LIGHT0+light_num);
+#endif
 	}
 }
 
 void GPU_simple_shader_light_set_viewer(bool local)
 {
+#if defined(WITH_GL_PROFILE_COMPAT)
 	glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, (local)? GL_TRUE: GL_FALSE);
+#endif
 }
-

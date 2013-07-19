@@ -459,7 +459,7 @@ static void sk_drawEdge(struct GPUprim3 *prim, SK_Point *pt0, SK_Point *pt1, flo
 
 	angle = angle_normalized_v3v3(vec2, vec1);
 
-	gpuRotateVector(angle + M_PI, axis);
+	gpuRotateVector(RAD2DEGF(angle + M_PI), axis);
 
 	gpuDrawCylinder(prim, sk_clampPointSize(pt1, size), sk_clampPointSize(pt0, size), length);
 	//GLU Cylinder(quad, sk_clampPointSize(pt1, size), sk_clampPointSize(pt0, size), length, 8, 8);
@@ -480,7 +480,7 @@ static void sk_drawNormal(struct GPUprim3 *prim, SK_Point *pt, float size, float
 
 	angle = angle_normalized_v3v3(vec2, pt->no);
 
-	gpuRotateVector(angle, axis);
+	gpuRotateVector(RAD2DEGF(angle), axis);
 
 	gpuCurrentColor3x(CPACK_CYAN);
 

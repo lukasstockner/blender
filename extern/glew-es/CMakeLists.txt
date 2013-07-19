@@ -38,11 +38,11 @@ endif()
 set(SRC
 	src/glew.c
 
+	include/GL/eglew.h
+    include/GL/glesew.h
 	include/GL/glew.h
 	include/GL/glxew.h
 	include/GL/wglew.h
-    include/GL/glesew.h
-    include/GL/eglew.h
 )
 
 add_definitions(${GL_DEFINITIONS})

@@ -518,6 +518,10 @@ typedef void (*__eglMustCastToProperFunctionPointerType)(void);
 #if !defined(EGL_ANDROID_blob_cache) 
 #define EGL_ANDROID_blob_cache 1
 
+typedef khronos_ssize_t EGLsizeiANDROID; // XXX jwilkins: missing typedef
+typedef EGLsizeiANDROID (*EGLGetBlobFuncANDROID) (const void* key, EGLsizeiANDROID keySize, void* value, EGLsizeiANDROID valueSize); // XXX jwilkins: missing typedef
+typedef void (*EGLSetBlobFuncANDROID) (const void* key, EGLsizeiANDROID keySize, const void* value, EGLsizeiANDROID valueSize); // XXX jwilkins: missing typedef
+
 typedef void (EGLAPIENTRY * PFNEGLSETBLOBCACHEFUNCSANDROIDPROC) (EGLDisplay dpy, EGLSetBlobFuncANDROID set, EGLGetBlobFuncANDROID get);
 
 #define eglSetBlobCacheFuncsANDROID EGLEW_GET_FUN(__eglewSetBlobCacheFuncsANDROID)
@@ -552,6 +556,8 @@ typedef void (EGLAPIENTRY * PFNEGLSETBLOBCACHEFUNCSANDROIDPROC) (EGLDisplay dpy,
 
 #if !defined(EGL_ANDROID_native_fence_sync) 
 #define EGL_ANDROID_native_fence_sync 1
+
+typedef void* EGLSyncKHR; // XXX jwilkins: missing typedef
 
 #define EGL_SYNC_NATIVE_FENCE_ANDROID 0x3144
 #define EGL_SYNC_NATIVE_FENCE_FD_ANDROID 0x3145
@@ -931,6 +937,8 @@ typedef EGLBoolean (EGLAPIENTRY * PFNEGLSIGNALSYNCKHRPROC) (EGLDisplay dpy, EGLS
 
 #define EGL_CONSUMER_ACQUIRE_TIMEOUT_USEC_KHR 0x321E
 
+typedef void* EGLStreamKHR; // XXX jwilkins: missing typedef
+
 typedef EGLBoolean (EGLAPIENTRY * PFNEGLSTREAMCONSUMERACQUIREKHRPROC) (EGLDisplay dpy, EGLStreamKHR stream);
 typedef EGLBoolean (EGLAPIENTRY * PFNEGLSTREAMCONSUMERGLTEXTUREEXTERNALKHRPROC) (EGLDisplay dpy, EGLStreamKHR stream);
 typedef EGLBoolean (EGLAPIENTRY * PFNEGLSTREAMCONSUMERRELEASEKHRPROC) (EGLDisplay dpy, EGLStreamKHR stream);
@@ -947,6 +955,8 @@ typedef EGLBoolean (EGLAPIENTRY * PFNEGLSTREAMCONSUMERRELEASEKHRPROC) (EGLDispla
 
 #if !defined(EGL_KHR_stream_cross_process_fd) 
 #define EGL_KHR_stream_cross_process_fd 1
+
+typedef int EGLNativeFileDescriptorKHR; // XXX jwilkins: missing typedef
 
 typedef EGLStreamKHR (EGLAPIENTRY * PFNEGLCREATESTREAMFROMFILEDESCRIPTORKHRPROC) (EGLDisplay dpy, EGLNativeFileDescriptorKHR file_descriptor);
 typedef EGLNativeFileDescriptorKHR (EGLAPIENTRY * PFNEGLGETSTREAMFILEDESCRIPTORKHRPROC) (EGLDisplay dpy, EGLStreamKHR stream);
@@ -1020,6 +1030,8 @@ typedef EGLSurface (EGLAPIENTRY * PFNEGLCREATESTREAMPRODUCERSURFACEKHRPROC) (EGL
 
 #if !defined(EGL_KHR_wait_sync) 
 #define EGL_KHR_wait_sync 1
+
+typedef void* EGLSyncKHR; // XXX jwilkins: missing typedef
 
 typedef EGLint (EGLAPIENTRY * PFNEGLWAITSYNCKHRPROC) (EGLDisplay dpy, EGLSyncKHR sync, EGLint flags);
 

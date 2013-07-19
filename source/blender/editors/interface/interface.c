@@ -1058,9 +1058,9 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 		uiEndBlock(C, block);
 
 	/* disable AA, makes widgets too blurry */
-	multisample_enabled = glIsEnabled(GL_MULTISAMPLE_ARB);
+	multisample_enabled = glIsEnabled(GL_MULTISAMPLE);
 	if (multisample_enabled)
-		glDisable(GL_MULTISAMPLE_ARB);
+		glDisable(GL_MULTISAMPLE);
 
 	/* scale fonts */
 	ui_fontscale(&style.paneltitle.points, block->aspect);
@@ -1105,7 +1105,7 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 	gpuPopMatrix();
 
 	if (multisample_enabled)
-		glEnable(GL_MULTISAMPLE_ARB);
+		glEnable(GL_MULTISAMPLE);
 	
 	ui_draw_links(block);
 }

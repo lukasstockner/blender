@@ -68,6 +68,7 @@
 #include "GPU_buffers.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
+#include "gpu_extension_wrapper.h"
 #include "GPU_material.h"
 
 #include "smoke_API.h"
@@ -251,38 +252,6 @@ void GPU_set_gpu_mipmapping(int gpu_mipmap)
 	}
 }
 
-static void GPU_generate_mipmap(GLenum target)
-{
-	GLboolean workaround;
-
-	/* Work around bug in ATI driver, need to have GL_TEXTURE_2D enabled.
-	 * http://www.opengl.org/wiki/Common_Mistakes#Automatic_mipmap_generation */
-	if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY)) {
-		workaround = !glIsEnabled(target);
-
-		if (workaround) {
-			glEnable(target);
-		}
-	}
-	else {
-		workaround = GL_FALSE;
-	}
-
-	if (GLEW_VERSION_3_0 || GLEW_ARB_framebuffer_object) {
-		glGenerateMipmap(target);
-	}
-	else if (GLEW_OES_framebuffer_object) {
-		glGenerateMipmapOES(target);
-	}
-	else if (GLEW_EXT_framebuffer_object) {
-		glGenerateMipmapEXT(target);
-	}
-
-	if (workaround) {
-		glDisable(target);
-	}
-}
-
 void GPU_set_mipmap(int mipmap)
 {
 	if (GTS.domipmap != (mipmap != 0)) {
@@ -454,6 +423,7 @@ static void gpu_verify_alpha_blend(int alphablend)
 
 static void gpu_verify_reflection(Image *ima)
 {
+#if defined(WITH_GL_PROFILE_COMPAT)
 	if (ima && (ima->flag & IMA_REFLECT)) {
 		/* enable reflection mapping */
 		glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
@@ -467,6 +437,7 @@ static void gpu_verify_reflection(Image *ima)
 		glDisable(GL_TEXTURE_GEN_S);
 		glDisable(GL_TEXTURE_GEN_T);
 	}
+#endif
 }
 
 
@@ -536,8 +507,10 @@ static void ScaleHalfImageFloat(int size, float *imgin, int widthin, int hightin
 
 #undef BOX_FILTER_HALF_ONLY
 
-static void GPU_mipmap_2D(GLboolean genmip, GLenum internalFormat, int w, int h, GLenum type, void* data)
+GLenum GPU_mipmap_2D(GLboolean genmip, GLenum internalFormat, int w, int h, GLenum type, void* data)
 {
+	while (glGetError() != GL_NO_ERROR) {}
+
 	if (GLEW_VERSION_3_0            ||
 		GLEW_ARB_framebuffer_object ||
 		GLEW_EXT_framebuffer_object ||
@@ -548,11 +521,11 @@ static void GPU_mipmap_2D(GLboolean genmip, GLenum internalFormat, int w, int h,
 
 		if (genmip) {
 			glHint(GL_GENERATE_MIPMAP_HINT, GL_NICEST);
-			GPU_generate_mipmap(GL_TEXTURE_2D);
+			gpu_glGenerateMipmap(GL_TEXTURE_2D);
 			glHint(GL_GENERATE_MIPMAP_HINT, GL_DONT_CARE); // return to default value
 		}
 
-		return;
+		return glGetError();
 	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
@@ -569,19 +542,21 @@ static void GPU_mipmap_2D(GLboolean genmip, GLenum internalFormat, int w, int h,
 			glHint(GL_GENERATE_MIPMAP_HINT, GL_DONT_CARE); // return to default value
 		}
 
-		return;
+		return glGetError();
 	}
 #endif
 
 #if defined(WITH_GLU)
 	if (genmip) {
-		gluBuild2DMipmaps(GL_TEXTURE_2D, internalFormat, w, h, GL_RGBA, type, data);
+		return gluBuild2DMipmaps(GL_TEXTURE_2D, internalFormat, w, h, GL_RGBA, type, data);
 	}
 	else {
 		glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, w, h, 0, GL_RGBA, type, data);
+		return glGetError();
 	}
 #else
 	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, w, h, 0, GL_RGBA, type, data);
+	return glGetError();
 #endif
 }
 
@@ -838,8 +813,6 @@ void GPU_create_gl_tex(unsigned int *bind, unsigned int *pix, float *frect, int 
 		}
 	}
 
-//#include REAL_GL_MODE
-
 	/* create image */
 	glGenTextures(1, (GLuint *)bind);
 	glBindTexture(GL_TEXTURE_2D, *bind);
@@ -847,7 +820,13 @@ void GPU_create_gl_tex(unsigned int *bind, unsigned int *pix, float *frect, int 
 	mipmap = mipmap && GPU_get_mipmap();
 
 	if (use_high_bit_depth) {
-		GPU_mipmap_2D(mipmap, GL_RGBA16, rectw, recth, GL_FLOAT, frect);
+		if (GLEW_VERSION_3_0 || GL_ARB_texture_float || GL_EXT_texture_storage || GL_EXT_color_buffer_half_float) {
+			GPU_mipmap_2D(mipmap, GL_RGBA16F, rectw, recth, GL_FLOAT, frect);
+		}
+		else {
+			// XXX jwilkins: not sure if falling back to RGBA internal format will work
+			GPU_mipmap_2D(mipmap,  (GLEW_VERSION_1_1 || GLEW_OES_required_internalformat) ? GL_RGBA8 : GL_RGBA, rectw, recth, GL_FLOAT, frect);
+		}
 	}
 	else {
 		GPU_mipmap_2D(mipmap, GL_RGBA, rectw, recth, GL_UNSIGNED_BYTE, pix);
@@ -855,8 +834,6 @@ void GPU_create_gl_tex(unsigned int *bind, unsigned int *pix, float *frect, int 
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gpu_get_mipmap_filter(0));
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gpu_get_mipmap_filter(1));
-
-//#include FAKE_GL_MODE
 
 	if (ima && mipmap)
 		ima->tpageflag |= IMA_MIPMAP_COMPLETE;
@@ -1089,7 +1066,7 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 			/* we have already accounted for the case where GTS.gpu_mipmap is false
 			 * so we will be using GPU mipmap generation here */
 			if (GPU_get_mipmap()) {
-				GPU_generate_mipmap(GL_TEXTURE_2D);
+				gpu_glGenerateMipmap(GL_TEXTURE_2D);
 			}
 			else {
 				ima->tpageflag &= ~IMA_MIPMAP_COMPLETE;
@@ -1124,7 +1101,7 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 
 		/* see comment above as to why we are using gpu mipmap generation here */
 		if (GPU_get_mipmap()) {
-			GPU_generate_mipmap(GL_TEXTURE_2D);
+			gpu_glGenerateMipmap(GL_TEXTURE_2D);
 		}
 		else {
 			ima->tpageflag &= ~IMA_MIPMAP_COMPLETE;
@@ -1990,17 +1967,21 @@ void GPU_state_init(void)
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_FOG);
 	gpuDisableLighting();
-	glDisable(GL_LOGIC_OP);
 	glDisable(GL_STENCIL_TEST);
-	glDisable(GL_TEXTURE_1D);
 	glDisable(GL_TEXTURE_2D);
+
+#if !defined(GLEW_ES_ONLY)
+	glDisable(GL_LOGIC_OP);
+	glDisable(GL_TEXTURE_1D);
+#endif
 
 	/* default disabled, enable should be local per function */
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_NORMAL_ARRAY);
 	glDisableClientState(GL_COLOR_ARRAY);
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-	
+
+#if defined(WITH_GL_PROFILE_COMPAT)
 	glPixelTransferi(GL_MAP_COLOR, GL_FALSE);
 	glPixelTransferi(GL_RED_SCALE, 1);
 	glPixelTransferi(GL_RED_BIAS, 0);
@@ -2013,8 +1994,14 @@ void GPU_state_init(void)
 	
 	glPixelTransferi(GL_DEPTH_BIAS, 0);
 	glPixelTransferi(GL_DEPTH_SCALE, 1);
+#endif
+
+#if !defined(GLEW_ES_ONLY)
 	glDepthRange(0.0, 1.0);
-	
+#else
+	glDepthRangef(0.0, 1.0);
+#endif
+
 	a= 0;
 	for (x=0; x<32; x++) {
 		for (y=0; y<4; y++) {

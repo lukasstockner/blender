@@ -1401,9 +1401,9 @@ static void backdrawview3d(Scene *scene, ARegion *ar, View3D *v3d)
 	/* dithering and AA break color coding, so disable */
 	glDisable(GL_DITHER);
 
-	multisample_enabled = glIsEnabled(GL_MULTISAMPLE_ARB);
+	multisample_enabled = glIsEnabled(GL_MULTISAMPLE);
 	if (multisample_enabled)
-		glDisable(GL_MULTISAMPLE_ARB);
+		glDisable(GL_MULTISAMPLE);
 
 	if (U.ogl_multisamples != USER_MULTISAMPLE_NONE) {
 		/* for multisample we use an offscreen FBO. multisample drawing can fail
@@ -1465,7 +1465,7 @@ static void backdrawview3d(Scene *scene, ARegion *ar, View3D *v3d)
 	glDisable(GL_DEPTH_TEST);
 	glEnable(GL_DITHER);
 	if (multisample_enabled)
-		glEnable(GL_MULTISAMPLE_ARB);
+		glEnable(GL_MULTISAMPLE);
 
 	if (rv3d->rflag & RV3D_CLIPPING)
 		ED_view3d_clipping_disable();
@@ -1481,7 +1481,9 @@ void view3d_opengl_read_pixels(ARegion *ar, int x, int y, int w, int h, int form
 
 	if (rv3d->gpuoffscreen) {
 		GPU_offscreen_bind(rv3d->gpuoffscreen);
-		glReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
+#if !defined(GLEW_ES_ONLY) // XXX jwilkins: COLOR_ATTACHMENT0 is the only buffer ES20 can read from anyway
+		glReadBuffer(GL_COLOR_ATTACHMENT0);
+#endif
 		glReadPixels(x, y, w, h, format, type, data);
 		GPU_offscreen_unbind(rv3d->gpuoffscreen);
 	}
@@ -2218,7 +2220,16 @@ void view3d_update_depths_rect(ARegion *ar, ViewDepths *d, rcti *rect)
 	if (d->damaged) {
 		/* XXX using special function here, it doesn't use the gpu offscreen system */
 		view3d_opengl_read_Z_pixels(ar, d->x, d->y, d->w, d->h, GL_DEPTH_COMPONENT, GL_FLOAT, d->depths);
+#if !defined(GLEW_ES_ONLY) // XXX jwilkins: could make into a function?
 		glGetDoublev(GL_DEPTH_RANGE, d->depth_range);
+#else
+		{
+			float tmp[2];
+			glGetFloatv(GL_DEPTH_RANGE, tmp);
+			d->depth_range[0] = tmp[0];
+			d->depth_range[1] = tmp[1];
+		}
+#endif
 		d->damaged = false;
 	}
 }
@@ -2246,8 +2257,16 @@ void ED_view3d_depth_update(ARegion *ar)
 		
 		if (d->damaged) {
 			view3d_opengl_read_pixels(ar, 0, 0, d->w, d->h, GL_DEPTH_COMPONENT, GL_FLOAT, d->depths);
+#if !defined(GLEW_ES_ONLY) // XXX jwilkins: could make into a function?
 			glGetDoublev(GL_DEPTH_RANGE, d->depth_range);
-			
+#else
+			{
+				float tmp[2];
+				glGetFloatv(GL_DEPTH_RANGE, tmp);
+				d->depth_range[0] = tmp[0];
+				d->depth_range[1] = tmp[1];
+			}
+#endif
 			d->damaged = false;
 		}
 	}
@@ -3244,14 +3263,16 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			glEnable(GL_DEPTH_TEST);
 			glDepthFunc(GL_ALWAYS);
 			glShadeModel(GL_SMOOTH);
-			glBegin(GL_QUADS);
+			gpuImmediateFormat_V3();
+			gpuBegin(GL_QUADS);
 			UI_ThemeColor(TH_LOW_GRAD);
-			glVertex3f(-1.0, -1.0, 1.0);
-			glVertex3f(1.0, -1.0, 1.0);
+			gpuVertex3f(-1.0, -1.0, 1.0);
+			gpuVertex3f(1.0, -1.0, 1.0);
 			UI_ThemeColor(TH_HIGH_GRAD);
-			glVertex3f(1.0, 1.0, 1.0);
-			glVertex3f(-1.0, 1.0, 1.0);
-			glEnd();
+			gpuVertex3f(1.0, 1.0, 1.0);
+			gpuVertex3f(-1.0, 1.0, 1.0);
+			gpuEnd();
+			gpuImmediateUnformat();
 			glShadeModel(GL_FLAT);
 
 			glDepthFunc(GL_LEQUAL);
@@ -3310,7 +3331,7 @@ static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const 
 
 	/* enables anti-aliasing for 3D view drawing */
 	if (U.ogl_multisamples != USER_MULTISAMPLE_NONE) {
-		glEnable(GL_MULTISAMPLE_ARB);
+		glEnable(GL_MULTISAMPLE);
 	}
 
 
@@ -3427,7 +3448,7 @@ static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const 
 
 	/* Disable back anti-aliasing */
 	if (U.ogl_multisamples != USER_MULTISAMPLE_NONE) {
-		glDisable(GL_MULTISAMPLE_ARB);
+		glDisable(GL_MULTISAMPLE);
 	}
 
 	

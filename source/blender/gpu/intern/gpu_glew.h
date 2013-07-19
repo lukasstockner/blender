@@ -38,29 +38,185 @@
 
 
 
-#if !defined(WITH_GLEW_ES)
+#if defined(GLEW_ES_ONLY)
 
-#if !GL_OES_framebuffer_object
-#define GLEW_OES_framebuffer_object 0
-#define glGenerateMipmapOES glGenerateMipmap
+// XXX jwilkins: need to check ALL of these to make sure you didn't cover an unguarded use of an extension/version
+
+#ifndef GLEW_VERSION_1_1
+#define GLEW_VERSION_1_1 0
 #endif
 
-#if !GL_OES_mapbuffer
+#ifndef GLEW_VERSION_1_2
+#define GLEW_VERSION_1_2 0
+#endif
+
+#ifndef GLEW_VERSION_1_3
+#define GLEW_VERSION_1_3 0
+#endif
+
+#ifndef GLEW_VERSION_1_4
+#define GLEW_VERSION_1_4 0
+#endif
+
+#ifndef GLEW_VERSION_1_5
+#define GLEW_VERSION_1_5 0
+#endif
+
+#ifndef GLEW_VERSION_2_0
+#define GLEW_VERSION_2_0 0
+#endif
+
+#ifndef GLEW_VERSION_3_0
+#define GLEW_VERSION_3_0 0
+#endif
+
+#ifndef GLEW_ARB_shader_objects
+#define GLEW_ARB_shader_objects 0
+#endif
+
+#ifndef GLEW_ARB_vertex_shader
+#define GLEW_ARB_vertex_shader 0
+#endif
+
+#ifndef GLEW_ARB_vertex_program
+#define GLEW_ARB_vertex_program 0
+#endif
+
+#ifndef GLEW_ARB_fragment_program
+#define GLEW_ARB_fragment_program 0
+#endif
+
+#ifndef GLEW_ARB_vertex_buffer_object
+#define GLEW_ARB_vertex_buffer_object 0
+#endif
+
+#ifndef GLEW_ARB_framebuffer_object
+#define GLEW_ARB_framebuffer_object 0
+#endif
+
+#ifndef GLEW_ARB_multitexture
+#define GLEW_ARB_multitexture 0
+#endif
+
+#ifndef GLEW_EXT_framebuffer_object
+#define GLEW_EXT_framebuffer_object 0
+#endif
+
+#ifndef GLEW_ARB_depth_texture
+#define GLEW_ARB_depth_texture 0
+#endif
+
+#ifndef GLEW_ARB_shadow
+#define GLEW_ARB_shadow 0
+#endif
+
+#ifndef GL_ARB_texture_float
+#define GL_ARB_texture_float 0
+#endif
+
+#ifndef GLEW_ARB_texture_non_power_of_two
+#define GLEW_ARB_texture_non_power_of_two 0
+#endif
+
+#ifndef GLEW_ARB_texture3D
+#define GLEW_ARB_texture3D 0
+#endif
+
+#ifndef GLEW_EXT_texture3D
+#define GLEW_EXT_texture3D 0
+#endif
+
+#ifndef GLEW_ARB_texture_rg
+#define GLEW_ARB_texture_rg 0
+#endif
+
+#ifndef GLEW_ARB_texture_query_lod
+#define GLEW_ARB_texture_query_lod 0
+#endif
+
+#ifndef GL_TEXTURE_3D
+#define GL_TEXTURE_3D GL_TEXTURE_3D_OES
+#endif
+
+#ifndef glTexImage3D
+#define glTexImage3D glTexImage3DOES
+#endif
+
+#ifndef glTexSubImage3D
+#define glTexSubImage3D glTexSubImage3DOES
+#endif
+
+#ifndef GL_TEXTURE_WRAP_R
+#define GL_TEXTURE_WRAP_R GL_TEXTURE_WRAP_R_OES
+#endif
+
+#ifndef GL_TEXTURE_COMPARE_MODE
+#define GL_TEXTURE_COMPARE_MODE GL_TEXTURE_COMPARE_MODE_EXT
+#endif
+
+#ifndef GL_COMPARE_REF_TO_TEXTURE
+#define GL_COMPARE_REF_TO_TEXTURE GL_COMPARE_REF_TO_TEXTURE_EXT
+#endif
+
+#ifndef GL_TEXTURE_COMPARE_FUNC
+#define GL_TEXTURE_COMPARE_FUNC GL_TEXTURE_COMPARE_FUNC_EXT
+#endif
+
+#ifndef GL_RGBA8
+#define GL_RGBA8 GL_RGBA8_OES
+#endif
+
+#ifndef GL_RGBA16F
+#define GL_RGBA16F GL_RGBA16F_EXT
+#endif
+
+#ifndef GL_RGB8
+#define GL_RGB8 GL_RGB8_OES
+#endif
+
+#ifndef GL_FRAMEBUFFER_INCOMPLETE_FORMATS
+#define GL_FRAMEBUFFER_INCOMPLETE_FORMATS GL_FRAMEBUFFER_INCOMPLETE_FORMATS_OES
+#endif
+
+#ifndef GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER
+#define GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER_OES
+#endif
+
+#ifndef GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER
+#define GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER_OES
+#endif
+
+#ifndef GL_WRITE_ONLY
+#define GL_WRITE_ONLY GL_WRITE_ONLY_OES // XXX jwilkins: similar to GLdouble
+#endif
+
+#ifndef GLdouble
+#define GLdouble double // XXX jwilkins: what to do about this?
+#endif
+
+#endif /* GLEW_ES_ONLY */
+
+
+
+#if defined(GLEW_NO_ES)
+
+#ifndef GL_OES_framebuffer_object
+#define GLEW_OES_framebuffer_object 0
+#endif
+
+#ifndef GL_OES_mapbuffer
 #define GLEW_OES_mapbuffer 0
-#define glMapBufferOES glMapBuffer
-#define glUnmapBufferOES glUnmapBuffer
 #endif
 
-#if !GL_OES_framebuffer_object
+#ifndef GL_OES_framebuffer_object
 #define GLEW_OES_framebuffer_object 0
-#define glGenFramebuffersOES glGenFramebuffers
-#define glBindFramebufferOES glBindFramebuffer
-#define glDeleteFramebuffersOES glDeleteFramebuffers
 #endif
 
+#ifndef GLEW_ES_VERSION_2_0
 #define GLEW_ES_VERSION_2_0 0
-
 #endif
+
+#endif /* defined(GLEW_NO_ES) */
 
 
 

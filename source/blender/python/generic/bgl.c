@@ -236,6 +236,10 @@ static PyObject *Method_##funcname (PyObject *UNUSED(self), PyObject *args)   \
 	ret_ret_##ret;                                                            \
 }
 
+#if defined(GLEW_ES_ONLY)
+#define GL_DOUBLE 0x140A // XXX jwilkins: defined here for now to make functions involving it cleaner, but don't add to interface
+#endif
+
 /********/
 int BGL_typeSize(int type)
 {
@@ -612,7 +616,9 @@ static PyObject *Buffer_repr(Buffer *self)
 	return repr;
 }
 
+// XXX jwilkins: when there is more time, try merging these different profiles to eliminate duplication
 
+#if defined(WITH_GL_PROFILE_COMPAT)
 BGL_Wrap(2, Accum,          void,       (GLenum, GLfloat))
 BGL_Wrap(1, ActiveTexture,  void,       (GLenum))
 BGL_Wrap(2, AlphaFunc,      void,       (GLenum, GLclampf))
@@ -986,12 +992,114 @@ BGL_Wrap(1, Vertex4iv,          void,     (GLintP))
 BGL_Wrap(4, Vertex4s,           void,     (GLshort, GLshort, GLshort, GLshort))
 BGL_Wrap(1, Vertex4sv,          void,     (GLshortP))
 BGL_Wrap(4, Viewport,           void,     (GLint, GLint, GLsizei, GLsizei))
+#endif
+
+#if defined(WITH_GL_PROFILE_ES20)
+BGL_Wrap(2, AlphaFunc,      void,       (GLenum, GLclampf))
+BGL_Wrap(2, AttachShader,   void,       (GLuint, GLuint))
+BGL_Wrap(2, BindTexture,    void,       (GLenum, GLuint))
+BGL_Wrap(2, BlendFunc,        void,     (GLenum, GLenum))
+BGL_Wrap(1, Clear,            void,     (GLbitfield))
+BGL_Wrap(4, ClearColor,       void,     (GLclampf, GLclampf, GLclampf, GLclampf))
+BGL_Wrap(1, ClearStencil,     void,     (GLint))
+BGL_Wrap(4, ColorMask,        void,     (GLboolean, GLboolean, GLboolean, GLboolean))
+BGL_Wrap(1, CompileShader,    void,     (GLuint))
+BGL_Wrap(8, CopyTexImage2D,   void,     (GLenum, GLint, GLenum, GLint, GLint, GLsizei, GLsizei, GLint))
+BGL_Wrap(1, CreateProgram,    GLuint,   (void))
+BGL_Wrap(1, CreateShader,     GLuint,   (GLenum))
+BGL_Wrap(1, CullFace,         void,     (GLenum))
+BGL_Wrap(1, DeleteProgram,    void,     (GLuint))
+BGL_Wrap(1, DeleteShader,     void,     (GLuint))
+BGL_Wrap(2, DeleteTextures,   void,     (GLsizei, GLuintP))
+BGL_Wrap(1, DepthFunc,        void,     (GLenum))
+BGL_Wrap(1, DepthMask,        void,     (GLboolean))
+BGL_Wrap(2, DetachShader,     void,     (GLuint, GLuint))
+BGL_Wrap(1, Disable,          void,     (GLenum))
+BGL_Wrap(1, Enable,           void,     (GLenum))
+BGL_Wrap(1, Finish,           void,     (void))
+BGL_Wrap(1, Flush,            void,     (void))
+BGL_Wrap(2, Fogf,             void,     (GLenum, GLfloat))
+BGL_Wrap(2, Fogfv,            void,     (GLenum, GLfloatP))
+BGL_Wrap(1, FrontFace,        void,     (GLenum))
+BGL_Wrap(2, GenTextures,      void,   (GLsizei, GLuintP))
+BGL_Wrap(4, GetAttachedShaders, void,   (GLuint, GLsizei, GLsizeiP, GLuintP))
+BGL_Wrap(1, GetError,         GLenum,   (void))
+BGL_Wrap(4, GetProgramInfoLog, void,    (GLuint, GLsizei, GLsizeiP, GLcharP))
+BGL_Wrap(3, GetProgramiv,     void,     (GLuint, GLenum, GLintP))
+BGL_Wrap(4, GetShaderInfoLog, void,     (GLuint, GLsizei, GLsizeiP, GLcharP))
+BGL_Wrap(3, GetShaderiv,      void,     (GLuint, GLenum, GLintP))
+BGL_Wrap(4, GetShaderSource,  void,     (GLuint, GLsizei, GLsizeiP, GLcharP))
+BGL_Wrap(1, GetString,        GLstring,   (GLenum))
+BGL_Wrap(2, GetUniformLocation, GLint, (GLuint, GLstring))
+BGL_Wrap(2, Hint,           void,     (GLenum, GLenum))
+BGL_Wrap(1, IsProgram,      GLboolean,  (GLuint))
+BGL_Wrap(1, IsShader,       GLboolean,  (GLuint))
+BGL_Wrap(2, LightModelf,    void,     (GLenum, GLfloat))
+BGL_Wrap(2, LightModelfv,   void,     (GLenum, GLfloatP))
+BGL_Wrap(3, Lightf,         void,     (GLenum, GLenum, GLfloat))
+BGL_Wrap(3, Lightfv,        void,     (GLenum, GLenum, GLfloatP))
+BGL_Wrap(1, LineWidth,      void,     (GLfloat))
+BGL_Wrap(1, LinkProgram,    void,     (GLuint))
+BGL_Wrap(1, LoadIdentity,   void,     (void))
+BGL_Wrap(1, LoadMatrixf,    void,     (GLfloatP))
+BGL_Wrap(1, LogicOp,        void,     (GLenum))
+BGL_Wrap(3, Materialf,        void,     (GLenum, GLenum, GLfloat))
+BGL_Wrap(3, Materialfv,       void,     (GLenum, GLenum, GLfloatP))
+BGL_Wrap(1, MatrixMode,       void,     (GLenum))
+BGL_Wrap(1, MultMatrixf,      void,     (GLfloatP))
+BGL_Wrap(3, Normal3f,         void,     (GLfloat, GLfloat, GLfloat))
+BGL_Wrap(2, PixelStorei,      void,     (GLenum, GLint))
+BGL_Wrap(1, PointSize,        void,     (GLfloat))
+BGL_Wrap(2, PolygonOffset,    void,     (GLfloat, GLfloat))
+BGL_Wrap(1, PopMatrix,        void,     (void))
+BGL_Wrap(1, PushMatrix,       void,     (void))
+BGL_Wrap(7, ReadPixels,       void,     (GLint, GLint, GLsizei,
+                                         GLsizei, GLenum, GLenum, GLvoidP))
+BGL_Wrap(4, Rotatef,        void,     (GLfloat, GLfloat, GLfloat, GLfloat))
+BGL_Wrap(3, Scalef,         void,     (GLfloat, GLfloat, GLfloat))
+BGL_Wrap(4, Scissor,        void,     (GLint, GLint, GLsizei, GLsizei))
+BGL_Wrap(1, ShadeModel,       void,     (GLenum))
+BGL_Wrap(3, StencilFunc,      void,     (GLenum, GLint, GLuint))
+BGL_Wrap(1, StencilMask,      void,     (GLuint))
+BGL_Wrap(3, StencilOp,        void,     (GLenum, GLenum, GLenum))
+BGL_Wrap(3, TexEnvf,        void,     (GLenum, GLenum, GLfloat))
+BGL_Wrap(3, TexEnvfv,       void,     (GLenum, GLenum, GLfloatP))
+BGL_Wrap(9, TexImage2D,     void,     (GLenum, GLint, GLint,
+                                       GLsizei, GLsizei, GLint, GLenum, GLenum, GLvoidP))
+BGL_Wrap(3, TexParameterf,      void,     (GLenum, GLenum, GLfloat))
+BGL_Wrap(3, Translatef,         void,     (GLfloat, GLfloat, GLfloat))
+BGL_Wrap(2, Uniform1f,          void,     (GLint, GLfloat))
+BGL_Wrap(3, Uniform2f,          void,     (GLint, GLfloat, GLfloat))
+BGL_Wrap(4, Uniform3f,          void,     (GLint, GLfloat, GLfloat, GLfloat))
+BGL_Wrap(5, Uniform4f,          void,     (GLint, GLfloat, GLfloat, GLfloat, GLfloat))
+BGL_Wrap(3, Uniform1fv,         void,     (GLint, GLsizei, GLfloatP))
+BGL_Wrap(3, Uniform2fv,         void,     (GLint, GLsizei, GLfloatP))
+BGL_Wrap(3, Uniform3fv,         void,     (GLint, GLsizei, GLfloatP))
+BGL_Wrap(3, Uniform4fv,         void,     (GLint, GLsizei, GLfloatP))
+BGL_Wrap(2, Uniform1i,          void,     (GLint, GLint))
+BGL_Wrap(3, Uniform2i,          void,     (GLint, GLint, GLint))
+BGL_Wrap(4, Uniform3i,          void,     (GLint, GLint, GLint, GLint))
+BGL_Wrap(5, Uniform4i,          void,     (GLint, GLint, GLint, GLint, GLint))
+BGL_Wrap(3, Uniform1iv,         void,     (GLint, GLsizei, GLintP))
+BGL_Wrap(3, Uniform2iv,         void,     (GLint, GLsizei, GLintP))
+BGL_Wrap(3, Uniform3iv,         void,     (GLint, GLsizei, GLintP))
+BGL_Wrap(3, Uniform4iv,         void,     (GLint, GLsizei, GLintP))
+BGL_Wrap(4, UniformMatrix2fv,   void,     (GLint, GLsizei, GLboolean, GLfloatP))
+BGL_Wrap(4, UniformMatrix3fv,   void,     (GLint, GLsizei, GLboolean, GLfloatP))
+BGL_Wrap(4, UniformMatrix4fv,   void,     (GLint, GLsizei, GLboolean, GLfloatP))
+BGL_Wrap(1, UseProgram,         void,     (GLuint))
+BGL_Wrap(1, ValidateProgram,    void,     (GLuint))
+BGL_Wrap(4, Viewport,           void,     (GLint, GLint, GLsizei, GLsizei))
+#endif
+
+#if WITH_GLU
 BGLU_Wrap(4, Perspective,       void,       (GLdouble, GLdouble, GLdouble, GLdouble))
 BGLU_Wrap(9, LookAt,            void,       (GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble))
 BGLU_Wrap(4, Ortho2D,           void,       (GLdouble, GLdouble, GLdouble, GLdouble))
 BGLU_Wrap(5, PickMatrix,        void,       (GLdouble, GLdouble, GLdouble, GLdouble, GLintP))
 BGLU_Wrap(9, Project,           GLint,      (GLdouble, GLdouble, GLdouble, GLdoubleP, GLdoubleP, GLintP, GLdoubleP, GLdoubleP, GLdoubleP))
 BGLU_Wrap(9, UnProject,         GLint,      (GLdouble, GLdouble, GLdouble, GLdoubleP, GLdoubleP, GLintP, GLdoubleP, GLdoubleP, GLdoubleP))
+#endif
 
 #undef MethodDef
 #define MethodDef(func) {"gl"#func, Method_##func, METH_VARARGS, "no string"}
@@ -1000,8 +1108,8 @@ BGLU_Wrap(9, UnProject,         GLint,      (GLdouble, GLdouble, GLdouble, GLdou
  * {"glAccum", Method_Accumfunc, METH_VARARGS} */
 
 static struct PyMethodDef BGL_methods[] = {
-
 /* #ifndef __APPLE__ */
+#if defined(WITH_GL_PROFILE_COMPAT)
 	MethodDef(Accum),
 	MethodDef(ActiveTexture),
 	MethodDef(AlphaFunc),
@@ -1364,29 +1472,152 @@ static struct PyMethodDef BGL_methods[] = {
 	MethodDef(Vertex4s),
 	MethodDef(Vertex4sv),
 	MethodDef(Viewport),
+/* #endif */
+#endif
+
+#if defined(WITH_GLU)
 	MethodDefu(Perspective),
 	MethodDefu(LookAt),
 	MethodDefu(Ortho2D),
 	MethodDefu(PickMatrix),
 	MethodDefu(Project),
 	MethodDefu(UnProject),
-/* #endif */
+#endif
+
 	{NULL, NULL, 0, NULL}
 };
 
-static struct PyModuleDef BGL_module_def = {
-	PyModuleDef_HEAD_INIT,
-	"bgl",  /* m_name */
-	NULL,  /* m_doc */
-	0,  /* m_size */
-	BGL_methods,  /* m_methods */
-	NULL,  /* m_reload */
-	NULL,  /* m_traverse */
-	NULL,  /* m_clear */
-	NULL,  /* m_free */
+static struct PyMethodDef BGLES2_methods[] = {
+
+#if defined(WITH_GL_PROFILE_ES20)
+	MethodDef(AlphaFunc),
+	MethodDef(AttachShader),
+	MethodDef(BindTexture), 
+	MethodDef(BlendFunc),
+	MethodDef(Clear),
+	MethodDef(ClearColor),
+	MethodDef(ClearStencil),
+	MethodDef(ColorMask),
+	MethodDef(CompileShader),
+	MethodDef(CopyTexImage2D),
+	MethodDef(CreateProgram),
+	MethodDef(CreateShader),
+	MethodDef(CullFace),
+	MethodDef(DeleteProgram),
+	MethodDef(DeleteShader),
+	MethodDef(DeleteTextures),
+	MethodDef(DepthFunc),
+	MethodDef(DepthMask),
+	MethodDef(DetachShader),
+	MethodDef(Disable),
+	MethodDef(Enable),
+	MethodDef(Finish),
+	MethodDef(Flush),
+	MethodDef(Fogf),
+	MethodDef(Fogfv),
+	MethodDef(FrontFace),
+	MethodDef(GenTextures), 
+	MethodDef(GetAttachedShaders),
+	MethodDef(GetError),
+	MethodDef(GetProgramInfoLog),
+	MethodDef(GetProgramiv),
+	MethodDef(GetShaderInfoLog),
+	MethodDef(GetShaderiv),
+	MethodDef(GetShaderSource),
+	MethodDef(GetString),
+	MethodDef(GetUniformLocation),
+	MethodDef(Hint),
+	MethodDef(IsProgram),
+	MethodDef(IsShader),
+	MethodDef(LightModelf),
+	MethodDef(LightModelfv),
+	MethodDef(Lightf),
+	MethodDef(Lightfv),
+	MethodDef(LineWidth),
+	MethodDef(LinkProgram),
+	MethodDef(LoadIdentity),
+	MethodDef(LoadMatrixf),
+	MethodDef(LogicOp),
+	MethodDef(Materialf),
+	MethodDef(Materialfv),
+	MethodDef(MatrixMode),
+	MethodDef(MultMatrixf),
+	MethodDef(Normal3f),
+	MethodDef(PixelStorei),
+	MethodDef(PointSize),
+	MethodDef(PolygonOffset),
+	MethodDef(PopMatrix),
+	MethodDef(PushMatrix),
+	MethodDef(ReadPixels),
+	MethodDef(Rotatef),
+	MethodDef(Scalef),
+	MethodDef(Scissor),
+	MethodDef(ShadeModel),
+	MethodDef(ShaderSource),
+	MethodDef(StencilFunc),
+	MethodDef(StencilMask),
+	MethodDef(StencilOp),
+	MethodDef(TexEnvf),
+	MethodDef(TexEnvfv),
+	MethodDef(TexImage2D),
+	MethodDef(TexParameterf),
+	MethodDef(Translatef),
+	MethodDef(Uniform1f),
+	MethodDef(Uniform2f),
+	MethodDef(Uniform3f),
+	MethodDef(Uniform4f),
+	MethodDef(Uniform1fv),
+	MethodDef(Uniform2fv),
+	MethodDef(Uniform3fv),
+	MethodDef(Uniform4fv),
+	MethodDef(Uniform1i),
+	MethodDef(Uniform2i),
+	MethodDef(Uniform3i),
+	MethodDef(Uniform4i),
+	MethodDef(Uniform1iv),
+	MethodDef(Uniform2iv),
+	MethodDef(Uniform3iv),
+	MethodDef(Uniform4iv),
+	MethodDef(UniformMatrix2fv),
+	MethodDef(UniformMatrix3fv),
+	MethodDef(UniformMatrix4fv),
+	MethodDef(UseProgram),
+	MethodDef(ValidateProgram),
+	MethodDef(Viewport),
+#endif
+
+	{NULL, NULL, 0, NULL}
 };
 
+#if defined(WITH_GL_PROFILE_COMPAT)
+static struct PyModuleDef BGL_module_def = {
+	PyModuleDef_HEAD_INIT,
+	"bgl",       /* m_name     */
+	NULL,        /* m_doc      */
+	0,           /* m_size     */
+	BGL_methods, /* m_methods  */
+	NULL,        /* m_reload   */
+	NULL,        /* m_traverse */
+	NULL,        /* m_clear    */
+	NULL,        /* m_free     */
+};
+#endif
 
+#if defined(WITH_GL_PROFILE_ES20)
+static struct PyModuleDef BGLES2_module_def = {
+	PyModuleDef_HEAD_INIT,
+	"bgles2",       /* m_name     */
+	NULL,           /* m_doc      */
+	0,              /* m_size     */
+	BGLES2_methods, /* m_methods  */
+	NULL,           /* m_reload   */
+	NULL,           /* m_traverse */
+	NULL,           /* m_clear    */
+	NULL,           /* m_free     */
+};
+#endif
+
+#if defined(WITH_GL_PROFILE_COMPAT)
 PyObject *BPyInit_bgl(void)
 {
 	PyObject *submodule, *dict, *item;
@@ -1906,6 +2137,249 @@ PyObject *BPyInit_bgl(void)
 
 	return submodule;
 }
+#endif
+
+#if defined(WITH_GL_PROFILE_ES20)
+PyObject *BPyInit_bgles2(void)
+{
+	PyObject *submodule, *dict, *item;
+	submodule = PyModule_Create(&BGLES2_module_def);
+	dict = PyModule_GetDict(submodule);
+
+	if (PyType_Ready(&BGL_bufferType) < 0)
+		return NULL;  /* should never happen */
+
+	PyModule_AddObject(submodule, "Buffer", (PyObject *)&BGL_bufferType);
+	Py_INCREF((PyObject *)&BGL_bufferType);
+
+#define EXPP_ADDCONST(x) PyDict_SetItemString(dict, #x, item = PyLong_FromLong((int)x)); Py_DECREF(item)
+
+/* So, for example:
+ * EXPP_ADDCONST(GL_CURRENT_BIT) becomes
+ * PyDict_SetItemString(dict, "GL_CURRENT_BIT", item = PyLong_FromLong(GL_CURRENT_BIT)); Py_DECREF(item) */
+
+	EXPP_ADDCONST(GL_DEPTH_BUFFER_BIT);
+	EXPP_ADDCONST(GL_STENCIL_BUFFER_BIT);
+	EXPP_ADDCONST(GL_COLOR_BUFFER_BIT);
+	
+	EXPP_ADDCONST(GL_FALSE);
+	EXPP_ADDCONST(GL_TRUE);
+
+	EXPP_ADDCONST(GL_POINTS);
+	EXPP_ADDCONST(GL_LINES);
+	EXPP_ADDCONST(GL_LINE_LOOP);
+	EXPP_ADDCONST(GL_LINE_STRIP);
+	EXPP_ADDCONST(GL_TRIANGLES);
+	EXPP_ADDCONST(GL_TRIANGLE_STRIP);
+	EXPP_ADDCONST(GL_TRIANGLE_FAN);
+
+	EXPP_ADDCONST(GL_NEVER);
+	EXPP_ADDCONST(GL_LESS);
+	EXPP_ADDCONST(GL_EQUAL);
+	EXPP_ADDCONST(GL_LEQUAL);
+	EXPP_ADDCONST(GL_GREATER);
+	EXPP_ADDCONST(GL_NOTEQUAL);
+	EXPP_ADDCONST(GL_GEQUAL);
+	EXPP_ADDCONST(GL_ALWAYS);
+
+	EXPP_ADDCONST(GL_ZERO);
+	EXPP_ADDCONST(GL_ONE);
+	EXPP_ADDCONST(GL_SRC_COLOR);
+	EXPP_ADDCONST(GL_ONE_MINUS_SRC_COLOR);
+	EXPP_ADDCONST(GL_SRC_ALPHA);
+	EXPP_ADDCONST(GL_ONE_MINUS_SRC_ALPHA);
+	EXPP_ADDCONST(GL_DST_ALPHA);
+	EXPP_ADDCONST(GL_ONE_MINUS_DST_ALPHA);
+
+	EXPP_ADDCONST(GL_DST_COLOR);
+	EXPP_ADDCONST(GL_ONE_MINUS_DST_COLOR);
+	EXPP_ADDCONST(GL_SRC_ALPHA_SATURATE);
+
+	EXPP_ADDCONST(GL_NONE);
+	EXPP_ADDCONST(GL_FRONT);
+	EXPP_ADDCONST(GL_BACK);
+	EXPP_ADDCONST(GL_FRONT_AND_BACK);
+
+	EXPP_ADDCONST(GL_NO_ERROR);
+	EXPP_ADDCONST(GL_INVALID_ENUM);
+	EXPP_ADDCONST(GL_INVALID_VALUE);
+	EXPP_ADDCONST(GL_INVALID_OPERATION);
+	EXPP_ADDCONST(GL_STACK_OVERFLOW);
+	EXPP_ADDCONST(GL_STACK_UNDERFLOW);
+	EXPP_ADDCONST(GL_OUT_OF_MEMORY);
+
+	EXPP_ADDCONST(GL_EXP);
+	EXPP_ADDCONST(GL_EXP2);
+
+	EXPP_ADDCONST(GL_CW);
+	EXPP_ADDCONST(GL_CCW);
+
+	EXPP_ADDCONST(GL_POINT_SMOOTH);
+	EXPP_ADDCONST(GL_LINE_SMOOTH);
+	EXPP_ADDCONST(GL_CULL_FACE);
+	EXPP_ADDCONST(GL_LIGHTING);
+	EXPP_ADDCONST(GL_LIGHT_MODEL_TWO_SIDE);
+	EXPP_ADDCONST(GL_LIGHT_MODEL_AMBIENT);
+	EXPP_ADDCONST(GL_COLOR_MATERIAL);
+	EXPP_ADDCONST(GL_FOG);
+	EXPP_ADDCONST(GL_FOG_DENSITY);
+	EXPP_ADDCONST(GL_FOG_START);
+	EXPP_ADDCONST(GL_FOG_END);
+	EXPP_ADDCONST(GL_FOG_MODE);
+	EXPP_ADDCONST(GL_FOG_COLOR);
+	EXPP_ADDCONST(GL_DEPTH_TEST);
+	EXPP_ADDCONST(GL_STENCIL_TEST);
+	EXPP_ADDCONST(GL_NORMALIZE);
+	EXPP_ADDCONST(GL_ALPHA_TEST);
+	EXPP_ADDCONST(GL_DITHER);
+	EXPP_ADDCONST(GL_BLEND);
+	EXPP_ADDCONST(GL_SCISSOR_TEST);
+	EXPP_ADDCONST(GL_PERSPECTIVE_CORRECTION_HINT);
+	EXPP_ADDCONST(GL_POINT_SMOOTH_HINT);
+	EXPP_ADDCONST(GL_LINE_SMOOTH_HINT);
+	EXPP_ADDCONST(GL_POLYGON_SMOOTH_HINT);
+	EXPP_ADDCONST(GL_FOG_HINT);
+	EXPP_ADDCONST(GL_UNPACK_ROW_LENGTH);
+	EXPP_ADDCONST(GL_UNPACK_SKIP_ROWS);
+	EXPP_ADDCONST(GL_UNPACK_SKIP_PIXELS);
+	EXPP_ADDCONST(GL_UNPACK_ALIGNMENT);
+	EXPP_ADDCONST(GL_PACK_ALIGNMENT);
+	EXPP_ADDCONST(GL_MAX_LIGHTS);
+	EXPP_ADDCONST(GL_MAX_TEXTURE_SIZE);
+	EXPP_ADDCONST(GL_MAX_MODELVIEW_STACK_DEPTH);
+	EXPP_ADDCONST(GL_MAX_PROJECTION_STACK_DEPTH);
+	EXPP_ADDCONST(GL_MAX_TEXTURE_STACK_DEPTH);
+	EXPP_ADDCONST(GL_MAX_VIEWPORT_DIMS);
+	EXPP_ADDCONST(GL_SUBPIXEL_BITS);
+	EXPP_ADDCONST(GL_RED_BITS);
+	EXPP_ADDCONST(GL_GREEN_BITS);
+	EXPP_ADDCONST(GL_BLUE_BITS);
+	EXPP_ADDCONST(GL_ALPHA_BITS);
+	EXPP_ADDCONST(GL_DEPTH_BITS);
+	EXPP_ADDCONST(GL_STENCIL_BITS);
+	EXPP_ADDCONST(GL_TEXTURE_2D);
+
+	EXPP_ADDCONST(GL_DONT_CARE);
+	EXPP_ADDCONST(GL_FASTEST);
+	EXPP_ADDCONST(GL_NICEST);
+
+	EXPP_ADDCONST(GL_AMBIENT);
+	EXPP_ADDCONST(GL_DIFFUSE);
+	EXPP_ADDCONST(GL_SPECULAR);
+	EXPP_ADDCONST(GL_POSITION);
+	EXPP_ADDCONST(GL_SPOT_DIRECTION);
+	EXPP_ADDCONST(GL_SPOT_EXPONENT);
+	EXPP_ADDCONST(GL_SPOT_CUTOFF);
+	EXPP_ADDCONST(GL_CONSTANT_ATTENUATION);
+	EXPP_ADDCONST(GL_LINEAR_ATTENUATION);
+	EXPP_ADDCONST(GL_QUADRATIC_ATTENUATION);
+
+	EXPP_ADDCONST(GL_BYTE);
+	EXPP_ADDCONST(GL_UNSIGNED_BYTE);
+	EXPP_ADDCONST(GL_SHORT);
+	EXPP_ADDCONST(GL_UNSIGNED_SHORT);
+	EXPP_ADDCONST(GL_INT);
+	EXPP_ADDCONST(GL_UNSIGNED_INT);
+	EXPP_ADDCONST(GL_FLOAT);
+	EXPP_ADDCONST(GL_DOUBLE);
+
+	EXPP_ADDCONST(GL_CLEAR);
+	EXPP_ADDCONST(GL_AND);
+	EXPP_ADDCONST(GL_AND_REVERSE);
+	EXPP_ADDCONST(GL_COPY);
+	EXPP_ADDCONST(GL_AND_INVERTED);
+	EXPP_ADDCONST(GL_NOOP);
+	EXPP_ADDCONST(GL_XOR);
+	EXPP_ADDCONST(GL_OR);
+	EXPP_ADDCONST(GL_NOR);
+	EXPP_ADDCONST(GL_EQUIV);
+	EXPP_ADDCONST(GL_INVERT);
+	EXPP_ADDCONST(GL_OR_REVERSE);
+	EXPP_ADDCONST(GL_COPY_INVERTED);
+	EXPP_ADDCONST(GL_OR_INVERTED);
+	EXPP_ADDCONST(GL_NAND);
+	EXPP_ADDCONST(GL_SET);
+
+	EXPP_ADDCONST(GL_EMISSION);
+	EXPP_ADDCONST(GL_SHININESS);
+	EXPP_ADDCONST(GL_AMBIENT_AND_DIFFUSE);
+
+	EXPP_ADDCONST(GL_MODELVIEW);
+	EXPP_ADDCONST(GL_PROJECTION);
+	EXPP_ADDCONST(GL_TEXTURE);
+
+	EXPP_ADDCONST(GL_STENCIL_INDEX);
+	EXPP_ADDCONST(GL_DEPTH_COMPONENT);
+	EXPP_ADDCONST(GL_ALPHA);
+	EXPP_ADDCONST(GL_RGB);
+	EXPP_ADDCONST(GL_RGBA);
+	EXPP_ADDCONST(GL_LUMINANCE);
+	EXPP_ADDCONST(GL_LUMINANCE_ALPHA);
+
+	EXPP_ADDCONST(GL_FLAT);
+	EXPP_ADDCONST(GL_SMOOTH);
+
+	EXPP_ADDCONST(GL_KEEP);
+	EXPP_ADDCONST(GL_REPLACE);
+	EXPP_ADDCONST(GL_INCR);
+	EXPP_ADDCONST(GL_DECR);
+
+	EXPP_ADDCONST(GL_VENDOR);
+	EXPP_ADDCONST(GL_RENDERER);
+	EXPP_ADDCONST(GL_VERSION);
+	EXPP_ADDCONST(GL_EXTENSIONS);
+
+	EXPP_ADDCONST(GL_MODULATE);
+	EXPP_ADDCONST(GL_DECAL);
+
+	EXPP_ADDCONST(GL_TEXTURE_ENV_MODE);
+	EXPP_ADDCONST(GL_TEXTURE_ENV_COLOR);
+
+	EXPP_ADDCONST(GL_TEXTURE_ENV);
+
+	EXPP_ADDCONST(GL_NEAREST);
+	EXPP_ADDCONST(GL_LINEAR);
+
+	EXPP_ADDCONST(GL_NEAREST_MIPMAP_NEAREST);
+	EXPP_ADDCONST(GL_LINEAR_MIPMAP_NEAREST);
+	EXPP_ADDCONST(GL_NEAREST_MIPMAP_LINEAR);
+	EXPP_ADDCONST(GL_LINEAR_MIPMAP_LINEAR);
+
+	EXPP_ADDCONST(GL_TEXTURE_MAG_FILTER);
+	EXPP_ADDCONST(GL_TEXTURE_MIN_FILTER);
+	EXPP_ADDCONST(GL_TEXTURE_WRAP_S);
+	EXPP_ADDCONST(GL_TEXTURE_WRAP_T);
+
+	EXPP_ADDCONST(GL_REPEAT);
+
+	EXPP_ADDCONST(GL_LIGHT0);
+	EXPP_ADDCONST(GL_LIGHT1);
+	EXPP_ADDCONST(GL_LIGHT2);
+	EXPP_ADDCONST(GL_LIGHT3);
+	EXPP_ADDCONST(GL_LIGHT4);
+	EXPP_ADDCONST(GL_LIGHT5);
+	EXPP_ADDCONST(GL_LIGHT6);
+	EXPP_ADDCONST(GL_LIGHT7);
+	
+	EXPP_ADDCONST(GL_POLYGON_OFFSET_FILL);
+	
+	EXPP_ADDCONST(GL_VERTEX_SHADER);
+	EXPP_ADDCONST(GL_FRAGMENT_SHADER);
+	EXPP_ADDCONST(GL_COMPILE_STATUS);
+
+	EXPP_ADDCONST(GL_TEXTURE0);
+	EXPP_ADDCONST(GL_TEXTURE1);
+	EXPP_ADDCONST(GL_TEXTURE2);
+	EXPP_ADDCONST(GL_TEXTURE3);
+	EXPP_ADDCONST(GL_TEXTURE4);
+	EXPP_ADDCONST(GL_TEXTURE5);
+	EXPP_ADDCONST(GL_TEXTURE6);
+	EXPP_ADDCONST(GL_TEXTURE7);
+	EXPP_ADDCONST(GL_TEXTURE8);
+
+	return submodule;
+}
+#endif
 
 static PyObject *Method_ShaderSource(PyObject *UNUSED(self), PyObject *args)
 {

@@ -52,6 +52,7 @@ static void gpu_get_print(const char *name, GLenum type)
 
 void GPU_state_print(void)
 {
+#if defined(WITH_GL_PROFILE_COMPAT)
 	gpu_get_print("GL_ACCUM_ALPHA_BITS", GL_ACCUM_ALPHA_BITS);
 	gpu_get_print("GL_ACCUM_BLUE_BITS", GL_ACCUM_BLUE_BITS);
 	gpu_get_print("GL_ACCUM_CLEAR_VALUE", GL_ACCUM_CLEAR_VALUE);
@@ -396,6 +397,7 @@ void GPU_state_print(void)
 	gpu_get_print("GL_VIEWPORT", GL_VIEWPORT);
 	gpu_get_print("GL_ZOOM_X", GL_ZOOM_X);
 	gpu_get_print("GL_ZOOM_Y", GL_ZOOM_Y);
+#endif
 }
 
 #endif

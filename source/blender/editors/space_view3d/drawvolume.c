@@ -363,6 +363,7 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 	// printf("i: %d\n", i);
 	// printf("point %f, %f, %f\n", cv[i][0], cv[i][1], cv[i][2]);
 
+#if !defined(GLEW_ES_ONLY)
 	if (prog == 0 && GLEW_ARB_fragment_program) {
 		glEnable(GL_FRAGMENT_PROGRAM_ARB);
 		glGenProgramsARB(1, &prog);
@@ -383,6 +384,7 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 			glProgramLocalParameter4fARB(GL_FRAGMENT_PROGRAM_ARB, 1, sds->active_color[0], sds->active_color[1], sds->active_color[2], 10.0);
 	}
 	else
+#endif
 		printf("Your gfx card does not support 3D View smoke drawing.\n");
 
 	GPU_texture_bind(tex, 0);
@@ -454,7 +456,9 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 
 			/* render fire slice */
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE); /* non-default blend function */
+#if !defined(GLEW_ES_ONLY)
 			glProgramLocalParameter4fARB(GL_FRAGMENT_PROGRAM_ARB, 2, 1.0, 0.0, 0.0, 0.0);
+#endif
 			gpuImmediateFormat_T3_C4_V3();
 			gpuBegin(GL_TRIANGLE_FAN);
 			gpuCurrentColor3x(CPACK_WHITE);
@@ -472,8 +476,10 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 
 			/* render smoke slice */
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+#if !defined(GLEW_ES_ONLY)
 			glProgramLocalParameter4fARB(GL_FRAGMENT_PROGRAM_ARB, 2, -1.0, 0.0, 0.0, 0.0);
-			gpuBegin(GL_POLYGON);
+#endif
+			gpuBegin(GL_TRIANGLE_FAN);
 			gpuColor3f(1.0, 1.0, 1.0);
 			for (i = 0; i < numpoints; i++) {
 				gpuTexCoord3f((points[i * 3 + 0] - min[0]) * cor[0] / size[0],
@@ -505,10 +511,12 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 	free(spec_data);
 	free(spec_pixels);
 
+#if !defined(GLEW_ES_ONLY)
 	if (GLEW_ARB_fragment_program) {
 		glDisable(GL_FRAGMENT_PROGRAM_ARB);
-		/* XXX: should eventually delete 'prog' but when and how? */
+		/* XXX jwilkins: should eventually delete 'prog' but when and how? */
 	}
+#endif
 
 	MEM_freeN(points);
 

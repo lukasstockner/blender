@@ -214,7 +214,12 @@ static struct _inittab bpy_internal_modules[] = {
 //	{(char *)"mathutils.geometry", PyInit_mathutils_geometry},
 //	{(char *)"mathutils.noise", PyInit_mathutils_noise},
 	{(char *)"_bpy_path", BPyInit__bpy_path},
+#if defined(WITH_GL_PROFILE_COMPAT)
 	{(char *)"bgl", BPyInit_bgl},
+#endif
+#if defined(WITH_GL_PROFILE_ES20)
+	{(char *)"bgles2", BPyInit_bgles2},
+#endif
 	{(char *)"blf", BPyInit_blf},
 	{(char *)"bmesh", BPyInit_bmesh},
 	// {(char *)"bmesh.types", BPyInit_bmesh_types},

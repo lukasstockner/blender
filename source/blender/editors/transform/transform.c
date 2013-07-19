@@ -1545,7 +1545,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 				gpuEnd();
 
 				gpuTranslate(mval[0], mval[1], 0);
-				gpuRotateAxis(-(atan2f(cent[0] - t->mval[0], cent[1] - t->mval[1])), 'Z');
+				gpuRotateAxis(RAD2DEGF(-(atan2f(cent[0] - t->mval[0], cent[1] - t->mval[1]))), 'Z');
 
 				setlinestyle(0);
 				glLineWidth(3.0);
@@ -1601,14 +1601,14 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 				gpuPushMatrix();
 
 				gpuTranslate(cosf(angle - delta_angle) * dist, sinf(angle - delta_angle) * dist, 0);
-				gpuRotateAxis(angle - delta_angle, 'Z');
+				gpuRotateAxis(RAD2DEGF(angle - delta_angle), 'Z');
 
 				drawArrowHead(DOWN, 5);
 
 				gpuPopMatrix();
 
 				gpuTranslate(cosf(angle + delta_angle) * dist, sinf(angle + delta_angle) * dist, 0);
-				gpuRotateAxis(angle + delta_angle, 'Z');
+				gpuRotateAxis(RAD2DEGF(angle + delta_angle), 'Z');
 
 				drawArrowHead(UP, 5);
 

@@ -615,6 +615,7 @@ static GLubyte Squaredot[16] = {
 
 void gpuBeginSprites(void)
 {
+#if defined(WITH_GL_PROFILE_COMPAT)
 	GLfloat range[4];
 //	#include REAL_GL_MODE
 	glGetFloatv(GL_ALIASED_POINT_SIZE_RANGE, range);
@@ -630,13 +631,16 @@ void gpuBeginSprites(void)
 			pointhack = 4; //-V112
 		}
 	}
-	else {
+	else
+#endif
+	{
 		gpuBegin(GL_POINTS);
 	}
 }
 
 void gpuSprite3fv(const GLfloat vec[3])
 {
+#if defined(WITH_GL_PROFILE_COMPAT)
 	if (pointhack) {
 		glRasterPos3fv(vec);
 		glBitmap(
@@ -647,13 +651,16 @@ void gpuSprite3fv(const GLfloat vec[3])
 			0,
 			Squaredot);
 	}
-	else {
+	else
+#endif
+	{
 		gpuVertex3fv(vec);
 	}
 }
 
 void gpuSprite3f(GLfloat x, GLfloat y, GLfloat z)
 {
+#if defined(WITH_GL_PROFILE_COMPAT)
 	if (pointhack) {
 		glRasterPos3f(x, y, z);
 		glBitmap(
@@ -665,13 +672,16 @@ void gpuSprite3f(GLfloat x, GLfloat y, GLfloat z)
 			0,
 			Squaredot);
 	}
-	else {
+	else
+#endif
+	{
 		gpuVertex3f(x, y, z);
 	}
 }
 
 void gpuSprite2f(GLfloat x, GLfloat y)
 {
+#if defined(WITH_GL_PROFILE_COMPAT)
 	if (pointhack) {
 		glRasterPos2f(x, y);
 		glBitmap(
@@ -683,13 +693,16 @@ void gpuSprite2f(GLfloat x, GLfloat y)
 			0,
 			Squaredot);
 	}
-	else {
+	else
+#endif
+	{
 		gpuVertex2f(x, y);
 	}
 }
 
 void gpuSprite2fv(const GLfloat vec[2])
 {
+#if defined(WITH_GL_PROFILE_COMPAT)
 	if (pointhack) {
 		glRasterPos2fv(vec);
 		glBitmap(
@@ -701,17 +714,22 @@ void gpuSprite2fv(const GLfloat vec[2])
 			0,
 			Squaredot);
 	}
-	else {
+	else
+#endif
+	{
 		gpuVertex2fv(vec);
 	}
 }
 
 void gpuEndSprites(void)
 {
+#if defined(WITH_GL_PROFILE_COMPAT)
 	if (pointhack) {
 		pointhack = 0;
 	}
-	else {
+	else
+#endif
+	{
 		gpuEnd();
 	}
 }

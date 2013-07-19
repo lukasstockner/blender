@@ -1132,7 +1132,10 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		}
 	}
 
+#if defined(WITH_GL_PROFILE_COMPAT)
 	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+#endif
+
 	gpuCurrentColor3x(CPACK_WHITE);
 
 	last_texid = glaGetOneInteger(GL_TEXTURE_2D);
@@ -1144,10 +1147,19 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	if (type == GL_FLOAT)
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F_ARB, ibuf->x, ibuf->y, 0, format, type, display_buffer);
-	else
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, ibuf->x, ibuf->y, 0, format, type, display_buffer);
+	if (type == GL_FLOAT) {
+
+		if (GLEW_VERSION_3_0 || GL_ARB_texture_float || GL_EXT_texture_storage || GL_EXT_color_buffer_half_float) {
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, ibuf->x, ibuf->y, 0, format, type, display_buffer);
+		}
+		else {
+			// XXX jwilkins: not sure if falling back to RGBA internal format will work
+			glTexImage2D(GL_TEXTURE_2D, 0, (GLEW_VERSION_1_1 || GLEW_OES_required_internalformat) ? GL_RGBA8 : GL_RGBA, ibuf->x, ibuf->y, 0, format, type, display_buffer);
+		}
+	}
+	else {
+		glTexImage2D(GL_TEXTURE_2D, 0, (GLEW_VERSION_1_1 || GLEW_OES_required_internalformat) ? GL_RGBA8 : GL_RGBA, ibuf->x, ibuf->y, 0, format, type, display_buffer);
+	}
 
 	gpuBegin(GL_QUADS);
 

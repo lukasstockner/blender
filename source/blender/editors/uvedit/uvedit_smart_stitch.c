@@ -1508,7 +1508,6 @@ static void stitch_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar), void *ar
 	StitchState *state = (StitchState *)arg;
 	StitchPreviewer *stitch_preview = state->stitch_preview;
 
-	glPushClientAttrib(GL_CLIENT_VERTEX_ARRAY_BIT);
 	glEnableClientState(GL_VERTEX_ARRAY);
 
 	glPointSize(pointsize * 2.0f);
@@ -1524,10 +1523,10 @@ static void stitch_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar), void *ar
 	for (i = 0; i < stitch_preview->num_polys; i++) {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		UI_ThemeColor4(TH_STITCH_PREVIEW_FACE);
-		glDrawArrays(GL_POLYGON, index, stitch_preview->uvs_per_polygon[i]);
+		glDrawArrays(GL_TRIANGLE_FAN, index, stitch_preview->uvs_per_polygon[i]);
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		UI_ThemeColor4(TH_STITCH_PREVIEW_EDGE);
-		glDrawArrays(GL_POLYGON, index, stitch_preview->uvs_per_polygon[i]);
+		glDrawArrays(GL_TRIANGLE_FAN, index, stitch_preview->uvs_per_polygon[i]);
 		#if 0
 		glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
 		UI_ThemeColor4(TH_STITCH_PREVIEW_VERT);
@@ -1558,7 +1557,8 @@ static void stitch_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar), void *ar
 		glDrawArrays(GL_LINES, 0, 2 * stitch_preview->num_unstitchable);
 	}
 
-	glPopClientAttrib();
+	glDisableClientState(GL_VERTEX_ARRAY);
+
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	glPointSize(1.0);

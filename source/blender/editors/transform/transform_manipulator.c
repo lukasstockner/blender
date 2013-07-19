@@ -699,7 +699,7 @@ static float screen_aligned(RegionView3D *rv3d, float mat[4][4])
 	gpuTranslate(mat[3][0], mat[3][1], mat[3][2]);
 
 	/* sets view screen aligned */
-	gpuRotateVector(-2.0f * saacos(rv3d->viewquat[0]), rv3d->viewquat+1);
+	gpuRotateVector(RAD2DEGF(-2.0f * saacos(rv3d->viewquat[0])), rv3d->viewquat+1);
 
 	return len_v3(mat[0]); /* draw scale */
 }
@@ -996,7 +996,7 @@ static void draw_manipulator_rotate(View3D *v3d, RegionView3D *rv3d, int moving,
 	}
 
 	/* sets view screen aligned */
-	gpuRotateVector(-2.0f * saacos(rv3d->viewquat[0]), rv3d->viewquat+1);
+	gpuRotateVector(RAD2DEGF(-2.0f * saacos(rv3d->viewquat[0])), rv3d->viewquat+1);
 
 	/* Screen aligned help circle */
 	if (arcs && !(G.f & G_PICKSEL)) {
@@ -1541,17 +1541,6 @@ static void draw_manipulator_translate(View3D *v3d, RegionView3D *rv3d, int UNUS
 	if (v3d->zbuf) {
 		glEnable(GL_DEPTH_TEST);
 	}
-
-
-
-
-
-
-
-
-
-
-
 }
 
 /* ********************************************* */

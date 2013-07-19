@@ -34,7 +34,7 @@
 
 
 
-/* XXX: temporary work around for MinGW32 build error */
+/* XXX jwilkins: temporary work around for MinGW32 build error */
 #ifdef __MINGW32__
 #undef GPU_ENABLE_STRING_MARKER
 #define GPU_ENABLE_STRING_MARKER 0
@@ -44,7 +44,7 @@
 #define GPU_ENABLE_STRING_MARKER 1
 #endif
 
-#if GPU_ENABLE_STRING_MARKER
+#if GL_GREMEDY_string_marker && GPU_ENABLE_STRING_MARKER
 #define GPU_STRING_MARKER(msg)                   \
     if (GLEW_GREMEDY_string_marker) {            \
         glStringMarkerGREMEDY(sizeof(msg), msg); \

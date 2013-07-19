@@ -47,7 +47,7 @@ if(WITH_BINRELOC)
 endif()
 
 if(NOT WITH_SYSTEM_GLEW)
-	if(WITH_GL_EXPERIMENTAL_GLEW)
+	if(WITH_GLEW_ES)
 		add_subdirectory(glew-es)
 	else()
 		add_subdirectory(glew)

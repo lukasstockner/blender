@@ -242,7 +242,11 @@ void* NSGLGetProcAddress (const GLubyte *name)
  * Define glewGetProcAddress.
  */
 #if defined(GLEW_USE_LIB_ES)
+#if linux
 #  define glewGetProcAddress(name) esGetProcAddress(name)
+#else
+#  define glewGetProcAddress(name) eglGetProcAddress(name)
+#endif
 #elif defined(_WIN32)
 #  define glewGetProcAddress(name) wglGetProcAddress((LPCSTR)name)
 #else
@@ -2347,7 +2351,7 @@ PFNGLDEBUGMESSAGEINSERTPROC __glewDebugMessageInsert = NULL;
 PFNGLGETDEBUGMESSAGELOGPROC __glewGetDebugMessageLog = NULL;
 PFNGLGETOBJECTLABELPROC __glewGetObjectLabel = NULL;
 PFNGLGETOBJECTPTRLABELPROC __glewGetObjectPtrLabel = NULL;
-//PFNGLGETPOINTERVPROC __glewGetPointerv = NULL;
+//PFNGLGETPOINTERVPROC __glewGetPointerv = NULL; // XXX jwilkins: not sure if I'm the one who commented this out
 PFNGLOBJECTLABELPROC __glewObjectLabel = NULL;
 PFNGLOBJECTPTRLABELPROC __glewObjectPtrLabel = NULL;
 PFNGLPOPDEBUGGROUPPROC __glewPopDebugGroup = NULL;
@@ -3165,6 +3169,7 @@ PFNGLMULTIDRAWELEMENTSSUNPROC __glewMultiDrawElementsSUN = NULL;
 
 #else   
 
+#if GL_ES_VERSION_1_0 // XXX jwilkins: glew doesn't actually seem to be designed to let you use the extension macros
 PFNGLACTIVETEXTUREPROC __glewActiveTexture = NULL;
 PFNGLALPHAFUNCXPROC __glewAlphaFuncx = NULL;
 PFNGLCLEARCOLORXPROC __glewClearColorx = NULL;
@@ -3204,7 +3209,9 @@ PFNGLTEXENVXPROC __glewTexEnvx = NULL;
 PFNGLTEXENVXVPROC __glewTexEnvxv = NULL;
 PFNGLTEXPARAMETERXPROC __glewTexParameterx = NULL;
 PFNGLTRANSLATEXPROC __glewTranslatex = NULL;
+#endif // XXX jwilkins
 
+#if GL_ES_VERSION_CL_1_1 // XXX jwilkins
 PFNGLBINDBUFFERPROC __glewBindBuffer = NULL;
 PFNGLBUFFERDATAPROC __glewBufferData = NULL;
 PFNGLBUFFERSUBDATAPROC __glewBufferSubData = NULL;
@@ -3233,7 +3240,9 @@ PFNGLTEXENVIVPROC __glewTexEnviv = NULL;
 PFNGLTEXPARAMETERIPROC __glewTexParameteri = NULL;
 PFNGLTEXPARAMETERIVPROC __glewTexParameteriv = NULL;
 PFNGLTEXPARAMETERXVPROC __glewTexParameterxv = NULL;
+#endif // XXX jwilkins
 
+#if GL_ES_VERSION_CM_1_1 // XXX jwilkins
 PFNGLCLIPPLANEFPROC __glewClipPlanef = NULL;
 PFNGLGETCLIPPLANEFPROC __glewGetClipPlanef = NULL;
 PFNGLGETFLOATVPROC __glewGetFloatv = NULL;
@@ -3244,6 +3253,7 @@ PFNGLGETTEXPARAMETERFVPROC __glewGetTexParameterfv = NULL;
 PFNGLPOINTPARAMETERFPROC __glewPointParameterf = NULL;
 PFNGLPOINTPARAMETERFVPROC __glewPointParameterfv = NULL;
 PFNGLTEXPARAMETERFVPROC __glewTexParameterfv = NULL;
+#endif
 
 PFNGLATTACHSHADERPROC __glewAttachShader = NULL;
 PFNGLBINDATTRIBLOCATIONPROC __glewBindAttribLocation = NULL;
@@ -3329,6 +3339,18 @@ PFNGLVERTEXATTRIB3FVPROC __glewVertexAttrib3fv = NULL;
 PFNGLVERTEXATTRIB4FPROC __glewVertexAttrib4f = NULL;
 PFNGLVERTEXATTRIB4FVPROC __glewVertexAttrib4fv = NULL;
 PFNGLVERTEXATTRIBPOINTERPROC __glewVertexAttribPointer = NULL;
+
+#if !GL_ES_VERSION_CL_1_1 // XXX jwilkins: missing function
+PFNGLBINDBUFFERPROC __glewBindBuffer = NULL; // XXX
+PFNGLBUFFERDATAPROC __glewBufferData = NULL; // XXX
+PFNGLGENBUFFERSPROC __glewGenBuffers = NULL; // XXX
+PFNGLDELETEBUFFERSPROC __glewDeleteBuffers = NULL; // XXX
+PFNGLTEXPARAMETERIPROC __glewTexParameteri = NULL; // XXX
+PFNGLISENABLEDPROC __glewIsEnabled = NULL; // XXX
+PFNGLGETFLOATVPROC __glewGetFloatv = NULL; // XXX
+PFNGLDEPTHRANGEFPROC __glewDepthRangef = NULL; // XXX
+PFNGLACTIVETEXTUREPROC __glewActiveTexture = NULL; // XXX
+#endif // XXX
 
 PFNGLBLITFRAMEBUFFERANGLEPROC __glewBlitFramebufferANGLE = NULL;
 
@@ -3553,7 +3575,7 @@ PFNGLDEBUGMESSAGEINSERTPROC __glewDebugMessageInsert = NULL;
 PFNGLGETDEBUGMESSAGELOGPROC __glewGetDebugMessageLog = NULL;
 PFNGLGETOBJECTLABELPROC __glewGetObjectLabel = NULL;
 PFNGLGETOBJECTPTRLABELPROC __glewGetObjectPtrLabel = NULL;
-PFNGLGETPOINTERVPROC __glewGetPointerv = NULL;
+//PFNGLGETPOINTERVPROC __glewGetPointerv = NULL; // XXX jwilkins: multiple defs
 PFNGLOBJECTLABELPROC __glewObjectLabel = NULL;
 PFNGLOBJECTPTRLABELPROC __glewObjectPtrLabel = NULL;
 PFNGLPOPDEBUGGROUPPROC __glewPopDebugGroup = NULL;
@@ -8225,9 +8247,9 @@ static GLboolean _glewInit_GL_EXT_separate_shader_objects (GLEW_CONTEXT_ARG_DEF_
 {
   GLboolean r = GL_FALSE;
 
-  r = ((glActiveProgramEXT = (PFNGLACTIVEPROGRAMEXTPROC)glewGetProcAddress((const GLubyte*)"glActiveProgramEXT")) == NULL) || r;
-  r = ((glCreateShaderProgramEXT = (PFNGLCREATESHADERPROGRAMEXTPROC)glewGetProcAddress((const GLubyte*)"glCreateShaderProgramEXT")) == NULL) || r;
-  r = ((glUseShaderProgramEXT = (PFNGLUSESHADERPROGRAMEXTPROC)glewGetProcAddress((const GLubyte*)"glUseShaderProgramEXT")) == NULL) || r;
+  r = ((glActiveShaderProgramEXT = (PFNGLACTIVESHADERPROGRAMEXTPROC)glewGetProcAddress((const GLubyte*)"glActiveShaderProgramEXT")) == NULL) || r; // XXX jwilkins: incorrect function name??
+  r = ((glCreateShaderProgramvEXT = (PFNGLCREATESHADERPROGRAMVEXTPROC)glewGetProcAddress((const GLubyte*)"glCreateShaderProgramvEXT")) == NULL) || r; // XXX jwilkins: incorrect function name??
+  r = ((glUseProgramStagesEXT = (PFNGLUSEPROGRAMSTAGESEXTPROC)glewGetProcAddress((const GLubyte*)"glUseProgramStagesEXT")) == NULL) || r; // XXX jwilkins: incorrect function name??
 
   return r;
 }

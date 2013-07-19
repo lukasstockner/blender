@@ -47,6 +47,7 @@
 #include "BKE_context.h"
 
 #include "GPU_primitives.h"
+#include "GPU_colors.h"
 
 #include "BIF_glutil.h"
 
@@ -378,7 +379,7 @@ static int get_cached_work_texture(int *w_r, int *h_r)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 		tbuf = MEM_callocN(tex_w * tex_h * 4, "tbuf");
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, tex_w, tex_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, tbuf);
+		glTexImage2D(GL_TEXTURE_2D, 0, (GLEW_VERSION_1_1 || GLEW_OES_required_internalformat) ? GL_RGBA8 : GL_RGBA, tex_w, tex_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, tbuf);
 		MEM_freeN(tbuf);
 
 		glBindTexture(GL_TEXTURE_2D, ltexid);
@@ -400,10 +401,12 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 	int texid = get_cached_work_texture(&tex_w, &tex_h);
 	int components;
 
+#if defined(WITH_GL_PROFILE_COMPAT)
 	/* Specify the color outside this function, and tex will modulate it.
 	 * This is useful for changing alpha without using glPixelTransferf()
 	 */
 	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+#endif
 
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, img_w);
 	glBindTexture(GL_TEXTURE_2D, texid);
@@ -438,20 +441,28 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 		return;
 	}
 
-	if (type == GL_FLOAT) {
+	if (type == GL_FLOAT)
+	{
 		/* need to set internal format to higher range float */
 
 		/* NOTE: this could fail on some drivers, like mesa,
 		 *       but currently this code is only used by color
 		 *       management stuff which already checks on whether
-		 *       it's possible to use GL_RGBA16F_ARB
+		 *       it's possible to use GL_RGBA16F
 		 */
 
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F_ARB, tex_w, tex_h, 0, format, GL_FLOAT, NULL);
+		if (GLEW_VERSION_3_0 || GL_ARB_texture_float || GL_EXT_texture_storage || GL_EXT_color_buffer_half_float) {
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, tex_w, tex_h, 0, format, GL_FLOAT, NULL);
+		}
+		else {
+			// XXX jwilkins: not sure if falling back to RGBA internal format will work
+			glTexImage2D(GL_TEXTURE_2D, 0, (GLEW_VERSION_1_1 || GLEW_OES_required_internalformat) ? GL_RGBA8 : GL_RGBA, tex_w, tex_h, 0, format, GL_FLOAT, NULL);
+		}
 	}
-	else {
+	else
+	{
 		/* switch to 8bit RGBA for byte buffer  */
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, tex_w, tex_h, 0, format, GL_UNSIGNED_BYTE, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, (GLEW_VERSION_1_1 || GLEW_OES_required_internalformat) ? GL_RGBA8 : GL_RGBA, tex_w, tex_h, 0, format, GL_UNSIGNED_BYTE, NULL);
 	}
 
 	for (subpart_y = 0; subpart_y < nsubparts_y; subpart_y++) {
@@ -519,8 +530,11 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 
 	glBindTexture(GL_TEXTURE_2D, ltexid);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0); /* restore default value */
+
+#if defined(WITH_GL_PROFILE_COMPAT)
 	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-	
+#endif
+
 #ifdef __APPLE__
 	/* workaround for os x 10.5/10.6 driver bug (above) */
 	glPixelZoom(xzoom, yzoom);
@@ -585,7 +599,12 @@ void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int fo
 
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, row_w);
 
-		if (format == GL_LUMINANCE || format == GL_RED) {
+#if !defined(GLEW_ES_ONLY) // XXX jwilkins: this is kind lame, but oh well
+#define IS_RED(x) (format == GL_RED)
+#else
+#define IS_RED(x) 0
+#endif
+		if (format == GL_LUMINANCE || IS_RED(format)) {
 			if (type == GL_FLOAT) {
 				float *f_rect = (float *)rect;
 				glDrawPixels(draw_w, draw_h, format, type, f_rect + (off_y * row_w + off_x));
@@ -605,6 +624,7 @@ void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int fo
 				glDrawPixels(draw_w, draw_h, format, type, uc_rect + (off_y * row_w + off_x) * 4);
 			}
 		}
+#undef IS_RED
 
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0); /* restore default value */
 	}
@@ -900,8 +920,11 @@ void glaDrawImBuf_glsl(ImBuf *ibuf, float x, float y, int zoomfilter,
 		}
 
 		if (ok) {
+#if defined(WITH_GL_PROFILE_COMPAT)
 			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-			gpuCurrentColor4f(1.0, 1.0, 1.0, 1.0);
+#endif
+
+			gpuCurrentColor3x(CPACK_WHITE);
 
 			if (ibuf->rect_float) {
 				int format = 0;

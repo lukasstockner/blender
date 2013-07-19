@@ -39,7 +39,14 @@
 #ifndef __BGL_H__
 #define __BGL_H__
 
+#if defined(WITH_GL_PROFILE_COMPAT)
 PyObject *BPyInit_bgl(void);
+#endif
+
+
+#if defined(WITH_GL_PROFILE_ES20)
+PyObject *BPyInit_bgles2(void);
+#endif
 
 /*@ Create a buffer object */
 /*@ dimensions is an array of ndimensions integers representing the size of each dimension */

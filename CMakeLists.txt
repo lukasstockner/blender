@@ -325,16 +325,7 @@ mark_as_advanced(WITH_GPU_SAFETY)
 
 if(WIN32)
 	option(WITH_ANGLE "Link with the ANGLE library, an OpenGL ES 2.0 implementation based on Direct3D, instead of the system OpenGL library." OFF)
-
-	# ToDo: Add ANGLE to the lib directory
-	set(ANGLE_INCLUDE_PATH "" CACHE PATH "Path to ANGLE include files")
-	set(ANGLE_LIBRARY      "" CACHE PATH "Path to ANGLE library file")
-
-	mark_as_advanced(
-		WITH_ANGLE
-		ANGLE_INCLUDE_PATH
-		ANGLE_LIBRARY
-	)
+	mark_as_advanced(WITH_ANGLE)
 endif()
 
 # Code Coverage
@@ -1953,38 +1944,43 @@ endif()
 #-----------------------------------------------------------------------------
 # Configure OpenGL.
 
+# sanity checking
 if(WITH_GL_SYSTEM_EMBEDDED AND (WITH_GL_SYSTEM_LEGACY OR WITH_GL_SYSTEM_DESKTOP))
 	message(FATAL_ERROR "WITH_GL_SYSTEM_EMBEDDED cannot be used at the same time as WITH_GL_SYSTEM_LEGACY or WITH_GL_SYSTEM_DESKTOP")
 endif()
 
+# ToDo: Automatically find system OpenGL ES?
+set(OES2_INCLUDE_PATH "" CACHE PATH     "Path to OpenGL ES 2 include files")
+set(OES2_LIBRARY      "" CACHE FILEPATH "OpenGL ES 2 library file")
+
+mark_as_advanced(
+	OES2_INCLUDE_PATH
+	OES2_LIBRARY
+)
+
+if(WIN32)
+	# ToDo: Add ANGLE to the lib directory
+	set(ANGLE_INCLUDE_PATH "" CACHE PATH     "Path to ANGLE include files")
+	set(ANGLE_LIBRARY      "" CACHE FILEPATH "ANGLE library file")
+
+	mark_as_advanced(
+		ANGLE_INCLUDE_PATH
+		ANGLE_LIBRARY
+	)
+endif()
+
 if(WITH_GL_SYSTEM_EMBEDDED)
 	if(WITH_ANGLE)
-		set(ANGLE_INCLUDE_DIR "" CACHE PATH     "Path to ANGLE include files")
-		set(ANGLE_LIBRARY     "" CACHE FILEPATH "ANGLE library file")
-
-		mark_as_advanced(
-			ANGLE_INCLUDE_DIR
-			ANGLE_LIBRARY
-		)
-
-		set(SYSTEM_GL_INCLUDE_DIR "${ANGLE_INCLUDE_DIR}")
+		#set(SYSTEM_GL_INCLUDE_DIR "${ANGLE_INCLUDE_PATH}")
 		set(SYSTEM_GL_LIBRARIES   "${ANGLE_LIBRARY}")
 	else()
-		set(OPENGLES_INCLUDE_DIR "" CACHE PATH     "Path to OpenGL ES include files")
-		set(OPENGLES_LIBRARIES   "" CACHE FILEPATH "OpenGL ES library file")
-
-		mark_as_advanced(
-			OPENGLES_INCLUDE_DIR
-			OPENGLES_LIBRARY
-		)
-
-		set(SYSTEM_GL_INCLUDE_DIR "${OPENGLES_INCLUDE_DIR}")
-		set(SYSTEM_GL_LIBRARIES   "${OPENGLES_LIBRARY}")
+		#set(SYSTEM_GL_INCLUDE_PATH "${OES2_INCLUDE_PATH}")
+		set(SYSTEM_GL_LIBRARIES    "${OES2_LIBRARY}")
 	endif()
 else(WITH_GL_SYSTEM_LEGACY OR WITH_GL_SYSTEM_DESKTOP)
 	find_package(OpenGL)
 
-	set(SYSTEM_GL_INCLUDE_DIR "${OPENGL_INCLUDE_DIR}")
+	#set(SYSTEM_GL_INCLUDE_DIR "${OPENGL_INCLUDE_DIR}")
 	set(SYSTEM_GL_LIBRARIES   "${OPENGL_gl_LIBRARY}")
 
 	if(WITH_GLU)
@@ -1992,7 +1988,7 @@ else(WITH_GL_SYSTEM_LEGACY OR WITH_GL_SYSTEM_DESKTOP)
 	endif()
 endif()
 
-blender_include_dirs_sys("${SYSTEM_GL_INCLUDE_DIR}")
+#blender_include_dirs_sys("${SYSTEM_GL_INCLUDE_DIR}")
 
 if(WITH_GL_PROFILE_COMPAT)
 	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_GL_PROFILE_COMPAT")
@@ -2064,6 +2060,9 @@ else()
 		set(GLEW_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/extern/glew-es/include")
 
 		set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_GLEW_ES")
+		set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGL_ES_VERSION_1_0=0")
+		set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGL_ES_VERSION_CL_1_1=0")
+		set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGL_ES_VERSION_CM_1_1=0")
 
 		# this isn't strictly required, but potentally makes GLEW smaller and helps catch unguarded API usage
 		if(NOT WITH_GL_PROFILE_ES20)
@@ -2075,13 +2074,16 @@ else()
 		endif()
 
 		if (WITH_GL_PROFILE_ES20)
-			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_USE_LIB_ES2_0")
+			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_USE_LIB_ES20")
 		endif()
 
 		if(WITH_GL_SYSTEM_EMBEDDED)
 			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_INC_EGL")
 		endif()
 	else()
+		# this won't affect the normal glew library, but is used for conditional compilation elsewhere
+		set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_NO_ES")
+
 		set(GLEW_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/extern/glew/include")
 	endif()
 endif()
@@ -2446,6 +2448,7 @@ if(FIRST_RUN)
 
 	info_cfg_text("OpenGL:")
 	info_cfg_option(WITH_GLEW_ES)
+	info_cfg_option(WITH_GLU)
 	info_cfg_option(WITH_GL_SYSTEM_LEGACY)
 	info_cfg_option(WITH_GL_SYSTEM_DESKTOP)
 	info_cfg_option(WITH_GL_SYSTEM_EMBEDDED)

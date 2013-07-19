@@ -244,6 +244,8 @@ GPUFUNC void (GLAPIENTRY* gpu_glDeleteProgram)(GLuint program);
 GPUFUNC void (GLAPIENTRY* gpu_glGenFramebuffers)(GLint m, GLuint * ids);
 GPUFUNC void (GLAPIENTRY* gpu_glBindFramebuffer)(GLuint target, GLuint framebuffer);
 GPUFUNC void (GLAPIENTRY* gpu_glDeleteFramebuffers)(GLint n, const GLuint * framebuffers);
+GPUFUNC void (GLAPIENTRY* gpu_glFramebufferTexture2D)(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
+GPUFUNC GLenum (GLAPIENTRY* gpu_glCheckFramebufferStatus)(GLenum target);
 
 GPUFUNC void (GLAPIENTRY* gpu_glGenBuffers)(GLsizei  n, GLuint *buffers);
 GPUFUNC void (GLAPIENTRY* gpu_glBindBuffer)(GLenum target, GLuint buffer);
@@ -258,6 +260,7 @@ GPUFUNC void (GLAPIENTRY* GPU_buffer_finish_update)(GLenum target, GLsizeiptr si
 
 void GPU_wrap_extensions(GLboolean* glslsupport_out, GLboolean* framebuffersupport_out);
 
+void gpu_glGenerateMipmap(GLenum target);
 
 #ifdef __cplusplus
 }

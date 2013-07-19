@@ -1076,8 +1076,10 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, icongltex.id);
 
+#if defined(WITH_GL_PROFILE_COMPAT)
 	/* sharper downscaling, has no effect when scale matches with a mip level */
 	glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, -0.5f);
+#endif
 
 	gpuImmediateFormat_T2_V2(); // DOODLE: icon, single quad with texture
 	gpuBegin(GL_TRIANGLE_FAN);
@@ -1098,7 +1100,9 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 	gpuEnd();
 	gpuImmediateUnformat();
 
+#if defined(WITH_GL_PROFILE_COMPAT)
 	glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, 0.0f);
+#endif
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glDisable(GL_TEXTURE_2D);

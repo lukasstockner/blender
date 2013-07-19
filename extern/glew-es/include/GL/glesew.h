@@ -88,6 +88,24 @@ typedef int GLclampx;
 /* Internal convenience typedefs */
 typedef void (*_GLfuncptr)();
 
+// XXX jwilkins: had to add these
+#if defined(_MSC_VER) && _MSC_VER < 1400
+typedef __int64 GLint64EXT;
+typedef unsigned __int64 GLuint64EXT;
+#elif defined(_MSC_VER) || defined(__BORLANDC__)
+typedef signed long long GLint64EXT;
+typedef unsigned long long GLuint64EXT;
+#else
+#  if defined(__MINGW32__) || defined(__CYGWIN__)
+#include <inttypes.h>
+#  endif
+typedef int64_t GLint64EXT;
+typedef uint64_t GLuint64EXT;
+#endif
+typedef GLint64EXT  GLint64;
+typedef GLuint64EXT GLuint64;
+typedef struct __GLsync *GLsync;
+
 
 
 /********************* GL_ES_VERSION_1_0 functions common with OpenGL 1.1 *************************/
@@ -1002,6 +1020,20 @@ typedef void  (GLAPIENTRY * PFNGLTEXPARAMETERFVPROC) (GLenum, GLenum , const GLf
 #define GL_MAX_VARYING_VECTORS 0x8DFC
 #define GL_MAX_FRAGMENT_UNIFORM_VECTORS 0x8DFD
 
+#define GL_VIEWPORT 0x0BA2 // XXX missing enum
+#define GL_SCISSOR_BOX 0x0C10 // XXX missing enum
+#define GL_GENERATE_MIPMAP_HINT 0x8192 // XXX missing enum
+#define GL_ARRAY_BUFFER 0x8892 // XXX missing enum
+#define GL_ELEMENT_ARRAY_BUFFER 0x8893 // XXX missing enum
+#define GL_ARRAY_BUFFER_BINDING 0x8894 // XXX missing enum
+#define GL_ELEMENT_ARRAY_BUFFER_BINDING 0x8895 // XXX missing enum
+#define GL_STATIC_DRAW 0x88E4 // XXX missing enum
+#define GL_DYNAMIC_DRAW 0x88E8 // XXX missing enum
+
+typedef char             GLchar; // XXX jwilkins: this typedef is missing when ES 1.1 is not enabled
+typedef khronos_intptr_t GLintptr; // XXX
+typedef khronos_ssize_t  GLsizeiptr; // XXX
+
 typedef void  (GLAPIENTRY * PFNGLATTACHSHADERPROC) (GLuint program, GLuint shader);
 typedef void  (GLAPIENTRY * PFNGLBINDATTRIBLOCATIONPROC) (GLuint program, GLuint index, const GLchar* name);
 typedef void  (GLAPIENTRY * PFNGLBINDFRAMEBUFFERPROC) (GLenum target, GLuint framebuffer);
@@ -1087,6 +1119,16 @@ typedef void  (GLAPIENTRY * PFNGLVERTEXATTRIB4FPROC) (GLuint indx, GLfloat x, GL
 typedef void  (GLAPIENTRY * PFNGLVERTEXATTRIB4FVPROC) (GLuint indx, const GLfloat* values);
 typedef void  (GLAPIENTRY * PFNGLVERTEXATTRIBPOINTERPROC) (GLuint indx, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid* ptr);
 
+typedef void  (GLAPIENTRY * PFNGLBINDBUFFERPROC) (GLenum , GLuint ); // XXX jwilkins: missing function
+typedef void  (GLAPIENTRY * PFNGLBUFFERDATAPROC) (GLenum , GLsizeiptr, const GLvoid *, GLenum ); // XXX jwilkins: missing function
+typedef void  (GLAPIENTRY * PFNGLDELETEBUFFERSPROC) (GLsizei , const GLuint *); // XXX jwilkins: missing function
+typedef void  (GLAPIENTRY * PFNGLGENBUFFERSPROC) (GLsizei, GLuint *); // XXX jwilkins: missing function
+typedef void  (GLAPIENTRY * PFNGLTEXPARAMETERIPROC) (GLenum, GLenum, GLint); // XXX jwilkins: missing function
+typedef GLboolean  (GLAPIENTRY * PFNGLISENABLEDPROC) (GLenum); // XXX jwilkins: missing function
+typedef void  (GLAPIENTRY * PFNGLGETFLOATVPROC) (GLenum , GLfloat *); // XXX jwilkins: missing function
+typedef void (GLAPIENTRY * PFNGLDEPTHRANGEFPROC) (GLclampf zNear, GLclampf zFar); // XXX jwilkins: missing function
+typedef void (GLAPIENTRY * PFNGLACTIVETEXTUREPROC) (GLenum texture); // XXX jwilkins: missing function
+
 #define glAttachShader GLEW_GET_FUN(__glewAttachShader)
 #define glBindAttribLocation GLEW_GET_FUN(__glewBindAttribLocation)
 #define glBindFramebuffer GLEW_GET_FUN(__glewBindFramebuffer)
@@ -1171,6 +1213,16 @@ typedef void  (GLAPIENTRY * PFNGLVERTEXATTRIBPOINTERPROC) (GLuint indx, GLint si
 #define glVertexAttrib4f GLEW_GET_FUN(__glewVertexAttrib4f)
 #define glVertexAttrib4fv GLEW_GET_FUN(__glewVertexAttrib4fv)
 #define glVertexAttribPointer GLEW_GET_FUN(__glewVertexAttribPointer)
+
+#define glBindBuffer GLEW_GET_FUN(__glewBindBuffer) // XXX jwilkins: missing function
+#define glBufferData GLEW_GET_FUN(__glewBufferData) // XXX jwilkins: missing function
+#define glDeleteBuffers GLEW_GET_FUN(__glewDeleteBuffers) // XXX jwilkins: missing function
+#define glGenBuffers GLEW_GET_FUN(__glewGenBuffers) // XXX jwilkins: missing function
+#define glTexParameteri GLEW_GET_FUN(__glewTexParameteri) // XXX jwilkins: missing function
+#define glIsEnabled GLEW_GET_FUN(__glewIsEnabled) // XXX jwilkins: missing function
+#define glGetFloatv GLEW_GET_FUN(__glewGetFloatv) // XXX jwilkins: missing function
+#define glDepthRangef GLEW_GET_FUN(__glewDepthRangef) // XXX jwilkins: missing function
+#define glActiveTexture GLEW_GET_FUN(__glewActiveTexture) // XXX jwilkins: missing function
 
 #define GLEW_ES_VERSION_2_0 GLEW_GET_VAR(__GLEW_ES_VERSION_2_0)
 
@@ -1349,7 +1401,7 @@ typedef void (GLAPIENTRY * PFNGLVERTEXATTRIBDIVISORANGLEPROC) (GLuint index, GLu
 #if !defined(GL_ANGLE_texture_usage) 
 #define GL_ANGLE_texture_usage 1
 
-#define GL_NONE 0x0000
+#define GL_NONE 0  // XXX jwilkins: had to change this from 0x0000 so it would match other definition of GL_NONE
 #define GL_TEXTURE_USAGE_ANGLE 0x93A2
 #define GL_FRAMEBUFFER_ATTACHMENT_ANGLE 0x93A3
 
@@ -1764,7 +1816,7 @@ typedef GLboolean (GLAPIENTRY * PFNGLISQUERYEXTPROC) (GLuint id);
 #if !defined(GL_EXT_robustness) 
 #define GL_EXT_robustness 1
 
-#define GL_NO_ERROR 0x0000
+#define GL_NO_ERROR 0 // XXX jwilkins: had to change this from 0x0000 so it would math other definition
 #define GL_LOSE_CONTEXT_ON_RESET_EXT 0x8252
 #define GL_GUILTY_CONTEXT_RESET_EXT 0x8253
 #define GL_INNOCENT_CONTEXT_RESET_EXT 0x8254
@@ -2208,7 +2260,9 @@ typedef void (GLAPIENTRY * PFNGLCLIPPLANEFIMGPROC) (GLenum p, GLfloat eqn[4]);
 #define GL_DEBUG_SEVERITY_LOW 0x9148
 #define GL_DEBUG_OUTPUT 0x92E0
 
-typedef void (GLAPIENTRY * PFNGLDEBUGMESSAGECALLBACKPROC) (DEBUGPROC callback, void* userParam);
+typedef void (APIENTRY *GLDEBUGPROC)(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, GLvoid* userParam); // XXX jwilkins: added this typedef
+
+typedef void (GLAPIENTRY * PFNGLDEBUGMESSAGECALLBACKPROC) (GLDEBUGPROC callback, void* userParam); // XXX jwilkins: had to fix DEBUGPROC
 typedef void (GLAPIENTRY * PFNGLDEBUGMESSAGECONTROLPROC) (GLenum source, GLenum type, GLenum severity, GLsizei count, const GLuint* ids, GLboolean enabled);
 typedef void (GLAPIENTRY * PFNGLDEBUGMESSAGEINSERTPROC) (GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char* buf);
 typedef GLuint (GLAPIENTRY * PFNGLGETDEBUGMESSAGELOGPROC) (GLuint count, GLsizei bufsize, GLenum* sources, GLenum* types, GLuint* ids, GLenum* severities, GLsizei* lengths, char* messageLog);
@@ -3616,6 +3670,7 @@ struct GLEWContextStruct
 {
 #endif /* GLEW_MX */
 
+#if GL_ES_VERSION_1_0 // XXX jwilkins: glew doesn't actually seem to be designed to let you use the extension macros
 GLEW_FUN_EXPORT PFNGLACTIVETEXTUREPROC __glewActiveTexture;
 GLEW_FUN_EXPORT PFNGLALPHAFUNCXPROC __glewAlphaFuncx;
 GLEW_FUN_EXPORT PFNGLCLEARCOLORXPROC __glewClearColorx;
@@ -3655,7 +3710,9 @@ GLEW_FUN_EXPORT PFNGLTEXENVXPROC __glewTexEnvx;
 GLEW_FUN_EXPORT PFNGLTEXENVXVPROC __glewTexEnvxv;
 GLEW_FUN_EXPORT PFNGLTEXPARAMETERXPROC __glewTexParameterx;
 GLEW_FUN_EXPORT PFNGLTRANSLATEXPROC __glewTranslatex;
+#endif // XXX jwilkins
 
+#if GL_ES_VERSION_CL_1_1 // XXX jwilkins
 GLEW_FUN_EXPORT PFNGLBINDBUFFERPROC __glewBindBuffer;
 GLEW_FUN_EXPORT PFNGLBUFFERDATAPROC __glewBufferData;
 GLEW_FUN_EXPORT PFNGLBUFFERSUBDATAPROC __glewBufferSubData;
@@ -3684,7 +3741,9 @@ GLEW_FUN_EXPORT PFNGLTEXENVIVPROC __glewTexEnviv;
 GLEW_FUN_EXPORT PFNGLTEXPARAMETERIPROC __glewTexParameteri;
 GLEW_FUN_EXPORT PFNGLTEXPARAMETERIVPROC __glewTexParameteriv;
 GLEW_FUN_EXPORT PFNGLTEXPARAMETERXVPROC __glewTexParameterxv;
+#endif // XXX jwilkins
 
+#if GL_ES_VERSION_CM_1_1 // XXX
 GLEW_FUN_EXPORT PFNGLCLIPPLANEFPROC __glewClipPlanef;
 GLEW_FUN_EXPORT PFNGLGETCLIPPLANEFPROC __glewGetClipPlanef;
 GLEW_FUN_EXPORT PFNGLGETFLOATVPROC __glewGetFloatv;
@@ -3695,6 +3754,7 @@ GLEW_FUN_EXPORT PFNGLGETTEXPARAMETERFVPROC __glewGetTexParameterfv;
 GLEW_FUN_EXPORT PFNGLPOINTPARAMETERFPROC __glewPointParameterf;
 GLEW_FUN_EXPORT PFNGLPOINTPARAMETERFVPROC __glewPointParameterfv;
 GLEW_FUN_EXPORT PFNGLTEXPARAMETERFVPROC __glewTexParameterfv;
+#endif // XXX jwilkins
 
 GLEW_FUN_EXPORT PFNGLATTACHSHADERPROC __glewAttachShader;
 GLEW_FUN_EXPORT PFNGLBINDATTRIBLOCATIONPROC __glewBindAttribLocation;
@@ -3780,6 +3840,18 @@ GLEW_FUN_EXPORT PFNGLVERTEXATTRIB3FVPROC __glewVertexAttrib3fv;
 GLEW_FUN_EXPORT PFNGLVERTEXATTRIB4FPROC __glewVertexAttrib4f;
 GLEW_FUN_EXPORT PFNGLVERTEXATTRIB4FVPROC __glewVertexAttrib4fv;
 GLEW_FUN_EXPORT PFNGLVERTEXATTRIBPOINTERPROC __glewVertexAttribPointer;
+
+#if !GL_ES_VERSION_CL_1_1 // XXX jwilkins
+GLEW_FUN_EXPORT PFNGLBINDBUFFERPROC __glewBindBuffer; // XXX jwilkins: missing function
+GLEW_FUN_EXPORT PFNGLBUFFERDATAPROC __glewBufferData; // XXX jwilkins: missing function
+GLEW_FUN_EXPORT PFNGLDELETEBUFFERSPROC __glewDeleteBuffers; // XXX jwilkins: missing function
+GLEW_FUN_EXPORT PFNGLGENBUFFERSPROC __glewGenBuffers; // XXX jwilkins: missing function
+GLEW_FUN_EXPORT PFNGLTEXPARAMETERIPROC __glewTexParameteri; // XXX jwilkins: missing function
+GLEW_FUN_EXPORT PFNGLISENABLEDPROC __glewIsEnabled; // XXX jwilkins: missing function
+GLEW_FUN_EXPORT PFNGLGETFLOATVPROC __glewGetFloatv; // XXX jwilkins: missing function
+GLEW_FUN_EXPORT PFNGLDEPTHRANGEFPROC __glewDepthRangef; // XXX jwilkins: missing function
+GLEW_FUN_EXPORT PFNGLACTIVETEXTUREPROC __glewActiveTexture; // XXX jwilkins: missing function
+#endif
 
 GLEW_FUN_EXPORT PFNGLBEGINPERFMONITORAMDPROC __glewBeginPerfMonitorAMD;
 GLEW_FUN_EXPORT PFNGLDELETEPERFMONITORSAMDPROC __glewDeletePerfMonitorsAMD;

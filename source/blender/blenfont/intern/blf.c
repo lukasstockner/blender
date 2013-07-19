@@ -550,7 +550,7 @@ static void blf_draw__start(FontBLF *font)
 	/* The pixmap alignment hack is handled
 	   in BLF_position (old ui_rasterpos_safe). */
 
-#if GPU_SAFETY
+#if GPU_SAFETY && defined(WITH_GL_PROFILE_COMPAT)
 	{
 	GLenum param;
 	glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &param);
@@ -577,8 +577,8 @@ static void blf_draw__start(FontBLF *font)
 	if (font->flags & BLF_ASPECT)
 		gpuScale(font->aspect[0], font->aspect[1], font->aspect[2]);
 
-	if (font->flags & BLF_ROTATION)  /* radians -> degrees */
-		gpuRotateAxis(font->angle * (float)(180.0 / M_PI), 'Z');
+	if (font->flags & BLF_ROTATION)
+		gpuRotateAxis(RAD2DEGF(font->angle), 'Z');
 
 	if (font->shadow || font->blur) 
 		gpuGetCurrentColor4fv(font->orig_col);

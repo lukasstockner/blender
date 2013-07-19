@@ -761,6 +761,9 @@ GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextTyp
 								}
 							}
 							else {
+#if defined(GLEW_ES_ONLY) && !defined(GL_ALL_ATTRIB_BITS)
+#define GL_ALL_ATTRIB_BITS 0x000fffff
+#endif
 								::wglCopyContext(s_firsthGLRc, m_hGlRc, GL_ALL_ATTRIB_BITS);
 								::wglShareLists(s_firsthGLRc, m_hGlRc);
 							}
