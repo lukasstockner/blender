@@ -527,7 +527,7 @@
 /* display lists */
 #undef glCallList
 #define glCallList DO_NOT_USE_glCallList
-#undef glEndlList
+#undef glEndList
 #define glEndList DO_NOT_USE_glEndList
 #undef glGenLists
 #define glGenLists DO_NOT_USE_glGenLists
