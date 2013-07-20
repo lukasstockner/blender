@@ -990,7 +990,7 @@ static void knifetool_draw_angle_snapping(const KnifeTool_OpData *kcd)
 				 v2);
 
 	UI_ThemeColor(TH_TRANSFORM);
-	glLineWidth(2.0);
+	gpuLineWidth(2.0);
 	gpuBegin(GL_LINES);
 	gpuVertex3fv(v1);
 	gpuVertex3fv(v2);
@@ -1033,26 +1033,26 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 
 		gpuCurrentColor3ubv(kcd->colors.line);
 		
-		glLineWidth(2.0);
+		gpuLineWidth(2.0);
 
 		gpuBegin(GL_LINES);
 		gpuVertex3fv(kcd->prev.cage);
 		gpuVertex3fv(kcd->curr.cage);
 		gpuEnd();
 
-		glLineWidth(1.0);
+		gpuLineWidth(1.0);
 	}
 
 	if (kcd->curr.edge) {
 		gpuCurrentColor3ubv(kcd->colors.edge);
-		glLineWidth(2.0);
+		gpuLineWidth(2.0);
 
 		gpuBegin(GL_LINES);
 		gpuVertex3fv(kcd->curr.edge->v1->cageco);
 		gpuVertex3fv(kcd->curr.edge->v2->cageco);
 		gpuEnd();
 
-		glLineWidth(1.0);
+		gpuLineWidth(1.0);
 	}
 	else if (kcd->curr.vert) {
 		gpuCurrentColor3ubv(kcd->colors.point);
@@ -1122,7 +1122,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		BLI_mempool_iter iter;
 		KnifeEdge *kfe;
 
-		glLineWidth(1.0);
+		gpuLineWidth(1.0);
 		gpuBegin(GL_LINES);
 
 		BLI_mempool_iternew(kcd->kedges, &iter);
@@ -1137,7 +1137,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		}
 
 		gpuEnd();
-		glLineWidth(1.0);
+		gpuLineWidth(1.0);
 	}
 
 	if (kcd->totkvert > 0) {

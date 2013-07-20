@@ -554,8 +554,8 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 			glEnable(GL_BLEND);
 			UI_ThemeColor4(TH_EDITMESH_ACTIVE);
 
-			glEnable(GL_POLYGON_STIPPLE);
-			glPolygonStipple(stipple_quarttone);
+			gpuEnablePolygonStipple();
+			gpuPolygonStipple(stipple_quarttone);
 
 			gpuBegin(GL_TRIANGLE_FAN);
 			BM_ITER_ELEM (l, &liter, activef, BM_LOOPS_OF_FACE) {
@@ -564,7 +564,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 			}
 			gpuEnd();
 
-			glDisable(GL_POLYGON_STIPPLE);
+			gpuDisablePolygonStipple();
 			glDisable(GL_BLEND);
 		}
 	}
@@ -625,7 +625,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 			}
 			break;
 		case SI_UVDT_OUTLINE:
-			glLineWidth(3);
+			gpuLineWidth(3);
 			gpuCurrentColor3x(CPACK_BLACK);
 			
 			BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
@@ -640,7 +640,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 				gpuEnd();
 			}
 			
-			glLineWidth(1);
+			gpuLineWidth(1);
 			col2[0] = col2[1] = col2[2] = 192; col2[3] = 255;
 			gpuCurrentColor4ubv((unsigned char *)col2); 
 			

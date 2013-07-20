@@ -955,9 +955,9 @@ static void drawscredge_area(ScrArea *sa, int sizex, int sizey, int center)
 	if (center == 0) {
 		if (U.pixelsize > 1.0f) {
 			gpuCurrentGray3f(0.314f);
-			glLineWidth(1.5f * U.pixelsize);
+			gpuLineWidth(1.5f * U.pixelsize);
 			drawscredge_area_draw(sizex, sizey, x1, y1, x2, y2, 0);
-			glLineWidth(1.0f);
+			gpuLineWidth(1.0f);
 		}
 	}
 	else {

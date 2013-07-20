@@ -267,7 +267,6 @@ static void playanim_toscreen(PlayState *ps, PlayAnimPict *picture, struct ImBuf
 
 	CLAMP(offsx, 0.0f, 1.0f);
 	CLAMP(offsy, 0.0f, 1.0f);
-	glRasterPos2f(offsx, offsy);
 
 	glClearColor(0.1, 0.1, 0.1, 0.0);
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -279,8 +278,15 @@ static void playanim_toscreen(PlayState *ps, PlayAnimPict *picture, struct ImBuf
 
 		fdrawcheckerboard(offsx, offsy, offsx + (ps->zoom * ibuf->x) / (float)ps->win_x, offsy + (ps->zoom * ibuf->y) / (float)ps->win_y);
 	}
-	
-	glDrawPixels(ibuf->x, ibuf->y, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect);
+
+	{
+		GPUpixels pixels = { ibuf->x, ibuf->y, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect };
+
+		gpuPixelsBegin();
+		gpuPixelPos2f(offsx, offsy);
+		gpuPixels(&pixels);
+		gpuPixelsEnd();
+	}
 
 	glDisable(GL_BLEND);
 	
@@ -753,9 +759,10 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 			gpuOrtho(0.0f, 1.0f, 0.0f, 1.0f, -1.0f, 1.0f);
 			gpuMatrixMode(GL_MODELVIEW);
 
-			glPixelZoom(ps->zoom, ps->zoom);
+			gpuPixelZoom(ps->zoom, ps->zoom);
 			ptottime = 0.0;
 			playanim_toscreen(ps, ps->picture, ps->curframe_ibuf, ps->fontid, ps->fstep);
+			gpuPixelZoom(1.0f, 1.0f); /* restore default value */
 
 			break;
 		}

@@ -72,19 +72,6 @@ int glaGetOneInteger(int param);
 float glaGetOneFloat(int param);
 
 /**
- * Functions like glRasterPos2i, except ensures that the resulting
- * raster position is valid. \a known_good_x and \a known_good_y
- * should be coordinates of a point known to be within the current
- * view frustum.
- * \attention This routine should be used when the distance of \a x
- * and \a y away from the known good point is small (ie. for small icons
- * and for bitmap characters), when drawing large+zoomed images it is
- * possible for overflow to occur, the glaDrawPixelsSafe routine should
- * be used instead.
- */
-void glaRasterPosSafe2f(float x, float y, float known_good_x, float known_good_y);
-
-/**
  * Functions like a limited glDrawPixels, except ensures that
  * the image is displayed onscreen even if the \a x and \a y
  * coordinates for would be clipped. The routine respects the

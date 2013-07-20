@@ -3538,6 +3538,7 @@ PFNGLBLENDEQUATIONEXTPROC __glewBlendEquationEXT = NULL;
 PFNGLMULTIDRAWARRAYSEXTPROC __glewMultiDrawArraysEXT = NULL;
 PFNGLMULTIDRAWELEMENTSEXTPROC __glewMultiDrawElementsEXT = NULL;
 
+#if 0 // XXX jwilkins: there is an inconsistency between the ES and Non-ES versions of this extension??
 PFNGLACTIVESHADERPROGRAMEXTPROC __glewActiveShaderProgramEXT = NULL;
 PFNGLBINDPROGRAMPIPELINEEXTPROC __glewBindProgramPipelineEXT = NULL;
 PFNGLCREATESHADERPROGRAMVEXTPROC __glewCreateShaderProgramvEXT = NULL;
@@ -3568,6 +3569,7 @@ PFNGLPROGRAMUNIFORMMATRIX3FVEXTPROC __glewProgramUniformMatrix3fvEXT = NULL;
 PFNGLPROGRAMUNIFORMMATRIX4FVEXTPROC __glewProgramUniformMatrix4fvEXT = NULL;
 PFNGLUSEPROGRAMSTAGESEXTPROC __glewUseProgramStagesEXT = NULL;
 PFNGLVALIDATEPROGRAMPIPELINEEXTPROC __glewValidateProgramPipelineEXT = NULL;
+#endif
 
 PFNGLDEBUGMESSAGECALLBACKPROC __glewDebugMessageCallback = NULL;
 PFNGLDEBUGMESSAGECONTROLPROC __glewDebugMessageControl = NULL;
@@ -3726,7 +3728,9 @@ GLboolean __GLEW_ARB_robustness_share_group_isolation = GL_FALSE;
 GLboolean __GLEW_ARB_sample_shading = GL_FALSE;
 GLboolean __GLEW_ARB_sampler_objects = GL_FALSE;
 GLboolean __GLEW_ARB_seamless_cube_map = GL_FALSE;
+#if 0 // XXX jwilkins: there is an inconsistency between the ES and Non-ES versions of this extension??
 GLboolean __GLEW_ARB_separate_shader_objects = GL_FALSE;
+#endif
 GLboolean __GLEW_ARB_shader_atomic_counters = GL_FALSE;
 GLboolean __GLEW_ARB_shader_bit_encoding = GL_FALSE;
 GLboolean __GLEW_ARB_shader_image_load_store = GL_FALSE;
@@ -3867,7 +3871,9 @@ GLboolean __GLEW_EXT_provoking_vertex = GL_FALSE;
 GLboolean __GLEW_EXT_rescale_normal = GL_FALSE;
 GLboolean __GLEW_EXT_scene_marker = GL_FALSE;
 GLboolean __GLEW_EXT_secondary_color = GL_FALSE;
+#if 0 // XXX jwilkins: there is an inconsistency between the ES and Non-ES versions of this extension??
 GLboolean __GLEW_EXT_separate_shader_objects = GL_FALSE;
+#endif
 GLboolean __GLEW_EXT_separate_specular_color = GL_FALSE;
 GLboolean __GLEW_EXT_shader_image_load_store = GL_FALSE;
 GLboolean __GLEW_EXT_shadow_funcs = GL_FALSE;
@@ -4342,7 +4348,9 @@ GLboolean __GLEW_AMD_performance_monitor = GL_FALSE;
 GLboolean __GLEW_APPLE_rgb_422 = GL_FALSE;
 GLboolean __GLEW_EXT_blend_minmax = GL_FALSE;
 GLboolean __GLEW_EXT_multi_draw_arrays = GL_FALSE;
+#if 0 // XXX jwilkins: there is an inconsistency between the ES and Non-ES versions of this extension??
 GLboolean __GLEW_EXT_separate_shader_objects = GL_FALSE;
+#endif // XXX
 GLboolean __GLEW_EXT_texture_compression_dxt1 = GL_FALSE;
 GLboolean __GLEW_EXT_texture_filter_anisotropic = GL_FALSE;
 GLboolean __GLEW_EXT_texture_lod_bias = GL_FALSE;
@@ -4484,7 +4492,7 @@ static GLboolean _glewInit_GL_VERSION_1_1 (GLEW_CONTEXT_ARG_DEF_INIT)
   r = ((glLightModeliv = (PFNGLLIGHTMODELIVPROC)glewGetProcAddress((const GLubyte*)"glLightModeliv")) == NULL) || r;
   r = ((glLighti = (PFNGLLIGHTIPROC)glewGetProcAddress((const GLubyte*)"glLighti")) == NULL) || r;
   r = ((glLightiv = (PFNGLLIGHTIVPROC)glewGetProcAddress((const GLubyte*)"glLightiv")) == NULL) || r;
-  r = ((glLineStipple = (PFNGLLINESTIPPLEPROC)glewGetProcAddress((const GLubyte*)"glLineStipple")) == NULL) || r;
+  r = ((gpuLineStipple = (PFNGLLINESTIPPLEPROC)glewGetProcAddress((const GLubyte*)"gpuLineStipple")) == NULL) || r;
   r = ((glListBase = (PFNGLLISTBASEPROC)glewGetProcAddress((const GLubyte*)"glListBase")) == NULL) || r;
   r = ((glLoadMatrixd = (PFNGLLOADMATRIXDPROC)glewGetProcAddress((const GLubyte*)"glLoadMatrixd")) == NULL) || r;
   r = ((glLoadName = (PFNGLLOADNAMEPROC)glewGetProcAddress((const GLubyte*)"glLoadName")) == NULL) || r;
@@ -6225,6 +6233,7 @@ static GLboolean _glewInit_GL_ARB_sampler_objects (GLEW_CONTEXT_ARG_DEF_INIT)
 
 #endif /* GL_ARB_seamless_cube_map */
 
+#if 0 // XXX jwilkins: there is an inconsistency between the ES and Non-ES versions of this extension??
 #ifdef GL_ARB_separate_shader_objects
 
 static GLboolean _glewInit_GL_ARB_separate_shader_objects (GLEW_CONTEXT_ARG_DEF_INIT)
@@ -6296,6 +6305,7 @@ static GLboolean _glewInit_GL_ARB_separate_shader_objects (GLEW_CONTEXT_ARG_DEF_
 }
 
 #endif /* GL_ARB_separate_shader_objects */
+#endif
 
 #ifdef GL_ARB_shader_atomic_counters
 
@@ -8241,9 +8251,9 @@ static GLboolean _glewInit_GL_EXT_secondary_color (GLEW_CONTEXT_ARG_DEF_INIT)
 
 #endif /* GL_EXT_secondary_color */
 
+#if 0 // XXX jwilkins: there is an inconsistency between the ES and Non-ES versions of this extension??
 #ifdef GL_EXT_separate_shader_objects
 
-#if defined(GLEW_NO_ES) // XXX jwilkins: there is an inconsistency between the ES and None-ES versions of this extension??
 static GLboolean _glewInit_GL_EXT_separate_shader_objects (GLEW_CONTEXT_ARG_DEF_INIT)
 {
   GLboolean r = GL_FALSE;
@@ -8254,9 +8264,8 @@ static GLboolean _glewInit_GL_EXT_separate_shader_objects (GLEW_CONTEXT_ARG_DEF_
 
   return r;
 }
-#endif // XXX
-
 #endif /* GL_EXT_separate_shader_objects */
+#endif // XXX
 
 #ifdef GL_EXT_separate_specular_color
 
@@ -10458,7 +10467,7 @@ static GLboolean _glewInit_GL_WIN_swap_hint (GLEW_CONTEXT_ARG_DEF_INIT)
 
 #endif /* GL_WIN_swap_hint */
 
-#ifdef GL_ES_VERSION_1_0
+#if GL_ES_VERSION_1_0 // XXX jwilkins: changed from ifdef
 
 static GLboolean _glewInit_GL_ES_VERSION_1_0 (GLEW_CONTEXT_ARG_DEF_INIT)
 {
@@ -10509,7 +10518,7 @@ static GLboolean _glewInit_GL_ES_VERSION_1_0 (GLEW_CONTEXT_ARG_DEF_INIT)
 
 #endif /* GL_ES_VERSION_1_0 */
 
-#ifdef GL_ES_VERSION_CL_1_1
+#if GL_ES_VERSION_CL_1_1 // XXX jwilkins: should be 'if' not 'ifdef'
 
 static GLboolean _glewInit_GL_ES_VERSION_CL_1_1 (GLEW_CONTEXT_ARG_DEF_INIT)
 {
@@ -10549,7 +10558,7 @@ static GLboolean _glewInit_GL_ES_VERSION_CL_1_1 (GLEW_CONTEXT_ARG_DEF_INIT)
 
 #endif /* GL_ES_VERSION_CL_1_1 */
 
-#ifdef GL_ES_VERSION_CM_1_1
+#if GL_ES_VERSION_CM_1_1 // XXX jwilkins: should be 'if' not 'ifdef'
 
 static GLboolean _glewInit_GL_ES_VERSION_CM_1_1 (GLEW_CONTEXT_ARG_DEF_INIT)
 {
@@ -12114,10 +12123,12 @@ GLenum glewContextInit (GLEW_CONTEXT_ARG_DEF_LIST)
 #ifdef GL_ARB_seamless_cube_map
   CONST_CAST(GLEW_ARB_seamless_cube_map) = _glewSearchExtension("GL_ARB_seamless_cube_map", extStart, extEnd);
 #endif /* GL_ARB_seamless_cube_map */
+#if 0 // XXX jwilkins: there is an inconsistency between the ES and Non-ES versions of this extension??
 #ifdef GL_ARB_separate_shader_objects
   CONST_CAST(GLEW_ARB_separate_shader_objects) = _glewSearchExtension("GL_ARB_separate_shader_objects", extStart, extEnd);
   if (glewExperimental || GLEW_ARB_separate_shader_objects) CONST_CAST(GLEW_ARB_separate_shader_objects) = !_glewInit_GL_ARB_separate_shader_objects(GLEW_CONTEXT_ARG_VAR_INIT);
 #endif /* GL_ARB_separate_shader_objects */
+#endif // XXX
 #ifdef GL_ARB_shader_atomic_counters
   CONST_CAST(GLEW_ARB_shader_atomic_counters) = _glewSearchExtension("GL_ARB_shader_atomic_counters", extStart, extEnd);
   if (glewExperimental || GLEW_ARB_shader_atomic_counters) CONST_CAST(GLEW_ARB_shader_atomic_counters) = !_glewInit_GL_ARB_shader_atomic_counters(GLEW_CONTEXT_ARG_VAR_INIT);
@@ -12616,10 +12627,12 @@ GLenum glewContextInit (GLEW_CONTEXT_ARG_DEF_LIST)
   CONST_CAST(GLEW_EXT_secondary_color) = _glewSearchExtension("GL_EXT_secondary_color", extStart, extEnd);
   if (glewExperimental || GLEW_EXT_secondary_color) CONST_CAST(GLEW_EXT_secondary_color) = !_glewInit_GL_EXT_secondary_color(GLEW_CONTEXT_ARG_VAR_INIT);
 #endif /* GL_EXT_secondary_color */
+#if 0 // XXX jwilkins: there is an inconsistency between the ES and Non-ES versions of this extension??
 #ifdef GL_EXT_separate_shader_objects
   CONST_CAST(GLEW_EXT_separate_shader_objects) = _glewSearchExtension("GL_EXT_separate_shader_objects", extStart, extEnd);
   if (glewExperimental || GLEW_EXT_separate_shader_objects) CONST_CAST(GLEW_EXT_separate_shader_objects) = !_glewInit_GL_EXT_separate_shader_objects(GLEW_CONTEXT_ARG_VAR_INIT);
 #endif /* GL_EXT_separate_shader_objects */
+#endif // XXX
 #ifdef GL_EXT_separate_specular_color
   CONST_CAST(GLEW_EXT_separate_specular_color) = _glewSearchExtension("GL_EXT_separate_specular_color", extStart, extEnd);
 #endif /* GL_EXT_separate_specular_color */
@@ -13342,13 +13355,13 @@ GLenum glewContextInit (GLEW_CONTEXT_ARG_DEF_LIST)
   CONST_CAST(GLEW_WIN_swap_hint) = _glewSearchExtension("GL_WIN_swap_hint", extStart, extEnd);
   if (glewExperimental || GLEW_WIN_swap_hint) CONST_CAST(GLEW_WIN_swap_hint) = !_glewInit_GL_WIN_swap_hint(GLEW_CONTEXT_ARG_VAR_INIT);
 #endif /* GL_WIN_swap_hint */
-#ifdef GL_ES_VERSION_1_0
+#if GL_ES_VERSION_1_0 // XXX jwilkins: should be 'if' not 'ifdef'
   if (glewExperimental || GLEW_ES_VERSION_1_0) CONST_CAST(GLEW_ES_VERSION_1_0) = !_glewInit_GL_ES_VERSION_1_0(GLEW_CONTEXT_ARG_VAR_INIT);
 #endif /* GL_ES_VERSION_1_0 */
-#ifdef GL_ES_VERSION_CL_1_1
+#if GL_ES_VERSION_CL_1_1 // XXX jwilkins: should be 'if' not 'ifdef'
   if (glewExperimental || GLEW_ES_VERSION_CL_1_1) CONST_CAST(GLEW_ES_VERSION_CL_1_1) = !_glewInit_GL_ES_VERSION_CL_1_1(GLEW_CONTEXT_ARG_VAR_INIT);
 #endif /* GL_ES_VERSION_CL_1_1 */
-#ifdef GL_ES_VERSION_CM_1_1
+#if GL_ES_VERSION_CM_1_1 // XXX jwilkins: should be 'if' not 'ifdef'
   if (glewExperimental || GLEW_ES_VERSION_CM_1_1) CONST_CAST(GLEW_ES_VERSION_CM_1_1) = !_glewInit_GL_ES_VERSION_CM_1_1(GLEW_CONTEXT_ARG_VAR_INIT);
 #endif /* GL_ES_VERSION_CM_1_1 */
 #ifdef GL_ES_VERSION_2_0
@@ -17505,6 +17518,7 @@ GLboolean glewIsSupported (const char* name)
           continue;
         }
 #endif
+#if 0 // XXX jwilkins: there is an inconsistency between the ES and Non-ES versions of this extension??
 #ifdef GL_ARB_separate_shader_objects
         if (_glewStrSame3(&pos, &len, (const GLubyte*)"separate_shader_objects", 23))
         {
@@ -17512,6 +17526,7 @@ GLboolean glewIsSupported (const char* name)
           continue;
         }
 #endif
+#endif // XXX
 #ifdef GL_ARB_shader_atomic_counters
         if (_glewStrSame3(&pos, &len, (const GLubyte*)"shader_atomic_counters", 22))
         {
@@ -18650,12 +18665,14 @@ GLboolean glewIsSupported (const char* name)
           continue;
         }
 #endif
+#if 0 // XXX jwilkins: there is an inconsistency between the ES and Non-ES versions of this extension??
 #ifdef GL_EXT_separate_shader_objects
         if (_glewStrSame3(&pos, &len, (const GLubyte*)"separate_shader_objects", 23))
         {
           ret = GLEW_EXT_separate_shader_objects;
           continue;
         }
+#endif
 #endif
 #ifdef GL_EXT_separate_specular_color
         if (_glewStrSame3(&pos, &len, (const GLubyte*)"separate_specular_color", 23))

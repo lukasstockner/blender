@@ -1617,12 +1617,12 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 			offsx += 2 * ufac;
 		
 		if (tselem->type == 0 && tselem->id->lib) {
-			glPixelTransferf(GL_ALPHA_SCALE, 0.5f);
+			gpuPixelUniform1f(GL_ALPHA_SCALE, 0.5f);
 			if (tselem->id->flag & LIB_INDIRECT)
 				UI_icon_draw((float)startx + offsx, (float)*starty + 2 * ufac, ICON_LIBRARY_DATA_INDIRECT);
 			else
 				UI_icon_draw((float)startx + offsx, (float)*starty + 2 * ufac, ICON_LIBRARY_DATA_DIRECT);
-			glPixelTransferf(GL_ALPHA_SCALE, 1.0f);
+			gpuPixelUniform1f(GL_ALPHA_SCALE, 1.0f); /* restore default value */
 			offsx += UI_UNIT_X;
 		}
 		glDisable(GL_BLEND);
@@ -1646,20 +1646,23 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 					/* this tree element always has same amount of branches, so don't draw */
 
 					int tempx = startx + offsx;
-					
+
 					/* divider */
+
 					UI_ThemeColorShade(TH_BACK, -40);
-					gpuSingleFilledRecti(tempx   - 10.0f * ufac,
-					        *starty +  4.0f * ufac,
-					         tempx  -  8.0f * ufac,
-					        *starty + UI_UNIT_Y - 4.0f * ufac);
-					
+
+					gpuSingleFilledRecti(
+						tempx   - 10.0f * ufac,
+						*starty +  4.0f * ufac,
+						tempx  -  8.0f * ufac,
+						*starty + UI_UNIT_Y - 4.0f * ufac);
+
 					glEnable(GL_BLEND);
-					glPixelTransferf(GL_ALPHA_SCALE, 0.5);
-					
+					gpuPixelUniform1f(GL_ALPHA_SCALE, 0.5);
+
 					outliner_draw_iconrow(C, block, scene, soops, &te->subtree, 0, xmax, &tempx, *starty);
-					
-					glPixelTransferf(GL_ALPHA_SCALE, 1.0);
+
+					gpuPixelUniform1f(GL_ALPHA_SCALE, 1.0); /* restore default value */
 					glDisable(GL_BLEND);
 				}
 			}

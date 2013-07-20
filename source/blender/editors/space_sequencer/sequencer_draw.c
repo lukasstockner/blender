@@ -254,15 +254,15 @@ static void drawseqwave(Scene *scene, Sequence *seq, float x1, float y1, float x
 static void drawmeta_stipple(int value)
 {
 	if (value) {
-		glEnable(GL_POLYGON_STIPPLE);
-		glPolygonStipple(stipple_halftone);
+		gpuEnablePolygonStipple();
+		gpuPolygonStipple(stipple_halftone);
 		
-		glEnable(GL_LINE_STIPPLE);
-		glLineStipple(1, 0x8888);
+		gpuEnableLineStipple();
+		gpuLineStipple(1, 0x8888);
 	}
 	else {
-		glDisable(GL_POLYGON_STIPPLE);
-		glDisable(GL_LINE_STIPPLE);
+		gpuDisablePolygonStipple();
+		gpuDisableLineStipple();
 	}
 }
 
@@ -403,12 +403,17 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, const float handsize_cla
 			gpuCurrentColor4x(CPACK_BLACK, 0.196f);
 		}
 
+#if defined(WITH_GL_PROFILE_COMPAT) 
+		// XXX jwilins: should convert to use multisampling?
 		glEnable(GL_POLYGON_SMOOTH);
+#endif
 		gpuBegin(GL_TRIANGLES);
 		gpuVertex2fv(v1); gpuVertex2fv(v2); gpuVertex2fv(v3);
 		gpuEnd();
 		
+#if defined(WITH_GL_PROFILE_COMPAT)
 		glDisable(GL_POLYGON_SMOOTH);
+#endif
 		glDisable(GL_BLEND);
 	}
 	
@@ -640,8 +645,8 @@ static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, floa
 	float ymid1, ymid2;
 	
 	if (seq->flag & SEQ_MUTE) {
-		glEnable(GL_POLYGON_STIPPLE);
-		glPolygonStipple(stipple_halftone);
+		gpuEnablePolygonStipple();
+		gpuPolygonStipple(stipple_halftone);
 	}
 	
 	ymid1 = (y2 - y1) * 0.25f + y1;
@@ -688,7 +693,7 @@ static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, floa
 	gpuEnd();
 	
 	if (seq->flag & SEQ_MUTE) {
-		glDisable(GL_POLYGON_STIPPLE);
+		gpuDisablePolygonStipple();
 	}
 }
 
@@ -746,32 +751,32 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 
 	/* draw lock */
 	if (seq->flag & SEQ_LOCK) {
-		glEnable(GL_POLYGON_STIPPLE);
+		gpuEnablePolygonStipple();
 		glEnable(GL_BLEND);
 
 		/* light stripes */
 		gpuCurrentColor4x(CPACK_WHITE, 0.125f);
-		glPolygonStipple(stipple_diag_stripes_pos);
+		gpuPolygonStipple(stipple_diag_stripes_pos);
 		gpuSingleFilledRectf(x1, y1, x2, y2);
 
 		/* dark stripes */
 		gpuCurrentColor4x(CPACK_BLACK, 0.125f);
-		glPolygonStipple(stipple_diag_stripes_neg);
+		gpuPolygonStipple(stipple_diag_stripes_neg);
 		gpuSingleFilledRectf(x1, y1, x2, y2);
 
-		glDisable(GL_POLYGON_STIPPLE);
+		gpuDisablePolygonStipple();
 		glDisable(GL_BLEND);
 	}
 
 	if (!BKE_sequence_is_valid_check(seq)) {
-		glEnable(GL_POLYGON_STIPPLE);
+		gpuEnablePolygonStipple();
 
 		/* panic! */
 		gpuCurrentColor4ub(255, 0, 0, 255);
-		glPolygonStipple(stipple_diag_stripes_pos);
+		gpuPolygonStipple(stipple_diag_stripes_pos);
 		gpuSingleFilledRectf(x1, y1, x2, y2);
 
-		glDisable(GL_POLYGON_STIPPLE);
+		gpuDisablePolygonStipple();
 	}
 
 	get_seq_color3ubv(scene, seq, col);
@@ -788,14 +793,14 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 	gpuCurrentColor3ubv((GLubyte *)col);
 	
 	if (seq->flag & SEQ_MUTE) {
-		glEnable(GL_LINE_STIPPLE);
-		glLineStipple(1, 0x8888);
+		gpuEnableLineStipple();
+		gpuLineStipple(1, 0x8888);
 	}
 	
 	uiDrawBoxShade(GL_LINE_LOOP, x1, y1, x2, y2, 0.0, 0.1, 0.0);
 	
 	if (seq->flag & SEQ_MUTE) {
-		glDisable(GL_LINE_STIPPLE);
+		gpuDisableLineStipple();
 	}
 	
 	if (seq->type == SEQ_TYPE_META) {
@@ -1142,7 +1147,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	glEnable(GL_TEXTURE_2D);
 	glGenTextures(1, (GLuint *)&texid);
 
-	glBindTexture(GL_TEXTURE_2D, texid);
+	gpuBindTexture(GL_TEXTURE_2D, texid);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -1190,7 +1195,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		gpuTexCoord2f(1.0f, 0.0f); gpuVertex2f(v2d->tot.xmax, v2d->tot.ymin);
 	}
 	gpuEnd();
-	glBindTexture(GL_TEXTURE_2D, last_texid);
+	gpuBindTexture(GL_TEXTURE_2D, last_texid);
 	glDisable(GL_TEXTURE_2D);
 	if (sseq->mainb == SEQ_DRAW_IMG_IMBUF && sseq->flag & SEQ_USE_ALPHA)
 		glDisable(GL_BLEND);
@@ -1230,12 +1235,12 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 			y1 += a;
 			y2 -= a;
 
-			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+			gpuPolygonMode(GL_LINE);
 
 			uiSetRoundBox(UI_CNR_ALL);
 			uiDrawBox(GL_LINE_LOOP, x1, y1, x2, y2, 12.0);
 
-			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+			gpuPolygonMode(GL_FILL);
 
 		}
 

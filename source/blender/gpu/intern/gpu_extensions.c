@@ -136,7 +136,7 @@ static GLint get_max_textures(void)
 	maxTextureUnits = 1;
 
 #if !defined(GLEW_ES_ONLY)
-	if (GPU_LEGACY && (GLEW_VERSION_1_3 || GLEW_ARB_multitexture)) {
+	if (GPU_PROFILE_COMPAT && (GLEW_VERSION_1_3 || GLEW_ARB_multitexture)) {
 		/* Multitexture typically supports only 2 or 4 texture stages even on modern hardware. */
 		glGetIntegerv(GL_MAX_TEXTURE_UNITS, &maxTextureUnits);
 	}
@@ -635,7 +635,7 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, int isdata, d
 	GPUTexture *tex;
 	GLint w, h, border, lastbindcode, bindcode;
 //#include REAL_GL_MODE
-	glGetIntegerv(GL_TEXTURE_BINDING_2D, &lastbindcode);
+	lastbindcode = gpuGetTextureBinding2D();
 
 	GPU_update_image_time(ima, time);
 	/* this binds a texture, so that's why to restore it with lastbindcode */
@@ -643,12 +643,12 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, int isdata, d
 
 	if (ima->gputexture) {
 		ima->gputexture->bindcode = bindcode;
-		glBindTexture(GL_TEXTURE_2D, lastbindcode);
+		gpuBindTexture(GL_TEXTURE_2D, lastbindcode);
 		return ima->gputexture;
 	}
 
 	if (!bindcode) {
-		glBindTexture(GL_TEXTURE_2D, lastbindcode);
+		gpuBindTexture(GL_TEXTURE_2D, lastbindcode);
 		return NULL;
 	}
 
@@ -661,11 +661,16 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, int isdata, d
 
 	ima->gputexture= tex;
 
-	if (!glIsTexture(tex->bindcode)) {
+#if !defined(GLEW_ES_ONLY)
+	if (!glIsTexture(tex->bindcode))
+	{
+		 // XXX jwilkins: how common is this error? how to detect this in ES?
 		GPU_print_error("Blender Texture");
 	}
-	else {
-		glBindTexture(GL_TEXTURE_2D, tex->bindcode);
+	else
+#endif
+	{
+		gpuBindTexture(GL_TEXTURE_2D, tex->bindcode);
 
 #if !defined(GLEW_ES_ONLY)
 		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w);
@@ -680,11 +685,11 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, int isdata, d
 
 		tex->w = w - border;
 		tex->h = h - border;
+
+		gpuBindTexture(GL_TEXTURE_2D, lastbindcode);
+
+		return tex;
 	}
-
-	glBindTexture(GL_TEXTURE_2D, lastbindcode);
-
-	return tex;
 }
 
 GPUTexture *GPU_texture_from_preview(PreviewImage *prv, int mipmap)
@@ -693,7 +698,7 @@ GPUTexture *GPU_texture_from_preview(PreviewImage *prv, int mipmap)
 	GLint w, h, lastbindcode;
 	GLuint bindcode = 0;
 	
-	glGetIntegerv(GL_TEXTURE_BINDING_2D, &lastbindcode);
+	lastbindcode = gpuGetTextureBinding2D();
 	
 	if (tex)
 		bindcode = tex->bindcode;
@@ -704,13 +709,13 @@ GPUTexture *GPU_texture_from_preview(PreviewImage *prv, int mipmap)
 	}
 	if (tex) {
 		tex->bindcode = bindcode;
-		glBindTexture(GL_TEXTURE_2D, lastbindcode);
+		gpuBindTexture(GL_TEXTURE_2D, lastbindcode);
 		return tex;
 	}
 
 	/* error binding anything */
 	if (!bindcode) {
-		glBindTexture(GL_TEXTURE_2D, lastbindcode);
+		gpuBindTexture(GL_TEXTURE_2D, lastbindcode);
 		return NULL;
 	}
 	
@@ -721,12 +726,17 @@ GPUTexture *GPU_texture_from_preview(PreviewImage *prv, int mipmap)
 	tex->target = GL_TEXTURE_2D;
 	
 	prv->gputexture[0]= tex;
-	
-	if (!glIsTexture(tex->bindcode)) {
+
+#if !defined(GLEW_ES_ONLY)
+	if (!glIsTexture(tex->bindcode))
+	{
+		 // XXX jwilkins: how common is this error? how to detect this in ES?
 		GPU_print_error("Blender Texture");
 	}
-	else {
-		glBindTexture(GL_TEXTURE_2D, tex->bindcode);
+	else
+#endif
+	{
+		gpuBindTexture(GL_TEXTURE_2D, tex->bindcode);
 
 #if !defined(GLEW_ES_ONLY)
 		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w);
@@ -740,7 +750,7 @@ GPUTexture *GPU_texture_from_preview(PreviewImage *prv, int mipmap)
 		tex->h = h;
 	}
 	
-	glBindTexture(GL_TEXTURE_2D, lastbindcode);
+	gpuBindTexture(GL_TEXTURE_2D, lastbindcode);
 	
 	return tex;
 
@@ -957,11 +967,11 @@ int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, char err
 #if !defined(GLEW_ES_ONLY) // XXX jwilkins: i think ES20 can only access COLOR_ATTACHMENT0 anyway
 	if (tex->depth) {
 		glDrawBuffer(GL_NONE);
-		glReadBuffer(GL_NONE);
+		glReadBuffer(GL_NONE); // XXX jwilkins: this is an invalid value!
 	}
 	else {
-		glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
-		glReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
+		glDrawBuffer(GL_COLOR_ATTACHMENT0);
+		glReadBuffer(GL_COLOR_ATTACHMENT0);
 	}
 #endif
 

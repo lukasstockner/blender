@@ -361,10 +361,12 @@ static void gpu_clear_tpage(void)
 	GTS.curtileXRep=0;
 	GTS.curtileYRep=0;
 	GTS.alphablend= -1;
-	
+
+#if defined(WITH_GL_PROFILE_COMPAT)
 	glDisable(GL_TEXTURE_2D);
 	glDisable(GL_TEXTURE_GEN_S);
 	glDisable(GL_TEXTURE_GEN_T);
+#endif
 
 	reset_default_alphablend_state();
 }
@@ -714,7 +716,7 @@ int GPU_verify_image(Image *ima, ImageUser *iuser, int tftile, int compare, int 
 	if (*bind != 0) {
 		/* enable opengl drawing with textures */
 //#include REAL_GL_MODE
-		glBindTexture(GL_TEXTURE_2D, *bind);
+		gpuBindTexture(GL_TEXTURE_2D, *bind);
 //#include FAKE_GL_MODE
 		BKE_image_release_ibuf(ima, ibuf, NULL);
 		return *bind;
@@ -815,7 +817,7 @@ void GPU_create_gl_tex(unsigned int *bind, unsigned int *pix, float *frect, int 
 
 	/* create image */
 	glGenTextures(1, (GLuint *)bind);
-	glBindTexture(GL_TEXTURE_2D, *bind);
+	gpuBindTexture(GL_TEXTURE_2D, *bind);
 
 	mipmap = mipmap && GPU_get_mipmap();
 
@@ -926,7 +928,7 @@ void GPU_create_gl_tex_compressed(unsigned int *bind, unsigned int *pix, int x, 
 
 
 	glGenTextures(1, (GLuint *)bind);
-	glBindTexture(GL_TEXTURE_2D, *bind);
+	gpuBindTexture(GL_TEXTURE_2D, *bind);
 
 	if (GPU_upload_dxt_texture(ibuf) == 0) {
 		glDeleteTextures(1, (GLuint *)bind);
@@ -1010,7 +1012,7 @@ void GPU_paint_set_mipmap(int mipmap)
 		for (ima=G.main->image.first; ima; ima=ima->id.next) {
 			if (ima->bindcode) {
 				if (ima->tpageflag & IMA_MIPMAP_COMPLETE) {
-					glBindTexture(GL_TEXTURE_2D, ima->bindcode);
+					gpuBindTexture(GL_TEXTURE_2D, ima->bindcode);
 					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gpu_get_mipmap_filter(0));
 					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gpu_get_mipmap_filter(1));
 				}
@@ -1025,7 +1027,7 @@ void GPU_paint_set_mipmap(int mipmap)
 	else {
 		for (ima=G.main->image.first; ima; ima=ima->id.next) {
 			if (ima->bindcode) {
-				glBindTexture(GL_TEXTURE_2D, ima->bindcode);
+				gpuBindTexture(GL_TEXTURE_2D, ima->bindcode);
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gpu_get_mipmap_filter(1));
 			}
@@ -1057,7 +1059,7 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 			int is_data = (ima->tpageflag & IMA_GLBIND_IS_DATA);
 			IMB_partial_rect_from_float(ibuf, buffer, x, y, w, h, is_data);
 
-			glBindTexture(GL_TEXTURE_2D, ima->bindcode);
+			gpuBindTexture(GL_TEXTURE_2D, ima->bindcode);
 			glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, w, h, GL_RGBA,
 					GL_FLOAT, buffer);
 
@@ -1076,7 +1078,7 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 			return;
 		}
 		
-		glBindTexture(GL_TEXTURE_2D, ima->bindcode);
+		gpuBindTexture(GL_TEXTURE_2D, ima->bindcode);
 
 		if (ibuf->x != 0)
 			glPixelStorei(GL_UNPACK_ROW_LENGTH,  ibuf->x);
@@ -1663,7 +1665,7 @@ int GPU_enable_material(int nr, void *attribs)
 
 	/* unbind glsl material */
 	if (GMS.gboundmat) {
-		if (GMS.is_alpha_pass) glDepthMask(0);
+		if (GMS.is_alpha_pass) gpuDepthMask(GL_FALSE);
 		GPU_material_unbind(GPU_material_from_blender(GMS.gscene, GMS.gboundmat));
 		GMS.gboundmat= NULL;
 	}
@@ -1702,7 +1704,7 @@ int GPU_enable_material(int nr, void *attribs)
 			if (mat->game.alpha_blend != GPU_BLEND_SOLID)
 				alphablend= mat->game.alpha_blend;
 
-			if (GMS.is_alpha_pass) glDepthMask(1);
+			if (GMS.is_alpha_pass) gpuDepthMask(GL_TRUE);
 
 			if (GMS.backface_culling) {
 				if (mat->game.flag)
@@ -1747,7 +1749,7 @@ void GPU_disable_material(void)
 		if (GMS.backface_culling)
 			glDisable(GL_CULL_FACE);
 
-		if (GMS.is_alpha_pass) glDepthMask(0);
+		if (GMS.is_alpha_pass) gpuDepthMask(GL_FALSE);
 		GPU_material_unbind(GPU_material_from_blender(GMS.gscene, GMS.gboundmat));
 		GMS.gboundmat= NULL;
 	}
@@ -2010,7 +2012,7 @@ void GPU_state_init(void)
 		}
 	}
 	
-	glPolygonStipple(patc);
+	gpuPolygonStipple(patc);
 
 	gpuMatrixMode(GL_TEXTURE);
 	gpuLoadIdentity();

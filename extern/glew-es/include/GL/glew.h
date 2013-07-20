@@ -1588,7 +1588,7 @@ typedef void (GLAPIENTRY * PFNGLVERTEX4SVPROC) (const GLshort *v);
 #define glLightModeliv GLEW_GET_FUN(__glewLightModeliv)
 #define glLighti GLEW_GET_FUN(__glewLighti)
 #define glLightiv GLEW_GET_FUN(__glewLightiv)
-#define glLineStipple GLEW_GET_FUN(__glewLineStipple)
+#define gpuLineStipple GLEW_GET_FUN(__glewLineStipple)
 #define glListBase GLEW_GET_FUN(__glewListBase)
 #define glLoadMatrixd GLEW_GET_FUN(__glewLoadMatrixd)
 #define glLoadName GLEW_GET_FUN(__glewLoadName)
@@ -5473,6 +5473,7 @@ typedef void (GLAPIENTRY * PFNGLSAMPLERPARAMETERIVPROC) (GLuint sampler, GLenum 
 
 #endif /* !GL_ARB_seamless_cube_map */
 
+#if 0 // XXX jwilkins: there is an inconsistency between the ES and Non-ES versions of this extension??
 /* --------------------- GL_ARB_separate_shader_objects -------------------- */
 
 #if !defined(GL_ARB_separate_shader_objects) 
@@ -5613,6 +5614,7 @@ typedef void (GLAPIENTRY * PFNGLVALIDATEPROGRAMPIPELINEPROC) (GLuint pipeline);
 #define GLEW_ARB_separate_shader_objects GLEW_GET_VAR(__GLEW_ARB_separate_shader_objects)
 
 #endif /* !GL_ARB_separate_shader_objects */
+#endif // XXX
 
 /* --------------------- GL_ARB_shader_atomic_counters --------------------- */
 
@@ -9735,6 +9737,7 @@ typedef void (GLAPIENTRY * PFNGLSECONDARYCOLORPOINTEREXTPROC) (GLint size, GLenu
 
 #endif /* !GL_EXT_secondary_color */
 
+#if 0 // XXX jwilkins: there is an inconsistency between the ES and Non-ES versions of this extension??
 /* --------------------- GL_EXT_separate_shader_objects -------------------- */
 
 #if !defined(GL_EXT_separate_shader_objects) 
@@ -9753,6 +9756,7 @@ typedef void (GLAPIENTRY * PFNGLUSESHADERPROGRAMEXTPROC) (GLenum type, GLuint pr
 #define GLEW_EXT_separate_shader_objects GLEW_GET_VAR(__GLEW_EXT_separate_shader_objects)
 
 #endif /* !GL_EXT_separate_shader_objects */
+#endif // XXX
 
 /* --------------------- GL_EXT_separate_specular_color -------------------- */
 
@@ -19943,7 +19947,9 @@ GLEW_VAR_EXPORT GLboolean __GLEW_ARB_robustness_share_group_isolation;
 GLEW_VAR_EXPORT GLboolean __GLEW_ARB_sample_shading;
 GLEW_VAR_EXPORT GLboolean __GLEW_ARB_sampler_objects;
 GLEW_VAR_EXPORT GLboolean __GLEW_ARB_seamless_cube_map;
+#if 0 // XXX jwilkins: there is an inconsistency between the ES and Non-ES versions of this extension??
 GLEW_VAR_EXPORT GLboolean __GLEW_ARB_separate_shader_objects;
+#endif
 GLEW_VAR_EXPORT GLboolean __GLEW_ARB_shader_atomic_counters;
 GLEW_VAR_EXPORT GLboolean __GLEW_ARB_shader_bit_encoding;
 GLEW_VAR_EXPORT GLboolean __GLEW_ARB_shader_image_load_store;
@@ -20084,7 +20090,9 @@ GLEW_VAR_EXPORT GLboolean __GLEW_EXT_provoking_vertex;
 GLEW_VAR_EXPORT GLboolean __GLEW_EXT_rescale_normal;
 GLEW_VAR_EXPORT GLboolean __GLEW_EXT_scene_marker;
 GLEW_VAR_EXPORT GLboolean __GLEW_EXT_secondary_color;
+#if 0 // XXX jwilkins: there is an inconsistency between the ES and Non-ES versions of this extension??
 GLEW_VAR_EXPORT GLboolean __GLEW_EXT_separate_shader_objects;
+#endif
 GLEW_VAR_EXPORT GLboolean __GLEW_EXT_separate_specular_color;
 GLEW_VAR_EXPORT GLboolean __GLEW_EXT_shader_image_load_store;
 GLEW_VAR_EXPORT GLboolean __GLEW_EXT_shadow_funcs;

@@ -186,7 +186,7 @@ static void blf_glyph_cache_texture(FontBLF *font, GlyphCacheBLF *gc)
 	buf = (unsigned char *)MEM_callocN((size_t)tot_mem, __func__);
 
 	glGenTextures(1, &gc->textures[gc->cur_tex]);
-	glBindTexture(GL_TEXTURE_2D, (font->tex_bind_state = gc->textures[gc->cur_tex]));
+	gpuBindTexture(GL_TEXTURE_2D, (font->tex_bind_state = gc->textures[gc->cur_tex]));
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -450,7 +450,7 @@ void blf_glyph_render(
 
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-		glBindTexture(GL_TEXTURE_2D, g->tex);
+		gpuBindTexture(GL_TEXTURE_2D, g->tex);
 		glTexSubImage2D(GL_TEXTURE_2D, 0, g->xoff, g->yoff, g->width, g->height, GL_ALPHA, GL_UNSIGNED_BYTE, g->bitmap);
 
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 4); /* restore default value */ //-V112
@@ -472,7 +472,7 @@ void blf_glyph_render(
 			gpuEnd();
 			need_begin = TRUE;
 		}
-		glBindTexture(GL_TEXTURE_2D, (font->tex_bind_state = g->tex));
+		gpuBindTexture(GL_TEXTURE_2D, (font->tex_bind_state = g->tex));
 	}
 
 	if (need_begin) {

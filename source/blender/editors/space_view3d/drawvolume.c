@@ -335,7 +335,7 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 	glGetBooleanv(GL_BLEND, (GLboolean *)&gl_blend);
 	glGetBooleanv(GL_DEPTH_TEST, (GLboolean *)&gl_depth);
 
-	glDepthMask(GL_FALSE);
+	gpuDepthMask(GL_FALSE);
 	glDisable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
 
@@ -526,7 +526,7 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 
 	if (gl_depth) {
 		glEnable(GL_DEPTH_TEST);
-		glDepthMask(GL_TRUE);
+		gpuDepthMask(GL_TRUE);
 	}
 }
 
@@ -548,7 +548,7 @@ void draw_smoke_velocity(SmokeDomainSettings *domain, Object *ob)
 	float step_size = ((float)max_iii(base_res[0], base_res[1], base_res[2])) / 16.f;
 	float vf = domain->scale / 16.f * 2.f; /* velocity factor */
 
-	glLineWidth(1.0f);
+	gpuLineWidth(1.0f);
 
 	/* set first position so that it doesn't jump when domain moves */
 	x0 = res_min[0] + fmod(-(float)domain->shift[0] + res_min[0], step_size);

@@ -2468,8 +2468,8 @@ static void ccgDM_drawMappedFaces(
 
 			if (draw_option != DM_DRAW_OPTION_SKIP) {
 				if (draw_option == DM_DRAW_OPTION_STIPPLE) {
-					glEnable(GL_POLYGON_STIPPLE);
-					glPolygonStipple(stipple_quarttone);
+					gpuEnablePolygonStipple();
+					gpuPolygonStipple(stipple_quarttone);
 				}
 
 				/* no need to set shading mode to flat because
@@ -2542,7 +2542,7 @@ static void ccgDM_drawMappedFaces(
 					}
 				}
 				if (draw_option == DM_DRAW_OPTION_STIPPLE)
-					glDisable(GL_POLYGON_STIPPLE);
+					gpuDisablePolygonStipple();
 			}
 		}
 	}

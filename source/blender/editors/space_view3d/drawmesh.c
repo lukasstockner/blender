@@ -885,7 +885,7 @@ static void tex_mat_set_texture_cb(void *userData, int mat_nr, void *attribs)
 			gpuEnableColorMaterial();
 			glEnable(GL_TEXTURE_2D);
 
-			glBindTexture(GL_TEXTURE_2D, ima->bindcode);
+			gpuBindTexture(GL_TEXTURE_2D, ima->bindcode);
 			gpuCurrentColor3x(CPACK_WHITE);
 
 			gpuMatrixMode(GL_TEXTURE);
@@ -1002,7 +1002,7 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 	gpuDisableColorMaterial();
 	glDisable(GL_TEXTURE_2D);
 	gpuDisableLighting();
-	glBindTexture(GL_TEXTURE_2D, 0);
+	gpuBindTexture(GL_TEXTURE_2D, 0);
 	glFrontFace(GL_CCW);
 
 	gpuMatrixMode(GL_TEXTURE);
@@ -1105,7 +1105,7 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
 
 		if (use_depth) {
 			bglPolygonOffset(rv3d->dist, 1.0);
-			glDepthMask(0);  /* disable write in zbuffer, selected edge wires show better */
+			gpuDepthMask(GL_FALSE);  /* disable write in zbuffer, selected edge wires show better */
 		}
 		else {
 			glDisable(GL_DEPTH_TEST);
@@ -1113,20 +1113,20 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
 
 		glEnable(GL_BLEND);
 		gpuCurrentColor4x(CPACK_WHITE, 0.376f);
-		glEnable(GL_LINE_STIPPLE);
-		glLineStipple(1, 0xAAAA);
+		gpuEnableLineStipple();
+		gpuLineStipple(1, 0xAAAA);
 
 		dm->drawEdges(dm, 1, 1);
 
 		if (use_depth) {
 			bglPolygonOffset(rv3d->dist, 0.0);
-			glDepthMask(1);
+			gpuDepthMask(GL_TRUE);
 		}
 		else {
 			glEnable(GL_DEPTH_TEST);
 		}
 
-		glDisable(GL_LINE_STIPPLE);
+		gpuDisableLineStipple();
 		glDisable(GL_BLEND);
 	}
 }

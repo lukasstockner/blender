@@ -101,8 +101,8 @@ static void draw_spline_parents(MaskLayer *UNUSED(masklay), MaskSpline *spline)
 		return;
 
 	gpuCurrentColor3x(CPACK_BLACK);
-	glEnable(GL_LINE_STIPPLE);
-	glLineStipple(1, 0xAAAA);
+	gpuEnableLineStipple();
+	gpuLineStipple(1, 0xAAAA);
 
 	gpuBegin(GL_LINES);
 
@@ -121,7 +121,7 @@ static void draw_spline_parents(MaskLayer *UNUSED(masklay), MaskSpline *spline)
 
 	gpuEnd();
 
-	glDisable(GL_LINE_STIPPLE);
+	gpuDisableLineStipple();
 }
 #endif
 
@@ -233,13 +233,13 @@ static void draw_spline_points(const bContext *C, MaskLayer *masklay, MaskSpline
 
 			/* this could be split into its own loop */
 			if (draw_type == MASK_DT_OUTLINE) {
-				glLineWidth(3);
+				gpuLineWidth(3);
 				gpuCurrentGray3f(0.376f);
 				gpuBegin(GL_LINES);
 				gpuVertex2fv(vert);
 				gpuVertex2fv(handle);
 				gpuEnd();
-				glLineWidth(1);
+				gpuLineWidth(1);
 			}
 
 			gpuCurrentColor3ubv(rgb_spline);
@@ -335,13 +335,13 @@ static void mask_draw_curve_type(const bContext *C, MaskSpline *spline, float (*
 	switch (draw_type) {
 
 		case MASK_DT_OUTLINE:
-			glLineWidth(3);
+			gpuLineWidth(3);
 
 			mask_color_active_tint(rgb_tmp, rgb_black, is_active);
 			gpuCurrentColor4ubv(rgb_tmp);
 			gpuDrawClientArrays(draw_method, &arrays, 0, tot_point);
 
-			glLineWidth(1);
+			gpuLineWidth(1);
 			mask_color_active_tint(rgb_tmp, rgb_spline, is_active);
 			gpuCurrentColor4ubv(rgb_tmp);
 			gpuRepeat();
@@ -349,7 +349,7 @@ static void mask_draw_curve_type(const bContext *C, MaskSpline *spline, float (*
 
 		case MASK_DT_DASH:
 		default:
-			glEnable(GL_LINE_STIPPLE);
+			gpuEnableLineStipple();
 
 #ifdef USE_XOR
 			glEnable(GL_COLOR_LOGIC_OP);
@@ -357,7 +357,7 @@ static void mask_draw_curve_type(const bContext *C, MaskSpline *spline, float (*
 #endif
 			mask_color_active_tint(rgb_tmp, rgb_spline, is_active);
 			gpuCurrentColor4ubv(rgb_tmp);
-			glLineStipple(3, 0xaaaa);
+			gpuLineStipple(3, 0xaaaa);
 			gpuDrawClientArrays(draw_method, &arrays, 0, tot_point);
 
 #ifdef USE_XOR
@@ -365,10 +365,10 @@ static void mask_draw_curve_type(const bContext *C, MaskSpline *spline, float (*
 #endif
 			mask_color_active_tint(rgb_tmp, rgb_black, is_active);
 			gpuCurrentColor4ubv(rgb_tmp);
-			glLineStipple(3, 0x5555);
+			gpuLineStipple(3, 0x5555);
 			gpuRepeat();
 
-			glDisable(GL_LINE_STIPPLE);
+			gpuDisableLineStipple();
 			break;
 
 

@@ -224,7 +224,7 @@ static int rna_Image_gl_load(Image *image, ReportList *reports, int filter, int 
 
 	/* could be made into a function? */
 	glGenTextures(1, (GLuint *)bind);
-	glBindTexture(GL_TEXTURE_2D, *bind);
+	gpuBindTexture(GL_TEXTURE_2D, *bind);
 
 	if (filter != GL_NEAREST && filter != GL_LINEAR)
 		error = GPU_mipmap_2D(GL_TRUE, GL_RGBA, ibuf->x, ibuf->y, GL_UNSIGNED_BYTE, ibuf->rect);

@@ -203,6 +203,8 @@ void WM_init(bContext *C, int argc, const char **argv)
 
 		/* begin - init opengl compatibility layer */
 
+		GPU_init_raster();
+
 		immediate = gpuNewImmediate();
 		gpuImmediateMakeCurrent(immediate);
 		gpuImmediateMaxVertexCount(500000); // XXX: temporary!
@@ -522,6 +524,7 @@ void WM_exit_ext(bContext *C, const short do_python)
 		gpuDeleteImmediate(immediate);
 
 		GPU_ms_exit();
+
 	BKE_reset_undo(); 
 	
 	ED_file_exit(); /* for fsmenu */

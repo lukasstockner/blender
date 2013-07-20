@@ -38,7 +38,9 @@ typedef struct GPU_object_func
 	void (*gpuColorSet)  (const float *value);
 
 
+#if !defined(GLEW_ES_ONLY)
 	void (*gpuClientActiveTexture)(int texture);
+#endif
 	void (*gpuCleanupAfterDraw)(void);
 
 

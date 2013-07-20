@@ -65,7 +65,7 @@ Also, only put in stuff as it is needed.
 
 /*
 Need stubs for these version checks if compiling with only ES support.
-Rely on compiler to eliminate unreachable code when version checks become constants
+Rely on compiler to eliminate unreachable code when version checks become constants.
 */
 
 #ifndef GLEW_VERSION_1_1
@@ -209,8 +209,20 @@ Some of these may be here simply to patch inconsistencies in the header files.
 #define GL_RGBA16F GL_RGBA16F_EXT
 #endif
 
+#ifndef GL_RG32F
+#define GL_RG32F GL_RG32F_EXT
+#endif
+
 #ifndef GL_RGB8
 #define GL_RGB8 GL_RGB8_OES
+#endif
+
+#ifndef GL_RG
+#define GL_RG GL_RG_EXT
+#endif
+
+#ifndef GL_RED
+#define GL_RED GL_RED_EXT
 #endif
 
 #ifndef GL_FRAMEBUFFER_INCOMPLETE_FORMATS

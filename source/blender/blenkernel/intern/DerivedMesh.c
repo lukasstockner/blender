@@ -3023,9 +3023,9 @@ static void navmesh_drawColored(DerivedMesh *dm)
 #if 0
 	//UI_ThemeColor(TH_WIRE);
 	gpuDisableLighting();
-	glLineWidth(2.0);
+	gpuLineWidth(2.0);
 	dm->drawEdges(dm, 0, 1);
-	glLineWidth(1.0);
+	gpuLineWidth(1.0);
 	gpuEnableLighting();
 #endif
 

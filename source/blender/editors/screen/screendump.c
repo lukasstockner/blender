@@ -93,10 +93,14 @@ static unsigned int *screenshot(bContext *C, int *dumpsx, int *dumpsy)
 	if (*dumpsx && *dumpsy) {
 		
 		dumprect = MEM_mallocN(sizeof(int) * (*dumpsx) * (*dumpsy), "dumprect");
-		glReadBuffer(GL_FRONT);
+#if !defined(GLEW_ES_ONLY) // XXX jwilkins: ES can only read from COLOR_ATTACHMENT0, which might work out OK if swap method is COPY
+	glReadBuffer(GL_FRONT);
+#endif
 		glReadPixels(x, y, *dumpsx, *dumpsy, GL_RGBA, GL_UNSIGNED_BYTE, dumprect);
 		glFinish();
+#if !defined(GLEW_ES_ONLY)
 		glReadBuffer(GL_BACK);
+#endif
 	}
 
 	return dumprect;

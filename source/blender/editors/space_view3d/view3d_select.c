@@ -1659,7 +1659,9 @@ static int do_paintvert_box_select(ViewContext *vc, rcti *rect, bool select, boo
 		MEM_freeN(selar);
 
 #ifdef __APPLE__
+#if !defined(GLEW_ES_ONLY) // XXX jwilkins: ES can only read from COLOR_ATTACHMENT0
 		glReadBuffer(GL_BACK);
+#endif
 #endif
 	}
 	else {

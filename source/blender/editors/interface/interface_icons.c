@@ -274,7 +274,7 @@ static void vicon_x_draw(int x, int y, int w, int h, float alpha)
 
 	glEnable(GL_LINE_SMOOTH);
 
-	glLineWidth(2.5);
+	gpuLineWidth(2.5);
 
 	gpuCurrentColor4x(CPACK_BLACK, alpha);
 
@@ -285,7 +285,7 @@ static void vicon_x_draw(int x, int y, int w, int h, float alpha)
 	gpuVertex2i(x, y + h);
 	gpuEnd();
 
-	glLineWidth(1.0);
+	gpuLineWidth(1.0);
 	
 	glDisable(GL_LINE_SMOOTH);
 }
@@ -460,7 +460,7 @@ static void vicon_move_up_draw(int x, int y, int w, int h, float UNUSED(alpha))
 	int d = -2;
 
 	glEnable(GL_LINE_SMOOTH);
-	glLineWidth(1);
+	gpuLineWidth(1);
 	gpuCurrentColor3x(CPACK_BLACK);
 
 	gpuBegin(GL_LINE_STRIP);
@@ -469,7 +469,7 @@ static void vicon_move_up_draw(int x, int y, int w, int h, float UNUSED(alpha))
 	gpuVertex2i(x + w / 2 + d * 2, y + h / 2 + d);
 	gpuEnd();
 
-	glLineWidth(1.0);
+	gpuLineWidth(1.0);
 	glDisable(GL_LINE_SMOOTH);
 }
 
@@ -478,7 +478,7 @@ static void vicon_move_down_draw(int x, int y, int w, int h, float UNUSED(alpha)
 	int d = 2;
 
 	glEnable(GL_LINE_SMOOTH);
-	glLineWidth(1);
+	gpuLineWidth(1);
 	gpuCurrentColor3x(CPACK_BLACK);
 
 	gpuBegin(GL_LINE_STRIP);
@@ -487,7 +487,7 @@ static void vicon_move_down_draw(int x, int y, int w, int h, float UNUSED(alpha)
 	gpuVertex2i(x + w / 2 + d * 2, y + h / 2 + d);
 	gpuEnd();
 
-	glLineWidth(1.0);
+	gpuLineWidth(1.0);
 	glDisable(GL_LINE_SMOOTH);
 }
 
@@ -662,7 +662,7 @@ static void init_internal_icons(void)
 				icongltex.invw = 1.0f / b32buf->x;
 				icongltex.invh = 1.0f / b32buf->y;
 
-				glBindTexture(GL_TEXTURE_2D, icongltex.id);
+				gpuBindTexture(GL_TEXTURE_2D, icongltex.id);
 				
 				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, b32buf->x, b32buf->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, b32buf->rect);
 				glTexImage2D(GL_TEXTURE_2D, 1, GL_RGBA, b16buf->x, b16buf->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, b16buf->rect);
@@ -678,7 +678,7 @@ static void init_internal_icons(void)
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 				
-				glBindTexture(GL_TEXTURE_2D, 0);
+				gpuBindTexture(GL_TEXTURE_2D, 0);
 				
 				if (glGetError() == GL_OUT_OF_MEMORY) {
 					glDeleteTextures(1, &icongltex.id);
@@ -1016,12 +1016,12 @@ static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect),
 
 	/* modulate color */
 	if (alpha != 1.0f)
-		glPixelTransferf(GL_ALPHA_SCALE, alpha);
+		gpuPixelUniform1f(GL_ALPHA_SCALE, alpha);
 
 	if (rgb) {
-		glPixelTransferf(GL_RED_SCALE, rgb[0]);
-		glPixelTransferf(GL_GREEN_SCALE, rgb[1]);
-		glPixelTransferf(GL_BLUE_SCALE, rgb[2]);
+		gpuPixelUniform1f(GL_RED_SCALE,   rgb[0]);
+		gpuPixelUniform1f(GL_GREEN_SCALE, rgb[1]);
+		gpuPixelUniform1f(GL_BLUE_SCALE,  rgb[2]);
 	}
 
 	/* rect contains image in 'rendersize', we only scale if needed */
@@ -1038,22 +1038,26 @@ static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect),
 		glaDrawPixelsSafe(x, y, w, h, w, GL_RGBA, GL_UNSIGNED_BYTE, rect);
 	}
 	else {
-		glRasterPos2f(x, y);
-		glDrawPixels(w, h, GL_RGBA, GL_UNSIGNED_BYTE, rect);
+		GPUpixels pixels = { w, h, GL_RGBA, GL_UNSIGNED_BYTE, rect };
+
+		gpuPixelsBegin();
+		gpuPixelPos2f(x, y);
+		gpuPixels(&pixels);
+		gpuPixelsEnd();
+	}
+
+	/* modulate color */
+	if (alpha != 1.0f)
+		gpuPixelUniform1f(GL_ALPHA_SCALE, 1.0f); /* restore default value */
+
+	if (rgb) {
+		gpuPixelUniform1f(GL_RED_SCALE,   1.0f); /* restore default value */
+		gpuPixelUniform1f(GL_GREEN_SCALE, 1.0f); /* restore default value */
+		gpuPixelUniform1f(GL_BLUE_SCALE,  1.0f); /* restore default value */
 	}
 
 	if (ima)
 		IMB_freeImBuf(ima);
-
-	/* restore color */
-	if (alpha != 0.0f)
-		glPixelTransferf(GL_ALPHA_SCALE, 1.0f);
-	
-	if (rgb) {
-		glPixelTransferf(GL_RED_SCALE, 1.0f);
-		glPixelTransferf(GL_GREEN_SCALE, 1.0f);
-		glPixelTransferf(GL_BLUE_SCALE, 1.0f);
-	}
 }
 
 //#include REAL_GL_MODE
@@ -1074,7 +1078,7 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 	y1 = iy * icongltex.invh;
 	y2 = (iy + ih) * icongltex.invh;
 	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, icongltex.id);
+	gpuBindTexture(GL_TEXTURE_2D, icongltex.id);
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	/* sharper downscaling, has no effect when scale matches with a mip level */
@@ -1104,7 +1108,7 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 	glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, 0.0f);
 #endif
 
-	glBindTexture(GL_TEXTURE_2D, 0);
+	gpuBindTexture(GL_TEXTURE_2D, 0);
 	glDisable(GL_TEXTURE_2D);
 }
 //#include FAKE_GL_MODE

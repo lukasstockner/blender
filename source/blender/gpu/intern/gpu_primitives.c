@@ -616,19 +616,21 @@ static GLubyte Squaredot[16] = {
 void gpuBeginSprites(void)
 {
 #if defined(WITH_GL_PROFILE_COMPAT)
-	GLfloat range[4];
-//	#include REAL_GL_MODE
-	glGetFloatv(GL_ALIASED_POINT_SIZE_RANGE, range);
-//	#include FAKE_GL_MODE
+	if (GPU_PROFILE_COMPAT) {
+		GLfloat range[4];
+	//	#include REAL_GL_MODE
+		glGetFloatv(GL_ALIASED_POINT_SIZE_RANGE, range);
+	//	#include FAKE_GL_MODE
 
-	if (range[1] < 2.0f) {
-		GLfloat size[4];
-		glGetFloatv(GL_POINT_SIZE, size);
+		if (range[1] < 2.0f) {
+			GLfloat size[4];
+			glGetFloatv(GL_POINT_SIZE, size);
 
-		pointhack = floor(size[0] + 0.5f);
+			pointhack = floor(size[0] + 0.5f); // XXX jwilkins: roundf??
 
-		if (pointhack > 4) { //-V112
-			pointhack = 4; //-V112
+			if (pointhack > 4) { //-V112
+				pointhack = 4; //-V112
+			}
 		}
 	}
 	else

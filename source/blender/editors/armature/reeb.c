@@ -3355,7 +3355,7 @@ void REEB_draw()
 		char text[128];
 		char *s = text;
 
-		glLineWidth(BIF_GetThemeValuef(TH_VERTEX_SIZE) + 2);
+		gpuLineWidth(BIF_GetThemeValuef(TH_VERTEX_SIZE) + 2);
 		gpuCurrentColor3x(CPACK_BLACK);
 
 		gpuImmediateFormat_V3(); // DOODLE: REEB (commented out)
@@ -3375,7 +3375,7 @@ void REEB_draw()
 		gpuVertex3fv(arc->tail->p);
 		gpuEnd();
 
-		glLineWidth(BIF_GetThemeValuef(TH_VERTEX_SIZE));
+		gpuLineWidth(BIF_GetThemeValuef(TH_VERTEX_SIZE));
 
 		if (arc->symmetry_level == 1)
 		{
@@ -3462,7 +3462,7 @@ void REEB_draw()
 
 	glEnable(GL_DEPTH_TEST);
 
-	glLineWidth(1.0);
+	gpuLineWidth(1.0);
 	glPointSize(1.0);
 }
 

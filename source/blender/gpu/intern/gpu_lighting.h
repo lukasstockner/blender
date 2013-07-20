@@ -76,6 +76,18 @@ void gpuInitializeLighting(void);
 void gpuShutdownLighting(void);
 
 
+#if defined(GLEW_ES_ONLY)
+
+// XXX jwilkins: just here because it is passed to the light replacement library,
+// however it this value doesn't change then it can be assumed by the GLSL implementation and
+// won't have to be set, and if so then it can be removed
+#ifndef GL_LIGHT_MODEL_LOCAL_VIEWER
+#define GL_LIGHT_MODEL_LOCAL_VIEWER 0x0B51
+#endif
+
+#endif
+
+
 
 #ifdef __cplusplus
 }

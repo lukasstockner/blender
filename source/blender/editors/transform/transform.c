@@ -1548,10 +1548,10 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 				gpuRotateAxis(RAD2DEGF(-(atan2f(cent[0] - t->mval[0], cent[1] - t->mval[1]))), 'Z');
 
 				setlinestyle(0);
-				glLineWidth(3.0);
+				gpuLineWidth(3.0);
 				drawArrow(UP, 5, 10, 5);
 				drawArrow(DOWN, 5, 10, 5);
-				glLineWidth(1.0);
+				gpuLineWidth(1.0);
 				break;
 
 			case HLP_HARROW:
@@ -1559,10 +1559,10 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 
 				gpuTranslate(mval[0], mval[1], 0);
 
-				glLineWidth(3.0);
+				gpuLineWidth(3.0);
 				drawArrow(RIGHT, 5, 10, 5);
 				drawArrow(LEFT, 5, 10, 5);
-				glLineWidth(1.0);
+				gpuLineWidth(1.0);
 				break;
 
 			case HLP_VARROW:
@@ -1570,10 +1570,10 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 
 				gpuTranslate(mval[0], mval[1], 0);
 
-				glLineWidth(3.0);
+				gpuLineWidth(3.0);
 				drawArrow(UP, 5, 10, 5);
 				drawArrow(DOWN, 5, 10, 5);
-				glLineWidth(1.0);
+				gpuLineWidth(1.0);
 				break;
 
 			case HLP_ANGLE:
@@ -1594,7 +1594,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 				gpuTranslate(cent[0] - t->mval[0] + mval[0], cent[1] - t->mval[1] + mval[1], 0);
 
 				setlinestyle(0);
-				glLineWidth(3.0);
+				gpuLineWidth(3.0);
 				gpuDrawArc(0, 0, angle - spacing_angle, delta_angle - spacing_angle, dist, dist, 10);
 				gpuDrawArc(0, 0, angle + spacing_angle, spacing_angle - delta_angle, dist, dist, 10);
 
@@ -1612,7 +1612,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 
 				drawArrowHead(UP, 5);
 
-				glLineWidth(1.0);
+				gpuLineWidth(1.0);
 				break;
 			}
 
@@ -1623,7 +1623,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 
 				gpuTranslate(mval[0], mval[1], 0);
 
-				glLineWidth(3.0);
+				gpuLineWidth(3.0);
 
 				UI_make_axis_color(col, col2, 'X');
 				gpuCurrentColor3ubv((GLubyte *)col2);
@@ -1636,7 +1636,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 
 				drawArrow(UP, 5, 10, 5);
 				drawArrow(DOWN, 5, 10, 5);
-				glLineWidth(1.0);
+				gpuLineWidth(1.0);
 				break;
 			}
 		}
@@ -1953,7 +1953,7 @@ static void drawEdgeSlide(const struct bContext *C, TransInfo *t)
 
 			gpuMultMatrix(t->obedit->obmat);
 
-			glLineWidth(line_size);
+			gpuLineWidth(line_size);
 			UI_ThemeColorShadeAlpha(TH_EDGE_SELECT, 80, alpha_shade);
 			gpuBegin(GL_LINES);
 			if (curr_sv->v_a) {
@@ -6587,7 +6587,7 @@ static void drawVertSlide(const struct bContext *C, TransInfo *t)
 
 			gpuImmediateFormat_V3();
 
-			glLineWidth(line_size);
+			gpuLineWidth(line_size);
 			UI_ThemeColorShadeAlpha(TH_EDGE_SELECT, 80, alpha_shade);
 			gpuBegin(GL_LINES);
 			if (is_clamp) {

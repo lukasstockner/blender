@@ -94,6 +94,27 @@ GLboolean gpuUnProject(const GLfloat win[3], const GLfloat model[4][4], const GL
 
 
 
+#if defined(GLEW_ES_ONLY)
+
+/* ES 2.0 doesn't define these symbolic constants, but the matrix stack replacement library emulates them */
+/* (GL core has deprecated matrix stacks, but it should still be in the header) */
+
+#ifndef GL_MODELVIEW_MATRIX
+#define GL_MODELVIEW_MATRIX 0x0BA6
+#endif
+
+#ifndef GL_PROJECTION_MATRIX
+#define GL_PROJECTION_MATRIX 0x0BA7
+#endif
+
+#ifndef GL_TEXTURE_MATRIX
+#define GL_TEXTURE_MATRIX 0x0BA8
+#endif
+
+#endif
+
+
+
 #ifdef __cplusplus
 }
 #endif

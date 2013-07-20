@@ -2919,45 +2919,43 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 				else                                 ofs = 3;
 #endif
 				
-				glPixelZoom(snode->zoom, snode->zoom);
+				gpuPixelZoom(snode->zoom, snode->zoom);
 
 				/* swap bytes, so alpha is most significant one, then just draw it as luminance int */
 				
 				glaDrawPixelsSafe(x, y, ibuf->x, ibuf->y, ibuf->x, GL_LUMINANCE, GL_UNSIGNED_INT,
 				                  display_buffer + ofs);
 				
-				glPixelZoom(1.0f, 1.0f);
+				gpuPixelZoom(1.0f, 1.0f); /* restore default value */
 			}
 			else if (snode->flag & SNODE_SHOW_ALPHA) {
 				display_buffer = IMB_display_buffer_acquire_ctx(C, ibuf, &cache_handle);
 				
-				glPixelZoom(snode->zoom, snode->zoom);
+				gpuPixelZoom(snode->zoom, snode->zoom);
 				/* swap bytes, so alpha is most significant one, then just draw it as luminance int */
 #ifdef __BIG_ENDIAN__
-				glPixelStorei(GL_UNPACK_SWAP_BYTES, 1);
+				gpuPixelFormat(GL_UNPACK_SWAP_BYTES, GL_TRUE);
 #endif
 				glaDrawPixelsSafe(x, y, ibuf->x, ibuf->y, ibuf->x, GL_LUMINANCE, GL_UNSIGNED_INT, display_buffer);
-				
 #ifdef __BIG_ENDIAN__
-				glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE); /* restore default value */
+				gpuPixelFormat(GL_UNPACK_SWAP_BYTES, GL_FALSE); /* restore default value */
 #endif
-				glPixelZoom(1.0f, 1.0f);
 			}
 			else if (snode->flag & SNODE_USE_ALPHA) {
 				glEnable(GL_BLEND);
-				glPixelZoom(snode->zoom, snode->zoom);
+				gpuPixelZoom(snode->zoom, snode->zoom);
 				
 				glaDrawImBuf_glsl_ctx(C, ibuf, x, y, GL_NEAREST);
 				
-				glPixelZoom(1.0f, 1.0f);
+				gpuPixelZoom(1.0f, 1.0f); /* restore default value */
 				glDisable(GL_BLEND);
 			}
 			else {
-				glPixelZoom(snode->zoom, snode->zoom);
+				gpuPixelZoom(snode->zoom, snode->zoom);
 				
 				glaDrawImBuf_glsl_ctx(C, ibuf, x, y, GL_NEAREST);
 				
-				glPixelZoom(1.0f, 1.0f);
+				gpuPixelZoom(1.0f, 1.0f); /* restore default value */
 			}
 			
 			if (cache_handle)
@@ -2981,7 +2979,7 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 			        viewer_border->xmin < viewer_border->xmax &&
 			        viewer_border->ymin < viewer_border->ymax)
 			{
-				glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+				gpuPolygonMode(GL_LINE);
 				setlinestyle(3);
 				gpuColor3x(0x4040FF);
 				
@@ -2992,7 +2990,7 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 				        y + snode->zoom * viewer_border->ymax * ibuf->y);
 				
 				setlinestyle(0);
-				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+				gpuPolygonMode(GL_FILL);
 			}
 		}
 		
@@ -3100,7 +3098,7 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 		/* store current linewidth */
 		float linew;
 		float arrow[2], arrow1[2], arrow2[2];
-		glGetFloatv(GL_LINE_WIDTH, &linew);
+		linew = gpuGetLineWidth();
 		
 		/* we can reuse the dist variable here to increment the GL curve eval amount*/
 		dist = 1.0f / (float)LINK_RESOL;

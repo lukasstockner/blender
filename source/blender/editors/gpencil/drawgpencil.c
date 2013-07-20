@@ -496,8 +496,8 @@ static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int 
 			int mask_orig = 0;
 			
 			if (no_xray) {
-				glGetIntegerv(GL_DEPTH_WRITEMASK, &mask_orig);
-				glDepthMask(0);
+				mask_orig = gpuGetDepthWritemask();
+				gpuDepthMask(GL_FALSE);
 				glEnable(GL_DEPTH_TEST);
 				
 				/* first arg is normally rv3d->dist, but this isn't
@@ -517,7 +517,7 @@ static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int 
 			}
 			
 			if (no_xray) {
-				glDepthMask(mask_orig);
+				gpuDepthMask(mask_orig);
 				glDisable(GL_DEPTH_TEST);
 				
 				bglPolygonOffset(0.0, 0.0);

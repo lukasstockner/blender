@@ -230,9 +230,9 @@ void ANIM_draw_cfra(const bContext *C, View2D *v2d, short flag)
 
 	UI_ThemeColor(TH_CFRAME);
 	if (flag & DRAWCFRA_WIDE)
-		glLineWidth(3.0);
+		gpuLineWidth(3.0);
 	else
-		glLineWidth(2.0);
+		gpuLineWidth(2.0);
 
 	gpuImmediateFormat_V2();
 
@@ -246,7 +246,7 @@ void ANIM_draw_cfra(const bContext *C, View2D *v2d, short flag)
 
 	gpuImmediateUnformat();
 
-	glLineWidth(1.0);
+	gpuLineWidth(1.0);
 
 	/* Draw current frame number in a little box */
 	if (flag & DRAWCFRA_SHOW_NUMBOX) {

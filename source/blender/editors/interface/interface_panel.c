@@ -392,7 +392,7 @@ static void ui_draw_anti_x(float x1, float y1, float x2, float y2)
 	glEnable(GL_LINE_SMOOTH);
 	glEnable(GL_BLEND);
 
-	glLineWidth(2.0);
+	gpuLineWidth(2.0);
 
 	gpuImmediateFormat_V2(); // DOODLE: an X, two thick lines, mono
 	gpuBegin(GL_LINES);
@@ -401,7 +401,7 @@ static void ui_draw_anti_x(float x1, float y1, float x2, float y2)
 	gpuEnd();
 	gpuImmediateUnformat();
 
-	glLineWidth(1.0);
+	gpuLineWidth(1.0);
 
 	glDisable(GL_LINE_SMOOTH);
 	glDisable(GL_BLEND);

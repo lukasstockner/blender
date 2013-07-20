@@ -15,49 +15,70 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2012 Blender Foundation.
+ * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): Alexandr Kuznetsov
+ * Contributor(s): Jason Wilkins.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#if !defined(GPU_VIEW_H) || defined(GPU_VIEW_INTERN)
-#define GPU_VIEW_H
+/** \file blender/gpu/intern/gpu_raster.h
+ *  \ingroup gpu
+ */
 
-#ifndef GPU_VIEW_INTERN
-#define GPU_VIEW_FUNC extern
-#else
-#define GPU_VIEW_FUNC
-#endif
+#ifndef __GPU_RASTER_H__
+#define __GPU_RASTER_H__
+
+#include "gpu_glew.h"
+
 
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void gpuInitializeViewFuncs(void);
 
-GPU_VIEW_FUNC void (* gpuColorAndClear)(float r, float g, float b, float a);
-GPU_VIEW_FUNC void (* gpuClearColor)(float r, float g, float b, float a);
 
-GPU_VIEW_FUNC void (* gpuColorAndClearvf)(float c[3], float a);
-GPU_VIEW_FUNC void (* gpuClearColorfv)(float c[3], float a);
+void GPU_init_raster(void);
 
-GPU_VIEW_FUNC void (* gpuClear)(int mask);
+void gpuEnablePolygonStipple(void);
+void gpuPolygonStipple(const GLubyte* mask);
+void gpuDisablePolygonStipple(void);
 
-GPU_VIEW_FUNC void (* gpuViewport)(int x, int y, unsigned int width, unsigned int height);
-GPU_VIEW_FUNC void (* gpuScissor)(int x, int y, unsigned int width, unsigned int height);
-GPU_VIEW_FUNC void (* gpuViewportScissor)(int x, int y, unsigned int width, unsigned int height);
+void gpuEnableLineStipple(void);
+void gpuLineStipple(GLint factor, GLushort pattern);
+void gpuDisableLineStipple(void);
 
-GPU_VIEW_FUNC void (*gpuGetSizeBox)(int type, int *box);
+void gpuLineWidth(GLfloat width);
+GLfloat gpuGetLineWidth(void);
+
+void gpuPolygonMode(GLenum mode);
+GLenum gpuGetPolygonMode(void);
+
+
+
+#if defined(GLEW_ES_ONLY)
+
+/* ES 2.0 doesn't define LINE and FILL, but the immediate mode replacement library emulates PolygonMode */
+/* (GL core has deprecated PolygonMode, but it should still be in the header) */
+
+#ifndef GL_LINE
+#define GL_LINE 0x1B01
+#endif
+
+#ifndef GL_FILL
+#define GL_FILL 0x1B02
+#endif
+
+#endif
+
+
 
 #ifdef __cplusplus
 }
 #endif
-
 
 #endif

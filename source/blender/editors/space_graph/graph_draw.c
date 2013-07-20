@@ -773,7 +773,7 @@ static void graph_draw_driver_debug(bAnimContext *ac, ID *id, FCurve *fcu)
 		gpuCurrentColor3fv(fcu->color);
 		
 		setlinestyle(20);
-		glLineWidth(2.0f);
+		gpuLineWidth(2.0f);
 		
 		/* draw 1-1 line, stretching just past the screen limits 
 		 * NOTE: we need to scale the y-values to be valid for the units
@@ -788,7 +788,7 @@ static void graph_draw_driver_debug(bAnimContext *ac, ID *id, FCurve *fcu)
 		
 		/* cleanup line drawing */
 		setlinestyle(0);
-		glLineWidth(1.0f);
+		gpuLineWidth(1.0f);
 	}
 	
 	/* draw driver only if actually functional */
@@ -864,7 +864,7 @@ void graph_draw_ghost_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar)
 	
 	/* draw with thick dotted lines */
 	setlinestyle(10);
-	glLineWidth(3.0f);
+	gpuLineWidth(3.0f);
 	
 	/* anti-aliased lines for less jagged appearance */
 	if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) glEnable(GL_LINE_SMOOTH);
@@ -884,7 +884,7 @@ void graph_draw_ghost_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar)
 	
 	/* restore settings */
 	setlinestyle(0);
-	glLineWidth(1.0f);
+	gpuLineWidth(1.0f);
 	
 	if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) glDisable(GL_LINE_SMOOTH);
 	glDisable(GL_BLEND);
@@ -945,7 +945,7 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 			
 			/* draw active F-Curve thicker than the rest to make it stand out */
 			if (fcu->flag & FCURVE_ACTIVE) {
-				glLineWidth(2.0);
+				gpuLineWidth(2.0);
 			}
 			
 			/* anti-aliased lines for less jagged appearance */
@@ -969,7 +969,7 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 			
 			/* restore settings */
 			setlinestyle(0);
-			glLineWidth(1.0);
+			gpuLineWidth(1.0);
 			
 			if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) glDisable(GL_LINE_SMOOTH);
 			glDisable(GL_BLEND);

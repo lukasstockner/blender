@@ -34,6 +34,8 @@
 
 #include "BLI_utildefines.h"
 
+#include <stdlib.h> /* for abort */
+
 
 
 #ifndef GPU_SAFETY

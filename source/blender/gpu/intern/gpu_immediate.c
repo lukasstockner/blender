@@ -598,6 +598,32 @@ void gpuImmediateFormat_T2_V2(void)
 }
 
 #if GPU_SAFETY
+void gpuSafetyImmediateFormat_T2_V3(const char* file, int line)
+#else
+void gpuImmediateFormat_T2_V3(void)
+#endif
+{
+#if GPU_SAFETY
+	printf("%s(%d): gpuImmediateFormat_T2_V3\n", file, line);
+#endif
+
+	if (gpuImmediateLockCount() == 0) {
+		GLint texCoordSizes[1] = { 2 };
+		GLenum texUnitMap[1]    = { GL_TEXTURE0 };
+
+		gpuImmediateFormatReset();
+
+		gpuImmediateElementSizes(3, 0, 0);
+
+		gpuImmediateTextureUnitCount(1);
+		gpuImmediateTexCoordSizes(texCoordSizes);
+		gpuImmediateTextureUnitMap(texUnitMap);
+	}
+
+	gpuImmediateLock();
+}
+
+#if GPU_SAFETY
 void gpuSafetyImmediateFormat_T2_C4_V2(const char* file, int line)
 #else
 void gpuImmediateFormat_T2_C4_V2(void)

@@ -89,11 +89,11 @@ static void tracking_segment_start_cb(void *userdata, MovieTrackingTrack *track,
 
 	if (track == userdata) {
 		col[3] = 1.0f;
-		glLineWidth(2.0f);
+		gpuLineWidth(2.0f);
 	}
 	else {
 		col[3] = 0.5f;
-		glLineWidth(1.0f);
+		gpuLineWidth(1.0f);
 	}
 
 	gpuCurrentColor4fv(col);
@@ -105,7 +105,7 @@ static void tracking_segment_end_cb(void *UNUSED(userdata))
 {
 	gpuEnd();
 
-	glLineWidth(1.0f);
+	gpuLineWidth(1.0f);
 }
 
 static void tracking_segment_knot_cb(void *userdata, MovieTrackingTrack *track,

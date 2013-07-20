@@ -949,39 +949,54 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 	gpuImmediateFormat_V3();
 }
 
-static GLubyte bm_dot6[] = {0x0, 0x18, 0x3C, 0x7E, 0x7E, 0x3C, 0x18, 0x0};
-static GLubyte bm_dot8[] = {0x3C, 0x7E, 0xFF, 0xFF, 0xFF, 0xFF, 0x7E, 0x3C};
 
-static GLubyte bm_dot5[] = {0x0, 0x0, 0x10, 0x38, 0x7c, 0x38, 0x10, 0x0};
-static GLubyte bm_dot7[] = {0x0, 0x38, 0x7C, 0xFE, 0xFE, 0xFE, 0x7C, 0x38};
+
+static GLubyte   bm_dot6_data[] = {0x00, 0x18, 0x3C, 0x7E, 0x7E, 0x3C, 0x18, 0x00};
+static GPUbitmap bm_dot6        = {8, 8, 4, 4, bm_dot6_data};
+
+static GLubyte   bm_dot8_data[] = {0x3C, 0x7E, 0xFF, 0xFF, 0xFF, 0xFF, 0x7E, 0x3C};
+static GPUbitmap bm_dot8        = {8, 8, 4, 4, bm_dot8_data};
+
+static GLubyte   bm_dot5_data[] = {0x00, 0x00, 0x10, 0x38, 0x7c, 0x38, 0x10, 0x00};
+static GPUbitmap bm_dot5        = {8, 8, 4, 4, bm_dot5_data};
+
+static GLubyte   bm_dot7_data[] = {0x00, 0x38, 0x7C, 0xFE, 0xFE, 0xFE, 0x7C, 0x38};
+static GPUbitmap bm_dot7        = {8, 8, 4, 4, bm_dot7_data};
+
 
 
 static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned int id,
                            bPoseChannel *pchan, EditBone *ebone)
 {
 	float length;
-	
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+	gpuPixelFormat(GL_UNPACK_ALIGNMENT, 1);
+	gpuPixelsBegin();
 
 	if (pchan) 
 		length = pchan->bone->length;
 	else 
 		length = ebone->length;
 
-	gpuImmediateFormat_V3();
+	if (G.f & G_PICKSEL) {
+		gpuImmediateFormat_T2_V3();
+	}
+	else {
+		gpuImmediateFormat_V3();
+	}
 
 	gpuPushMatrix();
 	gpuScale(length, length, length);
-	
+
 	/* this chunk not in object mode */
 	if (armflag & (ARM_EDITMODE | ARM_POSEMODE)) {
-		glLineWidth(4.0f);
+		gpuLineWidth(4.0f);
 		if (armflag & ARM_POSEMODE)
 			set_pchan_gpuCurrentColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
 		else if (armflag & ARM_EDITMODE) {
 			UI_ThemeColor(TH_WIRE_EDIT);
 		}
-		
+
 		/*	Draw root point if we are not connected */
 		if ((boneflag & BONE_CONNECTED) == 0) {
 			if (G.f & G_PICKSEL) {  /* no bitmap in selection mode, crashes 3d cards... */
@@ -991,11 +1006,12 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 				gpuEnd();
 			}
 			else {
-				glRasterPos3f(0.0f, 0.0f, 0.0f);
-				glBitmap(8, 8, 4, 4, 0, 0, bm_dot8);
+				gpuPixelPos3f(0.0f, 0.0f, 0.0f);
+				gpuCacheBitmap(&bm_dot8);
+				gpuBitmap(&bm_dot8);
 			}
 		}
-		
+
 		if (id != -1)
 			glLoadName((GLuint) id | BONESEL_BONE);
 		
@@ -1003,7 +1019,7 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 		gpuVertex3f(0.0f, 0.0f, 0.0f);
 		gpuVertex3f(0.0f, 1.0f, 0.0f);
 		gpuEnd();
-		
+
 		/* tip */
 		if (G.f & G_PICKSEL) {
 			/* no bitmap in selection mode, crashes 3d cards... */
@@ -1013,20 +1029,21 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 			gpuEnd();
 		}
 		else {
-			glRasterPos3f(0.0f, 1.0f, 0.0f);
-			glBitmap(8, 8, 4, 4, 0, 0, bm_dot7);
+			gpuPixelPos3f(0.0f, 1.0f, 0.0f);
+			gpuCacheBitmap(&bm_dot7);
+			gpuBitmap(&bm_dot7);
 		}
-		
+
 		/* further we send no names */
 		if (id != -1)
 			glLoadName(id & 0xFFFF);  /* object tag, for bordersel optim */
-		
+
 		if (armflag & ARM_POSEMODE)
 			set_pchan_gpuCurrentColor(PCHAN_COLOR_LINEBONE, boneflag, constflag);
 	}
-	
-	glLineWidth(2.0);
-	
+
+	gpuLineWidth(2.0);
+
 	/*Draw root point if we are not connected */
 	if ((boneflag & BONE_CONNECTED) == 0) {
 		if ((G.f & G_PICKSEL) == 0) {
@@ -1035,20 +1052,23 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 				if (boneflag & BONE_ROOTSEL) UI_ThemeColor(TH_VERTEX_SELECT);
 				else UI_ThemeColor(TH_VERTEX);
 			}
-			glRasterPos3f(0.0f, 0.0f, 0.0f);
-			glBitmap(8, 8, 4, 4, 0, 0, bm_dot6);
+
+			gpuPixelPos3f(0.0f, 0.0f, 0.0f);
+			gpuCacheBitmap(&bm_dot6);
+			gpuBitmap(&bm_dot6);
 		}
 	}
-	
+
 	if (armflag & ARM_EDITMODE) {
 		if (boneflag & BONE_SELECTED) UI_ThemeColor(TH_EDGE_SELECT);
 		else UI_ThemeColorShade(TH_BACK, -30);
 	}
+
 	gpuBegin(GL_LINES);
 	gpuVertex3f(0.0f, 0.0f, 0.0f);
 	gpuVertex3f(0.0f, 1.0f, 0.0f);
 	gpuEnd();
-	
+
 	/* tip */
 	if ((G.f & G_PICKSEL) == 0) {
 		/* no bitmap in selection mode, crashes 3d cards... */
@@ -1056,17 +1076,20 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 			if (boneflag & BONE_TIPSEL) UI_ThemeColor(TH_VERTEX_SELECT);
 			else UI_ThemeColor(TH_VERTEX);
 		}
-		glRasterPos3f(0.0f, 1.0f, 0.0f);
-		glBitmap(8, 8, 4, 4, 0, 0, bm_dot5);
+
+		gpuPixelPos3f(0.0f, 1.0f, 0.0f);
+		gpuCacheBitmap(&bm_dot5);
+		gpuBitmap(&bm_dot5);
 	}
-	
-	glLineWidth(1.0);
-	
+
+	gpuLineWidth(1.0);
+
 	gpuPopMatrix();
 
 	gpuImmediateUnformat();
 
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 4); /* restore default value */
+	gpuPixelsEnd();
+	gpuPixelFormat(GL_UNPACK_ALIGNMENT, 4);  /* restore default value */
 }
 
 static void draw_b_bone_boxes(const short dt, bPoseChannel *pchan, float xwidth, float length, float zwidth)
@@ -1471,7 +1494,7 @@ static void draw_dof_ellipse(float ax, float az)
 	float x, z, px, pz;
 
 	glEnable(GL_BLEND);
-	glDepthMask(0);
+	gpuDepthMask(GL_FALSE);
 
 	gpuCurrentGray4f(0.276f, 0.196f);
 
@@ -1507,7 +1530,7 @@ static void draw_dof_ellipse(float ax, float az)
 	gpuEnd();
 
 	glDisable(GL_BLEND);
-	glDepthMask(1);
+	gpuDepthMask(GL_TRUE);
 
 	gpuCurrentColor3x(CPACK_BLACK);
 
@@ -1664,7 +1687,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 	arm->layer_used = 0;
 	
 	/* hacky... prevent outline select from drawing dashed helplines */
-	glGetFloatv(GL_LINE_WIDTH, &tmp);
+	tmp = gpuGetLineWidth();
 	if (tmp > 1.1f) do_dashed &= ~1;
 	if (v3d->flag & V3D_HIDE_HELPLINES) do_dashed &= ~2;
 	
@@ -2248,7 +2271,7 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 						/*	Draw name */
 						if (arm->flag & ARM_DRAWNAMES) {
 							mid_v3_v3v3(vec, eBone->head, eBone->tail);
-							glRasterPos3fv(vec);
+							//glRasterPos3fv(vec); // XXX jwilkins: is this needed?  the next function doesn't seem to actually draw anything anymore
 							view3d_cached_text_draw_add(vec, eBone->name, 10, 0, col);
 						}
 						/*	Draw additional axes */

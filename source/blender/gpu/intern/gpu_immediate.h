@@ -310,6 +310,7 @@ void gpuCurrentNormal3fv(const GLfloat *restrict v);
 void gpuSafetyImmediateFormat_V2          (const char* file, int line);
 void gpuSafetyImmediateFormat_C4_V2       (const char* file, int line);
 void gpuSafetyImmediateFormat_T2_V2       (const char* file, int line);
+void gpuSafetyImmediateFormat_T2_V3       (const char* file, int line);
 void gpuSafetyImmediateFormat_T2_C4_V2    (const char* file, int line);
 void gpuSafetyImmediateFormat_V3          (const char* file, int line);
 void gpuSafetyImmediateFormat_N3_V3       (const char* file, int line);
@@ -322,6 +323,7 @@ void gpuSafetyImmediateUnformat           (const char* file, int line);
 #define gpuImmediateFormat_V2()          gpuSafetyImmediateFormat_V2          (__FILE__, __LINE__)
 #define gpuImmediateFormat_C4_V2()       gpuSafetyImmediateFormat_C4_V2       (__FILE__, __LINE__)
 #define gpuImmediateFormat_T2_V2()       gpuSafetyImmediateFormat_T2_V2       (__FILE__, __LINE__)
+#define gpuImmediateFormat_T2_V3()       gpuSafetyImmediateFormat_T2_V3       (__FILE__, __LINE__)
 #define gpuImmediateFormat_T2_C4_V2()    gpuSafetyImmediateFormat_T2_C4_V2    (__FILE__, __LINE__)
 #define gpuImmediateFormat_V3()          gpuSafetyImmediateFormat_V3          (__FILE__, __LINE__)
 #define gpuImmediateFormat_N3_V3()       gpuSafetyImmediateFormat_N3_V3       (__FILE__, __LINE__)
@@ -336,6 +338,7 @@ void gpuSafetyImmediateUnformat           (const char* file, int line);
 void gpuImmediateFormat_V2(void);
 void gpuImmediateFormat_C4_V2(void);
 void gpuImmediateFormat_T2_V2(void);
+void gpuImmediateFormat_T2_V3(void);
 void gpuImmediateFormat_T2_C4_V2(void);
 void gpuImmediateFormat_V3(void);
 void gpuImmediateFormat_N3_V3(void);
@@ -509,6 +512,19 @@ void gpuSingleClientRangeElements_N3F_V3F(
 	GLuint indexMax,
 	GLsizei count,
 	const GLvoid *restrict indexes);
+
+
+
+#if defined(GLEW_ES_ONLY)
+
+/* ES 2.0 doesn't define QUADS, but the immediate mode replacement library emulates QUADS */
+/* (GL core has deprecated QUADS, but it should still be in the header) */
+
+#ifndef GL_QUADS
+#define GL_QUADS 0x0007
+#endif
+
+#endif
 
 
 

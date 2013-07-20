@@ -735,7 +735,7 @@ void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, bool depth_write, flo
 			if (v3d->zbuf) glDisable(GL_DEPTH_TEST);
 		}
 		else {
-			glDepthMask(0);
+			gpuDepthMask(GL_FALSE);
 		}
 		
 		for (vos = strings->first; vos; vos = vos->next) {
@@ -762,7 +762,7 @@ void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, bool depth_write, flo
 			if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 		}
 		else {
-			glDepthMask(1);
+			gpuDepthMask(GL_TRUE);
 		}
 		
 		gpuMatrixMode(GL_PROJECTION);
@@ -905,7 +905,7 @@ static void draw_transp_spot_volume(Lamp *la, float x, float z)
 {
 	glEnable(GL_CULL_FACE);
 	glEnable(GL_BLEND);
-	glDepthMask(0);
+	gpuDepthMask(GL_FALSE);
 
 	/* draw backside darkening */
 	glCullFace(GL_FRONT);
@@ -926,7 +926,7 @@ static void draw_transp_spot_volume(Lamp *la, float x, float z)
 	/* restore state */
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); /* reset blender default */
 	glDisable(GL_BLEND);
-	glDepthMask(1);
+	gpuDepthMask(GL_TRUE);
 	glDisable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
 }
@@ -1406,15 +1406,15 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 						gpuCurrentColor3ubv(ob_wire_col);
 					}
 
-					glLineWidth(2.f);
+					gpuLineWidth(2.f);
 					gpuDisableLighting();
-					glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+					gpuPolygonMode(GL_LINE);
 
 					draw_bundle_sphere();
 
-					glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+					gpuPolygonMode(GL_FILL);
 					gpuEnableLighting();
-					glLineWidth(1.f);
+					gpuLineWidth(1.f);
 				}
 
 				if ((dflag & DRAW_CONSTCOLOR) == 0) {
@@ -1466,7 +1466,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 
 				gpuDisableLighting();
 				UI_ThemeColor(TH_CAMERA_PATH);
-				glLineWidth(2.0f);
+				gpuLineWidth(2.0f);
 
 				gpuBegin(GL_LINE_STRIP);
 				for (a = 0; a < reconstruction->camnr; a++, camera++) {
@@ -1474,7 +1474,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 				}
 				gpuEnd();
 
-				glLineWidth(1.0f);
+				gpuLineWidth(1.0f);
 				gpuEnableLighting();
 			}
 		}
@@ -2392,11 +2392,11 @@ static DMDrawOption draw_dm_creases__setDrawOptions(void *userData, int index)
 }
 static void draw_dm_creases(BMEditMesh *em, DerivedMesh *dm)
 {
-	glLineWidth(3.0);
+	gpuLineWidth(3.0);
 	gpuImmediateFormat_C4_V3();
 	dm->drawMappedEdges(dm, draw_dm_creases__setDrawOptions, em);
 	gpuImmediateUnformat();
-	glLineWidth(1.0);
+	gpuLineWidth(1.0);
 }
 
 static DMDrawOption draw_dm_bweights__setDrawOptions(BMEditMesh *em, int index)
@@ -2445,11 +2445,11 @@ static void draw_dm_bweights(BMEditMesh *em, Scene *scene, DerivedMesh *dm)
 		gpuImmediateUnformat();
 	}
 	else {
-		glLineWidth(3.0);
+		gpuLineWidth(3.0);
 		gpuImmediateFormat_C4_V3();
 		dm->drawMappedEdges(dm, draw_dm_bweights__setDrawOptions, em);
 		gpuImmediateUnformat();
-		glLineWidth(1.0);
+		gpuLineWidth(1.0);
 	}
 }
 
@@ -2469,7 +2469,7 @@ static void draw_em_fancy_verts(Scene *scene, View3D *v3d, Object *obedit,
 	ToolSettings *ts = scene->toolsettings;
 	int sel;
 
-	if (v3d->zbuf) glDepthMask(0);  /* disable write in zbuffer, zbuf select */
+	if (v3d->zbuf) gpuDepthMask(GL_FALSE);  /* disable write in zbuffer, zbuf select */
 
 	for (sel = 0; sel < 2; sel++) {
 		unsigned char col[4], fcol[4];
@@ -2519,7 +2519,7 @@ static void draw_em_fancy_verts(Scene *scene, View3D *v3d, Object *obedit,
 		}
 	}
 
-	if (v3d->zbuf) glDepthMask(1);
+	if (v3d->zbuf) gpuDepthMask(GL_TRUE);
 	glPointSize(1.0);
 }
 
@@ -2986,7 +2986,7 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 		UI_ThemeColor(TH_WIRE_EDIT);
 
 		bglPolygonOffset(rv3d->dist, 1.0);
-		glDepthMask(0);
+		gpuDepthMask(GL_FALSE);
 	}
 	else {
 		if (cageDM != finalDM) {
@@ -3009,7 +3009,7 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 #endif
 
 		glEnable(GL_BLEND);
-		glDepthMask(0);  /* disable write in zbuffer, needed for nice transp */
+		gpuDepthMask(GL_FALSE);  /* disable write in zbuffer, needed for nice transp */
 
 		/* don't draw unselected faces, only selected, this is MUCH nicer when texturing */
 		if (check_object_draw_texture(scene, v3d, dt))
@@ -3025,7 +3025,7 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 #endif
 
 		glDisable(GL_BLEND);
-		glDepthMask(1);  /* restore write in zbuffer */
+		gpuDepthMask(GL_TRUE);  /* restore write in zbuffer */
 	}
 	else if (efa_act) {
 		/* even if draw faces is off it would be nice to draw the stipple face
@@ -3037,7 +3037,7 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 		UI_GetThemeColor4ubv(TH_EDITMESH_ACTIVE, col3);
 
 		glEnable(GL_BLEND);
-		glDepthMask(0);  /* disable write in zbuffer, needed for nice transp */
+		gpuDepthMask(GL_FALSE);  /* disable write in zbuffer, needed for nice transp */
 
 #ifdef WITH_FREESTYLE
 		draw_dm_faces_sel(em, cageDM, col1, col2, col3, col4, efa_act);
@@ -3046,7 +3046,7 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 #endif
 
 		glDisable(GL_BLEND);
-		glDepthMask(1);  /* restore write in zbuffer */
+		gpuDepthMask(GL_TRUE);  /* restore write in zbuffer */
 
 	}
 
@@ -3061,33 +3061,33 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 	else {
 		if (me->drawflag & ME_DRAWSEAMS) {
 			UI_ThemeColor(TH_EDGE_SEAM);
-			glLineWidth(2);
+			gpuLineWidth(2);
 
 			draw_dm_edges_seams(em, cageDM);
 
 			gpuCurrentColor3x(CPACK_BLACK);
-			glLineWidth(1);
+			gpuLineWidth(1);
 		}
 		
 		if (me->drawflag & ME_DRAWSHARP) {
 			UI_ThemeColor(TH_EDGE_SHARP);
-			glLineWidth(2);
+			gpuLineWidth(2);
 
 			draw_dm_edges_sharp(em, cageDM);
 
 			gpuCurrentColor3x(CPACK_BLACK);
-			glLineWidth(1);
+			gpuLineWidth(1);
 		}
 
 #ifdef WITH_FREESTYLE
 		if (me->drawflag & ME_DRAW_FREESTYLE_EDGE && CustomData_has_layer(&em->bm->edata, CD_FREESTYLE_EDGE)) {
 			UI_ThemeColor(TH_FREESTYLE_EDGE_MARK);
-			glLineWidth(2);
+			gpuLineWidth(2);
 	
 			draw_dm_edges_freestyle(em, cageDM);
 	
 			gpuCurrentColor3ub(0, 0, 0);
-			glLineWidth(1);
+			gpuLineWidth(1);
 		}
 #endif
 	
@@ -3130,7 +3130,7 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 	}
 
 	if (dt > OB_WIRE) {
-		glDepthMask(1);
+		gpuDepthMask(GL_TRUE);
 		bglPolygonOffset(rv3d->dist, 0.0);
 		GPU_disable_material();
 	}
@@ -3143,23 +3143,23 @@ static void draw_mesh_object_outline(View3D *v3d, Object *ob, DerivedMesh *dm)
 	if ((v3d->transp == false) &&  /* not when we draw the transparent pass */
 	    (ob->mode & OB_MODE_ALL_PAINT) == false) /* not when painting (its distracting) - campbell */
 	{
-		glLineWidth(UI_GetThemeValuef(TH_OUTLINE_WIDTH) * 2.0f);
-		glDepthMask(0);
+		gpuLineWidth(UI_GetThemeValuef(TH_OUTLINE_WIDTH) * 2.0f);
+		gpuDepthMask(GL_FALSE);
 
 		/* if transparent, we cannot draw the edges for solid select... edges have no material info.
 		 * drawFacesSolid() doesn't draw the transparent faces */
 		if (ob->dtx & OB_DRAWTRANSP) {
-			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+			gpuPolygonMode(GL_LINE);
 			dm->drawFacesSolid(dm, NULL, 0, GPU_enable_material);
-			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+			gpuPolygonMode(GL_FILL);
 			GPU_disable_material();
 		}
 		else {
 			dm->drawEdges(dm, 0, 1);
 		}
 
-		glLineWidth(1.0);
-		glDepthMask(1);
+		gpuLineWidth(1.0);
+		gpuDepthMask(GL_TRUE);
 	}
 }
 
@@ -3385,13 +3385,13 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 		 */
 		if (dt != OB_WIRE && (draw_wire == OBDRAW_WIRE_ON_DEPTH)) {
 			bglPolygonOffset(rv3d->dist, 1.0);
-			glDepthMask(0);  /* disable write in zbuffer, selected edge wires show better */
+			gpuDepthMask(GL_FALSE);  /* disable write in zbuffer, selected edge wires show better */
 		}
 		
 		dm->drawEdges(dm, (dt == OB_WIRE || totface == 0), (ob->dtx & OB_DRAW_ALL_EDGES));
 
 		if (dt != OB_WIRE && (draw_wire == OBDRAW_WIRE_ON_DEPTH)) {
-			glDepthMask(1);
+			gpuDepthMask(GL_TRUE);
 			bglPolygonOffset(rv3d->dist, 0.0);
 		}
 	}
@@ -3527,7 +3527,7 @@ static bool drawDispListwire(ListBase *dlbase)
 		return 1;
 	}
 
-	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	gpuPolygonMode(GL_LINE);
 
 	for (dl = dlbase->first; dl; dl = dl->next) {
 		GPUarrays arrays;
@@ -3621,7 +3621,7 @@ static bool drawDispListwire(ListBase *dlbase)
 		}
 	}
 
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	gpuPolygonMode(GL_FILL);
 
 	return false;
 }
@@ -3947,9 +3947,9 @@ static void draw_particle_arrays(int draw_as, int totpoint, int ob_dt, int selec
 				break;
 			case PART_DRAW_BB:
 				if (ob_dt <= OB_WIRE || select)
-					glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+					gpuPolygonMode(GL_LINE);
 				else
-					glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+					gpuPolygonMode(GL_FILL);
 
 				mode  = GL_QUADS;
 				count = 4 * totpoint;
@@ -4191,7 +4191,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 	float ma_col[3] = {0.0f, 0.0f, 0.0f};
 	int a, totpart, totpoint = 0, totve = 0, drawn, draw_as, totchild = 0;
 	int select = ob->flag & SELECT, create_cdata = 0, need_v = 0;
-	GLint polygonmode[2];
+	GLint polygonmode;
 	char numstr[32];
 	unsigned char tcol[4] = {0, 0, 0, 255};
 
@@ -4242,7 +4242,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 
 	ma = give_current_material(ob, part->omat);
 
-	if (v3d->zbuf) glDepthMask(1);
+	if (v3d->zbuf) gpuDepthMask(GL_TRUE);
 
 	if ((ma) && (part->draw_col == PART_DRAW_COL_MAT)) {
 		rgb_float_to_uchar(tcol, &(ma->r));
@@ -4575,7 +4575,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 	}
 /* 6. */
 
-	glGetIntegerv(GL_POLYGON_MODE, polygonmode);
+	polygonmode = gpuGetPolygonMode();
 
 	if (draw_as == PART_DRAW_PATH) {
 		ParticleCacheKey **cache, *path;
@@ -4660,7 +4660,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 			cdata2 = NULL;
 		}
 
-		glLineWidth(1.0f);
+		gpuLineWidth(1.0f);
 
 		if ((part->draw & PART_DRAW_NUM) && (v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
 			cache = psys->pathcache;
@@ -4697,7 +4697,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 				glPointSize(4.0);
 			}
 
-			glLineWidth(3.0);
+			gpuLineWidth(3.0);
 
 			draw_particle_arrays(draw_as, totpoint, ob_dt, 1, NULL, NULL, vPtr);
 		}
@@ -4705,7 +4705,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 		/* restore from select */
 		gpuCurrentColor3fv(ma_col);
 		glPointSize(part->draw_size ? part->draw_size : 2.0);
-		glLineWidth(1.0);
+		gpuLineWidth(1.0);
 
 		/* enable other data arrays */
 
@@ -4745,8 +4745,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 			pdd->vedata);
 	}
 
-	glPolygonMode(GL_FRONT, polygonmode[0]);
-	glPolygonMode(GL_BACK,  polygonmode[1]);
+	gpuPolygonMode(polygonmode);
 
 /* 7. */
 
@@ -4826,7 +4825,7 @@ static void draw_ptcache_edit(Scene *scene, View3D *v3d, PTCacheEdit *edit)
 	glShadeModel(GL_SMOOTH);
 
 	if (pset->brushtype == PE_BRUSH_WEIGHT) {
-		glLineWidth(2.0f);
+		gpuLineWidth(2.0f);
 		gpuDisableLighting();
 	}
 
@@ -5010,7 +5009,7 @@ static void draw_ptcache_edit(Scene *scene, View3D *v3d, PTCacheEdit *edit)
 		glEnable(GL_DEPTH_TEST);
 	}
 
-	glLineWidth(1.0f);
+	gpuLineWidth(1.0f);
 	glPointSize(1.0);
 }
 //static void ob_draw_RE_motion(float com[3],float rotscale[3][3],float tw,float th)
@@ -5251,7 +5250,7 @@ static void drawhandlesN_active(Nurb *nu)
 	if (nu->hide) return;
 
 	UI_ThemeColor(TH_ACTIVE_SPLINE);
-	glLineWidth(2);
+	gpuLineWidth(2);
 
 	gpuBegin(GL_LINES);
 
@@ -5274,7 +5273,7 @@ static void drawhandlesN_active(Nurb *nu)
 	gpuEnd();
 
 	gpuCurrentColor3x(CPACK_BLACK);
-	glLineWidth(1);
+	gpuLineWidth(1);
 }
 
 static void drawvertsN(Nurb *nu, const char sel, const bool hide_handles, void *lastsel)
@@ -5353,7 +5352,7 @@ static void editnurb_draw_active_poly(Nurb *nu)
 	int a, b;
 
 	UI_ThemeColor(TH_ACTIVE_SPLINE);
-	glLineWidth(2);
+	gpuLineWidth(2);
 
 	bp = nu->bp;
 	for (b = 0; b < nu->pntsv; b++) {
@@ -5368,7 +5367,7 @@ static void editnurb_draw_active_poly(Nurb *nu)
 	}
 
 	gpuCurrentColor3x(CPACK_BLACK);
-	glLineWidth(1);
+	gpuLineWidth(1);
 }
 
 static void editnurb_draw_active_nurbs(Nurb *nu)
@@ -5377,7 +5376,7 @@ static void editnurb_draw_active_nurbs(Nurb *nu)
 	int a, b, ofs;
 
 	UI_ThemeColor(TH_ACTIVE_SPLINE);
-	glLineWidth(2);
+	gpuLineWidth(2);
 
 	gpuBegin(GL_LINES);
 	bp = nu->bp;
@@ -5413,7 +5412,7 @@ static void editnurb_draw_active_nurbs(Nurb *nu)
 	gpuEnd();
 
 	gpuCurrentColor3x(CPACK_BLACK);
-	glLineWidth(1);
+	gpuLineWidth(1);
 }
 
 static void draw_editnurb(Object *ob, Nurb *nurb, int sel)
@@ -6251,8 +6250,8 @@ static void drawObjectSelect(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 	RegionView3D *rv3d = ar->regiondata;
 	Object *ob = base->object;
 	
-	glLineWidth(2.0);
-	glDepthMask(0);
+	gpuLineWidth(2.0);
+	gpuDepthMask(GL_FALSE);
 	
 	if (ELEM3(ob->type, OB_FONT, OB_CURVE, OB_SURF)) {
 		Curve *cu = ob->data;
@@ -6288,8 +6287,8 @@ static void drawObjectSelect(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 			draw_armature(scene, v3d, ar, base, OB_WIRE, 0, ob_wire_col, true);
 	}
 
-	glLineWidth(1.0);
-	glDepthMask(1);
+	gpuLineWidth(1.0);
+	gpuDepthMask(GL_TRUE);
 }
 
 static void draw_wire_extra(Scene *scene, RegionView3D *rv3d, Object *ob, unsigned char ob_wire_col[4])
@@ -6304,7 +6303,7 @@ static void draw_wire_extra(Scene *scene, RegionView3D *rv3d, Object *ob, unsign
 		}
 
 		bglPolygonOffset(rv3d->dist, 1.0);
-		glDepthMask(0);  /* disable write in zbuffer, selected edge wires show better */
+		gpuDepthMask(GL_FALSE);  /* disable write in zbuffer, selected edge wires show better */
 
 		if (ELEM3(ob->type, OB_FONT, OB_CURVE, OB_SURF)) {
 			Curve *cu = ob->data;
@@ -6329,7 +6328,7 @@ static void draw_wire_extra(Scene *scene, RegionView3D *rv3d, Object *ob, unsign
 			}
 		}
 
-		glDepthMask(1);
+		gpuDepthMask(GL_TRUE);
 		bglPolygonOffset(rv3d->dist, 0.0);
 	}
 }
@@ -6375,7 +6374,7 @@ static void draw_rigid_body_pivot(bRigidBodyJointConstraint *data, const short d
 	float mat[4][4];
 
 	eul_to_mat4(mat, &data->axX);
-	glLineWidth(4.0f);
+	gpuLineWidth(4.0f);
 	setlinestyle(2);
 	for (axis = 0; axis < 3; axis++) {
 		float dir[3] = {0, 0, 0};
@@ -6399,7 +6398,7 @@ static void draw_rigid_body_pivot(bRigidBodyJointConstraint *data, const short d
 			view3d_cached_text_draw_add(v, axis_str[axis], 0, V3D_CACHE_TEXT_ASCII, ob_wire_col);
 		}
 	}
-	glLineWidth(1.0f);
+	gpuLineWidth(1.0f);
 	setlinestyle(0);
 }
 
@@ -6876,7 +6875,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		if (ob->flag & SELECT) {
 			gpuCurrentColor3x(CPACK_WHITE); /* for visibility, also while wpaint */
 		}
-		//glDepthMask(GL_FALSE);
+		//gpuDepthMask(GL_FALSE);
 
 		gpuLoadMatrix(rv3d->viewmat);
 		
@@ -6897,7 +6896,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 		gpuMultMatrix(ob->obmat);
 
-		//glDepthMask(GL_TRUE);
+		//gpuDepthMask(GL_TRUE);
 	}
 
 	/* draw edit particles last so that they can draw over child particles */
@@ -6932,7 +6931,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				if (ob->flag & SELECT) {
 					gpuCurrentColor3x(CPACK_WHITE);
 				}
-				glDepthMask(GL_FALSE);
+				gpuDepthMask(GL_FALSE);
 				glEnable(GL_BLEND);
 				
 
@@ -6949,7 +6948,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 				gpuMultMatrix(ob->obmat);
 				glDisable(GL_BLEND);
-				glDepthMask(GL_TRUE);
+				gpuDepthMask(GL_TRUE);
 			}
 #endif
 		}

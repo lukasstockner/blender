@@ -286,12 +286,12 @@ static void draw_movieclip_buffer(const bContext *C, SpaceClip *sc, ARegion *ar,
 		}
 
 		/* set zoom */
-		glPixelZoom(zoomx * width / ibuf->x, zoomy * height / ibuf->y);
+		gpuPixelZoom(zoomx * width / ibuf->x, zoomy * height / ibuf->y);
 
 		glaDrawImBuf_glsl_ctx(C, ibuf, x, y, filter);
 
 		/* reset zoom */
-		glPixelZoom(1.0f, 1.0f);
+		gpuPixelZoom(1.0f, 1.0f); /* restore default value */
 
 		if (ibuf->planes == 32)
 			glDisable(GL_BLEND);
@@ -310,8 +310,8 @@ static void draw_stabilization_border(SpaceClip *sc, ARegion *ar, int width, int
 	if (sc->flag & SC_SHOW_STABLE && clip->tracking.stabilization.flag & TRACKING_2D_STABILIZATION) {
 		gpuCurrentColor3x(CPACK_BLACK);
 
-		glLineStipple(3, 0xaaaa);
-		glEnable(GL_LINE_STIPPLE);
+		gpuLineStipple(3, 0xaaaa);
+		gpuEnableLineStipple();
 		glEnable(GL_COLOR_LOGIC_OP);
 		glLogicOp(GL_NOR);
 
@@ -331,7 +331,7 @@ static void draw_stabilization_border(SpaceClip *sc, ARegion *ar, int width, int
 		gpuPopMatrix();
 
 		glDisable(GL_COLOR_LOGIC_OP);
-		glDisable(GL_LINE_STIPPLE);
+		gpuDisableLineStipple();
 	}
 }
 
@@ -409,13 +409,13 @@ static void draw_track_path(SpaceClip *sc, MovieClip *UNUSED(clip), MovieTrackin
 			gpuEnd();
 		}
 
-		glLineWidth(3.0f);
+		gpuLineWidth(3.0f);
 		gpuBegin(GL_LINE_STRIP);
 		for (i = a; i < b; i++) {
 			gpuVertex2f(path[i][0], path[i][1]);
 		}
 		gpuEnd();
-		glLineWidth(1.0f);
+		gpuLineWidth(1.0f);
 	}
 
 	UI_ThemeColor(TH_PATH_BEFORE);
@@ -489,7 +489,7 @@ static void draw_marker_outline(SpaceClip *sc, MovieTrackingTrack *track, MovieT
 		}
 		else {
 			if (!tiny) {
-				glLineWidth(3.0f);
+				gpuLineWidth(3.0f);
 			}
 			
 			gpuBegin(GL_LINES);
@@ -509,7 +509,7 @@ static void draw_marker_outline(SpaceClip *sc, MovieTrackingTrack *track, MovieT
 			gpuEnd();
 			
 			if (!tiny) {
-				glLineWidth(1.0f);
+				gpuLineWidth(1.0f);
 			}
 		}
 	}
@@ -519,7 +519,7 @@ static void draw_marker_outline(SpaceClip *sc, MovieTrackingTrack *track, MovieT
 	gpuTranslate(marker_pos[0], marker_pos[1], 0);
 
 	if (!tiny)
-		glLineWidth(3.0f);
+		gpuLineWidth(3.0f);
 
 	if (sc->flag & SC_SHOW_MARKER_PATTERN) {
 		gpuBegin(GL_LINE_LOOP);
@@ -543,7 +543,7 @@ static void draw_marker_outline(SpaceClip *sc, MovieTrackingTrack *track, MovieT
 	gpuPopMatrix();
 
 	if (!tiny)
-		glLineWidth(1.0f);
+		gpuLineWidth(1.0f);
 }
 
 static void track_colors(MovieTrackingTrack *track, int act, float col[3], float scol[3])
@@ -634,8 +634,8 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 
 			gpuCurrentColor3x(CPACK_BLACK);
 
-			glEnable(GL_LINE_STIPPLE);
-			glLineStipple(3, 0xAAAA);
+			gpuEnableLineStipple();
+			gpuLineStipple(3, 0xAAAA);
 
 			glEnable(GL_COLOR_LOGIC_OP);
 			glLogicOp(GL_NOR);
@@ -646,7 +646,7 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 			gpuEnd();
 
 			glDisable(GL_COLOR_LOGIC_OP);
-			glDisable(GL_LINE_STIPPLE);
+			gpuDisableLineStipple();
 		}
 	}
 
@@ -655,8 +655,8 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 	gpuTranslate(marker_pos[0], marker_pos[1], 0);
 
 	if (tiny) {
-		glLineStipple(3, 0xaaaa);
-		glEnable(GL_LINE_STIPPLE);
+		gpuLineStipple(3, 0xaaaa);
+		gpuEnableLineStipple();
 	}
 
 	if ((track->pat_flag & SELECT) == sel && (sc->flag & SC_SHOW_MARKER_PATTERN)) {
@@ -722,7 +722,7 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 	}
 
 	if (tiny)
-		glDisable(GL_LINE_STIPPLE);
+		gpuDisableLineStipple();
 
 	gpuPopMatrix();
 }
@@ -800,7 +800,7 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 	track_colors(track, act, col, scol);
 
 	if (outline) {
-		glLineWidth(3.0f);
+		gpuLineWidth(3.0f);
 		UI_ThemeColor(TH_MARKER_OUTLINE);
 	}
 
@@ -859,8 +859,8 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 
 		BKE_tracking_marker_pattern_minmax(marker, pat_min, pat_max);
 
-		glEnable(GL_LINE_STIPPLE);
-		glLineStipple(3, 0xAAAA);
+		gpuEnableLineStipple();
+		gpuLineStipple(3, 0xAAAA);
 
 #if 0
 		/* TODO: disable for now, needs better approach visualizing this */
@@ -883,7 +883,7 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 		gpuVertex2fv(tilt_ctrl);
 		gpuEnd();
 
-		glDisable(GL_LINE_STIPPLE);
+		gpuDisableLineStipple();
 
 
 		/* slider to control pattern tilt */
@@ -893,7 +893,7 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 	gpuPopMatrix();
 
 	if (outline)
-		glLineWidth(1.0f);
+		gpuLineWidth(1.0f);
 }
 
 static void draw_marker_texts(SpaceClip *sc, MovieTrackingTrack *track, MovieTrackingMarker *marker,
@@ -1370,7 +1370,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 			}
 
 			gpuCurrentColor4fv(layer->color);
-			glLineWidth(layer->thickness);
+			gpuLineWidth(layer->thickness);
 			glPointSize((float)(layer->thickness + 2));
 
 			while (frame) {
@@ -1427,7 +1427,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 			layer = layer->next;
 		}
 
-		glLineWidth(1.0f);
+		gpuLineWidth(1.0f);
 		glPointSize(1.0f);
 	}
 

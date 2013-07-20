@@ -38,7 +38,6 @@ gpuClearColor = gpuClearColor_gl;
 
 gpuColorAndClearvf = gpuColorAndClearvf_gl;
 gpuClearColorfv = gpuClearColorvf_gl;
-gpuGetClearColor = gpuGetClearColor_gl;
 
 
 gpuViewport = gpuViewport_gl;

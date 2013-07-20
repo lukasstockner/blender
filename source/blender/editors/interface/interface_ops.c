@@ -186,9 +186,13 @@ static void eyedropper_color_sample_fl(bContext *C, Eyedropper *UNUSED(eye), int
 	}
 
 	/* fallback to simple opengl picker */
+#if !defined(GLEW_ES_ONLY) // XXX jwilkins: ES can only read from COLOR_ATTACHMENT0, which might work out OK if swap method is COPY
 	glReadBuffer(GL_FRONT);
+#endif
 	glReadPixels(mx, my, 1, 1, GL_RGB, GL_FLOAT, r_col);
+#if !defined(GLEW_ES_ONLY)
 	glReadBuffer(GL_BACK);
+#endif
 }
 
 /* sets the sample color RGB, maintaining A */

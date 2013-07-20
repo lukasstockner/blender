@@ -1076,7 +1076,7 @@ void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numda
 
 	for (i = 0; i < MAX_GPU_ATTRIB_DATA; i++) {
 		if (attribData[i].index != -1) {
-			glDisableVertexAttribArrayARB(attribData[i].index);
+			glDisableVertexAttribArray(attribData[i].index);
 		}
 		else
 			break;
@@ -1086,8 +1086,8 @@ void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numda
 	if (useVBOs) {
 		gpu_glBindBuffer(GL_ARRAY_BUFFER, buffer->id);
 		for (i = 0; i < numdata; i++) {
-			glEnableVertexAttribArrayARB(data[i].index);
-			glVertexAttribPointerARB(data[i].index, data[i].size, data[i].type,
+			glEnableVertexAttribArray(data[i].index);
+			glVertexAttribPointer(data[i].index, data[i].size, data[i].type,
 			                         GL_FALSE, elementsize, (void *)offset);
 			offset += data[i].size * GPU_typesize(data[i].type);
 
@@ -1099,8 +1099,8 @@ void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numda
 	}
 	else {
 		for (i = 0; i < numdata; i++) {
-			glEnableVertexAttribArrayARB(data[i].index);
-			glVertexAttribPointerARB(data[i].index, data[i].size, data[i].type,
+			glEnableVertexAttribArray(data[i].index);
+			glVertexAttribPointer(data[i].index, data[i].size, data[i].type,
 			                         GL_FALSE, elementsize, (char *)buffer->pointer + offset);
 			offset += data[i].size * GPU_typesize(data[i].type);
 		}
@@ -1131,7 +1131,7 @@ void GPU_buffer_unbind(void)
 
 	for (i = 0; i < MAX_GPU_ATTRIB_DATA; i++) {
 		if (attribData[i].index != -1) {
-			glDisableVertexAttribArrayARB(attribData[i].index);
+			glDisableVertexAttribArray(attribData[i].index);
 		}
 		else
 			break;
@@ -2359,7 +2359,7 @@ void GPU_draw_buffers(GPU_Buffers *buffers, DMSetMaterial setMaterial,
 		gpuMatrixCommit();
 
 		if (wireframe)
-			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+			gpuPolygonMode(GL_LINE);
 
 		if (buffers->tot_quad) {
 			char *offset = 0;
@@ -2394,7 +2394,7 @@ void GPU_draw_buffers(GPU_Buffers *buffers, DMSetMaterial setMaterial,
 		}
 
 		if (wireframe)
-			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+			gpuPolygonMode(GL_FILL);
 
 		gpu_glBindBuffer(GL_ARRAY_BUFFER, 0);
 		if (buffers->index_buf)

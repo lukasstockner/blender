@@ -249,11 +249,11 @@ void clip_draw_cfra(SpaceClip *sc, ARegion *ar, Scene *scene)
 	c = (float)(sc->user.framenr * scene->r.framelen);
 
 	UI_ThemeColor(TH_CFRAME);
-	glLineWidth(2.0);
+	gpuLineWidth(2.0);
 
 	gpuSingleLinef(c, v2d->cur.ymin, c, v2d->cur.ymax);
 
-	glLineWidth(1.0);
+	gpuLineWidth(1.0);
 
 	UI_view2d_view_orthoSpecial(ar, v2d, 1);
 

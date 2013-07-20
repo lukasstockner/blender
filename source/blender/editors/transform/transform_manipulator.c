@@ -988,12 +988,14 @@ static void draw_manipulator_rotate(View3D *v3d, RegionView3D *rv3d, int moving,
 	gpuPushMatrix();
 	gpuTranslate(rv3d->twmat[3][0], rv3d->twmat[3][1], rv3d->twmat[3][2]);
 
-	if (arcs) {
+#if defined(WITH_GL_PROFILE_COMPAT)
+	if (GPU_PROFILE_COMPAT && arcs) {
 		/* clipplane makes nice handles, calc here because of multmatrix but with translate! */
 		copy_v3db_v3fl(plane, rv3d->viewinv[2]);
 		plane[3] = -0.02f * size; // clip just a bit more
 		glClipPlane(GL_CLIP_PLANE0, plane);
 	}
+#endif
 
 	/* sets view screen aligned */
 	gpuRotateVector(RAD2DEGF(-2.0f * saacos(rv3d->viewquat[0])), rv3d->viewquat+1);
@@ -1058,7 +1060,11 @@ static void draw_manipulator_rotate(View3D *v3d, RegionView3D *rv3d, int moving,
 
 	// donut arcs
 	if (arcs) {
-		glEnable(GL_CLIP_PLANE0);
+#if defined(WITH_GL_PROFILE_COMPAT)
+		if (GPU_PROFILE_COMPAT) {
+			glEnable(GL_CLIP_PLANE0);
+		}
+#endif
 
 		/* Z circle */
 		if (drawflags & MAN_ROT_Z) {
@@ -1103,7 +1109,11 @@ static void draw_manipulator_rotate(View3D *v3d, RegionView3D *rv3d, int moving,
 			postOrtho(ortho);
 		}
 
-		glDisable(GL_CLIP_PLANE0);
+#if defined(WITH_GL_PROFILE_COMPAT)
+		if (GPU_PROFILE_COMPAT) {
+			glDisable(GL_CLIP_PLANE0);
+		}
+#endif
 	}
 	else /* !arcs */ {
 		/* axes */
@@ -1147,6 +1157,11 @@ static void draw_manipulator_rotate(View3D *v3d, RegionView3D *rv3d, int moving,
 		}
 
 		if (moving) {
+#if defined(WITH_GL_PROFILE_COMPAT)
+		if (GPU_PROFILE_COMPAT) {
+			glEnable(GL_CLIP_PLANE0);
+		}
+#endif
 			/* Z circle */
 			if (drawflags & MAN_ROT_Z) {
 				preOrthoFront(ortho, matt, 2);
@@ -1192,9 +1207,11 @@ static void draw_manipulator_rotate(View3D *v3d, RegionView3D *rv3d, int moving,
 				postOrtho(ortho);
 			}
 
-			if (arcs) {
+#if defined(WITH_GL_PROFILE_COMPAT)
+			if (GPU_PROFILE_COMPAT && arcs) {
 				glDisable(GL_CLIP_PLANE0);
 			}
+#endif
 		}
 
 		/* Z handle on X axis */

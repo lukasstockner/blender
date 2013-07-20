@@ -618,7 +618,7 @@ static void node_circle_draw(float x, float y, float size, float *col, int highl
 	
 	if (highlight) {
 		UI_ThemeColor(TH_TEXT_HI);
-		glLineWidth(1.5f);
+		gpuLineWidth(1.5f);
 	}
 	else {
 		gpuCurrentColor4x(CPACK_BLACK, 0.588f);
@@ -631,7 +631,7 @@ static void node_circle_draw(float x, float y, float size, float *col, int highl
 	gpuEnd();
 	glDisable(GL_LINE_SMOOTH);
 	glDisable(GL_BLEND);
-	glLineWidth(1.0f);
+	gpuLineWidth(1.0f);
 }
 
 void node_socket_circle_draw(const bContext *C, bNodeTree *ntree, bNode *node, bNodeSocket *sock, float size, int highlight)
@@ -713,9 +713,9 @@ static void node_draw_preview(bNodePreview *preview, rctf *prv)
 	glEnable(GL_BLEND);  /* premul graphics */
 	
 	gpuCurrentColor3x(CPACK_WHITE);
-	glPixelZoom(scale, scale);
+	gpuPixelZoom(scale, scale);
 	glaDrawPixelsTex(draw_rect.xmin, draw_rect.ymin, preview->xsize, preview->ysize, GL_RGBA, GL_UNSIGNED_BYTE, GL_LINEAR, preview->rect);
-	glPixelZoom(1.0f, 1.0f);
+	gpuPixelZoom(1.0f, 1.0f); /* restore default value */
 	
 	glDisable(GL_BLEND);
 
@@ -1251,7 +1251,7 @@ static void draw_group_overlay(const bContext *C, ARegion *ar)
 	UI_ThemeColorShadeAlpha(TH_NODE_GROUP, 0, -70);
 	glEnable(GL_BLEND);
 	uiSetRoundBox(0);
-	uiDrawBox(GL_POLYGON, rect.xmin, rect.ymin, rect.xmax, rect.ymax, 0);
+	uiDrawBox(GL_TRIANGLE_FAN, rect.xmin, rect.ymin, rect.xmax, rect.ymax, 0);
 	glDisable(GL_BLEND);
 	
 	/* set the block bounds to clip mouse events from underlying nodes */

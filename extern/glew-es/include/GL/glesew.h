@@ -663,9 +663,11 @@ typedef void (GLAPIENTRY * PFNGLTRANSLATEXPROC) (GLfixed x, GLfixed y, GLfixed z
 #define glTexParameterx GLEW_GET_FUN(__glewTexParameterx)
 #define glTranslatex GLEW_GET_FUN(__glewTranslatex)
 
-#define GLEW_ES_VERSION_1_0 GLEW_GET_VAR(__GLEW_ES_VERSION_1_0)
-
+#else // XXX
+#define GL_ES_VERSION_1_0 0 // XXX jwilkins: define version token
 #endif /* !GL_ES_VERSION_1_0 */
+
+#define GLEW_ES_VERSION_1_0 GLEW_GET_VAR(__GLEW_ES_VERSION_1_0) // XXX jwilkins: always needs to be defined
 
 /* -------------------------- GL_ES_VERSION_CL_1_1 ------------------------- */
 
@@ -847,9 +849,11 @@ typedef void  (GLAPIENTRY * PFNGLTEXPARAMETERXVPROC) (GLenum, GLenum, const GLfi
 #define glTexParameteriv GLEW_GET_FUN(__glewTexParameteriv)
 #define glTexParameterxv GLEW_GET_FUN(__glewTexParameterxv)
 
-#define GLEW_ES_VERSION_CL_1_1 GLEW_GET_VAR(__GLEW_ES_VERSION_CL_1_1)
-
+#else // XXX
+#define GL_ES_VERSION_CL_1_1 0  // XXX jwilkins: define version token
 #endif /* !GL_ES_VERSION_CL_1_1 */
+
+#define GLEW_ES_VERSION_CL_1_1 GLEW_GET_VAR(__GLEW_ES_VERSION_CL_1_1) // XXX jwilkins: always needs to be defined
 
 /* -------------------------- GL_ES_VERSION_CM_1_1 ------------------------- */
 
@@ -881,9 +885,11 @@ typedef void  (GLAPIENTRY * PFNGLTEXPARAMETERFVPROC) (GLenum, GLenum , const GLf
 #define glPointParameterfv GLEW_GET_FUN(__glewPointParameterfv)
 #define glTexParameterfv GLEW_GET_FUN(__glewTexParameterfv)
 
-#define GLEW_ES_VERSION_CM_1_1 GLEW_GET_VAR(__GLEW_ES_VERSION_CM_1_1)
-
+#else // XXX
+#define GL_ES_VERSION_CM_1_1 0 // XXX jwilkins: define version token
 #endif /* !GL_ES_VERSION_CM_1_1 */
+
+#define GLEW_ES_VERSION_CM_1_1 GLEW_GET_VAR(__GLEW_ES_VERSION_CM_1_1) // XXX jwilkins: always needs to be defined
 
 /* --------------------------- GL_ES_VERSION_2_0 --------------------------- */
 
@@ -1128,6 +1134,7 @@ typedef GLboolean  (GLAPIENTRY * PFNGLISENABLEDPROC) (GLenum); // XXX jwilkins: 
 typedef void  (GLAPIENTRY * PFNGLGETFLOATVPROC) (GLenum , GLfloat *); // XXX jwilkins: missing function
 typedef void (GLAPIENTRY * PFNGLDEPTHRANGEFPROC) (GLclampf zNear, GLclampf zFar); // XXX jwilkins: missing function
 typedef void (GLAPIENTRY * PFNGLACTIVETEXTUREPROC) (GLenum texture); // XXX jwilkins: missing function
+typedef void  (GLAPIENTRY * PFNGLGETBOOLEANVPROC) (GLenum, GLboolean *); // XXX jwilkins: missing function
 
 #define glAttachShader GLEW_GET_FUN(__glewAttachShader)
 #define glBindAttribLocation GLEW_GET_FUN(__glewBindAttribLocation)
@@ -1223,6 +1230,7 @@ typedef void (GLAPIENTRY * PFNGLACTIVETEXTUREPROC) (GLenum texture); // XXX jwil
 #define glGetFloatv GLEW_GET_FUN(__glewGetFloatv) // XXX jwilkins: missing function
 #define glDepthRangef GLEW_GET_FUN(__glewDepthRangef) // XXX jwilkins: missing function
 #define glActiveTexture GLEW_GET_FUN(__glewActiveTexture) // XXX jwilkins: missing function
+#define glGetBooleanv GLEW_GET_FUN(__glewGetBooleanv) // XXX jwilkins: missing function
 
 #define GLEW_ES_VERSION_2_0 GLEW_GET_VAR(__GLEW_ES_VERSION_2_0)
 
@@ -1851,6 +1859,7 @@ typedef void (GLAPIENTRY * PFNGLREADNPIXELSEXTPROC) (GLint x, GLint y, GLsizei w
 
 #endif /* !GL_EXT_sRGB */
 
+#if 0 // XXX jwilkins: there is an inconsistency between the ES and Non-ES versions of this extension??
 /* --------------------- GL_EXT_separate_shader_objects -------------------- */
 
 #if !defined(GL_EXT_separate_shader_objects) 
@@ -1928,6 +1937,7 @@ typedef void (GLAPIENTRY * PFNGLVALIDATEPROGRAMPIPELINEEXTPROC) (GLuint pipeline
 #define GLEW_EXT_separate_shader_objects GLEW_GET_VAR(__GLEW_EXT_separate_shader_objects)
 
 #endif /* !GL_EXT_separate_shader_objects */
+#endif // XXX
 
 /* -------------------- GL_EXT_shader_framebuffer_fetch -------------------- */
 
@@ -3851,7 +3861,8 @@ GLEW_FUN_EXPORT PFNGLISENABLEDPROC __glewIsEnabled; // XXX jwilkins: missing fun
 GLEW_FUN_EXPORT PFNGLGETFLOATVPROC __glewGetFloatv; // XXX jwilkins: missing function
 GLEW_FUN_EXPORT PFNGLDEPTHRANGEFPROC __glewDepthRangef; // XXX jwilkins: missing function
 GLEW_FUN_EXPORT PFNGLACTIVETEXTUREPROC __glewActiveTexture; // XXX jwilkins: missing function
-#endif
+GLEW_FUN_EXPORT PFNGLGETBOOLEANVPROC __glewGetBooleanv; // XXX jwilkins: missing function
+#endif // XXX
 
 GLEW_FUN_EXPORT PFNGLBEGINPERFMONITORAMDPROC __glewBeginPerfMonitorAMD;
 GLEW_FUN_EXPORT PFNGLDELETEPERFMONITORSAMDPROC __glewDeletePerfMonitorsAMD;
@@ -3923,6 +3934,7 @@ GLEW_FUN_EXPORT PFNGLGETNUNIFORMFVEXTPROC __glewGetnUniformfvEXT;
 GLEW_FUN_EXPORT PFNGLGETNUNIFORMIVEXTPROC __glewGetnUniformivEXT;
 GLEW_FUN_EXPORT PFNGLREADNPIXELSEXTPROC __glewReadnPixelsEXT;
 
+#if 0 // XXX jwilkins: there is an inconsistency between the ES and Non-ES versions of this extension??
 GLEW_FUN_EXPORT PFNGLACTIVESHADERPROGRAMEXTPROC __glewActiveShaderProgramEXT;
 GLEW_FUN_EXPORT PFNGLBINDPROGRAMPIPELINEEXTPROC __glewBindProgramPipelineEXT;
 GLEW_FUN_EXPORT PFNGLCREATESHADERPROGRAMVEXTPROC __glewCreateShaderProgramvEXT;
@@ -3953,6 +3965,7 @@ GLEW_FUN_EXPORT PFNGLPROGRAMUNIFORMMATRIX3FVEXTPROC __glewProgramUniformMatrix3f
 GLEW_FUN_EXPORT PFNGLPROGRAMUNIFORMMATRIX4FVEXTPROC __glewProgramUniformMatrix4fvEXT;
 GLEW_FUN_EXPORT PFNGLUSEPROGRAMSTAGESEXTPROC __glewUseProgramStagesEXT;
 GLEW_FUN_EXPORT PFNGLVALIDATEPROGRAMPIPELINEEXTPROC __glewValidateProgramPipelineEXT;
+#endif // XXX
 
 GLEW_FUN_EXPORT PFNGLTEXSTORAGE1DEXTPROC __glewTexStorage1DEXT;
 GLEW_FUN_EXPORT PFNGLTEXSTORAGE2DEXTPROC __glewTexStorage2DEXT;

@@ -266,7 +266,7 @@ static void graph_main_area_draw(const bContext *C, ARegion *ar)
 		/* Draw a green line to indicate the cursor value */
 
 		UI_ThemeColorShadeAlpha(TH_CFRAME, -10, -50);
-		glLineWidth(2.0);
+		gpuLineWidth(2.0);
 
 		glEnable(GL_BLEND);
 

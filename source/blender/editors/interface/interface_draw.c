@@ -406,6 +406,7 @@ void ui_draw_but_IMAGE(ARegion *UNUSED(ar), uiBut *but, uiWidgetColors *UNUSED(w
 	ImBuf *ibuf = (ImBuf *)but->poin;
 	//GLint scissor[4];
 	int w, h;
+	bool do_zoom;
 
 	if (!ibuf) return;
 	
@@ -424,15 +425,20 @@ void ui_draw_but_IMAGE(ARegion *UNUSED(ar), uiBut *but, uiWidgetColors *UNUSED(w
 	
 	glEnable(GL_BLEND);
 	gpuCurrentColor4x(CPACK_BLACK, 0.000f);
-	
-	if (w != ibuf->x || h != ibuf->y) {
+
+	do_zoom = w != ibuf->x || h != ibuf->y;
+
+	if (do_zoom) {
 		float facx = (float)w / (float)ibuf->x;
 		float facy = (float)h / (float)ibuf->y;
-		glPixelZoom(facx, facy);
+		gpuPixelZoom(facx, facy);
 	}
+
 	glaDrawPixelsAuto((float)rect->xmin, (float)rect->ymin, ibuf->x, ibuf->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST, ibuf->rect);
 	
-	glPixelZoom(1.0f, 1.0f);
+	if (do_zoom) {
+		gpuPixelZoom(1.0f, 1.0f); /* restore default value */
+	}
 	
 	glDisable(GL_BLEND);
 	
@@ -988,11 +994,11 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 
 	gpuCurrentColor4ub(UI_TRANSP_DARK, UI_TRANSP_DARK, UI_TRANSP_DARK, 255);
 	gpuDrawFilledRectf(x1, y1, x1 + sizex, y1 + sizey);
-	glEnable(GL_POLYGON_STIPPLE);
+	gpuEnablePolygonStipple();
 	gpuCurrentColor4ub(UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, 255);
-	glPolygonStipple(checker_stipple_sml);
+	gpuPolygonStipple(checker_stipple_sml);
 	gpuDrawFilledRectf(x1, y1, x1 + sizex, y1 + sizey);
-	glDisable(GL_POLYGON_STIPPLE);
+	gpuDisablePolygonStipple();
 
 	glShadeModel(GL_FLAT);
 	glEnable(GL_BLEND);
@@ -1513,8 +1519,8 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 
 			for (a = 0; a < 2; a++) {
 				if (a == 1) {
-					glLineStipple(3, 0xaaaa);
-					glEnable(GL_LINE_STIPPLE);
+					gpuLineStipple(3, 0xaaaa);
+					gpuEnableLineStipple();
 					UI_ThemeColor(TH_SEL_MARKER);
 				}
 				else {
@@ -1530,7 +1536,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 			}
 		}
 
-		glDisable(GL_LINE_STIPPLE);
+		gpuDisableLineStipple();
 		gpuPopMatrix();
 
 		ok = 1;
@@ -1593,7 +1599,7 @@ void ui_draw_but_NODESOCKET(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol
 	gpuImmediateFormat_V2();
 
 	glEnable(GL_BLEND);
-	gpuBegin(GL_POLYGON);
+	gpuBegin(GL_TRIANGLE_FAN);
 	for (a = 0; a < 16; a++)
 		gpuVertex2f(x + size * si[a], y + size * co[a]);
 	gpuEnd();

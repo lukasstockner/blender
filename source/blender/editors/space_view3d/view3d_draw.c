@@ -162,33 +162,46 @@ static void view3d_draw_clipping(RegionView3D *rv3d)
 
 void ED_view3d_clipping_set(RegionView3D *rv3d)
 {
-	double plane[4];
-	const unsigned int tot = (rv3d->viewlock & RV3D_BOXCLIP) ? 4 : 6;
-	unsigned int a;
+#if defined(WITH_GL_PROFILE_COMPAT)
+	if (GPU_PROFILE_COMPAT) {
+		double plane[4];
+		const unsigned int tot = (rv3d->viewlock & RV3D_BOXCLIP) ? 4 : 6;
+		unsigned int a;
 
-	for (a = 0; a < tot; a++) {
-		copy_v4db_v4fl(plane, rv3d->clip[a]);
-		glClipPlane(GL_CLIP_PLANE0 + a, plane);
-		glEnable(GL_CLIP_PLANE0 + a);
+		for (a = 0; a < tot; a++) {
+			copy_v4db_v4fl(plane, rv3d->clip[a]);
+			glClipPlane(GL_CLIP_PLANE0 + a, plane);
+			glEnable(GL_CLIP_PLANE0 + a);
+		}
 	}
+#endif
 }
 
 /* use these to temp disable/enable clipping when 'rv3d->rflag & RV3D_CLIPPING' is set */
 void ED_view3d_clipping_disable(void)
 {
-	unsigned int a;
+#if defined(WITH_GL_PROFILE_COMPAT)
+	if (GPU_PROFILE_COMPAT) {
+		unsigned int a;
 
-	for (a = 0; a < 6; a++) {
-		glDisable(GL_CLIP_PLANE0 + a);
+		for (a = 0; a < 6; a++) {
+			glDisable(GL_CLIP_PLANE0 + a);
+		}
 	}
+#endif
 }
+
 void ED_view3d_clipping_enable(void)
 {
-	unsigned int a;
+#if defined(WITH_GL_PROFILE_COMPAT)
+	if (GPU_PROFILE_COMPAT) {
+		unsigned int a;
 
-	for (a = 0; a < 6; a++) {
-		glEnable(GL_CLIP_PLANE0 + a);
+		for (a = 0; a < 6; a++) {
+			glEnable(GL_CLIP_PLANE0 + a);
+		}
 	}
+#endif
 }
 
 static bool view3d_clipping_test(const float co[3], float clip[6][4])
@@ -283,7 +296,7 @@ static void drawgrid(UnitSettings *unit, ARegion *ar, View3D *v3d, const char **
 	dx = fabs(x - (wx) * fx / fw);
 	if (dx == 0) dx = fabs(y - (wy) * fy / fw);
 	
-	glDepthMask(0);     /* disable write in zbuffer */
+	gpuDepthMask(GL_FALSE);     /* disable write in zbuffer */
 
 	/* check zoom out */
 	UI_ThemeColor(TH_GRID);
@@ -435,7 +448,7 @@ static void drawgrid(UnitSettings *unit, ARegion *ar, View3D *v3d, const char **
 	gpuEnd();
 	gpuImmediateUnformat();
 
-	glDepthMask(1);  /* enable write in zbuffer */
+	gpuDepthMask(GL_TRUE);  /* enable write in zbuffer */
 }
 #undef GRID_MIN_PX
 
@@ -478,7 +491,7 @@ static void drawfloor(Scene *scene, View3D *v3d, const char **grid_unit)
 	grid = gridlines * grid_scale;
 
 	if (v3d->zbuf && scene->obedit)
-		glDepthMask(0);  /* for zbuffer-select */
+		gpuDepthMask(GL_FALSE);  /* for zbuffer-select */
 
 	UI_GetThemeColor3ubv(TH_GRID, col_grid);
 
@@ -555,7 +568,7 @@ static void drawfloor(Scene *scene, View3D *v3d, const char **grid_unit)
 		gpuImmediateUnformat();
 	}
 	
-	if (v3d->zbuf && scene->obedit) glDepthMask(1);
+	if (v3d->zbuf && scene->obedit) gpuDepthMask(GL_TRUE);
 }
 
 
@@ -757,7 +770,7 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 	glShadeModel(GL_SMOOTH);
 	glPointSize(5);
 	glEnable(GL_POINT_SMOOTH);
-	glDepthMask(0);  /* don't overwrite zbuf */
+	gpuDepthMask(GL_FALSE);  /* don't overwrite zbuf */
 
 	if (rv3d->rot_angle != 0.f) {
 		/* -- draw rotation axis -- */
@@ -843,7 +856,7 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 
 	glDisable(GL_BLEND);
 	glDisable(GL_POINT_SMOOTH);
-	glDepthMask(1);
+	gpuDepthMask(GL_TRUE);
 }
 
 static void draw_view_icon(RegionView3D *rv3d, rcti *rect)
@@ -1517,8 +1530,11 @@ unsigned int view3d_sample_backbuf(ViewContext *vc, int x, int y)
 	view3d_validate_backbuf(vc);
 
 	view3d_opengl_read_pixels(vc->ar, x, y, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &col);
+
+#if !defined(GLEW_ES_ONLY)
 	glReadBuffer(GL_BACK);
-	
+#endif
+
 	if (ENDIAN_ORDER == B_ENDIAN) {
 		BLI_endian_switch_uint32(&col);
 	}
@@ -1553,7 +1569,9 @@ ImBuf *view3d_read_backbuf(ViewContext *vc, short xmin, short ymin, short xmax, 
 	             (ymaxc - yminc + 1),
 	             GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect);
 
+#if !defined(GLEW_ES_ONLY) // XXX jwilkins: ES can only read from COLOR_ATTACHMENT0
 	glReadBuffer(GL_BACK);
+#endif
 
 	if (ENDIAN_ORDER == B_ENDIAN) IMB_convert_rgba_to_abgr(ibuf);
 
@@ -1872,7 +1890,7 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 			}
 
 			if (v3d->zbuf) glDisable(GL_DEPTH_TEST);
-			glDepthMask(0);
+			gpuDepthMask(GL_FALSE);
 
 			glEnable(GL_BLEND);
 
@@ -1882,7 +1900,7 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 			gpuPushMatrix();
 			ED_region_pixelspace(ar);
 
-			glPixelZoom(zoomx, zoomy);
+			gpuPixelZoom(zoomx, zoomy);
 
 			gpuCurrentColor4x(CPACK_WHITE, 1 - bgpic->blend);
 			/* could not use glaDrawPixelsAuto because it could fallback to
@@ -1891,7 +1909,7 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 			 */
 			glaDrawPixelsTex(x1, y1, ibuf->x, ibuf->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_LINEAR, ibuf->rect);
 
-			glPixelZoom(1, 1);
+			gpuPixelZoom(1.0f, 1.0f); /* restore default value */
 
 			gpuMatrixMode(GL_PROJECTION);
 			gpuPopMatrix();
@@ -1900,7 +1918,7 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 
 			glDisable(GL_BLEND);
 
-			glDepthMask(1);
+			gpuDepthMask(GL_TRUE);
 			if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 
 			if (freeibuf)
@@ -1959,7 +1977,7 @@ static void view3d_draw_transp(Scene *scene, ARegion *ar, View3D *v3d)
 {
 	View3DAfter *v3da, *next;
 	
-	glDepthMask(0);
+	gpuDepthMask(GL_FALSE);
 	v3d->transp = TRUE;
 	
 	for (v3da = v3d->afterdraw_transp.first; v3da; v3da = next) {
@@ -1970,7 +1988,7 @@ static void view3d_draw_transp(Scene *scene, ARegion *ar, View3D *v3d)
 	}
 	v3d->transp = FALSE;
 	
-	glDepthMask(1);
+	gpuDepthMask(GL_TRUE);
 	
 }
 
@@ -2050,9 +2068,12 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 	ListBase *lb;
 	DupliObject *dob_prev = NULL, *dob, *dob_next = NULL;
 	Base tbase = {NULL};
+	short transflag;
+#if defined(WITH_GL_PROFILE_COMPAT)
 	BoundBox bb, *bb_tmp; /* use a copy because draw_object, calls clear_mesh_caches */
 	GLuint displist = 0;
-	short transflag, use_displist = -1;  /* -1 is initialize */
+	short use_displist = -1;  /* -1 is initialize */
+#endif
 	char dt;
 	short dtx;
 	
@@ -2087,6 +2108,7 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 
 		UI_ThemeColorBlend(color, TH_BACK, 0.5);
 
+#if defined(WITH_GL_PROFILE_COMPAT)
 		/* generate displist, test for new object */
 		if (dob_prev && dob_prev->ob != dob->ob) {
 			if (use_displist == true)
@@ -2097,7 +2119,6 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 
 		/* generate displist */
 		if (use_displist == -1) {
-
 			/* note, since this was added, its checked (dob->type == OB_DUPLIGROUP)
 			 * however this is very slow, it was probably needed for the NLA
 			 * offset feature (used in group-duplicate.blend but no longer works in 2.5)
@@ -2130,14 +2151,20 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 				use_displist = true;
 				BKE_object_boundbox_flag(dob->ob, OB_BB_DISABLED, 0);
 			}
+
 		}
+#endif
+
+#if defined(WITH_GL_PROFILE_COMPAT)
 		if (use_displist) {
 			gpuMultMatrix(dob->mat);
 			if (ED_view3d_boundbox_clip(rv3d, dob->mat, &bb))
 				glCallList(displist);
 			gpuLoadMatrix(rv3d->viewmat);
 		}
-		else {
+		else
+#endif
+		{
 			copy_m4_m4(dob->ob->obmat, dob->mat);
 			draw_object(scene, ar, v3d, &tbase, DRAW_CONSTCOLOR);
 		}
@@ -2151,8 +2178,10 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 	
 	free_object_duplilist(lb);  /* does restore */
 	
+#if defined(WITH_GL_PROFILE_COMPAT)
 	if (use_displist)
 		glDeleteLists(displist, 1);
+#endif
 }
 
 static void draw_dupli_objects(Scene *scene, ARegion *ar, View3D *v3d, Base *base)
@@ -2220,16 +2249,7 @@ void view3d_update_depths_rect(ARegion *ar, ViewDepths *d, rcti *rect)
 	if (d->damaged) {
 		/* XXX using special function here, it doesn't use the gpu offscreen system */
 		view3d_opengl_read_Z_pixels(ar, d->x, d->y, d->w, d->h, GL_DEPTH_COMPONENT, GL_FLOAT, d->depths);
-#if !defined(GLEW_ES_ONLY) // XXX jwilkins: could make into a function?
-		glGetDoublev(GL_DEPTH_RANGE, d->depth_range);
-#else
-		{
-			float tmp[2];
-			glGetFloatv(GL_DEPTH_RANGE, tmp);
-			d->depth_range[0] = tmp[0];
-			d->depth_range[1] = tmp[1];
-		}
-#endif
+		gpuGetDepthRange(d->depth_range);
 		d->damaged = false;
 	}
 }
@@ -2257,16 +2277,7 @@ void ED_view3d_depth_update(ARegion *ar)
 		
 		if (d->damaged) {
 			view3d_opengl_read_pixels(ar, 0, 0, d->w, d->h, GL_DEPTH_COMPONENT, GL_FLOAT, d->depths);
-#if !defined(GLEW_ES_ONLY) // XXX jwilkins: could make into a function?
-			glGetDoublev(GL_DEPTH_RANGE, d->depth_range);
-#else
-			{
-				float tmp[2];
-				glGetFloatv(GL_DEPTH_RANGE, tmp);
-				d->depth_range[0] = tmp[0];
-				d->depth_range[1] = tmp[1];
-			}
-#endif
+			gpuGetDepthRange(d->depth_range);
 			d->damaged = false;
 		}
 	}
@@ -2395,7 +2406,7 @@ void draw_depth(Scene *scene, ARegion *ar, View3D *v3d, int (*func)(void *), boo
 		v3d->xray = TRUE;
 		
 		/* transp materials can change the depth mask, see #21388 */
-		glGetIntegerv(GL_DEPTH_WRITEMASK, &mask_orig);
+		mask_orig = gpuGetDepthWritemask();
 
 
 		if (v3d->afterdraw_xray.first || v3d->afterdraw_xraytransp.first) {
@@ -2439,7 +2450,7 @@ void draw_depth(Scene *scene, ARegion *ar, View3D *v3d, int (*func)(void *), boo
 		v3d->xray = FALSE;
 		v3d->transp = FALSE;
 
-		glDepthMask(mask_orig);
+		gpuDepthMask(mask_orig);
 	}
 	
 	if (rv3d->rflag & RV3D_CLIPPING)
@@ -3482,7 +3493,7 @@ static void view3d_main_area_draw_info(const bContext *C, ARegion *ar, const cha
 		drawviewborder(scene, ar, v3d);
 	}
 	else if (v3d->flag2 & V3D_RENDER_BORDER) {
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		gpuPolygonMode(GL_LINE);
 		setlinestyle(3);
 		gpuColor3x(0x4040FF);
 
@@ -3491,7 +3502,7 @@ static void view3d_main_area_draw_info(const bContext *C, ARegion *ar, const cha
 		        v3d->render_border.xmax * ar->winx, v3d->render_border.ymax * ar->winy);
 
 		setlinestyle(0);
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		gpuPolygonMode(GL_FILL);
 	}
 
 	if (v3d->flag2 & V3D_SHOW_GPENCIL) {

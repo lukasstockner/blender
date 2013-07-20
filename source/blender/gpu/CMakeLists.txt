@@ -60,11 +60,14 @@ set(SRC
 	intern/gpu_lighting_glsl.c
 	intern/gpu_material.c
 	intern/gpu_matrix.c
-	intern/gpu_simple_shader.c
-	intern/gpu_primitives.c
 	intern/gpu_object.c
 	intern/gpu_object_gles.c
 	intern/gpu_object_gl11.c
+	intern/gpu_pixels.c
+	intern/gpu_primitives.c
+	intern/gpu_raster.c
+	intern/gpu_simple_shader.c
+	intern/gpu_state_latch.c
 	intern/gpu_view.c
 	intern/gpu_view_gl.c
 
@@ -92,8 +95,12 @@ set(SRC
 	intern/gpu_lighting_internal.h
 	intern/gpu_object_gles.h
 	intern/gpu_object_gl11.h
+	intern/gpu_pixels.h
 	intern/gpu_primitives_inline.h
+	intern/gpu_profile.h
+	intern/gpu_raster.h
 	intern/gpu_safety.h
+	intern/gpu_state_latch.h
 	intern/gpu_view.h
 	intern/gpu_view_gl.h
 )

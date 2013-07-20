@@ -188,10 +188,10 @@ void fdrawcheckerboard(float x1, float y1, float x2, float y2)
 	gpuSingleFilledRectf(x1, y1, x2, y2);
 	gpuCurrentColor3ubv(col2);
 
-	glEnable(GL_POLYGON_STIPPLE);
-	glPolygonStipple(checker_stipple);
+	gpuEnablePolygonStipple();
+	gpuPolygonStipple(checker_stipple);
 	gpuSingleFilledRectf(x1, y1, x2, y2);
-	glDisable(GL_POLYGON_STIPPLE);
+	gpuDisablePolygonStipple();
 }
 
 /*
@@ -233,15 +233,15 @@ void sdrawtrifill(short x1, short y1, short x2, short y2)
 void setlinestyle(int nr)
 {
 	if (nr == 0) {
-		glDisable(GL_LINE_STIPPLE);
+		gpuDisableLineStipple();
 	}
 	else {
 		
-		glEnable(GL_LINE_STIPPLE);
+		gpuEnableLineStipple();
 		if (U.pixelsize > 1.0f)
-			glLineStipple(nr, 0xCCCC);
+			gpuLineStipple(nr, 0xCCCC);
 		else
-			glLineStipple(nr, 0xAAAA);
+			gpuLineStipple(nr, 0xAAAA);
 	}
 }
 
@@ -344,23 +344,6 @@ float glaGetOneFloat(int param)
 	return v;
 }
 
-void glaRasterPosSafe2f(float x, float y, float known_good_x, float known_good_y)
-{
-	GLubyte dummy = 0;
-
-	/* As long as known good coordinates are correct
-	 * this is guaranteed to generate an ok raster
-	 * position (ignoring potential (real) overflow
-	 * issues).
-	 */
-	glRasterPos2f(known_good_x, known_good_y);
-
-	/* Now shift the raster position to where we wanted
-	 * it in the first place using the glBitmap trick.
-	 */
-	glBitmap(0, 0, 0, 0, x - known_good_x, y - known_good_y, &dummy);
-}
-
 static int get_cached_work_texture(int *w_r, int *h_r)
 {
 	static GLint texid = -1;
@@ -373,7 +356,7 @@ static int get_cached_work_texture(int *w_r, int *h_r)
 
 		glGenTextures(1, (GLuint *)&texid);
 
-		glBindTexture(GL_TEXTURE_2D, texid);
+		gpuBindTexture(GL_TEXTURE_2D, texid);
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -382,7 +365,7 @@ static int get_cached_work_texture(int *w_r, int *h_r)
 		glTexImage2D(GL_TEXTURE_2D, 0, (GLEW_VERSION_1_1 || GLEW_OES_required_internalformat) ? GL_RGBA8 : GL_RGBA, tex_w, tex_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, tbuf);
 		MEM_freeN(tbuf);
 
-		glBindTexture(GL_TEXTURE_2D, ltexid);
+		gpuBindTexture(GL_TEXTURE_2D, ltexid);
 	}
 
 	*w_r = tex_w;
@@ -409,24 +392,19 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 #endif
 
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, img_w);
-	glBindTexture(GL_TEXTURE_2D, texid);
+	gpuBindTexture(GL_TEXTURE_2D, texid);
 
 	/* don't want nasty border artifacts */
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, zoomfilter);
 
-#ifdef __APPLE__
-	/* workaround for os x 10.5/10.6 driver bug: http://lists.apple.com/archives/Mac-opengl/2008/Jul/msg00117.html */
-	glPixelZoom(1.f, 1.f);
-#endif
-	
 	/* setup seamless 2=on, 0=off */
 	seamless = ((tex_w < img_w || tex_h < img_h) && tex_w > 2 && tex_h > 2) ? 2 : 0;
-	
+
 	offset_x = tex_w - seamless;
 	offset_y = tex_h - seamless;
-	
+
 	nsubparts_x = (img_w + (offset_x - 1)) / (offset_x);
 	nsubparts_y = (img_h + (offset_y - 1)) / (offset_y);
 
@@ -464,6 +442,8 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 		/* switch to 8bit RGBA for byte buffer  */
 		glTexImage2D(GL_TEXTURE_2D, 0, (GLEW_VERSION_1_1 || GLEW_OES_required_internalformat) ? GL_RGBA8 : GL_RGBA, tex_w, tex_h, 0, format, GL_UNSIGNED_BYTE, NULL);
 	}
+
+	gpuImmediateFormat_T2_V2();
 
 	for (subpart_y = 0; subpart_y < nsubparts_y; subpart_y++) {
 		for (subpart_x = 0; subpart_x < nsubparts_x; subpart_x++) {
@@ -506,7 +486,6 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 
 			glEnable(GL_TEXTURE_2D);
 
-			gpuImmediateFormat_T2_V2();
 			gpuBegin(GL_TRIANGLE_FAN);
 
 			gpuTexCoord2f((float)(0 + offset_left) / tex_w, (float)(0 + offset_bot) / tex_h);
@@ -522,23 +501,15 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 			gpuVertex2f(rast_x + (float)offset_left * xzoom, rast_y + (float)(subpart_h - offset_top) * yzoom * scaleY);
 
 			gpuEnd();
-			gpuImmediateUnformat();
 
 			glDisable(GL_TEXTURE_2D);
 		}
 	}
 
-	glBindTexture(GL_TEXTURE_2D, ltexid);
+	gpuImmediateUnformat();
+
+	gpuBindTexture(GL_TEXTURE_2D, ltexid);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0); /* restore default value */
-
-#if defined(WITH_GL_PROFILE_COMPAT)
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-#endif
-
-#ifdef __APPLE__
-	/* workaround for os x 10.5/10.6 driver bug (above) */
-	glPixelZoom(xzoom, yzoom);
-#endif
 }
 
 void glaDrawPixelsTex(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect)
@@ -548,29 +519,32 @@ void glaDrawPixelsTex(float x, float y, int img_w, int img_h, int format, int ty
 
 void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int format, int type, void *rect)
 {
-	float xzoom = glaGetOneFloat(GL_ZOOM_X);
-	float yzoom = glaGetOneFloat(GL_ZOOM_Y);
+	float xzoom, yzoom;
+	float ix, iy;
+	float off_x, off_y;
+	float rast_x, rast_y;
+	int scissor[4];
+	int draw_w, draw_h;
+
+	gpuGetPixelZoom(&xzoom, &yzoom);
 
 	/* The pixel space coordinate of the intersection of
 	 * the [zoomed] image with the origin.
 	 */
-	float ix = -x / xzoom;
-	float iy = -y / yzoom;
+	ix = -x / xzoom;
+	iy = -y / yzoom;
 		
 	/* The maximum pixel amounts the image can be cropped
 	 * at the lower left without exceeding the origin.
 	 */
-	int off_x = floor(max_ff(ix, 0.0f));
-	int off_y = floor(max_ff(iy, 0.0f));
+	off_x = floor(max_ff(ix, 0.0f));
+	off_y = floor(max_ff(iy, 0.0f));
 
 	/* The zoomed space coordinate of the raster position
 	 * (starting at the lower left most unclipped pixel).
 	 */
-	float rast_x = x + off_x * xzoom;
-	float rast_y = y + off_y * yzoom;
-
-	int scissor[4];
-	int draw_w, draw_h;
+	rast_x = x + off_x * xzoom;
+	rast_y = y + off_y * yzoom;
 
 	/* Determine the smallest number of pixels we need to draw
 	 * before the image would go off the upper right corner.
@@ -589,44 +563,30 @@ void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int fo
 	draw_h = min_ii(img_h - off_y, ceil((float)(scissor[3] - rast_y) / yzoom));
 
 	if (draw_w > 0 && draw_h > 0) {
-		/* Don't use safe RasterPos (slower) if we can avoid it. */
-		if (rast_x >= 0 && rast_y >= 0) {
-			glRasterPos2f(rast_x, rast_y);
+		int index, components;
+		void* data;
+
+		gpuPixelFormat(GL_UNPACK_ROW_LENGTH, row_w);
+
+		components = ELEM(format, GL_LUMINANCE, GL_RED) ? 1 : 4; // Note: GL_RED is not defined in ES 2.0,
+		                                                         // but if it still somehow gets passed in here, it should work fine.
+		index = (off_y * row_w + off_x) * components;
+
+		if (type == GL_FLOAT) {
+			data = (GLfloat*)rect + index;
 		}
-		else {
-			glaRasterPosSafe2f(rast_x, rast_y, 0, 0);
+		else if (type == GL_INT || type == GL_UNSIGNED_INT) {
+			data = (GLint*)rect + index;
 		}
 
-		glPixelStorei(GL_UNPACK_ROW_LENGTH, row_w);
+		{
+			GPUpixels pixels = { draw_w, draw_h, format, type, data };
 
-#if !defined(GLEW_ES_ONLY) // XXX jwilkins: this is kind lame, but oh well
-#define IS_RED(x) (format == GL_RED)
-#else
-#define IS_RED(x) 0
-#endif
-		if (format == GL_LUMINANCE || IS_RED(format)) {
-			if (type == GL_FLOAT) {
-				float *f_rect = (float *)rect;
-				glDrawPixels(draw_w, draw_h, format, type, f_rect + (off_y * row_w + off_x));
-			}
-			else if (type == GL_INT || type == GL_UNSIGNED_INT) {
-				int *i_rect = (int *)rect;
-				glDrawPixels(draw_w, draw_h, format, type, i_rect + (off_y * row_w + off_x));
-			}
+			gpuPixelsBegin();
+			gpuPixelPos2f(rast_x, rast_y);
+			gpuPixels(&pixels);
+			gpuPixelsEnd();
 		}
-		else { /* RGBA */
-			if (type == GL_FLOAT) {
-				float *f_rect = (float *)rect;
-				glDrawPixels(draw_w, draw_h, format, type, f_rect + (off_y * row_w + off_x) * 4);
-			}
-			else if (type == GL_UNSIGNED_BYTE) {
-				unsigned char *uc_rect = (unsigned char *) rect;
-				glDrawPixels(draw_w, draw_h, format, type, uc_rect + (off_y * row_w + off_x) * 4);
-			}
-		}
-#undef IS_RED
-
-		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0); /* restore default value */
 	}
 }
 

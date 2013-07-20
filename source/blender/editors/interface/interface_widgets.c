@@ -707,11 +707,11 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 				gpuDrawClientArrays(GL_TRIANGLE_FAN, &arrays, 0, wtb->totvert);
 
 				/* light checkers */
-				glEnable(GL_POLYGON_STIPPLE);
+				gpuEnablePolygonStipple();
 				gpuCurrentColor4ub(UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, 255);
-				glPolygonStipple(checker_stipple_sml);
+				gpuPolygonStipple(checker_stipple_sml);
 				gpuRepeat();
-				glDisable(GL_POLYGON_STIPPLE);
+				gpuDisablePolygonStipple();
 
 				gpuCurrentColor4ubv((unsigned char *)wcol->inner);
 				gpuRepeat();

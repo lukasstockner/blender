@@ -355,9 +355,13 @@ void paint_sample_color(const bContext *C, ARegion *ar, int x, int y)    /* fron
 	CLAMP(x, 0, ar->winx);
 	CLAMP(y, 0, ar->winy);
 	
+#if !defined(GLEW_ES_ONLY) // XXX jwilkins: ES can only read from COLOR_ATTACHMENT0
 	glReadBuffer(GL_FRONT);
+#endif
 	glReadPixels(x + ar->winrct.xmin, y + ar->winrct.ymin, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &col);
+#if !defined(GLEW_ES_ONLY)
 	glReadBuffer(GL_BACK);
+#endif
 
 	cp = (char *)&col;
 	

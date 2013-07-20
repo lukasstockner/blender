@@ -39,7 +39,10 @@
 #include "intern/gpu_view.h"
 #include "GPU_matrix.h"
 
-
+#include "intern/gpu_state_latch.h"
+#include "intern/gpu_raster.h"
+#include "intern/gpu_profile.h"
+#include "intern/gpu_pixels.h"
 
 #ifndef GPU_MANGLE_DEPRECATED
 #define GPU_MANGLE_DEPRECATED 1
@@ -54,8 +57,6 @@
 GLenum GPU_mipmap_2D(GLboolean genmip, GLenum internalFormat, int w, int h, GLenum type, void* data); // XXX jwilkins: this belongs somewhere else
 
 
-
-#define GPU_LEGACY 1 // XXX jwilkins: ToDo, will be runtime variable indicating that legacy opengl is in use or compatibility profile is loaded
 
 
 

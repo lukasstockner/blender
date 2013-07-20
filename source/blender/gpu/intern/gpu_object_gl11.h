@@ -32,16 +32,14 @@
 #ifndef _GPU_OBJECT_GL11_H_
 #define _GPU_OBJECT_GL11_H_
 
-#if defined(WITH_GL_PROFILE_COMPAT)
-
 void gpuVertexPointer_gl11(int size, int type, int stride, const void *pointer);
 void gpuNormalPointer_gl11(          int type, int stride, const void *pointer);
 void gpuColorPointer_gl11 (int size, int type, int stride, const void *pointer);
 void gpuTexCoordPointer_gl11(int size, int type, int stride, const void *pointer);
+#if !defined(GLEW_ES_ONLY)
 void gpuClientActiveTexture_gl11(int texture);
-
-void gpuCleanupAfterDraw_gl11(void); // XXX jwilkins: ???
-
 #endif
+
+void gpuCleanupAfterDraw_gl11(void);
 
 #endif

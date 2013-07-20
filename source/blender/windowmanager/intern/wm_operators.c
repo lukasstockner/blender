@@ -3325,7 +3325,7 @@ static void radial_control_set_tex(RadialControl *rc)
 		case ID_BR:
 			if ((ibuf = BKE_brush_gen_radial_control_imbuf(rc->image_id_ptr.data))) {
 				glGenTextures(1, &rc->gltex);
-				glBindTexture(GL_TEXTURE_2D, rc->gltex);
+				gpuBindTexture(GL_TEXTURE_2D, rc->gltex);
 				glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, ibuf->x, ibuf->y, 0,
 				             GL_ALPHA, GL_FLOAT, ibuf->rect_float);
 				MEM_freeN(ibuf->rect_float);
@@ -3350,7 +3350,7 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 	gpuCurrentColor4f(col[0], col[1], col[2], alpha);
 
 	if (rc->gltex) {
-		glBindTexture(GL_TEXTURE_2D, rc->gltex);
+		gpuBindTexture(GL_TEXTURE_2D, rc->gltex);
 
 		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);

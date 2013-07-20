@@ -377,8 +377,8 @@ static void emDM_drawMappedFaces(
 					if (poly_prev != GL_NOOP) gpuEnd();
 					poly_prev = GL_NOOP; /* force gpuBegin */
 
-					glEnable(GL_POLYGON_STIPPLE);
-					glPolygonStipple(stipple_quarttone);
+					gpuEnablePolygonStipple();
+					gpuPolygonStipple(stipple_quarttone);
 				}
 
 				if      (has_vcol_preview) bmdm_get_tri_colpreview(ltri, lcol, color_vert_array);
@@ -438,7 +438,7 @@ static void emDM_drawMappedFaces(
 					gpuEnd();
 					poly_prev = GL_NOOP; /* force gpuBegin */
 
-					glDisable(GL_POLYGON_STIPPLE);
+					gpuDisablePolygonStipple();
 				}
 			}
 		}
@@ -466,8 +466,8 @@ static void emDM_drawMappedFaces(
 					if (poly_prev != GL_NOOP) gpuEnd();
 					poly_prev = GL_NOOP; /* force gpuBegin */
 
-					glEnable(GL_POLYGON_STIPPLE);
-					glPolygonStipple(stipple_quarttone);
+					gpuEnablePolygonStipple();
+					gpuPolygonStipple(stipple_quarttone);
 				}
 
 				if      (has_vcol_preview) bmdm_get_tri_colpreview(ltri, lcol, color_vert_array);
@@ -528,7 +528,7 @@ static void emDM_drawMappedFaces(
 				if (flush) {
 					gpuEnd();
 
-					glDisable(GL_POLYGON_STIPPLE);
+					gpuDisablePolygonStipple();
 
 					poly_prev = GL_TRIANGLES;
 					gpuBegin(GL_TRIANGLES);

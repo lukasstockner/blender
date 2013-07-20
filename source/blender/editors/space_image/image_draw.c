@@ -411,14 +411,15 @@ static void sima_draw_alpha_pixels(float x1, float y1, int rectx, int recty, uns
 	/* swap bytes, so alpha is most significant one, then just draw it as luminance int */
 
 #if ENDIAN_ORDER == B_ENDIAN
-	glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_TRUE);
+	gpuPixelFormat(GL_UNPACK_SWAP_BYTES, GL_TRUE);
 #endif
 
 	glaDrawPixelsSafe(x1, y1, rectx, recty, rectx, GL_LUMINANCE, GL_UNSIGNED_INT, recti);
 
 #if ENDIAN_ORDER == B_ENDIAN
-	glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE); /* restore default value */
+	gpuPixelFormat(GL_UNPACK_SWAP_BYTES, GL_FALSE); /* restore default value */
 #endif
+
 }
 
 static void sima_draw_alpha_pixelsf(float x1, float y1, int rectx, int recty, float *rectf)
@@ -444,21 +445,23 @@ static void sima_draw_alpha_pixelsf(float x1, float y1, int rectx, int recty, fl
 static void sima_draw_zbuf_pixels(float x1, float y1, int rectx, int recty, int *recti)
 {
 	/* zbuffer values are signed, so we need to shift color range */
-	glPixelTransferf(GL_RED_SCALE, 0.5f);
-	glPixelTransferf(GL_GREEN_SCALE, 0.5f);
-	glPixelTransferf(GL_BLUE_SCALE, 0.5f);
-	glPixelTransferf(GL_RED_BIAS, 0.5f);
-	glPixelTransferf(GL_GREEN_BIAS, 0.5f);
-	glPixelTransferf(GL_BLUE_BIAS, 0.5f);
-	
+	gpuPixelUniform1f(GL_RED_SCALE,   0.5f);
+	gpuPixelUniform1f(GL_GREEN_SCALE, 0.5f);
+	gpuPixelUniform1f(GL_BLUE_SCALE,  0.5f);
+
+	gpuPixelUniform1f(GL_RED_BIAS,    0.5f);
+	gpuPixelUniform1f(GL_GREEN_BIAS,  0.5f);
+	gpuPixelUniform1f(GL_BLUE_BIAS,   0.5f);
+
 	glaDrawPixelsSafe(x1, y1, rectx, recty, rectx, GL_LUMINANCE, GL_INT, recti);
-	
-	glPixelTransferf(GL_RED_SCALE, 1.0f);
-	glPixelTransferf(GL_GREEN_SCALE, 1.0f);
-	glPixelTransferf(GL_BLUE_SCALE, 1.0f);
-	glPixelTransferf(GL_RED_BIAS, 0.0f);
-	glPixelTransferf(GL_GREEN_BIAS, 0.0f);
-	glPixelTransferf(GL_BLUE_BIAS, 0.0f);
+
+	gpuPixelUniform1f(GL_RED_SCALE,   1.0f); /* restore default value */
+	gpuPixelUniform1f(GL_GREEN_SCALE, 1.0f); /* restore default value */
+	gpuPixelUniform1f(GL_BLUE_SCALE,  1.0f); /* restore default value */
+
+	gpuPixelUniform1f(GL_RED_BIAS,    0.0f); /* restore default value */
+	gpuPixelUniform1f(GL_GREEN_BIAS,  0.0f); /* restore default value */
+	gpuPixelUniform1f(GL_BLUE_BIAS,   0.0f); /* restore default value */
 }
 
 static void sima_draw_zbuffloat_pixels(Scene *scene, float x1, float y1, int rectx, int recty, float *rect_float)
@@ -498,7 +501,7 @@ static void draw_image_buffer(const bContext *C, SpaceImage *sima, ARegion *ar, 
 	int x, y;
 
 	/* set zoom */
-	glPixelZoom(zoomx, zoomy);
+	gpuPixelZoom(zoomx, zoomy);
 
 	glaDefine2DArea(&ar->winrct);
 	
@@ -534,7 +537,7 @@ static void draw_image_buffer(const bContext *C, SpaceImage *sima, ARegion *ar, 
 	}
 
 	/* reset zoom */
-	glPixelZoom(1.0f, 1.0f);
+	gpuPixelZoom(1.0f, 1.0f); /* restore default value */
 }
 
 static unsigned int *get_part_from_buffer(unsigned int *buffer, int width, short startx, short starty, short endx, short endy)
@@ -578,7 +581,7 @@ static void draw_image_buffer_tiled(SpaceImage *sima, ARegion *ar, Scene *scene,
 	if (!display_buffer)
 		return;
 
-	glPixelZoom(zoomx, zoomy);
+	gpuPixelZoom(zoomx, zoomy);
 
 	if (sima->curtile >= ima->xrep * ima->yrep)
 		sima->curtile = ima->xrep * ima->yrep - 1;
@@ -599,7 +602,7 @@ static void draw_image_buffer_tiled(SpaceImage *sima, ARegion *ar, Scene *scene,
 		}
 	}
 
-	glPixelZoom(1.0f, 1.0f);
+	gpuPixelZoom(1.0f, 1.0f); /* restore default value */
 
 	IMB_display_buffer_release(cache_handle);
 
@@ -774,13 +777,13 @@ static void draw_image_paint_helpers(const bContext *C, ARegion *ar, Scene *scen
 		if (clonerect) {
 			UI_view2d_to_region_no_clip(&ar->v2d, brush->clone.offset[0], brush->clone.offset[1], &x, &y);
 
-			glPixelZoom(zoomx, zoomy);
+			gpuPixelZoom(zoomx, zoomy);
 
 			glEnable(GL_BLEND);
 			glaDrawPixelsSafe(x, y, w, h, w, GL_RGBA, GL_UNSIGNED_BYTE, clonerect);
 			glDisable(GL_BLEND);
 
-			glPixelZoom(1.0, 1.0);
+			gpuPixelZoom(1.0, 1.0); /* restore default value */
 
 			MEM_freeN(clonerect);
 		}

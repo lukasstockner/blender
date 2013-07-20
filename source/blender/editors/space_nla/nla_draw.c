@@ -599,7 +599,7 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *ar)
 
 					/* draw 'embossed' lines above and below the strip for effect */
 					/* white base-lines */
-					glLineWidth(2.0f);
+					gpuLineWidth(2.0f);
 					gpuCurrentColor4x(CPACK_WHITE, 0.300f);
 					gpuBegin(GL_LINES);
 					gpuAppendLinef(v2d->cur.xmin, yminc + NLACHANNEL_SKIP, v2d->cur.xmax, yminc + NLACHANNEL_SKIP);
@@ -607,7 +607,7 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *ar)
 					gpuEnd();
 
 					/* black top-lines */
-					glLineWidth(1.0f);
+					gpuLineWidth(1.0f);
 					gpuCurrentColor3x(CPACK_BLACK);
 					gpuBegin(GL_LINES);
 					gpuAppendLinef(v2d->cur.xmin, yminc + NLACHANNEL_SKIP, v2d->cur.xmax, yminc + NLACHANNEL_SKIP);

@@ -959,8 +959,8 @@ static void cdDM_drawMappedFaces(
 				unsigned char *cp = NULL;
 
 				if (draw_option == DM_DRAW_OPTION_STIPPLE) {
-					glEnable(GL_POLYGON_STIPPLE);
-					glPolygonStipple(stipple_quarttone);
+					gpuEnablePolygonStipple();
+					gpuPolygonStipple(stipple_quarttone);
 				}
 
 				if (useColors && mcol)
@@ -1016,7 +1016,7 @@ static void cdDM_drawMappedFaces(
 				gpuEnd();
 
 				if (draw_option == DM_DRAW_OPTION_STIPPLE)
-					glDisable(GL_POLYGON_STIPPLE);
+					gpuDisablePolygonStipple();
 			}
 			
 			if (nors) nors += 3;
@@ -1070,8 +1070,8 @@ static void cdDM_drawMappedFaces(
 						draw_option = setDrawOptions(userData, orig);
 
 					if (draw_option == DM_DRAW_OPTION_STIPPLE) {
-						glEnable(GL_POLYGON_STIPPLE);
-						glPolygonStipple(stipple_quarttone);
+						gpuEnablePolygonStipple();
+						gpuPolygonStipple(stipple_quarttone);
 					}
 	
 					/* Goal is to draw as long of a contiguous triangle
@@ -1102,7 +1102,7 @@ static void cdDM_drawMappedFaces(
 						prevstart = i + 1;
 
 						if (draw_option == DM_DRAW_OPTION_STIPPLE)
-							glDisable(GL_POLYGON_STIPPLE);
+							gpuDisablePolygonStipple();
 					}
 				}
 			}

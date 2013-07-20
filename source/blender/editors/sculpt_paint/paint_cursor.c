@@ -263,7 +263,7 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 		size = target->old_size;
 	}
 
-	glBindTexture(GL_TEXTURE_2D, target->overlay_texture);
+	gpuBindTexture(GL_TEXTURE_2D, target->overlay_texture);
 
 	if (refresh) {
 		if (!init || (target->old_col != col)) {
@@ -403,7 +403,7 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
 		size = old_size;
 	}
 
-	glBindTexture(GL_TEXTURE_2D, overlay_texture);
+	gpuBindTexture(GL_TEXTURE_2D, overlay_texture);
 
 	if (refresh) {
 		if (!init) {
@@ -558,7 +558,7 @@ static void paint_draw_tex_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		glEnable(GL_BLEND);
 
 		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-		glDepthMask(GL_FALSE);
+		gpuDepthMask(GL_FALSE);
 		glDepthFunc(GL_ALWAYS);
 
 		gpuMatrixMode(GL_TEXTURE);
@@ -674,7 +674,7 @@ static void paint_draw_cursor_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		glEnable(GL_BLEND);
 
 		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-		glDepthMask(GL_FALSE);
+		gpuDepthMask(GL_FALSE);
 		glDepthFunc(GL_ALWAYS);
 
 		/* scale based on tablet pressure */
