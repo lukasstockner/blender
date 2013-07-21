@@ -129,6 +129,7 @@ typedef struct uiLayout uiLayout;
 /* block->flag bits 12-15 are identical to but->flag bits */
 
 #define UI_BLOCK_LIST_ITEM   (1 << 19)
+#define UI_BLOCK_SHORTCUTS	 (1 << 20)
 
 /* uiPopupBlockHandle->menuretval */
 #define UI_RETURN_CANCEL     (1 << 0)   /* cancel all menus cascading */

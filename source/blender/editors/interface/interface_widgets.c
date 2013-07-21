@@ -1135,6 +1135,7 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 {
 	//int transopts;  // UNUSED
 	char *cpoin = NULL;
+	unsigned char button_shortcut_color[4];
 	
 	/* for underline drawing */
 	float font_xofs, font_yofs;
@@ -1214,7 +1215,7 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 #endif
 
 	/* cut string in 2 parts - only for menu entries */
-	if ((but->block->flag & UI_BLOCK_LOOP)) {
+	if ((but->block->flag & UI_BLOCK_SHORTCUTS)) {
 		if (ELEM3(but->type, NUM, TEX, NUMSLI) == 0) {
 			cpoin = strchr(but->drawstr, '|');
 			if (cpoin) *cpoin = 0;
@@ -1261,6 +1262,12 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 	if (cpoin) {
 		fstyle->align = UI_STYLE_TEXT_RIGHT;
 		rect->xmax -= ui_but_draw_menu_icon(but) ? UI_DPI_ICON_SIZE : 0.25f * U.widget_unit;
+		/* If this is not a menu, and therefore a normal button, then change the alpha of the shortcut */
+		if (!(but->block->flag & UI_BLOCK_LOOP)) {
+			memcpy(button_shortcut_color, wcol->text, 4);
+			button_shortcut_color[3] /= 2;
+			glColor4ubv(button_shortcut_color);
+		}
 		uiStyleFontDraw(fstyle, rect, cpoin + 1);
 		*cpoin = '|';
 	}

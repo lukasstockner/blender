@@ -969,7 +969,7 @@ void uiEndBlock(const bContext *C, uiBlock *block)
 		ui_menu_block_set_keyaccels(block); /* could use a different flag to check */
 	}
 
-	if (block->flag & UI_BLOCK_LOOP) {
+	if (block->flag & UI_BLOCK_SHORTCUTS) {
 		ui_menu_block_set_keymaps(C, block);
 	}
 	
@@ -2233,6 +2233,11 @@ uiBlock *uiBeginBlock(const bContext *C, ARegion *region, const char *name, shor
 		block->aspect = 2.0f / fabsf(getsizex * block->winmat[0][0]);
 		block->auto_open = TRUE;
 		block->flag |= UI_BLOCK_LOOP; /* tag as menu */
+		block->flag |= UI_BLOCK_SHORTCUTS;
+	}
+	/* Add shortcuts to toolbar */
+	if (region && region->type && region->type->regionid == RGN_TYPE_TOOLS) {
+		block->flag |= UI_BLOCK_SHORTCUTS;
 	}
 
 	return block;
