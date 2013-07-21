@@ -141,7 +141,7 @@ GPUFrameBuffer *GPU_texture_framebuffer(GPUTexture *tex);
 int GPU_texture_target(GPUTexture *tex);
 int GPU_texture_opengl_width(GPUTexture *tex);
 int GPU_texture_opengl_height(GPUTexture *tex);
-int GPU_texture_opengl_bindcode(GPUTexture *tex);
+int GPU_texture_opengl_bindcode(const GPUTexture *tex);
 
 unsigned char *GPU_texture_dup_pixels(const GPUTexture *tex, size_t *count_out);
 

@@ -110,7 +110,7 @@ static int load_frame_raw8(VoxelData *vd, FILE *fp, int frame)
 {
 	const size_t size = vd_resol_size(vd);
 	char *data_c;
-	int i;
+	size_t i;
 
 	if (is_vd_res_ok(vd) == FALSE)
 		return 0;

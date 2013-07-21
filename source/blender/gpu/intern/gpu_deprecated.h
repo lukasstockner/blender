@@ -525,16 +525,16 @@
 #define DO_NOT_USE_GL_COLOR_MATERIAL
 
 /* display lists */
-#undef glCallList
-#define glCallList DO_NOT_USE_glCallList
-#undef glEndList
-#define glEndList DO_NOT_USE_glEndList
-#undef glGenLists
-#define glGenLists DO_NOT_USE_glGenLists
-#undef glListBase
-#define glListBase DO_NOT_USE_glListBase
-#undef glNewList
-#define glNewList DO_NOT_USE_glNewList
+//#undef glCallList
+//#define glCallList DO_NOT_USE_glCallList
+//#undef glEndList
+//#define glEndList DO_NOT_USE_glEndList
+//#undef glGenLists
+//#define glGenLists DO_NOT_USE_glGenLists
+//#undef glListBase
+//#define glListBase DO_NOT_USE_glListBase
+//#undef glNewList
+//#define glNewList DO_NOT_USE_glNewList
 
 /* GLU */
 #undef gluUnProject

@@ -256,10 +256,6 @@ void GPU_extensions_init(void)
 		}
 	}
 
-	/* make sure double side isn't used by default and only getting enabled in places where it's
-	 * really needed to prevent different unexpected behaviors like with intel gme965 card (sergey) */
-	gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
-
 #ifdef _WIN32
 	GG.os = GPU_OS_WIN;
 #elif defined(__APPLE__)
@@ -697,9 +693,9 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, int isdata, d
 		tex->h = h - border;
 
 		gpuBindTexture(GL_TEXTURE_2D, lastbindcode);
-
-		return tex;
 	}
+
+	return tex;
 }
 
 GPUTexture *GPU_texture_from_preview(PreviewImage *prv, int mipmap)
@@ -907,7 +903,7 @@ int GPU_texture_opengl_height(GPUTexture *tex)
 	return tex->h;
 }
 
-int GPU_texture_opengl_bindcode(GPUTexture *tex)
+int GPU_texture_opengl_bindcode(const GPUTexture *tex)
 {
 	return tex->bindcode;
 }
@@ -932,10 +928,12 @@ unsigned char* GPU_texture_dup_pixels(const GPUTexture *tex, size_t* count)
 #if !defined(GLEW_NO_ES)
 	memcpy(texpixels, tex->pixels, 4*(*count));
 #else
+	{
 	GLint lastbindcode = gpuGetTextureBinding2D();
-	gpuBindTexture(GL_TEXTURE_2D, GPU_texture_opengl_bindcode(input->tex));
-	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, uniform->texpixels); 
+	gpuBindTexture(GL_TEXTURE_2D, GPU_texture_opengl_bindcode(tex));
+	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, texpixels); 
 	gpuBindTexture(GL_TEXTURE_2D, lastbindcode); /* restore previous value */
+	}
 #endif
 
 	return texpixels;

@@ -592,7 +592,7 @@ GLAPI void GLAPIENTRY glNormalPointer (GLenum type, GLsizei stride, const GLvoid
 #endif
 GLAPI void GLAPIENTRY glPixelStorei (GLenum pname, GLint param);
 #if !GL_ES_VERSION_2_0 // XXX jwilkins: not in all versions of ES
-GLAPI void GLAPIENTRY gpuSpriteSize (GLfloat size);
+GLAPI void GLAPIENTRY glPointSize (GLfloat size);
 #endif // XXX
 GLAPI void GLAPIENTRY glPolygonOffset (GLfloat factor, GLfloat units);
 #if !GL_ES_VERSION_2_0 // XXX jwilkins: not in all versions of ES

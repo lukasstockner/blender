@@ -2033,4 +2033,8 @@ void GPU_state_init(void)
 	/* calling this makes drawing very slow when AA is not set up in ghost
 	 * on Linux/NVIDIA. */
 	// glDisable(GL_MULTISAMPLE);
+
+	/* make sure double side isn't used by default and only getting enabled in places where it's
+	 * really needed to prevent different unexpected behaviors like with intel gme965 card (sergey) */
+	gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
 }

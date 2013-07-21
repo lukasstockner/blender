@@ -609,7 +609,7 @@ MINLINE float len_manhattan_v2(const float v[2])
 
 MINLINE float len_manhattan_v2_int(const int v[2])
 {
-	return ABS(v[0]) + ABS(v[1]);
+	return (float)(ABS(v[0]) + ABS(v[1]));
 }
 
 MINLINE float len_manhattan_v3(const float v[3])

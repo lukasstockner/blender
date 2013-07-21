@@ -72,7 +72,7 @@ void gpuSelectClear(void)
 void gpuSelectPop(void)
 {
 #if defined(WITH_GL_PROFILE_COMPAT)
-	glPopNames();
+	glPopName();
 #endif
 }
 

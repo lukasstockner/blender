@@ -248,7 +248,25 @@ void* NSGLGetProcAddress (const GLubyte *name)
 #  define glewGetProcAddress(name) eglGetProcAddress(name)
 #endif
 #elif defined(_WIN32)
-#  define glewGetProcAddress(name) wglGetProcAddress((LPCSTR)name)
+    static HANDLE hOpenGL = NULL;
+
+    void* wGetProcAddress(LPCSTR name)
+    {
+        void* proc = wglGetProcAddress(name);
+
+        if(proc == NULL && hOpenGL == NULL) {
+            hOpenGL = LoadLibrary("opengl32.dll");
+        }
+
+        if(proc == NULL && hOpenGL != NULL) {
+            return GetProcAddress(hOpenGL, name);
+        }
+        else {
+            return proc;
+        }
+    }
+
+#  define glewGetProcAddress(name) wGetProcAddress((LPCSTR)name)
 #else
 #  if defined(__APPLE__)
 #    define glewGetProcAddress(name) NSGLGetProcAddress(name)
@@ -4497,7 +4515,7 @@ static GLboolean _glewInit_GL_VERSION_1_1 (GLEW_CONTEXT_ARG_DEF_INIT)
   r = ((glLightModeliv = (PFNGLLIGHTMODELIVPROC)glewGetProcAddress((const GLubyte*)"glLightModeliv")) == NULL) || r;
   r = ((glLighti = (PFNGLLIGHTIPROC)glewGetProcAddress((const GLubyte*)"glLighti")) == NULL) || r;
   r = ((glLightiv = (PFNGLLIGHTIVPROC)glewGetProcAddress((const GLubyte*)"glLightiv")) == NULL) || r;
-  r = ((glLineStipple = (PFNGLLINESTIPPLEPROC)glewGetProcAddress((const GLubyte*)"gpuLineStipple")) == NULL) || r;
+  r = ((glLineStipple = (PFNGLLINESTIPPLEPROC)glewGetProcAddress((const GLubyte*)"glLineStipple")) == NULL) || r;
   r = ((glListBase = (PFNGLLISTBASEPROC)glewGetProcAddress((const GLubyte*)"glListBase")) == NULL) || r;
   r = ((glLoadMatrixd = (PFNGLLOADMATRIXDPROC)glewGetProcAddress((const GLubyte*)"glLoadMatrixd")) == NULL) || r;
   r = ((glLoadName = (PFNGLLOADNAMEPROC)glewGetProcAddress((const GLubyte*)"glLoadName")) == NULL) || r;

@@ -104,7 +104,7 @@ extern PyTypeObject BGL_bufferType;
 #define void_def(num)   char bgl_var##num
 
 #define buffer_str      "O!"
-#define buffer_var(number)  (bgl_buffer##number)->buf.asvoid
+#define buffer_var(number)  (Buffer*)(bgl_buffer##number)->buf.asvoid
 #define buffer_ref(number)  &BGL_bufferType, &bgl_buffer##number
 #define buffer_def(number)  Buffer *bgl_buffer##number
 
@@ -175,11 +175,6 @@ extern PyTypeObject BGL_bufferType;
 #define GLcharP_var(number) (GLchar*)(bgl_buffer##number)->buf.asvoid
 #define GLcharP_ref(number) &BGL_bufferType, &bgl_buffer##number
 #define GLcharP_def(number) Buffer *bgl_buffer##number
-
-#define buffer_str      "O!"
-#define buffer_var(number)  (Buffer*)(bgl_buffer##number)->buf.asvoid
-#define buffer_ref(number)  &BGL_bufferType, &bgl_buffer##number
-#define buffer_def(number)  Buffer *bgl_buffer##number
 
 /*@The standard GL typedefs are used as prototypes, we can't
  * use the GL type directly because Py_ArgParse expects normal

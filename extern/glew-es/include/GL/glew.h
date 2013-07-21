@@ -1159,7 +1159,7 @@ GLAPI void GLAPIENTRY glMultMatrixf (const GLfloat *m);
 GLAPI void GLAPIENTRY glNormal3f (GLfloat nx, GLfloat ny, GLfloat nz);
 GLAPI void GLAPIENTRY glNormalPointer (GLenum type, GLsizei stride, const GLvoid *pointer);
 GLAPI void GLAPIENTRY glPixelStorei (GLenum pname, GLint param);
-GLAPI void GLAPIENTRY gpuSpriteSize (GLfloat size);
+GLAPI void GLAPIENTRY glPointSize (GLfloat size);
 GLAPI void GLAPIENTRY glPolygonOffset (GLfloat factor, GLfloat units);
 GLAPI void GLAPIENTRY glPopMatrix (void);
 GLAPI void GLAPIENTRY glPushMatrix (void);
@@ -1740,7 +1740,6 @@ typedef void (GLAPIENTRY * PFNGLVERTEX4SVPROC) (const GLshort *v);
 #define glVertex4sv GLEW_GET_FUN(__glewVertex4sv)
 
 #define GLEW_VERSION_1_1 GLEW_GET_VAR(__GLEW_VERSION_1_1)
-
 #endif /* !GL_VERSION_1_1 */
 
 /* ----------------------------- GL_VERSION_1_2 ---------------------------- */

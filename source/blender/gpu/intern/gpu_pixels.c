@@ -258,7 +258,7 @@ void gpuPixelsBegin()
 		if (non_default_flags & NON_DEFAULT_ALPHA_SCALE) glPixelTransferf(GL_ALPHA_SCALE, pixel_alpha_scale);
 		if (non_default_flags & NON_DEFAULT_ALPHA_BIAS)  glPixelTransferf(GL_ALPHA_BIAS,  pixel_alpha_bias);
 
-		if (non_default_flags & NON_DEFAULT_FACTOR) glPixelZoom(zoom_xfactor, zoom_yfactor);
+		if (non_default_flags & NON_DEFAULT_FACTOR) glPixelZoom(pixel_zoom_xfactor, pixel_zoom_yfactor);
 
 		if (non_default_flags & NON_DEFAULT_UNPACK_ROW_LENGTH) glPixelStorei(GL_UNPACK_ROW_LENGTH, format_unpack_row_length);
 		if (non_default_flags & NON_DEFAULT_UNPACK_SWAP_BYTES) glPixelStorei(GL_UNPACK_SWAP_BYTES, format_unpack_swap_bytes);
@@ -306,11 +306,11 @@ void gpuPixelPos2f(GLfloat x, GLfloat y)
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (GPU_PROFILE_COMPAT) {
 		/* Don't use safe RasterPos (slower) if we can avoid it. */
-		if (rast_x >= 0 && rast_y >= 0) {
-			glRasterPos2f(rast_x, rast_y);
+		if (x >= 0 && y >= 0) {
+			glRasterPos2f(x, y);
 		}
 		else {
-			raster_pos_safe_2f(rast_x, rast_y, 0, 0);
+			raster_pos_safe_2f(x, y, 0, 0);
 		}
 	}
 #endif
@@ -337,7 +337,7 @@ void gpuBitmap(GPUbitmap* bitmap)
 			bitmap->width,
 			bitmap->height,
 			bitmap->xorig,
-			bitmap->yorig
+			bitmap->yorig,
 			0,
 			0,
 			bitmap->bitmap);
@@ -355,7 +355,7 @@ void gpuPixels(GPUpixels* pixels)
 			pixels->width,
 			pixels->height,
 			pixels->format,
-			pixels->type
+			pixels->type,
 			pixels->pixels);
 	}
 #endif

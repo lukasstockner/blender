@@ -670,6 +670,7 @@ GHOST_TSuccess GHOST_WindowWin32::activateDrawingContext()
 			success = GHOST_kFailure;
 		}
 #elif defined(WITH_GL_SYSTEM_EMBEDDED)
+	success = GHOST_kFailure;
 	GHOST_PRINT("GHOST_WindowWin32::activateDrawingContext for WITH_GL_SYSTEM_EMBEDDED not implemented\n");
 #else
 #error
@@ -752,6 +753,8 @@ GHOST_TSuccess GHOST_WindowWin32::initMultisample(PIXELFORMATDESCRIPTOR pfd)
 #elif defined(WITH_GL_SYSTEM_EMBEDDED)
 	GHOST_PRINT("GHOST_WindowWin32::initMultisample for WITH_GL_SYSTEM_EMBEDDED not implemented\n");
 	return GHOST_kFailure;
+#else
+#error
 #endif
 }
 
