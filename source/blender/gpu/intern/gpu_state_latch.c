@@ -89,7 +89,7 @@ void gpuBindTexture(GLenum target, GLuint name)
 			break;
 	}
 
-	gpuBindTexture(target, name);
+	glBindTexture(target, name);
 }
 
 

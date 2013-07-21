@@ -148,7 +148,7 @@ static GLint get_max_textures(void)
 
 	if (GLEW_VERSION_2_0 || GLEW_ES_VERSION_2_0 || GLEW_ARB_fragment_program) {
 #if !defined(GLEW_ES_ONLY)
-		if (GPU_LEGACY) {
+		if (GPU_PROFILE_COMPAT) {
 			/* size of gl_TexCoord array in GLSL */
 			glGetIntegerv(GL_MAX_TEXTURE_COORDS, &maxTextureCoords);
 		}

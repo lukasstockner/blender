@@ -1295,6 +1295,7 @@ PFNGLSAMPLERPARAMETERFVPROC __glewSamplerParameterfv = NULL;
 PFNGLSAMPLERPARAMETERIPROC __glewSamplerParameteri = NULL;
 PFNGLSAMPLERPARAMETERIVPROC __glewSamplerParameteriv = NULL;
 
+#if 0 // XXX jwilkins: inconsistencies
 PFNGLACTIVESHADERPROGRAMPROC __glewActiveShaderProgram = NULL;
 PFNGLBINDPROGRAMPIPELINEPROC __glewBindProgramPipeline = NULL;
 PFNGLCREATESHADERPROGRAMVPROC __glewCreateShaderProgramv = NULL;
@@ -1355,6 +1356,7 @@ PFNGLPROGRAMUNIFORMMATRIX4X3DVPROC __glewProgramUniformMatrix4x3dv = NULL;
 PFNGLPROGRAMUNIFORMMATRIX4X3FVPROC __glewProgramUniformMatrix4x3fv = NULL;
 PFNGLUSEPROGRAMSTAGESPROC __glewUseProgramStages = NULL;
 PFNGLVALIDATEPROGRAMPIPELINEPROC __glewValidateProgramPipeline = NULL;
+#endif
 
 PFNGLGETACTIVEATOMICCOUNTERBUFFERIVPROC __glewGetActiveAtomicCounterBufferiv = NULL;
 
@@ -2194,9 +2196,11 @@ PFNGLSECONDARYCOLOR3USEXTPROC __glewSecondaryColor3usEXT = NULL;
 PFNGLSECONDARYCOLOR3USVEXTPROC __glewSecondaryColor3usvEXT = NULL;
 PFNGLSECONDARYCOLORPOINTEREXTPROC __glewSecondaryColorPointerEXT = NULL;
 
+#if 0 // XXX jwilkins: inconsistencies
 PFNGLACTIVEPROGRAMEXTPROC __glewActiveProgramEXT = NULL;
 PFNGLCREATESHADERPROGRAMEXTPROC __glewCreateShaderProgramEXT = NULL;
 PFNGLUSESHADERPROGRAMEXTPROC __glewUseShaderProgramEXT = NULL;
+#endif
 
 PFNGLBINDIMAGETEXTUREEXTPROC __glewBindImageTextureEXT = NULL;
 PFNGLMEMORYBARRIEREXTPROC __glewMemoryBarrierEXT = NULL;
@@ -4492,7 +4496,7 @@ static GLboolean _glewInit_GL_VERSION_1_1 (GLEW_CONTEXT_ARG_DEF_INIT)
   r = ((glLightModeliv = (PFNGLLIGHTMODELIVPROC)glewGetProcAddress((const GLubyte*)"glLightModeliv")) == NULL) || r;
   r = ((glLighti = (PFNGLLIGHTIPROC)glewGetProcAddress((const GLubyte*)"glLighti")) == NULL) || r;
   r = ((glLightiv = (PFNGLLIGHTIVPROC)glewGetProcAddress((const GLubyte*)"glLightiv")) == NULL) || r;
-  r = ((gpuLineStipple = (PFNGLLINESTIPPLEPROC)glewGetProcAddress((const GLubyte*)"gpuLineStipple")) == NULL) || r;
+  r = ((glLineStipple = (PFNGLLINESTIPPLEPROC)glewGetProcAddress((const GLubyte*)"gpuLineStipple")) == NULL) || r;
   r = ((glListBase = (PFNGLLISTBASEPROC)glewGetProcAddress((const GLubyte*)"glListBase")) == NULL) || r;
   r = ((glLoadMatrixd = (PFNGLLOADMATRIXDPROC)glewGetProcAddress((const GLubyte*)"glLoadMatrixd")) == NULL) || r;
   r = ((glLoadName = (PFNGLLOADNAMEPROC)glewGetProcAddress((const GLubyte*)"glLoadName")) == NULL) || r;
