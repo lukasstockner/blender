@@ -358,7 +358,7 @@ static float cotan_weight(float *v1, float *v2, float *v3)
 
 static void init_laplacian_matrix( SystemCustomData * data)
 {
-	float v1[3], v2[3], v3[3], v4[3], no[3];
+	float v1[3], v2[3], v3[3], v4[3], no[3], cf[3], nt[3];
 	float w2, w3, w4;
 	int i, j, vid, vidf[4];
 	bool has_4_vert;
@@ -383,16 +383,37 @@ static void init_laplacian_matrix( SystemCustomData * data)
 		idv4 = has_4_vert ? vidf[3] : 0;
 		if (has_4_vert) {
 			normal_quad_v3(no, sa->co[idv1], sa->co[idv2], sa->co[idv3], sa->co[idv4]); 
-			add_v3_v3(sa->no[idv1], no);
-			add_v3_v3(sa->no[idv2], no);
-			add_v3_v3(sa->no[idv3], no);
-			add_v3_v3(sa->no[idv4], no);
+			add_v3_v3v3(cf, sa->co[idv1], sa->co[idv2]);
+			add_v3_v3(cf, sa->co[idv3]);
+			add_v3_v3(cf, sa->co[idv4]);
+			mul_v3_fl(cf, 1.0f/4.0f);
+
+			mul_v3_v3fl(nt, no, len_v3v3(cf, sa->co[idv1]));
+			add_v3_v3(sa->no[idv1], nt);
+
+			mul_v3_v3fl(nt, no, len_v3v3(cf, sa->co[idv2]));
+			add_v3_v3(sa->no[idv2], nt);
+
+			mul_v3_v3fl(nt, no, len_v3v3(cf, sa->co[idv3]));
+			add_v3_v3(sa->no[idv3], nt);
+
+			mul_v3_v3fl(nt, no, len_v3v3(cf, sa->co[idv4]));
+			add_v3_v3(sa->no[idv4], nt);
 		} 
 		else {
 			normal_tri_v3(no, sa->co[idv1], sa->co[idv2], sa->co[idv3]); 
-			add_v3_v3(sa->no[idv1], no);
-			add_v3_v3(sa->no[idv2], no);
-			add_v3_v3(sa->no[idv3], no);
+			add_v3_v3v3(cf, sa->co[idv1], sa->co[idv2]);
+			add_v3_v3(cf, sa->co[idv3]);
+			mul_v3_fl(cf, 1.0f/3.0f);
+
+			mul_v3_v3fl(nt, no, len_v3v3(cf, sa->co[idv1]));
+			add_v3_v3(sa->no[idv1], nt);
+
+			mul_v3_v3fl(nt, no, len_v3v3(cf, sa->co[idv2]));
+			add_v3_v3(sa->no[idv2], nt);
+
+			mul_v3_v3fl(nt, no, len_v3v3(cf, sa->co[idv3]));
+			add_v3_v3(sa->no[idv3], nt);
 		}
 
 
@@ -526,7 +547,7 @@ static void rotate_differential_coordinates(SystemCustomData * data)
 	BMIter fiter;
 	BMIter viter, viter2;
 	float alpha, beta, gamma,
-		pj[3], ni[3], di[3],
+		pj[3], ni[3], di[3], cf[3],
 		uij[3], dun[3], e2[3], pi[3], fni[3], vn[4][3];
 	int i, j, vin[4], lvin, num_fni, k;
 	LaplacianSystem * sys = data->sys;
@@ -572,9 +593,19 @@ static void rotate_differential_coordinates(SystemCustomData * data)
 
 			if (lvin == 3) {
 				normal_tri_v3(fni, vn[0], vn[1], vn[2]);
+				add_v3_v3v3(cf, vn[0], vn[1]);
+				add_v3_v3(cf, vn[2]);
+				mul_v3_fl(cf, 1.0f/3.0f);
+				mul_v3_fl(fni, len_v3v3(cf, pi));
+				
 			} 
 			else if(lvin == 4) {
 				normal_quad_v3(fni, vn[0], vn[1], vn[2], vn[3]);
+				add_v3_v3v3(cf, vn[0], vn[1]);
+				add_v3_v3(cf, vn[2]);
+				add_v3_v3(cf, vn[3]);
+				mul_v3_fl(cf, 1.0f/4.0f);
+				mul_v3_fl(fni, len_v3v3(cf, pi));
 			} 
 
 			add_v3_v3(ni, fni);
@@ -587,10 +618,21 @@ static void rotate_differential_coordinates(SystemCustomData * data)
 		sub_v3_v3(uij, dun);
 		normalize_v3(uij);
 		cross_v3_v3v3(e2, ni, uij);
+		fni[0] = alpha*ni[0] + beta*uij[0] + gamma*e2[0];
+		fni[1] = alpha*ni[1] + beta*uij[1] + gamma*e2[1];
+		fni[2] = alpha*ni[2] + beta*uij[2] + gamma*e2[2];
 
-		nlRightHandSideSet(0, i, alpha*ni[0] + beta*uij[0] + gamma*e2[0]);
-		nlRightHandSideSet(1, i, alpha*ni[1] + beta*uij[1] + gamma*e2[1]);
-		nlRightHandSideSet(2, i, alpha*ni[2] + beta*uij[2] + gamma*e2[2]);
+		if (len_v3(fni) > FLT_EPSILON) {
+			nlRightHandSideSet(0, i, fni[0]);
+			nlRightHandSideSet(1, i, fni[1]);
+			nlRightHandSideSet(2, i, fni[2]);
+		} 
+		else {
+			nlRightHandSideSet(0, i, sys->delta[i][0]);
+			nlRightHandSideSet(1, i, sys->delta[i][1]);
+			nlRightHandSideSet(2, i, sys->delta[i][2]);
+		}
+
 
 	}
 	
@@ -778,6 +820,20 @@ static void laplacian_deform_preview(bContext *C, wmOperator *op)
 		nlSolverParameteri(NL_NB_RIGHT_HAND_SIDES, 3);
 
 		nlBegin(NL_SYSTEM);
+		for (i=0; i<n; i++) {
+			nlSetVariable(0, i, sa->co[i][0]);
+			nlSetVariable(1, i, sa->co[i][1]);
+			nlSetVariable(2, i, sa->co[i][2]);
+		}
+		for (i=0; i<nh; i++) {
+			vid = shs->list_handlers[i];
+			nlSetVariable(0, vid, sa->list_verts[vid]->co[0]);
+			nlSetVariable(1, vid, sa->list_verts[vid]->co[1]);
+			nlSetVariable(2, vid, sa->list_verts[vid]->co[2]);
+		}
+		for (i=0; i<ns; i++) {
+			nlLockVariable(sa->list_index[i]);
+		}
 		nlBegin(NL_MATRIX);
 
 		init_laplacian_matrix(data);
