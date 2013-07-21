@@ -183,7 +183,7 @@ void uiDrawBoxShade(int mode, float minx, float miny, float maxx, float maxy, fl
 	coldown[1] = max_ff(0.0f, color[1] + shadedown);
 	coldown[2] = max_ff(0.0f, color[2] + shadedown);
 
-	glShadeModel(GL_SMOOTH);
+	gpuShadeModel(GL_SMOOTH);
 	gpuBegin(mode);
 
 	/* start with corner right-bottom */
@@ -262,7 +262,7 @@ void uiDrawBoxShade(int mode, float minx, float miny, float maxx, float maxy, fl
 	}
 	
 	gpuEnd();
-	glShadeModel(GL_FLAT);
+	gpuShadeModel(GL_FLAT);
 }
 
 /* linear vertical shade within button or in outline */
@@ -292,7 +292,7 @@ void uiDrawBoxVerticalShade(int mode, float minx, float miny, float maxx, float 
 	colRight[1] = max_ff(0.0f, color[1] + shadeRight);
 	colRight[2] = max_ff(0.0f, color[2] + shadeRight);
 
-	glShadeModel(GL_SMOOTH);
+	gpuShadeModel(GL_SMOOTH);
 	gpuBegin(mode);
 
 	/* start with corner right-bottom */
@@ -368,7 +368,7 @@ void uiDrawBoxVerticalShade(int mode, float minx, float miny, float maxx, float 
 	}
 	
 	gpuEnd();
-	glShadeModel(GL_FLAT);
+	gpuShadeModel(GL_FLAT);
 }
 
 /* plain antialiased unfilled rectangle */
@@ -511,7 +511,7 @@ static void histogram_draw_one(float r, float g, float b, float alpha,
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 		gpuCurrentColor4f(r, g, b, alpha);
 
-		glShadeModel(GL_FLAT);
+		gpuShadeModel(GL_FLAT);
 
 		gpuBegin(GL_TRIANGLE_STRIP); // DOODLE: line graph drawn using quads, locking done by function callee
 		gpuVertex2f(x, y);
@@ -1000,7 +1000,7 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 	gpuDrawFilledRectf(x1, y1, x1 + sizex, y1 + sizey);
 	gpuDisablePolygonStipple();
 
-	glShadeModel(GL_FLAT);
+	gpuShadeModel(GL_FLAT);
 	glEnable(GL_BLEND);
 
 	cbd = coba->data;
@@ -1029,7 +1029,7 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 	}
 
 	gpuEnd();
-	glShadeModel(GL_FLAT);
+	gpuShadeModel(GL_FLAT);
 	glDisable(GL_BLEND);
 
 	/* outline */
@@ -1151,7 +1151,7 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 	
 	gpuScale(size, size, size);
 
-	glShadeModel(GL_SMOOTH);
+	gpuShadeModel(GL_SMOOTH);
 
 	if (!displist) {
 		GPUprim3 prim = GPU_PRIM_HIFI_SOLID;
@@ -1173,7 +1173,7 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 		gpuImmediateSingleRepeatElements(displist);
 	}
 
-	glShadeModel(GL_FLAT);
+	gpuShadeModel(GL_FLAT);
 
 	/* restore */
 	gpuDisableLighting();
@@ -1407,7 +1407,7 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 
 	/* the points, use aspect to make them visible on edges */
 	cmp = cuma->curve;
-	glPointSize(3.0f);
+	gpuSpriteSize(3.0f);
 	gpuBeginSprites();
 	for (a = 0; a < cuma->totpoint; a++) {
 		if (cmp[a].flag & CUMA_SELECT)
@@ -1419,7 +1419,7 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 		gpuSprite2fv(fac);
 	}
 	gpuEndSprites();
-	glPointSize(1.0f);
+	gpuSpriteSize(1.0f);
 	
 	/* restore scissortest */
 	gpuScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
@@ -1629,7 +1629,7 @@ void ui_draw_but_NODESOCKET(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol
 static void ui_shadowbox(float minx, float miny, float maxx, float maxy, float shadsize, unsigned char alpha)
 {
 	glEnable(GL_BLEND);
-	glShadeModel(GL_SMOOTH);
+	gpuShadeModel(GL_SMOOTH);
 	
 	/* right quad */
 	gpuBegin(GL_TRIANGLE_FAN);
@@ -1671,7 +1671,7 @@ static void ui_shadowbox(float minx, float miny, float maxx, float maxy, float s
 	gpuEnd();
 	
 	glDisable(GL_BLEND);
-	glShadeModel(GL_FLAT);
+	gpuShadeModel(GL_FLAT);
 }
 
 void uiDrawBoxShadow(unsigned char alpha, float minx, float miny, float maxx, float maxy)

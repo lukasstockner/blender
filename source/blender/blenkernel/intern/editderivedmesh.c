@@ -400,7 +400,7 @@ static void emDM_drawMappedFaces(
 					const GLenum shade_type = drawSmooth ? GL_SMOOTH : GL_FLAT;
 					if (shade_type != shade_prev) {
 						if (poly_prev != GL_NOOP) gpuEnd();
-						glShadeModel((shade_prev = shade_type)); /* same as below but switch shading */
+						gpuShadeModel((shade_prev = shade_type)); /* same as below but switch shading */
 						gpuBegin((poly_prev = poly_type)); /* BMesh: will always be GL_TRIANGLES */
 					}
 					if (poly_type != poly_prev) {
@@ -490,7 +490,7 @@ static void emDM_drawMappedFaces(
 					const GLenum shade_type = drawSmooth ? GL_SMOOTH : GL_FLAT;
 					if (shade_type != shade_prev) {
 						if (poly_prev != GL_ZERO) gpuEnd();
-						glShadeModel((shade_prev = shade_type)); /* same as below but switch shading */
+						gpuShadeModel((shade_prev = shade_type)); /* same as below but switch shading */
 						gpuBegin((poly_prev = poly_type)); /* BMesh: will always be GL_TRIANGLES */
 					}
 					if (poly_type != poly_prev) {
@@ -595,7 +595,7 @@ static void emDM_drawFacesTex_common(DerivedMesh *dm,
 	// dummylcol.r = dummylcol.g = dummylcol.b = dummylcol.a = 255;  /* UNUSED */
 
 	/* always use smooth shading even for flat faces, else vertex colors wont interpolate */
-	glShadeModel(GL_SMOOTH);
+	gpuShadeModel(GL_SMOOTH);
 
 	BM_mesh_elem_index_ensure(bm, BM_FACE);
 
@@ -743,7 +743,7 @@ static void emDM_drawFacesTex_common(DerivedMesh *dm,
 
 	gpuImmediateUnformat();
 
-	glShadeModel(GL_FLAT);
+	gpuShadeModel(GL_FLAT);
 }
 
 static void emDM_drawFacesTex(DerivedMesh *dm,
@@ -890,7 +890,7 @@ static void emDM_drawMappedFacesGLSL(DerivedMesh *dm,
 	emdm_format_attrib_vertex(&attribs); /* XXX: jwilkins, just to make this easy to write for now */
 
 	/* always use smooth shading even for flat faces, else vertex colors wont interpolate */
-	glShadeModel(GL_SMOOTH);
+	gpuShadeModel(GL_SMOOTH);
 	BM_mesh_elem_index_ensure(bm, BM_VERT | BM_FACE);
 
 	for (i = 0; i < em->tottri; i++) {
@@ -1028,7 +1028,7 @@ static void emDM_drawMappedFacesMat(DerivedMesh *dm,
 	matnr = -1;
 
 	/* always use smooth shading even for flat faces, else vertex colors wont interpolate */
-	glShadeModel(GL_SMOOTH);
+	gpuShadeModel(GL_SMOOTH);
 
 	BM_mesh_elem_index_ensure(bm, BM_VERT | BM_FACE);
 

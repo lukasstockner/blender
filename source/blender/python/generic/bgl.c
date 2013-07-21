@@ -276,7 +276,7 @@ Buffer *BGL_MakeBuffer(int type, int ndimensions, int *dimensions, void *initbuf
 	buffer = (Buffer *)PyObject_NEW(Buffer, &BGL_bufferType);
 	buffer->parent = NULL;
 	buffer->ndimensions = ndimensions;
-	buffer->dimensions = MEM_mallocN(ndimensions * sizeof(int), "Buffer dimensions");
+	buffer->dimensions = (int*)MEM_mallocN(ndimensions * sizeof(int), "Buffer dimensions");
 	memcpy(buffer->dimensions, dimensions, ndimensions * sizeof(int));
 	buffer->type = type;
 	buffer->buf.asvoid = buf;
@@ -412,7 +412,7 @@ static PyObject *Buffer_item(Buffer *self, int i)
 		newbuf->ndimensions = self->ndimensions - 1;
 		newbuf->type = self->type;
 		newbuf->buf.asvoid = self->buf.asbyte + i * length * size;
-		newbuf->dimensions = MEM_mallocN(newbuf->ndimensions * sizeof(int), "Buffer dimensions");
+		newbuf->dimensions = (int*)MEM_mallocN(newbuf->ndimensions * sizeof(int), "Buffer dimensions");
 		memcpy(newbuf->dimensions, self->dimensions + 1, newbuf->ndimensions * sizeof(int));
 
 		return (PyObject *)newbuf;
@@ -995,7 +995,6 @@ BGL_Wrap(4, Viewport,           void,     (GLint, GLint, GLsizei, GLsizei))
 #endif
 
 #if defined(WITH_GL_PROFILE_ES20)
-BGL_Wrap(2, AlphaFunc,      void,       (GLenum, GLclampf))
 BGL_Wrap(2, AttachShader,   void,       (GLuint, GLuint))
 BGL_Wrap(2, BindTexture,    void,       (GLenum, GLuint))
 BGL_Wrap(2, BlendFunc,        void,     (GLenum, GLenum))
@@ -1018,8 +1017,6 @@ BGL_Wrap(1, Disable,          void,     (GLenum))
 BGL_Wrap(1, Enable,           void,     (GLenum))
 BGL_Wrap(1, Finish,           void,     (void))
 BGL_Wrap(1, Flush,            void,     (void))
-BGL_Wrap(2, Fogf,             void,     (GLenum, GLfloat))
-BGL_Wrap(2, Fogfv,            void,     (GLenum, GLfloatP))
 BGL_Wrap(1, FrontFace,        void,     (GLenum))
 BGL_Wrap(2, GenTextures,      void,   (GLsizei, GLuintP))
 BGL_Wrap(4, GetAttachedShaders, void,   (GLuint, GLsizei, GLsizeiP, GLuintP))
@@ -1034,40 +1031,19 @@ BGL_Wrap(2, GetUniformLocation, GLint, (GLuint, GLstring))
 BGL_Wrap(2, Hint,           void,     (GLenum, GLenum))
 BGL_Wrap(1, IsProgram,      GLboolean,  (GLuint))
 BGL_Wrap(1, IsShader,       GLboolean,  (GLuint))
-BGL_Wrap(2, LightModelf,    void,     (GLenum, GLfloat))
-BGL_Wrap(2, LightModelfv,   void,     (GLenum, GLfloatP))
-BGL_Wrap(3, Lightf,         void,     (GLenum, GLenum, GLfloat))
-BGL_Wrap(3, Lightfv,        void,     (GLenum, GLenum, GLfloatP))
 BGL_Wrap(1, LineWidth,      void,     (GLfloat))
 BGL_Wrap(1, LinkProgram,    void,     (GLuint))
-BGL_Wrap(1, LoadIdentity,   void,     (void))
-BGL_Wrap(1, LoadMatrixf,    void,     (GLfloatP))
-BGL_Wrap(1, LogicOp,        void,     (GLenum))
-BGL_Wrap(3, Materialf,        void,     (GLenum, GLenum, GLfloat))
-BGL_Wrap(3, Materialfv,       void,     (GLenum, GLenum, GLfloatP))
-BGL_Wrap(1, MatrixMode,       void,     (GLenum))
-BGL_Wrap(1, MultMatrixf,      void,     (GLfloatP))
-BGL_Wrap(3, Normal3f,         void,     (GLfloat, GLfloat, GLfloat))
 BGL_Wrap(2, PixelStorei,      void,     (GLenum, GLint))
-BGL_Wrap(1, PointSize,        void,     (GLfloat))
 BGL_Wrap(2, PolygonOffset,    void,     (GLfloat, GLfloat))
-BGL_Wrap(1, PopMatrix,        void,     (void))
-BGL_Wrap(1, PushMatrix,       void,     (void))
 BGL_Wrap(7, ReadPixels,       void,     (GLint, GLint, GLsizei,
                                          GLsizei, GLenum, GLenum, GLvoidP))
-BGL_Wrap(4, Rotatef,        void,     (GLfloat, GLfloat, GLfloat, GLfloat))
-BGL_Wrap(3, Scalef,         void,     (GLfloat, GLfloat, GLfloat))
 BGL_Wrap(4, Scissor,        void,     (GLint, GLint, GLsizei, GLsizei))
-BGL_Wrap(1, ShadeModel,       void,     (GLenum))
 BGL_Wrap(3, StencilFunc,      void,     (GLenum, GLint, GLuint))
 BGL_Wrap(1, StencilMask,      void,     (GLuint))
 BGL_Wrap(3, StencilOp,        void,     (GLenum, GLenum, GLenum))
-BGL_Wrap(3, TexEnvf,        void,     (GLenum, GLenum, GLfloat))
-BGL_Wrap(3, TexEnvfv,       void,     (GLenum, GLenum, GLfloatP))
 BGL_Wrap(9, TexImage2D,     void,     (GLenum, GLint, GLint,
                                        GLsizei, GLsizei, GLint, GLenum, GLenum, GLvoidP))
 BGL_Wrap(3, TexParameterf,      void,     (GLenum, GLenum, GLfloat))
-BGL_Wrap(3, Translatef,         void,     (GLfloat, GLfloat, GLfloat))
 BGL_Wrap(2, Uniform1f,          void,     (GLint, GLfloat))
 BGL_Wrap(3, Uniform2f,          void,     (GLint, GLfloat, GLfloat))
 BGL_Wrap(4, Uniform3f,          void,     (GLint, GLfloat, GLfloat, GLfloat))
@@ -1490,7 +1466,6 @@ static struct PyMethodDef BGL_methods[] = {
 static struct PyMethodDef BGLES2_methods[] = {
 
 #if defined(WITH_GL_PROFILE_ES20)
-	MethodDef(AlphaFunc),
 	MethodDef(AttachShader),
 	MethodDef(BindTexture), 
 	MethodDef(BlendFunc),
@@ -1513,8 +1488,6 @@ static struct PyMethodDef BGLES2_methods[] = {
 	MethodDef(Enable),
 	MethodDef(Finish),
 	MethodDef(Flush),
-	MethodDef(Fogf),
-	MethodDef(Fogfv),
 	MethodDef(FrontFace),
 	MethodDef(GenTextures), 
 	MethodDef(GetAttachedShaders),
@@ -1529,39 +1502,18 @@ static struct PyMethodDef BGLES2_methods[] = {
 	MethodDef(Hint),
 	MethodDef(IsProgram),
 	MethodDef(IsShader),
-	MethodDef(LightModelf),
-	MethodDef(LightModelfv),
-	MethodDef(Lightf),
-	MethodDef(Lightfv),
 	MethodDef(LineWidth),
 	MethodDef(LinkProgram),
-	MethodDef(LoadIdentity),
-	MethodDef(LoadMatrixf),
-	MethodDef(LogicOp),
-	MethodDef(Materialf),
-	MethodDef(Materialfv),
-	MethodDef(MatrixMode),
-	MethodDef(MultMatrixf),
-	MethodDef(Normal3f),
 	MethodDef(PixelStorei),
-	MethodDef(PointSize),
 	MethodDef(PolygonOffset),
-	MethodDef(PopMatrix),
-	MethodDef(PushMatrix),
 	MethodDef(ReadPixels),
-	MethodDef(Rotatef),
-	MethodDef(Scalef),
 	MethodDef(Scissor),
-	MethodDef(ShadeModel),
 	MethodDef(ShaderSource),
 	MethodDef(StencilFunc),
 	MethodDef(StencilMask),
 	MethodDef(StencilOp),
-	MethodDef(TexEnvf),
-	MethodDef(TexEnvfv),
 	MethodDef(TexImage2D),
 	MethodDef(TexParameterf),
-	MethodDef(Translatef),
 	MethodDef(Uniform1f),
 	MethodDef(Uniform2f),
 	MethodDef(Uniform3f),

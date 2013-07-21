@@ -488,7 +488,7 @@ static int wm_triple_gen_textures(wmWindow *win, wmDrawTriple *triple)
 			glTexParameteri(triple->target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 			glTexParameteri(triple->target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 			/* The current color is ignored if the GL_REPLACE texture environment is used. */
-			// glTexEnvi(triple->target, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+			// glTexEnvi(triple->target, GL_TEXTURE_ENV_MODE, GL_REPLACE); // XXX jwilkins: this was commented out, but would have been only places Blender changes TEXTURE_ENV_MODE
 			glBindTexture(triple->target, 0);
 
 			/* not sure if this works everywhere .. */

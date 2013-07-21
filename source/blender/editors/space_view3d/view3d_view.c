@@ -949,7 +949,7 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 					base->selcol = 0;
 				else {
 					base->selcol = code;
-					gpuSelectName(code);
+					gpuSelectLoad(code);
 					draw_object(scene, ar, v3d, base, DRAW_PICKING | DRAW_CONSTCOLOR);
 					
 					/* we draw duplicators for selection too */

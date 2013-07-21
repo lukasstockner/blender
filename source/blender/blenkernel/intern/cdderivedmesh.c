@@ -566,7 +566,7 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 
 			BKE_pbvh_draw(cddm->pbvh, partial_redraw_planes, face_nors,
 			              setMaterial, FALSE);
-			glShadeModel(GL_FLAT);
+			gpuShadeModel(GL_FLAT);
 		}
 
 		return;
@@ -588,7 +588,7 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 
 				drawCurrentMat = setMaterial(matnr = new_matnr, NULL);
 
-				glShadeModel(shademodel = new_shademodel);
+				gpuShadeModel(shademodel = new_shademodel);
 				gpuBegin(glmode = new_glmode);
 			}
 			
@@ -627,7 +627,7 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 		GPU_vertex_setup(dm);
 		GPU_normal_setup(dm);
 		if (!GPU_buffer_legacy(dm)) {
-			glShadeModel(GL_SMOOTH);
+			gpuShadeModel(GL_SMOOTH);
 			for (a = 0; a < dm->drawObject->totmaterial; a++) {
 				if (setMaterial(dm->drawObject->materials[a].mat_nr + 1, NULL)) {
 					glDrawArrays(GL_TRIANGLES, dm->drawObject->materials[a].start,
@@ -639,7 +639,7 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 	}
 
 #undef PASSVERT
-	glShadeModel(GL_FLAT);
+	gpuShadeModel(GL_FLAT);
 }
 
 static void cdDM_drawFacesTex_common(DerivedMesh *dm,
@@ -799,7 +799,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 			int tottri = dm->drawObject->tot_triangle_point / 3;
 			int next_actualFace = dm->drawObject->triangle_to_mface[0];
 
-			glShadeModel(GL_SMOOTH);
+			gpuShadeModel(GL_SMOOTH);
 			/* lastFlag = 0; */ /* UNUSED */
 			for (i = 0; i < tottri; i++) {
 				int actualFace = next_actualFace;
@@ -859,7 +859,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 		}
 
 		GPU_buffer_unbind();
-		glShadeModel(GL_FLAT);
+		gpuShadeModel(GL_FLAT);
 	}
 }
 
@@ -940,7 +940,7 @@ static void cdDM_drawMappedFaces(
 
 		/* no need to set shading mode to flat because
 		 *  normals are already used to change shading */
-		glShadeModel(GL_SMOOTH);
+		gpuShadeModel(GL_SMOOTH);
 
 		for (i = 0; i < dm->numTessFaceData; i++, mf++) {
 			int drawSmooth = (flag & DM_DRAW_ALWAYS_SMOOTH) ? 1 : (mf->flag & ME_SMOOTH);
@@ -968,7 +968,7 @@ static void cdDM_drawMappedFaces(
 
 				/* no need to set shading mode to flat because
 				 *  normals are already used to change shading */
-				glShadeModel(GL_SMOOTH);
+				gpuShadeModel(GL_SMOOTH);
 				gpuBegin(mf->v4 ? GL_QUADS : GL_TRIANGLES);
 				if (!drawSmooth) {
 					if (nors) {
@@ -1037,7 +1037,7 @@ static void cdDM_drawMappedFaces(
 
 		if (!GPU_buffer_legacy(dm)) {
 			int tottri = dm->drawObject->tot_triangle_point / 3;
-			glShadeModel(GL_SMOOTH);
+			gpuShadeModel(GL_SMOOTH);
 			
 			if (tottri == 0) {
 				/* avoid buffer problems in following code */
@@ -1107,7 +1107,7 @@ static void cdDM_drawMappedFaces(
 				}
 			}
 
-			glShadeModel(GL_FLAT);
+			gpuShadeModel(GL_FLAT);
 		}
 		GPU_buffer_unbind();
 	}
@@ -1289,7 +1289,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 	matnr = -1;
 	do_draw = FALSE;
 
-	glShadeModel(GL_SMOOTH);
+	gpuShadeModel(GL_SMOOTH);
 
 	if (GPU_buffer_legacy(dm) || setDrawOptions != NULL) {
 		DEBUG_VBO("Using legacy code. cdDM_drawMappedFacesGLSL\n");
@@ -1563,7 +1563,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 		GPU_buffer_free(buffer);
 	}
 
-	glShadeModel(GL_FLAT);
+	gpuShadeModel(GL_FLAT);
 }
 
 static void cdDM_drawFacesGLSL(DerivedMesh *dm, DMSetMaterial setMaterial)
@@ -1608,7 +1608,7 @@ static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
 
 	matnr = -1;
 
-	glShadeModel(GL_SMOOTH);
+	gpuShadeModel(GL_SMOOTH);
 
 	memset(&attribs, 0, sizeof(attribs));
 
@@ -1671,7 +1671,7 @@ static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
 	gpuEnd();
 	cddm_unformat_attrib_vertex();
 
-	glShadeModel(GL_FLAT);
+	gpuShadeModel(GL_FLAT);
 }
 
 static void cdDM_drawMappedEdges(DerivedMesh *dm, DMSetDrawOptions setDrawOptions, void *userData)

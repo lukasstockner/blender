@@ -605,6 +605,13 @@ void gpuSingleDisk(
 
 /* **************** GL_POINT hack ************************ */
 
+void gpuSpriteSize(GLfloat size)
+{
+#if defined(WITH_GL_PROFILE_COMPAT)
+	glPointSize(size);
+#endif
+}
+
 static int pointhack = 0;
 
 static GLubyte Squaredot[16] = {

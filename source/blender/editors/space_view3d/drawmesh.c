@@ -371,7 +371,7 @@ static void draw_textured_begin(Scene *scene, View3D *v3d, RegionView3D *rv3d, O
 
 	memcpy(Gtexdraw.obcol, obcol, sizeof(obcol));
 	set_draw_settings_cached(1, NULL, NULL, Gtexdraw);
-	glShadeModel(GL_SMOOTH);
+	gpuShadeModel(GL_SMOOTH);
 	glCullFace(GL_BACK);
 	gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, (me->flag & ME_TWOSIDED) ? GL_TRUE : GL_FALSE);
 }
@@ -381,7 +381,7 @@ static void draw_textured_end(void)
 	/* switch off textures */
 	GPU_set_tpage(NULL, 0, 0);
 
-	glShadeModel(GL_FLAT);
+	gpuShadeModel(GL_FLAT);
 	glDisable(GL_CULL_FACE);
 	gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
 

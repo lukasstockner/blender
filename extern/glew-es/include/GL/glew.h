@@ -1159,7 +1159,7 @@ GLAPI void GLAPIENTRY glMultMatrixf (const GLfloat *m);
 GLAPI void GLAPIENTRY glNormal3f (GLfloat nx, GLfloat ny, GLfloat nz);
 GLAPI void GLAPIENTRY glNormalPointer (GLenum type, GLsizei stride, const GLvoid *pointer);
 GLAPI void GLAPIENTRY glPixelStorei (GLenum pname, GLint param);
-GLAPI void GLAPIENTRY glPointSize (GLfloat size);
+GLAPI void GLAPIENTRY gpuSpriteSize (GLfloat size);
 GLAPI void GLAPIENTRY glPolygonOffset (GLfloat factor, GLfloat units);
 GLAPI void GLAPIENTRY glPopMatrix (void);
 GLAPI void GLAPIENTRY glPushMatrix (void);

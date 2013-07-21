@@ -30,3 +30,66 @@
  */
 
 #include "gpu_select.h"
+
+
+
+void gpuSelectBuffer(GLsizei size, GLuint* buffer)
+{
+#if defined(WITH_GL_PROFILE_COMPAT)
+	glSelectBuffer(size, buffer);
+#endif
+}
+
+
+
+void gpuSelectBegin(void)
+{
+#if defined(WITH_GL_PROFILE_COMPAT)
+	glRenderMode(GL_SELECT);
+#endif
+}
+
+
+
+GLsizei gpuSelectEnd(void)
+{
+#if defined(WITH_GL_PROFILE_COMPAT)
+	return glRenderMode(GL_RENDER);
+#endif
+}
+
+
+
+void gpuSelectClear(void)
+{
+#if defined(WITH_GL_PROFILE_COMPAT)
+	glInitNames();
+#endif
+}
+
+
+
+void gpuSelectPop(void)
+{
+#if defined(WITH_GL_PROFILE_COMPAT)
+	glPopNames();
+#endif
+}
+
+
+
+void gpuSelectPush(GLuint name)
+{
+#if defined(WITH_GL_PROFILE_COMPAT)
+	glPushName(name);
+#endif
+}
+
+
+
+void gpuSelectLoad(GLuint name)
+{
+#if defined(WITH_GL_PROFILE_COMPAT)
+	glLoadName(name);
+#endif
+}

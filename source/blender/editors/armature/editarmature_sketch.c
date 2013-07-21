@@ -497,7 +497,7 @@ static void sk_drawStroke(SK_Stroke *stk, int id, float color[3], int start, int
 	struct GPUprim3 prim = GPU_PRIM_LOFI_SOLID;
 
 	if (id != -1) {
-		gpuSelectName(id);
+		gpuSelectLoad(id);
 
 		for (i = 0; i < stk->nb_points; i++) {
 			gpuPushMatrix();
@@ -2032,7 +2032,7 @@ static void sk_drawSketch(Scene *scene, View3D *UNUSED(v3d), SK_Sketch *sketch, 
 			sk_drawStroke(stk, id, NULL, -1, -1);
 		}
 
-		gpuSelectName(-1);
+		gpuSelectLoad(-1);
 	}
 	else {
 		float selected_rgb[3] = {1, 0, 0};

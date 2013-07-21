@@ -154,7 +154,7 @@ static void draw_spline_points(const bContext *C, MaskLayer *masklay, MaskSpline
 	/* TODO, add this to sequence editor */
 	hsize = 4; /* UI_GetThemeValuef(TH_HANDLE_VERTEX_SIZE); */
 
-	glPointSize(hsize);
+	gpuSpriteSize(hsize);
 
 	mask_spline_color_get(masklay, spline, is_spline_sel, rgb_spline);
 
@@ -282,7 +282,7 @@ static void draw_spline_points(const bContext *C, MaskLayer *masklay, MaskSpline
 		gpuEnd();
 	}
 
-	glPointSize(1.0f);
+	gpuSpriteSize(1.0f);
 
 	gpuImmediateUnformat();
 }

@@ -64,6 +64,26 @@
 #error glesew.h included instead of glew.h
 #endif
 
+// XXX jwilkins: changing versions from 'ifdef' to 'if' requires setting defaults
+#ifndef GL_ES_VERSION_1_0 // XXX
+#define GL_ES_VERSION_1_0 1 // XXX
+#endif // XXX
+
+// XXX jwilkins: changing versions from 'ifdef' to 'if' requires setting defaults
+#ifndef GL_ES_VERSION_CL_1_1 // XXX
+#define GL_ES_VERSION_CL_1_1 1 // XXX
+#endif // XXX
+
+// XXX jwilkins: changing versions from 'ifdef' to 'if' requires setting defaults
+#ifndef GL_ES_VERSION_CM_1_1 // XXX
+#define GL_ES_VERSION_CM_1_1 1 // XXX
+#endif // XXX
+
+// XXX jwilkins: changing versions from 'ifdef' to 'if' requires setting defaults
+#ifndef GL_ES_VERSION_2_0 // XXX
+#define GL_ES_VERSION_2_0 1 // XXX
+#endif // XXX
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -508,15 +528,21 @@ typedef struct __GLsync *GLsync;
 
 /*************************************************************/
 
+#if !GL_ES_VERSION_2_0 // XXX jwilkins: not in all versions of ES
 GLAPI void GLAPIENTRY glAlphaFunc (GLenum func, GLclampf ref);
+#endif // XXX
 GLAPI void GLAPIENTRY glBindTexture (GLenum target, GLuint texture);
 GLAPI void GLAPIENTRY glBlendFunc (GLenum sfactor, GLenum dfactor);
 GLAPI void GLAPIENTRY glClear (GLbitfield mask);
 GLAPI void GLAPIENTRY glClearColor (GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
 GLAPI void GLAPIENTRY glClearStencil (GLint s);
+#if !GL_ES_VERSION_2_0 // XXX jwilkins: not in all versions of ES
 GLAPI void GLAPIENTRY glColor4f (GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
+#endif
 GLAPI void GLAPIENTRY glColorMask (GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha);
+#if !GL_ES_VERSION_2_0 // XXX jwilkins: not in all versions of ES
 GLAPI void GLAPIENTRY glColorPointer (GLint size, GLenum type, GLsizei stride, const GLvoid *pointer);
+#endif
 GLAPI void GLAPIENTRY glCopyTexImage2D (GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border);
 GLAPI void GLAPIENTRY glCopyTexSubImage2D (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height);
 GLAPI void GLAPIENTRY glCullFace (GLenum mode);
@@ -524,26 +550,35 @@ GLAPI void GLAPIENTRY glDeleteTextures (GLsizei n, const GLuint *textures);
 GLAPI void GLAPIENTRY glDepthFunc (GLenum func);
 GLAPI void GLAPIENTRY glDepthMask (GLboolean flag);
 GLAPI void GLAPIENTRY glDisable (GLenum cap);
+#if !GL_ES_VERSION_2_0 // XXX jwilkins: not in all versions of ES
 GLAPI void GLAPIENTRY glDisableClientState (GLenum array);
+#endif
 GLAPI void GLAPIENTRY glDrawArrays (GLenum mode, GLint first, GLsizei count);
 GLAPI void GLAPIENTRY glDrawElements (GLenum mode, GLsizei count, GLenum type, const GLvoid *indices);
 GLAPI void GLAPIENTRY glEnable (GLenum cap);
+#if !GL_ES_VERSION_2_0 // XXX jwilkins: not in all versions of ES
 GLAPI void GLAPIENTRY glEnableClientState (GLenum array);
+#endif 
 GLAPI void GLAPIENTRY glFinish (void);
 GLAPI void GLAPIENTRY glFlush (void);
+#if !GL_ES_VERSION_2_0 // XXX jwilkins: not in all versions of ES
 GLAPI void GLAPIENTRY glFogf (GLenum pname, GLfloat param);
 GLAPI void GLAPIENTRY glFogfv (GLenum pname, const GLfloat *params);
+#endif
 GLAPI void GLAPIENTRY glFrontFace (GLenum mode);
 GLAPI void GLAPIENTRY glGenTextures (GLsizei n, GLuint *textures);
 GLAPI GLenum GLAPIENTRY glGetError (void);
 GLAPI void GLAPIENTRY glGetIntegerv (GLenum pname, GLint *params);
 GLAPI const GLubyte * GLAPIENTRY glGetString (GLenum name);
 GLAPI void GLAPIENTRY glHint (GLenum target, GLenum mode);
+#if !GL_ES_VERSION_2_0 // XXX jwilkins: not in all versions of ES
 GLAPI void GLAPIENTRY glLightModelf (GLenum pname, GLfloat param);
 GLAPI void GLAPIENTRY glLightModelfv (GLenum pname, const GLfloat *params);
 GLAPI void GLAPIENTRY glLightf (GLenum light, GLenum pname, GLfloat param);
 GLAPI void GLAPIENTRY glLightfv (GLenum light, GLenum pname, const GLfloat *params);
+#endif
 GLAPI void GLAPIENTRY glLineWidth (GLfloat width);
+#if !GL_ES_VERSION_2_0 // XXX jwilkins: not in all versions of ES
 GLAPI void GLAPIENTRY glLoadIdentity (void);
 GLAPI void GLAPIENTRY glLoadMatrixf (const GLfloat *m);
 GLAPI void GLAPIENTRY glLogicOp (GLenum opcode);
@@ -554,33 +589,45 @@ GLAPI void GLAPIENTRY glMultMatrixf (const GLfloat *m);
 GLAPI void GLAPIENTRY glMultiTexCoord4f (GLenum target, GLfloat s, GLfloat t, GLfloat r, GLfloat q);
 GLAPI void GLAPIENTRY glNormal3f (GLfloat nx, GLfloat ny, GLfloat nz);
 GLAPI void GLAPIENTRY glNormalPointer (GLenum type, GLsizei stride, const GLvoid *pointer);
+#endif
 GLAPI void GLAPIENTRY glPixelStorei (GLenum pname, GLint param);
-GLAPI void GLAPIENTRY glPointSize (GLfloat size);
+#if !GL_ES_VERSION_2_0 // XXX jwilkins: not in all versions of ES
+GLAPI void GLAPIENTRY gpuSpriteSize (GLfloat size);
+#endif // XXX
 GLAPI void GLAPIENTRY glPolygonOffset (GLfloat factor, GLfloat units);
+#if !GL_ES_VERSION_2_0 // XXX jwilkins: not in all versions of ES
 GLAPI void GLAPIENTRY glPopMatrix (void);
 GLAPI void GLAPIENTRY glPushMatrix (void);
+#endif
 GLAPI void GLAPIENTRY glReadPixels (GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid *pixels);
+#if !GL_ES_VERSION_2_0 // XXX jwilkins: not in all versions of ES
 GLAPI void GLAPIENTRY glRotatef (GLfloat angle, GLfloat x, GLfloat y, GLfloat z);
 GLAPI void GLAPIENTRY glScalef (GLfloat x, GLfloat y, GLfloat z);
+#endif
 GLAPI void GLAPIENTRY glScissor (GLint x, GLint y, GLsizei width, GLsizei height);
+#if !GL_ES_VERSION_2_0 // XXX jwilkins: not in all versions of ES
 GLAPI void GLAPIENTRY glShadeModel (GLenum mode);
+#endif // XXX
 GLAPI void GLAPIENTRY glStencilFunc (GLenum func, GLint ref, GLuint mask);
 GLAPI void GLAPIENTRY glStencilMask (GLuint mask);
 GLAPI void GLAPIENTRY glStencilOp (GLenum fail, GLenum zfail, GLenum zpass);
+#if !GL_ES_VERSION_2_0 // XXX jwilkins: not in all versions of ES
 GLAPI void GLAPIENTRY glTexCoordPointer (GLint size, GLenum type, GLsizei stride, const GLvoid *pointer);
 GLAPI void GLAPIENTRY glTexEnvf (GLenum target, GLenum pname, GLfloat param);
 GLAPI void GLAPIENTRY glTexEnvfv (GLenum target, GLenum pname, const GLfloat *params);
+#endif
 GLAPI void GLAPIENTRY glTexImage2D (GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels);
 GLAPI void GLAPIENTRY glTexParameterf (GLenum target, GLenum pname, GLfloat param);
 GLAPI void GLAPIENTRY glTexSubImage2D (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels);
+#if !GL_ES_VERSION_2_0 // XXX jwilkins: not in all versions of ES
 GLAPI void GLAPIENTRY glTranslatef (GLfloat x, GLfloat y, GLfloat z);
 GLAPI void GLAPIENTRY glVertexPointer (GLint size, GLenum type, GLsizei stride, const GLvoid *pointer);
+#endif
 GLAPI void GLAPIENTRY glViewport (GLint x, GLint y, GLsizei width, GLsizei height);
-
 
 /* --------------------------- GL_ES_VERSION_1_0 --------------------------- */
 
-#if !defined(GL_ES_VERSION_1_0) 
+#if GL_ES_VERSION_1_0 // XXX jwilkins: should be if not ifdef
 #define GL_ES_VERSION_1_0 1
 
 typedef void (GLAPIENTRY * PFNGLACTIVETEXTUREPROC) (GLenum texture);
@@ -671,7 +718,7 @@ typedef void (GLAPIENTRY * PFNGLTRANSLATEXPROC) (GLfixed x, GLfixed y, GLfixed z
 
 /* -------------------------- GL_ES_VERSION_CL_1_1 ------------------------- */
 
-#if !defined(GL_ES_VERSION_CL_1_1) 
+#if GL_ES_VERSION_CL_1_1 // XXX jwilkins: should be if not ifdef
 #define GL_ES_VERSION_CL_1_1 1
 
 #define GL_VERSION_ES_CL_1_1 0x1
@@ -857,7 +904,7 @@ typedef void  (GLAPIENTRY * PFNGLTEXPARAMETERXVPROC) (GLenum, GLenum, const GLfi
 
 /* -------------------------- GL_ES_VERSION_CM_1_1 ------------------------- */
 
-#if !defined(GL_ES_VERSION_CM_1_1) 
+#if GL_ES_VERSION_CM_1_1 // XXX jwilkins: should be if not ifdef
 #define GL_ES_VERSION_CM_1_1 1
 
 #define GL_VERSION_ES_CM_1_1 0x1
@@ -893,7 +940,7 @@ typedef void  (GLAPIENTRY * PFNGLTEXPARAMETERFVPROC) (GLenum, GLenum , const GLf
 
 /* --------------------------- GL_ES_VERSION_2_0 --------------------------- */
 
-#if !defined(GL_ES_VERSION_2_0) 
+#if GL_ES_VERSION_2_0 // XXX jwilkins: should be if not ifdef
 #define GL_ES_VERSION_2_0 1
 
 #define GL_NONE 0

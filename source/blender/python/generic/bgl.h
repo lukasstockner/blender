@@ -43,7 +43,6 @@
 PyObject *BPyInit_bgl(void);
 #endif
 
-
 #if defined(WITH_GL_PROFILE_ES20)
 PyObject *BPyInit_bgles2(void);
 #endif
@@ -113,72 +112,72 @@ extern PyTypeObject BGL_bufferType;
 /* GLdoubleP, GLfloatP, GLintP, GLuintP, GLshortP, GLsizeiP, GLcharP */
 
 #define GLbooleanP_str      "O!"
-#define GLbooleanP_var(number)  (bgl_buffer##number)->buf.asvoid
+#define GLbooleanP_var(number)  (GLboolean*)(bgl_buffer##number)->buf.asvoid
 #define GLbooleanP_ref(number)  &BGL_bufferType, &bgl_buffer##number
 #define GLbooleanP_def(number)  Buffer *bgl_buffer##number
 
 #define GLbyteP_str     "O!"
-#define GLbyteP_var(number) (bgl_buffer##number)->buf.asvoid
+#define GLbyteP_var(number) (GLbyte*)(bgl_buffer##number)->buf.asvoid
 #define GLbyteP_ref(number) &BGL_bufferType, &bgl_buffer##number
 #define GLbyteP_def(number) Buffer *bgl_buffer##number
 
 #define GLubyteP_str      "O!"
-#define GLubyteP_var(number)  (bgl_buffer##number)->buf.asvoid
+#define GLubyteP_var(number)  (GLubyte*)(bgl_buffer##number)->buf.asvoid
 #define GLubyteP_ref(number)  &BGL_bufferType, &bgl_buffer##number
 #define GLubyteP_def(number)  Buffer *bgl_buffer##number
 
 #define GLintP_str      "O!"
-#define GLintP_var(number)  (bgl_buffer##number)->buf.asvoid
+#define GLintP_var(number)  (GLint*)(bgl_buffer##number)->buf.asvoid
 #define GLintP_ref(number)  &BGL_bufferType, &bgl_buffer##number
 #define GLintP_def(number)  Buffer *bgl_buffer##number
 
 #define GLuintP_str     "O!"
-#define GLuintP_var(number) (bgl_buffer##number)->buf.asvoid
+#define GLuintP_var(number) (GLuint*)(bgl_buffer##number)->buf.asvoid
 #define GLuintP_ref(number) &BGL_bufferType, &bgl_buffer##number
 #define GLuintP_def(number) Buffer *bgl_buffer##number
 
 #define GLshortP_str      "O!"
-#define GLshortP_var(number)  (bgl_buffer##number)->buf.asvoid
+#define GLshortP_var(number)  (GLshort*)(bgl_buffer##number)->buf.asvoid
 #define GLshortP_ref(number)  &BGL_bufferType, &bgl_buffer##number
 #define GLshortP_def(number)  Buffer *bgl_buffer##number
 
 #define GLushortP_str     "O!"
-#define GLushortP_var(number) (bgl_buffer##number)->buf.asvoid
+#define GLushortP_var(number) (GLushort*)(bgl_buffer##number)->buf.asvoid
 #define GLushortP_ref(number) &BGL_bufferType, &bgl_buffer##number
 #define GLushortP_def(number) Buffer *bgl_buffer##number
 
 #define GLfloatP_str      "O!"
-#define GLfloatP_var(number)  (bgl_buffer##number)->buf.asvoid
+#define GLfloatP_var(number)  (GLfloat*)(bgl_buffer##number)->buf.asvoid
 #define GLfloatP_ref(number)  &BGL_bufferType, &bgl_buffer##number
 #define GLfloatP_def(number)  Buffer *bgl_buffer##number
 
 #define GLdoubleP_str     "O!"
-#define GLdoubleP_var(number) (bgl_buffer##number)->buf.asvoid
+#define GLdoubleP_var(number) (GLdouble*)(bgl_buffer##number)->buf.asvoid
 #define GLdoubleP_ref(number) &BGL_bufferType, &bgl_buffer##number
 #define GLdoubleP_def(number) Buffer *bgl_buffer##number
 
 #define GLclampfP_str     "O!"
-#define GLclampfP_var(number) (bgl_buffer##number)->buf.asvoid
+#define GLclampfP_var(number) (GLclampf*)(bgl_buffer##number)->buf.asvoid
 #define GLclampfP_ref(number) &BGL_bufferType, &bgl_buffer##number
 #define GLclampfP_def(number) Buffer *bgl_buffer##number
 
 #define GLvoidP_str     "O!"
-#define GLvoidP_var(number) (bgl_buffer##number)->buf.asvoid
+#define GLvoidP_var(number) (GLvoid*)(bgl_buffer##number)->buf.asvoid
 #define GLvoidP_ref(number) &BGL_bufferType, &bgl_buffer##number
 #define GLvoidP_def(number) Buffer *bgl_buffer##number
 
 #define GLsizeiP_str     "O!"
-#define GLsizeiP_var(number) (bgl_buffer##number)->buf.asvoid
+#define GLsizeiP_var(number) (GLsizei*)(bgl_buffer##number)->buf.asvoid
 #define GLsizeiP_ref(number) &BGL_bufferType, &bgl_buffer##number
 #define GLsizeiP_def(number) Buffer *bgl_buffer##number
 
 #define GLcharP_str     "O!"
-#define GLcharP_var(number) (bgl_buffer##number)->buf.asvoid
+#define GLcharP_var(number) (GLchar*)(bgl_buffer##number)->buf.asvoid
 #define GLcharP_ref(number) &BGL_bufferType, &bgl_buffer##number
 #define GLcharP_def(number) Buffer *bgl_buffer##number
 
 #define buffer_str      "O!"
-#define buffer_var(number)  (bgl_buffer##number)->buf.asvoid
+#define buffer_var(number)  (Buffer*)(bgl_buffer##number)->buf.asvoid
 #define buffer_ref(number)  &BGL_bufferType, &bgl_buffer##number
 #define buffer_def(number)  Buffer *bgl_buffer##number
 

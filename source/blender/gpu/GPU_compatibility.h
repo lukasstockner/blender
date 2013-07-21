@@ -57,7 +57,9 @@
 
 GLenum GPU_mipmap_2D(GLboolean genmip, GLenum internalFormat, int w, int h, GLenum type, void* data); // XXX jwilkins: this belongs somewhere else
 
+void gpuSpriteSize(GLfloat size); // XXX jwilkins: ToDo, put this in a gpu_sprite module
 
+void gpuShadeModel(GLenum model); // XXX jwilkins: ToDo, this does not quite belong in gpu_lighting, but where to put it?
 
 
 

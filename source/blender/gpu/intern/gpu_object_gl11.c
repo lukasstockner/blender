@@ -29,6 +29,8 @@
  *  \ingroup gpu
  */
 
+#if defined(WITH_GL_PROFILE_COMPAT)
+
 #include "gpu_object_gl11.h"
 
 #include "intern/gpu_glew.h"
@@ -72,14 +74,12 @@ void gpuTexCoordPointer_gl11(int size, int type, int stride, const void *pointer
 	glTexCoordPointer(size, type, stride, pointer);
 }
 
-#if !defined(GLEW_ES_ONLY)
 void gpuClientActiveTexture_gl11(int texture)
 {
 	if (GLEW_VERSION_1_3 || GLEW_ARB_multitexture) {
 		glClientActiveTexture(texture);
 	}
 }
-#endif
 
 void gpuCleanupAfterDraw_gl11(void)
 {
@@ -92,11 +92,13 @@ void gpuCleanupAfterDraw_gl11(void)
 	if(od.texta)
 		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 
-#if !defined(GLEW_ES_ONLY)
-	gpuClientActiveTexture_gl11(0);
-#endif
+	if (GLEW_VERSION_1_3 || GLEW_ARB_multitexture) {
+		gpuClientActiveTexture_gl11(0);
+	}
 
 	od.norma = 0;
 	od.cola  = 0;
 	od.texta = 0;
 }
+
+#endif

@@ -288,7 +288,7 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTe
 
 			col[3] = 0.5f; /* hard coded alpha, not that nice */
 			
-			glShadeModel(GL_SMOOTH);
+			gpuShadeModel(GL_SMOOTH);
 			
 			BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 				tf = BM_ELEM_CD_GET_VOID_P(efa, cd_poly_tex_offset);
@@ -352,7 +352,7 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTe
 			BLI_buffer_free(&av_buf);
 			BLI_buffer_free(&auv_buf);
 
-			glShadeModel(GL_FLAT);
+			gpuShadeModel(GL_FLAT);
 
 			break;
 		}
@@ -649,7 +649,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 				UI_GetThemeColor4ubv(TH_VERTEX_SELECT, col1);
 
 				if (interpedges) {
-					glShadeModel(GL_SMOOTH);
+					gpuShadeModel(GL_SMOOTH);
 
 					BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 						if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
@@ -666,7 +666,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 						gpuEnd();
 					}
 
-					glShadeModel(GL_FLAT);
+					gpuShadeModel(GL_FLAT);
 				}
 				else {
 					BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
@@ -718,7 +718,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 		float cent[2];
 		
 		pointsize = UI_GetThemeValuef(TH_FACEDOT_SIZE);
-		glPointSize(pointsize); // TODO - drawobject.c changes this value after - Investigate!
+		gpuSpriteSize(pointsize); // TODO - drawobject.c changes this value after - Investigate!
 		
 		/* unselected faces */
 		UI_ThemeColor(TH_WIRE);
@@ -757,7 +757,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 		/* unselected uvs */
 		UI_ThemeColor(TH_VERTEX);
 		pointsize = UI_GetThemeValuef(TH_VERTEX_SIZE);
-		glPointSize(pointsize);
+		gpuSpriteSize(pointsize);
 	
 		gpuBeginSprites();
 		BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
@@ -774,7 +774,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 
 		/* pinned uvs */
 		/* give odd pointsizes odd pin pointsizes */
-		glPointSize(pointsize * 2 + (((int)pointsize % 2) ? (-1) : 0));
+		gpuSpriteSize(pointsize * 2 + (((int)pointsize % 2) ? (-1) : 0));
 		gpuCurrentColor3x(CPACK_BLUE);
 
 		gpuBeginSprites();
@@ -793,7 +793,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 	
 		/* selected uvs */
 		UI_ThemeColor(TH_VERTEX_SELECT);
-		glPointSize(pointsize);
+		gpuSpriteSize(pointsize);
 	
 		gpuBeginSprites();
 		BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
@@ -810,7 +810,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 		gpuEndSprites();	
 	}
 
-	glPointSize(1.0);
+	gpuSpriteSize(1.0);
 
 	gpuImmediateUnformat();
 }

@@ -50,7 +50,7 @@ GLsizei gpuSelectEnd   (void);
 void    gpuSelectClear (void);
 void    gpuSelectPop   (void);
 void    gpuSelectPush  (GLuint name);
-void    gpuSelectName  (GLuint name);
+void    gpuSelectLoad  (GLuint name);
 
 
 

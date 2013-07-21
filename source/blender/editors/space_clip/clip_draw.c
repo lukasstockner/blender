@@ -308,12 +308,9 @@ static void draw_stabilization_border(SpaceClip *sc, ARegion *ar, int width, int
 
 	/* draw boundary border for frame if stabilization is enabled */
 	if (sc->flag & SC_SHOW_STABLE && clip->tracking.stabilization.flag & TRACKING_2D_STABILIZATION) {
-		gpuCurrentColor3x(CPACK_BLACK);
-
 		gpuLineStipple(3, 0xaaaa);
 		gpuEnableLineStipple();
-		glEnable(GL_COLOR_LOGIC_OP);
-		glLogicOp(GL_NOR);
+		set_inverted_drawing(GL_TRUE); // XXX jwilkins: double check to make sure what was hear before was meant to be inversion
 
 		gpuPushMatrix();
 		gpuTranslate(x, y, 0.0f);
@@ -330,7 +327,7 @@ static void draw_stabilization_border(SpaceClip *sc, ARegion *ar, int width, int
 
 		gpuPopMatrix();
 
-		glDisable(GL_COLOR_LOGIC_OP);
+		set_inverted_drawing(GL_FALSE);
 		gpuDisableLineStipple();
 	}
 }
@@ -399,7 +396,7 @@ static void draw_track_path(SpaceClip *sc, MovieClip *UNUSED(clip), MovieTrackin
 		UI_ThemeColor(TH_MARKER_OUTLINE);
 
 		if (TRACK_VIEW_SELECTED(sc, track)) {
-			glPointSize(5.0f);
+			gpuSpriteSize(5.0f);
 			gpuBegin(GL_POINTS);
 			for (i = a; i < b; i++) {
 				if (i != curindex) {
@@ -421,7 +418,7 @@ static void draw_track_path(SpaceClip *sc, MovieClip *UNUSED(clip), MovieTrackin
 	UI_ThemeColor(TH_PATH_BEFORE);
 
 	if (TRACK_VIEW_SELECTED(sc, track)) {
-		glPointSize(3.0f);
+		gpuSpriteSize(3.0f);
 		gpuBegin(GL_POINTS);
 		for (i = a; i < b; i++) {
 			if (i == count + 1) {
@@ -446,7 +443,7 @@ static void draw_track_path(SpaceClip *sc, MovieClip *UNUSED(clip), MovieTrackin
 		gpuVertex2f(path[i][0], path[i][1]);
 	}
 	gpuEnd();
-	glPointSize(1.0f);
+	gpuSpriteSize(1.0f);
 }
 
 static void draw_marker_outline(SpaceClip *sc, MovieTrackingTrack *track, MovieTrackingMarker *marker,
@@ -475,17 +472,17 @@ static void draw_marker_outline(SpaceClip *sc, MovieTrackingTrack *track, MovieT
 		                        marker->pattern_corners[2], marker->pattern_corners[3]))
 		{
 			if (tiny) {
-				glPointSize(3.0f);
+				gpuSpriteSize(3.0f);
 			}
 			else {
-				glPointSize(4.0f);
+				gpuSpriteSize(4.0f);
 			}
 
 			gpuBegin(GL_POINTS);
 			gpuVertex2f(pos[0], pos[1]);
 			gpuEnd();
 			
-			glPointSize(1.0f);
+			gpuSpriteSize(1.0f);
 		}
 		else {
 			if (!tiny) {
@@ -606,14 +603,14 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 		                        marker->pattern_corners[2], marker->pattern_corners[3]))
 		{
 			if (!tiny)
-				glPointSize(2.0f);
+				gpuSpriteSize(2.0f);
 
 			gpuBegin(GL_POINTS);
 			gpuVertex2f(pos[0], pos[1]);
 			gpuEnd();
 
 			if (!tiny)
-				glPointSize(1.0f);
+				gpuSpriteSize(1.0f);
 		}
 		else {
 			gpuBegin(GL_LINES);
@@ -632,20 +629,18 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 			
 			gpuEnd();
 
-			gpuCurrentColor3x(CPACK_BLACK);
-
 			gpuEnableLineStipple();
 			gpuLineStipple(3, 0xAAAA);
 
 			glEnable(GL_COLOR_LOGIC_OP);
-			glLogicOp(GL_NOR);
+			set_inverted_drawing(GL_TRUE); // XXX jwilkins: check to make sure what was here before meant inverted drawing
 
 			gpuBegin(GL_LINES);
 			gpuVertex2fv(pos);
 			gpuVertex2fv(marker_pos);
 			gpuEnd();
 
-			glDisable(GL_COLOR_LOGIC_OP);
+			set_inverted_drawing(GL_FALSE);
 			gpuDisableLineStipple();
 		}
 	}
@@ -1137,7 +1132,7 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 		float pos[4], vec[4], mat[4][4], aspy;
 
 		glEnable(GL_POINT_SMOOTH);
-		glPointSize(3.0f);
+		gpuSpriteSize(3.0f);
 
 		aspy = 1.0f / clip->tracking.camera.pixel_aspect;
 		BKE_tracking_get_projection_matrix(tracking, object, framenr, width, height, mat);
@@ -1185,7 +1180,7 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 			track = track->next;
 		}
 
-		glPointSize(1.0f);
+		gpuSpriteSize(1.0f);
 		glDisable(GL_POINT_SMOOTH);
 	}
 
@@ -1371,7 +1366,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 
 			gpuCurrentColor4fv(layer->color);
 			gpuLineWidth(layer->thickness);
-			glPointSize((float)(layer->thickness + 2));
+			gpuSpriteSize((float)(layer->thickness + 2));
 
 			while (frame) {
 				bGPDstroke *stroke = frame->strokes.first;
@@ -1428,7 +1423,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 		}
 
 		gpuLineWidth(1.0f);
-		glPointSize(1.0f);
+		gpuSpriteSize(1.0f);
 	}
 
 	gpuPopMatrix();

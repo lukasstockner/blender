@@ -1751,7 +1751,7 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 		if (dm->numTessFaceData) {
 			BKE_pbvh_draw(ccgdm->pbvh, partial_redraw_planes, NULL,
 			              setMaterial, FALSE);
-			glShadeModel(GL_FLAT);
+			//gpuShadeModel(GL_FLAT); // XXX jwilkins: pbvh draw should probably return ShadeModel to FLAT, but this function doesn't even do that for itself in other cases.
 		}
 
 		return;
@@ -1777,7 +1777,7 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 		
 		if (shademodel != new_shademodel) {
 			shademodel = new_shademodel;
-			glShadeModel(shademodel);
+			gpuShadeModel(shademodel);
 		}
 		
 		if (matnr != new_matnr) {
@@ -1971,7 +1971,7 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 			continue;
 		}
 
-		glShadeModel(drawSmooth ? GL_SMOOTH : GL_FLAT);
+		gpuShadeModel(drawSmooth ? GL_SMOOTH : GL_FLAT);
 		for (S = 0; S < numVerts; S++) {
 			CCGElem *faceGridData = ccgSubSurf_getFaceGridDataArray(ss, f, S);
 			CCGElem *vda, *vdb;
@@ -2130,7 +2130,7 @@ static void ccgDM_drawMappedFacesMat(DerivedMesh *dm,
 		}
 
 		/* draw face*/
-		glShadeModel(drawSmooth ? GL_SMOOTH : GL_FLAT);
+		gpuShadeModel(drawSmooth ? GL_SMOOTH : GL_FLAT);
 		for (S = 0; S < numVerts; S++) {
 			CCGElem *faceGridData = ccgSubSurf_getFaceGridDataArray(ss, f, S);
 			CCGElem *vda, *vdb;
@@ -2274,7 +2274,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 			CCGElem *a, *b;
 
 			if (drawSmooth) {
-				glShadeModel(GL_SMOOTH);
+				gpuShadeModel(GL_SMOOTH);
 				for (y = 0; y < gridFaces; y++) {
 					gpuBegin(GL_TRIANGLE_STRIP);
 					for (x = 0; x < gridFaces; x++) {
@@ -2317,7 +2317,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 				}
 			}
 			else {
-				glShadeModel((cp) ? GL_SMOOTH : GL_FLAT);
+				gpuShadeModel((cp) ? GL_SMOOTH : GL_FLAT);
 				gpuBegin(GL_QUADS);
 				for (y = 0; y < gridFaces; y++) {
 					for (x = 0; x < gridFaces; x++) {
@@ -2412,7 +2412,7 @@ static void ccgDM_drawMappedFaces(
 	DerivedMesh *dm,
 	DMSetDrawOptions setDrawOptions,
 	DMSetMaterial setMaterial,
-	DMCompareDrawOptions compareDrawOptions,
+	DMCompareDrawOptions UNUSED(compareDrawOptions), /* currently unused -- each original face is handled separately */
 	void *userData,
 	DMDrawFlag flag)
 {
@@ -2429,9 +2429,6 @@ static void ccgDM_drawMappedFaces(
 	int gridFaces = gridSize - 1, totface;
 
 	CCG_key_top_level(&key, ss);
-
-	/* currently unused -- each original face is handled separately */
-	(void)compareDrawOptions;
 
 	if (useColors) {
 		mcol = dm->getTessFaceDataArray(dm, CD_PREVIEW_MCOL);
@@ -2474,7 +2471,7 @@ static void ccgDM_drawMappedFaces(
 
 				/* no need to set shading mode to flat because
 				 *  normals are already used to change shading */
-				glShadeModel(GL_SMOOTH);
+				gpuShadeModel(GL_SMOOTH);
 
 				for (S = 0; S < numVerts; S++) {
 					CCGElem *faceGridData = ccgSubSurf_getFaceGridDataArray(ss, f, S);

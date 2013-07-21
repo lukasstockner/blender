@@ -354,6 +354,7 @@ void gpuImmediateUnformat(void);
 
 extern const GPUarrays GPU_ARRAYS_V2F;
 extern const GPUarrays GPU_ARRAYS_C4UB_V2F;
+extern const GPUarrays GPU_ARRAYS_C4UB_V3F;
 extern const GPUarrays GPU_ARRAYS_V3F;
 extern const GPUarrays GPU_ARRAYS_C3F_V3F;
 extern const GPUarrays GPU_ARRAYS_C4F_V3F;
@@ -466,6 +467,15 @@ void gpuSingleClientArrays_C4UB_V2F(
 	GLint first,
 	GLsizei count);
 
+void gpuSingleClientArrays_C4UB_V3F(
+	GLenum mode,
+	const void *restrict colorPointer,
+	GLint colorStride,
+	const void *restrict vertexPointer,
+	GLint vertexStride,
+	GLint first,
+	GLsizei count);
+
 
 
 void gpuSingleClientElements_V3F(
@@ -473,7 +483,7 @@ void gpuSingleClientElements_V3F(
 	const void *restrict vertexPointer,
 	GLint vertexStride,
 	GLsizei count,
-	const void *restrict index);
+	const GLuint *restrict index);
 
 void gpuSingleClientElements_N3F_V3F(
 	GLenum mode,
@@ -482,7 +492,17 @@ void gpuSingleClientElements_N3F_V3F(
 	const void *restrict vertexPointer,
 	GLint vertexStride,
 	GLsizei count,
-	void *restrict indexes);
+	const GLuint *restrict indexes);
+
+void gpuSingleClientElements_C4UB_V3F(
+	GLenum mode,
+	const void *restrict colorPointer,
+	GLint colorStride,
+	const void *restrict vertexPointer,
+	GLint vertexStride,
+	GLsizei count,
+	const GLuint *restrict indexes);
+
 
 
 void gpuDrawClientRangeElements(
@@ -491,7 +511,7 @@ void gpuDrawClientRangeElements(
 	GLuint indexMin,
 	GLuint indexMax,
 	GLsizei count,
-	const void *restrict indexes);
+	const GLuint *restrict indexes);
 
 void gpuSingleClientRangeElements_V3F(
 	GLenum mode,
@@ -500,7 +520,7 @@ void gpuSingleClientRangeElements_V3F(
 	GLuint indexMin,
 	GLuint indexMax,
 	GLsizei count,
-	const void *restrict indexes);
+	const GLuint *restrict indexes);
 
 void gpuSingleClientRangeElements_N3F_V3F(
 	GLenum mode,
@@ -511,8 +531,18 @@ void gpuSingleClientRangeElements_N3F_V3F(
 	GLuint indexMin,
 	GLuint indexMax,
 	GLsizei count,
-	const GLvoid *restrict indexes);
+	const GLuint *restrict indexes);
 
+void gpuSingleClientRangeElements_C4UB_V3F(
+	GLenum mode,
+	const void *restrict colorPointer,
+	GLint colorStride,
+	const void *restrict vertexPointer,
+	GLint vertexStride,
+	GLuint indexMin,
+	GLuint indexMax,
+	GLsizei count,
+	const GLuint *restrict indexes);
 
 
 #if defined(GLEW_ES_ONLY)

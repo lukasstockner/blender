@@ -90,7 +90,6 @@
 #include "UI_resources.h"
 
 #include "GPU_colors.h"
-#define GPU_MANGLE_DEPRECATED 0
 #include "GPU_primitives.h"
 #include "GPU_draw.h"
 #include "GPU_material.h"
@@ -113,7 +112,7 @@ static void star_stuff_init_func(void)
 {
 	gpuImmediateFormat_V3();
 	gpuCurrentColor3x(CPACK_WHITE);
-	glPointSize(1.0);
+	gpuSpriteSize(1.0);
 	gpuBegin(GL_POINTS);
 }
 static void star_stuff_vertex_func(float *i)
@@ -133,7 +132,7 @@ static void view3d_draw_clipping(RegionView3D *rv3d)
 	BoundBox *bb = rv3d->clipbb;
 
 	if (bb) {
-		static const unsigned int clipping_index[6][4] = {
+		static const GLuint clipping_index[6][4] = {
 			{0, 1, 2, 3},
 			{0, 4, 5, 1},
 			{4, 7, 6, 5},
@@ -155,8 +154,8 @@ static void view3d_draw_clipping(RegionView3D *rv3d)
 			0,
 			0,
 			7,
-			sizeof(clipping_index) / sizeof(unsigned int),
-			clipping_index);
+			sizeof(clipping_index)/sizeof(GLuint),
+			clipping_index[0]);
 	}
 }
 
@@ -767,8 +766,8 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 	negate_v3_v3(o, rv3d->ofs);
 
 	glEnable(GL_BLEND);
-	glShadeModel(GL_SMOOTH);
-	glPointSize(5);
+	gpuShadeModel(GL_SMOOTH);
+	gpuSpriteSize(5);
 	glEnable(GL_POINT_SMOOTH);
 	gpuDepthMask(GL_FALSE);  /* don't overwrite zbuf */
 
@@ -3154,7 +3153,7 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 
 			GLubyte grid_col[VIEWGRAD_RES_X][VIEWGRAD_RES_Y][4];
 			static float   grid_pos[VIEWGRAD_RES_X][VIEWGRAD_RES_Y][3];
-			static GLushort indices[VIEWGRAD_RES_X - 1][VIEWGRAD_RES_X - 1][4];
+			static GLuint indices[VIEWGRAD_RES_X - 1][VIEWGRAD_RES_X - 1][4]; // XXX jwilkins: had to change to uint to be compatible with gpu_immediate
 			static bool buf_calculated = false;
 
 			IMB_colormanagement_pixel_to_display_space_v3(col_hor, &scene->world->horr, &scene->view_settings,
@@ -3162,14 +3161,14 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			IMB_colormanagement_pixel_to_display_space_v3(col_zen, &scene->world->zenr, &scene->view_settings,
 			                                              &scene->display_settings);
 
-			glMatrixMode(GL_PROJECTION);
-			glPushMatrix();
-			glLoadIdentity();
-			glMatrixMode(GL_MODELVIEW);
-			glPushMatrix();
-			glLoadIdentity();
+			gpuMatrixMode(GL_PROJECTION);
+			gpuPushMatrix();
+			gpuLoadIdentity();
+			gpuMatrixMode(GL_MODELVIEW);
+			gpuPushMatrix();
+			gpuLoadIdentity();
 
-			glShadeModel(GL_SMOOTH);
+			gpuShadeModel(GL_SMOOTH);
 
 			/* calculate buffers the first time only */
 			if (!buf_calculated) {
@@ -3238,25 +3237,24 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			glEnable(GL_DEPTH_TEST);
 			glDepthFunc(GL_ALWAYS);
 
-			glEnableClientState(GL_VERTEX_ARRAY);
-			glEnableClientState(GL_COLOR_ARRAY);
-			glVertexPointer(3, GL_FLOAT, 0, grid_pos);
-			glColorPointer(4, GL_UNSIGNED_BYTE, 0, grid_col);
-
-			glDrawElements(GL_QUADS, (VIEWGRAD_RES_X - 1) * (VIEWGRAD_RES_Y - 1) * 4, GL_UNSIGNED_SHORT, indices);
-
-			glDisableClientState(GL_VERTEX_ARRAY);
-			glDisableClientState(GL_COLOR_ARRAY);
+			gpuSingleClientElements_C4UB_V3F(
+				GL_QUADS,
+				grid_col,
+				0,
+				grid_pos,
+				0,
+				sizeof(indices)/sizeof(GLuint),
+				indices[0][0]);
 
 			glDepthFunc(GL_LEQUAL);
 			glDisable(GL_DEPTH_TEST);
 
-			glMatrixMode(GL_PROJECTION);
-			glPopMatrix();
-			glMatrixMode(GL_MODELVIEW);
-			glPopMatrix();
+			gpuMatrixMode(GL_PROJECTION);
+			gpuPopMatrix();
+			gpuMatrixMode(GL_MODELVIEW);
+			gpuPopMatrix();
 
-			glShadeModel(GL_FLAT);
+			gpuShadeModel(GL_FLAT);
 
 #undef VIEWGRAD_RES_X
 #undef VIEWGRAD_RES_Y
@@ -3272,16 +3270,16 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 	}
 	else {
 		if (UI_GetThemeValue(TH_SHOW_BACK_GRAD)) {
-			glMatrixMode(GL_PROJECTION);
-			glPushMatrix();
-			glLoadIdentity();
-			glMatrixMode(GL_MODELVIEW);
-			glPushMatrix();
-			glLoadIdentity();
+			gpuMatrixMode(GL_PROJECTION);
+			gpuPushMatrix();
+			gpuLoadIdentity();
+			gpuMatrixMode(GL_MODELVIEW);
+			gpuPushMatrix();
+			gpuLoadIdentity();
 
 			glEnable(GL_DEPTH_TEST);
 			glDepthFunc(GL_ALWAYS);
-			glShadeModel(GL_SMOOTH);
+			gpuShadeModel(GL_SMOOTH);
 			gpuImmediateFormat_V3();
 			gpuBegin(GL_QUADS);
 			UI_ThemeColor(TH_LOW_GRAD);
@@ -3292,16 +3290,16 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			gpuVertex3f(-1.0, 1.0, 1.0);
 			gpuEnd();
 			gpuImmediateUnformat();
-			glShadeModel(GL_FLAT);
+			gpuShadeModel(GL_FLAT);
 
 			glDepthFunc(GL_LEQUAL);
 			glDisable(GL_DEPTH_TEST);
 
-			glMatrixMode(GL_PROJECTION);
-			glPopMatrix();
+			gpuMatrixMode(GL_PROJECTION);
+			gpuPopMatrix();
 
-			glMatrixMode(GL_MODELVIEW);
-			glPopMatrix();
+			gpuMatrixMode(GL_MODELVIEW);
+			gpuPopMatrix();
 		}
 		else {
 			UI_ThemeClearColor(TH_HIGH_GRAD);
@@ -3655,7 +3653,7 @@ static void bl_debug_draw(void)
 			glVertex3fv(_bl_debug_draw_edges[i][1]);
 		}
 		glEnd();
-		glPointSize(4.0);
+		gpuSpriteSize(4.0);
 		glBegin(GL_POINTS);
 		for (i = 0; i < _bl_debug_draw_edges_tot; i ++) {
 			glVertex3fv(_bl_debug_draw_edges[i][0]);

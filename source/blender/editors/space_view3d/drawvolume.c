@@ -572,7 +572,7 @@ void draw_smoke_velocity(SmokeDomainSettings *domain, Object *ob)
 					float col_g = 1.0f - vel;
 					CLAMP(col_g, 0.0f, 1.0f);
 					glColor3f(1.0f, col_g, 0.0f);
-					glPointSize(10.0f * vel);
+					gpuSpriteSize(10.0f * vel);
 
 					glBegin(GL_LINES);
 					glVertex3f(pos[0], pos[1], pos[2]);
@@ -623,7 +623,7 @@ void draw_smoke_heat(SmokeDomainSettings *domain, Object *ob)
 					float col_gb = 1.0f - heat[index];
 					CLAMP(col_gb, 0.0f, 1.0f);
 					glColor3f(1.0f, col_gb, col_gb);
-					glPointSize(24.0f * heat[index]);
+					gpuSpriteSize(24.0f * heat[index]);
 
 					glBegin(GL_POINTS);
 					glVertex3f(pos[0], pos[1], pos[2]);

@@ -397,7 +397,14 @@ GHOST_WindowWin32::~GHOST_WindowWin32()
 		m_customCursor = NULL;
 	}
 
+#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
 	::wglMakeCurrent(NULL, NULL);
+#elif defined(WITH_GL_SYSTEM_EMBEDDED)
+	GHOST_PRINT("GHOST_WindowWin32::~GHOST_WindowWin32 for WITH_GL_SYSTEM_EMBEDDED not implemented\n");
+#else
+#error
+#endif
+
 	m_multisampleEnabled = GHOST_kFailure;
 	m_multisample = 0;
 	setDrawingContextType(GHOST_kDrawingContextTypeNone);
@@ -635,12 +642,19 @@ GHOST_TSuccess GHOST_WindowWin32::setOrder(GHOST_TWindowOrder order)
 
 GHOST_TSuccess GHOST_WindowWin32::swapBuffers()
 {
+#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
 	HDC hDC = m_hDC;
 
 	if (is_crappy_intel_card())
 		hDC = ::wglGetCurrentDC();
 
 	return ::SwapBuffers(hDC) == TRUE ? GHOST_kSuccess : GHOST_kFailure;
+#elif defined(WITH_GL_SYSTEM_EMBEDDED)
+	GHOST_PRINT("GHOST_WindowWin32::swapBuffers for WITH_GL_SYSTEM_EMBEDDED not implemented\n");
+	return GHOST_kFailure;
+#else
+#error
+#endif
 }
 
 
@@ -648,12 +662,18 @@ GHOST_TSuccess GHOST_WindowWin32::activateDrawingContext()
 {
 	GHOST_TSuccess success;
 	if (m_drawingContextType == GHOST_kDrawingContextTypeOpenGL) {
+#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
 		if (m_hDC && m_hGlRc) {
 			success = ::wglMakeCurrent(m_hDC, m_hGlRc) == TRUE ? GHOST_kSuccess : GHOST_kFailure;
 		}
 		else {
 			success = GHOST_kFailure;
 		}
+#elif defined(WITH_GL_SYSTEM_EMBEDDED)
+	GHOST_PRINT("GHOST_WindowWin32::activateDrawingContext for WITH_GL_SYSTEM_EMBEDDED not implemented\n");
+#else
+#error
+#endif
 	}
 	else {
 		success = GHOST_kSuccess;
@@ -676,6 +696,7 @@ GHOST_TSuccess GHOST_WindowWin32::invalidate()
 
 GHOST_TSuccess GHOST_WindowWin32::initMultisample(PIXELFORMATDESCRIPTOR pfd)
 {
+#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
 	int pixelFormat;
 	bool success = FALSE;
 	UINT numFormats;
@@ -728,6 +749,10 @@ GHOST_TSuccess GHOST_WindowWin32::initMultisample(PIXELFORMATDESCRIPTOR pfd)
 	}
 	GHOST_PRINT("no available pixel format\n");
 	return GHOST_kFailure;
+#elif defined(WITH_GL_SYSTEM_EMBEDDED)
+	GHOST_PRINT("GHOST_WindowWin32::initMultisample for WITH_GL_SYSTEM_EMBEDDED not implemented\n");
+	return GHOST_kFailure;
+#endif
 }
 
 GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextType type)
@@ -735,6 +760,7 @@ GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextTyp
 	GHOST_TSuccess success;
 	switch (type) {
 		case GHOST_kDrawingContextTypeOpenGL:
+#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
 		{
 			// If this window has multisample enabled, use the supplied format
 			if (m_multisampleEnabled)
@@ -893,10 +919,15 @@ GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextTyp
 					}
 				}
 			}
-
 		}
 		break;
-
+#elif defined(WITH_GL_SYSTEM_EMBEDDED)
+		GHOST_PRINT("GHOST_WindowWin32::installDrawingContext for WITH_GL_SYSTEM_EMBEDDED not implemented\n");
+		success = GHOST_kFailure;
+		break;
+#else
+#error
+#endif
 		case GHOST_kDrawingContextTypeNone:
 			success = GHOST_kSuccess;
 			break;
@@ -912,6 +943,7 @@ GHOST_TSuccess GHOST_WindowWin32::removeDrawingContext()
 	GHOST_TSuccess success;
 	switch (m_drawingContextType) {
 		case GHOST_kDrawingContextTypeOpenGL:
+#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
 			// we shouldn't remove the drawing context if it's the first OpenGL context
 			// If we do, we get corrupted drawing. See #19997
 			if (m_hGlRc && m_hGlRc != s_firsthGLRc) {
@@ -922,6 +954,13 @@ GHOST_TSuccess GHOST_WindowWin32::removeDrawingContext()
 				success = GHOST_kFailure;
 			}
 			break;
+#elif defined(WITH_GL_SYSTEM_EMBEDDED)
+			GHOST_PRINT("GHOST_WindowWin32::removeDrawingContext for WITH_GL_SYSTEM_EMBEDDED not implemented\n");
+			success = GHOST_kFailure;
+			break;
+#else
+#error
+#endif
 		case GHOST_kDrawingContextTypeNone:
 			success = GHOST_kSuccess;
 			break;

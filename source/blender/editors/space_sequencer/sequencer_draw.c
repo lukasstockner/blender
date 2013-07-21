@@ -643,18 +643,19 @@ static void draw_seq_text(View2D *v2d, Sequence *seq, float x1, float x2, float 
 static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, float y1, float x2, float y2)
 {
 	float ymid1, ymid2;
-	
+
 	if (seq->flag & SEQ_MUTE) {
 		gpuEnablePolygonStipple();
 		gpuPolygonStipple(stipple_halftone);
 	}
-	
+
 	ymid1 = (y2 - y1) * 0.25f + y1;
 	ymid2 = (y2 - y1) * 0.65f + y1;
-	
-	glShadeModel(GL_SMOOTH);
+
+	gpuShadeModel(GL_SMOOTH);
+
 	gpuBegin(GL_QUADS);
-	
+
 	if (seq->flag & SEQ_INVALID_EFFECT) { col[0] = 255; col[1] = 0; col[2] = 255; }
 	else if (seq->flag & SELECT) UI_GetColorPtrShade3ubv(col, col, -50);
 	/* else UI_GetColorPtrShade3ubv(col, col, 0); */ /* DO NOTHING */
@@ -669,29 +670,29 @@ static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, floa
 	else UI_GetColorPtrShade3ubv(col, col, -5);
 
 	gpuColor3ubv((GLubyte *)col);
-	
+
 	gpuVertex2f(x2, ymid1);
 	gpuVertex2f(x1, ymid1);
-	
+
 	gpuEnd();
-	
+
 	gpuSingleFilledRectf(x1,  ymid1,  x2,  ymid2);
-	
+
 	gpuBegin(GL_QUADS);
-	
+
 	gpuVertex2f(x1, ymid2);
 	gpuVertex2f(x2, ymid2);
-	
+
 	if (seq->flag & SELECT) UI_GetColorPtrShade3ubv(col, col, -15);
 	else UI_GetColorPtrShade3ubv(col, col, 25);
-	
+
 	gpuColor3ubv((GLubyte *)col);
-	
+
 	gpuVertex2f(x2, y2);
 	gpuVertex2f(x1, y2);
-	
+
 	gpuEnd();
-	
+
 	if (seq->flag & SEQ_MUTE) {
 		gpuDisablePolygonStipple();
 	}
@@ -1138,7 +1139,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	//glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE); // XXX jwilkins: blender never changes the TEXTURE_ENV_MODE
 #endif
 
 	gpuCurrentColor3x(CPACK_WHITE);

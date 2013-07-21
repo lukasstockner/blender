@@ -384,7 +384,7 @@ static void vicon_disclosure_tri_right_draw(int x, int y, int w, int UNUSED(h), 
 	viconutil_set_point(pts[1], cx - d2, cy - d);
 	viconutil_set_point(pts[2], cx + d2, cy);
 
-	glShadeModel(GL_SMOOTH);
+	gpuShadeModel(GL_SMOOTH);
 
 	gpuBegin(GL_TRIANGLES);
 
@@ -397,7 +397,7 @@ static void vicon_disclosure_tri_right_draw(int x, int y, int w, int UNUSED(h), 
 
 	gpuEnd();
 
-	glShadeModel(GL_FLAT);
+	gpuShadeModel(GL_FLAT);
 
 	gpuCurrentColor3x(CPACK_BLACK);
 	viconutil_draw_lineloop_smooth(pts, 3);
@@ -436,7 +436,7 @@ static void vicon_disclosure_tri_down_draw(int x, int y, int w, int UNUSED(h), f
 	viconutil_set_point(pts[1], cx - d, cy + d2);
 	viconutil_set_point(pts[2], cx, cy - d2);
 
-	glShadeModel(GL_SMOOTH);
+	gpuShadeModel(GL_SMOOTH);
 
 	gpuBegin(GL_TRIANGLES);
 
@@ -449,7 +449,7 @@ static void vicon_disclosure_tri_down_draw(int x, int y, int w, int UNUSED(h), f
 
 	gpuEnd();
 
-	glShadeModel(GL_FLAT);
+	gpuShadeModel(GL_FLAT);
 
 	gpuCurrentColor3x(CPACK_BLACK);
 	viconutil_draw_lineloop_smooth(pts, 3);

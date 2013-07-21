@@ -282,7 +282,7 @@ static void gp_draw_stroke(bGPDspoint *points, int totpoints, short thickness_s,
 		float pm[2];
 		int i;
 		
-		glShadeModel(GL_FLAT);
+		//gpuShadeModel(GL_FLAT); //XXX jwilkins: no need for shademodel because there are no non-pos attributes
 		gpuBegin(GL_QUADS);
 		
 		for (i = 0, pt1 = points, pt2 = points + 1; i < (totpoints - 1); i++, pt1++, pt2++) {
@@ -576,7 +576,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		copy_v4_v4(color, gpl->color); // just for copying 4 array elements
 		copy_v4_v4(tcolor, gpl->color); // additional copy of color (for ghosting)
 		gpuCurrentColor4fv(color);
-		glPointSize((float)(gpl->thickness + 2));
+		gpuSpriteSize((float)(gpl->thickness + 2));
 		
 		/* apply xray layer setting */
 		if (gpl->flag & GP_LAYER_NO_XRAY) dflag |=  GP_DRAWDATA_NO_XRAY;
@@ -658,7 +658,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		
 	/* restore initial gl conditions */
 	glLineWidth(1.0);
-	glPointSize(1.0);
+	gpuSpriteSize(1.0);
 
 	gpuImmediateUnformat();
 }

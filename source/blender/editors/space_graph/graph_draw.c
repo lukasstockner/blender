@@ -106,7 +106,7 @@ static void draw_fcurve_modifier_controls_envelope(FModifier *fcm, View2D *v2d)
 	setlinestyle(0);
 
 	/* set size of vertices (non-adjustable for now) */
-	glPointSize(2.0f);
+	gpuSpriteSize(2.0f);
 
 	/* for now, point color is fixed, and is white */
 	gpuCurrentColor3x(CPACK_WHITE);
@@ -126,7 +126,7 @@ static void draw_fcurve_modifier_controls_envelope(FModifier *fcm, View2D *v2d)
 	}
 	gpuEndSprites();
 	
-	glPointSize(1.0f);
+	gpuSpriteSize(1.0f);
 }
 
 /* *************************** */
@@ -266,7 +266,7 @@ static void draw_fcurve_vertices(SpaceIpo *sipo, ARegion *ar, FCurve *fcu, short
 	 *	- draw handles before keyframes, so that keyframes will overlap handles (keyframes are more important for users)
 	 */
 	
-	glPointSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
+	gpuSpriteSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
 	
 	/* draw the two handles first (if they're shown, the curve doesn't have just a single keyframe, and the curve is being edited) */
 	if (do_handles) {
@@ -284,7 +284,7 @@ static void draw_fcurve_vertices(SpaceIpo *sipo, ARegion *ar, FCurve *fcu, short
 	set_fcurve_vertex_color(fcu, 1);
 	draw_fcurve_vertices_keyframes(fcu, sipo, v2d, !(fcu->flag & FCURVE_PROTECTED), 1);
 	
-	glPointSize(1.0f);
+	gpuSpriteSize(1.0f);
 }
 
 /* Handles ---------------- */
@@ -832,7 +832,7 @@ static void graph_draw_driver_debug(bAnimContext *ac, ID *id, FCurve *fcu)
 			/* x marks the spot .................................................... */
 			/* -> outer frame */
 			gpuCurrentColor3f(0.9f, 0.9f, 0.9f);
-			glPointSize(7.0);
+			gpuSpriteSize(7.0);
 			
 			gpuBegin(GL_POINTS);
 				gpuVertex2f(x, y);
@@ -840,13 +840,13 @@ static void graph_draw_driver_debug(bAnimContext *ac, ID *id, FCurve *fcu)
 			
 			/* inner frame */
 			gpuColor3f(0.9f, 0.0f, 0.0f);
-			glPointSize(3.0);
+			gpuSpriteSize(3.0);
 			
 			gpuBegin(GL_POINTS);
 				gpuVertex2f(x, y);
 			gpuEnd();
 			
-			glPointSize(1.0f);
+			gpuSpriteSize(1.0f);
 		}
 	}
 

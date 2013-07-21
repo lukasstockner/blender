@@ -538,6 +538,11 @@ elseif(WIN32)
 		unset(_PYTHON_VERSION_NO_DOTS)
 	endif()
 
+	if(WITH_ANGLE)
+		install(FILES "${ANGLE_GLESv2_DLL}" DESTINATION ${TARGETDIR})
+		install(FILES "${ANGLE_EGL_DLL}"    DESTINATION ${TARGETDIR})
+	endif()
+
 	if(MSVC)
 		install(
 			FILES ${LIBDIR}/pthreads/lib/pthreadVC2.dll

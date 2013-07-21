@@ -36,12 +36,15 @@
 #if defined(GLEW_ES_ONLY)
 #define GPU_PROFILE_COMPAT 0
 #define GPU_PROFILE_ES20   1
+#define GPU_PROFILE_CORE   0
 #elif defined(GLEW_NO_ES)
 #define GPU_PROFILE_COMPAT 1
 #define GPU_PROFILE_ES20   0
+#define GPU_PROFILE_CORE   0
 #else
 #define GPU_PROFILE_COMPAT 1
 #define GPU_PROFILE_ES20   1
+#define GPU_PROFILE_CORE   0
 #endif
 
 #endif

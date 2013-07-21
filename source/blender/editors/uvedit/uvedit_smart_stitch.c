@@ -1503,19 +1503,20 @@ static void stitch_calculate_edge_normal(BMEditMesh *em, UvEdge *edge, float *no
 
 static void stitch_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar), void *arg)
 {
+#if defined(WITH_GL_PROFILE_COMPAT)
 	int i, index = 0;
 	float pointsize = UI_GetThemeValuef(TH_VERTEX_SIZE);
 	StitchState *state = (StitchState *)arg;
 	StitchPreviewer *stitch_preview = state->stitch_preview;
 
-	glEnableClientState(GL_VERTEX_ARRAY);
-
-	glPointSize(pointsize * 2.0f);
+	gpuSpriteSize(pointsize * 2.0f);
 
 	glEnable(GL_BLEND);
 
 	UI_ThemeColor4(TH_STITCH_PREVIEW_ACTIVE);
 	gpuPolygonMode(GL_FILL);
+
+	glEnableClientState(GL_VERTEX_ARRAY);
 	glVertexPointer(2, GL_FLOAT, 0, stitch_preview->static_tris);
 	glDrawArrays(GL_TRIANGLES, 0, stitch_preview->num_static_tris * 3);
 
@@ -1561,7 +1562,8 @@ static void stitch_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar), void *ar
 
 	gpuPolygonMode(GL_FILL);
 
-	glPointSize(1.0);
+	gpuSpriteSize(1.0); /* restore default value */
+#endif
 }
 
 static UvEdge *uv_edge_get(BMLoop *l, StitchState *state)

@@ -91,3 +91,14 @@ void gpuShutdownLighting(void)
 	MEM_freeN(GPU_LIGHTING);
 	GPU_LIGHTING = NULL;
 }
+
+
+
+// XXX jwilkins: these should probably be a part of the GPU_LIGHTING driver, but not sure atm
+
+void gpuShadeModel(GLenum model)
+{
+#if defined(WITH_GL_PROFILE_COMPAT)
+	glShadeModel(model);
+#endif
+}

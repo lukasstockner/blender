@@ -382,8 +382,8 @@ struct DerivedMesh {
 	 *   returns true
 	 *
 	 * If drawSmooth is set to true then vertex normals should be set and
-	 * glShadeModel called with GL_SMOOTH. Otherwise the face normal should
-	 * be set and glShadeModel called with GL_FLAT.
+	 * gpuShadeModel called with GL_SMOOTH. Otherwise the face normal should
+	 * be set and gpuShadeModel called with GL_FLAT.
 	 *
 	 * The setDrawOptions is allowed to not set drawSmooth (for example, when
 	 * lighting is disabled), in which case the implementation should draw as

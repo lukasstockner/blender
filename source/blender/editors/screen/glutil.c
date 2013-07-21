@@ -251,8 +251,17 @@ void setlinestyle(int nr)
 
 void set_inverted_drawing(int enable) 
 {
+// XXX jwilkins: LogicOp invert and 1-DST are two ways to the same thing.
+#if defined(WITH_GL_PROFILE_COMPAT)
 	glLogicOp(enable ? GL_INVERT : GL_COPY);
 	GL_TOGGLE(GL_COLOR_LOGIC_OP, enable);
+#else
+	if (enable) 
+		glBlendFunc(GL_ZERO, GL_ONE_MINUS_DST_COLOR);
+	else
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+#endif
+
 	GL_TOGGLE(GL_DITHER, !enable);
 }
 
@@ -388,7 +397,7 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 	/* Specify the color outside this function, and tex will modulate it.
 	 * This is useful for changing alpha without using glPixelTransferf()
 	 */
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	//glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE); // XXX jwilkins: blender never changes the TEXTURE_ENV_MODE
 #endif
 
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, img_w);
@@ -881,7 +890,7 @@ void glaDrawImBuf_glsl(ImBuf *ibuf, float x, float y, int zoomfilter,
 
 		if (ok) {
 #if defined(WITH_GL_PROFILE_COMPAT)
-			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+			//glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE); // XXX jwilkins: blender never changes the TEXTURE_ENV_MODE
 #endif
 
 			gpuCurrentColor3x(CPACK_WHITE);

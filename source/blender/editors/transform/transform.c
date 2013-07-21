@@ -1971,7 +1971,7 @@ static void drawEdgeSlide(const struct bContext *C, TransInfo *t)
 			gpuEnd();
 
 			UI_ThemeColorShadeAlpha(TH_SELECT, -30, alpha_shade);
-			glPointSize(ctrl_size);
+			gpuSpriteSize(ctrl_size);
 			gpuBeginSprites();
 			if (sld->flipped_vtx) {
 				if (curr_sv->v_b) gpuSprite3fv(curr_sv->v_b->co);
@@ -1982,7 +1982,7 @@ static void drawEdgeSlide(const struct bContext *C, TransInfo *t)
 			gpuEndSprites();
 
 			UI_ThemeColorShadeAlpha(TH_SELECT, 255, alpha_shade);
-			glPointSize(guide_size);
+			gpuSpriteSize(guide_size);
 			gpuBeginSprites();
 			gpuSprite3fv(marker);
 			gpuEndSprites();
@@ -6625,7 +6625,7 @@ static void drawVertSlide(const struct bContext *C, TransInfo *t)
 			}
 			gpuEnd();
 
-			glPointSize(ctrl_size);
+			gpuSpriteSize(ctrl_size);
 
 			gpuBeginSprites();
 			gpuSprite3fv((sld->flipped_vtx && sld->is_proportional == FALSE) ?

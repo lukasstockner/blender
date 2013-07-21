@@ -748,7 +748,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 
 			shadecolors4(col1, col2, wcol->inner, wcol->shadetop, wcol->shadedown);
 
-			glShadeModel(GL_SMOOTH);
+			gpuShadeModel(GL_SMOOTH);
 			for (a = 0; a < wtb->totvert; a++, col_pt += 4) {
 				round_box_shade_col4_r(col_pt, col1, col2, wtb->inner_uv[a][wtb->shadedir]);
 			}
@@ -762,7 +762,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 				0,
 				wtb->totvert);
 
-			glShadeModel(GL_FLAT);
+			gpuShadeModel(GL_FLAT);
 		}
 	}
 
@@ -2013,7 +2013,7 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 
 	hsv_to_rgb(0.f, 0.f, hsv[2], colcent, colcent + 1, colcent + 2);
 
-	glShadeModel(GL_SMOOTH);
+	gpuShadeModel(GL_SMOOTH);
 
 	gpuBegin(GL_TRIANGLE_FAN);
 	gpuColor3fv(colcent);
@@ -2032,7 +2032,7 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 	}
 	gpuEnd();
 
-	glShadeModel(GL_FLAT);
+	gpuShadeModel(GL_FLAT);
 
 	/* fully rounded outline */
 	glEnable(GL_BLEND);
@@ -2063,7 +2063,7 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 	float col1[4][3];   /* right half, rect bottom to top */
 
 	/* draw series of gouraud rects */
-	glShadeModel(GL_SMOOTH);
+	gpuShadeModel(GL_SMOOTH);
 	
 	switch (type) {
 		case UI_GRAD_SV:
@@ -2186,7 +2186,7 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 		gpuEnd();
 	}
 	
-	glShadeModel(GL_FLAT);
+	gpuShadeModel(GL_FLAT);
 	
 }
 

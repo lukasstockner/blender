@@ -886,7 +886,9 @@ int GPU_upload_dxt_texture(ImBuf *ibuf)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gpu_get_mipmap_filter(0));
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gpu_get_mipmap_filter(1));
 
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+#if defined(WITH_GL_PROFILE_COMPAT)
+	//glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE); // XXX jwilkins: blender never changes the TEXTURE_ENV_MODE
+#endif
 
 	if (GLEW_EXT_texture_filter_anisotropic)
 		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, GPU_get_anisotropic());
@@ -1408,6 +1410,7 @@ static void disable_alphatest(void)
 
 static void enable_alphatest(GLfloat alphatestref)
 {
+#if defined(WITH_GL_PROFILE_COMPAT) // XXX jwilkins: It might be better to figure out an alpha test replacement on a case by case basis
 	/* if ref == 1, some cards go bonkers; turn off alpha test in this case */
 	GLboolean enable    = alphatestref < 1.0f;
 	GLboolean refchange = enable && (alphatestref != GMS.lastalphatestref);
@@ -1427,6 +1430,7 @@ static void enable_alphatest(GLfloat alphatestref)
 
 		GMS.lastalphatestenabled = enable;
 	}
+#endif
 }
 
 /* For when some external code needs to set up a custom blend mode
@@ -1440,6 +1444,7 @@ static void user_defined_blend()
 
 static void reset_default_alphablend_state(void)
 {
+#if defined(WITH_GL_PROFILE_COMPAT) // XXX jwilkins: It might be better to figure out an alpha test replacement on a case by case basis
 	disable_alphatest();
 	disable_blend();
 
@@ -1452,6 +1457,7 @@ static void reset_default_alphablend_state(void)
 		glAlphaFunc(GL_GREATER, 0.5f); /* reset blender default */
 		GMS.lastalphatestref = 0.5f;
 	}
+#endif
 }
 
 /* fixed function material, alpha handed by caller */
@@ -1941,7 +1947,8 @@ int GPU_scene_object_lights(Scene *scene, Object *ob, int lay, float viewmat[4][
 }
 
 /* Default OpenGL State */
-
+// XXX jwilkins: is this meant to return OpenGL to a Blender default state no matter what?  if so then there needs to be more in here
+// if it is meant to put OpenGL into an initial state for Blender just once then it could be smaller.
 void GPU_state_init(void)
 {
 	/* also called when doing opengl rendering and in the game engine */
@@ -1962,7 +1969,7 @@ void GPU_state_init(void)
 	/* scaling matrices */
 	glEnable(GL_NORMALIZE);
 
-	glShadeModel(GL_FLAT);
+	gpuShadeModel(GL_FLAT);
 
 	glDisable(GL_ALPHA_TEST);
 	glDisable(GL_BLEND);
@@ -1972,37 +1979,36 @@ void GPU_state_init(void)
 	glDisable(GL_STENCIL_TEST);
 	glDisable(GL_TEXTURE_2D);
 
-#if !defined(GLEW_ES_ONLY)
-	glDisable(GL_LOGIC_OP);
-	glDisable(GL_TEXTURE_1D);
-#endif
-
-	/* default disabled, enable should be local per function */
-	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_NORMAL_ARRAY);
-	glDisableClientState(GL_COLOR_ARRAY);
-	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-
 #if defined(WITH_GL_PROFILE_COMPAT)
-	glPixelTransferi(GL_MAP_COLOR, GL_FALSE);
-	glPixelTransferi(GL_RED_SCALE, 1);
-	glPixelTransferi(GL_RED_BIAS, 0);
-	glPixelTransferi(GL_GREEN_SCALE, 1);
-	glPixelTransferi(GL_GREEN_BIAS, 0);
-	glPixelTransferi(GL_BLUE_SCALE, 1);
-	glPixelTransferi(GL_BLUE_BIAS, 0);
-	glPixelTransferi(GL_ALPHA_SCALE, 1);
-	glPixelTransferi(GL_ALPHA_BIAS, 0);
+	if (GPU_PROFILE_COMPAT) {
+		glDisable(GL_LOGIC_OP);
+		glDisable(GL_TEXTURE_1D);
+
+		/* default disabled, enable should be local per function */
+		glDisableClientState(GL_VERTEX_ARRAY);
+		glDisableClientState(GL_NORMAL_ARRAY);
+		glDisableClientState(GL_COLOR_ARRAY);
+		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+		glPixelTransferi(GL_MAP_COLOR, GL_FALSE);
+		glPixelTransferi(GL_RED_SCALE, 1);
+		glPixelTransferi(GL_RED_BIAS, 0);
+		glPixelTransferi(GL_GREEN_SCALE, 1);
+		glPixelTransferi(GL_GREEN_BIAS, 0);
+		glPixelTransferi(GL_BLUE_SCALE, 1);
+		glPixelTransferi(GL_BLUE_BIAS, 0);
+		glPixelTransferi(GL_ALPHA_SCALE, 1);
+		glPixelTransferi(GL_ALPHA_BIAS, 0);
 	
-	glPixelTransferi(GL_DEPTH_BIAS, 0);
-	glPixelTransferi(GL_DEPTH_SCALE, 1);
+		glPixelTransferi(GL_DEPTH_BIAS, 0);
+		glPixelTransferi(GL_DEPTH_SCALE, 1);
+
+		// XXX jwilkins: It might be better to figure out an alpha test replacement on a case by case basis
+		glAlphaFunc(GL_GREATER, 0.5f); /* init blender default */
+	}
 #endif
 
-#if !defined(GLEW_ES_ONLY)
-	glDepthRange(0.0, 1.0);
-#else
-	glDepthRangef(0.0, 1.0);
-#endif
+	gpuDepthRange(0.0, 1.0);
 
 	a= 0;
 	for (x=0; x<32; x++) {
@@ -2023,7 +2029,6 @@ void GPU_state_init(void)
 	glDisable(GL_CULL_FACE);
 
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); /* init blender default */
-	glAlphaFunc(GL_GREATER, 0.5f); /* init blender default */
 
 	/* calling this makes drawing very slow when AA is not set up in ghost
 	 * on Linux/NVIDIA. */

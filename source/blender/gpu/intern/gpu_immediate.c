@@ -33,6 +33,7 @@
 #include "GPU_extensions.h"
 #include "gpu_object_gles.h"
 #include "MEM_guardedalloc.h"
+#include "gpu_profile.h"
 
 #include <math.h>
 #include <string.h>
@@ -153,8 +154,8 @@ static void gpu_append_client_arrays(
 
 GPUimmediate* gpuNewImmediate(void)
 {
-	GPUimmediate *restrict immediate =
-		MEM_callocN(sizeof(GPUimmediate), "GPUimmediate");
+	GPUimmediate* immediate =
+		(GPUimmediate*)MEM_callocN(sizeof(GPUimmediate), "GPUimmediate");
 
 	GPU_ASSERT(immediate);
 
@@ -162,59 +163,51 @@ GPUimmediate* gpuNewImmediate(void)
 
 	immediate->copyVertex         = gpu_copy_vertex;
 	immediate->appendClientArrays = gpu_append_client_arrays;
+#if GPU_SAFETY
+	immediate->lastTexture        = GL_TEXTURE0 + GPU_max_textures() - 1;
+#endif
 
 #if defined(WITH_GL_PROFILE_ES20) || defined(WITH_GL_PROFILE_CORE)
-	immediate->lockBuffer          = gpu_lock_buffer_glsl;
-	immediate->unlockBuffer        = gpu_unlock_buffer_glsl;
-	immediate->beginBuffer         = gpu_begin_buffer_glsl;
-	immediate->endBuffer           = gpu_end_buffer_glsl;
-	immediate->shutdownBuffer      = gpu_shutdown_buffer_glsl;
-	immediate->currentColor        = gpu_current_color_glsl;
-	immediate->getCurrentColor     = gpu_get_current_color_glsl;
-	immediate->currentNormal       = gpu_current_normal_glsl;
-	immediate->indexBeginBuffer    = gpu_index_begin_buffer_glsl;
-	immediate->indexShutdownBuffer = gpu_index_shutdown_buffer_glsl;
-	immediate->indexEndBuffer      = gpu_index_end_buffer_glsl;
-	immediate->drawElements        = gpu_draw_elements_glsl;
-	immediate->drawRangeElements   = gpu_draw_range_elements_glsl;
+	if (GPU_PROFILE_ES20 || GPU_PROFILE_CORE) {
+		immediate->lockBuffer          = gpu_lock_buffer_glsl;
+		immediate->unlockBuffer        = gpu_unlock_buffer_glsl;
+		immediate->beginBuffer         = gpu_begin_buffer_glsl;
+		immediate->endBuffer           = gpu_end_buffer_glsl;
+		immediate->shutdownBuffer      = gpu_shutdown_buffer_glsl;
+		immediate->currentColor        = gpu_current_color_glsl;
+		immediate->getCurrentColor     = gpu_get_current_color_glsl;
+		immediate->currentNormal       = gpu_current_normal_glsl;
+		immediate->indexBeginBuffer    = gpu_index_begin_buffer_glsl;
+		immediate->indexShutdownBuffer = gpu_index_shutdown_buffer_glsl;
+		immediate->indexEndBuffer      = gpu_index_end_buffer_glsl;
+		immediate->drawElements        = gpu_draw_elements_glsl;
+		immediate->drawRangeElements   = gpu_draw_range_elements_glsl;
 
-	gpu_quad_elements_init();
-#else
-	immediate->lockBuffer          = gpu_lock_buffer_gl11;
-	immediate->unlockBuffer        = gpu_unlock_buffer_gl11;
-	immediate->beginBuffer         = gpu_begin_buffer_gl11;
-	immediate->endBuffer           = gpu_end_buffer_gl11;
-	immediate->shutdownBuffer      = gpu_shutdown_buffer_gl11;
-	immediate->currentColor        = gpu_current_color_gl11;
-	immediate->getCurrentColor     = gpu_get_current_color_gl11;
-	immediate->currentNormal       = gpu_current_normal_gl11;
-	immediate->indexBeginBuffer    = gpu_index_begin_buffer_gl11;
-	immediate->indexShutdownBuffer = gpu_index_shutdown_buffer_gl11;
-	immediate->indexEndBuffer      = gpu_index_end_buffer_gl11;
-	immediate->drawElements        = gpu_draw_elements_gl11;
-	immediate->drawRangeElements   = gpu_draw_range_elements_gl11;
+		gpu_quad_elements_init();
+
+		return immediate;
+	}
 #endif
 
-	//immediate->lockBuffer          = gpu_lock_buffer_vbo;
-	//immediate->beginBuffer         = gpu_begin_buffer_vbo;
-	//immediate->endBuffer           = gpu_end_buffer_vbo;
-	//immediate->unlockBuffer        = gpu_unlock_buffer_vbo;
-	//immediate->shutdownBuffer      = gpu_shutdown_buffer_vbo;
-	//immediate->currentColor        = gpu_current_color_vbo;
-	//immediate->getCurrentColor     = gpu_get_current_color_vbo;
-	//immediate->currentNormal       = gpu_current_normal_vbo;
-	//immediate->indexBeginBuffer    = gpu_index_begin_buffer_vbo;
-	//immediate->indexEndBuffe r     = gpu_index_end_buffer_vbo;
-	//immediate->indexShutdownBuffer = gpu_index_shutdown_buffer_vbo;
-	//immediate->drawElements        = gpu_draw_elements_vbo;
-	//immediate->drawRangeElements   = gpu_draw_range_elements_vbo;
+#if defined(WITH_GL_PROFILE_COMPAT)
+	if (GPU_PROFILE_COMPAT) {
+		immediate->lockBuffer          = gpu_lock_buffer_gl11;
+		immediate->unlockBuffer        = gpu_unlock_buffer_gl11;
+		immediate->beginBuffer         = gpu_begin_buffer_gl11;
+		immediate->endBuffer           = gpu_end_buffer_gl11;
+		immediate->shutdownBuffer      = gpu_shutdown_buffer_gl11;
+		immediate->currentColor        = gpu_current_color_gl11;
+		immediate->getCurrentColor     = gpu_get_current_color_gl11;
+		immediate->currentNormal       = gpu_current_normal_gl11;
+		immediate->indexBeginBuffer    = gpu_index_begin_buffer_gl11;
+		immediate->indexShutdownBuffer = gpu_index_shutdown_buffer_gl11;
+		immediate->indexEndBuffer      = gpu_index_end_buffer_gl11;
+		immediate->drawElements        = gpu_draw_elements_gl11;
+		immediate->drawRangeElements   = gpu_draw_range_elements_gl11;
 
-#if GPU_SAFETY
-	immediate->lastTexture =
-		GL_TEXTURE0 + GPU_max_textures() - 1;
+		return immediate;
+	}
 #endif
-
-	return immediate;
 }
 
 
@@ -1169,6 +1162,22 @@ const GPUarrays GPU_ARRAYS_C4UB_V2F = {
 	NULL,                /* void*  vertexPointer; */
 };
 
+const GPUarrays GPU_ARRAYS_C4UB_V3F = {
+	GL_UNSIGNED_BYTE, /* GLenum colorType;    */
+	4,                /* GLint  colorSize;    */
+	4,                /* GLint  colorStride;  */
+	NULL,             /* void*  colorPointer; */
+
+	0,    /* GLenum normalType;    */
+	0,    /* GLint  normalStride;  */
+	NULL, /* void*  normalPointer; */
+
+	GL_FLOAT,            /* GLenum vertexType;    */
+	3,                   /* GLint  vertexSize;    */
+	3 * sizeof(GLfloat), /* GLint  vertexStride;  */
+	NULL,                /* void*  vertexPointer; */
+};
+
 const GPUarrays GPU_ARRAYS_V3F = {
 	0,    /* GLenum colorType;    */
 	0,    /* GLint  colorSize;    */
@@ -1425,6 +1434,30 @@ void gpuSingleClientArrays_C4UB_V2F(
 
 
 
+void gpuSingleClientArrays_C4UB_V3F(
+	GLenum mode,
+	const void *restrict colorPointer,
+	GLint colorStride,
+	const void *restrict vertexPointer,
+	GLint vertexStride,
+	GLint first,
+	GLsizei count)
+{
+	GPUarrays arrays = GPU_ARRAYS_C4UB_V3F;
+
+	arrays.colorPointer = colorPointer;
+	arrays.colorStride  = colorStride != 0 ? colorStride : 4;
+
+	arrays.vertexPointer = vertexPointer;
+	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 3*sizeof(GLfloat);
+
+	gpuImmediateFormat_C4_V3();
+	gpuDrawClientArrays(mode, &arrays, first, count);
+	gpuImmediateUnformat();
+}
+
+
+
 void gpuImmediateIndexRange(GLuint indexMin, GLuint indexMax)
 {
 	GPU_IMMEDIATE->index->indexMin = indexMin;
@@ -1469,7 +1502,7 @@ void gpuSingleClientElements_V3F(
 	const void *restrict vertexPointer,
 	GLint vertexStride,
 	GLsizei count,
-	const void *restrict indexes)
+	const GLuint *restrict indexes)
 {
 	GLuint indexMin, indexMax;
 
@@ -1492,7 +1525,7 @@ void gpuSingleClientElements_N3F_V3F(
 	const void *restrict vertexPointer,
 	GLint vertexStride,
 	GLsizei count,
-	void *restrict indexes)
+	const GLuint *restrict indexes)
 {
 	GLuint indexMin, indexMax;
 
@@ -1510,6 +1543,31 @@ void gpuSingleClientElements_N3F_V3F(
 		indexes);
 }
 
+void gpuSingleClientElements_C4UB_V3F(
+	GLenum mode,
+	const void *restrict colorPointer,
+	GLint colorStride,
+	const void *restrict vertexPointer,
+	GLint vertexStride,
+	GLsizei count,
+	const GLuint *restrict indexes)
+{
+	GLuint indexMin, indexMax;
+
+	find_range(&indexMin, &indexMax, count, indexes);
+
+	gpuSingleClientRangeElements_C4UB_V3F(
+		mode,
+		colorPointer,
+		colorStride,
+		vertexPointer,
+		vertexStride,
+		indexMin,
+		indexMax,
+		count,
+		indexes);
+}
+
 
 
 void gpuDrawClientRangeElements(
@@ -1518,7 +1576,7 @@ void gpuDrawClientRangeElements(
 	GLuint indexMin,
 	GLuint indexMax,
 	GLsizei count,
-	const void *restrict indexes)
+	const GLuint *restrict indexes)
 {
 	GLuint indexRange = indexMax - indexMin + 1;
 
@@ -1541,7 +1599,7 @@ void gpuSingleClientRangeElements_V3F(
 	GLuint indexMin,
 	GLuint indexMax,
 	GLsizei count,
-	const void *restrict indexes)
+	const GLuint *restrict indexes)
 {
 	GPUarrays arrays = GPU_ARRAYS_V3F;
 
@@ -1562,7 +1620,7 @@ void gpuSingleClientRangeElements_N3F_V3F(
 	GLuint indexMin,
 	GLuint indexMax,
 	GLsizei count,
-	const GLvoid *restrict indexes)
+	const GLuint *restrict indexes)
 {
 	GPUarrays arrays = GPU_ARRAYS_N3F_V3F;
 
@@ -1573,6 +1631,30 @@ void gpuSingleClientRangeElements_N3F_V3F(
 	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 3*sizeof(GLfloat);
 
 	gpuImmediateFormat_N3_V3();
+	gpuDrawClientRangeElements(mode, &arrays, indexMin, indexMax, count, indexes);
+	gpuImmediateUnformat();
+}
+
+void gpuSingleClientRangeElements_C4UB_V3F(
+	GLenum mode,
+	const void *restrict colorPointer,
+	GLint colorStride,
+	const void *restrict vertexPointer,
+	GLint vertexStride,
+	GLuint indexMin,
+	GLuint indexMax,
+	GLsizei count,
+	const GLuint *restrict indexes)
+{
+	GPUarrays arrays = GPU_ARRAYS_C4UB_V3F;
+
+	arrays.normalPointer = colorPointer;
+	arrays.normalStride  = colorStride != 0 ? colorStride : 4*sizeof(GLubyte);
+
+	arrays.vertexPointer = vertexPointer;
+	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 3*sizeof(GLfloat);
+
+	gpuImmediateFormat_C4_V3();
 	gpuDrawClientRangeElements(mode, &arrays, indexMin, indexMax, count, indexes);
 	gpuImmediateUnformat();
 }
