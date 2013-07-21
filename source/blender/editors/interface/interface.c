@@ -913,7 +913,7 @@ static void ui_menu_block_set_keymaps(const bContext *C, uiBlock *block)
 	for (but = block->buttons.first; but; but = but->next) {
 
 		if (ui_but_event_operator_string(C, but, buf, sizeof(buf))) {
-			ui_but_add_shortcut(but, buf, FALSE);
+			ui_but_add_shortcut(but, buf, TRUE);
 		}
 	}
 }
