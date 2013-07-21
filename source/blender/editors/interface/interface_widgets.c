@@ -1258,8 +1258,11 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 		}
 	}
 
-	/* part text right aligned */
-	if (cpoin) {
+	/* part text right aligned 
+	 * only draw if there's enough space */
+	if (cpoin &&
+		(BLI_rcti_size_x(rect) - BLF_width(fstyle->uifont_id, but->str)) >= 5) {
+		
 		fstyle->align = UI_STYLE_TEXT_RIGHT;
 		rect->xmax -= ui_but_draw_menu_icon(but) ? UI_DPI_ICON_SIZE : 0.25f * U.widget_unit;
 		/* If this is not a menu, and therefore a normal button, then change the alpha of the shortcut */
