@@ -1374,7 +1374,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 			continue;
 
 		if (dflag & DRAW_PICKING)
-			glLoadName(base->selcol + (tracknr << 16));
+			gpuSelectName(base->selcol + (tracknr << 16));
 
 		gpuPushMatrix();
 		gpuTranslate(track->bundle_pos[0], track->bundle_pos[1], track->bundle_pos[2]);
@@ -1522,7 +1522,7 @@ static void draw_viewport_reconstruction(Scene *scene, Base *base, View3D *v3d, 
 	}
 
 	if (dflag & DRAW_PICKING)
-		glLoadName(base->selcol);
+		gpuSelectName(base->selcol);
 }
 
 /* flag similar to draw_object() */
@@ -5807,7 +5807,7 @@ static bool drawmball(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 			
 			if (G.f & G_PICKSEL) {
 				ml->selcol1 = code;
-				glLoadName(code++);
+				gpuSelectName(code++);
 			}
 		}
 
@@ -5822,7 +5822,7 @@ static bool drawmball(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 			
 			if (G.f & G_PICKSEL) {
 				ml->selcol2 = code;
-				glLoadName(code++);
+				gpuSelectName(code++);
 			}
 			gpuDrawFastBall(GL_LINE_LOOP, &(ml->x), ml->rad * atanf(ml->s) / (float)M_PI_2, imat);
 		}

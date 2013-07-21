@@ -66,6 +66,7 @@ set(SRC
 	intern/gpu_pixels.c
 	intern/gpu_primitives.c
 	intern/gpu_raster.c
+	intern/gpu_select.c
 	intern/gpu_simple_shader.c
 	intern/gpu_state_latch.c
 	intern/gpu_view.c
@@ -100,6 +101,7 @@ set(SRC
 	intern/gpu_profile.h
 	intern/gpu_raster.h
 	intern/gpu_safety.h
+	intern/gpu_select.h
 	intern/gpu_state_latch.h
 	intern/gpu_view.h
 	intern/gpu_view_gl.h

@@ -206,7 +206,7 @@ typedef struct GPUInputUniform {
 	struct Image *image;	/* when type=GPU_DYNAMIC_SAMPLER_2DIMAGE */
 	int texnumber;			/* when type=GPU_DYNAMIC_SAMPLER, texture number: 0.. */
 	unsigned char *texpixels;	/* for internally generated texture, pixel data in RGBA format */
-	int texsize;			/* size in pixel of the texture in texpixels buffer: for 2D textures, this is S and T size (square texture) */
+	size_t texsize;			/* size in pixel of the texture in texpixels buffer: for 2D textures, this is S and T size (square texture) */
 } GPUInputUniform;
 
 typedef struct GPUInputAttribute {

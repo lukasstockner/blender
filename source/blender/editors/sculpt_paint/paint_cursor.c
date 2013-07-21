@@ -727,8 +727,11 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 	/* color means that primary brush texture is colured and secondary is used for alpha/mask control */
 	bool col = ELEM3(mode, PAINT_TEXTURE_PROJECTIVE, PAINT_TEXTURE_2D, PAINT_VERTEX) ? true: false;
 	OverlayControlFlags flags = BKE_paint_get_overlay_flags();
+
+#if defined(WITH_GL_PROFILE_COMPAT)
 	/* save lots of GL state
 	 * TODO: check on whether all of these are needed? */
+	// XXX jwilkins: this problem here is that there is not a policy that guarantees what state OpenGL will be in when we get here and what we can mess with and what needs to be restored after changes.
 	glPushAttrib(GL_COLOR_BUFFER_BIT |
 	             GL_CURRENT_BIT |
 	             GL_DEPTH_BUFFER_BIT |
@@ -739,7 +742,7 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 	             GL_TRANSFORM_BIT |
 	             GL_VIEWPORT_BIT |
 	             GL_TEXTURE_BIT);
-
+#endif
 
 	/* coloured overlay should be drawn separately */
 	if (col) {
@@ -757,7 +760,9 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 			paint_draw_cursor_overlay(ups, brush, vc, x, y, zoom);
 	}
 
+#if defined(WITH_GL_PROFILE_COMPAT)
 	glPopAttrib();
+#endif
 }
 
 /* Special actions taken when paint cursor goes over mesh */

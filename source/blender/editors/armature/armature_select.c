@@ -153,7 +153,7 @@ void *get_nearest_bone(bContext *C, short findunsel, int x, int y)
 	rect.xmin = rect.xmax = x;
 	rect.ymin = rect.ymax = y;
 	
-	glInitNames();
+	gpuSelectClear();
 	hits = view3d_opengl_select(&vc, buffer, MAXPICKBUF, &rect);
 
 	if (hits > 0)
@@ -270,7 +270,7 @@ static EditBone *get_nearest_editbonepoint(ViewContext *vc, const int mval[2],
 	int i, mindep = 4;
 	short hits;
 
-	glInitNames();
+	gpuSelectClear();
 	
 	/* find the bone after the current active bone, so as to bump up its chances in selection.
 	 * this way overlapping bones will cycle selection state as with objects. */

@@ -361,6 +361,12 @@ struct GPUTexture {
 
 	GPUFrameBuffer *fb;		/* GPUFramebuffer this texture is attached to */
 	int depth;				/* is a depth texture? */
+
+#if !defined(GLEW_NO_ES)
+	// XXX jwilkins: for saving original data for shader export in ES
+	GLuint  pixels_w, pixels_h;
+	GLvoid* pixels;
+#endif
 };
 
 static unsigned char *GPU_texture_convert_pixels(int length, float *fpixels)
@@ -406,20 +412,24 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 	if (depth && !(GLEW_VERSION_1_4 || GLEW_ARB_depth_texture || GLEW_OES_depth_texture))
 		return NULL;
 
-	tex = (GPUTexture*)MEM_callocN(sizeof(GPUTexture), "GPUTexture");
-	tex->w = w;
-	tex->number = -1;
-	tex->refcount = 1;
-	tex->depth = depth;
+	tex           =  (GPUTexture*)MEM_callocN(sizeof(GPUTexture), "GPUTexture");
+	tex->w        =  w;
+	tex->number   = -1;
+	tex->refcount =  1;
+	tex->depth    = depth;
+#if !defined(GLEW_NO_ES)
+	tex->h        =  1; // XXX jwilkins: might be able to emulate a 1D texture
+	tex->target   =  GL_TEXTURE_2D;
 
-#if !defined(GLEW_ES_ONLY)
-	tex->h = h;
-	tex->target = (n == 1) ? GL_TEXTURE_1D : GL_TEXTURE_2D;
+	tex->pixels_w = tex->w;
+	tex->pixels_h = tex->h;
+	tex->pixels   =  NULL;
 #else
-	tex->h = 1;
-	tex->target = GL_TEXTURE_2D;
+	tex->h        =  h;
+	tex->target   =  (n == 1) ? GL_TEXTURE_1D : GL_TEXTURE_2D;
 #endif
 
+	tex->bindcode = 0; // XXX jwilkins: there is no reason the following call to glGenTextures should fail, and if it did, i doubt it would set the value of bindcode to 0
 	glGenTextures(1, &tex->bindcode);
 
 	if (!tex->bindcode) {
@@ -463,19 +473,16 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 		glTexImage1D(tex->target, 0, internalformat, tex->w, 0, format, type, NULL);
 
 		if (fpixels) {
-			glTexSubImage1D(tex->target, 0, 0, w, format, type,
-				pixels ? pixels : fpixels);
+			glTexSubImage1D(tex->target, 0, 0, w, format, type, pixels ? pixels : fpixels);
 
 			if (tex->w > w)
-				GPU_glTexSubImageEmpty(tex->target, format, w, 0,
-					tex->w-w, 1);
+				GPU_glTexSubImageEmpty(tex->target, format, w, 0, tex->w-w, 1);
 		}
 	}
 	else
 #endif
 	{
-		glTexImage2D(tex->target, 0, internalformat, tex->w, tex->h, 0,
-		             format, type, NULL);
+		glTexImage2D(tex->target, 0, internalformat, tex->w, tex->h, 0, format, type, NULL);
 
 		if (fpixels) {
 			glTexSubImage2D(tex->target, 0, 0, 0, w, h,
@@ -483,13 +490,23 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 
 			if (tex->w > w)
 				GPU_glTexSubImageEmpty(tex->target, format, w, 0, tex->w-w, tex->h);
+
 			if (tex->h > h)
 				GPU_glTexSubImageEmpty(tex->target, format, 0, h, w, tex->h-h);
 		}
 	}
 
+#if !defined(GLEW_NO_ES)
+// XXX jwilkins: save copy of texture data since ES doesn't have GetTexImage (this won't consider possible TexSubImage updates...)
+
+	if (!pixels)
+		pixels = GPU_texture_convert_pixels(w*h, fpixels);
+
+	tex->pixels = pixels;
+#else
 	if (pixels)
 		MEM_freeN(pixels);
+#endif
 
 	if (depth) {
 		glTexParameteri(tex->target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -540,7 +557,6 @@ GPUTexture *GPU_texture_create_3D(int w, int h, int depth, int channels, float *
 {
 	GPUTexture *tex;
 	GLenum type, format, internalformat;
-	void *pixels = NULL;
 	float vfBorderColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
 	if (!(GLEW_VERSION_1_2 || GLEW_ARB_texture3D || GLEW_EXT_texture3D || GLEW_OES_texture_3D))
@@ -589,9 +605,6 @@ GPUTexture *GPU_texture_create_3D(int w, int h, int depth, int channels, float *
 #endif
 	}
 
-	//if (fpixels)
-	//	pixels = GPU_texture_convert_pixels(w*h*depth, fpixels);
-
 	glTexImage3D(tex->target, 0, internalformat, tex->w, tex->h, tex->depth, 0, format, type, NULL);
 
 	GPU_print_error("3D glTexImage3D");
@@ -621,9 +634,6 @@ GPUTexture *GPU_texture_create_3D(int w, int h, int depth, int channels, float *
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 	GPU_print_error("3D GL_CLAMP_TO_BORDER");
-
-	if (pixels)
-		MEM_freeN(pixels);
 
 	GPU_texture_unbind(tex);
 
@@ -868,6 +878,11 @@ void GPU_texture_free(GPUTexture *tex)
 		if (tex->bindcode && !tex->fromblender)
 			glDeleteTextures(1, &tex->bindcode);
 
+#if !defined(GLEW_NO_ES)
+		if (tex->pixels)
+			MEM_freeN(tex->pixels);
+#endif
+
 		MEM_freeN(tex);
 	}
 }
@@ -902,6 +917,30 @@ GPUFrameBuffer *GPU_texture_framebuffer(GPUTexture *tex)
 	return tex->fb;
 }
 
+unsigned char* GPU_texture_dup_pixels(const GPUTexture *tex, size_t* count)
+{
+	unsigned char* texpixels;
+
+#if !defined(GLEW_NO_ES)
+	*count = tex->pixels_w * tex->pixels_h;
+#else
+	*count = tex->w * tex->h;
+#endif
+
+	texpixels = (unsigned char*)MEM_mallocN(4*(*count), "RGBApixels");
+
+#if !defined(GLEW_NO_ES)
+	memcpy(texpixels, tex->pixels, 4*(*count));
+#else
+	GLint lastbindcode = gpuGetTextureBinding2D();
+	gpuBindTexture(GL_TEXTURE_2D, GPU_texture_opengl_bindcode(input->tex));
+	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, uniform->texpixels); 
+	gpuBindTexture(GL_TEXTURE_2D, lastbindcode); /* restore previous value */
+#endif
+
+	return texpixels;
+}
+
 /* GPUFrameBuffer */
 
 struct GPUFrameBuffer {
@@ -910,7 +949,6 @@ struct GPUFrameBuffer {
 	GPUTexture *depthtex;
 };
 
-//#include REAL_GL_MODE
 GPUFrameBuffer *GPU_framebuffer_create(void)
 {
 	if (GG.framebuffersupport) {
@@ -937,7 +975,6 @@ GPUFrameBuffer *GPU_framebuffer_create(void)
 		return NULL;
 	}
 }
-//#include FAKE_GL_MODE
 
 int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, char err_out[256])
 {

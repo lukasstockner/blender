@@ -2827,13 +2827,18 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Scene *scene, View3D *v3d, ARegion *ar, in
 	GPUOffScreen *ofs;
 	bool draw_sky = (alpha_mode == R_ADDSKY);
 	
+#if defined(WITH_GL_PROFILE_COMPAT)
+	// XXX jwilkins: this problem is probably caused by a bad assumption about light state, and since GL_LIGHTING_BIT only shows up once, I am reluctant to create a gpuPushLightingAttrib function until I sort this out.
 	/* state changes make normal drawing go weird otherwise */
 	glPushAttrib(GL_LIGHTING_BIT);
+#endif
 
 	/* bind */
 	ofs = GPU_offscreen_create(sizex, sizey, err_out);
 	if (ofs == NULL) {
+#if defined(WITH_GL_PROFILE_COMPAT)
 		glPopAttrib();
+#endif
 		return NULL;
 	}
 
@@ -2868,8 +2873,11 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Scene *scene, View3D *v3d, ARegion *ar, in
 	GPU_offscreen_unbind(ofs);
 	GPU_offscreen_free(ofs);
 
+#if defined(WITH_GL_PROFILE_COMPAT)
+	// XXX jwilkins: this problem is probably caused by a bad assumption about light state, and since GL_LIGHTING_BIT only shows up once, I am reluctant to create a gpuPushLightingAttrib function until I sort this out.
 	glPopAttrib();
-	
+#endif
+
 	if (ibuf->rect_float && ibuf->rect)
 		IMB_rect_from_float(ibuf);
 	

@@ -32,6 +32,8 @@
 #ifndef __GPU_EXTENSIONS_H__
 #define __GPU_EXTENSIONS_H__
 
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -140,6 +142,8 @@ int GPU_texture_target(GPUTexture *tex);
 int GPU_texture_opengl_width(GPUTexture *tex);
 int GPU_texture_opengl_height(GPUTexture *tex);
 int GPU_texture_opengl_bindcode(GPUTexture *tex);
+
+unsigned char *GPU_texture_dup_pixels(const GPUTexture *tex, size_t *count_out);
 
 /* GPU Framebuffer
  * - this is a wrapper for an OpenGL framebuffer object (FBO). in practice

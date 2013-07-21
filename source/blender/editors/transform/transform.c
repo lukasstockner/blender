@@ -1948,7 +1948,11 @@ static void drawEdgeSlide(const struct bContext *C, TransInfo *t)
 
 			glEnable(GL_BLEND);
 
+#if defined(WITH_GL_PROFILE_COMPAT)
+	// XXX jwilkins: this problem here is that there is not a policy that guarantees what state OpenGL will be in when we get here and what we can mess with and what needs to be restored after changes.
 			glPushAttrib(GL_CURRENT_BIT | GL_LINE_BIT | GL_POINT_BIT);
+#endif
+
 			gpuPushMatrix();
 
 			gpuMultMatrix(t->obedit->obmat);
@@ -1985,7 +1989,11 @@ static void drawEdgeSlide(const struct bContext *C, TransInfo *t)
 
 
 			gpuPopMatrix();
+
+#if defined(WITH_GL_PROFILE_COMPAT)
+	// XXX jwilkins: this problem here is that there is not a policy that guarantees what state OpenGL will be in when we get here and what we can mess with and what needs to be restored after changes.
 			glPopAttrib();
+#endif
 
 			glDisable(GL_BLEND);
 
@@ -6580,7 +6588,11 @@ static void drawVertSlide(const struct bContext *C, TransInfo *t)
 
 			glEnable(GL_BLEND);
 
+#if defined(WITH_GL_PROFILE_COMPAT)
+	// XXX jwilkins: this problem here is that there is not a policy that guarantees what state OpenGL will be in when we get here and what we can mess with and what needs to be restored after changes.
 			glPushAttrib(GL_CURRENT_BIT | GL_LINE_BIT | GL_POINT_BIT);
+#endif
+
 			gpuPushMatrix();
 
 			gpuMultMatrix(t->obedit->obmat);
@@ -6623,7 +6635,10 @@ static void drawVertSlide(const struct bContext *C, TransInfo *t)
 
 			gpuPopMatrix();
 
+#if defined(WITH_GL_PROFILE_COMPAT)
+	// XXX jwilkins: this problem here is that there is not a policy that guarantees what state OpenGL will be in when we get here and what we can mess with and what needs to be restored after changes.
 			glPopAttrib();
+#endif
 
 			glDisable(GL_BLEND);
 

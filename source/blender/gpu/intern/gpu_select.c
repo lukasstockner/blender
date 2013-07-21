@@ -15,50 +15,18 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2012 Blender Foundation.
+ * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): Jason Wilkins, Alexandr Kuznetsov
+ * Contributor(s): Jason Wilkins.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file GPU_compatibility.h
+/** \file blender/gpu/intern/gpu_select.c
  *  \ingroup gpu
  */
 
-#ifndef __GPU_COMPATIBILITY_H__
-#define __GPU_COMPATIBILITY_H__
-
-
-
-#include "intern/gpu_immediate_inline.h"
-#include "intern/gpu_lighting_inline.h"
-#include "intern/gpu_view.h"
-#include "GPU_matrix.h"
-
-#include "intern/gpu_state_latch.h"
-#include "intern/gpu_raster.h"
-#include "intern/gpu_profile.h"
-#include "intern/gpu_pixels.h"
-#include "intern/gpu_select.h"
-
-#ifndef GPU_MANGLE_DEPRECATED
-#define GPU_MANGLE_DEPRECATED 1
-#endif
-
-#if GPU_MANGLE_DEPRECATED
-#include "intern/gpu_deprecated.h"
-#endif
-
-
-
-GLenum GPU_mipmap_2D(GLboolean genmip, GLenum internalFormat, int w, int h, GLenum type, void* data); // XXX jwilkins: this belongs somewhere else
-
-
-
-
-
-#endif /* __GPU_COMPATIBILITY_H_ */
+#include "gpu_select.h"

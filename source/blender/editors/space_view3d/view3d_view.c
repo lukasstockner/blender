@@ -923,10 +923,10 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 	if (vc->rv3d->rflag & RV3D_CLIPPING)
 		ED_view3d_clipping_set(vc->rv3d);
 	
-	glSelectBuffer(bufsize, (GLuint *)buffer);
-	glRenderMode(GL_SELECT);
-	glInitNames();  /* these two calls whatfor? It doesnt work otherwise */
-	glPushName(-1);
+	gpuSelectBuffer(bufsize, buffer);
+	gpuSelectBegin();
+	gpuSelectClear();
+	gpuSelectPush(-1);
 	code = 1;
 	
 	if (vc->obedit && vc->obedit->type == OB_MBALL) {
@@ -949,7 +949,7 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 					base->selcol = 0;
 				else {
 					base->selcol = code;
-					glLoadName(code);
+					gpuSelectName(code);
 					draw_object(scene, ar, v3d, base, DRAW_PICKING | DRAW_CONSTCOLOR);
 					
 					/* we draw duplicators for selection too */
@@ -986,8 +986,8 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 		v3d->xray = false;  /* restore */
 	}
 	
-	glPopName();    /* see above (pushname) */
-	hits = glRenderMode(GL_RENDER);
+	gpuSelectPop();    /* see above (pushname) */
+	hits = gpuSelectEnd();
 	
 	G.f &= ~G_PICKSEL;
 	setwinmatrixview3d(ar, v3d, NULL);

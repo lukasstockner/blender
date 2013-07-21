@@ -45,7 +45,7 @@ GPUlighting *restrict GPU_LIGHTING = NULL;
 void gpuInitializeLighting(void)
 {
 	GPU_LIGHTING =
-		MEM_callocN(sizeof(GPUlighting), "GPU_LIGHTING");
+		(GPUlighting*)MEM_callocN(sizeof(GPUlighting), "GPU_LIGHTING");
 
 #if defined(WITH_GL_PROFILE_ES20) || defined(WITH_GL_PROFILE_CORE)
 	GPU_LIGHTING->material_fv            = gpu_material_fv_glsl;
