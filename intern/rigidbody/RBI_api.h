@@ -202,12 +202,10 @@ extern void RB_body_set_scale(rbRigidBody *body, const float scale[3]);
 
 /* Get RigidBody's position as vector */
 void RB_body_get_position(rbRigidBody *body, float v_out[3]);
-/* Get RigidBody's orientation as quaternion */
-void RB_body_get_orientation(rbRigidBody *body, float v_out[4]);
 
-void RB_body_get_compound_position(rbRigidBody *object, rbCollisionShape *child_shape, float v_out[3]);
+void RB_body_get_pos_orn(rbRigidBody *object, float pos_out[3], float orn_out[4]);
 
-void RB_body_get_compound_orientation(rbRigidBody *object, rbCollisionShape *child_shape, float v_out[4]);
+void RB_body_get_compound_pos_orn(rbRigidBody *parent_object, rbCollisionShape *child_shape, float pos_out[3], float orn_out[4]);
 
 /* ............ */
 

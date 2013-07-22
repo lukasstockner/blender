@@ -977,12 +977,10 @@ static int  ptcache_rigidbody_write(int index, void *rb_v, void **data, int UNUS
 		if (rbo->type == RBO_TYPE_ACTIVE) {
 #ifdef WITH_BULLET
 			if (ob->parent && ob->parent->rigidbody_object && ob->parent->flag) {
-				RB_body_get_compound_position(ob->parent->rigidbody_object->physics_object, rbo->physics_shape, rbo->pos);
-				RB_body_get_compound_orientation(ob->parent->rigidbody_object->physics_object, rbo->physics_shape, rbo->orn);
+				RB_body_get_compound_pos_orn(ob->parent->rigidbody_object->physics_object, rbo->physics_shape, rbo->pos, rbo->orn);
 			}
 			else {
-				RB_body_get_position(rbo->physics_object, rbo->pos);
-				RB_body_get_orientation(rbo->physics_object, rbo->orn);
+				RB_body_get_pos_orn(rbo->physics_object, rbo->pos, rbo->orn);
 			}
 #endif
 			PTCACHE_DATA_FROM(data, BPHYS_DATA_LOCATION, rbo->pos);

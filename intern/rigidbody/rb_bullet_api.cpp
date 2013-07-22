@@ -664,16 +664,17 @@ void RB_body_get_position(rbRigidBody *object, float v_out[3])
 	copy_v3_btvec3(v_out, body->getWorldTransform().getOrigin());
 }
 
-void RB_body_get_orientation(rbRigidBody *object, float v_out[4])
+void RB_body_get_pos_orn(rbRigidBody *object, float pos_out[3], float orn_out[4])
 {
 	btRigidBody *body = object->body;
 	
-	copy_quat_btquat(v_out, body->getWorldTransform().getRotation());
+	copy_v3_btvec3(pos_out, body->getWorldTransform().getOrigin());
+	copy_quat_btquat(orn_out, body->getWorldTransform().getRotation());
 }
 
-void RB_body_get_compound_position(rbRigidBody *object, rbCollisionShape *child_shape, float v_out[3])
+void RB_body_get_compound_pos_orn(rbRigidBody *parent_object, rbCollisionShape *child_shape, float pos_out[3], float orn_out[4])
 {
-	btRigidBody *body = object->body;
+	btRigidBody *body = parent_object->body;
 	btCompoundShape *compound = (btCompoundShape*)body->getCollisionShape();
 	btTransform transform = body->getWorldTransform();
 	btTransform child_transform;
@@ -685,28 +686,9 @@ void RB_body_get_compound_position(rbRigidBody *object, rbCollisionShape *child_
 		}
 	}
 	transform *= child_transform;
-	btVector3 pos = transform.getOrigin();;
 	
-	copy_v3_btvec3(v_out, pos);
-}
-
-void RB_body_get_compound_orientation(rbRigidBody *object, rbCollisionShape *child_shape, float v_out[4])
-{
-	btRigidBody *body = object->body;
-	btCompoundShape *compound = (btCompoundShape*)body->getCollisionShape();
-	btTransform transform = body->getWorldTransform();
-	btTransform child_transform;
-	
-	for (int i = 0; i < compound->getNumChildShapes(); i++) {
-		if (child_shape->compound == compound->getChildShape(i)) {
-			child_transform = compound->getChildTransform(i);
-			break;
-		}
-	}
-	transform *= child_transform;
-	btQuaternion orn = transform.getRotation();
-	
-	copy_quat_btquat(v_out, orn);
+	copy_v3_btvec3(pos_out, transform.getOrigin());
+	copy_quat_btquat(orn_out, transform.getRotation());
 }
 
 /* ............ */
