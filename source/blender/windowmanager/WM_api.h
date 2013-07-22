@@ -252,9 +252,12 @@ void		WM_operator_properties_select_action(struct wmOperatorType *ot, int defaul
 bool        WM_operator_check_ui_enabled(const struct bContext *C, const char *idname);
 wmOperator *WM_operator_last_redo(const struct bContext *C);
 
+wmOperator *WM_operator_create(const struct bContext *C, struct wmOperatorType *ot,
+							   struct PointerRNA *properties, struct ReportList *reports);
 wmOperator *WM_operator_copy(struct bContext *C, wmOperator *op, bool copylink);
-bool        WM_operator_last_properties_init(struct wmOperator *op);
+bool        WM_operator_properties_init(struct wmOperator *op);
 bool        WM_operator_last_properties_store(struct wmOperator *op);
+bool		WM_operator_default_properties_store(struct wmOperator *op);
 
 /* MOVE THIS SOMEWHERE ELSE */
 #define	SEL_TOGGLE		0

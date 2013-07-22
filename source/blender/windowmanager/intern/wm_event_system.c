@@ -837,6 +837,13 @@ static wmOperator *wm_operator_create(wmWindowManager *wm, wmOperatorType *ot,
 	return op;
 }
 
+wmOperator *WM_operator_create(const bContext *C, wmOperatorType *ot,
+							   PointerRNA *properties, ReportList *reports)
+{
+	wmWindowManager *wm = CTX_wm_manager(C);
+	return wm_operator_create(wm, ot, properties, reports);
+}
+
 wmOperator *WM_operator_copy(bContext *C, wmOperator *op, bool copylink)
 {
 	/* The logic wm_operator_create is used as it already
@@ -845,9 +852,7 @@ wmOperator *WM_operator_copy(bContext *C, wmOperator *op, bool copylink)
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmOperator *newop = wm_operator_create(wm, op->type, op->ptr, NULL);
 
-	/* This likely isn't necessary, have to look closer at
-	 * what BLI_addTail does, or whether these links are
-	 * used in anywhere. However, better safe than sorry. */
+	/* This likely isn't necessary. */
 	if(!copylink)
 	{
 		newop->next = NULL;
@@ -871,64 +876,83 @@ static void wm_region_mouse_co(bContext *C, wmEvent *event)
 	}
 }
 
-#if 1 /* may want to disable operator remembering previous state for testing */
-bool WM_operator_last_properties_init(wmOperator *op)
-{
+static bool wm_operator_properties_init_set(wmOperator *op, IDProperty **properties, bool respect_skip_save, bool respect_already_set) {
+	PropertyRNA *iterprop = iterprop = RNA_struct_iterator_property(op->type->srna);
 	bool change = false;
-
-	if (op->type->last_properties) {
-		PropertyRNA *iterprop;
-
-		if (G.debug & G_DEBUG_WM) {
-			printf("%s: loading previous properties for '%s'\n", __func__, op->type->idname);
-		}
-
-		iterprop = RNA_struct_iterator_property(op->type->srna);
-
-		RNA_PROP_BEGIN (op->ptr, itemptr, iterprop)
-		{
-			PropertyRNA *prop = itemptr.data;
-			if ((RNA_property_flag(prop) & PROP_SKIP_SAVE) == 0) {
-				if (!RNA_property_is_set(op->ptr, prop)) { /* don't override a setting already set */
-					const char *identifier = RNA_property_identifier(prop);
-					IDProperty *idp_src = IDP_GetPropertyFromGroup(op->type->last_properties, identifier);
-					if (idp_src) {
-						IDProperty *idp_dst = IDP_CopyProperty(idp_src);
-
-						/* note - in the future this may need to be done recursively,
-						 * but for now RNA doesn't access nested operators */
-						idp_dst->flag |= IDP_FLAG_GHOST;
-
-						IDP_ReplaceInGroup(op->properties, idp_dst);
-						change = true;
-					}
+	RNA_PROP_BEGIN (op->ptr, itemptr, iterprop)
+	{
+		PropertyRNA *prop = itemptr.data;
+		if (!respect_skip_save || (RNA_property_flag(prop) & PROP_SKIP_SAVE) == 0) {
+			if (!respect_already_set || !RNA_property_is_set(op->ptr, prop)) { /* don't override a setting already set */
+				const char *identifier = RNA_property_identifier(prop);
+				IDProperty *idp_src = IDP_GetPropertyFromGroup(*properties, identifier);
+				if (idp_src) {
+					IDProperty *idp_dst = IDP_CopyProperty(idp_src);
+					
+					/* note - in the future this may need to be done recursively,
+					 * but for now RNA doesn't access nested operators */
+					idp_dst->flag |= IDP_FLAG_GHOST;
+					
+					IDP_ReplaceInGroup(op->properties, idp_dst);
+					change = true;
 				}
 			}
 		}
-		RNA_PROP_END;
+	}
+	RNA_PROP_END;
+	return change;
+}
+
+#if 1 /* may want to disable operator remembering previous state for testing */
+bool WM_operator_properties_init(wmOperator *op)
+{
+	bool change = false;
+
+	if (op->type->default_properties) {
+		if (G.debug & G_DEBUG_WM) {
+			printf("%s: loading default properties for '%s'\n", __func__, op->type->idname);
+		}
+		change = wm_operator_properties_init_set(op, &(op->type->default_properties), FALSE, FALSE);
+	}
+	if (op->type->last_properties) {
+		if (G.debug & G_DEBUG_WM) {
+			printf("%s: loading previous properties for '%s'\n", __func__, op->type->idname);
+		}
+		// don't overwrite the previously set change flag
+		change = change ? change : wm_operator_properties_init_set(op, &(op->type->last_properties), TRUE, TRUE);
 	}
 
 	return change;
 }
 
-bool WM_operator_last_properties_store(wmOperator *op)
+static bool wm_operator_properties_store(wmOperator *op, IDProperty **properties)
 {
-	if (op->type->last_properties) {
-		IDP_FreeProperty(op->type->last_properties);
-		MEM_freeN(op->type->last_properties);
-		op->type->last_properties = NULL;
+	if (*properties) {
+		IDP_FreeProperty(*properties);
+		MEM_freeN(*properties);
+		*properties = NULL;
 	}
-
+	
 	if (op->properties) {
 		if (G.debug & G_DEBUG_WM) {
 			printf("%s: storing properties for '%s'\n", __func__, op->type->idname);
 		}
-		op->type->last_properties = IDP_CopyProperty(op->properties);
+		*properties = IDP_CopyProperty(op->properties);
 		return true;
 	}
 	else {
 		return false;
 	}
+}
+
+bool WM_operator_last_properties_store(wmOperator *op)
+{
+	return wm_operator_properties_store(op, &(op->type->last_properties));
+}
+
+bool WM_operator_default_properties_store(wmOperator *op)
+{
+	return wm_operator_properties_store(op, &(op->type->default_properties));
 }
 
 #else
@@ -961,9 +985,9 @@ static int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event,
 		
 		/* initialize setting from previous run */
 		if (!is_nested_call) { /* not called by py script */
-			WM_operator_last_properties_init(op);
+			WM_operator_properties_init(op);
 		}
-
+		
 		if ((G.debug & G_DEBUG_HANDLERS) && event && event->type != MOUSEMOVE) {
 			printf("%s: handle evt %d win %d op %s\n",
 			       __func__, event ? event->type : 0, CTX_wm_screen(C)->subwinactive, ot->idname);

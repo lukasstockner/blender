@@ -4927,6 +4927,11 @@ static void popup_add_shortcut_func(bContext *C, void *arg1, void *UNUSED(arg2))
 	uiPupBlock(C, menu_add_shortcut, but);
 }
 
+static void ui_but_menu_set_last_properties(bContext *UNUSED(C), void *arg_op, int UNUSED(arg_event))
+{
+	wmOperator *op = (wmOperator*)arg_op;
+	WM_operator_default_properties_store(op);
+}
 
 static bool ui_but_menu(bContext *C, uiBut *but)
 {
@@ -5123,6 +5128,36 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 		wmKeyMap *km;
 		wmKeyMapItem *kmi = NULL;
 		int kmi_id = WM_key_event_operator_id(C, but->optype->idname, but->opcontext, prop, 1, &km);
+		wmOperator *op;
+		
+		uiItemS(layout);
+		
+		/* operator defaults */
+		
+		/* initialise the operator type's default properties from the temporary operator */
+		if (but->optype->default_properties_op) {
+			// make sure the temporary operator has the latest default properties set.
+			WM_operator_properties_init(but->optype->default_properties_op);
+		} else {
+			// make sure the last_properties are set from the new operator.
+			but->optype->default_properties_op = WM_operator_create(C, but->optype, NULL, NULL);
+		}
+		
+		uiBlockSetHandleFunc(block, &ui_but_menu_set_last_properties, but->optype->default_properties_op);
+		
+		// add panels for all operators in a macro
+		if (but->optype->flag & OPTYPE_MACRO) {
+			for (op = but->optype->default_properties_op->macro.first; op; op = op->next) {
+				uiLayoutOperatorTypeDefaultsButs(C, layout, op);
+			}
+		}
+		else {
+			uiLayoutOperatorTypeDefaultsButs(C, layout, but->optype->default_properties_op);
+		}
+		
+		uiItemS(layout);
+		
+		
 
 		if (kmi_id)
 			kmi = WM_keymap_item_find_id(km, kmi_id);

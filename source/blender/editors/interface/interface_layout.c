@@ -3087,6 +3087,69 @@ void uiLayoutOperatorButs(const bContext *C, uiLayout *layout, wmOperator *op,
 	}
 }
 
+void uiLayoutOperatorTypeDefaultsButs(const bContext *C, uiLayout *layout, wmOperator *op)
+{
+	char *h = BLI_sprintfN("Default parameters: %s", RNA_struct_ui_name(op->type->srna));
+	
+	uiItemL(layout, h, ICON_NONE);
+	MEM_freeN(h);
+	
+	// use operator's custom panel
+	if (op->type->ui) {
+		op->layout = layout;
+		op->type->ui((bContext *)C, op);
+		op->layout = NULL;
+	}
+	// autogenerate panel
+	else {
+		wmWindowManager *wm = CTX_wm_manager(C);
+		PointerRNA ptr;
+		int empty;
+		
+		RNA_pointer_create(&wm->id, op->type->srna, op->properties, &ptr);
+		
+		empty = uiDefAutoButsRNA(layout, &ptr, NULL, 'V') == 0;
+		
+		if (empty) {
+			uiItemL(layout, IFACE_("No Properties"), ICON_NONE);
+		}
+	}
+	
+#ifdef USE_OP_RESET_BUT
+	/* its possible that reset can do nothing if all have PROP_SKIP_SAVE enabled
+	 * but this is not so important if this button is drawn in those cases
+	 * (which isn't all that likely anyway) - campbell */
+	if (op->properties->len) {
+		uiBlock *block;
+		uiBut *but;
+		uiLayout *col; /* needed to avoid alignment errors with previous buttons */
+		
+		col = uiLayoutColumn(layout, FALSE);
+		block = uiLayoutGetBlock(col);
+		but = uiDefIconTextBut(block, BUT, 0, ICON_FILE_REFRESH, IFACE_("Reset"), 0, 0, UI_UNIT_X, UI_UNIT_Y,
+		                       NULL, 0.0, 0.0, 0.0, 0.0, TIP_("Reset operator defaults"));
+		uiButSetFunc(but, ui_layout_operator_buts__reset_cb, op, NULL);
+	}
+#endif
+	
+	/* set various special settings for buttons */
+	{
+		uiBut *but;
+		
+		for (but = uiLayoutGetBlock(layout)->buttons.first; but; but = but->next) {
+			/* no undo for buttons for operator redo panels */
+			uiButClearFlag(but, UI_BUT_UNDO);
+			
+			/* if button is operator's default property, and a text-field, enable focus for it
+			 *	- this is used for allowing operators with popups to rename stuff with fewer clicks
+			 */
+			if ((but->rnaprop == op->type->prop) && (but->type == TEX)) {
+				uiButSetFocusOnEnter(CTX_wm_window(C), but);
+			}
+		}
+	}
+}
+
 /* this is a bit of a hack but best keep it in one place at least */
 MenuType *uiButGetMenuType(uiBut *but)
 {

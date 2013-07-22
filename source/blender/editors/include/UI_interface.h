@@ -760,6 +760,7 @@ const char *uiLayoutIntrospect(uiLayout *layout); // XXX - testing
 void uiLayoutOperatorButs(const struct bContext *C, struct uiLayout *layout, struct wmOperator *op,
                           bool (*check_prop)(struct PointerRNA *, struct PropertyRNA *),
                           const char label_align, const short flag);
+void uiLayoutOperatorTypeDefaultsButs(const struct bContext *C, struct uiLayout *layout, struct wmOperator *op);
 struct MenuType *uiButGetMenuType(uiBut *but);
 
 void uiLayoutSetOperatorContext(uiLayout *layout, int opcontext);

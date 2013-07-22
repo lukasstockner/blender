@@ -472,6 +472,14 @@ int WM_operatortype_remove(const char *idname)
 		IDP_FreeProperty(ot->last_properties);
 		MEM_freeN(ot->last_properties);
 	}
+	
+	if (ot->default_properties) {
+		IDP_FreeProperty(ot->default_properties);
+		MEM_freeN(ot->default_properties);
+	}
+	
+	if(ot->default_properties_op)
+		WM_operator_free(ot->default_properties_op);
 
 	if (ot->macro.first)
 		wm_operatortype_free_macro(ot);

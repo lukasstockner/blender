@@ -564,6 +564,10 @@ typedef struct wmOperatorType {
 	/* rna for properties */
 	struct StructRNA *srna;
 
+	/* default settings - for initializing */
+	struct IDProperty *default_properties;
+	struct wmOperator *default_properties_op;
+	
 	/* previous settings - for initializing on re-use */
 	struct IDProperty *last_properties;
 
