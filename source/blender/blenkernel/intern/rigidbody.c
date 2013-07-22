@@ -355,6 +355,8 @@ void BKE_rigidbody_validate_sim_shape(Object *ob, short rebuild)
 	rbCollisionShape *new_shape = NULL;
 	BoundBox *bb = NULL;
 	float size[3] = {1.0f, 1.0f, 1.0f};
+	float center[3], min[3], max[3];
+	float loc[3], rot[4];
 	float radius = 1.0f;
 	float height = 1.0f;
 	float capsule_height;
@@ -395,25 +397,33 @@ void BKE_rigidbody_validate_sim_shape(Object *ob, short rebuild)
 		radius = MAX3(size[0], size[1], size[2]);
 	}
 
+	mat4_to_loc_quat(loc, rot, ob->obmat);
+
+	/* calculate world space center of object */
+	mul_v3_m4v3(min, ob->obmat, bb->vec[0]);
+	mul_v3_m4v3(max, ob->obmat, bb->vec[6]);
+	add_v3_v3v3(center, max, min);
+	mul_v3_fl(center, 0.5f);
+
 	/* create new shape */
 	switch (rbo->shape) {
 		case RB_SHAPE_BOX:
-			new_shape = RB_shape_new_box(size[0], size[1], size[2]);
+			new_shape = RB_shape_new_box(size[0], size[1], size[2], loc, rot, center);
 			break;
 
 		case RB_SHAPE_SPHERE:
-			new_shape = RB_shape_new_sphere(radius);
+			new_shape = RB_shape_new_sphere(radius, loc, rot, center);
 			break;
 
 		case RB_SHAPE_CAPSULE:
 			capsule_height = (height - radius) * 2.0f;
-			new_shape = RB_shape_new_capsule(radius, (capsule_height > 0.0f) ? capsule_height : 0.0f);
+			new_shape = RB_shape_new_capsule(radius, (capsule_height > 0.0f) ? capsule_height : 0.0f, loc, rot, center);
 			break;
 		case RB_SHAPE_CYLINDER:
-			new_shape = RB_shape_new_cylinder(radius, height);
+			new_shape = RB_shape_new_cylinder(radius, height, loc, rot, center);
 			break;
 		case RB_SHAPE_CONE:
-			new_shape = RB_shape_new_cone(radius, height * 2.0f);
+			new_shape = RB_shape_new_cone(radius, height * 2.0f, loc, rot, center);
 			break;
 
 		case RB_SHAPE_CONVEXH:

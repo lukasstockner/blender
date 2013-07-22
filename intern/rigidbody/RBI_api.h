@@ -214,11 +214,11 @@ extern void RB_body_apply_central_force(rbRigidBody *body, const float v_in[3]);
 
 /* Setup (Standard Shapes) ----------- */
 
-extern rbCollisionShape *RB_shape_new_box(float x, float y, float z);
-extern rbCollisionShape *RB_shape_new_sphere(float radius);
-extern rbCollisionShape *RB_shape_new_capsule(float radius, float height);
-extern rbCollisionShape *RB_shape_new_cone(float radius, float height);
-extern rbCollisionShape *RB_shape_new_cylinder(float radius, float height);
+extern rbCollisionShape *RB_shape_new_box(float x, float y, float z, const float loc[3], const float rot[4], const float center[3]);
+extern rbCollisionShape *RB_shape_new_sphere(float radius, const float loc[3], const float rot[4], const float center[3]);
+extern rbCollisionShape *RB_shape_new_capsule(float radius, float height, const float loc[3], const float rot[4], const float center[3]);
+extern rbCollisionShape *RB_shape_new_cone(float radius, float height, const float loc[3], const float rot[4], const float center[3]);
+extern rbCollisionShape *RB_shape_new_cylinder(float radius, float height, const float loc[3], const float rot[4], const float center[3]);
 
 /* Setup (Convex Hull) ------------ */
 

@@ -89,6 +89,7 @@ struct rbRigidBody {
 
 struct rbCollisionShape {
 	btCollisionShape *cshape;
+	btCollisionShape *compound;
 	btTriangleMesh *mesh;
 };
 
@@ -367,7 +368,7 @@ rbRigidBody *RB_body_new(rbCollisionShape *shape, const float loc[3], const floa
 	btDefaultMotionState *motionState = new btDefaultMotionState(trans);
 	
 	/* make rigidbody */
-	btRigidBody::btRigidBodyConstructionInfo rbInfo(1.0f, motionState, shape->cshape);
+	btRigidBody::btRigidBodyConstructionInfo rbInfo(1.0f, motionState, shape->compound);
 	
 	object->body = new btRigidBody(rbInfo);
 	
@@ -407,7 +408,7 @@ void RB_body_set_collision_shape(rbRigidBody *object, rbCollisionShape *shape)
 	btRigidBody *body = object->body;
 	
 	/* set new collision shape */
-	body->setCollisionShape(shape->cshape);
+	body->setCollisionShape(shape->compound);
 	
 	/* recalculate inertia, since that depends on the collision shape... */
 	RB_body_set_mass(object, RB_body_get_mass(object));
@@ -685,44 +686,53 @@ void RB_body_apply_central_force(rbRigidBody *object, const float v_in[3])
 
 /* Setup (Standard Shapes) ----------- */
 
-rbCollisionShape *RB_shape_new_box(float x, float y, float z)
+static rbCollisionShape *prepare_primitive_shape(btCollisionShape *cshape, const float loc[3], const float rot[4], const float center[3])
 {
 	rbCollisionShape *shape = new rbCollisionShape;
-	shape->cshape = new btBoxShape(btVector3(x, y, z));
+	shape->cshape = cshape;
 	shape->mesh = NULL;
+	
+	btTransform world_transform = btTransform();
+	world_transform.setIdentity();
+	world_transform.setOrigin(btVector3(loc[0], loc[1], loc[2]));
+	world_transform.setRotation(btQuaternion(rot[1], rot[2], rot[3], rot[0]));
+	
+	shape->compound = new btCompoundShape();
+	btTransform compound_transform;
+	compound_transform.setIdentity();
+	/* adjust center of mass */
+	compound_transform.setOrigin(btVector3(center[0], center[1], center[2]));
+	compound_transform.setRotation(btQuaternion(rot[1], rot[2], rot[3], rot[0]));
+	compound_transform = world_transform.inverse() * compound_transform;
+	
+	((btCompoundShape*)shape->compound)->addChildShape(compound_transform, shape->cshape);
+	
 	return shape;
 }
 
-rbCollisionShape *RB_shape_new_sphere(float radius)
+rbCollisionShape *RB_shape_new_box(float x, float y, float z, const float loc[3], const float rot[4], const float center[3])
 {
-	rbCollisionShape *shape = new rbCollisionShape;
-	shape->cshape = new btSphereShape(radius);
-	shape->mesh = NULL;
-	return shape;
+	return prepare_primitive_shape(new btBoxShape(btVector3(x, y, z)), loc, rot, center);
 }
 
-rbCollisionShape *RB_shape_new_capsule(float radius, float height)
+rbCollisionShape *RB_shape_new_sphere(float radius, const float loc[3], const float rot[4], const float center[3])
 {
-	rbCollisionShape *shape = new rbCollisionShape;
-	shape->cshape = new btCapsuleShapeZ(radius, height);
-	shape->mesh = NULL;
-	return shape;
+	return prepare_primitive_shape(new btSphereShape(radius), loc, rot, center);
 }
 
-rbCollisionShape *RB_shape_new_cone(float radius, float height)
+rbCollisionShape *RB_shape_new_capsule(float radius, float height, const float loc[3], const float rot[4], const float center[3])
 {
-	rbCollisionShape *shape = new rbCollisionShape;
-	shape->cshape = new btConeShapeZ(radius, height);
-	shape->mesh = NULL;
-	return shape;
+	return prepare_primitive_shape(new btCapsuleShapeZ(radius, height), loc, rot, center);
 }
 
-rbCollisionShape *RB_shape_new_cylinder(float radius, float height)
+rbCollisionShape *RB_shape_new_cone(float radius, float height, const float loc[3], const float rot[4], const float center[3])
 {
-	rbCollisionShape *shape = new rbCollisionShape;
-	shape->cshape = new btCylinderShapeZ(btVector3(radius, radius, height));
-	shape->mesh = NULL;
-	return shape;
+	return prepare_primitive_shape(new btConeShapeZ(radius, height), loc, rot, center);
+}
+
+rbCollisionShape *RB_shape_new_cylinder(float radius, float height, const float loc[3], const float rot[4], const float center[3])
+{
+	return prepare_primitive_shape(new btCylinderShapeZ(btVector3(radius, radius, height)), loc, rot, center);
 }
 
 /* Setup (Convex Hull) ------------ */
@@ -789,6 +799,12 @@ rbCollisionShape *RB_shape_new_trimesh(rbMeshData *mesh)
 	
 	shape->cshape = new btScaledBvhTriangleMeshShape(unscaledShape, btVector3(1.0f, 1.0f, 1.0f));
 	shape->mesh = tmesh;
+	
+	shape->compound = new btCompoundShape();
+	btTransform compound_transform;
+	compound_transform.setIdentity();
+	((btCompoundShape*)shape->compound)->addChildShape(compound_transform, shape->cshape);
+	
 	return shape;
 }
 
@@ -818,6 +834,7 @@ void RB_shape_delete(rbCollisionShape *shape)
 	if (shape->mesh)
 		delete shape->mesh;
 	delete shape->cshape;
+	delete shape->compound;
 	delete shape;
 }
 
