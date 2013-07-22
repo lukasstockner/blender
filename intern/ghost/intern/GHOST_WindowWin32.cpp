@@ -29,7 +29,8 @@
  *  \ingroup GHOST
  */
 
-#include <string.h>
+#define _USE_MATH_DEFINES
+
 #include "GHOST_WindowWin32.h"
 #include "GHOST_SystemWin32.h"
 #include "GHOST_DropTargetWin32.h"
@@ -38,20 +39,27 @@
 
 // Need glew for some defines
 #include <GL/glew.h>
+
+#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
 #include <GL/wglew.h>
+#endif
+
 #include <math.h>
+#include <string.h>
 
 // MSVC6 still doesn't define M_PI
 #ifndef M_PI
-#  define M_PI 3.1415926536
+#define M_PI 3.1415926536
 #endif
 
+const wchar_t *GHOST_WindowWin32::s_windowClassName = L"GHOST_WindowClass";
+const int GHOST_WindowWin32::s_maxTitleLength = 128;
+
+#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
 // Some more multisample defines
 #define WGL_SAMPLE_BUFFERS_ARB  0x2041
 #define WGL_SAMPLES_ARB         0x2042
 
-const wchar_t *GHOST_WindowWin32::s_windowClassName = L"GHOST_WindowClass";
-const int GHOST_WindowWin32::s_maxTitleLength = 128;
 HGLRC GHOST_WindowWin32::s_firsthGLRc = NULL;
 HDC GHOST_WindowWin32::s_firstHDC = NULL;
 
@@ -88,6 +96,24 @@ static PIXELFORMATDESCRIPTOR sPreferredFormat = {
 	0,                              /* reserved */
 	0, 0, 0                         /* no layer, visible, damage masks */
 };
+#endif
+
+#if defined(WITH_GL_SYSTEM_EMBEDDED)
+static EGLint attribList[] = {
+	EGL_RED_SIZE,       8,
+	EGL_GREEN_SIZE,     8,
+	EGL_BLUE_SIZE,      8,
+	EGL_DEPTH_SIZE,     8,
+#ifdef GHOST_OPENGL_ALPHA
+	EGL_ALPHA_SIZE,     8,
+#else
+	EGL_ALPHA_SIZE,     0,
+#endif
+	//EGL_STENCIL_SIZE,   8,
+	//EGL_SAMPLE_BUFFERS  1,
+	EGL_NONE
+};
+#endif
 
 /* Intel videocards don't work fine with multiple contexts and
  * have to share the same context for all windows.
@@ -125,7 +151,9 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 	             stereoVisual, false, numOfAASamples),
 	m_system(system),
 	m_hDC(0),
+#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
 	m_hGlRc(0),
+#endif
 	m_hasMouseCaptured(false),
 	m_hasGrabMouse(false),
 	m_nPressedButtons(0),
@@ -268,9 +296,11 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 		// Store the device context
 		m_hDC = ::GetDC(m_hWnd);
 
+#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
 		if (!s_firstHDC) {
 			s_firstHDC = m_hDC;
 		}
+#endif
 
 		// Show the window
 		int nCmdShow;
@@ -400,7 +430,7 @@ GHOST_WindowWin32::~GHOST_WindowWin32()
 #if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
 	::wglMakeCurrent(NULL, NULL);
 #elif defined(WITH_GL_SYSTEM_EMBEDDED)
-	GHOST_PRINT("GHOST_WindowWin32::~GHOST_WindowWin32 for WITH_GL_SYSTEM_EMBEDDED not implemented\n");
+	::eglMakeCurrent(egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 #else
 #error
 #endif
@@ -408,10 +438,19 @@ GHOST_WindowWin32::~GHOST_WindowWin32()
 	m_multisampleEnabled = GHOST_kFailure;
 	m_multisample = 0;
 	setDrawingContextType(GHOST_kDrawingContextTypeNone);
+
+#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
 	if (m_hDC && m_hDC != s_firstHDC) {
 		::ReleaseDC(m_hWnd, m_hDC);
 		m_hDC = 0;
 	}
+#else
+	if (m_hDC && m_hDC) {
+		::ReleaseDC(m_hWnd, m_hDC);
+		m_hDC = 0;
+	}
+#endif
+
 	if (m_hWnd) {
 		if (m_dropTarget) {
 			// Disable DragDrop
@@ -650,8 +689,7 @@ GHOST_TSuccess GHOST_WindowWin32::swapBuffers()
 
 	return ::SwapBuffers(hDC) == TRUE ? GHOST_kSuccess : GHOST_kFailure;
 #elif defined(WITH_GL_SYSTEM_EMBEDDED)
-	GHOST_PRINT("GHOST_WindowWin32::swapBuffers for WITH_GL_SYSTEM_EMBEDDED not implemented\n");
-	return GHOST_kFailure;
+	return ::eglSwapBuffers(egl_display, egl_surface) ? GHOST_kSuccess : GHOST_kFailure;
 #else
 #error
 #endif
@@ -664,14 +702,18 @@ GHOST_TSuccess GHOST_WindowWin32::activateDrawingContext()
 	if (m_drawingContextType == GHOST_kDrawingContextTypeOpenGL) {
 #if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
 		if (m_hDC && m_hGlRc) {
-			success = ::wglMakeCurrent(m_hDC, m_hGlRc) == TRUE ? GHOST_kSuccess : GHOST_kFailure;
+			success = ::wglMakeCurrent(m_hDC, m_hGlRc) ? GHOST_kSuccess : GHOST_kFailure;
 		}
 		else {
 			success = GHOST_kFailure;
 		}
 #elif defined(WITH_GL_SYSTEM_EMBEDDED)
-	success = GHOST_kFailure;
-	GHOST_PRINT("GHOST_WindowWin32::activateDrawingContext for WITH_GL_SYSTEM_EMBEDDED not implemented\n");
+		if (m_hDC) {
+			success = ::eglMakeCurrent(egl_display, egl_surface, egl_surface, egl_context) ? GHOST_kSuccess : GHOST_kFailure;
+		}
+		else {
+			success = GHOST_kFailure;
+		}
 #else
 #error
 #endif
@@ -679,6 +721,7 @@ GHOST_TSuccess GHOST_WindowWin32::activateDrawingContext()
 	else {
 		success = GHOST_kSuccess;
 	}
+
 	return success;
 }
 
@@ -761,6 +804,7 @@ GHOST_TSuccess GHOST_WindowWin32::initMultisample(PIXELFORMATDESCRIPTOR pfd)
 GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextType type)
 {
 	GHOST_TSuccess success;
+
 	switch (type) {
 		case GHOST_kDrawingContextTypeOpenGL:
 #if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
@@ -925,12 +969,62 @@ GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextTyp
 		}
 		break;
 #elif defined(WITH_GL_SYSTEM_EMBEDDED)
-		GHOST_PRINT("GHOST_WindowWin32::installDrawingContext for WITH_GL_SYSTEM_EMBEDDED not implemented\n");
-		success = GHOST_kFailure;
-		break;
+		{
+			EGLint major, minor;
+			EGLint num_config;
+			EGLConfig config;
+#if defined(WITH_GL_PROFILE_ES20)
+			EGLint attribs[] = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE, EGL_NONE };
+#endif
+
+			egl_display = ::eglGetDisplay((EGLNativeDisplayType)m_hDC);
+
+			if(egl_display == EGL_NO_DISPLAY) {
+				success = GHOST_kFailure;
+				break;
+			}
+
+			if(!::eglInitialize(egl_display, &major, &minor)) {
+				success = GHOST_kFailure;
+				break;
+			}
+
+			if(!::eglGetConfigs(egl_display, NULL, 0, &num_config)) {
+				success = GHOST_kFailure;
+				break;
+			}
+
+			if(!::eglChooseConfig(egl_display, attribList, &config, 1, &num_config)) {
+				success = GHOST_kFailure;
+				break;
+			}
+
+			egl_surface = ::eglCreateWindowSurface(egl_display, config, (EGLNativeWindowType)m_hWnd, NULL);
+
+			if (egl_surface == EGL_NO_SURFACE ) {
+				success = GHOST_kFailure;
+				break;
+			}
+
+			egl_context = ::eglCreateContext(egl_display, config, EGL_NO_CONTEXT, attribs);
+
+			if (egl_context == EGL_NO_CONTEXT) {
+				success = GHOST_kFailure;
+				break;
+			}
+
+			if (!::eglMakeCurrent(egl_display, egl_surface, egl_surface, egl_context)) {
+				success = GHOST_kFailure;
+				break;
+			}
+
+			success = GHOST_kSuccess;
+			break;
+		}
 #else
 #error
 #endif
+
 		case GHOST_kDrawingContextTypeNone:
 			success = GHOST_kSuccess;
 			break;
@@ -938,6 +1032,7 @@ GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextTyp
 		default:
 			success = GHOST_kFailure;
 	}
+
 	return success;
 }
 
@@ -958,8 +1053,18 @@ GHOST_TSuccess GHOST_WindowWin32::removeDrawingContext()
 			}
 			break;
 #elif defined(WITH_GL_SYSTEM_EMBEDDED)
-			GHOST_PRINT("GHOST_WindowWin32::removeDrawingContext for WITH_GL_SYSTEM_EMBEDDED not implemented\n");
-			success = GHOST_kFailure;
+			if (egl_context != NULL) {
+				if (eglDestroyContext(egl_display, egl_context)) {
+					egl_context = NULL;
+					success = GHOST_kSuccess;
+				}
+				else {
+					success = GHOST_kFailure;
+				}
+			}
+			else {
+				success = GHOST_kFailure;
+			}
 			break;
 #else
 #error
@@ -1319,6 +1424,8 @@ GHOST_TSuccess GHOST_WindowWin32::endProgressBar()
 	return GHOST_kFailure;
 }
 
+#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
+
 /* Ron Fosner's code for weighting pixel formats and forcing software.
  * See http://www.opengl.org/resources/faq/technical/weight.cpp */
 
@@ -1410,4 +1517,4 @@ static int EnumPixelFormats(HDC hdc)
 	return iPixelFormat;
 }
 
-
+#endif

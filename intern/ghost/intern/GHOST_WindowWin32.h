@@ -44,6 +44,9 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+#if defined(WITH_GL_SYSTEM_EMBEDDED) // XXX jwilkins: can remove this after implementing GHOST_Context
+#include <GL/eglew.h>
+#endif
 
 #include <wintab.h>
 #define PACKETDATA  (PK_BUTTONS | PK_NORMAL_PRESSURE | PK_ORIENTATION | PK_CURSOR)
@@ -345,12 +348,19 @@ protected:
 	HWND m_hWnd;
 	/** Device context handle. */
 	HDC m_hDC;
+#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
 	/** OpenGL rendering context. */
 	HGLRC m_hGlRc;
 	/** The first created OpenGL context (for sharing display lists) */
 	static HGLRC s_firsthGLRc;
 	/** The first created device context handle. */
 	static HDC s_firstHDC;
+#endif
+#if defined(WITH_GL_SYSTEM_EMBEDDED)
+	EGLContext egl_context;
+	EGLSurface egl_surface;
+	EGLDisplay egl_display;
+#endif
 	/** Flag for if window has captured the mouse */
 	bool m_hasMouseCaptured;
 	/** Flag if an operator grabs the mouse with WM_cursor_grab_enable/ungrab() 

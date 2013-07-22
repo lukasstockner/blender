@@ -1349,6 +1349,7 @@ removeDrawingContext()
 #ifndef GLEW_INC_EGL
 	if (m_context != NULL) {
 		glXDestroyContext(m_display, m_context);
+		m_context = NULL;
 		success = GHOST_kSuccess;
 	}
 	else {
