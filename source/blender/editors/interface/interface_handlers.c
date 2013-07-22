@@ -3574,7 +3574,7 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
 			return WM_UI_HANDLER_BREAK;
 		}
 		else if ((int)(but->a1) == UI_COLOR_PALETTE &&
-		         ELEM(event->type, XKEY, DELKEY) && event->val == KM_PRESS)
+		         event->type == DELKEY && event->val == KM_PRESS)
 		{
 			Scene *scene = CTX_data_scene(C);
 			Paint *paint = BKE_paint_get_active(scene);
