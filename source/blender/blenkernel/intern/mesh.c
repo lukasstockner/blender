@@ -2189,9 +2189,12 @@ static void bm_corners_to_loops_ex(ID *id, CustomData *fdata, CustomData *ldata,
 				if (ld->disps)
 					MEM_freeN(ld->disps);
 
-				ld->disps = MEM_callocN(sizeof(float) * 3 * side * side, "converted loop mdisps");
+				ld->disps = MEM_mallocN(sizeof(float) * 3 * side * side, "converted loop mdisps");
 				if (fd->disps) {
 					memcpy(ld->disps, disps, sizeof(float) * 3 * side * side);
+				}
+				else {
+					memset(ld->disps, 0, sizeof(float) * 3 * side * side);
 				}
 			}
 		}
@@ -2463,9 +2466,10 @@ void BKE_mesh_vert_poly_map_create(MeshElemMap **r_map, int **r_mem,
                                    int totvert, int totpoly, int totloop)
 {
 	MeshElemMap *map = MEM_callocN(sizeof(MeshElemMap) * totvert, "vert poly map");
-	int *indices = MEM_mallocN(sizeof(int) * totloop, "vert poly map mem");
-
+	int *indices, *index_iter;
 	int i, j;
+
+	indices = index_iter = MEM_mallocN(sizeof(int) * totloop, "vert poly map mem");
 
 	/* Count number of polys for each vertex */
 	for (i = 0; i < totpoly; i++) {
@@ -2477,8 +2481,8 @@ void BKE_mesh_vert_poly_map_create(MeshElemMap **r_map, int **r_mem,
 
 	/* Assign indices mem */
 	for (i = 0; i < totvert; i++) {
-		map[i].indices = indices;
-		indices += map[i].count;
+		map[i].indices = index_iter;
+		index_iter += map[i].count;
 
 		/* Reset 'count' for use as index in last loop */
 		map[i].count = 0;

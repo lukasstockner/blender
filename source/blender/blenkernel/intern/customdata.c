@@ -158,7 +158,7 @@ static void layerCopy_mdeformvert(const void *source, void *dest,
 		MDeformVert *dvert = (MDeformVert *)((char *)dest + i * size);
 
 		if (dvert->totweight) {
-			MDeformWeight *dw = MEM_callocN(dvert->totweight * sizeof(*dw),
+			MDeformWeight *dw = MEM_mallocN(dvert->totweight * sizeof(*dw),
 			                                "layerCopy_mdeformvert dw");
 
 			memcpy(dw, dvert->dw, dvert->totweight * sizeof(*dw));
@@ -265,7 +265,7 @@ static void layerInterp_mdeformvert(void **sources, const float *weights,
 	if (dvert->dw) MEM_freeN(dvert->dw);
 
 	if (totweight) {
-		dvert->dw = MEM_callocN(sizeof(*dvert->dw) * totweight,
+		dvert->dw = MEM_mallocN(sizeof(*dvert->dw) * totweight,
 		                        "layerInterp_mdeformvert dvert->dw");
 		dvert->totweight = totweight;
 
@@ -2391,6 +2391,7 @@ bool CustomData_bmesh_merge(CustomData *source, CustomData *dest,
 			BLI_assert(!"invalid type given");
 			iter_type = BM_VERTS_OF_MESH;
 			totelem = bm->totvert;
+			break;
 	}
 
 	dest->pool = NULL;

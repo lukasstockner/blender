@@ -420,7 +420,6 @@ static int mouse_on_slide_zone(SpaceClip *sc, MovieTrackingMarker *marker,
                                float padding, int width, int height)
 {
 	const float size = 12.0f;
-	int inside = 0;
 	float min[2], max[2];
 	float dx, dy;
 
@@ -445,8 +444,6 @@ static int mouse_on_slide_zone(SpaceClip *sc, MovieTrackingMarker *marker,
 
 	return IN_RANGE_INCL(co[0], slide_zone[0] - dx, slide_zone[0] + dx) &&
 	       IN_RANGE_INCL(co[1], slide_zone[1] - dy, slide_zone[1] + dy);
-
-	return inside;
 }
 
 static int mouse_on_corner(SpaceClip *sc, MovieTrackingMarker *marker,
@@ -791,8 +788,7 @@ static int slide_marker_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			if (ELEM(event->type, LEFTSHIFTKEY, RIGHTSHIFTKEY))
 				data->accurate = event->val == KM_PRESS;
 
-		/* no break! update area size */
-
+			/* fall-through */
 		case MOUSEMOVE:
 			mdelta[0] = event->mval[0] - data->mval[0];
 			mdelta[1] = event->mval[1] - data->mval[1];

@@ -1177,6 +1177,7 @@ static void calc_sculpt_normal(Sculpt *sd, Object *ob,
 
 		case SCULPT_DISP_DIR_AREA:
 			calc_area_normal(sd, ob, an, nodes, totnode);
+			break;
 
 		default:
 			break;
@@ -2457,6 +2458,7 @@ static void calc_sculpt_plane(Sculpt *sd, Object *ob, PBVHNode **nodes, int totn
 
 			case SCULPT_DISP_DIR_AREA:
 				calc_area_normal_and_flatten_center(sd, ob, nodes, totnode, an, fc);
+				break;
 
 			default:
 				break;
@@ -3534,7 +3536,14 @@ int sculpt_mode_poll(bContext *C)
 
 int sculpt_mode_poll_view3d(bContext *C)
 {
-	return (sculpt_mode_poll(C) && CTX_wm_region_view3d(C));
+	return (sculpt_mode_poll(C) &&
+	        CTX_wm_region_view3d(C));
+}
+
+int sculpt_poll_view3d(bContext *C)
+{
+	return (sculpt_poll(C) &&
+	        CTX_wm_region_view3d(C));
 }
 
 int sculpt_poll(bContext *C)
@@ -4645,13 +4654,18 @@ void sculpt_dynamic_topology_disable(bContext *C,
 		sculptsession_bm_to_me(ob, TRUE);
 	}
 
-	BM_mesh_free(ss->bm);
-
 	/* Clear data */
 	me->flag &= ~ME_SCULPT_DYNAMIC_TOPOLOGY;
-	ss->bm = NULL;
-	BM_log_free(ss->bm_log);
-	ss->bm_log = NULL;
+
+	/* typically valid but with global-undo they can be NULL, [#36234] */
+	if (ss->bm) {
+		BM_mesh_free(ss->bm);
+		ss->bm = NULL;
+	}
+	if (ss->bm_log) {
+		BM_log_free(ss->bm_log);
+		ss->bm_log = NULL;
+	}
 
 	/* Refresh */
 	sculpt_update_after_dynamic_topology_toggle(C);
@@ -4951,7 +4965,7 @@ static int sculpt_toggle_mode(bContext *C, wmOperator *UNUSED(op))
 
 		BKE_paint_init(&ts->sculpt->paint, PAINT_CURSOR_SCULPT);
 
-		paint_cursor_start(C, sculpt_mode_poll_view3d);
+		paint_cursor_start(C, sculpt_poll_view3d);
 	}
 
 	WM_event_add_notifier(C, NC_SCENE | ND_MODE, scene);

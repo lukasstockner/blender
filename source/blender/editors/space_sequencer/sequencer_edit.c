@@ -551,12 +551,14 @@ int seq_effect_find_selected(Scene *scene, Sequence *activeseq, int type, Sequen
 			}
 			if (seq1 == NULL) seq1 = seq2;
 			if (seq3 == NULL) seq3 = seq2;
+			/* fall-through */
 		case 2:
 			if (seq1 == NULL || seq2 == NULL) {
 				*error_str = N_("2 selected sequence strips are needed");
 				return 0;
 			}
 			if (seq3 == NULL) seq3 = seq2;
+			break;
 	}
 	
 	if (seq1 == NULL && seq2 == NULL && seq3 == NULL) {

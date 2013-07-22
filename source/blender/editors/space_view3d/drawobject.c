@@ -3092,6 +3092,7 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 	BMFace *efa_act = BM_mesh_active_face_get(em->bm, false, true); /* annoying but active faces is stored differently */
 	BMEdge *eed_act = NULL;
 	BMVert *eve_act = NULL;
+	bool use_occlude_wire = (v3d->flag2 & V3D_OCCLUDE_WIRE) && (dt > OB_WIRE);
 	
 	// if (cageDM)  BLI_assert(!(cageDM->dirty & DM_DIRTY_NORMALS));
 	if (finalDM) BLI_assert(!(finalDM->dirty & DM_DIRTY_NORMALS));
@@ -3130,7 +3131,13 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 		}
 	}
 	else if (dt > OB_WIRE) {
-		if (check_object_draw_texture(scene, v3d, dt)) {
+		if (use_occlude_wire) {
+			glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+			finalDM->drawMappedFaces(finalDM, draw_em_fancy__setFaceOpts,
+			                         GPU_enable_material, NULL, me->edit_btmesh, 0);
+			glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		}
+		else if (check_object_draw_texture(scene, v3d, dt)) {
 			if (draw_glsl_material(scene, ob, v3d, dt)) {
 				glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);
 
@@ -3171,8 +3178,8 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 			finalDM->drawEdges(finalDM, 1, 0);
 		}
 	}
-	
-	if (me->drawflag & ME_DRAWFACES) {  /* transp faces */
+
+	if ((me->drawflag & ME_DRAWFACES) && (use_occlude_wire == false)) {  /* transp faces */
 		unsigned char col1[4], col2[4], col3[4];
 #ifdef WITH_FREESTYLE
 		unsigned char col4[4];
@@ -3311,6 +3318,11 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 		bglPolygonOffset(rv3d->dist, 0.0);
 		GPU_disable_material();
 	}
+#if 0  /* currently not needed */
+	else if (use_occlude_wire) {
+		bglPolygonOffset(rv3d->dist, 0.0);
+	}
+#endif
 }
 
 /* Mesh drawing routines */
@@ -4418,7 +4430,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 			copy_m4_m4(imat, rv3d->viewinv);
 			normalize_v3(imat[0]);
 			normalize_v3(imat[1]);
-		/* no break! */
+			/* fall-through */
 		case PART_DRAW_CROSS:
 		case PART_DRAW_AXIS:
 			/* lets calculate the scale: */
@@ -4592,6 +4604,8 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 								break;
 							default:
 								intensity = 1.0f; /* should never happen */
+								BLI_assert(0);
+								break;
 						}
 						CLAMP(intensity, 0.f, 1.f);
 						weight_to_rgb(ma_col, intensity);
@@ -6853,8 +6867,8 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 			    (rv3d->persp == RV3D_CAMOB && v3d->camera == ob)) /* special exception for active camera */
 			{
 				drawcamera(scene, v3d, rv3d, base, dflag, ob_wire_col);
-				break;
 			}
+			break;
 		case OB_SPEAKER:
 			if ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0)
 				drawspeaker(scene, v3d, rv3d, ob, dflag);
@@ -6893,6 +6907,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 			if ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
 				drawaxes(1.0, OB_ARROWS);
 			}
+			break;
 	}
 
 	if ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
