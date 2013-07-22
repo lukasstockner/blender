@@ -817,7 +817,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 		/* check if brush is subtracting, use different color then */
 		/* TODO: no way currently to know state of pen flip or
 		 * invert key modifier without starting a stroke */
-		if ((!(brush->flag & BRUSH_INVERTED) ^
+		if ((!(ups->draw_inverted) ^
 		     !(brush->flag & BRUSH_DIR_IN)) &&
 		    ELEM5(brush->sculpt_tool, SCULPT_TOOL_DRAW,
 		          SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY,

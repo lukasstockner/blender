@@ -906,7 +906,11 @@ typedef struct UnifiedPaintSettings {
 	/* all this below is used as a cache to communicate with the cursor drawing routine
 	 * and texture sampling functions. Probably a better place should be used than this */
 	int draw_anchored;
-	int   anchored_size;
+	int anchored_size;
+
+	int draw_inverted;
+	int pad;
+
 	float overlap_factor; /* normalization factor due to accumulated value of curve along spacing.
 	                       * Calculated when brush spacing changes to dampen strength of stroke
 	                       * if space attenuation is used*/

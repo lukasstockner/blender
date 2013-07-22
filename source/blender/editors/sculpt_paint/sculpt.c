@@ -3763,8 +3763,8 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 
 	/* not very nice, but with current events system implementation
 	 * we can't handle brush appearance inversion hotkey separately (sergey) */
-	if (cache->invert) brush->flag |= BRUSH_INVERTED;
-	else brush->flag &= ~BRUSH_INVERTED;
+	if (cache->invert) ups->draw_inverted = true;
+	else ups->draw_inverted = false;
 
 	/* Alt-Smooth */
 	if (cache->alt_smooth) {
@@ -4371,8 +4371,9 @@ static void sculpt_stroke_done(const bContext *C, struct PaintStroke *UNUSED(str
 
 	/* Finished */
 	if (ss->cache) {
+		UnifiedPaintSettings *ups = &CTX_data_tool_settings(C)->unified_paint_settings;
 		Brush *brush = BKE_paint_brush(&sd->paint);
-		brush->flag &= ~BRUSH_INVERTED;
+		ups->draw_inverted = false;
 
 		sculpt_stroke_modifiers_check(C, ob);
 
