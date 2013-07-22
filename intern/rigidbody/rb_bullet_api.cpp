@@ -752,6 +752,12 @@ rbCollisionShape *RB_shape_new_convex_hull(float *verts, int stride, int count, 
 	
 	shape->cshape = hull_shape;
 	shape->mesh = NULL;
+	
+	shape->compound = new btCompoundShape();
+	btTransform compound_transform;
+	compound_transform.setIdentity();
+	((btCompoundShape*)shape->compound)->addChildShape(compound_transform, shape->cshape);
+	
 	return shape;
 }
 
