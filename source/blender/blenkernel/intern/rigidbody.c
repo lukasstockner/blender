@@ -346,6 +346,58 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
 	return shape;
 }
 
+/* check parent child relationships to construct compound shapes */
+static void rigidbody_prepare_compounds(RigidBodyWorld *rbw)
+{
+	GroupObject *go;
+	for (go = rbw->group->gobject.first; go; go = go->next) {
+		Object *ob = go->ob;
+		RigidBodyOb *rbo = ob ? ob->rigidbody_object : NULL;
+		if (rbo == NULL)
+			continue;
+
+		if (ob->parent && ob->parent->rigidbody_object) {
+			rbo->flag |= RBO_FLAG_COMPOUND_CHILD;
+			ob->parent->rigidbody_object->flag |= RBO_FLAG_COMPOUND_PARENT;
+		}
+	}
+}
+
+/* note, object must be a compound shape parent */
+static void rigidbody_compound_shape_add_children(RigidBodyWorld *rbw, Object *ob)
+{
+	GroupObject *go;
+
+	RigidBodyOb *rbo = ob->rigidbody_object;
+	if (rbo == NULL)
+		return;
+
+	// RB_TODO check entire parent hirarchy not only one level.
+	for (go = rbw->group->gobject.first; go; go = go->next) {
+		Object *child_ob = go->ob;
+		RigidBodyOb *child_rbo = child_ob ? child_ob->rigidbody_object : NULL;
+
+		if (child_rbo && child_rbo->flag & RBO_FLAG_COMPOUND_CHILD) {
+			if (child_ob->parent == ob) {
+				float pos[3], orn[4];
+				mat4_to_loc_quat(pos, orn, child_ob->obmat);
+				RB_shape_add_compound_child(rbo->physics_object, child_rbo->physics_shape, pos, orn);
+			}
+		}
+	}
+}
+
+static void rigidbody_update_compounds(RigidBodyWorld *rbw)
+{
+	GroupObject *go;
+	for (go = rbw->group->gobject.first; go; go = go->next) {
+		Object *ob = go->ob;
+		RigidBodyOb *rbo = ob ? ob->rigidbody_object : NULL;
+		if (rbo && rbo->flag & RBO_FLAG_COMPOUND_PARENT)
+			rigidbody_compound_shape_add_children(rbw, ob);
+	}
+}
+
 /* Create new physics sim collision shape for object and store it,
  * or remove the existing one first and replace...
  */
@@ -513,7 +565,7 @@ void BKE_rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, short re
 		RB_body_set_kinematic_state(rbo->physics_object, rbo->flag & RBO_FLAG_KINEMATIC || rbo->flag & RBO_FLAG_DISABLED);
 	}
 
-	if (rbw && rbw->physics_world)
+	if (rbw && rbw->physics_world && (rbo->flag & RBO_FLAG_COMPOUND_CHILD) == 0) // RB_TODO find better solution for compound shapes
 		RB_dworld_add_body(rbw->physics_world, rbo->physics_object, rbo->col_groups);
 }
 
@@ -1096,8 +1148,11 @@ static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, int r
 	if (rebuild)
 		BKE_rigidbody_validate_sim_world(scene, rbw, true);
 	rigidbody_update_sim_world(scene, rbw);
-
+	
 	/* update objects */
+	if (rebuild)
+		rigidbody_prepare_compounds(rbw);
+	
 	for (go = rbw->group->gobject.first; go; go = go->next) {
 		Object *ob = go->ob;
 
@@ -1142,6 +1197,10 @@ static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, int r
 			rigidbody_update_sim_ob(scene, rbw, ob, rbo);
 		}
 	}
+	
+	if (rebuild)
+		rigidbody_update_compounds(rbw);
+	
 	/* update constraints */
 	if (rbw->constraints == NULL) /* no constraints, move on */
 		return;

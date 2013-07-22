@@ -671,6 +671,44 @@ void RB_body_get_orientation(rbRigidBody *object, float v_out[4])
 	copy_quat_btquat(v_out, body->getWorldTransform().getRotation());
 }
 
+void RB_body_get_compound_position(rbRigidBody *object, rbCollisionShape *child_shape, float v_out[3])
+{
+	btRigidBody *body = object->body;
+	btCompoundShape *compound = (btCompoundShape*)body->getCollisionShape();
+	btTransform transform = body->getWorldTransform();
+	btTransform child_transform;
+	
+	for (int i = 0; i < compound->getNumChildShapes(); i++) {
+		if (child_shape->compound == compound->getChildShape(i)) {
+			child_transform = compound->getChildTransform(i);
+			break;
+		}
+	}
+	transform *= child_transform;
+	btVector3 pos = transform.getOrigin();;
+	
+	copy_v3_btvec3(v_out, pos);
+}
+
+void RB_body_get_compound_orientation(rbRigidBody *object, rbCollisionShape *child_shape, float v_out[4])
+{
+	btRigidBody *body = object->body;
+	btCompoundShape *compound = (btCompoundShape*)body->getCollisionShape();
+	btTransform transform = body->getWorldTransform();
+	btTransform child_transform;
+	
+	for (int i = 0; i < compound->getNumChildShapes(); i++) {
+		if (child_shape->compound == compound->getChildShape(i)) {
+			child_transform = compound->getChildTransform(i);
+			break;
+		}
+	}
+	transform *= child_transform;
+	btQuaternion orn = transform.getRotation();
+	
+	copy_quat_btquat(v_out, orn);
+}
+
 /* ............ */
 /* Overrides for simulation */
 
@@ -826,6 +864,17 @@ rbCollisionShape *RB_shape_new_gimpact_mesh(rbMeshData *mesh)
 	shape->cshape = gimpactShape;
 	shape->mesh = tmesh;
 	return shape;
+}
+
+void RB_shape_add_compound_child(rbRigidBody *parent, rbCollisionShape *child, float child_pos[3], float child_orn[4])
+{
+	btCompoundShape *compound = (btCompoundShape*)parent->body->getCollisionShape();
+	btTransform parent_transform = parent->body->getCenterOfMassTransform(); // TODO center of mass?
+	btTransform transform;
+	transform.setOrigin(btVector3(child_pos[0], child_pos[1], child_pos[2]));
+	transform.setRotation(btQuaternion(child_orn[1], child_orn[2], child_orn[3], child_orn[0]));
+	transform = parent_transform.inverse() * transform;
+	compound->addChildShape(transform, child->compound);
 }
 
 /* Cleanup --------------------------- */

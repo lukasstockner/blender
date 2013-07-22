@@ -205,6 +205,10 @@ void RB_body_get_position(rbRigidBody *body, float v_out[3]);
 /* Get RigidBody's orientation as quaternion */
 void RB_body_get_orientation(rbRigidBody *body, float v_out[4]);
 
+void RB_body_get_compound_position(rbRigidBody *object, rbCollisionShape *child_shape, float v_out[3]);
+
+void RB_body_get_compound_orientation(rbRigidBody *object, rbCollisionShape *child_shape, float v_out[4]);
+
 /* ............ */
 
 extern void RB_body_apply_central_force(rbRigidBody *body, const float v_in[3]);
@@ -233,6 +237,9 @@ extern void RB_trimesh_add_triangle(rbMeshData *mesh, const float v1[3], const f
 extern rbCollisionShape *RB_shape_new_trimesh(rbMeshData *mesh);
 /* 2b - GImpact Meshes */
 extern rbCollisionShape *RB_shape_new_gimpact_mesh(rbMeshData *mesh);
+
+/* Compound Shapes ------------------- */
+extern void RB_shape_add_compound_child(rbRigidBody *parent, rbCollisionShape *child, float child_pos[3], float child_orn[4]);
 
 
 /* Cleanup --------------------------- */

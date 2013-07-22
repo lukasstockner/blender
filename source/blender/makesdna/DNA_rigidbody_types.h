@@ -148,7 +148,10 @@ typedef enum eRigidBodyOb_Flag {
 	/* rigidbody is not dynamically simulated */
 	RBO_FLAG_DISABLED			= (1 << 5),
 	/* collision margin is not embedded (only used by convex hull shapes for now) */
-	RBO_FLAG_USE_MARGIN			= (1 << 6)
+	RBO_FLAG_USE_MARGIN			= (1 << 6),
+	/* compound shape flags, should not be set manually */
+	RBO_FLAG_COMPOUND_PARENT	= (1 << 7),
+	RBO_FLAG_COMPOUND_CHILD		= (1 << 8)
 } eRigidBodyOb_Flag;
 
 /* RigidBody Collision Shape */
