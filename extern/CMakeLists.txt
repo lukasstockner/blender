@@ -35,6 +35,7 @@ if(WITH_BULLET)
 	if(NOT WITH_SYSTEM_BULLET)
 		add_subdirectory(bullet2)
 	endif()
+	add_subdirectory(HACD)
 endif()
 
 # now only available in a branch
