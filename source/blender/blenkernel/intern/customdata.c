@@ -158,7 +158,7 @@ static void layerCopy_mdeformvert(const void *source, void *dest,
 		MDeformVert *dvert = (MDeformVert *)((char *)dest + i * size);
 
 		if (dvert->totweight) {
-			MDeformWeight *dw = MEM_callocN(dvert->totweight * sizeof(*dw),
+			MDeformWeight *dw = MEM_mallocN(dvert->totweight * sizeof(*dw),
 			                                "layerCopy_mdeformvert dw");
 
 			memcpy(dw, dvert->dw, dvert->totweight * sizeof(*dw));
@@ -265,7 +265,7 @@ static void layerInterp_mdeformvert(void **sources, const float *weights,
 	if (dvert->dw) MEM_freeN(dvert->dw);
 
 	if (totweight) {
-		dvert->dw = MEM_callocN(sizeof(*dvert->dw) * totweight,
+		dvert->dw = MEM_mallocN(sizeof(*dvert->dw) * totweight,
 		                        "layerInterp_mdeformvert dvert->dw");
 		dvert->totweight = totweight;
 
@@ -1729,16 +1729,19 @@ bool CustomData_free_layer(CustomData *data, int type, int totelem, int index)
 	data->totlayer--;
 
 	/* if layer was last of type in array, set new active layer */
-	if ((index >= data->totlayer) || (data->layers[index].type != type)) {
-		i = CustomData_get_layer_index__notypemap(data, type);
-		
-		if (i >= 0)
-			for (; i < data->totlayer && data->layers[i].type == type; i++) {
-				data->layers[i].active--;
-				data->layers[i].active_rnd--;
-				data->layers[i].active_clone--;
-				data->layers[i].active_mask--;
-			}
+	i = CustomData_get_layer_index__notypemap(data, type);
+
+	if (i != -1) {
+		/* don't decrement zero index */
+		const int index_nonzero = index ? index : 1;
+		CustomDataLayer *layer;
+
+		for (layer = &data->layers[i]; i < data->totlayer && layer->type == type; i++, layer++) {
+			if (layer->active       >= index_nonzero) layer->active--;
+			if (layer->active_rnd   >= index_nonzero) layer->active_rnd--;
+			if (layer->active_clone >= index_nonzero) layer->active_clone--;
+			if (layer->active_mask  >= index_nonzero) layer->active_mask--;
+		}
 	}
 
 	if (data->totlayer <= data->maxlayer - CUSTOMDATA_GROW)
@@ -2073,6 +2076,8 @@ void *CustomData_get(const CustomData *data, int index, int type)
 	int offset;
 	int layer_index;
 	
+	BLI_assert(index >= 0);
+
 	/* get the layer index of the active layer of type */
 	layer_index = CustomData_get_active_layer_index(data, type);
 	if (layer_index < 0) return NULL;
@@ -2087,6 +2092,8 @@ void *CustomData_get_n(const CustomData *data, int type, int index, int n)
 {
 	int layer_index;
 	int offset;
+
+	BLI_assert(index >= 0 && n >= 0);
 
 	/* get the layer index of the first layer of type */
 	layer_index = data->typemap[type];
@@ -2384,6 +2391,7 @@ bool CustomData_bmesh_merge(CustomData *source, CustomData *dest,
 			BLI_assert(!"invalid type given");
 			iter_type = BM_VERTS_OF_MESH;
 			totelem = bm->totvert;
+			break;
 	}
 
 	dest->pool = NULL;

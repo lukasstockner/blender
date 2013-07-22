@@ -348,7 +348,7 @@ static void clip_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
 			switch (wmn->data) {
 				case ND_FRAME:
 					clip_scopes_tag_refresh(sa);
-					/* no break! */
+					/* fall-through */
 
 				case ND_FRAME_RANGE:
 					ED_area_tag_redraw(sa);
@@ -368,7 +368,7 @@ static void clip_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
 				case NA_EDITED:
 				case NA_EVALUATED:
 					clip_stabilization_tag_refresh(sa);
-					/* no break! */
+					/* fall-through */
 
 				case NA_SELECTED:
 					clip_scopes_tag_refresh(sa);
@@ -1019,7 +1019,7 @@ static void clip_refresh(const bContext *C, ScrArea *sa)
 		if (ar_channels && !(ar_channels->flag & RGN_FLAG_HIDDEN)) {
 			ar_channels->flag |= RGN_FLAG_HIDDEN;
 			ar_channels->v2d.flag &= ~V2D_IS_INITIALISED;
-			WM_event_remove_handlers((bContext *)C, &ar_tools->handlers);
+			WM_event_remove_handlers((bContext *)C, &ar_channels->handlers);
 			view_changed = TRUE;
 		}
 		if (ar_channels && ar_channels->alignment != RGN_ALIGN_NONE) {
@@ -1353,8 +1353,8 @@ static void clip_header_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), 
 					// if (sc->mode == SC_MODE_MASKEDIT)
 				{
 					ED_region_tag_redraw(ar);
+					break;
 				}
-				break;
 			}
 			break;
 	}

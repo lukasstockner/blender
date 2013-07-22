@@ -1353,7 +1353,8 @@ void UI_make_axis_color(const unsigned char src_col[3], unsigned char dst_col[3]
 			UI_GetColorPtrBlendShade3ubv(src_col, col, dst_col, 0.5f, -10);
 			break;
 		default:
-			BLI_assert(!"invalid axis arg");
+			BLI_assert(0);
+			break;
 	}
 }
 
@@ -2094,8 +2095,7 @@ void init_userdef_do_versions(void)
 
 		if (U.ndof_sensitivity == 0.0f) {
 			U.ndof_sensitivity = 1.0f;
-			U.ndof_flag = NDOF_LOCK_HORIZON |
-						  NDOF_SHOULD_PAN | NDOF_SHOULD_ZOOM | NDOF_SHOULD_ROTATE;
+			U.ndof_flag = (NDOF_LOCK_HORIZON | NDOF_SHOULD_PAN | NDOF_SHOULD_ZOOM | NDOF_SHOULD_ROTATE);
 		}
 		
 		if (U.ndof_orbit_sensitivity == 0.0f) {

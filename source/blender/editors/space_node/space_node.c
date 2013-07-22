@@ -41,6 +41,7 @@
 #include "BLI_math.h"
 
 #include "BKE_context.h"
+#include "BKE_library.h"
 #include "BKE_screen.h"
 #include "BKE_node.h"
 
@@ -83,6 +84,8 @@ void ED_node_tree_start(SpaceNode *snode, bNodeTree *ntree, ID *id, ID *from)
 			BLI_strncpy(path->node_name, id->name + 2, sizeof(path->node_name));
 		
 		BLI_addtail(&snode->treepath, path);
+		
+		id_us_ensure_real(&ntree->id);
 	}
 	
 	/* update current tree */
@@ -115,6 +118,8 @@ void ED_node_tree_push(SpaceNode *snode, bNodeTree *ntree, bNode *gnode)
 	copy_v2_v2(path->view_center, ntree->view_center);
 	
 	BLI_addtail(&snode->treepath, path);
+	
+	id_us_ensure_real(&ntree->id);
 	
 	/* update current tree */
 	snode->edittree = ntree;
@@ -387,7 +392,8 @@ static void node_area_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn
 	switch (wmn->category) {
 		case NC_SCENE:
 			switch (wmn->data) {
-				case ND_NODES: {
+				case ND_NODES:
+				{
 					ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
 					bNodeTreePath *path = snode->treepath.last;
 					/* shift view to node tree center */

@@ -847,19 +847,6 @@ int txt_utf8_column_to_offset(const char *str, int column)
 	return offset;
 }
 
-/* returns the real number of characters in string */
-/* not the same as BLI_strlen_utf8, which returns length for wide characters */
-static int txt_utf8_len(const char *src)
-{
-	int len;
-
-	for (len = 0; *src; len++) {
-		src += BLI_str_utf8_size(src);
-	}
-
-	return len;
-}
-
 void txt_move_up(Text *text, short sel)
 {
 	TextLine **linep;
@@ -1509,6 +1496,7 @@ static int max_undo_test(Text *text, int x)
 	return 1;
 }
 
+#if 0  /* UNUSED */
 static void dump_buffer(Text *text) 
 {
 	int i = 0;
@@ -1620,6 +1608,7 @@ void txt_print_undo(Text *text)
 					c_len = BLI_str_utf8_from_unicode(uc, c);
 					c[c_len] = '\0';
 					puts(c);
+					break;
 				}
 			}
 		}
@@ -1672,6 +1661,7 @@ void txt_print_undo(Text *text)
 		i++;
 	}
 }
+#endif
 
 static void txt_undo_store_uint16(char *undo_buf, int *undo_pos, unsigned short value) 
 {
@@ -1863,6 +1853,7 @@ static unsigned int txt_undo_read_unicode(const char *undo_buf, int *undo_pos, s
 			/* should never happen */
 			BLI_assert(0);
 			unicode = 0;
+			break;
 	}
 	
 	return unicode;
@@ -1938,6 +1929,7 @@ static unsigned int txt_redo_read_unicode(const char *undo_buf, int *undo_pos, s
 			/* should never happen */
 			BLI_assert(0);
 			unicode = 0;
+			break;
 	}
 	
 	return unicode;
@@ -2026,10 +2018,7 @@ void txt_do_undo(Text *text)
 			buf[i] = 0;
 
 			/* skip over the length that was stored again */
-			text->undo_pos--;
-			text->undo_pos--;
-			text->undo_pos--; 
-			text->undo_pos--;
+			text->undo_pos -= 4;
 
 			/* Get the cursor positions */
 			txt_undo_read_cursors(text->undo_buf, &text->undo_pos, &curln, &curc, &selln, &selc);
@@ -2059,14 +2048,11 @@ void txt_do_undo(Text *text)
 				text->undo_pos--;
 			}
 			buf[i] = 0;
-			linep = txt_utf8_len(buf);
+			linep = BLI_strlen_utf8(buf);
 			MEM_freeN(buf);
 			
 			/* skip over the length that was stored again */
-			text->undo_pos--;
-			text->undo_pos--;
-			text->undo_pos--;
-			text->undo_pos--;
+			text->undo_pos -= 4;
 
 			/* get and restore the cursors */
 			txt_undo_read_cursors(text->undo_buf, &text->undo_pos, &curln, &curc, &selln, &selc);
@@ -2217,10 +2203,7 @@ void txt_do_redo(Text *text)
 			text->undo_pos += linep;
 
 			/* skip over the length that was stored again */
-			text->undo_pos++;
-			text->undo_pos++;
-			text->undo_pos++; 
-			text->undo_pos++;
+			text->undo_pos += 4;
 			
 			txt_delete_sel(text);
 
@@ -2246,10 +2229,7 @@ void txt_do_redo(Text *text)
 			MEM_freeN(buf);
 
 			/* skip over the length that was stored again */
-			text->undo_pos++;
-			text->undo_pos++;
-			text->undo_pos++; 
-			text->undo_pos++;
+			text->undo_pos += 4;
 
 			break;
 			

@@ -323,6 +323,7 @@ struct DerivedMesh {
 
 	/** Get smooth vertex normal, undefined if index is not valid */
 	void (*getVertNo)(DerivedMesh *dm, int index, float no_r[3]);
+	void (*getPolyNo)(DerivedMesh *dm, int index, float no_r[3]);
 
 	/** Get a map of vertices to faces
 	 */
@@ -437,7 +438,7 @@ struct DerivedMesh {
 	 */
 	void (*drawMappedFacesMat)(DerivedMesh *dm,
 	                           void (*setMaterial)(void *userData, int, void *attribs),
-	                           int (*setFace)(void *userData, int index), void *userData);
+	                           bool (*setFace)(void *userData, int index), void *userData);
 
 	/** Release reference to the DerivedMesh. This function decides internally
 	 * if the DerivedMesh will be freed, or cached for later use. */

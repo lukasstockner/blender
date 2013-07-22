@@ -1249,6 +1249,12 @@ void rna_SpaceNodeEditor_path_pop(SpaceNode *snode, bContext *C)
 	ED_node_tree_update(C);
 }
 
+static void rna_SpaceNodeEditor_show_backdrop_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
+{
+	WM_main_add_notifier(NC_NODE | NA_EDITED, NULL);
+	WM_main_add_notifier(NC_SCENE | ND_NODES, NULL);
+}
+
 static void rna_SpaceClipEditor_clip_set(PointerRNA *ptr, PointerRNA value)
 {
 	SpaceClip *sc = (SpaceClip *)(ptr->data);
@@ -1913,6 +1919,11 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "show_backface_culling", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag2", V3D_BACKFACE_CULLING);
 	RNA_def_property_ui_text(prop, "Backface Culling", "Use back face culling to hide the back side of faces");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+	prop = RNA_def_property(srna, "show_occlude_wire", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag2", V3D_OCCLUDE_WIRE);
+	RNA_def_property_ui_text(prop, "Hidden Wire", "Use hidden wireframe display");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	prop = RNA_def_property(srna, "lock_camera", PROP_BOOLEAN, PROP_NONE);
@@ -3369,7 +3380,7 @@ static void rna_def_space_node(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "show_backdrop", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SNODE_BACKDRAW);
 	RNA_def_property_ui_text(prop, "Backdrop", "Use active Viewer Node output as backdrop for compositing nodes");
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE_VIEW, NULL);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE_VIEW, "rna_SpaceNodeEditor_show_backdrop_update");
 
 	prop = RNA_def_property(srna, "show_grease_pencil", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SNODE_SHOW_GPENCIL);

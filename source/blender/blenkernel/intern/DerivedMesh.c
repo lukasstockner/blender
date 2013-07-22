@@ -484,8 +484,6 @@ void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob, CustomDataMask mask)
 	Mesh tmp = *me;
 	int totvert, totedge /*, totface */ /* UNUSED */, totloop, totpoly;
 	int did_shapekeys = 0;
-	float *texloc, *texrot, *texsize;
-	short *texflag;
 	
 	CustomData_reset(&tmp.vdata);
 	CustomData_reset(&tmp.edata);
@@ -533,12 +531,7 @@ void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob, CustomDataMask mask)
 	}
 
 	/* copy texture space */
-	if (BKE_object_obdata_texspace_get(ob, &texflag, &texloc, &texsize, &texrot)) {
-		tmp.texflag = *texflag;
-		copy_v3_v3(tmp.loc, texloc);
-		copy_v3_v3(tmp.size, texsize);
-		copy_v3_v3(tmp.rot, texrot);
-	}
+	BKE_mesh_texspace_copy_from_object(&tmp, ob);
 	
 	/* not all DerivedMeshes store their verts/edges/faces in CustomData, so
 	 * we set them here in case they are missing */
@@ -655,21 +648,25 @@ void DM_add_poly_layer(DerivedMesh *dm, int type, int alloctype, void *layer)
 
 void *DM_get_vert_data(DerivedMesh *dm, int index, int type)
 {
+	BLI_assert(index >= 0 && index < dm->getNumVerts(dm));
 	return CustomData_get(&dm->vertData, index, type);
 }
 
 void *DM_get_edge_data(DerivedMesh *dm, int index, int type)
 {
+	BLI_assert(index >= 0 && index < dm->getNumEdges(dm));
 	return CustomData_get(&dm->edgeData, index, type);
 }
 
 void *DM_get_tessface_data(DerivedMesh *dm, int index, int type)
 {
+	BLI_assert(index >= 0 && index < dm->getNumTessFaces(dm));
 	return CustomData_get(&dm->faceData, index, type);
 }
 
 void *DM_get_poly_data(DerivedMesh *dm, int index, int type)
 {
+	BLI_assert(index >= 0 && index < dm->getNumPolys(dm));
 	return CustomData_get(&dm->polyData, index, type);
 }
 
@@ -1948,7 +1945,7 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 {
 	ModifierData *md, *previewmd = NULL;
 	float (*deformedVerts)[3] = NULL;
-	CustomDataMask mask, previewmask = 0;
+	CustomDataMask mask, previewmask = 0, append_mask = 0;
 	DerivedMesh *dm, *orcodm = NULL;
 	int i, numVerts = 0, cageIndex = modifiers_getCageIndex(scene, ob, NULL, 1);
 	CDMaskLink *datamasks, *curr;
@@ -2083,6 +2080,7 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 			}
 
 			/* set the DerivedMesh to only copy needed data */
+			mask |= append_mask;
 			mask = curr->mask; /* CD_MASK_ORCO may have been cleared above */
 
 			DM_set_only_copy(dm, mask | CD_MASK_ORIGINDEX);
@@ -2110,6 +2108,12 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 					deformedVerts = NULL;
 				}
 			}
+		}
+
+		/* In case of active preview modifier, make sure preview mask remains for following modifiers. */
+		if ((md == previewmd) && (do_mod_wmcol)) {
+			DM_update_weight_mcol(ob, dm, draw_flag, NULL, 0, NULL);
+			append_mask |= CD_MASK_PREVIEW_MLOOPCOL;
 		}
 
 		if (cage_r && i == cageIndex) {
@@ -3099,7 +3103,7 @@ static DerivedMesh *navmesh_dm_createNavMeshForVisualization(DerivedMesh *dm)
 		}
 	}
 	else {
-		printf("%s: Error during creation polygon infos\n", __func__);
+		printf("Navmesh: Unable to generate valid Navmesh");
 	}
 
 	/* clean up */

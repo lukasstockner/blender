@@ -5708,8 +5708,9 @@ static void lib_link_screen(FileData *fd, Main *main)
 						ntree = nodetree_from_id(snode->id);
 						if (ntree)
 							snode->nodetree = ntree;
-						else
-							snode->nodetree = newlibadr(fd, sc->id.lib, snode->nodetree);
+						else {
+							snode->nodetree = newlibadr_us(fd, sc->id.lib, snode->nodetree);
+						}
 						
 						for (path = snode->treepath.first; path; path = path->next) {
 							if (path == snode->treepath.first) {
@@ -5717,7 +5718,7 @@ static void lib_link_screen(FileData *fd, Main *main)
 								path->nodetree = snode->nodetree;
 							}
 							else
-								path->nodetree = newlibadr(fd, sc->id.lib, path->nodetree);
+								path->nodetree = newlibadr_us(fd, sc->id.lib, path->nodetree);
 							
 							if (!path->nodetree)
 								break;
@@ -6046,7 +6047,7 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 							path->nodetree = snode->nodetree;
 						}
 						else
-							path->nodetree= restore_pointer_by_name(newmain, (ID*)path->nodetree, 0);
+							path->nodetree= restore_pointer_by_name(newmain, (ID*)path->nodetree, 2);
 						
 						if (!path->nodetree)
 							break;
@@ -7688,31 +7689,38 @@ static const char *node_get_static_idname(int type, int treetype)
 static const char *node_socket_get_static_idname(bNodeSocket *sock)
 {
 	switch (sock->type) {
-	case SOCK_FLOAT: {
-		bNodeSocketValueFloat *dval = sock->default_value;
-		return nodeStaticSocketType(SOCK_FLOAT, dval->subtype);
-	}
-	case SOCK_INT: {
-		bNodeSocketValueInt *dval = sock->default_value;
-		return nodeStaticSocketType(SOCK_INT, dval->subtype);
-	}
-	case SOCK_BOOLEAN: {
-		return nodeStaticSocketType(SOCK_BOOLEAN, PROP_NONE);
-	}
-	case SOCK_VECTOR: {
-		bNodeSocketValueVector *dval = sock->default_value;
-		return nodeStaticSocketType(SOCK_VECTOR, dval->subtype);
-	}
-	case SOCK_RGBA: {
-		return nodeStaticSocketType(SOCK_RGBA, PROP_NONE);
-	}
-	case SOCK_STRING: {
-		bNodeSocketValueString *dval = sock->default_value;
-		return nodeStaticSocketType(SOCK_STRING, dval->subtype);
-	}
-	case SOCK_SHADER: {
-		return nodeStaticSocketType(SOCK_SHADER, PROP_NONE);
-	}
+		case SOCK_FLOAT:
+		{
+			bNodeSocketValueFloat *dval = sock->default_value;
+			return nodeStaticSocketType(SOCK_FLOAT, dval->subtype);
+		}
+		case SOCK_INT:
+		{
+			bNodeSocketValueInt *dval = sock->default_value;
+			return nodeStaticSocketType(SOCK_INT, dval->subtype);
+		}
+		case SOCK_BOOLEAN:
+		{
+			return nodeStaticSocketType(SOCK_BOOLEAN, PROP_NONE);
+		}
+		case SOCK_VECTOR:
+		{
+			bNodeSocketValueVector *dval = sock->default_value;
+			return nodeStaticSocketType(SOCK_VECTOR, dval->subtype);
+		}
+		case SOCK_RGBA:
+		{
+			return nodeStaticSocketType(SOCK_RGBA, PROP_NONE);
+		}
+		case SOCK_STRING:
+		{
+			bNodeSocketValueString *dval = sock->default_value;
+			return nodeStaticSocketType(SOCK_STRING, dval->subtype);
+		}
+		case SOCK_SHADER:
+		{
+			return nodeStaticSocketType(SOCK_SHADER, PROP_NONE);
+		}
 	}
 	return "";
 }
