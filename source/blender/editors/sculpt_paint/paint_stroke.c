@@ -112,14 +112,14 @@ typedef struct PaintStroke {
 	StrokeDone done;
 } PaintStroke;
 
-/*** Cursor ***/
-static void paint_draw_smooth_stroke(bContext *C, int x, int y, void *customdata) 
+/*** Cursors ***/
+static void paint_draw_smooth_line_cursor(bContext *C, int x, int y, void *customdata)
 {
 	Paint *paint = BKE_paint_get_active_from_context(C);
 	Brush *brush = BKE_paint_brush(paint);
 	PaintStroke *stroke = customdata;
 
-	if (stroke && brush && (brush->flag & BRUSH_SMOOTH_STROKE)) {
+	if (stroke && brush) {
 		glColor4ubv(paint->paint_cursor_col);
 		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_BLEND);
@@ -279,8 +279,6 @@ static void paint_brush_update(bContext *C,
 static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, const float mouse_in[2], float pressure)
 {
 	Scene *scene = CTX_data_scene(C);
-	wmWindow *window = CTX_wm_window(C);
-	ARegion *ar = CTX_wm_region(C);
 	Paint *paint = BKE_paint_get_active_from_context(C);
 	PaintMode mode = BKE_paintmode_get_active_from_context(C);
 	Brush *brush = BKE_paint_brush(paint);
@@ -345,20 +343,12 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, const float
 	/* don't record this for now, it takes up a lot of memory when doing long
 	 * strokes with small brush size, and operators have register disabled */
 	RNA_collection_clear(op->ptr, "stroke");
-
-	/* always redraw region if brush is shown */
-	if (ar && (paint->flags & PAINT_SHOW_BRUSH))
-		WM_paint_cursor_tag_redraw(window, ar);
 }
 
 /* Returns zero if no sculpt changes should be made, non-zero otherwise */
 static int paint_smooth_stroke(PaintStroke *stroke, float output[2], float *outpressure,
                                const PaintSample *sample, PaintMode mode)
 {
-	output[0] = sample->mouse[0];
-	output[1] = sample->mouse[1];
-	*outpressure = sample->pressure;
-
 	if (paint_supports_smooth_stroke(stroke->brush, mode)) {
 		float radius = stroke->brush->smooth_stroke_radius * stroke->zoom_2d;
 		float u = stroke->brush->smooth_stroke_factor, v = 1.0f - u;
@@ -373,6 +363,11 @@ static int paint_smooth_stroke(PaintStroke *stroke, float output[2], float *outp
 		output[0] = sample->mouse[0] * v + stroke->last_mouse_position[0] * u;
 		output[1] = sample->mouse[1] * v + stroke->last_mouse_position[1] * u;
 		*outpressure = sample->pressure * v + stroke->last_pressure * u;
+	}
+	else {
+		output[0] = sample->mouse[0];
+		output[1] = sample->mouse[1];
+		*outpressure = sample->pressure;
 	}
 
 	return 1;
@@ -593,7 +588,7 @@ static void stroke_done(struct bContext *C, struct wmOperator *op)
 /* Returns zero if the stroke dots should not be spaced, non-zero otherwise */
 bool paint_space_stroke_enabled(Brush *br, PaintMode mode)
 {
-	return (br->flag & BRUSH_SPACE) && paint_supports_dynamic_size(br, mode);
+	return (br->flag & (BRUSH_SPACE | BRUSH_LINE)) && paint_supports_dynamic_size(br, mode);
 }
 
 static bool sculpt_is_grab_tool(Brush *br)
@@ -625,7 +620,8 @@ bool paint_supports_smooth_stroke(Brush *br, PaintMode mode)
 {
 	if (!(br->flag & BRUSH_SMOOTH_STROKE) ||
 	     (br->flag & BRUSH_ANCHORED) ||
-	     (br->flag & BRUSH_RESTORE_MESH))
+	     (br->flag & BRUSH_RESTORE_MESH) ||
+	     (br->flag & BRUSH_LINE))
 	{
 		return false;
 	}
@@ -736,8 +732,8 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	bool redraw = false;
 	float pressure;
 
-	/* see if tablet affects event */
-	pressure = event_tablet_data(event, &stroke->pen_flip);
+	/* see if tablet affects event. Line strokes do not support pressure */
+	pressure = (stroke->brush->flag & BRUSH_LINE) ? 1.0 : event_tablet_data(event, &stroke->pen_flip);
 
 	paint_stroke_add_sample(p, stroke, event->mval[0], event->mval[1], pressure);
 	paint_stroke_sample_average(stroke, &sample_average);
@@ -751,8 +747,9 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 	/* one time initialization */
 	if (!stroke->stroke_init) {
-		stroke->smooth_stroke_cursor =
-			    WM_paint_cursor_activate(CTX_wm_manager(C), paint_poll, paint_draw_smooth_stroke, stroke);
+		if (paint_supports_smooth_stroke(stroke->brush, mode))
+			stroke->smooth_stroke_cursor =
+			    WM_paint_cursor_activate(CTX_wm_manager(C), paint_poll, paint_draw_smooth_line_cursor, stroke);
 
 		stroke->stroke_init = true;
 		first_modal = true;
@@ -769,6 +766,10 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			if (stroke->brush->flag & BRUSH_AIRBRUSH)
 				stroke->timer = WM_event_add_timer(CTX_wm_manager(C), CTX_wm_window(C), TIMER, stroke->brush->rate);
 
+			if (stroke->brush->flag & BRUSH_LINE)
+				stroke->smooth_stroke_cursor =
+					WM_paint_cursor_activate(CTX_wm_manager(C), paint_poll, paint_draw_smooth_line_cursor, stroke);
+
 			first_dab = true;
 		}
 	}
@@ -782,12 +783,16 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	}
 
 	if (event->type == stroke->event_type && event->val == KM_RELEASE && !first_modal) {
+		if (stroke->brush->flag & BRUSH_LINE) {
+			paint_space_stroke(C, op, sample_average.mouse, sample_average.pressure);
+		}
+
 		stroke_done(C, op);
 		return OPERATOR_FINISHED;
 	}
 	else if (first_modal ||
 			 /* regular dabs */
-	         (!(stroke->brush->flag & BRUSH_AIRBRUSH) && (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE))) ||
+	         (!(stroke->brush->flag & (BRUSH_AIRBRUSH | BRUSH_LINE)) && (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE))) ||
 	         /* airbrush */
 	         ((stroke->brush->flag & BRUSH_AIRBRUSH) && event->type == TIMER && event->customdata == stroke->timer))
 	{
@@ -818,9 +823,17 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 	/* do updates for redraw. if event is inbetween mousemove there are more
 	 * coming, so postpone potentially slow redraw updates until all are done */
-	if (event->type != INBETWEEN_MOUSEMOVE)
+	if (event->type != INBETWEEN_MOUSEMOVE) {
+		wmWindow *window = CTX_wm_window(C);
+		ARegion *ar = CTX_wm_region(C);
+
+		/* At the very least, invalidate the cursor */
+		if (ar && (p->flags & PAINT_SHOW_BRUSH))
+			WM_paint_cursor_tag_redraw(window, ar);
+
 		if (redraw && stroke->redraw)
 			stroke->redraw(C, stroke, false);
+	}
 	
 	return OPERATOR_RUNNING_MODAL;
 }
@@ -876,6 +889,6 @@ int paint_poll(bContext *C)
 	ARegion *ar = CTX_wm_region(C);
 
 	return p && ob && BKE_paint_brush(p) &&
-	       (sa && sa->spacetype == SPACE_VIEW3D) &&
+	       (sa && ELEM(sa->spacetype, SPACE_VIEW3D, SPACE_IMAGE)) &&
 	       (ar && ar->regiontype == RGN_TYPE_WINDOW);
 }
