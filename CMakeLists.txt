@@ -1964,7 +1964,12 @@ if(WIN32)
 	set(ANGLE_GLESv2_LIBRARY "" CACHE FILEPATH "ANGLE OpenGL ES 2.0 library file")
 	set(ANGLE_EGL_LIBRARY    "" CACHE FILEPATH "ANGLE EGL library file")
 	set(ANGLE_GLESv2_DLL     "" CACHE FILEPATH "ANGLE OpenGL ES 2.0 dynamic link library file")
-	set(ANGLE_EGL_DLL        "" CACHE FILEPATH "ANGLE EGL library dynamic link file")
+	set(ANGLE_EGL_DLL        "" CACHE FILEPATH "ANGLE EGL library dynamic link library file")
+	set(D3DCOMPILER_DLL      "" CACHE FILEPATH "Direct3D Compiler dynamic link library file")
+
+	get_filename_component(D3DCOMPILER "${D3DCOMPILER_DLL}" NAME)
+
+	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DD3DCOMPILER=\"\\\"${D3DCOMPILER}\\\"\"")
 
 	mark_as_advanced(
 		ANGLE_INCLUDE_PATH
@@ -1972,6 +1977,7 @@ if(WIN32)
 		ANGLE_EGL_LIBRARY
 		ANGLE_GLESv2_DLL
 		ANGLE_EGL_DLL
+		D3DCOMPILER_DLL
 	)
 endif()
 

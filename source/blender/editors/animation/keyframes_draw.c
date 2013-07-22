@@ -560,7 +560,7 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 	gpuScale(1.0f / xscale * hsize, hsize, 1.0f);
 	
 	/* anti-aliased lines for more consistent appearance */
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 	
 	/* draw! */
 	if (ELEM(mode, KEYFRAME_SHAPE_INSIDE, KEYFRAME_SHAPE_BOTH)) {
@@ -616,7 +616,7 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 		gpuEnd();
 	}
 	
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 	
 	/* restore view transform */
 	gpuScale(xscale / hsize, 1.0f / hsize, 1.0f);

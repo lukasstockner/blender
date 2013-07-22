@@ -413,7 +413,7 @@ static void screencast_draw_cursor(bContext *UNUSED(C), int x, int y, void *UNUS
 	gpuTranslate((float)x, (float)y, 0.0f);
 	
 	
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 	glEnable(GL_BLEND);
 	
 	gpuCurrentColor4ub(0, 0, 0, 32);
@@ -423,7 +423,7 @@ static void screencast_draw_cursor(bContext *UNUSED(C), int x, int y, void *UNUS
 	gpuSingleArc(0, 0, 0, 2*M_PI, 20, 20, 40);
 	
 	glDisable(GL_BLEND);
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 	
 	gpuPopMatrix();
 }

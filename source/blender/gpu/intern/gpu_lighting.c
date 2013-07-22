@@ -32,7 +32,7 @@
 #include "gpu_lighting_internal.h"
 #include "GPU_extensions.h"
 
-
+#include "gpu_safety.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -44,6 +44,8 @@ GPUlighting *restrict GPU_LIGHTING = NULL;
 
 void gpuInitializeLighting(void)
 {
+	GPU_CHECK_NO_ERROR();
+
 	GPU_LIGHTING =
 		(GPUlighting*)MEM_callocN(sizeof(GPUlighting), "GPU_LIGHTING");
 
@@ -88,6 +90,8 @@ void gpuInitializeLighting(void)
 
 void gpuShutdownLighting(void)
 {
+	GPU_CHECK_NO_ERROR();
+
 	MEM_freeN(GPU_LIGHTING);
 	GPU_LIGHTING = NULL;
 }
@@ -98,6 +102,8 @@ void gpuShutdownLighting(void)
 
 void gpuShadeModel(GLenum model)
 {
+	GPU_CHECK_NO_ERROR();
+
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glShadeModel(model);
 #endif

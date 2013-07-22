@@ -40,112 +40,178 @@
 
 BLI_INLINE void gpuMaterialfv(GLenum face, GLenum pname, const GLfloat *params)
 {
-    GPU_LIGHTING->material_fv(face, pname, params);
+	GPU_CHECK_NO_ERROR();
+
+	GPU_LIGHTING->material_fv(face, pname, params);
+
+	GPU_CHECK_NO_ERROR();
 }
 
 
 
 BLI_INLINE void gpuMateriali(GLenum face, GLenum pname, GLint param)
 {
-    GPU_LIGHTING->material_i(face, pname, param);
+	GPU_CHECK_NO_ERROR();
+
+	GPU_LIGHTING->material_i(face, pname, param);
+
+	GPU_CHECK_NO_ERROR();
 }
 
 
 
 BLI_INLINE void gpuGetMaterialfv(GLenum face, GLenum pname, GLfloat *params)
 {
-    GPU_LIGHTING->get_material_fv(face, pname, params);
+	GPU_CHECK_NO_ERROR();
+
+	GPU_LIGHTING->get_material_fv(face, pname, params);
+
+	GPU_CHECK_NO_ERROR();
 }
 
 
 
 BLI_INLINE void gpuColorMaterial(GLenum face, GLenum mode)
 {
+	GPU_CHECK_NO_ERROR();
+
 	GPU_LIGHTING->color_material(face, mode);
+
+	GPU_CHECK_NO_ERROR();
 }
 
 
 
 BLI_INLINE void gpuEnableColorMaterial(void)
 {
+	GPU_CHECK_NO_ERROR();
+
 	GPU_LIGHTING->enable_color_material();
+
+	GPU_CHECK_NO_ERROR();
 }
 
 
 
 BLI_INLINE void gpuDisableColorMaterial(void)
 {
+	GPU_CHECK_NO_ERROR();
+
 	GPU_LIGHTING->disable_color_material();
+
+	GPU_CHECK_NO_ERROR();
 }
 
 
 
 BLI_INLINE void gpuLightf(GLint light, GLenum pname, GLfloat param)
 {
+	GPU_CHECK_NO_ERROR();
+
 	GPU_LIGHTING->light_f(light, pname, param);
+
+	GPU_CHECK_NO_ERROR();
 }
 
 
 
 BLI_INLINE void gpuLightfv(GLint light, GLenum pname, const GLfloat* params)
 {
+	GPU_CHECK_NO_ERROR();
+
 	GPU_LIGHTING->light_fv(light, pname, params);
+
+	GPU_CHECK_NO_ERROR();
 }
 
 
 
 BLI_INLINE void gpuEnableLight(GLint light)
 {
+	GPU_CHECK_NO_ERROR();
+
 	GPU_LIGHTING->enable_light(light);
+
+	GPU_CHECK_NO_ERROR();
 }
 
 
 
 BLI_INLINE void gpuDisableLight(GLint light)
 {
+	GPU_CHECK_NO_ERROR();
+
 	GPU_LIGHTING->disable_light(light);
+
+	GPU_CHECK_NO_ERROR();
 }
 
 
 
 BLI_INLINE GLboolean gpuIsLightEnabled(GLint light)
 {
+	GPU_CHECK_NO_ERROR();
+
 	return GPU_LIGHTING->is_light_enabled(light);
+
+	GPU_CHECK_NO_ERROR();
 }
 
 
 
 BLI_INLINE void gpuLightModeli(GLenum pname, GLint param)
 {
+	GPU_CHECK_NO_ERROR();
+
 	GPU_LIGHTING->light_model_i(pname, param);
+
+	GPU_CHECK_NO_ERROR();
 }
 
 
 
 BLI_INLINE void gpuLightModelfv(GLenum pname, const GLfloat* params)
 {
+	GPU_CHECK_NO_ERROR();
+
 	GPU_LIGHTING->light_model_fv(pname, params);
+
+	GPU_CHECK_NO_ERROR();
 }
 
 
 
 BLI_INLINE void gpuEnableLighting(void)
 {
+	GPU_CHECK_NO_ERROR();
+
 	GPU_LIGHTING->enable_lighting();
+
+	GPU_CHECK_NO_ERROR();
 }
 
 
 
 BLI_INLINE void gpuDisableLighting(void)
 {
+	GPU_CHECK_NO_ERROR();
+
 	GPU_LIGHTING->disable_lighting();
+
+	GPU_CHECK_NO_ERROR();
 }
 
 
 
 BLI_INLINE GLboolean gpuIsLightingEnabled(void)
 {
+	GPU_CHECK_NO_ERROR();
+
 	return GPU_LIGHTING->is_lighting_enabled();
+
+	GPU_CHECK_NO_ERROR();
 }
+
+
 
 #endif /* GPU_LIGHTING_INLINE_H */

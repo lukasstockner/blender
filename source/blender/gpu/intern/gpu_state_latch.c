@@ -33,6 +33,7 @@
 
 #include "gpu_glew.h"
 #include "gpu_profile.h"
+#include "gpu_safety.h"
 
 #include <string.h>
 
@@ -47,12 +48,16 @@ static GLdouble depth_range[2] = { 0, 1 };
 
 void gpuDepthRange(GLdouble near, GLdouble far)
 {
+	GPU_CHECK_NO_ERROR();
+
 	depth_range[0] = near;
 	depth_range[1] = far;
 
 #if !defined(GLEW_ES_ONLY)
 	if (!GPU_PROFILE_ES20) {
 		glDepthRange(near, far);
+
+		GPU_CHECK_NO_ERROR();
 		return;
 	}
 #endif
@@ -60,6 +65,8 @@ void gpuDepthRange(GLdouble near, GLdouble far)
 #if !defined(GLEW_NO_ES)
 	if (GPU_PROFILE_ES20) {
 		glDepthRangef((GLfloat)near, (GLfloat)far);
+
+		GPU_CHECK_NO_ERROR();
 		return;
 	}
 #endif
@@ -69,6 +76,8 @@ void gpuDepthRange(GLdouble near, GLdouble far)
 
 void gpuGetDepthRange(GLdouble out[2])
 {
+	GPU_CHECK_NO_ERROR();
+
 	memcpy(out, depth_range, sizeof(depth_range));
 }
 
@@ -78,6 +87,8 @@ static GLuint texture_binding_2D = 0;
 
 void gpuBindTexture(GLenum target, GLuint name)
 {
+	GPU_CHECK_NO_ERROR();
+
 	switch(target)
 	{
 		case GL_TEXTURE_2D:
@@ -90,12 +101,16 @@ void gpuBindTexture(GLenum target, GLuint name)
 	}
 
 	glBindTexture(target, name);
+
+	GPU_CHECK_NO_ERROR();
 }
 
 
 
 GLuint gpuGetTextureBinding2D(void)
 {
+	GPU_CHECK_NO_ERROR();
+
 	return texture_binding_2D;
 }
 
@@ -105,14 +120,20 @@ static GLboolean depth_writemask = GL_TRUE;
 
 void gpuDepthMask(GLboolean flag)
 {
+	GPU_CHECK_NO_ERROR();
+
 	depth_writemask = flag;
 	glDepthMask(flag);
+
+	GPU_CHECK_NO_ERROR();
 }
 
 
 
 GLboolean gpuGetDepthWritemask(void)
 {
+	GPU_CHECK_NO_ERROR();
+
 	return depth_writemask;
 }
 

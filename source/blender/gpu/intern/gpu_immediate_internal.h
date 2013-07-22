@@ -44,25 +44,6 @@ extern "C" {
 
 /* Define some useful, but slow, checks for correct API usage. */
 
-BLI_INLINE void GPU_CHECK_NO_ERROR(void)
-{
-	GLboolean no_gl_error = GL_TRUE;
-
-	for (;;) {
-		GLenum error = glGetError();
-
-		if (error == GL_NO_ERROR) {
-			break;
-		}
-		else {
-			no_gl_error = GL_FALSE;
-			printf("gl error: %s\n", gpuErrorString(error));
-		}
-	}
-
-	GPU_ASSERT(no_gl_error);
-}
-
 /* Each block contains variables that can be inspected by a
    debugger in the event that an assert is triggered. */
 
@@ -152,8 +133,6 @@ BLI_INLINE void GPU_CHECK_NO_ERROR(void)
     }
 
 #else
-
-#define GPU_CHECK_NO_ERROR()    ((void)0)
 
 #define GPU_CHECK_CAN_SETUP()
 #define GPU_CHECK_CAN_PUSH()

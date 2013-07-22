@@ -975,10 +975,18 @@ int GPU_set_tpage(MTFace *tface, int mipmap, int alphablend)
 		GTS.curtileXRep = GTS.tileXRep;
 		GTS.curtileYRep = GTS.tileYRep;
 
-		glEnable(GL_TEXTURE_2D);
+#if defined(WITH_GL_PROFILE_COMPAT)
+		if (GPU_PROFILE_COMPAT) {
+			glEnable(GL_TEXTURE_2D);
+		}
+#endif
 	}
 	else {
-		glDisable(GL_TEXTURE_2D);
+#if defined(WITH_GL_PROFILE_COMPAT)
+		if (GPU_PROFILE_COMPAT) {
+			glDisable(GL_TEXTURE_2D);
+		}
+#endif
 		
 		GTS.curtile= 0;
 		GTS.curima= NULL;
@@ -1966,18 +1974,23 @@ void GPU_state_init(void)
 	GPU_default_lights();
 	
 	glDepthFunc(GL_LEQUAL);
+
+#if defined(WITH_GL_PROFILE_COMPAT)
 	/* scaling matrices */
-	glEnable(GL_NORMALIZE);
+	if (GPU_PROFILE_COMPAT) {
+		glEnable(GL_NORMALIZE);
+		glDisable(GL_ALPHA_TEST);
+		glDisable(GL_FOG);
+		glDisable(GL_TEXTURE_2D);
+	}
+#endif
 
 	gpuShadeModel(GL_FLAT);
 
-	glDisable(GL_ALPHA_TEST);
 	glDisable(GL_BLEND);
 	glDisable(GL_DEPTH_TEST);
-	glDisable(GL_FOG);
 	gpuDisableLighting();
 	glDisable(GL_STENCIL_TEST);
-	glDisable(GL_TEXTURE_2D);
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (GPU_PROFILE_COMPAT) {

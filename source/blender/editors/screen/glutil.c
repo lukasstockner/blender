@@ -360,7 +360,7 @@ static int get_cached_work_texture(int *w_r, int *h_r)
 	static int tex_h = 256;
 
 	if (texid == -1) {
-		GLint ltexid = glaGetOneInteger(GL_TEXTURE_2D);
+		GLint ltexid = gpuGetTextureBinding2D();
 		unsigned char *tbuf;
 
 		glGenTextures(1, (GLuint *)&texid);
@@ -374,7 +374,7 @@ static int get_cached_work_texture(int *w_r, int *h_r)
 		glTexImage2D(GL_TEXTURE_2D, 0, (GLEW_VERSION_1_1 || GLEW_OES_required_internalformat) ? GL_RGBA8 : GL_RGBA, tex_w, tex_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, tbuf);
 		MEM_freeN(tbuf);
 
-		gpuBindTexture(GL_TEXTURE_2D, ltexid);
+		gpuBindTexture(GL_TEXTURE_2D, ltexid); /* restore previous value */
 	}
 
 	*w_r = tex_w;
@@ -384,23 +384,27 @@ static int get_cached_work_texture(int *w_r, int *h_r)
 
 void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect, float scaleX, float scaleY)
 {
-	unsigned char *uc_rect = (unsigned char *) rect;
-	float *f_rect = (float *)rect;
-	float xzoom = glaGetOneFloat(GL_ZOOM_X), yzoom = glaGetOneFloat(GL_ZOOM_Y);
-	int ltexid = glaGetOneInteger(GL_TEXTURE_2D);
+	float xzoom, yzoom;
+	int ltexid = gpuGetTextureBinding2D();
 	int subpart_x, subpart_y, tex_w, tex_h;
 	int seamless, offset_x, offset_y, nsubparts_x, nsubparts_y;
 	int texid = get_cached_work_texture(&tex_w, &tex_h);
 	int components;
+
+	gpuGetPixelZoom(&xzoom, &yzoom);
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	/* Specify the color outside this function, and tex will modulate it.
 	 * This is useful for changing alpha without using glPixelTransferf()
 	 */
 	//glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE); // XXX jwilkins: blender never changes the TEXTURE_ENV_MODE
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, img_w);
+#else
+	// XXX jwilkins: ES doesn't have GL_UNPACK_ROW_LENGTH, so sub images will have to be created on the CPU
+	if (tex_w < img_w || tex_h < img_h) 
+		return;
 #endif
 
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, img_w);
 	gpuBindTexture(GL_TEXTURE_2D, texid);
 
 	/* don't want nasty border artifacts */
@@ -472,6 +476,8 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 				continue;
 			
 			if (type == GL_FLOAT) {
+				float *f_rect = (float *)rect;
+
 				glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, subpart_w, subpart_h, format, GL_FLOAT, &f_rect[subpart_y * offset_y * img_w * components + subpart_x * offset_x * components]);
 				
 				/* add an extra border of pixels so linear looks ok at edges of full image. */
@@ -483,6 +489,8 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 					glTexSubImage2D(GL_TEXTURE_2D, 0, subpart_w, subpart_h, 1, 1, format, GL_FLOAT, &f_rect[(subpart_y * offset_y + subpart_h - 1) * img_w * components + (subpart_x * offset_x + subpart_w - 1) * components]);
 			}
 			else {
+				unsigned char *uc_rect = (unsigned char *) rect;
+
 				glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, subpart_w, subpart_h, format, GL_UNSIGNED_BYTE, &uc_rect[subpart_y * offset_y * img_w * components + subpart_x * offset_x * components]);
 				
 				if (subpart_w < tex_w)
@@ -493,7 +501,11 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 					glTexSubImage2D(GL_TEXTURE_2D, 0, subpart_w, subpart_h, 1, 1, format, GL_UNSIGNED_BYTE, &uc_rect[(subpart_y * offset_y + subpart_h - 1) * img_w * components + (subpart_x * offset_x + subpart_w - 1) * components]);
 			}
 
-			glEnable(GL_TEXTURE_2D);
+#if defined(WITH_GL_PROFILE_COMPAT)
+			if (GPU_PROFILE_COMPAT) {
+				glEnable(GL_TEXTURE_2D);
+			}
+#endif
 
 			gpuBegin(GL_TRIANGLE_FAN);
 
@@ -511,7 +523,11 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 
 			gpuEnd();
 
-			glDisable(GL_TEXTURE_2D);
+#if defined(WITH_GL_PROFILE_COMPAT)
+			if (GPU_PROFILE_COMPAT) {
+				glDisable(GL_TEXTURE_2D);
+			}
+#endif
 		}
 	}
 

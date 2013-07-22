@@ -1144,8 +1144,14 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 
 	gpuCurrentColor3x(CPACK_WHITE);
 
-	last_texid = glaGetOneInteger(GL_TEXTURE_2D);
-	glEnable(GL_TEXTURE_2D);
+	last_texid = gpuGetTextureBinding2D();
+
+#if defined(WITH_GL_PROFILE_COMPAT)
+	if (GPU_PROFILE_COMPAT) {
+		glEnable(GL_TEXTURE_2D);
+	}
+#endif
+
 	glGenTextures(1, (GLuint *)&texid);
 
 	gpuBindTexture(GL_TEXTURE_2D, texid);
@@ -1197,7 +1203,13 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	}
 	gpuEnd();
 	gpuBindTexture(GL_TEXTURE_2D, last_texid);
-	glDisable(GL_TEXTURE_2D);
+
+#if defined(WITH_GL_PROFILE_COMPAT)
+	if (GPU_PROFILE_COMPAT) {
+		glDisable(GL_TEXTURE_2D);
+	}
+#endif
+
 	if (sseq->mainb == SEQ_DRAW_IMG_IMBUF && sseq->flag & SEQ_USE_ALPHA)
 		glDisable(GL_BLEND);
 	glDeleteTextures(1, &texid);

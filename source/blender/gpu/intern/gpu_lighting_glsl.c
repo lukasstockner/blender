@@ -29,6 +29,8 @@
  *  \ingroup gpu
  */
 
+#if defined(WITH_GL_PROFILE_ES20) || defined(WITH_GL_PROFILE_CORE)
+
 #include "gpu_lighting_internal.h"
 
 
@@ -128,3 +130,7 @@ GLboolean gpu_is_lighting_enabled_glsl(void)
 {
 	return GL_FALSE;
 }
+
+
+
+#endif

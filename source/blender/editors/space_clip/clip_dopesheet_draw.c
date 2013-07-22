@@ -101,7 +101,7 @@ static void draw_keyframe_shape(float x, float y, float xscale, float yscale, sh
 	gpuScale(1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
 
 	/* anti-aliased lines for more consistent appearance */
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 
 	if (sel)
 		UI_ThemeColorShadeAlpha(TH_STRIP_SELECT, 50, -255 * (1.0f - alpha));
@@ -124,7 +124,7 @@ static void draw_keyframe_shape(float x, float y, float xscale, float yscale, sh
 	gpuVertex2fv(_unit_diamond_shape[3]);
 	gpuEnd();
 
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 
 	/* restore view transform */
 	gpuPopMatrix();

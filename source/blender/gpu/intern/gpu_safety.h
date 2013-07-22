@@ -32,15 +32,27 @@
 #ifndef GPU_SAFETY_H
 #define GPU_SAFETY_H
 
+#include "gpu_glew.h"
+
 #include "BLI_utildefines.h"
 
 #include <stdlib.h> /* for abort */
 
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
+
 #ifndef GPU_SAFETY
 #define GPU_SAFETY (!defined(NDEBUG) && WITH_GPU_SAFETY)
 #endif
+
+
+
+const char* gpuErrorString(GLenum err);
 
 
 
@@ -66,16 +78,41 @@
 #define GPU_ABORT() ((void)0)
 #endif
 
+BLI_INLINE void GPU_CHECK_NO_ERROR(void)
+{
+	GLboolean no_gl_error = GL_TRUE;
+
+	for (;;) {
+		GLenum error = glGetError();
+
+		if (error == GL_NO_ERROR) {
+			break;
+		}
+		else {
+			no_gl_error = GL_FALSE;
+			printf("gl error: %s\n", gpuErrorString(error));
+		}
+	}
+
+	GPU_ASSERT(no_gl_error);
+}
+
 #else
 
-#define GPU_ASSERT(test)
+#define GPU_ASSERT(test)                ((void)0)
 
 #define GPU_SAFE_RETURN(test, var, ret) { (void)var; }
 
-#define GPU_ABORT() ((void)0)
+#define GPU_ABORT()                     ((void)0)
+
+#define GPU_CHECK_NO_ERROR()            ((void)0)
 
 #endif /* GPU_SAFETY */
 
 
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* GPU_SAFETY_H */

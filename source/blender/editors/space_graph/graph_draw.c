@@ -206,7 +206,7 @@ static void draw_fcurve_vertices_handles(FCurve *fcu, SpaceIpo *sipo, View2D *v2
 	else UI_ThemeColor(TH_HANDLE_VERTEX);
 	
 	/* anti-aliased lines for more consistent appearance */
-	if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) glEnable(GL_LINE_SMOOTH);
+	if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) gpuEnableLineSmooth();
 	glEnable(GL_BLEND);
 	
 	for (i = 0; i < fcu->totvert; i++, prevbezt = bezt, bezt++) {
@@ -231,7 +231,7 @@ static void draw_fcurve_vertices_handles(FCurve *fcu, SpaceIpo *sipo, View2D *v2
 		}
 	}
 	
-	if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) glDisable(GL_LINE_SMOOTH);
+	if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) gpuDisableLineSmooth();
 	glDisable(GL_BLEND);
 }
 
@@ -394,7 +394,7 @@ static void draw_fcurve_handles(SpaceIpo *sipo, FCurve *fcu)
 /* Samples ---------------- */
 
 /* helper func - draw sample-range marker for an F-Curve as a cross 
- * NOTE: the caller MUST HAVE GL_LINE_SMOOTH & GL_BLEND ENABLED, otherwise, the controls don't 
+ * NOTE: the caller MUST HAVE gpuEnableLineSmooth & Enable(BLEND), otherwise, the controls don't 
  * have a consistent appearance (due to off-pixel alignments)...
  */
 static void draw_fcurve_sample_control(float x, float y, float xscale, float yscale, float hsize)
@@ -438,14 +438,14 @@ static void draw_fcurve_samples(SpaceIpo *sipo, ARegion *ar, FCurve *fcu)
 	/* draw */
 	if (first && last) {
 		/* anti-aliased lines for more consistent appearance */
-		if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) glEnable(GL_LINE_SMOOTH);
+		if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) gpuEnableLineSmooth();
 		glEnable(GL_BLEND);
 		
 		draw_fcurve_sample_control(first->vec[0], first->vec[1], xscale, yscale, hsize);
 		draw_fcurve_sample_control(last->vec[0], last->vec[1], xscale, yscale, hsize);
 		
 		glDisable(GL_BLEND);
-		if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) glDisable(GL_LINE_SMOOTH);
+		if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) gpuDisableLineSmooth();
 	}
 }
 
@@ -867,7 +867,7 @@ void graph_draw_ghost_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar)
 	gpuLineWidth(3.0f);
 	
 	/* anti-aliased lines for less jagged appearance */
-	if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) glEnable(GL_LINE_SMOOTH);
+	if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) gpuEnableLineSmooth();
 	glEnable(GL_BLEND);
 	
 	/* the ghost curves are simply sampled F-Curves stored in sipo->ghostCurves */
@@ -886,7 +886,7 @@ void graph_draw_ghost_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar)
 	setlinestyle(0);
 	gpuLineWidth(1.0f);
 	
-	if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) glDisable(GL_LINE_SMOOTH);
+	if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) gpuDisableLineSmooth();
 	glDisable(GL_BLEND);
 }
 
@@ -949,7 +949,7 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 			}
 			
 			/* anti-aliased lines for less jagged appearance */
-			if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) glEnable(GL_LINE_SMOOTH);
+			if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) gpuEnableLineSmooth();
 			glEnable(GL_BLEND);
 			
 			/* draw F-Curve */
@@ -971,7 +971,7 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 			setlinestyle(0);
 			gpuLineWidth(1.0);
 			
-			if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) glDisable(GL_LINE_SMOOTH);
+			if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) gpuDisableLineSmooth();
 			glDisable(GL_BLEND);
 		}
 		

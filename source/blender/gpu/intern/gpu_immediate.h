@@ -123,10 +123,6 @@ extern "C" {
 
 
 
-const char* gpuErrorString(GLenum err);
-
-
-
 void gpuImmediateElementSizes(
 	GLint vertexSize,
 	GLint normalSize,

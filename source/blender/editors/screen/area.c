@@ -164,7 +164,7 @@ static void area_draw_azone(short x1, short y1, short x2, short y2)
 	dy = copysign(ceilf(0.3f * fabsf(dy)), dy);
 
 	glEnable(GL_BLEND);
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 
 	gpuImmediateFormat_C4_V2(); // DOODLE: azone, 6 lines, colored
 	gpuBegin(GL_LINES);
@@ -193,7 +193,7 @@ static void area_draw_azone(short x1, short y1, short x2, short y2)
 	gpuEnd();
 	gpuImmediateUnformat();
 
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 	glDisable(GL_BLEND);
 }
 
@@ -208,7 +208,7 @@ static void region_draw_azone_icon(AZone *az)
 	gpuImmediateFormat_V2(); // DOODLE, azone icon, disk, circle, and plus (cross), 2 lines mono
 
 	/* outlined circle */
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 
 	gpuCurrentColor4x(CPACK_WHITE, 0.800f);
 	gpuDrawDisk(0, 0, 4.25f, 16);
@@ -216,7 +216,7 @@ static void region_draw_azone_icon(AZone *az)
 	gpuCurrentGray4f(0.200f, 0.900f);
 	gpuDrawCircle(0, 0, 4.25, 16);
 
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 
 	gpuPopMatrix();
 

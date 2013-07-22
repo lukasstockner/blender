@@ -280,7 +280,11 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 		target->old_col = col;
 	}
 
-	glEnable(GL_TEXTURE_2D);
+#if defined(WITH_GL_PROFILE_COMPAT)
+	if (GPU_PROFILE_COMPAT) {
+		glEnable(GL_TEXTURE_2D);
+	}
+#endif
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	//glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE); // XXX jwilkins: blender never changes the TEXTURE_ENV_MODE
@@ -420,7 +424,11 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
 			MEM_freeN(buffer);
 	}
 
-	glEnable(GL_TEXTURE_2D);
+#if defined(WITH_GL_PROFILE_COMPAT)
+	if (GPU_PROFILE_COMPAT) {
+		glEnable(GL_TEXTURE_2D);
+	}
+#endif
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	//glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE); // XXX jwilkins: blender never changes the TEXTURE_ENV_MODE
@@ -879,7 +887,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 
 	/* make lines pretty */
 	glEnable(GL_BLEND);
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 
 	/* set brush color */
 	gpuCurrentColor4f(outline_col[0], outline_col[1], outline_col[2], outline_alpha);
@@ -897,7 +905,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 
 	/* restore GL state */
 	glDisable(GL_BLEND);
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 }
 
 /* Public API */

@@ -389,7 +389,7 @@ static void ui_draw_tria_rect(const rctf *rect, char dir)
 static void ui_draw_anti_x(float x1, float y1, float x2, float y2)
 {
 	/* set antialias line */
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 	glEnable(GL_BLEND);
 
 	gpuLineWidth(2.0);
@@ -403,7 +403,7 @@ static void ui_draw_anti_x(float x1, float y1, float x2, float y2)
 
 	gpuLineWidth(1.0);
 
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 	glDisable(GL_BLEND);
 	
 }

@@ -549,7 +549,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 	setlinestyle(0);
 	
 	/* turn on smooth lines (i.e. anti-aliasing) */
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 	
 	/* turn on alpha-blending */
 	glEnable(GL_BLEND);
@@ -654,7 +654,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 	
 	/* turn off alpha blending, then smooth lines */
 	glDisable(GL_BLEND); // alpha blending
-	glDisable(GL_LINE_SMOOTH); // smooth lines
+	gpuDisableLineSmooth(); // smooth lines
 		
 	/* restore initial gl conditions */
 	glLineWidth(1.0);

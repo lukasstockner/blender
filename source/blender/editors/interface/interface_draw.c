@@ -380,13 +380,13 @@ void uiRoundRect(float minx, float miny, float maxx, float maxy, float rad)
 	}
 
 	/* set antialias line */
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 	glEnable(GL_BLEND);
 
 	uiDrawBox(GL_LINE_LOOP, minx, miny, maxx, maxy, rad);
 
 	glDisable(GL_BLEND);
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 }
 
 /* (old, used in outliner) plain antialiased filled box */
@@ -493,14 +493,14 @@ static void histogram_draw_one(float r, float g, float b, float alpha,
 
 		/* curve outline */
 
-		glEnable(GL_LINE_SMOOTH);
+		gpuEnableLineSmooth();
 		gpuBegin(GL_LINE_STRIP);
 		for (i = 0; i < res; i++) {
 			float x2 = x + i * (w / (float)res);
 			gpuVertex2f(x2, y + (data[i] * h));
 		}
 		gpuEnd();
-		glDisable(GL_LINE_SMOOTH);
+		gpuDisableLineSmooth();
 
 		glLineWidth(1.0);
 
@@ -527,7 +527,7 @@ static void histogram_draw_one(float r, float g, float b, float alpha,
 		gpuCurrentColor4x(CPACK_BLACK, 0.250f);
 
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); /* reset blender default */
-		glEnable(GL_LINE_SMOOTH);
+		gpuEnableLineSmooth();
 
 		gpuBegin(GL_LINE_STRIP); // DOODLE: line graph drawn using a line strip, locking done by callee
 		for (i = 0; i < res; i++) {
@@ -536,7 +536,7 @@ static void histogram_draw_one(float r, float g, float b, float alpha,
 		}
 		gpuEnd();
 
-		glDisable(GL_LINE_SMOOTH);
+		gpuDisableLineSmooth();
 	}
 }
 
@@ -1183,11 +1183,11 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 	
 	/* AA circle */
 	glEnable(GL_BLEND);
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 	gpuCurrentColor3ubv((unsigned char *)wcol->inner);
 	gpuSingleFastCircleXY(100.0f);
 	glDisable(GL_BLEND);
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 
 	/* matrix after circle */
 	gpuPopMatrix();
@@ -1370,7 +1370,7 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 
 	/* the curve */
 	gpuCurrentColor3ubv((unsigned char *)wcol->item);
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 	glEnable(GL_BLEND);
 	gpuBegin(GL_LINE_STRIP);
 	
@@ -1402,7 +1402,7 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 		gpuVertex2f(fx, fy);
 	}
 	gpuEnd();
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 	glDisable(GL_BLEND);
 
 	/* the points, use aspect to make them visible on edges */
@@ -1608,12 +1608,12 @@ void ui_draw_but_NODESOCKET(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol
 	gpuColor4ub(0, 0, 0, 150);
 	
 	glEnable(GL_BLEND);
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 	gpuBegin(GL_LINE_LOOP);
 	for (a = 0; a < 16; a++)
 		gpuVertex2f(x + size * si[a], y + size * co[a]);
 	gpuEnd();
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 	glDisable(GL_BLEND);
 	glLineWidth(1.0f);
 	
@@ -1719,10 +1719,10 @@ void ui_dropshadow(const rctf *rct, float radius, float aspect, float alpha, int
 	}
 
 	/* outline emphasis */
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 	gpuCurrentColor4x(CPACK_BLACK, 0.392f);
 	uiDrawBox(GL_LINE_LOOP, rct->xmin - 0.5f, rct->ymin - 0.5f, rct->xmax + 0.5f, rct->ymax + 0.5f, radius + 0.5f);
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 
 	glDisable(GL_BLEND);
 }

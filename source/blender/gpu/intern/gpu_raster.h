@@ -52,6 +52,9 @@ void gpuEnableLineStipple(void);
 void gpuLineStipple(GLint factor, GLushort pattern);
 void gpuDisableLineStipple(void);
 
+void gpuEnableLineSmooth(void);
+void gpuDisableLineSmooth(void);
+
 void gpuLineWidth(GLfloat width);
 GLfloat gpuGetLineWidth(void);
 

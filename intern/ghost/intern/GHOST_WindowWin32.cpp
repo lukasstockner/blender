@@ -47,11 +47,6 @@
 #include <math.h>
 #include <string.h>
 
-// MSVC6 still doesn't define M_PI
-#ifndef M_PI
-#define M_PI 3.1415926536
-#endif
-
 const wchar_t *GHOST_WindowWin32::s_windowClassName = L"GHOST_WindowClass";
 const int GHOST_WindowWin32::s_maxTitleLength = 128;
 
@@ -983,6 +978,8 @@ GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextTyp
 				success = GHOST_kFailure;
 				break;
 			}
+
+			LoadLibrary(D3DCOMPILER);
 
 			if(!::eglInitialize(egl_display, &major, &minor)) {
 				success = GHOST_kFailure;

@@ -1082,6 +1082,7 @@ typedef void  (GLAPIENTRY * PFNGLTEXPARAMETERFVPROC) (GLenum, GLenum , const GLf
 #define GL_ELEMENT_ARRAY_BUFFER_BINDING 0x8895 // XXX missing enum
 #define GL_STATIC_DRAW 0x88E4 // XXX missing enum
 #define GL_DYNAMIC_DRAW 0x88E8 // XXX missing enum
+#define GL_SAMPLE_BUFFERS 0x80A8 // XXX missing enum
 
 typedef char             GLchar; // XXX jwilkins: this typedef is missing when ES 1.1 is not enabled
 typedef khronos_intptr_t GLintptr; // XXX

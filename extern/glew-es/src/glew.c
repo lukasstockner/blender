@@ -245,12 +245,34 @@ void* NSGLGetProcAddress (const GLubyte *name)
 #if linux
 #  define glewGetProcAddress(name) esGetProcAddress(name)
 #else
+#if defined(_WIN32)
+    static HMODULE hLibGLES = NULL;
+
+    void* weGetProcAddress(const GLubyte* name) // XXX jwilkins
+    {
+        void* proc = eglGetProcAddress(name);
+
+        if(proc == NULL && hLibGLES == NULL) {
+            hLibGLES = LoadLibrary("libGLESv2.dll");
+        }
+
+        if(proc == NULL && hLibGLES != NULL) {
+            return GetProcAddress(hLibGLES, name);
+        }
+        else {
+            return proc;
+        }
+    }
+
+#  define glewGetProcAddress(name) weGetProcAddress(name)
+#else
 #  define glewGetProcAddress(name) eglGetProcAddress(name)
 #endif
+#endif
 #elif defined(_WIN32)
-    static HANDLE hOpenGL = NULL;
+    static HMODULE hOpenGL = NULL;
 
-    void* wGetProcAddress(LPCSTR name)
+    void* wGetProcAddress(const GLubyte* name) // XXX jwilkins
     {
         void* proc = wglGetProcAddress(name);
 
@@ -10693,6 +10715,17 @@ static GLboolean _glewInit_GL_ES_VERSION_2_0 (GLEW_CONTEXT_ARG_DEF_INIT)
   r = ((glVertexAttrib4f = (PFNGLVERTEXATTRIB4FPROC)glewGetProcAddress((const GLubyte*)"glVertexAttrib4f")) == NULL) || r;
   r = ((glVertexAttrib4fv = (PFNGLVERTEXATTRIB4FVPROC)glewGetProcAddress((const GLubyte*)"glVertexAttrib4fv")) == NULL) || r;
   r = ((glVertexAttribPointer = (PFNGLVERTEXATTRIBPOINTERPROC)glewGetProcAddress((const GLubyte*)"glVertexAttribPointer")) == NULL) || r;
+
+  r = ((glBindBuffer = (PFNGLBINDBUFFERPROC)glewGetProcAddress((const GLubyte*)"glBindBuffer")) == NULL) || r; // XXX jwilkins: missing function
+  r = ((glBufferData = (PFNGLBUFFERDATAPROC)glewGetProcAddress((const GLubyte*)"glBufferData")) == NULL) || r; // XXX jwilkins: missing function
+  r = ((glDeleteBuffers = (PFNGLDELETEBUFFERSPROC)glewGetProcAddress((const GLubyte*)"glDeleteBuffers")) == NULL) || r; // XXX jwilkins: missing function
+  r = ((glGenBuffers = (PFNGLGENBUFFERSPROC)glewGetProcAddress((const GLubyte*)"glGenBuffers")) == NULL) || r; // XXX jwilkins: missing function
+  r = ((glTexParameteri = (PFNGLTEXPARAMETERIPROC)glewGetProcAddress((const GLubyte*)"glTexParameteri")) == NULL) || r; // XXX jwilkins: missing function
+  r = ((glIsEnabled = (PFNGLISENABLEDPROC)glewGetProcAddress((const GLubyte*)"glIsEnabled")) == NULL) || r; // XXX jwilkins: missing function
+  r = ((glGetFloatv = (PFNGLGETFLOATVPROC)glewGetProcAddress((const GLubyte*)"glGetFloatv")) == NULL) || r; // XXX jwilkins: missing function
+  r = ((glDepthRangef = (PFNGLDEPTHRANGEFPROC)glewGetProcAddress((const GLubyte*)"glDepthRangef")) == NULL) || r; // XXX jwilkins: missing function
+  r = ((glActiveTexture = (PFNGLACTIVETEXTUREPROC)glewGetProcAddress((const GLubyte*)"glActiveTexture")) == NULL) || r; // XXX jwilkins: missing function
+  r = ((glGetBooleanv = (PFNGLGETBOOLEANVPROC)glewGetProcAddress((const GLubyte*)"glGetBooleanv")) == NULL) || r; // XXX jwilkins: missing function
 
   return r;
 }

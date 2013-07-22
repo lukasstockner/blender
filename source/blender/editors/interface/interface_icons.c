@@ -242,9 +242,9 @@ static void viconutil_draw_lineloop(GLint(*pts)[2], int numPoints)
 
 static void viconutil_draw_lineloop_smooth(GLint(*pts)[2], int numPoints)
 {
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 	viconutil_draw_lineloop(pts, numPoints);
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 }
 
 static void viconutil_draw_points(GLint(*pts)[2], int numPoints, int pointSize)
@@ -272,7 +272,7 @@ static void vicon_x_draw(int x, int y, int w, int h, float alpha)
 	w -= 6;
 	h -= 6;
 
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 
 	gpuLineWidth(2.5);
 
@@ -287,7 +287,7 @@ static void vicon_x_draw(int x, int y, int w, int h, float alpha)
 
 	gpuLineWidth(1.0);
 	
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 }
 
 static void vicon_view3d_draw(int x, int y, int w, int h, float alpha)
@@ -459,7 +459,7 @@ static void vicon_move_up_draw(int x, int y, int w, int h, float UNUSED(alpha))
 {
 	int d = -2;
 
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 	gpuLineWidth(1);
 	gpuCurrentColor3x(CPACK_BLACK);
 
@@ -470,14 +470,14 @@ static void vicon_move_up_draw(int x, int y, int w, int h, float UNUSED(alpha))
 	gpuEnd();
 
 	gpuLineWidth(1.0);
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 }
 
 static void vicon_move_down_draw(int x, int y, int w, int h, float UNUSED(alpha))
 {
 	int d = 2;
 
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 	gpuLineWidth(1);
 	gpuCurrentColor3x(CPACK_BLACK);
 
@@ -488,7 +488,7 @@ static void vicon_move_down_draw(int x, int y, int w, int h, float UNUSED(alpha)
 	gpuEnd();
 
 	gpuLineWidth(1.0);
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 }
 
 #ifndef WITH_HEADLESS
@@ -1077,7 +1077,13 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 	x2 = (ix + ih) * icongltex.invw;
 	y1 = iy * icongltex.invh;
 	y2 = (iy + ih) * icongltex.invh;
-	glEnable(GL_TEXTURE_2D);
+
+#if defined(WITH_GL_PROFILE_COMPAT)
+	if (GPU_PROFILE_COMPAT) {
+		glEnable(GL_TEXTURE_2D);
+	}
+#endif
+
 	gpuBindTexture(GL_TEXTURE_2D, icongltex.id);
 
 #if defined(WITH_GL_PROFILE_COMPAT)
@@ -1109,7 +1115,12 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 #endif
 
 	gpuBindTexture(GL_TEXTURE_2D, 0);
-	glDisable(GL_TEXTURE_2D);
+
+#if defined(WITH_GL_PROFILE_COMPAT)
+		if (GPU_PROFILE_COMPAT) {
+			glDisable(GL_TEXTURE_2D);
+		}
+#endif
 }
 //#include FAKE_GL_MODE
 

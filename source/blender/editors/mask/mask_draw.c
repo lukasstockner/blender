@@ -433,7 +433,7 @@ static void draw_spline_curve(const bContext *C, MaskLayer *masklay, MaskSpline 
 		return;
 
 	if (is_smooth) {
-		glEnable(GL_LINE_SMOOTH);
+		gpuEnableLineSmooth();
 		glEnable(GL_BLEND);
 	}
 
@@ -475,7 +475,7 @@ static void draw_spline_curve(const bContext *C, MaskLayer *masklay, MaskSpline 
 	MEM_freeN(diff_points);
 
 	if (draw_flag & MASK_DRAWFLAG_SMOOTH) {
-		glDisable(GL_LINE_SMOOTH);
+		gpuDisableLineSmooth();
 		glDisable(GL_BLEND);
 	}
 

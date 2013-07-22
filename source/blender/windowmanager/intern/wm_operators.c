@@ -3363,7 +3363,12 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 		}
 
 		/* draw textured quad */
-		glEnable(GL_TEXTURE_2D);
+#if defined(WITH_GL_PROFILE_COMPAT)
+		if (GPU_PROFILE_COMPAT) {
+			glEnable(GL_TEXTURE_2D);
+		}
+#endif
+
 		gpuImmediateFormat_T2_V2();
 		gpuBegin(GL_TRIANGLE_FAN);
 		gpuTexCoord2f(0, 0);
@@ -3376,7 +3381,12 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 		gpuVertex2f(-radius,  radius);
 		gpuEnd();
 		gpuImmediateUnformat();
-		glDisable(GL_TEXTURE_2D);
+
+#if defined(WITH_GL_PROFILE_COMPAT)
+		if (GPU_PROFILE_COMPAT) {
+			glDisable(GL_TEXTURE_2D);
+		}
+#endif
 
 		/* undo rotation */
 		if (rc->rot_prop) {
@@ -3430,7 +3440,7 @@ static void radial_control_paint_cursor(bContext *C, int x, int y, void *customd
 	gpuTranslate((float)x, (float)y, 0.0f);
 
 	glEnable(GL_BLEND);
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 
 	/* apply zoom if available */
 	if (rc->zoom_prop) {
@@ -3474,7 +3484,7 @@ static void radial_control_paint_cursor(bContext *C, int x, int y, void *customd
 	gpuImmediateUnformat();
 
 	glDisable(GL_BLEND);
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 }
 
 typedef enum {

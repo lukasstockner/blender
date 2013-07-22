@@ -133,12 +133,12 @@ static void node_draw_socket_new(bNodeSocket *sock, float size)
 
 	gpuCurrentColor4x(CPACK_BLACK, 0.588f);
 	glEnable(GL_BLEND);
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 	gpuBegin(GL_LINE_LOOP);
 	for (a=0; a<16; a++)
 		gpuVertex2f(x+size*si[a], y+size*co[a]);
 	gpuEnd();
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 	glDisable(GL_BLEND);
 }
 #endif
@@ -465,7 +465,7 @@ static void node_draw_frame(const bContext *C, ARegion *ar, SpaceNode *snode,
 	/* outline active and selected emphasis */
 	if (node->flag & SELECT) {
 		glEnable(GL_BLEND);
-		glEnable(GL_LINE_SMOOTH);
+		gpuEnableLineSmooth();
 		
 		if (node->flag & NODE_ACTIVE)
 			UI_ThemeColorShadeAlpha(TH_ACTIVE, 0, -40);
@@ -476,7 +476,7 @@ static void node_draw_frame(const bContext *C, ARegion *ar, SpaceNode *snode,
 		          rct->xmin, rct->ymin,
 		          rct->xmax, rct->ymax, BASIS_RAD);
 		
-		glDisable(GL_LINE_SMOOTH);
+		gpuDisableLineSmooth();
 		glDisable(GL_BLEND);
 	}
 	
@@ -582,7 +582,7 @@ static void node_draw_reroute(const bContext *C, ARegion *ar, SpaceNode *UNUSED(
 	/* outline active and selected emphasis */
 	if (node->flag & SELECT) {
 		glEnable(GL_BLEND);
-		glEnable(GL_LINE_SMOOTH);
+		gpuEnableLineSmooth();
 		/* using different shades of TH_TEXT_HI for the empasis, like triangle */
 		if (node->flag & NODE_ACTIVE)
 			UI_ThemeColorShadeAlpha(TH_TEXT_HI, 0, -40);
@@ -590,7 +590,7 @@ static void node_draw_reroute(const bContext *C, ARegion *ar, SpaceNode *UNUSED(
 			UI_ThemeColorShadeAlpha(TH_TEXT_HI, -20, -120);
 		uiDrawBox(GL_LINE_LOOP, rct->xmin, rct->ymin, rct->xmax, rct->ymax, size);
 
-		glDisable(GL_LINE_SMOOTH);
+		gpuDisableLineSmooth();
 		glDisable(GL_BLEND);
 	}
 #endif
@@ -3103,7 +3103,7 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 		/* we can reuse the dist variable here to increment the GL curve eval amount*/
 		dist = 1.0f / (float)LINK_RESOL;
 		
-		glEnable(GL_LINE_SMOOTH);
+		gpuEnableLineSmooth();
 
 		gpuImmediateFormat_V2();
 
@@ -3182,7 +3182,7 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 			gpuEnd();
 		}
 		
-		glDisable(GL_LINE_SMOOTH);
+		gpuDisableLineSmooth();
 		
 		/* restore previuos linewidth */
 		glLineWidth(1.0f);
@@ -3226,7 +3226,7 @@ void node_draw_link_straight(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 	/* store current linewidth */
 	glGetFloatv(GL_LINE_WIDTH, &linew);
 	
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 	
 	if (do_triple) {
 		UI_ThemeColorShadeAlpha(th_col3, -80, -120);
@@ -3270,7 +3270,7 @@ void node_draw_link_straight(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 		gpuEnd();
 	}
 	
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 	
 	/* restore previuos linewidth */
 	glLineWidth(1.0f);

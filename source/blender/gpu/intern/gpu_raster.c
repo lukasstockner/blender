@@ -31,16 +31,21 @@
 
 #include "gpu_raster.h"
 
+#include "gpu_safety.h"
+
 
 
 void GPU_init_raster(void)
 {
+	GPU_CHECK_NO_ERROR();
 }
 
 
 
 void gpuEnablePolygonStipple(void)
 {
+	GPU_CHECK_NO_ERROR();
+
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glEnable(GL_POLYGON_STIPPLE);
 #endif
@@ -50,6 +55,8 @@ void gpuEnablePolygonStipple(void)
 
 void gpuPolygonStipple(const GLubyte* mask)
 {
+	GPU_CHECK_NO_ERROR();
+
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glPolygonStipple(mask);
 #endif
@@ -59,6 +66,8 @@ void gpuPolygonStipple(const GLubyte* mask)
 
 void gpuDisablePolygonStipple(void)
 {
+	GPU_CHECK_NO_ERROR();
+
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glDisable(GL_POLYGON_STIPPLE);
 #endif
@@ -68,6 +77,8 @@ void gpuDisablePolygonStipple(void)
 
 void gpuEnableLineStipple(void)
 {
+	GPU_CHECK_NO_ERROR();
+
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glEnable(GL_LINE_STIPPLE);
 #endif
@@ -77,6 +88,8 @@ void gpuEnableLineStipple(void)
 
 void gpuLineStipple(GLint factor, GLushort pattern)
 {
+	GPU_CHECK_NO_ERROR();
+
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glLineStipple(factor, pattern);
 #endif
@@ -86,16 +99,43 @@ void gpuLineStipple(GLint factor, GLushort pattern)
 
 void gpuDisableLineStipple(void)
 {
+	GPU_CHECK_NO_ERROR();
+
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glDisable(GL_LINE_STIPPLE);
 #endif
 }
 
 
+
+void gpuEnableLineSmooth(void)
+{
+	GPU_CHECK_NO_ERROR();
+
+#if defined(WITH_GL_PROFILE_COMPAT)
+	glEnable(GL_LINE_SMOOTH);
+#endif
+}
+
+
+
+void gpuDisableLineSmooth(void)
+{
+	GPU_CHECK_NO_ERROR();
+
+#if defined(WITH_GL_PROFILE_COMPAT)
+	glDisable(GL_LINE_SMOOTH);
+#endif
+}
+
+
+
 static GLfloat line_width = 1;
 
 void gpuLineWidth(GLfloat width)
 {
+	GPU_CHECK_NO_ERROR();
+
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glLineWidth(width);
 #endif
@@ -105,6 +145,8 @@ void gpuLineWidth(GLfloat width)
 
 GLfloat gpuGetLineWidth(void)
 {
+	GPU_CHECK_NO_ERROR();
+
 	return line_width;
 }
 
@@ -114,6 +156,8 @@ static GLenum polygon_mode = GL_FILL;
 
 void gpuPolygonMode(GLenum mode)
 {
+	GPU_CHECK_NO_ERROR();
+
 #if defined(WITH_GL_PROFILE_COMPAT)
 #endif
 }
@@ -122,8 +166,9 @@ void gpuPolygonMode(GLenum mode)
 
 GLenum gpuGetPolygonMode(void)
 {
+	GPU_CHECK_NO_ERROR();
+
 	return polygon_mode;
 }
-
 
 

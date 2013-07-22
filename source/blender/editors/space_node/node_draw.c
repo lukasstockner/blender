@@ -579,13 +579,13 @@ static void node_draw_mute_line(View2D *v2d, SpaceNode *snode, bNode *node)
 	bNodeLink *link;
 
 	glEnable(GL_BLEND);
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 
 	for (link = node->internal_links.first; link; link = link->next)
 		node_draw_link_bezier(v2d, snode, link, TH_REDALERT, 0, TH_WIRE, 0, TH_WIRE);
 
 	glDisable(GL_BLEND);
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 }
 
 /* this might have some more generic use */
@@ -624,12 +624,12 @@ static void node_circle_draw(float x, float y, float size, float *col, int highl
 		gpuCurrentColor4x(CPACK_BLACK, 0.588f);
 	}
 	glEnable(GL_BLEND);
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 	gpuBegin(GL_LINE_LOOP);
 	for (a = 0; a < 16; a++)
 		gpuVertex2f(x + size*si[a], y + size*co[a]);
 	gpuEnd();
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 	glDisable(GL_BLEND);
 	gpuLineWidth(1.0f);
 }
@@ -889,7 +889,7 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	if (node->flag & SELECT) {
 		
 		glEnable(GL_BLEND);
-		glEnable(GL_LINE_SMOOTH);
+		gpuEnableLineSmooth();
 		
 		if (node->flag & NODE_ACTIVE)
 			UI_ThemeColorShadeAlpha(TH_ACTIVE, 0, -40);
@@ -899,7 +899,7 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 		uiSetRoundBox(UI_CNR_ALL);
 		uiDrawBox(GL_LINE_LOOP, rct->xmin, rct->ymin, rct->xmax, rct->ymax, BASIS_RAD);
 		
-		glDisable(GL_LINE_SMOOTH);
+		gpuDisableLineSmooth();
 		glDisable(GL_BLEND);
 	}
 	
@@ -974,7 +974,7 @@ static void node_draw_hidden(const bContext *C, ARegion *ar, SpaceNode *snode, b
 	/* outline active and selected emphasis */
 	if (node->flag & SELECT) {
 		glEnable(GL_BLEND);
-		glEnable(GL_LINE_SMOOTH);
+		gpuEnableLineSmooth();
 		
 		if (node->flag & NODE_ACTIVE)
 			UI_ThemeColorShadeAlpha(TH_ACTIVE, 0, -40);
@@ -982,19 +982,19 @@ static void node_draw_hidden(const bContext *C, ARegion *ar, SpaceNode *snode, b
 			UI_ThemeColorShadeAlpha(TH_SELECT, 0, -40);
 		uiDrawBox(GL_LINE_LOOP, rct->xmin, rct->ymin, rct->xmax, rct->ymax, hiddenrad);
 		
-		glDisable(GL_LINE_SMOOTH);
+		gpuDisableLineSmooth();
 		glDisable(GL_BLEND);
 	}
 
 	/* custom color inline */
 	if (node->flag & NODE_CUSTOM_COLOR) {
 		glEnable(GL_BLEND);
-		glEnable(GL_LINE_SMOOTH);
+		gpuEnableLineSmooth();
 
 		gpuCurrentColor3fv(node->color);
 		uiDrawBox(GL_LINE_LOOP, rct->xmin + 1, rct->ymin + 1, rct->xmax -1, rct->ymax - 1, hiddenrad);
 
-		glDisable(GL_LINE_SMOOTH);
+		gpuDisableLineSmooth();
 		glDisable(GL_BLEND);
 	}
 
@@ -1180,12 +1180,12 @@ void node_draw_nodetree(const bContext *C, ARegion *ar, SpaceNode *snode, bNodeT
 	
 	/* node lines */
 	glEnable(GL_BLEND);
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 	for (link = ntree->links.first; link; link = link->next) {
 		if (!nodeLinkIsHidden(link))
 			node_draw_link(&ar->v2d, snode, link);
 	}
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 	glDisable(GL_BLEND);
 	
 	/* draw foreground nodes, last nodes in front */
@@ -1336,12 +1336,12 @@ void drawnodespace(const bContext *C, ARegion *ar)
 		
 		/* temporary links */
 		glEnable(GL_BLEND);
-		glEnable(GL_LINE_SMOOTH);
+		gpuEnableLineSmooth();
 		for (nldrag = snode->linkdrag.first; nldrag; nldrag = nldrag->next) {
 			for (linkdata = nldrag->links.first; linkdata; linkdata = linkdata->next)
 				node_draw_link(v2d, snode, (bNodeLink *)linkdata->data);
 		}
-		glDisable(GL_LINE_SMOOTH);
+		gpuDisableLineSmooth();
 		glDisable(GL_BLEND);
 		
 		if (snode->flag & SNODE_SHOW_GPENCIL) {

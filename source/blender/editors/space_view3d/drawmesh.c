@@ -883,7 +883,12 @@ static void tex_mat_set_texture_cb(void *userData, int mat_nr, void *attribs)
 			/* bind texture */
 			gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 			gpuEnableColorMaterial();
-			glEnable(GL_TEXTURE_2D);
+
+#if defined(WITH_GL_PROFILE_COMPAT)
+			if (GPU_PROFILE_COMPAT) {
+				glEnable(GL_TEXTURE_2D);
+			}
+#endif
 
 			gpuBindTexture(GL_TEXTURE_2D, ima->bindcode);
 			gpuCurrentColor3x(CPACK_WHITE);
@@ -1000,7 +1005,13 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 
 	/* reset opengl state */
 	gpuDisableColorMaterial();
-	glDisable(GL_TEXTURE_2D);
+
+#if defined(WITH_GL_PROFILE_COMPAT)
+	if (GPU_PROFILE_COMPAT) {
+		glDisable(GL_TEXTURE_2D);
+	}
+#endif
+
 	gpuDisableLighting();
 	gpuBindTexture(GL_TEXTURE_2D, 0);
 	glFrontFace(GL_CCW);

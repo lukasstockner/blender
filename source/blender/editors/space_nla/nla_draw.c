@@ -224,7 +224,7 @@ static void nla_draw_strip_curves(NlaStrip *strip, float yminc, float ymaxc)
 	gpuCurrentGray3f(0.700f);
 
 	/* draw with AA'd line */
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 	glEnable(GL_BLEND);
 	
 	/* influence -------------------------- */
@@ -270,7 +270,7 @@ static void nla_draw_strip_curves(NlaStrip *strip, float yminc, float ymaxc)
 	// XXX do we want to draw this curve? in a different color too?
 	
 	/* turn off AA'd lines */
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 	glDisable(GL_BLEND);
 }
 

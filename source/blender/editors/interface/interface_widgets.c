@@ -1928,11 +1928,11 @@ static void ui_hsv_cursor(float x, float y)
 	gpuDrawDisk(x, y, 3.0f * U.pixelsize, 8);
 
 	glEnable(GL_BLEND);
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 	gpuCurrentColor3x(CPACK_BLACK);
 	gpuDrawCircle(x, y, 3.0f * U.pixelsize, 12);
 	glDisable(GL_BLEND);
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 }
 
 void ui_hsvcircle_vals_from_pos(float *val_rad, float *val_dist, const rcti *rect,
@@ -2036,10 +2036,10 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 
 	/* fully rounded outline */
 	glEnable(GL_BLEND);
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 	gpuCurrentColor3ubv((unsigned char *)wcol->outline);
 	gpuDrawCircle(centx, centy, radius, tot + 1);
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 	glDisable(GL_BLEND);
 
 	/* cursor */
@@ -2382,9 +2382,9 @@ void ui_draw_link_bezier(const rcti *rect)
 
 	if (ui_link_bezier_points(rect, coord_array, LINK_RESOL)) {
 		glEnable(GL_BLEND);
-		glEnable(GL_LINE_SMOOTH);
+		gpuEnableLineSmooth();
 		gpuSingleClientArrays_V2F(GL_LINE_STRIP, coord_array, 0, 0, LINK_RESOL+1);
-		glDisable(GL_LINE_SMOOTH);
+		gpuDisableLineSmooth();
 		glDisable(GL_BLEND);
 	}
 }

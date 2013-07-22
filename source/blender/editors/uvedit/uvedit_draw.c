@@ -572,7 +572,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 	/* 4. draw edges */
 
 	if (sima->flag & SI_SMOOTH_UV) {
-		glEnable(GL_LINE_SMOOTH);
+		gpuEnableLineSmooth();
 		glEnable(GL_BLEND);
 	}
 	
@@ -708,7 +708,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 	}
 
 	if (sima->flag & SI_SMOOTH_UV) {
-		glDisable(GL_LINE_SMOOTH);
+		gpuDisableLineSmooth();
 		glDisable(GL_BLEND);
 	}
 

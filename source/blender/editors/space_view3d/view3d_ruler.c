@@ -454,7 +454,7 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 	unsigned char color_wire[3];
 
 	/* anti-aliased lines for more consistent appearance */
-	glEnable(GL_LINE_SMOOTH);
+	gpuEnableLineSmooth();
 
 	BLF_enable(blf_mono_font, BLF_ROTATION);
 	BLF_size(blf_mono_font, 14 * U.pixelsize, U.dpi);
@@ -699,7 +699,7 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 		}
 	}
 
-	glDisable(GL_LINE_SMOOTH);
+	gpuDisableLineSmooth();
 
 	BLF_disable(blf_mono_font, BLF_ROTATION);
 

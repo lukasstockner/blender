@@ -510,7 +510,12 @@ static void draw_lock(FontBLF *font)
 		}
 
 		/* one-time GL setup */
-		glEnable(GL_TEXTURE_2D);
+#if defined(WITH_GL_PROFILE_COMPAT)
+		if (GPU_PROFILE_COMPAT) {
+			glEnable(GL_TEXTURE_2D);
+		}
+#endif
+
 		glEnable(GL_BLEND);
 	}
 
@@ -529,7 +534,12 @@ static void draw_unlock(FontBLF *font)
 
 	if (font->locked == 0) {
 		glDisable(GL_BLEND);
-		glDisable(GL_TEXTURE_2D);
+
+#if defined(WITH_GL_PROFILE_COMPAT)
+		if (GPU_PROFILE_COMPAT) {
+			glDisable(GL_TEXTURE_2D);
+		}
+#endif
 
 		gpuImmediateUnformat();
 	}

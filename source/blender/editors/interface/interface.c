@@ -1047,8 +1047,10 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 	ARegion *ar;
 	uiBut *but;
 	rcti rect;
+#if defined(WITH_GL_PROFILE_COMPAT) || defined(WITH_GL_PROFILE_CORE)
 	int multisample_enabled;
-	
+#endif
+
 	/* get menu region or area region */
 	ar = CTX_wm_menu(C);
 	if (!ar)
@@ -1057,10 +1059,14 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 	if (!block->endblock)
 		uiEndBlock(C, block);
 
+#if defined(WITH_GL_PROFILE_COMPAT) || defined(WITH_GL_PROFILE_CORE)
 	/* disable AA, makes widgets too blurry */
 	multisample_enabled = glIsEnabled(GL_MULTISAMPLE);
 	if (multisample_enabled)
 		glDisable(GL_MULTISAMPLE);
+#else
+	// XXX jwilkins: multisampling can only be controlled during context creation with ES
+#endif
 
 	/* scale fonts */
 	ui_fontscale(&style.paneltitle.points, block->aspect);
@@ -1104,9 +1110,11 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 	gpuMatrixMode(GL_MODELVIEW);
 	gpuPopMatrix();
 
+#if defined(WITH_GL_PROFILE_COMPAT) || defined(WITH_GL_PROFILE_CORE)
 	if (multisample_enabled)
 		glEnable(GL_MULTISAMPLE);
-	
+#endif
+
 	ui_draw_links(block);
 }
 

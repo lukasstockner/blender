@@ -196,8 +196,12 @@ void GPU_simple_shader_bind(int options)
 			glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 		}
 
+#if defined(WITH_GL_PROFILE_COMPAT)
+	if (GPU_PROFILE_COMPAT) {
 		if (options & GPU_SHADER_TEXTURE_2D)
 			glEnable(GL_TEXTURE_2D);
+	}
+#endif
 #endif
 	}
 

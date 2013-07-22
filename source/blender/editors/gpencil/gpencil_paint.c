@@ -1396,13 +1396,13 @@ static void gpencil_draw_eraser(bContext *UNUSED(C), int x, int y, void *p_ptr)
 	if (p->paintmode == GP_PAINTMODE_ERASER) {
 		gpuCurrentColor4x(CPACK_WHITE, 0.500f);
 		
-		glEnable(GL_LINE_SMOOTH);
+		gpuEnableLineSmooth();
 		glEnable(GL_BLEND);
 
 		gpuSingleCircle(x, y, p->radius, 40);
 
 		glDisable(GL_BLEND);
-		glDisable(GL_LINE_SMOOTH);
+		gpuDisableLineSmooth();
 	}
 }
 
