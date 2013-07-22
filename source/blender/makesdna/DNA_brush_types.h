@@ -171,7 +171,7 @@ typedef enum BrushFlags {
 	BRUSH_PLANE_TRIM = (1 << 26),
 	BRUSH_FRONTFACE = (1 << 27),
 	BRUSH_CUSTOM_ICON = (1 << 28),
-	//BRUSH_INVERTED = (1 << 29), /* Unused now, free for something new */
+	BRUSH_LINE = (1 << 29),
 	BRUSH_ABSOLUTE_JITTER = (1 << 30)
 } BrushFlags;
 

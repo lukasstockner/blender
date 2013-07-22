@@ -892,9 +892,13 @@ class VIEW3D_PT_tools_brush_stroke(Panel, View3DPaintPanel):
         if brush.use_space:
             col.separator()
             row = col.row(align=True)
-            row.active = brush.use_space
             row.prop(brush, "spacing", text="Spacing")
             row.prop(brush, "use_pressure_spacing", toggle=True, text="")
+
+        if brush.use_line:
+            col.separator()
+            row = col.row(align=True)
+            row.prop(brush, "spacing", text="Spacing")
 
         if context.sculpt_object:
             if brush.sculpt_capabilities.has_jitter:

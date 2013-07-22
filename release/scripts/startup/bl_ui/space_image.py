@@ -861,9 +861,13 @@ class IMAGE_PT_paint_stroke(BrushButtonsPanel, Panel):
         if brush.use_space:
             col.separator()
             row = col.row(align=True)
-            row.active = brush.use_space
             row.prop(brush, "spacing", text="Spacing")
             row.prop(brush, "use_pressure_spacing", toggle=True, text="")
+            
+        if brush.use_line:
+            col.separator()
+            row = col.row(align=True)
+            row.prop(brush, "spacing", text="Spacing")
 
         col = layout.column()
         col.separator()

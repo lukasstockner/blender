@@ -785,8 +785,11 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		stroke_done(C, op);
 		return OPERATOR_FINISHED;
 	}
-	else if (first_modal || (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)) ||
-	         (event->type == TIMER && (event->customdata == stroke->timer)) )
+	else if (first_modal ||
+			 /* regular dabs */
+	         (!(stroke->brush->flag & BRUSH_AIRBRUSH) && (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE))) ||
+	         /* airbrush */
+	         ((stroke->brush->flag & BRUSH_AIRBRUSH) && event->type == TIMER && event->customdata == stroke->timer))
 	{
 		if (paint_smooth_stroke(stroke, mouse, &pressure, &sample_average, mode)) {
 			if (stroke->stroke_started) {
