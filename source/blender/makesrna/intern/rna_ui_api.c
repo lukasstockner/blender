@@ -422,21 +422,25 @@ void RNA_api_ui_layout(StructRNA *srna)
 	static float node_socket_color_default[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 	/* simple layout specifiers */
-	func = RNA_def_function(srna, "row", "uiLayoutRow");
+	func = RNA_def_function(srna, "row", "uiLayoutRowWithButtonHeight");
 	parm = RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in");
 	RNA_def_function_return(func, parm);
 	RNA_def_function_ui_description(func,
 	                                "Sub-layout. Items placed in this sublayout are placed next to each other "
 	                                "in a row");
 	RNA_def_boolean(func, "align", 0, "", "Align buttons to each other");
+	parm = RNA_def_int(func, "button_height", 1, 1, 5, "",
+					   "The multiplier for the height of buttons in this new layout.", 1, 5);
 	
-	func = RNA_def_function(srna, "column", "uiLayoutColumn");
+	func = RNA_def_function(srna, "column", "uiLayoutColumnWithButtonHeight");
 	parm = RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in");
 	RNA_def_function_return(func, parm);
 	RNA_def_function_ui_description(func,
 	                                "Sub-layout. Items placed in this sublayout are placed under each other "
 	                                "in a column");
 	RNA_def_boolean(func, "align", 0, "", "Align buttons to each other");
+	parm = RNA_def_int(func, "button_height", 1, 1, 5, "",
+					   "The multiplier for the height of buttons in this new layout.", 1, 5);
 
 	func = RNA_def_function(srna, "column_flow", "uiLayoutColumnFlow");
 	RNA_def_int(func, "columns", 0, 0, INT_MAX, "", "Number of columns, 0 is automatic", 0, INT_MAX);

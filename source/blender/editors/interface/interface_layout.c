@@ -146,6 +146,7 @@ struct uiLayout {
 	bool redalert;
 	bool keepaspect;
 	char alignment;
+	int button_height;
 };
 
 typedef struct uiLayoutItemFlow {
@@ -237,13 +238,14 @@ static int ui_text_icon_width(uiLayout *layout, const char *name, int icon, int 
 		return (variable) ? UI_GetStringWidth(name) + (compact ? f5 : f10) + UI_UNIT_X : 10 * UI_UNIT_X;  /* text only */
 }
 
-static void ui_item_size(uiItem *item, int *r_w, int *r_h)
+static void ui_item_size(uiLayout *layout, uiItem *item, int *r_w, int *r_h)
 {
 	if (item->type == ITEM_BUTTON) {
 		uiButtonItem *bitem = (uiButtonItem *)item;
 
 		if (r_w) *r_w = BLI_rctf_size_x(&bitem->but->rect);
-		if (r_h) *r_h = BLI_rctf_size_y(&bitem->but->rect);
+		if (r_h) *r_h = BLI_rctf_size_y(&bitem->but->rect) *
+			(layout->button_height ? layout->button_height : 1);
 	}
 	else {
 		uiLayout *litem = (uiLayout *)item;
@@ -1810,7 +1812,7 @@ static void ui_litem_estimate_row(uiLayout *litem)
 	litem->h = 0;
 
 	for (item = litem->items.first; item; item = item->next) {
-		ui_item_size(item, &itemw, &itemh);
+		ui_item_size(litem, item, &itemw, &itemh);
 
 		litem->w += itemw;
 		litem->h = MAX2(itemh, litem->h);
@@ -1838,7 +1840,7 @@ static void ui_litem_layout_row(uiLayout *litem)
 	tot = 0;
 
 	for (item = litem->items.first; item; item = item->next) {
-		ui_item_size(item, &itemw, &itemh);
+		ui_item_size(litem, item, &itemw, &itemh);
 		totw += itemw;
 		tot++;
 	}
@@ -1860,7 +1862,7 @@ static void ui_litem_layout_row(uiLayout *litem)
 			if (item->flag)
 				continue;
 
-			ui_item_size(item, &itemw, &itemh);
+			ui_item_size(litem, item, &itemw, &itemh);
 			minw = ui_litem_min_width(itemw);
 
 			if (w - lastw > 0)
@@ -1892,7 +1894,7 @@ static void ui_litem_layout_row(uiLayout *litem)
 	x = litem->x;
 
 	for (item = litem->items.first; item; item = item->next) {
-		ui_item_size(item, &itemw, &itemh);
+		ui_item_size(litem, item, &itemw, &itemh);
 		minw = ui_litem_min_width(itemw);
 
 		if (item->flag) {
@@ -1941,7 +1943,7 @@ static void ui_litem_estimate_column(uiLayout *litem)
 	litem->h = 0;
 
 	for (item = litem->items.first; item; item = item->next) {
-		ui_item_size(item, &itemw, &itemh);
+		ui_item_size(litem, item, &itemw, &itemh);
 
 		litem->w = MAX2(litem->w, itemw);
 		litem->h += itemh;
@@ -1960,7 +1962,7 @@ static void ui_litem_layout_column(uiLayout *litem)
 	y = litem->y;
 
 	for (item = litem->items.first; item; item = item->next) {
-		ui_item_size(item, NULL, &itemh);
+		ui_item_size(litem, item, NULL, &itemh);
 
 		y -= itemh;
 		ui_item_position(item, x, y, litem->w, itemh);
@@ -2042,7 +2044,7 @@ static void ui_litem_estimate_column_flow(uiLayout *litem)
 	toth = 0;
 	totitem = 0;
 	for (item = litem->items.first; item; item = item->next) {
-		ui_item_size(item, &itemw, &itemh);
+		ui_item_size(litem, item, &itemw, &itemh);
 		maxw = MAX2(maxw, itemw);
 		toth += itemh;
 		totitem++;
@@ -2073,7 +2075,7 @@ static void ui_litem_estimate_column_flow(uiLayout *litem)
 	/* create column per column */
 	col = 0;
 	for (item = litem->items.first; item; item = item->next) {
-		ui_item_size(item, &itemw, &itemh);
+		ui_item_size(litem, item, &itemw, &itemh);
 
 		y -= itemh + style->buttonspacey;
 		miny = min_ii(miny, y);
@@ -2106,7 +2108,7 @@ static void ui_litem_layout_column_flow(uiLayout *litem)
 	toth = 0;
 	totitem = 0;
 	for (item = litem->items.first; item; item = item->next) {
-		ui_item_size(item, &itemw, &itemh);
+		ui_item_size(litem, item, &itemw, &itemh);
 		toth += itemh;
 		totitem++;
 	}
@@ -2123,7 +2125,7 @@ static void ui_litem_layout_column_flow(uiLayout *litem)
 	/* create column per column */
 	col = 0;
 	for (item = litem->items.first; item; item = item->next) {
-		ui_item_size(item, NULL, &itemh);
+		ui_item_size(litem, item, NULL, &itemh);
 		itemw = ui_item_fit(1, x - litem->x, flow->totcol, w, col == flow->totcol - 1, litem->alignment, &offset);
 	
 		y -= itemh;
@@ -2159,7 +2161,7 @@ static void ui_litem_estimate_absolute(uiLayout *litem)
 
 	for (item = litem->items.first; item; item = item->next) {
 		ui_item_offset(item, &itemx, &itemy);
-		ui_item_size(item, &itemw, &itemh);
+		ui_item_size(litem, item, &itemw, &itemh);
 
 		minx = min_ii(minx, itemx);
 		miny = min_ii(miny, itemy);
@@ -2185,7 +2187,7 @@ static void ui_litem_layout_absolute(uiLayout *litem)
 
 	for (item = litem->items.first; item; item = item->next) {
 		ui_item_offset(item, &itemx, &itemy);
-		ui_item_size(item, &itemw, &itemh);
+		ui_item_size(litem, item, &itemw, &itemh);
 
 		minx = min_ii(minx, itemx);
 		miny = min_ii(miny, itemy);
@@ -2207,7 +2209,7 @@ static void ui_litem_layout_absolute(uiLayout *litem)
 
 	for (item = litem->items.first; item; item = item->next) {
 		ui_item_offset(item, &itemx, &itemy);
-		ui_item_size(item, &itemw, &itemh);
+		ui_item_size(litem, item, &itemw, &itemh);
 
 		if (scalex != 1.0f) {
 			newx = (itemx - minx) * scalex;
@@ -2257,7 +2259,7 @@ static void ui_litem_layout_split(uiLayout *litem)
 	colw = MAX2(colw, 0);
 
 	for (item = litem->items.first; item; item = item->next) {
-		ui_item_size(item, NULL, &itemh);
+		ui_item_size(litem, item, NULL, &itemh);
 
 		ui_item_position(item, x, y - itemh, colw, itemh);
 		x += colw;
@@ -2286,7 +2288,7 @@ static void ui_litem_estimate_overlap(uiLayout *litem)
 	litem->h = 0;
 
 	for (item = litem->items.first; item; item = item->next) {
-		ui_item_size(item, &itemw, &itemh);
+		ui_item_size(litem, item, &itemw, &itemh);
 
 		litem->w = MAX2(itemw, litem->w);
 		litem->h = MAX2(itemh, litem->h);
@@ -2302,7 +2304,7 @@ static void ui_litem_layout_overlap(uiLayout *litem)
 	y = litem->y;
 
 	for (item = litem->items.first; item; item = item->next) {
-		ui_item_size(item, &itemw, &itemh);
+		ui_item_size(litem, item, &itemw, &itemh);
 		ui_item_position(item, x, y - itemh, litem->w, itemh);
 
 		litem->h = MAX2(litem->h, itemh);
@@ -2313,10 +2315,11 @@ static void ui_litem_layout_overlap(uiLayout *litem)
 }
 
 /* layout create functions */
-uiLayout *uiLayoutRow(uiLayout *layout, int align)
+
+static uiLayout *ui_layout_row(uiLayout *layout, int align, int button_height)
 {
 	uiLayout *litem;
-
+	
 	litem = MEM_callocN(sizeof(uiLayout), "uiLayoutRow");
 	litem->item.type = ITEM_LAYOUT_ROW;
 	litem->root = layout->root;
@@ -2327,14 +2330,25 @@ uiLayout *uiLayoutRow(uiLayout *layout, int align)
 	litem->space = (align) ? 0 : layout->root->style->buttonspacex;
 	litem->redalert = layout->redalert;
 	litem->w = layout->w;
+	litem->button_height = button_height;
 	BLI_addtail(&layout->items, litem);
-
+	
 	uiBlockSetCurLayout(layout->root->block, litem);
-
+	
 	return litem;
 }
 
-uiLayout *uiLayoutColumn(uiLayout *layout, int align)
+uiLayout *uiLayoutRowWithButtonHeight(uiLayout *layout, int align, int button_height)
+{
+	return ui_layout_row(layout, align, button_height);
+}
+
+uiLayout *uiLayoutRow(uiLayout *layout, int align)
+{
+	return ui_layout_row(layout, align, 1);
+}
+
+static uiLayout *ui_layout_column(uiLayout *layout, int align, int button_height)
 {
 	uiLayout *litem;
 
@@ -2348,11 +2362,22 @@ uiLayout *uiLayoutColumn(uiLayout *layout, int align)
 	litem->space = (litem->align) ? 0 : layout->root->style->buttonspacey;
 	litem->redalert = layout->redalert;
 	litem->w = layout->w;
+	litem->button_height = button_height;
 	BLI_addtail(&layout->items, litem);
 
 	uiBlockSetCurLayout(layout->root->block, litem);
 
 	return litem;
+}
+
+uiLayout *uiLayoutColumn(uiLayout *layout, int align)
+{
+	return ui_layout_column(layout, align, 1);
+}
+
+uiLayout *uiLayoutColumnWithButtonHeight(uiLayout *layout, int align, int button_height)
+{
+	return ui_layout_column(layout, align, button_height);
 }
 
 uiLayout *uiLayoutColumnFlow(uiLayout *layout, int number, int align)
@@ -2584,7 +2609,7 @@ static void ui_item_scale(uiLayout *litem, const float scale[2])
 	int x, y, w, h;
 
 	for (item = litem->items.last; item; item = item->prev) {
-		ui_item_size(item, &w, &h);
+		ui_item_size(litem, item, &w, &h);
 		ui_item_offset(item, &x, &y);
 
 		if (scale[0] != 0.0f) {

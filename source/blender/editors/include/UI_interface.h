@@ -784,7 +784,9 @@ float uiLayoutGetScaleY(uiLayout *layout);
 
 /* layout specifiers */
 uiLayout *uiLayoutRow(uiLayout *layout, int align);
+uiLayout *uiLayoutRowWithButtonHeight(uiLayout *layout, int align, int button_height);
 uiLayout *uiLayoutColumn(uiLayout *layout, int align);
+uiLayout *uiLayoutColumnWithButtonHeight(uiLayout *layout, int align, int button_height);
 uiLayout *uiLayoutColumnFlow(uiLayout *layout, int number, int align);
 uiLayout *uiLayoutBox(uiLayout *layout);
 uiLayout *uiLayoutListBox(uiLayout *layout, struct uiList *ui_list, struct PointerRNA *ptr, struct PropertyRNA *prop,

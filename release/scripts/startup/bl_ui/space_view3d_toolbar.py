@@ -80,8 +80,9 @@ class VIEW3D_PT_tools_objectmode(View3DPanel, Panel):
         col = layout.column(align=True)
         col.label(text="Transform:")
         col.operator("transform.translate")
-        col.operator("transform.rotate")
-        col.operator("transform.resize", text="Scale")
+        row = col.row(align=True, button_height=2)
+        row.operator("transform.rotate")
+        row.operator("transform.resize", text="Scale")
 
         col = layout.column(align=True)
         col.operator("object.origin_set", text="Origin")
