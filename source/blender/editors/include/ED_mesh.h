@@ -92,9 +92,10 @@ void EDBM_mesh_normals_update(struct BMEditMesh *em);
 void EDBM_mesh_clear(struct BMEditMesh *em);
 
 void EDBM_selectmode_to_scene(struct bContext *C);
-void EDBM_mesh_make(struct ToolSettings *ts, struct Scene *scene, struct Object *ob);
+void EDBM_mesh_make(struct ToolSettings *ts, struct Object *ob);
 void EDBM_mesh_free(struct BMEditMesh *em);
 void EDBM_mesh_load(struct Object *ob);
+struct DerivedMesh *EDBM_mesh_deform_dm_get(struct BMEditMesh *em);
 
 void           EDBM_index_arrays_ensure(struct BMEditMesh *em, const char htype);
 void           EDBM_index_arrays_init(struct BMEditMesh *em, const char htype);
@@ -233,6 +234,7 @@ void ED_mesh_mirrtopo_free(MirrTopoStore_t *mesh_topo_store);
 #define WEIGHT_ADD 2
 #define WEIGHT_SUBTRACT 3
 
+bool                 ED_vgroup_sync_from_pose(struct Object *ob);
 struct bDeformGroup *ED_vgroup_add(struct Object *ob);
 struct bDeformGroup *ED_vgroup_add_name(struct Object *ob, const char *name);
 void                 ED_vgroup_delete(struct Object *ob, struct bDeformGroup *defgroup);

@@ -2646,7 +2646,7 @@ void uiTemplateList(uiLayout *layout, bContext *C, const char *listtype_name, co
 						sub = uiLayoutRow(overlap, FALSE);
 
 						but = uiDefButR_prop(subblock, LISTROW, 0, "", 0, 0, UI_UNIT_X * 10, UI_UNIT_Y,
-						                     active_dataptr, activeprop, 0, 0, i, 0, 0, "");
+						                     active_dataptr, activeprop, 0, 0, i, 0, 0, NULL);
 						uiButSetFlag(but, UI_BUT_NO_TOOLTIP);
 
 						sub = uiLayoutRow(overlap, FALSE);
@@ -2660,6 +2660,8 @@ void uiTemplateList(uiLayout *layout, bContext *C, const char *listtype_name, co
 						if (i == activei) {
 							ui_layout_list_set_labels_active(sub);
 						}
+
+						uiBlockClearFlag(subblock, UI_BLOCK_LIST_ITEM);
 					}
 					i++;
 				}
@@ -2734,7 +2736,7 @@ void uiTemplateList(uiLayout *layout, bContext *C, const char *listtype_name, co
 					sub = uiLayoutRow(overlap, FALSE);
 
 					but = uiDefButR_prop(subblock, LISTROW, 0, "", 0, 0, UI_UNIT_X * 10, UI_UNIT_Y,
-					                     active_dataptr, activeprop, 0, 0, i, 0, 0, "");
+					                     active_dataptr, activeprop, 0, 0, i, 0, 0, NULL);
 					uiButSetFlag(but, UI_BUT_NO_TOOLTIP);
 
 					sub = uiLayoutRow(overlap, FALSE);
@@ -2746,6 +2748,8 @@ void uiTemplateList(uiLayout *layout, bContext *C, const char *listtype_name, co
 					if (i == activei) {
 						ui_layout_list_set_labels_active(sub);
 					}
+
+					uiBlockClearFlag(subblock, UI_BLOCK_LIST_ITEM);
 
 					i++;
 				}
@@ -3018,16 +3022,16 @@ static void template_keymap_item_properties(uiLayout *layout, const char *title,
 		/* recurse for nested properties */
 		if (RNA_property_type(prop) == PROP_POINTER) {
 			PointerRNA propptr = RNA_property_pointer_get(ptr, prop);
-			const char *name = RNA_property_ui_name(prop);
 
 			if (propptr.data && RNA_struct_is_a(propptr.type, &RNA_OperatorProperties)) {
+				const char *name = RNA_property_ui_name(prop);
 				template_keymap_item_properties(layout, name, &propptr);
 				continue;
 			}
 		}
 
 		/* add property */
-		uiItemR(flow, ptr, RNA_property_identifier(prop), 0, NULL, ICON_NONE);
+		uiItemFullR(flow, ptr, prop, -1, 0, 0, NULL, ICON_NONE);
 	}
 	RNA_STRUCT_END;
 }

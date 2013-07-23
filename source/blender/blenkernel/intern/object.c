@@ -121,9 +121,6 @@
 
 #include "GPU_material.h"
 
-/* Local function protos */
-float originmat[3][3];  /* after BKE_object_where_is_calc(), can be used in other functions (bad!) */
-
 void BKE_object_workob_clear(Object *workob)
 {
 	memset(workob, 0, sizeof(Object));
@@ -1737,13 +1734,15 @@ void BKE_object_mat3_to_rot(Object *ob, float mat[3][3], bool use_compat)
 			normalize_qt_qt(dquat, ob->dquat);
 			invert_qt(dquat);
 			mul_qt_qtqt(ob->quat, dquat, ob->quat);
+			break;
 		}
-		break;
 		case ROT_MODE_AXISANGLE:
+		{
 			mat3_to_axis_angle(ob->rotAxis, &ob->rotAngle, mat);
 			sub_v3_v3(ob->rotAxis, ob->drotAxis);
 			ob->rotAngle -= ob->drotAngle;
 			break;
+		}
 		default: /* euler */
 		{
 			float quat[4];
@@ -1760,6 +1759,7 @@ void BKE_object_mat3_to_rot(Object *ob, float mat[3][3], bool use_compat)
 
 			if (use_compat) mat3_to_compatible_eulO(ob->rot, ob->rot, ob->rotmode, tmat);
 			else            mat3_to_eulO(ob->rot, ob->rotmode, tmat);
+			break;
 		}
 	}
 }
@@ -1882,6 +1882,18 @@ void BKE_object_to_mat4(Object *ob, float mat[4][4])
 	copy_m4_m3(mat, tmat);
 
 	add_v3_v3v3(mat[3], ob->loc, ob->dloc);
+}
+
+void BKE_object_matrix_local_get(struct Object *ob, float mat[4][4])
+{
+	if (ob->parent) {
+		float invmat[4][4]; /* for inverse of parent's matrix */
+		invert_m4_m4(invmat, ob->parent->obmat);
+		mul_m4_m4m4(mat, invmat, ob->obmat);
+	}
+	else {
+		copy_m4_m4(mat, ob->obmat);
+	}
 }
 
 /* extern */
@@ -2136,7 +2148,11 @@ static void ob_parvert3(Object *ob, Object *par, float mat[4][4])
 	}
 }
 
-static void solve_parenting(Scene *scene, Object *ob, Object *par, float obmat[4][4], float slowmat[4][4], int simul)
+/**
+ * \param r_originmat  Optional matrix that stores the space the object is in (without its own matrix applied)
+ */
+static void solve_parenting(Scene *scene, Object *ob, Object *par, float obmat[4][4], float slowmat[4][4],
+                            float r_originmat[3][3], const bool simul)
 {
 	float totmat[4][4];
 	float tmat[4][4];
@@ -2201,8 +2217,10 @@ static void solve_parenting(Scene *scene, Object *ob, Object *par, float obmat[4
 
 	}
 	else {
-		/* external usable originmat */
-		copy_m3_m4(originmat, tmat);
+		if (r_originmat) {
+			/* usable originmat */
+			copy_m3_m4(r_originmat, tmat);
+		}
 		
 		/* origin, for help line */
 		if ((ob->partype & PARTYPE) == PARSKEL) {
@@ -2236,7 +2254,7 @@ static int where_is_object_parslow(Object *ob, float obmat[4][4], float slowmat[
 
 /* note, scene is the active scene while actual_scene is the scene the object resides in */
 void BKE_object_where_is_calc_time_ex(Scene *scene, Object *ob, float ctime,
-                                      RigidBodyWorld *rbw)
+                                      RigidBodyWorld *rbw, float r_originmat[3][3])
 {
 	if (ob == NULL) return;
 	
@@ -2248,7 +2266,7 @@ void BKE_object_where_is_calc_time_ex(Scene *scene, Object *ob, float ctime,
 		float slowmat[4][4] = MAT4_UNITY;
 		
 		/* calculate parent matrix */
-		solve_parenting(scene, ob, par, ob->obmat, slowmat, 0);
+		solve_parenting(scene, ob, par, ob->obmat, slowmat, r_originmat, false);
 		
 		/* "slow parent" is definitely not threadsafe, and may also give bad results jumping around 
 		 * An old-fashioned hack which probably doesn't really cut it anymore
@@ -2283,7 +2301,7 @@ void BKE_object_where_is_calc_time_ex(Scene *scene, Object *ob, float ctime,
 
 void BKE_object_where_is_calc_time(Scene *scene, Object *ob, float ctime)
 {
-	BKE_object_where_is_calc_time_ex(scene, ob, ctime, NULL);
+	BKE_object_where_is_calc_time_ex(scene, ob, ctime, NULL, NULL);
 }
 
 /* get object transformation matrix without recalculating dependencies and
@@ -2297,7 +2315,7 @@ void BKE_object_where_is_calc_mat4(Scene *scene, Object *ob, float obmat[4][4])
 	if (ob->parent) {
 		Object *par = ob->parent;
 		
-		solve_parenting(scene, ob, par, obmat, slowmat, 1);
+		solve_parenting(scene, ob, par, obmat, slowmat, NULL, true);
 		
 		if (ob->partype & PARSLOW)
 			where_is_object_parslow(ob, obmat, slowmat);
@@ -2307,13 +2325,13 @@ void BKE_object_where_is_calc_mat4(Scene *scene, Object *ob, float obmat[4][4])
 	}
 }
 
-void BKE_object_where_is_calc_ex(Scene *scene, RigidBodyWorld *rbw, Object *ob)
+void BKE_object_where_is_calc_ex(Scene *scene, RigidBodyWorld *rbw, Object *ob, float r_originmat[3][3])
 {
-	BKE_object_where_is_calc_time_ex(scene, ob, BKE_scene_frame_get(scene), rbw);
+	BKE_object_where_is_calc_time_ex(scene, ob, BKE_scene_frame_get(scene), rbw, r_originmat);
 }
 void BKE_object_where_is_calc(Scene *scene, Object *ob)
 {
-	BKE_object_where_is_calc_time_ex(scene, ob, BKE_scene_frame_get(scene), NULL);
+	BKE_object_where_is_calc_time_ex(scene, ob, BKE_scene_frame_get(scene), NULL, NULL);
 }
 
 /* was written for the old game engine (until 2.04) */
@@ -2331,7 +2349,7 @@ void BKE_object_where_is_calc_simul(Scene *scene, Object *ob)
 	if (ob->parent) {
 		par = ob->parent;
 		
-		solve_parenting(scene, ob, par, ob->obmat, slowmat, 1);
+		solve_parenting(scene, ob, par, ob->obmat, slowmat, NULL, true);
 		
 		if (ob->partype & PARSLOW) {
 			fac1 = (float)(1.0 / (1.0 + fabs(ob->sf)));
@@ -2487,8 +2505,9 @@ void BKE_object_minmax(Object *ob, float min_r[3], float max_r[3], const bool us
 
 			/* Use the object bounding box so that modifier output
 			 * gets taken into account */
-			if (ob->bb)
+			if (ob->bb) {
 				bb = *(ob->bb);
+			}
 			else {
 				if (cu->bb == NULL)
 					BKE_curve_texspace_calc(cu);
@@ -2500,8 +2519,8 @@ void BKE_object_minmax(Object *ob, float min_r[3], float max_r[3], const bool us
 				minmax_v3v3_v3(min_r, max_r, bb.vec[a]);
 			}
 			change = TRUE;
+			break;
 		}
-		break;
 		case OB_LATTICE:
 		{
 			Lattice *lt = ob->data;
@@ -2517,9 +2536,10 @@ void BKE_object_minmax(Object *ob, float min_r[3], float max_r[3], const bool us
 				}
 			}
 			change = TRUE;
+			break;
 		}
-		break;
 		case OB_ARMATURE:
+		{
 			if (ob->pose) {
 				bArmature *arm = ob->data;
 				bPoseChannel *pchan;
@@ -2538,6 +2558,7 @@ void BKE_object_minmax(Object *ob, float min_r[3], float max_r[3], const bool us
 				}
 			}
 			break;
+		}
 		case OB_MESH:
 		{
 			Mesh *me = BKE_mesh_from_object(ob);
@@ -2551,8 +2572,8 @@ void BKE_object_minmax(Object *ob, float min_r[3], float max_r[3], const bool us
 				}
 				change = TRUE;
 			}
+			break;
 		}
-		break;
 		case OB_MBALL:
 		{
 			float ob_min[3], ob_max[3];
@@ -2803,7 +2824,7 @@ void BKE_object_handle_update_ex(Scene *scene, Object *ob,
 					copy_m4_m4(ob->obmat, ob->proxy_from->obmat);
 			}
 			else
-				BKE_object_where_is_calc_ex(scene, rbw, ob);
+				BKE_object_where_is_calc_ex(scene, rbw, ob, NULL);
 		}
 		
 		if (ob->recalc & OB_RECALC_DATA) {
@@ -2851,10 +2872,8 @@ void BKE_object_handle_update_ex(Scene *scene, Object *ob,
 						makeDerivedMesh(scene, ob, NULL, data_mask, 0);
 					}
 #endif
-
+					break;
 				}
-				break;
-
 				case OB_ARMATURE:
 					if (ob->id.lib && ob->proxy_from) {
 						if (BKE_pose_copy_result(ob->pose, ob->proxy_from->pose) == false) {

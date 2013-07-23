@@ -1941,26 +1941,35 @@ static void bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
 	int i, found_shared_face, ccw_test_sum;
 	int nsel = 0;
 	int ntot = 0;
+	int fcnt;
 
 	/* Gather input selected edges.
 	 * Only bevel selected edges that have exactly two incident faces.
+	 * Want edges to be ordered so that they share faces.
+	 * There may be one or more chains of shared faces broken by
+	 * gaps where there are no faces.
+	 * TODO: make following work when more than one gap.
 	 */
 
-	if (bp->vertex_only)
-		first_bme = v->e;
-	else
-		first_bme = NULL;
+	first_bme = NULL;
 	BM_ITER_ELEM (bme, &iter, v, BM_EDGES_OF_VERT) {
+		fcnt = BM_edge_face_count(bme);
 		if (BM_elem_flag_test(bme, BM_ELEM_TAG) && !bp->vertex_only) {
-			BLI_assert(BM_edge_is_manifold(bme));
+			BLI_assert(fcnt == 2);
 			nsel++;
 			if (!first_bme)
 				first_bme = bme;
+		}
+		if (fcnt == 1) {
+			/* good to start face chain from this edge */
+			first_bme = bme;
 		}
 		ntot++;
 
 		BM_BEVEL_EDGE_TAG_DISABLE(bme);
 	}
+	if (!first_bme)
+		first_bme = v->e;
 
 	if ((nsel == 0 && !bp->vertex_only) || (ntot < 3 && bp->vertex_only)) {
 		/* signal this vert isn't being beveled */
@@ -2223,6 +2232,7 @@ static void bevel_build_edge_polygons(BMesh *bm, BevelParams *bp, BMEdge *bme)
 	BMVert *bmv1, *bmv2, *bmv3, *bmv4, *bmv1i, *bmv2i, *bmv3i, *bmv4i;
 	VMesh *vm1, *vm2;
 	EdgeHalf *e1, *e2;
+	BMEdge *bme1, *bme2;
 	BMFace *f1, *f2, *f;
 	int k, nseg, i1, i2, odd, mid;
 
@@ -2294,6 +2304,13 @@ static void bevel_build_edge_polygons(BMesh *bm, BevelParams *bp, BMEdge *bme)
 		bev_merge_end_uvs(bm, bv1, e1);
 	if (!e2->is_seam && bv2->vmesh->mesh_kind == M_NONE)
 		bev_merge_end_uvs(bm, bv2, e2);
+
+	/* Copy edge data to first and last edge */
+	bme1 = BM_edge_exists(bmv1, bmv2);
+	bme2 = BM_edge_exists(bmv3, bmv4);
+	BLI_assert(bme1 && bme2);
+	BM_elem_attrs_copy(bm, bm, bme, bme1);
+	BM_elem_attrs_copy(bm, bm, bme, bme2);
 }
 
 /*

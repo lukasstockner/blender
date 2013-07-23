@@ -1329,6 +1329,7 @@ void BKE_pchan_mat3_to_rot(bPoseChannel *pchan, float mat[3][3], short use_compa
 				mat3_to_compatible_eulO(pchan->eul, pchan->eul, pchan->rotmode, mat);
 			else
 				mat3_to_eulO(pchan->eul, pchan->rotmode, mat);
+			break;
 	}
 }
 
@@ -2100,8 +2101,8 @@ static void splineik_evaluate_bone(tSplineIK_Tree *tree, Scene *scene, Object *o
 				/* z-axis scale */
 				scale = len_v3(pchan->pose_mat[2]);
 				mul_v3_fl(poseMat[2], scale);
+				break;
 			}
-			break;
 			case CONSTRAINT_SPLINEIK_XZS_VOLUMETRIC:
 			{
 				/* 'volume preservation' */
@@ -2123,8 +2124,8 @@ static void splineik_evaluate_bone(tSplineIK_Tree *tree, Scene *scene, Object *o
 				/* apply the scaling */
 				mul_v3_fl(poseMat[0], scale);
 				mul_v3_fl(poseMat[2], scale);
+				break;
 			}
-			break;
 		}
 
 		/* finally, multiply the x and z scaling by the radius of the curve too,
