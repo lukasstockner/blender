@@ -63,18 +63,14 @@ void gpuClearColorvf_gl(float c[3], float a)
 }
 
 
-#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
 static GLint viewport[4];
-#endif
 
 void gpuViewport_gl(int x, int y, unsigned int width, unsigned int height)
 {
-#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
 	viewport[0] = x;
 	viewport[1] = y;
 	viewport[2] = width;
 	viewport[3] = height;
-#endif
 
 	glViewport(x, y, width, height);
 }

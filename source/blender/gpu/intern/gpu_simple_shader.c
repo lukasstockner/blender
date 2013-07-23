@@ -53,6 +53,7 @@
 
 #include "GPU_extensions.h"
 #include "GPU_simple_shader.h"
+#include "gpu_profile.h"
 
 /* State */
 
