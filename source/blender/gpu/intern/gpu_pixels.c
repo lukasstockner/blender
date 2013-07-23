@@ -33,6 +33,11 @@
 
 #include "gpu_profile.h"
 #include "gpu_safety.h"
+#include "GPU_matrix.h"
+#include "gpu_view.h"
+#include "gpu_state_latch.h"
+#include "gpu_aspect.h"
+#include "gpu_aspectfuncs.h"
 
 
 
@@ -265,6 +270,8 @@ void gpuPixelsBegin()
 		if (non_default_flags & NON_DEFAULT_UNPACK_ALIGNMENT)  glPixelStorei(GL_UNPACK_ALIGNMENT,  format_unpack_alignment);
 	}
 #endif
+
+	gpuAspectBegin(GPU_ASPECT_PIXELS, NULL);
 }
 
 
@@ -300,6 +307,11 @@ static void raster_pos_safe_2f(float x, float y, float known_good_x, float known
 #endif
 
 
+#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
+static GLfloat pixel_pos[3] = { 0, 0, 0 };
+#endif
+
+
 
 void gpuPixelPos2f(GLfloat x, GLfloat y)
 {
@@ -312,7 +324,15 @@ void gpuPixelPos2f(GLfloat x, GLfloat y)
 		else {
 			raster_pos_safe_2f(x, y, 0, 0);
 		}
+
+		return;
 	}
+#endif
+
+#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
+	pixel_pos[0] = x;
+	pixel_pos[1] = y;
+	pixel_pos[2] = 0;
 #endif
 }
 
@@ -324,6 +344,12 @@ void gpuPixelPos3f(GLfloat x, GLfloat y, GLfloat z)
 	if (GPU_PROFILE_COMPAT) {
 		glRasterPos3f(x, y, z);
 	}
+#endif
+
+#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
+	pixel_pos[0] = x;
+	pixel_pos[1] = y;
+	pixel_pos[2] = z;
 #endif
 }
 
@@ -346,6 +372,7 @@ void gpuBitmap(GPUbitmap* bitmap)
 }
 
 
+extern void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, const void *rect, float scaleX, float scaleY);
 
 void gpuPixels(GPUpixels* pixels)
 {
@@ -357,6 +384,25 @@ void gpuPixels(GPUpixels* pixels)
 			pixels->format,
 			pixels->type,
 			pixels->pixels);
+
+		return;
+	}
+#endif
+
+#if defined(WITH_GL_PROFILE_ES20) || defined(WITH_GL_PROFILE_CORE)
+	if (GPU_PROFILE_ES20 || GPU_PROFILE_CORE) {
+		glaDrawPixelsTexScaled(
+			pixel_pos[0],
+			pixel_pos[1],
+			pixels->width,
+			pixels->height,
+			pixels->format,
+			pixels->type,
+			GL_NEAREST,
+			pixels->pixels,
+			1,
+			1);
+		return;
 	}
 #endif
 }
@@ -416,4 +462,6 @@ void gpuPixelsEnd()
 		}
 	}
 #endif
+
+	gpuAspectEnd(GPU_ASPECT_PIXELS, NULL);
 }

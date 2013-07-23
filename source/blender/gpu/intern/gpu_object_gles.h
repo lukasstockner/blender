@@ -65,16 +65,23 @@ void gpuNormalPointer_gles(          int type, int stride, const void *pointer);
 void gpuColorPointer_gles (int size, int type, int stride, const void *pointer);
 void gpuTexCoordPointer_gles(int size, int type, int stride, const void *pointer);
 void gpuClientActiveTexture_gles(int texture);
-void gpuColorSet_gles(const float *value);
 
 void gpuCleanupAfterDraw_gles(void);
+
+
 
 extern GPUGLSL_ES_info shader_main_info;
 extern int shader_main;
 
-
 extern GPUGLSL_ES_info shader_alphatexture_info;
 extern int shader_alphatexture;
+
+extern GPUGLSL_ES_info shader_rgbatexture_info;
+extern int shader_rgbatexture;
+
+extern GPUGLSL_ES_info shader_pixels_info;
+extern int shader_pixels;
+
 
 
 void gpu_object_init_gles(void);

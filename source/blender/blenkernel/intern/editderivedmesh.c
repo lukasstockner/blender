@@ -599,6 +599,8 @@ static void emDM_drawFacesTex_common(DerivedMesh *dm,
 
 	BM_mesh_elem_index_ensure(bm, BM_FACE);
 
+	gpuAspectBegin(GPU_ASPECT_TEXTURE, NULL);
+
 	gpuImmediateFormat_T2_C4_N3_V3();
 
 	/* call again below is ok */
@@ -742,6 +744,8 @@ static void emDM_drawFacesTex_common(DerivedMesh *dm,
 	}
 
 	gpuImmediateUnformat();
+
+	gpuAspectEnd(GPU_ASPECT_TEXTURE, NULL);
 
 	gpuShadeModel(GL_FLAT);
 }

@@ -717,6 +717,8 @@ static void paint_draw_cursor_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		        U.sculpt_paint_overlay_col[2],
 		        brush->cursor_overlay_alpha / 100.0f);
 
+		gpuAspectBegin(GPU_ASPECT_TEXTURE, NULL);
+
 		/* draw textured quad */
 		gpuImmediateFormat_T2_V2();
 		gpuBegin(GL_QUADS);
@@ -730,6 +732,8 @@ static void paint_draw_cursor_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		gpuVertex2f(quad.xmin, quad.ymax);
 		gpuEnd();
 		gpuImmediateUnformat();
+
+		gpuAspectEnd(GPU_ASPECT_TEXTURE, NULL);
 	}
 }
 

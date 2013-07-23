@@ -99,8 +99,10 @@ struct GPUMaterial {
 	int obmatloc, invobmatloc;
 	int obcolloc, obautobumpscaleloc;
 	
-	struct GPUGLSL_ES_info glslloc;
-	
+#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
+	//struct GPUGLSL_ES_info glslloc;
+#endif
+
 	ListBase lamps;
 };
 
@@ -229,7 +231,7 @@ static bool GPU_material_construct_end(GPUMaterial *material)
 			material->obautobumpscaleloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_AUTO_BUMPSCALE));
 
 #if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
-		gpu_assign_gles_loc(&material->glslloc, shader->object);
+		//gpu_assign_gles_loc(&material->glslloc, shader->object);
 #endif
 
 		return true;
@@ -351,7 +353,7 @@ void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[4][4], float 
 		}
 
 #if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
-		gpu_set_shader_es(&material->glslloc,1);
+		//gpu_set_shader_es(&material->glslloc,1);
 #endif
 	}
 }

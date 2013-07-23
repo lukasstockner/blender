@@ -532,6 +532,8 @@ static void wm_triple_draw_textures(wmWindow *win, wmDrawTriple *triple, float a
 
 			gpuCurrentColor4x(CPACK_WHITE, alpha);
 
+			gpuAspectBegin(GPU_ASPECT_TEXTURE, NULL);
+
 			gpuImmediateFormat_T2_V2(); // DOODLE: triple backbuffer
 
 			gpuBegin(GL_TRIANGLE_FAN);
@@ -549,6 +551,8 @@ static void wm_triple_draw_textures(wmWindow *win, wmDrawTriple *triple, float a
 			gpuEnd();
 
 			gpuImmediateUnformat();
+
+			gpuAspectEnd(GPU_ASPECT_TEXTURE, NULL);
 		}
 	}
 

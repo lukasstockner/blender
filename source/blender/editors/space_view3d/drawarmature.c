@@ -979,6 +979,8 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 		length = ebone->length;
 
 	if (G.f & G_PICKSEL) {
+		gpuAspectBegin(GPU_ASPECT_TEXTURE, NULL);
+
 		gpuImmediateFormat_T2_V3();
 	}
 	else {
@@ -1087,6 +1089,10 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 	gpuPopMatrix();
 
 	gpuImmediateUnformat();
+
+	if (G.f & G_PICKSEL) {
+		gpuAspectEnd(GPU_ASPECT_TEXTURE, NULL);
+	}
 
 	gpuPixelsEnd();
 	gpuPixelFormat(GL_UNPACK_ALIGNMENT, 4);  /* restore default value */

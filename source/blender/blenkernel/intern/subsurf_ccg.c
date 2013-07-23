@@ -2228,6 +2228,8 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 	if (!mcol)
 		mcol = dm->getTessFaceDataArray(dm, CD_TEXTURE_MCOL);
 
+	gpuAspectBegin(GPU_ASPECT_TEXTURE, NULL);
+
 	gpuImmediateFormat_T2_C4_N3_V3(); // DOODLE: heavy textured face drawing
 
 	totface = ccgSubSurf_getNumFaces(ss);
@@ -2354,6 +2356,8 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 	}
 
 	gpuImmediateUnformat();
+
+	gpuAspectBegin(GPU_ASPECT_TEXTURE, NULL);
 }
 
 static void ccgDM_drawFacesTex(DerivedMesh *dm,

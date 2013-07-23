@@ -3369,6 +3369,8 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 		}
 #endif
 
+		gpuAspectBegin(GPU_ASPECT_TEXTURE, NULL);
+
 		gpuImmediateFormat_T2_V2();
 		gpuBegin(GL_TRIANGLE_FAN);
 		gpuTexCoord2f(0, 0);
@@ -3381,6 +3383,8 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 		gpuVertex2f(-radius,  radius);
 		gpuEnd();
 		gpuImmediateUnformat();
+
+		gpuAspectEnd(GPU_ASPECT_TEXTURE, NULL);
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 		if (GPU_PROFILE_COMPAT) {

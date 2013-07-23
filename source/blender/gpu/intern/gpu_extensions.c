@@ -1152,6 +1152,8 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 
 	GPU_texture_bind(tex, 0);
 
+	gpuAspectBegin(GPU_ASPECT_TEXTURE, NULL);
+
 	gpuImmediateFormat_T2_V2();
 
 	/* Drawing quad */
@@ -1178,6 +1180,8 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 	gpuEnd();
 
 	gpuImmediateUnformat();
+
+	gpuAspectEnd(GPU_ASPECT_TEXTURE, NULL);
 
 	GPU_shader_unbind();
 }

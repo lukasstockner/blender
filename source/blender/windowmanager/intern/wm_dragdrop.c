@@ -324,7 +324,9 @@ void wm_drags_draw(bContext *C, wmWindow *win, rcti *rect)
 				drag_rect_minmax(rect, x, y, x + drag->sx, y + drag->sy);
 			else {
 				gpuCurrentColor4x(CPACK_WHITE, 0.650f); /* this blends texture */
+				gpuAspectBegin(GPU_ASPECT_TEXTURE, NULL);
 				glaDrawPixelsTexScaled(x, y, drag->imb->x, drag->imb->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST, drag->imb->rect, drag->scale, drag->scale);
+				gpuAspectEnd(GPU_ASPECT_TEXTURE, NULL);
 			}
 		}
 		else {

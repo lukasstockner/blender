@@ -60,6 +60,8 @@ they have nothing else in common besides the need for state query.
 void gpuDepthRange(GLdouble near, GLdouble far);
 void gpuGetDepthRange(GLdouble range[2]);
 
+GLfloat gpuFeedbackDepthRange(GLfloat z);
+
 void gpuBindTexture(GLenum target, GLuint name);
 GLuint gpuGetTextureBinding2D(void);
 

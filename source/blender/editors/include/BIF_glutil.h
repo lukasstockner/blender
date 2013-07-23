@@ -115,7 +115,7 @@ void glaDrawPixelsTex(float x, float y, int img_w, int img_h, int format, int ty
 void glaDrawPixelsAuto(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect);
 
 
-void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect, float scaleX, float scaleY);
+void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, const void *rect, float scaleX, float scaleY);
 
 /* 2D Drawing Assistance */
 

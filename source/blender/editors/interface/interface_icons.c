@@ -1091,6 +1091,8 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 	glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, -0.5f);
 #endif
 
+	gpuAspectBegin(GPU_ASPECT_TEXTURE, NULL);
+
 	gpuImmediateFormat_T2_V2(); // DOODLE: icon, single quad with texture
 	gpuBegin(GL_TRIANGLE_FAN);
 
@@ -1109,6 +1111,8 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 
 	gpuEnd();
 	gpuImmediateUnformat();
+
+	gpuAspectEnd(GPU_ASPECT_TEXTURE, NULL);
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, 0.0f);

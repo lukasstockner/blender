@@ -213,6 +213,9 @@ void WM_init(bContext *C, int argc, const char **argv)
 		gpuImmediateIndex(gindex);
 		gpuImmediateMaxIndexCount(500000); // XXX: temporary!
 
+		gpuInitializeAspects();
+		gpuInitializeAspectFuncs();
+
 		/* end - init opengl compatibility layer */
 
 		UI_init();

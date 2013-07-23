@@ -35,7 +35,6 @@ typedef struct GPU_object_func
 	void (*gpuNormalPointer)  (          int type, int stride, const void *pointer);
 	void (*gpuColorPointer )  (int size, int type, int stride, const void *pointer);
 	void (*gpuTexCoordPointer)(int size, int type, int stride, const void *pointer);
-	void (*gpuColorSet)  (const float *value);
 
 
 #if !defined(GLEW_ES_ONLY)

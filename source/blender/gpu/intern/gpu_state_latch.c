@@ -48,6 +48,7 @@ static GLdouble depth_range[2] = { 0, 1 };
 
 void gpuDepthRange(GLdouble near, GLdouble far)
 {
+	GPU_ASSERT(near != far);
 	GPU_CHECK_NO_ERROR();
 
 	depth_range[0] = near;
@@ -79,6 +80,25 @@ void gpuGetDepthRange(GLdouble out[2])
 	GPU_CHECK_NO_ERROR();
 
 	memcpy(out, depth_range, sizeof(depth_range));
+}
+
+
+
+GLfloat gpuFeedbackDepthRange(GLfloat z)
+{
+	GLfloat depth;
+
+	GPU_CHECK_NO_ERROR();
+
+	depth = depth_range[1] - depth_range[0];
+
+	if (depth != 0) {
+		return z / depth;
+	}
+	else {
+		GPU_ABORT();
+		return z;
+	}
 }
 
 

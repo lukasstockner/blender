@@ -353,36 +353,39 @@ float glaGetOneFloat(int param)
 	return v;
 }
 
+// XXX jwilkins: it seems like this probably doesn't work like it is supposed to
+
 static int get_cached_work_texture(int *w_r, int *h_r)
 {
 	static GLint texid = -1;
-	static int tex_w = 256;
-	static int tex_h = 256;
+	int tex_w = 1024;//GPU_max_texture_size();//256;
+	int tex_h = 1024;//tex_w;//256;
 
 	if (texid == -1) {
-		GLint ltexid = gpuGetTextureBinding2D();
-		unsigned char *tbuf;
+		//GLint ltexid = gpuGetTextureBinding2D();
+		//unsigned char *tbuf;
 
 		glGenTextures(1, (GLuint *)&texid);
 
-		gpuBindTexture(GL_TEXTURE_2D, texid);
+		//gpuBindTexture(GL_TEXTURE_2D, texid);
 
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-		tbuf = MEM_callocN(tex_w * tex_h * 4, "tbuf");
-		glTexImage2D(GL_TEXTURE_2D, 0, (GLEW_VERSION_1_1 || GLEW_OES_required_internalformat) ? GL_RGBA8 : GL_RGBA, tex_w, tex_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, tbuf);
-		MEM_freeN(tbuf);
+		//tbuf = MEM_callocN(tex_w * tex_h * 4, "tbuf");
+		//glTexImage2D(GL_TEXTURE_2D, 0, (GLEW_VERSION_1_1 || GLEW_OES_required_internalformat) ? GL_RGBA8 : GL_RGBA, tex_w, tex_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);//tbuf);
+		//MEM_freeN(tbuf);
 
-		gpuBindTexture(GL_TEXTURE_2D, ltexid); /* restore previous value */
+		//gpuBindTexture(GL_TEXTURE_2D, ltexid); /* restore previous value */
 	}
 
 	*w_r = tex_w;
 	*h_r = tex_h;
+
 	return texid;
 }
 
-void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect, float scaleX, float scaleY)
+void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, const void *rect, float scaleX, float scaleY)
 {
 	float xzoom, yzoom;
 	int ltexid = gpuGetTextureBinding2D();
@@ -410,6 +413,7 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 	/* don't want nasty border artifacts */
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, zoomfilter);
 
 	/* setup seamless 2=on, 0=off */
@@ -534,12 +538,19 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 	gpuImmediateUnformat();
 
 	gpuBindTexture(GL_TEXTURE_2D, ltexid);
+
+#if defined(WITH_GL_PROFILE_COMPAT)
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0); /* restore default value */
+#else
+	// XXX jwilkins: ES doesn't have GL_UNPACK_ROW_LENGTH, so sub images will have to be created on the CPU
+#endif
 }
 
 void glaDrawPixelsTex(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect)
 {
+	gpuAspectBegin(GPU_ASPECT_TEXTURE, NULL);
 	glaDrawPixelsTexScaled(x, y, img_w, img_h, format, type, zoomfilter, rect, 1.0f, 1.0f);
+	gpuAspectEnd(GPU_ASPECT_TEXTURE, NULL);
 }
 
 void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int format, int type, void *rect)

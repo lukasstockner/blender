@@ -20,8 +20,6 @@ void GPU_init_object_func(void)
 	gpugameobj.gpuClientActiveTexture = gpuClientActiveTexture_gles;
 #endif
 
-	gpugameobj.gpuColorSet = gpuColorSet_gles;
-
 	gpugameobj.gpuCleanupAfterDraw = gpuCleanupAfterDraw_gles;
 #else
 	gpugameobj.gpuVertexPointer = gpuVertexPointer_gl11;

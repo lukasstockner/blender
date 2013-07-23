@@ -44,6 +44,8 @@
 #include "intern/gpu_profile.h"
 #include "intern/gpu_pixels.h"
 #include "intern/gpu_select.h"
+#include "intern/gpu_aspect.h"
+#include "intern/gpu_aspectfuncs.h"
 
 #ifndef GPU_MANGLE_DEPRECATED
 #define GPU_MANGLE_DEPRECATED 1

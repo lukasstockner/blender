@@ -45,7 +45,8 @@
 
 /* Define some useful, but slow, checks for correct API usage. */
 
-#define GPU_CHECK_BASE(var) \
+#define GPU_CHECK_BASE(var)                       \
+    GPU_CHECK_NO_ERROR();                         \
     GPU_SAFE_RETURN(GPU_IMMEDIATE != NULL, var,);
 
 #define GPU_CHECK_NO_BEGIN(var) \
@@ -88,12 +89,6 @@
     GLboolean isModeOK;                                         \
     GPU_CHECK_BASE(immediateOK);                                \
     GPU_SAFE_RETURN(GPU_IMMEDIATE->mode == (_mode), isModeOK,); \
-    }
-
-#define GPU_CHECK_FORMAT(field, size)                                   \
-    {                                                                   \
-    GLboolean fieldSizeOK;                                              \
-    GPU_SAFE_RETURN(GPU_IMMEDIATE-> field##Size == size, fieldSizeOK,); \
     }
 
 #define GPU_CHECK_CAN_REPEAT() GPU_CHECK_CAN_BEGIN()

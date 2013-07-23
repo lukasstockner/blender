@@ -45,6 +45,8 @@ set(INC_SYS
 )
 
 set(SRC
+    intern/gpu_aspect.c
+	intern/gpu_aspectfuncs.c
 	intern/gpu_buffers.c
 	intern/gpu_codegen.c
 	intern/gpu_debug.c
@@ -84,6 +86,8 @@ set(SRC
 	GPU_primitives.h
 	GPU_object.h
 
+    intern/gpu_aspect.h
+	intern/gpu_aspectfuncs.h
 	intern/gpu_codegen.h
 	intern/gpu_deprecated.h
 	intern/gpu_extension_wrapper.h

@@ -28,6 +28,8 @@
 #if !defined(GPU_VIEW_H) || defined(GPU_VIEW_INTERN)
 #define GPU_VIEW_H
 
+#include "gpu_glew.h"
+
 #ifndef GPU_VIEW_INTERN
 #define GPU_VIEW_FUNC extern
 #else
@@ -54,6 +56,8 @@ GPU_VIEW_FUNC void (* gpuScissor)(int x, int y, unsigned int width, unsigned int
 GPU_VIEW_FUNC void (* gpuViewportScissor)(int x, int y, unsigned int width, unsigned int height);
 
 GPU_VIEW_FUNC void (*gpuGetSizeBox)(int type, int *box);
+
+void gpuFeedbackViewport2fv(GLfloat x, GLfloat y, GLfloat out[2]);
 
 #ifdef __cplusplus
 }

@@ -693,6 +693,8 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 
 	cdDM_update_normals_from_pbvh(dm);
 
+	gpuAspectBegin(GPU_ASPECT_TEXTURE, NULL);
+
 	if (GPU_buffer_legacy(dm)) {
 		DEBUG_VBO("Using legacy code. cdDM_drawFacesTex_common\n");
 		gpuImmediateFormat_T2_C4_N3_V3();
@@ -857,6 +859,8 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 				}
 			}
 		}
+
+		gpuAspectEnd(GPU_ASPECT_TEXTURE, NULL);
 
 		GPU_buffer_unbind();
 		gpuShadeModel(GL_FLAT);

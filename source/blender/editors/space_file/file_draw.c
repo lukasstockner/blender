@@ -377,9 +377,10 @@ static void file_draw_preview(uiBlock *block, struct direntry *file, int sx, int
 		glEnable(GL_BLEND);
 		
 		/* the image */
-		gpuCurrentColor3x(CPACK_WHITE);
+		gpuAspectBegin(GPU_ASPECT_PIXELS, NULL);
 		glaDrawPixelsTexScaled((float)xco, (float)yco, imb->x, imb->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST, imb->rect, scale, scale);
-		
+		gpuAspectEnd(GPU_ASPECT_PIXELS, NULL);
+
 		/* border */
 		if (dropshadow) {
 			gpuCurrentColor4x(CPACK_BLACK, 0.400f);
@@ -477,7 +478,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 	short is_icon;
 	short align;
 	bool do_drag;
-	int column_space = 0.6f * UI_UNIT_X;
+	int column_space = (int)(0.6f * UI_UNIT_X);
 
 	numfiles = filelist_numfiles(files);
 	
@@ -540,7 +541,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 		}
 		else {
 			file_draw_icon(block, file->path, sx, sy - (UI_UNIT_Y / 6), get_file_icon(file), ICON_DEFAULT_WIDTH_SCALE, ICON_DEFAULT_HEIGHT_SCALE, do_drag);
-			sx += ICON_DEFAULT_WIDTH_SCALE + 0.2f * UI_UNIT_X;
+			sx += (int)(ICON_DEFAULT_WIDTH_SCALE + 0.2f * UI_UNIT_X);
 		}
 
 		UI_ThemeColor4(TH_TEXT);

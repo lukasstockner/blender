@@ -1373,7 +1373,9 @@ static void backdrawview3d(Scene *scene, ARegion *ar, View3D *v3d)
 {
 	RegionView3D *rv3d = ar->regiondata;
 	struct Base *base = scene->basact;
+#if defined(WITH_GL_PROFILE_COMPAT) || defined(WITH_GL_PROFILE_CORE)
 	int multisample_enabled;
+#endif
 
 	BLI_assert(ar->regiontype == RGN_TYPE_WINDOW);
 
@@ -1413,9 +1415,14 @@ static void backdrawview3d(Scene *scene, ARegion *ar, View3D *v3d)
 	/* dithering and AA break color coding, so disable */
 	glDisable(GL_DITHER);
 
+#if defined(WITH_GL_PROFILE_COMPAT) || defined(WITH_GL_PROFILE_CORE)
+	/* disable AA, makes widgets too blurry */
 	multisample_enabled = glIsEnabled(GL_MULTISAMPLE);
 	if (multisample_enabled)
 		glDisable(GL_MULTISAMPLE);
+#else
+	// XXX jwilkins: multisampling can only be controlled during context creation with ES
+#endif
 
 	if (U.ogl_multisamples != USER_MULTISAMPLE_NONE) {
 		/* for multisample we use an offscreen FBO. multisample drawing can fail
@@ -1476,8 +1483,11 @@ static void backdrawview3d(Scene *scene, ARegion *ar, View3D *v3d)
 	v3d->zbuf = FALSE;
 	glDisable(GL_DEPTH_TEST);
 	glEnable(GL_DITHER);
+
+#if defined(WITH_GL_PROFILE_COMPAT) || defined(WITH_GL_PROFILE_CORE)
 	if (multisample_enabled)
 		glEnable(GL_MULTISAMPLE);
+#endif
 
 	if (rv3d->rflag & RV3D_CLIPPING)
 		ED_view3d_clipping_disable();
@@ -3346,11 +3356,12 @@ static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const 
 	else
 		v3d->zbuf = FALSE;
 
+#if defined(WITH_GL_PROFILE_COMPAT) || defined(WITH_GL_PROFILE_CORE)
 	/* enables anti-aliasing for 3D view drawing */
 	if (U.ogl_multisamples != USER_MULTISAMPLE_NONE) {
 		glEnable(GL_MULTISAMPLE);
 	}
-
+#endif
 
 	/* needs to be done always, gridview is adjusted in drawgrid() now */
 	rv3d->gridview = v3d->grid;
@@ -3463,12 +3474,13 @@ static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const 
 
 	BIF_draw_manipulator(C);
 
+#if defined(WITH_GL_PROFILE_COMPAT) || defined(WITH_GL_PROFILE_CORE)
 	/* Disable back anti-aliasing */
 	if (U.ogl_multisamples != USER_MULTISAMPLE_NONE) {
 		glDisable(GL_MULTISAMPLE);
 	}
+#endif
 
-	
 	if (v3d->zbuf) {
 		v3d->zbuf = FALSE;
 		glDisable(GL_DEPTH_TEST);

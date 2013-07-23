@@ -572,3 +572,30 @@ GLboolean gpuUnProject(const GLfloat win[3], const GLfloat model[4][4], const GL
 		return GL_TRUE;
 	}
 }
+
+
+
+void gpuFeedbackVertex3fv(GLenum type, GLfloat x, GLfloat y, GLfloat z, GLfloat out[3])
+{
+	GPU_matrix* m;
+
+	switch(type) {
+		case GL_MODELVIEW_MATRIX:
+			m = ms_modelview.dynstack + ms_modelview.pos;
+			break;
+		case GL_PROJECTION_MATRIX:
+			m = ms_projection.dynstack + ms_projection.pos;
+			break;
+		case GL_TEXTURE_MATRIX:
+			m = ms_texture.dynstack + ms_texture.pos;
+			break;
+		default:
+			GPU_ABORT();
+			return;
+	}
+
+	{
+		float in[3] = {x, y, z};
+		mul_v3_m4v3(out, m[0], in);
+	}
+}

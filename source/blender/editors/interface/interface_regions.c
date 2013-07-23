@@ -367,12 +367,17 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 
 	float background_color[3];
 	float tone_bg;
-	int i, multisample_enabled;
+	int i;
 
+#if defined(WITH_GL_PROFILE_COMPAT) || defined(WITH_GL_PROFILE_CORE)
 	/* disable AA, makes widgets too blurry */
+	int  multisample_enabled;
 	multisample_enabled = glIsEnabled(GL_MULTISAMPLE);
 	if (multisample_enabled)
 		glDisable(GL_MULTISAMPLE);
+#else
+	// XXX jwilkins: multisampling can only be controlled during context creation with ES
+#endif
 
 	/* draw background */
 	ui_draw_tooltip_background(UI_GetStyle(), NULL, &bbox);
@@ -412,8 +417,10 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 		GPU_STRING_MARKER("tooltip text end");
 	}
 
+#if defined(WITH_GL_PROFILE_COMPAT) || defined(WITH_GL_PROFILE_CORE)
 	if (multisample_enabled)
 		glEnable(GL_MULTISAMPLE);
+#endif
 }
 
 static void ui_tooltip_region_free_cb(ARegion *ar)

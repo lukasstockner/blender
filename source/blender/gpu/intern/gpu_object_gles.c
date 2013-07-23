@@ -29,10 +29,12 @@
  *  \ingroup gpu
  */
 
-#include "gpu_glew.h"
 #include "gpu_object_gles.h"
 
+#include "gpu_glew.h"
 #include "gpu_extension_wrapper.h"
+#include "gpu_profile.h"
+
 #include "MEM_guardedalloc.h"
 
 //#include REAL_GL_MODE
@@ -43,65 +45,39 @@ struct GPUGLSL_ES_info *curglslesi = 0;
 
 void gpuVertexPointer_gles(int size, int type, int stride, const void *pointer)
 {
-	if(curglslesi && (curglslesi->vertexloc!=-1))
-	{
+	if(curglslesi && (curglslesi->vertexloc != -1)) {
 		glEnableVertexAttribArray(curglslesi->vertexloc);
-		glVertexAttribPointer(curglslesi->vertexloc, size, type, 0, stride, pointer);
+		glVertexAttribPointer(curglslesi->vertexloc, size, type, GL_FALSE, stride, pointer);
 	}
 }
 
 void gpuNormalPointer_gles(int type, int stride, const void *pointer)
 {
-
-	if(curglslesi && (curglslesi->normalloc!=-1))
-	{
+	if(curglslesi && (curglslesi->normalloc != -1)) {
 		glEnableVertexAttribArray(curglslesi->normalloc);
-		glVertexAttribPointer(curglslesi->normalloc, 3, type, 0, stride, pointer);
+		glVertexAttribPointer(curglslesi->normalloc, 3, type, GL_FALSE, stride, pointer);
 	}
 }
 
 void gpuColorPointer_gles (int size, int type, int stride, const void *pointer)
 {
-
-
-	if(curglslesi && (curglslesi->colorloc!=-1))
-	{
+	if(curglslesi && (curglslesi->colorloc != -1)) {
 		glEnableVertexAttribArray(curglslesi->colorloc);
 		glVertexAttribPointer(curglslesi->colorloc, size, type, GL_TRUE, stride, pointer);
 	}
-
-
-
-}
-
-void gpuColorSet_gles(const float *value)
-{
-
-
-	if(curglslesi && (curglslesi->colorloc!=-1))
-	{
-		glDisableVertexAttribArray(curglslesi->colorloc);
-		glVertexAttrib4fv(curglslesi->colorloc, value);
-		
-
-	}
-
-
-
 }
 
 void gpuTexCoordPointer_gles(int size, int type, int stride, const void *pointer)
 {
-	if(curglslesi && (curglslesi->texturecoordloc!=-1))
-	{
+	if(curglslesi && (curglslesi->texturecoordloc!=-1)) {
 		glEnableVertexAttribArray(curglslesi->texturecoordloc);
-		//glDisableVertexAttribArray(curglslesi->texturecoordloc);
-		glVertexAttribPointer(curglslesi->texturecoordloc, size, type, 0, stride, pointer);
+		glVertexAttribPointer(curglslesi->texturecoordloc, size, type, GL_FALSE, stride, pointer);
 	}
-		if(curglslesi && curglslesi->texidloc!=-1)
-			glUniform1i(curglslesi->texidloc, 0);
-}
 
+	if(curglslesi && curglslesi->texidloc!=-1) {
+		glUniform1i(curglslesi->texidloc, 0);
+	}
+}
 
 void gpuClientActiveTexture_gles(int texture)
 {
@@ -110,8 +86,62 @@ void gpuClientActiveTexture_gles(int texture)
 
 void gpuCleanupAfterDraw_gles(void)
 {
+	//int i;
 
+	/* Disable any arrays that were used so that everything is off again. */
 
+	if (!curglslesi)
+		return;
+
+	/* vertex */
+
+	if(curglslesi->vertexloc != -1) {
+		glDisableVertexAttribArray(curglslesi->vertexloc);
+	}
+
+	/* normal */
+
+	if (GPU_IMMEDIATE->format.normalSize != 0) {
+		if(curglslesi->normalloc != -1) {
+			glDisableVertexAttribArray(curglslesi->normalloc);
+		}
+	}
+
+	/* color */
+
+	if (GPU_IMMEDIATE->format.colorSize != 0) {
+		if(curglslesi->colorloc != -1) {
+			glDisableVertexAttribArray(curglslesi->colorloc);
+		}
+	}
+
+	/* texture coordinate */
+
+	if (GPU_IMMEDIATE->format.textureUnitCount == 1) {
+		if(curglslesi && (curglslesi->texturecoordloc!=-1)) {
+			glDisableVertexAttribArray(curglslesi->texturecoordloc);
+		}
+	}
+	//else if (GPU_IMMEDIATE->format.textureUnitCount > 1) {
+	//	for (i = 0; i < GPU_IMMEDIATE->format.textureUnitCount; i++) {
+	//		glClientActiveTexture(GPU_IMMEDIATE->format.textureUnitMap[i]);
+	//		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	//	}
+
+	//	glClientActiveTexture(GL_TEXTURE0);
+	//}
+
+	/* float vertex attribute */
+
+	//for (i = 0; i < GPU_IMMEDIATE->format.attribCount_f; i++) {
+	//	gpu_glDisableVertexAttribArray(GPU_IMMEDIATE->format.attribIndexMap_f[i]);
+	//}
+
+	/* byte vertex attribute */
+
+	//for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++) {
+	//	gpu_glDisableVertexAttribArray(GPU_IMMEDIATE->format.attribIndexMap_ub[i]);
+	//}
 }
 
 void gpu_set_shader_es(struct GPUGLSL_ES_info * s, int update)
@@ -284,15 +314,72 @@ char * object_shader_vector_alphatexture =
 ;
 
 char * object_shader_fragment_alphatexture = 
-"precision mediump float;	\n"
-"varying vec4 v_Color;	\n"
-"varying vec2 v_Coord;	\n"
-"uniform sampler2D v_texid;	\n"
-"void main()	\n"
-"{	\n"
-"	gl_FragColor = vec4(v_Color.rgb, texture2D(v_texid, v_Coord).a*v_Color.a);	\n"
-"}	\n"
+	"precision mediump float;\n"
+	"varying vec4 v_Color;\n"
+	"varying vec2 v_Coord;\n"
+	"uniform sampler2D v_texid;\n"
+	"void main()\n"
+	"{\n"
+	"	gl_FragColor = vec4(v_Color.rgb, texture2D(v_texid, v_Coord).a*v_Color.a);\n"
+	"}\n"
 ;
+
+char * object_shader_vector_rgbatexture = 
+	"uniform mat4 b_ProjectionMatrix ;\n"
+	"uniform mat4 b_ModelViewMatrix ;\n"
+	"uniform mat4 b_TextureMatrix ;\n"
+	"attribute vec4 b_Vertex;\n"
+	"attribute vec4 b_Color;\n"
+	"varying vec4 v_Color;\n"
+	"attribute vec2 b_Coord;\n"
+	"varying vec2 v_Coord;\n"
+	"void main()\n"
+	"{\n"
+	"	gl_Position = b_ProjectionMatrix * b_ModelViewMatrix * b_Vertex;\n"
+	"	v_Coord = mat2(b_TextureMatrix) * b_Coord;\n"
+	"	v_Color = b_Color;\n"
+	"}\n"
+;
+
+char * object_shader_fragment_rgbatexture = 
+	"precision mediump float;\n"
+	"varying vec4 v_Color;\n"
+	"varying vec2 v_Coord;\n"
+	"uniform sampler2D v_texid;\n"
+	"void main()	\n"
+	"{\n"
+	"	gl_FragColor = v_Color*texture2D(v_texid, v_Coord);\n"
+	"}\n"
+;
+
+char * object_shader_vector_pixels = 
+	"uniform mat4 b_ProjectionMatrix ;\n"
+	"uniform mat4 b_ModelViewMatrix ;\n"
+	"uniform mat4 b_TextureMatrix ;\n"
+	"attribute vec4 b_Vertex;\n"
+	"attribute vec4 b_Color;\n"
+	"varying vec4 v_Color;\n"
+	"attribute vec2 b_Coord;\n"
+	"varying vec2 v_Coord;\n"
+	"void main()\n"
+	"{\n"
+	"	gl_Position = b_ProjectionMatrix * b_ModelViewMatrix * b_Vertex;\n"
+	"	v_Coord = mat2(b_TextureMatrix) * b_Coord;\n"
+	"	v_Color = b_Color;\n"
+	"}\n"
+;
+
+char * object_shader_fragment_pixels = 
+	"precision mediump float;\n"
+	"varying vec4 v_Color;\n"
+	"varying vec2 v_Coord;\n"
+	"uniform sampler2D v_texid;\n"
+	"void main()	\n"
+	"{\n"
+	"	gl_FragColor = texture2D(v_texid, v_Coord);\n"
+	"}\n"
+;
+
 
 
 GPUGLSL_ES_info shader_main_info;
@@ -301,18 +388,54 @@ int shader_main;
 GPUGLSL_ES_info shader_alphatexture_info;
 int shader_alphatexture;
 
+GPUGLSL_ES_info shader_rgbatexture_info;
+int shader_rgbatexture;
+
+GPUGLSL_ES_info shader_pixels_info;
+int shader_pixels;
+
 
 
 void gpu_object_init_gles(void)
 {
-	GLuint vo = compile_shader(GL_VERTEX_SHADER, &object_shader_vector_basic, 1);
-	GLuint fo = compile_shader(GL_FRAGMENT_SHADER, &object_shader_fragment_basic, 1);	
-	shader_main = create_program(vo, fo);
-	gpu_assign_gles_loc(&shader_main_info, shader_main);
+	{
+		GLuint vo = compile_shader(GL_VERTEX_SHADER,   &object_shader_vector_basic,   1);
+		GLuint fo = compile_shader(GL_FRAGMENT_SHADER, &object_shader_fragment_basic, 1);
+		shader_main = create_program(vo, fo);
+		gpu_assign_gles_loc(&shader_main_info, shader_main);
+	}
 
-	vo = compile_shader(GL_VERTEX_SHADER, &object_shader_vector_alphatexture, 1);
-	fo = compile_shader(GL_FRAGMENT_SHADER, &object_shader_fragment_alphatexture, 1);
-	shader_alphatexture = create_program(vo, fo);	
-	
-	gpu_assign_gles_loc(&shader_alphatexture_info, shader_alphatexture);
+	{
+		GLuint vo = compile_shader(GL_VERTEX_SHADER,   &object_shader_vector_alphatexture,   1);
+		GLuint fo = compile_shader(GL_FRAGMENT_SHADER, &object_shader_fragment_alphatexture, 1);
+		shader_alphatexture = create_program(vo, fo);	
+		gpu_assign_gles_loc(&shader_alphatexture_info, shader_alphatexture);
+	}
+
+	{
+		GLuint vo = compile_shader(GL_VERTEX_SHADER,   &object_shader_vector_rgbatexture,   1);
+		GLuint fo = compile_shader(GL_FRAGMENT_SHADER, &object_shader_fragment_rgbatexture, 1);
+		shader_rgbatexture = create_program(vo, fo);	
+		gpu_assign_gles_loc(&shader_rgbatexture_info, shader_rgbatexture);
+	}
+
+	{
+		GLuint vo = compile_shader(GL_VERTEX_SHADER,   &object_shader_vector_pixels,   1);
+		GLuint fo = compile_shader(GL_FRAGMENT_SHADER, &object_shader_fragment_pixels, 1);
+		shader_pixels = create_program(vo, fo);	
+		gpu_assign_gles_loc(&shader_pixels_info, shader_pixels);
+	}
+
+// XXX jwilkins: until I figure out what the 'base aspect' should be, set shader_main as the default shader state
+#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
+	if (GPU_PROFILE_CORE || GPU_PROFILE_ES20) {
+		gpu_set_shader_es(&shader_main_info, 0);
+		gpu_glUseProgram(shader_main);
+		return;
+	}
+#else
+	if (GPU_PROFILE_COMPAT) {
+		gpu_glUseProgram(0);
+	}
+#endif
 }

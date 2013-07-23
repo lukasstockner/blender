@@ -502,6 +502,8 @@ static void draw_lock(FontBLF *font)
 	}
 
 	if (font->locked == 0) {
+		gpuAspectBegin(GPU_ASPECT_FONT, NULL);
+
 		if (font->shadow || font->blur) {
 			gpuImmediateFormat_T2_C4_V2(); // DOODLE: blurred and/or shadowed text
 		}
@@ -542,6 +544,8 @@ static void draw_unlock(FontBLF *font)
 #endif
 
 		gpuImmediateUnformat();
+
+		gpuAspectEnd(GPU_ASPECT_FONT, NULL);
 	}
 }
 

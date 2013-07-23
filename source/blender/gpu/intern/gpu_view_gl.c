@@ -63,12 +63,32 @@ void gpuClearColorvf_gl(float c[3], float a)
 }
 
 
+#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
+static GLint viewport[4];
+#endif
 
 void gpuViewport_gl(int x, int y, unsigned int width, unsigned int height)
 {
+#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
+	viewport[0] = x;
+	viewport[1] = y;
+	viewport[2] = width;
+	viewport[3] = height;
+#endif
+
 	glViewport(x, y, width, height);
 }
 
+
+
+void gpuFeedbackViewport2fv(GLfloat x, GLfloat y, GLfloat out[2])
+{
+	const GLfloat halfw = (GLfloat)viewport[2] / 2.0f;
+	const GLfloat halfh = (GLfloat)viewport[3] / 2.0f;
+
+	out[0] = halfw*x + halfw + (GLfloat)viewport[0];
+	out[1] = halfh*y + halfh + (GLfloat)viewport[1];
+}
 
 
 void gpuScissor_gl(int x, int y, unsigned int width, unsigned int height)
