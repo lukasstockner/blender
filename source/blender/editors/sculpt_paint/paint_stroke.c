@@ -178,7 +178,6 @@ static void paint_brush_update(bContext *C,
 
 	/* Truly temporary data that isn't stored in properties */
 
-	ups->draw_pressure = true;
 	ups->pressure_value = stroke->cached_pressure;
 
 	ups->pixel_radius = BKE_brush_size_get(scene, brush);
@@ -540,7 +539,8 @@ PaintStroke *paint_stroke_new(bContext *C,
 
 	/* initialize here */
 	ups->overlap_factor = 1.0;
-	
+	ups->stroke_active = true;
+
 	BKE_paint_set_overlay_override(br->overlay_flags);
 
 	return stroke;
@@ -559,7 +559,11 @@ static void stroke_done(struct bContext *C, struct wmOperator *op)
 	UnifiedPaintSettings *ups = stroke->ups;
 
 	ups->draw_anchored = false;
-	ups->draw_pressure = false;
+	ups->stroke_active = false;
+
+	/* reset rotation here to avoid doing so in cursor display */
+	if (!(stroke->brush->flag & BRUSH_RAKE))
+		ups->brush_rotation = 0.0f;
 
 	if (stroke->stroke_started) {
 		if (stroke->redraw)

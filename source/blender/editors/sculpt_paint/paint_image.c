@@ -873,7 +873,7 @@ void brush_drawcursor_texpaint_uvsculpt(bContext *C, int x, int y, void *UNUSED(
 		{
 			UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
 			/* hrmf, duplicate paint_draw_cursor logic here */
-			if (ups->draw_pressure && BKE_brush_use_size_pressure(scene, brush)) {
+			if (ups->stroke_active && BKE_brush_use_size_pressure(scene, brush)) {
 				/* inner at full alpha */
 				glutil_draw_lined_arc(0, (float)(M_PI * 2.0), size * ups->pressure_value, 40);
 				/* outer at half alpha */
