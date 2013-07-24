@@ -986,15 +986,6 @@ GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextTyp
 		break;
 #elif defined(WITH_GL_SYSTEM_EMBEDDED)
 		{
-			EGLint major, minor;
-			EGLint num_config;
-			EGLConfig config;
-			std::vector<EGLint> attrib_list(20);
-
-#if defined(WITH_GL_PROFILE_ES20)
-			EGLint attribs[] = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE, EGL_NONE };
-#endif
-
 			success = GHOST_kFailure;
 
 #if defined(WITH_ANGLE)
@@ -1018,11 +1009,14 @@ GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextTyp
 			if (m_egl_display == EGL_NO_DISPLAY)
 				break;
 
+			EGLint major, minor;
+
 			if (!::eglInitialize(m_egl_display, &major, &minor))
 				break;
 
-			if (!::eglGetConfigs(m_egl_display, NULL, 0, &num_config))
-				break;
+			printf("EGL v%d.%d\n", major, minor);
+
+			std::vector<EGLint> attrib_list(20);
 
 			attrib_list.push_back(EGL_RED_SIZE);
 			attrib_list.push_back(8);
@@ -1054,13 +1048,24 @@ GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextTyp
 
 			attrib_list.push_back(EGL_NONE);
 
+			EGLConfig config;
+			EGLint    num_config;
+
 			if (!::eglChooseConfig(m_egl_display, &(attrib_list[0]), &config, 1, &num_config))
+				break;
+
+			/* ChooseConfig can "succeed" without finding any suitable configurations */
+			if (num_config != 1)
 				break;
 
 			m_egl_surface = ::eglCreateWindowSurface(m_egl_display, config, m_hWnd, NULL);
 
 			if (m_egl_surface == EGL_NO_SURFACE)
 				break;
+
+#if defined(WITH_GL_PROFILE_ES20)
+			EGLint attribs[] = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE };
+#endif
 
 			m_egl_context = ::eglCreateContext(m_egl_display, config, s_egl_first_context, attribs);
 
