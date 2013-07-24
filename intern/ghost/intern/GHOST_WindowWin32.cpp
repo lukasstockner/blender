@@ -420,6 +420,9 @@ GHOST_WindowWin32::~GHOST_WindowWin32()
 	::wglMakeCurrent(NULL, NULL);
 #elif defined(WITH_GL_SYSTEM_EMBEDDED)
 	if (m_egl_display != EGL_NO_DISPLAY) {
+#if defined(WITH_GL_PROFILE_ES20)
+		eglBindAPI(EGL_OPENGL_ES_API);
+#endif
 		::eglMakeCurrent(
 			m_egl_display,
 			EGL_NO_SURFACE,
@@ -725,6 +728,10 @@ GHOST_TSuccess GHOST_WindowWin32::activateDrawingContext()
 			m_egl_surface != EGL_NO_SURFACE &&
 			m_egl_context != EGL_NO_CONTEXT)
 		{
+#if defined(WITH_GL_PROFILE_ES20)
+			eglBindAPI(EGL_OPENGL_ES_API);
+#endif
+
 			success =
 				::eglMakeCurrent(
 					m_egl_display,
@@ -1014,6 +1021,10 @@ GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextTyp
 			if (!::eglInitialize(m_egl_display, &major, &minor))
 				break;
 
+#if defined(WITH_GL_PROFILE_ES20)
+			eglBindAPI(EGL_OPENGL_ES_API);
+#endif
+
 			printf("EGL v%d.%d\n", major, minor);
 
 			std::vector<EGLint> attrib_list(20);
@@ -1093,6 +1104,11 @@ GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextTyp
 		default:
 			success = GHOST_kFailure;
 	}
+
+#if defined(WITH_GL_SYSTEM_EMBEDDED)
+	if (success = GHOST_kFailure) {
+	}
+#endif
 
 	return success;
 }
