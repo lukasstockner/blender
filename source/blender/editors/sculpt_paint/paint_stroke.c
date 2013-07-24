@@ -470,42 +470,39 @@ static int paint_space_stroke(bContext *C, wmOperator *op, const float final_mou
 	const Scene *scene = CTX_data_scene(C);
 	PaintStroke *stroke = op->customdata;
 	UnifiedPaintSettings *ups = stroke->ups;
-	PaintMode mode = BKE_paintmode_get_active_from_context(C);
 	int cnt = 0;
 
-	if (paint_space_stroke_enabled(stroke->brush, mode)) {
-		float pressure, dpressure;
-		float mouse[2], dmouse[2];
-		float length;
+	float pressure, dpressure;
+	float mouse[2], dmouse[2];
+	float length;
 
-		sub_v2_v2v2(dmouse, final_mouse, stroke->last_mouse_position);
+	sub_v2_v2v2(dmouse, final_mouse, stroke->last_mouse_position);
 
-		pressure = stroke->last_pressure;
-		dpressure = final_pressure - stroke->last_pressure;
+	pressure = stroke->last_pressure;
+	dpressure = final_pressure - stroke->last_pressure;
 
-		length = normalize_v2(dmouse);
+	length = normalize_v2(dmouse);
 
-		while (length > 0.0f) {
-			float spacing = paint_space_stroke_spacing_variable(scene, stroke, pressure, dpressure, length);
-			
-			if (length >= spacing) {
-				mouse[0] = stroke->last_mouse_position[0] + dmouse[0] * spacing;
-				mouse[1] = stroke->last_mouse_position[1] + dmouse[1] * spacing;
-				pressure = stroke->last_pressure + (spacing / length) * dpressure;
+	while (length > 0.0f) {
+		float spacing = paint_space_stroke_spacing_variable(scene, stroke, pressure, dpressure, length);
 
-				ups->overlap_factor = paint_stroke_integrate_overlap(stroke->brush, spacing/stroke->zoom_2d);
+		if (length >= spacing) {
+			mouse[0] = stroke->last_mouse_position[0] + dmouse[0] * spacing;
+			mouse[1] = stroke->last_mouse_position[1] + dmouse[1] * spacing;
+			pressure = stroke->last_pressure + (spacing / length) * dpressure;
 
-				paint_brush_stroke_add_step(C, op, mouse, pressure);
+			ups->overlap_factor = paint_stroke_integrate_overlap(stroke->brush, spacing/stroke->zoom_2d);
 
-				length -= spacing;
-				pressure = stroke->last_pressure;
-				dpressure = final_pressure - stroke->last_pressure;
+			paint_brush_stroke_add_step(C, op, mouse, pressure);
 
-				cnt++;
-			}
-			else {
-				break;
-			}
+			length -= spacing;
+			pressure = stroke->last_pressure;
+			dpressure = final_pressure - stroke->last_pressure;
+
+			cnt++;
+		}
+		else {
+			break;
 		}
 	}
 
@@ -588,7 +585,7 @@ static void stroke_done(struct bContext *C, struct wmOperator *op)
 /* Returns zero if the stroke dots should not be spaced, non-zero otherwise */
 bool paint_space_stroke_enabled(Brush *br, PaintMode mode)
 {
-	return (br->flag & (BRUSH_SPACE | BRUSH_LINE)) && paint_supports_dynamic_size(br, mode);
+	return (br->flag & (BRUSH_SPACE)) && paint_supports_dynamic_size(br, mode);
 }
 
 static bool sculpt_is_grab_tool(Brush *br)
@@ -787,15 +784,20 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 	if (event->type == stroke->event_type && event->val == KM_RELEASE && !first_modal) {
 		if (stroke->brush->flag & BRUSH_LINE) {
-			paint_space_stroke(C, op, sample_average.mouse, sample_average.pressure);
+			stroke->ups->overlap_factor = paint_stroke_integrate_overlap(stroke->brush, stroke->brush->spacing);
+			paint_brush_stroke_add_step(C, op, stroke->last_mouse_position, 1.0);
+			paint_space_stroke(C, op, sample_average.mouse, 1.0);
 		}
 
 		stroke_done(C, op);
 		return OPERATOR_FINISHED;
 	}
+	else if (stroke->brush->flag & BRUSH_LINE) {
+		/* do nothing */
+	}
 	else if (first_modal ||
 			 /* regular dabs */
-	         (!(stroke->brush->flag & (BRUSH_AIRBRUSH | BRUSH_LINE)) && (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE))) ||
+	         (!(stroke->brush->flag & (BRUSH_AIRBRUSH)) && (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE))) ||
 	         /* airbrush */
 	         ((stroke->brush->flag & BRUSH_AIRBRUSH) && event->type == TIMER && event->customdata == stroke->timer))
 	{
@@ -820,7 +822,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	    !(stroke->brush->flag & BRUSH_SMOOTH_STROKE))
 	{
 		stroke->ups->overlap_factor = paint_stroke_integrate_overlap(stroke->brush, stroke->brush->spacing);
-		paint_brush_stroke_add_step(C, op, mouse, pressure);
+		paint_brush_stroke_add_step(C, op, sample_average.mouse, sample_average.pressure);
 		redraw = true;
 	}
 
