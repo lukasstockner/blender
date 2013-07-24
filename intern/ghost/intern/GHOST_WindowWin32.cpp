@@ -102,20 +102,6 @@ EGLContext GHOST_WindowWin32::s_egl_first_context = EGL_NO_CONTEXT;
 EGLContext GHOST_WindowWin32::s_d3dcompiler = NULL;
 #endif
 
-static EGLint attribList[] = {
-	EGL_RED_SIZE,       8,
-	EGL_GREEN_SIZE,     8,
-	EGL_BLUE_SIZE,      8,
-	EGL_DEPTH_SIZE,     8,
-#ifdef GHOST_OPENGL_ALPHA
-	EGL_ALPHA_SIZE,     8,
-#else
-	EGL_ALPHA_SIZE,     0,
-#endif
-	//EGL_STENCIL_SIZE,   8,
-	//EGL_SAMPLE_BUFFERS  1,
-	EGL_NONE
-};
 #endif
 
 /* Intel videocards don't work fine with multiple contexts and
@@ -773,9 +759,9 @@ GHOST_TSuccess GHOST_WindowWin32::invalidate()
 	return success;
 }
 
+#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
 GHOST_TSuccess GHOST_WindowWin32::initMultisample(PIXELFORMATDESCRIPTOR pfd)
 {
-#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
 	int pixelFormat;
 	bool success = FALSE;
 	UINT numFormats;
@@ -828,13 +814,8 @@ GHOST_TSuccess GHOST_WindowWin32::initMultisample(PIXELFORMATDESCRIPTOR pfd)
 	}
 	GHOST_PRINT("no available pixel format\n");
 	return GHOST_kFailure;
-#elif defined(WITH_GL_SYSTEM_EMBEDDED)
-	GHOST_PRINT("GHOST_WindowWin32::initMultisample for WITH_GL_SYSTEM_EMBEDDED not implemented\n");
-	return GHOST_kFailure;
-#else
-#error
-#endif
 }
+#endif
 
 GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextType type)
 {
@@ -1008,6 +989,8 @@ GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextTyp
 			EGLint major, minor;
 			EGLint num_config;
 			EGLConfig config;
+			std::vector<EGLint> attrib_list(20);
+
 #if defined(WITH_GL_PROFILE_ES20)
 			EGLint attribs[] = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE, EGL_NONE };
 #endif
@@ -1030,7 +1013,7 @@ GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextTyp
 			}
 #endif
 
-			m_egl_display = ::eglGetDisplay((EGLNativeDisplayType)m_hDC);
+			m_egl_display = ::eglGetDisplay(m_hDC);
 
 			if (m_egl_display == EGL_NO_DISPLAY)
 				break;
@@ -1041,10 +1024,40 @@ GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextTyp
 			if (!::eglGetConfigs(m_egl_display, NULL, 0, &num_config))
 				break;
 
-			if (!::eglChooseConfig(m_egl_display, attribList, &config, 1, &num_config))
+			attrib_list.push_back(EGL_RED_SIZE);
+			attrib_list.push_back(8);
+
+			attrib_list.push_back(EGL_GREEN_SIZE);
+			attrib_list.push_back(8);
+
+			attrib_list.push_back(EGL_BLUE_SIZE);
+			attrib_list.push_back(8);
+
+#ifdef GHOST_OPENGL_ALPHA
+			attrib_list.push_back(EGL_ALPHA_SIZE);
+			attrib_list.push_back(8);
+#endif
+
+			attrib_list.push_back(EGL_DEPTH_SIZE);
+			attrib_list.push_back(24);
+
+#ifdef GHOST_OPENGL_STENCIL
+			attrib_list.push_back(EGL_STENCIL_SIZE);
+			attrib_list.push_back(8);
+#endif
+
+			attrib_list.push_back(EGL_SAMPLE_BUFFERS);
+			attrib_list.push_back(m_multisampleEnabled ? 1 : 0);
+
+			attrib_list.push_back(EGL_SAMPLES);
+			attrib_list.push_back(m_multisample);
+
+			attrib_list.push_back(EGL_NONE);
+
+			if (!::eglChooseConfig(m_egl_display, &(attrib_list[0]), &config, 1, &num_config))
 				break;
 
-			m_egl_surface = ::eglCreateWindowSurface(m_egl_display, config, (EGLNativeWindowType)m_hWnd, NULL);
+			m_egl_surface = ::eglCreateWindowSurface(m_egl_display, config, m_hWnd, NULL);
 
 			if (m_egl_surface == EGL_NO_SURFACE)
 				break;
