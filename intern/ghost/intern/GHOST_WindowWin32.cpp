@@ -46,6 +46,7 @@
 
 #include <math.h>
 #include <string.h>
+#include <assert.h>
 
 const wchar_t *GHOST_WindowWin32::s_windowClassName = L"GHOST_WindowClass";
 const int GHOST_WindowWin32::s_maxTitleLength = 128;
@@ -94,6 +95,13 @@ static PIXELFORMATDESCRIPTOR sPreferredFormat = {
 #endif
 
 #if defined(WITH_GL_SYSTEM_EMBEDDED)
+
+EGLContext GHOST_WindowWin32::s_egl_first_context = EGL_NO_CONTEXT;
+
+#if defined(ANGLE)
+EGLContext GHOST_WindowWin32::s_d3dcompiler = NULL;
+#endif
+
 static EGLint attribList[] = {
 	EGL_RED_SIZE,       8,
 	EGL_GREEN_SIZE,     8,
@@ -401,11 +409,10 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 
 GHOST_WindowWin32::~GHOST_WindowWin32()
 {
-	if (m_Bar)
-	{
+	if (m_Bar) {
 		m_Bar->SetProgressState(m_hWnd, TBPF_NOPROGRESS);
 		m_Bar->Release();
-	};
+	}
 
 	if (m_wintab) {
 		GHOST_WIN32_WTClose fpWTClose = (GHOST_WIN32_WTClose) ::GetProcAddress(m_wintab, "WTClose");
@@ -417,6 +424,7 @@ GHOST_WindowWin32::~GHOST_WindowWin32()
 			m_tabletData = NULL;
 		}
 	}
+
 	if (m_customCursor) {
 		DestroyCursor(m_customCursor);
 		m_customCursor = NULL;
@@ -425,7 +433,28 @@ GHOST_WindowWin32::~GHOST_WindowWin32()
 #if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
 	::wglMakeCurrent(NULL, NULL);
 #elif defined(WITH_GL_SYSTEM_EMBEDDED)
-	::eglMakeCurrent(egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+	if (m_egl_display != EGL_NO_DISPLAY) {
+		::eglMakeCurrent(
+			m_egl_display,
+			EGL_NO_SURFACE,
+			EGL_NO_SURFACE,
+			EGL_NO_CONTEXT);
+
+		if (m_egl_context != EGL_NO_CONTEXT && m_egl_context != s_egl_first_context) {
+			EGLBoolean context_destroyed = ::eglDestroyContext(m_egl_display, m_egl_context);
+			assert(context_destroyed);
+		}
+
+		if (m_egl_surface != EGL_NO_SURFACE) {
+			EGLBoolean surface_destroyed = ::eglDestroySurface(m_egl_display, m_egl_surface);
+			assert(surface_destroyed);
+		}
+
+		{
+			EGLBoolean display_terminated = ::eglTerminate(m_egl_display);
+			assert(display_terminated);
+		}
+	}
 #else
 #error
 #endif
@@ -439,11 +468,13 @@ GHOST_WindowWin32::~GHOST_WindowWin32()
 		::ReleaseDC(m_hWnd, m_hDC);
 		m_hDC = 0;
 	}
-#else
+#elif defined(WITH_GL_SYSTEM_EMBEDDED)
 	if (m_hDC && m_hDC) {
 		::ReleaseDC(m_hWnd, m_hDC);
 		m_hDC = 0;
 	}
+#else
+#error
 #endif
 
 	if (m_hWnd) {
@@ -684,7 +715,7 @@ GHOST_TSuccess GHOST_WindowWin32::swapBuffers()
 
 	return ::SwapBuffers(hDC) == TRUE ? GHOST_kSuccess : GHOST_kFailure;
 #elif defined(WITH_GL_SYSTEM_EMBEDDED)
-	return ::eglSwapBuffers(egl_display, egl_surface) ? GHOST_kSuccess : GHOST_kFailure;
+	return ::eglSwapBuffers(m_egl_display, m_egl_surface) ? GHOST_kSuccess : GHOST_kFailure;
 #else
 #error
 #endif
@@ -694,6 +725,7 @@ GHOST_TSuccess GHOST_WindowWin32::swapBuffers()
 GHOST_TSuccess GHOST_WindowWin32::activateDrawingContext()
 {
 	GHOST_TSuccess success;
+
 	if (m_drawingContextType == GHOST_kDrawingContextTypeOpenGL) {
 #if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
 		if (m_hDC && m_hGlRc) {
@@ -703,8 +735,16 @@ GHOST_TSuccess GHOST_WindowWin32::activateDrawingContext()
 			success = GHOST_kFailure;
 		}
 #elif defined(WITH_GL_SYSTEM_EMBEDDED)
-		if (m_hDC) {
-			success = ::eglMakeCurrent(egl_display, egl_surface, egl_surface, egl_context) ? GHOST_kSuccess : GHOST_kFailure;
+		if (m_egl_display != EGL_NO_DISPLAY &&
+			m_egl_surface != EGL_NO_SURFACE &&
+			m_egl_context != EGL_NO_CONTEXT)
+		{
+			success =
+				::eglMakeCurrent(
+					m_egl_display,
+					m_egl_surface,
+					m_egl_surface,
+					m_egl_context) ? GHOST_kSuccess : GHOST_kFailure;
 		}
 		else {
 			success = GHOST_kFailure;
@@ -972,50 +1012,56 @@ GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextTyp
 			EGLint attribs[] = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE, EGL_NONE };
 #endif
 
-			egl_display = ::eglGetDisplay((EGLNativeDisplayType)m_hDC);
+			success = GHOST_kFailure;
 
-			if(egl_display == EGL_NO_DISPLAY) {
-				success = GHOST_kFailure;
-				break;
+#if defined(WITH_ANGLE)
+			/*
+			ANGLE will reference existing d3dcompiler_##.dll that has already been loaded,
+			so load it here if it hasn't already.
+			*/
+
+			if (s_d3dcompiler == NULL) {
+				s_d3dcompiler = LoadLibrary(D3DCOMPILER);
+
+				if (s_d3dcompiler == NULL) {
+					printf("LoadLibrary(\"" D3DCOMPILER "\") failed!\n");
+					break;
+				}
 			}
+#endif
 
-			LoadLibrary(D3DCOMPILER);
+			m_egl_display = ::eglGetDisplay((EGLNativeDisplayType)m_hDC);
 
-			if(!::eglInitialize(egl_display, &major, &minor)) {
-				success = GHOST_kFailure;
+			if (m_egl_display == EGL_NO_DISPLAY)
 				break;
-			}
 
-			if(!::eglGetConfigs(egl_display, NULL, 0, &num_config)) {
-				success = GHOST_kFailure;
+			if (!::eglInitialize(m_egl_display, &major, &minor))
 				break;
-			}
 
-			if(!::eglChooseConfig(egl_display, attribList, &config, 1, &num_config)) {
-				success = GHOST_kFailure;
+			if (!::eglGetConfigs(m_egl_display, NULL, 0, &num_config))
 				break;
-			}
 
-			egl_surface = ::eglCreateWindowSurface(egl_display, config, (EGLNativeWindowType)m_hWnd, NULL);
-
-			if (egl_surface == EGL_NO_SURFACE ) {
-				success = GHOST_kFailure;
+			if (!::eglChooseConfig(m_egl_display, attribList, &config, 1, &num_config))
 				break;
-			}
 
-			egl_context = ::eglCreateContext(egl_display, config, EGL_NO_CONTEXT, attribs);
+			m_egl_surface = ::eglCreateWindowSurface(m_egl_display, config, (EGLNativeWindowType)m_hWnd, NULL);
 
-			if (egl_context == EGL_NO_CONTEXT) {
-				success = GHOST_kFailure;
+			if (m_egl_surface == EGL_NO_SURFACE)
 				break;
-			}
 
-			if (!::eglMakeCurrent(egl_display, egl_surface, egl_surface, egl_context)) {
-				success = GHOST_kFailure;
+			m_egl_context = ::eglCreateContext(m_egl_display, config, s_egl_first_context, attribs);
+
+			if (m_egl_context == EGL_NO_CONTEXT)
 				break;
-			}
+
+			if (s_egl_first_context == EGL_NO_CONTEXT)
+				s_egl_first_context = m_egl_context;
+
+			if (!::eglMakeCurrent(m_egl_display, m_egl_surface, m_egl_surface, m_egl_context))
+				break;
 
 			success = GHOST_kSuccess;
+
 			break;
 		}
 #else
@@ -1045,19 +1091,31 @@ GHOST_TSuccess GHOST_WindowWin32::removeDrawingContext()
 				success = ::wglDeleteContext(m_hGlRc) == TRUE ? GHOST_kSuccess : GHOST_kFailure;
 				m_hGlRc = 0;
 			}
-			else {
+			else { // XXX jwilkins: is it correct to fail in the case that this is the first context? maybe return success but not delete the context is better?
 				success = GHOST_kFailure;
 			}
 			break;
 #elif defined(WITH_GL_SYSTEM_EMBEDDED)
-			if (egl_context != NULL) {
-				if (eglDestroyContext(egl_display, egl_context)) {
-					egl_context = NULL;
-					success = GHOST_kSuccess;
+			if (m_egl_display != EGL_NO_DISPLAY) {
+				EGLBoolean context_destroyed;
+				EGLBoolean surface_destroyed;
+
+				if (m_egl_context != EGL_NO_CONTEXT && m_egl_context != s_egl_first_context) {
+					context_destroyed = ::eglDestroyContext(m_egl_display, m_egl_context);
 				}
 				else {
-					success = GHOST_kFailure;
+					context_destroyed = EGL_TRUE; /* not really gone, but giving up ownership */
 				}
+
+				m_egl_context = EGL_NO_CONTEXT;
+
+				if (m_egl_surface != EGL_NO_SURFACE) {
+					surface_destroyed = ::eglDestroySurface(m_egl_display, m_egl_surface);
+				}
+
+				m_egl_surface = EGL_NO_SURFACE;
+
+				success = context_destroyed && surface_destroyed ? GHOST_kSuccess : GHOST_kFailure;
 			}
 			else {
 				success = GHOST_kFailure;

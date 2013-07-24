@@ -1299,7 +1299,7 @@ installDrawingContext(
 				break;
 			}
 			gl_surface = eglCreateWindowSurface(gl_display, config, (EGLNativeWindowType)m_window, NULL);
-			if (gl_surface == EGL_NO_SURFACE )
+			if (gl_surface == EGL_NO_SURFACE)
 			{
 				success = GHOST_kFailure;
 				break;
@@ -1347,7 +1347,7 @@ removeDrawingContext()
     GHOST_TSuccess success = GHOST_kFailure;
 
 #ifndef GLEW_INC_EGL
-	if (m_context != NULL) {
+	if (m_context != NULL) { // XXX jwilkins: seems odd not to check if this is s_firstContext
 		glXDestroyContext(m_display, m_context);
 		m_context = NULL;
 		success = GHOST_kSuccess;

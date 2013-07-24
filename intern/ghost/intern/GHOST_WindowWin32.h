@@ -357,9 +357,15 @@ protected:
 	static HDC s_firstHDC;
 #endif
 #if defined(WITH_GL_SYSTEM_EMBEDDED)
-	EGLContext egl_context;
-	EGLSurface egl_surface;
-	EGLDisplay egl_display;
+	EGLContext m_egl_context;
+	EGLSurface m_egl_surface;
+	EGLDisplay m_egl_display;
+
+#if defined(WITH_ANGLE)
+	static HMODULE s_d3dcompiler;
+#endif
+
+	static EGLContext s_egl_first_context;
 #endif
 	/** Flag for if window has captured the mouse */
 	bool m_hasMouseCaptured;
