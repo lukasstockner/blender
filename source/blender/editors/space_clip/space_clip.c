@@ -266,13 +266,15 @@ static SpaceLink *clip_new(const bContext *C)
 	ar->regiontype = RGN_TYPE_TOOLS;
 	ar->alignment = RGN_ALIGN_LEFT;
 
+#if 0
 	/* tool properties */
 	ar = MEM_callocN(sizeof(ARegion), "tool properties for clip");
 
 	BLI_addtail(&sc->regionbase, ar);
 	ar->regiontype = RGN_TYPE_TOOL_PROPS;
 	ar->alignment = RGN_ALIGN_BOTTOM | RGN_SPLIT_PREV;
-
+#endif
+	
 	/* properties view */
 	ar = MEM_callocN(sizeof(ARegion), "properties for clip");
 
@@ -843,7 +845,9 @@ static void clip_refresh(const bContext *C, ScrArea *sa)
 	SpaceClip *sc = (SpaceClip *)sa->spacedata.first;
 	ARegion *ar_main = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
 	ARegion *ar_tools = BKE_area_find_region_type(sa, RGN_TYPE_TOOLS);
+#if 0
 	ARegion *ar_tool_props = BKE_area_find_region_type(sa, RGN_TYPE_TOOL_PROPS);
+#endif
 	ARegion *ar_preview = ED_clip_has_preview_region(C, sa);
 	ARegion *ar_properties = ED_clip_has_properties_region(sa);
 	ARegion *ar_channels = ED_clip_has_channels_region(sa);
@@ -955,6 +959,7 @@ static void clip_refresh(const bContext *C, ScrArea *sa)
 		}
 	}
 
+#if 0
 	if (tool_props_visible) {
 		if (ar_tool_props && (ar_tool_props->flag & RGN_FLAG_HIDDEN)) {
 			ar_tool_props->flag &= ~RGN_FLAG_HIDDEN;
@@ -978,6 +983,7 @@ static void clip_refresh(const bContext *C, ScrArea *sa)
 			view_changed = TRUE;
 		}
 	}
+#endif
 
 	if (preview_visible) {
 		if (ar_preview && (ar_preview->flag & RGN_FLAG_HIDDEN)) {
@@ -1506,6 +1512,7 @@ void ED_spacetype_clip(void)
 
 	BLI_addhead(&st->regiontypes, art);
 
+#if 0
 	/* tool properties */
 	art = MEM_callocN(sizeof(ARegionType), "spacetype clip tool properties region");
 	art->regionid = RGN_TYPE_TOOL_PROPS;
@@ -1518,6 +1525,7 @@ void ED_spacetype_clip(void)
 	ED_clip_tool_props_register(art);
 
 	BLI_addhead(&st->regiontypes, art);
+#endif
 
 	/* regions: header */
 	art = MEM_callocN(sizeof(ARegionType), "spacetype clip region");

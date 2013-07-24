@@ -9518,6 +9518,41 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			}
 		}
 	}
+	
+	
+	/* Remove the tool properties region from the space (TODO: and clip) toolbars.
+	   N.B. not at all sure that this is where these regions are supposed to be removed.
+	 */
+	{
+		bScreen *sc;
+		
+		for (sc = main->screen.first; sc; sc = sc->id.next) {
+			ScrArea *sa;
+			for (sa = sc->areabase.first; sa; sa = sa->next) {
+				SpaceLink *sl;
+				ARegion *r;
+				
+				for (r = sa->regionbase.first; r; r = r->next) {
+					if (r->regiontype == RGN_TYPE_TOOL_PROPS) {
+						//printf("1 - found TOOL_PROPS!\n");
+						BLI_remlink(&sa->regionbase, r);
+					}
+				}
+								
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_VIEW3D) {
+						for (r = sl->regionbase.first; r; r = r->next) {
+							if (r->regiontype == RGN_TYPE_TOOL_PROPS) {
+								//printf("2 - found TOOL_PROPS!\n");
+								BLI_remlink(&sl->regionbase, r);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init see do_versions_userdef() above! */

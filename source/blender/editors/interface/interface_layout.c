@@ -695,13 +695,19 @@ PointerRNA uiItemFullO_ptr(uiLayout *layout, wmOperatorType *ot, const char *nam
 			name = "";
 	}
 
+	/* Make sure that if it is indicated a button shouldn't be truncated to a 
+	   single X unit, and a shortcut should be shown, then make sure we get 
+	   the right width. */
+	if(!(flag & UI_ITEM_O_SINGLE_UNIT) && block->flag & UI_BLOCK_SHORTCUTS)
+		w = ui_text_icon_width(layout, "|", icon, 0);
+	else
+		w = ui_text_icon_width(layout, name, icon, 0);
+
 	if (layout->root->type == UI_LAYOUT_MENU && !icon)
 		icon = ICON_BLANK1;
 
 	/* create button */
 	uiBlockSetCurLayout(block, layout);
-
-	w = ui_text_icon_width(layout, name, icon, 0);
 
 	if (flag & UI_ITEM_R_NO_BG)
 		uiBlockSetEmboss(block, UI_EMBOSSN);

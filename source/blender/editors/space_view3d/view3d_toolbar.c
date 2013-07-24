@@ -68,6 +68,7 @@
 
 /* ******************* view3d space & buttons ************** */
 
+#if 0
 static void view3d_panel_operator_redo_buts(const bContext *C, Panel *pa, wmOperator *op)
 {
 	uiLayoutOperatorButs(C, pa->layout, op, NULL, 'H', 0);
@@ -128,6 +129,7 @@ static void view3d_panel_operator_redo(const bContext *C, Panel *pa)
 	/* set region back */
 	CTX_wm_region_set((bContext *)C, ar);
 }
+#endif
 
 /* ******************* */
 
@@ -243,6 +245,7 @@ void view3d_toolshelf_register(ARegionType *art)
 	BLI_addtail(&art->paneltypes, pt);
 }
 
+#if 0
 void view3d_tool_props_register(ARegionType *art)
 {
 	PanelType *pt;
@@ -255,6 +258,7 @@ void view3d_tool_props_register(ARegionType *art)
 	pt->draw = view3d_panel_operator_redo;
 	BLI_addtail(&art->paneltypes, pt);
 }
+#endif
 
 /* ********** operator to open/close toolshelf region */
 

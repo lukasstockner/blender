@@ -204,7 +204,9 @@ void view3d_buttons_register(struct ARegionType *art);
 /* view3d_toolbar.c */
 void VIEW3D_OT_toolshelf(struct wmOperatorType *ot);
 void view3d_toolshelf_register(struct ARegionType *art);
+#if 0
 void view3d_tool_props_register(struct ARegionType *art);
+#endif
 
 /* view3d_snap.c */
 bool ED_view3d_minmax_verts(struct Object *obedit, float min[3], float max[3]);

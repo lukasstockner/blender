@@ -118,18 +118,15 @@ void CLIP_OT_properties(wmOperatorType *ot)
 
 static ARegion *clip_has_tools_region(ScrArea *sa)
 {
-	ARegion *ar, *artool = NULL, *arprops = NULL, *arhead;
+	ARegion *ar, *artool = NULL, *arhead;
 
 	for (ar = sa->regionbase.first; ar; ar = ar->next) {
 		if (ar->regiontype == RGN_TYPE_TOOLS)
 			artool = ar;
-
-		if (ar->regiontype == RGN_TYPE_TOOL_PROPS)
-			arprops = ar;
 	}
 
 	/* tool region hide/unhide also hides props */
-	if (arprops && artool)
+	if (artool)
 		return artool;
 
 	if (artool == NULL) {
@@ -147,15 +144,6 @@ static ARegion *clip_has_tools_region(ScrArea *sa)
 		artool->alignment = RGN_ALIGN_LEFT;
 
 		artool->flag = RGN_FLAG_HIDDEN;
-	}
-
-	if (arprops == NULL) {
-		/* add extra subdivided region for tool properties */
-		arprops = MEM_callocN(sizeof(ARegion), "tool props for clip");
-
-		BLI_insertlinkafter(&sa->regionbase, artool, arprops);
-		arprops->regiontype = RGN_TYPE_TOOL_PROPS;
-		arprops->alignment = RGN_ALIGN_BOTTOM | RGN_SPLIT_PREV;
 	}
 
 	return artool;

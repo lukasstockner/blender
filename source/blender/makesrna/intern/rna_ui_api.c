@@ -174,7 +174,7 @@ static void rna_uiItemPointerR(uiLayout *layout, struct PointerRNA *ptr, const c
 }
 
 static PointerRNA rna_uiItemO(uiLayout *layout, const char *opname, const char *name, const char *text_ctxt,
-                              int translate, int icon, int emboss)
+                              int translate, int icon, int emboss, int single_unit)
 {
 	wmOperatorType *ot;
 	int flag;
@@ -190,6 +190,8 @@ static PointerRNA rna_uiItemO(uiLayout *layout, const char *opname, const char *
 
 	flag = UI_ITEM_O_RETURN_PROPS;
 	flag |= (emboss) ? 0 : UI_ITEM_R_NO_BG;
+	
+	if (single_unit) flag |= UI_ITEM_O_SINGLE_UNIT;
 
 	return uiItemFullO_ptr(layout, ot, name, icon, NULL, uiLayoutGetOperatorContext(layout), flag);
 }
@@ -540,6 +542,7 @@ void RNA_api_ui_layout(StructRNA *srna)
 	func = RNA_def_function(srna, "operator", "rna_uiItemO");
 	api_ui_item_op_common(func);
 	RNA_def_boolean(func, "emboss", 1, "", "Draw the button itself, just the icon/text");
+	RNA_def_boolean(func, "single_unit", 1, "", "Truncate the button width to a single unit if there is no text");
 	parm = RNA_def_pointer(func, "properties", "OperatorProperties", "",
 	                       "Operator properties to fill in, return when 'properties' is set to true");
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_RNAPTR);

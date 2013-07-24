@@ -28,97 +28,123 @@ class View3DPanel():
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
 
+# ********** common tools for two or more modes ****************
 
-# **************** standard tool clusters ******************
+def grease_panel(mode):
+    class cls(View3DPanel, Panel):
+        bl_context = mode
+        bl_label = "Grease & Measure"
+        def draw(self, context):
+            layout = self.layout
 
-# History/Repeat tools
-def draw_repeat_tools(context, layout):
-    col = layout.column(align=True)
-    col.label(text="Repeat:")
-    col.operator("screen.repeat_last")
-    col.operator("screen.repeat_history", text="History...")
+            col = layout.column(align=True)
+            row = col.row(align=True, button_height=2)
 
+            row.operator("gpencil.draw", text="Draw").mode = 'DRAW'
+            row.operator("gpencil.draw", text="Line").mode = 'DRAW_STRAIGHT'
 
-# Keyframing tools
-def draw_keyframing_tools(context, layout):
-    col = layout.column(align=True)
-    col.label(text="Keyframes:")
-    row = col.row()
-    row.operator("anim.keyframe_insert_menu", text="Insert")
-    row.operator("anim.keyframe_delete_v3d", text="Remove")
+            row = col.row(align=True, button_height=2)
+            row.operator("gpencil.draw", text="Poly").mode = 'DRAW_POLY'
+            row.operator("gpencil.draw", text="Erase").mode = 'ERASER'
 
+            row = col.row()
+            row.prop(context.tool_settings, "use_grease_pencil_sessions")
 
-# Grease Pencil tools
-def draw_gpencil_tools(context, layout):
-    col = layout.column(align=True)
+            col.operator("view3d.ruler")
 
-    col.label(text="Grease Pencil:")
+    cls.__name__ = "VIEW3D_PT_tools_%s_grease" % mode
+    return cls
 
-    row = col.row()
-    row.operator("gpencil.draw", text="Draw").mode = 'DRAW'
-    row.operator("gpencil.draw", text="Line").mode = 'DRAW_STRAIGHT'
+def history_panel(mode):
+    class cls(View3DPanel, Panel):
+        bl_context = mode
+        bl_label = "History"
 
-    row = col.row()
-    row.operator("gpencil.draw", text="Poly").mode = 'DRAW_POLY'
-    row.operator("gpencil.draw", text="Erase").mode = 'ERASER'
+        def draw(self, context):
+                layout = self.layout 
+                col = layout.column(align=True, button_height=2)
+                col.operator("screen.redo_last", text="Change last")
+                
+                col = layout.column(align=True)
+                col.operator("screen.repeat_last")
+                col.operator("screen.repeat_history", text="History...")
 
-    row = col.row()
-    row.prop(context.tool_settings, "use_grease_pencil_sessions")
-
-    col.operator("view3d.ruler")
+    cls.__name__ = "VIEW3D_PT_tools_%s_history" % mode
+    return cls
 
 
 # ********** default tools for object-mode ****************
 
-class VIEW3D_PT_tools_objectmode(View3DPanel, Panel):
+class VIEW3D_PT_tools_objectmode_transform(View3DPanel, Panel):
     bl_context = "objectmode"
-    bl_label = "Object Tools"
+    bl_label = "Transform"
 
     def draw(self, context):
         layout = self.layout
 
         col = layout.column(align=True)
-        col.label(text="Transform:")
-        col.operator("transform.translate")
-        row = col.row(align=True, button_height=2)
-        row.operator("transform.rotate")
-        row.operator("transform.resize", text="Scale")
-
-        col = layout.column(align=True)
-        col.operator("object.origin_set", text="Origin")
-
-        col = layout.column(align=True)
-        col.label(text="Object:")
-        col.operator("object.duplicate_move")
-        col.operator("object.delete")
-        col.operator("object.join")
-
-        active_object = context.active_object
-        if active_object and active_object.type in {'MESH', 'CURVE', 'SURFACE'}:
-
-            col = layout.column(align=True)
-            col.label(text="Shading:")
-            row = col.row(align=True)
-            row.operator("object.shade_smooth", text="Smooth")
-            row.operator("object.shade_flat", text="Flat")
-
-        draw_keyframing_tools(context, layout)
-
-        col = layout.column(align=True)
-        col.label(text="Motion Paths:")
         row = col.row(align=True)
-        row.operator("object.paths_calculate", text="Calculate")
-        row.operator("object.paths_clear", text="Clear")
+        row.operator("transform.translate", text="", single_unit=False, icon='MAN_TRANS')
+        row.operator("transform.rotate", text="", single_unit=False, icon='MAN_ROT')
+        row.operator("transform.resize", text="", single_unit=False, icon='MAN_SCALE')
+        col.operator("object.origin_set", text="Origin")
+                
+class VIEW3D_PT_tools_objectmode_adjust(View3DPanel, Panel):
+    bl_context = "objectmode"
+    bl_label = "Adjust"
 
-        draw_repeat_tools(context, layout)
-
-        draw_gpencil_tools(context, layout)
+    def draw(self, context):
+        layout = self.layout
+        #active_object = context.active_object
+        #if active_object and active_object.type in {'MESH', 'CURVE', 'SURFACE'}:
         col = layout.column(align=True)
+        col.operator("object.shade_smooth", text="Shade smooth")
+        col.operator("object.shade_flat", text="Shade flat")
 
+class VIEW3D_PT_tools_objectmode_add(View3DPanel, Panel):
+    bl_context = "objectmode"
+    bl_label = "Add & Delete"
+
+    def draw(self, context):
+        layout = self.layout
+
+        col = layout.column(align=True)
+        row = col.row(align=True, button_height=2)
+        # TODO: wrong operators in these two lines
+        row.operator("wm.call_menu", text="", single_unit=False, icon='MAN_ROT').name = 'INFO_MT_add'
+        row.operator("object.delete", text="", single_unit=False, icon='MAN_TRANS')
+        
+        col = layout.column(align=True)
+        row = col.row(align=True)
+        row.operator("object.duplicate_move", text="", single_unit=False, icon='MAN_ROT')
+        row.operator("object.duplicate_move_linked", text="", single_unit=False, icon='MAN_TRANS')
+        row = col.row(align=True)
+        col.operator("object.join")
+        
+VIEW3D_PT_tools_objectmode_grease = grease_panel("objectmode")
+
+VIEW3D_PT_tools_objectmode_history = history_panel("objectmode")
+
+class VIEW3D_PT_tools_objectmode_keyframes(View3DPanel, Panel):
+    bl_context = "objectmode"
+    bl_label = "Keyframes"
+    
+    def draw(self, context):
+        layout = self.layout 
+
+        col = layout.column(align=True)
+        row = col.row(align=True, button_height=2)
+
+        row.operator("anim.keyframe_insert_menu", text="Insert", single_unit=False)
+        row.operator("anim.keyframe_delete_v3d", text="Remove", single_unit=False)
+
+        col = layout.column(align=True)
+        col.operator("object.paths_calculate", text="Calculate motion")
+        col.operator("object.paths_clear", text="Clear motion")
 
 class VIEW3D_PT_tools_rigidbody(View3DPanel, Panel):
     bl_context = "objectmode"
-    bl_label = "Rigid Body Tools"
+    bl_label = "Rigid Body"
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
@@ -141,80 +167,112 @@ class VIEW3D_PT_tools_rigidbody(View3DPanel, Panel):
         col.label(text="Constraints:")
         col.operator("rigidbody.connect", text="Connect")
 
+
 # ********** default tools for editmode_mesh ****************
 
-
-class VIEW3D_PT_tools_meshedit(View3DPanel, Panel):
+class VIEW3D_PT_tools_editmode_transform(View3DPanel, Panel):
     bl_context = "mesh_edit"
-    bl_label = "Mesh Tools"
+    bl_label = "Transform"
 
     def draw(self, context):
         layout = self.layout
 
         col = layout.column(align=True)
-        col.label(text="Transform:")
-        col.operator("transform.translate")
-        col.operator("transform.rotate")
-        col.operator("transform.resize", text="Scale")
+        row = col.row(align=True)
+        row.operator("transform.translate", text="", single_unit=False, icon='MAN_TRANS')
+        row.operator("transform.rotate", text="", single_unit=False, icon='MAN_ROT')
+        row.operator("transform.resize", text="", single_unit=False, icon='MAN_SCALE')
         col.operator("transform.shrink_fatten", text="Shrink/Fatten")
         col.operator("transform.push_pull", text="Push/Pull")
 
         col = layout.column(align=True)
-        col.label(text="Deform:")
-        row = col.row(align=True)
-        row.operator("transform.edge_slide", text="Slide Edge")
-        row.operator("transform.vert_slide", text="Vertex")
-        col.operator("mesh.noise")
-        col.operator("mesh.vertices_smooth")
+        col.operator("transform.edge_slide", text="Slide edge")
+        col.operator("transform.vert_slide", text="Slide vertex")
 
         col = layout.column(align=True)
-        col.label(text="Add:")
+        col.operator("mesh.vertices_smooth", text="Smooth vertices")
 
+class VIEW3D_PT_tools_editmode_add(View3DPanel, Panel):
+    bl_context = "mesh_edit"
+    bl_label = "Add & Delete"
+
+    def draw(self, context):
+        layout = self.layout
+
+        col = layout.column(align=True)
+        row = col.row(align=True, button_height=2)
+        row.operator("wm.call_menu", text="", single_unit=False, icon='MAN_ROT').name = 'INFO_MT_mesh_add'
+        row.operator("wm.call_menu", text="", single_unit=False, icon='MAN_TRANS').name = 'VIEW3D_MT_edit_mesh_delete'
+        
+        col = layout.column(align=True)
+        col.operator("mesh.duplicate_move", text="Duplicate", single_unit=False, icon='MAN_ROT')
+
+class VIEW3D_PT_tools_editmode_topology(View3DPanel, Panel):
+    bl_context = "mesh_edit"
+    bl_label = "Topology"
+
+    def draw(self, context):
+        layout = self.layout
+
+        col = layout.column(align=True)
+        row = col.row(align=True, button_height=2)
+        row.operator("view3d.edit_mesh_extrude_move_normal", text="", single_unit=False, icon='MAN_ROT')
+        row.operator("view3d.edit_mesh_extrude_individual_move", text="", single_unit=False, icon='MAN_TRANS')
         col.menu("VIEW3D_MT_edit_mesh_extrude")
-        col.operator("view3d.edit_mesh_extrude_move_normal", text="Extrude Region")
-        col.operator("view3d.edit_mesh_extrude_individual_move", text="Extrude Individual")
+
+        col = layout.column(align=True)
+        row = col.row(align=True, button_height=2)
+        
+        props = row.operator("mesh.knife_tool", text="", single_unit=False, icon='MAN_ROT')
+        props.use_occlude_geometry = True
+        props.only_selected = False
+        
+        row.operator("mesh.loopcut_slide", text="", single_unit=False, icon='MAN_TRANS')
+        
+        props = col.operator("mesh.knife_tool", text="Knife select")
+        props.use_occlude_geometry = False
+        props.only_selected = True
+        
+        col.operator("mesh.knife_project")
         col.operator("mesh.subdivide")
-        col.operator("mesh.loopcut_slide")
-        col.operator("mesh.duplicate_move", text="Duplicate")
         col.operator("mesh.spin")
         col.operator("mesh.screw")
 
-        row = col.row(align=True)
-        props = row.operator("mesh.knife_tool", text="Knife")
-        props.use_occlude_geometry = True
-        props.only_selected = False
-        props = row.operator("mesh.knife_tool", text="Select")
-        props.use_occlude_geometry = False
-        props.only_selected = True
-        col.operator("mesh.knife_project")
-
         col = layout.column(align=True)
-        col.label(text="Remove:")
-        col.menu("VIEW3D_MT_edit_mesh_delete")
-        col.operator_menu_enum("mesh.merge", "type")
         col.operator("mesh.remove_doubles")
+        col.operator_menu_enum("mesh.merge", "type")
+        
+class VIEW3D_PT_tools_editmode_adjust(View3DPanel, Panel):
+    bl_context = "mesh_edit"
+    bl_label = "Adjust"
+
+    def draw(self, context):
+        layout = self.layout
+        col = layout.column(align=True)
+        col.operator("mesh.faces_shade_smooth", text="Smooth faces")
+        col.operator("mesh.faces_shade_flat", text="Flat faces")
 
         col = layout.column(align=True)
-        col.label(text="Normals:")
-        col.operator("mesh.normals_make_consistent", text="Recalculate")
-        col.operator("mesh.flip_normals", text="Flip Direction")
+        col.operator("mesh.normals_make_consistent", text="Recalculate normals")
+        col.operator("mesh.flip_normals", text="Flip normals")
 
+class VIEW3D_PT_tools_editmode_uv(View3DPanel, Panel):
+    bl_context = "mesh_edit"
+    bl_label = "UV & Seams"
+
+    def draw(self, context):
+        layout = self.layout
+        
         col = layout.column(align=True)
-        col.label(text="UV Mapping:")
         col.menu("VIEW3D_MT_uv_map", text="Unwrap")
-        col.operator("mesh.mark_seam").clear = False
-        col.operator("mesh.mark_seam", text="Clear Seam").clear = True
+        col.operator("mesh.mark_seam", text="Mark seam").clear = False
+        col.operator("mesh.mark_seam", text="Clear seam").clear = True
 
-        col = layout.column(align=True)
-        col.label(text="Shading:")
-        row = col.row(align=True)
-        row.operator("mesh.faces_shade_smooth", text="Smooth")
-        row.operator("mesh.faces_shade_flat", text="Flat")
+VIEW3D_PT_tools_editmode_grease = grease_panel("mesh_edit")
 
-        draw_repeat_tools(context, layout)
+VIEW3D_PT_tools_editmode_history = history_panel("mesh_edit")
 
-        draw_gpencil_tools(context, layout)
-
+# print(VIEW3D_PT_tools_editmode_history.bl_context)
 
 class VIEW3D_PT_tools_meshedit_options(View3DPanel, Panel):
     bl_context = "mesh_edit"
