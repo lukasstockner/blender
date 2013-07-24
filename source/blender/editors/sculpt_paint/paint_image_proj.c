@@ -2982,7 +2982,11 @@ static void project_paint_begin(ProjPaintState *ps)
 
 	int a, i; /* generic looping vars */
 	int image_index = -1, face_index;
-	int *mpoly_origindex;
+
+	/* double lookup */
+	const int *index_mf_to_mpoly = NULL;
+	const int *index_mp_to_orig  = NULL;
+
 	MVert *mv;
 
 	MemArena *arena; /* at the moment this is just ps->arena_mt[0], but use this to show were not multithreading */
@@ -3037,12 +3041,17 @@ static void project_paint_begin(ProjPaintState *ps)
 	ps->dm_totface = ps->dm->getNumTessFaces(ps->dm);
 
 	if (ps->do_face_sel) {
-		mpoly_orig = ((Mesh *)ps->ob->data)->mpoly;
-		mpoly_origindex = ps->dm->getPolyDataArray(ps->dm, CD_ORIGINDEX);
+		index_mf_to_mpoly = ps->dm->getTessFaceDataArray(ps->dm, CD_ORIGINDEX);
+		index_mp_to_orig  = ps->dm->getPolyDataArray(ps->dm, CD_ORIGINDEX);
+		if (index_mf_to_mpoly == NULL) {
+			index_mp_to_orig = NULL;
+		}
+		else {
+			mpoly_orig = ((Mesh *)ps->ob->data)->mpoly;
+		}
 	}
 	else {
 		mpoly_orig = NULL;
-		mpoly_origindex = NULL;
 	}
 
 	/* use clone mtface? */
@@ -3332,8 +3341,10 @@ static void project_paint_begin(ProjPaintState *ps)
 
 		if (ps->do_face_sel) {
 			int orig_index;
-			if (mpoly_origindex && ((orig_index = mpoly_origindex[face_index])) != ORIGINDEX_NONE) {
-				MPoly *mp = mpoly_orig + orig_index;
+			if (index_mp_to_orig && ((orig_index = DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig,
+			                                                                face_index))) != ORIGINDEX_NONE)
+			{
+				MPoly *mp = &mpoly_orig[orig_index];
 				is_face_sel = ((mp->flag & ME_FACE_SEL) != 0);
 			}
 			else {

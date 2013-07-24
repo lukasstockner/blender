@@ -610,8 +610,9 @@ bool paint_supports_dynamic_size(Brush *br, PaintMode mode)
 		case PAINT_SCULPT:
 			if (sculpt_is_grab_tool(br))
 				return false;
+			break;
 		default:
-			;
+			break;
 	}
 	return true;
 }
@@ -630,8 +631,9 @@ bool paint_supports_smooth_stroke(Brush *br, PaintMode mode)
 		case PAINT_SCULPT:
 			if (sculpt_is_grab_tool(br))
 				return false;
+			break;
 		default:
-			;
+			break;
 	}
 	return true;
 }
@@ -646,9 +648,10 @@ bool paint_supports_dynamic_tex_coords(Brush *br, PaintMode mode)
 		case PAINT_SCULPT:
 			if (sculpt_is_grab_tool(br))
 				return false;
+			break;
 		default:
-			;
-		}
+			break;
+	}
 	return true;
 }
 

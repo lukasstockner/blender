@@ -2213,7 +2213,7 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 					ui_searchbox_event(C, data->searchbox, but, event);
 					break;
 				}
-			/* pass on purposedly */
+				/* fall-through */
 			case ENDKEY:
 				ui_textedit_move(but, data, STRCUR_DIR_NEXT,
 				                 event->shift, STRCUR_JUMP_ALL);
@@ -2228,7 +2228,7 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 					ui_searchbox_event(C, data->searchbox, but, event);
 					break;
 				}
-			/* pass on purposedly */
+				/* fall-through */
 			case HOMEKEY:
 				ui_textedit_move(but, data, STRCUR_DIR_PREV,
 				                 event->shift, STRCUR_JUMP_ALL);
@@ -2635,7 +2635,7 @@ static int ui_do_but_KEYEVT(bContext *C, uiBut *but, uiHandleButtonData *data, c
 static int ui_do_but_TEX(bContext *C, uiBlock *block, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
 {
 	if (data->state == BUTTON_STATE_HIGHLIGHT) {
-		if (ELEM(event->type, LEFTMOUSE, EVT_BUT_OPEN) && event->val == KM_PRESS) {
+		if (ELEM4(event->type, LEFTMOUSE, EVT_BUT_OPEN, PADENTER, RETKEY) && event->val == KM_PRESS) {
 			if (but->dt == UI_EMBOSSN && !event->ctrl) {
 				/* pass */
 			}
@@ -2660,7 +2660,7 @@ static int ui_do_but_TEX(bContext *C, uiBlock *block, uiBut *but, uiHandleButton
 static int ui_do_but_SEARCH_UNLINK(bContext *C, uiBlock *block, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
 {
 	/* unlink icon is on right */
-	if (ELEM(event->type, LEFTMOUSE, EVT_BUT_OPEN) && event->val == KM_PRESS) {
+	if (ELEM4(event->type, LEFTMOUSE, EVT_BUT_OPEN, PADENTER, RETKEY) && event->val == KM_PRESS) {
 		ARegion *ar = data->region;
 		rcti rect;
 		int x = event->x, y = event->y;
@@ -3832,6 +3832,7 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data, int mx,
 			break;
 		default:
 			BLI_assert(0);
+			break;
 	}
 
 	hsv_to_rgb_v(hsv, rgb);
@@ -3904,6 +3905,7 @@ static void ui_ndofedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data, wmNDOF
 			break;
 		default:
 			assert(!"invalid hsv type");
+			break;
 	}
 
 	hsv_to_rgb_v(hsv, rgb);
@@ -6421,11 +6423,11 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
 			case MIDDLEMOUSE:
 			case MOUSEPAN:
 				button_timers_tooltip_remove(C, but);
-
-			/* pass on purposedly */
+				/* fall-through */
 			default:
 				/* handle button type specific events */
 				retval = ui_do_button(C, block, but, event);
+				break;
 		}
 	}
 	else if (data->state == BUTTON_STATE_WAIT_RELEASE) {
@@ -6475,6 +6477,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
 				if (event->customdata == data->flashtimer) {
 					button_activate_state(C, but, BUTTON_STATE_EXIT);
 				}
+				break;
 			}
 		}
 

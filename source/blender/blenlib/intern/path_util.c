@@ -610,9 +610,8 @@ bool BLI_parent_dir(char *path)
 {
 	static char parent_dir[] = {'.', '.', SEP, '\0'}; /* "../" or "..\\" */
 	char tmp[FILE_MAX + 4];
-	BLI_strncpy(tmp, path, sizeof(tmp) - 4);
-	BLI_add_slash(tmp);
-	strcat(tmp, parent_dir);
+
+	BLI_join_dirfile(tmp, sizeof(tmp), path, parent_dir);
 	BLI_cleanup_dir(NULL, tmp); /* does all the work of normalizing the path for us */
 
 	if (!BLI_testextensie(tmp, parent_dir)) {
@@ -696,8 +695,10 @@ bool BLI_path_frame(char *path, int frame, int digits)
 
 	if (stringframe_chars(path, &ch_sta, &ch_end)) { /* warning, ch_end is the last # +1 */
 		char tmp[FILE_MAX];
-		sprintf(tmp, "%.*s%.*d%s", ch_sta, path, ch_end - ch_sta, frame, path + ch_end);
-		strcpy(path, tmp);
+		BLI_snprintf(tmp, sizeof(tmp),
+		             "%.*s%.*d%s",
+		             ch_sta, path, ch_end - ch_sta, frame, path + ch_end);
+		BLI_strncpy(path, tmp, FILE_MAX);
 		return true;
 	}
 	return false;
@@ -1229,6 +1230,7 @@ const char *BLI_get_folder(int folder_id, const char *subfolder)
 
 		default:
 			BLI_assert(0);
+			break;
 	}
 	
 	return path;
@@ -1257,7 +1259,9 @@ const char *BLI_get_user_folder_notest(int folder_id, const char *subfolder)
 			break;
 		default:
 			BLI_assert(0);
+			break;
 	}
+
 	if ('\0' == path[0]) {
 		return NULL;
 	}
@@ -1307,6 +1311,7 @@ const char *BLI_get_folder_version(const int id, const int ver, const bool do_ch
 			path[0] = '\0'; /* in case do_check is false */
 			ok = false;
 			BLI_assert(!"incorrect ID");
+			break;
 	}
 
 	if (!ok && do_check) {
