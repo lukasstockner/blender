@@ -412,7 +412,7 @@ static int sculpt_stroke_dynamic_topology(const SculptSession *ss,
 	        /* Requires mesh restore, which doesn't work with
 	         * dynamic-topology */
 	        !(brush->flag & BRUSH_ANCHORED) &&
-	        !(brush->flag & BRUSH_RESTORE_MESH) &&
+	        !(brush->flag & BRUSH_DRAG_DOT) &&
         
 	        (!ELEM6(brush->sculpt_tool,
 	                /* These brushes, as currently coded, cannot
@@ -4223,7 +4223,7 @@ static void sculpt_restore_mesh(Sculpt *sd, Object *ob)
 	if ((brush->flag & BRUSH_ANCHORED) ||
 	    (brush->sculpt_tool == SCULPT_TOOL_GRAB &&
 	     BKE_brush_use_size_pressure(ss->cache->vc->scene, brush)) ||
-	    (brush->flag & BRUSH_RESTORE_MESH))
+	    (brush->flag & BRUSH_DRAG_DOT))
 	{
 		paint_mesh_restore_co(sd, ob);
 	}

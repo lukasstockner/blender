@@ -131,7 +131,7 @@ static int rna_SculptToolCapabilities_has_jitter_get(PointerRNA *ptr)
 {
 	Brush *br = (Brush *)ptr->data;
 	return (!(br->flag & BRUSH_ANCHORED) &&
-	        !(br->flag & BRUSH_RESTORE_MESH) &&
+	        !(br->flag & BRUSH_DRAG_DOT) &&
 	        !ELEM4(br->sculpt_tool,
 	               SCULPT_TOOL_GRAB, SCULPT_TOOL_ROTATE,
 	               SCULPT_TOOL_SNAKE_HOOK, SCULPT_TOOL_THUMB));
@@ -211,7 +211,8 @@ static int rna_SculptToolCapabilities_has_smooth_stroke_get(PointerRNA *ptr)
 {
 	Brush *br = (Brush *)ptr->data;
 	return (!(br->flag & BRUSH_ANCHORED) &&
-	        !(br->flag & BRUSH_RESTORE_MESH) &&
+	        !(br->flag & BRUSH_DRAG_DOT) &&
+	        !(br->flag & BRUSH_LINE) &&
 	        !ELEM4(br->sculpt_tool,
 	               SCULPT_TOOL_GRAB, SCULPT_TOOL_ROTATE,
 	               SCULPT_TOOL_SNAKE_HOOK, SCULPT_TOOL_THUMB));
@@ -228,7 +229,7 @@ static int rna_SculptToolCapabilities_has_space_attenuation_get(PointerRNA *ptr)
 static int rna_ImapaintToolCapabilities_has_space_attenuation_get(PointerRNA *ptr)
 {
 	Brush *br = (Brush *)ptr->data;
-	return ((br->flag & BRUSH_SPACE) && (br->flag & BRUSH_ACCUMULATE));
+	return ((br->flag & (BRUSH_SPACE | BRUSH_LINE)) && (br->flag & BRUSH_ACCUMULATE));
 }
 
 static int rna_BrushCapabilities_has_spacing_get(PointerRNA *ptr)
@@ -275,7 +276,7 @@ static int rna_ImapaintToolCapabilities_has_accumulate_get(PointerRNA *ptr)
 	Brush *br = (Brush *)ptr->data;
 
 	return ((br->flag & BRUSH_AIRBRUSH) ||
-	        (br->flag & BRUSH_RESTORE_MESH) ||
+	        (br->flag & BRUSH_DRAG_DOT) ||
 	        (br->flag & BRUSH_ANCHORED) ||
 	        (br->imagepaint_tool == PAINT_TOOL_SMEAR) ||
 	        (br->mtex.tex && !ELEM3(br->mtex.brush_map_mode, MTEX_MAP_MODE_TILED, MTEX_MAP_MODE_STENCIL, MTEX_MAP_MODE_3D))
@@ -679,7 +680,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	
 	static EnumPropertyItem sculpt_stroke_method_items[] = {
 		{0, "DOTS", 0, "Dots", "Apply paint on each mouse move step"},
-		{BRUSH_RESTORE_MESH, "DRAG_DOT", 0, "Drag Dot", "Allows a single dot to be carefully positioned"},
+		{BRUSH_DRAG_DOT, "DRAG_DOT", 0, "Drag Dot", "Allows a single dot to be carefully positioned"},
 		{BRUSH_SPACE, "SPACE", 0, "Space", "Limit brush application to the distance specified by spacing"},
 		{BRUSH_ANCHORED, "ANCHORED", 0, "Anchored", "Keep the brush anchored to the initial location"},
 		{BRUSH_AIRBRUSH, "AIRBRUSH", 0, "Airbrush", "Keep applying paint effect while holding mouse (spray)"},
@@ -1101,7 +1102,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop = RNA_def_property(srna, "use_restore_mesh", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_RESTORE_MESH);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_DRAG_DOT);
 	RNA_def_property_ui_text(prop, "Restore Mesh", "Allow a single dot to be carefully positioned");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 

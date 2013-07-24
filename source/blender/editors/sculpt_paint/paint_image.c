@@ -648,7 +648,7 @@ static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, Po
 
 	BKE_brush_size_set(scene, brush, max_ff(1.0f, size));
 
-	if ((brush->flag & BRUSH_RESTORE_MESH) || (brush->flag & BRUSH_ANCHORED)) {
+	if ((brush->flag & BRUSH_DRAG_DOT) || (brush->flag & BRUSH_ANCHORED)) {
 		paint_stroke_restore();
 	}
 

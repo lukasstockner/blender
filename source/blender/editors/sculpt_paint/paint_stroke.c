@@ -621,7 +621,7 @@ bool paint_supports_smooth_stroke(Brush *br, PaintMode mode)
 {
 	if (!(br->flag & BRUSH_SMOOTH_STROKE) ||
 	     (br->flag & BRUSH_ANCHORED) ||
-	     (br->flag & BRUSH_RESTORE_MESH) ||
+	     (br->flag & BRUSH_DRAG_DOT) ||
 	     (br->flag & BRUSH_LINE))
 	{
 		return false;
@@ -735,8 +735,8 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	bool redraw = false;
 	float pressure;
 
-	/* see if tablet affects event. Line strokes do not support pressure */
-	pressure = (stroke->brush->flag & BRUSH_LINE) ? 1.0 : event_tablet_data(event, &stroke->pen_flip);
+	/* see if tablet affects event. Line, anchored and drag dot strokes do not support pressure */
+	pressure = (stroke->brush->flag & (BRUSH_LINE | BRUSH_ANCHORED | BRUSH_DRAG_DOT)) ? 1.0 : event_tablet_data(event, &stroke->pen_flip);
 
 	paint_stroke_add_sample(p, stroke, event->mval[0], event->mval[1], pressure);
 	paint_stroke_sample_average(stroke, &sample_average);
