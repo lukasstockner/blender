@@ -729,6 +729,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	Paint *p = BKE_paint_get_active_from_context(C);
 	PaintMode mode = BKE_paintmode_get_active_from_context(C);
 	PaintStroke *stroke = op->customdata;
+	Brush *br = stroke->brush;
 	PaintSample sample_average;
 	float mouse[2];
 	bool first_dab = false;
@@ -737,7 +738,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	float pressure;
 
 	/* see if tablet affects event. Line, anchored and drag dot strokes do not support pressure */
-	pressure = (stroke->brush->flag & (BRUSH_LINE | BRUSH_ANCHORED | BRUSH_DRAG_DOT)) ? 1.0 : event_tablet_data(event, &stroke->pen_flip);
+	pressure = (br->flag & (BRUSH_LINE | BRUSH_ANCHORED | BRUSH_DRAG_DOT)) ? 1.0 : event_tablet_data(event, &stroke->pen_flip);
 
 	paint_stroke_add_sample(p, stroke, event->mval[0], event->mval[1], pressure);
 	paint_stroke_sample_average(stroke, &sample_average);
@@ -751,7 +752,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 	/* one time initialization */
 	if (!stroke->stroke_init) {
-		if (paint_supports_smooth_stroke(stroke->brush, mode))
+		if (paint_supports_smooth_stroke(br, mode))
 			stroke->smooth_stroke_cursor =
 			    WM_paint_cursor_activate(CTX_wm_manager(C), paint_poll, paint_draw_smooth_line_cursor, stroke);
 
@@ -767,10 +768,10 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		BLI_assert((stroke->stroke_started & ~1) == 0);  /* 0/1 */
 
 		if (stroke->stroke_started) {
-			if (stroke->brush->flag & BRUSH_AIRBRUSH)
+			if (br->flag & BRUSH_AIRBRUSH)
 				stroke->timer = WM_event_add_timer(CTX_wm_manager(C), CTX_wm_window(C), TIMER, stroke->brush->rate);
 
-			if (stroke->brush->flag & BRUSH_LINE)
+			if (br->flag & BRUSH_LINE)
 				stroke->smooth_stroke_cursor =
 					WM_paint_cursor_activate(CTX_wm_manager(C), paint_poll, paint_draw_smooth_line_cursor, stroke);
 
@@ -787,8 +788,8 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	}
 
 	if (event->type == stroke->event_type && event->val == KM_RELEASE && !first_modal) {
-		if (stroke->brush->flag & BRUSH_LINE) {
-			stroke->ups->overlap_factor = paint_stroke_integrate_overlap(stroke->brush, stroke->brush->spacing);
+		if (br->flag & BRUSH_LINE) {
+			stroke->ups->overlap_factor = paint_stroke_integrate_overlap(br, br->spacing);
 			paint_brush_stroke_add_step(C, op, stroke->last_mouse_position, 1.0);
 			paint_space_stroke(C, op, sample_average.mouse, 1.0);
 		}
@@ -796,18 +797,21 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		stroke_done(C, op);
 		return OPERATOR_FINISHED;
 	}
-	else if (stroke->brush->flag & BRUSH_LINE) {
-		/* do nothing */
+	else if (br->flag & BRUSH_LINE) {
+		if (br->flag & BRUSH_RAKE) {
+			copy_v2_v2(stroke->ups->last_rake, stroke->last_mouse_position);
+			paint_calculate_rake_rotation(stroke->ups,  sample_average.mouse);
+		}
 	}
 	else if (first_modal ||
 			 /* regular dabs */
-	         (!(stroke->brush->flag & (BRUSH_AIRBRUSH)) && (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE))) ||
+	         (!(br->flag & (BRUSH_AIRBRUSH)) && (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE))) ||
 	         /* airbrush */
-	         ((stroke->brush->flag & BRUSH_AIRBRUSH) && event->type == TIMER && event->customdata == stroke->timer))
+	         ((br->flag & BRUSH_AIRBRUSH) && event->type == TIMER && event->customdata == stroke->timer))
 	{
 		if (paint_smooth_stroke(stroke, mouse, &pressure, &sample_average, mode)) {
 			if (stroke->stroke_started) {
-				if (paint_space_stroke_enabled(stroke->brush, mode)) {
+				if (paint_space_stroke_enabled(br, mode)) {
 					if (paint_space_stroke(C, op, mouse, pressure))
 						redraw = true;
 				}
@@ -822,10 +826,10 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	/* we want the stroke to have the first daub at the start location
 	 * instead of waiting till we have moved the space distance */
 	if (first_dab &&
-	    paint_space_stroke_enabled(stroke->brush, mode) &&
-	    !(stroke->brush->flag & BRUSH_SMOOTH_STROKE))
+	    paint_space_stroke_enabled(br, mode) &&
+	    !(br->flag & BRUSH_SMOOTH_STROKE))
 	{
-		stroke->ups->overlap_factor = paint_stroke_integrate_overlap(stroke->brush, stroke->brush->spacing);
+		stroke->ups->overlap_factor = paint_stroke_integrate_overlap(br, br->spacing);
 		paint_brush_stroke_add_step(C, op, sample_average.mouse, sample_average.pressure);
 		redraw = true;
 	}
