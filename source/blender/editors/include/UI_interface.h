@@ -179,6 +179,9 @@ typedef struct uiLayout uiLayout;
 #define UI_BUT_VEC_SIZE_LOCK (1 << 30) /* used to flag if color hsv-circle should keep luminance */
 #define UI_BUT_COLOR_CUBIC   (1 << 31) /* cubic saturation for the color wheel */
 
+#define UI_BUT2_EXTRA_TEXT	 (1 << 0)
+
+
 #define UI_PANEL_WIDTH          340
 #define UI_COMPACT_PANEL_WIDTH  160
 
@@ -724,6 +727,7 @@ void UI_exit(void);
 #define UI_ITEM_R_NO_BG         (1 << 7)
 #define UI_ITEM_R_IMMEDIATE     (1 << 8)
 #define UI_ITEM_O_SINGLE_UNIT	(1 << 9)
+#define UI_ITEM_O_SHORTCUT		(1 << 10)
 
 /* uiLayoutOperatorButs flags */
 #define UI_LAYOUT_OP_SHOW_TITLE 1

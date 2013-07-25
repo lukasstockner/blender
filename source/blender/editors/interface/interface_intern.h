@@ -163,7 +163,7 @@ typedef struct {
 
 struct uiBut {
 	struct uiBut *next, *prev;
-	int flag, drawflag;
+	int flag, flag2, drawflag;
 	eButType         type;
 	eButPointerType  pointype;
 	short bit, bitnr, retval, strwidth, alignnr;

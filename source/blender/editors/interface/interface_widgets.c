@@ -1260,7 +1260,7 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 
 	/* part text right aligned 
 	 * only draw if there's enough space */
-	if (cpoin &&
+	if (but->flag2 & UI_BUT2_EXTRA_TEXT && cpoin &&
 		(BLI_rcti_size_x(rect) - BLF_width(fstyle->uifont_id, but->str)) >= 5) {
 		
 		fstyle->align = UI_STYLE_TEXT_RIGHT;

@@ -698,7 +698,8 @@ PointerRNA uiItemFullO_ptr(uiLayout *layout, wmOperatorType *ot, const char *nam
 	/* Make sure that if it is indicated a button shouldn't be truncated to a 
 	   single X unit, and a shortcut should be shown, then make sure we get 
 	   the right width. */
-	if(!(flag & UI_ITEM_O_SINGLE_UNIT) && block->flag & UI_BLOCK_SHORTCUTS)
+	if ((!(flag & UI_ITEM_O_SINGLE_UNIT) || flag & UI_ITEM_O_SHORTCUT)
+		&& block->flag & UI_BLOCK_SHORTCUTS)
 		w = ui_text_icon_width(layout, "|", icon, 0);
 	else
 		w = ui_text_icon_width(layout, name, icon, 0);
@@ -724,12 +725,19 @@ PointerRNA uiItemFullO_ptr(uiLayout *layout, wmOperatorType *ot, const char *nam
 	else {
 		but = uiDefButO_ptr(block, BUT, ot, context, name, 0, 0, w, UI_UNIT_Y, NULL);
 	}
+	
+	/* Only show extra text when we're in a shortcut block and it was
+	   indicated the shortcut should be shown */
+	if (flag & UI_ITEM_O_SHORTCUT && block->flag & UI_BLOCK_SHORTCUTS)
+		but->flag2 |= UI_BUT2_EXTRA_TEXT;
 
 	assert(but->optype != NULL);
 
 	/* text alignment for toolbar buttons */
-	if ((layout->root->type == UI_LAYOUT_TOOLBAR) && !icon)
+	if ((layout->root->type == UI_LAYOUT_TOOLBAR) && (!icon || flag & UI_ITEM_O_SHORTCUT)) {
 		but->flag |= UI_TEXT_LEFT;
+		but->flag |= UI_ICON_LEFT;
+	}
 
 	if (flag & UI_ITEM_R_NO_BG)
 		uiBlockSetEmboss(block, UI_EMBOSS);

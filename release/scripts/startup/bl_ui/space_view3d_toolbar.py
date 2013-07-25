@@ -36,8 +36,9 @@ class VIEW3D_PT_tools_modeswitch(View3DPanel, Panel):
 
     # TODO: doesn't work, try to not draw a header
     def draw_header(self, context):
-        print(dir(self))
-        print(dir(context))
+        pass
+        # print(dir(self))
+        # print(dir(context))
         # layout = self.layout
         # col = layout.column(align=True)
         # col.label("blub")
@@ -48,16 +49,16 @@ class VIEW3D_PT_tools_modeswitch(View3DPanel, Panel):
 
         col = layout.column(align=True)
         row = col.row(align=True)
-        row.operator("object.mode_set", text="", single_unit=True, icon='OBJECT_DATAMODE').mode = "OBJECT"
-        row.operator("object.mode_set", text="", single_unit=True, icon='EDITMODE_HLT').mode = "EDIT"
-        row.operator("object.mode_set", text="", single_unit=True, icon='SCULPTMODE_HLT').mode = "SCULPT"
+        row.operator("object.mode_set", text="", single_unit=False, shortcut=False, icon='OBJECT_DATAMODE').mode = "OBJECT"
+        row.operator("object.mode_set", text="", single_unit=False, shortcut=False, icon='EDITMODE_HLT').mode = "EDIT"
+        row.operator("object.mode_set", text="", single_unit=False, shortcut=False, icon='SCULPTMODE_HLT').mode = "SCULPT"
         #row.operator("object.mode_set", text="", single_unit=True, icon='POSE_HLT').mode = "POSE"
 
-        col = layout.column(align=True)
+        # col = layout.column(align=True)
         row = col.row(align=True)
-        row.operator("object.mode_set", text="", single_unit=True, icon='VPAINT_HLT').mode = "VERTEX_PAINT"
-        row.operator("object.mode_set", text="", single_unit=True, icon='TPAINT_HLT').mode = "TEXTURE_PAINT"
-        row.operator("object.mode_set", text="", single_unit=True, icon='WPAINT_HLT').mode = "WEIGHT_PAINT"
+        row.operator("object.mode_set", text="", single_unit=False, shortcut=False, icon='VPAINT_HLT').mode = "VERTEX_PAINT"
+        row.operator("object.mode_set", text="", single_unit=False, shortcut=False, icon='TPAINT_HLT').mode = "TEXTURE_PAINT"
+        row.operator("object.mode_set", text="", single_unit=False, shortcut=False, icon='WPAINT_HLT').mode = "WEIGHT_PAINT"
     
     # TODO: adapt the buttons to what items are selected
     #if active_object and active_object.type in {'MESH', 'CURVE', 'SURFACE'}:
@@ -122,6 +123,25 @@ class VIEW3D_PT_tools_objectmode_transform(View3DPanel, Panel):
         row.operator("transform.resize", text="", single_unit=False, icon='MAN_SCALE')
         col.operator("object.origin_set", text="Origin")
                 
+class VIEW3D_PT_tools_objectmode_add(View3DPanel, Panel):
+    bl_context = "objectmode"
+    bl_label = "Add & Delete"
+
+    def draw(self, context):
+        layout = self.layout
+
+        col = layout.column(align=True)
+        row = col.row(align=True, button_height=2)
+        row.operator("wm.call_menu", text="", shortcut=False, single_unit=False, icon='MAN_ROT').name = 'INFO_MT_add'
+        row.operator("object.delete", text="", shortcut=False, single_unit=False, icon='MAN_TRANS')
+        
+        col = layout.column(align=True)
+        row = col.row(align=True)
+        row.operator("object.duplicate_move", text="", shortcut=False, single_unit=False, icon='MAN_ROT')
+        row.operator("object.duplicate_move_linked", text="", shortcut=False, single_unit=False, icon='MAN_TRANS')
+        row = col.row(align=True)
+        col.operator("object.join")
+
 class VIEW3D_PT_tools_objectmode_adjust(View3DPanel, Panel):
     bl_context = "objectmode"
     bl_label = "Adjust"
@@ -133,26 +153,6 @@ class VIEW3D_PT_tools_objectmode_adjust(View3DPanel, Panel):
         col = layout.column(align=True)
         col.operator("object.shade_smooth", text="Shade smooth")
         col.operator("object.shade_flat", text="Shade flat")
-
-class VIEW3D_PT_tools_objectmode_add(View3DPanel, Panel):
-    bl_context = "objectmode"
-    bl_label = "Add & Delete"
-
-    def draw(self, context):
-        layout = self.layout
-
-        col = layout.column(align=True)
-        row = col.row(align=True, button_height=2)
-        # TODO: wrong operators in these two lines
-        row.operator("wm.call_menu", text="", single_unit=False, icon='MAN_ROT').name = 'INFO_MT_add'
-        row.operator("object.delete", text="", single_unit=False, icon='MAN_TRANS')
-        
-        col = layout.column(align=True)
-        row = col.row(align=True)
-        row.operator("object.duplicate_move", text="", single_unit=False, icon='MAN_ROT')
-        row.operator("object.duplicate_move_linked", text="", single_unit=False, icon='MAN_TRANS')
-        row = col.row(align=True)
-        col.operator("object.join")
         
 VIEW3D_PT_tools_objectmode_grease = grease_panel("objectmode")
 
