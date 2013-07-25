@@ -1366,7 +1366,7 @@ extern GLboolean eglewContextIsSupported (const EGLEWContext* ctx, const char* n
 #define EGLEW_GET_VAR(x) (*(const GLboolean*)&x)
 #define EGLEW_GET_FUN(x) x
 
-extern GLenum eglewContextInit (void); // XXX jwilkins: context handling not really written yet?
+extern GLenum eglewContextInit (EGLDisplay display); // XXX jwilkins: context handling not really written yet?
 #define eglewInit eglewContextInit // XXX jwilkins:  context handling not really written yet?
 
 extern GLboolean eglewIsSupported (const char* name);

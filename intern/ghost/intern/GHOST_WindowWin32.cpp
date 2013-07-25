@@ -1028,11 +1028,11 @@ GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextTyp
 
 			printf("EGL v%d.%d\n", major, minor);
 
-			if (!::eglMakeCurrent(m_egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT))
-				break;
-
 			if (!s_eglew_initialized) {
-				if (eglewInit() == GLEW_OK) {
+				if (!::eglMakeCurrent(m_egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT))
+					break;
+
+				if (eglewInit(m_egl_display) == GLEW_OK) {
 					s_eglew_initialized = true;
 				}
 				else {

@@ -25,54 +25,48 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file ghost/intern/GHOST_Context.h
+/** \file ghost/intern/GHOST_ContextNone.h
  *  \ingroup GHOST
  * Declaration of GHOST_Context class.
  */
 
-#ifndef __GHOST_CONTEXT_H__
-#define __GHOST_CONTEXT_H__
+#ifndef __GHOST_CONTEXTNONE_H__
+#define __GHOST_CONTEXTNONE_H__
 
-#include "GHOST_Types.h"
+#include "GHOST_Context.h"
 
 
 
-class GHOST_Context
+class GHOST_ContextNone : GHOST_Context
 {
 public:
 	/**
-	 * Destructor.
+	 * Dummy function
+	 * \return  Always succeeds
 	 */
-	virtual ~GHOST_Context()
-	{}
+	virtual GHOST_TSuccess swapBuffers();
 
 	/**
-	 * Swaps front and back buffers of a window.
-	 * \return  A boolean success indicator.
+	 * Dummy function
+	 * \return  Always succeeds
 	 */
-	virtual GHOST_TSuccess swapBuffers() = 0;
+	virtual GHOST_TSuccess activateDrawingContext();
 
 	/**
-	 * Activates the drawing context of this window.
-	 * \return  A boolean success indicator.
+	 * Dummy function
+	 * \param stereoVisual		ignored
+	 * \param numOfAASamples	ignored
+	 * \return Always succeeds
 	 */
-	virtual GHOST_TSuccess activateDrawingContext() = 0;
+	virtual GHOST_TSuccess installDrawingContext(bool = false, GHOST_TUns16 = 0);
 
 	/**
-	 * Tries to install a rendering context in this window.
-	 * \param stereoVisual		Stereo visual for quad buffered stereo.
-	 * \param numOfAASamples	Number of samples used for AA (zero if no AA)
-	 * \return Indication as to whether installation has succeeded.
+	 * Dummy function
+	 * \return Always succeeds
 	 */
-	virtual GHOST_TSuccess installDrawingContext(bool stereoVisual = false, GHOST_TUns16 numOfAASamples = 0) = 0;
-
-	/**
-	 * Removes the current drawing context.
-	 * \return Indication as to whether removal has succeeded.
-	 */
-	virtual GHOST_TSuccess removeDrawingContext() = 0;
+	virtual GHOST_TSuccess removeDrawingContext();
 };
 
 
 
-#endif // __GHOST_CONTEXT_H__
+#endif // __GHOST_CONTEXTNONE_H__

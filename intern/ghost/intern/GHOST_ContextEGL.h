@@ -33,5 +33,81 @@
 #ifndef __GHOST_CONTEXTEGL_H__
 #define __GHOST_CONTEXTEGL_H__
 
+#include "GHOST_Context.h"
+
+#include <GL/eglew.h>
+
+
+
+class GHOST_ContextEGL : public GHOST_Context
+{
+public:
+	/**
+	 * Constructor.
+	 */
+	GHOST_ContextEGL(EGLenum api = EGL_OPENGL_ES_API, EGLint egl_ContextClientVersion = 2);
+
+	/**
+	 * Destructor.
+	 */
+	virtual ~GHOST_ContextEGL();
+
+	/**
+	 * Swaps front and back buffers of a window.
+	 * \return  A boolean success indicator.
+	 */
+	virtual GHOST_TSuccess swapBuffers();
+
+	/**
+	 * Activates the drawing context of this window.
+	 * \return  A boolean success indicator.
+	 */
+	virtual GHOST_TSuccess activateDrawingContext();
+
+	/**
+	 * Tries to install a rendering context in this window.
+	 * \param stereoVisual		Stereo visual for quad buffered stereo.
+	 * \param numOfAASamples	Number of samples used for AA (zero if no AA)
+	 * \return Indication as to whether installation has succeeded.
+	 */
+	virtual GHOST_TSuccess installDrawingContext(bool stereoVisual = false, GHOST_TUns16 numOfAASamples = 0);
+
+	/**
+	 * Removes the current drawing context.
+	 * \return Indication as to whether removal has succeeded.
+	 */
+	virtual GHOST_TSuccess removeDrawingContext();
+
+protected:
+	const EGLenum m_api;
+	const EGLint  m_egl_ContextClientVersion;
+
+	EGLNativeDisplayType m_nativeDisplay;
+	EGLNativeWindowType  m_nativeWindow;
+
+	EGLContext m_context;
+	EGLSurface m_surface;
+	EGLDisplay m_display;
+
+	EGLContext& m_sharedContext;
+	EGLint&     m_sharedCount;
+
+	static EGLContext s_gl_sharedContext;
+	static EGLint     s_gl_sharedCount;
+
+	static EGLContext s_gles_sharedContext;
+	static EGLint     s_gles_sharedCount;
+
+	static EGLContext s_vg_sharedContext;
+	static EGLint     s_vg_sharedCount;
+
+	static bool s_eglewInitialized;
+
+#if defined(WITH_ANGLE)
+	static HMODULE s_d3dcompiler;
+#endif
+};
+
+
 
 #endif // __GHOST_CONTEXTEGL_H__
