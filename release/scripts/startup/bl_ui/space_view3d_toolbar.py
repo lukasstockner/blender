@@ -73,17 +73,17 @@ def grease_panel(mode):
             col = layout.column(align=True)
             row = col.row(align=True, button_height=2)
 
-            row.operator("gpencil.draw", text="Draw").mode = 'DRAW'
-            row.operator("gpencil.draw", text="Line").mode = 'DRAW_STRAIGHT'
+            row.operator("gpencil.draw", text="", shortcut=False, single_unit=False, icon='GREASE_DRAW').mode = 'DRAW'
+            row.operator("gpencil.draw", text="", shortcut=False, single_unit=False, icon='GREASE_LINE').mode = 'DRAW_STRAIGHT'
 
             row = col.row(align=True, button_height=2)
-            row.operator("gpencil.draw", text="Poly").mode = 'DRAW_POLY'
-            row.operator("gpencil.draw", text="Erase").mode = 'ERASER'
+            row.operator("gpencil.draw", text="", shortcut=False, single_unit=False, icon='GREASE_POLY').mode = 'DRAW_POLY'
+            row.operator("gpencil.draw", text="", shortcut=False, single_unit=False, icon='GREASE_ERASE').mode = 'ERASER'
 
             row = col.row()
-            row.prop(context.tool_settings, "use_grease_pencil_sessions")
+            row.prop(context.tool_settings, "use_grease_pencil_sessions", text="use sketching sessions")
 
-            col.operator("view3d.ruler")
+            col.operator("view3d.ruler", icon='RULER')
 
     cls.__name__ = "VIEW3D_PT_tools_%s_grease" % mode
     return cls
@@ -132,13 +132,13 @@ class VIEW3D_PT_tools_objectmode_add(View3DPanel, Panel):
 
         col = layout.column(align=True)
         row = col.row(align=True, button_height=2)
-        row.operator("wm.call_menu", text="", shortcut=False, single_unit=False, icon='MAN_ROT').name = 'INFO_MT_add'
-        row.operator("object.delete", text="", shortcut=False, single_unit=False, icon='MAN_TRANS')
+        row.operator("wm.call_menu", text="", single_unit=False, shortcut=False, icon='TOOLBAR_ADD').name = 'INFO_MT_add'
+        row.operator("object.delete", text="", shortcut=False, single_unit=False, icon='TOOLBAR_DELETE')
         
         col = layout.column(align=True)
         row = col.row(align=True)
-        row.operator("object.duplicate_move", text="", shortcut=False, single_unit=False, icon='MAN_ROT')
-        row.operator("object.duplicate_move_linked", text="", shortcut=False, single_unit=False, icon='MAN_TRANS')
+        row.operator("object.duplicate_move", text="", shortcut=False, single_unit=False, icon='TOOLBAR_DUP')
+        row.operator("object.duplicate_move_linked", text="", shortcut=False, single_unit=False, icon='TOOLBAR_DUP_LINKED')
         row = col.row(align=True)
         col.operator("object.join")
 
@@ -168,8 +168,8 @@ class VIEW3D_PT_tools_objectmode_keyframes(View3DPanel, Panel):
         col = layout.column(align=True)
         row = col.row(align=True, button_height=2)
 
-        row.operator("anim.keyframe_insert_menu", text="Insert", single_unit=False)
-        row.operator("anim.keyframe_delete_v3d", text="Remove", single_unit=False)
+        row.operator("anim.keyframe_insert_menu", text="", single_unit=False, shortcut=False, icon='KEY_HLT')
+        row.operator("anim.keyframe_delete_v3d", text="", single_unit=False, shortcut=False, icon='KEY_DEHLT')
 
         col = layout.column(align=True)
         col.operator("object.paths_calculate", text="Calculate motion")
@@ -236,11 +236,11 @@ class VIEW3D_PT_tools_editmode_add(View3DPanel, Panel):
 
         col = layout.column(align=True)
         row = col.row(align=True, button_height=2)
-        row.operator("wm.call_menu", text="", single_unit=False, icon='MAN_ROT').name = 'INFO_MT_mesh_add'
-        row.operator("wm.call_menu", text="", single_unit=False, icon='MAN_TRANS').name = 'VIEW3D_MT_edit_mesh_delete'
+        row.operator("wm.call_menu", text="", single_unit=False, shortcut=False, icon='TOOLBAR_ADD').name = 'INFO_MT_mesh_add'
+        row.operator("wm.call_menu", text="", single_unit=False, shortcut=False, icon='TOOLBAR_DELETE').name = 'VIEW3D_MT_edit_mesh_delete'
         
         col = layout.column(align=True)
-        col.operator("mesh.duplicate_move", text="Duplicate", single_unit=False, icon='MAN_ROT')
+        col.operator("mesh.duplicate_move", text="Duplicate", single_unit=False, icon='TOOLBAR_DUP')
 
 class VIEW3D_PT_tools_editmode_topology(View3DPanel, Panel):
     bl_context = "mesh_edit"
@@ -251,18 +251,18 @@ class VIEW3D_PT_tools_editmode_topology(View3DPanel, Panel):
 
         col = layout.column(align=True)
         row = col.row(align=True, button_height=2)
-        row.operator("view3d.edit_mesh_extrude_move_normal", text="", single_unit=False, icon='MAN_ROT')
-        row.operator("view3d.edit_mesh_extrude_individual_move", text="", single_unit=False, icon='MAN_TRANS')
+        row.operator("view3d.edit_mesh_extrude_move_normal", text="", single_unit=False, shortcut=False, icon='MAN_ROT')
+        row.operator("view3d.edit_mesh_extrude_individual_move", text="", single_unit=False, shortcut=False, icon='MAN_TRANS')
         col.menu("VIEW3D_MT_edit_mesh_extrude")
 
         col = layout.column(align=True)
         row = col.row(align=True, button_height=2)
         
-        props = row.operator("mesh.knife_tool", text="", single_unit=False, icon='MAN_ROT')
+        props = row.operator("mesh.knife_tool", text="", single_unit=False, shortcut=False, icon='MAN_ROT')
         props.use_occlude_geometry = True
         props.only_selected = False
         
-        row.operator("mesh.loopcut_slide", text="", single_unit=False, icon='MAN_TRANS')
+        row.operator("mesh.loopcut_slide", text="", single_unit=False, shortcut=False, icon='MAN_TRANS')
         
         props = col.operator("mesh.knife_tool", text="Knife select")
         props.use_occlude_geometry = False
