@@ -38,6 +38,7 @@ set(SRC
 	intern/GHOST_Buttons.cpp
 	intern/GHOST_C-api.cpp
 	intern/GHOST_CallbackEventConsumer.cpp
+    intern/GHOST_Context.cpp
 	intern/GHOST_DisplayManager.cpp
 	intern/GHOST_EventManager.cpp
 	intern/GHOST_ISystem.cpp
@@ -64,6 +65,7 @@ set(SRC
 
 	intern/GHOST_Buttons.h
 	intern/GHOST_CallbackEventConsumer.h
+    intern/GHOST_Context.h
 	intern/GHOST_Debug.h
 	intern/GHOST_DisplayManager.h
 	intern/GHOST_Event.h
