@@ -179,7 +179,6 @@ void GPU_extensions_init(void)
 
 	glewInit();
 	GPU_wrap_extensions(&(GG.glslsupport), &(GG.framebuffersupport));
-	gpuInitializeViewFuncs();
 	GPU_codegen_init();
 
 	GG.maxtextures = get_max_textures();
@@ -1066,7 +1065,7 @@ void GPU_framebuffer_texture_bind(GPUFrameBuffer *UNUSED(fb), GPUTexture *tex, i
 
 	/* push matrices and set default viewport and matrix */
 	glGetIntegerv(GL_VIEWPORT, save_viewport);
-	glViewport(0, 0, w, h);
+	gpuViewport(0, 0, w, h);
 	GG.currentfb = tex->fb->object;
 
 	gpuMatrixMode(GL_PROJECTION);
@@ -1086,7 +1085,7 @@ void GPU_framebuffer_texture_unbind(GPUFrameBuffer *UNUSED(fb), GPUTexture *UNUS
 	gpuPopMatrix();
 
 	/* restore attributes */
-	glViewport(save_viewport[0], save_viewport[1], save_viewport[2], save_viewport[3]);
+	gpuViewport(save_viewport[0], save_viewport[1], save_viewport[2], save_viewport[3]);
 	glEnable(GL_SCISSOR_TEST);
 }
 

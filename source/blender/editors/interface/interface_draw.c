@@ -1589,7 +1589,7 @@ void ui_draw_but_NODESOCKET(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol
 	scissor_new.xmax = ar->winrct.xmin + recti->xmax;
 	scissor_new.ymax = ar->winrct.ymin + recti->ymax;
 	BLI_rcti_isect(&scissor_new, &ar->winrct, &scissor_new);
-	glScissor(scissor_new.xmin,
+	gpuScissor(scissor_new.xmin,
 	          scissor_new.ymin,
 	          BLI_rcti_size_x(&scissor_new),
 	          BLI_rcti_size_y(&scissor_new));
@@ -1618,7 +1618,7 @@ void ui_draw_but_NODESOCKET(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol
 	glLineWidth(1.0f);
 	
 	/* restore scissortest */
-	glScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
+	gpuScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
 
 	gpuImmediateUnformat();
 }

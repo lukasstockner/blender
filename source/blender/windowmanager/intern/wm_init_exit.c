@@ -144,6 +144,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 		gpuInitializeLighting(); // XXX jwilkins: sort out this initialization order
 		GPU_ms_init();
 		GPU_init_object_func();
+		gpuInitializeViewFuncs();
 	}
 
 	GHOST_CreateSystemPaths();

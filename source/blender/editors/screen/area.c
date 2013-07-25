@@ -1835,7 +1835,7 @@ void ED_region_info_draw(ARegion *ar, const char *text, int block, float fill_co
 
 	/* setup scissor */
 	glGetIntegerv(GL_SCISSOR_BOX, scissor);
-	glScissor(ar->winrct.xmin + rect.xmin, ar->winrct.ymin + rect.ymin,
+	gpuScissor(ar->winrct.xmin + rect.xmin, ar->winrct.ymin + rect.ymin,
 	          BLI_rcti_size_x(&rect) + 1, BLI_rcti_size_y(&rect) + 1);
 
 	glEnable(GL_BLEND);
@@ -1854,7 +1854,7 @@ void ED_region_info_draw(ARegion *ar, const char *text, int block, float fill_co
 	BLF_disable(fontid, BLF_CLIPPING);
 
 	/* restore scissor as it was before */
-	glScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
+	gpuScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
 }
 
 void ED_region_grid_draw(ARegion *ar, float zoomx, float zoomy)

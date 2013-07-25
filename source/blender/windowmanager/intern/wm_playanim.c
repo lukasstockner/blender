@@ -750,8 +750,8 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 			ps->zoom = floor(ps->zoom + 0.5f);
 			if (ps->zoom < 1.0f) ps->zoom = 1.0f;
 			
-			glViewport(0, 0, ps->win_x, ps->win_y);
-			glScissor(0, 0, ps->win_x, ps->win_y);
+			gpuViewport(0, 0, ps->win_x, ps->win_y);
+			gpuScissor(0, 0, ps->win_x, ps->win_y);
 			
 			/* unified matrix, note it affects offset for drawing */
 			gpuMatrixMode(GL_PROJECTION);

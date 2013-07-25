@@ -366,6 +366,8 @@ protected:
 #endif
 
 	static EGLContext s_egl_first_context;
+
+	static bool s_eglew_initialized;
 #endif
 	/** Flag for if window has captured the mouse */
 	bool m_hasMouseCaptured;

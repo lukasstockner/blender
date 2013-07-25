@@ -98,8 +98,9 @@ static PIXELFORMATDESCRIPTOR sPreferredFormat = {
 
 EGLContext GHOST_WindowWin32::s_egl_first_context = EGL_NO_CONTEXT;
 
-#if defined(ANGLE)
-EGLContext GHOST_WindowWin32::s_d3dcompiler = NULL;
+#if defined(WITH_ANGLE)
+HMODULE GHOST_WindowWin32::s_d3dcompiler = NULL;
+bool GHOST_WindowWin32::s_eglew_initialized = false;
 #endif
 
 #endif
@@ -142,6 +143,10 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 	m_hDC(0),
 #if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
 	m_hGlRc(0),
+#elif defined(WITH_GL_SYSTEM_EMBEDDED)
+	m_egl_display(EGL_NO_DISPLAY),
+	m_egl_context(EGL_NO_CONTEXT),
+	m_egl_surface(EGL_NO_SURFACE),
 #endif
 	m_hasMouseCaptured(false),
 	m_hasGrabMouse(false),
@@ -1021,13 +1026,26 @@ GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextTyp
 			if (!::eglInitialize(m_egl_display, &major, &minor))
 				break;
 
+			printf("EGL v%d.%d\n", major, minor);
+
+			if (!::eglMakeCurrent(m_egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT))
+				break;
+
+			if (!s_eglew_initialized) {
+				if (eglewInit() == GLEW_OK) {
+					s_eglew_initialized = true;
+				}
+				else {
+					break;
+				}
+			}
+
 #if defined(WITH_GL_PROFILE_ES20)
 			eglBindAPI(EGL_OPENGL_ES_API);
 #endif
 
-			printf("EGL v%d.%d\n", major, minor);
-
-			std::vector<EGLint> attrib_list(20);
+			std::vector<EGLint> attrib_list;
+			attrib_list.reserve(20);
 
 			attrib_list.push_back(EGL_RED_SIZE);
 			attrib_list.push_back(8);
@@ -1060,7 +1078,7 @@ GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextTyp
 			attrib_list.push_back(EGL_NONE);
 
 			EGLConfig config;
-			EGLint    num_config;
+			EGLint    num_config = 0;
 
 			if (!::eglChooseConfig(m_egl_display, &(attrib_list[0]), &config, 1, &num_config))
 				break;
@@ -1105,11 +1123,6 @@ GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextTyp
 			success = GHOST_kFailure;
 	}
 
-#if defined(WITH_GL_SYSTEM_EMBEDDED)
-	if (success = GHOST_kFailure) {
-	}
-#endif
-
 	return success;
 }
 
@@ -1145,6 +1158,9 @@ GHOST_TSuccess GHOST_WindowWin32::removeDrawingContext()
 
 				if (m_egl_surface != EGL_NO_SURFACE) {
 					surface_destroyed = ::eglDestroySurface(m_egl_display, m_egl_surface);
+				}
+				else {
+					surface_destroyed = EGL_FALSE;
 				}
 
 				m_egl_surface = EGL_NO_SURFACE;

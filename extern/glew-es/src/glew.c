@@ -246,22 +246,35 @@ void* NSGLGetProcAddress (const GLubyte *name)
 #  define glewGetProcAddress(name) esGetProcAddress(name)
 #else
 #if defined(_WIN32)
-    static HMODULE hLibGLES = NULL;
+    static HMODULE hLibEGL    = NULL;
+    static HMODULE hLibGLESv2 = NULL;
 
-    void* weGetProcAddress(const GLubyte* name) // XXX jwilkins
+    void* weGetProcAddress(const char* name) // XXX jwilkins
     {
         void* proc = eglGetProcAddress(name);
 
-        if(proc == NULL && hLibGLES == NULL) {
-            hLibGLES = LoadLibrary("libGLESv2.dll");
-        }
-
-        if(proc == NULL && hLibGLES != NULL) {
-            return GetProcAddress(hLibGLES, name);
-        }
-        else {
+        if (proc != NULL)
             return proc;
-        }
+
+        if (hLibEGL == NULL)
+            hLibEGL = LoadLibrary("libEGL.dll");
+
+        if (hLibEGL != NULL)
+            proc = GetProcAddress(hLibEGL, name);
+
+        if (proc != NULL)
+            return proc;
+
+        if (hLibGLESv2 == NULL)
+            hLibGLESv2 = LoadLibrary("libGLESv2.dll");
+
+        if (hLibGLESv2 != NULL)
+            proc = GetProcAddress(hLibGLESv2, name);
+
+        if (proc != NULL)
+            return proc;
+
+        return NULL;
     }
 
 #  define glewGetProcAddress(name) weGetProcAddress(name)
@@ -272,15 +285,15 @@ void* NSGLGetProcAddress (const GLubyte *name)
 #elif defined(_WIN32)
     static HMODULE hOpenGL = NULL;
 
-    void* wGetProcAddress(const GLubyte* name) // XXX jwilkins
+    void* wGetProcAddress(const char* name) // XXX jwilkins
     {
         void* proc = wglGetProcAddress(name);
 
-        if(proc == NULL && hOpenGL == NULL) {
+        if (proc == NULL && hOpenGL == NULL) {
             hOpenGL = LoadLibrary("opengl32.dll");
         }
 
-        if(proc == NULL && hOpenGL != NULL) {
+        if (proc == NULL && hOpenGL != NULL) {
             return GetProcAddress(hOpenGL, name);
         }
         else {
