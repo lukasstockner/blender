@@ -251,18 +251,18 @@ class VIEW3D_PT_tools_editmode_topology(View3DPanel, Panel):
 
         col = layout.column(align=True)
         row = col.row(align=True, button_height=2)
-        row.operator("view3d.edit_mesh_extrude_move_normal", text="", single_unit=False, shortcut=False, icon='MAN_ROT')
-        row.operator("view3d.edit_mesh_extrude_individual_move", text="", single_unit=False, shortcut=False, icon='MAN_TRANS')
+        row.operator("view3d.edit_mesh_extrude_move_normal", text="", single_unit=False, shortcut=False, icon='EXTRUDE_REGION')
+        row.operator("view3d.edit_mesh_extrude_individual_move", text="", single_unit=False, shortcut=False, icon='EXTRUDE_INDIVIDUAL')
         col.menu("VIEW3D_MT_edit_mesh_extrude")
 
         col = layout.column(align=True)
         row = col.row(align=True, button_height=2)
         
-        props = row.operator("mesh.knife_tool", text="", single_unit=False, shortcut=False, icon='MAN_ROT')
+        props = row.operator("mesh.knife_tool", text="", single_unit=False, shortcut=False, icon='KNIFE')
         props.use_occlude_geometry = True
         props.only_selected = False
         
-        row.operator("mesh.loopcut_slide", text="", single_unit=False, shortcut=False, icon='MAN_TRANS')
+        row.operator("mesh.loopcut_slide", text="", single_unit=False, shortcut=False, icon='LOOP_CUT')
         
         props = col.operator("mesh.knife_tool", text="Knife select")
         props.use_occlude_geometry = False

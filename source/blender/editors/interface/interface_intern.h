@@ -495,7 +495,7 @@ struct AutoComplete;
 
 /* interface_panel.c */
 extern int ui_handler_panel_region(struct bContext *C, const struct wmEvent *event);
-extern void ui_draw_aligned_panel(struct uiStyle *style, uiBlock *block, rcti *rect);
+extern void ui_draw_aligned_panel(struct uiStyle *style, uiBlock *block, rcti *rect, int toolbar);
 
 /* interface_draw.c */
 extern void ui_dropshadow(const rctf *rct, float radius, float aspect, float alpha, int select);

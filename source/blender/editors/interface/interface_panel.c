@@ -437,6 +437,27 @@ static void ui_draw_panel_scalewidget(rcti *rect)
 	glDisable(GL_BLEND);
 }
 
+
+static void ui_draw_panel_openwidget(const rctf *rect)
+{
+	float xmin, xmax, dx;
+	float ymin, ymax, dy;
+	
+	xmin = rect->xmin;
+	xmax = rect->xmax;
+	ymin = rect->ymin;
+	ymax = rect->ymax;
+	
+	dx = (xmax - xmin) / 5.0f;
+	dy = (ymax - ymin) / 5.0f;
+	
+	glEnable(GL_BLEND);
+	glColor4ub(255, 255, 255, 50);
+	fdrawbox(xmin+dx, ymin+dy, xmax-dx, ymax-dy);
+	glDisable(GL_BLEND);
+}
+
+
 static void ui_draw_panel_dragwidget(const rctf *rect)
 {
 	float xmin, xmax, dx;
@@ -484,6 +505,7 @@ static void ui_draw_aligned_panel_header(uiStyle *style, uiBlock *block, rcti *r
 	hrect = *rect;
 	if (dir == 'h') {
 		hrect.xmin = rect->xmin + pnl_icons;
+		hrect.xmax = hrect.xmin + BLI_rcti_size_x(&hrect) - (2*PNL_ICON) / block->aspect;
 		hrect.ymin += 2.0f / block->aspect;
 		uiStyleFontDraw(&style->paneltitle, &hrect, activename);
 	}
@@ -510,7 +532,7 @@ static void rectf_scale(rctf *rect, const float scale)
 }
 
 /* panel integrated in buttonswindow, tool/property lists etc */
-void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, rcti *rect)
+void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, rcti *rect, int toolbar)
 {
 	Panel *panel = block->panel;
 	rcti headrect;
@@ -573,6 +595,15 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, rcti *rect)
 	 * (------)
 	 */
 	if (panel->flag & PNL_CLOSEDY) {
+		if (toolbar) {
+			/* draw popup widget */
+			itemrect.xmax = headrect.xmax - (1.0f + PNL_ICON) / block->aspect;
+			itemrect.xmin = itemrect.xmax - BLI_rcti_size_y(&headrect);
+			itemrect.ymin = headrect.ymin;
+			itemrect.ymax = headrect.ymax;
+			rectf_scale(&itemrect, 0.7f);
+			ui_draw_panel_openwidget(&itemrect);
+		}
 	}
 	else if (panel->flag & PNL_CLOSEDX) {
 		/* draw vertical title */
@@ -630,6 +661,7 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, rcti *rect)
 
 	(void)ofsx;
 }
+
 
 /************************** panel alignment *************************/
 
@@ -1066,6 +1098,8 @@ static void ui_handle_panel_header(const bContext *C, uiBlock *block, int mx, in
 	ARegion *ar = CTX_wm_region(C);
 	Panel *pa;
 	int align = panel_aligned(sa, ar), button = 0;
+	int x_popup = block->rect.xmax - ((2 * PNL_ICON) + 5) / block->aspect;
+	int x_drag  = block->rect.xmax - (PNL_ICON + 5) / block->aspect;
 
 	/* mouse coordinates in panel space! */
 	
@@ -1081,18 +1115,31 @@ static void ui_handle_panel_header(const bContext *C, uiBlock *block, int mx, in
 	}
 	else if (block->panel->control & UI_PNL_CLOSE) {
 		/* whole of header can be used to collapse panel (except top-right corner) */
-		if (mx <= block->rect.xmax - 8 - PNL_ICON) button = 2;
-		//else if (mx <= block->rect.xmin + 10 + 2 * PNL_ICON + 2) button = 1;
+		if (mx <= x_drag) button = 2;
 	}
-	else if (mx <= block->rect.xmax - PNL_ICON - 12) {
-		button = 1;
-	}
-	
-	if (button) {
-		if (button == 2) {  /* close */
-			ED_region_tag_redraw(ar);
+	// only shows popups in toolbars
+	else if (block->panel->flag & PNL_CLOSEDY
+			 && ar->regiontype == RGN_TYPE_TOOLS) {
+		if (mx <= x_popup) {
+			button = 1;
+		} else if (mx > x_popup && mx <= x_drag) {
+			button = 3; // popup!
+		} else if (mx > x_drag) {
+			button = 4; // drag
 		}
-		else {  /* collapse */
+	} else {
+		if (mx > x_drag) {
+			button = 4; // drag
+		} else {
+			button = 1; // open
+		}
+	}
+		
+	
+
+	switch (button) {
+		case 1:
+			/* collapse */
 			if (ctrl)
 				panels_collapse_all(sa, ar, block->panel);
 
@@ -1118,15 +1165,24 @@ static void ui_handle_panel_header(const bContext *C, uiBlock *block, int mx, in
 					else pa->flag &= ~PNL_CLOSED;
 				}
 			}
-		}
-
-		if (align)
-			panel_activate_state(C, block->panel, PANEL_STATE_ANIMATION);
-		else
+			if (align)
+				panel_activate_state(C, block->panel, PANEL_STATE_ANIMATION);
+			else
+				ED_region_tag_redraw(ar);
+			break;
+		case 2:
+			/* close */
 			ED_region_tag_redraw(ar);
-	}
-	else if (mx <= (block->rect.xmax - PNL_ICON - 12) + PNL_ICON + 2) {
-		panel_activate_state(C, block->panel, PANEL_STATE_DRAG);
+			if (align)
+				panel_activate_state(C, block->panel, PANEL_STATE_ANIMATION);
+			else
+				ED_region_tag_redraw(ar);
+			break;
+		case 3:
+			printf("Boo!\n");
+		case 4:
+		default:
+			panel_activate_state(C, block->panel, PANEL_STATE_DRAG);
 	}
 }
 
