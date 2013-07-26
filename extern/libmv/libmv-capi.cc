@@ -600,22 +600,22 @@ static bool selectTwoKeyframesBasedOnGRICAndVariance(
 	return true;
 }
 
-static libmv_Reconstruction *libmv_solveReconstruction(const libmv_Tracks *libmv_tracks,
-			const libmv_cameraIntrinsicsOptions *libmv_camera_intrinsics_options,
+libmv_Reconstruction *libmv_solve(const libmv_Tracks *libmv_tracks,
+			const libmv_cameraIntrinsicsOptions libmv_camera_intrinsics_options[],
 			libmv_reconstructionOptions *libmv_reconstruction_options,
 			reconstruct_progress_update_cb progress_update_callback,
 			void *callback_customdata)
 {
 	libmv_Reconstruction *libmv_reconstruction = new libmv_Reconstruction();
-
-	libmv::Tracks &tracks = *((libmv::Tracks *) libmv_tracks);
 	libmv::EuclideanReconstruction &reconstruction = libmv_reconstruction->reconstruction;
 	libmv::CameraIntrinsics &camera_intrinsics = libmv_reconstruction->intrinsics;
 
-	ReconstructUpdateCallback update_callback =
-		ReconstructUpdateCallback(progress_update_callback, callback_customdata);
+	libmv::Tracks &tracks = *((libmv::Tracks *) libmv_tracks);
 
-	/* Retrieve reconstruction options from C-API to libmv API */
+	ReconstructUpdateCallback update_callback(progress_update_callback,
+	                                          callback_customdata);
+
+	/* Convert options from C-API to libmv API */
 	cameraIntrinsicsFromOptions(libmv_camera_intrinsics_options, &camera_intrinsics);
 
 	libmv::ReconstructionOptions reconstruction_options;
@@ -625,43 +625,53 @@ static libmv_Reconstruction *libmv_solveReconstruction(const libmv_Tracks *libmv
 	/* Invert the camera intrinsics */
 	libmv::Tracks normalized_tracks = getNormalizedTracks(tracks, camera_intrinsics);
 
-	/* keyframe selection */
-	int keyframe1 = libmv_reconstruction_options->keyframe1,
-	    keyframe2 = libmv_reconstruction_options->keyframe2;
+	if (libmv_reconstruction_options->motion_flag & LIBMV_TRACKING_MOTION_MODAL) {
+		/* Perform modal solving */
+		libmv::ModalSolver(normalized_tracks, &reconstruction, &update_callback);
+		
+		/* Perform bundle adjustment */
+		libmv::EuclideanBundleModal(tracks,
+		                            &reconstruction);
+	}
+	else {
+		/* Keyframe selection */
+		int &keyframe1 = libmv_reconstruction_options->keyframe1,
+				&keyframe2 = libmv_reconstruction_options->keyframe2;
 
-	if (libmv_reconstruction_options->select_keyframes) {
-		LG << "Using automatic keyframe selection";
+		if (libmv_reconstruction_options->select_keyframes) {
+			LG << "Using automatic keyframe selection";
 
-		update_callback.invoke(0, "Selecting keyframes");
+			update_callback.invoke(0, "Selecting keyframes");
 
-		selectTwoKeyframesBasedOnGRICAndVariance(tracks,
-		                                         normalized_tracks,
-		                                         camera_intrinsics,
-		                                         reconstruction_options,
-		                                         keyframe1,
-		                                         keyframe2);
+			selectTwoKeyframesBasedOnGRICAndVariance(tracks,
+																							 normalized_tracks,
+																							 camera_intrinsics,
+																							 reconstruction_options,
+																							 keyframe1,
+																							 keyframe2);
+		}
 
-		/* so keyframes in the interface would be updated */
-		libmv_reconstruction_options->keyframe1 = keyframe1;
-		libmv_reconstruction_options->keyframe2 = keyframe2;
+		LG << "frames to init from: " << keyframe1 << " " << keyframe2;
+
+		/* Reconstruct for two frames */
+		libmv::vector<libmv::Marker> keyframe_markers =
+			normalized_tracks.MarkersForTracksInBothImages(keyframe1, keyframe2);
+
+		LG << "number of markers for init: " << keyframe_markers.size();
+
+		update_callback.invoke(0, "Initial reconstruction");
+
+		libmv::EuclideanReconstructTwoFrames(keyframe_markers, &reconstruction);
+
+		/* Perform bundle adjustment */
+		libmv::EuclideanBundle(normalized_tracks, &reconstruction);
+
+		/* Reconstruct for all frames */
+		libmv::EuclideanCompleteReconstruction(reconstruction_options, normalized_tracks,
+																					 &reconstruction, &update_callback);
 	}
 
-	/* actual reconstruction */
-	LG << "frames to init from: " << keyframe1 << " " << keyframe2;
-
-	libmv::vector<libmv::Marker> keyframe_markers =
-		normalized_tracks.MarkersForTracksInBothImages(keyframe1, keyframe2);
-
-	LG << "number of markers for init: " << keyframe_markers.size();
-
-	update_callback.invoke(0, "Initial reconstruction");
-
-	libmv::EuclideanReconstructTwoFrames(keyframe_markers, &reconstruction);
-	libmv::EuclideanBundle(normalized_tracks, &reconstruction);
-	libmv::EuclideanCompleteReconstruction(reconstruction_options, normalized_tracks,
-	                                       &reconstruction, &update_callback);
-
-	/* refinement */
+	/* Refine bundle parameters */
 	if (libmv_reconstruction_options->refine_intrinsics) {
 		libmv_solveRefineIntrinsics(tracks,
 		                            *libmv_reconstruction_options,
@@ -671,92 +681,14 @@ static libmv_Reconstruction *libmv_solveReconstruction(const libmv_Tracks *libmv
 		                            &camera_intrinsics);
 	}
 
-	/* set reconstruction scale to unity */
+	/* Set reconstruction scale to unity */
 	libmv::EuclideanScaleToUnity(&reconstruction);
 
-	/* finish reconstruction */
+	/* Finish reconstruction */
 	finishReconstruction(tracks, camera_intrinsics, libmv_reconstruction,
 	                     progress_update_callback, callback_customdata);
 
 	return (libmv_Reconstruction *)libmv_reconstruction;
-}
-
-static struct libmv_Reconstruction *libmv_solveModal(const libmv_Tracks *libmv_tracks,
-			const libmv_cameraIntrinsicsOptions *libmv_camera_intrinsics_options,
-			const libmv_reconstructionOptions *libmv_reconstruction_options,
-			reconstruct_progress_update_cb progress_update_callback,
-			void *callback_customdata)
-{
-	libmv_Reconstruction *libmv_reconstruction = new libmv_Reconstruction();
-
-	libmv::Tracks &tracks = *((libmv::Tracks *) libmv_tracks);
-	libmv::EuclideanReconstruction &reconstruction = libmv_reconstruction->reconstruction;
-	libmv::CameraIntrinsics &camera_intrinsics = libmv_reconstruction->intrinsics;
-
-	ReconstructUpdateCallback update_callback =
-		ReconstructUpdateCallback(progress_update_callback, callback_customdata);
-
-	cameraIntrinsicsFromOptions(libmv_camera_intrinsics_options, &camera_intrinsics);
-
-	/* Invert the camera intrinsics. */
-	libmv::Tracks normalized_tracks = getNormalizedTracks(tracks, camera_intrinsics);
-
-	/* Actual reconstruction. */
-	libmv::ModalSolver(normalized_tracks, &reconstruction, &update_callback);
-
-	libmv::BundleOptions bundle_options;
-	bundle_options.bundle_intrinsics = libmv::BUNDLE_NO_INTRINSICS;
-	bundle_options.constraints = libmv::BUNDLE_NO_TRANSLATION;
-
-	libmv::CameraIntrinsics empty_intrinsics;
-	libmv::EuclideanBundleCommonIntrinsics(tracks,
-	                                       bundle_options,
-	                                       &reconstruction,
-	                                       &empty_intrinsics);
-
-	/* Refinement. */
-	if (libmv_reconstruction_options->refine_intrinsics) {
-		libmv_solveRefineIntrinsics(tracks,
-		                            *libmv_reconstruction_options,
-		                            progress_update_callback, callback_customdata,
-		                            &reconstruction,
-		                            &camera_intrinsics);
-	}
-
-	/* Finish reconstruction. */
-	finishReconstruction(tracks, camera_intrinsics, libmv_reconstruction,
-	                     progress_update_callback, callback_customdata);
-
-	return (libmv_Reconstruction *)libmv_reconstruction;
-}
-
-libmv_Reconstruction *libmv_solve(const libmv_Tracks *libmv_tracks,
-			const libmv_cameraIntrinsicsOptions libmv_camera_intrinsics_options[],
-			libmv_reconstructionOptions *libmv_reconstruction_options,
-			reconstruct_progress_update_cb progress_update_callback,
-			void *callback_customdata)
-{	
-	libmv::Tracks &tracks = *((libmv::Tracks *) libmv_tracks);
-	if (tracks.MaxView() == 0) {
-		if (libmv_reconstruction_options->motion_flag & LIBMV_TRACKING_MOTION_MODAL) {
-			return libmv_solveModal(libmv_tracks,
-			                        libmv_camera_intrinsics_options,
-			                        libmv_reconstruction_options,
-			                        progress_update_callback,
-			                        callback_customdata);
-		}
-		else {
-			return libmv_solveReconstruction(libmv_tracks,
-			                                 libmv_camera_intrinsics_options,
-			                                 libmv_reconstruction_options,
-			                                 progress_update_callback,
-			                                 callback_customdata);
-		}
-	}
-	else {
-		//TODO(sftrabbit): Perform multiview reconstruction
-		return NULL;
-	}
 }
 
 int libmv_reporojectionPointForTrack(const libmv_Reconstruction *libmv_reconstruction, int track, double pos[3])

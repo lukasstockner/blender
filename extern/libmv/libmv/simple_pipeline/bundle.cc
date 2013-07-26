@@ -385,13 +385,25 @@ BundleOptions::BundleOptions() :
 
 void EuclideanBundle(const Tracks &tracks,
                      EuclideanReconstruction *reconstruction) {
-  CameraIntrinsics intrinsics;
-
   BundleOptions bundle_options;
+
+  CameraIntrinsics empty_intrinsics;
   EuclideanBundleCommonIntrinsics(tracks,
                                   bundle_options,
                                   reconstruction,
-                                  &intrinsics);
+                                  &empty_intrinsics);
+}
+
+void EuclideanBundleModal(const Tracks &tracks,
+                          EuclideanReconstruction *reconstruction) {
+  BundleOptions bundle_options;
+  bundle_options.constraints = libmv::BUNDLE_NO_TRANSLATION;
+
+  CameraIntrinsics empty_intrinsics;
+  EuclideanBundleCommonIntrinsics(tracks,
+                                  bundle_options,
+                                  reconstruction,
+                                  &empty_intrinsics);
 }
  
 void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
