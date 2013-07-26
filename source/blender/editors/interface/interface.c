@@ -2254,6 +2254,11 @@ void uiBlockSetEmboss(uiBlock *block, char dt)
 	block->dt = dt;
 }
 
+void uiBlockSetPanel(uiBlock *block, Panel *pa)
+{
+	block->panel = pa;
+}
+
 void ui_check_but(uiBut *but)
 {
 	/* if something changed in the button */

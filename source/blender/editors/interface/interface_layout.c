@@ -736,8 +736,10 @@ PointerRNA uiItemFullO_ptr(uiLayout *layout, wmOperatorType *ot, const char *nam
 	/* text alignment for toolbar buttons */
 	if ((layout->root->type == UI_LAYOUT_TOOLBAR) && (!icon || flag & UI_ITEM_O_SHORTCUT)) {
 		but->flag |= UI_TEXT_LEFT;
-		but->flag |= UI_ICON_LEFT;
 	}
+	
+	if (layout->root->type == UI_LAYOUT_TOOLBAR && !(flag & UI_ITEM_O_SHORTCUT))
+		but->flag &= ~UI_ICON_LEFT;
 
 	if (flag & UI_ITEM_R_NO_BG)
 		uiBlockSetEmboss(block, UI_EMBOSS);

@@ -387,6 +387,7 @@ void uiDrawBlock(const struct bContext *C, struct uiBlock *block);
 uiBlock *uiGetBlock(const char *name, struct ARegion *ar);
 
 void uiBlockSetEmboss(uiBlock *block, char dt);
+void uiBlockSetPanel(uiBlock *block, struct Panel *pa);
 
 void uiFreeBlock(const struct bContext *C, uiBlock *block);
 void uiFreeBlocks(const struct bContext *C, struct ListBase *lb);

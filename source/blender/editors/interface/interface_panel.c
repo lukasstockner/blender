@@ -61,6 +61,8 @@
 #include "UI_interface.h"
 #include "UI_resources.h"
 
+#include "RNA_access.h"
+
 #include "interface_intern.h"
 
 /*********************** defines and structs ************************/
@@ -1092,7 +1094,7 @@ static void ui_do_drag(const bContext *C, const wmEvent *event, Panel *panel)
 
 /* this function is supposed to call general window drawing too */
 /* also it supposes a block has panel, and isn't a menu */
-static void ui_handle_panel_header(const bContext *C, uiBlock *block, int mx, int my, int event, int ctrl)
+static void ui_handle_panel_header(bContext *C, uiBlock *block, int mx, int my, int event, int ctrl)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -1100,7 +1102,9 @@ static void ui_handle_panel_header(const bContext *C, uiBlock *block, int mx, in
 	int align = panel_aligned(sa, ar), button = 0;
 	int x_popup = block->rect.xmax - ((2 * PNL_ICON) + 5) / block->aspect;
 	int x_drag  = block->rect.xmax - (PNL_ICON + 5) / block->aspect;
-
+	PointerRNA props_ptr, panel_ptr;
+	PropertyRNA *prop = NULL;
+	
 	/* mouse coordinates in panel space! */
 	
 	/* XXX weak code, currently it assumes layout style for location of widgets */
@@ -1179,7 +1183,15 @@ static void ui_handle_panel_header(const bContext *C, uiBlock *block, int mx, in
 				ED_region_tag_redraw(ar);
 			break;
 		case 3:
-			printf("Boo!\n");
+			WM_operator_properties_create(&props_ptr, "WM_OT_panel_popup");
+
+			// Can't seem to pass an RNA pointer..
+//			RNA_pointer_create(NULL, &RNA_Panel, &block->panel, &panel_ptr);
+//			RNA_pointer_set(&props_ptr, "panel", panel_ptr);
+			
+			RNA_string_set(&props_ptr, "panel_name", block->panel->type->idname);
+			WM_operator_name_call(C, "WM_OT_panel_popup", WM_OP_INVOKE_DEFAULT, &props_ptr);
+			break;
 		case 4:
 		default:
 			panel_activate_state(C, block->panel, PANEL_STATE_DRAG);
