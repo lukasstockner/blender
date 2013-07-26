@@ -962,10 +962,10 @@ static bool ui_but_event_property_operator_string(const bContext *C, uiBut *but,
 						data_path = BLI_sprintfN("scene.%s", path);
 						MEM_freeN(path);
 					}
-					else {
+					/*else {
 						printf("ERROR in %s(): Couldn't get path for scene property - %s\n", 
 						       __func__, RNA_property_identifier(but->rnaprop));
-					}
+					}*/
 				}
 			}
 			else {
@@ -2426,35 +2426,37 @@ void ui_check_but(uiBut *but)
 		case NUM:
 		case NUMSLI:
 
-			UI_GET_BUT_VALUE_INIT(but, value);
+			if (!but->editstr) {
+				UI_GET_BUT_VALUE_INIT(but, value);
 
-			if (ui_is_but_float(but)) {
-				if (value == (double) FLT_MAX) {
-					BLI_snprintf(but->drawstr, sizeof(but->drawstr), "%sinf", but->str);
-				}
-				else if (value == (double) -FLT_MAX) {
-					BLI_snprintf(but->drawstr, sizeof(but->drawstr), "%s-inf", but->str);
-				}
-				/* support length type buttons */
-				else if (ui_is_but_unit(but)) {
-					char new_str[sizeof(but->drawstr)];
-					ui_get_but_string_unit(but, new_str, sizeof(new_str), value, TRUE, -1);
-					BLI_snprintf(but->drawstr, sizeof(but->drawstr), "%s%s", but->str, new_str);
+				if (ui_is_but_float(but)) {
+					if (value == (double) FLT_MAX) {
+						BLI_snprintf(but->drawstr, sizeof(but->drawstr), "%sinf", but->str);
+					}
+					else if (value == (double) -FLT_MAX) {
+						BLI_snprintf(but->drawstr, sizeof(but->drawstr), "%s-inf", but->str);
+					}
+					/* support length type buttons */
+					else if (ui_is_but_unit(but)) {
+						char new_str[sizeof(but->drawstr)];
+						ui_get_but_string_unit(but, new_str, sizeof(new_str), value, TRUE, -1);
+						BLI_snprintf(but->drawstr, sizeof(but->drawstr), "%s%s", but->str, new_str);
+					}
+					else {
+						const int prec = ui_but_float_precision(but, value);
+						BLI_snprintf(but->drawstr, sizeof(but->drawstr), "%s%.*f", but->str, prec, value);
+					}
 				}
 				else {
-					const int prec = ui_but_float_precision(but, value);
-					BLI_snprintf(but->drawstr, sizeof(but->drawstr), "%s%.*f", but->str, prec, value);
+					BLI_snprintf(but->drawstr, sizeof(but->drawstr), "%s%d", but->str, (int)value);
 				}
-			}
-			else {
-				BLI_snprintf(but->drawstr, sizeof(but->drawstr), "%s%d", but->str, (int)value);
-			}
-			
-			if (but->rnaprop) {
-				PropertySubType pstype = RNA_property_subtype(but->rnaprop);
-			
-				if (pstype == PROP_PERCENTAGE)
-					strcat(but->drawstr, "%");
+
+				if (but->rnaprop) {
+					PropertySubType pstype = RNA_property_subtype(but->rnaprop);
+
+					if (pstype == PROP_PERCENTAGE)
+						strcat(but->drawstr, "%");
+				}
 			}
 			break;
 
@@ -2477,29 +2479,30 @@ void ui_check_but(uiBut *but)
 			if (!but->editstr) {
 				char str[UI_MAX_DRAW_STR];
 
-				ui_get_but_string(but, str, UI_MAX_DRAW_STR - strlen(but->str));
-
+				ui_get_but_string(but, str, UI_MAX_DRAW_STR);
 				BLI_snprintf(but->drawstr, sizeof(but->drawstr), "%s%s", but->str, str);
 			}
 			break;
 	
 		case KEYEVT:
-			BLI_strncpy(but->drawstr, but->str, UI_MAX_DRAW_STR);
+		{
+			const char *str;
 			if (but->flag & UI_SELECT) {
-				strcat(but->drawstr, "Press a key");
+				str = "Press a key";
 			}
 			else {
 				UI_GET_BUT_VALUE_INIT(but, value);
-				strcat(but->drawstr, WM_key_event_string((short)value));
+				str = WM_key_event_string((short)value);
 			}
+			BLI_snprintf(but->drawstr, UI_MAX_DRAW_STR, "%s%s", but->str, str);
 			break;
-		
+		}
 		case HOTKEYEVT:
 			if (but->flag & UI_SELECT) {
-				but->drawstr[0] = '\0';
 
 				if (but->modifier_key) {
 					char *str = but->drawstr;
+					but->drawstr[0] = '\0';
 
 					if (but->modifier_key & KM_SHIFT)
 						str += BLI_strcpy_rlen(str, "Shift ");
@@ -2512,8 +2515,9 @@ void ui_check_but(uiBut *but)
 
 					(void)str; /* UNUSED */
 				}
-				else
-					strcat(but->drawstr, "Press a key  ");
+				else {
+					BLI_strncpy(but->drawstr, "Press a key", UI_MAX_DRAW_STR);
+				}
 			}
 			else
 				BLI_strncpy(but->drawstr, but->str, UI_MAX_DRAW_STR);
@@ -2525,6 +2529,7 @@ void ui_check_but(uiBut *but)
 			break;
 		default:
 			BLI_strncpy(but->drawstr, but->str, UI_MAX_DRAW_STR);
+			break;
 		
 	}
 

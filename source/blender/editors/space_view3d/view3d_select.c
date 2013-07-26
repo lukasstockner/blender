@@ -609,7 +609,7 @@ static void do_lasso_select_armature__doSelectBone(void *userData, struct EditBo
 	LassoSelectUserData *data = userData;
 	bArmature *arm = data->vc->obedit->data;
 
-	if (EBONE_SELECTABLE(arm, ebone)) {
+	if (data->select ? EBONE_SELECTABLE(arm, ebone) : EBONE_VISIBLE(arm, ebone)) {
 		bool is_point_done = false;
 		int points_proj_tot = 0;
 
@@ -856,6 +856,7 @@ static void view3d_lasso_select(bContext *C, ViewContext *vc,
 				break;
 			default:
 				assert(!"lasso select on incorrect object type");
+				break;
 		}
 
 		WM_event_add_notifier(C, NC_GEOM | ND_SELECT, vc->obedit->data);
@@ -1907,7 +1908,7 @@ static int do_armature_box_select(ViewContext *vc, rcti *rect, bool select, bool
 		int index = buffer[(4 * a) + 3];
 		if (index != -1) {
 			ebone = BLI_findlink(arm->edbo, index & ~(BONESEL_ANY));
-			if ((ebone->flag & BONE_UNSELECTABLE) == 0) {
+			if ((select == false) || ((ebone->flag & BONE_UNSELECTABLE) == 0)) {
 				if (index & BONESEL_TIP) {
 					ebone->flag |= BONE_DONE;
 					if (select) ebone->flag |= BONE_TIPSEL;
@@ -1937,7 +1938,7 @@ static int do_armature_box_select(ViewContext *vc, rcti *rect, bool select, bool
 		if (index != -1) {
 			ebone = BLI_findlink(arm->edbo, index & ~(BONESEL_ANY));
 			if (index & BONESEL_BONE) {
-				if ((ebone->flag & BONE_UNSELECTABLE) == 0) {
+				if ((select == false) || ((ebone->flag & BONE_UNSELECTABLE) == 0)) {
 					if (!(ebone->flag & BONE_DONE)) {
 						if (select)
 							ebone->flag |= (BONE_ROOTSEL | BONE_TIPSEL | BONE_SELECTED);
@@ -1974,7 +1975,7 @@ static int do_object_pose_box_select(bContext *C, ViewContext *vc, rcti *rect, b
 		if (bone_only) {
 			CTX_DATA_BEGIN (C, bPoseChannel *, pchan, visible_pose_bones)
 			{
-				if ((pchan->bone->flag & BONE_UNSELECTABLE) == 0) {
+				if ((select == false) || ((pchan->bone->flag & BONE_UNSELECTABLE) == 0)) {
 					pchan->bone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
 				}
 			}
@@ -2110,6 +2111,7 @@ static int view3d_borderselect_exec(bContext *C, wmOperator *op)
 				break;
 			default:
 				assert(!"border select on incorrect object type");
+				break;
 		}
 	}
 	else {  /* no editmode, unified for bones and objects */
@@ -2622,7 +2624,7 @@ static void do_circle_select_armature__doSelectBone(void *userData, struct EditB
 	CircleSelectUserData *data = userData;
 	bArmature *arm = data->vc->obedit->data;
 
-	if (EBONE_SELECTABLE(arm, ebone)) {
+	if (data->select ? EBONE_SELECTABLE(arm, ebone) : EBONE_VISIBLE(arm, ebone)) {
 		bool is_point_done = false;
 		int points_proj_tot = 0;
 

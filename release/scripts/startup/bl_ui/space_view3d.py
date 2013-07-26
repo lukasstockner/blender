@@ -293,7 +293,10 @@ class VIEW3D_MT_snap(Menu):
         layout = self.layout
 
         layout.operator("view3d.snap_selected_to_grid", text="Selection to Grid")
-        layout.operator("view3d.snap_selected_to_cursor", text="Selection to Cursor")
+        props = layout.operator("view3d.snap_selected_to_cursor", text="Selection to Cursor")
+        props.use_offset = False
+        props = layout.operator("view3d.snap_selected_to_cursor", text="Selection to Cursor (Offset)")
+        props.use_offset = True
 
         layout.separator()
 
@@ -723,6 +726,7 @@ class VIEW3D_MT_select_edit_lattice(Menu):
 
         layout.separator()
 
+        layout.operator("lattice.select_random")
         layout.operator("lattice.select_all").action = 'TOGGLE'
         layout.operator("lattice.select_all", text="Inverse").action = 'INVERT'
 
@@ -744,6 +748,11 @@ class VIEW3D_MT_select_edit_armature(Menu):
 
         layout.operator("armature.select_all").action = 'TOGGLE'
         layout.operator("armature.select_all", text="Inverse").action = 'INVERT'
+
+        layout.separator()
+
+        layout.operator("armature.select_more", text="More")
+        layout.operator("armature.select_less", text="Less")
 
         layout.separator()
 
@@ -1813,6 +1822,7 @@ class VIEW3D_MT_edit_mesh(Menu):
         layout.menu("VIEW3D_MT_edit_mesh_edges")
         layout.menu("VIEW3D_MT_edit_mesh_faces")
         layout.menu("VIEW3D_MT_edit_mesh_normals")
+        layout.menu("VIEW3D_MT_edit_mesh_clean")
 
         layout.separator()
 
@@ -2075,6 +2085,15 @@ class VIEW3D_MT_edit_mesh_normals(Menu):
         layout.operator("mesh.flip_normals")
 
 
+class VIEW3D_MT_edit_mesh_clean(Menu):
+    bl_label = "Clean"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("mesh.fill_holes")
+
+
 class VIEW3D_MT_edit_mesh_delete(Menu):
     bl_label = "Delete"
 
@@ -2188,7 +2207,9 @@ class VIEW3D_MT_edit_curve_specials(Menu):
         layout.operator("curve.spline_weight_set")
         layout.operator("curve.radius_set")
         layout.operator("curve.smooth")
+        layout.operator("curve.smooth_weight")
         layout.operator("curve.smooth_radius")
+        layout.operator("curve.smooth_tilt")
 
 
 class VIEW3D_MT_edit_curve_showhide(ShowHideMenu, Menu):
@@ -2534,7 +2555,7 @@ class VIEW3D_PT_view3d_display(Panel):
         view = context.space_data
         scene = context.scene
         gs = scene.game_settings
-        ob = context.object
+        obj = context.object
 
         col = layout.column()
         col.prop(view, "show_only_render")
@@ -2574,6 +2595,8 @@ class VIEW3D_PT_view3d_display(Panel):
             if view.use_matcap:
                 col.template_icon_view(view, "matcap_icon")
         col.prop(view, "show_backface_culling")
+        if obj and obj.mode == 'EDIT' and view.viewport_shade not in {'BOUNDBOX', 'WIREFRAME'}:
+            col.prop(view, "show_occlude_wire")
 
         layout.separator()
 

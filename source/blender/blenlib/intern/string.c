@@ -47,6 +47,8 @@
 #  pragma GCC diagnostic error "-Wsign-conversion"
 #endif
 
+// #define DEBUG_STRSIZE
+
 /**
  * Duplicates the first \a len bytes of cstring \a str
  * into a newly mallocN'd string and returns it. \a str
@@ -85,15 +87,18 @@ char *BLI_strdup(const char *str)
  */
 char *BLI_strdupcat(const char *__restrict str1, const char *__restrict str2)
 {
-	size_t len;
-	char *n;
+	/* include the NULL terminator of str2 only */
+	const size_t str1_len = strlen(str1);
+	const size_t str2_len = strlen(str2) + 1;
+	char *str, *s;
 	
-	len = strlen(str1) + strlen(str2);
-	n = MEM_mallocN(len + 1, "strdupcat");
-	strcpy(n, str1);
-	strcat(n, str2);
-	
-	return n;
+	str = MEM_mallocN(str1_len + str2_len, "strdupcat");
+	s = str;
+
+	memcpy(s, str1, str1_len); s += str1_len;
+	memcpy(s, str2, str2_len);
+
+	return str;
 }
 
 /**
@@ -110,6 +115,10 @@ char *BLI_strncpy(char *__restrict dst, const char *__restrict src, const size_t
 {
 	size_t srclen = BLI_strnlen(src, maxncpy - 1);
 	BLI_assert(maxncpy != 0);
+
+#ifdef DEBUG_STRSIZE
+	memset(dst, 0xff, sizeof(*dst) * maxncpy);
+#endif
 
 	memcpy(dst, src, srclen);
 	dst[srclen] = '\0';
@@ -134,6 +143,10 @@ size_t BLI_strncpy_rlen(char *__restrict dst, const char *__restrict src, const 
 	size_t srclen = BLI_strnlen(src, maxncpy - 1);
 	BLI_assert(maxncpy != 0);
 
+#ifdef DEBUG_STRSIZE
+	memset(dst, 0xff, sizeof(*dst) * maxncpy);
+#endif
+
 	memcpy(dst, src, srclen);
 	dst[srclen] = '\0';
 	return srclen;
@@ -149,21 +162,21 @@ size_t BLI_strcpy_rlen(char *__restrict dst, const char *__restrict src)
 /**
  * Portable replacement for #vsnprintf
  */
-size_t BLI_vsnprintf(char *__restrict buffer, size_t count, const char *__restrict format, va_list arg)
+size_t BLI_vsnprintf(char *__restrict buffer, size_t maxncpy, const char *__restrict format, va_list arg)
 {
 	size_t n;
 
 	BLI_assert(buffer != NULL);
-	BLI_assert(count > 0);
+	BLI_assert(maxncpy > 0);
 	BLI_assert(format != NULL);
 
-	n = (size_t)vsnprintf(buffer, count, format, arg);
+	n = (size_t)vsnprintf(buffer, maxncpy, format, arg);
 
-	if (n != -1 && n < count) {
+	if (n != -1 && n < maxncpy) {
 		buffer[n] = '\0';
 	}
 	else {
-		buffer[count - 1] = '\0';
+		buffer[maxncpy - 1] = '\0';
 	}
 
 	return n;
@@ -172,13 +185,17 @@ size_t BLI_vsnprintf(char *__restrict buffer, size_t count, const char *__restri
 /**
  * Portable replacement for #snprintf
  */
-size_t BLI_snprintf(char *__restrict buffer, size_t count, const char *__restrict format, ...)
+size_t BLI_snprintf(char *__restrict dst, size_t maxncpy, const char *__restrict format, ...)
 {
 	size_t n;
 	va_list arg;
 
+#ifdef DEBUG_STRSIZE
+	memset(dst, 0xff, sizeof(*dst) * maxncpy);
+#endif
+
 	va_start(arg, format);
-	n = BLI_vsnprintf(buffer, count, format, arg);
+	n = BLI_vsnprintf(dst, maxncpy, format, arg);
 	va_end(arg);
 
 	return n;
@@ -226,6 +243,7 @@ size_t BLI_strescape(char *__restrict dst, const char *__restrict src, const siz
 				goto escape_finish;
 			case '\\':
 			case '"':
+				/* fall-through */
 
 			/* less common but should also be support */
 			case '\t':
@@ -239,9 +257,10 @@ size_t BLI_strescape(char *__restrict dst, const char *__restrict src, const siz
 					/* not enough space to escape */
 					break;
 				}
-			/* intentionally pass through */
+				/* fall-through */
 			default:
 				*dst = *src;
+				break;
 		}
 		dst++;
 		src++;

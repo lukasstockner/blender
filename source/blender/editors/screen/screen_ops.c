@@ -1154,7 +1154,7 @@ static int area_move_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	/* execute the events */
 	switch (event->type) {
 		case MOUSEMOVE:
-			
+		{
 			x = RNA_int_get(op->ptr, "x");
 			y = RNA_int_get(op->ptr, "y");
 			
@@ -1164,9 +1164,9 @@ static int area_move_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			
 			area_move_apply(C, op);
 			break;
-			
+		}
 		case EVT_MODAL_MAP:
-			
+		{
 			switch (event->val) {
 				case KM_MODAL_APPLY:
 					area_move_exit(C, op);
@@ -1182,6 +1182,8 @@ static int area_move_modal(bContext *C, wmOperator *op, const wmEvent *event)
 					md->step = 0;
 					break;
 			}
+			break;
+		}
 	}
 	
 	return OPERATOR_RUNNING_MODAL;
@@ -2463,8 +2465,8 @@ static int area_join_modal(bContext *C, wmOperator *op, const wmEvent *event)
 					WM_event_add_notifier(C, NC_WINDOW, NULL);
 				}
 			}
+			break;
 		}
-		break;
 		case LEFTMOUSE:
 			if (event->val == KM_RELEASE) {
 				ED_area_tag_redraw(jd->sa1);
@@ -3182,7 +3184,7 @@ static int screen_animation_step(bContext *C, wmOperator *UNUSED(op), const wmEv
 			sound_seek_scene(bmain, scene);
 		
 		/* since we follow drawflags, we can't send notifier but tag regions ourselves */
-		ED_update_for_newframe(CTX_data_main(C), scene, 1);
+		ED_update_for_newframe(bmain, scene, 1);
 
 		for (window = wm->windows.first; window; window = window->next) {
 			for (sa = window->screen->areabase.first; sa; sa = sa->next) {

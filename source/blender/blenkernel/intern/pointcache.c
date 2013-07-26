@@ -268,8 +268,9 @@ static int  ptcache_particle_write(int index, void *psys_v, void **data, int cfr
 	PTCACHE_DATA_FROM(data, BPHYS_DATA_SIZE, &pa->size);
 	PTCACHE_DATA_FROM(data, BPHYS_DATA_TIMES, times);
 
-	if (boid)
+	if (boid) {
 		PTCACHE_DATA_FROM(data, BPHYS_DATA_BOIDS, &boid->data);
+	}
 
 	/* return flag 1+1=2 for newly born particles to copy exact birth location to previously cached frame */
 	return 1 + (pa->state.time >= pa->time && pa->prev_state.time <= pa->time);
@@ -304,8 +305,9 @@ static void ptcache_particle_read(int index, void *psys_v, void **data, float cf
 	else if (cfra > pa->dietime)
 		pa->state.time = pa->dietime;
 
-	if (data[BPHYS_DATA_SIZE])
+	if (data[BPHYS_DATA_SIZE]) {
 		PTCACHE_DATA_TO(data, BPHYS_DATA_SIZE, 0, &pa->size);
+	}
 	
 	if (data[BPHYS_DATA_TIMES]) {
 		float times[3];
@@ -2800,7 +2802,7 @@ int  BKE_ptcache_id_reset(Scene *scene, PTCacheID *pid, int mode)
 			smokeModifier_reset_turbulence(pid->calldata);
 #endif
 		else if (pid->type == PTCACHE_TYPE_DYNAMICPAINT)
-			dynamicPaint_clearSurface((DynamicPaintSurface*)pid->calldata);
+			dynamicPaint_clearSurface(scene, (DynamicPaintSurface*)pid->calldata);
 	}
 	if (clear)
 		BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);

@@ -199,7 +199,7 @@ bool BLI_file_touch(const char *file)
 {
 	FILE *f = BLI_fopen(file, "r+b");
 	if (f != NULL) {
-		char c = getc(f);
+		int c = getc(f);
 		rewind(f);
 		putc(c, f);
 	}
@@ -445,7 +445,7 @@ static void join_dirfile_alloc(char **dst, size_t *alloc_len, const char *dir, c
 	size_t len = strlen(dir) + strlen(file) + 1;
 
 	if (*dst == NULL)
-		*dst = MEM_callocN(len + 1, "join_dirfile_alloc path");
+		*dst = MEM_mallocN(len + 1, "join_dirfile_alloc path");
 	else if (*alloc_len < len)
 		*dst = MEM_reallocN(*dst, len + 1);
 

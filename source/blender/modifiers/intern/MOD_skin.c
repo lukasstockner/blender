@@ -237,7 +237,7 @@ static int build_hull(SkinOutput *so, Frame **frames, int totframe)
 
 	/* Deselect all faces so that only new hull output faces are
 	 * selected after the operator is run */
-	BM_mesh_elem_hflag_disable_all(bm, BM_ALL, BM_ELEM_SELECT, 0);
+	BM_mesh_elem_hflag_disable_all(bm, BM_ALL_NOLOOP, BM_ELEM_SELECT, false);
 
 	BMO_op_initf(bm, &op, (BMO_FLAG_DEFAULTS & ~BMO_FLAG_RESPECT_HIDE),
 	             "convex_hull input=%hv", BM_ELEM_TAG);
@@ -288,7 +288,7 @@ static int build_hull(SkinOutput *so, Frame **frames, int totframe)
 	
 	/* Remove triangles that would fill the original frames -- skip if
 	 * frame is partially detached */
-	BM_mesh_elem_hflag_disable_all(bm, BM_ALL, BM_ELEM_TAG, FALSE);
+	BM_mesh_elem_hflag_disable_all(bm, BM_ALL_NOLOOP, BM_ELEM_TAG, false);
 	for (i = 0; i < totframe; i++) {
 		Frame *frame = frames[i];
 		if (!frame->detached) {
@@ -690,7 +690,7 @@ static void build_emats_stack(BLI_Stack *stack, int *visited_e, EMat *emat,
 	/* Add neighbors to stack */
 	for (i = 0; i < emap[v].count; i++) {
 		/* Add neighbors to stack */
-		memcpy(stack_elem.mat, emat[e].mat, sizeof(float) * 3 * 3);
+		copy_m3_m3(stack_elem.mat, emat[e].mat);
 		stack_elem.e = emap[v].indices[i];
 		stack_elem.parent_v = v;
 		BLI_stack_push(stack, &stack_elem);
