@@ -439,52 +439,6 @@ protected:
 	void *callback_customdata_;
 };
 
-static void libmv_solveRefineIntrinsics(const libmv::Tracks &tracks,
-                                        const libmv_reconstructionOptions &reconstruction_options,
-                                        reconstruct_progress_update_cb progress_update_callback,
-                                        void *callback_customdata,
-                                        libmv::EuclideanReconstruction *reconstruction,
-                                        libmv::CameraIntrinsics *intrinsics)
-{
-	/* only a few combinations are supported but trust the caller */
-	libmv::BundleOptions bundle_options;
-
-	LoggingCallback callback;
-	bundle_options.iteration_callback = &callback;
-
-	const int motion_flag = reconstruction_options.motion_flag;
-	const int refine_intrinsics = reconstruction_options.refine_intrinsics;
-
-	if (motion_flag & LIBMV_TRACKING_MOTION_MODAL) {
-		bundle_options.constraints |= libmv::BUNDLE_NO_TRANSLATION;
-	}
-
-	if (refine_intrinsics & LIBMV_REFINE_FOCAL_LENGTH) {
-		bundle_options.bundle_intrinsics |= libmv::BUNDLE_FOCAL_LENGTH;
-		if (refine_intrinsics & LIBMV_CONSTRAIN_FOCAL_LENGTH) {
-			bundle_options.constraints |= libmv::BUNDLE_CONSTRAIN_FOCAL_LENGTH;
-			bundle_options.focal_length_min = reconstruction_options.focal_length_min;
-			bundle_options.focal_length_max = reconstruction_options.focal_length_max;
-		}
-	}
-	if (refine_intrinsics & LIBMV_REFINE_PRINCIPAL_POINT) {
-		bundle_options.bundle_intrinsics |= libmv::BUNDLE_PRINCIPAL_POINT;
-	}
-	if (refine_intrinsics & LIBMV_REFINE_RADIAL_DISTORTION_K1) {
-		bundle_options.bundle_intrinsics |= libmv::BUNDLE_RADIAL_K1;
-	}
-	if (refine_intrinsics & LIBMV_REFINE_RADIAL_DISTORTION_K2) {
-		bundle_options.bundle_intrinsics |= libmv::BUNDLE_RADIAL_K2;
-	}
-
-	progress_update_callback(callback_customdata, 1.0, "Refining solution");
-
-	libmv::EuclideanBundleCommonIntrinsics(tracks,
-	                                       bundle_options,
-	                                       reconstruction,
-	                                       intrinsics);
-}
-
 static void cameraIntrinsicsFromOptions(const libmv_cameraIntrinsicsOptions *camera_intrinsics_options,
                                         libmv::CameraIntrinsics *camera_intrinsics)
 {
@@ -512,19 +466,6 @@ static libmv::Tracks getNormalizedTracks(const libmv::Tracks &tracks, const libm
 	}
 
 	return libmv::Tracks(markers);
-}
-
-static void finishReconstruction(const libmv::Tracks &tracks, const libmv::CameraIntrinsics &camera_intrinsics,
-                                 libmv_Reconstruction *libmv_reconstruction,
-                                 reconstruct_progress_update_cb progress_update_callback,
-                                 void *callback_customdata)
-{
-	libmv::EuclideanReconstruction &reconstruction = libmv_reconstruction->reconstruction;
-
-	/* reprojection error calculation */
-	progress_update_callback(callback_customdata, 1.0, "Finishing solution");
-	libmv_reconstruction->tracks = tracks;
-	libmv_reconstruction->error = libmv::EuclideanReprojectionError(tracks, reconstruction, camera_intrinsics);
 }
 
 static bool selectTwoKeyframesBasedOnGRICAndVariance(
@@ -600,6 +541,53 @@ static bool selectTwoKeyframesBasedOnGRICAndVariance(
 	return true;
 }
 
+static libmv::BundleOptions refinementOptionsFromReconstructionOptions(
+		const libmv_reconstructionOptions &reconstruction_options)
+{
+	/* only a few combinations are supported but trust the caller */
+	libmv::BundleOptions bundle_options;
+
+	const int motion_flag = reconstruction_options.motion_flag;
+	const int refine_intrinsics = reconstruction_options.refine_intrinsics;
+
+	if (motion_flag & LIBMV_TRACKING_MOTION_MODAL) {
+		bundle_options.constraints |= libmv::BUNDLE_NO_TRANSLATION;
+	}
+
+	if (refine_intrinsics & LIBMV_REFINE_FOCAL_LENGTH) {
+		bundle_options.bundle_intrinsics |= libmv::BUNDLE_FOCAL_LENGTH;
+		if (refine_intrinsics & LIBMV_CONSTRAIN_FOCAL_LENGTH) {
+			bundle_options.constraints |= libmv::BUNDLE_CONSTRAIN_FOCAL_LENGTH;
+			bundle_options.focal_length_min = reconstruction_options.focal_length_min;
+			bundle_options.focal_length_max = reconstruction_options.focal_length_max;
+		}
+	}
+	if (refine_intrinsics & LIBMV_REFINE_PRINCIPAL_POINT) {
+		bundle_options.bundle_intrinsics |= libmv::BUNDLE_PRINCIPAL_POINT;
+	}
+	if (refine_intrinsics & LIBMV_REFINE_RADIAL_DISTORTION_K1) {
+		bundle_options.bundle_intrinsics |= libmv::BUNDLE_RADIAL_K1;
+	}
+	if (refine_intrinsics & LIBMV_REFINE_RADIAL_DISTORTION_K2) {
+		bundle_options.bundle_intrinsics |= libmv::BUNDLE_RADIAL_K2;
+	}
+
+	return bundle_options;
+}
+
+static void finishReconstruction(const libmv::Tracks &tracks, const libmv::CameraIntrinsics &camera_intrinsics,
+                                 libmv_Reconstruction *libmv_reconstruction,
+                                 reconstruct_progress_update_cb progress_update_callback,
+                                 void *callback_customdata)
+{
+	libmv::EuclideanReconstruction &reconstruction = libmv_reconstruction->reconstruction;
+
+	/* reprojection error calculation */
+	progress_update_callback(callback_customdata, 1.0, "Finishing solution");
+	libmv_reconstruction->tracks = tracks;
+	libmv_reconstruction->error = libmv::EuclideanReprojectionError(tracks, reconstruction, camera_intrinsics);
+}
+
 libmv_Reconstruction *libmv_solve(const libmv_Tracks *libmv_tracks,
 			const libmv_cameraIntrinsicsOptions libmv_camera_intrinsics_options[],
 			libmv_reconstructionOptions *libmv_reconstruction_options,
@@ -671,14 +659,17 @@ libmv_Reconstruction *libmv_solve(const libmv_Tracks *libmv_tracks,
 																					 &reconstruction, &update_callback);
 	}
 
-	/* Refine bundle parameters */
 	if (libmv_reconstruction_options->refine_intrinsics) {
-		libmv_solveRefineIntrinsics(tracks,
-		                            *libmv_reconstruction_options,
-		                            progress_update_callback,
-		                            callback_customdata,
-		                            &reconstruction,
-		                            &camera_intrinsics);
+		/* Refine bundle parameters */
+		libmv::BundleOptions refinement_bundle_options =
+				refinementOptionsFromReconstructionOptions(*libmv_reconstruction_options);
+
+		progress_update_callback(callback_customdata, 1.0, "Refining solution");
+
+		libmv::EuclideanBundleCommonIntrinsics(tracks,
+																					 refinement_bundle_options,
+																					 &reconstruction,
+																					 &camera_intrinsics);
 	}
 
 	/* Set reconstruction scale to unity */
