@@ -832,7 +832,8 @@ if(WITH_CYCLES)
 		cycles_device
 		cycles_kernel
 		cycles_util
-		cycles_subd)
+		cycles_subd
+		cycles_kernel_texture)
 	if(WITH_CYCLES_OSL)
 		list(APPEND BLENDER_LINK_LIBS cycles_kernel_osl)
 	endif()

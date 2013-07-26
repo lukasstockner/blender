@@ -67,20 +67,3 @@ if(WITH_CYCLES_NETWORK)
 	endif()
 	unset(SRC)
 endif()
-
-if (WITH_CYCLES_OPENVDB)
-	set(SRC
-		cycles_openvdb_test.cpp
-	)
-	add_executable(cycles_openvdb_test ${SRC})
-
-	list(
-		APPEND LIBRARIES 
-		${TBB_LIBRARIES}
-		extern_openvdb
-		)
-
-	target_link_libraries(cycles_openvdb_test ${LIBRARIES})
-	unset(SRC)
-endif()
-

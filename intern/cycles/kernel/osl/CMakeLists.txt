@@ -21,7 +21,6 @@ set(SRC
 	osl_closures.cpp
 	osl_services.cpp
 	osl_shader.cpp
-	openvdb_volume.cpp
 )
 
 set(HEADER_SRC
@@ -30,7 +29,6 @@ set(HEADER_SRC
 	osl_globals.h
 	osl_services.h
 	osl_shader.h
-	openvdb_volume.h
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RTTI_DISABLE_FLAGS}")

@@ -63,6 +63,12 @@ add_definitions(-DWITH_OPENCL)
 add_definitions(-DWITH_CUDA)
 add_definitions(-DWITH_MULTI)
 
+if(WITH_CYCLES_OPENVDB)
+	include_directories(
+		SYSTEM
+		${TBB_INCLUDE_DIRS})
+endif()
+
 include_directories(
 	SYSTEM
 	${BOOST_INCLUDE_DIR}
@@ -82,8 +88,12 @@ if(WITH_CYCLES_BLENDER)
 	add_subdirectory(blender)
 endif()
 
-if(WITH_CYCLES_TEST OR WITH_CYCLES_NETWORK OR WITH_CYCLES_OPENVDB)
+if(WITH_CYCLES_TEST OR WITH_CYCLES_NETWORK) 
 	add_subdirectory(app)
+endif()
+
+if(WITH_CYCLES_OPENVDB)
+	add_subdirectory(openvdb_app)
 endif()
 
 add_subdirectory(bvh)

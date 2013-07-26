@@ -196,6 +196,7 @@ endif()
 
 if(WITH_CYCLES_OSL)
 	add_subdirectory(osl)
+	add_subdirectory(textures)
 	add_subdirectory(shaders)
 endif()
 

@@ -1259,14 +1259,6 @@ elseif(WIN32)
 			set(OPENIMAGEIO_DEFINITIONS "-DUSE_TBB=0")
 		endif()
 
-		if(WITH_CYCLES_OPENVDB) #requires tbb 
-			set(TBB ${LIBDIR}/tbb)
-			set(TBB_INCLUDE_DIRS ${TBB}/include)
-			set(TBB_LIBRARIES tbb tbb_debug)
-			set(TBB_LIBPATH ${TBB}/lib)
-			set(TBB_DEFINITIONS "")
-		endif()
-
 		if(WITH_LLVM)
 			set(LLVM_DIRECTORY ${LIBDIR}/llvm CACHE PATH	"Path to the LLVM installation")
 			file(GLOB LLVM_LIBRARY ${LLVM_DIRECTORY}/lib/*.lib)
@@ -1819,6 +1811,14 @@ if(WITH_CYCLES)
 	endif()
 	if(NOT WITH_BOOST)
 		message(FATAL_ERROR "Cycles reqires WITH_BOOST, the library may not have been found. Configure BOOST or disable WITH_CYCLES")
+	endif()
+
+	if(WITH_CYCLES_OPENVDB) #requires tbb 
+		set(TBB ${LIBDIR}/tbb)
+		set(TBB_INCLUDE_DIRS ${TBB}/include)
+		set(TBB_LIBRARIES tbb)
+		set(TBB_LIBPATH ${TBB}/lib)
+		set(TBB_DEFINITIONS "")
 	endif()
 
 	if(WITH_CYCLES_OSL)
