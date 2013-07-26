@@ -789,9 +789,9 @@ void BKE_undo_number(bContext *C, int nr)
 static void undo_op_name(bContext *C, const wmOperator *op, const char *name)
 {
 	ListBase included_ops;
+	UndoElem *uel;
 	included_ops.first = undobase.first;
 	included_ops.last = curundo ? curundo : undobase.last;
-	UndoElem *uel;
 	
 	if(op)
 		uel = BLI_findptr(&included_ops, op, offsetof(UndoElem, op));
