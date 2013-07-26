@@ -4207,6 +4207,9 @@ static uiBlock *wm_panel_popup_create_block(bContext *C, ARegion *ar, void *arg_
 		
 		yco -= 2 * style->panelspace;
 		uiEndPanel(block, w, 0);
+		
+		uiBlockSetPanel(block, NULL);
+		MEM_freeN(pa);
 	}
 	
 	uiPopupBoundsBlock(block, 6, 0, -UI_UNIT_Y); /* move it downwards, mouse over button */

@@ -1191,6 +1191,8 @@ static void ui_handle_panel_header(bContext *C, uiBlock *block, int mx, int my, 
 			
 			RNA_string_set(&props_ptr, "panel_name", block->panel->type->idname);
 			WM_operator_name_call(C, "WM_OT_panel_popup", WM_OP_INVOKE_DEFAULT, &props_ptr);
+
+			WM_operator_properties_free(&props_ptr);
 			break;
 		case 4:
 		default:
