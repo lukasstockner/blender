@@ -105,6 +105,7 @@ bool GHOST_WindowWin32::s_eglew_initialized = false;
 
 #endif
 
+#if defined(WITH_GL_SYSTEM_LEGACY) || defined(WITH_GL_SYSTEM_DESKTOP)
 /* Intel videocards don't work fine with multiple contexts and
  * have to share the same context for all windows.
  * But if we just share context for all windows it could work incorrect
@@ -121,6 +122,7 @@ static int is_crappy_intel_card(void)
 
 	return is_crappy;
 }
+#endif
 
 GHOST_WindowWin32::GHOST_WindowWin32(
     GHOST_SystemWin32 *system,
@@ -862,9 +864,6 @@ GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextTyp
 								}
 							}
 							else {
-#if defined(GLEW_ES_ONLY) && !defined(GL_ALL_ATTRIB_BITS)
-#define GL_ALL_ATTRIB_BITS 0x000fffff
-#endif
 								::wglCopyContext(s_firsthGLRc, m_hGlRc, GL_ALL_ATTRIB_BITS);
 								::wglShareLists(s_firsthGLRc, m_hGlRc);
 							}
@@ -1032,7 +1031,7 @@ GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextTyp
 				if (!::eglMakeCurrent(m_egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT))
 					break;
 
-				if (eglewInit(m_egl_display) == GLEW_OK) {
+				if (eglewInit() == GLEW_OK) {
 					s_eglew_initialized = true;
 				}
 				else {

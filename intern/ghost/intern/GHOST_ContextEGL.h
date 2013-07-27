@@ -45,7 +45,12 @@ public:
 	/**
 	 * Constructor.
 	 */
-	GHOST_ContextEGL(EGLenum api = EGL_OPENGL_ES_API, EGLint egl_ContextClientVersion = 2);
+	GHOST_ContextEGL(
+		EGLNativeWindowType  nativeWindow,
+		EGLNativeDisplayType nativeDisplay,
+		EGLenum              api                  = EGL_OPENGL_ES_API,
+		EGLint               contextClientVersion = 2
+	);
 
 	/**
 	 * Destructor.
@@ -78,12 +83,23 @@ public:
 	 */
 	virtual GHOST_TSuccess removeDrawingContext();
 
-protected:
-	const EGLenum m_api;
-	const EGLint  m_egl_ContextClientVersion;
+
+	/**
+	 * Removes references to native handles from this context and then returns
+	 * GHOST_kSuccess if it is OK for the parent to release the handles
+	 * and GHOST_kFailure if releasing the handles will interfere with sharing
+	 * \return Indication as to whether removal has succeeded.
+	 */
+	virtual GHOST_TSuccess releaseNativeHandles();
+
+private:
+	GHOST_TSuccess init_eglew();
 
 	EGLNativeDisplayType m_nativeDisplay;
 	EGLNativeWindowType  m_nativeWindow;
+
+	const EGLenum m_api;
+	const EGLint  m_contextClientVersion;
 
 	EGLContext m_context;
 	EGLSurface m_surface;
@@ -91,6 +107,7 @@ protected:
 
 	EGLContext& m_sharedContext;
 	EGLint&     m_sharedCount;
+
 
 	static EGLContext s_gl_sharedContext;
 	static EGLint     s_gl_sharedCount;

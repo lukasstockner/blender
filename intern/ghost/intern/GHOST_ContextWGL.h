@@ -33,5 +33,76 @@
 #ifndef __GHOST_CONTEXTWGL_H__
 #define __GHOST_CONTEXTWGL_H__
 
+#include "GHOST_Context.h"
+
+#include <GL/wglew.h>
+
+
+
+class GHOST_ContextWGL : public GHOST_Context
+{
+public:
+	/**
+	 * Constructor.
+	 */
+	GHOST_ContextWGL(HWND hWnd, HDC hDC);
+
+	/**
+	 * Destructor.
+	 */
+	virtual ~GHOST_ContextWGL();
+
+	/**
+	 * Swaps front and back buffers of a window.
+	 * \return  A boolean success indicator.
+	 */
+	virtual GHOST_TSuccess swapBuffers();
+
+	/**
+	 * Activates the drawing context of this window.
+	 * \return  A boolean success indicator.
+	 */
+	virtual GHOST_TSuccess activateDrawingContext();
+
+	/**
+	 * Tries to install a rendering context in this window.
+	 * \param stereoVisual		Stereo visual for quad buffered stereo.
+	 * \param numOfAASamples	Number of samples used for AA (zero if no AA)
+	 * \return Indication as to whether installation has succeeded.
+	 */
+	virtual GHOST_TSuccess installDrawingContext(bool stereoVisual = false, GHOST_TUns16 numOfAASamples = 0);
+
+	/**
+	 * Removes the current drawing context.
+	 * \return Indication as to whether removal has succeeded.
+	 */
+	virtual GHOST_TSuccess removeDrawingContext();
+
+	/**
+	 * Checks if it is OK for a remove the native display
+	 * \return Indication as to whether removal has succeeded.
+	 */
+	virtual GHOST_TSuccess releaseNativeHandles();
+
+private:
+	GHOST_TSuccess init_wglew();
+	GHOST_TSuccess init_multisample(const PIXELFORMATDESCRIPTOR& preferredPFD, int numOfAASamples);
+	int enum_pixel_formats(PIXELFORMATDESCRIPTOR& preferredPFD, int numOfAASamples);
+
+	const HDC  m_hDC;
+	const HWND m_hWnd;
+
+	HGLRC m_hGLRC;
+
+	bool m_needSetPixelFormat;
+
+	static HGLRC s_sharedGLRC;
+	static HGLRC s_sharedDC;
+	static int   s_shareCount;
+
+	static bool s_wglewInitialized;
+};
+
+
 
 #endif // __GHOST_CONTEXTWGL_H__

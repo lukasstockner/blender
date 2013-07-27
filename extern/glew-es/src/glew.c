@@ -93,7 +93,7 @@
 #      define GLXEW_CONTEXT_ARG_DEF_LIST GLXEWContext* ctx
 #    endif
 #  endif /* _WIN32 */
-#  define GLEW_CONTEXT_ARG_DEF_LIST EGLDisplay display, GLEWContext* ctx
+#  define GLEW_CONTEXT_ARG_DEF_LIST GLEWContext* ctx
 #else /* GLEW_MX */
 #  define GLEW_CONTEXT_ARG_DEF_INIT void
 #  define GLEW_CONTEXT_ARG_VAR_INIT
@@ -103,7 +103,7 @@
 #  define GLXEW_CONTEXT_ARG_DEF_INIT void
 #  define GLXEW_CONTEXT_ARG_DEF_LIST void
 #  define EGLEW_CONTEXT_ARG_DEF_INIT void
-#  define EGLEW_CONTEXT_ARG_DEF_LIST EGLDisplay display
+#  define EGLEW_CONTEXT_ARG_DEF_LIST void
 #endif /* GLEW_MX */
 
 #if defined(GLEW_USE_LIB_ES)
@@ -14353,6 +14353,7 @@ GLenum eglewContextInit (EGLEW_CONTEXT_ARG_DEF_LIST)
   GLint major, minor;
   const GLubyte* extStart;
   const GLubyte* extEnd;
+  EGLDisplay display = eglGetCurrentDisplay();
   s = (GLubyte*)eglQueryString(display , EGL_VERSION);
   dot = _glewStrCLen(s, '.');
   if (dot == 0)

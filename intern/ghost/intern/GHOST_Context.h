@@ -71,6 +71,12 @@ public:
 	 * \return Indication as to whether removal has succeeded.
 	 */
 	virtual GHOST_TSuccess removeDrawingContext() = 0;
+
+	/**
+	 * Checks if it is OK for a remove the native display
+	 * \return Indication as to whether removal has succeeded.
+	 */
+	virtual GHOST_TSuccess releaseNativeHandles();
 };
 
 
