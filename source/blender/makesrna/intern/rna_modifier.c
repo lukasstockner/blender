@@ -88,6 +88,7 @@ EnumPropertyItem modifier_type_items[] = {
 	{eModifierType_Displace, "DISPLACE", ICON_MOD_DISPLACE, "Displace", ""},
 	{eModifierType_Hook, "HOOK", ICON_HOOK, "Hook", ""},
 	{eModifierType_LaplacianSmooth, "LAPLACIANSMOOTH", ICON_MOD_SMOOTH, "Laplacian Smooth", ""},
+	{eModifierType_LaplacianDeform, "LAPLACIANDEFORM", ICON_MOD_MESHDEFORM, "Laplacian Deform", ""},
 	{eModifierType_Lattice, "LATTICE", ICON_MOD_LATTICE, "Lattice", ""},
 	{eModifierType_MeshDeform, "MESH_DEFORM", ICON_MOD_MESHDEFORM, "Mesh Deform", ""},
 	{eModifierType_Shrinkwrap, "SHRINKWRAP", ICON_MOD_SHRINKWRAP, "Shrinkwrap", ""},
@@ -222,6 +223,8 @@ static StructRNA *rna_Modifier_refine(struct PointerRNA *ptr)
 			return &RNA_UVWarpModifier;
 		case eModifierType_MeshCache:
 			return &RNA_MeshCacheModifier;
+		case eModifierType_LaplacianDeform:
+			return &RNA_LaplacianDeformModifier;
 		/* Default */
 		case eModifierType_None:
 		case eModifierType_ShapeKey:
@@ -759,6 +762,18 @@ static void rna_UVWarpModifier_uvlayer_set(PointerRNA *ptr, const char *value)
 {
 	UVWarpModifierData *umd = (UVWarpModifierData *)ptr->data;
 	rna_object_uvlayer_name_set(ptr, value, umd->uvlayer_name, sizeof(umd->uvlayer_name));
+}
+
+static void rna_LaplacianDeformModifier_vgroup_s_set(PointerRNA *ptr, const char *value)
+{
+	LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)ptr->data;
+	rna_object_vgroup_name_set(ptr, value, lmd->defgrp_name_s, sizeof(lmd->defgrp_name_s));
+}
+
+static void rna_LaplacianDeformModifier_vgroup_h_set(PointerRNA *ptr, const char *value)
+{
+	LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)ptr->data;
+	rna_object_vgroup_name_set(ptr, value, lmd->defgrp_name_h, sizeof(lmd->defgrp_name_h));
 }
 
 #else
@@ -3663,6 +3678,33 @@ static void rna_def_modifier_meshcache(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
+static void rna_def_modifier_laplaciandeform(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+ 
+	srna = RNA_def_struct(brna, "LaplacianDeformModifier", "Modifier");
+	RNA_def_struct_ui_text(srna, "Laplacian Deform Modifier", "Mesh deform modifier");
+	RNA_def_struct_sdna(srna, "LaplacianDeformModifierData");
+	RNA_def_struct_ui_icon(srna, ICON_MOD_MESHDEFORM);
+	
+	prop = RNA_def_property(srna, "vertex_group_s", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "defgrp_name_s");
+	RNA_def_property_ui_text(prop, "Vertex Group for Static Anchors",
+	                         "Name of Vertex Group which determines Static Anchors");
+	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_LaplacianDeformModifier_vgroup_s_set");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+ 
+ 	prop = RNA_def_property(srna, "vertex_group_h", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "defgrp_name_h");
+	RNA_def_property_ui_text(prop, "Vertex Group for Handler Anchors",
+	                         "Name of Vertex Group which determines Handler Anchors");
+	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_LaplacianDeformModifier_vgroup_h_set");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+ 
+ 
+}
+
 void RNA_def_modifier(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -3773,6 +3815,7 @@ void RNA_def_modifier(BlenderRNA *brna)
 	rna_def_modifier_laplaciansmooth(brna);
 	rna_def_modifier_triangulate(brna);
 	rna_def_modifier_meshcache(brna);
+	rna_def_modifier_laplaciandeform(brna);
 }
 
 #endif

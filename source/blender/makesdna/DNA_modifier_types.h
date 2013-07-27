@@ -79,6 +79,7 @@ typedef enum ModifierType {
 	eModifierType_Triangulate       = 44,
 	eModifierType_UVWarp            = 45,
 	eModifierType_MeshCache         = 46,
+	eModifierType_LaplacianDeform   = 47,
 	NUM_MODIFIER_TYPES
 } ModifierType;
 
@@ -1220,6 +1221,13 @@ enum {
 	MOD_MESHCACHE_PLAY_CFEA = 0,
 	MOD_MESHCACHE_PLAY_EVAL = 1,
 };
+
+typedef struct LaplacianDeformModifierData {
+	ModifierData modifier;
+	char defgrp_name_s[64]; /* MAX_VGROUP_NAME */
+	char defgrp_name_h[64]; /* MAX_VGROUP_NAME */
+	void * custom_data;
+} LaplacianDeformModifierData;
 
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */

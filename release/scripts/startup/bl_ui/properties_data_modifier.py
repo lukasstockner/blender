@@ -373,6 +373,12 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
             row.operator("object.hook_select", text="Select")
             row.operator("object.hook_assign", text="Assign")
 
+    def LAPLACIANDEFORM(self, layout, ob, md):
+        layout.label(text="Static Anchors Vertex Group:")
+        layout.prop_search(md, "vertex_group_s", ob, "vertex_groups", text="")
+        layout.label(text="Handler Anchors Vertex Group:")
+        layout.prop_search(md, "vertex_group_h", ob, "vertex_groups", text="")
+
     def LAPLACIANSMOOTH(self, layout, ob, md):
         layout.prop(md, "iterations")
 
