@@ -38,6 +38,10 @@
 
 
 
+EGLEWContext* eglewContext = NULL;
+
+
+
 static const char* get_egl_error_enum_string(EGLenum error)
 {
 	switch(error) {
@@ -187,7 +191,7 @@ static bool egl_chk(bool result, const char* file = NULL, int line = 0, const ch
 
 static inline void bindAPI(EGLenum api)
 {
-	if (EGLEW_VERSION_1_2)
+	if (eglewContext != NULL && EGLEW_VERSION_1_2)
 		EGL_CHK(eglBindAPI(api));
 }
 
@@ -209,6 +213,7 @@ EGLContext GHOST_ContextEGL::s_vg_sharedContext   = NULL;
 EGLint     GHOST_ContextEGL::s_vg_sharedCount     = 0;
 
 
+#pragma warning(disable : 4715)
 
 template <typename T>
 T& choose_api(EGLenum api, T& a, T& b, T& c)
@@ -242,6 +247,7 @@ GHOST_ContextEGL::GHOST_ContextEGL(
 	, m_context(EGL_NO_CONTEXT)
 	, m_sharedContext(choose_api(api, s_gl_sharedContext, s_gles_sharedContext, s_vg_sharedContext))
 	, m_sharedCount  (choose_api(api, s_gl_sharedCount,   s_gles_sharedCount,   s_vg_sharedCount))
+	, m_eglewContext(NULL)
 {
 	assert(m_nativeWindow  != NULL);
 	assert(m_nativeDisplay != NULL);
@@ -251,6 +257,8 @@ GHOST_ContextEGL::GHOST_ContextEGL(
 
 GHOST_ContextEGL::~GHOST_ContextEGL()
 {
+	eglewContext = m_eglewContext;
+
 	bindAPI(m_api);
 
 	if (m_context != EGL_NO_CONTEXT) {
@@ -273,6 +281,8 @@ GHOST_ContextEGL::~GHOST_ContextEGL()
 		EGL_CHK(::eglDestroySurface(m_display, m_surface));
 
 	EGL_CHK(::eglTerminate(m_display));
+
+	delete m_eglewContext;
 }
 
 
@@ -286,6 +296,10 @@ GHOST_TSuccess GHOST_ContextEGL::swapBuffers()
 
 GHOST_TSuccess GHOST_ContextEGL::activateDrawingContext()
 {
+	eglewContext = m_eglewContext;
+
+	activateGlew();
+
 	bindAPI(m_api);
 
 	return EGL_CHK(::eglMakeCurrent(m_display, m_surface, m_surface, m_context)) ? GHOST_kSuccess : GHOST_kFailure;
@@ -293,14 +307,20 @@ GHOST_TSuccess GHOST_ContextEGL::activateDrawingContext()
 
 
 
-static bool init_eglew()
+bool GHOST_ContextEGL::initEGlew()
 {
-	static bool eglewInitialized = false;
+	if (m_eglewContext == NULL) {
+		eglewContext = new EGLEWContext;
 
-	if (!eglewInitialized && eglewInit() == GLEW_OK)
-		eglewInitialized = true;
+		if (eglewInit() != GLEW_OK) {
+			delete eglewContext;
+			eglewContext = NULL;
+		}
 
-	return eglewInitialized;
+		m_eglewContext = eglewContext;
+	}
+
+	return m_eglewContext != NULL;
 }
 
 
@@ -349,8 +369,10 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext(bool stereoVisual, GHO
 	if (!EGL_CHK(::eglMakeCurrent(m_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT)))
 		goto error;
 
-	if (!init_eglew())
+	if (!initEGlew())
 		fprintf(stderr, "EGLEW failed to initialize.\n");
+
+	eglewContext = m_eglewContext;
 
 	bindAPI(m_api);
 

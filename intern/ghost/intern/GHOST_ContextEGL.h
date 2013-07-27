@@ -35,7 +35,9 @@
 
 #include "GHOST_Context.h"
 
+#define eglewGetContext() eglewContext
 #include <GL/eglew.h>
+extern "C" EGLEWContext* eglewContext;
 
 
 
@@ -86,6 +88,8 @@ public:
 	virtual GHOST_TSuccess releaseNativeHandles();
 
 private:
+	bool GHOST_ContextEGL::initEGlew();
+
 	EGLNativeDisplayType m_nativeDisplay;
 	EGLNativeWindowType  m_nativeWindow;
 
@@ -99,6 +103,7 @@ private:
 	EGLContext& m_sharedContext;
 	EGLint&     m_sharedCount;
 
+	EGLEWContext* m_eglewContext;
 
 	static EGLContext s_gl_sharedContext;
 	static EGLint     s_gl_sharedCount;

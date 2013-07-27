@@ -40,7 +40,7 @@
 
 
 
-extern "C" WGLEWContext* wglewContext = NULL;
+WGLEWContext* wglewContext = NULL;
 
 
 
@@ -141,8 +141,6 @@ GHOST_ContextWGL::GHOST_ContextWGL(
 
 GHOST_ContextWGL::~GHOST_ContextWGL()
 {
-	wglewContext = m_wglewContext;
-
 	if (m_hGLRC != NULL) {
 		if (m_hGLRC == ::wglGetCurrentContext())
 			WIN32_CHK(::wglMakeCurrent(NULL, NULL));
