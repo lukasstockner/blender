@@ -35,6 +35,7 @@
 
 #include "GHOST_Context.h"
 
+#include <GL/glew.h>
 #include <GL/wglew.h>
 
 
@@ -45,7 +46,13 @@ public:
 	/**
 	 * Constructor.
 	 */
-	GHOST_ContextWGL(HWND hWnd, HDC hDC);
+	GHOST_ContextWGL(
+		HWND hWnd,
+		HDC  hDC,
+		int  contextProfileMask  = 0,
+		int  contextFlags        = 0,
+		int  contextMajorVersion = 0,
+		int  contextMinorVersion = 0);
 
 	/**
 	 * Destructor.
@@ -65,18 +72,12 @@ public:
 	virtual GHOST_TSuccess activateDrawingContext();
 
 	/**
-	 * Tries to install a rendering context in this window.
+	 * Call immediately after new to initialize.  If this fails then immediately delete the object.
 	 * \param stereoVisual		Stereo visual for quad buffered stereo.
 	 * \param numOfAASamples	Number of samples used for AA (zero if no AA)
-	 * \return Indication as to whether installation has succeeded.
+	 * \return Indication as to whether initialization has succeeded.
 	 */
-	virtual GHOST_TSuccess installDrawingContext(bool stereoVisual = false, GHOST_TUns16 numOfAASamples = 0);
-
-	/**
-	 * Removes the current drawing context.
-	 * \return Indication as to whether removal has succeeded.
-	 */
-	virtual GHOST_TSuccess removeDrawingContext();
+	virtual GHOST_TSuccess initializeDrawingContext(bool stereoVisual = false, GHOST_TUns16 numOfAASamples = 0);
 
 	/**
 	 * Checks if it is OK for a remove the native display
@@ -84,23 +85,26 @@ public:
 	 */
 	virtual GHOST_TSuccess releaseNativeHandles();
 
-private:
-	GHOST_TSuccess init_wglew();
-	GHOST_TSuccess init_multisample(const PIXELFORMATDESCRIPTOR& preferredPFD, int numOfAASamples);
-	int enum_pixel_formats(PIXELFORMATDESCRIPTOR& preferredPFD, int numOfAASamples);
+	static void setSingleContextMode(bool on);
 
-	const HDC  m_hDC;
-	const HWND m_hWnd;
+private:
+	HDC  m_hDC;
+	HWND m_hWnd;
+
+	int m_contextProfileMask;
+	int m_contextFlags;
+	int m_contextMajorVersion;
+	int m_contextMinorVersion;
 
 	HGLRC m_hGLRC;
 
 	bool m_needSetPixelFormat;
 
-	static HGLRC s_sharedGLRC;
-	static HGLRC s_sharedDC;
-	static int   s_shareCount;
+	static HGLRC s_sharedHGLRC;
+	static HDC   s_sharedHDC;
+	static int   s_sharedCount;
 
-	static bool s_wglewInitialized;
+	static bool s_singleContextMode;
 };
 
 

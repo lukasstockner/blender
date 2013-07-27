@@ -1665,7 +1665,7 @@ GPUindex* gpuNewIndex(void)
 {
 	GPUindex* index;
 
-	index = MEM_callocN(sizeof(GPUindex), "GPUindex");
+	index = (GPUindex*)MEM_callocN(sizeof(GPUindex), "GPUindex");
 
 	return index;
 }
@@ -1761,43 +1761,43 @@ const char* gpuErrorString(GLenum err)
 {
 	switch(err) {
 		case GL_NO_ERROR:
-			return "No Error\n";
+			return "No Error";
 
 		case GL_INVALID_ENUM:
-			return "Invalid Enum\n";
+			return "Invalid Enum";
 
 		case GL_INVALID_VALUE:
-			return "Invalid Value\n";
+			return "Invalid Value";
 
 		case GL_INVALID_OPERATION:
-			return "Invalid Operation\n";
+			return "Invalid Operation";
 
 		case GL_STACK_OVERFLOW:
-			return "Stack Overflow\n";
+			return "Stack Overflow";
 
 		case GL_STACK_UNDERFLOW:
-			return "Stack Underflow\n";
+			return "Stack Underflow";
 
 		case GL_OUT_OF_MEMORY:
-			return "Out of Memory\n";
+			return "Out of Memory";
 
 #if GL_ARB_imagining
 		case GL_TABLE_TOO_LARGE:
-			return "Table Too Large\n";
+			return "Table Too Large";
 #endif
 
 #if defined(WITH_GLU)
 		case GLU_INVALID_ENUM:
-			return "Invalid Enum (GLU)\n";
+			return "Invalid Enum (GLU)";
 
 		case GLU_INVALID_VALUE:
-			return "Invalid Value (GLU)\n";
+			return "Invalid Value (GLU)";
 
 		case GLU_OUT_OF_MEMORY:
-			return "Out of Memory (GLU)\n";
+			return "Out of Memory (GLU)";
 #endif
 
 		default:
-			return "Unknown Error\n";
+			return "Unknown Error";
 	}
 }

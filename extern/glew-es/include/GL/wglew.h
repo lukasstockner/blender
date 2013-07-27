@@ -1406,6 +1406,9 @@ GLEWAPI GLboolean wglewContextIsSupported (const WGLEWContext* ctx, const char* 
 #define WGLEW_GET_VAR(x) (*(const GLboolean*)&x)
 #define WGLEW_GET_FUN(x) x
 
+GLEWAPI GLenum wglewContextInit (void); // XXX jwilkins: Why does this require GLEW_MX?  Should I enable GLEW_MX? instead?
+#define wglewInit() wglewContextInit() // XXX jwilkins: Why does this require GLEW_MX?  Should I enable GLEW_MX? instead?
+
 GLEWAPI GLboolean wglewIsSupported (const char* name);
 
 #endif /* GLEW_MX */

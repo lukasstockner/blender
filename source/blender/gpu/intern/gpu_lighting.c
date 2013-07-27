@@ -44,8 +44,6 @@ GPUlighting *restrict GPU_LIGHTING = NULL;
 
 void gpuInitializeLighting(void)
 {
-	GPU_CHECK_NO_ERROR();
-
 	GPU_LIGHTING =
 		(GPUlighting*)MEM_callocN(sizeof(GPUlighting), "GPU_LIGHTING");
 
@@ -90,8 +88,6 @@ void gpuInitializeLighting(void)
 
 void gpuShutdownLighting(void)
 {
-	GPU_CHECK_NO_ERROR();
-
 	MEM_freeN(GPU_LIGHTING);
 	GPU_LIGHTING = NULL;
 }

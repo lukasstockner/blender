@@ -34,15 +34,16 @@
 #include "GHOST_WindowWin32.h"
 #include "GHOST_SystemWin32.h"
 #include "GHOST_DropTargetWin32.h"
+#include "GHOST_ContextNone.h"
 #include "utfconv.h"
 #include "utf_winfunc.h"
 
 // Need glew for some defines
-#include <GL/glew.h>
+//#include <GL/glew.h>
 
-#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
-#include <GL/wglew.h>
-#endif
+//#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
+//#include <GL/wglew.h>
+//#endif
 
 #include <math.h>
 #include <string.h>
@@ -52,77 +53,83 @@ const wchar_t *GHOST_WindowWin32::s_windowClassName = L"GHOST_WindowClass";
 const int GHOST_WindowWin32::s_maxTitleLength = 128;
 
 #if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
-// Some more multisample defines
-#define WGL_SAMPLE_BUFFERS_ARB  0x2041
-#define WGL_SAMPLES_ARB         0x2042
+//// Some more multisample defines
+//#define WGL_SAMPLE_BUFFERS_ARB  0x2041
+//#define WGL_SAMPLES_ARB         0x2042
+//
+//HGLRC GHOST_WindowWin32::s_firsthGLRc = NULL;
+//HDC GHOST_WindowWin32::s_firstHDC = NULL;
+//
+//static int WeightPixelFormat(PIXELFORMATDESCRIPTOR& pfd);
+//static int EnumPixelFormats(HDC hdc);
+//
+///*
+// * Color and depth bit values are not to be trusted.
+// * For instance, on TNT2:
+// * When the screen color depth is set to 16 bit, we get 5 color bits
+// * and 16 depth bits.
+// * When the screen color depth is set to 32 bit, we get 8 color bits
+// * and 24 depth bits.
+// * Just to be safe, we request high waulity settings.
+// */
+//static PIXELFORMATDESCRIPTOR sPreferredFormat = {
+//	sizeof(PIXELFORMATDESCRIPTOR),  /* size */
+//	1,                              /* version */
+//	PFD_SUPPORT_OPENGL |
+//	PFD_DRAW_TO_WINDOW |
+//	PFD_SWAP_COPY |                 /* support swap copy */
+//	PFD_DOUBLEBUFFER,               /* support double-buffering */
+//	PFD_TYPE_RGBA,                  /* color type */
+//	32,                             /* prefered color depth */
+//	0, 0, 0, 0, 0, 0,               /* color bits (ignored) */
+//	0,                              /* no alpha buffer */
+//	0,                              /* alpha bits (ignored) */
+//	0,                              /* no accumulation buffer */
+//	0, 0, 0, 0,                     /* accum bits (ignored) */
+//	32,                             /* depth buffer */
+//	0,                              /* no stencil buffer */
+//	0,                              /* no auxiliary buffers */
+//	PFD_MAIN_PLANE,                 /* main layer */
+//	0,                              /* reserved */
+//	0, 0, 0                         /* no layer, visible, damage masks */
+//};
 
-HGLRC GHOST_WindowWin32::s_firsthGLRc = NULL;
-HDC GHOST_WindowWin32::s_firstHDC = NULL;
+#include "GHOST_ContextWGL.h"
 
-static int WeightPixelFormat(PIXELFORMATDESCRIPTOR& pfd);
-static int EnumPixelFormats(HDC hdc);
-
-/*
- * Color and depth bit values are not to be trusted.
- * For instance, on TNT2:
- * When the screen color depth is set to 16 bit, we get 5 color bits
- * and 16 depth bits.
- * When the screen color depth is set to 32 bit, we get 8 color bits
- * and 24 depth bits.
- * Just to be safe, we request high waulity settings.
- */
-static PIXELFORMATDESCRIPTOR sPreferredFormat = {
-	sizeof(PIXELFORMATDESCRIPTOR),  /* size */
-	1,                              /* version */
-	PFD_SUPPORT_OPENGL |
-	PFD_DRAW_TO_WINDOW |
-	PFD_SWAP_COPY |                 /* support swap copy */
-	PFD_DOUBLEBUFFER,               /* support double-buffering */
-	PFD_TYPE_RGBA,                  /* color type */
-	32,                             /* prefered color depth */
-	0, 0, 0, 0, 0, 0,               /* color bits (ignored) */
-	0,                              /* no alpha buffer */
-	0,                              /* alpha bits (ignored) */
-	0,                              /* no accumulation buffer */
-	0, 0, 0, 0,                     /* accum bits (ignored) */
-	32,                             /* depth buffer */
-	0,                              /* no stencil buffer */
-	0,                              /* no auxiliary buffers */
-	PFD_MAIN_PLANE,                 /* main layer */
-	0,                              /* reserved */
-	0, 0, 0                         /* no layer, visible, damage masks */
-};
 #endif
 
 #if defined(WITH_GL_SYSTEM_EMBEDDED)
 
-EGLContext GHOST_WindowWin32::s_egl_first_context = EGL_NO_CONTEXT;
+//EGLContext GHOST_WindowWin32::s_egl_first_context = EGL_NO_CONTEXT;
+//
+//#if defined(WITH_ANGLE)
+//HMODULE GHOST_WindowWin32::s_d3dcompiler = NULL;
+//#endif
+//
+//bool GHOST_WindowWin32::s_eglew_initialized = false;
 
-#if defined(WITH_ANGLE)
-HMODULE GHOST_WindowWin32::s_d3dcompiler = NULL;
-bool GHOST_WindowWin32::s_eglew_initialized = false;
+#include "GHOST_ContextEGL.h"
+
 #endif
 
-#endif
-
-#if defined(WITH_GL_SYSTEM_LEGACY) || defined(WITH_GL_SYSTEM_DESKTOP)
-/* Intel videocards don't work fine with multiple contexts and
- * have to share the same context for all windows.
- * But if we just share context for all windows it could work incorrect
- * with multiple videocards configuration. Suppose, that Intel videocards
- * can't be in multiple-devices configuration. */
-static int is_crappy_intel_card(void)
-{
-	static short is_crappy = -1;
-
-	if (is_crappy == -1) {
-		const char *vendor = (const char *)glGetString(GL_VENDOR);
-		is_crappy = (strstr(vendor, "Intel") != NULL);
-	}
-
-	return is_crappy;
-}
-#endif
+//#if defined(WITH_GL_SYSTEM_LEGACY) || defined(WITH_GL_SYSTEM_DESKTOP)
+///* Intel videocards don't work fine with multiple contexts and
+// * have to share the same context for all windows.
+// * But if we just share context for all windows it could work incorrect
+// * with multiple videocards configuration. Suppose, that Intel videocards
+// * can't be in multiple-devices configuration. */
+//static int is_crappy_intel_card(void)
+//{
+//	static short is_crappy = -1;
+//
+//	if (is_crappy == -1) {
+//		const char *vendor = (const char *)glGetString(GL_VENDOR);
+//		is_crappy = (strstr(vendor, "Intel") != NULL);
+//	}
+//
+//	return is_crappy;
+//}
+//#endif
 
 GHOST_WindowWin32::GHOST_WindowWin32(
     GHOST_SystemWin32 *system,
@@ -135,21 +142,20 @@ GHOST_WindowWin32::GHOST_WindowWin32(
     GHOST_TDrawingContextType type,
     const bool stereoVisual,
     const GHOST_TUns16 numOfAASamples,
-    GHOST_TEmbedderWindowID parentwindowhwnd,
-    GHOST_TSuccess msEnabled,
-    int msPixelFormat)
-	:
-	GHOST_Window(width, height, state, GHOST_kDrawingContextTypeNone,
-	             stereoVisual, false, numOfAASamples),
+    GHOST_TEmbedderWindowID parentwindowhwnd
+    //GHOST_TSuccess msEnabled,
+    //int msPixelFormat
+)
+	: GHOST_Window(width, height, state, stereoVisual, false, numOfAASamples),
 	m_system(system),
 	m_hDC(0),
-#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
-	m_hGlRc(0),
-#elif defined(WITH_GL_SYSTEM_EMBEDDED)
-	m_egl_display(EGL_NO_DISPLAY),
-	m_egl_context(EGL_NO_CONTEXT),
-	m_egl_surface(EGL_NO_SURFACE),
-#endif
+//#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
+//	m_hGlRc(0),
+//#elif defined(WITH_GL_SYSTEM_EMBEDDED)
+//	m_egl_display(EGL_NO_DISPLAY),
+//	m_egl_context(EGL_NO_CONTEXT),
+//	m_egl_surface(EGL_NO_SURFACE),
+//#endif
 	m_hasMouseCaptured(false),
 	m_hasGrabMouse(false),
 	m_nPressedButtons(0),
@@ -158,18 +164,18 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 	m_tabletData(NULL),
 	m_tablet(0),
 	m_maxPressure(0),
-	m_multisample(numOfAASamples),
-	m_multisampleEnabled(msEnabled),
-	m_msPixelFormat(msPixelFormat),
+	//m_multisample(numOfAASamples),
+	//m_multisampleEnabled(msEnabled),
+	//m_msPixelFormat(msPixelFormat),
 	//For recreation
-	m_title(title),
-	m_left(left),
-	m_top(top),
-	m_width(width),
-	m_height(height),
+	//m_title(title),
+	//m_left(left),
+	//m_top(top),
+	//m_width(width),
+	//m_height(height),
 	m_normal_state(GHOST_kWindowStateNormal),
-	m_stereo(stereoVisual),
-	m_nextWindow(NULL),
+	//m_stereo(stereoVisual),
+	//m_nextWindow(NULL),
 	m_parentWindowHwnd(parentwindowhwnd),
 	m_inLiveResize(false)
 {
@@ -292,11 +298,11 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 		// Store the device context
 		m_hDC = ::GetDC(m_hWnd);
 
-#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
-		if (!s_firstHDC) {
-			s_firstHDC = m_hDC;
-		}
-#endif
+//#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
+//		if (!s_firstHDC) {
+//			s_firstHDC = m_hDC;
+//		}
+//#endif
 
 		// Show the window
 		int nCmdShow;
@@ -312,8 +318,8 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 				nCmdShow = SW_SHOWNORMAL;
 				break;
 		}
-		GHOST_TSuccess success;
-		success = setDrawingContextType(type);
+
+		GHOST_TSuccess success = setDrawingContextType(type);
 
 		if (success)
 		{
@@ -323,6 +329,7 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 		}
 		else {
 			//invalidate the window
+			// XXX jwilkins: seems like this would leak resources
 			m_hWnd = 0;
 		}
 	}
@@ -423,55 +430,54 @@ GHOST_WindowWin32::~GHOST_WindowWin32()
 		m_customCursor = NULL;
 	}
 
-#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
-	::wglMakeCurrent(NULL, NULL);
-#elif defined(WITH_GL_SYSTEM_EMBEDDED)
-	if (m_egl_display != EGL_NO_DISPLAY) {
-#if defined(WITH_GL_PROFILE_ES20)
-		eglBindAPI(EGL_OPENGL_ES_API);
-#endif
-		::eglMakeCurrent(
-			m_egl_display,
-			EGL_NO_SURFACE,
-			EGL_NO_SURFACE,
-			EGL_NO_CONTEXT);
+//#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
+//	::wglMakeCurrent(NULL, NULL);
+//#elif defined(WITH_GL_SYSTEM_EMBEDDED)
+//	if (m_egl_display != EGL_NO_DISPLAY) {
+//#if defined(WITH_GL_PROFILE_ES20)
+//		eglBindAPI(EGL_OPENGL_ES_API);
+//#endif
+//		::eglMakeCurrent(
+//			m_egl_display,
+//			EGL_NO_SURFACE,
+//			EGL_NO_SURFACE,
+//			EGL_NO_CONTEXT);
+//
+//		if (m_egl_context != EGL_NO_CONTEXT && m_egl_context != s_egl_first_context) {
+//			EGLBoolean context_destroyed = ::eglDestroyContext(m_egl_display, m_egl_context);
+//			assert(context_destroyed);
+//		}
+//
+//		if (m_egl_surface != EGL_NO_SURFACE) {
+//			EGLBoolean surface_destroyed = ::eglDestroySurface(m_egl_display, m_egl_surface);
+//			assert(surface_destroyed);
+//		}
+//
+//		{
+//			EGLBoolean display_terminated = ::eglTerminate(m_egl_display);
+//			assert(display_terminated);
+//		}
+//	}
+//#else
+//#error
+//#endif
 
-		if (m_egl_context != EGL_NO_CONTEXT && m_egl_context != s_egl_first_context) {
-			EGLBoolean context_destroyed = ::eglDestroyContext(m_egl_display, m_egl_context);
-			assert(context_destroyed);
-		}
+	//m_multisampleEnabled = GHOST_kFailure;
+	//m_multisample = 0;
+	//setDrawingContextType(GHOST_kDrawingContextTypeNone);
 
-		if (m_egl_surface != EGL_NO_SURFACE) {
-			EGLBoolean surface_destroyed = ::eglDestroySurface(m_egl_display, m_egl_surface);
-			assert(surface_destroyed);
-		}
+//#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
+//	if (m_hDC && m_hDC != s_firstHDC)
+//		::ReleaseDC(m_hWnd, m_hDC);
+//#elif defined(WITH_GL_SYSTEM_EMBEDDED)
+//	if (m_hWnd != NULL && m_hDC != NULL)
+//		::ReleaseDC(m_hWnd, m_hDC);
+//#else
+//#error
+//#endif
 
-		{
-			EGLBoolean display_terminated = ::eglTerminate(m_egl_display);
-			assert(display_terminated);
-		}
-	}
-#else
-#error
-#endif
-
-	m_multisampleEnabled = GHOST_kFailure;
-	m_multisample = 0;
-	setDrawingContextType(GHOST_kDrawingContextTypeNone);
-
-#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
-	if (m_hDC && m_hDC != s_firstHDC) {
+	if (m_hWnd != NULL && m_hDC != NULL && releaseNativeHandles())
 		::ReleaseDC(m_hWnd, m_hDC);
-		m_hDC = 0;
-	}
-#elif defined(WITH_GL_SYSTEM_EMBEDDED)
-	if (m_hDC && m_hDC) {
-		::ReleaseDC(m_hWnd, m_hDC);
-		m_hDC = 0;
-	}
-#else
-#error
-#endif
 
 	if (m_hWnd) {
 		if (m_dropTarget) {
@@ -486,10 +492,10 @@ GHOST_WindowWin32::~GHOST_WindowWin32()
 	}
 }
 
-GHOST_Window *GHOST_WindowWin32::getNextWindow()
-{
-	return m_nextWindow;
-}
+//GHOST_Window *GHOST_WindowWin32::getNextWindow()
+//{
+//	return m_nextWindow;
+//}
 
 bool GHOST_WindowWin32::getValid() const
 {
@@ -701,64 +707,65 @@ GHOST_TSuccess GHOST_WindowWin32::setOrder(GHOST_TWindowOrder order)
 }
 
 
-GHOST_TSuccess GHOST_WindowWin32::swapBuffers()
-{
-#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
-	HDC hDC = m_hDC;
+//GHOST_TSuccess GHOST_WindowWin32::swapBuffers()
+//{
+//#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
+//	HDC hDC = m_hDC;
+//
+//	if (is_crappy_intel_card())
+//		hDC = ::wglGetCurrentDC();
+//
+//	return ::SwapBuffers(hDC) == TRUE ? GHOST_kSuccess : GHOST_kFailure;
+//#elif defined(WITH_GL_SYSTEM_EMBEDDED)
+//	return ::eglSwapBuffers(m_egl_display, m_egl_surface) ? GHOST_kSuccess : GHOST_kFailure;
+//#else
+//#error
+//#endif
+//	return m_context->swapBuffers();
+//}
 
-	if (is_crappy_intel_card())
-		hDC = ::wglGetCurrentDC();
 
-	return ::SwapBuffers(hDC) == TRUE ? GHOST_kSuccess : GHOST_kFailure;
-#elif defined(WITH_GL_SYSTEM_EMBEDDED)
-	return ::eglSwapBuffers(m_egl_display, m_egl_surface) ? GHOST_kSuccess : GHOST_kFailure;
-#else
-#error
-#endif
-}
-
-
-GHOST_TSuccess GHOST_WindowWin32::activateDrawingContext()
-{
-	GHOST_TSuccess success;
-
-	if (m_drawingContextType == GHOST_kDrawingContextTypeOpenGL) {
-#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
-		if (m_hDC && m_hGlRc) {
-			success = ::wglMakeCurrent(m_hDC, m_hGlRc) ? GHOST_kSuccess : GHOST_kFailure;
-		}
-		else {
-			success = GHOST_kFailure;
-		}
-#elif defined(WITH_GL_SYSTEM_EMBEDDED)
-		if (m_egl_display != EGL_NO_DISPLAY &&
-			m_egl_surface != EGL_NO_SURFACE &&
-			m_egl_context != EGL_NO_CONTEXT)
-		{
-#if defined(WITH_GL_PROFILE_ES20)
-			eglBindAPI(EGL_OPENGL_ES_API);
-#endif
-
-			success =
-				::eglMakeCurrent(
-					m_egl_display,
-					m_egl_surface,
-					m_egl_surface,
-					m_egl_context) ? GHOST_kSuccess : GHOST_kFailure;
-		}
-		else {
-			success = GHOST_kFailure;
-		}
-#else
-#error
-#endif
-	}
-	else {
-		success = GHOST_kSuccess;
-	}
-
-	return success;
-}
+//GHOST_TSuccess GHOST_WindowWin32::activateDrawingContext()
+//{
+//	GHOST_TSuccess success;
+//
+//	if (m_drawingContextType == GHOST_kDrawingContextTypeOpenGL) {
+//#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
+//		if (m_hDC && m_hGlRc) {
+//			success = ::wglMakeCurrent(m_hDC, m_hGlRc) ? GHOST_kSuccess : GHOST_kFailure;
+//		}
+//		else {
+//			success = GHOST_kFailure;
+//		}
+//#elif defined(WITH_GL_SYSTEM_EMBEDDED)
+//		if (m_egl_display != EGL_NO_DISPLAY &&
+//			m_egl_surface != EGL_NO_SURFACE &&
+//			m_egl_context != EGL_NO_CONTEXT)
+//		{
+//#if defined(WITH_GL_PROFILE_ES20)
+//			eglBindAPI(EGL_OPENGL_ES_API);
+//#endif
+//
+//			success =
+//				::eglMakeCurrent(
+//					m_egl_display,
+//					m_egl_surface,
+//					m_egl_surface,
+//					m_egl_context) ? GHOST_kSuccess : GHOST_kFailure;
+//		}
+//		else {
+//			success = GHOST_kFailure;
+//		}
+//#else
+//#error
+//#endif
+//	}
+//	else {
+//		success = GHOST_kSuccess;
+//	}
+//
+//	return success;
+//}
 
 
 GHOST_TSuccess GHOST_WindowWin32::invalidate()
@@ -773,414 +780,437 @@ GHOST_TSuccess GHOST_WindowWin32::invalidate()
 	return success;
 }
 
-#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
-GHOST_TSuccess GHOST_WindowWin32::initMultisample(PIXELFORMATDESCRIPTOR pfd)
+//#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
+//GHOST_TSuccess GHOST_WindowWin32::initMultisample(PIXELFORMATDESCRIPTOR pfd)
+//{
+//	int pixelFormat;
+//	bool success = FALSE;
+//	UINT numFormats;
+//	HDC hDC = GetDC(getHWND());
+//	float fAttributes[] = {0, 0};
+//	UINT nMaxFormats = 1;
+//
+//	// The attributes to look for
+//	int iAttributes[] = {
+//		WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
+//		WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
+//		WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
+//		WGL_COLOR_BITS_ARB, pfd.cColorBits,
+//		WGL_DEPTH_BITS_ARB, pfd.cDepthBits,
+//#ifdef GHOST_OPENGL_ALPHA
+//		WGL_ALPHA_BITS_ARB, pfd.cAlphaBits,
+//#endif
+//		WGL_STENCIL_BITS_ARB, pfd.cStencilBits,
+//		WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
+//		WGL_SAMPLE_BUFFERS_ARB, GL_TRUE,
+//		WGL_SAMPLES_ARB, m_multisample,
+//		0, 0
+//	};
+//
+//	// Get the function
+//	PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB = (PFNWGLCHOOSEPIXELFORMATARBPROC)wglGetProcAddress("wglChoosePixelFormatARB");
+//
+//	if (!wglChoosePixelFormatARB)
+//	{
+//		m_multisampleEnabled = GHOST_kFailure;
+//		return GHOST_kFailure;
+//	}
+//
+//	// iAttributes[17] is the initial multisample. If not valid try to use the closest valid value under it.
+//	while (iAttributes[17] > 0) {
+//		// See if the format is valid
+//		success = wglChoosePixelFormatARB(hDC, iAttributes, fAttributes, nMaxFormats, &pixelFormat, &numFormats);
+//		GHOST_PRINTF("WGL_SAMPLES_ARB = %i --> success = %i, %i formats\n", iAttributes[17], success, numFormats);
+//
+//		if (success && numFormats >= 1 && m_multisampleEnabled == GHOST_kFailure) {
+//			GHOST_PRINTF("valid pixel format with %i multisamples\n", iAttributes[17]);
+//			m_multisampleEnabled = GHOST_kSuccess;
+//			m_msPixelFormat = pixelFormat;
+//		}
+//		iAttributes[17] -= 1;
+//		success = GHOST_kFailure;
+//	}
+//	if (m_multisampleEnabled == GHOST_kSuccess) {
+//		return GHOST_kSuccess;
+//	}
+//	GHOST_PRINT("no available pixel format\n");
+//	return GHOST_kFailure;
+//}
+//#endif
+
+GHOST_Context* GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType type)
 {
-	int pixelFormat;
-	bool success = FALSE;
-	UINT numFormats;
-	HDC hDC = GetDC(getHWND());
-	float fAttributes[] = {0, 0};
-	UINT nMaxFormats = 1;
-
-	// The attributes to look for
-	int iAttributes[] = {
-		WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
-		WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
-		WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
-		WGL_COLOR_BITS_ARB, pfd.cColorBits,
-		WGL_DEPTH_BITS_ARB, pfd.cDepthBits,
-#ifdef GHOST_OPENGL_ALPHA
-		WGL_ALPHA_BITS_ARB, pfd.cAlphaBits,
-#endif
-		WGL_STENCIL_BITS_ARB, pfd.cStencilBits,
-		WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
-		WGL_SAMPLE_BUFFERS_ARB, GL_TRUE,
-		WGL_SAMPLES_ARB, m_multisample,
-		0, 0
-	};
-
-	// Get the function
-	PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB = (PFNWGLCHOOSEPIXELFORMATARBPROC)wglGetProcAddress("wglChoosePixelFormatARB");
-
-	if (!wglChoosePixelFormatARB)
-	{
-		m_multisampleEnabled = GHOST_kFailure;
-		return GHOST_kFailure;
-	}
-
-	// iAttributes[17] is the initial multisample. If not valid try to use the closest valid value under it.
-	while (iAttributes[17] > 0) {
-		// See if the format is valid
-		success = wglChoosePixelFormatARB(hDC, iAttributes, fAttributes, nMaxFormats, &pixelFormat, &numFormats);
-		GHOST_PRINTF("WGL_SAMPLES_ARB = %i --> success = %i, %i formats\n", iAttributes[17], success, numFormats);
-
-		if (success && numFormats >= 1 && m_multisampleEnabled == GHOST_kFailure) {
-			GHOST_PRINTF("valid pixel format with %i multisamples\n", iAttributes[17]);
-			m_multisampleEnabled = GHOST_kSuccess;
-			m_msPixelFormat = pixelFormat;
-		}
-		iAttributes[17] -= 1;
-		success = GHOST_kFailure;
-	}
-	if (m_multisampleEnabled == GHOST_kSuccess) {
-		return GHOST_kSuccess;
-	}
-	GHOST_PRINT("no available pixel format\n");
-	return GHOST_kFailure;
-}
-#endif
-
-GHOST_TSuccess GHOST_WindowWin32::installDrawingContext(GHOST_TDrawingContextType type)
-{
-	GHOST_TSuccess success;
-
-	switch (type) {
-		case GHOST_kDrawingContextTypeOpenGL:
+	if (type == GHOST_kDrawingContextTypeOpenGL) {
+		GHOST_Context* context;
 #if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
-		{
-			// If this window has multisample enabled, use the supplied format
-			if (m_multisampleEnabled)
-			{
-				if (SetPixelFormat(m_hDC, m_msPixelFormat, &sPreferredFormat) == FALSE)
-				{
-					success = GHOST_kFailure;
-					break;
-				}
-
-				// Create the context
-				m_hGlRc = ::wglCreateContext(m_hDC);
-				if (m_hGlRc) {
-					if (::wglMakeCurrent(m_hDC, m_hGlRc) == TRUE) {
-						if (s_firsthGLRc) {
-							if (is_crappy_intel_card()) {
-								if (::wglMakeCurrent(NULL, NULL) == TRUE) {
-									::wglDeleteContext(m_hGlRc);
-									m_hGlRc = s_firsthGLRc;
-								}
-								else {
-									::wglDeleteContext(m_hGlRc);
-									m_hGlRc = NULL;
-								}
-							}
-							else {
-								::wglCopyContext(s_firsthGLRc, m_hGlRc, GL_ALL_ATTRIB_BITS);
-								::wglShareLists(s_firsthGLRc, m_hGlRc);
-							}
-						}
-						else {
-							s_firsthGLRc = m_hGlRc;
-						}
-
-						if (m_hGlRc) {
-							success = ::wglMakeCurrent(m_hDC, m_hGlRc) == TRUE ? GHOST_kSuccess : GHOST_kFailure;
-						}
-						else {
-							success = GHOST_kFailure;
-						}
-					}
-					else {
-						success = GHOST_kFailure;
-					}
-				}
-				else {
-					success = GHOST_kFailure;
-				}
-
-				if (success == GHOST_kFailure) {
-					printf("Failed to get a context....\n");
-				}
-			}
-			else {
-				if (m_stereoVisual)
-					sPreferredFormat.dwFlags |= PFD_STEREO;
-
-				// Attempt to match device context pixel format to the preferred format
-				int iPixelFormat = EnumPixelFormats(m_hDC);
-				if (iPixelFormat == 0) {
-					success = GHOST_kFailure;
-					break;
-				}
-				if (::SetPixelFormat(m_hDC, iPixelFormat, &sPreferredFormat) == FALSE) {
-					success = GHOST_kFailure;
-					break;
-				}
-				// For debugging only: retrieve the pixel format chosen
-				PIXELFORMATDESCRIPTOR preferredFormat;
-				::DescribePixelFormat(m_hDC, iPixelFormat, sizeof(PIXELFORMATDESCRIPTOR), &preferredFormat);
-
-				// Create the context
-				m_hGlRc = ::wglCreateContext(m_hDC);
-				if (m_hGlRc) {
-					if (::wglMakeCurrent(m_hDC, m_hGlRc) == TRUE) {
-						if (s_firsthGLRc) {
-							if (is_crappy_intel_card()) {
-								if (::wglMakeCurrent(NULL, NULL) == TRUE) {
-									::wglDeleteContext(m_hGlRc);
-									m_hGlRc = s_firsthGLRc;
-								}
-								else {
-									::wglDeleteContext(m_hGlRc);
-									m_hGlRc = NULL;
-								}
-							}
-							else {
-								::wglShareLists(s_firsthGLRc, m_hGlRc);
-							}
-						}
-						else {
-							s_firsthGLRc = m_hGlRc;
-						}
-
-						if (m_hGlRc) {
-							success = ::wglMakeCurrent(m_hDC, m_hGlRc) == TRUE ? GHOST_kSuccess : GHOST_kFailure;
-						}
-						else {
-							success = GHOST_kFailure;
-						}
-					}
-					else {
-						success = GHOST_kFailure;
-					}
-				}
-				else {
-					success = GHOST_kFailure;
-				}
-					
-				if (success == GHOST_kFailure) {
-					printf("Failed to get a context....\n");
-				}
-
-				// Attempt to enable multisample
-				if (m_multisample && WGL_ARB_multisample && !m_multisampleEnabled && !is_crappy_intel_card())
-				{
-					success = initMultisample(preferredFormat);
-
-					if (success)
-					{
-
-						// Make sure we don't screw up the context
-						if (m_hGlRc == s_firsthGLRc)
-							s_firsthGLRc = NULL;
-						m_drawingContextType = GHOST_kDrawingContextTypeOpenGL;
-						removeDrawingContext();
-
-						// Create a new window
-						GHOST_TWindowState new_state = getState();
-
-						m_nextWindow = new GHOST_WindowWin32((GHOST_SystemWin32 *)GHOST_ISystem::getSystem(),
-						                                     m_title,
-						                                     m_left,
-						                                     m_top,
-						                                     m_width,
-						                                     m_height,
-						                                     new_state,
-						                                     type,
-						                                     m_stereo,
-						                                     m_multisample,
-						                                     m_parentWindowHwnd,
-						                                     m_multisampleEnabled,
-						                                     m_msPixelFormat);
-
-						// Return failure so we can trash this window.
-						success = GHOST_kFailure;
-						break;
-					}
-					else {
-						m_multisampleEnabled = GHOST_kSuccess;
-						printf("Multisample failed to initialize\n");
-						success = GHOST_kSuccess;
-					}
-				}
-			}
-		}
-		break;
+		context = new GHOST_ContextWGL(m_hWnd, m_hDC);
 #elif defined(WITH_GL_SYSTEM_EMBEDDED)
-		{
-			success = GHOST_kFailure;
-
-#if defined(WITH_ANGLE)
-			/*
-			ANGLE will reference existing d3dcompiler_##.dll that has already been loaded,
-			so load it here if it hasn't already.
-			*/
-
-			if (s_d3dcompiler == NULL) {
-				s_d3dcompiler = LoadLibrary(D3DCOMPILER);
-
-				if (s_d3dcompiler == NULL) {
-					printf("LoadLibrary(\"" D3DCOMPILER "\") failed!\n");
-					break;
-				}
-			}
-#endif
-
-			m_egl_display = ::eglGetDisplay(m_hDC);
-
-			if (m_egl_display == EGL_NO_DISPLAY)
-				break;
-
-			EGLint major, minor;
-
-			if (!::eglInitialize(m_egl_display, &major, &minor))
-				break;
-
-			printf("EGL v%d.%d\n", major, minor);
-
-			if (!s_eglew_initialized) {
-				if (!::eglMakeCurrent(m_egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT))
-					break;
-
-				if (eglewInit() == GLEW_OK) {
-					s_eglew_initialized = true;
-				}
-				else {
-					break;
-				}
-			}
-
-#if defined(WITH_GL_PROFILE_ES20)
-			eglBindAPI(EGL_OPENGL_ES_API);
-#endif
-
-			std::vector<EGLint> attrib_list;
-			attrib_list.reserve(20);
-
-			attrib_list.push_back(EGL_RED_SIZE);
-			attrib_list.push_back(8);
-
-			attrib_list.push_back(EGL_GREEN_SIZE);
-			attrib_list.push_back(8);
-
-			attrib_list.push_back(EGL_BLUE_SIZE);
-			attrib_list.push_back(8);
-
-#ifdef GHOST_OPENGL_ALPHA
-			attrib_list.push_back(EGL_ALPHA_SIZE);
-			attrib_list.push_back(8);
-#endif
-
-			attrib_list.push_back(EGL_DEPTH_SIZE);
-			attrib_list.push_back(24);
-
-#ifdef GHOST_OPENGL_STENCIL
-			attrib_list.push_back(EGL_STENCIL_SIZE);
-			attrib_list.push_back(8);
-#endif
-
-			attrib_list.push_back(EGL_SAMPLE_BUFFERS);
-			attrib_list.push_back(m_multisampleEnabled ? 1 : 0);
-
-			attrib_list.push_back(EGL_SAMPLES);
-			attrib_list.push_back(m_multisample);
-
-			attrib_list.push_back(EGL_NONE);
-
-			EGLConfig config;
-			EGLint    num_config = 0;
-
-			if (!::eglChooseConfig(m_egl_display, &(attrib_list[0]), &config, 1, &num_config))
-				break;
-
-			/* ChooseConfig can "succeed" without finding any suitable configurations */
-			if (num_config != 1)
-				break;
-
-			m_egl_surface = ::eglCreateWindowSurface(m_egl_display, config, m_hWnd, NULL);
-
-			if (m_egl_surface == EGL_NO_SURFACE)
-				break;
-
-#if defined(WITH_GL_PROFILE_ES20)
-			EGLint attribs[] = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE };
-#endif
-
-			m_egl_context = ::eglCreateContext(m_egl_display, config, s_egl_first_context, attribs);
-
-			if (m_egl_context == EGL_NO_CONTEXT)
-				break;
-
-			if (s_egl_first_context == EGL_NO_CONTEXT)
-				s_egl_first_context = m_egl_context;
-
-			if (!::eglMakeCurrent(m_egl_display, m_egl_surface, m_egl_surface, m_egl_context))
-				break;
-
-			success = GHOST_kSuccess;
-
-			break;
-		}
+		context = new GHOST_ContextEGL(m_hWnd, m_hDC, EGL_OPENGL_ES_API, 2);
 #else
 #error
 #endif
-
-		case GHOST_kDrawingContextTypeNone:
-			success = GHOST_kSuccess;
-			break;
-
-		default:
-			success = GHOST_kFailure;
+		if (context->initializeDrawingContext(m_stereoVisual, m_numOfAASamples)) {
+			return context;
+		}
+		else {
+			delete context;
+			return NULL;
+		}
+	}
+	else {
+		return NULL;
 	}
 
-	return success;
+//	GHOST_TSuccess success;
+
+//	switch (type) {
+//		case GHOST_kDrawingContextTypeOpenGL:
+//#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
+//		{
+//			// If this window has multisample enabled, use the supplied format
+//			if (m_multisampleEnabled)
+//			{
+//				if (SetPixelFormat(m_hDC, m_msPixelFormat, &sPreferredFormat) == FALSE)
+//				{
+//					success = GHOST_kFailure;
+//					break;
+//				}
+//
+//				// Create the context
+//				m_hGlRc = ::wglCreateContext(m_hDC);
+//				if (m_hGlRc) {
+//					if (::wglMakeCurrent(m_hDC, m_hGlRc) == TRUE) {
+//						if (s_firsthGLRc) {
+//							if (is_crappy_intel_card()) {
+//								if (::wglMakeCurrent(NULL, NULL) == TRUE) {
+//									::wglDeleteContext(m_hGlRc);
+//									m_hGlRc = s_firsthGLRc;
+//								}
+//								else {
+//									::wglDeleteContext(m_hGlRc);
+//									m_hGlRc = NULL;
+//								}
+//							}
+//							else {
+//								::wglCopyContext(s_firsthGLRc, m_hGlRc, GL_ALL_ATTRIB_BITS);
+//								::wglShareLists(s_firsthGLRc, m_hGlRc);
+//							}
+//						}
+//						else {
+//							s_firsthGLRc = m_hGlRc;
+//						}
+//
+//						if (m_hGlRc) {
+//							success = ::wglMakeCurrent(m_hDC, m_hGlRc) == TRUE ? GHOST_kSuccess : GHOST_kFailure;
+//						}
+//						else {
+//							success = GHOST_kFailure;
+//						}
+//					}
+//					else {
+//						success = GHOST_kFailure;
+//					}
+//				}
+//				else {
+//					success = GHOST_kFailure;
+//				}
+//
+//				if (success == GHOST_kFailure) {
+//					printf("Failed to get a context....\n");
+//				}
+//			}
+//			else {
+//				if (m_stereoVisual)
+//					sPreferredFormat.dwFlags |= PFD_STEREO;
+//
+//				// Attempt to match device context pixel format to the preferred format
+//				int iPixelFormat = EnumPixelFormats(m_hDC);
+//				if (iPixelFormat == 0) {
+//					success = GHOST_kFailure;
+//					break;
+//				}
+//				if (::SetPixelFormat(m_hDC, iPixelFormat, &sPreferredFormat) == FALSE) {
+//					success = GHOST_kFailure;
+//					break;
+//				}
+//				// For debugging only: retrieve the pixel format chosen
+//				PIXELFORMATDESCRIPTOR preferredFormat;
+//				::DescribePixelFormat(m_hDC, iPixelFormat, sizeof(PIXELFORMATDESCRIPTOR), &preferredFormat);
+//
+//				// Create the context
+//				m_hGlRc = ::wglCreateContext(m_hDC);
+//				if (m_hGlRc) {
+//					if (::wglMakeCurrent(m_hDC, m_hGlRc) == TRUE) {
+//						if (s_firsthGLRc) {
+//							if (is_crappy_intel_card()) {
+//								if (::wglMakeCurrent(NULL, NULL) == TRUE) {
+//									::wglDeleteContext(m_hGlRc);
+//									m_hGlRc = s_firsthGLRc;
+//								}
+//								else {
+//									::wglDeleteContext(m_hGlRc);
+//									m_hGlRc = NULL;
+//								}
+//							}
+//							else {
+//								::wglShareLists(s_firsthGLRc, m_hGlRc);
+//							}
+//						}
+//						else {
+//							s_firsthGLRc = m_hGlRc;
+//						}
+//
+//						if (m_hGlRc) {
+//							success = ::wglMakeCurrent(m_hDC, m_hGlRc) == TRUE ? GHOST_kSuccess : GHOST_kFailure;
+//						}
+//						else {
+//							success = GHOST_kFailure;
+//						}
+//					}
+//					else {
+//						success = GHOST_kFailure;
+//					}
+//				}
+//				else {
+//					success = GHOST_kFailure;
+//				}
+//					
+//				if (success == GHOST_kFailure) {
+//					printf("Failed to get a context....\n");
+//				}
+//
+//				// Attempt to enable multisample
+//				if (m_multisample && WGL_ARB_multisample && !m_multisampleEnabled && !is_crappy_intel_card())
+//				{
+//					success = initMultisample(preferredFormat);
+//
+//					if (success)
+//					{
+//
+//						// Make sure we don't screw up the context
+//						if (m_hGlRc == s_firsthGLRc)
+//							s_firsthGLRc = NULL;
+//						m_drawingContextType = GHOST_kDrawingContextTypeOpenGL;
+//						removeDrawingContext();
+//
+//						// Create a new window
+//						GHOST_TWindowState new_state = getState();
+//
+//						m_nextWindow = new GHOST_WindowWin32((GHOST_SystemWin32 *)GHOST_ISystem::getSystem(),
+//						                                     m_title,
+//						                                     m_left,
+//						                                     m_top,
+//						                                     m_width,
+//						                                     m_height,
+//						                                     new_state,
+//						                                     type,
+//						                                     m_stereo,
+//						                                     m_multisample,
+//						                                     m_parentWindowHwnd,
+//						                                     m_multisampleEnabled,
+//						                                     m_msPixelFormat);
+//
+//						// Return failure so we can trash this window.
+//						success = GHOST_kFailure;
+//						break;
+//					}
+//					else {
+//						m_multisampleEnabled = GHOST_kSuccess;
+//						printf("Multisample failed to initialize\n");
+//						success = GHOST_kSuccess;
+//					}
+//				}
+//			}
+//		}
+//		break;
+//#elif defined(WITH_GL_SYSTEM_EMBEDDED)
+//		{
+//			success = GHOST_kFailure;
+//
+//#if defined(WITH_ANGLE)
+//			/*
+//			ANGLE will reference existing d3dcompiler_##.dll that has already been loaded,
+//			so load it here if it hasn't already.
+//			*/
+//
+//			if (s_d3dcompiler == NULL) {
+//				s_d3dcompiler = LoadLibrary(D3DCOMPILER);
+//
+//				if (s_d3dcompiler == NULL) {
+//					printf("LoadLibrary(\"" D3DCOMPILER "\") failed!\n");
+//					break;
+//				}
+//			}
+//#endif
+//
+//			m_egl_display = ::eglGetDisplay(m_hDC);
+//
+//			if (m_egl_display == EGL_NO_DISPLAY)
+//				break;
+//
+//			EGLint major, minor;
+//
+//			if (!::eglInitialize(m_egl_display, &major, &minor))
+//				break;
+//
+//			printf("EGL v%d.%d\n", major, minor);
+//
+//			if (!s_eglew_initialized) {
+//				if (!::eglMakeCurrent(m_egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT))
+//					break;
+//
+//				if (eglewInit() == GLEW_OK) {
+//					s_eglew_initialized = true;
+//				}
+//				else {
+//					break;
+//				}
+//			}
+//
+//#if defined(WITH_GL_PROFILE_ES20)
+//			eglBindAPI(EGL_OPENGL_ES_API);
+//#endif
+//
+//			std::vector<EGLint> attrib_list;
+//			attrib_list.reserve(20);
+//
+//			attrib_list.push_back(EGL_RED_SIZE);
+//			attrib_list.push_back(8);
+//
+//			attrib_list.push_back(EGL_GREEN_SIZE);
+//			attrib_list.push_back(8);
+//
+//			attrib_list.push_back(EGL_BLUE_SIZE);
+//			attrib_list.push_back(8);
+//
+//#ifdef GHOST_OPENGL_ALPHA
+//			attrib_list.push_back(EGL_ALPHA_SIZE);
+//			attrib_list.push_back(8);
+//#endif
+//
+//			attrib_list.push_back(EGL_DEPTH_SIZE);
+//			attrib_list.push_back(24);
+//
+//#ifdef GHOST_OPENGL_STENCIL
+//			attrib_list.push_back(EGL_STENCIL_SIZE);
+//			attrib_list.push_back(8);
+//#endif
+//
+//			attrib_list.push_back(EGL_SAMPLE_BUFFERS);
+//			attrib_list.push_back(m_multisampleEnabled ? 1 : 0);
+//
+//			attrib_list.push_back(EGL_SAMPLES);
+//			attrib_list.push_back(m_multisample);
+//
+//			attrib_list.push_back(EGL_NONE);
+//
+//			EGLConfig config;
+//			EGLint    num_config = 0;
+//
+//			if (!::eglChooseConfig(m_egl_display, &(attrib_list[0]), &config, 1, &num_config))
+//				break;
+//
+//			/* ChooseConfig can "succeed" without finding any suitable configurations */
+//			if (num_config != 1)
+//				break;
+//
+//			m_egl_surface = ::eglCreateWindowSurface(m_egl_display, config, m_hWnd, NULL);
+//
+//			if (m_egl_surface == EGL_NO_SURFACE)
+//				break;
+//
+//#if defined(WITH_GL_PROFILE_ES20)
+//			EGLint attribs[] = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE };
+//#endif
+//
+//			m_egl_context = ::eglCreateContext(m_egl_display, config, s_egl_first_context, attribs);
+//
+//			if (m_egl_context == EGL_NO_CONTEXT)
+//				break;
+//
+//			if (s_egl_first_context == EGL_NO_CONTEXT)
+//				s_egl_first_context = m_egl_context;
+//
+//			if (!::eglMakeCurrent(m_egl_display, m_egl_surface, m_egl_surface, m_egl_context))
+//				break;
+//
+//			success = GHOST_kSuccess;
+//
+//			break;
+//		}
+//#else
+//#error
+//#endif
+//			break;
+//
+//		case GHOST_kDrawingContextTypeNone:
+//			success = GHOST_kSuccess;
+//			break;
+//
+//		default:
+//			success = GHOST_kFailure;
+//	}
+//
+//	return success;
 }
 
-GHOST_TSuccess GHOST_WindowWin32::removeDrawingContext()
-{
-	GHOST_TSuccess success;
-	switch (m_drawingContextType) {
-		case GHOST_kDrawingContextTypeOpenGL:
-#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
-			// we shouldn't remove the drawing context if it's the first OpenGL context
-			// If we do, we get corrupted drawing. See #19997
-			if (m_hGlRc && m_hGlRc != s_firsthGLRc) {
-				success = ::wglDeleteContext(m_hGlRc) == TRUE ? GHOST_kSuccess : GHOST_kFailure;
-				m_hGlRc = 0;
-			}
-			else { // XXX jwilkins: is it correct to fail in the case that this is the first context? maybe return success but not delete the context is better?
-				success = GHOST_kFailure;
-			}
-			break;
-#elif defined(WITH_GL_SYSTEM_EMBEDDED)
-			if (m_egl_display != EGL_NO_DISPLAY) {
-				EGLBoolean context_destroyed;
-				EGLBoolean surface_destroyed;
-
-				if (m_egl_context != EGL_NO_CONTEXT && m_egl_context != s_egl_first_context) {
-					context_destroyed = ::eglDestroyContext(m_egl_display, m_egl_context);
-				}
-				else {
-					context_destroyed = EGL_TRUE; /* not really gone, but giving up ownership */
-				}
-
-				m_egl_context = EGL_NO_CONTEXT;
-
-				if (m_egl_surface != EGL_NO_SURFACE) {
-					surface_destroyed = ::eglDestroySurface(m_egl_display, m_egl_surface);
-				}
-				else {
-					surface_destroyed = EGL_FALSE;
-				}
-
-				m_egl_surface = EGL_NO_SURFACE;
-
-				success = context_destroyed && surface_destroyed ? GHOST_kSuccess : GHOST_kFailure;
-			}
-			else {
-				success = GHOST_kFailure;
-			}
-			break;
-#else
-#error
-#endif
-		case GHOST_kDrawingContextTypeNone:
-			success = GHOST_kSuccess;
-			break;
-		default:
-			success = GHOST_kFailure;
-	}
-	return success;
-}
+//GHOST_TSuccess GHOST_WindowWin32::removeDrawingContext()
+//{
+//	GHOST_TSuccess success;
+//	switch (m_drawingContextType) {
+//		case GHOST_kDrawingContextTypeOpenGL:
+//#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
+//			// we shouldn't remove the drawing context if it's the first OpenGL context
+//			// If we do, we get corrupted drawing. See #19997
+//			if (m_hGlRc && m_hGlRc != s_firsthGLRc) {
+//				success = ::wglDeleteContext(m_hGlRc) == TRUE ? GHOST_kSuccess : GHOST_kFailure;
+//				m_hGlRc = 0;
+//			}
+//			else { // XXX jwilkins: is it correct to fail in the case that this is the first context? maybe return success but not delete the context is better?
+//				success = GHOST_kFailure;
+//			}
+//			break;
+//#elif defined(WITH_GL_SYSTEM_EMBEDDED)
+//			if (m_egl_display != EGL_NO_DISPLAY) {
+//				EGLBoolean context_destroyed;
+//				EGLBoolean surface_destroyed;
+//
+//				if (m_egl_context != EGL_NO_CONTEXT && m_egl_context != s_egl_first_context) {
+//					context_destroyed = ::eglDestroyContext(m_egl_display, m_egl_context);
+//				}
+//				else {
+//					context_destroyed = EGL_TRUE; /* not really gone, but giving up ownership */
+//				}
+//
+//				m_egl_context = EGL_NO_CONTEXT;
+//
+//				if (m_egl_surface != EGL_NO_SURFACE) {
+//					surface_destroyed = ::eglDestroySurface(m_egl_display, m_egl_surface);
+//				}
+//				else {
+//					surface_destroyed = EGL_FALSE;
+//				}
+//
+//				m_egl_surface = EGL_NO_SURFACE;
+//
+//				success = context_destroyed && surface_destroyed ? GHOST_kSuccess : GHOST_kFailure;
+//			}
+//			else {
+//				success = GHOST_kFailure;
+//			}
+//			break;
+//#else
+//#error
+//#endif
+//
+//		case GHOST_kDrawingContextTypeNone:
+//			success = GHOST_kSuccess;
+//			break;
+//		default:
+//			success = GHOST_kFailure;
+//	}
+//	return success;
+//}
 
 void GHOST_WindowWin32::lostMouseCapture()
 {
@@ -1528,97 +1558,97 @@ GHOST_TSuccess GHOST_WindowWin32::endProgressBar()
 	return GHOST_kFailure;
 }
 
-#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
-
-/* Ron Fosner's code for weighting pixel formats and forcing software.
- * See http://www.opengl.org/resources/faq/technical/weight.cpp */
-
-static int WeightPixelFormat(PIXELFORMATDESCRIPTOR& pfd)
-{
-	int weight = 0;
-
-	/* assume desktop color depth is 32 bits per pixel */
-
-	/* cull unusable pixel formats */
-	/* if no formats can be found, can we determine why it was rejected? */
-	if (!(pfd.dwFlags & PFD_SUPPORT_OPENGL) ||
-	    !(pfd.dwFlags & PFD_DRAW_TO_WINDOW) ||
-	    !(pfd.dwFlags & PFD_DOUBLEBUFFER) || /* Blender _needs_ this */
-	    (pfd.cDepthBits <= 8) ||
-	    !(pfd.iPixelType == PFD_TYPE_RGBA))
-	{
-		return 0;
-	}
-
-	weight = 1;  /* it's usable */
-
-	/* the bigger the depth buffer the better */
-	/* give no weight to a 16-bit depth buffer, because those are crap */
-	weight += pfd.cDepthBits - 16;
-
-	weight += pfd.cColorBits - 8;
-
-#ifdef GHOST_OPENGL_ALPHA
-	if (pfd.cAlphaBits > 0)
-		weight ++;
-#endif
-
-	/* want swap copy capability -- it matters a lot */
-	if (pfd.dwFlags & PFD_SWAP_COPY) weight += 16;
-
-	/* but if it's a generic (not accelerated) view, it's really bad */
-	if (pfd.dwFlags & PFD_GENERIC_FORMAT) weight /= 10;
-
-	return weight;
-}
-
-/* A modification of Ron Fosner's replacement for ChoosePixelFormat */
-/* returns 0 on error, else returns the pixel format number to be used */
-static int EnumPixelFormats(HDC hdc)
-{
-	int iPixelFormat;
-	int i, n, w, weight = 0;
-	PIXELFORMATDESCRIPTOR pfd;
-
-	/* we need a device context to do anything */
-	if (!hdc) return 0;
-
-	iPixelFormat = 1; /* careful! PFD numbers are 1 based, not zero based */
-
-	/* obtain detailed information about
-	 * the device context's first pixel format */
-	n = 1 + ::DescribePixelFormat(hdc, iPixelFormat,
-	                              sizeof(PIXELFORMATDESCRIPTOR), &pfd);
-
-	/* choose a pixel format using the useless Windows function in case
-	 * we come up empty handed */
-	iPixelFormat = ::ChoosePixelFormat(hdc, &sPreferredFormat);
-
-	if (!iPixelFormat) return 0;  /* couldn't find one to use */
-
-	for (i = 1; i <= n; i++) { /* not the idiom, but it's right */
-		::DescribePixelFormat(hdc, i, sizeof(PIXELFORMATDESCRIPTOR), &pfd);
-		w = WeightPixelFormat(pfd);
-		// be strict on stereo
-		if (!((sPreferredFormat.dwFlags ^ pfd.dwFlags) & PFD_STEREO)) {
-			if (w > weight) {
-				weight = w;
-				iPixelFormat = i;
-			}
-		}
-	}
-	if (weight == 0) {
-		// we could find the correct stereo setting, just find any suitable format
-		for (i = 1; i <= n; i++) { /* not the idiom, but it's right */
-			::DescribePixelFormat(hdc, i, sizeof(PIXELFORMATDESCRIPTOR), &pfd);
-			w = WeightPixelFormat(pfd);
-			if (w > weight) {
-				weight = w;
-				iPixelFormat = i;
-			}
-		}
-	}
-	return iPixelFormat;
-}
-
-#endif
+//#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
+//
+///* Ron Fosner's code for weighting pixel formats and forcing software.
+// * See http://www.opengl.org/resources/faq/technical/weight.cpp */
+//
+//static int WeightPixelFormat(PIXELFORMATDESCRIPTOR& pfd)
+//{
+//	int weight = 0;
+//
+//	/* assume desktop color depth is 32 bits per pixel */
+//
+//	/* cull unusable pixel formats */
+//	/* if no formats can be found, can we determine why it was rejected? */
+//	if (!(pfd.dwFlags & PFD_SUPPORT_OPENGL) ||
+//	    !(pfd.dwFlags & PFD_DRAW_TO_WINDOW) ||
+//	    !(pfd.dwFlags & PFD_DOUBLEBUFFER) || /* Blender _needs_ this */
+//	    (pfd.cDepthBits <= 8) ||
+//	    !(pfd.iPixelType == PFD_TYPE_RGBA))
+//	{
+//		return 0;
+//	}
+//
+//	weight = 1;  /* it's usable */
+//
+//	/* the bigger the depth buffer the better */
+//	/* give no weight to a 16-bit depth buffer, because those are crap */
+//	weight += pfd.cDepthBits - 16;
+//
+//	weight += pfd.cColorBits - 8;
+//
+//#ifdef GHOST_OPENGL_ALPHA
+//	if (pfd.cAlphaBits > 0)
+//		weight ++;
+//#endif
+//
+//	/* want swap copy capability -- it matters a lot */
+//	if (pfd.dwFlags & PFD_SWAP_COPY) weight += 16;
+//
+//	/* but if it's a generic (not accelerated) view, it's really bad */
+//	if (pfd.dwFlags & PFD_GENERIC_FORMAT) weight /= 10;
+//
+//	return weight;
+//}
+//
+///* A modification of Ron Fosner's replacement for ChoosePixelFormat */
+///* returns 0 on error, else returns the pixel format number to be used */
+//static int EnumPixelFormats(HDC hdc)
+//{
+//	int iPixelFormat;
+//	int i, n, w, weight = 0;
+//	PIXELFORMATDESCRIPTOR pfd;
+//
+//	/* we need a device context to do anything */
+//	if (!hdc) return 0;
+//
+//	iPixelFormat = 1; /* careful! PFD numbers are 1 based, not zero based */
+//
+//	/* obtain detailed information about
+//	 * the device context's first pixel format */
+//	n = 1 + ::DescribePixelFormat(hdc, iPixelFormat,
+//	                              sizeof(PIXELFORMATDESCRIPTOR), &pfd);
+//
+//	/* choose a pixel format using the useless Windows function in case
+//	 * we come up empty handed */
+//	iPixelFormat = ::ChoosePixelFormat(hdc, &sPreferredFormat);
+//
+//	if (!iPixelFormat) return 0;  /* couldn't find one to use */
+//
+//	for (i = 1; i <= n; i++) { /* not the idiom, but it's right */
+//		::DescribePixelFormat(hdc, i, sizeof(PIXELFORMATDESCRIPTOR), &pfd);
+//		w = WeightPixelFormat(pfd);
+//		// be strict on stereo
+//		if (!((sPreferredFormat.dwFlags ^ pfd.dwFlags) & PFD_STEREO)) {
+//			if (w > weight) {
+//				weight = w;
+//				iPixelFormat = i;
+//			}
+//		}
+//	}
+//	if (weight == 0) {
+//		// we could find the correct stereo setting, just find any suitable format
+//		for (i = 1; i <= n; i++) { /* not the idiom, but it's right */
+//			::DescribePixelFormat(hdc, i, sizeof(PIXELFORMATDESCRIPTOR), &pfd);
+//			w = WeightPixelFormat(pfd);
+//			if (w > weight) {
+//				weight = w;
+//				iPixelFormat = i;
+//			}
+//		}
+//	}
+//	return iPixelFormat;
+//}
+//
+//#endif

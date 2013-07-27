@@ -233,7 +233,6 @@ void gpuPushMatrix(void)
 
 void gpuPopMatrix(void)
 {
-	GPU_CHECK_NO_ERROR();
 	GPU_ASSERT(ms_current->pos != 0);
 
 	ms_current->pos--;
@@ -241,14 +240,12 @@ void gpuPopMatrix(void)
 	ms_current->changed = GL_TRUE;
 
 	CHECKMAT(ms_current);
-	GPU_CHECK_NO_ERROR();
 }
 
 
 
 void gpuMatrixMode(GLenum mode)
 {
-	GPU_CHECK_NO_ERROR();
 	GPU_ASSERT(ELEM3(mode, GL_MODELVIEW, GL_PROJECTION, GL_TEXTURE));
 
 	ms_current_mode = mode;
@@ -280,8 +277,6 @@ GLenum gpuGetMatrixMode(void)
 
 void gpuLoadMatrix(const GLfloat* m)
 {
-	GPU_CHECK_NO_ERROR();
-
 	copy_m4_m4(current_matrix(), (GLfloat (*)[4])m);
 
 	ms_current->changed = GL_TRUE;
@@ -295,7 +290,6 @@ const GLfloat* gpuGetMatrix(GLenum type, GLfloat *m)
 {
 	GPU_matrix_stack* ms_select;
 
-	GPU_CHECK_NO_ERROR();
 	GPU_ASSERT(ELEM3(type, GL_MODELVIEW_MATRIX, GL_PROJECTION_MATRIX, GL_TEXTURE_MATRIX));
 
 	switch(type) {
@@ -325,8 +319,6 @@ const GLfloat* gpuGetMatrix(GLenum type, GLfloat *m)
 
 void gpuLoadIdentity(void)
 {
-	GPU_CHECK_NO_ERROR();
-
 	unit_m4(current_matrix());
 
 	ms_current->changed = GL_TRUE;
@@ -338,8 +330,6 @@ void gpuLoadIdentity(void)
 
 void gpuTranslate(GLfloat x, GLfloat y, GLfloat z)
 {
-	GPU_CHECK_NO_ERROR();
-
 	translate_m4(current_matrix(), x, y, z);
 
 	ms_current->changed = GL_TRUE;
@@ -351,8 +341,6 @@ void gpuTranslate(GLfloat x, GLfloat y, GLfloat z)
 
 void gpuScale(GLfloat x, GLfloat y, GLfloat z)
 {
-	GPU_CHECK_NO_ERROR();
-
 	scale_m4(current_matrix(), x, y, z);
 
 	ms_current->changed = GL_TRUE;
@@ -365,8 +353,6 @@ void gpuScale(GLfloat x, GLfloat y, GLfloat z)
 void gpuMultMatrix(const GLfloat *m)
 {
 	GPU_matrix cm;
-
-	GPU_CHECK_NO_ERROR();
 
 	copy_m4_m4(cm, current_matrix());
 	mult_m4_m4m4_q(current_matrix(), cm, (GLfloat (*)[4])m);
@@ -383,8 +369,6 @@ void gpuMultMatrixd(const double *m)
 	GLfloat mf[16];
 	GLint i;
 
-	GPU_CHECK_NO_ERROR();
-
 	for(i = 0; i < 16; i++) {
 		mf[i] = m[i];
 	}
@@ -398,8 +382,6 @@ void gpuRotateVector(GLfloat deg, GLfloat vector[3])
 {
 	float rm[3][3];
 	GPU_matrix cm;
-
-	GPU_CHECK_NO_ERROR();
 
 	axis_angle_to_mat3(rm, vector, DEG2RADF(deg));
 
@@ -415,8 +397,6 @@ void gpuRotateVector(GLfloat deg, GLfloat vector[3])
 
 void gpuRotateAxis(GLfloat deg, char axis)
 {
-	GPU_CHECK_NO_ERROR();
-
 	rotate_m4(current_matrix(), axis, DEG2RADF(deg));
 
 	ms_current->changed = GL_TRUE;
@@ -428,8 +408,6 @@ void gpuRotateAxis(GLfloat deg, char axis)
 
 void gpuRotateRight(char type)
 {
-	GPU_CHECK_NO_ERROR();
-
 	rotate_m4_right(current_matrix(), type);
 
 	ms_current->changed = GL_TRUE;
@@ -441,8 +419,6 @@ void gpuRotateRight(char type)
 
 void gpuLoadOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat nearVal, GLfloat farVal)
 {
-	GPU_CHECK_NO_ERROR();
-
 	mat4_ortho_set(current_matrix(), left, right, bottom, top, nearVal, farVal);
 
 	ms_current->changed = GL_TRUE;
@@ -456,8 +432,6 @@ void gpuOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat 
 {
 	GPU_matrix om;
 
-	GPU_CHECK_NO_ERROR();
-
 	mat4_ortho_set(om, left, right, bottom, top, nearVal, farVal);
 
 	gpuMultMatrix((GLfloat*)om);
@@ -469,8 +443,6 @@ void gpuFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloa
 {
 	GPU_matrix fm;
 
-	GPU_CHECK_NO_ERROR();
-
 	mat4_frustum_set(fm, left, right, bottom, top, nearVal, farVal);
 
 	gpuMultMatrix((GLfloat*) fm);
@@ -480,8 +452,6 @@ void gpuFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloa
 
 void gpuLoadFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat nearVal, GLfloat farVal)
 {
-	GPU_CHECK_NO_ERROR();
-
 	mat4_frustum_set(current_matrix(), left, right, bottom, top, nearVal, farVal);
 
 	ms_current->changed = GL_TRUE;
@@ -496,8 +466,6 @@ void gpuLookAt(GLfloat eyeX, GLfloat eyeY, GLfloat eyeZ, GLfloat centerX, GLfloa
 	GPU_matrix cm;
 	GLfloat lookdir[3];
 	GLfloat camup[3] = {upX, upY, upZ};
-
-	GPU_CHECK_NO_ERROR();
 
 	lookdir[0] =  centerX - eyeX;
 	lookdir[1] =  centerY - eyeY;
@@ -515,8 +483,6 @@ void gpuProject(const GLfloat obj[3], const GLfloat model[4][4], const GLfloat p
 {
 	float v[4];
 
-	GPU_CHECK_NO_ERROR();
-
 	mul_v4_m4v3(v, model, obj);
 	mul_m4_v4(proj, v);
 
@@ -532,8 +498,6 @@ GLboolean gpuUnProject(const GLfloat win[3], const GLfloat model[4][4], const GL
 	GLfloat pm[4][4];
 	GLfloat in[4];
 	GLfloat out[4];
-
-	GPU_CHECK_NO_ERROR();
 
 	mul_m4_m4m4(pm, proj, model);
 

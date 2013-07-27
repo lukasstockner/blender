@@ -37,7 +37,7 @@
 
 
 
-class GHOST_ContextNone : GHOST_Context
+class GHOST_ContextNone : public GHOST_Context
 {
 public:
 	/**
@@ -58,13 +58,13 @@ public:
 	 * \param numOfAASamples	ignored
 	 * \return Always succeeds
 	 */
-	virtual GHOST_TSuccess installDrawingContext(bool = false, GHOST_TUns16 = 0);
+	virtual GHOST_TSuccess initializeDrawingContext(bool = false, GHOST_TUns16 = 0);
 
 	/**
 	 * Dummy function
 	 * \return Always succeeds
 	 */
-	virtual GHOST_TSuccess removeDrawingContext();
+	GHOST_TSuccess releaseNativeHandles();
 };
 
 

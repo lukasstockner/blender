@@ -219,39 +219,51 @@ GHOST_IWindow *GHOST_SystemWin32::createWindow(
 		GHOST_TWindowState state, GHOST_TDrawingContextType type,
 		bool stereoVisual, const bool exclusive, const GHOST_TUns16 numOfAASamples, const GHOST_TEmbedderWindowID parentWindow)
 {
-	GHOST_Window *window = 0;
-	window = new GHOST_WindowWin32(this, title, left, top, width, height, state, type, stereoVisual, numOfAASamples, parentWindow);
-	if (window) {
-		if (window->getValid()) {
-			// Store the pointer to the window
-//			if (state != GHOST_kWindowStateFullScreen) {
+	GHOST_Window *window =
+		new GHOST_WindowWin32(
+				this,
+				title,
+				left,
+				top,
+				width,
+				height,
+				state,
+				type,
+				stereoVisual,
+				numOfAASamples,
+				parentWindow);
+
+	if (window && window->getValid()) {
+		// Store the pointer to the window
+//		if (state != GHOST_kWindowStateFullScreen) {
 			m_windowManager->addWindow(window);
 			m_windowManager->setActiveWindow(window);
-//			}
-		}
-		else {
-
-			// Invalid parent window hwnd
-			if (((GHOST_WindowWin32 *)window)->getNextWindow() == NULL) {
-				delete window;
-				window = 0;
-				return window;
-			}
-
-			// An invalid window could be one that was used to test for AA
-			window = ((GHOST_WindowWin32 *)window)->getNextWindow();
-			
-			// If another window is found, let the wm know about that one, but not the old one
-			if (window->getValid()) {
-				m_windowManager->addWindow(window);
-			}
-			else {
-				delete window;
-				window = 0;
-			}
-
-		}
+//		}
 	}
+//		else {
+//
+//			// Invalid parent window hwnd
+//			if (((GHOST_WindowWin32 *)window)->getNextWindow() == NULL) {
+//				delete window;
+//				window = 0;
+//				return window;
+//			}
+//
+//			// An invalid window could be one that was used to test for AA
+//			window = ((GHOST_WindowWin32 *)window)->getNextWindow();
+//			
+//			// If another window is found, let the wm know about that one, but not the old one
+//			if (window->getValid()) {
+//				m_windowManager->addWindow(window);
+//			}
+//			else {
+//				delete window;
+//				window = 0;
+//			}
+//
+//		}
+//	}
+
 	return window;
 }
 

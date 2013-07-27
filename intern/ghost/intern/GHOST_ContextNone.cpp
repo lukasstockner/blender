@@ -48,14 +48,14 @@ GHOST_TSuccess GHOST_ContextNone::activateDrawingContext()
 
 
 
-GHOST_TSuccess GHOST_ContextNone::installDrawingContext(bool, GHOST_TUns16)
+GHOST_TSuccess GHOST_ContextNone::initializeDrawingContext(bool, GHOST_TUns16)
 {
 	return GHOST_kSuccess;
 }
 
 
 
-GHOST_TSuccess GHOST_ContextNone::removeDrawingContext()
+GHOST_TSuccess GHOST_ContextNone::releaseNativeHandles()
 {
 	return GHOST_kSuccess;
 }

@@ -37,16 +37,17 @@
 #error WIN32 only!
 #endif // WIN32
 
+#define _WIN32_WINNT 0x501 // require Windows XP or newer
+#define WIN32_LEAN_AND_MEAN
+
 #include "GHOST_Window.h"
 #include "GHOST_TaskbarWin32.h"
 
-#define _WIN32_WINNT 0x501 // require Windows XP or newer
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#if defined(WITH_GL_SYSTEM_EMBEDDED) // XXX jwilkins: can remove this after implementing GHOST_Context
-#include <GL/eglew.h>
-#endif
+//#if defined(WITH_GL_SYSTEM_EMBEDDED) // XXX jwilkins: can remove this after implementing GHOST_Context
+//#include <GL/eglew.h>
+//#endif
 
 #include <wintab.h>
 #define PACKETDATA  (PK_BUTTONS | PK_NORMAL_PRESSURE | PK_ORIENTATION | PK_CURSOR)
@@ -95,9 +96,9 @@ public:
 	    GHOST_TDrawingContextType type = GHOST_kDrawingContextTypeNone,
 	    const bool stereoVisual = false,
 	    const GHOST_TUns16 numOfAASamples = 0,
-	    GHOST_TEmbedderWindowID parentWindowHwnd = 0,
-	    GHOST_TSuccess msEnabled = GHOST_kFailure,
-	    int msPixelFormat = 0
+	    GHOST_TEmbedderWindowID parentWindowHwnd = 0
+	    //GHOST_TSuccess msEnabled = GHOST_kFailure,
+	    //int msPixelFormat = 0
 	    );
 
 	/**
@@ -106,12 +107,12 @@ public:
 	 */
 	virtual ~GHOST_WindowWin32();
 
-	/**
-	 * Returns the window to replace this one if it's getting replaced
-	 * \return The window replacing this one.
-	 */
+	///**
+	// * Returns the window to replace this one if it's getting replaced
+	// * \return The window replacing this one.
+	// */
 
-	GHOST_Window *getNextWindow();
+	//GHOST_Window *getNextWindow();
 
 	/**
 	 * Returns indication as to whether the window is valid.
@@ -209,18 +210,6 @@ public:
 	virtual GHOST_TSuccess setOrder(GHOST_TWindowOrder order);
 
 	/**
-	 * Swaps front and back buffers of a window.
-	 * \return Indication of success.
-	 */
-	virtual GHOST_TSuccess swapBuffers();
-
-	/**
-	 * Activates the drawing context of this window.
-	 * \return Indication of success.
-	 */
-	virtual GHOST_TSuccess activateDrawingContext();
-
-	/**
 	 * Invalidates the contents of this window.
 	 */
 	virtual GHOST_TSuccess invalidate();
@@ -236,13 +225,13 @@ public:
 	 */
 	virtual GHOST_TSuccess endProgressBar();
 	
-	/**
-	 * Returns the name of the window class.
-	 * \return The name of the window class.
-	 */
-	static const wchar_t *getWindowClassName() {
-		return s_windowClassName;
-	}
+	///**
+	// * Returns the name of the window class.
+	// * \return The name of the window class.
+	// */
+	//static const wchar_t *getWindowClassName() {
+	//	return s_windowClassName;
+	//}
 
 	/**
 	 * Register a mouse click event (should be called 
@@ -284,23 +273,16 @@ public:
 	GHOST_TSuccess endFullScreen() const {return GHOST_kFailure;}
 
 	/** if the window currently resizing */
-	bool m_inLiveResize;
+	bool m_inLiveResize; // XXX jwilkins: ugh
 
-protected:
-	GHOST_TSuccess initMultisample(PIXELFORMATDESCRIPTOR pfd);
-
-	/**
-	 * Tries to install a rendering context in this window.
-	 * \param type	The type of rendering context installed.
-	 * \return Indication of success.
-	 */
-	virtual GHOST_TSuccess installDrawingContext(GHOST_TDrawingContextType type);
+private:
+	//GHOST_TSuccess initMultisample(PIXELFORMATDESCRIPTOR pfd);
 
 	/**
-	 * Removes the current drawing context.
+	 * \param type	The type of rendering context create.
 	 * \return Indication of success.
 	 */
-	virtual GHOST_TSuccess removeDrawingContext();
+	virtual GHOST_Context* newDrawingContext(GHOST_TDrawingContextType type);
 
 	/**
 	 * Sets the cursor visibility on the window using
@@ -348,27 +330,29 @@ protected:
 	HWND m_hWnd;
 	/** Device context handle. */
 	HDC m_hDC;
-#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
-	/** OpenGL rendering context. */
-	HGLRC m_hGlRc;
-	/** The first created OpenGL context (for sharing display lists) */
-	static HGLRC s_firsthGLRc;
-	/** The first created device context handle. */
-	static HDC s_firstHDC;
-#endif
-#if defined(WITH_GL_SYSTEM_EMBEDDED)
-	EGLContext m_egl_context;
-	EGLSurface m_egl_surface;
-	EGLDisplay m_egl_display;
 
-#if defined(WITH_ANGLE)
-	static HMODULE s_d3dcompiler;
-#endif
+//#if defined(WITH_GL_SYSTEM_DESKTOP) || defined(WITH_GL_SYSTEM_LEGACY)
+//	/** OpenGL rendering context. */
+//	HGLRC m_hGlRc;
+//	/** The first created OpenGL context (for sharing display lists) */
+//	static HGLRC s_firsthGLRc;
+//	/** The first created device context handle. */
+//	static HDC s_firstHDC;
+//#endif
+//#if defined(WITH_GL_SYSTEM_EMBEDDED)
+//	EGLContext m_egl_context;
+//	EGLSurface m_egl_surface;
+//	EGLDisplay m_egl_display;
+//
+//#if defined(WITH_ANGLE)
+//	static HMODULE s_d3dcompiler;
+//#endif
+//
+//	static EGLContext s_egl_first_context;
+//
+//	static bool s_eglew_initialized;
+//#endif
 
-	static EGLContext s_egl_first_context;
-
-	static bool s_eglew_initialized;
-#endif
 	/** Flag for if window has captured the mouse */
 	bool m_hasMouseCaptured;
 	/** Flag if an operator grabs the mouse with WM_cursor_grab_enable/ungrab() 
@@ -396,26 +380,26 @@ protected:
 	LONG m_maxPressure;
 	LONG m_maxAzimuth, m_maxAltitude;
 
-	/** Preferred number of samples */
-	GHOST_TUns16 m_multisample;
+	///** Preferred number of samples */
+	//GHOST_TUns16 m_multisample;
 
-	/** Check if multisample is supported */
-	GHOST_TSuccess m_multisampleEnabled;
+	///** Check if multisample is supported */
+	//GHOST_TSuccess m_multisampleEnabled;
 
-	/** The pixelFormat to use for multisample */
-	int m_msPixelFormat;
+	///** The pixelFormat to use for multisample */
+	//int m_msPixelFormat;
 
-	/** We need to following to recreate the window */
-	const STR_String& m_title;
-	GHOST_TInt32 m_left;
-	GHOST_TInt32 m_top;
-	GHOST_TUns32 m_width;
-	GHOST_TUns32 m_height;
+	///** We need to following to recreate the window */
+	//const STR_String& m_title;
+	//GHOST_TInt32 m_left;
+	//GHOST_TInt32 m_top;
+	//GHOST_TUns32 m_width;
+	//GHOST_TUns32 m_height;
 	GHOST_TWindowState m_normal_state;
-	bool m_stereo;
+	//bool m_stereo;
 
-	/** The GHOST_System passes this to wm if this window is being replaced */
-	GHOST_Window *m_nextWindow;
+	///** The GHOST_System passes this to wm if this window is being replaced */
+	//GHOST_Window *m_nextWindow;
 
 	/** Hwnd to parent window */
 	GHOST_TEmbedderWindowID m_parentWindowHwnd;

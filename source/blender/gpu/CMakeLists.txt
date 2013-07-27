@@ -86,7 +86,7 @@ set(SRC
 	GPU_primitives.h
 	GPU_object.h
 
-    intern/gpu_aspect.h
+	intern/gpu_aspect.h
 	intern/gpu_aspectfuncs.h
 	intern/gpu_codegen.h
 	intern/gpu_deprecated.h
@@ -110,6 +110,12 @@ set(SRC
 	intern/gpu_view.h
 	intern/gpu_view_gl.h
 )
+
+if(WITH_GPU_SAFETY)
+	list(APPEND SRC
+		intern/gpu_safety.c
+	)
+endif()
 
 data_to_c_simple(shaders/gpu_shader_material.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_sep_gaussian_blur_frag.glsl SRC)

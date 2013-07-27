@@ -38,74 +38,150 @@
 
 
 
-static const char* get_egl_error_string(EGLenum error)
+static const char* get_egl_error_enum_string(EGLenum error)
 {
 	switch(error) {
 		case EGL_SUCCESS:
-			return "EGL_SUCCESS: The last function succeeded without error.";
+			return "EGL_SUCCESS";
 
 		case EGL_NOT_INITIALIZED:
-			return "EGL_NOT_INITIALIZED: EGL is not initialized, or could not be initialized, for the specified EGL display connection.";
+			return "EGL_NOT_INITIALIZED";
 
 		case EGL_BAD_ACCESS:
-			return "EGL_BAD_ALLOC: EGL cannot access a requested resource (for example a context is bound in another thread).";
+			return "EGL_BAD_ALLOC";
 
 		case EGL_BAD_ALLOC:
-			return "EGL_BAD_ALLOC: EGL failed to allocate resources for the requested operation.";
+			return "EGL_BAD_ALLOC";
 
 		case EGL_BAD_ATTRIBUTE:
-			return "EGL_BAD_ATTRIBUTE: An unrecognized attribute or attribute value was passed in the attribute list.";
+			return "EGL_BAD_ATTRIBUTE";
 
 		case EGL_BAD_CONTEXT:
-			return "EGL_BAD_CONTEXT: An EGLContext argument does not name a valid EGL rendering context.";
+			return "EGL_BAD_CONTEXT";
 
 		case EGL_BAD_CONFIG:
-			return "EGL_BAD_CONFIG: An EGLConfig argument does not name a valid EGL frame buffer configuration.";
+			return "EGL_BAD_CONFIG";
 
 		case EGL_BAD_CURRENT_SURFACE:
-			return "EGL_BAD_CURRENT_SURFACE: The current surface of the calling thread is a window, pixel buffer or pixmap that is no longer valid.";
+			return "EGL_BAD_CURRENT_SURFACE";
 
 		case EGL_BAD_DISPLAY:
-			return "EGL_BAD_DISPLAY: An EGLDisplay argument does not name a valid EGL display connection.";
+			return "EGL_BAD_DISPLAY";
 
 		case EGL_BAD_SURFACE:
-			return "EGL_BAD_SURFACE: An EGLSurface argument does not name a valid surface (window, pixel buffer or pixmap) configured for GL rendering.";
+			return "EGL_BAD_SURFACE";
 
 		case EGL_BAD_MATCH:
-			return "EGL_BAD_MATCH: Arguments are inconsistent (for example, a valid context requires buffers not supplied by a valid surface).";
+			return "EGL_BAD_MATCH";
 
 		case EGL_BAD_PARAMETER:
-			return "EGL_BAD_PARAMETER: One or more argument values are invalid.";
+			return "EGL_BAD_PARAMETER";
 
 		case EGL_BAD_NATIVE_PIXMAP:
-			return "EGL_BAD_NATIVE_PIXMAP: A NativePixmapType argument does not refer to a valid native pixmap.";
+			return "EGL_BAD_NATIVE_PIXMAP";
 
 		case EGL_BAD_NATIVE_WINDOW:
-			return "EGL_BAD_NATIVE_WINDOW: A NativeWindowType argument does not refer to a valid native window.";
+			return "EGL_BAD_NATIVE_WINDOW";
 
 		case EGL_CONTEXT_LOST:
-			return "EGL_CONTEXT_LOST: A power management event has occurred. The application must destroy all contexts and reinitialise OpenGL ES state and objects to continue rendering.";
+			return "EGL_CONTEXT_LOST";
 
 		default:
-			abort();
+			return NULL;
+	}
+}
+
+static const char* get_egl_error_message_string(EGLenum error)
+{
+	switch(error) {
+		case EGL_SUCCESS:
+			return "The last function succeeded without error.";
+
+		case EGL_NOT_INITIALIZED:
+			return "EGL is not initialized, or could not be initialized, for the specified EGL display connection.";
+
+		case EGL_BAD_ACCESS:
+			return "EGL cannot access a requested resource (for example a context is bound in another thread).";
+
+		case EGL_BAD_ALLOC:
+			return "EGL failed to allocate resources for the requested operation.";
+
+		case EGL_BAD_ATTRIBUTE:
+			return "An unrecognized attribute or attribute value was passed in the attribute list.";
+
+		case EGL_BAD_CONTEXT:
+			return "An EGLContext argument does not name a valid EGL rendering context.";
+
+		case EGL_BAD_CONFIG:
+			return "An EGLConfig argument does not name a valid EGL frame buffer configuration.";
+
+		case EGL_BAD_CURRENT_SURFACE:
+			return "The current surface of the calling thread is a window, pixel buffer or pixmap that is no longer valid.";
+
+		case EGL_BAD_DISPLAY:
+			return "An EGLDisplay argument does not name a valid EGL display connection.";
+
+		case EGL_BAD_SURFACE:
+			return "An EGLSurface argument does not name a valid surface (window, pixel buffer or pixmap) configured for GL rendering.";
+
+		case EGL_BAD_MATCH:
+			return "Arguments are inconsistent (for example, a valid context requires buffers not supplied by a valid surface).";
+
+		case EGL_BAD_PARAMETER:
+			return "One or more argument values are invalid.";
+
+		case EGL_BAD_NATIVE_PIXMAP:
+			return "A NativePixmapType argument does not refer to a valid native pixmap.";
+
+		case EGL_BAD_NATIVE_WINDOW:
+			return "A NativeWindowType argument does not refer to a valid native window.";
+
+		case EGL_CONTEXT_LOST:
+			return "A power management event has occurred. The application must destroy all contexts and reinitialise OpenGL ES state and objects to continue rendering.";
+
+		default:
+			return NULL;
 	}
 }
 
 
 
-static inline bool egl_chk(bool result, const char* file, int line, const char* text)
+static bool egl_chk(bool result, const char* file = NULL, int line = 0, const char* text = NULL)
 {
 	if (!result) {
-		fprintf(stderr, "EGL Error: %s\n", get_egl_error_string(eglGetError()));
-		fprintf(stderr, "%s(%d): %s\n", file, line, text);
+		EGLenum error = eglGetError();
+
+		const char* code = get_egl_error_enum_string(error),
+		const char* msg  = get_egl_error_message_string(error);
+
+#ifndef NDEBUG
+		fprintf(
+			stderr,
+			"%s(%d): EGL Error (%4X): %s: %s\n",
+			file,
+			line,
+			text,
+			error,
+			code ? code : "Unknown Code",
+			msg  ? msg  : "Unknown Error");
+#else
+		fprintf(
+			stderr,
+			"EGL Error (%4X): %s: %s\n",
+			error,
+			code ? code : "Unknown Code",
+			msg  ? msg  : "Unknown Error");
+#endif
 	}
 
 	return result;
 }
 
-
-
+#ifndef NDEBUG
 #define EGL_CHK(x) egl_chk((x), __FILE__, __LINE__, #x)
+#else
+#define EGL_CHK(x) egl_chk(x)
+#endif
 
 
 
@@ -120,10 +196,6 @@ static inline void bindAPI(EGLenum api)
 #if defined(WITH_ANGLE)
 HMODULE GHOST_ContextEGL::s_d3dcompiler = NULL;
 #endif
-
-
-
-bool GHOST_ContextEGL::s_eglewInitialized = false;
 
 
 
@@ -181,9 +253,6 @@ GHOST_ContextEGL::~GHOST_ContextEGL()
 {
 	removeDrawingContext();
 
-	// Note: If multiple GHOST_ContextEGL are initialized with the same EGLNativeDisplayType then
-	// those other GHOST_ContextEGL will become invalid after this call to eglTerminate.
-	// See EGL 1.4 spec section 3.2
 	EGL_CHK(::eglTerminate(m_display));
 }
 
@@ -205,20 +274,14 @@ GHOST_TSuccess GHOST_ContextEGL::activateDrawingContext()
 
 
 
-GHOST_TSuccess GHOST_ContextEGL::init_eglew()
+static bool init_eglew()
 {
-	if (!s_eglewInitialized) {
-		if (eglewInit() == GLEW_OK) {
-			s_eglewInitialized = true;
-			return GHOST_kSuccess;
-		}
-		else {
-			return GHOST_kFailure;
-		}
-	}
-	else {
-		return GHOST_kSuccess;
-	}
+	static bool eglewInitialized = false;
+
+	if (!eglewInitialized && eglewInit() == GLEW_OK)
+		eglewInitialized = true;
+
+	return eglewInitialized;
 }
 
 
@@ -268,7 +331,7 @@ GHOST_TSuccess GHOST_ContextEGL::installDrawingContext(bool stereoVisual, GHOST_
 		goto error;
 
 	if (!init_eglew())
-		goto error;
+		fprintf(stderr, "EGLEW failed to initialize.\n");
 
 	bindAPI(m_api);
 
@@ -323,7 +386,7 @@ GHOST_TSuccess GHOST_ContextEGL::installDrawingContext(bool stereoVisual, GHOST_
 
 	attrib_list.clear();
 
-	if (m_api == EGL_OPENGL_ES_API) {
+	if (m_api == EGL_OPENGL_ES_API && m_contextClientVersion != 0) {
 		attrib_list.push_back(EGL_CONTEXT_CLIENT_VERSION);
 		attrib_list.push_back(m_contextClientVersion);
 	}
@@ -351,7 +414,7 @@ error:
 	EGL_CHK(eglTerminate(m_display));
 	m_display = EGL_NO_DISPLAY;
 
-	eglMakeCurrent(prev_display, prev_draw, prev_read, prev_context);
+	EGL_CHK(eglMakeCurrent(prev_display, prev_draw, prev_read, prev_context));
 
 	return GHOST_kFailure;
 }
@@ -362,22 +425,24 @@ GHOST_TSuccess GHOST_ContextEGL::removeDrawingContext()
 {
 	bindAPI(m_api);
 
-	if (m_context == ::eglGetCurrentContext())
-		EGL_CHK(::eglMakeCurrent(m_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
+	if (m_context != EGL_NO_CONTEXT) {
+		if (m_context == ::eglGetCurrentContext())
+			EGL_CHK(::eglMakeCurrent(m_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
 
-	if (m_context != m_sharedContext || m_sharedCount == 1) {
-		assert(m_sharedCount > 0);
+		if (m_context != m_sharedContext || m_sharedCount == 1) {
+			assert(m_sharedCount > 0);
 
-		m_sharedCount--;
+			m_sharedCount--;
 
-		if (m_sharedCount == 0)
-			m_sharedContext = EGL_NO_CONTEXT;
+			if (m_sharedCount == 0)
+				m_sharedContext = EGL_NO_CONTEXT;
 
-		if (EGL_CHK(::eglDestroyContext(m_display, m_context)))
-			m_context = EGL_NO_CONTEXT;
+			if (EGL_CHK(::eglDestroyContext(m_display, m_context)))
+				m_context = EGL_NO_CONTEXT;
+		}
 	}
 
-	if (EGL_CHK(::eglDestroySurface(m_display, m_surface)))
+	if (m_surface != EGL_NO_SURFACE && EGL_CHK(::eglDestroySurface(m_display, m_surface)))
 		m_surface = EGL_NO_SURFACE;
 
 	return m_surface == EGL_NO_SURFACE && m_context == EGL_NO_CONTEXT ? GHOST_kSuccess : GHOST_kFailure;

@@ -59,24 +59,18 @@ public:
 	virtual GHOST_TSuccess activateDrawingContext() = 0;
 
 	/**
-	 * Tries to install a rendering context in this window.
+	 * Call immediately after new to initialize.  If this fails then immediately delete the object.
 	 * \param stereoVisual		Stereo visual for quad buffered stereo.
 	 * \param numOfAASamples	Number of samples used for AA (zero if no AA)
-	 * \return Indication as to whether installation has succeeded.
+	 * \return Indication as to whether initialization has succeeded.
 	 */
-	virtual GHOST_TSuccess installDrawingContext(bool stereoVisual = false, GHOST_TUns16 numOfAASamples = 0) = 0;
-
-	/**
-	 * Removes the current drawing context.
-	 * \return Indication as to whether removal has succeeded.
-	 */
-	virtual GHOST_TSuccess removeDrawingContext() = 0;
+	virtual GHOST_TSuccess initializeDrawingContext(bool stereoVisual = false, GHOST_TUns16 numOfAASamples = 0) = 0;
 
 	/**
 	 * Checks if it is OK for a remove the native display
 	 * \return Indication as to whether removal has succeeded.
 	 */
-	virtual GHOST_TSuccess releaseNativeHandles();
+	virtual GHOST_TSuccess releaseNativeHandles() = 0;
 };
 
 

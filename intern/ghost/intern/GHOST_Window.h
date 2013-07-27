@@ -36,6 +36,7 @@
 #include "GHOST_IWindow.h"
 
 class STR_String;
+class GHOST_Context;
 
 /**
  * Platform independent implementation of GHOST_IWindow.
@@ -66,8 +67,6 @@ public:
 	 * virtual GHOST_TSuccess setState(GHOST_TWindowState state) = 0;
 	 * virtual GHOST_TWindowOrder getOrder(void) = 0;
 	 * virtual GHOST_TSuccess setOrder(GHOST_TWindowOrder order) = 0;
-	 * virtual GHOST_TSuccess swapBuffers() = 0;
-	 * virtual GHOST_TSuccess activateDrawingContext() = 0;
 	 * virtual GHOST_TSuccess invalidate() = 0;
 	 */
 
@@ -88,7 +87,6 @@ public:
 	    GHOST_TUns32 width,
 	    GHOST_TUns32 height,
 	    GHOST_TWindowState state,
-	    GHOST_TDrawingContextType type = GHOST_kDrawingContextTypeNone,
 	    const bool stereoVisual = false,
 	    const bool exclusive = false,
 	    const GHOST_TUns16 numOfAASamples = 0);
@@ -237,11 +235,23 @@ public:
 	/**
 	 * Tries to install a rendering context in this window.
 	 * Child classes do not need to overload this method.
-	 * They should overload the installDrawingContext and removeDrawingContext instead.
+	 * They should overload newDrawingContext instead.
 	 * \param type	The type of rendering context installed.
 	 * \return Indication as to whether installation has succeeded.
 	 */
 	virtual GHOST_TSuccess setDrawingContextType(GHOST_TDrawingContextType type);
+
+	/**
+	 * Swaps front and back buffers of a window.
+	 * \return  A boolean success indicator.
+	 */
+	virtual GHOST_TSuccess swapBuffers();
+
+	/**
+	 * Activates the drawing context of this window.
+	 * \return  A boolean success indicator.
+	 */
+	virtual GHOST_TSuccess activateDrawingContext();
 
 	/**
 	 * Returns the window user data.
@@ -274,13 +284,7 @@ protected:
 	 * \param type	The type of rendering context installed.
 	 * \return Indication as to whether installation has succeeded.
 	 */
-	virtual GHOST_TSuccess installDrawingContext(GHOST_TDrawingContextType type) = 0;
-
-	/**
-	 * Removes the current drawing context.
-	 * \return Indication as to whether removal has succeeded.
-	 */
-	virtual GHOST_TSuccess removeDrawingContext() = 0;
+	virtual GHOST_Context* newDrawingContext(GHOST_TDrawingContextType type) = 0;
 
 	/**
 	 * Sets the cursor visibility on the window using
@@ -312,6 +316,9 @@ protected:
 	
 	virtual GHOST_TSuccess setWindowCustomCursorShape(GHOST_TUns8 *bitmap, GHOST_TUns8 *mask, 
 	                                                  int szx, int szy, int hotX, int hotY, int fg, int bg) = 0;
+
+	GHOST_TSuccess releaseNativeHandles();
+
 	/** The the of drawing context installed in this window. */
 	GHOST_TDrawingContextType m_drawingContextType;
 	
@@ -364,6 +371,9 @@ protected:
 	
 	/* OSX only, retina screens */
 	float m_nativePixelSize;
+
+private:
+	GHOST_Context* m_context;
 };
 
 

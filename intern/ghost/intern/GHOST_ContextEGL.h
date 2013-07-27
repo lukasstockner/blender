@@ -48,8 +48,8 @@ public:
 	GHOST_ContextEGL(
 		EGLNativeWindowType  nativeWindow,
 		EGLNativeDisplayType nativeDisplay,
-		EGLenum              api                  = EGL_OPENGL_ES_API,
-		EGLint               contextClientVersion = 2
+		EGLenum              api                  = 0,
+		EGLint               contextClientVersion = 0
 	);
 
 	/**
@@ -93,8 +93,6 @@ public:
 	virtual GHOST_TSuccess releaseNativeHandles();
 
 private:
-	GHOST_TSuccess init_eglew();
-
 	EGLNativeDisplayType m_nativeDisplay;
 	EGLNativeWindowType  m_nativeWindow;
 
@@ -117,8 +115,6 @@ private:
 
 	static EGLContext s_vg_sharedContext;
 	static EGLint     s_vg_sharedCount;
-
-	static bool s_eglewInitialized;
 
 #if defined(WITH_ANGLE)
 	static HMODULE s_d3dcompiler;
