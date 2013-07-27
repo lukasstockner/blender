@@ -151,26 +151,26 @@ static bool egl_chk(bool result, const char* file = NULL, int line = 0, const ch
 	if (!result) {
 		EGLenum error = eglGetError();
 
-		const char* code = get_egl_error_enum_string(error),
+		const char* code = get_egl_error_enum_string(error);
 		const char* msg  = get_egl_error_message_string(error);
 
 #ifndef NDEBUG
 		fprintf(
 			stderr,
-			"%s(%d): EGL Error (%4X): %s: %s\n",
+			"%s(%d):[%s] -> EGL Error (%04X): %s: %s\n",
 			file,
 			line,
 			text,
 			error,
-			code ? code : "Unknown Code",
-			msg  ? msg  : "Unknown Error");
+			code ? code : "<Unknown>",
+			msg  ? msg  : "<Unknown>");
 #else
 		fprintf(
 			stderr,
-			"EGL Error (%4X): %s: %s\n",
+			"EGL Error (%04X): %s: %s\n",
 			error,
-			code ? code : "Unknown Code",
-			msg  ? msg  : "Unknown Error");
+			code ? code : "<Unknown>",
+			msg  ? msg  : "<Unknown>");
 #endif
 	}
 
@@ -251,7 +251,26 @@ GHOST_ContextEGL::GHOST_ContextEGL(
 
 GHOST_ContextEGL::~GHOST_ContextEGL()
 {
-	removeDrawingContext();
+	bindAPI(m_api);
+
+	if (m_context != EGL_NO_CONTEXT) {
+		if (m_context == ::eglGetCurrentContext())
+			EGL_CHK(::eglMakeCurrent(m_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
+
+		if (m_context != m_sharedContext || m_sharedCount == 1) {
+			assert(m_sharedCount > 0);
+
+			m_sharedCount--;
+
+			if (m_sharedCount == 0)
+				m_sharedContext = EGL_NO_CONTEXT;
+
+			EGL_CHK(::eglDestroyContext(m_display, m_context));
+		}
+	}
+
+	if (m_surface != EGL_NO_SURFACE)
+		EGL_CHK(::eglDestroySurface(m_display, m_surface));
 
 	EGL_CHK(::eglTerminate(m_display));
 }
@@ -286,7 +305,7 @@ static bool init_eglew()
 
 
 
-GHOST_TSuccess GHOST_ContextEGL::installDrawingContext(bool stereoVisual, GHOST_TUns16 numOfAASamples)
+GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext(bool stereoVisual, GHOST_TUns16 numOfAASamples)
 {
 	std::vector<EGLint> attrib_list;
 
@@ -376,7 +395,7 @@ GHOST_TSuccess GHOST_ContextEGL::installDrawingContext(bool stereoVisual, GHOST_
 		goto error;
 
 	// common error is to assume that ChooseConfig worked because it returned EGL_TRUE
-	if (num_config != 1)
+	if (num_config != 1) // num_config should be exactly 1
 		goto error;
 
 	m_surface = ::eglCreateWindowSurface(m_display, config, m_nativeWindow, NULL);
@@ -398,7 +417,7 @@ GHOST_TSuccess GHOST_ContextEGL::installDrawingContext(bool stereoVisual, GHOST_
 	if (!EGL_CHK(m_context != EGL_NO_CONTEXT))
 		goto error;
 
-	if (!EGL_CHK(m_sharedContext != EGL_NO_CONTEXT))
+	if (m_sharedContext == EGL_NO_CONTEXT)
 		m_sharedContext = m_context;
 
 	m_sharedCount++;
@@ -409,43 +428,9 @@ GHOST_TSuccess GHOST_ContextEGL::installDrawingContext(bool stereoVisual, GHOST_
 	return GHOST_kSuccess;
 
 error:
-	removeDrawingContext();
-
-	EGL_CHK(eglTerminate(m_display));
-	m_display = EGL_NO_DISPLAY;
-
 	EGL_CHK(eglMakeCurrent(prev_display, prev_draw, prev_read, prev_context));
 
 	return GHOST_kFailure;
-}
-
-
-
-GHOST_TSuccess GHOST_ContextEGL::removeDrawingContext()
-{
-	bindAPI(m_api);
-
-	if (m_context != EGL_NO_CONTEXT) {
-		if (m_context == ::eglGetCurrentContext())
-			EGL_CHK(::eglMakeCurrent(m_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
-
-		if (m_context != m_sharedContext || m_sharedCount == 1) {
-			assert(m_sharedCount > 0);
-
-			m_sharedCount--;
-
-			if (m_sharedCount == 0)
-				m_sharedContext = EGL_NO_CONTEXT;
-
-			if (EGL_CHK(::eglDestroyContext(m_display, m_context)))
-				m_context = EGL_NO_CONTEXT;
-		}
-	}
-
-	if (m_surface != EGL_NO_SURFACE && EGL_CHK(::eglDestroySurface(m_display, m_surface)))
-		m_surface = EGL_NO_SURFACE;
-
-	return m_surface == EGL_NO_SURFACE && m_context == EGL_NO_CONTEXT ? GHOST_kSuccess : GHOST_kFailure;
 }
 
 

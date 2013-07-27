@@ -85,7 +85,14 @@ bool win32_chk(bool result, const char* file = NULL, int line = 0, const char* t
 		const char* formattedMsg = count > 0 ? message : "<FormatMessage Failed>";
 
 #ifndef NDEBUG
-		_ftprintf(stderr, "%s(%d):%s -> Windows Error (%04X): %s\n", file, line, text, error, formattedMsg);
+		_ftprintf(
+			stderr,
+			"%s(%d):[%s] -> Win32 Error (%04X): %s\n",
+			file, 
+			line,
+			text,
+			error,
+			formattedMsg);
 #else
 		_ftprintf(stderr, "Windows Error (%4X): %s\n", error, formattedMsg);
 #endif
@@ -143,8 +150,7 @@ GHOST_ContextWGL::~GHOST_ContextWGL()
 				s_sharedHDC   = NULL;
 			}
 
-			if (WIN32_CHK(::wglDeleteContext(m_hGLRC)))
-				m_hGLRC = NULL;
+			WIN32_CHK(::wglDeleteContext(m_hGLRC));
 		}
 	}
 }

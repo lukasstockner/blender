@@ -75,14 +75,7 @@ public:
 	 * \param numOfAASamples	Number of samples used for AA (zero if no AA)
 	 * \return Indication as to whether installation has succeeded.
 	 */
-	virtual GHOST_TSuccess installDrawingContext(bool stereoVisual = false, GHOST_TUns16 numOfAASamples = 0);
-
-	/**
-	 * Removes the current drawing context.
-	 * \return Indication as to whether removal has succeeded.
-	 */
-	virtual GHOST_TSuccess removeDrawingContext();
-
+	virtual GHOST_TSuccess initializeDrawingContext(bool stereoVisual = false, GHOST_TUns16 numOfAASamples = 0);
 
 	/**
 	 * Removes references to native handles from this context and then returns
