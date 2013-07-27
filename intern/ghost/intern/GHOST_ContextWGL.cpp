@@ -401,7 +401,7 @@ finalize:
 
 
 
-static int _choose_pixel_format_arb(HDC hDC, bool stereoVisual, int numOfAASamples, int swapMethod)
+static int _choose_pixel_format_arb_2(HDC hDC, bool stereoVisual, int numOfAASamples, int swapMethod)
 {
 #define SAMPLES        iAttributes[1]
 #define SAMPLE_BUFFERS iAttributes[3]
@@ -428,9 +428,9 @@ static int _choose_pixel_format_arb(HDC hDC, bool stereoVisual, int numOfAASampl
 
 	int iPixelFormat = 0;
 
-	SAMPLES = numOfAASamples > 128 ? 128 : numOfAASamples; /* guard against some insanely high number of samples */
+	SAMPLES = numOfAASamples > 64 ? 64 : numOfAASamples; // guard against some insanely high number of samples
 
-	/* Choose the multisample format closest to what was asked for. */
+	// choose the multisample format closest to what was asked for
 	while (SAMPLES >= 0) {
 		SAMPLE_BUFFERS = SAMPLES > 0 ? 1 : 0;
 
@@ -440,12 +440,19 @@ static int _choose_pixel_format_arb(HDC hDC, bool stereoVisual, int numOfAASampl
 		if (nNumFormats > 0) // total number of formats that match (regardless of size of iPixelFormat array)
 			break;
 
-		iPixelFormat = 0; // If not reset, then the state of iPixelFormat is undefined after call to wglChoosePixelFormatARB
+		iPixelFormat = 0; // if not reset, then the state of iPixelFormat is undefined after call to wglChoosePixelFormatARB
 
 		SAMPLES--;
 	}
 
-	/* choose any available stereo format over a non-stereo format */
+	if (iPixelFormat != 0 && SAMPLES != numOfAASamples) {
+		fprintf(
+			stderr,
+			"Warning! Unable to find a multisample pixel format that supports %d samples.  Substituting one that uses %d samples.\n",
+			numOfAASamples,
+			SAMPLES);
+	}
+
 	return iPixelFormat;
 
 #undef SAMPLES
@@ -454,22 +461,46 @@ static int _choose_pixel_format_arb(HDC hDC, bool stereoVisual, int numOfAASampl
 
 
 
-static int choose_pixel_format_arb(HDC hDC, bool stereoVisual, int numOfAASamples)
+static int _choose_pixel_format_arb_1(HDC hDC, bool stereoVisual, int numOfAASamples, int& swapMethodOut)
 {
 	int iPixelFormat;
 
-	iPixelFormat = _choose_pixel_format_arb(hDC, stereoVisual, numOfAASamples, WGL_SWAP_COPY_ARB);
+	swapMethodOut   = WGL_SWAP_COPY_ARB;
+	iPixelFormat = _choose_pixel_format_arb_2(hDC, stereoVisual, numOfAASamples, swapMethodOut);
 
 	if (iPixelFormat == 0) {
-		iPixelFormat = _choose_pixel_format_arb(hDC, stereoVisual, numOfAASamples, WGL_SWAP_UNDEFINED_ARB);
+		swapMethodOut = WGL_SWAP_UNDEFINED_ARB;
+		iPixelFormat = _choose_pixel_format_arb_2(hDC, stereoVisual, numOfAASamples, swapMethodOut);
 	}
 
-	if (iPixelFormat == 0 && stereoVisual) {
-		iPixelFormat = _choose_pixel_format_arb(hDC, false, numOfAASamples, WGL_SWAP_COPY_ARB);
+	if (iPixelFormat == 0) {
+		swapMethodOut   = WGL_SWAP_EXCHANGE_ARB;
+		iPixelFormat = _choose_pixel_format_arb_2(hDC, stereoVisual, numOfAASamples, swapMethodOut);
+	}
 
-		if (iPixelFormat == 0) {
-			iPixelFormat = _choose_pixel_format_arb(hDC, false, numOfAASamples, WGL_SWAP_UNDEFINED_ARB);
-		}
+	return iPixelFormat;
+}
+
+
+
+static int choose_pixel_format_arb(HDC hDC, bool stereoVisual, int numOfAASamples)
+{
+	int iPixelFormat;
+	int swapMethod;
+
+	iPixelFormat = _choose_pixel_format_arb_1(hDC, stereoVisual, numOfAASamples, swapMethod);
+
+	if (iPixelFormat == 0 && stereoVisual) {
+		fprintf(stderr, "Warning! Unable to find a stereo pixel format.\n");
+
+		iPixelFormat = _choose_pixel_format_arb_1(hDC, false, numOfAASamples, swapMethod);
+	}
+
+	if (swapMethod != WGL_SWAP_COPY_ARB) {
+		fprintf(
+			stderr,
+			"Warning! Unable to find a pixel format that supports WGL_SWAP_COPY_ARB.  Substituting one that uses %s.\n",
+			swapMethod == WGL_SWAP_UNDEFINED_ARB ? "WGL_SWAP_UNDEFINED_ARB" : "WGL_SWAP_EXCHANGE_ARB");
 	}
 
 	return iPixelFormat;
