@@ -790,9 +790,14 @@ bool OSLRenderServices::texture3d(ustring filename, TextureOpt &options,
                                   const OSL::Vec3 &dPdx, const OSL::Vec3 &dPdy,
                                   const OSL::Vec3 &dPdz, float *result)
 { 
-
+/*
 	//Are we dealing with an OpenVDB volume file?
-
+    if (ccl::OpenVDBUtil::is_vdb_volume_file(filename))
+    {
+        // TODO:
+        // - check if file is open and mapped;
+        // - perform lookup;
+    } */
 	
 	OSL::TextureSystem *ts = osl_ts;
 	bool status = ts->texture3d(filename, options, P, dPdx, dPdy, dPdz, result);

@@ -3,9 +3,11 @@ set(INC
 	.
 )
 set(INC_SYS
+	../kernel/textures
 )
 
 set(LIBRARIES
+	cycles_kernel_textures
 	${BOOST_LIBRARIES}
 	${OPENGL_LIBRARIES}
 	${CYCLES_GLEW_LIBRARY}

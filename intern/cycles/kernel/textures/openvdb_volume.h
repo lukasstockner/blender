@@ -56,11 +56,14 @@ class OpenVDBUtil
 public:
 	static void initialize_library();
 	static bool open_file(OIIO::ustring filename, OpenVDBVolume &vdb_volume);
-	static bool is_openvdb_volume_file(OIIO::ustring filename);
-	static bool is_openvdb_volume_file(OIIO::ustring filename, ustring &openvdb_version);
+	
+
+    static bool is_vdb_volume_file(OIIO::ustring filename);
 
 	static ustring u_openvdb_file_extension;
 private:
+    static bool vdb_file_check_extension(ustring filename);
+    static bool vdb_file_check_valid_header(ustring filename);
 	int i;
 };
 

@@ -47,8 +47,8 @@
 #include <unistd.h> // for getopt(), optarg
 #endif
 
-//#include <textures/openvdb_volume.h>
-//#include <OSL/oslexec.h>
+#include <openvdb_volume.h>
+#include <OSL/oslexec.h>
 
 namespace {
 
@@ -292,6 +292,17 @@ printShortListing(const StringVec& filenames, bool metadata)
     }
 }
 
+void
+    checkForValidFile(std::string filename)
+    {
+        std::cout << "I was here! Yeah!" << std::endl;
+        
+        OpenImageIO::ustring u_filename(filename);
+        
+        if (ccl::OpenVDBUtil::is_vdb_volume_file(u_filename))   
+            std::cout << "Valid VDB file." << std::endl;
+    }
+    
 /*void
 openVdbVolumeFile()
 {
@@ -352,6 +363,10 @@ main(int argc, char *argv[])
 #endif
 
     try {
+        
+        // First test - check for file validity
+        checkForValidFile(sFilenames[0]);
+        
         openvdb::initialize();
 
         /// @todo Remove the following at some point:

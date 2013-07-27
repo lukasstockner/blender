@@ -28,6 +28,7 @@ void OpenVDBUtil::initialize_library()
 	openvdb::initialize();
 }
 
+
 bool OpenVDBUtil::open_file(OIIO::ustring filename, OpenVDBVolume &vdb_volume)
 {
 	openvdb::io::File file(filename.string());
@@ -42,35 +43,46 @@ bool OpenVDBUtil::open_file(OIIO::ustring filename, OpenVDBVolume &vdb_volume)
 
 	//return vdb_volume;
 	return true;
-}
+} 
 
-bool OpenVDBUtil::is_openvdb_volume_file(OIIO::ustring filename)
+bool OpenVDBUtil::vdb_file_check_valid_header(ustring filename)
 {
-
-
-	if (filename.substr(filename.length() - u_openvdb_file_extension.length(), 
-		u_openvdb_file_extension.length()) == u_openvdb_file_extension)
-		return true;
-	else
-		return false;
-}
-
-bool OpenVDBUtil::is_openvdb_volume_file(OIIO::ustring filename, ustring &openvdb_version)
-{
-	if (is_openvdb_volume_file(filename))
-	{
+    OpenVDBUtil::initialize_library();
 		openvdb::io::File file(filename.string());
 		file.open();
+        
+        OIIO::ustring openvdb_version;
 
 		openvdb_version.empty();
 		openvdb_version = file.version();
+        
+        file.close();
 
 		if(openvdb_version.length() > 0)
 			return true;
-	}
 
 	return false;
 }
 
+bool OpenVDBUtil::vdb_file_check_extension(ustring filename)
+{
+    if (filename.substr(filename.length() - u_openvdb_file_extension.length(),
+                        u_openvdb_file_extension.length()) == u_openvdb_file_extension)
+		return true;
+    
+    return false;
+}
+
+bool OpenVDBUtil::is_vdb_volume_file(OIIO::ustring filename)
+{
+    OIIO::ustring openvdb_version;
+    
+    if (vdb_file_check_extension(filename)) {
+        if (vdb_file_check_valid_header(filename))
+            return true;
+    }
+    
+    return false;
+}
 
 CCL_NAMESPACE_END
