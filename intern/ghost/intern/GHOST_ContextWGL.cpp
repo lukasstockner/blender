@@ -45,13 +45,12 @@ HDC   GHOST_ContextWGL::s_sharedHDC   = NULL;
 int   GHOST_ContextWGL::s_sharedCount = 0;
 
 
+#ifndef NDEBUG
+static const char* extensionRenderer = NULL;
+#endif
 
-bool GHOST_ContextWGL::s_singleContextMode = false;
+static bool singleContextMode = false;
 
-void GHOST_ContextWGL::setSingleContextMode(bool on)
-{
-	s_singleContextMode = on;
-}
 
 
 
@@ -60,9 +59,9 @@ void GHOST_ContextWGL::setSingleContextMode(bool on)
  * But if we just share context for all windows it could work incorrect
  * with multiple videocards configuration. Suppose, that Intel videocards
  * can't be in multiple-devices configuration. */
-static bool is_crappy_intel_card(void)
+static bool is_crappy_intel_card()
 {
-	return strstr((const char *)glGetString(GL_VENDOR), "Intel") != NULL;
+	return strstr((const char*)glGetString(GL_VENDOR), "Intel") != NULL;
 }
 
 
@@ -368,7 +367,14 @@ static bool init_wglew(HWND hWnd, HDC hDC, PIXELFORMATDESCRIPTOR& preferredPFD)
 		if (wglewInit() == GLEW_OK)
 			wglewInitialized = true;
 
-		GHOST_ContextWGL::setSingleContextMode(is_crappy_intel_card()); // not WGLEW but also needs a context to work
+		// the following are not technially WGLEW, but they also require a context to work
+
+#ifndef NDEBUG
+		if (extensionRenderer == NULL)
+			extensionRenderer = _strdup((const char *)glGetString(GL_RENDERER));
+#endif
+
+		singleContextMode = is_crappy_intel_card();
 
 finalize:
 		WIN32_CHK(::wglMakeCurrent(prevHDC, prevHGLRC));
@@ -572,7 +578,7 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext(bool stereoVisual, GHO
 
 		iAttributes.push_back(0);
 
-		if (!s_singleContextMode || s_sharedHGLRC == NULL)
+		if (!singleContextMode || s_sharedHGLRC == NULL)
 			m_hGLRC = ::wglCreateContextAttribsARB(m_hDC, NULL, &(iAttributes[0]));
 		else
 			m_hGLRC = s_sharedHGLRC;
@@ -586,7 +592,7 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext(bool stereoVisual, GHO
 			goto error;
 		}
 
-		if (!s_singleContextMode || s_sharedHGLRC == NULL)
+		if (!singleContextMode || s_sharedHGLRC == NULL)
 			m_hGLRC = ::wglCreateContext(m_hDC);
 		else
 			m_hGLRC = s_sharedHGLRC;
@@ -602,11 +608,25 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext(bool stereoVisual, GHO
 
 	s_sharedCount++;
 
-	if (!s_singleContextMode && s_sharedHGLRC != m_hGLRC && !WIN32_CHK(::wglShareLists(s_sharedHGLRC, m_hGLRC)))
+	if (!singleContextMode && s_sharedHGLRC != m_hGLRC && !WIN32_CHK(::wglShareLists(s_sharedHGLRC, m_hGLRC)))
 		goto error;
 
 	if (!WIN32_CHK(::wglMakeCurrent(m_hDC, m_hGLRC)))
 		goto error;
+
+#ifndef NDEBUG
+	const char* contextRenderer = (const char*)glGetString(GL_RENDERER);
+
+	if (strcmp(extensionRenderer, contextRenderer) != 0) {
+		fprintf(
+			stderr,
+			"WARNING! WGL extension renderer '%s' does not match current context's renderer '%s'\n",
+			extensionRenderer,
+			contextRenderer);
+
+		abort();
+	}
+#endif
 
 	return GHOST_kSuccess;
 

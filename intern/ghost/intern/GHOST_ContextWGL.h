@@ -103,8 +103,6 @@ private:
 	static HGLRC s_sharedHGLRC;
 	static HDC   s_sharedHDC;
 	static int   s_sharedCount;
-
-	static bool s_singleContextMode;
 };
 
 
