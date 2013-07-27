@@ -34,7 +34,18 @@
 
 
 
+#define glewGetContext() glewContext
 #include <GL/glew.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern GLEWContext* glewContext;
+
+#ifdef __cplusplus
+}
+#endif
 
 
 
@@ -318,6 +329,7 @@ For that reason these aliases are more likely just patching inconsistencies in t
 #endif
 
 #endif /* defined(GLEW_NO_ES) */
+
 
 
 

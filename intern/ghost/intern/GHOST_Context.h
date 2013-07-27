@@ -35,16 +35,31 @@
 
 #include "GHOST_Types.h"
 
+#define glewGetContext() glewContext
+#include <GL/glew.h>
+extern "C" GLEWContext* glewContext;
+
+#include <cstdlib> // for NULL
+
 
 
 class GHOST_Context
 {
 public:
 	/**
+	 * Constructor.
+	 */
+	GHOST_Context()
+		: m_glewContext(NULL)
+	{}
+
+	/**
 	 * Destructor.
 	 */
 	virtual ~GHOST_Context()
-	{}
+	{
+		delete m_glewContext;
+	}
 
 	/**
 	 * Swaps front and back buffers of a window.
@@ -71,6 +86,17 @@ public:
 	 * \return Indication as to whether removal has succeeded.
 	 */
 	virtual GHOST_TSuccess releaseNativeHandles() = 0;
+
+protected:
+	bool GHOST_Context::initGlew();
+
+	void GHOST_Context::activateGlew()
+	{
+		glewContext = m_glewContext;
+	}
+
+private:
+	GLEWContext* m_glewContext;
 };
 
 

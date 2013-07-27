@@ -177,7 +177,6 @@ void GPU_extensions_init(void)
 	if (gpu_extensions_init) return;
 	gpu_extensions_init= 1;
 
-	glewInit();
 	GPU_wrap_extensions(&(GG.glslsupport), &(GG.framebuffersupport));
 	GPU_codegen_init();
 

@@ -30,3 +30,26 @@
  * Definition of GHOST_Context class.
  */
 
+#include "GHOST_Context.h"
+
+
+
+GLEWContext* glewContext = NULL;
+
+
+
+bool GHOST_Context::initGlew()
+{
+	if (m_glewContext == NULL) {
+		glewContext = new GLEWContext;
+		
+		if (glewInit() != GLEW_OK) {
+			delete glewContext;
+			glewContext = NULL;
+		}
+
+		m_glewContext = glewContext;
+	}
+	
+	return  m_glewContext != NULL ? GHOST_kSuccess : GHOST_kFailure;
+}

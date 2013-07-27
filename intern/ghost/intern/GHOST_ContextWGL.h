@@ -35,8 +35,9 @@
 
 #include "GHOST_Context.h"
 
-#include <GL/glew.h>
+#define wglewGetContext() wglewContext
 #include <GL/wglew.h>
+extern "C" WGLEWContext* wglewContext;
 
 
 
@@ -88,6 +89,12 @@ public:
 	static void setSingleContextMode(bool on);
 
 private:
+	int choose_pixel_format(bool stereoVisual, int numOfAASamples);
+	int choose_pixel_format_arb(bool stereoVisual, int numOfAASamples);
+	int _choose_pixel_format_arb_1(bool stereoVisual, int numOfAASamples, int& swapMethodOut);
+	int _choose_pixel_format_arb_2(bool stereoVisual, int numOfAASamples, int swapMethod);
+	bool initWGlew(PIXELFORMATDESCRIPTOR& preferredPFD);
+
 	HDC  m_hDC;
 	HWND m_hWnd;
 
@@ -99,6 +106,8 @@ private:
 	HGLRC m_hGLRC;
 
 	bool m_needSetPixelFormat;
+
+	WGLEWContext* m_wglewContext;
 
 	static HGLRC s_sharedHGLRC;
 	static HDC   s_sharedHDC;

@@ -43,7 +43,7 @@
  * - Optimize for case where no texture matrix is used.
  */
 
-#include "GL/glew.h"
+#include "gpu_glew.h"
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
