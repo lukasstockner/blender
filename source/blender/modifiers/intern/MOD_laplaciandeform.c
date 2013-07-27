@@ -60,6 +60,7 @@ struct BStaticAnchors {
 	float (*co)[3];				/* Original vertex coordinates*/
 	float (*no)[3];				/* Original vertex normal*/
 	BMVert ** list_verts;		/* Vertex order by index*/
+	BMesh *bm;
 };
 typedef struct BStaticAnchors StaticAnchors;
 
@@ -76,7 +77,6 @@ struct BLaplacianSystem {
 	int numVerts;
 	int numHandlers;
 	int numStatics;
-	BMesh *bm;
 	NLContext *context;			/* System for solve general implicit rotations*/
 };
 typedef struct BLaplacianSystem LaplacianSystem;
@@ -113,6 +113,7 @@ static void init_laplacian_matrix( SystemCustomData * data);
 static void rotate_differential_coordinates(SystemCustomData * data);
 static void update_system_state(SystemCustomData * data, int state);
 static void laplacian_deform_preview(SystemCustomData * data, DerivedMesh *dm, float (*vertexCos)[3]);
+static void freeData(ModifierData *md);
 
 static void delete_void_pointer(void *data)
 {
@@ -170,6 +171,7 @@ static void delete_static_anchors(StaticAnchors * sa)
 	delete_void_pointer(sa->list_index);
 	delete_void_pointer(sa->no);
 	delete_void_pointer(sa->list_verts);
+	if (sa->bm) BM_mesh_free(sa->bm);
 	delete_void_pointer(sa);
 	sa = NULL;
 }
@@ -187,7 +189,6 @@ static void delete_laplacian_system(LaplacianSystem *sys)
 	if (!sys) return;
 	delete_void_pointer(sys->delta);
 	delete_void_pointer(sys->list_uverts);
-	sys->bm = NULL;
 	if (sys->context) nlDeleteContext(sys->context);
 	delete_void_pointer(sys);
 	sys = NULL;
@@ -289,14 +290,13 @@ static void LaplacianDeformModifier_do(
 	BLI_array_declare(index_h);
 	BLI_array_declare(index_s);
 
-	modifier_get_vgroup(ob, dm, smd->defgrp_name_s, &dvert_s, &defgrp_index_s);
-	modifier_get_vgroup(ob, dm, smd->defgrp_name_h, &dvert_h, &defgrp_index_h);
-
 	if (!data) return;
-	if (!dvert_s) return;
-	if (!dvert_h) return;
 
 	if (data->stateSystem == LAP_STATE_INIT) {
+		modifier_get_vgroup(ob, dm, smd->defgrp_name_s, &dvert_s, &defgrp_index_s);
+		modifier_get_vgroup(ob, dm, smd->defgrp_name_h, &dvert_h, &defgrp_index_h);
+		if (!dvert_s) return;
+		if (!dvert_h) return;
 		dv_h = dvert_h;
 		dv_s = dvert_s;
 		bm = DM_to_bmesh(dm, false);
@@ -347,6 +347,8 @@ static void LaplacianDeformModifier_do(
 			vid = BM_elem_index_get(v);
 			data->sa->list_verts[vid] = v;
 		}
+
+		data->sa->bm = bm;
 
 		////////// init handler
 
@@ -427,7 +429,7 @@ static void init_laplacian_matrix( SystemCustomData * data)
 	LaplacianSystem * sys = data->sys;
 	StaticAnchors * sa = data->sa;
 
-	BM_ITER_MESH (f, &fiter, sys->bm, BM_FACES_OF_MESH) {
+	BM_ITER_MESH (f, &fiter, sa->bm, BM_FACES_OF_MESH) {
 	
 		BM_ITER_ELEM_INDEX (vn, &vi, f, BM_VERTS_OF_FACE, i) {
 			vid = BM_elem_index_get(vn);
@@ -522,7 +524,7 @@ static void compute_implict_rotations(SystemCustomData * data)
 	StaticAnchors * sa = data->sa;
 	BLI_array_declare(vidn);
 
-	BM_ITER_MESH (v, &viter, sys->bm, BM_VERTS_OF_MESH) {
+	BM_ITER_MESH (v, &viter, sa->bm, BM_VERTS_OF_MESH) {
 		i = BM_elem_index_get(v);
 		normalize_v3( sa->no[i]);
 		BM_ITER_ELEM(e, &eiter, v, BM_EDGES_OF_VERT) {
@@ -570,7 +572,7 @@ static void rotate_differential_coordinates(SystemCustomData * data)
 	StaticAnchors * sa = data->sa;
 
 
-	BM_ITER_MESH (v, &viter, sys->bm, BM_VERTS_OF_MESH) {
+	BM_ITER_MESH (v, &viter, sa->bm, BM_VERTS_OF_MESH) {
 		i = BM_elem_index_get(v);
 		copy_v3_v3(pi, sa->co[i]); //copy_v3_v3(pi, v->co);
 		copy_v3_v3(ni, sa->no[i]); //copy_v3_v3(ni, v->no);
@@ -664,8 +666,8 @@ static void laplacian_deform_preview(SystemCustomData * data, DerivedMesh *dm, f
 		sys = data->sys;
 		sa = data->sa;
 		shs = data->shs;
-		sys->bm = DM_to_bmesh(dm, false);
-		bm = sys->bm;
+		//sys->bm = DM_to_bmesh(dm, false);
+		bm = sa->bm;
 		n = sys->numVerts;
 		ns = sa->numStatics;
 		nh = shs->numHandlers;
@@ -832,7 +834,20 @@ static void laplacian_deform_preview(SystemCustomData * data, DerivedMesh *dm, f
 
 	}
 }
- 
+
+static void freeData(ModifierData *md)
+{
+	LaplacianDeformModifierData *smd = (LaplacianDeformModifierData *) md;
+	SystemCustomData * data = (SystemCustomData *)(smd->custom_data);
+
+	if (data) {
+		delete_laplacian_system(data->sys);
+		delete_static_anchors(data->sa);
+		delete_handler_anchors(data->shs);
+		delete_void_pointer(data);
+	}
+}
+
 ModifierTypeInfo modifierType_LaplacianDeform = {
 	/* name */              "LaplacianDeform",
 	/* structName */        "LaplacianDeformModifierData",
@@ -850,7 +865,7 @@ ModifierTypeInfo modifierType_LaplacianDeform = {
 	/* applyModifierEM */   NULL,
 	/* initData */          initData,
 	/* requiredDataMask */  requiredDataMask,
-	/* freeData */          NULL,
+	/* freeData */          freeData,
 	/* isDisabled */        isDisabled,
 	/* updateDepgraph */    NULL,
 	/* dependsOnTime */     NULL,
