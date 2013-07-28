@@ -30,10 +30,15 @@
 #include "BLI_sys_types.h" // for intptr_t support
 
 #include "BLI_utildefines.h" /* for BLI_assert */
+#include "BLI_math.h"
 
 #include "BKE_ccg.h"
 #include "CCGSubSurf.h"
 #include "BKE_subsurf.h"
+
+#ifdef WITH_OPENSUBDIV
+#  include "opensubdiv_capi.h"
+#endif
 
 /* used for normalize_v3 in BLI_math_vector
  * float.h's FLT_EPSILON causes trouble with subsurf normals - campbell */
@@ -335,6 +340,7 @@ struct CCGVert {
 	CCGVertHDL vHDL;    /* EHData.key */
 
 	short numEdges, numFaces, flags, pad;
+	int tag, pad2;
 
 	CCGEdge **edges;
 	CCGFace **faces;
@@ -2141,8 +2147,195 @@ static void ccgSubSurf__calcSubdivLevel(CCGSubSurf *ss,
 	}
 }
 
+static void ccgSubSurf__dumpCoords(CCGSubSurf *ss)
+{
+	int vertDataSize = ss->meshIFC.vertDataSize;
+	int subdivLevels = ss->subdivLevels;
+	int gridSize = ccg_gridsize(subdivLevels);
+	int edgeSize = ccg_edgesize(subdivLevels);
+	int i, index, S;
 
-static void ccgSubSurf__sync(CCGSubSurf *ss)
+	for (i = 0, index = 0; i < ss->vMap->curSize; i++) {
+		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
+		for (; v; v = v->next, index++) {
+			float *co = VERT_getCo(v, subdivLevels);
+			printf("vertex index=%d, co=(%f, %f, %f)\n",
+			       index, co[0], co[1], co[2]);
+		}
+	}
+
+	for (i = 0, index = 0; i < ss->eMap->curSize; i++) {
+		CCGEdge *e = (CCGEdge *) ss->eMap->buckets[i];
+		for (; e; e = e->next, index++) {
+			int x;
+			float *co = VERT_getCo(e->v0, subdivLevels);
+			printf("edge index=%d, start_co=(%f, %f, %f)\n",
+				   index, co[0], co[1], co[2]);
+			for (x = 0; x < edgeSize; x++) {
+				float *co = EDGE_getCo(e, subdivLevels, x);
+				printf("edge index=%d, seg=%d, co=(%f, %f, %f)\n",
+					   index, x, co[0], co[1], co[2]);
+			}
+			co = VERT_getCo(e->v0, subdivLevels);
+			printf("edge index=%d, end_co=(%f, %f, %f)\n",
+				   index, co[0], co[1], co[2]);
+		}
+	}
+
+	for (i = 0, index = 0; i < ss->fMap->curSize; i++) {
+		CCGFace *f = (CCGFace *) ss->fMap->buckets[i];
+		for (; f; f = f->next, index++) {
+			for (S = 0; S < f->numVerts; S++) {
+				int x, y;
+				for (x = 0; x < gridSize; x++) {
+					for (y = 0; y < gridSize; y++) {
+						float *co = FACE_getIFCo(f, subdivLevels, S, x, y);
+						printf("face index=%d. corner=%d, x=%d, y=%d, coord=(%f, %f, %f)\n",
+						        index, S, x, y, co[0], co[1], co[2]);
+					}
+				}
+			}
+		}
+	}
+}
+
+BLI_INLINE void ccgSubSurf__mapGridToFace(int S, float grid_u, float grid_v,
+                                          float *face_u, float *face_v)
+{
+	float u, v;
+
+	/* - Each grid covers half of the face along the edges.
+	 * - Grid's (0, 0) starts from the middle of the face.
+	 */
+	u = 0.5f - 0.5f * grid_u;
+	v = 0.5f - 0.5f * grid_v;
+
+	if (S == 0) {
+		*face_u = v;
+		*face_v = u;
+	}
+	else if (S == 1) {
+		*face_u = 1.0f - u;
+		*face_v = v;
+	}
+	else if (S == 2) {
+		*face_u = 1.0f - v;
+		*face_v = 1.0f - u;
+	}
+	else {
+		*face_u = v;
+		*face_v = 1.0f - u;
+	}
+}
+
+static void ccgSubSurf__syncOpenSubdiv(CCGSubSurf *ss)
+{
+	struct OpenSubdiv_MeshDescr *mesh_descr;
+	struct OpenSubdiv_EvaluationDescr *evaluation_descr;
+	int subdivLevels = ss->subdivLevels;
+	int vertDataSize = ss->meshIFC.vertDataSize;
+	int gridSize = ccg_gridsize(subdivLevels);
+	int edgeSize = ccg_edgesize(subdivLevels);
+	int i, index, S;
+
+	mesh_descr = openSubdiv_createMeshDescr();
+
+	/* Create basis vertices of the mesh. */
+	for (i = 0, index = 0; i < ss->vMap->curSize; i++) {
+		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
+		for (; v; v = v->next, index++) {
+			float *co = VERT_getCo(v, 0);
+			openSubdiv_createMeshDescrVertex(mesh_descr, co);
+			v->tag = index;
+		}
+	}
+
+#define MAX_STATIC_VERTS 64
+	for (i = 0; i < ss->fMap->curSize; i++) {
+		CCGFace *f = (CCGFace *) ss->fMap->buckets[i];
+		for (; f; f = f->next) {
+			int *indices;
+			int indices_static[MAX_STATIC_VERTS];
+
+			/* If number of vertices per face is low, we use sttaic array,
+			 * this is so because of performance issues -- in most cases
+			 * we'll just use sttaic array and wouldn't streess memory
+			 * allocator at all.
+			 */
+			if (f->numVerts <= MAX_STATIC_VERTS) {
+				indices = indices_static;
+			}
+			else {
+				indices = MEM_mallocN(sizeof(int) * f->numVerts, "subsurf hbr tmp vertices");
+			}
+
+			/* Fill in vertex indices array. */
+			for (S = 0; S < f->numVerts; S++) {
+				indices[S] = FACE_getVerts(f)[S]->tag;
+			}
+
+			openSubdiv_createMeshDescrFace(mesh_descr, f->numVerts, indices);
+
+			if (indices != indices_static) {
+				MEM_freeN(indices);
+			}
+		}
+	}
+#undef MAX_STATIC_VERTS
+
+	/* Finish mesh creation. */
+	openSubdiv_finishMeshDescr(mesh_descr);
+
+	evaluation_descr = openSubdiv_createEvaluationDescr(mesh_descr);
+
+	for (i = 0, index = 0; i < ss->fMap->curSize; i++) {
+		CCGFace *f = (CCGFace *) ss->fMap->buckets[i];
+		for (; f; f = f->next, index++) {
+			for (S = 0; S < f->numVerts; S++) {
+				int x, y;
+				CCGEdge *e = FACE_getEdges(f)[S];
+
+				for (x = 0; x < gridSize; x++) {
+					for (y = 0; y < gridSize; y++) {
+						float *co = FACE_getIFCo(f, subdivLevels, S, x, y);
+						float grid_u = (float) x / (gridSize - 1),
+						      grid_v = (float) y / (gridSize - 1);
+						float face_u, face_v;
+						float P[3];
+
+						ccgSubSurf__mapGridToFace(S, grid_u, grid_v, &face_u, &face_v);
+
+						openSubdiv_evaluateDescr(evaluation_descr, index, face_u, face_v, P, NULL, NULL);
+
+						//printf("face=%d, corner=%d, u=%f, v=%f, P=(%f, %f, %f)\n",
+						//       index, S, face_u, face_v, P[0], P[1], P[2]);
+
+						copy_v3_v3(co, P);
+
+						if (x == gridSize - 1 && y == gridSize - 1) {
+							float *co = VERT_getCo(FACE_getVerts(f)[S], subdivLevels);
+							copy_v3_v3(co, P);
+						}
+					}
+				}
+
+				/* XXX: And for sure edges goes in the different order than
+				 *      vertices, so we really need to do something smarter here.
+				 */
+				for (x = 0; x < edgeSize; x++) {
+					zero_v3(EDGE_getCo(e, subdivLevels, x));
+					//VertDataZero(FACE_getIECo(f, subdivLevels, S, x), ss);
+				}
+			}
+		}
+	}
+
+	/* Clean-up.. */
+	openSubdiv_deleteEvaluationDescr(evaluation_descr);
+	openSubdiv_deleteMeshDescr(mesh_descr);
+}
+
+static void ccgSubSurf__syncLegacy(CCGSubSurf *ss)
 {
 	CCGVert **effectedV;
 	CCGEdge **effectedE;
@@ -2399,11 +2592,10 @@ static void ccgSubSurf__sync(CCGSubSurf *ss)
 		}
 	}
 
-	for (curLvl = 1; curLvl < subdivLevels; curLvl++) {
+	for (curLvl = 1; curLvl < subdivLevels; curLvl++)
 		ccgSubSurf__calcSubdivLevel(ss,
 		                            effectedV, effectedE, effectedF,
 		                            numEffectedV, numEffectedE, numEffectedF, curLvl);
-	}
 
 	if (ss->calcVertNormals)
 		ccgSubSurf__calcVertNormals(ss,
@@ -2422,6 +2614,20 @@ static void ccgSubSurf__sync(CCGSubSurf *ss)
 	MEM_freeN(effectedF);
 	MEM_freeN(effectedE);
 	MEM_freeN(effectedV);
+}
+
+static void ccgSubSurf__sync(CCGSubSurf *ss)
+{
+	if (true) {
+		ccgSubSurf__syncOpenSubdiv(ss);
+	}
+	else {
+		ccgSubSurf__syncLegacy(ss);
+	}
+
+	if (true) {
+		ccgSubSurf__dumpCoords(ss);
+	}
 }
 
 static void ccgSubSurf__allFaces(CCGSubSurf *ss, CCGFace ***faces, int *numFaces, int *freeFaces)

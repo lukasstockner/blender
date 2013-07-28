@@ -211,6 +211,13 @@ def setup_staticlibs(lenv):
     if lenv['WITH_BF_ZLIB'] and lenv['WITH_BF_STATICZLIB']:
         statlibs += Split(lenv['BF_ZLIB_LIB_STATIC'])
 
+    if lenv['WITH_BF_OPENEXR']:
+        libincs += Split(lenv['BF_OPENEXR_LIBPATH'])
+        if lenv['WITH_BF_STATICOPENEXR']:
+            statlibs += Split(lenv['BF_OPENEXR_LIB_STATIC'])
+    if lenv['WITH_BF_ZLIB'] and lenv['WITH_BF_STATICZLIB']:
+        statlibs += Split(lenv['BF_ZLIB_LIB_STATIC'])
+
     if lenv['WITH_BF_OCIO']:
         libincs += Split(lenv['BF_OCIO_LIBPATH'])
         if lenv['WITH_BF_STATICOCIO']:
@@ -241,6 +248,11 @@ def setup_staticlibs(lenv):
             libincs += Split(lenv['BF_3DMOUSE_LIBPATH'])
             if lenv['WITH_BF_STATIC3DMOUSE']:
                 statlibs += Split(lenv['BF_3DMOUSE_LIB_STATIC'])
+
+    if lenv['WITH_BF_OPENSUBDIV']:
+        libincs += Split(lenv['BF_OPENSUBDIV_LIBPATH'])
+        if lenv['WITH_BF_STATICOPENSUBDIV']:
+            statlibs += Split(lenv['BF_OPENSUBDIV_LIB_STATIC'])
 
     # setting this last so any overriding of manually libs could be handled
     if lenv['OURPLATFORM'] not in ('win32-vc', 'win32-mingw', 'win64-vc', 'linuxcross', 'win64-mingw'):
@@ -338,6 +350,10 @@ def setup_syslibs(lenv):
 
     if not lenv['WITH_BF_STATICPNG']:
         syslibs += Split(lenv['BF_PNG_LIB'])
+
+    if lenv['WITH_BF_OPENSUBDIV']:
+        if not lenv['WITH_BF_STATICOPENSUBDIV']:
+            syslibs += Split(lenv['BF_OPENSUBDIV_LIB'])
 
     syslibs += lenv['LLIBS']
 

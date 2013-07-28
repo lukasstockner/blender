@@ -85,3 +85,6 @@ if(WIN32)
 	add_subdirectory(utfconv)
 endif()
 
+if(WITH_OPENSUBDIV)
+	add_subdirectory(opensubdiv)
+endif()

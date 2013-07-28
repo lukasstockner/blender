@@ -35,11 +35,13 @@
 
 #include <stddef.h>
 
+#include "MEM_guardedalloc.h"
+
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
 
 #include "BLI_utildefines.h"
-
+#include "BLI_math.h"
 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_scene.h"
@@ -48,6 +50,9 @@
 #include "MOD_modifiertypes.h"
 
 #include "intern/CCGSubSurf.h"
+
+/* This is just for quick tests. */
+#include "../../../intern/opensubdiv/opensubdiv_capi.h"
 
 static void initData(ModifierData *md)
 {
@@ -91,6 +96,7 @@ static bool isDisabled(ModifierData *md, int useRenderParams)
 	return get_render_subsurf_level(&md->scene->r, levels) == 0;
 }
 
+#if 1
 static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
                                   DerivedMesh *derivedData,
                                   ModifierApplyFlag flag)
@@ -134,6 +140,111 @@ static DerivedMesh *applyModifierEM(ModifierData *md, Object *UNUSED(ob),
 
 	return result;
 }
+#else
+static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
+                                  DerivedMesh *derivedData,
+                                  ModifierApplyFlag flag)
+{
+#define MAX_STATIC_VERTS 64
+	const bool useRenderParams = flag & MOD_APPLY_RENDER;
+
+	SubsurfModifierData *smd = (SubsurfModifierData *) md;
+	struct OpenSubdiv_MeshDescr *mesh_descr;
+	struct OpenSubdiv_EvaluationDescr *evaluation_descr;
+	MVert *mvert;
+	MPoly *mpoly;
+	MLoop *mloop;
+	DerivedMesh *result;
+	int i, totvert, totpoly;
+	int level = useRenderParams ? smd->renderLevels : smd->levels;
+	int grid_size = (1 << (level - 1)) + 1;
+
+	mvert = derivedData->getVertArray(derivedData);
+	mpoly = derivedData->getPolyArray(derivedData);
+	mloop = derivedData->getLoopArray(derivedData);
+	totvert = derivedData->getNumVerts(derivedData);
+	totpoly = derivedData->getNumPolys(derivedData);
+
+	mesh_descr = openSubdiv_createMeshDescr();
+
+	/* Create basis vertices of the mesh. */
+	for (i = 0; i < totvert; i++) {
+		openSubdiv_createMeshDescrVertex(mesh_descr, mvert[i].co);
+	}
+
+	/* Create basis faces of HBR mesh. */
+	for (i = 0; i < totpoly; i++) {
+		int loop, totloop = mpoly[i].totloop;
+		int *indices;
+		int indices_static[MAX_STATIC_VERTS];
+
+		/* If number of vertices per face is low, we use sttaic array,
+		 * this is so because of performance issues -- in most cases
+		 * we'll just use sttaic array and wouldn't streess memory
+		 * allocator at all.
+		 */
+		if (totloop <= MAX_STATIC_VERTS) {
+			indices = indices_static;
+		}
+		else {
+			indices = MEM_mallocN(sizeof(int) * totloop, "subsurf hbr tmp vertices");
+		}
+
+		/* Fill in vertex indices array. */
+		for (loop = 0; loop < totloop; loop++) {
+			int vertex = mloop[loop + mpoly[i].loopstart].v;
+			indices[loop] = vertex;
+		}
+
+		openSubdiv_createMeshDescrFace(mesh_descr, totloop, indices);
+
+		if (indices != indices_static) {
+			MEM_freeN(indices);
+		}
+	}
+
+	/* Finish mesh creation. */
+	openSubdiv_finishMeshDescr(mesh_descr);
+
+	evaluation_descr = openSubdiv_createEvaluationDescr(mesh_descr);
+
+	result = CDDM_new(totpoly * (grid_size + 1) * (grid_size + 1), 0, 0, 0, 0);
+	mvert = result->getVertArray(result);
+
+	for (i = 0; i < totpoly; i++) {
+		int x, y;
+		for (x = 0; x <= grid_size; x++) {
+			for (y = 0; y <= grid_size; y++) {
+				float P[3];
+				float u = (float) x / grid_size, v = (float) y / grid_size;
+				openSubdiv_evaluateDescr(evaluation_descr, i, u, v, P, NULL, NULL);
+				copy_v3_v3(mvert->co, P);
+				mvert++;
+			}
+		}
+	}
+
+	/* Clean-up.. */
+	openSubdiv_deleteEvaluationDescr(evaluation_descr);
+	openSubdiv_deleteMeshDescr(mesh_descr);
+
+	return result;
+#undef MAX_STATIC_VERTS
+}
+
+static DerivedMesh *applyModifierEM(ModifierData *md, Object *ob,
+                                    struct BMEditMesh *editData,
+                                    DerivedMesh *derivedData,
+                                    ModifierApplyFlag flag)
+{
+	(void) md;  /* Ignored. */
+	(void) ob;  /* Ignored. */
+	(void) editData;  /* Ignored. */
+	(void) flag;  /* Ignored. */
+
+	return derivedData;
+}
+#endif
 
 
 ModifierTypeInfo modifierType_Subsurf = {
