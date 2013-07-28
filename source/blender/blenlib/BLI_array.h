@@ -66,8 +66,9 @@ void _bli_array_grow_func(void **arr_p, const void *arr_static,
 /* -------------------------------------------------------------------- */
 /* public defines */
 
+/* use sizeof(*arr) to ensure the array exists and is an array */
 #define BLI_array_declare(arr)                                                \
-	int   _##arr##_count = 0;                                                 \
+	int   _##arr##_count = ((void)(sizeof(*arr)), 0);                         \
 	void *_##arr##_static = NULL
 
 /* this will use stack space, up to maxstatic array elements, before
@@ -148,8 +149,8 @@ void _bli_array_grow_func(void **arr_p, const void *arr_static,
 
 /* only to prevent unused warnings */
 #define BLI_array_fake_user(arr)                                              \
-	(void)_##arr##_count,                                                     \
-	(void)_##arr##_static
+	((void)_##arr##_count,                                                    \
+	 (void)_##arr##_static)
 
 
 /* -------------------------------------------------------------------- */
@@ -161,7 +162,7 @@ void _bli_array_grow_func(void **arr_p, const void *arr_static,
  * but use when the max size is known ahead of time */
 #define BLI_array_fixedstack_declare(arr, maxstatic, realsize, allocstr)      \
 	char _##arr##_static[maxstatic * sizeof(*(arr))];                         \
-	const int _##arr##_is_static = ((void *)_##arr##_static) != (             \
+	const bool _##arr##_is_static = ((void *)_##arr##_static) != (            \
 	    arr = ((realsize) <= maxstatic) ?                                     \
 	        (void *)_##arr##_static :                                         \
 	        MEM_mallocN(sizeof(*(arr)) * (realsize), allocstr)                \
@@ -171,32 +172,5 @@ void _bli_array_grow_func(void **arr_p, const void *arr_static,
 	if (_##arr##_is_static) {                                                 \
 		MEM_freeN(arr);                                                       \
 	} (void)0
-
-
-/* alloca */
-#ifdef _MSC_VER
-#  define alloca _alloca
-#endif
-
-#if defined(__MINGW32__)
-#  include <malloc.h>  /* mingw needs for alloca() */
-#endif
-
-#if defined(__GNUC__) || defined(__clang__)
-#define BLI_array_alloca(arr, realsize) \
-	(typeof(arr))alloca(sizeof(*arr) * (realsize))
-
-#define BLI_array_alloca_and_count(arr, realsize) \
-	(typeof(arr))alloca(sizeof(*arr) * (realsize));  \
-	const int _##arr##_count = (realsize)
-
-#else
-#define BLI_array_alloca(arr, realsize) \
-	alloca(sizeof(*arr) * (realsize))
-
-#define BLI_array_alloca_and_count(arr, realsize) \
-	alloca(sizeof(*arr) * (realsize));  \
-	const int _##arr##_count = (realsize)
-#endif
 
 #endif  /* __BLI_ARRAY_H__ */

@@ -1711,7 +1711,9 @@ static int clear_track_path_exec(bContext *C, wmOperator *op)
 
 	if (clear_active) {
 		track = BKE_tracking_track_get_active(tracking);
-		BKE_tracking_track_path_clear(track, framenr, action);
+		if (track) {
+			BKE_tracking_track_path_clear(track, framenr, action);
+		}
 	}
 	else {
 		track = tracksbase->first;
@@ -3475,6 +3477,8 @@ static int clean_tracks_exec(bContext *C, wmOperator *op)
 
 		track = next;
 	}
+
+	BKE_tracking_dopesheet_tag_update(tracking);
 
 	WM_event_add_notifier(C, NC_MOVIECLIP | ND_SELECT, clip);
 
