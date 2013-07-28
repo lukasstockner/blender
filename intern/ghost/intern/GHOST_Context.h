@@ -88,7 +88,7 @@ public:
 	virtual GHOST_TSuccess releaseNativeHandles() = 0;
 
 protected:
-	bool GHOST_Context::initGlew();
+	void GHOST_Context::initGlew();
 
 	void GHOST_Context::activateGlew()
 	{
@@ -98,6 +98,16 @@ protected:
 private:
 	GLEWContext* m_glewContext;
 };
+
+
+
+GLenum glew_chk(GLenum error, const char* file, int line, const char* text);
+
+#ifndef NDEBUG
+#define GLEW_CHK(x) glew_chk((x), __FILE__, __LINE__, #x)
+#else
+#define GLEW_CHK(x) glew_chk(x)
+#endif
 
 
 

@@ -954,8 +954,8 @@ typedef BOOL (WINAPI * PFNWGLCOPYIMAGESUBDATANVPROC) (HGLRC hSrcRC, GLuint srcNa
 #if !defined(WGL_NV_gpu_affinity) 
 #define WGL_NV_gpu_affinity 1
 
-#define WGL_ERROR_INCOMPATIBLE_AFFINITY_MASKS_NV 0x20D0
-#define WGL_ERROR_MISSING_AFFINITY_MASK_NV 0x20D1
+#define ERROR_INCOMPATIBLE_AFFINITY_MASKS_NV 0x20D0 // XXX jwilkins: incorrect name
+#define ERROR_MISSING_AFFINITY_MASK_NV 0x20D1 // XXX jwilkins: incorrect name
 
 DECLARE_HANDLE(HGPUNV);
 typedef struct _GPU_DEVICE {

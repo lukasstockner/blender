@@ -161,7 +161,7 @@ static bool egl_chk(bool result, const char* file = NULL, int line = 0, const ch
 #ifndef NDEBUG
 		fprintf(
 			stderr,
-			"%s(%d):[%s] -> EGL Error (%04X): %s: %s\n",
+			"%s(%d):[%s] -> EGL Error (0x%04X): %s: %s\n",
 			file,
 			line,
 			text,
@@ -171,7 +171,7 @@ static bool egl_chk(bool result, const char* file = NULL, int line = 0, const ch
 #else
 		fprintf(
 			stderr,
-			"EGL Error (%04X): %s: %s\n",
+			"EGL Error (0x%04X): %s: %s\n",
 			error,
 			code ? code : "<Unknown>",
 			msg  ? msg  : "<Unknown>");
@@ -307,20 +307,15 @@ GHOST_TSuccess GHOST_ContextEGL::activateDrawingContext()
 
 
 
-bool GHOST_ContextEGL::initEGlew()
+void GHOST_ContextEGL::initEGlew()
 {
-	if (m_eglewContext == NULL) {
-		eglewContext = new EGLEWContext;
+	eglewContext = new EGLEWContext;
+	memset(eglewContext, 0, sizeof(EGLEWContext));
 
-		if (eglewInit() != GLEW_OK) {
-			delete eglewContext;
-			eglewContext = NULL;
-		}
+	delete m_eglewContext;
+	m_eglewContext = eglewContext;
 
-		m_eglewContext = eglewContext;
-	}
-
-	return m_eglewContext != NULL;
+	GLEW_CHK(eglewInit());
 }
 
 
@@ -332,10 +327,8 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext(bool stereoVisual, GHO
 	assert(m_nativeWindow  != NULL);
 	assert(m_nativeDisplay != NULL);
 
-	if (stereoVisual) {
-		fprintf(stderr, "Stereo OpenGL ES contexts are not supported.\n");
-		return GHOST_kFailure;
-	}
+	if (stereoVisual)
+		fprintf(stderr, "Warning! Stereo OpenGL ES contexts are not supported.\n");
 
 #if defined(WITH_ANGLE)
 	// d3dcompiler_XX.dll needs to be loaded before ANGLE will work
@@ -364,15 +357,12 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext(bool stereoVisual, GHO
 	if (!EGL_CHK(::eglInitialize(m_display, &major, &minor)))
 		goto error;
 
-	printf("Initialized EGL %d.%d\n", major, minor);
+	fprintf(stderr, "EGL Version %d.%d\n", major, minor);
 
 	if (!EGL_CHK(::eglMakeCurrent(m_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT)))
 		goto error;
 
-	if (!initEGlew())
-		fprintf(stderr, "EGLEW failed to initialize.\n");
-
-	eglewContext = m_eglewContext;
+	initEGlew();
 
 	bindAPI(m_api);
 

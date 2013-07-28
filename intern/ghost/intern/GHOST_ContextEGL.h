@@ -88,7 +88,7 @@ public:
 	virtual GHOST_TSuccess releaseNativeHandles();
 
 private:
-	bool GHOST_ContextEGL::initEGlew();
+	void GHOST_ContextEGL::initEGlew();
 
 	EGLNativeDisplayType m_nativeDisplay;
 	EGLNativeWindowType  m_nativeWindow;

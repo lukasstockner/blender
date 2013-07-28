@@ -32,24 +32,121 @@
 
 #include "GHOST_Context.h"
 
+#include <cstdio>
+#include <cstring>
+
 
 
 GLEWContext* glewContext = NULL;
 
 
 
-bool GHOST_Context::initGlew()
+const char* get_glew_error_message_string(GLenum error)
 {
-	if (m_glewContext == NULL) {
-		glewContext = new GLEWContext;
-		
-		if (glewInit() != GLEW_OK) {
-			delete glewContext;
-			glewContext = NULL;
-		}
+	switch (error) {
+		case GLEW_OK: /* also GLEW_NO_ERROR */
+			return "OK";
 
-		m_glewContext = glewContext;
+		case GLEW_ERROR_NO_GL_VERSION:
+			return "Missing GL version";
+
+		case GLEW_ERROR_GL_VERSION_10_ONLY:
+			return "Need at least OpenGL 1.1";
+
+		case GLEW_ERROR_GLX_VERSION_11_ONLY:
+			return "Need at least GLX 1.2";
+
+		case GLEW_ERROR_NOT_GLES_VERSION:
+			return "Need to be OpenGL ES version";
+
+		case GLEW_ERROR_GLES_VERSION:
+			return "Need to be desktop OpenGL version";
+
+		case GLEW_ERROR_NO_EGL_VERSION:
+			return "Missing EGL version";
+
+		case GLEW_ERROR_EGL_VERSION_10_ONLY:
+			return "Need at least EGL 1.1";
+
+		default:
+			return NULL;
 	}
-	
-	return  m_glewContext != NULL ? GHOST_kSuccess : GHOST_kFailure;
+}
+
+
+
+const char* get_glew_error_enum_string(GLenum error)
+{
+	switch (error) {
+		case GLEW_OK: /* also GLEW_NO_ERROR */
+			return "GLEW_OK";
+
+		case GLEW_ERROR_NO_GL_VERSION:
+			return "GLEW_ERROR_NO_GL_VERSION";
+
+		case GLEW_ERROR_GL_VERSION_10_ONLY:
+			return "GLEW_ERROR_GL_VERSION_10_ONLY";
+
+		case GLEW_ERROR_GLX_VERSION_11_ONLY:
+			return "GLEW_ERROR_GLX_VERSION_11_ONLY";
+
+		case GLEW_ERROR_NOT_GLES_VERSION:
+			return "GLEW_ERROR_NOT_GLES_VERSION";
+
+		case GLEW_ERROR_GLES_VERSION:
+			return "GLEW_ERROR_GLES_VERSION";
+
+		case GLEW_ERROR_NO_EGL_VERSION:
+			return "GLEW_ERROR_NO_EGL_VERSION";
+
+		case GLEW_ERROR_EGL_VERSION_10_ONLY:
+			return "GLEW_ERROR_EGL_VERSION_10_ONLY";
+
+		default:
+			return NULL;
+	}
+}
+
+
+
+GLenum glew_chk(GLenum error, const char* file, int line, const char* text)
+{
+	if (error != GLEW_OK) {
+		const char* code = get_glew_error_enum_string(error);
+		const char* msg  = get_glew_error_message_string(error);
+
+#ifndef NDEBUG
+		fprintf(
+			stderr,
+			"%s(%d):[%s] -> GLEW Error (0x%04X): %s: %s\n",
+			file,
+			line,
+			text,
+			error,
+			code ? code : "<Unknown>",
+			msg  ? msg  : "<Unknown>");
+#else
+		fprintf(
+			stderr,
+			"GLEW Error (%04X): %s: %s\n",
+			error,
+			code ? code : "<Unknown>",
+			msg  ? msg  : "<Unknown>");
+#endif
+	}
+
+	return error;
+}
+
+
+
+void GHOST_Context::initGlew()
+{
+	glewContext = new GLEWContext;
+	memset(glewContext, 0, sizeof(GLEWContext));
+
+	delete m_glewContext;
+	m_glewContext = glewContext;
+
+	GLEW_CHK(glewInit());
 }

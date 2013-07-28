@@ -302,9 +302,6 @@ mark_as_advanced(WITH_GLEW_ES)
 option(WITH_GLU "Provide the GL Utility Library (GLU). Only works with the 'compatibiity' profile. (deprecated)" ON)
 mark_as_advanced(WITH_GLU_ES)
 
-option(WITH_GL_SYSTEM_LEGACY "Support using AGL/WGL/XGL system library (without extensions) to initialize OpenGL. Can only access pre 3.1 'legacy' profile. (deprecated)" ON)
-mark_as_advanced(WITH_GL_SYSTEM_LEGACY)
-
 option(WITH_GL_SYSTEM_DESKTOP "Support using the AGL/WGL/XGL system library to initialize OpenGL. Can access 3.1+ core, compatibility, and 2.0 es profiles." OFF)
 mark_as_advanced(WITH_GL_SYSTEM_DESKTOP)
 
@@ -1944,11 +1941,6 @@ endif()
 #-----------------------------------------------------------------------------
 # Configure OpenGL.
 
-# sanity checking
-if(WITH_GL_SYSTEM_EMBEDDED AND (WITH_GL_SYSTEM_LEGACY OR WITH_GL_SYSTEM_DESKTOP))
-	message(FATAL_ERROR "WITH_GL_SYSTEM_EMBEDDED cannot be used at the same time as WITH_GL_SYSTEM_LEGACY or WITH_GL_SYSTEM_DESKTOP")
-endif()
-
 # ToDo: Automatically find system OpenGL ES?
 set(OES2_INCLUDE_PATH "" CACHE PATH     "Path to OpenGL ES 2 include files")
 set(OES2_LIBRARY      "" CACHE FILEPATH "OpenGL ES 2 library file")
@@ -1981,7 +1973,7 @@ if(WIN32)
 	)
 endif()
 
-if(WITH_GL_SYSTEM_LEGACY OR WITH_GL_SYSTEM_DESKTOP)
+if(WITH_GL_SYSTEM_DESKTOP)
 	find_package(OpenGL)
 
 	#set(SYSTEM_GL_INCLUDE_DIR "${OPENGL_INCLUDE_DIR}")
@@ -2015,10 +2007,6 @@ endif()
 
 if(WITH_GL_PROFILE_ES20)
 	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_GL_PROFILE_ES20")
-endif()
-
-if(WITH_GL_SYSTEM_LEGACY)
-	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_GL_SYSTEM_LEGACY")
 endif()
 
 if(WITH_GL_SYSTEM_DESKTOP)
@@ -2469,7 +2457,6 @@ if(FIRST_RUN)
 	info_cfg_text("OpenGL:")
 	info_cfg_option(WITH_GLEW_ES)
 	info_cfg_option(WITH_GLU)
-	info_cfg_option(WITH_GL_SYSTEM_LEGACY)
 	info_cfg_option(WITH_GL_SYSTEM_DESKTOP)
 	info_cfg_option(WITH_GL_SYSTEM_EMBEDDED)
 	info_cfg_option(WITH_GL_PROFILE_COMPAT)

@@ -181,16 +181,6 @@ else()
 			
 			intern/GHOST_ContextEGL.h
 		)
-
-		add_definitions(-DWITH_GL_SYSTEM_EMBEDDED)
-	endif()
-
-	if(WITH_GL_SYSTEM_LEGACY)
-		add_definitions(-DWITH_GL_SYSTEM_LEGACY)
-	endif()
-
-	if(WITH_GL_SYSTEM_DESKTOP)
-		add_definitions(-DWITH_GL_SYSTEM_DESKTOP)
 	endif()
 
 	if(APPLE)
@@ -207,7 +197,7 @@ else()
 				intern/GHOST_WindowCocoa.h
 			)
 			
-			if (WITH_GL_SYSTEM_LEGACY OR WITH_GL_SYSTEM_DESKTOP)
+			if (WITH_GL_SYSTEM_DESKTOP)
 				list(APPEND SRC
 					intern/GHOST_ContextCGL.mm
 					
@@ -236,7 +226,7 @@ else()
 				intern/GHOST_WindowCarbon.h
 			)
 
-			if (WITH_GL_SYSTEM_LEGACY OR WITH_GL_SYSTEM_DESKTOP)
+			if (WITH_GL_SYSTEM_DESKTOP)
 				list(APPEND SRC
 					intern/GHOST_ContextAGL.cpp
 					
@@ -268,7 +258,7 @@ else()
 			intern/GHOST_WindowX11.h
 		)
 
-		if (WITH_GL_SYSTEM_LEGACY OR WITH_GL_SYSTEM_DESKTOP)
+		if (WITH_GL_SYSTEM_DESKTOP)
 			list(APPEND SRC
 				intern/GHOST_ContextXGL.cpp
 				
@@ -352,7 +342,7 @@ else()
 			intern/GHOST_TaskbarWin32.h
 		)
 
-		if (WITH_GL_SYSTEM_LEGACY OR WITH_GL_SYSTEM_DESKTOP)
+		if (WITH_GL_SYSTEM_DESKTOP)
 			list(APPEND SRC
 				intern/GHOST_ContextWGL.cpp
 				

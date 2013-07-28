@@ -41,6 +41,12 @@ extern "C" WGLEWContext* wglewContext;
 
 
 
+#ifndef GHOST_OPENGL_CONTEXT_FLAGS
+#define GHOST_OPENGL_CONTEXT_FLAGS 0
+#endif
+
+
+
 class GHOST_ContextWGL : public GHOST_Context
 {
 public:
@@ -51,9 +57,9 @@ public:
 		HWND hWnd,
 		HDC  hDC,
 		int  contextProfileMask  = 0,
-		int  contextFlags        = 0,
 		int  contextMajorVersion = 0,
-		int  contextMinorVersion = 0);
+		int  contextMinorVersion = 0,
+		int  contextFlags        = GHOST_OPENGL_CONTEXT_FLAGS);
 
 	/**
 	 * Destructor.
@@ -86,22 +92,46 @@ public:
 	 */
 	virtual GHOST_TSuccess releaseNativeHandles();
 
-	static void setSingleContextMode(bool on);
-
 private:
-	int choose_pixel_format(bool stereoVisual, int numOfAASamples);
-	int choose_pixel_format_arb(bool stereoVisual, int numOfAASamples);
-	int _choose_pixel_format_arb_1(bool stereoVisual, int numOfAASamples, int& swapMethodOut);
-	int _choose_pixel_format_arb_2(bool stereoVisual, int numOfAASamples, int swapMethod);
-	bool initWGlew(PIXELFORMATDESCRIPTOR& preferredPFD);
+	int choose_pixel_format(
+		bool stereoVisual,
+		int  numOfAASamples,
+		bool needAlpha,
+		bool needStencil,
+		bool sRGB);
+
+	int choose_pixel_format_arb(
+		bool stereoVisual,
+		int  numOfAASamples,
+		bool needAlpha,
+		bool needStencil,
+		bool sRGB);
+
+	int _choose_pixel_format_arb_1(
+		bool stereoVisual,
+		int  numOfAASamples,
+		bool needAlpha,
+		bool needStencil,
+		bool sRGB,
+		int& swapMethodOut);
+
+	int _choose_pixel_format_arb_2(
+		bool stereoVisual,
+		int  numOfAASamples,
+		bool needAlpha,
+		bool needStencil,
+		bool sRGB,
+		int  swapMethod);
+
+	void initWGlew(PIXELFORMATDESCRIPTOR& preferredPFD);
 
 	HDC  m_hDC;
 	HWND m_hWnd;
 
 	int m_contextProfileMask;
-	int m_contextFlags;
 	int m_contextMajorVersion;
 	int m_contextMinorVersion;
+	int m_contextFlags;
 
 	HGLRC m_hGLRC;
 
@@ -109,9 +139,16 @@ private:
 
 	WGLEWContext* m_wglewContext;
 
+#ifndef NDEBUG
+	const char* m_dummyVendor;
+	const char* m_dummyRenderer;
+	const char* m_dummyVersion;
+#endif
+
 	static HGLRC s_sharedHGLRC;
-	static HDC   s_sharedHDC;
 	static int   s_sharedCount;
+
+	static bool s_singleContextMode;
 };
 
 
