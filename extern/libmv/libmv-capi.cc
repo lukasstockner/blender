@@ -624,7 +624,7 @@ libmv_Reconstruction *libmv_solve(const libmv_Tracks *libmv_tracks,
 	else {
 		/* Keyframe selection */
 		int &keyframe1 = libmv_reconstruction_options->keyframe1,
-				&keyframe2 = libmv_reconstruction_options->keyframe2;
+		    &keyframe2 = libmv_reconstruction_options->keyframe2;
 
 		if (libmv_reconstruction_options->select_keyframes) {
 			LG << "Using automatic keyframe selection";
@@ -632,18 +632,18 @@ libmv_Reconstruction *libmv_solve(const libmv_Tracks *libmv_tracks,
 			update_callback.invoke(0, "Selecting keyframes");
 
 			selectTwoKeyframesBasedOnGRICAndVariance(tracks,
-																							 normalized_tracks,
-																							 camera_intrinsics,
-																							 reconstruction_options,
-																							 keyframe1,
-																							 keyframe2);
+			                                         normalized_tracks,
+			                                         camera_intrinsics,
+			                                         reconstruction_options,
+			                                         keyframe1,
+			                                         keyframe2);
 		}
 
 		LG << "frames to init from: " << keyframe1 << " " << keyframe2;
 
 		/* Reconstruct for two frames */
 		libmv::vector<libmv::Marker> keyframe_markers =
-			normalized_tracks.MarkersForTracksInBothImages(keyframe1, keyframe2);
+				normalized_tracks.MarkersForTracksInBothImages(keyframe1, keyframe2);
 
 		LG << "number of markers for init: " << keyframe_markers.size();
 
