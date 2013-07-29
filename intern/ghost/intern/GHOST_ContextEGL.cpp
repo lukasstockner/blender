@@ -324,9 +324,6 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext(bool stereoVisual, GHO
 {
 	std::vector<EGLint> attrib_list;
 
-	assert(m_nativeWindow  != NULL);
-	assert(m_nativeDisplay != NULL);
-
 	if (stereoVisual)
 		fprintf(stderr, "Warning! Stereo OpenGL ES contexts are not supported.\n");
 
@@ -436,6 +433,8 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext(bool stereoVisual, GHO
 
 	if (!EGL_CHK(::eglMakeCurrent(m_display, m_surface, m_surface, m_context)))
 		goto error;
+
+	initGlew();
 
 	return GHOST_kSuccess;
 

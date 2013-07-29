@@ -421,16 +421,21 @@ static GLboolean _glewSearchExtension (const char* name, const GLubyte *start, c
 	  }
 	  return GL_FALSE;
 	}
+#ifndef GLEW_ES_ONLY
 	else { // XXX jwilkins: unified extension string is deprecated
-		GLEW_FUN_EXPORT PFNGLGETSTRINGIPROC pglGetStringi = glewGetProcAddress("glGetStringi");
-
-		int max = 0;
-		glGetIntegerv(GL_NUM_EXTENSIONS, &max);
+		typedef const GLubyte* (GLAPIENTRY * PFNGLGETSTRINGIPROC) (GLenum, GLuint);
+		GLEW_FUN_EXPORT PFNGLGETSTRINGIPROC pglGetStringi = (PFNGLGETSTRINGIPROC)glewGetProcAddress("glGetStringi");
 
 		if (pglGetStringi != NULL) {
-			const char* ext;
+			const GLubyte* ext;
 			int i;
-			GLuint len = _glewStrLen((const GLubyte*)name);
+			int max = 0;
+			const GLenum NUM_EXTENSIONS = 0x821D;
+			GLuint len;
+
+			glGetIntegerv(NUM_EXTENSIONS, &max);
+
+			len = _glewStrLen((const GLubyte*)name);
 
 			for (i = 0; i < max; i++) {
 				ext = pglGetStringi(GL_EXTENSIONS, i);
@@ -440,6 +445,7 @@ static GLboolean _glewSearchExtension (const char* name, const GLubyte *start, c
 			}
 		}
 	}
+#endif
 
 	return GL_FALSE;
 }
@@ -11798,16 +11804,20 @@ GLenum glewContextInit (GLEW_CONTEXT_ARG_DEF_LIST)
   }		                     
 
   /* query opengl extensions string */
+#ifndef GLEW_ES_ONLY
   if (!GLEW_VERSION_3_0) {
+#endif
 	  extStart = glGetString(GL_EXTENSIONS);
 	  if (extStart == 0)
 		extStart = (const GLubyte*)"";
 	  extEnd = extStart + _glewStrLen(extStart);
+#ifndef GLEW_ES_ONLY
   }
   else { // XXX jwilkins: unified extension string is deprecated
 	  extStart = 0;
 	  extEnd   = 0;
   }
+#endif
 
   /* initialize extensions */
 #ifdef GL_VERSION_1_1

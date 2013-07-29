@@ -133,12 +133,12 @@ public:
 
 class GHOST_PixelFormatChooser {
 public:
-	int choosePixelFormat(GHOST_PixelFormatFactory& factory);
+	int choosePixelFormat(GHOST_PixelFormatChooser& factory);
 
 protected:
-	virtual int                systemChoosePixelFormat() const = 0;
-	virtual int                count()                   const = 0;
-	virtual GHOST_PixelFormat* get(int i)                const = 0;
+	virtual int                safeChoosePixelFormat() const = 0;
+	virtual int                count()                 const = 0;
+	virtual GHOST_PixelFormat* get(int i)              const = 0;
 };
 
 

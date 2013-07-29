@@ -155,6 +155,7 @@ void GHOST_Context::initGlew()
 
 int GHOST_PixelFormat::computeWeight() const
 {
+	return 0;
 }
 
 
@@ -165,6 +166,8 @@ void GHOST_PixelFormat::print() const
 
 
 
-int GHOST_ChoosePixelFormat(GHOST_PixelFormatFactory& factory)
+int GHOST_PixelFormatChooser::choosePixelFormat(GHOST_PixelFormatChooser& factory)
 {
+	return 0;
 }
+

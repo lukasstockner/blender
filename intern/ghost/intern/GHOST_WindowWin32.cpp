@@ -38,7 +38,13 @@
 #include "utfconv.h"
 #include "utf_winfunc.h"
 
+#if defined(WITH_GL_SYSTEM_DESKTOP)
 #include "GHOST_ContextWGL.h"
+#endif
+
+#if defined(WITH_GL_SYSTEM_EMBEDDED)
+#include "GHOST_ContextEGL.h"
+#endif
 
 #include <math.h>
 #include <string.h>

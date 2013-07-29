@@ -310,7 +310,9 @@ char * object_shader_fragment_basic =
 
 
 char * object_shader_vector_alphatexture = 
+#if defined(WITH_GL_PROFILE_CORE)
 "#version 120\n"
+#endif
 	"uniform mat4 b_ProjectionMatrix ;	\n"
 	"uniform mat4 b_ModelViewMatrix ;	\n"
 	"uniform mat4 b_TextureMatrix ;	\n"
@@ -339,7 +341,9 @@ char * object_shader_fragment_alphatexture =
 ;
 
 char * object_shader_vector_rgbatexture = 
+#if defined(WITH_GL_PROFILE_CORE)
 "#version 120\n"
+#endif
 	"uniform mat4 b_ProjectionMatrix ;\n"
 	"uniform mat4 b_ModelViewMatrix ;\n"
 	"uniform mat4 b_TextureMatrix ;\n"
@@ -368,7 +372,9 @@ char * object_shader_fragment_rgbatexture =
 ;
 
 char * object_shader_vector_pixels = 
+#if defined(WITH_GL_PROFILE_CORE)
 "#version 120\n"
+#endif
 	"uniform mat4 b_ProjectionMatrix ;\n"
 	"uniform mat4 b_ModelViewMatrix ;\n"
 	"uniform mat4 b_TextureMatrix ;\n"
