@@ -364,8 +364,18 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext(bool stereoVisual, GHO
 
 	attrib_list.reserve(20);
 
-	attrib_list.push_back(EGL_RENDERABLE_TYPE);
-	attrib_list.push_back(EGL_OPENGL_ES2_BIT);
+	// The ARM mali ES emulator seems to need this to find a pixel fromat
+	// XXX jwilkins: mali also fails to initialize EGLEW because of a bug in eglGetCurrentDisplay(), so using major/minor instead of EGLEW_VERSION
+	if ((major == 1 && minor >= 2 || major > 1) && m_api == EGL_OPENGL_ES_API) {
+		if (m_contextClientVersion == 1) {
+			attrib_list.push_back(EGL_RENDERABLE_TYPE);
+			attrib_list.push_back(EGL_OPENGL_ES_BIT);
+		}
+		else if ((major == 1 && minor >= 3 || major > 1) && m_contextClientVersion == 2) {
+			attrib_list.push_back(EGL_RENDERABLE_TYPE);
+			attrib_list.push_back(EGL_OPENGL_ES2_BIT);
+		}
+	}
 
 	attrib_list.push_back(EGL_RED_SIZE);
 	attrib_list.push_back(8);
@@ -435,6 +445,9 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext(bool stereoVisual, GHO
 
 	if (!EGL_CHK(::eglMakeCurrent(m_display, m_surface, m_surface, m_context)))
 		goto error;
+
+	// XXX jwilkins: do this again here for mali, since eglGetCurrentDisplay will now work
+	initContextEGLEW();
 
 	initContextGLEW();
 

@@ -608,11 +608,23 @@ void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int fo
 		                                                         // but if it still somehow gets passed in here, it should work fine.
 		index = (off_y * row_w + off_x) * components;
 
-		if (type == GL_FLOAT) {
-			data = (GLfloat*)rect + index;
-		}
-		else if (type == GL_INT || type == GL_UNSIGNED_INT) {
-			data = (GLint*)rect + index;
+		switch (type) {
+			case GL_FLOAT:
+				data = (GLfloat*)rect + index;
+				break;
+
+			case GL_INT: case GL_UNSIGNED_INT:
+				data = (GLint*)rect + index;
+				break;
+
+			case GL_UNSIGNED_BYTE:
+				data = (GLubyte*)rect + index;
+				break;
+
+			default:
+				GPU_ABORT();
+				gpuPixelFormat(GL_UNPACK_ROW_LENGTH, 0);
+				return;
 		}
 
 		{
