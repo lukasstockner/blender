@@ -908,7 +908,7 @@ BLI_INLINE void shape3(
 	int i, uIndex;
 	int j, vIndex;
 	GLboolean uCycle;
-	GLuint base;
+	GLushort base;
 	GLboolean doNormals;
 
 
@@ -1032,7 +1032,7 @@ BLI_INLINE void shape3(
 		}
 	}
 
-	gpuIndexBegin();
+	gpuIndexBegin(GL_UNSIGNED_SHORT);
 
 	switch (prim->drawStyle) {
 		case GPU_DRAW_STYLE_FILL:
@@ -1040,22 +1040,22 @@ BLI_INLINE void shape3(
 				base = (usegs+1) * j;
 				for (i = 0; i < usegs; i++) {
 					if (prim->normals == GPU_NORMALS_FLAT || (i+j) % 2 == 0) {
-						gpuIndex(base+1);
-						gpuIndex(base+usegs+2);
-						gpuIndex(base);
+						gpuIndexus(base+1);
+						gpuIndexus(base+usegs+2);
+						gpuIndexus(base);
 
-						gpuIndex(base+usegs+2);
-						gpuIndex(base+usegs+1);
-						gpuIndex(base);
+						gpuIndexus(base+usegs+2);
+						gpuIndexus(base+usegs+1);
+						gpuIndexus(base);
 					}
 					else {
-						gpuIndex(base+1);
-						gpuIndex(base+usegs+1);
-						gpuIndex(base);
+						gpuIndexus(base+1);
+						gpuIndexus(base+usegs+1);
+						gpuIndexus(base);
 
-						gpuIndex(base+usegs+2);
-						gpuIndex(base+usegs+1);
-						gpuIndex(base+1);
+						gpuIndexus(base+usegs+2);
+						gpuIndexus(base+usegs+1);
+						gpuIndexus(base+1);
 					}
 
 					base++;
@@ -1067,22 +1067,22 @@ BLI_INLINE void shape3(
 
 				for (j = 0; j < vsegs; j++) {
 					if (prim->normals == GPU_NORMALS_FLAT || (usegs+j) % 2 == 0) {
-						gpuIndex(base-usegs);
-						gpuIndex(base+1);
-						gpuIndex(base);
+						gpuIndexus(base-usegs);
+						gpuIndexus(base+1);
+						gpuIndexus(base);
 
-						gpuIndex(base+1);
-						gpuIndex(base+usegs+1);
-						gpuIndex(base);
+						gpuIndexus(base+1);
+						gpuIndexus(base+usegs+1);
+						gpuIndexus(base);
 					}
 					else {
-						gpuIndex(base);
-						gpuIndex(base-usegs);
-						gpuIndex(base+usegs+1);
+						gpuIndexus(base);
+						gpuIndexus(base-usegs);
+						gpuIndexus(base+usegs+1);
 
-						gpuIndex(base+usegs+1);
-						gpuIndex(base-usegs);
-						gpuIndex(base+1);
+						gpuIndexus(base+usegs+1);
+						gpuIndexus(base-usegs);
+						gpuIndexus(base+1);
 					}
 
 					base += usegs+1;
@@ -1095,11 +1095,11 @@ BLI_INLINE void shape3(
 			for (j = 0; j < vsegs; j++) {
 				base = (usegs+1) * j;
 				for (i = 0; i < usegs; i++) {
-					gpuIndex(base+usegs+1);
-					gpuIndex(base);
+					gpuIndexus(base+usegs+1);
+					gpuIndexus(base);
 
-					gpuIndex(base+1);
-					gpuIndex(base);
+					gpuIndexus(base+1);
+					gpuIndexus(base);
 
 					base++;
 				}
@@ -1108,8 +1108,8 @@ BLI_INLINE void shape3(
 			base = (usegs+1) * vsegs;
 
 			for (i = 0; i < usegs; i++) {
-				gpuIndex(base+1);
-				gpuIndex(base);
+				gpuIndexus(base+1);
+				gpuIndexus(base);
 
 				base++;
 			}
@@ -1117,20 +1117,20 @@ BLI_INLINE void shape3(
 			base = usegs;
 
 			for (j = 0; j < vsegs; j++) {
-				gpuIndex(base+usegs+1);
-				gpuIndex(base);
+				gpuIndexus(base+usegs+1);
+				gpuIndexus(base);
 
 				if (uCycle) {
-					gpuIndex(base-usegs);
-					gpuIndex(base);
+					gpuIndexus(base-usegs);
+					gpuIndexus(base);
 				}
 
 				base += usegs+1;
 			}
 
 			if (uCycle) {
-				gpuIndex(base-usegs);
-				gpuIndex(base);
+				gpuIndexus(base-usegs);
+				gpuIndexus(base);
 			}
 
 			break;
@@ -1139,14 +1139,14 @@ BLI_INLINE void shape3(
 			for (j = 0; j < vsegs; j++) {
 				base = (usegs+1) * j;
 				for (i = 0; i < usegs; i++) {
-					gpuIndex(base+usegs+1);
-					gpuIndex(base);
+					gpuIndexus(base+usegs+1);
+					gpuIndexus(base);
 
-					gpuIndex(base+1);
-					gpuIndex(base);
+					gpuIndexus(base+1);
+					gpuIndexus(base);
 
-					gpuIndex(base+usegs+2);
-					gpuIndex(base);
+					gpuIndexus(base+usegs+2);
+					gpuIndexus(base);
 
 					base++;
 				}
@@ -1155,8 +1155,8 @@ BLI_INLINE void shape3(
 			base = (usegs+1) * vsegs;
 
 			for (i = 0; i < usegs; i++) {
-				gpuIndex(base+1);
-				gpuIndex(base);
+				gpuIndexus(base+1);
+				gpuIndexus(base);
 
 				base++;
 			}
@@ -1164,23 +1164,23 @@ BLI_INLINE void shape3(
 			base = usegs;
 
 			for (j = 0; j < vsegs; j++) {
-				gpuIndex(base+usegs+1);
-				gpuIndex(base);
+				gpuIndexus(base+usegs+1);
+				gpuIndexus(base);
 
 				if (uCycle) {
-					gpuIndex(base-usegs);
-					gpuIndex(base);
+					gpuIndexus(base-usegs);
+					gpuIndexus(base);
 
-					gpuIndex(base+1);
-					gpuIndex(base);
+					gpuIndexus(base+1);
+					gpuIndexus(base);
 				}
 
 				base += usegs+1;
 			}
 
 			if (uCycle) {
-				gpuIndex(base-usegs);
-				gpuIndex(base);
+				gpuIndexus(base-usegs);
+				gpuIndexus(base);
 			}
 
 			break;

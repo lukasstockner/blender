@@ -358,7 +358,7 @@ typedef struct GPUindex {
 	struct GPUimmediate *restrict immediate;
 
 	void   *restrict bufferData;
-	GLuint *restrict buffer;         /* mapped pointer for editing */
+	void   *restrict buffer;         /* mapped pointer for editing */
 	void   *restrict unmappedBuffer; /* for passing to draw api */
 	GLsizei maxIndexCount;
 	GLsizei count;
@@ -367,21 +367,31 @@ typedef struct GPUindex {
 	GLuint indexMax;
 
 	GLuint restart;
+
+	GLenum type;
 } GPUindex;
 
 GPUindex* gpuNewIndex(void);
 void gpuDeleteIndex(GPUindex *restrict index);
 
 void gpuImmediateIndex(GPUindex * index);
-void gpuImmediateMaxIndexCount(GLsizei maxIndexCount);
+void gpuImmediateMaxIndexCount(GLsizei maxIndexCount, GLenum type);
 void gpuImmediateIndexRange(GLuint indexMin, GLuint indexMax);
 void gpuImmediateIndexComputeRange(void);
 void gpuImmediateIndexRestartValue(GLuint restart);
 
-void gpuIndexBegin(void);
-void gpuIndexRelativev(GLint offset, GLsizei count, const void *restrict indexes);
-void gpuIndex(GLuint index);
+void gpuIndexBegin(GLenum type);
+
+void gpuIndexRelativeubv(GLint offset, GLsizei count, const GLubyte  *restrict indexes);
+void gpuIndexRelativeusv(GLint offset, GLsizei count, const GLushort *restrict indexes);
+void gpuIndexRelativeuiv(GLint offset, GLsizei count, const GLuint   *restrict indexes);
+
+void gpuIndexub(GLubyte  index);
+void gpuIndexus(GLushort index);
+void gpuIndexui(GLuint   index);
+
 void gpuIndexRestart(void);
+
 void gpuIndexEnd(void);
 
 

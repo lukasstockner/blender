@@ -351,7 +351,7 @@ static void draw_bonevert_solid(void)
 
 		index = gpuNewIndex();
 		gpuImmediateIndex(index);
-		gpuImmediateMaxIndexCount(240);
+		gpuImmediateMaxIndexCount(240, GL_UNSIGNED_SHORT);
 
 		gpuSingleSphere(&prim, 0.05f);
 
@@ -424,7 +424,7 @@ static void draw_bone_octahedral(void)
 
 		index = gpuNewIndex();
 		gpuImmediateIndex(index);
-		gpuImmediateMaxIndexCount(index_count);
+		gpuImmediateMaxIndexCount(index_count, GL_UNSIGNED_SHORT);
 
 		gpuSingleClientRangeElements_V3F(
 			GL_LINE_LOOP,
@@ -458,7 +458,7 @@ static void draw_bone_solid_octahedral(void)
 
 		index = gpuNewIndex();
 		gpuImmediateIndex(index);
-		gpuImmediateMaxIndexCount(index_count);
+		gpuImmediateMaxIndexCount(index_count, GL_UNSIGNED_SHORT);
 
 		gpuSingleClientRangeElements_N3F_V3F(
 			GL_TRIANGLES,

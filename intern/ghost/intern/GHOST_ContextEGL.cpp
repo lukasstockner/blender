@@ -257,7 +257,7 @@ GHOST_ContextEGL::GHOST_ContextEGL(
 
 GHOST_ContextEGL::~GHOST_ContextEGL()
 {
-	eglewContext = m_eglewContext;
+	activateEGLEW();
 
 	bindAPI(m_api);
 
@@ -296,9 +296,8 @@ GHOST_TSuccess GHOST_ContextEGL::swapBuffers()
 
 GHOST_TSuccess GHOST_ContextEGL::activateDrawingContext()
 {
-	eglewContext = m_eglewContext;
-
-	activateGlew();
+	activateEGLEW();
+	activateGLEW();
 
 	bindAPI(m_api);
 
@@ -307,7 +306,7 @@ GHOST_TSuccess GHOST_ContextEGL::activateDrawingContext()
 
 
 
-void GHOST_ContextEGL::initEGlew()
+void GHOST_ContextEGL::initContextEGLEW()
 {
 	eglewContext = new EGLEWContext;
 	memset(eglewContext, 0, sizeof(EGLEWContext));
@@ -359,11 +358,14 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext(bool stereoVisual, GHO
 	if (!EGL_CHK(::eglMakeCurrent(m_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT)))
 		goto error;
 
-	initEGlew();
+	initContextEGLEW();
 
 	bindAPI(m_api);
 
 	attrib_list.reserve(20);
+
+	attrib_list.push_back(EGL_RENDERABLE_TYPE);
+	attrib_list.push_back(EGL_OPENGL_ES2_BIT);
 
 	attrib_list.push_back(EGL_RED_SIZE);
 	attrib_list.push_back(8);
@@ -434,7 +436,7 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext(bool stereoVisual, GHO
 	if (!EGL_CHK(::eglMakeCurrent(m_display, m_surface, m_surface, m_context)))
 		goto error;
 
-	initGlew();
+	initContextGLEW();
 
 	return GHOST_kSuccess;
 

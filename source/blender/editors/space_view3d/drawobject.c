@@ -5676,7 +5676,7 @@ static void draw_empty_cone(float size)
 
 		index = gpuNewIndex();
 		gpuImmediateIndex(index);
-		gpuImmediateMaxIndexCount(96);
+		gpuImmediateMaxIndexCount(96, GL_UNSIGNED_SHORT);
 
 		//GLU Cylinder(qobj, 1.0, 0.0, 1.0, 8, 1);
 		gpuSingleCone(&prim, 1, 1);
@@ -6097,7 +6097,7 @@ static void draw_bb_quadric(BoundBox *bb, char type)
 
 			index = gpuNewIndex();
 			gpuImmediateIndex(index);
-			gpuImmediateMaxIndexCount(176);
+			gpuImmediateMaxIndexCount(176, GL_UNSIGNED_SHORT);
 
 			gpuSingleSphere(&prim, 1);
 
@@ -6124,7 +6124,7 @@ static void draw_bb_quadric(BoundBox *bb, char type)
 
 			index = gpuNewIndex();
 			gpuImmediateIndex(index);
-			gpuImmediateMaxIndexCount(48);
+			gpuImmediateMaxIndexCount(48, GL_UNSIGNED_SHORT);
 
 			//GLU Cylinder(qobj, 1.0, 1.0, 1.0, 8, 1);
 			gpuSingleCylinder(&prim, 1, 1, 1);
@@ -6151,7 +6151,7 @@ static void draw_bb_quadric(BoundBox *bb, char type)
 
 			index = gpuNewIndex();
 			gpuImmediateIndex(index);
-			gpuImmediateMaxIndexCount(48);
+			gpuImmediateMaxIndexCount(48, GL_UNSIGNED_SHORT);
 
 			gpuSingleCone(&prim, 1, 1);
 			displist = gpuPopImmediate();

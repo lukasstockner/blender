@@ -1468,34 +1468,62 @@ void gpuImmediateIndexRange(GLuint indexMin, GLuint indexMax)
 	GPU_IMMEDIATE->index->indexMax = indexMax;
 }
 
-static void find_range(
-	GLuint *restrict arrayFirst,
-	GLuint *restrict arrayLast,
-	GLsizei count,
-	const GLuint *restrict indexes)
-{
-	int i;
 
-	GPU_ASSERT(count > 0);
 
-	*arrayFirst = indexes[0];
-	*arrayLast  = indexes[0];
-
-	for (i = 1; i < count; i++) {
-		if (indexes[i] < *arrayFirst) {
-			*arrayFirst = indexes[i];
-		}
-		else if (indexes[i] > *arrayLast) {
-			*arrayLast = indexes[i];
-		}
-	}
+#define FIND_RANGE(suffix, ctype)                     \
+	static void find_range_##suffix(                  \
+    GLuint *restrict arrayFirst,                      \
+    GLuint *restrict arrayLast,                       \
+    GLsizei count,                                    \
+    const ctype *restrict indexes)                    \
+{                                                     \
+    int i;                                            \
+                                                      \
+    GPU_ASSERT(count > 0);                            \
+                                                      \
+    *arrayFirst = indexes[0];                         \
+    *arrayLast  = indexes[0];                         \
+                                                      \
+    for (i = 1; i < count; i++) {                     \
+        if (indexes[i] < *arrayFirst) {               \
+            *arrayFirst = indexes[i];                 \
+        }                                             \
+        else if (indexes[i] > *arrayLast) {           \
+            *arrayLast = indexes[i];                  \
+        }                                             \
+    }                                                 \
 }
+
+FIND_RANGE(ub, GLubyte )
+FIND_RANGE(us, GLushort)
+FIND_RANGE(ui, GLuint  )
+
+
 
 void gpuImmediateIndexComputeRange(void)
 {
 	GLuint indexMin, indexMax;
 
-	find_range(&indexMin, &indexMax, GPU_IMMEDIATE->index->count, GPU_IMMEDIATE->index->buffer);
+	GPUindex* index = GPU_IMMEDIATE->index;
+
+	switch (index->type) {
+		case GL_UNSIGNED_BYTE:
+			find_range_ub(&indexMin, &indexMax, index->count, (GLubyte* )(index->buffer));
+			break;
+
+		case GL_UNSIGNED_SHORT:
+			find_range_us(&indexMin, &indexMax, index->count, (GLushort*)(index->buffer));
+			break;
+
+		case GL_UNSIGNED_INT:
+			find_range_ui(&indexMin, &indexMax, index->count, (GLuint*  )(index->buffer));
+			break;
+
+		default:
+			GPU_ABORT();
+			return;
+	}
+
 	gpuImmediateIndexRange(indexMin, indexMax);
 }
 
@@ -1510,7 +1538,7 @@ void gpuSingleClientElements_V3F(
 {
 	GLuint indexMin, indexMax;
 
-	find_range(&indexMin, &indexMax, count, indexes);
+	find_range_ui(&indexMin, &indexMax, count, indexes);
 
 	gpuSingleClientRangeElements_V3F(
 		mode,
@@ -1533,7 +1561,7 @@ void gpuSingleClientElements_N3F_V3F(
 {
 	GLuint indexMin, indexMax;
 
-	find_range(&indexMin, &indexMax, count, indexes);
+	find_range_ui(&indexMin, &indexMax, count, indexes);
 
 	gpuSingleClientRangeElements_N3F_V3F(
 		mode,
@@ -1558,7 +1586,7 @@ void gpuSingleClientElements_C4UB_V3F(
 {
 	GLuint indexMin, indexMax;
 
-	find_range(&indexMin, &indexMax, count, indexes);
+	find_range_ui(&indexMin, &indexMax, count, indexes);
 
 	gpuSingleClientRangeElements_C4UB_V3F(
 		mode,
@@ -1588,8 +1616,8 @@ void gpuDrawClientRangeElements(
 	gpuAppendClientArrays(arrays, indexMin, indexRange);
 	gpuEnd();
 
-	gpuIndexBegin();
-	gpuIndexRelativev(indexRange + indexMin, count, indexes);
+	gpuIndexBegin(GL_UNSIGNED_INT);
+	gpuIndexRelativeuiv(indexRange + indexMin, count, indexes);
 	gpuIndexEnd();
 
 	gpuImmediateIndexRange(indexMin, indexMax);
@@ -1667,12 +1695,10 @@ void gpuSingleClientRangeElements_C4UB_V3F(
 
 GPUindex* gpuNewIndex(void)
 {
-	GPUindex* index;
-
-	index = (GPUindex*)MEM_callocN(sizeof(GPUindex), "GPUindex");
-
-	return index;
+	return (GPUindex*)MEM_callocN(sizeof(GPUindex), "GPUindex");
 }
+
+
 
 void gpuDeleteIndex(GPUindex *restrict index)
 {
@@ -1686,71 +1712,107 @@ void gpuDeleteIndex(GPUindex *restrict index)
 	}
 }
 
+
+
 void gpuImmediateIndex(GPUindex * index)
 {
 	GPU_ASSERT(GPU_IMMEDIATE->index == NULL);
 
-	if (index) {
+	if (index)
 		index->immediate = GPU_IMMEDIATE;
-	}
 
 	GPU_IMMEDIATE->index = index;
 }
 
-void gpuImmediateMaxIndexCount(GLsizei maxIndexCount)
+
+
+void gpuImmediateMaxIndexCount(GLsizei maxIndexCount, GLenum type)
 {
+	GPU_ASSERT(GPU_IMMEDIATE);
+	GPU_ASSERT(GPU_IMMEDIATE->index);
+
 	GPU_IMMEDIATE->index->maxIndexCount = maxIndexCount;
+	GPU_IMMEDIATE->index->type          = type;
 }
 
-void gpuIndexBegin(void)
+
+
+void gpuIndexBegin(GLenum type)
 {
 	GPUindex* index;
+
+	GPU_ASSERT(ELEM3(type, GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT, GL_UNSIGNED_INT));
 
 	index = GPU_IMMEDIATE->index;
 
 	index->count    = 0;
 	index->indexMin = 0;
 	index->indexMax = 0;
+	index->type     = type;
 
 	GPU_IMMEDIATE->indexBeginBuffer();
 }
 
-void gpuIndexRelativev(GLint offset, GLsizei count, const void *restrict indexes)
-{
-	int i;
-	int start;
-	int indexStart;
-	GPUindex* index;
 
-	{
-		GLboolean indexCountOK;
-		GPU_SAFE_RETURN(GPU_IMMEDIATE->index->count + count <= GPU_IMMEDIATE->index->maxIndexCount, indexCountOK,);
-	}
 
-	start = GPU_IMMEDIATE->count;
-	index = GPU_IMMEDIATE->index;
-	indexStart = index->count;
-
-	for (i = 0; i < count; i++) {
-		index->buffer[indexStart+i] = start - offset + ((GLuint*)indexes)[i];
-	}
-
-	index->count += count;
+#define INDEX_RELATIVE(suffix, ctype, glsymbol)                                                                     \
+void gpuIndexRelative##suffix(GLint offset, GLsizei count, const ctype *restrict indexes)                           \
+{                                                                                                                   \
+    int i;                                                                                                          \
+    int start;                                                                                                      \
+    int indexStart;                                                                                                 \
+    GPUindex* index;                                                                                                \
+                                                                                                                    \
+    GPU_ASSERT(GPU_IMMEDIATE);                                                                                      \
+    GPU_ASSERT(GPU_IMMEDIATE->index);                                                                               \
+    GPU_ASSERT(GPU_IMMEDIATE->index->type == glsymbol);                                                             \
+                                                                                                                    \
+    {                                                                                                               \
+        GLboolean indexCountOK;                                                                                     \
+        GPU_SAFE_RETURN(GPU_IMMEDIATE->index->count + count <= GPU_IMMEDIATE->index->maxIndexCount, indexCountOK,); \
+    }                                                                                                               \
+                                                                                                                    \
+    start = GPU_IMMEDIATE->count;                                                                                   \
+    index = GPU_IMMEDIATE->index;                                                                                   \
+    indexStart = index->count;                                                                                      \
+                                                                                                                    \
+    for (i = 0; i < count; i++) {                                                                                   \
+        ((ctype*)(index->buffer))[indexStart+i] = start - offset + ((ctype*)indexes)[i];                            \
+    }                                                                                                               \
+                                                                                                                    \
+    index->count += count;                                                                                          \
 }
 
-void gpuIndex(GLuint nextIndex)
-{
-	GPUindex* index;
+INDEX_RELATIVE(ubv, GLubyte,  GL_UNSIGNED_BYTE )
+INDEX_RELATIVE(usv, GLushort, GL_UNSIGNED_SHORT)
+INDEX_RELATIVE(uiv, GLuint,   GL_UNSIGNED_INT  )
 
-	{
-		GLboolean indexCountOK;
-		GPU_SAFE_RETURN(GPU_IMMEDIATE->index->count < GPU_IMMEDIATE->index->maxIndexCount, indexCountOK,);
-	}
 
-	index = GPU_IMMEDIATE->index;
-	index->buffer[index->count] = nextIndex;
-	index->count++;
+
+#define INDEX(suffix, ctype, glsymbol)                                                                     \
+void gpuIndex##suffix(ctype nextIndex)                                                                     \
+{                                                                                                          \
+    GPUindex* index;                                                                                       \
+                                                                                                           \
+    GPU_ASSERT(GPU_IMMEDIATE);                                                                             \
+    GPU_ASSERT(GPU_IMMEDIATE->index);                                                                      \
+    GPU_ASSERT(GPU_IMMEDIATE->index->type == glsymbol);                                                    \
+                                                                                                           \
+    {                                                                                                      \
+        GLboolean indexCountOK;                                                                            \
+        GPU_SAFE_RETURN(GPU_IMMEDIATE->index->count < GPU_IMMEDIATE->index->maxIndexCount, indexCountOK,); \
+    }                                                                                                      \
+                                                                                                           \
+    index = GPU_IMMEDIATE->index;                                                                          \
+    ((ctype*)(index->buffer))[index->count] = nextIndex;                                                   \
+    index->count++;                                                                                        \
 }
+
+INDEX(ub, GLubyte,  GL_UNSIGNED_BYTE )
+INDEX(us, GLushort, GL_UNSIGNED_SHORT)
+INDEX(ui, GLuint,   GL_UNSIGNED_INT  )
+
+
 
 void gpuIndexEnd(void)
 {

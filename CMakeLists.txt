@@ -172,6 +172,7 @@ if(UNIX AND NOT APPLE)
 	option(WITH_X11_XINPUT "Enable X11 Xinput (tablet support and unicode input)"	ON)
 	option(WITH_X11_XF86VMODE "Enable X11 video mode switching"	ON)
 	option(WITH_SYSTEM_GLEW "Use GLEW OpenGL wrapper library provided by the operating system" ON)
+	option(WITH_SYSTEM_GLES "Use OpenGL ES library provided by the operating system" ON)
 
 	# freebsd doesn't seems to support XDND
 	if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
@@ -180,6 +181,7 @@ if(UNIX AND NOT APPLE)
 else()
 	# not an option for other OS's
 	set(WITH_SYSTEM_GLEW OFF)
+	set(WITH_SYSTEM_GLES OFF)
 endif()
 
 
@@ -1941,61 +1943,53 @@ endif()
 #-----------------------------------------------------------------------------
 # Configure OpenGL.
 
-# ToDo: Automatically find system OpenGL ES?
-set(OES2_INCLUDE_PATH "" CACHE PATH     "Path to OpenGL ES 2 include files")
-set(OES2_LIBRARY      "" CACHE FILEPATH "OpenGL ES 2 library file")
-
-mark_as_advanced(
-	OES2_INCLUDE_PATH
-	OES2_LIBRARY
-)
-
-if(WIN32)
-	# ToDo: Add ANGLE to the lib directory
-	set(ANGLE_INCLUDE_PATH   "" CACHE PATH     "Path to ANGLE include files")
-	set(ANGLE_GLESv2_LIBRARY "" CACHE FILEPATH "ANGLE OpenGL ES 2.0 library file")
-	set(ANGLE_EGL_LIBRARY    "" CACHE FILEPATH "ANGLE EGL library file")
-	set(ANGLE_GLESv2_DLL     "" CACHE FILEPATH "ANGLE OpenGL ES 2.0 dynamic link library file")
-	set(ANGLE_EGL_DLL        "" CACHE FILEPATH "ANGLE EGL library dynamic link library file")
-	set(D3DCOMPILER_DLL      "" CACHE FILEPATH "Direct3D Compiler dynamic link library file")
-
-	get_filename_component(D3DCOMPILER "${D3DCOMPILER_DLL}" NAME)
-
-	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DD3DCOMPILER=\"\\\"${D3DCOMPILER}\\\"\"")
-
-	mark_as_advanced(
-		ANGLE_INCLUDE_PATH
-		ANGLE_GLESv2_LIBRARY
-		ANGLE_EGL_LIBRARY
-		ANGLE_GLESv2_DLL
-		ANGLE_EGL_DLL
-		D3DCOMPILER_DLL
-	)
-endif()
-
 if(WITH_GL_SYSTEM_DESKTOP)
 	find_package(OpenGL)
 
-	#set(SYSTEM_GL_INCLUDE_DIR "${OPENGL_INCLUDE_DIR}")
-	set(SYSTEM_GL_LIBRARIES   "${OPENGL_gl_LIBRARY}")
+	set(GL_LIBRARIES "${OPENGL_GL_LIBRARY}")
 
 	if(WITH_GLU)
-		list(APPEND SYSTEM_GL_LIBRARIES "${OPENGL_glu_LIBRARY}")
+		list(APPEND GL_LIBRARIES "${OPENGL_GLU_LIBRARY}")
 	endif()
-elseif(WITH_GL_SYSTEM_EMBEDDED)
-	if(WITH_ANGLE)
-		#set(SYSTEM_GL_INCLUDE_DIR "${ANGLE_INCLUDE_PATH}")
-		set(SYSTEM_GL_LIBRARIES   "${ANGLE_GLESv2_LIBRARY}")
-		list(APPEND SYSTEM_GL_LIBRARIES "${ANGLE_EGL_LIBRARY}")
 
-		set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_ANGLE")
+elseif(WITH_GL_SYSTEM_EMBEDDED)
+	if(WITH_SYSTEM_GLES)
+		find_package_wrapper(OpenGLES)
+
+		if(OPENGLES_FOUND)
+			set(GL_LIBRARIES OPENGLES_LIBRARIES)
+		else()
+			message(FATAL_ERROR "Unable to find OpenGL ES libraries, install them or disable WITH_SYSTEM_GLES")
+		endif()
 	else()
-		#set(SYSTEM_GL_INCLUDE_PATH "${OES2_INCLUDE_PATH}")
-		set(SYSTEM_GL_LIBRARIES    "${OES2_LIBRARY}")
+		set(OPENGLES_LIBRARY     "" CACHE FILEPATH "OpenGL ES 2.0 library file")
+		set(OPENGLES_EGL_LIBRARY "" CACHE FILEPATH "EGL library file")
+
+		mark_as_advanced(OPENGLES_LIBRARY OPENGLES_EGL_LIBRARY)
+
+		list(APPEND GL_LIBRARIES "${OPENGLES_LIBRARY}" "${OPENGLES_EGL_LIBRARY}")
+
+		if(WITH_ANGLE)
+			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_ANGLE")
+		endif()
+	endif()
+
+	if(WIN32)
+		set(OPENGLES_DLL     "" CACHE FILEPATH "OpenGL ES 2.0 redistributable DLL file")
+		set(OPENGLES_EGL_DLL "" CACHE FILEPATH "EGL redistributable DLL file")
+
+		mark_as_advanced(OPENGLES_DLL OPENGLES_EGL_DLL)
+
+		if(WITH_ANGLE)
+			set(D3DCOMPILER_DLL "" CACHE FILEPATH "Direct3D Compiler redistributable DLL file (needed by ANGLE)")
+
+			get_filename_component(D3DCOMPILER_FILENAME "${D3DCOMPILER_DLL}" NAME)
+			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DD3DCOMPILER=\"\\\"${D3DCOMPILER_FILENAME}\\\"\"")
+
+			mark_as_advanced(D3DCOMPILER_DLL)
+		endif()
 	endif()
 endif()
-
-#blender_include_dirs_sys("${SYSTEM_GL_INCLUDE_DIR}")
 
 if(WITH_GL_PROFILE_COMPAT)
 	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_GL_PROFILE_COMPAT")

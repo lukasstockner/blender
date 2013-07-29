@@ -88,9 +88,9 @@ public:
 	virtual GHOST_TSuccess releaseNativeHandles() = 0;
 
 protected:
-	void GHOST_Context::initGlew();
+	void initContextGLEW();
 
-	void GHOST_Context::activateGlew()
+	void activateGLEW() const
 	{
 		glewContext = m_glewContext;
 	}

@@ -140,7 +140,7 @@ GLenum glew_chk(GLenum error, const char* file, int line, const char* text)
 
 
 
-void GHOST_Context::initGlew()
+void GHOST_Context::initContextGLEW()
 {
 	glewContext = new GLEWContext;
 	memset(glewContext, 0, sizeof(GLEWContext));

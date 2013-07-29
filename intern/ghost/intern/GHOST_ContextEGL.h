@@ -87,8 +87,14 @@ public:
 	 */
 	virtual GHOST_TSuccess releaseNativeHandles();
 
+protected:
+	void activateEGLEW() const
+	{
+		eglewContext = m_eglewContext;
+	}
+
 private:
-	void GHOST_ContextEGL::initEGlew();
+	void initContextEGLEW();
 
 	EGLNativeDisplayType m_nativeDisplay;
 	EGLNativeWindowType  m_nativeWindow;

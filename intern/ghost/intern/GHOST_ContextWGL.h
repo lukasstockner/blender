@@ -92,6 +92,12 @@ public:
 	 */
 	virtual GHOST_TSuccess releaseNativeHandles();
 
+protected:
+	void activateWGLEW() const
+	{
+		wglewContext = m_wglewContext;
+	}
+
 private:
 	int choose_pixel_format(
 		bool stereoVisual,
@@ -123,7 +129,7 @@ private:
 		bool sRGB,
 		int  swapMethod);
 
-	void initWGlew(PIXELFORMATDESCRIPTOR& preferredPFD);
+	void initContextWGLEW(PIXELFORMATDESCRIPTOR& preferredPFD);
 
 	HDC  m_hDC;
 	HWND m_hWnd;

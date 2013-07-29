@@ -212,7 +212,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 
 		gindex = gpuNewIndex();
 		gpuImmediateIndex(gindex);
-		gpuImmediateMaxIndexCount(500000); // XXX: temporary!
+		gpuImmediateMaxIndexCount(500000, GL_UNSIGNED_SHORT); // XXX: temporary!
 
 		gpuInitializeAspects();
 		gpuInitializeAspectFuncs();

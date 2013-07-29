@@ -210,23 +210,34 @@ static void setup(void)
 	GPU_CHECK_NO_ERROR();
 }
 
-typedef struct indexBufferDataGL11 {
+typedef struct indexbufferDataGL11 {
 	void*  ptr;
 	size_t size;
-} indexBufferDataGL11;
+} indexbufferDataGL11;
 
 static void allocateIndex(void)
 {
 	if (GPU_IMMEDIATE->index) {
-		indexBufferDataGL11* bufferData;
+		indexbufferDataGL11* bufferData;
 		GPUindex* index;
 		size_t newSize;
 
 		index = GPU_IMMEDIATE->index;
-		newSize = index->maxIndexCount * sizeof(GLuint);
+
+		switch(index->type) {
+		case GL_UNSIGNED_BYTE:
+			newSize = index->maxIndexCount * sizeof(GLubyte);
+			break;
+		case GL_UNSIGNED_SHORT:
+			newSize = index->maxIndexCount * sizeof(GLushort);
+			break;
+		case GL_UNSIGNED_INT:
+			newSize = index->maxIndexCount * sizeof(GLuint);
+			break;
+		}
 
 		if (index->bufferData) {
-			bufferData = index->bufferData;
+			bufferData = (indexbufferDataGL11*)(index->bufferData);
 
 			if (newSize > bufferData->size) {
 				bufferData->ptr = MEM_reallocN(bufferData->ptr, newSize);
@@ -236,9 +247,9 @@ static void allocateIndex(void)
 			}
 		}
 		else {
-			bufferData = MEM_mallocN(
-				sizeof(indexBufferDataGL11),
-				"indexBufferDataG11");
+			bufferData = (indexbufferDataGL11*)MEM_mallocN(
+				sizeof(indexbufferDataGL11),
+				"indexBufferDataGL11");
 
 			GPU_ASSERT(bufferData != NULL);
 

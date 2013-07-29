@@ -1163,7 +1163,7 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 		
 		index = gpuNewIndex();
 		gpuImmediateIndex(index);
-		gpuImmediateMaxIndexCount(4608);
+		gpuImmediateMaxIndexCount(4608, GL_UNSIGNED_SHORT);
 
 		gpuSingleSphere(&prim, 100);
 

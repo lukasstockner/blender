@@ -211,6 +211,8 @@ static void setup(void)
 	GPU_CHECK_NO_ERROR();
 }
 
+
+
 typedef struct indexbufferDataGLSL {
 	void*  ptr;
 	size_t size;
@@ -224,10 +226,24 @@ static void allocateIndex(void)
 		size_t newSize;
 
 		index = GPU_IMMEDIATE->index;
-		newSize = index->maxIndexCount * sizeof(GLuint);
+
+		switch(index->type) {
+		case GL_UNSIGNED_BYTE:
+			newSize = index->maxIndexCount * sizeof(GLubyte);
+			break;
+		case GL_UNSIGNED_SHORT:
+			newSize = index->maxIndexCount * sizeof(GLushort);
+			break;
+		case GL_UNSIGNED_INT:
+			newSize = index->maxIndexCount * sizeof(GLuint);
+			break;
+		default:
+			GPU_ABORT();
+			return;
+		}
 
 		if (index->bufferData) {
-			bufferData = index->bufferData;
+			bufferData = (indexbufferDataGLSL*)(index->bufferData);
 
 			if (newSize > bufferData->size) {
 				bufferData->ptr = MEM_reallocN(bufferData->ptr, newSize);
@@ -237,9 +253,9 @@ static void allocateIndex(void)
 			}
 		}
 		else {
-			bufferData = MEM_mallocN(
+			bufferData = (indexbufferDataGLSL*)MEM_mallocN(
 				sizeof(indexbufferDataGLSL),
-				"indexBufferDataG11");
+				"indexBufferDataGLSL");
 
 			GPU_ASSERT(bufferData != NULL);
 
@@ -414,17 +430,17 @@ void gpu_current_normal_glsl(void)
 
 void gpu_index_begin_buffer_glsl(void)
 {
-	GPUindex *restrict index = GPU_IMMEDIATE->index;
-	indexbufferDataGLSL* bufferData = index->bufferData;
-	index->buffer = bufferData->ptr;
-	index->unmappedBuffer = NULL;
+	GPUindex *restrict index        = GPU_IMMEDIATE->index;
+	indexbufferDataGLSL* bufferData = (indexbufferDataGLSL*)(index->bufferData);
+	index->buffer                   = bufferData->ptr;
+	index->unmappedBuffer           = NULL;
 }
 
 void gpu_index_end_buffer_glsl(void)
 {
-	GPUindex *restrict index = GPU_IMMEDIATE->index;
-	indexbufferDataGLSL* bufferData = index->bufferData;
-	index->unmappedBuffer = bufferData->ptr;
+	GPUindex *restrict index        = GPU_IMMEDIATE->index;
+	indexbufferDataGLSL* bufferData = (indexbufferDataGLSL*)(index->bufferData);
+	index->unmappedBuffer           = bufferData->ptr;
 }
 
 void gpu_draw_elements_glsl(void)
@@ -442,7 +458,7 @@ void gpu_draw_elements_glsl(void)
 	glDrawElements(
 		GPU_IMMEDIATE->mode,
 		index->count,
-		GL_UNSIGNED_INT,
+		index->type,
 		index->unmappedBuffer);
 
 	GPU_CHECK_NO_ERROR();
@@ -466,10 +482,8 @@ void gpu_draw_range_elements_glsl(void)
 		index->indexMin,
 		index->indexMax,
 		index->count,
-		GL_UNSIGNED_INT,
+		index->type,
 		index->unmappedBuffer);*/
-		
-		
 
 	GPU_CHECK_NO_ERROR();
 }

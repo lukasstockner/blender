@@ -351,7 +351,7 @@ GHOST_TSuccess GHOST_ContextWGL::swapBuffers()
 
 GHOST_TSuccess GHOST_ContextWGL::activateDrawingContext()
 {
-	activateGlew();
+	activateGLEW();
 
 	return WIN32_CHK(::wglMakeCurrent(m_hDC, m_hGLRC)) ? GHOST_kSuccess : GHOST_kFailure;
 }
@@ -520,7 +520,7 @@ static HWND clone_window(HWND hWnd, LPVOID lpParam)
 
 
 
-void GHOST_ContextWGL::initWGlew(PIXELFORMATDESCRIPTOR& preferredPFD)
+void GHOST_ContextWGL::initContextWGLEW(PIXELFORMATDESCRIPTOR& preferredPFD)
 {
 	wglewContext = new WGLEWContext;
 	memset(wglewContext, 0, sizeof(WGLEWContext));
@@ -839,7 +839,7 @@ int GHOST_ContextWGL::choose_pixel_format(
 		0, 0, 0                          /* layer, visible, and damage masks (ignored) */
 	};
 
-	initWGlew(preferredPFD);
+	initContextWGLEW(preferredPFD);
 
 	if (numOfAASamples > 0 && !WGLEW_ARB_multisample) {
 		fprintf(stderr, "Warning! Unable to request a multisample framebuffer.\n");
@@ -915,7 +915,7 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext(bool stereoVisual, GHO
 		m_needSetPixelFormat = false;
 	}
 
-	wglewContext = m_wglewContext;
+	activateWGLEW();
 
 	if (WGLEW_ARB_create_context) {
 		int profileBitCore   = m_contextProfileMask & WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
