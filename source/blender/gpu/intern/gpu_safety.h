@@ -54,7 +54,7 @@ extern "C" {
 
 const char* gpuErrorString(GLenum err);
 
-bool gpu_check(const char* file, int line, const char* text);
+void gpu_check(const char* file, int line, const char* text);
 
 
 
@@ -80,9 +80,9 @@ bool gpu_check(const char* file, int line, const char* text);
 #define GPU_ABORT() ((void)0)
 #endif
 
-#define GPU_CHECK_NO_ERROR() GPU_ASSERT(gpu_check(__FILE__, __LINE__, "GPU_CHECK_NO_ERROR()"))
+#define GPU_CHECK_NO_ERROR() gpu_check(__FILE__, __LINE__, 0)
 
-#define GPU_CHECK(x) (GPU_ASSERT(gpu_check(__FILE__, __LINE__, "Before: " #x)), (x), GPU_ASSERT(gpu_check(__FILE__, __LINE__, "After: " #x)))
+#define GPU_CHECK(x) (gpu_check(__FILE__, __LINE__, "Before: " #x), (x), gpu_check(__FILE__, __LINE__, "After: " #x))
 
 #else
 

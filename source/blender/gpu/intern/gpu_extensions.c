@@ -182,19 +182,43 @@ void GPU_extensions_init(void)
 
 	GG.maxtextures = get_max_textures();
 
+	GPU_CHECK_NO_ERROR();
+
 #if defined(WITH_GL_PROFILE_ES20) || defined(WITH_GL_PROFILE_CORE)
 	gpu_object_init_gles();
 #endif
 
+	GPU_CHECK_NO_ERROR();
+
 	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &GG.maxtexsize);
 
-	glGetIntegerv(GL_RED_BITS, &r);
-	glGetIntegerv(GL_GREEN_BITS, &g);
-	glGetIntegerv(GL_BLUE_BITS, &b);
+	GPU_CHECK_NO_ERROR();
+
+	if (GPU_PROFILE_CORE) {
+#if defined(WITH_GL_PROFILE_CORE)
+		//glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_BACK, GL_FRAMEBUFFER_ATTACHMENT_RED_SIZE,   &r);
+		//glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_BACK, GL_FRAMEBUFFER_ATTACHMENT_GREEN_SIZE, &g);
+		//glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_BACK, GL_FRAMEBUFFER_ATTACHMENT_BLUE_SIZE,  &b);
+		r=g=b=8;// XXX jwilkins: workaround driver bug?  will probably need to forward this from ghost
+#endif
+	}
+	else
+	{
+#if defined(WITH_GL_PROFILE_COMPAT) || defined(WITH_GL_PROFILE_ES20)
+		glGetIntegerv(GL_RED_BITS,   &r);
+		glGetIntegerv(GL_GREEN_BITS, &g);
+		glGetIntegerv(GL_BLUE_BITS,  &b);
+#endif
+	}
+
+	GPU_CHECK_NO_ERROR();
+
 	GG.colordepth = r+g+b; /* assumes same depth for RGB */
 
 	vendor = (const char *)glGetString(GL_VENDOR);
 	renderer = (const char *)glGetString(GL_RENDERER);
+
+	GPU_CHECK_NO_ERROR();
 
 	if (strstr(vendor, "ATI")) {
 		GG.device = GPU_DEVICE_ATI;
@@ -263,6 +287,8 @@ void GPU_extensions_init(void)
 #endif
 
 	GPU_simple_shaders_init();
+
+	GPU_CHECK_NO_ERROR();
 }
 
 void GPU_extensions_exit(void)

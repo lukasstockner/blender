@@ -37,28 +37,33 @@
 
 
 
-bool gpu_check(const char* file, int line, const char* text)
+void gpu_check(const char* file, int line, const char* text)
 {
 	GLboolean no_error = GL_TRUE;
-	int count = 0;
+	int gl_error_count  = 0;
 
 	for (;;) {
-		GLenum error = glGetError();
+		GLenum code = glGetError();
 
-		if (error == GL_NO_ERROR) {
+		if (code == GL_NO_ERROR) {
 			break;
 		}
 		else {
 			no_error = GL_FALSE;
-			fprintf(stderr, "%s(%d):[%s] -> GL Error (%04X): %s\n", file, line, text, error, gpuErrorString(error));
+
+			if (text == NULL)
+				fprintf(stderr, "%s(%d): GL Error (0x%04X): %s\n", file, line, code, gpuErrorString(code));
+			else
+				fprintf(stderr, "%s(%d):[%s] -> GL Error (0x%04X): %s\n", file, line, text, code, gpuErrorString(code));
 		}
 
+		gl_error_count ++;
+
 		/* There should never be so many errors, but it can happen if there isn't a valid context. */
-		if (++count > 20)
-			abort();
+		GPU_ASSERT(gl_error_count < 20);
 	}
 
-	return no_error;
+	GPU_ASSERT(no_error);
 }
 
 #endif

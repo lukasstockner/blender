@@ -32,19 +32,22 @@
 #ifndef __GPU_PROFILE_H__
 #define __GPU_PROFILE_H__
 
- // XXX jwilkins: ToDo, will be runtime variable indicating that legacy opengl is in use or compatibility profile is loaded
-#if defined(GLEW_ES_ONLY)
-#define GPU_PROFILE_COMPAT 0
-#define GPU_PROFILE_ES20   1
-#define GPU_PROFILE_CORE   0
-#elif defined(GLEW_NO_ES)
-#define GPU_PROFILE_COMPAT 1
-#define GPU_PROFILE_ES20   0
-#define GPU_PROFILE_CORE   0
+#if defined(WITH_GL_PROFILE_ES20)
+#define GPU_PROFILE_ES20 1
 #else
+#define GPU_PROFILE_ES20 0
+#endif
+
+#if defined(WITH_GL_PROFILE_CORE)
+#define GPU_PROFILE_CORE 1
+#else
+#define GPU_PROFILE_CORE 0
+#endif
+
+#if defined(WITH_GL_PROFILE_COMPAT)
 #define GPU_PROFILE_COMPAT 1
-#define GPU_PROFILE_ES20   1
-#define GPU_PROFILE_CORE   0
+#else
+#define GPU_PROFILE_COMPAT 0
 #endif
 
 #endif

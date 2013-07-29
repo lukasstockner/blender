@@ -112,6 +112,7 @@ static void setup(void)
 
 	/* normal */
 
+	GPU_CHECK_NO_ERROR();
 	if (GPU_IMMEDIATE->format.normalSize != 0) {
 		gpugameobj.gpuNormalPointer(
 			GL_FLOAT,
@@ -123,6 +124,7 @@ static void setup(void)
 
 	/* color */
 
+	GPU_CHECK_NO_ERROR();
 	if (GPU_IMMEDIATE->format.colorSize != 0) {
 		gpugameobj.gpuColorPointer(
 			4 * sizeof(GLubyte),
@@ -136,6 +138,7 @@ static void setup(void)
 
 	/* texture coordinate */
 
+	GPU_CHECK_NO_ERROR();
 	if (GPU_IMMEDIATE->format.textureUnitCount == 1) {
 		gpugameobj.gpuTexCoordPointer(
 			GPU_IMMEDIATE->format.texCoordSize[0],
@@ -168,6 +171,7 @@ static void setup(void)
 
 	/* float vertex attribute */
 
+	GPU_CHECK_NO_ERROR();
 	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_f; i++) {
 	/*	gpu_glVertexAttribPointer(
 			GPU_IMMEDIATE->format.attribIndexMap_f[i],
@@ -186,6 +190,7 @@ static void setup(void)
 
 	/* byte vertex attribute */
 
+	GPU_CHECK_NO_ERROR();
 	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++) {
 		if (GPU_IMMEDIATE->format.attribSize_ub[i] > 0) {
 			/*glVertexAttribPointer(

@@ -235,34 +235,11 @@ GHOST_IWindow *GHOST_SystemWin32::createWindow(
 
 	if (window && window->getValid()) {
 		// Store the pointer to the window
-//		if (state != GHOST_kWindowStateFullScreen) {
+		//if (state != GHOST_kWindowStateFullScreen) {
 			m_windowManager->addWindow(window);
 			m_windowManager->setActiveWindow(window);
-//		}
+		//}
 	}
-//		else {
-//
-//			// Invalid parent window hwnd
-//			if (((GHOST_WindowWin32 *)window)->getNextWindow() == NULL) {
-//				delete window;
-//				window = 0;
-//				return window;
-//			}
-//
-//			// An invalid window could be one that was used to test for AA
-//			window = ((GHOST_WindowWin32 *)window)->getNextWindow();
-//			
-//			// If another window is found, let the wm know about that one, but not the old one
-//			if (window->getValid()) {
-//				m_windowManager->addWindow(window);
-//			}
-//			else {
-//				delete window;
-//				window = 0;
-//			}
-//
-//		}
-//	}
 
 	return window;
 }

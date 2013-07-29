@@ -111,4 +111,39 @@ GLenum glew_chk(GLenum error, const char* file, int line, const char* text);
 
 
 
+class GHOST_PixelFormat {
+public:
+	enum swap_t { UNKNOWN, COPY, EXCHANGE, UNDEFINED };
+
+	virtual bool   isUsable()     const = 0;
+	virtual int    colorBits()    const = 0;
+	virtual int    alphaBits()    const = 0;
+	virtual int    depthBits()    const = 0;
+	virtual int    stencilBits()  const = 0;
+	virtual int    samples()      const = 0;
+	virtual bool   sRGB()         const = 0;
+	virtual swap_t swapMethod()   const = 0;
+
+	int computeWeight() const;
+
+	void print() const;
+};
+
+
+
+class GHOST_PixelFormatChooser {
+public:
+	int choosePixelFormat(GHOST_PixelFormatFactory& factory);
+
+protected:
+	virtual int                systemChoosePixelFormat() const = 0;
+	virtual int                count()                   const = 0;
+	virtual GHOST_PixelFormat* get(int i)                const = 0;
+};
+
+
+
+
+
+
 #endif // __GHOST_CONTEXT_H__

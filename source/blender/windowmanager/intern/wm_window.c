@@ -368,6 +368,8 @@ static void wm_window_add_ghostwindow(const char *title, wmWindow *win)
 	                              0 /* no stereo */,
 	                              multisamples /* AA */);
 
+	GPU_CHECK_NO_ERROR();
+
 	if (ghostwin) {
 		GHOST_RectangleHandle bounds;
 

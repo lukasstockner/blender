@@ -208,6 +208,10 @@ GPUimmediate* gpuNewImmediate(void)
 		return immediate;
 	}
 #endif
+
+	abort();
+
+	return NULL;
 }
 
 
@@ -1798,6 +1802,6 @@ const char* gpuErrorString(GLenum err)
 #endif
 
 		default:
-			return "Unknown Error";
+			return "<unknown error>";
 	}
 }

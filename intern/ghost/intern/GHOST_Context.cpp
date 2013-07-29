@@ -123,15 +123,15 @@ GLenum glew_chk(GLenum error, const char* file, int line, const char* text)
 			line,
 			text,
 			error,
-			code ? code : "<Unknown>",
-			msg  ? msg  : "<Unknown>");
+			code ? code : "<no symbol>",
+			msg  ? msg  : "<no message>");
 #else
 		fprintf(
 			stderr,
 			"GLEW Error (%04X): %s: %s\n",
 			error,
-			code ? code : "<Unknown>",
-			msg  ? msg  : "<Unknown>");
+			code ? code : "<no symbol>",
+			msg  ? msg  : "<no message>");
 #endif
 	}
 
@@ -149,4 +149,22 @@ void GHOST_Context::initGlew()
 	m_glewContext = glewContext;
 
 	GLEW_CHK(glewInit());
+}
+
+
+
+int GHOST_PixelFormat::computeWeight() const
+{
+}
+
+
+
+void GHOST_PixelFormat::print() const
+{
+}
+
+
+
+int GHOST_ChoosePixelFormat(GHOST_PixelFormatFactory& factory)
+{
 }

@@ -47,7 +47,9 @@ void gpuVertexPointer_gles(int size, int type, int stride, const void *pointer)
 {
 	if(curglslesi && (curglslesi->vertexloc != -1)) {
 		glEnableVertexAttribArray(curglslesi->vertexloc);
+	GPU_CHECK_NO_ERROR();
 		glVertexAttribPointer(curglslesi->vertexloc, size, type, GL_FALSE, stride, pointer);
+	GPU_CHECK_NO_ERROR();
 	}
 }
 
@@ -184,6 +186,8 @@ GLuint static compile_shader(GLenum type, const char** src, int count)
 	gpu_glCompileShader(shader);
 	
 	
+	GPU_CHECK_NO_ERROR();
+
 	gpu_glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
 	
 	if(status == 0)
@@ -191,17 +195,19 @@ GLuint static compile_shader(GLenum type, const char** src, int count)
 		GLint len = 0;
 		gpu_glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &len);
 		
+	GPU_CHECK_NO_ERROR();
 		if(len > 0)
 		{
 			char * log = MEM_mallocN(len, "GLSLErrLog");
 			
 			gpu_glGetShaderInfoLog(shader, len, NULL, log);
-			printf("Error in generating Objet GLSL: \n %s\n", log);
+			printf("Error compiling GLSL: \n %s\n", log);
 			
 			MEM_freeN(log);
 			
 			gpu_glGetShaderiv(shader, GL_SHADER_SOURCE_LENGTH, &len);
 			
+	GPU_CHECK_NO_ERROR();
 			if(len > 0)
 			{
 				char* shadersrc = MEM_mallocN(len, "GLSLErrLog");
@@ -220,6 +226,7 @@ GLuint static compile_shader(GLenum type, const char** src, int count)
 		
 		gpu_glDeleteShader(shader);
 	
+	GPU_CHECK_NO_ERROR();
 		return 0;
 	}
 	
@@ -242,13 +249,17 @@ GLuint static create_program(GLuint vertex, GLuint fragment)
 	gpu_glAttachShader(program, vertex);
 	gpu_glAttachShader(program, fragment);
 	
+	GPU_CHECK_NO_ERROR();
 	/* b_Color cannot be 0 because b_Color can be a singular color and glVertexAttrib* won't work */
 	glBindAttribLocation(program, 1, "b_Color");
 	
+	GPU_CHECK_NO_ERROR();
 	gpu_glLinkProgram(program);
 	
+	GPU_CHECK_NO_ERROR();
 	gpu_glGetProgramiv(program, GL_LINK_STATUS, &status);
 	
+	GPU_CHECK_NO_ERROR();
 	if(status == 0) 
 	{
 		GLint len = 0;
@@ -266,10 +277,12 @@ GLuint static create_program(GLuint vertex, GLuint fragment)
 				
 		}
 		
+	GPU_CHECK_NO_ERROR();
 		gpu_glDeleteProgram(program);
 		return 0;	
 	}
 
+	GPU_CHECK_NO_ERROR();
 	return program;
 }
 
@@ -297,6 +310,7 @@ char * object_shader_fragment_basic =
 
 
 char * object_shader_vector_alphatexture = 
+"#version 120\n"
 	"uniform mat4 b_ProjectionMatrix ;	\n"
 	"uniform mat4 b_ModelViewMatrix ;	\n"
 	"uniform mat4 b_TextureMatrix ;	\n"
@@ -325,6 +339,7 @@ char * object_shader_fragment_alphatexture =
 ;
 
 char * object_shader_vector_rgbatexture = 
+"#version 120\n"
 	"uniform mat4 b_ProjectionMatrix ;\n"
 	"uniform mat4 b_ModelViewMatrix ;\n"
 	"uniform mat4 b_TextureMatrix ;\n"
@@ -353,6 +368,7 @@ char * object_shader_fragment_rgbatexture =
 ;
 
 char * object_shader_vector_pixels = 
+"#version 120\n"
 	"uniform mat4 b_ProjectionMatrix ;\n"
 	"uniform mat4 b_ModelViewMatrix ;\n"
 	"uniform mat4 b_TextureMatrix ;\n"
@@ -398,6 +414,7 @@ int shader_pixels;
 
 void gpu_object_init_gles(void)
 {
+	GPU_CHECK_NO_ERROR();
 	{
 		GLuint vo = compile_shader(GL_VERTEX_SHADER,   &object_shader_vector_basic,   1);
 		GLuint fo = compile_shader(GL_FRAGMENT_SHADER, &object_shader_fragment_basic, 1);
@@ -405,12 +422,14 @@ void gpu_object_init_gles(void)
 		gpu_assign_gles_loc(&shader_main_info, shader_main);
 	}
 
+	GPU_CHECK_NO_ERROR();
 	{
 		GLuint vo = compile_shader(GL_VERTEX_SHADER,   &object_shader_vector_alphatexture,   1);
 		GLuint fo = compile_shader(GL_FRAGMENT_SHADER, &object_shader_fragment_alphatexture, 1);
 		shader_alphatexture = create_program(vo, fo);	
 		gpu_assign_gles_loc(&shader_alphatexture_info, shader_alphatexture);
 	}
+	GPU_CHECK_NO_ERROR();
 
 	{
 		GLuint vo = compile_shader(GL_VERTEX_SHADER,   &object_shader_vector_rgbatexture,   1);
@@ -418,6 +437,7 @@ void gpu_object_init_gles(void)
 		shader_rgbatexture = create_program(vo, fo);	
 		gpu_assign_gles_loc(&shader_rgbatexture_info, shader_rgbatexture);
 	}
+	GPU_CHECK_NO_ERROR();
 
 	{
 		GLuint vo = compile_shader(GL_VERTEX_SHADER,   &object_shader_vector_pixels,   1);
@@ -426,11 +446,13 @@ void gpu_object_init_gles(void)
 		gpu_assign_gles_loc(&shader_pixels_info, shader_pixels);
 	}
 
+	GPU_CHECK_NO_ERROR();
 // XXX jwilkins: until I figure out what the 'base aspect' should be, set shader_main as the default shader state
 #if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
 	if (GPU_PROFILE_CORE || GPU_PROFILE_ES20) {
 		gpu_set_shader_es(&shader_main_info, 0);
 		gpu_glUseProgram(shader_main);
+	GPU_CHECK_NO_ERROR();
 		return;
 	}
 #else

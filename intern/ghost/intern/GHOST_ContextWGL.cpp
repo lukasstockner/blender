@@ -154,6 +154,140 @@ bool win32_chk(bool result, const char* file = NULL, int line = 0, const char* t
 
 
 
+class GHOST_PixelFormatPFD : public GHOST_PixelFormat {
+public:
+	GHOST_PixelFormatPFD(HDC hDC, int i)
+	{
+		int check = ::DescribePixelFormat(hDC, i, sizeof(PIXELFORMATDESCRIPTOR), &pfd);
+		WIN32_CHK(check != 0);
+	}
+
+	virtual bool isUsable() const
+	{
+		const DWORD love = PFD_DRAW_TO_WINDOW|PFD_SUPPORT_OPENGL|PFD_DOUBLEBUFFER|PFD_TYPE_RGBA;
+		const DWORD hate = PFD_GENERIC_FORMAT;
+
+		return (love & pfd.dwFlags) == love  &&  !(hate & pfd.dwFlags);
+	}
+
+	virtual swap_t swapMethod() const
+	{
+		if (pfd.dwFlags & PFD_SWAP_COPY)
+			return COPY;
+		else if (pfd.dwFlags & PFD_SWAP_EXCHANGE)
+			return EXCHANGE;
+		else
+			return UNKNOWN;
+	}
+
+	virtual int    colorBits()    const { return pfd.cColorBits;   }
+	virtual int    alphaBits()    const { return pfd.cAlphaBits;   }
+	virtual int    depthBits()    const { return pfd.cDepthBits;   }
+	virtual int    stencilBits()  const { return pfd.cStencilBits; }
+	virtual int    samples()      const { return 0;                }
+	virtual bool   sRGB()         const { return false;            }
+
+private:
+	PIXELFORMATDESCRIPTOR pfd;
+};
+
+
+
+class GHOST_PixelFormatARB : public GHOST_PixelFormat {
+public:
+	GHOST_PixelFormatARB(HDC hDC, int iPixelFormat)
+	{
+		valid = ::wglGetPixelFormatAttribivARB(hDC, iPixelFormat, 0, nAttributes, iAttributes, value);
+
+		WIN32_CHK(valid);
+
+		if (WGLEW_ARB_multisample) {
+			int attribute = WGL_SAMPLES_ARB;
+
+			BOOL check = ::wglGetPixelFormatAttribivARB(hDC, iPixelFormat, 0, 1, &attribute, &_samples);
+
+			if (!check)
+				_samples = 0;
+		}
+		else {
+			_samples = 0;
+		}
+
+		if (WGL_ARB_framebuffer_sRGB) {
+			int attribute = WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB;
+
+			BOOL check = ::wglGetPixelFormatAttribivARB(hDC, iPixelFormat, 0, 1, &attribute, &_sRGB);
+
+			if (!check)
+				_sRGB = false;
+		}
+		else {
+			_sRGB = false;
+		}
+	}
+
+	virtual bool   isUsable()     const
+	{
+		return
+			valid                                 &&
+			value[0] /* draw to window */         &&
+			value[1] == WGL_FULL_ACCELERATION_ARB &&
+			value[3] /* support opengl */         &&
+			value[4] /* double buffer  */         &&
+			value[6] == WGL_TYPE_RGBA_ARB;
+	}
+
+	virtual swap_t swapMethod() const
+	{
+		switch (value[2]) {
+			case WGL_SWAP_EXCHANGE_ARB:
+				return EXCHANGE;
+
+			case WGL_SWAP_COPY_ARB:
+				return COPY;
+
+			case WGL_SWAP_UNDEFINED_ARB:
+				return UNDEFINED;
+
+			default:
+				return UNKNOWN;
+		}
+	}
+
+	virtual int    colorBits()    const { return value[ 7]; }
+	virtual int    alphaBits()    const { return value[ 8]; }
+	virtual int    depthBits()    const { return value[ 9]; }
+	virtual int    stencilBits()  const { return value[10]; }
+	virtual int    samples()      const { return _samples;  }
+	virtual bool   sRGB()         const { return _sRGB;     }
+
+private:
+	static const int nAttributes = 11;
+	static const int iAttributes[nAttributes];
+
+	bool valid;
+	int value[nAttributes];
+	int _samples;
+	int _sRGB;
+};
+
+const int GHOST_PixelFormatARB::iAttributes[nAttributes] = {
+	WGL_DRAW_TO_WINDOW_ARB,
+	WGL_ACCELERATION_ARB,
+	WGL_SWAP_METHOD_ARB,
+	WGL_SUPPORT_OPENGL_ARB,
+	WGL_DOUBLE_BUFFER_ARB,
+	WGL_STEREO_ARB,
+	WGL_PIXEL_TYPE_ARB,
+	WGL_COLOR_BITS_ARB,
+	WGL_ALPHA_BITS_ARB,
+	WGL_DEPTH_BITS_ARB,
+	WGL_STENCIL_BITS_ARB,
+};
+
+
+
+
 GHOST_ContextWGL::GHOST_ContextWGL(
 	HWND hWnd,
 	HDC  hDC,
@@ -317,11 +451,11 @@ static int choose_pixel_format_legacy(HDC hDC, PIXELFORMATDESCRIPTOR& preferredP
 		iPixelFormat = iStereoPixelFormat;
 
 	if (iPixelFormat == 0) {
-		fprintf(stderr, "Warning! Falling back on ChoosePixelFormat.\n");
+		fprintf(stderr, "Warning! Using result of ChoosePixelFormat.\n");
 		iPixelFormat = iLastResortPixelFormat;
 	}
 
-	return iStereoPixelFormat != 0 ? iStereoPixelFormat : iPixelFormat;
+	return iPixelFormat;
 }
 
 
@@ -655,7 +789,14 @@ int GHOST_ContextWGL::choose_pixel_format_arb(
 	if (iPixelFormat == 0 && stereoVisual) {
 		fprintf(stderr, "Warning! Unable to find a stereo pixel format.\n");
 
-		iPixelFormat = _choose_pixel_format_arb_1(false, numOfAASamples, needAlpha, needStencil, sRGB, swapMethodOut);
+		iPixelFormat =
+			_choose_pixel_format_arb_1(
+				false,
+				numOfAASamples,
+				needAlpha,
+				needStencil,
+				sRGB,
+				swapMethodOut);
 	}
 
 	if (swapMethodOut != WGL_SWAP_COPY_ARB) {
@@ -731,7 +872,7 @@ static void reportContextString(const char* name, const char* dummy, const char*
 	fprintf(stderr, "%s: %s\n", name, context);
 
 	if (strcmp(dummy, context) != 0)
-		fprintf(stderr, "Warning! Dummy %s: %s\n", name, context);
+		fprintf(stderr, "Warning! Dummy %s: %s\n", name, dummy);
 }
 #endif
 
@@ -739,6 +880,8 @@ static void reportContextString(const char* name, const char* dummy, const char*
 
 GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext(bool stereoVisual, GHOST_TUns16 numOfAASamples)
 {
+	SetLastError(NO_ERROR);
+
 	HGLRC prevHGLRC = ::wglGetCurrentContext();
 	WIN32_CHK(GetLastError() == NO_ERROR);
 

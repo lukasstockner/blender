@@ -187,6 +187,7 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 		    0);                         // pointer to window-creation data
 		free(title_16);
 	}
+
 	if (m_hWnd) {
 		// Register this window as a droptarget. Requires m_hWnd to be valid.
 		// Note that OleInitialize(0) has to be called prior to this. Done in GHOST_SystemWin32.
@@ -220,6 +221,7 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 			}
 
 			::ShowWindow(m_hWnd, nCmdShow);
+
 			// Force an initial paint of the window
 			::UpdateWindow(m_hWnd);
 		}
@@ -573,9 +575,10 @@ GHOST_Context* GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
 #if defined(WITH_GL_SYSTEM_DESKTOP)
 
 #if defined(WITH_GL_PROFILE_CORE)
-		GHOST_Context* context = new GHOST_ContextWGL(m_hWnd, m_hDC, WGL_CONTEXT_CORE_PROFILE_BIT, 3, 2);
+		// XXX jwilkins: some implementations will only give you 3.2 even if later compatible versions are available
+		GHOST_Context* context = new GHOST_ContextWGL(m_hWnd, m_hDC, WGL_CONTEXT_CORE_PROFILE_BIT_ARB, 3, 2);
 #elif defined(WITH_GL_PROFILE_ES20)
-		GHOST_Context* context = new GHOST_ContextWGL(m_hWnd, m_hDC, WGL_CONTEXT_ES2_PROFILE_BIT, 2, 0);
+		GHOST_Context* context = new GHOST_ContextWGL(m_hWnd, m_hDC, WGL_CONTEXT_ES2_PROFILE_BIT_ARB, 2, 0);
 #elif defined(WITH_GL_PROFILE_COMPAT)
 		GHOST_Context* context = new GHOST_ContextWGL(m_hWnd, m_hDC);
 #else
@@ -593,7 +596,6 @@ GHOST_Context* GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
 #else
 #error
 #endif
-
 		if (context->initializeDrawingContext(m_stereoVisual, m_numOfAASamples))
 			return context;
 		else
