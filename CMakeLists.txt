@@ -2073,8 +2073,10 @@ else()
 			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_ES_ONLY")
 		endif()
 
-		if (WITH_GL_PROFILE_ES20)
-			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_USE_LIB_ES20")
+		if(WITH_GL_PROFILE_ES20)
+			if(WITH_GL_SYSTEM_EMBEDDED)
+				set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_USE_LIB_ES20")
+			endif()
 			
 			# XXX jwilkins: this is just an experiment to eliminate ES 1 symbols,
 			# GLEW doesn't really properly provide this level of control (it eliminates too many symbols, for example),

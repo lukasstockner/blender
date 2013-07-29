@@ -48,25 +48,25 @@ const char* get_glew_error_message_string(GLenum error)
 			return "OK";
 
 		case GLEW_ERROR_NO_GL_VERSION:
-			return "Missing GL version";
+			return "Unable to determine GL version.";
 
 		case GLEW_ERROR_GL_VERSION_10_ONLY:
-			return "Need at least OpenGL 1.1";
+			return "OpenGL 1.1 or later is required.";
 
 		case GLEW_ERROR_GLX_VERSION_11_ONLY:
-			return "Need at least GLX 1.2";
+			return "GLX 1.2 or later is required.";
 
 		case GLEW_ERROR_NOT_GLES_VERSION:
-			return "Need to be OpenGL ES version";
+			return "OpenGL ES is required.";
 
 		case GLEW_ERROR_GLES_VERSION:
-			return "Need to be desktop OpenGL version";
+			return "A non-ES version of OpenGL is required.";
 
 		case GLEW_ERROR_NO_EGL_VERSION:
-			return "Missing EGL version";
+			return "Unabled to determine EGL version.";
 
 		case GLEW_ERROR_EGL_VERSION_10_ONLY:
-			return "Need at least EGL 1.1";
+			return "EGL 1.1 or later is required.";
 
 		default:
 			return NULL;

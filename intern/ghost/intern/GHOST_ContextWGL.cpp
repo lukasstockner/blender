@@ -575,8 +575,6 @@ void GHOST_ContextWGL::initWGlew(PIXELFORMATDESCRIPTOR& preferredPFD)
 
 	// the following are not technially WGLEW, but they also require a context to work
 
-	initGlew();
-
 #ifndef NDEBUG
 	delete m_dummyRenderer;
 	delete m_dummyVendor;
@@ -923,7 +921,6 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext(bool stereoVisual, GHO
 		int profileBitCore   = m_contextProfileMask & WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
 		int profileBitCompat = m_contextProfileMask & WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB;
 		int profileBitES     = m_contextProfileMask & WGL_CONTEXT_ES_PROFILE_BIT_EXT;
-		int profileBitES2    = m_contextProfileMask & WGL_CONTEXT_ES2_PROFILE_BIT_EXT;
 
 		if (!WGLEW_ARB_create_context_profile && profileBitCore)
 			fprintf(stderr, "Warning! OpenGL core profile not available.\n");
@@ -931,10 +928,10 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext(bool stereoVisual, GHO
 		if (!WGLEW_ARB_create_context_profile && profileBitCompat)
 			fprintf(stderr, "Warning! OpenGL compatibility profile not available.\n");
 
-		if (!WGLEW_EXT_create_context_es_profile && profileBitES)
+		if (!WGLEW_EXT_create_context_es_profile && profileBitES && m_contextMajorVersion == 1)
 			fprintf(stderr, "Warning! OpenGL ES profile not available.\n");
 
-		if (!WGLEW_EXT_create_context_es2_profile && profileBitES2)
+		if (!WGLEW_EXT_create_context_es2_profile && profileBitES && m_contextMajorVersion == 2)
 			fprintf(stderr, "Warning! OpenGL ES2 profile not available.\n");
 
 		int profileMask = 0;
@@ -947,9 +944,6 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext(bool stereoVisual, GHO
 
 		if (WGLEW_EXT_create_context_es_profile && profileBitES)
 			profileMask |= profileBitES;
-
-		if (WGLEW_EXT_create_context_es2_profile && profileBitES2)
-			profileMask |= profileBitES2;
 
 		std::vector<int> iAttributes;
 

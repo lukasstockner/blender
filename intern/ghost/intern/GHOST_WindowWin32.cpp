@@ -584,7 +584,7 @@ GHOST_Context* GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
 		// XXX jwilkins: some implementations will only give you 3.2 even if later compatible versions are available
 		GHOST_Context* context = new GHOST_ContextWGL(m_hWnd, m_hDC, WGL_CONTEXT_CORE_PROFILE_BIT_ARB, 3, 2);
 #elif defined(WITH_GL_PROFILE_ES20)
-		GHOST_Context* context = new GHOST_ContextWGL(m_hWnd, m_hDC, WGL_CONTEXT_ES2_PROFILE_BIT_ARB, 2, 0);
+		GHOST_Context* context = new GHOST_ContextWGL(m_hWnd, m_hDC, WGL_CONTEXT_ES2_PROFILE_BIT_EXT, 2, 0);
 #elif defined(WITH_GL_PROFILE_COMPAT)
 		GHOST_Context* context = new GHOST_ContextWGL(m_hWnd, m_hDC);
 #else
@@ -615,10 +615,11 @@ GHOST_Context* GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
 
 void GHOST_WindowWin32::lostMouseCapture()
 {
-	if (m_hasMouseCaptured)
-	{   m_hasGrabMouse = false;
-		m_nPressedButtons = 0;
-		m_hasMouseCaptured = false; };
+	if (m_hasMouseCaptured) {
+		m_hasGrabMouse     = false;
+		m_nPressedButtons  = 0;
+		m_hasMouseCaptured = false;
+	}
 }
 
 void GHOST_WindowWin32::registerMouseClickEvent(int press)
