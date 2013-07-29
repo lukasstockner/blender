@@ -61,7 +61,6 @@
 #include "BLI_linklist.h"
 
 #include "BKE_nla.h"
-#include "BKE_bmesh.h"
 #include "BKE_editmesh_bvh.h"
 #include "BKE_context.h"
 #include "BKE_constraint.h"
@@ -111,7 +110,7 @@ static bool transdata_check_local_center(TransInfo *t)
 {
 	return ((t->around == V3D_LOCAL) && (
 	            (t->flag & (T_OBJECT | T_POSE)) ||
-	            (t->obedit && ELEM3(t->obedit->type, OB_MESH, OB_MBALL, OB_ARMATURE)) ||
+	            (t->obedit && ELEM4(t->obedit->type, OB_MESH, OB_CURVE, OB_MBALL, OB_ARMATURE)) ||
 	            (t->spacetype == SPACE_IPO))
 	        );
 }
@@ -7356,7 +7355,7 @@ bool checkUseAxisMatrix(TransInfo *t)
 {
 	/* currenly only checks for editmode */
 	if (t->flag & T_EDIT) {
-		if ((t->around == V3D_LOCAL) && (ELEM3(t->obedit->type, OB_MESH, OB_MBALL, OB_ARMATURE))) {
+		if ((t->around == V3D_LOCAL) && (ELEM4(t->obedit->type, OB_MESH, OB_CURVE, OB_MBALL, OB_ARMATURE))) {
 			/* not all editmode supports axis-matrix */
 			return true;
 		}

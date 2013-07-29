@@ -59,14 +59,12 @@
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
-#include "BLI_array.h"
 #include "BLI_utildefines.h"
 #include "BLI_smallhash.h"
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_action.h"
 #include "BKE_armature.h"
-#include "BKE_bmesh.h"
 #include "BKE_constraint.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
@@ -1048,7 +1046,7 @@ static void createTransArmatureVerts(TransInfo *t)
 	bArmature *arm = t->obedit->data;
 	ListBase *edbo = arm->edbo;
 	TransData *td;
-	float mtx[3][3], smtx[3][3], delta[3], bonemat[3][3];
+	float mtx[3][3], smtx[3][3], bonemat[3][3];
 	
 	/* special hack for envelope drawmode and scaling:
 	 *  to allow scaling the size of the envelope around single points,
@@ -1140,8 +1138,7 @@ static void createTransArmatureVerts(TransInfo *t)
 					td->flag = TD_SELECTED;
 
 					/* use local bone matrix */
-					sub_v3_v3v3(delta, ebo->tail, ebo->head);
-					vec_roll_to_mat3(delta, ebo->roll, bonemat);
+					ED_armature_ebone_to_mat3(ebo, bonemat);
 					mul_m3_m3m3(td->mtx, mtx, bonemat);
 					invert_m3_m3(td->smtx, td->mtx);
 
@@ -1181,8 +1178,7 @@ static void createTransArmatureVerts(TransInfo *t)
 					copy_m3_m3(td->smtx, smtx);
 					copy_m3_m3(td->mtx, mtx);
 
-					sub_v3_v3v3(delta, ebo->tail, ebo->head);
-					vec_roll_to_mat3(delta, ebo->roll, td->axismtx);
+					ED_armature_ebone_to_mat3(ebo, td->axismtx);
 
 					if ((ebo->flag & BONE_ROOTSEL) == 0) {
 						td->extra = ebo;
@@ -1205,8 +1201,7 @@ static void createTransArmatureVerts(TransInfo *t)
 					copy_m3_m3(td->smtx, smtx);
 					copy_m3_m3(td->mtx, mtx);
 
-					sub_v3_v3v3(delta, ebo->tail, ebo->head);
-					vec_roll_to_mat3(delta, ebo->roll, td->axismtx);
+					ED_armature_ebone_to_mat3(ebo, td->axismtx);
 
 					td->extra = ebo; /* to fix roll */
 
@@ -1418,6 +1413,23 @@ static void createTransCurveVerts(TransInfo *t)
 			for (a = 0, bezt = nu->bezt; a < nu->pntsu; a++, bezt++) {
 				if (bezt->hide == 0) {
 					TransDataCurveHandleFlags *hdata = NULL;
+					float axismtx[3][3];
+
+					if (t->around == V3D_LOCAL) {
+						float normal[3], plane[3];
+
+						BKE_nurb_bezt_calc_normal(nu, bezt, normal);
+						BKE_nurb_bezt_calc_plane(nu, bezt, plane);
+
+						if (createSpaceNormalTangent(axismtx, normal, plane)) {
+							/* pass */
+						}
+						else {
+							normalize_v3(normal);
+							axis_dominant_v3_to_m3(axismtx, normal);
+							invert_m3(axismtx);
+						}
+					}
 
 					if (propmode ||
 					    ((bezt->f2 & SELECT) && hide_handles) ||
@@ -1441,6 +1453,9 @@ static void createTransCurveVerts(TransInfo *t)
 
 						copy_m3_m3(td->smtx, smtx);
 						copy_m3_m3(td->mtx, mtx);
+						if (t->around == V3D_LOCAL) {
+							copy_m3_m3(td->axismtx, axismtx);
+						}
 
 						td++;
 						count++;
@@ -1470,6 +1485,9 @@ static void createTransCurveVerts(TransInfo *t)
 
 						copy_m3_m3(td->smtx, smtx);
 						copy_m3_m3(td->mtx, mtx);
+						if (t->around == V3D_LOCAL) {
+							copy_m3_m3(td->axismtx, axismtx);
+						}
 
 						if ((bezt->f1 & SELECT) == 0 && (bezt->f3 & SELECT) == 0)
 							/* If the middle is selected but the sides arnt, this is needed */
@@ -1505,6 +1523,9 @@ static void createTransCurveVerts(TransInfo *t)
 
 						copy_m3_m3(td->smtx, smtx);
 						copy_m3_m3(td->mtx, mtx);
+						if (t->around == V3D_LOCAL) {
+							copy_m3_m3(td->axismtx, axismtx);
+						}
 
 						td++;
 						count++;
