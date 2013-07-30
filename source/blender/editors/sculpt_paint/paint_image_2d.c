@@ -1212,3 +1212,58 @@ void paint_2d_stroke_done(void *ps)
 
 	MEM_freeN(s);
 }
+
+
+/* this function expects linear space color values */
+void paint_2d_bucket_fill (bContext *C, float color[3])
+{
+	SpaceImage *sima = CTX_wm_space_image(C);
+	Image *ima = sima->image;
+
+	ImBuf *ibuf;
+	unsigned short i = 0, j = 0;
+	unsigned int color_b;
+	float color_f[4];
+
+	bool do_float;
+
+	if (!ima)
+		return;
+
+	ibuf = BKE_image_acquire_ibuf(ima, &sima->iuser, NULL);
+
+	do_float = (ibuf->rect_float != NULL);
+	/* first check if our image is float. If it is not we should correct the colour to
+	 * be in gamma space */
+
+	if (!do_float) {
+		linearrgb_to_srgb_uchar3((unsigned char *)&color_b, color);
+		*(((char *)&color_b) + 3) = 255;
+	} else {
+		copy_v3_v3(color_f, color);
+		color_f[3] = 1.0;
+	}
+
+	if (do_float) {
+		for (; i < ibuf->x; i++) {
+			for (j = 0; j < ibuf->y; j++) {
+				copy_v4_v4(ibuf->rect_float + 4 * (j * ibuf->x + i), color_f);
+			}
+		}
+	}
+	else {
+		for (; i < ibuf->x; i++) {
+			for (j = 0; j < ibuf->y; j++) {
+				*(ibuf->rect + j * ibuf->x + i) =  color_b;
+			}
+		}
+	}
+
+	ibuf->userflags |= IB_BITMAPDIRTY;
+
+	BKE_image_release_ibuf(ima, ibuf, NULL);
+
+	GPU_free_image(ima);
+
+	WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
+}

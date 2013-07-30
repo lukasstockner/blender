@@ -1264,6 +1264,17 @@ class VIEW3D_PT_tools_projectpaint(View3DPanel, Panel):
         col.operator("image.save_dirty", text="Save All Edited")
 
 
+class VIEW3D_PT_tools_imagepaint(View3DPanel, Panel):
+    bl_context = "imagepaint"
+    bl_label = "Image Tools"
+
+    def draw(self, context):
+        layout = self.layout
+
+        col = layout.column()
+        col.operator("paint.bucket_fill")
+
+
 class VIEW3D_PT_imagepaint_options(View3DPaintPanel):
     bl_label = "Options"
     bl_options = {'DEFAULT_CLOSED'}

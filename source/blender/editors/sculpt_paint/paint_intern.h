@@ -158,6 +158,7 @@ void *paint_2d_new_stroke(struct bContext *, struct wmOperator *, int mode);
 void paint_2d_redraw(const bContext *C, void *ps, bool final);
 void paint_2d_stroke_done(void *ps);
 void paint_2d_stroke(void *ps, const float prev_mval[2], const float mval[2], int eraser);
+void paint_2d_bucket_fill(struct bContext *C, float color[3]);
 void *paint_proj_new_stroke(struct bContext *C, struct Object *ob, const float mouse[2], int mode);
 void paint_proj_stroke(struct bContext *C, void *ps, const float prevmval_i[2], const float mval_i[2]);
 void paint_proj_redraw(const bContext *C, void *pps, bool final);
@@ -171,6 +172,8 @@ void PAINT_OT_texture_colors_flip(struct wmOperatorType *ot);
 void PAINT_OT_texture_paint_toggle(struct wmOperatorType *ot);
 void PAINT_OT_project_image(struct wmOperatorType *ot);
 void PAINT_OT_image_from_view(struct wmOperatorType *ot);
+void PAINT_OT_bucket_fill(struct wmOperatorType *ot);
+void PAINT_OT_gradient_fill(struct wmOperatorType *ot);
 
 /* new texture painting */
 void PAINT_OT_image_paint(struct wmOperatorType *ot);

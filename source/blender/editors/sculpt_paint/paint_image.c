@@ -1283,6 +1283,81 @@ void PAINT_OT_texture_colors_flip(wmOperatorType *ot)
 }
 
 
+static int bucket_fill_exec(bContext *C, wmOperator *op)
+{
+	PaintMode mode;
+	float color[3];
+
+	/* get from rna property only if set */
+	if (RNA_struct_property_is_set(op->ptr, "color")) {
+		RNA_float_get_array(op->ptr, "color", color);
+	}
+	else {
+		Paint *p = BKE_paint_get_active(CTX_data_scene(C));
+		Brush *br = BKE_paint_brush(p);
+
+		copy_v3_v3(color, br->rgb);
+	}
+
+	mode = BKE_paintmode_get_active_from_context(C);
+
+	switch(mode) {
+		case PAINT_TEXTURE_2D:
+			paint_2d_bucket_fill(C, color);
+			break;
+		case PAINT_TEXTURE_PROJECTIVE:
+			break;
+		default:
+			break;
+	}
+
+	RNA_float_set_array(op->ptr, "color", color);
+
+	return OPERATOR_FINISHED;
+}
+
+
+void PAINT_OT_bucket_fill(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Bucket Fill";
+	ot->idname = "PAINT_OT_bucket_fill";
+	ot->description = "Fill canvas with brush color";
+
+	/* api callbacks */
+	ot->exec = bucket_fill_exec;
+	ot->poll = image_paint_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER;
+
+	RNA_def_float_color(ot->srna, "color", 3, NULL, 0.0, 1.0, "Color", "Color for bucket fill", 0.0, 1.0);
+}
+
+static int gradient_fill_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	PaintMode mode = BKE_paintmode_get_active_from_context(C);
+
+	return OPERATOR_FINISHED;
+}
+
+
+void PAINT_OT_gradient_fill(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Gradient Fill";
+	ot->idname = "PAINT_OT_gradient_fill";
+	ot->description = "Fill canvas with a gradient";
+
+	/* api callbacks */
+	ot->exec = gradient_fill_exec;
+	ot->poll = image_paint_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+
 static int texture_paint_poll(bContext *C)
 {
 	if (texture_paint_toggle_poll(C))

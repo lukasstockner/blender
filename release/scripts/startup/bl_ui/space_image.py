@@ -956,6 +956,17 @@ class IMAGE_PT_tools_brush_appearance(BrushButtonsPanel, Panel):
         if brush.use_custom_icon:
             col.prop(brush, "icon_filepath", text="")
 
+class IMAGE_PT_tools_imagepaint(BrushButtonsPanel, Panel):
+    bl_context = "imagepaint"
+    bl_label = "Image Tools"
+
+    def draw(self, context):
+        layout = self.layout
+
+        col = layout.column()
+        col.operator("paint.bucket_fill")
+
+
 
 class IMAGE_UV_sculpt_curve(Panel):
     bl_space_type = 'IMAGE_EDITOR'
