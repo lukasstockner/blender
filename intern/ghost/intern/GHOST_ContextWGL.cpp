@@ -1004,7 +1004,7 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext(bool stereoVisual, GHO
 	if (!WIN32_CHK(::wglMakeCurrent(m_hDC, m_hGLRC)))
 		goto error;
 
-	initGlew();
+	initContextGLEW();
 
 #ifndef NDEBUG
 	reportContextString("Vendor",   m_dummyVendor,   reinterpret_cast<const char*>(glGetString(GL_VENDOR)));

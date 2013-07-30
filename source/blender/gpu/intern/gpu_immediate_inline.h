@@ -510,11 +510,9 @@ BLI_INLINE void gpuEnd(void)
 	GPU_CHECK_CAN_END();
 	GPU_ASSERT(GPU_IMMEDIATE->mode != GL_NOOP || !(GPU_IMMEDIATE->hasOverflowed));
 
-	if (GPU_IMMEDIATE->mode != GL_NOOP) {
-		GPU_IMMEDIATE->endBuffer();
-	}
+	GPU_IMMEDIATE->endBuffer();
 
-	GPU_IMMEDIATE->buffer = NULL;
+	GPU_IMMEDIATE->mappedBuffer = NULL;
 }
 
 

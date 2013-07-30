@@ -157,8 +157,6 @@ GPUimmediate* gpuNewImmediate(void)
 	GPUimmediate* immediate =
 		(GPUimmediate*)MEM_callocN(sizeof(GPUimmediate), "GPUimmediate");
 
-	GPU_ASSERT(immediate);
-
 	immediate->format.vertexSize = 3;
 
 	immediate->copyVertex         = gpu_copy_vertex;
@@ -430,9 +428,9 @@ static GLboolean end_begin(void)
 	if (GPU_IMMEDIATE->mode != GL_NOOP) {
 		GPU_IMMEDIATE->endBuffer();
 
-		GPU_IMMEDIATE->buffer = NULL;
-		GPU_IMMEDIATE->offset = 0;
-		GPU_IMMEDIATE->count  = 1; /* count the vertex that triggered this */
+		GPU_IMMEDIATE->mappedBuffer = NULL;
+		GPU_IMMEDIATE->offset       = 0;
+		GPU_IMMEDIATE->count        = 1; /* count the vertex that triggered this */
 
 		GPU_IMMEDIATE->beginBuffer();
 
@@ -450,7 +448,7 @@ static void gpu_copy_vertex(void)
 	size_t i;
 	size_t size;
 	size_t offset;
-	char *restrict buffer;
+	GLubyte *restrict mappedBuffer;
 
 #if GPU_SAFETY
 	{
@@ -474,20 +472,20 @@ static void gpu_copy_vertex(void)
 		GPU_IMMEDIATE->count++;
 	}
 
-	buffer = GPU_IMMEDIATE->buffer;
+	mappedBuffer = GPU_IMMEDIATE->mappedBuffer;
 	offset = GPU_IMMEDIATE->offset;
 
 	/* vertex */
 
 	size = (size_t)(GPU_IMMEDIATE->format.vertexSize) * sizeof(GLfloat);
-	memcpy(buffer + offset, GPU_IMMEDIATE->vertex, size);
+	memcpy(mappedBuffer + offset, GPU_IMMEDIATE->vertex, size);
 	offset += size;
 
 	/* normal */
 
 	if (GPU_IMMEDIATE->format.normalSize != 0) {
 		/* normals are always have 3 components */
-		memcpy(buffer + offset, GPU_IMMEDIATE->normal, 3*sizeof(GLfloat));
+		memcpy(mappedBuffer + offset, GPU_IMMEDIATE->normal, 3*sizeof(GLfloat));
 		offset += 3*sizeof(GLfloat);
 	}
 
@@ -495,7 +493,7 @@ static void gpu_copy_vertex(void)
 
 	if (GPU_IMMEDIATE->format.colorSize != 0) {
 		/* 4 bytes are always reserved for color, for efficient memory alignment */
-		memcpy(buffer + offset, GPU_IMMEDIATE->color, 4*sizeof(GLubyte));
+		memcpy(mappedBuffer + offset, GPU_IMMEDIATE->color, 4*sizeof(GLubyte));
 		offset += 4*sizeof(GLubyte);
 	}
 
@@ -503,7 +501,7 @@ static void gpu_copy_vertex(void)
 
 	for (i = 0; i < GPU_IMMEDIATE->format.textureUnitCount; i++) {
 		size = (size_t)(GPU_IMMEDIATE->format.texCoordSize[i]) * sizeof(GLfloat);
-		memcpy(buffer + offset, GPU_IMMEDIATE->texCoord[i], size);
+		memcpy(mappedBuffer + offset, GPU_IMMEDIATE->texCoord[i], size);
 		offset += size;
 	}
 
@@ -511,7 +509,7 @@ static void gpu_copy_vertex(void)
 
 	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_f; i++) {
 		size = (size_t)(GPU_IMMEDIATE->format.attribSize_f[i]) * sizeof(GLfloat);
-		memcpy(buffer + offset, GPU_IMMEDIATE->attrib_f[i], size);
+		memcpy(mappedBuffer + offset, GPU_IMMEDIATE->attrib_f[i], size);
 		offset += size;
 	}
 
@@ -519,7 +517,7 @@ static void gpu_copy_vertex(void)
 
 	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++) {
 		/* 4 bytes are always reserved for byte attributes, for efficient memory alignment */
-		memcpy(buffer + offset, GPU_IMMEDIATE->attrib_ub[i], 4*sizeof(GLubyte));
+		memcpy(mappedBuffer + offset, GPU_IMMEDIATE->attrib_ub[i], 4*sizeof(GLubyte));
 		offset += 4*sizeof(GLubyte);
 	}
 
@@ -1069,7 +1067,7 @@ static void gpu_append_client_arrays(
 	GLsizei i;
 	size_t size;
 	size_t offset;
-	char *restrict buffer;
+	char *restrict mappedBuffer;
 
 	char *restrict colorPointer;
 	char *restrict normalPointer;
@@ -1086,17 +1084,17 @@ static void gpu_append_client_arrays(
 	normalPointer = (char *restrict)(arrays->normalPointer) + (first * arrays->normalStride);
 	colorPointer  = (char *restrict)(arrays->colorPointer)  + (first * arrays->colorStride);
 
-	buffer   = GPU_IMMEDIATE->buffer;
+	mappedBuffer   = GPU_IMMEDIATE->mappedBuffer;
 	offset   = GPU_IMMEDIATE->offset;
 
 	for (i = 0; i < count; i++) {
 		size = arrays->vertexSize * sizeof(GLfloat);
-		memcpy(buffer + offset, vertexPointer, size);
+		memcpy(mappedBuffer + offset, vertexPointer, size);
 		offset += size;
 		vertexPointer += arrays->vertexStride;
 
 		if (normalPointer) {
-			memcpy(buffer + offset, normalPointer, 3*sizeof(GLfloat));
+			memcpy(mappedBuffer + offset, normalPointer, 3*sizeof(GLfloat));
 			offset += 3*sizeof(GLfloat);
 			normalPointer += arrays->normalStride;
 		}
@@ -1117,10 +1115,10 @@ static void gpu_append_client_arrays(
 					color[3] = 255;;
 				}
 
-				memcpy(buffer + offset, color, 4);
+				memcpy(mappedBuffer + offset, color, 4);
 			}
 			else /* assume four GL_UNSIGNED_BYTE */ {
-				memcpy(buffer + offset, colorPointer, 4);
+				memcpy(mappedBuffer + offset, colorPointer, 4);
 			}
 
 			offset += 4;
@@ -1508,15 +1506,15 @@ void gpuImmediateIndexComputeRange(void)
 
 	switch (index->type) {
 		case GL_UNSIGNED_BYTE:
-			find_range_ub(&indexMin, &indexMax, index->count, (GLubyte* )(index->buffer));
+			find_range_ub(&indexMin, &indexMax, index->count, (GLubyte* )(index->mappedBuffer));
 			break;
 
 		case GL_UNSIGNED_SHORT:
-			find_range_us(&indexMin, &indexMax, index->count, (GLushort*)(index->buffer));
+			find_range_us(&indexMin, &indexMax, index->count, (GLushort*)(index->mappedBuffer));
 			break;
 
 		case GL_UNSIGNED_INT:
-			find_range_ui(&indexMin, &indexMax, index->count, (GLuint*  )(index->buffer));
+			find_range_ui(&indexMin, &indexMax, index->count, (GLuint*  )(index->mappedBuffer));
 			break;
 
 		default:
@@ -1716,12 +1714,19 @@ void gpuDeleteIndex(GPUindex *restrict index)
 
 void gpuImmediateIndex(GPUindex * index)
 {
-	GPU_ASSERT(GPU_IMMEDIATE->index == NULL);
+	//GPU_ASSERT(GPU_IMMEDIATE->index == NULL);
 
 	if (index)
 		index->immediate = GPU_IMMEDIATE;
 
 	GPU_IMMEDIATE->index = index;
+}
+
+
+
+GPUindex* gpuGetImmediateIndex()
+{
+	return GPU_IMMEDIATE->index;
 }
 
 
@@ -1777,7 +1782,7 @@ void gpuIndexRelative##suffix(GLint offset, GLsizei count, const ctype *restrict
     indexStart = index->count;                                                                                      \
                                                                                                                     \
     for (i = 0; i < count; i++) {                                                                                   \
-        ((ctype*)(index->buffer))[indexStart+i] = start - offset + ((ctype*)indexes)[i];                            \
+        ((ctype*)(index->mappedBuffer))[indexStart+i] = start - offset + ((ctype*)indexes)[i];                      \
     }                                                                                                               \
                                                                                                                     \
     index->count += count;                                                                                          \
@@ -1804,7 +1809,7 @@ void gpuIndex##suffix(ctype nextIndex)                                          
     }                                                                                                      \
                                                                                                            \
     index = GPU_IMMEDIATE->index;                                                                          \
-    ((ctype*)(index->buffer))[index->count] = nextIndex;                                                   \
+    ((ctype*)(index->mappedBuffer))[index->count] = nextIndex;                                             \
     index->count++;                                                                                        \
 }
 
@@ -1818,7 +1823,7 @@ void gpuIndexEnd(void)
 {
 	GPU_IMMEDIATE->indexEndBuffer();
 
-	GPU_IMMEDIATE->index->buffer = NULL;
+	GPU_IMMEDIATE->index->mappedBuffer = NULL;
 }
 
 

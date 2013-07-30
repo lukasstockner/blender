@@ -57,24 +57,24 @@ extern "C" {
     GPU_CHECK_NO_BEGIN(noBeginOK) \
     }
 
-#define GPU_CHECK_CAN_PUSH()                                    \
-    {                                                           \
-    GLboolean immediateStackOK;                                 \
-    GLboolean noLockOK;                                         \
-    GLboolean noBeginOK;                                        \
-    GPU_SAFE_RETURN(immediateStack == NULL, immediateStackOK,); \
-    GPU_SAFE_RETURN(GPU_IMMEDIATE->buffer == NULL, noLockOK,);  \
-    GPU_SAFE_RETURN(GPU_IMMEDIATE->lockCount == 0, noBeginOK,); \
+#define GPU_CHECK_CAN_PUSH()                                          \
+    {                                                                 \
+    GLboolean immediateStackOK;                                       \
+    GLboolean noLockOK;                                               \
+    GLboolean noBeginOK;                                              \
+    GPU_SAFE_RETURN(immediateStack == NULL, immediateStackOK,);       \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE->mappedBuffer == NULL, noLockOK,);  \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE->lockCount == 0, noBeginOK,);       \
     }
 
-#define GPU_CHECK_CAN_POP()                                          \
-    {                                                                \
-    GLboolean immediateOK;                                           \
-    GLboolean noLockOK;                                              \
-    GLboolean noBeginOK;                                             \
-    GPU_SAFE_RETURN(GPU_IMMEDIATE != NULL, immediateOK, NULL);       \
-    GPU_SAFE_RETURN(GPU_IMMEDIATE->buffer == NULL, noLockOK, NULL);  \
-    GPU_SAFE_RETURN(GPU_IMMEDIATE->lockCount == 0, noBeginOK, NULL); \
+#define GPU_CHECK_CAN_POP()                                                \
+    {                                                                      \
+    GLboolean immediateOK;                                                 \
+    GLboolean noLockOK;                                                    \
+    GLboolean noBeginOK;                                                   \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE != NULL, immediateOK, NULL);             \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE->mappedBuffer == NULL, noLockOK, NULL);  \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE->lockCount == 0, noBeginOK, NULL);       \
     }
 
 #define GPU_CHECK_CAN_LOCK()       \

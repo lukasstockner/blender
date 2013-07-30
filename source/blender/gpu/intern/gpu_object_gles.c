@@ -268,7 +268,7 @@ GLuint static create_program(GLuint vertex, GLuint fragment)
 		
 		if(len > 0)
 		{
-			char * log = MEM_mallocN(len, "GLSLErrProgLog");
+			char * log = (char*)MEM_mallocN(len, "GLSLErrProgLog");
 			
 			gpu_glGetProgramInfoLog(program, len, NULL, log);
 			printf("Error in generating Program GLSL: \n %s\n", log);
@@ -287,50 +287,63 @@ GLuint static create_program(GLuint vertex, GLuint fragment)
 }
 
 char * object_shader_vector_basic = 
+#if defined(WITH_GL_PROFILE_CORE)
+	"#version 130\n"
+#endif
 	"uniform mat4 b_ProjectionMatrix ;	\n"
 	"uniform mat4 b_ModelViewMatrix ;	\n"
-"attribute vec4 b_Vertex;	\n"
-"attribute vec4 b_Color;	\n"
-"varying vec4 v_Color;	\n"
-"void main()	\n"
-"{	\n"
-"	gl_Position = b_ProjectionMatrix * b_ModelViewMatrix * b_Vertex;	\n"
-"	v_Color = b_Color;	\n"
-"}	\n"
-;
+	"attribute vec4 b_Vertex;	\n"
+	"attribute vec4 b_Color;	\n"
+	"varying vec4 v_Color;	\n"
+	"void main()	\n"
+	"{	\n"
+	"	gl_Position = b_ProjectionMatrix * b_ModelViewMatrix * b_Vertex;	\n"
+	"	v_Color = b_Color;	\n"
+	"}	\n"
+	;
 
 char * object_shader_fragment_basic = 
-"precision mediump float;	\n"
-"varying vec4 v_Color;	\n"
-"void main()	\n"
-"{	\n"
-"	gl_FragColor = v_Color;	\n"
-"}	\n"
-;
+#if defined(WITH_GL_PROFILE_CORE)
+	"#version 130\n"
+#endif
+//#if defined(WITH_GL_PROFILE_ES20)
+	"precision mediump float;	\n"
+//#endif
+	"varying vec4 v_Color;	\n"
+	"void main()	\n"
+	"{	\n"
+	"	gl_FragColor = v_Color;	\n"
+	"}	\n"
+	;
 
 
 char * object_shader_vector_alphatexture = 
 #if defined(WITH_GL_PROFILE_CORE)
-"#version 120\n"
+	"#version 130\n"
 #endif
 	"uniform mat4 b_ProjectionMatrix ;	\n"
 	"uniform mat4 b_ModelViewMatrix ;	\n"
 	"uniform mat4 b_TextureMatrix ;	\n"
-"attribute vec4 b_Vertex;	\n"
-"attribute vec4 b_Color;	\n"
-"varying vec4 v_Color;	\n"
-"attribute vec2 b_Coord;	\n"
-"varying vec2 v_Coord;	\n"
-"void main()	\n"
-"{	\n"
-"	gl_Position = b_ProjectionMatrix * b_ModelViewMatrix * b_Vertex;	\n"
-"	v_Coord = mat2(b_TextureMatrix) * b_Coord;	\n"
-"	v_Color = b_Color;	\n"
-"}	\n"
-;
+	"attribute vec4 b_Vertex;	\n"
+	"attribute vec4 b_Color;	\n"
+	"varying vec4 v_Color;	\n"
+	"attribute vec2 b_Coord;	\n"
+	"varying vec2 v_Coord;	\n"
+	"void main()	\n"
+	"{	\n"
+	"	gl_Position = b_ProjectionMatrix * b_ModelViewMatrix * b_Vertex;	\n"
+	"	v_Coord = mat2(b_TextureMatrix) * b_Coord;	\n"
+	"	v_Color = b_Color;	\n"
+	"}	\n"
+	;
 
 char * object_shader_fragment_alphatexture = 
-	"precision mediump float;\n"
+#if defined(WITH_GL_PROFILE_CORE)
+	"#version 130\n"
+#endif
+//#if defined(WITH_GL_PROFILE_ES20)
+	"precision mediump float;	\n"
+//#endif
 	"varying vec4 v_Color;\n"
 	"varying vec2 v_Coord;\n"
 	"uniform sampler2D v_texid;\n"
@@ -340,9 +353,45 @@ char * object_shader_fragment_alphatexture =
 	"}\n"
 ;
 
+char * object_shader_vector_redtexture = 
+#if defined(WITH_GL_PROFILE_CORE)
+	"#version 130\n"
+#endif
+	"uniform mat4 b_ProjectionMatrix ;	\n"
+	"uniform mat4 b_ModelViewMatrix ;	\n"
+	"uniform mat4 b_TextureMatrix ;	\n"
+	"attribute vec4 b_Vertex;	\n"
+	"attribute vec4 b_Color;	\n"
+	"varying vec4 v_Color;	\n"
+	"attribute vec2 b_Coord;	\n"
+	"varying vec2 v_Coord;	\n"
+	"void main()	\n"
+	"{	\n"
+	"	gl_Position = b_ProjectionMatrix * b_ModelViewMatrix * b_Vertex;	\n"
+	"	v_Coord = mat2(b_TextureMatrix) * b_Coord;	\n"
+	"	v_Color = b_Color;	\n"
+	"}	\n"
+	;
+
+char * object_shader_fragment_redtexture = 
+#if defined(WITH_GL_PROFILE_CORE)
+	"#version 130\n"
+#endif
+//#if defined(WITH_GL_PROFILE_ES20)
+	"precision mediump float;	\n"
+//#endif
+	"varying vec4 v_Color;\n"
+	"varying vec2 v_Coord;\n"
+	"uniform sampler2D v_texid;\n"
+	"void main()\n"
+	"{\n"
+	"	gl_FragColor = vec4(v_Color.rgb, texture2D(v_texid, v_Coord).r * v_Color.a);\n"
+	"}\n"
+;
+
 char * object_shader_vector_rgbatexture = 
 #if defined(WITH_GL_PROFILE_CORE)
-"#version 120\n"
+	"#version 130\n"
 #endif
 	"uniform mat4 b_ProjectionMatrix ;\n"
 	"uniform mat4 b_ModelViewMatrix ;\n"
@@ -361,7 +410,12 @@ char * object_shader_vector_rgbatexture =
 ;
 
 char * object_shader_fragment_rgbatexture = 
-	"precision mediump float;\n"
+#if defined(WITH_GL_PROFILE_CORE)
+	"#version 130\n"
+#endif
+//#if defined(WITH_GL_PROFILE_ES20)
+	"precision mediump float;	\n"
+//#endif
 	"varying vec4 v_Color;\n"
 	"varying vec2 v_Coord;\n"
 	"uniform sampler2D v_texid;\n"
@@ -373,7 +427,7 @@ char * object_shader_fragment_rgbatexture =
 
 char * object_shader_vector_pixels = 
 #if defined(WITH_GL_PROFILE_CORE)
-"#version 120\n"
+	"#version 130\n"
 #endif
 	"uniform mat4 b_ProjectionMatrix ;\n"
 	"uniform mat4 b_ModelViewMatrix ;\n"
@@ -392,7 +446,12 @@ char * object_shader_vector_pixels =
 ;
 
 char * object_shader_fragment_pixels = 
-	"precision mediump float;\n"
+#if defined(WITH_GL_PROFILE_CORE)
+	"#version 130\n"
+#endif
+//#if defined(WITH_GL_PROFILE_ES20)
+	"precision mediump float;	\n"
+//#endif
 	"varying vec4 v_Color;\n"
 	"varying vec2 v_Coord;\n"
 	"uniform sampler2D v_texid;\n"
@@ -409,6 +468,9 @@ int shader_main;
 
 GPUGLSL_ES_info shader_alphatexture_info;
 int shader_alphatexture;
+
+GPUGLSL_ES_info shader_redtexture_info;
+int shader_redtexture;
 
 GPUGLSL_ES_info shader_rgbatexture_info;
 int shader_rgbatexture;
@@ -434,6 +496,13 @@ void gpu_object_init_gles(void)
 		GLuint fo = compile_shader(GL_FRAGMENT_SHADER, &object_shader_fragment_alphatexture, 1);
 		shader_alphatexture = create_program(vo, fo);	
 		gpu_assign_gles_loc(&shader_alphatexture_info, shader_alphatexture);
+	}
+	GPU_CHECK_NO_ERROR();
+	{
+		GLuint vo = compile_shader(GL_VERTEX_SHADER,   &object_shader_vector_redtexture,   1);
+		GLuint fo = compile_shader(GL_FRAGMENT_SHADER, &object_shader_fragment_redtexture, 1);
+		shader_redtexture = create_program(vo, fo);	
+		gpu_assign_gles_loc(&shader_redtexture_info, shader_redtexture);
 	}
 	GPU_CHECK_NO_ERROR();
 

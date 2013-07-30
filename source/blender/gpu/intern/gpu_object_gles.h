@@ -76,6 +76,9 @@ extern int shader_main;
 extern GPUGLSL_ES_info shader_alphatexture_info;
 extern int shader_alphatexture;
 
+extern GPUGLSL_ES_info shader_redtexture_info;
+extern int shader_redtexture;
+
 extern GPUGLSL_ES_info shader_rgbatexture_info;
 extern int shader_rgbatexture;
 

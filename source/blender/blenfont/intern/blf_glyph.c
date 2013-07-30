@@ -187,12 +187,23 @@ static void blf_glyph_cache_texture(FontBLF *font, GlyphCacheBLF *gc)
 
 	glGenTextures(1, &gc->textures[gc->cur_tex]);
 	gpuBindTexture(GL_TEXTURE_2D, (font->tex_bind_state = gc->textures[gc->cur_tex]));
+GPU_CHECK_NO_ERROR();
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+GPU_CHECK_NO_ERROR();
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+GPU_CHECK_NO_ERROR();
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+GPU_CHECK_NO_ERROR();
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+GPU_CHECK_NO_ERROR();
 
+#if defined(WITH_GL_PROFILE_CORE)
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, gc->p2_width, gc->p2_height, 0, GL_RED, GL_UNSIGNED_BYTE, buf);
+#elif defined(WITH_GL_PROFILE_COMPAT || WITH_GL_PROFILE_ES20)
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, gc->p2_width, gc->p2_height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, buf);
+#endif
+
+GPU_CHECK_NO_ERROR();
 	MEM_freeN((void *)buf);
 }
 
@@ -412,14 +423,17 @@ void blf_glyph_render(
 			*needs_end = FALSE;
 		}
 
+GPU_CHECK_NO_ERROR();
 		if (font->max_tex_size == -1)
 			glGetIntegerv(GL_MAX_TEXTURE_SIZE, (GLint *)&font->max_tex_size);
+GPU_CHECK_NO_ERROR();
 
 		if (gc->cur_tex == -1) {
 			blf_glyph_cache_texture(font, gc);
 			gc->x_offs = gc->pad;
 			gc->y_offs = 0;
 		}
+GPU_CHECK_NO_ERROR();
 
 		if (gc->x_offs > (gc->p2_width - gc->max_glyph_width)) {
 			gc->x_offs = gc->pad;
@@ -448,11 +462,15 @@ void blf_glyph_render(
 		}
 
 
+GPU_CHECK_NO_ERROR();
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
+GPU_CHECK_NO_ERROR();
 		gpuBindTexture(GL_TEXTURE_2D, g->tex);
+#if defined(WITH_GL_PROFILE_CORE)
+		glTexSubImage2D(GL_TEXTURE_2D, 0, g->xoff, g->yoff, g->width, g->height, GL_RED, GL_UNSIGNED_BYTE, g->bitmap);
+#else
 		glTexSubImage2D(GL_TEXTURE_2D, 0, g->xoff, g->yoff, g->width, g->height, GL_ALPHA, GL_UNSIGNED_BYTE, g->bitmap);
-
+#endif
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 4); /* restore default value */ //-V112
 
 		g->uv[0][0] = ((float)g->xoff) / ((float)gc->p2_width);

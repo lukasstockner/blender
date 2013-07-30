@@ -40,7 +40,14 @@
 
 static GLboolean begin_font(GLvoid* UNUSED(param), const GLvoid* UNUSED(object))
 {
-#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
+#if defined(WITH_GL_PROFILE_CORE)
+	if (GPU_PROFILE_CORE || GPU_PROFILE_ES20) {
+		gpu_set_shader_es(&shader_redtexture_info, 0);
+		gpu_glUseProgram(shader_redtexture);
+	}
+#endif
+
+#if defined(WITH_GL_PROFILE_ES20)
 	if (GPU_PROFILE_CORE || GPU_PROFILE_ES20) {
 		gpu_set_shader_es(&shader_alphatexture_info, 0);
 		gpu_glUseProgram(shader_alphatexture);

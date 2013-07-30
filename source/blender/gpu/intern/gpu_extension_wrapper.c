@@ -336,26 +336,50 @@ void gpu_glGenerateMipmap(GLenum target)
 	}
 }
 
-static const void* GLAPIENTRY GPU_buffer_start_update_buffer(GLenum target, GLsizeiptr size, const GLvoid* data, GLenum usage)
+static void* GLAPIENTRY GPU_buffer_start_update_client(GLenum target, GLsizeiptr size, GLvoid* data, GLenum usage)
 {
-	gpu_glBufferData(target, 0, NULL, usage);
 	return data;
 }
 
-static const void* GLAPIENTRY GPU_buffer_start_update_map(GLenum target, GLsizeiptr size, const GLvoid* data, GLenum usage)
+static void* GLAPIENTRY GPU_buffer_start_update_buffer(GLenum target, GLsizeiptr size, GLvoid* data, GLenum usage)
 {
+GPU_CHECK_NO_ERROR();
+	gpu_glBufferData(target, 0, NULL, usage);
+GPU_CHECK_NO_ERROR();
+	return data;
+}
+
+static void* GLAPIENTRY GPU_buffer_start_update_map(GLenum target, GLsizeiptr size, GLvoid* data, GLenum usage)
+{
+	void* mapped;
+GPU_CHECK_NO_ERROR();
 	gpu_glBufferData(target, size, NULL, usage);
-	return gpu_glMapBuffer(target, GL_WRITE_ONLY);
+GPU_CHECK_NO_ERROR();
+	mapped = gpu_glMapBuffer(target, GL_WRITE_ONLY);
+GPU_CHECK_NO_ERROR();
+GPU_ASSERT(mapped != NULL);
+	return mapped;
 }
 
-static void GLAPIENTRY GPU_buffer_finish_update_buffer(GLenum target, GLsizeiptr size, const GLvoid* data, GLenum usage)
+static const void* GLAPIENTRY GPU_buffer_finish_update_client(GLenum target, GLsizeiptr size, const GLvoid* data, GLenum usage)
 {
+	return data;
+}
+
+static const void* GLAPIENTRY GPU_buffer_finish_update_buffer(GLenum target, GLsizeiptr size, const GLvoid* data, GLenum usage)
+{
+GPU_CHECK_NO_ERROR();
 	gpu_glBufferData(target, size, data, usage);
+GPU_CHECK_NO_ERROR();
+	return NULL;
 }
 
-static void GLAPIENTRY GPU_buffer_finish_update_map(GLenum target, GLsizeiptr size, const GLvoid* data, GLenum usage)
+static const void* GLAPIENTRY GPU_buffer_finish_update_map(GLenum target, GLsizeiptr size, const GLvoid* data, GLenum usage)
 {
+GPU_CHECK_NO_ERROR();
 	gpu_glUnmapBuffer(target);
+GPU_CHECK_NO_ERROR();
+	return NULL;
 }
 
 void GPU_wrap_extensions(GLboolean* glslsupport_out, GLboolean* framebuffersupport_out)
@@ -373,12 +397,16 @@ void GPU_wrap_extensions(GLboolean* glslsupport_out, GLboolean* framebuffersuppo
 
 	init_generate_mipmap();
 
-	if(gpu_glMapBuffer) {
+	if (gpu_glBufferData != NULL && gpu_glMapBuffer != NULL) {
 		GPU_buffer_start_update  = GPU_buffer_start_update_map;
 		GPU_buffer_finish_update = GPU_buffer_finish_update_map;
 	}
-	else {
+	else if (gpu_glBufferData != NULL) {
 		GPU_buffer_start_update  = GPU_buffer_start_update_buffer;
 		GPU_buffer_finish_update = GPU_buffer_finish_update_buffer;
+	}
+	else {
+		GPU_buffer_start_update  = GPU_buffer_start_update_client;
+		GPU_buffer_finish_update = GPU_buffer_finish_update_client;
 	}
 }

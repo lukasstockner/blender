@@ -423,7 +423,6 @@ static GLboolean _glewSearchExtension (const char* name, const GLubyte *start, c
 	}
 #ifndef GLEW_ES_ONLY
 	else { // XXX jwilkins: unified extension string is deprecated
-		typedef const GLubyte* (GLAPIENTRY * PFNGLGETSTRINGIPROC) (GLenum, GLuint);
 		GLEW_FUN_EXPORT PFNGLGETSTRINGIPROC pglGetStringi = (PFNGLGETSTRINGIPROC)glewGetProcAddress("glGetStringi");
 
 		if (pglGetStringi != NULL) {

@@ -50,7 +50,7 @@
     GPU_SAFE_RETURN(GPU_IMMEDIATE != NULL, var,);
 
 #define GPU_CHECK_NO_BEGIN(var) \
-    GPU_SAFE_RETURN(GPU_IMMEDIATE->buffer == NULL, var,);
+    GPU_SAFE_RETURN(GPU_IMMEDIATE->mappedBuffer == NULL, var,);
 
 #define GPU_CHECK_IS_LOCKED(var) \
     GPU_SAFE_RETURN(GPU_IMMEDIATE->lockCount > 0, var,);
@@ -71,14 +71,14 @@
     GPU_CHECK_NO_BEGIN(noBeginOK)         \
     }
 
-#define GPU_CHECK_CAN_END()                                      \
-    {                                                            \
-    GLboolean immediateOK;                                       \
-    GLboolean isLockedOK;                                        \
-    GLboolean hasBegunOK;                                        \
-    GPU_CHECK_BASE(immediateOK);                                 \
-    GPU_CHECK_IS_LOCKED(isLockedOK)                              \
-    GPU_SAFE_RETURN(GPU_IMMEDIATE->buffer != NULL, hasBegunOK,); \
+#define GPU_CHECK_CAN_END()                                            \
+    {                                                                  \
+    GLboolean immediateOK;                                             \
+    GLboolean isLockedOK;                                              \
+    GLboolean hasBegunOK;                                              \
+    GPU_CHECK_BASE(immediateOK);                                       \
+    GPU_CHECK_IS_LOCKED(isLockedOK)                                    \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE->mappedBuffer != NULL, hasBegunOK,); \
     }
 
 #define GPU_CHECK_CAN_VERTEX_ATTRIB() GPU_CHECK_CAN_END()
@@ -198,7 +198,7 @@ typedef struct GPUimmediate {
 	GLfloat attrib_f[GPU_MAX_FLOAT_ATTRIBS][GPU_MAX_ELEMENT_SIZE];
 	GLubyte attrib_ub[GPU_MAX_UBYTE_ATTRIBS][GPU_COLOR_COMPS];
 
-	char *restrict buffer;
+	GLubyte *restrict mappedBuffer;
 	void *restrict bufferData;
 	GLsizei stride;
 	size_t  offset;
@@ -358,8 +358,7 @@ typedef struct GPUindex {
 	struct GPUimmediate *restrict immediate;
 
 	void   *restrict bufferData;
-	void   *restrict buffer;         /* mapped pointer for editing */
-	void   *restrict unmappedBuffer; /* for passing to draw api */
+	void   *restrict mappedBuffer;
 	GLsizei maxIndexCount;
 	GLsizei count;
 
@@ -375,6 +374,7 @@ GPUindex* gpuNewIndex(void);
 void gpuDeleteIndex(GPUindex *restrict index);
 
 void gpuImmediateIndex(GPUindex * index);
+GPUindex* gpuGetImmediateIndex(void);
 void gpuImmediateMaxIndexCount(GLsizei maxIndexCount, GLenum type);
 void gpuImmediateIndexRange(GLuint indexMin, GLuint indexMax);
 void gpuImmediateIndexComputeRange(void);
