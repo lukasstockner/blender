@@ -154,7 +154,7 @@ static void partialvis_update_grids(Object *ob,
 {
 	CCGElem **grids;
 	CCGKey key;
-	BLI_bitmap *grid_hidden;
+	BLI_bitmap **grid_hidden;
 	int any_visible = 0;
 	int *grid_indices, totgrid, any_changed, i;
 
@@ -171,7 +171,7 @@ static void partialvis_update_grids(Object *ob,
 	for (i = 0; i < totgrid; i++) {
 		int any_hidden = 0;
 		int g = grid_indices[i], x, y;
-		BLI_bitmap gh = grid_hidden[g];
+		BLI_bitmap *gh = grid_hidden[g];
 
 		if (!gh) {
 			switch (action) {
@@ -416,9 +416,7 @@ static int hide_show_exec(bContext *C, wmOperator *op)
 	/* ensure that edges and faces get hidden as well (not used by
 	 * sculpt but it looks wrong when entering editmode otherwise) */
 	if (pbvh_type == PBVH_FACES) {
-		BKE_mesh_flush_hidden_from_verts(me->mvert, me->mloop,
-		                                 me->medge, me->totedge,
-		                                 me->mpoly, me->totpoly);
+		BKE_mesh_flush_hidden_from_verts(me);
 	}
 
 	ED_region_tag_redraw(ar);

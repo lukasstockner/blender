@@ -655,8 +655,7 @@ static int slide_point_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			if (ELEM(event->type, LEFTSHIFTKEY, RIGHTSHIFTKEY))
 				data->accurate = (event->val == KM_PRESS);
 
-		/* no break! update CV position */
-
+			/* fall-through */  /* update CV position */
 		case MOUSEMOVE:
 		{
 			ScrArea *sa = CTX_wm_area(C);
@@ -1074,6 +1073,7 @@ static int mask_switch_direction_exec(bContext *C, wmOperator *UNUSED(op))
 		BKE_mask_update_display(mask, CFRA);
 
 		WM_event_add_notifier(C, NC_MASK | ND_SELECT, mask);
+		WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
 
 		return OPERATOR_FINISHED;
 	}
@@ -1140,6 +1140,7 @@ static int mask_normals_make_consistent_exec(bContext *C, wmOperator *UNUSED(op)
 		BKE_mask_update_display(mask, CFRA);
 
 		WM_event_add_notifier(C, NC_MASK | ND_SELECT, mask);
+		WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
 
 		return OPERATOR_FINISHED;
 	}
@@ -1172,6 +1173,8 @@ static int set_handle_type_exec(bContext *C, wmOperator *op)
 	MaskLayer *masklay;
 	int handle_type = RNA_enum_get(op->ptr, "type");
 
+	bool change = false;
+
 	for (masklay = mask->masklayers.first; masklay; masklay = masklay->next) {
 		MaskSpline *spline;
 		int i;
@@ -1188,15 +1191,19 @@ static int set_handle_type_exec(bContext *C, wmOperator *op)
 					BezTriple *bezt = &point->bezt;
 
 					bezt->h1 = bezt->h2 = handle_type;
+					change = true;
 				}
 			}
 		}
 	}
 
-	WM_event_add_notifier(C, NC_MASK | ND_DATA, mask);
-	DAG_id_tag_update(&mask->id, 0);
+	if (change) {
+		WM_event_add_notifier(C, NC_MASK | ND_DATA, mask);
+		DAG_id_tag_update(&mask->id, 0);
 
-	return OPERATOR_FINISHED;
+		return OPERATOR_FINISHED;
+	}
+	return OPERATOR_CANCELLED;
 }
 
 void MASK_OT_handle_type_set(wmOperatorType *ot)

@@ -1329,6 +1329,7 @@ void BKE_pchan_mat3_to_rot(bPoseChannel *pchan, float mat[3][3], short use_compa
 				mat3_to_compatible_eulO(pchan->eul, pchan->eul, pchan->rotmode, mat);
 			else
 				mat3_to_eulO(pchan->eul, pchan->rotmode, mat);
+			break;
 	}
 }
 
@@ -1474,7 +1475,7 @@ void vec_roll_to_mat3(const float vec[3], const float roll, float mat[3][3])
 		theta = angle_normalized_v3v3(target, nor);
 
 		/* Make Bone matrix*/
-		vec_rot_to_mat3(bMatrix, axis, theta);
+		axis_angle_normalized_to_mat3(bMatrix, axis, theta);
 	}
 	else {
 		/* if nor is a multiple of target ... */
@@ -1490,7 +1491,7 @@ void vec_roll_to_mat3(const float vec[3], const float roll, float mat[3][3])
 	}
 
 	/* Make Roll matrix */
-	vec_rot_to_mat3(rMatrix, nor, roll);
+	axis_angle_normalized_to_mat3(rMatrix, nor, roll);
 
 	/* Combine and output result */
 	mul_m3_m3m3(mat, rMatrix, bMatrix);
@@ -2100,8 +2101,8 @@ static void splineik_evaluate_bone(tSplineIK_Tree *tree, Scene *scene, Object *o
 				/* z-axis scale */
 				scale = len_v3(pchan->pose_mat[2]);
 				mul_v3_fl(poseMat[2], scale);
+				break;
 			}
-			break;
 			case CONSTRAINT_SPLINEIK_XZS_VOLUMETRIC:
 			{
 				/* 'volume preservation' */
@@ -2123,8 +2124,8 @@ static void splineik_evaluate_bone(tSplineIK_Tree *tree, Scene *scene, Object *o
 				/* apply the scaling */
 				mul_v3_fl(poseMat[0], scale);
 				mul_v3_fl(poseMat[2], scale);
+				break;
 			}
-			break;
 		}
 
 		/* finally, multiply the x and z scaling by the radius of the curve too,

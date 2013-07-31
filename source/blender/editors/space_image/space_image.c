@@ -376,15 +376,10 @@ static void image_refresh(const bContext *C, ScrArea *sa)
 	
 	/* check if we have to set the image from the editmesh */
 	if (ima && (ima->source == IMA_SRC_VIEWER && sima->mode == SI_MODE_MASK)) {
-		if (sima->lock == FALSE && G.moving) {
-			/* pass */
-		}
-		else {
-			if (scene->nodetree) {
-				Mask *mask = ED_space_image_get_mask(sima);
-				if (mask) {
-					ED_node_composite_job(C, scene->nodetree, scene);
-				}
+		if (scene->nodetree) {
+			Mask *mask = ED_space_image_get_mask(sima);
+			if (mask) {
+				ED_node_composite_job(C, scene->nodetree, scene);
 			}
 		}
 	}
@@ -420,7 +415,7 @@ static void image_refresh(const bContext *C, ScrArea *sa)
 	}
 }
 
-static void image_listener(ScrArea *sa, wmNotifier *wmn)
+static void image_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
 {
 	SpaceImage *sima = (SpaceImage *)sa->spacedata.first;
 	
@@ -497,6 +492,7 @@ static void image_listener(ScrArea *sa, wmNotifier *wmn)
 			break;
 		}
 		case NC_GEOM:
+		{
 			switch (wmn->data) {
 				case ND_DATA:
 				case ND_SELECT:
@@ -505,6 +501,8 @@ static void image_listener(ScrArea *sa, wmNotifier *wmn)
 					ED_area_tag_redraw(sa);
 					break;
 			}
+			break;
+		}
 		case NC_OBJECT:
 		{
 			Object *ob = (Object *)wmn->reference;
@@ -517,6 +515,7 @@ static void image_listener(ScrArea *sa, wmNotifier *wmn)
 					}
 					break;
 			}
+			break;
 		}
 	}
 }
@@ -731,7 +730,7 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 #endif
 }
 
-static void image_main_area_listener(ARegion *ar, wmNotifier *wmn)
+static void image_main_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -765,7 +764,7 @@ static void image_buttons_area_draw(const bContext *C, ARegion *ar)
 	ED_region_panels(C, ar, 1, NULL, -1);
 }
 
-static void image_buttons_area_listener(ARegion *ar, wmNotifier *wmn)
+static void image_buttons_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -821,7 +820,7 @@ static void image_scope_area_draw(const bContext *C, ARegion *ar)
 	ED_region_panels(C, ar, 1, NULL, -1);
 }
 
-static void image_scope_area_listener(ARegion *ar, wmNotifier *wmn)
+static void image_scope_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -858,7 +857,7 @@ static void image_header_area_draw(const bContext *C, ARegion *ar)
 	ED_region_header(C, ar);
 }
 
-static void image_header_area_listener(ARegion *ar, wmNotifier *wmn)
+static void image_header_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -877,7 +876,7 @@ static void image_header_area_listener(ARegion *ar, wmNotifier *wmn)
 					ED_region_tag_redraw(ar);
 					break;
 			}
-			
+			break;
 	}
 }
 

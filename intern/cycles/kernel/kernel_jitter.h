@@ -37,7 +37,7 @@ __device_inline int cmj_fast_mod_pow2(int a, int b)
 /* a must be > 0 and b must be > 1 */
 __device_inline int cmj_fast_div_pow2(int a, int b)
 {
-#ifdef __KERNEL_SSE2__
+#if defined(__KERNEL_SSE2__) && !defined(_MSC_VER)
 	return a >> __builtin_ctz(b);
 #else
 	return a/b;
@@ -46,7 +46,7 @@ __device_inline int cmj_fast_div_pow2(int a, int b)
 
 __device_inline uint cmj_w_mask(uint w)
 {
-#ifdef __KERNEL_SSE2__
+#if defined(__KERNEL_SSE2__) && !defined(_MSC_VER)
 	return ((1 << (32 - __builtin_clz(w))) - 1);
 #else
 	w |= w >> 1;
@@ -137,7 +137,7 @@ __device_inline float cmj_randfloat(uint i, uint p)
 }
 
 #ifdef __CMJ__
-__device_noinline float cmj_sample_1D(int s, int N, int p)
+__device float cmj_sample_1D(int s, int N, int p)
 {
 	uint x = cmj_permute(s, N, p * 0x68bc21eb);
 	float jx = cmj_randfloat(s, p * 0x967a889b);
@@ -146,7 +146,7 @@ __device_noinline float cmj_sample_1D(int s, int N, int p)
 	return (x + jx)*invN;
 }
 
-__device_noinline float2 cmj_sample_2D(int s, int N, int p)
+__device void cmj_sample_2D(int s, int N, int p, float *fx, float *fy)
 {
 	int m = float_to_int(sqrtf(N));
 	int n = (N + m - 1)/m;
@@ -173,7 +173,8 @@ __device_noinline float2 cmj_sample_2D(int s, int N, int p)
 	float jx = cmj_randfloat(s, p * 0x967a889b);
 	float jy = cmj_randfloat(s, p * 0x368cc8b7);
 
-	return make_float2((sx + (sy + jx)*invn)*invm, (s + jy)*invN);
+	*fx = (sx + (sy + jx)*invn)*invm;
+	*fy = (s + jy)*invN;
 }
 #endif
 

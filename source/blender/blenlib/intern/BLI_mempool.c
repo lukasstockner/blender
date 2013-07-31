@@ -45,6 +45,10 @@
 
 #ifdef __GNUC__
 #  pragma GCC diagnostic error "-Wsign-conversion"
+#  if (__GNUC__ * 100 + __GNUC_MINOR__) >= 406  /* gcc4.6+ only */
+#    pragma GCC diagnostic error "-Wsign-compare"
+#    pragma GCC diagnostic error "-Wconversion"
+#  endif
 #endif
 
 /* note: copied from BLO_blend_defs.h, don't use here because we're in BLI */
@@ -102,8 +106,8 @@ BLI_mempool *BLI_mempool_create(int esize, int totelem, int pchunk, int flag)
 	}
 
 	/* set the elem size */
-	if (esize < MEMPOOL_ELEM_SIZE_MIN) {
-		esize = MEMPOOL_ELEM_SIZE_MIN;
+	if (esize < (int)MEMPOOL_ELEM_SIZE_MIN) {
+		esize = (int)MEMPOOL_ELEM_SIZE_MIN;
 	}
 
 	if (flag & BLI_MEMPOOL_ALLOW_ITER) {
@@ -433,19 +437,22 @@ void *BLI_mempool_iterstep(BLI_mempool_iter *iter)
 void BLI_mempool_destroy(BLI_mempool *pool)
 {
 	BLI_mempool_chunk *mpchunk = NULL;
+	BLI_mempool_chunk *mpchunk_next;
 
 	if (pool->flag & BLI_MEMPOOL_SYSMALLOC) {
-		for (mpchunk = pool->chunks.first; mpchunk; mpchunk = mpchunk->next) {
+		for (mpchunk = pool->chunks.first; mpchunk; mpchunk = mpchunk_next) {
+			mpchunk_next = mpchunk->next;
 			free(mpchunk->data);
+			free(mpchunk);
 		}
-		BLI_freelist(&(pool->chunks));
 		free(pool);
 	}
 	else {
-		for (mpchunk = pool->chunks.first; mpchunk; mpchunk = mpchunk->next) {
+		for (mpchunk = pool->chunks.first; mpchunk; mpchunk = mpchunk_next) {
+			mpchunk_next = mpchunk->next;
 			MEM_freeN(mpchunk->data);
+			MEM_freeN(mpchunk);
 		}
-		BLI_freelistN(&(pool->chunks));
 		MEM_freeN(pool);
 	}
 }

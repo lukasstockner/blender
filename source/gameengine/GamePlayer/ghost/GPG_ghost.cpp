@@ -813,9 +813,8 @@ int main(int argc, char** argv)
 
 						if (!bfd) {
 							// just add "//" in front of it
-							char temppath[242];
-							strcpy(temppath, "//");
-							strcat(temppath, basedpath);
+							char temppath[FILE_MAX] = "//";
+							BLI_strncpy(temppath + 2, basedpath, FILE_MAX - 2);
 
 							BLI_path_abs(temppath, pathname);
 							bfd = load_game_data(temppath);
@@ -1032,6 +1031,8 @@ int main(int argc, char** argv)
 						system->removeEventConsumer(&app);
 
 						BLO_blendfiledata_free(bfd);
+						/* G.main == bfd->main, it gets referenced in free_nodesystem so we can't have a dangling pointer */
+						G.main = NULL;
 						if (python_main) MEM_freeN(python_main);
 					}
 				} while (exitcode == KX_EXIT_REQUEST_RESTART_GAME || exitcode == KX_EXIT_REQUEST_START_OTHER_GAME);
@@ -1049,6 +1050,13 @@ int main(int argc, char** argv)
 		}
 	}
 
+	/* refer to WM_exit_ext() and free_blender(),
+	 * these are not called in the player but we need to match some of there behavior here,
+	 * if the order of function calls or blenders state isn't matching that of blender proper,
+	 * we may get troubles later on */
+
+	free_nodesystem();
+
 	// Cleanup
 	RNA_exit();
 	BLF_exit();
@@ -1061,7 +1069,6 @@ int main(int argc, char** argv)
 
 	IMB_exit();
 	BKE_images_exit();
-	free_nodesystem();
 
 	SYS_DeleteSystem(syshandle);
 

@@ -340,7 +340,7 @@ static SpaceLink *clip_duplicate(SpaceLink *sl)
 	return (SpaceLink *)scn;
 }
 
-static void clip_listener(ScrArea *sa, wmNotifier *wmn)
+static void clip_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -348,7 +348,7 @@ static void clip_listener(ScrArea *sa, wmNotifier *wmn)
 			switch (wmn->data) {
 				case ND_FRAME:
 					clip_scopes_tag_refresh(sa);
-					/* no break! */
+					/* fall-through */
 
 				case ND_FRAME_RANGE:
 					ED_area_tag_redraw(sa);
@@ -368,7 +368,7 @@ static void clip_listener(ScrArea *sa, wmNotifier *wmn)
 				case NA_EDITED:
 				case NA_EVALUATED:
 					clip_stabilization_tag_refresh(sa);
-					/* no break! */
+					/* fall-through */
 
 				case NA_SELECTED:
 					clip_scopes_tag_refresh(sa);
@@ -824,7 +824,7 @@ static int clip_context(const bContext *C, const char *member, bContextDataResul
 static int clip_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
 {
 	if (drag->type == WM_DRAG_PATH)
-		if (ELEM3(drag->icon, 0, ICON_FILE_IMAGE, ICON_FILE_BLANK)) /* rule might not work? */
+		if (ELEM4(drag->icon, 0, ICON_FILE_IMAGE, ICON_FILE_MOVIE, ICON_FILE_BLANK)) /* rule might not work? */
 			return TRUE;
 
 	return FALSE;
@@ -1036,7 +1036,7 @@ static void clip_refresh(const bContext *C, ScrArea *sa)
 		if (ar_channels && !(ar_channels->flag & RGN_FLAG_HIDDEN)) {
 			ar_channels->flag |= RGN_FLAG_HIDDEN;
 			ar_channels->v2d.flag &= ~V2D_IS_INITIALISED;
-			WM_event_remove_handlers((bContext *)C, &ar_tools->handlers);
+			WM_event_remove_handlers((bContext *)C, &ar_channels->handlers);
 			view_changed = TRUE;
 		}
 		if (ar_channels && ar_channels->alignment != RGN_ALIGN_NONE) {
@@ -1191,7 +1191,7 @@ static void clip_main_area_draw(const bContext *C, ARegion *ar)
 	}
 }
 
-static void clip_main_area_listener(ARegion *ar, wmNotifier *wmn)
+static void clip_main_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -1300,7 +1300,7 @@ static void clip_preview_area_draw(const bContext *C, ARegion *ar)
 		dopesheet_area_draw(C, ar);
 }
 
-static void clip_preview_area_listener(ARegion *UNUSED(ar), wmNotifier *UNUSED(wmn))
+static void clip_preview_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *UNUSED(ar), wmNotifier *UNUSED(wmn))
 {
 }
 
@@ -1341,7 +1341,7 @@ static void clip_channels_area_draw(const bContext *C, ARegion *ar)
 	UI_view2d_view_restore(C);
 }
 
-static void clip_channels_area_listener(ARegion *UNUSED(ar), wmNotifier *UNUSED(wmn))
+static void clip_channels_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *UNUSED(ar), wmNotifier *UNUSED(wmn))
 {
 }
 
@@ -1358,7 +1358,7 @@ static void clip_header_area_draw(const bContext *C, ARegion *ar)
 	ED_region_header(C, ar);
 }
 
-static void clip_header_area_listener(ARegion *ar, wmNotifier *wmn)
+static void clip_header_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -1370,8 +1370,8 @@ static void clip_header_area_listener(ARegion *ar, wmNotifier *wmn)
 					// if (sc->mode == SC_MODE_MASKEDIT)
 				{
 					ED_region_tag_redraw(ar);
+					break;
 				}
-				break;
 			}
 			break;
 	}
@@ -1398,7 +1398,7 @@ static void clip_tools_area_draw(const bContext *C, ARegion *ar)
 
 /****************** tool properties region ******************/
 
-static void clip_props_area_listener(ARegion *ar, wmNotifier *wmn)
+static void clip_props_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -1443,7 +1443,7 @@ static void clip_properties_area_draw(const bContext *C, ARegion *ar)
 	ED_region_panels(C, ar, 1, NULL, -1);
 }
 
-static void clip_properties_area_listener(ARegion *ar, wmNotifier *wmn)
+static void clip_properties_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {

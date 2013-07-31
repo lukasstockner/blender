@@ -116,6 +116,9 @@ MINLINE void mul_v3_v3v3(float r[3], const float a[3], const float b[3]);
 MINLINE void mul_v4_fl(float r[4], float f);
 MINLINE void mul_v4_v4fl(float r[3], const float a[3], float f);
 MINLINE float mul_project_m4_v3_zfac(float mat[4][4], const float co[3]);
+MINLINE float dot_m3_v3_row_x(float M[3][3], const float a[3]);
+MINLINE float dot_m3_v3_row_y(float M[3][3], const float a[3]);
+MINLINE float dot_m3_v3_row_z(float M[3][3], const float a[3]);
 
 MINLINE void madd_v3_v3fl(float r[3], const float a[3], float f);
 MINLINE void madd_v3_v3v3(float r[3], const float a[3], const float b[3]);
@@ -149,14 +152,14 @@ MINLINE void star_m3_v3(float rmat[3][3], float a[3]);
 MINLINE float len_squared_v2(const float v[2]);
 MINLINE float len_squared_v3(const float v[3]);
 MINLINE float len_manhattan_v2(const float v[2]);
-MINLINE float len_manhattan_v2_int(const int v[2]);
+MINLINE int   len_manhattan_v2_int(const int v[2]);
 MINLINE float len_manhattan_v3(const float v[3]);
 MINLINE float len_v2(const float a[2]);
 MINLINE float len_v2v2(const float a[2], const float b[2]);
 MINLINE float len_squared_v2v2(const float a[2], const float b[2]);
 MINLINE float len_squared_v3v3(const float a[3], const float b[3]);
 MINLINE float len_manhattan_v2v2(const float a[2], const float b[2]);
-MINLINE float len_manhattan_v2v2_int(const int a[2], const int b[2]);
+MINLINE int   len_manhattan_v2v2_int(const int a[2], const int b[2]);
 MINLINE float len_manhattan_v3v3(const float a[3], const float b[3]);
 MINLINE float len_v3(const float a[3]);
 MINLINE float len_v3v3(const float a[3], const float b[3]);
@@ -240,6 +243,7 @@ void rotate_normalized_v3_v3v3fl(float v[3], const float p[3], const float axis[
 void print_v2(const char *str, const float a[2]);
 void print_v3(const char *str, const float a[3]);
 void print_v4(const char *str, const float a[4]);
+void print_vn(const char *str, const float v[], const int n);
 
 MINLINE void normal_short_to_float_v3(float r[3], const short n[3]);
 MINLINE void normal_float_to_short_v3(short r[3], const float n[3]);

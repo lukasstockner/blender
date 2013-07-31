@@ -289,6 +289,16 @@ void key_curve_position_weights(float t, float data[4], int type)
 		data[2] = -0.5f        * t3  + 0.5f * t2   + 0.5f * t    + 0.16666666f;
 		data[3] =  0.16666666f * t3;
 	}
+	else if (type == KEY_CATMULL_ROM) {
+		t2 = t * t;
+		t3 = t2 * t;
+		fc = 0.5f;
+
+		data[0] = -fc          * t3  + 2.0f * fc          * t2 - fc * t;
+		data[1] =  (2.0f - fc) * t3  + (fc - 3.0f)        * t2 + 1.0f;
+		data[2] =  (fc - 2.0f) * t3  + (3.0f - 2.0f * fc) * t2 + fc * t;
+		data[3] =  fc          * t3  - fc * t2;
+	}
 }
 
 /* first derivative */
@@ -319,6 +329,15 @@ void key_curve_tangent_weights(float t, float data[4], int type)
 		data[2] = -1.5f * t2  + t         + 0.5f;
 		data[3] =  0.5f * t2;
 	}
+	else if (type == KEY_CATMULL_ROM) {
+		t2 = t * t;
+		fc = 0.5f;
+
+		data[0] = -3.0f * fc          * t2  + 4.0f * fc * t                  - fc;
+		data[1] =  3.0f * (2.0f - fc) * t2  + 2.0f * (fc - 3.0f) * t;
+		data[2] =  3.0f * (fc - 2.0f) * t2  + 2.0f * (3.0f - 2.0f * fc) * t  + fc;
+		data[3] =  3.0f * fc          * t2  - 2.0f * fc * t;
+	}
 }
 
 /* second derivative */
@@ -345,6 +364,14 @@ void key_curve_normal_weights(float t, float data[4], int type)
 		data[1] =  3.0f * t  - 2.0f;
 		data[2] = -3.0f * t  + 1.0f;
 		data[3] =  1.0f * t;
+	}
+	else if (type == KEY_CATMULL_ROM) {
+		fc = 0.5f;
+
+		data[0] = -6.0f * fc          * t  + 4.0f * fc;
+		data[1] =  6.0f * (2.0f - fc) * t  + 2.0f * (fc - 3.0f);
+		data[2] =  6.0f * (fc - 2.0f) * t  + 2.0f * (3.0f - 2.0f * fc);
+		data[3] =  6.0f * fc          * t  - 2.0f * fc;
 	}
 }
 
@@ -506,7 +533,7 @@ static char *key_block_get_data(Key *key, KeyBlock *actkb, KeyBlock *kb, char **
 
 			if (me->edit_btmesh && me->edit_btmesh->bm->totvert == kb->totelem) {
 				a = 0;
-				co = MEM_callocN(sizeof(float) * 3 * me->edit_btmesh->bm->totvert, "key_block_get_data");
+				co = MEM_mallocN(sizeof(float) * 3 * me->edit_btmesh->bm->totvert, "key_block_get_data");
 
 				BM_ITER_MESH (eve, &iter, me->edit_btmesh->bm, BM_VERTS_OF_MESH) {
 					copy_v3_v3(co[a], eve->co);
@@ -1064,7 +1091,7 @@ static float *get_weights_array(Object *ob, char *vgroup)
 		float *weights;
 		int i;
 		
-		weights = MEM_callocN(totvert * sizeof(float), "weights");
+		weights = MEM_mallocN(totvert * sizeof(float), "weights");
 
 		if (em) {
 			const int cd_dvert_offset = CustomData_get_offset(&em->bm->vdata, CD_MDEFORMVERT);
@@ -1315,7 +1342,8 @@ static void do_latt_key(Scene *scene, Object *ob, Key *key, char *out, const int
 }
 
 /* returns key coordinates (+ tilt) when key applied, NULL otherwise */
-float *BKE_key_evaluate_object(Scene *scene, Object *ob, int *r_totelem)
+float *BKE_key_evaluate_object_ex(Scene *scene, Object *ob, int *r_totelem,
+                                  float *arr, size_t arr_size)
 {
 	Key *key = BKE_key_from_object(ob);
 	KeyBlock *actkb = BKE_keyblock_from_object(ob);
@@ -1359,7 +1387,16 @@ float *BKE_key_evaluate_object(Scene *scene, Object *ob, int *r_totelem)
 		return NULL;
 	
 	/* allocate array */
-	out = MEM_callocN(size, "BKE_key_evaluate_object out");
+	if (arr == NULL) {
+		out = MEM_callocN(size, "BKE_key_evaluate_object out");
+	}
+	else {
+		if (arr_size != size) {
+			return NULL;
+		}
+
+		out = (char *)arr;
+	}
 
 	/* prevent python from screwing this up? anyhoo, the from pointer could be dropped */
 	key->from = (ID *)ob->data;
@@ -1398,6 +1435,11 @@ float *BKE_key_evaluate_object(Scene *scene, Object *ob, int *r_totelem)
 		*r_totelem = tot;
 	}
 	return (float *)out;
+}
+
+float *BKE_key_evaluate_object(Scene *scene, Object *ob, int *r_totelem)
+{
+	return BKE_key_evaluate_object_ex(scene, ob, r_totelem, NULL, 0);
 }
 
 Key *BKE_key_from_object(Object *ob)
@@ -1580,7 +1622,7 @@ void BKE_key_convert_from_lattice(Lattice *lt, KeyBlock *kb)
 
 	if (kb->data) MEM_freeN(kb->data);
 
-	kb->data = MEM_callocN(lt->key->elemsize * tot, "kb->data");
+	kb->data = MEM_mallocN(lt->key->elemsize * tot, "kb->data");
 	kb->totelem = tot;
 
 	bp = lt->def;
@@ -1622,7 +1664,7 @@ void BKE_key_convert_from_curve(Curve *cu, KeyBlock *kb, ListBase *nurb)
 
 	if (kb->data) MEM_freeN(kb->data);
 
-	kb->data = MEM_callocN(cu->key->elemsize * tot, "kb->data");
+	kb->data = MEM_mallocN(cu->key->elemsize * tot, "kb->data");
 	kb->totelem = tot;
 
 	nu = nurb->first;
@@ -1720,7 +1762,7 @@ void BKE_key_convert_from_mesh(Mesh *me, KeyBlock *kb)
 
 	if (kb->data) MEM_freeN(kb->data);
 
-	kb->data = MEM_callocN(me->key->elemsize * me->totvert, "kb->data");
+	kb->data = MEM_mallocN(me->key->elemsize * me->totvert, "kb->data");
 	kb->totelem = me->totvert;
 
 	mvert = me->mvert;
@@ -1770,7 +1812,7 @@ float (*BKE_key_convert_to_vertcos(Object *ob, KeyBlock *kb))[3]
 
 	if (tot == 0) return NULL;
 
-	vertCos = MEM_callocN(tot * sizeof(*vertCos), "BKE_key_convert_to_vertcos vertCos");
+	vertCos = MEM_mallocN(tot * sizeof(*vertCos), "BKE_key_convert_to_vertcos vertCos");
 
 	/* Copy coords to array */
 	co = (float *)vertCos;
@@ -1853,7 +1895,7 @@ void BKE_key_convert_from_vertcos(Object *ob, KeyBlock *kb, float (*vertCos)[3])
 		return;
 	}
 
-	fp = kb->data = MEM_callocN(tot * elemsize, "BKE_key_convert_to_vertcos vertCos");
+	fp = kb->data = MEM_mallocN(tot * elemsize, "BKE_key_convert_to_vertcos vertCos");
 
 	/* Copy coords to keyblock */
 

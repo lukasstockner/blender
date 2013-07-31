@@ -23,10 +23,10 @@
 /** \file blender/bmesh/operators/bmo_beautify.c
  *  \ingroup bmesh
  *
- * Beautify the mesh by rotating edes between triangles
+ * Beautify the mesh by rotating edges between triangles
  * to more attractive positions until no more rotations can be made.
  *
- * In princible this is very simple however there is the possability of
+ * In principle this is very simple however there is the possibility of
  * going into an eternal loop where edges keep rotating.
  * To avoid this - each edge stores a hash of it previous
  * states so as not to rotate back.
@@ -276,7 +276,7 @@ static void bm_edge_update_beauty_cost_single(BMEdge *e, Heap *eheap, HeapNode *
 	}
 }
 
-/* we have rotated an edge, tag other egdes and clear this one */
+/* we have rotated an edge, tag other edges and clear this one */
 static void bm_edge_update_beauty_cost(BMEdge *e, Heap *eheap, HeapNode **eheap_table, GHash **edge_state_arr,
                                        const int flag)
 {
@@ -415,9 +415,9 @@ void bmo_beautify_fill_exec(BMesh *bm, BMOperator *op)
 
 		/* edge is manifold and can be rotated */
 		if (BM_edge_rotate_check(e) &&
-			/* faces are tagged */
-			BMO_elem_flag_test(bm, e->l->f, FACE_MARK) &&
-			BMO_elem_flag_test(bm, e->l->radial_next->f, FACE_MARK))
+		    /* faces are tagged */
+		    BMO_elem_flag_test(bm, e->l->f, FACE_MARK) &&
+		    BMO_elem_flag_test(bm, e->l->radial_next->f, FACE_MARK))
 		{
 			BM_elem_index_set(e, edge_array_len);  /* set_dirty */
 			BM_elem_flag_enable(e, BM_ELEM_TAG);

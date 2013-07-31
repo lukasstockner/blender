@@ -1057,6 +1057,7 @@ void free_main(Main *mainvar)
 				case  32: BKE_libblock_free(lb, id); break;
 				default:
 					BLI_assert(0);
+					break;
 			}
 #endif
 		}
@@ -1428,11 +1429,26 @@ bool new_id(ListBase *lb, ID *id, const char *tname)
  * don't have other library users. */
 void id_clear_lib_data(Main *bmain, ID *id)
 {
+	bNodeTree *ntree = NULL;
+
 	BKE_id_lib_local_paths(bmain, id->lib, id);
 
 	id->lib = NULL;
 	id->flag = LIB_LOCAL;
 	new_id(which_libbase(bmain, GS(id->name)), id, NULL);
+
+	/* internal bNodeTree blocks inside ID types below
+	 * also stores id->lib, make sure this stays in sync.
+	 */
+	switch (GS(id->name)) {
+		case ID_SCE:	ntree = ((Scene *)id)->nodetree;		break;
+		case ID_MA:		ntree = ((Material *)id)->nodetree;		break;
+		case ID_LA:		ntree = ((Lamp *)id)->nodetree;			break;
+		case ID_WO:		ntree = ((World *)id)->nodetree;		break;
+		case ID_TE:		ntree = ((Tex *)id)->nodetree;			break;
+	}
+	if (ntree)
+		ntree->id.lib = NULL;
 }
 
 /* next to indirect usage in read/writefile also in editobject.c scene.c */
@@ -1558,6 +1574,9 @@ void BKE_library_make_local(Main *bmain, Library *lib, bool untagged_only)
 			{
 				if (lib == NULL || id->lib == lib) {
 					if (id->lib) {
+						/* for Make Local > All we should be calling id_make_local,
+						 * but doing that breaks append (see #36003 and #36006), we
+						 * we should make it work with all datablocks and id.us==0 */
 						id_clear_lib_data(bmain, id); /* sets 'id->flag' */
 
 						/* why sort alphabetically here but not in

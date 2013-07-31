@@ -102,10 +102,17 @@ void BlenderSession::create_session()
 	/* create sync */
 	sync = new BlenderSync(b_engine, b_data, b_scene, scene, !background, session->progress, session_params.device.type == DEVICE_CPU);
 
-	/* for final render we will do sync per render layer */
 	if(b_v3d) {
+		/* full data sync */
 		sync->sync_data(b_v3d, b_engine.camera_override());
 		sync->sync_view(b_v3d, b_rv3d, width, height);
+	}
+	else {
+		/* for final render we will do full data sync per render layer, only
+		 * do some basic syncing here, no objects or materials for speed */
+		sync->sync_render_layers(b_v3d, NULL);
+		sync->sync_integrator();
+		sync->sync_camera(b_render, b_engine.camera_override(), width, height);
 	}
 
 	/* set buffer parameters */
@@ -272,6 +279,11 @@ void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_upda
 
 	BL::RenderResult::layers_iterator b_single_rlay;
 	b_rr.layers.begin(b_single_rlay);
+
+	/* layer will be missing if it was disabled in the UI */
+	if(b_single_rlay == b_rr.layers.end())
+		return;
+
 	BL::RenderLayer b_rlay = *b_single_rlay;
 
 	if (do_update_only) {
@@ -370,8 +382,8 @@ void BlenderSession::render()
 		scene->integrator->tag_update(scene);
 
 		/* update scene */
-		sync->sync_data(b_v3d, b_engine.camera_override(), b_rlay_name.c_str());
 		sync->sync_camera(b_render, b_engine.camera_override(), width, height);
+		sync->sync_data(b_v3d, b_engine.camera_override(), b_rlay_name.c_str());
 
 		/* update number of samples per layer */
 		int samples = sync->get_layer_samples();
@@ -609,16 +621,22 @@ void BlenderSession::update_status_progress()
 	get_status(status, substatus);
 	get_progress(progress, total_time);
 
-	timestatus = string_printf("Mem: %.2fM, Peak: %.2fM | ", mem_used, mem_peak);
+	timestatus = string_printf("Mem:%.2fM, Peak:%.2fM", mem_used, mem_peak);
 
-	timestatus += b_scene.name();
-	if(b_rlay_name != "")
-		timestatus += ", "  + b_rlay_name;
-	timestatus += " | ";
+	if(background) {
+		timestatus += " | " + b_scene.name();
+		if(b_rlay_name != "")
+			timestatus += ", "  + b_rlay_name;
+	}
+	else {
+		timestatus += " | ";
 
-	BLI_timestr(total_time, time_str, sizeof(time_str));
-	timestatus += "Elapsed: " + string(time_str) + " | ";
+		BLI_timestr(total_time, time_str, sizeof(time_str));
+		timestatus += "Time:" + string(time_str);
+	}
 
+	if(status.size() > 0)
+		status = " | " + status;
 	if(substatus.size() > 0)
 		status += " | " + substatus;
 

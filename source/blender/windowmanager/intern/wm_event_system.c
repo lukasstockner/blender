@@ -43,6 +43,7 @@
 #include "GHOST_C-api.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_dynstr.h"
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
 
@@ -131,6 +132,14 @@ void wm_event_free_all(wmWindow *win)
 	}
 }
 
+void wm_event_init_from_window(wmWindow *win, wmEvent *event)
+{
+	/* make sure we don't copy any owned pointers */
+	BLI_assert(win->eventstate->tablet_data == NULL);
+
+	*event = *(win->eventstate);
+}
+
 /* ********************* notifiers, listeners *************** */
 
 static int wm_test_duplicate_notifier(wmWindowManager *wm, unsigned int type, void *reference)
@@ -148,9 +157,15 @@ static int wm_test_duplicate_notifier(wmWindowManager *wm, unsigned int type, vo
 void WM_event_add_notifier(const bContext *C, unsigned int type, void *reference)
 {
 	ARegion *ar;
-	wmNotifier *note = MEM_callocN(sizeof(wmNotifier), "notifier");
+	wmWindowManager *wm = CTX_wm_manager(C);
+	wmNotifier *note;
+
+	if (wm_test_duplicate_notifier(wm, type, reference))
+		return;
+
+	note = MEM_callocN(sizeof(wmNotifier), "notifier");
 	
-	note->wm = CTX_wm_manager(C);
+	note->wm = wm;
 	BLI_addtail(&note->wm->queue, note);
 	
 	note->window = CTX_wm_window(C);
@@ -171,20 +186,22 @@ void WM_main_add_notifier(unsigned int type, void *reference)
 {
 	Main *bmain = G.main;
 	wmWindowManager *wm = bmain->wm.first;
+	wmNotifier *note;
 
-	if (wm && !wm_test_duplicate_notifier(wm, type, reference)) {
-		wmNotifier *note = MEM_callocN(sizeof(wmNotifier), "notifier");
-		
-		note->wm = wm;
-		BLI_addtail(&note->wm->queue, note);
-		
-		note->category = type & NOTE_CATEGORY;
-		note->data = type & NOTE_DATA;
-		note->subtype = type & NOTE_SUBTYPE;
-		note->action = type & NOTE_ACTION;
-		
-		note->reference = reference;
-	}
+	if (!wm || wm_test_duplicate_notifier(wm, type, reference))
+		return;
+
+	note = MEM_callocN(sizeof(wmNotifier), "notifier");
+	
+	note->wm = wm;
+	BLI_addtail(&note->wm->queue, note);
+	
+	note->category = type & NOTE_CATEGORY;
+	note->data = type & NOTE_DATA;
+	note->subtype = type & NOTE_SUBTYPE;
+	note->action = type & NOTE_ACTION;
+	
+	note->reference = reference;
 }
 
 /**
@@ -265,7 +282,7 @@ void wm_event_do_notifiers(bContext *C)
 			}
 
 			if (note->window == win ||
-			    (note->window == NULL && (note->reference == NULL || note->reference == CTX_data_scene(C))))
+			    (note->window == NULL && (note->reference == NULL || note->reference == win->screen->scene)))
 			{
 				if (note->category == NC_SCENE) {
 					if (note->data == ND_FRAME)
@@ -273,7 +290,7 @@ void wm_event_do_notifiers(bContext *C)
 				}
 			}
 			if (ELEM5(note->category, NC_SCENE, NC_OBJECT, NC_GEOM, NC_SCENE, NC_WM)) {
-				ED_info_stats_clear(CTX_data_scene(C));
+				ED_info_stats_clear(win->screen->scene);
 				WM_event_add_notifier(C, NC_SPACE | ND_SPACE_INFO, NULL);
 			}
 		}
@@ -312,13 +329,13 @@ void wm_event_do_notifiers(bContext *C)
 				ED_screen_do_listen(C, note);
 
 				for (ar = win->screen->regionbase.first; ar; ar = ar->next) {
-					ED_region_do_listen(ar, note);
+					ED_region_do_listen(win->screen, NULL, ar, note);
 				}
 				
 				for (sa = win->screen->areabase.first; sa; sa = sa->next) {
-					ED_area_do_listen(sa, note);
+					ED_area_do_listen(win->screen, sa, note);
 					for (ar = sa->regionbase.first; ar; ar = ar->next) {
-						ED_region_do_listen(ar, note);
+						ED_region_do_listen(win->screen, sa, ar, note);
 					}
 				}
 			}
@@ -436,7 +453,9 @@ static void wm_handler_ui_cancel(bContext *C)
 		nexthandler = handler->next;
 
 		if (handler->ui_handle) {
-			wmEvent event = *(win->eventstate);
+			wmEvent event;
+
+			wm_event_init_from_window(win, &event);
 			event.type = EVT_BUT_CANCEL;
 			handler->ui_handle(C, &event, handler->ui_userdata);
 		}
@@ -525,6 +544,56 @@ void WM_event_print(const wmEvent *event)
 
 #endif /* NDEBUG */
 
+static void wm_add_reports(const bContext *C, ReportList *reports)
+{
+	/* if the caller owns them, handle this */
+	if (reports->list.first && (reports->flag & RPT_OP_HOLD) == 0) {
+
+		wmWindowManager *wm = CTX_wm_manager(C);
+		ReportList *wm_reports = CTX_wm_reports(C);
+		ReportTimerInfo *rti;
+
+		/* add reports to the global list, otherwise they are not seen */
+		BLI_movelisttolist(&wm_reports->list, &reports->list);
+		
+		/* After adding reports to the global list, reset the report timer. */
+		WM_event_remove_timer(wm, NULL, wm_reports->reporttimer);
+		
+		/* Records time since last report was added */
+		wm_reports->reporttimer = WM_event_add_timer(wm, CTX_wm_window(C), TIMERREPORT, 0.05);
+		
+		rti = MEM_callocN(sizeof(ReportTimerInfo), "ReportTimerInfo");
+		wm_reports->reporttimer->customdata = rti;
+	}
+}
+
+void WM_report(const bContext *C, ReportType type, const char *message)
+{
+	ReportList reports;
+
+	BKE_reports_init(&reports, RPT_STORE);
+	BKE_report(&reports, type, message);
+
+	wm_add_reports(C, &reports);
+
+	BKE_reports_clear(&reports);
+}
+
+void WM_reportf(const bContext *C, ReportType type, const char *format, ...)
+{
+	DynStr *ds;
+	va_list args;
+
+	ds = BLI_dynstr_new();
+	va_start(args, format);
+	BLI_dynstr_vappendf(ds, format, args);
+	va_end(args);
+
+	WM_report(C, type, BLI_dynstr_get_cstring(ds));
+
+	BLI_dynstr_free(ds);
+}
+
 /* (caller_owns_reports == TRUE) when called from python */
 static void wm_operator_reports(bContext *C, wmOperator *op, int retval, int caller_owns_reports)
 {
@@ -567,24 +636,7 @@ static void wm_operator_reports(bContext *C, wmOperator *op, int retval, int cal
 	}
 
 	/* if the caller owns them, handle this */
-	if (op->reports->list.first && (op->reports->flag & RPT_OP_HOLD) == 0) {
-
-		wmWindowManager *wm = CTX_wm_manager(C);
-		ReportList *wm_reports = CTX_wm_reports(C);
-		ReportTimerInfo *rti;
-
-		/* add reports to the global list, otherwise they are not seen */
-		BLI_movelisttolist(&wm_reports->list, &op->reports->list);
-		
-		/* After adding reports to the global list, reset the report timer. */
-		WM_event_remove_timer(wm, NULL, wm_reports->reporttimer);
-		
-		/* Records time since last report was added */
-		wm_reports->reporttimer = WM_event_add_timer(wm, CTX_wm_window(C), TIMERREPORT, 0.05);
-		
-		rti = MEM_callocN(sizeof(ReportTimerInfo), "ReportTimerInfo");
-		wm_reports->reporttimer->customdata = rti;
-	}
+	wm_add_reports(C, op->reports);
 }
 
 /* this function is mainly to check that the rules for freeing
@@ -930,7 +982,7 @@ static int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event,
 			WM_operator_last_properties_init(op);
 		}
 
-		if ((G.debug & G_DEBUG_HANDLERS) && event && event->type != MOUSEMOVE) {
+		if ((G.debug & G_DEBUG_HANDLERS) && ((event == NULL) || (event->type != MOUSEMOVE))) {
 			printf("%s: handle evt %d win %d op %s\n",
 			       __func__, event ? event->type : 0, CTX_wm_screen(C)->subwinactive, ot->idname);
 		}
@@ -1074,6 +1126,7 @@ static int wm_operator_call_internal(bContext *C, wmOperatorType *ot, PointerRNA
 				break;
 			default:
 				event = NULL;
+				break;
 		}
 
 		switch (context) {
@@ -1320,40 +1373,17 @@ int WM_userdef_event_map(int kmitype)
 {
 	switch (kmitype) {
 		case SELECTMOUSE:
-			if (U.flag & USER_LMOUSESELECT)
-				return LEFTMOUSE;
-			else
-				return RIGHTMOUSE;
-			
+			return (U.flag & USER_LMOUSESELECT) ? LEFTMOUSE : RIGHTMOUSE;
 		case ACTIONMOUSE:
-			if (U.flag & USER_LMOUSESELECT)
-				return RIGHTMOUSE;
-			else
-				return LEFTMOUSE;
-			
-		case WHEELOUTMOUSE:
-			if (U.uiflag & USER_WHEELZOOMDIR)
-				return WHEELUPMOUSE;
-			else
-				return WHEELDOWNMOUSE;
-			
-		case WHEELINMOUSE:
-			if (U.uiflag & USER_WHEELZOOMDIR)
-				return WHEELDOWNMOUSE;
-			else
-				return WHEELUPMOUSE;
-			
+			return (U.flag & USER_LMOUSESELECT) ? RIGHTMOUSE : LEFTMOUSE;
 		case EVT_TWEAK_A:
-			if (U.flag & USER_LMOUSESELECT)
-				return EVT_TWEAK_R;
-			else
-				return EVT_TWEAK_L;
-			
+			return (U.flag & USER_LMOUSESELECT) ? EVT_TWEAK_R : EVT_TWEAK_L;
 		case EVT_TWEAK_S:
-			if (U.flag & USER_LMOUSESELECT)
-				return EVT_TWEAK_L;
-			else
-				return EVT_TWEAK_R;
+			return (U.flag & USER_LMOUSESELECT) ? EVT_TWEAK_L : EVT_TWEAK_R;
+		case WHEELOUTMOUSE:
+			return (U.uiflag & USER_WHEELZOOMDIR) ? WHEELUPMOUSE : WHEELDOWNMOUSE;
+		case WHEELINMOUSE:
+			return (U.uiflag & USER_WHEELZOOMDIR) ? WHEELDOWNMOUSE : WHEELUPMOUSE;
 	}
 	
 	return kmitype;
@@ -1472,14 +1502,16 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 			if (ot->flag & OPTYPE_UNDO)
 				wm->op_undo_depth++;
 
+			/* warning, after this call all context data and 'event' may be freed. see check below */
 			retval = ot->modal(C, op, event);
 			OPERATOR_RETVAL_CHECK(retval);
-			wm_event_modalmap_end(event);
 			
 			/* when this is _not_ the case the modal modifier may have loaded
 			 * a new blend file (demo mode does this), so we have to assume
 			 * the event, operator etc have all been freed. - campbell */
 			if (CTX_wm_manager(C) == wm) {
+
+				wm_event_modalmap_end(event);
 
 				if (ot->flag & OPTYPE_UNDO)
 					wm->op_undo_depth--;
@@ -1594,8 +1626,8 @@ static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHa
 			ED_fileselect_set_params(sfile);
 				
 			action = WM_HANDLER_BREAK;
+			break;
 		}
-		break;
 			
 		case EVT_FILESELECT_EXEC:
 		case EVT_FILESELECT_CANCEL:
@@ -1653,7 +1685,7 @@ static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHa
 					if (win_prev == NULL)
 						CTX_wm_window_set(C, CTX_wm_manager(C)->windows.first);
 
-					handler->op->reports->printlevel = RPT_WARNING;
+					BKE_report_print_level_set(handler->op->reports, RPT_WARNING);
 					uiPupMenuReports(C, handler->op->reports);
 
 					/* XXX - copied from 'wm_operator_finished()' */
@@ -1690,8 +1722,8 @@ static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHa
 			wm_event_free_handler(handler);
 
 			action = WM_HANDLER_BREAK;
+			break;
 		}
-		break;
 	}
 	
 	return action;
@@ -1914,7 +1946,7 @@ static int wm_handlers_do(bContext *C, wmEvent *event, ListBase *handlers)
 	if (CTX_wm_window(C) == NULL)
 		return action;
 
-	if (!ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE) && !ISTIMER(event->type)) {
+	if (!ELEM3(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE, EVENT_NONE) && !ISTIMER(event->type)) {
 
 		/* test for CLICK events */
 		if (wm_action_not_handled(action)) {

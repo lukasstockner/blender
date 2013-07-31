@@ -45,7 +45,7 @@ public:
 	OSLRenderServices();
 	~OSLRenderServices();
 	
-	void thread_init(KernelGlobals *kernel_globals);
+	void thread_init(KernelGlobals *kernel_globals, OSL::TextureSystem *ts);
 
 	bool get_matrix(OSL::Matrix44 &result, OSL::TransformationPtr xform, float time);
 	bool get_inverse_matrix(OSL::Matrix44 &result, OSL::TransformationPtr xform, float time);
@@ -135,6 +135,7 @@ public:
 	static ustring u_curve_thickness;
 	static ustring u_curve_tangent_normal;
 	static ustring u_path_ray_length;
+	static ustring u_path_ray_depth;
 	static ustring u_trace;
 	static ustring u_hit;
 	static ustring u_hitdist;
@@ -148,6 +149,7 @@ public:
 
 private:
 	KernelGlobals *kernel_globals;
+	OSL::TextureSystem *osl_ts;
 };
 
 CCL_NAMESPACE_END

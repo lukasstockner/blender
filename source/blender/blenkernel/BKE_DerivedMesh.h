@@ -152,6 +152,11 @@ typedef enum DMDrawFlag {
 	DM_DRAW_ALWAYS_SMOOTH = 2
 } DMDrawFlag;
 
+typedef enum DMForeachFlag {
+	DM_FOREACH_NOP = 0,
+	DM_FOREACH_USE_NORMAL = (1 << 0),  /* foreachMappedVert, foreachMappedFaceCenter */
+} DMForeachFlag;
+
 typedef enum DMDirtyFlag {
 	/* dm has valid tessellated faces, but tessellated CDDATA need to be updated. */
 	DM_DIRTY_TESS_CDLAYERS = 1 << 0,
@@ -285,7 +290,8 @@ struct DerivedMesh {
 	void (*foreachMappedVert)(DerivedMesh *dm,
 	                          void (*func)(void *userData, int index, const float co[3],
 	                                       const float no_f[3], const short no_s[3]),
-	                          void *userData);
+	                          void *userData,
+	                          DMForeachFlag flag);
 
 	/** Iterate over each mapped edge in the derived mesh, calling the
 	 * given function with the original edge and the mapped edge's new
@@ -303,7 +309,8 @@ struct DerivedMesh {
 	void (*foreachMappedFaceCenter)(DerivedMesh *dm,
 	                                void (*func)(void *userData, int index,
 	                                             const float cent[3], const float no[3]),
-	                                void *userData);
+	                                void *userData,
+	                                DMForeachFlag flag);
 
 	/** Iterate over all vertex points, calling DO_MINMAX with given args.
 	 *
@@ -323,6 +330,7 @@ struct DerivedMesh {
 
 	/** Get smooth vertex normal, undefined if index is not valid */
 	void (*getVertNo)(DerivedMesh *dm, int index, float no_r[3]);
+	void (*getPolyNo)(DerivedMesh *dm, int index, float no_r[3]);
 
 	/** Get a map of vertices to faces
 	 */
@@ -437,7 +445,7 @@ struct DerivedMesh {
 	 */
 	void (*drawMappedFacesMat)(DerivedMesh *dm,
 	                           void (*setMaterial)(void *userData, int, void *attribs),
-	                           int (*setFace)(void *userData, int index), void *userData);
+	                           bool (*setFace)(void *userData, int index), void *userData);
 
 	/** Release reference to the DerivedMesh. This function decides internally
 	 * if the DerivedMesh will be freed, or cached for later use. */
@@ -615,10 +623,13 @@ void DM_interp_poly_data(struct DerivedMesh *source, struct DerivedMesh *dest,
 /* Temporary? A function to give a colorband to derivedmesh for vertexcolor ranges */
 void vDM_ColorBand_store(const struct ColorBand *coba, const char alert_color[4]);
 
+/* UNUSED */
+#if 0
 /** Simple function to get me->totvert amount of vertices/normals,
  * correctly deformed and subsurfered. Needed especially when vertexgroups are involved.
  * In use now by vertex/weight paint and particles */
 DMCoNo *mesh_get_mapped_verts_nors(struct Scene *scene, struct Object *ob);
+#endif
 
 /* */
 DerivedMesh *mesh_get_derived_final(struct Scene *scene, struct Object *ob,

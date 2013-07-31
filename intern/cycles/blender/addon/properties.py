@@ -150,6 +150,11 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 description="Use progressive sampling of lighting",
                 default=True,
                 )
+        cls.squared_samples = BoolProperty(
+                name="Squared Samples",
+                description="Square sampling values for easier artist control",
+                default=False,
+                )
 
         cls.samples = IntProperty(
                 name="Samples",
@@ -504,6 +509,12 @@ class CyclesMaterialSettings(bpy.types.PropertyGroup):
                             "objects that emit little light compared to other light sources",
                 default=True,
                 )
+        cls.use_transparent_shadow = BoolProperty(
+                name="Transparent Shadows",
+                description="Use transparent shadows for this material if it contains a Transparent BSDF, "
+                            "disabling will render faster but not give accurate shadows",
+                default=True,
+                )
         cls.homogeneous_volume = BoolProperty(
                 name="Homogeneous Volume",
                 description="When using volume rendering, assume volume has the same density everywhere, "
@@ -584,6 +595,12 @@ class CyclesVisibilitySettings(bpy.types.PropertyGroup):
     @classmethod
     def register(cls):
         bpy.types.Object.cycles_visibility = PointerProperty(
+                name="Cycles Visibility Settings",
+                description="Cycles visibility settings",
+                type=cls,
+                )
+
+        bpy.types.World.cycles_visibility = PointerProperty(
                 name="Cycles Visibility Settings",
                 description="Cycles visibility settings",
                 type=cls,

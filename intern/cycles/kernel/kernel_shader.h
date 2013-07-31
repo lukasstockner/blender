@@ -38,7 +38,12 @@ CCL_NAMESPACE_BEGIN
 /* ShaderData setup from incoming ray */
 
 #ifdef __OBJECT_MOTION__
-__device_noinline void shader_setup_object_transforms(KernelGlobals *kg, ShaderData *sd, float time)
+#if defined(__KERNEL_CUDA_VERSION__) && __KERNEL_CUDA_VERSION__ <= 42
+__device_noinline
+#else
+__device
+#endif
+void shader_setup_object_transforms(KernelGlobals *kg, ShaderData *sd, float time)
 {
 	/* note that this is a separate non-inlined function to work around crash
 	 * on CUDA sm 2.0, otherwise kernel execution crashes (compiler bug?) */
@@ -53,8 +58,13 @@ __device_noinline void shader_setup_object_transforms(KernelGlobals *kg, ShaderD
 }
 #endif
 
-__device_noinline void shader_setup_from_ray(KernelGlobals *kg, ShaderData *sd,
-	const Intersection *isect, const Ray *ray)
+#if defined(__KERNEL_CUDA_VERSION__) && __KERNEL_CUDA_VERSION__ <= 42
+__device_noinline
+#else
+__device
+#endif
+void shader_setup_from_ray(KernelGlobals *kg, ShaderData *sd,
+	const Intersection *isect, const Ray *ray, int bounce)
 {
 #ifdef __INSTANCING__
 	sd->object = (isect->object == ~0)? kernel_tex_fetch(__prim_object, isect->prim): isect->object;
@@ -70,6 +80,7 @@ __device_noinline void shader_setup_from_ray(KernelGlobals *kg, ShaderData *sd,
 
 	sd->prim = kernel_tex_fetch(__prim_index, isect->prim);
 	sd->ray_length = isect->t;
+	sd->ray_depth = bounce;
 
 #ifdef __HAIR__
 	if(kernel_tex_fetch(__prim_segment, isect->prim) != ~0) {
@@ -260,9 +271,14 @@ __device_inline void shader_setup_from_subsurface(KernelGlobals *kg, ShaderData 
 
 /* ShaderData setup from position sampled on mesh */
 
-__device_noinline void shader_setup_from_sample(KernelGlobals *kg, ShaderData *sd,
+#if defined(__KERNEL_CUDA_VERSION__) && __KERNEL_CUDA_VERSION__ <= 42
+__device_noinline
+#else
+__device
+#endif
+void shader_setup_from_sample(KernelGlobals *kg, ShaderData *sd,
 	const float3 P, const float3 Ng, const float3 I,
-	int shader, int object, int prim, float u, float v, float t, float time, int segment)
+	int shader, int object, int prim, float u, float v, float t, float time, int bounce, int segment)
 {
 	/* vectors */
 	sd->P = P;
@@ -285,6 +301,7 @@ __device_noinline void shader_setup_from_sample(KernelGlobals *kg, ShaderData *s
 	sd->v = v;
 #endif
 	sd->ray_length = t;
+	sd->ray_depth = bounce;
 
 	/* detect instancing, for non-instanced the object index is -object-1 */
 #ifdef __INSTANCING__
@@ -393,12 +410,12 @@ __device void shader_setup_from_displace(KernelGlobals *kg, ShaderData *sd,
 
 	/* watch out: no instance transform currently */
 
-	shader_setup_from_sample(kg, sd, P, Ng, I, shader, object, prim, u, v, 0.0f, TIME_INVALID, ~0);
+	shader_setup_from_sample(kg, sd, P, Ng, I, shader, object, prim, u, v, 0.0f, TIME_INVALID, 0, ~0);
 }
 
 /* ShaderData setup from ray into background */
 
-__device_inline void shader_setup_from_background(KernelGlobals *kg, ShaderData *sd, const Ray *ray)
+__device_inline void shader_setup_from_background(KernelGlobals *kg, ShaderData *sd, const Ray *ray, int bounce)
 {
 	/* vectors */
 	sd->P = ray->D;
@@ -411,6 +428,7 @@ __device_inline void shader_setup_from_background(KernelGlobals *kg, ShaderData 
 	sd->time = ray->time;
 #endif
 	sd->ray_length = 0.0f;
+	sd->ray_depth = bounce;
 
 #ifdef __INSTANCING__
 	sd->object = ~0;
@@ -891,7 +909,7 @@ __device bool shader_transparent_shadow(KernelGlobals *kg, Intersection *isect)
 #endif
 	int flag = kernel_tex_fetch(__shader_flag, (shader & SHADER_MASK)*2);
 
-	return (flag & SD_HAS_SURFACE_TRANSPARENT) != 0;
+	return (flag & SD_HAS_TRANSPARENT_SHADOW) != 0;
 }
 #endif
 

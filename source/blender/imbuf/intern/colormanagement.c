@@ -1094,6 +1094,7 @@ const char *IMB_colormanagement_role_colorspace_name_get(int role)
 		default:
 			printf("Unknown role was passed to %s\n", __func__);
 			BLI_assert(0);
+			break;
 	}
 
 	return NULL;
@@ -2448,11 +2449,7 @@ void IMB_colormanagement_colorspace_items_add(EnumPropertyItem **items, int *tot
 		item.name = colorspace->name;
 		item.identifier = colorspace->name;
 		item.icon = 0;
-
-		if (colorspace->description)
-			item.description = colorspace->description;
-		else
-			item.description = "";
+		item.description = colorspace->description;
 
 		RNA_enum_item_add(items, totitem, &item);
 	}

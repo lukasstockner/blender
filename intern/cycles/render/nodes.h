@@ -182,7 +182,7 @@ public:
 
 class ConvertNode : public ShaderNode {
 public:
-	ConvertNode(ShaderSocketType from, ShaderSocketType to);
+	ConvertNode(ShaderSocketType from, ShaderSocketType to, bool autoconvert = false);
 	SHADER_NODE_BASE_CLASS(ConvertNode)
 
 	ShaderSocketType from, to;
@@ -407,6 +407,11 @@ public:
 	SHADER_NODE_CLASS(CombineRGBNode)
 };
 
+class CombineHSVNode : public ShaderNode {
+public:
+	SHADER_NODE_CLASS(CombineHSVNode)
+};
+
 class GammaNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(GammaNode)
@@ -420,6 +425,11 @@ public:
 class SeparateRGBNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(SeparateRGBNode)
+};
+
+class SeparateHSVNode : public ShaderNode {
+public:
+	SHADER_NODE_CLASS(SeparateHSVNode)
 };
 
 class HSVNode : public ShaderNode {
@@ -457,6 +467,18 @@ public:
 	bool use_pixel_size;
 };
 
+class WavelengthNode : public ShaderNode {
+public:
+	SHADER_NODE_CLASS(WavelengthNode)
+};
+
+class BlackbodyNode : public ShaderNode {
+public:
+	SHADER_NODE_CLASS(BlackbodyNode)
+	
+	bool has_converter_blackbody() { return true; }
+};
+
 class MathNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(MathNode)
@@ -480,6 +502,18 @@ public:
 
 	ustring type;
 	static ShaderEnum type_enum;
+};
+
+class VectorTransformNode : public ShaderNode {
+public:
+	SHADER_NODE_CLASS(VectorTransformNode)
+
+	ustring type;
+	ustring convert_from;
+	ustring convert_to;
+	
+	static ShaderEnum type_enum;
+	static ShaderEnum convert_space_enum;
 };
 
 class BumpNode : public ShaderNode {

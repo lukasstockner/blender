@@ -150,6 +150,9 @@ static void node_init(const struct bContext *C, bNodeTree *ntree, bNode *node)
 		ntype->initfunc_api(C, &ptr);
 	}
 	
+	if (node->id)
+		id_us_plus(node->id);
+	
 	node->flag |= NODE_INIT;
 }
 
@@ -346,9 +349,6 @@ static void free_dynamic_typeinfo(bNodeType *ntype)
 		if (ntype->outputs) {
 			MEM_freeN(ntype->outputs);
 		}
-		if (ntype->ui_name) {
-			MEM_freeN((void *)ntype->ui_name);
-		}
 	}
 }
 
@@ -525,60 +525,60 @@ bNodeSocket *nodeInsertSocket(bNodeTree *ntree, bNode *node, int in_out, const c
 const char *nodeStaticSocketType(int type, int subtype)
 {
 	switch (type) {
-	case SOCK_FLOAT:
-		switch (subtype) {
-		case PROP_UNSIGNED:
-			return "NodeSocketFloatUnsigned";
-		case PROP_PERCENTAGE:
-			return "NodeSocketFloatPercentage";
-		case PROP_FACTOR:
-			return "NodeSocketFloatFactor";
-		case PROP_ANGLE:
-			return "NodeSocketFloatAngle";
-		case PROP_TIME:
-			return "NodeSocketFloatTime";
-		case PROP_NONE:
-		default:
-			return "NodeSocketFloat";
-		}
-	case SOCK_INT:
-		switch (subtype) {
-		case PROP_UNSIGNED:
-			return "NodeSocketIntUnsigned";
-		case PROP_PERCENTAGE:
-			return "NodeSocketIntPercentage";
-		case PROP_FACTOR:
-			return "NodeSocketIntFactor";
-		case PROP_NONE:
-		default:
-			return "NodeSocketInt";
-		}
-	case SOCK_BOOLEAN:
-		return "NodeSocketBool";
-	case SOCK_VECTOR:
-		switch (subtype) {
-		case PROP_TRANSLATION:
-			return "NodeSocketVectorTranslation";
-		case PROP_DIRECTION:
-			return "NodeSocketVectorDirection";
-		case PROP_VELOCITY:
-			return "NodeSocketVectorVelocity";
-		case PROP_ACCELERATION:
-			return "NodeSocketVectorAcceleration";
-		case PROP_EULER:
-			return "NodeSocketVectorEuler";
-		case PROP_XYZ:
-			return "NodeSocketVectorXYZ";
-		case PROP_NONE:
-		default:
-			return "NodeSocketVector";
-		}
-	case SOCK_RGBA:
-		return "NodeSocketColor";
-	case SOCK_STRING:
-		return "NodeSocketString";
-	case SOCK_SHADER:
-		return "NodeSocketShader";
+		case SOCK_FLOAT:
+			switch (subtype) {
+				case PROP_UNSIGNED:
+					return "NodeSocketFloatUnsigned";
+				case PROP_PERCENTAGE:
+					return "NodeSocketFloatPercentage";
+				case PROP_FACTOR:
+					return "NodeSocketFloatFactor";
+				case PROP_ANGLE:
+					return "NodeSocketFloatAngle";
+				case PROP_TIME:
+					return "NodeSocketFloatTime";
+				case PROP_NONE:
+				default:
+					return "NodeSocketFloat";
+			}
+		case SOCK_INT:
+			switch (subtype) {
+				case PROP_UNSIGNED:
+					return "NodeSocketIntUnsigned";
+				case PROP_PERCENTAGE:
+					return "NodeSocketIntPercentage";
+				case PROP_FACTOR:
+					return "NodeSocketIntFactor";
+				case PROP_NONE:
+				default:
+					return "NodeSocketInt";
+			}
+		case SOCK_BOOLEAN:
+			return "NodeSocketBool";
+		case SOCK_VECTOR:
+			switch (subtype) {
+				case PROP_TRANSLATION:
+					return "NodeSocketVectorTranslation";
+				case PROP_DIRECTION:
+					return "NodeSocketVectorDirection";
+				case PROP_VELOCITY:
+					return "NodeSocketVectorVelocity";
+				case PROP_ACCELERATION:
+					return "NodeSocketVectorAcceleration";
+				case PROP_EULER:
+					return "NodeSocketVectorEuler";
+				case PROP_XYZ:
+					return "NodeSocketVectorXYZ";
+				case PROP_NONE:
+				default:
+					return "NodeSocketVector";
+			}
+		case SOCK_RGBA:
+			return "NodeSocketColor";
+		case SOCK_STRING:
+			return "NodeSocketString";
+		case SOCK_SHADER:
+			return "NodeSocketShader";
 	}
 	return NULL;
 }
@@ -586,60 +586,60 @@ const char *nodeStaticSocketType(int type, int subtype)
 const char *nodeStaticSocketInterfaceType(int type, int subtype)
 {
 	switch (type) {
-	case SOCK_FLOAT:
-		switch (subtype) {
-		case PROP_UNSIGNED:
-			return "NodeSocketInterfaceFloatUnsigned";
-		case PROP_PERCENTAGE:
-			return "NodeSocketInterfaceFloatPercentage";
-		case PROP_FACTOR:
-			return "NodeSocketInterfaceFloatFactor";
-		case PROP_ANGLE:
-			return "NodeSocketInterfaceFloatAngle";
-		case PROP_TIME:
-			return "NodeSocketInterfaceFloatTime";
-		case PROP_NONE:
-		default:
-			return "NodeSocketInterfaceFloat";
-		}
-	case SOCK_INT:
-		switch (subtype) {
-		case PROP_UNSIGNED:
-			return "NodeSocketInterfaceIntUnsigned";
-		case PROP_PERCENTAGE:
-			return "NodeSocketInterfaceIntPercentage";
-		case PROP_FACTOR:
-			return "NodeSocketInterfaceIntFactor";
-		case PROP_NONE:
-		default:
-			return "NodeSocketInterfaceInt";
-		}
-	case SOCK_BOOLEAN:
-		return "NodeSocketInterfaceBool";
-	case SOCK_VECTOR:
-		switch (subtype) {
-		case PROP_TRANSLATION:
-			return "NodeSocketInterfaceVectorTranslation";
-		case PROP_DIRECTION:
-			return "NodeSocketInterfaceVectorDirection";
-		case PROP_VELOCITY:
-			return "NodeSocketInterfaceVectorVelocity";
-		case PROP_ACCELERATION:
-			return "NodeSocketInterfaceVectorAcceleration";
-		case PROP_EULER:
-			return "NodeSocketInterfaceVectorEuler";
-		case PROP_XYZ:
-			return "NodeSocketInterfaceVectorXYZ";
-		case PROP_NONE:
-		default:
-			return "NodeSocketInterfaceVector";
-		}
-	case SOCK_RGBA:
-		return "NodeSocketInterfaceColor";
-	case SOCK_STRING:
-		return "NodeSocketInterfaceString";
-	case SOCK_SHADER:
-		return "NodeSocketInterfaceShader";
+		case SOCK_FLOAT:
+			switch (subtype) {
+				case PROP_UNSIGNED:
+					return "NodeSocketInterfaceFloatUnsigned";
+				case PROP_PERCENTAGE:
+					return "NodeSocketInterfaceFloatPercentage";
+				case PROP_FACTOR:
+					return "NodeSocketInterfaceFloatFactor";
+				case PROP_ANGLE:
+					return "NodeSocketInterfaceFloatAngle";
+				case PROP_TIME:
+					return "NodeSocketInterfaceFloatTime";
+				case PROP_NONE:
+				default:
+					return "NodeSocketInterfaceFloat";
+			}
+		case SOCK_INT:
+			switch (subtype) {
+				case PROP_UNSIGNED:
+					return "NodeSocketInterfaceIntUnsigned";
+				case PROP_PERCENTAGE:
+					return "NodeSocketInterfaceIntPercentage";
+				case PROP_FACTOR:
+					return "NodeSocketInterfaceIntFactor";
+				case PROP_NONE:
+				default:
+					return "NodeSocketInterfaceInt";
+			}
+		case SOCK_BOOLEAN:
+			return "NodeSocketInterfaceBool";
+		case SOCK_VECTOR:
+			switch (subtype) {
+				case PROP_TRANSLATION:
+					return "NodeSocketInterfaceVectorTranslation";
+				case PROP_DIRECTION:
+					return "NodeSocketInterfaceVectorDirection";
+				case PROP_VELOCITY:
+					return "NodeSocketInterfaceVectorVelocity";
+				case PROP_ACCELERATION:
+					return "NodeSocketInterfaceVectorAcceleration";
+				case PROP_EULER:
+					return "NodeSocketInterfaceVectorEuler";
+				case PROP_XYZ:
+					return "NodeSocketInterfaceVectorXYZ";
+				case PROP_NONE:
+				default:
+					return "NodeSocketInterfaceVector";
+			}
+		case SOCK_RGBA:
+			return "NodeSocketInterfaceColor";
+		case SOCK_STRING:
+			return "NodeSocketInterfaceString";
+		case SOCK_SHADER:
+			return "NodeSocketInterfaceShader";
 	}
 	return NULL;
 }
@@ -1996,7 +1996,11 @@ static bNodeSocket *make_socket_interface(bNodeTree *ntree, int in_out,
 	bNodeSocketType *stype = nodeSocketTypeFind(idname);
 	bNodeSocket *sock;
 	int own_index = ntree->cur_index++;
-	
+
+	if (stype == NULL) {
+		return NULL;
+	}
+
 	sock = MEM_callocN(sizeof(bNodeSocket), "socket template");
 	BLI_strncpy(sock->idname, stype->idname, sizeof(sock->idname));
 	node_socket_set_typeinfo(ntree, sock, stype);
@@ -2294,10 +2298,12 @@ static bNode *node_get_active_id_recursive(bNodeInstanceKey active_key, bNodeIns
 		for (node = ntree->nodes.first; node; node = node->next) {
 			if (node->type == NODE_GROUP) {
 				bNodeTree *group = (bNodeTree *)node->id;
-				bNodeInstanceKey group_key = BKE_node_instance_key(parent_key, ntree, node);
-				tnode = node_get_active_id_recursive(active_key, group_key, group, idtype);
-				if (tnode)
-					return tnode;
+				if (group) {
+					bNodeInstanceKey group_key = BKE_node_instance_key(parent_key, ntree, node);
+					tnode = node_get_active_id_recursive(active_key, group_key, group, idtype);
+					if (tnode)
+						return tnode;
+				}
 			}
 		}
 	}
@@ -3399,6 +3405,8 @@ static void registerShaderNodes(void)
 	register_node_type_sh_value();
 	register_node_type_sh_rgb();
 	register_node_type_sh_wireframe();
+	register_node_type_sh_wavelength();
+	register_node_type_sh_blackbody();
 	register_node_type_sh_mix_rgb();
 	register_node_type_sh_valtorgb();
 	register_node_type_sh_rgbtobw();
@@ -3410,11 +3418,14 @@ static void registerShaderNodes(void)
 	register_node_type_sh_curve_rgb();
 	register_node_type_sh_math();
 	register_node_type_sh_vect_math();
+	register_node_type_sh_vect_transform();
 	register_node_type_sh_squeeze();
 	register_node_type_sh_material_ext();
 	register_node_type_sh_invert();
 	register_node_type_sh_seprgb();
 	register_node_type_sh_combrgb();
+	register_node_type_sh_sephsv();
+	register_node_type_sh_combhsv();
 	register_node_type_sh_hue_sat();
 
 	register_node_type_sh_attribute();
@@ -3538,33 +3549,39 @@ void init_nodesystem(void)
 
 void free_nodesystem(void) 
 {
-	NODE_TYPES_BEGIN(nt)
-		if (nt->ext.free) {
-			nt->ext.free(nt->ext.data);
-		}
-	NODE_TYPES_END
-	
-	NODE_SOCKET_TYPES_BEGIN(st)
-		if (st->ext_socket.free)
-			st->ext_socket.free(st->ext_socket.data);
-		if (st->ext_interface.free)
-			st->ext_interface.free(st->ext_interface.data);
-	NODE_SOCKET_TYPES_END
-	
-	NODE_TREE_TYPES_BEGIN(nt)
-		if (nt->ext.free) {
-			nt->ext.free(nt->ext.data);
-		}
-	NODE_TREE_TYPES_END
-	
-	BLI_ghash_free(nodetypes_hash, NULL, node_free_type);
-	nodetypes_hash = NULL;
-	
-	BLI_ghash_free(nodesockettypes_hash, NULL, node_free_socket_type);
-	nodesockettypes_hash = NULL;
-	
-	BLI_ghash_free(nodetreetypes_hash, NULL, ntree_free_type);
-	nodetreetypes_hash = NULL;
+	if (nodetypes_hash) {
+		NODE_TYPES_BEGIN(nt)
+			if (nt->ext.free) {
+				nt->ext.free(nt->ext.data);
+			}
+		NODE_TYPES_END
+
+		BLI_ghash_free(nodetypes_hash, NULL, node_free_type);
+		nodetypes_hash = NULL;
+	}
+
+	if (nodesockettypes_hash) {
+		NODE_SOCKET_TYPES_BEGIN(st)
+			if (st->ext_socket.free)
+				st->ext_socket.free(st->ext_socket.data);
+			if (st->ext_interface.free)
+				st->ext_interface.free(st->ext_interface.data);
+		NODE_SOCKET_TYPES_END
+
+		BLI_ghash_free(nodesockettypes_hash, NULL, node_free_socket_type);
+		nodesockettypes_hash = NULL;
+	}
+
+	if (nodetreetypes_hash) {
+		NODE_TREE_TYPES_BEGIN(nt)
+			if (nt->ext.free) {
+				nt->ext.free(nt->ext.data);
+			}
+		NODE_TREE_TYPES_END
+
+		BLI_ghash_free(nodetreetypes_hash, NULL, ntree_free_type);
+		nodetreetypes_hash = NULL;
+	}
 }
 
 /* called from BKE_scene_unlink, when deleting a scene goes over all scenes

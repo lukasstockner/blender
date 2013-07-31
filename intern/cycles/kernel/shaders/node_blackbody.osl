@@ -1,5 +1,5 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
+ * Copyright 2013, Blender Foundation.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -14,34 +14,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * This is a new part of Blender.
- *
- * Contributor(s): Willian P. Germano.
- *
- * ***** END GPL LICENSE BLOCK *****
- */
-#ifndef __BKE_SCRIPT_H__
-#define __BKE_SCRIPT_H__
-
-/** \file BKE_script.h
- *  \ingroup bke
- *  \since March 2001
- *  \author nzc
- *  \author Willian P. Germano
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "stdosl.h"
 
-struct Script;
-
-#ifdef __cplusplus
+shader node_blackbody(
+	float Temperature = 1200.0,
+	output color Color = 0.0)
+{
+	color rgb = blackbody(Temperature);
+	
+	/* Scale by luminance */
+	float l = luminance(rgb);
+	if (l != 0.0)
+		rgb /= l;
+	Color = rgb;
 }
-#endif
 
-#endif /* __BKE_SCRIPT_H__ */

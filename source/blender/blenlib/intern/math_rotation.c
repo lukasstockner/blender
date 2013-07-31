@@ -857,37 +857,9 @@ void single_axis_angle_to_mat3(float mat[3][3], const char axis, const float ang
 			mat[2][2] = 1.0f;
 			break;
 		default:
-			assert(0);
+			BLI_assert(0);
+			break;
 	}
-}
-
-/****************************** Vector/Rotation ******************************/
-/* TODO: the following calls should probably be deprecated sometime         */
-
-/* TODO, replace use of this function with axis_angle_to_mat3() */
-void vec_rot_to_mat3(float mat[3][3], const float vec[3], const float phi)
-{
-	/* rotation of phi radials around vec */
-	float vx, vx2, vy, vy2, vz, vz2, co, si;
-
-	vx = vec[0];
-	vy = vec[1];
-	vz = vec[2];
-	vx2 = vx * vx;
-	vy2 = vy * vy;
-	vz2 = vz * vz;
-	co = cosf(phi);
-	si = sinf(phi);
-
-	mat[0][0] = vx2 + co * (1.0f - vx2);
-	mat[0][1] = vx * vy * (1.0f - co) + vz * si;
-	mat[0][2] = vz * vx * (1.0f - co) - vy * si;
-	mat[1][0] = vx * vy * (1.0f - co) - vz * si;
-	mat[1][1] = vy2 + co * (1.0f - vy2);
-	mat[1][2] = vy * vz * (1.0f - co) + vx * si;
-	mat[2][0] = vz * vx * (1.0f - co) + vy * si;
-	mat[2][1] = vy * vz * (1.0f - co) - vx * si;
-	mat[2][2] = vz2 + co * (1.0f - vz2);
 }
 
 /******************************** XYZ Eulers *********************************/
@@ -1845,7 +1817,7 @@ static int _axis_convert_lut[23][24] = {
 	{0x408, 0x810, 0xA20, 0x228, 0x081, 0x891, 0x699, 0x2A9, 0x102, 0x50A,
 	 0x71A, 0xB22, 0x4CB, 0x8D3, 0xAE3, 0x2EB, 0x144, 0x954, 0x75C, 0x36C,
 	 0x045, 0x44D, 0x65D, 0xA65},
-	};
+};
 
 // _axis_convert_num = {'X': 0, 'Y': 1, 'Z': 2, '-X': 3, '-Y': 4, '-Z': 5}
 

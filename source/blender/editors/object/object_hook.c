@@ -310,7 +310,7 @@ static bool object_hook_index_array(Scene *scene, Object *obedit, int *tot, int 
 			BMEditMesh *em;
 
 			EDBM_mesh_load(obedit);
-			EDBM_mesh_make(scene->toolsettings, scene, obedit);
+			EDBM_mesh_make(scene->toolsettings, obedit);
 
 			em = me->edit_btmesh;
 
@@ -318,12 +318,10 @@ static bool object_hook_index_array(Scene *scene, Object *obedit, int *tot, int 
 			BKE_editmesh_tessface_calc(em);
 
 			/* check selected vertices first */
-			if (return_editmesh_indexar(em, tot, indexar, cent_r)) {
-				return true;
-			}
-			else {
+			if (return_editmesh_indexar(em, tot, indexar, cent_r) == 0) {
 				return return_editmesh_vgroup(obedit, em, name, cent_r);
 			}
+			return true;
 		}
 		case OB_CURVE:
 		case OB_SURF:
@@ -460,6 +458,7 @@ static int add_hook_object(Main *bmain, Scene *scene, Object *obedit, Object *ob
 	ModifierData *md = NULL;
 	HookModifierData *hmd = NULL;
 	float cent[3];
+	float pose_mat[4][4];
 	int tot, ok, *indexar;
 	char name[MAX_NAME];
 	
@@ -494,11 +493,20 @@ static int add_hook_object(Main *bmain, Scene *scene, Object *obedit, Object *ob
 	hmd->totindex = tot;
 	BLI_strncpy(hmd->name, name, sizeof(hmd->name));
 	
+	unit_m4(pose_mat);
+
 	if (mode == OBJECT_ADDHOOK_SELOB_BONE) {
 		bArmature *arm = ob->data;
 		BLI_assert(ob->type == OB_ARMATURE);
 		if (arm->act_bone) {
+			bPoseChannel *pchan_act;
+
 			BLI_strncpy(hmd->subtarget, arm->act_bone->name, sizeof(hmd->subtarget));
+
+			pchan_act = BKE_pose_channel_active(ob);
+			if (LIKELY(pchan_act)) {
+				invert_m4_m4(pose_mat, pchan_act->pose_mat);
+			}
 		}
 		else {
 			BKE_report(reports, RPT_WARNING, "Armature has no active object bone");
@@ -512,7 +520,7 @@ static int add_hook_object(Main *bmain, Scene *scene, Object *obedit, Object *ob
 	
 	invert_m4_m4(ob->imat, ob->obmat);
 	/* apparently this call goes from right to left... */
-	mul_serie_m4(hmd->parentinv, ob->imat, obedit->obmat, NULL,
+	mul_serie_m4(hmd->parentinv, pose_mat, ob->imat, obedit->obmat,
 	             NULL, NULL, NULL, NULL, NULL);
 	
 	DAG_relations_tag_update(bmain);

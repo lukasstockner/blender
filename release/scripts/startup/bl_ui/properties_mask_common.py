@@ -250,6 +250,7 @@ class MASK_PT_tools():
         col.operator("mask.delete")
         col.operator("mask.cyclic_toggle")
         col.operator("mask.switch_direction")
+        col.operator("mask.handle_type_set")
 
         col = layout.column(align=True)
         col.label(text="Parenting:")
@@ -337,6 +338,11 @@ class MASK_MT_select(Menu):
 
         layout.operator("mask.select_border")
         layout.operator("mask.select_circle")
+
+        layout.separator()
+
+        layout.operator("mask.select_more")
+        layout.operator("mask.select_less")
 
         layout.separator()
 

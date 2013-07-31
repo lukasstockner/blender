@@ -43,9 +43,10 @@
 #include "BLI_string.h"
 
 
-#include "BKE_DerivedMesh.h"
-#include "BKE_object.h"
 #include "BKE_deform.h"
+#include "BKE_DerivedMesh.h"
+#include "BKE_library.h"
+#include "BKE_object.h"
 #include "BKE_scene.h"
 
 #include "depsgraph_private.h"
@@ -77,6 +78,14 @@ static void initData(ModifierData *md)
 	wmd->defgrp_name[0] = 0;
 }
 
+static void freeData(ModifierData *md)
+{
+	WaveModifierData *wmd = (WaveModifierData *) md;
+	if (wmd->texture) {
+		id_us_min(&wmd->texture->id);
+	}
+}
+
 static void copyData(ModifierData *md, ModifierData *target)
 {
 	WaveModifierData *wmd = (WaveModifierData *) md;
@@ -98,6 +107,10 @@ static void copyData(ModifierData *md, ModifierData *target)
 	twmd->map_object = wmd->map_object;
 	twmd->texmapping = wmd->texmapping;
 	BLI_strncpy(twmd->defgrp_name, wmd->defgrp_name, sizeof(twmd->defgrp_name));
+
+	if (twmd->texture) {
+		id_us_plus(&twmd->texture->id);
+	}
 }
 
 static bool dependsOnTime(ModifierData *UNUSED(md))
@@ -293,7 +306,7 @@ static void waveModifier_do(WaveModifierData *md,
 				if (wmd->texture) {
 					TexResult texres;
 					texres.nor = NULL;
-					get_texture_value(wmd->texture, tex_co[i], &texres);
+					get_texture_value(wmd->modifier.scene, wmd->texture, tex_co[i], &texres, false);
 					amplit *= texres.tin;
 				}
 
@@ -333,9 +346,9 @@ static void deformVerts(ModifierData *md, Object *ob,
 	WaveModifierData *wmd = (WaveModifierData *)md;
 
 	if (wmd->flag & MOD_WAVE_NORM)
-		dm = get_cddm(ob, NULL, dm, vertexCos);
+		dm = get_cddm(ob, NULL, dm, vertexCos, false);
 	else if (wmd->texture || wmd->defgrp_name[0])
-		dm = get_dm(ob, NULL, dm, NULL, 0);
+		dm = get_dm(ob, NULL, dm, NULL, false, false);
 
 	waveModifier_do(wmd, md->scene, ob, dm, vertexCos, numVerts);
 
@@ -351,9 +364,9 @@ static void deformVertsEM(
 	WaveModifierData *wmd = (WaveModifierData *)md;
 
 	if (wmd->flag & MOD_WAVE_NORM)
-		dm = get_cddm(ob, editData, dm, vertexCos);
+		dm = get_cddm(ob, editData, dm, vertexCos, false);
 	else if (wmd->texture || wmd->defgrp_name[0])
-		dm = get_dm(ob, editData, dm, NULL, 0);
+		dm = get_dm(ob, editData, dm, NULL, false, false);
 
 	waveModifier_do(wmd, md->scene, ob, dm, vertexCos, numVerts);
 
@@ -378,7 +391,7 @@ ModifierTypeInfo modifierType_Wave = {
 	/* applyModifierEM */   NULL,
 	/* initData */          initData,
 	/* requiredDataMask */  requiredDataMask,
-	/* freeData */          NULL,
+	/* freeData */          freeData,
 	/* isDisabled */        NULL,
 	/* updateDepgraph */    updateDepgraph,
 	/* dependsOnTime */     dependsOnTime,

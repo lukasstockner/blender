@@ -74,7 +74,7 @@ void SVMShaderManager::device_update(Device *device, DeviceScene *dscene, Scene 
 
 		assert(shader->graph);
 
-		if(shader->sample_as_light && shader->has_surface_emission)
+		if(shader->use_mis && shader->has_surface_emission)
 			scene->light_manager->need_update = true;
 
 		SVMCompiler compiler(scene->shader_manager, scene->image_manager,
@@ -398,6 +398,10 @@ void SVMCompiler::generate_svm_nodes(const set<ShaderNode*>& nodes, set<ShaderNo
 							inputs_done = false;
 
 				if(inputs_done) {
+					/* Detect if we have a blackbody converter, to prepare lookup table */
+					if(node->has_converter_blackbody())
+					current_shader->has_converter_blackbody = true;
+
 					node->compile(*this);
 					stack_clear_users(node, done);
 					stack_clear_temporary(node);
@@ -672,6 +676,7 @@ void SVMCompiler::compile(Shader *shader, vector<int4>& global_svm_nodes, int in
 	shader->has_surface_emission = false;
 	shader->has_surface_transparent = false;
 	shader->has_surface_bssrdf = false;
+	shader->has_converter_blackbody = false;
 	shader->has_volume = false;
 	shader->has_displacement = false;
 

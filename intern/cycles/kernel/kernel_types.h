@@ -44,6 +44,12 @@ CCL_NAMESPACE_BEGIN
 #define BSSRDF_MIN_RADIUS			1e-8f
 #define BSSRDF_MAX_ATTEMPTS			8
 
+#define BB_DRAPPER				800.0
+#define BB_MAX_TABLE_RANGE		12000.0
+#define BB_TABLE_XPOWER			1.5
+#define BB_TABLE_YPOWER			5.0
+#define BB_TABLE_SPACING		2.0
+
 #define TEX_NUM_FLOAT_IMAGES	5
 
 /* device capabilities */
@@ -55,6 +61,7 @@ CCL_NAMESPACE_BEGIN
 #define __OSL__
 #endif
 #define __SUBSURFACE__
+#define __CMJ__
 #endif
 
 #ifdef __KERNEL_CUDA__
@@ -117,7 +124,6 @@ CCL_NAMESPACE_BEGIN
 #define __CAMERA_CLIPPING__
 #define __INTERSECTION_REFINE__
 #define __CLAMP_SAMPLE__
-#define __CMJ__
 
 #ifdef __KERNEL_SHADING__
 #define __SVM__
@@ -150,10 +156,10 @@ CCL_NAMESPACE_BEGIN
 
 /* Shader Evaluation */
 
-enum ShaderEvalType {
+typedef enum ShaderEvalType {
 	SHADER_EVAL_DISPLACE,
 	SHADER_EVAL_BACKGROUND
-};
+} ShaderEvalType;
 
 /* Path Tracing
  * note we need to keep the u/v pairs at even values */
@@ -329,7 +335,8 @@ typedef enum ShaderFlag {
 	SHADER_EXCLUDE_DIFFUSE = (1 << 27),
 	SHADER_EXCLUDE_GLOSSY = (1 << 26),
 	SHADER_EXCLUDE_TRANSMIT = (1 << 25),
-	SHADER_EXCLUDE_ANY = (SHADER_EXCLUDE_DIFFUSE|SHADER_EXCLUDE_GLOSSY|SHADER_EXCLUDE_TRANSMIT),
+	SHADER_EXCLUDE_CAMERA = (1 << 24),
+	SHADER_EXCLUDE_ANY = (SHADER_EXCLUDE_DIFFUSE|SHADER_EXCLUDE_GLOSSY|SHADER_EXCLUDE_TRANSMIT|SHADER_EXCLUDE_CAMERA),
 
 	SHADER_MASK = ~(SHADER_SMOOTH_NORMAL|SHADER_CAST_SHADOW|SHADER_AREA_LIGHT|SHADER_USE_MIS|SHADER_EXCLUDE_ANY)
 } ShaderFlag;
@@ -435,7 +442,7 @@ typedef enum AttributeStandard {
 
 /* Closure data */
 
-#define MAX_CLOSURE 16
+#define MAX_CLOSURE 64
 
 typedef struct ShaderClosure {
 	ClosureType type;
@@ -491,8 +498,8 @@ enum ShaderDataFlag {
 	SD_CLOSURE_FLAGS = (SD_EMISSION|SD_BSDF|SD_BSDF_HAS_EVAL|SD_BSDF_GLOSSY|SD_BSSRDF|SD_HOLDOUT|SD_VOLUME|SD_AO),
 
 	/* shader flags */
-	SD_SAMPLE_AS_LIGHT = 512,			/* direct light sample */
-	SD_HAS_SURFACE_TRANSPARENT = 1024,	/* has surface transparency */
+	SD_USE_MIS = 512,					/* direct light sample */
+	SD_HAS_TRANSPARENT_SHADOW = 1024,	/* has transparent shadow */
 	SD_HAS_VOLUME = 2048,				/* has volume shader */
 	SD_HOMOGENEOUS_VOLUME = 4096,		/* has homogeneous volume */
 
@@ -539,6 +546,9 @@ typedef struct ShaderData {
 	
 	/* length of the ray being shaded */
 	float ray_length;
+	
+	/* ray bounce depth */
+	int ray_depth;
 
 #ifdef __RAY_DIFFERENTIALS__
 	/* differential of P. these are orthogonal to Ng, not N */
@@ -806,6 +816,12 @@ typedef struct KernelBSSRDF {
 	int pad1, pad2;
 } KernelBSSRDF;
 
+typedef struct KernelBlackbody {
+	int table_offset;
+	int pad1, pad2, pad3;
+} KernelBLACKBODY;
+
+
 typedef struct KernelData {
 	KernelCamera cam;
 	KernelFilm film;
@@ -815,6 +831,7 @@ typedef struct KernelData {
 	KernelBVH bvh;
 	KernelCurves curve_kernel_data;
 	KernelBSSRDF bssrdf;
+	KernelBlackbody blackbody;
 } KernelData;
 
 CCL_NAMESPACE_END

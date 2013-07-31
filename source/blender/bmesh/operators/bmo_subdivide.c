@@ -856,7 +856,7 @@ void bmo_subdivide_edges_exec(BMesh *bm, BMOperator *op)
 	params.fractal = fractal;
 	params.along_normal = along_normal;
 	params.use_smooth  = (smooth  != 0.0f);
-	params.use_smooth_even = BMO_slot_get(op->slots_in, "use_smooth_even");
+	params.use_smooth_even = BMO_slot_bool_get(op->slots_in, "use_smooth_even");
 	params.use_fractal = (fractal != 0.0f);
 	params.use_sphere  = use_sphere;
 
@@ -1112,7 +1112,7 @@ void bmo_subdivide_edges_exec(BMesh *bm, BMOperator *op)
 			 * - concave corner of an ngon.
 			 * - 2 edges being used in 2+ ngons.
 			 */
-//			BM_face_legal_splits(bm, face, loops_split, BLI_array_count(loops_split));
+//			BM_face_legal_splits(face, loops_split, BLI_array_count(loops_split));
 
 			for (j = 0; j < BLI_array_count(loops_split); j++) {
 				if (loops_split[j][0]) {
@@ -1203,24 +1203,22 @@ void BM_mesh_esubdivide(BMesh *bm, const char edge_hflag,
 	
 	BMO_op_exec(bm, &op);
 	
-	if (seltype == SUBDIV_SELECT_INNER) {
-		BMOIter iter;
-		BMElem *ele;
-
-		for (ele = BMO_iter_new(&iter, op.slots_out, "geom_inner.out", BM_EDGE | BM_VERT); ele; ele = BMO_iter_step(&iter)) {
-			BM_elem_select_set(bm, ele, true);
-		}
-	}
-	else if (seltype == SUBDIV_SELECT_LOOPCUT) {
-		BMOIter iter;
-		BMElem *ele;
-		
-		/* deselect input */
-		BM_mesh_elem_hflag_disable_all(bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT, false);
-
-		for (ele = BMO_iter_new(&iter, op.slots_out, "geom_inner.out", BM_EDGE); ele; ele = BMO_iter_step(&iter)) {
-			BM_edge_select_set(bm, (BMEdge *)ele, true);
-		}
+	switch (seltype) {
+		case SUBDIV_SELECT_NONE:
+			break;
+		case SUBDIV_SELECT_ORIG:
+			/* set the newly created data to be selected */
+			BMO_slot_buffer_hflag_enable(bm, op.slots_out, "geom_inner.out", BM_ALL_NOLOOP, BM_ELEM_SELECT, true);
+			BM_mesh_select_flush(bm);
+			break;
+		case SUBDIV_SELECT_INNER:
+			BMO_slot_buffer_hflag_enable(bm, op.slots_out, "geom_inner.out", BM_EDGE | BM_VERT, BM_ELEM_SELECT, true);
+			break;
+		case SUBDIV_SELECT_LOOPCUT:
+			/* deselect input */
+			BM_mesh_elem_hflag_disable_all(bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT, false);
+			BMO_slot_buffer_hflag_enable(bm, op.slots_out, "geom_inner.out", BM_EDGE, BM_ELEM_SELECT, true);
+			break;
 	}
 
 	BMO_op_finish(bm, &op);

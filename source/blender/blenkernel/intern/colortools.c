@@ -328,8 +328,8 @@ void curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, int slope)
 				cuma->curve[i].x = i / ((float)cuma->totpoint - 1);
 				cuma->curve[i].y = 0.5;
 			}
+			break;
 		}
-		break;
 		case CURVE_PRESET_ROUND:
 			cuma->curve[0].x = 0;
 			cuma->curve[0].y = 1;
@@ -1276,6 +1276,8 @@ void BKE_color_managed_view_settings_copy(ColorManagedViewSettings *new_settings
 
 	if (settings->curve_mapping)
 		new_settings->curve_mapping = curvemapping_copy(settings->curve_mapping);
+	else
+		new_settings->curve_mapping = NULL;
 }
 
 void BKE_color_managed_view_settings_free(ColorManagedViewSettings *settings)

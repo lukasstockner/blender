@@ -16,7 +16,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#include "background.h"
 #include "bssrdf.h"
+#include "blackbody.h"
 #include "device.h"
 #include "graph.h"
 #include "light.h"
@@ -42,13 +44,15 @@ Shader::Shader()
 	graph = NULL;
 	graph_bump = NULL;
 
-	sample_as_light = true;
+	use_mis = true;
+	use_transparent_shadow = true;
 	homogeneous_volume = false;
 
 	has_surface = false;
 	has_surface_transparent = false;
 	has_surface_emission = false;
 	has_surface_bssrdf = false;
+	has_converter_blackbody = false;
 	has_volume = false;
 	has_displacement = false;
 
@@ -88,7 +92,7 @@ void Shader::tag_update(Scene *scene)
 	/* if the shader previously was emissive, update light distribution,
 	 * if the new shader is emissive, a light manager update tag will be
 	 * done in the shader manager device update. */
-	if(sample_as_light && has_surface_emission)
+	if(use_mis && has_surface_emission)
 		scene->light_manager->need_update = true;
 
 	/* get requested attributes. this could be optimized by pruning unused
@@ -125,6 +129,7 @@ ShaderManager::ShaderManager()
 {
 	need_update = true;
 	bssrdf_table_offset = TABLE_OFFSET_INVALID;
+	blackbody_table_offset = TABLE_OFFSET_INVALID;
 }
 
 ShaderManager::~ShaderManager()
@@ -190,10 +195,10 @@ void ShaderManager::device_update_shaders_used(Scene *scene)
 	foreach(Shader *shader, scene->shaders)
 		shader->used = false;
 
+	scene->shaders[scene->background->shader]->used = true;
 	scene->shaders[scene->default_surface]->used = true;
 	scene->shaders[scene->default_light]->used = true;
 	scene->shaders[scene->default_background]->used = true;
-	scene->shaders[scene->default_holdout]->used = true;
 	scene->shaders[scene->default_empty]->used = true;
 
 	foreach(Mesh *mesh, scene->meshes)
@@ -216,20 +221,23 @@ void ShaderManager::device_update_common(Device *device, DeviceScene *dscene, Sc
 	uint *shader_flag = dscene->shader_flag.resize(shader_flag_size);
 	uint i = 0;
 	bool has_surface_bssrdf = false;
+	bool has_converter_blackbody = false;
 
 	foreach(Shader *shader, scene->shaders) {
 		uint flag = 0;
 
-		if(shader->sample_as_light)
-			flag |= SD_SAMPLE_AS_LIGHT;
-		if(shader->has_surface_transparent)
-			flag |= SD_HAS_SURFACE_TRANSPARENT;
+		if(shader->use_mis)
+			flag |= SD_USE_MIS;
+		if(shader->has_surface_transparent && shader->use_transparent_shadow)
+			flag |= SD_HAS_TRANSPARENT_SHADOW;
 		if(shader->has_volume)
 			flag |= SD_HAS_VOLUME;
 		if(shader->homogeneous_volume)
 			flag |= SD_HOMOGENEOUS_VOLUME;
 		if(shader->has_surface_bssrdf)
 			has_surface_bssrdf = true;
+		if(shader->has_converter_blackbody)
+			has_converter_blackbody = true;
 
 		shader_flag[i++] = flag;
 		shader_flag[i++] = shader->pass_id;
@@ -255,6 +263,21 @@ void ShaderManager::device_update_common(Device *device, DeviceScene *dscene, Sc
 		scene->lookup_tables->remove_table(bssrdf_table_offset);
 		bssrdf_table_offset = TABLE_OFFSET_INVALID;
 	}
+
+	/* blackbody lookup table */
+	KernelBlackbody *kblackbody = &dscene->data.blackbody;
+	
+	if(has_converter_blackbody && blackbody_table_offset == TABLE_OFFSET_INVALID) {
+		vector<float> table = blackbody_table();
+		blackbody_table_offset = scene->lookup_tables->add_table(dscene, table);
+		
+		kblackbody->table_offset = (int)blackbody_table_offset;
+	}
+	else if(!has_converter_blackbody && blackbody_table_offset != TABLE_OFFSET_INVALID) {
+		scene->lookup_tables->remove_table(blackbody_table_offset);
+		blackbody_table_offset = TABLE_OFFSET_INVALID;
+	}
+
 }
 
 void ShaderManager::device_free_common(Device *device, DeviceScene *dscene, Scene *scene)
@@ -262,6 +285,11 @@ void ShaderManager::device_free_common(Device *device, DeviceScene *dscene, Scen
 	if(bssrdf_table_offset != TABLE_OFFSET_INVALID) {
 		scene->lookup_tables->remove_table(bssrdf_table_offset);
 		bssrdf_table_offset = TABLE_OFFSET_INVALID;
+	}
+
+	if(blackbody_table_offset != TABLE_OFFSET_INVALID) {
+		scene->lookup_tables->remove_table(blackbody_table_offset);
+		blackbody_table_offset = TABLE_OFFSET_INVALID;
 	}
 
 	device->tex_free(dscene->shader_flag);
@@ -324,22 +352,6 @@ void ShaderManager::add_default(Scene *scene)
 		shader->graph = graph;
 		scene->shaders.push_back(shader);
 		scene->default_background = scene->shaders.size() - 1;
-	}
-
-	/* default holdout */
-	{
-		graph = new ShaderGraph();
-
-		closure = graph->add(new HoldoutNode());
-		out = graph->output();
-
-		graph->connect(closure->output("Holdout"), out->input("Surface"));
-
-		shader = new Shader();
-		shader->name = "default_holdout";
-		shader->graph = graph;
-		scene->shaders.push_back(shader);
-		scene->default_holdout = scene->shaders.size() - 1;
 	}
 
 	/* default empty */

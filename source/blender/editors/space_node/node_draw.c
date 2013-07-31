@@ -91,18 +91,18 @@ static bNodeTree *node_tree_from_ID(ID *id)
 		short idtype = GS(id->name);
 	
 		switch (idtype) {
-		case ID_NT:
-			return (bNodeTree *)id;
-		case ID_MA:
-			return ((Material *)id)->nodetree;
-		case ID_LA:
-			return ((Lamp *)id)->nodetree;
-		case ID_WO:
-			return ((World *)id)->nodetree;
-		case ID_SCE:
-			return ((Scene *)id)->nodetree;
-		case ID_TE:
-			return ((Tex *)id)->nodetree;
+			case ID_NT:
+				return (bNodeTree *)id;
+			case ID_MA:
+				return ((Material *)id)->nodetree;
+			case ID_LA:
+				return ((Lamp *)id)->nodetree;
+			case ID_WO:
+				return ((World *)id)->nodetree;
+			case ID_SCE:
+				return ((Scene *)id)->nodetree;
+			case ID_TE:
+				return ((Tex *)id)->nodetree;
 		}
 	}
 	
@@ -119,11 +119,11 @@ void ED_node_tag_update_id(ID *id)
 		DAG_id_tag_update(id, 0);
 		
 		if (GS(id->name) == ID_MA)
-			WM_main_add_notifier(NC_MATERIAL | ND_SHADING_DRAW, id);
+			WM_main_add_notifier(NC_MATERIAL | ND_SHADING, id);
 		else if (GS(id->name) == ID_LA)
-			WM_main_add_notifier(NC_LAMP | ND_LIGHTING_DRAW, id);
+			WM_main_add_notifier(NC_LAMP | ND_LIGHTING, id);
 		else if (GS(id->name) == ID_WO)
-			WM_main_add_notifier(NC_WORLD | ND_WORLD_DRAW, id);
+			WM_main_add_notifier(NC_WORLD | ND_WORLD, id);
 	}
 	else if (ntree->type == NTREE_COMPOSIT) {
 		WM_main_add_notifier(NC_SCENE | ND_NODES, id);

@@ -38,6 +38,8 @@
 
 #if defined(_WIN64) && !defined(FREE_WINDOWS64)
 typedef unsigned __int64 uint_ptr;
+#elif defined(FREE_WINDOWS64)
+typedef unsigned long long uint_ptr;
 #else
 typedef unsigned long uint_ptr;
 #endif
@@ -2280,7 +2282,7 @@ PyObject *KX_GameObject::pyattr_get_localTransform(void *self_v, const KX_PYATTR
 {
 	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
 
-	double *mat = MT_CmMatrix4x4().getPointer();
+	double mat[16];
 
 	MT_Transform trans;
 	

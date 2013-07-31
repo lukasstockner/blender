@@ -34,7 +34,6 @@
 #include "BLI_memarena.h"
 #include "BLI_mempool.h"
 #include "BLI_listbase.h"
-#include "BLI_array.h"
 
 #include "BLF_translation.h"
 
@@ -411,7 +410,7 @@ void BMO_slot_mat_set(BMOperator *op, BMOpSlot slot_args[BMO_OP_MAX_SLOTS], cons
 	slot->data.p = BLI_memarena_alloc(op->arena, sizeof(float) * 4 * 4);
 	
 	if (size == 4) {
-		memcpy(slot->data.p, mat, sizeof(float) * 4 * 4);
+		copy_m4_m4(slot->data.p, (float (*)[4])mat);
 	}
 	else if (size == 3) {
 		copy_m4_m3(slot->data.p, (float (*)[3])mat);
@@ -560,8 +559,6 @@ static int bmo_mesh_flag_count(BMesh *bm, const char htype, const short oflag,
 	int count = 0;
 	BMElemF *ele_f;
 	int i;
-
-	BLI_assert((unsigned int)test_for_enabled <= 1);
 
 	for (i = 0; i < 3; i++) {
 		if (htype & flag_types[i]) {
@@ -937,7 +934,6 @@ static void bmo_slot_buffer_from_flag(BMesh *bm, BMOperator *op,
 	int totelement, i = 0;
 
 	BLI_assert(op->slots_in == slot_args || op->slots_out == slot_args);
-	BLI_assert((unsigned int)test_for_enabled <= 1);
 
 	if (test_for_enabled)
 		totelement = BMO_mesh_enabled_flag_count(bm, htype, oflag);
@@ -1248,7 +1244,7 @@ static void bmo_flag_layer_free(BMesh *bm)
 			/* now go through and memcpy all the flag */
 			BM_ITER_MESH_INDEX (ele, &iter, bm, BM_VERTS_OF_MESH, i) {
 				void *oldflags = ele->oflags;
-				ele->oflags = BLI_mempool_calloc(newpool);
+				ele->oflags = BLI_mempool_alloc(newpool);
 				memcpy(ele->oflags, oldflags, new_totflags_size);
 				BM_elem_index_set(ele, i); /* set_inline */
 				BM_ELEM_API_FLAG_CLEAR((BMElemF *)ele);
@@ -1264,7 +1260,7 @@ static void bmo_flag_layer_free(BMesh *bm)
 
 			BM_ITER_MESH_INDEX (ele, &iter, bm, BM_EDGES_OF_MESH, i) {
 				void *oldflags = ele->oflags;
-				ele->oflags = BLI_mempool_calloc(newpool);
+				ele->oflags = BLI_mempool_alloc(newpool);
 				memcpy(ele->oflags, oldflags, new_totflags_size);
 				BM_elem_index_set(ele, i); /* set_inline */
 				BM_ELEM_API_FLAG_CLEAR((BMElemF *)ele);
@@ -1280,7 +1276,7 @@ static void bmo_flag_layer_free(BMesh *bm)
 
 			BM_ITER_MESH_INDEX (ele, &iter, bm, BM_FACES_OF_MESH, i) {
 				void *oldflags = ele->oflags;
-				ele->oflags = BLI_mempool_calloc(newpool);
+				ele->oflags = BLI_mempool_alloc(newpool);
 				memcpy(ele->oflags, oldflags, new_totflags_size);
 				BM_elem_index_set(ele, i); /* set_inline */
 				BM_ELEM_API_FLAG_CLEAR((BMElemF *)ele);
@@ -1370,6 +1366,12 @@ void *BMO_iter_new(BMOIter *iter,
 		else {
 			return NULL;
 		}
+	}
+	else if (iter->slot->slot_type == BMO_OP_SLOT_ELEMENT_BUF) {
+		BLI_assert(restrictmask & slot->slot_subtype.elem);
+	}
+	else {
+		BLI_assert(0);
 	}
 
 	return BMO_iter_step(iter);

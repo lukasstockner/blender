@@ -222,7 +222,7 @@ static void compo_updatejob(void *cjv)
 		cj->need_sync = FALSE;
 	}
 
-	WM_main_add_notifier(NC_WINDOW | ND_DRAW, NULL);
+	WM_main_add_notifier(NC_SCENE | ND_COMPO_RESULT, NULL);
 }
 
 static void compo_progressjob(void *cjv, float progress)
@@ -299,7 +299,7 @@ void ED_node_composite_job(const bContext *C, struct bNodeTree *nodetree, Scene 
 
 	/* setup job */
 	WM_jobs_customdata_set(wm_job, cj, compo_freejob);
-	WM_jobs_timer(wm_job, 0.1, NC_SCENE, NC_SCENE | ND_COMPO_RESULT);
+	WM_jobs_timer(wm_job, 0.1, NC_SCENE | ND_COMPO_RESULT, NC_SCENE | ND_COMPO_RESULT);
 	WM_jobs_callbacks(wm_job, compo_startjob, compo_initjob, compo_updatejob, NULL);
 
 	WM_jobs_start(CTX_wm_manager(C), wm_job);
@@ -577,9 +577,10 @@ void snode_set_context(const bContext *C)
 	if (!treetype ||
 	    (treetype->poll && !treetype->poll(C, treetype)))
 	{
-		/* invalid tree type, disable */
-		snode->tree_idname[0] = '\0';
-		ED_node_tree_start(snode, NULL, NULL, NULL);
+		/* invalid tree type, skip
+		 * NB: not resetting the node path here, invalid bNodeTreeType
+		 * may still be registered at a later point.
+		 */
 		return;
 	}
 	
@@ -2261,24 +2262,26 @@ static int ntree_socket_move_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	
 	switch (direction) {
-	case 1: {	/* up */
-		bNodeSocket *before = iosock->prev;
-		BLI_remlink(lb, iosock);
-		if (before)
-			BLI_insertlinkbefore(lb, before, iosock);
-		else
-			BLI_addhead(lb, iosock);
-		break;
-	}
-	case 2: {	/* down */
-		bNodeSocket *after = iosock->next;
-		BLI_remlink(lb, iosock);
-		if (after)
-			BLI_insertlinkafter(lb, after, iosock);
-		else
-			BLI_addtail(lb, iosock);
-		break;
-	}
+		case 1:
+		{	/* up */
+			bNodeSocket *before = iosock->prev;
+			BLI_remlink(lb, iosock);
+			if (before)
+				BLI_insertlinkbefore(lb, before, iosock);
+			else
+				BLI_addhead(lb, iosock);
+			break;
+		}
+		case 2:
+		{	/* down */
+			bNodeSocket *after = iosock->next;
+			BLI_remlink(lb, iosock);
+			if (after)
+				BLI_insertlinkafter(lb, after, iosock);
+			else
+				BLI_addtail(lb, iosock);
+			break;
+		}
 	}
 	
 	ntreeUpdateTree(CTX_data_main(C), ntree);
@@ -2315,9 +2318,6 @@ static int node_shader_script_update_poll(bContext *C)
 	bNode *node;
 	Text *text;
 
-	if (!ED_operator_node_editable(C))
-		return 0;
-
 	/* test if we have a render engine that supports shaders scripts */
 	if (!(type && type->update_script_node))
 		return 0;
@@ -2325,14 +2325,14 @@ static int node_shader_script_update_poll(bContext *C)
 	/* see if we have a shader script node in context */
 	node = CTX_data_pointer_get_type(C, "node", &RNA_ShaderNodeScript).data;
 
-	if (!node)
+	if (!node && snode && snode->edittree)
 		node = nodeGetActive(snode->edittree);
 
 	if (node && node->type == SH_NODE_SCRIPT) {
 		NodeShaderScript *nss = node->storage;
 
 		if (node->id || nss->filepath[0]) {
-			return 1;
+			return ED_operator_node_editable(C);
 		}
 	}
 

@@ -602,7 +602,7 @@ int calc_manipulator_stats(const bContext *C)
 					break;
 				}
 				/* if not gimbal, fall through to normal */
-				/* pass through */
+				/* fall-through */
 			}
 			case V3D_MANIP_NORMAL:
 			{
@@ -613,7 +613,7 @@ int calc_manipulator_stats(const bContext *C)
 					break;
 				}
 				/* no break we define 'normal' as 'local' in Object mode */
-				/* pass through */
+				/* fall-through */
 			}
 			case V3D_MANIP_LOCAL:
 			{
@@ -840,7 +840,8 @@ static void manipulator_setcolor(View3D *v3d, char axis, int colcode, unsigned c
 				UI_GetThemeColor3ubv(TH_AXIS_Z, col);
 				break;
 			default:
-				BLI_assert(!"invalid axis arg");
+				BLI_assert(0);
+				break;
 		}
 	}
 
@@ -1592,7 +1593,6 @@ static void draw_manipulator_rotate_cyl(View3D *v3d, RegionView3D *rv3d, int mov
 /* ********************************************* */
 
 /* main call, does calc centers & orientation too */
-/* uses global G.moving */
 static int drawflags = 0xFFFF;       // only for the calls below, belongs in scene...?
 
 void BIF_draw_manipulator(const bContext *C)
@@ -1605,9 +1605,7 @@ void BIF_draw_manipulator(const bContext *C)
 	int totsel;
 
 	if (!(v3d->twflag & V3D_USE_MANIPULATOR)) return;
-//	if (G.moving && (G.moving & G_TRANSFORM_MANIP)==0) return;
 
-//	if (G.moving==0) {
 	{
 		v3d->twflag &= ~V3D_DRAW_MANIPULATOR;
 
@@ -1644,6 +1642,11 @@ void BIF_draw_manipulator(const bContext *C)
 		mul_mat3_m4_fl(rv3d->twmat, ED_view3d_pixel_size(rv3d, rv3d->twmat[3]) * U.tw_size * 5.0f);
 	}
 
+	/* when looking through a selected camera, the manipulator can be at the
+	 * exact same position as the view, skip so we don't break selection */
+	if (fabsf(mat4_to_scale(rv3d->twmat)) < 1e-7f)
+		return;
+
 	test_manipulator_axis(C);
 	drawflags = rv3d->twdrawflag;    /* set in calc_manipulator_stats */
 
@@ -1654,11 +1657,13 @@ void BIF_draw_manipulator(const bContext *C)
 		if (v3d->twtype & V3D_MANIP_ROTATE) {
 
 			if (G.debug_value == 3) {
-				if (G.moving) draw_manipulator_rotate_cyl(v3d, rv3d, 1, drawflags, v3d->twtype, MAN_MOVECOL);
-				else draw_manipulator_rotate_cyl(v3d, rv3d, 0, drawflags, v3d->twtype, MAN_RGB);
+				if (G.moving & (G_TRANSFORM_OBJ | G_TRANSFORM_EDIT))
+					draw_manipulator_rotate_cyl(v3d, rv3d, 1, drawflags, v3d->twtype, MAN_MOVECOL);
+				else
+					draw_manipulator_rotate_cyl(v3d, rv3d, 0, drawflags, v3d->twtype, MAN_RGB);
 			}
 			else
-				draw_manipulator_rotate(v3d, rv3d, 0 /* G.moving*/, drawflags, v3d->twtype);
+				draw_manipulator_rotate(v3d, rv3d, 0, drawflags, v3d->twtype);
 		}
 		if (v3d->twtype & V3D_MANIP_SCALE) {
 			draw_manipulator_scale(v3d, rv3d, 0, drawflags, v3d->twtype, MAN_RGB);
@@ -1678,7 +1683,12 @@ static int manipulator_selectbuf(ScrArea *sa, ARegion *ar, const int mval[2], fl
 	rctf rect;
 	GLuint buffer[64];      // max 4 items per select, so large enuf
 	short hits;
-	extern void setwinmatrixview3d(ARegion *ar, View3D *v3d, rctf *rect); // XXX check a bit later on this... (ton)
+	extern void setwinmatrixview3d(ARegion *, View3D *, rctf *); // XXX check a bit later on this... (ton)
+
+	/* when looking through a selected camera, the manipulator can be at the
+	 * exact same position as the view, skip so we don't break selection */
+	if (fabsf(mat4_to_scale(rv3d->twmat)) < 1e-7f)
+		return 0;
 
 	G.f |= G_PICKSEL;
 

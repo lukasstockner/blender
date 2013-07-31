@@ -52,6 +52,8 @@ typedef enum NodeType {
 	NODE_CONVERT,
 	NODE_FRESNEL,
 	NODE_WIREFRAME,
+	NODE_WAVELENGTH,
+	NODE_BLACKBODY,
 	NODE_EMISSION_WEIGHT,
 	NODE_TEX_GRADIENT,
 	NODE_TEX_VORONOI,
@@ -66,6 +68,7 @@ typedef enum NodeType {
 	NODE_SET_BUMP,
 	NODE_MATH,
 	NODE_VECTOR_MATH,
+	NODE_VECTOR_TRANSFORM,
 	NODE_MAPPING,
 	NODE_TEX_COORD,
 	NODE_TEX_COORD_BUMP_DX,
@@ -80,6 +83,8 @@ typedef enum NodeType {
 	NODE_CLOSURE_VOLUME,
 	NODE_SEPARATE_RGB,
 	NODE_COMBINE_RGB,
+	NODE_SEPARATE_HSV,
+	NODE_COMBINE_HSV,
 	NODE_HSV,
 	NODE_CAMERA,
 	NODE_INVERT,
@@ -152,7 +157,8 @@ typedef enum NodeLightPath {
 	NODE_LP_reflection,
 	NODE_LP_transmission,
 	NODE_LP_backfacing,
-	NODE_LP_ray_length
+	NODE_LP_ray_length,
+	NODE_LP_ray_depth
 } NodeLightPath;
 
 typedef enum NodeLightFalloff {
@@ -223,6 +229,18 @@ typedef enum NodeVectorMath {
 	NODE_VECTOR_MATH_CROSS_PRODUCT,
 	NODE_VECTOR_MATH_NORMALIZE
 } NodeVectorMath;
+
+typedef enum NodeVectorTransformType {
+	NODE_VECTOR_TRANSFORM_TYPE_VECTOR,
+	NODE_VECTOR_TRANSFORM_TYPE_POINT,
+	NODE_VECTOR_TRANSFORM_TYPE_NORMAL
+} NodeVectorTransformType;
+
+typedef enum NodeVectorTransformConvertSpace {
+	NODE_VECTOR_TRANSFORM_CONVERT_SPACE_WORLD,
+	NODE_VECTOR_TRANSFORM_CONVERT_SPACE_OBJECT,
+	NODE_VECTOR_TRANSFORM_CONVERT_SPACE_CAMERA
+} NodeVectorTransformConvertSpace;
 
 typedef enum NodeConvert {
 	NODE_CONVERT_FV,

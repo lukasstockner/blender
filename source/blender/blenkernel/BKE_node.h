@@ -741,6 +741,11 @@ struct ShadeResult;
 #define SH_NODE_SUBSURFACE_SCATTERING	177
 #define SH_NODE_WIREFRAME				178
 #define SH_NODE_BSDF_TOON				179
+#define SH_NODE_WAVELENGTH				180
+#define SH_NODE_BLACKBODY				181
+#define SH_NODE_VECT_TRANSFORM			182
+#define SH_NODE_SEPHSV					183
+#define SH_NODE_COMBHSV					184
 
 /* custom defines options for Material node */
 #define SH_NODE_MAT_DIFF   1
@@ -916,6 +921,11 @@ void            ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMateria
 #define CMP_SCALE_RENDERSIZE_FRAME_ASPECT  (1 << 0)
 #define CMP_SCALE_RENDERSIZE_FRAME_CROP    (1 << 1)
 
+/* track position node, in custom1 */
+#define CMP_TRACKPOS_ABSOLUTE			0
+#define CMP_TRACKPOS_RELATIVE_START	1
+#define CMP_TRACKPOS_RELATIVE_FRAME	2
+#define CMP_TRACKPOS_ABSOLUTE_FRAME	3
 
 /* API */
 struct CompBuf;
@@ -924,7 +934,7 @@ void ntreeCompositExecTree(struct bNodeTree *ntree, struct RenderData *rd, int r
 void ntreeCompositTagRender(struct Scene *sce);
 int ntreeCompositTagAnimated(struct bNodeTree *ntree);
 void ntreeCompositTagGenerators(struct bNodeTree *ntree);
-void ntreeCompositForceHidden(struct bNodeTree *ntree, struct Scene *scene);
+void ntreeCompositForceHidden(struct bNodeTree *ntree);
 void ntreeCompositClearTags(struct bNodeTree *ntree);
 
 struct bNodeSocket *ntreeCompositOutputFileAddSocket(struct bNodeTree *ntree, struct bNode *node,

@@ -146,12 +146,14 @@ CCL_NAMESPACE_END
 
 #include "svm_attribute.h"
 #include "svm_gradient.h"
+#include "svm_blackbody.h"
 #include "svm_closure.h"
 #include "svm_noisetex.h"
 #include "svm_convert.h"
 #include "svm_displace.h"
 #include "svm_fresnel.h"
 #include "svm_wireframe.h"
+#include "svm_wavelength.h"
 #include "svm_camera.h"
 #include "svm_geometry.h"
 #include "svm_hsv.h"
@@ -168,6 +170,7 @@ CCL_NAMESPACE_END
 #include "svm_mix.h"
 #include "svm_ramp.h"
 #include "svm_sepcomb_rgb.h"
+#include "svm_sepcomb_hsv.h"
 #include "svm_musgrave.h"
 #include "svm_sky.h"
 #include "svm_tex_coord.h"
@@ -175,6 +178,7 @@ CCL_NAMESPACE_END
 #include "svm_voronoi.h"
 #include "svm_checker.h"
 #include "svm_brick.h"
+#include "svm_vector_transform.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -337,6 +341,12 @@ __device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, ShaderT
 			case NODE_COMBINE_RGB:
 				svm_node_combine_rgb(sd, stack, node.y, node.z, node.w);
 				break;
+			case NODE_SEPARATE_HSV:
+				svm_node_separate_hsv(kg, sd, stack, node.y, node.z, node.w, &offset);
+				break;
+			case NODE_COMBINE_HSV:
+				svm_node_combine_hsv(kg, sd, stack, node.y, node.z, node.w, &offset);
+				break;
 			case NODE_HSV:
 				svm_node_hsv(kg, sd, stack, node.y, node.z, node.w, &offset);
 				break;
@@ -358,10 +368,16 @@ __device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, ShaderT
 			case NODE_LAYER_WEIGHT:
 				svm_node_layer_weight(sd, stack, node);
 				break;
+#ifdef __EXTRA_NODES__
 			case NODE_WIREFRAME:
 				svm_node_wireframe(kg, sd, stack, node.y, node.z, node.w);
 				break;
-#ifdef __EXTRA_NODES__
+			case NODE_WAVELENGTH:
+				svm_node_wavelength(sd, stack, node.y, node.z);
+				break;
+			case NODE_BLACKBODY:
+				svm_node_blackbody(kg, sd, stack, node.y, node.z);
+				break;
 			case NODE_SET_DISPLACEMENT:
 				svm_node_set_displacement(sd, stack, node.y);
 				break;
@@ -373,6 +389,9 @@ __device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, ShaderT
 				break;
 			case NODE_VECTOR_MATH:
 				svm_node_vector_math(kg, sd, stack, node.y, node.z, node.w, &offset);
+				break;
+			case NODE_VECTOR_TRANSFORM:
+				svm_node_vector_transform(kg, sd, stack, node);
 				break;
 			case NODE_NORMAL:
 				svm_node_normal(kg, sd, stack, node.y, node.z, node.w, &offset);

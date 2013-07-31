@@ -15,11 +15,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * This is a new part of Blender.
- *
  * Contributor(s): Joseph Gilbert, Campbell Barton
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -725,8 +720,8 @@ static PyObject *M_Geometry_intersect_line_sphere(PyObject *UNUSED(self), PyObje
 		return NULL;
 	}
 	else {
-		short use_a = TRUE;
-		short use_b = TRUE;
+		bool use_a = true;
+		bool use_b = true;
 		float lambda;
 
 		PyObject *ret = PyTuple_New(2);
@@ -734,15 +729,16 @@ static PyObject *M_Geometry_intersect_line_sphere(PyObject *UNUSED(self), PyObje
 		switch (isect_line_sphere_v3(line_a->vec, line_b->vec, sphere_co->vec, sphere_radius, isect_a, isect_b)) {
 			case 1:
 				if (!(!clip || (((lambda = line_point_factor_v3(isect_a, line_a->vec, line_b->vec)) >= 0.0f) && (lambda <= 1.0f)))) use_a = FALSE;
-				use_b = FALSE;
+				use_b = false;
 				break;
 			case 2:
 				if (!(!clip || (((lambda = line_point_factor_v3(isect_a, line_a->vec, line_b->vec)) >= 0.0f) && (lambda <= 1.0f)))) use_a = FALSE;
 				if (!(!clip || (((lambda = line_point_factor_v3(isect_b, line_a->vec, line_b->vec)) >= 0.0f) && (lambda <= 1.0f)))) use_b = FALSE;
 				break;
 			default:
-				use_a = FALSE;
-				use_b = FALSE;
+				use_a = false;
+				use_b = false;
+				break;
 		}
 
 		if (use_a) { PyTuple_SET_ITEM(ret, 0,  Vector_CreatePyObject(isect_a, 3, Py_NEW, NULL)); }
@@ -816,6 +812,7 @@ static PyObject *M_Geometry_intersect_line_sphere_2d(PyObject *UNUSED(self), PyO
 			default:
 				use_a = false;
 				use_b = false;
+				break;
 		}
 
 		if (use_a) { PyTuple_SET_ITEM(ret, 0,  Vector_CreatePyObject(isect_a, 2, Py_NEW, NULL)); }

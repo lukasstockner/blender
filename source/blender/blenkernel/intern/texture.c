@@ -765,9 +765,6 @@ void BKE_texture_make_local(Tex *tex)
 	if (tex->id.us == 1) {
 		id_clear_lib_data(bmain, &tex->id);
 		extern_local_texture(tex);
-		/* nodetree uses same lib */
-		if (tex->nodetree)
-			tex->nodetree->id.lib = NULL;
 		return;
 	}
 	
@@ -827,9 +824,6 @@ void BKE_texture_make_local(Tex *tex)
 	if (is_local && is_lib == FALSE) {
 		id_clear_lib_data(bmain, &tex->id);
 		extern_local_texture(tex);
-		/* nodetree uses same lib */
-		if (tex->nodetree)
-			tex->nodetree->id.lib = NULL;
 	}
 	else if (is_local && is_lib) {
 		Tex *tex_new = BKE_texture_copy(tex);
@@ -911,42 +905,6 @@ void BKE_texture_make_local(Tex *tex)
 		}
 	}
 }
-
-/* ------------------------------------------------------------------------- */
-#if 0 /* UNUSED */
-void autotexname(Tex *tex)
-{
-	Main *bmain = G.main;
-	char texstr[20][15] = {"None", "Clouds", "Wood", "Marble", "Magic", "Blend",
-		                   "Stucci", "Noise", "Image", "EnvMap", "Musgrave",
-		                   "Voronoi", "DistNoise", "Point Density", "Voxel Data", "Ocean", "", "", ""};
-	Image *ima;
-	char di[FILE_MAXDIR], fi[FILE_MAXFILE];
-	
-	if (tex) {
-		if (tex->use_nodes) {
-			new_id(&bmain->tex, (ID *)tex, "Noddy");
-		}
-		else if (tex->type == TEX_IMAGE) {
-			ima = tex->ima;
-			if (ima) {
-				BLI_split_file_part(ima->name, fi, sizeof(fi));
-				strcpy(di, "I.");
-				strcat(di, fi);
-				new_id(&bmain->tex, (ID *)tex, di);
-			}
-			else {
-				new_id(&bmain->tex, (ID *)tex, texstr[tex->type]);
-			}
-		}
-		else {
-			new_id(&bmain->tex, (ID *)tex, texstr[tex->type]);
-		}
-	}
-}
-#endif
-
-/* ------------------------------------------------------------------------- */
 
 Tex *give_current_object_texture(Object *ob)
 {

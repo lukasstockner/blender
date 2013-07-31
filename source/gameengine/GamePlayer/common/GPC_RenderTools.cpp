@@ -37,6 +37,7 @@
 #include "RAS_LightObject.h"
 #include "RAS_ICanvas.h"
 #include "RAS_GLExtensionManager.h"
+#include "RAS_MeshObject.h"
 
 #include "KX_GameObject.h"
 #include "KX_PolygonMaterial.h"
@@ -166,6 +167,11 @@ void GPC_RenderTools::SetClientObject(RAS_IRasterizer *rasty, void* obj)
 bool GPC_RenderTools::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void * const data)
 {
 	double* const oglmatrix = (double* const) data;
+
+	RAS_Polygon* poly = result->m_hitMesh->GetPolygon(result->m_hitPolygon);
+	if (!poly->IsVisible())
+		return false;
+
 	MT_Point3 resultpoint(result->m_hitPoint);
 	MT_Vector3 resultnormal(result->m_hitNormal);
 	MT_Vector3 left(oglmatrix[0],oglmatrix[1],oglmatrix[2]);
@@ -216,7 +222,7 @@ void GPC_RenderTools::applyTransform(RAS_IRasterizer* rasty,double* oglmatrix,in
 
 		KX_GameObject* gameobj = (KX_GameObject*) this->m_clientobject;
 		// get scaling of halo object
-		MT_Vector3  size = gameobj->GetSGNode()->GetLocalScale();
+		MT_Vector3  size = gameobj->GetSGNode()->GetWorldScaling();
 		
 		bool screenaligned = (objectdrawmode & RAS_IPolyMaterial::BILLBOARD_SCREENALIGNED)!=0;//false; //either screen or axisaligned
 		if (screenaligned)
@@ -363,6 +369,8 @@ void GPC_RenderTools::RenderText3D(	int fontid,
 									double* mat,
 									float aspect)
 {
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); /* needed for texture fonts otherwise they render as wireframe */
+
 	if (GLEW_ARB_multitexture) {
 		for (int i=0; i<MAXTEX; i++) {
 			glActiveTextureARB(GL_TEXTURE0_ARB+i);

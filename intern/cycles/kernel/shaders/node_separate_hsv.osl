@@ -1,5 +1,5 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
+ * Copyright 2013, Blender Foundation.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -14,32 +14,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * This is a new part of Blender.
- *
- * Contributor(s): Willian P. Germano.
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenkernel/intern/script.c
- *  \ingroup bke
- */
+#include "stdosl.h"
+#include "node_color.h"
 
-
-
-#include "MEM_guardedalloc.h"
-
-#if 0
-#ifdef WITH_PYTHON
-#include "BPY_extern.h" // Blender Python library
-#endif
-#endif
-
-/* XXX this function and so also the file should not be needed anymore,
- * since we have to force clearing all Python related data before freeing
- * Blender's library. Still testing, will decide later (Willian). */
-
+shader node_separate_hsv(
+	color Color = 0.8,
+	output float H = 0.0,
+	output float S = 0.0,
+	output float V = 0.0)
+{
+	color col = rgb_to_hsv(Color);
+	
+	H = col[0];
+	S = col[1];
+	V = col[2];
+}

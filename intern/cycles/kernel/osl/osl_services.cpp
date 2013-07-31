@@ -84,6 +84,7 @@ ustring OSLRenderServices::u_curve_thickness("geom:curve_thickness");
 ustring OSLRenderServices::u_curve_tangent_normal("geom:curve_tangent_normal");
 #endif
 ustring OSLRenderServices::u_path_ray_length("path:ray_length");
+ustring OSLRenderServices::u_path_ray_depth("path:ray_depth");
 ustring OSLRenderServices::u_trace("trace");
 ustring OSLRenderServices::u_hit("hit");
 ustring OSLRenderServices::u_hitdist("hitdist");
@@ -104,9 +105,10 @@ OSLRenderServices::~OSLRenderServices()
 {
 }
 
-void OSLRenderServices::thread_init(KernelGlobals *kernel_globals_)
+void OSLRenderServices::thread_init(KernelGlobals *kernel_globals_, OSL::TextureSystem *osl_ts_)
 {
 	kernel_globals = kernel_globals_;
+	osl_ts = osl_ts_;
 }
 
 bool OSLRenderServices::get_matrix(OSL::Matrix44 &result, OSL::TransformationPtr xform, float time)
@@ -659,6 +661,11 @@ bool OSLRenderServices::get_background_attribute(KernelGlobals *kg, ShaderData *
 		float f = sd->ray_length;
 		return set_attribute_float(f, type, derivatives, val);
 	}
+	else if (name == u_path_ray_depth) {
+		/* Ray Depth */
+		int f = sd->ray_depth;
+		return set_attribute_int(f, type, derivatives, val);
+	}
 	else if (name == u_ndc) {
 		/* NDC coordinates with special exception for otho */
 		OSLThreadData *tdata = kg->osl_tdata;
@@ -767,7 +774,7 @@ bool OSLRenderServices::texture(ustring filename, TextureOpt &options,
                                 float s, float t, float dsdx, float dtdx,
                                 float dsdy, float dtdy, float *result)
 {
-	OSL::TextureSystem *ts = kernel_globals->osl->ts;
+	OSL::TextureSystem *ts = osl_ts;
 	bool status = ts->texture(filename, options, s, t, dsdx, dtdx, dsdy, dtdy, result);
 
 	if(!status) {
@@ -789,7 +796,7 @@ bool OSLRenderServices::texture3d(ustring filename, TextureOpt &options,
                                   const OSL::Vec3 &dPdx, const OSL::Vec3 &dPdy,
                                   const OSL::Vec3 &dPdz, float *result)
 {
-	OSL::TextureSystem *ts = kernel_globals->osl->ts;
+	OSL::TextureSystem *ts = osl_ts;
 	bool status = ts->texture3d(filename, options, P, dPdx, dPdy, dPdz, result);
 
 	if(!status) {
@@ -811,7 +818,7 @@ bool OSLRenderServices::environment(ustring filename, TextureOpt &options,
                                     OSL::ShaderGlobals *sg, const OSL::Vec3 &R,
                                     const OSL::Vec3 &dRdx, const OSL::Vec3 &dRdy, float *result)
 {
-	OSL::TextureSystem *ts = kernel_globals->osl->ts;
+	OSL::TextureSystem *ts = osl_ts;
 	bool status = ts->environment(filename, options, R, dRdx, dRdy, result);
 
 	if(!status) {
@@ -832,7 +839,7 @@ bool OSLRenderServices::get_texture_info(ustring filename, int subimage,
                                          ustring dataname,
                                          TypeDesc datatype, void *data)
 {
-	OSL::TextureSystem *ts = kernel_globals->osl->ts;
+	OSL::TextureSystem *ts = osl_ts;
 	return ts->get_texture_info(filename, subimage, dataname, datatype, data);
 }
 
@@ -918,7 +925,10 @@ bool OSLRenderServices::getmessage(OSL::ShaderGlobals *sg, ustring source, ustri
 
 				if(!tracedata->setup) {
 					/* lazy shader data setup */
-					shader_setup_from_ray(kg, sd, &tracedata->isect, &tracedata->ray);
+					ShaderData *original_sd = (ShaderData *)(sg->renderstate);
+					int bounce = original_sd->ray_depth + 1;
+
+					shader_setup_from_ray(kg, sd, &tracedata->isect, &tracedata->ray, bounce);
 					tracedata->setup = true;
 				}
 

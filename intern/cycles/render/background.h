@@ -34,6 +34,9 @@ public:
 
 	bool use;
 
+	uint visibility;
+	uint shader;
+
 	bool transparent;
 	bool need_update;
 

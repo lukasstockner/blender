@@ -735,6 +735,13 @@ static void node_shader_buts_vect_math(uiLayout *layout, bContext *UNUSED(C), Po
 	uiItemR(layout, ptr, "operation", 0, "", ICON_NONE);
 }
 
+static void node_shader_buts_vect_transform(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{ 
+	uiItemR(layout, ptr, "type", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "convert_from", 0, "", ICON_NONE);
+	uiItemR(layout, ptr, "convert_to", 0, "", ICON_NONE);
+}
+
 static void node_shader_buts_geometry(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
 	PointerRNA obptr = CTX_data_pointer_get(C, "active_object");
@@ -781,6 +788,12 @@ static void node_shader_buts_tex_image(uiLayout *layout, bContext *C, PointerRNA
 	 * which redefines them in the node struct RNA to get proper updates.
 	 */
 	node_buts_image_user(layout, C, &iuserptr, &imaptr, &iuserptr);
+}
+
+static void node_shader_buts_tex_image_details(uiLayout *layout, bContext *C, PointerRNA *ptr)
+{
+	PointerRNA iuserptr = RNA_pointer_get(ptr, "image_user");
+	uiTemplateImage(layout, C, ptr, "image", &iuserptr, 0);
 }
 
 static void node_shader_buts_tex_environment(uiLayout *layout, bContext *C, PointerRNA *ptr)
@@ -969,6 +982,9 @@ static void node_shader_set_butfunc(bNodeType *ntype)
 		case SH_NODE_VECT_MATH: 
 			ntype->uifunc = node_shader_buts_vect_math;
 			break; 
+		case SH_NODE_VECT_TRANSFORM: 
+			ntype->uifunc = node_shader_buts_vect_transform;
+			break; 
 		case SH_NODE_GEOMETRY:
 			ntype->uifunc = node_shader_buts_geometry;
 			break;
@@ -983,6 +999,7 @@ static void node_shader_set_butfunc(bNodeType *ntype)
 			break;
 		case SH_NODE_TEX_IMAGE:
 			ntype->uifunc = node_shader_buts_tex_image;
+			ntype->uifuncbut = node_shader_buts_tex_image_details;
 			break;
 		case SH_NODE_TEX_ENVIRONMENT:
 			ntype->uifunc = node_shader_buts_tex_environment;
@@ -1052,19 +1069,10 @@ static void node_composit_buts_image(uiLayout *layout, bContext *C, PointerRNA *
 static void node_composit_buts_image_details(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
 	bNode *node = ptr->data;
-	PointerRNA imaptr;
+	PointerRNA iuserptr;
 
-	node_composit_buts_image(layout, C, ptr);
-
-	uiItemR(layout, ptr, "use_straight_alpha_output", 0, NULL, 0);
-
-	if (!node->id)
-		return;
-
-	imaptr = RNA_pointer_get(ptr, "image");
-
-	uiTemplateColorspaceSettings(layout, &imaptr, "colorspace_settings");
-	uiItemR(layout, &imaptr, "alpha_mode", 0, NULL, 0);
+	RNA_pointer_create((ID *)ptr->id.data, &RNA_ImageUser, node->storage, &iuserptr);
+	uiTemplateImage(layout, C, ptr, "image", &iuserptr, 0);
 }
 
 static void node_composit_buts_renderlayers(uiLayout *layout, bContext *C, PointerRNA *ptr)
@@ -1379,6 +1387,7 @@ static void node_composit_buts_zcombine(uiLayout *layout, bContext *UNUSED(C), P
 	
 	col = uiLayoutColumn(layout, TRUE);
 	uiItemR(col, ptr, "use_alpha", 0, NULL, ICON_NONE);
+	uiItemR(col, ptr, "use_antialias_z", 0, NULL, ICON_NONE);
 }
 
 
@@ -2021,9 +2030,6 @@ static void node_composit_backdrop_boxmask(SpaceNode *snode, ImBuf *backdrop, bN
 	float y1, y2, y3, y4;
 
 
-	/* keep this, saves us from a version patch */
-	if (snode->zoom == 0.0f) snode->zoom = 1.0f;
-
 	glColor3f(1.0, 1.0, 1.0);
 
 	cx  = x + snode->zoom * backdropWidth * boxmask->x;
@@ -2061,9 +2067,6 @@ static void node_composit_backdrop_ellipsemask(SpaceNode *snode, ImBuf *backdrop
 	float cx, cy, x1, x2, x3, x4;
 	float y1, y2, y3, y4;
 
-
-	/* keep this, saves us from a version patch */
-	if (snode->zoom == 0.0f) snode->zoom = 1.0f;
 
 	glColor3f(1.0, 1.0, 1.0);
 
@@ -2216,7 +2219,7 @@ static void node_composit_buts_trackpos(uiLayout *layout, bContext *C, PointerRN
 
 		uiItemR(layout, ptr, "position", 0, NULL, ICON_NONE);
 
-		if (node->custom1 == 2) {
+		if (ELEM(node->custom1, CMP_TRACKPOS_RELATIVE_FRAME, CMP_TRACKPOS_ABSOLUTE_FRAME)) {
 			uiItemR(layout, ptr, "frame_relative", 0, NULL, ICON_NONE);
 		}
 	}
@@ -2544,6 +2547,15 @@ static void node_texture_buts_image(uiLayout *layout, bContext *C, PointerRNA *p
 	uiTemplateID(layout, C, ptr, "image", NULL, "IMAGE_OT_open", NULL);
 }
 
+static void node_texture_buts_image_details(uiLayout *layout, bContext *C, PointerRNA *ptr)
+{
+	bNode *node = ptr->data;
+	PointerRNA iuserptr;
+
+	RNA_pointer_create((ID *)ptr->id.data, &RNA_ImageUser, node->storage, &iuserptr);
+	uiTemplateImage(layout, C, ptr, "image", &iuserptr, 0);
+}
+
 static void node_texture_buts_output(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiItemR(layout, ptr, "filepath", 0, "", ICON_NONE);
@@ -2588,6 +2600,7 @@ static void node_texture_set_butfunc(bNodeType *ntype)
 
 			case TEX_NODE_IMAGE:
 				ntype->uifunc = node_texture_buts_image;
+				ntype->uifuncbut = node_texture_buts_image_details;
 				break;
 
 			case TEX_NODE_OUTPUT:
@@ -2773,7 +2786,8 @@ static void std_node_socket_draw(bContext *C, uiLayout *layout, PointerRNA *ptr,
 		case SOCK_VECTOR:
 			uiTemplateComponentMenu(layout, ptr, "default_value", text);
 			break;
-		case SOCK_RGBA: {
+		case SOCK_RGBA:
+		{
 			uiLayout *row = uiLayoutRow(layout, false);
 			uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_LEFT);
 			/* draw the socket name right of the actual button */
@@ -2781,14 +2795,14 @@ static void std_node_socket_draw(bContext *C, uiLayout *layout, PointerRNA *ptr,
 			uiItemL(row, text, 0);
 			break;
 		}
-		case SOCK_STRING: {
+		case SOCK_STRING:
+		{
 			uiLayout *row = uiLayoutRow(layout, true);
 			/* draw the socket name right of the actual button */
 			uiItemR(row, ptr, "default_value", 0, "", 0);
 			uiItemL(row, text, 0);
 			break;
 		}
-		
 		default:
 			node_socket_button_label(C, layout, ptr, node_ptr, text);
 			break;
@@ -2802,7 +2816,8 @@ static void std_node_socket_interface_draw(bContext *UNUSED(C), uiLayout *layout
 	/*int subtype = sock->typeinfo->subtype;*/
 	
 	switch (type) {
-		case SOCK_FLOAT: {
+		case SOCK_FLOAT:
+		{
 			uiLayout *row;
 			uiItemR(layout, ptr, "default_value", 0, NULL, 0);
 			row = uiLayoutRow(layout, true);
@@ -2810,7 +2825,8 @@ static void std_node_socket_interface_draw(bContext *UNUSED(C), uiLayout *layout
 			uiItemR(row, ptr, "max_value", 0, "Max", 0);
 			break;
 		}
-		case SOCK_INT: {
+		case SOCK_INT:
+		{
 			uiLayout *row;
 			uiItemR(layout, ptr, "default_value", 0, NULL, 0);
 			row = uiLayoutRow(layout, true);
@@ -2818,11 +2834,13 @@ static void std_node_socket_interface_draw(bContext *UNUSED(C), uiLayout *layout
 			uiItemR(row, ptr, "max_value", 0, "Max", 0);
 			break;
 		}
-		case SOCK_BOOLEAN: {
+		case SOCK_BOOLEAN:
+		{
 			uiItemR(layout, ptr, "default_value", 0, NULL, 0);
 			break;
 		}
-		case SOCK_VECTOR: {
+		case SOCK_VECTOR:
+		{
 			uiLayout *row;
 			uiItemR(layout, ptr, "default_value", UI_ITEM_R_EXPAND, NULL, 0);
 			row = uiLayoutRow(layout, true);
@@ -2830,11 +2848,13 @@ static void std_node_socket_interface_draw(bContext *UNUSED(C), uiLayout *layout
 			uiItemR(row, ptr, "max_value", 0, "Max", 0);
 			break;
 		}
-		case SOCK_RGBA: {
+		case SOCK_RGBA:
+		{
 			uiItemR(layout, ptr, "default_value", 0, NULL, 0);
 			break;
 		}
-		case SOCK_STRING: {
+		case SOCK_STRING:
+		{
 			uiItemR(layout, ptr, "default_value", 0, NULL, 0);
 			break;
 		}
@@ -2885,9 +2905,6 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 		glPushMatrix();
 		glMatrixMode(GL_MODELVIEW);
 		glPushMatrix();
-		
-		/* keep this, saves us from a version patch */
-		if (snode->zoom == 0.0f) snode->zoom = 1.0f;
 		
 		/* somehow the offset has to be calculated inverse */
 		

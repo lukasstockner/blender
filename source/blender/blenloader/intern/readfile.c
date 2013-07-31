@@ -4148,6 +4148,11 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 	mesh->bb = NULL;
 	mesh->edit_btmesh = NULL;
 	
+	/* happens with old files */
+	if (mesh->mselect == NULL) {
+		mesh->totselect = 0;
+	}
+
 	/* Multires data */
 	mesh->mr= newdataadr(fd, mesh->mr);
 	if (mesh->mr) {
@@ -5703,8 +5708,9 @@ static void lib_link_screen(FileData *fd, Main *main)
 						ntree = nodetree_from_id(snode->id);
 						if (ntree)
 							snode->nodetree = ntree;
-						else
-							snode->nodetree = newlibadr(fd, sc->id.lib, snode->nodetree);
+						else {
+							snode->nodetree = newlibadr_us(fd, sc->id.lib, snode->nodetree);
+						}
 						
 						for (path = snode->treepath.first; path; path = path->next) {
 							if (path == snode->treepath.first) {
@@ -5712,7 +5718,7 @@ static void lib_link_screen(FileData *fd, Main *main)
 								path->nodetree = snode->nodetree;
 							}
 							else
-								path->nodetree = newlibadr(fd, sc->id.lib, path->nodetree);
+								path->nodetree = newlibadr_us(fd, sc->id.lib, path->nodetree);
 							
 							if (!path->nodetree)
 								break;
@@ -5797,21 +5803,23 @@ static void *restore_pointer_by_name(Main *mainp, ID *id, int user)
 	return NULL;
 }
 
+static void lib_link_seq_clipboard_pt_restore(ID *id, Main *newmain)
+{
+	if (id) {
+		/* clipboard must ensure this */
+		BLI_assert(id->newid != NULL);
+		id->newid = restore_pointer_by_name(newmain, (ID *)id->newid, 1);
+	}
+}
 static int lib_link_seq_clipboard_cb(Sequence *seq, void *arg_pt)
 {
 	Main *newmain = (Main *)arg_pt;
-	
-	if (seq->sound) {
-		seq->sound = restore_pointer_by_name(newmain, (ID *)seq->sound, 0);
-		seq->sound->id.us++;
-	}
-	
-	if (seq->scene)
-		seq->scene = restore_pointer_by_name(newmain, (ID *)seq->scene, 1);
-	
-	if (seq->scene_camera)
-		seq->scene_camera = restore_pointer_by_name(newmain, (ID *)seq->scene_camera, 1);
-	
+
+	lib_link_seq_clipboard_pt_restore((ID *)seq->scene, newmain);
+	lib_link_seq_clipboard_pt_restore((ID *)seq->scene_camera, newmain);
+	lib_link_seq_clipboard_pt_restore((ID *)seq->clip, newmain);
+	lib_link_seq_clipboard_pt_restore((ID *)seq->mask, newmain);
+	lib_link_seq_clipboard_pt_restore((ID *)seq->sound, newmain);
 	return 1;
 }
 
@@ -6041,7 +6049,7 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 							path->nodetree = snode->nodetree;
 						}
 						else
-							path->nodetree= restore_pointer_by_name(newmain, (ID*)path->nodetree, 0);
+							path->nodetree= restore_pointer_by_name(newmain, (ID*)path->nodetree, 2);
 						
 						if (!path->nodetree)
 							break;
@@ -7683,31 +7691,38 @@ static const char *node_get_static_idname(int type, int treetype)
 static const char *node_socket_get_static_idname(bNodeSocket *sock)
 {
 	switch (sock->type) {
-	case SOCK_FLOAT: {
-		bNodeSocketValueFloat *dval = sock->default_value;
-		return nodeStaticSocketType(SOCK_FLOAT, dval->subtype);
-	}
-	case SOCK_INT: {
-		bNodeSocketValueInt *dval = sock->default_value;
-		return nodeStaticSocketType(SOCK_INT, dval->subtype);
-	}
-	case SOCK_BOOLEAN: {
-		return nodeStaticSocketType(SOCK_BOOLEAN, PROP_NONE);
-	}
-	case SOCK_VECTOR: {
-		bNodeSocketValueVector *dval = sock->default_value;
-		return nodeStaticSocketType(SOCK_VECTOR, dval->subtype);
-	}
-	case SOCK_RGBA: {
-		return nodeStaticSocketType(SOCK_RGBA, PROP_NONE);
-	}
-	case SOCK_STRING: {
-		bNodeSocketValueString *dval = sock->default_value;
-		return nodeStaticSocketType(SOCK_STRING, dval->subtype);
-	}
-	case SOCK_SHADER: {
-		return nodeStaticSocketType(SOCK_SHADER, PROP_NONE);
-	}
+		case SOCK_FLOAT:
+		{
+			bNodeSocketValueFloat *dval = sock->default_value;
+			return nodeStaticSocketType(SOCK_FLOAT, dval->subtype);
+		}
+		case SOCK_INT:
+		{
+			bNodeSocketValueInt *dval = sock->default_value;
+			return nodeStaticSocketType(SOCK_INT, dval->subtype);
+		}
+		case SOCK_BOOLEAN:
+		{
+			return nodeStaticSocketType(SOCK_BOOLEAN, PROP_NONE);
+		}
+		case SOCK_VECTOR:
+		{
+			bNodeSocketValueVector *dval = sock->default_value;
+			return nodeStaticSocketType(SOCK_VECTOR, dval->subtype);
+		}
+		case SOCK_RGBA:
+		{
+			return nodeStaticSocketType(SOCK_RGBA, PROP_NONE);
+		}
+		case SOCK_STRING:
+		{
+			bNodeSocketValueString *dval = sock->default_value;
+			return nodeStaticSocketType(SOCK_STRING, dval->subtype);
+		}
+		case SOCK_SHADER:
+		{
+			return nodeStaticSocketType(SOCK_SHADER, PROP_NONE);
+		}
 	}
 	return "";
 }
@@ -9331,7 +9346,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	}
 
 	if (main->versionfile < 267) {
-		//if(!DNA_struct_elem_find(fd->filesdna, "Brush", "int", "stencil_pos")) {
+		//if (!DNA_struct_elem_find(fd->filesdna, "Brush", "int", "stencil_pos")) {
 		Brush *brush;
 
 		for (brush = main->brush.first; brush; brush = brush->id.next) {
@@ -9474,8 +9489,15 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 
-
+	if (!MAIN_VERSION_ATLEAST(main, 268, 1)) {
+		Brush *brush;
+		for (brush = main->brush.first; brush; brush = brush->id.next) {
+			brush->spacing = MAX2(1, brush->spacing);
+		}
+	}
+	
 	{
+		bScreen *sc;
 		Object *ob;
 
 		for (ob = main->object.first; ob; ob = ob->id.next) {
@@ -9486,6 +9508,26 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 					if ((smd->type & MOD_SMOKE_TYPE_FLOW) && smd->flow) {
 						if (!smd->flow->particle_size) {
 							smd->flow->particle_size = 1.0f;
+						}
+					}
+				}
+			}
+		}
+
+		/*
+		 * FIX some files have a zoom level of 0, and was checked during the drawing of the node space
+		 *
+		 * We moved this check to the do versions to be sure the value makes any sense.
+		 */
+		for (sc = main->screen.first; sc; sc = sc->id.next) {
+			ScrArea *sa;
+			for (sa = sc->areabase.first; sa; sa = sa->next) {
+				SpaceLink *sl;
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_NODE) {
+						SpaceNode *snode = (SpaceNode *)sl;
+						if (snode->zoom < 0.02f) {
+							snode->zoom = 1.0;
 						}
 					}
 				}
@@ -9584,6 +9626,7 @@ static BHead *read_userdef(BlendFileData *bfd, FileData *fd, BHead *bhead)
 	link_list(fd, &user->themes);
 	link_list(fd, &user->user_keymaps);
 	link_list(fd, &user->addons);
+	link_list(fd, &user->autoexec_paths);
 	
 	for (keymap=user->user_keymaps.first; keymap; keymap=keymap->next) {
 		keymap->modal_items= NULL;

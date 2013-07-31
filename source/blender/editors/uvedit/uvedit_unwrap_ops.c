@@ -44,6 +44,7 @@
 #include "DNA_modifier_types.h"
 
 #include "BLI_utildefines.h"
+#include "BLI_alloca.h"
 #include "BLI_math.h"
 #include "BLI_edgehash.h"
 #include "BLI_uvproject.h"
@@ -65,7 +66,6 @@
 #include "BLI_math.h"
 #include "BLI_edgehash.h"
 #include "BLI_scanfill.h"
-#include "BLI_array.h"
 #include "BLI_uvproject.h"
 
 #include "PIL_time.h"
@@ -205,7 +205,7 @@ void uvedit_get_aspect(Scene *scene, Object *ob, BMEditMesh *em, float *aspx, fl
 	BMFace *efa;
 	Image *ima;
 
-	efa = BM_active_face_get(em->bm, sloppy, selected);
+	efa = BM_mesh_active_face_get(em->bm, sloppy, selected);
 
 	if (efa) {
 		if (BKE_scene_use_new_shading_nodes(scene)) {

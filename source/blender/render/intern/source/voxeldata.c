@@ -156,7 +156,7 @@ static void load_frame_image_sequence(VoxelData *vd, Tex *tex)
 	int x = 0, y = 0, z = 0;
 	float *rf;
 
-	if (!ima || !tiuser) return;
+	if (!ima) return;
 	if (iuser.frames == 0) return;
 	
 	ima->source = IMA_SRC_SEQUENCE;
@@ -224,7 +224,7 @@ static int read_voxeldata_header(FILE *fp, struct VoxelData *vd)
 	return 1;
 }
 
-static void init_frame_smoke(VoxelData *vd, float cfra)
+static void init_frame_smoke(VoxelData *vd, int cfra)
 {
 #ifdef WITH_SMOKE
 	Object *ob;

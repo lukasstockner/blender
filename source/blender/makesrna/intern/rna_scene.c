@@ -120,6 +120,8 @@ EnumPropertyItem proportional_falloff_curve_only_items[] = {
 EnumPropertyItem proportional_editing_items[] = {
 	{PROP_EDIT_OFF, "DISABLED", ICON_PROP_OFF, "Disable", "Proportional Editing disabled"},
 	{PROP_EDIT_ON, "ENABLED", ICON_PROP_ON, "Enable", "Proportional Editing enabled"},
+	{PROP_EDIT_PROJECTED, "PROJECTED", ICON_PROP_ON, "Projected (2D)",
+	                      "Proportional Editing using screen space locations"},
 	{PROP_EDIT_CONNECTED, "CONNECTED", ICON_PROP_CON, "Connected",
 	                      "Proportional Editing using connected geometry only"},
 	{0, NULL, 0, NULL, NULL}
@@ -521,6 +523,13 @@ static void rna_Scene_frame_current_set(PointerRNA *ptr, int value)
 	/* if negative frames aren't allowed, then we can't use them */
 	FRAMENUMBER_MIN_CLAMP(value);
 	data->r.cfra = value;
+}
+
+static float rna_Scene_frame_current_final_get(PointerRNA *ptr)
+{
+	Scene *scene = (Scene *)ptr->data;
+
+	return BKE_scene_frame_get_from_ctime(scene, (float)scene->r.cfra);
 }
 
 static void rna_Scene_start_frame_set(PointerRNA *ptr, int value)
@@ -1195,7 +1204,7 @@ static void rna_SceneRenderLayer_pass_update(Main *bmain, Scene *activescene, Po
 	Scene *scene = (Scene *)ptr->id.data;
 
 	if (scene->nodetree)
-		ntreeCompositForceHidden(scene->nodetree, scene);
+		ntreeCompositForceHidden(scene->nodetree);
 	
 	rna_Scene_glsl_update(bmain, activescene, ptr);
 }
@@ -1255,6 +1264,12 @@ static void object_simplify_update(Object *ob)
 	ModifierData *md;
 	ParticleSystem *psys;
 
+	if ((ob->id.flag & LIB_DOIT) == 0) {
+		return;
+	}
+
+	ob->id.flag &= ~LIB_DOIT;
+
 	for (md = ob->modifiers.first; md; md = md->next) {
 		if (ELEM3(md->type, eModifierType_Subsurf, eModifierType_Multires, eModifierType_ParticleSystem)) {
 			ob->recalc |= PSYS_RECALC_CHILD;
@@ -1279,6 +1294,7 @@ static void rna_Scene_use_simplify_update(Main *bmain, Scene *UNUSED(scene), Poi
 	Scene *sce_iter;
 	Base *base;
 
+	tag_main_lb(&bmain->object, TRUE);
 	for (SETLOOPER(sce, sce_iter, base))
 		object_simplify_update(base->object);
 	
@@ -1631,6 +1647,14 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem vertex_group_select_items[] = {
+		{WT_VGROUP_ALL, "ALL", 0, "All", "All Vertex Groups"},
+		{WT_VGROUP_BONE_DEFORM, "BONE_DEFORM", 0, "Deform", "Vertex Groups assigned to Deform Bones"},
+		{WT_VGROUP_BONE_DEFORM_OFF, "OTHER_DEFORM", 0, "Other", "Vertex Groups assigned to non Deform Bones"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+
 	srna = RNA_def_struct(brna, "ToolSettings", NULL);
 	RNA_def_struct_path_func(srna, "rna_ToolSettings_path");
 	RNA_def_struct_ui_text(srna, "Tool Settings", "");
@@ -1659,10 +1683,14 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	RNA_def_property_ui_text(prop, "Mask Non-Group Vertices", "Display unweighted vertices (multi-paint overrides)");
 	RNA_def_property_update(prop, 0, "rna_Scene_update_active_object_data");
 
+	prop = RNA_def_property(srna, "vertex_group_subset", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "vgroupsubset");
+	RNA_def_property_enum_items(prop, vertex_group_select_items);
+	RNA_def_property_ui_text(prop, "Subset", "Filter Vertex groups for Display");
+	RNA_def_property_update(prop, 0, "rna_Scene_update_active_object_data");
 
 	prop = RNA_def_property(srna, "vertex_paint", PROP_POINTER, PROP_NONE);
-	RNA_def_property_pointer_sdna(prop, NULL, "vpaint");
-	RNA_def_property_ui_text(prop, "Vertex Paint", "");
+	RNA_def_property_pointer_sdna(prop, NULL, "vpaint");	RNA_def_property_ui_text(prop, "Vertex Paint", "");
 
 	prop = RNA_def_property(srna, "weight_paint", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "wpaint");
@@ -1751,6 +1779,7 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	prop = RNA_def_property(srna, "use_mesh_automerge", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "automerge", 0);
 	RNA_def_property_ui_text(prop, "AutoMerge Editing", "Automatically merge vertices moved to the same location");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* header redraw */
 
 	prop = RNA_def_property(srna, "use_snap", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "snap_flag", SCE_SNAP);
@@ -3097,6 +3126,13 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem vsync_items[] = {
+		{VSYNC_OFF, "OFF", 0, "Off", "Disables vsync"},
+		{VSYNC_ON, "ON", 0, "On", "Enables vsync"},
+		{VSYNC_ADAPTIVE, "ADAPTIVE", 0, "Adaptive", "Enables adaptive vsync (if supported)"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	static EnumPropertyItem storage_items[] = {
 		{RAS_STORE_AUTO, "AUTO", 0, "Auto Select", "Chooses the best supported mode"},
 		{RAS_STORE_IMMEDIATE, "IMMEDIATE", 0, "Immediate Mode", "Slowest performance, requires OpenGL (any version)"},
@@ -3123,6 +3159,11 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_range(prop, 4, 10000);
 	RNA_def_property_ui_text(prop, "Resolution Y", "Number of vertical pixels in the screen");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
+
+	prop = RNA_def_property(srna, "vsync", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "vsync");
+	RNA_def_property_enum_items(prop, vsync_items);
+	RNA_def_property_ui_text(prop, "Vsync", "Change vsync settings");
 	
 	prop = RNA_def_property(srna, "samples", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "aasamples");
@@ -5127,6 +5168,13 @@ void RNA_def_scene(BlenderRNA *brna)
 	                         "Number of frames to skip forward while rendering/playing back each frame");
 	RNA_def_property_update(prop, NC_SCENE | ND_FRAME, NULL);
 	
+	prop = RNA_def_property(srna, "frame_current_final", PROP_FLOAT, PROP_TIME);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE | PROP_EDITABLE);
+	RNA_def_property_range(prop, MINAFRAME, MAXFRAME);
+	RNA_def_property_float_funcs(prop, "rna_Scene_frame_current_final_get", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Current Frame Final",
+	                         "Current frame with subframe and time remapping applied");
+
 	/* Preview Range (frame-range for UI playback) */
 	prop = RNA_def_property(srna, "use_preview_range", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);

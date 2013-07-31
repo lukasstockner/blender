@@ -75,7 +75,8 @@ enum ShaderBump {
 enum ShaderNodeSpecialType {
 	SHADER_SPECIAL_TYPE_NONE,
 	SHADER_SPECIAL_TYPE_PROXY,
-	SHADER_SPECIAL_TYPE_MIX_CLOSURE
+	SHADER_SPECIAL_TYPE_MIX_CLOSURE,
+	SHADER_SPECIAL_TYPE_AUTOCONVERT
 };
 
 /* Enum
@@ -188,6 +189,7 @@ public:
 	virtual bool has_surface_emission() { return false; }
 	virtual bool has_surface_transparent() { return false; }
 	virtual bool has_surface_bssrdf() { return false; }
+	virtual bool has_converter_blackbody() { return false; }
 
 	vector<ShaderInput*> inputs;
 	vector<ShaderOutput*> outputs;

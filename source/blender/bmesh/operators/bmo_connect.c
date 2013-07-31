@@ -23,14 +23,14 @@
 /** \file blender/bmesh/operators/bmo_connect.c
  *  \ingroup bmesh
  *
- * Connect verts across faces (splits faces) and bridge tool.
+ * Connect verts across faces (splits faces).
  */
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math.h"
-#include "BLI_array.h"
 #include "BLI_utildefines.h"
+#include "BLI_alloca.h"
 
 #include "bmesh.h"
 
@@ -83,7 +83,7 @@ static int bm_face_connect_verts(BMesh *bm, BMFace *f)
 		l_pair[1] = loops_split[0][0];
 	}
 
-	BM_face_legal_splits(bm, f, loops_split, STACK_SIZE(loops_split));
+	BM_face_legal_splits(f, loops_split, STACK_SIZE(loops_split));
 
 	for (i = 0; i < STACK_SIZE(loops_split); i++) {
 		BMVert **v_pair;

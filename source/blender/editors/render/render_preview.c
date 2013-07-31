@@ -964,7 +964,7 @@ static void icon_preview_startjob(void *customdata, short *stop, short *do_updat
 
 		br->icon_imbuf = get_brush_icon(br);
 
-		memset(sp->pr_rect, 0x888888, sp->sizex * sp->sizey * sizeof(unsigned int));
+		memset(sp->pr_rect, 0x88, sp->sizex * sp->sizey * sizeof(unsigned int));
 
 		if (!(br->icon_imbuf) || !(br->icon_imbuf->rect))
 			return;
@@ -1180,5 +1180,7 @@ void ED_preview_kill_jobs(const struct bContext *C)
 	wmWindowManager *wm = CTX_wm_manager(C);
 	if (wm)
 		WM_jobs_kill(wm, NULL, common_preview_startjob);
+	
+	ED_viewport_render_kill_jobs(C, false);
 }
 
