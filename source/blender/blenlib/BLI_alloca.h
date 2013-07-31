@@ -15,27 +15,32 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file GPC_RawLogoArrays.h
- *  \ingroup player
+#ifndef __BLI_ALLOCA_H__
+
+/** \file BLI_alloca.h
+ *  \ingroup bli
+ *
+ * Defines alloca and utility macro BLI_array_alloca
  */
 
-#ifndef __GPC_RAWLOGOARRAYS_H__
-#define __GPC_RAWLOGOARRAYS_H__
-
-void GetRawBlenderLogo(unsigned char **data, int *width, int *height);
-void GetRawBlender3DLogo(unsigned char **data, int *width, int *height);
-#if 0
-void GetRawNaNLogo(unsigned char **data, int *width, int *height);
+/* BLI_array_alloca / alloca */
+#ifdef _MSC_VER
+#  define alloca _alloca
 #endif
 
-#endif  /* __GPC_RAWLOGOARRAYS_H__ */
+#if defined(__MINGW32__)
+#  include <malloc.h>  /* mingw needs for alloca() */
+#endif
+
+#if defined(__GNUC__) || defined(__clang__)
+#define BLI_array_alloca(arr, realsize) \
+	(typeof(arr))alloca(sizeof(*arr) * (realsize))
+#else
+#define BLI_array_alloca(arr, realsize) \
+	alloca(sizeof(*arr) * (realsize))
+#endif
+
+#endif /* __BLI_ALLOCA_H__ */

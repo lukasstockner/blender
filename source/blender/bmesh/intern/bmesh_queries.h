@@ -27,6 +27,8 @@
  *  \ingroup bmesh
  */
 
+typedef bool (*BMElemFilterFunc)(BMElem *, void *user_data);
+
 bool    BM_vert_in_face(BMFace *f, BMVert *v);
 int     BM_verts_in_face_count(BMFace *f, BMVert **varr, int len);
 bool    BM_verts_in_face(BMFace *f, BMVert **varr, int len);
@@ -114,9 +116,16 @@ bool BM_edge_is_any_vert_flag_test(BMEdge *e, const char hflag);
 bool BM_face_is_any_vert_flag_test(BMFace *f, const char hflag);
 bool BM_face_is_any_edge_flag_test(BMFace *f, const char hflag);
 
+bool BM_face_is_normal_valid(BMFace *f);
+
 float BM_mesh_calc_volume(BMesh *bm, bool is_signed);
+
 int   BM_mesh_calc_face_groups(BMesh *bm, int *r_groups_array, int (**r_group_index)[2],
-                               void *user_data, bool (*filter_fn)(BMEdge *, void *user_data));
+                               BMElemFilterFunc filter_fn, void *user_data,
+                               const char hflag_test, const char htype_step);
+int   BM_mesh_calc_edge_groups(BMesh *bm, int *r_groups_array, int (**r_group_index)[2],
+                               BMElemFilterFunc filter_fn, void *user_data,
+                               const char hflag_test);
 
 /* not really any good place  to put this */
 float bmesh_subd_falloff_calc(const int falloff, float val);

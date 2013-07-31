@@ -239,7 +239,7 @@ size_t BLI_strncpy_wchar_as_utf8(char *__restrict dst, const wchar_t *__restrict
 	memset(dst, 0xff, sizeof(*dst) * maxncpy);
 #endif
 
-	while (*src && len != maxlen) { /* XXX can still run over the buffer because utf8 size isn't known :| */
+	while (*src && len < maxlen) { /* XXX can still run over the buffer because utf8 size isn't known :| */
 		len += BLI_str_utf8_from_unicode((unsigned int)*src++, dst + len);
 	}
 
@@ -260,7 +260,7 @@ size_t BLI_wstrlen_utf8(const wchar_t *src)
 	return len;
 }
 
-size_t BLI_strlen_utf8_ex(const char *strc, int *r_len_bytes)
+size_t BLI_strlen_utf8_ex(const char *strc, size_t *r_len_bytes)
 {
 	size_t len;
 	const char *strc_orig = strc;
@@ -268,7 +268,7 @@ size_t BLI_strlen_utf8_ex(const char *strc, int *r_len_bytes)
 	for (len = 0; *strc; len++)
 		strc += BLI_str_utf8_size_safe(strc);
 
-	*r_len_bytes = (strc - strc_orig);
+	*r_len_bytes = (size_t)(strc - strc_orig);
 	return len;
 }
 
@@ -282,7 +282,7 @@ size_t BLI_strlen_utf8(const char *strc)
 	return len;
 }
 
-size_t BLI_strnlen_utf8_ex(const char *strc, const size_t maxlen, int *r_len_bytes)
+size_t BLI_strnlen_utf8_ex(const char *strc, const size_t maxlen, size_t *r_len_bytes)
 {
 	size_t len;
 	const char *strc_orig = strc;
@@ -292,7 +292,7 @@ size_t BLI_strnlen_utf8_ex(const char *strc, const size_t maxlen, int *r_len_byt
 		strc += BLI_str_utf8_size_safe(strc);
 	}
 
-	*r_len_bytes = (strc - strc_orig);
+	*r_len_bytes = (size_t)(strc - strc_orig);
 	return len;
 }
 

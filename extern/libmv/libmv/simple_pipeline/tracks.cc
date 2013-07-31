@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <vector>
 #include <iterator>
+#include <cstdio>
 
 #include "libmv/numeric/numeric.h"
 

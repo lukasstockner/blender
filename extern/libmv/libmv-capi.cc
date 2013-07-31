@@ -62,7 +62,7 @@
 #  define snprintf _snprintf
 #endif
 
-typedef struct libmv_Reconstruction {
+struct libmv_Reconstruction {
 	libmv::EuclideanReconstruction reconstruction;
 
 	/* used for per-track average error calculation after reconstruction */
@@ -70,12 +70,12 @@ typedef struct libmv_Reconstruction {
 	libmv::CameraIntrinsics intrinsics;
 
 	double error;
-} libmv_Reconstruction;
+};
 
-typedef struct libmv_Features {
+struct libmv_Features {
 	int count, margin;
 	libmv::Feature *features;
-} libmv_Features;
+};
 
 /* ************ Logging ************ */
 
@@ -197,30 +197,30 @@ static void saveImage(const char *prefix, libmv::FloatImage image, int x0, int y
 	int x, y;
 	png_bytep *row_pointers;
 
-	row_pointers= (png_bytep*)malloc(sizeof(png_bytep)*image.Height());
+	row_pointers = (png_bytep *) malloc(sizeof(png_bytep) * image.Height());
 
 	for (y = 0; y < image.Height(); y++) {
-		row_pointers[y]= (png_bytep)malloc(sizeof(png_byte)*4*image.Width());
+		row_pointers[y] = (png_bytep) malloc(sizeof(png_byte) * 4 * image.Width());
 
 		for (x = 0; x < image.Width(); x++) {
 			if (x0 == x && image.Height() - y0 - 1 == y) {
-				row_pointers[y][x*4+0]= 255;
-				row_pointers[y][x*4+1]= 0;
-				row_pointers[y][x*4+2]= 0;
-				row_pointers[y][x*4+3]= 255;
+				row_pointers[y][x * 4 + 0] = 255;
+				row_pointers[y][x * 4 + 1] = 0;
+				row_pointers[y][x * 4 + 2] = 0;
+				row_pointers[y][x * 4 + 3] = 255;
 			}
 			else {
 				float pixel = image(image.Height() - y - 1, x, 0);
-				row_pointers[y][x*4+0]= pixel*255;
-				row_pointers[y][x*4+1]= pixel*255;
-				row_pointers[y][x*4+2]= pixel*255;
-				row_pointers[y][x*4+3]= 255;
+				row_pointers[y][x * 4 + 0] = pixel * 255;
+				row_pointers[y][x * 4 + 1] = pixel * 255;
+				row_pointers[y][x * 4 + 2] = pixel * 255;
+				row_pointers[y][x * 4 + 3] = 255;
 			}
 		}
 	}
 
 	{
-		static int a= 0;
+		static int a = 0;
 		char buf[128];
 		snprintf(buf, sizeof(buf), "%s_%02d.png", prefix, ++a);
 		savePNGImage(row_pointers, image.Width(), image.Height(), 8, PNG_COLOR_TYPE_RGBA, buf);
@@ -237,17 +237,17 @@ static void saveBytesImage(const char *prefix, unsigned char *data, int width, i
 	int x, y;
 	png_bytep *row_pointers;
 
-	row_pointers= (png_bytep*)malloc(sizeof(png_bytep)*height);
+	row_pointers = (png_bytep *) malloc(sizeof(png_bytep) * height);
 
 	for (y = 0; y < height; y++) {
-		row_pointers[y]= (png_bytep)malloc(sizeof(png_byte)*4*width);
+		row_pointers[y] = (png_bytep) malloc(sizeof(png_byte) * 4 * width);
 
 		for (x = 0; x < width; x++) {
-			char pixel = data[width*y+x];
-			row_pointers[y][x*4+0]= pixel;
-			row_pointers[y][x*4+1]= pixel;
-			row_pointers[y][x*4+2]= pixel;
-			row_pointers[y][x*4+3]= 255;
+			char pixel = data[width * y + x];
+			row_pointers[y][x * 4 + 0] = pixel;
+			row_pointers[y][x * 4 + 1] = pixel;
+			row_pointers[y][x * 4 + 2] = pixel;
+			row_pointers[y][x * 4 + 3] = 255;
 		}
 	}
 
@@ -267,12 +267,12 @@ static void saveBytesImage(const char *prefix, unsigned char *data, int width, i
 
 /* ************ Planar tracker ************ */
 
-/* TrackRegion (new planar tracker) */
-int libmv_trackRegion(const struct libmv_trackRegionOptions *options,
+/* TrackRegion */
+int libmv_trackRegion(const libmv_TrackRegionOptions *options,
                       const float *image1, int image1_width, int image1_height,
                       const float *image2, int image2_width, int image2_height,
                       const double *x1, const double *y1,
-                      struct libmv_trackRegionResult *result,
+                      libmv_TrackRegionResult *result,
                       double *x2, double *y2)
 {
 	double xx1[5], yy1[5];
@@ -292,7 +292,7 @@ int libmv_trackRegion(const struct libmv_trackRegionOptions *options,
 
 	switch (options->motion_model) {
 #define LIBMV_CONVERT(the_model) \
-    case libmv::TrackRegionOptions::the_model: \
+	case libmv::TrackRegionOptions::the_model: \
 		track_region_options.mode = libmv::TrackRegionOptions::the_model; \
 		break;
 		LIBMV_CONVERT(TRANSLATION)
@@ -384,16 +384,16 @@ void libmv_samplePlanarPatch(const float *image, int width, int height,
 
 /* ************ Tracks ************ */
 
-libmv_Tracks *libmv_tracksNew(void)
+struct libmv_Tracks *libmv_tracksNew(void)
 {
 	libmv::Tracks *libmv_tracks = new libmv::Tracks();
 
-	return (libmv_Tracks *)libmv_tracks;
+	return (struct libmv_Tracks *)libmv_tracks;
 }
 
-void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int image, int track, double x, double y)
+void libmv_tracksDestroy(struct libmv_Tracks *libmv_tracks)
 {
-	((libmv::Tracks*)libmv_tracks)->Insert(image, track, x, y);
+	delete (libmv::Tracks*) libmv_tracks;
 }
 
 void libmv_tracksInsertMultiview(struct libmv_Tracks *libmv_tracks, int view, int image, int track, double x, double y)
@@ -401,12 +401,12 @@ void libmv_tracksInsertMultiview(struct libmv_Tracks *libmv_tracks, int view, in
 	((libmv::Tracks*)libmv_tracks)->Insert(view, image, track, x, y);
 }
 
-void libmv_tracksDestroy(libmv_Tracks *libmv_tracks)
+void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int image, int track, double x, double y)
 {
-	delete (libmv::Tracks*)libmv_tracks;
+	((libmv::Tracks*) libmv_tracks)->Insert(image, track, x, y);
 }
 
-/* ************ Reconstruction solver ************ */
+/* ************ Reconstruction ************ */
 
 class LoggingCallback : public ceres::IterationCallback {
  public:
@@ -421,8 +421,7 @@ class LoggingCallback : public ceres::IterationCallback {
 
 class ReconstructUpdateCallback : public libmv::ProgressUpdateCallback {
 public:
-	ReconstructUpdateCallback(reconstruct_progress_update_cb progress_update_callback,
-			void *callback_customdata)
+	ReconstructUpdateCallback(reconstruct_progress_update_cb progress_update_callback, void *callback_customdata)
 	{
 		progress_update_callback_ = progress_update_callback;
 		callback_customdata_ = callback_customdata;
@@ -430,7 +429,7 @@ public:
 
 	void invoke(double progress, const char *message)
 	{
-		if(progress_update_callback_) {
+		if (progress_update_callback_) {
 			progress_update_callback_(callback_customdata_, progress, message);
 		}
 	}
@@ -439,7 +438,7 @@ protected:
 	void *callback_customdata_;
 };
 
-static void cameraIntrinsicsFromOptions(const libmv_cameraIntrinsicsOptions *camera_intrinsics_options,
+static void cameraIntrinsicsFromOptions(const libmv_CameraIntrinsicsOptions *camera_intrinsics_options,
                                         libmv::CameraIntrinsics *camera_intrinsics)
 {
 	camera_intrinsics->SetFocalLength(camera_intrinsics_options->focal_length,
@@ -542,7 +541,7 @@ static bool selectTwoKeyframesBasedOnGRICAndVariance(
 }
 
 static libmv::BundleOptions refinementOptionsFromReconstructionOptions(
-		const libmv_reconstructionOptions &reconstruction_options)
+		const libmv_ReconstructionOptions &reconstruction_options)
 {
 	/* only a few combinations are supported but trust the caller */
 	libmv::BundleOptions bundle_options;
@@ -589,12 +588,12 @@ static void finishReconstruction(const libmv::Tracks &tracks, const libmv::Camer
 }
 
 libmv_Reconstruction *libmv_solve(const libmv_Tracks *libmv_tracks,
-			const libmv_cameraIntrinsicsOptions libmv_camera_intrinsics_options[],
-			libmv_reconstructionOptions *libmv_reconstruction_options,
-			reconstruct_progress_update_cb progress_update_callback,
-			void *callback_customdata)
+		const libmv_CameraIntrinsicsOptions libmv_camera_intrinsics_options[],
+		libmv_ReconstructionOptions *libmv_reconstruction_options,
+		reconstruct_progress_update_cb progress_update_callback,
+		void *callback_customdata)
 {
-	libmv_Reconstruction *libmv_reconstruction = new libmv_Reconstruction();
+	struct libmv_Reconstruction *libmv_reconstruction = new libmv_Reconstruction();
 	libmv::EuclideanReconstruction &reconstruction = libmv_reconstruction->reconstruction;
 	libmv::CameraIntrinsics &camera_intrinsics = libmv_reconstruction->intrinsics;
 
@@ -667,9 +666,9 @@ libmv_Reconstruction *libmv_solve(const libmv_Tracks *libmv_tracks,
 		progress_update_callback(callback_customdata, 1.0, "Refining solution");
 
 		libmv::EuclideanBundleCommonIntrinsics(tracks,
-																					 refinement_bundle_options,
-																					 &reconstruction,
-																					 &camera_intrinsics);
+		                                       refinement_bundle_options,
+		                                       &reconstruction,
+		                                       &camera_intrinsics);
 	}
 
 	/* Set reconstruction scale to unity */
@@ -679,15 +678,20 @@ libmv_Reconstruction *libmv_solve(const libmv_Tracks *libmv_tracks,
 	finishReconstruction(tracks, camera_intrinsics, libmv_reconstruction,
 	                     progress_update_callback, callback_customdata);
 
-	return (libmv_Reconstruction *)libmv_reconstruction;
+	return (struct libmv_Reconstruction *)libmv_reconstruction;
 }
 
-int libmv_reporojectionPointForTrack(const libmv_Reconstruction *libmv_reconstruction, int track, double pos[3])
+void libmv_reconstructionDestroy(struct libmv_Reconstruction *libmv_reconstruction)
+{
+	delete libmv_reconstruction;
+}
+
+int libmv_reprojectionPointForTrack(const struct libmv_Reconstruction *libmv_reconstruction, int track, double pos[3])
 {
 	const libmv::EuclideanReconstruction *reconstruction = &libmv_reconstruction->reconstruction;
 	const libmv::EuclideanPoint *point = reconstruction->PointForTrack(track);
 
-	if(point) {
+	if (point) {
 		pos[0] = point->X[0];
 		pos[1] = point->X[2];
 		pos[2] = point->X[1];
@@ -714,7 +718,7 @@ static libmv::Marker ProjectMarker(const libmv::EuclideanPoint &point,
 	return reprojected_marker;
 }
 
-double libmv_reporojectionErrorForTrack(const libmv_Reconstruction *libmv_reconstruction, int track)
+double libmv_reprojectionErrorForTrack(const struct libmv_Reconstruction *libmv_reconstruction, int track)
 {
 	const libmv::EuclideanReconstruction *reconstruction = &libmv_reconstruction->reconstruction;
 	const libmv::CameraIntrinsics *intrinsics = &libmv_reconstruction->intrinsics;
@@ -737,13 +741,13 @@ double libmv_reporojectionErrorForTrack(const libmv_Reconstruction *libmv_recons
 		double ex = reprojected_marker.x - markers[i].x;
 		double ey = reprojected_marker.y - markers[i].y;
 
-		total_error += sqrt(ex*ex + ey*ey);
+		total_error += sqrt(ex * ex + ey * ey);
 	}
 
 	return total_error / num_reprojected;
 }
 
-double libmv_reporojectionErrorForViewImage(const libmv_Reconstruction *libmv_reconstruction, int view, int image)
+double libmv_reprojectionErrorForViewImage(const struct libmv_Reconstruction *libmv_reconstruction, int view, int image)
 {
 	const libmv::EuclideanReconstruction *reconstruction = &libmv_reconstruction->reconstruction;
 	const libmv::CameraIntrinsics *intrinsics = &libmv_reconstruction->intrinsics;
@@ -768,19 +772,19 @@ double libmv_reporojectionErrorForViewImage(const libmv_Reconstruction *libmv_re
 		double ex = reprojected_marker.x - markers[i].x;
 		double ey = reprojected_marker.y - markers[i].y;
 
-		total_error += sqrt(ex*ex + ey*ey);
+		total_error += sqrt(ex * ex + ey * ey);
 	}
 
 	return total_error / num_reprojected;
 }
 
-int libmv_reporojectionCameraForViewImage(const libmv_Reconstruction *libmv_reconstruction,
-                                          int view, int image, double mat[4][4])
+int libmv_reprojectionCameraForViewImage(const struct libmv_Reconstruction *libmv_reconstruction,
+                                         int view, int image, double mat[4][4])
 {
 	const libmv::EuclideanReconstruction *reconstruction = &libmv_reconstruction->reconstruction;
 	const libmv::EuclideanCamera *camera = reconstruction->CameraForViewImage(view, image);
 
-	if(camera) {
+	if (camera) {
 		for (int j = 0; j < 3; ++j) {
 			for (int k = 0; k < 3; ++k) {
 				int l = k;
@@ -791,7 +795,7 @@ int libmv_reporojectionCameraForViewImage(const libmv_Reconstruction *libmv_reco
 				if (j == 2) mat[j][l] = -camera->R(j,k);
 				else mat[j][l] = camera->R(j,k);
 			}
-			mat[j][3]= 0.0;
+			mat[j][3] = 0.0;
 		}
 
 		libmv::Vec3 optical_center = -camera->R.transpose() * camera->t;
@@ -800,7 +804,7 @@ int libmv_reporojectionCameraForViewImage(const libmv_Reconstruction *libmv_reco
 		mat[3][1] = optical_center(2);
 		mat[3][2] = optical_center(1);
 
-		mat[3][3]= 1.0;
+		mat[3][3] = 1.0;
 
 		return 1;
 	}
@@ -808,17 +812,17 @@ int libmv_reporojectionCameraForViewImage(const libmv_Reconstruction *libmv_reco
 	return 0;
 }
 
-double libmv_reprojectionError(const libmv_Reconstruction *libmv_reconstruction)
+double libmv_reprojectionError(const struct libmv_Reconstruction *libmv_reconstruction)
 {
 	return libmv_reconstruction->error;
 }
 
-void libmv_destroyReconstruction(libmv_Reconstruction *libmv_reconstruction)
+struct libmv_CameraIntrinsics *libmv_reconstructionExtractIntrinsics(struct libmv_Reconstruction *libmv_reconstruction)
 {
-	delete libmv_reconstruction;
+	return (struct libmv_CameraIntrinsics *)&libmv_reconstruction->intrinsics;
 }
 
-/* ************ feature detector ************ */
+/* ************ Feature detector ************ */
 
 struct libmv_Features *libmv_detectFeaturesFAST(const unsigned char *data,
                                                 int width, int height, int stride,
@@ -826,24 +830,24 @@ struct libmv_Features *libmv_detectFeaturesFAST(const unsigned char *data,
 {
 	libmv::Feature *features = NULL;
 	std::vector<libmv::Feature> v;
-	libmv_Features *libmv_features = new libmv_Features();
-	int i= 0, count;
+	struct libmv_Features *libmv_features = new libmv_Features();
+	int i = 0, count;
 
-	if(margin) {
-		data += margin*stride+margin;
-		width -= 2*margin;
-		height -= 2*margin;
+	if (margin) {
+		data += margin * stride+margin;
+		width -= 2 * margin;
+		height -= 2 * margin;
 	}
 
 	v = libmv::DetectFAST(data, width, height, stride, min_trackness, min_distance);
 
 	count = v.size();
 
-	if(count) {
-		features= new libmv::Feature[count];
+	if (count) {
+		features = new libmv::Feature[count];
 
 		for(std::vector<libmv::Feature>::iterator it = v.begin(); it != v.end(); it++) {
-			features[i++]= *it;
+			features[i++] = *it;
 		}
 	}
 
@@ -851,7 +855,7 @@ struct libmv_Features *libmv_detectFeaturesFAST(const unsigned char *data,
 	libmv_features->count = count;
 	libmv_features->margin = margin;
 
-	return (libmv_Features *)libmv_features;
+	return (struct libmv_Features *)libmv_features;
 }
 
 struct libmv_Features *libmv_detectFeaturesMORAVEC(const unsigned char *data,
@@ -859,13 +863,13 @@ struct libmv_Features *libmv_detectFeaturesMORAVEC(const unsigned char *data,
                                                    int margin, int count, int min_distance)
 {
 	libmv::Feature *features = NULL;
-	libmv_Features *libmv_features = new libmv_Features;
+	struct libmv_Features *libmv_features = new libmv_Features;
 
-	if(count) {
-		if(margin) {
-			data += margin*stride+margin;
-			width -= 2*margin;
-			height -= 2*margin;
+	if (count) {
+		if (margin) {
+			data += margin * stride+margin;
+			width -= 2 * margin;
+			height -= 2 * margin;
 		}
 
 		features = new libmv::Feature[count];
@@ -879,14 +883,22 @@ struct libmv_Features *libmv_detectFeaturesMORAVEC(const unsigned char *data,
 	return libmv_features;
 }
 
-int libmv_countFeatures(const libmv_Features *libmv_features)
+void libmv_featuresDestroy(struct libmv_Features *libmv_features)
+{
+	if (libmv_features->features)
+		delete [] libmv_features->features;
+
+	delete libmv_features;
+}
+
+int libmv_countFeatures(const struct libmv_Features *libmv_features)
 {
 	return libmv_features->count;
 }
 
-void libmv_getFeature(const libmv_Features *libmv_features, int number, double *x, double *y, double *score, double *size)
+void libmv_getFeature(const struct libmv_Features *libmv_features, int number, double *x, double *y, double *score, double *size)
 {
-	libmv::Feature feature= libmv_features->features[number];
+	libmv::Feature feature = libmv_features->features[number];
 
 	*x = feature.x + libmv_features->margin;
 	*y = feature.y + libmv_features->margin;
@@ -894,29 +906,16 @@ void libmv_getFeature(const libmv_Features *libmv_features, int number, double *
 	*size = feature.size;
 }
 
-void libmv_destroyFeatures(libmv_Features *libmv_features)
-{
-	if(libmv_features->features)
-		delete [] libmv_features->features;
+/* ************ Camera intrinsics ************ */
 
-	delete libmv_features;
-}
-
-/* ************ camera intrinsics ************ */
-
-struct libmv_CameraIntrinsics *libmv_ReconstructionExtractIntrinsics(libmv_Reconstruction *libmv_Reconstruction)
-{
-	return (struct libmv_CameraIntrinsics *)&libmv_Reconstruction->intrinsics;
-}
-
-struct libmv_CameraIntrinsics *libmv_CameraIntrinsicsNewEmpty(void)
+struct libmv_CameraIntrinsics *libmv_cameraIntrinsicsNewEmpty(void)
 {
 	libmv::CameraIntrinsics *camera_intrinsics = new libmv::CameraIntrinsics();
 
 	return (struct libmv_CameraIntrinsics *) camera_intrinsics;
 }
 
-struct libmv_CameraIntrinsics *libmv_CameraIntrinsicsNew(const libmv_cameraIntrinsicsOptions *libmv_camera_intrinsics_options)
+struct libmv_CameraIntrinsics *libmv_cameraIntrinsicsNew(const libmv_CameraIntrinsicsOptions *libmv_camera_intrinsics_options)
 {
 	libmv::CameraIntrinsics *camera_intrinsics = new libmv::CameraIntrinsics();
 
@@ -925,23 +924,23 @@ struct libmv_CameraIntrinsics *libmv_CameraIntrinsicsNew(const libmv_cameraIntri
 	return (struct libmv_CameraIntrinsics *) camera_intrinsics;
 }
 
-struct libmv_CameraIntrinsics *libmv_CameraIntrinsicsCopy(const libmv_CameraIntrinsics *libmvIntrinsics)
+struct libmv_CameraIntrinsics *libmv_cameraIntrinsicsCopy(const libmv_CameraIntrinsics *libmvIntrinsics)
 {
 	libmv::CameraIntrinsics *orig_intrinsics = (libmv::CameraIntrinsics *) libmvIntrinsics;
-	libmv::CameraIntrinsics *new_intrinsics= new libmv::CameraIntrinsics(*orig_intrinsics);
+	libmv::CameraIntrinsics *new_intrinsics = new libmv::CameraIntrinsics(*orig_intrinsics);
 
 	return (struct libmv_CameraIntrinsics *) new_intrinsics;
 }
 
-void libmv_CameraIntrinsicsDestroy(struct libmv_CameraIntrinsics *libmvIntrinsics)
+void libmv_cameraIntrinsicsDestroy(struct libmv_CameraIntrinsics *libmvIntrinsics)
 {
 	libmv::CameraIntrinsics *intrinsics = (libmv::CameraIntrinsics *) libmvIntrinsics;
 
 	delete intrinsics;
 }
 
-void libmv_CameraIntrinsicsUpdate(const libmv_cameraIntrinsicsOptions *libmv_camera_intrinsics_options,
-                                  libmv_CameraIntrinsics *libmv_intrinsics)
+void libmv_cameraIntrinsicsUpdate(const libmv_CameraIntrinsicsOptions *libmv_camera_intrinsics_options,
+                                  struct libmv_CameraIntrinsics *libmv_intrinsics)
 {
 	libmv::CameraIntrinsics *camera_intrinsics = (libmv::CameraIntrinsics *) libmv_intrinsics;
 
@@ -979,15 +978,16 @@ void libmv_CameraIntrinsicsUpdate(const libmv_cameraIntrinsicsOptions *libmv_cam
 	}
 }
 
-void libmv_CameraIntrinsicsSetThreads(libmv_CameraIntrinsics *libmv_intrinsics, int threads)
+void libmv_cameraIntrinsicsSetThreads(struct libmv_CameraIntrinsics *libmv_intrinsics, int threads)
 {
 	libmv::CameraIntrinsics *camera_intrinsics = (libmv::CameraIntrinsics *) libmv_intrinsics;
 
 	camera_intrinsics->SetThreads(threads);
 }
 
-void libmv_CameraIntrinsicsExtract(const libmv_CameraIntrinsics *libmv_intrinsics, double *focal_length,
-			double *principal_x, double *principal_y, double *k1, double *k2, double *k3, int *width, int *height)
+void libmv_cameraIntrinsicsExtract(const struct libmv_CameraIntrinsics *libmv_intrinsics, double *focal_length,
+                                   double *principal_x, double *principal_y, double *k1, double *k2, double *k3,
+                                   int *width, int *height)
 {
 	libmv::CameraIntrinsics *camera_intrinsics = (libmv::CameraIntrinsics *) libmv_intrinsics;
 
@@ -998,40 +998,42 @@ void libmv_CameraIntrinsicsExtract(const libmv_CameraIntrinsics *libmv_intrinsic
 	*k2 = camera_intrinsics->k2();
 }
 
-void libmv_CameraIntrinsicsUndistortByte(const libmv_CameraIntrinsics *libmv_intrinsics,
-			unsigned char *src, unsigned char *dst, int width, int height, float overscan, int channels)
+void libmv_cameraIntrinsicsUndistortByte(const struct libmv_CameraIntrinsics *libmv_intrinsics,
+                                         unsigned char *src, unsigned char *dst, int width, int height,
+                                         float overscan, int channels)
 {
 	libmv::CameraIntrinsics *camera_intrinsics = (libmv::CameraIntrinsics *) libmv_intrinsics;
 
 	camera_intrinsics->Undistort(src, dst, width, height, overscan, channels);
 }
 
-void libmv_CameraIntrinsicsUndistortFloat(const libmv_CameraIntrinsics *libmvIntrinsics,
-			float *src, float *dst, int width, int height, float overscan, int channels)
+void libmv_cameraIntrinsicsUndistortFloat(const struct libmv_CameraIntrinsics *libmvIntrinsics,
+                                          float *src, float *dst, int width, int height,
+                                          float overscan, int channels)
 {
 	libmv::CameraIntrinsics *intrinsics = (libmv::CameraIntrinsics *) libmvIntrinsics;
 
 	intrinsics->Undistort(src, dst, width, height, overscan, channels);
 }
 
-void libmv_CameraIntrinsicsDistortByte(const libmv_CameraIntrinsics *libmvIntrinsics,
-			unsigned char *src, unsigned char *dst, int width, int height, float overscan, int channels)
+void libmv_cameraIntrinsicsDistortByte(const struct libmv_CameraIntrinsics *libmvIntrinsics,
+                                       unsigned char *src, unsigned char *dst, int width, int height,
+                                       float overscan, int channels)
 {
 	libmv::CameraIntrinsics *intrinsics = (libmv::CameraIntrinsics *) libmvIntrinsics;
 	intrinsics->Distort(src, dst, width, height, overscan, channels);
 }
 
-void libmv_CameraIntrinsicsDistortFloat(const libmv_CameraIntrinsics *libmvIntrinsics,
-			float *src, float *dst, int width, int height, float overscan, int channels)
+void libmv_cameraIntrinsicsDistortFloat(const struct libmv_CameraIntrinsics *libmvIntrinsics,
+                                        float *src, float *dst, int width, int height,
+                                        float overscan, int channels)
 {
 	libmv::CameraIntrinsics *intrinsics = (libmv::CameraIntrinsics *) libmvIntrinsics;
 
 	intrinsics->Distort(src, dst, width, height, overscan, channels);
 }
 
-/* ************ utils ************ */
-
-void libmv_ApplyCameraIntrinsics(const libmv_cameraIntrinsicsOptions *libmv_camera_intrinsics_options,
+void libmv_cameraIntrinsicsApply(const libmv_CameraIntrinsicsOptions *libmv_camera_intrinsics_options,
                                  double x, double y, double *x1, double *y1)
 {
 	libmv::CameraIntrinsics camera_intrinsics;
@@ -1045,7 +1047,7 @@ void libmv_ApplyCameraIntrinsics(const libmv_cameraIntrinsicsOptions *libmv_came
 	}
 }
 
-void libmv_InvertCameraIntrinsics(const libmv_cameraIntrinsicsOptions *libmv_camera_intrinsics_options,
+void libmv_cameraIntrinsicsInvert(const libmv_CameraIntrinsicsOptions *libmv_camera_intrinsics_options,
                                   double x, double y, double *x1, double *y1)
 {
 	libmv::CameraIntrinsics camera_intrinsics;

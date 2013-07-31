@@ -1148,55 +1148,6 @@ void material_drivers_update(Scene *scene, Material *ma, float ctime)
 
 	ma->id.flag &= ~LIB_DOIT;
 }
-	
-/* ****************** */
-#if 0 /* UNUSED */
-static char colname_array[125][20] = {
-"Black", "DarkRed", "HalfRed", "Red", "Red",
-"DarkGreen", "DarkOlive", "Brown", "Chocolate", "OrangeRed",
-"HalfGreen", "GreenOlive", "DryOlive", "Goldenrod", "DarkOrange",
-"LightGreen", "Chartreuse", "YellowGreen", "Yellow", "Gold",
-"Green", "LawnGreen", "GreenYellow", "LightOlive", "Yellow",
-"DarkBlue", "DarkPurple", "HotPink", "VioletPink", "RedPink",
-"SlateGray", "DarkGray", "PalePurple", "IndianRed", "Tomato",
-"SeaGreen", "PaleGreen", "GreenKhaki", "LightBrown", "LightSalmon",
-"SpringGreen", "PaleGreen", "MediumOlive", "YellowBrown", "LightGold",
-"LightGreen", "LightGreen", "LightGreen", "GreenYellow", "PaleYellow",
-"HalfBlue", "DarkSky", "HalfMagenta", "VioletRed", "DeepPink",
-"SteelBlue", "SkyBlue", "Orchid", "LightHotPink", "HotPink",
-"SeaGreen", "SlateGray", "MediumGray", "Burlywood", "LightPink",
-"SpringGreen", "Aquamarine", "PaleGreen", "Khaki", "PaleOrange",
-"SpringGreen", "SeaGreen", "PaleGreen", "PaleWhite", "YellowWhite",
-"LightBlue", "Purple", "MediumOrchid", "Magenta", "Magenta",
-"RoyalBlue", "SlateBlue", "MediumOrchid", "Orchid", "Magenta",
-"DeepSkyBlue", "LightSteelBlue", "LightSkyBlue", "Violet", "LightPink",
-"Cyan", "DarkTurquoise", "SkyBlue", "Gray", "Snow",
-"Mint", "Mint", "Aquamarine", "MintCream", "Ivory",
-"Blue", "Blue", "DarkMagenta", "DarkOrchid", "Magenta",
-"SkyBlue", "RoyalBlue", "LightSlateBlue", "MediumOrchid", "Magenta",
-"DodgerBlue", "SteelBlue", "MediumPurple", "PalePurple", "Plum",
-"DeepSkyBlue", "PaleBlue", "LightSkyBlue", "PalePurple", "Thistle",
-"Cyan", "ColdBlue", "PaleTurquoise", "GhostWhite", "White"
-};
-
-void automatname(Material *ma)
-{
-	int nr, r, g, b;
-	float ref;
-	
-	if (ma == NULL) return;
-	if (ma->mode & MA_SHLESS) ref = 1.0;
-	else ref = ma->ref;
-
-	r = (int)(4.99f * (ref * ma->r));
-	g = (int)(4.99f * (ref * ma->g));
-	b = (int)(4.99f * (ref * ma->b));
-	nr = r + 5 * g + 25 * b;
-	if (nr > 124) nr = 124;
-	new_id(&G.main->mat, (ID *)ma, colname_array[nr]);
-	
-}
-#endif
 
 int object_remove_material_slot(Object *ob)
 {
@@ -1225,7 +1176,9 @@ int object_remove_material_slot(Object *ob)
 	totcolp = give_totcolp(ob);
 	matarar = give_matarar(ob);
 
-	if (*matarar == NULL) return FALSE;
+	if (ELEM(NULL, matarar, *matarar)) {
+		return false;
+	}
 
 	/* can happen on face selection in editmode */
 	if (ob->actcol > ob->totcol) {
@@ -1430,8 +1383,8 @@ void ramp_blend(int type, float r_col[3], const float fac, const float col[3])
 				r_col[1] = facm * (r_col[1]) + fac * tmpg;
 				r_col[2] = facm * (r_col[2]) + fac * tmpb;
 			}
+			break;
 		}
-		break;
 		case MA_RAMP_SAT:
 		{
 			float rH, rS, rV;
@@ -1441,8 +1394,8 @@ void ramp_blend(int type, float r_col[3], const float fac, const float col[3])
 				rgb_to_hsv(col[0], col[1], col[2], &colH, &colS, &colV);
 				hsv_to_rgb(rH, (facm * rS + fac * colS), rV, r_col + 0, r_col + 1, r_col + 2);
 			}
+			break;
 		}
-		break;
 		case MA_RAMP_VAL:
 		{
 			float rH, rS, rV;
@@ -1450,8 +1403,8 @@ void ramp_blend(int type, float r_col[3], const float fac, const float col[3])
 			rgb_to_hsv(r_col[0], r_col[1], r_col[2], &rH, &rS, &rV);
 			rgb_to_hsv(col[0], col[1], col[2], &colH, &colS, &colV);
 			hsv_to_rgb(rH, rS, (facm * rV + fac * colV), r_col + 0, r_col + 1, r_col + 2);
+			break;
 		}
-		break;
 		case MA_RAMP_COLOR:
 		{
 			float rH, rS, rV;
@@ -1465,8 +1418,8 @@ void ramp_blend(int type, float r_col[3], const float fac, const float col[3])
 				r_col[1] = facm * (r_col[1]) + fac * tmpg;
 				r_col[2] = facm * (r_col[2]) + fac * tmpb;
 			}
+			break;
 		}
-		break;
 		case MA_RAMP_SOFT:
 		{
 			float scr, scg, scb;
@@ -1479,8 +1432,8 @@ void ramp_blend(int type, float r_col[3], const float fac, const float col[3])
 			r_col[0] = facm * (r_col[0]) + fac * (((1.0f - r_col[0]) * col[0] * (r_col[0])) + (r_col[0] * scr));
 			r_col[1] = facm * (r_col[1]) + fac * (((1.0f - r_col[1]) * col[1] * (r_col[1])) + (r_col[1] * scg));
 			r_col[2] = facm * (r_col[2]) + fac * (((1.0f - r_col[2]) * col[2] * (r_col[2])) + (r_col[2] * scb));
+			break;
 		}
-		break;
 		case MA_RAMP_LINEAR:
 			if (col[0] > 0.5f)
 				r_col[0] = r_col[0] + fac * (2.0f * (col[0] - 0.5f));

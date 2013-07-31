@@ -1177,6 +1177,7 @@ static void calc_sculpt_normal(Sculpt *sd, Object *ob,
 
 		case SCULPT_DISP_DIR_AREA:
 			calc_area_normal(sd, ob, an, nodes, totnode);
+			break;
 
 		default:
 			break;
@@ -1528,7 +1529,7 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 	float *tmpgrid_mask, *tmprow_mask;
 	int v1, v2, v3, v4;
 	int thread_num;
-	BLI_bitmap *grid_hidden;
+	BLI_bitmap **grid_hidden;
 	int *grid_indices, totgrid, gridsize, i, x, y;
 
 	sculpt_brush_test_init(ss, &test);
@@ -1553,7 +1554,7 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 
 	for (i = 0; i < totgrid; ++i) {
 		int gi = grid_indices[i];
-		BLI_bitmap gh = grid_hidden[gi];
+		BLI_bitmap *gh = grid_hidden[gi];
 		data = griddata[gi];
 		adj = &gridadj[gi];
 
@@ -2457,6 +2458,7 @@ static void calc_sculpt_plane(Sculpt *sd, Object *ob, PBVHNode **nodes, int totn
 
 			case SCULPT_DISP_DIR_AREA:
 				calc_area_normal_and_flatten_center(sd, ob, nodes, totnode, an, fc);
+				break;
 
 			default:
 				break;
@@ -3534,7 +3536,14 @@ int sculpt_mode_poll(bContext *C)
 
 int sculpt_mode_poll_view3d(bContext *C)
 {
-	return (sculpt_mode_poll(C) && CTX_wm_region_view3d(C));
+	return (sculpt_mode_poll(C) &&
+	        CTX_wm_region_view3d(C));
+}
+
+int sculpt_poll_view3d(bContext *C)
+{
+	return (sculpt_poll(C) &&
+	        CTX_wm_region_view3d(C));
 }
 
 int sculpt_poll(bContext *C)
@@ -4514,7 +4523,7 @@ static void SCULPT_OT_brush_stroke(wmOperatorType *ot)
 
 /**** Reset the copy of the mesh that is being sculpted on (currently just for the layer brush) ****/
 
-static int sculpt_set_persistent_base(bContext *C, wmOperator *UNUSED(op))
+static int sculpt_set_persistent_base_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	SculptSession *ss = CTX_data_active_object(C)->sculpt;
 
@@ -4535,7 +4544,7 @@ static void SCULPT_OT_set_persistent_base(wmOperatorType *ot)
 	ot->description = "Reset the copy of the mesh that is being sculpted on";
 	
 	/* api callbacks */
-	ot->exec = sculpt_set_persistent_base;
+	ot->exec = sculpt_set_persistent_base_exec;
 	ot->poll = sculpt_mode_poll;
 	
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -4579,14 +4588,21 @@ void sculpt_dynamic_topology_enable(bContext *C)
 	Object *ob = CTX_data_active_object(C);
 	SculptSession *ss = ob->sculpt;
 	Mesh *me = ob->data;
+	const BMAllocTemplate allocsize = {me->totvert,
+	                                   me->totedge,
+	                                   me->totloop,
+	                                   me->totpoly};
 
 	sculpt_pbvh_clear(ob);
 
 	ss->bm_smooth_shading = (scene->toolsettings->sculpt->flags &
 	                         SCULPT_DYNTOPO_SMOOTH_SHADING);
 
+	/* Dynamic topology doesn't ensure selection state is valid, so remove [#36280] */
+	BKE_mesh_mselect_clear(me);
+
 	/* Create triangles-only BMesh */
-	ss->bm = BM_mesh_create(&bm_mesh_allocsize_default);
+	ss->bm = BM_mesh_create(&allocsize);
 
 	BM_mesh_bm_from_me(ss->bm, me, true, true, ob->shapenr);
 	sculpt_dynamic_topology_triangulate(ss->bm);
@@ -4645,13 +4661,18 @@ void sculpt_dynamic_topology_disable(bContext *C,
 		sculptsession_bm_to_me(ob, TRUE);
 	}
 
-	BM_mesh_free(ss->bm);
-
 	/* Clear data */
 	me->flag &= ~ME_SCULPT_DYNAMIC_TOPOLOGY;
-	ss->bm = NULL;
-	BM_log_free(ss->bm_log);
-	ss->bm_log = NULL;
+
+	/* typically valid but with global-undo they can be NULL, [#36234] */
+	if (ss->bm) {
+		BM_mesh_free(ss->bm);
+		ss->bm = NULL;
+	}
+	if (ss->bm_log) {
+		BM_log_free(ss->bm_log);
+		ss->bm_log = NULL;
+	}
 
 	/* Refresh */
 	sculpt_update_after_dynamic_topology_toggle(C);
@@ -4879,7 +4900,7 @@ int ED_sculpt_mask_layers_ensure(Object *ob, MultiresModifierData *mmd)
 	return ret;
 }
 
-static int sculpt_toggle_mode(bContext *C, wmOperator *UNUSED(op))
+static int sculpt_mode_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Scene *scene = CTX_data_scene(C);
 	ToolSettings *ts = CTX_data_tool_settings(C);
@@ -4951,7 +4972,7 @@ static int sculpt_toggle_mode(bContext *C, wmOperator *UNUSED(op))
 
 		BKE_paint_init(&ts->sculpt->paint, PAINT_CURSOR_SCULPT);
 
-		paint_cursor_start(C, sculpt_mode_poll_view3d);
+		paint_cursor_start(C, sculpt_poll_view3d);
 	}
 
 	WM_event_add_notifier(C, NC_SCENE | ND_MODE, scene);
@@ -4967,7 +4988,7 @@ static void SCULPT_OT_sculptmode_toggle(wmOperatorType *ot)
 	ot->description = "Toggle sculpt mode in 3D view";
 	
 	/* api callbacks */
-	ot->exec = sculpt_toggle_mode;
+	ot->exec = sculpt_mode_toggle_exec;
 	ot->poll = ED_operator_object_active_editable_mesh;
 	
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

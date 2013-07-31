@@ -46,7 +46,6 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_memarena.h"
-#include "BLI_array.h"
 #include "BLI_utildefines.h"
 #include "BLI_linklist.h"
 
@@ -3103,7 +3102,7 @@ static DerivedMesh *navmesh_dm_createNavMeshForVisualization(DerivedMesh *dm)
 		}
 	}
 	else {
-		printf("%s: Error during creation polygon infos\n", __func__);
+		printf("Navmesh: Unable to generate valid Navmesh");
 	}
 
 	/* clean up */

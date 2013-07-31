@@ -478,7 +478,7 @@ void ED_object_editmode_enter(bContext *C, int flag)
 		ok = 1;
 		scene->obedit = ob;  /* context sees this */
 
-		EDBM_mesh_make(CTX_data_tool_settings(C), scene, ob);
+		EDBM_mesh_make(scene->toolsettings, ob);
 
 		em = BKE_editmesh_from_object(ob);
 		if (LIKELY(em)) {
@@ -1501,36 +1501,38 @@ static const char *object_mode_op_string(int mode)
 
 /* checks the mode to be set is compatible with the object
  * should be made into a generic function */
-static int object_mode_set_compat(bContext *UNUSED(C), wmOperator *op, Object *ob)
+static bool object_mode_set_compat(bContext *UNUSED(C), wmOperator *op, Object *ob)
 {
 	ObjectMode mode = RNA_enum_get(op->ptr, "mode");
 
 	if (ob) {
 		if (mode == OB_MODE_OBJECT)
-			return 1;
+			return true;
 
 		switch (ob->type) {
 			case OB_MESH:
 				if (mode & (OB_MODE_EDIT | OB_MODE_SCULPT | OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT | OB_MODE_PARTICLE_EDIT))
-					return 1;
-				return 0;
+					return true;
+				break;
 			case OB_CURVE:
 			case OB_SURF:
 			case OB_FONT:
 			case OB_MBALL:
 				if (mode & (OB_MODE_EDIT))
-					return 1;
-				return 0;
+					return true;
+				break;
 			case OB_LATTICE:
 				if (mode & (OB_MODE_EDIT | OB_MODE_WEIGHT_PAINT))
-					return 1;
+					return true;
+				break;
 			case OB_ARMATURE:
 				if (mode & (OB_MODE_EDIT | OB_MODE_POSE))
-					return 1;
+					return true;
+				break;
 		}
 	}
 
-	return 0;
+	return false;
 }
 
 static int object_mode_set_exec(bContext *C, wmOperator *op)
@@ -1608,7 +1610,7 @@ void ED_object_toggle_modes(bContext *C, int mode)
 
 /************************ Game Properties ***********************/
 
-static int game_property_new(bContext *C, wmOperator *op)
+static int game_property_new_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_active_object(C);
 	bProperty *prop;
@@ -1638,7 +1640,7 @@ void OBJECT_OT_game_property_new(wmOperatorType *ot)
 	ot->idname = "OBJECT_OT_game_property_new";
 
 	/* api callbacks */
-	ot->exec = game_property_new;
+	ot->exec = game_property_new_exec;
 	ot->poll = ED_operator_object_active_editable;
 
 	/* flags */
@@ -1648,7 +1650,7 @@ void OBJECT_OT_game_property_new(wmOperatorType *ot)
 	RNA_def_string(ot->srna, "name", "", MAX_NAME, "Name", "Name of the game property to add");
 }
 
-static int game_property_remove(bContext *C, wmOperator *op)
+static int game_property_remove_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_active_object(C);
 	bProperty *prop;
@@ -1679,7 +1681,7 @@ void OBJECT_OT_game_property_remove(wmOperatorType *ot)
 	ot->idname = "OBJECT_OT_game_property_remove";
 
 	/* api callbacks */
-	ot->exec = game_property_remove;
+	ot->exec = game_property_remove_exec;
 	ot->poll = ED_operator_object_active_editable;
 
 	/* flags */

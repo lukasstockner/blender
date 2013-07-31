@@ -81,6 +81,7 @@ int g_highlightIndex;
 void **g_highlightedNodes;
 void **g_highlightedNodesRead;
 
+#if COM_CURRENT_THREADING_MODEL == COM_TM_QUEUE
 #define HIGHLIGHT(wp) \
 { \
 	ExecutionGroup *group = wp->getExecutionGroup(); \
@@ -103,6 +104,7 @@ void **g_highlightedNodesRead;
 		} \
 	} \
 }
+#endif  /* COM_CURRENT_THREADING_MODEL == COM_TM_QUEUE */
 
 void COM_startReadHighlights()
 {
@@ -304,7 +306,8 @@ void WorkScheduler::initialize(bool use_opencl)
 		g_context = NULL;
 		g_program = NULL;
 
-		OCL_init(); /* this will check and skip if already initialized */
+		if (!OCL_init()) /* this will check for errors and skip if already initialized */
+			return;
 
 		if (clCreateContextFromType) {
 			cl_uint numberOfPlatforms = 0;

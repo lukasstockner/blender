@@ -420,7 +420,6 @@ static int mouse_on_slide_zone(SpaceClip *sc, MovieTrackingMarker *marker,
                                float padding, int width, int height)
 {
 	const float size = 12.0f;
-	int inside = 0;
 	float min[2], max[2];
 	float dx, dy;
 
@@ -445,8 +444,6 @@ static int mouse_on_slide_zone(SpaceClip *sc, MovieTrackingMarker *marker,
 
 	return IN_RANGE_INCL(co[0], slide_zone[0] - dx, slide_zone[0] + dx) &&
 	       IN_RANGE_INCL(co[1], slide_zone[1] - dy, slide_zone[1] + dy);
-
-	return inside;
 }
 
 static int mouse_on_corner(SpaceClip *sc, MovieTrackingMarker *marker,
@@ -791,8 +788,7 @@ static int slide_marker_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			if (ELEM(event->type, LEFTSHIFTKEY, RIGHTSHIFTKEY))
 				data->accurate = event->val == KM_PRESS;
 
-		/* no break! update area size */
-
+			/* fall-through */
 		case MOUSEMOVE:
 			mdelta[0] = event->mval[0] - data->mval[0];
 			mdelta[1] = event->mval[1] - data->mval[1];
@@ -1230,9 +1226,9 @@ static void track_markers_freejob(void *tmv)
 	BKE_tracking_context_sync(tmj->context);
 	BKE_tracking_context_free(tmj->context);
 
-	MEM_freeN(tmj);
-
 	WM_main_add_notifier(NC_SCENE | ND_FRAME, tmj->scene);
+
+	MEM_freeN(tmj);
 }
 
 static int track_markers_exec(bContext *C, wmOperator *op)
@@ -1715,7 +1711,9 @@ static int clear_track_path_exec(bContext *C, wmOperator *op)
 
 	if (clear_active) {
 		track = BKE_tracking_track_get_active(tracking);
-		BKE_tracking_track_path_clear(track, framenr, action);
+		if (track) {
+			BKE_tracking_track_path_clear(track, framenr, action);
+		}
 	}
 	else {
 		track = tracksbase->first;
@@ -3479,6 +3477,8 @@ static int clean_tracks_exec(bContext *C, wmOperator *op)
 
 		track = next;
 	}
+
+	BKE_tracking_dopesheet_tag_update(tracking);
 
 	WM_event_add_notifier(C, NC_MOVIECLIP | ND_SELECT, clip);
 

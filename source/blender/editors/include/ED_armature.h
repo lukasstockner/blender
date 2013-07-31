@@ -135,7 +135,11 @@ void ED_armature_validate_active(struct bArmature *arm);
 void add_primitive_bone(struct Object *obedit_arm, bool view_aligned);
 struct EditBone *ED_armature_edit_bone_add(struct bArmature *arm, const char *name);
 void ED_armature_edit_bone_remove(struct bArmature *arm, EditBone *exBone);
+
 bool ED_armature_ebone_is_child_recursive(EditBone *ebone_parent, EditBone *ebone_child);
+
+void ED_armature_ebone_to_mat3(EditBone *ebone, float mat[3][3]);
+void ED_armature_ebone_to_mat4(EditBone *ebone, float mat[4][4]);
 
 void transform_armature_mirror_update(struct Object *obedit);
 void ED_armature_origin_set(struct Scene *scene, struct Object *ob, float cursor[3], int centermode, int around);
@@ -152,6 +156,13 @@ void unique_editbone_name(struct ListBase *ebones, char *name, EditBone *bone); 
 void ED_armature_bone_rename(struct bArmature *arm, const char *oldnamep, const char *newnamep);
 
 void undo_push_armature(struct bContext *C, const char *name);
+
+/* low level selection functions which handle */
+int  ED_armature_ebone_selectflag_get(const EditBone *ebone);
+void ED_armature_ebone_selectflag_set(EditBone *ebone, int flag);
+void ED_armature_ebone_select_set(EditBone *ebone, bool select);
+void ED_armature_ebone_selectflag_enable(EditBone *ebone, int flag);
+void ED_armature_ebone_selectflag_disable(EditBone *ebone, int flag);
 
 /* poseobject.c */
 void ED_armature_exit_posemode(struct bContext *C, struct Base *base);

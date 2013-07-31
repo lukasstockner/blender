@@ -618,7 +618,7 @@ static int outliner_show_active_exec(bContext *C, wmOperator *UNUSED(op))
 	te = outliner_find_id(so, &so->tree, (ID *)OBACT);
 	if (te) {
 		/* make te->ys center of view */
-		ytop = (int)(te->ys + BLI_rcti_size_y(&v2d->mask) / 2);
+		ytop = te->ys + BLI_rcti_size_y(&v2d->mask) / 2;
 		if (ytop > 0) ytop = 0;
 		
 		v2d->cur.ymax = (float)ytop;
@@ -1181,14 +1181,14 @@ static void do_outliner_drivers_editop(SpaceOops *soops, ListBase *tree, ReportL
 						{
 							/* add a new driver with the information obtained (only if valid) */
 							ANIM_add_driver(reports, id, path, array_index, dflags, DRIVER_TYPE_PYTHON);
+							break;
 						}
-						break;
 						case DRIVERS_EDITMODE_REMOVE:
 						{
 							/* remove driver matching the information obtained (only if valid) */
 							ANIM_remove_driver(reports, id, path, array_index, dflags);
+							break;
 						}
-						break;
 					}
 				}
 				
