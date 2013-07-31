@@ -204,6 +204,7 @@ static void init_buffers(void)
 	if (GLEW_VERSION_1_5 || GLEW_ES_VERSION_2_0) {
 		gpu_glBindBuffer    = glBindBuffer;
 		gpu_glBufferData    = glBufferData;
+		gpu_glBufferSubData = glBufferSubData;
 		gpu_glDeleteBuffers = glDeleteBuffers;
 		gpu_glGenBuffers    = glGenBuffers;
 
@@ -214,6 +215,7 @@ static void init_buffers(void)
 	if (GLEW_ARB_vertex_buffer_object) {
 		gpu_glBindBuffer    = glBindBufferARB;
 		gpu_glBufferData    = glBufferDataARB;
+		gpu_glBufferSubData = glBufferSubDataARB;
 		gpu_glDeleteBuffers = glDeleteBuffersARB;
 		gpu_glGenBuffers    = glGenBuffersARB;
 
@@ -336,77 +338,79 @@ void gpu_glGenerateMipmap(GLenum target)
 	}
 }
 
-static void* GLAPIENTRY GPU_buffer_start_update_client(GLenum target, GLsizeiptr size, GLvoid* data, GLenum usage)
+static void* GPU_buffer_start_update_dummy(GLenum UNUSED(target), void* data)
 {
+	GPU_ASSERT(data != NULL);
 	return data;
 }
 
-static void* GLAPIENTRY GPU_buffer_start_update_buffer(GLenum target, GLsizeiptr size, GLvoid* data, GLenum usage)
+static void* GPU_buffer_start_update_copy(GLenum UNUSED(target), void* data)
 {
-GPU_CHECK_NO_ERROR();
-	gpu_glBufferData(target, 0, NULL, usage);
-GPU_CHECK_NO_ERROR();
+	GPU_ASSERT(data != NULL);
 	return data;
 }
 
-static void* GLAPIENTRY GPU_buffer_start_update_map(GLenum target, GLsizeiptr size, GLvoid* data, GLenum usage)
+static void* GPU_buffer_start_update_map(GLenum target, void* UNUSED(data))
 {
-	void* mapped;
-GPU_CHECK_NO_ERROR();
-	gpu_glBufferData(target, size, NULL, usage);
-GPU_CHECK_NO_ERROR();
-	mapped = gpu_glMapBuffer(target, GL_WRITE_ONLY);
-GPU_CHECK_NO_ERROR();
-GPU_ASSERT(mapped != NULL);
-	return mapped;
+	void* mappedData;
+	GPU_ASSERT(UNUSED_data == NULL);
+	mappedData = gpu_glMapBuffer(target, GL_WRITE_ONLY);
+	GPU_CHECK_NO_ERROR();
+	return mappedData;
 }
 
-static const void* GLAPIENTRY GPU_buffer_finish_update_client(GLenum target, GLsizeiptr size, const GLvoid* data, GLenum usage)
+static void GPU_buffer_finish_update_dummy(GLenum UNUSED(target), GLsizeiptr UNUSED(dataSize), const GLvoid* UNUSED(data))
 {
-	return data;
+	GPU_ASSERT(UNUSED_data != NULL);
 }
 
-static const void* GLAPIENTRY GPU_buffer_finish_update_buffer(GLenum target, GLsizeiptr size, const GLvoid* data, GLenum usage)
+static void GPU_buffer_finish_update_copy(GLenum target, GLsizeiptr dataSize, const GLvoid* data)
 {
-GPU_CHECK_NO_ERROR();
-	gpu_glBufferData(target, size, data, usage);
-GPU_CHECK_NO_ERROR();
-	return NULL;
+	GPU_ASSERT(data != NULL);
+	gpu_glBufferSubData(target, 0, dataSize, data);
+	GPU_CHECK_NO_ERROR();
 }
 
-static const void* GLAPIENTRY GPU_buffer_finish_update_map(GLenum target, GLsizeiptr size, const GLvoid* data, GLenum usage)
+static void GPU_buffer_finish_update_map(GLenum target, GLsizeiptr UNUSED(dataSize), const GLvoid* UNUSED(data))
 {
-GPU_CHECK_NO_ERROR();
+	GPU_ASSERT(UNUSED_data != NULL);
 	gpu_glUnmapBuffer(target);
-GPU_CHECK_NO_ERROR();
-	return NULL;
+	GPU_CHECK_NO_ERROR();
 }
 
 void GPU_wrap_extensions(GLboolean* glslsupport_out, GLboolean* framebuffersupport_out)
 {
-	/* written like this so that operator&& doesn't shortcut */
-	*glslsupport_out = init_shader_objects();
-	*glslsupport_out = *glslsupport_out && init_vertex_shader();
-	*glslsupport_out = *glslsupport_out && init_vertex_program();
-	*glslsupport_out = *glslsupport_out && (GLEW_ARB_multitexture || GLEW_VERSION_1_3);
+	*glslsupport_out = true;
+	
+	if (!init_shader_objects())
+		*glslsupport_out = false;
+
+	if (!init_vertex_shader())
+		*glslsupport_out = false;
+
+	if (init_vertex_program())
+		*glslsupport_out = false;
+
+	if (!(GLEW_ARB_multitexture || GLEW_VERSION_1_3))
+		*glslsupport_out = false;
 
 	*framebuffersupport_out = init_framebuffer_object();
 
 	init_buffers();
 	init_mapbuffer();
 
-	init_generate_mipmap();
-
-	if (gpu_glBufferData != NULL && gpu_glMapBuffer != NULL) {
+	if (GLEW_VERSION_1_5 || GLEW_OES_mapbuffer || GLEW_ARB_vertex_buffer_object) {
 		GPU_buffer_start_update  = GPU_buffer_start_update_map;
 		GPU_buffer_finish_update = GPU_buffer_finish_update_map;
 	}
-	else if (gpu_glBufferData != NULL) {
-		GPU_buffer_start_update  = GPU_buffer_start_update_buffer;
-		GPU_buffer_finish_update = GPU_buffer_finish_update_buffer;
+	else if (GLEW_ES_VERSION_2_0) {
+		GPU_buffer_start_update  = GPU_buffer_start_update_copy;
+		GPU_buffer_finish_update = GPU_buffer_finish_update_copy;
 	}
 	else {
-		GPU_buffer_start_update  = GPU_buffer_start_update_client;
-		GPU_buffer_finish_update = GPU_buffer_finish_update_client;
+		GPU_buffer_start_update  = GPU_buffer_start_update_dummy;
+		GPU_buffer_finish_update = GPU_buffer_finish_update_dummy;
 	}
+
+	init_generate_mipmap();
 }

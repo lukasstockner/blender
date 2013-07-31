@@ -29,6 +29,10 @@
  *  \ingroup gpu
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct GPU_object_func
 {
 	void (*gpuVertexPointer)  (int size, int type, int stride, const void *pointer);
@@ -46,10 +50,6 @@ typedef struct GPU_object_func
 } GPU_object_func;
 
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 extern GPU_object_func gpugameobj;
 

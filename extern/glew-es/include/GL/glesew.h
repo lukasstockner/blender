@@ -1175,6 +1175,7 @@ typedef void  (GLAPIENTRY * PFNGLVERTEXATTRIBPOINTERPROC) (GLuint indx, GLint si
 
 typedef void  (GLAPIENTRY * PFNGLBINDBUFFERPROC) (GLenum , GLuint ); // XXX jwilkins: missing function
 typedef void  (GLAPIENTRY * PFNGLBUFFERDATAPROC) (GLenum , GLsizeiptr, const GLvoid *, GLenum ); // XXX jwilkins: missing function
+typedef void  (GLAPIENTRY * PFNGLBUFFERSUBDATAPROC) (GLenum, GLintptr, GLsizeiptr, const GLvoid *); // XXX jwilkins: missing function
 typedef void  (GLAPIENTRY * PFNGLDELETEBUFFERSPROC) (GLsizei , const GLuint *); // XXX jwilkins: missing function
 typedef void  (GLAPIENTRY * PFNGLGENBUFFERSPROC) (GLsizei, GLuint *); // XXX jwilkins: missing function
 typedef void  (GLAPIENTRY * PFNGLTEXPARAMETERIPROC) (GLenum, GLenum, GLint); // XXX jwilkins: missing function
@@ -1271,6 +1272,7 @@ typedef void  (GLAPIENTRY * PFNGLGETBOOLEANVPROC) (GLenum, GLboolean *); // XXX 
 
 #define glBindBuffer GLEW_GET_FUN(__glewBindBuffer) // XXX jwilkins: missing function
 #define glBufferData GLEW_GET_FUN(__glewBufferData) // XXX jwilkins: missing function
+#define glBufferSubData GLEW_GET_FUN(__glewBufferSubData) // XXX jwilkins: missing function
 #define glDeleteBuffers GLEW_GET_FUN(__glewDeleteBuffers) // XXX jwilkins: missing function
 #define glGenBuffers GLEW_GET_FUN(__glewGenBuffers) // XXX jwilkins: missing function
 #define glTexParameteri GLEW_GET_FUN(__glewTexParameteri) // XXX jwilkins: missing function
@@ -3902,6 +3904,7 @@ GLEW_FUN_EXPORT PFNGLVERTEXATTRIBPOINTERPROC __glewVertexAttribPointer;
 #if !GL_ES_VERSION_CL_1_1 // XXX jwilkins
 GLEW_FUN_EXPORT PFNGLBINDBUFFERPROC __glewBindBuffer; // XXX jwilkins: missing function
 GLEW_FUN_EXPORT PFNGLBUFFERDATAPROC __glewBufferData; // XXX jwilkins: missing function
+GLEW_FUN_EXPORT PFNGLBUFFERSUBDATAPROC __glewBufferSubData; // XXX jwilkins: missing function
 GLEW_FUN_EXPORT PFNGLDELETEBUFFERSPROC __glewDeleteBuffers; // XXX jwilkins: missing function
 GLEW_FUN_EXPORT PFNGLGENBUFFERSPROC __glewGenBuffers; // XXX jwilkins: missing function
 GLEW_FUN_EXPORT PFNGLTEXPARAMETERIPROC __glewTexParameteri; // XXX jwilkins: missing function

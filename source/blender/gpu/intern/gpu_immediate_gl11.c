@@ -210,15 +210,15 @@ static void setup(void)
 	GPU_CHECK_NO_ERROR();
 }
 
-typedef struct indexbufferDataGL11 {
+typedef struct indexBufferDataGL11 {
 	void*  ptr;
 	size_t size;
-} indexbufferDataGL11;
+} indexBufferDataGL11;
 
 static void allocateIndex(void)
 {
 	if (GPU_IMMEDIATE->index) {
-		indexbufferDataGL11* bufferData;
+		indexBufferDataGL11* bufferData;
 		GPUindex* index;
 		size_t newSize;
 
@@ -237,7 +237,7 @@ static void allocateIndex(void)
 		}
 
 		if (index->bufferData) {
-			bufferData = (indexbufferDataGL11*)(index->bufferData);
+			bufferData = (indexBufferDataGL11*)(index->bufferData);
 
 			if (newSize > bufferData->size) {
 				bufferData->ptr = MEM_reallocN(bufferData->ptr, newSize);
@@ -247,8 +247,8 @@ static void allocateIndex(void)
 			}
 		}
 		else {
-			bufferData = (indexbufferDataGL11*)MEM_mallocN(
-				sizeof(indexbufferDataGL11),
+			bufferData = (indexBufferDataGL11*)MEM_mallocN(
+				sizeof(indexBufferDataGL11),
 				"indexBufferDataGL11");
 
 			GPU_ASSERT(bufferData != NULL);
@@ -276,16 +276,18 @@ void gpu_lock_buffer_gl11(void)
 void gpu_begin_buffer_gl11(void)
 {
 	bufferDataGL11* bufferData = GPU_IMMEDIATE->bufferData;
-	GPU_IMMEDIATE->buffer = bufferData->ptr;
+	GPU_IMMEDIATE->mappedBuffer = bufferData->ptr;
 }
 
 
 
 void gpu_end_buffer_gl11(void)
 {
-	if (GPU_IMMEDIATE->count > 0) {
-		GPU_CHECK_NO_ERROR();
+	GPU_CHECK_NO_ERROR();
+
+	if (!(GPU_IMMEDIATE->mode == GL_NOOP || GPU_IMMEDIATE->count == 0)) {
 		gpuMatrixCommit();
+
 		glDrawArrays(GPU_IMMEDIATE->mode, 0, GPU_IMMEDIATE->count);
 
 		GPU_CHECK_NO_ERROR();
@@ -418,28 +420,32 @@ void gpu_index_begin_buffer_gl11(void)
 {
 	GPUindex *restrict index = GPU_IMMEDIATE->index;
 	indexBufferDataGL11* bufferData = index->bufferData;
-	index->buffer = bufferData->ptr;
-	index->unmappedBuffer = NULL;
+
+	index->mappedBuffer = bufferData->ptr;
 }
 
 void gpu_index_end_buffer_gl11(void)
 {
 	GPUindex *restrict index = GPU_IMMEDIATE->index;
 	indexBufferDataGL11* bufferData = index->bufferData;
-	index->unmappedBuffer = bufferData->ptr;
+
+	index->mappedBuffer = NULL;
 }
 
 void gpu_draw_elements_gl11(void)
 {
 	GPUindex* index = GPU_IMMEDIATE->index;
+	indexBufferDataGL11* bufferData = (indexBufferDataGL11*)(index->bufferData);
 
 	GPU_CHECK_NO_ERROR();
+
 	gpuMatrixCommit();
+
 	glDrawElements(
 		GPU_IMMEDIATE->mode,
 		index->count,
-		GL_UNSIGNED_INT,
-		index->unmappedBuffer);
+		index->type,
+		bufferData->ptr);
 
 	GPU_CHECK_NO_ERROR();
 }
@@ -447,16 +453,19 @@ void gpu_draw_elements_gl11(void)
 void gpu_draw_range_elements_gl11(void)
 {
 	GPUindex* index = GPU_IMMEDIATE->index;
+	indexBufferDataGL11* bufferData = (indexBufferDataGL11*)(index->bufferData);
 
 	GPU_CHECK_NO_ERROR();
+
 	gpuMatrixCommit();
+
 	glDrawRangeElements(
 		GPU_IMMEDIATE->mode,
 		index->indexMin,
 		index->indexMax,
 		index->count,
-		GL_UNSIGNED_INT,
-		index->unmappedBuffer);
+		index->type,
+		bufferData->ptr);
 
 	GPU_CHECK_NO_ERROR();
 }

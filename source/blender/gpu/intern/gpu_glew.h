@@ -252,6 +252,10 @@ Some of these may be here simply to patch inconsistencies in the header files.
 #define GL_WRITE_ONLY GL_WRITE_ONLY_OES
 #endif
 
+#ifndef GLEW_ARB_vertex_array_object
+#define GLEW_ARB_vertex_array_object 0
+#endif
+
 
 
 /* end of defined(GLEW_ES_ONLY) */

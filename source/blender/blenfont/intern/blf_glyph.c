@@ -199,7 +199,7 @@ GPU_CHECK_NO_ERROR();
 
 #if defined(WITH_GL_PROFILE_CORE)
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, gc->p2_width, gc->p2_height, 0, GL_RED, GL_UNSIGNED_BYTE, buf);
-#elif defined(WITH_GL_PROFILE_COMPAT || WITH_GL_PROFILE_ES20)
+#elif defined(WITH_GL_PROFILE_COMPAT) || defined(WITH_GL_PROFILE_ES20)
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, gc->p2_width, gc->p2_height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, buf);
 #endif
 

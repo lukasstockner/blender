@@ -250,13 +250,14 @@ GPUFUNC GLenum (GLAPIENTRY* gpu_glCheckFramebufferStatus)(GLenum target);
 GPUFUNC void (GLAPIENTRY* gpu_glGenBuffers)(GLsizei  n, GLuint *buffers);
 GPUFUNC void (GLAPIENTRY* gpu_glBindBuffer)(GLenum target, GLuint buffer);
 GPUFUNC void (GLAPIENTRY* gpu_glBufferData)(GLenum target, GLsizeiptr size, const GLvoid * data, GLenum usage);
+GPUFUNC void (GLAPIENTRY* gpu_glBufferSubData)(GLenum target, GLintptr offset, GLsizeiptr size, const GLvoid * data);
 GPUFUNC void (GLAPIENTRY* gpu_glDeleteBuffers)(GLsizei  n, const GLuint * buffers);
 
 GPUFUNC void * (GLAPIENTRY* gpu_glMapBuffer)(GLenum target, GLenum access);
 GPUFUNC GLboolean (GLAPIENTRY* gpu_glUnmapBuffer)(GLenum  target);
 
-GPUFUNC       void* (GLAPIENTRY* GPU_buffer_start_update )(GLenum target, GLsizeiptr size,       GLvoid* data, GLenum usage);
-GPUFUNC const void* (GLAPIENTRY* GPU_buffer_finish_update)(GLenum target, GLsizeiptr size, const GLvoid* data, GLenum usage);
+GPUFUNC void* (*GPU_buffer_start_update )(GLenum target, GLvoid* data);
+GPUFUNC void  (*GPU_buffer_finish_update)(GLenum target, GLsizeiptr size, const GLvoid* data);
 
 void GPU_wrap_extensions(GLboolean* glslsupport_out, GLboolean* framebuffersupport_out);
 

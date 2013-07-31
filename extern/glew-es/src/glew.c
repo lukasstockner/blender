@@ -3428,6 +3428,7 @@ PFNGLVERTEXATTRIBPOINTERPROC __glewVertexAttribPointer = NULL;
 #if !GL_ES_VERSION_CL_1_1 // XXX jwilkins: missing function
 PFNGLBINDBUFFERPROC __glewBindBuffer = NULL; // XXX
 PFNGLBUFFERDATAPROC __glewBufferData = NULL; // XXX
+PFNGLBUFFERSUBDATAPROC __glewBufferSubData = NULL; // XXX
 PFNGLGENBUFFERSPROC __glewGenBuffers = NULL; // XXX
 PFNGLDELETEBUFFERSPROC __glewDeleteBuffers = NULL; // XXX
 PFNGLTEXPARAMETERIPROC __glewTexParameteri = NULL; // XXX
@@ -10759,6 +10760,7 @@ static GLboolean _glewInit_GL_ES_VERSION_2_0 (GLEW_CONTEXT_ARG_DEF_INIT)
 
   r = ((glBindBuffer = (PFNGLBINDBUFFERPROC)glewGetProcAddress((const GLubyte*)"glBindBuffer")) == NULL) || r; // XXX jwilkins: missing function
   r = ((glBufferData = (PFNGLBUFFERDATAPROC)glewGetProcAddress((const GLubyte*)"glBufferData")) == NULL) || r; // XXX jwilkins: missing function
+  r = ((glBufferSubData = (PFNGLBUFFERSUBDATAPROC)glewGetProcAddress((const GLubyte*)"glBufferSubData")) == NULL) || r; // XXX jwilkins: missing function
   r = ((glDeleteBuffers = (PFNGLDELETEBUFFERSPROC)glewGetProcAddress((const GLubyte*)"glDeleteBuffers")) == NULL) || r; // XXX jwilkins: missing function
   r = ((glGenBuffers = (PFNGLGENBUFFERSPROC)glewGetProcAddress((const GLubyte*)"glGenBuffers")) == NULL) || r; // XXX jwilkins: missing function
   r = ((glTexParameteri = (PFNGLTEXPARAMETERIPROC)glewGetProcAddress((const GLubyte*)"glTexParameteri")) == NULL) || r; // XXX jwilkins: missing function

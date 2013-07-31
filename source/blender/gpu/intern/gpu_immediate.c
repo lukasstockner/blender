@@ -1786,6 +1786,7 @@ void gpuIndexRelative##suffix(GLint offset, GLsizei count, const ctype *restrict
     }                                                                                                               \
                                                                                                                     \
     index->count += count;                                                                                          \
+    index->offset = count*sizeof(ctype);                                                                            \
 }
 
 INDEX_RELATIVE(ubv, GLubyte,  GL_UNSIGNED_BYTE )
@@ -1811,6 +1812,7 @@ void gpuIndex##suffix(ctype nextIndex)                                          
     index = GPU_IMMEDIATE->index;                                                                          \
     ((ctype*)(index->mappedBuffer))[index->count] = nextIndex;                                             \
     index->count++;                                                                                        \
+    index->offset += sizeof(ctype);                                                                        \
 }
 
 INDEX(ub, GLubyte,  GL_UNSIGNED_BYTE )

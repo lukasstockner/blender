@@ -367,7 +367,8 @@ typedef struct GPUindex {
 
 	GLuint restart;
 
-	GLenum type;
+	GLenum  type;
+	GLsizei offset;
 } GPUindex;
 
 GPUindex* gpuNewIndex(void);

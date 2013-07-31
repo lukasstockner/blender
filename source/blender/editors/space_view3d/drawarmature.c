@@ -424,7 +424,7 @@ static void draw_bone_octahedral(void)
 
 		index = gpuNewIndex();
 		gpuImmediateIndex(index);
-		gpuImmediateMaxIndexCount(index_count, GL_UNSIGNED_SHORT);
+		gpuImmediateMaxIndexCount(index_count, GL_UNSIGNED_INT); // XXX jwilkins: telling the type here is too early
 
 		gpuSingleClientRangeElements_V3F(
 			GL_LINE_LOOP,
@@ -458,7 +458,7 @@ static void draw_bone_solid_octahedral(void)
 
 		index = gpuNewIndex();
 		gpuImmediateIndex(index);
-		gpuImmediateMaxIndexCount(index_count, GL_UNSIGNED_SHORT);
+		gpuImmediateMaxIndexCount(index_count, GL_UNSIGNED_INT);// XXX jwilkins: telling the type here is too early
 
 		gpuSingleClientRangeElements_N3F_V3F(
 			GL_TRIANGLES,

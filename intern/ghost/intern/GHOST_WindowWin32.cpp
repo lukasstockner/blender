@@ -593,8 +593,13 @@ GHOST_Context* GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
 
 #elif defined(WITH_GL_SYSTEM_EMBEDDED)
 
-#if defined(WITH_GL_PROFILE_ES20)
+#if defined(WITH_GL_PROFILE_CORE)
+		// XXX jwilkins: not sure yet how to request a core context from EGL
+		GHOST_Context* context = new GHOST_ContextEGL(m_hWnd, m_hDC, EGL_OPENGL_API);
+#elif defined(WITH_GL_PROFILE_ES20)
 		GHOST_Context* context = new GHOST_ContextEGL(m_hWnd, m_hDC, EGL_OPENGL_ES_API, 2);
+#elif defined(WITH_GL_PROFILE_COMPAT)
+		GHOST_Context* context = new GHOST_ContextEGL(m_hWnd, m_hDC, EGL_OPENGL_API);
 #else
 #error
 #endif

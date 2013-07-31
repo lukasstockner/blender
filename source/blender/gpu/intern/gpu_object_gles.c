@@ -47,9 +47,7 @@ void gpuVertexPointer_gles(int size, int type, int stride, const void *pointer)
 {
 	if(curglslesi && (curglslesi->vertexloc != -1)) {
 		glEnableVertexAttribArray(curglslesi->vertexloc);
-	GPU_CHECK_NO_ERROR();
 		glVertexAttribPointer(curglslesi->vertexloc, size, type, GL_FALSE, stride, pointer);
-	GPU_CHECK_NO_ERROR();
 	}
 }
 
