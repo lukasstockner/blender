@@ -49,9 +49,10 @@ public:
     static ustring u_openvdb_file_extension;
     
 	static void initialize_library();
-	static bool open_file(OIIO::ustring filename, VDBVolumeFile &vdb_volume);
+	static bool open_file(OIIO::ustring filename, VDBVolumeFile *vdb_volume);
 	static bool is_vdb_volume_file(OIIO::ustring filename);
     static VDBVolumeFile *get_volume_from_file(OIIO::ustring filename);
+    static int get_number_of_grids(VDBVolumeFile *vdb_volume);
     
 private:
     static bool vdb_file_check_extension(ustring filename);
@@ -66,7 +67,7 @@ class OpenVDBVolumeAccessor {
 public:
 private:
 	openvdb::GridBase::Ptr grid;
-	eOpenVDBGridType grid_type; // Is this really necessary? Check OpenVDB's generic programming guidelines.
+	eOpenVDBGridType grid_type; // This is needed because it's impossible to know the grid value type beforehand;
 };
 
 
@@ -74,22 +75,6 @@ void OpenVDBUtil::initialize_library()
 {
     //any additional configuration needed?
 	openvdb::initialize();
-}
-
-
-bool OpenVDBUtil::open_file(OIIO::ustring filename, VDBVolumeFile &vdb_volume)
-{
-    // Assumes file has been checked for existence and integrity.
-    VDBVolumeFile myFileHandle(filename);
-    
-    
-	//openvdb::GridPtrVecPtr grids = file.getGrids();
-	
-	// Build OpenVDBVolume
-	//OpenVDBVolume vdb_volume(file, grids);
-    
-	//return vdb_volume;
-	return true;
 }
 
 bool OpenVDBUtil::vdb_file_check_valid_header(ustring filename)
@@ -139,6 +124,12 @@ VDBVolumeFile *OpenVDBUtil::get_volume_from_file(ustring filename)
     return &vdb_volume;
 }
 
+int OpenVDBUtil::get_number_of_grids(VDBVolumeFile *vdb_volume)
+{
+    return vdb_volume->grids->size();
+}
+
+
 // VDBTextureSystem
 VDBTextureSystem *VDBTextureSystem::init() {
     OpenVDBUtil::initialize_library();
@@ -160,20 +151,33 @@ bool VDBTextureSystem::perform_lookup(ustring filename, TextureOpt &options, OSL
                                       const Imath::V3f &dPdy, const Imath::V3f &dPdz,
                                       float *result)
 {
-    // TODO:
-    // - check if file is open and mapped;
+    // - check if file is open;
     OpenVDBMap::const_iterator open_file = vdb_files.find(filename);
     
     if (open_file == vdb_files.end())
     {
-        // open file;
+        VDBVolumeFile file(filename);
+        
         // add it to map
+        open_file = (vdb_files.insert(std::make_pair(filename, &file))).first;        
+    }
+
+    VDBVolumeFile *myVDB = open_file->second;
+    openvdb::GridPtrVecIter iter = myVDB->grids->begin();
+    
+    if (OpenVDBUtil::get_number_of_grids(myVDB) == 1) {
+       
+       // Name of the grid will be unimportant if it's the only one present in the file.
     }
     else
     {
-        // file is open;
+        for(iter = myVDB->grids->begin(); iter != myVDB->grids->end(); ++iter)
+        {
+            openvdb::GridBase::Ptr grid = *iter;
+            // Traversal is needed to find the correct grid by name;
+        }
     }
-
+    
     // perform lookup.
     
     return false;
