@@ -143,7 +143,4 @@ protected:
 
 
 
-
-
-
 #endif // __GHOST_CONTEXT_H__

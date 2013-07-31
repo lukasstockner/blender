@@ -136,7 +136,6 @@ static GPUindex*     gindex;
 /* only called once, for startup */
 void WM_init(bContext *C, int argc, const char **argv)
 {
-	
 	if (!G.background) {
 		wm_ghost_init(C);   /* note: it assigns C to ghost! */
 		wm_init_cursor_data();
@@ -420,6 +419,20 @@ void WM_exit_ext(bContext *C, const short do_python)
 		wmWindow *win;
 
 		if (!G.background) {
+			GPU_global_buffer_pool_free();
+			GPU_free_unused_buffers();
+			GPU_extensions_exit();
+
+			gpuShutdownLighting();
+
+			gpuDeleteIndex(gindex);
+			gpuImmediateIndex(NULL);
+
+			gpuImmediateMakeCurrent(NULL);
+			gpuDeleteImmediate(immediate);
+
+			GPU_ms_exit();
+
 			if ((U.uiflag2 & USER_KEEP_SESSION) || BKE_undo_valid(NULL)) {
 				/* save the undo state as quit.blend */
 				char filename[FILE_MAX];
@@ -513,21 +526,6 @@ void WM_exit_ext(bContext *C, const short do_python)
 #else
 	(void)do_python;
 #endif
-
-	GPU_global_buffer_pool_free();
-	GPU_free_unused_buffers();
-	GPU_extensions_exit();
-
-
-		gpuShutdownLighting();
-
-		gpuDeleteIndex(gindex);
-		gpuImmediateIndex(NULL);
-
-		gpuImmediateMakeCurrent(NULL);
-		gpuDeleteImmediate(immediate);
-
-		GPU_ms_exit();
 
 	BKE_reset_undo(); 
 	
