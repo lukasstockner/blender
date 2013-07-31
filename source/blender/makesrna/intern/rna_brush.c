@@ -401,6 +401,17 @@ static void rna_Brush_set_size(PointerRNA *ptr, int value)
 	brush->size = value;
 }
 
+static void rna_Brush_use_gradient_set(PointerRNA *ptr, int value)
+{
+	Brush *br = (Brush *)ptr->data;
+
+	if (value) br->flag |= BRUSH_USE_GRADIENT;
+	else br->flag &= ~BRUSH_USE_GRADIENT;
+
+	if ((br->flag & BRUSH_USE_GRADIENT) && br->gradient == NULL)
+		br->gradient = add_colorband(false);
+}
+
 static void rna_Brush_set_unprojected_radius(PointerRNA *ptr, float value)
 {
 	Brush *brush = ptr->data;
@@ -724,6 +735,12 @@ static void rna_def_brush(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem brush_gradient_items[] = {
+		{BRUSH_GRADIENT_PRESSURE, "PRESSURE", 0, "Pressure", ""},
+		{BRUSH_GRADIENT_SPACING, "SPACING", 0, "Spacing", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	static EnumPropertyItem brush_mask_pressure_items[] = {
 		{0, "NONE", 0, "Off", ""},
 		{BRUSH_MASK_PRESSURE_RAMP, "RAMP", ICON_STYLUS_PRESSURE, "Ramp", ""},
@@ -996,7 +1013,13 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_icon(prop, ICON_STYLUS_PRESSURE, 0);
 	RNA_def_property_ui_text(prop, "Size Pressure", "Enable tablet pressure sensitivity for size");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
-	
+
+	prop = RNA_def_property(srna, "use_gradient", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_USE_GRADIENT);
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_Brush_use_gradient_set");
+	RNA_def_property_ui_text(prop, "Use Gradient", "Use Gradient by utilizing a sampling method");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
 	prop = RNA_def_property(srna, "use_pressure_jitter", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_JITTER_PRESSURE);
 	RNA_def_property_ui_icon(prop, ICON_STYLUS_PRESSURE, 0);
@@ -1115,6 +1138,18 @@ static void rna_def_brush(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "curve", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
 	RNA_def_property_ui_text(prop, "Curve", "Editable falloff curve");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	prop = RNA_def_property(srna, "gradient", PROP_POINTER, PROP_NEVER_NULL);
+	RNA_def_property_pointer_sdna(prop, NULL, "gradient");
+	RNA_def_property_struct_type(prop, "ColorRamp");
+	RNA_def_property_ui_text(prop, "Gradient", "");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	/* gradient source */
+	prop = RNA_def_property(srna, "gradient_source", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, brush_gradient_items);
+	RNA_def_property_ui_text(prop, "Gradient Source", "");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	/* overlay flags */

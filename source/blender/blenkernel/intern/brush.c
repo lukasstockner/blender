@@ -198,6 +198,9 @@ void BKE_brush_free(Brush *brush)
 	BKE_previewimg_free(&(brush->preview));
 
 	curvemapping_free(brush->curve);
+
+	if (brush->gradient)
+		MEM_freeN(brush->gradient);
 }
 
 static void extern_local_brush(Brush *brush)

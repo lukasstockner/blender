@@ -62,6 +62,7 @@ typedef struct Brush {
 
 	struct ImBuf *icon_imbuf;
 	PreviewImage *preview;
+	struct ColorBand *gradient;	/* color gradient */
 	char icon_filepath[1024]; /* 1024 = FILE_MAX */
 
 	float normal_weight;
@@ -90,7 +91,7 @@ typedef struct Brush {
 	float plane_offset;     /* offset for plane brushes (clay, flatten, fill, scrape) */
 
 	float gravity_factor;   /* gravity factor for sculpting */
-	int pad;
+	int gradient_source;    /* source for color gradient application */
 
 	char sculpt_tool;       /* active sculpt tool */
 	char vertexpaint_tool;  /* active vertex/weight paint blend mode (poorly named) */
@@ -141,6 +142,12 @@ typedef struct Palette
 	int pad;
 } Palette;
 
+/* Brush.gradient_source */
+typedef enum BrushGradientSource {
+	BRUSH_GRADIENT_PRESSURE = 0, /* gradient from pressure */
+	BRUSH_GRADIENT_SPACING = 1 /* gradient from spacing */
+} BrushGradientSource;
+
 /* Brush.flag */
 typedef enum BrushFlags {
 	BRUSH_AIRBRUSH = (1 << 0),
@@ -163,7 +170,7 @@ typedef enum BrushFlags {
 	BRUSH_SPACE_ATTEN = (1 << 18),
 	BRUSH_ADAPTIVE_SPACE = (1 << 19),
 	BRUSH_LOCK_SIZE = (1 << 20),
-//	BRUSH_TEXTURE_OVERLAY = (1 << 21), /* obsolete, use overlay_flags |= BRUSH_OVERLAY_PRIMARY instead */
+	BRUSH_USE_GRADIENT = (1 << 21),
 	BRUSH_EDGE_TO_EDGE = (1 << 22),
 	BRUSH_DRAG_DOT = (1 << 23),
 	BRUSH_INVERSE_SMOOTH_PRESSURE = (1 << 24),

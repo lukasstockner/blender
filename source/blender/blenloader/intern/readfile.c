@@ -1830,6 +1830,8 @@ static void direct_link_brush(FileData *fd, Brush *brush)
 
 	/* fallof curve */
 	brush->curve = newdataadr(fd, brush->curve);
+	brush->gradient = newdataadr(fd, brush->gradient);
+
 	if (brush->curve)
 		direct_link_curvemapping(fd, brush->curve);
 	else

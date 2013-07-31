@@ -712,6 +712,10 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
                 col = layout.column(align=True)
                 col.prop(brush, "color", text="")
                 col.prop(brush, "secondary_color", text="")
+                col.prop(brush, "use_gradient")
+                if brush.use_gradient:
+                    col.prop(brush, "gradient_source")
+                    layout.template_color_ramp(brush, "gradient", expand=True)
                 col = layout.column()
                 col.template_ID(toolsettings, "palette", new="palette.new")
                 if toolsettings.palette:
