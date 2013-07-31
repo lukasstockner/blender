@@ -645,6 +645,8 @@ static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, Po
 
 	if (BKE_brush_use_alpha_pressure(scene, brush))
 		BKE_brush_alpha_set(scene, brush, max_ff(0.0f, startalpha * pressure * alphafac));
+	else
+		BKE_brush_alpha_set(scene, brush, max_ff(0.0f, startalpha * alphafac));
 
 	BKE_brush_size_set(scene, brush, max_ff(1.0f, size));
 

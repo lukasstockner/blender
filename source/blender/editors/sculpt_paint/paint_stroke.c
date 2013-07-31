@@ -120,12 +120,19 @@ static void paint_draw_smooth_line_cursor(bContext *C, int x, int y, void *custo
 	PaintStroke *stroke = customdata;
 
 	if (stroke && brush) {
-		glColor4ubv(paint->paint_cursor_col);
 		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_BLEND);
 
+		glColor4ub(0, 0, 0, paint->paint_cursor_col[3]);
+		glLineWidth(4.0);
 		sdrawline(x, y, (int)stroke->last_mouse_position[0],
 		          (int)stroke->last_mouse_position[1]);
+
+		glColor4ubv(paint->paint_cursor_col);
+		glLineWidth(2.0);
+		sdrawline(x, y, (int)stroke->last_mouse_position[0],
+		          (int)stroke->last_mouse_position[1]);
+
 		glDisable(GL_BLEND);
 		glDisable(GL_LINE_SMOOTH);
 	}
