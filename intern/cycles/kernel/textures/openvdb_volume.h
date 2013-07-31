@@ -19,8 +19,9 @@
 #ifndef __OPENVDB_VOLUME_H__
 #define __OPENVDB_VOLUME_H__
 
-#include <openvdb/openvdb.h>
 #include <OSL/oslexec.h>
+#include "util_map.h"
+
 
 CCL_NAMESPACE_BEGIN
 
@@ -35,38 +36,30 @@ typedef enum eOpenVDBGridType
 	OPENVDB_GRID_TYPE_VEC3F
 } eOpenVDBGridType;
 
-typedef struct OpenVDBVolume { //increasingly, it seems OpenVDBVolume should actually be OpenVDBVolumeCollection; checking with Brecht.
-	//TODO: wip: handles for file, sampling mechanism and pointer to grid(s): each file might contain more than 1 grid;
-	openvdb::io::File file;
-	openvdb::GridPtrVecPtr grids;
+struct VDBVolumeFile;
+class OpenVDBVolumeAccessor;
+class OpenVDBUtil;
 
-	
-} OpenVDBVolume;
-
-class OpenVDBVolumeAccessor {
+class VDBTextureSystem {
 public:
+    static VDBTextureSystem *init();
+    static void terminate (VDBTextureSystem *vdb_ts);
+    
+    VDBTextureSystem() { }
+    ~VDBTextureSystem() { }
+    
+    typedef unordered_map<ustring, VDBVolumeFile*, ustringHash> OpenVDBMap;
+    
+    bool is_vdb_volume (ustring filename);
+    
+    bool perform_lookup (ustring filename, TextureOpt &options, OSL::ShaderGlobals *sg,
+                    const Imath::V3f &P, const Imath::V3f &dPdx,
+                    const Imath::V3f &dPdy, const Imath::V3f &dPdz,
+                    float *result);
+    
 private:
-	openvdb::GridBase::Ptr grid;
-	eOpenVDBGridType grid_type; // Is this really necessary? Check OpenVDB's generic programming guidelines.
-	
+    OpenVDBMap vdb_files;
 };
-
-class OpenVDBUtil
-{
-public:
-	static void initialize_library();
-	static bool open_file(OIIO::ustring filename, OpenVDBVolume &vdb_volume);
-	
-
-    static bool is_vdb_volume_file(OIIO::ustring filename);
-
-	static ustring u_openvdb_file_extension;
-private:
-    static bool vdb_file_check_extension(ustring filename);
-    static bool vdb_file_check_valid_header(ustring filename);
-	int i;
-};
-
 
 
 CCL_NAMESPACE_END

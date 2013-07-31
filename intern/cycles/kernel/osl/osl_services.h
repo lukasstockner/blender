@@ -30,7 +30,7 @@
 #include <OSL/oslexec.h>
 #include <OSL/oslclosure.h>
 
-//#include <textures/openvdb_volume.h>
+#include <textures/openvdb_volume.h>
 
 CCL_NAMESPACE_BEGIN
 
@@ -151,6 +151,7 @@ public:
 private:
 	KernelGlobals *kernel_globals;
 	OSL::TextureSystem *osl_ts;
+    ccl::VDBTextureSystem *vdb_ts;
 };
 
 CCL_NAMESPACE_END

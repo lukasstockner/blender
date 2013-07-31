@@ -833,7 +833,7 @@ if(WITH_CYCLES)
 		cycles_kernel
 		cycles_util
 		cycles_subd
-		cycles_kernel_texture)
+		cycles_kernel_textures)
 	if(WITH_CYCLES_OSL)
 		list(APPEND BLENDER_LINK_LIBS cycles_kernel_osl)
 	endif()
@@ -1009,7 +1009,7 @@ endif()
 	endif()
 
 	if(WITH_CYCLES_OPENVDB)
-		list(APPEND BLENDER_SORTED_LIBS extern_openvdb)
+		list(APPEND BLENDER_SORTED_LIBS extern_openvdb "cycles_kernel_textures")
 	endif()
 
 	if(WITH_INTERNATIONAL)
