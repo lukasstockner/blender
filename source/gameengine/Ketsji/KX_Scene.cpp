@@ -1701,7 +1701,9 @@ void KX_Scene::UpdateObjectLods(void)
 
 	for (int i = 0; i < this->GetObjectList()->GetCount(); i++) {
 		gameobj = (KX_GameObject*) GetObjectList()->GetValue(i);
-		gameobj->UpdateLod(cam_pos);
+		if (!gameobj->GetCulled()){
+			gameobj->UpdateLod(cam_pos);
+		}
 	}
 }
 
