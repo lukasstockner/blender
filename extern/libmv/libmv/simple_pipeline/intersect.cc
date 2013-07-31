@@ -78,7 +78,7 @@ bool EuclideanIntersect(const vector<Marker> &markers,
   vector<Mat34> cameras;
   Mat34 P;
   for (int i = 0; i < markers.size(); ++i) {
-    EuclideanCamera *camera = reconstruction->CameraForImage(markers[i].image);
+    EuclideanCamera *camera = reconstruction->CameraForViewImage(0, markers[i].image);
     P_From_KRt(K, camera->R, camera->t, &P);
     cameras.push_back(P);
   }
@@ -103,7 +103,7 @@ bool EuclideanIntersect(const vector<Marker> &markers,
   for (int i = 0; i < markers.size(); ++i) {
     const Marker &marker = markers[i];
     const EuclideanCamera &camera =
-        *reconstruction->CameraForImage(marker.image);
+        *reconstruction->CameraForViewImage(0, marker.image);
 
     problem.AddResidualBlock(
         new ceres::AutoDiffCostFunction<
@@ -131,7 +131,7 @@ bool EuclideanIntersect(const vector<Marker> &markers,
   // Try projecting the point; make sure it's in front of everyone.
   for (int i = 0; i < cameras.size(); ++i) {
     const EuclideanCamera &camera =
-        *reconstruction->CameraForImage(markers[i].image);
+        *reconstruction->CameraForViewImage(0, markers[i].image);
     Vec3 x = camera.R * X + camera.t;
     if (x(2) < 0) {
       LOG(ERROR) << "POINT BEHIND CAMERA " << markers[i].image
@@ -164,7 +164,7 @@ struct ProjectiveIntersectCostFunction {
     residuals.setZero();
     for (int i = 0; i < markers.size(); ++i) {
       const ProjectiveCamera &camera =
-          *reconstruction.CameraForImage(markers[i].image);
+          *reconstruction.CameraForViewImage(0, markers[i].image);
       Vec3 projected = camera.P * X;
       projected /= projected(2);
       residuals[2*i + 0] = projected(0) - markers[i].x;
@@ -187,7 +187,7 @@ bool ProjectiveIntersect(const vector<Marker> &markers,
   // Get the cameras to use for the intersection.
   vector<Mat34> cameras;
   for (int i = 0; i < markers.size(); ++i) {
-    ProjectiveCamera *camera = reconstruction->CameraForImage(markers[i].image);
+    ProjectiveCamera *camera = reconstruction->CameraForViewImage(0, markers[i].image);
     cameras.push_back(camera->P);
   }
 
@@ -215,7 +215,7 @@ bool ProjectiveIntersect(const vector<Marker> &markers,
   // Try projecting the point; make sure it's in front of everyone.
   for (int i = 0; i < cameras.size(); ++i) {
     const ProjectiveCamera &camera =
-        *reconstruction->CameraForImage(markers[i].image);
+        *reconstruction->CameraForViewImage(0, markers[i].image);
     Vec3 x = camera.P * X;
     if (x(2) < 0) {
       LOG(ERROR) << "POINT BEHIND CAMERA " << markers[i].image

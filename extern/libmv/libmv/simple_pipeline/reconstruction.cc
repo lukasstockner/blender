@@ -18,6 +18,8 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
+#include <vector>
+
 #include "libmv/simple_pipeline/reconstruction.h"
 #include "libmv/numeric/numeric.h"
 #include "libmv/logging/logging.h"
@@ -40,16 +42,22 @@ EuclideanReconstruction &EuclideanReconstruction::operator=(
   return *this;
 }
 
-void EuclideanReconstruction::InsertCamera(int image,
+void EuclideanReconstruction::InsertCamera(int view,
+                                           int image,
                                            const Mat3 &R,
                                            const Vec3 &t) {
-  LG << "InsertCamera " << image << ":\nR:\n"<< R << "\nt:\n" << t;
-  if (image >= cameras_.size()) {
-    cameras_.resize(image + 1);
+  LG << "InsertCamera view " << view << ", image " << image
+     << ":\nR:\n"<< R << "\nt:\n" << t;
+  if (view >= cameras_.size()) {
+    cameras_.resize(view + 1);
   }
-  cameras_[image].image = image;
-  cameras_[image].R = R;
-  cameras_[image].t = t;
+  if (image >= cameras_[view].size()) {
+    cameras_[view].resize(image + 1);
+  }
+  cameras_[view][image].view = view;
+  cameras_[view][image].image = image;
+  cameras_[view][image].R = R;
+  cameras_[view][image].t = t;
 }
 
 void EuclideanReconstruction::InsertPoint(int track, const Vec3 &X) {
@@ -61,29 +69,48 @@ void EuclideanReconstruction::InsertPoint(int track, const Vec3 &X) {
   points_[track].X = X;
 }
 
-EuclideanCamera *EuclideanReconstruction::CameraForImage(int image) {
+EuclideanCamera *EuclideanReconstruction::CameraForViewImage(
+    int view, int image) {
   return const_cast<EuclideanCamera *>(
       static_cast<const EuclideanReconstruction *>(
-          this)->CameraForImage(image));
+          this)->CameraForViewImage(view, image));
 }
 
-const EuclideanCamera *EuclideanReconstruction::CameraForImage(
-    int image) const {
-  if (image < 0 || image >= cameras_.size()) {
+const EuclideanCamera *EuclideanReconstruction::CameraForViewImage(
+    int view, int image) const {
+  if (view < 0 || view >= cameras_.size() ||
+      image < 0 || image >= cameras_[view].size()) {
     return NULL;
   }
-  const EuclideanCamera *camera = &cameras_[image];
-  if (camera->image == -1) {
+  const EuclideanCamera *camera = &cameras_[view][image];
+  if (camera->view == -1 || camera->image == -1) {
     return NULL;
   }
   return camera;
 }
 
-vector<EuclideanCamera> EuclideanReconstruction::AllCameras() const {
-  vector<EuclideanCamera> cameras;
+std::vector<vector<EuclideanCamera> > EuclideanReconstruction::AllCameras(
+    ) const {
+  std::vector<vector<EuclideanCamera> > cameras;
+  cameras.resize(cameras_.size());
   for (int i = 0; i < cameras_.size(); ++i) {
-    if (cameras_[i].image != -1) {
-      cameras.push_back(cameras_[i]);
+    for (int j = 0; j < cameras_[i].size(); ++j) {
+      if (cameras[i][j].view != -1 && cameras_[i][j].image != -1) {
+        cameras[i].push_back(cameras_[i][j]);
+      }
+    }
+  }
+  return cameras;
+}
+
+vector<EuclideanCamera> EuclideanReconstruction::AllCamerasForView(
+    int view) const {
+  vector<EuclideanCamera> cameras;
+  if (view >= 0 && view < cameras.size()) {
+    for (int i = 0; i < cameras_[view].size(); ++i) {
+      if (cameras_[view][i].view != -1 && cameras_[view][i].image != -1) {
+        cameras.push_back(cameras_[view][i]);
+      }
     }
   }
   return cameras;
@@ -115,14 +142,19 @@ vector<EuclideanPoint> EuclideanReconstruction::AllPoints() const {
   return points;
 }
 
-void ProjectiveReconstruction::InsertCamera(int image,
-                                           const Mat34 &P) {
-  LG << "InsertCamera " << image << ":\nP:\n"<< P;
-  if (image >= cameras_.size()) {
-    cameras_.resize(image + 1);
+void ProjectiveReconstruction::InsertCamera(int view, int image,
+                                            const Mat34 &P) {
+  LG << "InsertCamera view " << view << ", image " << image
+     << ":\nP:\n"<< P;
+  if (view >= cameras_.size()) {
+    cameras_.resize(view + 1);
   }
-  cameras_[image].image = image;
-  cameras_[image].P = P;
+  if (image >= cameras_[view].size()) {
+    cameras_[view].resize(image + 1);
+  }
+  cameras_[view][image].view = view;
+  cameras_[view][image].image = image;
+  cameras_[view][image].P = P;
 }
 
 void ProjectiveReconstruction::InsertPoint(int track, const Vec4 &X) {
@@ -134,29 +166,46 @@ void ProjectiveReconstruction::InsertPoint(int track, const Vec4 &X) {
   points_[track].X = X;
 }
 
-ProjectiveCamera *ProjectiveReconstruction::CameraForImage(int image) {
+ProjectiveCamera *ProjectiveReconstruction::CameraForViewImage(int view, int image) {
   return const_cast<ProjectiveCamera *>(
       static_cast<const ProjectiveReconstruction *>(
-          this)->CameraForImage(image));
+          this)->CameraForViewImage(view, image));
 }
 
-const ProjectiveCamera *ProjectiveReconstruction::CameraForImage(
-    int image) const {
-  if (image < 0 || image >= cameras_.size()) {
+const ProjectiveCamera *ProjectiveReconstruction::CameraForViewImage(
+    int view, int image) const {
+  if (view < 0 || view >= cameras_.size() ||
+      image < 0 || image >= cameras_[view].size()) {
     return NULL;
   }
-  const ProjectiveCamera *camera = &cameras_[image];
-  if (camera->image == -1) {
+  const ProjectiveCamera *camera = &cameras_[view][image];
+  if (camera->view == -1 || camera->image == -1) {
     return NULL;
   }
   return camera;
 }
 
-vector<ProjectiveCamera> ProjectiveReconstruction::AllCameras() const {
-  vector<ProjectiveCamera> cameras;
+std::vector<vector<ProjectiveCamera> > ProjectiveReconstruction::AllCameras() const {
+  std::vector<vector<ProjectiveCamera> > cameras;
+  cameras.resize(cameras_.size());
   for (int i = 0; i < cameras_.size(); ++i) {
-    if (cameras_[i].image != -1) {
-      cameras.push_back(cameras_[i]);
+    for (int j = 0; j < cameras_[i].size(); ++j) {
+      if (cameras[i][j].view != 1 && cameras_[i][j].image != -1) {
+        cameras[i].push_back(cameras_[i][j]);
+      }
+    }
+  }
+  return cameras;
+}
+
+vector<ProjectiveCamera> ProjectiveReconstruction::AllCamerasForView(
+    int view) const {
+  vector<ProjectiveCamera> cameras;
+  if (view < cameras_.size()) {
+    for (int i = 0; i < cameras_[view].size(); ++i) {
+      if (cameras_[view][i].view != -1 && cameras_[view][i].image != -1) {
+        cameras.push_back(cameras_[view][i]);
+      }
     }
   }
   return cameras;

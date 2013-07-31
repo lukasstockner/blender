@@ -114,13 +114,14 @@ double libmv_reporojectionErrorForTrack(const libmv_Reconstruction * /*libmv_rec
 	return 0.0;
 }
 
-double libmv_reporojectionErrorForImage(const libmv_Reconstruction * /*libmv_reconstruction*/, int /*image*/)
+double libmv_reporojectionErrorForViewImage(const libmv_Reconstruction * /*libmv_reconstruction*/,
+                                            int /*view*/, int /*image*/)
 {
 	return 0.0;
 }
 
-int libmv_reporojectionCameraForImage(const libmv_Reconstruction * /*libmv_reconstruction*/, int /*image*/,
-                                      double /*mat*/[4][4])
+int libmv_reporojectionCameraForViewImage(const libmv_Reconstruction * /*libmv_reconstruction*/,
+                                          int /*view*/, int /*image*/, double /*mat*/[4][4])
 {
 	return 0;
 }

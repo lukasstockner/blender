@@ -724,7 +724,7 @@ double libmv_reporojectionErrorForTrack(const libmv_Reconstruction *libmv_recons
 	double total_error = 0.0;
 
 	for (int i = 0; i < markers.size(); ++i) {
-		const libmv::EuclideanCamera *camera = reconstruction->CameraForImage(markers[i].image);
+		const libmv::EuclideanCamera *camera = reconstruction->CameraForViewImage(markers[i].view, markers[i].image);
 		const libmv::EuclideanPoint *point = reconstruction->PointForTrack(markers[i].track);
 
 		if (!camera || !point) {
@@ -743,12 +743,12 @@ double libmv_reporojectionErrorForTrack(const libmv_Reconstruction *libmv_recons
 	return total_error / num_reprojected;
 }
 
-double libmv_reporojectionErrorForImage(const libmv_Reconstruction *libmv_reconstruction, int image)
+double libmv_reporojectionErrorForViewImage(const libmv_Reconstruction *libmv_reconstruction, int view, int image)
 {
 	const libmv::EuclideanReconstruction *reconstruction = &libmv_reconstruction->reconstruction;
 	const libmv::CameraIntrinsics *intrinsics = &libmv_reconstruction->intrinsics;
 	libmv::vector<libmv::Marker> markers = libmv_reconstruction->tracks.MarkersInImage(image);
-	const libmv::EuclideanCamera *camera = reconstruction->CameraForImage(image);
+	const libmv::EuclideanCamera *camera = reconstruction->CameraForViewImage(view, image);
 	int num_reprojected = 0;
 	double total_error = 0.0;
 
@@ -774,11 +774,11 @@ double libmv_reporojectionErrorForImage(const libmv_Reconstruction *libmv_recons
 	return total_error / num_reprojected;
 }
 
-int libmv_reporojectionCameraForImage(const libmv_Reconstruction *libmv_reconstruction,
-                                      int image, double mat[4][4])
+int libmv_reporojectionCameraForViewImage(const libmv_Reconstruction *libmv_reconstruction,
+                                          int view, int image, double mat[4][4])
 {
 	const libmv::EuclideanReconstruction *reconstruction = &libmv_reconstruction->reconstruction;
-	const libmv::EuclideanCamera *camera = reconstruction->CameraForImage(image);
+	const libmv::EuclideanCamera *camera = reconstruction->CameraForViewImage(view, image);
 
 	if(camera) {
 		for (int j = 0; j < 3; ++j) {
