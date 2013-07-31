@@ -3607,13 +3607,27 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
 				Paint *paint = BKE_paint_get_active(scene);
 				Brush *brush = BKE_paint_brush(paint);
 
-				if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
-					RNA_property_float_get_array(&but->rnapoin, but->rnaprop, brush->rgb);
-				} else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
-					float color[3];
-					RNA_property_float_get_array(&but->rnapoin, but->rnaprop, color);
-					linearrgb_to_srgb_v3_v3(brush->rgb, color);
+				if (brush->flag & BRUSH_USE_GRADIENT) {
+					float *target = &brush->gradient->data[brush->gradient->cur].r;
+
+					if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
+						float color[3];
+						RNA_property_float_get_array(&but->rnapoin, but->rnaprop, color);
+						srgb_to_linearrgb_v3_v3(target, color);
+					} else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
+						RNA_property_float_get_array(&but->rnapoin, but->rnaprop, target);
+					}
 				}
+				else {
+					if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
+						RNA_property_float_get_array(&but->rnapoin, but->rnaprop, brush->rgb);
+					} else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
+						float color[3];
+						RNA_property_float_get_array(&but->rnapoin, but->rnaprop, color);
+						linearrgb_to_srgb_v3_v3(brush->rgb, color);
+					}
+				}
+
 				button_activate_state(C, but, BUTTON_STATE_EXIT);
 			} else {
 				button_activate_state(C, but, BUTTON_STATE_MENU_OPEN);

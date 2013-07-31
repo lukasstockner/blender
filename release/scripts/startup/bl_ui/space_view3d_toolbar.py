@@ -685,14 +685,16 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             col = layout.column()
 
             if brush.image_tool == 'DRAW' and brush.blend not in ('ERASE_ALPHA', 'ADD_ALPHA'):
-                col.template_color_picker(brush, "color", value_slider=True)
-                col = layout.column(align=True)
-                col.prop(brush, "color", text="")
-                col.prop(brush, "secondary_color", text="")
+                if not brush.use_gradient:
+                    col.template_color_picker(brush, "color", value_slider=True)
                 col.prop(brush, "use_gradient")
                 if brush.use_gradient:
                     col.prop(brush, "gradient_source")
-                    layout.template_color_ramp(brush, "gradient", expand=True)
+                    col.template_color_ramp(brush, "gradient", expand=True)
+                else:
+                    col = layout.column(align=True)            
+                    col.prop(brush, "color", text="")
+                col.prop(brush, "secondary_color", text="")
                 col = layout.column()
                 col.template_ID(settings, "palette", new="palette.new")
                 if settings.palette:
