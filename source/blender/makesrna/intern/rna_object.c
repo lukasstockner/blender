@@ -2049,12 +2049,6 @@ static void rna_def_object_lodlevel(BlenderRNA* brna)
 	RNA_def_property_ui_text(prop, "Use Material", "Use the material from this object at this level of detail");
 	RNA_def_property_ui_icon(prop, ICON_MATERIAL, 0);
 	RNA_def_property_update(prop, NC_LOD, NULL);
-
-	prop = RNA_def_property(srna, "use_logic", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "use_logic", 0);
-	RNA_def_property_ui_text(prop, "Use Logic", "Use the logic from this object at this level of detail");
-	RNA_def_property_ui_icon(prop, ICON_LOGIC, 0);
-	RNA_def_property_update(prop, NC_LOD, NULL);
 }
 
 

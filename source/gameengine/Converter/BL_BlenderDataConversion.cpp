@@ -1077,12 +1077,15 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	RAS_MeshObject *meshobj;
 	int lightlayer = blenderobj ? blenderobj->lay:(1<<20)-1; // all layers if no object.
 
+	// Without checking names, we get some reuse we don't want that can cause
+	// problems with material LoDs.
 	if ((meshobj = converter->FindGameMesh(mesh/*, ob->lay*/)) != NULL) {
 		STR_String bge_name = meshobj->GetName();
 		STR_String blender_name = ((Mesh*)blenderobj->data)->id.name+2;
 		if (bge_name == blender_name)
 			return meshobj;
 	}
+
 	// Get DerivedMesh data
 	DerivedMesh *dm = CDDM_from_mesh(mesh, blenderobj);
 	DM_ensure_tessface(dm);
@@ -1995,6 +1998,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 		// set transformation
 		gameobj->AddMesh(meshobj);
 
+		// gather levels of detail
 		if (BLI_countlist(&ob->lodlevels) > 1) {
 			LodLevel *lod = ((LodLevel*)ob->lodlevels.first)->next;
 			Mesh* lodmesh = mesh;

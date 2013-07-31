@@ -777,7 +777,6 @@ class DupliOffsetFromCursor(Operator):
         return {'FINISHED'}
 
 
-
 class LodByName(Operator):
     """Add levels of detail to this object based on object names"""
     bl_idname = "object.lod_by_name"
@@ -795,7 +794,6 @@ class LodByName(Operator):
         prefix = ""
         suffix = ""
         name = ""
-        ob.name.lower()
         if ob.name.lower().startswith("lod0"):
             prefix = ob.name[:4]
             name = ob.name[4:]

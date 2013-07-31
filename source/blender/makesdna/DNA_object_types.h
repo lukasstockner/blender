@@ -105,7 +105,7 @@ typedef struct BoundBox {
 typedef struct LodLevel {
 	struct LodLevel *next, *prev;
 	struct Object *source;
-	char use_mesh, use_mat, use_logic, pad;
+	char use_mesh, use_mat, pad[2];
 	float distance;
 } LodLevel;
 

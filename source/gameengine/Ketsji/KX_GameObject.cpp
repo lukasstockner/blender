@@ -720,6 +720,7 @@ void KX_GameObject::RemoveMeshes()
 
 void KX_GameObject::UpdateLod(MT_Vector3 &cam_pos)
 {
+	// Handle dupligroups
 	if (this->m_pInstanceObjects) {
 		KX_GameObject * instob;
 		int count = this->m_pInstanceObjects->GetCount();
@@ -732,7 +733,7 @@ void KX_GameObject::UpdateLod(MT_Vector3 &cam_pos)
 	if (this->m_lodmeshes.empty()) return;
 
 	MT_Vector3 delta = this->NodeGetWorldPosition() - cam_pos;
-	float distance2 = delta.dot(delta);
+	float distance2 = delta.length2();
 
 	int level = 0;
 	Object *bob = this->GetBlenderObject();

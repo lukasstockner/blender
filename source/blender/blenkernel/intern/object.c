@@ -939,7 +939,7 @@ Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
 	BKE_object_lod_add(ob);
 	base = BLI_findlink(&ob->lodlevels, 0);
 	base->distance = 0.0;
-	base->use_logic = base->use_mat = base->use_mesh = 1;
+	base->use_mat = base->use_mesh = 1;
 	base->source = ob;
 	ob->currentlod = base;
 
@@ -1288,7 +1288,7 @@ static void copy_object_lod(Object *obn, Object *ob)
 	BKE_object_lod_add(obn);
 	nlod = obn->lodlevels.first;
 	nlod->distance = 0.0;
-	nlod->use_logic = nlod->use_mat =nlod->use_mesh = 1;
+	nlod->use_mat =nlod->use_mesh = 1;
 	nlod->source = obn;
 	obn->currentlod = nlod;
 
@@ -1299,7 +1299,6 @@ static void copy_object_lod(Object *obn, Object *ob)
 
 		nlod->distance = lod->distance;
 		nlod->source = lod->source;
-		nlod->use_logic = lod->use_logic;
 		nlod->use_mat = lod->use_mat;
 		nlod->use_mesh = lod->use_mesh;
 	}

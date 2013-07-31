@@ -9558,7 +9558,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				BKE_object_lod_add(ob);
 				base = BLI_findlink(&ob->lodlevels, 0);
 				base->distance = 0.0;
-				base->use_logic = base->use_mat = base->use_mesh = 1;
+				base->use_mat = base->use_mesh = 1;
 				base->source = ob;
 				ob->currentlod = base;
 			}
