@@ -1296,11 +1296,13 @@ static int bucket_fill_exec(bContext *C, wmOperator *op)
 		Paint *p = BKE_paint_get_active(CTX_data_scene(C));
 		Brush *br = BKE_paint_brush(p);
 
-		copy_v3_v3(color, br->rgb);
+		srgb_to_linearrgb_v3_v3(color, br->rgb);
 	}
 
 	mode = BKE_paintmode_get_active_from_context(C);
 
+	undo_paint_push_begin(UNDO_PAINT_IMAGE, op->type->name,
+	                      image_undo_restore, image_undo_free);
 	switch(mode) {
 		case PAINT_TEXTURE_2D:
 			paint_2d_bucket_fill(C, color);
@@ -1310,6 +1312,8 @@ static int bucket_fill_exec(bContext *C, wmOperator *op)
 		default:
 			break;
 	}
+
+	undo_paint_push_end(UNDO_PAINT_IMAGE);
 
 	RNA_float_set_array(op->ptr, "color", color);
 
@@ -1329,7 +1333,7 @@ void PAINT_OT_bucket_fill(wmOperatorType *ot)
 	ot->poll = image_paint_poll;
 
 	/* flags */
-	ot->flag = OPTYPE_REGISTER;
+	ot->flag = OPTYPE_UNDO | OPTYPE_BLOCKING;
 
 	RNA_def_float_color(ot->srna, "color", 3, NULL, 0.0, 1.0, "Color", "Color for bucket fill", 0.0, 1.0);
 }

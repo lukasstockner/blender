@@ -1232,6 +1232,9 @@ void paint_2d_bucket_fill (bContext *C, float color[3])
 
 	ibuf = BKE_image_acquire_ibuf(ima, &sima->iuser, NULL);
 
+	if (!ibuf)
+		return;
+
 	do_float = (ibuf->rect_float != NULL);
 	/* first check if our image is float. If it is not we should correct the colour to
 	 * be in gamma space */
@@ -1243,6 +1246,9 @@ void paint_2d_bucket_fill (bContext *C, float color[3])
 		copy_v3_v3(color_f, color);
 		color_f[3] = 1.0;
 	}
+
+	/* this will be substituted by something else when selection is available */
+	imapaint_dirty_region(ima, ibuf, 0, 0, ibuf->x, ibuf->y);
 
 	if (do_float) {
 		for (; i < ibuf->x; i++) {
@@ -1259,11 +1265,10 @@ void paint_2d_bucket_fill (bContext *C, float color[3])
 		}
 	}
 
-	ibuf->userflags |= IB_BITMAPDIRTY;
+	imapaint_image_update(sima, ima, ibuf, false);
+	imapaint_clear_partial_redraw();
 
 	BKE_image_release_ibuf(ima, ibuf, NULL);
-
-	GPU_free_image(ima);
 
 	WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
 }
