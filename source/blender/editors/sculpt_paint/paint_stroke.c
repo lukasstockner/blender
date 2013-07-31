@@ -36,6 +36,7 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 #include "BLI_rand.h"
+#include "BLI_listbase.h"
 
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -66,6 +67,11 @@ typedef struct PaintSample {
 	float pressure;
 } PaintSample;
 
+typedef struct LinePoint {
+	struct LinePoint *next, *prev;
+	float pos[2];
+} LinePoint;
+
 typedef struct PaintStroke {
 	void *mode_data;
 	void *smooth_stroke_cursor;
@@ -76,6 +82,7 @@ typedef struct PaintStroke {
 	bglMats mats;
 	Brush *brush;
 	UnifiedPaintSettings *ups;
+	ListBase line;
 
 	/* Paint stroke can use up to PAINT_MAX_INPUT_SAMPLES prior inputs
 	 * to smooth the stroke */
@@ -113,7 +120,7 @@ typedef struct PaintStroke {
 } PaintStroke;
 
 /*** Cursors ***/
-static void paint_draw_smooth_line_cursor(bContext *C, int x, int y, void *customdata)
+static void paint_draw_smooth_cursor(bContext *C, int x, int y, void *customdata)
 {
 	Paint *paint = BKE_paint_get_active_from_context(C);
 	Brush *brush = BKE_paint_brush(paint);
@@ -122,16 +129,40 @@ static void paint_draw_smooth_line_cursor(bContext *C, int x, int y, void *custo
 	if (stroke && brush) {
 		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_BLEND);
-
-		glColor4ub(0, 0, 0, paint->paint_cursor_col[3]);
-		glLineWidth(4.0);
-		sdrawline(x, y, (int)stroke->last_mouse_position[0],
-		          (int)stroke->last_mouse_position[1]);
-
 		glColor4ubv(paint->paint_cursor_col);
-		glLineWidth(2.0);
 		sdrawline(x, y, (int)stroke->last_mouse_position[0],
 		          (int)stroke->last_mouse_position[1]);
+		glDisable(GL_BLEND);
+		glDisable(GL_LINE_SMOOTH);
+	}
+}
+
+/*** Cursors ***/
+static void paint_draw_line_cursor(bContext *C, int UNUSED(x), int UNUSED(y), void *customdata)
+{
+	Paint *paint = BKE_paint_get_active_from_context(C);
+	Brush *brush = BKE_paint_brush(paint);
+	PaintStroke *stroke = customdata;
+
+	if (stroke && brush) {
+		LinePoint *p = stroke->line.first;
+
+		glEnable(GL_LINE_SMOOTH);
+		glEnable(GL_BLEND);
+
+		while (p->next) {
+			glColor4ub(0, 0, 0, paint->paint_cursor_col[3]);
+			glLineWidth(4.0);
+			sdrawline((int)p->pos[0], (int)p->pos[1],
+			          (int)p->next->pos[0], (int)p->next->pos[1]);
+
+			glColor4ubv(paint->paint_cursor_col);
+			glLineWidth(2.0);
+			sdrawline((int)p->pos[0], (int)p->pos[1],
+			          (int)p->next->pos[0], (int)p->next->pos[1]);
+
+			p = p->next;
+		}
 
 		glDisable(GL_BLEND);
 		glDisable(GL_LINE_SMOOTH);
@@ -590,6 +621,8 @@ static void stroke_done(struct bContext *C, struct wmOperator *op)
 	if (stroke->smooth_stroke_cursor)
 		WM_paint_cursor_end(CTX_wm_manager(C), stroke->smooth_stroke_cursor);
 
+	BLI_freelistN(&stroke->line);
+
 	paint_stroke_data_free(op);
 }
 
@@ -761,7 +794,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	if (!stroke->stroke_init) {
 		if (paint_supports_smooth_stroke(br, mode))
 			stroke->smooth_stroke_cursor =
-			    WM_paint_cursor_activate(CTX_wm_manager(C), paint_poll, paint_draw_smooth_line_cursor, stroke);
+			    WM_paint_cursor_activate(CTX_wm_manager(C), paint_poll, paint_draw_smooth_cursor, stroke);
 
 		stroke->stroke_init = true;
 		first_modal = true;
@@ -778,10 +811,17 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			if (br->flag & BRUSH_AIRBRUSH)
 				stroke->timer = WM_event_add_timer(CTX_wm_manager(C), CTX_wm_window(C), TIMER, stroke->brush->rate);
 
-			if (br->flag & BRUSH_LINE)
+			if (br->flag & BRUSH_LINE) {
+				LinePoint *p = MEM_callocN(sizeof(*p), "line_stroke_point");
 				stroke->smooth_stroke_cursor =
-					WM_paint_cursor_activate(CTX_wm_manager(C), paint_poll, paint_draw_smooth_line_cursor, stroke);
+					WM_paint_cursor_activate(CTX_wm_manager(C), paint_poll, paint_draw_line_cursor, stroke);
 
+				BLI_addtail(&stroke->line, p);
+				copy_v2_v2(p->pos, sample_average.mouse);
+				p = MEM_callocN(sizeof(*p), "line_stroke_point");
+				BLI_addtail(&stroke->line, p);
+				copy_v2_v2(p->pos, sample_average.mouse);
+			}
 			first_dab = true;
 		}
 	}
@@ -794,17 +834,49 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			return paint_stroke_cancel(C, op);
 	}
 
-	if (event->type == stroke->event_type && event->val == KM_RELEASE && !first_modal) {
+	if (event->type == stroke->event_type && !first_modal) {
 		if (br->flag & BRUSH_LINE) {
-			stroke->ups->overlap_factor = paint_stroke_integrate_overlap(br, br->spacing);
-			paint_brush_stroke_add_step(C, op, stroke->last_mouse_position, 1.0);
-			paint_space_stroke(C, op, sample_average.mouse, 1.0);
-		}
+			if (event->val == KM_PRESS) {
+				if (!stroke->stroke_started) {
+					stroke_done(C, op);
+					return OPERATOR_FINISHED;
+				}
 
-		stroke_done(C, op);
-		return OPERATOR_FINISHED;
+				if (event->shift) {
+					/* Add new line here */
+					LinePoint *p = MEM_callocN(sizeof(*p), "line_stroke_point");
+					BLI_addtail(&stroke->line, p);
+					copy_v2_v2(p->pos, sample_average.mouse);
+					/* for rake to work well */
+					copy_v2_v2(stroke->last_mouse_position, sample_average.mouse);
+				}
+				else {
+					LinePoint *p = stroke->line.first;
+
+					stroke->ups->overlap_factor = paint_stroke_integrate_overlap(br, br->spacing);
+
+					paint_brush_stroke_add_step(C, op, p->pos, 1.0);
+
+					for (; p; p = p->next) {
+						paint_space_stroke(C, op, p->pos, 1.0);
+					}
+
+					stroke_done(C, op);
+					return OPERATOR_FINISHED;
+				}
+			}
+		}
+		else if (event->val == KM_RELEASE) {
+			stroke_done(C, op);
+			return OPERATOR_FINISHED;
+		}
 	}
-	else if (br->flag & BRUSH_LINE) {
+	else if ((br->flag & BRUSH_LINE) && stroke->stroke_started &&
+			 (first_modal || (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE))))
+	{
+		LinePoint *p = stroke->line.last;
+		copy_v2_v2(p->pos, sample_average.mouse);
+
 		if (br->flag & BRUSH_RAKE) {
 			copy_v2_v2(stroke->ups->last_rake, stroke->last_mouse_position);
 			paint_calculate_rake_rotation(stroke->ups,  sample_average.mouse);
