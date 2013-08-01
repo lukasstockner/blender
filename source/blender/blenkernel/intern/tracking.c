@@ -2903,8 +2903,8 @@ bool BKE_tracking_track_region(const MovieTrackingTrack *track,
 	double dst_pixel_x[5], dst_pixel_y[5];
 
 	/* Settings for the tracker */
-	struct libmv_trackRegionOptions options = {0};
-	struct libmv_trackRegionResult result;
+	libmv_TrackRegionOptions options = {0};
+	libmv_TrackRegionResult result;
 
 	float *old_search, *new_search;
 	bool tracked;
