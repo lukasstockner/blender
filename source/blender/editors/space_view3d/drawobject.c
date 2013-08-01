@@ -1504,7 +1504,6 @@ static void draw_viewport_reconstruction(Scene *scene, Base *base, View3D *v3d, 
 		return;
 
 	gpuEnableLighting();
-	gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 	gpuEnableColorMaterial();
 	gpuShadeModel(GL_SMOOTH);
 
@@ -3284,7 +3283,6 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 				gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
 
 				/* diffuse */
-				gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 				gpuEnableLighting();
 				gpuEnableColorMaterial();
 
@@ -4587,7 +4585,6 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 
 		/* setup gl flags */
 		gpuEnableLighting();
-		gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 		gpuEnableColorMaterial();
 
 		if (totchild && (part->draw & PART_DRAW_PARENT) == 0) {
@@ -4824,7 +4821,6 @@ static void draw_ptcache_edit(Scene *scene, View3D *v3d, PTCacheEdit *edit)
 	glEnable(GL_BLEND);
 	pathcol = MEM_callocN(steps * 4 * sizeof(float), "particle path color data");
 
-	gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 	gpuEnableColorMaterial();
 	gpuShadeModel(GL_SMOOTH);
 

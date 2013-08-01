@@ -37,14 +37,14 @@
 #include "BLI_utildefines.h"
 
 #include "intern/gpu_glew.h"
-
+#include "intern/gpu_known.h"
 
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-
+#if 0
 
 typedef struct GPUlighting {
 	void (*material_fv)(GLenum face, GLenum pname, const GLfloat *params);
@@ -87,12 +87,39 @@ void gpuShutdownLighting(void);
 
 #endif
 
+#endif
+
+/* Simple Lighting */
+
+
+
+typedef struct GPUsimplelight {
+	float position[4];
+	float diffuse [4];
+	float specular[4];
+
+	float constant_attenuation;
+	float linear_attenuation;
+	float quadratic_attenuation;
+
+	float spot_direction[3];
+	float spot_cutoff;
+	float spot_exponent;
+} GPUsimplelight;
+
+typedef struct GPUsimplematerial {
+	float diffuse [4];
+	float specular[4];
+	int   shininess;
+} GPUsimplematerial;
+
+void GPU_commit_light   (uint32_t lights_enabled, const GPUsimplelight *light);
+void GPU_commit_material(const GPUsimplematerial* material);
+
 
 
 #ifdef __cplusplus
 }
 #endif
-
-
 
 #endif /* GPU_LIGHTING_H */

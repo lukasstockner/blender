@@ -29,15 +29,17 @@
 *  \ingroup gpu
 */
 
-#include "gpu_immediate_internal.h"
+#include "intern/gpu_immediate_internal.h"
+
+#include "intern/gpu_profile.h"
+#include "intern/gpu_known.h"
+
 #include "GPU_extensions.h"
-#include "gpu_object_gles.h"
+
 #include "MEM_guardedalloc.h"
-#include "gpu_profile.h"
 
 #include <math.h>
 #include <string.h>
-
 
 
 
@@ -173,7 +175,6 @@ GPUimmediate* gpuNewImmediate(void)
 		immediate->endBuffer           = gpu_end_buffer_glsl;
 		immediate->shutdownBuffer      = gpu_shutdown_buffer_glsl;
 		immediate->currentColor        = gpu_current_color_glsl;
-		immediate->getCurrentColor     = gpu_get_current_color_glsl;
 		immediate->currentNormal       = gpu_current_normal_glsl;
 		immediate->indexBeginBuffer    = gpu_index_begin_buffer_glsl;
 		immediate->indexShutdownBuffer = gpu_index_shutdown_buffer_glsl;
@@ -195,7 +196,6 @@ GPUimmediate* gpuNewImmediate(void)
 		immediate->endBuffer           = gpu_end_buffer_gl11;
 		immediate->shutdownBuffer      = gpu_shutdown_buffer_gl11;
 		immediate->currentColor        = gpu_current_color_gl11;
-		immediate->getCurrentColor     = gpu_get_current_color_gl11;
 		immediate->currentNormal       = gpu_current_normal_gl11;
 		immediate->indexBeginBuffer    = gpu_index_begin_buffer_gl11;
 		immediate->indexShutdownBuffer = gpu_index_shutdown_buffer_gl11;
@@ -988,21 +988,20 @@ void gpuGetCurrentColor4fv(GLfloat *restrict color)
 {
 	GPU_CHECK_CAN_GET_COLOR();
 
-	GPU_IMMEDIATE->getCurrentColor(color);
+	color[0] = GPU_IMMEDIATE->color[0] / 255.0f;
+	color[1] = GPU_IMMEDIATE->color[1] / 255.0f;
+	color[2] = GPU_IMMEDIATE->color[2] / 255.0f;
+	color[3] = GPU_IMMEDIATE->color[3] / 255.0f;
 }
 
 void gpuGetCurrentColor4ubv(GLubyte *restrict color)
 {
-	GLfloat v[4]; //V-112
-
 	GPU_CHECK_CAN_GET_COLOR();
 
-	GPU_IMMEDIATE->getCurrentColor(v);
-
-	color[0] = (GLubyte)(255.0f * v[0]);
-	color[1] = (GLubyte)(255.0f * v[1]);
-	color[2] = (GLubyte)(255.0f * v[2]);
-	color[3] = (GLubyte)(255.0f * v[3]);
+	color[0] = GPU_IMMEDIATE->color[0];
+	color[1] = GPU_IMMEDIATE->color[1];
+	color[2] = GPU_IMMEDIATE->color[2];
+	color[3] = GPU_IMMEDIATE->color[3];
 }
 
 
@@ -1826,6 +1825,26 @@ void gpuIndexEnd(void)
 	GPU_IMMEDIATE->indexEndBuffer();
 
 	GPU_IMMEDIATE->index->mappedBuffer = NULL;
+}
+
+
+
+void GPU_comment_current()
+{
+	const GPUknownlocs* location = GPU_get_known_locations();
+
+	if (GPU_glsl_support()) {
+		if(GPU_IMMEDIATE->format.colorSize == 0 && location->color != -1)
+			glVertexAttrib4ubv(location->color, GPU_IMMEDIATE->color);
+
+		if(GPU_IMMEDIATE->format.normalSize == 0 && location->normal != -1)
+			glVertexAttrib3fv(location->normal, GPU_IMMEDIATE->normal);
+	}
+
+#if defined(WITH_GPU_PROFILE_COMPAT)
+	glColor4ubv(GPU_IMMEDIATE->color);
+	glNormal3fv(GPU_IMMEDIATE->normal);
+#endif
 }
 
 

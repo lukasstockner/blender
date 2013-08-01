@@ -32,6 +32,8 @@
 #ifndef GPU_LIGHTING_INLINE_H
 #define GPU_LIGHTING_INLINE_H
 
+#if 0
+
 #include "gpu_lighting.h"
 
 
@@ -212,6 +214,6 @@ BLI_INLINE GLboolean gpuIsLightingEnabled(void)
 	GPU_CHECK_NO_ERROR();
 }
 
-
+#endif
 
 #endif /* GPU_LIGHTING_INLINE_H */

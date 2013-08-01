@@ -28,7 +28,7 @@
 /** \file blender/gpu/intern/gpu_object_gl11.h
  *  \ingroup gpu
  */
-
+#if 0
 #if defined(WITH_GL_PROFILE_COMPAT)
 
 #include "gpu_object_gl11.h"
@@ -101,4 +101,5 @@ void gpuCleanupAfterDraw_gl11(void)
 	od.texta = 0;
 }
 
+#endif
 #endif

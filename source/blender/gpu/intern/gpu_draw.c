@@ -1971,6 +1971,8 @@ void GPU_state_init(void)
 	gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);
 	gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, 35);
 
+	gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+
 	GPU_default_lights();
 	
 	glDepthFunc(GL_LEQUAL);

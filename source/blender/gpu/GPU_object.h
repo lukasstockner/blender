@@ -33,6 +33,8 @@
 extern "C" {
 #endif
 
+#if 0
+
 typedef struct GPU_object_func
 {
 	void (*gpuVertexPointer)  (int size, int type, int stride, const void *pointer);
@@ -54,6 +56,8 @@ typedef struct GPU_object_func
 extern GPU_object_func gpugameobj;
 
 void GPU_init_object_func(void);
+
+#endif
 
 #ifdef __cplusplus
 }

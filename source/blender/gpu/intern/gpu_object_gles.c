@@ -28,7 +28,7 @@
 /** \file gpu_object_gles.c
  *  \ingroup gpu
  */
-
+#if 0
 #include "gpu_object_gles.h"
 
 #include "gpu_glew.h"
@@ -196,7 +196,7 @@ GLuint static compile_shader(GLenum type, const char** src, int count)
 	GPU_CHECK_NO_ERROR();
 		if(len > 0)
 		{
-			char * log = MEM_mallocN(len, "GLSLErrLog");
+			char * log = (char*)MEM_mallocN(len, "GLSLErrLog");
 			
 			gpu_glGetShaderInfoLog(shader, len, NULL, log);
 			printf("Error compiling GLSL: \n %s\n", log);
@@ -208,7 +208,7 @@ GLuint static compile_shader(GLenum type, const char** src, int count)
 	GPU_CHECK_NO_ERROR();
 			if(len > 0)
 			{
-				char* shadersrc = MEM_mallocN(len, "GLSLErrLog");
+				char* shadersrc = (char*)MEM_mallocN(len, "GLSLErrLog");
 
 				//glGetShaderSource(shader, len, rlen, log);
 				//printf("Objet GLSL source: \n %s", shadersrc);
@@ -534,3 +534,4 @@ void gpu_object_init_gles(void)
 	}
 #endif
 }
+#endif

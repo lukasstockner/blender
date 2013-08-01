@@ -33,6 +33,9 @@
 #define GPU_MATRIX_H
 
 #include "intern/gpu_glew.h"
+#include "intern/gpu_known.h"
+
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,7 +46,7 @@ void GPU_matrix_forced_update(void);
 void GPU_ms_init(void);
 void GPU_ms_exit(void);
 
-void gpuMatrixCommit(void);
+//void gpuMatrixCommit(void);
 
 void gpuPushMatrix(void);
 void gpuPopMatrix(void);
@@ -116,9 +119,12 @@ void gpuFeedbackVertex3fv(GLenum type, GLfloat x, GLfloat y, GLfloat z, GLfloat 
 
 
 
+void GPU_commit_matrixes(void);
+
+
+
 #ifdef __cplusplus
 }
 #endif
-
 
 #endif /* GPU_MATRIX_H */

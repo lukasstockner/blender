@@ -696,7 +696,7 @@ int invert_m4(float m[4][4])
  *					Mark Segal - 1992
  */
 
-int invert_m4_m4(float inverse[4][4], float mat[4][4])
+int invert_m4_m4(float inverse[4][4], const float mat[4][4])
 {
 	int i, j, k;
 	double temp;

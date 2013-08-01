@@ -226,8 +226,8 @@ GPUFUNC void (GLAPIENTRY* gpu_glUniform4fv)(GLint location, GLint count, const G
 GPUFUNC void (GLAPIENTRY* gpu_glUniformMatrix3fv)(GLint location, GLint count, GLboolean transpose, const GLfloat * value);
 GPUFUNC void (GLAPIENTRY* gpu_glUniformMatrix4fv)(GLint location, GLint count, GLboolean transpose, const GLfloat * value);
 
-GPUFUNC GLint (GLAPIENTRY* gpu_glGetAttribLocation)(GLuint program, const GLchar *name);
-GPUFUNC void (GLAPIENTRY* gpu_glBindAttribLocation)(GLuint program, GLuint index, const GLchar * name);
+GPUFUNC GLint (GLAPIENTRY* gpu_glGetAttribLocation )(GLuint program, const GLchar *name);
+GPUFUNC void  (GLAPIENTRY* gpu_glBindAttribLocation)(GLuint program, GLuint index, const GLchar * name);
 GPUFUNC GLint (GLAPIENTRY* gpu_glGetUniformLocation)(GLuint program, const GLchar * name);
 
 GPUFUNC void (GLAPIENTRY* gpu_glVertexAttribPointer)(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid *  pointer);

@@ -2617,8 +2617,6 @@ bool draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 		/* we use color for solid lighting */
 		gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, white);
 
-		gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
-
 		glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);  /* only for lighting... */
 	}
 	

@@ -77,6 +77,7 @@
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"
+#include "GPU_simple_shader.h"
 
 #include "CCGSubSurf.h"
 
@@ -1749,9 +1750,7 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 
 	if (ccgdm->pbvh && ccgdm->multires.mmd && !fast) {
 		if (dm->numTessFaceData) {
-			BKE_pbvh_draw(ccgdm->pbvh, partial_redraw_planes, NULL,
-			              setMaterial, FALSE);
-			//gpuShadeModel(GL_FLAT); // XXX jwilkins: pbvh draw should probably return ShadeModel to FLAT, but this function doesn't even do that for itself in other cases.
+			BKE_pbvh_draw(ccgdm->pbvh, partial_redraw_planes, NULL, setMaterial, FALSE);
 		}
 
 		return;
@@ -1765,6 +1764,7 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 		int S, x, y, numVerts = ccgSubSurf_getFaceNumVerts(f);
 		int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
 		int new_matnr, new_shademodel;
+		uint32_t options = 0;
 
 		if (faceFlags) {
 			new_shademodel = (faceFlags[index].flag & ME_SMOOTH) ? GL_SMOOTH : GL_FLAT;
@@ -1776,10 +1776,14 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 		}
 		
 		if (shademodel != new_shademodel) {
+			if (shademodel != -1)
+				gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
+
 			shademodel = new_shademodel;
-			gpuShadeModel(shademodel);
+			options    = shademodel == GL_FLAT ? GPU_SHADER_FLAT_SHADED : 0;
+			gpuAspectBegin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
 		}
-		
+
 		if (matnr != new_matnr) {
 			matnr = new_matnr;
 			drawcurrent = setMaterial(matnr + 1, NULL);
@@ -1789,7 +1793,7 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 			continue;
 
 		for (S = 0; S < numVerts; S++) {
-			CCGElem *faceGridData = ccgSubSurf_getFaceGridDataArray(ss, f, S);
+			CCGElem *faceGridData = (CCGElem*)ccgSubSurf_getFaceGridDataArray(ss, f, S);
 
 			if (shademodel == GL_SMOOTH) {
 				for (y = 0; y < gridSize - 1; y += step) {
@@ -1828,6 +1832,9 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 				}
 			}
 		}
+
+		if (numVerts > 0)
+			gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
 	}
 
 	gpuEnd();
@@ -1944,7 +1951,8 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 		int S, x, y, drawSmooth;
 		int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
 		int origIndex = ccgDM_getFaceMapIndex(ss, f);
-		
+		uint32_t options;
+
 		numVerts = ccgSubSurf_getFaceNumVerts(f);
 
 		if (faceFlags) {
@@ -1971,9 +1979,11 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 			continue;
 		}
 
-		gpuShadeModel(drawSmooth ? GL_SMOOTH : GL_FLAT);
+		options = drawSmooth ? 0 : GPU_SHADER_FLAT_SHADED;
+		gpuAspectBegin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); //gpuShadeModel(drawSmooth ? GL_SMOOTH : GL_FLAT);
+
 		for (S = 0; S < numVerts; S++) {
-			CCGElem *faceGridData = ccgSubSurf_getFaceGridDataArray(ss, f, S);
+			CCGElem *faceGridData = (CCGElem*)ccgSubSurf_getFaceGridDataArray(ss, f, S);
 			CCGElem *vda, *vdb;
 
 			if (drawSmooth) {
@@ -2037,6 +2047,8 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 				gpuEnd();
 			}
 		}
+
+		gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
 
 		ccg_unformat_attrib_vertex();
 	}
@@ -2104,7 +2116,8 @@ static void ccgDM_drawMappedFacesMat(DerivedMesh *dm,
 		int S, x, y, drawSmooth;
 		int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
 		int origIndex = ccgDM_getFaceMapIndex(ss, f);
-		
+		uint32_t options;
+
 		numVerts = ccgSubSurf_getFaceNumVerts(f);
 
 		/* get flags */
@@ -2130,9 +2143,12 @@ static void ccgDM_drawMappedFacesMat(DerivedMesh *dm,
 		}
 
 		/* draw face*/
-		gpuShadeModel(drawSmooth ? GL_SMOOTH : GL_FLAT);
+
+		options = drawSmooth ? 0 : GPU_SHADER_FLAT_SHADED;
+		gpuAspectBegin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); //gpuShadeModel(drawSmooth ? GL_SMOOTH : GL_FLAT);
+
 		for (S = 0; S < numVerts; S++) {
-			CCGElem *faceGridData = ccgSubSurf_getFaceGridDataArray(ss, f, S);
+			CCGElem *faceGridData = (CCGElem*)ccgSubSurf_getFaceGridDataArray(ss, f, S);
 			CCGElem *vda, *vdb;
 
 			if (drawSmooth) {
@@ -2196,6 +2212,8 @@ static void ccgDM_drawMappedFacesMat(DerivedMesh *dm,
 				gpuEnd();
 			}
 		}
+
+		gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
 	}
 
 #undef PASSATTRIB
@@ -2216,6 +2234,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 	DMDrawOption draw_option;
 	int i, totface, gridSize = ccgSubSurf_getGridSize(ss);
 	int gridFaces = gridSize - 1;
+	uint32_t options;
 
 	(void) compareDrawOptions;
 
@@ -2228,7 +2247,8 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 	if (!mcol)
 		mcol = dm->getTessFaceDataArray(dm, CD_TEXTURE_MCOL);
 
-	gpuAspectBegin(GPU_ASPECT_TEXTURE, NULL);
+	options = GPU_SHADER_TEXTURE_2D;
+	gpuAspectBegin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
 
 	gpuImmediateFormat_T2_C4_N3_V3(); // DOODLE: heavy textured face drawing
 
@@ -2272,11 +2292,16 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 		}
 
 		for (S = 0; S < numVerts; S++) {
-			CCGElem *faceGridData = ccgSubSurf_getFaceGridDataArray(ss, f, S);
+			CCGElem *faceGridData = (CCGElem*)ccgSubSurf_getFaceGridDataArray(ss, f, S);
 			CCGElem *a, *b;
 
 			if (drawSmooth) {
-				gpuShadeModel(GL_SMOOTH);
+				if (options != GPU_SHADER_TEXTURE_2D) {
+					gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
+					options = GPU_SHADER_TEXTURE_2D;
+					gpuAspectBegin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_SMOOTH);
+				}
+
 				for (y = 0; y < gridFaces; y++) {
 					gpuBegin(GL_TRIANGLE_STRIP);
 					for (x = 0; x < gridFaces; x++) {
@@ -2319,7 +2344,17 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 				}
 			}
 			else {
-				gpuShadeModel((cp) ? GL_SMOOTH : GL_FLAT);
+				if (options != GPU_SHADER_TEXTURE_2D) {
+					uint32_t new_options = cp ? GPU_SHADER_TEXTURE_2D : (GPU_SHADER_TEXTURE_2D|GPU_SHADER_FLAT_SHADED);
+
+					if (options != new_options) {
+						gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
+						options = new_options;
+					}
+
+					gpuAspectBegin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel((cp) ? GL_SMOOTH : GL_FLAT);
+				}
+
 				gpuBegin(GL_QUADS);
 				for (y = 0; y < gridFaces; y++) {
 					for (x = 0; x < gridFaces; x++) {
@@ -2357,7 +2392,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 
 	gpuImmediateUnformat();
 
-	gpuAspectBegin(GPU_ASPECT_TEXTURE, NULL);
+	gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
 }
 
 static void ccgDM_drawFacesTex(DerivedMesh *dm,
@@ -2468,6 +2503,8 @@ static void ccgDM_drawMappedFaces(
 				draw_option = setDrawOptions(userData, index);
 
 			if (draw_option != DM_DRAW_OPTION_SKIP) {
+				uint32_t options;
+
 				if (draw_option == DM_DRAW_OPTION_STIPPLE) {
 					gpuEnablePolygonStipple();
 					gpuPolygonStipple(stipple_quarttone);
@@ -2475,10 +2512,11 @@ static void ccgDM_drawMappedFaces(
 
 				/* no need to set shading mode to flat because
 				 *  normals are already used to change shading */
-				gpuShadeModel(GL_SMOOTH);
+				options = 0;
+				gpuAspectBegin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_SMOOTH);
 
 				for (S = 0; S < numVerts; S++) {
-					CCGElem *faceGridData = ccgSubSurf_getFaceGridDataArray(ss, f, S);
+					CCGElem *faceGridData = (CCGElem*)ccgSubSurf_getFaceGridDataArray(ss, f, S);
 					if (drawSmooth) {
 						for (y = 0; y < gridFaces; y++) {
 							CCGElem *a, *b;
@@ -2542,6 +2580,9 @@ static void ccgDM_drawMappedFaces(
 						gpuEnd();
 					}
 				}
+
+				gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_FLAT);
+
 				if (draw_option == DM_DRAW_OPTION_STIPPLE)
 					gpuDisablePolygonStipple();
 			}

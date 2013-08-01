@@ -317,7 +317,6 @@ static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *
 			spec[3] = 1.0;
 
 			gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
-			gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 			gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, CLAMPIS(ma->har, 0, 128));
 			gpuEnableLighting();
 			gpuEnableColorMaterial();
@@ -881,7 +880,6 @@ static void tex_mat_set_texture_cb(void *userData, int mat_nr, void *attribs)
 			gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, 0);
 
 			/* bind texture */
-			gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 			gpuEnableColorMaterial();
 
 #if defined(WITH_GL_PROFILE_COMPAT)
@@ -1049,7 +1047,6 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
 			gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
 
 			/* diffuse */
-			gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 			gpuEnableLighting();
 			gpuEnableColorMaterial();
 		}

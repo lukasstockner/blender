@@ -385,37 +385,6 @@ void gpu_index_shutdown_buffer_gl11(GPUindex *restrict index)
 
 
 
-void gpu_current_color_gl11(void)
-{
-	GPU_CHECK_NO_ERROR();
-
-	glColor4ubv(GPU_IMMEDIATE->color);
-
-	GPU_CHECK_NO_ERROR();
-}
-
-void gpu_get_current_color_gl11(GLfloat *color)
-{
-	GPU_CHECK_NO_ERROR();
-
-	glGetFloatv(GL_CURRENT_COLOR, color);
-
-	GPU_CHECK_NO_ERROR();
-}
-
-
-
-void gpu_current_normal_gl11(void)
-{
-	GPU_CHECK_NO_ERROR();
-
-	glNormal3fv(GPU_IMMEDIATE->normal);
-
-	GPU_CHECK_NO_ERROR();
-}
-
-
-
 void gpu_index_begin_buffer_gl11(void)
 {
 	GPUindex *restrict index = GPU_IMMEDIATE->index;

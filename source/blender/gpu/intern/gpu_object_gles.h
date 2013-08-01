@@ -39,7 +39,7 @@ extern "C" {
 #endif
 
 
-
+#if 0
 typedef struct GPUGLSL_ES_info {
 		int viewmatloc;
 		int normalmatloc;
@@ -49,7 +49,7 @@ typedef struct GPUGLSL_ES_info {
 		int texidloc;
 
 		int vertexloc;
-		int normalloc;	
+		int normalloc;
 		int colorloc;
 		int texturecoordloc;
 } GPUGLSL_ES_info;
@@ -88,7 +88,7 @@ extern int shader_pixels;
 
 
 void gpu_object_init_gles(void);
-
+#endif
 
 
 #ifdef __cplusplus 

@@ -74,6 +74,7 @@
 #include "RNA_define.h"
 
 #include "GPU_compatibility.h"
+#include "GPU_matrix.h"
 
 #include "view3d_intern.h"  /* own include */
 
@@ -102,7 +103,7 @@ void view3d_region_operator_needs_opengl(wmWindow *win, ARegion *ar)
 		gpuLoadMatrix(rv3d->winmat);
 		gpuMatrixMode(GL_MODELVIEW);
 		gpuLoadMatrix(rv3d->viewmat);
-		gpuMatrixCommit();//change
+		GPU_commit_matrixes();//change // XXX jwilkins: hmm... why?
 	}
 }
 

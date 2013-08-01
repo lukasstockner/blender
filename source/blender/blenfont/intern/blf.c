@@ -600,8 +600,6 @@ static void blf_draw__start(FontBLF *font)
 	/* always bind the texture for the first glyph */
 	font->tex_bind_state = -1;
 
-	gpuMatrixCommit();
-
 	draw_lock(font);
 }
 

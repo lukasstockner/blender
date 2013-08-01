@@ -1174,8 +1174,8 @@ void mtex_bump_init_objspace( vec3 surf_pos, vec3 surf_norm,
 							  out float fPrevMagnitude_out, out vec3 vNacc_out, 
 							  out vec3 vR1, out vec3 vR2, out float fDet ) 
 {
-	mat3 obj2view = to_mat3(gl_ModelViewMatrix);
-	mat3 view2obj = to_mat3(gl_ModelViewMatrixInverse);
+	mat3 obj2view = to_mat3(b_ModelViewMatrix);
+	mat3 view2obj = to_mat3(b_ModelViewMatrixInverse);
 	
 	vec3 vSigmaS = view2obj * dFdx( surf_pos );
 	vec3 vSigmaT = view2obj * dFdy( surf_pos );
@@ -1518,7 +1518,7 @@ void shade_view(vec3 co, out vec3 view)
 {
 	/* handle perspective/orthographic */
 #ifndef B_GLES
-	view = (gl_ProjectionMatrix[3][3] == 0.0)? normalize(co): vec3(0.0, 0.0, -1.0);
+	view = (b_ProjectionMatrix[3][3] == 0.0)? normalize(co): vec3(0.0, 0.0, -1.0);
 #else
 	view = normalize(co);
 #endif		
@@ -1968,7 +1968,7 @@ void shade_mist_factor(vec3 co, float miststa, float mistdist, float misttype, f
 {
 	float fac, zcor;
 #ifndef B_GLES
-	zcor = (gl_ProjectionMatrix[3][3] == 0.0)? length(co): -co[2];
+	zcor = (b_ProjectionMatrix[3][3] == 0.0)? length(co): -co[2];
 #else	
 	zcor = length(co);	
 #endif	
@@ -2038,8 +2038,8 @@ void node_bsdf_diffuse(vec4 color, float roughness, vec3 N, out vec4 result)
 
 	/* directional lights */
 	for(int i = 0; i < NUM_LIGHTS; i++) {
-		vec3 light_position = gl_LightSource[i].position.xyz;
-		vec3 light_diffuse = gl_LightSource[i].diffuse.rgb;
+		vec3 light_position = b_LightSource[i].position.xyz;
+		vec3 light_diffuse = b_LightSource[i].diffuse.rgb;
 
 		float bsdf = max(dot(N, light_position), 0.0);
 		L += light_diffuse*bsdf;
@@ -2055,10 +2055,10 @@ void node_bsdf_glossy(vec4 color, float roughness, vec3 N, out vec4 result)
 
 	/* directional lights */
 	for(int i = 0; i < NUM_LIGHTS; i++) {
-		vec3 light_position = gl_LightSource[i].position.xyz;
-		vec3 H = gl_LightSource[i].halfVector.xyz;
-		vec3 light_diffuse = gl_LightSource[i].diffuse.rgb;
-		vec3 light_specular = gl_LightSource[i].specular.rgb;
+		vec3 light_position = b_LightSource[i].position.xyz;
+		vec3 H = b_LightSource[i].halfVector.xyz;
+		vec3 light_diffuse = b_LightSource[i].diffuse.rgb;
+		vec3 light_specular = b_LightSource[i].specular.rgb;
 
 		/* we mix in some diffuse so low roughness still shows up */
 		float bsdf = 0.5*pow(max(dot(N, H), 0.0), 1.0/roughness);
@@ -2172,7 +2172,6 @@ void node_tex_coord(vec3 I, vec3 N, mat4 viewinvmat, mat4 obinvmat,
 	camera = I;
 	window = gl_FragCoord.xyz;
 	reflection = reflect(N, I);
-
 }
 
 /* textures */

@@ -1,3 +1,4 @@
+#if 0
 #include "GPU_object.h"
 #include "gpu_object_gles.h"
 #include "gpu_object_gl11.h"
@@ -33,3 +34,4 @@ void GPU_init_object_func(void)
 	gpugameobj.gpuCleanupAfterDraw = gpuCleanupAfterDraw_gl11;
 #endif
 }
+#endif

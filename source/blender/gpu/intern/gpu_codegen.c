@@ -49,14 +49,16 @@
 #include "BLI_sys_types.h" // for intptr_t support
 
 #include "gpu_codegen.h"
+#include "intern/gpu_known.h"
 
 #include "node_util.h" /* For muting node stuff... */
 
 #include <string.h>
 #include <stdarg.h>
 
-extern char datatoc_gpu_shader_material_glsl[];
-extern char datatoc_gpu_shader_vertex_glsl[];
+extern const char datatoc_gpu_shader_material_glsl[];
+extern const char datatoc_gpu_shader_vertex_glsl[];
+
 
 
 static char *glsl_material_library = NULL;
@@ -529,7 +531,7 @@ static void codegen_declare_tmps(DynStr *ds, ListBase *nodes)
 			if (input->source == GPU_SOURCE_TEX_PIXEL) {
 				if (codegen_input_has_texture(input) && input->definetex) {
 					BLI_dynstr_appendf(ds, "\tvec4 tex%d = texture2D(", input->texid);
-					BLI_dynstr_appendf(ds, "samp%d, gl_TexCoord[%d].st);\n",
+					BLI_dynstr_appendf(ds, "samp%d, b_TexCoord[%d].st);\n",
 						input->texid, input->texid);
 				}
 			}
@@ -557,7 +559,7 @@ static void codegen_call_functions(DynStr *ds, ListBase *nodes, GPUOutput *final
 			if (input->source == GPU_SOURCE_TEX) {
 				BLI_dynstr_appendf(ds, "samp%d", input->texid);
 				if (input->link)
-					BLI_dynstr_appendf(ds, ", gl_TexCoord[%d].st", input->texid);
+					BLI_dynstr_appendf(ds, ", b_TexCoord[%d].st", input->texid);
 			}
 			else if (input->source == GPU_SOURCE_TEX_PIXEL) {
 				codegen_convert_datatype(ds, input->link->output->type, input->type,
@@ -586,7 +588,7 @@ static void codegen_call_functions(DynStr *ds, ListBase *nodes, GPUOutput *final
 		BLI_dynstr_append(ds, ");\n");
 	}
 
-	BLI_dynstr_append(ds, "\n\tgl_FragColor = ");
+	BLI_dynstr_append(ds, "\n\tb_FragColor = ");
 	codegen_convert_datatype(ds, finaloutput->type, GPU_VEC4, "tmp", finaloutput->id);
 	BLI_dynstr_append(ds, ";\n");
 }
@@ -628,22 +630,14 @@ static char *code_generate_vertex(ListBase *nodes)
 	GPUInput *input;
 	char *code;
 
-#if defined(WITH_GL_PROFILE_ES20) || defined(WITH_GL_PROFILE_CORE)
-	BLI_dynstr_append(ds,
-		"#define gl_ModelViewMatrix b_ModelViewMatrix\n"
-		"#define gl_ProjectionMatrix b_ProjectionMatrix\n"
-		"#define gl_NormalMatrix b_NormalMatrix\n"
+#if defined(WITH_GL_PROFILE_CORE)
+	BLI_dynstr_append(ds, "#version 130\n\n");
+#endif
 
-		"#define gl_Vertex b_Vertex\n"
-		"#define gl_Normal b_Normal\n"
-
-		"uniform mat4 b_ProjectionMatrix ;\n"
-		"uniform mat4 b_ModelViewMatrix ;\n"
-		"uniform mat3 b_NormalMatrix ;\n"
-
-		"attribute vec4 b_Vertex;\n"
-		"attribute vec3 b_Normal;\n"
-		"\n");
+#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
+	BLI_dynstr_append(ds, datatoc_gpu_shader_known_constants_glsl);
+	BLI_dynstr_append(ds, datatoc_gpu_shader_known_uniforms_glsl);
+	BLI_dynstr_append(ds, datatoc_gpu_shader_known_attribs_glsl);
 #endif
 
 	for (node=nodes->first; node; node=node->next) {
@@ -664,7 +658,7 @@ static char *code_generate_vertex(ListBase *nodes)
 		for (input=node->inputs.first; input; input=input->next)
 			if (input->source == GPU_SOURCE_ATTRIB && input->attribfirst) {
 				if (input->attribtype == CD_TANGENT) { /* silly exception */
-					BLI_dynstr_appendf(ds, "\tvar%d.xyz = normalize((gl_ModelViewMatrix * vec4(att%d.xyz, 0)).xyz);\n", input->attribid, input->attribid);
+					BLI_dynstr_appendf(ds, "\tvar%d.xyz = normalize((b_ModelViewMatrix * vec4(att%d.xyz, 0)).xyz);\n", input->attribid, input->attribid);
 					BLI_dynstr_appendf(ds, "\tvar%d.w = att%d.w;\n", input->attribid, input->attribid);
 				}
 				else
@@ -697,11 +691,20 @@ void GPU_code_generate_glsl_lib(void)
 
 	ds = BLI_dynstr_new();
 
+#if defined(WITH_GL_PROFILE_CORE)
+	BLI_dynstr_append(ds, "#version 130\n\n");
+#endif
+
 #if defined(WITH_GL_PROFILE_ES20)
 	BLI_dynstr_append(ds, 
 		"#define B_GLES\n"
 		"precision mediump float;\n"
 		"\n");
+#endif
+
+#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
+	BLI_dynstr_append(ds, datatoc_gpu_shader_known_constants_glsl);
+	BLI_dynstr_append(ds, datatoc_gpu_shader_known_uniforms_glsl);
 #endif
 
 	BLI_dynstr_append(ds, datatoc_gpu_shader_material_glsl);

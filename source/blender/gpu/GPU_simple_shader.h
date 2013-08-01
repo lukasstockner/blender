@@ -32,58 +32,55 @@
 #ifndef __GPU_SIMPLE_SHADER_H__
 #define __GPU_SIMPLE_SHADER_H__
 
-#include "BLI_utildefines.h"
+#include "intern/gpu_lighting.h"
+
+
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* Fixed Function Shader */
+
+
+/* Simple Shading */
 
 typedef enum GPUSimpleShaderOption {
-	GPU_SHADER_OVERRIDE_DIFFUSE = (1<<0),   /* replace diffuse with glcolor */
-	GPU_SHADER_LIGHTING = (1<<1),           /* use lighting */
-	GPU_SHADER_TWO_SIDED = (1<<2),          /* flip normals towards viewer */
-	GPU_SHADER_TEXTURE_2D = (1<<3),         /* use 2D texture to replace diffuse color */
+	GPU_SHADER_MATERIAL_ONLY       = (1<<0), /* use material diffuse, not the color attrib    */
+	GPU_SHADER_LIGHTING            = (1<<1), /* do lighting computations                      */
+	GPU_SHADER_TWO_SIDED           = (1<<2), /* flip backfacing normals towards viewer        */
+	GPU_SHADER_TEXTURE_2D          = (1<<3), /* use 2D texture to replace diffuse color       */
+	GPU_SHADER_LOCAL_VIEWER        = (1<<4), /* use for orthographic projection               */
+	GPU_SHADER_FLAT_SHADED         = (1<<5), /* use flat shading                              */
 
-	GPU_SHADER_SOLID_LIGHTING = (1<<4),     /* use faster lighting (set automatically) */
-	GPU_SHADER_OPTIONS_NUM = 5,
+	GPU_SHADER_FAST_LIGHTING       = (1<<6), /* use faster lighting (set automatically) */
+
+	GPU_SHADER_OPTIONS_NUM         = 7,
 	GPU_SHADER_OPTION_COMBINATIONS = (1<<GPU_SHADER_OPTIONS_NUM)
 } GPUSimpleShaderOption;
 
 void GPU_simple_shaders_init(void);
 void GPU_simple_shaders_exit(void);
 
-void GPU_simple_shader_bind(int options);
+void GPU_simple_shader_bind(uint32_t options);
 void GPU_simple_shader_unbind(void);
 
-void GPU_simple_shader_colors(const float diffuse[3], const float specular[3],
-	int shininess, float alpha);
+void GPU_simple_shader_light(int light_num, GPUsimplelight *light);
+void GPU_simple_shader_multiple_lights(int count, GPUsimplelight lights[]);
+void GPU_simple_shader_material(const float diffuse[3], float alpha, const float specular[3], int shininess);
+bool GPU_simple_shader_needs_normals(void);
 
-bool GPU_simple_shader_need_normals(void);
 
-/* Fixed Function Lighting */
 
-typedef struct GPULightData {
-	float position[4];
-	float diffuse[4];
-	float specular[4];
 
-	float constant_attenuation;
-	float linear_attenuation;
-	float quadratic_attenuation;
+void GPU_font_shader_init(void);
+void GPU_font_shader_exit(void);
+void GPU_font_shader_bind(void);
+void GPU_font_shader_unbind(void);
 
-	float spot_direction[3];
-	float spot_cutoff;
-	float spot_exponent;
-} GPULightData;
 
-void GPU_simple_shader_light_set(int light_num, GPULightData *light);
-void GPU_simple_shader_light_set_viewer(bool local);
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif
-

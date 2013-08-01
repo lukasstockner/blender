@@ -1238,7 +1238,7 @@ void GPU_buffer_unlock(GPUBuffer *buffer)
 /* used for drawing edges */
 void GPU_buffer_draw_elements(GPUBuffer *elements, unsigned int mode, int start, int count)
 {
-	gpuMatrixCommit();
+	GPU_commit_matrixes();
 	glDrawElements(mode, count, GL_UNSIGNED_INT,
 	               (useVBOs ?
 	                (void *)(start * sizeof(unsigned int)) :
@@ -1309,7 +1309,6 @@ typedef enum {
 
 static void gpu_colors_enable(VBO_State vbo_state)
 {
-	gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 	gpuEnableColorMaterial();
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (vbo_state == VBO_ENABLED)
@@ -2383,7 +2382,7 @@ void GPU_draw_buffers(GPU_Buffers *buffers, DMSetMaterial setMaterial,
 		if (buffers->index_buf)
 			gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers->index_buf);
 
-		gpuMatrixCommit();
+		GPU_commit_matrixes();
 
 		if (wireframe)
 			gpuPolygonMode(GL_LINE);
@@ -2392,7 +2391,7 @@ void GPU_draw_buffers(GPU_Buffers *buffers, DMSetMaterial setMaterial,
 			char *offset = 0;
 			int i, last = buffers->has_hidden ? 1 : buffers->totgrid;
 			for (i = 0; i < last; i++) {
-#if defined(WITH_GL_PROFILE_COMPAT)
+#if defined(WITH_GL_PROFILE_COMPAT) // XXX jwilkins: need core implemenation
 				glVertexPointer(3, GL_FLOAT, sizeof(VertexBufferFormat),
 				                offset + offsetof(VertexBufferFormat, co));
 				glNormalPointer(GL_SHORT, sizeof(VertexBufferFormat),
@@ -2409,7 +2408,7 @@ void GPU_draw_buffers(GPU_Buffers *buffers, DMSetMaterial setMaterial,
 		else {
 			int totelem = buffers->tot_tri * 3;
 
-#if defined(WITH_GL_PROFILE_COMPAT)
+#if defined(WITH_GL_PROFILE_COMPAT) // XXX jwilkins: need core implemenation
 			glVertexPointer(3, GL_FLOAT, sizeof(VertexBufferFormat),
 			                (void *)offsetof(VertexBufferFormat, co));
 			glNormalPointer(GL_SHORT, sizeof(VertexBufferFormat),

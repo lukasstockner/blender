@@ -560,6 +560,10 @@ void gpuSingleClientRangeElements_C4UB_V3F(
 
 
 
+void GPU_commit_current(void);
+
+
+
 #ifdef __cplusplus
 }
 #endif

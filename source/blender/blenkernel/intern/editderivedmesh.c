@@ -58,6 +58,7 @@
 
 #include "GPU_extensions.h"
 #include "GPU_compatibility.h"
+#include "GPU_simple_shader.h"
 
 extern GLubyte stipple_quarttone[128]; /* glutil.c, bad level data */
 
@@ -321,7 +322,7 @@ static void emDM_drawMappedFaces(
 	const int lasttri = tottri - 1; /* compare agasint this a lot */
 	DMDrawOption draw_option;
 	int i, flush;
-	const int useNormals = (flag & DM_DRAW_USE_NORMALS) && !gpuIsLightingEnabled(); /* could be passed as an arg */
+	const int useNormals = (flag & DM_DRAW_USE_NORMALS) && GPU_simple_shader_needs_normals(); /* could be passed as an arg */
 
 	MLoopCol *lcol[3] = {NULL} /* , dummylcol = {0} */;
 	unsigned char(*color_vert_array)[4] = em->derivedVertColor;

@@ -57,6 +57,7 @@ set(SRC
 	intern/gpu_immediate_glsl.c
 	intern/gpu_immediate_gl11.c
 	intern/gpu_immediate_vbo.c
+	intern/gpu_known.c
 	intern/gpu_lighting.c
 	intern/gpu_lighting_gl11.c
 	intern/gpu_lighting_glsl.c
@@ -91,6 +92,7 @@ set(SRC
 	intern/gpu_codegen.h
 	intern/gpu_deprecated.h
 	intern/gpu_extension_wrapper.h
+	intern/gpu_known.h
 	intern/gpu_glew.h
 	intern/gpu_immediate.h
 	intern/gpu_immediate_inline.h
@@ -125,6 +127,13 @@ data_to_c_simple(shaders/gpu_shader_simple_vert.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_vertex.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_vsm_store_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_vsm_store_vert.glsl SRC)
+
+data_to_c_simple(shaders/gpu_shader_known_attribs.glsl   SRC)
+data_to_c_simple(shaders/gpu_shader_known_constants.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_known_uniforms.glsl  SRC)
+
+data_to_c_simple(shaders/gpu_shader_font_frag.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_font_vert.glsl SRC)
 
 if(WITH_MOD_SMOKE)
 	add_definitions(-DWITH_SMOKE)

@@ -51,6 +51,7 @@
 
 #include "GPU_colors.h"
 #include "GPU_primitives.h"
+#include "GPU_simple_shader.h"
 
 #include "BIF_glutil.h"
 
@@ -745,10 +746,13 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 			char col1[4], col2[4];
 			unsigned char col_array[WIDGET_SIZE_MAX * 4];
 			unsigned char *col_pt = col_array;
+			uint32_t options;
 
 			shadecolors4(col1, col2, wcol->inner, wcol->shadetop, wcol->shadedown);
 
-			gpuShadeModel(GL_SMOOTH);
+			options = 0;
+			gpuAspectBegin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_SMOOTH);
+
 			for (a = 0; a < wtb->totvert; a++, col_pt += 4) {
 				round_box_shade_col4_r(col_pt, col1, col2, wtb->inner_uv[a][wtb->shadedir]);
 			}
@@ -762,7 +766,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 				0,
 				wtb->totvert);
 
-			gpuShadeModel(GL_FLAT);
+			gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_FLAT);
 		}
 	}
 
@@ -1984,6 +1988,7 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 	float rgb[3], hsvo[3], hsv[3], col[3], colcent[3];
 	int a;
 	int color_profile = but->block->color_profile;
+	uint32_t options;
 
 	gpuImmediateFormat_C4_V3();
 
@@ -2013,7 +2018,8 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 
 	hsv_to_rgb(0.f, 0.f, hsv[2], colcent, colcent + 1, colcent + 2);
 
-	gpuShadeModel(GL_SMOOTH);
+	options = 0;
+	gpuAspectBegin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); //gpuShadeModel(GL_SMOOTH);
 
 	gpuBegin(GL_TRIANGLE_FAN);
 	gpuColor3fv(colcent);
@@ -2032,7 +2038,7 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 	}
 	gpuEnd();
 
-	gpuShadeModel(GL_FLAT);
+	gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); //gpuShadeModel(GL_FLAT);
 
 	/* fully rounded outline */
 	glEnable(GL_BLEND);
@@ -2061,9 +2067,12 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 	float dx, dy, sx1, sx2, sy;
 	float col0[4][3];   /* left half, rect bottom to top */
 	float col1[4][3];   /* right half, rect bottom to top */
+	uint32_t options;
 
 	/* draw series of gouraud rects */
-	gpuShadeModel(GL_SMOOTH);
+
+	options = 0;
+	gpuAspectBegin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); //gpuShadeModel(GL_SMOOTH);
 	
 	switch (type) {
 		case UI_GRAD_SV:
@@ -2186,8 +2195,7 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 		gpuEnd();
 	}
 	
-	gpuShadeModel(GL_FLAT);
-	
+	gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); //gpuShadeModel(GL_SMOOTH);
 }
 
 void ui_hsvcube_pos_from_vals(uiBut *but, const rcti *rect, float *hsv, float *xp, float *yp)

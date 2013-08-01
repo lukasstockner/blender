@@ -385,6 +385,8 @@ struct DerivedMesh {
 	 * gpuShadeModel called with GL_SMOOTH. Otherwise the face normal should
 	 * be set and gpuShadeModel called with GL_FLAT.
 	 *
+	 * XXX jwilkins: the above comment needs to be reevaluated since shadeModel is going away
+	 *
 	 * The setDrawOptions is allowed to not set drawSmooth (for example, when
 	 * lighting is disabled), in which case the implementation should draw as
 	 * smooth shaded.

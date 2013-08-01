@@ -26,8 +26,8 @@
 */
 
 /** \file blender/gpu/intern/gpu_aspect.h
-*  \ingroup gpu
-*/
+ *  \ingroup gpu
+ */
 
 #ifndef GPU_ASPECT_H
 #define GPU_ASPECT_H
@@ -47,26 +47,24 @@ extern "C" {
 void gpuInitializeAspects(void);
 void gpuShutdownAspects(void);
 
-void gpuGenAspects(GLsizei count, GLuint* aspects);
+void gpuGenAspects   (GLsizei count,       GLuint* aspects);
 void gpuDeleteAspects(GLsizei count, const GLuint* aspects);
 
 typedef struct GPUaspectfuncs {
 	GLboolean (*begin)(GLvoid* param, const GLvoid* object);
-	GLboolean (*end)(GLvoid* param, const GLvoid* object);
+	GLboolean (*end  )(GLvoid* param, const GLvoid* object);
 	GLvoid* param;
 } GPUaspectfuncs;
 
 void gpuAspectFuncs(GLuint aspect, GPUaspectfuncs* aspectFuncs);
 
 GLboolean gpuAspectBegin(GLuint aspect, const GLvoid* object);
-GLboolean gpuAspectEnd(GLuint aspect, const GLvoid* object);
+GLboolean gpuAspectEnd  (GLuint aspect, const GLvoid* object);
 
 
 
 #ifdef __cplusplus
 }
 #endif
-
-
 
 #endif /* GPU_ASPECT_H */

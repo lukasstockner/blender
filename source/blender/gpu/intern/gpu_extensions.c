@@ -184,9 +184,9 @@ void GPU_extensions_init(void)
 
 	GPU_CHECK_NO_ERROR();
 
-#if defined(WITH_GL_PROFILE_ES20) || defined(WITH_GL_PROFILE_CORE)
-	gpu_object_init_gles();
-#endif
+//#if defined(WITH_GL_PROFILE_ES20) || defined(WITH_GL_PROFILE_CORE)
+//	gpu_object_init_gles();
+//#endif
 
 	GPU_CHECK_NO_ERROR();
 
@@ -1513,6 +1513,11 @@ void GPU_shader_free(GPUShader *shader)
 
 }
 
+int GPU_shader_get_attrib(GPUShader *shader, const char *name)
+{
+	return gpu_glGetAttribLocation(shader->object, name);
+}
+
 int GPU_shader_get_uniform(GPUShader *shader, const char *name)
 {
 	return gpu_glGetUniformLocation(shader->object, name);
@@ -1563,7 +1568,7 @@ void GPU_shader_uniform_texture(GPUShader *UNUSED(shader), int location, GPUText
 	GPU_print_error("Pre Uniform Texture");
 
 	arbnumber = (GLenum)((GLuint)GL_TEXTURE0 + tex->number);
-//#include REAL_GL_MODE
+
 	if (tex->number != 0) 
 		glActiveTexture(arbnumber);
 	glBindTexture(tex->target, tex->bindcode);
@@ -1571,7 +1576,7 @@ void GPU_shader_uniform_texture(GPUShader *UNUSED(shader), int location, GPUText
 	glEnable(tex->target);
 	if (tex->number != 0) 
 		glActiveTexture(GL_TEXTURE0);
-//#include FAKE_GL_MODE
+
 	GPU_print_error("Post Uniform Texture");
 }
 

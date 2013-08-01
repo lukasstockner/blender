@@ -38,7 +38,7 @@
 
 #include "gpu_extension_wrapper.h"
 #include "gpu_glew.h"
-#include "gpu_object_gles.h"
+//#include "gpu_object_gles.h"
 #include "GPU_object.h"
 
 typedef struct bufferDataGLSL {
@@ -52,12 +52,6 @@ typedef struct bufferDataGLSL {
 	GLubyte* unmappedBuffer;
 } bufferDataGLSL;
 
-typedef struct stateDataGLSL {
-	GLfloat stateCurrentColor[4];
-	GLfloat stateCurrentNormal[3];
-} stateDataGLSL;
-
-stateDataGLSL stateData = {{1, 1, 1, 1}, {0, 0, 1}};
 
 #define ALIGN64(p) (((p) + 63) & ~63)
 
@@ -435,33 +429,24 @@ void gpu_end_buffer_glsl(void)
 	if (!(GPU_IMMEDIATE->mode == GL_NOOP || GPU_IMMEDIATE->count == 0)) {
 		GPU_CHECK_NO_ERROR();
 
-		gpuMatrixCommit();
+		GPU_commit_matrixes();
+		GPU_commit_current ();
 
-		if(GPU_IMMEDIATE->format.colorSize == 0 && curglslesi && (curglslesi->colorloc != -1)) {
-			glVertexAttrib4fv(curglslesi->colorloc, stateData.stateCurrentColor);
-		}
-
-		GPU_CHECK_NO_ERROR();
 		if (GPU_IMMEDIATE->mode != GL_QUADS) {
 			glDrawArrays(GPU_IMMEDIATE->mode, 0, GPU_IMMEDIATE->count);
-		GPU_CHECK_NO_ERROR();
 		}
 		else {
 			if (GPU_IMMEDIATE->count <= 255){
 				if (GLEW_VERSION_1_5 || GLEW_ES_VERSION_2_0 || GLEW_ARB_vertex_buffer_object)
 					gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vq[1]);
-		GPU_CHECK_NO_ERROR();
 
 				glDrawElements(GL_TRIANGLES, 3 * GPU_IMMEDIATE->count / 2, GL_UNSIGNED_BYTE, vqeoc);
-		GPU_CHECK_NO_ERROR();
 			}
 			else if(GPU_IMMEDIATE->count <= 65535) {
 				if (GLEW_VERSION_1_5 || GLEW_ES_VERSION_2_0 || GLEW_ARB_vertex_buffer_object)
 					gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vq[0]);
 
-		GPU_CHECK_NO_ERROR();
 				glDrawElements(GL_TRIANGLES, 3 * GPU_IMMEDIATE->count / 2, GL_UNSIGNED_SHORT, vqeos);
-		GPU_CHECK_NO_ERROR();
 			}
 			else {
 				printf("To big GL_QUAD object to draw. Vertices: %i", GPU_IMMEDIATE->count);
@@ -531,34 +516,6 @@ void gpu_index_shutdown_buffer_glsl(GPUindex *restrict index)
 
 
 
-void gpu_current_color_glsl(void)
-{
-	stateData.stateCurrentColor[0] = (GLfloat)(GPU_IMMEDIATE->color[0]) / 255.0f;
-	stateData.stateCurrentColor[1] = (GLfloat)(GPU_IMMEDIATE->color[1]) / 255.0f;
-	stateData.stateCurrentColor[2] = (GLfloat)(GPU_IMMEDIATE->color[2]) / 255.0f;
-	stateData.stateCurrentColor[3] = (GLfloat)(GPU_IMMEDIATE->color[3]) / 255.0f;
-
-	//if(curglslesi && (curglslesi->colorloc != -1)) {
-	//	glVertexAttrib4fv(curglslesi->colorloc, stateData.stateCurrentColor);
-	//}
-}
-
-
-
-void gpu_get_current_color_glsl(GLfloat *color)
-{
-	copy_v4_v4(color, stateData.stateCurrentColor);
-}
-
-
-
-void gpu_current_normal_glsl(void)
-{
-	copy_v3_v3(stateData.stateCurrentNormal, GPU_IMMEDIATE->normal);
-}
-
-
-
 void gpu_index_begin_buffer_glsl(void)
 {
 	GPUindex *restrict   index      = GPU_IMMEDIATE->index;
@@ -592,10 +549,8 @@ void gpu_draw_elements_glsl(void)
 
 	GPU_CHECK_NO_ERROR();
 
-	gpuMatrixCommit();
-
-	if(GPU_IMMEDIATE->format.colorSize == 0 && curglslesi && (curglslesi->colorloc != -1))
-		glVertexAttrib4fv(curglslesi->colorloc, stateData.stateCurrentColor);
+	GPU_commit_matrixes();
+	GPU_commit_current ();
 
 	GPU_CHECK_NO_ERROR();
 
@@ -615,10 +570,10 @@ void gpu_draw_range_elements_glsl(void)
 
 	GPU_CHECK_NO_ERROR();
 
-	if(GPU_IMMEDIATE->format.colorSize == 0 && curglslesi && (curglslesi->colorloc != -1))
-		glVertexAttrib4fv(curglslesi->colorloc, stateData.stateCurrentColor);
+	GPU_commit_matrixes();
+	GPU_commit_current ();
 
-	gpuMatrixCommit();
+	GPU_CHECK_NO_ERROR();
 
 #if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_COMPAT)
 	glDrawRangeElements(

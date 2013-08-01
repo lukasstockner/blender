@@ -63,6 +63,7 @@
 #include "GPU_extensions.h"
 #include "GPU_material.h"
 #include "GPU_compatibility.h"
+#include "GPU_simple_shader.h"
 
 #include <string.h>
 #include <limits.h>
@@ -341,7 +342,7 @@ static void cdDM_drawVerts(DerivedMesh *dm)
 	}
 	else {  /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
 		GPU_vertex_setup(dm);
-		gpuMatrixCommit();
+		GPU_commit_matrixes();
 		if (!GPU_buffer_legacy(dm)) {
 			if (dm->drawObject->tot_triangle_point)
 				glDrawArrays(GL_POINTS, 0, dm->drawObject->tot_triangle_point);
@@ -562,17 +563,17 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 
 	if (cddm->pbvh && cddm->pbvh_draw) {
 		if (dm->numTessFaceData) {
-			float (*face_nors)[3] = CustomData_get_layer(&dm->faceData, CD_NORMAL);
+			float (*face_nors)[3] = (float(*)[3])CustomData_get_layer(&dm->faceData, CD_NORMAL);
 
-			BKE_pbvh_draw(cddm->pbvh, partial_redraw_planes, face_nors,
-			              setMaterial, FALSE);
-			gpuShadeModel(GL_FLAT);
+			BKE_pbvh_draw(cddm->pbvh, partial_redraw_planes, face_nors, setMaterial, FALSE);
 		}
 
 		return;
 	}
 
 	if (GPU_buffer_legacy(dm)) {
+		uint32_t options = 0;
+
 		DEBUG_VBO("Using legacy code. cdDM_drawFacesSolid\n");
 		gpuImmediateFormat_N3_V3();
 		gpuBegin(glmode = GL_QUADS);
@@ -588,7 +589,12 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 
 				drawCurrentMat = setMaterial(matnr = new_matnr, NULL);
 
-				gpuShadeModel(shademodel = new_shademodel);
+				if (shademodel != -1)
+					gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
+
+				shademodel = new_shademodel;
+				options    = shademodel == GL_SMOOTH ? 0 : GPU_SHADER_FLAT_SHADED;
+				gpuAspectBegin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
 				gpuBegin(glmode = new_glmode);
 			}
 			
@@ -620,6 +626,10 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 
 			if (nors) nors += 3;
 		}
+
+		if (dm->numTessFaceData > 0)
+			gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
+
 		gpuEnd();
 		gpuImmediateUnformat();
 	}
@@ -627,19 +637,20 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 		GPU_vertex_setup(dm);
 		GPU_normal_setup(dm);
 		if (!GPU_buffer_legacy(dm)) {
-			gpuShadeModel(GL_SMOOTH);
+			uint32_t options = 0;
+			gpuAspectBegin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_SMOOTH);
 			for (a = 0; a < dm->drawObject->totmaterial; a++) {
 				if (setMaterial(dm->drawObject->materials[a].mat_nr + 1, NULL)) {
 					glDrawArrays(GL_TRIANGLES, dm->drawObject->materials[a].start,
 					             dm->drawObject->materials[a].totpoint);
 				}
 			}
+			gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_FLAT);
 		}
 		GPU_buffer_unbind();
 	}
 
 #undef PASSVERT
-	gpuShadeModel(GL_FLAT);
 }
 
 static void cdDM_drawFacesTex_common(DerivedMesh *dm,
@@ -656,6 +667,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 	MCol *mcol;
 	int i, orig;
 	int colType, startFace = 0;
+	uint32_t options;
 
 	/* double lookup */
 	const int *index_mf_to_mpoly = dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
@@ -693,7 +705,8 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 
 	cdDM_update_normals_from_pbvh(dm);
 
-	gpuAspectBegin(GPU_ASPECT_TEXTURE, NULL);
+	options = GPU_SHADER_TEXTURE_2D|GPU_SHADER_FLAT_SHADED; // XXX jwilkins: not sure if in this context thingsa re suppose dto be flat shaded or not.
+	gpuAspectBegin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
 
 	if (GPU_buffer_legacy(dm)) {
 		DEBUG_VBO("Using legacy code. cdDM_drawFacesTex_common\n");
@@ -801,7 +814,10 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 			int tottri = dm->drawObject->tot_triangle_point / 3;
 			int next_actualFace = dm->drawObject->triangle_to_mface[0];
 
-			gpuShadeModel(GL_SMOOTH);
+			gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_FLAT);
+			options = GPU_SHADER_TEXTURE_2D;
+			gpuAspectBegin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_SMOOTH);
+
 			/* lastFlag = 0; */ /* UNUSED */
 			for (i = 0; i < tottri; i++) {
 				int actualFace = next_actualFace;
@@ -851,7 +867,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 							GPU_color_switch(1);
 						else
 							GPU_color_switch(0);
-						gpuMatrixCommit();
+						GPU_commit_matrixes();
 						glDrawArrays(GL_TRIANGLES, first, count);
 					}
 
@@ -860,10 +876,9 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 			}
 		}
 
-		gpuAspectEnd(GPU_ASPECT_TEXTURE, NULL);
+		gpuAspectEnd(GPU_ASPECT_TEXTURE, SET_UINT_IN_POINTER(options));
 
 		GPU_buffer_unbind();
-		gpuShadeModel(GL_FLAT);
 	}
 }
 

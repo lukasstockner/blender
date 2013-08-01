@@ -33,11 +33,11 @@
 #include "GPU_extensions.h"
 
 #include "gpu_safety.h"
+#include "gpu_known.h"
 
 #include "MEM_guardedalloc.h"
 
-
-
+#if 0
 GPUlighting *restrict GPU_LIGHTING = NULL;
 
 
@@ -93,7 +93,6 @@ void gpuShutdownLighting(void)
 }
 
 
-
 // XXX jwilkins: these should probably be a part of the GPU_LIGHTING driver, but not sure atm
 
 void gpuShadeModel(GLenum model)
@@ -102,5 +101,79 @@ void gpuShadeModel(GLenum model)
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glShadeModel(model);
+#endif
+}
+#endif
+
+
+
+void GPU_commit_light(uint32_t lights_enabled, const GPUsimplelight *light)
+{
+	int i;
+	int light_count = 0;
+	const GPUknownlocs* location = GPU_get_known_locations();
+
+	for (i = 0; i < GPU_MAX_KNOWN_LIGHTS; i++) {
+		uint32_t light_bit = (1 << i);
+
+		if (lights_enabled & light_bit) {
+			if (GPU_glsl_support()) {
+				glUniform4fv(location->light_position             [light_count], 1, light->position);
+				glUniform4fv(location->light_diffuse              [light_count], 1, light->diffuse);
+				glUniform4fv(location->light_specular             [light_count], 1, light->specular);
+
+				glUniform1f (location->light_constant_attenuation [light_count],    light->constant_attenuation);
+				glUniform1f (location->light_linear_attenuation   [light_count],    light->linear_attenuation);
+				glUniform1f (location->light_quadratic_attenuation[light_count],    light->quadratic_attenuation);
+
+				glUniform3fv(location->light_spot_direction       [light_count], 1, light->spot_direction);
+				glUniform1f (location->light_spot_cutoff          [light_count],    light->spot_cutoff);
+				glUniform1f (location->light_spot_exponent        [light_count],    light->spot_exponent);
+			}
+
+		#if defined(WITH_GL_PROFILE_COMPAT)
+			glEnable (GL_LIGHT0+light_count);
+
+			glLightfv(GL_LIGHT0+light_count, GL_POSITION,              light->position);
+			glLightfv(GL_LIGHT0+light_count, GL_DIFFUSE,               light->diffuse);
+			glLightfv(GL_LIGHT0+light_count, GL_SPECULAR,              light->specular);
+
+			glLightf (GL_LIGHT0+light_count, GL_CONSTANT_ATTENUATION,  light->constant_attenuation);
+			glLightf (GL_LIGHT0+light_count, GL_LINEAR_ATTENUATION,    light->linear_attenuation);
+			glLightf (GL_LIGHT0+light_count, GL_QUADRATIC_ATTENUATION, light->quadratic_attenuation);
+
+			glLightfv(GL_LIGHT0+light_count, GL_SPOT_DIRECTION,        light->spot_direction);
+			glLightf (GL_LIGHT0+light_count, GL_SPOT_CUTOFF,           light->spot_cutoff);
+			glLightf (GL_LIGHT0+light_count, GL_SPOT_EXPONENT,         light->spot_exponent);
+		#endif
+
+			light_count++;
+		}
+		else {
+#if defined(WITH_GL_PROFILE_COMPAT)
+			glDisable(GL_LIGHT0+light_count);
+#endif
+		}
+	}
+
+	glUniform1i(location->light_count, light_count);
+}
+
+
+
+void GPU_commit_material(const GPUsimplematerial* material)
+{
+	const GPUknownlocs* location = GPU_get_known_locations();
+
+	if (GPU_glsl_support()) {
+		glUniform4fv(location->material_diffuse,   1, material->diffuse);
+		glUniform4fv(location->material_specular,  1, material->specular);
+		glUniform1i (location->material_shininess,    material->shininess);
+	}
+
+#if defined(WITH_GL_PROFILE_COMPAT)
+	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE,   SIMPLE_SHADER.material_diffuse);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR,  SIMPLE_SHADER.material_specular);
+	glMateriali (GL_FRONT_AND_BACK, GL_SHININESS, SIMPLE_SHADER.material_shininess);
 #endif
 }
