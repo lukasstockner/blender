@@ -971,6 +971,7 @@ class IMAGE_PT_tools_imagepaint(BrushButtonsPanel, Panel):
 
         col = layout.column()
         col.operator("paint.bucket_fill")
+        col.operator("paint.gradient_fill")
 
 
 

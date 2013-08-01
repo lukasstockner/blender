@@ -1279,6 +1279,7 @@ class VIEW3D_PT_tools_imagepaint(View3DPanel, Panel):
 
         col = layout.column()
         col.operator("paint.bucket_fill")
+        col.operator("paint.gradient_fill")
 
 
 class VIEW3D_PT_imagepaint_options(View3DPaintPanel):

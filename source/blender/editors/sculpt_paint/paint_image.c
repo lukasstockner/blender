@@ -1340,13 +1340,64 @@ void PAINT_OT_bucket_fill(wmOperatorType *ot)
 	RNA_def_float_color(ot->srna, "color", 3, NULL, 0.0, 1.0, "Color", "Color for bucket fill", 0.0, 1.0);
 }
 
-static int gradient_fill_exec(bContext *C, wmOperator *UNUSED(op))
-{
-	PaintMode mode = BKE_paintmode_get_active_from_context(C);
+typedef struct GradientFillData {
+	int mouse_init[2];
+//	int x_init, y_init;
+	bool started;
+	void *cursor;
+} GradientFillData;
 
-	return OPERATOR_FINISHED;
+static void gradient_draw_line(bContext *UNUSED(C), int x, int y, void *customdata) {
+	GradientFillData *data = (GradientFillData *)customdata;
+
+	if (data && data->started) {
+		glEnable(GL_LINE_SMOOTH);
+		glEnable(GL_BLEND);
+
+		glColor4ub(0, 0, 0, 255);
+		sdrawline(x, y, data->mouse_init[0], data->mouse_init[1]);
+
+		glDisable(GL_BLEND);
+		glDisable(GL_LINE_SMOOTH);
+	}
 }
 
+static int gradient_fill_invoke(struct bContext *C, struct wmOperator *op, const struct wmEvent *UNUSED(event))
+{
+	GradientFillData *data = MEM_mallocN(sizeof(*data), "Gradient Fill data");
+
+	data->started = false;
+	op->customdata = data;
+
+	data->cursor = WM_paint_cursor_activate(CTX_wm_manager(C), image_paint_poll, gradient_draw_line, data);
+	WM_event_add_modal_handler(C, op);
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+static int gradient_fill_modal(struct bContext *C, struct wmOperator *op, const struct wmEvent *event)
+{
+	wmWindow *window = CTX_wm_window(C);
+	ARegion *ar = CTX_wm_region(C);
+
+	GradientFillData *data = op->customdata;
+
+	if (event->type == LEFTMOUSE) {
+		if (event->val == KM_PRESS) {
+			copy_v2_v2_int(data->mouse_init, event->mval);
+			data->started = true;
+		}
+		else if (event->val == KM_RELEASE) {
+			WM_paint_cursor_end(CTX_wm_manager(C), data->cursor);
+			MEM_freeN(data);
+			return OPERATOR_FINISHED;
+		}
+	}
+
+	WM_paint_cursor_tag_redraw(window, ar);
+
+	return OPERATOR_RUNNING_MODAL;
+}
 
 void PAINT_OT_gradient_fill(wmOperatorType *ot)
 {
@@ -1356,7 +1407,8 @@ void PAINT_OT_gradient_fill(wmOperatorType *ot)
 	ot->description = "Fill canvas with a gradient";
 
 	/* api callbacks */
-	ot->exec = gradient_fill_exec;
+	ot->invoke = gradient_fill_invoke;
+	ot->modal = gradient_fill_modal;
 	ot->poll = image_paint_poll;
 
 	/* flags */

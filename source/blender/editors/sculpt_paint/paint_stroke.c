@@ -74,7 +74,7 @@ typedef struct LinePoint {
 
 typedef struct PaintStroke {
 	void *mode_data;
-	void *smooth_stroke_cursor;
+	void *stroke_cursor;
 	wmTimer *timer;
 
 	/* Cached values */
@@ -618,8 +618,8 @@ static void stroke_done(struct bContext *C, struct wmOperator *op)
 			stroke->timer);
 	}
 
-	if (stroke->smooth_stroke_cursor)
-		WM_paint_cursor_end(CTX_wm_manager(C), stroke->smooth_stroke_cursor);
+	if (stroke->stroke_cursor)
+		WM_paint_cursor_end(CTX_wm_manager(C), stroke->stroke_cursor);
 
 	BLI_freelistN(&stroke->line);
 
@@ -793,7 +793,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	/* one time initialization */
 	if (!stroke->stroke_init) {
 		if (paint_supports_smooth_stroke(br, mode))
-			stroke->smooth_stroke_cursor =
+			stroke->stroke_cursor =
 			    WM_paint_cursor_activate(CTX_wm_manager(C), paint_poll, paint_draw_smooth_cursor, stroke);
 
 		stroke->stroke_init = true;
@@ -813,7 +813,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 			if (br->flag & BRUSH_LINE) {
 				LinePoint *p = MEM_callocN(sizeof(*p), "line_stroke_point");
-				stroke->smooth_stroke_cursor =
+				stroke->stroke_cursor =
 					WM_paint_cursor_activate(CTX_wm_manager(C), paint_poll, paint_draw_line_cursor, stroke);
 
 				BLI_addtail(&stroke->line, p);
