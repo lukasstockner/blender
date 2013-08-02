@@ -695,7 +695,8 @@ static void rna_def_brush(BlenderRNA *brna)
 		{BRUSH_SPACE, "SPACE", 0, "Space", "Limit brush application to the distance specified by spacing"},
 		{BRUSH_ANCHORED, "ANCHORED", 0, "Anchored", "Keep the brush anchored to the initial location"},
 		{BRUSH_AIRBRUSH, "AIRBRUSH", 0, "Airbrush", "Keep applying paint effect while holding mouse (spray)"},
-		{BRUSH_LINE, "LINE", 0, "Line", "Draw a line with dabs separated according to spacing"},
+		{BRUSH_LINE, "LINE", 0, "Line", "Drag a line with dabs separated according to spacing"},
+		{BRUSH_POLYLINE, "POLYLINE", 0, "Polyline", "Draw a series of lines with dabs separated according to spacing"},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -704,6 +705,7 @@ static void rna_def_brush(BlenderRNA *brna)
 		{BRUSH_SPACE, "SPACE", 0, "Space", "Limit brush application to the distance specified by spacing"},
 		{BRUSH_AIRBRUSH, "AIRBRUSH", 0, "Airbrush", "Keep applying paint effect while holding mouse (spray)"},
 		{BRUSH_LINE, "LINE", 0, "Line", "Draw a line with dabs separated according to spacing"},
+		{BRUSH_POLYLINE, "POLYLINE", 0, "Polyline", "Draw a series of lines with dabs separated according to spacing"},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -984,7 +986,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_AIRBRUSH);
 	RNA_def_property_ui_text(prop, "Airbrush", "Keep applying paint effect while holding mouse (spray)");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
-	
+
 	prop = RNA_def_property(srna, "use_original_normal", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_ORIGINAL_NORMAL);
 	RNA_def_property_ui_text(prop, "Original Normal",

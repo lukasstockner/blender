@@ -661,9 +661,7 @@ bool paint_supports_dynamic_size(Brush *br, PaintMode mode)
 bool paint_supports_smooth_stroke(Brush *br, PaintMode mode)
 {
 	if (!(br->flag & BRUSH_SMOOTH_STROKE) ||
-	     (br->flag & BRUSH_ANCHORED) ||
-	     (br->flag & BRUSH_DRAG_DOT) ||
-	     (br->flag & BRUSH_LINE))
+		 (br->flag & (BRUSH_ANCHORED | BRUSH_DRAG_DOT | BRUSH_LINE | BRUSH_POLYLINE)))
 	{
 		return false;
 	}
@@ -764,6 +762,22 @@ static void paint_stroke_sample_average(const PaintStroke *stroke,
 	/*printf("avg=(%f, %f), num=%d\n", average->mouse[0], average->mouse[1], stroke->num_samples);*/
 }
 
+static void paint_stroke_polyline_end(bContext *C, wmOperator *op, PaintStroke *stroke)
+{
+	Brush *br = stroke->brush;
+	if (stroke->stroke_started && (br->flag & (BRUSH_LINE | BRUSH_POLYLINE))) {
+		LinePoint *p = stroke->line.first;
+
+		stroke->ups->overlap_factor = paint_stroke_integrate_overlap(br, br->spacing);
+
+		paint_brush_stroke_add_step(C, op, p->pos, 1.0);
+
+		for (; p; p = p->next) {
+			paint_space_stroke(C, op, p->pos, 1.0);
+		}
+	}
+}
+
 int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	Paint *p = BKE_paint_get_active_from_context(C);
@@ -778,7 +792,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	float pressure;
 
 	/* see if tablet affects event. Line, anchored and drag dot strokes do not support pressure */
-	pressure = (br->flag & (BRUSH_LINE | BRUSH_ANCHORED | BRUSH_DRAG_DOT)) ? 1.0 : event_tablet_data(event, &stroke->pen_flip);
+	pressure = (br->flag & (BRUSH_LINE | BRUSH_POLYLINE | BRUSH_ANCHORED | BRUSH_DRAG_DOT)) ? 1.0 : event_tablet_data(event, &stroke->pen_flip);
 
 	paint_stroke_add_sample(p, stroke, event->mval[0], event->mval[1], pressure);
 	paint_stroke_sample_average(stroke, &sample_average);
@@ -811,7 +825,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			if (br->flag & BRUSH_AIRBRUSH)
 				stroke->timer = WM_event_add_timer(CTX_wm_manager(C), CTX_wm_window(C), TIMER, stroke->brush->rate);
 
-			if (br->flag & BRUSH_LINE) {
+			if (br->flag & (BRUSH_LINE | BRUSH_POLYLINE)) {
 				LinePoint *p = MEM_callocN(sizeof(*p), "line_stroke_point");
 				stroke->stroke_cursor =
 					WM_paint_cursor_activate(CTX_wm_manager(C), paint_poll, paint_draw_line_cursor, stroke);
@@ -835,43 +849,28 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	}
 
 	if (event->type == stroke->event_type && !first_modal) {
-		if (br->flag & BRUSH_LINE) {
-			if (event->val == KM_PRESS) {
-				if (!stroke->stroke_started) {
-					stroke_done(C, op);
-					return OPERATOR_FINISHED;
-				}
-
-				if (event->shift) {
-					/* Add new line here */
-					LinePoint *p = MEM_callocN(sizeof(*p), "line_stroke_point");
-					BLI_addtail(&stroke->line, p);
-					copy_v2_v2(p->pos, sample_average.mouse);
-					/* for rake to work well */
-					copy_v2_v2(stroke->last_mouse_position, sample_average.mouse);
-				}
-				else {
-					LinePoint *p = stroke->line.first;
-
-					stroke->ups->overlap_factor = paint_stroke_integrate_overlap(br, br->spacing);
-
-					paint_brush_stroke_add_step(C, op, p->pos, 1.0);
-
-					for (; p; p = p->next) {
-						paint_space_stroke(C, op, p->pos, 1.0);
-					}
-
-					stroke_done(C, op);
-					return OPERATOR_FINISHED;
-				}
+		if (br->flag & BRUSH_POLYLINE) {
+			if (event->val == KM_PRESS && stroke->stroke_started) {
+				/* Add new line here */
+				LinePoint *p = MEM_callocN(sizeof(*p), "line_stroke_point");
+				BLI_addtail(&stroke->line, p);
+				copy_v2_v2(p->pos, sample_average.mouse);
+				/* for rake to work well */
+				copy_v2_v2(stroke->last_mouse_position, sample_average.mouse);
 			}
 		}
 		else if (event->val == KM_RELEASE) {
+			paint_stroke_polyline_end (C, op, stroke);
 			stroke_done(C, op);
 			return OPERATOR_FINISHED;
 		}
 	}
-	else if ((br->flag & BRUSH_LINE) && stroke->stroke_started &&
+	else if (ELEM(event->type, RETKEY, SPACEKEY)) {
+		paint_stroke_polyline_end (C, op, stroke);
+		stroke_done(C, op);
+		return OPERATOR_FINISHED;
+	}
+	else if ((br->flag & (BRUSH_LINE | BRUSH_POLYLINE)) && stroke->stroke_started &&
 			 (first_modal || (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE))))
 	{
 		LinePoint *p = stroke->line.last;
