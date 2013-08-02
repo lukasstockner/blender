@@ -111,7 +111,7 @@ void ModalSolver(const Tracks &tracks,
   ceres::AngleAxisToQuaternion(&zero_rotation(0), &quaternion(0));
 
   for (int image = 0; image <= max_image; ++image) {
-    vector<Marker> all_markers = tracks.MarkersInImage(image);
+    vector<Marker> all_markers = tracks.MarkersInImage(0, image);
 
     ModalSolverLogProress(update_callback, (float) image / max_image);
 
@@ -226,7 +226,7 @@ void ModalSolver(const Tracks &tracks,
     // and reproject them on sphere to obtain 3D position/
     for (int track = 0; track <= max_track; ++track) {
       if (!reconstruction->PointForTrack(track)) {
-        Marker marker = tracks.MarkerInImageForTrack(image, track);
+        Marker marker = tracks.MarkerInImageForTrack(0, image, track);
 
         if (marker.image == image) {
           // New track appeared on this image,

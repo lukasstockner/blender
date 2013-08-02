@@ -396,14 +396,9 @@ void libmv_tracksDestroy(struct libmv_Tracks *libmv_tracks)
 	delete (libmv::Tracks*) libmv_tracks;
 }
 
-void libmv_tracksInsertMultiview(struct libmv_Tracks *libmv_tracks, int view, int image, int track, double x, double y)
+void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int view, int image, int track, double x, double y)
 {
 	((libmv::Tracks*)libmv_tracks)->Insert(view, image, track, x, y);
-}
-
-void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int image, int track, double x, double y)
-{
-	((libmv::Tracks*) libmv_tracks)->Insert(image, track, x, y);
 }
 
 /* ************ Reconstruction ************ */
@@ -507,7 +502,7 @@ static bool selectTwoKeyframesBasedOnGRICAndVariance(
 		int current_keyframe = keyframes[i];
 
 		libmv::vector<libmv::Marker> keyframe_markers =
-			normalized_tracks.MarkersForTracksInBothImages(previous_keyframe,
+			normalized_tracks.MarkersForTracksInBothImages(0, previous_keyframe,
 			                                               current_keyframe);
 
 		libmv::Tracks keyframe_tracks(keyframe_markers);
@@ -642,7 +637,7 @@ libmv_Reconstruction *libmv_solve(const libmv_Tracks *libmv_tracks,
 
 		/* Reconstruct for two frames */
 		libmv::vector<libmv::Marker> keyframe_markers =
-				normalized_tracks.MarkersForTracksInBothImages(keyframe1, keyframe2);
+				normalized_tracks.MarkersForTracksInBothImages(0, keyframe1, keyframe2);
 
 		LG << "number of markers for init: " << keyframe_markers.size();
 
@@ -751,7 +746,7 @@ double libmv_reprojectionErrorForViewImage(const struct libmv_Reconstruction *li
 {
 	const libmv::EuclideanReconstruction *reconstruction = &libmv_reconstruction->reconstruction;
 	const libmv::CameraIntrinsics *intrinsics = &libmv_reconstruction->intrinsics;
-	libmv::vector<libmv::Marker> markers = libmv_reconstruction->tracks.MarkersInImage(image);
+	libmv::vector<libmv::Marker> markers = libmv_reconstruction->tracks.MarkersInImage(view, image);
 	const libmv::EuclideanCamera *camera = reconstruction->CameraForViewImage(view, image);
 	int num_reprojected = 0;
 	double total_error = 0.0;

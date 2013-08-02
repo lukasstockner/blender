@@ -203,7 +203,7 @@ void InternalCompleteReconstruction(
         LG << "Skipping frame: " << image;
         continue;
       }
-      vector<Marker> all_markers = tracks.MarkersInImage(image);
+      vector<Marker> all_markers = tracks.MarkersInImage(0, image);
       LG << "Got " << all_markers.size() << " markers for image " << image;
 
       vector<Marker> reconstructed_markers;
@@ -243,7 +243,7 @@ void InternalCompleteReconstruction(
       LG << "Skipping frame: " << image;
       continue;
     }
-    vector<Marker> all_markers = tracks.MarkersInImage(image);
+    vector<Marker> all_markers = tracks.MarkersInImage(0, image);
 
     vector<Marker> reconstructed_markers;
     for (int i = 0; i < all_markers.size(); ++i) {

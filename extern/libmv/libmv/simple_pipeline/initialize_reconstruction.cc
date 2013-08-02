@@ -61,8 +61,8 @@ bool EuclideanReconstructTwoFrames(const vector<Marker> &markers,
   GetImagesInMarkers(markers, &image1, &image2);
 
   Mat x1, x2;
-  CoordinatesForMarkersInImage(markers, image1, &x1);
-  CoordinatesForMarkersInImage(markers, image2, &x2);
+  CoordinatesForMarkersInImage(markers, 0, image1, &x1);
+  CoordinatesForMarkersInImage(markers, 0, image2, &x2);
 
   Mat3 F;
   NormalizedEightPointSolver(x1, x2, &F);
@@ -149,8 +149,8 @@ bool ProjectiveReconstructTwoFrames(const vector<Marker> &markers,
   GetImagesInMarkers(markers, &image1, &image2);
 
   Mat x1, x2;
-  CoordinatesForMarkersInImage(markers, image1, &x1);
-  CoordinatesForMarkersInImage(markers, image2, &x2);
+  CoordinatesForMarkersInImage(markers, 0, image1, &x1);
+  CoordinatesForMarkersInImage(markers, 0, image2, &x2);
 
   Mat3 F;
   NormalizedEightPointSolver(x1, x2, &F);

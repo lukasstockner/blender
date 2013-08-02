@@ -80,27 +80,20 @@ class Tracks {
   */
   void Insert(int view, int image, int track, double x, double y);
 
-  /*!
-      Inserts a marker for view 0 into the set. If there is already a marker
-      for view 0 and the given \a image and \a track, the existing marker is
-      replaced. This is a useful shorthand for single view reconstruction.
-  */
-  void Insert(int image, int track, double x, double y);
-
   /// Returns all the markers.
   vector<Marker> AllMarkers() const;
 
   /// Returns all the markers visible in \a view.
   vector<Marker> MarkersInView(int view) const;
 
-  /// Returns all the markers visible in \a image.
-  vector<Marker> MarkersInImage(int image) const;
+  /// Returns all the markers visible in an \a image from \a view.
+  vector<Marker> MarkersInImage(int view, int image) const;
 
   /// Returns all the markers belonging to a track.
   vector<Marker> MarkersForTrack(int track) const;
 
-  /// Returns all the markers visible in \a image1 and \a image2.
-  vector<Marker> MarkersInBothImages(int image1, int image2) const;
+  /// Returns all the markers visible in \a image1 and \a image2 from \a view.
+  vector<Marker> MarkersInBothImages(int view, int image1, int image2) const;
 
   /*!
       Returns the markers in \a image1 and \a image2 which have a common track.
@@ -108,10 +101,10 @@ class Tracks {
       This is not the same as the union of the markers in \a image1 and \a
       image2; each marker is for a track that appears in both images.
   */
-  vector<Marker> MarkersForTracksInBothImages(int image1, int image2) const;
+  vector<Marker> MarkersForTracksInBothImages(int view, int image1, int image2) const;
 
-  /// Returns the marker in \a image belonging to \a track.
-  Marker MarkerInImageForTrack(int image, int track) const;
+  /// Returns the marker in \a image from \a view belonging to \a track.
+  Marker MarkerInImageForTrack(int view, int image, int track) const;
 
   /// Removes all the markers belonging to \a view.
   void RemoveMarkersForView(int view);
@@ -121,9 +114,6 @@ class Tracks {
 
   /// Removes the marker in \a image of \a view belonging to \a track.
   void RemoveMarker(int view, int image, int track);
-
-  /// Removes the marker in \a image of view 0 belonging to \a track.
-  void RemoveMarker(int image, int track);
 
   /// Returns the maximum view identifier used.
   int MaxView() const;
@@ -142,7 +132,7 @@ class Tracks {
 };
 
 void CoordinatesForMarkersInImage(const vector<Marker> &markers,
-                                  int image,
+                                  int view, int image,
                                   Mat *coordinates);
 
 }  // namespace libmv
