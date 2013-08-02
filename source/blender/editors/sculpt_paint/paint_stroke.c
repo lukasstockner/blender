@@ -768,11 +768,19 @@ static void paint_stroke_polyline_end(bContext *C, wmOperator *op, PaintStroke *
 	if (stroke->stroke_started && (br->flag & (BRUSH_LINE | BRUSH_POLYLINE))) {
 		LinePoint *p = stroke->line.first;
 
+		/* last line point in polyline is dangling so remove */
+		if (br->flag & BRUSH_POLYLINE) {
+			LinePoint *plast = stroke->line.last;
+			BLI_remlink(&stroke->line, stroke->line.last);
+			MEM_freeN(plast);
+		}
+
 		stroke->ups->overlap_factor = paint_stroke_integrate_overlap(br, br->spacing);
 
-		paint_brush_stroke_add_step(C, op, p->pos, 1.0);
+		if (p->next)
+			paint_brush_stroke_add_step(C, op, p->pos, 1.0);
 
-		for (; p; p = p->next) {
+		for (p = p->next; p; p = p->next) {
 			paint_space_stroke(C, op, p->pos, 1.0);
 		}
 	}
