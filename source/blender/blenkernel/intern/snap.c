@@ -103,12 +103,23 @@ struct SnapIsect{
 	SnapPoint isect_point; //for use if the intersection is a single point (isect_type == SNAP_ISECT_TYPE_POINT)
 };
 
+/*Snap struct/class is used for calculating snaps, and drawing them.
+ *It can be thought of as an abstract class. It doesn't do anything by itself,
+ *but it has many subclasses which do*/
 struct Snap{
+	/*s_type is the type of snap (Mesh, Curve, Bone, Axis...)*/
 	Snap_type s_type;
-	int snap_found; //boolean whether snap point has been found
+	/*snap found is boolean whether snap point has been found*/
+	int snap_found;
+	/*snap_point is the storage point for the calculated snap point*/
 	SnapPoint snap_point;
-	SnapPoint* closest_point; //previously calculated closest point to mouse and screen.
-	Snap* pick; //previously calculated snap to use as a picking point in modes such as parallel snap and planar snap
+	/*closest_point, when set is used during calculations to ignore
+	 *potential snaps which are not as close to the screen (depth) or the mouse.
+	 *It is the previously calculated closest point to mouse and screen.*/
+	SnapPoint* closest_point;
+	/*pick is a previously calculated snap to be used for mosed such as planar
+	 *and parallel snapping, as the user picked face/line/vert.*/
+	Snap* pick;
 
 	//TODO: all extra data in Snap should be subject to streamlining and change
 	//in the near future, as soon as I get something working. A lot of quick
@@ -127,25 +138,29 @@ struct Snap{
 	/*internal calculation data*/
 	float ray_start[3], ray_normal[3];
 	float ray_start_local[3], ray_normal_local[3];
+	/*min_distance is the minimum distance from the mouse to the snap point required
+	 *for the snap point to be valid during calculations*/
 	int min_distance;
 
-	//matrix storage
+	/*matrix storage*/
 	float imat[4][4];
 	float timat[3][3];
-
 
 	//snap type -- type of snap to calculate
 	//geom_data_type
 
 	//transform
 
-	/*subclass data struct*/
+	/*snap_data stores the data for Snap's subclasses (e.g. SnapMesh_data)*/
 	void* snap_data;
 
 	/*function pointers*/
+	/*run is the function which calculates the snap.*/
 	void (*run)(Snap*);
 	SnapIsect* (*interesect)(Snap*,Snap*); //for use with multisnap
+	/*draws the snap. By default this is set to Snap_draw_default()*/
 	void (*draw)(Snap*);
+	/*function pointer to the subclass's free function*/
 	void (*free)(Snap*);
 	//void callback for doing transform -- function pointer
 };
@@ -163,7 +178,9 @@ struct SnapSystem{
 	/*events and state machine variables*/
 	/*most are hacks to get this working for now*/
 	SnapSystem_state state;
-	Snap* pick; //used for parallel snap, perpendicular and planar snap to store user picked geometry
+
+	/*used for parallel snap, perpendicular and planar snap to store user picked geometry*/
+	Snap* pick;
 
 	/*external data pointers required by all snap modes*/
 	bContext* C;
@@ -172,9 +189,12 @@ struct SnapSystem{
 	ARegion* ar;
 	Object* obedit;
 
-	SnapPoint snap_point; //storage of the snapsystem's current snap point for access by the outside world
-	int min_distance; //minimum distance between mouse and geometry for snap to occur
-	int retval; //if a snap_point has been found retval == 1 else retval == 0
+	/*snap_point is storage of the snapsystem's current snap point for access by the outside world*/
+	SnapPoint snap_point;
+	/*minimum distance between mouse and geometry for snap to occur*/
+	int min_distance;
+	/* reval is a boolean indicating whether or not a valid snap point has been found*/
+	int retval;
 
 	//list of objects in the scene which the snapssystem can currently operate upon
 	ListBase ob_list;
@@ -182,10 +202,21 @@ struct SnapSystem{
 
 	SnapSystem_mode_select mode_select; //todo: find out more about what this does
 
-	void* callback_data; //data from external system (e.g. transform) for use in callbacks
-	void (*update_callback)(SnapSystem *ssystem, void* callback_data, SnapPoint sp); //update the view in external system, but don't finalize the snap.
+	/*callback_data is the data assigned from parent code using snapsystem (e.g. transform)
+	 *to be used when the function pointers update, finish or cancel_callback are called.*/
+	void* callback_data;
+
+	/*update_callback gets called when the snapping system has not yet recieved confirmation from
+	 *the user of the chosen snap point, but there is a temporary snap_point available for providing
+	 *realtime feedback to the user of their actions when moving the mouse. In the case of transform,
+	 *this means the geometry moves towards the snap point without permenantly being applied.*/
+	void (*update_callback)(SnapSystem *ssystem, void* callback_data, SnapPoint sp);
+
 	void (*nofeedback_callback)(SnapSystem *ssytem, void* callback_data); //TODO: change name of this function
-	void (*finish_callback)(SnapSystem *ssystem, void* callback_data, SnapPoint sp); //update the view and finalize the snap.
+	/*finish_callback is the same as update_callback, but the snap_point is to be applied this time.*/
+	void (*finish_callback)(SnapSystem *ssystem, void* callback_data, SnapPoint sp);
+	/*cancel_callback tells the code using the snapsystem that the current snapsystem snap
+	 *search has been cancelled.*/
 	void (*cancel_callback)(SnapSystem *ssystem, void* callback_data);
 
 	void (*object_iterator)(SnapSystem* ssystem, void* callback_data);
@@ -195,6 +226,8 @@ struct SnapSystem{
 	void (*bonedata_selector)(SnapStack* stack, void* callback_data);
 };
 
+/*SnapSystem_create is a function used to setup and create an instance of SnapSystem.
+ *Remember to call SnapSystem_free() when finished with it.*/
 SnapSystem* SnapSystem_create( Scene* scene, View3D* v3d, ARegion* ar, Object* obedit, bContext* C,
 								void* callback_data,
 								void (*update_callback)(SnapSystem *ssystem, void* callback_data, SnapPoint sp),
@@ -366,6 +399,8 @@ void SnapSystem_parallel_hack_ob_handler(SnapSystem* ssystem, void* callback_dat
 	ssystem->retval |= retval;
 }
 
+/*evaluate the SnapStack contained within SnapSystem to
+ *allow final snappoint to be aquired and for draw functions to work. */
 void SnapSystem_evaluate_stack(SnapSystem* ssystem){
 	ssystem->object_iterator(ssystem, NULL);
 	SnapSystem_state_logic(ssystem);
@@ -562,6 +597,9 @@ extern EnumPropertyItem snap_element_items[];
 
 //}
 
+
+/*This function drives the snapping system by passing it events. It indicates whether the events
+ * have been consumed by its return value, so external code can act accordingly.*/
 /*TODO:
   there will be a patch soon to replace this with function based state handling, according to Martin's Idea.
   I've experimented with it a bit so far on a small scale and it makes sense, just ran out of time for this patch
@@ -663,6 +701,8 @@ void SnapSystem_reset_ob_list(SnapSystem* ssystem){
 	ssystem->n_obs = 0;
 }
 
+/*SnapSystem operates on a specific list of objects. This function is used to add objects to that list.
+ *There are other internal functions which use this function to add objects automatically by a filter.*/
 void SnapSystem_add_ob(SnapSystem* ssystem, Object* ob){
 	SnapObRef *ob_ref = MEM_callocN(sizeof(TransSnapPoint), "SnapObRef");
 	ob_ref->ob = ob;
@@ -677,6 +717,7 @@ Object* SnapSystem_get_ob(SnapSystem* ssystem, int index){
 	return ob_ref->ob;
 }
 
+/*calls draw for each of the active snaps in the stack*/
 void SnapSystem_draw(SnapSystem* ssystem){
 	Snap* s;
 	if(ssystem->retval && SnapStack_getN_Snaps(ssystem->sstack) > 0){
@@ -713,6 +754,7 @@ void SnapSystem_clear_pick(SnapSystem* ssystem){
 	}
 }
 
+/*reset snap system back to default state*/
 void SnapSystem_reset(SnapSystem* ssystem){
 	SnapSystem_reset_ob_list(ssystem);
 	SnapSystem_reset_snappoint(ssystem);
@@ -785,11 +827,16 @@ void SnapStack_free(SnapStack* sstack){
 
 
 /* -- Snap Class -- */
+/*This class represents an individual snap. */
+
+/*This function creates an instance of the Snap class.
+ *Don't forget to call Snap_free on it when you're finished with it!*/
 Snap* Snap_create(Snap_type s_type,
 				  Scene *scene, Object* ob, View3D *v3d, ARegion *ar, bContext *C, int mval[2],
 				  void (*run)(Snap*), void (*draw)(Snap*), void (*free)(Snap*)){
 	Snap* s = (Snap*)MEM_mallocN(sizeof(Snap), "snap");
 
+	/*s_type is the type of snap (Mesh, Curve, Bone, Axis...)*/
 	s->s_type = s_type;
 
 	s->scene = scene;
@@ -799,16 +846,27 @@ Snap* Snap_create(Snap_type s_type,
 	s->C = C;
 	copy_v2_v2_int(s->mval, mval);
 
+	/*min_distance is the minimum distance from the mouse to the snap point required
+	 *for the snap point to be valid during calculations*/
 	s->min_distance = 30; //TODO: change to a user defined value;
-
+	/*pick is a previously calculated snap to be used for mosed such as planar and
+	 *parallel snapping, as the user picked face/line/vert. */
 	s->pick = NULL;
+	/*closes_point is a pointer, that when set is used during calculations to ignore
+	 *potential snaps which are not as close to the screen (depth) or the mouse.*/
 	s->closest_point = NULL;
 	s->snap_found = 0;
 
 	//TODO: pass the function pointers in as arguments
 	s->run = run;
 	s->draw = draw;
+
+	/*This variable stores the function pointer to the subclass's free function.
+	 *It's an internal variable, please call Snap_free instead if you want to free
+	 * the Snap class*/
 	s->free = free;
+
+	/*snap_data stores the data for Snap's subclasses (e.g. SnapMesh_data)*/
 	s->snap_data = NULL;
 	return s;
 }
@@ -869,6 +927,9 @@ void Snap_free(Snap* s){
 	s->free(s);
 }
 
+/*Snap_free_f() frees Snap struct's internal data. This is useful to call
+ *after Snap's subclasses have finished their own free, and need to free
+ *parent data. */
 void Snap_free_f(Snap* s){
 	MEM_freeN(s);
 }
@@ -881,6 +942,8 @@ void Snap_draw(Snap* s){
 	s->draw(s);
 }
 
+/*Default drawing function to be assigned to s->draw.
+ *It draws the snap_point as a circle at its location.*/
 void Snap_draw_default(Snap *UNUSED(s)){
 //	unsigned char col[4], selectedCol[4], activeCol[4];
 //	UI_GetThemeColor3ubv(TH_TRANSFORM, col);
@@ -943,22 +1006,40 @@ void Snap_draw_default(Snap *UNUSED(s)){
 
 /* -- MESH SNAPPING -- */
 
+/* SnapMesh isn't really a class, but rather a collection of functions
+ *designed to operate on one type (Mesh) of instance of Snap defined by
+ *its s_type variable. It could be thought of as a subclass of Snap, introducing
+ *the necessary methods to snap with meshes*/
+
 /*TODO: implement a better system for input/output with snaps to allow things such as
   user configurable values for snaps like angles, number of sections for midpoint, and other things
   */
 typedef struct {
-	SnapMesh_type sm_type;// -- type of snap to calculate -- can be combination of several
+	/*Stores the type of meshsnap to calculate (planar, face, vertex, etc..).
+	 *It can be a combination of several.*/
+	SnapMesh_type sm_type;
 
-	MeshData *mesh_data; //actual mesh data stored in consistent interface (see struct MeshData)
+	/*actual mesh data stored in consistent interface (see struct MeshData)*/
+	MeshData *mesh_data;
 
 	/*return the vertex, edge or face picked by user for
 	use in combining snap modes (parallel and edge snap)*/
+
 	int ret_data_index; //index to use when getting element from mesh_data
-	MeshData_pickface *ret_data_pface; //this pointer is assigned snap returns a face as the return value.
+
+	/*When ret_data_pface is assigned snap returns a face.
+	 *pface (pikcface) is a struct storing all the details of a face, with its
+	 *own internal vert array*/
+
+	MeshData_pickface *ret_data_pface; // as the return value.
 	SnapMesh_ret_data_type ret_data_type; //vert index, edge index or pick face.
+
+	/*check is a variable which stores the various check types that a snap needs to make
+	 *on the mesh during its calculations to avoid snapping on them. (selected or
+	 *hidden geometry)*/
 	MeshData_check check;
 
-	int *dm_index_array; //for use when using derivedmesh data type;
+	int *dm_index_array; //for use when using derivedmesh data type; not in use?
 
 	//function mesh iterator -- hmm actually let's just make this SnapMesh_mesh_itorator()
 
@@ -968,14 +1049,20 @@ typedef struct {
   snapping modes without the requirement to convert between them, and thus suffer a performance loss.
 At the moment it supports two backends: BMEditmesh and DerivedMesh. It does this using a struct with
 function pointers that are assigned according to the type of mesh system that is getting used*/
-
 struct MeshData{
 	SnapMesh_data_type data_type;
 	void* data;
 	DerivedMesh* dm_bvh; //use derivedmesh if bvh functions are called.
 
+	/*edit_mode is a boolean for if mesh is from an object in edit mode*/
 	int edit_mode;
-	int free_data;//TODO: to let SnapMesh_free know whether to free the meshdata.
+
+	/*free_data is a boolean for if the data given the the MeshData struct during creation should be
+	 *free'd along with the MeshData struct when the MeshData->free() function is called.
+	 *This is useful if a temporary mesh has been passed to MeshData.
+	 *TODO: to let SnapMesh_free know whether to free the meshdata.*/
+	int free_data;
+
 	int (*getNumVerts)(MeshData* md);
 	int (*getNumEdges)(MeshData* md);
 	int (*getNumFaces)(MeshData* md);
@@ -986,10 +1073,12 @@ struct MeshData{
 	void (*getVert)(MeshData* md, int index, MVert* mv);
 	void (*getEdgeVerts)(MeshData* md, int index, MVert* mv1, MVert* mv2);
 
-
+	/*create a bvh from faces contained within MeshData*/
 	BVHTreeFromMesh* (*bvh_from_faces)(MeshData* md, Object* ob, MeshData_check check);
 	void (*free_bvh_tree)(MeshData* md, BVHTreeFromMesh* treeData);
 
+	/*Conduct checks on vert or edge to determine whether they have various qualities (hidden, selected)
+	 *which might make them unsuitable for snapping.*/
 	int (*checkVert)(MeshData* md, int index, MeshData_check check);
 	int (*checkEdge)(MeshData* md, int index, MeshData_check check);
 
@@ -997,7 +1086,6 @@ struct MeshData{
 };
 
 /* Mesh Data Functions */
-
 void copy_mvert(MVert* out, MVert* in){
 	copy_v3_v3(out->co, in->co);
 	copy_v3_v3_short(out->no, in->no);
@@ -1022,7 +1110,6 @@ void bmvert_to_mvert(BMesh *bm, BMVert *bmv, MVert *mv)
 //{
 
 //}
-
 
 //TODO: finish writing this function!
 void bmface_to_mface(BMesh *UNUSED(bm), BMFace *UNUSED(bmf), MFace *UNUSED(mf)){
@@ -1351,7 +1438,6 @@ MeshData* MeshData_create(void* mesh_data, SnapMesh_data_type data_type, int fre
 	return md;
 }
 
-
 /* SnapMesh functions */
 
 Snap* SnapMesh_create(	void* mesh_data,
@@ -1389,7 +1475,6 @@ Snap* SnapMesh_create(	void* mesh_data,
 		draw = SnapMesh_draw_edge_parallel;
 		break;
 	}
-
 	sm = Snap_create(SNAP_TYPE_MESH, scene, ob, v3d, ar, C, mval, SnapMesh_run, draw, SnapMesh_free);
 	sm_data = (SnapMesh_data*)MEM_mallocN(sizeof(SnapMesh_data), "snapmesh_data");
 	sm_data->sm_type = sm_type;
@@ -1477,6 +1562,14 @@ void snap_face_return_val(SnapMesh_data* sm_data, BVHTreeFromMesh *treeData, BVH
 	sm_data->ret_data_pface = MeshData_pickface_create(face, verts, 3, hit->no);
 	sm_data->ret_data_type = SNAPMESH_RET_DAT_pface;
 }
+
+/*The following SnapMesh_snap_face(), SnapMesh_snap_planar(), SnapMesh_snap_vertex(),
+ *SnapMesh_snap_edge(), SnapMesh_snap_edge_midpoint(), SnapMesh_snap_parallel() are
+ *The various snap function calculate a snap point given the mouse position and various
+ *other inputs, and then assign the retval variable of Snap according to whether a valid
+ *snap was found or not. All, but planar and parallel have a return value indicating the
+ *geometry which the user has picked during their snap, for use in combination with other
+ *snap modes (planar, parallel etc..). */
 
 void SnapMesh_snap_face(Snap* sm){
 	//Todo: try to use the MeshData face functions here to test them better, even though performance with them will suck.
