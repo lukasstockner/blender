@@ -165,6 +165,9 @@ void libmv_ApplyInverseCanonicalHomography(double x, double y,
                                            double *warped_position_x,
                                            double *warped_position_y);
 
+void libmv_homography2DFromCorrespondencesLinear(double (*x1)[2], double (*x2)[2], int num_points,
+                                                 double H[3][3], double expected_precision);
+
 #ifdef __cplusplus
 }
 #endif

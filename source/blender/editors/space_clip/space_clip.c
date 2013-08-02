@@ -520,6 +520,10 @@ static void clip_operatortypes(void)
 	/* test */
 	WM_operatortype_append(CLIP_OT_track_mask);
 
+	/* Plane tracker */
+	WM_operatortype_append(CLIP_OT_create_plane_track);
+	WM_operatortype_append(CLIP_OT_slide_plane_marker);
+
 	/* ** clip_graph_ops.c  ** */
 
 	/* graph editing */
@@ -701,6 +705,9 @@ static void clip_keymap(struct wmKeyConfig *keyconf)
 	RNA_boolean_set(kmi->ptr, "unselected", TRUE);
 
 	WM_keymap_add_item(keymap, "CLIP_OT_hide_tracks_clear", HKEY, KM_PRESS, KM_ALT, 0);
+
+	/* plane tracks */
+	WM_keymap_add_item(keymap, "CLIP_OT_slide_plane_marker", LEFTMOUSE, KM_PRESS, 0, 0);
 
 	/* clean-up */
 	WM_keymap_add_item(keymap, "CLIP_OT_join_tracks", JKEY, KM_PRESS, KM_CTRL, 0);

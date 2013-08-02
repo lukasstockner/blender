@@ -38,6 +38,8 @@ struct ListBase;
 struct MovieReconstructContext;
 struct MovieTrackingTrack;
 struct MovieTrackingMarker;
+struct MovieTrackingPlaneTrack;
+struct MovieTrackingPlaneMarker;
 struct MovieTracking;
 struct MovieTrackingContext;
 struct MovieTrackingObject;
@@ -60,6 +62,7 @@ void BKE_tracking_free(struct MovieTracking *tracking);
 void BKE_tracking_settings_init(struct MovieTracking *tracking);
 
 struct ListBase *BKE_tracking_get_active_tracks(struct MovieTracking *tracking);
+struct ListBase *BKE_tracking_get_active_plane_tracks(struct MovieTracking *tracking);
 struct MovieTrackingReconstruction *BKE_tracking_get_active_reconstruction(struct MovieTracking *tracking);
 
 /* matrices for constraints and drawing */
@@ -102,6 +105,7 @@ float *BKE_tracking_track_get_mask(int frame_width, int frame_height, struct Mov
 /* selection */
 void BKE_tracking_track_select(struct ListBase *tracksbase, struct MovieTrackingTrack *track, int area, int extend);
 void BKE_tracking_track_deselect(struct MovieTrackingTrack *track, int area);
+void BKE_tracking_tracks_deselect_all(struct ListBase *tracksbase);
 
 /* **** Marker **** */
 struct MovieTrackingMarker *BKE_tracking_marker_insert(struct MovieTrackingTrack *track,
@@ -118,6 +122,30 @@ void BKE_tracking_marker_pattern_minmax(const struct MovieTrackingMarker *marker
 
 void BKE_tracking_marker_get_subframe_position(struct MovieTrackingTrack *track, float framenr, float pos[2]);
 
+/* **** Plane Track **** */
+struct MovieTrackingPlaneTrack *BKE_tracking_plane_track_add(struct MovieTracking *tracking, struct ListBase *plane_tracks_base,
+                                                             struct ListBase *tracks, int framenr);
+void BKE_tracking_plane_track_unique_name(struct ListBase *plane_tracks_base, struct MovieTrackingPlaneTrack *plane_track);
+void BKE_tracking_plane_track_free(struct MovieTrackingPlaneTrack *plane_track);
+
+bool BKE_tracking_plane_track_has_marker_at_frame(struct MovieTrackingPlaneTrack *plane_track, int framenr);
+bool BKE_tracking_plane_track_has_enabled_marker_at_frame(struct MovieTrackingPlaneTrack *plane_track, int framenr);
+
+struct MovieTrackingPlaneTrack *BKE_tracking_plane_track_get_named(struct MovieTracking *tracking,
+                                                                   struct MovieTrackingObject *object,
+                                                                   const char *name);
+
+struct MovieTrackingPlaneTrack *BKE_tracking_plane_track_get_active(struct MovieTracking *tracking);
+
+/* **** Plane Marker **** */
+struct MovieTrackingPlaneMarker *BKE_tracking_plane_marker_insert(struct MovieTrackingPlaneTrack *plane_track,
+                                                                  struct MovieTrackingPlaneMarker *plane_marker);
+void BKE_tracking_plane_marker_delete(struct MovieTrackingPlaneTrack *plane_track, int framenr);
+
+struct MovieTrackingPlaneMarker *BKE_tracking_plane_marker_get(struct MovieTrackingPlaneTrack *plane_track, int framenr);
+struct MovieTrackingPlaneMarker *BKE_tracking_plane_marker_get_exact(struct MovieTrackingPlaneTrack *plane_track, int framenr);
+struct MovieTrackingPlaneMarker *BKE_tracking_plane_marker_ensure(struct MovieTrackingPlaneTrack *plane_track, int framenr);
+
 /* **** Object **** */
 struct MovieTrackingObject *BKE_tracking_object_add(struct MovieTracking *tracking, const char *name);
 int BKE_tracking_object_delete(struct MovieTracking *tracking, struct MovieTrackingObject *object);
@@ -130,6 +158,7 @@ struct MovieTrackingObject *BKE_tracking_object_get_active(struct MovieTracking 
 struct MovieTrackingObject *BKE_tracking_object_get_camera(struct MovieTracking *tracking);
 
 struct ListBase *BKE_tracking_object_get_tracks(struct MovieTracking *tracking, struct MovieTrackingObject *object);
+struct ListBase *BKE_tracking_object_get_plane_tracks(struct MovieTracking *tracking, struct MovieTrackingObject *object);
 struct MovieTrackingReconstruction *BKE_tracking_object_get_reconstruction(struct MovieTracking *tracking,
                                                                            struct MovieTrackingObject *object);
 

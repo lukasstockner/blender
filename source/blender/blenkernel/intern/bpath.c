@@ -556,8 +556,10 @@ void BKE_bpath_traverse_id(Main *bmain, ID *id, BPathVisitor visit_cb, const int
 				{
 					if (SEQ_HAS_PATH(seq)) {
 						if (ELEM(seq->type, SEQ_TYPE_MOVIE, SEQ_TYPE_SOUND_RAM)) {
-							rewrite_path_fixed_dirfile(seq->strip->dir, seq->strip->stripdata->name,
-							                           visit_cb, absbase, bpath_user_data);
+							if (seq->strip->stripdata) {
+								rewrite_path_fixed_dirfile(seq->strip->dir, seq->strip->stripdata->name,
+								                           visit_cb, absbase, bpath_user_data);
+							}
 						}
 						else if (seq->type == SEQ_TYPE_IMAGE) {
 							/* might want an option not to loop over all strips */

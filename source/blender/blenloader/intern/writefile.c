@@ -2882,6 +2882,21 @@ static void write_movieTracks(WriteData *wd, ListBase *tracks)
 	}
 }
 
+static void write_moviePlaneTracks(WriteData *wd, ListBase *plane_tracks_base)
+{
+	MovieTrackingPlaneTrack *plane_track;
+
+	for (plane_track = plane_tracks_base->first;
+	     plane_track;
+	     plane_track = plane_track->next)
+	{
+		writestruct(wd, DATA, "MovieTrackingPlaneTrack", 1, plane_track);
+
+		writedata(wd, DATA, sizeof(MovieTrackingTrack *) * plane_track->point_tracksnr, plane_track->point_tracks);
+		writestruct(wd, DATA, "MovieTrackingPlaneMarker", plane_track->markersnr, plane_track->markers);
+	}
+}
+
 static void write_movieReconstruction(WriteData *wd, MovieTrackingReconstruction *reconstruction)
 {
 	if (reconstruction->camnr)
@@ -2906,6 +2921,7 @@ static void write_movieclips(WriteData *wd, ListBase *idbase)
 				write_animdata(wd, clip->adt);
 
 			write_movieTracks(wd, &tracking->tracks);
+			write_moviePlaneTracks(wd, &tracking->plane_tracks);
 			write_movieReconstruction(wd, &tracking->reconstruction);
 
 			object= tracking->objects.first;
@@ -2913,6 +2929,7 @@ static void write_movieclips(WriteData *wd, ListBase *idbase)
 				writestruct(wd, DATA, "MovieTrackingObject", 1, object);
 
 				write_movieTracks(wd, &object->tracks);
+				write_moviePlaneTracks(wd, &object->plane_tracks);
 				write_movieReconstruction(wd, &object->reconstruction);
 
 				object= object->next;

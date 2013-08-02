@@ -961,13 +961,117 @@ static void view2d_to_region_float(View2D *v2d, float x, float y, float *regionx
 	*regiony = v2d->mask.ymin + y * BLI_rcti_size_y(&v2d->mask);
 }
 
+static void plane_track_colors(bool is_active, float color[3], float selected_color[3])
+{
+	UI_GetThemeColor3fv(TH_MARKER, color);
+
+	if (is_active)
+		UI_GetThemeColor3fv(TH_ACT_MARKER, selected_color);
+	else
+		UI_GetThemeColor3fv(TH_SEL_MARKER, selected_color);
+}
+
+static void draw_plane_marker_ex(SpaceClip *sc, MovieTrackingPlaneTrack *plane_track,
+                                 MovieTrackingPlaneMarker *plane_marker, bool is_active_track,
+                                 bool draw_outline, int width, int height)
+{
+	bool tiny = (sc->flag & SC_SHOW_TINY_MARKER) != 0;
+	bool is_selected_track = plane_track->flag & SELECT;
+	float px[2];
+
+	if (draw_outline) {
+		UI_ThemeColor(TH_MARKER_OUTLINE);
+	}
+	else {
+		float color[3], selected_color[3];
+		plane_track_colors(is_active_track, color, selected_color);
+		if (is_selected_track) {
+			glColor3fv(selected_color);
+		}
+		else {
+			glColor3fv(color);
+		}
+	}
+
+	px[0] = 1.0f / width / sc->zoom;
+	px[1] = 1.0f / height / sc->zoom;
+
+	if (draw_outline) {
+		if (!tiny) {
+			glLineWidth(3.0f);
+		}
+	}
+	else if (tiny) {
+		glLineStipple(3, 0xaaaa);
+		glEnable(GL_LINE_STIPPLE);
+		glEnable(GL_COLOR_LOGIC_OP);
+		glLogicOp(GL_NOR);
+	}
+
+	/* DRaw rectangle itself. */
+	glBegin(GL_LINE_LOOP);
+	glVertex2fv(plane_marker->corners[0]);
+	glVertex2fv(plane_marker->corners[1]);
+	glVertex2fv(plane_marker->corners[2]);
+	glVertex2fv(plane_marker->corners[3]);
+	glEnd();
+
+	/* Draw sliders. */
+	if (is_selected_track) {
+		int i;
+		for (i = 0; i < 4; i++) {
+			draw_marker_slide_square(plane_marker->corners[i][0], plane_marker->corners[i][1],
+			                         3.0f * px[0], 3.0f * px[1], draw_outline, px);
+		}
+	}
+
+	if (draw_outline) {
+		if (!tiny) {
+			glLineWidth(1.0f);
+		}
+	}
+	else if (tiny) {
+		glDisable(GL_COLOR_LOGIC_OP);
+		glDisable(GL_LINE_STIPPLE);
+		glLineStipple(3, 0xaaaa);
+		glEnable(GL_LINE_STIPPLE);
+	}
+}
+
+static void draw_plane_marker_outline(SpaceClip *sc, MovieTrackingPlaneTrack *plane_track,
+                                      MovieTrackingPlaneMarker *plane_marker, int width, int height)
+{
+	draw_plane_marker_ex(sc, plane_track, plane_marker, false, true, width, height);
+}
+
+static void draw_plane_marker(SpaceClip *sc, MovieTrackingPlaneTrack *plane_track,
+                              MovieTrackingPlaneMarker *plane_marker, bool is_active_track,
+                              int width, int height)
+{
+	draw_plane_marker_ex(sc, plane_track, plane_marker, is_active_track, false, width, height);
+}
+
+static void draw_plane_track(SpaceClip *sc, MovieTrackingPlaneTrack *plane_track,
+                             int framenr, bool is_active_track, int width, int height)
+{
+	MovieTrackingPlaneMarker *plane_marker;
+
+	plane_marker = BKE_tracking_plane_marker_get(plane_track, framenr);
+
+	draw_plane_marker_outline(sc, plane_track, plane_marker, width, height);
+	draw_plane_marker(sc, plane_track, plane_marker, is_active_track, width, height);
+}
+
+/* Draw all kind of tracks. */
 static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
                                  int width, int height, float zoomx, float zoomy)
 {
 	float x, y;
 	MovieTracking *tracking = &clip->tracking;
 	ListBase *tracksbase = BKE_tracking_get_active_tracks(tracking);
+	ListBase *plane_tracks_base = BKE_tracking_get_active_plane_tracks(tracking);
 	MovieTrackingTrack *track, *act_track;
+	MovieTrackingPlaneTrack *plane_track, *active_plane_track;
 	MovieTrackingMarker *marker;
 	int framenr = ED_space_clip_get_clip_frame_number(sc);
 	int undistort = sc->user.render_flag & MCLIP_PROXY_RENDER_UNDISTORT;
@@ -1158,6 +1262,15 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 
 		glPointSize(1.0f);
 		glDisable(GL_POINT_SMOOTH);
+	}
+
+	/* Draw plane tracks */
+	active_plane_track = BKE_tracking_plane_track_get_active(tracking);
+	for (plane_track = plane_tracks_base->first;
+	     plane_track;
+	     plane_track = plane_track->next)
+	{
+		draw_plane_track(sc, plane_track, framenr, plane_track == active_plane_track, width, height);
 	}
 
 	glPopMatrix();
