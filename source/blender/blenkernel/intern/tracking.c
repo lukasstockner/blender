@@ -1348,7 +1348,7 @@ MovieTrackingPlaneTrack *BKE_tracking_plane_track_add(MovieTracking *tracking, L
 		}
 	}
 
-	if (num_selected_tracks < 3) {
+	if (num_selected_tracks < 4) {
 		return NULL;
 	}
 
@@ -1369,6 +1369,7 @@ MovieTrackingPlaneTrack *BKE_tracking_plane_track_add(MovieTracking *tracking, L
 
 	/* Setup new plane marker and add it to the track. */
 	plane_marker.framenr = framenr;
+	plane_marker.flag = 0;
 
 	copy_v2_v2(plane_marker.corners[0], tracks_min);
 	copy_v2_v2(plane_marker.corners[2], tracks_max);
@@ -3292,6 +3293,126 @@ void BKE_tracking_apply_inverse_homography(const MovieTrackingMarker *marker,
 
 	*warped_position_x = warped_position_x_double;
 	*warped_position_y = warped_position_y_double;
+}
+
+/*********************** Plane tracking *************************/
+
+typedef double Vec2[2];
+
+static int point_markers_correspondences_on_both_image(MovieTrackingPlaneTrack *plane_track, int frame1, int frame2,
+                                                       Vec2 **x1_r, Vec2 **x2_r)
+{
+	int i, correspondence_index;
+	Vec2 *x1, *x2;
+
+	*x1_r = x1 = MEM_mallocN(sizeof(*x1) * plane_track->point_tracksnr, "point correspondences x1");
+	*x2_r = x2 = MEM_mallocN(sizeof(*x1) * plane_track->point_tracksnr, "point correspondences x2");
+
+	for (i = 0, correspondence_index = 0; i < plane_track->point_tracksnr; i++) {
+		MovieTrackingTrack *point_track = plane_track->point_tracks[i];
+		MovieTrackingMarker *point_marker1, *point_marker2;
+
+		point_marker1 = BKE_tracking_marker_get_exact(point_track, frame1);
+		point_marker2 = BKE_tracking_marker_get_exact(point_track, frame2);
+
+		if (point_marker1 != NULL && point_marker2 != NULL) {
+			/* Here conversion from float to double happens. */
+			x1[correspondence_index][0] = point_marker1->pos[0];
+			x1[correspondence_index][1] = point_marker1->pos[1];
+
+			x2[correspondence_index][0] = point_marker2->pos[0];
+			x2[correspondence_index][1] = point_marker2->pos[1];
+
+			correspondence_index++;
+		}
+	}
+
+	return correspondence_index;
+}
+
+/* TODO(sergey): Make it generic function available for everyone. */
+BLI_INLINE void mat3f_from_mat3d(float mat_float[3][3], double mat_double[3][3])
+{
+	/* Keep it stupid simple for better data flow in CPU. */
+	mat_float[0][0] = mat_double[0][0];
+	mat_float[0][1] = mat_double[0][1];
+	mat_float[0][2] = mat_double[0][2];
+
+	mat_float[1][0] = mat_double[1][0];
+	mat_float[1][1] = mat_double[1][1];
+	mat_float[1][2] = mat_double[1][2];
+
+	mat_float[2][0] = mat_double[2][0];
+	mat_float[2][1] = mat_double[2][1];
+	mat_float[2][2] = mat_double[2][2];
+}
+
+/* NOTE: frame number should be in clip space, not scene space */
+static void track_plane_from_existing_motion(MovieTrackingPlaneTrack *plane_track, int start_frame, int direction)
+{
+	MovieTrackingPlaneMarker *start_plane_marker = BKE_tracking_plane_marker_get(plane_track, start_frame);
+	MovieTrackingPlaneMarker new_plane_marker;
+	int current_frame, frame_delta = direction > 0 ? 1 : -1;
+
+	new_plane_marker = *start_plane_marker;
+	new_plane_marker.flag |= PLANE_MARKER_TRACKED;
+
+	for (current_frame = start_frame; ; current_frame += frame_delta) {
+		MovieTrackingPlaneMarker *next_plane_marker =
+			BKE_tracking_plane_marker_get_exact(plane_track, current_frame + frame_delta);
+		Vec2 *x1, *x2;
+		int i, num_correspondences;
+		double H_double[3][3];
+		float H[3][3];
+
+		/* As soon as we meet keyframed plane, we stop updating the sequence. */
+		if (next_plane_marker && (next_plane_marker->flag & PLANE_MARKER_TRACKED) == 0) {
+			break;
+		}
+
+		num_correspondences =
+			point_markers_correspondences_on_both_image(plane_track, current_frame, current_frame + frame_delta,
+			                                            &x1, &x2);
+
+		if (num_correspondences == 0) {
+			MEM_freeN(x1);
+			MEM_freeN(x2);
+
+			break;
+		}
+
+		libmv_homography2DFromCorrespondencesLinear(x1, x2, num_correspondences, H_double, 1e-8);
+
+		mat3f_from_mat3d(H, H_double);
+
+		for (i = 0; i < 4; i++) {
+			float vec[3] = {0.0f, 0.0f, 1.0f};
+			copy_v2_v2(vec, new_plane_marker.corners[i]);
+
+			/* Apply homography */
+			mul_v3_m3v3(vec, H, vec);
+
+			/* Normalize. */
+			vec[0] /= vec[2];
+			vec[1] /= vec[2];
+
+			copy_v2_v2(new_plane_marker.corners[i], vec);
+		}
+
+		new_plane_marker.framenr = current_frame + frame_delta;
+
+		BKE_tracking_plane_marker_insert(plane_track, &new_plane_marker);
+
+		MEM_freeN(x1);
+		MEM_freeN(x2);
+	}
+}
+
+/* NOTE: frame number should be in clip space, not scene space */
+void BKE_tracking_track_plane_from_existing_motion(MovieTrackingPlaneTrack *plane_track, int start_frame)
+{
+	track_plane_from_existing_motion(plane_track, start_frame, 1);
+	track_plane_from_existing_motion(plane_track, start_frame, -1);
 }
 
 /*********************** Camera solving *************************/

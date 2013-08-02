@@ -476,9 +476,10 @@ enum {
 /* MovieTrackingPlaneMarker->flag */
 enum {
 	PLANE_MARKER_DISABLED = (1 << 0),
+	PLANE_MARKER_TRACKED  = (1 << 1),
 };
 
-/* MovieTrackingPlaneMarker->flag */
+/* MovieTrackingPlaneTrack->flag */
 enum {
 	PLANE_TRACK_HIDDEN = (1 << 1),
 	PLANE_TRACK_LOCKED = (1 << 2),

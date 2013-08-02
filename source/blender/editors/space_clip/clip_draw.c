@@ -111,6 +111,57 @@ static void draw_keyframe(int frame, int cfra, int sfra, float framelen, int wid
 	}
 }
 
+static int generic_track_get_markersnr(MovieTrackingTrack *track, MovieTrackingPlaneTrack *plane_track)
+{
+	if (track) {
+		return track->markersnr;
+	}
+	else if (plane_track) {
+		return plane_track->markersnr;
+	}
+
+	return 0;
+}
+
+static int generic_track_get_marker_framenr(MovieTrackingTrack *track, MovieTrackingPlaneTrack *plane_track,
+                                            int marker_index)
+{
+	if (track) {
+		return track->markers[marker_index].framenr;
+	}
+	else if (plane_track) {
+		return plane_track->markers[marker_index].framenr;
+	}
+
+	return 0;
+}
+
+static bool generic_track_is_marker_enabled(MovieTrackingTrack *track, MovieTrackingPlaneTrack *plane_track,
+                                            int marker_index)
+{
+	if (track) {
+		return (track->markers[marker_index].flag & MARKER_DISABLED) == 0;
+	}
+	else if (plane_track) {
+		return true;
+	}
+
+	return false;
+}
+
+static bool generic_track_is_marker_keyframed(MovieTrackingTrack *track, MovieTrackingPlaneTrack *plane_track,
+                                              int marker_index)
+{
+	if (track) {
+		return (track->markers[marker_index].flag & MARKER_TRACKED) == 0;
+	}
+	else if (plane_track) {
+		return (plane_track->markers[marker_index].flag & PLANE_MARKER_TRACKED) == 0;
+	}
+
+	return false;
+}
+
 static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Scene *scene)
 {
 	float x;
@@ -119,6 +170,7 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 	MovieTracking *tracking = &clip->tracking;
 	MovieTrackingObject *act_object = BKE_tracking_object_get_active(tracking);
 	MovieTrackingTrack *act_track = BKE_tracking_track_get_active(&clip->tracking);
+	MovieTrackingPlaneTrack *act_plane_track = BKE_tracking_plane_track_get_active(&clip->tracking);
 	MovieTrackingReconstruction *reconstruction = BKE_tracking_get_active_reconstruction(tracking);
 
 	glEnable(GL_BLEND);
@@ -143,34 +195,29 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 	}
 
 	/* track */
-	if (act_track) {
-		MovieTrackingTrack *track = act_track;
-
+	if (act_track || act_plane_track) {
 		for (i = sfra - clip->start_frame + 1, a = 0; i <= efra - clip->start_frame + 1; i++) {
 			int framenr;
-			MovieTrackingMarker *marker;
+			int markersnr = generic_track_get_markersnr(act_track, act_plane_track);
 
-			while (a < track->markersnr) {
-				if (track->markers[a].framenr >= i)
+			while (a < markersnr) {
+				int marker_framenr = generic_track_get_marker_framenr(act_track, act_plane_track, a);
+
+				if (marker_framenr >= i)
 					break;
 
-				if (a < track->markersnr - 1 && track->markers[a + 1].framenr > i)
+				if (a < markersnr - 1 && generic_track_get_marker_framenr(act_track, act_plane_track, a + 1) > i)
 					break;
 
 				a++;
 			}
 
-			if (a < track->markersnr)
-				marker = &track->markers[a];
-			else
-				marker = &track->markers[track->markersnr - 1];
-
-			if ((marker->flag & MARKER_DISABLED) == 0) {
-				framenr = marker->framenr;
+			if (generic_track_is_marker_enabled(act_track, act_plane_track, a)) {
+				framenr = generic_track_get_marker_framenr(act_track, act_plane_track, a);
 
 				if (framenr != i)
 					glColor4ub(128, 128, 0, 96);
-				else if ((marker->flag & MARKER_TRACKED) == 0)
+				else if (generic_track_is_marker_keyframed(act_track, act_plane_track, a))
 					glColor4ub(255, 255, 0, 196);
 				else
 					glColor4ub(255, 255, 0, 96);

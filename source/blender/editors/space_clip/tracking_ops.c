@@ -4553,7 +4553,7 @@ static int create_plane_track_tracks_exec(bContext *C, wmOperator *op)
 	plane_track = BKE_tracking_plane_track_add(tracking, plane_tracks_base, tracks_base, framenr);
 
 	if (plane_track == NULL) {
-		BKE_report(op->reports, RPT_ERROR, "Need at least 3 selected point tracks to create a plane");
+		BKE_report(op->reports, RPT_ERROR, "Need at least 4 selected point tracks to create a plane");
 		return OPERATOR_CANCELLED;
 	}
 	else {
@@ -4562,6 +4562,11 @@ static int create_plane_track_tracks_exec(bContext *C, wmOperator *op)
 		plane_track->flag |= SELECT;
 		clip->tracking.act_track = NULL;
 		clip->tracking.act_plane_track = plane_track;
+
+		/* Copute homoraphies and apply them on marker's corner, so we've got
+		 * quite nice motion from the very beginning.
+		 */
+		BKE_tracking_track_plane_from_existing_motion(plane_track, framenr);
 	}
 
 	WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
@@ -4733,6 +4738,14 @@ static void free_slide_plane_marker_data(SlidePlaneMarkerData *data)
 	MEM_freeN(data);
 }
 
+static void slide_plane_marker_update_homographies(SpaceClip *sc, SlidePlaneMarkerData *data)
+{
+	MovieClip *clip = ED_space_clip_get_clip(sc);
+	int framenr = ED_space_clip_get_clip_frame_number(sc);
+
+	BKE_tracking_track_plane_from_existing_motion(data->plane_track, framenr);
+}
+
 static int slide_plane_marker_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	SpaceClip *sc = CTX_wm_space_clip(C);
@@ -4772,6 +4785,11 @@ static int slide_plane_marker_modal(bContext *C, wmOperator *op, const wmEvent *
 
 		case LEFTMOUSE:
 			if (event->val == KM_RELEASE) {
+				/* Marker is now keyframed. */
+				data->plane_marker->flag &= ~PLANE_MARKER_TRACKED;
+
+				slide_plane_marker_update_homographies(sc, data);
+
 				free_slide_plane_marker_data(op->customdata);
 
 				show_cursor(C);

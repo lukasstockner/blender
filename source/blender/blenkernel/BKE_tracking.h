@@ -232,6 +232,10 @@ void BKE_tracking_apply_inverse_homography(const struct MovieTrackingMarker *mar
                                            float *warped_position_x,
                                            float *warped_position_y);
 
+/* **** Plane tracking **** */
+
+void BKE_tracking_track_plane_from_existing_motion(struct MovieTrackingPlaneTrack *plane_track, int start_frame);
+
 /* **** Camera solving **** */
 int BKE_tracking_reconstruction_check(struct MovieTracking *tracking, struct MovieTrackingObject *object,
                                       char *error_msg, int error_size);

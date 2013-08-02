@@ -206,7 +206,7 @@ void clip_delete_track(bContext *C, MovieClip *clip, MovieTrackingTrack *track)
 	{
 		next_plane_track = plane_track->next;
 
-		if (plane_track->point_tracksnr > 3) {
+		if (plane_track->point_tracksnr > 4) {
 			int i, track_index;
 			MovieTrackingTrack **new_point_tracks;
 

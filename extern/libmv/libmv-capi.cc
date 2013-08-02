@@ -1103,11 +1103,17 @@ void libmv_homography2DFromCorrespondencesLinear(double (*x1)[2], double (*x2)[2
 
 	for (int i = 0; i < num_points; i++) {
 		x1_mat.col(i) = libmv::Vec2(x1[i][0], x1[i][1]);
+		x2_mat.col(i) = libmv::Vec2(x2[i][0], x2[i][1]);
 	}
+
+	LG << "x1: " << x1_mat;
+	LG << "x2: " << x2_mat;
 
 	libmv::Homography2DFromCorrespondencesLinear(x1_mat, x2_mat, &H_mat, expected_precision);
 
-	memcpy(H, H_mat.data(), 9 * sizeof(float));
+	LG << "H: " << H_mat;
+
+	memcpy(H, H_mat.data(), 9 * sizeof(double));
 }
 
 #endif
