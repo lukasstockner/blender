@@ -26,7 +26,6 @@
 
 #include "COM_PlaneTrackMaskOperation.h"
 #include "COM_PlaneTrackWarpImageOperation.h"
-#include "COM_PlaneTrackWarpMaskOperation.h"
 
 #include "COM_DownsampleOperation.h"
 
@@ -44,11 +43,9 @@ PlaneTrackDeformNode::PlaneTrackDeformNode(bNode *editorNode) : Node(editorNode)
 void PlaneTrackDeformNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
 {
 	InputSocket *input_image = this->getInputSocket(0);
-	InputSocket *input_mask = this->getInputSocket(1);
 
 	OutputSocket *output_warped_image = this->getOutputSocket(0);
-	OutputSocket *output_warped_mask = this->getOutputSocket(1);
-	OutputSocket *output_plane = this->getOutputSocket(2);
+	OutputSocket *output_plane = this->getOutputSocket(1);
 
 	bNode *editorNode = this->getbNode();
 	MovieClip *clip = (MovieClip *) editorNode->id;
@@ -69,19 +66,6 @@ void PlaneTrackDeformNode::convertToOperations(ExecutionSystem *graph, Composito
 		output_warped_image->relinkConnections(warp_image_operation->getOutputSocket());
 
 		graph->addOperation(warp_image_operation);
-	}
-
-	if (output_warped_mask->isConnected()) {
-		PlaneTrackWarpMaskOperation *warp_mask_operation = new PlaneTrackWarpMaskOperation();
-
-		warp_mask_operation->setMovieClip(clip);
-		warp_mask_operation->setTrackingObject(data->tracking_object);
-		warp_mask_operation->setPlaneTrackName(data->plane_track_name);
-		warp_mask_operation->setFramenumber(frame_number);
-
-		input_mask->relinkConnections(warp_mask_operation->getInputSocket(0), 1, graph);
-		output_warped_mask->relinkConnections(warp_mask_operation->getOutputSocket());
-		graph->addOperation(warp_mask_operation);
 	}
 
 	if (output_plane->isConnected()) {

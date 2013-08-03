@@ -606,8 +606,6 @@ set(SRC
 	operations/COM_PlaneTrackMaskOperation.h
 	operations/COM_PlaneTrackWarpImageOperation.cpp
 	operations/COM_PlaneTrackWarpImageOperation.h
-	operations/COM_PlaneTrackWarpMaskOperation.cpp
-	operations/COM_PlaneTrackWarpMaskOperation.h
 	operations/COM_DownsampleOperation.cpp
 	operations/COM_DownsampleOperation.h
 
