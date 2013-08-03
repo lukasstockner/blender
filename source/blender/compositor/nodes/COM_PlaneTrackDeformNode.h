@@ -32,10 +32,6 @@ extern "C" {
  * @ingroup Node
  */
 class PlaneTrackDeformNode : public Node {
-protected:
-	bool getDownsampleDimensions(MovieClip *movieClip, NodePlaneTrackDeformData *data, int frame_number,
-	                             float *downsample_width_r, float *downsample_height_r);
-
 public:
 	PlaneTrackDeformNode(bNode *editorNode);
 	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);

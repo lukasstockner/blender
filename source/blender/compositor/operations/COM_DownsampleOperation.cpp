@@ -103,8 +103,9 @@ bool DownsampleOperation::determineDependingAreaOfInterest(rcti *input, ReadBuff
 {
 	rcti newInput;
 
-	float width_ratio = (float) readOperation->getWidth() / this->m_newWidth,
-	      height_ratio = (float) readOperation->getHeight() / this->m_newHeight;
+	/* TODO(sergey): This might be wrong, in some tests tiles were missing. */
+	float width_ratio = (float) readOperation->getWidth() / this->getWidth(),
+	      height_ratio = (float) readOperation->getHeight() / this->getHeight();
 
 	newInput.xmin = input->xmin * width_ratio - 1;
 	newInput.ymin = input->ymin * height_ratio - 1;

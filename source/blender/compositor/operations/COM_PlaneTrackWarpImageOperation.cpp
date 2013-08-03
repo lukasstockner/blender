@@ -34,11 +34,34 @@ extern "C" {
 	#include "BKE_tracking.h"
 }
 
+BLI_INLINE bool isPointInsideQuad(const float x, const float y, const float corners[4][2])
+{
+	float point[2];
+
+	point[0] = x;
+	point[1] = y;
+
+	return isect_point_tri_v2(point, corners[0], corners[1], corners[2]) ||
+	       isect_point_tri_v2(point, corners[0], corners[2], corners[3]);
+}
+
+BLI_INLINE void resolveUV(const float x, const float y, const float corners[4][2], float uv[2])
+{
+	float point[2];
+
+	point[0] = x;
+	point[1] = y;
+
+	/* Use reverse bilinear to get UV coordinates within original frame */
+	resolve_quad_uv(uv, point, corners[0], corners[1], corners[2], corners[3]);
+}
+
 PlaneTrackWarpImageOperation::PlaneTrackWarpImageOperation() : PlaneTrackCommonOperation()
 {
 	this->addInputSocket(COM_DT_COLOR, COM_SC_NO_RESIZE);
 	this->addOutputSocket(COM_DT_COLOR);
 	this->m_pixelReader = NULL;
+	this->setComplex(true);
 }
 
 void PlaneTrackWarpImageOperation::initExecution()
@@ -55,7 +78,6 @@ void PlaneTrackWarpImageOperation::deinitExecution()
 
 void PlaneTrackWarpImageOperation::executePixel(float output[4], float x, float y, PixelSampler sampler)
 {
-	float point[2];
 	float frame_space_corners[4][2];
 
 	for (int i = 0; i < 4; i++) {
@@ -63,23 +85,62 @@ void PlaneTrackWarpImageOperation::executePixel(float output[4], float x, float 
 		frame_space_corners[i][1] = this->m_corners[i][1] * this->getHeight();
 	}
 
-	point[0] = x;
-	point[1] = y;
+	if (isPointInsideQuad(x, y, frame_space_corners)) {
+		float inputUV[2];
+		float uv_a[2], uv_b[2];
+		float u, v;
 
-	if (isect_point_tri_v2(point, frame_space_corners[0], frame_space_corners[1], frame_space_corners[2]) ||
-	    isect_point_tri_v2(point, frame_space_corners[0], frame_space_corners[2], frame_space_corners[3]))
-	{
-		/* Use reverse bilinear to get UV coordinates within original frame
-		 * Shall we consider using inverse homography transform here?
-		 */
-		float uv[2];
-		resolve_quad_uv(uv, point, frame_space_corners[0], frame_space_corners[1], frame_space_corners[2], frame_space_corners[3]);
+		float dx, dy;
+		float uv_l, uv_r;
+		float uv_u, uv_d;
 
-		float source_x = uv[0] * this->m_pixelReader->getWidth(),
-		      source_y = uv[1] * this->m_pixelReader->getHeight();
+		resolveUV(x, y, frame_space_corners, inputUV);
 
-		/* Force to bilinear filtering */
-		this->m_pixelReader->read(output, source_x, source_y, COM_PS_BILINEAR);
+		/* adaptive sampling, red (U) channel */
+		resolveUV(x - 1, y, frame_space_corners, uv_a);
+		resolveUV(x + 1, y, frame_space_corners, uv_b);
+		uv_l = fabsf(inputUV[0] - uv_a[0]);
+		uv_r = fabsf(inputUV[0] - uv_b[0]);
+
+		dx = 0.5f * (uv_l + uv_r);
+
+		/* adaptive sampling, green (V) channel */
+		resolveUV(x, y - 1, frame_space_corners, uv_a);
+		resolveUV(x, y + 1, frame_space_corners, uv_b);
+		uv_u = fabsf(inputUV[1] - uv_a[1]);
+		uv_d = fabsf(inputUV[1] - uv_b[1]);
+
+		dy = 0.5f * (uv_u + uv_d);
+
+		/* more adaptive sampling, red and green (UV) channels */
+		resolveUV(x - 1, y - 1, frame_space_corners, uv_a);
+		resolveUV(x - 1, y + 1, frame_space_corners, uv_b);
+		uv_l = fabsf(inputUV[0] - uv_a[0]);
+		uv_r = fabsf(inputUV[0] - uv_b[0]);
+		uv_u = fabsf(inputUV[1] - uv_a[1]);
+		uv_d = fabsf(inputUV[1] - uv_b[1]);
+
+		dx += 0.25f * (uv_l + uv_r);
+		dy += 0.25f * (uv_u + uv_d);
+
+		resolveUV(x + 1, y - 1, frame_space_corners, uv_a);
+		resolveUV(x + 1, y + 1, frame_space_corners, uv_b);
+		uv_l = fabsf(inputUV[0] - uv_a[0]);
+		uv_r = fabsf(inputUV[0] - uv_b[0]);
+		uv_u = fabsf(inputUV[1] - uv_a[1]);
+		uv_d = fabsf(inputUV[1] - uv_b[1]);
+
+		dx += 0.25f * (uv_l + uv_r);
+		dy += 0.25f * (uv_u + uv_d);
+
+		/* should use mipmap */
+		dx = min(dx, 0.2f);
+		dy = min(dy, 0.2f);
+
+		u = inputUV[0] * this->m_pixelReader->getWidth();
+		v = inputUV[1] * this->m_pixelReader->getHeight();
+
+		this->m_pixelReader->read(output, u, v, dx, dy, COM_PS_NEAREST);
 	}
 	else {
 		zero_v4(output);
