@@ -149,13 +149,33 @@ void PlaneTrackWarpImageOperation::executePixel(float output[4], float x, float 
 
 bool PlaneTrackWarpImageOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output)
 {
+	float frame_space_corners[4][2];
+
+	for (int i = 0; i < 4; i++) {
+		frame_space_corners[i][0] = this->m_corners[i][0] * this->getWidth();
+		frame_space_corners[i][1] = this->m_corners[i][1] * this->getHeight();
+	}
+
+	float UVs[4][2];
+
+	/* TODO(sergey): figure out proper way to do this. */
+	resolveUV(input->xmin - 2, input->ymin - 2, frame_space_corners, UVs[0]);
+	resolveUV(input->xmax + 2, input->ymin - 2, frame_space_corners, UVs[1]);
+	resolveUV(input->xmax + 2, input->ymax + 2, frame_space_corners, UVs[2]);
+	resolveUV(input->xmin - 2, input->ymax + 2, frame_space_corners, UVs[3]);
+
+	float min[2], max[2];
+	INIT_MINMAX2(min, max);
+	for (int i = 0; i < 4; i++) {
+		minmax_v2v2_v2(min, max, UVs[i]);
+	}
+
 	rcti newInput;
 
-	/* XXX: use real area of interest! */
-	newInput.xmin = 0;
-	newInput.ymin = 0;
-	newInput.xmax = readOperation->getWidth();
-	newInput.ymax = readOperation->getHeight();
+	newInput.xmin = min[0] * readOperation->getWidth() - 1;
+	newInput.ymin = min[1] * readOperation->getHeight() - 1;
+	newInput.xmax = max[0] * readOperation->getWidth() + 1;
+	newInput.ymax = max[1] * readOperation->getHeight() + 1;
 
 	return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
 }
