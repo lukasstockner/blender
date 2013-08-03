@@ -27,8 +27,6 @@
 #include "COM_PlaneTrackMaskOperation.h"
 #include "COM_PlaneTrackWarpImageOperation.h"
 
-#include "COM_DownsampleOperation.h"
-
 extern "C" {
 	#include "BKE_node.h"
 	#include "BKE_movieclip.h"
