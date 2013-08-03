@@ -69,14 +69,14 @@ void EuclideanReconstruction::InsertPoint(int track, const Vec3 &X) {
   points_[track].X = X;
 }
 
-EuclideanCamera *EuclideanReconstruction::CameraForViewImage(
+EuclideanCamera *EuclideanReconstruction::CameraForImage(
     int view, int image) {
   return const_cast<EuclideanCamera *>(
       static_cast<const EuclideanReconstruction *>(
-          this)->CameraForViewImage(view, image));
+          this)->CameraForImage(view, image));
 }
 
-const EuclideanCamera *EuclideanReconstruction::CameraForViewImage(
+const EuclideanCamera *EuclideanReconstruction::CameraForImage(
     int view, int image) const {
   if (view < 0 || view >= cameras_.size() ||
       image < 0 || image >= cameras_[view].size()) {
@@ -166,13 +166,13 @@ void ProjectiveReconstruction::InsertPoint(int track, const Vec4 &X) {
   points_[track].X = X;
 }
 
-ProjectiveCamera *ProjectiveReconstruction::CameraForViewImage(int view, int image) {
+ProjectiveCamera *ProjectiveReconstruction::CameraForImage(int view, int image) {
   return const_cast<ProjectiveCamera *>(
       static_cast<const ProjectiveReconstruction *>(
-          this)->CameraForViewImage(view, image));
+          this)->CameraForImage(view, image));
 }
 
-const ProjectiveCamera *ProjectiveReconstruction::CameraForViewImage(
+const ProjectiveCamera *ProjectiveReconstruction::CameraForImage(
     int view, int image) const {
   if (view < 0 || view >= cameras_.size() ||
       image < 0 || image >= cameras_[view].size()) {

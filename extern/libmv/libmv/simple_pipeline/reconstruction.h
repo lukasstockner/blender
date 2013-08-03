@@ -125,8 +125,8 @@ class EuclideanReconstruction {
   void InsertPoint(int track, const Vec3 &X);
 
   /// Returns a pointer to the camera corresponding to \a view and \a image.
-  EuclideanCamera *CameraForViewImage(int view, int image);
-  const EuclideanCamera *CameraForViewImage(int view, int image) const;
+  EuclideanCamera *CameraForImage(int view, int image);
+  const EuclideanCamera *CameraForImage(int view, int image) const;
 
   /// Returns all cameras for all views.
   std::vector<vector<EuclideanCamera> > AllCameras() const;
@@ -221,8 +221,8 @@ class ProjectiveReconstruction {
   void InsertPoint(int track, const Vec4 &X);
 
   /// Returns a pointer to the camera corresponding to \a image.
-  ProjectiveCamera *CameraForViewImage(int view, int image);
-  const ProjectiveCamera *CameraForViewImage(int view, int image) const;
+  ProjectiveCamera *CameraForImage(int view, int image);
+  const ProjectiveCamera *CameraForImage(int view, int image) const;
 
   /// Returns all cameras.
   std::vector<vector<ProjectiveCamera> > AllCameras() const;

@@ -53,7 +53,7 @@ void EuclideanScaleToUnity(EuclideanReconstruction *reconstruction) {
   // Rescale cameras positions.
   for (int i = 0; i < all_cameras.size(); ++i) {
     int image = all_cameras[i].image;
-    EuclideanCamera *camera = reconstruction->CameraForViewImage(0, image);
+    EuclideanCamera *camera = reconstruction->CameraForImage(0, image);
     camera->t = camera->t * scale_factor;
   }
 

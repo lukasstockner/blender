@@ -255,7 +255,7 @@ vector<Vec6> PackCamerasRotationAndTranslation(
   all_cameras_R_t.resize(max_image + 1);
 
   for (int i = 0; i <= max_image; i++) {
-    const EuclideanCamera *camera = reconstruction.CameraForViewImage(0, i);
+    const EuclideanCamera *camera = reconstruction.CameraForImage(0, i);
 
     if (!camera) {
       continue;
@@ -276,7 +276,7 @@ void UnpackCamerasRotationAndTranslation(
   int max_image = tracks.MaxImage();
 
   for (int i = 0; i <= max_image; i++) {
-    EuclideanCamera *camera = reconstruction->CameraForViewImage(0, i);
+    EuclideanCamera *camera = reconstruction->CameraForImage(0, i);
 
     if (!camera) {
       continue;
@@ -343,7 +343,7 @@ void EuclideanBundlerPerformEvaluation(const Tracks &tracks,
       int max_image = tracks.MaxImage();
       bool is_first_camera = true;
       for (int i = 0; i <= max_image; i++) {
-        const EuclideanCamera *camera = reconstruction->CameraForViewImage(0, i);
+        const EuclideanCamera *camera = reconstruction->CameraForImage(0, i);
         if (camera) {
           double *current_camera_R_t = &(*all_cameras_R_t)[i](0);
 
@@ -455,7 +455,7 @@ void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
   bool have_locked_camera = false;
   for (int i = 0; i < markers.size(); ++i) {
     const Marker &marker = markers[i];
-    EuclideanCamera *camera = reconstruction->CameraForViewImage(0, marker.image);
+    EuclideanCamera *camera = reconstruction->CameraForImage(0, marker.image);
     EuclideanPoint *point = reconstruction->PointForTrack(marker.track);
     if (camera == NULL || point == NULL) {
       continue;
