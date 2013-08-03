@@ -70,7 +70,9 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
         sub = row.row()
         sub.active = (device_type == 'NONE' or cscene.device == 'CPU')
         sub.prop(cscene, "progressive")
-        row.prop(cscene, "squared_samples")
+        
+        if not cscene.progressive:
+            row.prop(cscene, "squared_samples")
         
         split = layout.split()
         
@@ -371,7 +373,13 @@ class CyclesRender_PT_layer_passes(CyclesButtonsPanel, Panel):
         row.prop(rl, "use_pass_transmission_direct", text="Direct", toggle=True)
         row.prop(rl, "use_pass_transmission_indirect", text="Indirect", toggle=True)
         row.prop(rl, "use_pass_transmission_color", text="Color", toggle=True)
-
+        col.label(text="Subsurface:")
+        row = col.row(align=True)
+        row.prop(rl, "use_pass_subsurface_direct", text="Direct", toggle=True)
+        row.prop(rl, "use_pass_subsurface_indirect", text="Indirect", toggle=True)
+        row.prop(rl, "use_pass_subsurface_color", text="Color", toggle=True)
+        
+        col.separator()
         col.prop(rl, "use_pass_emit", text="Emission")
         col.prop(rl, "use_pass_environment")
         col.prop(rl, "use_pass_ambient_occlusion")
