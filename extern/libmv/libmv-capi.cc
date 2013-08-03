@@ -1082,7 +1082,7 @@ void libmv_cameraIntrinsicsInvert(const libmv_CameraIntrinsicsOptions *libmv_cam
 	}
 }
 
-void libmv_ApplyInverseCanonicalHomography(double x, double y,
+void libmv_applyInverseCanonicalHomography(double x, double y,
                                            const double *xs, const double *ys,
                                            int num_samples_x, int num_samples_y,
                                            double *warped_position_x,
@@ -1107,12 +1107,12 @@ void libmv_homography2DFromCorrespondencesLinear(double (*x1)[2], double (*x2)[2
 		x2_mat.col(i) = libmv::Vec2(x2[i][0], x2[i][1]);
 	}
 
-	LG << "x1:\n" << x1_mat;
-	LG << "x2:\n" << x2_mat;
+	LG << "x1: " << x1_mat;
+	LG << "x2: " << x2_mat;
 
 	libmv::Homography2DFromCorrespondencesLinear(x1_mat, x2_mat, &H_mat, expected_precision);
 
-	LG << "H:\n" << H_mat;
+	LG << "H: " << H_mat;
 
 	memcpy(H, H_mat.data(), 9 * sizeof(double));
 }

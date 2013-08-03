@@ -3284,7 +3284,7 @@ void BKE_tracking_apply_inverse_homography(const MovieTrackingMarker *marker,
 
 	get_marker_coords_for_tracking(frame_width, frame_height, marker, xs, ys);
 
-	libmv_ApplyInverseCanonicalHomography(x - 0.5f, y - 0.5f,
+	libmv_applyInverseCanonicalHomography(x - 0.5f, y - 0.5f,
 	                                      xs, ys,
 	                                      num_samples_x,
 	                                      num_samples_y,
