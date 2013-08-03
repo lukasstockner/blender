@@ -4596,8 +4596,9 @@ typedef struct SlidePlaneMarkerData {
 	MovieTrackingPlaneTrack *plane_track;
 	MovieTrackingPlaneMarker *plane_marker;
 	int width, height;
-	int mval[2];
 	float *corner;
+	int previous_mval[2];
+	float previous_corner[2];
 	float old_corner[2];
 	bool accurate;
 } SlidePlaneMarkerData;
@@ -4693,11 +4694,12 @@ static void *slide_plane_marker_customdata(bContext *C, const wmEvent *event)
 		customdata->width = width;
 		customdata->height = height;
 
-		customdata->mval[0] = event->mval[0];
-		customdata->mval[1] = event->mval[1];
+		customdata->previous_mval[0] = event->mval[0];
+		customdata->previous_mval[1] = event->mval[1];
 
 		customdata->corner = plane_marker->corners[corner];
 
+		copy_v2_v2(customdata->previous_corner, customdata->corner);
 		copy_v2_v2(customdata->old_corner, customdata->corner);
 	}
 
@@ -4763,8 +4765,8 @@ static int slide_plane_marker_modal(bContext *C, wmOperator *op, const wmEvent *
 
 			/* fall-through */
 		case MOUSEMOVE:
-			mdelta[0] = event->mval[0] - data->mval[0];
-			mdelta[1] = event->mval[1] - data->mval[1];
+			mdelta[0] = event->mval[0] - data->previous_mval[0];
+			mdelta[1] = event->mval[1] - data->previous_mval[1];
 
 			dx = mdelta[0] / data->width / sc->zoom;
 			dy = mdelta[1] / data->height / sc->zoom;
@@ -4775,8 +4777,12 @@ static int slide_plane_marker_modal(bContext *C, wmOperator *op, const wmEvent *
 			}
 
 			/* TODO(sergey): Add concave check here. */
-			data->corner[0] = data->old_corner[0] + dx;
-			data->corner[1] = data->old_corner[1] + dy;
+			data->corner[0] = data->previous_corner[0] + dx;
+			data->corner[1] = data->previous_corner[1] + dy;
+
+			data->previous_mval[0] = event->mval[0];
+			data->previous_mval[1] = event->mval[1];
+			copy_v2_v2(data->previous_corner, data->corner);
 
 			DAG_id_tag_update(&sc->clip->id, 0);
 
