@@ -3374,7 +3374,7 @@ static void track_plane_from_existing_motion(MovieTrackingPlaneTrack *plane_trac
 			point_markers_correspondences_on_both_image(plane_track, current_frame, current_frame + frame_delta,
 			                                            &x1, &x2);
 
-		if (num_correspondences == 0) {
+		if (num_correspondences < 4) {
 			MEM_freeN(x1);
 			MEM_freeN(x2);
 
@@ -3386,17 +3386,17 @@ static void track_plane_from_existing_motion(MovieTrackingPlaneTrack *plane_trac
 		mat3f_from_mat3d(H, H_double);
 
 		for (i = 0; i < 4; i++) {
-			float vec[3] = {0.0f, 0.0f, 1.0f};
+			float vec[3] = {0.0f, 0.0f, 1.0f}, vec2[3];
 			copy_v2_v2(vec, new_plane_marker.corners[i]);
 
 			/* Apply homography */
-			mul_v3_m3v3(vec, H, vec);
+			mul_v3_m3v3(vec2, H, vec);
 
 			/* Normalize. */
-			vec[0] /= vec[2];
-			vec[1] /= vec[2];
+			vec2[0] /= vec2[2];
+			vec2[1] /= vec2[2];
 
-			copy_v2_v2(new_plane_marker.corners[i], vec);
+			copy_v2_v2(new_plane_marker.corners[i], vec2);
 		}
 
 		new_plane_marker.framenr = current_frame + frame_delta;
