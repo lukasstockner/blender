@@ -57,6 +57,7 @@
 #include "BKE_scene.h"
 #include "BKE_library.h"
 #include "BKE_mask.h"
+#include "BKE_node.h"
 #include "BKE_sound.h"
 
 #include "WM_api.h"
@@ -4740,7 +4741,6 @@ static void free_slide_plane_marker_data(SlidePlaneMarkerData *data)
 
 static void slide_plane_marker_update_homographies(SpaceClip *sc, SlidePlaneMarkerData *data)
 {
-	MovieClip *clip = ED_space_clip_get_clip(sc);
 	int framenr = ED_space_clip_get_clip_frame_number(sc);
 
 	BKE_tracking_track_plane_from_existing_motion(data->plane_track, framenr);
@@ -4749,6 +4749,7 @@ static void slide_plane_marker_update_homographies(SpaceClip *sc, SlidePlaneMark
 static int slide_plane_marker_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	SpaceClip *sc = CTX_wm_space_clip(C);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 	SlidePlaneMarkerData *data = (SlidePlaneMarkerData *) op->customdata;
 	float dx, dy, mdelta[2];
 
@@ -4794,6 +4795,8 @@ static int slide_plane_marker_modal(bContext *C, wmOperator *op, const wmEvent *
 
 				show_cursor(C);
 
+				WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
+
 				return OPERATOR_FINISHED;
 			}
 
@@ -4806,7 +4809,7 @@ static int slide_plane_marker_modal(bContext *C, wmOperator *op, const wmEvent *
 
 			show_cursor(C);
 
-			WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, NULL);
+			WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
 
 			return OPERATOR_CANCELLED;
 	}
