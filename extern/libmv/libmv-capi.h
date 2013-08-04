@@ -73,7 +73,7 @@ void libmv_samplePlanarPatch(const float *image, int width, int height,
 /* Tracks */
 struct libmv_Tracks *libmv_tracksNew(void);
 void libmv_tracksDestroy(struct libmv_Tracks *libmv_tracks);
-void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int view, int image, int track, double x, double y);
+void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int camera, int image, int track, double x, double y);
 
 /* Reconstruction */
 #define LIBMV_TRACKING_MOTION_MODAL        (1 << 0)
@@ -117,9 +117,9 @@ struct libmv_Reconstruction *libmv_solve(const struct libmv_Tracks *libmv_tracks
 void libmv_reconstructionDestroy(struct libmv_Reconstruction *libmv_reconstruction);
 int libmv_reprojectionPointForTrack(const struct libmv_Reconstruction *libmv_reconstruction, int track, double pos[3]);
 double libmv_reprojectionErrorForTrack(const struct libmv_Reconstruction *libmv_reconstruction, int track);
-double libmv_reprojectionErrorForViewImage(const struct libmv_Reconstruction *libmv_reconstruction, int view, int image);
-int libmv_reprojectionCameraForViewImage(const struct libmv_Reconstruction *libmv_reconstruction,
-                                         int view, int image, double mat[4][4]);
+double libmv_reprojectionErrorForImage(const struct libmv_Reconstruction *libmv_reconstruction, int camera, int image);
+int libmv_reprojectionCameraForImage(const struct libmv_Reconstruction *libmv_reconstruction,
+                                     int camera, int image, double mat[4][4]);
 double libmv_reprojectionError(const struct libmv_Reconstruction *libmv_reconstruction);
 struct libmv_CameraIntrinsics *libmv_reconstructionExtractIntrinsics(struct libmv_Reconstruction *libmv_Reconstruction);
 

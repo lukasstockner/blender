@@ -3019,10 +3019,10 @@ static int reconstruct_retrieve_libmv_tracks(MovieReconstructContext *context, M
 	for (a = sfra; a <= efra; a++) {
 		double matd[4][4];
 
-		if (libmv_reprojectionCameraForViewImage(libmv_reconstruction, 0, a, matd)) {
+		if (libmv_reprojectionCameraForImage(libmv_reconstruction, 0, a, matd)) {
 			int i, j;
 			float mat[4][4];
-			float error = libmv_reprojectionErrorForViewImage(libmv_reconstruction, 0, a);
+			float error = libmv_reprojectionErrorForImage(libmv_reconstruction, 0, a);
 
 			for (i = 0; i < 4; i++) {
 				for (j = 0; j < 4; j++)

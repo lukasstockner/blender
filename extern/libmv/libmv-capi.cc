@@ -396,9 +396,9 @@ void libmv_tracksDestroy(struct libmv_Tracks *libmv_tracks)
 	delete (libmv::Tracks*) libmv_tracks;
 }
 
-void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int view, int image, int track, double x, double y)
+void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int camera, int image, int track, double x, double y)
 {
-	((libmv::Tracks*)libmv_tracks)->Insert(view, image, track, x, y);
+	((libmv::Tracks*)libmv_tracks)->Insert(camera, image, track, x, y);
 }
 
 /* ************ Reconstruction ************ */
@@ -723,7 +723,7 @@ double libmv_reprojectionErrorForTrack(const struct libmv_Reconstruction *libmv_
 	double total_error = 0.0;
 
 	for (int i = 0; i < markers.size(); ++i) {
-		const libmv::EuclideanCamera *camera = reconstruction->CameraForImage(markers[i].view, markers[i].image);
+		const libmv::EuclideanCamera *camera = reconstruction->CameraForImage(markers[i].camera, markers[i].image);
 		const libmv::EuclideanPoint *point = reconstruction->PointForTrack(markers[i].track);
 
 		if (!camera || !point) {
@@ -742,16 +742,17 @@ double libmv_reprojectionErrorForTrack(const struct libmv_Reconstruction *libmv_
 	return total_error / num_reprojected;
 }
 
-double libmv_reprojectionErrorForViewImage(const struct libmv_Reconstruction *libmv_reconstruction, int view, int image)
+double libmv_reprojectionErrorForImage(const struct libmv_Reconstruction *libmv_reconstruction,
+                                       int camera, int image)
 {
 	const libmv::EuclideanReconstruction *reconstruction = &libmv_reconstruction->reconstruction;
 	const libmv::CameraIntrinsics *intrinsics = &libmv_reconstruction->intrinsics;
-	libmv::vector<libmv::Marker> markers = libmv_reconstruction->tracks.MarkersInImage(view, image);
-	const libmv::EuclideanCamera *camera = reconstruction->CameraForImage(view, image);
+	libmv::vector<libmv::Marker> markers = libmv_reconstruction->tracks.MarkersInImage(camera, image);
+	const libmv::EuclideanCamera *camera_pose = reconstruction->CameraForImage(camera, image);
 	int num_reprojected = 0;
 	double total_error = 0.0;
 
-	if (!camera)
+	if (!camera_pose)
 		return 0;
 
 	for (int i = 0; i < markers.size(); ++i) {
@@ -763,7 +764,7 @@ double libmv_reprojectionErrorForViewImage(const struct libmv_Reconstruction *li
 
 		num_reprojected++;
 
-		libmv::Marker reprojected_marker = ProjectMarker(*point, *camera, *intrinsics);
+		libmv::Marker reprojected_marker = ProjectMarker(*point, *camera_pose, *intrinsics);
 		double ex = reprojected_marker.x - markers[i].x;
 		double ey = reprojected_marker.y - markers[i].y;
 
@@ -773,13 +774,13 @@ double libmv_reprojectionErrorForViewImage(const struct libmv_Reconstruction *li
 	return total_error / num_reprojected;
 }
 
-int libmv_reprojectionCameraForViewImage(const struct libmv_Reconstruction *libmv_reconstruction,
-                                         int view, int image, double mat[4][4])
+int libmv_reprojectionCameraForImage(const struct libmv_Reconstruction *libmv_reconstruction,
+                                     int camera, int image, double mat[4][4])
 {
 	const libmv::EuclideanReconstruction *reconstruction = &libmv_reconstruction->reconstruction;
-	const libmv::EuclideanCamera *camera = reconstruction->CameraForImage(view, image);
+	const libmv::EuclideanCamera *camera_pose = reconstruction->CameraForImage(camera, image);
 
-	if (camera) {
+	if (camera_pose) {
 		for (int j = 0; j < 3; ++j) {
 			for (int k = 0; k < 3; ++k) {
 				int l = k;
@@ -787,13 +788,13 @@ int libmv_reprojectionCameraForViewImage(const struct libmv_Reconstruction *libm
 				if (k == 1) l = 2;
 				else if (k == 2) l = 1;
 
-				if (j == 2) mat[j][l] = -camera->R(j,k);
-				else mat[j][l] = camera->R(j,k);
+				if (j == 2) mat[j][l] = -camera_pose->R(j,k);
+				else mat[j][l] = camera_pose->R(j,k);
 			}
 			mat[j][3] = 0.0;
 		}
 
-		libmv::Vec3 optical_center = -camera->R.transpose() * camera->t;
+		libmv::Vec3 optical_center = -camera_pose->R.transpose() * camera_pose->t;
 
 		mat[3][0] = optical_center(0);
 		mat[3][1] = optical_center(2);

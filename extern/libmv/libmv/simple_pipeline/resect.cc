@@ -183,7 +183,7 @@ bool EuclideanResect(const ReconstructionOptions &options,
 
   LG << "Resection for image " << markers[0].image << " got:\n"
      << "R:\n" << R << "\nt:\n" << t;
-  reconstruction->InsertCamera(markers[0].view, markers[0].image, R, t);
+  reconstruction->InsertCamera(markers[0].camera, markers[0].image, R, t);
   return true;
 }
 
@@ -273,7 +273,7 @@ bool ProjectiveResect(const vector<Marker> &markers,
 
   LG << "Resection for image " << markers[0].image << " got:\n"
      << "P:\n" << P;
-  reconstruction->InsertCamera(markers[0].view, markers[0].image, P);
+  reconstruction->InsertCamera(markers[0].camera, markers[0].image, P);
   return true;
 }
 }  // namespace libmv

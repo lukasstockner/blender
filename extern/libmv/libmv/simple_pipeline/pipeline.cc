@@ -169,7 +169,7 @@ void InternalCompleteReconstruction(
 
       vector<Marker> reconstructed_markers;
       for (int i = 0; i < all_markers.size(); ++i) {
-        if (reconstruction->CameraForImage(all_markers[i].view, all_markers[i].image)) {
+        if (reconstruction->CameraForImage(all_markers[i].camera, all_markers[i].image)) {
           reconstructed_markers.push_back(all_markers[i]);
         }
       }
