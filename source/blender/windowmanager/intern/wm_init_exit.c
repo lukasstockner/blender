@@ -140,9 +140,10 @@ void WM_init(bContext *C, int argc, const char **argv)
 		wm_ghost_init(C);   /* note: it assigns C to ghost! */
 		wm_init_cursor_data();
 
-		gpuInitializeLighting(); // XXX jwilkins: sort out this initialization order
+		// SSS shared shader is initialized elsewhere
+		//gpuInitializeLighting(); // XXX jwilkins: sort out this initialization order
 		GPU_ms_init();
-		GPU_init_object_func();
+		//GPU_init_object_func(); //XXX jwilkins: not needed
 		gpuInitializeViewFuncs();
 	}
 
@@ -207,14 +208,14 @@ void WM_init(bContext *C, int argc, const char **argv)
 
 		immediate = gpuNewImmediate();
 		gpuImmediateMakeCurrent(immediate);
-		gpuImmediateMaxVertexCount(500000); // XXX: temporary!
+		gpuImmediateMaxVertexCount(500000); // XXX jwilkins: temporary!
 
 		gindex = gpuNewIndex();
 		gpuImmediateIndex(gindex);
-		gpuImmediateMaxIndexCount(500000, GL_UNSIGNED_SHORT); // XXX: temporary!
+		gpuImmediateMaxIndexCount(500000, GL_UNSIGNED_SHORT); // XXX jwilkins: temporary!
 
-		gpuInitializeAspects();
-		gpuInitializeAspectFuncs();
+		gpu_initialize_aspects(); // XXX jwilkins: move elsewhere
+		gpu_initialize_aspect_funcs(); // XXX jwilkins: move elsewhere
 
 		/* end - init opengl compatibility layer */
 
@@ -423,13 +424,16 @@ void WM_exit_ext(bContext *C, const short do_python)
 			GPU_free_unused_buffers();
 			GPU_extensions_exit();
 
-			gpuShutdownLighting();
+			//gpuShutdownLighting(); XXX jwilkins
 
 			gpuDeleteIndex(gindex);
 			gpuImmediateIndex(NULL);
 
 			gpuImmediateMakeCurrent(NULL);
 			gpuDeleteImmediate(immediate);
+
+			gpu_shutdown_aspects(); // XXX jwilkins: move elsewhere
+			gpu_shutdown_aspect_funcs(); // XXX jwilkins: move elsewhere
 
 			GPU_ms_exit();
 

@@ -63,6 +63,10 @@ GLenum gpuGetPolygonMode(void);
 
 
 
+void gpu_init_stipple(void);
+
+
+
 #if defined(GLEW_ES_ONLY)
 
 /* ES 2.0 doesn't define LINE and FILL, but the immediate mode replacement library emulates PolygonMode */

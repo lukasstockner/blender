@@ -29,9 +29,17 @@
  *  \ingroup gpu
  */
 
+/* my interface */
+#include "GPU_material.h"
 
-#include <math.h>
-#include <string.h>
+/* my library */
+#include "GPU_extensions.h"
+#include "GPU_compatibility.h"
+
+/* internal */
+#include "intern/gpu_codegen.h"
+
+/* external */
 
 #include "MEM_guardedalloc.h"
 
@@ -57,16 +65,11 @@
 
 #include "IMB_imbuf_types.h"
 
-#include "GPU_extensions.h"
-#include "GPU_material.h"
-#include "GPU_compatibility.h"
-
-#include "gpu_codegen.h"
-
-#include "gpu_object_gles.h"
-
-
+/* standard */
+#include <math.h>
 #include <string.h>
+
+
 
 /* Structs */
 

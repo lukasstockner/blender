@@ -29,8 +29,16 @@
  *  \ingroup gpu
  */
 
-#ifndef __GPU_BUFFERS_H__
-#define __GPU_BUFFERS_H__
+#ifndef _GPU_BUFFERS_H_
+#define _GPU_BUFFERS_H_
+
+#include "BKE_DerivedMesh.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 
 #ifdef _DEBUG
 /*#define DEBUG_VBO(X) printf(X)*/
@@ -38,16 +46,6 @@
 #else
 #define DEBUG_VBO(X)
 #endif
-
-struct BMesh;
-struct CCGElem;
-struct CCGKey;
-struct CustomData;
-struct DMFlagMat;
-struct DerivedMesh;
-struct GHash;
-struct GPUVertPointLink;
-struct PBVH;
 
 typedef struct GPUBuffer {
 	int size;	/* in bytes */
@@ -164,7 +162,7 @@ GPU_Buffers *GPU_build_mesh_buffers(int (*face_vert_indices)[4],
                                     struct MFace *mface, struct MVert *mvert,
                                     int *face_indices, int totface);
 
-void GPU_update_mesh_buffers(GPU_Buffers *buffers, MVert *mvert,
+void GPU_update_mesh_buffers(struct GPU_Buffers *buffers, struct MVert *mvert,
                              int *vert_indices, int totvert, const float *vmask,
                              int (*face_vert_indices)[4], int show_diffuse_color);
 
@@ -184,11 +182,17 @@ void GPU_update_grid_buffers(GPU_Buffers *buffers, struct CCGElem **grids,
                              int *grid_indices, int totgrid, const struct CCGKey *key,
                              int show_diffuse_color);
 
-void GPU_draw_buffers(GPU_Buffers *buffers, DMSetMaterial setMaterial,
+void GPU_draw_buffers(struct GPU_Buffers *buffers, DMSetMaterial setMaterial,
 					  int wireframe);
 
-int GPU_buffers_diffuse_changed(GPU_Buffers *buffers, int show_diffuse_color);
+int GPU_buffers_diffuse_changed(struct GPU_Buffers *buffers, int show_diffuse_color);
 
-void GPU_free_buffers(GPU_Buffers *buffers);
+void GPU_free_buffers(struct GPU_Buffers *buffers);
+
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

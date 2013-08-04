@@ -502,7 +502,7 @@ static void draw_lock(FontBLF *font)
 	}
 
 	if (font->locked == 0) {
-		gpuAspectBegin(GPU_ASPECT_FONT, NULL);
+		GPU_aspect_begin(GPU_ASPECT_FONT, NULL);
 
 		if (font->shadow || font->blur) {
 			gpuImmediateFormat_T2_C4_V2(); // DOODLE: blurred and/or shadowed text
@@ -545,7 +545,7 @@ static void draw_unlock(FontBLF *font)
 
 		gpuImmediateUnformat();
 
-		gpuAspectEnd(GPU_ASPECT_FONT, NULL);
+		GPU_aspect_end(GPU_ASPECT_FONT, NULL);
 	}
 }
 
@@ -595,7 +595,7 @@ static void blf_draw__start(FontBLF *font)
 		gpuRotateAxis(RAD2DEGF(font->angle), 'Z');
 
 	if (font->shadow || font->blur) 
-		gpuGetCurrentColor4fv(font->orig_col);
+		gpuGetColor4fv(font->orig_col);
 
 	/* always bind the texture for the first glyph */
 	font->tex_bind_state = -1;
@@ -616,7 +616,7 @@ static void blf_draw__end(FontBLF *font)
 	/* XXX: current color becomes undefined due to use of vertex arrays,
 	        but a lot of code relies on it remaining the same */
 	if (font->shadow || font->blur) 
-		gpuCurrentColor4fv(font->orig_col);
+		gpuColor4fv(font->orig_col);
 }
 
 void BLF_draw(int fontid, const char *str, size_t len)

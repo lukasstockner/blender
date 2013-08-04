@@ -96,7 +96,7 @@ static void tracking_segment_start_cb(void *userdata, MovieTrackingTrack *track,
 		gpuLineWidth(1.0f);
 	}
 
-	gpuCurrentColor4fv(col);
+	gpuColor4fv(col);
 
 	gpuBegin(GL_LINE_STRIP);
 }
@@ -171,7 +171,7 @@ static void draw_frame_curves(SpaceClip *sc)
 	MovieTrackingReconstruction *reconstruction = BKE_tracking_get_active_reconstruction(tracking);
 	int i, lines = 0, prevfra = 0;
 
-	gpuColor3x(CPACK_BLUE);
+	gpuColor3P(CPACK_BLUE);
 
 	for (i = 0; i < reconstruction->camnr; i++) {
 		MovieReconstructedCamera *camera = &reconstruction->cameras[i];

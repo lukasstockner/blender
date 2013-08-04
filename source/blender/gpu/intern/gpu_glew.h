@@ -312,6 +312,10 @@ Rely on compiler to eliminate unreachable code when version checks become consta
 #define GLEW_EXT_texture_rg 0
 #endif
 
+#ifndef GLEW_OES_vertex_array_object
+#define GLEW_OES_vertex_array_object 0
+#endif
+
 
 
 /*

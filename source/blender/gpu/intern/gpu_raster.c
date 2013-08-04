@@ -29,8 +29,10 @@
  *  \ingroup gpu
  */
 
-#include "gpu_raster.h"
+/* my interface */
+#include "intern/gpu_raster.h"
 
+/* internal */
 #include "gpu_safety.h"
 
 
@@ -38,6 +40,25 @@
 void GPU_init_raster(void)
 {
 	GPU_CHECK_NO_ERROR();
+}
+
+
+
+void gpu_init_stipple(void)
+{
+	int a, x, y;
+	GLubyte pat[32*32];
+	const GLubyte *patc= pat;
+
+	a= 0;
+	for (x=0; x<32; x++) {
+		for (y=0; y<4; y++) {
+			if ( (x) & 1) pat[a++]= 0x88;
+			else pat[a++]= 0x22;
+		}
+	}
+	
+	gpuPolygonStipple(patc);
 }
 
 

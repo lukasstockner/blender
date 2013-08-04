@@ -124,14 +124,14 @@ static void node_draw_socket_new(bNodeSocket *sock, float size)
 	};
 	int a;
 
-	gpuCurrentGray3f(0.706f);
+	gpuGray3f(0.706f);
 
 	gpuBegin(GL_TRIANGLE_FAN);
 	for (a=0; a<16; a++)
 		gpuVertex2f(x+size*si[a], y+size*co[a]);
 	gpuEnd();
 
-	gpuCurrentColor4x(CPACK_BLACK, 0.588f);
+	gpuColor4P(CPACK_BLACK, 0.588f);
 	glEnable(GL_BLEND);
 	gpuEnableLineSmooth();
 	gpuBegin(GL_LINE_LOOP);
@@ -454,7 +454,7 @@ static void node_draw_frame(const bContext *C, ARegion *ar, SpaceNode *snode,
 	
 	/* body */
 	if (node->flag & NODE_CUSTOM_COLOR)
-		gpuCurrentColor4f(node->color[0], node->color[1], node->color[2], alpha);
+		gpuColor4f(node->color[0], node->color[1], node->color[2], alpha);
 	else
 		UI_ThemeColor4(TH_NODE_FRAME);
 	glEnable(GL_BLEND);
@@ -1996,7 +1996,7 @@ static void node_composit_backdrop_viewer(SpaceNode *snode, ImBuf *backdrop, bNo
 		const float cx  = x + snode->zoom * backdropWidth * node->custom3;
 		const float cy = y + snode->zoom * backdropHeight * node->custom4;
 
-		gpuCurrentColor3x(CPACK_WHITE);
+		gpuColor3P(CPACK_WHITE);
 
 		gpuBegin(GL_LINES);
 		gpuVertex2f(cx-25, cy-25);
@@ -2026,7 +2026,7 @@ static void node_composit_backdrop_boxmask(SpaceNode *snode, ImBuf *backdrop, bN
 	/* keep this, saves us from a version patch */
 	if (snode->zoom == 0.0f) snode->zoom = 1.0f;
 
-	gpuCurrentColor3x(CPACK_WHITE);
+	gpuColor3P(CPACK_WHITE);
 
 	cx  = x + snode->zoom * backdropWidth * boxmask->x;
 	cy = y + snode->zoom * backdropHeight * boxmask->y;
@@ -2067,7 +2067,7 @@ static void node_composit_backdrop_ellipsemask(SpaceNode *snode, ImBuf *backdrop
 	/* keep this, saves us from a version patch */
 	if (snode->zoom == 0.0f) snode->zoom = 1.0f;
 
-	gpuCurrentColor3x(CPACK_WHITE);
+	gpuColor3P(CPACK_WHITE);
 
 	cx  = x + snode->zoom * backdropWidth * ellipsemask->x;
 	cy = y + snode->zoom * backdropHeight * ellipsemask->y;
@@ -2981,7 +2981,7 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 			{
 				gpuPolygonMode(GL_LINE);
 				setlinestyle(3);
-				gpuColor3x(0x4040FF);
+				gpuColor3P(0x4040FF);
 				
 				gpuSingleFilledRectf(
 				        x + snode->zoom * viewer_border->xmin * ibuf->x,
@@ -3154,10 +3154,10 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 		if (do_shaded) {
 			gpuBegin(GL_LINES);
 			for (i=0; i<LINK_RESOL; i++) {
-				UI_ThemeAppendColorBlend(th_col1, th_col2, spline_step);
+				UI_ThemeColorBlend(th_col1, th_col2, spline_step);
 				gpuVertex2fv(coord_array[i]);
 				
-				UI_ThemeAppendColorBlend(th_col1, th_col2, spline_step+dist);
+				UI_ThemeColorBlend(th_col1, th_col2, spline_step+dist);
 				gpuVertex2fv(coord_array[i+1]);
 				
 				spline_step += dist;

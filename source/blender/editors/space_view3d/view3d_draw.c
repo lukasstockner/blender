@@ -111,7 +111,7 @@ extern void bl_debug_draw_edge_add(const float v0[3], const float v1[3]);
 static void star_stuff_init_func(void)
 {
 	gpuImmediateFormat_V3();
-	gpuCurrentColor3x(CPACK_WHITE);
+	gpuColor3P(CPACK_WHITE);
 	gpuSpriteSize(1.0);
 	gpuBegin(GL_POINTS);
 }
@@ -146,7 +146,7 @@ static void view3d_draw_clipping(RegionView3D *rv3d)
 		/* fill in zero alpha for rendering & re-projection [#31530] */
 		UI_GetThemeColorShade3ubv(TH_BACK, -8, col);
 		col[3] = 0;
-		gpuCurrentColor4ubv(col);
+		gpuColor4ubv(col);
 
 		gpuSingleClientRangeElements_V3F(
 			GL_QUADS,
@@ -584,15 +584,15 @@ static void drawcursor(Scene *scene, ARegion *ar, View3D *v3d)
 		gpuImmediateFormat_V2(); // DOODLE: view3d cursor, 2 stippled circles, 4 mono lines
 
 		setlinestyle(0); 
-		gpuCurrentColor3x(CPACK_BLUE);
+		gpuColor3P(CPACK_BLUE);
 		gpuDrawCircle((float)co[0], (float)co[1], f10, 32);
 
 		setlinestyle(4);
-		gpuCurrentColor3x(CPACK_WHITE);
+		gpuColor3P(CPACK_WHITE);
 		gpuRepeat();
 
 		setlinestyle(0);
-		gpuCurrentColor3x(CPACK_BLACK);
+		gpuColor3P(CPACK_BLACK);
 
 		gpuBegin(GL_LINES);
 		gpuAppendLinei(co[0] - f20, co[1], co[0] - f5, co[1]);
@@ -743,7 +743,7 @@ static void draw_view_axis(RegionView3D *rv3d, rcti *rect)
 	BLF_draw_default_lock();
 	for (i = 0; i < 3; i++) {
 		if (showLabel[sort[i]]) {
-			gpuCurrentColor4ubv(color[sort[i]]);
+			gpuColor4ubv(color[sort[i]]);
 			BLF_draw_default_ascii(
 				axis[sort[i]][0] + size,
 				axis[sort[i]][1] + size,
@@ -818,7 +818,7 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 			}
 
 			color[3] = 0.25f;  /* somewhat faint */
-			gpuCurrentColor4fv(color);
+			gpuColor4fv(color);
 			gpuBegin(GL_LINE_LOOP);
 			for (i = 0, angle = 0.f; i < ROT_AXIS_DETAIL; ++i, angle += step) {
 				float p[3] = {s * cosf(angle), s * sinf(angle), 0.0f};
@@ -841,7 +841,7 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 		color[3] = 0.5f;  /* see-through dot */
 
 	/* -- draw rotation center -- */
-	gpuCurrentColor4fv(color);
+	gpuColor4fv(color);
 	gpuBegin(GL_POINTS);
 	gpuVertex3fv(o);
 	gpuEnd();
@@ -1195,11 +1195,11 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 	/* passepartout, specified in camera edit buttons */
 	if (ca && (ca->flag & CAM_SHOWPASSEPARTOUT) && ca->passepartalpha > 0.000001f) {
 		if (ca->passepartalpha == 1.0f) {
-			gpuCurrentColor3x(CPACK_BLACK);
+			gpuColor3P(CPACK_BLACK);
 		}
 		else {
 			glEnable(GL_BLEND);
-			gpuCurrentColor4f(0, 0, 0, ca->passepartalpha);
+			gpuColor4f(0, 0, 0, ca->passepartalpha);
 		}
 		if (x1i > 0.0f)
 			gpuDrawFilledRectf(0.0, (float)ar->winy, x1i, 0.0);
@@ -1222,7 +1222,7 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 
 #ifdef VIEW3D_CAMERA_BORDER_HACK
 	if (view3d_camera_border_hack_test) {
-		gpuCurrentColor3ubv(view3d_camera_border_hack_col);
+		gpuColor3ubv(view3d_camera_border_hack_col);
 		gpuDrawWireRectf(x1i + 1, y1i + 1, x2i - 1, y2i - 1);
 		view3d_camera_border_hack_test = false;
 	}
@@ -1246,7 +1246,7 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 		x4 = x1 + scene->r.border.xmax * (x2 - x1);
 		y4 = y1 + scene->r.border.ymax * (y2 - y1);
 		
-		gpuCurrentColor3x(0x4040FF);
+		gpuColor3P(0x4040FF);
 		gpuDrawWireRectf(x3,  y3,  x4,  y4); 
 	}
 
@@ -1911,7 +1911,7 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 
 			gpuPixelZoom(zoomx, zoomy);
 
-			gpuCurrentColor4x(CPACK_WHITE, 1 - bgpic->blend);
+			gpuColor4P(CPACK_WHITE, 1 - bgpic->blend);
 			/* could not use glaDrawPixelsAuto because it could fallback to
 			 * glaDrawPixelsSafe in some cases, which will end up in misssing
 			 * alpha transparency for the background image (sergey)
@@ -2813,7 +2813,7 @@ void ED_view3d_draw_offscreen(Scene *scene, View3D *v3d, ARegion *ar, int winx, 
 	gpuPopMatrix();
 
 	/* XXX, without this the sequencer flickers with opengl draw enabled, need to find out why - campbell */
-	gpuCurrentColor3x(CPACK_WHITE);
+	gpuColor3P(CPACK_WHITE);
 
 	G.f &= ~G_RENDER_OGL;
 }
@@ -3513,7 +3513,7 @@ static void view3d_main_area_draw_info(const bContext *C, ARegion *ar, const cha
 	else if (v3d->flag2 & V3D_RENDER_BORDER) {
 		gpuPolygonMode(GL_LINE);
 		setlinestyle(3);
-		gpuColor3x(0x4040FF);
+		gpuColor3P(0x4040FF);
 
 		gpuSingleFilledRectf(
 		        v3d->render_border.xmin * ar->winx, v3d->render_border.ymin * ar->winy,

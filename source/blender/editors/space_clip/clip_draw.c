@@ -126,13 +126,13 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 	glEnable(GL_BLEND);
 
 	/* cache background */
-	gpuCurrentColor4ub(128, 128, 255, 64);
+	gpuColor4ub(128, 128, 255, 64);
 	gpuSingleFilledRecti(0, 0, ar->winx, 8 * UI_DPI_FAC);
 
 	/* cached segments -- could be usefu lto debug caching strategies */
 	BKE_movieclip_get_cache_segments(clip, &sc->user, &totseg, &points);
 	if (totseg) {
-		gpuCurrentColor4ub(128, 128, 255, 128);
+		gpuColor4ub(128, 128, 255, 128);
 
 		for (a = 0; a < totseg; a++) {
 			float x1, x2;
@@ -171,11 +171,11 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 				framenr = marker->framenr;
 
 				if (framenr != i)
-					gpuCurrentColor4ub(128, 128, 0, 96);
+					gpuColor4ub(128, 128, 0, 96);
 				else if ((marker->flag & MARKER_TRACKED) == 0)
-					gpuCurrentColor4x(CPACK_YELLOW, 0.769f);
+					gpuColor4P(CPACK_YELLOW, 0.769f);
 				else
-					gpuCurrentColor4x(CPACK_YELLOW, 0.376f);
+					gpuColor4P(CPACK_YELLOW, 0.376f);
 
 				gpuSingleFilledRecti((i - sfra + clip->start_frame - 1) * framelen, 0, (i - sfra + clip->start_frame) * framelen, 4 * UI_DPI_FAC);
 			}
@@ -187,7 +187,7 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 		int n = reconstruction->camnr;
 		MovieReconstructedCamera *cameras = reconstruction->cameras;
 
-		gpuCurrentColor4x(CPACK_RED, 0.376f);
+		gpuColor4P(CPACK_RED, 0.376f);
 
 		for (i = sfra, a = 0; i <= efra; i++) {
 			int ok = FALSE;
@@ -220,7 +220,7 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 	clip_draw_curfra_label(sc->user.framenr, x, 8.0f * UI_DPI_FAC);
 
 	/* solver keyframes */
-	gpuCurrentColor4ub(175, 255, 0, 255);
+	gpuColor4ub(175, 255, 0, 255);
 	gpuImmediateFormat_V2();
 	draw_keyframe(act_object->keyframe1 + clip->start_frame - 1, CFRA, sfra, framelen, 2);
 	draw_keyframe(act_object->keyframe2 + clip->start_frame - 1, CFRA, sfra, framelen, 2);
@@ -263,7 +263,7 @@ static void draw_movieclip_buffer(const bContext *C, SpaceClip *sc, ARegion *ar,
 	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &x, &y);
 
 	if (sc->flag & SC_MUTE_FOOTAGE) {
-		gpuCurrentColor3f(0.0f, 0.0f, 0.0f);
+		gpuColor3f(0.0f, 0.0f, 0.0f);
 		gpuSingleFilledRectf(x, y, x + zoomx * width, y + zoomy * height);
 	}
 	else {
@@ -589,9 +589,9 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 		}
 		else {
 			if (track->flag & SELECT)
-				gpuCurrentColor3fv(scol);
+				gpuColor3fv(scol);
 			else
-				gpuCurrentColor3fv(col);
+				gpuColor3fv(col);
 		}
 
 		add_v2_v2v2(pos, marker->pos, track->offset);
@@ -671,8 +671,8 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 		}
 		else {
 			if (track->pat_flag & SELECT)
-				gpuCurrentColor3fv(scol);
-			else gpuCurrentColor3fv(col);
+				gpuColor3fv(scol);
+			else gpuColor3fv(col);
 		}
 
 		gpuBegin(GL_LINE_LOOP);
@@ -703,9 +703,9 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 		}
 		else {
 			if (track->search_flag & SELECT)
-				gpuCurrentColor3fv(scol);
+				gpuColor3fv(scol);
 			else
-				gpuCurrentColor3fv(col);
+				gpuColor3fv(col);
 		}
 
 		gpuBegin(GL_LINE_LOOP);
@@ -818,9 +818,9 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 	if ((sc->flag & SC_SHOW_MARKER_SEARCH) && ((track->search_flag & SELECT) == sel || outline)) {
 		if (!outline) {
 			if (track->search_flag & SELECT)
-				gpuCurrentColor3fv(scol);
+				gpuColor3fv(scol);
 			else
-				gpuCurrentColor3fv(col);
+				gpuColor3fv(col);
 		}
 
 		/* search offset square */
@@ -838,9 +838,9 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 
 		if (!outline) {
 			if (track->pat_flag & SELECT)
-				gpuCurrentColor3fv(scol);
+				gpuColor3fv(scol);
 			else
-				gpuCurrentColor3fv(col);
+				gpuColor3fv(col);
 		}
 
 		/* pattern's corners sliding squares */
@@ -1161,9 +1161,9 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 						sub_v2_v2(vec, npos);
 
 						if (len_v2(vec) < 3.0f)
-							gpuCurrentColor3x(CPACK_GREEN);
+							gpuColor3P(CPACK_GREEN);
 						else
-							gpuCurrentColor3x(CPACK_RED);
+							gpuColor3P(CPACK_RED);
 
 						gpuBegin(GL_POINTS);
 
@@ -1316,7 +1316,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 			pos[1] += dy;
 		}
 
-		gpuCurrentColor3x(CPACK_RED);
+		gpuColor3P(CPACK_RED);
 
 		for (i = 0; i <= n; i++) {
 			gpuBegin(GL_LINE_STRIP);
@@ -1364,7 +1364,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 				continue;
 			}
 
-			gpuCurrentColor4fv(layer->color);
+			gpuColor4fv(layer->color);
 			gpuLineWidth(layer->thickness);
 			gpuSpriteSize((float)(layer->thickness + 2));
 

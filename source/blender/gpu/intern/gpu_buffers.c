@@ -1309,7 +1309,8 @@ typedef enum {
 
 static void gpu_colors_enable(VBO_State vbo_state)
 {
-	gpuEnableColorMaterial();
+	// SSS not needed?
+	//gpuEnableColorMaterial();
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (vbo_state == VBO_ENABLED)
 		glEnableClientState(GL_COLOR_ARRAY);
@@ -1318,7 +1319,8 @@ static void gpu_colors_enable(VBO_State vbo_state)
 
 static void gpu_colors_disable(VBO_State vbo_state)
 {
-	gpuDisableColorMaterial();
+	// SSS not needed?
+	//gpuDisableColorMaterial();
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (vbo_state == VBO_ENABLED)
 		glDisableClientState(GL_COLOR_ARRAY);
@@ -2364,7 +2366,8 @@ void GPU_draw_buffers(GPU_Buffers *buffers, DMSetMaterial setMaterial,
 		}
 	}
 
-	gpuShadeModel((buffers->smooth || buffers->totface) ? GL_SMOOTH : GL_FLAT);
+	// SSS Update GPU_BASIC_SMOOTH
+	//gpuShadeModel((buffers->smooth || buffers->totface) ? GL_SMOOTH : GL_FLAT);
 
 	if (buffers->vert_buf) {
 #if defined(WITH_GL_PROFILE_COMPAT)

@@ -256,6 +256,10 @@ GPUFUNC void (GLAPIENTRY* gpu_glDeleteBuffers)(GLsizei  n, const GLuint * buffer
 GPUFUNC void * (GLAPIENTRY* gpu_glMapBuffer)(GLenum target, GLenum access);
 GPUFUNC GLboolean (GLAPIENTRY* gpu_glUnmapBuffer)(GLenum  target);
 
+GPUFUNC void (GLAPIENTRY* gpu_glGenVertexArrays)(GLsizei n, GLuint *arrays);
+GPUFUNC void (GLAPIENTRY* gpu_glBindVertexArray)(GLuint array);
+GPUFUNC void (GLAPIENTRY* gpu_glDeleteVertexArrays)(GLsizei n, const GLuint *arrays);
+
 GPUFUNC void* (*GPU_buffer_start_update )(GLenum target, GLvoid* data);
 GPUFUNC void  (*GPU_buffer_finish_update)(GLenum target, GLsizeiptr size, const GLvoid* data);
 

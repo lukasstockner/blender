@@ -31,9 +31,10 @@
 
 #include "intern/gpu_aspect.h"
 
-#include "gpu_safety.h"
+#include "intern/gpu_safety.h"
 
 #include "MEM_guardedalloc.h"
+
 
 
 static GPUaspectfuncs ** GPU_ASPECT_FUNCS = NULL;
@@ -44,11 +45,11 @@ static size_t aspect_fill = 0;
 
 
 
-void gpuInitializeAspects(void)
+void gpu_initialize_aspects(void)
 {
 	const size_t count = 100;
 
-	GPU_ASPECT_FUNCS = (GPUaspectfuncs**)MEM_callocN(count * sizeof(GPUaspectfuncs*), "aspect functions");
+	GPU_ASPECT_FUNCS = (GPUaspectfuncs**)MEM_callocN(count * sizeof(GPUaspectfuncs*), "gpu aspect functions");
 
 	aspect_max  = count;
 	aspect_free = count;
@@ -57,7 +58,7 @@ void gpuInitializeAspects(void)
 
 
 
-void gpuShutdownAspects(void)
+void gpu_shutdown_aspects(void)
 {
 	MEM_freeN(GPU_ASPECT_FUNCS);
 	GPU_ASPECT_FUNCS = NULL;
@@ -69,9 +70,9 @@ void gpuShutdownAspects(void)
 
 
 
-void gpuGenAspects(GLsizei count, GLuint* aspects)
+void GPU_gen_aspects(size_t count, uint32_t* aspects)
 {
-	GLuint src, dst;
+	uint32_t src, dst;
 
 	if (count == 0) {
 		return;
@@ -100,9 +101,9 @@ void gpuGenAspects(GLsizei count, GLuint* aspects)
 
 
 
-void gpuDeleteAspects(GLsizei count, const GLuint* aspects)
+void GPU_delete_aspects(size_t count, const uint32_t* aspects)
 {
-	GLuint i;
+	uint32_t i;
 
 	for (i = 0; i < count; i++) {
 		if (aspects[i] < aspect_fill) {
@@ -115,33 +116,73 @@ void gpuDeleteAspects(GLsizei count, const GLuint* aspects)
 
 
 
-void gpuAspectFuncs(GLuint aspect, GPUaspectfuncs* aspectFuncs)
+void GPU_aspect_funcs(uint32_t aspect, GPUaspectfuncs* aspectFuncs)
 {
 	GPU_ASPECT_FUNCS[aspect] = aspectFuncs;
 }
 
 
-static GLboolean aspect_begin = GL_FALSE;
 
-GLboolean gpuAspectBegin(GLuint aspect, const GLvoid* object)
+static uint32_t    current_aspect = 0;
+static const void* current_object = NULL;
+
+
+GLboolean GPU_aspect_begin(uint32_t aspect, const GLvoid* object)
 {
 	GPUaspectfuncs* aspectFuncs;
 
-	GPU_ASSERT(!aspect_begin);
+	GPU_ASSERT(current_aspect == 0);
 
-	aspect_begin = GL_TRUE;
+	current_aspect = aspect;
+	current_object = object;
+
 	aspectFuncs = GPU_ASPECT_FUNCS[aspect];
-	return aspectFuncs ? aspectFuncs->begin(aspectFuncs->param, object) : GL_TRUE;
+	return (aspectFuncs != NULL && aspectFuncs->begin != NULL) ? aspectFuncs->begin(aspectFuncs->param, object) : GL_TRUE;
 }
 
 
 
-GLboolean gpuAspectEnd(GLuint aspect, const GLvoid* object)
+GLboolean GPU_aspect_end(void)
 {
-	GPUaspectfuncs* aspectFuncs;
-	GPU_ASSERT(aspect_begin);
+	GPUaspectfuncs* aspectFuncs = GPU_ASPECT_FUNCS[current_aspect];
+	const void*     object      = current_object;
 
-	aspect_begin = GL_FALSE;
-	aspectFuncs = GPU_ASPECT_FUNCS[aspect];
-	return aspectFuncs ? aspectFuncs->end(aspectFuncs->param, object) : GL_TRUE;
+	GPU_ASSERT(current_aspect != 0);
+
+	current_aspect = 0;
+	current_object = NULL;
+
+	return (aspectFuncs  != NULL && aspectFuncs->end != NULL) ? aspectFuncs->end(aspectFuncs->param, object) : GL_TRUE;
+}
+
+
+
+void GPU_aspect_enable (uint32_t aspect, uint32_t options)
+{
+	GPUaspectfuncs* aspectFuncs = GPU_ASPECT_FUNCS[aspect];
+
+	if (aspectFuncs != NULL && aspectFuncs->enable != NULL)
+		aspectFuncs->enable(aspectFuncs->param, options);
+}
+
+
+
+void GPU_aspect_disable(uint32_t aspect, uint32_t options)
+{
+	GPUaspectfuncs* aspectFuncs = GPU_ASPECT_FUNCS[aspect];
+
+	if (aspectFuncs != NULL && aspectFuncs->disable != NULL )
+		aspectFuncs->disable(aspectFuncs->param, options);
+}
+
+
+
+void gpu_commit_aspect(void)
+{
+	GPUaspectfuncs* aspectFuncs = GPU_ASPECT_FUNCS[current_aspect];
+
+	GPU_ASSERT(current_aspect != 0);
+
+	if (aspectFuncs != NULL && aspectFuncs->commit != NULL )
+		aspectFuncs->commit(aspectFuncs->param);
 }

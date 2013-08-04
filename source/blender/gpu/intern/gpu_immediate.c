@@ -29,17 +29,103 @@
 *  \ingroup gpu
 */
 
-#include "intern/gpu_immediate_internal.h"
+/* my interface */
+#include "intern/gpu_immediate.h"
 
+/* internal */
+#include "intern/gpu_immediate_gl.h"
 #include "intern/gpu_profile.h"
-#include "intern/gpu_known.h"
 
+/* my module */
 #include "GPU_extensions.h"
 
+/* external */
 #include "MEM_guardedalloc.h"
 
-#include <math.h>
+/* standard */
 #include <string.h>
+
+
+
+#if GPU_SAFETY
+
+/* Define some useful, but slow, checks for correct API usage. */
+
+/* Each block contains variables that can be inspected by a
+   debugger in the event that a break point is triggered. */
+
+#define GPU_CHECK_CAN_SETUP()     \
+    {                             \
+    GLboolean immediateOK;        \
+    GLboolean noLockOK;           \
+    GLboolean noBeginOK;          \
+    GPU_CHECK_BASE(immediateOK);  \
+    GPU_CHECK_NO_LOCK(noLockOK)   \
+    GPU_CHECK_NO_BEGIN(noBeginOK) \
+    }
+
+#define GPU_CHECK_CAN_PUSH()                                          \
+    {                                                                 \
+    GLboolean immediateStackOK;                                       \
+    GLboolean noLockOK;                                               \
+    GLboolean noBeginOK;                                              \
+    GPU_SAFE_RETURN(immediateStack == NULL, immediateStackOK,);       \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE->mappedBuffer == NULL, noLockOK,);  \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE->lockCount == 0, noBeginOK,);       \
+    }
+
+#define GPU_CHECK_CAN_POP()                                                \
+    {                                                                      \
+    GLboolean immediateOK;                                                 \
+    GLboolean noLockOK;                                                    \
+    GLboolean noBeginOK;                                                   \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE != NULL, immediateOK, NULL);             \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE->mappedBuffer == NULL, noLockOK, NULL);  \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE->lockCount == 0, noBeginOK, NULL);       \
+    }
+
+#define GPU_CHECK_CAN_LOCK()       \
+    {                              \
+    GLboolean immediateOK;         \
+    GLboolean noBeginOK;           \
+    GLboolean noLockOK;            \
+    GPU_CHECK_BASE(immediateOK);   \
+    GPU_CHECK_NO_BEGIN(noBeginOK); \
+    GPU_CHECK_NO_LOCK(noLockOK);   \
+    }
+
+#define GPU_CHECK_CAN_UNLOCK()      \
+    {                               \
+    GLboolean immediateOK;          \
+    GLboolean isLockedOK;           \
+    GLboolean noBeginOK;            \
+    GPU_CHECK_BASE(immediateOK);    \
+    GPU_CHECK_IS_LOCKED(isLockedOK) \
+    GPU_CHECK_NO_BEGIN(noBeginOK)   \
+    }
+
+#define GPU_SAFE_STMT(var, test, stmt) \
+    var = (GLboolean)(test);           \
+    GPU_ASSERT((#test, var));          \
+    if (var) {                         \
+        stmt;                          \
+    }
+
+#else
+
+#define GPU_CHECK_CAN_SETUP()
+#define GPU_CHECK_CAN_PUSH()
+#define GPU_CHECK_CAN_POP()
+#define GPU_CHECK_CAN_LOCK()
+#define GPU_CHECK_CAN_UNLOCK()
+
+#define GPU_CHECK_CAN_CURRENT()
+#define GPU_CHECK_CAN_GET_COLOR()
+#define GPU_CHECK_CAN_GET_NORMAL()
+
+#define GPU_SAFE_STMT(var, test, stmt) { (void)(var); stmt; }
+
+#endif
 
 
 
@@ -48,53 +134,64 @@ GPUimmediate *restrict GPU_IMMEDIATE = NULL;
 
 
 
-GLsizei gpu_calc_stride(void)
+void gpuBegin(GLenum mode)
 {
-	size_t i;
-	size_t stride = 0;
+	int primMod;
+	int primOff;
 
-	/* vertex */
+	GPU_CHECK_CAN_BEGIN();
 
-	if (GPU_IMMEDIATE->format.vertexSize != 0) {
-		stride += (size_t)(GPU_IMMEDIATE->format.vertexSize) * sizeof(GLfloat);
+#if GPU_SAFETY
+	GPU_IMMEDIATE->hasOverflowed = GL_FALSE;
+#endif
+
+	GPU_IMMEDIATE->mode   = mode;
+	GPU_IMMEDIATE->offset = 0;
+	GPU_IMMEDIATE->count  = 0;
+
+	switch (mode) {
+		case GL_LINES:
+			primMod = 2;
+			primOff = 0;
+			break;
+
+		case GL_QUAD_STRIP:
+		case GL_TRIANGLE_STRIP:
+			primMod = 2;
+			primOff = 2;
+			break;
+
+		case GL_TRIANGLES:
+			primMod = 3;
+			primOff = 0;
+			break;
+
+		case GL_QUADS:
+			primMod = 4;
+			primOff = 2;
+			break;
+
+		default:
+			primMod = 1;
+			primOff = 0;
+			break;
 	}
 
-	/* normal */
+	GPU_IMMEDIATE->lastPrimVertex = GPU_IMMEDIATE->maxVertexCount - (GPU_IMMEDIATE->maxVertexCount % primMod);
 
-	if (GPU_IMMEDIATE->format.normalSize != 0) {
-		/* normals always have 3 components */
-		stride += 3 * sizeof(GLfloat);
-	}
+	gpu_begin_buffer_gl();
+}
 
-	/* color */
 
-	if (GPU_IMMEDIATE->format.colorSize != 0) {
-		/* color always get 4 bytes for efficient memory alignment */
-		stride += 4 * sizeof(GLubyte);
-	}
 
-	/* texture coordinate */
+void gpuEnd(void)
+{
+	GPU_CHECK_CAN_END();
+	GPU_ASSERT(GPU_IMMEDIATE->mode != GL_NOOP || !(GPU_IMMEDIATE->hasOverflowed));
 
-	for (i = 0; i < GPU_IMMEDIATE->format.textureUnitCount; i++) {
-		stride +=
-			(size_t)(GPU_IMMEDIATE->format.texCoordSize[i]) * sizeof(GLfloat);
-	}
+	gpu_end_buffer_gl();
 
-	/* float vertex attribute */
-
-	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_f; i++) {
-		stride +=
-			(size_t)(GPU_IMMEDIATE->format.attribSize_f[i]) * sizeof(GLfloat);
-	}
-
-	/* byte vertex attribute */
-
-	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++) {
-		/* byte attributes always get 4 bytes for efficient memory alignment */
-		stride += 4 * sizeof(GLubyte);
-	}
-
-	return (GLsizei)stride;
+	GPU_IMMEDIATE->mappedBuffer = NULL;
 }
 
 
@@ -112,9 +209,8 @@ void gpuImmediateLock(void)
 {
 	GPU_CHECK_CAN_LOCK();
 
-	if (GPU_IMMEDIATE->lockCount == 0) {
-		GPU_IMMEDIATE->lockBuffer();
-	}
+	if (GPU_IMMEDIATE->lockCount == 0)
+		gpu_lock_buffer_gl();
 
 	GPU_IMMEDIATE->lockCount++;
 }
@@ -125,9 +221,8 @@ void gpuImmediateUnlock(void)
 
 	GPU_IMMEDIATE->lockCount--;
 
-	if (GPU_IMMEDIATE->lockCount == 0) {
-		GPU_IMMEDIATE->unlockBuffer();
-	}
+	if (GPU_IMMEDIATE->lockCount == 0)
+		gpu_unlock_buffer_gl();
 }
 
 
@@ -145,71 +240,16 @@ GLint gpuImmediateLockCount(void)
 
 
 
-static void gpu_copy_vertex(void);
-
-static void gpu_append_client_arrays(
-	const GPUarrays *restrict arrays,
-	GLint first,
-	GLsizei count);
-
-
-
 GPUimmediate* gpuNewImmediate(void)
 {
 	GPUimmediate* immediate =
 		(GPUimmediate*)MEM_callocN(sizeof(GPUimmediate), "GPUimmediate");
 
-	immediate->format.vertexSize = 3;
-
-	immediate->copyVertex         = gpu_copy_vertex;
-	immediate->appendClientArrays = gpu_append_client_arrays;
 #if GPU_SAFETY
-	immediate->lastTexture        = GL_TEXTURE0 + GPU_max_textures() - 1;
+	immediate->lastTexture = GPU_max_textures() - 1;
 #endif
 
-#if defined(WITH_GL_PROFILE_ES20) || defined(WITH_GL_PROFILE_CORE)
-	if (GPU_PROFILE_ES20 || GPU_PROFILE_CORE) {
-		immediate->lockBuffer          = gpu_lock_buffer_glsl;
-		immediate->unlockBuffer        = gpu_unlock_buffer_glsl;
-		immediate->beginBuffer         = gpu_begin_buffer_glsl;
-		immediate->endBuffer           = gpu_end_buffer_glsl;
-		immediate->shutdownBuffer      = gpu_shutdown_buffer_glsl;
-		immediate->currentColor        = gpu_current_color_glsl;
-		immediate->currentNormal       = gpu_current_normal_glsl;
-		immediate->indexBeginBuffer    = gpu_index_begin_buffer_glsl;
-		immediate->indexShutdownBuffer = gpu_index_shutdown_buffer_glsl;
-		immediate->indexEndBuffer      = gpu_index_end_buffer_glsl;
-		immediate->drawElements        = gpu_draw_elements_glsl;
-		immediate->drawRangeElements   = gpu_draw_range_elements_glsl;
-
-		gpu_quad_elements_init();
-
-		return immediate;
-	}
-#endif
-
-#if defined(WITH_GL_PROFILE_COMPAT)
-	if (GPU_PROFILE_COMPAT) {
-		immediate->lockBuffer          = gpu_lock_buffer_gl11;
-		immediate->unlockBuffer        = gpu_unlock_buffer_gl11;
-		immediate->beginBuffer         = gpu_begin_buffer_gl11;
-		immediate->endBuffer           = gpu_end_buffer_gl11;
-		immediate->shutdownBuffer      = gpu_shutdown_buffer_gl11;
-		immediate->currentColor        = gpu_current_color_gl11;
-		immediate->currentNormal       = gpu_current_normal_gl11;
-		immediate->indexBeginBuffer    = gpu_index_begin_buffer_gl11;
-		immediate->indexShutdownBuffer = gpu_index_shutdown_buffer_gl11;
-		immediate->indexEndBuffer      = gpu_index_end_buffer_gl11;
-		immediate->drawElements        = gpu_draw_elements_gl11;
-		immediate->drawRangeElements   = gpu_draw_range_elements_gl11;
-
-		return immediate;
-	}
-#endif
-
-	abort();
-
-	return NULL;
+	return immediate;
 }
 
 
@@ -223,15 +263,13 @@ void gpuImmediateMakeCurrent(GPUimmediate *restrict immediate)
 
 void gpuDeleteImmediate(GPUimmediate *restrict immediate)
 {
-	if (!immediate) {
+	if (!immediate)
 		return;
-	}
 
-	if (GPU_IMMEDIATE == immediate) {
+	if (GPU_IMMEDIATE == immediate)
 		gpuImmediateMakeCurrent(NULL);
-	}
 
-	immediate->shutdownBuffer(immediate);
+	gpu_shutdown_buffer_gl(immediate);
 
 	MEM_freeN(immediate);
 }
@@ -251,7 +289,7 @@ void gpuImmediateElementSizes(
 
 	GPU_SAFE_STMT(
 		vertexOK,
-		vertexSize > 0 && vertexSize <= GPU_MAX_ELEMENT_SIZE,
+		vertexSize > 0 && vertexSize <= 4,
 		GPU_IMMEDIATE->format.vertexSize = vertexSize);
 
 	GPU_SAFE_STMT(
@@ -281,7 +319,7 @@ void gpuImmediateMaxVertexCount(GLsizei maxVertexCount)
 
 
 
-void gpuImmediateTextureUnitCount(size_t count)
+void gpuImmediateTexCoordCount(size_t count)
 {
 	GLboolean countOK;
 
@@ -289,8 +327,8 @@ void gpuImmediateTextureUnitCount(size_t count)
 	
 	GPU_SAFE_STMT(
 		countOK,
-		count <= GPU_MAX_TEXTURE_UNITS,
-		GPU_IMMEDIATE->format.textureUnitCount = count);
+		count <= GPU_MAX_COMMON_TEXCOORDS,
+		GPU_IMMEDIATE->format.texCoordCount = count);
 }
 
 
@@ -301,31 +339,45 @@ void gpuImmediateTexCoordSizes(const GLint *restrict sizes)
 
 	GPU_CHECK_CAN_SETUP();
 
-	for (i = 0; i < GPU_IMMEDIATE->format.textureUnitCount; i++) {
+	for (i = 0; i < GPU_IMMEDIATE->format.texCoordCount; i++) {
 		GLboolean texCoordSizeOK;
 
 		GPU_SAFE_STMT(
 			texCoordSizeOK,
-			sizes[i] > 0 && sizes[i] <= GPU_MAX_ELEMENT_SIZE,
+			sizes[i] > 0 && sizes[i] <= 4,
 			GPU_IMMEDIATE->format.texCoordSize[i] = sizes[i]);
 	}
 }
 
 
 
-void gpuImmediateTextureUnitMap(const GLenum *restrict map)
+void gpuImmediateSamplerCount(size_t count)
+{
+	GLboolean countOK;
+
+	GPU_CHECK_CAN_SETUP();
+	
+	GPU_SAFE_STMT(
+		countOK,
+		count <= GPU_MAX_COMMON_SAMPLERS,
+		GPU_IMMEDIATE->format.samplerCount = count);
+}
+
+
+
+void gpuImmediateSamplerMap(const GLint *restrict map)
 {
 	size_t i;
 
 	GPU_CHECK_CAN_SETUP();
 
-	for (i = 0; i < GPU_IMMEDIATE->format.textureUnitCount; i++) {
+	for (i = 0; i < GPU_IMMEDIATE->format.samplerCount; i++) {
 		GLboolean mapOK;
 
 		GPU_SAFE_STMT(
 			mapOK,
-			map[i] >= GL_TEXTURE0 &&  map[i] <= GPU_IMMEDIATE->lastTexture,
-			GPU_IMMEDIATE->format.textureUnitMap[i] = map[i]);
+			map[i] >= 0 &&  map[i] <= GPU_IMMEDIATE->lastTexture,
+			GPU_IMMEDIATE->format.samplerMap[i] = map[i]);
 	}
 }
 
@@ -356,7 +408,7 @@ void gpuImmediateFloatAttribSizes(const GLint *restrict sizes)
 
 		GPU_SAFE_STMT(
 			sizeOK,
-			sizes[i] > 0 && sizes[i] <= GPU_MAX_ELEMENT_SIZE,
+			sizes[i] > 0 && sizes[i] <= 4,
 			GPU_IMMEDIATE->format.attribSize_f[i] = sizes[i]);
 	}
 }
@@ -425,14 +477,22 @@ static GLboolean end_begin(void)
 	GPU_IMMEDIATE->hasOverflowed = GL_TRUE;
 #endif
 
-	if (GPU_IMMEDIATE->mode != GL_NOOP) {
-		GPU_IMMEDIATE->endBuffer();
+	if (!ELEM6(
+			GPU_IMMEDIATE->mode,
+			GL_NOOP,
+			GL_LINE_LOOP,
+			GL_POLYGON,
+			GL_QUAD_STRIP,
+			GL_LINE_STRIP,
+			GL_TRIANGLE_STRIP)) // XXX jwilkins: can restart some of these, but need to put in the logic (could be problematic with mapped VBOs?)
+	{
+		gpu_end_buffer_gl();
 
 		GPU_IMMEDIATE->mappedBuffer = NULL;
 		GPU_IMMEDIATE->offset       = 0;
 		GPU_IMMEDIATE->count        = 1; /* count the vertex that triggered this */
 
-		GPU_IMMEDIATE->beginBuffer();
+		gpu_begin_buffer_gl();
 
 		return GL_TRUE;
 	}
@@ -443,7 +503,7 @@ static GLboolean end_begin(void)
 
 
 
-static void gpu_copy_vertex(void)
+void gpu_copy_vertex(void)
 {
 	size_t i;
 	size_t size;
@@ -457,16 +517,15 @@ static void gpu_copy_vertex(void)
 	}
 #endif
 
-	if (GPU_IMMEDIATE->count == GPU_IMMEDIATE->maxVertexCount) {
+	if (GPU_IMMEDIATE->count == GPU_IMMEDIATE->lastPrimVertex) {
 		GLboolean restarted;
 
 		restarted = end_begin(); /* draw and clear buffer */
 
 		GPU_ASSERT(restarted);
 
-		if (!restarted) {
+		if (!restarted)
 			return;
-		}
 	}
 	else {
 		GPU_IMMEDIATE->count++;
@@ -499,7 +558,7 @@ static void gpu_copy_vertex(void)
 
 	/* texture coordinate(s) */
 
-	for (i = 0; i < GPU_IMMEDIATE->format.textureUnitCount; i++) {
+	for (i = 0; i < GPU_IMMEDIATE->format.texCoordCount; i++) {
 		size = (size_t)(GPU_IMMEDIATE->format.texCoordSize[i]) * sizeof(GLfloat);
 		memcpy(mappedBuffer + offset, GPU_IMMEDIATE->texCoord[i], size);
 		offset += size;
@@ -578,15 +637,17 @@ void gpuImmediateFormat_T2_V2(void)
 
 	if (gpuImmediateLockCount() == 0) {
 		GLint texCoordSizes[1] = { 2 };
-		GLenum texUnitMap[1]    = { GL_TEXTURE0 };
+		GLenum samplerMap[1]   = { 0 };
 
 		gpuImmediateFormatReset();
 
 		gpuImmediateElementSizes(2, 0, 0);
 
-		gpuImmediateTextureUnitCount(1);
+		gpuImmediateTexCoordCount(1);
 		gpuImmediateTexCoordSizes(texCoordSizes);
-		gpuImmediateTextureUnitMap(texUnitMap);
+
+		gpuImmediateSamplerCount(1);
+		gpuImmediateSamplerMap(samplerMap);
 	}
 
 	gpuImmediateLock();
@@ -604,15 +665,17 @@ void gpuImmediateFormat_T2_V3(void)
 
 	if (gpuImmediateLockCount() == 0) {
 		GLint texCoordSizes[1] = { 2 };
-		GLenum texUnitMap[1]    = { GL_TEXTURE0 };
+		GLenum samplerMap[1]   = { 0 };
 
 		gpuImmediateFormatReset();
 
 		gpuImmediateElementSizes(3, 0, 0);
 
-		gpuImmediateTextureUnitCount(1);
+		gpuImmediateTexCoordCount(1);
 		gpuImmediateTexCoordSizes(texCoordSizes);
-		gpuImmediateTextureUnitMap(texUnitMap);
+
+		gpuImmediateSamplerCount(1);
+		gpuImmediateSamplerMap(samplerMap);
 	}
 
 	gpuImmediateLock();
@@ -630,15 +693,17 @@ void gpuImmediateFormat_T2_C4_V2(void)
 
 	if (gpuImmediateLockCount() == 0) {
 		GLint texCoordSizes[1] = { 2 };
-		GLenum texUnitMap[1]    = { GL_TEXTURE0 };
+		GLenum samplerMap[1]   = { 0 };
 
 		gpuImmediateFormatReset();
 
 		gpuImmediateElementSizes(2, 0, 4); //-V112
 
-		gpuImmediateTextureUnitCount(1);
+		gpuImmediateTexCoordCount(1);
 		gpuImmediateTexCoordSizes(texCoordSizes);
-		gpuImmediateTextureUnitMap(texUnitMap);
+
+		gpuImmediateSamplerCount(1);
+		gpuImmediateSamplerMap(samplerMap);
 	}
 
 	gpuImmediateLock();
@@ -732,14 +797,17 @@ void gpuImmediateFormat_T2_C4_N3_V3(void)
 
 	if (gpuImmediateLockCount() == 0) {
 		GLint texCoordSizes[1] = { 2 };
-		GLenum texUnitMap[1]    = { GL_TEXTURE0 };
+		GLenum samplerMap[1]   = { 0 };
 
 		gpuImmediateFormatReset();
 
 		gpuImmediateElementSizes(3, 3, 4); //-V112
-		gpuImmediateTextureUnitCount(1);
+
+		gpuImmediateTexCoordCount(1);
 		gpuImmediateTexCoordSizes(texCoordSizes);
-		gpuImmediateTextureUnitMap(texUnitMap);
+
+		gpuImmediateSamplerCount(1);
+		gpuImmediateSamplerMap(samplerMap);
 	}
 
 	gpuImmediateLock();
@@ -757,14 +825,17 @@ void gpuImmediateFormat_T3_C4_V3(void)
 
 	if (gpuImmediateLockCount() == 0) {
 		GLint texCoordSizes[1] = { 3 };
-		GLenum texUnitMap[1]    = { GL_TEXTURE0 };
+		GLenum samplerMap[1]   = { 0 };
 
 		gpuImmediateFormatReset();
 
 		gpuImmediateElementSizes(3, 0, 4); //-V112
-		gpuImmediateTextureUnitCount(1);
+
+		gpuImmediateTexCoordCount(1);
 		gpuImmediateTexCoordSizes(texCoordSizes);
-		gpuImmediateTextureUnitMap(texUnitMap);
+
+		gpuImmediateSamplerCount(1);
+		gpuImmediateSamplerMap(samplerMap);
 	}
 
 	gpuImmediateLock();
@@ -781,249 +852,6 @@ void gpuImmediateUnformat(void)
 #endif
 
 	gpuImmediateUnlock();
-}
-
-
-
-BLI_INLINE void currentColor(void)
-{
-	GPU_IMMEDIATE->currentColor();
-
-#if GPU_SAFETY
-	GPU_IMMEDIATE->isColorValid = GL_TRUE;
-#endif
-}
-
-void gpuCurrentColor3f(GLfloat r, GLfloat g, GLfloat b)
-{
-	GPU_CHECK_CAN_CURRENT();
-
-	GPU_IMMEDIATE->color[0] = (GLubyte)(255.0f * r);
-	GPU_IMMEDIATE->color[1] = (GLubyte)(255.0f * g);
-	GPU_IMMEDIATE->color[2] = (GLubyte)(255.0f * b);
-	GPU_IMMEDIATE->color[3] = 255;
-
-	currentColor();
-}
-
-void gpuCurrentColor3fv(const GLfloat *restrict v)
-{
-	GPU_CHECK_CAN_CURRENT();
-
-	GPU_IMMEDIATE->color[0] = (GLubyte)(255.0f * v[0]);
-	GPU_IMMEDIATE->color[1] = (GLubyte)(255.0f * v[1]);
-	GPU_IMMEDIATE->color[2] = (GLubyte)(255.0f * v[2]);
-	GPU_IMMEDIATE->color[3] = 255;
-
-	currentColor();
-}
-
-void gpuCurrentColor3ub(GLubyte r, GLubyte g, GLubyte b)
-{
-	GPU_CHECK_CAN_CURRENT();
-
-	GPU_IMMEDIATE->color[0] = r;
-	GPU_IMMEDIATE->color[1] = g;
-	GPU_IMMEDIATE->color[2] = b;
-	GPU_IMMEDIATE->color[3] = 255;
-
-	currentColor();
-}
-
-void gpuCurrentColor3ubv(const GLubyte *restrict v)
-{
-	GPU_CHECK_CAN_CURRENT();
-
-	GPU_IMMEDIATE->color[0] = v[0];
-	GPU_IMMEDIATE->color[1] = v[1];
-	GPU_IMMEDIATE->color[2] = v[2];
-	GPU_IMMEDIATE->color[3] = 255;
-
-	currentColor();
-}
-
-void gpuCurrentColor4f(GLfloat r, GLfloat g, GLfloat b, GLfloat a)
-{
-	GPU_CHECK_CAN_CURRENT();
-
-	GPU_IMMEDIATE->color[0] = (GLubyte)(255.0f * r);
-	GPU_IMMEDIATE->color[1] = (GLubyte)(255.0f * g);
-	GPU_IMMEDIATE->color[2] = (GLubyte)(255.0f * b);
-	GPU_IMMEDIATE->color[3] = (GLubyte)(255.0f * a);
-
-	currentColor();
-}
-
-void gpuCurrentColor4fv(const GLfloat *restrict v)
-{
-	GPU_CHECK_CAN_CURRENT();
-
-	GPU_IMMEDIATE->color[0] = (GLubyte)(255.0f * v[0]);
-	GPU_IMMEDIATE->color[1] = (GLubyte)(255.0f * v[1]);
-	GPU_IMMEDIATE->color[2] = (GLubyte)(255.0f * v[2]);
-	GPU_IMMEDIATE->color[3] = (GLubyte)(255.0f * v[3]);
-
-	currentColor();
-}
-
-void gpuCurrentColor4ub(GLubyte r, GLubyte g, GLubyte b, GLubyte a)
-{
-	GPU_CHECK_CAN_CURRENT();
-
-	GPU_IMMEDIATE->color[0] = r;
-	GPU_IMMEDIATE->color[1] = g;
-	GPU_IMMEDIATE->color[2] = b;
-	GPU_IMMEDIATE->color[3] = a;
-
-	currentColor();
-}
-
-void gpuCurrentColor4ubv(const GLubyte *restrict v)
-{
-	GPU_CHECK_CAN_CURRENT();
-
-	GPU_IMMEDIATE->color[0] = v[0];
-	GPU_IMMEDIATE->color[1] = v[1];
-	GPU_IMMEDIATE->color[2] = v[2];
-	GPU_IMMEDIATE->color[3] = v[3];
-
-	currentColor();
-}
-
-void gpuCurrentColor4d(GLdouble r, GLdouble g, GLdouble b, GLdouble a)
-{
-	GPU_CHECK_CAN_CURRENT();
-
-	GPU_IMMEDIATE->color[0] = (GLubyte)r;
-	GPU_IMMEDIATE->color[1] = (GLubyte)g;
-	GPU_IMMEDIATE->color[2] = (GLubyte)b;
-	GPU_IMMEDIATE->color[3] = (GLubyte)a;
-
-	currentColor();
-}
-
-void gpuCurrentGray3f(GLfloat luminance)
-{
-	GLubyte c;
-
-	GPU_CHECK_CAN_CURRENT();
-
-	c = (GLubyte)(255.0 * luminance);
-
-	GPU_IMMEDIATE->color[0] = c;
-	GPU_IMMEDIATE->color[1] = c;
-	GPU_IMMEDIATE->color[2] = c;
-	GPU_IMMEDIATE->color[3] = 255;
-
-	currentColor();
-}
-
-void gpuCurrentGray4f(GLfloat luminance, GLfloat alpha)
-{
-	GLubyte c;
-
-	GPU_CHECK_CAN_CURRENT();
-
-	c = (GLubyte)(255.0 * luminance);
-
-	GPU_IMMEDIATE->color[0] = c;
-	GPU_IMMEDIATE->color[1] = c;
-	GPU_IMMEDIATE->color[2] = c;
-	GPU_IMMEDIATE->color[3] = (GLubyte)(255.0 * alpha);
-
-	currentColor();
-}
-
-
-
-/* This function converts a numerical value to the equivalent 24-bit
- * color, while not being endian-sensitive. On little-endians, this
- * is the same as doing a 'naive' indexing, on big-endian, it is not! */
-void gpuCurrentColor3x(GLuint rgb)
-{
-	GPU_CHECK_CAN_CURRENT();
-
-	GPU_IMMEDIATE->color[0] = (rgb >>  0) & 0xFF;
-	GPU_IMMEDIATE->color[1] = (rgb >>  8) & 0xFF;
-	GPU_IMMEDIATE->color[2] = (rgb >> 16) & 0xFF;
-	GPU_IMMEDIATE->color[3] = 255;
-
-	currentColor();
-}
-
-void gpuCurrentColor4x(GLuint rgb, GLfloat a)
-{
-	GPU_CHECK_CAN_CURRENT();
-
-	GPU_IMMEDIATE->color[0] = (rgb >>  0) & 0xFF;
-	GPU_IMMEDIATE->color[1] = (rgb >>  8) & 0xFF;
-	GPU_IMMEDIATE->color[2] = (rgb >> 16) & 0xFF;
-	GPU_IMMEDIATE->color[3] = (GLubyte)(255 * a);
-
-	currentColor();
-}
-
-
-void gpuCurrentAlpha(GLfloat a)
-{
-	GPU_CHECK_CAN_GET_COLOR();
-
-	GPU_IMMEDIATE->color[3] = (GLubyte)(255 * a);
-
-	currentColor();
-}
-
-void gpuMultCurrentAlpha(GLfloat factor)
-{
-	GPU_CHECK_CAN_GET_COLOR();
-
-	GPU_IMMEDIATE->color[3] *= factor;
-
-	currentColor();
-}
-
-
-
-void gpuGetCurrentColor4fv(GLfloat *restrict color)
-{
-	GPU_CHECK_CAN_GET_COLOR();
-
-	color[0] = GPU_IMMEDIATE->color[0] / 255.0f;
-	color[1] = GPU_IMMEDIATE->color[1] / 255.0f;
-	color[2] = GPU_IMMEDIATE->color[2] / 255.0f;
-	color[3] = GPU_IMMEDIATE->color[3] / 255.0f;
-}
-
-void gpuGetCurrentColor4ubv(GLubyte *restrict color)
-{
-	GPU_CHECK_CAN_GET_COLOR();
-
-	color[0] = GPU_IMMEDIATE->color[0];
-	color[1] = GPU_IMMEDIATE->color[1];
-	color[2] = GPU_IMMEDIATE->color[2];
-	color[3] = GPU_IMMEDIATE->color[3];
-}
-
-
-
-BLI_INLINE void currentNormal()
-{
-	GPU_IMMEDIATE->currentNormal();
-
-#if GPU_SAFETY
-	GPU_IMMEDIATE->isNormalValid = GL_TRUE;
-#endif
-}
-
-void gpuCurrentNormal3fv(const GLfloat *restrict v)
-{
-	GPU_CHECK_CAN_CURRENT();
-
-	GPU_IMMEDIATE->normal[0] = v[0];
-	GPU_IMMEDIATE->normal[1] = v[1];
-	GPU_IMMEDIATE->normal[2] = v[2];
-
-	currentNormal();
 }
 
 
@@ -1266,7 +1094,7 @@ void gpuAppendClientArrays(
 	GLint first,
 	GLsizei count)
 {
-	GPU_IMMEDIATE->appendClientArrays(arrays, first, count);
+	gpu_append_client_arrays(arrays, first, count);
 }
 
 
@@ -1278,7 +1106,7 @@ void gpuDrawClientArrays(
 	GLsizei count)
 {
 	gpuBegin(mode);
-	gpuAppendClientArrays(arrays, first, count);
+	gpu_append_client_arrays(arrays, first, count);
 	gpuEnd();
 }
 
@@ -1618,7 +1446,9 @@ void gpuDrawClientRangeElements(
 	gpuIndexEnd();
 
 	gpuImmediateIndexRange(indexMin, indexMax);
-	gpuDrawRangeElements(mode);
+
+	GPU_IMMEDIATE->mode = mode;
+	gpu_draw_range_elements_gl();
 }
 
 void gpuSingleClientRangeElements_V3F(
@@ -1829,26 +1659,6 @@ void gpuIndexEnd(void)
 
 
 
-void GPU_comment_current()
-{
-	const GPUknownlocs* location = GPU_get_known_locations();
-
-	if (GPU_glsl_support()) {
-		if(GPU_IMMEDIATE->format.colorSize == 0 && location->color != -1)
-			glVertexAttrib4ubv(location->color, GPU_IMMEDIATE->color);
-
-		if(GPU_IMMEDIATE->format.normalSize == 0 && location->normal != -1)
-			glVertexAttrib3fv(location->normal, GPU_IMMEDIATE->normal);
-	}
-
-#if defined(WITH_GPU_PROFILE_COMPAT)
-	glColor4ubv(GPU_IMMEDIATE->color);
-	glNormal3fv(GPU_IMMEDIATE->normal);
-#endif
-}
-
-
-
 const char* gpuErrorString(GLenum err)
 {
 	switch(err) {
@@ -1893,3 +1703,6 @@ const char* gpuErrorString(GLenum err)
 			return "<unknown error>";
 	}
 }
+
+
+

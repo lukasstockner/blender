@@ -853,7 +853,7 @@ static void set_manipulator_color(View3D *v3d, char axis, int colcode, unsigned 
 		}
 	}
 
-	gpuCurrentColor4ubv(col);
+	gpuColor4ubv(col);
 }
 
 static void manipulator_axis_order(RegionView3D *rv3d, int r_axis_order[3])

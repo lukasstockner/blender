@@ -169,7 +169,7 @@ static void ob_wire_color_blend_theme_id(const unsigned char ob_wire_col[4], con
 
 	UI_GetThemeColor3fv(theme_id, col_bg);
 	interp_v3_v3v3(col, col_bg, col_wire, fac);
-	gpuCurrentColor3fv(col);
+	gpuColor3fv(col);
 }
 
 /* this condition has been made more complex since editmode can draw textures */
@@ -547,7 +547,7 @@ static void draw_empty_image(Object *ob, const short dflag, const unsigned char 
 		}
 
 		/* Use the object color and alpha */
-		gpuCurrentColor4fv(ob->col);
+		gpuColor4fv(ob->col);
 
 		/* Draw the Image on the screen */
 		glaDrawPixelsTex(ofs_x, ofs_y, ima_x, ima_y, GL_RGBA, GL_UNSIGNED_BYTE, GL_LINEAR, ibuf->rect);
@@ -563,7 +563,7 @@ static void draw_empty_image(Object *ob, const short dflag, const unsigned char 
 	}
 
 	if ((dflag & DRAW_CONSTCOLOR) == 0) {
-		gpuCurrentColor3ubv(ob_wire_col);
+		gpuColor3ubv(ob_wire_col);
 	}
 
 	/* Calculate the outline vertex positions */
@@ -598,10 +598,10 @@ static void drawcentercircle(View3D *v3d, RegionView3D *rv3d, const float co[3],
 
 	if (special_color) {
 		if (selstate == ACTIVE || selstate == SELECT) {
-			gpuCurrentColor4x(0x88FFFF, 0.608f);
+			gpuColor4P(0x88FFFF, 0.608f);
 		}
 		else {
-			gpuCurrentColor4x(0x55CCCC, 0.608f);
+			gpuColor4P(0x55CCCC, 0.608f);
 		}
 	}
 	else {
@@ -747,7 +747,7 @@ void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, bool depth_write, flo
 				const char *str = (char *)(vos + 1);
 
 				if (col_pack_prev != vos->col.pack) {
-					gpuCurrentColor3ubv(vos->col.ub);
+					gpuColor3ubv(vos->col.ub);
 					col_pack_prev = vos->col.pack;
 				}
 
@@ -915,7 +915,7 @@ static void draw_transp_spot_volume(Lamp *la, float x, float z)
 	glCullFace(GL_FRONT);
 
 	glBlendFunc(GL_ZERO, GL_SRC_ALPHA); /* non-standard blend function */
-	gpuCurrentColor4x(CPACK_BLACK, 0.400f);
+	gpuColor4P(CPACK_BLACK, 0.400f);
 
 	draw_spot_cone(la, x, z);
 
@@ -923,7 +923,7 @@ static void draw_transp_spot_volume(Lamp *la, float x, float z)
 	glCullFace(GL_BACK);
 
 	glBlendFunc(GL_ONE, GL_ONE); /* non-standard blend function */
-	gpuCurrentGray3f(0.200f);
+	gpuGray3f(0.200f);
 
 	draw_spot_cone(la, x, z);
 
@@ -984,7 +984,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 		curcol[1] = ob_wire_col[1];
 		curcol[2] = ob_wire_col[2];
 		curcol[3] = 154;
-		gpuCurrentColor4ubv(curcol);
+		gpuColor4ubv(curcol);
 	}
 
 	gpuImmediateFormat_V3();
@@ -992,10 +992,10 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 	if (lampsize > 0.0f) {
 		if (!(dflag & DRAW_CONSTCOLOR)  && ob->id.us > 1) {
 			if (ob == OBACT || (ob->flag & SELECT)) {
-				gpuCurrentColor4x(0x88FFFF, 0.608f);
+				gpuColor4P(0x88FFFF, 0.608f);
 			}
 			else {
-				gpuCurrentColor4x(0x77CCCC, 0.608f);
+				gpuColor4P(0x77CCCC, 0.608f);
 			}
 		}
 
@@ -1008,7 +1008,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 		/* restore */
 		if ((dflag & DRAW_CONSTCOLOR) == 0) {
 			if (ob->id.us > 1)
-			gpuCurrentColor4ubv(curcol);
+			gpuColor4ubv(curcol);
 		}
 
 		/* Outer circle */
@@ -1229,7 +1229,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 	}
 
 	UI_GetThemeColor4ubv(TH_LAMP, col);
-	gpuCurrentColor4ubv(col);
+	gpuColor4ubv(col);
 
 	glEnable(GL_BLEND);
 
@@ -1260,7 +1260,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 
 	if ((dflag & DRAW_CONSTCOLOR) == 0) {
 		/* restore for drawing extra stuff */
-		gpuCurrentColor3ubv(ob_wire_col);
+		gpuColor3ubv(ob_wire_col);
 	}
 }
 
@@ -1274,7 +1274,7 @@ static void draw_limit_line(float sta, float end, const short dflag, unsigned in
 	if (!(dflag & DRAW_PICKING)) {
 		gpuSpriteSize(3.0);
 		gpuBegin(GL_POINTS);
-		gpuColor3x(col);
+		gpuColor3P(col);
 		gpuVertex3f(0.0, 0.0, -sta);
 		gpuVertex3f(0.0, 0.0, -end);
 		gpuEnd();
@@ -1391,10 +1391,10 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 
 			if ((dflag & DRAW_CONSTCOLOR) == 0) {
 				if (selected && (track->flag & TRACK_CUSTOMCOLOR) == 0) {
-					gpuCurrentColor3ubv(ob_wire_col);
+					gpuColor3ubv(ob_wire_col);
 				}
 				else {
-					gpuCurrentColor3fv(track->color);
+					gpuColor3fv(track->color);
 				}
 			}
 
@@ -1407,7 +1407,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 				/* selection outline */
 				if (selected) {
 					if ((dflag & DRAW_CONSTCOLOR) == 0) {
-						gpuCurrentColor3ubv(ob_wire_col);
+						gpuColor3ubv(ob_wire_col);
 					}
 
 					gpuLineWidth(2.f);
@@ -1422,7 +1422,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 				}
 
 				if ((dflag & DRAW_CONSTCOLOR) == 0) {
-					if (track->flag & TRACK_CUSTOMCOLOR) gpuCurrentColor3fv(track->color);
+					if (track->flag & TRACK_CUSTOMCOLOR) gpuColor3fv(track->color);
 					else UI_ThemeColor(TH_BUNDLE_SOLID);
 				}
 
@@ -1433,10 +1433,10 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 
 				if ((dflag & DRAW_CONSTCOLOR) == 0) {
 					if (selected) {
-						gpuCurrentColor3ubv(ob_wire_col);
+						gpuColor3ubv(ob_wire_col);
 					}
 					else {
-						if (track->flag & TRACK_CUSTOMCOLOR) gpuCurrentColor3fv(track->color);
+						if (track->flag & TRACK_CUSTOMCOLOR) gpuColor3fv(track->color);
 						else UI_ThemeColor(TH_WIRE);
 					}
 				}
@@ -1503,9 +1503,10 @@ static void draw_viewport_reconstruction(Scene *scene, Base *base, View3D *v3d, 
 	if (v3d->flag2 & V3D_RENDER_OVERRIDE)
 		return;
 
-	gpuEnableLighting();
-	gpuEnableColorMaterial();
-	gpuShadeModel(GL_SMOOTH);
+	// SSS GPU_SHADER_LIGHTING|GPU_SHADER_SMOOTH
+	//gpuEnableLighting();
+	//gpuEnableColorMaterial();
+	//gpuShadeModel(GL_SMOOTH);
 
 	tracking_object = tracking->objects.first;
 	while (tracking_object) {
@@ -1516,12 +1517,13 @@ static void draw_viewport_reconstruction(Scene *scene, Base *base, View3D *v3d, 
 	}
 
 	/* restore */
-	gpuShadeModel(GL_FLAT);
-	gpuDisableColorMaterial();
-	gpuDisableLighting();
+	// SSS End
+	//gpuShadeModel(GL_FLAT);
+	//gpuDisableColorMaterial();
+	//gpuDisableLighting();
 
 	if (!(dflag & DRAW_CONSTCOLOR)) {
-		gpuCurrentColor3ubv(ob_wire_col);
+		gpuColor3ubv(ob_wire_col);
 	}
 
 	if (dflag & DRAW_PICKING)
@@ -1557,7 +1559,7 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 		}
 		else {
 			float col[4];
-			gpuGetCurrentColor4fv(col);
+			gpuGetColor4fv(col);
 			rgb_float_to_uchar(view3d_camera_border_hack_col, col);
 		}
 		view3d_camera_border_hack_test = true;
@@ -1869,10 +1871,10 @@ static void drawSelectedVertices__mapFunc(void *userData, int index, const float
 
 		/* TODO define selected color */
 		if (sel) {
-			gpuColor3x(CPACK_YELLOW);
+			gpuColor3P(CPACK_YELLOW);
 		}
 		else {
-			gpuColor3x(CPACK_BLACK);
+			gpuColor3P(CPACK_BLACK);
 		}
 
 		gpuVertex3fv(co);
@@ -2045,10 +2047,10 @@ static void draw_dm_verts__mapFunc(void *userData, int index, const float co[3],
 				float radius = (vs->radius[0] + vs->radius[1]) * 0.5f;
 				gpuEndSprites();
 
-				gpuCurrentColor4ubv(data->th_skin_root);
+				gpuColor4ubv(data->th_skin_root);
 				gpuDrawFastBall(GL_LINES, co, radius, data->imat);
 
-				gpuCurrentColor4ubv(data->sel ? data->th_vertex_select : data->th_vertex);
+				gpuColor4ubv(data->sel ? data->th_vertex_select : data->th_vertex);
 				gpuBeginSprites();
 			}
 		}
@@ -2064,7 +2066,7 @@ static void draw_dm_verts__mapFunc(void *userData, int index, const float co[3],
 			gpuSprite3fv(co);
 			gpuEndSprites();
 
-			gpuCurrentColor4ubv(data->sel ? data->th_vertex_select : data->th_vertex);
+			gpuColor4ubv(data->sel ? data->th_vertex_select : data->th_vertex);
 			gpuSpriteSize(data->th_vertex_size);
 			gpuBeginSprites();
 		}
@@ -2386,7 +2388,7 @@ static DMDrawOption draw_dm_creases__setDrawOptions(void *userData, int index)
 		return DM_DRAW_OPTION_SKIP;
 	
 	if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN) && *crease != 0.0f) {
-		UI_ThemeAppendColorBlend(TH_WIRE_EDIT, TH_EDGE_CREASE, *crease);
+		UI_ThemeColorBlend(TH_WIRE_EDIT, TH_EDGE_CREASE, *crease);
 		return DM_DRAW_OPTION_NORMALLY;
 	}
 	else {
@@ -2411,7 +2413,7 @@ static DMDrawOption draw_dm_bweights__setDrawOptions(BMEditMesh *em, int index)
 		return DM_DRAW_OPTION_SKIP;
 	
 	if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN) && *bweight != 0.0f) {
-		UI_ThemeAppendColorBlend(TH_WIRE_EDIT, TH_EDGE_SELECT, *bweight);
+		UI_ThemeColorBlend(TH_WIRE_EDIT, TH_EDGE_SELECT, *bweight);
 		return DM_DRAW_OPTION_NORMALLY;
 	}
 	else {
@@ -2430,7 +2432,7 @@ static void draw_dm_bweights__mapFunc(BMEditMesh *em, int index, const float co[
 	if (bweight && *bweight != 0.0f &&
 		!BM_elem_flag_test(eve, BM_ELEM_HIDDEN))
 	{
-		UI_ThemeAppendColorBlend(TH_VERTEX, TH_VERTEX_SELECT, *bweight);
+		UI_ThemeColorBlend(TH_VERTEX, TH_VERTEX_SELECT, *bweight);
 		gpuSprite3fv(co);
 	}
 }
@@ -2505,13 +2507,13 @@ static void draw_em_fancy_verts(Scene *scene, View3D *v3d, Object *obedit,
 
 			if (ts->selectmode & SCE_SELECT_VERTEX) {
 				gpuSpriteSize(size);
-				gpuCurrentColor4ubv(col);
+				gpuColor4ubv(col);
 				draw_dm_verts(em, cageDM, sel, eve_act, rv3d);
 			}
 			
 			if (check_ob_drawface_dot(scene, v3d, obedit->dt)) {
 				gpuSpriteSize(fsize);
-				gpuCurrentColor4ubv(fcol);
+				gpuColor4ubv(fcol);
 				draw_dm_face_centers(em, cageDM, sel);
 			}
 			
@@ -2577,7 +2579,7 @@ static void draw_em_fancy_edges(BMEditMesh *em, Scene *scene, View3D *v3d,
 		}
 		else {
 			if (!sel_only) {
-				gpuCurrentColor4ubv(wireCol);
+				gpuColor4ubv(wireCol);
 				draw_dm_edges(em, cageDM);
 			}
 		}
@@ -3068,7 +3070,7 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 
 			draw_dm_edges_seams(em, cageDM);
 
-			gpuCurrentColor3x(CPACK_BLACK);
+			gpuColor3P(CPACK_BLACK);
 			gpuLineWidth(1);
 		}
 		
@@ -3078,7 +3080,7 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 
 			draw_dm_edges_sharp(em, cageDM);
 
-			gpuCurrentColor3x(CPACK_BLACK);
+			gpuColor3P(CPACK_BLACK);
 			gpuLineWidth(1);
 		}
 
@@ -3089,7 +3091,7 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 	
 			draw_dm_edges_freestyle(em, cageDM);
 	
-			gpuCurrentColor3ub(0, 0, 0);
+			gpuColor3ub(0, 0, 0);
 			gpuLineWidth(1);
 		}
 #endif
@@ -3248,7 +3250,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 		if (!(draw_flags & DRAW_FACE_SELECT)) {
 			if ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
 				if ((dflag & DRAW_CONSTCOLOR) == 0) {
-					gpuCurrentColor3ubv(ob_wire_col);
+					gpuColor3ubv(ob_wire_col);
 				}
 				dm->drawLooseEdges(dm);
 			}
@@ -3283,8 +3285,9 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 				gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
 
 				/* diffuse */
-				gpuEnableLighting();
-				gpuEnableColorMaterial();
+				// SSS Begin GPU_SHADER_LIGHTING
+				//gpuEnableLighting();
+				//gpuEnableColorMaterial();
 
 				gpuImmediateFormat_C4_N3_V3();
 				dm->drawMappedFaces(
@@ -3296,8 +3299,9 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 					DM_DRAW_USE_COLORS|DM_DRAW_USE_NORMALS);
 				gpuImmediateUnformat();
 
-				gpuDisableColorMaterial();
-				gpuDisableLighting();
+				// SSS End
+				//gpuDisableColorMaterial();
+				//gpuDisableLighting();
 
 				GPU_disable_material();
 			}
@@ -3346,7 +3350,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 
 			if (!ob->sculpt && (v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
 				if ((dflag & DRAW_CONSTCOLOR) == 0) {
-					gpuCurrentColor3ubv(ob_wire_col);
+					gpuColor3ubv(ob_wire_col);
 				}
 				dm->drawLooseEdges(dm);
 			}
@@ -3372,7 +3376,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 				ob_wire_color_blend_theme_id(ob_wire_col, TH_BACK, 0.15f);
 			}
 			else {
-				gpuCurrentColor3ubv(ob_wire_col);
+				gpuColor3ubv(ob_wire_col);
 			}
 		}
 
@@ -3401,7 +3405,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 	if (is_obact && paint_vertsel_test(ob)) {
 		const int use_depth = (v3d->flag & V3D_ZBUF_SELECT);
 		
-		gpuCurrentColor3x(CPACK_BLACK);
+		gpuColor3P(CPACK_BLACK);
 		gpuSpriteSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
 
 		if (!use_depth) glDisable(GL_DEPTH_TEST);
@@ -3659,12 +3663,12 @@ static void drawDispListsolid(ListBase *lb, Object *ob, const short dflag,
 			case DL_SEGM:
 				if (ob->type == OB_SURF) {
 					gpuDisableLighting();
-					gpuCurrentColor3ubv(ob_wire_col);
+					gpuColor3ubv(ob_wire_col);
 					gpuSingleClientArrays_V3F(GL_LINE_STRIP, dl->verts, 0, 0, dl->nr);
 					gpuEnableLighting();
 					
 					if ((dflag & DRAW_CONSTCOLOR) == 0) {
-						gpuCurrentColor3ubv(ob_wire_col);
+						gpuColor3ubv(ob_wire_col);
 					}
 				}
 				break;
@@ -3707,7 +3711,7 @@ static void drawDispListsolid(ListBase *lb, Object *ob, const short dflag,
 						dl->index);
 				}
 				else {
-					gpuCurrentNormal3fv(dl->nors);
+					gpuNormal3fv(dl->nors);
 					gpuSingleClientElements_V3F(
 						GL_TRIANGLES,
 						dl->verts,
@@ -3831,7 +3835,7 @@ static bool drawDispList_nobackface(Scene *scene, View3D *v3d, RegionView3D *rv3
 						GPU_end_object_materials();
 					}
 					if (cu->editnurb && cu->bevobj == NULL && cu->taperobj == NULL && cu->ext1 == 0.0f && cu->ext2 == 0.0f) {
-						gpuCurrentColor3x(CPACK_BLACK);
+						gpuColor3P(CPACK_BLACK);
 						draw_index_wire = false;
 						drawDispListwire(lb);
 						draw_index_wire = true;
@@ -4251,7 +4255,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 		copy_v3_v3(ma_col, &ma->r);
 	}
 
-	gpuCurrentColor3ubv(tcol);
+	gpuColor3ubv(tcol);
 
 	timestep = psys_get_timestep(&sim);
 
@@ -4584,8 +4588,9 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 		float* cdata2 = NULL;
 
 		/* setup gl flags */
-		gpuEnableLighting();
-		gpuEnableColorMaterial();
+		// SSS ???
+		//gpuEnableLighting();
+		//gpuEnableColorMaterial();
 
 		if (totchild && (part->draw & PART_DRAW_PARENT) == 0) {
 			totpart = 0;
@@ -4654,7 +4659,8 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 
 		/* restore & clean up */
 
-		gpuDisableColorMaterial();
+		// SSS ???
+		//gpuDisableColorMaterial();
 
 		if (cdata2) {
 			MEM_freeN(cdata2);
@@ -4704,7 +4710,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 		}
 
 		/* restore from select */
-		gpuCurrentColor3fv(ma_col);
+		gpuColor3fv(ma_col);
 		gpuSpriteSize(part->draw_size ? part->draw_size : 2.0);
 		gpuLineWidth(1.0);
 
@@ -4713,11 +4719,13 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 		/* billboards are drawn this way */
 		if (pdd->ndata && ob_dt > OB_WIRE) {
 			nPtr = pdd->ndata;
-			gpuEnableLighting();
+			// SSS ???
+			//gpuEnableLighting();
 		}
 		else {
 			nPtr = NULL;
-			gpuDisableLighting();
+			// SSS ???
+			//gpuDisableLighting();
 		}
 
 		if (pdd->cdata) {
@@ -4734,7 +4742,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 	}
 
 	if (pdd && pdd->vedata) {
-		gpuCurrentGray3f(0.753f);
+		gpuGray3f(0.753f);
 
 		draw_particle_arrays(
 			PART_DRAW_LINE,
@@ -4748,9 +4756,10 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 
 	gpuPolygonMode(polygonmode);
 
-/* 7. */
+	// SSS ???
+	//gpuDisableLighting();
 
-	gpuDisableLighting();
+/* 7. */
 
 	if (states) {
 		MEM_freeN(states);
@@ -4821,12 +4830,14 @@ static void draw_ptcache_edit(Scene *scene, View3D *v3d, PTCacheEdit *edit)
 	glEnable(GL_BLEND);
 	pathcol = MEM_callocN(steps * 4 * sizeof(float), "particle path color data");
 
-	gpuEnableColorMaterial();
-	gpuShadeModel(GL_SMOOTH);
+	// SSS ???
+	//gpuEnableColorMaterial();
+	//gpuShadeModel(GL_SMOOTH);
 
 	if (pset->brushtype == PE_BRUSH_WEIGHT) {
 		gpuLineWidth(2.0f);
-		gpuDisableLighting();
+		// SSS ???
+		//gpuDisableLighting();
 	}
 
 	cache = edit->pathcache;
@@ -5002,9 +5013,10 @@ static void draw_ptcache_edit(Scene *scene, View3D *v3d, PTCacheEdit *edit)
 	}
 
 	glDisable(GL_BLEND);
-	gpuDisableLighting();
-	gpuDisableColorMaterial();
-	gpuShadeModel(GL_FLAT);
+	// SSS ???
+	//gpuDisableLighting();
+	//gpuDisableColorMaterial();
+	//gpuShadeModel(GL_FLAT);
 
 	if (v3d->zbuf) {
 		glEnable(GL_DEPTH_TEST);
@@ -5026,7 +5038,7 @@ static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, flo
 
 	gpuImmediateFormat_V3();
 
-	gpuCurrentColor4x(0x7F0000, 0.608f);
+	gpuColor4P(0x7F0000, 0.608f);
 	gpuBegin(GL_LINES);
 	root[1] = root[2] = 0.0f;
 	root[0] = -drw_size;
@@ -5076,7 +5088,7 @@ static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, flo
 	gpuVertex3fv(tip);
 	gpuEnd();
 
-	gpuCurrentColor4x(0x007F00, 0.608f);
+	gpuColor4P(0x007F00, 0.608f);
 
 	gpuBegin(GL_LINES);
 	root[0] = root[2] = 0.0f;
@@ -5127,7 +5139,7 @@ static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, flo
 	gpuVertex3fv(tip);
 	gpuEnd();
 
-	gpuCurrentColor4x(0x00007F, 0.608f);
+	gpuColor4P(0x00007F, 0.608f);
 	gpuBegin(GL_LINES);
 	root[0] = root[1] = 0.0f;
 	root[2] = -drw_size;
@@ -5273,7 +5285,7 @@ static void drawhandlesN_active(Nurb *nu)
 	}
 	gpuEnd();
 
-	gpuCurrentColor3x(CPACK_BLACK);
+	gpuColor3P(CPACK_BLACK);
 	gpuLineWidth(1);
 }
 
@@ -5303,7 +5315,7 @@ static void drawvertsN(Nurb *nu, const char sel, const bool hide_handles, void *
 		while (a--) {
 			if (bezt->hide == 0) {
 				if (sel == 1 && bezt == lastsel) {
-					UI_ThemeAppendColor(TH_LASTSEL_POINT);
+					UI_ThemeColor(TH_LASTSEL_POINT);
 					gpuSprite3fv(bezt->vec[1]);
 
 					if (!hide_handles) {
@@ -5311,7 +5323,7 @@ static void drawvertsN(Nurb *nu, const char sel, const bool hide_handles, void *
 						if (bezt->f3 & SELECT) gpuSprite3fv(bezt->vec[2]);
 					}
 
-					UI_ThemeAppendColor(color);
+					UI_ThemeColor(color);
 				}
 				else if (hide_handles) {
 					if ((bezt->f2 & SELECT) == sel) gpuSprite3fv(bezt->vec[1]);
@@ -5331,9 +5343,9 @@ static void drawvertsN(Nurb *nu, const char sel, const bool hide_handles, void *
 		while (a--) {
 			if (bp->hide == 0) {
 				if (bp == lastsel) {
-					UI_ThemeAppendColor(TH_LASTSEL_POINT);
+					UI_ThemeColor(TH_LASTSEL_POINT);
 					gpuSprite3fv(bp->vec);
-					UI_ThemeAppendColor(color);
+					UI_ThemeColor(color);
 				}
 				else {
 					if ((bp->f1 & SELECT) == sel) gpuSprite3fv(bp->vec);
@@ -5367,7 +5379,7 @@ static void editnurb_draw_active_poly(Nurb *nu)
 		gpuEnd();
 	}
 
-	gpuCurrentColor3x(CPACK_BLACK);
+	gpuColor3P(CPACK_BLACK);
 	gpuLineWidth(1);
 }
 
@@ -5412,7 +5424,7 @@ static void editnurb_draw_active_nurbs(Nurb *nu)
 
 	gpuEnd();
 
-	gpuCurrentColor3x(CPACK_BLACK);
+	gpuColor3P(CPACK_BLACK);
 	gpuLineWidth(1);
 }
 
@@ -5546,7 +5558,7 @@ static void drawnurb(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 
 	/* DispList */
 	UI_GetThemeColor3ubv(TH_WIRE_EDIT, wire_col);
-	gpuCurrentColor3ubv(wire_col);
+	gpuColor3ubv(wire_col);
 
 	drawDispList(scene, v3d, rv3d, base, dt, dflag, ob_wire_col);
 
@@ -5689,7 +5701,7 @@ static void draw_textcurs(RegionView3D *rv3d, float textcurs[4][2])
 {
 	gpuImmediateFormat_V3();
 	bglPolygonOffset(rv3d->dist, -1.0);
-	gpuCurrentColor3x(CPACK_BLACK);
+	gpuColor3P(CPACK_BLACK);
 	set_inverted_drawing(1);
 	gpuBegin(GL_QUADS);
 	gpuVertex2fv(textcurs[0]);
@@ -5764,7 +5776,7 @@ static bool drawmball(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 		if (!(G.f & G_PICKSEL)) {
 			unsigned char wire_col[4];
 			UI_GetThemeColor4ubv(TH_WIRE_EDIT, wire_col);
-			gpuCurrentColor3ubv(wire_col);
+			gpuColor3ubv(wire_col);
 
 			drawDispList(scene, v3d, rv3d, base, dt, dflag, wire_col);
 		}
@@ -5794,7 +5806,7 @@ static bool drawmball(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 
 	if (mb->editelems == NULL) {
 		if ((dflag & DRAW_CONSTCOLOR) == 0) {
-			gpuCurrentColor3ubv(ob_wire_col);
+			gpuColor3ubv(ob_wire_col);
 		}
 	}
 	
@@ -5802,8 +5814,8 @@ static bool drawmball(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 		/* draw radius */
 		if (mb->editelems) {
 			if ((dflag & DRAW_CONSTCOLOR) == 0) {
-				if ((ml->flag & SELECT) && (ml->flag & MB_SCALE_RAD)) gpuCurrentColor3x(0xA0A0F0);
-				else gpuCurrentColor3x(0x3030A0);
+				if ((ml->flag & SELECT) && (ml->flag & MB_SCALE_RAD)) gpuColor3P(0xA0A0F0);
+				else gpuColor3P(0x3030A0);
 			}
 			
 			if (G.f & G_PICKSEL) {
@@ -5817,8 +5829,8 @@ static bool drawmball(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 		/* draw stiffness */
 		if (mb->editelems) {
 			if ((dflag & DRAW_CONSTCOLOR) == 0) {
-				if ((ml->flag & SELECT) && !(ml->flag & MB_SCALE_RAD)) gpuCurrentColor3x(0xA0F0A0);
-				else gpuCurrentColor3x(0x30A030);
+				if ((ml->flag & SELECT) && !(ml->flag & MB_SCALE_RAD)) gpuColor3P(0xA0F0A0);
+				else gpuColor3P(0x30A030);
 			}
 			
 			if (G.f & G_PICKSEL) {
@@ -6300,7 +6312,7 @@ static void draw_wire_extra(Scene *scene, RegionView3D *rv3d, Object *ob, unsign
 			UI_ThemeColor(TH_WIRE_EDIT);
 		}
 		else {
-			gpuCurrentColor3ubv(ob_wire_col);
+			gpuColor3ubv(ob_wire_col);
 		}
 
 		bglPolygonOffset(rv3d->dist, 1.0);
@@ -6580,7 +6592,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		draw_object_wire_color(scene, base, _ob_wire_col);
 		ob_wire_col = _ob_wire_col;
 
-		gpuCurrentColor3ubv(ob_wire_col);
+		gpuColor3ubv(ob_wire_col);
 	}
 
 	/* maximum drawtype */
@@ -6661,7 +6673,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				draw_textcurs(rv3d, cu->editfont->textcurs);
 
 				if (cu->flag & CU_FAST) {
-					gpuCurrentColor3x(CPACK_WHITE);
+					gpuColor3P(CPACK_WHITE);
 					set_inverted_drawing(1);
 					drawDispList(scene, v3d, rv3d, base, OB_WIRE, dflag, ob_wire_col);
 					set_inverted_drawing(0);
@@ -6716,7 +6728,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				if (BKE_vfont_select_get(ob, &selstart, &selend) && cu->selboxes) {
 					float selboxw;
 
-					gpuCurrentColor3x(CPACK_WHITE);
+					gpuColor3P(CPACK_WHITE);
 					set_inverted_drawing(1);
 					for (i = 0; i < (selend - selstart + 1); i++) {
 						SelBox *sb = &(cu->selboxes[i]);
@@ -6874,7 +6886,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		ParticleSystem *psys;
 
 		if (ob->flag & SELECT) {
-			gpuCurrentColor3x(CPACK_WHITE); /* for visibility, also while wpaint */
+			gpuColor3P(CPACK_WHITE); /* for visibility, also while wpaint */
 		}
 		//gpuDepthMask(GL_FALSE);
 
@@ -6930,7 +6942,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				gpuLoadMatrix(rv3d->viewmat);
 
 				if (ob->flag & SELECT) {
-					gpuCurrentColor3x(CPACK_WHITE);
+					gpuColor3P(CPACK_WHITE);
 				}
 				gpuDepthMask(GL_FALSE);
 				glEnable(GL_BLEND);
@@ -6964,7 +6976,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 			gpuMultMatrix(ob->obmat);
 
 			if (ob->flag & SELECT) {
-				gpuCurrentColor3x(CPACK_WHITE);
+				gpuColor3P(CPACK_WHITE);
 			}
 			
 			/* draw adaptive domain bounds */
@@ -7064,7 +7076,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 			if (dtx & OB_TEXSPACE) {
 				if ((dflag & DRAW_CONSTCOLOR) == 0) {
 					/* prevent random colors being used */
-					gpuCurrentColor3ubv(ob_wire_col);
+					gpuColor3ubv(ob_wire_col);
 				}
 				drawtexspace(ob);
 			}
@@ -7100,7 +7112,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 			if ((dflag & DRAW_CONSTCOLOR) == 0) {
 				/* prevent random colors being used */
-				gpuCurrentColor3ubv(ob_wire_col);
+				gpuColor3ubv(ob_wire_col);
 			}
 
 			setlinestyle(2);
@@ -7192,7 +7204,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 			
 			UI_GetThemeColor3ubv(TH_GRID, col1);
 			UI_make_axis_color(col1, col2, 'Z');
-			gpuCurrentColor3ubv(col2);
+			gpuColor3ubv(col2);
 			
 			cob = BKE_constraints_make_evalob(scene, ob, NULL, CONSTRAINT_OBTYPE_OBJECT);
 			
@@ -7415,7 +7427,7 @@ static void bbs_mesh_solid_EM(BMEditMesh *em, Scene *scene, View3D *v3d,
 		gpuImmediateFormat_C4_V3();
 	}
 	else {
-		gpuCurrentColor3x(CPACK_BLACK);
+		gpuColor3P(CPACK_BLACK);
 		gpuImmediateFormat_V3();
 	}
 
@@ -7475,7 +7487,7 @@ static void bbs_mesh_solid_verts(Scene *scene, Object *ob)
 {
 	Mesh *me = ob->data;
 	DerivedMesh *dm = mesh_get_derived_final(scene, ob, scene->customdata_mask);
-	gpuCurrentColor3x(CPACK_BLACK);
+	gpuColor3P(CPACK_BLACK);
 
 	dm->drawMappedFaces(dm, bbs_mesh_solid_hide2__setDrawOpts, GPU_enable_material, NULL, me, 0);
 
@@ -7594,29 +7606,33 @@ static void draw_object_mesh_instance(Scene *scene, View3D *v3d, RegionView3D *r
 			draw_mesh_object_outline(v3d, ob, dm ? dm : edm);
 
 		if (dm) {
+			// SSS ??? XXX jwilkins: need a codegen aspect?
 			glsl = draw_glsl_material(scene, ob, v3d, dt);
 			GPU_begin_object_materials(v3d, rv3d, scene, ob, glsl, NULL);
 		}
 		else {
-			gpuEnableColorMaterial();
+			// SSS Begin GPU_SHADING_LIGHTING
+			//gpuEnableColorMaterial();
 			UI_ThemeColor(TH_BONE_SOLID);
-			gpuDisableColorMaterial();
+			//gpuDisableColorMaterial();
+
+			//gpuEnableLighting();
 		}
 		
 		glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);
-		gpuEnableLighting();
 		
 		if (dm) {
 			dm->drawFacesSolid(dm, NULL, 0, GPU_enable_material);
 			GPU_end_object_materials();
+			// SSS ??? codegen end?
 		}
 		else if (edm) {
 			gpuImmediateFormat_N3_V3();
 			edm->drawMappedFaces(edm, NULL, GPU_enable_material, NULL, NULL, DM_DRAW_USE_NORMALS);
 			gpuImmediateUnformat();
+			// SSS End
+			//gpuDisableLighting();
 		}
-
-		gpuDisableLighting();
 	}
 
 	if (edm) edm->release(edm);

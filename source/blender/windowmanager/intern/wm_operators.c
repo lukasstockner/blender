@@ -3347,7 +3347,7 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 		RNA_property_float_get_array(&rc->fill_col_ptr, rc->fill_col_prop, col);
 	}
 
-	gpuCurrentColor4f(col[0], col[1], col[2], alpha);
+	gpuColor4f(col[0], col[1], col[2], alpha);
 
 	if (rc->gltex) {
 		gpuBindTexture(GL_TEXTURE_2D, rc->gltex);
@@ -3369,7 +3369,7 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 		}
 #endif
 
-		gpuAspectBegin(GPU_ASPECT_TEXTURE, NULL);
+		GPU_aspect_begin(GPU_ASPECT_TEXTURE, NULL);
 
 		gpuImmediateFormat_T2_V2();
 		gpuBegin(GL_TRIANGLE_FAN);
@@ -3384,7 +3384,7 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 		gpuEnd();
 		gpuImmediateUnformat();
 
-		gpuAspectEnd(GPU_ASPECT_TEXTURE, NULL);
+		GPU_aspect_end(GPU_ASPECT_TEXTURE, NULL);
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 		if (GPU_PROFILE_COMPAT) {
@@ -3461,7 +3461,7 @@ static void radial_control_paint_cursor(bContext *C, int x, int y, void *customd
 		RNA_property_float_get_array(&rc->col_ptr, rc->col_prop, col);
 	}
 
-	gpuCurrentColor4fv(col);
+	gpuColor4fv(col);
 
 	gpuImmediateFormat_V2(); // DOODLE: radial control, pair of lines and a pair of circles
 

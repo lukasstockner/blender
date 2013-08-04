@@ -29,6 +29,17 @@
  *  \ingroup gpu
  */
 
+/* my interface */
+#include "intern/gpu_codegen.h"
+
+/* internal */
+#include "intern/gpu_common.h"
+
+/* my library */
+#include "GPU_material.h"
+#include "GPU_extensions.h"
+
+/* external */
 
 #include "MEM_guardedalloc.h"
 
@@ -37,24 +48,19 @@
 #include "DNA_material_types.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_utildefines.h"
 #include "BLI_dynstr.h"
 #include "BLI_ghash.h"
 #include "BLI_heap.h"
-
-#include "GPU_compatibility.h"
-#include "GPU_material.h"
-#include "GPU_extensions.h"
-
-#include "BLI_sys_types.h" // for intptr_t support
-
-#include "gpu_codegen.h"
-#include "intern/gpu_known.h"
+#include "BLI_sys_types.h" /* for intptr_t */
+#include "BLI_utildefines.h"
 
 #include "node_util.h" /* For muting node stuff... */
 
+/* standard */
 #include <string.h>
 #include <stdarg.h>
+
+
 
 extern const char datatoc_gpu_shader_material_glsl[];
 extern const char datatoc_gpu_shader_vertex_glsl[];
@@ -62,6 +68,7 @@ extern const char datatoc_gpu_shader_vertex_glsl[];
 
 
 static char *glsl_material_library = NULL;
+
 
 
 /* structs and defines */
@@ -630,15 +637,7 @@ static char *code_generate_vertex(ListBase *nodes)
 	GPUInput *input;
 	char *code;
 
-#if defined(WITH_GL_PROFILE_CORE)
-	BLI_dynstr_append(ds, "#version 130\n\n");
-#endif
-
-#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
-	BLI_dynstr_append(ds, datatoc_gpu_shader_known_constants_glsl);
-	BLI_dynstr_append(ds, datatoc_gpu_shader_known_uniforms_glsl);
-	BLI_dynstr_append(ds, datatoc_gpu_shader_known_attribs_glsl);
-#endif
+	gpu_include_common_vert(ds);
 
 	for (node=nodes->first; node; node=node->next) {
 		for (input=node->inputs.first; input; input=input->next) {
@@ -691,21 +690,7 @@ void GPU_code_generate_glsl_lib(void)
 
 	ds = BLI_dynstr_new();
 
-#if defined(WITH_GL_PROFILE_CORE)
-	BLI_dynstr_append(ds, "#version 130\n\n");
-#endif
-
-#if defined(WITH_GL_PROFILE_ES20)
-	BLI_dynstr_append(ds, 
-		"#define B_GLES\n"
-		"precision mediump float;\n"
-		"\n");
-#endif
-
-#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
-	BLI_dynstr_append(ds, datatoc_gpu_shader_known_constants_glsl);
-	BLI_dynstr_append(ds, datatoc_gpu_shader_known_uniforms_glsl);
-#endif
+	gpu_include_common_frag(ds);
 
 	BLI_dynstr_append(ds, datatoc_gpu_shader_material_glsl);
 

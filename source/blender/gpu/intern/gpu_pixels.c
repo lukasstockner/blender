@@ -29,15 +29,20 @@
  *  \ingroup gpu
  */
 
-#include "gpu_pixels.h"
+/* my interface */
+#include "intern/gpu_pixels.h"
 
-#include "gpu_profile.h"
-#include "gpu_safety.h"
+/* my library */
 #include "GPU_matrix.h"
-#include "gpu_view.h"
-#include "gpu_state_latch.h"
-#include "gpu_aspect.h"
-#include "gpu_aspectfuncs.h"
+#include "GPU_basic_shader.h"
+
+/* internal */
+#include "intern/gpu_profile.h"
+#include "intern/gpu_safety.h"
+#include "intern/gpu_view.h"
+#include "intern/gpu_state_latch.h"
+#include "intern/gpu_aspect.h"
+#include "intern/gpu_aspectfuncs.h"
 
 
 
@@ -271,7 +276,7 @@ void gpuPixelsBegin()
 	}
 #endif
 
-	gpuAspectBegin(GPU_ASPECT_PIXELS, NULL);
+	GPU_aspect_begin(GPU_ASPECT_BASIC, SET_UINT_IN_POINTER(GPU_BASIC_TEXTURE_2D));
 }
 
 
@@ -463,5 +468,5 @@ void gpuPixelsEnd()
 	}
 #endif
 
-	gpuAspectEnd(GPU_ASPECT_PIXELS, NULL);
+	GPU_aspect_end();
 }

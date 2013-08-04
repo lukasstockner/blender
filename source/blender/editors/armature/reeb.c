@@ -3356,7 +3356,7 @@ void REEB_draw()
 		char *s = text;
 
 		gpuLineWidth(BIF_GetThemeValuef(TH_VERTEX_SIZE) + 2);
-		gpuCurrentColor3x(CPACK_BLACK);
+		gpuColor3P(CPACK_BLACK);
 
 		gpuImmediateFormat_V3(); // DOODLE: REEB (commented out)
 
@@ -3379,18 +3379,18 @@ void REEB_draw()
 
 		if (arc->symmetry_level == 1)
 		{
-			gpuCurrentColor3f(CPACK_RED);
+			gpuColor3f(CPACK_RED);
 		}
 		else if (arc->symmetry_flag == SYM_SIDE_POSITIVE || arc->symmetry_flag == SYM_SIDE_NEGATIVE)
 		{
-			gpuCurrentColor3f(1, 0.5f, 0);
+			gpuColor3f(1, 0.5f, 0);
 		}
 		else if (arc->symmetry_flag >= SYM_SIDE_RADIAL)
 		{
-			gpuCurrentColor3f(0.5f, 1, 0);
+			gpuColor3f(0.5f, 1, 0);
 		}
 		else {
-			gpuCurrentColor3f(CPACK_YELLOW);
+			gpuColor3f(CPACK_YELLOW);
 		}
 		gpuBegin(GL_LINE_STRIP);
 		gpuVertex3fv(arc->head->p);
@@ -3409,7 +3409,7 @@ void REEB_draw()
 
 		if (G.scene->toolsettings->skgen_options & SKGEN_DISP_EMBED)
 		{
-			gpuCurrentColor3x(CPACK_WHITE);
+			gpuColor3P(CPACK_WHITE);
 			gpuBegin(GL_POINTS);
 			gpuVertex3fv(arc->head->p);
 			gpuVertex3fv(arc->tail->p);
@@ -3443,7 +3443,7 @@ void REEB_draw()
 				s += sprintf(s, "l:%0.3f", arc->length);
 			}
 
-			gpuCurrentColor3f(CPACK_GREEN);
+			gpuColor3f(CPACK_GREEN);
 			glRasterPos3fv(vec);
 			BMF_DrawString(G.fonts, text);
 		}

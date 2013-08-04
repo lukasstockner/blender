@@ -471,7 +471,7 @@ static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int 
 	bGPDstroke *gps;
 	
 	/* set color first (may need to reset it again later too) */
-	gpuCurrentColor4fv(color);
+	gpuColor4fv(color);
 	
 	for (gps = gpf->strokes.first; gps; gps = gps->next) {
 		/* check if stroke can be drawn - checks here generally fall into pairs */
@@ -575,7 +575,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		glLineWidth(lthick);
 		copy_v4_v4(color, gpl->color); // just for copying 4 array elements
 		copy_v4_v4(tcolor, gpl->color); // additional copy of color (for ghosting)
-		gpuCurrentColor4fv(color);
+		gpuColor4fv(color);
 		gpuSpriteSize((float)(gpl->thickness + 2));
 		
 		/* apply xray layer setting */
@@ -617,7 +617,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 				}
 				
 				/* restore alpha */
-				gpuCurrentColor4fv(color);
+				gpuColor4fv(color);
 			}
 			else {
 				/* draw the strokes for the ghost frames (at half of the alpha set by user) */
@@ -632,7 +632,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 				}
 				
 				/* restore alpha */
-				gpuCurrentColor4fv(color);
+				gpuColor4fv(color);
 			}
 		}
 		

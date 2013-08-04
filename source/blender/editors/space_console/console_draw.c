@@ -193,7 +193,7 @@ static int console_textview_line_color(struct TextViewContext *tvc, unsigned cha
 
 		/* cursor */
 		UI_GetThemeColor3ubv(TH_CONSOLE_CURSOR, fg);
-		gpuCurrentColor3ubv(fg);
+		gpuColor3ubv(fg);
 
 		gpuSingleFilledRecti((xy[0] + pen[0]) - 1,
 		        (xy[1] + pen[1]),

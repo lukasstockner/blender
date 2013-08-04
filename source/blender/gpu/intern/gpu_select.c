@@ -56,6 +56,7 @@ GLsizei gpuSelectEnd(void)
 #if defined(WITH_GL_PROFILE_COMPAT)
 	return glRenderMode(GL_RENDER);
 #endif
+	return 0;
 }
 
 

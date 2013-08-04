@@ -47,61 +47,52 @@ set(INC_SYS
 set(SRC
     intern/gpu_aspect.c
 	intern/gpu_aspectfuncs.c
+	intern/gpu_basic_shader.c
 	intern/gpu_buffers.c
 	intern/gpu_codegen.c
+	intern/gpu_common.c
 	intern/gpu_debug.c
 	intern/gpu_draw.c
 	intern/gpu_extensions.c
 	intern/gpu_extension_wrapper.c
+	intern/gpu_font_shader.c
 	intern/gpu_immediate.c
-	intern/gpu_immediate_glsl.c
-	intern/gpu_immediate_gl11.c
-	intern/gpu_immediate_vbo.c
-	intern/gpu_known.c
+	intern/gpu_immediate_gl.c
 	intern/gpu_lighting.c
-	intern/gpu_lighting_gl11.c
-	intern/gpu_lighting_glsl.c
 	intern/gpu_material.c
 	intern/gpu_matrix.c
-	intern/gpu_object.c
-	intern/gpu_object_gles.c
-	intern/gpu_object_gl11.c
 	intern/gpu_pixels.c
 	intern/gpu_primitives.c
 	intern/gpu_raster.c
 	intern/gpu_select.c
-	intern/gpu_simple_shader.c
 	intern/gpu_state_latch.c
 	intern/gpu_view.c
 	intern/gpu_view_gl.c
 
+	GPU_basic_shader.h
 	GPU_buffers.h
 	GPU_colors.h
-	GPU_compatibility.h
 	GPU_draw.h
+	GPU_compatibility.h
 	GPU_extensions.h
+	GPU_font_shader.h
 	GPU_material.h
-	GPU_utility.h
-	GPU_simple_shader.h
 	GPU_matrix.h
-	GPU_primitives.h
 	GPU_object.h
+	GPU_primitives.h
+	GPU_utility.h
 
 	intern/gpu_aspect.h
 	intern/gpu_aspectfuncs.h
 	intern/gpu_codegen.h
+	intern/gpu_common.h
 	intern/gpu_deprecated.h
 	intern/gpu_extension_wrapper.h
-	intern/gpu_known.h
 	intern/gpu_glew.h
 	intern/gpu_immediate.h
 	intern/gpu_immediate_inline.h
-	intern/gpu_immediate_internal.h
+	intern/gpu_immediate_gl.h
 	intern/gpu_lighting.h
-	intern/gpu_lighting_inline.h
-	intern/gpu_lighting_internal.h
-	intern/gpu_object_gles.h
-	intern/gpu_object_gl11.h
 	intern/gpu_pixels.h
 	intern/gpu_primitives_inline.h
 	intern/gpu_profile.h
@@ -119,21 +110,24 @@ if(WITH_GPU_SAFETY)
 	)
 endif()
 
+data_to_c_simple(shaders/gpu_shader_vertex.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_material.glsl SRC)
+
 data_to_c_simple(shaders/gpu_shader_sep_gaussian_blur_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_sep_gaussian_blur_vert.glsl SRC)
-data_to_c_simple(shaders/gpu_shader_simple_frag.glsl SRC)
-data_to_c_simple(shaders/gpu_shader_simple_vert.glsl SRC)
-data_to_c_simple(shaders/gpu_shader_vertex.glsl SRC)
+
 data_to_c_simple(shaders/gpu_shader_vsm_store_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_vsm_store_vert.glsl SRC)
 
-data_to_c_simple(shaders/gpu_shader_known_attribs.glsl   SRC)
-data_to_c_simple(shaders/gpu_shader_known_constants.glsl SRC)
-data_to_c_simple(shaders/gpu_shader_known_uniforms.glsl  SRC)
+data_to_c_simple(shaders/gpu_shader_common_attribs.glsl   SRC)
+data_to_c_simple(shaders/gpu_shader_common_constants.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_common_uniforms.glsl  SRC)
 
 data_to_c_simple(shaders/gpu_shader_font_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_font_vert.glsl SRC)
+
+data_to_c_simple(shaders/gpu_shader_basic_frag.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_basic_vert.glsl SRC)
 
 if(WITH_MOD_SMOKE)
 	add_definitions(-DWITH_SMOKE)

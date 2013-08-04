@@ -247,7 +247,7 @@ static void drawFlyPixel(const struct bContext *UNUSED(C), ARegion *UNUSED(ar), 
 	x2 = 0.55f * (float)fly->ar->winx;
 	y2 = 0.55f * (float)fly->ar->winy;
 
-	gpuCurrentColor3x(CPACK_BLACK);
+	gpuColor3P(CPACK_BLACK);
 
 	gpuImmediateFormat_V2();
 

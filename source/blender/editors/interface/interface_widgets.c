@@ -201,7 +201,7 @@ void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y
 	int j;
 
 	glEnable(GL_BLEND);
-	gpuMultCurrentAlpha(0.125f);
+	gpuMultAlpha(0.125f);
 
 	gpuImmediateFormat_V2();
 	gpuBegin(GL_TRIANGLES);
@@ -228,10 +228,10 @@ void ui_draw_anti_roundbox(int mode, float minx, float miny, float maxx, float m
 	glEnable(GL_BLEND);
 
 	if (use_alpha) {
-		gpuCurrentAlpha(1.0f/16.0f); /* set alpha to 1/16th */
+		gpuAlpha(1.0f/16.0f); /* set alpha to 1/16th */
 	}
 	else {
-		gpuMultCurrentAlpha(1.0f/8.0f); /* multiply current alpha by 1/8th */
+		gpuMultAlpha(1.0f/8.0f); /* multiply current alpha by 1/8th */
 	}
 
 	for (j = 0; j < WIDGET_AA_JITTER; j++) {
@@ -703,18 +703,18 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 				float x_mid = 0; /* used for dumb clamping of values */
 
 				/* dark checkers */
-				gpuCurrentColor4ub(UI_TRANSP_DARK, UI_TRANSP_DARK, UI_TRANSP_DARK, 255);
+				gpuColor4ub(UI_TRANSP_DARK, UI_TRANSP_DARK, UI_TRANSP_DARK, 255);
 				arrays.vertexPointer = wtb->inner_v;
 				gpuDrawClientArrays(GL_TRIANGLE_FAN, &arrays, 0, wtb->totvert);
 
 				/* light checkers */
 				gpuEnablePolygonStipple();
-				gpuCurrentColor4ub(UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, 255);
+				gpuColor4ub(UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, 255);
 				gpuPolygonStipple(checker_stipple_sml);
 				gpuRepeat();
 				gpuDisablePolygonStipple();
 
-				gpuCurrentColor4ubv((unsigned char *)wcol->inner);
+				gpuColor4ubv((unsigned char *)wcol->inner);
 				gpuRepeat();
 
 				for (a = 0; a < wtb->totvert; a++) {
@@ -729,13 +729,13 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 				}
 
 				/* 1/2 solid color */
-				gpuCurrentColor4ub(wcol->inner[0], wcol->inner[1], wcol->inner[2], 255);
+				gpuColor4ub(wcol->inner[0], wcol->inner[1], wcol->inner[2], 255);
 				arrays.vertexPointer = inner_v_half;
 				gpuDrawClientArrays(GL_TRIANGLE_FAN, &arrays, 0, wtb->totvert);
 			}
 			else {
 				/* simple fill */
-				gpuCurrentColor4ubv((unsigned char *)wcol->inner);
+				gpuColor4ubv((unsigned char *)wcol->inner);
 				arrays.vertexPointer = wtb->inner_v;
 				gpuDrawClientArrays(GL_TRIANGLE_FAN, &arrays, 0, wtb->totvert);
 			}
@@ -751,7 +751,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 			shadecolors4(col1, col2, wcol->inner, wcol->shadetop, wcol->shadedown);
 
 			options = 0;
-			gpuAspectBegin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_SMOOTH);
+			GPU_aspect_begin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_SMOOTH);
 
 			for (a = 0; a < wtb->totvert; a++, col_pt += 4) {
 				round_box_shade_col4_r(col_pt, col1, col2, wtb->inner_uv[a][wtb->shadedir]);
@@ -766,7 +766,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 				0,
 				wtb->totvert);
 
-			gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_FLAT);
+			GPU_aspect_end(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_FLAT);
 		}
 	}
 
@@ -816,7 +816,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 
 			/* emboss bottom shadow */
 			if (0 && wtb->emboss) {
-				gpuColor4x(CPACK_WHITE, 0.020f);
+				gpuColor4P(CPACK_WHITE, 0.020f);
 				for (i = 0; i < 2*wtb->halfwayvert - 1; i += 2) {
 					gpuVertex2f(
 						quad_strip_emboss[i+0][0] + dx,
@@ -852,7 +852,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 		tcol[2] = wcol->item[2];
 		tcol[3] = (unsigned char)((float)wcol->item[3] / WIDGET_AA_JITTER);
 
-		gpuCurrentColor4ubv(tcol);
+		gpuColor4ubv(tcol);
 
 		gpuBegin(GL_TRIANGLES);
 		widget_trias_append(&wtb->tria1);
@@ -1219,7 +1219,7 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 				
 				but->drawstr[selend_tmp] = ch;
 
-				gpuCurrentColor4ubv((unsigned char *)wcol->item);
+				gpuColor4ubv((unsigned char *)wcol->item);
 				gpuSingleFilledRecti(rect->xmin + selsta_draw, rect->ymin + 2, rect->xmin + selwidth_draw, rect->ymax - 2);
 			}
 		}
@@ -1236,7 +1236,7 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 					but->drawstr[pos] = ch;
 				}
 
-				gpuCurrentColor3f(0.2f, 0.6f, 0.9f);
+				gpuColor3f(0.2f, 0.6f, 0.9f);
 				gpuSingleFilledRecti(rect->xmin + t, rect->ymin + 2, rect->xmin + t + 2, rect->ymax - 2);
 			}
 		}
@@ -1258,7 +1258,7 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 		}
 	}
 	
-	gpuCurrentColor4ubv((unsigned char *)wcol->text);
+	gpuColor4ubv((unsigned char *)wcol->text);
 
 	uiStyleFontDrawExt(fstyle, rect, but->drawstr + but->ofs, &font_xofs, &font_yofs);
 
@@ -1882,7 +1882,7 @@ static void widget_softshadow(const rcti *rect, int roundboxalign, const float r
 
 		round_box_shadow_edges(wtb.outer_v, &rect1, radin, UI_CNR_ALL, (float)step);
 
-		gpuColor4x(CPACK_BLACK, alphastep * (1.0f - expfac));
+		gpuColor4P(CPACK_BLACK, alphastep * (1.0f - expfac));
 
 		widget_verts_to_quad_strip(&wtb, totvert, quad_strip);
 
@@ -1928,12 +1928,12 @@ static void widget_menu_back(uiWidgetColors *wcol, rcti *rect, int flag, int dir
 
 static void ui_hsv_cursor(float x, float y)
 {
-	gpuCurrentColor3x(CPACK_WHITE);
+	gpuColor3P(CPACK_WHITE);
 	gpuDrawDisk(x, y, 3.0f * U.pixelsize, 8);
 
 	glEnable(GL_BLEND);
 	gpuEnableLineSmooth();
-	gpuCurrentColor3x(CPACK_BLACK);
+	gpuColor3P(CPACK_BLACK);
 	gpuDrawCircle(x, y, 3.0f * U.pixelsize, 12);
 	glDisable(GL_BLEND);
 	gpuDisableLineSmooth();
@@ -2019,7 +2019,7 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 	hsv_to_rgb(0.f, 0.f, hsv[2], colcent, colcent + 1, colcent + 2);
 
 	options = 0;
-	gpuAspectBegin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); //gpuShadeModel(GL_SMOOTH);
+	GPU_aspect_begin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); //gpuShadeModel(GL_SMOOTH);
 
 	gpuBegin(GL_TRIANGLE_FAN);
 	gpuColor3fv(colcent);
@@ -2038,12 +2038,12 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 	}
 	gpuEnd();
 
-	gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); //gpuShadeModel(GL_FLAT);
+	GPU_aspect_end(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); //gpuShadeModel(GL_FLAT);
 
 	/* fully rounded outline */
 	glEnable(GL_BLEND);
 	gpuEnableLineSmooth();
-	gpuCurrentColor3ubv((unsigned char *)wcol->outline);
+	gpuColor3ubv((unsigned char *)wcol->outline);
 	gpuDrawCircle(centx, centy, radius, tot + 1);
 	gpuDisableLineSmooth();
 	glDisable(GL_BLEND);
@@ -2072,7 +2072,7 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 	/* draw series of gouraud rects */
 
 	options = 0;
-	gpuAspectBegin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); //gpuShadeModel(GL_SMOOTH);
+	GPU_aspect_begin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); //gpuShadeModel(GL_SMOOTH);
 	
 	switch (type) {
 		case UI_GRAD_SV:
@@ -2195,7 +2195,7 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 		gpuEnd();
 	}
 	
-	gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); //gpuShadeModel(GL_SMOOTH);
+	GPU_aspect_end(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); //gpuShadeModel(GL_SMOOTH);
 }
 
 void ui_hsvcube_pos_from_vals(uiBut *but, const rcti *rect, float *hsv, float *xp, float *yp)
@@ -2259,7 +2259,7 @@ static void ui_draw_but_HSVCUBE(uiBut *but, const rcti *rect)
 	ui_hsv_cursor(x, y);
 
 	/* outline */
-	gpuCurrentColor3x(CPACK_BLACK);
+	gpuColor3P(CPACK_BLACK);
 	gpuDrawWireRectf((rect->xmin), (rect->ymin), (rect->xmax), (rect->ymax));
 
 	gpuImmediateUnformat();
@@ -2326,7 +2326,7 @@ static void ui_draw_separator(const rcti *rect,  uiWidgetColors *wcol)
 	col[3] = 7;
 
 	glEnable(GL_BLEND);
-	gpuCurrentColor4ubv(col);
+	gpuColor4ubv(col);
 	gpuSingleLinei(rect->xmin, y, rect->xmax, y); // DOODLE: single line
 	glDisable(GL_BLEND);
 }
@@ -2968,7 +2968,7 @@ static void widget_draw_extra_mask(const bContext *C, uiBut *but, uiWidgetType *
 		
 		/* make mask to draw over image */
 		UI_GetThemeColor3ubv(TH_BACK, col);
-		gpuCurrentColor3ubv(col);
+		gpuColor3ubv(col);
 		
 		round_box__edges(&wtb, UI_CNR_ALL, rect, 0.0f, rad);
 		widgetbase_outline(&wtb);
@@ -3461,12 +3461,12 @@ void ui_draw_menu_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
 	if (block) {
 		if (block->flag & UI_BLOCK_CLIPTOP) {
 			/* XXX no scaling for UI here yet */
-			gpuCurrentColor3ubv((unsigned char *)wt->wcol.text);
+			gpuColor3ubv((unsigned char *)wt->wcol.text);
 			UI_DrawTriIcon(BLI_rcti_cent_x(rect), rect->ymax - 8, 't');
 		}
 		if (block->flag & UI_BLOCK_CLIPBOTTOM) {
 			/* XXX no scaling for UI here yet */
-			gpuCurrentColor3ubv((unsigned char *)wt->wcol.text);
+			gpuColor3ubv((unsigned char *)wt->wcol.text);
 			UI_DrawTriIcon(BLI_rcti_cent_x(rect), rect->ymin + 10, 'v');
 		}
 	}
@@ -3528,7 +3528,7 @@ void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int ic
 		rect->xmax -= BLF_width(fstyle->uifont_id, cpoin + 1) + 10;
 	}
 	
-	gpuCurrentColor4ubv((unsigned char *)wt->wcol.text);
+	gpuColor4ubv((unsigned char *)wt->wcol.text);
 	uiStyleFontDraw(fstyle, rect, name);
 	
 	/* part text right aligned */
@@ -3587,12 +3587,12 @@ void ui_draw_preview_item(uiFontStyle *fstyle, rcti *rect, const char *name, int
 	if (bg_rect.xmax > rect->xmax - PREVIEW_PAD)
 		bg_rect.xmax = rect->xmax - PREVIEW_PAD;
 
-	gpuCurrentColor4ubv((unsigned char *)wt->wcol_theme->inner_sel);
+	gpuColor4ubv((unsigned char *)wt->wcol_theme->inner_sel);
 	glEnable(GL_BLEND);
 	gpuSingleFilledRecti(bg_rect.xmin, bg_rect.ymin, bg_rect.xmax, bg_rect.ymax);
 	glDisable(GL_BLEND);
 	
-	gpuCurrentColor3ubv((unsigned char *)wt->wcol.text);
+	gpuColor3ubv((unsigned char *)wt->wcol.text);
 
 	uiStyleFontDraw(fstyle, &trect, name);
 }

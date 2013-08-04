@@ -416,10 +416,10 @@ static void screencast_draw_cursor(bContext *UNUSED(C), int x, int y, void *UNUS
 	gpuEnableLineSmooth();
 	glEnable(GL_BLEND);
 	
-	gpuCurrentColor4ub(0, 0, 0, 32);
+	gpuColor4ub(0, 0, 0, 32);
 	gpuSingleArc(0, 0, 0, 2*M_PI, 20, 20, 40);
 	
-	gpuCurrentColor4ub(255, 255, 255, 128);
+	gpuColor4ub(255, 255, 255, 128);
 	gpuSingleArc(0, 0, 0, 2*M_PI, 20, 20, 40);
 	
 	glDisable(GL_BLEND);

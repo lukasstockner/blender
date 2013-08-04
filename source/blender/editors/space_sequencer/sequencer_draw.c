@@ -308,7 +308,7 @@ static void drawmeta_contents(Scene *scene, Sequence *seqm, float x1, float y1, 
 
 			get_seq_color3ubv(scene, seq, col);
 
-			gpuCurrentColor4ubv(col);
+			gpuColor4ubv(col);
 			
 			/* clamp within parent sequence strip bounds */
 			if (x1_chan < x1) x1_chan = x1;
@@ -320,7 +320,7 @@ static void drawmeta_contents(Scene *scene, Sequence *seqm, float x1, float y1, 
 			gpuSingleFilledRectf(x1_chan,  y1_chan, x2_chan,  y2_chan);
 
 			UI_GetColorPtrShade3ubv(col, col, -30);
-			gpuCurrentColor4ubv(col);
+			gpuColor4ubv(col);
 			gpuSingleWireRectf(x1_chan,  y1_chan, x2_chan,  y2_chan);
 
 			if ((seqm->flag & SEQ_MUTE) == 0 && (seq->flag & SEQ_MUTE))
@@ -385,22 +385,22 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, const float handsize_cla
 		glEnable(GL_BLEND);
 
 		if (seq->flag & whichsel) {
-			gpuCurrentColor4x(CPACK_BLACK, 0.314f);
+			gpuColor4P(CPACK_BLACK, 0.314f);
 		}
 		else if (seq->flag & SELECT) {
-			gpuCurrentColor4x(CPACK_WHITE, 0.118f);
+			gpuColor4P(CPACK_WHITE, 0.118f);
 		}
 		else {
-			gpuCurrentColor4x(CPACK_BLACK, 0.086f);
+			gpuColor4P(CPACK_BLACK, 0.086f);
 		}
 
 		gpuSingleFilledRectf(rx1, y1, rx2, y2);
 		
 		if (seq->flag & whichsel) {
-			gpuCurrentColor4x(CPACK_WHITE, 0.784f);
+			gpuColor4P(CPACK_WHITE, 0.784f);
 		}
 		else {
-			gpuCurrentColor4x(CPACK_BLACK, 0.196f);
+			gpuColor4P(CPACK_BLACK, 0.196f);
 		}
 
 #if defined(WITH_GL_PROFILE_COMPAT) 
@@ -462,17 +462,17 @@ static void draw_seq_extensions(Scene *scene, ARegion *ar, Sequence *seq)
 
 		if (seq->flag & SELECT) {
 			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.3, -40);
-			gpuCurrentColor4ub(col[0], col[1], col[2], 170);
+			gpuColor4ub(col[0], col[1], col[2], 170);
 		}
 		else {
 			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.6, 0);
-			gpuCurrentColor4ub(col[0], col[1], col[2], 110);
+			gpuColor4ub(col[0], col[1], col[2], 110);
 		}
 
 		gpuDrawFilledRectf((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);
 
-		if (seq->flag & SELECT) gpuCurrentColor4ub(col[0], col[1], col[2], 255);
-		else gpuCurrentColor4ub(col[0], col[1], col[2], 160);
+		if (seq->flag & SELECT) gpuColor4ub(col[0], col[1], col[2], 255);
+		else gpuColor4ub(col[0], col[1], col[2], 160);
 
 		gpuDrawWireRectf((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);  //outline
 
@@ -485,17 +485,17 @@ static void draw_seq_extensions(Scene *scene, ARegion *ar, Sequence *seq)
 
 		if (seq->flag & SELECT) {
 			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.3, -40);
-			gpuCurrentColor4ub(col[0], col[1], col[2], 170);
+			gpuColor4ub(col[0], col[1], col[2], 170);
 		}
 		else {
 			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.6, 0);
-			gpuCurrentColor4ub(col[0], col[1], col[2], 110);
+			gpuColor4ub(col[0], col[1], col[2], 110);
 		}
 
 		gpuDrawFilledRectf(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM);
 		
-		if (seq->flag & SELECT) gpuCurrentColor4ub(col[0], col[1], col[2], 255);
-		else gpuCurrentColor4ub(col[0], col[1], col[2], 160);
+		if (seq->flag & SELECT) gpuColor4ub(col[0], col[1], col[2], 255);
+		else gpuColor4ub(col[0], col[1], col[2], 160);
 
 		gpuDrawWireRectf(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM); //outline
 		
@@ -504,7 +504,7 @@ static void draw_seq_extensions(Scene *scene, ARegion *ar, Sequence *seq)
 	if (seq->startstill) {
 		get_seq_color3ubv(scene, seq, col);
 		UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.75, 40);
-		gpuCurrentColor3ubv((GLubyte *)col);
+		gpuColor3ubv((GLubyte *)col);
 
 		draw_shadedstrip(seq, col, x1, y1, (float)(seq->start), y2);
 
@@ -513,7 +513,7 @@ static void draw_seq_extensions(Scene *scene, ARegion *ar, Sequence *seq)
 		if (seq->flag & SELECT) UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, 24);
 		else UI_GetColorPtrShade3ubv(col, col, -16);
 
-		gpuCurrentColor3ubv((GLubyte *)col);
+		gpuColor3ubv((GLubyte *)col);
 
 		gpuBegin(GL_LINES);
 		for (a = y1; a < y2; a += pixely * 2.0f) {
@@ -524,7 +524,7 @@ static void draw_seq_extensions(Scene *scene, ARegion *ar, Sequence *seq)
 	if (seq->endstill) {
 		get_seq_color3ubv(scene, seq, col);
 		UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.75, 40);
-		gpuCurrentColor3ubv((GLubyte *)col);
+		gpuColor3ubv((GLubyte *)col);
 
 		draw_shadedstrip(seq, col, (float)(seq->start + seq->len), y1, x2, y2);
 
@@ -533,7 +533,7 @@ static void draw_seq_extensions(Scene *scene, ARegion *ar, Sequence *seq)
 		if (seq->flag & SELECT) UI_GetColorPtrShade3ubv(col, col, 24);
 		else UI_GetColorPtrShade3ubv(col, col, -16);
 
-		gpuCurrentColor3ubv((GLubyte *)col);
+		gpuColor3ubv((GLubyte *)col);
 
 		gpuBegin(GL_LINES);
 		for (a = y1; a < y2; a += pixely * 2.0f) {
@@ -654,7 +654,7 @@ static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, floa
 	ymid2 = (y2 - y1) * 0.65f + y1;
 
 	options = 0;
-	gpuAspectBegin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_SMOOTH);
+	GPU_aspect_begin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_SMOOTH);
 
 	gpuBegin(GL_QUADS);
 
@@ -695,7 +695,7 @@ static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, floa
 
 	gpuEnd();
 
-	gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_FLAT);
+	GPU_aspect_end(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_FLAT);
 
 	if (seq->flag & SEQ_MUTE) {
 		gpuDisablePolygonStipple();
@@ -760,12 +760,12 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 		glEnable(GL_BLEND);
 
 		/* light stripes */
-		gpuCurrentColor4x(CPACK_WHITE, 0.125f);
+		gpuColor4P(CPACK_WHITE, 0.125f);
 		gpuPolygonStipple(stipple_diag_stripes_pos);
 		gpuSingleFilledRectf(x1, y1, x2, y2);
 
 		/* dark stripes */
-		gpuCurrentColor4x(CPACK_BLACK, 0.125f);
+		gpuColor4P(CPACK_BLACK, 0.125f);
 		gpuPolygonStipple(stipple_diag_stripes_neg);
 		gpuSingleFilledRectf(x1, y1, x2, y2);
 
@@ -777,7 +777,7 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 		gpuEnablePolygonStipple();
 
 		/* panic! */
-		gpuCurrentColor4ub(255, 0, 0, 255);
+		gpuColor4ub(255, 0, 0, 255);
 		gpuPolygonStipple(stipple_diag_stripes_pos);
 		gpuSingleFilledRectf(x1, y1, x2, y2);
 
@@ -795,7 +795,7 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 	else
 		UI_GetColorPtrShade3ubv(col, col, outline_tint);
 	
-	gpuCurrentColor3ubv((GLubyte *)col);
+	gpuColor3ubv((GLubyte *)col);
 	
 	if (seq->flag & SEQ_MUTE) {
 		gpuEnableLineStipple();
@@ -993,7 +993,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		gpuColorAndClearvf(col, 0.0);
 	}
 
-	gpuCurrentColor3x(CPACK_WHITE);
+	gpuColor3P(CPACK_WHITE);
 
 	UI_view2d_totRect_set(v2d, viewrectx + 0.5f, viewrecty + 0.5f);
 	UI_view2d_curRect_validate(v2d);
@@ -1066,7 +1066,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 			fdrawcheckerboard(v2d->tot.xmin, v2d->tot.ymin, v2d->tot.xmax, v2d->tot.ymax);
-			gpuCurrentColor4f(1.0, 1.0, 1.0, 1.0);
+			gpuColor4f(1.0, 1.0, 1.0, 1.0);
 		}
 	}
 
@@ -1146,7 +1146,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	//glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE); // XXX jwilkins: blender never changes the TEXTURE_ENV_MODE
 #endif
 
-	gpuCurrentColor3x(CPACK_WHITE);
+	gpuColor3P(CPACK_WHITE);
 
 	last_texid = gpuGetTextureBinding2D();
 
@@ -1358,9 +1358,9 @@ static void draw_seq_backdrop(View2D *v2d)
 	gpuBegin(GL_QUADS);
 	while (i < v2d->cur.ymax) {
 		if (((int)i) & 1)
-			UI_ThemeAppendColorShade(TH_BACK, -15);
+			UI_ThemeColorShade(TH_BACK, -15);
 		else
-			UI_ThemeAppendColorShade(TH_BACK, -25);
+			UI_ThemeColorShade(TH_BACK, -25);
 			
 		gpuVertex2f(v2d->cur.xmax, i);
 		gpuVertex2f(v2d->cur.xmin, i);
@@ -1516,7 +1516,7 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	/* overlap playhead */
 	if (scene->ed && scene->ed->over_flag & SEQ_EDIT_OVERLAY_SHOW) {
 		int cfra_over = (scene->ed->over_flag & SEQ_EDIT_OVERLAY_ABS) ? scene->ed->over_cfra : scene->r.cfra + scene->ed->over_ofs;
-		gpuCurrentGray3f(0.200f);
+		gpuGray3f(0.200f);
 		// gpuSingleFilledRectf(cfra_over, v2d->cur.ymin, scene->ed->over_ofs + scene->r.cfra + 1, v2d->cur.ymax);
 
 		gpuSingleLinef(cfra_over, v2d->cur.ymin, cfra_over, v2d->cur.ymax);

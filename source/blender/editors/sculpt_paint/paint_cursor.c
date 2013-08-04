@@ -637,13 +637,13 @@ static void paint_draw_tex_overlay(UnifiedPaintSettings *ups, Brush *brush,
 
 		/* set quad color. Colored overlay does not get blending */
 		if (col)
-			gpuCurrentColor4f(
+			gpuColor4f(
 				1.0,
 				1.0,
 				1.0,
 				overlay_alpha / 100.0f);
 		else
-			gpuCurrentColor4f(
+			gpuColor4f(
 				U.sculpt_paint_overlay_col[0],
 				U.sculpt_paint_overlay_col[1],
 				U.sculpt_paint_overlay_col[2],
@@ -711,13 +711,13 @@ static void paint_draw_cursor_overlay(UnifiedPaintSettings *ups, Brush *brush,
 			quad.ymax = y + radius;
 		}
 
-		gpuCurrentColor4f(
+		gpuColor4f(
 				U.sculpt_paint_overlay_col[0],
 		        U.sculpt_paint_overlay_col[1],
 		        U.sculpt_paint_overlay_col[2],
 		        brush->cursor_overlay_alpha / 100.0f);
 
-		gpuAspectBegin(GPU_ASPECT_TEXTURE, NULL);
+		GPU_aspect_begin(GPU_ASPECT_TEXTURE, NULL);
 
 		/* draw textured quad */
 		gpuImmediateFormat_T2_V2();
@@ -733,7 +733,7 @@ static void paint_draw_cursor_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		gpuEnd();
 		gpuImmediateUnformat();
 
-		gpuAspectEnd(GPU_ASPECT_TEXTURE, NULL);
+		GPU_aspect_end(GPU_ASPECT_TEXTURE, NULL);
 	}
 }
 
@@ -894,7 +894,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 	gpuEnableLineSmooth();
 
 	/* set brush color */
-	gpuCurrentColor4f(outline_col[0], outline_col[1], outline_col[2], outline_alpha);
+	gpuColor4f(outline_col[0], outline_col[1], outline_col[2], outline_alpha);
 
 	/* draw brush outline */
 	gpuSingleCircle(translation[0], translation[1], final_radius, 40);
@@ -904,7 +904,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 		/* inner at full alpha */
 		gpuSingleCircle(translation[0], translation[1], final_radius * ups->pressure_value, 40);
 		/* outer at half alpha */
-		gpuCurrentColor4f(outline_col[0], outline_col[1], outline_col[2], outline_alpha * 0.5f);
+		gpuColor4f(outline_col[0], outline_col[1], outline_col[2], outline_alpha * 0.5f);
 	}
 
 	/* restore GL state */

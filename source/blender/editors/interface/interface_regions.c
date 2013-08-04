@@ -410,7 +410,7 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 
 	for (i = 0; i < data->totline; i++) {
 		GPU_STRING_MARKER("tooltip text start");
-		gpuCurrentColor3fv(tip_colors[data->color_id[i]]);
+		gpuColor3fv(tip_colors[data->color_id[i]]);
 		uiStyleFontDraw(&data->fstyle, &bbox, data->lines[i]);
 		bbox.ymin -= data->lineh + data->spaceh;
 		bbox.ymax -= data->lineh + data->spaceh;

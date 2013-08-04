@@ -100,7 +100,7 @@ static void draw_spline_parents(MaskLayer *UNUSED(masklay), MaskSpline *spline)
 	if (!spline->tot_point)
 		return;
 
-	gpuCurrentColor3x(CPACK_BLACK);
+	gpuColor3P(CPACK_BLACK);
 	gpuEnableLineStipple();
 	gpuLineStipple(1, 0xAAAA);
 
@@ -190,9 +190,9 @@ static void draw_spline_points(const bContext *C, MaskLayer *masklay, MaskSpline
 
 			if (sel) {
 				if (point == masklay->act_point)
-					gpuColor3x(CPACK_WHITE);
+					gpuColor3P(CPACK_WHITE);
 				else
-					gpuColor3x(CPACK_YELLOW);
+					gpuColor3P(CPACK_YELLOW);
 			}
 			else {
 				gpuColor3f(0.5f, 0.5f, 0.0f);
@@ -234,7 +234,7 @@ static void draw_spline_points(const bContext *C, MaskLayer *masklay, MaskSpline
 			/* this could be split into its own loop */
 			if (draw_type == MASK_DT_OUTLINE) {
 				gpuLineWidth(3);
-				gpuCurrentGray3f(0.376f);
+				gpuGray3f(0.376f);
 				gpuBegin(GL_LINES);
 				gpuVertex2fv(vert);
 				gpuVertex2fv(handle);
@@ -242,7 +242,7 @@ static void draw_spline_points(const bContext *C, MaskLayer *masklay, MaskSpline
 				gpuLineWidth(1);
 			}
 
-			gpuCurrentColor3ubv(rgb_spline);
+			gpuColor3ubv(rgb_spline);
 			gpuBegin(GL_LINES);
 			gpuVertex2fv(vert);
 			gpuVertex2fv(handle);
@@ -254,9 +254,9 @@ static void draw_spline_points(const bContext *C, MaskLayer *masklay, MaskSpline
 		/* draw CV point */
 		if (MASKPOINT_ISSEL_KNOT(point)) {
 			if (point == masklay->act_point)
-				gpuColor3x(CPACK_WHITE);
+				gpuColor3P(CPACK_WHITE);
 			else
-				gpuColor3x(CPACK_YELLOW);
+				gpuColor3P(CPACK_YELLOW);
 		}
 		else {
 			gpuColor3f(0.5f, 0.5f, 0.0f);
@@ -268,9 +268,9 @@ static void draw_spline_points(const bContext *C, MaskLayer *masklay, MaskSpline
 		if (has_handle) {
 			if (MASKPOINT_ISSEL_HANDLE(point)) {
 				if (point == masklay->act_point)
-					gpuColor3x(CPACK_WHITE);
+					gpuColor3P(CPACK_WHITE);
 				else
-					gpuColor3x(CPACK_YELLOW);
+					gpuColor3P(CPACK_YELLOW);
 			}
 			else {
 				gpuColor3f(0.5f, 0.5f, 0.0f);
@@ -338,12 +338,12 @@ static void mask_draw_curve_type(const bContext *C, MaskSpline *spline, float (*
 			gpuLineWidth(3);
 
 			mask_color_active_tint(rgb_tmp, rgb_black, is_active);
-			gpuCurrentColor4ubv(rgb_tmp);
+			gpuColor4ubv(rgb_tmp);
 			gpuDrawClientArrays(draw_method, &arrays, 0, tot_point);
 
 			gpuLineWidth(1);
 			mask_color_active_tint(rgb_tmp, rgb_spline, is_active);
-			gpuCurrentColor4ubv(rgb_tmp);
+			gpuColor4ubv(rgb_tmp);
 			gpuRepeat();
 			break;
 
@@ -356,7 +356,7 @@ static void mask_draw_curve_type(const bContext *C, MaskSpline *spline, float (*
 			glLogicOp(GL_OR);
 #endif
 			mask_color_active_tint(rgb_tmp, rgb_spline, is_active);
-			gpuCurrentColor4ubv(rgb_tmp);
+			gpuColor4ubv(rgb_tmp);
 			gpuLineStipple(3, 0xaaaa);
 			gpuDrawClientArrays(draw_method, &arrays, 0, tot_point);
 
@@ -364,7 +364,7 @@ static void mask_draw_curve_type(const bContext *C, MaskSpline *spline, float (*
 			glDisable(GL_COLOR_LOGIC_OP);
 #endif
 			mask_color_active_tint(rgb_tmp, rgb_black, is_active);
-			gpuCurrentColor4ubv(rgb_tmp);
+			gpuColor4ubv(rgb_tmp);
 			gpuLineStipple(3, 0x5555);
 			gpuRepeat();
 
@@ -391,7 +391,7 @@ static void mask_draw_curve_type(const bContext *C, MaskSpline *spline, float (*
 			}
 
 			mask_color_active_tint(rgb_tmp, rgb_tmp, is_active);
-			gpuCurrentColor4ubv(rgb_tmp);
+			gpuColor4ubv(rgb_tmp);
 
 			gpuDrawClientArrays(draw_method, &arrays, 0, tot_point);
 			gpuRepeat(); // XXX: why twice?
@@ -624,7 +624,7 @@ void ED_mask_draw_frames(Mask *mask, ARegion *ar, const int cfra, const int sfra
 
 	MaskLayer *masklay = BKE_mask_layer_active(mask);
 
-	gpuCurrentColor4ub(255, 175, 0, 255);
+	gpuColor4ub(255, 175, 0, 255);
 
 	gpuImmediateFormat_V2();
 	gpuBegin(GL_LINES);

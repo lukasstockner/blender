@@ -296,7 +296,7 @@ static void playanim_toscreen(PlayState *ps, PlayAnimPict *picture, struct ImBuf
 		int sizex, sizey;
 		float fsizex_inv, fsizey_inv;
 		char str[32 + FILE_MAX];
-		gpuCurrentColor3x(CPACK_WHITE);
+		gpuColor3P(CPACK_WHITE);
 		BLI_snprintf(str, sizeof(str), "%s | %.2f frames/s", picture->name, fstep / swaptime);
 
 		playanim_window_get_size(&sizex, &sizey);

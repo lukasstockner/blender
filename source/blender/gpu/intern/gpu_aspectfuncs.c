@@ -32,153 +32,80 @@
 #define GPU_ASPECT_INTERN
 #include "intern/gpu_aspectfuncs.h"
 
-#include "intern/gpu_object_gles.h"
-#include "intern/gpu_extension_wrapper.h"
-#include "intern/gpu_profile.h"
+#include "GPU_basic_shader.h"
+#include "GPU_font_shader.h"
 
-#include "GPU_simple_shader.h"
-
+#include "BLI_utildefines.h"
 
 
-static GLboolean begin_font(GLvoid* UNUSED(param), const GLvoid* UNUSED(object))
-{
-	GPU_font_shader_bind();
 
-	//#if defined(WITH_GL_PROFILE_CORE)
-//	if (GPU_PROFILE_CORE || GPU_PROFILE_ES20) {
-//		gpu_set_shader_es(&shader_redtexture_info, 0);
-//		gpu_glUseProgram(shader_redtexture);
-//	}
-//#endif
-//
-//#if defined(WITH_GL_PROFILE_ES20)
-//	if (GPU_PROFILE_CORE || GPU_PROFILE_ES20) {
-//		gpu_set_shader_es(&shader_alphatexture_info, 0);
-//		gpu_glUseProgram(shader_alphatexture);
-//	}
-//#endif
-
-	return GL_TRUE;
-}
-
-static GLboolean end_font(GLvoid* UNUSED(param), const GLvoid* UNUSED(object))
+static bool font_end(void* UNUSED(param), const void* UNUSED(object))
 {
 	GPU_font_shader_unbind();
 
-//#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
-//	if (GPU_PROFILE_CORE || GPU_PROFILE_ES20) {
-//		gpu_set_shader_es(&shader_main_info, 0);
-//		gpu_glUseProgram(shader_main);
-//	}
-//#endif
-
-	return GL_TRUE;
+	return true;
 }
 
-GPUaspectfuncs GPU_ASPECTFUNCS_FONT = { begin_font, end_font };
-
-
-
-static GLboolean begin_texture(GLvoid* UNUSED(param), const GLvoid* UNUSED(object))
+static void font_commit(void* UNUSED(param))
 {
-	GPU_simple_shader_bind(GPU_SHADER_TEXTURE_2D);
-
-//#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
-//	if (GPU_PROFILE_CORE || GPU_PROFILE_ES20) {
-//		gpu_set_shader_es(&shader_rgbatexture_info, 0);
-//		gpu_glUseProgram(shader_rgbatexture);
-//	}
-//#endif
-
-	return GL_TRUE;
+	GPU_font_shader_bind();
 }
 
-static GLboolean end_texture(GLvoid* UNUSED(param), const GLvoid* UNUSED(object))
+GPUaspectfuncs GPU_ASPECTFUNCS_FONT = {
+	NULL,        /* begin   */
+	font_end,    /* end     */
+	font_commit, /* commit  */
+	NULL,        /* enable  */
+	NULL,        /* disable */
+};
+
+
+
+static bool basic_end(void* UNUSED(param), const void* UNUSED(object))
 {
-	GPU_simple_shader_unbind();
+	GPU_basic_shader_unbind();
 
-//#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
-//	if (GPU_PROFILE_CORE || GPU_PROFILE_ES20) {
-//		gpu_set_shader_es(&shader_main_info, 0);
-//		gpu_glUseProgram(shader_main);
-//	}
-//#endif
-
-	return GL_TRUE;
+	return true;
 }
 
-GPUaspectfuncs GPU_ASPECTFUNCS_TEXTURE = { begin_texture, end_texture };
-
-
-
-static GLboolean begin_pixels(GLvoid* UNUSED(param), const GLvoid* UNUSED(object))
+static void basic_commit(void* UNUSED(param))
 {
-	GPU_simple_shader_bind(GPU_SHADER_TEXTURE_2D);
-
-//#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
-//	if (GPU_PROFILE_CORE || GPU_PROFILE_ES20) {
-//		gpu_set_shader_es(&shader_pixels_info, 0);
-//		gpu_glUseProgram(shader_pixels);
-//	}
-//#endif
-
-	return GL_TRUE;
+	GPU_basic_shader_bind();
 }
 
-static GLboolean end_pixels(GLvoid* UNUSED(param), const GLvoid* UNUSED(object))
+static void basic_enable(void* UNUSED(param), uint32_t options)
 {
-	GPU_simple_shader_unbind();
-
-//#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
-//	if (GPU_PROFILE_CORE || GPU_PROFILE_ES20) {
-//		gpu_set_shader_es(&shader_main_info, 0);
-//		gpu_glUseProgram(shader_main);
-//	}
-//#endif
-
-	return GL_TRUE;
+	GPU_basic_shader_enable(options);
 }
 
-GPUaspectfuncs GPU_ASPECTFUNCS_PIXELS = { begin_pixels, end_pixels };
-
-
-
-static GLboolean begin_simple_shader(GLvoid* UNUSED(param), const GLvoid* object)
+static void basic_disable(void* UNUSED(param), uint32_t options)
 {
-	uint32_t options = GET_UINT_FROM_POINTER(object);
-	GPU_simple_shader_bind(options);
-	return GL_TRUE;
+	GPU_basic_shader_disable(options);
 }
 
-static GLboolean end_simple_shader(GLvoid* UNUSED(param), const GLvoid* UNUSED(object))
+GPUaspectfuncs GPU_ASPECTFUNCS_BASIC = {
+	NULL,         /* begin   */
+	basic_end,    /* end     */
+	basic_commit, /* commit  */
+	basic_enable, /* enable  */
+	basic_disable /* disable */
+};
+
+
+
+void gpu_initialize_aspect_funcs(void)
 {
-	GPU_simple_shader_unbind();
-	return GL_TRUE;
-}
+	GPU_gen_aspects(1, &GPU_ASPECT_FONT);
+	GPU_gen_aspects(1, &GPU_ASPECT_BASIC);
 
-GPUaspectfuncs GPU_ASPECTFUNCS_SIMPLE_SHADER = { begin_simple_shader, end_simple_shader };
-
-
-
-void gpuInitializeAspectFuncs()
-{
-	gpuGenAspects(1, &GPU_ASPECT_FONT);
-	gpuGenAspects(1, &GPU_ASPECT_TEXTURE);
-	gpuGenAspects(1, &GPU_ASPECT_PIXELS);
-	gpuGenAspects(1, &GPU_ASPECT_SIMPLE_SHADER);
-
-	gpuAspectFuncs(GPU_ASPECT_FONT,          &GPU_ASPECTFUNCS_FONT);
-	gpuAspectFuncs(GPU_ASPECT_TEXTURE,       &GPU_ASPECTFUNCS_TEXTURE);
-	gpuAspectFuncs(GPU_ASPECT_PIXELS,        &GPU_ASPECTFUNCS_PIXELS);
-	gpuAspectFuncs(GPU_ASPECT_SIMPLE_SHADER, &GPU_ASPECTFUNCS_SIMPLE_SHADER);
+	GPU_aspect_funcs(GPU_ASPECT_FONT,  &GPU_ASPECTFUNCS_FONT);
+	GPU_aspect_funcs(GPU_ASPECT_BASIC, &GPU_ASPECTFUNCS_BASIC);
 }
 
 
 
-void gpuShutdownAspectFuncs()
+void gpu_shutdown_aspect_funcs(void)
 {
-	gpuDeleteAspects(1, &GPU_ASPECT_FONT);
-	gpuDeleteAspects(1, &GPU_ASPECT_TEXTURE);
-	gpuDeleteAspects(1, &GPU_ASPECT_PIXELS);
-	gpuDeleteAspects(1, &GPU_ASPECT_SIMPLE_SHADER);
+	GPU_delete_aspects(1, &GPU_ASPECT_FONT);
+	GPU_delete_aspects(1, &GPU_ASPECT_BASIC);
 }

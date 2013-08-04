@@ -392,12 +392,12 @@ unsigned int index_to_framebuffer(int index)
 
 void WM_framebuffer_index_set(int index)
 {
-	gpuColor3x(index_to_framebuffer(index));
+	gpuColor3P(index_to_framebuffer(index));
 }
 
 void WM_set_framebuffer_index_current_color(int index)
 {
-	gpuCurrentColor3x(index_to_framebuffer(index));
+	gpuColor3P(index_to_framebuffer(index));
 }
 
 int WM_framebuffer_to_index(unsigned int col)

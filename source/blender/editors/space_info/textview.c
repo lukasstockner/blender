@@ -83,7 +83,7 @@ static void console_draw_sel(const char *str, const int sel[2], const int xy[2],
 
 		glEnable(GL_BLEND);
 
-		gpuCurrentColor4ubv(bg_sel);
+		gpuColor4ubv(bg_sel);
 		gpuSingleFilledRecti(xy[0] + (cwidth * sta), xy[1] - 2 + lheight, xy[0] + (cwidth * end), xy[1] - 2);
 
 		glDisable(GL_BLEND);
@@ -185,11 +185,11 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 		cdc->sel[1] = str_len - sel_orig[0];
 		
 		if (bg) {
-			gpuCurrentColor3ubv(bg);
+			gpuColor3ubv(bg);
 			gpuSingleFilledRecti(0, cdc->xy[1] - rct_ofs, cdc->winx, (cdc->xy[1] + (cdc->lheight * tot_lines)) + rct_ofs);
 		}
 
-		gpuCurrentColor3ubv(fg);
+		gpuColor3ubv(fg);
 
 		/* last part needs no clipping */
 		BLF_position(mono, cdc->xy[0], cdc->xy[1], 0);
@@ -197,9 +197,9 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 
 		if (cdc->sel[0] != cdc->sel[1]) {
 			console_step_sel(cdc, -initial_offset);
-			// gpuCurrentColor4x(CPACK_RED, 0.376f); // debug
+			// gpuColor4P(CPACK_RED, 0.376f); // debug
 			console_draw_sel(s, cdc->sel, cdc->xy, len, cdc->cwidth, cdc->lheight, bg_sel);
-			gpuCurrentColor3ubv(fg);
+			gpuColor3ubv(fg);
 		}
 
 		cdc->xy[1] += cdc->lheight;
@@ -213,9 +213,9 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 			
 			if (cdc->sel[0] != cdc->sel[1]) {
 				console_step_sel(cdc, len);
-				// gpuCurrentColor4x(CPACK_GREEN, 0.376f); // debug
+				// gpuColor4P(CPACK_GREEN, 0.376f); // debug
 				console_draw_sel(s, cdc->sel, cdc->xy, len, cdc->cwidth, cdc->lheight, bg_sel);
-				gpuCurrentColor3ubv(fg);
+				gpuColor3ubv(fg);
 			}
 
 			cdc->xy[1] += cdc->lheight;
@@ -233,11 +233,11 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 	else { /* simple, no wrap */
 
 		if (bg) {
-			gpuCurrentColor3ubv(bg);
+			gpuColor3ubv(bg);
 			gpuSingleFilledRecti(0, cdc->xy[1] - rct_ofs, cdc->winx, cdc->xy[1] + cdc->lheight - rct_ofs);
 		}
 
-		gpuCurrentColor3ubv(fg);
+		gpuColor3ubv(fg);
 
 		BLF_position(mono, cdc->xy[0], cdc->xy[1], 0);
 		BLF_draw_mono(mono, str, str_len, cdc->cwidth);
@@ -248,7 +248,7 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 			isel[0] = str_len - cdc->sel[1];
 			isel[1] = str_len - cdc->sel[0];
 
-			// gpuCurrentColor4x(CPACK_YELLOW, 0.376f); // debug
+			// gpuColor4P(CPACK_YELLOW, 0.376f); // debug
 			console_draw_sel(str, isel, cdc->xy, str_len, cdc->cwidth, cdc->lheight, bg_sel);
 			console_step_sel(cdc, -(str_len + 1));
 		}

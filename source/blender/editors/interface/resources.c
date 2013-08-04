@@ -1040,14 +1040,6 @@ void UI_ThemeColor(int colorid)
 	const unsigned char *cp;
 	
 	cp = UI_ThemeGetColorPtr(theme_active, theme_spacetype, colorid);
-	gpuCurrentColor3ubv(cp);
-}
-
-void UI_ThemeAppendColor(int colorid)
-{
-	const unsigned char *cp;
-	
-	cp = UI_ThemeGetColorPtr(theme_active, theme_spacetype, colorid);
 	gpuColor3ubv(cp);
 }
 
@@ -1057,31 +1049,11 @@ void UI_ThemeColor4(int colorid)
 	const unsigned char *cp;
 	
 	cp = UI_ThemeGetColorPtr(theme_active, theme_spacetype, colorid);
-	gpuCurrentColor4ubv(cp);
+	gpuColor4ubv(cp);
 }
 
 /* set the color with offset for shades */
 void UI_ThemeColorShade(int colorid, int offset)
-{
-	int r, g, b;
-	const unsigned char *cp;
-
-	cp = UI_ThemeGetColorPtr(theme_active, theme_spacetype, colorid);
-
-	r = offset + (int) cp[0];
-	CLAMP(r, 0, 255);
-
-	g = offset + (int) cp[1];
-	CLAMP(g, 0, 255);
-
-	b = offset + (int) cp[2];
-	CLAMP(b, 0, 255);
-
-	gpuCurrentColor4ub(r, g, b, cp[3]);
-}
-
-// set the color with offset for shades
-void UI_ThemeAppendColorShade(int colorid, int offset)
 {
 	int r, g, b;
 	const unsigned char *cp;
@@ -1114,23 +1086,6 @@ void UI_ThemeColorShadeAlpha(int colorid, int coloffset, int alphaoffset)
 	CLAMP(b, 0, 255);
 	a = alphaoffset + (int) cp[3];
 	CLAMP(a, 0, 255);
-	gpuCurrentColor4ub(r, g, b, a);
-}
-
-void UI_ThemeAppendColorShadeAlpha(int colorid, int coloffset, int alphaoffset)
-{
-	int r, g, b, a;
-	const unsigned char *cp;
-	
-	cp = UI_ThemeGetColorPtr(theme_active, theme_spacetype, colorid);
-	r = coloffset + (int) cp[0];
-	CLAMP(r, 0, 255);
-	g = coloffset + (int) cp[1];
-	CLAMP(g, 0, 255);
-	b = coloffset + (int) cp[2];
-	CLAMP(b, 0, 255);
-	a = alphaoffset + (int) cp[3];
-	CLAMP(a, 0, 255);
 	gpuColor4ub(r, g, b, a);
 }
 
@@ -1148,10 +1103,10 @@ void UI_ThemeColorBlend(int colorid1, int colorid2, float fac)
 	g = floorf((1.0f - fac) * cp1[1] + fac * cp2[1]);
 	b = floorf((1.0f - fac) * cp1[2] + fac * cp2[2]);
 	
-	gpuCurrentColor3ub(r, g, b);
+	gpuColor3ub(r, g, b);
 }
 
-void UI_ThemeAppendColorBlend(int colorid1, int colorid2, float fac)
+void UI_ThemeColorBlend(int colorid1, int colorid2, float fac)
 {
 	int r, g, b;
 	const unsigned char *cp1, *cp2;
@@ -1169,27 +1124,6 @@ void UI_ThemeAppendColorBlend(int colorid1, int colorid2, float fac)
 
 /* blend between to theme colors, shade it, and set it */
 void UI_ThemeColorBlendShade(int colorid1, int colorid2, float fac, int offset)
-{
-	int r, g, b;
-	const unsigned char *cp1, *cp2;
-
-	cp1 = UI_ThemeGetColorPtr(theme_active, theme_spacetype, colorid1);
-	cp2 = UI_ThemeGetColorPtr(theme_active, theme_spacetype, colorid2);
-
-	CLAMP(fac, 0.0f, 1.0f);
-	r = offset + floorf((1.0f - fac) * cp1[0] + fac * cp2[0]);
-	g = offset + floorf((1.0f - fac) * cp1[1] + fac * cp2[1]);
-	b = offset + floorf((1.0f - fac) * cp1[2] + fac * cp2[2]);
-
-	CLAMP(r, 0, 255);
-	CLAMP(g, 0, 255);
-	CLAMP(b, 0, 255);
-
-	gpuCurrentColor3ub(r, g, b);
-}
-
-// blend between to theme colors, shade it, and set it
-void UI_ThemeAppendColorBlendShade(int colorid1, int colorid2, float fac, int offset)
 {
 	int r, g, b;
 	const unsigned char *cp1, *cp2;
@@ -1229,7 +1163,7 @@ void UI_ThemeColorBlendShadeAlpha(int colorid1, int colorid2, float fac, int off
 	CLAMP(b, 0, 255);
 	CLAMP(a, 0, 255);
 
-	gpuCurrentColor4ub(r, g, b, a);
+	gpuColor4ub(r, g, b, a);
 }
 
 
@@ -1360,7 +1294,7 @@ void UI_ColorPtrBlendShade3ubv(const unsigned char cp1[3], const unsigned char c
 	g = g < 0 ? 0 : (g > 255 ? 255 : g);
 	b = b < 0 ? 0 : (b > 255 ? 255 : b);
 	
-	gpuCurrentColor3ub(r, g, b);
+	gpuColor3ub(r, g, b);
 }
 
 void UI_GetColorPtrShade3ubv(const unsigned char cp[3], unsigned char col[3], int offset)

@@ -373,7 +373,7 @@ static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
 	{
 		setlinestyle(3);
 
-		gpuCurrentColor4x(
+		gpuColor4P(
 			(marker->flag & SELECT) ? CPACK_WHITE : CPACK_BLACK,
 			0.376f);
 
@@ -430,7 +430,7 @@ static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
 
 #ifdef DURIAN_CAMERA_SWITCH
 		if (marker->camera && (marker->camera->restrictflag & OB_RESTRICT_RENDER)) {
-			gpuCurrentAlpha(0.4f);
+			gpuAlpha(0.4f);
 		}
 #endif
 

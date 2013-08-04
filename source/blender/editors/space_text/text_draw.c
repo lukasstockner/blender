@@ -1000,7 +1000,7 @@ static void draw_textscroll(SpaceText *st, rcti *scroll, rcti *back)
 	rad = 0.4f * min_ii(BLI_rcti_size_x(&st->txtscroll), BLI_rcti_size_y(&st->txtscroll));
 	UI_GetThemeColor3ubv(TH_HILITE, col);
 	col[3] = 48;
-	gpuCurrentColor4ubv(col);
+	gpuColor4ubv(col);
 	glEnable(GL_BLEND);
 	uiRoundBox(st->txtscroll.xmin + 1, st->txtscroll.ymin, st->txtscroll.xmax - 1, st->txtscroll.ymax, rad);
 	glDisable(GL_BLEND);
@@ -1269,7 +1269,7 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 			x1 = st->showlinenrs ? TXT_OFFSET + TEXTXLOC : TXT_OFFSET;
 			x2 = x1 + ar->winx;
 
-			gpuCurrentColor4x(CPACK_WHITE, 0.125f);
+			gpuColor4P(CPACK_WHITE, 0.125f);
 			
 			glEnable(GL_BLEND);
 			gpuSingleFilledRecti(x1 - 4, y1, x2, y2 + TXT_LINE_SPACING);

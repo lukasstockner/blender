@@ -161,7 +161,7 @@ void draw_motion_path_instance(Scene *scene,
 				/* intensity = 0.8f; */
 				intensity = SET_INTENSITY(sfra, i, CFRA, 0.68f, 0.92f);
 			}
-			UI_ThemeAppendColorBlend(TH_WIRE, blend_base, intensity);
+			UI_ThemeColorBlend(TH_WIRE, blend_base, intensity);
 		}
 		else if (frame > CFRA) {
 			/* blue - after cfra */
@@ -173,7 +173,7 @@ void draw_motion_path_instance(Scene *scene,
 				/* intensity = 0.8f; */
 				intensity = SET_INTENSITY(CFRA, i, efra, 0.68f, 0.92f);
 			}
-			UI_ThemeAppendColorBlend(TH_BONE_POSE, blend_base, intensity);
+			UI_ThemeColorBlend(TH_BONE_POSE, blend_base, intensity);
 		}
 		else {
 			/* green - on cfra */
@@ -183,7 +183,7 @@ void draw_motion_path_instance(Scene *scene,
 			else {
 				intensity = 0.99f;
 			}
-			UI_ThemeAppendColorBlendShade(TH_CFRAME, TH_BACK, intensity, 10);
+			UI_ThemeColorBlendShade(TH_CFRAME, TH_BACK, intensity, 10);
 		}
 		
 		/* draw a vertex with this color */
@@ -294,7 +294,7 @@ void draw_motion_path_instance(Scene *scene,
 		col[3] = 255;
 
 		gpuSpriteSize(4.0f);
-		gpuCurrentColor3ubv(col);
+		gpuColor3ubv(col);
 
 		gpuBegin(GL_POINTS);
 		for (i = 0, mpv = mpv_start; i < len; i++, mpv++) {

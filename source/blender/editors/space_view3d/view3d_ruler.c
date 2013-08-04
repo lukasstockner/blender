@@ -476,7 +476,7 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 
 		glEnable(GL_BLEND);
 
-		gpuCurrentColor3x(is_act ? color_act : color_base);
+		gpuColor3P(is_act ? color_act : color_base);
 
 		gpuImmediateFormat_V3();
 
@@ -486,7 +486,7 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 				gpuVertex2fv(co_ss[j]);
 			}
 			gpuEnd();
-			gpuCurrentColor3x(0xaaaaaa);
+			gpuColor3P(0xaaaaaa);
 			setlinestyle(3);
 			gpuBegin(GL_LINE_STRIP);
 			for (j = 0; j < 3; j++) {
@@ -523,7 +523,7 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 
 				copy_v3_v3(dir_tmp, dir_a);
 
-				gpuCurrentColor3ubv(color_wire);
+				gpuColor3ubv(color_wire);
 
 				for (j = 0; j <= arc_steps; j++) {
 					madd_v3_v3v3fl(co_tmp, ruler_item->co[1], dir_tmp, px_scale);
@@ -555,13 +555,13 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 				pos[1] = co_ss[1][1] - (numstr_size[1] / 2.0f);
 
 				/* draw text (bg) */
-				gpuCurrentColor4ubv(color_back);
+				gpuColor4ubv(color_back);
 				uiSetRoundBox(UI_CNR_ALL);
 				uiRoundBox(pos[0] - bg_margin,                  pos[1] - bg_margin,
 				           pos[0] + bg_margin + numstr_size[0], pos[1] + bg_margin + numstr_size[1],
 				           bg_radius);
 				/* draw text */
-				gpuCurrentColor3ubv(color_text);
+				gpuColor3ubv(color_text);
 				BLF_position(blf_mono_font, pos[0], pos[1], 0.0f);
 				BLF_rotation(blf_mono_font, 0.0f);
 				BLF_draw(blf_mono_font, numstr, sizeof(numstr));
@@ -585,7 +585,7 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 
 				glEnable(GL_BLEND);
 
-				gpuCurrentColor3ubv(color_wire);
+				gpuColor3ubv(color_wire);
 
 				gpuImmediateFormat_V2();
 
@@ -623,7 +623,7 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 			}
 			gpuEnd();
 
-			gpuCurrentColor3x(0xaaaaaa);
+			gpuColor3P(0xaaaaaa);
 
 			setlinestyle(3);
 
@@ -657,13 +657,13 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 				pos[1] -= numstr_size[1] / 2.0f;
 
 				/* draw text (bg) */
-				gpuCurrentColor4ubv(color_back);
+				gpuColor4ubv(color_back);
 				uiSetRoundBox(UI_CNR_ALL);
 				uiRoundBox(pos[0] - bg_margin,                  pos[1] - bg_margin,
 				           pos[0] + bg_margin + numstr_size[0], pos[1] + bg_margin + numstr_size[1],
 				           bg_radius);
 				/* draw text */
-				gpuCurrentColor3ubv(color_text);
+				gpuColor3ubv(color_text);
 				BLF_position(blf_mono_font, pos[0], pos[1], 0.0f);
 				BLF_draw(blf_mono_font, numstr, sizeof(numstr));
 			}
@@ -676,7 +676,7 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 				normalize_v2(rot_90_vec);
 
 				glEnable(GL_BLEND);
-				gpuCurrentColor3ubv(color_wire);
+				gpuColor3ubv(color_wire);
 
 				gpuImmediateFormat_V2();
 
@@ -714,7 +714,7 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 			float co_ss[3];
 			ED_view3d_project_float_global(ar, ruler_item->co[ruler_item->co_index], co_ss, V3D_PROJ_TEST_NOP);
 
-			gpuCurrentColor3x(color_act);
+			gpuColor3P(color_act);
 			gpuSingleDisk(co_ss[0], co_ss[1], size * U.pixelsize, 32);
 		}
 	}

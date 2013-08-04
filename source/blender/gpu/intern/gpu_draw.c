@@ -29,8 +29,26 @@
  *  \ingroup gpu
  */
 
+/* my interface */
+#include "GPU_draw.h"
 
-#include <string.h>
+/* internal */
+#include "intern/gpu_lighting.h"
+#include "intern/gpu_common.h"
+#include "intern/gpu_extension_wrapper.h"
+#include "intern/gpu_aspect.h"
+#include "intern/gpu_aspectfuncs.h"
+#include "intern/gpu_raster.h"
+
+/* my library */
+#include "GPU_compatibility.h"
+#include "GPU_colors.h"
+#include "GPU_buffers.h"
+#include "GPU_extensions.h"
+#include "GPU_material.h"
+#include "GPU_basic_shader.h"
+
+/* external */
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
@@ -63,15 +81,12 @@
 #include "BKE_scene.h"
 #include "BKE_DerivedMesh.h"
 
-#include "GPU_compatibility.h"
-#include "GPU_colors.h"
-#include "GPU_buffers.h"
-#include "GPU_draw.h"
-#include "GPU_extensions.h"
-#include "gpu_extension_wrapper.h"
-#include "GPU_material.h"
-
 #include "smoke_API.h"
+
+/* standard */
+
+#include <string.h>
+
 
 extern Material defmaterial; /* from material.c */
 
@@ -113,7 +128,7 @@ void GPU_render_text(MTFace *tface, int mode,
 		if (tface->mode & TF_OBCOL)
 			col= NULL;
 		else if (!col)
-			gpuCurrentColor3x(CPACK_WHITE);
+			gpuColor3P(CPACK_WHITE);
 
 		gpuPushMatrix();
 		
@@ -1659,9 +1674,11 @@ int GPU_enable_material(int nr, void *attribs)
 		mul_v3_v3fl(spec, &defmaterial.specr, defmaterial.spec);
 		spec[3]= 1.0;
 
-		gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, diff);
-		gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
-		gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, 35); /* blender default */
+		// SSS XXX jwilkins: not sure if this is needed only for simple shader or for codegen shaders as well
+		// SSS GPU_simple_shader_material
+		//gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, diff);
+		//gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
+		//gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, 35); /* blender default */
 
 		return 0;
 	}
@@ -1729,9 +1746,11 @@ int GPU_enable_material(int nr, void *attribs)
 		}
 		else {
 			/* or do a basic material */
-			gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, GMS.matbuf[nr].diff);
-			gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, GMS.matbuf[nr].spec);
-			gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, GMS.matbuf[nr].hard);
+			// SSS GPU_simple_shader_material(...)
+			// SSS XXX jwilkins: not sure if this is needed for codegen as well
+			//gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, GMS.matbuf[nr].diff);
+			//gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, GMS.matbuf[nr].spec);
+			//gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, GMS.matbuf[nr].hard);
 		}
 
 		/* set (alpha) blending mode */
@@ -1812,87 +1831,76 @@ void GPU_end_object_materials(void)
 
 int GPU_default_lights(void)
 {
-	float zero[4] = {0.0f, 0.0f, 0.0f, 0.0f}, position[4];
-	int a, count = 0;
-	
-	/* initialize */
-	if (U.light[0].flag==0 && U.light[1].flag==0 && U.light[2].flag==0) {
-		U.light[0].flag= 1;
-		U.light[0].vec[0]= -0.3; U.light[0].vec[1]= 0.3; U.light[0].vec[2]= 0.9;
-		U.light[0].col[0]= 0.8; U.light[0].col[1]= 0.8; U.light[0].col[2]= 0.8;
-		U.light[0].spec[0]= 0.5; U.light[0].spec[1]= 0.5; U.light[0].spec[2]= 0.5;
-		U.light[0].spec[3]= 1.0;
-		
-		U.light[1].flag= 0;
-		U.light[1].vec[0]= 0.5; U.light[1].vec[1]= 0.5; U.light[1].vec[2]= 0.1;
-		U.light[1].col[0]= 0.4; U.light[1].col[1]= 0.4; U.light[1].col[2]= 0.8;
-		U.light[1].spec[0]= 0.3; U.light[1].spec[1]= 0.3; U.light[1].spec[2]= 0.5;
-		U.light[1].spec[3]= 1.0;
-	
-		U.light[2].flag= 0;
-		U.light[2].vec[0]= 0.3; U.light[2].vec[1]= -0.3; U.light[2].vec[2]= -0.2;
-		U.light[2].col[0]= 0.8; U.light[2].col[1]= 0.5; U.light[2].col[2]= 0.4;
-		U.light[2].spec[0]= 0.5; U.light[2].spec[1]= 0.4; U.light[2].spec[2]= 0.3;
-		U.light[2].spec[3]= 1.0;
+	int a;
+	GPUbasiclight lights[GPU_MAX_COMMON_LIGHTS];
+	int count = 0;
+
+	if (!(U.light[0].flag || U.light[1].flag || U.light[2].flag)) {
+		/* initialize */
+
+		U.light[0].flag = 1;
+		U.light[1].flag = 0;
+		U.light[2].flag = 0;
+
+		VEC4D(U.light[0].vec,  -0.3f,  0.3f,  0.9f,  0.0f);
+		VEC4D(U.light[0].col,   0.8f,  0.8f,  0.8f,  1.0f);
+		VEC4D(U.light[0].spec,  0.5f,  0.5f,  0.5f,  1.0f);
+
+		VEC4D(U.light[1].vec,   0.5f,  0.5f,  0.1f,  0.0f);
+		VEC4D(U.light[1].col,   0.4f,  0.4f,  0.8f,  1.0f);
+		VEC4D(U.light[1].spec,  0.3f,  0.3f,  0.5f,  1.0f);
+
+		VEC4D(U.light[2].vec,   0.3f, -0.3f, -0.2f,  0.0f);
+		VEC4D(U.light[2].col,   0.8f,  0.5f,  0.4f,  1.0f);
+		VEC4D(U.light[2].spec,  0.5f,  0.4f,  0.3f,  1.0f);
 	}
 
-	gpuLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_FALSE);
+	memset(lights, 0, sizeof(lights));
 
-	for (a=0; a<8; a++) {
-		if (a<3) {
-			if (U.light[a].flag) {
-				gpuEnableLight(a);
+	for (a = 0; a < GPU_MAX_COMMON_LIGHTS; a++) {
+		if (a < 3 && U.light[a].flag) {
+			normalize_v3_v3(lights[a].position, U.light[a].vec);
+			lights[a].position[3]= 0.0f;
 
-				normalize_v3_v3(position, U.light[a].vec);
-				position[3]= 0.0f;
-				
-				gpuLightfv(a, GL_POSITION, position); 
-				gpuLightfv(a, GL_DIFFUSE, U.light[a].col); 
-				gpuLightfv(a, GL_SPECULAR, U.light[a].spec); 
+			copy_v4_v4(lights[a].diffuse,  U.light[a].col);
+			copy_v4_v4(lights[a].specular, U.light[a].spec);
 
-				count++;
-			}
-			else {
-				gpuDisableLight(a);
+			lights[a].constant_attenuation = 1;
 
-				gpuLightfv(a, GL_POSITION, zero); 
-				gpuLightfv(a, GL_DIFFUSE, zero); 
-				gpuLightfv(a, GL_SPECULAR, zero);
-			}
+			lights[a].spot_cutoff = 180;
 
-			// clear stuff from other opengl lamp usage
-			gpuLightf(a, GL_SPOT_CUTOFF, 180.0);
-			gpuLightf(a, GL_CONSTANT_ATTENUATION, 1.0);
-			gpuLightf(a, GL_LINEAR_ATTENUATION, 0.0);
+			count++;
 		}
-		else
-			gpuDisableLight(a);
 	}
 
-	gpuDisableLighting();
-
-	gpuDisableColorMaterial();
+	GPU_init_basic_lights(count, lights);
 
 	return count;
 }
 
 int GPU_scene_object_lights(Scene *scene, Object *ob, int lay, float viewmat[4][4], int ortho)
 {
+	GPUbasiclight lights[GPU_MAX_COMMON_LIGHTS];
+
 	Base *base;
 	Lamp *la;
-	int count;
-	float position[4], direction[4], energy[4];
+	int count = 0;
 	
 	/* disable all lights */
-	for (count=0; count<8; count++)
-		gpuDisableLight(count);
+	//for (count=0; count<8; count++)
+	//	gpuDisableLight(count);
+	GPU_init_basic_lights(0, NULL);
 	
 	/* view direction for specular is not compute correct by default in
 	 * opengl, so we set the settings ourselfs */
-	gpuLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, (ortho)? GL_FALSE: GL_TRUE);
+	// SSS gpuLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, (ortho)? GL_FALSE: GL_TRUE);
+	if (ortho)
+		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TWO_SIDE);
+	else
+		GPU_aspect_enable (GPU_ASPECT_BASIC, GPU_BASIC_TWO_SIDE);
 
-	count= 0;
-	
+	memset(lights, 0, sizeof(lights));
+
 	for (base=scene->base.first; base; base=base->next) {
 		if (base->object->type!=OB_LAMP)
 			continue;
@@ -1900,59 +1908,60 @@ int GPU_scene_object_lights(Scene *scene, Object *ob, int lay, float viewmat[4][
 		if (!(base->lay & lay) || !(base->lay & ob->lay))
 			continue;
 
-		la= base->object->data;
+		la = base->object->data;
 		
 		/* setup lamp transform */
 		gpuPushMatrix();
 		gpuLoadMatrix((float *)viewmat);
-		
+
 		BKE_object_where_is_calc_simul(scene, base->object);
-		
+
 		if (la->type==LA_SUN) {
 			/* sun lamp */
-			copy_v3_v3(direction, base->object->obmat[2]);
-			direction[3]= 0.0;
-
-			gpuLightfv(count, GL_POSITION, direction); 
+			copy_v3_v3(lights[count].position, base->object->obmat[2]);
+			lights[count].position[3] = 0;
 		}
 		else {
 			/* other lamps with attenuation */
-			copy_v3_v3(position, base->object->obmat[3]);
-			position[3]= 1.0f;
+			copy_v3_v3(lights[count].position, base->object->obmat[3]);
+			lights[count].position[3]= 1.0f;
 
-			gpuLightfv(count, GL_POSITION, position); 
-			gpuLightf(count, GL_CONSTANT_ATTENUATION, 1.0);
-			gpuLightf(count, GL_LINEAR_ATTENUATION, la->att1/la->dist);
-			gpuLightf(count, GL_QUADRATIC_ATTENUATION, la->att2/(la->dist*la->dist));
-			
+			lights[count].constant_attenuation = 1;
+			lights[count].linear_attenuation   = la->att1/la->dist;
+			lights[count].constant_attenuation = la->att2/(la->dist*la->dist);
+
 			if (la->type==LA_SPOT) {
 				/* spot lamp */
-				negate_v3_v3(direction, base->object->obmat[2]);
-				gpuLightfv(count, GL_SPOT_DIRECTION, direction);
-				gpuLightf(count, GL_SPOT_CUTOFF, la->spotsize/2.0f);
-				gpuLightf(count, GL_SPOT_EXPONENT, 128.0f*la->spotblend);
+				negate_v3_v3(lights[count].spot_direction, base->object->obmat[2]);
+				lights[count].spot_cutoff   = la->spotsize/2.0f;
+				lights[count].spot_exponent = 128.0f*la->spotblend;
 			}
-			else
-				gpuLightf(count, GL_SPOT_CUTOFF, 180.0);
+			else {
+				lights[count].spot_cutoff = 180;
+			}
 		}
-		
-		/* setup energy */
-		mul_v3_v3fl(energy, &la->r, la->energy);
-		energy[3]= 1.0;
 
-		gpuLightfv(count, GL_DIFFUSE, energy); 
-		gpuLightfv(count, GL_SPECULAR, energy);
-		glEnable(count);
-		
+		/* setup energy */
+
+		mul_v3_v3fl(lights[count].diffuse, &la->r, la->energy);
+		lights[count].diffuse[3]= 1.0;
+
+		copy_v4_v4(lights[count].specular, lights[count].diffuse);
+
 		gpuPopMatrix();
-		
+
 		count++;
-		if (count==8)
+
+		if (count == GPU_MAX_COMMON_LIGHTS)
 			break;
 	}
 
+	GPU_init_basic_lights(count, lights);
+
 	return count;
 }
+
+
 
 /* Default OpenGL State */
 // XXX jwilkins: is this meant to return OpenGL to a Blender default state no matter what?  if so then there needs to be more in here
@@ -1960,21 +1969,21 @@ int GPU_scene_object_lights(Scene *scene, Object *ob, int lay, float viewmat[4][
 void GPU_state_init(void)
 {
 	/* also called when doing opengl rendering and in the game engine */
-	float mat_ambient[] = { 0.0, 0.0, 0.0, 0.0 };
-	float mat_specular[] = { 0.5, 0.5, 0.5, 1.0 };
-	int a, x, y;
-	GLubyte pat[32*32];
-	const GLubyte *patc= pat;
-	
-	gpuMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat_ambient);
-	gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_specular);
-	gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);
-	gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, 35);
+	// SSS
+	//float mat_ambient[] = { 0.0, 0.0, 0.0, 0.0 };
+	//float mat_specular[] = { 0.5, 0.5, 0.5, 1.0 };
 
-	gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+	// SSS GPU_simple_shader_material(...)
+	//gpuMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat_ambient);
+	//gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_specular);
+	//gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);
+	//gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, 35);
+
+	// SSS not needed
+	//gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 
 	GPU_default_lights();
-	
+
 	glDepthFunc(GL_LEQUAL);
 
 #if defined(WITH_GL_PROFILE_COMPAT)
@@ -1987,11 +1996,16 @@ void GPU_state_init(void)
 	}
 #endif
 
-	gpuShadeModel(GL_FLAT);
+	// SSS 
+	//gpuShadeModel(GL_FLAT);
+	//gpuDisableLighting();
+	///* make sure double side isn't used by default and only getting enabled in places where it's
+	// * really needed to prevent different unexpected behaviors like with intel gme965 card (sergey) */
+	//gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH|GPU_BASIC_LIGHTING|GPU_BASIC_TWO_SIDE);
 
 	glDisable(GL_BLEND);
 	glDisable(GL_DEPTH_TEST);
-	gpuDisableLighting();
 	glDisable(GL_STENCIL_TEST);
 
 #if defined(WITH_GL_PROFILE_COMPAT)
@@ -2025,15 +2039,7 @@ void GPU_state_init(void)
 
 	gpuDepthRange(0.0, 1.0);
 
-	a= 0;
-	for (x=0; x<32; x++) {
-		for (y=0; y<4; y++) {
-			if ( (x) & 1) pat[a++]= 0x88;
-			else pat[a++]= 0x22;
-		}
-	}
-	
-	gpuPolygonStipple(patc);
+	gpu_init_stipple();
 
 	gpuMatrixMode(GL_TEXTURE);
 	gpuLoadIdentity();
@@ -2048,8 +2054,4 @@ void GPU_state_init(void)
 	/* calling this makes drawing very slow when AA is not set up in ghost
 	 * on Linux/NVIDIA. */
 	// glDisable(GL_MULTISAMPLE);
-
-	/* make sure double side isn't used by default and only getting enabled in places where it's
-	 * really needed to prevent different unexpected behaviors like with intel gme965 card (sergey) */
-	gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
 }

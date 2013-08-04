@@ -155,7 +155,7 @@ const GLubyte stipple_diag_stripes_neg[128] = {
 //	/* we can reuse the dist variable here to increment the GL curve eval amount*/
 //	dist = 1.0f / curve_res;
 //	
-//	gpuCurrentColor3x(CPACK_BLACK);
+//	gpuColor3P(CPACK_BLACK);
 //	glMap1f(GL_MAP1_VERTEX_3, 0.0, 1.0, 3, 4, vec[0]);
 //	gpuBegin(GL_LINE_STRIP);
 //	while (spline_step < 1.000001f) {
@@ -184,9 +184,9 @@ void fdrawcheckerboard(float x1, float y1, float x2, float y2)
 		0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255,
 		0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255};
 	
-	gpuCurrentColor3ubv(col1);
+	gpuColor3ubv(col1);
 	gpuSingleFilledRectf(x1, y1, x2, y2);
-	gpuCurrentColor3ubv(col2);
+	gpuColor3ubv(col2);
 
 	gpuEnablePolygonStipple();
 	gpuPolygonStipple(checker_stipple);
@@ -548,9 +548,9 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 
 void glaDrawPixelsTex(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect)
 {
-	gpuAspectBegin(GPU_ASPECT_TEXTURE, NULL);
+	GPU_aspect_begin(GPU_ASPECT_TEXTURE, NULL);
 	glaDrawPixelsTexScaled(x, y, img_w, img_h, format, type, zoomfilter, rect, 1.0f, 1.0f);
-	gpuAspectEnd(GPU_ASPECT_TEXTURE, NULL);
+	GPU_aspect_end(GPU_ASPECT_TEXTURE, NULL);
 }
 
 void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int format, int type, void *rect)
@@ -642,7 +642,7 @@ void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int fo
 void glaDrawPixelsAuto(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect)
 {
 	if (U.image_draw_method != IMAGE_DRAW_METHOD_DRAWPIXELS) {
-		gpuCurrentColor4f(1.0, 1.0, 1.0, 1.0);
+		gpuColor4f(1.0, 1.0, 1.0, 1.0);
 		glaDrawPixelsTex(x, y, img_w, img_h, format, type, zoomfilter, rect);
 	}
 	else {
@@ -932,7 +932,7 @@ void glaDrawImBuf_glsl(ImBuf *ibuf, float x, float y, int zoomfilter,
 			//glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE); // XXX jwilkins: blender never changes the TEXTURE_ENV_MODE
 #endif
 
-			gpuCurrentColor3x(CPACK_WHITE);
+			gpuColor3P(CPACK_WHITE);
 
 			if (ibuf->rect_float) {
 				int format = 0;

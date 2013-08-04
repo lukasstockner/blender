@@ -590,11 +590,11 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 				drawCurrentMat = setMaterial(matnr = new_matnr, NULL);
 
 				if (shademodel != -1)
-					gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
+					GPU_aspect_end(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
 
 				shademodel = new_shademodel;
 				options    = shademodel == GL_SMOOTH ? 0 : GPU_SHADER_FLAT_SHADED;
-				gpuAspectBegin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
+				GPU_aspect_begin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
 				gpuBegin(glmode = new_glmode);
 			}
 			
@@ -628,7 +628,7 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 		}
 
 		if (dm->numTessFaceData > 0)
-			gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
+			GPU_aspect_end(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
 
 		gpuEnd();
 		gpuImmediateUnformat();
@@ -638,14 +638,14 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 		GPU_normal_setup(dm);
 		if (!GPU_buffer_legacy(dm)) {
 			uint32_t options = 0;
-			gpuAspectBegin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_SMOOTH);
+			GPU_aspect_begin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_SMOOTH);
 			for (a = 0; a < dm->drawObject->totmaterial; a++) {
 				if (setMaterial(dm->drawObject->materials[a].mat_nr + 1, NULL)) {
 					glDrawArrays(GL_TRIANGLES, dm->drawObject->materials[a].start,
 					             dm->drawObject->materials[a].totpoint);
 				}
 			}
-			gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_FLAT);
+			GPU_aspect_end(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_FLAT);
 		}
 		GPU_buffer_unbind();
 	}
@@ -706,7 +706,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 	cdDM_update_normals_from_pbvh(dm);
 
 	options = GPU_SHADER_TEXTURE_2D|GPU_SHADER_FLAT_SHADED; // XXX jwilkins: not sure if in this context thingsa re suppose dto be flat shaded or not.
-	gpuAspectBegin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
+	GPU_aspect_begin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
 
 	if (GPU_buffer_legacy(dm)) {
 		DEBUG_VBO("Using legacy code. cdDM_drawFacesTex_common\n");
@@ -755,7 +755,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 
 				if (!(mf->flag & ME_SMOOTH)) {
 					if (nors) {
-						gpuCurrentNormal3fv(nors);
+						gpuNormal3fv(nors);
 					}
 					else {
 						float nor[3];
@@ -765,7 +765,8 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 						else {
 							normal_tri_v3(nor, mv[mf->v1].co, mv[mf->v2].co, mv[mf->v3].co);
 						}
-						gpuCurrentNormal3fv(nor);
+
+						gpuNormal3fv(nor);
 					}
 				}
 
@@ -814,9 +815,9 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 			int tottri = dm->drawObject->tot_triangle_point / 3;
 			int next_actualFace = dm->drawObject->triangle_to_mface[0];
 
-			gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_FLAT);
+			GPU_aspect_end(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_FLAT);
 			options = GPU_SHADER_TEXTURE_2D;
-			gpuAspectBegin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_SMOOTH);
+			GPU_aspect_begin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_SMOOTH);
 
 			/* lastFlag = 0; */ /* UNUSED */
 			for (i = 0; i < tottri; i++) {
@@ -876,7 +877,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 			}
 		}
 
-		gpuAspectEnd(GPU_ASPECT_TEXTURE, SET_UINT_IN_POINTER(options));
+		GPU_aspect_end(GPU_ASPECT_TEXTURE, SET_UINT_IN_POINTER(options));
 
 		GPU_buffer_unbind();
 	}
@@ -1201,9 +1202,11 @@ static void cddm_format_attrib_vertex(DMVertexAttribs *attribs)
 
 	if (texco) {
 		static const GLenum texmap[1] = { GL_TEXTURE0 };
-		gpuImmediateTextureUnitCount(1);
-		gpuImmediateTextureUnitMap(texmap);
+		gpuImmediateTexCoordCount(1);
 		gpuImmediateTexCoordSizes(texSize);
+
+		gpuImmediateTextureSamplerCount(1);
+		gpuImmediateTextureSamplerMap(texmap);
 	}
 
 	gpuImmediateFloatAttribCount(attrib_f);

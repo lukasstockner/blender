@@ -1441,7 +1441,7 @@ static void outliner_draw_iconrow(bContext *C, uiBlock *block, Scene *scene, Spa
 				float ufac = UI_UNIT_X / 20.0f;
 
 				uiSetRoundBox(UI_CNR_ALL);
-				gpuCurrentColor4x(CPACK_WHITE, 0.392f);
+				gpuColor4P(CPACK_WHITE, 0.392f);
 				uiRoundBox((float) *offsx - 1.0f * ufac,
 				           (float)ys + 1.0f * ufac,
 				           (float)*offsx + UI_UNIT_X - 2.0f * ufac,
@@ -1511,7 +1511,7 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 			char col[4];
 			UI_GetThemeColorType4ubv(TH_MATCH, SPACE_OUTLINER, col);
 			col[3] = alpha;
-			gpuCurrentColor4ubv((GLubyte *)col);
+			gpuColor4ubv((GLubyte *)col);
 			gpuSingleFilledRecti(startx, *starty + 1, ar->v2d.cur.xmax, *starty + UI_UNIT_Y - 1);
 		}
 
@@ -1520,7 +1520,7 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 			
 			if (te->idcode == ID_SCE) {
 				if (tselem->id == (ID *)scene) {
-					gpuCurrentColor4x(CPACK_WHITE, alpha);
+					gpuColor4P(CPACK_WHITE, alpha);
 					active = 2;
 				}
 			}
@@ -1530,7 +1530,7 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 					char col[4];
 					UI_GetThemeColorType4ubv(TH_SELECT, SPACE_VIEW3D, col);
 					col[3] = alpha;
-					gpuCurrentColor4ubv((GLubyte *)col);
+					gpuColor4ubv((GLubyte *)col);
 					
 					active = 2;
 				}
@@ -1557,23 +1557,23 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 						col[3] = alpha;
 					}
 					
-					gpuCurrentColor4ubv((GLubyte *)col);
+					gpuColor4ubv((GLubyte *)col);
 				}
 			}
 			else if (scene->obedit && scene->obedit->data == tselem->id) {
-				gpuCurrentColor4x(CPACK_WHITE, alpha);
+				gpuColor4P(CPACK_WHITE, alpha);
 				active = 2;
 			}
 			else {
 				if (tree_element_active(C, scene, soops, te, 0)) {
-					gpuCurrentColor4ub(220, 220, 255, alpha);
+					gpuColor4ub(220, 220, 255, alpha);
 					active = 2;
 				}
 			}
 		}
 		else {
 			if (tree_element_type_active(NULL, scene, soops, te, tselem, 0, false) ) active = 2;
-			gpuCurrentColor4ub(220, 220, 255, alpha);
+			gpuColor4ub(220, 220, 255, alpha);
 		}
 		
 		/* active circle */
@@ -1789,7 +1789,7 @@ static void outliner_draw_tree(bContext *C, uiBlock *block, Scene *scene, ARegio
 	
 	/* always draw selection fill before hierarchy */
 	UI_GetThemeColor3fv(TH_SELECT_HIGHLIGHT, col);
-	gpuCurrentColor3fv(col);
+	gpuColor3fv(col);
 	starty = (int)ar->v2d.tot.ymax - UI_UNIT_Y - OL_Y_OFFSET;
 	outliner_draw_selection(ar, soops, &soops->tree, &starty);
 	

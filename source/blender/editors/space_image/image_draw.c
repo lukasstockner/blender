@@ -190,27 +190,27 @@ void ED_image_draw_info(Scene *scene, ARegion *ar, int color_manage, int use_def
 	glEnable(GL_BLEND);
 
 	/* noisy, high contrast make impossible to read if lower alpha is used. */
-	gpuCurrentColor4x(CPACK_BLACK, 0.745f);
+	gpuColor4P(CPACK_BLACK, 0.745f);
 	gpuSingleFilledRecti(0.0, 0.0, BLI_rcti_size_x(&ar->winrct) + 1, UI_UNIT_Y);
 	glDisable(GL_BLEND);
 
 	BLF_size(blf_mono_font, 11 * U.pixelsize, U.dpi);
 
-	gpuCurrentColor3x(CPACK_WHITE);
+	gpuColor3P(CPACK_WHITE);
 	BLI_snprintf(str, sizeof(str), "X:%-4d  Y:%-4d |", x, y);
 	BLF_position(blf_mono_font, dx, 0.3f * UI_UNIT_Y, 0);
 	BLF_draw_ascii(blf_mono_font, str, sizeof(str));
 	dx += BLF_width(blf_mono_font, str);
 
 	if (zp) {
-		gpuCurrentColor3x(CPACK_WHITE);
+		gpuColor3P(CPACK_WHITE);
 		BLI_snprintf(str, sizeof(str), " Z:%-.4f |", 0.5f + 0.5f * (((float)*zp) / (float)0x7fffffff));
 		BLF_position(blf_mono_font, dx, 0.3f * UI_UNIT_X, 0);
 		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
 		dx += BLF_width(blf_mono_font, str);
 	}
 	if (zpf) {
-		gpuCurrentColor3x(CPACK_WHITE);
+		gpuColor3P(CPACK_WHITE);
 		BLI_snprintf(str, sizeof(str), " Z:%-.3f |", *zpf);
 		BLF_position(blf_mono_font, dx, 0.3f * UI_UNIT_X, 0);
 		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
@@ -218,7 +218,7 @@ void ED_image_draw_info(Scene *scene, ARegion *ar, int color_manage, int use_def
 	}
 
 	if (channels >= 3) {
-		gpuCurrentColor3ubv(red);
+		gpuColor3ubv(red);
 		if (fp)
 			BLI_snprintf(str, sizeof(str), "  R:%-.5f", fp[0]);
 		else if (cp)
@@ -229,7 +229,7 @@ void ED_image_draw_info(Scene *scene, ARegion *ar, int color_manage, int use_def
 		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
 		dx += BLF_width(blf_mono_font, str);
 		
-		gpuCurrentColor3ubv(green);
+		gpuColor3ubv(green);
 		if (fp)
 			BLI_snprintf(str, sizeof(str), "  G:%-.5f", fp[1]);
 		else if (cp)
@@ -240,7 +240,7 @@ void ED_image_draw_info(Scene *scene, ARegion *ar, int color_manage, int use_def
 		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
 		dx += BLF_width(blf_mono_font, str);
 		
-		gpuCurrentColor3ubv(blue);
+		gpuColor3ubv(blue);
 		if (fp)
 			BLI_snprintf(str, sizeof(str), "  B:%-.5f", fp[2]);
 		else if (cp)
@@ -252,7 +252,7 @@ void ED_image_draw_info(Scene *scene, ARegion *ar, int color_manage, int use_def
 		dx += BLF_width(blf_mono_font, str);
 		
 		if (channels == 4) {
-			gpuCurrentColor3x(CPACK_WHITE);
+			gpuColor3P(CPACK_WHITE);
 			if (fp)
 				BLI_snprintf(str, sizeof(str), "  A:%-.4f", fp[3]);
 			else if (cp)
@@ -328,7 +328,7 @@ void ED_image_draw_info(Scene *scene, ARegion *ar, int color_manage, int use_def
 	
 	dx += 0.25f * UI_UNIT_X;
 
-	gpuCurrentColor3fv(finalcol);
+	gpuColor3fv(finalcol);
 	gpuBegin(GL_TRIANGLE_FAN);
 	gpuVertex2f(dx, 0.15f * UI_UNIT_Y);
 	gpuVertex2f(dx, 0.85f * UI_UNIT_Y);
@@ -337,7 +337,7 @@ void ED_image_draw_info(Scene *scene, ARegion *ar, int color_manage, int use_def
 	gpuEnd();
 
 	/* draw outline */
-	gpuCurrentGray3f(0.500f);
+	gpuGray3f(0.500f);
 	gpuBegin(GL_LINE_LOOP);
 	gpuVertex2f(dx, 0.15f * UI_UNIT_Y);
 	gpuVertex2f(dx, 0.85f * UI_UNIT_Y);
@@ -349,7 +349,7 @@ void ED_image_draw_info(Scene *scene, ARegion *ar, int color_manage, int use_def
 
 	dx += 1.75f * UI_UNIT_X;
 
-	gpuCurrentColor3x(CPACK_WHITE);
+	gpuColor3P(CPACK_WHITE);
 	if (channels == 1) {
 		if (fp) {
 			rgb_to_hsv(fp[0], fp[0], fp[0], &hue, &sat, &val);
@@ -660,14 +660,14 @@ void draw_image_sample_line(SpaceImage *sima)
 		Histogram *hist = &sima->sample_line_hist;
 
 		gpuBegin(GL_LINES);
-		gpuColor3x(CPACK_BLACK);
+		gpuColor3P(CPACK_BLACK);
 		gpuVertex2fv(hist->co[0]);
 		gpuVertex2fv(hist->co[1]);
 		gpuEnd();
 
 		setlinestyle(1);
 		gpuBegin(GL_LINES);
-		gpuColor3x(CPACK_WHITE);
+		gpuColor3P(CPACK_WHITE);
 		gpuVertex2fv(hist->co[0]);
 		gpuVertex2fv(hist->co[1]);
 		gpuEnd();
@@ -863,7 +863,7 @@ void draw_image_main(const bContext *C, ARegion *ar)
 		if (image_preview_active(sa, &xim, &yim)) {
 			xoffs = scene->r.disprect.xmin;
 			yoffs = scene->r.disprect.ymin;
-			gpuCurrentColor3x(CPACK_BLACK);
+			gpuColor3P(CPACK_BLACK);
 			calc_image_view(sima, 'f');
 			myortho2(G.v2d->cur.xmin, G.v2d->cur.xmax, G.v2d->cur.ymin, G.v2d->cur.ymax);
 			gpuSingleFilledRectf(0.0f, 0.0f, 1.0f, 1.0f);

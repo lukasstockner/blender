@@ -482,7 +482,7 @@ static void sk_drawNormal(struct GPUprim3 *prim, SK_Point *pt, float size, float
 
 	gpuRotateVector(RAD2DEGF(angle), axis);
 
-	gpuCurrentColor3x(CPACK_CYAN);
+	gpuColor3P(CPACK_CYAN);
 
 	gpuDrawCylinder(prim, sk_clampPointSize(pt, size), 0, sk_clampPointSize(pt, height));
 	//GLU Cylinder(quad, sk_clampPointSize(pt, size), 0, sk_clampPointSize(pt, height), 10, 2);
@@ -525,16 +525,16 @@ static void sk_drawStroke(SK_Stroke *stk, int id, float color[3], int start, int
 			gpuPushMatrix();
 
 			if (pt->type == PT_EXACT) {
-				gpuCurrentColor3x(CPACK_BLACK);
+				gpuColor3P(CPACK_BLACK);
 				sk_drawPoint(&prim, pt, 0.15);
 				sk_drawNormal(&prim, pt, 0.05, 0.9);
 			}
 
 			if (i >= start && i <= end) {
-				gpuCurrentGray3f(0.300f);
+				gpuGray3f(0.300f);
 			}
 			else {
-				gpuCurrentColor3fv(rgb);
+				gpuColor3fv(rgb);
 			}
 
 			if (pt->type != PT_EXACT) {
@@ -571,7 +571,7 @@ static void drawSubdividedStrokeBy(ToolSettings *toolsettings, BArcIterator *ite
 
 		gpuPushMatrix();
 
-		gpuCurrentColor3x(CPACK_GREEN);
+		gpuColor3P(CPACK_GREEN);
 		sk_drawPoint(&prim, pt, 0.15);
 
 		sk_drawNormal(&prim, pt, 0.05, 0.9);
@@ -2069,16 +2069,16 @@ static void sk_drawSketch(Scene *scene, View3D *UNUSED(v3d), SK_Sketch *sketch, 
 
 				switch (sketch->next_point.mode) {
 					case PT_SNAP:
-						gpuCurrentColor3x(CPACK_GREEN);
+						gpuColor3P(CPACK_GREEN);
 						break;
 					case PT_PROJECT:
-						gpuCurrentColor3x(CPACK_BLACK);
+						gpuColor3P(CPACK_BLACK);
 						break;
 				}
 
 				sk_drawPoint(&prim, &sketch->next_point, 0.1);
 
-				gpuCurrentColor4f(selected_rgb[0], selected_rgb[1], selected_rgb[2], 0.3);
+				gpuColor4f(selected_rgb[0], selected_rgb[1], selected_rgb[2], 0.3);
 
 				sk_drawEdge(&prim, last, &sketch->next_point, 0.1);
 
@@ -2112,7 +2112,7 @@ static void sk_drawSketch(Scene *scene, View3D *UNUSED(v3d), SK_Sketch *sketch, 
 			int index = GET_INT_FROM_POINTER(p->ob);
 			index = (index >> 5) & 7;
 
-			gpuCurrentColor3fv(colors[index]);
+			gpuColor3fv(colors[index]);
 			gpuPushMatrix();
 			gpuTranslate(p->p[0], p->p[1], p->p[2]);
 

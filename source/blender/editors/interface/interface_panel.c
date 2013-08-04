@@ -436,11 +436,11 @@ static void ui_draw_panel_scalewidget(rcti *rect)
 	gpuImmediateFormat_C4_V2(); // DOODLE: scale widget, fixed number of colored lines
 	gpuBegin(GL_LINES);
 
-	gpuColor4x(CPACK_WHITE, 0.196f);
+	gpuColor4P(CPACK_WHITE, 0.196f);
 	gpuAppendLinef(xmin, ymin, xmax, ymax);
 	gpuAppendLinef(xmin + dx, ymin, xmax, ymax - dy);
 	
-	gpuColor4x(CPACK_BLACK, 0.196f);
+	gpuColor4P(CPACK_BLACK, 0.196f);
 	gpuAppendLinef(xmin, ymin + 1, xmax, ymax + 1);
 	gpuAppendLinef(xmin + dx, ymin + 1, xmax, ymax - dy + 1);
 
@@ -468,12 +468,12 @@ static void ui_draw_panel_dragwidget(const rctf *rect)
 	gpuImmediateFormat_C4_V2(); // DOODLE: draw widge, 6 mono lines
 	gpuBegin(GL_LINES);
 
-	gpuColor4x(CPACK_WHITE, 0.196f);
+	gpuColor4P(CPACK_WHITE, 0.196f);
 	gpuAppendLinef(xmin, ymax, xmax, ymin);
 	gpuAppendLinef(xmin + dx, ymax, xmax, ymin + dy);
 	gpuAppendLinef(xmin + 2 * dx, ymax, xmax, ymin + 2 * dy);
 
-	gpuColor4x(CPACK_BLACK, 0.196f);
+	gpuColor4P(CPACK_BLACK, 0.196f);
 	gpuAppendLinef(xmin, ymax + 1, xmax, ymin + 1);
 	gpuAppendLinef(xmin + dx, ymax + 1, xmax, ymin + dy + 1);
 	gpuAppendLinef(xmin + 2 * dx, ymax + 1, xmax, ymin + 2 * dy + 1);
@@ -575,10 +575,10 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, rcti *rect)
 			gpuImmediateFormat_C4_V2(); // DOODLE: 2 lines, colored
 			gpuBegin(GL_LINES);
 
-			gpuColor4x(CPACK_BLACK, 0.500f);
+			gpuColor4P(CPACK_BLACK, 0.500f);
 			gpuAppendLinef(minx, y, maxx, y);
 
-			gpuColor4x(CPACK_WHITE, 0.250f);
+			gpuColor4P(CPACK_WHITE, 0.250f);
 			gpuAppendLinef(minx, y - 1, maxx, y - 1);
 
 			gpuEnd();

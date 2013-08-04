@@ -29,31 +29,38 @@
  *  \ingroup gpu
  */
 
-#include "DNA_image_types.h"
+/* my interface */
+#include "GPU_extensions.h"
 
-#include "MEM_guardedalloc.h"
+/* my library */
+#include "GPU_draw.h"
+#include "GPU_basic_shader.h"
+#include "GPU_compatibility.h"
 
+/* internal */
+#include "intern/gpu_codegen.h"
+#include "intern/gpu_extension_wrapper.h"
+
+/* external */
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 #include "BLI_math_base.h"
 
+#ifdef WIN32
+#include "BLI_winstuff.h"
+#endif
+
 #include "BKE_global.h"
 
-#include "GPU_draw.h"
-#include "GPU_extensions.h"
-#include "intern/gpu_codegen.h"
-#include "GPU_simple_shader.h"
-#include "GPU_compatibility.h"
-#include "gpu_extension_wrapper.h"
-#include "gpu_object_gles.h"
+#include "DNA_image_types.h"
 
+#include "MEM_guardedalloc.h"
+
+/* standard*/
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
-#ifdef WIN32
-#  include "BLI_winstuff.h"
-#endif
 
 /* Extensions support */
 
@@ -286,7 +293,7 @@ void GPU_extensions_init(void)
 	GG.os = GPU_OS_UNIX;
 #endif
 
-	GPU_simple_shaders_init();
+	GPU_basic_shaders_init();
 
 	GPU_CHECK_NO_ERROR();
 }
@@ -295,7 +302,7 @@ void GPU_extensions_exit(void)
 {
 	gpu_extensions_init = 0;
 	GPU_codegen_exit();
-	GPU_simple_shaders_exit();
+	GPU_basic_shaders_exit();
 }
 
 int GPU_glsl_support(void)
@@ -1176,7 +1183,7 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 
 	GPU_texture_bind(tex, 0);
 
-	gpuAspectBegin(GPU_ASPECT_TEXTURE, NULL);
+	GPU_aspect_begin(GPU_ASPECT_BASIC, SET_UINT_IN_POINTER(GPU_BASIC_TEXTURE_2D));
 
 	gpuImmediateFormat_T2_V2();
 
@@ -1205,7 +1212,7 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 
 	gpuImmediateUnformat();
 
-	gpuAspectEnd(GPU_ASPECT_TEXTURE, NULL);
+	GPU_aspect_end();
 
 	GPU_shader_unbind();
 }

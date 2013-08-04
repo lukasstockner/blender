@@ -2561,7 +2561,7 @@ static void brush_drawcursor(bContext *C, int x, int y, void *UNUSED(customdata)
 	brush= &pset->brush[pset->brushtype];
 
 	if (brush) {
-		gpuCurrentColor4x(CPACK_WHITE, 0.500f);
+		gpuColor4P(CPACK_WHITE, 0.500f);
 		gpuEnableLineSmooth();
 		glEnable(GL_BLEND);
 		gpuSingleCircle((float)x, (float)y, pe_brush_size_get(scene, brush), 40);

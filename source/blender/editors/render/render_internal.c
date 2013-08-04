@@ -1049,7 +1049,7 @@ void render_view3d_draw(RenderEngine *engine, const bContext *C)
 		if (force_fallback == false) {
 			if (IMB_colormanagement_setup_glsl_draw(NULL, &scene->display_settings, TRUE)) {
 				glEnable(GL_BLEND);
-				gpuCurrentColor3x(CPACK_WHITE);
+				gpuColor3P(CPACK_WHITE);
 				glaDrawPixelsTex(rres.xof, rres.yof, rres.rectx, rres.recty, GL_RGBA, GL_FLOAT,
 				                 GL_LINEAR, rres.rectf);
 				glDisable(GL_BLEND);
@@ -1068,7 +1068,7 @@ void render_view3d_draw(RenderEngine *engine, const bContext *C)
 			                                              4, dither, NULL, &scene->display_settings);
 
 			glEnable(GL_BLEND);
-			gpuCurrentColor3x(CPACK_WHITE);
+			gpuColor3P(CPACK_WHITE);
 			glaDrawPixelsAuto(rres.xof, rres.yof, rres.rectx, rres.recty, GL_RGBA, GL_UNSIGNED_BYTE,
 			                  GL_LINEAR, display_buffer);
 			glDisable(GL_BLEND);

@@ -267,7 +267,7 @@ void ANIM_draw_previewrange(const bContext *C, View2D *v2d, int end_frame_width)
 	/* only draw this if preview range is set */
 	if (PRVRANGEON) {
 		glEnable(GL_BLEND);
-		gpuCurrentColor4x(CPACK_BLACK, 0.4f);
+		gpuColor4P(CPACK_BLACK, 0.4f);
 		
 		/* only draw two separate 'curtains' if there's no overlap between them */
 		if (PSFRA < PEFRA + end_frame_width) {

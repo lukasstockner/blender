@@ -260,11 +260,11 @@ static void wm_drop_operator_draw(const char *name, int x, int y)
 {
 	int width = UI_GetStringWidth(name);
 
-	gpuCurrentColor4x(CPACK_BLACK, 0.196f);
+	gpuColor4P(CPACK_BLACK, 0.196f);
 	uiSetRoundBox(UI_CNR_ALL | UI_RB_ALPHA);
 	uiRoundBox(x, y, x + width + 8, y + 15, 4);
 
-	gpuCurrentColor3x(CPACK_WHITE);
+	gpuColor3P(CPACK_WHITE);
 	UI_DrawString(x + 4, y + 4, name);
 }
 
@@ -323,10 +323,10 @@ void wm_drags_draw(bContext *C, wmWindow *win, rcti *rect)
 			if (rect)
 				drag_rect_minmax(rect, x, y, x + drag->sx, y + drag->sy);
 			else {
-				gpuCurrentColor4x(CPACK_WHITE, 0.650f); /* this blends texture */
-				gpuAspectBegin(GPU_ASPECT_TEXTURE, NULL);
+				gpuColor4P(CPACK_WHITE, 0.650f); /* this blends texture */
+				GPU_aspect_begin(GPU_ASPECT_TEXTURE, NULL);
 				glaDrawPixelsTexScaled(x, y, drag->imb->x, drag->imb->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST, drag->imb->rect, drag->scale, drag->scale);
-				gpuAspectEnd(GPU_ASPECT_TEXTURE, NULL);
+				GPU_aspect_end(GPU_ASPECT_TEXTURE, NULL);
 			}
 		}
 		else {
@@ -355,7 +355,7 @@ void wm_drags_draw(bContext *C, wmWindow *win, rcti *rect)
 			drag_rect_minmax(rect, x, y, x + w, y + 16);
 		}
 		else {
-			gpuCurrentColor3x(CPACK_WHITE);
+			gpuColor3P(CPACK_WHITE);
 			UI_DrawString(x, y, wm_drag_name(drag));
 		}
 		

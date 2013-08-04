@@ -32,11 +32,8 @@
 #ifndef GPU_ASPECT_H
 #define GPU_ASPECT_H
 
-
-
-#include "intern/gpu_glew.h"
-
-
+#include "stddef.h"
+#include "BLI_sys_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -44,22 +41,32 @@ extern "C" {
 
 
 
-void gpuInitializeAspects(void);
-void gpuShutdownAspects(void);
-
-void gpuGenAspects   (GLsizei count,       GLuint* aspects);
-void gpuDeleteAspects(GLsizei count, const GLuint* aspects);
+void GPU_gen_aspects   (size_t count,       uint32_t* aspects);
+void GPU_delete_aspects(size_t count, const uint32_t* aspects);
 
 typedef struct GPUaspectfuncs {
-	GLboolean (*begin)(GLvoid* param, const GLvoid* object);
-	GLboolean (*end  )(GLvoid* param, const GLvoid* object);
-	GLvoid* param;
+	bool  (*begin  )(void* param, const void* object);
+	bool  (*end    )(void* param, const void* object);
+	void  (*commit )(void* param);
+	void  (*enable )(void* param, uint32_t options);
+	void  (*disable)(void* param, uint32_t options);
+	void* param;
 } GPUaspectfuncs;
 
-void gpuAspectFuncs(GLuint aspect, GPUaspectfuncs* aspectFuncs);
+void GPU_aspect_funcs(uint32_t aspect, GPUaspectfuncs* aspectFuncs);
 
-GLboolean gpuAspectBegin(GLuint aspect, const GLvoid* object);
-GLboolean gpuAspectEnd  (GLuint aspect, const GLvoid* object);
+bool GPU_aspect_begin(uint32_t aspect, const void* object);
+bool GPU_aspect_end  (void);
+
+void GPU_aspect_enable (uint32_t aspect, uint32_t options);
+void GPU_aspect_disable(uint32_t aspect, uint32_t options);
+
+
+
+void gpu_initialize_aspects(void);
+void gpu_shutdown_aspects  (void);
+
+void gpu_commit_aspect(void);
 
 
 

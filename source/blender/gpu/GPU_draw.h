@@ -32,18 +32,11 @@
 #ifndef __GPU_DRAW_H__
 #define __GPU_DRAW_H__
 
+#include "BLI_sys_types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-struct Image;
-struct ImageUser;
-struct MTFace;
-struct Object;
-struct Scene;
-struct View3D;
-struct RegionView3D;
-struct SmokeModifierData;
 
 /* OpenGL drawing functions related to shading. These are also
  * shared with the game engine, where there were previously

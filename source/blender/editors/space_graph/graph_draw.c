@@ -93,7 +93,7 @@ static void draw_fcurve_modifier_controls_envelope(FModifier *fcm, View2D *v2d)
 	int i;
 
 	/* draw two black lines showing the standard reference levels */
-	gpuCurrentColor3x(CPACK_BLACK);
+	gpuColor3P(CPACK_BLACK);
 	setlinestyle(5);
 
 	gpuBegin(GL_LINES);
@@ -109,7 +109,7 @@ static void draw_fcurve_modifier_controls_envelope(FModifier *fcm, View2D *v2d)
 	gpuSpriteSize(2.0f);
 
 	/* for now, point color is fixed, and is white */
-	gpuCurrentColor3x(CPACK_WHITE);
+	gpuColor3P(CPACK_WHITE);
 
 	/* we use bgl points not standard gl points, to workaround vertex 
 	 * drawing bugs that some drivers have (probably legacy ones only though)
@@ -770,7 +770,7 @@ static void graph_draw_driver_debug(bAnimContext *ac, ID *id, FCurve *fcu)
 		float t;
 		
 		/* draw with thin dotted lines in style of what curve would have been */
-		gpuCurrentColor3fv(fcu->color);
+		gpuColor3fv(fcu->color);
 		
 		setlinestyle(20);
 		gpuLineWidth(2.0f);
@@ -802,7 +802,7 @@ static void graph_draw_driver_debug(bAnimContext *ac, ID *id, FCurve *fcu)
 			float co[2];
 			
 			/* draw dotted lines leading towards this point from both axes ....... */
-			gpuCurrentColor3f(0.9f, 0.9f, 0.9f);
+			gpuColor3f(0.9f, 0.9f, 0.9f);
 			setlinestyle(5);
 			
 			gpuBegin(GL_LINES);
@@ -831,7 +831,7 @@ static void graph_draw_driver_debug(bAnimContext *ac, ID *id, FCurve *fcu)
 			
 			/* x marks the spot .................................................... */
 			/* -> outer frame */
-			gpuCurrentColor3f(0.9f, 0.9f, 0.9f);
+			gpuColor3f(0.9f, 0.9f, 0.9f);
 			gpuSpriteSize(7.0);
 			
 			gpuBegin(GL_POINTS);
@@ -876,7 +876,7 @@ void graph_draw_ghost_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar)
 		 *  - this is set by the function which creates these
 		 *	- draw with a fixed opacity of 2
 		 */
-		gpuCurrentColor4f(fcu->color[0], fcu->color[1], fcu->color[2], 0.5f);
+		gpuColor4f(fcu->color[0], fcu->color[1], fcu->color[2], 0.5f);
 		
 		/* simply draw the stored samples */
 		draw_fcurve_curve_samples(ac, NULL, fcu, &ar->v2d);
@@ -940,7 +940,7 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 				/* set whatever color the curve has set 
 				 *	- unselected curves draw less opaque to help distinguish the selected ones
 				 */
-				gpuCurrentColor4f(fcu->color[0], fcu->color[1], fcu->color[2], fcurve_display_alpha(fcu));
+				gpuColor4f(fcu->color[0], fcu->color[1], fcu->color[2], fcurve_display_alpha(fcu));
 			}
 			
 			/* draw active F-Curve thicker than the rest to make it stand out */

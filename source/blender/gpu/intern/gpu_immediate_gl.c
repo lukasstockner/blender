@@ -25,27 +25,48 @@
 * ***** END GPL LICENSE BLOCK *****
 */
 
-/** \file blender/gpu/intern/gpu_immediate_glsl.c
+/** \file blender/gpu/intern/gpu_immediate_gl.c
 *  \ingroup gpu
 */
 
-#include "gpu_immediate_internal.h"
+/* my interface */
+#include "intern/gpu_immediate_gl.h"
+
+/* internal */
+#include "intern/gpu_common.h"
+#include "intern/gpu_immediate.h"
+#include "intern/gpu_extension_wrapper.h"
+#include "intern/gpu_glew.h"
+
+/* my library */
 #include "GPU_matrix.h"
+
+/* external */
 #include "MEM_guardedalloc.h"
-#include "BLI_math_vector.h"
 
-#include <string.h>
+/* standard */
+#include <stddef.h>
 
-#include "gpu_extension_wrapper.h"
-#include "gpu_glew.h"
-//#include "gpu_object_gles.h"
-#include "GPU_object.h"
+
+
+#define ALIGN64(p) (((p) + 63) & ~63)
+
+
+
+static const GLsizeiptr VQEOS_SIZE =  sizeof(GLushort) * 3 * 65536 / 2;
+static const GLsizeiptr VQEOC_SIZE =  sizeof(GLubyte)  * 3 *   256 / 2;
+
+static GLushort* vqeos;
+static GLubyte*  vqeoc;
+
+static GLuint vqeos_buf;
+static GLuint vqeoc_buf;
+
+
 
 typedef struct bufferDataGLSL {
 	size_t   size;
-#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_COMPAT)
 	GLuint   vao;
-#endif
 	GLuint   vbo;
 	GLintptr unalignedPtr;
 	GLubyte* mappedBuffer;
@@ -53,7 +74,41 @@ typedef struct bufferDataGLSL {
 } bufferDataGLSL;
 
 
-#define ALIGN64(p) (((p) + 63) & ~63)
+
+static GLsizei calc_stride(void)
+{
+	size_t              stride = 0;
+	GPUimmediateformat* format = &(GPU_IMMEDIATE->format);
+	size_t i;
+
+	/* vertex */
+	if (format->vertexSize != 0)
+		stride += (size_t)(format->vertexSize) * sizeof(GLfloat);
+
+	/* normal */
+	if (format->normalSize != 0)
+		stride += 3 * sizeof(GLfloat); /* normals always have 3 components */
+
+	/* color */
+	if (format->colorSize != 0)
+		stride += 4 * sizeof(GLubyte); /* color always get 4 bytes for efficient memory alignment */
+
+	/* texture coordinate */
+	for (i = 0; i < format->texCoordCount; i++)
+		stride += (size_t)(format->texCoordSize[i]) * sizeof(GLfloat);
+
+	/* float vertex attribute */
+	for (i = 0; i < format->attribCount_f; i++)
+		stride += (size_t)(format->attribSize_f[i]) * sizeof(GLfloat);
+
+	/* byte vertex attribute */
+	for (i = 0; i < format->attribCount_ub; i++)
+		stride += 4 * sizeof(GLubyte); /* byte attributes always get 4 bytes for efficient memory alignment */
+
+	return (GLsizei)stride;
+}
+
+
 
 static void allocate(void)
 {
@@ -61,17 +116,12 @@ static void allocate(void)
 
 	GPU_CHECK_NO_ERROR();
 
-	GPU_IMMEDIATE->stride = gpu_calc_stride();
+	GPU_IMMEDIATE->stride = calc_stride();
 
 	newSize = (size_t)(GPU_IMMEDIATE->stride * GPU_IMMEDIATE->maxVertexCount);
 
 	if (GPU_IMMEDIATE->bufferData) {
 		bufferDataGLSL* bufferData = (bufferDataGLSL*)GPU_IMMEDIATE->bufferData;
-
-#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_COMPAT)
-		if (bufferData->vao != 0)
-			glBindVertexArray(bufferData->vao);
-#endif
 
 		if (bufferData->vbo != 0)
 			gpu_glBindBuffer(GL_ARRAY_BUFFER, bufferData->vbo);
@@ -90,20 +140,6 @@ static void allocate(void)
 	}
 	else {
 		bufferDataGLSL* bufferData = (bufferDataGLSL*)MEM_callocN(sizeof(bufferDataGLSL), "bufferDataGLSL");
-
-#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_COMPAT)
-		bufferData->vao = 0;
-#endif
-
-		bufferData->vbo = 0;
-
-#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_COMPAT)
-		if (GLEW_VERSION_3_0 || GLEW_ARB_vertex_array_object) {
-			glGenVertexArrays(1, &(bufferData->vao));
-			GPU_ASSERT(bufferData->vao != 0);
-			glBindVertexArray(bufferData->vao);
-		}
-#endif
 
 		if (GLEW_VERSION_1_5 || GLEW_ES_VERSION_2_0 || GLEW_ARB_vertex_buffer_object) {
 			gpu_glGenBuffers(1, &(bufferData->vbo));
@@ -133,133 +169,88 @@ static void allocate(void)
 
 static void setup(void)
 {
-	size_t i;
+	GPUimmediateformat* format     = &(GPU_IMMEDIATE->format);
+	const GLsizei       stride     = GPU_IMMEDIATE->stride;
+	bufferDataGLSL*     bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
+	const GLubyte*      base       = bufferData->vbo != 0 ? NULL : (GLubyte*)(bufferData->unmappedBuffer);
+
 	size_t offset = 0;
-	bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
 
-	GLubyte* base = bufferData->vbo != 0 ? NULL : (GLubyte*)(bufferData->unmappedBuffer);
-
-	GPU_CHECK_NO_ERROR();
+	size_t i;
 
 	/* vertex */
-
-	gpugameobj.gpuVertexPointer(
-		GPU_IMMEDIATE->format.vertexSize,
-		GL_FLOAT,
-		GPU_IMMEDIATE->stride,
-		base + offset);
-
-	offset += (size_t)(GPU_IMMEDIATE->format.vertexSize) * sizeof(GLfloat);
+	gpu_enable_vertex_array();
+	gpu_vertex_pointer(format->vertexSize, GL_FLOAT, stride, base + offset);
+	offset += (size_t)(format->vertexSize) * sizeof(GLfloat);
 
 	/* normal */
-
-	GPU_CHECK_NO_ERROR();
-	if (GPU_IMMEDIATE->format.normalSize != 0) {
-		gpugameobj.gpuNormalPointer(
-			GL_FLOAT,
-			GPU_IMMEDIATE->stride,
-			base + offset);
-
+	if (format->normalSize != 0) {
+		gpu_enable_normal_array();
+		gpu_normal_pointer(GL_FLOAT, stride, base + offset);
 		offset += 3 * sizeof(GLfloat);
 	}
 
 	/* color */
-
-	GPU_CHECK_NO_ERROR();
-	if (GPU_IMMEDIATE->format.colorSize != 0) {
-		gpugameobj.gpuColorPointer(
-			4 * sizeof(GLubyte),
-			GL_UNSIGNED_BYTE,
-			GPU_IMMEDIATE->stride,
-			base + offset);
-
-		/* 4 bytes are always reserved for color, for efficient memory alignment */
-		offset += 4 * sizeof(GLubyte);
+	if (format->colorSize != 0) {
+		gpu_enable_color_array();
+		gpu_color_pointer(format->colorSize, GL_UNSIGNED_BYTE, stride, base + offset);
+		offset += 4 * sizeof(GLubyte); /* 4 bytes are always reserved for color, for efficient memory alignment */
 	}
 
 	/* texture coordinate */
 
-	GPU_CHECK_NO_ERROR();
-	if (GPU_IMMEDIATE->format.textureUnitCount == 1) {
-		gpugameobj.gpuTexCoordPointer(
-			GPU_IMMEDIATE->format.texCoordSize[0],
-			GL_FLOAT,
-			GPU_IMMEDIATE->stride,
-			base + offset);
-
-		offset +=
-			(size_t)(GPU_IMMEDIATE->format.texCoordSize[0]) * sizeof(GLfloat);
-
+	for (i = 0; i < format->texCoordCount; i++) {
+		gpu_set_common_active_texture(i);
+		gpu_enable_texcoord_array();
+		gpu_texcoord_pointer(format->texCoordSize[i], GL_FLOAT, stride, base + offset);
+		offset += (size_t)(format->texCoordSize[i]) * sizeof(GLfloat);
 	}
-	else if (GPU_IMMEDIATE->format.textureUnitCount > 1) {
-		for (i = 0; i < GPU_IMMEDIATE->format.textureUnitCount; i++) {
-			/*glClientActiveTexture(GPU_IMMEDIATE->format.textureUnitMap[i]);
 
-			glTexCoordPointer(
-				GPU_IMMEDIATE->format.texCoordSize[i],
-				GL_FLOAT,
-				GPU_IMMEDIATE->stride,
-				base + offset);*/
-
-			offset +=
-				(size_t)(GPU_IMMEDIATE->format.texCoordSize[i]) * sizeof(GLfloat);
-
-		//	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-		}
-
-	//	glClientActiveTexture(GL_TEXTURE0);
-	}
+	gpu_set_common_active_texture(0);
 
 	/* float vertex attribute */
+	for (i = 0; i < format->attribCount_f; i++) {
+		if (format->attribSize_f[i] > 0) {
+			gpu_vertex_attrib_pointer(
+				format->attribIndexMap_f[i],
+				format->attribSize_f[i],
+				GL_FLOAT,
+				format->attribNormalized_f[i],
+				stride,
+				base + offset);
 
-	GPU_CHECK_NO_ERROR();
-	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_f; i++) {
-	/*	gpu_glVertexAttribPointer(
-			GPU_IMMEDIATE->format.attribIndexMap_f[i],
-			GPU_IMMEDIATE->format.attribSize_f[i],
-			GL_FLOAT,
-			GPU_IMMEDIATE->format.attribNormalized_f[i],
-			GPU_IMMEDIATE->stride,
-			base + offset);*/
+			offset += (size_t)(format->attribSize_f[i]) * sizeof(GLfloat);
 
-		offset +=
-			(size_t)(GPU_IMMEDIATE->format.attribSize_f[i]) * sizeof(GLfloat);
-
-		/*gpu_glEnableVertexAttribArray(
-			GPU_IMMEDIATE->format.attribIndexMap_f[i]);*/
+			gpu_enable_vertex_attrib_array(format->attribIndexMap_f[i]);
+		}
 	}
 
 	/* byte vertex attribute */
-
-	GPU_CHECK_NO_ERROR();
-	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++) {
-		if (GPU_IMMEDIATE->format.attribSize_ub[i] > 0) {
-			/*glVertexAttribPointer(
-				GPU_IMMEDIATE->format.attribIndexMap_ub[i],
-				GPU_IMMEDIATE->format.attribSize_ub[i],
+	for (i = 0; i < format->attribCount_ub; i++) {
+		if (format->attribSize_ub[i] > 0) {
+			gpu_vertex_attrib_pointer(
+				format->attribIndexMap_ub[i],
+				format->attribSize_ub[i],
 				GL_UNSIGNED_BYTE,
-				GPU_IMMEDIATE->format.attribNormalized_ub[i],
-				GPU_IMMEDIATE->stride,
-				base + offset);*/
+				format->attribNormalized_ub[i],
+				stride,
+				base + offset);
 
 			offset += 4 * sizeof(GLubyte);
 
-			/*glEnableVertexAttribArray(
-				GPU_IMMEDIATE->format.attribIndexMap_ub[i]);*/
+			gpu_enable_vertex_attrib_array(format->attribIndexMap_ub[i]);
 		}
 	}
-
-	GPU_CHECK_NO_ERROR();
 }
 
 
 
 typedef struct indexBufferDataGLSL {
-	GLuint vbo;
+	GLuint   vbo;
 	GLintptr unalignedPtr;
 	GLubyte* unmappedBuffer;
 	GLubyte* mappedBuffer;
-	size_t size;
+	size_t   size;
 } indexBufferDataGLSL;
 
 static void allocateIndex(void)
@@ -267,6 +258,8 @@ static void allocateIndex(void)
 	if (GPU_IMMEDIATE->index) {
 		GPUindex* index;
 		size_t newSize;
+
+		GPU_CHECK_NO_ERROR();
 
 		index = GPU_IMMEDIATE->index;
 
@@ -306,11 +299,8 @@ static void allocateIndex(void)
 		else {
 			indexBufferDataGLSL* bufferData = (indexBufferDataGLSL*)MEM_callocN(sizeof(indexBufferDataGLSL), "indexBufferDataGLSL");
 
-			bufferData->vbo = 0;
-
 			if (GLEW_VERSION_1_5 || GLEW_ES_VERSION_2_0 || GLEW_ARB_vertex_buffer_object) {
 				gpu_glGenBuffers(1, &(bufferData->vbo));
-				GPU_ASSERT(bufferData->vbo != 0);
 				gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufferData->vbo);
 				gpu_glBufferData(GL_ELEMENT_ARRAY_BUFFER, newSize, NULL, GL_STREAM_DRAW);
 			}
@@ -320,7 +310,7 @@ static void allocateIndex(void)
 				bufferData->unmappedBuffer = NULL;
 			}
 			else {
-				bufferData->unalignedPtr   = (GLintptr)MEM_mallocN(newSize+63, "indexBufferData->unalignedPtr");
+				bufferData->unalignedPtr   = (GLintptr)MEM_mallocN(newSize+63, "indexBufferDataGLSL->unalignedPtr");
 				bufferData->unmappedBuffer = (GLubyte*)ALIGN64(bufferData->unalignedPtr);
 			}
 
@@ -335,11 +325,79 @@ static void allocateIndex(void)
 
 
 
+static void static_element_array(GLuint* idOut, GLsizeiptr size, const GLvoid* indexes)
+{
+	gpu_glGenBuffers(1, idOut);
+	gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *idOut);
+	gpu_glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, indexes, GL_STATIC_DRAW);
+}
+
+
+
+static void quad_elements_init(void)
+{
+	/* init once*/
+	static char init = 0;
+
+	int i, j;
+
+	if (init) return;
+
+	init = 1;
+
+	vqeos = (GLushort*)MEM_mallocN(VQEOS_SIZE, "vqeos");
+
+	j = 0;
+	for (i = 0; i < 65535; i++) {
+		vqeos[j++] = (GLushort)i;
+
+		if (i % 4 == 3) {
+			vqeos[j++] = i-3;
+			vqeos[j++] = i-1;
+		}
+	}
+
+	vqeoc = (GLubyte* )MEM_mallocN(VQEOC_SIZE, "vqeoc");
+
+	for (i = 0; i < 255; i++)
+		vqeoc[i] = (GLubyte)(vqeos[i]);
+
+	if (GLEW_VERSION_1_5 || GLEW_ES_VERSION_2_0 || GLEW_ARB_vertex_buffer_object) {
+		static_element_array(&vqeoc_buf, VQEOC_SIZE, vqeoc);
+		static_element_array(&vqeos_buf, VQEOS_SIZE, vqeos);
+
+		MEM_freeN(vqeoc);
+		MEM_freeN(vqeos);
+
+		vqeoc = NULL;
+		vqeos = NULL;
+	}
+}
+
+
+
 void gpu_lock_buffer_glsl(void)
 {
+	bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
+
 	allocate();
 	allocateIndex();
-	setup();
+	quad_elements_init();
+
+	if (gpu_glGenVertexArrays != NULL) {
+		bool init = (bufferData->vao == 0);
+
+		if (init)
+			gpu_glGenVertexArrays(1, &(bufferData->vao));
+
+		gpu_glBindVertexArray(bufferData->vao);
+
+		if (init)
+			setup();
+	}
+	else {
+		setup();
+	}
 }
 
 
@@ -352,65 +410,6 @@ void gpu_begin_buffer_glsl(void)
 		(GLubyte*)GPU_buffer_start_update(GL_ARRAY_BUFFER, bufferData->unmappedBuffer);
 
 	GPU_IMMEDIATE->mappedBuffer = bufferData->mappedBuffer;
-}
-
-
-
-static const size_t VQEOS_SIZE =  3 * 65536 / 2;
-static const size_t VQEOC_SIZE =  3 *   256 / 2;
-
-static GLushort* vqeos;
-static GLubyte*  vqeoc;
-
-static GLuint vq[2];
-
-void gpu_quad_elements_init(void)
-{
-	/* init once*/
-	static char init = 0;
-
-	int i, j;
-
-	if (init) return;
-
-	init = 1;
-
-	vqeos = (GLushort*)MEM_mallocN(VQEOS_SIZE * sizeof(GLushort), "vqeos");
-	vqeoc = (GLubyte* )MEM_mallocN(VQEOC_SIZE * sizeof(GLubyte ), "vqeoc");
-
-	for (i = 0, j = 0; i < 65535; i++, j++) {
-		vqeos[j] = i;
-
-		if (i%4 == 3) {
-			vqeos[++j] = i-3;
-			vqeos[++j] = i-1;
-		}
-	}
-
-	for (i = 0, j = 0; i < 255; i++, j++) {
-		vqeoc[j] = i;
-
-		if(i%4 == 3) {
-			vqeoc[++j] = i-3;
-			vqeoc[++j] = i-1;
-		}
-	}
-
-	if (GLEW_VERSION_1_5 || GLEW_ES_VERSION_2_0 || GLEW_ARB_vertex_buffer_object) {
-		gpu_glGenBuffers(2, vq);
-
-		gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vq[0]);
-		gpu_glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLushort) * VQEOS_SIZE, vqeos, GL_STATIC_DRAW);
-
-		gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vq[1]);
-		gpu_glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLubyte ) * VQEOC_SIZE, vqeoc, GL_STATIC_DRAW);
-
-		MEM_freeN(vqeos);
-		MEM_freeN(vqeoc);
-
-		vqeos = NULL;
-		vqeoc = NULL;
-	}
 }
 
 
@@ -430,21 +429,22 @@ void gpu_end_buffer_glsl(void)
 		GPU_CHECK_NO_ERROR();
 
 		GPU_commit_matrixes();
-		GPU_commit_current ();
+		gpu_commit_current ();
+		gpu_commit_samplers();
 
 		if (GPU_IMMEDIATE->mode != GL_QUADS) {
 			glDrawArrays(GPU_IMMEDIATE->mode, 0, GPU_IMMEDIATE->count);
 		}
 		else {
 			if (GPU_IMMEDIATE->count <= 255){
-				if (GLEW_VERSION_1_5 || GLEW_ES_VERSION_2_0 || GLEW_ARB_vertex_buffer_object)
-					gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vq[1]);
+				if (vqeoc_buf != 0)
+					gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vqeoc_buf);
 
 				glDrawElements(GL_TRIANGLES, 3 * GPU_IMMEDIATE->count / 2, GL_UNSIGNED_BYTE, vqeoc);
 			}
 			else if(GPU_IMMEDIATE->count <= 65535) {
-				if (GLEW_VERSION_1_5 || GLEW_ES_VERSION_2_0 || GLEW_ARB_vertex_buffer_object)
-					gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vq[0]);
+				if (vqeos_buf != 0)
+					gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vqeos_buf);
 
 				glDrawElements(GL_TRIANGLES, 3 * GPU_IMMEDIATE->count / 2, GL_UNSIGNED_SHORT, vqeos);
 			}
@@ -452,7 +452,7 @@ void gpu_end_buffer_glsl(void)
 				printf("To big GL_QUAD object to draw. Vertices: %i", GPU_IMMEDIATE->count);
 			}
 
-			if (GLEW_VERSION_1_5 || GLEW_ES_VERSION_2_0 || GLEW_ARB_vertex_buffer_object)
+			if (vqeoc_buf != 0 || vqeos_buf != 0)
 				gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ((indexBufferDataGLSL*)(GPU_IMMEDIATE->index->bufferData))->vbo);
 		}
 
@@ -461,40 +461,51 @@ void gpu_end_buffer_glsl(void)
 }
 
 
-
-void gpu_unlock_buffer_glsl(void)
+static void unsetup(void)
 {
-	GPU_CHECK_NO_ERROR();
+	size_t i;
 
-	gpugameobj.gpuCleanupAfterDraw();
+	/* vertex */
+	gpu_disable_vertex_array();
 
-	GPU_CHECK_NO_ERROR();
+	/* normal */
+	if (GPU_IMMEDIATE->format.normalSize != 0)
+		gpu_enable_normal_array();
+
+	/* color */
+	if (GPU_IMMEDIATE->format.colorSize != 0)
+		gpu_disable_color_array();
+
+	/* texture coordinate */
+
+	for (i = 0; i < GPU_IMMEDIATE->format.texCoordCount; i++) {
+		gpu_set_common_active_texture(i);
+		gpu_disable_texcoord_array();
+	}
+
+	gpu_set_common_active_texture(0);
+
+	/* float vertex attribute */
+	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_f; i++)
+		if (GPU_IMMEDIATE->format.attribSize_f[i] > 0)
+			gpu_disable_vertex_attrib_array(GPU_IMMEDIATE->format.attribIndexMap_f[i]);
+
+	/* byte vertex attribute */
+	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++)
+		if (GPU_IMMEDIATE->format.attribSize_ub[i] > 0)
+			gpu_disable_vertex_attrib_array(GPU_IMMEDIATE->format.attribIndexMap_ub[i]);
 }
 
 
 
-void gpu_shutdown_buffer_glsl(GPUimmediate *restrict immediate)
+void gpu_unlock_buffer_glsl(void)
 {
-	if (immediate->bufferData) {
-		bufferDataGLSL* bufferData = (bufferDataGLSL*)(immediate->bufferData);
+	bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
 
-		if (bufferData->unalignedPtr != 0) {
-			MEM_freeN((GLubyte*)(bufferData->unalignedPtr));
-		}
-
-#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_COMPAT)
-		if (bufferData->vao != 0)
-			glDeleteVertexArrays(1, &(bufferData->vao));
-#endif
-
-		if (bufferData->vbo != 0)
-			gpu_glDeleteBuffers(1, &(bufferData->vbo));
-
-		MEM_freeN(immediate->bufferData);
-		immediate->bufferData = NULL;
-
-		gpu_index_shutdown_buffer_glsl(immediate->index);
-	}
+	if (bufferData->vao != 0)
+		glBindVertexArray(0);
+	else
+		unsetup();
 }
 
 
@@ -511,6 +522,30 @@ void gpu_index_shutdown_buffer_glsl(GPUindex *restrict index)
 			MEM_freeN((GLubyte*)(bufferData->unalignedPtr));
 
 		MEM_freeN(index->bufferData);
+	}
+}
+
+
+
+void gpu_shutdown_buffer_glsl(GPUimmediate *restrict immediate)
+{
+	if (immediate->bufferData) {
+		bufferDataGLSL* bufferData = (bufferDataGLSL*)(immediate->bufferData);
+
+		if (bufferData->unalignedPtr != 0) {
+			MEM_freeN((GLubyte*)(bufferData->unalignedPtr));
+		}
+
+		if (bufferData->vao != 0)
+			gpu_glDeleteVertexArrays(1, &(bufferData->vao));
+
+		if (bufferData->vbo != 0)
+			gpu_glDeleteBuffers(1, &(bufferData->vbo));
+
+		MEM_freeN(immediate->bufferData);
+		immediate->bufferData = NULL;
+
+		gpu_index_shutdown_buffer_glsl(immediate->index);
 	}
 }
 
@@ -550,9 +585,8 @@ void gpu_draw_elements_glsl(void)
 	GPU_CHECK_NO_ERROR();
 
 	GPU_commit_matrixes();
-	GPU_commit_current ();
-
-	GPU_CHECK_NO_ERROR();
+	gpu_commit_current ();
+	gpu_commit_samplers();
 
 	glDrawElements(
 		GPU_IMMEDIATE->mode,
@@ -571,9 +605,8 @@ void gpu_draw_range_elements_glsl(void)
 	GPU_CHECK_NO_ERROR();
 
 	GPU_commit_matrixes();
-	GPU_commit_current ();
-
-	GPU_CHECK_NO_ERROR();
+	gpu_commit_current ();
+	gpu_commit_samplers();
 
 #if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_COMPAT)
 	glDrawRangeElements(
@@ -592,4 +625,36 @@ void gpu_draw_range_elements_glsl(void)
 #endif
 
 	GPU_CHECK_NO_ERROR();
+}
+
+
+
+void gpu_commit_current(void)
+{
+	const GPUcommon* common = gpu_get_common();
+
+	if (common) {
+		if (GPU_IMMEDIATE->format.colorSize == 0 && common->color != -1)
+			glVertexAttrib4ubv(common->color, GPU_IMMEDIATE->color);
+
+		if (GPU_IMMEDIATE->format.normalSize == 0 && common->normal != -1)
+			glVertexAttrib3fv(common->normal, GPU_IMMEDIATE->normal);
+	}
+
+#if defined(WITH_GL_PROFILE_COMPAT)
+	glColor4ubv(GPU_IMMEDIATE->color);
+	glNormal3fv(GPU_IMMEDIATE->normal);
+#endif
+}
+
+
+
+void gpu_commit_samplers(void)
+{
+	const GPUcommon* common = gpu_get_common();
+
+	glUniform1iv(
+		common->sampler[0],
+		GPU_IMMEDIATE->format.samplerCount,
+		GPU_IMMEDIATE->format.samplerMap);
 }

@@ -1563,7 +1563,7 @@ void BKE_pbvh_node_draw(PBVHNode *node, void *data_v)
 	}
 	gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, col);
 
-	gpuCurrentColor3f(1, 0, 0);
+	gpuColor3f(1, 0, 0);
 #endif
 
 	if (!(node->flag & PBVH_FullyHidden)) {

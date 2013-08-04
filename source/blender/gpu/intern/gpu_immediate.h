@@ -1,3 +1,6 @@
+#ifndef GPU_INTERN_IMMEDIATE_H
+#define GPU_INTERN_IMMEDIATE_H
+
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -29,21 +32,31 @@
  *  \ingroup gpu
  */
 
-#ifndef __GPU_IMMEDIATE_H__
-#define __GPU_IMMEDIATE_H__
+/*
+*/
 
-
-
+/* internal */
+#include "intern/gpu_common.h"
 #include "intern/gpu_glew.h"
 #include "intern/gpu_safety.h"
 
+/* external */
+#include "BLI_utildefines.h"
+
+/* standard */
 #include <string.h> /* for size_t */
+
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 
 #if GPU_SAFETY
 
-/* Define some useful, but slow, checks for correct API usage. */
+/* Define some useful, but potentially slow, checks for correct API usage. */
 
 #define GPU_CHECK_BASE(var)                       \
     GPU_CHECK_NO_ERROR();                         \
@@ -81,8 +94,6 @@
     GPU_SAFE_RETURN(GPU_IMMEDIATE->mappedBuffer != NULL, hasBegunOK,); \
     }
 
-#define GPU_CHECK_CAN_VERTEX_ATTRIB() GPU_CHECK_CAN_END()
-
 #define GPU_CHECK_MODE(_mode)                                   \
     {                                                           \
     GLboolean immediateOK;                                      \
@@ -93,27 +104,13 @@
 
 #define GPU_CHECK_CAN_REPEAT() GPU_CHECK_CAN_BEGIN()
 
-#define GPU_CURRENT_COLOR_VALID(v)  (GPU_IMMEDIATE->isColorValid  = (v))
-#define GPU_CURRENT_NORMAL_VALID(v) (GPU_IMMEDIATE->isNormalValid = (v))
-
 #else
 
 #define GPU_CHECK_CAN_BEGIN()
 #define GPU_CHECK_CAN_END()
-#define GPU_CHECK_CAN_VERTEX_ATTRIB()
 #define GPU_CHECK_MODE(mode)
-#define GPU_CHECK_FORMAT()
 #define GPU_CHECK_CAN_REPEAT()
 
-#define GPU_CURRENT_COLOR_VALID(valid)
-#define GPU_CURRENT_NORMAL_VALID(valid)
-
-#endif
-
-
-
-#ifdef __cplusplus
-extern "C" {
 #endif
 
 
@@ -125,9 +122,11 @@ void gpuImmediateElementSizes(
 
 void gpuImmediateMaxVertexCount(GLsizei maxVertexCount);
 
-void gpuImmediateTextureUnitCount(size_t count);
+void gpuImmediateSamplerCount(size_t count);
+void gpuImmediateSamplerMap(const GLint *restrict map);
+
+void gpuImmediateTexCoordCount(size_t count);
 void gpuImmediateTexCoordSizes(const GLint *restrict sizes);
-void gpuImmediateTextureUnitMap(const GLenum *restrict map);
 
 void gpuImmediateFloatAttribCount(size_t count);
 void gpuImmediateFloatAttribSizes(const GLint *restrict sizes);
@@ -137,11 +136,13 @@ void gpuImmediateUbyteAttribCount(size_t count);
 void gpuImmediateUbyteAttribSizes(const GLint *restrict sizes);
 void gpuImmediateUbyteAttribIndexMap(const GLuint *restrict map);
 
-void gpuImmediateFormatReset(void);
-void gpuImmediateLock(void);
-void gpuImmediateUnlock(void);
+void  gpuImmediateFormatReset(void);
+void  gpuImmediateLock(void);
+void  gpuImmediateUnlock(void);
 GLint gpuImmediateLockCount(void);
 
+void gpuBegin(GLenum mode);
+void gpuEnd(void);
 
 
 typedef struct GPUarrays {
@@ -160,70 +161,52 @@ typedef struct GPUarrays {
 	const void *restrict vertexPointer;
 } GPUarrays;
 
-#define GPU_MAX_ELEMENT_SIZE   4
-#define GPU_COLOR_COMPS        4
-#define GPU_MAX_TEXTURE_UNITS 32
 #define GPU_MAX_FLOAT_ATTRIBS 32
 #define GPU_MAX_UBYTE_ATTRIBS 32
+
+typedef struct GPUimmediateformat {
+	GLint     vertexSize;
+	GLint     normalSize;
+	GLint     colorSize;
+	GLint     texCoordSize [GPU_MAX_COMMON_TEXCOORDS];
+	GLint     attribSize_f [GPU_MAX_FLOAT_ATTRIBS];
+	GLint     attribSize_ub[GPU_MAX_UBYTE_ATTRIBS];
+
+	size_t    texCoordCount;
+
+	GLint     samplerMap[GPU_MAX_COMMON_SAMPLERS];
+	size_t    samplerCount;
+
+	GLuint    attribIndexMap_f  [GPU_MAX_FLOAT_ATTRIBS];
+	GLboolean attribNormalized_f[GPU_MAX_FLOAT_ATTRIBS];
+	size_t    attribCount_f;
+
+	GLuint    attribIndexMap_ub  [GPU_MAX_UBYTE_ATTRIBS];
+	GLboolean attribNormalized_ub[GPU_MAX_UBYTE_ATTRIBS];
+	size_t    attribCount_ub;
+} GPUimmediateformat;
 
 typedef struct GPUimmediate {
 	GLenum mode;
 
-	/* All variables that determine the vertex array format
-	   go in one structure so they can be easily cleared. */
-	struct {
-		GLint vertexSize;
-		GLint normalSize;
-		GLint texCoordSize[GPU_MAX_TEXTURE_UNITS];
-		GLint colorSize;
-		GLint attribSize_f[GPU_MAX_FLOAT_ATTRIBS];
-		GLint attribSize_ub[GPU_MAX_UBYTE_ATTRIBS];
+	GPUimmediateformat format;
 
-		GLenum textureUnitMap[GPU_MAX_TEXTURE_UNITS];
-		size_t textureUnitCount;
-
-		GLuint attribIndexMap_f[GPU_MAX_FLOAT_ATTRIBS];
-		size_t attribCount_f;
-		GLboolean attribNormalized_f[GPU_MAX_FLOAT_ATTRIBS];
-
-		GLuint attribIndexMap_ub[GPU_MAX_UBYTE_ATTRIBS];
-		size_t attribCount_ub;
-		GLboolean attribNormalized_ub[GPU_MAX_UBYTE_ATTRIBS];
-	} format;
-
-	GLfloat vertex[GPU_MAX_ELEMENT_SIZE];
+	GLfloat vertex[4];
 	GLfloat normal[3];
-	GLfloat texCoord[GPU_MAX_TEXTURE_UNITS][GPU_MAX_ELEMENT_SIZE];
-	GLubyte color[GPU_COLOR_COMPS];
-	GLfloat attrib_f[GPU_MAX_FLOAT_ATTRIBS][GPU_MAX_ELEMENT_SIZE];
-	GLubyte attrib_ub[GPU_MAX_UBYTE_ATTRIBS][GPU_COLOR_COMPS];
+	GLfloat texCoord[GPU_MAX_COMMON_TEXCOORDS][4];
+	GLubyte color[4];
+	GLfloat attrib_f[GPU_MAX_FLOAT_ATTRIBS][4];
+	GLubyte attrib_ub[GPU_MAX_UBYTE_ATTRIBS][4];
 
 	GLubyte *restrict mappedBuffer;
 	void *restrict bufferData;
 	GLsizei stride;
 	size_t  offset;
 	GLsizei maxVertexCount;
+	GLsizei lastPrimVertex;
 	GLsizei count;
 
 	int lockCount;
-
-	void (*copyVertex)(void);
-
-	void (*appendClientArrays)(
-		const GPUarrays *arrays,
-		GLint first,
-		GLsizei count);
-
-	void (*lockBuffer)(void);
-	void (*unlockBuffer)(void);
-	void (*beginBuffer)(void);
-	void (*endBuffer)(void);
-	void (*shutdownBuffer)(struct GPUimmediate *restrict immediate);
-
-	void (*currentColor)(void);
-	void (*getCurrentColor)(GLfloat *restrict color);
-
-	void (*currentNormal)(void);
 
 	struct GPUindex *restrict index;
 
@@ -235,11 +218,10 @@ typedef struct GPUimmediate {
 	void (*drawRangeElements)(void);
 
 #if GPU_SAFETY
-	GLenum    lastTexture;
+	GLint     lastTexture;
 	GLboolean hasOverflowed;
-	GLboolean isColorValid;
-	GLboolean isNormalValid;
 #endif
+
 } GPUimmediate;
 
 extern GPUimmediate *restrict GPU_IMMEDIATE;
@@ -262,36 +244,6 @@ void gpuImmediateSingleRepeatElements(GPUimmediate *restrict immediate);
 
 void gpuImmediateSingleDrawRangeElements(GLenum mode, GPUimmediate *restrict immediate);
 void gpuImmediateSingleRepeatRangeElements(GPUimmediate *restrict immediate);
-
-
-
-void gpuCurrentColor3f(GLfloat r, GLfloat g, GLfloat b);
-void gpuCurrentColor3fv(const GLfloat *restrict v);
-void gpuCurrentColor3ub(GLubyte r, GLubyte g, GLubyte b);
-void gpuCurrentColor3ubv(const GLubyte *restrict v);
-void gpuCurrentColor4f(GLfloat r, GLfloat g, GLfloat b, GLfloat a);
-void gpuCurrentColor4fv(const GLfloat *restrict v);
-void gpuCurrentColor4ub(GLubyte r, GLubyte g, GLubyte b, GLubyte a);
-void gpuCurrentColor4ubv(const GLubyte *restrict v);
-void gpuCurrentColor4d(GLdouble r, GLdouble g, GLdouble b, GLdouble a);
-
-void gpuCurrentColor3x(GLuint rgb);
-void gpuCurrentColor4x(GLuint rgb, GLfloat a);
-
-void gpuCurrentAlpha(GLfloat a);
-void gpuMultCurrentAlpha(GLfloat factor);
-
-
-
-void gpuGetCurrentColor4fv(GLfloat *restrict color);
-void gpuGetCurrentColor4ubv(GLubyte *restrict color);
-
-void gpuCurrentGray3f(GLfloat luminance);
-
-void gpuCurrentGray4f(GLfloat luminance, GLfloat alpha);
-
-
-void gpuCurrentNormal3fv(const GLfloat *restrict v);
 
 
 
@@ -547,6 +499,12 @@ void gpuSingleClientRangeElements_C4UB_V3F(
 	const GLuint *restrict indexes);
 
 
+
+void gpu_commit_current (void);
+void gpu_commit_samplers(void);
+
+
+
 #if defined(GLEW_ES_ONLY)
 
 /* ES 2.0 doesn't define QUADS, but the immediate mode replacement library emulates QUADS */
@@ -557,10 +515,6 @@ void gpuSingleClientRangeElements_C4UB_V3F(
 #endif
 
 #endif
-
-
-
-void GPU_commit_current(void);
 
 
 

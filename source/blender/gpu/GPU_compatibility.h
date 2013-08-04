@@ -35,7 +35,6 @@
 
 
 #include "intern/gpu_immediate_inline.h"
-#include "intern/gpu_lighting_inline.h"
 #include "intern/gpu_view.h"
 #include "GPU_matrix.h"
 

@@ -508,11 +508,11 @@ static void ui_draw_linkline(uiLinkLine *line, int highlightActiveLines)
 	rect.ymax = BLI_rctf_cent_y(&line->to->rect);
 	
 	if (line->flag & UI_SELECT)
-		gpuCurrentGray3f(0.392f);
+		gpuGray3f(0.392f);
 	else if (highlightActiveLines && ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE)))
 		UI_ThemeColor(TH_TEXT_HI);
 	else 
-		gpuCurrentColor3x(CPACK_BLACK);
+		gpuColor3P(CPACK_BLACK);
 
 	ui_draw_link_bezier(&rect);
 }

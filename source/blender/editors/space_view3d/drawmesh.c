@@ -184,7 +184,7 @@ void draw_mesh_face_select(RegionView3D *rv3d, Mesh *me, DerivedMesh *dm)
 	if (me->drawflag & ME_DRAWFACES) {
 		glEnable(GL_BLEND);
 		/* dull unselected faces so as not to get in the way of seeing color */
-		gpuCurrentGray4f(0.376f, 0.250f);
+		gpuGray4f(0.376f, 0.250f);
 		gpuImmediateFormat_V3();
 		/* XXX: jwilkins, drawing without mesh colors, so setDrawOption that turns off color for unselected faces is redundant? */
 		dm->drawMappedFaces(dm, draw_mesh_face_select__drawFaceOptsInv, NULL, NULL, me, 0);
@@ -195,7 +195,7 @@ void draw_mesh_face_select(RegionView3D *rv3d, Mesh *me, DerivedMesh *dm)
 	bglPolygonOffset(rv3d->dist, 1.0);
 
 	/* Draw Stippled Outline for selected faces */
-	gpuCurrentColor3x(CPACK_WHITE);
+	gpuColor3P(CPACK_WHITE);
 	setlinestyle(1);
 	gpuImmediateFormat_C4_V3(); /* XXX: jwilkins, C4 only because CCG age visualization may be enabled */
 	dm->drawMappedEdges(dm, draw_mesh_face_select__setSelectOpts, &data);
@@ -316,14 +316,18 @@ static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *
 			spec[2] = ma->spec * ma->specb;
 			spec[3] = 1.0;
 
-			gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
-			gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, CLAMPIS(ma->har, 0, 128));
-			gpuEnableLighting();
-			gpuEnableColorMaterial();
+			// SSS GPU_simple_shader_material(...);
+			//gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
+			//gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, CLAMPIS(ma->har, 0, 128));
+
+			// SSS Update GPU_SHADER_LIGHTING
+			//gpuEnableLighting();
+			//gpuEnableColorMaterial();
 		}
 		else {
-			gpuDisableLighting(); 
-			gpuDisableColorMaterial();
+			// SSS Update
+			//gpuDisableLighting(); 
+			//gpuDisableColorMaterial();
 		}
 
 		c_lit = lit;
@@ -370,9 +374,10 @@ static void draw_textured_begin(Scene *scene, View3D *v3d, RegionView3D *rv3d, O
 
 	memcpy(Gtexdraw.obcol, obcol, sizeof(obcol));
 	set_draw_settings_cached(1, NULL, NULL, Gtexdraw);
-	gpuShadeModel(GL_SMOOTH);
+	// SSS Update GPU_SHADER_SMOOTH|GPU_SHADER_TWO_SIDE(?)|previous settings(?)
+	// gpuShadeModel(GL_SMOOTH);
+	// gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, (me->flag & ME_TWOSIDED) ? GL_TRUE : GL_FALSE);
 	glCullFace(GL_BACK);
-	gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, (me->flag & ME_TWOSIDED) ? GL_TRUE : GL_FALSE);
 }
 
 static void draw_textured_end(void)
@@ -410,16 +415,16 @@ static DMDrawOption draw_tface__set_draw_legacy(MTFace *tface, int has_mcol, int
 	invalidtexture = set_draw_settings_cached(0, tface, ma, Gtexdraw);
 
 	if (tface && invalidtexture) {
-		gpuCurrentColor3x(CPACK_MAGENTA);
+		gpuColor3P(CPACK_MAGENTA);
 		return DM_DRAW_OPTION_NO_MCOL; /* Don't set color */
 	}
 	else if (ma && (ma->shade_flag & MA_OBCOLOR)) {
-		gpuCurrentColor3ubv(Gtexdraw.obcol);
+		gpuColor3ubv(Gtexdraw.obcol);
 		return DM_DRAW_OPTION_NO_MCOL; /* Don't set color */
 	}
 	else if (!has_mcol) {
 		if (tface) {
-			gpuCurrentColor3x(CPACK_WHITE);
+			gpuColor3P(CPACK_WHITE);
 		}
 		else {
 			if (ma) {
@@ -427,10 +432,10 @@ static DMDrawOption draw_tface__set_draw_legacy(MTFace *tface, int has_mcol, int
 				if (Gtexdraw.color_profile) linearrgb_to_srgb_v3_v3(col, &ma->r);
 				else copy_v3_v3(col, &ma->r);
 				
-				gpuCurrentColor3fv(col);
+				gpuColor3fv(col);
 			}
 			else {
-				gpuCurrentColor3x(CPACK_WHITE);
+				gpuColor3P(CPACK_WHITE);
 			}
 
 		}
@@ -769,7 +774,7 @@ static void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d
 	/* draw the textured mesh */
 	draw_textured_begin(scene, v3d, rv3d, ob);
 
-	gpuCurrentColor3x(CPACK_WHITE);
+	gpuColor3P(CPACK_WHITE);
 
 	if (ob->mode & OB_MODE_EDIT) {
 		drawEMTFMapped_userData data;
@@ -875,21 +880,24 @@ static void tex_mat_set_texture_cb(void *userData, int mat_nr, void *attribs)
 
 			/* disable existing material */
 			GPU_disable_material();
-			gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, zero);
-			gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, zero);
-			gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, 0);
+
+			// SSS GPU_simple_shader_material(...);
+			//gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, zero);
+			//gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, zero);
+			//gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, 0);
 
 			/* bind texture */
-			gpuEnableColorMaterial();
+			// SSS Begin GPU_SHADER_TEXTURE_2D
+			//gpuEnableColorMaterial();
 
-#if defined(WITH_GL_PROFILE_COMPAT)
-			if (GPU_PROFILE_COMPAT) {
-				glEnable(GL_TEXTURE_2D);
-			}
-#endif
+//#if defined(WITH_GL_PROFILE_COMPAT)
+//			if (GPU_PROFILE_COMPAT) {
+//				glEnable(GL_TEXTURE_2D);
+//			}
+//#endif
 
 			gpuBindTexture(GL_TEXTURE_2D, ima->bindcode);
-			gpuCurrentColor3x(CPACK_WHITE);
+			gpuColor3P(CPACK_WHITE);
 
 			gpuMatrixMode(GL_TEXTURE);
 			gpuLoadMatrix(texbase->tex_mapping.mat);
@@ -913,8 +921,9 @@ static void tex_mat_set_texture_cb(void *userData, int mat_nr, void *attribs)
 		gpuMatrixMode(GL_MODELVIEW);
 
 		/* disable texture */
-		glDisable(GL_TEXTURE_2D);
-		gpuDisableColorMaterial();
+		// SSS End
+		//glDisable(GL_TEXTURE_2D);
+		//gpuDisableColorMaterial();
 
 		/* draw single color */
 		GPU_enable_material(mat_nr, attribs);
@@ -958,8 +967,6 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 	if (ob->transflag & OB_NEG_SCALE) glFrontFace(GL_CW);
 	else glFrontFace(GL_CCW);
 
-	gpuEnableLighting();
-
 	{
 		Mesh *me = ob->data;
 		TexMatCallback data = {scene, ob, me, dm};
@@ -980,6 +987,8 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 		GPU_begin_object_materials(v3d, rv3d, scene, ob, glsl, NULL);
 
 		if (glsl || picking) {
+			// XXX jwilkins: need aspect for codegen shader instead of simple shader
+
 			/* draw glsl */
 			dm->drawMappedFacesMat(dm,
 			                       tex_mat_set_material_cb,
@@ -989,28 +998,33 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 			float zero[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
 			/* draw textured */
-			gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, zero);
-			gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, zero);
-			gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, 0);
+			// SSS GPU_simple_shader_material(...);
+			//gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, zero);
+			//gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, zero);
+			//gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, 0);
+
+			// SSS Begin GPU_SHADER_LIGHTING
+			//gpuEnableLighting();
 
 			dm->drawMappedFacesMat(dm,
 			                       tex_mat_set_texture_cb,
 			                       set_face_cb, &data);
+
+			/* reset opengl state */
+			// SSS End
+			//gpuDisableColorMaterial();
+			//gpuDisableLighting();
 		}
 
 		GPU_end_object_materials();
 	}
 
-	/* reset opengl state */
-	gpuDisableColorMaterial();
+//#if defined(WITH_GL_PROFILE_COMPAT)
+//	if (GPU_PROFILE_COMPAT) {
+//		glDisable(GL_TEXTURE_2D);
+//	}
+//#endif
 
-#if defined(WITH_GL_PROFILE_COMPAT)
-	if (GPU_PROFILE_COMPAT) {
-		glDisable(GL_TEXTURE_2D);
-	}
-#endif
-
-	gpuDisableLighting();
 	gpuBindTexture(GL_TEXTURE_2D, 0);
 	glFrontFace(GL_CCW);
 
@@ -1044,11 +1058,16 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
 			GPU_enable_material(0, NULL);
 		
 			/* but set default spec */
-			gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
+			// SSS GPU_simple_shader_material(...) // only sets specular
+			//gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
 
 			/* diffuse */
-			gpuEnableLighting();
-			gpuEnableColorMaterial();
+			// SSS Begin GPU_SHADER_LIGHTING
+			//gpuEnableLighting();
+			//gpuEnableColorMaterial();
+		}
+		else {
+			// SSS Begin
 		}
 
 		if (do_light) {
@@ -1069,10 +1088,14 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
 		gpuImmediateUnformat();
 
 		if (do_light) {
-			gpuDisableColorMaterial();
-			gpuDisableLighting();
+			// SSS End
+			//gpuDisableColorMaterial();
+			//gpuDisableLighting();
 
 			GPU_disable_material();
+		}
+		else {
+			// SSS End
 		}
 	}
 	else if (ob->mode & OB_MODE_VERTEX_PAINT) {
@@ -1088,7 +1111,7 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
 			gpuImmediateUnformat();
 		}
 		else {
-			gpuCurrentColor3x(CPACK_WHITE);
+			gpuColor3P(CPACK_WHITE);
 			gpuImmediateFormat_V3();
 			dm->drawMappedFaces(
 				dm,
@@ -1120,7 +1143,7 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
 		}
 
 		glEnable(GL_BLEND);
-		gpuCurrentColor4x(CPACK_WHITE, 0.376f);
+		gpuColor4P(CPACK_WHITE, 0.376f);
 		gpuEnableLineStipple();
 		gpuLineStipple(1, 0xAAAA);
 

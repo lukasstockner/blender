@@ -1031,7 +1031,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		if (kcd->angle_snapping != ANGLE_FREE)
 			knifetool_draw_angle_snapping(kcd);
 
-		gpuCurrentColor3ubv(kcd->colors.line);
+		gpuColor3ubv(kcd->colors.line);
 		
 		gpuLineWidth(2.0);
 
@@ -1044,7 +1044,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 	}
 
 	if (kcd->curr.edge) {
-		gpuCurrentColor3ubv(kcd->colors.edge);
+		gpuColor3ubv(kcd->colors.edge);
 		gpuLineWidth(2.0);
 
 		gpuBegin(GL_LINES);
@@ -1055,7 +1055,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		gpuLineWidth(1.0);
 	}
 	else if (kcd->curr.vert) {
-		gpuCurrentColor3ubv(kcd->colors.point);
+		gpuColor3ubv(kcd->colors.point);
 		gpuSpriteSize(11);
 
 		gpuBegin(GL_POINTS);
@@ -1064,7 +1064,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 	}
 
 	if (kcd->curr.bmface) {
-		gpuCurrentColor3ubv(kcd->colors.curpoint);
+		gpuColor3ubv(kcd->colors.curpoint);
 		gpuSpriteSize(9);
 
 		gpuBegin(GL_POINTS);
@@ -1082,7 +1082,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		glEnable(GL_BLEND);
 
 		/* draw any snapped verts first */
-		gpuCurrentColor4ubv(kcd->colors.point_a);
+		gpuColor4ubv(kcd->colors.point_a);
 		gpuSpriteSize(11);
 		gpuBegin(GL_POINTS);
 		lh = kcd->linehits;
@@ -1107,7 +1107,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		gpuEnd();
 
 		/* now draw the rest */
-		gpuCurrentColor4ubv(kcd->colors.curpoint_a);
+		gpuColor4ubv(kcd->colors.curpoint_a);
 		gpuSpriteSize(7);
 		gpuBegin(GL_POINTS);
 		lh = kcd->linehits;

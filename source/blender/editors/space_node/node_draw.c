@@ -607,7 +607,7 @@ static void node_circle_draw(float x, float y, float size, float *col, int highl
 	};
 	int a;
 	
-	gpuCurrentColor4fv(col);
+	gpuColor4fv(col);
 
 	glEnable(GL_BLEND);
 	gpuBegin(GL_TRIANGLE_FAN);
@@ -621,7 +621,7 @@ static void node_circle_draw(float x, float y, float size, float *col, int highl
 		gpuLineWidth(1.5f);
 	}
 	else {
-		gpuCurrentColor4x(CPACK_BLACK, 0.588f);
+		gpuColor4P(CPACK_BLACK, 0.588f);
 	}
 	glEnable(GL_BLEND);
 	gpuEnableLineSmooth();
@@ -652,10 +652,10 @@ static void node_draw_preview_background(float tile, rctf *rect)
 	float x, y;
 	
 	/* draw checkerboard backdrop to show alpha */
-	gpuCurrentGray3f(0.471f);
+	gpuGray3f(0.471f);
 	gpuSingleFilledRectf(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 
-	gpuCurrentGray3f(0.627f);
+	gpuGray3f(0.627f);
 
 	for (y = rect->ymin; y < rect->ymax; y += tile * 2) {
 		for (x = rect->xmin; x < rect->xmax; x += tile * 2) {
@@ -712,7 +712,7 @@ static void node_draw_preview(bNodePreview *preview, rctf *prv)
 	
 	glEnable(GL_BLEND);  /* premul graphics */
 	
-	gpuCurrentColor3x(CPACK_WHITE);
+	gpuColor3P(CPACK_WHITE);
 	gpuPixelZoom(scale, scale);
 	glaDrawPixelsTex(draw_rect.xmin, draw_rect.ymin, preview->xsize, preview->ysize, GL_RGBA, GL_UNSIGNED_BYTE, GL_LINEAR, preview->rect);
 	gpuPixelZoom(1.0f, 1.0f); /* restore default value */
@@ -745,7 +745,7 @@ void node_draw_shadow(SpaceNode *snode, bNode *node, float radius, float alpha)
 	else {
 		const float margin = 3.0f;
 
-		gpuCurrentColor4x(CPACK_BLACK, 0.333f);
+		gpuColor4P(CPACK_BLACK, 0.333f);
 		glEnable(GL_BLEND);
 		uiRoundBox(rct->xmin - margin, rct->ymin - margin,
 		           rct->xmax + margin, rct->ymax + margin, radius + margin);
@@ -783,7 +783,7 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	if (color_id == TH_NODE) {
 		float col[3];
 		UI_GetThemeColorShade3fv(color_id, -20, col);
-		gpuCurrentColor4f(col[0], col[1], col[2], 1.0f);
+		gpuColor4f(col[0], col[1], col[2], 1.0f);
 	}
 	else
 		UI_ThemeColor(color_id);
@@ -877,7 +877,7 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	if (!nodeIsRegistered(node))
 		UI_ThemeColor4(TH_REDALERT);	/* use warning color to indicate undefined types */
 	else if (node->flag & NODE_CUSTOM_COLOR)
-		gpuCurrentColor3fv(node->color);
+		gpuColor3fv(node->color);
 	else
 		UI_ThemeColor4(TH_NODE);
 	glEnable(GL_BLEND);
@@ -991,7 +991,7 @@ static void node_draw_hidden(const bContext *C, ARegion *ar, SpaceNode *snode, b
 		glEnable(GL_BLEND);
 		gpuEnableLineSmooth();
 
-		gpuCurrentColor3fv(node->color);
+		gpuColor3fv(node->color);
 		uiDrawBox(GL_LINE_LOOP, rct->xmin + 1, rct->ymin + 1, rct->xmax -1, rct->ymax - 1, hiddenrad);
 
 		gpuDisableLineSmooth();
@@ -1047,12 +1047,12 @@ static void node_draw_hidden(const bContext *C, ARegion *ar, SpaceNode *snode, b
 	/* scale widget thing */
 
 	dx = 10.0f;
-	UI_ThemeAppendColorShade(color_id, -10);
+	UI_ThemeColorShade(color_id, -10);
 	gpuAppendLinef(rct->xmax - dx, centy - 4.0f, rct->xmax-dx, centy+4.0f);
 	gpuAppendLinef(rct->xmax - dx - 3.0f*snode->aspect, centy - 4.0f, rct->xmax - dx - 3.0f*snode->aspect, centy + 4.0f);
 
 	dx -= snode->aspect;
-	UI_ThemeAppendColorShade(color_id, +30);
+	UI_ThemeColorShade(color_id, +30);
 	gpuAppendLinef(rct->xmax - dx, centy - 4.0f, rct->xmax - dx, centy + 4.0f);
 	gpuAppendLinef(rct->xmax - dx - 3.0f*snode->aspect, centy - 4.0f, rct->xmax - dx - 3.0f*snode->aspect, centy + 4.0f);
 

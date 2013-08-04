@@ -377,13 +377,13 @@ static void file_draw_preview(uiBlock *block, struct direntry *file, int sx, int
 		glEnable(GL_BLEND);
 		
 		/* the image */
-		gpuAspectBegin(GPU_ASPECT_PIXELS, NULL);
+		GPU_aspect_begin(GPU_ASPECT_PIXELS, NULL);
 		glaDrawPixelsTexScaled((float)xco, (float)yco, imb->x, imb->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST, imb->rect, scale, scale);
-		gpuAspectEnd(GPU_ASPECT_PIXELS, NULL);
+		GPU_aspect_end(GPU_ASPECT_PIXELS, NULL);
 
 		/* border */
 		if (dropshadow) {
-			gpuCurrentColor4x(CPACK_BLACK, 0.400f);
+			gpuColor4P(CPACK_BLACK, 0.400f);
 			gpuSingleWireRectf((float)xco, (float)yco, (float)(xco + ex), (float)(yco + ey));
 		}
 		
@@ -449,9 +449,9 @@ static void draw_dividers(FileLayout *layout, View2D *v2d)
 		gpuImmediateFormat_C4_V2(); // DOODLE: two theme colored lines
 		gpuBegin(GL_LINES);
 
-		UI_ThemeAppendColorShade(TH_BACK, 30);
+		UI_ThemeColorShade(TH_BACK, 30);
 		gpuAppendLinei(sx+1, (short)(v2d->cur.ymax - layout->tile_border_y),  sx+1,  (short)v2d->cur.ymin); 
-		UI_ThemeAppendColorShade(TH_BACK, -30);
+		UI_ThemeColorShade(TH_BACK, -30);
 		gpuAppendLinei(sx, (short)(v2d->cur.ymax - layout->tile_border_y),  sx,  (short)v2d->cur.ymin); 
 
 		gpuEnd();

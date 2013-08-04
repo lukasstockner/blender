@@ -568,22 +568,22 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 		switch (key_type) {
 			case BEZT_KEYTYPE_BREAKDOWN: /* bluish frames for now */
 			{
-				if (sel) gpuCurrentColor4f(0.33f, 0.75f, 0.93f, alpha);
-				else gpuCurrentColor4f(0.70f, 0.86f, 0.91f, alpha);
+				if (sel) gpuColor4f(0.33f, 0.75f, 0.93f, alpha);
+				else gpuColor4f(0.70f, 0.86f, 0.91f, alpha);
 			}
 			break;
 				
 			case BEZT_KEYTYPE_EXTREME: /* redish frames for now */
 			{
-				if (sel) gpuCurrentColor4f(0.95f, 0.5f, 0.5f, alpha);
-				else gpuCurrentColor4f(0.91f, 0.70f, 0.80f, alpha);
+				if (sel) gpuColor4f(0.95f, 0.5f, 0.5f, alpha);
+				else gpuColor4f(0.91f, 0.70f, 0.80f, alpha);
 			}
 			break;
 				
 			case BEZT_KEYTYPE_JITTER: /* greenish frames for now? */
 			{
-				if (sel) gpuCurrentColor4f(0.38f, 0.75f, 0.26f, alpha);
-				else gpuCurrentColor4f(0.58f, 0.90f, 0.46f, alpha);
+				if (sel) gpuColor4f(0.38f, 0.75f, 0.26f, alpha);
+				else gpuColor4f(0.58f, 0.90f, 0.46f, alpha);
 			}
 			break;
 				
@@ -591,7 +591,7 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 			default:
 			{
 				if (sel) UI_ThemeColorShadeAlpha(TH_STRIP_SELECT, 50, -255 * (1.0f - alpha));
-				else gpuCurrentColor4f(0.91f, 0.91f, 0.91f, alpha);
+				else gpuColor4f(0.91f, 0.91f, 0.91f, alpha);
 			}
 			break;
 		}
@@ -606,7 +606,7 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 	
 	if (ELEM(mode, KEYFRAME_SHAPE_FRAME, KEYFRAME_SHAPE_BOTH)) {
 		/* exterior - black frame */
-		gpuCurrentColor4x(CPACK_BLACK, alpha);
+		gpuColor4P(CPACK_BLACK, alpha);
 		
 		gpuBegin(GL_LINE_LOOP);
 		gpuVertex2fv(_unit_diamond_shape[0]);

@@ -291,6 +291,27 @@ static GLboolean init_framebuffer_object(void)
 	return GL_FALSE;
 }
 
+static void init_vertex_arrays(void)
+{
+	if (GLEW_VERSION_3_0 || GLEW_ARB_vertex_array_object) {
+		gpu_glGenVertexArrays    = glGenVertexArrays;
+		gpu_glBindVertexArray    = glBindVertexArray;
+		gpu_glDeleteVertexArrays = glDeleteVertexArrays;
+
+		return;
+	}
+
+#if !defined(GLEW_NO_ES)
+	if (GLEW_OES_vertex_array_object) {
+		gpu_glGenVertexArrays    = glGenVertexArraysOES;
+		gpu_glBindVertexArray    = glBindVertexArrayOES;
+		gpu_glDeleteVertexArrays = glDeleteVertexArraysOES;
+
+		return;
+	}
+#endif
+}
+
 static GPUFUNC void (GLAPIENTRY* _GenerateMipmap)(GLenum target);
 
 static void init_generate_mipmap(void)
@@ -396,6 +417,7 @@ void GPU_wrap_extensions(GLboolean* glslsupport_out, GLboolean* framebuffersuppo
 
 	*framebuffersupport_out = init_framebuffer_object();
 
+	init_vertex_arrays();
 	init_buffers();
 	init_mapbuffer();
 

@@ -276,7 +276,7 @@ bool EDBM_backbuf_border_mask_init(ViewContext *vc, const int mcords[][2], short
 	/* draw the mask */
 	glDisable(GL_DEPTH_TEST);
 
-	gpuCurrentColor3x(CPACK_BLACK);
+	gpuColor3P(CPACK_BLACK);
 
 	/* yah, opengl doesn't do concave... tsk! */
 	ED_region_pixelspace(vc->ar);

@@ -1260,7 +1260,7 @@ void UI_view2d_grid_draw(View2D *v2d, View2DGrid *grid, int flag)
 		/* minor gridlines */
 		step = (BLI_rcti_size_x(&v2d->mask) + 1) / (U.v2d_min_gridsize * UI_DPI_FAC);
 
-		UI_ThemeAppendColor(TH_GRID);
+		UI_ThemeColor(TH_GRID);
 
 		for (a = 0; a < step; a++) {
 			gpuVertex2fv(vec1);
@@ -1271,7 +1271,7 @@ void UI_view2d_grid_draw(View2D *v2d, View2DGrid *grid, int flag)
 
 		/* major gridlines */
 		vec2[0] = vec1[0] -= 0.5f * grid->dx;
-		UI_ThemeAppendColorShade(TH_GRID, 16);
+		UI_ThemeColorShade(TH_GRID, 16);
 
 		step++;
 		for (a = 0; a <= step; a++) {
@@ -1291,7 +1291,7 @@ void UI_view2d_grid_draw(View2D *v2d, View2DGrid *grid, int flag)
 
 		step = (BLI_rcti_size_y(&v2d->mask) + 1) / (U.v2d_min_gridsize * UI_DPI_FAC);
 
-		UI_ThemeAppendColor(TH_GRID);
+		UI_ThemeColor(TH_GRID);
 		for (a = 0; a <= step; a++) {
 			gpuVertex2fv(vec1);
 			gpuVertex2fv(vec2);
@@ -1304,7 +1304,7 @@ void UI_view2d_grid_draw(View2D *v2d, View2DGrid *grid, int flag)
 		step++;
 		
 		if (flag & V2D_HORIZONTAL_FINELINES) {
-			UI_ThemeAppendColorShade(TH_GRID, 16);
+			UI_ThemeColorShade(TH_GRID, 16);
 			for (a = 0; a < step; a++) {
 				gpuVertex2fv(vec1);
 				gpuVertex2fv(vec2);
@@ -1315,7 +1315,7 @@ void UI_view2d_grid_draw(View2D *v2d, View2DGrid *grid, int flag)
 	}
 
 	/* Axes are drawn as darker lines */
-	UI_ThemeAppendColorShade(TH_GRID, -50);
+	UI_ThemeColorShade(TH_GRID, -50);
 
 	/* horizontal axis */
 	if (flag & V2D_HORIZONTAL_AXIS) {
@@ -1351,7 +1351,7 @@ void UI_view2d_constant_grid_draw(View2D *v2d)
 
 	start = v2d->cur.xmin - (float)fmod(v2d->cur.xmin, step);
 	
-	UI_ThemeAppendColorShade(TH_BACK, -10);
+	UI_ThemeColorShade(TH_BACK, -10);
 	
 	for (; start < v2d->cur.xmax; start += step) {
 		gpuVertex2f(start, v2d->cur.ymin);
@@ -1365,7 +1365,7 @@ void UI_view2d_constant_grid_draw(View2D *v2d)
 	}
 
 	/* X and Y axis */
-	UI_ThemeAppendColorShade(TH_BACK, -18);
+	UI_ThemeColorShade(TH_BACK, -18);
 	gpuVertex2f(0.0f, v2d->cur.ymin);
 	gpuVertex2f(0.0f, v2d->cur.ymax);
 	gpuVertex2f(v2d->cur.xmin, 0.0f);
@@ -1413,7 +1413,7 @@ void UI_view2d_multi_grid_draw(View2D *v2d, int colorid, float step, int level_s
 		}
 
 		/* X and Y axis */
-		UI_ThemeAppendColorShade(colorid, offset - 8);
+		UI_ThemeColorShade(colorid, offset - 8);
 		gpuVertex2f(0.0f, v2d->cur.ymin);
 		gpuVertex2f(0.0f, v2d->cur.ymax);
 		gpuVertex2f(v2d->cur.xmin, 0.0f);
@@ -1675,7 +1675,7 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 		/* clean rect behind slider, but not with transparent background */
 		UI_GetThemeColor4ubv(TH_BACK, col);
 		if (col[3] == 255) {
-			gpuCurrentColor3ub(col[0], col[1], col[2]);
+			gpuColor3ub(col[0], col[1], col[2]);
 			gpuSingleFilledRecti(v2d->hor.xmin, v2d->hor.ymin, v2d->hor.xmax, v2d->hor.ymax);
 		}
 		
@@ -1788,7 +1788,7 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 		/* clean rect behind slider, but not with transparent background */
 		UI_GetThemeColor4ubv(TH_BACK, col);
 		if (col[3] == 255) {
-			gpuCurrentColor3ubv(col);
+			gpuColor3ubv(col);
 			gpuSingleFilledRecti(v2d->vert.xmin, v2d->vert.ymin, v2d->vert.xmax, v2d->vert.ymax);
 		}
 		
@@ -2212,7 +2212,7 @@ void UI_view2d_text_cache_draw(ARegion *ar)
 		if (yofs < 1) yofs = 1;
 
 		if (col_pack_prev != v2s->col.pack) {
-			gpuCurrentColor3ubv(v2s->col.ub);
+			gpuColor3ubv(v2s->col.ub);
 			col_pack_prev = v2s->col.pack;
 		}
 

@@ -173,7 +173,7 @@ void uiDrawBoxShade(int mode, float minx, float miny, float maxx, float maxy, fl
 		mul_v2_fl(vec[a], rad);
 	}
 	/* get current color, needs to be outside of gpuBegin/End */
-	gpuGetCurrentColor4fv(color);
+	gpuGetColor4fv(color);
 
 	/* 'shade' defines strength of shading */
 	coltop[0]  = min_ff(1.0f, color[0] + shadetop);
@@ -282,7 +282,7 @@ void uiDrawBoxVerticalShade(int mode, float minx, float miny, float maxx, float 
 		mul_v2_fl(vec[a], rad);
 	}
 	/* get current color, needs to be outside of gpuBegin/End */
-	gpuGetCurrentColor4fv(color);
+	gpuGetColor4fv(color);
 
 	/* 'shade' defines strength of shading */
 	colLeft[0]  = min_ff(1.0f, color[0] + shadeLeft);
@@ -375,7 +375,7 @@ void uiDrawBoxVerticalShade(int mode, float minx, float miny, float maxx, float 
 void uiRoundRect(float minx, float miny, float maxx, float maxy, float rad)
 {
 	if (roundboxtype & UI_RB_ALPHA) {
-		gpuCurrentAlpha(0.5f);
+		gpuAlpha(0.5f);
 		glEnable(GL_BLEND);
 	}
 
@@ -415,7 +415,7 @@ void ui_draw_but_IMAGE(ARegion *UNUSED(ar), uiBut *but, uiWidgetColors *UNUSED(w
 	
 	/* scissor doesn't seem to be doing the right thing...? */
 #if 0
-	//gpuCurrentColor3x(CPACK_RED);
+	//gpuColor3P(CPACK_RED);
 	//gpuSingleWireRectf(rect->xmin, rect->ymin, rect->xmax, rect->ymax)
 
 	/* prevent drawing outside widget area */
@@ -424,7 +424,7 @@ void ui_draw_but_IMAGE(ARegion *UNUSED(ar), uiBut *but, uiWidgetColors *UNUSED(w
 #endif
 	
 	glEnable(GL_BLEND);
-	gpuCurrentColor4x(CPACK_BLACK, 0.000f);
+	gpuColor4P(CPACK_BLACK, 0.000f);
 
 	do_zoom = w != ibuf->x || h != ibuf->y;
 
@@ -464,11 +464,11 @@ static void draw_scope_end(const rctf *rect, GLint *scissor)
 	gpuImmediateFormat_C4_V2(); // DOODLE: fixed number of colored lines
 	gpuBegin(GL_LINES);
 
-	gpuCurrentColor4x(CPACK_BLACK, 0.250f);
+	gpuColor4P(CPACK_BLACK, 0.250f);
 	gpuAppendLinef(scaler_x1, rect->ymin - 4, scaler_x2, rect->ymin - 4);
 	gpuAppendLinef(scaler_x1, rect->ymin - 7, scaler_x2, rect->ymin - 7);
 
-	gpuCurrentColor4x(CPACK_WHITE, 0.250f);
+	gpuColor4P(CPACK_WHITE, 0.250f);
 	gpuAppendLinef(scaler_x1, rect->ymin - 5, scaler_x2, rect->ymin - 5);
 	gpuAppendLinef(scaler_x1, rect->ymin - 8, scaler_x2, rect->ymin - 8);
 
@@ -476,7 +476,7 @@ static void draw_scope_end(const rctf *rect, GLint *scissor)
 	gpuImmediateUnformat();
 
 	/* outline */
-	gpuCurrentColor4x(CPACK_BLACK, 0.500f);
+	gpuColor4P(CPACK_BLACK, 0.500f);
 	uiSetRoundBox(UI_CNR_ALL);
 	uiDrawBox(GL_LINE_LOOP, rect->xmin - 1, rect->ymin, rect->xmax + 1, rect->ymax + 1, 3.0f);
 }
@@ -489,7 +489,7 @@ static void histogram_draw_one(float r, float g, float b, float alpha,
 	if (is_line) {
 		glLineWidth(1.5);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE); /* non-standard blend function */
-		gpuCurrentColor4f(r, g, b, alpha);
+		gpuColor4f(r, g, b, alpha);
 
 		/* curve outline */
 
@@ -509,7 +509,7 @@ static void histogram_draw_one(float r, float g, float b, float alpha,
 	else {
 		/* under the curve */
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-		gpuCurrentColor4f(r, g, b, alpha);
+		gpuColor4f(r, g, b, alpha);
 
 		gpuShadeModel(GL_FLAT);
 
@@ -524,7 +524,7 @@ static void histogram_draw_one(float r, float g, float b, float alpha,
 		gpuEnd();
 
 		/* curve outline */
-		gpuCurrentColor4x(CPACK_BLACK, 0.250f);
+		gpuColor4P(CPACK_BLACK, 0.250f);
 
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); /* reset blender default */
 		gpuEnableLineSmooth();
@@ -562,7 +562,7 @@ void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol)
 	
 	glEnable(GL_BLEND);
 
-	gpuCurrentColor4x(CPACK_BLACK, 0.300f);
+	gpuColor4P(CPACK_BLACK, 0.300f);
 	uiSetRoundBox(UI_CNR_ALL);
 	uiDrawBox(GL_TRIANGLE_FAN, rect.xmin - 1, rect.ymin - 1, rect.xmax + 1, rect.ymax + 1, 3.0f);
 
@@ -573,7 +573,7 @@ void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol)
 	          (rect.xmax + 1) - (rect.xmin - 1),
 	          (rect.ymax + 1) - (rect.ymin - 1));
 
-	gpuCurrentColor4x(CPACK_WHITE, 0.080f);
+	gpuColor4P(CPACK_WHITE, 0.080f);
 
 	gpuImmediateFormat_V2(); /* lock both for grid and histogram */ // DOODLE: 4 monochrome lines and 1 or 3 histograms
 
@@ -583,7 +583,7 @@ void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol)
 
 		/* so we can tell the 1.0 color point */
 		if (i == HISTOGRAM_TOT_GRID_LINES) {
-			gpuCurrentColor4f(1.0f, 1.0f, 1.0f, 0.5f);
+			gpuColor4f(1.0f, 1.0f, 1.0f, 0.5f);
 		}
 
 		gpuAppendLinef(rect.xmin, rect.ymin + fac * h, rect.xmax, rect.ymin + fac * h);
@@ -652,7 +652,7 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 
 	glEnable(GL_BLEND);
 
-	gpuCurrentColor4x(CPACK_BLACK, 0.300f);
+	gpuColor4P(CPACK_BLACK, 0.300f);
 	uiSetRoundBox(UI_CNR_ALL);
 	uiDrawBox(GL_TRIANGLE_FAN, rect.xmin - 1, rect.ymin - 1, rect.xmax + 1, rect.ymax + 1, 3.0f);
 	
@@ -664,7 +664,7 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 	          (rect.xmax + 1) - (rect.xmin - 1),
 	          (rect.ymax + 1) - (rect.ymin - 1));
 
-	gpuCurrentColor4x(CPACK_WHITE, 0.080f);
+	gpuColor4P(CPACK_WHITE, 0.080f);
 
 	/* draw grid lines here */
 	gpuImmediateFormat_V2(); // DOODLE: fixed number of monochrome lines, a grid
@@ -721,7 +721,7 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 		gpuImmediateFormat_V2();
 
 		/* LUMA (1 channel) */
-		gpuCurrentGray3f(alpha);
+		gpuGray3f(alpha);
 		if (scopes->wavefrm_mode == SCOPES_WAVEFRM_LUMA) {
 
 			gpuPushMatrix();
@@ -734,7 +734,7 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 			gpuPopMatrix();
 
 			/* min max */
-			gpuCurrentGray3f(0.500f);
+			gpuGray3f(0.500f);
 			min = yofs + scopes->minmax[0][0] * h;
 			max = yofs + scopes->minmax[0][1] * h;
 			CLAMP(min, rect.ymin, rect.ymax);
@@ -757,17 +757,17 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 			gpuTranslate(rect.xmin, yofs, 0);
 			gpuScale(w3, h, 0);
 
-			gpuCurrentColor3fv((rgb) ? colors_alpha[0] : colorsycc_alpha[0]);
+			gpuColor3fv((rgb) ? colors_alpha[0] : colorsycc_alpha[0]);
 			arrays.vertexPointer = scopes->waveform_1;
 			gpuDrawClientArrays(GL_POINTS, &arrays, 0, scopes->waveform_tot);
 
 			gpuTranslate(1, 0, 0);
-			gpuCurrentColor3fv((rgb) ? colors_alpha[1] : colorsycc_alpha[1]);
+			gpuColor3fv((rgb) ? colors_alpha[1] : colorsycc_alpha[1]);
 			arrays.vertexPointer = scopes->waveform_2;
 			gpuDrawClientArrays(GL_POINTS, &arrays, 0, scopes->waveform_tot);
 
 			gpuTranslate(1, 0, 0);
-			gpuCurrentColor3fv((rgb) ? colors_alpha[2] : colorsycc_alpha[2]);
+			gpuColor3fv((rgb) ? colors_alpha[2] : colorsycc_alpha[2]);
 			arrays.vertexPointer = scopes->waveform_3;
 			gpuDrawClientArrays(GL_POINTS, &arrays, 0, scopes->waveform_tot);
 
@@ -776,10 +776,10 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 			/* min max */
 			for (c = 0; c < 3; c++) {
 				if (scopes->wavefrm_mode == SCOPES_WAVEFRM_RGB) {
-					gpuCurrentColor3f(colors[c][0] * 0.75f, colors[c][1] * 0.75f, colors[c][2] * 0.75f);
+					gpuColor3f(colors[c][0] * 0.75f, colors[c][1] * 0.75f, colors[c][2] * 0.75f);
 				}
 				else {
-					gpuCurrentColor3f(colorsycc[c][0] * 0.75f, colorsycc[c][1] * 0.75f, colorsycc[c][2] * 0.75f);
+					gpuColor3f(colorsycc[c][0] * 0.75f, colorsycc[c][1] * 0.75f, colorsycc[c][2] * 0.75f);
 				}
 
 				min = yofs + scopes->minmax[c][0] * h;
@@ -825,7 +825,7 @@ static void vectorscope_draw_target(float centerx, float centery, float diam, co
 	tampli = sqrtf(u * u + v * v);
 
 	/* small target vary by 2.5 degree and 2.5 IRE unit */
-	gpuCurrentColor4x(CPACK_WHITE, 0.120f);
+	gpuColor4P(CPACK_WHITE, 0.120f);
 
 	dangle = DEG2RADF(2.5f);
 	dampli = 2.5f / 200.0f;
@@ -892,7 +892,7 @@ void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wco
 
 	glEnable(GL_BLEND);
 
-	gpuCurrentColor4x(CPACK_BLACK, 0.300f);
+	gpuColor4P(CPACK_BLACK, 0.300f);
 	uiSetRoundBox(UI_CNR_ALL);
 	uiDrawBox(GL_TRIANGLE_FAN, rect.xmin - 1, rect.ymin - 1, rect.xmax + 1, rect.ymax + 1, 3.0f);
 
@@ -903,7 +903,7 @@ void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wco
 	          (rect.xmax + 1) - (rect.xmin - 1),
 	          (rect.ymax + 1) - (rect.ymin - 1));
 
-	gpuCurrentColor4x(CPACK_WHITE, 0.080f);
+	gpuColor4P(CPACK_WHITE, 0.080f);
 
 	/* draw grid elements */
 
@@ -927,7 +927,7 @@ void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wco
 	}
 
 	/* skin tone line */
-	gpuCurrentColor4f(1.0f, 0.4f, 0.0f, 0.200f);
+	gpuColor4f(1.0f, 0.4f, 0.0f, 0.200f);
 	gpuDrawLinef(
 		polar_to_x(centerx, diam, 0.5f, skin_rad),
 		polar_to_y(centery, diam, 0.5f, skin_rad),
@@ -945,7 +945,7 @@ void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wco
 		glBlendFunc(GL_ONE, GL_ONE); /* non-standard blendfunc */
 
 		/* pixel point cloud */
-		gpuCurrentGray3f(alpha);
+		gpuGray3f(alpha);
 
 		gpuPushMatrix();
 		gpuTranslate(centerx, centery, 0);
@@ -992,10 +992,10 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 
 	/* first background, to show tranparency */
 
-	gpuCurrentColor4ub(UI_TRANSP_DARK, UI_TRANSP_DARK, UI_TRANSP_DARK, 255);
+	gpuColor4ub(UI_TRANSP_DARK, UI_TRANSP_DARK, UI_TRANSP_DARK, 255);
 	gpuDrawFilledRectf(x1, y1, x1 + sizex, y1 + sizey);
 	gpuEnablePolygonStipple();
-	gpuCurrentColor4ub(UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, 255);
+	gpuColor4ub(UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, 255);
 	gpuPolygonStipple(checker_stipple_sml);
 	gpuDrawFilledRectf(x1, y1, x1 + sizex, y1 + sizey);
 	gpuDisablePolygonStipple();
@@ -1033,7 +1033,7 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 	glDisable(GL_BLEND);
 
 	/* outline */
-	gpuCurrentColor3x(CPACK_BLACK);
+	gpuColor3P(CPACK_BLACK);
 	gpuDrawWireRectf(x1, y1, x1 + sizex, y1 + sizey);
 
 	/* help lines */
@@ -1051,14 +1051,14 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 		v1[0] = v2[0] = v3[0] = v1a[0] = v2a[0] = x1 + cbd->pos * sizex;
 
 		if (a == coba->cur) {
-			gpuColor3x(CPACK_BLACK);
+			gpuColor3P(CPACK_BLACK);
 			gpuVertex2fv(v1);
 			gpuVertex2fv(v3);
 			gpuEnd();
 
 			setlinestyle(2);
 			gpuBegin(GL_LINES);
-			gpuColor3x(CPACK_WHITE);
+			gpuColor3P(CPACK_WHITE);
 			gpuVertex2fv(v1);
 			gpuVertex2fv(v3);
 			gpuEnd();
@@ -1066,7 +1066,7 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 			gpuBegin(GL_LINES);
 
 #if 0
-			gpuColor3x(CPACK_BLACK);
+			gpuColor3P(CPACK_BLACK);
 
 			gpuVertex2fv(v1);
 			gpuVertex2fv(v1a);
@@ -1074,7 +1074,7 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 			gpuVertex2fv(v2);
 			gpuVertex2fv(v2a);
 
-			gpuColor3x(CPACK_WHITE);
+			gpuColor3P(CPACK_WHITE);
 
 			gpuVertex2fv(v1a);
 			gpuVertex2fv(v2);
@@ -1084,11 +1084,11 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 #endif
 		}
 		else {
-			gpuColor3x(CPACK_BLACK);
+			gpuColor3P(CPACK_BLACK);
 			gpuVertex2fv(v1);
 			gpuVertex2fv(v2);
 
-			gpuColor3x(CPACK_WHITE);
+			gpuColor3P(CPACK_WHITE);
 			gpuVertex2fv(v2);
 			gpuVertex2fv(v3);
 		}
@@ -1112,7 +1112,7 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 	gpuGetMaterialfv(GL_FRONT, GL_DIFFUSE, diff);
 		
 	/* backdrop */
-	gpuCurrentColor3ubv((unsigned char *)wcol->inner);
+	gpuColor3ubv((unsigned char *)wcol->inner);
 	uiSetRoundBox(UI_CNR_ALL);
 	uiDrawBox(GL_TRIANGLE_FAN, rect->xmin, rect->ymin, rect->xmax, rect->ymax, 5.0f);
 	
@@ -1184,7 +1184,7 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 	/* AA circle */
 	glEnable(GL_BLEND);
 	gpuEnableLineSmooth();
-	gpuCurrentColor3ubv((unsigned char *)wcol->inner);
+	gpuColor3ubv((unsigned char *)wcol->inner);
 	gpuSingleFastCircleXY(100.0f);
 	glDisable(GL_BLEND);
 	gpuDisableLineSmooth();
@@ -1227,7 +1227,7 @@ static void ui_draw_but_curve_grid(rcti *rect, float zoomx, float zoomy, float o
 
 static void gl_shaded_color(unsigned char *col, int shade)
 {
-	gpuCurrentColor3ub(col[0] - shade > 0 ? col[0] - shade : 0,
+	gpuColor3ub(col[0] - shade > 0 ? col[0] - shade : 0,
 	           col[1] - shade > 0 ? col[1] - shade : 0,
 	           col[2] - shade > 0 ? col[2] - shade : 0);
 }
@@ -1284,7 +1284,7 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 
 		/* grid, hsv uses different grid */
 		glEnable(GL_BLEND);
-		gpuCurrentColor4x(CPACK_BLACK, 0.188f);
+		gpuColor4P(CPACK_BLACK, 0.188f);
 		ui_draw_but_curve_grid(rect, zoomx, zoomy, offsx, offsy, 0.1666666f);
 		glDisable(GL_BLEND);
 	}
@@ -1292,14 +1292,14 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 		if (cumap->flag & CUMA_DO_CLIP) {
 			gl_shaded_color((unsigned char *)wcol->inner, -20);
 			gpuSingleFilledRectf(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
-			gpuCurrentColor3ubv((unsigned char *)wcol->inner);
+			gpuColor3ubv((unsigned char *)wcol->inner);
 			gpuSingleFilledRectf(rect->xmin + zoomx * (cumap->clipr.xmin - offsx),
 		        rect->ymin + zoomy * (cumap->clipr.ymin - offsy),
 		        rect->xmin + zoomx * (cumap->clipr.xmax - offsx),
 		        rect->ymin + zoomy * (cumap->clipr.ymax - offsy));
 		}
 		else {
-			gpuCurrentColor3ubv((unsigned char *)wcol->inner);
+			gpuColor3ubv((unsigned char *)wcol->inner);
 			gpuSingleFilledRectf(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 		}
 
@@ -1323,7 +1323,7 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 	/* XXX 2.48 */
 #if 0
 	if (cumap->flag & CUMA_DRAW_CFRA) {
-		gpuCurrentColor3ub(0x60, 0xc0, 0x40);
+		gpuColor3ub(0x60, 0xc0, 0x40);
 		gpuBegin(GL_LINES);
 		gpuVertex2f(rect->xmin + zoomx * (cumap->sample[0] - offsx), rect->ymin);
 		gpuVertex2f(rect->xmin + zoomx * (cumap->sample[0] - offsx), rect->ymax);
@@ -1336,7 +1336,7 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 		if (but->a1 == UI_GRAD_H) {
 			float tsample[3];
 			float hsv[3];
-			gpuCurrentGray3f(0.941f);
+			gpuGray3f(0.941f);
 			linearrgb_to_srgb_v3_v3(tsample, cumap->sample);
 			rgb_to_hsv_v(tsample, hsv);
 
@@ -1355,11 +1355,11 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 		}
 		else {
 			if (cumap->cur == 0)
-				gpuCurrentColor3ub(240, 100, 100);
+				gpuColor3ub(240, 100, 100);
 			else if (cumap->cur == 1)
-				gpuCurrentColor3ub(100, 240, 100);
+				gpuColor3ub(100, 240, 100);
 			else
-				gpuCurrentColor3ub(100, 100, 240);
+				gpuColor3ub(100, 100, 240);
 			
 			gpuBegin(GL_LINES);
 			gpuVertex2f(rect->xmin + zoomx * (cumap->sample[cumap->cur] - offsx), rect->ymin);
@@ -1369,7 +1369,7 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 	}
 
 	/* the curve */
-	gpuCurrentColor3ubv((unsigned char *)wcol->item);
+	gpuColor3ubv((unsigned char *)wcol->item);
 	gpuEnableLineSmooth();
 	glEnable(GL_BLEND);
 	gpuBegin(GL_LINE_STRIP);
@@ -1425,7 +1425,7 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 	gpuScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
 
 	/* outline */
-	gpuCurrentColor3ubv((unsigned char *)wcol->outline);
+	gpuColor3ubv((unsigned char *)wcol->outline);
 	gpuSingleWireRectf(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 }
 
@@ -1454,7 +1454,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 	          (rect.ymax + 1) - (rect.ymin - 1));
 
 	if (scopes->track_disabled) {
-		gpuCurrentColor4f(0.7f, 0.3f, 0.3f, 0.3f);
+		gpuColor4f(0.7f, 0.3f, 0.3f, 0.3f);
 		uiSetRoundBox(15);
 		uiDrawBox(GL_TRIANGLE_FAN, rect.xmin - 1, rect.ymin, rect.xmax + 1, rect.ymax + 1, 3.0f);
 
@@ -1502,7 +1502,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 			drawibuf = scopes->track_preview;
 
 			if (scopes->use_track_mask) {
-				gpuCurrentColor4x(CPACK_BLACK, 0.300f);
+				gpuColor4P(CPACK_BLACK, 0.300f);
 				uiSetRoundBox(15);
 				uiDrawBox(GL_TRIANGLE_FAN, rect.xmin - 1, rect.ymin, rect.xmax + 1, rect.ymax + 1, 3.0f);
 			}
@@ -1543,7 +1543,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 	}
 
 	if (!ok) {
-		gpuCurrentColor4x(CPACK_BLACK, 0.300f);
+		gpuColor4P(CPACK_BLACK, 0.300f);
 		uiSetRoundBox(15);
 		uiDrawBox(GL_TRIANGLE_FAN, rect.xmin - 1, rect.ymin, rect.xmax + 1, rect.ymax + 1, 3.0f);
 	}
@@ -1594,7 +1594,7 @@ void ui_draw_but_NODESOCKET(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol
 	          BLI_rcti_size_x(&scissor_new),
 	          BLI_rcti_size_y(&scissor_new));
 	
-	gpuCurrentColor4ubv(col);
+	gpuColor4ubv(col);
 	
 	gpuImmediateFormat_V2();
 
@@ -1634,11 +1634,11 @@ static void ui_shadowbox(float minx, float miny, float maxx, float maxy, float s
 	/* right quad */
 	gpuBegin(GL_TRIANGLE_FAN);
 
-	gpuColor4x(CPACK_BLACK, alpha);
+	gpuColor4P(CPACK_BLACK, alpha);
 	gpuVertex2f(maxx, miny);
 	gpuVertex2f(maxx, maxy - 0.3f * shadsize);
 
-	gpuColor4x(CPACK_BLACK, 0.000f);
+	gpuColor4P(CPACK_BLACK, 0.000f);
 	gpuVertex2f(maxx + shadsize, maxy - 0.75f * shadsize);
 	gpuVertex2f(maxx + shadsize, miny);
 
@@ -1647,10 +1647,10 @@ static void ui_shadowbox(float minx, float miny, float maxx, float maxy, float s
 	/* corner shape */
 	gpuBegin(GL_TRIANGLE_FAN);
 
-	gpuColor4x(CPACK_BLACK, alpha);
+	gpuColor4P(CPACK_BLACK, alpha);
 	gpuVertex2f(maxx, miny);
 
-	gpuColor4x(CPACK_BLACK, 0.000f);
+	gpuColor4P(CPACK_BLACK, 0.000f);
 	gpuVertex2f(maxx + shadsize, miny);
 	gpuVertex2f(maxx + 0.7f * shadsize, miny - 0.7f * shadsize);
 	gpuVertex2f(maxx, miny - shadsize);
@@ -1660,11 +1660,11 @@ static void ui_shadowbox(float minx, float miny, float maxx, float maxy, float s
 	/* bottom quad */
 	gpuBegin(GL_TRIANGLE_FAN);
 
-	gpuColor4x(CPACK_BLACK, alpha);
+	gpuColor4P(CPACK_BLACK, alpha);
 	gpuVertex2f(minx + 0.3f * shadsize, miny);
 	gpuVertex2f(maxx, miny);
 
-	gpuColor4x(CPACK_BLACK, 0.000f);
+	gpuColor4P(CPACK_BLACK, 0.000f);
 	gpuVertex2f(maxx, miny - shadsize);
 	gpuVertex2f(minx + 0.5f * shadsize, miny - shadsize);
 
@@ -1712,7 +1712,7 @@ void ui_dropshadow(const rctf *rct, float radius, float aspect, float alpha, int
 	calpha = dalpha;
 	for (; i--; a -= aspect) {
 		/* alpha ranges from 2 to 20 or so */
-		gpuCurrentColor4x(CPACK_BLACK, calpha);
+		gpuColor4P(CPACK_BLACK, calpha);
 		calpha += dalpha;
 
 		uiDrawBox(GL_TRIANGLE_FAN, rct->xmin - a, rct->ymin - a, rct->xmax + a, rct->ymax - 10.0f + a, rad + a);
@@ -1720,7 +1720,7 @@ void ui_dropshadow(const rctf *rct, float radius, float aspect, float alpha, int
 
 	/* outline emphasis */
 	gpuEnableLineSmooth();
-	gpuCurrentColor4x(CPACK_BLACK, 0.392f);
+	gpuColor4P(CPACK_BLACK, 0.392f);
 	uiDrawBox(GL_LINE_LOOP, rct->xmin - 0.5f, rct->ymin - 0.5f, rct->xmax + 0.5f, rct->ymax + 0.5f, radius + 0.5f);
 	gpuDisableLineSmooth();
 

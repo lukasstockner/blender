@@ -761,7 +761,7 @@ void brush_drawcursor_texpaint_uvsculpt(bContext *C, int x, int y, void *UNUSED(
 		if (use_zoom)
 			gpuScale(zoomx, zoomy, 1.0f);
 
-		gpuCurrentColor4f(brush->add_col[0], brush->add_col[1], brush->add_col[2], alpha);
+		gpuColor4f(brush->add_col[0], brush->add_col[1], brush->add_col[2], alpha);
 		gpuEnableLineSmooth();
 		glEnable(GL_BLEND);
 		{
@@ -771,7 +771,7 @@ void brush_drawcursor_texpaint_uvsculpt(bContext *C, int x, int y, void *UNUSED(
 				/* inner at full alpha */
 				gpuSingleCircle(0, 0, size * ups->pressure_value, 40);
 				/* outer at half alpha */
-				gpuCurrentColor4f(brush->add_col[0], brush->add_col[1], brush->add_col[2], alpha * 0.5f);
+				gpuColor4f(brush->add_col[0], brush->add_col[1], brush->add_col[2], alpha * 0.5f);
 			}
 		}
 		gpuSingleCircle(0, 0, size, 40);

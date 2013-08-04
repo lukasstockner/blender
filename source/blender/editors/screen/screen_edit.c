@@ -901,7 +901,7 @@ static void draw_join_shape(ScrArea *sa, char dir)
 static void scrarea_draw_shape_dark(ScrArea *sa, char dir)
 {
 	glEnable(GL_BLEND);
-	gpuCurrentColor4x(CPACK_BLACK, 0.196f);
+	gpuColor4P(CPACK_BLACK, 0.196f);
 	draw_join_shape(sa, dir);
 	glDisable(GL_BLEND);
 }
@@ -912,7 +912,7 @@ static void scrarea_draw_shape_light(ScrArea *sa, char UNUSED(dir))
 	glBlendFunc(GL_DST_COLOR, GL_SRC_ALPHA); /* non-standard blend function */
 	glEnable(GL_BLEND);
 	/* value 181 was hardly computed: 181~105 */
-	gpuCurrentColor4x(CPACK_WHITE, 0.196f);
+	gpuColor4P(CPACK_WHITE, 0.196f);
 	/* draw_join_shape(sa, dir); */
 	gpuSingleFilledRecti(sa->v1->vec.x, sa->v1->vec.y, sa->v3->vec.x, sa->v3->vec.y);
 	glDisable(GL_BLEND);
@@ -954,14 +954,14 @@ static void drawscredge_area(ScrArea *sa, int sizex, int sizey, int center)
 	
 	if (center == 0) {
 		if (U.pixelsize > 1.0f) {
-			gpuCurrentGray3f(0.314f);
+			gpuGray3f(0.314f);
 			gpuLineWidth(1.5f * U.pixelsize);
 			drawscredge_area_draw(sizex, sizey, x1, y1, x2, y2, 0);
 			gpuLineWidth(1.0f);
 		}
 	}
 	else {
-		gpuCurrentColor3x(CPACK_BLACK);
+		gpuColor3P(CPACK_BLACK);
 		drawscredge_area_draw(sizex, sizey, x1, y1, x2, y2, 0);
 	}
 }
@@ -1084,16 +1084,16 @@ void ED_screen_draw(wmWindow *win)
 		gpuImmediateFormat_C4_V2(); // DOODLE: 2 lines, colored
 		gpuBegin(GL_LINES);
 
-		gpuCurrentColor4x(CPACK_WHITE, 0.392f);
+		gpuColor4P(CPACK_WHITE, 0.392f);
 
 		if (sa3->flag & AREA_FLAG_DRAWSPLIT_H) {
 			gpuAppendLinei(sa3->totrct.xmin, win->eventstate->y, sa3->totrct.xmax, win->eventstate->y);
-			gpuColor4x(CPACK_BLACK, 0.392f);
+			gpuColor4P(CPACK_BLACK, 0.392f);
 			gpuAppendLinei(sa3->totrct.xmin, win->eventstate->y + 1, sa3->totrct.xmax, win->eventstate->y + 1);
 		}
 		else {
 			gpuAppendLinei(win->eventstate->x, sa3->totrct.ymin, win->eventstate->x, sa3->totrct.ymax);
-			gpuColor4x(CPACK_BLACK, 0.392f);
+			gpuColor4P(CPACK_BLACK, 0.392f);
 			gpuAppendLinei(win->eventstate->x + 1, sa3->totrct.ymin, win->eventstate->x + 1, sa3->totrct.ymax);
 		}
 

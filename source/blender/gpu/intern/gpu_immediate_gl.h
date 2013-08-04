@@ -1,3 +1,6 @@
+#ifndef GPU_INTERN_IMMEDIATE_GL_H
+#define GPU_INTERN_IMMEDIATE_GL_H
+
 /*
 * ***** BEGIN GPL LICENSE BLOCK *****
 *
@@ -20,34 +23,47 @@
 *
 * The Original Code is: all of this file.
 *
-* Contributor(s):
+* Contributor(s): Jason Wilkins.
 *
 * ***** END GPL LICENSE BLOCK *****
 */
 
-/** \file blender/gpu/intern/gpu_object_gl11.h
+/** \file blender/gpu/intern/gpu_internal.h
 *  \ingroup gpu
 */
 
-#ifndef _GPU_OBJECT_GL11_H_
-#define _GPU_OBJECT_GL11_H_
+/*
 
-#if defined(WITH_GL_PROFILE_COMPAT)
+This module contains the backend of the immediate mode replacement.
 
+These are the parts of the code that depend directly on OpenGL.
 
+*/
 
-void gpuVertexPointer_gl11(int size, int type, int stride, const void *pointer);
-void gpuNormalPointer_gl11(          int type, int stride, const void *pointer);
-void gpuColorPointer_gl11 (int size, int type, int stride, const void *pointer);
-void gpuTexCoordPointer_gl11(int size, int type, int stride, const void *pointer);
-#if !defined(GLEW_ES_ONLY)
-void gpuClientActiveTexture_gl11(int texture);
+#include "BLI_utildefines.h" /* for restrict */
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
-void gpuCleanupAfterDraw_gl11(void);
+
+
+void gpu_lock_buffer_gl(void);
+void gpu_unlock_buffer_gl(void);
+void gpu_begin_buffer_gl(void);
+void gpu_end_buffer_gl(void);
+void gpu_shutdown_buffer_gl(struct GPUimmediate *restrict immediate);
+void gpu_current_normal_gl(void);
+void gpu_index_begin_buffer_gl(void);
+void gpu_index_end_buffer_gl(void);
+void gpu_index_shutdown_buffer_gl(struct GPUindex *restrict index);
+void gpu_draw_elements_gl(void);
+void gpu_draw_range_elements_gl(void);
 
 
 
+#ifdef __cplusplus
+}
 #endif
 
-#endif
+#endif /* GPU_INTERN_IMMEDIATE_GL */

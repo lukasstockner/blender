@@ -383,7 +383,7 @@ static void emDM_drawMappedFaces(
 				}
 
 				if      (has_vcol_preview) bmdm_get_tri_colpreview(ltri, lcol, color_vert_array);
-				else if (has_fcol_preview) gpuCurrentColor3ubv((const GLubyte *)&(color_face_array[BM_elem_index_get(efa)]));
+				else if (has_fcol_preview) gpuColor3ubv((const GLubyte *)&(color_face_array[BM_elem_index_get(efa)]));
 				if (!useNormals) {
 
 					if (poly_type != poly_prev) {
@@ -472,7 +472,7 @@ static void emDM_drawMappedFaces(
 				}
 
 				if      (has_vcol_preview) bmdm_get_tri_colpreview(ltri, lcol, color_vert_array);
-				else if (has_fcol_preview) gpuCurrentColor3ubv((const GLubyte *)&(color_face_array[BM_elem_index_get(efa)]));
+				else if (has_fcol_preview) gpuColor3ubv((const GLubyte *)&(color_face_array[BM_elem_index_get(efa)]));
 				
 				if (!useNormals) {
 
@@ -600,7 +600,7 @@ static void emDM_drawFacesTex_common(DerivedMesh *dm,
 
 	BM_mesh_elem_index_ensure(bm, BM_FACE);
 
-	gpuAspectBegin(GPU_ASPECT_TEXTURE, NULL);
+	GPU_aspect_begin(GPU_ASPECT_TEXTURE, NULL);
 
 	gpuImmediateFormat_T2_C4_N3_V3();
 
@@ -746,7 +746,7 @@ static void emDM_drawFacesTex_common(DerivedMesh *dm,
 
 	gpuImmediateUnformat();
 
-	gpuAspectEnd(GPU_ASPECT_TEXTURE, NULL);
+	GPU_aspect_end(GPU_ASPECT_TEXTURE, NULL);
 
 	gpuShadeModel(GL_FLAT);
 }

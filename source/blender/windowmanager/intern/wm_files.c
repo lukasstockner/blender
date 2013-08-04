@@ -568,7 +568,7 @@ int wm_homefile_read(bContext *C, ReportList *UNUSED(reports), short from_memory
 	G.main->name[0] = '\0';
 
 	/* When loading factory settings, the reset solid OpenGL lights need to be applied. */
-	if (!G.background) GPU_default_lights();
+	if (!G.background) GPU_default_lights(); // XXX jwilkins: this may be redundant
 	
 	/* XXX */
 	G.save_over = 0;    // start with save preference untitled.blend

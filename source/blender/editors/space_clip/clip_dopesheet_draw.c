@@ -106,7 +106,7 @@ static void draw_keyframe_shape(float x, float y, float xscale, float yscale, sh
 	if (sel)
 		UI_ThemeColorShadeAlpha(TH_STRIP_SELECT, 50, -255 * (1.0f - alpha));
 	else
-		gpuCurrentGray4f(0.910f, alpha);
+		gpuGray4f(0.910f, alpha);
 
 	gpuBegin(GL_QUADS);
 	gpuVertex2fv(_unit_diamond_shape[0]);
@@ -116,7 +116,7 @@ static void draw_keyframe_shape(float x, float y, float xscale, float yscale, sh
 	gpuEnd();
 
 	/* exterior - black frame */
-	gpuCurrentColor4x(CPACK_BLACK, alpha);
+	gpuColor4P(CPACK_BLACK, alpha);
 	gpuBegin(GL_LINE_LOOP);
 	gpuVertex2fv(_unit_diamond_shape[0]);
 	gpuVertex2fv(_unit_diamond_shape[1]);
@@ -209,7 +209,7 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *ar, Scene *scene)
 					float default_color[4] = {0.8f, 0.93f, 0.8f, 0.3f};
 
 					track_channel_color(track, default_color, color);
-					gpuCurrentColor4fv(color);
+					gpuColor4fv(color);
 
 					gpuSingleFilledRectf(v2d->cur.xmin, (float) y - CHANNEL_HEIGHT_HALF,
 					        v2d->cur.xmax + EXTRA_SCROLL_PAD, (float) y + CHANNEL_HEIGHT_HALF);
@@ -223,9 +223,9 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *ar, Scene *scene)
 					int end_frame = BKE_movieclip_remap_clip_to_scene_frame(clip, channel->segments[2 * i + 1]);
 
 					if (sel)
-						gpuCurrentColor4fv(selected_strip);
+						gpuColor4fv(selected_strip);
 					else
-						gpuCurrentColor4fv(strip);
+						gpuColor4fv(strip);
 
 					if (start_frame != end_frame) {
 						gpuSingleFilledRectf(start_frame, (float) y - STRIP_HEIGHT_HALF,
@@ -316,7 +316,7 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *ar)
 			int sel = track->flag & TRACK_DOPE_SEL;
 
 			track_channel_color(track, NULL, color);
-			gpuCurrentColor3fv(color);
+			gpuColor3fv(color);
 
 			gpuSingleFilledRectf(v2d->cur.xmin, (float) y - CHANNEL_HEIGHT_HALF,
 			        v2d->cur.xmax + EXTRA_SCROLL_PAD, (float) y + CHANNEL_HEIGHT_HALF);

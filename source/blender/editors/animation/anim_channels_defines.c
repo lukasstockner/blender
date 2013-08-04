@@ -116,7 +116,7 @@ static void acf_generic_root_backdrop(bAnimContext *ac, bAnimListElem *ale, floa
 
 	/* set backdrop drawing color */
 	acf->get_backdrop_color(ac, ale, color);
-	gpuCurrentColor3fv(color);
+	gpuColor3fv(color);
 
 	/* rounded corners on LHS only - top only when expanded, but bottom too when collapsed */
 	uiSetRoundBox((expanded) ? UI_CNR_TOP_LEFT : (UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT));
@@ -141,7 +141,7 @@ static void acf_generic_dataexpand_backdrop(bAnimContext *ac, bAnimListElem *ale
 	
 	/* set backdrop drawing color */
 	acf->get_backdrop_color(ac, ale, color);
-	gpuCurrentColor3fv(color);
+	gpuColor3fv(color);
 	
 	/* no rounded corner - just rectangular box */
 	gpuSingleFilledRectf(offset, yminc,  v2d->cur.xmax + EXTRA_SCROLL_PAD, ymaxc);
@@ -222,7 +222,7 @@ static void acf_generic_channel_backdrop(bAnimContext *ac, bAnimListElem *ale, f
 	
 	/* set backdrop drawing color */
 	acf->get_backdrop_color(ac, ale, color);
-	gpuCurrentColor3fv(color);
+	gpuColor3fv(color);
 	
 	/* no rounded corners - just rectangular box */
 	gpuSingleFilledRectf(offset, yminc,  v2d->cur.xmax + EXTRA_SCROLL_PAD, ymaxc);
@@ -413,7 +413,7 @@ static void acf_summary_backdrop(bAnimContext *ac, bAnimListElem *ale, float ymi
 	
 	/* set backdrop drawing color */
 	acf->get_backdrop_color(ac, ale, color);
-	gpuCurrentColor3fv(color);
+	gpuColor3fv(color);
 	
 	/* rounded corners on LHS only 
 	 *	- top and bottom 
@@ -786,7 +786,7 @@ static void acf_group_backdrop(bAnimContext *ac, bAnimListElem *ale, float yminc
 	
 	/* set backdrop drawing color */
 	acf->get_backdrop_color(ac, ale, color);
-	gpuCurrentColor3fv(color);
+	gpuColor3fv(color);
 	
 	/* rounded corners on LHS only - top only when expanded, but bottom too when collapsed */
 	uiSetRoundBox(expanded ? UI_CNR_TOP_LEFT : (UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT));
@@ -3088,7 +3088,7 @@ void ANIM_channel_draw(bAnimContext *ac, bAnimListElem *ale, float yminc, float 
 				/* F-Curve channels need to have a special 'color code' box drawn, which is colored with whatever 
 				 * color the curve has stored 
 				 */
-				gpuCurrentColor3fv(fcu->color);
+				gpuColor3fv(fcu->color);
 				
 				/* just a solid color rect
 				 */
@@ -3125,7 +3125,7 @@ void ANIM_channel_draw(bAnimContext *ac, bAnimListElem *ale, float yminc, float 
 		/* draw red underline if channel is disabled */
 		if ((ale->type == ANIMTYPE_FCURVE) && (ale->flag & FCURVE_DISABLED)) {
 			/* FIXME: replace hardcoded color here, and check on extents! */
-			gpuCurrentColor3x(CPACK_RED);
+			gpuColor3P(CPACK_RED);
 			gpuLineWidth(2.0);
 			gpuSingleLinef(offset, yminc, v2d->cur.xmax, yminc); // DOODLE: single thick colored line
 			gpuLineWidth(1.0);
@@ -3144,7 +3144,7 @@ void ANIM_channel_draw(bAnimContext *ac, bAnimListElem *ale, float yminc, float 
 		
 		/* get and set backdrop color */
 		acf->get_backdrop_color(ac, ale, color);
-		gpuCurrentColor3fv(color);
+		gpuColor3fv(color);
 		
 		/* check if we need to show the sliders */
 		if ((ac->sl) && ELEM(ac->spacetype, SPACE_ACTION, SPACE_IPO)) {

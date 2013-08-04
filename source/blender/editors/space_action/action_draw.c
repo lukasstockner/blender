@@ -233,8 +233,8 @@ void draw_channel_strips(bAnimContext *ac, SpaceAction *saction, ARegion *ar)
 						case ANIMTYPE_SCENE:
 						case ANIMTYPE_OBJECT:
 						{
-							if (sel) gpuCurrentColor4ub(col1b[0], col1b[1], col1b[2], 0x45); 
-							else gpuCurrentColor4ub(col1b[0], col1b[1], col1b[2], 0x22); 
+							if (sel) gpuColor4ub(col1b[0], col1b[1], col1b[2], 0x45); 
+							else gpuColor4ub(col1b[0], col1b[1], col1b[2], 0x22); 
 						}
 						break;
 						
@@ -242,22 +242,22 @@ void draw_channel_strips(bAnimContext *ac, SpaceAction *saction, ARegion *ar)
 						case ANIMTYPE_DSSKEY:
 						case ANIMTYPE_DSWOR:
 						{
-							if (sel) gpuCurrentColor4ub(col2b[0], col2b[1], col2b[2], 0x45); 
-							else gpuCurrentColor4ub(col2b[0], col2b[1], col2b[2], 0x22); 
+							if (sel) gpuColor4ub(col2b[0], col2b[1], col2b[2], 0x45); 
+							else gpuColor4ub(col2b[0], col2b[1], col2b[2], 0x22); 
 						}
 						break;
 						
 						case ANIMTYPE_GROUP:
 						{
-							if (sel) gpuCurrentColor4ub(col1a[0], col1a[1], col1a[2], 0x22);
-							else gpuCurrentColor4ub(col2a[0], col2a[1], col2a[2], 0x22);
+							if (sel) gpuColor4ub(col1a[0], col1a[1], col1a[2], 0x22);
+							else gpuColor4ub(col2a[0], col2a[1], col2a[2], 0x22);
 						}
 						break;
 						
 						default:
 						{
-							if (sel) gpuCurrentColor4ub(col1[0], col1[1], col1[2], 0x22);
-							else gpuCurrentColor4ub(col2[0], col2[1], col2[2], 0x22);
+							if (sel) gpuColor4ub(col1[0], col1[1], col1[2], 0x22);
+							else gpuColor4ub(col2[0], col2[1], col2[2], 0x22);
 						}
 						break;
 					}
@@ -271,17 +271,17 @@ void draw_channel_strips(bAnimContext *ac, SpaceAction *saction, ARegion *ar)
 				else if (ac->datatype == ANIMCONT_GPENCIL) {
 					/* frames less than one get less saturated background */
 					if (sel) 
-						gpuCurrentColor4ub(col1[0], col1[1], col1[2], 0x22);
+						gpuColor4ub(col1[0], col1[1], col1[2], 0x22);
 					else 
-						gpuCurrentColor4ub(col2[0], col2[1], col2[2], 0x22);
+						gpuColor4ub(col2[0], col2[1], col2[2], 0x22);
 
 					gpuSingleFilledRectf(0.0f, (float)y - ACHANNEL_HEIGHT_HALF, v2d->cur.xmin, (float)y + ACHANNEL_HEIGHT_HALF);
 
 					/* frames one and higher get a saturated background */
 					if (sel) 
-						gpuCurrentColor4ub(col1[0], col1[1], col1[2], 0x44);
+						gpuColor4ub(col1[0], col1[1], col1[2], 0x44);
 					else 
-						gpuCurrentColor4ub(col2[0], col2[1], col2[2], 0x44);
+						gpuColor4ub(col2[0], col2[1], col2[2], 0x44);
 
 					gpuSingleFilledRectf(v2d->cur.xmin, (float)y - ACHANNEL_HEIGHT_HALF, v2d->cur.xmax + EXTRA_SCROLL_PAD,  (float)y + ACHANNEL_HEIGHT_HALF);
 				}
@@ -289,17 +289,17 @@ void draw_channel_strips(bAnimContext *ac, SpaceAction *saction, ARegion *ar)
 					/* TODO --- this is a copy of gpencil */
 					/* frames less than one get less saturated background */
 					if (sel) 
-						gpuCurrentColor4ub(col1[0], col1[1], col1[2], 0x22);
+						gpuColor4ub(col1[0], col1[1], col1[2], 0x22);
 					else 
-						gpuCurrentColor4ub(col2[0], col2[1], col2[2], 0x22);
+						gpuColor4ub(col2[0], col2[1], col2[2], 0x22);
 
 					gpuSingleFilledRectf(0.0f, (float)y - ACHANNEL_HEIGHT_HALF, v2d->cur.xmin, (float)y + ACHANNEL_HEIGHT_HALF);
 
 					/* frames one and higher get a saturated background */
 					if (sel) 
-						gpuCurrentColor4ub(col1[0], col1[1], col1[2], 0x44);
+						gpuColor4ub(col1[0], col1[1], col1[2], 0x44);
 					else 
-						gpuCurrentColor4ub(col2[0], col2[1], col2[2], 0x44);
+						gpuColor4ub(col2[0], col2[1], col2[2], 0x44);
 
 					gpuSingleFilledRectf(v2d->cur.xmin, (float)y - ACHANNEL_HEIGHT_HALF, v2d->cur.xmax + EXTRA_SCROLL_PAD,  (float)y + ACHANNEL_HEIGHT_HALF);
 				}
@@ -368,7 +368,7 @@ void draw_channel_strips(bAnimContext *ac, SpaceAction *saction, ARegion *ar)
 
 	/* black line marking 'current frame' for Time-Slide transform mode */
 	if (saction->flag & SACTION_MOVING) {
-		gpuCurrentColor3x(CPACK_BLACK);
+		gpuColor3P(CPACK_BLACK);
 
 		gpuBegin(GL_LINES);
 		gpuVertex2f(saction->timeslide, v2d->cur.ymin - EXTRA_SCROLL_PAD);

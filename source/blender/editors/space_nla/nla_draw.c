@@ -123,7 +123,7 @@ static void nla_action_draw_keyframes(AnimData *adt, bAction *act, View2D *v2d, 
 	nla_action_get_color(adt, act, color);
 	color[3] *= 2.5f;
 	
-	gpuCurrentColor4fv(color);
+	gpuColor4fv(color);
 	/*  - draw a rect from the first to the last frame (no extra overlaps for now)
 	 *	  that is slightly stumpier than the track background (hardcoded 2-units here)
 	 */
@@ -137,7 +137,7 @@ static void nla_action_draw_keyframes(AnimData *adt, bAction *act, View2D *v2d, 
 	UI_view2d_getscale(v2d, &xscale, NULL);
 
 	/* for now, color is hardcoded to be black */
-	gpuCurrentColor3x(CPACK_BLACK);
+	gpuColor3P(CPACK_BLACK);
 
 	/* just draw each keyframe as a simple dot (regardless of the selection status) 
 	 *	- size is 3.0f which is smaller than the editable keyframes, so that there is a distinction
@@ -221,7 +221,7 @@ static void nla_draw_strip_curves(NlaStrip *strip, float yminc, float ymaxc)
 	/* drawing color is simply a light-gray */
 	// TODO: is this color suitable?
 	// XXX nasty hacked color for now... which looks quite bad too...
-	gpuCurrentGray3f(0.700f);
+	gpuGray3f(0.700f);
 
 	/* draw with AA'd line */
 	gpuEnableLineSmooth();
@@ -298,7 +298,7 @@ static void nla_draw_strip(SpaceNla *snla, AnimData *adt, NlaTrack *nlt, NlaStri
 				 */
 				if (strip->prev == NULL) {
 					/* set the drawing color to the color of the strip, but with very faint alpha */
-					gpuCurrentColor4f(color[0], color[1], color[2], 0.15f);
+					gpuColor4f(color[0], color[1], color[2], 0.15f);
 					
 					/* draw the rect to the edge of the screen */
 					gpuBegin(GL_TRIANGLE_FAN);
@@ -315,7 +315,7 @@ static void nla_draw_strip(SpaceNla *snla, AnimData *adt, NlaTrack *nlt, NlaStri
 				/* only need to try and draw if the next strip doesn't occur immediately after */
 				if ((strip->next == NULL) || (IS_EQF(strip->next->start, strip->end) == 0)) {
 					/* set the drawing color to the color of the strip, but this time less faint */
-					gpuCurrentColor4f(color[0], color[1], color[2], 0.3f);
+					gpuColor4f(color[0], color[1], color[2], 0.3f);
 					
 					/* draw the rect to the next strip or the edge of the screen */
 					gpuBegin(GL_TRIANGLE_FAN);
@@ -342,14 +342,14 @@ static void nla_draw_strip(SpaceNla *snla, AnimData *adt, NlaTrack *nlt, NlaStri
 	/* draw 'inside' of strip itself */
 	if (nonSolo == 0) {
 		/* strip is in normal track */
-		gpuCurrentColor3fv(color);
+		gpuColor3fv(color);
 		uiSetRoundBox(UI_CNR_ALL); /* all corners rounded */
 		
 		uiDrawBoxShade(GL_TRIANGLE_FAN, strip->start, yminc, strip->end, ymaxc, 0.0, 0.5, 0.1);
 	}
 	else {
 		/* strip is in disabled track - make less visible */
-		gpuCurrentColor4f(color[0], color[1], color[2], 0.1f);
+		gpuColor4f(color[0], color[1], color[2], 0.1f);
 		
 		glEnable(GL_BLEND);
 		gpuSingleFilledRectf(strip->start, yminc, strip->end, ymaxc);
@@ -369,11 +369,11 @@ static void nla_draw_strip(SpaceNla *snla, AnimData *adt, NlaTrack *nlt, NlaStri
 	 */
 	if (strip->flag & NLASTRIP_FLAG_ACTIVE) {
 		/* strip should appear 'sunken', so draw a light border around it */
-		gpuCurrentColor3f(0.9f, 1.0f, 0.9f); // FIXME: hardcoded temp-hack colors
+		gpuColor3f(0.9f, 1.0f, 0.9f); // FIXME: hardcoded temp-hack colors
 	}
 	else {
 		/* strip should appear to stand out, so draw a dark border around it */
-		gpuCurrentColor3f(0.0f, 0.0f, 0.0f);
+		gpuColor3f(0.0f, 0.0f, 0.0f);
 	}
 	
 	/* - line style: dotted for muted */
@@ -585,7 +585,7 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *ar)
 						
 					/* get colors for drawing */
 					nla_action_get_color(adt, ale->data, color);
-					gpuCurrentColor4fv(color);
+					gpuColor4fv(color);
 					
 					/* draw slightly shifted up for greater separation from standard channels,
 					 * but also slightly shorter for some more contrast when viewing the strips
@@ -600,7 +600,7 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *ar)
 					/* draw 'embossed' lines above and below the strip for effect */
 					/* white base-lines */
 					gpuLineWidth(2.0f);
-					gpuCurrentColor4x(CPACK_WHITE, 0.300f);
+					gpuColor4P(CPACK_WHITE, 0.300f);
 					gpuBegin(GL_LINES);
 					gpuAppendLinef(v2d->cur.xmin, yminc + NLACHANNEL_SKIP, v2d->cur.xmax, yminc + NLACHANNEL_SKIP);
 					gpuAppendLinef(v2d->cur.xmin, ymaxc - NLACHANNEL_SKIP, v2d->cur.xmax, ymaxc - NLACHANNEL_SKIP);
@@ -608,7 +608,7 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *ar)
 
 					/* black top-lines */
 					gpuLineWidth(1.0f);
-					gpuCurrentColor3x(CPACK_BLACK);
+					gpuColor3P(CPACK_BLACK);
 					gpuBegin(GL_LINES);
 					gpuAppendLinef(v2d->cur.xmin, yminc + NLACHANNEL_SKIP, v2d->cur.xmax, yminc + NLACHANNEL_SKIP);
 					gpuAppendLinef(v2d->cur.xmin, ymaxc - NLACHANNEL_SKIP, v2d->cur.xmax, ymaxc - NLACHANNEL_SKIP);
@@ -780,11 +780,11 @@ static void draw_nla_channel_list_gl(bAnimContext *ac, ListBase *anim_data, View
 					
 					if (adt && (adt->flag & ADT_NLA_EDIT_ON)) {
 						/* Yes, the color vector has 4 components, BUT we only want to be using 3 of them! */
-						gpuCurrentColor3fv(color);
+						gpuColor3fv(color);
 					}
 					else {
 						float alpha = (adt && (adt->flag & ADT_NLA_SOLO_TRACK)) ? 0.3f : 1.0f;
-						gpuCurrentColor4f(color[0], color[1], color[2], alpha);
+						gpuColor4f(color[0], color[1], color[2], alpha);
 					}
 					
 					offset += 0.35f * U.widget_unit * indent;

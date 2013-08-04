@@ -33,7 +33,6 @@
 #define GPU_MATRIX_H
 
 #include "intern/gpu_glew.h"
-#include "intern/gpu_known.h"
 
 
 
@@ -79,7 +78,8 @@ void gpuLookAt(GLfloat eyeX, GLfloat eyeY, GLfloat eyeZ, GLfloat centerX, GLfloa
 void gpuProject(const GLfloat obj[3], const GLfloat model[4][4], const GLfloat proj[4][4], const GLint view[4], GLfloat win[3]);
 GLboolean gpuUnProject(const GLfloat win[3], const GLfloat model[4][4], const GLfloat proj[4][4], const GLint view[4], GLfloat obj[3]);
 
-void gpuFeedbackVertex3fv(GLenum type, GLfloat x, GLfloat y, GLfloat z, GLfloat out[3]);
+void gpuFeedbackVertex3fv(GLenum type, GLfloat x, GLfloat y, GLfloat z,            GLfloat out[3]);
+void gpuFeedbackVertex4fv(GLenum type, GLfloat x, GLfloat y, GLfloat z, GLfloat w, GLfloat out[4]);
 
 #ifndef GPU_MAT_CAST_ANY
 #define GPU_MAT_CAST_ANY 1

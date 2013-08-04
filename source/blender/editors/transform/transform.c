@@ -1626,13 +1626,13 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 				gpuLineWidth(3.0);
 
 				UI_make_axis_color(col, col2, 'X');
-				gpuCurrentColor3ubv((GLubyte *)col2);
+				gpuColor3ubv((GLubyte *)col2);
 
 				drawArrow(RIGHT, 5, 10, 5);
 				drawArrow(LEFT, 5, 10, 5);
 
 				UI_make_axis_color(col, col2, 'Y');
-				gpuCurrentColor3ubv((GLubyte *)col2);
+				gpuColor3ubv((GLubyte *)col2);
 
 				drawArrow(UP, 5, 10, 5);
 				drawArrow(DOWN, 5, 10, 5);
@@ -1816,24 +1816,24 @@ static void drawSnapping(const struct bContext *C, TransInfo *t)
 
 				for (p = t->tsnap.points.first; p; p = p->next) {
 					if (p == t->tsnap.selectedPoint) {
-						gpuCurrentColor4ubv(selectedCol);
+						gpuColor4ubv(selectedCol);
 					}
 					else {
-						gpuCurrentColor4ubv(col);
+						gpuColor4ubv(col);
 					}
 
 					gpuDrawFastBall(GL_LINE_LOOP, p->co, ED_view3d_pixel_size(rv3d, p->co) * size * 0.75f, imat);
 				}
 
 				if (t->tsnap.status & POINT_INIT) {
-					gpuCurrentColor4ubv(activeCol);
+					gpuColor4ubv(activeCol);
 
 					gpuDrawFastBall(GL_LINE_LOOP, t->tsnap.snapPoint, ED_view3d_pixel_size(rv3d, t->tsnap.snapPoint) * size, imat);
 				}
 				
 				/* draw normal if needed */
 				if (usingSnappingNormal(t) && validSnappingNormal(t)) {
-					gpuCurrentColor4ubv(activeCol);
+					gpuColor4ubv(activeCol);
 
 					gpuBegin(GL_LINES);
 						gpuVertex3f(
@@ -1867,13 +1867,13 @@ static void drawSnapping(const struct bContext *C, TransInfo *t)
 			w = (((float)wi) / IMAGE_SIZE_FALLBACK) * G.sima->zoom * xuser_asp;
 			h = (((float)hi) / IMAGE_SIZE_FALLBACK) * G.sima->zoom * yuser_asp;
 			
-			gpuCurrentColor3x(CPACK_WHITE);
+			gpuColor3P(CPACK_WHITE);
 			gpuTranslate(t->tsnap.snapPoint[0], t->tsnap.snapPoint[1], 0.0f);
 
 			//gpuDrawFilledRectf(0, 0, 1, 1);
 
 			setlinestyle(0);
-			gpuCurrentColor3x(CPACK_BLACK);
+			gpuColor3P(CPACK_BLACK);
 
 			gpuBegin(GL_LINES);
 			gpuAppendLinef(-0.020/w, 0, -0.1/w, 0);
@@ -1898,17 +1898,17 @@ static void drawSnapping(const struct bContext *C, TransInfo *t)
 
 				for (p = t->tsnap.points.first; p; p = p->next) {
 					if (p == t->tsnap.selectedPoint) {
-						gpuCurrentColor4ubv(selectedCol);
+						gpuColor4ubv(selectedCol);
 					}
 					else {
-						gpuCurrentColor4ubv(col);
+						gpuColor4ubv(col);
 					}
 
 					drawnodesnap(&ar->v2d, p->co, size, 0);
 				}
 
 				if (t->tsnap.status & POINT_INIT) {
-					gpuCurrentColor4ubv(activeCol);
+					gpuColor4ubv(activeCol);
 
 					drawnodesnap(&ar->v2d, t->tsnap.snapPoint, size, t->tsnap.snapNodeBorder);
 				}

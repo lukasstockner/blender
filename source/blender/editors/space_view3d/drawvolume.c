@@ -461,7 +461,7 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 #endif
 			gpuImmediateFormat_T3_C4_V3();
 			gpuBegin(GL_TRIANGLE_FAN);
-			gpuCurrentColor3x(CPACK_WHITE);
+			gpuColor3P(CPACK_WHITE);
 			for (i = 0; i < numpoints; i++) {
 				gpuTexCoord3f(
 					(points[i * 3 + 0] - min[0]) * cor[0] / size[0],

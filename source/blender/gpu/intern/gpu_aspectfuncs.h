@@ -37,29 +37,25 @@
 
 
 #ifndef GPU_ASPECT_INTERN
-#define GPU_ASPECT_EXTERN(x) extern GLuint x;
+#define GPU_ASPECT_EXTERN(x) extern uint32_t x;
 #else
-#define GPU_ASPECT_EXTERN(x) GLuint x = 0;
+#define GPU_ASPECT_EXTERN(x) uint32_t x = 0;
 #endif
 
 
 
 GPU_ASPECT_EXTERN(GPU_ASPECT_FONT);
-GPU_ASPECT_EXTERN(GPU_ASPECT_TEXTURE);
-GPU_ASPECT_EXTERN(GPU_ASPECT_PIXELS);
-GPU_ASPECT_EXTERN(GPU_ASPECT_SIMPLE_SHADER);
+GPU_ASPECT_EXTERN(GPU_ASPECT_BASIC);
 
 
 
 extern GPUaspectfuncs GPU_ASPECTFUNCS_FONT;
-extern GPUaspectfuncs GPU_ASPECTFUNCS_TEXTURE;
-extern GPUaspectfuncs GPU_ASPECTFUNCS_PIXELS;
-extern GPUaspectfuncs GPU_ASPECTFUNCS_SIMPLE_SHADER;
+extern GPUaspectfuncs GPU_ASPECTFUNCS_BASIC;
 
 
 
-void gpuInitializeAspectFuncs(void);
-void gpuShutdownAspectFuncs(void);
+void gpu_initialize_aspect_funcs(void);
+void gpu_shutdown_aspect_funcs  (void);
 
 
 

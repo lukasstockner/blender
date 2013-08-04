@@ -276,7 +276,7 @@ static void vicon_x_draw(int x, int y, int w, int h, float alpha)
 
 	gpuLineWidth(2.5);
 
-	gpuCurrentColor4x(CPACK_BLACK, alpha);
+	gpuColor4P(CPACK_BLACK, alpha);
 
 	gpuBegin(GL_LINES);
 	gpuVertex2i(x, y);
@@ -296,7 +296,7 @@ static void vicon_view3d_draw(int x, int y, int w, int h, float alpha)
 	int cy = y + h / 2;
 	int d = MAX2(2, h / 3);
 
-	gpuCurrentGray4f(0.500f, alpha);
+	gpuGray4f(0.500f, alpha);
 
 	gpuBegin(GL_LINES);
 
@@ -312,7 +312,7 @@ static void vicon_view3d_draw(int x, int y, int w, int h, float alpha)
 
 	gpuEnd();
 
-	gpuCurrentColor4x(CPACK_BLACK, alpha);
+	gpuColor4P(CPACK_BLACK, alpha);
 
 	gpuBegin(GL_LINES);
 
@@ -333,10 +333,10 @@ static void vicon_edit_draw(int x, int y, int w, int h, float alpha)
 	viconutil_set_point(pts[2], x + w - 3, y + h - 3);
 	viconutil_set_point(pts[3], x + 3,     y + h - 3);
 
-	gpuCurrentColor4x(CPACK_BLACK, alpha);
+	gpuColor4P(CPACK_BLACK, alpha);
 	viconutil_draw_lineloop(pts, 4);
 
-	gpuCurrentColor3x(CPACK_YELLOW);
+	gpuColor3P(CPACK_YELLOW);
 	viconutil_draw_points(pts, 4, 1);
 }
 
@@ -348,13 +348,13 @@ static void vicon_editmode_hlt_draw(int x, int y, int w, int h, float alpha)
 	viconutil_set_point(pts[1], x + 3,     y + 4);
 	viconutil_set_point(pts[2], x + w - 3, y + 4);
 
-	gpuCurrentGray4f(0.500f, alpha);
+	gpuGray4f(0.500f, alpha);
 	viconutil_draw_tri(pts);
 
-	gpuCurrentColor4x(CPACK_BLACK, 1);
+	gpuColor4P(CPACK_BLACK, 1);
 	viconutil_draw_lineloop_smooth(pts, 3);
 
-	gpuCurrentColor3x(CPACK_YELLOW);
+	gpuColor3P(CPACK_YELLOW);
 	viconutil_draw_points(pts, 3, 1);
 }
 
@@ -366,10 +366,10 @@ static void vicon_editmode_dehlt_draw(int x, int y, int w, int h, float UNUSED(a
 	viconutil_set_point(pts[1], x + 3,     y + 4);
 	viconutil_set_point(pts[2], x + w - 3, y + 4);
 
-	gpuCurrentColor3x(CPACK_BLACK);
+	gpuColor3P(CPACK_BLACK);
 	viconutil_draw_lineloop_smooth(pts, 3);
 
-	gpuCurrentGray3f(0.900f);
+	gpuGray3f(0.900f);
 	viconutil_draw_points(pts, 3, 1);
 }
 
@@ -386,7 +386,7 @@ static void vicon_disclosure_tri_right_draw(int x, int y, int w, int UNUSED(h), 
 	viconutil_set_point(pts[2], cx + d2, cy);
 
 	options = 0;
-	gpuAspectBegin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_SMOOTH);
+	GPU_aspect_begin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_SMOOTH);
 
 	gpuBegin(GL_TRIANGLES);
 
@@ -399,9 +399,9 @@ static void vicon_disclosure_tri_right_draw(int x, int y, int w, int UNUSED(h), 
 
 	gpuEnd();
 
-	gpuAspectEnd(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_FLAT);
+	GPU_aspect_end(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_FLAT);
 
-	gpuCurrentColor3x(CPACK_BLACK);
+	gpuColor3P(CPACK_BLACK);
 	viconutil_draw_lineloop_smooth(pts, 3);
 }
 
@@ -416,7 +416,7 @@ static void vicon_small_tri_right_draw(int x, int y, int w, int UNUSED(h), float
 	viconutil_set_point(pts[1], cx - d2, cy - d);
 	viconutil_set_point(pts[2], cx + d2, cy);
 
-	gpuCurrentGray4f(0.200f, alpha);
+	gpuGray4f(0.200f, alpha);
 
 	gpuImmediateFormat_V3();
 	gpuBegin(GL_TRIANGLES);
@@ -453,7 +453,7 @@ static void vicon_disclosure_tri_down_draw(int x, int y, int w, int UNUSED(h), f
 
 	gpuShadeModel(GL_FLAT);
 
-	gpuCurrentColor3x(CPACK_BLACK);
+	gpuColor3P(CPACK_BLACK);
 	viconutil_draw_lineloop_smooth(pts, 3);
 }
 
@@ -463,7 +463,7 @@ static void vicon_move_up_draw(int x, int y, int w, int h, float UNUSED(alpha))
 
 	gpuEnableLineSmooth();
 	gpuLineWidth(1);
-	gpuCurrentColor3x(CPACK_BLACK);
+	gpuColor3P(CPACK_BLACK);
 
 	gpuBegin(GL_LINE_STRIP);
 	gpuVertex2i(x + w / 2 - d * 2, y + h / 2 + d);
@@ -481,7 +481,7 @@ static void vicon_move_down_draw(int x, int y, int w, int h, float UNUSED(alpha)
 
 	gpuEnableLineSmooth();
 	gpuLineWidth(1);
-	gpuCurrentColor3x(CPACK_BLACK);
+	gpuColor3P(CPACK_BLACK);
 
 	gpuBegin(GL_LINE_STRIP);
 	gpuVertex2i(x + w / 2 - d * 2, y + h / 2 + d);
@@ -1069,10 +1069,10 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 	float x1, x2, y1, y2;
 
 	if (rgb) {
-		gpuCurrentColor4f(rgb[0], rgb[1], rgb[2], alpha);
+		gpuColor4f(rgb[0], rgb[1], rgb[2], alpha);
 	}
 	else {
-		gpuCurrentGray4f(alpha, alpha);
+		gpuGray4f(alpha, alpha);
 	}
 
 	x1 = ix * icongltex.invw;
@@ -1093,7 +1093,7 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 	glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, -0.5f);
 #endif
 
-	gpuAspectBegin(GPU_ASPECT_TEXTURE, NULL);
+	GPU_aspect_begin(GPU_ASPECT_TEXTURE, NULL);
 
 	gpuImmediateFormat_T2_V2(); // DOODLE: icon, single quad with texture
 	gpuBegin(GL_TRIANGLE_FAN);
@@ -1114,7 +1114,7 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 	gpuEnd();
 	gpuImmediateUnformat();
 
-	gpuAspectEnd(GPU_ASPECT_TEXTURE, NULL);
+	GPU_aspect_end(GPU_ASPECT_TEXTURE, NULL);
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, 0.0f);

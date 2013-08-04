@@ -29,20 +29,26 @@
  *  \ingroup gpu
  */
 
-#include "MEM_guardedalloc.h"
+/* my interface */
+#define GPU_MAT_CAST_ANY 0
+#include "GPU_matrix.h"
+
+/* my library */
+#include "GPU_extensions.h"
+
+/* internal */
+#include "intern/gpu_common.h"
+#include "intern/gpu_safety.h"
+#include "intern/gpu_glew.h"
+
+/* external */
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 
-#include "intern/gpu_safety.h"
-#include "intern/gpu_glew.h"
+#include "MEM_guardedalloc.h"
 
-#define GPU_MAT_CAST_ANY 0
-#include "GPU_matrix.h"
-
-#include "gpu_object_gles.h"
-#include "GPU_extensions.h"
 
 
 typedef GLfloat GPU_matrix[4][4];
@@ -205,7 +211,7 @@ void gpuMatrixCommit(void)
 
 void GPU_commit_matrixes(void)
 {
-	const GPUknownlocs* location = GPU_get_known_locations();
+	const GPUcommon* location = gpu_get_common();
 
 	if (GPU_glsl_support()) {
 		int i;
@@ -240,7 +246,7 @@ void GPU_commit_matrixes(void)
 			glUniformMatrix4fv(location->projection_matrix, 1, 0, gpuGetMatrix(GL_PROJECTION_MATRIX, NULL));
 		}
 
-		for (i = 0; i < GPU_MAX_KNOWN_TEXCOORDS; i++) {
+		for (i = 0; i < GPU_MAX_COMMON_TEXCOORDS; i++) {
 			if (location->texture_matrix[i] != -1) {
 				// XXX jwilkins: only one texture matrix atm...
 				glUniformMatrix4fv(location->texture_matrix[i], 1, 0, gpuGetMatrix(GL_TEXTURE_MATRIX, NULL));
@@ -561,25 +567,16 @@ GLboolean gpuUnProject(const GLfloat win[3], const GLfloat model[4][4], const GL
 
 void gpuFeedbackVertex3fv(GLenum type, GLfloat x, GLfloat y, GLfloat z, GLfloat out[3])
 {
-	GPU_matrix* m;
+	GPU_matrix* m = (GPU_matrix*)gpuGetMatrix(type, NULL);
+	float in[3] = {x, y, z};
+	mul_v3_m4v3(out, m[0], in);
+}
 
-	switch(type) {
-		case GL_MODELVIEW_MATRIX:
-			m = ms_modelview.dynstack + ms_modelview.pos;
-			break;
-		case GL_PROJECTION_MATRIX:
-			m = ms_projection.dynstack + ms_projection.pos;
-			break;
-		case GL_TEXTURE_MATRIX:
-			m = ms_texture.dynstack + ms_texture.pos;
-			break;
-		default:
-			GPU_ABORT();
-			return;
-	}
 
-	{
-		float in[3] = {x, y, z};
-		mul_v3_m4v3(out, m[0], in);
-	}
+
+void gpuFeedbackVertex4fv(GLenum type, GLfloat x, GLfloat y, GLfloat z, GLfloat w, GLfloat out[3])
+{
+	GPU_matrix* m = (GPU_matrix*)gpuGetMatrix(type, NULL);
+	float in[4] = {x, y, z, w};
+	mul_v4_m4v4(out, m[0], in);
 }

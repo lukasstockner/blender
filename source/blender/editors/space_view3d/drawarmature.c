@@ -75,7 +75,7 @@
 /* global here is reset before drawing each bone */
 static ThemeWireColor *bcolor = NULL;
 
-/* values of colCode for set_pchan_gpuCurrentColor */
+/* values of colCode for set_pchan_gpuColor */
 enum {
 	PCHAN_COLOR_NORMAL  = 0,        /* normal drawing */
 	PCHAN_COLOR_SOLID,              /* specific case where "solid" color is needed */
@@ -145,7 +145,7 @@ static void cp_shade_color3ub(unsigned char cp[3], const int offset)
 }
 
 /* This function sets the gl-color for coloring a certain bone (based on bcolor) */
-static bool set_pchan_gpuCurrentColor(short colCode, int boneflag, short constflag)
+static bool set_pchan_gpuColor(short colCode, int boneflag, short constflag)
 {
 	switch (colCode) {
 		case PCHAN_COLOR_NORMAL:
@@ -168,7 +168,7 @@ static bool set_pchan_gpuCurrentColor(short colCode, int boneflag, short constfl
 					cp_shade_color3ub(cp, -50);
 				}
 			
-				gpuCurrentColor3ubv(cp);
+				gpuColor3ubv(cp);
 			}
 			else {
 				if ((boneflag & BONE_DRAW_ACTIVE) && (boneflag & BONE_SELECTED)) {
@@ -192,7 +192,7 @@ static bool set_pchan_gpuCurrentColor(short colCode, int boneflag, short constfl
 		case PCHAN_COLOR_SOLID:
 		{
 			if (bcolor) {
-				gpuCurrentColor3ubv((unsigned char *)bcolor->solid);
+				gpuColor3ubv((unsigned char *)bcolor->solid);
 			}
 			else
 				UI_ThemeColor(TH_BONE_SOLID);
@@ -204,10 +204,10 @@ static bool set_pchan_gpuCurrentColor(short colCode, int boneflag, short constfl
 		case PCHAN_COLOR_CONSTS:
 		{
 			if ((bcolor == NULL) || (bcolor->flag & TH_WIRECOLOR_CONSTCOLS)) {
-				if (constflag & PCHAN_HAS_TARGET) gpuCurrentColor4ub(255, 150, 0, 80);
-				else if (constflag & PCHAN_HAS_IK) gpuCurrentColor4ub(255, 255, 0, 80);
-				else if (constflag & PCHAN_HAS_SPLINEIK) gpuCurrentColor4ub(200, 255, 0, 80);
-				else if (constflag & PCHAN_HAS_CONST) gpuCurrentColor4ub(0, 255, 120, 80);
+				if (constflag & PCHAN_HAS_TARGET) gpuColor4ub(255, 150, 0, 80);
+				else if (constflag & PCHAN_HAS_IK) gpuColor4ub(255, 255, 0, 80);
+				else if (constflag & PCHAN_HAS_SPLINEIK) gpuColor4ub(200, 255, 0, 80);
+				else if (constflag & PCHAN_HAS_CONST) gpuColor4ub(0, 255, 120, 80);
 			
 				return true;
 			}
@@ -231,7 +231,7 @@ static bool set_pchan_gpuCurrentColor(short colCode, int boneflag, short constfl
 					copy_v3_v3_char((char *)cp, bcolor->solid);
 				}
 
-				gpuCurrentColor3ubv(cp);
+				gpuColor3ubv(cp);
 			}
 			else {
 				if (boneflag & BONE_DRAW_ACTIVE) UI_ThemeColorShade(TH_BONE_POSE, 40);
@@ -260,7 +260,7 @@ static bool set_pchan_gpuCurrentColor(short colCode, int boneflag, short constfl
 					cp_shade_color3ub(cp, -30);
 				}
 			
-				gpuCurrentColor3ubv(cp);
+				gpuColor3ubv(cp);
 			}
 			else {
 				if (boneflag & BONE_DRAW_ACTIVE) UI_ThemeColorShade(TH_BONE_POSE, 10);
@@ -274,16 +274,16 @@ static bool set_pchan_gpuCurrentColor(short colCode, int boneflag, short constfl
 		{
 			/* inner part in background color or constraint */
 			if ((constflag) && ((bcolor == NULL) || (bcolor->flag & TH_WIRECOLOR_CONSTCOLS))) {
-				if (constflag & PCHAN_HAS_TARGET) gpuCurrentColor3ub(255, 150, 0);
-				else if (constflag & PCHAN_HAS_IK) gpuCurrentColor3ub(255, 255, 0);
-				else if (constflag & PCHAN_HAS_SPLINEIK) gpuCurrentColor3ub(200, 255, 0);
-				else if (constflag & PCHAN_HAS_CONST) gpuCurrentColor3ub(0, 255, 120);
+				if (constflag & PCHAN_HAS_TARGET) gpuColor3ub(255, 150, 0);
+				else if (constflag & PCHAN_HAS_IK) gpuColor3ub(255, 255, 0);
+				else if (constflag & PCHAN_HAS_SPLINEIK) gpuColor3ub(200, 255, 0);
+				else if (constflag & PCHAN_HAS_CONST) gpuColor3ub(0, 255, 120);
 				else if (constflag) UI_ThemeColor(TH_BONE_POSE);  /* PCHAN_HAS_ACTION */
 			}
 			else {
 				if (bcolor) {
 					char *cp = bcolor->solid;
-					gpuCurrentColor4ub(cp[0], cp[1], cp[2], 204);
+					gpuColor4ub(cp[0], cp[1], cp[2], 204);
 				}
 				else
 					UI_ThemeColorShade(TH_BACK, -30);
@@ -297,7 +297,7 @@ static bool set_pchan_gpuCurrentColor(short colCode, int boneflag, short constfl
 	return false;
 }
 
-static void set_ebone_gpuCurrentColor(const unsigned int boneflag)
+static void set_ebone_gpuColor(const unsigned int boneflag)
 {
 	if ((boneflag & BONE_DRAW_ACTIVE) && (boneflag & BONE_SELECTED)) {
 		UI_ThemeColor(TH_EDGE_SELECT);
@@ -498,7 +498,7 @@ static void draw_bone_points(const short dt, int armflag, unsigned int boneflag,
 		}
 		else {
 			if (armflag & ARM_POSEMODE) 
-				set_pchan_gpuCurrentColor(PCHAN_COLOR_SOLID, boneflag, 0);
+				set_pchan_gpuColor(PCHAN_COLOR_SOLID, boneflag, 0);
 			else
 				UI_ThemeColor(TH_BONE_SOLID);
 		}
@@ -521,7 +521,7 @@ static void draw_bone_points(const short dt, int armflag, unsigned int boneflag,
 	}
 	else {
 		if (armflag & ARM_POSEMODE) 
-			set_pchan_gpuCurrentColor(PCHAN_COLOR_SOLID, boneflag, 0);
+			set_pchan_gpuColor(PCHAN_COLOR_SOLID, boneflag, 0);
 		else
 			UI_ThemeColor(TH_BONE_SOLID);
 	}
@@ -642,9 +642,9 @@ static void draw_sphere_bone_dist(float smat[4][4], float imat[4][4], bPoseChann
 			madd_v3_v3v3fl(vec1, headvec, vec, head);
 			madd_v3_v3v3fl(vec2, headvec, vec, head + dist);
 			
-			gpuColor4x(CPACK_WHITE, 0.196f);
+			gpuColor4P(CPACK_WHITE, 0.196f);
 			gpuVertex3fv(vec1);
-			//gpuColor4x(CPACK_WHITE, 0);
+			//gpuColor4P(CPACK_WHITE, 0);
 			gpuVertex3fv(vec2);
 		}
 		
@@ -656,9 +656,9 @@ static void draw_sphere_bone_dist(float smat[4][4], float imat[4][4], bPoseChann
 			madd_v3_v3v3fl(vec1, tailvec, vec, tail);
 			madd_v3_v3v3fl(vec2, tailvec, vec, tail + dist);
 			
-			//gpuColor4x(CPACK_WHITE, 0.196f);
+			//gpuColor4P(CPACK_WHITE, 0.196f);
 			gpuVertex3fv(vec1);
-			//gpuColor4x(CPACK_WHITE, 0);
+			//gpuColor4P(CPACK_WHITE, 0);
 			gpuVertex3fv(vec2);
 		}
 		/* make it cyclic... */
@@ -670,9 +670,9 @@ static void draw_sphere_bone_dist(float smat[4][4], float imat[4][4], bPoseChann
 		madd_v3_v3v3fl(vec1, headvec, vec, head);
 		madd_v3_v3v3fl(vec2, headvec, vec, head + dist);
 
-		//gpuColor4x(CPACK_WHITE, 0.196f);
+		//gpuColor4P(CPACK_WHITE, 0.196f);
 		gpuVertex3fv(vec1);
-		//gpuColor4x(CPACK_WHITE, 0);
+		//gpuColor4P(CPACK_WHITE, 0);
 		gpuVertex3fv(vec2);
 		
 		gpuEnd();
@@ -721,7 +721,7 @@ static void draw_sphere_bone_wire(float smat[4][4], float imat[4][4],
 		else UI_ThemeColor(TH_VERTEX);
 	}
 	else if (armflag & ARM_POSEMODE)
-		set_pchan_gpuCurrentColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
+		set_pchan_gpuColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
 
 	/*	Draw root point if we are not connected */
 	if ((boneflag & BONE_CONNECTED) == 0) {
@@ -826,14 +826,15 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 
 	if (dt == OB_SOLID) {
 		/* set up solid drawing */
-		gpuEnableColorMaterial();
-		gpuEnableLighting();
-
-		gpuShadeModel(GL_SMOOTH);
+		// SSS Begin GPU_SHADER_LIGHTING|GPU_SHADER_SMOOTH
+		//gpuEnableColorMaterial();
+		//gpuEnableLighting();
+		//gpuShadeModel(GL_SMOOTH);
 
 		prim = GPU_PRIM_MIDFI_SOLID;
 	}
 	else {
+		// SSS Begin
 		prim = GPU_PRIM_MIDFI_WIRE;
 	}
 
@@ -847,7 +848,7 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 		}
 	}
 	else if (armflag & ARM_POSEMODE) {
-		set_pchan_gpuCurrentColor(PCHAN_COLOR_SPHEREBONE_END, boneflag, constflag);
+		set_pchan_gpuColor(PCHAN_COLOR_SPHEREBONE_END, boneflag, constflag);
 	}
 	else if (dt == OB_SOLID) {
 		UI_ThemeColorShade(TH_BONE_SOLID, -30);
@@ -892,7 +893,7 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 		}
 	}
 	else if (armflag & ARM_POSEMODE) {
-		set_pchan_gpuCurrentColor(PCHAN_COLOR_SPHEREBONE_BASE, boneflag, constflag);
+		set_pchan_gpuColor(PCHAN_COLOR_SPHEREBONE_BASE, boneflag, constflag);
 	}
 	else if (dt == OB_SOLID) {
 		UI_ThemeColor(TH_BONE_SOLID);
@@ -939,9 +940,13 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 
 	/* restore */
 	if (dt == OB_SOLID) {
-		gpuShadeModel(GL_FLAT);
-		gpuDisableLighting();
-		gpuDisableColorMaterial();
+		// SSS End
+		//gpuShadeModel(GL_FLAT);
+		//gpuDisableLighting();
+		//gpuDisableColorMaterial();
+	}
+	else {
+		// SSS End
 	}
 
 	gpuPopMatrix();
@@ -979,7 +984,7 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 		length = ebone->length;
 
 	if (G.f & G_PICKSEL) {
-		gpuAspectBegin(GPU_ASPECT_TEXTURE, NULL);
+		GPU_aspect_begin(GPU_ASPECT_TEXTURE, NULL);
 
 		gpuImmediateFormat_T2_V3();
 	}
@@ -994,7 +999,7 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 	if (armflag & (ARM_EDITMODE | ARM_POSEMODE)) {
 		gpuLineWidth(4.0f);
 		if (armflag & ARM_POSEMODE)
-			set_pchan_gpuCurrentColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
+			set_pchan_gpuColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
 		else if (armflag & ARM_EDITMODE) {
 			UI_ThemeColor(TH_WIRE_EDIT);
 		}
@@ -1041,7 +1046,7 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 			gpuSelectLoad(id & 0xFFFF);  /* object tag, for bordersel optim */
 
 		if (armflag & ARM_POSEMODE)
-			set_pchan_gpuCurrentColor(PCHAN_COLOR_LINEBONE, boneflag, constflag);
+			set_pchan_gpuColor(PCHAN_COLOR_LINEBONE, boneflag, constflag);
 	}
 
 	gpuLineWidth(2.0);
@@ -1091,7 +1096,7 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 	gpuImmediateUnformat();
 
 	if (G.f & G_PICKSEL) {
-		gpuAspectEnd(GPU_ASPECT_TEXTURE, NULL);
+		GPU_aspect_end(GPU_ASPECT_TEXTURE, NULL);
 	}
 
 	gpuPixelsEnd();
@@ -1171,13 +1176,13 @@ static void draw_b_bone(const short dt, int armflag, int boneflag, short constfl
 	/* colors for modes */
 	if (armflag & ARM_POSEMODE) {
 		if (dt <= OB_WIRE)
-			set_pchan_gpuCurrentColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
+			set_pchan_gpuColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
 		else 
-			set_pchan_gpuCurrentColor(PCHAN_COLOR_SOLID, boneflag, constflag);
+			set_pchan_gpuColor(PCHAN_COLOR_SOLID, boneflag, constflag);
 	}
 	else if (armflag & ARM_EDITMODE) {
 		if (dt == OB_WIRE) {
-			set_ebone_gpuCurrentColor(boneflag);
+			set_ebone_gpuColor(boneflag);
 		}
 		else 
 			UI_ThemeColor(TH_BONE_SOLID);
@@ -1189,26 +1194,28 @@ static void draw_b_bone(const short dt, int armflag, int boneflag, short constfl
 	
 	/* set up solid drawing */
 	if (dt > OB_WIRE) {
-		gpuEnableColorMaterial();
-		gpuEnableLighting();
+		// SSS Begin GPU_LIGHTING
+		//gpuEnableColorMaterial();
+		//gpuEnableLighting();
 		
 		if (armflag & ARM_POSEMODE)
-			set_pchan_gpuCurrentColor(PCHAN_COLOR_SOLID, boneflag, constflag);
+			set_pchan_gpuColor(PCHAN_COLOR_SOLID, boneflag, constflag);
 		else
 			UI_ThemeColor(TH_BONE_SOLID);
 		
 		draw_b_bone_boxes(OB_SOLID, pchan, xwidth, length, zwidth);
 		
 		/* disable solid drawing */
-		gpuDisableColorMaterial();
-		gpuDisableLighting();
+		// SSS End
+		//gpuDisableColorMaterial();
+		//gpuDisableLighting();
 	}
 	else {
 		/* wire */
 		if (armflag & ARM_POSEMODE) {
 			if (constflag) {
 				/* set constraint colors */
-				if (set_pchan_gpuCurrentColor(PCHAN_COLOR_CONSTS, boneflag, constflag)) {
+				if (set_pchan_gpuColor(PCHAN_COLOR_CONSTS, boneflag, constflag)) {
 					glEnable(GL_BLEND);
 					
 					draw_b_bone_boxes(OB_SOLID, pchan, xwidth, length, zwidth);
@@ -1217,7 +1224,7 @@ static void draw_b_bone(const short dt, int armflag, int boneflag, short constfl
 				}
 				
 				/* restore colors */
-				set_pchan_gpuCurrentColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
+				set_pchan_gpuColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
 			}
 		}
 		
@@ -1297,10 +1304,10 @@ static void draw_wire_bone(const short dt, int armflag, int boneflag, short cons
 	
 	/* colors for modes */
 	if (armflag & ARM_POSEMODE) {
-		set_pchan_gpuCurrentColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
+		set_pchan_gpuColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
 	}
 	else if (armflag & ARM_EDITMODE) {
-		set_ebone_gpuCurrentColor(boneflag);
+		set_ebone_gpuColor(boneflag);
 	}
 	
 	/* draw normal */
@@ -1317,17 +1324,21 @@ static void draw_bone(const short dt, int armflag, int boneflag, short constflag
 
 	/* set up solid drawing */
 	if (dt > OB_WIRE) {
-		gpuEnableColorMaterial();
-		gpuEnableLighting();
+		// SSS Begin GPU_SHADER_LIGHTING
+		//gpuEnableColorMaterial();
+		//gpuEnableLighting();
 		UI_ThemeColor(TH_BONE_SOLID);
+	}
+	else {
+		// SSS Begin
 	}
 	
 	/* colors for posemode */
 	if (armflag & ARM_POSEMODE) {
 		if (dt <= OB_WIRE)
-			set_pchan_gpuCurrentColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
+			set_pchan_gpuColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
 		else 
-			set_pchan_gpuCurrentColor(PCHAN_COLOR_SOLID, boneflag, constflag);
+			set_pchan_gpuColor(PCHAN_COLOR_SOLID, boneflag, constflag);
 	}
 	
 	
@@ -1342,12 +1353,12 @@ static void draw_bone(const short dt, int armflag, int boneflag, short constflag
 	if (dt <= OB_WIRE) {
 		/* colors */
 		if (armflag & ARM_EDITMODE) {
-			set_ebone_gpuCurrentColor(boneflag);
+			set_ebone_gpuColor(boneflag);
 		}
 		else if (armflag & ARM_POSEMODE) {
 			if (constflag) {
 				/* draw constraint colors */
-				if (set_pchan_gpuCurrentColor(PCHAN_COLOR_CONSTS, boneflag, constflag)) {
+				if (set_pchan_gpuColor(PCHAN_COLOR_CONSTS, boneflag, constflag)) {
 					glEnable(GL_BLEND);
 					
 					draw_bone_solid_octahedral();
@@ -1356,7 +1367,7 @@ static void draw_bone(const short dt, int armflag, int boneflag, short constflag
 				}
 				
 				/* restore colors */
-				set_pchan_gpuCurrentColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
+				set_pchan_gpuColor(PCHAN_COLOR_NORMAL, boneflag, constflag);
 			}
 		}
 		draw_bone_octahedral();
@@ -1364,7 +1375,7 @@ static void draw_bone(const short dt, int armflag, int boneflag, short constflag
 	else {
 		/* solid */
 		if (armflag & ARM_POSEMODE)
-			set_pchan_gpuCurrentColor(PCHAN_COLOR_SOLID, boneflag, constflag);
+			set_pchan_gpuColor(PCHAN_COLOR_SOLID, boneflag, constflag);
 		else
 			UI_ThemeColor(TH_BONE_SOLID);
 
@@ -1373,8 +1384,12 @@ static void draw_bone(const short dt, int armflag, int boneflag, short constflag
 
 	/* disable solid drawing */
 	if (dt > OB_WIRE) {
-		gpuDisableColorMaterial();
-		gpuDisableLighting();
+		// SSS End
+		//gpuDisableColorMaterial();
+		//gpuDisableLighting();
+	}
+	else {
+		// SSS End
 	}
 }
 
@@ -1387,7 +1402,7 @@ static void draw_custom_bone(Scene *scene, View3D *v3d, RegionView3D *rv3d, Obje
 	
 	/* colors for posemode */
 	if (armflag & ARM_POSEMODE) {
-		set_pchan_gpuCurrentColor(PCHAN_COLOR_NORMAL, boneflag, 0);
+		set_pchan_gpuColor(PCHAN_COLOR_NORMAL, boneflag, 0);
 	}
 	
 	if (id != -1) {
@@ -1502,7 +1517,7 @@ static void draw_dof_ellipse(float ax, float az)
 	glEnable(GL_BLEND);
 	gpuDepthMask(GL_FALSE);
 
-	gpuCurrentGray4f(0.276f, 0.196f);
+	gpuGray4f(0.276f, 0.196f);
 
 	gpuBegin(GL_QUADS);
 	pz = 0.0f;
@@ -1538,7 +1553,7 @@ static void draw_dof_ellipse(float ax, float az)
 	glDisable(GL_BLEND);
 	gpuDepthMask(GL_TRUE);
 
-	gpuCurrentColor3x(CPACK_BLACK);
+	gpuColor3P(CPACK_BLACK);
 
 	gpuBegin(GL_LINE_STRIP);
 	for (i = 0; i < n; i++)
@@ -1611,7 +1626,7 @@ static void draw_pose_dofs(Object *ob)
 								theta = 0.5f * (pchan->limitmin[2] + pchan->limitmax[2]);
 								gpuRotateAxis(theta, 'Z');
 								
-								gpuCurrentColor3ub(50, 50, 255);    /* blue, Z axis limit */
+								gpuColor3ub(50, 50, 255);    /* blue, Z axis limit */
 								gpuBegin(GL_LINE_STRIP);
 								for (a = -16; a <= 16; a++) {
 									/* *0.5f here comes from M_PI/360.0f when rotations were still in degrees */
@@ -1635,7 +1650,7 @@ static void draw_pose_dofs(Object *ob)
 								theta = 0.5f * (pchan->limitmin[0] + pchan->limitmax[0]);
 								gpuRotateAxis(theta, 'X');
 								
-								gpuCurrentColor3ub(255, 50, 50);    /* Red, X axis limit */
+								gpuColor3ub(255, 50, 50);    /* Red, X axis limit */
 								gpuBegin(GL_LINE_STRIP);
 								for (a = -16; a <= 16; a++) {
 									/* *0.5f here comes from M_PI/360.0f when rotations were still in degrees */
@@ -1858,7 +1873,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 							else if (arm->flag & ARM_POSEMODE)
 								set_pchan_colorset(ob, pchan);
 							else {
-								gpuCurrentColor3ubv(ob_wire_col);
+								gpuColor3ubv(ob_wire_col);
 							}
 								
 							/* catch exception for bone with hidden parent */
@@ -1942,8 +1957,8 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 						if (arm->flag & ARM_POSEMODE) {
 							if (constflag & PCHAN_HAS_IK) {
 								if (bone->flag & BONE_SELECTED) {
-									if (constflag & PCHAN_HAS_TARGET) gpuCurrentColor3ub(200, 120, 0);
-									else gpuCurrentColor3ub(200, 200, 50);  /* add theme! */
+									if (constflag & PCHAN_HAS_TARGET) gpuColor3ub(200, 120, 0);
+									else gpuColor3ub(200, 200, 50);  /* add theme! */
 
 									gpuSelectLoad(index & 0xFFFF);
 									pchan_draw_IK_root_lines(pchan, !(do_dashed & 2));
@@ -1951,7 +1966,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 							}
 							else if (constflag & PCHAN_HAS_SPLINEIK) {
 								if (bone->flag & BONE_SELECTED) {
-									gpuCurrentColor3ub(150, 200, 50);   /* add theme! */
+									gpuColor3ub(150, 200, 50);   /* add theme! */
 									
 									gpuSelectLoad(index & 0xFFFF);
 									pchan_draw_IK_root_lines(pchan, !(do_dashed & 2));
@@ -2033,7 +2048,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 			unsigned char col[4];
 			if (do_const_color) {
 				/* so we can draw bone names in current const color */
-				gpuGetCurrentColor4ubv(col);
+				gpuGetColor4ubv(col);
 				col[3] = 255;
 			}
 			else {
@@ -2072,7 +2087,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 						bone_matrix_translate_y(bmat, pchan->bone->length);
 						gpuMultMatrix(bmat);
 
-						gpuCurrentColor3ubv(col);
+						gpuColor3ubv(col);
 						drawaxes(pchan->bone->length * 0.25f, OB_ARROWS);
 
 						gpuPopMatrix();
@@ -2287,7 +2302,7 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 							bone_matrix_translate_y(bmat, eBone->length);
 							gpuMultMatrix(bmat);
 
-							gpuCurrentColor3ubv(col);
+							gpuColor3ubv(col);
 							drawaxes(eBone->length * 0.25f, OB_ARROWS);
 							
 							gpuPopMatrix();
