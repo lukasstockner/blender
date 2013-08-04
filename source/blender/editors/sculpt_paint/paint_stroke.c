@@ -137,7 +137,6 @@ static void paint_draw_smooth_cursor(bContext *C, int x, int y, void *customdata
 	}
 }
 
-/*** Cursors ***/
 static void paint_draw_line_cursor(bContext *C, int UNUSED(x), int UNUSED(y), void *customdata)
 {
 	Paint *paint = BKE_paint_get_active_from_context(C);
@@ -150,7 +149,7 @@ static void paint_draw_line_cursor(bContext *C, int UNUSED(x), int UNUSED(y), vo
 		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_BLEND);
 
-		while (p->next) {
+		while (p->next && p->next->next) {
 			glColor4ub(0, 0, 0, paint->paint_cursor_col[3]);
 			glLineWidth(4.0);
 			sdrawline((int)p->pos[0], (int)p->pos[1],
@@ -163,6 +162,28 @@ static void paint_draw_line_cursor(bContext *C, int UNUSED(x), int UNUSED(y), vo
 
 			p = p->next;
 		}
+
+		if (p->next) {
+			if (brush->flag & BRUSH_POLYLINE)
+			{
+				glEnable(GL_LINE_STIPPLE);
+				glLineStipple(3, 0xAAAA);
+			}
+
+			glColor4ub(0, 0, 0, paint->paint_cursor_col[3]);
+			glLineWidth(4.0);
+			sdrawline((int)p->pos[0], (int)p->pos[1],
+			          (int)p->next->pos[0], (int)p->next->pos[1]);
+
+			glColor4ubv(paint->paint_cursor_col);
+			glLineWidth(2.0);
+			sdrawline((int)p->pos[0], (int)p->pos[1],
+			          (int)p->next->pos[0], (int)p->next->pos[1]);
+
+			glDisable(GL_LINE_STIPPLE);
+		}
+
+		glLineWidth(1.0);
 
 		glDisable(GL_BLEND);
 		glDisable(GL_LINE_SMOOTH);
