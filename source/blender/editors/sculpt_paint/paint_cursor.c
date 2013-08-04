@@ -28,7 +28,24 @@
  *  \ingroup edsculpt
  */
 
-#include "MEM_guardedalloc.h"
+/* my interface */
+#include "paint_intern.h"
+
+/* my library */
+
+#include "sculpt_intern.h"/* still needed for sculpt_stroke_get_location, should be removed eventually (TODO) */
+
+#include "ED_view3d.h"
+
+/* external */
+
+#include "BIF_glutil.h"
+
+#include "BKE_brush.h"
+#include "BKE_context.h"
+#include "BKE_image.h"
+#include "BKE_paint.h"
+#include "BKE_colortools.h"
 
 #include "BLI_math.h"
 #include "BLI_rect.h"
@@ -42,24 +59,14 @@
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BKE_brush.h"
-#include "BKE_context.h"
-#include "BKE_image.h"
-#include "BKE_paint.h"
-#include "BKE_colortools.h"
+#include "GPU_basic_shader.h"
+#include "GPU_primitives.h"
+
+#include "MEM_guardedalloc.h"
 
 #include "WM_api.h"
 
-#include "GPU_primitives.h"
 
-#include "BIF_glutil.h"
-
-#include "ED_view3d.h"
-
-#include "paint_intern.h"
-/* still needed for sculpt_stroke_get_location, should be
- * removed eventually (TODO) */
-#include "sculpt_intern.h"
 
 /* TODOs:
  *
@@ -717,7 +724,8 @@ static void paint_draw_cursor_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		        U.sculpt_paint_overlay_col[2],
 		        brush->cursor_overlay_alpha / 100.0f);
 
-		GPU_aspect_begin(GPU_ASPECT_TEXTURE, NULL);
+		// SSS Enable
+		GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 		/* draw textured quad */
 		gpuImmediateFormat_T2_V2();
@@ -733,7 +741,8 @@ static void paint_draw_cursor_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		gpuEnd();
 		gpuImmediateUnformat();
 
-		GPU_aspect_end(GPU_ASPECT_TEXTURE, NULL);
+		// SSS Disable
+		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 	}
 }
 

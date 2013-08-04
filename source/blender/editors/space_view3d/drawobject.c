@@ -78,6 +78,7 @@
 
 #include "BIF_glutil.h"
 
+#include "GPU_basic_shader.h"
 #include "GPU_colors.h"
 #include "GPU_primitives.h"
 #include "GPU_draw.h"
@@ -1306,7 +1307,9 @@ static void draw_bundle_sphere(void)
 {
 	static GPUimmediate *displist = NULL;
 
-	gpuShadeModel(GL_SMOOTH);
+	// SSS
+	//gpuShadeModel(GL_SMOOTH);
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	if (!displist) {
 		GPUprim3 prim = GPU_PRIM_LOFI_SOLID;
@@ -1320,7 +1323,9 @@ static void draw_bundle_sphere(void)
 		gpuImmediateSingleRepeat(displist);
 	}
 
-	gpuShadeModel(GL_FLAT);
+	// SSS
+	//gpuShadeModel(GL_FLAT);
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 }
 
 static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D *v3d,
@@ -1387,7 +1392,9 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 		         v3d->bundle_size / 0.05f / camera_size[2]);
 
 		if (v3d->drawtype == OB_WIRE) {
-			gpuDisableLighting();
+			// SSS
+			//gpuDisableLighting();
+			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
 
 			if ((dflag & DRAW_CONSTCOLOR) == 0) {
 				if (selected && (track->flag & TRACK_CUSTOMCOLOR) == 0) {
@@ -1400,7 +1407,9 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 
 			drawaxes(0.05f, v3d->bundle_drawtype);
 
-			gpuEnableLighting();
+			// SSS
+			//gpuEnableLighting();
+			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
 		}
 		else if (v3d->drawtype > OB_WIRE) {
 			if (v3d->bundle_drawtype == OB_EMPTY_SPHERE) {
@@ -1411,13 +1420,21 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 					}
 
 					gpuLineWidth(2.f);
-					gpuDisableLighting();
+
+					// SSS
+					//gpuDisableLighting();
+					GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
+
 					gpuPolygonMode(GL_LINE);
 
 					draw_bundle_sphere();
 
 					gpuPolygonMode(GL_FILL);
-					gpuEnableLighting();
+
+					// SSS
+					//gpuEnableLighting();
+					GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
+
 					gpuLineWidth(1.f);
 				}
 
@@ -1429,7 +1446,9 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 				draw_bundle_sphere();
 			}
 			else {
-				gpuDisableLighting();
+				// SSS Disable
+				//gpuDisableLighting();
+				GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
 
 				if ((dflag & DRAW_CONSTCOLOR) == 0) {
 					if (selected) {
@@ -1443,7 +1462,9 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 
 				drawaxes(0.05f, v3d->bundle_drawtype);
 
-				gpuEnableLighting();
+				// SSS
+				//gpuEnableLighting();
+				GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
 			}
 		}
 
@@ -1468,7 +1489,10 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 				MovieReconstructedCamera *camera = reconstruction->cameras;
 				int a = 0;
 
-				gpuDisableLighting();
+				// SSS Disable
+				//gpuDisableLighting();
+				GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
+
 				UI_ThemeColor(TH_CAMERA_PATH);
 				gpuLineWidth(2.0f);
 
@@ -1479,7 +1503,10 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 				gpuEnd();
 
 				gpuLineWidth(1.0f);
-				gpuEnableLighting();
+
+				// SSS
+				//gpuEnableLighting();
+				GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
 			}
 		}
 	}
@@ -1576,7 +1603,10 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 	BKE_camera_view_frame_ex(scene, cam, cam->drawsize, is_view, scale,
 	                         asp, shift, &drawsize, vec);
 
-	gpuDisableLighting();
+	// SSS Disable
+	//gpuDisableLighting();
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
+
 	glDisable(GL_CULL_FACE);
 
 	gpuImmediateFormat_V3(); // DOODLE: camera
@@ -1797,7 +1827,10 @@ static void drawlattice(Scene *scene, View3D *v3d, Object *ob)
 		
 		if (ob->defbase.first && lt->dvert) {
 			actdef_wcol = ob->actdef;
-			gpuShadeModel(GL_SMOOTH);
+
+			// SSS
+			//gpuShadeModel(GL_SMOOTH);
+			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 		}
 	}
 	
@@ -1840,7 +1873,9 @@ static void drawlattice(Scene *scene, View3D *v3d, Object *ob)
 
 	/* restoration for weight colors */
 	if (actdef_wcol)
-		gpuShadeModel(GL_FLAT);
+		// SSS Disable
+		//gpuShadeModel(GL_FLAT);
+		GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	if (is_edit) {
 		BPoint *actbp = BKE_lattice_active_point_get(lt);
@@ -2569,9 +2604,13 @@ static void draw_em_fancy_edges(BMEditMesh *em, Scene *scene, View3D *v3d,
 		}
 		else if ((me->drawflag & ME_DRAWEDGES) || (ts->selectmode & SCE_SELECT_EDGE)) {
 			if (cageDM->drawMappedEdgesInterp && (ts->selectmode & SCE_SELECT_VERTEX)) {
-				gpuShadeModel(GL_SMOOTH);
+				// SSS Enable
+				//gpuShadeModel(GL_SMOOTH);
+				GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 				draw_dm_edges_sel_interp(em, cageDM, wireCol, selCol);
-				gpuShadeModel(GL_FLAT);
+				// SSS Disable
+				//gpuShadeModel(GL_FLAT);
+				GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 			}
 			else {
 				draw_dm_edges_sel(em, cageDM, wireCol, selCol, actCol, eed_act);
@@ -2966,9 +3005,17 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 		else {
 			/* 3 floats for position,
 			 * 3 for normal and times two because the faces may actually be quads instead of triangles */
-			gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, (me->flag & ME_TWOSIDED) ? GL_TRUE : GL_FALSE);
 
-			gpuEnableLighting();
+			// SSS Enable
+			///gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, (me->flag & ME_TWOSIDED) ? GL_TRUE : GL_FALSE);
+			///gpuEnableLighting();
+			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
+
+			if (me->flag & ME_TWOSIDED)
+				GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TWO_SIDE);
+			else
+				GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TWO_SIDE);
+
 			glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);
 
 			gpuImmediateFormat_N3_V3();
@@ -2982,8 +3029,11 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 			gpuImmediateUnformat();
 
 			glFrontFace(GL_CCW);
-			gpuDisableLighting();
-			gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
+
+			// SSS Disable
+			//gpuDisableLighting();
+			//gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
+			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TWO_SIDE|GPU_BASIC_LIGHTING);
 		}
 
 		/* Setup for drawing wire over, disable zbuffer
@@ -3282,7 +3332,9 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 				GPU_enable_material(0, NULL);
 
 				/* set default spec */
-				gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
+				// SSS
+				//gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
+				GPU_set_basic_material_specular(spec);
 
 				/* diffuse */
 				// SSS Begin GPU_SHADER_LIGHTING
@@ -3318,9 +3370,16 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 				draw_mesh_object_outline(v3d, ob, dm);
 			}
 
-			gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, (me->flag & ME_TWOSIDED) ? GL_TRUE : GL_FALSE);
+			// SSS Enable
+			///gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, (me->flag & ME_TWOSIDED) ? GL_TRUE : GL_FALSE);
+			///gpuEnableLighting();
+			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
 
-			gpuEnableLighting();
+			if (me->flag & ME_TWOSIDED)
+				GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TWO_SIDE);
+			else
+				GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TWO_SIDE);
+
 			glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);
 
 			if (ob->sculpt && (p = BKE_paint_get_active(scene))) {
@@ -3344,9 +3403,11 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			GPU_disable_material();
 
 			glFrontFace(GL_CCW);
-			gpuDisableLighting();
 
-			gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
+			// SSS Disable
+			//gpuDisableLighting();
+			//gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
+			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TWO_SIDE|GPU_BASIC_LIGHTING);
 
 			if (!ob->sculpt && (v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
 				if ((dflag & DRAW_CONSTCOLOR) == 0) {
@@ -3644,7 +3705,9 @@ static void drawDispListsolid(ListBase *lb, Object *ob, const short dflag,
 		return;
 	}
 
-	gpuEnableLighting();
+	// SSS Enable
+	//gpuEnableLighting();
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
 
 	if (ob->transflag & OB_NEG_SCALE) {
 		glFrontFace(GL_CW);
@@ -3654,7 +3717,9 @@ static void drawDispListsolid(ListBase *lb, Object *ob, const short dflag,
 	}
 
 	if (ob->type == OB_MBALL) {  /* mball always smooth shaded */
-		gpuShadeModel(GL_SMOOTH);
+		// SSS Enable
+		//gpuShadeModel(GL_SMOOTH);
+		GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 	}
 
 	dl = lb->first;
@@ -3662,11 +3727,17 @@ static void drawDispListsolid(ListBase *lb, Object *ob, const short dflag,
 		switch (dl->type) {
 			case DL_SEGM:
 				if (ob->type == OB_SURF) {
-					gpuDisableLighting();
+					// SSS Disable
+					//gpuDisableLighting();
+					GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
+
 					gpuColor3ubv(ob_wire_col);
 					gpuSingleClientArrays_V3F(GL_LINE_STRIP, dl->verts, 0, 0, dl->nr);
-					gpuEnableLighting();
-					
+
+					// SSS Enable
+					//gpuEnableLighting();
+					GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
+
 					if ((dflag & DRAW_CONSTCOLOR) == 0) {
 						gpuColor3ubv(ob_wire_col);
 					}
@@ -3674,9 +3745,16 @@ static void drawDispListsolid(ListBase *lb, Object *ob, const short dflag,
 				break;
 			case DL_POLY:
 				if (ob->type == OB_SURF) {
-					gpuDisableLighting();
+					// SSS Disable
+					//gpuDisableLighting();
+					GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
+
 					gpuSingleClientArrays_V3F(GL_LINE_LOOP, dl->verts, 0, 0, dl->nr);
-					gpuEnableLighting();
+
+					// SSS Enable
+					//gpuEnableLighting();
+					GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
+
 					break;
 				}
 			case DL_SURF:
@@ -3684,7 +3762,16 @@ static void drawDispListsolid(ListBase *lb, Object *ob, const short dflag,
 				if (dl->index) {
 					GPU_enable_material(dl->col + 1, use_glsl ? &gattribs : NULL);
 
-					gpuShadeModel((dl->rt & CU_SMOOTH) ? GL_SMOOTH : GL_FLAT);
+					if (dl->rt & CU_SMOOTH) {
+						// SSS Enable
+						//gpuShadeModel(GL_SMOOTH);
+						GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
+					}
+					else {
+						// SSS Disable
+						//gpuShadeModel(GL_FLAT);
+						GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
+					}
 
 					gpuSingleClientElements_N3F_V3F(
 						GL_QUADS,
@@ -3739,8 +3826,11 @@ static void drawDispListsolid(ListBase *lb, Object *ob, const short dflag,
 		dl = dl->next;
 	}
 
-	gpuShadeModel(GL_FLAT);
-	gpuDisableLighting();
+	// SSS Disable
+	//gpuShadeModel(GL_FLAT);
+	//gpuDisableLighting();
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH|GPU_BASIC_LIGHTING);
+
 	glFrontFace(GL_CCW);
 }
 
@@ -3765,9 +3855,15 @@ static bool drawCurveDerivedMesh(Scene *scene, View3D *v3d, RegionView3D *rv3d, 
 		GPU_begin_object_materials(v3d, rv3d, scene, ob, glsl, NULL);
 
 		if (!glsl) {
-			gpuEnableLighting();
+			// SSS Enable
+			//gpuEnableLighting();
+			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
+
 			dm->drawFacesSolid(dm, NULL, 0, GPU_enable_material);
-			gpuDisableLighting();
+
+			// SSS Disable
+			//gpuDisableLighting();
+			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
 		}
 		else
 			dm->drawFacesGLSL(dm, GPU_enable_material);

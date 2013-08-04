@@ -162,7 +162,7 @@ typedef struct KeyingSetInfo {
 /* -------- */
 
 /* Add another data source for Relative Keying Sets to be evaluated with */
-void ANIM_relative_keyingset_add_source(ListBase *dsources, struct ID *id, struct StructRNA *srna, void *data);
+void ANIM_relative_keyingset_add_source(struct ListBase *dsources, struct ID *id, struct StructRNA *srna, void *data);
 
 
 /* mode for modify_keyframes */
@@ -180,10 +180,10 @@ typedef enum eModifyKey_Returns {
 } eModifyKey_Returns;
 
 /* poll the current KeyingSet, updating it's set of paths (if "builtin"/"relative") for context changes */
-short ANIM_validate_keyingset(struct bContext *C, ListBase *dsources, struct KeyingSet *ks);
+short ANIM_validate_keyingset(struct bContext *C, struct ListBase *dsources, struct KeyingSet *ks);
 
 /* use the specified KeyingSet to add/remove various Keyframes on the specified frame */
-int ANIM_apply_keyingset(struct bContext *C, ListBase *dsources, struct bAction *act, struct KeyingSet *ks, short mode, float cfra);
+int ANIM_apply_keyingset(struct bContext *C, struct ListBase *dsources, struct bAction *act, struct KeyingSet *ks, short mode, float cfra);
 
 /* -------- */
 
@@ -194,7 +194,7 @@ struct KeyingSet *ANIM_builtin_keyingset_get_named(struct KeyingSet *prevKS, con
 KeyingSetInfo *ANIM_keyingset_info_find_name(const char name[]);
 
 /* for RNA type registrations... */
-void ANIM_keyingset_info_register(KeyingSetInfo *ksi);
+void ANIM_keyingset_info_register(struct KeyingSetInfo *ksi);
 void ANIM_keyingset_info_unregister(struct Main *bmain, KeyingSetInfo *ksi);
 
 /* cleanup on exit */

@@ -127,7 +127,7 @@ static uint32_t    current_aspect = 0;
 static const void* current_object = NULL;
 
 
-GLboolean GPU_aspect_begin(uint32_t aspect, const GLvoid* object)
+bool GPU_aspect_begin(uint32_t aspect, const void* object)
 {
 	GPUaspectfuncs* aspectFuncs;
 
@@ -137,12 +137,12 @@ GLboolean GPU_aspect_begin(uint32_t aspect, const GLvoid* object)
 	current_object = object;
 
 	aspectFuncs = GPU_ASPECT_FUNCS[aspect];
-	return (aspectFuncs != NULL && aspectFuncs->begin != NULL) ? aspectFuncs->begin(aspectFuncs->param, object) : GL_TRUE;
+	return (aspectFuncs != NULL && aspectFuncs->begin != NULL) ? aspectFuncs->begin(aspectFuncs->param, object) : true;
 }
 
 
 
-GLboolean GPU_aspect_end(void)
+bool GPU_aspect_end(void)
 {
 	GPUaspectfuncs* aspectFuncs = GPU_ASPECT_FUNCS[current_aspect];
 	const void*     object      = current_object;
@@ -152,7 +152,7 @@ GLboolean GPU_aspect_end(void)
 	current_aspect = 0;
 	current_object = NULL;
 
-	return (aspectFuncs  != NULL && aspectFuncs->end != NULL) ? aspectFuncs->end(aspectFuncs->param, object) : GL_TRUE;
+	return (aspectFuncs  != NULL && aspectFuncs->end != NULL) ? aspectFuncs->end(aspectFuncs->param, object) : true;
 }
 
 

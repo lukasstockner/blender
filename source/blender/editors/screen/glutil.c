@@ -27,34 +27,39 @@
  *  \ingroup edscr
  */
 
+/* my interface */
+#include "BIF_glutil.h"
 
-#include <stdio.h>
-#include <string.h>
-
-#include "MEM_guardedalloc.h"
-
-#include "DNA_userdef_types.h"
-#include "DNA_vec_types.h"
-
-#include "BLI_rect.h"
-#include "BLI_utildefines.h"
-#include "BLI_math.h"
-#include "BLI_threads.h"
+/* extern */
 
 #include "BKE_blender.h"
 #include "BKE_global.h"
 #include "BKE_colortools.h"
 #include "BKE_context.h"
 
-#include "GPU_primitives.h"
-#include "GPU_colors.h"
+#include "BLI_rect.h"
+#include "BLI_utildefines.h"
+#include "BLI_math.h"
+#include "BLI_threads.h"
 
-#include "BIF_glutil.h"
-
-#include "GPU_extensions.h"
+#include "DNA_userdef_types.h"
+#include "DNA_vec_types.h"
 
 #include "IMB_colormanagement.h"
 #include "IMB_imbuf_types.h"
+
+#include "GPU_basic_shader.h"
+#include "GPU_colors.h"
+#include "GPU_extensions.h"
+#include "GPU_primitives.h"
+
+#include "MEM_guardedalloc.h"
+
+/* standard */
+#include <stdio.h>
+#include <string.h>
+
+
 
 #ifndef GL_CLAMP_TO_EDGE
 #define GL_CLAMP_TO_EDGE                        0x812F
@@ -548,9 +553,13 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 
 void glaDrawPixelsTex(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect)
 {
-	GPU_aspect_begin(GPU_ASPECT_TEXTURE, NULL);
+	// SSS Enable
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
+
 	glaDrawPixelsTexScaled(x, y, img_w, img_h, format, type, zoomfilter, rect, 1.0f, 1.0f);
-	GPU_aspect_end(GPU_ASPECT_TEXTURE, NULL);
+
+	// SSS Disable
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 }
 
 void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int format, int type, void *rect)

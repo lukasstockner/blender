@@ -514,38 +514,40 @@ void ED_fileselect_init_layout(struct SpaceFile *sfile, ARegion *ar)
 	layout->textheight = textheight;
 
 	if (params->display == FILE_IMGDISPLAY) {
-		layout->prv_w = 4.8f * UI_UNIT_X;
-		layout->prv_h = 4.8f * UI_UNIT_Y;
-		layout->tile_border_x = 0.3f * UI_UNIT_X;
-		layout->tile_border_y = 0.3f * UI_UNIT_X;
-		layout->prv_border_x = 0.3f * UI_UNIT_X;
-		layout->prv_border_y = 0.3f * UI_UNIT_Y;
-		layout->tile_w = layout->prv_w + 2 * layout->prv_border_x;
-		layout->tile_h = layout->prv_h + 2 * layout->prv_border_y + textheight;
-		layout->width = (int)(BLI_rctf_size_x(&v2d->cur) - 2 * layout->tile_border_x);
-		layout->columns = layout->width / (layout->tile_w + 2 * layout->tile_border_x);
+		layout->prv_w         = (int)(4.8f * UI_UNIT_X);
+		layout->prv_h         = (int)(4.8f * UI_UNIT_Y);
+		layout->tile_border_x = (int)(0.3f * UI_UNIT_X);
+		layout->tile_border_y = (int)(0.3f * UI_UNIT_X);
+		layout->prv_border_x  = (int)(0.3f * UI_UNIT_X);
+		layout->prv_border_y  = (int)(0.3f * UI_UNIT_Y);
+		layout->tile_w        = layout->prv_w + 2 * layout->prv_border_x;
+		layout->tile_h        = layout->prv_h + 2 * layout->prv_border_y + textheight;
+		layout->width         = (int)BLI_rctf_size_x(&v2d->cur) - 2 * layout->tile_border_x;
+		layout->columns       = layout->width / (layout->tile_w + 2 * layout->tile_border_x);
+
 		if (layout->columns > 0)
 			layout->rows = numfiles / layout->columns + 1;  // XXX dirty, modulo is zero
 		else {
 			layout->columns = 1;
 			layout->rows = numfiles + 1; // XXX dirty, modulo is zero
 		}
+
 		layout->height = sfile->layout->rows * (layout->tile_h + 2 * layout->tile_border_y) + layout->tile_border_y * 2;
 		layout->flag = FILE_LAYOUT_VER;
 	}
 	else {
-		int column_space = 0.6f * UI_UNIT_X;
-		int column_icon_space = 0.2f * UI_UNIT_X;
+		int column_space      = (int)(0.6f * UI_UNIT_X);
+		int column_icon_space = (int)(0.2f * UI_UNIT_X);
 
-		layout->prv_w = 0;
-		layout->prv_h = 0;
-		layout->tile_border_x = 0.4f * UI_UNIT_X;
-		layout->tile_border_y = 0.1f * UI_UNIT_Y;
-		layout->prv_border_x = 0;
-		layout->prv_border_y = 0;
-		layout->tile_h = textheight * 3 / 2;
-		layout->height = (int)(BLI_rctf_size_y(&v2d->cur) - 2 * layout->tile_border_y);
-		layout->rows = layout->height / (layout->tile_h + 2 * layout->tile_border_y);
+		layout->prv_w         = 0;
+		layout->prv_h         = 0;
+		layout->tile_border_x = (int)(0.4f * UI_UNIT_X);
+		layout->tile_border_y = (int)(0.1f * UI_UNIT_Y);
+		layout->prv_border_x  = 0;
+		layout->prv_border_y  = 0;
+		layout->tile_h        = textheight * 3 / 2;
+		layout->height        = (int)BLI_rctf_size_y(&v2d->cur) - 2 * layout->tile_border_y;
+		layout->rows          = layout->height / (layout->tile_h + 2 * layout->tile_border_y);
 
 		column_widths(sfile->files, layout);
 
@@ -653,7 +655,7 @@ void autocomplete_directory(struct bContext *C, char *str, void *UNUSED(arg_v))
 		dir = opendir(dirname);
 
 		if (dir) {
-			AutoComplete *autocpl = autocomplete_begin(str, FILE_MAX);
+			struct AutoComplete *autocpl = autocomplete_begin(str, FILE_MAX);
 
 			while ((de = readdir(dir)) != NULL) {
 				if (strcmp(".", de->d_name) == 0 || strcmp("..", de->d_name) == 0) {
@@ -691,7 +693,7 @@ void autocomplete_file(struct bContext *C, char *str, void *UNUSED(arg_v))
 
 	/* search if str matches the beginning of name */
 	if (str[0] && sfile->files) {
-		AutoComplete *autocpl = autocomplete_begin(str, FILE_MAX);
+		struct AutoComplete *autocpl = autocomplete_begin(str, FILE_MAX);
 		int nentries = filelist_numfiles(sfile->files);
 		int i;
 

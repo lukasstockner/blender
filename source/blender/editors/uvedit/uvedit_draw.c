@@ -27,13 +27,34 @@
  *  \ingroup eduv
  */
 
+/* my interface */
+#include "ED_uvedit.h"
 
-#include <float.h>
-#include <math.h>
-#include <stdlib.h>
-#include <string.h>
+/* my library */
 
-#include "MEM_guardedalloc.h"
+#include "ED_util.h"
+#include "ED_image.h"
+#include "ED_mesh.h"
+
+#include "UI_resources.h"
+#include "UI_interface.h"
+#include "UI_view2d.h"
+
+/* internal */
+#include "uvedit_intern.h"
+
+/* external */
+
+#include "BIF_glutil.h"
+
+#include "BKE_DerivedMesh.h"
+#include "BKE_mesh.h"
+#include "BKE_editmesh.h"
+
+#include "BLI_math.h"
+#include "BLI_utildefines.h"
+#include "BLI_array.h"
+#include "BLI_buffer.h"
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -42,31 +63,19 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
-#include "BLI_math.h"
-#include "BLI_utildefines.h"
-
-#include "BKE_DerivedMesh.h"
-#include "BKE_mesh.h"
-#include "BKE_editmesh.h"
-
-#include "BLI_array.h"
-#include "BLI_buffer.h"
-
+#include "GPU_basic_shader.h"
 #include "GPU_colors.h"
 #include "GPU_primitives.h"
 
-#include "BIF_glutil.h"
+#include "MEM_guardedalloc.h"
 
-#include "ED_util.h"
-#include "ED_image.h"
-#include "ED_mesh.h"
-#include "ED_uvedit.h"
+/* standard */
+#include <float.h>
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
 
-#include "UI_resources.h"
-#include "UI_interface.h"
-#include "UI_view2d.h"
 
-#include "uvedit_intern.h"
 
 void draw_image_cursor(SpaceImage *sima, ARegion *ar)
 {
@@ -287,9 +296,10 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTe
 			BLI_buffer_declare_static(vec2f, auv_buf, BLI_BUFFER_NOP, BM_DEFAULT_NGON_STACK_SIZE);
 
 			col[3] = 0.5f; /* hard coded alpha, not that nice */
-			
-			gpuShadeModel(GL_SMOOTH);
-			
+
+			// SSS Enable
+			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
+
 			BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 				tf = BM_ELEM_CD_GET_VOID_P(efa, cd_poly_tex_offset);
 				
@@ -352,7 +362,8 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTe
 			BLI_buffer_free(&av_buf);
 			BLI_buffer_free(&auv_buf);
 
-			gpuShadeModel(GL_FLAT);
+			// SSS Disable
+			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 			break;
 		}
@@ -649,7 +660,9 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 				UI_GetThemeColor4ubv(TH_VERTEX_SELECT, col1);
 
 				if (interpedges) {
-					gpuShadeModel(GL_SMOOTH);
+					// SSS Enable
+					//gpuShadeModel(GL_SMOOTH);
+					GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 					BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 						if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
@@ -666,7 +679,9 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 						gpuEnd();
 					}
 
-					gpuShadeModel(GL_FLAT);
+					// SSS Disable
+					//gpuShadeModel(GL_FLAT);
+					GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 				}
 				else {
 					BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {

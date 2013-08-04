@@ -396,7 +396,7 @@ void cache_voxeldata(Tex *tex, int scene_frame)
 			load_frame_image_sequence(vd, tex);
 			return;
 		case TEX_VD_SMOKE:
-			init_frame_smoke(vd, scene_frame);
+			init_frame_smoke(vd, (float)scene_frame);
 			return;
 		case TEX_VD_BLENDERVOXEL:
 			BLI_path_abs(path, G.main->name);

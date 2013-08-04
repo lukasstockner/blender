@@ -3807,7 +3807,7 @@ static void *do_projectpaint_thread(void *ph_v)
 					                            projPixel->projCoSS[0], projPixel->projCoSS[1]);
 					if (projPixel->newColor.ch[3]) {
 						float mask = ((float)projPixel->mask) * (1.0f / 65535.0f);
-						projPixel->newColor.ch[3] *= mask;
+						projPixel->newColor.ch[3] = (unsigned char)(mask * (float)(projPixel->newColor.ch[3]));
 
 						blend_color_mix_byte(projPixel->pixel.ch_pt,  projPixel->origColor.ch,
 						                     projPixel->newColor.ch);

@@ -36,6 +36,7 @@
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
 #include "DNA_key_types.h"
+#include "DNA_customdata_types.h"
 
 #include "BLI_bitmap.h"
 #include "BKE_pbvh.h"
@@ -61,11 +62,11 @@ void sculpt_update_mesh_elements(struct Scene *scene, struct Sculpt *sd, struct 
                                  int need_pmap, int need_mask);
 
 /* Stroke */
-int sculpt_stroke_get_location(bContext *C, float out[3], const float mouse[2]);
+int sculpt_stroke_get_location(struct bContext *C, float out[3], const float mouse[2]);
 
 /* Dynamic topology */
-void sculpt_pbvh_clear(Object *ob);
-void sculpt_update_after_dynamic_topology_toggle(bContext *C);
+void sculpt_pbvh_clear(struct Object *ob);
+void sculpt_update_after_dynamic_topology_toggle(struct bContext *C);
 void sculpt_dynamic_topology_enable(struct bContext *C);
 void sculpt_dynamic_topology_disable(struct bContext *C,
                                      struct SculptUndoNode *unode);
@@ -123,11 +124,11 @@ typedef struct SculptUndoNode {
 	char shapeName[sizeof(((KeyBlock *)0))->name];
 } SculptUndoNode;
 
-SculptUndoNode *sculpt_undo_push_node(Object *ob, PBVHNode *node, SculptUndoType type);
-SculptUndoNode *sculpt_undo_get_node(PBVHNode *node);
+struct SculptUndoNode *sculpt_undo_push_node(struct Object *ob, struct PBVHNode *node, SculptUndoType type);
+struct SculptUndoNode *sculpt_undo_get_node(struct PBVHNode *node);
 void sculpt_undo_push_begin(const char *name);
 void sculpt_undo_push_end(void);
 
-void sculpt_vertcos_to_key(Object *ob, KeyBlock *kb, float (*vertCos)[3]);
+void sculpt_vertcos_to_key(struct Object *ob, struct KeyBlock *kb, float (*vertCos)[3]);
 
 #endif

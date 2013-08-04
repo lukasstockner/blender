@@ -34,6 +34,19 @@
  *  \ingroup bke
  */
 
+/* my interface */
+#include "BKE_cdderivedmesh.h"
+
+/* my library */
+#include "BKE_pbvh.h"
+#include "BKE_global.h"
+#include "BKE_mesh.h"
+#include "BKE_paint.h"
+#include "BKE_editmesh.h"
+#include "BKE_curve.h"
+
+/* external */
+
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_edgehash.h"
@@ -42,14 +55,6 @@
 #include "BLI_smallhash.h"
 #include "BLI_utildefines.h"
 #include "BLI_scanfill.h"
-
-#include "BKE_pbvh.h"
-#include "BKE_cdderivedmesh.h"
-#include "BKE_global.h"
-#include "BKE_mesh.h"
-#include "BKE_paint.h"
-#include "BKE_editmesh.h"
-#include "BKE_curve.h"
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -63,11 +68,14 @@
 #include "GPU_extensions.h"
 #include "GPU_material.h"
 #include "GPU_compatibility.h"
-#include "GPU_simple_shader.h"
+#include "GPU_basic_shader.h"
 
+/* standard */
 #include <string.h>
 #include <limits.h>
 #include <math.h>
+
+
 
 extern GLubyte stipple_quarttone[128]; /* glutil.c, bad level data */
 
@@ -393,7 +401,9 @@ static void cdDM_drawUVEdges(DerivedMesh *dm)
 			int curpos = 0;
 
 			GPU_uvedge_setup(dm);
-			gpuMatrixCommit();
+
+			GPU_commit_matrixes(); // XXX jwilkins: internal interface
+
 			if (!GPU_buffer_legacy(dm)) {
 				for (i = 0; i < dm->numTessFaceData; i++, mf++) {
 					if (!(mf->flag & ME_HIDE)) {
@@ -572,8 +582,6 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 	}
 
 	if (GPU_buffer_legacy(dm)) {
-		uint32_t options = 0;
-
 		DEBUG_VBO("Using legacy code. cdDM_drawFacesSolid\n");
 		gpuImmediateFormat_N3_V3();
 		gpuBegin(glmode = GL_QUADS);
@@ -583,18 +591,19 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 			new_glmode = mface->v4 ? GL_QUADS : GL_TRIANGLES;
 			new_matnr = mface->mat_nr + 1;
 			new_shademodel = (mface->flag & ME_SMOOTH) ? GL_SMOOTH : GL_FLAT;
-			
+
 			if (new_glmode != glmode || new_matnr != matnr || new_shademodel != shademodel) {
 				gpuEnd();
 
 				drawCurrentMat = setMaterial(matnr = new_matnr, NULL);
 
-				if (shademodel != -1)
-					GPU_aspect_end(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
-
 				shademodel = new_shademodel;
-				options    = shademodel == GL_SMOOTH ? 0 : GPU_SHADER_FLAT_SHADED;
-				GPU_aspect_begin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
+
+				if (shademodel == GL_SMOOTH)
+					GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
+				else
+					GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
+
 				gpuBegin(glmode = new_glmode);
 			}
 			
@@ -627,8 +636,8 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 			if (nors) nors += 3;
 		}
 
-		if (dm->numTessFaceData > 0)
-			GPU_aspect_end(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
+		if (shademodel == GL_SMOOTH)
+			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 		gpuEnd();
 		gpuImmediateUnformat();
@@ -637,15 +646,21 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 		GPU_vertex_setup(dm);
 		GPU_normal_setup(dm);
 		if (!GPU_buffer_legacy(dm)) {
-			uint32_t options = 0;
-			GPU_aspect_begin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_SMOOTH);
+
+			// SSS Enable
+			//gpuShadeModel(GL_SMOOTH);
+			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
+
 			for (a = 0; a < dm->drawObject->totmaterial; a++) {
 				if (setMaterial(dm->drawObject->materials[a].mat_nr + 1, NULL)) {
 					glDrawArrays(GL_TRIANGLES, dm->drawObject->materials[a].start,
 					             dm->drawObject->materials[a].totpoint);
 				}
 			}
-			GPU_aspect_end(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_FLAT);
+
+			// SSS Disable
+			//gpuShadeModel(GL_FLAT);
+			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 		}
 		GPU_buffer_unbind();
 	}
@@ -667,7 +682,6 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 	MCol *mcol;
 	int i, orig;
 	int colType, startFace = 0;
-	uint32_t options;
 
 	/* double lookup */
 	const int *index_mf_to_mpoly = dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
@@ -705,8 +719,9 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 
 	cdDM_update_normals_from_pbvh(dm);
 
-	options = GPU_SHADER_TEXTURE_2D|GPU_SHADER_FLAT_SHADED; // XXX jwilkins: not sure if in this context thingsa re suppose dto be flat shaded or not.
-	GPU_aspect_begin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options));
+	// SSS
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	if (GPU_buffer_legacy(dm)) {
 		DEBUG_VBO("Using legacy code. cdDM_drawFacesTex_common\n");
@@ -815,9 +830,9 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 			int tottri = dm->drawObject->tot_triangle_point / 3;
 			int next_actualFace = dm->drawObject->triangle_to_mface[0];
 
-			GPU_aspect_end(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_FLAT);
-			options = GPU_SHADER_TEXTURE_2D;
-			GPU_aspect_begin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_SMOOTH);
+			// SSS Enable
+			//gpuShadeModel(GL_SMOOTH);
+			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 			/* lastFlag = 0; */ /* UNUSED */
 			for (i = 0; i < tottri; i++) {
@@ -877,7 +892,8 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 			}
 		}
 
-		GPU_aspect_end(GPU_ASPECT_TEXTURE, SET_UINT_IN_POINTER(options));
+		// SSS
+		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D|GPU_BASIC_SMOOTH);
 
 		GPU_buffer_unbind();
 	}
@@ -958,9 +974,10 @@ static void cdDM_drawMappedFaces(
 	if (GPU_buffer_legacy(dm) || G.f & G_BACKBUFSEL) {
 		DEBUG_VBO("Using legacy code. cdDM_drawMappedFaces\n");
 
-		/* no need to set shading mode to flat because
-		 *  normals are already used to change shading */
-		gpuShadeModel(GL_SMOOTH);
+		/*  normals are used to change shading, so choose smooth so smooth shading will work (XXX jwilkins: rewrote to say what I think was meant */
+		// SSS Enable
+		//gpuShadeModel(GL_SMOOTH);
+		GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 		for (i = 0; i < dm->numTessFaceData; i++, mf++) {
 			int drawSmooth = (flag & DM_DRAW_ALWAYS_SMOOTH) ? 1 : (mf->flag & ME_SMOOTH);
@@ -986,9 +1003,11 @@ static void cdDM_drawMappedFaces(
 				if (useColors && mcol)
 					cp = (unsigned char *)&mcol[i * 4];
 
-				/* no need to set shading mode to flat because
-				 *  normals are already used to change shading */
-				gpuShadeModel(GL_SMOOTH);
+				/*  normals are used to change shading, so choose smooth so smooth shading will work (XXX jwilkins: rewrote to say what I think was meant */
+				// SSS Enable
+				//gpuShadeModel(GL_SMOOTH);
+				GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
+
 				gpuBegin(mf->v4 ? GL_QUADS : GL_TRIANGLES);
 				if (!drawSmooth) {
 					if (nors) {
@@ -1057,14 +1076,16 @@ static void cdDM_drawMappedFaces(
 
 		if (!GPU_buffer_legacy(dm)) {
 			int tottri = dm->drawObject->tot_triangle_point / 3;
-			gpuShadeModel(GL_SMOOTH);
-			
+			// SSS Enable
+			//gpuShadeModel(GL_SMOOTH);
+			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
+
 			if (tottri == 0) {
 				/* avoid buffer problems in following code */
 			}
 			if (setDrawOptions == NULL) {
 				/* just draw the entire face array */
-				gpuMatrixCommit();
+				GPU_commit_matrixes(); // XXX jwilkins: internal function call
 				glDrawArrays(GL_TRIANGLES, 0, (tottri) * 3);
 			}
 			else {
@@ -1115,7 +1136,7 @@ static void cdDM_drawMappedFaces(
 
 						if (count)
 						{
-							gpuMatrixCommit();
+							GPU_commit_matrixes(); // XXX jwilkins: internal function call
 							glDrawArrays(GL_TRIANGLES, first, count);
 						}
 
@@ -1127,7 +1148,9 @@ static void cdDM_drawMappedFaces(
 				}
 			}
 
-			gpuShadeModel(GL_FLAT);
+			// SSS Disable
+			//gpuShadeModel(GL_FLAT);
+			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 		}
 		GPU_buffer_unbind();
 	}
@@ -1205,8 +1228,8 @@ static void cddm_format_attrib_vertex(DMVertexAttribs *attribs)
 		gpuImmediateTexCoordCount(1);
 		gpuImmediateTexCoordSizes(texSize);
 
-		gpuImmediateTextureSamplerCount(1);
-		gpuImmediateTextureSamplerMap(texmap);
+		gpuImmediateSamplerCount(1);
+		gpuImmediateSamplerMap(texmap);
 	}
 
 	gpuImmediateFloatAttribCount(attrib_f);
@@ -1311,7 +1334,9 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 	matnr = -1;
 	do_draw = FALSE;
 
-	gpuShadeModel(GL_SMOOTH);
+	// SSS Enable
+	//gpuShadeModel(GL_SMOOTH);
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	if (GPU_buffer_legacy(dm) || setDrawOptions != NULL) {
 		DEBUG_VBO("Using legacy code. cdDM_drawMappedFacesGLSL\n");
@@ -1396,7 +1421,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 		GPU_normal_setup(dm);
 
 		if (!GPU_buffer_legacy(dm)) {
-			gpuMatrixCommit();
+			GPU_commit_matrixes(); // XXX jwilkins: internal function call
 			for (i = 0; i < dm->drawObject->tot_triangle_point / 3; i++) {
 
 				a = dm->drawObject->triangle_to_mface[i];
@@ -1576,7 +1601,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 						GPU_buffer_unlock(buffer);
 						GPU_interleaved_attrib_setup(buffer, datatypes, numdata);
 					}
-					gpuMatrixCommit();
+					GPU_commit_matrixes(); // XXX jwilkins: internal function call
 					glDrawArrays(GL_TRIANGLES, start * 3, (curface - start) * 3);
 				}
 			}
@@ -1585,7 +1610,9 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 		GPU_buffer_free(buffer);
 	}
 
-	gpuShadeModel(GL_FLAT);
+	// SSS Disable
+	//gpuShadeModel(GL_FLAT);
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 }
 
 static void cdDM_drawFacesGLSL(DerivedMesh *dm, DMSetMaterial setMaterial)
@@ -1630,7 +1657,9 @@ static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
 
 	matnr = -1;
 
-	gpuShadeModel(GL_SMOOTH);
+	// SSS Enable
+	//gpuShadeModel(GL_SMOOTH);
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	memset(&attribs, 0, sizeof(attribs));
 
@@ -1693,7 +1722,9 @@ static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
 	gpuEnd();
 	cddm_unformat_attrib_vertex();
 
-	gpuShadeModel(GL_FLAT);
+	// SSS Disable
+	//gpuShadeModel(GL_FLAT);
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 }
 
 static void cdDM_drawMappedEdges(DerivedMesh *dm, DMSetDrawOptions setDrawOptions, void *userData)

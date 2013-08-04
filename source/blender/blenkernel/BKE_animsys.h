@@ -110,7 +110,7 @@ void BKE_animdata_fix_paths_rename(struct ID *owner_id, struct AnimData *adt, st
                                    int verify_paths);
 
 /* Fix all the paths for the entire database... */
-void BKE_all_animdata_fix_paths_rename(ID *ref_id, const char *prefix, const char *oldName, const char *newName);
+void BKE_all_animdata_fix_paths_rename(struct ID *ref_id, const char *prefix, const char *oldName, const char *newName);
 
 /* -------------------------------------- */
 

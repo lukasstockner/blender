@@ -40,40 +40,40 @@ typedef struct wmPaintCursor {
 	void *customdata;
 	
 	int (*poll)(struct bContext *C);
-	void (*draw)(bContext *C, int, int, void *customdata);
+	void (*draw)(struct bContext *C, int, int, void *customdata);
 } wmPaintCursor;
 
-extern void wm_close_and_free(bContext *C, wmWindowManager *);
-extern void wm_close_and_free_all(bContext *C, ListBase *);
+extern void wm_close_and_free(struct bContext *C, wmWindowManager *);
+extern void wm_close_and_free_all(struct bContext *C, ListBase *);
 
-extern void wm_add_default(bContext *C);
-extern void wm_clear_default_size(bContext *C);
+extern void wm_add_default(struct bContext *C);
+extern void wm_clear_default_size(struct bContext *C);
 			
 			/* register to windowmanager for redo or macro */
-void		wm_operator_register(bContext *C, wmOperator *op);
+void		wm_operator_register(struct bContext *C, wmOperator *op);
 
 /* wm_operator.c, for init/exit */
 void wm_operatortype_free(void);
 void wm_operatortype_init(void);
 void wm_window_keymap(wmKeyConfig *keyconf);
 
-void wm_tweakevent_test(bContext *C, wmEvent *event, int action);
+void wm_tweakevent_test(struct bContext *C, wmEvent *event, int action);
 
 /* wm_gesture.c */
 #define WM_LASSO_MIN_POINTS		1024
 void wm_gesture_draw(struct wmWindow *win);
 int wm_gesture_evaluate(wmGesture *gesture);
-void wm_gesture_tag_redraw(bContext *C);
+void wm_gesture_tag_redraw(struct bContext *C);
 
 /* wm_jobs.c */
-void wm_jobs_timer(const bContext *C, wmWindowManager *wm, wmTimer *wt);
+void wm_jobs_timer(const struct bContext *C, wmWindowManager *wm, wmTimer *wt);
 void wm_jobs_timer_ended(wmWindowManager *wm, wmTimer *wt);
 
 /* wm_files.c */
-void wm_autosave_timer(const bContext *C, wmWindowManager *wm, wmTimer *wt);
+void wm_autosave_timer(const struct bContext *C, wmWindowManager *wm, wmTimer *wt);
 void wm_autosave_timer_ended(wmWindowManager *wm);
 void wm_autosave_delete(void);
-void wm_autosave_read(bContext *C, struct ReportList *reports);
+void wm_autosave_read(struct bContext *C, struct ReportList *reports);
 void wm_autosave_location(char *filepath);
 
 /* hack to store circle select size - campbell, must replace with nice operator memory */

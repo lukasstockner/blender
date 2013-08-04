@@ -28,37 +28,22 @@
  *  \ingroup wm
  */
 
+/* my interface */
+#include "WM_api.h"
 
-#include <float.h>
-#include <string.h>
-#include <ctype.h>
-#include <stdio.h>
-#include <stddef.h>
-#include <assert.h>
+/* my library */
+#include "WM_types.h"
 
-#include "GHOST_C-api.h"
+/* internal */
+#include "wm.h"
+#include "wm_draw.h"
+#include "wm_event_system.h"
+#include "wm_event_types.h"
+#include "wm_files.h"
+#include "wm_subwindow.h"
+#include "wm_window.h"
 
-#include "MEM_guardedalloc.h"
-
-#include "DNA_ID.h"
-#include "DNA_object_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_userdef_types.h"
-#include "DNA_windowmanager_types.h"
-#include "DNA_mesh_types.h" /* only for USE_BMESH_SAVE_AS_COMPAT */
-
-#include "BLF_translation.h"
-
-#include "PIL_time.h"
-
-#include "BLI_blenlib.h"
-#include "BLI_dynstr.h" /*for WM_operator_pystring */
-#include "BLI_math.h"
-#include "BLI_utildefines.h"
-#include "BLI_ghash.h"
-
-#include "BLO_readfile.h"
+/* external */
 
 #include "BKE_blender.h"
 #include "BKE_brush.h"
@@ -77,19 +62,43 @@
 
 #include "BKE_idcode.h"
 
-#include "GPU_colors.h"
-#include "GPU_primitives.h"
-
 #include "BLF_api.h"
+#include "BLF_translation.h"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf_types.h"
-#include "IMB_imbuf.h"
+#include "BLI_blenlib.h"
+#include "BLI_dynstr.h" /*for WM_operator_pystring */
+#include "BLI_math.h"
+#include "BLI_utildefines.h"
+#include "BLI_ghash.h"
+
+#include "BLO_readfile.h"
+
+#include "DNA_ID.h"
+#include "DNA_object_types.h"
+#include "DNA_screen_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_userdef_types.h"
+#include "DNA_windowmanager_types.h"
+#include "DNA_mesh_types.h" /* only for USE_BMESH_SAVE_AS_COMPAT */
 
 #include "ED_screen.h"
 #include "ED_util.h"
 #include "ED_object.h"
 #include "ED_view3d.h"
+
+#include "GHOST_C-api.h"
+
+#include "GPU_basic_shader.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
+
+#include "IMB_colormanagement.h"
+#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.h"
+
+#include "MEM_guardedalloc.h"
+
+#include "PIL_time.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -98,16 +107,13 @@
 #include "UI_interface.h"
 #include "UI_resources.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
-
-#include "wm.h"
-#include "wm_draw.h"
-#include "wm_event_system.h"
-#include "wm_event_types.h"
-#include "wm_files.h"
-#include "wm_subwindow.h"
-#include "wm_window.h"
+/* standard */
+#include <float.h>
+#include <string.h>
+#include <ctype.h>
+#include <stdio.h>
+#include <stddef.h>
+#include <assert.h>
 
 static GHash *global_ops_hash = NULL;
 
@@ -3369,7 +3375,8 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 		}
 #endif
 
-		GPU_aspect_begin(GPU_ASPECT_TEXTURE, NULL);
+		// SSS Enable
+		GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 		gpuImmediateFormat_T2_V2();
 		gpuBegin(GL_TRIANGLE_FAN);
@@ -3384,7 +3391,8 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 		gpuEnd();
 		gpuImmediateUnformat();
 
-		GPU_aspect_end(GPU_ASPECT_TEXTURE, NULL);
+		// SSS Disable
+		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 		if (GPU_PROFILE_COMPAT) {

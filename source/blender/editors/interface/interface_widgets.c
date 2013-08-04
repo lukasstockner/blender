@@ -27,15 +27,16 @@
  *  \ingroup edinterface
  */
 
+/* my interface */
+#include "interface_intern.h"
 
-#include <limits.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
+/* my library */
+#include "UI_interface.h"
+#include "UI_interface_icons.h"
 
+/* external */
 
-#include "DNA_screen_types.h"
-#include "DNA_userdef_types.h"
+#include "BIF_glutil.h"
 
 #include "BLI_math.h"
 #include "BLI_listbase.h"
@@ -44,24 +45,27 @@
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
+#include "BLF_api.h"
+
 #include "BKE_context.h"
 #include "BKE_curve.h"
 
-#include "RNA_access.h"
+#include "DNA_screen_types.h"
+#include "DNA_userdef_types.h"
 
+#include "GPU_basic_shader.h"
 #include "GPU_colors.h"
 #include "GPU_primitives.h"
-#include "GPU_simple_shader.h"
 
-#include "BIF_glutil.h"
+#include "RNA_access.h"
 
-#include "BLF_api.h"
+/* standard */
+#include <assert.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <string.h>
 
-#include "UI_interface.h"
-#include "UI_interface_icons.h"
 
-
-#include "interface_intern.h"
 
 /* ************** widget base functions ************** */
 /*
@@ -573,7 +577,7 @@ static void widget_trias_append(uiWidgetTrias *tria)
 
 			for (i = 0; i < tria->tot; i++) {
 				float *v;
-				unsigned *index = tria->index[i];
+				const unsigned *index = tria->index[i];
 
 				v = tria->vec[index[0]];
 				gpuVertex2f(v[0]+dx, v[1]+dy);
@@ -746,12 +750,12 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 			char col1[4], col2[4];
 			unsigned char col_array[WIDGET_SIZE_MAX * 4];
 			unsigned char *col_pt = col_array;
-			uint32_t options;
 
 			shadecolors4(col1, col2, wcol->inner, wcol->shadetop, wcol->shadedown);
 
-			options = 0;
-			GPU_aspect_begin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_SMOOTH);
+			// SSS Enable
+			//gpuShadeModel(GL_SMOOTH);
+			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 			for (a = 0; a < wtb->totvert; a++, col_pt += 4) {
 				round_box_shade_col4_r(col_pt, col1, col2, wtb->inner_uv[a][wtb->shadedir]);
@@ -766,7 +770,9 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 				0,
 				wtb->totvert);
 
-			GPU_aspect_end(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_FLAT);
+			// SSS Disable
+			//gpuShadeModel(GL_FLAT);
+			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 		}
 	}
 
@@ -1988,7 +1994,6 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 	float rgb[3], hsvo[3], hsv[3], col[3], colcent[3];
 	int a;
 	int color_profile = but->block->color_profile;
-	uint32_t options;
 
 	gpuImmediateFormat_C4_V3();
 
@@ -2018,8 +2023,9 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 
 	hsv_to_rgb(0.f, 0.f, hsv[2], colcent, colcent + 1, colcent + 2);
 
-	options = 0;
-	GPU_aspect_begin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); //gpuShadeModel(GL_SMOOTH);
+	// SSS Enable
+	//gpuShadeModel(GL_SMOOTH);
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	gpuBegin(GL_TRIANGLE_FAN);
 	gpuColor3fv(colcent);
@@ -2038,7 +2044,9 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 	}
 	gpuEnd();
 
-	GPU_aspect_end(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); //gpuShadeModel(GL_FLAT);
+	// SSS Disable
+	//gpuShadeModel(GL_FLAT);
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	/* fully rounded outline */
 	glEnable(GL_BLEND);
@@ -2067,12 +2075,12 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 	float dx, dy, sx1, sx2, sy;
 	float col0[4][3];   /* left half, rect bottom to top */
 	float col1[4][3];   /* right half, rect bottom to top */
-	uint32_t options;
 
 	/* draw series of gouraud rects */
 
-	options = 0;
-	GPU_aspect_begin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); //gpuShadeModel(GL_SMOOTH);
+	// SSS Enable
+	//gpuShadeModel(GL_SMOOTH);
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 	
 	switch (type) {
 		case UI_GRAD_SV:
@@ -2194,8 +2202,10 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 		}
 		gpuEnd();
 	}
-	
-	GPU_aspect_end(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); //gpuShadeModel(GL_SMOOTH);
+
+	// SSS Disable
+	//gpuShadeModel(GL_FLAT);
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 }
 
 void ui_hsvcube_pos_from_vals(uiBut *but, const rcti *rect, float *hsv, float *xp, float *yp)

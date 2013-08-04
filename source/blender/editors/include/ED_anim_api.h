@@ -31,6 +31,8 @@
 #ifndef __ED_ANIM_API_H__
 #define __ED_ANIM_API_H__
 
+#include <string.h> /* for size_t */
+
 struct ID;
 struct ListBase;
 struct AnimData;

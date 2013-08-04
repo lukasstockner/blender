@@ -28,12 +28,29 @@
  *  \ingroup wm
  */
 
+/* my interface */
+#include "wm_draw.h"
 
-#include <stdlib.h>
-#include <string.h>
+/* my library */
+#include "WM_api.h"
+#include "WM_types.h"
 
-#include "GPU_compatibility.h"
-#include "GPU_colors.h"
+/* internal */
+#include "wm.h"
+#include "wm_window.h"
+#include "wm_event_system.h"
+
+/* external */
+
+#include "BIF_glutil.h"
+
+#include "BKE_context.h"
+#include "BKE_global.h"
+#include "BKE_screen.h"
+
+#include "BLI_blenlib.h"
+#include "BLI_utildefines.h"
+#include "BLI_math_base.h"
 
 #include "DNA_listBase.h"
 #include "DNA_screen_types.h"
@@ -41,34 +58,26 @@
 #include "DNA_userdef_types.h"
 #include "DNA_view3d_types.h"
 
-#include "MEM_guardedalloc.h"
-
-#include "BLI_blenlib.h"
-#include "BLI_utildefines.h"
-#include "BLI_math_base.h"
-
-#include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_screen.h"
-
-#include "GHOST_C-api.h"
-
 #include "ED_view3d.h"
 #include "ED_screen.h"
 
+#include "GHOST_C-api.h"
+
+#include "GPU_basic_shader.h"
+#include "GPU_colors.h"
+#include "GPU_compatibility.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 
-#include "BIF_glutil.h"
+#include "MEM_guardedalloc.h"
 
 #include "RE_engine.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
-#include "wm.h"
-#include "wm_draw.h"
-#include "wm_window.h"
-#include "wm_event_system.h"
+/* standard */
+#include <stdlib.h>
+#include <string.h>
+
+
 
 /* swap */
 #define WIN_NONE_OK     0
@@ -532,7 +541,8 @@ static void wm_triple_draw_textures(wmWindow *win, wmDrawTriple *triple, float a
 
 			gpuColor4P(CPACK_WHITE, alpha);
 
-			GPU_aspect_begin(GPU_ASPECT_TEXTURE, NULL);
+			// SSS Enable
+			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 			gpuImmediateFormat_T2_V2(); // DOODLE: triple backbuffer
 
@@ -552,7 +562,8 @@ static void wm_triple_draw_textures(wmWindow *win, wmDrawTriple *triple, float a
 
 			gpuImmediateUnformat();
 
-			GPU_aspect_end(GPU_ASPECT_TEXTURE, NULL);
+			// SSS Disable
+			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 		}
 	}
 

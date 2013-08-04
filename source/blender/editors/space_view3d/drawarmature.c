@@ -29,19 +29,21 @@
  *  \ingroup spview3d
  */
 
+/* my interface */
+#include "view3d_intern.h"
 
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
+/* my library */
 
+#include "ED_armature.h"
+#include "ED_keyframes_draw.h"
 
-#include "DNA_anim_types.h"
-#include "DNA_armature_types.h"
-#include "DNA_constraint_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_view3d_types.h"
-#include "DNA_object_types.h"
+#include "UI_resources.h"
+
+/* external */
+
+#include "BIF_glutil.h"
+
+#include "BLF_api.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
@@ -55,19 +57,23 @@
 #include "BKE_modifier.h"
 #include "BKE_nla.h"
 
+#include "DNA_anim_types.h"
+#include "DNA_armature_types.h"
+#include "DNA_constraint_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
+#include "DNA_view3d_types.h"
+#include "DNA_object_types.h"
+
 #include "GPU_colors.h"
 #include "GPU_primitives.h"
+#include "GPU_basic_shader.h"
 
-#include "BIF_glutil.h"
+/* standard */
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
 
-#include "ED_armature.h"
-#include "ED_keyframes_draw.h"
-
-#include "BLF_api.h"
-
-#include "UI_resources.h"
-
-#include "view3d_intern.h"
 
 
 /* *************** Armature Drawing - Coloring API ***************************** */
@@ -339,7 +345,8 @@ static void draw_bonevert_solid(void)
 	static GPUimmediate *displist = NULL;
 	static GPUindex* index = NULL;
 
-	gpuShadeModel(GL_SMOOTH);
+	// SSS Enable
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	if (!displist) {
 		GPUprim3 prim = GPU_PRIM_MIDFI_SOLID;
@@ -361,7 +368,8 @@ static void draw_bonevert_solid(void)
 		gpuImmediateSingleRepeatElements(displist);
 	}
 
-	gpuShadeModel(GL_FLAT);
+	// SSS Disable
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 }
 
 static GLfloat bone_octahedral_verts[8][3] = {
@@ -447,7 +455,9 @@ static void draw_bone_solid_octahedral(void)
 	static GPUimmediate *displist = NULL;
 	static GPUindex* index = NULL;
 
-	gpuShadeModel(GL_FLAT);
+	// SSS Disable
+	//gpuShadeModel(GL_FLAT);
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	if (!displist) {
 		const GLsizei index_count  = 24;
@@ -477,7 +487,9 @@ static void draw_bone_solid_octahedral(void)
 		gpuImmediateSingleRepeatRangeElements(displist);
 	}
 
-	gpuShadeModel(GL_SMOOTH);
+	// SSS
+	//gpuShadeModel(GL_SMOOTH);
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 }
 
 /* *************** Armature drawing, bones ******************* */
@@ -984,7 +996,8 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 		length = ebone->length;
 
 	if (G.f & G_PICKSEL) {
-		GPU_aspect_begin(GPU_ASPECT_TEXTURE, NULL);
+		// SSS Enable
+		GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 		gpuImmediateFormat_T2_V3();
 	}
@@ -1096,7 +1109,8 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 	gpuImmediateUnformat();
 
 	if (G.f & G_PICKSEL) {
-		GPU_aspect_end(GPU_ASPECT_TEXTURE, NULL);
+		// SSS Disable
+		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 	}
 
 	gpuPixelsEnd();
@@ -2629,8 +2643,8 @@ bool draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 	if (dt > OB_WIRE && !ELEM(arm->drawtype, ARM_LINE, ARM_WIRE)) {
 		static const GLfloat white[4] = { 1, 1, 1, 1 };
 
-		/* we use color for solid lighting */
-		gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, white);
+		// SSS Material
+		GPU_set_basic_material_specular(white);
 
 		glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);  /* only for lighting... */
 	}

@@ -1855,28 +1855,26 @@ int GPU_default_lights(void)
 		VEC4D(U.light[2].spec,  0.5f,  0.4f,  0.3f,  1.0f);
 	}
 
-	memset(lights, 0, sizeof(lights));
-
 	for (a = 0; a < GPU_MAX_COMMON_LIGHTS; a++) {
 		if (a < 3 && U.light[a].flag) {
+			lights[a] = GPU_DEFAULT_LIGHT;
+
 			normalize_v3_v3(lights[a].position, U.light[a].vec);
 			lights[a].position[3]= 0.0f;
 
 			copy_v4_v4(lights[a].diffuse,  U.light[a].col);
 			copy_v4_v4(lights[a].specular, U.light[a].spec);
 
-			lights[a].constant_attenuation = 1;
-
-			lights[a].spot_cutoff = 180;
-
 			count++;
 		}
 	}
 
-	GPU_init_basic_lights(count, lights);
+	GPU_set_basic_lights(count, lights);
 
 	return count;
 }
+
+
 
 int GPU_scene_object_lights(Scene *scene, Object *ob, int lay, float viewmat[4][4], int ortho)
 {
@@ -1889,7 +1887,7 @@ int GPU_scene_object_lights(Scene *scene, Object *ob, int lay, float viewmat[4][
 	/* disable all lights */
 	//for (count=0; count<8; count++)
 	//	gpuDisableLight(count);
-	GPU_init_basic_lights(0, NULL);
+	GPU_set_basic_lights(0, NULL);
 	
 	/* view direction for specular is not compute correct by default in
 	 * opengl, so we set the settings ourselfs */
@@ -1956,7 +1954,7 @@ int GPU_scene_object_lights(Scene *scene, Object *ob, int lay, float viewmat[4][
 			break;
 	}
 
-	GPU_init_basic_lights(count, lights);
+	GPU_set_basic_lights(count, lights);
 
 	return count;
 }

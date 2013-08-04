@@ -376,7 +376,7 @@ static void quad_elements_init(void)
 
 
 
-void gpu_lock_buffer_glsl(void)
+void gpu_lock_buffer_gl(void)
 {
 	bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
 
@@ -402,7 +402,7 @@ void gpu_lock_buffer_glsl(void)
 
 
 
-void gpu_begin_buffer_glsl(void)
+void gpu_begin_buffer_gl(void)
 {
 	bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
 
@@ -414,7 +414,7 @@ void gpu_begin_buffer_glsl(void)
 
 
 
-void gpu_end_buffer_glsl(void)
+void gpu_end_buffer_gl(void)
 {
 	bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
 
@@ -498,7 +498,7 @@ static void unsetup(void)
 
 
 
-void gpu_unlock_buffer_glsl(void)
+void gpu_unlock_buffer_gl(void)
 {
 	bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
 
@@ -510,7 +510,7 @@ void gpu_unlock_buffer_glsl(void)
 
 
 
-void gpu_index_shutdown_buffer_glsl(GPUindex *restrict index)
+void gpu_index_shutdown_buffer_gl(GPUindex *restrict index)
 {
 	if (index && index->bufferData) {
 		indexBufferDataGLSL* bufferData = (indexBufferDataGLSL*)(index->bufferData);
@@ -527,7 +527,7 @@ void gpu_index_shutdown_buffer_glsl(GPUindex *restrict index)
 
 
 
-void gpu_shutdown_buffer_glsl(GPUimmediate *restrict immediate)
+void gpu_shutdown_buffer_gl(GPUimmediate *restrict immediate)
 {
 	if (immediate->bufferData) {
 		bufferDataGLSL* bufferData = (bufferDataGLSL*)(immediate->bufferData);
@@ -545,13 +545,13 @@ void gpu_shutdown_buffer_glsl(GPUimmediate *restrict immediate)
 		MEM_freeN(immediate->bufferData);
 		immediate->bufferData = NULL;
 
-		gpu_index_shutdown_buffer_glsl(immediate->index);
+		gpu_index_shutdown_buffer_gl(immediate->index);
 	}
 }
 
 
 
-void gpu_index_begin_buffer_glsl(void)
+void gpu_index_begin_buffer_gl(void)
 {
 	GPUindex *restrict   index      = GPU_IMMEDIATE->index;
 	indexBufferDataGLSL* bufferData = (indexBufferDataGLSL*)(index->bufferData);
@@ -564,7 +564,7 @@ void gpu_index_begin_buffer_glsl(void)
 
 
 
-void gpu_index_end_buffer_glsl(void)
+void gpu_index_end_buffer_gl(void)
 {
 	GPUindex *restrict   index      = GPU_IMMEDIATE->index;
 	indexBufferDataGLSL* bufferData = (indexBufferDataGLSL*)(index->bufferData);
@@ -577,7 +577,7 @@ void gpu_index_end_buffer_glsl(void)
 
 
 
-void gpu_draw_elements_glsl(void)
+void gpu_draw_elements_gl(void)
 {
 	GPUindex* index = GPU_IMMEDIATE->index;
 	indexBufferDataGLSL* bufferData = (indexBufferDataGLSL*)(index->bufferData);
@@ -597,7 +597,7 @@ void gpu_draw_elements_glsl(void)
 	GPU_CHECK_NO_ERROR();
 }
 
-void gpu_draw_range_elements_glsl(void)
+void gpu_draw_range_elements_gl(void)
 {
 	GPUindex* index = GPU_IMMEDIATE->index;
 	indexBufferDataGLSL* bufferData = (indexBufferDataGLSL*)(index->bufferData);

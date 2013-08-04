@@ -28,20 +28,15 @@
  *  \ingroup wm
  */
 
+/* my interface */
+#include "WM_api.h"
 
-#include <string.h>
+/* my library */
+#include "WM_types.h"
+#include "wm_event_system.h"
+#include "wm.h"
 
-#include "DNA_windowmanager_types.h"
-#include "DNA_screen_types.h"
-
-#include "MEM_guardedalloc.h"
-
-#include "BLF_translation.h"
-
-#include "BLI_blenlib.h"
-
-#include "GPU_compatibility.h"
-#include "GPU_colors.h"
+/* external */
 
 #include "BIF_glutil.h"
 
@@ -53,18 +48,30 @@
 #include "BKE_screen.h"
 #include "BKE_global.h"
 
+#include "BLF_translation.h"
+
+#include "BLI_blenlib.h"
+
+#include "DNA_windowmanager_types.h"
+#include "DNA_screen_types.h"
+
+#include "GPU_basic_shader.h"
+#include "GPU_compatibility.h"
+#include "GPU_colors.h"
+
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
+
+#include "MEM_guardedalloc.h"
+
+#include "RNA_access.h"
 
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
 
-#include "RNA_access.h"
+/* standard */
+#include <string.h>
 
-#include "WM_api.h"
-#include "WM_types.h"
-#include "wm_event_system.h"
-#include "wm.h"
 
 
 /* ****************************************************** */
@@ -324,9 +331,14 @@ void wm_drags_draw(bContext *C, wmWindow *win, rcti *rect)
 				drag_rect_minmax(rect, x, y, x + drag->sx, y + drag->sy);
 			else {
 				gpuColor4P(CPACK_WHITE, 0.650f); /* this blends texture */
-				GPU_aspect_begin(GPU_ASPECT_TEXTURE, NULL);
+
+				// SSS Enable
+				GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
+
 				glaDrawPixelsTexScaled(x, y, drag->imb->x, drag->imb->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST, drag->imb->rect, drag->scale, drag->scale);
-				GPU_aspect_end(GPU_ASPECT_TEXTURE, NULL);
+
+				// SSS Disable
+				GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 			}
 		}
 		else {

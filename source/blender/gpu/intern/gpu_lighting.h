@@ -64,14 +64,29 @@ void gpu_commit_light   (void);
 void gpu_commit_material(void);
 bool gpu_fast_lighting  (void);
 
-void GPU_basic_material(
+void GPU_set_basic_material(
 	const float diffuse[3],
 	float       alpha,
 	const float specular[3],
 	int         shininess);
 
-void GPU_init_basic_lights(int count, GPUbasiclight lights[]);
-void GPU_set_basic_light(int light_num, GPUbasiclight *light);
+void GPU_set_basic_material_specular(const float specular[3]);
+
+/* Set lights and also applies appropriate transformations on
+   the positions and spot directions */
+void GPU_set_basic_lights(int light_count, GPUbasiclight lights[]);
+
+int GPU_get_basic_lights(GPUbasiclight lights_out[]); /* Lights out! Get it? :-) */
+
+/* Set lights without transforming position or spot_direction.
+   Suitable for restoring a backup copy of previous light state.
+   Keeps position and spot position from getting transformed twice. */
+void GPU_restore_basic_lights(int light_count, GPUbasiclight lights[]);
+
+/* A white directional light shining straight down with no attenuation or spot effects.
+   Same as the default legacy OpenGL light #0. */
+extern const GPUbasiclight GPU_DEFAULT_LIGHT;
+
 
 
 #ifdef __cplusplus

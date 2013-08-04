@@ -27,22 +27,24 @@
  *  \ingroup edinterface
  */
 
+/* my interface */
+#include "interface_intern.h"
 
-#include <math.h>
-#include <stdlib.h>
-#include <string.h>
+/* my library */
 
-#ifndef WIN32
-#  include <unistd.h>
-#else
-#  include <io.h>
-#  include <direct.h>
-#  include "BLI_winstuff.h"
-#endif
+#include "ED_datafiles.h"
+#include "ED_render.h"
 
-#include "MEM_guardedalloc.h"
+#include "UI_interface.h"
+#include "UI_interface_icons.h"
 
-#include "GPU_extensions.h"
+/* external */
+
+#include "BIF_glutil.h"
+
+#include "BKE_context.h"
+#include "BKE_global.h"
+#include "BKE_icons.h"
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
@@ -55,28 +57,34 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
-#include "RNA_access.h"
-#include "RNA_enum_types.h"
-
-#include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_icons.h"
-
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
+#include "GPU_basic_shader.h"
 #include "GPU_colors.h"
 #include "GPU_compatibility.h"
+#include "GPU_extensions.h"
 
-#include "BIF_glutil.h"
+#include "MEM_guardedalloc.h"
 
-#include "ED_datafiles.h"
-#include "ED_render.h"
+#include "RNA_access.h"
+#include "RNA_enum_types.h"
 
-#include "UI_interface.h"
-#include "UI_interface_icons.h"
+/* standard */
 
-#include "interface_intern.h"
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
+
+#ifndef WIN32
+#  include <unistd.h>
+#else
+#  include <io.h>
+#  include <direct.h>
+#  include "BLI_winstuff.h" /* technically not a system header */
+#endif
+
+
 
 #ifndef WITH_HEADLESS
 #define ICON_GRID_COLS      26
@@ -379,14 +387,14 @@ static void vicon_disclosure_tri_right_draw(int x, int y, int w, int UNUSED(h), 
 	int cx = x + w / 2;
 	int cy = y + w / 2;
 	int d = w / 3, d2 = w / 5;
-	uint32_t options;
 
 	viconutil_set_point(pts[0], cx - d2, cy + d);
 	viconutil_set_point(pts[1], cx - d2, cy - d);
 	viconutil_set_point(pts[2], cx + d2, cy);
 
-	options = 0;
-	GPU_aspect_begin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_SMOOTH);
+	// SSS Enable
+	//gpuShadeModel(GL_SMOOTH);
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	gpuBegin(GL_TRIANGLES);
 
@@ -399,7 +407,9 @@ static void vicon_disclosure_tri_right_draw(int x, int y, int w, int UNUSED(h), 
 
 	gpuEnd();
 
-	GPU_aspect_end(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_FLAT);
+	// SSS Disable
+	//gpuShadeModel(GL_FLAT);
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	gpuColor3P(CPACK_BLACK);
 	viconutil_draw_lineloop_smooth(pts, 3);
@@ -438,7 +448,9 @@ static void vicon_disclosure_tri_down_draw(int x, int y, int w, int UNUSED(h), f
 	viconutil_set_point(pts[1], cx - d, cy + d2);
 	viconutil_set_point(pts[2], cx, cy - d2);
 
-	gpuShadeModel(GL_SMOOTH);
+	// SSS Enable
+	//gpuShadeModel(GL_SMOOTH);
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	gpuBegin(GL_TRIANGLES);
 
@@ -451,7 +463,9 @@ static void vicon_disclosure_tri_down_draw(int x, int y, int w, int UNUSED(h), f
 
 	gpuEnd();
 
-	gpuShadeModel(GL_FLAT);
+	// SSS Disable
+	//gpuShadeModel(GL_FLAT);
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	gpuColor3P(CPACK_BLACK);
 	viconutil_draw_lineloop_smooth(pts, 3);
@@ -1093,11 +1107,11 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 	glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, -0.5f);
 #endif
 
-	GPU_aspect_begin(GPU_ASPECT_TEXTURE, NULL);
+	// SSS Enable
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 	gpuImmediateFormat_T2_V2(); // DOODLE: icon, single quad with texture
 	gpuBegin(GL_TRIANGLE_FAN);
-
 
 	gpuTexCoord2f(x1, y1);
 	gpuVertex2f(x, y);
@@ -1114,7 +1128,8 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 	gpuEnd();
 	gpuImmediateUnformat();
 
-	GPU_aspect_end(GPU_ASPECT_TEXTURE, NULL);
+	// SSS Disable
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, 0.0f);
@@ -1128,7 +1143,7 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 		}
 #endif
 }
-//#include FAKE_GL_MODE
+
 
 /* Drawing size for preview images */
 static int get_draw_size(enum eIconSizes size)

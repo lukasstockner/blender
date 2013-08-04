@@ -30,6 +30,8 @@
 #ifndef __ED_UVEDIT_H__
 #define __ED_UVEDIT_H__
 
+#include "BLI_sys_types.h" /* for bool */
+
 struct ARegionType;
 struct BMEditMesh;
 struct BMFace;

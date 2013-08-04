@@ -37,6 +37,8 @@
  *   for every fresh Blender run.
  */
 
+#include "BLI_sys_types.h" /* for bool */
+
 #include "DNA_listBase.h"
 
 #ifdef __cplusplus

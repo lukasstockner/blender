@@ -87,7 +87,7 @@ void gpencil_panel_standard(const struct bContext *C, struct Panel *pa);
 /* ----------- Grease-Pencil AnimEdit API ------------------ */
 short ED_gplayer_frames_looper(struct bGPDlayer *gpl, struct Scene *scene,
                                short (*gpf_cb)(struct bGPDframe *, struct Scene *));
-void ED_gplayer_make_cfra_list(struct bGPDlayer *gpl, ListBase *elems, short onlysel);
+void ED_gplayer_make_cfra_list(struct bGPDlayer *gpl, struct ListBase *elems, short onlysel);
 
 short ED_gplayer_frame_select_check(struct bGPDlayer *gpl);
 void  ED_gplayer_frame_select_set(struct bGPDlayer *gpl, short mode);

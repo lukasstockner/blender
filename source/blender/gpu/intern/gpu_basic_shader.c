@@ -270,7 +270,7 @@ void GPU_basic_shader_unbind(void)
 
 
 
-bool GPU_basic_shader_need_normals(void)
+bool GPU_basic_shader_needs_normals(void)
 {
 	return BASIC_SHADER.need_normals;
 }

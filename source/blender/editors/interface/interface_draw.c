@@ -27,41 +27,46 @@
  *  \ingroup edinterface
  */
 
+/* my interface */
+#include "interface_intern.h"
 
-#include <math.h>
-#include <string.h>
+/* my library */
+#include "UI_interface.h"
 
-#include "DNA_color_types.h"
-#include "DNA_object_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_movieclip_types.h"
+/* external */
 
-#include "BLI_math.h"
-#include "BLI_rect.h"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
+#include "BIF_glutil.h"
 
 #include "BKE_colortools.h"
 #include "BKE_node.h"
 #include "BKE_texture.h"
 #include "BKE_tracking.h"
 
+#include "BLF_api.h"
+
+#include "BLI_math.h"
+#include "BLI_rect.h"
+#include "BLI_string.h"
+#include "BLI_utildefines.h"
+
+#include "DNA_color_types.h"
+#include "DNA_object_types.h"
+#include "DNA_screen_types.h"
+#include "DNA_movieclip_types.h"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 #include "IMB_colormanagement.h"
 
+#include "GPU_basic_shader.h"
 #include "GPU_colors.h"
 #include "GPU_primitives.h"
 
-#include "BIF_glutil.h"
+/* standard */
+#include <math.h>
+#include <string.h>
 
-#include "BLF_api.h"
 
-#include "UI_interface.h"
-
-/* own include */
-#include "interface_intern.h"
 
 static int roundboxtype = UI_CNR_ALL;
 
@@ -183,7 +188,10 @@ void uiDrawBoxShade(int mode, float minx, float miny, float maxx, float maxy, fl
 	coldown[1] = max_ff(0.0f, color[1] + shadedown);
 	coldown[2] = max_ff(0.0f, color[2] + shadedown);
 
-	gpuShadeModel(GL_SMOOTH);
+	// SSS Enable
+	//gpuShadeModel(GL_SMOOTH);
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
+
 	gpuBegin(mode);
 
 	/* start with corner right-bottom */
@@ -262,7 +270,10 @@ void uiDrawBoxShade(int mode, float minx, float miny, float maxx, float maxy, fl
 	}
 	
 	gpuEnd();
-	gpuShadeModel(GL_FLAT);
+
+	// SSS Disable
+	//gpuShadeModel(GL_FLAT);
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 }
 
 /* linear vertical shade within button or in outline */
@@ -292,7 +303,10 @@ void uiDrawBoxVerticalShade(int mode, float minx, float miny, float maxx, float 
 	colRight[1] = max_ff(0.0f, color[1] + shadeRight);
 	colRight[2] = max_ff(0.0f, color[2] + shadeRight);
 
-	gpuShadeModel(GL_SMOOTH);
+	// SSS Enable
+	//gpuShadeModel(GL_SMOOTH);
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
+
 	gpuBegin(mode);
 
 	/* start with corner right-bottom */
@@ -368,7 +382,10 @@ void uiDrawBoxVerticalShade(int mode, float minx, float miny, float maxx, float 
 	}
 	
 	gpuEnd();
-	gpuShadeModel(GL_FLAT);
+
+	// SSS Disable
+	//gpuShadeModel(GL_FLAT);
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 }
 
 /* plain antialiased unfilled rectangle */
@@ -511,7 +528,9 @@ static void histogram_draw_one(float r, float g, float b, float alpha,
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 		gpuColor4f(r, g, b, alpha);
 
-		gpuShadeModel(GL_FLAT);
+		// SSS Disable
+		//gpuShadeModel(GL_FLAT);
+		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 		gpuBegin(GL_TRIANGLE_STRIP); // DOODLE: line graph drawn using quads, locking done by function callee
 		gpuVertex2f(x, y);
@@ -1000,7 +1019,10 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 	gpuDrawFilledRectf(x1, y1, x1 + sizex, y1 + sizey);
 	gpuDisablePolygonStipple();
 
-	gpuShadeModel(GL_FLAT);
+	// SSS Enable
+	//gpuShadeModel(GL_SMOOTH);
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
+
 	glEnable(GL_BLEND);
 
 	cbd = coba->data;
@@ -1029,7 +1051,11 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 	}
 
 	gpuEnd();
-	gpuShadeModel(GL_FLAT);
+
+	// SSS Disable
+	//gpuShadeModel(GL_FLAT);
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
+
 	glDisable(GL_BLEND);
 
 	/* outline */
@@ -1103,43 +1129,42 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 	static GPUimmediate *displist = NULL;
 	static GPUindex *index = NULL;
 
-	int a, old[8];
-	GLfloat diff[4], diffn[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-	float vec0[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-	float dir[4], size;
+	GPUbasiclight light;
+	GPUbasiclight backup_lights[GPU_MAX_COMMON_LIGHTS];
+	int backup_count;
 
-	/* store stuff */
-	gpuGetMaterialfv(GL_FRONT, GL_DIFFUSE, diff);
-		
+	static const float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+	static const float black[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+	float dir  [4];
+	float size;
+
+	backup_count = GPU_get_basic_lights(backup_lights);
+
 	/* backdrop */
 	gpuColor3ubv((unsigned char *)wcol->inner);
 	uiSetRoundBox(UI_CNR_ALL);
 	uiDrawBox(GL_TRIANGLE_FAN, rect->xmin, rect->ymin, rect->xmax, rect->ymax, 5.0f);
-	
+
 	/* sphere color */
-	gpuMaterialfv(GL_FRONT, GL_DIFFUSE, diffn);
+	gpuColor4fv(white);
 	glCullFace(GL_BACK);
 	glEnable(GL_CULL_FACE);
-	
-	/* disable blender light */
-	for (a = 0; a < 8; a++) {
-		old[a] = gpuIsLightEnabled(a);
-		gpuDisableLight(a);
-	}
-	
-	/* own light */
-	gpuEnableLight(7);
-	gpuEnableLighting();
-	
-	ui_get_but_vectorf(but, dir);
 
-	dir[3] = 0.0f;   /* glLightfv needs 4 args, 0.0 is sun */
-	gpuLightfv(7, GL_POSITION, dir); 
-	gpuLightfv(7, GL_DIFFUSE, diffn); 
-	gpuLightfv(7, GL_SPECULAR, vec0); 
-	gpuLightf(7, GL_CONSTANT_ATTENUATION, 1.0f);
-	gpuLightf(7, GL_LINEAR_ATTENUATION, 0.0f);
-	
+	/* own light */
+
+	// SSS Enable
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
+
+	ui_get_but_vectorf(but, dir);
+	dir[3] = 0;   /* A zero W component makes a sun lamp. */
+
+	light = GPU_DEFAULT_LIGHT;
+	copy_v4_v4(light.position, dir);
+	copy_v4_v4(light.diffuse,  white);
+	copy_v4_v4(light.specular, black);
+
+	GPU_set_basic_lights(1, &light);
+
 	/* transform to button */
 	gpuPushMatrix();
 	gpuTranslate(rect->xmin + 0.5f * BLI_rcti_size_x(rect), rect->ymin + 0.5f * BLI_rcti_size_y(rect), 0.0f);
@@ -1148,10 +1173,12 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 		size = BLI_rcti_size_x(rect) / 200.f;
 	else
 		size = BLI_rcti_size_y(rect) / 200.f;
-	
+
 	gpuScale(size, size, size);
 
-	gpuShadeModel(GL_SMOOTH);
+	// SSS
+	//gpuShadeModel(GL_SMOOTH);
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	if (!displist) {
 		GPUprim3 prim = GPU_PRIM_HIFI_SOLID;
@@ -1173,13 +1200,18 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 		gpuImmediateSingleRepeatElements(displist);
 	}
 
-	gpuShadeModel(GL_FLAT);
+	// SSS Disable
+	//gpuShadeModel(GL_FLAT);
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	/* restore */
-	gpuDisableLighting();
+	// SSS
+	//gpuDisableLighting();
+	//gpuDisableLight(7);
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
+	GPU_restore_basic_lights(backup_count, backup_lights);
+
 	glDisable(GL_CULL_FACE);
-	gpuMaterialfv(GL_FRONT, GL_DIFFUSE, diff); 
-	gpuDisableLight(7);
 	
 	/* AA circle */
 	glEnable(GL_BLEND);
@@ -1191,12 +1223,6 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 
 	/* matrix after circle */
 	gpuPopMatrix();
-
-	/* enable blender light */
-	for (a = 0; a < 8; a++) {
-		if (old[a])
-			gpuEnableLight(a);
-	}
 }
 
 static void ui_draw_but_curve_grid(rcti *rect, float zoomx, float zoomy, float offsx, float offsy, float step)
@@ -1629,8 +1655,11 @@ void ui_draw_but_NODESOCKET(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol
 static void ui_shadowbox(float minx, float miny, float maxx, float maxy, float shadsize, unsigned char alpha)
 {
 	glEnable(GL_BLEND);
-	gpuShadeModel(GL_SMOOTH);
-	
+
+	// SSS Enable
+	//gpuShadeModel(GL_SMOOTH);
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
+
 	/* right quad */
 	gpuBegin(GL_TRIANGLE_FAN);
 
@@ -1671,7 +1700,10 @@ static void ui_shadowbox(float minx, float miny, float maxx, float maxy, float s
 	gpuEnd();
 	
 	glDisable(GL_BLEND);
-	gpuShadeModel(GL_FLAT);
+
+	// SSS Disable
+	//gpuShadeModel(GL_FLAT);
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 }
 
 void uiDrawBoxShadow(unsigned char alpha, float minx, float miny, float maxx, float maxy)

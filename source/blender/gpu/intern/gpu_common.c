@@ -48,9 +48,9 @@
 
 
 
-extern const char datatoc_gpu_shader_known_constants_glsl[];
-extern const char datatoc_gpu_shader_known_uniforms_glsl [];
-extern const char datatoc_gpu_shader_known_attribs_glsl  [];
+extern const char datatoc_gpu_shader_common_constants_glsl[];
+extern const char datatoc_gpu_shader_common_uniforms_glsl [];
+extern const char datatoc_gpu_shader_common_attribs_glsl  [];
 
 
 
@@ -60,17 +60,17 @@ static GLint active_texture_num = 0;
 
 void gpu_include_common_vert(DynStr* vert)
 {
-	BLI_dynstr_append(vert, datatoc_gpu_shader_known_constants_glsl);
-	BLI_dynstr_append(vert, datatoc_gpu_shader_known_uniforms_glsl);
-	BLI_dynstr_append(vert, datatoc_gpu_shader_known_attribs_glsl);
+	BLI_dynstr_append(vert, datatoc_gpu_shader_common_constants_glsl);
+	BLI_dynstr_append(vert, datatoc_gpu_shader_common_uniforms_glsl);
+	BLI_dynstr_append(vert, datatoc_gpu_shader_common_attribs_glsl);
 }
 
 
 
 void gpu_include_common_frag(DynStr* frag)
 {
-	BLI_dynstr_append(frag, datatoc_gpu_shader_known_constants_glsl);
-	BLI_dynstr_append(frag, datatoc_gpu_shader_known_uniforms_glsl);
+	BLI_dynstr_append(frag, datatoc_gpu_shader_common_constants_glsl);
+	BLI_dynstr_append(frag, datatoc_gpu_shader_common_uniforms_glsl);
 }
 
 
@@ -156,7 +156,7 @@ static GPUcommon* current_common = NULL;
 
 
 
-void gpu_common(GPUcommon* common)
+void gpu_set_common(GPUcommon* common)
 {
 	current_common = common;
 }

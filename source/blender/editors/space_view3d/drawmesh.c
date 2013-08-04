@@ -27,10 +27,28 @@
  *  \ingroup spview3d
  */
 
-#include <string.h>
-#include <math.h>
+/* my interface */
+#include "view3d_intern.h"
 
-#include "MEM_guardedalloc.h"
+/* my library */
+#include "ED_mesh.h"
+#include "ED_uvedit.h"
+
+#include "UI_resources.h"
+
+/* external */
+
+#include "BIF_glutil.h"
+
+#include "BKE_DerivedMesh.h"
+#include "BKE_effect.h"
+#include "BKE_global.h"
+#include "BKE_image.h"
+#include "BKE_material.h"
+#include "BKE_paint.h"
+#include "BKE_property.h"
+#include "BKE_editmesh.h"
+#include "BKE_scene.h"
 
 #include "BLI_utildefines.h"
 #include "BLI_blenlib.h"
@@ -49,31 +67,20 @@
 #include "DNA_view3d_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BKE_DerivedMesh.h"
-#include "BKE_effect.h"
-#include "BKE_global.h"
-#include "BKE_image.h"
-#include "BKE_material.h"
-#include "BKE_paint.h"
-#include "BKE_property.h"
-#include "BKE_editmesh.h"
-#include "BKE_scene.h"
-
-#include "BIF_glutil.h"
-
-#include "UI_resources.h"
-
+#include "GPU_basic_shader.h"
+#include "GPU_buffers.h"
 #include "GPU_compatibility.h"
 #include "GPU_colors.h"
-#include "GPU_buffers.h"
-#include "GPU_extensions.h"
 #include "GPU_draw.h"
+#include "GPU_extensions.h"
 #include "GPU_material.h"
 
-#include "ED_mesh.h"
-#include "ED_uvedit.h"
+#include "MEM_guardedalloc.h"
 
-#include "view3d_intern.h"  /* own include */
+/* standard */
+#include <string.h>
+#include <math.h>
+
 
 /* user data structures for derived mesh callbacks */
 typedef struct drawMeshFaceSelect_userData {
@@ -169,7 +176,11 @@ void draw_mesh_face_select(RegionView3D *rv3d, Mesh *me, DerivedMesh *dm)
 	data.edge_flags = get_tface_mesh_marked_edge_info(me);
 
 	glEnable(GL_DEPTH_TEST);
-	gpuDisableLighting();
+
+	// SSS Disable
+	//gpuDisableLighting();
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
+
 	bglPolygonOffset(rv3d->dist, 1.0);
 
 	/* Draw (Hidden) Edges */
@@ -385,9 +396,12 @@ static void draw_textured_end(void)
 	/* switch off textures */
 	GPU_set_tpage(NULL, 0, 0);
 
-	gpuShadeModel(GL_FLAT);
 	glDisable(GL_CULL_FACE);
-	gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
+
+	// SSS Disable
+	//gpuShadeModel(GL_FLAT);
+	//gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TWO_SIDE|GPU_BASIC_SMOOTH);
 
 	/* XXX, bad patch - GPU_default_lights() calls
 	 * glLightfv(GL_POSITION, ...) which

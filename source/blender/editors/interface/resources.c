@@ -1106,22 +1106,6 @@ void UI_ThemeColorBlend(int colorid1, int colorid2, float fac)
 	gpuColor3ub(r, g, b);
 }
 
-void UI_ThemeColorBlend(int colorid1, int colorid2, float fac)
-{
-	int r, g, b;
-	const unsigned char *cp1, *cp2;
-
-	cp1 = UI_ThemeGetColorPtr(theme_active, theme_spacetype, colorid1);
-	cp2 = UI_ThemeGetColorPtr(theme_active, theme_spacetype, colorid2);
-
-	CLAMP(fac, 0.0f, 1.0f);
-	r = floorf((1.0f - fac) * cp1[0] + fac * cp2[0]);
-	g = floorf((1.0f - fac) * cp1[1] + fac * cp2[1]);
-	b = floorf((1.0f - fac) * cp1[2] + fac * cp2[2]);
-
-	gpuColor3ub(r, g, b);
-}
-
 /* blend between to theme colors, shade it, and set it */
 void UI_ThemeColorBlendShade(int colorid1, int colorid2, float fac, int offset)
 {

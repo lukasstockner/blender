@@ -272,13 +272,13 @@ void GPU_extensions_init(void)
 		 * Incomplete list http://dri.freedesktop.org/wiki/ATIRadeon
 		 * New IDs from MESA's src/gallium/drivers/r300/r300_screen.c
 		 */
-		if (strstr(renderer, "R3") || strstr(renderer, "RV3") ||
-		    strstr(renderer, "R4") || strstr(renderer, "RV4") ||
-		    strstr(renderer, "RS4") || strstr(renderer, "RC4") ||
-		    strstr(renderer, "R5") || strstr(renderer, "RV5") ||
-		    strstr(renderer, "RS600") || strstr(renderer, "RS690") ||
-		    strstr(renderer, "RS740") || strstr(renderer, "X1") ||
-		    strstr(renderer, "X2") || strstr(renderer, "Radeon 9") ||
+		if (strstr(renderer, "R3")    || strstr(renderer, "RV3")      ||
+		    strstr(renderer, "R4")    || strstr(renderer, "RV4")      ||
+		    strstr(renderer, "RS4")   || strstr(renderer, "RC4")      ||
+		    strstr(renderer, "R5")    || strstr(renderer, "RV5")      ||
+		    strstr(renderer, "RS600") || strstr(renderer, "RS690")    ||
+		    strstr(renderer, "RS740") || strstr(renderer, "X1")       ||
+		    strstr(renderer, "X2")    || strstr(renderer, "Radeon 9") ||
 		    strstr(renderer, "RADEON 9"))
 		{
 			GG.npotdisabled = 1;
@@ -1183,7 +1183,8 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 
 	GPU_texture_bind(tex, 0);
 
-	GPU_aspect_begin(GPU_ASPECT_BASIC, SET_UINT_IN_POINTER(GPU_BASIC_TEXTURE_2D));
+	// SSS Enable
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 	gpuImmediateFormat_T2_V2();
 
@@ -1212,7 +1213,8 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 
 	gpuImmediateUnformat();
 
-	GPU_aspect_end();
+	// SSS Disable
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 	GPU_shader_unbind();
 }

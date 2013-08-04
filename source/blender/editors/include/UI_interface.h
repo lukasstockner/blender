@@ -32,9 +32,11 @@
 #ifndef __UI_INTERFACE_H__
 #define __UI_INTERFACE_H__
 
-#include "BLI_sys_types.h" /* size_t */
+#include "BLI_sys_types.h" /* for bool */
 #include "RNA_types.h"
 #include "DNA_userdef_types.h"
+
+#include <string.h> /* for size_t */
 
 /* Struct Declarations */
 
@@ -640,11 +642,9 @@ void uiButSetFocusOnEnter(struct wmWindow *win, uiBut *but);
  * Call begin once, then multiple times do_name with all possibilities,
  * and finally end to finish and get the completed name. */
 
-typedef struct AutoComplete AutoComplete;
-
-AutoComplete *autocomplete_begin(const char *startname, size_t maxlen);
-void autocomplete_do_name(AutoComplete *autocpl, const char *name);
-void autocomplete_end(AutoComplete *autocpl, char *autoname);
+struct AutoComplete *autocomplete_begin(const char *startname, size_t maxlen);
+void autocomplete_do_name(struct AutoComplete *autocpl, const char *name);
+void autocomplete_end(struct AutoComplete *autocpl, char *autoname);
 
 /* Panels
  *

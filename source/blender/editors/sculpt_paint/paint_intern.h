@@ -32,6 +32,8 @@
 #ifndef __PAINT_INTERN_H__
 #define __PAINT_INTERN_H__
 
+#include "BLI_sys_types.h" /* for bool */
+
 struct ARegion;
 struct bContext;
 struct bglMats;
@@ -139,12 +141,12 @@ void imapaint_dirty_region(struct Image *ima, struct ImBuf *ibuf, int x, int y, 
 void imapaint_region_tiles(struct ImBuf *ibuf, int x, int y, int w, int h, int *tx, int *ty, int *tw, int *th);
 int get_imapaint_zoom(struct bContext *C, float *zoomx, float *zoomy);
 void *paint_2d_new_stroke(struct bContext *, struct wmOperator *);
-void paint_2d_redraw(const bContext *C, void *ps, bool final);
+void paint_2d_redraw(const struct bContext *C, void *ps, bool final);
 void paint_2d_stroke_done(void *ps);
 void paint_2d_stroke(void *ps, const float prev_mval[2], const float mval[2], int eraser);
 void *paint_proj_new_stroke(struct bContext *C, struct Object *ob, const float mouse[2], int mode);
 void paint_proj_stroke(struct bContext *C, void *ps, const float prevmval_i[2], const float mval_i[2]);
-void paint_proj_redraw(const bContext *C, void *pps, bool final);
+void paint_proj_redraw(const struct bContext *C, void *pps, bool final);
 void paint_proj_stroke_done(void *ps);
 void paint_brush_init_tex(struct Brush *brush);
 void paint_brush_exit_tex(struct Brush *brush);

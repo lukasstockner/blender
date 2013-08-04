@@ -29,12 +29,26 @@
  *  \ingroup spview3d
  */
 
+/* my interface */
+#include "view3d_intern.h"
 
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
+/* my library */
+
+#include "ED_armature.h"
+#include "ED_keyframes_draw.h"
+
+#include "UI_resources.h"
+
+/* external */
 
 #include "BLI_sys_types.h"
+#include "BLI_math.h"
+#include "BLI_dlrbTree.h"
+
+#include "BLF_api.h"
+
+#include "BKE_animsys.h"
+#include "BKE_action.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -43,23 +57,14 @@
 #include "DNA_view3d_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_math.h"
-#include "BLI_dlrbTree.h"
-
-#include "BKE_animsys.h"
-#include "BKE_action.h"
-
+#include "GPU_basic_shader.h"
 #include "GPU_compatibility.h"
 
+/* standard */
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
 
-#include "ED_armature.h"
-#include "ED_keyframes_draw.h"
-
-#include "BLF_api.h"
-
-#include "UI_resources.h"
-
-#include "view3d_intern.h"
 
 /* ************************************ Motion Paths ************************************* */
 
@@ -135,7 +140,9 @@ void draw_motion_path_instance(Scene *scene,
 	mpv_start = (mpath->points + sind);
 
 	/* draw curve-line of path */
-	gpuShadeModel(GL_SMOOTH);
+	// SSS Enable
+	//gpuShadeModel(GL_SMOOTH);
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	gpuBegin(GL_LINE_STRIP);
 	for (i = 0, mpv = mpv_start; i < len; i++, mpv++) {
@@ -191,7 +198,10 @@ void draw_motion_path_instance(Scene *scene,
 	}
 
 	gpuEnd();
-	gpuShadeModel(GL_FLAT);
+
+	// SSS
+	//gpuShadeModel(GL_FLAT);
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	gpuSpriteSize(1.0);
 

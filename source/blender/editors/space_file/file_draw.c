@@ -28,21 +28,24 @@
  *  \ingroup spfile
  */
 
+/* my interface */
+#include "file_intern.h"
 
-#include <math.h>
-#include <string.h>
+/* my library */
 
-#include "BLI_blenlib.h"
-#include "BLI_utildefines.h"
-#include "BLI_dynstr.h"
-#include "BLI_fileops_types.h"
+#include "ED_fileselect.h"
+#include "ED_screen.h"
 
-#ifdef WIN32
-#  include "BLI_winstuff.h"
-#endif
+#include "UI_interface.h"
+#include "UI_interface_icons.h"
+#include "UI_resources.h"
+#include "UI_view2d.h"
 
-#include "GPU_colors.h"
-#include "GPU_primitives.h"
+/* internal */
+#include "fsmenu.h"
+#include "filelist.h"
+
+/* external */
 
 #include "BIF_glutil.h"
 
@@ -53,29 +56,35 @@
 #include "BLF_api.h"
 #include "BLF_translation.h"
 
-#include "IMB_imbuf_types.h"
- 
-#include "MEM_guardedalloc.h"
+#include "BLI_blenlib.h"
+#include "BLI_utildefines.h"
+#include "BLI_dynstr.h"
+#include "BLI_fileops_types.h"
+
+#ifdef WIN32
+#  include "BLI_winstuff.h"
+#endif
 
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
+#include "IMB_imbuf_types.h"
+ 
+#include "GPU_basic_shader.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
+
+#include "MEM_guardedalloc.h"
+
 #include "RNA_access.h"
-
-#include "ED_fileselect.h"
-#include "ED_screen.h"
-
-#include "UI_interface.h"
-#include "UI_interface_icons.h"
-#include "UI_resources.h"
-#include "UI_view2d.h"
 
 #include "WM_types.h"
 
-#include "fsmenu.h"
-#include "filelist.h"
+/* standard */
+#include <math.h>
+#include <string.h>
 
-#include "file_intern.h"    // own include
+
 
 /* button events */
 enum {
@@ -377,9 +386,14 @@ static void file_draw_preview(uiBlock *block, struct direntry *file, int sx, int
 		glEnable(GL_BLEND);
 		
 		/* the image */
-		GPU_aspect_begin(GPU_ASPECT_PIXELS, NULL);
+
+		// SSS Enable
+		GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
+
 		glaDrawPixelsTexScaled((float)xco, (float)yco, imb->x, imb->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST, imb->rect, scale, scale);
-		GPU_aspect_end(GPU_ASPECT_PIXELS, NULL);
+
+		// SSS Disable
+		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 		/* border */
 		if (dropshadow) {

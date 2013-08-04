@@ -32,6 +32,8 @@
 #ifndef __BLF_API_H__
 #define __BLF_API_H__
 
+#include <string.h> /* for size_t */
+
 struct rctf;
 struct ColorManagedDisplay;
 

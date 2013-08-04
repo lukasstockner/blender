@@ -3050,11 +3050,11 @@ static int findBitIndex(unsigned int x)
 }
 
 /* autocomplete helper functions */
-struct AutoComplete {
+typedef struct AutoComplete {
 	size_t maxlen;
 	char *truncate;
 	const char *startname;
-};
+} AutoComplete;
 
 AutoComplete *autocomplete_begin(const char *startname, size_t maxlen)
 {

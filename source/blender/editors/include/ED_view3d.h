@@ -31,6 +31,8 @@
 #ifndef __ED_VIEW3D_H__
 #define __ED_VIEW3D_H__
 
+#include "BLI_sys_types.h"
+
 /* ********* exports for space_view3d/ module ********** */
 struct ARegion;
 struct BMEdge;
@@ -256,7 +258,7 @@ bool ED_view3d_autodist_depth_seg(struct ARegion *ar, const int mval_sta[2], con
 
 /* select */
 #define MAXPICKBUF      10000
-short view3d_opengl_select(struct ViewContext *vc, unsigned int *buffer, unsigned int bufsize, rcti *input);
+short view3d_opengl_select(struct ViewContext *vc, unsigned int *buffer, unsigned int bufsize, struct rcti *input);
 
 void view3d_set_viewcontext(struct bContext *C, struct ViewContext *vc);
 void view3d_operator_needs_opengl(const struct bContext *C);

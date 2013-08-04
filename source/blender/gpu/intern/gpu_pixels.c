@@ -276,7 +276,8 @@ void gpuPixelsBegin()
 	}
 #endif
 
-	GPU_aspect_begin(GPU_ASPECT_BASIC, SET_UINT_IN_POINTER(GPU_BASIC_TEXTURE_2D));
+	// SSS Enable
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 }
 
 
@@ -468,5 +469,6 @@ void gpuPixelsEnd()
 	}
 #endif
 
-	GPU_aspect_end();
+	// SSS Disable
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 }

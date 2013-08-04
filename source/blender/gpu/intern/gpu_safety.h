@@ -32,7 +32,7 @@
 #ifndef GPU_SAFETY_H
 #define GPU_SAFETY_H
 
-#include "gpu_glew.h"
+#include "gpu_glew.h" // XXX jwilkins: remove this dependency
 
 #include "BLI_utildefines.h"
 

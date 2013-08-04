@@ -76,9 +76,9 @@ float BKE_brush_curve_strength_clamp(struct Brush *br, float p, const float len)
 float BKE_brush_curve_strength(struct Brush *br, float p, const float len); /* used for sculpt */
 
 /* sampling */
-float BKE_brush_sample_tex_3D(const Scene *scene, struct Brush *br, const float point[3],
+float BKE_brush_sample_tex_3D(const struct Scene *scene, struct Brush *br, const float point[3],
                               float rgba[4], const int thread, struct ImagePool *pool);
-float BKE_brush_sample_masktex(const Scene *scene, struct Brush *br, const float point[3],
+float BKE_brush_sample_masktex(const struct Scene *scene, struct Brush *br, const float point[3],
                                const int thread, struct ImagePool *pool);
 
 /* texture */
@@ -96,9 +96,9 @@ float BKE_brush_unprojected_radius_get(const struct Scene *scene, struct Brush *
 void  BKE_brush_unprojected_radius_set(struct Scene *scene, struct Brush *brush, float value);
 
 float BKE_brush_alpha_get(const struct Scene *scene, struct Brush *brush);
-void BKE_brush_alpha_set(Scene *scene, struct Brush *brush, float alpha);
-float BKE_brush_weight_get(const Scene *scene, struct Brush *brush);
-void BKE_brush_weight_set(const Scene *scene, struct Brush *brush, float value);
+void BKE_brush_alpha_set(struct Scene *scene, struct Brush *brush, float alpha);
+float BKE_brush_weight_get(const struct Scene *scene, struct Brush *brush);
+void BKE_brush_weight_set(const struct Scene *scene, struct Brush *brush, float value);
 
 int  BKE_brush_use_locked_size(const struct Scene *scene, struct Brush *brush);
 int  BKE_brush_use_alpha_pressure(const struct Scene *scene, struct Brush *brush);

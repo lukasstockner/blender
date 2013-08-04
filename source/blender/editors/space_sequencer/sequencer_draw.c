@@ -27,38 +27,10 @@
  *  \ingroup spseq
  */
 
+/* my interface */
+#include "sequencer_intern.h"
 
-#include <string.h>
-#include <math.h>
-
-#include "MEM_guardedalloc.h"
-
-#include "BLI_blenlib.h"
-#include "BLI_math.h"
-#include "BLI_utildefines.h"
-
-#include "IMB_imbuf_types.h"
-
-#include "DNA_scene_types.h"
-#include "DNA_mask_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_space_types.h"
-#include "DNA_userdef_types.h"
-#include "DNA_sound_types.h"
-
-#include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_sequencer.h"
-
-#include "BKE_sound.h"
-
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf.h"
-
-#include "GPU_colors.h"
-#include "GPU_primitives.h"
-
-#include "BIF_glutil.h"
+/* my library */
 
 #include "ED_anim_api.h"
 #include "ED_gpencil.h"
@@ -72,11 +44,44 @@
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
+/* external */
+
+#include "BIF_glutil.h"
+
+#include "BKE_context.h"
+#include "BKE_global.h"
+#include "BKE_sequencer.h"
+#include "BKE_sound.h"
+
+#include "BLI_blenlib.h"
+#include "BLI_math.h"
+#include "BLI_utildefines.h"
+
+#include "DNA_scene_types.h"
+#include "DNA_mask_types.h"
+#include "DNA_screen_types.h"
+#include "DNA_space_types.h"
+#include "DNA_userdef_types.h"
+#include "DNA_sound_types.h"
+
+#include "IMB_imbuf_types.h"
+
+#include "IMB_colormanagement.h"
+#include "IMB_imbuf.h"
+
+#include "GPU_basic_shader.h"
+#include "GPU_colors.h"
+#include "GPU_primitives.h"
+
+#include "MEM_guardedalloc.h"
+
 #include "WM_api.h"
 #include "WM_types.h"
 
-/* own include */
-#include "sequencer_intern.h"
+/* standard */
+#include <string.h>
+#include <math.h>
+
 
 
 #define SEQ_LEFTHANDLE   1
@@ -643,7 +648,6 @@ static void draw_seq_text(View2D *v2d, Sequence *seq, float x1, float x2, float 
 static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, float y1, float x2, float y2)
 {
 	float ymid1, ymid2;
-	uint32_t options;
 
 	if (seq->flag & SEQ_MUTE) {
 		gpuEnablePolygonStipple();
@@ -653,8 +657,9 @@ static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, floa
 	ymid1 = (y2 - y1) * 0.25f + y1;
 	ymid2 = (y2 - y1) * 0.65f + y1;
 
-	options = 0;
-	GPU_aspect_begin(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_SMOOTH);
+	// SSS
+	// gpuShadeModel(GL_SMOOTH);
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	gpuBegin(GL_QUADS);
 
@@ -695,7 +700,9 @@ static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, floa
 
 	gpuEnd();
 
-	GPU_aspect_end(GPU_ASPECT_SIMPLE_SHADER, SET_UINT_IN_POINTER(options)); // gpuShadeModel(GL_FLAT);
+	// SSS Disable
+	//gpuShadeModel(GL_FLAT);
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	if (seq->flag & SEQ_MUTE) {
 		gpuDisablePolygonStipple();

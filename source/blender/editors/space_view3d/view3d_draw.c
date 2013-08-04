@@ -28,26 +28,25 @@
  *  \ingroup spview3d
  */
 
-#include <string.h>
-#include <stdio.h>
-#include <math.h>
+/* my interface */
+#include "view3d_intern.h"
 
-#include "DNA_armature_types.h"
-#include "DNA_camera_types.h"
-#include "DNA_customdata_types.h"
-#include "DNA_object_types.h"
-#include "DNA_group_types.h"
-#include "DNA_key_types.h"
-#include "DNA_lamp_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_world_types.h"
+/* my library */
+#include "ED_armature.h"
+#include "ED_keyframing.h"
+#include "ED_gpencil.h"
+#include "ED_screen.h"
+#include "ED_space_api.h"
+#include "ED_screen_types.h"
+#include "ED_transform.h"
 
-#include "MEM_guardedalloc.h"
+#include "UI_interface.h"
+#include "UI_interface_icons.h"
+#include "UI_resources.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_math.h"
-#include "BLI_utildefines.h"
-#include "BLI_endian_switch.h"
+/* external */
+
+#include "BIF_glutil.h"
 
 #include "BKE_anim.h"
 #include "BKE_camera.h"
@@ -63,39 +62,48 @@
 #include "BKE_unit.h"
 #include "BKE_movieclip.h"
 
-#include "RE_engine.h"
-#include "RE_pipeline.h"  /* make_stars */
-
-#include "IMB_imbuf_types.h"
-#include "IMB_imbuf.h"
-#include "IMB_colormanagement.h"
-
-#include "BIF_glutil.h"
-
-#include "WM_api.h"
+#include "BLI_blenlib.h"
+#include "BLI_math.h"
+#include "BLI_utildefines.h"
+#include "BLI_endian_switch.h"
 
 #include "BLF_api.h"
 #include "BLF_translation.h"
 
-#include "ED_armature.h"
-#include "ED_keyframing.h"
-#include "ED_gpencil.h"
-#include "ED_screen.h"
-#include "ED_space_api.h"
-#include "ED_screen_types.h"
-#include "ED_transform.h"
+#include "DNA_armature_types.h"
+#include "DNA_camera_types.h"
+#include "DNA_customdata_types.h"
+#include "DNA_object_types.h"
+#include "DNA_group_types.h"
+#include "DNA_key_types.h"
+#include "DNA_lamp_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_world_types.h"
 
-#include "UI_interface.h"
-#include "UI_interface_icons.h"
-#include "UI_resources.h"
-
+#include "GPU_basic_shader.h"
 #include "GPU_colors.h"
 #include "GPU_primitives.h"
 #include "GPU_draw.h"
 #include "GPU_material.h"
 #include "GPU_extensions.h"
 
-#include "view3d_intern.h"  /* own include */
+#include "MEM_guardedalloc.h"
+
+#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.h"
+#include "IMB_colormanagement.h"
+
+#include "RE_engine.h"
+#include "RE_pipeline.h"  /* make_stars */
+
+#include "WM_api.h"
+
+/* standard */
+#include <string.h>
+#include <stdio.h>
+#include <math.h>
+
+
 
 /* handy utility for drawing shapes in the viewport for arbitrary code.
  * could add lines and points too */
@@ -766,7 +774,11 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 	negate_v3_v3(o, rv3d->ofs);
 
 	glEnable(GL_BLEND);
-	gpuShadeModel(GL_SMOOTH);
+
+	// SSS
+	//gpuShadeModel(GL_SMOOTH);
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
+
 	gpuSpriteSize(5);
 	glEnable(GL_POINT_SMOOTH);
 	gpuDepthMask(GL_FALSE);  /* don't overwrite zbuf */
@@ -845,6 +857,9 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 	gpuBegin(GL_POINTS);
 	gpuVertex3fv(o);
 	gpuEnd();
+
+	// SSS Disable
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	/* find screen coordinates for rotation center, then draw pretty icon */
 #if 0
@@ -3178,7 +3193,9 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			gpuPushMatrix();
 			gpuLoadIdentity();
 
-			gpuShadeModel(GL_SMOOTH);
+			// SSS Enable
+			//gpuShadeModel(GL_SMOOTH);
+			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 			/* calculate buffers the first time only */
 			if (!buf_calculated) {
@@ -3264,7 +3281,9 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			gpuMatrixMode(GL_MODELVIEW);
 			gpuPopMatrix();
 
-			gpuShadeModel(GL_FLAT);
+			// SSS Disable
+			//gpuShadeModel(GL_FLAT);
+			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 #undef VIEWGRAD_RES_X
 #undef VIEWGRAD_RES_Y
@@ -3289,7 +3308,11 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 
 			glEnable(GL_DEPTH_TEST);
 			glDepthFunc(GL_ALWAYS);
-			gpuShadeModel(GL_SMOOTH);
+
+			// SSS Enable
+			//gpuShadeModel(GL_SMOOTH);
+			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
+
 			gpuImmediateFormat_V3();
 			gpuBegin(GL_QUADS);
 			UI_ThemeColor(TH_LOW_GRAD);
@@ -3300,7 +3323,10 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			gpuVertex3f(-1.0, 1.0, 1.0);
 			gpuEnd();
 			gpuImmediateUnformat();
-			gpuShadeModel(GL_FLAT);
+
+			// SSS Disable
+			//gpuShadeModel(GL_FLAT);
+			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 			glDepthFunc(GL_LEQUAL);
 			glDisable(GL_DEPTH_TEST);

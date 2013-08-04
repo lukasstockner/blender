@@ -174,7 +174,7 @@ BLI_INLINE void gpuAlpha(GLfloat a)
 
 BLI_INLINE void gpuMultAlpha(GLfloat factor)
 {
-	GPU_IMMEDIATE->color[3] *= factor;
+	GPU_IMMEDIATE->color[3] = (GLubyte)(factor * (float)(GPU_IMMEDIATE->color[3]));
 }
 
 

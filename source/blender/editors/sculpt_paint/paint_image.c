@@ -525,7 +525,7 @@ static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, Po
 	Brush *brush = BKE_paint_brush(&scene->toolsettings->imapaint.paint);
 
 	/* initial brush values. Maybe it should be considered moving these to stroke system */
-	float startsize = BKE_brush_size_get(scene, brush);
+	float startsize  = (float)BKE_brush_size_get(scene, brush);
 	float startalpha = BKE_brush_alpha_get(scene, brush);
 
 	float mouse[2];
@@ -539,7 +539,7 @@ static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, Po
 	if (BKE_brush_use_alpha_pressure(scene, brush))
 		BKE_brush_alpha_set(scene, brush, max_ff(0.0f, startalpha * pressure));
 	if (BKE_brush_use_size_pressure(scene, brush))
-		BKE_brush_size_set(scene, brush, max_ff(1.0f, startsize * pressure));
+		BKE_brush_size_set(scene, brush, (int)max_ff(1.0f, startsize * pressure));
 
 	if (pop->mode == PAINT_MODE_3D_PROJECT) {
 		paint_proj_stroke(C, pop->custom_paint, pop->prevmouse, mouse);
@@ -553,7 +553,7 @@ static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, Po
 
 	/* restore brush values */
 	BKE_brush_alpha_set(scene, brush, startalpha);
-	BKE_brush_size_set(scene, brush, startsize);
+	BKE_brush_size_set(scene, brush, (int)startsize);
 }
 
 static void paint_stroke_redraw(const bContext *C, struct PaintStroke *stroke, bool final)
@@ -614,8 +614,8 @@ static int paint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 	/* TODO Should avoid putting this here. Instead, last position should be requested
 	 * from stroke system. */
-	mouse[0] = event->mval[0];
-	mouse[1] = event->mval[1];
+	mouse[0] = (float)(event->mval[0]);
+	mouse[1] = (float)(event->mval[1]);
 
 	if (!(pop = texture_paint_init(C, op, mouse))) {
 		return OPERATOR_CANCELLED;
@@ -879,8 +879,8 @@ static int grab_clone_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			return OPERATOR_FINISHED;
 		case MOUSEMOVE:
 			/* mouse moved, so move the clone image */
-			UI_view2d_region_to_view(&ar->v2d, cmv->startx - xmin, cmv->starty - ymin, &startfx, &startfy);
-			UI_view2d_region_to_view(&ar->v2d, event->x - xmin, event->y - ymin, &fx, &fy);
+			UI_view2d_region_to_view(&ar->v2d, (float)(cmv->startx - xmin), (float)(cmv->starty - ymin), &startfx, &startfy);
+			UI_view2d_region_to_view(&ar->v2d, (float)(event->x - xmin),    (float)(event->y - ymin)   , &fx,      &fy);
 
 			delta[0] = fx - startfx;
 			delta[1] = fy - startfy;

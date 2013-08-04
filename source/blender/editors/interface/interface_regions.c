@@ -759,7 +759,7 @@ struct uiSearchItems {
 	void **pointers;
 	int *icons;
 
-	AutoComplete *autocpl;
+	struct AutoComplete *autocpl;
 	void *active;
 };
 

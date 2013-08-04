@@ -31,6 +31,8 @@
  *  \ingroup bke
  */
 
+#include "DNA_property_types.h" /* for MAX_PROPSTRING */
+
 struct bProperty;
 struct ListBase;
 struct Object;

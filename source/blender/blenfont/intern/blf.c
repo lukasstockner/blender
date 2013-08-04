@@ -502,6 +502,10 @@ static void draw_lock(FontBLF *font)
 	}
 
 	if (font->locked == 0) {
+		// SSS End
+		GPU_aspect_end();
+
+		// SSS Begin
 		GPU_aspect_begin(GPU_ASPECT_FONT, NULL);
 
 		if (font->shadow || font->blur) {
@@ -545,7 +549,11 @@ static void draw_unlock(FontBLF *font)
 
 		gpuImmediateUnformat();
 
-		GPU_aspect_end(GPU_ASPECT_FONT, NULL);
+		// SSS End
+		GPU_aspect_end();
+
+		// SSS Begin
+		GPU_aspect_begin(GPU_ASPECT_BASIC, NULL);
 	}
 }
 
