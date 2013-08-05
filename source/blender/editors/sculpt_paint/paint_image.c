@@ -1333,48 +1333,14 @@ void PAINT_OT_texture_colors_flip(wmOperatorType *ot)
 }
 
 
-static int bucket_fill_exec(bContext *C, wmOperator *op)
+void paint_bucket_fill(struct bContext *C, float color[3], wmOperator *op)
 {
-	float color[3];
-
-	/* get from rna property only if set */
-	if (RNA_struct_property_is_set(op->ptr, "color")) {
-		RNA_float_get_array(op->ptr, "color", color);
-	}
-	else {		
-		Brush *br = image_paint_brush(C);
-
-		srgb_to_linearrgb_v3_v3(color, br->rgb);
-	}
-
 	undo_paint_push_begin(UNDO_PAINT_IMAGE, op->type->name,
 	                      image_undo_restore, image_undo_free);
 
 	paint_2d_bucket_fill(C, color);
 
 	undo_paint_push_end(UNDO_PAINT_IMAGE);
-
-	RNA_float_set_array(op->ptr, "color", color);
-
-	return OPERATOR_FINISHED;
-}
-
-
-void PAINT_OT_bucket_fill(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Bucket Fill";
-	ot->idname = "PAINT_OT_bucket_fill";
-	ot->description = "Fill canvas with brush color";
-
-	/* api callbacks */
-	ot->exec = bucket_fill_exec;
-	ot->poll = image_paint_poll;
-
-	/* flags */
-	ot->flag = OPTYPE_UNDO | OPTYPE_BLOCKING;
-
-	RNA_def_float_color(ot->srna, "color", 3, NULL, 0.0, 1.0, "Color", "Color for bucket fill", 0.0, 1.0);
 }
 
 

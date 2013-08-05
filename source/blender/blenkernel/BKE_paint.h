@@ -54,6 +54,7 @@ struct UnifiedPaintSettings;
 struct Palette;
 struct PaletteColor;
 struct Main;
+struct wmOperator;
 
 enum OverlayFlags;
 
@@ -93,14 +94,15 @@ OverlayControlFlags BKE_paint_get_overlay_flags(void);
 void BKE_paint_reset_overlay_invalid(OverlayControlFlags flag);
 void BKE_paint_set_overlay_override(enum OverlayFlags flag);
 
-void BKE_paint_init(struct Paint *p, const char col[3]);
-void BKE_paint_free(struct Paint *p);
-void BKE_paint_copy(struct Paint *src, struct Paint *tar);
-
+/* palettes */
 void BKE_free_palette(struct Palette *palette);
 struct Palette *BKE_palette_add(struct Main *bmain, const char *name);
 struct PaletteColor *BKE_palette_color_add(struct Palette *palette);
 void BKE_palette_remove_color (struct Palette *palette, struct PaletteColor *colour);
+
+void BKE_paint_init(struct Paint *p, const char col[3]);
+void BKE_paint_free(struct Paint *p);
+void BKE_paint_copy(struct Paint *src, struct Paint *tar);
 
 struct Paint *BKE_paint_get_active(struct Scene *sce);
 struct Paint *BKE_paint_get_active_from_context(const struct bContext *C);
@@ -125,9 +127,13 @@ int paint_is_bmesh_face_hidden(struct BMFace *f);
 /* paint masks */
 float paint_grid_paint_mask(const struct GridPaintMask *gpm, unsigned level,
                             unsigned x, unsigned y);
-void paint_calculate_rake_rotation(struct UnifiedPaintSettings *ups, const float mouse_pos[2]);
-/* Session data (mode-specific) */
 
+/* stroke related */
+void paint_calculate_rake_rotation(struct UnifiedPaintSettings *ups, const float mouse_pos[2]);
+
+void paint_bucket_fill(struct bContext *C, float color[3], struct wmOperator *op);
+
+/* Session data (mode-specific) */
 typedef struct SculptSession {
 	/* Mesh data (not copied) can come either directly from a Mesh, or from a MultiresDM */
 	struct MultiresModifierData *multires; /* Special handling for multires meshes */

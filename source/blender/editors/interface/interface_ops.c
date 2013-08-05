@@ -50,6 +50,7 @@
 #include "BKE_global.h"
 #include "BKE_text.h" /* for UI_OT_reports_to_text */
 #include "BKE_report.h"
+#include "BKE_paint.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -1076,8 +1077,19 @@ int UI_drop_color_poll(struct bContext *C, wmDrag *drag, const wmEvent *UNUSED(e
 {
 	/* should only return true for regions that include buttons, for now
 	 * return true always */
-	if (drag->type == WM_DRAG_COLOR && UI_but_active_drop_color(C))
-		return TRUE;
+	if (drag->type == WM_DRAG_COLOR){
+		SpaceImage *sima = CTX_wm_space_image(C);
+		ARegion *ar = CTX_wm_region(C);
+
+		if (UI_but_active_drop_color(C))
+			return TRUE;
+
+		/* should only return true for regions that include buttons, for now
+		 * return true always */
+		if (sima && (sima->mode == SI_MODE_PAINT)
+		    && sima->image && (ar && ar->regiontype == RGN_TYPE_WINDOW))
+			return TRUE;
+	}
 
 	return FALSE;
 }
@@ -1117,6 +1129,12 @@ static int drop_color_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(
 			RNA_property_float_set_array(&but->rnapoin, but->rnaprop, color);
 			RNA_property_update(C, &but->rnapoin, but->rnaprop);
 		}
+	}
+	else {
+		if(gamma)
+			srgb_to_linearrgb_v3_v3(color, color);
+
+		paint_bucket_fill(C, color, op);
 	}
 
 	ED_region_tag_redraw(ar);
