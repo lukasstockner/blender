@@ -34,6 +34,7 @@
 
 /* internal */
 #include "intern/gpu_common.h"
+#include "intern/gpu_safety.h"
 
 /* my library */
 #include "GPU_extensions.h"
@@ -70,11 +71,14 @@ static void gpu_font_shader(void)
 	extern const char datatoc_gpu_shader_font_vert_glsl[];
 	extern const char datatoc_gpu_shader_font_frag_glsl[];
 
+GPU_CHECK_NO_ERROR();
 	/* Create shader if it doesn't exist yet. */
 	if (FONT_SHADER != NULL) {
 		GPU_shader_bind(FONT_SHADER);
+GPU_CHECK_NO_ERROR();
+		gpu_set_common(&FONT_COMMON);
 	}
-	else {
+	else if (!FONT_FAILED) {
 		DynStr* vert = BLI_dynstr_new();
 		DynStr* frag = BLI_dynstr_new();
 		DynStr* defs = BLI_dynstr_new();
@@ -95,18 +99,25 @@ static void gpu_font_shader(void)
 				NULL,
 				BLI_dynstr_get_cstring(defs));
 
+GPU_CHECK_NO_ERROR();
 		if (FONT_SHADER != NULL) {
 			gpu_init_common(&FONT_COMMON, FONT_SHADER);
 			gpu_set_common(&FONT_COMMON);
 
 			GPU_shader_bind(FONT_SHADER);
+GPU_CHECK_NO_ERROR();
 
-			/* the mapping between samplers and texture units is static, so it can committed here once */
+			/* the mapping between samplers and texture units is static, so it can commit here once */
 			glUniform1i(FONT_COMMON.sampler[0], 0);
+GPU_CHECK_NO_ERROR();
 		}
 		else {
 			FONT_FAILED = true;
+			gpu_set_common(NULL);
 		}
+	}
+	else {
+		gpu_set_common(NULL);
 	}
 }
 
@@ -114,9 +125,11 @@ static void gpu_font_shader(void)
 
 void GPU_font_shader_bind(void)
 {
+GPU_CHECK_NO_ERROR();
 	if (GPU_glsl_support())
 		gpu_font_shader();
 
+GPU_CHECK_NO_ERROR();
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glEnable(GL_TEXTURE_2D);
 #endif
@@ -126,8 +139,10 @@ void GPU_font_shader_bind(void)
 
 void GPU_font_shader_unbind(void)
 {
+GPU_CHECK_NO_ERROR();
 	GPU_shader_unbind();
 
+GPU_CHECK_NO_ERROR();
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glDisable(GL_TEXTURE_2D);
 #endif

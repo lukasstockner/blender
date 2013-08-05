@@ -123,7 +123,7 @@ void GPU_aspect_funcs(uint32_t aspect, GPUaspectfuncs* aspectFuncs)
 
 
 
-static uint32_t    current_aspect = 0;
+static uint32_t    current_aspect = -1;
 static const void* current_object = NULL;
 
 
@@ -131,7 +131,7 @@ bool GPU_aspect_begin(uint32_t aspect, const void* object)
 {
 	GPUaspectfuncs* aspectFuncs;
 
-	GPU_ASSERT(current_aspect == 0);
+	GPU_ASSERT(current_aspect == -1);
 
 	current_aspect = aspect;
 	current_object = object;
@@ -147,9 +147,9 @@ bool GPU_aspect_end(void)
 	GPUaspectfuncs* aspectFuncs = GPU_ASPECT_FUNCS[current_aspect];
 	const void*     object      = current_object;
 
-	GPU_ASSERT(current_aspect != 0);
+	GPU_ASSERT(current_aspect != -1);
 
-	current_aspect = 0;
+	current_aspect = -1;
 	current_object = NULL;
 
 	return (aspectFuncs  != NULL && aspectFuncs->end != NULL) ? aspectFuncs->end(aspectFuncs->param, object) : true;
@@ -181,7 +181,7 @@ void gpu_commit_aspect(void)
 {
 	GPUaspectfuncs* aspectFuncs = GPU_ASPECT_FUNCS[current_aspect];
 
-	GPU_ASSERT(current_aspect != 0);
+	GPU_ASSERT(current_aspect != -1);
 
 	if (aspectFuncs != NULL && aspectFuncs->commit != NULL )
 		aspectFuncs->commit(aspectFuncs->param);

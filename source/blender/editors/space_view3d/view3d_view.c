@@ -103,7 +103,9 @@ void view3d_region_operator_needs_opengl(wmWindow *win, ARegion *ar)
 		gpuLoadMatrix(rv3d->winmat);
 		gpuMatrixMode(GL_MODELVIEW);
 		gpuLoadMatrix(rv3d->viewmat);
-		GPU_commit_matrixes();//change // XXX jwilkins: hmm... why?
+
+		gpu_commit_aspect(); // XXX jwilkins: internal interface
+		gpu_commit_matrixes();//change // XXX jwilkins: hmm... why?
 	}
 }
 

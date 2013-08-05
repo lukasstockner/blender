@@ -55,7 +55,6 @@ typedef struct GPUbasiclight {
 } GPUbasiclight;
 
 typedef struct GPUbasicmaterial {
-	float diffuse [4];
 	float specular[4];
 	int   shininess;
 } GPUbasicmaterial;
@@ -64,13 +63,8 @@ void gpu_commit_light   (void);
 void gpu_commit_material(void);
 bool gpu_fast_lighting  (void);
 
-void GPU_set_basic_material(
-	const float diffuse[3],
-	float       alpha,
-	const float specular[3],
-	int         shininess);
-
-void GPU_set_basic_material_specular(const float specular[3]);
+void GPU_set_basic_material_shininess(int shininess);
+void GPU_set_basic_material_specular(const float specular[4]);
 
 /* Set lights and also applies appropriate transformations on
    the positions and spot directions */

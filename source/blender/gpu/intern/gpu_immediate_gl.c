@@ -33,6 +33,7 @@
 #include "intern/gpu_immediate_gl.h"
 
 /* internal */
+#include "intern/gpu_aspect.h"
 #include "intern/gpu_common.h"
 #include "intern/gpu_immediate.h"
 #include "intern/gpu_extension_wrapper.h"
@@ -378,13 +379,12 @@ static void quad_elements_init(void)
 
 void gpu_lock_buffer_gl(void)
 {
-	bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
-
 	allocate();
 	allocateIndex();
 	quad_elements_init();
 
 	if (gpu_glGenVertexArrays != NULL) {
+		bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
 		bool init = (bufferData->vao == 0);
 
 		if (init)
@@ -428,25 +428,35 @@ void gpu_end_buffer_gl(void)
 	if (!(GPU_IMMEDIATE->mode == GL_NOOP || GPU_IMMEDIATE->count == 0)) {
 		GPU_CHECK_NO_ERROR();
 
-		GPU_commit_matrixes();
+		gpu_commit_aspect  ();
+		GPU_CHECK_NO_ERROR();
+		gpu_commit_matrixes();
+		GPU_CHECK_NO_ERROR();
 		gpu_commit_current ();
+		GPU_CHECK_NO_ERROR();
 		gpu_commit_samplers();
+		GPU_CHECK_NO_ERROR();
 
 		if (GPU_IMMEDIATE->mode != GL_QUADS) {
 			glDrawArrays(GPU_IMMEDIATE->mode, 0, GPU_IMMEDIATE->count);
+		GPU_CHECK_NO_ERROR();
 		}
 		else {
 			if (GPU_IMMEDIATE->count <= 255){
 				if (vqeoc_buf != 0)
 					gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vqeoc_buf);
+		GPU_CHECK_NO_ERROR();
 
 				glDrawElements(GL_TRIANGLES, 3 * GPU_IMMEDIATE->count / 2, GL_UNSIGNED_BYTE, vqeoc);
+		GPU_CHECK_NO_ERROR();
 			}
 			else if(GPU_IMMEDIATE->count <= 65535) {
 				if (vqeos_buf != 0)
 					gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vqeos_buf);
+		GPU_CHECK_NO_ERROR();
 
 				glDrawElements(GL_TRIANGLES, 3 * GPU_IMMEDIATE->count / 2, GL_UNSIGNED_SHORT, vqeos);
+		GPU_CHECK_NO_ERROR();
 			}
 			else {
 				printf("To big GL_QUAD object to draw. Vertices: %i", GPU_IMMEDIATE->count);
@@ -454,6 +464,7 @@ void gpu_end_buffer_gl(void)
 
 			if (vqeoc_buf != 0 || vqeos_buf != 0)
 				gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ((indexBufferDataGLSL*)(GPU_IMMEDIATE->index->bufferData))->vbo);
+		GPU_CHECK_NO_ERROR();
 		}
 
 		GPU_CHECK_NO_ERROR();
@@ -584,7 +595,8 @@ void gpu_draw_elements_gl(void)
 
 	GPU_CHECK_NO_ERROR();
 
-	GPU_commit_matrixes();
+	gpu_commit_aspect  ();
+	gpu_commit_matrixes();
 	gpu_commit_current ();
 	gpu_commit_samplers();
 
@@ -604,7 +616,8 @@ void gpu_draw_range_elements_gl(void)
 
 	GPU_CHECK_NO_ERROR();
 
-	GPU_commit_matrixes();
+	gpu_commit_aspect  ();
+	gpu_commit_matrixes();
 	gpu_commit_current ();
 	gpu_commit_samplers();
 
@@ -653,8 +666,10 @@ void gpu_commit_samplers(void)
 {
 	const GPUcommon* common = gpu_get_common();
 
-	glUniform1iv(
-		common->sampler[0],
-		GPU_IMMEDIATE->format.samplerCount,
-		GPU_IMMEDIATE->format.samplerMap);
+	if (common) {
+		glUniform1iv(
+			common->sampler[0],
+			GPU_IMMEDIATE->format.samplerCount,
+			GPU_IMMEDIATE->format.samplerMap);
+	}
 }

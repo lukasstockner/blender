@@ -350,7 +350,10 @@ static void cdDM_drawVerts(DerivedMesh *dm)
 	}
 	else {  /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
 		GPU_vertex_setup(dm);
-		GPU_commit_matrixes();
+
+		gpu_commit_aspect(); // XXX jwilkins: internal interface
+		gpu_commit_matrixes(); // XXX jwilkins: internal interface
+
 		if (!GPU_buffer_legacy(dm)) {
 			if (dm->drawObject->tot_triangle_point)
 				glDrawArrays(GL_POINTS, 0, dm->drawObject->tot_triangle_point);
@@ -402,7 +405,8 @@ static void cdDM_drawUVEdges(DerivedMesh *dm)
 
 			GPU_uvedge_setup(dm);
 
-			GPU_commit_matrixes(); // XXX jwilkins: internal interface
+			gpu_commit_aspect(); // XXX jwilkins: internal interface
+			gpu_commit_matrixes(); // XXX jwilkins: internal interface
 
 			if (!GPU_buffer_legacy(dm)) {
 				for (i = 0; i < dm->numTessFaceData; i++, mf++) {
@@ -883,7 +887,10 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 							GPU_color_switch(1);
 						else
 							GPU_color_switch(0);
-						GPU_commit_matrixes();
+
+						gpu_commit_aspect(); // XXX jwilkins: internal interface
+						gpu_commit_matrixes(); // XXX jwilkins: internal interface
+
 						glDrawArrays(GL_TRIANGLES, first, count);
 					}
 
@@ -1085,7 +1092,10 @@ static void cdDM_drawMappedFaces(
 			}
 			if (setDrawOptions == NULL) {
 				/* just draw the entire face array */
-				GPU_commit_matrixes(); // XXX jwilkins: internal function call
+
+				gpu_commit_aspect(); // XXX jwilkins: internal interface
+				gpu_commit_matrixes(); // XXX jwilkins: internal function call
+
 				glDrawArrays(GL_TRIANGLES, 0, (tottri) * 3);
 			}
 			else {
@@ -1136,7 +1146,7 @@ static void cdDM_drawMappedFaces(
 
 						if (count)
 						{
-							GPU_commit_matrixes(); // XXX jwilkins: internal function call
+							gpu_commit_matrixes(); // XXX jwilkins: internal function call
 							glDrawArrays(GL_TRIANGLES, first, count);
 						}
 
@@ -1421,7 +1431,9 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 		GPU_normal_setup(dm);
 
 		if (!GPU_buffer_legacy(dm)) {
-			GPU_commit_matrixes(); // XXX jwilkins: internal function call
+			gpu_commit_aspect(); // XXX jwilkins: internal interface
+			gpu_commit_matrixes(); // XXX jwilkins: internal function call
+
 			for (i = 0; i < dm->drawObject->tot_triangle_point / 3; i++) {
 
 				a = dm->drawObject->triangle_to_mface[i];
@@ -1601,7 +1613,10 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 						GPU_buffer_unlock(buffer);
 						GPU_interleaved_attrib_setup(buffer, datatypes, numdata);
 					}
-					GPU_commit_matrixes(); // XXX jwilkins: internal function call
+
+					gpu_commit_aspect(); // XXX jwilkins: internal interface
+					gpu_commit_matrixes(); // XXX jwilkins: internal function call
+
 					glDrawArrays(GL_TRIANGLES, start * 3, (curface - start) * 3);
 				}
 			}

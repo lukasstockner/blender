@@ -1238,7 +1238,9 @@ void GPU_buffer_unlock(GPUBuffer *buffer)
 /* used for drawing edges */
 void GPU_buffer_draw_elements(GPUBuffer *elements, unsigned int mode, int start, int count)
 {
-	GPU_commit_matrixes();
+	gpu_commit_aspect();
+	gpu_commit_matrixes();
+
 	glDrawElements(mode, count, GL_UNSIGNED_INT,
 	               (useVBOs ?
 	                (void *)(start * sizeof(unsigned int)) :
@@ -2385,7 +2387,8 @@ void GPU_draw_buffers(GPU_Buffers *buffers, DMSetMaterial setMaterial,
 		if (buffers->index_buf)
 			gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers->index_buf);
 
-		GPU_commit_matrixes();
+		gpu_commit_aspect();
+		gpu_commit_matrixes();
 
 		if (wireframe)
 			gpuPolygonMode(GL_LINE);

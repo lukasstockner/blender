@@ -1,14 +1,14 @@
 #if defined(USE_SOLID_LIGHTING) || defined(USE_SCENE_LIGHTING)
+
 varying vec3 varying_normal;
 
 #ifndef USE_SOLID_LIGHTING
 varying vec3 varying_position;
 #endif
+
 #endif
 
-#ifdef USE_COLOR
 varying vec4 varying_vertex_color;
-#endif
 
 #ifdef USE_TEXTURE
 varying vec2 varying_texture_coord;
@@ -40,6 +40,6 @@ void main()
 #endif
 
 #ifdef USE_TEXTURE
-	varying_texture_coord = (b_TextureMatrix[0] * b_TexCoord[0]).st;
+	varying_texture_coord = (b_TextureMatrix[0] * b_MultiTexCoord0).st;
 #endif
 }

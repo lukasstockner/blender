@@ -73,8 +73,8 @@ static FileSelection find_file_mouse_rect(SpaceFile *sfile, ARegion *ar, const r
 	View2D *v2d = &ar->v2d;
 	rcti rect_view;
 
-	UI_view2d_region_to_view(v2d, rect->xmin, rect->ymin, &fxmin, &fymin);
-	UI_view2d_region_to_view(v2d, rect->xmax, rect->ymax, &fxmax, &fymax);
+	UI_view2d_region_to_view(v2d, (float)rect->xmin, (float)rect->ymin, &fxmin, &fymin);
+	UI_view2d_region_to_view(v2d, (float)rect->xmax, (float)rect->ymax, &fxmax, &fymax);
 
 	BLI_rcti_init(&rect_view, (int)(v2d->tot.xmin + fxmin), (int)(v2d->tot.xmin + fxmax), (int)(v2d->tot.ymax - fymin), (int)(v2d->tot.ymax - fymax));
 

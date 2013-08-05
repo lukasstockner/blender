@@ -330,15 +330,17 @@ static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *
 			// SSS GPU_simple_shader_material(...);
 			//gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
 			//gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, CLAMPIS(ma->har, 0, 128));
+			GPU_set_basic_material_specular(spec);     // XXX jwilkins: couldn't find where specular is returned to default
+			GPU_set_basic_material_shininess(ma->har); // XXX jwilkins: couldn't find where shininess is returned to default (35?)
 
-			// SSS Update GPU_SHADER_LIGHTING
+			// SSS Enable
 			//gpuEnableLighting();
-			//gpuEnableColorMaterial();
+			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
 		}
 		else {
-			// SSS Update
-			//gpuDisableLighting(); 
-			//gpuDisableColorMaterial();
+			// SSS Disable
+			//gpuDisableLighting();
+			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
 		}
 
 		c_lit = lit;
@@ -910,6 +912,9 @@ static void tex_mat_set_texture_cb(void *userData, int mat_nr, void *attribs)
 //			}
 //#endif
 
+			// SSS Enable
+			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
+
 			gpuBindTexture(GL_TEXTURE_2D, ima->bindcode);
 			gpuColor3P(CPACK_WHITE);
 
@@ -938,6 +943,9 @@ static void tex_mat_set_texture_cb(void *userData, int mat_nr, void *attribs)
 		// SSS End
 		//glDisable(GL_TEXTURE_2D);
 		//gpuDisableColorMaterial();
+
+		// SSS Disable
+		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 		/* draw single color */
 		GPU_enable_material(mat_nr, attribs);
@@ -1009,7 +1017,7 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 			                       set_face_cb, &data);
 		}
 		else {
-			float zero[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+			//float zero[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
 			/* draw textured */
 			// SSS GPU_simple_shader_material(...);
@@ -1017,17 +1025,20 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 			//gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, zero);
 			//gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, 0);
 
-			// SSS Begin GPU_SHADER_LIGHTING
+			// SSS Enable
 			//gpuEnableLighting();
+			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING|GPU_BASIC_TEXTURE_2D);
 
 			dm->drawMappedFacesMat(dm,
 			                       tex_mat_set_texture_cb,
 			                       set_face_cb, &data);
 
 			/* reset opengl state */
-			// SSS End
+
+			// SSS Disable
 			//gpuDisableColorMaterial();
 			//gpuDisableLighting();
+			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING|GPU_BASIC_TEXTURE_2D);
 		}
 
 		GPU_end_object_materials();
@@ -1074,11 +1085,15 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
 			/* but set default spec */
 			// SSS GPU_simple_shader_material(...) // only sets specular
 			//gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
+			GPU_set_basic_material_specular(spec); // XXX jwilkins: couldn't find where specular is returned to default
+			                                       // XXX jwilkins: is this supposed to use the default shininess?
 
 			/* diffuse */
+
 			// SSS Begin GPU_SHADER_LIGHTING
 			//gpuEnableLighting();
 			//gpuEnableColorMaterial();
+			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
 		}
 		else {
 			// SSS Begin
@@ -1105,6 +1120,7 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
 			// SSS End
 			//gpuDisableColorMaterial();
 			//gpuDisableLighting();
+			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
 
 			GPU_disable_material();
 		}

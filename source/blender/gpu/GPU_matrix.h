@@ -119,7 +119,7 @@ void gpuFeedbackVertex4fv(GLenum type, GLfloat x, GLfloat y, GLfloat z, GLfloat 
 
 
 
-void GPU_commit_matrixes(void);
+void gpu_commit_matrixes(void);
 
 
 

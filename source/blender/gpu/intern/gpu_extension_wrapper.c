@@ -409,7 +409,7 @@ void GPU_wrap_extensions(GLboolean* glslsupport_out, GLboolean* framebuffersuppo
 	if (!init_vertex_shader())
 		*glslsupport_out = false;
 
-	if (init_vertex_program())
+	if (!init_vertex_program())
 		*glslsupport_out = false;
 
 	if (!(GLEW_ARB_multitexture || GLEW_VERSION_1_3))

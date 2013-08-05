@@ -83,7 +83,7 @@ void GPU_basic_shaders_init(void)
 void GPU_basic_shaders_exit(void)
 {
 	int i;
-	
+
 	for (i = 0; i < GPU_BASIC_OPTION_COMBINATIONS; i++)
 		if (BASIC_SHADER.gpushader[i] != NULL)
 			GPU_shader_free(BASIC_SHADER.gpushader[i]);
@@ -132,14 +132,15 @@ static void basic_shader_bind(void)
 
 	const uint32_t options = tweak_options();
 
-	if (BASIC_SHADER.failed[options])
-		return;
+GPU_CHECK_NO_ERROR();
 
 	/* create shader if it doesn't exist yet */
 	if (BASIC_SHADER.gpushader[options] != NULL) {
 		GPU_shader_bind(BASIC_SHADER.gpushader[options]);
+GPU_CHECK_NO_ERROR();
+		gpu_set_common(BASIC_SHADER.common + options);
 	}
-	else {
+	else if (!BASIC_SHADER.failed[options]) {
 		DynStr* vert = BLI_dynstr_new();
 		DynStr* frag = BLI_dynstr_new();
 		DynStr* defs = BLI_dynstr_new();
@@ -153,16 +154,16 @@ static void basic_shader_bind(void)
 		gpu_include_common_defs(defs);
 
 		if (options & GPU_BASIC_TWO_SIDE)
-			BLI_dynstr_append(defs, "#define USE_TWO_SIDED\n");
+			BLI_dynstr_append(defs, "#define USE_TWO_SIDE\n");
 
 		if (options & GPU_BASIC_TEXTURE_2D)
-			BLI_dynstr_append(defs, "#define USE_TEXTURE\n");
+			BLI_dynstr_append(defs, "#define USE_TEXTURE_2D\n");
 
 		if (options & GPU_BASIC_LOCAL_VIEWER)
 			BLI_dynstr_append(defs, "#define USE_LOCAL_VIEWER\n");
 
 		if (options & GPU_BASIC_SMOOTH)
-			BLI_dynstr_append(defs, "#define USE_SMOOTH_SHADING\n");
+			BLI_dynstr_append(defs, "#define USE_SMOOTH\n");
 
 		if (options & GPU_BASIC_LIGHTING) {
 			BLI_dynstr_append(defs, "#define USE_LIGHTING\n");
@@ -179,6 +180,7 @@ static void basic_shader_bind(void)
 				BLI_dynstr_get_cstring(frag),
 				NULL,
 				BLI_dynstr_get_cstring(defs));
+GPU_CHECK_NO_ERROR();
 
 		if (BASIC_SHADER.gpushader[options] != NULL) {
 			int i;
@@ -187,14 +189,20 @@ static void basic_shader_bind(void)
 			gpu_set_common (BASIC_SHADER.common + options);
 
 			GPU_shader_bind(BASIC_SHADER.gpushader[options]);
+GPU_CHECK_NO_ERROR();
 
 			/* the mapping between samplers and texture units is static, so it can committed here once */
 			for (i = 0; i < GPU_MAX_COMMON_SAMPLERS; i++)
 				glUniform1i(BASIC_SHADER.common[options].sampler[i], i);
+GPU_CHECK_NO_ERROR();
 		}
 		else {
 			BASIC_SHADER.failed[options] = true;
+			gpu_set_common(NULL);
 		}
+	}
+	else {
+		gpu_set_common(NULL);
 	}
 }
 
@@ -229,8 +237,11 @@ void GPU_basic_shader_bind(void)
 #endif
 
 	if (BASIC_SHADER.options & GPU_BASIC_LIGHTING) {
+GPU_CHECK_NO_ERROR();
 		gpu_commit_light();
+GPU_CHECK_NO_ERROR();
 		gpu_commit_material();
+GPU_CHECK_NO_ERROR();
 
 		BASIC_SHADER.need_normals = true; // Temporary hack. Should be solved outside of this file.
 	}

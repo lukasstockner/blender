@@ -90,13 +90,13 @@ typedef struct GPUcommon {
 
 	GLint light_spot_direction       [GPU_MAX_COMMON_LIGHTS]; /* b_LightSource[].spotDirection        */
 	GLint light_spot_cutoff          [GPU_MAX_COMMON_LIGHTS]; /* b_LightSource[].spotCutoff           */
+	GLint light_spot_cos_cutoff      [GPU_MAX_COMMON_LIGHTS]; /* b_LightSource[].spotCusCutoff        */
 	GLint light_spot_exponent        [GPU_MAX_COMMON_LIGHTS]; /* b_LightSource[].spotExponent         */
 
 	GLint normal_matrix;                                      /* b_NormalMatrix                       */
 
 	GLint light_count;                                        /* b_LightCount                         */
 
-	GLint material_diffuse;                                   /* b_FrontMaterial.diffuse              */
 	GLint material_specular;                                  /* b_FrontMaterial.specular             */
 	GLint material_shininess;                                 /* b_FrontMaterial.shininess            */
 

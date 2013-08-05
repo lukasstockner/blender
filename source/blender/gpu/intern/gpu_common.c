@@ -79,6 +79,7 @@ void gpu_include_common_defs(DynStr* defs)
 {
 	BLI_dynstr_append(defs, "#define GPU_MAX_COMMON_TEXCOORDS " STRINGIFY(GPU_MAX_COMMON_TEXCOORDS) "\n");
 	BLI_dynstr_append(defs, "#define GPU_MAX_COMMON_SAMPLERS  " STRINGIFY(GPU_MAX_COMMON_SAMPLERS ) "\n");
+	BLI_dynstr_append(defs, "#define GPU_MAX_COMMON_LIGHTS    " STRINGIFY(GPU_MAX_COMMON_LIGHTS   ) "\n");
 }
 
 
@@ -108,7 +109,7 @@ void gpu_init_common(GPUcommon* common, GPUShader* gpushader)
 	for (i = 0; i < GPU_MAX_COMMON_TEXCOORDS; i++) {
 		char symbol[100];
 
-		sprintf(symbol, "b_MultiTexCoord[%d]", i);
+		sprintf(symbol, "b_MultiTexCoord%d", i);
 		common->multi_texcoord[i] = GPU_shader_get_attrib(gpushader, symbol);
 
 		sprintf(symbol, "b_TextureMatrix[%d]", i);
@@ -138,6 +139,7 @@ void gpu_init_common(GPUcommon* common, GPUShader* gpushader)
 
 		get_struct_uniform(common->light_spot_direction        + i, gpushader, symbol, len, ".spotDirection");
 		get_struct_uniform(common->light_spot_cutoff           + i, gpushader, symbol, len, ".spotCutoff");
+		get_struct_uniform(common->light_spot_cos_cutoff       + i, gpushader, symbol, len, ".spotCosCutoff");
 		get_struct_uniform(common->light_spot_exponent         + i, gpushader, symbol, len, ".spotExponent");
 	}
 
@@ -145,10 +147,10 @@ void gpu_init_common(GPUcommon* common, GPUShader* gpushader)
 
 	common->light_count        = GPU_shader_get_uniform(gpushader, "b_LightCount");
 
-	common->material_diffuse   = GPU_shader_get_uniform(gpushader, "b_FrontMaterial.diffuse");
 	common->material_specular  = GPU_shader_get_uniform(gpushader, "b_FrontMaterial.specular");
 	common->material_shininess = GPU_shader_get_uniform(gpushader, "b_FrontMaterial.shininess");
 }
+
 
 
 
@@ -160,6 +162,7 @@ void gpu_set_common(GPUcommon* common)
 {
 	current_common = common;
 }
+
 
 
 GPUcommon* gpu_get_common(void)

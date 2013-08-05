@@ -1679,6 +1679,9 @@ int GPU_enable_material(int nr, void *attribs)
 		//gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, diff);
 		//gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
 		//gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, 35); /* blender default */
+		gpuColor4fv(diff); /* Basic shader always uses the color vertex attribute as the diffuse material. */
+		GPU_set_basic_material_specular(spec);
+		GPU_set_basic_material_shininess(35);
 
 		return 0;
 	}
@@ -1751,6 +1754,9 @@ int GPU_enable_material(int nr, void *attribs)
 			//gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, GMS.matbuf[nr].diff);
 			//gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, GMS.matbuf[nr].spec);
 			//gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, GMS.matbuf[nr].hard);
+			gpuColor4fv(GMS.matbuf[nr].diff); /* The basic shader always uses color vertex attribute as the diffuse material color. */
+			GPU_set_basic_material_specular (GMS.matbuf[nr].spec);
+			GPU_set_basic_material_shininess(GMS.matbuf[nr].hard);
 		}
 
 		/* set (alpha) blending mode */
@@ -1969,13 +1975,19 @@ void GPU_state_init(void)
 	/* also called when doing opengl rendering and in the game engine */
 	// SSS
 	//float mat_ambient[] = { 0.0, 0.0, 0.0, 0.0 };
-	//float mat_specular[] = { 0.5, 0.5, 0.5, 1.0 };
+	float mat_specular[] = { 0.5, 0.5, 0.5, 1.0 };
 
 	// SSS GPU_simple_shader_material(...)
 	//gpuMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat_ambient);
 	//gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_specular);
 	//gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);
 	//gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, 35);
+
+
+	// XXX jwilkins: this gets called before gpuNewImmediate and crashes...
+	//gpuColor4fv(mat_specular); /* The basic shader always uses color vertex attribute as the diffuse material color. */
+	GPU_set_basic_material_specular (mat_specular);
+	GPU_set_basic_material_shininess(35);
 
 	// SSS not needed
 	//gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);

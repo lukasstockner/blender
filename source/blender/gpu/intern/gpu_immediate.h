@@ -210,13 +210,6 @@ typedef struct GPUimmediate {
 
 	struct GPUindex *restrict index;
 
-	void (*indexBeginBuffer)(void);
-	void (*indexEndBuffer)(void);
-	void (*indexShutdownBuffer)(struct GPUindex *restrict index);
-
-	void (*drawElements)(void);
-	void (*drawRangeElements)(void);
-
 #if GPU_SAFETY
 	GLint     lastTexture;
 	GLboolean hasOverflowed;

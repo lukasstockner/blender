@@ -3332,14 +3332,15 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 				GPU_enable_material(0, NULL);
 
 				/* set default spec */
-				// SSS
+				// SSS GPU_set_basic_material_specular
 				//gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
-				GPU_set_basic_material_specular(spec);
+				GPU_set_basic_material_specular(spec); // XXX jwilkins: I don't see where this value is restored (or if this is already the default, why is it set here?
 
 				/* diffuse */
-				// SSS Begin GPU_SHADER_LIGHTING
+				// SSS Enable GPU_SHADER_LIGHTING
 				//gpuEnableLighting();
 				//gpuEnableColorMaterial();
+				GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
 
 				gpuImmediateFormat_C4_N3_V3();
 				dm->drawMappedFaces(
@@ -3351,9 +3352,10 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 					DM_DRAW_USE_COLORS|DM_DRAW_USE_NORMALS);
 				gpuImmediateUnformat();
 
-				// SSS End
+				// SSS Disable
 				//gpuDisableColorMaterial();
 				//gpuDisableLighting();
+				GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
 
 				GPU_disable_material();
 			}

@@ -572,7 +572,7 @@ void gpu_copy_vertex(void)
 		offset += size;
 	}
 
-	/* unsigned byte vertex attirbute(s) */
+	/* unsigned byte vertex attribute(s) */
 
 	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++) {
 		/* 4 bytes are always reserved for byte attributes, for efficient memory alignment */
@@ -594,7 +594,7 @@ void gpuImmediateFormat_V2(void)
 #endif
 {
 #if GPU_SAFETY
-	printf("%s(%d): gpuImmediateFormat_V2\n", file, line);
+	//printf("%s(%d): gpuImmediateFormat_V2\n", file, line);
 #endif
 
 	if (gpuImmediateLockCount() == 0) {
@@ -613,7 +613,7 @@ void gpuImmediateFormat_C4_V2(void)
 #endif
 {
 #if GPU_SAFETY
-	printf("%s(%d): gpuImmediateFormat_C4_V2\n", file, line);
+	//printf("%s(%d): gpuImmediateFormat_C4_V2\n", file, line);
 #endif
 
 	if (gpuImmediateLockCount() == 0) {
@@ -632,7 +632,7 @@ void gpuImmediateFormat_T2_V2(void)
 #endif
 {
 #if GPU_SAFETY
-	printf("%s(%d): gpuImmediateFormat_T2_V2\n", file, line);
+	//printf("%s(%d): gpuImmediateFormat_T2_V2\n", file, line);
 #endif
 
 	if (gpuImmediateLockCount() == 0) {
@@ -660,7 +660,7 @@ void gpuImmediateFormat_T2_V3(void)
 #endif
 {
 #if GPU_SAFETY
-	printf("%s(%d): gpuImmediateFormat_T2_V3\n", file, line);
+	//printf("%s(%d): gpuImmediateFormat_T2_V3\n", file, line);
 #endif
 
 	if (gpuImmediateLockCount() == 0) {
@@ -688,7 +688,7 @@ void gpuImmediateFormat_T2_C4_V2(void)
 #endif
 {
 #if GPU_SAFETY
-	printf("%s(%d): gpuImmediateFormat_T2_C4_V2\n", file, line);
+	//printf("%s(%d): gpuImmediateFormat_T2_C4_V2\n", file, line);
 #endif
 
 	if (gpuImmediateLockCount() == 0) {
@@ -716,7 +716,7 @@ void gpuImmediateFormat_V3(void)
 #endif
 {
 #if GPU_SAFETY
-	printf("%s(%d): gpuImmediateFormat_V3\n", file, line);
+	//printf("%s(%d): gpuImmediateFormat_V3\n", file, line);
 #endif
 
 	if (gpuImmediateLockCount() == 0) {
@@ -735,7 +735,7 @@ void gpuImmediateFormat_N3_V3(void)
 #endif
 {
 #if GPU_SAFETY
-	printf("%s(%d): gpuImmediateFormat_N3_V3\n", file, line);
+	//printf("%s(%d): gpuImmediateFormat_N3_V3\n", file, line);
 #endif
 
 	if (gpuImmediateLockCount() == 0) {
@@ -754,7 +754,7 @@ void gpuImmediateFormat_C4_V3(void)
 #endif
 {
 #if GPU_SAFETY
-	printf("%s(%d): gpuImmediateFormat_C4_V3\n", file, line);
+	//printf("%s(%d): gpuImmediateFormat_C4_V3\n", file, line);
 #endif
 
 	if (gpuImmediateLockCount() == 0) {
@@ -773,7 +773,7 @@ void gpuImmediateFormat_C4_N3_V3(void)
 #endif
 {
 #if GPU_SAFETY
-	printf("%s(%d): gpuImmediateFormat_C4_N3_V3\n", file, line);
+	//printf("%s(%d): gpuImmediateFormat_C4_N3_V3\n", file, line);
 #endif
 
 	if (gpuImmediateLockCount() == 0) {
@@ -792,7 +792,7 @@ void gpuImmediateFormat_T2_C4_N3_V3(void)
 #endif
 {
 #if GPU_SAFETY
-	printf("%s(%d): gpuImmediateFormat_T2_C4_N3_V3\n", file, line);
+	//printf("%s(%d): gpuImmediateFormat_T2_C4_N3_V3\n", file, line);
 #endif
 
 	if (gpuImmediateLockCount() == 0) {
@@ -820,7 +820,7 @@ void gpuImmediateFormat_T3_C4_V3(void)
 #endif
 {
 #if GPU_SAFETY
-	printf("%s(%d): gpuImmediateFormat_T3_C4_V3\n", file, line);
+	//printf("%s(%d): gpuImmediateFormat_T3_C4_V3\n", file, line);
 #endif
 
 	if (gpuImmediateLockCount() == 0) {
@@ -848,7 +848,7 @@ void gpuImmediateUnformat(void)
 #endif
 {
 #if GPU_SAFETY
-	printf("%s(%d): gpuImmediateUnformat\n", file, line);
+	//printf("%s(%d): gpuImmediateUnformat\n", file, line);
 #endif
 
 	gpuImmediateUnlock();
@@ -1532,7 +1532,7 @@ void gpuDeleteIndex(GPUindex *restrict index)
 	if (index) {
 		GPUimmediate* immediate = index->immediate;
 
-		immediate->indexShutdownBuffer(index);
+		gpu_index_shutdown_buffer_gl(index);
 		immediate->index = NULL;
 
 		MEM_freeN(index);
@@ -1584,7 +1584,7 @@ void gpuIndexBegin(GLenum type)
 	index->indexMax = 0;
 	index->type     = type;
 
-	GPU_IMMEDIATE->indexBeginBuffer();
+	gpu_index_begin_buffer_gl();
 }
 
 
@@ -1652,7 +1652,7 @@ INDEX(ui, GLuint,   GL_UNSIGNED_INT  )
 
 void gpuIndexEnd(void)
 {
-	GPU_IMMEDIATE->indexEndBuffer();
+	gpu_index_end_buffer_gl();
 
 	GPU_IMMEDIATE->index->mappedBuffer = NULL;
 }

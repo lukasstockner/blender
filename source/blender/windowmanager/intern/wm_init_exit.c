@@ -214,9 +214,6 @@ void WM_init(bContext *C, int argc, const char **argv)
 		gpuImmediateIndex(gindex);
 		gpuImmediateMaxIndexCount(500000, GL_UNSIGNED_SHORT); // XXX jwilkins: temporary!
 
-		gpu_initialize_aspects(); // XXX jwilkins: move elsewhere
-		gpu_initialize_aspect_funcs(); // XXX jwilkins: move elsewhere
-
 		/* end - init opengl compatibility layer */
 
 		UI_init();
@@ -431,9 +428,6 @@ void WM_exit_ext(bContext *C, const short do_python)
 
 			gpuImmediateMakeCurrent(NULL);
 			gpuDeleteImmediate(immediate);
-
-			gpu_shutdown_aspects(); // XXX jwilkins: move elsewhere
-			gpu_shutdown_aspect_funcs(); // XXX jwilkins: move elsewhere
 
 			GPU_ms_exit();
 

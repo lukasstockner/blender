@@ -4,22 +4,28 @@ uniform mat4 b_ModelViewMatrix;
 uniform mat4 b_ProjectionMatrix;
 uniform mat4 b_ModelViewProjectionMatrix;
 
+
 #if defined(USE_TEXTURE)
+
 uniform mat4 b_TextureMatrix[b_MaxTextureCoords];
+
+uniform sampler2D b_Sampler2D[b_MaxCombinedTextureImageUnits];
+
 #endif
 
+
 #if defined(USE_LIGHTING)
-uniform mat4 b_NormalMatrix;  // transpose of upper 3x3 of b_ModelViewMatrix
+
+uniform mat3 b_NormalMatrix;  // transpose of upper 3x3 of b_ModelViewMatrix
 
 uniform mat4 b_ModelViewMatrixInverse;
 
-struct gl_MaterialParameters {
-    vec4  diffuse;   // Dcm * Dcli
+struct b_MaterialParameters {
     vec4  specular;  // Scm * Scli
     float shininess; // Srm
 };
 
-uniform gl_MaterialParameters gl_FrontMaterial;
+uniform b_MaterialParameters b_FrontMaterial;
 
 struct b_LightSourceParameters {
     vec4  diffuse;              // Dcli
@@ -29,6 +35,10 @@ struct b_LightSourceParameters {
     vec3  spotDirection;        // Sdli
     float spotExponent;         // Srli
     float spotCutoff;           // Crli
+                                // (range: [0.0,90.0], 180.0)
+
+    float spotCosCutoff;        // Derived: cos(Crli)
+                                // (range: [1.0,0.0],-1.0)
 
     float constantAttenuation;  // K0
     float linearAttenuation;    // K1
@@ -38,6 +48,7 @@ struct b_LightSourceParameters {
 uniform b_LightSourceParameters b_LightSource[b_MaxLights];
 
 uniform int b_LightCount;
+
 #endif
 
 /* end known uniforms */

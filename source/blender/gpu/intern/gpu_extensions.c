@@ -295,6 +295,10 @@ void GPU_extensions_init(void)
 
 	GPU_basic_shaders_init();
 
+	gpu_initialize_aspects();
+	gpu_initialize_aspect_funcs();
+	GPU_aspect_begin(GPU_ASPECT_BASIC, 0);
+
 	GPU_CHECK_NO_ERROR();
 }
 
@@ -303,7 +307,12 @@ void GPU_extensions_exit(void)
 	gpu_extensions_init = 0;
 	GPU_codegen_exit();
 	GPU_basic_shaders_exit();
+
+	GPU_aspect_end();
+	gpu_shutdown_aspect_funcs(); // XXX jwilkins: should my shutdown functions be named exit?
+	gpu_shutdown_aspects(); // XXX jwilkins: should my shutdown functions be named exit?
 }
+
 
 int GPU_glsl_support(void)
 {
@@ -1312,23 +1321,29 @@ int GPU_offscreen_height(GPUOffScreen *ofs)
 	return ofs->h;
 }
 
-static void shader_print_errors(const char *task, char *log, const char *code)
+static void shader_print_errors(const char *task, char *log, const char **code, int code_count)
 {
-	const char *c, *pos, *end = code + strlen(code);
 	int line = 1;
 
 	fprintf(stderr, "GPUShader: %s error:\n", task);
 
-	if (G.debug & G_DEBUG) {
-		c = code;
-		while ((c < end) && (pos = strchr(c, '\n'))) {
-			fprintf(stderr, "%2d  ", line);
-			fwrite(c, (pos+1)-c, 1, stderr);
-			c = pos+1;
-			line++;
-		}
+	if (1 || G.debug & G_DEBUG) {
+		int i = 0;
 
-		fprintf(stderr, "%s", c);
+		for (i = 0; i < code_count; i++) {
+			const char *c= code[i];
+			const char *pos;
+			const char *end = code[i] + strlen(code[i]);
+
+			while ((c < end) && (pos = strchr(c, '\n'))) {
+				fprintf(stderr, "%3d: ", line);
+				fwrite(c, (pos+1)-c, 1, stderr);
+				c = pos+1;
+				line++;
+			}
+
+			fprintf(stderr, "%s", c);
+		}
 	}
 
 	fprintf(stderr, "%s\n", log);
@@ -1356,6 +1371,43 @@ static const char *gpu_shader_standard_defines(void)
 		return "#define GPU_INTEL\n";
 	
 	return "";
+}
+
+void print_with_lineno(const char* str)
+{
+	int  lineno = 1;
+	char line[68];
+	int  l = 0;
+	int  s = 0;
+
+	for (;;) {
+		line[l] = str[s];
+
+		if (ELEM(line[l], '\n', '\0') || l == 59) {
+			line[l] = '\0';
+
+			if (l == 59) {
+				while(!ELEM(str[s], '\n', '\0')) {
+					s++;
+				}
+			}
+
+			fprintf(stderr, "%4d:%s%s\n", lineno, line, l == 59 ? "..." : "");
+		}
+
+		if (str[s] == '\0')
+			break;
+
+		if (str[s] == '\n') {
+			lineno++;
+			l = 0;
+		}
+		else {
+			l++;
+		}
+
+		s++;
+	}
 }
 
 GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const char *libcode, const char *defines)
@@ -1403,8 +1455,10 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 		gpu_glGetShaderiv(shader->vertex, GL_COMPILE_STATUS, &status);
 
 		if (!status) {
+			//print_with_lineno(vertexcode);
+
 			gpu_glGetShaderInfoLog(shader->vertex, sizeof(log), &length, log);
-			shader_print_errors("compile", log, vertexcode);
+			shader_print_errors("compile", log, source, num_source);
 
 			GPU_shader_free(shader);
 			return NULL;
@@ -1429,8 +1483,10 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 		gpu_glGetShaderiv(shader->fragment, GL_COMPILE_STATUS, &status);
 
 		if (!status) {
+			//print_with_lineno(fragcode);
+
 			gpu_glGetShaderInfoLog(shader->fragment, sizeof(log), &length, log);
-			shader_print_errors("compile", log, fragcode);
+			shader_print_errors("compile", log, source, num_source);
 
 			GPU_shader_free(shader);
 			return NULL;
@@ -1446,9 +1502,14 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 	gpu_glGetProgramiv(shader->object, GL_LINK_STATUS, &status);
 	if (!status) {
 		gpu_glGetProgramInfoLog(shader->object, sizeof(log), &length, log);
-		if (fragcode) shader_print_errors("linking", log, fragcode);
-		else if (vertexcode) shader_print_errors("linking", log, vertexcode);
-		else if (libcode) shader_print_errors("linking", log, libcode);
+
+		shader_print_errors("linking", log, NULL, 0);
+		//if (fragcode)
+		//	shader_print_errors("linking", log, fragcode);
+		//else if (vertexcode)
+		//	shader_print_errors("linking", log, vertexcode);
+		//else if (libcode)
+		//	shader_print_errors("linking", log, libcode);
 
 		GPU_shader_free(shader);
 		return NULL;

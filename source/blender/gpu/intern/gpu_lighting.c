@@ -98,6 +98,7 @@ void gpu_commit_light(void)
 
 			glUniform3fv(common->light_spot_direction       [i], 1, light->spot_direction);
 			glUniform1f (common->light_spot_cutoff          [i],    light->spot_cutoff);
+			glUniform1f (common->light_spot_cos_cutoff      [i],    DEG2RAD(light->spot_cutoff));
 			glUniform1f (common->light_spot_exponent        [i],    light->spot_exponent);
 		}
 
@@ -139,43 +140,35 @@ void gpu_commit_material(void)
 	const GPUcommon*         common   = gpu_get_common();
 	const GPUbasicmaterial* material = &(LIGHTING.material);
 
+GPU_CHECK_NO_ERROR();
 	if (common) {
-		glUniform4fv(common->material_diffuse,   1, material->diffuse);
 		glUniform4fv(common->material_specular,  1, material->specular);
-		glUniform1i (common->material_shininess,    material->shininess);
+GPU_CHECK_NO_ERROR();
+		glUniform1f (common->material_shininess,    (float)(material->shininess));
+GPU_CHECK_NO_ERROR();
 	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE,   material->diffuse);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR,  material->specular);
 	glMateriali (GL_FRONT_AND_BACK, GL_SHININESS, material->shininess);
 #endif
+GPU_CHECK_NO_ERROR();
 }
 
 
 
 /* Material Properties */
 
-void GPU_set_basic_material(
-	const float diffuse[3],
-	float       alpha,
-	const float specular[3],
-	int         shininess)
+void GPU_set_basic_material_shininess(int shininess)
 {
-	copy_v3_v3(LIGHTING.material.diffuse, diffuse);
-	LIGHTING.material.diffuse[3] = alpha;
-
-	GPU_set_basic_material_specular(specular);
-
 	LIGHTING.material.shininess = CLAMPIS(shininess, 1, 128);
 }
 
 
 
-void GPU_set_basic_material_specular(const float specular[3])
+void GPU_set_basic_material_specular(const float specular[4])
 {
-	copy_v3_v3(LIGHTING.material.specular, specular);
-	LIGHTING.material.specular[3] = 1.0f;
+	copy_v4_v4(LIGHTING.material.specular, specular);
 }
 
 

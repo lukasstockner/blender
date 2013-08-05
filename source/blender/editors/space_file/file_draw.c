@@ -561,7 +561,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 		UI_ThemeColor4(TH_TEXT);
 
 		if (file->selflag & EDITING_FILE) {
-			uiBut *but = uiDefBut(block, TEX, 1, "", sx, sy - layout->tile_h - 0.15f * UI_UNIT_X,
+			uiBut *but = uiDefBut(block, TEX, 1, "", sx, (int)(sy - layout->tile_h - 0.15f * UI_UNIT_X),
 			                      textwidth, textheight, sfile->params->renameedit, 1.0f, (float)sizeof(sfile->params->renameedit), 0, 0, "");
 			uiButSetRenameFunc(but, renamebutton_cb, file);
 			uiButSetFlag(but, UI_BUT_NO_UTF8); /* allow non utf8 names */

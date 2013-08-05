@@ -80,7 +80,7 @@ static GLint glstackmode;
 void GPU_matrix_forced_update(void)
 {
 	glslneedupdate = GL_TRUE;
-	GPU_commit_matrixes();
+	gpu_commit_matrixes();
 	glslneedupdate = GL_TRUE;
 }
 
@@ -209,49 +209,57 @@ void gpuMatrixCommit(void)
 
 
 
-void GPU_commit_matrixes(void)
+void gpu_commit_matrixes(void)
 {
-	const GPUcommon* location = gpu_get_common();
+	const GPUcommon* common = gpu_get_common();
 
-	if (GPU_glsl_support()) {
+	if (common) {
 		int i;
 
 		const GLfloat (*m)[4] = (const GLfloat (*)[4])gpuGetMatrix(GL_MODELVIEW_MATRIX,  NULL);
 		const GLfloat (*p)[4] = (const GLfloat (*)[4])gpuGetMatrix(GL_PROJECTION_MATRIX, NULL);
 
-		if (location->modelview_matrix != -1) {
-			glUniformMatrix4fv(location->modelview_matrix, 1, 0, m[0]);
+		if (common->modelview_matrix != -1) {
+			glUniformMatrix4fv(common->modelview_matrix, 1, GL_FALSE, m[0]);
+		GPU_CHECK_NO_ERROR();
 		}
 
-		if (location->normal_matrix != -1) {
+		if (common->normal_matrix != -1) {
 			GLfloat t[3][3];
 			copy_m3_m4(t, m);
 			transpose_m3(t);
-			glUniformMatrix3fv(location->normal_matrix, 1, 0, t[0]);
+			glUniformMatrix3fv(common->normal_matrix, 1, GL_FALSE, t[0]);
+		GPU_CHECK_NO_ERROR();
 		}
 
-		if (location->modelview_matrix_inverse != -1) {
+		if (common->modelview_matrix_inverse != -1) {
 			GLfloat i[4][4];
 			invert_m4_m4(i, m);
-			glUniformMatrix4fv(location->modelview_matrix_inverse, 1, 0, i[0]);
+			glUniformMatrix4fv(common->modelview_matrix_inverse, 1, GL_FALSE, i[0]);
+		GPU_CHECK_NO_ERROR();
 		}
 
-		if (location->modelview_projection_matrix != -1) {
+		if (common->modelview_projection_matrix != -1) {
 			GLfloat mp[4][4];
 			mul_m4_m4m4(mp, m, p);
-			glUniformMatrix4fv(location->modelview_projection_matrix, 1, 0, mp[0]);
+			glUniformMatrix4fv(common->modelview_projection_matrix, 1, GL_FALSE, mp[0]);
+		GPU_CHECK_NO_ERROR();
 		}
 
-		if (location->projection_matrix != -1) {
-			glUniformMatrix4fv(location->projection_matrix, 1, 0, gpuGetMatrix(GL_PROJECTION_MATRIX, NULL));
+		if (common->projection_matrix != -1) {
+			glUniformMatrix4fv(common->projection_matrix, 1, GL_FALSE, gpuGetMatrix(GL_PROJECTION_MATRIX, NULL));
+		GPU_CHECK_NO_ERROR();
 		}
 
 		for (i = 0; i < GPU_MAX_COMMON_TEXCOORDS; i++) {
-			if (location->texture_matrix[i] != -1) {
-				// XXX jwilkins: only one texture matrix atm...
-				glUniformMatrix4fv(location->texture_matrix[i], 1, 0, gpuGetMatrix(GL_TEXTURE_MATRIX, NULL));
+			if (common->texture_matrix[i] != -1) {
+				gpu_set_common_active_texture(i);
+				glUniformMatrix4fv(common->texture_matrix[i], 1, GL_FALSE, gpuGetMatrix(GL_TEXTURE_MATRIX, NULL));
+		GPU_CHECK_NO_ERROR();
 			}
 		}
+
+		gpu_set_common_active_texture(0);
 	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
