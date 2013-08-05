@@ -69,6 +69,7 @@
 
 #include "UI_resources.h"
 #include "UI_view2d.h"
+#include "UI_interface.h"
 
 #include "image_intern.h"
 
@@ -209,7 +210,6 @@ static void image_init(struct wmWindowManager *UNUSED(wm), ScrArea *sa)
 
 	/* add drop boxes */
 	WM_event_add_dropbox_handler(&sa->handlers, lb);
-	
 }
 
 static SpaceLink *image_duplicate(SpaceLink *sl)
@@ -351,12 +351,37 @@ static void image_drop_copy(wmDrag *drag, wmDropBox *drop)
 	RNA_string_set(drop->ptr, "filepath", drag->path);
 }
 
+static int image_drop_color_poll(struct bContext *C, wmDrag *drag, const wmEvent *UNUSED(event))
+{
+	SpaceImage *sima = CTX_wm_space_image(C);
+	/* should only return true for regions that include buttons, for now
+	 * return true always */
+	if (drag->type == WM_DRAG_COLOR && sima && (sima->mode == SI_MODE_PAINT) && sima->image)
+		return TRUE;
+
+	return FALSE;
+}
+
+static void image_drop_color_copy(wmDrag *drag, wmDropBox *drop)
+{
+	uiDragColorHandle *drag_info = (uiDragColorHandle *)drag->poin;
+	if (drag_info->gamma_corrected)
+		srgb_to_linearrgb_v3_v3(drag_info->color, drag_info->color);
+
+	RNA_float_set_array(drop->ptr, "color", drag_info->color);
+}
+
+
 /* area+region dropbox definition */
 static void image_dropboxes(void)
 {
 	ListBase *lb = WM_dropboxmap_find("Image", SPACE_IMAGE, 0);
 	
 	WM_dropbox_add(lb, "IMAGE_OT_open", image_drop_poll, image_drop_copy);
+
+	lb = WM_dropboxmap_find("Image", SPACE_IMAGE, RGN_TYPE_WINDOW);
+
+	WM_dropbox_add(lb, "PAINT_OT_bucket_fill", image_drop_color_poll, image_drop_color_copy);
 }
 
 /**
@@ -602,7 +627,8 @@ static void image_main_area_set_view2d(SpaceImage *sima, ARegion *ar)
 static void image_main_area_init(wmWindowManager *wm, ARegion *ar)
 {
 	wmKeyMap *keymap;
-	
+	ListBase *lb = WM_dropboxmap_find("Image", SPACE_IMAGE, RGN_TYPE_WINDOW);
+
 	// image space manages own v2d
 	// UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_STANDARD, ar->winx, ar->winy);
 
@@ -626,6 +652,7 @@ static void image_main_area_init(wmWindowManager *wm, ARegion *ar)
 	keymap = WM_keymap_find(wm->defaultconf, "Image", SPACE_IMAGE, 0);
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 
+	WM_event_add_dropbox_handler(&ar->handlers, lb);
 }
 
 static void image_main_area_draw(const bContext *C, ARegion *ar)

@@ -89,6 +89,7 @@ EnumPropertyItem brush_image_tool_items[] = {
 	{PAINT_TOOL_SOFTEN, "SOFTEN", ICON_BRUSH_SOFTEN, "Soften", ""},
 	{PAINT_TOOL_SMEAR, "SMEAR", ICON_BRUSH_SMEAR, "Smear", ""},
 	{PAINT_TOOL_CLONE, "CLONE", ICON_BRUSH_CLONE, "Clone", ""},
+	{PAINT_TOOL_FILL, "FILL", ICON_BRUSH_CLONE, "Fill", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 

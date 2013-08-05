@@ -1031,7 +1031,6 @@ void ED_operatortypes_paint(void)
 	WM_operatortype_append(PAINT_OT_image_from_view);
 	WM_operatortype_append(PAINT_OT_texture_colors_flip);
 	WM_operatortype_append(PAINT_OT_bucket_fill);
-	WM_operatortype_append(PAINT_OT_gradient_fill);
 
 	/* weight */
 	WM_operatortype_append(PAINT_OT_weight_paint_toggle);

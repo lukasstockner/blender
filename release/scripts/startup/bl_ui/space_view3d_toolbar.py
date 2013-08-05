@@ -684,7 +684,7 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
 
             col = layout.column()
 
-            if brush.image_tool == 'DRAW' and brush.blend not in ('ERASE_ALPHA', 'ADD_ALPHA'):
+            if brush.image_tool in ('DRAW', 'FILL') and brush.blend not in ('ERASE_ALPHA', 'ADD_ALPHA'):
                 if not brush.use_gradient:
                     col.template_color_picker(brush, "color", value_slider=True)
                 col.prop(brush, "use_gradient")
@@ -694,7 +694,8 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                 else:
                     col = layout.column(align=True)            
                     col.prop(brush, "color", text="")
-                col.prop(brush, "secondary_color", text="")
+                if brush.image_tool != 'FILL':
+                    col.prop(brush, "secondary_color", text="")
                 col = layout.column()
                 col.template_ID(settings, "palette", new="palette.new")
                 if settings.palette:
@@ -1268,18 +1269,6 @@ class VIEW3D_PT_tools_projectpaint(View3DPanel, Panel):
 
         col.operator("paint.project_image", text="Apply Camera Image")
         col.operator("image.save_dirty", text="Save All Edited")
-
-
-class VIEW3D_PT_tools_imagepaint(View3DPanel, Panel):
-    bl_context = "imagepaint"
-    bl_label = "Image Tools"
-
-    def draw(self, context):
-        layout = self.layout
-
-        col = layout.column()
-        col.operator("paint.bucket_fill")
-        col.operator("paint.gradient_fill")
 
 
 class VIEW3D_PT_imagepaint_options(View3DPaintPanel):

@@ -707,7 +707,7 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
 
             col = layout.column()
 
-            if brush.image_tool == 'DRAW' and brush.blend not in ('ERASE_ALPHA', 'ADD_ALPHA'):
+            if brush.image_tool in ('DRAW', 'FILL') and brush.blend not in ('ERASE_ALPHA', 'ADD_ALPHA'):
                 if not brush.use_gradient:
                     col.template_color_picker(brush, "color", value_slider=True)
                 col.prop(brush, "use_gradient")
@@ -717,11 +717,12 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
                 else:
                     col = layout.column(align=True)            
                     col.prop(brush, "color", text="")
-                col.prop(brush, "secondary_color", text="")
+                if brush.image_tool != 'FILL':
+                    col.prop(brush, "secondary_color", text="")
                 col = layout.column()
                 col.template_ID(toolsettings, "palette", new="palette.new")
                 if toolsettings.palette:
-                    col.template_palette(toolsettings, "palette", color=True)
+                    col.template_palette(toolsettings, "palette", color=True)      
 
             row = col.row(align=True)
             self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
@@ -961,18 +962,6 @@ class IMAGE_PT_tools_brush_appearance(BrushButtonsPanel, Panel):
         col.prop(brush, "use_custom_icon")
         if brush.use_custom_icon:
             col.prop(brush, "icon_filepath", text="")
-
-class IMAGE_PT_tools_imagepaint(BrushButtonsPanel, Panel):
-    bl_context = "imagepaint"
-    bl_label = "Image Tools"
-
-    def draw(self, context):
-        layout = self.layout
-
-        col = layout.column()
-        col.operator("paint.bucket_fill")
-        col.operator("paint.gradient_fill")
-
 
 
 class IMAGE_UV_sculpt_curve(Panel):

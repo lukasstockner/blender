@@ -1215,7 +1215,7 @@ void paint_2d_stroke_done(void *ps)
 
 
 /* this function expects linear space color values */
-void paint_2d_bucket_fill (bContext *C, float color[3])
+void paint_2d_bucket_fill (const bContext *C, float color[3])
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
 	Image *ima = sima->image;

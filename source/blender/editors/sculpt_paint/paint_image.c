@@ -547,8 +547,10 @@ typedef struct PaintOperation {
 	void *custom_paint;
 
 	float prevmouse[2];
+	float startmouse[2];
 	double starttime;
 
+	void *cursor;
 	ViewContext vc;
 } PaintOperation;
 
@@ -577,22 +579,42 @@ void paint_brush_exit_tex(Brush *brush)
 	}
 }
 
+static void gradient_draw_line(bContext *UNUSED(C), int x, int y, void *customdata) {
+	PaintOperation *pop = (PaintOperation *)customdata;
+
+	if (pop) {
+		glEnable(GL_LINE_SMOOTH);
+		glEnable(GL_BLEND);
+
+		glColor4ub(0, 0, 0, 255);
+		sdrawline(x, y, pop->startmouse[0], pop->startmouse[1]);
+
+		glDisable(GL_BLEND);
+		glDisable(GL_LINE_SMOOTH);
+	}
+}
+
 
 static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, float mouse[2])
 {
 	Scene *scene = CTX_data_scene(C);
-	ToolSettings *settings = scene->toolsettings;
+	ToolSettings *toolsettings = scene->toolsettings;
 	PaintOperation *pop = MEM_callocN(sizeof(PaintOperation), "PaintOperation"); /* caller frees */
+	Brush *brush = BKE_paint_brush(&toolsettings->imapaint.paint);
 	int mode = RNA_enum_get(op->ptr, "mode");
 	view3d_set_viewcontext(C, &pop->vc);
 
-	pop->prevmouse[0] = mouse[0];
-	pop->prevmouse[1] = mouse[1];
+	copy_v2_v2(pop->prevmouse, mouse);
+	copy_v2_v2(pop->startmouse, mouse);
+
+	if ((brush->imagepaint_tool == PAINT_TOOL_FILL) && (brush->flag & BRUSH_USE_GRADIENT)) {
+		pop->cursor = WM_paint_cursor_activate(CTX_wm_manager(C), image_paint_poll, gradient_draw_line, pop);
+	}
 
 	/* initialize from context */
 	if (CTX_wm_region_view3d(C)) {
 		pop->mode = PAINT_MODE_3D_PROJECT;
-		pop->custom_paint = paint_proj_new_stroke(C, OBACT, pop->prevmouse, mode);
+		pop->custom_paint = paint_proj_new_stroke(C, OBACT, mouse, mode);
 	}
 	else {
 		pop->mode = PAINT_MODE_2D;
@@ -604,7 +626,7 @@ static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, float mou
 		return NULL;
 	}
 
-	settings->imapaint.flag |= IMAGEPAINT_DRAWING;
+	toolsettings->imapaint.flag |= IMAGEPAINT_DRAWING;
 	undo_paint_push_begin(UNDO_PAINT_IMAGE, op->type->name,
 	                      image_undo_restore, image_undo_free);
 
@@ -637,6 +659,13 @@ static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, Po
 	float pressure;
 	float size;
 	int eraser;
+
+	/* stroking with fill tool only acts on stroke end */
+	if (brush->imagepaint_tool == PAINT_TOOL_FILL) {
+		pop->prevmouse[0] = mouse[0];
+		pop->prevmouse[1] = mouse[1];
+		return;
+	}
 
 	RNA_float_get_array(itemptr, "mouse", mouse);
 	pressure = RNA_float_get(itemptr, "pressure");
@@ -684,16 +713,35 @@ static void paint_stroke_redraw(const bContext *C, struct PaintStroke *stroke, b
 static void paint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 {
 	Scene *scene = CTX_data_scene(C);
-	ToolSettings *settings = scene->toolsettings;
+	ToolSettings *toolsettings = scene->toolsettings;
 	PaintOperation *pop = paint_stroke_mode_data(stroke);
+	Brush *brush = BKE_paint_brush(&toolsettings->imapaint.paint);
 
-	settings->imapaint.flag &= ~IMAGEPAINT_DRAWING;
+	toolsettings->imapaint.flag &= ~IMAGEPAINT_DRAWING;
 
+	if (brush->imagepaint_tool == PAINT_TOOL_FILL) {
+		if (brush->flag & BRUSH_USE_GRADIENT) {
+
+		}
+		else {
+			float color[3];
+
+			srgb_to_linearrgb_v3_v3(color, brush->rgb);
+
+			if (pop->mode == PAINT_MODE_2D) {
+				paint_2d_bucket_fill(C, color);
+			}
+		}
+	}
 	if (pop->mode == PAINT_MODE_3D_PROJECT) {
 		paint_proj_stroke_done(pop->custom_paint);
 	}
 	else {
 		paint_2d_stroke_done(pop->custom_paint);
+	}
+
+	if (pop->cursor) {
+		WM_paint_cursor_end(CTX_wm_manager(C), pop->cursor);
 	}
 
 	image_undo_end();
@@ -1287,33 +1335,22 @@ void PAINT_OT_texture_colors_flip(wmOperatorType *ot)
 
 static int bucket_fill_exec(bContext *C, wmOperator *op)
 {
-	PaintMode mode;
 	float color[3];
 
 	/* get from rna property only if set */
 	if (RNA_struct_property_is_set(op->ptr, "color")) {
 		RNA_float_get_array(op->ptr, "color", color);
 	}
-	else {
-		Paint *p = BKE_paint_get_active(CTX_data_scene(C));
-		Brush *br = BKE_paint_brush(p);
+	else {		
+		Brush *br = image_paint_brush(C);
 
 		srgb_to_linearrgb_v3_v3(color, br->rgb);
 	}
 
-	mode = BKE_paintmode_get_active_from_context(C);
-
 	undo_paint_push_begin(UNDO_PAINT_IMAGE, op->type->name,
 	                      image_undo_restore, image_undo_free);
-	switch(mode) {
-		case PAINT_TEXTURE_2D:
-			paint_2d_bucket_fill(C, color);
-			break;
-		case PAINT_TEXTURE_PROJECTIVE:
-			break;
-		default:
-			break;
-	}
+
+	paint_2d_bucket_fill(C, color);
 
 	undo_paint_push_end(UNDO_PAINT_IMAGE);
 
@@ -1338,81 +1375,6 @@ void PAINT_OT_bucket_fill(wmOperatorType *ot)
 	ot->flag = OPTYPE_UNDO | OPTYPE_BLOCKING;
 
 	RNA_def_float_color(ot->srna, "color", 3, NULL, 0.0, 1.0, "Color", "Color for bucket fill", 0.0, 1.0);
-}
-
-typedef struct GradientFillData {
-	int mouse_init[2];
-//	int x_init, y_init;
-	bool started;
-	void *cursor;
-} GradientFillData;
-
-static void gradient_draw_line(bContext *UNUSED(C), int x, int y, void *customdata) {
-	GradientFillData *data = (GradientFillData *)customdata;
-
-	if (data && data->started) {
-		glEnable(GL_LINE_SMOOTH);
-		glEnable(GL_BLEND);
-
-		glColor4ub(0, 0, 0, 255);
-		sdrawline(x, y, data->mouse_init[0], data->mouse_init[1]);
-
-		glDisable(GL_BLEND);
-		glDisable(GL_LINE_SMOOTH);
-	}
-}
-
-static int gradient_fill_invoke(struct bContext *C, struct wmOperator *op, const struct wmEvent *UNUSED(event))
-{
-	GradientFillData *data = MEM_mallocN(sizeof(*data), "Gradient Fill data");
-
-	data->started = false;
-	op->customdata = data;
-
-	data->cursor = WM_paint_cursor_activate(CTX_wm_manager(C), image_paint_poll, gradient_draw_line, data);
-	WM_event_add_modal_handler(C, op);
-
-	return OPERATOR_RUNNING_MODAL;
-}
-
-static int gradient_fill_modal(struct bContext *C, struct wmOperator *op, const struct wmEvent *event)
-{
-	wmWindow *window = CTX_wm_window(C);
-	ARegion *ar = CTX_wm_region(C);
-
-	GradientFillData *data = op->customdata;
-
-	if (event->type == LEFTMOUSE) {
-		if (event->val == KM_PRESS) {
-			copy_v2_v2_int(data->mouse_init, event->mval);
-			data->started = true;
-		}
-		else if (event->val == KM_RELEASE) {
-			WM_paint_cursor_end(CTX_wm_manager(C), data->cursor);
-			MEM_freeN(data);
-			return OPERATOR_FINISHED;
-		}
-	}
-
-	WM_paint_cursor_tag_redraw(window, ar);
-
-	return OPERATOR_RUNNING_MODAL;
-}
-
-void PAINT_OT_gradient_fill(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Gradient Fill";
-	ot->idname = "PAINT_OT_gradient_fill";
-	ot->description = "Fill canvas with a gradient";
-
-	/* api callbacks */
-	ot->invoke = gradient_fill_invoke;
-	ot->modal = gradient_fill_modal;
-	ot->poll = image_paint_poll;
-
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 
