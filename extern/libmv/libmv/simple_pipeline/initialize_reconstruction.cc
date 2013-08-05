@@ -57,12 +57,14 @@ bool EuclideanReconstructTwoFrames(const vector<Marker> &markers,
     return false;
   }
 
+  int camera = markers[0].camera;
+
   int image1, image2;
   GetImagesInMarkers(markers, &image1, &image2);
 
   Mat x1, x2;
-  CoordinatesForMarkersInImage(markers, 0, image1, &x1);
-  CoordinatesForMarkersInImage(markers, 0, image2, &x2);
+  CoordinatesForMarkersInImage(markers, camera, image1, &x1);
+  CoordinatesForMarkersInImage(markers, camera, image2, &x2);
 
   Mat3 F;
   NormalizedEightPointSolver(x1, x2, &F);
@@ -85,8 +87,8 @@ bool EuclideanReconstructTwoFrames(const vector<Marker> &markers,
   }
 
   // Image 1 gets the reference frame, image 2 gets the relative motion.
-  reconstruction->InsertCamera(0, image1, Mat3::Identity(), Vec3::Zero());
-  reconstruction->InsertCamera(0, image2, R, t);
+  reconstruction->InsertCamera(camera, image1, Mat3::Identity(), Vec3::Zero());
+  reconstruction->InsertCamera(camera, image2, R, t);
 
   LG << "From two frame reconstruction got:\nR:\n" << R
      << "\nt:" << t.transpose();

@@ -462,12 +462,14 @@ static void cameraIntrinsicsFromOptions(const libmv_CameraIntrinsicsOptions came
 	}
 }
 
-static libmv::Tracks getNormalizedTracks(const libmv::Tracks &tracks, const libmv::CameraIntrinsics &camera_intrinsics)
+static libmv::Tracks getNormalizedTracks(const libmv::Tracks &tracks,
+                                         const std::vector<libmv::CameraIntrinsics> &camera_intrinsics)
 {
 	libmv::vector<libmv::Marker> markers = tracks.AllMarkers();
 
 	for (int i = 0; i < markers.size(); ++i) {
-		camera_intrinsics.InvertIntrinsics(markers[i].x, markers[i].y,
+    int camera = markers[i].camera;
+		camera_intrinsics[camera].InvertIntrinsics(markers[i].x, markers[i].y,
 			&(markers[i].x), &(markers[i].y));
 	}
 
@@ -477,7 +479,7 @@ static libmv::Tracks getNormalizedTracks(const libmv::Tracks &tracks, const libm
 static bool selectTwoKeyframesBasedOnGRICAndVariance(
                           libmv::Tracks &tracks,
                           libmv::Tracks &normalized_tracks,
-                          libmv::CameraIntrinsics &camera_intrinsics,
+                          std::vector<libmv::CameraIntrinsics> &camera_intrinsics,
                           libmv::ReconstructionOptions &reconstruction_options,
                           int &keyframe1,
                           int &keyframe2)
@@ -486,7 +488,7 @@ static bool selectTwoKeyframesBasedOnGRICAndVariance(
 
 	/* Get list of all keyframe candidates first. */
 	SelectkeyframesBasedOnGRICAndVariance(normalized_tracks,
-	                                      camera_intrinsics,
+	                                      camera_intrinsics[0],
 	                                      keyframes);
 
 	if (keyframes.size() < 2) {
@@ -498,9 +500,6 @@ static bool selectTwoKeyframesBasedOnGRICAndVariance(
 		keyframe2 = keyframes[1];
 		return true;
 	}
-
-  std::vector<libmv::CameraIntrinsics> intrinsics_vector;
-  intrinsics_vector.push_back(camera_intrinsics);
 
 	/* Now choose two keyframes with minimal reprojection error after initial
 	 * reconstruction choose keyframes with the least reprojection error after
@@ -532,7 +531,7 @@ static bool selectTwoKeyframesBasedOnGRICAndVariance(
 		double current_error =
 			libmv::EuclideanReprojectionError(tracks,
 			                                  reconstruction,
-			                                  intrinsics_vector);
+			                                  camera_intrinsics);
 
 		LG << "Error between " << previous_keyframe
 		   << " and " << current_keyframe
@@ -621,9 +620,10 @@ libmv_Reconstruction *libmv_solve(const libmv_Tracks *libmv_tracks,
 	reconstruction_options.use_fallback_reconstruction = libmv_reconstruction_options->use_fallback_reconstruction;
 
 	/* Invert the camera intrinsics */
-	libmv::Tracks normalized_tracks = getNormalizedTracks(tracks, camera_intrinsics[0]);
+	libmv::Tracks normalized_tracks = getNormalizedTracks(tracks, camera_intrinsics);
 
-	if (libmv_reconstruction_options->motion_flag & LIBMV_TRACKING_MOTION_MODAL) {
+	if (libmv_reconstruction_options->motion_flag & LIBMV_TRACKING_MOTION_MODAL &&
+	    num_cameras == 1) {
 		/* Perform modal solving */
 		libmv::ModalSolver(normalized_tracks, &reconstruction, &update_callback);
 		
@@ -643,7 +643,7 @@ libmv_Reconstruction *libmv_solve(const libmv_Tracks *libmv_tracks,
 
 			selectTwoKeyframesBasedOnGRICAndVariance(tracks,
 			                                         normalized_tracks,
-			                                         camera_intrinsics[0],
+			                                         camera_intrinsics,
 			                                         reconstruction_options,
 			                                         keyframe1,
 			                                         keyframe2);

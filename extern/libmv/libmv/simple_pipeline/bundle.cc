@@ -455,15 +455,16 @@ void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
   bool have_locked_camera = false;
   for (int i = 0; i < markers.size(); ++i) {
     const Marker &marker = markers[i];
-    EuclideanCamera *camera = reconstruction->CameraForImage(0, marker.image);
+    int camera = marker.camera;
+    EuclideanCamera *camera_pose = reconstruction->CameraForImage(camera, marker.image);
     EuclideanPoint *point = reconstruction->PointForTrack(marker.track);
-    if (camera == NULL || point == NULL) {
+    if (camera_pose == NULL || point == NULL) {
       continue;
     }
 
     // Rotation of camera denoted in angle axis followed with
     // camera translaiton.
-    double *current_camera_R_t = &all_cameras_R_t[camera->image](0);
+    double *current_camera_R_t = &all_cameras_R_t[camera_pose->image](0);
 
     OpenCVReprojectionError *cost_function;
     if (bundle_options.constraints & BUNDLE_CONSTRAIN_FOCAL_LENGTH) {
