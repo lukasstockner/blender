@@ -499,6 +499,9 @@ static bool selectTwoKeyframesBasedOnGRICAndVariance(
 		return true;
 	}
 
+  std::vector<libmv::CameraIntrinsics> intrinsics_vector;
+  intrinsics_vector.push_back(camera_intrinsics);
+
 	/* Now choose two keyframes with minimal reprojection error after initial
 	 * reconstruction choose keyframes with the least reprojection error after
 	 * solving from two candidate keyframes.
@@ -529,7 +532,7 @@ static bool selectTwoKeyframesBasedOnGRICAndVariance(
 		double current_error =
 			libmv::EuclideanReprojectionError(tracks,
 			                                  reconstruction,
-			                                  camera_intrinsics);
+			                                  intrinsics_vector);
 
 		LG << "Error between " << previous_keyframe
 		   << " and " << current_keyframe
@@ -581,7 +584,7 @@ static libmv::BundleOptions refinementOptionsFromReconstructionOptions(
 	return bundle_options;
 }
 
-static void finishReconstruction(const libmv::Tracks &tracks, const libmv::CameraIntrinsics &camera_intrinsics,
+static void finishReconstruction(const libmv::Tracks &tracks, const std::vector<libmv::CameraIntrinsics> &camera_intrinsics,
                                  libmv_Reconstruction *libmv_reconstruction,
                                  reconstruct_progress_update_cb progress_update_callback,
                                  void *callback_customdata)
@@ -683,7 +686,7 @@ libmv_Reconstruction *libmv_solve(const libmv_Tracks *libmv_tracks,
 	libmv::EuclideanScaleToUnity(&reconstruction);
 
 	/* Finish reconstruction */
-	finishReconstruction(tracks, camera_intrinsics[0], libmv_reconstruction,
+	finishReconstruction(tracks, camera_intrinsics, libmv_reconstruction,
 	                     progress_update_callback, callback_customdata);
 
 	return (struct libmv_Reconstruction *)libmv_reconstruction;

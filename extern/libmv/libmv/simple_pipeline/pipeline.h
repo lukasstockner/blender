@@ -21,6 +21,8 @@
 #ifndef LIBMV_SIMPLE_PIPELINE_PIPELINE_H_
 #define LIBMV_SIMPLE_PIPELINE_PIPELINE_H_
 
+#include <vector>
+
 #include "libmv/simple_pipeline/callbacks.h"
 #include "libmv/simple_pipeline/tracks.h"
 #include "libmv/simple_pipeline/reconstruction.h"
@@ -90,12 +92,11 @@ class CameraIntrinsics;
 
 double EuclideanReprojectionError(const Tracks &image_tracks,
                                   const EuclideanReconstruction &reconstruction,
-                                  const CameraIntrinsics &intrinsics);
+                                  const std::vector<CameraIntrinsics> &intrinsics);
 
-double ProjectiveReprojectionError(
-    const Tracks &image_tracks,
-    const ProjectiveReconstruction &reconstruction,
-    const CameraIntrinsics &intrinsics);
+double ProjectiveReprojectionError(const Tracks &image_tracks,
+                                   const ProjectiveReconstruction &reconstruction,
+                                   const std::vector<CameraIntrinsics> &intrinsics);
 
 void InvertIntrinsicsForTracks(const Tracks &raw_tracks,
                                const CameraIntrinsics &camera_intrinsics,

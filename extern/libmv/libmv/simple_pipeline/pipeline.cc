@@ -275,14 +275,14 @@ template<typename PipelineRoutines>
 double InternalReprojectionError(
         const Tracks &image_tracks,
         const typename PipelineRoutines::Reconstruction &reconstruction,
-        const CameraIntrinsics &intrinsics) {
+        const std::vector<CameraIntrinsics> &intrinsics) {
   int num_skipped = 0;
   int num_reprojected = 0;
   double total_error = 0.0;
   vector<Marker> markers = image_tracks.AllMarkers();
   for (int i = 0; i < markers.size(); ++i) {
     const typename PipelineRoutines::Camera *camera =
-        reconstruction.CameraForImage(0, markers[i].image);
+        reconstruction.CameraForImage(markers[i].camera, markers[i].image);
     const typename PipelineRoutines::Point *point =
         reconstruction.PointForTrack(markers[i].track);
     if (!camera || !point) {
@@ -292,7 +292,7 @@ double InternalReprojectionError(
     num_reprojected++;
 
     Marker reprojected_marker =
-        PipelineRoutines::ProjectMarker(*point, *camera, intrinsics);
+        PipelineRoutines::ProjectMarker(*point, *camera, intrinsics[markers[i].camera]);
     double ex = reprojected_marker.x - markers[i].x;
     double ey = reprojected_marker.y - markers[i].y;
 
@@ -326,16 +326,15 @@ double InternalReprojectionError(
 
 double EuclideanReprojectionError(const Tracks &image_tracks,
                                   const EuclideanReconstruction &reconstruction,
-                                  const CameraIntrinsics &intrinsics) {
+                                  const std::vector<CameraIntrinsics> &intrinsics) {
   return InternalReprojectionError<EuclideanPipelineRoutines>(image_tracks,
                                                               reconstruction,
                                                               intrinsics);
 }
 
-double ProjectiveReprojectionError(
-    const Tracks &image_tracks,
-    const ProjectiveReconstruction &reconstruction,
-    const CameraIntrinsics &intrinsics) {
+double ProjectiveReprojectionError(const Tracks &image_tracks,
+                                   const ProjectiveReconstruction &reconstruction,
+                                   const std::vector<CameraIntrinsics> &intrinsics) {
   return InternalReprojectionError<ProjectivePipelineRoutines>(image_tracks,
                                                                reconstruction,
                                                                intrinsics);
