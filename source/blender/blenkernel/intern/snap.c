@@ -74,6 +74,10 @@ typedef struct SnapIsect SnapIsect;
 
 void SnapSystem_reset_snappoint(SnapSystem* ssystem);
 void SnapSystem_parallel_hack_ob_handler(SnapSystem* ssystem, void* callback_data, Object* ob); //TODO: get rid of this
+int SnapSystem_event_handler_idle(SnapSystem* ssystem, wmEvent* event);
+int SnapSystem_event_handler_init(SnapSystem* ssystem, wmEvent* event);
+int SnapSystem_event_handler_snapping(SnapSystem* ssystem, wmEvent* event);
+int SnapSystem_cancel_event(SnapSystem *ssystem);
 
 SnapStack* SnapStack_create(void);
 int SnapStack_getN_Snaps(SnapStack* sstack);
@@ -178,6 +182,7 @@ struct SnapSystem{
 	/*events and state machine variables*/
 	/*most are hacks to get this working for now*/
 	SnapSystem_state state;
+	int (*event_handler)(SnapSystem *ssystem,wmEvent* event);
 
 	/*used for parallel snap, perpendicular and planar snap to store user picked geometry*/
 	Snap* pick;
@@ -262,6 +267,7 @@ SnapSystem* SnapSystem_create( Scene* scene, View3D* v3d, ARegion* ar, Object* o
 	/*TODO: clean up state stuff with proper design*/
 	ssystem->retval = 0;
 	ssystem->state = SNAPSYSTEM_STATE_IDLE;
+	ssystem->event_handler=SnapSystem_event_handler_idle;
 	ssystem->pick = NULL;
 	return ssystem;
 }
@@ -605,93 +611,140 @@ extern EnumPropertyItem snap_element_items[];
   I've experimented with it a bit so far on a small scale and it makes sense, just ran out of time for this patch
   to implement it properly. That's the goal for next patch. Everything here should be a lot cleaner, and easier
   to explain with that.*/
+
+
+//TODO: just get rid of this function, I don't think it's really needed
 int SnapSystem_Event(SnapSystem* ssystem, wmEvent* event){
-	ToolSettings *ts= ssystem->scene->toolsettings;
 	//This function returns a 1 if the event was handled by this code to prevent
 	//the rest of transform code from processing the event.
 	//currently this function is just the bare bones support for parallel snap
-	int handled = 0;
 	//The interpretation of events should be over-ridable by the code which uses the
 	//snapping system, such as the pen tool.
+	return ssystem->event_handler(ssystem, event);
+}
+
+int SnapSystem_cancel_event(SnapSystem *ssystem){
+	ssystem->cancel_callback(ssystem, ssystem->callback_data);
+	ssystem->state = SNAPSYSTEM_STATE_IDLE;
+	ssystem->event_handler = SnapSystem_event_handler_idle;
+	return 1;
+}
+
+int SnapSystem_event_handler_idle(SnapSystem* ssystem, wmEvent* event){
+	ToolSettings *ts= ssystem->scene->toolsettings;
+	int handled = 0;
 	if (event->type == EVT_MODAL_MAP){
 		/*TODO: move all this keymap stuff to snap system and out of transform.h*/
 		switch(event->val){
-		case TFM_MODAL_CANCEL:
-			if(ssystem->state == SNAPSYSTEM_STATE_IDLE){
-				break; //don't cancel if it hasn't even started
-			}
-			/*stop consuming all the events*/
-			ssystem->cancel_callback(ssystem, ssystem->callback_data);
-			ssystem->state = SNAPSYSTEM_STATE_IDLE;
-			handled = 1;
-			break;
-		case TFM_MODAL_CONFIRM:
-			/*depending on state, either continue, or stop snapping and call finish_callback*/
-			if(ssystem->state == SNAPSYSTEM_STATE_IDLE){
-				break; //don't start the confirmation process if snapping hasn't started
-			}
-			SnapSystem_evaluate_stack(ssystem);
-			switch(ssystem->state){
-			case SNAPSYSTEM_STATE_SNAPPING:
-				ssystem->state = SNAPSYSTEM_STATE_IDLE;
-				ssystem->finish_callback(ssystem, ssystem->callback_data, ssystem->snap_point);
+			case TFM_MODAL_SNAP_INV_ON:
+				if(ts->snap_mode == SCE_SNAP_MODE_EDGE_PARALLEL || ts->snap_mode == SCE_SNAP_MODE_PLANAR){
+					ssystem->state = SNAPSYSTEM_STATE_INIT_SNAP;
+					ssystem->event_handler = SnapSystem_event_handler_init;
+				}else{
+					ssystem->state = SNAPSYSTEM_STATE_SNAPPING;
+					ssystem->event_handler = SnapSystem_event_handler_snapping;
+				}
+				SnapSystem_evaluate_stack(ssystem);
 				handled = 1;
 				break;
-			case SNAPSYSTEM_STATE_INIT_SNAP:
+			case TFM_MODAL_SNAP_TOGGLE:
+				/*toggle consuming all events*/
+			case TFM_MODAL_AXIS_X:
+				/*IDEA: initiate special axis snap mode*/
+				break;
+			case TFM_MODAL_AXIS_Y:
+				break;
+			case TFM_MODAL_AXIS_Z:
+				break;
+			default:
+				break;
+		}
+	}
+	return handled;
+}
+
+int SnapSystem_event_handler_init(SnapSystem *ssystem, wmEvent* event){
+	int handled = 0;
+	if (event->type == EVT_MODAL_MAP){
+		/*TODO: move all this keymap stuff to snap system and out of transform.h*/
+		switch(event->val){
+			case TFM_MODAL_CANCEL:
+				/*stop consuming all the events*/
+				ssystem->cancel_callback(ssystem, ssystem->callback_data);
+				ssystem->state = SNAPSYSTEM_STATE_IDLE;
+				ssystem->event_handler = SnapSystem_event_handler_idle;
+				handled = 1;
+				break;
+			case TFM_MODAL_CONFIRM:
+				/*depending on state, either continue, or stop snapping and call finish_callback*/
+				SnapSystem_evaluate_stack(ssystem);
+				//if we managed to pick something
 				if(ssystem->retval){
 					ssystem->state = SNAPSYSTEM_STATE_SNAPPING;
+					ssystem->event_handler = SnapSystem_event_handler_snapping;
 					ssystem->retval = 0; //reset retval after having used hack function to do the grunt work
 				}
 				handled = 1;
 				break;
-			default:
+			case TFM_MODAL_SNAP_INV_OFF:
+				/*stop consuming all the events*/
+				handled = SnapSystem_cancel_event(ssystem);
+				SnapStack_reset(ssystem->sstack);
 				break;
-			}
-			break; //probably needs to change this bit!
-		case TFM_MODAL_SNAP_INV_ON:
-			/*start consuming all the events*/
-			if(ts->snap_mode == SCE_SNAP_MODE_EDGE_PARALLEL || ts->snap_mode == SCE_SNAP_MODE_PLANAR){
-				ssystem->state = SNAPSYSTEM_STATE_INIT_SNAP;
-			}else{
-				ssystem->state = SNAPSYSTEM_STATE_SNAPPING;
-			}
-			handled = 1;
-			break;
-		case TFM_MODAL_SNAP_INV_OFF:
-			if(ssystem->state == SNAPSYSTEM_STATE_IDLE){
-				break; //don't stop if it hasn't started
-			}
-			/*stop consuming all the events*/
-			ssystem->cancel_callback(ssystem, ssystem->callback_data);
-			SnapStack_reset(ssystem->sstack);
-			ssystem->state = SNAPSYSTEM_STATE_IDLE;
-			handled = 1;
-			break;
-		case TFM_MODAL_SNAP_TOGGLE:
-			/*toggle consuming all events*/
-		case TFM_MODAL_AXIS_X:
-			/*IDEA: initiate special axis snap mode*/
-			break;
-		case TFM_MODAL_AXIS_Y:
-			break;
-		case TFM_MODAL_AXIS_Z:
-			break;
+			default:
+				SnapSystem_evaluate_stack(ssystem);
+				handled = 1;
+				break;
 		}
-	} else if (event->val == KM_PRESS){
+	}else if (event->val == KM_PRESS){
 		switch(event->type){
 		case RIGHTMOUSE:
-			if(ssystem->state == SNAPSYSTEM_STATE_IDLE){
-				break; //don't cancel if it hasn't started
-			}
-			ssystem->cancel_callback(ssystem, ssystem->callback_data);
-			ssystem->state = SNAPSYSTEM_STATE_IDLE;
+			handled = SnapSystem_cancel_event(ssystem);
+			break;
+		default:
+			SnapSystem_evaluate_stack(ssystem);
 			handled = 1;
 			break;
 		}
 	}
-	if(ssystem->state != SNAPSYSTEM_STATE_IDLE){
-		SnapSystem_evaluate_stack(ssystem);
-		handled = 1;
+	return handled;
+}
+
+int SnapSystem_event_handler_snapping(SnapSystem *ssystem, wmEvent* event){
+	int handled = 0;
+	if (event->type == EVT_MODAL_MAP){
+		/*TODO: move all this keymap stuff to snap system and out of transform.h*/
+		switch(event->val){
+			case TFM_MODAL_CANCEL:
+				/*stop consuming all the events*/
+				handled = SnapSystem_cancel_event(ssystem);
+				break;
+			case TFM_MODAL_CONFIRM:
+				/*depending on state, either continue, or stop snapping and call finish_callback*/
+				SnapSystem_evaluate_stack(ssystem);
+				ssystem->state = SNAPSYSTEM_STATE_IDLE;
+				ssystem->event_handler = SnapSystem_event_handler_idle;
+				ssystem->finish_callback(ssystem, ssystem->callback_data, ssystem->snap_point);
+				handled = 1;
+				break;
+			case TFM_MODAL_SNAP_INV_OFF:
+				/*stop consuming all the events*/
+				handled = SnapSystem_cancel_event(ssystem);
+				SnapStack_reset(ssystem->sstack);
+				break;
+			default:
+				break;
+		}
+	}else if (event->val == KM_PRESS){
+		switch(event->type){
+		case RIGHTMOUSE:
+			handled = SnapSystem_cancel_event(ssystem);
+			break;
+		default:
+			SnapSystem_evaluate_stack(ssystem);
+			handled = 1;
+			break;
+		}
 	}
 	return handled;
 }
