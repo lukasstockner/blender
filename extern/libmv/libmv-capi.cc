@@ -36,6 +36,8 @@
 
 #include "libmv-capi.h"
 
+#include <vector>
+
 #include <cstdlib>
 #include <cassert>
 
@@ -67,7 +69,7 @@ struct libmv_Reconstruction {
 
 	/* used for per-track average error calculation after reconstruction */
 	libmv::Tracks tracks;
-	libmv::CameraIntrinsics intrinsics;
+	std::vector<libmv::CameraIntrinsics> intrinsics;
 
 	double error;
 };
@@ -450,6 +452,16 @@ static void cameraIntrinsicsFromOptions(const libmv_CameraIntrinsicsOptions *cam
 	                                camera_intrinsics_options->image_height);
 }
 
+static void cameraIntrinsicsFromOptions(const libmv_CameraIntrinsicsOptions camera_intrinsics_options[],
+                                        int num_cameras,
+                                        std::vector<libmv::CameraIntrinsics> &camera_intrinsics)
+{
+	for (int i = 0; i < num_cameras; ++i) {
+		camera_intrinsics.push_back(libmv::CameraIntrinsics());
+	  cameraIntrinsicsFromOptions(camera_intrinsics_options, &camera_intrinsics[i]);
+	}
+}
+
 static libmv::Tracks getNormalizedTracks(const libmv::Tracks &tracks, const libmv::CameraIntrinsics &camera_intrinsics)
 {
 	libmv::vector<libmv::Marker> markers = tracks.AllMarkers();
@@ -590,22 +602,23 @@ libmv_Reconstruction *libmv_solve(const libmv_Tracks *libmv_tracks,
 {
 	struct libmv_Reconstruction *libmv_reconstruction = new libmv_Reconstruction();
 	libmv::EuclideanReconstruction &reconstruction = libmv_reconstruction->reconstruction;
-	libmv::CameraIntrinsics &camera_intrinsics = libmv_reconstruction->intrinsics;
+	std::vector<libmv::CameraIntrinsics> &camera_intrinsics = libmv_reconstruction->intrinsics;
 
 	libmv::Tracks &tracks = *((libmv::Tracks *) libmv_tracks);
+	int num_cameras = tracks.MaxCamera() + 1;
 
 	ReconstructUpdateCallback update_callback(progress_update_callback,
 	                                          callback_customdata);
 
 	/* Convert options from C-API to libmv API */
-	cameraIntrinsicsFromOptions(libmv_camera_intrinsics_options, &camera_intrinsics);
+	cameraIntrinsicsFromOptions(libmv_camera_intrinsics_options, num_cameras, camera_intrinsics);
 
 	libmv::ReconstructionOptions reconstruction_options;
 	reconstruction_options.success_threshold = libmv_reconstruction_options->success_threshold;
 	reconstruction_options.use_fallback_reconstruction = libmv_reconstruction_options->use_fallback_reconstruction;
 
 	/* Invert the camera intrinsics */
-	libmv::Tracks normalized_tracks = getNormalizedTracks(tracks, camera_intrinsics);
+	libmv::Tracks normalized_tracks = getNormalizedTracks(tracks, camera_intrinsics[0]);
 
 	if (libmv_reconstruction_options->motion_flag & LIBMV_TRACKING_MOTION_MODAL) {
 		/* Perform modal solving */
@@ -627,7 +640,7 @@ libmv_Reconstruction *libmv_solve(const libmv_Tracks *libmv_tracks,
 
 			selectTwoKeyframesBasedOnGRICAndVariance(tracks,
 			                                         normalized_tracks,
-			                                         camera_intrinsics,
+			                                         camera_intrinsics[0],
 			                                         reconstruction_options,
 			                                         keyframe1,
 			                                         keyframe2);
@@ -663,14 +676,14 @@ libmv_Reconstruction *libmv_solve(const libmv_Tracks *libmv_tracks,
 		libmv::EuclideanBundleCommonIntrinsics(tracks,
 		                                       refinement_bundle_options,
 		                                       &reconstruction,
-		                                       &camera_intrinsics);
+		                                       &camera_intrinsics[0]);
 	}
 
 	/* Set reconstruction scale to unity */
 	libmv::EuclideanScaleToUnity(&reconstruction);
 
 	/* Finish reconstruction */
-	finishReconstruction(tracks, camera_intrinsics, libmv_reconstruction,
+	finishReconstruction(tracks, camera_intrinsics[0], libmv_reconstruction,
 	                     progress_update_callback, callback_customdata);
 
 	return (struct libmv_Reconstruction *)libmv_reconstruction;
@@ -716,23 +729,25 @@ static libmv::Marker ProjectMarker(const libmv::EuclideanPoint &point,
 double libmv_reprojectionErrorForTrack(const struct libmv_Reconstruction *libmv_reconstruction, int track)
 {
 	const libmv::EuclideanReconstruction *reconstruction = &libmv_reconstruction->reconstruction;
-	const libmv::CameraIntrinsics *intrinsics = &libmv_reconstruction->intrinsics;
+	const std::vector<libmv::CameraIntrinsics> *intrinsics = &libmv_reconstruction->intrinsics;
 	libmv::vector<libmv::Marker> markers = libmv_reconstruction->tracks.MarkersForTrack(track);
 
 	int num_reprojected = 0;
 	double total_error = 0.0;
 
 	for (int i = 0; i < markers.size(); ++i) {
-		const libmv::EuclideanCamera *camera = reconstruction->CameraForImage(markers[i].camera, markers[i].image);
+		int camera = markers[i].camera;
+		const libmv::EuclideanCamera *camera_pose = reconstruction->CameraForImage(camera, markers[i].image);
 		const libmv::EuclideanPoint *point = reconstruction->PointForTrack(markers[i].track);
+		const libmv::CameraIntrinsics camera_intrinsics = (*intrinsics)[camera];
 
-		if (!camera || !point) {
+		if (!camera_pose || !point) {
 			continue;
 		}
 
 		num_reprojected++;
 
-		libmv::Marker reprojected_marker = ProjectMarker(*point, *camera, *intrinsics);
+		libmv::Marker reprojected_marker = ProjectMarker(*point, *camera_pose, camera_intrinsics);
 		double ex = reprojected_marker.x - markers[i].x;
 		double ey = reprojected_marker.y - markers[i].y;
 
@@ -746,7 +761,7 @@ double libmv_reprojectionErrorForImage(const struct libmv_Reconstruction *libmv_
                                        int camera, int image)
 {
 	const libmv::EuclideanReconstruction *reconstruction = &libmv_reconstruction->reconstruction;
-	const libmv::CameraIntrinsics *intrinsics = &libmv_reconstruction->intrinsics;
+	const libmv::CameraIntrinsics *intrinsics = &libmv_reconstruction->intrinsics[camera];
 	libmv::vector<libmv::Marker> markers = libmv_reconstruction->tracks.MarkersInImage(camera, image);
 	const libmv::EuclideanCamera *camera_pose = reconstruction->CameraForImage(camera, image);
 	int num_reprojected = 0;
