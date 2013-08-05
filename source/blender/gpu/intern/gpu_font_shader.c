@@ -90,7 +90,7 @@ GPU_CHECK_NO_ERROR();
 		BLI_dynstr_append(frag, datatoc_gpu_shader_font_frag_glsl);
 
 		gpu_include_common_defs(defs);
-		BLI_dynstr_append(defs, "#define USE_TEXTURE\n");
+		BLI_dynstr_append(defs, "#define USE_TEXTURE_2D\n");
 
 		FONT_SHADER =
 			GPU_shader_create(

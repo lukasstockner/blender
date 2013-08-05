@@ -1,19 +1,25 @@
 /* Options:
- *
- * USE_TEXTURE_2D: use texture for diffuse colors
- * USE_SCENE_LIGHTING: use lights (up to 8)
- * USE_SOLID_LIGHTING: assume 3 directional lights for solid draw mode
- * USE_TWO_SIDE: flip normal towards viewer
- * NO_SPECULAR: use specular component
- */
+
+   USE_LIGHTING
+   USE_FAST_LIGHTING
+   USE_TWO_SIDE
+   USE_SPECULAR
+   USE_LOCAL_VIEWER
+   USE_TEXTURE_2D
+
+*/
 
 
 
-#if defined(USE_SOLID_LIGHTING) || defined(USE_SCENE_LIGHTING)
+#define USE_SPECULAR
+
+
+
+#ifdef USE_LIGHTING
 
 varying vec3 varying_normal;
 
-#ifndef USE_SOLID_LIGHTING
+#ifndef USE_FAST_LIGHTING
 varying vec3 varying_position;
 #endif
 
@@ -25,7 +31,7 @@ varying vec4 varying_vertex_color;
 
 
 
-#ifdef USE_TEXTURE
+#ifdef USE_TEXTURE_2D
 varying vec2 varying_texture_coord;
 #endif
 
@@ -33,11 +39,11 @@ varying vec2 varying_texture_coord;
 
 void main()
 {
-#if defined(USE_LIGHTING)
+#ifdef USE_LIGHTING
 	/* compute normal */
 	vec3 N = normalize(varying_normal);
 
-#if defined(USE_TWO_SIDE)
+#ifdef USE_TWO_SIDE
 	if (!gl_FrontFacing)
 		N = -N;
 #endif
@@ -45,11 +51,11 @@ void main()
 	/* compute diffuse and specular lighting */
 	vec3 L_diffuse = vec3(0.0);
 
-#ifndef NO_SPECULAR
+#ifdef USE_SPECULAR
 	vec3 L_specular = vec3(0.0);
 #endif
 
-#if defined(USE_SOLID_LIGHTING)
+#ifdef USE_FAST_LIGHTING
 	/* assume 3 directional lights */
 	for (int i = 0; i < b_LightCount; i++) {
 		vec3 light_direction = b_LightSource[i].position.xyz;
@@ -59,24 +65,17 @@ void main()
 		float diffuse_bsdf = max(dot(N, light_direction), 0.0);
 		L_diffuse += light_diffuse*diffuse_bsdf;
 
-#if !defined(NO_SPECULAR)
+#ifdef USE_SPECULAR
 		/* specular light */
 		vec3 light_specular = b_LightSource[i].specular.rgb;
-		vec3 H = b_LightSource[i].halfVector.xyz;
+		vec3 H = normalize(light_direction - vec3(0, 0, -1));
 
 		float specular_bsdf = pow(max(dot(N, H), 0.0), b_FrontMaterial.shininess);
 		L_specular += light_specular*specular_bsdf;
 #endif
 	}
 
-#else
-
-	/* all 8 lights, makes no assumptions, potentially slow */
-
-#if !defined(NO_SPECULAR)
-	/* view vector computation, depends on orthographics or perspective */
-	vec3 V = (b_ProjectionMatrix[3][3] == 0.0) ? normalize(varying_position): vec3(0.0, 0.0, -1.0);
-#endif
+#else /* all 8 lights, makes no assumptions, potentially slow */
 
 	for (int i = 0; i < b_LightCount; i++) {
 		float intensity = 1.0;
@@ -111,10 +110,15 @@ void main()
 		float diffuse_bsdf = max(dot(N, light_direction), 0.0);
 		L_diffuse += light_diffuse*diffuse_bsdf*intensity;
 
-#if !defined(NO_SPECULAR)
+#ifdef USE_SPECULAR
 		/* specular light */
 		vec3 light_specular = b_LightSource[i].specular.rgb;
-		vec3 H = normalize(light_direction - V);
+
+#ifdef USE_LOCAL_VIEWER
+		vec3 H = normalize(light_direction - vec3(0, 0, -1));
+#else
+		vec3 H = normalize(light_direction - normalize(varying_position));
+#endif
 
 		float specular_bsdf = pow(max(dot(N, H), 0.0), b_FrontMaterial.shininess);
 		L_specular += light_specular*specular_bsdf*intensity;
@@ -126,7 +130,7 @@ void main()
 	/* compute diffuse color, possibly from texture or vertex colors */
 	float alpha;
 
-#if defined(USE_TEXTURE)
+#ifdef USE_TEXTURE_2D
 	vec4 texture_color = texture2D(b_Sampler[0], varying_texture_coord);
 
 	L_diffuse *= texture_color.rgb * varying_vertex_color.rgb;
@@ -139,17 +143,17 @@ void main()
 	/* sum lighting */
 	vec3 L = L_diffuse;
 
-#ifndef NO_SPECULAR
+#ifdef USE_SPECULAR
 	L += L_specular * b_FrontMaterial.specular.rgb;
 #endif
 
 	/* write out fragment color */
 	gl_FragColor = vec4(L, alpha);
-#else
 
-	/* no lighting */
-#if defined(USE_TEXTURE)
-	gl_FragColor = texture2D(b_Sampler[0], varying_texture_coord) * varying_vertex_color;
+#else /* no lighting */
+
+#ifdef USE_TEXTURE_2D
+	gl_FragColor = texture2D(b_Sampler2D[0], varying_texture_coord) * varying_vertex_color;
 #else
 	gl_FragColor = varying_vertex_color;
 #endif

@@ -177,21 +177,6 @@ void GPU_set_basic_material_specular(const float specular[4])
 
 
 
-static void feedback_light_position(float position[4] /* in-out */)
-{
-	gpuFeedbackVertex4fv(GL_MODELVIEW_MATRIX,  position[0], position[1], position[2], position[3], position);
-	gpuFeedbackVertex4fv(GL_PROJECTION_MATRIX, position[0], position[1], position[2], position[4], position);
-}
-
-
-
-static void feedback_spot_direction(float spot_direction[4] /* in-out */)
-{
-	// XXX jwilkins: ToDo!!
-}
-
-
-
 void GPU_restore_basic_lights(int light_count, GPUbasiclight lights[])
 {
 	GPU_ASSERT(light_count < GPU_MAX_COMMON_LIGHTS);
@@ -199,6 +184,23 @@ void GPU_restore_basic_lights(int light_count, GPUbasiclight lights[])
 	memcpy(LIGHTING.light, lights, light_count*sizeof(GPUbasiclight));
 
 	LIGHTING.light_count = light_count;
+}
+
+
+
+static void feedback_light_position(float position[4] /* in-out */)
+{
+	gpuFeedbackVertex4fv(GL_MODELVIEW_MATRIX,  position[0], position[1], position[2], position[3], position);
+}
+
+
+
+static void feedback_spot_direction(float spot_direction[3] /* in-out */)
+{
+	float n[3][3];
+
+	copy_m3_m4(n, (float (*)[4])gpuGetMatrix(GL_MODELVIEW_MATRIX, NULL));
+	mul_m3_v3(n, spot_direction);
 }
 
 

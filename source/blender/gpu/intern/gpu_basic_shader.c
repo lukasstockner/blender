@@ -114,10 +114,12 @@ void GPU_basic_shader_disable(uint32_t options)
 static uint32_t tweak_options(void)
 {
 	/* detect if we can do faster lighting for solid draw mode */
-	if (BASIC_SHADER.options & GPU_BASIC_LIGHTING && gpu_fast_lighting())
+	if (  BASIC_SHADER.options & GPU_BASIC_LIGHTING      &&
+		!(BASIC_SHADER.options & GPU_BASIC_LOCAL_VIEWER) &&
+		gpu_fast_lighting())
+	{
 		BASIC_SHADER.options |= GPU_BASIC_FAST_LIGHTING;
-	else
-		BASIC_SHADER.options &= ~GPU_BASIC_FAST_LIGHTING;
+	}
 
 	return BASIC_SHADER.options;
 }
@@ -170,7 +172,7 @@ GPU_CHECK_NO_ERROR();
 
 			if (options & GPU_BASIC_FAST_LIGHTING)
 				BLI_dynstr_append(defs, "#define USE_FAST_LIGHTING\n");
-			else if (options & GPU_BASIC_LIGHTING)
+			else
 				BLI_dynstr_append(defs, "#define USE_SCENE_LIGHTING\n");
 		}
 

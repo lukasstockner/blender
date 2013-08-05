@@ -1,11 +1,11 @@
-/* begin known uniforms */
+/* begin common uniforms */
 
 uniform mat4 b_ModelViewMatrix;
 uniform mat4 b_ProjectionMatrix;
 uniform mat4 b_ModelViewProjectionMatrix;
 
 
-#if defined(USE_TEXTURE)
+#ifdef USE_TEXTURE_2D
 
 uniform mat4 b_TextureMatrix[b_MaxTextureCoords];
 
@@ -14,7 +14,7 @@ uniform sampler2D b_Sampler2D[b_MaxCombinedTextureImageUnits];
 #endif
 
 
-#if defined(USE_LIGHTING)
+#ifdef USE_LIGHTING
 
 uniform mat3 b_NormalMatrix;  // transpose of upper 3x3 of b_ModelViewMatrix
 
@@ -51,5 +51,5 @@ uniform int b_LightCount;
 
 #endif
 
-/* end known uniforms */
+/* end common uniforms */
 

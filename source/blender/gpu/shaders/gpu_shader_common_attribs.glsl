@@ -2,15 +2,13 @@
 
 attribute vec4 b_Vertex;
 
-#if !defined(USE_MATERIAL_COLOR)
 attribute vec4 b_Color;
-#endif
 
-#if defined(USE_LIGHTING)
+#ifdef USE_LIGHTING
 attribute vec3 b_Normal;
 #endif
 
-#if defined(USE_TEXTURE)
+#ifdef USE_TEXTURE_2D
 
 #if GPU_MAX_COMMON_TEXCOORDS > 0
 attribute vec4 b_MultiTexCoord0;
@@ -47,4 +45,3 @@ attribute vec4 b_MultiTexCoord7;
 #endif
 
 /* end known attributes */
-
