@@ -47,6 +47,7 @@
 #include "BKE_image.h"
 #include "BKE_paint.h"
 #include "BKE_report.h"
+#include "BKE_texture.h"
 
 #include "ED_screen.h"
 
@@ -1260,6 +1261,81 @@ void paint_2d_bucket_fill (const bContext *C, float color[3])
 	else {
 		for (; i < ibuf->x; i++) {
 			for (j = 0; j < ibuf->y; j++) {
+				*(ibuf->rect + j * ibuf->x + i) =  color_b;
+			}
+		}
+	}
+
+	imapaint_image_update(sima, ima, ibuf, false);
+	imapaint_clear_partial_redraw();
+
+	BKE_image_release_ibuf(ima, ibuf, NULL);
+
+	WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
+}
+
+void paint_2d_gradient_fill (const bContext *C, Brush *br, float mouse_init[2], float mouse_final[2], void *ps)
+{
+	SpaceImage *sima = CTX_wm_space_image(C);
+	Image *ima = sima->image;
+	ImagePaintState *s = ps;
+
+	ImBuf *ibuf;
+	unsigned short i = 0, j = 0;
+	unsigned int color_b;
+	float color_f[4];
+	float image_init[2], image_final[2];
+	float tangent[2];
+	float line_len_sq_inv;
+
+	bool do_float;
+
+	if (!ima)
+		return;
+
+	ibuf = BKE_image_acquire_ibuf(ima, &sima->iuser, NULL);
+
+	if (!ibuf)
+		return;
+
+	UI_view2d_region_to_view(s->v2d, mouse_final[0], mouse_final[1], &image_final[0], &image_final[1]);
+	UI_view2d_region_to_view(s->v2d, mouse_init[0], mouse_init[1], &image_init[0], &image_init[1]);
+
+	image_final[0] *= ibuf->x;
+	image_final[1] *= ibuf->y;
+
+	image_init[0] *= ibuf->x;
+	image_init[1] *= ibuf->y;
+
+	/* some math to get needed gradient variables */
+	sub_v2_v2v2(tangent, image_final, image_init);
+	line_len_sq_inv = 1.0/len_squared_v2(tangent);
+
+	do_float = (ibuf->rect_float != NULL);
+
+	/* this will be substituted by something else when selection is available */
+	imapaint_dirty_region(ima, ibuf, 0, 0, ibuf->x, ibuf->y);
+
+	if (do_float) {
+		for (; i < ibuf->x; i++) {
+			for (j = 0; j < ibuf->y; j++) {
+				float p[2] = {i - image_init[0], j - image_init[1]};
+				float f = dot_v2v2(p, tangent)*line_len_sq_inv;
+
+				do_colorband(br->gradient, f, color_f);
+				copy_v4_v4(ibuf->rect_float + 4 * (j * ibuf->x + i), color_f);
+			}
+		}
+	}
+	else {
+		for (; i < ibuf->x; i++) {
+			for (j = 0; j < ibuf->y; j++) {
+				float p[2] = {i - image_init[0], j - image_init[1]};
+				float f = dot_v2v2(p, tangent)*line_len_sq_inv;
+
+				do_colorband(br->gradient, f, color_f);
+				rgba_float_to_uchar((unsigned char *)&color_b, color_f);
+
 				*(ibuf->rect + j * ibuf->x + i) =  color_b;
 			}
 		}

@@ -586,8 +586,13 @@ static void gradient_draw_line(bContext *UNUSED(C), int x, int y, void *customda
 		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_BLEND);
 
+		glLineWidth(4.0);
 		glColor4ub(0, 0, 0, 255);
 		sdrawline(x, y, pop->startmouse[0], pop->startmouse[1]);
+		glLineWidth(2.0);
+		glColor4ub(255, 255, 255, 255);
+		sdrawline(x, y, pop->startmouse[0], pop->startmouse[1]);
+		glLineWidth(1.0);
 
 		glDisable(GL_BLEND);
 		glDisable(GL_LINE_SMOOTH);
@@ -660,17 +665,17 @@ static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, Po
 	float size;
 	int eraser;
 
+	RNA_float_get_array(itemptr, "mouse", mouse);
+	pressure = RNA_float_get(itemptr, "pressure");
+	eraser = RNA_boolean_get(itemptr, "pen_flip");
+	size = RNA_float_get(itemptr, "size");
+
 	/* stroking with fill tool only acts on stroke end */
 	if (brush->imagepaint_tool == PAINT_TOOL_FILL) {
 		pop->prevmouse[0] = mouse[0];
 		pop->prevmouse[1] = mouse[1];
 		return;
 	}
-
-	RNA_float_get_array(itemptr, "mouse", mouse);
-	pressure = RNA_float_get(itemptr, "pressure");
-	eraser = RNA_boolean_get(itemptr, "pen_flip");
-	size = RNA_float_get(itemptr, "size");
 
 	if (BKE_brush_use_alpha_pressure(scene, brush))
 		BKE_brush_alpha_set(scene, brush, max_ff(0.0f, startalpha * pressure * alphafac));
@@ -721,7 +726,9 @@ static void paint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 
 	if (brush->imagepaint_tool == PAINT_TOOL_FILL) {
 		if (brush->flag & BRUSH_USE_GRADIENT) {
-
+			if (pop->mode == PAINT_MODE_2D) {
+				paint_2d_gradient_fill(C, brush, pop->startmouse, pop->prevmouse, pop->custom_paint);
+			}
 		}
 		else {
 			float color[3];

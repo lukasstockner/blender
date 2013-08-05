@@ -689,7 +689,8 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                     col.template_color_picker(brush, "color", value_slider=True)
                 col.prop(brush, "use_gradient")
                 if brush.use_gradient:
-                    col.prop(brush, "gradient_source")
+                    if brush.image_tool == 'DRAW':
+                        col.prop(brush, "gradient_source")
                     col.template_color_ramp(brush, "gradient", expand=True)
                 else:
                     col = layout.column(align=True)            
