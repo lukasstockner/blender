@@ -20,6 +20,10 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+#ifdef WITH_CXX_GUARDEDALLOC
+#  include "MEM_guardedalloc.h"
+#endif
+
 #include "octree.h"
 #include <Eigen/Dense>
 #include <limits>
@@ -102,6 +106,7 @@ Octree::Octree(ModelReader *mr,
 
 Octree::~Octree()
 {
+	delete cubes;
 	freeMemory();
 }
 
@@ -1906,11 +1911,13 @@ int Octree::floodFill(LeafNode *leaf, int st[3], int len, int height, int thresh
 					maxtotal = total;
 				}
 				dc_printf(".\n");
+				delete queue;
 				continue;
 			}
 
 			if (total >= threshold) {
 				dc_printf("Maintained.\n");
+				delete queue;
 				continue;
 			}
 			dc_printf("Less then %d, removing...\n", threshold);
@@ -1997,6 +2004,8 @@ int Octree::floodFill(LeafNode *leaf, int st[3], int len, int height, int thresh
 					}
 				}
 			}
+
+			delete queue;
 		}
 	}
 
