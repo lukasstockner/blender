@@ -293,6 +293,7 @@ static GLboolean init_framebuffer_object(void)
 
 static void init_vertex_arrays(void)
 {
+#if !defined(GLEW_ES_ONLY)
 	if (GLEW_VERSION_3_0 || GLEW_ARB_vertex_array_object) {
 		gpu_glGenVertexArrays    = glGenVertexArrays;
 		gpu_glBindVertexArray    = glBindVertexArray;
@@ -300,6 +301,7 @@ static void init_vertex_arrays(void)
 
 		return;
 	}
+#endif
 
 #if !defined(GLEW_NO_ES)
 	if (GLEW_OES_vertex_array_object) {
@@ -413,11 +415,16 @@ void GPU_wrap_extensions(GLboolean* glslsupport_out, GLboolean* framebuffersuppo
 	if (!init_vertex_program())
 		*glslsupport_out = false;
 
-	if (!(GLEW_ARB_multitexture || GLEW_VERSION_1_3))
+	if (!(GLEW_ARB_multitexture || GLEW_VERSION_1_3 || GLEW_ES_VERSION_2_0)) // Note: This should mean only the non-deprecated parts of the extension
 		*glslsupport_out = false;
 
 	*framebuffersupport_out = init_framebuffer_object();
+#else
+	*glslsupport_out = false;
+	*framebuffersupport_out = false;
+#endif
 
+#if 1
 	init_vertex_arrays();
 	init_buffers();
 	init_mapbuffer();
@@ -437,9 +444,6 @@ void GPU_wrap_extensions(GLboolean* glslsupport_out, GLboolean* framebuffersuppo
 
 	init_generate_mipmap();
 #else
-	*glslsupport_out = false;
-	*framebuffersupport_out = false;
-
 	GPU_buffer_start_update  = GPU_buffer_start_update_dummy;
 	GPU_buffer_finish_update = GPU_buffer_finish_update_dummy;
 #endif

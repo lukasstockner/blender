@@ -507,6 +507,14 @@ void gpu_commit_samplers(void);
 #define GL_QUADS 0x0007
 #endif
 
+#ifndef GL_QUAD_STRIP
+#define GL_QUAD_STRIP 0x0008
+#endif
+
+#ifndef GL_POLYGON
+#define GL_POLYGON 0x0009
+#endif
+
 #endif
 
 
