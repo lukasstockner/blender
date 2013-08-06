@@ -379,7 +379,10 @@ static void brush_painter_imbuf_update(BrushPainter *painter, ImBuf *oldtexibuf,
 
 	/* get brush color */
 	if (brush->imagepaint_tool == PAINT_TOOL_DRAW) {
-		copy_v3_v3(brush_rgb, brush->rgb);
+		if (painter->cache.invert_color)
+			copy_v3_v3(brush_rgb, brush->secondary_rgb);
+		else
+			copy_v3_v3(brush_rgb, brush->rgb);
 
 		if (use_color_correction)
 			srgb_to_linearrgb_v3_v3(brush_rgb, brush_rgb);
