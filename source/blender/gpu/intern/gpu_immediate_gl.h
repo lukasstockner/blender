@@ -61,6 +61,8 @@ void gpu_draw_elements_gl(void);
 void gpu_draw_range_elements_gl(void);
 
 
+void gpu_quad_elements_init(void);
+void gpu_quad_elements_exit(void);
 
 #ifdef __cplusplus
 }

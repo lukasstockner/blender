@@ -213,16 +213,16 @@ void gpu_commit_matrixes(void)
 {
 	const GPUcommon* common = gpu_get_common();
 
+	GPU_CHECK_NO_ERROR();
+
 	if (common) {
 		int i;
 
 		const GLfloat (*m)[4] = (const GLfloat (*)[4])gpuGetMatrix(GL_MODELVIEW_MATRIX,  NULL);
 		const GLfloat (*p)[4] = (const GLfloat (*)[4])gpuGetMatrix(GL_PROJECTION_MATRIX, NULL);
 
-		if (common->modelview_matrix != -1) {
+		if (common->modelview_matrix != -1)
 			glUniformMatrix4fv(common->modelview_matrix, 1, GL_FALSE, m[0]);
-GPU_CHECK_NO_ERROR();
-		}
 
 		if (common->normal_matrix != -1) {
 			GLfloat n[3][3];
@@ -230,37 +230,35 @@ GPU_CHECK_NO_ERROR();
 			invert_m3(n);
 			transpose_m3(n);
 			glUniformMatrix3fv(common->normal_matrix, 1, GL_FALSE, n[0]);
-GPU_CHECK_NO_ERROR();
 		}
 
 		if (common->modelview_matrix_inverse != -1) {
 			GLfloat i[4][4];
 			invert_m4_m4(i, m);
 			glUniformMatrix4fv(common->modelview_matrix_inverse, 1, GL_FALSE, i[0]);
-GPU_CHECK_NO_ERROR();
 		}
 
 		if (common->modelview_projection_matrix != -1) {
 			GLfloat pm[4][4];
 			mul_m4_m4m4(pm, p, m);
 			glUniformMatrix4fv(common->modelview_projection_matrix, 1, GL_FALSE, pm[0]);
-GPU_CHECK_NO_ERROR();
 		}
 
-		if (common->projection_matrix != -1) {
+		if (common->projection_matrix != -1)
 			glUniformMatrix4fv(common->projection_matrix, 1, GL_FALSE, p[0]);
-GPU_CHECK_NO_ERROR();
-		}
 
 		for (i = 0; i < GPU_MAX_COMMON_TEXCOORDS; i++) {
 			if (common->texture_matrix[i] != -1) {
 				gpu_set_common_active_texture(i);
 				glUniformMatrix4fv(common->texture_matrix[i], 1, GL_FALSE, gpuGetMatrix(GL_TEXTURE_MATRIX, NULL));
-GPU_CHECK_NO_ERROR();
 			}
 		}
 
 		gpu_set_common_active_texture(0);
+
+		GPU_CHECK_NO_ERROR();
+
+		return;
 	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
@@ -273,6 +271,8 @@ GPU_CHECK_NO_ERROR();
 	glMatrixMode(GL_MODELVIEW);
 	glLoadMatrixf(gpuGetMatrix(GL_MODELVIEW_MATRIX, NULL));
 #endif
+
+	GPU_CHECK_NO_ERROR();
 }
 
 

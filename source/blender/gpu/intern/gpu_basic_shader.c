@@ -234,69 +234,76 @@ GPU_CHECK_NO_ERROR();
 
 void GPU_basic_shader_bind(void)
 {
-	if (GPU_glsl_support())
+	bool glsl_support = GPU_glsl_support();
+
+	GPU_CHECK_NO_ERROR();
+
+	if (glsl_support) {
 		basic_shader_bind();
+	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
-	/* Only change state if it is different than the Blender default */
+	if (!glsl_support) {
+		if (BASIC_SHADER.options & GPU_BASIC_LIGHTING)
+			glEnable(GL_LIGHTING);
+		else
+			glDisable(GL_LIGHTING);
 
-	if (BASIC_SHADER.options & GPU_BASIC_LIGHTING)
-		glEnable(GL_LIGHTING);
+		if (BASIC_SHADER.options & GPU_BASIC_TEXTURE_2D)
+			glEnable(GL_TEXTURE_2D);
+		else
+			glDisable(GL_TEXTURE_2D);
 
-	if (BASIC_SHADER.options & GPU_BASIC_TEXTURE_2D)
-		glEnable(GL_TEXTURE_2D);
+		if (BASIC_SHADER.options & GPU_BASIC_TWO_SIDE)
+			glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
+		else
+			glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
 
-	if (BASIC_SHADER.options & GPU_BASIC_TWO_SIDE)
-		glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
+		if (BASIC_SHADER.options & GPU_BASIC_LOCAL_VIEWER)
+			glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_TRUE);
+		else
+			glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_FALSE);
 
-	if (BASIC_SHADER.options & GPU_BASIC_LOCAL_VIEWER)
-		glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_TRUE);
-
-	if (BASIC_SHADER.options & GPU_BASIC_SMOOTH)
-		glShadeModel(GL_SMOOTH);
+		if (BASIC_SHADER.options & GPU_BASIC_SMOOTH)
+			glShadeModel(GL_SMOOTH);
+		else
+			glShadeModel(GL_FLAT);
+	}
 #endif
 
 	if (BASIC_SHADER.options & GPU_BASIC_LIGHTING) {
-GPU_CHECK_NO_ERROR();
 		gpu_commit_light();
-GPU_CHECK_NO_ERROR();
 		gpu_commit_material();
-GPU_CHECK_NO_ERROR();
 
 		BASIC_SHADER.need_normals = true; // Temporary hack. Should be solved outside of this file.
 	}
 	else {
 		BASIC_SHADER.need_normals = false; // Temporary hack. Should be solved outside of this file.
 	}
+
+	GPU_CHECK_NO_ERROR();
 }
 
 
 
 void GPU_basic_shader_unbind(void)
 {
+	GPU_CHECK_NO_ERROR();
+
 	if (GPU_glsl_support())
 		GPU_shader_unbind();
 
 #if defined(WITH_GL_PROFILE_COMPAT)
-	/* If GL state was switched from the Blender default then reset it. */
-
-	if (BASIC_SHADER.options & GPU_BASIC_LIGHTING)
-		glDisable(GL_LIGHTING);
-
-	if (BASIC_SHADER.options & GPU_BASIC_TEXTURE_2D)
-		glDisable(GL_TEXTURE_2D);
-
-	if (BASIC_SHADER.options & GPU_BASIC_TWO_SIDED)
-		glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
-
-	if (BASIC_SHADER.options & GPU_BASIC_LOCAL_VIEWER)
-		glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_FALSE);
-
-	if (BASIC_SHADER.options & GPU_BASIC_SMOOTH)
-		glShadeModel(GL_FLAT);
+	glDisable(GL_LIGHTING);
+	glDisable(GL_TEXTURE_2D);
+	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
+	glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_FALSE);
+	glShadeModel(GL_FLAT);
 #endif
 
 	BASIC_SHADER.need_normals = false; // Temporary hack. Should be solved outside of this file.
+
+	GPU_CHECK_NO_ERROR();
 }
 
 

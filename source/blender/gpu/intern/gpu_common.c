@@ -184,10 +184,12 @@ GPUcommon* gpu_get_common(void)
 
 void gpu_enable_vertex_array   (void)
 {
-	GLint vertex = current_common != NULL ? current_common->vertex : -1;
+	if (current_common != NULL) {
+		if (current_common->vertex != -1)
+			gpu_glEnableVertexAttribArray(current_common->vertex);
 
-	if (gpu_glEnableVertexAttribArray != NULL && vertex != -1)
-		gpu_glEnableVertexAttribArray(vertex);
+		return;
+	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glEnableClientState(GL_VERTEX_ARRAY);
@@ -198,10 +200,12 @@ void gpu_enable_vertex_array   (void)
 
 void gpu_enable_normal_array   (void)
 {
-	GLint normal = current_common != NULL ? current_common->normal : -1;
+	if (current_common != NULL) {
+		if (current_common->normal != -1)
+			gpu_glEnableVertexAttribArray(current_common->normal);
 
-	if (gpu_glEnableVertexAttribArray != NULL && normal != -1)
-		gpu_glEnableVertexAttribArray(normal);
+		return;
+	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glEnableClientState(GL_NORMAL_ARRAY);
@@ -212,10 +216,12 @@ void gpu_enable_normal_array   (void)
 
 void gpu_enable_color_array    (void)
 {
-	GLint color = current_common != NULL ? current_common->color : -1;
+	if (current_common != NULL) {
+		if (current_common->color != -1)
+			gpu_glEnableVertexAttribArray(current_common->color);
 
-	if (gpu_glEnableVertexAttribArray != NULL && color != -1)
-		gpu_glEnableVertexAttribArray(color);
+		return;
+	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glEnableClientState(GL_COLOR_ARRAY);
@@ -226,13 +232,18 @@ void gpu_enable_color_array    (void)
 
 void gpu_enable_texcoord_array (void)
 {
-	GLint multi_texcoord = current_common != NULL ? current_common->multi_texcoord[active_texture_num] : -1;
+	GPU_ASSERT(active_texture_num >= 0);
+	GPU_ASSERT(active_texture_num < GPU_MAX_COMMON_TEXCOORDS);
 
-	if (gpu_glEnableVertexAttribArray != NULL && multi_texcoord != -1)
-		gpu_glEnableVertexAttribArray(multi_texcoord);
+	if (current_common != NULL) {
+		if (current_common->multi_texcoord[active_texture_num] != -1)
+			gpu_glEnableVertexAttribArray(current_common->multi_texcoord[active_texture_num]);
+
+		return;
+	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
-	if (active_texture_num < GPU_max_textures()
+	if (active_texture_num < GPU_max_textures())
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 #endif
 }
@@ -241,10 +252,12 @@ void gpu_enable_texcoord_array (void)
 
 void gpu_disable_vertex_array  (void)
 {
-	GLint vertex = current_common != NULL ? current_common->vertex : -1;
+	if (current_common != NULL) {
+		if (current_common->vertex != -1)
+			gpu_glDisableVertexAttribArray(current_common->vertex);
 
-	if (gpu_glDisableVertexAttribArray != NULL && vertex != -1)
-		gpu_glDisableVertexAttribArray(vertex);
+		return;
+	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glDisableClientState(GL_VERTEX_ARRAY);
@@ -255,10 +268,12 @@ void gpu_disable_vertex_array  (void)
 
 void gpu_disable_normal_array  (void)
 {
-	GLint normal = current_common != NULL ? current_common->normal : -1;
+	if (current_common != NULL) {
+		if (current_common->normal != -1)
+			gpu_glDisableVertexAttribArray(current_common->normal);
 
-	if (gpu_glDisableVertexAttribArray != NULL && normal != -1)
-		gpu_glDisableVertexAttribArray(normal);
+		return;
+	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glDisableClientState(GL_NORMAL_ARRAY);
@@ -269,10 +284,12 @@ void gpu_disable_normal_array  (void)
 
 void gpu_disable_color_array   (void)
 {
-	GLint color = current_common != NULL ? current_common->color : -1;
+	if (current_common != NULL) {
+		if (current_common->color != -1)
+			gpu_glDisableVertexAttribArray(current_common->color);
 
-	if (gpu_glDisableVertexAttribArray != NULL && color != -1)
-		gpu_glDisableVertexAttribArray(color);
+		return;
+	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glDisableClientState(GL_COLOR_ARRAY);
@@ -283,10 +300,15 @@ void gpu_disable_color_array   (void)
 
 void gpu_disable_texcoord_array(void)
 {
-	GLint multi_texcoord = current_common != NULL ? current_common->multi_texcoord[active_texture_num] : -1;
+	GPU_ASSERT(active_texture_num >= 0);
+	GPU_ASSERT(active_texture_num < GPU_MAX_COMMON_TEXCOORDS);
 
-	if (gpu_glDisableVertexAttribArray != NULL && multi_texcoord != -1)
-		gpu_glDisableVertexAttribArray(multi_texcoord);
+	if (current_common != NULL) {
+		if (current_common->multi_texcoord[active_texture_num] != -1)
+			gpu_glDisableVertexAttribArray(current_common->multi_texcoord[active_texture_num]);
+
+		return;
+	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -297,10 +319,12 @@ void gpu_disable_texcoord_array(void)
 
 void gpu_vertex_pointer(GLint size, GLenum type, GLsizei stride, const GLvoid* pointer)
 {
-	GLint vertex = current_common != NULL ? current_common->vertex : -1;
+	if (current_common != NULL) {
+		if (current_common->vertex != -1)
+			gpu_glVertexAttribPointer(current_common->vertex, size, type, GL_FALSE, stride, pointer);
 
-	if (gpu_glVertexAttribPointer != NULL && vertex != -1)
-		gpu_glVertexAttribPointer(vertex, size, type, GL_FALSE, stride, pointer);
+		return;
+	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glVertexPointer(size, type, stride, pointer);
@@ -311,10 +335,12 @@ void gpu_vertex_pointer(GLint size, GLenum type, GLsizei stride, const GLvoid* p
 
 void gpu_normal_pointer(GLenum type, GLsizei stride, const GLvoid* pointer)
 {
-	GLint normal = current_common != NULL ? current_common->normal : -1;
+	if (current_common != NULL) {
+		if (current_common->normal != -1)
+			gpu_glVertexAttribPointer(current_common->normal, 3, type, GL_FALSE, stride, pointer);
 
-	if (gpu_glVertexAttribPointer != NULL && normal != -1)
-		gpu_glVertexAttribPointer(normal, 3, type, GL_FALSE, stride, pointer);
+		return;
+	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glNormalPointer(type, stride, pointer);
@@ -322,13 +348,17 @@ void gpu_normal_pointer(GLenum type, GLsizei stride, const GLvoid* pointer)
 }
 
 
-// XXX jwilkins: either remove the type parameter or add a normalize parameter (this applies to all of the pointer functions, not just gpu_color_pointer)
+
 void gpu_color_pointer(GLint size, GLenum type, GLsizei stride, const GLvoid* pointer)
 {
-	GLint color = current_common != NULL ? current_common->color : -1;
+	GPU_ASSERT(type == GL_UNSIGNED_BYTE); // making assumptions about the type being a fixed point type
 
-	if (gpu_glVertexAttribPointer != NULL && color != -1)
-		gpu_glVertexAttribPointer(color, size, type, GL_TRUE, stride, pointer);
+	if (current_common != NULL) {
+		if (current_common->color != -1)
+			gpu_glVertexAttribPointer(current_common->color, size, type, GL_TRUE, stride, pointer);
+
+		return;
+	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glColorPointer(size, type, stride, pointer);
@@ -339,13 +369,18 @@ void gpu_color_pointer(GLint size, GLenum type, GLsizei stride, const GLvoid* po
 
 void gpu_texcoord_pointer(GLint size, GLenum type, GLsizei stride, const GLvoid* pointer)
 {
-	GLuint multi_texcoord = current_common != NULL ? current_common->multi_texcoord[active_texture_num] : -1;
+	GPU_ASSERT(active_texture_num >= 0);
+	GPU_ASSERT(active_texture_num < GPU_MAX_COMMON_TEXCOORDS);
 
-	if (gpu_glVertexAttribPointer != NULL && multi_texcoord != -1)
-		gpu_glVertexAttribPointer(multi_texcoord, size, type, GL_FALSE, stride, pointer);
+	if (current_common != NULL) {
+		if (current_common->multi_texcoord[active_texture_num] != -1)
+			gpu_glVertexAttribPointer(current_common->multi_texcoord[active_texture_num], size, type, GL_FALSE, stride, pointer);
+
+		return;
+	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
-	if (active_texture_num < GPU_max_textures()
+	if (active_texture_num < GPU_max_textures())
 		glTexCoordPointer(size, type, stride, pointer);
 #endif
 }
@@ -359,10 +394,11 @@ void gpu_set_common_active_texture(GLint texture)
 	GPU_ASSERT(texture_num >= 0);
 	GPU_ASSERT(texture_num < GPU_MAX_COMMON_TEXCOORDS);
 
-	active_texture_num = texture_num;
+	if (texture_num >= 0 && texture_num < GPU_MAX_COMMON_TEXCOORDS)
+		active_texture_num = texture_num;
 
 #if defined(WITH_GL_PROFILE_COMPAT)
-	if (active_texture_num < GPU_max_textures()
+	if (active_texture_num < GPU_max_textures())
 		glClientActiveTexture(GL_TEXTURE0+texture);
 #endif
 }
@@ -378,7 +414,7 @@ GLint gpu_get_common_active_texture(void)
 
 void gpu_enable_vertex_attrib_array (GLuint index)
 {
-	if (gpu_glEnableVertexAttribArray != NULL)
+	if (current_common != NULL)
 		gpu_glEnableVertexAttribArray(index);
 }
 
@@ -386,7 +422,7 @@ void gpu_enable_vertex_attrib_array (GLuint index)
 
 void gpu_disable_vertex_attrib_array(GLuint index)
 {
-	if (gpu_glDisableVertexAttribArray != NULL)
+	if (current_common != NULL)
 		gpu_glDisableVertexAttribArray(index);
 }
 
@@ -400,7 +436,7 @@ void gpu_vertex_attrib_pointer(
 	GLsizei       stride,
 	const GLvoid* pointer)
 {
-	if (gpu_glVertexAttribPointer != NULL)
+	if (current_common != NULL)
 		gpu_glVertexAttribPointer(index, size, type, normalize, stride, pointer);
 }
 

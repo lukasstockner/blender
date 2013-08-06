@@ -136,25 +136,36 @@ GPU_CHECK_NO_ERROR();
 
 void GPU_font_shader_bind(void)
 {
-GPU_CHECK_NO_ERROR();
-	if (GPU_glsl_support())
+	bool glsl_support = GPU_glsl_support();
+
+	GPU_CHECK_NO_ERROR();
+
+	if (glsl_support)
 		gpu_font_shader();
 
-GPU_CHECK_NO_ERROR();
 #if defined(WITH_GL_PROFILE_COMPAT)
-	glEnable(GL_TEXTURE_2D);
+	if (!glsl_support)
+		glEnable(GL_TEXTURE_2D);
 #endif
+
+	GPU_CHECK_NO_ERROR();
 }
 
 
 
 void GPU_font_shader_unbind(void)
 {
-GPU_CHECK_NO_ERROR();
-	GPU_shader_unbind();
+	bool glsl_support = GPU_glsl_support();
 
-GPU_CHECK_NO_ERROR();
+	GPU_CHECK_NO_ERROR();
+
+	if (glsl_support)
+		GPU_shader_unbind();
+
 #if defined(WITH_GL_PROFILE_COMPAT)
-	glDisable(GL_TEXTURE_2D);
+	if (!glsl_support)
+		glDisable(GL_TEXTURE_2D);
 #endif
+
+	GPU_CHECK_NO_ERROR();
 }

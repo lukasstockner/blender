@@ -54,17 +54,6 @@
 
 
 
-static const GLsizeiptr VQEOS_SIZE =  sizeof(GLushort) * 3 * 65536 / 2;
-static const GLsizeiptr VQEOC_SIZE =  sizeof(GLubyte)  * 3 *   256 / 2;
-
-static GLushort* vqeos;
-static GLubyte*  vqeoc;
-
-static GLuint vqeos_buf;
-static GLuint vqeoc_buf;
-
-
-
 typedef struct bufferDataGLSL {
 	size_t   size;
 	GLuint   vao;
@@ -142,14 +131,14 @@ static void allocate(void)
 	else {
 		bufferDataGLSL* bufferData = (bufferDataGLSL*)MEM_callocN(sizeof(bufferDataGLSL), "bufferDataGLSL");
 
-		if (GLEW_VERSION_1_5 || GLEW_ES_VERSION_2_0 || GLEW_ARB_vertex_buffer_object) {
+		if (gpu_glGenBuffers) {
 			gpu_glGenBuffers(1, &(bufferData->vbo));
 			GPU_ASSERT(bufferData->vbo != 0);
 			gpu_glBindBuffer(GL_ARRAY_BUFFER, bufferData->vbo);
 			gpu_glBufferData(GL_ARRAY_BUFFER, newSize, NULL, GL_STREAM_DRAW);
 		}
 
-		if (GLEW_VERSION_1_5 || GLEW_OES_mapbuffer || GLEW_ARB_vertex_buffer_object) {
+		if (gpu_glMapBuffer) {
 			bufferData->unalignedPtr   = 0;
 			bufferData->unmappedBuffer = NULL;
 		}
@@ -255,7 +244,7 @@ static void unsetup(void)
 
 	/* normal */
 //	if (GPU_IMMEDIATE->format.normalSize != 0)
-		gpu_enable_normal_array();
+		gpu_disable_normal_array();
 
 	/* color */
 //	if (GPU_IMMEDIATE->format.colorSize != 0)
@@ -339,13 +328,13 @@ static void allocateIndex(void)
 		else {
 			indexBufferDataGLSL* bufferData = (indexBufferDataGLSL*)MEM_callocN(sizeof(indexBufferDataGLSL), "indexBufferDataGLSL");
 
-			if (GLEW_VERSION_1_5 || GLEW_ES_VERSION_2_0 || GLEW_ARB_vertex_buffer_object) {
+			if (gpu_glGenBuffers) {
 				gpu_glGenBuffers(1, &(bufferData->vbo));
 				gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufferData->vbo);
 				gpu_glBufferData(GL_ELEMENT_ARRAY_BUFFER, newSize, NULL, GL_STREAM_DRAW);
 			}
 
-			if (GLEW_VERSION_1_5 || GLEW_OES_mapbuffer || GLEW_ARB_vertex_buffer_object) {
+			if (gpu_glMapBuffer) {
 				bufferData->unalignedPtr   = 0;
 				bufferData->unmappedBuffer = NULL;
 			}
@@ -374,16 +363,44 @@ static void static_element_array(GLuint* idOut, GLsizeiptr size, const GLvoid* i
 
 
 
-static void quad_elements_init(void)
+/* quad emulation*/
+
+#if GPU_SAFETY
+static bool quad_init = false;
+#endif
+
+static const GLsizeiptr VQEOS_SIZE =  sizeof(GLushort) * 3 * 65536 / 2;
+static const GLsizeiptr VQEOC_SIZE =  sizeof(GLubyte)  * 3 *   256 / 2;
+
+static GLushort* vqeos;
+static GLubyte*  vqeoc;
+
+static GLuint vqeos_buf;
+static GLuint vqeoc_buf;
+
+
+
+static void quad_free_heap(void)
 {
-	/* init once*/
-	static char init = 0;
+	if (vqeoc) {
+		MEM_freeN(vqeoc);
+		vqeoc = NULL;
+	}
+
+	if (vqeos) {
+		MEM_freeN(vqeos);
+		vqeos = NULL;
+	}
+}
+
+
+
+void gpu_quad_elements_init(void)
+{
 
 	int i, j;
 
-	if (init) return;
-
-	init = 1;
+	GPU_ASSERT(!quad_init);
 
 	vqeos = (GLushort*)MEM_mallocN(VQEOS_SIZE, "vqeos");
 
@@ -402,16 +419,37 @@ static void quad_elements_init(void)
 	for (i = 0; i < 255; i++)
 		vqeoc[i] = (GLubyte)(vqeos[i]);
 
-	if (GLEW_VERSION_1_5 || GLEW_ES_VERSION_2_0 || GLEW_ARB_vertex_buffer_object) {
+	if (gpu_glGenBuffers) {
 		static_element_array(&vqeoc_buf, VQEOC_SIZE, vqeoc);
 		static_element_array(&vqeos_buf, VQEOS_SIZE, vqeos);
 
-		MEM_freeN(vqeoc);
-		MEM_freeN(vqeos);
-
-		vqeoc = NULL;
-		vqeos = NULL;
+		quad_free_heap();
 	}
+
+#if GPU_SAFETY
+	quad_init = true;
+#endif
+}
+
+
+
+void gpu_quad_elements_exit(void)
+{
+	quad_free_heap();
+
+	if (vqeoc_buf != 0) {
+		gpu_glDeleteBuffers(1, &vqeoc_buf);
+		vqeoc_buf = 0;
+	}
+
+	if (vqeos_buf != 0) {
+		gpu_glDeleteBuffers(1, &vqeos_buf);
+		vqeos_buf = 0;
+	}
+
+#if GPU_SAFETY
+	quad_init = false;
+#endif
 }
 
 
@@ -420,7 +458,6 @@ void gpu_lock_buffer_gl(void)
 {
 	allocate();
 	allocateIndex();
-	quad_elements_init();
 
 	//if (gpu_glGenVertexArrays != NULL) {
 	//	bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
@@ -457,6 +494,8 @@ void gpu_end_buffer_gl(void)
 {
 	bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
 
+	GPU_CHECK_NO_ERROR();
+
 	if (bufferData->mappedBuffer != NULL) {
 		GPU_buffer_finish_update(GL_ARRAY_BUFFER, GPU_IMMEDIATE->offset, bufferData->mappedBuffer);
 
@@ -465,39 +504,28 @@ void gpu_end_buffer_gl(void)
 	}
 
 	if (!(GPU_IMMEDIATE->mode == GL_NOOP || GPU_IMMEDIATE->count == 0)) {
-		GPU_CHECK_NO_ERROR();
-
-		gpu_commit_aspect  ();
+		gpu_commit_aspect();
 		unsetup();
 		setup();
-		GPU_CHECK_NO_ERROR();
 		gpu_commit_matrixes();
-		GPU_CHECK_NO_ERROR();
 		gpu_commit_current ();
-		GPU_CHECK_NO_ERROR();
 		gpu_commit_samplers();
-		GPU_CHECK_NO_ERROR();
 
 		if (GPU_IMMEDIATE->mode != GL_QUADS) {
 			glDrawArrays(GPU_IMMEDIATE->mode, 0, GPU_IMMEDIATE->count);
-		GPU_CHECK_NO_ERROR();
 		}
 		else {
 			if (GPU_IMMEDIATE->count <= 255){
 				if (vqeoc_buf != 0)
 					gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vqeoc_buf);
-		GPU_CHECK_NO_ERROR();
 
 				glDrawElements(GL_TRIANGLES, 3 * GPU_IMMEDIATE->count / 2, GL_UNSIGNED_BYTE, vqeoc);
-		GPU_CHECK_NO_ERROR();
 			}
 			else if(GPU_IMMEDIATE->count <= 65535) {
 				if (vqeos_buf != 0)
 					gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vqeos_buf);
-		GPU_CHECK_NO_ERROR();
 
 				glDrawElements(GL_TRIANGLES, 3 * GPU_IMMEDIATE->count / 2, GL_UNSIGNED_SHORT, vqeos);
-		GPU_CHECK_NO_ERROR();
 			}
 			else {
 				printf("To big GL_QUAD object to draw. Vertices: %i", GPU_IMMEDIATE->count);
@@ -505,12 +533,12 @@ void gpu_end_buffer_gl(void)
 
 			if (vqeoc_buf != 0 || vqeos_buf != 0)
 				gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ((indexBufferDataGLSL*)(GPU_IMMEDIATE->index->bufferData))->vbo);
-		GPU_CHECK_NO_ERROR();
 		}
 
 		unsetup();
-		GPU_CHECK_NO_ERROR();
 	}
+
+	GPU_CHECK_NO_ERROR();
 }
 
 
@@ -664,14 +692,16 @@ void gpu_commit_current(void)
 		if (GPU_IMMEDIATE->format.colorSize == 0 && common->color != -1) {
 			glVertexAttrib4f(
 				common->color,
-				(float)(GPU_IMMEDIATE->color[0])/255.0f,
-				(float)(GPU_IMMEDIATE->color[1])/255.0f,
-				(float)(GPU_IMMEDIATE->color[2])/255.0f,
-				(float)(GPU_IMMEDIATE->color[3])/255.0f);
+				((float)(GPU_IMMEDIATE->color[0]))/255.0f,
+				((float)(GPU_IMMEDIATE->color[1]))/255.0f,
+				((float)(GPU_IMMEDIATE->color[2]))/255.0f,
+				((float)(GPU_IMMEDIATE->color[3]))/255.0f);
 		}
 
 		if (GPU_IMMEDIATE->format.normalSize == 0 && common->normal != -1)
 			glVertexAttrib3fv(common->normal, GPU_IMMEDIATE->normal);
+
+		return;
 	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)

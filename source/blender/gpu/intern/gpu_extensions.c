@@ -294,6 +294,8 @@ void GPU_extensions_init(void)
 	GG.os = GPU_OS_UNIX;
 #endif
 
+	gpu_quad_elements_init();
+
 	GPU_basic_shaders_init();
 	GPU_font_shader_init();
 
@@ -316,6 +318,8 @@ GPU_CHECK_NO_ERROR();
 	GPU_aspect_end();
 	gpu_shutdown_aspect_funcs(); // XXX jwilkins: should my shutdown functions be named exit?
 	gpu_shutdown_aspects(); // XXX jwilkins: should my shutdown functions be named exit?
+
+	gpu_quad_elements_exit();
 
 GPU_CHECK_NO_ERROR();
 }

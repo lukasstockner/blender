@@ -401,6 +401,7 @@ static void GPU_buffer_finish_update_map(GLenum target, GLsizeiptr UNUSED(dataSi
 
 void GPU_wrap_extensions(GLboolean* glslsupport_out, GLboolean* framebuffersupport_out)
 {
+#if 1
 	*glslsupport_out = true;
 	
 	if (!init_shader_objects())
@@ -435,4 +436,11 @@ void GPU_wrap_extensions(GLboolean* glslsupport_out, GLboolean* framebuffersuppo
 	}
 
 	init_generate_mipmap();
+#else
+	*glslsupport_out = false;
+	*framebuffersupport_out = false;
+
+	GPU_buffer_start_update  = GPU_buffer_start_update_dummy;
+	GPU_buffer_finish_update = GPU_buffer_finish_update_dummy;
+#endif
 }
