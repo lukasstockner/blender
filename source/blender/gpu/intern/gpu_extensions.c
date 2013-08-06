@@ -36,6 +36,7 @@
 #include "GPU_draw.h"
 #include "GPU_basic_shader.h"
 #include "GPU_compatibility.h"
+#include "GPU_font_shader.h"
 
 /* internal */
 #include "intern/gpu_codegen.h"
@@ -294,23 +295,29 @@ void GPU_extensions_init(void)
 #endif
 
 	GPU_basic_shaders_init();
+	GPU_font_shader_init();
 
 	gpu_initialize_aspects();
 	gpu_initialize_aspect_funcs();
 	GPU_aspect_begin(GPU_ASPECT_BASIC, 0);
 
-	GPU_CHECK_NO_ERROR();
+GPU_CHECK_NO_ERROR();
 }
 
 void GPU_extensions_exit(void)
 {
+GPU_CHECK_NO_ERROR();
+
 	gpu_extensions_init = 0;
 	GPU_codegen_exit();
 	GPU_basic_shaders_exit();
+	GPU_font_shader_exit();
 
 	GPU_aspect_end();
 	gpu_shutdown_aspect_funcs(); // XXX jwilkins: should my shutdown functions be named exit?
 	gpu_shutdown_aspects(); // XXX jwilkins: should my shutdown functions be named exit?
+
+GPU_CHECK_NO_ERROR();
 }
 
 
@@ -413,7 +420,7 @@ static unsigned char *GPU_texture_convert_pixels(int length, float *fpixels)
 
 	len = 4*length;
 	fp = fpixels;
-	p = pixels = MEM_callocN(sizeof(unsigned char)*len, "GPUTexturePixels");
+	p = pixels = (unsigned char*)MEM_callocN(sizeof(unsigned char)*len, "GPUTexturePixels");
 
 	for (a=0; a<len; a++, p++, fp++)
 		*p = FTOCHAR((*fp));
@@ -598,7 +605,7 @@ GPUTexture *GPU_texture_create_3D(int w, int h, int depth, int channels, float *
 	if (!(GLEW_VERSION_1_2 || GLEW_ARB_texture3D || GLEW_EXT_texture3D || GLEW_OES_texture_3D))
 		return NULL;
 
-	tex = MEM_callocN(sizeof(GPUTexture), "GPUTexture");
+	tex = (GPUTexture*)MEM_callocN(sizeof(GPUTexture), "GPUTexture");
 	tex->w = w;
 	tex->h = h;
 	tex->depth = depth;
@@ -648,7 +655,7 @@ GPUTexture *GPU_texture_create_3D(int w, int h, int depth, int channels, float *
 	if (fpixels) {
 		if (!GPU_non_power_of_two_support() && (w != tex->w || h != tex->h || depth != tex->depth)) {
 			/* clear first to avoid unitialized pixels */
-			float *zero= MEM_callocN(sizeof(float)*tex->w*tex->h*tex->depth, "zero");
+			float *zero= (float*)MEM_callocN(sizeof(float)*tex->w*tex->h*tex->depth, "zero");
 			glTexSubImage3D(tex->target, 0, 0, 0, 0, tex->w, tex->h, tex->depth, format, type, zero);
 			MEM_freeN(zero);
 		}
@@ -698,7 +705,7 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, int isdata, d
 		return NULL;
 	}
 
-	tex = MEM_callocN(sizeof(GPUTexture), "GPUTexture");
+	tex = (GPUTexture*)MEM_callocN(sizeof(GPUTexture), "GPUTexture");
 	tex->bindcode = bindcode;
 	tex->number = -1;
 	tex->refcount = 1;
@@ -765,7 +772,7 @@ GPUTexture *GPU_texture_from_preview(PreviewImage *prv, int mipmap)
 		return NULL;
 	}
 	
-	tex = MEM_callocN(sizeof(GPUTexture), "GPUTexture");
+	tex = (GPUTexture*)MEM_callocN(sizeof(GPUTexture), "GPUTexture");
 	tex->bindcode = bindcode;
 	tex->number = -1;
 	tex->refcount = 1;
@@ -992,7 +999,7 @@ GPUFrameBuffer *GPU_framebuffer_create(void)
 	if (GG.framebuffersupport) {
 		GPUFrameBuffer *fb;
 
-		fb = MEM_callocN(sizeof(GPUFrameBuffer), "GPUFrameBuffer");
+		fb = (GPUFrameBuffer*)MEM_callocN(sizeof(GPUFrameBuffer), "GPUFrameBuffer");
 		gpu_glGenFramebuffers(1, &fb->object);
 
 		if (!fb->object) {
@@ -1244,7 +1251,7 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, char err_out[256])
 {
 	GPUOffScreen *ofs;
 
-	ofs= MEM_callocN(sizeof(GPUOffScreen), "GPUOffScreen");
+	ofs= (GPUOffScreen*)MEM_callocN(sizeof(GPUOffScreen), "GPUOffScreen");
 	ofs->w= width;
 	ofs->h= height;
 
@@ -1348,6 +1355,13 @@ static void shader_print_errors(const char *task, char *log, const char **code, 
 
 	fprintf(stderr, "%s\n", log);
 }
+
+static void shader_print_log(const char *task, char *log, const char **code, int code_count)
+{
+	if (strlen(log) > 0)
+		fprintf(stderr, "GPUShader: %s log:\n%s\n", task, log);
+}
+
 static const char *gpu_shader_standard_extensions(void)
 {
 	/* need this extensions for high quality bump mapping */
@@ -1416,18 +1430,45 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 	char log[5000];
 	GLsizei length = 0;
 	GPUShader *shader;
+	int i;
+
+	/* XXX jwilkins: not sure if this belongs here. */
+	/* This would not really be needed except that ATI cards seem to
+	   have a bug where they don't recognize VertexAttrib when the attribute location is 0 */
+	static struct AttribMap {
+		const GLchar* name;
+		GLuint        index;
+	} attrib_map[] = {
+		{ "b_Vertex",          1 },
+		{ "b_Color",           2 },
+		{ "b_Normal",          3 },
+		{ "b_MultiTexCoord0",  4 },
+		{ "b_MultiTexCoord1",  5 },
+		{ "b_MultiTexCoord2",  6 },
+		{ "b_MultiTexCoord3",  7 },
+		{ "b_MultiTexCoord4",  8 },
+		{ "b_MultiTexCoord5",  9 },
+		{ "b_MultiTexCoord6", 10 },
+		{ "b_MultiTexCoord7", 11 },
+	};
 
 	if (!GG.glslsupport) {
 		return NULL;
 	}
 
-	shader = MEM_callocN(sizeof(GPUShader), "GPUShader");
+	shader = (GPUShader*)MEM_callocN(sizeof(GPUShader), "GPUShader");
 
 	if (vertexcode)
 		shader->vertex = gpu_glCreateShader(GL_VERTEX_SHADER);
+
 	if (fragcode)
 		shader->fragment = gpu_glCreateShader(GL_FRAGMENT_SHADER);
+
 	shader->object = gpu_glCreateProgram();
+
+	/* bind common attribute locations. has to be done before program is linked */
+	for (i = 0; i < sizeof(attrib_map)/sizeof(struct AttribMap); i++)
+		gpu_glBindAttribLocation(shader->object, attrib_map[i].index, attrib_map[i].name);
 
 	if (!shader->object ||
 	    (vertexcode && !shader->vertex) ||
@@ -1445,7 +1486,7 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 		source[num_source++] = gpu_shader_standard_extensions();
 		source[num_source++] = gpu_shader_standard_defines();
 
-		if (defines) source[num_source++] = defines;
+		if (defines)    source[num_source++] = defines;
 		if (vertexcode) source[num_source++] = vertexcode;
 
 		gpu_glAttachShader(shader->object, shader->vertex);
@@ -1463,6 +1504,10 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 			GPU_shader_free(shader);
 			return NULL;
 		}
+		else {
+			gpu_glGetShaderInfoLog(shader->vertex, sizeof(log), &length, log);
+			shader_print_log("compile", log, source, num_source);
+		}
 	}
 
 	if (fragcode) {
@@ -1472,8 +1517,8 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 		source[num_source++] = gpu_shader_standard_extensions();
 		source[num_source++] = gpu_shader_standard_defines();
 
-		if (defines) source[num_source++] = defines;
-		if (libcode) source[num_source++] = libcode;
+		if (defines)  source[num_source++] = defines;
+		if (libcode)  source[num_source++] = libcode;
 		if (fragcode) source[num_source++] = fragcode;
 
 		gpu_glAttachShader(shader->object, shader->fragment);
@@ -1490,6 +1535,10 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 
 			GPU_shader_free(shader);
 			return NULL;
+		}
+		else {
+			gpu_glGetShaderInfoLog(shader->vertex, sizeof(log), &length, log);
+			shader_print_log("compile", log, source, num_source);
 		}
 	}
 
@@ -1514,6 +1563,11 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 		GPU_shader_free(shader);
 		return NULL;
 	}
+	else {
+		gpu_glGetShaderInfoLog(shader->vertex, sizeof(log), &length, log);
+		shader_print_log("linking", log, NULL, 0);
+	}
+
 	return shader;
 }
 
@@ -1571,6 +1625,8 @@ void GPU_shader_unbind(void)
 
 void GPU_shader_free(GPUShader *shader)
 {
+	if (shader == NULL)
+		return;
 	if (shader->lib)
 		gpu_glDeleteShader(shader->lib);
 	if (shader->vertex)
@@ -1580,7 +1636,6 @@ void GPU_shader_free(GPUShader *shader)
 	if (shader->object)
 		gpu_glDeleteProgram(shader->object);
 	MEM_freeN(shader);
-
 }
 
 int GPU_shader_get_attrib(GPUShader *shader, const char *name)

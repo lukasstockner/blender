@@ -1088,7 +1088,7 @@ void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numda
 
 	for (i = 0; i < MAX_GPU_ATTRIB_DATA; i++) {
 		if (attribData[i].index != -1) {
-			glDisableVertexAttribArray(attribData[i].index);
+			gpu_glDisableVertexAttribArray(attribData[i].index);
 		}
 		else
 			break;
@@ -1098,8 +1098,8 @@ void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numda
 	if (useVBOs) {
 		gpu_glBindBuffer(GL_ARRAY_BUFFER, buffer->id);
 		for (i = 0; i < numdata; i++) {
-			glEnableVertexAttribArray(data[i].index);
-			glVertexAttribPointer(data[i].index, data[i].size, data[i].type,
+			gpu_glEnableVertexAttribArray(data[i].index);
+			gpu_glVertexAttribPointer(data[i].index, data[i].size, data[i].type,
 			                         GL_FALSE, elementsize, (void *)offset);
 			offset += data[i].size * GPU_typesize(data[i].type);
 
@@ -1111,8 +1111,8 @@ void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numda
 	}
 	else {
 		for (i = 0; i < numdata; i++) {
-			glEnableVertexAttribArray(data[i].index);
-			glVertexAttribPointer(data[i].index, data[i].size, data[i].type,
+			gpu_glEnableVertexAttribArray(data[i].index);
+			gpu_glVertexAttribPointer(data[i].index, data[i].size, data[i].type,
 			                         GL_FALSE, elementsize, (char *)buffer->pointer + offset);
 			offset += data[i].size * GPU_typesize(data[i].type);
 		}
@@ -1146,7 +1146,7 @@ void GPU_buffer_unbind(void)
 
 	for (i = 0; i < MAX_GPU_ATTRIB_DATA; i++) {
 		if (attribData[i].index != -1) {
-			glDisableVertexAttribArray(attribData[i].index);
+			gpu_glDisableVertexAttribArray(attribData[i].index);
 		}
 		else
 			break;

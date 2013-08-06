@@ -32,12 +32,12 @@
 /* my interface */
 #include "intern/gpu_immediate.h"
 
+/* my library */
+#include "GPU_extensions.h"
+
 /* internal */
 #include "intern/gpu_immediate_gl.h"
 #include "intern/gpu_profile.h"
-
-/* my module */
-#include "GPU_extensions.h"
 
 /* external */
 #include "MEM_guardedalloc.h"
@@ -49,7 +49,7 @@
 
 #if GPU_SAFETY
 
-/* Define some useful, but slow, checks for correct API usage. */
+/* Define some useful, but potentially slow, checks for correct API usage. */
 
 /* Each block contains variables that can be inspected by a
    debugger in the event that a break point is triggered. */
@@ -637,7 +637,7 @@ void gpuImmediateFormat_T2_V2(void)
 
 	if (gpuImmediateLockCount() == 0) {
 		GLint texCoordSizes[1] = { 2 };
-		GLenum samplerMap[1]   = { 0 };
+		GLint samplerMap   [1] = { 0 };
 
 		gpuImmediateFormatReset();
 
@@ -665,7 +665,7 @@ void gpuImmediateFormat_T2_V3(void)
 
 	if (gpuImmediateLockCount() == 0) {
 		GLint texCoordSizes[1] = { 2 };
-		GLenum samplerMap[1]   = { 0 };
+		GLint samplerMap   [1] = { 0 };
 
 		gpuImmediateFormatReset();
 
@@ -693,7 +693,7 @@ void gpuImmediateFormat_T2_C4_V2(void)
 
 	if (gpuImmediateLockCount() == 0) {
 		GLint texCoordSizes[1] = { 2 };
-		GLenum samplerMap[1]   = { 0 };
+		GLint samplerMap   [1] = { 0 };
 
 		gpuImmediateFormatReset();
 
@@ -797,7 +797,7 @@ void gpuImmediateFormat_T2_C4_N3_V3(void)
 
 	if (gpuImmediateLockCount() == 0) {
 		GLint texCoordSizes[1] = { 2 };
-		GLenum samplerMap[1]   = { 0 };
+		GLint samplerMap   [1] = { 0 };
 
 		gpuImmediateFormatReset();
 
@@ -825,7 +825,7 @@ void gpuImmediateFormat_T3_C4_V3(void)
 
 	if (gpuImmediateLockCount() == 0) {
 		GLint texCoordSizes[1] = { 3 };
-		GLenum samplerMap[1]   = { 0 };
+		GLint samplerMap   [1] = { 0 };
 
 		gpuImmediateFormatReset();
 
@@ -909,7 +909,7 @@ static void gpu_append_client_arrays(
 
 	vertexPointer = (char *restrict)(arrays->vertexPointer) + (first * arrays->vertexStride);
 	normalPointer = (char *restrict)(arrays->normalPointer) + (first * arrays->normalStride);
-	colorPointer  = (char *restrict)(arrays->colorPointer)  + (first * arrays->colorStride);
+	colorPointer  = (char *restrict)(arrays->colorPointer ) + (first * arrays->colorStride );
 
 	mappedBuffer   = GPU_IMMEDIATE->mappedBuffer;
 	offset   = GPU_IMMEDIATE->offset;
@@ -1703,6 +1703,5 @@ const char* gpuErrorString(GLenum err)
 			return "<unknown error>";
 	}
 }
-
 
 

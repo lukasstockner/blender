@@ -1,3 +1,13 @@
+/* Options:
+
+   USE_LIGHTING
+   USE_FAST_LIGHTING
+   USE_TWO_SIDE
+   USE_SPECULAR
+   USE_LOCAL_VIEWER
+   USE_TEXTURE_2D
+
+*/
 
 
 
@@ -13,12 +23,12 @@ varying vec3 varying_position;
 
 
 
-varying vec4 varying_vertex_color;
+varying vec4 varying_color;
 
 
 
 #ifdef USE_TEXTURE_2D
-varying vec2 varying_texture_coord;
+varying vec2 varying_texcoord;
 #endif
 
 
@@ -38,17 +48,17 @@ void main()
 
 	gl_Position = b_ProjectionMatrix * co;
 
-// XXX jwilkins: gl_ClipVertex is deprecated
-//#ifdef GPU_NVIDIA 
-//	// Setting gl_ClipVertex is necessary to get glClipPlane working on NVIDIA
-//	// graphic cards, while on ATI it can cause a software fallback.
-//	gl_ClipVertex = b_ModelViewMatrix * b_Vertex; 
-//#endif 
+#if defined(GPU_PROFILE_COMPAT) && defined(GPU_NVIDIA)
+	// Setting gl_ClipVertex is necessary to get glClipPlane working on NVIDIA
+	// graphic cards, while on ATI it can cause a software fallback.
+	gl_ClipVertex = co; 
+#endif
 
-	varying_vertex_color = b_Color;
+	varying_color = b_Color;
 
 #ifdef USE_TEXTURE_2D
-	varying_texture_coord = (b_TextureMatrix[0] * b_MultiTexCoord0).st;
+	varying_texcoord = (b_TextureMatrix[0] * b_MultiTexCoord0).st;
 #endif
 }
+
 

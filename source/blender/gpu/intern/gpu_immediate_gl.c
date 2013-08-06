@@ -246,6 +246,45 @@ static void setup(void)
 
 
 
+static void unsetup(void)
+{
+	size_t i;
+
+	/* vertex */
+	gpu_disable_vertex_array();
+
+	/* normal */
+//	if (GPU_IMMEDIATE->format.normalSize != 0)
+		gpu_enable_normal_array();
+
+	/* color */
+//	if (GPU_IMMEDIATE->format.colorSize != 0)
+		gpu_disable_color_array();
+
+	/* texture coordinate */
+
+	for (i = 0; i < GPU_IMMEDIATE->format.texCoordCount; i++) {
+		gpu_set_common_active_texture(i);
+
+//		if (GPU_IMMEDIATE->format.texCoordSize[i] != 0)
+			gpu_disable_texcoord_array();
+	}
+
+	gpu_set_common_active_texture(0);
+
+	/* float vertex attribute */
+	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_f; i++)
+//		if (GPU_IMMEDIATE->format.attribSize_f[i] > 0)
+			gpu_disable_vertex_attrib_array(GPU_IMMEDIATE->format.attribIndexMap_f[i]);
+
+	/* byte vertex attribute */
+	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++)
+//		if (GPU_IMMEDIATE->format.attribSize_ub[i] > 0)
+			gpu_disable_vertex_attrib_array(GPU_IMMEDIATE->format.attribIndexMap_ub[i]);
+}
+
+
+
 typedef struct indexBufferDataGLSL {
 	GLuint   vbo;
 	GLintptr unalignedPtr;
@@ -383,21 +422,21 @@ void gpu_lock_buffer_gl(void)
 	allocateIndex();
 	quad_elements_init();
 
-	if (gpu_glGenVertexArrays != NULL) {
-		bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
-		bool init = (bufferData->vao == 0);
+	//if (gpu_glGenVertexArrays != NULL) {
+	//	bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
+	//	bool init = (bufferData->vao == 0);
 
-		if (init)
-			gpu_glGenVertexArrays(1, &(bufferData->vao));
+	//	if (init)
+	//		gpu_glGenVertexArrays(1, &(bufferData->vao));
 
-		gpu_glBindVertexArray(bufferData->vao);
+	//	gpu_glBindVertexArray(bufferData->vao);
 
-		if (init)
-			setup();
-	}
-	else {
-		setup();
-	}
+	//	if (init)
+	//		setup();
+	//}
+	//else {
+	//	setup();
+	//}
 }
 
 
@@ -429,6 +468,8 @@ void gpu_end_buffer_gl(void)
 		GPU_CHECK_NO_ERROR();
 
 		gpu_commit_aspect  ();
+		unsetup();
+		setup();
 		GPU_CHECK_NO_ERROR();
 		gpu_commit_matrixes();
 		GPU_CHECK_NO_ERROR();
@@ -467,56 +508,21 @@ void gpu_end_buffer_gl(void)
 		GPU_CHECK_NO_ERROR();
 		}
 
+		unsetup();
 		GPU_CHECK_NO_ERROR();
 	}
-}
-
-
-static void unsetup(void)
-{
-	size_t i;
-
-	/* vertex */
-	gpu_disable_vertex_array();
-
-	/* normal */
-	if (GPU_IMMEDIATE->format.normalSize != 0)
-		gpu_enable_normal_array();
-
-	/* color */
-	if (GPU_IMMEDIATE->format.colorSize != 0)
-		gpu_disable_color_array();
-
-	/* texture coordinate */
-
-	for (i = 0; i < GPU_IMMEDIATE->format.texCoordCount; i++) {
-		gpu_set_common_active_texture(i);
-		gpu_disable_texcoord_array();
-	}
-
-	gpu_set_common_active_texture(0);
-
-	/* float vertex attribute */
-	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_f; i++)
-		if (GPU_IMMEDIATE->format.attribSize_f[i] > 0)
-			gpu_disable_vertex_attrib_array(GPU_IMMEDIATE->format.attribIndexMap_f[i]);
-
-	/* byte vertex attribute */
-	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++)
-		if (GPU_IMMEDIATE->format.attribSize_ub[i] > 0)
-			gpu_disable_vertex_attrib_array(GPU_IMMEDIATE->format.attribIndexMap_ub[i]);
 }
 
 
 
 void gpu_unlock_buffer_gl(void)
 {
-	bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
+	//bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
 
-	if (bufferData->vao != 0)
-		glBindVertexArray(0);
-	else
-		unsetup();
+	//if (bufferData->vao != 0)
+	//	glBindVertexArray(0);
+	//else
+	//	unsetup();
 }
 
 
@@ -596,6 +602,8 @@ void gpu_draw_elements_gl(void)
 	GPU_CHECK_NO_ERROR();
 
 	gpu_commit_aspect  ();
+	unsetup();
+	setup();
 	gpu_commit_matrixes();
 	gpu_commit_current ();
 	gpu_commit_samplers();
@@ -605,6 +613,8 @@ void gpu_draw_elements_gl(void)
 		index->count,
 		index->type,
 		bufferData->vbo != 0 ? NULL : bufferData->unmappedBuffer);
+
+	unsetup();
 
 	GPU_CHECK_NO_ERROR();
 }
@@ -617,6 +627,8 @@ void gpu_draw_range_elements_gl(void)
 	GPU_CHECK_NO_ERROR();
 
 	gpu_commit_aspect  ();
+	unsetup();
+	setup();
 	gpu_commit_matrixes();
 	gpu_commit_current ();
 	gpu_commit_samplers();
@@ -637,6 +649,8 @@ void gpu_draw_range_elements_gl(void)
 		bufferData->vbo != 0 ? NULL : bufferData->unmappedBuffer);
 #endif
 
+	unsetup();
+
 	GPU_CHECK_NO_ERROR();
 }
 
@@ -647,8 +661,14 @@ void gpu_commit_current(void)
 	const GPUcommon* common = gpu_get_common();
 
 	if (common) {
-		if (GPU_IMMEDIATE->format.colorSize == 0 && common->color != -1)
-			glVertexAttrib4ubv(common->color, GPU_IMMEDIATE->color);
+		if (GPU_IMMEDIATE->format.colorSize == 0 && common->color != -1) {
+			glVertexAttrib4f(
+				common->color,
+				(float)(GPU_IMMEDIATE->color[0])/255.0f,
+				(float)(GPU_IMMEDIATE->color[1])/255.0f,
+				(float)(GPU_IMMEDIATE->color[2])/255.0f,
+				(float)(GPU_IMMEDIATE->color[3])/255.0f);
+		}
 
 		if (GPU_IMMEDIATE->format.normalSize == 0 && common->normal != -1)
 			glVertexAttrib3fv(common->normal, GPU_IMMEDIATE->normal);

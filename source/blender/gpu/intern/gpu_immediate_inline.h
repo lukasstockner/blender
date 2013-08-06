@@ -140,7 +140,7 @@ BLI_INLINE void gpuColor4P(GLuint rgb, GLfloat a)
 	GPU_IMMEDIATE->color[0] = (rgb >>  0) & 0xFF;
 	GPU_IMMEDIATE->color[1] = (rgb >>  8) & 0xFF;
 	GPU_IMMEDIATE->color[2] = (rgb >> 16) & 0xFF;
-	GPU_IMMEDIATE->color[3] = (GLubyte)(255 * a);
+	GPU_IMMEDIATE->color[3] = (GLubyte)(255.0f * a);
 }
 
 
@@ -162,29 +162,29 @@ BLI_INLINE void gpuGray4f(GLfloat luminance, GLfloat alpha)
 	GPU_IMMEDIATE->color[0] = c;
 	GPU_IMMEDIATE->color[1] = c;
 	GPU_IMMEDIATE->color[2] = c;
-	GPU_IMMEDIATE->color[3] = (GLubyte)(255.0 * alpha);
+	GPU_IMMEDIATE->color[3] = (GLubyte)(255.0f * alpha);
 }
 
 
 
 BLI_INLINE void gpuAlpha(GLfloat a)
 {
-	GPU_IMMEDIATE->color[3] = (GLubyte)(255 * a);
+	GPU_IMMEDIATE->color[3] = (GLubyte)(255.0f * a);
 }
 
 BLI_INLINE void gpuMultAlpha(GLfloat factor)
 {
-	GPU_IMMEDIATE->color[3] = (GLubyte)(factor * (float)(GPU_IMMEDIATE->color[3]));
+	GPU_IMMEDIATE->color[3] = (GLubyte)(factor * (GLfloat)(GPU_IMMEDIATE->color[3]));
 }
 
 
 
 BLI_INLINE void gpuGetColor4fv(GLfloat *restrict color)
 {
-	color[0] = GPU_IMMEDIATE->color[0] / 255.0f;
-	color[1] = GPU_IMMEDIATE->color[1] / 255.0f;
-	color[2] = GPU_IMMEDIATE->color[2] / 255.0f;
-	color[3] = GPU_IMMEDIATE->color[3] / 255.0f;
+	color[0] = (GLfloat)(GPU_IMMEDIATE->color[0]) / 255.0f;
+	color[1] = (GLfloat)(GPU_IMMEDIATE->color[1]) / 255.0f;
+	color[2] = (GLfloat)(GPU_IMMEDIATE->color[2]) / 255.0f;
+	color[3] = (GLfloat)(GPU_IMMEDIATE->color[3]) / 255.0f;
 }
 
 BLI_INLINE void gpuGetColor4ubv(GLubyte *restrict color)

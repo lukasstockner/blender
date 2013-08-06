@@ -242,7 +242,7 @@ void BLI_dynstr_get_cstring_ex(DynStr *ds, char *rets)
 
 char *BLI_dynstr_get_cstring(DynStr *ds)
 {
-	char *rets = MEM_mallocN(ds->curlen + 1, "dynstr_cstring");
+	char *rets = (char*)MEM_mallocN(ds->curlen + 1, "dynstr_cstring");
 	BLI_dynstr_get_cstring_ex(ds, rets);
 	return rets;
 }

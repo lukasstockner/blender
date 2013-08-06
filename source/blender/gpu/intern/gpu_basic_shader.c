@@ -42,17 +42,25 @@
  * - Optimize for case where no texture matrix is used.
  */
 
+/* my interface */
 #include "GPU_basic_shader.h"
 
+/* my library */
+#include "GPU_extensions.h"
+#include "GPU_matrix.h"
+
+/* internal */
 #include "intern/gpu_common.h"
 #include "intern/gpu_safety.h"
 
-#include "GPU_extensions.h"
-#include "GPU_matrix.h"
+/* external */
 
 #include "BLI_math.h"
 #include "BLI_dynstr.h"
 
+#include "MEM_guardedalloc.h"
+
+/* standard */
 #include <string.h>
 
 
@@ -76,6 +84,12 @@ static struct BASIC_SHADER {
 void GPU_basic_shaders_init(void)
 {
 	memset(&BASIC_SHADER, 0, sizeof(BASIC_SHADER));
+
+	//{
+	//	int i;
+	//for (i = 0; i < GPU_BASIC_OPTION_COMBINATIONS; i++)
+	//	BASIC_SHADER.failed[i] = true;
+	//}
 }
 
 
@@ -147,6 +161,10 @@ GPU_CHECK_NO_ERROR();
 		DynStr* frag = BLI_dynstr_new();
 		DynStr* defs = BLI_dynstr_new();
 
+		char* vert_cstring;
+		char* frag_cstring;
+		char* defs_cstring;
+
 		gpu_include_common_vert(vert);
 		BLI_dynstr_append(vert, datatoc_gpu_shader_basic_vert_glsl);
 
@@ -169,33 +187,33 @@ GPU_CHECK_NO_ERROR();
 
 		if (options & GPU_BASIC_LIGHTING) {
 			BLI_dynstr_append(defs, "#define USE_LIGHTING\n");
+			BLI_dynstr_append(defs, "#define USE_SPECULAR\n");
 
 			if (options & GPU_BASIC_FAST_LIGHTING)
 				BLI_dynstr_append(defs, "#define USE_FAST_LIGHTING\n");
-			else
-				BLI_dynstr_append(defs, "#define USE_SCENE_LIGHTING\n");
 		}
 
+		vert_cstring = BLI_dynstr_get_cstring(vert);
+		frag_cstring = BLI_dynstr_get_cstring(frag);
+		defs_cstring = BLI_dynstr_get_cstring(defs);
+
 		BASIC_SHADER.gpushader[options] =
-			GPU_shader_create(
-				BLI_dynstr_get_cstring(vert),
-				BLI_dynstr_get_cstring(frag),
-				NULL,
-				BLI_dynstr_get_cstring(defs));
+			GPU_shader_create(vert_cstring, frag_cstring, NULL, defs_cstring);
 GPU_CHECK_NO_ERROR();
 
-		if (BASIC_SHADER.gpushader[options] != NULL) {
-			int i;
+		MEM_freeN(vert_cstring);
+		MEM_freeN(frag_cstring);
+		MEM_freeN(defs_cstring);
 
+		BLI_dynstr_free(vert);
+		BLI_dynstr_free(frag);
+		BLI_dynstr_free(defs);
+
+		if (BASIC_SHADER.gpushader[options] != NULL) {
 			gpu_init_common(BASIC_SHADER.common + options, BASIC_SHADER.gpushader[options]);
 			gpu_set_common (BASIC_SHADER.common + options);
 
 			GPU_shader_bind(BASIC_SHADER.gpushader[options]);
-GPU_CHECK_NO_ERROR();
-
-			/* the mapping between samplers and texture units is static, so it can committed here once */
-			for (i = 0; i < GPU_MAX_COMMON_SAMPLERS; i++)
-				glUniform1i(BASIC_SHADER.common[options].sampler[i], i);
 GPU_CHECK_NO_ERROR();
 		}
 		else {

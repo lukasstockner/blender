@@ -18,6 +18,7 @@
 #ifdef USE_LIGHTING
 
 varying vec3 varying_normal;
+varying vec3 varying_half_vector;
 
 #ifndef USE_FAST_LIGHTING
 varying vec3 varying_position;
@@ -27,12 +28,12 @@ varying vec3 varying_position;
 
 
 
-varying vec4 varying_vertex_color;
+varying vec4 varying_color;
 
 
 
 #ifdef USE_TEXTURE_2D
-varying vec2 varying_texture_coord;
+varying vec2 varying_texcoord;
 #endif
 
 
@@ -49,113 +50,131 @@ void main()
 #endif
 
 	/* compute diffuse and specular lighting */
-	vec3 L_diffuse = vec3(0.0);
+	vec3 L_diffuse  = vec3(0,0,0);
 
 #ifdef USE_SPECULAR
-	vec3 L_specular = vec3(0.0);
+	vec3 L_specular = vec3(0,0,0);
 #endif
 
 #ifdef USE_FAST_LIGHTING
-	/* assume 3 directional lights */
 	for (int i = 0; i < b_LightCount; i++) {
-		vec3 light_direction = b_LightSource[i].position.xyz;
+		vec3 L;
+
+		/* directional light */
+
+		L = -b_LightSource[i].position.xyz; /* Assume this is a normalized direction vector for a sun lamp. */
 
 		/* diffuse light */
-		vec3 light_diffuse = b_LightSource[i].diffuse.rgb;
-		float diffuse_bsdf = max(dot(N, light_direction), 0.0);
-		L_diffuse += light_diffuse*diffuse_bsdf;
+
+		float NdotL = dot(N, L);
+
+		if (NdotL > 0) {
+			L_diffuse += NdotL * b_LightSource[i].diffuse.rgb;
 
 #ifdef USE_SPECULAR
-		/* specular light */
-		vec3 light_specular = b_LightSource[i].specular.rgb;
-		vec3 H = normalize(light_direction - vec3(0, 0, -1));
+			/* specular light */
 
-		float specular_bsdf = pow(max(dot(N, H), 0.0), b_FrontMaterial.shininess);
-		L_specular += light_specular*specular_bsdf;
+			vec3  V     = vec3(0, 0, 1); /* Assume non-local viewer. */
+			vec3  H     = normalize(L + V);
+			float NdotH = dot(N, H);
+
+			L_specular += pow(max(0, NdotH), b_FrontMaterial.shininess) * b_LightSource[i].specular.rgb;
 #endif
+		}
 	}
 
 #else /* all 8 lights, makes no assumptions, potentially slow */
 
 	for (int i = 0; i < b_LightCount; i++) {
-		float intensity = 1.0;
-		vec3 light_direction;
+		float I;
+		vec3  L;
 
 		if (b_LightSource[i].position.w == 0.0) {
 			/* directional light */
-			light_direction = b_LightSource[i].position.xyz;
+
+			L = -b_LightSource[i].position.xyz; /* Assume this is a normalized direction vector for a sun lamp. */ 
+
+			I = 1;
 		}
 		else {
 			/* point light */
-			vec3 d = b_LightSource[i].position.xyz - varying_position;
-			light_direction = normalize(d);
+
+			vec3 VP = b_LightSource[i].position.xyz - varying_position;
+
+			/* falloff */
+			float d = length(VP);
+
+			L = VP/d;
 
 			/* spot light cone */
 			if (b_LightSource[i].spotCutoff < 90.0) {
-				float cosine = max(dot(light_direction, -b_LightSource[i].spotDirection), 0.0);
-				intensity = pow(cosine, b_LightSource[i].spotExponent);
-				intensity *= step(b_LightSource[i].spotCosCutoff, cosine);
+				float cosine = max(dot(L, -b_LightSource[i].spotDirection), 0.0);
+				I = pow(cosine, b_LightSource[i].spotExponent) * step(b_LightSource[i].spotCosCutoff, cosine);
+			}
+			else {
+				I = 1;
 			}
 
-			/* falloff */
-			float distance = length(d);
-
-			intensity /= b_LightSource[i].constantAttenuation +
+			I /=
+				b_LightSource[i].constantAttenuation +
 				b_LightSource[i].linearAttenuation * distance +
 				b_LightSource[i].quadraticAttenuation * distance * distance;
 		}
 
 		/* diffuse light */
-		vec3 light_diffuse = b_LightSource[i].diffuse.rgb;
-		float diffuse_bsdf = max(dot(N, light_direction), 0.0);
-		L_diffuse += light_diffuse*diffuse_bsdf*intensity;
+
+		float NdotL = dot(N, L);
+
+		if (NdotL > 0) {
+			L_diffuse += I * NdotL * b_LightSource[i].diffuse.rgb;
 
 #ifdef USE_SPECULAR
-		/* specular light */
-		vec3 light_specular = b_LightSource[i].specular.rgb;
+			/* specular light */
 
 #ifdef USE_LOCAL_VIEWER
-		vec3 H = normalize(light_direction - vec3(0, 0, -1));
+			vec3 V      = normalize(-varying_position);
 #else
-		vec3 H = normalize(light_direction - normalize(varying_position));
+			vec3 V      = vec3(0, 0, 1);
 #endif
+			vec3 H      = normalize(L + V);
+			float NdotH = dot(N, H);
 
-		float specular_bsdf = pow(max(dot(N, H), 0.0), b_FrontMaterial.shininess);
-		L_specular += light_specular*specular_bsdf*intensity;
+			L_specular += I * pow(max(0, NdotH), b_FrontMaterial.shininess) * b_LightSource[i].specular.rgb;
 #endif
+		}
 	}
 
-#endif
+#endif /* fast or regular lighting */
 
 	/* compute diffuse color, possibly from texture or vertex colors */
 	float alpha;
 
 #ifdef USE_TEXTURE_2D
-	vec4 texture_color = texture2D(b_Sampler[0], varying_texture_coord);
+	vec4 texture_color = texture2D(b_Sampler2D[0], varying_texcoord);
 
-	L_diffuse *= texture_color.rgb * varying_vertex_color.rgb;
-	alpha = texture_color.a * varying_vertex_color.a;
+	L_diffuse *= texture_color.rgb * varying_color.rgb;
+	alpha = texture_color.a * varying_color.a;
 #else
-	L_diffuse *= varying_vertex_color.rgb;
-	alpha = varying_vertex_color.a;
+	L_diffuse *= varying_color.rgb;
+	alpha = varying_color.a;
 #endif
 
 	/* sum lighting */
-	vec3 L = L_diffuse;
+	vec3 L_total = L_diffuse;
 
 #ifdef USE_SPECULAR
-	L += L_specular * b_FrontMaterial.specular.rgb;
+	L_total += L_specular * b_FrontMaterial.specular.rgb;
 #endif
 
 	/* write out fragment color */
-	gl_FragColor = vec4(L, alpha);
+	gl_FragColor = vec4(L_total, alpha);
 
 #else /* no lighting */
 
 #ifdef USE_TEXTURE_2D
-	gl_FragColor = texture2D(b_Sampler2D[0], varying_texture_coord) * varying_vertex_color;
+	gl_FragColor = texture2D(b_Sampler2D[0], varying_texcoord) * varying_color;
 #else
-	gl_FragColor = varying_vertex_color;
+	gl_FragColor = varying_color;
 #endif
 
 #endif

@@ -32,16 +32,19 @@
 /* my interface */
 #include "GPU_font_shader.h"
 
+/* my library */
+#include "GPU_extensions.h"
+
 /* internal */
 #include "intern/gpu_common.h"
 #include "intern/gpu_safety.h"
 
-/* my library */
-#include "GPU_extensions.h"
-
 /* external */
+
 #include "BLI_dynstr.h"
 #include "BLI_utildefines.h"
+
+#include "MEM_guardedalloc.h"
 
 
 
@@ -83,6 +86,10 @@ GPU_CHECK_NO_ERROR();
 		DynStr* frag = BLI_dynstr_new();
 		DynStr* defs = BLI_dynstr_new();
 
+		char* vert_cstring;
+		char* frag_cstring;
+		char* defs_cstring;
+
 		gpu_include_common_vert(vert);
 		BLI_dynstr_append(vert, datatoc_gpu_shader_font_vert_glsl);
 
@@ -92,12 +99,20 @@ GPU_CHECK_NO_ERROR();
 		gpu_include_common_defs(defs);
 		BLI_dynstr_append(defs, "#define USE_TEXTURE_2D\n");
 
+		vert_cstring = BLI_dynstr_get_cstring(vert);
+		frag_cstring = BLI_dynstr_get_cstring(frag);
+		defs_cstring = BLI_dynstr_get_cstring(defs);
+
 		FONT_SHADER =
-			GPU_shader_create(
-				BLI_dynstr_get_cstring(vert),
-				BLI_dynstr_get_cstring(frag),
-				NULL,
-				BLI_dynstr_get_cstring(defs));
+			GPU_shader_create(vert_cstring, frag_cstring, NULL, defs_cstring);
+
+		MEM_freeN(vert_cstring);
+		MEM_freeN(frag_cstring);
+		MEM_freeN(defs_cstring);
+
+		BLI_dynstr_free(vert);
+		BLI_dynstr_free(frag);
+		BLI_dynstr_free(defs);
 
 GPU_CHECK_NO_ERROR();
 		if (FONT_SHADER != NULL) {
@@ -105,10 +120,6 @@ GPU_CHECK_NO_ERROR();
 			gpu_set_common(&FONT_COMMON);
 
 			GPU_shader_bind(FONT_SHADER);
-GPU_CHECK_NO_ERROR();
-
-			/* the mapping between samplers and texture units is static, so it can commit here once */
-			glUniform1i(FONT_COMMON.sampler[0], 0);
 GPU_CHECK_NO_ERROR();
 		}
 		else {

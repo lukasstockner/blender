@@ -1839,7 +1839,6 @@ int GPU_default_lights(void)
 {
 	int a;
 	GPUbasiclight lights[GPU_MAX_COMMON_LIGHTS];
-	int count = 0;
 
 	if (!(U.light[0].flag || U.light[1].flag || U.light[2].flag)) {
 		/* initialize */
@@ -1861,7 +1860,7 @@ int GPU_default_lights(void)
 		VEC4D(U.light[2].spec,  0.5f,  0.4f,  0.3f,  1.0f);
 	}
 
-	for (a = 0; a < GPU_MAX_COMMON_LIGHTS; a++) {
+	for (a = 0; a < 3; a++) {
 		if (a < 3 && U.light[a].flag) {
 			lights[a] = GPU_DEFAULT_LIGHT;
 
@@ -1870,14 +1869,12 @@ int GPU_default_lights(void)
 
 			copy_v4_v4(lights[a].diffuse,  U.light[a].col);
 			copy_v4_v4(lights[a].specular, U.light[a].spec);
-
-			count++;
 		}
 	}
 
-	GPU_set_basic_lights(count, lights);
+	GPU_set_basic_lights(3, lights);
 
-	return count;
+	return 3;
 }
 
 

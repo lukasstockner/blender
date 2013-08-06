@@ -34,6 +34,7 @@
 
 /* internal */
 #include "intern/gpu_extension_wrapper.h"
+#include "intern/gpu_profile.h"
 
 /* my library */
 #include "GPU_extensions.h"
@@ -80,6 +81,15 @@ void gpu_include_common_defs(DynStr* defs)
 	BLI_dynstr_append(defs, "#define GPU_MAX_COMMON_TEXCOORDS " STRINGIFY(GPU_MAX_COMMON_TEXCOORDS) "\n");
 	BLI_dynstr_append(defs, "#define GPU_MAX_COMMON_SAMPLERS  " STRINGIFY(GPU_MAX_COMMON_SAMPLERS ) "\n");
 	BLI_dynstr_append(defs, "#define GPU_MAX_COMMON_LIGHTS    " STRINGIFY(GPU_MAX_COMMON_LIGHTS   ) "\n");
+
+	if (GPU_PROFILE_COMPAT)
+		BLI_dynstr_append(defs, "#define GPU_PROFILE_COMPAT\n");
+
+	if (GPU_PROFILE_CORE)
+		BLI_dynstr_append(defs, "#define GPU_PROFILE_CORE\n");
+
+	if (GPU_PROFILE_ES20)
+		BLI_dynstr_append(defs, "#define GPU_PROFILE_ES20\n");
 }
 
 
@@ -119,7 +129,7 @@ void gpu_init_common(GPUcommon* common, GPUShader* gpushader)
 	for (i = 0; i < GPU_MAX_COMMON_SAMPLERS; i++) {
 		char symbol[100];
 
-		sprintf(symbol, "b_Sampler[%d]", i);
+		sprintf(symbol, "b_Sampler2D[%d]", i);
 		common->sampler[i] = GPU_shader_get_uniform(gpushader, symbol);
 	}
 
@@ -312,7 +322,7 @@ void gpu_normal_pointer(GLenum type, GLsizei stride, const GLvoid* pointer)
 }
 
 
-
+// XXX jwilkins: either remove the type parameter or add a normalize parameter (this applies to all of the pointer functions, not just gpu_color_pointer)
 void gpu_color_pointer(GLint size, GLenum type, GLsizei stride, const GLvoid* pointer)
 {
 	GLint color = current_common != NULL ? current_common->color : -1;

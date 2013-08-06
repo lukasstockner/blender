@@ -221,41 +221,42 @@ void gpu_commit_matrixes(void)
 
 		if (common->modelview_matrix != -1) {
 			glUniformMatrix4fv(common->modelview_matrix, 1, GL_FALSE, m[0]);
-		GPU_CHECK_NO_ERROR();
+GPU_CHECK_NO_ERROR();
 		}
 
 		if (common->normal_matrix != -1) {
-			GLfloat t[3][3];
-			copy_m3_m4(t, m);
-			transpose_m3(t);
-			glUniformMatrix3fv(common->normal_matrix, 1, GL_FALSE, t[0]);
-		GPU_CHECK_NO_ERROR();
+			GLfloat n[3][3];
+			copy_m3_m4(n, m);
+			invert_m3(n);
+			transpose_m3(n);
+			glUniformMatrix3fv(common->normal_matrix, 1, GL_FALSE, n[0]);
+GPU_CHECK_NO_ERROR();
 		}
 
 		if (common->modelview_matrix_inverse != -1) {
 			GLfloat i[4][4];
 			invert_m4_m4(i, m);
 			glUniformMatrix4fv(common->modelview_matrix_inverse, 1, GL_FALSE, i[0]);
-		GPU_CHECK_NO_ERROR();
+GPU_CHECK_NO_ERROR();
 		}
 
 		if (common->modelview_projection_matrix != -1) {
-			GLfloat mp[4][4];
-			mul_m4_m4m4(mp, m, p);
-			glUniformMatrix4fv(common->modelview_projection_matrix, 1, GL_FALSE, mp[0]);
-		GPU_CHECK_NO_ERROR();
+			GLfloat pm[4][4];
+			mul_m4_m4m4(pm, p, m);
+			glUniformMatrix4fv(common->modelview_projection_matrix, 1, GL_FALSE, pm[0]);
+GPU_CHECK_NO_ERROR();
 		}
 
 		if (common->projection_matrix != -1) {
-			glUniformMatrix4fv(common->projection_matrix, 1, GL_FALSE, gpuGetMatrix(GL_PROJECTION_MATRIX, NULL));
-		GPU_CHECK_NO_ERROR();
+			glUniformMatrix4fv(common->projection_matrix, 1, GL_FALSE, p[0]);
+GPU_CHECK_NO_ERROR();
 		}
 
 		for (i = 0; i < GPU_MAX_COMMON_TEXCOORDS; i++) {
 			if (common->texture_matrix[i] != -1) {
 				gpu_set_common_active_texture(i);
 				glUniformMatrix4fv(common->texture_matrix[i], 1, GL_FALSE, gpuGetMatrix(GL_TEXTURE_MATRIX, NULL));
-		GPU_CHECK_NO_ERROR();
+GPU_CHECK_NO_ERROR();
 			}
 		}
 

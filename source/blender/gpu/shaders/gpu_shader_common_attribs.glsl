@@ -2,11 +2,17 @@
 
 attribute vec4 b_Vertex;
 
+
+
 attribute vec4 b_Color;
+
+
 
 #ifdef USE_LIGHTING
 attribute vec3 b_Normal;
 #endif
+
+
 
 #ifdef USE_TEXTURE_2D
 
@@ -45,3 +51,5 @@ attribute vec4 b_MultiTexCoord7;
 #endif
 
 /* end known attributes */
+
+
