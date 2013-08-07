@@ -140,7 +140,7 @@ void PlaneTrackWarpImageOperation::executePixel(float output[4], float x, float 
 		u = inputUV[0] * this->m_pixelReader->getWidth();
 		v = inputUV[1] * this->m_pixelReader->getHeight();
 
-		this->m_pixelReader->read(output, u, v, dx, dy, COM_PS_NEAREST);
+		this->m_pixelReader->read(output, u, v, dx, dy, COM_PS_BICUBIC);
 	}
 	else {
 		zero_v4(output);

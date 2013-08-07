@@ -4801,6 +4801,7 @@ static int slide_plane_marker_modal(bContext *C, wmOperator *op, const wmEvent *
 
 				show_cursor(C);
 
+				DAG_id_tag_update(&sc->clip->id, 0);
 				WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
 
 				return OPERATOR_FINISHED;

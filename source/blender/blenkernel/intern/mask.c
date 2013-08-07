@@ -1095,7 +1095,7 @@ void BKE_mask_coord_to_image(Image *image, ImageUser *iuser, float r_co[2], cons
 	BKE_mask_coord_to_frame(r_co, co, frame_size);
 }
 
-static int BKE_mask_evaluate_parent(MaskParent *parent, float ctime, float r_co[2])
+static int mask_evaluate_parent(MaskParent *parent, float ctime, float orig_co[2], float r_co[2])
 {
 	if (!parent)
 		return FALSE;
@@ -1107,18 +1107,38 @@ static int BKE_mask_evaluate_parent(MaskParent *parent, float ctime, float r_co[
 			MovieTrackingObject *ob = BKE_tracking_object_get_named(tracking, parent->parent);
 
 			if (ob) {
-				MovieTrackingTrack *track = BKE_tracking_track_get_named(tracking, ob, parent->sub_parent);
-				float clip_framenr = BKE_movieclip_remap_scene_to_clip_frame(clip, ctime);
-
 				MovieClipUser user = {0};
-				user.framenr = ctime;
+				float clip_framenr = BKE_movieclip_remap_scene_to_clip_frame(clip, ctime);
+				BKE_movieclip_user_set_frame(&user, ctime);
 
-				if (track) {
-					float marker_pos_ofs[2];
-					BKE_tracking_marker_get_subframe_position(track, clip_framenr, marker_pos_ofs);
-					BKE_mask_coord_from_movieclip(clip, &user, r_co, marker_pos_ofs);
+				if (parent->type == MASK_PARENT_POINT_TRACK) {
+					MovieTrackingTrack *track = BKE_tracking_track_get_named(tracking, ob, parent->sub_parent);
 
-					return TRUE;
+					if (track) {
+						float marker_pos_ofs[2];
+						BKE_tracking_marker_get_subframe_position(track, clip_framenr, marker_pos_ofs);
+						BKE_mask_coord_from_movieclip(clip, &user, r_co, marker_pos_ofs);
+
+						return TRUE;
+					}
+				}
+				else /* if (parent->type == MASK_PARENT_PLANE_TRACK) */ {
+					MovieTrackingPlaneTrack *plane_track = BKE_tracking_plane_track_get_named(tracking, ob, parent->sub_parent);
+
+					if (plane_track) {
+						MovieTrackingPlaneMarker *plane_marker = BKE_tracking_plane_marker_get(plane_track, clip_framenr);
+						float H[3][3], vec[3], warped[3];
+
+						BKE_tracking_homography_between_two_quads(parent->parent_corners_orig, plane_marker->corners, H);
+
+						BKE_mask_coord_to_movieclip(clip, &user, vec, orig_co);
+						vec[2] = 1.0f;
+						mul_v3_m3v3(warped, H, vec);
+						warped[0] /= warped[2];
+						warped[1] /= warped[2];
+
+						BKE_mask_coord_from_movieclip(clip, &user, r_co, warped);
+					}
 				}
 			}
 		}
@@ -1127,17 +1147,26 @@ static int BKE_mask_evaluate_parent(MaskParent *parent, float ctime, float r_co[
 	return FALSE;
 }
 
-/* could make external but for now its only used internally */
-static int mask_evaluate_parent_delta(MaskParent *parent, float ctime, float r_delta[2])
+static void mask_evaluate_apply_point_parent(MaskSplinePoint *point, float ctime)
 {
-	float parent_co[2];
+	MaskParent *parent = &point->parent;
 
-	if (BKE_mask_evaluate_parent(parent, ctime, parent_co)) {
-		sub_v2_v2v2(r_delta, parent_co, parent->parent_orig);
-		return TRUE;
+	if (parent->type == MASK_PARENT_POINT_TRACK) {
+		float parent_co[2];
+
+		if (mask_evaluate_parent(parent, ctime, NULL, parent_co)) {
+			float delta[2];
+			sub_v2_v2v2(delta, parent_co, parent->parent_orig);
+
+			add_v2_v2(point->bezt.vec[0], delta);
+			add_v2_v2(point->bezt.vec[1], delta);
+			add_v2_v2(point->bezt.vec[2], delta);
+		}
 	}
-	else {
-		return FALSE;
+	else /* if (parent->type == MASK_PARENT_PLANE_TRACK) */ {
+		mask_evaluate_parent(parent, ctime, point->bezt.vec[0], point->bezt.vec[0]);
+		mask_evaluate_parent(parent, ctime, point->bezt.vec[1], point->bezt.vec[1]);
+		mask_evaluate_parent(parent, ctime, point->bezt.vec[2], point->bezt.vec[2]);
 	}
 }
 
@@ -1461,18 +1490,13 @@ void BKE_mask_layer_evaluate(MaskLayer *masklay, const float ctime, const int do
 			for (i = 0; i < spline->tot_point; i++) {
 				MaskSplinePoint *point = &spline->points[i];
 				MaskSplinePoint *point_deform = &spline->points_deform[i];
-				float delta[2];
 
 				BKE_mask_point_free(point_deform);
 
 				*point_deform = *point;
 				point_deform->uw = point->uw ? MEM_dupallocN(point->uw) : NULL;
 
-				if (mask_evaluate_parent_delta(&point->parent, ctime, delta)) {
-					add_v2_v2(point_deform->bezt.vec[0], delta);
-					add_v2_v2(point_deform->bezt.vec[1], delta);
-					add_v2_v2(point_deform->bezt.vec[2], delta);
-				}
+				mask_evaluate_apply_point_parent(point_deform, ctime);
 
 				if (ELEM(point->bezt.h1, HD_AUTO, HD_VECT)) {
 					need_handle_recalc = TRUE;

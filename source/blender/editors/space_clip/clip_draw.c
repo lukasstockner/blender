@@ -1018,6 +1018,26 @@ static void plane_track_colors(bool is_active, float color[3], float selected_co
 		UI_GetThemeColor3fv(TH_SEL_MARKER, selected_color);
 }
 
+static void getArrowEndPoint(const int width, const int height, const float zoom,
+                             const float start_corner[2], const float end_corner[2],
+                             float end_point[2])
+{
+	float direction[2];
+	float max_length;
+
+	sub_v2_v2v2(direction, end_corner, start_corner);
+
+	direction[0] *= width;
+	direction[1] *= height;
+	max_length = len_v2(direction);
+	normalize_v2(direction);
+	mul_v2_fl(direction, min_ff(32.0f / zoom, max_length));
+	direction[0] /= width;
+	direction[1] /= height;
+
+	add_v2_v2v2(end_point, start_corner, direction);
+}
+
 static void draw_plane_marker_ex(SpaceClip *sc, MovieTrackingPlaneTrack *plane_track,
                                  MovieTrackingPlaneMarker *plane_marker, bool is_active_track,
                                  bool draw_outline, int width, int height)
@@ -1055,13 +1075,35 @@ static void draw_plane_marker_ex(SpaceClip *sc, MovieTrackingPlaneTrack *plane_t
 		glLogicOp(GL_NOR);
 	}
 
-	/* DRaw rectangle itself. */
+	/* Draw rectangle itself. */
 	glBegin(GL_LINE_LOOP);
 	glVertex2fv(plane_marker->corners[0]);
 	glVertex2fv(plane_marker->corners[1]);
 	glVertex2fv(plane_marker->corners[2]);
 	glVertex2fv(plane_marker->corners[3]);
 	glEnd();
+
+	/* Draw axis. */
+	if (!draw_outline) {
+		float end_point[2];
+		glPushAttrib(GL_COLOR_BUFFER_BIT | GL_CURRENT_BIT);
+
+		getArrowEndPoint(width, height, sc->zoom, plane_marker->corners[0], plane_marker->corners[1], end_point);
+		glColor3f(1.0, 0.0, 0.0f);
+		glBegin(GL_LINES);
+		glVertex2fv(plane_marker->corners[0]);
+		glVertex2fv(end_point);
+		glEnd();
+
+		getArrowEndPoint(width, height, sc->zoom, plane_marker->corners[0], plane_marker->corners[3], end_point);
+		glColor3f(0.0, 1.0, 0.0f);
+		glBegin(GL_LINES);
+		glVertex2fv(plane_marker->corners[0]);
+		glVertex2fv(end_point);
+		glEnd();
+
+		glPopAttrib();
+	}
 
 	/* Draw sliders. */
 	if (is_selected_track) {

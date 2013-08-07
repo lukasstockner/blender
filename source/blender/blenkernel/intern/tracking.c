@@ -3415,6 +3415,27 @@ void BKE_tracking_track_plane_from_existing_motion(MovieTrackingPlaneTrack *plan
 	track_plane_from_existing_motion(plane_track, start_frame, -1);
 }
 
+BLI_INLINE void float_corners_to_double(/*const*/ float corners[4][2], double double_corners[4][2])
+{
+	copy_v2db_v2fl(double_corners[0], corners[0]);
+	copy_v2db_v2fl(double_corners[1], corners[1]);
+	copy_v2db_v2fl(double_corners[2], corners[2]);
+	copy_v2db_v2fl(double_corners[3], corners[3]);
+}
+
+void BKE_tracking_homography_between_two_quads(/*const*/ float reference_corners[4][2], /*const*/ float corners[4][2], float H[3][3])
+{
+	Vec2 x1[4], x2[4];
+	double H_double[3][3];
+
+	float_corners_to_double(reference_corners, x1);
+	float_corners_to_double(corners, x2);
+
+	libmv_homography2DFromCorrespondencesLinear(x1, x2, 4, H_double, 1e-8);
+
+	mat3f_from_mat3d(H, H_double);
+}
+
 /*********************** Camera solving *************************/
 
 typedef struct MovieReconstructContext {
