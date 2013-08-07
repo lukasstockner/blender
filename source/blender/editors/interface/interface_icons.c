@@ -559,7 +559,7 @@ static void init_brush_icons(void)
 
 #undef INIT_BRUSH_ICON
 }
-//#include REAL_GL_MODE
+
 static void icon_verify_datatoc(IconImage *iimg)
 {
 	/* if it has own rect, things are all OK */
@@ -735,7 +735,7 @@ static void init_internal_icons(void)
 	IMB_freeImBuf(b32buf);
 	
 }
-//#include FAKE_GL_MODE
+
 
 #endif  /* WITH_HEADLESS */
 
@@ -1076,7 +1076,8 @@ static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect),
 		IMB_freeImBuf(ima);
 }
 
-//#include REAL_GL_MODE
+
+
 static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy,
                               int UNUSED(iw), int ih, float alpha, const float rgb[3])
 {

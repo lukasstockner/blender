@@ -126,6 +126,10 @@ data_to_c_simple(shaders/gpu_shader_common_uniforms.glsl  SRC)
 data_to_c_simple(shaders/gpu_shader_font_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_font_vert.glsl SRC)
 
+data_to_c_simple(shaders/gpu_shader_pixels_uniforms.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_pixels_frag.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_pixels_vert.glsl SRC)
+
 data_to_c_simple(shaders/gpu_shader_basic_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_basic_vert.glsl SRC)
 
@@ -140,4 +144,3 @@ endif()
 add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(bf_gpu "${SRC}" "${INC}" "${INC_SYS}")
-

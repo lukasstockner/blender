@@ -168,6 +168,8 @@ static void setup(void)
 
 	size_t i;
 
+	GPU_CHECK_NO_ERROR();
+
 	/* vertex */
 	gpu_enable_vertex_array();
 	gpu_vertex_pointer(format->vertexSize, GL_FLOAT, stride, base + offset);
@@ -231,6 +233,8 @@ static void setup(void)
 			gpu_enable_vertex_attrib_array(format->attribIndexMap_ub[i]);
 		}
 	}
+
+	GPU_CHECK_NO_ERROR();
 }
 
 
@@ -238,6 +242,8 @@ static void setup(void)
 static void unsetup(void)
 {
 	size_t i;
+
+	GPU_CHECK_NO_ERROR();
 
 	/* vertex */
 	gpu_disable_vertex_array();
@@ -270,6 +276,8 @@ static void unsetup(void)
 	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++)
 //		if (GPU_IMMEDIATE->format.attribSize_ub[i] > 0)
 			gpu_disable_vertex_attrib_array(GPU_IMMEDIATE->format.attribIndexMap_ub[i]);
+
+	GPU_CHECK_NO_ERROR();
 }
 
 
@@ -513,6 +521,7 @@ void gpu_end_buffer_gl(void)
 
 		if (GPU_IMMEDIATE->mode != GL_QUADS) {
 			glDrawArrays(GPU_IMMEDIATE->mode, 0, GPU_IMMEDIATE->count);
+			GPU_CHECK_NO_ERROR();
 		}
 		else {
 			if (GPU_IMMEDIATE->count <= 255){
@@ -520,12 +529,14 @@ void gpu_end_buffer_gl(void)
 					gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vqeoc_buf);
 
 				glDrawElements(GL_TRIANGLES, 3 * GPU_IMMEDIATE->count / 2, GL_UNSIGNED_BYTE, vqeoc);
+				GPU_CHECK_NO_ERROR();
 			}
 			else if(GPU_IMMEDIATE->count <= 65535) {
 				if (vqeos_buf != 0)
 					gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vqeos_buf);
 
 				glDrawElements(GL_TRIANGLES, 3 * GPU_IMMEDIATE->count / 2, GL_UNSIGNED_SHORT, vqeos);
+				GPU_CHECK_NO_ERROR();
 			}
 			else {
 				printf("To big GL_QUAD object to draw. Vertices: %i", GPU_IMMEDIATE->count);
@@ -533,12 +544,13 @@ void gpu_end_buffer_gl(void)
 
 			if (vqeoc_buf != 0 || vqeos_buf != 0)
 				gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ((indexBufferDataGLSL*)(GPU_IMMEDIATE->index->bufferData))->vbo);
+
+			GPU_CHECK_NO_ERROR();
 		}
 
 		unsetup();
+		GPU_CHECK_NO_ERROR();
 	}
-
-	GPU_CHECK_NO_ERROR();
 }
 
 
@@ -688,6 +700,8 @@ void gpu_commit_current(void)
 {
 	const GPUcommon* common = gpu_get_common();
 
+	GPU_CHECK_NO_ERROR();
+
 	if (common) {
 		if (GPU_IMMEDIATE->format.colorSize == 0 && common->color != -1) {
 			glVertexAttrib4f(
@@ -696,6 +710,8 @@ void gpu_commit_current(void)
 				((float)(GPU_IMMEDIATE->color[1]))/255.0f,
 				((float)(GPU_IMMEDIATE->color[2]))/255.0f,
 				((float)(GPU_IMMEDIATE->color[3]))/255.0f);
+
+			//glVertexAttrib4f(common->color, 1,0,1,1);
 		}
 
 		if (GPU_IMMEDIATE->format.normalSize == 0 && common->normal != -1)
@@ -708,6 +724,8 @@ void gpu_commit_current(void)
 	glColor4ubv(GPU_IMMEDIATE->color);
 	glNormal3fv(GPU_IMMEDIATE->normal);
 #endif
+
+	GPU_CHECK_NO_ERROR();
 }
 
 

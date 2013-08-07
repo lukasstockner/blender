@@ -33,7 +33,7 @@
 
 #include <stdlib.h>
 
-//#include REAL_GL_MODE
+
 
 #if GPU_SAFETY
 

@@ -28,8 +28,6 @@
 #include "gpu_view_gl.h"
 #include "gpu_glew.h"
 
-//#include REAL_GL_MODE
-
 
 
 void gpuColorAndClear_gl(float r, float g, float b, float a)

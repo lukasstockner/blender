@@ -730,9 +730,9 @@ int GPU_verify_image(Image *ima, ImageUser *iuser, int tftile, int compare, int 
 
 	if (*bind != 0) {
 		/* enable opengl drawing with textures */
-//#include REAL_GL_MODE
+
 		gpuBindTexture(GL_TEXTURE_2D, *bind);
-//#include FAKE_GL_MODE
+
 		BKE_image_release_ibuf(ima, ibuf, NULL);
 		return *bind;
 	}
@@ -1138,7 +1138,7 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 	BKE_image_release_ibuf(ima, ibuf, NULL);
 }
 
-//#include REAL_GL_MODE
+
 
 void GPU_update_images_framechange(void)
 {
@@ -1421,7 +1421,7 @@ static void enable_blendfunc_add(void)
 	}
 }
 
-//#include FAKE_GL_MODE
+
 
 static void disable_alphatest(void)
 {

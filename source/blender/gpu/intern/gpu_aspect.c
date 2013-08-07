@@ -43,6 +43,7 @@ static size_t aspect_max  = 0;
 static size_t aspect_free = 0;
 static size_t aspect_fill = 0;
 
+static GPUaspectfuncs dummy = { NULL };
 
 
 void gpu_initialize_aspects(void)
@@ -89,6 +90,7 @@ void GPU_gen_aspects(size_t count, uint32_t* aspects)
 
 	while (dst < count) {
 		if (!GPU_ASPECT_FUNCS[src]) {
+			GPU_ASPECT_FUNCS[src] = &dummy;
 			aspects[dst] = src;
 			dst++;
 			aspect_fill = dst;

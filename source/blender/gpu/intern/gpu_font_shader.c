@@ -74,11 +74,11 @@ static void gpu_font_shader(void)
 	extern const char datatoc_gpu_shader_font_vert_glsl[];
 	extern const char datatoc_gpu_shader_font_frag_glsl[];
 
-GPU_CHECK_NO_ERROR();
+	GPU_CHECK_NO_ERROR();
+
 	/* Create shader if it doesn't exist yet. */
 	if (FONT_SHADER != NULL) {
 		GPU_shader_bind(FONT_SHADER);
-GPU_CHECK_NO_ERROR();
 		gpu_set_common(&FONT_COMMON);
 	}
 	else if (!FONT_FAILED) {
@@ -114,13 +114,11 @@ GPU_CHECK_NO_ERROR();
 		BLI_dynstr_free(frag);
 		BLI_dynstr_free(defs);
 
-GPU_CHECK_NO_ERROR();
 		if (FONT_SHADER != NULL) {
 			gpu_init_common(&FONT_COMMON, FONT_SHADER);
 			gpu_set_common(&FONT_COMMON);
 
 			GPU_shader_bind(FONT_SHADER);
-GPU_CHECK_NO_ERROR();
 		}
 		else {
 			FONT_FAILED = true;
@@ -130,6 +128,8 @@ GPU_CHECK_NO_ERROR();
 	else {
 		gpu_set_common(NULL);
 	}
+
+	GPU_CHECK_NO_ERROR();
 }
 
 

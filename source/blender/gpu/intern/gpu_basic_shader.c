@@ -148,12 +148,11 @@ static void basic_shader_bind(void)
 
 	const uint32_t options = tweak_options();
 
-GPU_CHECK_NO_ERROR();
+	GPU_CHECK_NO_ERROR();
 
 	/* create shader if it doesn't exist yet */
 	if (BASIC_SHADER.gpushader[options] != NULL) {
 		GPU_shader_bind(BASIC_SHADER.gpushader[options]);
-GPU_CHECK_NO_ERROR();
 		gpu_set_common(BASIC_SHADER.common + options);
 	}
 	else if (!BASIC_SHADER.failed[options]) {
@@ -199,7 +198,6 @@ GPU_CHECK_NO_ERROR();
 
 		BASIC_SHADER.gpushader[options] =
 			GPU_shader_create(vert_cstring, frag_cstring, NULL, defs_cstring);
-GPU_CHECK_NO_ERROR();
 
 		MEM_freeN(vert_cstring);
 		MEM_freeN(frag_cstring);
@@ -214,7 +212,6 @@ GPU_CHECK_NO_ERROR();
 			gpu_set_common (BASIC_SHADER.common + options);
 
 			GPU_shader_bind(BASIC_SHADER.gpushader[options]);
-GPU_CHECK_NO_ERROR();
 		}
 		else {
 			BASIC_SHADER.failed[options] = true;
@@ -224,6 +221,8 @@ GPU_CHECK_NO_ERROR();
 	else {
 		gpu_set_common(NULL);
 	}
+
+	GPU_CHECK_NO_ERROR();
 }
 
 

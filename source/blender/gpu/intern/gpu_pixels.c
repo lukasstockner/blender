@@ -31,10 +31,13 @@
 
 /* my interface */
 #include "intern/gpu_pixels.h"
+#include "intern/gpu_immediate_inline.h"
 
 /* my library */
-#include "GPU_matrix.h"
 #include "GPU_basic_shader.h"
+#include "GPU_colors.h"
+#include "GPU_extensions.h"
+#include "GPU_matrix.h"
 
 /* internal */
 #include "intern/gpu_profile.h"
@@ -43,6 +46,31 @@
 #include "intern/gpu_state_latch.h"
 #include "intern/gpu_aspect.h"
 #include "intern/gpu_aspectfuncs.h"
+
+/* external */
+#include "BLI_dynstr.h"
+
+#include "MEM_guardedalloc.h"
+
+
+
+static GPUShader*  PIXEL_SHADER = NULL;
+static GPUcommon   PIXEL_COMMON = {0};
+static bool        PIXEL_FAILED = FALSE;
+
+
+
+void GPU_pixels_shader_init(void)
+{
+	PIXEL_SHADER = NULL;
+}
+
+
+
+void GPU_pixels_shader_exit(void)
+{
+	GPU_shader_free(PIXEL_SHADER);
+}
 
 
 
@@ -129,13 +157,13 @@ void gpuPixelFormat(GLenum pname, GLint param)
 
 
 
-static GLfloat pixel_zoom_xfactor = 1;
-static GLfloat pixel_zoom_yfactor = 1;
+static GLfloat pixels_zoom_xfactor = 1;
+static GLfloat pixels_zoom_yfactor = 1;
 
 void gpuPixelZoom(GLfloat xfactor, GLfloat yfactor)
 {
-	pixel_zoom_xfactor = xfactor;
-	pixel_zoom_yfactor = yfactor;
+	pixels_zoom_xfactor = xfactor;
+	pixels_zoom_yfactor = yfactor;
 
 	if (xfactor == 1 || yfactor == 1)
 		non_default_flags ^= NON_DEFAULT_FACTOR;
@@ -147,20 +175,21 @@ void gpuPixelZoom(GLfloat xfactor, GLfloat yfactor)
 
 void gpuGetPixelZoom(GLfloat* xfactor_out, GLfloat *yfactor_out)
 {
-	*xfactor_out = pixel_zoom_xfactor;
-	*yfactor_out = pixel_zoom_yfactor;
+	*xfactor_out = pixels_zoom_xfactor;
+	*yfactor_out = pixels_zoom_yfactor;
 }
 
 
 
-static GLfloat pixel_red_scale   = 1;
-static GLfloat pixel_red_bias    = 0;
-static GLfloat pixel_green_scale = 1;
-static GLfloat pixel_green_bias  = 0;
-static GLfloat pixel_blue_scale  = 1;
-static GLfloat pixel_blue_bias   = 0;
-static GLfloat pixel_alpha_scale = 1;
-static GLfloat pixel_alpha_bias  = 0;
+static GLfloat pixels_scale_red   = 1;
+static GLfloat pixels_scale_green = 1;
+static GLfloat pixels_scale_blue  = 1;
+static GLfloat pixels_scale_alpha = 1;
+
+static GLfloat pixels_bias_red    = 0;
+static GLfloat pixels_bias_green  = 0;
+static GLfloat pixels_bias_blue   = 0;
+static GLfloat pixels_bias_alpha  = 0;
 
 // XXX jwilkins: this would be a lot shorter if you made a table
 
@@ -168,7 +197,7 @@ void gpuPixelUniform1f(GLenum pname, GLfloat param)
 {
 	switch(pname) {
 		case GL_RED_SCALE:
-			pixel_red_scale = param;
+			pixels_scale_red = param;
 
 			if (param == 1) 
 				non_default_flags ^= NON_DEFAULT_RED_SCALE;
@@ -178,7 +207,7 @@ void gpuPixelUniform1f(GLenum pname, GLfloat param)
 			break;
 
 		case GL_RED_BIAS:
-			pixel_red_bias = param;
+			pixels_bias_red = param;
 
 			if (param != 0) 
 				non_default_flags ^= NON_DEFAULT_RED_BIAS;
@@ -188,7 +217,7 @@ void gpuPixelUniform1f(GLenum pname, GLfloat param)
 			break;
 
 		case GL_BLUE_SCALE:
-			pixel_blue_scale = param;
+			pixels_scale_blue = param;
 
 			if (param != 1) 
 				non_default_flags ^= NON_DEFAULT_BLUE_SCALE;
@@ -198,7 +227,7 @@ void gpuPixelUniform1f(GLenum pname, GLfloat param)
 			break;
 
 		case GL_BLUE_BIAS:
-			pixel_blue_bias = param;
+			pixels_bias_blue = param;
 
 			if (param != 0) 
 				non_default_flags ^= NON_DEFAULT_BLUE_BIAS;
@@ -208,7 +237,7 @@ void gpuPixelUniform1f(GLenum pname, GLfloat param)
 			break;
 
 		case GL_GREEN_SCALE:
-			pixel_green_scale = param;
+			pixels_scale_green = param;
 
 			if (param != 1) 
 				non_default_flags ^= NON_DEFAULT_GREEN_SCALE;
@@ -218,7 +247,7 @@ void gpuPixelUniform1f(GLenum pname, GLfloat param)
 			break;
 
 		case GL_GREEN_BIAS:
-			pixel_green_bias = param;
+			pixels_bias_green = param;
 
 			if (param != 0) 
 				non_default_flags ^= NON_DEFAULT_GREEN_BIAS;
@@ -228,7 +257,7 @@ void gpuPixelUniform1f(GLenum pname, GLfloat param)
 			break;
 
 		case GL_ALPHA_SCALE:
-			pixel_alpha_scale = param;
+			pixels_scale_alpha = param;
 
 			if (param != 1) 
 				non_default_flags ^= NON_DEFAULT_ALPHA_SCALE;
@@ -238,7 +267,7 @@ void gpuPixelUniform1f(GLenum pname, GLfloat param)
 			break;
 
 		case GL_ALPHA_BIAS:
-			pixel_alpha_bias = param;
+			pixels_bias_alpha = param;
 
 			if (param != 0) 
 				non_default_flags ^= NON_DEFAULT_ALPHA_BIAS;
@@ -255,20 +284,158 @@ void gpuPixelUniform1f(GLenum pname, GLfloat param)
 
 
 
+static GLint location_scale;
+static GLint location_bias;
+
+static void pixels_init_uniform_locations(void)
+{
+	location_scale = GPU_shader_get_uniform(PIXEL_SHADER, "b_Pixels.scale");
+	location_bias  = GPU_shader_get_uniform(PIXEL_SHADER, "b_Pixels.bias" );
+}
+
+
+
+static void commit_pixels(void)
+{
+	GPU_CHECK_NO_ERROR();
+	glUniform4f(location_scale, pixels_scale_red, pixels_scale_green, pixels_scale_blue, pixels_scale_alpha);
+	GPU_CHECK_NO_ERROR();
+	glUniform4f(location_bias , pixels_bias_red,  pixels_bias_green,  pixels_bias_blue,  pixels_bias_alpha );
+	GPU_CHECK_NO_ERROR();
+}
+
+
+
+static void gpu_pixels_shader(void)
+{
+	/* GLSL code */
+	extern const char datatoc_gpu_shader_pixels_uniforms_glsl[];
+	extern const char datatoc_gpu_shader_pixels_vert_glsl[];
+	extern const char datatoc_gpu_shader_pixels_frag_glsl[];
+
+	GPU_CHECK_NO_ERROR();
+
+	/* Create shader if it doesn't exist yet. */
+	if (PIXEL_SHADER != NULL) {
+		GPU_shader_bind(PIXEL_SHADER);
+		gpu_set_common(&PIXEL_COMMON);
+	}
+	else if (!PIXEL_FAILED) {
+		DynStr* vert = BLI_dynstr_new();
+		DynStr* frag = BLI_dynstr_new();
+		DynStr* defs = BLI_dynstr_new();
+
+		char* vert_cstring;
+		char* frag_cstring;
+		char* defs_cstring;
+
+		gpu_include_common_vert(vert);
+		BLI_dynstr_append(vert, datatoc_gpu_shader_pixels_uniforms_glsl);
+		BLI_dynstr_append(vert, datatoc_gpu_shader_pixels_vert_glsl);
+
+		gpu_include_common_frag(frag);
+		BLI_dynstr_append(frag, datatoc_gpu_shader_pixels_uniforms_glsl);
+		BLI_dynstr_append(frag, datatoc_gpu_shader_pixels_frag_glsl);
+
+		gpu_include_common_defs(defs);
+		BLI_dynstr_append(defs, "#define USE_TEXTURE_2D\n");
+
+		vert_cstring = BLI_dynstr_get_cstring(vert);
+		frag_cstring = BLI_dynstr_get_cstring(frag);
+		defs_cstring = BLI_dynstr_get_cstring(defs);
+
+		PIXEL_SHADER =
+			GPU_shader_create(vert_cstring, frag_cstring, NULL, defs_cstring);
+
+		MEM_freeN(vert_cstring);
+		MEM_freeN(frag_cstring);
+		MEM_freeN(defs_cstring);
+
+		BLI_dynstr_free(vert);
+		BLI_dynstr_free(frag);
+		BLI_dynstr_free(defs);
+
+		if (PIXEL_SHADER != NULL) {
+			gpu_init_common(&PIXEL_COMMON, PIXEL_SHADER);
+			gpu_set_common(&PIXEL_COMMON);
+
+			pixels_init_uniform_locations();
+
+			GPU_shader_bind(PIXEL_SHADER);
+
+			commit_pixels(); /* only needs to be done once */
+		}
+		else {
+			PIXEL_FAILED = true;
+			gpu_set_common(NULL);
+		}
+	}
+	else {
+		gpu_set_common(NULL);
+	}
+
+	GPU_CHECK_NO_ERROR();
+}
+
+
+
+void GPU_pixels_shader_bind(void)
+{
+	bool glsl_support = GPU_glsl_support();
+
+	GPU_CHECK_NO_ERROR();
+
+	if (glsl_support) {
+		gpu_pixels_shader();
+		return;
+	}
+
+#if defined(WITH_GL_PROFILE_COMPAT)
+	if (!glsl_support)
+		glEnable(GL_TEXTURE_2D);
+#endif
+
+	GPU_CHECK_NO_ERROR();
+}
+
+
+
+void GPU_pixels_shader_unbind(void)
+{
+	bool glsl_support = GPU_glsl_support();
+
+	GPU_CHECK_NO_ERROR();
+
+	if (glsl_support)
+		GPU_shader_unbind();
+
+#if defined(WITH_GL_PROFILE_COMPAT)
+	if (!glsl_support)
+		glDisable(GL_TEXTURE_2D);
+#endif
+
+	GPU_CHECK_NO_ERROR();
+}
+
+
+static bool begun = false;
+
 void gpuPixelsBegin()
 {
+	GPU_ASSERT(!begun);
+
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (GPU_PROFILE_COMPAT) {
-		if (non_default_flags & NON_DEFAULT_RED_SCALE)   glPixelTransferf(GL_RED_SCALE,   pixel_red_scale);
-		if (non_default_flags & NON_DEFAULT_RED_BIAS)    glPixelTransferf(GL_RED_BIAS,    pixel_red_bias);
-		if (non_default_flags & NON_DEFAULT_GREEN_SCALE) glPixelTransferf(GL_BLUE_SCALE,  pixel_blue_scale);
-		if (non_default_flags & NON_DEFAULT_GREEN_BIAS)  glPixelTransferf(GL_BLUE_BIAS,   pixel_blue_bias);
-		if (non_default_flags & NON_DEFAULT_BLUE_SCALE)  glPixelTransferf(GL_GREEN_SCALE, pixel_green_scale);
-		if (non_default_flags & NON_DEFAULT_BLUE_BIAS)   glPixelTransferf(GL_GREEN_BIAS,  pixel_green_bias);
-		if (non_default_flags & NON_DEFAULT_ALPHA_SCALE) glPixelTransferf(GL_ALPHA_SCALE, pixel_alpha_scale);
-		if (non_default_flags & NON_DEFAULT_ALPHA_BIAS)  glPixelTransferf(GL_ALPHA_BIAS,  pixel_alpha_bias);
+		if (non_default_flags & NON_DEFAULT_RED_SCALE)   glPixelTransferf(GL_RED_SCALE,   pixels_scale_red);
+		if (non_default_flags & NON_DEFAULT_RED_BIAS)    glPixelTransferf(GL_RED_BIAS,    pixels_bias_red);
+		if (non_default_flags & NON_DEFAULT_GREEN_SCALE) glPixelTransferf(GL_BLUE_SCALE,  pixels_scale_blue);
+		if (non_default_flags & NON_DEFAULT_GREEN_BIAS)  glPixelTransferf(GL_BLUE_BIAS,   pixels_bias_blue);
+		if (non_default_flags & NON_DEFAULT_BLUE_SCALE)  glPixelTransferf(GL_GREEN_SCALE, pixels_scale_green);
+		if (non_default_flags & NON_DEFAULT_BLUE_BIAS)   glPixelTransferf(GL_GREEN_BIAS,  pixels_bias_green);
+		if (non_default_flags & NON_DEFAULT_ALPHA_SCALE) glPixelTransferf(GL_ALPHA_SCALE, pixels_scale_alpha);
+		if (non_default_flags & NON_DEFAULT_ALPHA_BIAS)  glPixelTransferf(GL_ALPHA_BIAS,  pixels_bias_alpha);
 
-		if (non_default_flags & NON_DEFAULT_FACTOR) glPixelZoom(pixel_zoom_xfactor, pixel_zoom_yfactor);
+		if (non_default_flags & NON_DEFAULT_FACTOR) glPixelZoom(pixels_zoom_xfactor, pixels_zoom_yfactor);
 
 		if (non_default_flags & NON_DEFAULT_UNPACK_ROW_LENGTH) glPixelStorei(GL_UNPACK_ROW_LENGTH, format_unpack_row_length);
 		if (non_default_flags & NON_DEFAULT_UNPACK_SWAP_BYTES) glPixelStorei(GL_UNPACK_SWAP_BYTES, format_unpack_swap_bytes);
@@ -276,8 +443,9 @@ void gpuPixelsBegin()
 	}
 #endif
 
-	// SSS Enable
-	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
+	// SSS
+	GPU_aspect_end();
+	GPU_aspect_begin(GPU_ASPECT_PIXELS, NULL);
 }
 
 
@@ -314,7 +482,7 @@ static void raster_pos_safe_2f(float x, float y, float known_good_x, float known
 
 
 #if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
-static GLfloat pixel_pos[3] = { 0, 0, 0 };
+static GLfloat pixels_pos[3] = { 0, 0, 0 };
 #endif
 
 
@@ -336,9 +504,9 @@ void gpuPixelPos2f(GLfloat x, GLfloat y)
 #endif
 
 #if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
-	pixel_pos[0] = x;
-	pixel_pos[1] = y;
-	pixel_pos[2] = 0;
+	pixels_pos[0] = x;
+	pixels_pos[1] = y;
+	pixels_pos[2] = 0;
 #endif
 }
 
@@ -353,9 +521,9 @@ void gpuPixelPos3f(GLfloat x, GLfloat y, GLfloat z)
 #endif
 
 #if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
-	pixel_pos[0] = x;
-	pixel_pos[1] = y;
-	pixel_pos[2] = z;
+	pixels_pos[0] = x;
+	pixels_pos[1] = y;
+	pixels_pos[2] = z;
 #endif
 }
 
@@ -398,8 +566,8 @@ void gpuPixels(GPUpixels* pixels)
 #if defined(WITH_GL_PROFILE_ES20) || defined(WITH_GL_PROFILE_CORE)
 	if (GPU_PROFILE_ES20 || GPU_PROFILE_CORE) {
 		glaDrawPixelsTexScaled(
-			pixel_pos[0],
-			pixel_pos[1],
+			pixels_pos[0],
+			pixels_pos[1],
 			pixels->width,
 			pixels->height,
 			pixels->format,
@@ -417,6 +585,8 @@ void gpuPixels(GPUpixels* pixels)
 
 void gpuPixelsEnd()
 {
+	GPU_ASSERT(!begun);
+
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (GPU_PROFILE_COMPAT) {
 		if (non_default_flags & NON_DEFAULT_RED_SCALE) {
@@ -469,6 +639,9 @@ void gpuPixelsEnd()
 	}
 #endif
 
-	// SSS Disable
-	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
+	// SSS
+	GPU_aspect_end();
+	GPU_aspect_begin(GPU_ASPECT_BASIC, NULL);
 }
+
+

@@ -61,7 +61,7 @@
 
 #include "GPU_colors.h"
 #include "GPU_primitives.h"
-//#include REAL_GL_MODE
+
 #include "BLF_api.h"
 
 #include "BIF_glutil.h"

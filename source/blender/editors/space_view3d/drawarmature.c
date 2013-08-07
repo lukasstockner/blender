@@ -988,7 +988,6 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 	float length;
 
 	gpuPixelFormat(GL_UNPACK_ALIGNMENT, 1);
-	gpuPixelsBegin();
 
 	if (pchan) 
 		length = pchan->bone->length;
@@ -1026,9 +1025,11 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 				gpuEnd();
 			}
 			else {
+				gpuPixelsBegin();
 				gpuPixelPos3f(0.0f, 0.0f, 0.0f);
 				gpuCacheBitmap(&bm_dot8);
 				gpuBitmap(&bm_dot8);
+				gpuPixelsEnd();
 			}
 		}
 
@@ -1049,9 +1050,11 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 			gpuEnd();
 		}
 		else {
+			gpuPixelsBegin();
 			gpuPixelPos3f(0.0f, 1.0f, 0.0f);
 			gpuCacheBitmap(&bm_dot7);
 			gpuBitmap(&bm_dot7);
+			gpuPixelsEnd();
 		}
 
 		/* further we send no names */
@@ -1073,9 +1076,11 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 				else UI_ThemeColor(TH_VERTEX);
 			}
 
+			gpuPixelsBegin();
 			gpuPixelPos3f(0.0f, 0.0f, 0.0f);
 			gpuCacheBitmap(&bm_dot6);
 			gpuBitmap(&bm_dot6);
+			gpuPixelsEnd();
 		}
 	}
 
@@ -1097,9 +1102,11 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 			else UI_ThemeColor(TH_VERTEX);
 		}
 
+		gpuPixelsBegin();
 		gpuPixelPos3f(0.0f, 1.0f, 0.0f);
 		gpuCacheBitmap(&bm_dot5);
 		gpuBitmap(&bm_dot5);
+		gpuPixelsEnd();
 	}
 
 	gpuLineWidth(1.0);
@@ -1113,7 +1120,6 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 	}
 
-	gpuPixelsEnd();
 	gpuPixelFormat(GL_UNPACK_ALIGNMENT, 4);  /* restore default value */
 }
 

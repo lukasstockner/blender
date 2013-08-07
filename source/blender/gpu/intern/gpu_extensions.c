@@ -41,6 +41,7 @@
 /* internal */
 #include "intern/gpu_codegen.h"
 #include "intern/gpu_extension_wrapper.h"
+#include "intern/gpu_pixels.h"
 
 /* external */
 #include "BLI_blenlib.h"
@@ -298,10 +299,11 @@ void GPU_extensions_init(void)
 
 	GPU_basic_shaders_init();
 	GPU_font_shader_init();
+	GPU_pixels_shader_init();
 
 	gpu_initialize_aspects();
 	gpu_initialize_aspect_funcs();
-	GPU_aspect_begin(GPU_ASPECT_BASIC, 0);
+	GPU_aspect_begin(GPU_ASPECT_BASIC, NULL);
 
 GPU_CHECK_NO_ERROR();
 }
@@ -314,6 +316,7 @@ GPU_CHECK_NO_ERROR();
 	GPU_codegen_exit();
 	GPU_basic_shaders_exit();
 	GPU_font_shader_exit();
+	GPU_pixels_shader_exit();
 
 	GPU_aspect_end();
 	gpu_shutdown_aspect_funcs(); // XXX jwilkins: should my shutdown functions be named exit?
@@ -351,7 +354,8 @@ int GPU_print_error(const char *str)
 	}
 	return 0;
 }
-//#include FAKE_GL_MODE
+
+
 
 static void GPU_print_framebuffer_error(GLenum status, char err_out[256])
 {
@@ -691,7 +695,7 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, int isdata, d
 {
 	GPUTexture *tex;
 	GLint w, h, border, lastbindcode, bindcode;
-//#include REAL_GL_MODE
+
 	lastbindcode = gpuGetTextureBinding2D();
 
 	GPU_update_image_time(ima, time);

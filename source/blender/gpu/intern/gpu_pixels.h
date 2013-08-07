@@ -77,6 +77,11 @@ void gpuBitmap(GPUbitmap* bitmap);
 void gpuPixels(GPUpixels* pixels);
 void gpuPixelsEnd();
 
+void GPU_pixels_shader_init  (void);
+void GPU_pixels_shader_exit  (void);
+void GPU_pixels_shader_bind  (void);
+void GPU_pixels_shader_unbind(void);
+
 
 
 #if defined(GLEW_ES_ONLY)

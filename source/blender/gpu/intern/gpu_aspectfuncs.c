@@ -31,6 +31,7 @@
 
 #define GPU_ASPECT_INTERN
 #include "intern/gpu_aspectfuncs.h"
+#include "intern/gpu_pixels.h"
 
 #include "GPU_basic_shader.h"
 #include "GPU_font_shader.h"
@@ -57,6 +58,28 @@ GPUaspectfuncs GPU_ASPECTFUNCS_FONT = {
 	font_commit, /* commit  */
 	NULL,        /* enable  */
 	NULL,        /* disable */
+};
+
+
+
+static bool pixels_end(void* UNUSED(param), const void* UNUSED(object))
+{
+	GPU_pixels_shader_unbind();
+
+	return true;
+}
+
+static void pixels_commit(void* UNUSED(param))
+{
+	GPU_pixels_shader_bind();
+}
+
+GPUaspectfuncs GPU_ASPECTFUNCS_PIXELS = {
+	NULL,          /* begin   */
+	pixels_end,    /* end     */
+	pixels_commit, /* commit  */
+	NULL,          /* enable  */
+	NULL,          /* disable */
 };
 
 
@@ -97,9 +120,11 @@ void gpu_initialize_aspect_funcs(void)
 {
 	GPU_gen_aspects(1, &GPU_ASPECT_FONT);
 	GPU_gen_aspects(1, &GPU_ASPECT_BASIC);
+	GPU_gen_aspects(1, &GPU_ASPECT_PIXELS);
 
-	GPU_aspect_funcs(GPU_ASPECT_FONT,  &GPU_ASPECTFUNCS_FONT);
-	GPU_aspect_funcs(GPU_ASPECT_BASIC, &GPU_ASPECTFUNCS_BASIC);
+	GPU_aspect_funcs(GPU_ASPECT_FONT,   &GPU_ASPECTFUNCS_FONT);
+	GPU_aspect_funcs(GPU_ASPECT_BASIC,  &GPU_ASPECTFUNCS_BASIC);
+	GPU_aspect_funcs(GPU_ASPECT_PIXELS, &GPU_ASPECTFUNCS_PIXELS);
 }
 
 
@@ -108,4 +133,5 @@ void gpu_shutdown_aspect_funcs(void)
 {
 	GPU_delete_aspects(1, &GPU_ASPECT_FONT);
 	GPU_delete_aspects(1, &GPU_ASPECT_BASIC);
+	GPU_delete_aspects(1, &GPU_ASPECT_PIXELS);
 }
