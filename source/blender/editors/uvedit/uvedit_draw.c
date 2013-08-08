@@ -297,7 +297,7 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTe
 
 			col[3] = 0.5f; /* hard coded alpha, not that nice */
 
-			// SSS Enable
+			// SSS Enable Smooth
 			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 			BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
@@ -362,7 +362,7 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTe
 			BLI_buffer_free(&av_buf);
 			BLI_buffer_free(&auv_buf);
 
-			// SSS Disable
+			// SSS Disable Smooth
 			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 			break;
@@ -660,8 +660,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 				UI_GetThemeColor4ubv(TH_VERTEX_SELECT, col1);
 
 				if (interpedges) {
-					// SSS Enable
-					//gpuShadeModel(GL_SMOOTH);
+					// SSS Enable Smooth
 					GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 					BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
@@ -679,8 +678,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 						gpuEnd();
 					}
 
-					// SSS Disable
-					//gpuShadeModel(GL_FLAT);
+					// SSS Disable Smooth
 					GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 				}
 				else {

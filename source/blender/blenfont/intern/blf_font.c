@@ -200,6 +200,8 @@ void blf_font_draw(FontBLF *font, const char *str, size_t len)
 	if (needs_end) {
 		gpuEnd();
 	}
+
+	gpuBindTexture(GL_TEXTURE_2D, 0); /* restore default */
 }
 
 /* faster version of blf_font_draw, ascii only for view dimensions */
@@ -233,6 +235,8 @@ void blf_font_draw_ascii(FontBLF *font, const char *str, size_t len)
 	if (needs_end) {
 		gpuEnd();
 	}
+
+	gpuBindTexture(GL_TEXTURE_2D, 0); /* restore default */
 }
 
 /* use fixed column width, but an utf8 character may occupy multiple columns */
@@ -271,7 +275,9 @@ int blf_font_draw_mono(FontBLF *font, const char *str, size_t len, int cwidth)
 	if (needs_end) {
 		gpuEnd();
 	}
-    
+
+	gpuBindTexture(GL_TEXTURE_2D, 0); /* restore default */
+
 	return columns;
 }
 

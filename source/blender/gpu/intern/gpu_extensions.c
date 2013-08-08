@@ -694,9 +694,7 @@ GPUTexture *GPU_texture_create_3D(int w, int h, int depth, int channels, float *
 GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, int isdata, double time, int mipmap)
 {
 	GPUTexture *tex;
-	GLint w, h, border, lastbindcode, bindcode;
-
-	lastbindcode = gpuGetTextureBinding2D();
+	GLint w, h, border, bindcode;
 
 	GPU_update_image_time(ima, time);
 	/* this binds a texture, so that's why to restore it with lastbindcode */
@@ -704,12 +702,12 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, int isdata, d
 
 	if (ima->gputexture) {
 		ima->gputexture->bindcode = bindcode;
-		gpuBindTexture(GL_TEXTURE_2D, lastbindcode);
+		gpuBindTexture(GL_TEXTURE_2D, 0); /* restore default */
 		return ima->gputexture;
 	}
 
 	if (!bindcode) {
-		gpuBindTexture(GL_TEXTURE_2D, lastbindcode);
+		gpuBindTexture(GL_TEXTURE_2D, 0); /* restore default */
 		return NULL;
 	}
 
@@ -747,7 +745,7 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, int isdata, d
 		tex->w = w - border;
 		tex->h = h - border;
 
-		gpuBindTexture(GL_TEXTURE_2D, lastbindcode);
+		gpuBindTexture(GL_TEXTURE_2D, 0); /* restore default */
 	}
 
 	return tex;
@@ -756,36 +754,34 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, int isdata, d
 GPUTexture *GPU_texture_from_preview(PreviewImage *prv, int mipmap)
 {
 	GPUTexture *tex = prv->gputexture[0];
-	GLint w, h, lastbindcode;
+	GLint w, h;
 	GLuint bindcode = 0;
-	
-	lastbindcode = gpuGetTextureBinding2D();
-	
+
 	if (tex)
 		bindcode = tex->bindcode;
-	
+
 	/* this binds a texture, so that's why to restore it */
 	if (bindcode == 0) {
 		GPU_create_gl_tex(&bindcode, prv->rect[0], NULL, prv->w[0], prv->h[0], mipmap, 0, NULL);
 	}
 	if (tex) {
 		tex->bindcode = bindcode;
-		gpuBindTexture(GL_TEXTURE_2D, lastbindcode);
+		gpuBindTexture(GL_TEXTURE_2D, 0); /* restore default */
 		return tex;
 	}
 
 	/* error binding anything */
 	if (!bindcode) {
-		gpuBindTexture(GL_TEXTURE_2D, lastbindcode);
+		gpuBindTexture(GL_TEXTURE_2D, 0); /* restore default */
 		return NULL;
 	}
-	
+
 	tex = (GPUTexture*)MEM_callocN(sizeof(GPUTexture), "GPUTexture");
 	tex->bindcode = bindcode;
 	tex->number = -1;
 	tex->refcount = 1;
 	tex->target = GL_TEXTURE_2D;
-	
+
 	prv->gputexture[0]= tex;
 
 #if !defined(GLEW_ES_ONLY)
@@ -810,9 +806,7 @@ GPUTexture *GPU_texture_from_preview(PreviewImage *prv, int mipmap)
 		tex->w = w;
 		tex->h = h;
 	}
-	
-	gpuBindTexture(GL_TEXTURE_2D, lastbindcode);
-	
+
 	return tex;
 
 }
@@ -984,10 +978,9 @@ unsigned char* GPU_texture_dup_pixels(const GPUTexture *tex, size_t* count)
 	memcpy(texpixels, tex->pixels, 4*(*count));
 #else
 	{
-	GLint lastbindcode = gpuGetTextureBinding2D();
 	gpuBindTexture(GL_TEXTURE_2D, GPU_texture_opengl_bindcode(tex));
 	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, texpixels); 
-	gpuBindTexture(GL_TEXTURE_2D, lastbindcode); /* restore previous value */
+	gpuBindTexture(GL_TEXTURE_2D, 0); /* restore default */
 	}
 #endif
 
@@ -1207,7 +1200,7 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 
 	GPU_texture_bind(tex, 0);
 
-	// SSS Enable
+	// SSS Enable Texturing
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 	gpuImmediateFormat_T2_V2();
@@ -1237,7 +1230,7 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 
 	gpuImmediateUnformat();
 
-	// SSS Disable
+	// SSS Disable Texturing
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 	GPU_shader_unbind();

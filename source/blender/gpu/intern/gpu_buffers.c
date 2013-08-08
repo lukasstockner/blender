@@ -30,20 +30,13 @@
  */
 
 
-#include <limits.h>
-#include <stddef.h>
-#include <string.h>
+#include "GPU_buffers.h"
 
-#include "MEM_guardedalloc.h"
+#include "GPU_basic_shader.h"
+#include "GPU_compatibility.h"
+#include "GPU_draw.h"
 
-#include "BLI_bitmap.h"
-#include "BLI_math.h"
-#include "BLI_utildefines.h"
-#include "BLI_ghash.h"
-#include "BLI_threads.h"
-
-#include "DNA_meshdata_types.h"
-#include "DNA_material_types.h"
+#include "intern/gpu_extension_wrapper.h"
 
 #include "BKE_ccg.h"
 #include "BKE_DerivedMesh.h"
@@ -52,12 +45,24 @@
 
 #include "DNA_userdef_types.h"
 
-#include "GPU_buffers.h"
-#include "GPU_compatibility.h"
-#include "GPU_draw.h"
-#include "gpu_extension_wrapper.h"
+#include "BLI_bitmap.h"
+#include "BLI_math.h"
+#include "BLI_utildefines.h"
+#include "BLI_ghash.h"
+#include "BLI_threads.h"
 
 #include "bmesh.h"
+
+#include "DNA_meshdata_types.h"
+#include "DNA_material_types.h"
+
+#include "MEM_guardedalloc.h"
+
+#include <limits.h>
+#include <stddef.h>
+#include <string.h>
+
+
 
 typedef enum {
 	GPU_BUFFER_VERTEX_STATE = 1,
@@ -2368,8 +2373,11 @@ void GPU_draw_buffers(GPU_Buffers *buffers, DMSetMaterial setMaterial,
 		}
 	}
 
-	// SSS Update GPU_BASIC_SMOOTH
-	//gpuShadeModel((buffers->smooth || buffers->totface) ? GL_SMOOTH : GL_FLAT);
+	// SSS Enable/Disable Smooth
+	if (buffers->smooth || buffers->totface)
+		GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
+	else
+		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	if (buffers->vert_buf) {
 #if defined(WITH_GL_PROFILE_COMPAT)

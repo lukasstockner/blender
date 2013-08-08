@@ -443,8 +443,10 @@ void gpuPixelsBegin()
 	}
 #endif
 
-	// SSS
+	// SSS End (Assuming the basic aspect is ending)
 	GPU_aspect_end();
+
+	// SSS Begin Pixels
 	GPU_aspect_begin(GPU_ASPECT_PIXELS, NULL);
 }
 
@@ -639,8 +641,10 @@ void gpuPixelsEnd()
 	}
 #endif
 
-	// SSS
+	// SSS End Pixels
 	GPU_aspect_end();
+
+	// SSS Begin Basic
 	GPU_aspect_begin(GPU_ASPECT_BASIC, NULL);
 }
 

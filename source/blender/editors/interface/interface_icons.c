@@ -392,8 +392,7 @@ static void vicon_disclosure_tri_right_draw(int x, int y, int w, int UNUSED(h), 
 	viconutil_set_point(pts[1], cx - d2, cy - d);
 	viconutil_set_point(pts[2], cx + d2, cy);
 
-	// SSS Enable
-	//gpuShadeModel(GL_SMOOTH);
+	// SSS Enable Smooth
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	gpuBegin(GL_TRIANGLES);
@@ -407,8 +406,7 @@ static void vicon_disclosure_tri_right_draw(int x, int y, int w, int UNUSED(h), 
 
 	gpuEnd();
 
-	// SSS Disable
-	//gpuShadeModel(GL_FLAT);
+	// SSS Disable Smooth
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	gpuColor3P(CPACK_BLACK);
@@ -448,8 +446,7 @@ static void vicon_disclosure_tri_down_draw(int x, int y, int w, int UNUSED(h), f
 	viconutil_set_point(pts[1], cx - d, cy + d2);
 	viconutil_set_point(pts[2], cx, cy - d2);
 
-	// SSS Enable
-	//gpuShadeModel(GL_SMOOTH);
+	// SSS Enable Smooth
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	gpuBegin(GL_TRIANGLES);
@@ -463,8 +460,7 @@ static void vicon_disclosure_tri_down_draw(int x, int y, int w, int UNUSED(h), f
 
 	gpuEnd();
 
-	// SSS Disable
-	//gpuShadeModel(GL_FLAT);
+	// SSS Disable Smooth
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	gpuColor3P(CPACK_BLACK);
@@ -694,7 +690,7 @@ static void init_internal_icons(void)
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 				
-				gpuBindTexture(GL_TEXTURE_2D, 0);
+				gpuBindTexture(GL_TEXTURE_2D, 0); /* restore default */
 				
 				if (glGetError() == GL_OUT_OF_MEMORY) {
 					glDeleteTextures(1, &icongltex.id);
@@ -1095,12 +1091,6 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 	y1 = iy * icongltex.invh;
 	y2 = (iy + ih) * icongltex.invh;
 
-#if defined(WITH_GL_PROFILE_COMPAT)
-	if (GPU_PROFILE_COMPAT) {
-		glEnable(GL_TEXTURE_2D);
-	}
-#endif
-
 	gpuBindTexture(GL_TEXTURE_2D, icongltex.id);
 
 #if defined(WITH_GL_PROFILE_COMPAT)
@@ -1108,7 +1098,7 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 	glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, -0.5f);
 #endif
 
-	// SSS Enable
+	// SSS Enable Texturing
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 	gpuImmediateFormat_T2_V2(); // DOODLE: icon, single quad with texture
@@ -1129,20 +1119,14 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 	gpuEnd();
 	gpuImmediateUnformat();
 
-	// SSS Disable
+	// SSS Disable Texturing
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, 0.0f);
 #endif
 
-	gpuBindTexture(GL_TEXTURE_2D, 0);
-
-#if defined(WITH_GL_PROFILE_COMPAT)
-		if (GPU_PROFILE_COMPAT) {
-			glDisable(GL_TEXTURE_2D);
-		}
-#endif
+	gpuBindTexture(GL_TEXTURE_2D, 0); /* restore default */
 }
 
 

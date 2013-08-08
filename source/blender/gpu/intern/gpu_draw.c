@@ -990,18 +990,12 @@ int GPU_set_tpage(MTFace *tface, int mipmap, int alphablend)
 		GTS.curtileXRep = GTS.tileXRep;
 		GTS.curtileYRep = GTS.tileYRep;
 
-#if defined(WITH_GL_PROFILE_COMPAT)
-		if (GPU_PROFILE_COMPAT) {
-			glEnable(GL_TEXTURE_2D);
-		}
-#endif
+		// SSS Enable Texturing
+		GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 	}
 	else {
-#if defined(WITH_GL_PROFILE_COMPAT)
-		if (GPU_PROFILE_COMPAT) {
-			glDisable(GL_TEXTURE_2D);
-		}
-#endif
+		// SSS Disable Texturing
+		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 		
 		GTS.curtile= 0;
 		GTS.curima= NULL;
@@ -1080,7 +1074,7 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 
 		/* if color correction is needed, we must update the part that needs updating. */
 		if (ibuf->rect_float) {
-			float *buffer = MEM_mallocN(w*h*sizeof(float)*4, "temp_texpaint_float_buf");
+			float *buffer = (float*)MEM_mallocN(w*h*sizeof(float)*4, "temp_texpaint_float_buf");
 			int is_data = (ima->tpageflag & IMA_GLBIND_IS_DATA);
 			IMB_partial_rect_from_float(ibuf, buffer, x, y, w, h, is_data);
 
@@ -1674,14 +1668,10 @@ int GPU_enable_material(int nr, void *attribs)
 		mul_v3_v3fl(spec, &defmaterial.specr, defmaterial.spec);
 		spec[3]= 1.0;
 
-		// SSS XXX jwilkins: not sure if this is needed only for simple shader or for codegen shaders as well
-		// SSS GPU_simple_shader_material
-		//gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, diff);
-		//gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
-		//gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, 35); /* blender default */
-		gpuColor4fv(diff); /* Basic shader always uses the color vertex attribute as the diffuse material. */
-		GPU_set_basic_material_specular(spec);
-		GPU_set_basic_material_shininess(35);
+		// SSS Material
+		gpuColor4fv(diff);
+		GPU_set_basic_material_specular (spec);
+		GPU_set_basic_material_shininess(35); /* blender default */
 
 		return 0;
 	}
@@ -1749,12 +1739,9 @@ int GPU_enable_material(int nr, void *attribs)
 		}
 		else {
 			/* or do a basic material */
-			// SSS GPU_simple_shader_material(...)
-			// SSS XXX jwilkins: not sure if this is needed for codegen as well
-			//gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, GMS.matbuf[nr].diff);
-			//gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, GMS.matbuf[nr].spec);
-			//gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, GMS.matbuf[nr].hard);
-			gpuColor4fv(GMS.matbuf[nr].diff); /* The basic shader always uses color vertex attribute as the diffuse material color. */
+
+			// SSS Material
+			gpuColor4fv(GMS.matbuf[nr].diff);
 			GPU_set_basic_material_specular (GMS.matbuf[nr].spec);
 			GPU_set_basic_material_shininess(GMS.matbuf[nr].hard);
 		}
@@ -1886,36 +1873,35 @@ int GPU_scene_object_lights(Scene *scene, Object *ob, int lay, float viewmat[4][
 	Base *base;
 	Lamp *la;
 	int count = 0;
-	
+
 	/* disable all lights */
-	//for (count=0; count<8; count++)
-	//	gpuDisableLight(count);
 	GPU_set_basic_lights(0, NULL);
-	
+
 	/* view direction for specular is not compute correct by default in
 	 * opengl, so we set the settings ourselfs */
-	// SSS gpuLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, (ortho)? GL_FALSE: GL_TRUE);
+
+	// SSS Enable/Disable Local Viewer
 	if (ortho)
-		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TWO_SIDE);
+		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LOCAL_VIEWER);
 	else
-		GPU_aspect_enable (GPU_ASPECT_BASIC, GPU_BASIC_TWO_SIDE);
+		GPU_aspect_enable (GPU_ASPECT_BASIC, GPU_BASIC_LOCAL_VIEWER);
 
-	memset(lights, 0, sizeof(lights));
-
-	for (base=scene->base.first; base; base=base->next) {
+	for (base=(Base*)(scene->base.first); base; base=base->next) {
 		if (base->object->type!=OB_LAMP)
 			continue;
 
 		if (!(base->lay & lay) || !(base->lay & ob->lay))
 			continue;
 
-		la = base->object->data;
+		la = (Lamp*)(base->object->data);
 		
 		/* setup lamp transform */
 		gpuPushMatrix();
 		gpuLoadMatrix((float *)viewmat);
 
 		BKE_object_where_is_calc_simul(scene, base->object);
+
+		lights[count] = GPU_DEFAULT_LIGHT;
 
 		if (la->type==LA_SUN) {
 			/* sun lamp */
@@ -1927,18 +1913,15 @@ int GPU_scene_object_lights(Scene *scene, Object *ob, int lay, float viewmat[4][
 			copy_v3_v3(lights[count].position, base->object->obmat[3]);
 			lights[count].position[3]= 1.0f;
 
-			lights[count].constant_attenuation = 1;
-			lights[count].linear_attenuation   = la->att1/la->dist;
-			lights[count].constant_attenuation = la->att2/(la->dist*la->dist);
+			lights[count].constant_attenuation  = 1;
+			lights[count].linear_attenuation    = la->att1/la->dist;
+			lights[count].quadratic_attenuation = la->att2/(la->dist*la->dist);
 
 			if (la->type==LA_SPOT) {
 				/* spot lamp */
 				negate_v3_v3(lights[count].spot_direction, base->object->obmat[2]);
 				lights[count].spot_cutoff   = la->spotsize/2.0f;
 				lights[count].spot_exponent = 128.0f*la->spotblend;
-			}
-			else {
-				lights[count].spot_cutoff = 180;
 			}
 		}
 
@@ -1970,24 +1953,12 @@ int GPU_scene_object_lights(Scene *scene, Object *ob, int lay, float viewmat[4][
 void GPU_state_init(void)
 {
 	/* also called when doing opengl rendering and in the game engine */
-	// SSS
-	//float mat_ambient[] = { 0.0, 0.0, 0.0, 0.0 };
-	float mat_specular[] = { 0.5, 0.5, 0.5, 1.0 };
 
-	// SSS GPU_simple_shader_material(...)
-	//gpuMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat_ambient);
-	//gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_specular);
-	//gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);
-	//gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, 35);
+	static const float init_color[] = { 0.5, 0.5, 0.5, 1.0 };
 
-
-	// XXX jwilkins: this gets called before gpuNewImmediate and crashes...
-	//gpuColor4fv(mat_specular); /* The basic shader always uses color vertex attribute as the diffuse material color. */
-	GPU_set_basic_material_specular (mat_specular);
+	// SSS Material
+	GPU_set_basic_material_specular (init_color);
 	GPU_set_basic_material_shininess(35);
-
-	// SSS not needed
-	//gpuColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 
 	GPU_default_lights();
 
@@ -2003,13 +1974,10 @@ void GPU_state_init(void)
 	}
 #endif
 
-	// SSS 
-	//gpuShadeModel(GL_FLAT);
-	//gpuDisableLighting();
-	///* make sure double side isn't used by default and only getting enabled in places where it's
-	// * really needed to prevent different unexpected behaviors like with intel gme965 card (sergey) */
-	//gpuLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
-	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH|GPU_BASIC_LIGHTING|GPU_BASIC_TWO_SIDE);
+	/* make sure double side isn't used by default and only getting enabled in places where it's
+	 * really needed to prevent different unexpected behaviors like with intel gme965 card (sergey) */
+	// SSS Disable Everything
+	GPU_aspect_disable(GPU_ASPECT_BASIC, 0xFFFFFF);
 
 	glDisable(GL_BLEND);
 	glDisable(GL_DEPTH_TEST);

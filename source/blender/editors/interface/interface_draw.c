@@ -188,8 +188,7 @@ void uiDrawBoxShade(int mode, float minx, float miny, float maxx, float maxy, fl
 	coldown[1] = max_ff(0.0f, color[1] + shadedown);
 	coldown[2] = max_ff(0.0f, color[2] + shadedown);
 
-	// SSS Enable
-	//gpuShadeModel(GL_SMOOTH);
+	// SSS Enable Smooth
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	gpuBegin(mode);
@@ -271,8 +270,7 @@ void uiDrawBoxShade(int mode, float minx, float miny, float maxx, float maxy, fl
 	
 	gpuEnd();
 
-	// SSS Disable
-	//gpuShadeModel(GL_FLAT);
+	// SSS Disable Smooth
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 }
 
@@ -303,8 +301,7 @@ void uiDrawBoxVerticalShade(int mode, float minx, float miny, float maxx, float 
 	colRight[1] = max_ff(0.0f, color[1] + shadeRight);
 	colRight[2] = max_ff(0.0f, color[2] + shadeRight);
 
-	// SSS Enable
-	//gpuShadeModel(GL_SMOOTH);
+	// SSS Enable Smooth
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	gpuBegin(mode);
@@ -383,8 +380,7 @@ void uiDrawBoxVerticalShade(int mode, float minx, float miny, float maxx, float 
 	
 	gpuEnd();
 
-	// SSS Disable
-	//gpuShadeModel(GL_FLAT);
+	// SSS Disable Smooth
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 }
 
@@ -528,8 +524,7 @@ static void histogram_draw_one(float r, float g, float b, float alpha,
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 		gpuColor4f(r, g, b, alpha);
 
-		// SSS Disable
-		//gpuShadeModel(GL_FLAT);
+		// SSS Disable Smooth
 		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 		gpuBegin(GL_TRIANGLE_STRIP); // DOODLE: line graph drawn using quads, locking done by function callee
@@ -1019,8 +1014,7 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 	gpuDrawFilledRectf(x1, y1, x1 + sizex, y1 + sizey);
 	gpuDisablePolygonStipple();
 
-	// SSS Enable
-	//gpuShadeModel(GL_SMOOTH);
+	// SSS Enable Smooth
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	glEnable(GL_BLEND);
@@ -1052,8 +1046,7 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 
 	gpuEnd();
 
-	// SSS Disable
-	//gpuShadeModel(GL_FLAT);
+	// SSS Disable Smooth
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	glDisable(GL_BLEND);
@@ -1145,14 +1138,14 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 	uiSetRoundBox(UI_CNR_ALL);
 	uiDrawBox(GL_TRIANGLE_FAN, rect->xmin, rect->ymin, rect->xmax, rect->ymax, 5.0f);
 
-	/* sphere color */
-	gpuColor4fv(white);
 	glCullFace(GL_BACK);
 	glEnable(GL_CULL_FACE);
 
+	GPU_aspect_disable(GPU_ASPECT_BASIC, -1);
+
 	/* own light */
 
-	// SSS Enable
+	// SSS Enable Lighting
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
 
 	ui_get_but_vectorf(but, dir);
@@ -1176,8 +1169,7 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 
 	gpuScale(size, size, size);
 
-	// SSS
-	//gpuShadeModel(GL_SMOOTH);
+	// SSS Enable Smooth
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	if (!displist) {
@@ -1192,6 +1184,9 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 		gpuImmediateIndex(index);
 		gpuImmediateMaxIndexCount(4608, GL_UNSIGNED_SHORT);
 
+		/* sphere color */
+		gpuColor4fv(white); /* Note: Have to set color here because the immediate context is separate from the main immediate context */
+
 		gpuSingleSphere(&prim, 100);
 
 		displist = gpuPopImmediate();
@@ -1200,15 +1195,14 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 		gpuImmediateSingleRepeatElements(displist);
 	}
 
-	// SSS Disable
-	//gpuShadeModel(GL_FLAT);
+	// SSS Disable Smooth
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	/* restore */
-	// SSS
-	//gpuDisableLighting();
-	//gpuDisableLight(7);
+
+	// SSS Disable Lighting
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
+
 	GPU_restore_basic_lights(backup_count, backup_lights);
 
 	glDisable(GL_CULL_FACE);
@@ -1656,8 +1650,7 @@ static void ui_shadowbox(float minx, float miny, float maxx, float maxy, float s
 {
 	glEnable(GL_BLEND);
 
-	// SSS Enable
-	//gpuShadeModel(GL_SMOOTH);
+	// SSS Enable Smooth
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	/* right quad */
@@ -1701,8 +1694,7 @@ static void ui_shadowbox(float minx, float miny, float maxx, float maxy, float s
 	
 	glDisable(GL_BLEND);
 
-	// SSS Disable
-	//gpuShadeModel(GL_FLAT);
+	// SSS Disable Smooth
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 }
 

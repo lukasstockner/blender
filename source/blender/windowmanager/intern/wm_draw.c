@@ -541,7 +541,7 @@ static void wm_triple_draw_textures(wmWindow *win, wmDrawTriple *triple, float a
 
 			gpuColor4P(CPACK_WHITE, alpha);
 
-			// SSS Enable
+			// SSS Enable Texturing
 			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 			gpuImmediateFormat_T2_V2(); // DOODLE: triple backbuffer
@@ -562,7 +562,7 @@ static void wm_triple_draw_textures(wmWindow *win, wmDrawTriple *triple, float a
 
 			gpuImmediateUnformat();
 
-			// SSS Disable
+			// SSS Disable Texturing
 			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 		}
 	}

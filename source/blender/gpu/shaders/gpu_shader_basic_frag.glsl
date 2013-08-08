@@ -55,60 +55,61 @@ void main()
 #ifdef USE_SPECULAR
 	vec3 L_specular = vec3(0,0,0);
 #endif
+	vec3 debug;
 
 #ifdef USE_FAST_LIGHTING
 	for (int i = 0; i < b_LightCount; i++) {
-		vec3 L;
+		vec3 VP;
 
 		/* directional light */
 
-		L = -b_LightSource[i].position.xyz; /* Assume this is a normalized direction vector for a sun lamp. */
+		VP = b_LightSource[i].position.xyz; /* Assume this is a normalized direction vector for a sun lamp. */
 
 		/* diffuse light */
 
-		float NdotL = dot(N, L);
+		float NdotVP = dot(N, VP);
 
-		if (NdotL > 0) {
-			L_diffuse += NdotL * b_LightSource[i].diffuse.rgb;
+		if (NdotVP > 0) {
+			L_diffuse += NdotVP * b_LightSource[i].diffuse.rgb;
 
 #ifdef USE_SPECULAR
 			/* specular light */
 
-			vec3  V     = vec3(0, 0, 1); /* Assume non-local viewer. */
-			vec3  H     = normalize(L + V);
-			float NdotH = dot(N, H);
+			vec3  VE     = vec3(0, 0, 1); /* Assume non-local viewer. */
+			vec3  HV     = normalize(VP + VE);
+			float NdotHV = dot(N, HV);
 
-			L_specular += pow(max(0, NdotH), b_FrontMaterial.shininess) * b_LightSource[i].specular.rgb;
+			if (NdotHV > 0)
+				L_specular += pow(NdotHV, b_FrontMaterial.shininess) * b_LightSource[i].specular.rgb;
 #endif
 		}
 	}
 
 #else /* all 8 lights, makes no assumptions, potentially slow */
 
-	for (int i = 0; i < b_LightCount; i++) {
+	for (int i = 0; i < 1/*b_LightCount*/; i++) {
 		float I;
-		vec3  L;
+		vec3  VP;
 
 		if (b_LightSource[i].position.w == 0.0) {
 			/* directional light */
 
-			L = -b_LightSource[i].position.xyz; /* Assume this is a normalized direction vector for a sun lamp. */ 
+			VP = b_LightSource[i].position.xyz; /* Assume this is a normalized direction vector for a sun lamp. */
 
 			I = 1;
 		}
 		else {
 			/* point light */
 
-			vec3 VP = b_LightSource[i].position.xyz - varying_position;
+			VP = b_LightSource[i].position.xyz - varying_position;
 
-			/* falloff */
 			float d = length(VP);
 
-			L = VP/d;
+			VP /= d;
 
 			/* spot light cone */
 			if (b_LightSource[i].spotCutoff < 90.0) {
-				float cosine = max(dot(L, -b_LightSource[i].spotDirection), 0.0);
+				float cosine = max(dot(VP, -b_LightSource[i].spotDirection), 0.0);
 				I = pow(cosine, b_LightSource[i].spotExponent) * step(b_LightSource[i].spotCosCutoff, cosine);
 			}
 			else {
@@ -116,30 +117,29 @@ void main()
 			}
 
 			I /=
-				b_LightSource[i].constantAttenuation +
-				b_LightSource[i].linearAttenuation * distance +
-				b_LightSource[i].quadraticAttenuation * distance * distance;
+				b_LightSource[i].constantAttenuation           +
+				b_LightSource[i].linearAttenuation    * d      +
+				b_LightSource[i].quadraticAttenuation * d * d;
 		}
 
-		/* diffuse light */
+		float NdotVP = dot(N, VP);
 
-		float NdotL = dot(N, L);
-
-		if (NdotL > 0) {
-			L_diffuse += I * NdotL * b_LightSource[i].diffuse.rgb;
+		if (NdotVP > 0) {
+			L_diffuse += I * NdotVP * b_LightSource[i].diffuse.rgb;
 
 #ifdef USE_SPECULAR
 			/* specular light */
 
 #ifdef USE_LOCAL_VIEWER
-			vec3 V      = normalize(-varying_position);
+			vec3  VE     = normalize(-varying_position);
 #else
-			vec3 V      = vec3(0, 0, 1);
+			vec3  VE     = vec3(0, 0, 1);
 #endif
-			vec3 H      = normalize(L + V);
-			float NdotH = dot(N, H);
+			vec3  HV     = normalize(VP + VE); /* Assumes VP and VE were normalized already. */
+			float NdotHV = dot(N, HV);
 
-			L_specular += I * pow(max(0, NdotH), b_FrontMaterial.shininess) * b_LightSource[i].specular.rgb;
+			if (NdotHV > 0)
+				L_specular += I * pow(NdotHV, b_FrontMaterial.shininess) * b_LightSource[i].specular.rgb;
 #endif
 		}
 	}

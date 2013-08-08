@@ -387,12 +387,12 @@ static void file_draw_preview(uiBlock *block, struct direntry *file, int sx, int
 		
 		/* the image */
 
-		// SSS Enable
+		// SSS Enable Texturing
 		GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 		glaDrawPixelsTexScaled((float)xco, (float)yco, imb->x, imb->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST, imb->rect, scale, scale);
 
-		// SSS Disable
+		// SSS Disable Texturing
 		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 		/* border */

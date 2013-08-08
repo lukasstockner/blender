@@ -1783,7 +1783,7 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 		if (shademodel != new_shademodel) {
 			shademodel = new_shademodel;
 
-			// SSS Set
+			// SSS Enable/Disable Smooth
 			if (shademodel == GL_SMOOTH)
 				GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 			else
@@ -1985,7 +1985,7 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 			continue;
 		}
 
-		// SSS
+		// SSS Enable/Disable Smooth
 		if (drawSmooth)
 			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 		else
@@ -2153,7 +2153,7 @@ static void ccgDM_drawMappedFacesMat(DerivedMesh *dm,
 
 		/* draw face*/
 
-		// SSS
+		// SSS Enable/Disable Smooth
 		if (drawSmooth)
 			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 		else
@@ -2225,7 +2225,7 @@ static void ccgDM_drawMappedFacesMat(DerivedMesh *dm,
 			}
 		}
 
-		// SSS
+		// SSS Disable Smooth
 		if (drawSmooth)
 			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 	}
@@ -2242,8 +2242,8 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
 	CCGSubSurf *ss = ccgdm->ss;
 	CCGKey key;
-	MCol *mcol = dm->getTessFaceDataArray(dm, CD_PREVIEW_MCOL);
-	MTFace *tf = DM_get_tessface_data_layer(dm, CD_MTFACE);
+	MCol *mcol = (MCol*)dm->getTessFaceDataArray(dm, CD_PREVIEW_MCOL);
+	MTFace *tf = (MTFace*)DM_get_tessface_data_layer(dm, CD_MTFACE);
 	DMFlagMat *faceFlags = ccgdm->faceFlags;
 	DMDrawOption draw_option;
 	int i, totface, gridSize = ccgSubSurf_getGridSize(ss);
@@ -2255,12 +2255,12 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 	ccgdm_pbvh_update(ccgdm);
 
 	if (!mcol)
-		mcol = dm->getTessFaceDataArray(dm, CD_MCOL);
+		mcol = (MCol*)dm->getTessFaceDataArray(dm, CD_MCOL);
 
 	if (!mcol)
-		mcol = dm->getTessFaceDataArray(dm, CD_TEXTURE_MCOL);
+		mcol = (MCol*)dm->getTessFaceDataArray(dm, CD_TEXTURE_MCOL);
 
-	// SSS Enable
+	// SSS Enable Texturing
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 	gpuImmediateFormat_T2_C4_N3_V3(); // DOODLE: heavy textured face drawing
@@ -2309,8 +2309,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 			CCGElem *a, *b;
 
 			if (drawSmooth) {
-				// SSS Enable
-				//gpuShadeModel(GL_SMOOTH);
+				// SSS Enable Smooth
 				GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 				for (y = 0; y < gridFaces; y++) {
@@ -2355,7 +2354,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 				}
 			}
 			else {
-				// SSS
+				// SSS Enable/Disable Smooth
 				if (cp)
 					GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 				else
@@ -2398,7 +2397,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 
 	gpuImmediateUnformat();
 
-	// SSS Disable
+	// SSS Disable Texturing (should also disable Smooth?)
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 }
 
@@ -2516,8 +2515,8 @@ static void ccgDM_drawMappedFaces(
 				}
 
 				/*  normals are used to change shading, so choose smooth so smooth shading will work (XXX jwilkins: rewrote to say what I think was meant */
-				// SSS Enable
-				//gpuShadeModel(GL_SMOOTH);
+
+				// SSS Enable Smooth
 				GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 				for (S = 0; S < numVerts; S++) {
@@ -2586,8 +2585,7 @@ static void ccgDM_drawMappedFaces(
 					}
 				}
 
-				// SSS Disable
-				//gpuShadeModel(GL_FLAT);
+				// SSS Disable Smooth
 				GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 				if (draw_option == DM_DRAW_OPTION_STIPPLE)

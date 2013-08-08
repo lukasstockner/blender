@@ -351,15 +351,16 @@ static void emDM_drawMappedFaces(
 	if (has_vcol_preview) {
 		BM_mesh_elem_index_ensure(bm, BM_VERT);
 	}
+
 	if (has_fcol_preview) {
 		BM_mesh_elem_index_ensure(bm, BM_FACE);
 	}
+
 	if (has_vcol_preview || has_fcol_preview) {
 		flag |= DM_DRAW_ALWAYS_SMOOTH;
 
-		// SSS Disable
-		//gpuDisableLighting();
-		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING); /* grr */
+		// SSS Disable Lighting
+		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING); /* grr */ // XXX jwilkins: need to figure out the consequences of this...
 	}
 
 	if (bmdm->vertexCos) {
@@ -412,10 +413,11 @@ static void emDM_drawMappedFaces(
 					if (shade_type != shade_prev) {
 						if (poly_prev != GL_NOOP) gpuEnd();
 
-						// SSS
-						//gpuShadeModel((shade_prev = shade_type)); /* same as below but switch shading */
+						/* same as below but switch shading */
+
 						shade_prev = shade_type;
 
+						// SSS Enable/Disable Smooth
 						if (shade_prev == GL_SMOOTH)
 							GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 						else
@@ -511,10 +513,11 @@ static void emDM_drawMappedFaces(
 					if (shade_type != shade_prev) {
 						if (poly_prev != GL_ZERO) gpuEnd();
 
-						// SSS
-						//gpuShadeModel((shade_prev = shade_type)); /* same as below but switch shading */
+						/* same as below but switch shading */
+
 						shade_prev = shade_type;
 
+						// SSS Enable/Disable Smooth
 						if (shade_prev == GL_SMOOTH)
 							GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 						else
@@ -624,8 +627,8 @@ static void emDM_drawFacesTex_common(DerivedMesh *dm,
 	// dummylcol.r = dummylcol.g = dummylcol.b = dummylcol.a = 255;  /* UNUSED */
 
 	/* always use smooth shading even for flat faces, else vertex colors wont interpolate */
-	// SSS Enable
-	//gpuShadeModel(GL_SMOOTH);
+
+	// SSS Enable Smooth & Texturing
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH|GPU_BASIC_TEXTURE_2D);
 
 	BM_mesh_elem_index_ensure(bm, BM_FACE);
@@ -774,8 +777,7 @@ static void emDM_drawFacesTex_common(DerivedMesh *dm,
 
 	gpuImmediateUnformat();
 
-	// SSS Disable
-	//gpuShadeModel(GL_FLAT);
+	// SSS Disable Smooth & Texturing
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH|GPU_BASIC_TEXTURE_2D);
 }
 
@@ -923,8 +925,8 @@ static void emDM_drawMappedFacesGLSL(DerivedMesh *dm,
 	emdm_format_attrib_vertex(&attribs); /* XXX: jwilkins, just to make this easy to write for now */
 
 	/* always use smooth shading even for flat faces, else vertex colors wont interpolate */
-	// SSS Enable
-	//gpuShadeModel(GL_SMOOTH);
+
+	// SSS Enable Smooth
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	BM_mesh_elem_index_ensure(bm, BM_VERT | BM_FACE);
@@ -1006,8 +1008,7 @@ static void emDM_drawMappedFacesGLSL(DerivedMesh *dm,
 
 	emdm_unformat_attrib_vertex();
 
-	// SSS Disable
-	//gpuShadeModel(GL_FLAT);
+	// SSS Disable Smooth
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH); /* restore Blender default */
 }
 
@@ -1068,8 +1069,8 @@ static void emDM_drawMappedFacesMat(DerivedMesh *dm,
 	matnr = -1;
 
 	/* always use smooth shading even for flat faces, else vertex colors wont interpolate */
-	// SSS Enable
-	//gpuShadeModel(GL_SMOOTH);
+
+	// SSS Enable Smooth
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	BM_mesh_elem_index_ensure(bm, BM_VERT | BM_FACE);
@@ -1145,8 +1146,7 @@ static void emDM_drawMappedFacesMat(DerivedMesh *dm,
 		gpuEnd();
 	}
 
-	// SSS Disable
-	//gpuShadeModel(GL_FLAT);
+	// SSS Disable Smooth
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH); /* restore Blender default */
 }
 

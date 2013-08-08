@@ -641,7 +641,7 @@ void gpu_draw_elements_gl(void)
 
 	GPU_CHECK_NO_ERROR();
 
-	gpu_commit_aspect  ();
+	gpu_commit_aspect();
 	unsetup();
 	setup();
 	gpu_commit_matrixes();

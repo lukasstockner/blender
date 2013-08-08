@@ -753,8 +753,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 
 			shadecolors4(col1, col2, wcol->inner, wcol->shadetop, wcol->shadedown);
 
-			// SSS Enable
-			//gpuShadeModel(GL_SMOOTH);
+			// SSS Enable Smooth
 			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 			for (a = 0; a < wtb->totvert; a++, col_pt += 4) {
@@ -770,8 +769,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 				0,
 				wtb->totvert);
 
-			// SSS Disable
-			//gpuShadeModel(GL_FLAT);
+			// SSS Disable Smooth
 			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 		}
 	}
@@ -2023,8 +2021,7 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 
 	hsv_to_rgb(0.f, 0.f, hsv[2], colcent, colcent + 1, colcent + 2);
 
-	// SSS Enable
-	//gpuShadeModel(GL_SMOOTH);
+	// SSS Enable Smooth
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	gpuBegin(GL_TRIANGLE_FAN);
@@ -2044,8 +2041,7 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 	}
 	gpuEnd();
 
-	// SSS Disable
-	//gpuShadeModel(GL_FLAT);
+	// SSS Disable Smooth
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	/* fully rounded outline */
@@ -2078,8 +2074,7 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 
 	/* draw series of gouraud rects */
 
-	// SSS Enable
-	//gpuShadeModel(GL_SMOOTH);
+	// SSS Enable Smooth
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 	
 	switch (type) {
@@ -2203,8 +2198,7 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 		gpuEnd();
 	}
 
-	// SSS Disable
-	//gpuShadeModel(GL_FLAT);
+	// SSS Disable Smooth
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 }
 

@@ -3334,6 +3334,7 @@ static void radial_control_set_tex(RadialControl *rc)
 				gpuBindTexture(GL_TEXTURE_2D, rc->gltex);
 				glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, ibuf->x, ibuf->y, 0,
 				             GL_ALPHA, GL_FLOAT, ibuf->rect_float);
+				gpuBindTexture(GL_TEXTURE_2D, 0); /* restore default */
 				MEM_freeN(ibuf->rect_float);
 				MEM_freeN(ibuf);
 			}
@@ -3369,13 +3370,8 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 		}
 
 		/* draw textured quad */
-#if defined(WITH_GL_PROFILE_COMPAT)
-		if (GPU_PROFILE_COMPAT) {
-			glEnable(GL_TEXTURE_2D);
-		}
-#endif
 
-		// SSS Enable
+		// SSS Enable Texturing
 		GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 		gpuImmediateFormat_T2_V2();
@@ -3391,14 +3387,10 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 		gpuEnd();
 		gpuImmediateUnformat();
 
-		// SSS Disable
+		// SSS Disable Texturing
 		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
-#if defined(WITH_GL_PROFILE_COMPAT)
-		if (GPU_PROFILE_COMPAT) {
-			glDisable(GL_TEXTURE_2D);
-		}
-#endif
+		gpuBindTexture(GL_TEXTURE_2D, 0); /* restore default */
 
 		/* undo rotation */
 		if (rc->rot_prop) {
@@ -3413,7 +3405,7 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 
 static void radial_control_paint_cursor(bContext *C, int x, int y, void *customdata)
 {
-	RadialControl *rc = customdata;
+	RadialControl *rc = (RadialControl*)customdata;
 	ARegion *ar = CTX_wm_region(C);
 	float r1 = 0.0f, r2 = 0.0f, tex_radius, alpha;
 	float zoom[2], col[4] = {1, 1, 1, 0.5f};

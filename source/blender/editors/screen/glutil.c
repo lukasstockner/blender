@@ -381,7 +381,7 @@ static int get_cached_work_texture(int *w_r, int *h_r)
 		//glTexImage2D(GL_TEXTURE_2D, 0, (GLEW_VERSION_1_1 || GLEW_OES_required_internalformat) ? GL_RGBA8 : GL_RGBA, tex_w, tex_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);//tbuf);
 		//MEM_freeN(tbuf);
 
-		//gpuBindTexture(GL_TEXTURE_2D, ltexid); /* restore previous value */
+		//gpuBindTexture(GL_TEXTURE_2D, ltexid); /* restore default */
 	}
 
 	*w_r = tex_w;
@@ -393,7 +393,6 @@ static int get_cached_work_texture(int *w_r, int *h_r)
 void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, const void *rect, float scaleX, float scaleY)
 {
 	float xzoom, yzoom;
-	int ltexid = gpuGetTextureBinding2D();
 	int subpart_x, subpart_y, tex_w, tex_h;
 	int seamless, offset_x, offset_y, nsubparts_x, nsubparts_y;
 	int texid = get_cached_work_texture(&tex_w, &tex_h);
@@ -510,12 +509,6 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 					glTexSubImage2D(GL_TEXTURE_2D, 0, subpart_w, subpart_h, 1, 1, format, GL_UNSIGNED_BYTE, &uc_rect[(subpart_y * offset_y + subpart_h - 1) * img_w * components + (subpart_x * offset_x + subpart_w - 1) * components]);
 			}
 
-#if defined(WITH_GL_PROFILE_COMPAT)
-			if (GPU_PROFILE_COMPAT) {
-				glEnable(GL_TEXTURE_2D);
-			}
-#endif
-
 			gpuBegin(GL_TRIANGLE_FAN);
 
 			gpuTexCoord2f((float)(0 + offset_left) / tex_w, (float)(0 + offset_bot) / tex_h);
@@ -531,18 +524,12 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 			gpuVertex2f(rast_x + (float)offset_left * xzoom, rast_y + (float)(subpart_h - offset_top) * yzoom * scaleY);
 
 			gpuEnd();
-
-#if defined(WITH_GL_PROFILE_COMPAT)
-			if (GPU_PROFILE_COMPAT) {
-				glDisable(GL_TEXTURE_2D);
-			}
-#endif
 		}
 	}
 
 	gpuImmediateUnformat();
 
-	gpuBindTexture(GL_TEXTURE_2D, ltexid);
+	gpuBindTexture(GL_TEXTURE_2D, 0); /* restore default */
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0); /* restore default value */
@@ -553,12 +540,12 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 
 void glaDrawPixelsTex(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect)
 {
-	// SSS Enable
+	// SSS Enable Texturing
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 	glaDrawPixelsTexScaled(x, y, img_w, img_h, format, type, zoomfilter, rect, 1.0f, 1.0f);
 
-	// SSS Disable
+	// SSS Disable Texturing
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 }
 

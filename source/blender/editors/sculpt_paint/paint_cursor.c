@@ -288,12 +288,6 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
-	if (GPU_PROFILE_COMPAT) {
-		glEnable(GL_TEXTURE_2D);
-	}
-#endif
-
-#if defined(WITH_GL_PROFILE_COMPAT)
 	//glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE); // XXX jwilkins: blender never changes the TEXTURE_ENV_MODE
 #endif
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -430,12 +424,6 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
 		if (buffer)
 			MEM_freeN(buffer);
 	}
-
-#if defined(WITH_GL_PROFILE_COMPAT)
-	if (GPU_PROFILE_COMPAT) {
-		glEnable(GL_TEXTURE_2D);
-	}
-#endif
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	//glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE); // XXX jwilkins: blender never changes the TEXTURE_ENV_MODE
@@ -656,6 +644,9 @@ static void paint_draw_tex_overlay(UnifiedPaintSettings *ups, Brush *brush,
 				U.sculpt_paint_overlay_col[2],
 				overlay_alpha / 100.0f);
 
+		// SSS Enable Texturing
+		GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
+
 		/* draw textured quad */
 		gpuBegin(GL_TRIANGLE_FAN);
 		gpuTexCoord2f(0, 0);
@@ -674,6 +665,11 @@ static void paint_draw_tex_overlay(UnifiedPaintSettings *ups, Brush *brush,
 			gpuMatrixMode(GL_MODELVIEW);
 			gpuPopMatrix();
 		}
+
+		// SSS Disable Texturing
+		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
+
+		gpuBindTexture(GL_TEXTURE_2D, 0); /* restore default */
 	}
 }
 
@@ -724,7 +720,7 @@ static void paint_draw_cursor_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		        U.sculpt_paint_overlay_col[2],
 		        brush->cursor_overlay_alpha / 100.0f);
 
-		// SSS Enable
+		// SSS Enable Texturing
 		GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 		/* draw textured quad */
@@ -741,8 +737,10 @@ static void paint_draw_cursor_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		gpuEnd();
 		gpuImmediateUnformat();
 
-		// SSS Disable
+		// SSS Disable Texturing
 		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
+
+		gpuBindTexture(GL_TEXTURE_2D, 0); /* restore default */
 	}
 }
 

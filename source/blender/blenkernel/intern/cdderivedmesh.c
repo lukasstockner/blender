@@ -651,8 +651,7 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 		GPU_normal_setup(dm);
 		if (!GPU_buffer_legacy(dm)) {
 
-			// SSS Enable
-			//gpuShadeModel(GL_SMOOTH);
+			// SSS Enable Smooth
 			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 			for (a = 0; a < dm->drawObject->totmaterial; a++) {
@@ -662,8 +661,7 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 				}
 			}
 
-			// SSS Disable
-			//gpuShadeModel(GL_FLAT);
+			// SSS Disable Smooth
 			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 		}
 		GPU_buffer_unbind();
@@ -723,8 +721,10 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 
 	cdDM_update_normals_from_pbvh(dm);
 
-	// SSS
+	// SSS Enable Texturing
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
+
+	// SSS Disable Smooth
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	if (GPU_buffer_legacy(dm)) {
@@ -834,8 +834,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 			int tottri = dm->drawObject->tot_triangle_point / 3;
 			int next_actualFace = dm->drawObject->triangle_to_mface[0];
 
-			// SSS Enable
-			//gpuShadeModel(GL_SMOOTH);
+			// SSS Enable Smooth
 			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 			/* lastFlag = 0; */ /* UNUSED */
@@ -899,7 +898,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 			}
 		}
 
-		// SSS
+		// SSS Disable Texturing & Smooth
 		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D|GPU_BASIC_SMOOTH);
 
 		GPU_buffer_unbind();
@@ -982,8 +981,8 @@ static void cdDM_drawMappedFaces(
 		DEBUG_VBO("Using legacy code. cdDM_drawMappedFaces\n");
 
 		/*  normals are used to change shading, so choose smooth so smooth shading will work (XXX jwilkins: rewrote to say what I think was meant */
-		// SSS Enable
-		//gpuShadeModel(GL_SMOOTH);
+
+		// SSS Enable Smooth
 		GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 		for (i = 0; i < dm->numTessFaceData; i++, mf++) {
@@ -1011,8 +1010,8 @@ static void cdDM_drawMappedFaces(
 					cp = (unsigned char *)&mcol[i * 4];
 
 				/*  normals are used to change shading, so choose smooth so smooth shading will work (XXX jwilkins: rewrote to say what I think was meant */
-				// SSS Enable
-				//gpuShadeModel(GL_SMOOTH);
+
+				// SSS Enable Smooth
 				GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 				gpuBegin(mf->v4 ? GL_QUADS : GL_TRIANGLES);
@@ -1083,8 +1082,8 @@ static void cdDM_drawMappedFaces(
 
 		if (!GPU_buffer_legacy(dm)) {
 			int tottri = dm->drawObject->tot_triangle_point / 3;
-			// SSS Enable
-			//gpuShadeModel(GL_SMOOTH);
+
+			// SSS Enable Smooth
 			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 			if (tottri == 0) {
@@ -1158,8 +1157,7 @@ static void cdDM_drawMappedFaces(
 				}
 			}
 
-			// SSS Disable
-			//gpuShadeModel(GL_FLAT);
+			// SSS Disable Smooth
 			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 		}
 		GPU_buffer_unbind();
@@ -1344,8 +1342,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 	matnr = -1;
 	do_draw = FALSE;
 
-	// SSS Enable
-	//gpuShadeModel(GL_SMOOTH);
+	// SSS Enable Smooth
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	if (GPU_buffer_legacy(dm) || setDrawOptions != NULL) {
@@ -1625,8 +1622,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 		GPU_buffer_free(buffer);
 	}
 
-	// SSS Disable
-	//gpuShadeModel(GL_FLAT);
+	// SSS Disable Smooth
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 }
 
@@ -1672,8 +1668,7 @@ static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
 
 	matnr = -1;
 
-	// SSS Enable
-	//gpuShadeModel(GL_SMOOTH);
+	// SSS Enable Smooth
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	memset(&attribs, 0, sizeof(attribs));
@@ -1737,8 +1732,7 @@ static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
 	gpuEnd();
 	cddm_unformat_attrib_vertex();
 
-	// SSS Disable
-	//gpuShadeModel(GL_FLAT);
+	// SSS Disable Smooth
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 }
 
@@ -1747,7 +1741,7 @@ static void cdDM_drawMappedEdges(DerivedMesh *dm, DMSetDrawOptions setDrawOption
 	CDDerivedMesh *cddm = (CDDerivedMesh *) dm;
 	MVert *vert = cddm->mvert;
 	MEdge *edge = cddm->medge;
-	int i, orig, *index = DM_get_edge_data_layer(dm, CD_ORIGINDEX);
+	int i, orig, *index = (int*)DM_get_edge_data_layer(dm, CD_ORIGINDEX);
 
 	gpuBegin(GL_LINES);
 	for (i = 0; i < dm->numEdgeData; i++, edge++) {

@@ -657,8 +657,7 @@ static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, floa
 	ymid1 = (y2 - y1) * 0.25f + y1;
 	ymid2 = (y2 - y1) * 0.65f + y1;
 
-	// SSS
-	// gpuShadeModel(GL_SMOOTH);
+	// SSS Enable Smooth
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	gpuBegin(GL_QUADS);
@@ -700,8 +699,7 @@ static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, floa
 
 	gpuEnd();
 
-	// SSS Disable
-	//gpuShadeModel(GL_FLAT);
+	// SSS Disable Smooth
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	if (seq->flag & SEQ_MUTE) {
@@ -951,7 +949,6 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	float proxy_size = 100.0;
 	float col[3];
 	GLuint texid;
-	GLuint last_texid;
 	void *display_buffer;
 	void *cache_handle = NULL;
 	const int is_imbuf = ED_space_sequencer_check_show_imbuf(sseq);
@@ -1155,13 +1152,8 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 
 	gpuColor3P(CPACK_WHITE);
 
-	last_texid = gpuGetTextureBinding2D();
-
-#if defined(WITH_GL_PROFILE_COMPAT)
-	if (GPU_PROFILE_COMPAT) {
-		glEnable(GL_TEXTURE_2D);
-	}
-#endif
+	// SSS Enable Texturing
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 	glGenTextures(1, (GLuint *)&texid);
 
@@ -1213,16 +1205,15 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		gpuTexCoord2f(1.0f, 0.0f); gpuVertex2f(v2d->tot.xmax, v2d->tot.ymin);
 	}
 	gpuEnd();
-	gpuBindTexture(GL_TEXTURE_2D, last_texid);
 
-#if defined(WITH_GL_PROFILE_COMPAT)
-	if (GPU_PROFILE_COMPAT) {
-		glDisable(GL_TEXTURE_2D);
-	}
-#endif
+	// SSS Disable Texturing
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
+
+	gpuBindTexture(GL_TEXTURE_2D, 0); /* restore default */
 
 	if (sseq->mainb == SEQ_DRAW_IMG_IMBUF && sseq->flag & SEQ_USE_ALPHA)
 		glDisable(GL_BLEND);
+
 	glDeleteTextures(1, &texid);
 
 	if (glsl_used)

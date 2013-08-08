@@ -775,8 +775,7 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 
 	glEnable(GL_BLEND);
 
-	// SSS
-	//gpuShadeModel(GL_SMOOTH);
+	// SSS Enable Smooth
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	gpuSpriteSize(5);
@@ -858,7 +857,7 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 	gpuVertex3fv(o);
 	gpuEnd();
 
-	// SSS Disable
+	// SSS Disable Smooth
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	/* find screen coordinates for rotation center, then draw pretty icon */
@@ -3193,8 +3192,7 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			gpuPushMatrix();
 			gpuLoadIdentity();
 
-			// SSS Enable
-			//gpuShadeModel(GL_SMOOTH);
+			// SSS Enable Smooth
 			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 			/* calculate buffers the first time only */
@@ -3281,8 +3279,7 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			gpuMatrixMode(GL_MODELVIEW);
 			gpuPopMatrix();
 
-			// SSS Disable
-			//gpuShadeModel(GL_FLAT);
+			// SSS Disable Smooth
 			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 #undef VIEWGRAD_RES_X
@@ -3309,8 +3306,7 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			glEnable(GL_DEPTH_TEST);
 			glDepthFunc(GL_ALWAYS);
 
-			// SSS Enable
-			//gpuShadeModel(GL_SMOOTH);
+			// SSS Enable Smooth
 			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 			gpuImmediateFormat_V3();
@@ -3324,8 +3320,7 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			gpuEnd();
 			gpuImmediateUnformat();
 
-			// SSS Disable
-			//gpuShadeModel(GL_FLAT);
+			// SSS Disable Smooth
 			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 			glDepthFunc(GL_LEQUAL);

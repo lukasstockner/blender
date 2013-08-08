@@ -253,6 +253,8 @@ static int rna_Image_gl_load(Image *image, ReportList *reports, int filter, int 
 
 	BKE_image_release_ibuf(image, ibuf, NULL);
 
+	gpuBindTexture(GL_TEXTURE_2D, 0); /* restore default */
+
 	return error;
 }
 

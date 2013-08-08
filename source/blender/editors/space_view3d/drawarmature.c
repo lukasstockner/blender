@@ -345,7 +345,7 @@ static void draw_bonevert_solid(void)
 	static GPUimmediate *displist = NULL;
 	static GPUindex* index = NULL;
 
-	// SSS Enable
+	// SSS Enable Smooth
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	if (!displist) {
@@ -368,7 +368,7 @@ static void draw_bonevert_solid(void)
 		gpuImmediateSingleRepeatElements(displist);
 	}
 
-	// SSS Disable
+	// SSS Disable Smooth
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 }
 
@@ -455,8 +455,7 @@ static void draw_bone_solid_octahedral(void)
 	static GPUimmediate *displist = NULL;
 	static GPUindex* index = NULL;
 
-	// SSS Disable
-	//gpuShadeModel(GL_FLAT);
+	// SSS Disable Smooth
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	if (!displist) {
@@ -487,8 +486,7 @@ static void draw_bone_solid_octahedral(void)
 		gpuImmediateSingleRepeatRangeElements(displist);
 	}
 
-	// SSS
-	//gpuShadeModel(GL_SMOOTH);
+	// SSS Enable Smooth
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 }
 
@@ -838,15 +836,13 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 
 	if (dt == OB_SOLID) {
 		/* set up solid drawing */
-		// SSS Begin GPU_SHADER_LIGHTING|GPU_SHADER_SMOOTH
-		//gpuEnableColorMaterial();
-		//gpuEnableLighting();
-		//gpuShadeModel(GL_SMOOTH);
+
+		// SSS Enable Lighting & Smooth
+		GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING|GPU_BASIC_SMOOTH);
 
 		prim = GPU_PRIM_MIDFI_SOLID;
 	}
 	else {
-		// SSS Begin
 		prim = GPU_PRIM_MIDFI_WIRE;
 	}
 
@@ -952,13 +948,8 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 
 	/* restore */
 	if (dt == OB_SOLID) {
-		// SSS End
-		//gpuShadeModel(GL_FLAT);
-		//gpuDisableLighting();
-		//gpuDisableColorMaterial();
-	}
-	else {
-		// SSS End
+		// SSS Disable Lighting & Smooth
+		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING|GPU_BASIC_SMOOTH);
 	}
 
 	gpuPopMatrix();
@@ -995,7 +986,7 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 		length = ebone->length;
 
 	if (G.f & G_PICKSEL) {
-		// SSS Enable
+		// SSS Enable Texturing
 		GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 		gpuImmediateFormat_T2_V3();
@@ -1116,7 +1107,7 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 	gpuImmediateUnformat();
 
 	if (G.f & G_PICKSEL) {
-		// SSS Disable
+		// SSS Disable Texturing
 		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 	}
 
@@ -1214,9 +1205,8 @@ static void draw_b_bone(const short dt, int armflag, int boneflag, short constfl
 	
 	/* set up solid drawing */
 	if (dt > OB_WIRE) {
-		// SSS Begin GPU_LIGHTING
-		//gpuEnableColorMaterial();
-		//gpuEnableLighting();
+		// SSS Enable Lighting
+		GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
 		
 		if (armflag & ARM_POSEMODE)
 			set_pchan_gpuColor(PCHAN_COLOR_SOLID, boneflag, constflag);
@@ -1226,9 +1216,9 @@ static void draw_b_bone(const short dt, int armflag, int boneflag, short constfl
 		draw_b_bone_boxes(OB_SOLID, pchan, xwidth, length, zwidth);
 		
 		/* disable solid drawing */
-		// SSS End
-		//gpuDisableColorMaterial();
-		//gpuDisableLighting();
+
+		// SSS Enable Lighting
+		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
 	}
 	else {
 		/* wire */
@@ -1344,13 +1334,10 @@ static void draw_bone(const short dt, int armflag, int boneflag, short constflag
 
 	/* set up solid drawing */
 	if (dt > OB_WIRE) {
-		// SSS Begin GPU_SHADER_LIGHTING
-		//gpuEnableColorMaterial();
-		//gpuEnableLighting();
+		// SSS Enable Lighting
+		GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
+
 		UI_ThemeColor(TH_BONE_SOLID);
-	}
-	else {
-		// SSS Begin
 	}
 	
 	/* colors for posemode */
@@ -1404,12 +1391,8 @@ static void draw_bone(const short dt, int armflag, int boneflag, short constflag
 
 	/* disable solid drawing */
 	if (dt > OB_WIRE) {
-		// SSS End
-		//gpuDisableColorMaterial();
-		//gpuDisableLighting();
-	}
-	else {
-		// SSS End
+		// SSS Disable Lighting
+		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
 	}
 }
 

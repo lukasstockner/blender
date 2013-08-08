@@ -332,12 +332,12 @@ void wm_drags_draw(bContext *C, wmWindow *win, rcti *rect)
 			else {
 				gpuColor4P(CPACK_WHITE, 0.650f); /* this blends texture */
 
-				// SSS Enable
+				// SSS Enable Texturing
 				GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
 				glaDrawPixelsTexScaled(x, y, drag->imb->x, drag->imb->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST, drag->imb->rect, drag->scale, drag->scale);
 
-				// SSS Disable
+				// SSS Disable Texturing
 				GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 			}
 		}

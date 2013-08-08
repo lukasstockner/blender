@@ -52,6 +52,7 @@
 /* internal */
 #include "intern/gpu_common.h"
 #include "intern/gpu_safety.h"
+#include "intern/gpu_state_latch.h"
 
 /* external */
 
@@ -127,15 +128,22 @@ void GPU_basic_shader_disable(uint32_t options)
 
 static uint32_t tweak_options(void)
 {
+	uint32_t options;
+
+	options = BASIC_SHADER.options;
+
 	/* detect if we can do faster lighting for solid draw mode */
 	if (  BASIC_SHADER.options & GPU_BASIC_LIGHTING      &&
 		!(BASIC_SHADER.options & GPU_BASIC_LOCAL_VIEWER) &&
 		gpu_fast_lighting())
 	{
-		BASIC_SHADER.options |= GPU_BASIC_FAST_LIGHTING;
+		options |= GPU_BASIC_FAST_LIGHTING;
 	}
 
-	return BASIC_SHADER.options;
+	if (gpuGetTextureBinding2D() == 0)
+		options &= ~GPU_BASIC_TEXTURE_2D;
+
+	return options;
 }
 
 
@@ -146,16 +154,16 @@ static void basic_shader_bind(void)
 	extern const char datatoc_gpu_shader_basic_vert_glsl[];
 	extern const char datatoc_gpu_shader_basic_frag_glsl[];
 
-	const uint32_t options = tweak_options();
+	const uint32_t tweaked_options = tweak_options();
 
 	GPU_CHECK_NO_ERROR();
 
 	/* create shader if it doesn't exist yet */
-	if (BASIC_SHADER.gpushader[options] != NULL) {
-		GPU_shader_bind(BASIC_SHADER.gpushader[options]);
-		gpu_set_common(BASIC_SHADER.common + options);
+	if (BASIC_SHADER.gpushader[tweaked_options] != NULL) {
+		GPU_shader_bind(BASIC_SHADER.gpushader[tweaked_options]);
+		gpu_set_common(BASIC_SHADER.common + tweaked_options);
 	}
-	else if (!BASIC_SHADER.failed[options]) {
+	else if (!BASIC_SHADER.failed[tweaked_options]) {
 		DynStr* vert = BLI_dynstr_new();
 		DynStr* frag = BLI_dynstr_new();
 		DynStr* defs = BLI_dynstr_new();
@@ -172,23 +180,23 @@ static void basic_shader_bind(void)
 
 		gpu_include_common_defs(defs);
 
-		if (options & GPU_BASIC_TWO_SIDE)
+		if (tweaked_options & GPU_BASIC_TWO_SIDE)
 			BLI_dynstr_append(defs, "#define USE_TWO_SIDE\n");
 
-		if (options & GPU_BASIC_TEXTURE_2D)
+		if (tweaked_options & GPU_BASIC_TEXTURE_2D)
 			BLI_dynstr_append(defs, "#define USE_TEXTURE_2D\n");
 
-		if (options & GPU_BASIC_LOCAL_VIEWER)
+		if (tweaked_options & GPU_BASIC_LOCAL_VIEWER)
 			BLI_dynstr_append(defs, "#define USE_LOCAL_VIEWER\n");
 
-		if (options & GPU_BASIC_SMOOTH)
+		if (tweaked_options & GPU_BASIC_SMOOTH)
 			BLI_dynstr_append(defs, "#define USE_SMOOTH\n");
 
-		if (options & GPU_BASIC_LIGHTING) {
+		if (tweaked_options & GPU_BASIC_LIGHTING) {
 			BLI_dynstr_append(defs, "#define USE_LIGHTING\n");
 			BLI_dynstr_append(defs, "#define USE_SPECULAR\n");
 
-			if (options & GPU_BASIC_FAST_LIGHTING)
+			if (tweaked_options & GPU_BASIC_FAST_LIGHTING)
 				BLI_dynstr_append(defs, "#define USE_FAST_LIGHTING\n");
 		}
 
@@ -196,7 +204,7 @@ static void basic_shader_bind(void)
 		frag_cstring = BLI_dynstr_get_cstring(frag);
 		defs_cstring = BLI_dynstr_get_cstring(defs);
 
-		BASIC_SHADER.gpushader[options] =
+		BASIC_SHADER.gpushader[tweaked_options] =
 			GPU_shader_create(vert_cstring, frag_cstring, NULL, defs_cstring);
 
 		MEM_freeN(vert_cstring);
@@ -207,14 +215,14 @@ static void basic_shader_bind(void)
 		BLI_dynstr_free(frag);
 		BLI_dynstr_free(defs);
 
-		if (BASIC_SHADER.gpushader[options] != NULL) {
-			gpu_init_common(BASIC_SHADER.common + options, BASIC_SHADER.gpushader[options]);
-			gpu_set_common (BASIC_SHADER.common + options);
+		if (BASIC_SHADER.gpushader[tweaked_options] != NULL) {
+			gpu_init_common(BASIC_SHADER.common + tweaked_options, BASIC_SHADER.gpushader[tweaked_options]);
+			gpu_set_common (BASIC_SHADER.common + tweaked_options);
 
-			GPU_shader_bind(BASIC_SHADER.gpushader[options]);
+			GPU_shader_bind(BASIC_SHADER.gpushader[tweaked_options]);
 		}
 		else {
-			BASIC_SHADER.failed[options] = true;
+			BASIC_SHADER.failed[tweaked_options] = true;
 			gpu_set_common(NULL);
 		}
 	}

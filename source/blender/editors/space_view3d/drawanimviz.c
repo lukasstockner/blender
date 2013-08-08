@@ -140,8 +140,8 @@ void draw_motion_path_instance(Scene *scene,
 	mpv_start = (mpath->points + sind);
 
 	/* draw curve-line of path */
-	// SSS Enable
-	//gpuShadeModel(GL_SMOOTH);
+
+	// SSS Enable Smooth
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	gpuBegin(GL_LINE_STRIP);
@@ -199,8 +199,7 @@ void draw_motion_path_instance(Scene *scene,
 
 	gpuEnd();
 
-	// SSS
-	//gpuShadeModel(GL_FLAT);
+	// SSS Disable Smooth
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	gpuSpriteSize(1.0);

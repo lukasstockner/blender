@@ -502,10 +502,10 @@ static void draw_lock(FontBLF *font)
 	}
 
 	if (font->locked == 0) {
-		// SSS End
+		// SSS End (Assuming the basic aspect is ending)
 		GPU_aspect_end();
 
-		// SSS Begin
+		// SSS Begin Font
 		GPU_aspect_begin(GPU_ASPECT_FONT, NULL);
 
 		if (font->shadow || font->blur) {
@@ -516,11 +516,6 @@ static void draw_lock(FontBLF *font)
 		}
 
 		/* one-time GL setup */
-#if defined(WITH_GL_PROFILE_COMPAT)
-		if (GPU_PROFILE_COMPAT) {
-			glEnable(GL_TEXTURE_2D);
-		}
-#endif
 
 		glEnable(GL_BLEND);
 	}
@@ -541,18 +536,12 @@ static void draw_unlock(FontBLF *font)
 	if (font->locked == 0) {
 		glDisable(GL_BLEND);
 
-#if defined(WITH_GL_PROFILE_COMPAT)
-		if (GPU_PROFILE_COMPAT) {
-			glDisable(GL_TEXTURE_2D);
-		}
-#endif
-
 		gpuImmediateUnformat();
 
-		// SSS End
+		// SSS End Font
 		GPU_aspect_end();
 
-		// SSS Begin
+		// SSS Begin Basic
 		GPU_aspect_begin(GPU_ASPECT_BASIC, NULL);
 	}
 }
