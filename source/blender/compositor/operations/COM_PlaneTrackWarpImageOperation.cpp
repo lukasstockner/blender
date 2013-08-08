@@ -147,15 +147,15 @@ void PlaneTrackWarpImageOperation::executePixel(float output[4], float x, float 
 	float color_accum[4];
 
 	for (int i = 0; i < 4; i++) {
-		frame_space_corners[i][0] = this->m_corners[i][0] * this->getWidth() * kernel_size;
-		frame_space_corners[i][1] = this->m_corners[i][1] * this->getHeight() * kernel_size;
+		frame_space_corners[i][0] = this->m_corners[i][0] * this->getWidth();
+		frame_space_corners[i][1] = this->m_corners[i][1] * this->getHeight();
 	}
 
 	zero_v4(color_accum);
 	for (int sample_dx = 0; sample_dx < kernel_size; sample_dx++) {
 		for (int sample_dy = 0; sample_dy < kernel_size; sample_dy++) {
-			float current_x = x * kernel_size + sample_dx,
-			      current_y = y * kernel_size + sample_dy;
+			float current_x = x + (float)sample_dx / kernel_size,
+			      current_y = y + (float)sample_dy / kernel_size;
 			if (isPointInsideQuad(current_x, current_y, frame_space_corners)) {
 				float current_color[4];
 				float u, v, dx, dy;

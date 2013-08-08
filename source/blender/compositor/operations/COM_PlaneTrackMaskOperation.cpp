@@ -45,15 +45,15 @@ void PlaneTrackMaskOperation::executePixel(float output[4], float x, float y, Pi
 	float frame_space_corners[4][2];
 
 	for (int i = 0; i < 4; i++) {
-		frame_space_corners[i][0] = this->m_corners[i][0] * this->getWidth() * kernel_size;
-		frame_space_corners[i][1] = this->m_corners[i][1] * this->getHeight() * kernel_size;
+		frame_space_corners[i][0] = this->m_corners[i][0] * this->getWidth() ;
+		frame_space_corners[i][1] = this->m_corners[i][1] * this->getHeight();
 	}
 
 	int inside_counter = 0;
 	for (int dx = 0; dx < kernel_size; dx++) {
 		for (int dy = 0; dy < kernel_size; dy++) {
-			point[0] = x * kernel_size + dx;
-			point[1] = y * kernel_size + dy;
+			point[0] = x + (float) dx / kernel_size;
+			point[1] = y + (float) dy / kernel_size;
 
 			if (isect_point_tri_v2(point, frame_space_corners[0], frame_space_corners[1], frame_space_corners[2]) ||
 			    isect_point_tri_v2(point, frame_space_corners[0], frame_space_corners[2], frame_space_corners[3]))
