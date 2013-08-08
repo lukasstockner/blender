@@ -137,6 +137,8 @@ struct MovieTrackingPlaneTrack *BKE_tracking_plane_track_get_named(struct MovieT
 
 struct MovieTrackingPlaneTrack *BKE_tracking_plane_track_get_active(struct MovieTracking *tracking);
 
+void BKE_tracking_plane_tracks_deselect_all(struct ListBase *plane_tracks_base);
+
 /* **** Plane Marker **** */
 struct MovieTrackingPlaneMarker *BKE_tracking_plane_marker_insert(struct MovieTrackingPlaneTrack *plane_track,
                                                                   struct MovieTrackingPlaneMarker *plane_marker);

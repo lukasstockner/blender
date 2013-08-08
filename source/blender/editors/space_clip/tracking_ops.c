@@ -91,6 +91,7 @@ static bool add_marker(const bContext *C, float x, float y)
 	MovieClip *clip = ED_space_clip_get_clip(sc);
 	MovieTracking *tracking = &clip->tracking;
 	ListBase *tracksbase = BKE_tracking_get_active_tracks(tracking);
+	ListBase *plane_tracks_base = BKE_tracking_get_active_plane_tracks(tracking);
 	MovieTrackingTrack *track;
 	int width, height;
 	int framenr = ED_space_clip_get_clip_frame_number(sc);
@@ -104,6 +105,7 @@ static bool add_marker(const bContext *C, float x, float y)
 	track = BKE_tracking_track_add(tracking, tracksbase, x, y, framenr, width, height);
 
 	BKE_tracking_track_select(tracksbase, track, TRACK_AREA_ALL, 0);
+	BKE_tracking_plane_tracks_deselect_all(plane_tracks_base);
 
 	clip->tracking.act_track = track;
 	clip->tracking.act_plane_track = NULL;
@@ -300,7 +302,9 @@ static int delete_marker_exec(bContext *C, wmOperator *UNUSED(op))
 	SpaceClip *sc = CTX_wm_space_clip(C);
 	MovieClip *clip = ED_space_clip_get_clip(sc);
 	ListBase *tracksbase = BKE_tracking_get_active_tracks(&clip->tracking);
+	ListBase *plane_tracks_base = BKE_tracking_get_active_plane_tracks(&clip->tracking);
 	MovieTrackingTrack *track = tracksbase->first, *next;
+	MovieTrackingPlaneTrack *plane_track, *plane_track_next;
 	int framenr = ED_space_clip_get_clip_frame_number(sc);
 	int has_selection = 0;
 
@@ -318,6 +322,27 @@ static int delete_marker_exec(bContext *C, wmOperator *UNUSED(op))
 		}
 
 		track = next;
+	}
+
+	for (plane_track = plane_tracks_base->first;
+	     plane_track;
+	     plane_track = plane_track_next)
+	{
+		plane_track_next = plane_track->next;
+
+		if (plane_track->flag & SELECT) {
+			MovieTrackingPlaneMarker *plane_marker = BKE_tracking_plane_marker_get_exact(plane_track, framenr);
+
+			if (plane_marker) {
+				if (plane_track->markersnr == 1) {
+					BKE_tracking_plane_track_free(plane_track);
+					BLI_freelinkN(plane_tracks_base, plane_track);
+				}
+				else {
+					BKE_tracking_plane_marker_delete(plane_track, framenr);
+				}
+			}
+		}
 	}
 
 	if (!has_selection) {

@@ -1446,6 +1446,15 @@ MovieTrackingPlaneTrack *BKE_tracking_plane_track_get_active(struct MovieTrackin
 	return NULL;
 }
 
+void BKE_tracking_plane_tracks_deselect_all(ListBase *plane_tracks_base)
+{
+	MovieTrackingPlaneTrack *plane_track;
+
+	for (plane_track = plane_tracks_base->first; plane_track; plane_track = plane_track->next) {
+		plane_track->flag &= ~SELECT;
+	}
+}
+
 /*********************** Plane Marker *************************/
 
 MovieTrackingPlaneMarker *BKE_tracking_plane_marker_insert(MovieTrackingPlaneTrack *plane_track,

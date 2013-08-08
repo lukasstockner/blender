@@ -6406,11 +6406,10 @@ static void cancelTransTracking(TransInfo *t)
 				i++;
 
 			if (track->pat_flag & SELECT)
-				i += 2;
+				i += 4;
 
 			if (track->search_flag & SELECT)
 				i += 2;
-
 		}
 		else if (tdt->mode == transDataTracking_ModeCurves) {
 			MovieTrackingTrack *track = tdt->track;
@@ -6434,6 +6433,7 @@ static void cancelTransTracking(TransInfo *t)
 			MovieTrackingPlaneMarker *plane_marker = BKE_tracking_plane_marker_get(plane_track, framenr);
 
 			plane_marker->flag = tdt->flag;
+			i += 3;
 		}
 
 		i++;

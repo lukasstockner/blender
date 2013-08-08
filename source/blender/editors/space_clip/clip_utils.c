@@ -204,10 +204,24 @@ void clip_delete_track(bContext *C, MovieClip *clip, MovieTrackingTrack *track)
 	     plane_track;
 	     plane_track = next_plane_track)
 	{
+		bool found  = false;
+		int i;
+
 		next_plane_track = plane_track->next;
 
+		for (i = 0; i < plane_track->point_tracksnr; i++) {
+			if (plane_track->point_tracks[i] == track) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			continue;
+		}
+
 		if (plane_track->point_tracksnr > 4) {
-			int i, track_index;
+			int track_index;
 			MovieTrackingTrack **new_point_tracks;
 
 			new_point_tracks = MEM_mallocN(sizeof(*new_point_tracks) * plane_track->point_tracksnr,
