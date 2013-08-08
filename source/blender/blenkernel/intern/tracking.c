@@ -1360,9 +1360,10 @@ MovieTrackingPlaneTrack *BKE_tracking_plane_track_add(MovieTracking *tracking, L
 
 	/* Use selected tracks from given list as a plane. */
 	plane_track->point_tracks = MEM_mallocN(sizeof(MovieTrackingTrack *) * num_selected_tracks, "new plane tracks array");
-	for (track = tracks->first, track_index = 0; track; track = track->next, track_index++) {
+	for (track = tracks->first, track_index = 0; track; track = track->next) {
 		if (TRACK_SELECTED(track)) {
 			plane_track->point_tracks[track_index] = track;
+			track_index++;
 		}
 	}
 	plane_track->point_tracksnr = num_selected_tracks;
