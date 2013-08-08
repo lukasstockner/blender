@@ -4596,6 +4596,7 @@ typedef struct SlidePlaneMarkerData {
 	MovieTrackingPlaneTrack *plane_track;
 	MovieTrackingPlaneMarker *plane_marker;
 	int width, height;
+	int corner_index;
 	float *corner;
 	int previous_mval[2];
 	float previous_corner[2];
@@ -4697,6 +4698,7 @@ static void *slide_plane_marker_customdata(bContext *C, const wmEvent *event)
 		customdata->previous_mval[0] = event->mval[0];
 		customdata->previous_mval[1] = event->mval[1];
 
+		customdata->corner_index = corner;
 		customdata->corner = plane_marker->corners[corner];
 
 		copy_v2_v2(customdata->previous_corner, customdata->corner);
@@ -4754,6 +4756,9 @@ static int slide_plane_marker_modal(bContext *C, wmOperator *op, const wmEvent *
 	MovieClip *clip = ED_space_clip_get_clip(sc);
 	SlidePlaneMarkerData *data = (SlidePlaneMarkerData *) op->customdata;
 	float dx, dy, mdelta[2];
+	int next_corner_index, prev_corner_index, diag_corner_index;
+	float *next_corner, *prev_corner, *diag_corner;
+	float next_edge[2], prev_edge[2], next_diag_edge[2], prev_diag_edge[2];
 
 	switch (event->type) {
 		case LEFTCTRLKEY:
@@ -4776,9 +4781,50 @@ static int slide_plane_marker_modal(bContext *C, wmOperator *op, const wmEvent *
 				dy /= 5.0f;
 			}
 
-			/* TODO(sergey): Add concave check here. */
 			data->corner[0] = data->previous_corner[0] + dx;
 			data->corner[1] = data->previous_corner[1] + dy;
+
+
+			/*
+			                               prev_edge
+			    (Corner 3, current) <-----------------------   (Corner 2, previous)
+			            |                                              ^
+			            |                                              |
+			            |                                              |
+			            |                                              |
+			  next_edge |                                              | next_diag_edge
+			            |                                              |
+			            |                                              |
+			            |                                              |
+			            v                                              |
+			     (Corner 0, next)   ----------------------->   (Corner 1, diagonal)
+			                              prev_diag_edge
+			 */
+
+			next_corner_index = (data->corner_index + 1) % 4;
+			prev_corner_index = (data->corner_index + 3) % 4;
+			diag_corner_index = (data->corner_index + 2) % 4;
+
+			next_corner = data->plane_marker->corners[next_corner_index];
+			prev_corner = data->plane_marker->corners[prev_corner_index];
+			diag_corner = data->plane_marker->corners[diag_corner_index];
+
+			sub_v2_v2v2(next_edge, next_corner, data->corner);
+			sub_v2_v2v2(prev_edge, data->corner, prev_corner);
+			sub_v2_v2v2(next_diag_edge, prev_corner, diag_corner);
+			sub_v2_v2v2(prev_diag_edge, diag_corner, next_corner);
+
+			if (cross_v2v2(prev_edge, next_edge) < 0.0f) {
+				closest_to_line_v2(data->corner, data->corner, prev_corner, next_corner);
+			}
+
+			if (cross_v2v2(next_diag_edge, prev_edge) < 0.0f) {
+				closest_to_line_v2(data->corner, data->corner, prev_corner, diag_corner);
+			}
+
+			if (cross_v2v2(next_edge, prev_diag_edge) < 0.0f) {
+				closest_to_line_v2(data->corner, data->corner, next_corner, diag_corner);
+			}
 
 			data->previous_mval[0] = event->mval[0];
 			data->previous_mval[1] = event->mval[1];
