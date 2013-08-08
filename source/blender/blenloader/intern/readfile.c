@@ -1851,8 +1851,6 @@ static void lib_link_palette(FileData *fd, Main *main)
 	for (palette = main->palettes.first; palette; palette = palette->id.next) {
 		if (palette->id.flag & LIB_NEED_LINK) {
 			palette->id.flag -= LIB_NEED_LINK;
-
-			if (palette->id.properties) IDP_LibLinkProperty(palette->id.properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 		}
 	}
 }
@@ -7054,6 +7052,7 @@ static const char *dataname(short id_code)
 		case ID_NT: return "Data from NT";
 		case ID_BR: return "Data from BR";
 		case ID_PA: return "Data from PA";
+		case ID_PAL: return "Data from PAL";
 		case ID_GD: return "Data from GD";
 		case ID_MC: return "Data from MC";
 		case ID_LS: return "Data from LS";
