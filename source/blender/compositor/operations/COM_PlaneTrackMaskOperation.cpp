@@ -40,23 +40,28 @@ PlaneTrackMaskOperation::PlaneTrackMaskOperation() : PlaneTrackCommonOperation()
 
 void PlaneTrackMaskOperation::executePixel(float output[4], float x, float y, PixelSampler sampler)
 {
+	const int kernel_size = 4;
 	float point[2];
 	float frame_space_corners[4][2];
 
 	for (int i = 0; i < 4; i++) {
-		frame_space_corners[i][0] = this->m_corners[i][0] * this->getWidth();
-		frame_space_corners[i][1] = this->m_corners[i][1] * this->getHeight();
+		frame_space_corners[i][0] = this->m_corners[i][0] * this->getWidth() * kernel_size;
+		frame_space_corners[i][1] = this->m_corners[i][1] * this->getHeight() * kernel_size;
 	}
 
-	point[0] = x;
-	point[1] = y;
+	int inside_counter = 0;
+	for (int dx = 0; dx < kernel_size; dx++) {
+		for (int dy = 0; dy < kernel_size; dy++) {
+			point[0] = x * kernel_size + dx;
+			point[1] = y * kernel_size + dy;
 
-	if (isect_point_tri_v2(point, frame_space_corners[0], frame_space_corners[1], frame_space_corners[2]) ||
-	    isect_point_tri_v2(point, frame_space_corners[0], frame_space_corners[2], frame_space_corners[3]))
-	{
-		output[0] = 1.0f;
+			if (isect_point_tri_v2(point, frame_space_corners[0], frame_space_corners[1], frame_space_corners[2]) ||
+			    isect_point_tri_v2(point, frame_space_corners[0], frame_space_corners[2], frame_space_corners[3]))
+			{
+				inside_counter++;
+			}
+		}
 	}
-	else {
-		output[0] = 0.0f;
-	}
+
+	output[0] = (float) inside_counter / (kernel_size * kernel_size);
 }
