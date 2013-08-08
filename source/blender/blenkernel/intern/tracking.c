@@ -1337,7 +1337,7 @@ MovieTrackingPlaneTrack *BKE_tracking_plane_track_add(MovieTracking *tracking, L
 	INIT_MINMAX2(tracks_min, tracks_max);
 	for (track = tracks->first; track; track = track->next) {
 		if (TRACK_SELECTED(track)) {
-			MovieTrackingMarker *marker = BKE_tracking_marker_get_exact(track, framenr);
+			MovieTrackingMarker *marker = BKE_tracking_marker_get(track, framenr);
 			float pattern_min[2], pattern_max[2];
 			BKE_tracking_marker_pattern_minmax(marker, pattern_min, pattern_max);
 			add_v2_v2(pattern_min, marker->pos);
