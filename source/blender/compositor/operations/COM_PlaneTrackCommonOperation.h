@@ -40,7 +40,8 @@ protected:
 	char m_trackingObjectName[64];
 	char m_planeTrackName[64];
 
-	float m_corners[4][2];
+	float m_corners[4][2];            /* Corners coordinates in normalized space. */
+	float m_frameSpaceCorners[4][2];  /* Corners coordinates in pixel space. */
 
 	/**
 	 * Determine the output resolution. The resolution is retrieved from the Renderer

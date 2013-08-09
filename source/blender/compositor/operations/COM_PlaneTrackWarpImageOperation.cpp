@@ -29,6 +29,8 @@
 #include "BLI_math_color.h"
 
 extern "C" {
+	#include "BLI_jitter.h"
+
 	#include "BKE_movieclip.h"
 	#include "BKE_node.h"
 	#include "BKE_tracking.h"
@@ -133,6 +135,10 @@ void PlaneTrackWarpImageOperation::initExecution()
 	PlaneTrackCommonOperation::initExecution();
 
 	this->m_pixelReader = this->getInputSocketReader(0);
+
+	const int osa = 8;
+	this->m_osa = osa;
+	BLI_jitter_init(this->m_jitter[0], osa);
 }
 
 void PlaneTrackWarpImageOperation::deinitExecution()
@@ -142,37 +148,28 @@ void PlaneTrackWarpImageOperation::deinitExecution()
 
 void PlaneTrackWarpImageOperation::executePixel(float output[4], float x, float y, PixelSampler sampler)
 {
-	const int kernel_size = 4;
-	float frame_space_corners[4][2];
 	float color_accum[4];
 
-	for (int i = 0; i < 4; i++) {
-		frame_space_corners[i][0] = this->m_corners[i][0] * this->getWidth();
-		frame_space_corners[i][1] = this->m_corners[i][1] * this->getHeight();
-	}
-
 	zero_v4(color_accum);
-	for (int sample_dx = 0; sample_dx < kernel_size; sample_dx++) {
-		for (int sample_dy = 0; sample_dy < kernel_size; sample_dy++) {
-			float current_x = x + (float)sample_dx / kernel_size,
-			      current_y = y + (float)sample_dy / kernel_size;
-			if (isPointInsideQuad(current_x, current_y, frame_space_corners)) {
-				float current_color[4];
-				float u, v, dx, dy;
+	for (int sample = 0; sample < this->m_osa; sample++) {
+		float current_x = x + this->m_jitter[sample][0],
+		      current_y = y + this->m_jitter[sample][1];
+		if (isPointInsideQuad(current_x, current_y, this->m_frameSpaceCorners)) {
+			float current_color[4];
+			float u, v, dx, dy;
 
-				resolveUVAndDxDy(current_x, current_y, frame_space_corners, &u, &v, &dx, &dy);
+			resolveUVAndDxDy(current_x, current_y, this->m_frameSpaceCorners, &u, &v, &dx, &dy);
 
-				u *= this->m_pixelReader->getWidth();
-				v *= this->m_pixelReader->getHeight();
+			u *= this->m_pixelReader->getWidth();
+			v *= this->m_pixelReader->getHeight();
 
-				this->m_pixelReader->read(current_color, u, v, dx, dy, COM_PS_BICUBIC);
-				premul_to_straight_v4(current_color);
-				add_v4_v4(color_accum, current_color);
-			}
+			this->m_pixelReader->read(current_color, u, v, dx, dy, COM_PS_BICUBIC);
+			premul_to_straight_v4(current_color);
+			add_v4_v4(color_accum, current_color);
 		}
 	}
 
-	mul_v4_v4fl(output, color_accum, 1.0f / (kernel_size * kernel_size));
+	mul_v4_v4fl(output, color_accum, 1.0f / this->m_osa);
 	straight_to_premul_v4(output);
 }
 

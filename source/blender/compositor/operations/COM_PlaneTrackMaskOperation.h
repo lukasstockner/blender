@@ -34,8 +34,14 @@
 #include "BLI_string.h"
 
 class PlaneTrackMaskOperation : public PlaneTrackCommonOperation {
+protected:
+	int m_osa;
+	float m_jitter[32][2];
+
 public:
 	PlaneTrackMaskOperation();
+
+	void initExecution();
 
 	void executePixel(float output[4], float x, float y, PixelSampler sampler);
 };

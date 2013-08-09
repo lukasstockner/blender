@@ -47,6 +47,7 @@ void PlaneTrackCommonOperation::initExecution()
 	MovieTrackingObject *object;
 
 	memset(this->m_corners, 0, sizeof(this->m_corners));
+	memset(this->m_frameSpaceCorners, 0, sizeof(this->m_frameSpaceCorners));
 
 	if (!this->m_movieClip)
 		return;
@@ -66,6 +67,11 @@ void PlaneTrackCommonOperation::initExecution()
 			plane_marker = BKE_tracking_plane_marker_get(plane_track, clip_framenr);
 			memcpy(this->m_corners, plane_marker->corners, sizeof(this->m_corners));
 		}
+	}
+
+	for (int i = 0; i < 4; i++) {
+		this->m_frameSpaceCorners[i][0] = this->m_corners[i][0] * this->getWidth();
+		this->m_frameSpaceCorners[i][1] = this->m_corners[i][1] * this->getHeight();
 	}
 }
 

@@ -36,6 +36,8 @@
 class PlaneTrackWarpImageOperation : public PlaneTrackCommonOperation {
 protected:
 	SocketReader *m_pixelReader;
+	int m_osa;
+	float m_jitter[32][2];
 
 public:
 	PlaneTrackWarpImageOperation();

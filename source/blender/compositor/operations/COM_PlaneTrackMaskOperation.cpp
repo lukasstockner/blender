@@ -28,6 +28,8 @@
 #include "BLI_math_color.h"
 
 extern "C" {
+	#include "BLI_jitter.h"
+
 	#include "BKE_movieclip.h"
 	#include "BKE_node.h"
 	#include "BKE_tracking.h"
@@ -38,30 +40,30 @@ PlaneTrackMaskOperation::PlaneTrackMaskOperation() : PlaneTrackCommonOperation()
 	this->addOutputSocket(COM_DT_VALUE);
 }
 
+void PlaneTrackMaskOperation::initExecution()
+{
+	PlaneTrackCommonOperation::initExecution();
+
+	const int osa = 8;
+	this->m_osa = osa;
+	BLI_jitter_init(this->m_jitter[0], osa);
+}
+
 void PlaneTrackMaskOperation::executePixel(float output[4], float x, float y, PixelSampler sampler)
 {
-	const int kernel_size = 4;
 	float point[2];
-	float frame_space_corners[4][2];
-
-	for (int i = 0; i < 4; i++) {
-		frame_space_corners[i][0] = this->m_corners[i][0] * this->getWidth() ;
-		frame_space_corners[i][1] = this->m_corners[i][1] * this->getHeight();
-	}
 
 	int inside_counter = 0;
-	for (int dx = 0; dx < kernel_size; dx++) {
-		for (int dy = 0; dy < kernel_size; dy++) {
-			point[0] = x + (float) dx / kernel_size;
-			point[1] = y + (float) dy / kernel_size;
+	for (int sample = 0; sample < this->m_osa; sample++) {
+		point[0] = x + this->m_jitter[sample][0];
+		point[1] = y + this->m_jitter[sample][1];
 
-			if (isect_point_tri_v2(point, frame_space_corners[0], frame_space_corners[1], frame_space_corners[2]) ||
-			    isect_point_tri_v2(point, frame_space_corners[0], frame_space_corners[2], frame_space_corners[3]))
-			{
-				inside_counter++;
-			}
+		if (isect_point_tri_v2(point, this->m_frameSpaceCorners[0], this->m_frameSpaceCorners[1], this->m_frameSpaceCorners[2]) ||
+		    isect_point_tri_v2(point, this->m_frameSpaceCorners[0], this->m_frameSpaceCorners[2], this->m_frameSpaceCorners[3]))
+		{
+			inside_counter++;
 		}
 	}
 
-	output[0] = (float) inside_counter / (kernel_size * kernel_size);
+	output[0] = (float) inside_counter / this->m_osa;
 }
