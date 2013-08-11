@@ -800,7 +800,10 @@ static void paint_stroke_polyline_end(bContext *C, wmOperator *op, PaintStroke *
 {
 	Brush *br = stroke->brush;
 	if (stroke->stroke_started && (br->flag & (BRUSH_LINE | BRUSH_POLYLINE))) {
+		const Scene *scene = CTX_data_scene(C);
+		const float spacing = paint_space_stroke_spacing(scene, stroke, 1.0f, 1.0f);
 		LinePoint *p = stroke->line.first;
+		float length_residue = 0.0f;
 
 		/* last line point in polyline is dangling so remove */
 		if (br->flag & BRUSH_POLYLINE) {
@@ -815,7 +818,39 @@ static void paint_stroke_polyline_end(bContext *C, wmOperator *op, PaintStroke *
 			paint_brush_stroke_add_step(C, op, p->pos, 1.0);
 
 		for (p = p->next; p; p = p->next) {
-			paint_space_stroke(C, op, p->pos, 1.0);
+			UnifiedPaintSettings *ups = stroke->ups;
+
+			float mouse[2], dmouse[2];
+			float length;
+
+			sub_v2_v2v2(dmouse, p->pos, p->prev->pos);
+			copy_v2_v2(stroke->last_mouse_position, p->prev->pos);
+
+			length = normalize_v2(dmouse) + length_residue;
+
+			while (length > 0.0f) {
+				float spacing_final = spacing - length_residue;
+				length_residue = 0.0;
+
+				if (length >= spacing) {
+					mouse[0] = stroke->last_mouse_position[0] + dmouse[0] * spacing_final;
+					mouse[1] = stroke->last_mouse_position[1] + dmouse[1] * spacing_final;
+
+					ups->overlap_factor = paint_stroke_integrate_overlap(stroke->brush, spacing/stroke->zoom_2d);
+
+					stroke->stroke_distance += spacing / stroke->zoom_2d;
+					paint_brush_stroke_add_step(C, op, mouse, 1.0);
+
+					length -= spacing;
+					spacing_final = spacing;
+				}
+				else {
+					break;
+				}
+			}
+
+			/* length residue helps to correctly */
+			length_residue = length;
 		}
 	}
 }
