@@ -59,6 +59,7 @@
 #include "DNA_object_types.h"
 
 #include "BKE_camera.h"
+#include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
@@ -73,7 +74,7 @@
 #include "BKE_paint.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
-#include "BKE_colortools.h"
+#include "BKE_texture.h"
 
 #include "BKE_editmesh.h"
 
@@ -191,6 +192,8 @@ typedef struct ProjPaintState {
 
 	/* the paint color. It can change depending of interted mode or not */
 	float paint_color[3];
+	float paint_color_linear[3];
+	bool invert_color;
 
 	Brush *brush;
 	short tool, blend, mode;
@@ -3935,7 +3938,7 @@ static void do_projectpaint_draw_f(ProjPaintState *ps, ProjPixel *projPixel, con
 {
 	float rgba[4];
 
-	srgb_to_linearrgb_v3_v3(rgba, ps->paint_color);
+	copy_v3_v3(rgba, ps->paint_color_linear);
 
 	if (ps->is_texbrush)
 		mul_v3_v3(rgba, texrgb);
@@ -4306,9 +4309,10 @@ static int project_paint_op(void *state, const float lastpos[2], const float pos
 }
 
 
-void paint_proj_stroke(bContext *C, void *pps, const float prev_pos[2], const float pos[2])
+void paint_proj_stroke(bContext *C, void *pps, const float prev_pos[2], const float pos[2], float pressure)
 {
 	ProjPaintState *ps = pps;
+	Brush *brush = ps->brush;
 	int a;
 
 	/* clone gets special treatment here to avoid going through image initialization */
@@ -4326,6 +4330,26 @@ void paint_proj_stroke(bContext *C, void *pps, const float prev_pos[2], const fl
 		ED_region_tag_redraw(ps->ar);
 
 		return;
+	}
+
+	if (brush->imagepaint_tool == PAINT_TOOL_DRAW) {
+		if (ps->invert_color)
+			copy_v3_v3(ps->paint_color, brush->secondary_rgb);
+		else {
+			if (brush->flag & BRUSH_USE_GRADIENT) {
+				switch (brush->gradient_source) {
+					case BRUSH_GRADIENT_PRESSURE:
+						do_colorband(brush->gradient, pressure, ps->paint_color);
+						break;
+					case BRUSH_GRADIENT_SPACING:
+						break;
+				}
+			}
+			else
+				copy_v3_v3(ps->paint_color, brush->rgb);
+
+			srgb_to_linearrgb_v3_v3(ps->paint_color_linear, ps->paint_color);
+		}
 	}
 
 	/* continue adding to existing partial redraw rects until redraw */
@@ -4354,13 +4378,7 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 		ps->blend = brush->blend;
 
 		/* disable for 3d mapping also because painting on mirrored mesh can create "stripes" */
-		ps->do_masking = ((brush->flag & BRUSH_AIRBRUSH) ||
-	                      (brush->flag & BRUSH_DRAG_DOT) ||
-	                      (brush->flag & BRUSH_ANCHORED) ||
-		                  (brush->imagepaint_tool == PAINT_TOOL_SMEAR) ||
-		                  (brush->mtex.tex && !ELEM3(brush->mtex.brush_map_mode, MTEX_MAP_MODE_TILED, MTEX_MAP_MODE_STENCIL, MTEX_MAP_MODE_3D)) ||
-		                  brush->flag & BRUSH_ACCUMULATE)
-		                 ? false : true;
+		ps->do_masking = paint_use_opacity_masking(brush);
 		ps->is_texbrush = (brush->mtex.tex && brush->imagepaint_tool == PAINT_TOOL_DRAW) ? true : false;
 		ps->is_maskbrush = (brush->mask_mtex.tex)? true : false;
 	}
@@ -4416,10 +4434,9 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 		ps->do_mask_normal = FALSE;  /* no need to do blending */
 
 	if (ps->tool == PAINT_TOOL_DRAW) {
-		if (mode == BRUSH_STROKE_INVERT)
-			copy_v3_v3(ps->paint_color, ps->brush->secondary_rgb);
-		else
-			copy_v3_v3(ps->paint_color, ps->brush->rgb);
+		if (mode == BRUSH_STROKE_INVERT) {
+			ps->invert_color = true;
+		}
 	}
 	return;
 }

@@ -86,6 +86,7 @@ typedef struct BrushPainterCache {
 	float lastjitter;
 	float last_tex_rotation;
 	float last_mask_rotation;
+	float last_pressure;
 
 	ImBuf *ibuf;
 	ImBuf *texibuf;
@@ -266,7 +267,7 @@ static unsigned short *brush_painter_curve_mask_new(BrushPainter *painter, int s
 
 
 /* create imbuf with brush color */
-static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size)
+static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size, float pressure)
 {
 	Scene *scene = painter->scene;
 	Brush *brush = painter->brush;
@@ -295,9 +296,19 @@ static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size)
 	if (brush->imagepaint_tool == PAINT_TOOL_DRAW) {
 		if (painter->cache.invert_color)
 			copy_v3_v3(brush_rgb, brush->secondary_rgb);
-		else
-			copy_v3_v3(brush_rgb, brush->rgb);
-
+		else {
+			if (brush->flag & BRUSH_USE_GRADIENT) {
+				switch (brush->gradient_source) {
+					case BRUSH_GRADIENT_PRESSURE:
+						do_colorband(brush->gradient, pressure, brush_rgb);
+						break;
+					case BRUSH_GRADIENT_SPACING:
+						break;
+				}
+			}
+			else
+				copy_v3_v3(brush_rgb, brush->rgb);
+		}
 		if (use_color_correction)
 			srgb_to_linearrgb_v3_v3(brush_rgb, brush_rgb);
 	}
@@ -581,7 +592,7 @@ static void brush_painter_2d_tex_mapping(ImagePaintState *s, int size, const flo
 	}
 }
 
-static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *painter, const float pos[2], const float mouse[2])
+static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *painter, const float pos[2], const float mouse[2], float pressure)
 {
 	const Scene *scene = painter->scene;
 	UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
@@ -594,6 +605,9 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 	bool do_random = false;
 	bool do_partial_update = false;
 	bool do_view = false;
+	bool update_color = (brush->flag & BRUSH_USE_GRADIENT) &&
+	                    ((brush->gradient_source == BRUSH_GRADIENT_SPACING)
+	                     || (cache->last_pressure != pressure));
 	float tex_rotation = -brush->mtex.rot;
 	float mask_rotation = -brush->mask_mtex.rot;
 
@@ -605,7 +619,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 		}
 		else if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM)
 			do_random = true;
-		else if (!(brush->flag & BRUSH_ANCHORED))
+		else if (!(brush->flag & BRUSH_ANCHORED) || update_color)
 			do_partial_update = true;
 
 		brush_painter_2d_tex_mapping(s, size, painter->startpaintpos, pos, mouse,
@@ -682,7 +696,8 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 	    brush->jitter != cache->lastjitter ||
 	    tex_rotation != cache->last_tex_rotation ||
 	    mask_rotation != cache->last_mask_rotation ||
-	    do_random)
+	    do_random ||
+	    update_color)
 	{
 		if (cache->ibuf) {
 			IMB_freeImBuf(cache->ibuf);
@@ -695,7 +710,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 		}
 		else {
 			/* create brush and mask from scratch */
-			cache->ibuf = brush_painter_imbuf_new(painter, size);
+			cache->ibuf = brush_painter_imbuf_new(painter, size, pressure);
 		}
 
 		cache->lastsize = diameter;
@@ -703,6 +718,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 		cache->lastjitter = brush->jitter;
 		cache->last_tex_rotation = tex_rotation;
 		cache->last_mask_rotation = mask_rotation;
+		cache->last_pressure = pressure;
 	}
 	else if (do_partial_update) {
 		/* do only partial update of texture */
@@ -1063,13 +1079,7 @@ static int paint_2d_canvas_set(ImagePaintState *s, Image *ima)
 	}
 
 	/* set masking */
-	s->do_masking = ((s->brush->flag & BRUSH_AIRBRUSH) ||
-	                 (s->brush->flag & BRUSH_DRAG_DOT) ||
-	                 (s->brush->flag & BRUSH_ANCHORED) ||
-	                 (s->brush->imagepaint_tool == PAINT_TOOL_SMEAR) ||
-	                 (s->brush->mtex.tex && !ELEM3(s->brush->mtex.brush_map_mode, MTEX_MAP_MODE_TILED, MTEX_MAP_MODE_STENCIL, MTEX_MAP_MODE_3D)) ||
-	                 s->brush->flag & BRUSH_ACCUMULATE)
-	                 ? false : true;
+	s->do_masking = paint_use_opacity_masking(s->brush);
 	
 	return 1;
 }
@@ -1083,7 +1093,7 @@ static void paint_2d_canvas_free(ImagePaintState *s)
 		image_undo_remove_masks();
 }
 
-void paint_2d_stroke(void *ps, const float prev_mval[2], const float mval[2], int eraser)
+void paint_2d_stroke(void *ps, const float prev_mval[2], const float mval[2], int eraser, float pressure)
 {
 	float newuv[2], olduv[2];
 	ImagePaintState *s = ps;
@@ -1128,7 +1138,7 @@ void paint_2d_stroke(void *ps, const float prev_mval[2], const float mval[2], in
 	 */
 	brush_painter_2d_require_imbuf(painter, (ibuf->rect_float != NULL), !is_data, s->do_masking);
 
-	brush_painter_2d_refresh_cache(s, painter, newuv, mval);
+	brush_painter_2d_refresh_cache(s, painter, newuv, mval, pressure);
 
 	if (paint_2d_op(s, painter->cache.ibuf, painter->cache.curve_mask, painter->cache.max_mask, olduv, newuv))
 		s->need_redraw = true;

@@ -1850,7 +1850,7 @@ static void direct_link_brush(FileData *fd, Brush *brush)
 }
 
 /* ************ READ Palette *************** */
-static void lib_link_palette(FileData *fd, Main *main)
+static void lib_link_palette(FileData *UNUSED(fd), Main *main)
 {
 	Palette *palette;
 

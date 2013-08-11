@@ -554,6 +554,19 @@ typedef struct PaintOperation {
 	ViewContext vc;
 } PaintOperation;
 
+bool paint_use_opacity_masking(Brush *brush)
+{
+	return ((brush->flag & BRUSH_AIRBRUSH) ||
+	        (brush->flag & BRUSH_DRAG_DOT) ||
+	        (brush->flag & BRUSH_ANCHORED) ||
+	        (brush->imagepaint_tool == PAINT_TOOL_SMEAR) ||
+	        (brush->flag & BRUSH_USE_GRADIENT) ||
+	        (brush->mtex.tex && !ELEM3(brush->mtex.brush_map_mode, MTEX_MAP_MODE_TILED, MTEX_MAP_MODE_STENCIL, MTEX_MAP_MODE_3D)) ||
+	        brush->flag & BRUSH_ACCUMULATE) ?
+				false : true;
+}
+
+
 void paint_brush_init_tex(Brush *brush)
 {
 	/* init mtex nodes */
@@ -689,10 +702,10 @@ static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, Po
 	}
 
 	if (pop->mode == PAINT_MODE_3D_PROJECT) {
-		paint_proj_stroke(C, pop->custom_paint, pop->prevmouse, mouse);
+		paint_proj_stroke(C, pop->custom_paint, pop->prevmouse, mouse, pressure);
 	}
 	else {
-		paint_2d_stroke(pop->custom_paint, pop->prevmouse, mouse, eraser);
+		paint_2d_stroke(pop->custom_paint, pop->prevmouse, mouse, eraser, pressure);
 	}
 
 	pop->prevmouse[0] = mouse[0];
