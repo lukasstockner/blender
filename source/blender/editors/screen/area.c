@@ -1794,6 +1794,71 @@ void ED_region_header_init(ARegion *ar)
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_HEADER, ar->winx, ar->winy);
 }
 
+void ED_region_menubar(const bContext *C, ARegion *ar)
+{
+	uiStyle *style = UI_GetStyleDraw();
+	uiBlock *block;
+	uiLayout *layout;
+	MenuBarType *mbt;
+	MenuBar mb = {NULL};
+	int maxco, xco, yco;
+	int headery = ED_area_headersize();
+	const char *context = CTX_data_mode_string(C);
+	
+	/* clear */
+	UI_ThemeClearColor(TH_BACK);
+	glClear(GL_COLOR_BUFFER_BIT);
+	
+	/* set view2d view matrix for scrolling (without scrollers) */
+	UI_view2d_view_ortho(&ar->v2d);
+	
+	xco = maxco = 0.4f * UI_UNIT_X;
+	yco = headery - floor(0.2f * UI_UNIT_Y);
+	
+	/* draw all menu bar types */
+	for (mbt = ar->type->menubartypes.first; mbt; mbt = mbt->next) {
+		
+		/* verify context */
+		if (context)
+			if (mbt->context[0] && strcmp(context, mbt->context) != 0)
+				continue;
+
+		block = uiBeginBlock(C, ar, mbt->idname, UI_EMBOSS);
+		layout = uiBlockLayout(block, UI_LAYOUT_HORIZONTAL, UI_LAYOUT_HEADER, xco, yco, UI_UNIT_Y, 1, style);
+		
+		if (mbt->draw) {
+			mb.type = mbt;
+			mb.layout = layout;
+			mbt->draw(C, &mb);
+			
+			/* for view2d */
+			xco = uiLayoutGetWidth(layout);
+			if (xco > maxco)
+				maxco = xco;
+		}
+		
+		uiBlockLayoutResolve(block, &xco, &yco);
+		
+		/* for view2d */
+		if (xco > maxco)
+			maxco = xco;
+		
+		uiEndBlock(C, block);
+		uiDrawBlock(C, block);
+	}
+	
+	/* always as last  */
+	UI_view2d_totRect_set(&ar->v2d, maxco + UI_UNIT_X + 80, headery);
+	
+	/* restore view matrix? */
+	UI_view2d_view_restore(C);
+}
+
+void ED_region_menubar_init(ARegion *ar)
+{
+	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_HEADER, ar->winx, ar->winy);
+}
+
 /* UI_UNIT_Y is defined as U variable now, depending dpi */
 int ED_area_headersize(void)
 {

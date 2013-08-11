@@ -94,6 +94,7 @@
 #include "RNA_access.h"
 
 #include "WM_api.h" // XXXXX BAD, very BAD dependency (bad level call) - remove asap, elubie
+#include "WM_types.h" // This is temporarily necessary until the undo stacks are integrated and operators are an integral part of it ~ ack-err
 
 #include "IMB_colormanagement.h"
 
@@ -644,7 +645,9 @@ void BKE_write_undo_op(bContext *C, const char *name, wmOperator *op)
 	curundo = uel = MEM_callocN(sizeof(UndoElem), "undo file");
 	BLI_strncpy(uel->name, name, sizeof(uel->name));
 	BLI_addtail(&undobase, uel);
-	uel->op = op;
+	if (op && op->type && op->type->flag & OPTYPE_REGISTER && op->type->flag & OPTYPE_UNDO) {
+		uel->op = op;
+	}
 	
 	/* and limit amount to the maximum */
 	nr = 0;
@@ -717,8 +720,10 @@ void BKE_write_undo_op(bContext *C, const char *name, wmOperator *op)
 				BLI_remlink(&undobase, first);
 				/* the merge is because of compression */
 				BLO_merge_memfile(&first->memfile, &first->next->memfile);
-				if(first->op)
+				if (first->op) {
 					WM_operator_free(first->op);
+					first->op = NULL;
+				}
 				MEM_freeN(first);
 			}
 		}

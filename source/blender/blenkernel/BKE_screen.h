@@ -150,6 +150,9 @@ typedef struct ARegionType {
 	/* header type definitions */
 	ListBase headertypes;
 	
+	/* toolbar menu type definitions */
+	ListBase menubartypes;
+	
 	/* hardcoded constraints, smaller than these values region is not visible */
 	int minsizex, minsizey;
 	/* when new region opens (region prefsizex/y are zero then */
@@ -248,6 +251,29 @@ typedef struct Menu {
 	struct MenuType *type;      /* runtime */
 	struct uiLayout *layout;    /* runtime for drawing */
 } Menu;
+
+/* menu bar types */
+
+typedef struct MenuBar {
+	struct MenuBarType *type;    /* runtime */
+	struct uiLayout *layout;    /* runtime for drawing */
+} MenuBar;
+
+typedef struct MenuBarType {
+	struct MenuBarType *next, *prev;
+	
+	char idname[BKE_ST_MAXNAME];        /* unique name */
+	char context[BKE_ST_MAXNAME];
+	
+	int space_type;
+	int region_type;
+	
+	/* draw entirely, view changes should be handled here */
+	void (*draw)(const struct bContext *, struct MenuBar *);
+	
+	/* RNA integration */
+	ExtensionRNA ext;
+} MenuBarType;
 
 /* spacetypes */
 struct SpaceType *BKE_spacetype_from_id(int spaceid);

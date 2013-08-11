@@ -36,6 +36,8 @@
 #include "rna_internal.h"
 #include "RNA_enum_types.h"
 
+#include "RNA_access.h"
+
 #include "UI_interface.h"
 
 #include "WM_types.h"
@@ -613,6 +615,106 @@ static void rna_Menu_bl_description_set(PointerRNA *ptr, const char *value)
 	else assert(!"setting the bl_description on a non-builtin menu");
 }
 
+/* MenuBar */
+
+static void menubar_draw(const bContext *C, MenuBar *mb)
+{
+	extern FunctionRNA rna_MenuBar_draw_func;
+	
+	PointerRNA ptr;
+	ParameterList list;
+	FunctionRNA *func;
+	
+	RNA_pointer_create(&CTX_wm_screen(C)->id, mb->type->ext.srna, mb, &ptr);
+	func = &rna_MenuBar_draw_func;
+	
+	RNA_parameter_list_create(&list, &ptr, func);
+	RNA_parameter_set_lookup(&list, "context", &C);
+	mb->type->ext.call((bContext *)C, &ptr, func, &list);
+	
+	RNA_parameter_list_free(&list);
+}
+
+static void rna_MenuBar_unregister(Main *UNUSED(bmain), StructRNA *type)
+{
+	ARegionType *art;
+	MenuBarType *mbt = RNA_struct_blender_type_get(type);
+	
+	if (!mbt)
+		return;
+	if (!(art = region_type_find(NULL, mbt->space_type, RGN_TYPE_MENU_BAR)))
+		return;
+	
+	RNA_struct_free_extension(type, &mbt->ext);
+	
+	BLI_freelinkN(&art->menubartypes, mbt);
+	RNA_struct_free(&BLENDER_RNA, type);
+	
+	/* update while blender is running */
+	WM_main_add_notifier(NC_WINDOW, NULL);
+}
+
+static StructRNA *rna_MenuBar_register(Main *bmain, ReportList *reports, void *data, const char *identifier,
+                                      StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
+{
+	ARegionType *art;
+	MenuBarType *mbt, dummymbt = {NULL};
+	MenuBar dummymb = {NULL};
+	PointerRNA dummyptr;
+	int have_function[1];
+	
+	/* setup dummy header & header type to store static properties in */
+	dummymb.type = &dummymbt;
+	RNA_pointer_create(NULL, &RNA_MenuBar, &dummymb, &dummyptr);
+	
+	/* validate the python class */
+	if (validate(&dummyptr, data, have_function) != 0)
+		return NULL;
+	
+	if (strlen(identifier) >= sizeof(dummymbt.idname)) {
+		BKE_reportf(reports, RPT_ERROR, "Registering menu bar class: '%s' is too long, maximum length is %d",
+		            identifier, (int)sizeof(dummymbt.idname));
+		return NULL;
+	}
+	
+	if (!(art = region_type_find(reports, dummymbt.space_type, RGN_TYPE_MENU_BAR)))
+		return NULL;
+	
+	/* check if we have registered this header type before, and remove it */
+	for (mbt = art->menubartypes.first; mbt; mbt = mbt->next) {
+		if (strcmp(mbt->idname, dummymbt.idname) == 0) {
+			if (mbt->ext.srna)
+				rna_MenuBar_unregister(bmain, mbt->ext.srna);
+			break;
+		}
+	}
+	
+	/* create a new header type */
+	mbt = MEM_callocN(sizeof(MenuBarType), "menu bar");
+	memcpy(mbt, &dummymbt, sizeof(dummymbt));
+	
+	mbt->ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, mbt->idname, &RNA_MenuBar);
+	mbt->ext.data = data;
+	mbt->ext.call = call;
+	mbt->ext.free = free;
+	RNA_struct_blender_type_set(mbt->ext.srna, mbt);
+	
+	mbt->draw = (have_function[0]) ? menubar_draw : NULL; 	
+	BLI_addtail(&art->menubartypes, mbt);
+	
+	/* update while blender is running */
+	WM_main_add_notifier(NC_WINDOW, NULL);
+	
+	return mbt->ext.srna;
+}
+
+static StructRNA *rna_MenuBar_refine(PointerRNA *ptr)
+{
+	MenuBar *mb = (MenuBar *)ptr->data;
+	
+	return (mb->type && mb->type->ext.srna) ? mb->type->ext.srna : &RNA_MenuBar;
+}
+
 /* UILayout */
 
 static int rna_UILayout_active_get(PointerRNA *ptr)
@@ -1027,6 +1129,64 @@ static void rna_def_menu(BlenderRNA *brna)
 	RNA_define_verify_sdna(1);
 }
 
+static void rna_def_menubar(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+	PropertyRNA *parm;
+	FunctionRNA *func;
+	
+	srna = RNA_def_struct(brna, "MenuBar", NULL);
+	RNA_def_struct_ui_text(srna, "MenuBar", "Menu Bar for the editor");
+	RNA_def_struct_sdna(srna, "MenuBar");
+	RNA_def_struct_refine_func(srna, "rna_MenuBar_refine");
+	RNA_def_struct_register_funcs(srna, "rna_MenuBar_register", "rna_MenuBar_unregister", NULL);
+	
+	/* draw */
+	func = RNA_def_function(srna, "draw", NULL);
+	RNA_def_function_ui_description(func, "Draw UI elements into the menu bar UI layout");
+	RNA_def_function_flag(func, FUNC_REGISTER);
+	parm = RNA_def_pointer(func, "context", "Context", "", "");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	
+	RNA_define_verify_sdna(0); /* not in sdna */
+	
+	prop = RNA_def_property(srna, "layout", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "layout");
+	RNA_def_property_struct_type(prop, "UILayout");
+	RNA_def_property_ui_text(prop, "Layout", "Structure of the menu bar in the UI");
+	
+	/* registration */
+	prop = RNA_def_property(srna, "bl_idname", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "type->idname");
+	RNA_def_property_flag(prop, PROP_REGISTER | PROP_NEVER_CLAMP);
+	RNA_def_property_ui_text(prop, "ID Name",
+	                         "If this is set, the menu bar gets a custom ID, otherwise it takes "
+							 "the name of the class used to define the menu bar; for example, if the "
+	                         "class name is \"OBJECT_MBT_hello\", and bl_idname is not set by the "
+	                         "script, then bl_idname = \"OBJECT_MBT_hello\"");
+	
+	prop = RNA_def_property(srna, "bl_space_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "type->space_type");
+	RNA_def_property_enum_items(prop, space_type_items);
+	RNA_def_property_flag(prop, PROP_REGISTER);
+	RNA_def_property_ui_text(prop, "Space type", "The space where the menu bar is going to be used in");
+	
+	prop = RNA_def_property(srna, "bl_region_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "type->region_type");
+	RNA_def_property_enum_items(prop, region_type_items);
+	RNA_def_property_flag(prop, PROP_REGISTER);
+	RNA_def_property_ui_text(prop, "Region Type", "The region where the menu bar is going to be used in");
+	
+	prop = RNA_def_property(srna, "bl_context", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "type->context");
+	RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+	RNA_def_property_ui_text(prop, "Context",
+	                         "The context in which the panel appears");
+	
+	RNA_define_verify_sdna(1);
+}
+
 void RNA_def_ui(BlenderRNA *brna)
 {
 	rna_def_ui_layout(brna);
@@ -1034,6 +1194,7 @@ void RNA_def_ui(BlenderRNA *brna)
 	rna_def_uilist(brna);
 	rna_def_header(brna);
 	rna_def_menu(brna);
+	rna_def_menubar(brna);
 }
 
 #endif /* RNA_RUNTIME */

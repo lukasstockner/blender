@@ -353,6 +353,7 @@ extern StructRNA RNA_MaterialVolume;
 extern StructRNA RNA_Mask;
 extern StructRNA RNA_MaskLayer;
 extern StructRNA RNA_Menu;
+extern StructRNA RNA_MenuBar;
 extern StructRNA RNA_Mesh;
 extern StructRNA RNA_MeshColor;
 extern StructRNA RNA_MeshColorLayer;

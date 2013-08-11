@@ -394,10 +394,24 @@ void fdrawXORcirc(float xofs, float yofs, float rad)
 
 	glPushMatrix();
 	glTranslatef(xofs, yofs, 0.0);
-	glutil_draw_lined_arc(0.0, M_PI * 2.0, rad, 20);
+	glutil_draw_filled_arc(0.0, M_PI * 2.0, rad, 20);
 	glPopMatrix();
 
 	set_inverted_drawing(0);
+}
+
+void fdrawellipses(float xofs, float yofs, float rad)
+{
+	glEnable(GL_POINT_SMOOTH);
+	glPointSize(rad);
+	glPushMatrix();
+	glTranslatef(xofs + rad * 4.f, yofs, 0.0);
+	glBegin(GL_POINTS);
+	glVertex2f(0.f, 0.f);
+	glVertex2f(rad * 2.f, 0.f);
+	glVertex2f(rad * 4.f, 0.f);
+	glEnd();
+	glPopMatrix();
 }
 
 void glutil_draw_filled_arc(float start, float angle, float radius, int nsegments)

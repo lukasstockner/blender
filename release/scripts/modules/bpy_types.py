@@ -743,6 +743,10 @@ class Menu(StructRNA, _GenericUI, metaclass=RNAMeta):
                        filter_ext=lambda ext: ext.lower() in {".py", ".xml"})
 
 
+class MenuBar(StructRNA, _GenericUI, metaclass=RNAMeta):
+    __slots__ = ()
+
+
 class Region(StructRNA):
     __slots__ = ()
 

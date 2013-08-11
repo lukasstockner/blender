@@ -59,6 +59,7 @@
 
 #include "ED_screen.h"
 #include "ED_util.h"
+#include "ED_gpencil.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -68,20 +69,19 @@
 
 /* ******************* view3d space & buttons ************** */
 
-#if 0
 static void view3d_panel_operator_redo_buts(const bContext *C, Panel *pa, wmOperator *op)
 {
-	uiLayoutOperatorButs(C, pa->layout, op, NULL, 'H', 0);
+	uiLayoutOperatorButs(C, pa->layout, op, NULL, 'V', 0);
 }
 
 static void view3d_panel_operator_redo_header(const bContext *C, Panel *pa)
 {
 	wmOperator *op = WM_operator_last_redo(C);
 
-	if (op)
-		BLI_strncpy(pa->drawname, RNA_struct_ui_name(op->type->srna), sizeof(pa->drawname));
-	else
-		BLI_strncpy(pa->drawname, IFACE_("Operator"), sizeof(pa->drawname));
+//	if (op)
+//		BLI_strncpy(pa->drawname, BLI_sprintfN("Last Op: %s", RNA_struct_ui_name(op->type->srna)), sizeof(pa->drawname));
+//	else
+		BLI_strncpy(pa->drawname, IFACE_("Last Operator"), sizeof(pa->drawname));
 }
 
 static void view3d_panel_operator_redo_operator(const bContext *C, Panel *pa, wmOperator *op)
@@ -93,6 +93,7 @@ static void view3d_panel_operator_redo_operator(const bContext *C, Panel *pa, wm
 		}
 	}
 	else {
+		uiItemL(pa->layout, RNA_struct_ui_name(op->type->srna), ICON_NONE);
 		view3d_panel_operator_redo_buts(C, pa, op);
 	}
 }
@@ -129,7 +130,6 @@ static void view3d_panel_operator_redo(const bContext *C, Panel *pa)
 	/* set region back */
 	CTX_wm_region_set((bContext *)C, ar);
 }
-#endif
 
 /* ******************* */
 
@@ -245,7 +245,6 @@ void view3d_toolshelf_register(ARegionType *art)
 	BLI_addtail(&art->paneltypes, pt);
 }
 
-#if 0
 void view3d_tool_props_register(ARegionType *art)
 {
 	PanelType *pt;
@@ -258,7 +257,19 @@ void view3d_tool_props_register(ARegionType *art)
 	pt->draw = view3d_panel_operator_redo;
 	BLI_addtail(&art->paneltypes, pt);
 }
-#endif
+
+void view3d_grease_register(ARegionType *art)
+{
+	PanelType *pt;
+	
+	pt = MEM_callocN(sizeof(PanelType), "spacetype view3d panel gpencil");
+	strcpy(pt->idname, "VIEW3D_PT_gpencil");
+	strcpy(pt->label, N_("Grease Pencil"));  /* XXX C panels are not available through RNA (bpy.types)! */
+	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
+	pt->draw_header = gpencil_panel_standard_header;
+	pt->draw = gpencil_panel_standard;
+	BLI_addtail(&art->paneltypes, pt);
+}
 
 /* ********** operator to open/close toolshelf region */
 

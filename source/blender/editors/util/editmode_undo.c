@@ -158,7 +158,9 @@ void undo_editmode_push(bContext *C, const char *name,
 	uel->to_editmode = to_editmode;
 	uel->from_editmode = from_editmode;
 	uel->validate_undo = validate_undo;
-	uel->op = op;
+	if (op && op->type && op->type->flag & OPTYPE_REGISTER && op->type->flag & OPTYPE_UNDO) {
+		uel->op = op;
+	}
 	
 	/* limit amount to the maximum amount*/
 	nr = 0;

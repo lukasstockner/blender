@@ -1222,7 +1222,9 @@ wmOperator *WM_operator_last_redo(const bContext *C)
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmOperator *op;
 
-	/* only for operators that are registered and did an undo push */
+	/* Only for operators that are registered and did an undo push.
+	   These should be the only ones in here anyway.
+	 */
 	for (op = wm->operators.last; op; op = op->prev)
 		if ((op->type->flag & OPTYPE_REGISTER) && (op->type->flag & OPTYPE_UNDO))
 			break;

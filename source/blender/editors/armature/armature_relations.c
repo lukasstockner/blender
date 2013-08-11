@@ -671,28 +671,50 @@ static int armature_parent_set_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static int armature_parent_set_invoke(bContext *C, wmOperator *UNUSED(op), const wmEvent *UNUSED(event))
+static int armature_parent_set_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
+	PointerRNA ptr;
+	
 	EditBone *actbone = CTX_data_active_bone(C);
-	uiPopupMenu *pup = uiPupMenuBegin(C, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Make Parent"), ICON_NONE);
-	uiLayout *layout = uiPupMenuLayout(pup);
-	int allchildbones = 0;
+	PropertyRNA *prop;
+	uiPopupMenu *pup;
+	uiLayout *layout;
 	
-	CTX_DATA_BEGIN(C, EditBone *, ebone, selected_editable_bones)
-	{
-		if (ebone != actbone) {
-			if (ebone->parent != actbone) allchildbones = 1;
-		}
+	WM_operator_properties_create_ptr(&ptr, op->type);
+	prop = RNA_struct_find_property(&ptr, "type");
+	
+	if (prop == NULL) {
+		printf("%s: %s has no enum property set\n", __func__, op->type->idname);
 	}
-	CTX_DATA_END;
-
-	uiItemEnumO(layout, "ARMATURE_OT_parent_set", NULL, 0, "type", ARM_PAR_CONNECT);
-	
-	/* ob becomes parent, make the associated menus */
-	if (allchildbones)
-		uiItemEnumO(layout, "ARMATURE_OT_parent_set", NULL, 0, "type", ARM_PAR_OFFSET);
+	else if (RNA_property_type(prop) != PROP_ENUM) {
+		printf("%s: %s \"%s\" is not an enum property\n",
+		       __func__, op->type->idname, RNA_property_identifier(prop));
+	}
+	else if (RNA_property_is_set(op->ptr, prop)) {
+		const int retval = op->type->exec(C, op);
+		OPERATOR_RETVAL_CHECK(retval);
+		return retval;
+	} else {
+		pup = uiPupMenuBegin(C, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Make Parent"), ICON_NONE);
+		layout = uiPupMenuLayout(pup);
+		int allchildbones = 0;
 		
-	uiPupMenuEnd(C, pup);
+		CTX_DATA_BEGIN(C, EditBone *, ebone, selected_editable_bones)
+		{
+			if (ebone != actbone) {
+				if (ebone->parent != actbone) allchildbones = 1;
+			}
+		}
+		CTX_DATA_END;
+
+		uiItemEnumO(layout, "ARMATURE_OT_parent_set", NULL, 0, "type", ARM_PAR_CONNECT);
+		
+		/* ob becomes parent, make the associated menus */
+		if (allchildbones)
+			uiItemEnumO(layout, "ARMATURE_OT_parent_set", NULL, 0, "type", ARM_PAR_OFFSET);
+			
+		uiPupMenuEnd(C, pup);
+	}
 	
 	return OPERATOR_CANCELLED;
 }

@@ -249,7 +249,8 @@ enum {
 	RGN_TYPE_UI = 4,
 	RGN_TYPE_TOOLS = 5,
 	RGN_TYPE_TOOL_PROPS = 6,
-	RGN_TYPE_PREVIEW = 7
+	RGN_TYPE_PREVIEW = 7,
+	RGN_TYPE_MENU_BAR = 8
 };
 
 /* region alignment */

@@ -615,9 +615,11 @@ static void wm_operator_finished(bContext *C, wmOperator *op, int UNUSED(repeat)
 	 * called from operators that already do an undo push. usually
 	 * this will happen for python operators that call C operators */
 	if (wm->op_undo_depth == 0
-		&& op->type->flag & OPTYPE_UNDO)
+		&& op->type->flag & OPTYPE_UNDO) {
 		ED_undo_push_op(C, op);
-	else
+		if (!(op->type->flag & OPTYPE_REGISTER))
+			WM_operator_free(op);
+	} else
 		WM_operator_free(op);
 
 #if 0
@@ -1727,7 +1729,11 @@ static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHa
 					WM_operator_last_properties_store(handler->op);
 				}
 
-				WM_operator_free(handler->op);
+				// Only free if it wasn't registered
+				if (!(handler->op->type
+				    && (handler->op->type->flag & OPTYPE_REGISTER)
+				    && (handler->op->type->flag & OPTYPE_UNDO)))
+					WM_operator_free(handler->op);
 			}
 			else {
 				if (handler->op->type->cancel) {

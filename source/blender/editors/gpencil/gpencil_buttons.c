@@ -286,6 +286,36 @@ static void draw_gpencil_space_specials(const bContext *C, uiLayout *layout)
 }
 
 /* Draw the contents for a grease-pencil panel*/
+static void draw_gpencil_operator_buttons(const bContext *C, uiLayout *layout)
+{
+	PointerRNA ptr;
+	uiLayout *row;
+	wmOperatorType *ot;
+	//PropertyRNA *prop;
+	
+	ot = WM_operatortype_find("GPENCIL_OT_draw", 0);
+	row = uiLayoutRow(layout, TRUE);
+	
+	ptr = uiItemFullO_ptr(row, ot, "", ICON_GREASE_DRAW, NULL, uiLayoutGetOperatorContext(layout), UI_ITEM_O_RETURN_PROPS);
+	RNA_enum_set(&ptr, "mode", GP_PAINTMODE_DRAW);
+	
+	ptr = uiItemFullO_ptr(row, WM_operatortype_find("GPENCIL_OT_draw", 0), "", ICON_GREASE_LINE, NULL, uiLayoutGetOperatorContext(layout), UI_ITEM_O_RETURN_PROPS);
+	RNA_enum_set(&ptr, "mode", GP_PAINTMODE_DRAW_STRAIGHT);
+	
+	ptr = uiItemFullO_ptr(row, WM_operatortype_find("GPENCIL_OT_draw", 0), "", ICON_GREASE_POLY, NULL, uiLayoutGetOperatorContext(layout), UI_ITEM_O_RETURN_PROPS);
+	RNA_enum_set(&ptr, "mode", GP_PAINTMODE_DRAW_POLY);
+	
+	ptr = uiItemFullO_ptr(row, WM_operatortype_find("GPENCIL_OT_draw", 0), "", ICON_GREASE_ERASE, NULL, uiLayoutGetOperatorContext(layout), UI_ITEM_O_RETURN_PROPS);
+	RNA_enum_set(&ptr, "mode", GP_PAINTMODE_ERASER);
+	
+	row = uiLayoutRow(layout, TRUE);
+	RNA_pointer_create(NULL, &RNA_ToolSettings, CTX_data_tool_settings(C), &ptr);
+	//prop = RNA_struct_find_property(&ptr, "use_grease_pencil_sessions");
+	//uiItemFullR
+	uiItemR(row, &ptr, "use_grease_pencil_sessions", 0, "Continuous drawing", ICON_NONE);
+	
+}
+
 static void draw_gpencil_panel(bContext *C, uiLayout *layout, bGPdata *gpd, PointerRNA *ctx_ptr)
 {
 	PointerRNA gpd_ptr;
@@ -305,49 +335,55 @@ static void draw_gpencil_panel(bContext *C, uiLayout *layout, bGPdata *gpd, Poin
 	/* TODO: show some info about who owns this? */
 	uiTemplateID(col, C, ctx_ptr, "grease_pencil", "GPENCIL_OT_data_add", NULL, "GPENCIL_OT_data_unlink");
 	
+	if (gpd != NULL) {
+		/* draw gpd drawing settings first ------------------------------------- */
+		col = uiLayoutColumn(layout, TRUE);
+		/* label */
+		uiItemL(col, IFACE_("Pencil Settings:"), ICON_NONE);
+		
+		/* check whether advanced 3D-View drawing space options can be used */
+		if (is_v3d) {
+			if (gpd->flag & (GP_DATA_DEPTH_STROKE | GP_DATA_DEPTH_VIEW))
+				v3d_stroke_opts = STROKE_OPTS_V3D_ON;
+			else
+				v3d_stroke_opts = STROKE_OPTS_V3D_OFF;
+		}
+		
+		/* drawing space options */
+		row = uiLayoutRow(col, TRUE);
+		uiItemEnumR_string(row, &gpd_ptr, "draw_mode", "VIEW", NULL, ICON_NONE);
+		uiItemEnumR_string(row, &gpd_ptr, "draw_mode", "CURSOR", NULL, ICON_NONE);
+		
+		if (sc == NULL) {
+			row = uiLayoutRow(col, TRUE);
+			uiLayoutSetActive(row, v3d_stroke_opts);
+			uiItemEnumR_string(row, &gpd_ptr, "draw_mode", "SURFACE", NULL, ICON_NONE);
+			uiItemEnumR_string(row, &gpd_ptr, "draw_mode", "STROKE", NULL, ICON_NONE);
+			
+			row = uiLayoutRow(col, FALSE);
+			uiLayoutSetActive(row, v3d_stroke_opts == STROKE_OPTS_V3D_ON);
+			uiItemR(row, &gpd_ptr, "use_stroke_endpoints", 0, NULL, ICON_NONE);
+		}
+	}
+	
 	/* add new layer button - can be used even when no data, since it can add a new block too */
+	col = uiLayoutColumn(layout, TRUE);
+	uiItemL(col, IFACE_("Pencil Layers:"), ICON_NONE);
+	
 	uiItemO(col, IFACE_("New Layer"), ICON_NONE, "GPENCIL_OT_layer_add");
 	row = uiLayoutRow(col, TRUE);
 	uiItemO(row, IFACE_("Delete Frame"), ICON_NONE, "GPENCIL_OT_active_frame_delete");
 	uiItemO(row, IFACE_("Convert"), ICON_NONE, "GPENCIL_OT_convert");
 	
-	/* sanity checks... */
-	if (gpd == NULL)
-		return;
 	
 	/* draw each layer --------------------------------------------- */
-	for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
-		col = uiLayoutColumn(layout, TRUE);
-		gp_drawui_layer(col, gpd, gpl, is_v3d);
-	}
-	
-	/* draw gpd drawing settings first ------------------------------------- */
-	col = uiLayoutColumn(layout, TRUE);
-	/* label */
-	uiItemL(col, IFACE_("Drawing Settings:"), ICON_NONE);
-		
-	/* check whether advanced 3D-View drawing space options can be used */
-	if (is_v3d) {
-		if (gpd->flag & (GP_DATA_DEPTH_STROKE | GP_DATA_DEPTH_VIEW))
-			v3d_stroke_opts = STROKE_OPTS_V3D_ON;
-		else
-			v3d_stroke_opts = STROKE_OPTS_V3D_OFF;
-	}
-		
-	/* drawing space options */
-	row = uiLayoutRow(col, TRUE);
-	uiItemEnumR_string(row, &gpd_ptr, "draw_mode", "VIEW", NULL, ICON_NONE);
-	uiItemEnumR_string(row, &gpd_ptr, "draw_mode", "CURSOR", NULL, ICON_NONE);
-
-	if (sc == NULL) {
-		row = uiLayoutRow(col, TRUE);
-		uiLayoutSetActive(row, v3d_stroke_opts);
-		uiItemEnumR_string(row, &gpd_ptr, "draw_mode", "SURFACE", NULL, ICON_NONE);
-		uiItemEnumR_string(row, &gpd_ptr, "draw_mode", "STROKE", NULL, ICON_NONE);
-
-		row = uiLayoutRow(col, FALSE);
-		uiLayoutSetActive(row, v3d_stroke_opts == STROKE_OPTS_V3D_ON);
-		uiItemR(row, &gpd_ptr, "use_stroke_endpoints", 0, NULL, ICON_NONE);
+	/* sanity checks... */
+	if (gpd != NULL)
+	{
+		for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+			col = uiLayoutColumn(layout, TRUE);
+			gp_drawui_layer(col, gpd, gpl, is_v3d);
+		}
 	}
 }
 
@@ -366,6 +402,9 @@ void gpencil_panel_standard(const bContext *C, Panel *pa)
 	PointerRNA ptr;
 	
 	/* if (v3d->flag2 & V3D_DISPGP)... etc. */
+	
+	/* draw tool buttons */
+	draw_gpencil_operator_buttons(C, pa->layout);
 	
 	draw_gpencil_space_specials(C, pa->layout);
 	

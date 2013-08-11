@@ -184,18 +184,13 @@ void WM_operator_build_stack(bContext *C, const ListBase *uels, bool notify)
 	wm->operators.first = NULL;
 	wm->operators.last = NULL;
 
-	for(uel = uels->first; uel && uel->prev != uels->last; uel = uel->next)
-	{
-		if(uel->op
-		   && uel->op->type
-		   && uel->op->type->flag & OPTYPE_REGISTER
-		   && uel->op->type->flag & OPTYPE_UNDO)
-		{
+	for (uel = uels->first; uel && uel->prev != uels->last; uel = uel->next) {
+		if (uel->op && uel->op->type && uel->op->type->flag & OPTYPE_UNDO && uel->op->type->flag & OPTYPE_REGISTER) {
 			BLI_addtail(&wm->operators, uel->op);
 		}
 	}
 
-	if(notify)
+	if (notify)
 	{
 		WM_event_add_notifier(C, NC_SPACE | ND_SPACE_INFO_REPORT, NULL);
 		WM_event_add_notifier(C, NC_WM | ND_HISTORY, NULL);

@@ -450,12 +450,13 @@ static void ui_draw_panel_openwidget(const rctf *rect)
 	ymin = rect->ymin;
 	ymax = rect->ymax;
 	
-	dx = (xmax - xmin) / 5.0f;
-	dy = (ymax - ymin) / 5.0f;
+	dx = (xmax - xmin);
+	dy = (ymax - ymin);
+	
 	
 	glEnable(GL_BLEND);
-	glColor4ub(255, 255, 255, 50);
-	fdrawbox(xmin+dx, ymin+dy, xmax-dx, ymax-dy);
+	glColor4ub(0, 0, 0, 150);
+	fdrawellipses(xmin, ymin + dy / 2.f, dx / 10.f);
 	glDisable(GL_BLEND);
 }
 
@@ -597,7 +598,8 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, rcti *rect, int toolb
 	 * (------)
 	 */
 	if (panel->flag & PNL_CLOSEDY) {
-		if (toolbar) {
+		// Uncomment to only show popup ellipses in the toolbar.
+		//if (toolbar) {
 			/* draw popup widget */
 			itemrect.xmax = headrect.xmax - (1.0f + PNL_ICON) / block->aspect;
 			itemrect.xmin = itemrect.xmax - BLI_rcti_size_y(&headrect);
@@ -605,7 +607,7 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, rcti *rect, int toolb
 			itemrect.ymax = headrect.ymax;
 			rectf_scale(&itemrect, 0.7f);
 			ui_draw_panel_openwidget(&itemrect);
-		}
+		//}
 	}
 	else if (panel->flag & PNL_CLOSEDX) {
 		/* draw vertical title */
@@ -1122,8 +1124,7 @@ static void ui_handle_panel_header(bContext *C, uiBlock *block, int mx, int my, 
 		if (mx <= x_drag) button = 2;
 	}
 	// only shows popups in toolbars
-	else if (block->panel->flag & PNL_CLOSEDY
-			 && ar->regiontype == RGN_TYPE_TOOLS) {
+	else if (block->panel->flag & PNL_CLOSEDY /*&& ar->regiontype == RGN_TYPE_TOOLS*/) {
 		if (mx <= x_popup) {
 			button = 1;
 		} else if (mx > x_popup && mx <= x_drag) {
@@ -1145,6 +1146,7 @@ static void ui_handle_panel_header(bContext *C, uiBlock *block, int mx, int my, 
 		case 1:
 			/* collapse */
 			if (ctrl)
+				// TODO: CTRL AKEY doesn't seem to arrive here ~ ack-err
 				panels_collapse_all(sa, ar, block->panel);
 
 			if (block->panel->flag & PNL_CLOSED) {

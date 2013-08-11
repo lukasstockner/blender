@@ -464,7 +464,7 @@ static wmOperator *rna_OperatorProperties_find_operator(PointerRNA *ptr)
 
 	if (wm)
 		for (op = wm->operators.first; op; op = op->next)
-			if (op->properties == properties)
+			if (op->properties && op->properties == properties)
 				return op;
 	
 	return NULL;

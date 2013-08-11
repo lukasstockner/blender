@@ -37,7 +37,7 @@ class INFO_HT_header(Header):
         if context.area.show_menus:
             sub = row.row(align=True)
             sub.menu("INFO_MT_file")
-            sub.menu("INFO_MT_add")
+            # sub.menu("INFO_MT_add")
             if rd.use_game_engine:
                 sub.menu("INFO_MT_game")
             else:
