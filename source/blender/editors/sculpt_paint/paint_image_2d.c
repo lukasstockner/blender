@@ -267,7 +267,7 @@ static unsigned short *brush_painter_curve_mask_new(BrushPainter *painter, int s
 
 
 /* create imbuf with brush color */
-static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size, float pressure)
+static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size, float pressure, float distance)
 {
 	Scene *scene = painter->scene;
 	Brush *brush = painter->brush;
@@ -303,7 +303,11 @@ static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size, float pre
 						do_colorband(brush->gradient, pressure, brush_rgb);
 						break;
 					case BRUSH_GRADIENT_SPACING:
+					{
+						float coord = fmod(distance / brush->gradient_spacing, 1.0);
+						do_colorband(brush->gradient, coord, brush_rgb);
 						break;
+					}
 				}
 			}
 			else
@@ -592,7 +596,7 @@ static void brush_painter_2d_tex_mapping(ImagePaintState *s, int size, const flo
 	}
 }
 
-static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *painter, const float pos[2], const float mouse[2], float pressure)
+static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *painter, const float pos[2], const float mouse[2], float pressure, float distance)
 {
 	const Scene *scene = painter->scene;
 	UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
@@ -710,7 +714,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 		}
 		else {
 			/* create brush and mask from scratch */
-			cache->ibuf = brush_painter_imbuf_new(painter, size, pressure);
+			cache->ibuf = brush_painter_imbuf_new(painter, size, pressure, distance);
 		}
 
 		cache->lastsize = diameter;
@@ -1093,7 +1097,7 @@ static void paint_2d_canvas_free(ImagePaintState *s)
 		image_undo_remove_masks();
 }
 
-void paint_2d_stroke(void *ps, const float prev_mval[2], const float mval[2], int eraser, float pressure)
+void paint_2d_stroke(void *ps, const float prev_mval[2], const float mval[2], int eraser, float pressure, float distance)
 {
 	float newuv[2], olduv[2];
 	ImagePaintState *s = ps;
@@ -1138,7 +1142,7 @@ void paint_2d_stroke(void *ps, const float prev_mval[2], const float mval[2], in
 	 */
 	brush_painter_2d_require_imbuf(painter, (ibuf->rect_float != NULL), !is_data, s->do_masking);
 
-	brush_painter_2d_refresh_cache(s, painter, newuv, mval, pressure);
+	brush_painter_2d_refresh_cache(s, painter, newuv, mval, pressure, distance);
 
 	if (paint_2d_op(s, painter->cache.ibuf, painter->cache.curve_mask, painter->cache.max_mask, olduv, newuv))
 		s->need_redraw = true;

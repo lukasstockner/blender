@@ -193,7 +193,6 @@ typedef struct ProjPaintState {
 	/* the paint color. It can change depending of interted mode or not */
 	float paint_color[3];
 	float paint_color_linear[3];
-	bool invert_color;
 
 	Brush *brush;
 	short tool, blend, mode;
@@ -4309,7 +4308,7 @@ static int project_paint_op(void *state, const float lastpos[2], const float pos
 }
 
 
-void paint_proj_stroke(bContext *C, void *pps, const float prev_pos[2], const float pos[2], float pressure)
+void paint_proj_stroke(bContext *C, void *pps, const float prev_pos[2], const float pos[2], float pressure, float distance)
 {
 	ProjPaintState *ps = pps;
 	Brush *brush = ps->brush;
@@ -4333,7 +4332,7 @@ void paint_proj_stroke(bContext *C, void *pps, const float prev_pos[2], const fl
 	}
 
 	if (brush->imagepaint_tool == PAINT_TOOL_DRAW) {
-		if (ps->invert_color)
+		if (ps->mode == BRUSH_STROKE_INVERT)
 			copy_v3_v3(ps->paint_color, brush->secondary_rgb);
 		else {
 			if (brush->flag & BRUSH_USE_GRADIENT) {
@@ -4342,7 +4341,11 @@ void paint_proj_stroke(bContext *C, void *pps, const float prev_pos[2], const fl
 						do_colorband(brush->gradient, pressure, ps->paint_color);
 						break;
 					case BRUSH_GRADIENT_SPACING:
+					{
+						float coord = fmod(distance / brush->gradient_spacing, 1.0);
+						do_colorband(brush->gradient, coord, ps->paint_color);
 						break;
+					}
 				}
 			}
 			else
@@ -4433,11 +4436,6 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 	if (ps->normal_angle_range <= 0.0f)
 		ps->do_mask_normal = FALSE;  /* no need to do blending */
 
-	if (ps->tool == PAINT_TOOL_DRAW) {
-		if (mode == BRUSH_STROKE_INVERT) {
-			ps->invert_color = true;
-		}
-	}
 	return;
 }
 

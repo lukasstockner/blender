@@ -91,6 +91,8 @@ typedef struct PaintStroke {
 	int cur_sample;
 
 	float last_mouse_position[2];
+	/* space distance covered so far */
+	float stroke_distance;
 
 	/* Set whether any stroke step has yet occurred
 	 * e.g. in sculpt mode, stroke doesn't start until cursor
@@ -305,10 +307,12 @@ static void paint_brush_update(bContext *C,
 			copy_v2_v2(mouse, halfway);
 			ups->anchored_size /= 2.0f;
 			ups->pixel_radius  /= 2.0f;
+			stroke->stroke_distance = ups->pixel_radius;
 		}
 		else {
 			copy_v2_v2(ups->anchored_initial_mouse, stroke->initial_mouse);
 			copy_v2_v2(mouse, stroke->initial_mouse);
+			stroke->stroke_distance = ups->pixel_radius;
 		}
 		ups->pixel_radius /= stroke->zoom_2d;
 		ups->draw_anchored = 1;
@@ -551,6 +555,7 @@ static int paint_space_stroke(bContext *C, wmOperator *op, const float final_mou
 
 			ups->overlap_factor = paint_stroke_integrate_overlap(stroke->brush, spacing/stroke->zoom_2d);
 
+			stroke->stroke_distance += spacing / stroke->zoom_2d;
 			paint_brush_stroke_add_step(C, op, mouse, pressure);
 
 			length -= spacing;
@@ -931,6 +936,9 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 						redraw = true;
 				}
 				else {
+					float dmouse[2];
+					sub_v2_v2v2(dmouse, mouse, stroke->last_mouse_position);
+					stroke->stroke_distance += len_v2(dmouse);
 					paint_brush_stroke_add_step(C, op, mouse, pressure);
 					redraw = true;
 				}
@@ -1002,6 +1010,11 @@ ViewContext *paint_stroke_view_context(PaintStroke *stroke)
 void *paint_stroke_mode_data(struct PaintStroke *stroke)
 {
 	return stroke->mode_data;
+}
+
+float paint_stroke_distance_get(struct PaintStroke *stroke)
+{
+	return stroke->stroke_distance;
 }
 
 void paint_stroke_set_mode_data(PaintStroke *stroke, void *mode_data)

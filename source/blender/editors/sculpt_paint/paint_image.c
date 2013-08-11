@@ -676,6 +676,7 @@ static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, Po
 	float mouse[2];
 	float pressure;
 	float size;
+	float distance = paint_stroke_distance_get(stroke);
 	int eraser;
 
 	RNA_float_get_array(itemptr, "mouse", mouse);
@@ -702,10 +703,10 @@ static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, Po
 	}
 
 	if (pop->mode == PAINT_MODE_3D_PROJECT) {
-		paint_proj_stroke(C, pop->custom_paint, pop->prevmouse, mouse, pressure);
+		paint_proj_stroke(C, pop->custom_paint, pop->prevmouse, mouse, pressure, distance);
 	}
 	else {
-		paint_2d_stroke(pop->custom_paint, pop->prevmouse, mouse, eraser, pressure);
+		paint_2d_stroke(pop->custom_paint, pop->prevmouse, mouse, eraser, pressure, distance);
 	}
 
 	pop->prevmouse[0] = mouse[0];

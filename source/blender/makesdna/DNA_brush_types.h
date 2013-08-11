@@ -92,6 +92,8 @@ typedef struct Brush {
 
 	float gravity_factor;   /* gravity factor for sculpting */
 	int gradient_source;    /* source for color gradient application */
+	int gradient_spacing;
+	int pad;
 
 	char sculpt_tool;       /* active sculpt tool */
 	char vertexpaint_tool;  /* active vertex/weight paint blend mode (poorly named) */
