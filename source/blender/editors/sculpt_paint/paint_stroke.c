@@ -673,6 +673,14 @@ bool paint_supports_dynamic_size(Brush *br, PaintMode mode)
 			if (sculpt_is_grab_tool(br))
 				return false;
 			break;
+
+		case PAINT_TEXTURE_2D: /* fall through */
+		case PAINT_TEXTURE_PROJECTIVE:
+			if ((br->imagepaint_tool == PAINT_TOOL_FILL) &&
+			    (br->flag & BRUSH_USE_GRADIENT))
+				return false;
+			break;
+
 		default:
 			break;
 	}
