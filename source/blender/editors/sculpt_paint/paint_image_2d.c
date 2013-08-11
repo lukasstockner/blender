@@ -40,6 +40,7 @@
 
 #include "BLI_math.h"
 #include "BLI_rect.h"
+#include "BLI_math_color_blend.h"
 
 #include "BKE_context.h"
 #include "BKE_brush.h"
@@ -1340,7 +1341,11 @@ void paint_2d_gradient_fill (const bContext *C, Brush *br, float mouse_init[2], 
 				float f = dot_v2v2(p, tangent)*line_len_sq_inv;
 
 				do_colorband(br->gradient, f, color_f);
-				copy_v4_v4(ibuf->rect_float + 4 * (j * ibuf->x + i), color_f);
+				/* convert to premultiplied */
+				mul_v3_fl(color_f, color_f[3]);
+				blend_color_mix_float(ibuf->rect_float + 4 * (j * ibuf->x + i),
+				                      ibuf->rect_float + 4 * (j * ibuf->x + i),
+				                      color_f);
 			}
 		}
 	}
@@ -1353,7 +1358,9 @@ void paint_2d_gradient_fill (const bContext *C, Brush *br, float mouse_init[2], 
 				do_colorband(br->gradient, f, color_f);
 				rgba_float_to_uchar((unsigned char *)&color_b, color_f);
 
-				*(ibuf->rect + j * ibuf->x + i) =  color_b;
+				blend_color_mix_byte((unsigned char *)(ibuf->rect + j * ibuf->x + i),
+				                     (unsigned char *)(ibuf->rect + j * ibuf->x + i),
+				                     (unsigned char *)&color_b);
 			}
 		}
 	}
