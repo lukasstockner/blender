@@ -258,6 +258,8 @@ wmOperator *WM_operator_copy(struct bContext *C, wmOperator *op, bool copylink);
 bool        WM_operator_properties_init(struct wmOperator *op);
 bool        WM_operator_last_properties_store(struct wmOperator *op);
 bool		WM_operator_default_properties_store(struct wmOperator *op);
+	
+void		WM_save_custom_panels(void);
 
 /* MOVE THIS SOMEWHERE ELSE */
 #define	SEL_TOGGLE		0

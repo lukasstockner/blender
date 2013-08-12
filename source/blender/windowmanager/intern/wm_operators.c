@@ -114,6 +114,8 @@ static GHash *global_ops_hash = NULL;
 
 #define UNDOCUMENTED_OPERATOR_TIP N_("(undocumented operator)")
 
+#define MAX_CUSTOM_PANELS 1000
+
 /* ************ operator API, exported ********** */
 
 
@@ -4220,7 +4222,7 @@ static uiBlock *wm_panel_popup_create_block(bContext *C, ARegion *ar, void *arg_
 	return block;
 }
 
-
+// TODO: WM_OT_panel_popup shouldn't be an operator, but executed directly ~ ack-err
 static int wm_panel_popup_exec(bContext *UNUSED(C), wmOperator *UNUSED(op))
 {
 	return OPERATOR_FINISHED;
@@ -4251,13 +4253,131 @@ static void WM_OT_panel_popup(wmOperatorType *ot)
 	
 	ot->flag |= OPTYPE_INTERNAL;
 	
-	// Can't seem to define a pointer property for operators.
-	// The set/get/etc. functions aren't present when calling RNA_pointer_set
-//	prop = RNA_def_pointer(ot->srna, "panel", "Panel", "", "");
-//	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_REQUIRED | PROP_NEVER_NULL);
-	
 	prop = RNA_def_string(ot->srna, "panel_name", "", 64, "panel_name", "The name of the panel being opened in a popup");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_REQUIRED);
+}
+
+
+void WM_save_custom_panels(void)
+{
+	printf("Saved panels to preference directory.\n");
+}
+
+//static int wm_create_custom_panel_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+//{
+//	uiPupBlock(C, wm_panel_popup_create_block, op);
+//	return OPERATOR_CANCELLED;
+//}
+
+static int wm_create_custom_panel_poll(bContext *C)
+{
+
+	if (CTX_wm_window(C) == NULL) {
+		return 0;
+	} else {
+		ScrArea *sa = CTX_wm_area(C);
+		ARegion *ar;
+		if (sa) {
+			// We should be in a space where there are toolbars
+			//if (!ELEM(sa->spacetype, SPACE_VIEW3D, SPACE_CLIP)) return 0;
+			for (ar = sa->regionbase.first; ar; ar = ar->next) {
+				if (ar->type && ar->type->regionid == RGN_TYPE_TOOLS) {
+					return 1;
+				}
+			}
+		}
+	}
+	// If a RGN_TYPE_TOOLS wasn't found we can't create a panel for it
+	return 0;
+}
+
+
+static void custom_panel_draw(const bContext *UNUSED(C), Panel *pa)
+{
+	uiLayout *layout = pa->layout;
+	uiLayout *row = uiLayoutRow(layout, TRUE);
+	uiItemL(row, "yeah!", ICON_NONE);
+}
+
+static int wm_create_custom_panel_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar;
+	PanelType *pt_iter, *pt_new;
+
+	// find RGN_TYPE_TOOLS
+	for (ar = sa->regionbase.first; ar; ar = ar->next)
+		if (ar->type && ar->type->regionid == RGN_TYPE_TOOLS)
+			break;
+	
+	if (ar == NULL) return OPERATOR_CANCELLED;
+	
+	// Create new panel type and add to the current editor's toolbar
+	pt_new = MEM_callocN(sizeof(PanelType), "custom panel type");
+	
+	// find new name for paneltype
+	for (int i=0; i < MAX_CUSTOM_PANELS; i++) {
+		// generate name
+		char *name = BLI_sprintfN("custom panel %i", i);
+		int name_taken = 0;
+		// see if it is taken
+		for (pt_iter = ar->type->paneltypes.first; pt_iter; pt_iter = pt_iter->next) {
+			if (strcmp(pt_iter->idname, name) == 0) {
+				name_taken = 1;
+				break;
+			}
+		}
+		// clear if taken
+		if(name_taken) {
+			MEM_freeN(name);
+			continue;
+		} else {
+			// name the new panel type if not taken
+			BLI_strncpy(pt_new->idname, name, BKE_ST_MAXNAME);
+			MEM_freeN(name);
+			break;
+		}		
+	}
+
+	strcpy(pt_new->label, N_("Custom Panel"));
+	strcpy(pt_new->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
+//	pt_new->draw_header = custom_panel_draw_header;
+	pt_new->draw = custom_panel_draw;
+//	pt_new->poll = custom_panel_poll;
+	pt_new->flag = PNL_CUSTOM;
+	pt_new->space_type = sa->spacetype;
+	pt_new->region_type = ar->regiontype;
+	BLI_strncpy(pt_new->context, CTX_data_mode_string(C), BKE_ST_MAXNAME);
+	BLI_addtail(&ar->type->paneltypes, pt_new);
+	
+	ED_region_tag_redraw(ar);
+	
+	printf("Added panel\n");
+	
+	// example draw func:
+//	pt->draw = buttons_panel_context;
+	// this might be good to get panels in the tool lregion
+//	pt->flag = PNL_NO_HEADER;
+	
+	return OPERATOR_FINISHED;
+}
+
+static void WM_OT_create_custom_panel(wmOperatorType *ot)
+{
+//	PropertyRNA *prop;
+	
+	ot->name = "Create Custom Panel";
+	ot->idname = "WM_OT_create_custom_panel";
+	ot->description = "Create a custom panel in the current region's toolbar";
+	
+//	ot->invoke = wm_create_custom_panel_invoke;
+	ot->exec = wm_create_custom_panel_exec;
+	ot->poll = wm_create_custom_panel_poll;
+	
+//	ot->flag |= OPTYPE_INTERNAL;
+	
+//	prop = RNA_def_string(ot->srna, "panel_name", "", 64, "panel_name", "The name of the panel being opened in a popup");
+//	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_REQUIRED);
 }
 
 
@@ -4301,6 +4421,7 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_radial_control);
 	WM_operatortype_append(WM_OT_ndof_sensitivity_change);
 	WM_operatortype_append(WM_OT_panel_popup);
+	WM_operatortype_append(WM_OT_create_custom_panel);
 #if defined(WIN32)
 	WM_operatortype_append(WM_OT_console_toggle);
 #endif

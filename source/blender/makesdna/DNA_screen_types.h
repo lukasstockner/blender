@@ -231,6 +231,7 @@ typedef struct ARegion {
 /* paneltype flag */
 #define PNL_DEFAULT_CLOSED		1
 #define PNL_NO_HEADER			2
+#define PNL_CUSTOM				4
 
 /* uilist layout_type */
 enum {

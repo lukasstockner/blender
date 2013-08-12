@@ -1191,6 +1191,7 @@ static void ui_handle_panel_header(bContext *C, uiBlock *block, int mx, int my, 
 //			RNA_pointer_create(NULL, &RNA_Panel, &block->panel, &panel_ptr);
 //			RNA_pointer_set(&props_ptr, "panel", panel_ptr);
 			
+			// TODO: don't need to define an operator, just call directly ~ ack-err
 			RNA_string_set(&props_ptr, "panel_name", block->panel->type->idname);
 			WM_operator_name_call(C, "WM_OT_panel_popup", WM_OP_INVOKE_DEFAULT, &props_ptr);
 
