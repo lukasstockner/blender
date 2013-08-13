@@ -319,6 +319,14 @@ static void paint_draw_curve_cursor(bContext *C, int UNUSED(x), int UNUSED(y), v
 							                  cp->next->bez.vec[1][j],
 							                  data + j, NUM_SEGMENTS, 2 * sizeof(float));
 
+			glLineWidth(4.0);
+			glColor4f(0.0, 0.0, 0.0, 0.5);
+			glBegin(GL_LINE_STRIP);
+			for (j = 0; j < NUM_SEGMENTS; j++)
+				glVertex2fv(data + j * 2);
+			glEnd();
+			glLineWidth(2.0);
+			glColor4f(1.0, 1.0, 1.0, 0.5);
 			glBegin(GL_LINE_STRIP);
 			for (j = 0; j < NUM_SEGMENTS; j++)
 				glVertex2fv(data + j * 2);
