@@ -2242,15 +2242,18 @@ static void make_bevel_list_3D_minimum_twist(BevList *bl)
 		}
 	}
 	else {
-		/* Need to correct quat for the last point,
+		/* Need to correct quat for the first/last point,
 		 * this is so because previously it was only calculated
 		 * using it's own direction, which might not correspond
-		 * the twist of previous point.
+		 * the twist of neighbor point.
 		 */
+		bevp1 = (BevPoint *)(bl + 1);
+		bevp0 = bevp1 + 1;
+		minimum_twist_between_two_points(bevp1, bevp0);
+
 		bevp2 = (BevPoint *)(bl + 1);
 		bevp1 = bevp2 + (bl->nr - 1);
 		bevp0 = bevp1 - 1;
-
 		minimum_twist_between_two_points(bevp1, bevp0);
 	}
 }
@@ -2408,6 +2411,23 @@ static void make_bevel_list_2D(BevList *bl)
 	}
 }
 
+static void bevlist_firstlast_direction_calc_from_bpoint(Nurb *nu, BevList *bl)
+{
+	if (nu->pntsu > 1) {
+		BPoint *first_bp = nu->bp, *last_bp = nu->bp + (nu->pntsu - 1);
+		BevPoint *first_bevp, *last_bevp;
+
+		first_bevp = (BevPoint *)(bl + 1);
+		last_bevp = first_bevp + (bl->nr - 1);
+
+		sub_v3_v3v3(first_bevp->dir, (first_bp + 1)->vec, first_bp->vec);
+		normalize_v3(first_bevp->dir);
+
+		sub_v3_v3v3(last_bevp->dir, last_bp->vec, (last_bp - 1)->vec);
+		normalize_v3(last_bevp->dir);
+	}
+}
+
 void BKE_curve_bevelList_make(Object *ob)
 {
 	/*
@@ -2490,6 +2510,10 @@ void BKE_curve_bevelList_make(Object *ob)
 					bevp->split_tag = TRUE;
 					bevp++;
 					bp++;
+				}
+
+				if ((nu->flagu & CU_NURB_CYCLIC) == 0) {
+					bevlist_firstlast_direction_calc_from_bpoint(nu, bl);
 				}
 			}
 			else if (nu->type == CU_BEZIER) {
@@ -2601,6 +2625,10 @@ void BKE_curve_bevelList_make(Object *ob)
 					                   do_radius    ? &bevp->radius : NULL,
 					                   do_weight    ? &bevp->weight : NULL,
 					                   resolu, sizeof(BevPoint));
+
+					if ((nu->flagu & CU_NURB_CYCLIC) == 0) {
+						bevlist_firstlast_direction_calc_from_bpoint(nu, bl);
+					}
 				}
 			}
 		}

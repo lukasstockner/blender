@@ -135,7 +135,7 @@ void Session::reset_gpu(BufferParams& buffer_params, int samples)
 {
 	thread_scoped_lock pause_lock(pause_mutex);
 
-	/* block for buffer acces and reset immediately. we can't do this
+	/* block for buffer access and reset immediately. we can't do this
 	 * in the thread, because we need to allocate an OpenGL buffer, and
 	 * that only works in the main thread */
 	thread_scoped_lock display_lock(display_mutex);
@@ -832,6 +832,7 @@ void Session::path_trace()
 	task.update_tile_sample = function_bind(&Session::update_tile_sample, this, _1);
 	task.update_progress_sample = function_bind(&Session::update_progress_sample, this);
 	task.need_finish_queue = params.progressive_refine;
+	task.integrator_progressive = scene->integrator->progressive;
 
 	device->task_add(task);
 }
