@@ -904,7 +904,7 @@ class VIEW3D_PT_tools_brush_stroke(Panel, View3DPaintPanel):
             row.prop(brush, "spacing", text="Spacing")
             row.prop(brush, "use_pressure_spacing", toggle=True, text="")
 
-        if brush.use_line or brush.use_polyline:
+        if brush.use_line or brush.use_polyline or brush.use_curve:
             col.separator()
             row = col.row(align=True)
             row.prop(brush, "spacing", text="Spacing")

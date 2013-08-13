@@ -41,12 +41,14 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_brush_types.h"
+#include "DNA_curve_types.h"
 
 #include "RNA_access.h"
 
 #include "BKE_context.h"
 #include "BKE_paint.h"
 #include "BKE_brush.h"
+#include "BKE_curve.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -72,6 +74,20 @@ typedef struct LinePoint {
 	float pos[2];
 } LinePoint;
 
+typedef struct CurvePoint {
+	struct CurvePoint *next, *prev;
+	BezTriple bez;
+} CurvePoint;
+
+/* stroke->curve_edited */
+enum {
+	CURVE_HANDLE_CENTER = 1,
+	CURVE_HANDLE_PREV = 2,
+	CURVE_HANDLE_NEXT = 3,
+	CURVE_HANDLE_PREV_CONSTRAINED = 4,
+	CURVE_HANDLE_NEXT_CONSTRAINED = 5
+};
+
 typedef struct PaintStroke {
 	void *mode_data;
 	void *stroke_cursor;
@@ -82,7 +98,15 @@ typedef struct PaintStroke {
 	bglMats mats;
 	Brush *brush;
 	UnifiedPaintSettings *ups;
+
+	/* used for lines and curves */
 	ListBase line;
+	/* type of curve handle being edited */
+	unsigned char curve_edited;
+	/* curve handle being edited */
+	CurvePoint *edited;
+	/* original handle coordinate */
+	BezTriple curve_orig;
 
 	/* Paint stroke can use up to PAINT_MAX_INPUT_SAMPLES prior inputs
 	 * to smooth the stroke */
@@ -184,6 +208,129 @@ static void paint_draw_line_cursor(bContext *C, int UNUSED(x), int UNUSED(y), vo
 
 			glDisable(GL_LINE_STIPPLE);
 		}
+
+		glLineWidth(1.0);
+
+		glDisable(GL_BLEND);
+		glDisable(GL_LINE_SMOOTH);
+	}
+}
+
+BLI_INLINE void draw_rect_line(float *co, float width)
+{
+	float w = width/2.0;
+	glColor4f(0.5, 1.0, 0.5, 0.5);
+	glLineWidth(4.0);
+
+	glBegin(GL_LINE_STRIP);
+	glVertex2f(co[0] + w, co[1] + w);
+	glVertex2f(co[0] - w, co[1] + w);
+	glVertex2f(co[0] - w, co[1] - w);
+	glVertex2f(co[0] + w, co[1] - w);
+	glVertex2f(co[0] + w, co[1] + w);
+	glEnd();
+
+	glColor4f(1.0, 1.0, 1.0, 0.5);
+	glLineWidth(2.0);
+
+	glBegin(GL_LINE_STRIP);
+	glVertex2f(co[0] + w, co[1] + w);
+	glVertex2f(co[0] - w, co[1] + w);
+	glVertex2f(co[0] - w, co[1] - w);
+	glVertex2f(co[0] + w, co[1] - w);
+	glVertex2f(co[0] + w, co[1] + w);
+	glEnd();
+}
+
+BLI_INLINE void draw_tri_line(float *co, float width)
+{
+	float w = width/2.0;
+	glColor4f(1.0, 0.5, 0.5, 0.5);
+	glLineWidth(4.0);
+
+	glBegin(GL_LINE_STRIP);
+	glVertex2f(co[0], co[1] + w);
+	glVertex2f(co[0] - w, co[1] - w);
+	glVertex2f(co[0] + w, co[1] - w);
+	glVertex2f(co[0], co[1] + w);
+	glEnd();
+
+	glColor4f(1.0, 1.0, 1.0, 0.5);
+	glLineWidth(2.0);
+
+	glBegin(GL_LINE_STRIP);
+	glVertex2f(co[0], co[1] + w);
+	glVertex2f(co[0] - w, co[1] - w);
+	glVertex2f(co[0] + w, co[1] - w);
+	glVertex2f(co[0], co[1] + w);
+	glEnd();
+}
+
+BLI_INLINE void draw_bezier_lines(BezTriple *bez)
+{
+	glColor4f(0.0, 0.0, 0.0, 0.5);
+	glLineWidth(4.0);
+	glBegin(GL_LINES);
+	glVertex2fv(&bez->vec[1][0]);
+	glVertex2fv(&bez->vec[0][0]);
+	glVertex2fv(&bez->vec[1][0]);
+	glVertex2fv(&bez->vec[2][0]);
+	glEnd();
+
+	glColor4f(1.0, 1.0, 1.0, 0.5);
+	glLineWidth(2.0);
+	glBegin(GL_LINES);
+	glVertex2fv(&bez->vec[1][0]);
+	glVertex2fv(&bez->vec[0][0]);
+	glVertex2fv(&bez->vec[1][0]);
+	glVertex2fv(&bez->vec[2][0]);
+	glEnd();
+}
+
+#define NUM_SEGMENTS 40
+#define MOUSE_THRESHOLD 6.0
+
+static void paint_draw_curve_cursor(bContext *C, int UNUSED(x), int UNUSED(y), void *customdata)
+{
+	Paint *paint = BKE_paint_get_active_from_context(C);
+	Brush *brush = BKE_paint_brush(paint);
+	PaintStroke *stroke = customdata;
+
+	if (stroke && brush) {
+		CurvePoint *cp = stroke->line.first;
+
+		glEnable(GL_LINE_SMOOTH);
+		glEnable(GL_BLEND);
+
+		/* draw the bezier handles and the curve segment between the current and next point */
+		while (cp->next) {
+			int j;
+			float data[(NUM_SEGMENTS + 1) * 2];
+			/* use color coding to distinguish handles vs curve segments  */
+			draw_bezier_lines(&cp->bez);
+			draw_tri_line(&cp->bez.vec[1][0], 10.0);
+			draw_rect_line(&cp->bez.vec[0][0], 8.0);
+			draw_rect_line(&cp->bez.vec[2][0], 8.0);
+
+			for (j = 0; j < 2; j++)
+				BKE_curve_forward_diff_bezier(cp->bez.vec[1][j],
+							                  cp->bez.vec[2][j],
+							                  cp->next->bez.vec[0][j],
+							                  cp->next->bez.vec[1][j],
+							                  data + j, NUM_SEGMENTS, 2 * sizeof(float));
+
+			glBegin(GL_LINE_STRIP);
+			for (j = 0; j < NUM_SEGMENTS; j++)
+				glVertex2fv(data + j * 2);
+			glEnd();
+			cp = cp->next;
+		}
+
+		/* draw last line segment */
+		draw_bezier_lines(&cp->bez);
+		draw_tri_line(&cp->bez.vec[1][0], 10.0);
+		draw_rect_line(&cp->bez.vec[0][0], 8.0);
+		draw_rect_line(&cp->bez.vec[2][0], 8.0);
 
 		glLineWidth(1.0);
 
@@ -796,6 +943,50 @@ static void paint_stroke_sample_average(const PaintStroke *stroke,
 	/*printf("avg=(%f, %f), num=%d\n", average->mouse[0], average->mouse[1], stroke->num_samples);*/
 }
 
+/* slightly different version of spacing for line/curve strokes, makes sure the dabs stay on the line path */
+static void paint_line_strokes_spacing(bContext *C, wmOperator *op, PaintStroke *stroke, float spacing, float *length_residue, float old_pos[2], float new_pos[2])
+{
+	UnifiedPaintSettings *ups = stroke->ups;
+
+	float mouse[2], dmouse[2];
+	float length;
+
+	sub_v2_v2v2(dmouse, new_pos, old_pos);
+	copy_v2_v2(stroke->last_mouse_position, old_pos);
+
+	length = normalize_v2(dmouse);
+
+	BLI_assert(length >= 0.0);
+
+	if (length == 0.0)
+		return;
+
+	while (length > 0.0f) {
+		float spacing_final = spacing - *length_residue;
+		length += *length_residue;
+		*length_residue = 0.0;
+
+		if (length >= spacing) {
+			mouse[0] = stroke->last_mouse_position[0] + dmouse[0] * spacing_final;
+			mouse[1] = stroke->last_mouse_position[1] + dmouse[1] * spacing_final;
+
+			ups->overlap_factor = paint_stroke_integrate_overlap(stroke->brush, spacing/stroke->zoom_2d);
+
+			stroke->stroke_distance += spacing / stroke->zoom_2d;
+			paint_brush_stroke_add_step(C, op, mouse, 1.0);
+
+			length -= spacing;
+			spacing_final = spacing;
+		}
+		else {
+			break;
+		}
+	}
+
+	*length_residue = length;
+}
+
+
 static void paint_stroke_polyline_end(bContext *C, wmOperator *op, PaintStroke *stroke)
 {
 	Brush *br = stroke->brush;
@@ -818,42 +1009,44 @@ static void paint_stroke_polyline_end(bContext *C, wmOperator *op, PaintStroke *
 			paint_brush_stroke_add_step(C, op, p->pos, 1.0);
 
 		for (p = p->next; p; p = p->next) {
-			UnifiedPaintSettings *ups = stroke->ups;
-
-			float mouse[2], dmouse[2];
-			float length;
-
-			sub_v2_v2v2(dmouse, p->pos, p->prev->pos);
-			copy_v2_v2(stroke->last_mouse_position, p->prev->pos);
-
-			length = normalize_v2(dmouse) + length_residue;
-
-			while (length > 0.0f) {
-				float spacing_final = spacing - length_residue;
-				length_residue = 0.0;
-
-				if (length >= spacing) {
-					mouse[0] = stroke->last_mouse_position[0] + dmouse[0] * spacing_final;
-					mouse[1] = stroke->last_mouse_position[1] + dmouse[1] * spacing_final;
-
-					ups->overlap_factor = paint_stroke_integrate_overlap(stroke->brush, spacing/stroke->zoom_2d);
-
-					stroke->stroke_distance += spacing / stroke->zoom_2d;
-					paint_brush_stroke_add_step(C, op, mouse, 1.0);
-
-					length -= spacing;
-					spacing_final = spacing;
-				}
-				else {
-					break;
-				}
-			}
-
-			/* length residue helps to correctly */
-			length_residue = length;
+			paint_line_strokes_spacing(C, op, stroke, spacing, &length_residue, p->prev->pos, p->pos);
 		}
 	}
 }
+
+static void paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *stroke)
+{
+	Brush *br = stroke->brush;
+	if (stroke->stroke_started && (br->flag & BRUSH_CURVE)) {
+		const Scene *scene = CTX_data_scene(C);
+		const float spacing = paint_space_stroke_spacing(scene, stroke, 1.0f, 1.0f);
+		CurvePoint *cp = stroke->line.first;
+		float length_residue = 0.0f;
+
+		stroke->ups->overlap_factor = paint_stroke_integrate_overlap(br, br->spacing);
+
+		if (cp->next)
+			paint_brush_stroke_add_step(C, op, &cp->bez.vec[1][0], 1.0);
+
+		while (cp->next) {
+			int j;
+			float data[(NUM_SEGMENTS + 1) * 2];
+			for (j = 0; j < 2; j++)
+				BKE_curve_forward_diff_bezier(cp->bez.vec[1][j],
+							                  cp->bez.vec[2][j],
+							                  cp->next->bez.vec[0][j],
+							                  cp->next->bez.vec[1][j],
+							                  data + j, NUM_SEGMENTS, 2 * sizeof(float));
+
+
+			for (j = 0; j < NUM_SEGMENTS; j++)
+				paint_line_strokes_spacing(C, op, stroke, spacing, &length_residue, data + 2 * j, data + 2 * (j + 1));
+
+			cp = cp->next;
+		}
+	}
+}
+
 
 int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -912,6 +1105,20 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 				p = MEM_callocN(sizeof(*p), "line_stroke_point");
 				BLI_addtail(&stroke->line, p);
 				copy_v2_v2(p->pos, sample_average.mouse);
+			} else if (br->flag & BRUSH_CURVE) {
+				CurvePoint *cp = MEM_callocN(sizeof(*cp), "curve_stroke_point");
+				stroke->stroke_cursor =
+					WM_paint_cursor_activate(CTX_wm_manager(C), paint_poll, paint_draw_curve_cursor, stroke);
+
+				copy_v2_v2(&cp->bez.vec[0][0], sample_average.mouse);
+				copy_v2_v2(&cp->bez.vec[1][0], sample_average.mouse);
+				copy_v2_v2(&cp->bez.vec[2][0], sample_average.mouse);
+				BLI_addtail(&stroke->line, cp);
+
+				/* enter handle editing mode */
+				stroke->curve_edited = CURVE_HANDLE_NEXT_CONSTRAINED;
+				stroke->edited = cp;
+				stroke->curve_orig = cp->bez;
 			}
 			first_dab = true;
 		}
@@ -935,6 +1142,63 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 				/* for rake to work well */
 				copy_v2_v2(stroke->last_mouse_position, sample_average.mouse);
 			}
+		} else if (br->flag & BRUSH_CURVE) {
+			if (event->val == KM_RELEASE) {
+				stroke->curve_edited = 0;
+				stroke->edited = NULL;
+			}
+			else if(event->val == KM_PRESS) {
+				/* do collision detection for all current points */
+				CurvePoint *cp = stroke->line.first;
+				stroke->curve_edited = 0;
+
+				while (cp) {
+					/* shift means constrained editing so exclude center handles from collision detection */
+					if (!event->shift) {
+						if ((fabs(sample_average.mouse[0] - cp->bez.vec[1][0]) < MOUSE_THRESHOLD) &&
+						    (fabs(sample_average.mouse[1] - cp->bez.vec[1][1]) < MOUSE_THRESHOLD))
+						{
+							stroke->curve_edited = CURVE_HANDLE_CENTER;
+							break;
+						}
+					}
+
+					if ((fabs(sample_average.mouse[0] - cp->bez.vec[0][0]) < MOUSE_THRESHOLD) &&
+					    (fabs(sample_average.mouse[1] - cp->bez.vec[0][1]) < MOUSE_THRESHOLD))
+					{
+						stroke->curve_edited = (event->shift) ? CURVE_HANDLE_PREV_CONSTRAINED : CURVE_HANDLE_PREV;
+						break;
+					}
+
+					if ((fabs(sample_average.mouse[0] - cp->bez.vec[2][0]) < MOUSE_THRESHOLD) &&
+					    (fabs(sample_average.mouse[1] - cp->bez.vec[2][1]) < MOUSE_THRESHOLD))
+					{
+						stroke->curve_edited = (event->shift) ? CURVE_HANDLE_NEXT_CONSTRAINED : CURVE_HANDLE_NEXT;
+						break;
+					}
+					cp = cp->next;
+				}
+
+				/* No collision, create new point */
+				if (stroke->curve_edited) {
+					stroke->edited = cp;
+					stroke->curve_orig = cp->bez;
+				}
+				/* stroke needs to have begun to add new point */
+				else if (stroke->stroke_started && event->ctrl){
+					CurvePoint *cp = MEM_callocN(sizeof(*cp), "curve_stroke_point");
+
+					copy_v2_v2(&cp->bez.vec[0][0], sample_average.mouse);
+					copy_v2_v2(&cp->bez.vec[1][0], sample_average.mouse);
+					copy_v2_v2(&cp->bez.vec[2][0], sample_average.mouse);
+					BLI_addtail(&stroke->line, cp);
+
+					/* enter handle editing mode */
+					stroke->curve_edited = CURVE_HANDLE_NEXT_CONSTRAINED;
+					stroke->edited = cp;
+					stroke->curve_orig = cp->bez;
+				}
+			}
 		}
 		else if (event->val == KM_RELEASE) {
 			paint_stroke_polyline_end (C, op, stroke);
@@ -943,9 +1207,54 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		}
 	}
 	else if (ELEM(event->type, RETKEY, SPACEKEY)) {
-		paint_stroke_polyline_end (C, op, stroke);
+		paint_stroke_polyline_end(C, op, stroke);
+		paint_stroke_curve_end(C, op, stroke);
 		stroke_done(C, op);
 		return OPERATOR_FINISHED;
+	}
+	else if (br->flag & BRUSH_CURVE) {
+		if(ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)) {
+			switch (stroke->curve_edited) {
+				case CURVE_HANDLE_CENTER:
+				{
+					float diff[2];
+					sub_v2_v2v2(diff, sample_average.mouse, &stroke->curve_orig.vec[1][0]);
+					copy_v2_v2(&stroke->edited->bez.vec[1][0], sample_average.mouse);
+					add_v2_v2v2(&stroke->edited->bez.vec[0][0], &stroke->curve_orig.vec[0][0], diff);
+					add_v2_v2v2(&stroke->edited->bez.vec[2][0], &stroke->curve_orig.vec[2][0], diff);
+					break;
+				}
+
+				case CURVE_HANDLE_PREV:
+					copy_v2_v2(&stroke->edited->bez.vec[0][0], sample_average.mouse);
+					break;
+
+				case CURVE_HANDLE_NEXT:
+					copy_v2_v2(&stroke->edited->bez.vec[2][0], sample_average.mouse);
+					break;
+
+				case CURVE_HANDLE_PREV_CONSTRAINED:
+				{
+					float diff[2];
+					copy_v2_v2(&stroke->edited->bez.vec[0][0], sample_average.mouse);
+					sub_v2_v2v2(diff, &stroke->edited->bez.vec[1][0], &stroke->edited->bez.vec[0][0]);
+					add_v2_v2v2(&stroke->edited->bez.vec[2][0], &stroke->edited->bez.vec[1][0], diff);
+					break;
+				}
+
+				case CURVE_HANDLE_NEXT_CONSTRAINED:
+				{
+					float diff[2];
+					copy_v2_v2(&stroke->edited->bez.vec[2][0], sample_average.mouse);
+					sub_v2_v2v2(diff, &stroke->edited->bez.vec[1][0], &stroke->edited->bez.vec[2][0]);
+					add_v2_v2v2(&stroke->edited->bez.vec[0][0], &stroke->edited->bez.vec[1][0], diff);
+					break;
+				}
+
+				default:
+					break;
+			}
+		}
 	}
 	else if ((br->flag & (BRUSH_LINE | BRUSH_POLYLINE)) && stroke->stroke_started &&
 			 (first_modal || (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE))))
