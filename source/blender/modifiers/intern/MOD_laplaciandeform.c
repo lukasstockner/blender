@@ -53,8 +53,8 @@
 
 #include "ONL_opennl.h"
 
-struct BStaticAnchors {
-	int numStatics;				/* Number of static anchors*/
+struct BAnchors {
+	int numAnchors;				/* Number of static anchors*/
 	int numVerts;				/* Number of verts*/
 	int * list_index;			/* Static vertex index list*/
 	float (*co)[3];				/* Original vertex coordinates*/
@@ -62,52 +62,40 @@ struct BStaticAnchors {
 	BMVert ** list_verts;		/* Vertex order by index*/
 	BMesh *bm;
 };
-typedef struct BStaticAnchors StaticAnchors;
-
-struct BHandlerAnchors {
-	int numHandlers;			/* Number of handler anchors*/
-	int * list_handlers;		/* Static vertex index list*/
-};
-typedef struct BHandlerAnchors HandlerAnchors;
+typedef struct BAnchors Anchors;
 
 struct BLaplacianSystem {
 	float (*delta)[3];			/* Differential Coordinates*/
 	int *list_uverts;			/* Unit vectors of projected edges onto the plane orthogonal to  n*/
 	/* Pointers to data*/
 	int numVerts;
-	int numHandlers;
-	int numStatics;
+	int numAnchors;
 	NLContext *context;			/* System for solve general implicit rotations*/
 };
 typedef struct BLaplacianSystem LaplacianSystem;
 
 enum {
 	LAP_STATE_INIT = 1,
-	LAP_STATE_HAS_STATIC,
-	LAP_STATE_HAS_HANDLER,
-	LAP_STATE_HAS_STATIC_AND_HANDLER,
+	LAP_STATE_HAS_ANCHORS,
 	LAP_STATE_HAS_L_COMPUTE,
 	LAP_STATE_UPDATE_REQUIRED
 };
 
 struct BSystemCustomData {
 	LaplacianSystem * sys;
-	StaticAnchors  * sa;
-	HandlerAnchors * shs;
+	Anchors  * achs;
 	int stateSystem;
 	bool update_required;
 };
 
 typedef struct BSystemCustomData SystemCustomData;
 
-static StaticAnchors * init_static_anchors(int numv, int nums);
-static HandlerAnchors * init_handler_anchors(int numh);
-static LaplacianSystem * init_laplacian_system(int numv, int nums, int numh);
+static Anchors * init_anchors(int numv, int numa);
+static LaplacianSystem * init_laplacian_system(int numv, int numa);
 static float cotan_weight(float *v1, float *v2, float *v3);
 static void compute_implict_rotations(SystemCustomData * data);
 static void delete_void_pointer(void *data);
-static void delete_static_anchors(StaticAnchors * sa);
-static void delete_handler_anchors(HandlerAnchors * sh);
+static void delete_anchors(Anchors * sa);
 static void delete_laplacian_system(LaplacianSystem *sys);
 static void init_laplacian_matrix( SystemCustomData * data);
 static void rotate_differential_coordinates(SystemCustomData * data);
@@ -122,13 +110,13 @@ static void delete_void_pointer(void *data)
 	}
 }
 
-static StaticAnchors * init_static_anchors(int numv, int nums)
+static Anchors * init_anchors(int numv, int numa)
 {
-	StaticAnchors * sa;
-	sa = (StaticAnchors *)MEM_callocN(sizeof(StaticAnchors), "LapStaticAnchors");
+	Anchors * sa;
+	sa = (Anchors *)MEM_callocN(sizeof(Anchors), "LapAnchors");
 	sa->numVerts = numv;
-	sa->numStatics = nums;
-	sa->list_index = (int *)MEM_callocN(sizeof(int)*(sa->numStatics), "LapListStatics");
+	sa->numAnchors = numa;
+	sa->list_index = (int *)MEM_callocN(sizeof(int)*(sa->numAnchors), "LapListAnchors");
 	sa->list_verts = (BMVert**)MEM_callocN(sizeof(BMVert*)*(sa->numVerts), "LapListverts");
 	sa->co = (float (*)[3])MEM_callocN(sizeof(float)*(sa->numVerts*3), "LapCoordinates");
 	sa->no = (float (*)[3])MEM_callocN(sizeof(float)*(sa->numVerts*3), "LapNormals");
@@ -136,16 +124,7 @@ static StaticAnchors * init_static_anchors(int numv, int nums)
 	return sa;
 }
 
-static HandlerAnchors * init_handler_anchors(int numh)
-{
-	HandlerAnchors * sh;
-	sh = (HandlerAnchors *)MEM_callocN(sizeof(HandlerAnchors), "LapHandlerAnchors");
-	sh->numHandlers = numh;
-	sh->list_handlers = (int *)MEM_callocN(sizeof(int)*(sh->numHandlers), "LapListHandlers");
-	return sh;
-}
-
-static LaplacianSystem * init_laplacian_system(int numv, int nums, int numh)
+static LaplacianSystem * init_laplacian_system(int numv, int numa)
 {
 	LaplacianSystem *sys;
 	int rows, cols;
@@ -154,9 +133,8 @@ static LaplacianSystem * init_laplacian_system(int numv, int nums, int numh)
 		return NULL;
 	}
 	sys->numVerts = numv;
-	sys->numStatics = nums;
-	sys->numHandlers = numh;
-	rows = (sys->numVerts + sys->numStatics + sys->numHandlers) * 3;
+	sys->numAnchors = numa;
+	rows = (sys->numVerts + sys->numAnchors) * 3;
 	cols = sys->numVerts * 3;
 	sys->list_uverts = (int *)MEM_callocN(sizeof(BMVert *) * sys->numVerts, "LapUverts");
 	sys->delta = (float (*)[3])MEM_callocN(sizeof(float) * sys->numVerts * 3, "LapDelta");
@@ -164,7 +142,7 @@ static LaplacianSystem * init_laplacian_system(int numv, int nums, int numh)
 	return sys;
 }
 
-static void delete_static_anchors(StaticAnchors * sa)
+static void delete_anchors(Anchors * sa)
 {
 	if (!sa) return;
 	delete_void_pointer(sa->co);
@@ -174,14 +152,6 @@ static void delete_static_anchors(StaticAnchors * sa)
 	if (sa->bm) BM_mesh_free(sa->bm);
 	delete_void_pointer(sa);
 	sa = NULL;
-}
-
-static void delete_handler_anchors(HandlerAnchors * sh)
-{
-	if (!sh) return;
-	delete_void_pointer(sh->list_handlers);
-	delete_void_pointer(sh);
-	sh = NULL;
 }
 
 static void delete_laplacian_system(LaplacianSystem *sys)
@@ -199,28 +169,18 @@ static void update_system_state(SystemCustomData * data, int state)
 	if (!data) return;
 	switch(data->stateSystem) {
 		case LAP_STATE_INIT:
-			if (state == LAP_STATE_HAS_STATIC || state == LAP_STATE_HAS_HANDLER) {
+			if (state == LAP_STATE_HAS_ANCHORS) {
 				data->stateSystem = state;
 			}
 			break;
-		case LAP_STATE_HAS_STATIC:
-			if (state == LAP_STATE_HAS_HANDLER) {
-				data->stateSystem = LAP_STATE_HAS_STATIC_AND_HANDLER;
-			}
-			break;
-		case LAP_STATE_HAS_HANDLER:
-			if (state == LAP_STATE_HAS_STATIC)  {
-				data->stateSystem = LAP_STATE_HAS_STATIC_AND_HANDLER;
-			}
-			break;
-		case LAP_STATE_HAS_STATIC_AND_HANDLER:
+		case LAP_STATE_HAS_ANCHORS:
 			if (state == LAP_STATE_HAS_L_COMPUTE) {
 				data->stateSystem = LAP_STATE_HAS_L_COMPUTE;
 			} 
 			break;
 		case LAP_STATE_HAS_L_COMPUTE:
-			if (state == LAP_STATE_HAS_STATIC || state == LAP_STATE_HAS_HANDLER) {
-				data->stateSystem = LAP_STATE_HAS_STATIC_AND_HANDLER;
+			if (state == LAP_STATE_HAS_ANCHORS) {
+				data->stateSystem = LAP_STATE_HAS_ANCHORS;
 			}
 			break;
 	}
@@ -235,9 +195,7 @@ static void initData(ModifierData *md)
 	if (!sys) {
 		return;
 	}
-	sys->sa = NULL;
-	sys->shs = NULL;
-	sys->sys = NULL;
+	sys->achs = NULL;
 	sys->stateSystem = LAP_STATE_INIT;
 }
  
@@ -271,15 +229,11 @@ static void LaplacianDeformModifier_do(
 	int i;
 	float wpaint;
 	SystemCustomData * data = (SystemCustomData *)smd->custom_data;
-	MDeformVert *dvert_h = NULL;
-	MDeformVert *dvert_s = NULL;
-	MDeformVert *dv_h = NULL;
-	MDeformVert *dv_s = NULL;
-	int defgrp_index_s;
-	int defgrp_index_h;
-	int * index_h = NULL;
-	int * index_s = NULL;
-	int nums, numh;
+	MDeformVert *dvert = NULL;
+	MDeformVert *dv = NULL;
+	int defgrp_index;
+	int * index = NULL;
+	int numa;
 	BMesh * bm;
 
 	int vid;
@@ -287,88 +241,61 @@ static void LaplacianDeformModifier_do(
 	BMVert *v;
 
 
-	BLI_array_declare(index_h);
-	BLI_array_declare(index_s);
+	BLI_array_declare(index);
 
 	if (!data) return;
 
 	if (data->stateSystem == LAP_STATE_INIT) {
-		modifier_get_vgroup(ob, dm, smd->defgrp_name_s, &dvert_s, &defgrp_index_s);
-		modifier_get_vgroup(ob, dm, smd->defgrp_name_h, &dvert_h, &defgrp_index_h);
-		if (!dvert_s) return;
-		if (!dvert_h) return;
-		dv_h = dvert_h;
-		dv_s = dvert_s;
+		modifier_get_vgroup(ob, dm, smd->defgrp_name, &dvert, &defgrp_index);
+		if (!dvert) return;
+		dv = dvert;
 		bm = DM_to_bmesh(dm, false);
 		for (i=0; i<numVerts; i++) {
-			if (dv_s) {
-				wpaint = defvert_find_weight(dv_s, defgrp_index_s);
-				dv_s++;
+			if (dv) {
+				wpaint = defvert_find_weight(dv, defgrp_index);
+				dv++;
 				if (wpaint > 0.0f) {
-					BLI_array_append(index_s, i);
-				}
-			}
-			if (dv_h) {
-				wpaint = defvert_find_weight(dv_h, defgrp_index_h);
-				dv_h++;
-				if (wpaint > 0.0f) {
-					BLI_array_append(index_h, i);
+					BLI_array_append(index, i);
 				}
 			}
 		}
-		nums = BLI_array_count(index_s);
-		numh = BLI_array_count(index_h);
+		numa = BLI_array_count(index);
 
-		////////// init static
-		if (data->sa) {
-			if (data->sa->numVerts != numVerts) {
-				delete_static_anchors(data->sa);
-				data->sa = init_static_anchors(numVerts, nums);
+		if (data->achs) {
+			if (data->achs->numVerts != numVerts) {
+				delete_anchors(data->achs);
+				data->achs = init_anchors(numVerts, numa);
 			}
 			else {
-				delete_void_pointer( data->sa->list_index);
-				data->sa->numStatics = nums;
-				data->sa->list_index = (int *)MEM_callocN(sizeof(int)*(data->sa->numStatics), "LapListStatics");
+				delete_void_pointer( data->achs->list_index);
+				data->achs->numAnchors = numa;
+				data->achs->list_index = (int *)MEM_callocN(sizeof(int)*(data->achs->numAnchors), "LapListAnchors");
 			}
 		} 
 		else {
-			data->sa = init_static_anchors(numVerts, nums);
+			data->achs = init_anchors(numVerts, numa);
 		}
 
-		for (i=0; i<nums; i++) {
-			data->sa->list_index[i] = index_s[i];
+		for (i=0; i<numa; i++) {
+			data->achs->list_index[i] = index[i];
 		}
 		
 		for (i=0; i<numVerts; i++) {
-			copy_v3_v3(data->sa->co[i], vertexCos[i]);
+			copy_v3_v3(data->achs->co[i], vertexCos[i]);
 		}
 
 		BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
 			vid = BM_elem_index_get(v);
-			data->sa->list_verts[vid] = v;
+			data->achs->list_verts[vid] = v;
 		}
 
-		data->sa->bm = bm;
+		data->achs->bm = bm;
+		BLI_array_free(index);
 
-		////////// init handler
-
-		if (data->shs) {
-			delete_handler_anchors(data->shs);
-		}
-		data->shs = init_handler_anchors(numh);
-
-		for (i=0; i<numh; i++) {
-			data->shs->list_handlers[i] = index_h[i];
-		}
-
-		BLI_array_free(index_h);
-		BLI_array_free(index_s);
-
-		update_system_state(data, LAP_STATE_HAS_STATIC);
-		update_system_state(data, LAP_STATE_HAS_HANDLER);
+		update_system_state(data, LAP_STATE_HAS_ANCHORS);
 	}
 
-	if (data->stateSystem >= LAP_STATE_HAS_STATIC_AND_HANDLER) {
+	if (data->stateSystem >= LAP_STATE_HAS_ANCHORS) {
 		laplacian_deform_preview(data, dm, vertexCos);
 	}
 
@@ -427,7 +354,7 @@ static void init_laplacian_matrix( SystemCustomData * data)
 	BMIter vi;
 	BMVert *vn;
 	LaplacianSystem * sys = data->sys;
-	StaticAnchors * sa = data->sa;
+	Anchors * sa = data->achs;
 
 	BM_ITER_MESH (f, &fiter, sa->bm, BM_FACES_OF_MESH) {
 	
@@ -521,7 +448,7 @@ static void compute_implict_rotations(SystemCustomData * data)
 	float minj, mjt, qj[3], vj[3];
 	int i, j, ln;
 	LaplacianSystem * sys = data->sys;
-	StaticAnchors * sa = data->sa;
+	Anchors * sa = data->achs;
 	BLI_array_declare(vidn);
 
 	BM_ITER_MESH (v, &viter, sa->bm, BM_VERTS_OF_MESH) {
@@ -569,7 +496,7 @@ static void rotate_differential_coordinates(SystemCustomData * data)
 		uij[3], dun[3], e2[3], pi[3], fni[3], vn[4][3];
 	int i, j, vin[4], lvin, num_fni, k;
 	LaplacianSystem * sys = data->sys;
-	StaticAnchors * sa = data->sa;
+	Anchors * sa = data->achs;
 
 
 	BM_ITER_MESH (v, &viter, sa->bm, BM_VERTS_OF_MESH) {
@@ -647,37 +574,34 @@ static void rotate_differential_coordinates(SystemCustomData * data)
 static void laplacian_deform_preview(SystemCustomData * data, DerivedMesh *dm, float (*vertexCos)[3])
 {
 	LaplacianSystem * sys;
-	StaticAnchors * sa;
-	HandlerAnchors * shs;
+	Anchors * sa;
 	struct BMesh *bm;
-	int vid, i, n, ns, nh;
+	int vid, i, n, na;
 	BMIter viter;
 	BMVert *v;
 
-	if (data->stateSystem < LAP_STATE_HAS_STATIC_AND_HANDLER) return;
+	if (data->stateSystem < LAP_STATE_HAS_ANCHORS) return;
 
 
-	if (data->stateSystem == LAP_STATE_HAS_STATIC_AND_HANDLER ) {
+	if (data->stateSystem == LAP_STATE_HAS_ANCHORS ) {
 		if (data->sys) {
 			delete_laplacian_system(data->sys);
 		}
 
-		data->sys = init_laplacian_system(data->sa->numVerts, data->sa->numStatics, data->shs->numHandlers);
+		data->sys = init_laplacian_system(data->achs->numVerts, data->achs->numAnchors);
 		sys = data->sys;
-		sa = data->sa;
-		shs = data->shs;
+		sa = data->achs;
 		//sys->bm = DM_to_bmesh(dm, false);
 		bm = sa->bm;
 		n = sys->numVerts;
-		ns = sa->numStatics;
-		nh = shs->numHandlers;
+		na = sa->numAnchors;
 		nlNewContext();
 		sys->context = nlGetCurrent();
 
 		nlSolverParameteri(NL_NB_VARIABLES, n);
 		nlSolverParameteri(NL_SYMMETRIC, NL_FALSE);
 		nlSolverParameteri(NL_LEAST_SQUARES, NL_TRUE);
-		nlSolverParameteri(NL_NB_ROWS, n + nh + ns);
+		nlSolverParameteri(NL_NB_ROWS, n + na);
 		nlSolverParameteri(NL_NB_RIGHT_HAND_SIDES, 3);
 
 		nlBegin(NL_SYSTEM);
@@ -686,15 +610,13 @@ static void laplacian_deform_preview(SystemCustomData * data, DerivedMesh *dm, f
 			nlSetVariable(1, i, sa->co[i][1]);
 			nlSetVariable(2, i, sa->co[i][2]);
 		}
-		for (i=0; i<nh; i++) {
-			vid = shs->list_handlers[i];
+		for (i=0; i<na; i++) {
+			vid = sa->list_index[i];
 			nlSetVariable(0, vid, sa->list_verts[vid]->co[0]);
 			nlSetVariable(1, vid, sa->list_verts[vid]->co[1]);
 			nlSetVariable(2, vid, sa->list_verts[vid]->co[2]);
 		}
-		for (i=0; i<ns; i++) {
-			nlLockVariable(sa->list_index[i]);
-		}
+
 		nlBegin(NL_MATRIX);
 
 		init_laplacian_matrix(data);
@@ -706,7 +628,7 @@ static void laplacian_deform_preview(SystemCustomData * data, DerivedMesh *dm, f
 			nlRightHandSideSet(2, i, sys->delta[i][2]);
 		}
 
-		for (i=0; i<ns; i++) {
+		for (i=0; i<na; i++) {
 			vid = sa->list_index[i];
 			nlRightHandSideSet(0, n + i , sa->co[vid][0]);
 			nlRightHandSideSet(1, n + i , sa->co[vid][1]);
@@ -714,14 +636,6 @@ static void laplacian_deform_preview(SystemCustomData * data, DerivedMesh *dm, f
 			nlMatrixAdd(n + i, vid, 1.0f);
 		}
 
-		for (i=0; i<nh; i++)
-		{
-			vid = shs->list_handlers[i];
-			nlRightHandSideSet(0, n + ns + i 	, vertexCos[vid][0]);
-			nlRightHandSideSet(1, n + ns + i	, vertexCos[vid][1]);
-			nlRightHandSideSet(2, n + ns + i	, vertexCos[vid][2]);
-			nlMatrixAdd(n + ns + i 		, vid					, 1.0f);
-		}
 		nlEnd(NL_MATRIX);
 		nlEnd(NL_SYSTEM);
 
@@ -731,20 +645,13 @@ static void laplacian_deform_preview(SystemCustomData * data, DerivedMesh *dm, f
 			nlBegin(NL_MATRIX);
 			rotate_differential_coordinates(data);
 
-			for (i=0; i<ns; i++) {
+			for (i=0; i<na; i++) {
 				vid = sa->list_index[i];
 				nlRightHandSideSet(0, n + i , sa->co[vid][0]);
 				nlRightHandSideSet(1, n + i , sa->co[vid][1]);
 				nlRightHandSideSet(2, n + i , sa->co[vid][2]);
 			}
 
-			for (i=0; i<nh; i++)
-			{
-				vid = shs->list_handlers[i];
-				nlRightHandSideSet(0, n + ns + i 	, vertexCos[vid][0]);
-				nlRightHandSideSet(1, n + ns + i	, vertexCos[vid][1]);
-				nlRightHandSideSet(2, n + ns + i	, vertexCos[vid][2]);
-			}
 			nlEnd(NL_MATRIX);
 			nlEnd(NL_SYSTEM);
 			if (nlSolveAdvanced(NULL, NL_FALSE) ) {
@@ -762,12 +669,10 @@ static void laplacian_deform_preview(SystemCustomData * data, DerivedMesh *dm, f
 		update_system_state(data, LAP_STATE_HAS_L_COMPUTE);
 	} else if (data->stateSystem == LAP_STATE_HAS_L_COMPUTE ) {
 		sys = data->sys;
-		sa = data->sa;
-		shs = data->shs;
+		sa = data->achs;
 		//sys->bm = bm;
 		n = sys->numVerts;
-		ns = sa->numStatics;
-		nh = shs->numHandlers;
+		na = sa->numAnchors;
 
 		nlBegin(NL_SYSTEM);
 		nlBegin(NL_MATRIX);
@@ -777,7 +682,7 @@ static void laplacian_deform_preview(SystemCustomData * data, DerivedMesh *dm, f
 			nlRightHandSideSet(1, i  , sys->delta[i][1]);
 			nlRightHandSideSet(2, i  , sys->delta[i][2]);
 		}
-		for (i=0; i<ns; i++) {
+		for (i=0; i<na; i++) {
 			vid = sa->list_index[i];
 			nlRightHandSideSet(0, n + i , sa->co[vid][0]);
 			nlRightHandSideSet(1, n + i , sa->co[vid][1]);
@@ -785,14 +690,6 @@ static void laplacian_deform_preview(SystemCustomData * data, DerivedMesh *dm, f
 			nlMatrixAdd(n + i, vid, 1.0f);
 		}
 
-		for (i=0; i<nh; i++)
-		{
-			vid = shs->list_handlers[i];
-			nlRightHandSideSet(0, n + ns + i 	, vertexCos[vid][0]);
-			nlRightHandSideSet(1, n + ns + i	, vertexCos[vid][1]);
-			nlRightHandSideSet(2, n + ns + i	, vertexCos[vid][2]);
-			nlMatrixAdd(n + ns + i 		, vid					, 1.0f);
-		}
 		nlEnd(NL_MATRIX);
 		nlEnd(NL_SYSTEM);
 
@@ -802,19 +699,12 @@ static void laplacian_deform_preview(SystemCustomData * data, DerivedMesh *dm, f
 			nlBegin(NL_MATRIX);
 			rotate_differential_coordinates(data);
 
-			for (i=0; i<ns; i++) {
-				vid = sa->list_index[i];
-				nlRightHandSideSet(0, n + i , sa->co[vid][0]);
-				nlRightHandSideSet(1, n + i , sa->co[vid][1]);
-				nlRightHandSideSet(2, n + i , sa->co[vid][2]);
-			}
-
-			for (i=0; i<nh; i++)
+			for (i=0; i<na; i++)
 			{
-				vid = shs->list_handlers[i];
-				nlRightHandSideSet(0, n + ns + i 	, vertexCos[vid][0]);
-				nlRightHandSideSet(1, n + ns + i	, vertexCos[vid][1]);
-				nlRightHandSideSet(2, n + ns + i	, vertexCos[vid][2]);
+				vid = sa->list_index[i];
+				nlRightHandSideSet(0, n + i	, vertexCos[vid][0]);
+				nlRightHandSideSet(1, n + i	, vertexCos[vid][1]);
+				nlRightHandSideSet(2, n + i	, vertexCos[vid][2]);
 			}
 			nlEnd(NL_MATRIX);
 			nlEnd(NL_SYSTEM);
@@ -842,8 +732,7 @@ static void freeData(ModifierData *md)
 
 	if (data) {
 		delete_laplacian_system(data->sys);
-		delete_static_anchors(data->sa);
-		delete_handler_anchors(data->shs);
+		delete_anchors(data->achs);
 		delete_void_pointer(data);
 	}
 }
