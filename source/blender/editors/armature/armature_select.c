@@ -244,7 +244,7 @@ void ARMATURE_OT_select_linked(wmOperatorType *ot)
 	ot->description = "Select bones related to selected ones by parent/child relationships";
 	
 	/* api callbacks */
-	ot->exec = NULL;
+	/* leave 'exec' unset */
 	ot->invoke = armature_select_linked_invoke;
 	ot->poll = armature_select_linked_poll;
 	
@@ -714,10 +714,10 @@ static void armature_select_less(bArmature *UNUSED(arm), EditBone *ebone)
 	}
 }
 
-static void armature_select_more_less(Object* ob, bool more)
+static void armature_select_more_less(Object *ob, bool more)
 {
-	bArmature* arm = (bArmature *)ob->data;
-	EditBone* ebone;
+	bArmature *arm = (bArmature *)ob->data;
+	EditBone *ebone;
 
 	/* XXX, eventually we shouldn't need this - campbell */
 	ED_armature_sync_selection(arm->edbo);

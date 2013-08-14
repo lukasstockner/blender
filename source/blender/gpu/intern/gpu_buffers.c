@@ -172,6 +172,15 @@ static void gpu_buffer_pool_free(GPUBufferPool *pool)
 	MEM_freeN(pool);
 }
 
+static void gpu_buffer_pool_free_unused(GPUBufferPool *pool)
+{
+	if (!pool)
+		return;
+	
+	while (pool->totbuf)
+		gpu_buffer_pool_delete_last(pool);
+}
+
 static GPUBufferPool *gpu_buffer_pool = NULL;
 static GPUBufferPool *gpu_get_global_buffer_pool(void)
 {
@@ -186,6 +195,11 @@ void GPU_global_buffer_pool_free(void)
 {
 	gpu_buffer_pool_free(gpu_buffer_pool);
 	gpu_buffer_pool = NULL;
+}
+
+void GPU_global_buffer_pool_free_unused(void)
+{
+	gpu_buffer_pool_free_unused(gpu_buffer_pool);
 }
 
 /* get a GPUBuffer of at least `size' bytes; uses one from the buffer
@@ -1266,7 +1280,7 @@ struct GPU_Buffers {
 	CCGKey gridkey;
 	CCGElem **grids;
 	const DMFlagMat *grid_flag_mats;
-	const BLI_bitmap *grid_hidden;
+	BLI_bitmap * const *grid_hidden;
 	int *grid_indices;
 	int totgrid;
 	int has_hidden;
@@ -1686,7 +1700,7 @@ void GPU_update_grid_buffers(GPU_Buffers *buffers, CCGElem **grids,
 }
 
 /* Returns the number of visible quads in the nodes' grids. */
-static int gpu_count_grid_quads(BLI_bitmap *grid_hidden,
+static int gpu_count_grid_quads(BLI_bitmap **grid_hidden,
                                 int *grid_indices, int totgrid,
                                 int gridsize)
 {
@@ -1697,7 +1711,7 @@ static int gpu_count_grid_quads(BLI_bitmap *grid_hidden,
 	 * visibility */
 
 	for (i = 0, totquad = 0; i < totgrid; i++) {
-		const BLI_bitmap gh = grid_hidden[grid_indices[i]];
+		const BLI_bitmap *gh = grid_hidden[grid_indices[i]];
 
 		if (gh) {
 			/* grid hidden are present, have to check each element */
@@ -1732,7 +1746,7 @@ static int gpu_count_grid_quads(BLI_bitmap *grid_hidden,
 		                           GL_WRITE_ONLY_ARB);                  \
 		if (quad_data) {                                                \
 			for (i = 0; i < totgrid; ++i) {                             \
-				BLI_bitmap gh = NULL;                                   \
+				BLI_bitmap *gh = NULL;                                  \
 				if (grid_hidden)                                        \
 					gh = grid_hidden[(grid_indices)[i]];                \
 																		\
@@ -1770,7 +1784,7 @@ static GLuint gpu_get_grid_buffer(int gridsize, GLenum *index_type, unsigned *to
 	static unsigned prev_totquad;
 
 	/* used in the FILL_QUAD_BUFFER macro */
-	const BLI_bitmap *grid_hidden = NULL;
+	BLI_bitmap * const *grid_hidden = NULL;
 	int *grid_indices = NULL;
 	int totgrid = 1;
 
@@ -1815,7 +1829,7 @@ static GLuint gpu_get_grid_buffer(int gridsize, GLenum *index_type, unsigned *to
 }
 
 GPU_Buffers *GPU_build_grid_buffers(int *grid_indices, int totgrid,
-                                    BLI_bitmap *grid_hidden, int gridsize)
+                                    BLI_bitmap **grid_hidden, int gridsize)
 {
 	GPU_Buffers *buffers;
 	int totquad;
@@ -2200,7 +2214,7 @@ static void gpu_draw_buffers_legacy_grids(GPU_Buffers *buffers)
 	for (i = 0; i < buffers->totgrid; ++i) {
 		int g = buffers->grid_indices[i];
 		CCGElem *grid = buffers->grids[g];
-		BLI_bitmap gh = buffers->grid_hidden[g];
+		BLI_bitmap *gh = buffers->grid_hidden[g];
 
 		/* TODO: could use strips with hiding as well */
 

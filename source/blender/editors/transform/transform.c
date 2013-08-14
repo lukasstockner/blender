@@ -61,7 +61,6 @@
 #include "BLI_linklist.h"
 
 #include "BKE_nla.h"
-#include "BKE_bmesh.h"
 #include "BKE_editmesh_bvh.h"
 #include "BKE_context.h"
 #include "BKE_constraint.h"
@@ -111,9 +110,7 @@ static bool transdata_check_local_center(TransInfo *t)
 {
 	return ((t->around == V3D_LOCAL) && (
 	            (t->flag & (T_OBJECT | T_POSE)) ||
-	            (t->obedit && t->obedit->type == OB_MESH && (t->settings->selectmode & (SCE_SELECT_EDGE | SCE_SELECT_FACE))) ||
-	            (t->obedit && t->obedit->type == OB_MBALL) ||
-	            (t->obedit && t->obedit->type == OB_ARMATURE) ||
+	            (t->obedit && ELEM4(t->obedit->type, OB_MESH, OB_CURVE, OB_MBALL, OB_ARMATURE)) ||
 	            (t->spacetype == SPACE_IPO))
 	        );
 }
@@ -1327,12 +1324,6 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 					t->redraw |= TREDRAW_HARD;
 				}
 				break;
-//		case LEFTMOUSE:
-//		case RIGHTMOUSE:
-//			if (WM_modal_tweak_exit(event, t->event_type))
-////			if (t->options & CTX_TWEAK)
-//				t->state = TRANS_CONFIRM;
-//			break;
 			case LEFTALTKEY:
 			case RIGHTALTKEY:
 				if (ELEM(t->spacetype, SPACE_SEQ, SPACE_VIEW3D)) {
@@ -1377,7 +1368,7 @@ int calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], int c
 	t->state = TRANS_RUNNING;
 
 	/* avoid calculating PET */
-	t->options = CTX_NONE | CTX_NO_PET;
+	t->options = CTX_NO_PET;
 
 	t->mode = TFM_DUMMY;
 
@@ -5709,7 +5700,7 @@ int handleEventEdgeSlide(struct TransInfo *t, const struct wmEvent *event)
 	return 0;
 }
 
-void drawEdgeSlide(const struct bContext *C, TransInfo *t)
+static void drawEdgeSlide(const struct bContext *C, TransInfo *t)
 {
 	if (t->mode == TFM_EDGE_SLIDE) {
 		EdgeSlideData *sld = (EdgeSlideData *)t->customData;
@@ -5883,14 +5874,8 @@ int EdgeSlide(TransInfo *t, const int UNUSED(mval[2]))
 
 	t->values[0] = final;
 
-	/*do stuff here*/
-	if (t->customData) {
-		doEdgeSlide(t, final);
-	}
-	else {
-		BLI_strncpy(str, IFACE_("Invalid Edge Selection"), MAX_INFO_LEN);
-		t->state = TRANS_CANCEL;
-	}
+	/* do stuff here */
+	doEdgeSlide(t, final);
 
 	recalcData(t);
 
@@ -6397,14 +6382,8 @@ int VertSlide(TransInfo *t, const int UNUSED(mval[2]))
 	ofs += BLI_snprintf(str + ofs, MAX_INFO_LEN - ofs, IFACE_("Alt or (C)lamp: %s"), is_clamp ? on_str : off_str);
 	/* done with header string */
 
-	/*do stuff here*/
-	if (t->customData) {
-		doVertSlide(t, final);
-	}
-	else {
-		BLI_strncpy(str, IFACE_("Invalid Vert Selection"), MAX_INFO_LEN);
-		t->state = TRANS_CANCEL;
-	}
+	/* do stuff here */
+	doVertSlide(t, final);
 
 	recalcData(t);
 
@@ -7358,7 +7337,7 @@ bool checkUseAxisMatrix(TransInfo *t)
 {
 	/* currenly only checks for editmode */
 	if (t->flag & T_EDIT) {
-		if ((t->around == V3D_LOCAL) && (ELEM3(t->obedit->type, OB_MESH, OB_MBALL, OB_ARMATURE))) {
+		if ((t->around == V3D_LOCAL) && (ELEM4(t->obedit->type, OB_MESH, OB_CURVE, OB_MBALL, OB_ARMATURE))) {
 			/* not all editmode supports axis-matrix */
 			return true;
 		}

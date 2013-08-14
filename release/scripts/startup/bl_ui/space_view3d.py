@@ -1822,6 +1822,7 @@ class VIEW3D_MT_edit_mesh(Menu):
         layout.menu("VIEW3D_MT_edit_mesh_edges")
         layout.menu("VIEW3D_MT_edit_mesh_faces")
         layout.menu("VIEW3D_MT_edit_mesh_normals")
+        layout.menu("VIEW3D_MT_edit_mesh_clean")
 
         layout.separator()
 
@@ -1973,7 +1974,9 @@ class VIEW3D_MT_edit_mesh_edges(Menu):
 
     def draw(self, context):
         layout = self.layout
+
         with_freestyle = bpy.app.build_options.freestyle
+        scene = context.scene
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
@@ -1998,11 +2001,10 @@ class VIEW3D_MT_edit_mesh_edges(Menu):
 
         layout.separator()
 
-        if with_freestyle:
+        if with_freestyle and not scene.render.use_shading_nodes:
             layout.operator("mesh.mark_freestyle_edge").clear = False
             layout.operator("mesh.mark_freestyle_edge", text="Clear Freestyle Edge").clear = True
-
-        layout.separator()
+            layout.separator()
 
         layout.operator("mesh.edge_rotate", text="Rotate Edge CW").use_ccw = False
         layout.operator("mesh.edge_rotate", text="Rotate Edge CCW").use_ccw = True
@@ -2028,7 +2030,9 @@ class VIEW3D_MT_edit_mesh_faces(Menu):
 
     def draw(self, context):
         layout = self.layout
+
         with_freestyle = bpy.app.build_options.freestyle
+        scene = context.scene
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
@@ -2044,11 +2048,10 @@ class VIEW3D_MT_edit_mesh_faces(Menu):
 
         layout.separator()
 
-        if with_freestyle:
+        if with_freestyle and not scene.render.use_shading_nodes:
             layout.operator("mesh.mark_freestyle_face").clear = False
             layout.operator("mesh.mark_freestyle_face", text="Clear Freestyle Face").clear = True
-
-        layout.separator()
+            layout.separator()
 
         layout.operator("mesh.poke")
         layout.operator("mesh.quads_convert_to_tris")
@@ -2083,6 +2086,16 @@ class VIEW3D_MT_edit_mesh_normals(Menu):
         layout.separator()
 
         layout.operator("mesh.flip_normals")
+
+
+class VIEW3D_MT_edit_mesh_clean(Menu):
+    bl_label = "Clean"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("mesh.fill_holes")
+        layout.operator("mesh.vert_connect_nonplanar")
 
 
 class VIEW3D_MT_edit_mesh_delete(Menu):
@@ -2198,7 +2211,9 @@ class VIEW3D_MT_edit_curve_specials(Menu):
         layout.operator("curve.spline_weight_set")
         layout.operator("curve.radius_set")
         layout.operator("curve.smooth")
+        layout.operator("curve.smooth_weight")
         layout.operator("curve.smooth_radius")
+        layout.operator("curve.smooth_tilt")
 
 
 class VIEW3D_MT_edit_curve_showhide(ShowHideMenu, Menu):
@@ -2649,6 +2664,7 @@ class VIEW3D_PT_view3d_meshdisplay(Panel):
         with_freestyle = bpy.app.build_options.freestyle
 
         mesh = context.active_object.data
+        scene = context.scene
 
         split = layout.split()
 
@@ -2668,7 +2684,7 @@ class VIEW3D_PT_view3d_meshdisplay(Panel):
             col.prop(mesh, "show_edge_seams", text="Seams")
         col.prop(mesh, "show_edge_sharp", text="Sharp", text_ctxt=i18n_contexts.plural)
         col.prop(mesh, "show_edge_bevel_weight", text="Bevel")
-        if with_freestyle:
+        if with_freestyle and not scene.render.use_shading_nodes:
             col.prop(mesh, "show_freestyle_edge_marks", text="Edge Marks")
             col.prop(mesh, "show_freestyle_face_marks", text="Face Marks")
 

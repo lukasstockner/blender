@@ -69,7 +69,8 @@ bool BKE_curve_minmax(struct Curve *cu, float min[3], float max[3]);
 bool BKE_curve_center_median(struct Curve *cu, float cent[3]);
 bool BKE_curve_center_bounds(struct Curve *cu, float cent[3]);
 void BKE_curve_translate(struct Curve *cu, float offset[3], int do_keys);
-void BKE_curve_delete_material_index(struct Curve *cu, int index);
+void BKE_curve_material_index_remove(struct Curve *cu, int index);
+void BKE_curve_material_index_clear(struct Curve *cu);
 
 ListBase *BKE_curve_nurbs_get(struct Curve *cu);
 
@@ -128,6 +129,14 @@ bool BKE_nurb_type_convert(struct Nurb *nu, const short type, const bool use_han
 
 void BKE_nurb_points_add(struct Nurb *nu, int number);
 void BKE_nurb_bezierPoints_add(struct Nurb *nu, int number);
+
+struct BezTriple *BKE_nurb_bezt_get_next(struct Nurb *nu, struct BezTriple *bezt);
+struct BezTriple *BKE_nurb_bezt_get_prev(struct Nurb *nu, struct BezTriple *bezt);
+struct BPoint    *BKE_nurb_bpoint_get_next(struct Nurb *nu, struct BPoint *bp);
+struct BPoint    *BKE_nurb_bpoint_get_prev(struct Nurb *nu, struct BPoint *bp);
+
+void BKE_nurb_bezt_calc_normal(struct Nurb *nu, struct BezTriple *bezt, float r_normal[3]);
+void BKE_nurb_bezt_calc_plane(struct Nurb *nu, struct BezTriple *bezt, float r_plane[3]);
 
 void BKE_nurb_handle_calc(struct BezTriple *bezt, struct BezTriple *prev,  struct BezTriple *next, int mode);
 

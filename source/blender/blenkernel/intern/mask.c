@@ -602,7 +602,7 @@ float BKE_mask_point_weight(MaskSpline *spline, MaskSplinePoint *point, const fl
 		float cur_u = 0.0f, cur_w = 0.0f, next_u = 0.0f, next_w = 0.0f, fac; /* Quite warnings */
 		int i;
 
-		for (i = 0; i < point->tot_uw + 1; i++) {
+		for (i = 0; i <= point->tot_uw; i++) {
 
 			if (i == 0) {
 				cur_u = 0.0f;
@@ -938,8 +938,6 @@ void BKE_mask_free(Main *bmain, Mask *mask)
 	ScrArea *area;
 	SpaceLink *sl;
 	Scene *scene;
-
-	BKE_sequencer_clear_mask_in_clipboard(mask);
 
 	for (scr = bmain->screen.first; scr; scr = scr->id.next) {
 		for (area = scr->areabase.first; area; area = area->next) {

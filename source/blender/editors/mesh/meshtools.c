@@ -1336,7 +1336,7 @@ bool ED_mesh_pick_vert(bContext *C, Object *ob, const int mval[2], unsigned int 
 		const float mval_f[2] = {(float)mval[0],
 		                         (float)mval[1]};
 
-		VertPickData data = {0};
+		VertPickData data = {NULL};
 
 		ED_view3d_init_mats_rv3d(ob, rv3d);
 
@@ -1351,7 +1351,7 @@ bool ED_mesh_pick_vert(bContext *C, Object *ob, const int mval[2], unsigned int 
 		data.len_best = FLT_MAX;
 		data.v_idx_best = -1;
 
-		dm->foreachMappedVert(dm, ed_mesh_pick_vert__mapFunc, &data);
+		dm->foreachMappedVert(dm, ed_mesh_pick_vert__mapFunc, &data, DM_FOREACH_NOP);
 
 		dm->release(dm);
 
