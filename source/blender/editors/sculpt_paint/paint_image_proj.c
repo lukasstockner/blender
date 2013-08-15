@@ -4336,7 +4336,7 @@ void paint_proj_stroke(bContext *C, void *pps, const float prev_pos[2], const fl
 			copy_v3_v3(ps->paint_color, brush->secondary_rgb);
 		else {
 			if (brush->flag & BRUSH_USE_GRADIENT) {
-				switch (brush->gradient_source) {
+				switch (brush->gradient_stroke_mode) {
 					case BRUSH_GRADIENT_PRESSURE:
 						do_colorband(brush->gradient, pressure, ps->paint_color);
 						break;

@@ -690,9 +690,12 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                 col.prop(brush, "use_gradient")
                 if brush.use_gradient:
                     if brush.image_tool == 'DRAW':
-                        col.prop(brush, "gradient_source")
+                        col.prop(brush, "gradient_stroke_mode")
                         if brush.gradient_source == 'SPACING':
                             col.prop(brush, "grad_spacing")
+                    elif brush.image_tool == 'FILL':
+                        col.prop(brush, "gradient_fill_mode")
+
                     col.template_color_ramp(brush, "gradient", expand=True)
                 else:
                     col = layout.column(align=True)            

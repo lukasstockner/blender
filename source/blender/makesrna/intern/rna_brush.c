@@ -748,6 +748,12 @@ static void rna_def_brush(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem brush_gradient_fill_items[] = {
+		{BRUSH_GRADIENT_LINEAR, "LINEAR", 0, "Linear", ""},
+		{BRUSH_GRADIENT_RADIAL, "RADIAL", 0, "Radial", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	static EnumPropertyItem brush_mask_pressure_items[] = {
 		{0, "NONE", 0, "Off", ""},
 		{BRUSH_MASK_PRESSURE_RAMP, "RAMP", ICON_STYLUS_PRESSURE, "Ramp", ""},
@@ -1171,9 +1177,14 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	/* gradient source */
-	prop = RNA_def_property(srna, "gradient_source", PROP_ENUM, PROP_NONE);
+	prop = RNA_def_property(srna, "gradient_stroke_mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, brush_gradient_items);
-	RNA_def_property_ui_text(prop, "Gradient Source", "");
+	RNA_def_property_ui_text(prop, "Gradient Stroke Mode", "");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	prop = RNA_def_property(srna, "gradient_fill_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, brush_gradient_fill_items);
+	RNA_def_property_ui_text(prop, "Gradient Fill Mode", "");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	/* overlay flags */

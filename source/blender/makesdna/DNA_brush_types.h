@@ -90,10 +90,10 @@ typedef struct Brush {
 
 	float plane_offset;     /* offset for plane brushes (clay, flatten, fill, scrape) */
 
-	float gravity_factor;   /* gravity factor for sculpting */
-	int gradient_source;    /* source for color gradient application */
+	float gravity_factor;     /* gravity factor for sculpting */
 	int gradient_spacing;
-	int pad;
+	int gradient_stroke_mode; /* source for stroke color gradient application */
+	int gradient_fill_mode;   /* source for fill tool color gradient application */
 
 	char sculpt_tool;       /* active sculpt tool */
 	char vertexpaint_tool;  /* active vertex/weight paint blend mode (poorly named) */
@@ -145,10 +145,15 @@ typedef struct Palette
 } Palette;
 
 /* Brush.gradient_source */
-typedef enum BrushGradientSource {
+typedef enum BrushGradientSourceStroke {
 	BRUSH_GRADIENT_PRESSURE = 0, /* gradient from pressure */
 	BRUSH_GRADIENT_SPACING = 1 /* gradient from spacing */
-} BrushGradientSource;
+} BrushGradientSourceStroke;
+
+typedef enum BrushGradientSourceFill {
+	BRUSH_GRADIENT_LINEAR = 0, /* gradient from pressure */
+	BRUSH_GRADIENT_RADIAL = 1 /* gradient from spacing */
+} BrushGradientSourceFill;
 
 /* Brush.flag */
 typedef enum BrushFlags {

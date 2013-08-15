@@ -299,7 +299,7 @@ static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size, float pre
 			copy_v3_v3(brush_rgb, brush->secondary_rgb);
 		else {
 			if (brush->flag & BRUSH_USE_GRADIENT) {
-				switch (brush->gradient_source) {
+				switch (brush->gradient_stroke_mode) {
 					case BRUSH_GRADIENT_PRESSURE:
 						do_colorband(brush->gradient, pressure, brush_rgb);
 						break;
@@ -611,7 +611,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 	bool do_partial_update = false;
 	bool do_view = false;
 	bool update_color = (brush->flag & BRUSH_USE_GRADIENT) &&
-	                    ((brush->gradient_source == BRUSH_GRADIENT_SPACING)
+	                    ((brush->gradient_stroke_mode == BRUSH_GRADIENT_SPACING)
 	                     || (cache->last_pressure != pressure));
 	float tex_rotation = -brush->mtex.rot;
 	float mask_rotation = -brush->mask_mtex.rot;
@@ -1304,7 +1304,7 @@ void paint_2d_gradient_fill (const bContext *C, Brush *br, float mouse_init[2], 
 	float color_f[4];
 	float image_init[2], image_final[2];
 	float tangent[2];
-	float line_len_sq_inv;
+	float line_len_sq_inv, line_len;
 
 	bool do_float;
 
@@ -1327,7 +1327,9 @@ void paint_2d_gradient_fill (const bContext *C, Brush *br, float mouse_init[2], 
 
 	/* some math to get needed gradient variables */
 	sub_v2_v2v2(tangent, image_final, image_init);
-	line_len_sq_inv = 1.0/len_squared_v2(tangent);
+	line_len = len_squared_v2(tangent);
+	line_len_sq_inv = 1.0/line_len;
+	line_len = sqrt(line_len);
 
 	do_float = (ibuf->rect_float != NULL);
 
@@ -1337,9 +1339,21 @@ void paint_2d_gradient_fill (const bContext *C, Brush *br, float mouse_init[2], 
 	if (do_float) {
 		for (; i < ibuf->x; i++) {
 			for (j = 0; j < ibuf->y; j++) {
+				float f;
 				float p[2] = {i - image_init[0], j - image_init[1]};
-				float f = dot_v2v2(p, tangent)*line_len_sq_inv;
 
+				switch (br->gradient_fill_mode) {
+					case BRUSH_GRADIENT_LINEAR:
+					{
+						f = dot_v2v2(p, tangent)*line_len_sq_inv;
+						break;
+					}
+					case BRUSH_GRADIENT_RADIAL:
+					{
+						f = len_v2(p)/line_len;
+						break;
+					}
+				}
 				do_colorband(br->gradient, f, color_f);
 				/* convert to premultiplied */
 				mul_v3_fl(color_f, color_f[3]);
@@ -1352,8 +1366,21 @@ void paint_2d_gradient_fill (const bContext *C, Brush *br, float mouse_init[2], 
 	else {
 		for (; i < ibuf->x; i++) {
 			for (j = 0; j < ibuf->y; j++) {
+				float f;
 				float p[2] = {i - image_init[0], j - image_init[1]};
-				float f = dot_v2v2(p, tangent)*line_len_sq_inv;
+
+				switch (br->gradient_fill_mode) {
+					case BRUSH_GRADIENT_LINEAR:
+					{
+						f = dot_v2v2(p, tangent)*line_len_sq_inv;
+						break;
+					}
+					case BRUSH_GRADIENT_RADIAL:
+					{
+						f = len_v2(p)/line_len;
+						break;
+					}
+				}
 
 				do_colorband(br->gradient, f, color_f);
 				rgba_float_to_uchar((unsigned char *)&color_b, color_f);
