@@ -126,6 +126,24 @@ class IMAGE_MT_select(Menu):
         layout.operator("uv.select_split")
 
 
+class IMAGE_MT_brush(Menu):
+    bl_label = "Brush"
+
+    def draw(self, context):
+        layout = self.layout
+        toolsettings = context.tool_settings
+        settings = toolsettings.image_paint
+        brush = settings.brush
+
+        ups = context.tool_settings.unified_paint_settings
+        layout.prop(ups, "use_unified_size", text="Unified Size")
+        layout.prop(ups, "use_unified_strength", text="Unified Strength")
+        layout.separator()
+
+        # brush tool
+        layout.prop_menu_enum(brush, "image_tool")
+    
+
 class IMAGE_MT_image(Menu):
     bl_label = "Image"
 
@@ -373,7 +391,7 @@ class IMAGE_HT_header(Header):
         mode = sima.mode
 
         show_render = sima.show_render
-        # show_paint = sima.show_paint
+        show_paint = sima.show_paint
         show_uvedit = sima.show_uvedit
         show_maskedit = sima.show_maskedit
 
@@ -389,6 +407,8 @@ class IMAGE_HT_header(Header):
                 sub.menu("IMAGE_MT_select")
             if show_maskedit:
                 sub.menu("MASK_MT_select")
+            if show_paint:
+                sub.menu("IMAGE_MT_brush")
 
             if ima and ima.is_dirty:
                 sub.menu("IMAGE_MT_image", text="Image*")
