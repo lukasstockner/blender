@@ -744,7 +744,8 @@ static void rna_def_brush(BlenderRNA *brna)
 
 	static EnumPropertyItem brush_gradient_items[] = {
 		{BRUSH_GRADIENT_PRESSURE, "PRESSURE", 0, "Pressure", ""},
-		{BRUSH_GRADIENT_SPACING, "SPACING", 0, "Spacing", ""},
+		{BRUSH_GRADIENT_SPACING_REPEAT, "SPACING_REPEAT", 0, "Repeat", ""},
+		{BRUSH_GRADIENT_SPACING_CLAMP, "SPACING_CLAMP", 0, "Clamp", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 

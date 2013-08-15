@@ -303,10 +303,15 @@ static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size, float pre
 					case BRUSH_GRADIENT_PRESSURE:
 						do_colorband(brush->gradient, pressure, brush_rgb);
 						break;
-					case BRUSH_GRADIENT_SPACING:
+					case BRUSH_GRADIENT_SPACING_REPEAT:
 					{
 						float coord = fmod(distance / brush->gradient_spacing, 1.0);
 						do_colorband(brush->gradient, coord, brush_rgb);
+						break;
+					}
+					case BRUSH_GRADIENT_SPACING_CLAMP:
+					{
+						do_colorband(brush->gradient, distance / brush->gradient_spacing, brush_rgb);
 						break;
 					}
 				}
@@ -611,7 +616,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 	bool do_partial_update = false;
 	bool do_view = false;
 	bool update_color = (brush->flag & BRUSH_USE_GRADIENT) &&
-	                    ((brush->gradient_stroke_mode == BRUSH_GRADIENT_SPACING)
+	                    ((ELEM(brush->gradient_stroke_mode, BRUSH_GRADIENT_SPACING_REPEAT, BRUSH_GRADIENT_SPACING_CLAMP))
 	                     || (cache->last_pressure != pressure));
 	float tex_rotation = -brush->mtex.rot;
 	float mask_rotation = -brush->mask_mtex.rot;

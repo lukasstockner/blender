@@ -714,7 +714,7 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
                 if brush.use_gradient:
                     if brush.image_tool == 'DRAW':
                         col.prop(brush, "gradient_stroke_mode")
-                        if brush.gradient_source == 'SPACING':
+                        if brush.gradient_stroke_mode in ('SPACING_REPEAT', 'SPACING_CLAMP'):
                             col.prop(brush, "grad_spacing")
                     elif brush.image_tool == 'FILL':
                         col.prop(brush, "gradient_fill_mode")

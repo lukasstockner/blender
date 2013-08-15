@@ -147,7 +147,8 @@ typedef struct Palette
 /* Brush.gradient_source */
 typedef enum BrushGradientSourceStroke {
 	BRUSH_GRADIENT_PRESSURE = 0, /* gradient from pressure */
-	BRUSH_GRADIENT_SPACING = 1 /* gradient from spacing */
+	BRUSH_GRADIENT_SPACING_REPEAT = 1, /* gradient from spacing */
+	BRUSH_GRADIENT_SPACING_CLAMP = 2 /* gradient from spacing */
 } BrushGradientSourceStroke;
 
 typedef enum BrushGradientSourceFill {

@@ -4340,10 +4340,15 @@ void paint_proj_stroke(bContext *C, void *pps, const float prev_pos[2], const fl
 					case BRUSH_GRADIENT_PRESSURE:
 						do_colorband(brush->gradient, pressure, ps->paint_color);
 						break;
-					case BRUSH_GRADIENT_SPACING:
+					case BRUSH_GRADIENT_SPACING_REPEAT:
 					{
 						float coord = fmod(distance / brush->gradient_spacing, 1.0);
 						do_colorband(brush->gradient, coord, ps->paint_color);
+						break;
+					}
+					case BRUSH_GRADIENT_SPACING_CLAMP:
+					{
+						do_colorband(brush->gradient, distance / brush->gradient_spacing, ps->paint_color);
 						break;
 					}
 				}
