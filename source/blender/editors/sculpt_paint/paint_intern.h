@@ -172,7 +172,7 @@ void paint_brush_exit_tex(struct Brush *brush);
 
 void PAINT_OT_grab_clone(struct wmOperatorType *ot);
 void PAINT_OT_sample_color(struct wmOperatorType *ot);
-void PAINT_OT_texture_colors_flip(struct wmOperatorType *ot);
+void PAINT_OT_brush_colors_flip(struct wmOperatorType *ot);
 void PAINT_OT_texture_paint_toggle(struct wmOperatorType *ot);
 void PAINT_OT_project_image(struct wmOperatorType *ot);
 void PAINT_OT_image_from_view(struct wmOperatorType *ot);

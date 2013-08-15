@@ -1317,7 +1317,7 @@ void PAINT_OT_texture_paint_toggle(wmOperatorType *ot)
 }
 
 
-static int texture_colors_flip_exec(bContext *C, wmOperator *UNUSED(op))
+static int brush_colors_flip_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Brush *br = image_paint_brush(C);
 	swap_v3_v3(br->rgb, br->secondary_rgb);
@@ -1327,7 +1327,7 @@ static int texture_colors_flip_exec(bContext *C, wmOperator *UNUSED(op))
 	return OPERATOR_FINISHED;
 }
 
-static int texture_colors_flip_poll(bContext *C)
+static int brush_colors_flip_poll(bContext *C)
 {
 	if (image_paint_poll(C)) {
 		Brush *br = image_paint_brush(C);
@@ -1338,16 +1338,16 @@ static int texture_colors_flip_poll(bContext *C)
 	return 0;
 }
 
-void PAINT_OT_texture_colors_flip(wmOperatorType *ot)
+void PAINT_OT_brush_colors_flip(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Texture Colors Flip";
-	ot->idname = "PAINT_OT_texture_colors_flip";
-	ot->description = "Toggle foreground and background texture paint colors";
+	ot->name = "Brush Colors Flip";
+	ot->idname = "PAINT_OT_brush_colors_flip";
+	ot->description = "Toggle foreground and background brush colors";
 
 	/* api callbacks */
-	ot->exec = texture_colors_flip_exec;
-	ot->poll = texture_colors_flip_poll;
+	ot->exec = brush_colors_flip_exec;
+	ot->poll = brush_colors_flip_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

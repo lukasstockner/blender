@@ -1029,7 +1029,7 @@ void ED_operatortypes_paint(void)
 	WM_operatortype_append(PAINT_OT_grab_clone);
 	WM_operatortype_append(PAINT_OT_project_image);
 	WM_operatortype_append(PAINT_OT_image_from_view);
-	WM_operatortype_append(PAINT_OT_texture_colors_flip);
+	WM_operatortype_append(PAINT_OT_brush_colors_flip);
 
 	/* weight */
 	WM_operatortype_append(PAINT_OT_weight_paint_toggle);
@@ -1345,7 +1345,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 
 	RNA_enum_set(WM_keymap_add_item(keymap, "PAINT_OT_image_paint", LEFTMOUSE, KM_PRESS, 0,        0)->ptr, "mode", BRUSH_STROKE_NORMAL);
 	RNA_enum_set(WM_keymap_add_item(keymap, "PAINT_OT_image_paint", LEFTMOUSE, KM_PRESS, KM_CTRL,  0)->ptr, "mode", BRUSH_STROKE_INVERT);
-	WM_keymap_add_item(keymap, "PAINT_OT_texture_colors_flip", XKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "PAINT_OT_brush_colors_flip", XKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "PAINT_OT_grab_clone", RIGHTMOUSE, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "PAINT_OT_sample_color", SKEY, KM_PRESS, 0, 0);
 	ed_keymap_paint_brush_switch(keymap, "image_paint");

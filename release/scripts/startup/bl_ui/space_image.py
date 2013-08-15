@@ -731,6 +731,7 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
                 if not brush.use_gradient:
                     col.template_color_picker(brush, "color", value_slider=True)
                 col.prop(brush, "use_gradient")
+                
                 if brush.use_gradient:
                     if brush.image_tool == 'DRAW':
                         col.prop(brush, "gradient_stroke_mode")
@@ -739,12 +740,20 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
                     elif brush.image_tool == 'FILL':
                         col.prop(brush, "gradient_fill_mode")
                         
+                    col.label("Gradient Colors")
                     col.template_color_ramp(brush, "gradient", expand=True)
+                    if brush.image_tool != 'FILL':
+                        col.label("Secondary Color")
+                        col.prop(brush, "secondary_color", text="")
+                        col.operator("paint.brush_colors_flip", icon='FILE_REFRESH')
                 else:
                     col = layout.column(align=True)            
                     col.prop(brush, "color", text="")
-                if brush.image_tool != 'FILL':
-                    col.prop(brush, "secondary_color", text="")
+                
+                    if brush.image_tool != 'FILL':
+                        col.prop(brush, "secondary_color", text="")
+                        col.operator("paint.brush_colors_flip", icon='FILE_REFRESH')
+
                 col = layout.column()
                 col.template_ID(toolsettings, "palette", new="palette.new")
                 if toolsettings.palette:
