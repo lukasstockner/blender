@@ -110,6 +110,10 @@ typedef struct Panel {		/* the part from uiBlock that needs saved in file */
 	int sortorder;			/* panels are aligned according to increasing sortorder */
 	struct Panel *paneltab;		/* this panel is tabbed in *paneltab */
 	void *activedata;			/* runtime for panel manipulation */
+	
+	char context[64];		/* save context for custom panels */
+	
+	ListBase operators;						/* custom operators for custom panel buttons */
 } Panel;
 
 typedef struct uiList {				/* some list UI data need to be saved in file */
@@ -157,6 +161,13 @@ typedef struct ScrArea {
 	ListBase actionzones;	/* AZone */
 } ScrArea;
 
+
+typedef struct OperatorListItem {
+	struct OperatorListItem *next, *prev;
+	char optype_idname[64];
+} OperatorListItem;
+
+
 typedef struct ARegion {
 	struct ARegion *next, *prev;
 	
@@ -190,6 +201,8 @@ typedef struct ARegion {
 	
 	char *headerstr;			/* use this string to draw info */
 	void *regiondata;			/* XXX 2.50, need spacedata equivalent? */
+	
+	ListBase operators;			/* OperatorListItem  for custom tool shelf */
 } ARegion;
 
 /* swap */
@@ -231,7 +244,7 @@ typedef struct ARegion {
 /* paneltype flag */
 #define PNL_DEFAULT_CLOSED		1
 #define PNL_NO_HEADER			2
-#define PNL_CUSTOM				4
+#define PNL_CUSTOM_PANELTYPE	4
 
 /* uilist layout_type */
 enum {
@@ -251,7 +264,8 @@ enum {
 	RGN_TYPE_TOOLS = 5,
 	RGN_TYPE_TOOL_PROPS = 6,
 	RGN_TYPE_PREVIEW = 7,
-	RGN_TYPE_MENU_BAR = 8
+	RGN_TYPE_MENU_BAR = 8,
+	RGN_TYPE_ICON_SHELF = 9,
 };
 
 /* region alignment */

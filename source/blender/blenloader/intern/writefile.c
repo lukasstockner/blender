@@ -2370,6 +2370,15 @@ static void write_windowmanagers(WriteData *wd, ListBase *lb)
 	}
 }
 
+static void write_panel(WriteData *wd, Panel *pa)
+{
+	OperatorListItem *oli;
+	writestruct(wd, DATA, "Panel", 1, pa);
+	
+	for (oli = pa->operators.first; oli; oli = oli->next)
+		writestruct(wd, DATA, "OperatorListItem", 1, oli);
+}
+
 static void write_region(WriteData *wd, ARegion *ar, int spacetype)
 {	
 	writestruct(wd, DATA, "ARegion", 1, ar);
@@ -2424,17 +2433,21 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 			Panel *pa;
 			uiList *ui_list;
 			ARegion *ar;
+			OperatorListItem *oli;
 			
 			writestruct(wd, DATA, "ScrArea", 1, sa);
 			
-			for (ar= sa->regionbase.first; ar; ar= ar->next) {
+			for (ar = sa->regionbase.first; ar; ar = ar->next) {
 				write_region(wd, ar, sa->spacetype);
 				
-				for (pa= ar->panels.first; pa; pa= pa->next)
-					writestruct(wd, DATA, "Panel", 1, pa);
+				for (pa = ar->panels.first; pa; pa = pa->next)
+					write_panel(wd, pa);
 				
 				for (ui_list = ar->ui_lists.first; ui_list; ui_list = ui_list->next)
 					writestruct(wd, DATA, "uiList", 1, ui_list);
+				
+				for (oli = ar->operators.first; oli; oli = oli->next)
+					writestruct(wd, DATA, "OperatorListItem", 1, oli);
 			}
 			
 			sl= sa->spacedata.first;

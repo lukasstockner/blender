@@ -1232,6 +1232,30 @@ static void ed_default_handlers(wmWindowManager *wm, ScrArea *sa, ListBase *hand
 	}
 }
 
+static void reset_custom_paneltypes(ARegion *ar)
+{
+	ARegionType *art = ar->type;
+	PanelType *pt, *pt_rem;
+	Panel *pa;
+	
+	/* PanelTypes should only be created at runtime or from Panels loaded from a blend */
+	for (pt = art->paneltypes.first; pt;) {
+		pt_rem = pt;
+		pt = pt_rem->next;
+		if (pt_rem->flag & PNL_CUSTOM_PANELTYPE) {
+			BLI_remlink(&art->paneltypes, pt_rem);
+			MEM_freeN(pt_rem);
+		}
+	}
+	
+	/* The ar->type needs to be set to NULL in case we're not loading another file. */
+	for (pa = ar->panels.first; pa; pa = pa->next) {
+		if (pa->flag & PNL_CUSTOM_PANEL) {
+			pa->type = NULL;
+		}
+	}
+}
+
 
 /* called in screen_refresh, or screens_init, also area size changes */
 void ED_area_initialize(wmWindowManager *wm, wmWindow *win, ScrArea *sa)
@@ -1247,8 +1271,11 @@ void ED_area_initialize(wmWindowManager *wm, wmWindow *win, ScrArea *sa)
 		sa->type = BKE_spacetype_from_id(sa->spacetype);
 	}
 	
-	for (ar = sa->regionbase.first; ar; ar = ar->next)
+	for (ar = sa->regionbase.first; ar; ar = ar->next) {
 		ar->type = BKE_regiontype_from_id(sa->type, ar->regiontype);
+		reset_custom_paneltypes(ar);
+	}
+
 	
 	/* area sizes */
 	area_calc_totrct(sa, WM_window_pixels_x(win), WM_window_pixels_y(win));
@@ -1855,6 +1882,56 @@ void ED_region_menubar(const bContext *C, ARegion *ar)
 }
 
 void ED_region_menubar_init(ARegion *ar)
+{
+	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_HEADER, ar->winx, ar->winy);
+}
+
+void ED_region_iconshelf(const bContext *C, ARegion *ar)
+{
+	uiStyle *style = UI_GetStyleDraw();
+	uiBlock *block;
+	uiLayout *layout, *row;
+	int maxco, xco, yco;
+	int headery = ED_area_headersize();
+	OperatorListItem *oli;
+	
+	/* clear */
+	UI_ThemeClearColor(TH_BACK);
+	glClear(GL_COLOR_BUFFER_BIT);
+	
+	/* set view2d view matrix for scrolling (without scrollers) */
+	UI_view2d_view_ortho(&ar->v2d);
+	
+	xco = maxco = 0.4f * UI_UNIT_X;
+	yco = headery - floor(0.2f * UI_UNIT_Y);
+	
+	block = uiBeginBlock(C, ar, "TODO: icons", UI_EMBOSS);
+	layout = uiBlockLayout(block, UI_LAYOUT_HORIZONTAL, UI_LAYOUT_HEADER, xco, yco, UI_UNIT_Y, 1, style);
+	row = uiLayoutRow(layout, TRUE);
+	
+	for (oli = ar->operators.first; oli; oli = oli->next) {
+		uiItemO(row, NULL, ICON_NONE, oli->optype_idname);
+	}
+		
+	xco = uiLayoutGetWidth(layout);
+	if (xco > maxco) maxco = xco;
+		
+	uiBlockLayoutResolve(block, &xco, &yco);
+		
+	/* for view2d */
+	if (xco > maxco) maxco = xco;
+		
+	uiEndBlock(C, block);
+	uiDrawBlock(C, block);
+	
+	/* always as last  */
+	UI_view2d_totRect_set(&ar->v2d, maxco + UI_UNIT_X + 80, headery);
+	
+	/* restore view matrix? */
+	UI_view2d_view_restore(C);
+}
+
+void ED_region_iconshelf_init(ARegion *ar)
 {
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_HEADER, ar->winx, ar->winy);
 }

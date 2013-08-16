@@ -74,6 +74,7 @@ static void spacetype_free(SpaceType *st)
 
 		BLI_freelistN(&art->paneltypes);
 		BLI_freelistN(&art->headertypes);
+		BLI_freelistN(&art->menubartypes);
 	}
 	
 	BLI_freelistN(&st->regiontypes);
@@ -262,6 +263,8 @@ void BKE_spacedata_draw_locks(int set)
 /* not region itself */
 void BKE_area_region_free(SpaceType *st, ARegion *ar)
 {
+	Panel *pa;
+	
 	if (st) {
 		ARegionType *art = BKE_regiontype_from_id(st, ar->regiontype);
 		
@@ -278,9 +281,14 @@ void BKE_area_region_free(SpaceType *st, ARegion *ar)
 		MEM_freeN(ar->v2d.tab_offset);
 		ar->v2d.tab_offset = NULL;
 	}
+	
+	for (pa = ar->panels.first; pa; pa = pa->next) {
+		BLI_freelistN(&pa->operators);
+	}
 
 	BLI_freelistN(&ar->panels);
 	BLI_freelistN(&ar->ui_lists);
+	BLI_freelistN(&ar->operators);
 }
 
 /* not area itself */
@@ -365,6 +373,20 @@ ARegion *BKE_area_find_region_active_win(ScrArea *sa)
 
 		/* fallback to any */
 		return BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
+	}
+	return NULL;
+}
+
+/* Find a region of the specified type from the given area */
+ARegion *BKE_spacelink_find_region_type(SpaceLink *sl, int type)
+{
+	if (sl) {
+		ARegion *ar;
+		
+		for (ar = sl->regionbase.first; ar; ar = ar->next) {
+			if (ar->regiontype == type)
+				return ar;
+		}
 	}
 	return NULL;
 }

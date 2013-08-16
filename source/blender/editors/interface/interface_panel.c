@@ -70,13 +70,6 @@
 #define ANIMATION_TIME      0.30
 #define ANIMATION_INTERVAL  0.02
 
-#define PNL_LAST_ADDED      1
-#define PNL_ACTIVE          2
-#define PNL_WAS_ACTIVE      4
-#define PNL_ANIM_ALIGN      8
-#define PNL_NEW_ADDED       16
-#define PNL_FIRST           32
-
 typedef enum uiHandlePanelState {
 	PANEL_STATE_DRAG,
 	PANEL_STATE_DRAG_SCALE,
@@ -230,6 +223,12 @@ Panel *uiBeginPanel(ScrArea *sa, ARegion *ar, uiBlock *block, PanelType *pt, int
 		pa->sizex = 0;
 		pa->sizey = 0;
 		pa->runtime_flag |= PNL_NEW_ADDED;
+		
+		// Mark the new panel as custom so we know we have to generate the PanelTypes upon loading
+		if (pt->flag & PNL_CUSTOM_PANELTYPE) {
+			pa->flag |= PNL_CUSTOM_PANEL;
+			BLI_strncpy(pa->context, pt->context, MAX_NAME);
+		}
 
 		BLI_addtail(&ar->panels, pa);
 		
@@ -907,9 +906,12 @@ static void ui_do_animate(const bContext *C, Panel *panel)
 	}
 }
 
-void uiBeginPanels(const bContext *UNUSED(C), ARegion *ar)
+void uiBeginPanels(const bContext *C, ARegion *ar)
 {
+	ScrArea *sa = CTX_wm_area(C);
+	const char *context = CTX_data_mode_string(C);
 	Panel *pa;
+	PanelType *pt;
 
 	/* set all panels as inactive, so that at the end we know
 	 * which ones were used */
@@ -918,6 +920,14 @@ void uiBeginPanels(const bContext *UNUSED(C), ARegion *ar)
 			pa->runtime_flag = PNL_WAS_ACTIVE;
 		else
 			pa->runtime_flag = 0;
+		
+		/* Only create a custom paneltype when the panel is a custom panel
+		 * and it's the correct context. */
+		if (pa->type == NULL && pa->flag & PNL_CUSTOM_PANEL && strcmp(context, pa->context) == 0) {
+			/*  recreate custom paneltypes for typeless panels */
+			pt = uiCreateCustomPanelType(sa, ar, context, pa->panelname);
+			pa->type = pt;
+		}
 	}
 }
 
@@ -1452,3 +1462,48 @@ static void panel_activate_state(const bContext *C, Panel *pa, uiHandlePanelStat
 	ED_region_tag_redraw(ar);
 }
 
+
+void uiPanelAddOperator(Panel *pa, const char *optype_idname)
+{
+	OperatorListItem *oli = MEM_callocN(sizeof(OperatorListItem), "panel type operator");
+	BLI_strncpy(oli->optype_idname, optype_idname, OP_MAX_TYPENAME);
+	BLI_addtail(&pa->operators, oli);
+}
+
+void uiPanelFree(Panel *pa)
+{
+	if (pa == NULL) return;
+	
+	for (OperatorListItem *oli = pa->operators.first; oli; oli = oli->next) {
+		MEM_freeN(oli);
+	}
+	MEM_freeN(pa);
+}
+
+static void custom_panel_draw(const bContext *UNUSED(C), Panel *pa)
+{
+	uiLayout *layout = pa->layout;
+	uiLayout *column = uiLayoutColumn(layout, TRUE);
+	
+	for (OperatorListItem *oli = pa->operators.first; oli; oli = oli->next) {
+		uiItemO(column, NULL, ICON_NONE, oli->optype_idname);
+	}
+}
+
+PanelType *uiCreateCustomPanelType(ScrArea *sa, ARegion *ar, const char *context, const char *name)
+{
+	PanelType *pt = MEM_callocN(sizeof(PanelType), "custom panel type");
+	// Create new panel type and add to the current editor's toolbar
+	BLI_strncpy(pt->idname, name, BKE_ST_MAXNAME);
+	strcpy(pt->label, N_("Custom Panel"));
+	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
+	//	pt_new->draw_header = custom_panel_draw_header;
+	pt->draw = custom_panel_draw;
+	//	pt_new->poll = custom_panel_poll;
+	pt->flag = PNL_CUSTOM_PANELTYPE;
+	pt->space_type = sa->type->spaceid;
+	pt->region_type = ar->regiontype;
+	BLI_strncpy(pt->context, context, BKE_ST_MAXNAME);
+	BLI_addtail(&ar->type->paneltypes, pt);
+	return pt;
+}

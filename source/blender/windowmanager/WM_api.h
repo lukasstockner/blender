@@ -258,9 +258,10 @@ wmOperator *WM_operator_copy(struct bContext *C, wmOperator *op, bool copylink);
 bool        WM_operator_properties_init(struct wmOperator *op);
 bool        WM_operator_last_properties_store(struct wmOperator *op);
 bool		WM_operator_default_properties_store(struct wmOperator *op);
-	
-void		WM_save_custom_panels(void);
 
+void		add_to_icon_shelf(struct bContext *C, void *arg1, void *arg2);
+void		add_to_custom_panel_menu(struct bContext *C, struct uiLayout *layout, void *arg);
+	
 /* MOVE THIS SOMEWHERE ELSE */
 #define	SEL_TOGGLE		0
 #define	SEL_SELECT		1

@@ -4213,7 +4213,7 @@ static uiBlock *wm_panel_popup_create_block(bContext *C, ARegion *ar, void *arg_
 		uiEndPanel(block, w, 0);
 		
 		uiBlockSetPanel(block, NULL);
-		MEM_freeN(pa);
+		uiPanelFree(pa);
 	}
 	
 	uiPopupBoundsBlock(block, 6, 0, -UI_UNIT_Y); /* move it downwards, mouse over button */
@@ -4258,16 +4258,52 @@ static void WM_OT_panel_popup(wmOperatorType *ot)
 }
 
 
-void WM_save_custom_panels(void)
+void add_to_icon_shelf(bContext *C, void *arg1, void *UNUSED(arg2))
 {
-	printf("Saved panels to preference directory.\n");
+	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_ICON_SHELF);
+	wmOperatorType *ot = (wmOperatorType*)arg1;
+	OperatorListItem *oli = MEM_callocN(sizeof(OperatorListItem), "add operator list item to icon shelf");
+	BLI_strncpy(oli->optype_idname, ot->idname, OP_MAX_TYPENAME);
+	
+	BLI_addtail(&ar->operators, oli);
+	
+	ED_region_tag_redraw(ar);
 }
 
-//static int wm_create_custom_panel_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
-//{
-//	uiPupBlock(C, wm_panel_popup_create_block, op);
-//	return OPERATOR_CANCELLED;
-//}
+void add_to_custom_panel_menu(bContext *C, uiLayout *layout, void *arg1)
+{
+	ARegion *ar;
+	const char *context = CTX_data_mode_string(C);
+	ScrArea *sa = CTX_wm_area(C);
+	PanelType *pt;
+	PropertyRNA *prop;
+	wmOperatorType *optype = (wmOperatorType*)arg1;
+	
+	
+	ar = BKE_area_find_region_type(sa, RGN_TYPE_TOOLS);
+	
+	if (ar == NULL) return;
+	
+	for (pt = ar->type->paneltypes.first; pt; pt = pt->next) {
+		if(strcmp(pt->context, context) == 0
+		   //		   && pt->space_type == sa->type->spaceid
+		   //		   && pt->region_type == RGN_TYPE_TOOLS
+		   && pt->flag & PNL_CUSTOM_PANELTYPE) {
+			
+			PointerRNA op_ptr = uiItemFullO(layout, "WM_OT_add_to_custom_panel", pt->label, ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, UI_ITEM_O_RETURN_PROPS);
+			
+			prop = RNA_struct_find_property(&op_ptr, "operator");
+			RNA_property_string_set(&op_ptr, prop, optype->idname);
+			
+			prop = RNA_struct_find_property(&op_ptr, "paneltypeid");
+			RNA_property_string_set(&op_ptr, prop, pt->idname);
+			
+			
+		}
+		
+	}
+}
 
 static int wm_create_custom_panel_poll(bContext *C)
 {
@@ -4291,20 +4327,14 @@ static int wm_create_custom_panel_poll(bContext *C)
 	return 0;
 }
 
-
-static void custom_panel_draw(const bContext *UNUSED(C), Panel *pa)
-{
-	uiLayout *layout = pa->layout;
-	uiLayout *row = uiLayoutRow(layout, TRUE);
-	uiItemL(row, "yeah!", ICON_NONE);
-}
-
 static int wm_create_custom_panel_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar;
 	PanelType *pt_iter, *pt_new;
-
+	char *name = NULL;
+	int name_taken = 1;
+	
 	// find RGN_TYPE_TOOLS
 	for (ar = sa->regionbase.first; ar; ar = ar->next)
 		if (ar->type && ar->type->regionid == RGN_TYPE_TOOLS)
@@ -4312,14 +4342,11 @@ static int wm_create_custom_panel_exec(bContext *C, wmOperator *UNUSED(op))
 	
 	if (ar == NULL) return OPERATOR_CANCELLED;
 	
-	// Create new panel type and add to the current editor's toolbar
-	pt_new = MEM_callocN(sizeof(PanelType), "custom panel type");
-	
 	// find new name for paneltype
 	for (int i=0; i < MAX_CUSTOM_PANELS; i++) {
 		// generate name
-		char *name = BLI_sprintfN("custom panel %i", i);
-		int name_taken = 0;
+		name = BLI_sprintfN("custom panel %i", i);
+		name_taken = 0;
 		// see if it is taken
 		for (pt_iter = ar->type->paneltypes.first; pt_iter; pt_iter = pt_iter->next) {
 			if (strcmp(pt_iter->idname, name) == 0) {
@@ -4333,39 +4360,25 @@ static int wm_create_custom_panel_exec(bContext *C, wmOperator *UNUSED(op))
 			continue;
 		} else {
 			// name the new panel type if not taken
-			BLI_strncpy(pt_new->idname, name, BKE_ST_MAXNAME);
-			MEM_freeN(name);
 			break;
 		}		
 	}
-
-	strcpy(pt_new->label, N_("Custom Panel"));
-	strcpy(pt_new->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
-//	pt_new->draw_header = custom_panel_draw_header;
-	pt_new->draw = custom_panel_draw;
-//	pt_new->poll = custom_panel_poll;
-	pt_new->flag = PNL_CUSTOM;
-	pt_new->space_type = sa->spacetype;
-	pt_new->region_type = ar->regiontype;
-	BLI_strncpy(pt_new->context, CTX_data_mode_string(C), BKE_ST_MAXNAME);
-	BLI_addtail(&ar->type->paneltypes, pt_new);
+	
+	// If we've run out of names (too many custom panels)
+	if (name_taken)
+		return OPERATOR_CANCELLED;
+		
+	uiCreateCustomPanelType(sa, ar, CTX_data_mode_string(C), name);
+	
+	MEM_freeN(name);
 	
 	ED_region_tag_redraw(ar);
-	
-	printf("Added panel\n");
-	
-	// example draw func:
-//	pt->draw = buttons_panel_context;
-	// this might be good to get panels in the tool lregion
-//	pt->flag = PNL_NO_HEADER;
 	
 	return OPERATOR_FINISHED;
 }
 
 static void WM_OT_create_custom_panel(wmOperatorType *ot)
 {
-//	PropertyRNA *prop;
-	
 	ot->name = "Create Custom Panel";
 	ot->idname = "WM_OT_create_custom_panel";
 	ot->description = "Create a custom panel in the current region's toolbar";
@@ -4376,9 +4389,89 @@ static void WM_OT_create_custom_panel(wmOperatorType *ot)
 	
 //	ot->flag |= OPTYPE_INTERNAL;
 	
-//	prop = RNA_def_string(ot->srna, "panel_name", "", 64, "panel_name", "The name of the panel being opened in a popup");
-//	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_REQUIRED);
 }
+
+static int wm_add_to_custom_panel_exec(bContext *C, wmOperator *op)
+{
+	// get operator properties: paneltype idname, property name
+	PropertyRNA *prop;
+	char *opname = NULL, *panelid = NULL;
+	ARegion *ar;
+	ScrArea *sa = CTX_wm_area(C);
+	PanelType *pt;
+	Panel *pa;
+	
+	prop = RNA_struct_find_property(op->ptr, "operator");
+	if(prop == NULL) return OPERATOR_CANCELLED;
+	opname = RNA_property_string_get_alloc(op->ptr, prop, NULL, 0, NULL);
+
+	prop = RNA_struct_find_property(op->ptr, "paneltypeid");
+	if(prop == NULL) return OPERATOR_CANCELLED;
+	panelid = RNA_property_string_get_alloc(op->ptr, prop, NULL, 0, NULL);
+	
+	// get panel
+	ar = BKE_area_find_region_type(sa, RGN_TYPE_TOOLS);
+//	for (pt_iter = ar->type->paneltypes.first; pt_iter; pt_iter = pt_iter->next) {
+//		if (strcmp(pt_iter->idname, panelid) == 0) {
+//			pt = pt_iter;
+//			break;
+//		}
+//	}
+
+	for (pa = ar->panels.first; pa; pa = pa->next) {
+		if (pa->type && strcmp(pa->type->idname, panelid) == 0) {
+			break;
+		}
+	}
+
+	if(pa == NULL) {
+		MEM_freeN(opname);
+		MEM_freeN(panelid);
+		return OPERATOR_CANCELLED;
+	}
+	
+	// TODO: actually add the operator id string to the paneltype
+	uiPanelAddOperator(pa, opname);
+	
+	MEM_freeN(opname);
+	MEM_freeN(panelid);
+	
+	ED_region_tag_redraw(ar);
+	
+	return OPERATOR_FINISHED;
+}
+
+static int wm_add_to_custom_panel_poll(bContext *UNUSED(C))
+{
+	// TODO: what are the necessary conditions?
+	return 1;
+}
+
+
+static void WM_OT_add_to_custom_panel(wmOperatorType *ot)
+{
+	PropertyRNA *prop;
+	
+	ot->name = "Add to Custom Panel";
+	ot->idname = "WM_OT_add_to_custom_panel";
+	ot->description = "Add the selected operator to the custom panel";
+	
+	//	ot->invoke = wm_create_custom_panel_invoke;
+	ot->exec = wm_add_to_custom_panel_exec;
+	ot->poll = wm_add_to_custom_panel_poll;
+	
+	ot->flag |= OPTYPE_INTERNAL;
+	
+	prop = RNA_def_string(ot->srna, "operator", "", OP_MAX_TYPENAME, "Operator to add", "The operator id to add to the panel");
+
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE | PROP_REQUIRED);
+	
+	prop = RNA_def_string(ot->srna, "paneltypeid", "", OP_MAX_TYPENAME, "idname of PanelType", "idname of the PanelType to add the operator to");
+	
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE | PROP_REQUIRED);
+	
+}
+
 
 
 /* ******************************************************* */
@@ -4422,6 +4515,7 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_ndof_sensitivity_change);
 	WM_operatortype_append(WM_OT_panel_popup);
 	WM_operatortype_append(WM_OT_create_custom_panel);
+	WM_operatortype_append(WM_OT_add_to_custom_panel);
 #if defined(WIN32)
 	WM_operatortype_append(WM_OT_console_toggle);
 #endif

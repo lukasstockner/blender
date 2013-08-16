@@ -6102,6 +6102,8 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 		pa->runtime_flag = 0;
 		pa->activedata = NULL;
 		pa->type = NULL;
+		
+		link_list(fd, &pa->operators);
 	}
 
 	link_list(fd, &ar->ui_lists);
@@ -6109,6 +6111,8 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 	for (ui_list = ar->ui_lists.first; ui_list; ui_list = ui_list->next) {
 		ui_list->type = NULL;
 	}
+	
+	link_list(fd, &ar->operators);
 
 	ar->regiondata = newdataadr(fd, ar->regiondata);
 	if (ar->regiondata) {
@@ -9478,7 +9482,105 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			}
 		}
 	}
+	
+	/* Remove the tool properties region from the space and clip toolbars.
+	 N.B. not at all sure that this is where these regions are supposed to be removed.
+	 */
+	
+	if (MAIN_VERSION_OLDER(main, 267, 2)) {
+		bScreen *sc;
+		
+		for (sc = main->screen.first; sc; sc = sc->id.next) {
+			ScrArea *sa;
+			for (sa = sc->areabase.first; sa; sa = sa->next) {
+				SpaceLink *sl;
+				ARegion *ar;
+				
+				for (ar = sa->regionbase.first; ar; ar = ar->next) {
+					if (ar->regiontype == RGN_TYPE_TOOL_PROPS) {
+						BLI_remlink(&sa->regionbase, ar);
+						MEM_freeN(ar);
+						BKE_area_region_free(NULL, ar);
+					}
+				}
+				
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					for (ar = sl->regionbase.first; ar; ar = ar->next) {
+						if (ar->regiontype == RGN_TYPE_TOOL_PROPS) {
+							BLI_remlink(&sl->regionbase, ar);
+							MEM_freeN(ar);
+							BKE_area_region_free(NULL, ar);
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	// TODO: what is the right version here?
+	if (MAIN_VERSION_OLDER(main, 267, 2)) {
+		bScreen *sc;
+		
+		for (sc = main->screen.first; sc; sc = sc->id.next) {
+			ScrArea *sa;
+			ARegion *r;
+			
+			for (sa = sc->areabase.first; sa; sa = sa->next) {
+				SpaceLink *sl;
+				ARegion *ar;
+				
+				if (sa->spacetype == SPACE_VIEW3D) {
+					
+					/* The icon shelf is added first, right after the header region, which is assumed to be first in the list. 
+					 * The menubar is then added after the header as well, and then ends up before the icon shelf. 
+					 */
 
+					/* add icon shelf  */
+					ar = BKE_area_find_region_type(sa, RGN_TYPE_ICON_SHELF);
+					if (ar == NULL) {
+						ar = MEM_callocN(sizeof(ARegion), "tool operators icon shelf for view3d");
+						BLI_insertlinkafter(&sa->regionbase, sa->regionbase.first, ar);
+						ar->regiontype = RGN_TYPE_ICON_SHELF;
+						ar->alignment = RGN_ALIGN_TOP;
+					}
+					
+					/* add operators menubar  */
+					ar = BKE_area_find_region_type(sa, RGN_TYPE_MENU_BAR);
+					if (ar == NULL) {
+						ar = MEM_callocN(sizeof(ARegion), "tool operators menu bar for view3d");
+						
+						BLI_insertlinkafter(&sa->regionbase, sa->regionbase.first, ar);
+						ar->regiontype = RGN_TYPE_MENU_BAR;
+						ar->alignment = RGN_ALIGN_TOP;
+					}
+				}
+				
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_VIEW3D) {
+						
+						/* add icon shelf  */
+						ar = BKE_spacelink_find_region_type(sl, RGN_TYPE_ICON_SHELF);
+						if (ar == NULL) {
+							ar = MEM_callocN(sizeof(ARegion), "tool operators icon shelf for view3d");
+							BLI_insertlinkafter(&sl->regionbase, sl->regionbase.first, ar);
+							ar->regiontype = RGN_TYPE_ICON_SHELF;
+							ar->alignment = RGN_ALIGN_TOP;
+						}
+						
+						/* add operators menubar  */
+						ar = BKE_spacelink_find_region_type(sl, RGN_TYPE_MENU_BAR);
+						if (ar == NULL) {
+							ar = MEM_callocN(sizeof(ARegion), "tool operators menu bar for view3d");
+							
+							BLI_insertlinkafter(&sl->regionbase, sl->regionbase.first, ar);
+							ar->regiontype = RGN_TYPE_MENU_BAR;
+							ar->alignment = RGN_ALIGN_TOP;
+						}
+					}
+				}
+			}
+		}
+	}
 
 	{
 		bScreen *sc;
@@ -9512,40 +9614,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 						SpaceNode *snode = (SpaceNode *)sl;
 						if (snode->zoom < 0.02f) {
 							snode->zoom = 1.0;
-						}
-					}
-				}
-			}
-		}
-	}
-	
-	
-	/* Remove the tool properties region from the space (TODO: and clip) toolbars.
-	   N.B. not at all sure that this is where these regions are supposed to be removed.
-	 */
-	{
-		bScreen *sc;
-		
-		for (sc = main->screen.first; sc; sc = sc->id.next) {
-			ScrArea *sa;
-			for (sa = sc->areabase.first; sa; sa = sa->next) {
-				SpaceLink *sl;
-				ARegion *r;
-				
-				for (r = sa->regionbase.first; r; r = r->next) {
-					if (r->regiontype == RGN_TYPE_TOOL_PROPS) {
-						//printf("1 - found TOOL_PROPS!\n");
-						BLI_remlink(&sa->regionbase, r);
-					}
-				}
-								
-				for (sl = sa->spacedata.first; sl; sl = sl->next) {
-					if (sl->spacetype == SPACE_VIEW3D) {
-						for (r = sl->regionbase.first; r; r = r->next) {
-							if (r->regiontype == RGN_TYPE_TOOL_PROPS) {
-								//printf("2 - found TOOL_PROPS!\n");
-								BLI_remlink(&sl->regionbase, r);
-							}
 						}
 					}
 				}

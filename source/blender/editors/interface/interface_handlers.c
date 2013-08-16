@@ -5132,31 +5132,30 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 		
 		uiItemS(layout);
 		
-		/* operator defaults */
-		
-		/* initialise the operator type's default properties from the temporary operator */
-		if (but->optype->default_properties_op) {
-			// make sure the temporary operator has the latest default properties set.
-			WM_operator_properties_init(but->optype->default_properties_op);
-		} else {
-			// make sure the last_properties are set from the new operator.
-			but->optype->default_properties_op = WM_operator_create(C, but->optype, NULL, NULL);
-		}
-		
-		uiBlockSetHandleFunc(block, &ui_but_menu_set_last_properties, but->optype->default_properties_op);
-		
-		// add panels for all operators in a macro
-		if (but->optype->flag & OPTYPE_MACRO) {
-			for (op = but->optype->default_properties_op->macro.first; op; op = op->next) {
-				uiLayoutOperatorTypeDefaultsButs(C, layout, op);
-			}
-		}
-		else {
-			uiLayoutOperatorTypeDefaultsButs(C, layout, but->optype->default_properties_op);
-		}
-		
-		uiItemS(layout);
-		
+//		/* operator defaults */
+//		
+//		/* initialise the operator type's default properties from the temporary operator */
+//		if (but->optype->default_properties_op) {
+//			// make sure the temporary operator has the latest default properties set.
+//			WM_operator_properties_init(but->optype->default_properties_op);
+//		} else {
+//			// make sure the last_properties are set from the new operator.
+//			but->optype->default_properties_op = WM_operator_create(C, but->optype, NULL, NULL);
+//		}
+//		
+//		uiBlockSetHandleFunc(block, &ui_but_menu_set_last_properties, but->optype->default_properties_op);
+//		
+//		// add panels for all operators in a macro
+//		if (but->optype->flag & OPTYPE_MACRO) {
+//			for (op = but->optype->default_properties_op->macro.first; op; op = op->next) {
+//				uiLayoutOperatorTypeDefaultsButs(C, layout, op);
+//			}
+//		}
+//		else {
+//			uiLayoutOperatorTypeDefaultsButs(C, layout, but->optype->default_properties_op);
+//		}
+//		
+//		uiItemS(layout);		
 		
 
 		if (kmi_id)
@@ -5181,6 +5180,16 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 			but2 = uiDefIconTextBut(block, BUT, 0, 0, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Add Shortcut"),
 			                        0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
 			uiButSetFunc(but2, popup_add_shortcut_func, but, NULL);
+		}
+		
+		uiItemS(layout);
+		
+		{
+			uiBut *icon_add_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Add to Icon Shelf"), 0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
+			uiButSetFunc(icon_add_but, add_to_icon_shelf, but->optype, NULL);
+			
+			uiItemMenuF(layout, IFACE_("Add to Custom Panel..."), ICON_NONE, add_to_custom_panel_menu, but->optype);
+			
 		}
 		
 		uiItemS(layout);

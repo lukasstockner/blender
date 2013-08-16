@@ -690,7 +690,7 @@ static StructRNA *rna_MenuBar_register(Main *bmain, ReportList *reports, void *d
 	}
 	
 	/* create a new header type */
-	mbt = MEM_callocN(sizeof(MenuBarType), "menu bar");
+	mbt = MEM_callocN(sizeof(MenuBarType), "register menu bar type");
 	memcpy(mbt, &dummymbt, sizeof(dummymbt));
 	
 	mbt->ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, mbt->idname, &RNA_MenuBar);

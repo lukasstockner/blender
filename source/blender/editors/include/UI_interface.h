@@ -273,6 +273,15 @@ typedef enum {
 
 #define UI_GRAD_V_ALT   9
 
+/* Panel flags */
+#define PNL_LAST_ADDED      1
+#define PNL_ACTIVE          2
+#define PNL_WAS_ACTIVE      4
+#define PNL_ANIM_ALIGN      8
+#define PNL_NEW_ADDED       16
+#define PNL_FIRST           32
+#define PNL_CUSTOM_PANEL	64
+
 /* Drawing
  *
  * Functions to draw various shapes, taking theme settings into account.
@@ -669,6 +678,11 @@ void uiDrawPanels(const struct bContext *C, struct ARegion *ar);
 struct Panel *uiBeginPanel(struct ScrArea *sa, struct ARegion *ar, uiBlock *block, struct PanelType *pt, int *open);
 void uiEndPanel(uiBlock *block, int width, int height);
 void uiScalePanels(struct ARegion *ar, float new_width);
+
+void uiPanelAddOperator(struct Panel *pa, const char *optype_idname);
+void uiPanelFree(struct Panel *pa);
+
+struct PanelType  *uiCreateCustomPanelType(struct ScrArea *sa, struct ARegion *ar, const char *context, const char *name);
 
 /* Handlers
  *

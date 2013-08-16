@@ -395,8 +395,6 @@ void WM_exit_ext(bContext *C, const short do_python)
 
 		if (!G.background) {
 			
-			WM_save_custom_panels();
-			
 			if ((U.uiflag2 & USER_KEEP_SESSION) || BKE_undo_valid(NULL)) {
 				/* save the undo state as quit.blend */
 				char filename[FILE_MAX];

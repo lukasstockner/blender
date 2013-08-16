@@ -899,8 +899,6 @@ class VIEW3D_MT_menubar_mesh_vertices(Menu):
     def draw(self, context):
         layout = self.layout
         layout.operator_context = 'INVOKE_REGION_WIN'
-        layout.operator_enum("mesh.merge", "type")
-        layout.separator()
         layout.operator("mesh.merge", text="Merge at Center").type = 'CENTER'
         layout.operator("mesh.merge", text="Merge at Cursor").type = 'CURSOR'
         layout.operator("mesh.merge", text="Merge at First").type = 'FIRST'
