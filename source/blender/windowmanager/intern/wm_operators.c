@@ -4152,112 +4152,6 @@ static void operatortype_ghash_free_cb(wmOperatorType *ot)
 
 /* ******************************************************* */
 
-static uiBlock *wm_panel_popup_create_block(bContext *C, ARegion *ar, void *arg_op)
-{
-	ARegion *tar = CTX_wm_region(C);
-//	wmWindow *win = CTX_wm_window(C);
-//	wmEvent event;
-	uiBlock *block;
-	wmOperator *op = arg_op;
-	char panel_name[64];
-	Panel *pa;
-	PanelType *pt = NULL;
-	uiStyle *style = UI_GetStyleDraw();
-	int xco, yco;
-	int w = UI_PANEL_WIDTH / 2;
-	int em = UI_UNIT_Y;
-	
-	// Can't seem to pass RNA pointers in op properties, PropertyRNA/PointerPropertyPRNA stuff
-	//	pa = RNA_pointer_get(op->ptr, "panel").data;
-	//	printf("%s, %s\n", __func__, "");
-	
-	RNA_string_get(op->ptr, "panel_name", panel_name);
-	
-	/* Get the first panel with the same name. If multiple panels 
-	   with the same name exist this won't work. Tried to pass an 
-	   RNA Pointer, but that doesn't seem to be possible. */
-	for (pa = tar->panels.first; pa; pa = pa->next) {
-		if (pa->type && pa->type->idname) {
-			if(strcmp(pa->type->idname, panel_name) == 0) {
-				pt = pa->type;
-				break;
-			}
-		}
-	}
-	
-	block = uiBeginBlock(C, ar, "popup", UI_EMBOSS);
-	
-	uiBlockSetFlag(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
-	
-	if (pt) {
-
-		pa = MEM_callocN(sizeof(Panel), "new panel");
-		pa->type = pt;
-		BLI_strncpy(pa->panelname, pt->idname, UI_MAX_NAME_STR);
-		BLI_strncpy(pa->tabname, pt->idname, UI_MAX_NAME_STR);
-
-		pa->ofsx = 0;
-		pa->ofsy = 0;
-		pa->sizex = 0;
-		pa->sizey = 0;
-		
-		uiBlockSetPanel(block, pa);
-		
-		pa->layout = uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_TOOLBAR,
-								   style->panelspace, 0, w - 2 * style->panelspace, em, style);
-		pt->draw(C, pa);
-		pa->labelofs = 0;
-		uiBlockLayoutResolve(block, &xco, &yco);
-		
-		yco -= 2 * style->panelspace;
-		uiEndPanel(block, w, 0);
-		
-		uiBlockSetPanel(block, NULL);
-		uiPanelFree(pa);
-	}
-	
-	uiPopupBoundsBlock(block, 6, 0, -UI_UNIT_Y); /* move it downwards, mouse over button */
-	uiEndBlock(C, block);
-	
-	return block;
-}
-
-// TODO: WM_OT_panel_popup shouldn't be an operator, but executed directly ~ ack-err
-static int wm_panel_popup_exec(bContext *UNUSED(C), wmOperator *UNUSED(op))
-{
-	return OPERATOR_FINISHED;
-}
-
-static int wm_panel_popup_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
-{
-	uiPupBlock(C, wm_panel_popup_create_block, op);
-	return OPERATOR_CANCELLED;
-}
-
-static int wm_panel_popup_poll(bContext *UNUSED(C))
-{
-	return 1;
-}
-
-static void WM_OT_panel_popup(wmOperatorType *ot)
-{
-	PropertyRNA *prop;
-	
-	ot->name = "Panel Popup";
-	ot->idname = "WM_OT_panel_popup";
-	ot->description = "Pop-up a panel so that the panel's content is available without unfolding it";
-	
-	ot->invoke = wm_panel_popup_invoke;
-	ot->exec = wm_panel_popup_exec;
-	ot->poll = wm_panel_popup_poll;
-	
-	ot->flag |= OPTYPE_INTERNAL;
-	
-	prop = RNA_def_string(ot->srna, "panel_name", "", 64, "panel_name", "The name of the panel being opened in a popup");
-	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_REQUIRED);
-}
-
-
 void add_to_icon_shelf(bContext *C, void *arg1, void *UNUSED(arg2))
 {
 	ScrArea *sa = CTX_wm_area(C);
@@ -4518,7 +4412,6 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_call_menu);
 	WM_operatortype_append(WM_OT_radial_control);
 	WM_operatortype_append(WM_OT_ndof_sensitivity_change);
-	WM_operatortype_append(WM_OT_panel_popup);
 	WM_operatortype_append(WM_OT_create_custom_panel);
 	WM_operatortype_append(WM_OT_add_to_custom_panel);
 #if defined(WIN32)

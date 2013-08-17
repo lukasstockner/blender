@@ -1111,6 +1111,73 @@ static void ui_do_drag(const bContext *C, const wmEvent *event, Panel *panel)
 
 /******************* region level panel interaction *****************/
 
+static void panel_popup_draw(bContext *C, uiBlock *block, PanelType *pt)
+{
+	uiStyle *style = UI_GetStyleDraw();
+	Panel *pa;
+	int xco, yco;
+	int w = UI_PANEL_WIDTH / 2;
+	int em = UI_UNIT_Y;
+	
+	if (pt) {
+		
+		pa = MEM_callocN(sizeof(Panel), "new panel");
+		pa->type = pt;
+		BLI_strncpy(pa->panelname, pt->idname, UI_MAX_NAME_STR);
+		BLI_strncpy(pa->tabname, pt->idname, UI_MAX_NAME_STR);
+		
+		pa->ofsx = 0;
+		pa->ofsy = 0;
+		pa->sizex = 0;
+		pa->sizey = 0;
+		
+		uiBlockSetPanel(block, pa);
+		
+		pa->layout = uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_TOOLBAR,
+								   style->panelspace, 0, w - 2 * style->panelspace, em, style);
+		pt->draw(C, pa);
+		pa->labelofs = 0;
+		uiBlockLayoutResolve(block, &xco, &yco);
+		
+		yco -= 2 * style->panelspace;
+		uiEndPanel(block, w, 0);
+		
+		uiBlockSetPanel(block, NULL);
+		uiPanelFree(pa);
+	}
+}
+
+//static void panel_popup_cb(bContext *C, void *arg1, void *arg2)
+//{
+//	uiBlock *block = (uiBlock*)arg1;
+////	ARegion *ar = (ARegion*)arg1;
+//	PanelType *pt = (PanelType*)arg2;
+//	
+//	panel_popup_draw(C, block, pt);
+////	ED_region_tag_redraw(ar);
+//	printf("executing.\n");
+//}
+
+static uiBlock *panel_popup_create_block(bContext *C, ARegion *ar, void *pt_arg)
+{
+	uiBlock *block;
+	PanelType *pt = (PanelType*)pt_arg;
+	
+	block = uiBeginBlock(C, ar, "popup", UI_EMBOSS);
+	
+	uiBlockClearFlag(block, UI_BLOCK_LOOP);
+	uiBlockSetFlag(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_MOVEMOUSE_QUIT);
+	
+	/* An attempt to make the block redraw so that dynamic panels get updated (e.g. grease pencil layers) ~ ack-err */
+//	uiBlockSetFunc(block, panel_popup_cb, block, pt);
+	
+	panel_popup_draw(C, block, pt);
+	
+	uiPopupBoundsBlock(block, 6, 0, -UI_UNIT_Y); /* move it downwards, mouse over button */
+	uiEndBlock(C, block);
+	
+	return block;
+}
 
 /* this function is supposed to call general window drawing too */
 /* also it supposes a block has panel, and isn't a menu */
@@ -1157,8 +1224,6 @@ static void ui_handle_panel_header(bContext *C, uiBlock *block, int mx, int my, 
 			button = 1; // open
 		}
 	}
-		
-	
 
 	switch (button) {
 		case 1:
@@ -1203,17 +1268,7 @@ static void ui_handle_panel_header(bContext *C, uiBlock *block, int mx, int my, 
 				ED_region_tag_redraw(ar);
 			break;
 		case 3:
-			WM_operator_properties_create(&props_ptr, "WM_OT_panel_popup");
-
-			// Can't seem to pass an RNA pointer..
-//			RNA_pointer_create(NULL, &RNA_Panel, &block->panel, &panel_ptr);
-//			RNA_pointer_set(&props_ptr, "panel", panel_ptr);
-			
-			// TODO: don't need to define an operator, just call directly ~ ack-err
-			RNA_string_set(&props_ptr, "panel_name", block->panel->type->idname);
-			WM_operator_name_call(C, "WM_OT_panel_popup", WM_OP_INVOKE_DEFAULT, &props_ptr);
-
-			WM_operator_properties_free(&props_ptr);
+			uiPupBlock(C, panel_popup_create_block, block->panel->type);
 			break;
 		case 4:
 		default:
