@@ -4261,14 +4261,17 @@ static void WM_OT_panel_popup(wmOperatorType *ot)
 void add_to_icon_shelf(bContext *C, void *arg1, void *UNUSED(arg2))
 {
 	ScrArea *sa = CTX_wm_area(C);
-	ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_ICON_SHELF);
-	wmOperatorType *ot = (wmOperatorType*)arg1;
-	OperatorListItem *oli = MEM_callocN(sizeof(OperatorListItem), "add operator list item to icon shelf");
-	BLI_strncpy(oli->optype_idname, ot->idname, OP_MAX_TYPENAME);
-	
-	BLI_addtail(&ar->operators, oli);
-	
-	ED_region_tag_redraw(ar);
+	ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_MENU_BAR);
+	if (ar && arg1)
+	{
+		wmOperatorType *ot = (wmOperatorType*)arg1;
+		OperatorListItem *oli = MEM_callocN(sizeof(OperatorListItem), "add operator list item to icon shelf");
+		BLI_strncpy(oli->optype_idname, ot->idname, OP_MAX_TYPENAME);
+		
+		BLI_addtail(&ar->operators, oli);
+		
+		ED_region_tag_redraw(ar);
+	}
 }
 
 void add_to_custom_panel_menu(bContext *C, uiLayout *layout, void *arg1)

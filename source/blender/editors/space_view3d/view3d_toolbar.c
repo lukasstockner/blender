@@ -56,6 +56,7 @@
 #include "WM_types.h"
 
 #include "RNA_access.h"
+#include "RNA_enum_types.h"
 
 #include "ED_screen.h"
 #include "ED_util.h"
@@ -72,16 +73,6 @@
 static void view3d_panel_operator_redo_buts(const bContext *C, Panel *pa, wmOperator *op)
 {
 	uiLayoutOperatorButs(C, pa->layout, op, NULL, 'V', 0);
-}
-
-static void view3d_panel_operator_redo_header(const bContext *C, Panel *pa)
-{
-	wmOperator *op = WM_operator_last_redo(C);
-
-//	if (op)
-//		BLI_strncpy(pa->drawname, BLI_sprintfN("Last Op: %s", RNA_struct_ui_name(op->type->srna)), sizeof(pa->drawname));
-//	else
-		BLI_strncpy(pa->drawname, IFACE_("Last Operator"), sizeof(pa->drawname));
 }
 
 static void view3d_panel_operator_redo_operator(const bContext *C, Panel *pa, wmOperator *op)
@@ -129,6 +120,45 @@ static void view3d_panel_operator_redo(const bContext *C, Panel *pa)
 
 	/* set region back */
 	CTX_wm_region_set((bContext *)C, ar);
+}
+
+static void collapse_all_panels(bContext *C, void *UNUSED(arg1), void *UNUSED(arg2))
+{
+	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar = CTX_wm_region(C);
+	uiCollapseAllPanels(sa, ar, CTX_data_mode_string(C));
+}
+
+static void view3d_toolbar_header_draw(const bContext *C, Panel *pa)
+{
+	uiLayout *layout = pa->layout;
+	uiLayout *row = uiLayoutRow(layout, TRUE);
+	const char *name = "";
+	int modeicon = UI_data_mode_icon(C);
+	Object *ob = CTX_data_active_object(C);
+	int modeselect = ob ? ob->mode : OB_MODE_OBJECT;
+	EnumPropertyItem *item = object_mode_items;
+	uiBut *but;
+		
+	while (item->identifier) {
+		if (item->value == modeselect && item->identifier[0]) {
+			name = IFACE_(item->name);
+			break;
+		}
+		item++;
+	}
+
+	uiItemL(row, name, modeicon);
+
+	// TODO: somehow this centers the button's text
+	but = uiDefIconBut(uiLayoutGetBlock(row), BUT, 0, ICON_TRIA_RIGHT, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0, 0, 0, 0, "Collapse all panels in this toolbar");
+	//but = uiDefIconTextBut(uiLayoutGetBlock(column), BUT, 0, ICON_NONE, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Collapse All"), 0, 0, 0, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
+	uiButSetFunc(but, collapse_all_panels, pa, NULL);
+	
+//	uiItemO(row, "", ICON_NONE, "WM_OT_create_custom_panel");
+	
+	uiDefIconButO(uiLayoutGetBlock(row), BUT, "WM_OT_create_custom_panel", WM_OP_INVOKE_DEFAULT, ICON_PLUS, 0, 0, UI_UNIT_X, UI_UNIT_Y, "Add a custom panel to this toolbar");
+	
 }
 
 /* ******************* */
@@ -251,9 +281,8 @@ void view3d_tool_props_register(ARegionType *art)
 	
 	pt = MEM_callocN(sizeof(PanelType), "spacetype view3d panel last operator");
 	strcpy(pt->idname, "VIEW3D_PT_last_operator");
-	strcpy(pt->label, N_("Operator"));
+	strcpy(pt->label, N_("Last Operator"));
 	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
-	pt->draw_header = view3d_panel_operator_redo_header;
 	pt->draw = view3d_panel_operator_redo;
 	BLI_addtail(&art->paneltypes, pt);
 }
@@ -268,6 +297,19 @@ void view3d_grease_register(ARegionType *art)
 	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
 	pt->draw_header = gpencil_panel_standard_header;
 	pt->draw = gpencil_panel_standard;
+	BLI_addtail(&art->paneltypes, pt);
+}
+
+void view3d_toolbar_header_register(ARegionType *art)
+{
+	PanelType *pt;
+	
+	pt = MEM_callocN(sizeof(PanelType), "spacetype view3d toolbar header");
+	strcpy(pt->idname, "VIEW3D_PT_toolbar_header");
+	strcpy(pt->label, N_("No Label!"));
+	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
+	pt->flag = PNL_NO_HEADER;
+	pt->draw = view3d_toolbar_header_draw;
 	BLI_addtail(&art->paneltypes, pt);
 }
 

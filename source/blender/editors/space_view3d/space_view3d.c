@@ -296,20 +296,6 @@ static SpaceLink *view3d_new(const bContext *C)
 	ar->regiontype = RGN_TYPE_HEADER;
 	ar->alignment = RGN_ALIGN_BOTTOM;
 	
-	/* operators menubar  */
-	ar = MEM_callocN(sizeof(ARegion), "tool operators menu bar for view3d");
-	
-	BLI_addtail(&v3d->regionbase, ar);
-	ar->regiontype = RGN_TYPE_MENU_BAR;
-	ar->alignment = RGN_ALIGN_TOP;
-	
-	/* icon shelf  */
-	ar = MEM_callocN(sizeof(ARegion), "tool operators icon shelf for view3d");
-	
-	BLI_addtail(&v3d->regionbase, ar);
-	ar->regiontype = RGN_TYPE_ICON_SHELF;
-	ar->alignment = RGN_ALIGN_TOP;
-	
 	/* tool shelf */
 	ar = MEM_callocN(sizeof(ARegion), "toolshelf for view3d");
 	
@@ -317,6 +303,13 @@ static SpaceLink *view3d_new(const bContext *C)
 	ar->regiontype = RGN_TYPE_TOOLS;
 	ar->alignment = RGN_ALIGN_LEFT;
 	//ar->flag = RGN_FLAG_HIDDEN;
+	
+	/* operators menubar  */
+	ar = MEM_callocN(sizeof(ARegion), "tool operators menu bar for view3d");
+	
+	BLI_addtail(&v3d->regionbase, ar);
+	ar->regiontype = RGN_TYPE_MENU_BAR;
+	ar->alignment = RGN_ALIGN_TOP;
 	
 	/* object properties sidebar right */
 	ar = MEM_callocN(sizeof(ARegion), "buttons for view3d");
@@ -1097,40 +1090,6 @@ static void view3d_menubar_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa
 	}
 }
 
-
-static void view3d_iconshelf_area_init(wmWindowManager *wm, ARegion *ar)
-{
-	wmKeyMap *keymap;
-	
-	ED_region_iconshelf_init(ar);
-	
-	keymap = WM_keymap_find(wm->defaultconf, "3D View Generic", SPACE_VIEW3D, 0);
-	WM_event_add_keymap_handler(&ar->handlers, keymap);
-}
-
-static void view3d_iconshelf_area_draw(const bContext *C, ARegion *ar)
-{
-	ED_region_iconshelf(C, ar);
-}
-
-static void view3d_iconshelf_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
-{
-	/* context changes */
-	switch (wmn->category) {
-		case NC_SCENE:
-			if (wmn->data == ND_MODE)
-				ED_region_tag_redraw(ar);
-			break;
-		case NC_SPACE:
-			if (wmn->data == ND_SPACE_VIEW3D)
-				ED_region_tag_redraw(ar);
-			break;
-	}
-}
-
-
-
-
 #if 0
 static void view3d_props_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
@@ -1367,27 +1326,18 @@ void ED_spacetype_view3d(void)
 	art->draw = view3d_tools_area_draw;
 	BLI_addhead(&st->regiontypes, art);
 	
+	view3d_toolbar_header_register(art);
 	view3d_tool_props_register(art);
 	view3d_grease_register(art);
 	
 	/* regions: operators menu bar */
 	art = MEM_callocN(sizeof(ARegionType), "spacetype view3d operators menu bar region");
 	art->regionid = RGN_TYPE_MENU_BAR;
-	art->prefsizey = ED_area_headersize();
+	art->prefsizey = ED_area_headersize() * 2;
 	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D;
 	art->listener = view3d_menubar_area_listener;
 	art->init = view3d_menubar_area_init;
 	art->draw = view3d_menubar_area_draw;
-	BLI_addhead(&st->regiontypes, art);
-	
-	/* regions: operators icon shelf */
-	art = MEM_callocN(sizeof(ARegionType), "spacetype view3d operators icon shelf region");
-	art->regionid = RGN_TYPE_ICON_SHELF;
-	art->prefsizey = ED_area_headersize();
-	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D;
-	art->listener = view3d_iconshelf_area_listener;
-	art->init = view3d_iconshelf_area_init;
-	art->draw = view3d_iconshelf_area_draw;
 	BLI_addhead(&st->regiontypes, art);
 	
 	/* regions: header */

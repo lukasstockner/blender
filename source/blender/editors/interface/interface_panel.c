@@ -157,21 +157,29 @@ static int panels_re_align(ScrArea *sa, ARegion *ar, Panel **r_pa)
 
 /****************************** panels ******************************/
 
-static void panels_collapse_all(ScrArea *sa, ARegion *ar, Panel *from_pa)
+void uiCollapseAllPanels(ScrArea *sa, ARegion *ar, const char *context)
 {
 	Panel *pa;
-	PanelType *pt, *from_pt;
+	PanelType *pt;
 	int flag = ((panel_aligned(sa, ar) == BUT_HORIZONTAL) ? PNL_CLOSEDX : PNL_CLOSEDY);
 
 	for (pa = ar->panels.first; pa; pa = pa->next) {
 		pt = pa->type;
-		from_pt = from_pa->type;
 
 		/* close panels with headers in the same context */
-		if (pt && from_pt && !(pt->flag & PNL_NO_HEADER))
-			if (!pt->context[0] || strcmp(pt->context, from_pt->context) == 0)
-				pa->flag = flag;
+		if (pt && context && !(pt->flag & PNL_NO_HEADER))
+			if (!pt->context[0] || strcmp(pt->context, context) == 0) {
+				pa->flag |= flag;
+				pa->ofsx = 0;
+				pa->ofsy = 0;
+				pa->sizex = 0;
+				pa->sizey = 0;
+				pa->runtime_flag |= PNL_NEW_ADDED;
+			}
+				
 	}
+	
+	ED_region_tag_redraw(ar);
 }
 
 
@@ -1157,7 +1165,7 @@ static void ui_handle_panel_header(bContext *C, uiBlock *block, int mx, int my, 
 			/* collapse */
 			if (ctrl)
 				// TODO: CTRL AKEY doesn't seem to arrive here ~ ack-err
-				panels_collapse_all(sa, ar, block->panel);
+				uiCollapseAllPanels(sa, ar, CTX_data_mode_string(C));
 
 			if (block->panel->flag & PNL_CLOSED) {
 				block->panel->flag &= ~PNL_CLOSED;

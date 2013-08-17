@@ -40,6 +40,7 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
+#include "DNA_object_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
@@ -49,6 +50,7 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_texture.h"
+#include "BKE_context.h"
 
 
 #include "BIF_gl.h"
@@ -1355,6 +1357,29 @@ void UI_make_axis_color(const unsigned char src_col[3], unsigned char dst_col[3]
 		default:
 			BLI_assert(!"invalid axis arg");
 	}
+}
+
+int UI_data_mode_icon(const bContext *C)
+{
+	Object *obedit = CTX_data_edit_object(C);
+	
+	if (obedit) {
+		return ICON_EDITMODE_HLT;
+	}
+	else {
+		Object *ob = CTX_data_active_object(C);
+		
+		if (ob) {
+			if (ob->mode & OB_MODE_POSE) return ICON_POSE_HLT;
+			else if (ob->mode & OB_MODE_SCULPT) return ICON_SCULPTMODE_HLT;
+			else if (ob->mode & OB_MODE_WEIGHT_PAINT) return ICON_WPAINT_HLT;
+			else if (ob->mode & OB_MODE_VERTEX_PAINT) return ICON_VPAINT_HLT;
+			else if (ob->mode & OB_MODE_TEXTURE_PAINT) return ICON_TPAINT_HLT;
+			else if (ob->mode & OB_MODE_PARTICLE_EDIT) return ICON_PARTICLEMODE;
+		}
+	}
+	
+	return ICON_OBJECT_DATAMODE;
 }
 
 /* ************************************************************* */

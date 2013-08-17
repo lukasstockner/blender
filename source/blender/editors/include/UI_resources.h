@@ -312,4 +312,6 @@ const unsigned char *UI_ThemeGetColorPtr(struct bTheme *btheme, int spacetype, i
 
 void UI_make_axis_color(const unsigned char *src_col, unsigned char *dst_col, const char axis);
 
+int UI_data_mode_icon(const struct bContext *C);
+
 #endif  /* __UI_RESOURCES_H__ */

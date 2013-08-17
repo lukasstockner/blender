@@ -950,6 +950,14 @@ static void region_rect_recursive(wmWindow *win, ScrArea *sa, ARegion *ar, rcti 
 	if (ar->regiontype == RGN_TYPE_HEADER) {
 		prefsizey = ED_area_headersize();
 	}
+	else if (ar->regiontype == RGN_TYPE_MENU_BAR) {
+		/* quantize sizey to once or twice the headysize */
+		int headersize = ED_area_headersize();
+		if (ar->sizey > 0 && ar->sizey <= headersize)
+			prefsizey = headersize;
+		else if (ar->sizey > headersize)
+			prefsizey = 2 * headersize;
+	}
 	else if (ar->regiontype == RGN_TYPE_UI && sa->spacetype == SPACE_FILE) {
 		prefsizey = UI_UNIT_Y * 2 + (UI_UNIT_Y / 2);
 	}
@@ -1825,74 +1833,12 @@ void ED_region_menubar(const bContext *C, ARegion *ar)
 {
 	uiStyle *style = UI_GetStyleDraw();
 	uiBlock *block;
-	uiLayout *layout;
+	uiLayout *layout, *row;
 	MenuBarType *mbt;
 	MenuBar mb = {NULL};
 	int maxco, xco, yco;
-	int headery = ED_area_headersize();
+	int headery = ED_area_headersize() * 2;
 	const char *context = CTX_data_mode_string(C);
-	
-	/* clear */
-	UI_ThemeClearColor(TH_BACK);
-	glClear(GL_COLOR_BUFFER_BIT);
-	
-	/* set view2d view matrix for scrolling (without scrollers) */
-	UI_view2d_view_ortho(&ar->v2d);
-	
-	xco = maxco = 0.4f * UI_UNIT_X;
-	yco = headery - floor(0.2f * UI_UNIT_Y);
-	
-	/* draw all menu bar types */
-	for (mbt = ar->type->menubartypes.first; mbt; mbt = mbt->next) {
-		
-		/* verify context */
-		if (context)
-			if (mbt->context[0] && strcmp(context, mbt->context) != 0)
-				continue;
-
-		block = uiBeginBlock(C, ar, mbt->idname, UI_EMBOSS);
-		layout = uiBlockLayout(block, UI_LAYOUT_HORIZONTAL, UI_LAYOUT_HEADER, xco, yco, UI_UNIT_Y, 1, style);
-		
-		if (mbt->draw) {
-			mb.type = mbt;
-			mb.layout = layout;
-			mbt->draw(C, &mb);
-			
-			/* for view2d */
-			xco = uiLayoutGetWidth(layout);
-			if (xco > maxco)
-				maxco = xco;
-		}
-		
-		uiBlockLayoutResolve(block, &xco, &yco);
-		
-		/* for view2d */
-		if (xco > maxco)
-			maxco = xco;
-		
-		uiEndBlock(C, block);
-		uiDrawBlock(C, block);
-	}
-	
-	/* always as last  */
-	UI_view2d_totRect_set(&ar->v2d, maxco + UI_UNIT_X + 80, headery);
-	
-	/* restore view matrix? */
-	UI_view2d_view_restore(C);
-}
-
-void ED_region_menubar_init(ARegion *ar)
-{
-	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_HEADER, ar->winx, ar->winy);
-}
-
-void ED_region_iconshelf(const bContext *C, ARegion *ar)
-{
-	uiStyle *style = UI_GetStyleDraw();
-	uiBlock *block;
-	uiLayout *layout, *row;
-	int maxco, xco, yco;
-	int headery = ED_area_headersize();
 	OperatorListItem *oli;
 	
 	/* clear */
@@ -1904,25 +1850,51 @@ void ED_region_iconshelf(const bContext *C, ARegion *ar)
 	
 	xco = maxco = 0.4f * UI_UNIT_X;
 	yco = headery - floor(0.2f * UI_UNIT_Y);
+
+	block = uiBeginBlock(C, ar, "menubar menus", UI_EMBOSS);
+	layout = uiBlockLayout(block, UI_LAYOUT_HORIZONTAL, UI_LAYOUT_HEADER, xco, yco, UI_UNIT_Y, 1, style);
 	
-	block = uiBeginBlock(C, ar, "TODO: icons", UI_EMBOSS);
+	/* add all menubar types to the top bar */
+	for (mbt = ar->type->menubartypes.first; mbt; mbt = mbt->next) {
+		
+		/* verify context */
+		if (context)
+			if (mbt->context[0] && strcmp(context, mbt->context) != 0)
+				continue;
+
+		if (mbt->draw) {
+			mb.type = mbt;
+			mb.layout = layout;
+			mbt->draw(C, &mb);
+		}
+	}
+	
+	/* draw top bar */
+	xco = uiLayoutGetWidth(layout);
+	if (xco > maxco) maxco = xco;
+	uiBlockLayoutResolve(block, &xco, &yco);
+	uiEndBlock(C, block);
+	uiDrawBlock(C, block);
+	
+	/* add all custom buttons to lower bar */
+	xco = maxco = 0.4f * UI_UNIT_X;
+	yco = headery/2 - floor(0.2f * UI_UNIT_Y);
+	
+	block = uiBeginBlock(C, ar, "menubar icons", UI_EMBOSS);
 	layout = uiBlockLayout(block, UI_LAYOUT_HORIZONTAL, UI_LAYOUT_HEADER, xco, yco, UI_UNIT_Y, 1, style);
 	row = uiLayoutRow(layout, TRUE);
 	
 	for (oli = ar->operators.first; oli; oli = oli->next) {
 		uiItemO(row, NULL, ICON_NONE, oli->optype_idname);
 	}
-		
-	xco = uiLayoutGetWidth(layout);
+
+	/* draw bottom bar */
+	xco = uiLayoutGetWidth(row);
 	if (xco > maxco) maxco = xco;
-		
 	uiBlockLayoutResolve(block, &xco, &yco);
-		
-	/* for view2d */
-	if (xco > maxco) maxco = xco;
-		
 	uiEndBlock(C, block);
 	uiDrawBlock(C, block);
+	
 	
 	/* always as last  */
 	UI_view2d_totRect_set(&ar->v2d, maxco + UI_UNIT_X + 80, headery);
@@ -1931,7 +1903,7 @@ void ED_region_iconshelf(const bContext *C, ARegion *ar)
 	UI_view2d_view_restore(C);
 }
 
-void ED_region_iconshelf_init(ARegion *ar)
+void ED_region_menubar_init(ARegion *ar)
 {
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_HEADER, ar->winx, ar->winy);
 }

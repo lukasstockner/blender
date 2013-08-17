@@ -9523,56 +9523,37 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		
 		for (sc = main->screen.first; sc; sc = sc->id.next) {
 			ScrArea *sa;
-			ARegion *r;
 			
 			for (sa = sc->areabase.first; sa; sa = sa->next) {
 				SpaceLink *sl;
 				ARegion *ar;
+				ARegion *after = BKE_area_find_region_type(sa, RGN_TYPE_TOOLS);
 				
-				if (sa->spacetype == SPACE_VIEW3D) {
-					
-					/* The icon shelf is added first, right after the header region, which is assumed to be first in the list. 
-					 * The menubar is then added after the header as well, and then ends up before the icon shelf. 
-					 */
-
-					/* add icon shelf  */
-					ar = BKE_area_find_region_type(sa, RGN_TYPE_ICON_SHELF);
-					if (ar == NULL) {
-						ar = MEM_callocN(sizeof(ARegion), "tool operators icon shelf for view3d");
-						BLI_insertlinkafter(&sa->regionbase, sa->regionbase.first, ar);
-						ar->regiontype = RGN_TYPE_ICON_SHELF;
-						ar->alignment = RGN_ALIGN_TOP;
-					}
+				if (after && sa->spacetype == SPACE_VIEW3D) {
 					
 					/* add operators menubar  */
 					ar = BKE_area_find_region_type(sa, RGN_TYPE_MENU_BAR);
 					if (ar == NULL) {
 						ar = MEM_callocN(sizeof(ARegion), "tool operators menu bar for view3d");
 						
-						BLI_insertlinkafter(&sa->regionbase, sa->regionbase.first, ar);
+						BLI_insertlinkafter(&sa->regionbase, after, ar);
 						ar->regiontype = RGN_TYPE_MENU_BAR;
 						ar->alignment = RGN_ALIGN_TOP;
 					}
 				}
 				
 				for (sl = sa->spacedata.first; sl; sl = sl->next) {
-					if (sl->spacetype == SPACE_VIEW3D) {
-						
-						/* add icon shelf  */
-						ar = BKE_spacelink_find_region_type(sl, RGN_TYPE_ICON_SHELF);
-						if (ar == NULL) {
-							ar = MEM_callocN(sizeof(ARegion), "tool operators icon shelf for view3d");
-							BLI_insertlinkafter(&sl->regionbase, sl->regionbase.first, ar);
-							ar->regiontype = RGN_TYPE_ICON_SHELF;
-							ar->alignment = RGN_ALIGN_TOP;
-						}
+					
+					ARegion *after = BKE_spacelink_find_region_type(sl, RGN_TYPE_TOOLS);
+					
+					if (after && sl->spacetype == SPACE_VIEW3D) {
 						
 						/* add operators menubar  */
 						ar = BKE_spacelink_find_region_type(sl, RGN_TYPE_MENU_BAR);
 						if (ar == NULL) {
 							ar = MEM_callocN(sizeof(ARegion), "tool operators menu bar for view3d");
 							
-							BLI_insertlinkafter(&sl->regionbase, sl->regionbase.first, ar);
+							BLI_insertlinkafter(&sl->regionbase, after, ar);
 							ar->regiontype = RGN_TYPE_MENU_BAR;
 							ar->alignment = RGN_ALIGN_TOP;
 						}

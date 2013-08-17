@@ -671,6 +671,8 @@ bool autocomplete_end(AutoComplete *autocpl, char *autoname);
  * could use a good cleanup, though how they will function in 2.5 is
  * not clear yet so we postpone that. */
 
+void uiCollapseAllPanels(struct ScrArea *sa, struct ARegion *ar, const char *context);
+
 void uiBeginPanels(const struct bContext *C, struct ARegion *ar);
 void uiEndPanels(const struct bContext *C, struct ARegion *ar, int *x, int *y);
 void uiDrawPanels(const struct bContext *C, struct ARegion *ar);
