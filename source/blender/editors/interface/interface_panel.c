@@ -1111,39 +1111,38 @@ static void ui_do_drag(const bContext *C, const wmEvent *event, Panel *panel)
 
 /******************* region level panel interaction *****************/
 
-static void panel_popup_draw(bContext *C, uiBlock *block, PanelType *pt)
+static void panel_popup_draw(bContext *C, uiBlock *block, Panel *pa)
 {
 	uiStyle *style = UI_GetStyleDraw();
-	Panel *pa;
+	Panel *pa_copy;
 	int xco, yco;
 	int w = UI_PANEL_WIDTH / 2;
 	int em = UI_UNIT_Y;
 	
-	if (pt) {
+	if (pa) {
 		
-		pa = MEM_callocN(sizeof(Panel), "new panel");
-		pa->type = pt;
-		BLI_strncpy(pa->panelname, pt->idname, UI_MAX_NAME_STR);
-		BLI_strncpy(pa->tabname, pt->idname, UI_MAX_NAME_STR);
+		pa_copy = MEM_callocN(sizeof(Panel), "new panel");
+		memcpy(pa_copy, pa, sizeof(Panel));
 		
-		pa->ofsx = 0;
-		pa->ofsy = 0;
-		pa->sizex = 0;
-		pa->sizey = 0;
+		pa_copy->ofsx = 0;
+		pa_copy->ofsy = 0;
+		pa_copy->sizex = 0;
+		pa_copy->sizey = 0;
 		
-		uiBlockSetPanel(block, pa);
+		uiBlockSetPanel(block, pa_copy);
 		
-		pa->layout = uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_TOOLBAR,
+		pa_copy->layout = uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_TOOLBAR,
 								   style->panelspace, 0, w - 2 * style->panelspace, em, style);
-		pt->draw(C, pa);
-		pa->labelofs = 0;
+		pa_copy->type->draw(C, pa_copy);
+		pa_copy->labelofs = 0;
 		uiBlockLayoutResolve(block, &xco, &yco);
 		
 		yco -= 2 * style->panelspace;
 		uiEndPanel(block, w, 0);
 		
 		uiBlockSetPanel(block, NULL);
-		uiPanelFree(pa);
+		// N.B. don't use uiPanelFree because the operator list is shared.
+		MEM_freeN(pa_copy);
 	}
 }
 
@@ -1158,10 +1157,10 @@ static void panel_popup_draw(bContext *C, uiBlock *block, PanelType *pt)
 //	printf("executing.\n");
 //}
 
-static uiBlock *panel_popup_create_block(bContext *C, ARegion *ar, void *pt_arg)
+static uiBlock *panel_popup_create_block(bContext *C, ARegion *ar, void *pa_arg)
 {
 	uiBlock *block;
-	PanelType *pt = (PanelType*)pt_arg;
+	Panel *pa = (Panel*)pa_arg;
 	
 	block = uiBeginBlock(C, ar, "popup", UI_EMBOSS);
 	
@@ -1171,7 +1170,7 @@ static uiBlock *panel_popup_create_block(bContext *C, ARegion *ar, void *pt_arg)
 	/* An attempt to make the block redraw so that dynamic panels get updated (e.g. grease pencil layers) ~ ack-err */
 //	uiBlockSetFunc(block, panel_popup_cb, block, pt);
 	
-	panel_popup_draw(C, block, pt);
+	panel_popup_draw(C, block, pa);
 	
 	uiPopupBoundsBlock(block, 6, 0, -UI_UNIT_Y); /* move it downwards, mouse over button */
 	uiEndBlock(C, block);
@@ -1189,9 +1188,7 @@ static void ui_handle_panel_header(bContext *C, uiBlock *block, int mx, int my, 
 	int align = panel_aligned(sa, ar), button = 0;
 	int x_popup = block->rect.xmax - ((2 * PNL_ICON) + 5) / block->aspect;
 	int x_drag  = block->rect.xmax - (PNL_ICON + 5) / block->aspect;
-	PointerRNA props_ptr, panel_ptr;
-	PropertyRNA *prop = NULL;
-	
+
 	/* mouse coordinates in panel space! */
 	
 	/* XXX weak code, currently it assumes layout style for location of widgets */
@@ -1268,7 +1265,7 @@ static void ui_handle_panel_header(bContext *C, uiBlock *block, int mx, int my, 
 				ED_region_tag_redraw(ar);
 			break;
 		case 3:
-			uiPupBlock(C, panel_popup_create_block, block->panel->type);
+			uiPupBlock(C, panel_popup_create_block, block->panel);
 			break;
 		case 4:
 		default:
