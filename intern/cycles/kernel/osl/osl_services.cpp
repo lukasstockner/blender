@@ -102,6 +102,7 @@ OSLRenderServices::OSLRenderServices()
 
 OSLRenderServices::~OSLRenderServices()
 {
+    VDBTextureSystem::destroy(vdb_ts);
 }
 
 void OSLRenderServices::thread_init(KernelGlobals *kernel_globals_, OSL::TextureSystem *osl_ts_)
@@ -793,10 +794,12 @@ bool OSLRenderServices::texture(ustring filename, TextureOpt &options,
     {
         bool status = false;
 
-        VDBTextureSystem *volume_ts = vdb_ts;
+        VDBTextureSystem::Ptr volume_ts = vdb_ts;
         if (volume_ts->is_vdb_volume(filename))
         {
-            volume_ts->perform_lookup(filename, options, sg, P, dPdx, dPdy, dPdz, result);
+            std::cout << "Before lookup. FILE: " << filename.string() << " ; POINT: " << P << std::endl;
+            status = volume_ts->perform_lookup(filename, options, sg, P, dPdx, dPdy, dPdz, result);
+            std::cout << "After lookup. Status: " << status << " ; Result: " << *result << std::endl;
         }
         else
         {

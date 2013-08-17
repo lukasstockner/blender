@@ -151,7 +151,7 @@ public:
 private:
 	KernelGlobals *kernel_globals;
 	OSL::TextureSystem *osl_ts;
-    ccl::VDBTextureSystem *vdb_ts;
+    ccl::VDBTextureSystem::Ptr vdb_ts;
 };
 
 CCL_NAMESPACE_END

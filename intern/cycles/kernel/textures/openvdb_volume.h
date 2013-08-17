@@ -36,19 +36,22 @@ typedef enum eOpenVDBGridType
 	OPENVDB_GRID_TYPE_VEC3F
 } eOpenVDBGridType;
 
+
 struct VDBVolumeFile;
 class OpenVDBVolumeAccessor;
 class OpenVDBUtil;
 
 class VDBTextureSystem {
 public:
-    static VDBTextureSystem *init();
-    static void terminate (VDBTextureSystem *vdb_ts);
+    typedef boost::shared_ptr<VDBVolumeFile> VDBFilePtr;
+    typedef unordered_map<ustring, VDBFilePtr, ustringHash> VDBMap;
+    typedef boost::shared_ptr<VDBTextureSystem> Ptr;
+    
+    static VDBTextureSystem::Ptr init();
+    static void destroy (VDBTextureSystem::Ptr vdb_ts);
     
     VDBTextureSystem() { }
-    ~VDBTextureSystem() { }
-    
-    typedef unordered_map<ustring, VDBVolumeFile*, ustringHash> OpenVDBMap;
+    ~VDBTextureSystem();
     
     bool is_vdb_volume (ustring filename);
     
@@ -56,11 +59,12 @@ public:
                     const Imath::V3f &P, const Imath::V3f &dPdx,
                     const Imath::V3f &dPdy, const Imath::V3f &dPdz,
                     float *result);
+    VDBMap get_map();
     
 private:
-    OpenVDBMap vdb_files;
+    VDBMap vdb_files;
+    VDBMap::const_iterator add_vdb_to_map(ustring filename);
 };
-
 
 CCL_NAMESPACE_END
 

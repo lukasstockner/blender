@@ -295,21 +295,14 @@ printShortListing(const StringVec& filenames, bool metadata)
 void
     checkForValidFile(std::string filename)
     {
-        std::cout << "I was here! Yeah!" << std::endl;
+        std::cout << "Debug: Checking for file." << std::endl;
         
         OpenImageIO::ustring u_filename(filename);
         
-        if (ccl::OpenVDBUtil::is_vdb_volume_file(u_filename))   
-            std::cout << "Valid VDB file." << std::endl;
+       // if (ccl::OpenVDBUtil::is_vdb_volume_file(u_filename))
+         //   std::cout << "Valid VDB file." << std::endl;
     }
     
-/*void
-openVdbVolumeFile()
-{
-	OIIO::ustring testFile("R:\Documents\Projects\openvdbProjects\OpenVDB_Hello_World\OpenVDB_Hello_World");
-//	ccl::OpenVDBVolume::open_file(testFile);
-}
-*/
 } // unnamed namespace
 
 
