@@ -1885,7 +1885,8 @@ void ED_region_menubar(const bContext *C, ARegion *ar)
 	row = uiLayoutRow(layout, TRUE);
 	
 	for (oli = ar->operators.first; oli; oli = oli->next) {
-		uiItemO(row, NULL, ICON_NONE, oli->optype_idname);
+		if (strcmp(oli->context, CTX_data_mode_string(C)) == 0)
+			uiItemO(row, NULL, ICON_NONE, oli->optype_idname);
 	}
 
 	/* draw bottom bar */

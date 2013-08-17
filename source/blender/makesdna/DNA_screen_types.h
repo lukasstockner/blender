@@ -165,6 +165,7 @@ typedef struct ScrArea {
 typedef struct OperatorListItem {
 	struct OperatorListItem *next, *prev;
 	char optype_idname[64];
+	char context[64];
 } OperatorListItem;
 
 
