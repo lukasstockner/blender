@@ -149,6 +149,7 @@ BLI_INLINE unsigned char f_to_char(const float val)
 #define PROJ_SRC_VIEW       1
 #define PROJ_SRC_IMAGE_CAM  2
 #define PROJ_SRC_IMAGE_VIEW 3
+#define PROJ_SRC_VIEW_FILL  4
 
 #define PROJ_VIEW_DATA_ID "view_data"
 #define PROJ_VIEW_DATA_SIZE (4 * 4 + 4 * 4 + 3) /* viewmat + winmat + clipsta + clipend + is_ortho */
@@ -4036,32 +4037,60 @@ static void *do_projectpaint_thread(void *ph_v)
 				}
 				/* end copy */
 
-				if (is_floatbuf) {
-					/* re-project buffer is assumed byte - TODO, allow float */
-					bicubic_interpolation_color(ps->reproject_ibuf, projPixel->newColor.ch, NULL,
-					                            projPixel->projCoSS[0], projPixel->projCoSS[1]);
-					if (projPixel->newColor.ch[3]) {
+				/* fill tools */
+				if (ps->source == PROJ_SRC_VIEW_FILL) {
+					if (is_floatbuf) {
 						float newColor_f[4];
-						float mask = ((float)projPixel->mask) * (1.0f / 65535.0f);
-
-						straight_uchar_to_premul_float(newColor_f, projPixel->newColor.ch);
-						IMB_colormanagement_colorspace_to_scene_linear_v4(newColor_f, TRUE, ps->reproject_ibuf->rect_colorspace);
-						mul_v4_v4fl(newColor_f, newColor_f, mask);
+						newColor_f[3] = ((float)projPixel->mask) * (1.0f / 65535.0f);
+						copy_v3_v3(newColor_f, ps->paint_color_linear);
 
 						blend_color_mix_float(projPixel->pixel.f_pt,  projPixel->origColor.f_pt,
 						                      newColor_f);
 					}
-				}
-				else {
-					/* re-project buffer is assumed byte - TODO, allow float */
-					bicubic_interpolation_color(ps->reproject_ibuf, projPixel->newColor.ch, NULL,
-					                            projPixel->projCoSS[0], projPixel->projCoSS[1]);
-					if (projPixel->newColor.ch[3]) {
+					else {
 						float mask = ((float)projPixel->mask) * (1.0f / 65535.0f);
-						projPixel->newColor.ch[3] *= mask;
+						projPixel->newColor.ch[3] = mask * 255;
 
+						rgb_float_to_uchar(projPixel->newColor.ch, ps->paint_color);
 						blend_color_mix_byte(projPixel->pixel.ch_pt,  projPixel->origColor.ch_pt,
 						                     projPixel->newColor.ch);
+					}
+
+					last_partial_redraw_cell = last_projIma->partRedrawRect + projPixel->bb_cell_index;
+					last_partial_redraw_cell->x1 = min_ii(last_partial_redraw_cell->x1, (int)projPixel->x_px);
+					last_partial_redraw_cell->y1 = min_ii(last_partial_redraw_cell->y1, (int)projPixel->y_px);
+
+					last_partial_redraw_cell->x2 = max_ii(last_partial_redraw_cell->x2, (int)projPixel->x_px + 1);
+					last_partial_redraw_cell->y2 = max_ii(last_partial_redraw_cell->y2, (int)projPixel->y_px + 1);
+				}
+				else {
+					if (is_floatbuf) {
+						/* re-project buffer is assumed byte - TODO, allow float */
+						bicubic_interpolation_color(ps->reproject_ibuf, projPixel->newColor.ch, NULL,
+						                            projPixel->projCoSS[0], projPixel->projCoSS[1]);
+						if (projPixel->newColor.ch[3]) {
+							float newColor_f[4];
+							float mask = ((float)projPixel->mask) * (1.0f / 65535.0f);
+
+							straight_uchar_to_premul_float(newColor_f, projPixel->newColor.ch);
+							IMB_colormanagement_colorspace_to_scene_linear_v4(newColor_f, TRUE, ps->reproject_ibuf->rect_colorspace);
+							mul_v4_v4fl(newColor_f, newColor_f, mask);
+
+							blend_color_mix_float(projPixel->pixel.f_pt,  projPixel->origColor.f_pt,
+							                      newColor_f);
+						}
+					}
+					else {
+						/* re-project buffer is assumed byte - TODO, allow float */
+						bicubic_interpolation_color(ps->reproject_ibuf, projPixel->newColor.ch, NULL,
+						                            projPixel->projCoSS[0], projPixel->projCoSS[1]);
+						if (projPixel->newColor.ch[3]) {
+							float mask = ((float)projPixel->mask) * (1.0f / 65535.0f);
+							projPixel->newColor.ch[3] *= mask;
+
+							blend_color_mix_byte(projPixel->pixel.ch_pt,  projPixel->origColor.ch_pt,
+							                     projPixel->newColor.ch);
+						}
 					}
 				}
 			}
@@ -4308,7 +4337,7 @@ static int project_paint_op(void *state, const float lastpos[2], const float pos
 }
 
 
-void paint_proj_stroke(bContext *C, void *pps, const float prev_pos[2], const float pos[2], float pressure, float distance)
+void paint_proj_stroke(const bContext *C, void *pps, const float prev_pos[2], const float pos[2], float pressure, float distance)
 {
 	ProjPaintState *ps = pps;
 	Brush *brush = ps->brush;
@@ -4331,7 +4360,8 @@ void paint_proj_stroke(bContext *C, void *pps, const float prev_pos[2], const fl
 		return;
 	}
 
-	if (brush->imagepaint_tool == PAINT_TOOL_DRAW) {
+	/* handle gradient and inverted stroke color here */
+	if (ELEM(ps->tool, PAINT_TOOL_DRAW, PAINT_TOOL_FILL)) {
 		if (ps->mode == BRUSH_STROKE_INVERT)
 			copy_v3_v3(ps->paint_color, brush->secondary_rgb);
 		else {
@@ -4481,6 +4511,10 @@ void *paint_proj_new_stroke(bContext *C, Object *ob, const float mouse[2], int m
 	}
 
 	paint_proj_begin_clone(ps, mouse);
+
+	/* special full screen draw mode for fill tool */
+	if (ps->tool == PAINT_TOOL_FILL)
+		ps->source = PROJ_SRC_VIEW_FILL;
 
 	return ps;
 }

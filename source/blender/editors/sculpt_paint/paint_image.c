@@ -745,12 +745,16 @@ static void paint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 			}
 		}
 		else {
-			float color[3];
-
-			srgb_to_linearrgb_v3_v3(color, brush->rgb);
-
 			if (pop->mode == PAINT_MODE_2D) {
+				float color[3];
+
+				srgb_to_linearrgb_v3_v3(color, brush->rgb);
 				paint_2d_bucket_fill(C, color);
+			} else {
+				paint_proj_stroke(C, pop->custom_paint, pop->startmouse, pop->prevmouse, 1.0, 0.0);
+				/* two redraws, one for GPU update, one for notification */
+				paint_proj_redraw(C, pop->custom_paint, false);
+				paint_proj_redraw(C, pop->custom_paint, true);
 			}
 		}
 	}
