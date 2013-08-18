@@ -333,11 +333,6 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
 				shape = RB_shape_new_gimpact_mesh(mdata);
 			}
 		}
-
-		/* cleanup temp data */
-		if (dm) {
-			dm->release(dm);
-		}
 	}
 	else {
 		printf("ERROR: cannot make Triangular Mesh collision shape for non-Mesh object\n");
