@@ -735,6 +735,13 @@ static void node_shader_buts_vect_math(uiLayout *layout, bContext *UNUSED(C), Po
 	uiItemR(layout, ptr, "operation", 0, "", ICON_NONE);
 }
 
+static void node_shader_buts_vect_transform(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{ 
+	uiItemR(layout, ptr, "type", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "convert_from", 0, "", ICON_NONE);
+	uiItemR(layout, ptr, "convert_to", 0, "", ICON_NONE);
+}
+
 static void node_shader_buts_geometry(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
 	PointerRNA obptr = CTX_data_pointer_get(C, "active_object");
@@ -781,6 +788,12 @@ static void node_shader_buts_tex_image(uiLayout *layout, bContext *C, PointerRNA
 	 * which redefines them in the node struct RNA to get proper updates.
 	 */
 	node_buts_image_user(layout, C, &iuserptr, &imaptr, &iuserptr);
+}
+
+static void node_shader_buts_tex_image_details(uiLayout *layout, bContext *C, PointerRNA *ptr)
+{
+	PointerRNA iuserptr = RNA_pointer_get(ptr, "image_user");
+	uiTemplateImage(layout, C, ptr, "image", &iuserptr, 0);
 }
 
 static void node_shader_buts_tex_environment(uiLayout *layout, bContext *C, PointerRNA *ptr)
@@ -969,6 +982,9 @@ static void node_shader_set_butfunc(bNodeType *ntype)
 		case SH_NODE_VECT_MATH: 
 			ntype->uifunc = node_shader_buts_vect_math;
 			break; 
+		case SH_NODE_VECT_TRANSFORM: 
+			ntype->uifunc = node_shader_buts_vect_transform;
+			break; 
 		case SH_NODE_GEOMETRY:
 			ntype->uifunc = node_shader_buts_geometry;
 			break;
@@ -983,6 +999,7 @@ static void node_shader_set_butfunc(bNodeType *ntype)
 			break;
 		case SH_NODE_TEX_IMAGE:
 			ntype->uifunc = node_shader_buts_tex_image;
+			ntype->uifuncbut = node_shader_buts_tex_image_details;
 			break;
 		case SH_NODE_TEX_ENVIRONMENT:
 			ntype->uifunc = node_shader_buts_tex_environment;
@@ -1052,19 +1069,10 @@ static void node_composit_buts_image(uiLayout *layout, bContext *C, PointerRNA *
 static void node_composit_buts_image_details(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
 	bNode *node = ptr->data;
-	PointerRNA imaptr;
+	PointerRNA iuserptr;
 
-	node_composit_buts_image(layout, C, ptr);
-
-	uiItemR(layout, ptr, "use_straight_alpha_output", 0, NULL, 0);
-
-	if (!node->id)
-		return;
-
-	imaptr = RNA_pointer_get(ptr, "image");
-
-	uiTemplateColorspaceSettings(layout, &imaptr, "colorspace_settings");
-	uiItemR(layout, &imaptr, "alpha_mode", 0, NULL, 0);
+	RNA_pointer_create((ID *)ptr->id.data, &RNA_ImageUser, node->storage, &iuserptr);
+	uiTemplateImage(layout, C, ptr, "image", &iuserptr, 0);
 }
 
 static void node_composit_buts_renderlayers(uiLayout *layout, bContext *C, PointerRNA *ptr)
@@ -2217,6 +2225,39 @@ static void node_composit_buts_trackpos(uiLayout *layout, bContext *C, PointerRN
 	}
 }
 
+static void node_composit_buts_planetrackdeform(uiLayout *layout, bContext *C, PointerRNA *ptr)
+{
+	bNode *node = ptr->data;
+
+	uiTemplateID(layout, C, ptr, "clip", NULL, "CLIP_OT_open", NULL);
+
+	if (node->id) {
+		MovieClip *clip = (MovieClip *) node->id;
+		MovieTracking *tracking = &clip->tracking;
+		MovieTrackingObject *object;
+		uiLayout *col;
+		PointerRNA tracking_ptr;
+		NodeTrackPosData *data = node->storage;
+
+		RNA_pointer_create(&clip->id, &RNA_MovieTracking, tracking, &tracking_ptr);
+
+		col = uiLayoutColumn(layout, FALSE);
+		uiItemPointerR(col, ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA);
+
+		object = BKE_tracking_object_get_named(tracking, data->tracking_object);
+		if (object) {
+			PointerRNA object_ptr;
+
+			RNA_pointer_create(&clip->id, &RNA_MovieTrackingObject, object, &object_ptr);
+
+			uiItemPointerR(col, ptr, "plane_track_name", &object_ptr, "plane_tracks", "", ICON_ANIM_DATA);
+		}
+		else {
+			uiItemR(layout, ptr, "plane_track_name", 0, "", ICON_ANIM_DATA);
+		}
+	}
+}
+
 /* only once called */
 static void node_composit_set_butfunc(bNodeType *ntype)
 {
@@ -2436,6 +2477,9 @@ static void node_composit_set_butfunc(bNodeType *ntype)
 		case CMP_NODE_TRACKPOS:
 			ntype->uifunc = node_composit_buts_trackpos;
 			break;
+		case CMP_NODE_PLANETRACKDEFORM:
+			ntype->uifunc = node_composit_buts_planetrackdeform;
+			break;
 	}
 }
 
@@ -2539,6 +2583,15 @@ static void node_texture_buts_image(uiLayout *layout, bContext *C, PointerRNA *p
 	uiTemplateID(layout, C, ptr, "image", NULL, "IMAGE_OT_open", NULL);
 }
 
+static void node_texture_buts_image_details(uiLayout *layout, bContext *C, PointerRNA *ptr)
+{
+	bNode *node = ptr->data;
+	PointerRNA iuserptr;
+
+	RNA_pointer_create((ID *)ptr->id.data, &RNA_ImageUser, node->storage, &iuserptr);
+	uiTemplateImage(layout, C, ptr, "image", &iuserptr, 0);
+}
+
 static void node_texture_buts_output(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiItemR(layout, ptr, "filepath", 0, "", ICON_NONE);
@@ -2583,6 +2636,7 @@ static void node_texture_set_butfunc(bNodeType *ntype)
 
 			case TEX_NODE_IMAGE:
 				ntype->uifunc = node_texture_buts_image;
+				ntype->uifuncbut = node_texture_buts_image_details;
 				break;
 
 			case TEX_NODE_OUTPUT:

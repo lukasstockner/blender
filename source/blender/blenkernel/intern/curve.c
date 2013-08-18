@@ -681,6 +681,143 @@ void BKE_nurb_bezierPoints_add(Nurb *nu, int number)
 	nu->pntsu += number;
 }
 
+
+BezTriple *BKE_nurb_bezt_get_next(Nurb *nu, BezTriple *bezt)
+{
+	BezTriple *bezt_next;
+
+	BLI_assert(ARRAY_HAS_ITEM(bezt, nu->bezt, nu->pntsu));
+
+	if (bezt == &nu->bezt[nu->pntsu - 1]) {
+		if (nu->flagu & CU_NURB_CYCLIC) {
+			bezt_next = nu->bezt;
+		}
+		else {
+			bezt_next = NULL;
+		}
+	}
+	else {
+		bezt_next = bezt + 1;
+	}
+
+	return bezt_next;
+}
+
+BPoint *BKE_nurb_bpoint_get_next(Nurb *nu, BPoint *bp)
+{
+	BPoint *bp_next;
+
+	BLI_assert(ARRAY_HAS_ITEM(bp, nu->bp, nu->pntsu));
+
+	if (bp == &nu->bp[nu->pntsu - 1]) {
+		if (nu->flagu & CU_NURB_CYCLIC) {
+			bp_next = nu->bp;
+		}
+		else {
+			bp_next = NULL;
+		}
+	}
+	else {
+		bp_next = bp + 1;
+	}
+
+	return bp_next;
+}
+
+BezTriple *BKE_nurb_bezt_get_prev(Nurb *nu, BezTriple *bezt)
+{
+	BezTriple *bezt_prev;
+
+	BLI_assert(ARRAY_HAS_ITEM(bezt, nu->bezt, nu->pntsu));
+
+	if (bezt == nu->bezt) {
+		if (nu->flagu & CU_NURB_CYCLIC) {
+			bezt_prev = &nu->bezt[nu->pntsu - 1];
+		}
+		else {
+			bezt_prev = NULL;
+		}
+	}
+	else {
+		bezt_prev = bezt - 1;
+	}
+
+	return bezt_prev;
+}
+
+BPoint *BKE_nurb_bpoint_get_prev(Nurb *nu, BPoint *bp)
+{
+	BPoint *bp_prev;
+
+	BLI_assert(ARRAY_HAS_ITEM(bp, nu->bp, nu->pntsu));
+
+	if (bp == nu->bp) {
+		if (nu->flagu & CU_NURB_CYCLIC) {
+			bp_prev = &nu->bp[nu->pntsu - 1];
+		}
+		else {
+			bp_prev = NULL;
+		}
+	}
+	else {
+		bp_prev = bp - 1;
+	}
+
+	return bp_prev;
+}
+
+void BKE_nurb_bezt_calc_normal(struct Nurb *UNUSED(nu), struct BezTriple *bezt, float r_normal[3])
+{
+	/* calculate the axis matrix from the spline */
+	float dir_prev[3], dir_next[3];
+
+	sub_v3_v3v3(dir_prev, bezt->vec[0], bezt->vec[1]);
+	sub_v3_v3v3(dir_next, bezt->vec[1], bezt->vec[2]);
+
+	normalize_v3(dir_prev);
+	normalize_v3(dir_next);
+
+	add_v3_v3v3(r_normal, dir_prev, dir_next);
+	normalize_v3(r_normal);
+}
+
+void BKE_nurb_bezt_calc_plane(struct Nurb *nu, struct BezTriple *bezt, float r_plane[3])
+{
+	float dir_prev[3], dir_next[3];
+
+	sub_v3_v3v3(dir_prev, bezt->vec[0], bezt->vec[1]);
+	sub_v3_v3v3(dir_next, bezt->vec[1], bezt->vec[2]);
+
+	normalize_v3(dir_prev);
+	normalize_v3(dir_next);
+
+	cross_v3_v3v3(r_plane, dir_prev, dir_next);
+	if (normalize_v3(r_plane) < FLT_EPSILON) {
+		BezTriple *bezt_prev = BKE_nurb_bezt_get_prev(nu, bezt);
+		BezTriple *bezt_next = BKE_nurb_bezt_get_next(nu, bezt);
+
+		if (bezt_prev) {
+			sub_v3_v3v3(dir_prev, bezt_prev->vec[1], bezt->vec[1]);
+			normalize_v3(dir_prev);
+		}
+		if (bezt_next) {
+			sub_v3_v3v3(dir_next, bezt->vec[1], bezt_next->vec[1]);
+			normalize_v3(dir_next);
+		}
+		cross_v3_v3v3(r_plane, dir_prev, dir_next);
+	}
+
+	/* matches with bones more closely */
+	{
+		float dir_mid[3], tvec[3];
+		add_v3_v3v3(dir_mid, dir_prev, dir_next);
+		cross_v3_v3v3(tvec, r_plane, dir_mid);
+		copy_v3_v3(r_plane, tvec);
+	}
+
+	normalize_v3(r_plane);
+}
+
 /* ~~~~~~~~~~~~~~~~~~~~Non Uniform Rational B Spline calculations ~~~~~~~~~~~ */
 
 
@@ -1853,36 +1990,35 @@ static void alfa_bezpart(BezTriple *prevbezt, BezTriple *bezt, Nurb *nu, float *
 /* make_bevel_list_3D_* funcs, at a minimum these must
  * fill in the bezp->quat and bezp->dir values */
 
-/* correct non-cyclic cases by copying direction and rotation
- * values onto the first & last end-points */
-static void bevel_list_cyclic_fix_3D(BevList *bl)
-{
-	BevPoint *bevp, *bevp1;
-
-	bevp = (BevPoint *)(bl + 1);
-	bevp1 = bevp + 1;
-	copy_qt_qt(bevp->quat, bevp1->quat);
-	copy_v3_v3(bevp->dir, bevp1->dir);
-	copy_v3_v3(bevp->tan, bevp1->tan);
-	bevp = (BevPoint *)(bl + 1);
-	bevp += (bl->nr - 1);
-	bevp1 = bevp - 1;
-	copy_qt_qt(bevp->quat, bevp1->quat);
-	copy_v3_v3(bevp->dir, bevp1->dir);
-	copy_v3_v3(bevp->tan, bevp1->tan);
-}
-
 /* utility for make_bevel_list_3D_* funcs */
 static void bevel_list_calc_bisect(BevList *bl)
 {
 	BevPoint *bevp2, *bevp1, *bevp0;
 	int nr;
+	bool is_cyclic = bl->poly != -1;
 
-	bevp2 = (BevPoint *)(bl + 1);
-	bevp1 = bevp2 + (bl->nr - 1);
-	bevp0 = bevp1 - 1;
+	if (is_cyclic) {
+		bevp2 = (BevPoint *)(bl + 1);
+		bevp1 = bevp2 + (bl->nr - 1);
+		bevp0 = bevp1 - 1;
+		nr = bl->nr;
+	}
+	else {
+		/* If spline is not cyclic, direction of first and
+		 * last bevel points matches direction of CV handle.
+		 *
+		 * This is getting calculated earlier when we know
+		 * CV's handles and here we might simply skip evaluation
+		 * of direction for this guys.
+		 */
 
-	nr = bl->nr;
+		bevp0 = (BevPoint *)(bl + 1);
+		bevp1 = bevp0 + 1;
+		bevp2 = bevp1 + 1;
+
+		nr = bl->nr - 2;
+	}
+
 	while (nr--) {
 		/* totally simple */
 		bisect_v3_v3v3v3(bevp1->dir, bevp0->vec, bevp1->vec, bevp2->vec);
@@ -1988,22 +2124,30 @@ static void bevel_list_smooth(BevList *bl, int smooth_iter)
 
 static void make_bevel_list_3D_zup(BevList *bl)
 {
-	BevPoint *bevp2, *bevp1, *bevp0; /* standard for all make_bevel_list_3D_* funcs */
-	int nr;
+	BevPoint *bevp = (BevPoint *)(bl + 1);
+	int nr = bl->nr;
 
-	bevp2 = (BevPoint *)(bl + 1);
-	bevp1 = bevp2 + (bl->nr - 1);
-	bevp0 = bevp1 - 1;
+	bevel_list_calc_bisect(bl);
 
-	nr = bl->nr;
 	while (nr--) {
-		/* totally simple */
-		bisect_v3_v3v3v3(bevp1->dir, bevp0->vec, bevp1->vec, bevp2->vec);
-		vec_to_quat(bevp1->quat, bevp1->dir, 5, 1);
+		vec_to_quat(bevp->quat, bevp->dir, 5, 1);
+		bevp++;
+	}
+}
 
-		bevp0 = bevp1;
-		bevp1 = bevp2;
-		bevp2++;
+static void minimum_twist_between_two_points(BevPoint *current_point, BevPoint *previous_point)
+{
+	float angle = angle_normalized_v3v3(previous_point->dir, current_point->dir);
+	float q[4];
+
+	if (angle > 0.0f) { /* otherwise we can keep as is */
+		float cross_tmp[3];
+		cross_v3_v3v3(cross_tmp, previous_point->dir, current_point->dir);
+		axis_angle_to_quat(q, cross_tmp, angle);
+		mul_qt_qtqt(current_point->quat, q, previous_point->quat);
+	}
+	else {
+		copy_qt_qt(current_point->quat, previous_point->quat);
 	}
 }
 
@@ -2026,17 +2170,7 @@ static void make_bevel_list_3D_minimum_twist(BevList *bl)
 			vec_to_quat(bevp1->quat, bevp1->dir, 5, 1);
 		}
 		else {
-			float angle = angle_normalized_v3v3(bevp0->dir, bevp1->dir);
-
-			if (angle > 0.0f) { /* otherwise we can keep as is */
-				float cross_tmp[3];
-				cross_v3_v3v3(cross_tmp, bevp0->dir, bevp1->dir);
-				axis_angle_to_quat(q, cross_tmp, angle);
-				mul_qt_qtqt(bevp1->quat, q, bevp0->quat);
-			}
-			else {
-				copy_qt_qt(bevp1->quat, bevp0->quat);
-			}
+			minimum_twist_between_two_points(bevp1, bevp0);
 		}
 
 		bevp0 = bevp1;
@@ -2107,6 +2241,21 @@ static void make_bevel_list_3D_minimum_twist(BevList *bl)
 			bevp2++;
 		}
 	}
+	else {
+		/* Need to correct quat for the first/last point,
+		 * this is so because previously it was only calculated
+		 * using it's own direction, which might not correspond
+		 * the twist of neighbor point.
+		 */
+		bevp1 = (BevPoint *)(bl + 1);
+		bevp0 = bevp1 + 1;
+		minimum_twist_between_two_points(bevp1, bevp0);
+
+		bevp2 = (BevPoint *)(bl + 1);
+		bevp1 = bevp2 + (bl->nr - 1);
+		bevp0 = bevp1 - 1;
+		minimum_twist_between_two_points(bevp1, bevp0);
+	}
 }
 
 static void make_bevel_list_3D_tangent(BevList *bl)
@@ -2117,8 +2266,6 @@ static void make_bevel_list_3D_tangent(BevList *bl)
 	float bevp0_tan[3];
 
 	bevel_list_calc_bisect(bl);
-	if (bl->poly == -1) /* check its not cyclic */
-		bevel_list_cyclic_fix_3D(bl);  // XXX - run this now so tangents will be right before doing the flipping
 	bevel_list_flip_tangents(bl);
 
 	/* correct the tangents */
@@ -2176,9 +2323,6 @@ static void make_bevel_list_3D(BevList *bl, int smooth_iter, int twist_mode)
 			break;
 	}
 
-	if (bl->poly == -1) /* check its not cyclic */
-		bevel_list_cyclic_fix_3D(bl);
-
 	if (smooth_iter)
 		bevel_list_smooth(bl, smooth_iter);
 
@@ -2228,12 +2372,23 @@ static void make_bevel_list_2D(BevList *bl)
 	/* note: bevp->dir and bevp->quat are not needed for beveling but are
 	 * used when making a path from a 2D curve, therefor they need to be set - Campbell */
 
-	BevPoint *bevp2 = (BevPoint *)(bl + 1);
-	BevPoint *bevp1 = bevp2 + (bl->nr - 1);
-	BevPoint *bevp0 = bevp1 - 1;
+	BevPoint *bevp0, *bevp1, *bevp2;
 	int nr;
 
-	nr = bl->nr;
+	if (bl->poly != -1) {
+		bevp2 = (BevPoint *)(bl + 1);
+		bevp1 = bevp2 + (bl->nr - 1);
+		bevp0 = bevp1 - 1;
+		nr = bl->nr;
+	}
+	else {
+		bevp0 = (BevPoint *)(bl + 1);
+		bevp1 = bevp0 + 1;
+		bevp2 = bevp1 + 1;
+
+		nr = bl->nr - 2;
+	}
+
 	while (nr--) {
 		const float x1 = bevp1->vec[0] - bevp0->vec[0];
 		const float x2 = bevp1->vec[0] - bevp2->vec[0];
@@ -2255,18 +2410,40 @@ static void make_bevel_list_2D(BevList *bl)
 
 	/* correct non-cyclic cases */
 	if (bl->poly == -1) {
-		BevPoint *bevp = (BevPoint *)(bl + 1);
-		bevp1 = bevp + 1;
-		bevp->sina = bevp1->sina;
-		bevp->cosa = bevp1->cosa;
+		BevPoint *bevp;
+		float angle;
+
+		/* first */
+		bevp = (BevPoint *)(bl + 1);
+		angle = atan2(bevp->dir[0], bevp->dir[1]) - M_PI / 2.0;
+		bevp->sina = sinf(angle);
+		bevp->cosa = cosf(angle);
+		vec_to_quat(bevp->quat, bevp->dir, 5, 1);
+
+		/* last */
 		bevp = (BevPoint *)(bl + 1);
 		bevp += (bl->nr - 1);
-		bevp1 = bevp - 1;
-		bevp->sina = bevp1->sina;
-		bevp->cosa = bevp1->cosa;
+		angle = atan2(bevp->dir[0], bevp->dir[1]) - M_PI / 2.0;
+		bevp->sina = sinf(angle);
+		bevp->cosa = cosf(angle);
+		vec_to_quat(bevp->quat, bevp->dir, 5, 1);
+	}
+}
 
-		/* correct for the dir/quat, see above why its needed */
-		bevel_list_cyclic_fix_3D(bl);
+static void bevlist_firstlast_direction_calc_from_bpoint(Nurb *nu, BevList *bl)
+{
+	if (nu->pntsu > 1) {
+		BPoint *first_bp = nu->bp, *last_bp = nu->bp + (nu->pntsu - 1);
+		BevPoint *first_bevp, *last_bevp;
+
+		first_bevp = (BevPoint *)(bl + 1);
+		last_bevp = first_bevp + (bl->nr - 1);
+
+		sub_v3_v3v3(first_bevp->dir, (first_bp + 1)->vec, first_bp->vec);
+		normalize_v3(first_bevp->dir);
+
+		sub_v3_v3v3(last_bevp->dir, last_bp->vec, (last_bp - 1)->vec);
+		normalize_v3(last_bevp->dir);
 	}
 }
 
@@ -2353,6 +2530,10 @@ void BKE_curve_bevelList_make(Object *ob)
 					bevp++;
 					bp++;
 				}
+
+				if ((nu->flagu & CU_NURB_CYCLIC) == 0) {
+					bevlist_firstlast_direction_calc_from_bpoint(nu, bl);
+				}
 			}
 			else if (nu->type == CU_BEZIER) {
 				/* in case last point is not cyclic */
@@ -2374,6 +2555,9 @@ void BKE_curve_bevelList_make(Object *ob)
 					prevbezt = bezt;
 					bezt++;
 				}
+
+				sub_v3_v3v3(bevp->dir, prevbezt->vec[2], prevbezt->vec[1]);
+				normalize_v3(bevp->dir);
 
 				while (a--) {
 					if (prevbezt->h2 == HD_VECT && bezt->h1 == HD_VECT) {
@@ -2436,6 +2620,10 @@ void BKE_curve_bevelList_make(Object *ob)
 					bevp->alfa = prevbezt->alfa;
 					bevp->radius = prevbezt->radius;
 					bevp->weight = prevbezt->weight;
+
+					sub_v3_v3v3(bevp->dir, prevbezt->vec[1], prevbezt->vec[0]);
+					normalize_v3(bevp->dir);
+
 					bl->nr++;
 				}
 			}
@@ -2456,6 +2644,10 @@ void BKE_curve_bevelList_make(Object *ob)
 					                   do_radius    ? &bevp->radius : NULL,
 					                   do_weight    ? &bevp->weight : NULL,
 					                   resolu, sizeof(BevPoint));
+
+					if ((nu->flagu & CU_NURB_CYCLIC) == 0) {
+						bevlist_firstlast_direction_calc_from_bpoint(nu, bl);
+					}
 				}
 			}
 		}
@@ -3646,7 +3838,7 @@ void BKE_curve_translate(Curve *cu, float offset[3], int do_keys)
 	}
 }
 
-void BKE_curve_delete_material_index(Curve *cu, int index)
+void BKE_curve_material_index_remove(Curve *cu, int index)
 {
 	const int curvetype = BKE_curve_type_get(cu);
 
@@ -3665,8 +3857,32 @@ void BKE_curve_delete_material_index(Curve *cu, int index)
 		for (nu = cu->nurb.first; nu; nu = nu->next) {
 			if (nu->mat_nr && nu->mat_nr >= index) {
 				nu->mat_nr--;
-				if (curvetype == OB_CURVE)
+				if (curvetype == OB_CURVE) {
 					nu->charidx--;
+				}
+			}
+		}
+	}
+}
+
+void BKE_curve_material_index_clear(Curve *cu)
+{
+	const int curvetype = BKE_curve_type_get(cu);
+
+	if (curvetype == OB_FONT) {
+		struct CharInfo *info = cu->strinfo;
+		int i;
+		for (i = cu->len - 1; i >= 0; i--, info++) {
+			info->mat_nr = 0;
+		}
+	}
+	else {
+		Nurb *nu;
+
+		for (nu = cu->nurb.first; nu; nu = nu->next) {
+			nu->mat_nr = 0;
+			if (curvetype == OB_CURVE) {
+				nu->charidx = 0;
 			}
 		}
 	}

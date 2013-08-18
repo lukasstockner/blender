@@ -118,6 +118,14 @@ static void mem_error_cb(const char *errorStr)
 	fflush(stderr);
 }
 
+// library.c will only free window managers with a callback function.
+// We don't actually use a wmWindowManager, but loading a blendfile
+// loads wmWindows, so we need to free those.
+static void wm_free(bContext *C, wmWindowManager *wm)
+{
+	BLI_freelistN(&wm->windows);
+}
+
 #ifdef WIN32
 typedef enum {
 	SCREEN_SAVER_MODE_NONE = 0,
@@ -501,6 +509,8 @@ int main(int argc, char** argv)
 
 	sound_init_once();
 
+	set_free_windowmanager_cb(wm_free);
+
 	/* if running blenderplayer the last argument can't be parsed since it has to be the filename. */
 	isBlenderPlayer = !BLO_is_a_runtime(argv[0]);
 	if (isBlenderPlayer)
@@ -813,9 +823,8 @@ int main(int argc, char** argv)
 
 						if (!bfd) {
 							// just add "//" in front of it
-							char temppath[242];
-							strcpy(temppath, "//");
-							strcat(temppath, basedpath);
+							char temppath[FILE_MAX] = "//";
+							BLI_strncpy(temppath + 2, basedpath, FILE_MAX - 2);
 
 							BLI_path_abs(temppath, pathname);
 							bfd = load_game_data(temppath);

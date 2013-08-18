@@ -294,7 +294,7 @@ static BMVert *pbvh_bmesh_vert_create(PBVH *bvh, int node_index,
 
 static BMFace *pbvh_bmesh_face_create(PBVH *bvh, int node_index,
                                       BMVert *v_tri[3], BMEdge *e_tri[3],
-                                      const BMFace *UNUSED(example))
+                                      const BMFace *f_example)
 {
 	BMFace *f;
 	void *val = SET_INT_IN_POINTER(node_index);
@@ -302,9 +302,10 @@ static BMFace *pbvh_bmesh_face_create(PBVH *bvh, int node_index,
 	/* ensure we never add existing face */
 	BLI_assert(BM_face_exists(v_tri, 3, NULL) == false);
 
-	/* Note: passing NULL for the 'example' parameter, profiling shows
-	 * a small performance bump */
 	f = BM_face_create(bvh->bm, v_tri, e_tri, 3, 0);
+	// BM_elem_attrs_copy(bvh->bm, bvh->bm, f_example, f);
+	f->mat_nr = f_example->mat_nr;
+
 	if (!BLI_ghash_haskey(bvh->bm_face_to_node, f)) {
 
 		BLI_ghash_insert(bvh->nodes[node_index].bm_faces, f, NULL);
@@ -366,12 +367,12 @@ static void pbvh_bmesh_vert_ownership_transfer(PBVH *bvh, PBVHNode *new_owner,
 	BLI_assert(current_owner != new_owner);
 
 	/* Remove current ownership */
-	BLI_ghash_remove(bvh->bm_vert_to_node, v, NULL, NULL);
+	// BLI_ghash_remove(bvh->bm_vert_to_node, v, NULL, NULL);  // assign handles below
 	BLI_ghash_remove(current_owner->bm_unique_verts, v, NULL, NULL);
 
 	/* Set new ownership */
-	BLI_ghash_insert(bvh->bm_vert_to_node, v,
-	                 SET_INT_IN_POINTER(new_owner - bvh->nodes));
+	BLI_ghash_assign(bvh->bm_vert_to_node, v,
+	                 SET_INT_IN_POINTER(new_owner - bvh->nodes), NULL, NULL);
 	BLI_ghash_insert(new_owner->bm_unique_verts, v, NULL);
 	BLI_ghash_remove(new_owner->bm_other_verts, v, NULL, NULL);
 	BLI_assert(!BLI_ghash_haskey(new_owner->bm_other_verts, v));
@@ -1263,14 +1264,14 @@ void bmesh_print(BMesh *bm)
 	        bm->totloop, bm->totface);
 
 	fprintf(stderr, "vertices:\n");
-	BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
+	BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
 		fprintf(stderr, "  %d co=(%.3f %.3f %.3f) oflag=%x\n",
 		        BM_elem_index_get(v), v->co[0], v->co[1], v->co[2],
 		        v->oflags[bm->stackdepth - 1].f);
 	}
 
 	fprintf(stderr, "edges:\n");
-	BM_ITER_MESH(e, &iter, bm, BM_EDGES_OF_MESH) {
+	BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
 		fprintf(stderr, "  %d v1=%d, v2=%d, oflag=%x\n",
 		        BM_elem_index_get(e),
 		        BM_elem_index_get(e->v1),
@@ -1279,7 +1280,7 @@ void bmesh_print(BMesh *bm)
 	}
 
 	fprintf(stderr, "faces:\n");
-	BM_ITER_MESH(f, &iter, bm, BM_FACES_OF_MESH) {
+	BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
 		fprintf(stderr, "  %d len=%d, oflag=%x\n",
 		        BM_elem_index_get(f), f->len,
 		        f->oflags[bm->stackdepth - 1].f);

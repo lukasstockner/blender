@@ -1605,7 +1605,10 @@ static void pose_proxy_synchronize(Object *ob, Object *from, int layer_protected
 			pchanw.next = pchan->next;
 			pchanw.parent = pchan->parent;
 			pchanw.child = pchan->child;
-			
+
+			pchanw.mpath = pchan->mpath;
+			pchan->mpath = NULL;
+
 			/* this is freed so copy a copy, else undo crashes */
 			if (pchanw.prop) {
 				pchanw.prop = IDP_CopyProperty(pchanw.prop);
@@ -1652,10 +1655,16 @@ static void pose_proxy_synchronize(Object *ob, Object *from, int layer_protected
 			
 			/* copy data in temp back over to the cleaned-out (but still allocated) original channel */
 			*pchan = pchanw;
+			if (pchan->custom) {
+				id_us_plus(&pchan->custom->id);
+			}
 		}
 		else {
 			/* always copy custom shape */
 			pchan->custom = pchanp->custom;
+			if (pchan->custom) {
+				id_us_plus(&pchan->custom->id);
+			}
 			if (pchanp->custom_tx)
 				pchan->custom_tx = BKE_pose_channel_find_name(pose, pchanp->custom_tx->name);
 

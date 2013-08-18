@@ -132,6 +132,14 @@ void wm_event_free_all(wmWindow *win)
 	}
 }
 
+void wm_event_init_from_window(wmWindow *win, wmEvent *event)
+{
+	/* make sure we don't copy any owned pointers */
+	BLI_assert(win->eventstate->tablet_data == NULL);
+
+	*event = *(win->eventstate);
+}
+
 /* ********************* notifiers, listeners *************** */
 
 static int wm_test_duplicate_notifier(wmWindowManager *wm, unsigned int type, void *reference)
@@ -274,7 +282,7 @@ void wm_event_do_notifiers(bContext *C)
 			}
 
 			if (note->window == win ||
-			    (note->window == NULL && (note->reference == NULL || note->reference == CTX_data_scene(C))))
+			    (note->window == NULL && (note->reference == NULL || note->reference == win->screen->scene)))
 			{
 				if (note->category == NC_SCENE) {
 					if (note->data == ND_FRAME)
@@ -282,7 +290,7 @@ void wm_event_do_notifiers(bContext *C)
 				}
 			}
 			if (ELEM5(note->category, NC_SCENE, NC_OBJECT, NC_GEOM, NC_SCENE, NC_WM)) {
-				ED_info_stats_clear(CTX_data_scene(C));
+				ED_info_stats_clear(win->screen->scene);
 				WM_event_add_notifier(C, NC_SPACE | ND_SPACE_INFO, NULL);
 			}
 		}
@@ -445,7 +453,9 @@ static void wm_handler_ui_cancel(bContext *C)
 		nexthandler = handler->next;
 
 		if (handler->ui_handle) {
-			wmEvent event = *(win->eventstate);
+			wmEvent event;
+
+			wm_event_init_from_window(win, &event);
 			event.type = EVT_BUT_CANCEL;
 			handler->ui_handle(C, &event, handler->ui_userdata);
 		}
@@ -972,7 +982,7 @@ static int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event,
 			WM_operator_last_properties_init(op);
 		}
 
-		if ((G.debug & G_DEBUG_HANDLERS) && event && event->type != MOUSEMOVE) {
+		if ((G.debug & G_DEBUG_HANDLERS) && ((event == NULL) || (event->type != MOUSEMOVE))) {
 			printf("%s: handle evt %d win %d op %s\n",
 			       __func__, event ? event->type : 0, CTX_wm_screen(C)->subwinactive, ot->idname);
 		}

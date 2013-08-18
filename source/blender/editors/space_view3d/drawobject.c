@@ -2002,7 +2002,7 @@ static void drawSelectedVertices(DerivedMesh *dm, Mesh *me)
 	data.col[2] = act_col;
 
 	glBegin(GL_POINTS);
-	dm->foreachMappedVert(dm, drawSelectedVertices__mapFunc, &data);
+	dm->foreachMappedVert(dm, drawSelectedVertices__mapFunc, &data, DM_FOREACH_NOP);
 	glEnd();
 }
 
@@ -2068,7 +2068,7 @@ static void draw_dm_face_normals(BMEditMesh *em, Scene *scene, Object *ob, Deriv
 	calcDrawDMNormalScale(ob, &data);
 
 	glBegin(GL_LINES);
-	dm->foreachMappedFaceCenter(dm, draw_dm_face_normals__mapFunc, &data);
+	dm->foreachMappedFaceCenter(dm, draw_dm_face_normals__mapFunc, &data, DM_FOREACH_USE_NORMAL);
 	glEnd();
 }
 
@@ -2088,7 +2088,7 @@ static void draw_dm_face_centers(BMEditMesh *em, DerivedMesh *dm, char sel)
 	void *ptrs[2] = {em, &sel};
 
 	bglBegin(GL_POINTS);
-	dm->foreachMappedFaceCenter(dm, draw_dm_face_centers__mapFunc, ptrs);
+	dm->foreachMappedFaceCenter(dm, draw_dm_face_centers__mapFunc, ptrs, DM_FOREACH_NOP);
 	bglEnd();
 }
 
@@ -2133,7 +2133,7 @@ static void draw_dm_vert_normals(BMEditMesh *em, Scene *scene, Object *ob, Deriv
 	calcDrawDMNormalScale(ob, &data);
 
 	glBegin(GL_LINES);
-	dm->foreachMappedVert(dm, draw_dm_vert_normals__mapFunc, &data);
+	dm->foreachMappedVert(dm, draw_dm_vert_normals__mapFunc, &data, DM_FOREACH_USE_NORMAL);
 	glEnd();
 }
 
@@ -2204,7 +2204,7 @@ static void draw_dm_verts(BMEditMesh *em, DerivedMesh *dm, const char sel, BMVer
 	invert_m4(data.imat);
 
 	bglBegin(GL_POINTS);
-	dm->foreachMappedVert(dm, draw_dm_verts__mapFunc, &data);
+	dm->foreachMappedVert(dm, draw_dm_verts__mapFunc, &data, DM_FOREACH_NOP);
 	bglEnd();
 }
 
@@ -2534,7 +2534,7 @@ static void draw_dm_bweights(BMEditMesh *em, Scene *scene, DerivedMesh *dm)
 		if (data.cd_layer_offset != -1) {
 			glPointSize(UI_GetThemeValuef(TH_VERTEX_SIZE) + 2);
 			bglBegin(GL_POINTS);
-			dm->foreachMappedVert(dm, draw_dm_bweights__mapFunc, &data);
+			dm->foreachMappedVert(dm, draw_dm_bweights__mapFunc, &data, DM_FOREACH_NOP);
 			bglEnd();
 		}
 	}
@@ -3094,8 +3094,8 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 	BMVert *eve_act = NULL;
 	bool use_occlude_wire = (v3d->flag2 & V3D_OCCLUDE_WIRE) && (dt > OB_WIRE);
 	
-	// if (cageDM)  BLI_assert(!(cageDM->dirty & DM_DIRTY_NORMALS));
-	if (finalDM) BLI_assert(!(finalDM->dirty & DM_DIRTY_NORMALS));
+	// BLI_assert(!cageDM || !(cageDM->dirty & DM_DIRTY_NORMALS));
+	BLI_assert(!finalDM || !(finalDM->dirty & DM_DIRTY_NORMALS));
 
 	if (em->bm->selected.last) {
 		BMEditSelection *ese = em->bm->selected.last;
@@ -3132,9 +3132,10 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 	}
 	else if (dt > OB_WIRE) {
 		if (use_occlude_wire) {
+			/* use the cageDM since it always overlaps the editmesh faces */
 			glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-			finalDM->drawMappedFaces(finalDM, draw_em_fancy__setFaceOpts,
-			                         GPU_enable_material, NULL, me->edit_btmesh, 0);
+			cageDM->drawMappedFaces(cageDM, draw_em_fancy__setFaceOpts,
+			                        GPU_enable_material, NULL, me->edit_btmesh, 0);
 			glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 		}
 		else if (check_object_draw_texture(scene, v3d, dt)) {
@@ -3851,8 +3852,8 @@ static void drawDispListsolid(ListBase *lb, Object *ob, const short dflag,
 					glEnd();
 
 					glEnable(GL_LIGHTING);
-					break;
 				}
+				break;
 			case DL_SURF:
 
 				if (dl->index) {
@@ -6779,7 +6780,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 					cpack(0xffffff);
 					set_inverted_drawing(1);
-					for (i = 0; i < (selend - selstart + 1); i++) {
+					for (i = 0; i <= (selend - selstart); i++) {
 						SelBox *sb = &(cu->selboxes[i]);
 
 						if (i < (selend - selstart)) {
@@ -7052,18 +7053,15 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				mul_mat3_m4_v3(ob->imat, viewnormal);
 				normalize_v3(viewnormal);
 
-				/* set dynamic boundaries to draw the volume */
-				p0[0] = sds->p0[0] + sds->cell_size[0] * sds->res_min[0] + sds->obj_shift_f[0];
-				p0[1] = sds->p0[1] + sds->cell_size[1] * sds->res_min[1] + sds->obj_shift_f[1];
-				p0[2] = sds->p0[2] + sds->cell_size[2] * sds->res_min[2] + sds->obj_shift_f[2];
-				p1[0] = sds->p0[0] + sds->cell_size[0] * sds->res_max[0] + sds->obj_shift_f[0];
-				p1[1] = sds->p0[1] + sds->cell_size[1] * sds->res_max[1] + sds->obj_shift_f[1];
-				p1[2] = sds->p0[2] + sds->cell_size[2] * sds->res_max[2] + sds->obj_shift_f[2];
-
-				/* scale cube to global space to equalize volume slicing on all axises
+				/* set dynamic boundaries to draw the volume
+				 * also scale cube to global space to equalize volume slicing on all axises
 				 *  (its scaled back before drawing) */
-				mul_v3_v3(p0, ob->size);
-				mul_v3_v3(p1, ob->size);
+				p0[0] = (sds->p0[0] + sds->cell_size[0] * sds->res_min[0] + sds->obj_shift_f[0]) * fabsf(ob->size[0]);
+				p0[1] = (sds->p0[1] + sds->cell_size[1] * sds->res_min[1] + sds->obj_shift_f[1]) * fabsf(ob->size[1]);
+				p0[2] = (sds->p0[2] + sds->cell_size[2] * sds->res_min[2] + sds->obj_shift_f[2]) * fabsf(ob->size[2]);
+				p1[0] = (sds->p0[0] + sds->cell_size[0] * sds->res_max[0] + sds->obj_shift_f[0]) * fabsf(ob->size[0]);
+				p1[1] = (sds->p0[1] + sds->cell_size[1] * sds->res_max[1] + sds->obj_shift_f[1]) * fabsf(ob->size[1]);
+				p1[2] = (sds->p0[2] + sds->cell_size[2] * sds->res_max[2] + sds->obj_shift_f[2]) * fabsf(ob->size[2]);
 
 				if (!sds->wt || !(sds->viewsettings & MOD_SMOKE_VIEW_SHOWBIG)) {
 					smd->domain->tex = NULL;
@@ -7255,23 +7253,19 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 			cob = BKE_constraints_make_evalob(scene, ob, NULL, CONSTRAINT_OBTYPE_OBJECT);
 			
 			for (curcon = list->first; curcon; curcon = curcon->next) {
-				bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(curcon);
-				ListBase targets = {NULL, NULL};
-				bConstraintTarget *ct;
-				
-				if (ELEM(cti->type, CONSTRAINT_TYPE_FOLLOWTRACK, CONSTRAINT_TYPE_OBJECTSOLVER)) {
+				if (ELEM(curcon->type, CONSTRAINT_TYPE_FOLLOWTRACK, CONSTRAINT_TYPE_OBJECTSOLVER)) {
 					/* special case for object solver and follow track constraints because they don't fill
 					 * constraint targets properly (design limitation -- scene is needed for their target
 					 * but it can't be accessed from get_targets callvack) */
 
 					Object *camob = NULL;
 
-					if (cti->type == CONSTRAINT_TYPE_FOLLOWTRACK) {
+					if (curcon->type == CONSTRAINT_TYPE_FOLLOWTRACK) {
 						bFollowTrackConstraint *data = (bFollowTrackConstraint *)curcon->data;
 
 						camob = data->camera ? data->camera : scene->camera;
 					}
-					else if (cti->type == CONSTRAINT_TYPE_OBJECTSOLVER) {
+					else if (curcon->type == CONSTRAINT_TYPE_OBJECTSOLVER) {
 						bObjectSolverConstraint *data = (bObjectSolverConstraint *)curcon->data;
 
 						camob = data->camera ? data->camera : scene->camera;
@@ -7286,26 +7280,33 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 						setlinestyle(0);
 					}
 				}
-				else if ((curcon->flag & CONSTRAINT_EXPAND) && (cti->get_constraint_targets)) {
-					cti->get_constraint_targets(curcon, &targets);
-					
-					for (ct = targets.first; ct; ct = ct->next) {
-						/* calculate target's matrix */
-						if (cti->get_target_matrix)
-							cti->get_target_matrix(curcon, cob, ct, BKE_scene_frame_get(scene));
-						else
-							unit_m4(ct->matrix);
-						
-						setlinestyle(3);
-						glBegin(GL_LINES);
-						glVertex3fv(ct->matrix[3]);
-						glVertex3fv(ob->obmat[3]);
-						glEnd();
-						setlinestyle(0);
+				else {
+					bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(curcon);
+
+					if ((cti && cti->get_constraint_targets) && (curcon->flag & CONSTRAINT_EXPAND)) {
+						ListBase targets = {NULL, NULL};
+						bConstraintTarget *ct;
+
+						cti->get_constraint_targets(curcon, &targets);
+
+						for (ct = targets.first; ct; ct = ct->next) {
+							/* calculate target's matrix */
+							if (cti->get_target_matrix)
+								cti->get_target_matrix(curcon, cob, ct, BKE_scene_frame_get(scene));
+							else
+								unit_m4(ct->matrix);
+
+							setlinestyle(3);
+							glBegin(GL_LINES);
+							glVertex3fv(ct->matrix[3]);
+							glVertex3fv(ob->obmat[3]);
+							glEnd();
+							setlinestyle(0);
+						}
+
+						if (cti->flush_constraint_targets)
+							cti->flush_constraint_targets(curcon, &targets, 1);
 					}
-					
-					if (cti->flush_constraint_targets)
-						cti->flush_constraint_targets(curcon, &targets, 1);
 				}
 			}
 			
@@ -7358,7 +7359,7 @@ static void bbs_obmode_mesh_verts(Object *ob, DerivedMesh *dm, int offset)
 	data.offset = (void *)(intptr_t) offset;
 	glPointSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
 	bglBegin(GL_POINTS);
-	dm->foreachMappedVert(dm, bbs_obmode_mesh_verts__mapFunc, &data);
+	dm->foreachMappedVert(dm, bbs_obmode_mesh_verts__mapFunc, &data, DM_FOREACH_NOP);
 	bglEnd();
 	glPointSize(1.0);
 }
@@ -7381,7 +7382,7 @@ static void bbs_mesh_verts(BMEditMesh *em, DerivedMesh *dm, int offset)
 
 	glPointSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
 	bglBegin(GL_POINTS);
-	dm->foreachMappedVert(dm, bbs_mesh_verts__mapFunc, ptrs);
+	dm->foreachMappedVert(dm, bbs_mesh_verts__mapFunc, ptrs, DM_FOREACH_NOP);
 	bglEnd();
 	glPointSize(1.0);
 }
@@ -7447,7 +7448,7 @@ static void bbs_mesh_solid_EM(BMEditMesh *em, Scene *scene, View3D *v3d,
 			glPointSize(UI_GetThemeValuef(TH_FACEDOT_SIZE));
 
 			bglBegin(GL_POINTS);
-			dm->foreachMappedFaceCenter(dm, bbs_mesh_solid__drawCenter, ptrs);
+			dm->foreachMappedFaceCenter(dm, bbs_mesh_solid__drawCenter, ptrs, DM_FOREACH_NOP);
 			bglEnd();
 		}
 

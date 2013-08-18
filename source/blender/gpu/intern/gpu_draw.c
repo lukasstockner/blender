@@ -1272,7 +1272,7 @@ static LinkNode *image_free_queue = NULL;
 static void gpu_queue_image_for_free(Image *ima)
 {
 	BLI_lock_thread(LOCK_OPENGL);
-	BLI_linklist_append(&image_free_queue, ima);
+	BLI_linklist_prepend(&image_free_queue, ima);
 	BLI_unlock_thread(LOCK_OPENGL);
 }
 
@@ -1299,8 +1299,7 @@ void GPU_free_unused_buffers(void)
 	image_free_queue = NULL;
 
 	/* vbo buffers */
-	/* it's probably not necessary to free all buffers every frame */
-	/* GPU_buffer_pool_free_unused(0); */
+	GPU_global_buffer_pool_free_unused();
 
 	BLI_unlock_thread(LOCK_OPENGL);
 }

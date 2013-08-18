@@ -306,6 +306,7 @@ typedef struct StrokeCache {
 
 	char saved_active_brush_name[MAX_ID_NAME];
 	char saved_mask_brush_tool;
+	int saved_smooth_size; /* smooth tool copies the size of the current tool */
 	int alt_smooth;
 
 	float plane_trim_squared;
@@ -1529,7 +1530,7 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 	float *tmpgrid_mask, *tmprow_mask;
 	int v1, v2, v3, v4;
 	int thread_num;
-	BLI_bitmap *grid_hidden;
+	BLI_bitmap **grid_hidden;
 	int *grid_indices, totgrid, gridsize, i, x, y;
 
 	sculpt_brush_test_init(ss, &test);
@@ -1554,7 +1555,7 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 
 	for (i = 0; i < totgrid; ++i) {
 		int gi = grid_indices[i];
-		BLI_bitmap gh = grid_hidden[gi];
+		BLI_bitmap *gh = grid_hidden[gi];
 		data = griddata[gi];
 		adj = &gridadj[gi];
 
@@ -3710,6 +3711,7 @@ static void sculpt_omp_done(SculptSession *ss)
 static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSession *ss, wmOperator *op, const float mouse[2])
 {
 	StrokeCache *cache = MEM_callocN(sizeof(StrokeCache), "stroke cache");
+	Scene *scene = CTX_data_scene(C);
 	UnifiedPaintSettings *ups = &CTX_data_tool_settings(C)->unified_paint_settings;
 	Brush *brush = BKE_paint_brush(&sd->paint);
 	ViewContext *vc = paint_stroke_view_context(op->customdata);
@@ -3755,6 +3757,7 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 		else {
 			Paint *p = &sd->paint;
 			Brush *br;
+			int size = BKE_brush_size_get(scene, brush);
 		
 			BLI_strncpy(cache->saved_active_brush_name, brush->id.name + 2,
 			            sizeof(cache->saved_active_brush_name));
@@ -3763,6 +3766,8 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 			if (br) {
 				BKE_paint_brush_set(p, br);
 				brush = br;
+				cache->saved_smooth_size = BKE_brush_size_get(scene, brush);
+				BKE_brush_size_set(scene, brush, size);
 			}
 		}
 	}
@@ -4352,6 +4357,7 @@ static void sculpt_stroke_done(const bContext *C, struct PaintStroke *UNUSED(str
 {
 	UnifiedPaintSettings *ups = &CTX_data_tool_settings(C)->unified_paint_settings;
 	Object *ob = CTX_data_active_object(C);
+	Scene *scene = CTX_data_scene(C);
 	SculptSession *ss = ob->sculpt;
 	Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
 
@@ -4375,6 +4381,7 @@ static void sculpt_stroke_done(const bContext *C, struct PaintStroke *UNUSED(str
 			}
 			else {
 				Paint *p = &sd->paint;
+				BKE_brush_size_set(scene, ss->cache->brush, ss->cache->saved_smooth_size);
 				brush = (Brush *)BKE_libblock_find_name(ID_BR, ss->cache->saved_active_brush_name);
 				if (brush) {
 					BKE_paint_brush_set(p, brush);
@@ -4523,7 +4530,7 @@ static void SCULPT_OT_brush_stroke(wmOperatorType *ot)
 
 /**** Reset the copy of the mesh that is being sculpted on (currently just for the layer brush) ****/
 
-static int sculpt_set_persistent_base(bContext *C, wmOperator *UNUSED(op))
+static int sculpt_set_persistent_base_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	SculptSession *ss = CTX_data_active_object(C)->sculpt;
 
@@ -4544,7 +4551,7 @@ static void SCULPT_OT_set_persistent_base(wmOperatorType *ot)
 	ot->description = "Reset the copy of the mesh that is being sculpted on";
 	
 	/* api callbacks */
-	ot->exec = sculpt_set_persistent_base;
+	ot->exec = sculpt_set_persistent_base_exec;
 	ot->poll = sculpt_mode_poll;
 	
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -4588,14 +4595,21 @@ void sculpt_dynamic_topology_enable(bContext *C)
 	Object *ob = CTX_data_active_object(C);
 	SculptSession *ss = ob->sculpt;
 	Mesh *me = ob->data;
+	const BMAllocTemplate allocsize = {me->totvert,
+	                                   me->totedge,
+	                                   me->totloop,
+	                                   me->totpoly};
 
 	sculpt_pbvh_clear(ob);
 
 	ss->bm_smooth_shading = (scene->toolsettings->sculpt->flags &
 	                         SCULPT_DYNTOPO_SMOOTH_SHADING);
 
+	/* Dynamic topology doesn't ensure selection state is valid, so remove [#36280] */
+	BKE_mesh_mselect_clear(me);
+
 	/* Create triangles-only BMesh */
-	ss->bm = BM_mesh_create(&bm_mesh_allocsize_default);
+	ss->bm = BM_mesh_create(&allocsize);
 
 	BM_mesh_bm_from_me(ss->bm, me, true, true, ob->shapenr);
 	sculpt_dynamic_topology_triangulate(ss->bm);
@@ -4893,7 +4907,7 @@ int ED_sculpt_mask_layers_ensure(Object *ob, MultiresModifierData *mmd)
 	return ret;
 }
 
-static int sculpt_toggle_mode(bContext *C, wmOperator *UNUSED(op))
+static int sculpt_mode_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Scene *scene = CTX_data_scene(C);
 	ToolSettings *ts = CTX_data_tool_settings(C);
@@ -4981,7 +4995,7 @@ static void SCULPT_OT_sculptmode_toggle(wmOperatorType *ot)
 	ot->description = "Toggle sculpt mode in 3D view";
 	
 	/* api callbacks */
-	ot->exec = sculpt_toggle_mode;
+	ot->exec = sculpt_mode_toggle_exec;
 	ot->poll = ED_operator_object_active_editable_mesh;
 	
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

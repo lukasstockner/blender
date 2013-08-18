@@ -33,6 +33,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_linklist.h"
+#include "BLI_linklist_stack.h"
 #include "BLI_math.h"
 #include "BLI_rand.h"
 #include "BLI_array.h"
@@ -1233,7 +1234,7 @@ static void mouse_mesh_loop(bContext *C, const int mval[2], bool extend, bool de
 				/* We can't be sure this has already been set... */
 				ED_view3d_init_mats_rv3d(vc.obedit, vc.rv3d);
 
-				BM_ITER_ELEM(f, &iterf, eed, BM_FACES_OF_EDGE) {
+				BM_ITER_ELEM (f, &iterf, eed, BM_FACES_OF_EDGE) {
 					if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
 						float cent[3];
 						float co[2], tdist;
@@ -1590,8 +1591,7 @@ void EDBM_selectmode_set(BMEditMesh *em)
 		}
 
 		if (em->bm->totfacesel) {
-			efa = BM_iter_new(&iter, em->bm, BM_FACES_OF_MESH, NULL);
-			for (; efa; efa = BM_iter_step(&iter)) {
+			BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
 				if (BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
 					BM_face_select_set(em->bm, efa, true);
 				}
@@ -2427,9 +2427,6 @@ static void walker_deselect_nth(BMEditMesh *em, int nth, int offset, BMHeader *h
 
 static void deselect_nth_active(BMEditMesh *em, BMVert **r_eve, BMEdge **r_eed, BMFace **r_efa)
 {
-	BMVert *v;
-	BMEdge *e;
-	BMFace *f;
 	BMIter iter;
 	BMElem *ele;
 
@@ -2440,7 +2437,7 @@ static void deselect_nth_active(BMEditMesh *em, BMVert **r_eve, BMEdge **r_eed, 
 	EDBM_selectmode_flush(em);
 	ele = BM_mesh_active_elem_get(em->bm);
 
-	if (ele) {
+	if (ele && BM_elem_flag_test(ele, BM_ELEM_SELECT)) {
 		switch (ele->head.htype) {
 			case BM_VERT:
 				*r_eve = (BMVert *)ele;
@@ -2455,6 +2452,7 @@ static void deselect_nth_active(BMEditMesh *em, BMVert **r_eve, BMEdge **r_eed, 
 	}
 
 	if (em->selectmode & SCE_SELECT_VERTEX) {
+		BMVert *v;
 		BM_ITER_MESH (v, &iter, em->bm, BM_VERTS_OF_MESH) {
 			if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
 				*r_eve = v;
@@ -2463,6 +2461,7 @@ static void deselect_nth_active(BMEditMesh *em, BMVert **r_eve, BMEdge **r_eed, 
 		}
 	}
 	else if (em->selectmode & SCE_SELECT_EDGE) {
+		BMEdge *e;
 		BM_ITER_MESH (e, &iter, em->bm, BM_EDGES_OF_MESH) {
 			if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
 				*r_eed = e;
@@ -2471,8 +2470,8 @@ static void deselect_nth_active(BMEditMesh *em, BMVert **r_eve, BMEdge **r_eed, 
 		}
 	}
 	else if (em->selectmode & SCE_SELECT_FACE) {
-		f = BM_mesh_active_face_get(em->bm, true, false);
-		if (f) {
+		BMFace *f = BM_mesh_active_face_get(em->bm, true, false);
+		if (f && BM_elem_flag_test(f, BM_ELEM_SELECT)) {
 			*r_efa = f;
 			return;
 		}
@@ -2611,16 +2610,16 @@ static int edbm_select_linked_flat_faces_exec(bContext *C, wmOperator *op)
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	BMesh *bm = em->bm;
 
-	BMFace **stack = MEM_mallocN(sizeof(BMFace *) * bm->totface, __func__);
-	STACK_DECLARE(stack);
+	BLI_LINKSTACK_DECLARE(stack, BMFace *);
 
 	BMIter iter, liter, liter2;
 	BMFace *f;
 	BMLoop *l, *l2;
 	const float angle_limit = RNA_float_get(op->ptr, "sharpness");
 
-	BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, false);
+	BM_mesh_elem_hflag_disable_all(bm, BM_FACE, BM_ELEM_TAG, false);
 
+	BLI_LINKSTACK_INIT(stack);
 
 	BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
 		if ((BM_elem_flag_test(f, BM_ELEM_HIDDEN) != 0) ||
@@ -2630,7 +2629,7 @@ static int edbm_select_linked_flat_faces_exec(bContext *C, wmOperator *op)
 			continue;
 		}
 
-		STACK_INIT(stack);
+		BLI_assert(BLI_LINKSTACK_SIZE(stack) == 0);
 
 		do {
 			BM_face_select_set(bm, f, true);
@@ -2650,16 +2649,14 @@ static int edbm_select_linked_flat_faces_exec(bContext *C, wmOperator *op)
 					angle = angle_normalized_v3v3(f->no, l2->f->no);
 
 					if (angle < angle_limit) {
-						STACK_PUSH(stack, l2->f);
+						BLI_LINKSTACK_PUSH(stack, l2->f);
 					}
 				}
 			}
-		} while ((f = STACK_POP(stack)));
+		} while ((f = BLI_LINKSTACK_POP(stack)));
 	}
 
-	STACK_FREE(stack);
-
-	MEM_freeN(stack);
+	BLI_LINKSTACK_FREE(stack);
 
 	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 
@@ -3076,10 +3073,10 @@ void MESH_OT_region_to_loop(wmOperatorType *ot)
 static int loop_find_region(BMLoop *l, int flag,
                             SmallHash *fhash, BMFace ***region_out)
 {
-	BLI_array_declare(region);
-	BLI_array_declare(stack);
 	BMFace **region = NULL;
 	BMFace **stack = NULL;
+	BLI_array_declare(region);
+	BLI_array_declare(stack);
 	BMFace *f;
 	
 	BLI_array_append(stack, l->f);
