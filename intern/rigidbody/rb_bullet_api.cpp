@@ -75,6 +75,8 @@ subject to the following restrictions:
 #include "BulletCollision/Gimpact/btGImpactCollisionAlgorithm.h"
 #include "BulletCollision/CollisionShapes/btScaledBvhTriangleMeshShape.h"
 
+#include "hacdHACD.h"
+
 struct rbDynamicsWorld {
 	btDiscreteDynamicsWorld *dynamicsWorld;
 	btDefaultCollisionConfiguration *collisionConfiguration;
@@ -860,6 +862,73 @@ rbCollisionShape *RB_shape_new_gimpact_mesh(rbMeshData *mesh)
 	return shape;
 }
 
+struct rbHACDMeshData {
+	std::vector< HACD::Vec3<HACD::Real> > verts;
+	std::vector< HACD::Vec3<long> > tris;
+};
+
+rbHACDMeshData *RB_hacd_mesh_new(int num_tris, int num_verts)
+{
+	rbHACDMeshData *mesh = new rbHACDMeshData;
+	
+	mesh->verts.reserve(num_verts);
+	mesh->tris.reserve(num_tris);
+	
+	return mesh;
+}
+ 
+void RB_hacd_mesh_add_triangle(rbHACDMeshData *mesh, const float v1[3], const float v2[3], const float v3[3])
+{
+	mesh->tris.push_back(HACD::Vec3<long>(mesh->verts.size(), mesh->verts.size()+1, mesh->verts.size()+2));
+	mesh->verts.push_back(HACD::Vec3<HACD::Real>(v1[0], v1[1], v1[2]));
+	mesh->verts.push_back(HACD::Vec3<HACD::Real>(v2[0], v2[1], v2[2]));
+	mesh->verts.push_back(HACD::Vec3<HACD::Real>(v3[0], v3[1], v3[2]));
+}
+
+rbCollisionShape *RB_shape_new_convex_decomp(rbHACDMeshData *mesh)
+{
+	rbCollisionShape *shape = new rbCollisionShape;
+	btCompoundShape *compound = new btCompoundShape();
+	
+	HACD::HACD hacd;
+	hacd.SetPoints(&mesh->verts[0]);
+	hacd.SetNPoints(mesh->verts.size());
+	hacd.SetTriangles(&mesh->tris[0]);
+	hacd.SetNTriangles(mesh->tris.size());
+
+	hacd.Compute();
+	
+	int num_clusters = hacd.GetNClusters();
+	
+	for (int i = 0; i < num_clusters; i++) {
+		int num_verts = hacd.GetNPointsCH(i);
+		int num_tris = hacd.GetNTrianglesCH(i);
+		HACD::Vec3<HACD::Real> verts[num_verts];
+		HACD::Vec3<long> tris[num_tris];
+		hacd.GetCH(i, verts, tris);
+		
+		btVector3 hull_verts[num_verts];
+		for (int i = 0; i < num_verts; i++) {
+			hull_verts[i].setX(verts[i].X());
+			hull_verts[i].setY(verts[i].Y());
+			hull_verts[i].setZ(verts[i].Z());
+		}
+		
+		btTransform transform;
+		transform.setIdentity();
+		btConvexHullShape *hull = new btConvexHullShape(&hull_verts[0].getX(), num_verts);
+		compound->addChildShape(transform, hull);
+	}
+	
+	shape->mesh = NULL;
+	shape->compound = compound;
+	shape->cshape = compound;
+	
+	delete mesh;
+	
+	return shape;
+}
+
 void RB_shape_add_compound_child(rbRigidBody *parent, rbCollisionShape *child, float child_pos[3], float child_orn[4])
 {
 	btCompoundShape *compound = (btCompoundShape*)parent->body->getCollisionShape();
@@ -882,7 +951,8 @@ void RB_shape_delete(rbCollisionShape *shape)
 	}
 	if (shape->mesh)
 		delete shape->mesh;
-	delete shape->cshape;
+	if (shape->cshape != shape->compound)
+		delete shape->cshape;
 	delete shape->compound;
 	delete shape;
 }

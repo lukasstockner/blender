@@ -62,6 +62,7 @@ typedef struct rbCollisionShape rbCollisionShape;
 
 /* Mesh Data (for Collision Shapes of Meshes) */
 typedef struct rbMeshData rbMeshData;
+typedef struct rbHACDMeshData rbHACDMeshData;
 
 /* Constraint */
 typedef struct rbConstraint rbConstraint;
@@ -235,6 +236,12 @@ extern void RB_trimesh_add_triangle(rbMeshData *mesh, const float v1[3], const f
 extern rbCollisionShape *RB_shape_new_trimesh(rbMeshData *mesh);
 /* 2b - GImpact Meshes */
 extern rbCollisionShape *RB_shape_new_gimpact_mesh(rbMeshData *mesh);
+
+
+extern rbHACDMeshData *RB_hacd_mesh_new(int num_tris, int num_verts);
+extern void RB_hacd_mesh_add_triangle(rbHACDMeshData *mesh, const float v1[3], const float v2[3], const float v3[3]);
+
+extern rbCollisionShape *RB_shape_new_convex_decomp(rbHACDMeshData *mesh);
 
 /* Compound Shapes ------------------- */
 extern void RB_shape_add_compound_child(rbRigidBody *parent, rbCollisionShape *child, float child_pos[3], float child_orn[4]);

@@ -60,6 +60,8 @@ EnumPropertyItem rigidbody_object_shape_items[] = {
 	                   "fewer vertices)"},
 	{RB_SHAPE_TRIMESH, "MESH", ICON_MESH_MONKEY, "Mesh",
 	                   "Mesh consisting of triangles only, allowing for more detailed interactions than convex hulls"},
+	{RB_SHAPE_APPROX, "APPROX", ICON_MESH_MONKEY, "Approx",
+	 "Approximation of the mesh using convex decomposition"},
 	{0, NULL, 0, NULL, NULL}};
 
 /* collision shapes of constraints in rigid body sim */

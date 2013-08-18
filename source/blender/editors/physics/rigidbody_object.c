@@ -535,6 +535,7 @@ static float rigidbody_object_calc_volume(Object *ob)
 		 */
 		case RB_SHAPE_CONVEXH:
 		case RB_SHAPE_TRIMESH:
+		case RB_SHAPE_APPROX:
 			volume = size[0] * size[1] * size[2];
 			break;
 

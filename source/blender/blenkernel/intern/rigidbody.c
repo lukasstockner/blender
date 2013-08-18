@@ -341,6 +341,79 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
 	return shape;
 }
 
+/* create collision shape of mesh - convex decomposition
+ * returns NULL if creation fails.
+ */
+static rbCollisionShape *rigidbody_get_shape_convex_decomp_from_mesh(Object *ob)
+{
+	rbCollisionShape *shape = NULL;
+
+	if (ob->type == OB_MESH) {
+		DerivedMesh *dm = ob->derivedDeform;
+
+		MVert *mvert;
+		MFace *mface;
+		int totvert;
+		int totface;
+		int tottris = 0;
+
+		/* ensure mesh validity, then grab data */
+		BLI_assert(dm!= NULL); // RB_TODO need to make sure there's no case where deform derived mesh doesn't exist
+		DM_ensure_tessface(dm);
+
+		mvert   = (dm) ? dm->getVertArray(dm) : NULL;
+		totvert = (dm) ? dm->getNumVerts(dm) : 0;
+		mface   = (dm) ? dm->getTessFaceArray(dm) : NULL;
+		totface = (dm) ? dm->getNumTessFaces(dm) : 0;
+
+		/* sanity checking - potential case when no data will be present */
+		if ((totvert == 0) || (totface == 0)) {
+			printf("WARNING: no geometry data converted for Mesh Collision Shape (ob = %s)\n", ob->id.name + 2);
+		}
+		else {
+			rbHACDMeshData *mdata;
+			int i;
+
+			/* count triangles */
+			for (i = 0; (i < totface) && (mface); i++) {
+				(mface->v4) ? (tottris += 2) : (tottris += 1);
+			}
+
+			/* init mesh data for collision shape */
+			mdata = RB_hacd_mesh_new(tottris, totvert);
+
+			/* loop over all faces, adding them as triangles to the collision shape
+			 * (so for some faces, more than triangle will get added)
+			 */
+			for (i = 0; (i < totface) && (mface) && (mvert); i++, mface++) {
+				/* add first triangle - verts 1,2,3 */
+				{
+					MVert *va = (mface->v1 < totvert) ? (mvert + mface->v1) : (mvert);
+					MVert *vb = (mface->v2 < totvert) ? (mvert + mface->v2) : (mvert);
+					MVert *vc = (mface->v3 < totvert) ? (mvert + mface->v3) : (mvert);
+
+					RB_hacd_mesh_add_triangle(mdata, va->co, vb->co, vc->co);
+				}
+
+				/* add second triangle if needed - verts 1,3,4 */
+				if (mface->v4) {
+					MVert *va = (mface->v1 < totvert) ? (mvert + mface->v1) : (mvert);
+					MVert *vb = (mface->v3 < totvert) ? (mvert + mface->v3) : (mvert);
+					MVert *vc = (mface->v4 < totvert) ? (mvert + mface->v4) : (mvert);
+
+					RB_hacd_mesh_add_triangle(mdata, va->co, vb->co, vc->co);
+				}
+			}
+			shape = RB_shape_new_convex_decomp(mdata);
+		}
+	}
+	else {
+		printf("ERROR: cannot make Triangular Mesh collision shape for non-Mesh object\n");
+	}
+
+	return shape;
+}
+
 /* check parent child relationships to construct compound shapes */
 static void rigidbody_prepare_compounds(RigidBodyWorld *rbw)
 {
@@ -485,6 +558,9 @@ void BKE_rigidbody_validate_sim_shape(Object *ob, short rebuild)
 			break;
 		case RB_SHAPE_TRIMESH:
 			new_shape = rigidbody_get_shape_trimesh_from_mesh(ob);
+			break;
+		case RB_SHAPE_APPROX:
+			new_shape = rigidbody_get_shape_convex_decomp_from_mesh(ob);
 			break;
 	}
 	/* assign new collision shape if creation was successful */

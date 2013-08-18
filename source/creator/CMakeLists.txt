@@ -1010,6 +1010,7 @@ endif()
 
 	if(WITH_BULLET)
 		list_insert_after(BLENDER_SORTED_LIBS "bf_blenkernel" "bf_intern_rigidbody")
+		list_insert_after(BLENDER_SORTED_LIBS "bf_intern_rigidbody" "extern_hacd")
 	endif()
 
 	if(WITH_BULLET AND NOT WITH_SYSTEM_BULLET)

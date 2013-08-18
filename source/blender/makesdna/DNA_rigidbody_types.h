@@ -171,9 +171,8 @@ typedef enum eRigidBody_Shape {
 	RB_SHAPE_CONVEXH,
 		/* triangulated mesh */
 	RB_SHAPE_TRIMESH,
-	
-		/* concave mesh approximated using primitives */
-	//RB_SHAPE_COMPOUND,
+		/* concave mesh approximated using convex hulls */
+	RB_SHAPE_APPROX
 } eRigidBody_Shape;
 
 /* ******************************** */
