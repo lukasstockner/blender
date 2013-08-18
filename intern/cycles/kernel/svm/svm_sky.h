@@ -36,7 +36,10 @@ __device float sky_perez_function(__constant float *lam, float theta, float gamm
 	return (1.0f + lam[0]*expf(lam[1]/ctheta)) * (1.0f + lam[2]*expf(lam[3]*gamma)  + lam[4]*cgamma*cgamma);
 }
 
-__device float3 sky_radiance_old(KernelGlobals *kg, float3 dir)
+__device float3 sky_radiance_old(KernelGlobals *kg, float3 dir,
+                                 float sunphi, float suntheta,
+                                 float radiance_x, float radiance_y, float radiance_z,
+                                 float *config_x, float *config_y, float *config_z)
 {
 	/* convert vector to spherical coordinates */
 	float2 spherical = direction_to_spherical(dir);
@@ -44,15 +47,15 @@ __device float3 sky_radiance_old(KernelGlobals *kg, float3 dir)
 	float phi = spherical.y;
 
 	/* angle between sun direction and dir */
-	float gamma = sky_angle_between(theta, phi, kernel_data.sunsky.theta, kernel_data.sunsky.phi);
+	float gamma = sky_angle_between(theta, phi, suntheta, sunphi);
 
 	/* clamp theta to horizon */
 	theta = min(theta, M_PI_2_F - 0.001f);
 
 	/* compute xyY color space values */
-	float x = kernel_data.sunsky.radiance_y * sky_perez_function(kernel_data.sunsky.config_y, theta, gamma);
-	float y = kernel_data.sunsky.radiance_z * sky_perez_function(kernel_data.sunsky.config_z, theta, gamma);
-	float Y = kernel_data.sunsky.radiance_x * sky_perez_function(kernel_data.sunsky.config_x, theta, gamma);
+	float x = radiance_y * sky_perez_function(config_y, theta, gamma);
+	float y = radiance_z * sky_perez_function(config_z, theta, gamma);
+	float Y = radiance_x * sky_perez_function(config_x, theta, gamma);
 
 	/* convert to RGB */
 	float3 xyz = xyY_to_xyz(x, y, Y);
@@ -77,7 +80,10 @@ __device float sky_radiance_internal(__constant float *configuration, float thet
 		(configuration[2] + configuration[3] * expM + configuration[5] * rayM + configuration[6] * mieM + configuration[7] * zenith);
 }
 
-__device float3 sky_radiance_new(KernelGlobals *kg, float3 dir)
+__device float3 sky_radiance_new(KernelGlobals *kg, float3 dir,
+                                 float sunphi, float suntheta,
+                                 float radiance_x, float radiance_y, float radiance_z,
+                                 float *config_x, float *config_y, float *config_z)
 {
 	/* convert vector to spherical coordinates */
 	float2 spherical = direction_to_spherical(dir);
@@ -85,29 +91,87 @@ __device float3 sky_radiance_new(KernelGlobals *kg, float3 dir)
 	float phi = spherical.y;
 
 	/* angle between sun direction and dir */
-	float gamma = sky_angle_between(theta, phi, kernel_data.sunsky.theta, kernel_data.sunsky.phi);
+	float gamma = sky_angle_between(theta, phi, suntheta, sunphi);
 
 	/* clamp theta to horizon */
 	theta = min(theta, M_PI_2_F - 0.001f);
 
 	/* compute xyz color space values */
-	float x = sky_radiance_internal(kernel_data.sunsky.config_x, theta, gamma) * kernel_data.sunsky.radiance_x;
-	float y = sky_radiance_internal(kernel_data.sunsky.config_y, theta, gamma) * kernel_data.sunsky.radiance_y;
-	float z = sky_radiance_internal(kernel_data.sunsky.config_z, theta, gamma) * kernel_data.sunsky.radiance_z;
+	float x = sky_radiance_internal(config_x, theta, gamma) * radiance_x;
+	float y = sky_radiance_internal(config_y, theta, gamma) * radiance_y;
+	float z = sky_radiance_internal(config_z, theta, gamma) * radiance_z;
 
-	/* convert to RGB and adjust strength*/
+	/* convert to RGB and adjust strength */
 	return xyz_to_rgb(x, y, z) * (M_2PI_F/683);
 }
 
-__device void svm_node_tex_sky(KernelGlobals *kg, ShaderData *sd, float *stack, uint dir_offset, uint out_offset, uint sky_model)
+__device void svm_node_tex_sky(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int *offset)
 {
+	uint dir_offset = node.y, out_offset = node.z;
+	
+	int sky_model = node.w;
+	float sunphi, suntheta, radiance_x, radiance_y, radiance_z;
+	float config_x[9], config_y[9], config_z[9];
+	
+	float4 data = read_node_float(kg, offset);
+	sunphi = data.x;
+	suntheta = data.y;
+	radiance_x = data.z;
+	radiance_y = data.w;
+	
+	data = read_node_float(kg, offset);
+	radiance_z = data.x;
+	config_x[0] = data.y;
+	config_x[1] = data.z;
+	config_x[2] = data.w;
+	
+	data = read_node_float(kg, offset);
+	config_x[3] = data.x;
+	config_x[4] = data.y;
+	config_x[5] = data.z;
+	config_x[6] = data.w;
+	
+	data = read_node_float(kg, offset);
+	config_x[7] = data.x;
+	config_x[8] = data.y;
+	config_y[0] = data.z;
+	config_y[1] = data.w;
+	
+	data = read_node_float(kg, offset);
+	config_y[2] = data.x;
+	config_y[3] = data.y;
+	config_y[4] = data.z;
+	config_y[5] = data.w;
+	
+	data = read_node_float(kg, offset);
+	config_y[6] = data.x;
+	config_y[7] = data.y;
+	config_y[8] = data.z;
+	config_z[0] = data.w;
+	
+	data = read_node_float(kg, offset);
+	config_z[1] = data.x;
+	config_z[2] = data.y;
+	config_z[3] = data.z;
+	config_z[4] = data.w;
+	
+	data = read_node_float(kg, offset);
+	config_z[5] = data.x;
+	config_z[6] = data.y;
+	config_z[7] = data.z;
+	config_z[8] = data.w;
+	
 	float3 dir = stack_load_float3(stack, dir_offset);
 	float3 f;
 
 	if(sky_model == 0)
-		f = sky_radiance_old(kg, dir);
+		f = sky_radiance_old(kg, dir, sunphi, suntheta,
+	                             radiance_x, radiance_y, radiance_z,
+	                             config_x, config_y, config_z);
 	else
-		f = sky_radiance_new(kg, dir);
+		f = sky_radiance_new(kg, dir, sunphi, suntheta,
+	                             radiance_x, radiance_y, radiance_z,
+	                             config_x, config_y, config_z);
 
 	stack_store_float3(stack, out_offset, f);
 }
