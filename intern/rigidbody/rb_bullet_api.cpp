@@ -851,6 +851,12 @@ rbCollisionShape *RB_shape_new_gimpact_mesh(rbMeshData *mesh)
 	
 	shape->cshape = gimpactShape;
 	shape->mesh = tmesh;
+	
+	shape->compound = new btCompoundShape();
+	btTransform compound_transform;
+	compound_transform.setIdentity();
+	((btCompoundShape*)shape->compound)->addChildShape(compound_transform, shape->cshape);
+	
 	return shape;
 }
 
