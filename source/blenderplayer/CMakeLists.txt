@@ -120,6 +120,7 @@ endif()
 		ge_logic_network 
 		ge_logic_ngnetwork 
 		ge_logic_loopbacknetwork 
+		extern_hacd
 		extern_bullet 
 		bf_intern_guardedalloc 
 		bf_intern_memutil 
