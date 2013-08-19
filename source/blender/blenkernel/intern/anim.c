@@ -488,7 +488,7 @@ void free_path(Path *path)
 /* calculate a curve-deform path for a curve 
  *  - only called from displist.c -> do_makeDispListCurveTypes
  */
-void calc_curvepath(Object *ob)
+void calc_curvepath(Object *ob, ListBase *nurbs)
 {
 	BevList *bl;
 	BevPoint *bevp, *bevpn, *bevpfirst, *bevplast;
@@ -499,7 +499,6 @@ void calc_curvepath(Object *ob)
 	float *fp, *dist, *maxdist, xyz[3];
 	float fac, d = 0, fac1, fac2;
 	int a, tot, cycl = 0;
-	ListBase *nurbs;
 	
 	/* in a path vertices are with equal differences: path->len = number of verts */
 	/* NOW WITH BEVELCURVE!!! */
@@ -509,19 +508,18 @@ void calc_curvepath(Object *ob)
 	}
 	cu = ob->data;
 
-	if (cu->path) free_path(cu->path);
-	cu->path = NULL;
+	if (ob->curve_cache->path) free_path(ob->curve_cache->path);
+	ob->curve_cache->path = NULL;
 	
 	/* weak! can only use first curve */
-	bl = cu->bev.first;
+	bl = ob->curve_cache->bev.first;
 	if (bl == NULL || !bl->nr) {
 		return;
 	}
 
-	nurbs = BKE_curve_nurbs_get(cu);
 	nu = nurbs->first;
 
-	cu->path = path = MEM_callocN(sizeof(Path), "calc_curvepath");
+	ob->curve_cache->path = path = MEM_callocN(sizeof(Path), "calc_curvepath");
 	
 	/* if POLY: last vertice != first vertice */
 	cycl = (bl->poly != -1);
@@ -630,15 +628,15 @@ int where_on_path(Object *ob, float ctime, float vec[4], float dir[3], float qua
 
 	if (ob == NULL || ob->type != OB_CURVE) return 0;
 	cu = ob->data;
-	if (cu->path == NULL || cu->path->data == NULL) {
+	if (ob->curve_cache == NULL || ob->curve_cache->path == NULL || ob->curve_cache->path->data == NULL) {
 		printf("no path!\n");
 		return 0;
 	}
-	path = cu->path;
+	path = ob->curve_cache->path;
 	pp = path->data;
 	
 	/* test for cyclic */
-	bl = cu->bev.first;
+	bl = ob->curve_cache->bev.first;
 	if (!bl) return 0;
 	if (!bl->nr) return 0;
 	if (bl->poly > -1) cycl = 1;
@@ -1332,7 +1330,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 
 		psys_check_group_weights(part);
 
-		psys->lattice = psys_get_lattice(&sim);
+		psys->lattice_deform_data = psys_create_lattice_deform_data(&sim);
 
 		/* gather list of objects or single object */
 		if (part->ren_as == PART_DRAW_GR) {
@@ -1569,9 +1567,9 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 	if (obcopylist)
 		MEM_freeN(obcopylist);
 
-	if (psys->lattice) {
-		end_latt_deform(psys->lattice);
-		psys->lattice = NULL;
+	if (psys->lattice_deform_data) {
+		end_latt_deform(psys->lattice_deform_data);
+		psys->lattice_deform_data = NULL;
 	}
 }
 

@@ -150,6 +150,7 @@ MultiresModifierData *sculpt_multires_active(Scene *scene, Object *ob)
 {
 	Mesh *me = (Mesh *)ob->data;
 	ModifierData *md;
+	VirtualModifierData virtualModifierData;
 
 	if (ob->sculpt && ob->sculpt->bm) {
 		/* can't combine multires and dynamic topology */
@@ -161,7 +162,7 @@ MultiresModifierData *sculpt_multires_active(Scene *scene, Object *ob)
 		return NULL;
 	}
 
-	for (md = modifiers_getVirtualModifierList(ob); md; md = md->next) {
+	for (md = modifiers_getVirtualModifierList(ob, &virtualModifierData); md; md = md->next) {
 		if (md->type == eModifierType_Multires) {
 			MultiresModifierData *mmd = (MultiresModifierData *)md;
 
@@ -180,8 +181,9 @@ MultiresModifierData *sculpt_multires_active(Scene *scene, Object *ob)
 static int sculpt_has_active_modifiers(Scene *scene, Object *ob)
 {
 	ModifierData *md;
+	VirtualModifierData virtualModifierData;
 
-	md = modifiers_getVirtualModifierList(ob);
+	md = modifiers_getVirtualModifierList(ob, &virtualModifierData);
 
 	/* exception for shape keys because we can edit those */
 	for (; md; md = md->next) {
@@ -198,6 +200,7 @@ static int sculpt_modifiers_active(Scene *scene, Sculpt *sd, Object *ob)
 	ModifierData *md;
 	Mesh *me = (Mesh *)ob->data;
 	MultiresModifierData *mmd = sculpt_multires_active(scene, ob);
+	VirtualModifierData virtualModifierData;
 
 	if (mmd || ob->sculpt->bm)
 		return 0;
@@ -206,7 +209,7 @@ static int sculpt_modifiers_active(Scene *scene, Sculpt *sd, Object *ob)
 	if ((ob->shapeflag & OB_SHAPE_LOCK) == 0 && me->key && ob->shapenr)
 		return 1;
 
-	md = modifiers_getVirtualModifierList(ob);
+	md = modifiers_getVirtualModifierList(ob, &virtualModifierData);
 
 	/* exception for shape keys because we can edit those */
 	for (; md; md = md->next) {
@@ -327,7 +330,7 @@ typedef struct {
 	/* Original coordinate, normal, and mask */
 	const float *co;
 	float mask;
-	short no[3];
+	const short *no;
 } SculptOrigVertData;
 
 
@@ -378,11 +381,10 @@ static void sculpt_orig_vert_data_update(SculptOrigVertData *orig_data,
 		}
 
 		if (orig_data->normals) {
-			copy_v3_v3_short(orig_data->no, orig_data->normals[iter->i]);
+			orig_data->no = orig_data->normals[iter->i];
 		}
 		else {
-			/* TODO: log doesn't store normals yet */
-			normal_float_to_short_v3(orig_data->no, iter->bm_vert->no);
+			orig_data->no = BM_log_original_vert_no(orig_data->bm_log, iter->bm_vert);
 		}
 	}
 	else if (orig_data->unode->type == SCULPT_UNDO_MASK) {
@@ -3738,7 +3740,8 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 	Brush *brush = BKE_paint_brush(&sd->paint);
 	ViewContext *vc = paint_stroke_view_context(op->customdata);
 	Object *ob = CTX_data_active_object(C);
-	float rot[3][3], scale[3], loc[3];
+	float mat[3][3];
+	float viewDir[3] = {0.0f, 0.0f, 1.0f};
 	int i;
 	int mode;
 
@@ -3806,12 +3809,13 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 	/* cache projection matrix */
 	ED_view3d_ob_project_mat_get(cache->vc->rv3d, ob, cache->projection_mat);
 
-	mat4_to_loc_rot_size(loc, rot, scale, ob->obmat);
-	/* transposing an orthonormal matrix inverts */
-	transpose_m3(rot);
-	ED_view3d_global_to_vector(cache->vc->rv3d, cache->vc->rv3d->twmat[3], cache->true_view_normal);
-	/* This takes care of rotated mesh. Instead of rotating every normal, we inverse rotate view normal. */
-	mul_m3_v3(rot, cache->true_view_normal);
+	invert_m4_m4(ob->imat, ob->obmat);
+	copy_m3_m4(mat, cache->vc->rv3d->viewinv);
+	mul_m3_v3(mat, viewDir);
+	copy_m3_m4(mat, ob->imat);
+	mul_m3_v3(mat, viewDir);
+	normalize_v3_v3(cache->true_view_normal, viewDir);
+
 	/* Initialize layer brush displacements and persistent coords */
 	if (brush->sculpt_tool == SCULPT_TOOL_LAYER) {
 		/* not supported yet for multires or dynamic topology */
