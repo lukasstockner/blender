@@ -302,7 +302,6 @@ static SpaceLink *view3d_new(const bContext *C)
 	BLI_addtail(&v3d->regionbase, ar);
 	ar->regiontype = RGN_TYPE_TOOLS;
 	ar->alignment = RGN_ALIGN_LEFT;
-	//ar->flag = RGN_FLAG_HIDDEN;
 	
 	/* operators menubar  */
 	ar = MEM_callocN(sizeof(ARegion), "tool operators menu bar for view3d");
@@ -598,6 +597,23 @@ static void view3d_id_path_drop_copy(wmDrag *drag, wmDropBox *drop)
 }
 
 
+static void view3d_menubar_drop_copy(wmDrag *drag, wmDropBox *drop)
+{
+	wmOperatorType *ot = (wmOperatorType*)drag->poin;
+	RNA_string_set(drop->ptr, "idname", ot->idname);
+}
+
+static int view3d_menubar_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
+{
+	wmOperatorType *ot = (wmOperatorType*)drag->poin;
+
+	if (drag->type == WM_DRAG_OP && ot) {
+		return 1;
+	}
+	return 0;
+}
+
+
 /* region dropbox definition */
 static void view3d_dropboxes(void)
 {
@@ -609,6 +625,10 @@ static void view3d_dropboxes(void)
 	WM_dropbox_add(lb, "OBJECT_OT_drop_named_image", view3d_ima_empty_drop_poll, view3d_id_path_drop_copy);
 	WM_dropbox_add(lb, "VIEW3D_OT_background_image_add", view3d_ima_bg_drop_poll, view3d_id_path_drop_copy);
 	WM_dropbox_add(lb, "OBJECT_OT_group_instance_add", view3d_group_drop_poll, view3d_group_drop_copy);
+	
+	lb = WM_dropboxmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_MENU_BAR);
+
+	WM_dropbox_add(lb, "WM_OT_menubar_add_dragged_operator", view3d_menubar_drop_poll, view3d_menubar_drop_copy);
 }
 
 
@@ -1043,12 +1063,16 @@ static void view3d_buttons_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa
 /* add handlers, stuff you only do once or on area/region changes */
 static void view3d_tools_area_init(wmWindowManager *wm, ARegion *ar)
 {
+	ListBase *lb;
 	wmKeyMap *keymap;
 	
 	ED_region_panels_init(wm, ar);
 
 	keymap = WM_keymap_find(wm->defaultconf, "3D View Generic", SPACE_VIEW3D, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
+	
+	lb = WM_dropboxmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_TOOLS);
+	WM_event_add_dropbox_handler(&ar->handlers, lb);
 }
 
 static void view3d_tools_area_draw(const bContext *C, ARegion *ar)
@@ -1058,12 +1082,16 @@ static void view3d_tools_area_draw(const bContext *C, ARegion *ar)
 
 static void view3d_menubar_area_init(wmWindowManager *wm, ARegion *ar)
 {
+	ListBase *lb;
 	wmKeyMap *keymap;
 
 	ED_region_menubar_init(ar);
 	
 	keymap = WM_keymap_find(wm->defaultconf, "3D View Generic", SPACE_VIEW3D, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
+	
+	lb = WM_dropboxmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_MENU_BAR);
+	WM_event_add_dropbox_handler(&ar->handlers, lb);
 }
 
 static void view3d_menubar_area_draw(const bContext *C, ARegion *ar)

@@ -4371,6 +4371,50 @@ static void WM_OT_add_to_custom_panel(wmOperatorType *ot)
 	
 }
 
+static int wm_menubar_add_dragged_operator_exec(bContext *C, wmOperator *op)
+{
+	// get operator properties: paneltype idname, property name
+	PropertyRNA *prop;
+	char *idname = NULL;
+	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_MENU_BAR);
+	wmOperatorType *ot;
+
+	if (ar == NULL) return OPERATOR_CANCELLED;
+	
+	prop = RNA_struct_find_property(op->ptr, "idname");
+	if(prop == NULL) return OPERATOR_CANCELLED;
+	idname = RNA_property_string_get_alloc(op->ptr, prop, NULL, 0, NULL);
+	
+	ot = WM_operatortype_find(idname, 1);
+	
+	add_to_icon_shelf(C, ot, NULL);
+	
+	MEM_freeN(idname);
+	
+	ED_region_tag_redraw(ar);
+	
+	return OPERATOR_FINISHED;
+}
+
+static int wm_menubar_add_dragged_operator_poll(bContext *UNUSED(C))
+{
+	return 1;
+}
+
+static void WM_OT_menubar_add_dragged_operator(wmOperatorType *ot)
+{
+	ot->name = "Add Operator to Menubar";
+	ot->idname = "WM_OT_menubar_add_dragged_operator";
+	ot->description = "Add the dragged operator to the current menubar";
+	
+	ot->exec = wm_menubar_add_dragged_operator_exec;
+	ot->poll = wm_menubar_add_dragged_operator_poll;
+	
+	ot->flag = OPTYPE_INTERNAL;
+	
+	RNA_def_string(ot->srna, "idname", "", MAX_NAME, "Operator Name", "The name of the operator to add");
+}
 
 
 /* ******************************************************* */
@@ -4414,6 +4458,7 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_ndof_sensitivity_change);
 	WM_operatortype_append(WM_OT_create_custom_panel);
 	WM_operatortype_append(WM_OT_add_to_custom_panel);
+	WM_operatortype_append(WM_OT_menubar_add_dragged_operator);
 #if defined(WIN32)
 	WM_operatortype_append(WM_OT_console_toggle);
 #endif
