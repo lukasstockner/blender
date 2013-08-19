@@ -730,7 +730,10 @@ PointerRNA uiItemFullO_ptr(uiLayout *layout, wmOperatorType *ot, const char *nam
 	   indicated the shortcut should be shown */
 	if (flag & UI_ITEM_O_SHORTCUT && block->flag & UI_BLOCK_SHORTCUTS)
 		but->flag2 |= UI_BUT2_EXTRA_TEXT;
-
+	
+	/* Make operator buttons draggable */
+	uiButSetDragOp(but, ot);
+	
 	assert(but->optype != NULL);
 
 	/* text alignment for toolbar buttons */

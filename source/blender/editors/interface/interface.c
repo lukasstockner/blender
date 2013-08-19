@@ -3499,6 +3499,12 @@ void uiButSetDragName(uiBut *but, const char *name)
 	but->dragpoin = (void *)name;
 }
 
+void uiButSetDragOp(uiBut *but, const wmOperatorType *ot)
+{
+	but->dragtype = WM_DRAG_OP;
+	but->dragpoin = (void *)ot;
+}
+
 /* value from button itself */
 void uiButSetDragValue(uiBut *but)
 {

@@ -442,6 +442,7 @@ void    uiButSetDragID(uiBut *but, struct ID *id);
 void    uiButSetDragRNA(uiBut *but, struct PointerRNA *ptr);
 void    uiButSetDragPath(uiBut *but, const char *path);
 void    uiButSetDragName(uiBut *but, const char *name);
+void	uiButSetDragOp(uiBut *but, const struct wmOperatorType *ot);
 void    uiButSetDragValue(uiBut *but);
 void    uiButSetDragImage(uiBut *but, const char *path, int icon, struct ImBuf *ima, float scale);
 

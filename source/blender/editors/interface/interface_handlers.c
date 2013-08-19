@@ -2480,7 +2480,14 @@ int ui_button_open_menu_direction(uiBut *but)
 static int ui_do_but_BUT(bContext *C, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
 {
 	if (data->state == BUTTON_STATE_HIGHLIGHT) {
-		if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
+		/* first handle click on icondrag type button */
+		if (event->type == LEFTMOUSE && but->dragpoin && event->val == KM_PRESS) {
+			button_activate_state(C, but, BUTTON_STATE_WAIT_DRAG);
+			data->dragstartx = event->x;
+			data->dragstarty = event->y;
+			return WM_UI_HANDLER_BREAK;
+		}
+		else if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
 			button_activate_state(C, but, BUTTON_STATE_WAIT_RELEASE);
 			return WM_UI_HANDLER_BREAK;
 		}
@@ -2503,6 +2510,25 @@ static int ui_do_but_BUT(bContext *C, uiBut *but, uiHandleButtonData *data, cons
 			button_activate_state(C, but, BUTTON_STATE_EXIT);
 			return WM_UI_HANDLER_BREAK;
 		}
+	}
+	else if (data->state == BUTTON_STATE_WAIT_DRAG) {
+		
+		/* this function also ends state */
+		if (ui_but_start_drag(C, but, data, event)) {
+			return WM_UI_HANDLER_BREAK;
+		}
+		
+		/* If the mouse has been pressed and released, getting to
+		 * this point without triggering a drag, then clear the
+		 * drag state for this button and continue to pass on the event */
+		if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
+			button_activate_state(C, but, BUTTON_STATE_EXIT);
+			return WM_UI_HANDLER_CONTINUE;
+		}
+		
+		/* while waiting for a drag to be triggered, always block
+		 * other events from getting handled */
+		return WM_UI_HANDLER_BREAK;
 	}
 
 	return WM_UI_HANDLER_CONTINUE;

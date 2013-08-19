@@ -629,6 +629,7 @@ typedef struct wmReport {
 #define WM_DRAG_PATH	2
 #define WM_DRAG_NAME	3
 #define WM_DRAG_VALUE	4
+#define WM_DRAG_OP		5
 
 /* note: structs need not exported? */
 

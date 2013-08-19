@@ -279,6 +279,11 @@ static const char *wm_drag_name(wmDrag *drag)
 			return drag->path;
 		case WM_DRAG_NAME:
 			return (char *)drag->path;
+		case WM_DRAG_OP:
+		{
+			wmOperatorType *ot = (wmOperatorType*)drag->poin;
+			return ot->name;
+		}
 	}
 	return "";
 }
