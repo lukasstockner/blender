@@ -2293,7 +2293,7 @@ void BKE_mball_polygonize(Scene *scene, Object *ob, ListBase *dispbase, bool for
 	mball_count(&process, scene, ob);
 
 	if (process.totelem == 0) return;
-	if ((for_render == FALSE) && (mb->flag == MB_UPDATE_NEVER)) return;
+	if ((for_render == false) && (mb->flag == MB_UPDATE_NEVER)) return;
 	if ((G.moving & (G_TRANSFORM_OBJ | G_TRANSFORM_EDIT)) && mb->flag == MB_UPDATE_FAST) return;
 
 	process.thresh = mb->thresh;
