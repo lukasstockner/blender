@@ -127,9 +127,11 @@ static int generic_track_get_marker_framenr(MovieTrackingTrack *track, MovieTrac
                                             int marker_index)
 {
 	if (track) {
+		BLI_assert(marker_index < track->markersnr);
 		return track->markers[marker_index].framenr;
 	}
 	else if (plane_track) {
+		BLI_assert(marker_index < plane_track->markersnr);
 		return plane_track->markers[marker_index].framenr;
 	}
 
@@ -140,6 +142,7 @@ static bool generic_track_is_marker_enabled(MovieTrackingTrack *track, MovieTrac
                                             int marker_index)
 {
 	if (track) {
+		BLI_assert(marker_index < track->markersnr);
 		return (track->markers[marker_index].flag & MARKER_DISABLED) == 0;
 	}
 	else if (plane_track) {
@@ -153,9 +156,11 @@ static bool generic_track_is_marker_keyframed(MovieTrackingTrack *track, MovieTr
                                               int marker_index)
 {
 	if (track) {
+		BLI_assert(marker_index < track->markersnr);
 		return (track->markers[marker_index].flag & MARKER_TRACKED) == 0;
 	}
 	else if (plane_track) {
+		BLI_assert(marker_index < plane_track->markersnr);
 		return (plane_track->markers[marker_index].flag & PLANE_MARKER_TRACKED) == 0;
 	}
 
@@ -212,6 +217,8 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 				a++;
 			}
 
+			a = min_ii(a, markersnr - 1);
+
 			if (generic_track_is_marker_enabled(act_track, act_plane_track, a)) {
 				framenr = generic_track_get_marker_framenr(act_track, act_plane_track, a);
 
@@ -235,11 +242,11 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 		glColor4ub(255, 0, 0, 96);
 
 		for (i = sfra, a = 0; i <= efra; i++) {
-			int ok = FALSE;
+			bool ok = false;
 
 			while (a < n) {
 				if (cameras[a].framenr == i) {
-					ok = TRUE;
+					ok = true;
 					break;
 				}
 				else if (cameras[a].framenr > i) {
@@ -280,11 +287,11 @@ static void draw_movieclip_notes(SpaceClip *sc, ARegion *ar)
 	MovieClip *clip = ED_space_clip_get_clip(sc);
 	MovieTracking *tracking = &clip->tracking;
 	char str[256] = {0};
-	int block = FALSE;
+	bool block = false;
 
 	if (tracking->stats) {
 		BLI_strncpy(str, tracking->stats->message, sizeof(str));
-		block = TRUE;
+		block = true;
 	}
 	else {
 		if (sc->flag & SC_LOCK_SELECTION)
