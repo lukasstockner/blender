@@ -1540,6 +1540,13 @@ void uiPanelFree(Panel *pa)
 	MEM_freeN(pa);
 }
 
+int uiPanelClosed(Panel *pa)
+{
+	if (pa == NULL) return 0;
+	
+	return (pa->flag & PNL_CLOSED || pa->flag & PNL_CLOSEDX || pa->flag & PNL_CLOSEDY);
+}
+
 static void custom_panel_draw(const bContext *UNUSED(C), Panel *pa)
 {
 	uiLayout *layout = pa->layout;

@@ -171,7 +171,7 @@ static int id_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED
 	return 0;
 }
 
-static void id_drop_copy(wmDrag *drag, wmDropBox *drop)
+static void id_drop_copy(const bContext *UNUSED(C), const wmEvent *UNUSED(event), wmDrag *drag, wmDropBox *drop)
 {
 	char *text;
 	ID *id = drag->poin;
@@ -190,7 +190,7 @@ static int path_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUS
 	return 0;
 }
 
-static void path_drop_copy(wmDrag *drag, wmDropBox *drop)
+static void path_drop_copy(const bContext *UNUSED(C), const wmEvent *UNUSED(event), wmDrag *drag, wmDropBox *drop)
 {
 	char pathname[FILE_MAX + 2];
 	BLI_snprintf(pathname, sizeof(pathname), "\"%s\"", drag->path);

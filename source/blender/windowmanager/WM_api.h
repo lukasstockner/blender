@@ -335,7 +335,7 @@ struct wmDrag		*WM_event_start_drag(struct bContext *C, int icon, int type, void
 void				WM_event_drag_image(struct wmDrag *, struct ImBuf *, float scale, int sx, int sy);
 
 struct wmDropBox	*WM_dropbox_add(ListBase *lb, const char *idname, int (*poll)(struct bContext *, struct wmDrag *, const struct wmEvent *event),
-                                    void (*copy)(struct wmDrag *, struct wmDropBox *));
+                                    void (*copy)(const struct bContext *, const struct wmEvent *, struct wmDrag *, struct wmDropBox *));
 ListBase	*WM_dropboxmap_find(const char *idname, int spaceid, int regionid);
 
 			/* Set a subwindow active in pixelspace view, with optional scissor subset */

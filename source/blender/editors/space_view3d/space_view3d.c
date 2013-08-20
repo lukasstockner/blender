@@ -564,14 +564,14 @@ static int view3d_ima_mesh_drop_poll(bContext *C, wmDrag *drag, const wmEvent *e
 	return 0;
 }
 
-static void view3d_ob_drop_copy(wmDrag *drag, wmDropBox *drop)
+static void view3d_ob_drop_copy(const bContext *UNUSED(C), const wmEvent *UNUSED(event), wmDrag *drag, wmDropBox *drop)
 {
 	ID *id = (ID *)drag->poin;
 
 	RNA_string_set(drop->ptr, "name", id->name + 2);
 }
 
-static void view3d_group_drop_copy(wmDrag *drag, wmDropBox *drop)
+static void view3d_group_drop_copy(const bContext *UNUSED(C), const wmEvent *UNUSED(event), wmDrag *drag, wmDropBox *drop)
 {
 	ID *id = (ID *)drag->poin;
 	
@@ -579,14 +579,14 @@ static void view3d_group_drop_copy(wmDrag *drag, wmDropBox *drop)
 	RNA_string_set(drop->ptr, "name", id->name + 2);
 }
 
-static void view3d_id_drop_copy(wmDrag *drag, wmDropBox *drop)
+static void view3d_id_drop_copy(const bContext *UNUSED(C), const wmEvent *UNUSED(event), wmDrag *drag, wmDropBox *drop)
 {
 	ID *id = (ID *)drag->poin;
 	
 	RNA_string_set(drop->ptr, "name", id->name + 2);
 }
 
-static void view3d_id_path_drop_copy(wmDrag *drag, wmDropBox *drop)
+static void view3d_id_path_drop_copy(const bContext *UNUSED(C), const wmEvent *UNUSED(event), wmDrag *drag, wmDropBox *drop)
 {
 	ID *id = (ID *)drag->poin;
 	
@@ -597,7 +597,7 @@ static void view3d_id_path_drop_copy(wmDrag *drag, wmDropBox *drop)
 }
 
 
-static void view3d_menubar_drop_copy(wmDrag *drag, wmDropBox *drop)
+static void view3d_menubar_drop_copy(const bContext *UNUSED(C), const wmEvent *UNUSED(event), wmDrag *drag, wmDropBox *drop)
 {
 	wmOperatorType *ot = (wmOperatorType*)drag->poin;
 	RNA_string_set(drop->ptr, "idname", ot->idname);
@@ -613,6 +613,47 @@ static int view3d_menubar_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmE
 	return 0;
 }
 
+static Panel *over_panel(const bContext *C, const wmEvent *event)
+{
+	ARegion *ar = CTX_wm_region(C); // This handler is only registered in the TOOLBAR region
+	const char *context = CTX_data_mode_string(C);
+	Panel *pa = NULL;
+	
+	for (pa = ar->panels.first; pa; pa = pa->next) {
+		if (pa->flag & PNL_CUSTOM_PANEL && !uiPanelClosed(pa) && strcmp(context, pa->context) == 0) {
+			// adjust ys for region
+			int adjy = event->y - (ar->winrct.ymax - ar->sizey);
+			int paminy = ar->sizey + pa->ofsy;
+			int pamaxy = paminy + pa->sizey;
+			int overp = adjy < pamaxy && adjy > paminy;
+			
+			if (overp)
+				return pa;
+		}
+	}
+	return NULL;
+}
+
+static void view3d_toolbar_drop_copy(const bContext *C, const wmEvent *event, wmDrag *drag, wmDropBox *drop)
+{
+	wmOperatorType *ot = (wmOperatorType*)drag->poin;
+	Panel *pa = over_panel(C, event);
+	
+	RNA_string_set(drop->ptr, "operator", ot->idname);
+	RNA_string_set(drop->ptr, "paneltypeid", pa->type ? pa->type->idname : "");
+}
+
+static int view3d_toolbar_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
+{
+	wmOperatorType *ot = (wmOperatorType*)drag->poin;
+	Panel *pa = NULL;
+
+	if (drag->type == WM_DRAG_OP && ot) {
+		pa = over_panel(C, event);
+		return (pa != NULL);
+	}
+	return 0;
+}
 
 /* region dropbox definition */
 static void view3d_dropboxes(void)
@@ -629,6 +670,12 @@ static void view3d_dropboxes(void)
 	lb = WM_dropboxmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_MENU_BAR);
 
 	WM_dropbox_add(lb, "WM_OT_menubar_add_dragged_operator", view3d_menubar_drop_poll, view3d_menubar_drop_copy);
+	
+	lb = WM_dropboxmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_TOOLS);
+
+	WM_dropbox_add(lb, "WM_OT_add_to_custom_panel", view3d_toolbar_drop_poll, view3d_toolbar_drop_copy);
+
+	
 }
 
 

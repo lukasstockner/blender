@@ -104,7 +104,7 @@ ListBase *WM_dropboxmap_find(const char *idname, int spaceid, int regionid)
 
 
 wmDropBox *WM_dropbox_add(ListBase *lb, const char *idname, int (*poll)(bContext *, wmDrag *, const wmEvent *),
-                          void (*copy)(wmDrag *, wmDropBox *))
+                          void (*copy)(const bContext *, const wmEvent *, wmDrag *, wmDropBox *))
 {
 	wmDropBox *drop = MEM_callocN(sizeof(wmDropBox), "wmDropBox");
 	

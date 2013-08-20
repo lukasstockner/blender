@@ -414,7 +414,7 @@ static int sound_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 	return 0;
 }
 
-static void sequencer_drop_copy(wmDrag *drag, wmDropBox *drop)
+static void sequencer_drop_copy(const bContext *UNUSED(C), const wmEvent *UNUSED(event), wmDrag *drag, wmDropBox *drop)
 {
 	/* copy drag path to properties */
 	if (RNA_struct_find_property(drop->ptr, "filepath"))

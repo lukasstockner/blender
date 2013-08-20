@@ -657,7 +657,7 @@ typedef struct wmDropBox {
 	int (*poll)(struct bContext *, struct wmDrag *, const wmEvent *);
 
 	/* before exec, this copies drag info to wmDrop properties */
-	void (*copy)(struct wmDrag *, struct wmDropBox *);
+	void (*copy)(const struct bContext *, const struct wmEvent *, struct wmDrag *, struct wmDropBox *);
 	
 	/* if poll survives, operator is called */
 	wmOperatorType *ot;				/* not saved in file, so can be pointer */

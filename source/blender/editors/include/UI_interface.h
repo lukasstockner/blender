@@ -684,6 +684,7 @@ void uiScalePanels(struct ARegion *ar, float new_width);
 
 void uiPanelAddOperator(struct Panel *pa, const char *optype_idname);
 void uiPanelFree(struct Panel *pa);
+int uiPanelClosed(struct Panel *pa);
 
 struct PanelType  *uiCreateCustomPanelType(struct ScrArea *sa, struct ARegion *ar, const char *context, const char *name);
 

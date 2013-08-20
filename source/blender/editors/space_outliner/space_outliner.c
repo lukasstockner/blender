@@ -126,7 +126,7 @@ static int outliner_parent_drop_poll(bContext *C, wmDrag *drag, const wmEvent *e
 	return 0;
 }
 
-static void outliner_parent_drop_copy(wmDrag *drag, wmDropBox *drop)
+static void outliner_parent_drop_copy(const bContext *UNUSED(C), const wmEvent *UNUSED(event), wmDrag *drag, wmDropBox *drop)
 {
 	ID *id = (ID *)drag->poin;
 
@@ -164,7 +164,7 @@ static int outliner_parent_clear_poll(bContext *C, wmDrag *drag, const wmEvent *
 	return 0;
 }
 
-static void outliner_parent_clear_copy(wmDrag *drag, wmDropBox *drop)
+static void outliner_parent_clear_copy(const bContext *UNUSED(C), const wmEvent *UNUSED(event), wmDrag *drag, wmDropBox *drop)
 {
 	ID *id = (ID *)drag->poin;
 	RNA_string_set(drop->ptr, "dragged_obj", id->name + 2);
@@ -193,7 +193,7 @@ static int outliner_scene_drop_poll(bContext *C, wmDrag *drag, const wmEvent *ev
 	return 0;
 }
 
-static void outliner_scene_drop_copy(wmDrag *drag, wmDropBox *drop)
+static void outliner_scene_drop_copy(const bContext *UNUSED(C), const wmEvent *UNUSED(event), wmDrag *drag, wmDropBox *drop)
 {
 	ID *id = (ID *)drag->poin;
 
@@ -218,7 +218,7 @@ static int outliner_material_drop_poll(bContext *C, wmDrag *drag, const wmEvent 
 	return 0;
 }
 
-static void outliner_material_drop_copy(wmDrag *drag, wmDropBox *drop)
+static void outliner_material_drop_copy(const bContext *UNUSED(C), const wmEvent *UNUSED(event), wmDrag *drag, wmDropBox *drop)
 {
 	ID *id = (ID *)drag->poin;
 

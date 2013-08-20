@@ -643,7 +643,7 @@ static int node_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUS
 	return 0;
 }
 
-static void node_id_path_drop_copy(wmDrag *drag, wmDropBox *drop)
+static void node_id_path_drop_copy(const bContext *UNUSED(C), const wmEvent *UNUSED(event), wmDrag *drag, wmDropBox *drop)
 {
 	ID *id = (ID *)drag->poin;
 

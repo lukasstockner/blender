@@ -4373,7 +4373,6 @@ static void WM_OT_add_to_custom_panel(wmOperatorType *ot)
 
 static int wm_menubar_add_dragged_operator_exec(bContext *C, wmOperator *op)
 {
-	// get operator properties: paneltype idname, property name
 	PropertyRNA *prop;
 	char *idname = NULL;
 	ScrArea *sa = CTX_wm_area(C);

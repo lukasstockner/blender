@@ -1911,7 +1911,7 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 							for (drag = lb->first; drag; drag = drag->next) {
 								if (drop->poll(C, drag, event)) {
 									
-									drop->copy(drag, drop);
+									drop->copy(C, event, drag, drop);
 									
 									/* free the drags before calling operator */
 									BLI_freelistN(event->customdata);

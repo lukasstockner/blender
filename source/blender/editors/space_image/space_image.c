@@ -345,7 +345,7 @@ static int image_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNU
 	return 0;
 }
 
-static void image_drop_copy(wmDrag *drag, wmDropBox *drop)
+static void image_drop_copy(const bContext *UNUSED(C), const wmEvent *UNUSED(event), wmDrag *drag, wmDropBox *drop)
 {
 	/* copy drag path to properties */
 	RNA_string_set(drop->ptr, "filepath", drag->path);
