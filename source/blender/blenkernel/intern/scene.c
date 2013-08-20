@@ -1335,7 +1335,7 @@ static void print_threads_statistics(ThreadedObjectUpdateState *state)
 }
 #endif
 
-static void scene_update_objects(Main *bmain, Scene *scene, Scene *scene_parent, bool use_threads)
+static void scene_update_objects(Scene *scene, Scene *scene_parent, bool use_threads)
 {
 	TaskScheduler *task_scheduler = BLI_task_scheduler_get();
 	TaskPool *task_pool;
@@ -1443,7 +1443,7 @@ static void scene_update_tagged_recursive(Main *bmain, Scene *scene, Scene *scen
 		scene_update_tagged_recursive(bmain, scene->set, scene_parent, use_threads);
 
 	/* scene objects */
-	scene_update_objects(bmain, scene, scene_parent, use_threads);
+	scene_update_objects(scene, scene_parent, use_threads);
 
 	/* scene drivers... */
 	scene_update_drivers(bmain, scene);
