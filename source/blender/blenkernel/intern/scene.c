@@ -1223,12 +1223,6 @@ static void scene_update_object_func(TaskPool *pool, void *taskdata, int threadi
 
 		PRINT("Thread %d: update object %s\n", threadid, object->id.name);
 
-		if ((object->id.flag & LIB_DOIT) == 0) {
-			if (object->recalc & OB_RECALC_ALL) {
-				printf("Unneeded update %s\n", object->id.name + 2);
-			}
-		}
-
 #ifdef DETAILED_ANALYSIS_OUTPUT
 		{
 #else
@@ -1376,29 +1370,6 @@ static void scene_update_objects(Main *bmain, Scene *scene, Scene *scene_parent,
 	 * already or not).
 	 */
 	DAG_threaded_update_begin(scene);
-
-	{
-		Base *base;
-		Object *object;
-
-		for (object = bmain->object.first; object; object = object->id.next) {
-			object->id.flag &= ~LIB_DOIT;
-		}
-
-		for (base = scene->base.first; base; base = base->next) {
-			object = base->object;
-			object->id.flag |= LIB_DOIT;
-
-			if (object->dup_group && (object->transflag & OB_DUPLIGROUP)) {
-				GroupObject *go;
-				for (go = object->dup_group->gobject.first; go; go = go->next) {
-					if (go->ob) {
-						go->ob->id.flag |= LIB_DOIT;
-					}
-				}
-			}
-		}
-	}
 
 	/* Put all nodes which are already ready for schedule to the task pool.
 	 * usually its just a Scene node.

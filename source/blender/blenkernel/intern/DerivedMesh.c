@@ -48,7 +48,6 @@
 #include "BLI_memarena.h"
 #include "BLI_utildefines.h"
 #include "BLI_linklist.h"
-#include "BLI_threads.h"
 
 #include "BKE_pbvh.h"
 #include "BKE_cdderivedmesh.h"
