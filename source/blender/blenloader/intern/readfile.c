@@ -9499,8 +9499,8 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				for (ar = sa->regionbase.first; ar; ar = ar->next) {
 					if (ar->regiontype == RGN_TYPE_TOOL_PROPS) {
 						BLI_remlink(&sa->regionbase, ar);
-						MEM_freeN(ar);
 						BKE_area_region_free(NULL, ar);
+						MEM_freeN(ar);
 					}
 				}
 				
@@ -9508,9 +9508,41 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 					for (ar = sl->regionbase.first; ar; ar = ar->next) {
 						if (ar->regiontype == RGN_TYPE_TOOL_PROPS) {
 							BLI_remlink(&sl->regionbase, ar);
-							MEM_freeN(ar);
 							BKE_area_region_free(NULL, ar);
+							MEM_freeN(ar);
 						}
+					}
+				}
+			}
+		}
+		
+		for (sc = main->screen.first; sc; sc = sc->id.next) {
+			ScrArea *sa;
+			for (sa = sc->areabase.first; sa; sa = sa->next) {
+				SpaceLink *sl;
+				ARegion *ar;
+				ARegion *wr;
+				
+				// TODO: also add other spacetypes that should have tool props
+				if (sa->spacetype == SPACE_VIEW3D) {
+				
+					wr = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
+					
+					ar = MEM_callocN(sizeof(ARegion), "tool properties for view3d");
+					ar->alignment = RGN_ALIGN_FLOAT;
+					ar->regiontype = RGN_TYPE_TOOL_PROPS;
+					BLI_insertlinkbefore(&sa->regionbase, wr, ar);
+				}
+				
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_VIEW3D) {
+
+						wr = BKE_spacelink_find_region_type(sl, RGN_TYPE_WINDOW);
+						
+						ar = MEM_callocN(sizeof(ARegion), "tool properties for view3d");
+						ar->alignment = RGN_ALIGN_FLOAT;
+						ar->regiontype = RGN_TYPE_TOOL_PROPS;
+						BLI_insertlinkbefore(&sl->regionbase, wr, ar);
 					}
 				}
 			}

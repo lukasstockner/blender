@@ -240,7 +240,7 @@ static void area_add_window_regions(ScrArea *sa, SpaceLink *sl, ListBase *lb)
 				BLI_addtail(lb, ar);
 				ar->regiontype = RGN_TYPE_TOOLS;
 				ar->alignment = RGN_ALIGN_LEFT;
-				ar->flag = RGN_FLAG_HIDDEN;
+				//ar->flag = RGN_FLAG_HIDDEN;
 
 				/* buttons/list view */
 				ar = MEM_callocN(sizeof(ARegion), "buttons for view3d");
@@ -249,6 +249,8 @@ static void area_add_window_regions(ScrArea *sa, SpaceLink *sl, ListBase *lb)
 				ar->regiontype = RGN_TYPE_UI;
 				ar->alignment = RGN_ALIGN_RIGHT;
 				ar->flag = RGN_FLAG_HIDDEN;
+				
+				/* The tool properties are added in readfile.c */
 				
 #if 0
 			case SPACE_BUTS:
@@ -268,7 +270,6 @@ static void area_add_window_regions(ScrArea *sa, SpaceLink *sl, ListBase *lb)
 
 	BLI_addtail(lb, ar);
 	ar->winrct = sa->totrct;
-
 	ar->regiontype = RGN_TYPE_WINDOW;
 
 	if (sl) {

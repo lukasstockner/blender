@@ -971,6 +971,10 @@ static void region_rect_recursive(wmWindow *win, ScrArea *sa, ARegion *ar, rcti 
 	}
 	else if (alignment == RGN_ALIGN_FLOAT) {
 		/* XXX floating area region, not handled yet here */
+		ar->winrct.ymax = 500;
+		ar->winrct.ymin = 100;
+		ar->winrct.xmax = 500;
+		ar->winrct.xmin = 200;
 	}
 	else if (rct_fits(remainder, 'v', 1) < 0 || rct_fits(remainder, 'h', 1) < 0) {
 		/* remainder is too small for any usage */

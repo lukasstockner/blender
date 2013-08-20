@@ -330,7 +330,14 @@ static SpaceLink *view3d_new(const bContext *C)
 	rv3d->persp = RV3D_PERSP;
 	rv3d->view = RV3D_VIEW_PERSPORTHO;
 	rv3d->dist = 10.0;
+		
+	/* tool props */
+	ar = MEM_callocN(sizeof(ARegion), "tool properties for view3d");
 	
+	BLI_addtail(&v3d->regionbase, ar);
+	ar->regiontype = RGN_TYPE_TOOL_PROPS;
+	ar->alignment = RGN_ALIGN_FLOAT;
+
 	return (SpaceLink *)v3d;
 }
 
@@ -1402,8 +1409,20 @@ void ED_spacetype_view3d(void)
 	BLI_addhead(&st->regiontypes, art);
 	
 	view3d_toolbar_header_register(art);
-	view3d_tool_props_register(art);
 	view3d_grease_register(art);
+	
+	/* regions: tool properties */
+	art = MEM_callocN(sizeof(ARegionType), "spacetype view3d tool properties region");
+	art->regionid = RGN_TYPE_TOOL_PROPS;
+	art->prefsizex = 160; /* XXX */
+	art->prefsizey = 50; /* XXX */
+	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
+	art->listener = view3d_buttons_area_listener;
+	art->init = view3d_tools_area_init;
+	art->draw = view3d_tools_area_draw;
+	BLI_addhead(&st->regiontypes, art);
+	
+	view3d_tool_props_register(art);
 	
 	/* regions: operators menu bar */
 	art = MEM_callocN(sizeof(ARegionType), "spacetype view3d operators menu bar region");
