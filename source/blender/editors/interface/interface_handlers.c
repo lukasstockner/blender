@@ -228,9 +228,9 @@ typedef struct uiAfterFunc {
 	bContextStore *context;
 
 	char undostr[BKE_UNDO_STR_MAX];
-
-	int autokey;
 } uiAfterFunc;
+
+
 
 static bool ui_but_contains_pt(uiBut *but, int mx, int my);
 static bool ui_mouse_inside_button(ARegion *ar, uiBut *but, int x, int y);
@@ -4944,7 +4944,6 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 	uiPopupMenu *pup;
 	uiLayout *layout;
 	bool is_array, is_array_component;
-	const char *name;
 	uiStringInfo label = {BUT_GET_LABEL, NULL};
 
 /*	if ((but->rnapoin.data && but->rnaprop) == 0 && but->optype == NULL)*/
@@ -4957,12 +4956,11 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 	
 	button_timers_tooltip_remove(C, but);
 
+	/* highly unlikely getting the label ever fails */
 	uiButGetStrInfo(C, but, &label, NULL);
-	name = label.strinfo;
 
-	pup = uiPupMenuBegin(C, name, ICON_NONE);
+	pup = uiPupMenuBegin(C, label.strinfo ? label.strinfo : "", ICON_NONE);
 	layout = uiPupMenuLayout(pup);
-
 	if (label.strinfo)
 		MEM_freeN(label.strinfo);
 
@@ -6195,7 +6193,7 @@ void ui_button_activate_do(bContext *C, ARegion *ar, uiBut *but)
 	
 	button_activate_init(C, ar, but, BUTTON_ACTIVATE_OVER);
 	
-	event = *(win->eventstate);  /* XXX huh huh? make api call */
+	wm_event_init_from_window(win, &event);
 	event.type = EVT_BUT_OPEN;
 	event.val = KM_PRESS;
 	event.customdata = but;
@@ -6625,8 +6623,8 @@ static bool ui_mouse_motion_towards_check(uiBlock *block, uiPopupBlockHandle *me
 		/* am I the last menu (test) */
 		ARegion *ar = menu->region->next;
 		do {
-			uiBlock *block = ar->uiblocks.first;
-			if (block && ui_block_is_menu(block)) {
+			uiBlock *block_iter = ar->uiblocks.first;
+			if (block_iter && ui_block_is_menu(block_iter)) {
 				return true;
 			}
 		} while ((ar = ar->next));

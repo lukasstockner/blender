@@ -398,6 +398,10 @@ void SVMCompiler::generate_svm_nodes(const set<ShaderNode*>& nodes, set<ShaderNo
 							inputs_done = false;
 
 				if(inputs_done) {
+					/* Detect if we have a blackbody converter, to prepare lookup table */
+					if(node->has_converter_blackbody())
+					current_shader->has_converter_blackbody = true;
+
 					node->compile(*this);
 					stack_clear_users(node, done);
 					stack_clear_temporary(node);
@@ -500,7 +504,7 @@ void SVMCompiler::generate_closure(ShaderNode *node, set<ShaderNode*>& done)
 
 void SVMCompiler::generate_multi_closure(ShaderNode *node, set<ShaderNode*>& done, set<ShaderNode*>& closure_done)
 {
-	/* todo: the weaks point here is that unlike the single closure sampling 
+	/* todo: the weak point here is that unlike the single closure sampling 
 	 * we will evaluate all nodes even if they are used as input for closures
 	 * that are unused. it's not clear what would be the best way to skip such
 	 * nodes at runtime, especially if they are tangled up  */
@@ -672,6 +676,7 @@ void SVMCompiler::compile(Shader *shader, vector<int4>& global_svm_nodes, int in
 	shader->has_surface_emission = false;
 	shader->has_surface_transparent = false;
 	shader->has_surface_bssrdf = false;
+	shader->has_converter_blackbody = false;
 	shader->has_volume = false;
 	shader->has_displacement = false;
 

@@ -433,6 +433,8 @@ void mul_m4_v4d(float mat[4][4], double r[4])
 
 void mul_v3_m3v3(float r[3], float M[3][3], const float a[3])
 {
+	BLI_assert(r != a);
+
 	r[0] = M[0][0] * a[0] + M[1][0] * a[1] + M[2][0] * a[2];
 	r[1] = M[0][1] * a[0] + M[1][1] * a[1] + M[2][1] * a[2];
 	r[2] = M[0][2] * a[0] + M[1][2] * a[1] + M[2][2] * a[2];
@@ -440,6 +442,8 @@ void mul_v3_m3v3(float r[3], float M[3][3], const float a[3])
 
 void mul_v2_m3v3(float r[2], float M[3][3], const float a[3])
 {
+	BLI_assert(r != a);
+
 	r[0] = M[0][0] * a[0] + M[1][0] * a[1] + M[2][0] * a[2];
 	r[1] = M[0][1] * a[0] + M[1][1] * a[1] + M[2][1] * a[2];
 }
@@ -1374,8 +1378,15 @@ void rotate_m2(float mat[2][2], const float angle)
 	mat[1][0] = -mat[0][1];
 }
 
-/* scale or rotate around a non zero pivot */
-void pivot_m4(float mat[4][4], const float pivot[3])
+/**
+ * Scale or rotate around a pivot point,
+ * a convenience function to avoid having to do inline.
+ *
+ * Since its common to make a scale/rotation matrix that pivots around an arbitrary point.
+ *
+ * Typical use case is to make 3x3 matrix, copy to 4x4, then pass to this function.
+ */
+void transform_pivot_set_m4(float mat[4][4], const float pivot[3])
 {
 	float tmat[4][4];
 

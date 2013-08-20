@@ -469,9 +469,7 @@ static void screen_opengl_render_end(bContext *C, OGLRender *oglrender)
 		WM_event_remove_timer(oglrender->wm, oglrender->win, oglrender->timer);
 	}
 
-	if (oglrender->win) {
-		WM_cursor_restore(oglrender->win);
-	}
+	WM_cursor_restore(oglrender->win);
 
 	WM_event_add_notifier(C, NC_SCENE | ND_RENDER_RESULT, oglrender->scene);
 
@@ -560,9 +558,7 @@ static int screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 		}
 	}
 
-	if (oglrender->win) {
-		WM_cursor_time(oglrender->win, scene->r.cfra);
-	}
+	WM_cursor_time(oglrender->win, scene->r.cfra);
 
 	BKE_scene_update_for_newframe(bmain, scene, screen_opengl_layers(oglrender));
 
@@ -688,6 +684,7 @@ static int screen_opengl_render_modal(bContext *C, wmOperator *op, const wmEvent
 			/* render frame? */
 			if (oglrender->timer == event->customdata)
 				break;
+			/* fall-through */
 		default:
 			/* nothing to do */
 			return OPERATOR_RUNNING_MODAL;

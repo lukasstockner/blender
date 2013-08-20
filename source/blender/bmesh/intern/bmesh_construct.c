@@ -33,7 +33,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_array.h"
+#include "BLI_alloca.h"
 #include "BLI_math.h"
 
 #include "BKE_customdata.h"
@@ -523,7 +523,7 @@ BMFace *BM_face_create_ngon_vcloud(BMesh *bm, BMVert **vert_arr, int len, const 
 	/* --- */
 
 	/* create edges and find the winding (if faces are attached to any existing edges) */
-	vert_arr_map = MEM_mallocN(sizeof(BMVert **) * len, __func__);
+	vert_arr_map = MEM_mallocN(sizeof(BMVert *) * len, __func__);
 
 	for (i = 0; i < len; i++) {
 		vert_arr_map[i] = vert_arr[vang[i].index];
@@ -869,10 +869,10 @@ void BM_elem_attrs_copy(BMesh *bm_src, BMesh *bm_dst, const void *ele_src, void 
 	BM_elem_attrs_copy_ex(bm_src, bm_dst, ele_src, ele_dst, BM_ELEM_SELECT);
 }
 
-void BM_elem_select_copy(BMesh *UNUSED(bm_src), BMesh *bm_dst, const void *ele_src_v, void *ele_dst_v)
+void BM_elem_select_copy(BMesh *bm_dst, BMesh *UNUSED(bm_src), void *ele_dst_v, const void *ele_src_v)
 {
-	const BMHeader *ele_src = ele_src_v;
 	BMHeader *ele_dst = ele_dst_v;
+	const BMHeader *ele_src = ele_src_v;
 
 	BLI_assert(ele_src->htype == ele_dst->htype);
 

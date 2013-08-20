@@ -928,7 +928,7 @@ static int ptcache_dynamicpaint_read(PTCacheFile *pf, void *dp_v)
 	/* version header */
 	ptcache_file_read(pf, version, 1, sizeof(char) * 4);
 	if (strncmp(version, DPAINT_CACHE_VERSION, 4)) {
-		printf("Dynamic Paint: Invalid cache version: %s!\n", version);
+		printf("Dynamic Paint: Invalid cache version: '%c%c%c%c'!\n", UNPACK4(version));
 		return 0;
 	}
 
@@ -3578,6 +3578,11 @@ void BKE_ptcache_load_external(PTCacheID *pid)
 		cache->flag &= ~(PTCACHE_OUTDATED|PTCACHE_FRAMES_SKIPPED);
 	}
 
+	/* make sure all new frames are loaded */
+	if (cache->cached_frames) {
+		MEM_freeN(cache->cached_frames);
+		cache->cached_frames=NULL;
+	}
 	BKE_ptcache_update_info(pid);
 }
 

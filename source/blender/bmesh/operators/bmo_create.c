@@ -145,6 +145,7 @@ void bmo_contextual_create_exec(BMesh *bm, BMOperator *op)
 	/* EdgeNet Create */
 	if (tote != 0) {
 		/* call edgenet prepare op so additional face creation cases work */
+
 		BMOperator op_sub;
 		BMO_op_initf(bm, &op_sub, op->flag, "edgenet_prepare edges=%fe", ELE_NEW);
 		BMO_op_exec(bm, &op_sub);
@@ -152,8 +153,8 @@ void bmo_contextual_create_exec(BMesh *bm, BMOperator *op)
 		BMO_op_finish(bm, &op_sub);
 
 		BMO_op_initf(bm, &op_sub, op->flag,
-		             "edgenet_fill edges=%fe use_fill_check=%b mat_nr=%i use_smooth=%b",
-		             ELE_NEW, true, mat_nr, use_smooth);
+		             "edgenet_fill edges=%fe mat_nr=%i use_smooth=%b",
+		             ELE_NEW, mat_nr, use_smooth);
 
 		BMO_op_exec(bm, &op_sub);
 
@@ -278,7 +279,7 @@ void bmo_contextual_create_exec(BMesh *bm, BMOperator *op)
 		 * this connectivity could be used rather then treating
 		 * them as a bunch of isolated verts. */
 
-		BMVert **vert_arr = MEM_mallocN(sizeof(BMVert **) * totv, __func__);
+		BMVert **vert_arr = MEM_mallocN(sizeof(BMVert *) * totv, __func__);
 		BMFace *f;
 
 		BMO_iter_as_array(op->slots_in, "geom", BM_VERT, (void **)vert_arr, totv);

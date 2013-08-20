@@ -32,8 +32,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_alloca.h"
 #include "BLI_math.h"
-#include "BLI_array.h"
 #include "BLI_scanfill.h"
 #include "BLI_listbase.h"
 
@@ -95,7 +95,7 @@ static void calc_poly_normal(float normal[3], float verts[][3], int nverts)
  *
  * Same as #calc_poly_normal but operates directly on a bmesh face.
  */
-static void bm_face_calc_poly_normal(BMFace *f, float n[3])
+static void bm_face_calc_poly_normal(const BMFace *f, float n[3])
 {
 	BMLoop *l_first = BM_FACE_FIRST_LOOP(f);
 	BMLoop *l_iter  = l_first;
@@ -173,7 +173,7 @@ static void bm_face_calc_poly_center_mean_vertex_cos(BMFace *f, float r_cent[3],
  * \param r_loops  Store face loop pointers, (f->len)
  * \param r_index  Store triangle triples, indicies into \a r_loops,  ((f->len - 2) * 3)
  */
-int BM_face_calc_tessellation(BMFace *f, BMLoop **r_loops, int (*_r_index)[3])
+int BM_face_calc_tessellation(const BMFace *f, BMLoop **r_loops, int (*_r_index)[3])
 {
 	int *r_index = (int *)_r_index;
 	BMLoop *l_first = BM_FACE_FIRST_LOOP(f);
@@ -579,7 +579,7 @@ void BM_vert_normal_update_all(BMVert *v)
  * is passed in as well.
  */
 
-void BM_face_calc_normal(BMFace *f, float r_no[3])
+void BM_face_calc_normal(const BMFace *f, float r_no[3])
 {
 	BMLoop *l;
 
@@ -1006,6 +1006,8 @@ void BM_face_triangulate(BMesh *bm, BMFace *f,
 	float *abscoss = BLI_array_alloca(abscoss, f_len_orig);
 	float mat[3][3];
 
+	BLI_assert(BM_face_is_normal_valid(f));
+
 	axis_dominant_v3_to_m3(mat, f->no);
 
 	/* copy vertex coordinates to vertspace area */
@@ -1061,7 +1063,7 @@ void BM_face_legal_splits(BMFace *f, BMLoop *(*loops)[2], int len)
 {
 	const int len2 = len * 2;
 	BMLoop *l;
-	float v1[2], v2[2], v3[2] /*, v4[3 */, no[3], mid[2], *p1, *p2, *p3, *p4;
+	float v1[2], v2[2], v3[2], mid[2], *p1, *p2, *p3, *p4;
 	float out[2] = {-FLT_MAX, -FLT_MAX};
 	float axis_mat[3][3];
 	float (*projverts)[2] = BLI_array_alloca(projverts, f->len);
@@ -1069,10 +1071,9 @@ void BM_face_legal_splits(BMFace *f, BMLoop *(*loops)[2], int len)
 	float fac1 = 1.0000001f, fac2 = 0.9f; //9999f; //0.999f;
 	int i, j, a = 0, clen;
 
-	/* TODO, the face normal may already be correct */
-	BM_face_calc_normal(f, no);
+	BLI_assert(BM_face_is_normal_valid(f));
 
-	axis_dominant_v3_to_m3(axis_mat, no);
+	axis_dominant_v3_to_m3(axis_mat, f->no);
 
 	for (i = 0, l = BM_FACE_FIRST_LOOP(f); i < f->len; i++, l = l->next) {
 		BM_elem_index_set(l, i); /* set_loop */

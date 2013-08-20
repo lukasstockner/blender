@@ -84,7 +84,7 @@ void bmo_inset_individual_exec(BMesh *bm, BMOperator *op)
 
 	BMO_slot_buffer_hflag_enable(bm, op->slots_in, "faces", BM_FACE, BM_ELEM_TAG, false);
 
-	BMO_ITER(f, &oiter, op->slots_in, "faces", BM_FACE) {
+	BMO_ITER (f, &oiter, op->slots_in, "faces", BM_FACE) {
 		BMFace *f_new_inner;
 		BMLoop *l_iter, *l_first;
 		BMLoop *l_iter_inner = NULL;
@@ -277,6 +277,8 @@ static void bm_interp_face_store(InterpFace *iface, BMesh *bm, BMFace *f, MemAre
 	void *axis_mat     = iface->axis_mat;
 	int i;
 
+	BLI_assert(BM_face_is_normal_valid(f));
+
 	axis_dominant_v3_to_m3(axis_mat, f->no);
 
 	iface->f = f;
@@ -455,7 +457,7 @@ void bmo_inset_region_exec(BMesh *bm, BMOperator *op)
 
 
 		/* run the separate arg */
-		bmesh_edge_separate(bm, es->e_old, es->l);
+		bmesh_edge_separate(bm, es->e_old, es->l, false);
 
 		/* calc edge-split info */
 		es->e_new = es->l->e;
@@ -533,7 +535,7 @@ void bmo_inset_region_exec(BMesh *bm, BMOperator *op)
 				/* disable touching twice, this _will_ happen if the flags not disabled */
 				BM_elem_flag_disable(v, BM_ELEM_TAG);
 
-				bmesh_vert_separate(bm, v, &vout, &r_vout_len);
+				bmesh_vert_separate(bm, v, &vout, &r_vout_len, false);
 				v = NULL; /* don't use again */
 
 				/* in some cases the edge doesn't split off */

@@ -64,7 +64,7 @@ __device_noinline
 __device
 #endif
 void shader_setup_from_ray(KernelGlobals *kg, ShaderData *sd,
-	const Intersection *isect, const Ray *ray)
+	const Intersection *isect, const Ray *ray, int bounce)
 {
 #ifdef __INSTANCING__
 	sd->object = (isect->object == ~0)? kernel_tex_fetch(__prim_object, isect->prim): isect->object;
@@ -80,6 +80,7 @@ void shader_setup_from_ray(KernelGlobals *kg, ShaderData *sd,
 
 	sd->prim = kernel_tex_fetch(__prim_index, isect->prim);
 	sd->ray_length = isect->t;
+	sd->ray_depth = bounce;
 
 #ifdef __HAIR__
 	if(kernel_tex_fetch(__prim_segment, isect->prim) != ~0) {
@@ -90,7 +91,7 @@ void shader_setup_from_ray(KernelGlobals *kg, ShaderData *sd,
 		sd->segment = isect->segment;
 
 		float tcorr = isect->t;
-		if(kernel_data.curve_kernel_data.curveflags & CURVE_KN_POSTINTERSECTCORRECTION) {
+		if(kernel_data.curve.curveflags & CURVE_KN_POSTINTERSECTCORRECTION) {
 			tcorr = (isect->u < 0)? tcorr + sqrtf(isect->v) : tcorr - sqrtf(isect->v);
 			sd->ray_length = tcorr;
 		}
@@ -192,7 +193,7 @@ __device_inline void shader_setup_from_subsurface(KernelGlobals *kg, ShaderData 
 		sd->segment = isect->segment;
 
 		float tcorr = isect->t;
-		if(kernel_data.curve_kernel_data.curveflags & CURVE_KN_POSTINTERSECTCORRECTION)
+		if(kernel_data.curve.curveflags & CURVE_KN_POSTINTERSECTCORRECTION)
 			tcorr = (isect->u < 0)? tcorr + sqrtf(isect->v) : tcorr - sqrtf(isect->v);
 
 		sd->P = bvh_curve_refine(kg, sd, isect, ray, tcorr);
@@ -277,7 +278,7 @@ __device
 #endif
 void shader_setup_from_sample(KernelGlobals *kg, ShaderData *sd,
 	const float3 P, const float3 Ng, const float3 I,
-	int shader, int object, int prim, float u, float v, float t, float time, int segment)
+	int shader, int object, int prim, float u, float v, float t, float time, int bounce, int segment)
 {
 	/* vectors */
 	sd->P = P;
@@ -300,6 +301,7 @@ void shader_setup_from_sample(KernelGlobals *kg, ShaderData *sd,
 	sd->v = v;
 #endif
 	sd->ray_length = t;
+	sd->ray_depth = bounce;
 
 	/* detect instancing, for non-instanced the object index is -object-1 */
 #ifdef __INSTANCING__
@@ -408,12 +410,12 @@ __device void shader_setup_from_displace(KernelGlobals *kg, ShaderData *sd,
 
 	/* watch out: no instance transform currently */
 
-	shader_setup_from_sample(kg, sd, P, Ng, I, shader, object, prim, u, v, 0.0f, TIME_INVALID, ~0);
+	shader_setup_from_sample(kg, sd, P, Ng, I, shader, object, prim, u, v, 0.0f, TIME_INVALID, 0, ~0);
 }
 
 /* ShaderData setup from ray into background */
 
-__device_inline void shader_setup_from_background(KernelGlobals *kg, ShaderData *sd, const Ray *ray)
+__device_inline void shader_setup_from_background(KernelGlobals *kg, ShaderData *sd, const Ray *ray, int bounce)
 {
 	/* vectors */
 	sd->P = ray->D;
@@ -426,6 +428,7 @@ __device_inline void shader_setup_from_background(KernelGlobals *kg, ShaderData 
 	sd->time = ray->time;
 #endif
 	sd->ray_length = 0.0f;
+	sd->ray_depth = bounce;
 
 #ifdef __INSTANCING__
 	sd->object = ~0;
@@ -495,7 +498,7 @@ __device void shader_bsdf_eval(KernelGlobals *kg, const ShaderData *sd,
 #ifdef __MULTI_CLOSURE__
 	bsdf_eval_init(eval, NBUILTIN_CLOSURES, make_float3(0.0f, 0.0f, 0.0f), kernel_data.film.use_light_pass);
 
-	return _shader_bsdf_multi_eval(kg, sd, omega_in, pdf, -1, eval, 0.0f, 0.0f);
+	_shader_bsdf_multi_eval(kg, sd, omega_in, pdf, -1, eval, 0.0f, 0.0f);
 #else
 	const ShaderClosure *sc = &sd->closure;
 
@@ -682,6 +685,27 @@ __device float3 shader_bsdf_transmission(KernelGlobals *kg, ShaderData *sd)
 #endif
 }
 
+__device float3 shader_bsdf_subsurface(KernelGlobals *kg, ShaderData *sd)
+{
+#ifdef __MULTI_CLOSURE__
+	float3 eval = make_float3(0.0f, 0.0f, 0.0f);
+
+	for(int i = 0; i< sd->num_closure; i++) {
+		ShaderClosure *sc = &sd->closure[i];
+
+		if(CLOSURE_IS_BSSRDF(sc->type))
+			eval += sc->weight;
+	}
+
+	return eval;
+#else
+	if(CLOSURE_IS_BSSRDF(sd->closure.type))
+		return sd->closure.weight;
+	else
+		return make_float3(0.0f, 0.0f, 0.0f);
+#endif
+}
+
 __device float3 shader_bsdf_ao(KernelGlobals *kg, ShaderData *sd, float ao_factor, float3 *N)
 {
 #ifdef __MULTI_CLOSURE__
@@ -696,7 +720,7 @@ __device float3 shader_bsdf_ao(KernelGlobals *kg, ShaderData *sd, float ao_facto
 			eval += sc->weight*ao_factor;
 			*N += sc->N*average(sc->weight);
 		}
-		if(CLOSURE_IS_AMBIENT_OCCLUSION(sc->type)) {
+		else if(CLOSURE_IS_AMBIENT_OCCLUSION(sc->type)) {
 			eval += sc->weight;
 			*N += sd->N*average(sc->weight);
 		}
@@ -931,8 +955,11 @@ __device void shader_merge_closures(KernelGlobals *kg, ShaderData *sd)
 				sci->sample_weight += scj->sample_weight;
 
 				int size = sd->num_closure - (j+1);
-				if(size > 0)
-					memmove(scj, scj+1, size*sizeof(ShaderClosure));
+				if(size > 0) {
+					for(int k = 0; k < size; k++) {
+						scj[k] = scj[k+1];
+					}
+				}
 
 				sd->num_closure--;
 				j--;

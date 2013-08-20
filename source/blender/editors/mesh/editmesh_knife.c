@@ -38,6 +38,7 @@
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_array.h"
+#include "BLI_alloca.h"
 #include "BLI_linklist.h"
 #include "BLI_math.h"
 #include "BLI_smallhash.h"
@@ -307,7 +308,7 @@ static void knife_add_edge_faces_to_vert(KnifeTool_OpData *kcd, KnifeVert *kfv, 
 	BMIter bmiter;
 	BMFace *f;
 
-	BM_ITER_ELEM(f, &bmiter, e, BM_FACES_OF_EDGE) {
+	BM_ITER_ELEM (f, &bmiter, e, BM_FACES_OF_EDGE) {
 		knife_append_list(kcd, &kfv->faces, f);
 	}
 }
@@ -353,7 +354,7 @@ static KnifeVert *get_bm_knife_vert(KnifeTool_OpData *kcd, BMVert *v)
 		kfv = new_knife_vert(kcd, v->co, kcd->cagecos[BM_elem_index_get(v)]);
 		kfv->v = v;
 		BLI_ghash_insert(kcd->origvertmap, v, kfv);
-		BM_ITER_ELEM(f, &bmiter, v, BM_FACES_OF_VERT) {
+		BM_ITER_ELEM (f, &bmiter, v, BM_FACES_OF_VERT) {
 			knife_append_list(kcd, &kfv->faces, f);
 		}
 	}
@@ -378,7 +379,7 @@ static KnifeEdge *get_bm_knife_edge(KnifeTool_OpData *kcd, BMEdge *e)
 
 		BLI_ghash_insert(kcd->origedgemap, e, kfe);
 
-		BM_ITER_ELEM(f, &bmiter, e, BM_FACES_OF_EDGE) {
+		BM_ITER_ELEM (f, &bmiter, e, BM_FACES_OF_EDGE) {
 			knife_append_list(kcd, &kfe->faces, f);
 		}
 	}
@@ -419,7 +420,7 @@ static ListBase *knife_get_face_kedges(KnifeTool_OpData *kcd, BMFace *f)
 
 		lst = knife_empty_list(kcd);
 
-		BM_ITER_ELEM(e, &bmiter, f, BM_EDGES_OF_FACE) {
+		BM_ITER_ELEM (e, &bmiter, f, BM_EDGES_OF_FACE) {
 			knife_append_list(kcd, lst, get_bm_knife_edge(kcd, e));
 		}
 
@@ -1346,7 +1347,7 @@ static void calc_ortho_extent(KnifeTool_OpData *kcd)
 	float max_xyz = 0.0f;
 	int i;
 
-	BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
+	BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
 		for (i = 0; i < 3; i++)
 			max_xyz = max_ff(max_xyz, fabs(v->co[i]));
 	}
@@ -2683,7 +2684,7 @@ static void knife_make_chain_cut(KnifeTool_OpData *kcd, BMFace *f, ListBase *cha
 		}
 	}
 	else {
-		BM_elem_select_copy(bm, bm, f, f_new);
+		BM_elem_select_copy(bm, bm, f_new, f);
 	}
 
 	*r_f_new = f_new;

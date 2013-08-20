@@ -46,7 +46,6 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_memarena.h"
-#include "BLI_array.h"
 #include "BLI_utildefines.h"
 #include "BLI_linklist.h"
 
@@ -531,7 +530,9 @@ void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob, CustomDataMask mask)
 	}
 
 	/* copy texture space */
-	BKE_mesh_texspace_copy_from_object(&tmp, ob);
+	if (ob) {
+		BKE_mesh_texspace_copy_from_object(&tmp, ob);
+	}
 	
 	/* not all DerivedMeshes store their verts/edges/faces in CustomData, so
 	 * we set them here in case they are missing */
@@ -2634,9 +2635,9 @@ void DM_add_tangent_layer(DerivedMesh *dm)
 	
 	/* new computation method */
 	{
-		SGLSLMeshToTangent mesh2tangent = {0};
-		SMikkTSpaceContext sContext = {0};
-		SMikkTSpaceInterface sInterface = {0};
+		SGLSLMeshToTangent mesh2tangent = {NULL};
+		SMikkTSpaceContext sContext = {NULL};
+		SMikkTSpaceInterface sInterface = {NULL};
 
 		mesh2tangent.precomputedFaceNormals = nors;
 		mesh2tangent.mtface = mtface;

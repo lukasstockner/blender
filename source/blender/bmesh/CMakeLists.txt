@@ -43,6 +43,7 @@ set(SRC
 	operators/bmo_bevel.c
 	operators/bmo_bridge.c
 	operators/bmo_connect.c
+	operators/bmo_connect_nonplanar.c
 	operators/bmo_connect_pair.c
 	operators/bmo_create.c
 	operators/bmo_dissolve.c
@@ -122,6 +123,8 @@ set(SRC
 	tools/bmesh_decimate_dissolve.c
 	tools/bmesh_decimate_unsubdivide.c
 	tools/bmesh_decimate.h
+	tools/bmesh_edgenet.c
+	tools/bmesh_edgenet.h
 	tools/bmesh_edgesplit.c
 	tools/bmesh_edgesplit.h
 	tools/bmesh_path.c

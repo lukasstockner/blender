@@ -609,19 +609,13 @@ static BMOpDefine bmo_edgenet_fill_def = {
 	"edgenet_fill",
 	/* slots_in */
 	{{"edges", BMO_OP_SLOT_ELEMENT_BUF, {BM_EDGE}}, /* input edges */
-	/* restricts edges to groups.  maps edges to integer */
-	 {"restrict",     BMO_OP_SLOT_MAPPING, {BMO_OP_SLOT_SUBTYPE_MAP_BOOL}},
-	 {"use_restrict",        BMO_OP_SLOT_BOOL},
-	 {"use_fill_check",        BMO_OP_SLOT_BOOL},
-	 {"exclude_faces", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}}, /* list of faces to ignore for manifold check */
 	 {"mat_nr",         BMO_OP_SLOT_INT},      /* material to use */
 	 {"use_smooth",        BMO_OP_SLOT_BOOL},  /* smooth state to use */
 	 {{'\0'}},
 	},
 	/* slots_out */
 	/* maps new faces to the group numbers they came from */
-	{{"face_groupmap.out",     BMO_OP_SLOT_MAPPING, {BMO_OP_SLOT_SUBTYPE_MAP_ELEM}},
-	 {"faces.out", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}},     /* new faces */
+	{{"faces.out", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}},  /* new faces */
 	 {{'\0'}},
 	},
 	bmo_edgenet_fill_exec,
@@ -864,6 +858,27 @@ static BMOpDefine bmo_connect_verts_def = {
 	 {{'\0'}},
 	},
 	bmo_connect_verts_exec,
+	BMO_OPTYPE_FLAG_UNTAN_MULTIRES | BMO_OPTYPE_FLAG_NORMALS_CALC | BMO_OPTYPE_FLAG_SELECT_FLUSH,
+};
+
+/*
+ * Connect Verts Across non Planer Faces.
+ *
+ * Split faces by connecting edges along non planer **faces**.
+ */
+static BMOpDefine bmo_connect_verts_nonplanar_def = {
+	"connect_verts_nonplanar",
+	/* slots_in */
+	{{"angle_limit", BMO_OP_SLOT_FLT}, /* total rotation angle (radians) */
+	 {"faces", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}},
+	 {{'\0'}},
+	},
+	/* slots_out */
+	{{"edges.out", BMO_OP_SLOT_ELEMENT_BUF, {BM_EDGE}},
+	 {"faces.out", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}},
+	 {{'\0'}},
+	},
+	bmo_connect_verts_nonplanar_exec,
 	BMO_OPTYPE_FLAG_UNTAN_MULTIRES | BMO_OPTYPE_FLAG_NORMALS_CALC | BMO_OPTYPE_FLAG_SELECT_FLUSH,
 };
 
@@ -1734,6 +1749,7 @@ const BMOpDefine *bmo_opdefines[] = {
 	&bmo_collapse_def,
 	&bmo_collapse_uvs_def,
 	&bmo_connect_verts_def,
+	&bmo_connect_verts_nonplanar_def,
 	&bmo_connect_vert_pair_def,
 	&bmo_contextual_create_def,
 #ifdef WITH_BULLET
