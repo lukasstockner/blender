@@ -177,7 +177,7 @@ static NewVert *mesh_vert(VMesh *vm, int i, int j, int k)
 static void create_mesh_bmvert(BMesh *bm, VMesh *vm, int i, int j, int k, BMVert *eg)
 {
 	NewVert *nv = mesh_vert(vm, i, j, k);
-	nv->v = BM_vert_create(bm, nv->co, eg, 0);
+	nv->v = BM_vert_create(bm, nv->co, eg, BM_CREATE_NOP);
 	BM_elem_flag_disable(nv->v, BM_ELEM_TAG);
 }
 
@@ -255,20 +255,8 @@ static BMFace *bev_create_ngon(BMesh *bm, BMVert **vert_arr, const int totv,
 	BMFace *f, *interp_f;
 	int i;
 
-	if (totv == 3) {
-		f = BM_face_create_quad_tri_v(bm, vert_arr, 3, facerep, FALSE);
-	}
-	else if (totv == 4) {
-		f = BM_face_create_quad_tri_v(bm, vert_arr, 4, facerep, FALSE);
-	}
-	else {
-		BMEdge **ee = BLI_array_alloca(ee, totv);
+	f = BM_face_create_verts(bm, vert_arr, totv, facerep, BM_CREATE_NOP, true);
 
-		for (i = 0; i < totv; i++) {
-			ee[i] = BM_edge_create(bm, vert_arr[i], vert_arr[(i + 1) % totv], NULL, BM_CREATE_NO_DOUBLE);
-		}
-		f = BM_face_create(bm, vert_arr, ee, totv, 0);
-	}
 	if ((facerep || (face_arr && face_arr[0])) && f) {
 		BM_elem_attrs_copy(bm, bm, facerep ? facerep : face_arr[0], f);
 		if (do_interp) {
@@ -1143,7 +1131,7 @@ static void bevel_build_rings(BMesh *bm, BevVert *bv)
 		mul_v3_fl(midco, 1.0f / nn);
 		if (epipe)
 			snap_to_edge_profile(epipe, va_pipe, vb_pipe, midco);
-		bmv = BM_vert_create(bm, midco, NULL, 0);
+		bmv = BM_vert_create(bm, midco, NULL, BM_CREATE_NOP);
 		v = vm->boundstart;
 		do {
 			i = v->index;

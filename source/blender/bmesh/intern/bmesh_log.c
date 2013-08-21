@@ -275,7 +275,7 @@ static void bm_log_verts_restore(BMesh *bm, BMLog *log, GHash *verts)
 	GHASH_ITER (gh_iter, verts) {
 		void *key = BLI_ghashIterator_getKey(&gh_iter);
 		BMLogVert *lv = BLI_ghashIterator_getValue(&gh_iter);
-		BMVert *v = BM_vert_create(bm, lv->co, NULL, 0);
+		BMVert *v = BM_vert_create(bm, lv->co, NULL, BM_CREATE_NOP);
 		v->head.hflag = lv->hflag;
 		vert_mask_set(bm, v, lv->mask);
 		normal_short_to_float_v3(v->no, lv->no);
@@ -294,7 +294,7 @@ static void bm_log_faces_restore(BMesh *bm, BMLog *log, GHash *faces)
 		                bm_log_vert_from_id(log, lf->v_ids[2])};
 		BMFace *f;
 
-		f = BM_face_create_quad_tri_v(bm, v, 3, NULL, false);
+		f = BM_face_create_verts(bm, v, 3, NULL, BM_CREATE_NOP, true);
 		bm_log_face_id_set(log, f, GET_INT_FROM_POINTER(key));
 	}
 }
