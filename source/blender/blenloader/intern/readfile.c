@@ -9531,7 +9531,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 					ar = MEM_callocN(sizeof(ARegion), "tool properties for view3d");
 					ar->alignment = RGN_ALIGN_FLOAT;
 					ar->regiontype = RGN_TYPE_TOOL_PROPS;
-					BLI_insertlinkbefore(&sa->regionbase, wr, ar);
+					BLI_insertlinkafter(&sa->regionbase, wr, ar);
 				}
 				
 				for (sl = sa->spacedata.first; sl; sl = sl->next) {
@@ -9542,7 +9542,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 						ar = MEM_callocN(sizeof(ARegion), "tool properties for view3d");
 						ar->alignment = RGN_ALIGN_FLOAT;
 						ar->regiontype = RGN_TYPE_TOOL_PROPS;
-						BLI_insertlinkbefore(&sl->regionbase, wr, ar);
+						BLI_insertlinkafter(&sl->regionbase, wr, ar);
 					}
 				}
 			}

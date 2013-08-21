@@ -937,11 +937,14 @@ static void region_rect_recursive(wmWindow *win, ScrArea *sa, ARegion *ar, rcti 
 	
 	/* set here, assuming userpref switching forces to call this again */
 	ar->overlap = region_is_overlap(win, sa, ar);
+	
+	if (ar->regiontype == RGN_TYPE_TOOL_PROPS)
+		printf("yep, overlep!\n");
 
 	/* clear state flags first */
 	ar->flag &= ~RGN_FLAG_TOO_SMALL;
 	/* user errors */
-	if (ar->next == NULL && alignment != RGN_ALIGN_QSPLIT)
+	if (ar->next == NULL && alignment != RGN_ALIGN_QSPLIT && alignment != RGN_ALIGN_FLOAT)
 		alignment = RGN_ALIGN_NONE;
 	
 	/* prefsize, for header we stick to exception (prevent dpi rounding error) */
@@ -966,15 +969,31 @@ static void region_rect_recursive(wmWindow *win, ScrArea *sa, ARegion *ar, rcti 
 	}
 
 
-	if (ar->flag & RGN_FLAG_HIDDEN) {
-		/* hidden is user flag */
+	if (alignment == RGN_ALIGN_FLOAT && ar->regiontype == RGN_TYPE_TOOL_PROPS) {
+		/* special case for floating tool properties regions */
+		Panel *pa = NULL;
+		for (pa = ar->panels.first; pa; pa = pa->next) {
+			// TODO: is there a better way to test for the identity of a panel type?
+			if (pa->type && strcmp(pa->type->idname, "VIEW3D_PT_last_operator") == 0) {
+				break;
+			}
+		}
+
+		ARegion *mw = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
+		ar->winrct.xmax = mw->winrct.xmax;
+		ar->winrct.xmin = mw->winrct.xmax - (ar->type ? ar->type->prefsizex : 160);
+		ar->winrct.ymin = mw->winrct.ymin;
+		
+		if (pa && !uiPanelClosed(pa)) {
+			// TODO: This is the previous panel size...
+			ar->winrct.ymax = ar->winrct.ymin + pa->sizey + 26;
+		}
+		else {
+			ar->winrct.ymax = ar->winrct.ymin + 26;
+		}
 	}
-	else if (alignment == RGN_ALIGN_FLOAT) {
-		/* XXX floating area region, not handled yet here */
-		ar->winrct.ymax = 500;
-		ar->winrct.ymin = 100;
-		ar->winrct.xmax = 500;
-		ar->winrct.xmin = 200;
+	else if (ar->flag & RGN_FLAG_HIDDEN) {
+		/* hidden is user flag */
 	}
 	else if (rct_fits(remainder, 'v', 1) < 0 || rct_fits(remainder, 'h', 1) < 0) {
 		/* remainder is too small for any usage */
@@ -1180,7 +1199,7 @@ static void area_calc_totrct(ScrArea *sa, int sizex, int sizey)
 
 /* used for area initialize below */
 static void region_subwindow(wmWindow *win, ARegion *ar)
-{
+{	
 	if (ar->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_TOO_SMALL)) {
 		if (ar->swinid)
 			wm_subwindow_close(win, ar->swinid);

@@ -72,7 +72,7 @@
 
 static void view3d_panel_operator_redo_buts(const bContext *C, Panel *pa, wmOperator *op)
 {
-	uiLayoutOperatorButs(C, pa->layout, op, NULL, 'V', 0);
+	uiLayoutOperatorButs(C, pa->layout, op, NULL, 'H', 0);
 }
 
 static void view3d_panel_operator_redo_operator(const bContext *C, Panel *pa, wmOperator *op)
@@ -121,6 +121,8 @@ static void view3d_panel_operator_redo(const bContext *C, Panel *pa)
 	/* set region back */
 	CTX_wm_region_set((bContext *)C, ar);
 	ED_region_tag_redraw(ar);
+	
+	WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 }
 
 static void collapse_all_panels(bContext *C, void *UNUSED(arg1), void *UNUSED(arg2))
@@ -319,7 +321,7 @@ void view3d_toolbar_header_register(ARegionType *art)
 static int view3d_toolshelf(bContext *C, wmOperator *UNUSED(op))
 {
 	ScrArea *sa = CTX_wm_area(C);
-	ARegion *ar = view3d_has_tools_region(sa);
+	ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_TOOLS); //view3d_has_tools_region(sa);
 	
 	if (ar)
 		ED_region_toggle_hidden(C, ar);

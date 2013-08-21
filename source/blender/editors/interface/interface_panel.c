@@ -1251,18 +1251,13 @@ static void ui_handle_panel_header(bContext *C, uiBlock *block, int mx, int my, 
 					else pa->flag &= ~PNL_CLOSED;
 				}
 			}
-			if (align)
-				panel_activate_state(C, block->panel, PANEL_STATE_ANIMATION);
-			else
-				ED_region_tag_redraw(ar);
-			break;
 		case 2:
 			/* close */
 			ED_region_tag_redraw(ar);
 			if (align)
 				panel_activate_state(C, block->panel, PANEL_STATE_ANIMATION);
-			else
-				ED_region_tag_redraw(ar);
+			if (ar->regiontype == RGN_TYPE_TOOL_PROPS)
+				WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 			break;
 		case 3:
 			uiPupBlock(C, panel_popup_create_block, block->panel);

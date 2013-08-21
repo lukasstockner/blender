@@ -2251,29 +2251,37 @@ void wm_event_do_handlers(bContext *C)
 						CTX_wm_area_set(C, sa);
 
 						if ((action & WM_HANDLER_BREAK) == 0) {
-							for (ar = sa->regionbase.first; ar; ar = ar->next) {
-								if (wm_event_inside_i(event, &ar->winrct)) {
-									CTX_wm_region_set(C, ar);
-									
-									/* call even on non mouse events, since the */
-									wm_region_mouse_co(C, event);
+							/* Go through the regions twice, first for floating regions, then for normal ones.
+							   This entails that floating panels catch events first. This is done because floating
+							   panels should be drawn over other regions. */
+							for (int i=0; i<2; i++) {
+								for (ar = sa->regionbase.first; ar; ar = ar->next) {
+									if ((i == 0 && ar->alignment == RGN_ALIGN_FLOAT) ||
+										(i == 1 && ar->alignment != RGN_ALIGN_FLOAT)) {
+										if (wm_event_inside_i(event, &ar->winrct)) {
+											CTX_wm_region_set(C, ar);
+											
+											/* call even on non mouse events, since the */
+											wm_region_mouse_co(C, event);
 
-									/* does polls for drop regions and checks uibuts */
-									/* need to be here to make sure region context is true */
-									if (ELEM(event->type, MOUSEMOVE, EVT_DROP)) {
-										wm_drags_check_ops(C, event);
+											/* does polls for drop regions and checks uibuts */
+											/* need to be here to make sure region context is true */
+											if (ELEM(event->type, MOUSEMOVE, EVT_DROP)) {
+												wm_drags_check_ops(C, event);
+											}
+											
+											action |= wm_handlers_do(C, event, &ar->handlers);
+
+											/* fileread case (python), [#29489] */
+											if (CTX_wm_window(C) == NULL)
+												return;
+
+											doit |= (BLI_rcti_isect_pt_v(&ar->winrct, &event->x));
+											
+											if (action & WM_HANDLER_BREAK)
+												break;
+										}
 									}
-									
-									action |= wm_handlers_do(C, event, &ar->handlers);
-
-									/* fileread case (python), [#29489] */
-									if (CTX_wm_window(C) == NULL)
-										return;
-
-									doit |= (BLI_rcti_isect_pt_v(&ar->winrct, &event->x));
-									
-									if (action & WM_HANDLER_BREAK)
-										break;
 								}
 							}
 						}
