@@ -42,22 +42,6 @@ typedef struct VDBVolumeFile {
         file.close();
     }
     
-    VDBVolumeFile(const VDBVolumeFile& vdb_file) : file(vdb_file.file.filename())
-    {
-        // file should be open already;
-        if(file.isOpen())
-        {
-            std::cout << "Filename: " << this->file.filename() << ".\n";
-           // file.open();
-            
-            grids = file.getGrids();
-            meta = file.getMetadata();
-            version = file.version();
-        }
-        
-
-    }
-    
 } VDBVolumeFile;
 
 class OpenVDBUtil
@@ -81,17 +65,9 @@ private:
 /* static ustrings */
 ustring OpenVDBUtil::u_openvdb_file_extension(".vdb");
 
-class OpenVDBVolumeAccessor {
-public:
-private:
-	openvdb::GridBase::Ptr grid;
-	eOpenVDBGridType grid_type; // This is needed because it's impossible to know the grid value type beforehand;
-};
-
 
 void OpenVDBUtil::initialize_library()
 {
-    //any additional configuration needed?
 	openvdb::initialize();
 }
 
@@ -136,11 +112,6 @@ bool OpenVDBUtil::is_vdb_volume_file(OIIO::ustring filename)
     return false;
 }
 
-VDBVolumeFile *OpenVDBUtil::get_volume_from_file(ustring filename)
-{
-    VDBVolumeFile vdb_volume(filename);
-    return &vdb_volume;
-}
 
 int OpenVDBUtil::get_number_of_grids(VDBVolumeFile vdb_volume)
 {
@@ -152,6 +123,7 @@ int OpenVDBUtil::nearest_neighbor(float worldCoord)
     int x = static_cast<int>(floor(worldCoord + 0.5));
     return x;
 }
+
 
 // VDBTextureSystem
 
@@ -165,13 +137,11 @@ VDBTextureSystem::Ptr VDBTextureSystem::init() {
 
 bool VDBTextureSystem::is_vdb_volume(ustring filename)
 {
-    
-    //testing things out
-    if (get_map().empty())
+    if (vdb_files.empty())
     {
         return OpenVDBUtil::is_vdb_volume_file(filename);
     }
-    if (get_map().find(filename) != get_map().end())
+    if (vdb_files.find(filename) != vdb_files.end())
         return true;
     else
         return OpenVDBUtil::is_vdb_volume_file(filename);
@@ -210,35 +180,19 @@ bool VDBTextureSystem::perform_lookup(ustring filename, TextureOpt &options, OSL
     const float myResult(accessor.getValue(point));
     *result = myResult; 
     return true;
-    
-    /*
-    if (OpenVDBUtil::get_number_of_grids(myVDB) != 1) {
-       
-       // Name of the grid will be unimportant if it's the only one present in the file.
-        
-        do {
-            ++iter;
-        } while (iter != myVDB.grids->end());
-        
-    } */
-    
-    // perform lookup.
-    
-    //return false;
 }
 
 VDBTextureSystem::VDBMap::const_iterator VDBTextureSystem::add_vdb_to_map(ustring filename)
 {
-    VDBVolumeFile *vdb_sp = new VDBVolumeFile(filename);
+    VDBFilePtr vdb_sp(new VDBVolumeFile(filename));
     
     return (vdb_files.insert(std::make_pair(filename, vdb_sp))).first;
 }
 
-VDBTextureSystem::VDBMap VDBTextureSystem::get_map()
+void VDBTextureSystem::free(VDBTextureSystem::Ptr vdb_ts)
 {
-    return vdb_files;
+    vdb_ts.reset();
 }
-
 
 VDBTextureSystem::~VDBTextureSystem(){
 }

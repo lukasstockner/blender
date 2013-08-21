@@ -22,20 +22,9 @@
 #include <OSL/oslexec.h>
 #include "util_map.h"
 
-
-CCL_NAMESPACE_BEGIN
-
 using namespace OIIO;
 
-typedef enum eOpenVDBGridType
-{
-	OPENVDB_GRID_TYPE_NOT_SET,
-	OPENVDB_GRID_TYPE_FLOAT,
-	OPENVDB_GRID_TYPE_INT32,
-	OPENVDB_GRID_TYPE_INT64,
-	OPENVDB_GRID_TYPE_VEC3F
-} eOpenVDBGridType;
-
+CCL_NAMESPACE_BEGIN
 
 struct VDBVolumeFile;
 class OpenVDBVolumeAccessor;
@@ -48,7 +37,7 @@ public:
     typedef boost::shared_ptr<VDBTextureSystem> Ptr;
     
     static VDBTextureSystem::Ptr init();
-    static void destroy (VDBTextureSystem::Ptr vdb_ts);
+    static void free (VDBTextureSystem::Ptr vdb_ts);
     
     VDBTextureSystem() { }
     ~VDBTextureSystem();

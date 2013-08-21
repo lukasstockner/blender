@@ -99,17 +99,18 @@ ustring OSLRenderServices::u_empty;
 OSLRenderServices::OSLRenderServices()
 {
 	kernel_globals = NULL;
+    vdb_ts = VDBTextureSystem::init();
 }
 
 OSLRenderServices::~OSLRenderServices()
 {
+    VDBTextureSystem::free(vdb_ts);
 }
 
 void OSLRenderServices::thread_init(KernelGlobals *kernel_globals_, OSL::TextureSystem *osl_ts_)
 {
 	kernel_globals = kernel_globals_;
 	osl_ts = osl_ts_;
-    vdb_ts = VDBTextureSystem::init();
 }
 
 bool OSLRenderServices::get_matrix(OSL::Matrix44 &result, OSL::TransformationPtr xform, float time)
