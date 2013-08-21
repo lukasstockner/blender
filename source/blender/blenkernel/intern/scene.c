@@ -748,7 +748,6 @@ void BKE_scene_unlink(Main *bmain, Scene *sce, Scene *newsce)
  */
 int BKE_scene_base_iter_next(SceneBaseIter *iter, Scene **scene, int val, Base **base, Object **ob)
 {
-	static int in_next_object = 0;
 	int run_again = 1;
 	
 	/* init */
@@ -756,18 +755,8 @@ int BKE_scene_base_iter_next(SceneBaseIter *iter, Scene **scene, int val, Base *
 		iter->fase = F_START;
 		iter->dupob = NULL;
 		iter->duplilist = NULL;
-		
-		/* XXX particle systems with metas+dupligroups call this recursively */
-		/* see bug #18725 */
-		if (in_next_object) {
-			printf("ERROR: Metaball generation called recursively, not supported\n");
-			
-			return F_ERROR;
-		}
 	}
 	else {
-		in_next_object = 1;
-		
 		/* run_again is set when a duplilist has been ended */
 		while (run_again) {
 			run_again = 0;
@@ -824,7 +813,7 @@ int BKE_scene_base_iter_next(SceneBaseIter *iter, Scene **scene, int val, Base *
 						 * this enters eternal loop because of 
 						 * makeDispListMBall getting called inside of group_duplilist */
 						if ((*base)->object->dup_group == NULL) {
-							iter->duplilist = object_duplilist((*scene), (*base)->object, FALSE);
+							iter->duplilist = object_duplilist_ex((*scene), (*base)->object, false, false);
 							
 							iter->dupob = iter->duplilist->first;
 
@@ -866,9 +855,6 @@ int BKE_scene_base_iter_next(SceneBaseIter *iter, Scene **scene, int val, Base *
 	}
 #endif
 
-	/* reset recursion test */
-	in_next_object = 0;
-	
 	return iter->fase;
 }
 
