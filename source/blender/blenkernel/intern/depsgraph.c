@@ -421,22 +421,47 @@ static void dag_add_lamp_driver_relations(DagForest *dag, DagNode *node, Lamp *l
 	la->id.flag &= ~LIB_DOIT;
 }
 
+static void check_and_create_collision_relation(DagForest *dag, Object *ob, DagNode *node, Object *ob1, int skip_forcefield, bool no_collision)
+{
+	DagNode *node2;
+	if (ob1->pd && (ob1->pd->deflect || ob1->pd->forcefield) && (ob1 != ob)) {
+		if ((skip_forcefield && ob1->pd->forcefield == skip_forcefield) || (no_collision && ob1->pd->forcefield == 0))
+			return;
+		node2 = dag_get_node(dag, ob1);
+		dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Field Collision");
+	}
+}
+
 static void dag_add_collision_field_relation(DagForest *dag, Scene *scene, Object *ob, DagNode *node, int skip_forcefield, bool no_collision)
 {
 	Base *base;
-	DagNode *node2;
+	ParticleSystem *particle_system;
+
+	for (particle_system = ob->particlesystem.first;
+	     particle_system;
+	     particle_system = particle_system->next)
+	{
+		EffectorWeights *effector_weights = particle_system->part->effector_weights;
+		if (effector_weights->group) {
+			GroupObject *group_object;
+
+			for (group_object = effector_weights->group->gobject.first;
+			     group_object;
+			     group_object = group_object->next)
+			{
+				if ((group_object->ob->lay & ob->lay)) {
+					check_and_create_collision_relation(dag, ob, node, group_object->ob, skip_forcefield, no_collision);
+				}
+			}
+		}
+	}
 
 	/* would be nice to have a list of colliders here
 	 * so for now walk all objects in scene check 'same layer rule' */
 	for (base = scene->base.first; base; base = base->next) {
-		if ((base->lay & ob->lay) && base->object->pd) {
+		if ((base->lay & ob->lay)) {
 			Object *ob1 = base->object;
-			if ((ob1->pd->deflect || ob1->pd->forcefield) && (ob1 != ob)) {
-				if ((skip_forcefield && ob1->pd->forcefield == skip_forcefield) || (no_collision && ob1->pd->forcefield == 0))
-					continue;
-				node2 = dag_get_node(dag, ob1);
-				dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Field Collision");
-			}
+			check_and_create_collision_relation(dag, ob, node, ob1, skip_forcefield, no_collision);
 		}
 	}
 }
