@@ -377,7 +377,7 @@ void BKE_curve_boundbox_calc(Curve *cu, float r_loc[3], float r_size[3])
 	if (!r_size) r_size = msize;
 
 	INIT_MINMAX(min, max);
-	/* TODO(sergey): makecode aware of radius and bevel somehow.. */
+	/* TODO(sergey): make code aware of radius and bevel somehow.. */
 	if (!BKE_curve_minmax(cu, true, min, max)) {
 		min[0] = min[1] = min[2] = -1.0f;
 		max[0] = max[1] = max[2] = 1.0f;

@@ -518,7 +518,7 @@ void WM_exit_ext(bContext *C, const short do_python)
 		MEM_printmemlist();
 	}
 	wm_autosave_delete();
-
+	
 	printf("\nBlender quit\n");
 	
 #ifdef WIN32   
