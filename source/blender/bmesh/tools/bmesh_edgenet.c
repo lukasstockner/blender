@@ -37,6 +37,7 @@
 #include "BLI_linklist.h"
 
 #include "bmesh.h"
+#include "bmesh_edgenet.h"  /* own include */
 
 #ifdef __GNUC__
 #  pragma GCC diagnostic error "-Wsign-conversion"
@@ -132,7 +133,7 @@ static bool bm_edgenet_path_check_overlap(
 {
 	/* vert order doesn't matter */
 	unsigned int v_ls_tot = 0;
-	LinkNode *v_ls;
+	LinkNode *v_ls = NULL;
 	BMVert *v_pair[2] = {v1, v2};
 	unsigned int i;
 
@@ -193,7 +194,7 @@ static BMFace *bm_edgenet_face_from_path(
 	}
 #endif
 
-	f = BM_face_create(bm, vert_arr, edge_arr, (int)path_len, 0);
+	f = BM_face_create(bm, vert_arr, edge_arr, (int)path_len, NULL, BM_CREATE_NOP);
 
 	return f;
 }

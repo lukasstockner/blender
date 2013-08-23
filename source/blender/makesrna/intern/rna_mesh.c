@@ -575,8 +575,9 @@ static void rna_Mesh_texspace_size_get(PointerRNA *ptr, float values[3])
 {
 	Mesh *me = (Mesh *)ptr->data;
 
-	if (!me->bb)
+	if (me->bb == NULL || (me->bb->flag & BOUNDBOX_DIRTY)) {
 		BKE_mesh_texspace_calc(me);
+	}
 
 	copy_v3_v3(values, me->size);
 }
@@ -585,8 +586,9 @@ static void rna_Mesh_texspace_loc_get(PointerRNA *ptr, float values[3])
 {
 	Mesh *me = (Mesh *)ptr->data;
 
-	if (!me->bb)
+	if (me->bb == NULL || (me->bb->flag & BOUNDBOX_DIRTY)) {
 		BKE_mesh_texspace_calc(me);
+	}
 
 	copy_v3_v3(values, me->loc);
 }
@@ -1106,12 +1108,15 @@ static void rna_MeshPoly_vertices_set(PointerRNA *ptr, const int *values)
 	}
 }
 
+/* disabling, some importers don't know the total material count when assigning materials */
+#if 0
 static void rna_MeshPoly_material_index_range(PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
 {
 	Mesh *me = rna_mesh(ptr);
 	*min = 0;
 	*max = max_ii(0, me->totcol - 1);
 }
+#endif
 
 static int rna_MeshVertex_index_get(PointerRNA *ptr)
 {
@@ -1771,7 +1776,9 @@ static void rna_def_mface(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "material_index", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_sdna(prop, NULL, "mat_nr");
 	RNA_def_property_ui_text(prop, "Material Index", "");
+#if 0
 	RNA_def_property_int_funcs(prop, NULL, NULL, "rna_MeshPoly_material_index_range"); /* reuse for tessface is ok */
+#endif
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
 	prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
@@ -1868,7 +1875,9 @@ static void rna_def_mpolygon(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "material_index", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_sdna(prop, NULL, "mat_nr");
 	RNA_def_property_ui_text(prop, "Material Index", "");
+#if 0
 	RNA_def_property_int_funcs(prop, NULL, NULL, "rna_MeshPoly_material_index_range");
+#endif
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
 	prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);

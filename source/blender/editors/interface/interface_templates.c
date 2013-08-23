@@ -1,4 +1,5 @@
 /*
+
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -1017,6 +1018,7 @@ uiLayout *uiTemplateModifier(uiLayout *layout, bContext *C, PointerRNA *ptr)
 	Scene *scene = CTX_data_scene(C);
 	Object *ob;
 	ModifierData *md, *vmd;
+	VirtualModifierData virtualModifierData;
 	int i, lastCageIndex, cageIndex;
 
 	/* verify we have valid data */
@@ -1039,7 +1041,7 @@ uiLayout *uiTemplateModifier(uiLayout *layout, bContext *C, PointerRNA *ptr)
 	cageIndex = modifiers_getCageIndex(scene, ob, &lastCageIndex, 0);
 
 	/* XXX virtual modifiers are not accesible for python */
-	vmd = modifiers_getVirtualModifierList(ob);
+	vmd = modifiers_getVirtualModifierList(ob, &virtualModifierData);
 
 	for (i = 0; vmd; i++, vmd = vmd->next) {
 		if (md == vmd)
@@ -1145,9 +1147,10 @@ static uiLayout *draw_constraint(uiLayout *layout, Object *ob, bConstraint *con)
 	uiBlockSetEmboss(block, UI_EMBOSSN);
 	uiItemR(row, &ptr, "show_expanded", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
 	uiBlockSetEmboss(block, UI_EMBOSS);
-	
+
 	/* name */
-	uiDefBut(block, LABEL, B_CONSTRAINT_TEST, typestr, xco + 0.5f*UI_UNIT_X, yco, 5 * UI_UNIT_X, 0.9f*UI_UNIT_Y, NULL, 0.0, 0.0, 0.0, 0.0, "");
+	uiDefBut(block, LABEL, B_CONSTRAINT_TEST, typestr,
+	         xco + 0.5f * UI_UNIT_X, yco, 5 * UI_UNIT_X, 0.9f * UI_UNIT_Y, NULL, 0.0, 0.0, 0.0, 0.0, "");
 
 	if (con->flag & CONSTRAINT_DISABLE)
 		uiLayoutSetRedAlert(row, TRUE);

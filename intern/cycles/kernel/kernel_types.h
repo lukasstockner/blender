@@ -55,7 +55,7 @@ CCL_NAMESPACE_BEGIN
 #ifdef __KERNEL_CPU__
 #define __KERNEL_SHADING__
 #define __KERNEL_ADV_SHADING__
-#define __NON_PROGRESSIVE__
+#define __BRANCHED_PATH__
 #ifdef WITH_OSL
 #define __OSL__
 #endif
@@ -67,7 +67,7 @@ CCL_NAMESPACE_BEGIN
 #define __KERNEL_SHADING__
 #if __CUDA_ARCH__ >= 200
 #define __KERNEL_ADV_SHADING__
-#define __NON_PROGRESSIVE__
+#define __BRANCHED_PATH__
 #endif
 #endif
 
@@ -753,8 +753,8 @@ typedef struct KernelIntegrator {
 	/* clamp */
 	float sample_clamp;
 
-	/* non-progressive */
-	int progressive;
+	/* branched path */
+	int branched;
 	int aa_samples;
 	int diffuse_samples;
 	int glossy_samples;
@@ -794,19 +794,20 @@ typedef enum CurveFlag {
 	CURVE_KN_POSTINTERSECTCORRECTION = 32,	/* correct for width after intersect? */
 	CURVE_KN_TRUETANGENTGNORMAL = 64,		/* use tangent normal for geometry? */
 	CURVE_KN_TANGENTGNORMAL = 128,			/* use tangent normal for shader? */
-	CURVE_KN_RIBBONS = 256,				/* use flat curve ribbons */
+	CURVE_KN_RIBBONS = 256,					/* use flat curve ribbons */
 } CurveFlag;
 
 typedef struct KernelCurves {
-	/* strand intersect and normal parameters - many can be changed to flags*/
+	/* strand intersect and normal parameters - many can be changed to flags */
 	float encasing_ratio;
 	int curveflags;
 	int subdivisions;
+	int pad1;
 
 	float minimum_width;
 	float maximum_width;
 	float curve_epsilon;
-	int pad1;
+	int pad2;
 } KernelCurves;
 
 typedef struct KernelBSSRDF {

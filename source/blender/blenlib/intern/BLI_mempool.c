@@ -258,6 +258,22 @@ void BLI_mempool_free(BLI_mempool *pool, void *addr)
 {
 	BLI_freenode *newhead = addr;
 
+#ifndef NDEBUG
+	{
+		BLI_mempool_chunk *chunk;
+		bool found = false;
+		for (chunk = pool->chunks.first; chunk; chunk = chunk->next) {
+			if (ARRAY_HAS_ITEM((char *)addr, (char *)chunk->data, pool->csize)) {
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			BLI_assert(!"Attempt to free data which is not in pool.\n");
+		}
+	}
+#endif
+
 	if (pool->flag & BLI_MEMPOOL_ALLOW_ITER) {
 #ifndef NDEBUG
 		/* this will detect double free's */

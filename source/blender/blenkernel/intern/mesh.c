@@ -657,6 +657,8 @@ void BKE_mesh_boundbox_calc(Mesh *me, float r_loc[3], float r_size[3])
 	r_size[2] = (max[2] - min[2]) / 2.0f;
 	
 	BKE_boundbox_init_from_minmax(bb, min, max);
+
+	bb->flag &= ~BOUNDBOX_DIRTY;
 }
 
 void BKE_mesh_texspace_calc(Mesh *me)
@@ -686,15 +688,16 @@ BoundBox *BKE_mesh_boundbox_get(Object *ob)
 	if (ob->bb)
 		return ob->bb;
 
-	if (!me->bb)
+	if (me->bb == NULL || (me->bb->flag & BOUNDBOX_DIRTY)) {
 		BKE_mesh_texspace_calc(me);
+	}
 
 	return me->bb;
 }
 
 void BKE_mesh_texspace_get(Mesh *me, float r_loc[3], float r_rot[3], float r_size[3])
 {
-	if (!me->bb) {
+	if (me->bb == NULL || (me->bb->flag & BOUNDBOX_DIRTY)) {
 		BKE_mesh_texspace_calc(me);
 	}
 
@@ -1307,7 +1310,13 @@ int BKE_mesh_nurbs_to_mdata(Object *ob, MVert **allvert, int *totvert,
                             MEdge **alledge, int *totedge, MLoop **allloop, MPoly **allpoly,
                             int *totloop, int *totpoly)
 {
-	return BKE_mesh_nurbs_displist_to_mdata(ob, &ob->disp,
+	ListBase disp = {NULL, NULL};
+
+	if (ob->curve_cache) {
+		disp = ob->curve_cache->disp;
+	}
+
+	return BKE_mesh_nurbs_displist_to_mdata(ob, &disp,
 	                                        allvert, totvert,
 	                                        alledge, totedge,
 	                                        allloop, allpoly, NULL,
@@ -1653,8 +1662,13 @@ void BKE_mesh_from_nurbs(Object *ob)
 {
 	Curve *cu = (Curve *) ob->data;
 	bool use_orco_uv = (cu->flag & CU_UV_ORCO) != 0;
+	ListBase disp = {NULL, NULL};
 
-	BKE_mesh_from_nurbs_displist(ob, &ob->disp, use_orco_uv);
+	if (ob->curve_cache) {
+		disp = ob->curve_cache->disp;
+	}
+
+	BKE_mesh_from_nurbs_displist(ob, &disp, use_orco_uv);
 }
 
 typedef struct EdgeLink {
@@ -3653,7 +3667,7 @@ void BKE_mesh_flush_select_from_verts(Mesh *me)
 
 
 /* basic vertex data functions */
-int BKE_mesh_minmax(Mesh *me, float r_min[3], float r_max[3])
+bool BKE_mesh_minmax(Mesh *me, float r_min[3], float r_max[3])
 {
 	int i = me->totvert;
 	MVert *mvert;
@@ -3664,7 +3678,7 @@ int BKE_mesh_minmax(Mesh *me, float r_min[3], float r_max[3])
 	return (me->totvert != 0);
 }
 
-int BKE_mesh_center_median(Mesh *me, float cent[3])
+bool BKE_mesh_center_median(Mesh *me, float cent[3])
 {
 	int i = me->totvert;
 	MVert *mvert;
@@ -3680,19 +3694,19 @@ int BKE_mesh_center_median(Mesh *me, float cent[3])
 	return (me->totvert != 0);
 }
 
-int BKE_mesh_center_bounds(Mesh *me, float cent[3])
+bool BKE_mesh_center_bounds(Mesh *me, float cent[3])
 {
 	float min[3], max[3];
 	INIT_MINMAX(min, max);
 	if (BKE_mesh_minmax(me, min, max)) {
 		mid_v3_v3v3(cent, min, max);
-		return 1;
+		return true;
 	}
 
-	return 0;
+	return false;
 }
 
-int BKE_mesh_center_centroid(Mesh *me, float cent[3])
+bool BKE_mesh_center_centroid(Mesh *me, float cent[3])
 {
 	int i = me->totpoly;
 	MPoly *mpoly;
@@ -3712,6 +3726,11 @@ int BKE_mesh_center_centroid(Mesh *me, float cent[3])
 	/* otherwise we get NAN for 0 polys */
 	if (me->totpoly) {
 		mul_v3_fl(cent, 1.0f / total_area);
+	}
+
+	/* zero area faces cause this, fallback to median */
+	if (UNLIKELY(!is_finite_v3(cent))) {
+		return BKE_mesh_center_median(me, cent);
 	}
 
 	return (me->totpoly != 0);

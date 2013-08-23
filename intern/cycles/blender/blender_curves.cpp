@@ -425,7 +425,7 @@ void ExportCurveTrianglePlanes(Mesh *mesh, ParticleCurveData *CData, float3 RotC
 				time = CData->curvekey_time[curvekey]/CData->curve_length[curve];
 				radius = shaperadius(CData->psys_shape[sys], CData->psys_rootradius[sys], CData->psys_tipradius[sys], time);
 
-				if((curvekey == CData->curve_firstkey[curve] + CData->curve_keynum[curve] - 1))
+				if(curvekey == CData->curve_firstkey[curve] + CData->curve_keynum[curve] - 1)
 					radius = shaperadius(CData->psys_shape[sys], CData->psys_rootradius[sys], CData->psys_tipradius[sys], 0.95f);
 
 				if(CData->psys_closetip[sys] && (curvekey == CData->curve_firstkey[curve] + CData->curve_keynum[curve] - 1))
@@ -711,8 +711,6 @@ void ExportCurveTriangleVcol(Mesh *mesh, ParticleCurveData *CData, int vert_offs
 void BlenderSync::sync_curve_settings()
 {
 	PointerRNA csscene = RNA_pointer_get(&b_scene.ptr, "cycles_curves");
-	
-	int preset = CURVE_ACCURATE_PRESET;
 
 	CurveSystemManager *curve_system_manager = scene->curve_system_manager;
 	CurveSystemManager prev_curve_system_manager = *curve_system_manager;

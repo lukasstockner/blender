@@ -3123,7 +3123,6 @@ static void direct_link_mball(FileData *fd, MetaBall *mb)
 	
 	mb->disp.first = mb->disp.last = NULL;
 	mb->editelems = NULL;
-	mb->bb = NULL;
 /*	mb->edit_elems.first= mb->edit_elems.last= NULL;*/
 	mb->lastelem = NULL;
 }
@@ -3399,11 +3398,9 @@ static void direct_link_curve(FileData *fd, Curve *cu)
 		if (cu->wordspace == 0.0f) cu->wordspace = 1.0f;
 	}
 
-	cu->bev.first = cu->bev.last = NULL;
 	cu->disp.first = cu->disp.last = NULL;
 	cu->editnurb = NULL;
 	cu->lastsel = NULL;
-	cu->path = NULL;
 	cu->editfont = NULL;
 	
 	for (nu = cu->nurb.first; nu; nu = nu->next) {
@@ -4829,8 +4826,6 @@ static void direct_link_object(FileData *fd, Object *ob)
 		ob->mode &= ~(OB_MODE_EDIT | OB_MODE_PARTICLE_EDIT);
 	}
 	
-	ob->disp.first = ob->disp.last = NULL;
-	
 	ob->adt = newdataadr(fd, ob->adt);
 	direct_link_animdata(fd, ob->adt);
 	
@@ -5024,6 +5019,9 @@ static void direct_link_object(FileData *fd, Object *ob)
 	ob->derivedFinal = NULL;
 	ob->gpulamp.first= ob->gpulamp.last = NULL;
 	link_list(fd, &ob->pc_ids);
+
+	/* Runtime curve data  */
+	ob->curve_cache = NULL;
 
 	/* in case this value changes in future, clamp else we get undefined behavior */
 	CLAMP(ob->rotmode, ROT_MODE_MIN, ROT_MODE_MAX);
@@ -5443,10 +5441,10 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 	link_list(fd, &(sce->transform_spaces));
 	link_list(fd, &(sce->r.layers));
 
-	for(srl = sce->r.layers.first; srl; srl = srl->next) {
+	for (srl = sce->r.layers.first; srl; srl = srl->next) {
 		link_list(fd, &(srl->freestyleConfig.modules));
 	}
-	for(srl = sce->r.layers.first; srl; srl = srl->next) {
+	for (srl = sce->r.layers.first; srl; srl = srl->next) {
 		link_list(fd, &(srl->freestyleConfig.linesets));
 	}
 	
@@ -7033,16 +7031,16 @@ static void direct_link_linestyle(FileData *fd, FreestyleLineStyle *linestyle)
 	linestyle->adt= newdataadr(fd, linestyle->adt);
 	direct_link_animdata(fd, linestyle->adt);
 	link_list(fd, &linestyle->color_modifiers);
-	for(modifier = linestyle->color_modifiers.first; modifier; modifier = modifier->next)
+	for (modifier = linestyle->color_modifiers.first; modifier; modifier = modifier->next)
 		direct_link_linestyle_color_modifier(fd, modifier);
 	link_list(fd, &linestyle->alpha_modifiers);
-	for(modifier = linestyle->alpha_modifiers.first; modifier; modifier = modifier->next)
+	for (modifier = linestyle->alpha_modifiers.first; modifier; modifier = modifier->next)
 		direct_link_linestyle_alpha_modifier(fd, modifier);
 	link_list(fd, &linestyle->thickness_modifiers);
-	for(modifier = linestyle->thickness_modifiers.first; modifier; modifier = modifier->next)
+	for (modifier = linestyle->thickness_modifiers.first; modifier; modifier = modifier->next)
 		direct_link_linestyle_thickness_modifier(fd, modifier);
 	link_list(fd, &linestyle->geometry_modifiers);
-	for(modifier = linestyle->geometry_modifiers.first; modifier; modifier = modifier->next)
+	for (modifier = linestyle->geometry_modifiers.first; modifier; modifier = modifier->next)
 		direct_link_linestyle_geometry_modifier(fd, modifier);
 }
 
@@ -9455,12 +9453,12 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		SceneRenderLayer *srl;
 		FreestyleLineStyle *linestyle;
 
-		for(sce = main->scene.first; sce; sce = sce->id.next) {
+		for (sce = main->scene.first; sce; sce = sce->id.next) {
 			if (sce->r.line_thickness_mode == 0) {
 				sce->r.line_thickness_mode = R_LINE_THICKNESS_ABSOLUTE;
 				sce->r.unit_line_thickness = 1.0f;
 			}
-			for(srl = sce->r.layers.first; srl; srl = srl->next) {
+			for (srl = sce->r.layers.first; srl; srl = srl->next) {
 				if (srl->freestyleConfig.mode == 0)
 					srl->freestyleConfig.mode = FREESTYLE_CONTROL_EDITOR_MODE;
 				if (srl->freestyleConfig.raycasting_algorithm == FREESTYLE_ALGO_CULLED_ADAPTIVE_CUMULATIVE ||
@@ -9490,7 +9488,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			}
 
 		}
-		for(linestyle = main->linestyle.first; linestyle; linestyle = linestyle->id.next) {
+		for (linestyle = main->linestyle.first; linestyle; linestyle = linestyle->id.next) {
 #if 1
 			/* disable the Misc panel for now */
 			if (linestyle->panel == LS_PANEL_MISC) {
@@ -9578,11 +9576,11 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		for (brush = main->brush.first; brush; brush = brush->id.next) {
 			brush->flag &= ~BRUSH_FIXED;
 
-			if(brush->cursor_overlay_alpha < 2)
+			if (brush->cursor_overlay_alpha < 2)
 				brush->cursor_overlay_alpha = 33;
-			if(brush->texture_overlay_alpha < 2)
+			if (brush->texture_overlay_alpha < 2)
 				brush->texture_overlay_alpha = 33;
-			if(brush->mask_overlay_alpha <2)
+			if (brush->mask_overlay_alpha <2)
 				brush->mask_overlay_alpha = 33;
 		}
 		#undef BRUSH_FIXED

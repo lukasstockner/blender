@@ -97,6 +97,11 @@ enum_sampling_pattern = (
     ('CORRELATED_MUTI_JITTER', "Correlated Multi-Jitter", "Use Correlated Multi-Jitter random sampling pattern"),
     )
 
+enum_integrator = (
+    ('BRANCHED_PATH', "Branched Path Tracing", "Path tracing integrator that branches on the first bounce, giving more control over the number of light and material samples"),
+    ('PATH', "Path Tracing", "Pure path tracing integrator"),
+    )
+
 
 class CyclesRenderSettings(bpy.types.PropertyGroup):
     @classmethod
@@ -123,13 +128,15 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 description="Use Open Shading Language (CPU rendering only)",
                 )
 
-        cls.progressive = BoolProperty(
-                name="Progressive",
-                description="Use progressive sampling of lighting",
-                default=True,
+        cls.progressive = EnumProperty(
+                name="Integrator",
+                description="Method to sample lights and materials",
+                items=enum_integrator,
+                default='PATH',
                 )
-        cls.squared_samples = BoolProperty(
-                name="Squared Samples",
+
+        cls.use_square_samples = BoolProperty(
+                name="Square Samples",
                 description="Square sampling values for easier artist control",
                 default=False,
                 )
@@ -385,6 +392,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 description="Tile order for rendering",
                 items=enum_tile_order,
                 default='CENTER',
+                options=set(),  # Not animatable!
                 )
         cls.use_progressive_refine = BoolProperty(
                 name="Progressive Refine",

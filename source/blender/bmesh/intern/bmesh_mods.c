@@ -356,10 +356,9 @@ BMFace *BM_face_split(BMesh *bm, BMFace *f, BMVert *v1, BMVert *v2, BMLoop **r_l
 	
 	if (f_new) {
 		BM_elem_attrs_copy(bm, bm, f, f_new);
-		copy_v3_v3(f_new->no, f->no);
 
 		/* handle multires update */
-		if (has_mdisp && (f_new != f)) {
+		if (has_mdisp) {
 			BMLoop *l_iter;
 			BMLoop *l_first;
 
@@ -373,14 +372,16 @@ BMFace *BM_face_split(BMesh *bm, BMFace *f, BMVert *v1, BMVert *v2, BMLoop **r_l
 				BM_loop_interp_multires(bm, l_iter, f_tmp);
 			} while ((l_iter = l_iter->next) != l_first);
 
-			BM_face_kill(bm, f_tmp);
-
 #if 0
 			/* BM_face_multires_bounds_smooth doesn't flip displacement correct */
 			BM_face_multires_bounds_smooth(bm, f);
 			BM_face_multires_bounds_smooth(bm, f_new);
 #endif
 		}
+	}
+
+	if (has_mdisp) {
+		BM_face_kill(bm, f_tmp);
 	}
 
 	return f_new;
@@ -1067,7 +1068,7 @@ BMEdge *BM_edge_rotate(BMesh *bm, BMEdge *e, const bool ccw, const short check_f
 
 	/* first create the new edge, this is so we can copy the customdata from the old one
 	 * if splice if disabled, always add in a new edge even if theres one there. */
-	e_new = BM_edge_create(bm, v1, v2, e, (check_flag & BM_EDGEROT_CHECK_SPLICE) != 0);
+	e_new = BM_edge_create(bm, v1, v2, e, (check_flag & BM_EDGEROT_CHECK_SPLICE) ? BM_CREATE_NO_DOUBLE : BM_CREATE_NOP);
 
 	f_hflag_prev_1 = l1->f->head.hflag;
 	f_hflag_prev_2 = l2->f->head.hflag;

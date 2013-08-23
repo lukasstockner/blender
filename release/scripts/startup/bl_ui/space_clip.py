@@ -300,13 +300,14 @@ class CLIP_PT_tools_tracking(CLIP_PT_tracking_panel, Panel):
         props = row.operator("clip.refine_markers", text="Forwards")
         props.backwards = False
 
-        col = layout.column(align=True)
-        props = col.operator("clip.clear_track_path", text="Clear After")
-        props.action = 'REMAINED'
-
-        props = col.operator("clip.clear_track_path", text="Clear Before")
+        col = layout.column()
+        col.label(text="Clear:")
+        row = col.row(align=True)
+        props = row.operator("clip.clear_track_path", text="Before")
         props.action = 'UPTO'
-        col.operator("clip.clear_track_path", text="Clear").action = 'ALL'
+
+        props = row.operator("clip.clear_track_path", text="After")
+        props.action = 'REMAINED'
 
         layout.operator("clip.join_tracks", text="Join")
 
@@ -315,6 +316,7 @@ class CLIP_PT_tools_plane_tracking(CLIP_PT_tracking_panel, Panel):
     bl_space_type = 'CLIP_EDITOR'
     bl_region_type = 'TOOLS'
     bl_label = "Plane Track"
+    bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
         layout = self.layout
@@ -593,6 +595,7 @@ class CLIP_PT_plane_track(CLIP_PT_tracking_panel, Panel):
     bl_space_type = 'CLIP_EDITOR'
     bl_region_type = 'UI'
     bl_label = "Plane Track"
+    bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
         layout = self.layout
@@ -717,7 +720,8 @@ class CLIP_PT_display(CLIP_PT_clip_view_panel, Panel):
 
         col.prop(sc, "show_disabled", "Disabled Tracks")
         col.prop(sc, "show_names", text="Names and Status")
-        col.prop(sc, "show_bundles", text="3D Markers")
+        if sc.mode != 'MASK':
+            col.prop(sc, "show_bundles", text="3D Markers")
 
         col.prop(sc, "use_mute_footage", text="Mute Footage")
         col.prop(sc, "lock_selection")
