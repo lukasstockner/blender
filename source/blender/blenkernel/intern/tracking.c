@@ -2935,7 +2935,7 @@ static struct libmv_Tracks *libmv_tracks_new(ListBase *tracksbase, int width, in
 static void reconstruct_retrieve_libmv_intrinsics(MovieReconstructContext *context, MovieTracking *tracking)
 {
 	struct libmv_Reconstruction *libmv_reconstruction = context->reconstruction;
-	struct libmv_CameraIntrinsics *libmv_intrinsics = libmv_reconstructionExtractIntrinsics(libmv_reconstruction);
+	struct libmv_CameraIntrinsics *libmv_intrinsics = libmv_reconstructionExtractIntrinsics(libmv_reconstruction, 0);
 
 	float aspy = 1.0f / tracking->camera.pixel_aspect;
 

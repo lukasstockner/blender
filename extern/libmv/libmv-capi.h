@@ -121,7 +121,8 @@ double libmv_reprojectionErrorForImage(const struct libmv_Reconstruction *libmv_
 int libmv_reprojectionCameraForImage(const struct libmv_Reconstruction *libmv_reconstruction,
                                      int camera, int image, double mat[4][4]);
 double libmv_reprojectionError(const struct libmv_Reconstruction *libmv_reconstruction);
-struct libmv_CameraIntrinsics *libmv_reconstructionExtractIntrinsics(struct libmv_Reconstruction *libmv_Reconstruction);
+struct libmv_CameraIntrinsics *libmv_reconstructionExtractIntrinsics(struct libmv_Reconstruction *libmv_Reconstruction,
+                                                                     int camera);
 
 /* Feature detector */
 struct libmv_Features *libmv_detectFeaturesFAST(const unsigned char *data, int width, int height, int stride,

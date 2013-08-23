@@ -831,9 +831,10 @@ double libmv_reprojectionError(const struct libmv_Reconstruction *libmv_reconstr
 	return libmv_reconstruction->error;
 }
 
-struct libmv_CameraIntrinsics *libmv_reconstructionExtractIntrinsics(struct libmv_Reconstruction *libmv_reconstruction)
+struct libmv_CameraIntrinsics *libmv_reconstructionExtractIntrinsics(struct libmv_Reconstruction *libmv_reconstruction,
+                                                                     int camera)
 {
-	return (struct libmv_CameraIntrinsics *)&libmv_reconstruction->intrinsics;
+	return (struct libmv_CameraIntrinsics *)&libmv_reconstruction->intrinsics[camera];
 }
 
 /* ************ Feature detector ************ */
