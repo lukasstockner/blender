@@ -557,6 +557,7 @@ static libmv::BundleOptions refinementOptionsFromReconstructionOptions(
 
 	const int motion_flag = reconstruction_options.motion_flag;
 	const int refine_intrinsics = reconstruction_options.refine_intrinsics;
+	const int constrain_intrinsics = reconstruction_options.constrain_intrinsics;
 
 	if (motion_flag & LIBMV_TRACKING_MOTION_MODAL) {
 		bundle_options.constraints |= libmv::BUNDLE_NO_TRANSLATION;
@@ -564,7 +565,7 @@ static libmv::BundleOptions refinementOptionsFromReconstructionOptions(
 
 	if (refine_intrinsics & LIBMV_REFINE_FOCAL_LENGTH) {
 		bundle_options.bundle_intrinsics |= libmv::BUNDLE_FOCAL_LENGTH;
-		if (refine_intrinsics & LIBMV_CONSTRAIN_FOCAL_LENGTH) {
+		if (constrain_intrinsics & LIBMV_CONSTRAIN_FOCAL_LENGTH) {
 			bundle_options.constraints |= libmv::BUNDLE_CONSTRAIN_FOCAL_LENGTH;
 			bundle_options.focal_length_min = reconstruction_options.focal_length_min;
 			bundle_options.focal_length_max = reconstruction_options.focal_length_max;
