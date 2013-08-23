@@ -50,6 +50,9 @@
 #include "ED_transform.h"
 #include "ED_view3d.h"
 
+#include "bmesh.h"
+#include "bmesh_tools.h"
+
 #include "mesh_intern.h"  /* own include */
 
 /**
@@ -494,7 +497,7 @@ static void edbm_tagged_loop_pairs_do_fill_faces(BMesh *bm, UnorderedLoopPair *u
 			/* face should never exist */
 			BLI_assert(BM_face_exists(f_verts, f_verts[3] ? 4 : 3, &f) == false);
 
-			f = BM_face_create_quad_tri_v(bm, f_verts, f_verts[3] ? 4 : 3, f_example, false);
+			f = BM_face_create_verts(bm, f_verts, f_verts[3] ? 4 : 3, f_example, BM_CREATE_NOP, true);
 
 			l_iter = BM_FACE_FIRST_LOOP(f);
 

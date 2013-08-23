@@ -15,31 +15,20 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2013 Blender Foundation.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Benoit Bolsee,
- *                 Sergey Sharybin.
+ * Contributor(s): Campbell Barton
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __BLI_SORT_H__
-#define __BLI_SORT_H__
+#ifndef __BMESH_BISECT_PLANE_H__
+#define __BMESH_BISECT_PLANE_H__
 
-/** \file BLI_sort.h
- *  \ingroup bli
+/** \file blender/bmesh/tools/bmesh_bisect_plane.h
+ *  \ingroup bmesh
  */
 
-/* Quick sort reentrant */
-typedef int (*BLI_sort_cmp_t)(void *ctx, const void *a, const void *b);
+void BM_mesh_bisect_plane(BMesh *bm, float plane[4],
+                          const bool use_snap_center, const bool use_tag,
+                          const short oflag_new, const float eps);
 
-void BLI_qsort_r(void *a, size_t n, size_t es, void *thunk, BLI_sort_cmp_t cmp)
-#ifdef __GNUC__
-__attribute__((nonnull(1, 5)))
-#endif
-;
-
-#endif  /* __BLI_SORT_H__ */
+#endif /* __BMESH_BISECT_PLANE_H__ */

@@ -49,6 +49,7 @@
 #include "BKE_paint.h"
 #include "BKE_brush.h"
 #include "BKE_curve.h"
+#include "BKE_colortools.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -760,6 +761,9 @@ PaintStroke *paint_stroke_new(bContext *C,
 	ups->overlap_factor = 1.0;
 	ups->stroke_active = true;
 
+	/* initialize here to avoid initialization conflict with threaded strokes */
+	curvemapping_initialize(br->curve);
+	
 	BKE_paint_set_overlay_override(br->overlay_flags);
 
 	return stroke;

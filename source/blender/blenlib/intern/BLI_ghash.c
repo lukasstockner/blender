@@ -150,15 +150,17 @@ static void ghash_insert_ex(GHash *gh, void *key, void *val,
 GHash *BLI_ghash_new(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info)
 {
 	GHash *gh = MEM_mallocN(sizeof(*gh), info);
+
 	gh->hashfp = hashfp;
 	gh->cmpfp = cmpfp;
-	gh->entrypool = BLI_mempool_create(sizeof(Entry), 64, 64, 0);
 
-	gh->cursize = 0;
+	gh->nbuckets = hashsizes[0];  /* gh->cursize */
 	gh->nentries = 0;
-	gh->nbuckets = hashsizes[gh->cursize];
+	gh->cursize = 0;
+	gh->flag = 0;
 
 	gh->buckets = MEM_callocN(gh->nbuckets * sizeof(*gh->buckets), "buckets");
+	gh->entrypool = BLI_mempool_create(sizeof(Entry), 64, 64, 0);
 
 	return gh;
 }
@@ -177,11 +179,8 @@ void BLI_ghash_insert(GHash *gh, void *key, void *val)
 /**
  * Assign a new value to a key that may already be in ghash.
  * Avoids #BLI_ghash_remove, #BLI_ghash_insert calls (double lookups)
- *
- * \note We may want to have 'BLI_ghash_assign_ex' function that takes
- * GHashKeyFreeFP & GHashValFreeFP args. for now aren't needed.
  */
-void BLI_ghash_assign(GHash *gh, void *key, void *val, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp)
+void BLI_ghash_reinsert(GHash *gh, void *key, void *val, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp)
 {
 	const unsigned int hash = ghash_keyhash(gh, key);
 	Entry *e = ghash_lookup_entry_ex(gh, key, hash);

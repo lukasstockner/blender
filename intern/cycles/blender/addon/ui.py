@@ -48,6 +48,45 @@ class CyclesButtonsPanel():
         return rd.engine == 'CYCLES'
 
 
+def draw_samples_info(layout, cscene):
+    # Calculate sample values
+    if cscene.progressive:
+        aa = cscene.samples
+        if cscene.use_square_samples:
+            aa = aa * aa
+    else:
+        aa = cscene.aa_samples
+        d = cscene.diffuse_samples
+        g = cscene.glossy_samples
+        t = cscene.transmission_samples
+        ao = cscene.ao_samples
+        ml = cscene.mesh_light_samples
+        sss = cscene.subsurface_samples
+
+        if cscene.use_square_samples:
+            aa = aa * aa
+            d = d * d
+            g = g * g
+            t = t * t
+            ao = ao * ao
+            ml = ml * ml
+            sss = sss * sss
+
+    # Draw interface
+    col = layout.column(align=True)
+    col.scale_y = 0.6
+    col.label("Total Samples:")
+    col.separator()
+    if cscene.progressive:
+        col.label("%s AA" % aa)
+    else:
+        col.label("%s AA, %s Diffuse, %s Glossy, %s Transmission" %
+                  (aa, d * aa, g * aa, t * aa))
+        col.separator()
+        col.label("%s AO, %s Mesh Light, %s Subsurface" %
+                  (ao * aa, ml * aa, sss * aa))
+
+
 class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
     bl_label = "Sampling"
     bl_options = {'DEFAULT_CLOSED'}
@@ -58,7 +97,7 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
         scene = context.scene
         cscene = scene.cycles
         device_type = context.user_preferences.system.compute_device_type
-        
+
         row = layout.row(align=True)
         row.menu("CYCLES_MT_sampling_presets", text=bpy.types.CYCLES_MT_sampling_presets.bl_label)
         row.operator("render.cycles_sampling_preset_add", text="", icon="ZOOMIN")
@@ -66,12 +105,10 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
 
         row = layout.row()
         row.prop(cscene, "progressive")
-        
-        if not cscene.progressive:
-            row.prop(cscene, "squared_samples")
-        
+        row.prop(cscene, "use_square_samples")
+
         split = layout.split()
-        
+
         col = split.column()
         sub = col.column(align=True)
         sub.label("Settings:")
@@ -107,6 +144,8 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
                 layout.separator()
                 layout.row().prop(cscene, "use_layer_samples")
                 break
+
+        draw_samples_info(layout, cscene)
 
 
 class CyclesRender_PT_light_paths(CyclesButtonsPanel, Panel):
@@ -242,7 +281,7 @@ class CyclesRender_PT_performance(CyclesButtonsPanel, Panel):
 
         col.separator()
 
-        col.label(text="Acceleration structure:")   
+        col.label(text="Acceleration structure:")
         col.prop(cscene, "debug_use_spatial_splits")
 
 
@@ -376,7 +415,7 @@ class CyclesRender_PT_layer_passes(CyclesButtonsPanel, Panel):
         row.prop(rl, "use_pass_subsurface_direct", text="Direct", toggle=True)
         row.prop(rl, "use_pass_subsurface_indirect", text="Indirect", toggle=True)
         row.prop(rl, "use_pass_subsurface_color", text="Color", toggle=True)
-        
+
         col.separator()
         col.prop(rl, "use_pass_emit", text="Emission")
         col.prop(rl, "use_pass_environment")
@@ -551,7 +590,8 @@ class CyclesObject_PT_ray_visibility(CyclesButtonsPanel, Panel):
     @classmethod
     def poll(cls, context):
         ob = context.object
-        return CyclesButtonsPanel.poll(context) and ob and ob.type in {'MESH', 'CURVE', 'CURVE', 'SURFACE', 'FONT', 'META', 'LAMP'}
+        return (CyclesButtonsPanel.poll(context) and
+                ob and ob.type in {'MESH', 'CURVE', 'CURVE', 'SURFACE', 'FONT', 'META', 'LAMP'})
 
     def draw(self, context):
         layout = self.layout
