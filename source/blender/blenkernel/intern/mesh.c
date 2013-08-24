@@ -177,8 +177,8 @@ static int customdata_compare(CustomData *c1, CustomData *c2, Mesh *m1, Mesh *m2
 		if (l1->type == CD_MEDGE) {
 			MEdge *e1 = l1->data;
 			MEdge *e2 = l2->data;
-			EdgeHash *eh = BLI_edgehash_new();
 			int etot = m1->totedge;
+			EdgeHash *eh = BLI_edgehash_new_ex(__func__, etot);
 		
 			for (j = 0; j < etot; j++, e1++) {
 				BLI_edgehash_insert(eh, e1->v1, e1->v2, e1);
@@ -657,6 +657,8 @@ void BKE_mesh_boundbox_calc(Mesh *me, float r_loc[3], float r_size[3])
 	r_size[2] = (max[2] - min[2]) / 2.0f;
 	
 	BKE_boundbox_init_from_minmax(bb, min, max);
+
+	bb->flag &= ~BOUNDBOX_DIRTY;
 }
 
 void BKE_mesh_texspace_calc(Mesh *me)
@@ -686,15 +688,16 @@ BoundBox *BKE_mesh_boundbox_get(Object *ob)
 	if (ob->bb)
 		return ob->bb;
 
-	if (!me->bb)
+	if (me->bb == NULL || (me->bb->flag & BOUNDBOX_DIRTY)) {
 		BKE_mesh_texspace_calc(me);
+	}
 
 	return me->bb;
 }
 
 void BKE_mesh_texspace_get(Mesh *me, float r_loc[3], float r_rot[3], float r_size[3])
 {
-	if (!me->bb) {
+	if (me->bb == NULL || (me->bb->flag & BOUNDBOX_DIRTY)) {
 		BKE_mesh_texspace_calc(me);
 	}
 
@@ -908,7 +911,7 @@ static void make_edges_mdata(MVert *UNUSED(allvert), MFace *allface, MLoop *alll
 	MPoly *mpoly;
 	MFace *mface;
 	MEdge *medge, *med;
-	EdgeHash *hash = BLI_edgehash_new();
+	EdgeHash *hash;
 	struct EdgeSort *edsort, *ed;
 	int a, totedge = 0;
 	unsigned int totedge_final = 0;
@@ -985,6 +988,7 @@ static void make_edges_mdata(MVert *UNUSED(allvert), MFace *allface, MLoop *alll
 	MEM_freeN(edsort);
 	
 	/* set edge members of mloops */
+	hash = BLI_edgehash_new_ex(__func__, totedge_final);
 	for (edge_index = 0, med = medge; edge_index < totedge_final; edge_index++, med++) {
 		BLI_edgehash_insert(hash, med->v1, med->v2, SET_UINT_IN_POINTER(edge_index));
 	}
@@ -1237,10 +1241,12 @@ static void make_edges_mdata_extend(MEdge **r_alledge, int *r_totedge,
 	int totedge = *r_totedge;
 	int totedge_new;
 	EdgeHash *eh;
+	unsigned int eh_reserve;
 	const MPoly *mp;
 	int i;
 
-	eh = BLI_edgehash_new();
+	eh_reserve = max_ii(totedge, BLI_EDGEHASH_SIZE_GUESS_FROM_POLYS(totpoly));
+	eh = BLI_edgehash_new_ex(__func__, eh_reserve);
 
 	for (i = 0, mp = mpoly; i < totpoly; i++, mp++) {
 		BKE_mesh_poly_edgehash_insert(eh, mp, mloop + mp->loopstart);
@@ -1307,7 +1313,13 @@ int BKE_mesh_nurbs_to_mdata(Object *ob, MVert **allvert, int *totvert,
                             MEdge **alledge, int *totedge, MLoop **allloop, MPoly **allpoly,
                             int *totloop, int *totpoly)
 {
-	return BKE_mesh_nurbs_displist_to_mdata(ob, &ob->disp,
+	ListBase disp = {NULL, NULL};
+
+	if (ob->curve_cache) {
+		disp = ob->curve_cache->disp;
+	}
+
+	return BKE_mesh_nurbs_displist_to_mdata(ob, &disp,
 	                                        allvert, totvert,
 	                                        alledge, totedge,
 	                                        allloop, allpoly, NULL,
@@ -1653,8 +1665,13 @@ void BKE_mesh_from_nurbs(Object *ob)
 {
 	Curve *cu = (Curve *) ob->data;
 	bool use_orco_uv = (cu->flag & CU_UV_ORCO) != 0;
+	ListBase disp = {NULL, NULL};
 
-	BKE_mesh_from_nurbs_displist(ob, &ob->disp, use_orco_uv);
+	if (ob->curve_cache) {
+		disp = ob->curve_cache->disp;
+	}
+
+	BKE_mesh_from_nurbs_displist(ob, &disp, use_orco_uv);
 }
 
 typedef struct EdgeLink {
@@ -1852,20 +1869,37 @@ void BKE_mesh_to_curve(Scene *scene, Object *ob)
 	}
 }
 
-void BKE_mesh_delete_material_index(Mesh *me, short index)
+void BKE_mesh_material_index_remove(Mesh *me, short index)
 {
+	MPoly *mp;
+	MFace *mf;
 	int i;
 
-	for (i = 0; i < me->totpoly; i++) {
-		MPoly *mp = &((MPoly *) me->mpoly)[i];
-		if (mp->mat_nr && mp->mat_nr >= index)
+	for (mp = me->mpoly, i = 0; i < me->totpoly; i++, mp++) {
+		if (mp->mat_nr && mp->mat_nr >= index) {
 			mp->mat_nr--;
+		}
 	}
-	
-	for (i = 0; i < me->totface; i++) {
-		MFace *mf = &((MFace *) me->mface)[i];
-		if (mf->mat_nr && mf->mat_nr >= index)
+
+	for (mf = me->mface, i = 0; i < me->totface; i++, mf++) {
+		if (mf->mat_nr && mf->mat_nr >= index) {
 			mf->mat_nr--;
+		}
+	}
+}
+
+void BKE_mesh_material_index_clear(Mesh *me)
+{
+	MPoly *mp;
+	MFace *mf;
+	int i;
+
+	for (mp = me->mpoly, i = 0; i < me->totpoly; i++, mp++) {
+		mp->mat_nr = 0;
+	}
+
+	for (mf = me->mface, i = 0; i < me->totface; i++, mf++) {
+		mf->mat_nr = 0;
 	}
 }
 
@@ -2276,7 +2310,7 @@ void BKE_mesh_convert_mfaces_to_mpolys_ex(ID *id, CustomData *fdata, CustomData 
 		CustomData_external_read(fdata, id, CD_MASK_MDISPS, totface_i);
 	}
 
-	eh = BLI_edgehash_new();
+	eh = BLI_edgehash_new_ex(__func__, totedge_i);
 
 	/* build edge hash */
 	me = medge;
@@ -3636,7 +3670,7 @@ void BKE_mesh_flush_select_from_verts(Mesh *me)
 
 
 /* basic vertex data functions */
-int BKE_mesh_minmax(Mesh *me, float r_min[3], float r_max[3])
+bool BKE_mesh_minmax(Mesh *me, float r_min[3], float r_max[3])
 {
 	int i = me->totvert;
 	MVert *mvert;
@@ -3647,7 +3681,7 @@ int BKE_mesh_minmax(Mesh *me, float r_min[3], float r_max[3])
 	return (me->totvert != 0);
 }
 
-int BKE_mesh_center_median(Mesh *me, float cent[3])
+bool BKE_mesh_center_median(Mesh *me, float cent[3])
 {
 	int i = me->totvert;
 	MVert *mvert;
@@ -3663,19 +3697,19 @@ int BKE_mesh_center_median(Mesh *me, float cent[3])
 	return (me->totvert != 0);
 }
 
-int BKE_mesh_center_bounds(Mesh *me, float cent[3])
+bool BKE_mesh_center_bounds(Mesh *me, float cent[3])
 {
 	float min[3], max[3];
 	INIT_MINMAX(min, max);
 	if (BKE_mesh_minmax(me, min, max)) {
 		mid_v3_v3v3(cent, min, max);
-		return 1;
+		return true;
 	}
 
-	return 0;
+	return false;
 }
 
-int BKE_mesh_center_centroid(Mesh *me, float cent[3])
+bool BKE_mesh_center_centroid(Mesh *me, float cent[3])
 {
 	int i = me->totpoly;
 	MPoly *mpoly;
@@ -3695,6 +3729,11 @@ int BKE_mesh_center_centroid(Mesh *me, float cent[3])
 	/* otherwise we get NAN for 0 polys */
 	if (me->totpoly) {
 		mul_v3_fl(cent, 1.0f / total_area);
+	}
+
+	/* zero area faces cause this, fallback to median */
+	if (UNLIKELY(!is_finite_v3(cent))) {
+		return BKE_mesh_center_median(me, cent);
 	}
 
 	return (me->totpoly != 0);

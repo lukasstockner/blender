@@ -650,7 +650,7 @@ static PropertyRNA *RNA_struct_find_nested(PointerRNA *ptr, StructRNA *srna)
 {
 	PropertyRNA *prop = NULL;
 
-	RNA_STRUCT_BEGIN(ptr, iprop)
+	RNA_STRUCT_BEGIN (ptr, iprop)
 	{
 		/* This assumes that there can only be one user of this nested struct */
 		if (RNA_property_pointer_type(ptr, iprop) == srna) {
@@ -673,7 +673,7 @@ bool RNA_struct_contains_property(PointerRNA *ptr, PropertyRNA *prop_test)
 
 	iterprop = RNA_struct_iterator_property(ptr->type);
 
-	RNA_PROP_BEGIN(ptr, itemptr, iterprop)
+	RNA_PROP_BEGIN (ptr, itemptr, iterprop)
 	{
 		/* PropertyRNA *prop = itemptr.data; */
 		if (prop_test == (PropertyRNA *)itemptr.data) {
@@ -721,7 +721,7 @@ FunctionRNA *RNA_struct_find_function(StructRNA *srna, const char *identifier)
 
 	func = NULL;
 
-	RNA_PROP_BEGIN(&tptr, funcptr, iterprop)
+	RNA_PROP_BEGIN (&tptr, funcptr, iterprop)
 	{
 		if (strcmp(identifier, RNA_function_identifier(funcptr.data)) == 0) {
 			func = funcptr.data;
@@ -3329,7 +3329,7 @@ static int rna_raw_access(ReportList *reports, PointerRNA *ptr, PropertyRNA *pro
 		}
 		/* no item property pointer, can still be id property, or
 		 * property of a type derived from the collection pointer type */
-		RNA_PROP_BEGIN(ptr, itemptr, prop)
+		RNA_PROP_BEGIN (ptr, itemptr, prop)
 		{
 			if (itemptr.data) {
 				if (itemprop) {
@@ -4982,7 +4982,7 @@ static char *rna_pointer_as_string__idprop(bContext *C, PointerRNA *ptr)
 	
 	BLI_dynstr_append(dynstr, "{");
 	
-	RNA_STRUCT_BEGIN(ptr, prop)
+	RNA_STRUCT_BEGIN (ptr, prop)
 	{
 		propname = RNA_property_identifier(prop);
 		
@@ -5049,7 +5049,7 @@ char *RNA_pointer_as_string_keywords_ex(bContext *C, PointerRNA *ptr, PointerRNA
 	PropertyRNA *prop_default;
 	char *buf_default;
 
-	RNA_PROP_BEGIN(ptr, propptr, iterprop)
+	RNA_PROP_BEGIN (ptr, propptr, iterprop)
 	{
 		prop = propptr.data;
 
@@ -5378,7 +5378,7 @@ ParameterList *RNA_parameter_list_create(ParameterList *parms, PointerRNA *UNUSE
 
 	/* allocate data */
 	for (parm = func->cont.properties.first; parm; parm = parm->next) {
-		alloc_size += rna_parameter_size_alloc(parm);
+		alloc_size += rna_parameter_size(parm);
 
 		if (parm->flag & PROP_OUTPUT)
 			parms->ret_count++;
@@ -5440,7 +5440,7 @@ ParameterList *RNA_parameter_list_create(ParameterList *parms, PointerRNA *UNUSE
 			}
 		}
 
-		data = ((char *)data) + rna_parameter_size_alloc(parm);
+		data = ((char *)data) + rna_parameter_size(parm);
 	}
 
 	return parms;
@@ -5462,7 +5462,7 @@ void RNA_parameter_list_free(ParameterList *parms)
 				MEM_freeN(data_alloc->array);
 		}
 
-		tot += rna_parameter_size_alloc(parm);
+		tot += rna_parameter_size(parm);
 	}
 
 	MEM_freeN(parms->data);
@@ -5497,7 +5497,7 @@ void RNA_parameter_list_begin(ParameterList *parms, ParameterIterator *iter)
 	iter->offset = 0;
 
 	if (iter->valid) {
-		iter->size = rna_parameter_size_alloc(iter->parm);
+		iter->size = rna_parameter_size(iter->parm);
 		iter->data = (((char *)iter->parms->data)); /* +iter->offset, always 0 */
 	}
 }
@@ -5509,7 +5509,7 @@ void RNA_parameter_list_next(ParameterIterator *iter)
 	iter->valid = iter->parm != NULL;
 
 	if (iter->valid) {
-		iter->size = rna_parameter_size_alloc(iter->parm);
+		iter->size = rna_parameter_size(iter->parm);
 		iter->data = (((char *)iter->parms->data) + iter->offset);
 	}
 }

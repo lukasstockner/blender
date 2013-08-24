@@ -530,7 +530,9 @@ void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob, CustomDataMask mask)
 	}
 
 	/* copy texture space */
-	BKE_mesh_texspace_copy_from_object(&tmp, ob);
+	if (ob) {
+		BKE_mesh_texspace_copy_from_object(&tmp, ob);
+	}
 	
 	/* not all DerivedMeshes store their verts/edges/faces in CustomData, so
 	 * we set them here in case they are missing */
@@ -1438,6 +1440,8 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 	/* XXX Same as above... For now, only weights preview in WPaint mode. */
 	const int do_mod_wmcol = do_init_wmcol;
 
+	VirtualModifierData virtualModifierData;
+
 	ModifierApplyFlag app_flags = useRenderParams ? MOD_APPLY_RENDER : 0;
 	ModifierApplyFlag deform_app_flags = app_flags;
 	if (useCache)
@@ -1449,7 +1453,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 		has_multires = 0;
 
 	if (!skipVirtualArmature) {
-		firstmd = modifiers_getVirtualModifierList(ob);
+		firstmd = modifiers_getVirtualModifierList(ob, &virtualModifierData);
 	}
 	else {
 		/* game engine exception */
@@ -1959,6 +1963,7 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 	int do_init_wmcol = ((((Mesh *)ob->data)->drawflag & ME_DRAWEIGHT) && !do_final_wmcol);
 	int do_init_statvis = ((((Mesh *)ob->data)->drawflag & ME_DRAW_STATVIS) && !do_init_wmcol);
 	const int do_mod_wmcol = do_init_wmcol;
+	VirtualModifierData virtualModifierData;
 
 	modifiers_clearErrors(ob);
 
@@ -1967,7 +1972,7 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 	}
 
 	dm = NULL;
-	md = modifiers_getVirtualModifierList(ob);
+	md = modifiers_getVirtualModifierList(ob, &virtualModifierData);
 
 	/* copied from mesh_calc_modifiers */
 	if (do_mod_wmcol) {
@@ -2633,9 +2638,9 @@ void DM_add_tangent_layer(DerivedMesh *dm)
 	
 	/* new computation method */
 	{
-		SGLSLMeshToTangent mesh2tangent = {0};
-		SMikkTSpaceContext sContext = {0};
-		SMikkTSpaceInterface sInterface = {0};
+		SGLSLMeshToTangent mesh2tangent = {NULL};
+		SMikkTSpaceContext sContext = {NULL};
+		SMikkTSpaceInterface sInterface = {NULL};
 
 		mesh2tangent.precomputedFaceNormals = nors;
 		mesh2tangent.mtface = mtface;

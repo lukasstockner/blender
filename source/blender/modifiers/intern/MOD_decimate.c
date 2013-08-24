@@ -49,6 +49,7 @@
 #include "BKE_cdderivedmesh.h"
 
 #include "bmesh.h"
+#include "bmesh_tools.h"
 
 // #define USE_TIMEIT
 
@@ -127,6 +128,8 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 			}
 			calc_face_normal = true;
 			break;
+		default:
+			return dm;
 	}
 
 	if (dmd->face_count <= 3) {

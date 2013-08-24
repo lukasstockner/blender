@@ -212,6 +212,7 @@ ILMBASE_SOURCE="http://download.savannah.nongnu.org/releases/openexr/ilmbase-$IL
 OPENEXR_FORCE_REBUILD=false
 OPENEXR_SKIP=false
 _with_built_openexr=false
+_need_openexr_ldconfig=false
 
 OIIO_VERSION="1.1.10"
 OIIO_SOURCE="https://github.com/OpenImageIO/oiio/archive/Release-$OIIO_VERSION.tar.gz"
@@ -230,6 +231,7 @@ LLVM_SKIP=false
 
 # OSL needs to be compiled for now!
 OSL_VERSION="1.3.2"
+OSL_VERSION_MIN=$OSL_VERSION
 OSL_SOURCE="https://github.com/imageworks/OpenShadingLanguage/archive/Release-$OSL_VERSION.tar.gz"
 OSL_FORCE_REBUILD=false
 OSL_SKIP=false
@@ -237,6 +239,7 @@ OSL_SKIP=false
 # Version??
 OPENCOLLADA_VERSION="1.3"
 OPENCOLLADA_SOURCE="https://github.com/KhronosGroup/OpenCOLLADA.git"
+OPENCOLLADA_REPO_UID="828b60384552b83e55d2af7055f07d2c40b4d3f4"
 OPENCOLLADA_FORCE_REBUILD=false
 OPENCOLLADA_SKIP=false
 
@@ -1632,7 +1635,7 @@ clean_OpenCOLLADA() {
 
 compile_OpenCOLLADA() {
   # To be changed each time we make edits that would modify the compiled results!
-  opencollada_magic=6
+  opencollada_magic=7
   _init_opencollada
 
   # Clean install if needed!
@@ -1657,7 +1660,7 @@ compile_OpenCOLLADA() {
     git pull origin master
 
     # Stick to same rev as windows' libs...
-    git checkout e886e196673222f2f4bc32b936dc96419fff815f
+    git checkout $OPENCOLLADA_REPO_UID
     git reset --hard
 
     # Always refresh the whole build!
@@ -2775,7 +2778,7 @@ install_ARCH() {
       if [ $? -eq 0 ]; then
         install_packages_ARCH llvm clang
         have_llvm=true
-        LLVM_VERSION=`check_package_version_ge_ARCH llvm`
+        LLVM_VERSION=`check_package_version_ge_ARCH llvm $LLVM_VERSION_MIN`
         LLVM_VERSION_FOUND=$LLVM_VERSION
         clean_LLVM
       else

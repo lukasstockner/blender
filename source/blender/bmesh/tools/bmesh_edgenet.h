@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -15,30 +15,19 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor: 
- *		Jeroen Bakker 
- *		Monique Dewanchand
+ * Contributor(s): Campbell Barton
+ *
+ * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef _COM_SplitViewerOperation_h
-#define _COM_SplitViewerOperation_h
-#include "COM_ViewerBaseOperation.h"
-#include "DNA_image_types.h"
-#include "BLI_rect.h"
+#ifndef __BMESH_EDGENET_H__
+#define __BMESH_EDGENET_H__
 
-class SplitViewerOperation : public ViewerBaseOperation {
-private:
-	SocketReader *m_image1Input;
-	SocketReader *m_image2Input;
+/** \file blender/bmesh/tools/bmesh_edgenet.h
+ *  \ingroup bmesh
+ */
 
-	float m_splitPercentage;
-	bool m_xSplit;
-public:
-	SplitViewerOperation();
-	void executeRegion(rcti *rect, unsigned int tileNumber);
-	void initExecution();
-	void deinitExecution();
-	void setSplitPercentage(float splitPercentage) { this->m_splitPercentage = splitPercentage; }
-	void setXSplit(bool xsplit) { this->m_xSplit = xsplit; }
-};
-#endif
+void BM_mesh_edgenet(BMesh *bm,
+                     const bool use_edge_tag, const bool use_new_face_tag);
+
+#endif /* __BMESH_EDGENET_H__ */

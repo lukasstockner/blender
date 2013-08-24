@@ -613,9 +613,12 @@ void BKE_pose_channels_hash_free(bPose *pose)
 	}
 }
 
-
 void BKE_pose_channel_free(bPoseChannel *pchan)
 {
+	if (pchan->custom) {
+		id_us_min(&pchan->custom->id);
+		pchan->custom = NULL;
+	}
 
 	if (pchan->mpath) {
 		animviz_free_motionpath(pchan->mpath);
@@ -727,6 +730,9 @@ void BKE_pose_channel_copy_data(bPoseChannel *pchan, const bPoseChannel *pchan_f
 
 	/* custom shape */
 	pchan->custom = pchan_from->custom;
+	if (pchan->custom) {
+		id_us_plus(&pchan->custom->id);
+	}
 }
 
 

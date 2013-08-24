@@ -1347,7 +1347,7 @@ static int shade_smooth_exec(bContext *C, wmOperator *op)
 
 static int shade_poll(bContext *C)
 {
-	return (ED_operator_object_active_editable(C) && !ED_operator_editmesh(C));
+	return (CTX_data_edit_object(C) == NULL);
 }
 
 void OBJECT_OT_shade_flat(wmOperatorType *ot)
@@ -1417,8 +1417,9 @@ static void UNUSED_FUNCTION(image_aspect) (Scene *scene, View3D *v3d)
 									space = size[0] / size[1];
 								}
 								else if (ELEM3(ob->type, OB_CURVE, OB_FONT, OB_SURF)) {
-									Curve *cu = ob->data;
-									space = cu->size[0] / cu->size[1];
+									float size[3];
+									BKE_curve_texspace_get(ob->data, NULL, NULL, size);
+									space = size[0] / size[1];
 								}
 							
 								x = ibuf->x / space;

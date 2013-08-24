@@ -233,9 +233,8 @@ static char gPyExpandPath_doc[] =
 path - the string path to convert.\n\n\
 Use / as directory separator in path\n\
 You can use '//' at the start of the string to define a relative path;\n\
-Blender replaces that string by the directory of the startup .blend or runtime\n\
-file to make a full path name (doesn't change during the game, even if you load\n\
-other .blend).\n\
+Blender replaces that string by the directory of the current .blend or runtime\n\
+file to make a full path name.\n\
 The function also converts the directory separator to the local file system format.";
 
 static PyObject *gPyExpandPath(PyObject *, PyObject *args)
@@ -1379,14 +1378,14 @@ static PyObject *gPySetVsync(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args, "i:setVsync", &interval))
 		return NULL;
 
-	if (interval < VSYNC_OFF || interval > VSYNC_ADAPTIVE) {
+	if (interval < 0 || interval > VSYNC_ADAPTIVE) {
 		PyErr_SetString(PyExc_ValueError, "Rasterizer.setVsync(value): value must be VSYNC_OFF, VSYNC_ON, or VSYNC_ADAPTIVE");
 		return NULL;
 	}
 
 	if (interval == VSYNC_ADAPTIVE)
 		interval = -1;
-	gp_Canvas->SetSwapInterval(interval);
+	gp_Canvas->SetSwapInterval(!interval); // VSYNC_OFF == 1, VSYNC_ON == 0, so this works
 	Py_RETURN_NONE;
 }
 
@@ -1676,16 +1675,16 @@ PyObject *initGameLogic(KX_KetsjiEngine *engine, KX_Scene* scene) // quick hack 
 	KX_MACRO_addTypesToDict(d, KX_RADAR_AXIS_POS_X, KX_RadarSensor::KX_RADAR_AXIS_POS_X);
 	KX_MACRO_addTypesToDict(d, KX_RADAR_AXIS_POS_Y, KX_RadarSensor::KX_RADAR_AXIS_POS_Y);
 	KX_MACRO_addTypesToDict(d, KX_RADAR_AXIS_POS_Z, KX_RadarSensor::KX_RADAR_AXIS_POS_Z);
-	KX_MACRO_addTypesToDict(d, KX_RADAR_AXIS_NEG_X, KX_RadarSensor::KX_RADAR_AXIS_NEG_Y);
-	KX_MACRO_addTypesToDict(d, KX_RADAR_AXIS_NEG_Y, KX_RadarSensor::KX_RADAR_AXIS_NEG_X);
+	KX_MACRO_addTypesToDict(d, KX_RADAR_AXIS_NEG_X, KX_RadarSensor::KX_RADAR_AXIS_NEG_X);
+	KX_MACRO_addTypesToDict(d, KX_RADAR_AXIS_NEG_Y, KX_RadarSensor::KX_RADAR_AXIS_NEG_Y);
 	KX_MACRO_addTypesToDict(d, KX_RADAR_AXIS_NEG_Z, KX_RadarSensor::KX_RADAR_AXIS_NEG_Z);
 
 	/* Ray Sensor */
 	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_POS_X, KX_RaySensor::KX_RAY_AXIS_POS_X);
 	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_POS_Y, KX_RaySensor::KX_RAY_AXIS_POS_Y);
 	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_POS_Z, KX_RaySensor::KX_RAY_AXIS_POS_Z);
-	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_X, KX_RaySensor::KX_RAY_AXIS_NEG_Y);
-	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_Y, KX_RaySensor::KX_RAY_AXIS_NEG_X);
+	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_X, KX_RaySensor::KX_RAY_AXIS_NEG_X);
+	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_Y, KX_RaySensor::KX_RAY_AXIS_NEG_Y);
 	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_Z, KX_RaySensor::KX_RAY_AXIS_NEG_Z);
 
 	/* Dynamic actuator */
@@ -1820,6 +1819,10 @@ PyObject *initGameLogic(KX_KetsjiEngine *engine, KX_Scene* scene) // quick hack 
 	KX_MACRO_addTypesToDict(d, KX_ACTION_MODE_PLAY, BL_Action::ACT_MODE_PLAY);
 	KX_MACRO_addTypesToDict(d, KX_ACTION_MODE_LOOP, BL_Action::ACT_MODE_LOOP);
 	KX_MACRO_addTypesToDict(d, KX_ACTION_MODE_PING_PONG, BL_Action::ACT_MODE_PING_PONG);
+
+	/* BL_Action blend modes */
+	KX_MACRO_addTypesToDict(d, KX_ACTION_BLEND_BLEND, BL_Action::ACT_BLEND_BLEND);
+	KX_MACRO_addTypesToDict(d, KX_ACTION_BLEND_ADD, BL_Action::ACT_BLEND_ADD);
 
 	// Check for errors
 	if (PyErr_Occurred())

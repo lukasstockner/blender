@@ -334,7 +334,7 @@ static int ss_sync_from_uv(CCGSubSurf *ss, CCGSubSurf *origss, DerivedMesh *dm, 
 	}
 
 	/* create edges */
-	ehash = BLI_edgehash_new();
+	ehash = BLI_edgehash_new_ex(__func__, BLI_EDGEHASH_SIZE_GUESS_FROM_POLYS(totface));
 
 	for (i = 0; i < totface; i++) {
 		MPoly *mp = &((MPoly *) mpoly)[i];
@@ -1332,7 +1332,7 @@ static void ccgDM_copyFinalLoopArray(DerivedMesh *dm, MLoop *mloop)
 	if (!ccgdm->ehash) {
 		MEdge *medge;
 
-		ccgdm->ehash = BLI_edgehash_new();
+		ccgdm->ehash = BLI_edgehash_new_ex(__func__, ccgdm->dm.numEdgeData);
 		medge = ccgdm->dm.getEdgeArray((DerivedMesh *)ccgdm);
 
 		for (i = 0; i < ccgdm->dm.numEdgeData; i++) {
@@ -3139,7 +3139,7 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 	int numTex, numCol;
 	int hasPCol, hasOrigSpace;
 	int gridInternalEdges;
-	WeightTable wtable = {0};
+	WeightTable wtable = {NULL};
 	/* MCol *mcol; */ /* UNUSED */
 	MEdge *medge = NULL;
 	/* MFace *mface = NULL; */

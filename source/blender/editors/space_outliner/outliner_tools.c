@@ -45,6 +45,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
+#include "BLI_ghash.h"
 
 #include "BKE_animsys.h"
 #include "BKE_context.h"
@@ -56,6 +57,7 @@
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_sequencer.h"
+#include "BKE_treehash.h"
 
 #include "ED_armature.h"
 #include "ED_object.h"
@@ -682,6 +684,10 @@ static int outliner_object_operation_exec(bContext *C, wmOperator *op)
 	else if (event == OL_OP_RENAME) {
 		outliner_do_object_operation(C, scene, soops, &soops->tree, item_rename_cb);
 		str = "Rename Object";
+	}
+	else {
+		BLI_assert(0);
+		return OPERATOR_CANCELLED;
 	}
 
 	ED_undo_push(C, str);

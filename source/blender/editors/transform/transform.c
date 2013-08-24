@@ -1324,12 +1324,6 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 					t->redraw |= TREDRAW_HARD;
 				}
 				break;
-//		case LEFTMOUSE:
-//		case RIGHTMOUSE:
-//			if (WM_modal_tweak_exit(event, t->event_type))
-////			if (t->options & CTX_TWEAK)
-//				t->state = TRANS_CONFIRM;
-//			break;
 			case LEFTALTKEY:
 			case RIGHTALTKEY:
 				if (ELEM(t->spacetype, SPACE_SEQ, SPACE_VIEW3D)) {
@@ -1374,7 +1368,7 @@ int calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], int c
 	t->state = TRANS_RUNNING;
 
 	/* avoid calculating PET */
-	t->options = CTX_NONE | CTX_NO_PET;
+	t->options = CTX_NO_PET;
 
 	t->mode = TFM_DUMMY;
 
@@ -1755,29 +1749,32 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
 
 	// If modal, save settings back in scene if not set as operator argument
 	if (t->flag & T_MODAL) {
-
 		/* save settings if not set in operator */
-		if ((prop = RNA_struct_find_property(op->ptr, "proportional")) &&
-		    !RNA_property_is_set(op->ptr, prop))
-		{
-			if (t->obedit)
-				ts->proportional = proportional;
-			else if (t->options & CTX_MASK)
-				ts->proportional_mask = (proportional != PROP_EDIT_OFF);
-			else
-				ts->proportional_objects = (proportional != PROP_EDIT_OFF);
-		}
 
-		if ((prop = RNA_struct_find_property(op->ptr, "proportional_size")) &&
-		    !RNA_property_is_set(op->ptr, prop))
-		{
-			ts->proportional_size = t->prop_size;
-		}
+		/* skip saving proportional edit if it was not actually used */
+		if (!(t->options & CTX_NO_PET)) {
+			if ((prop = RNA_struct_find_property(op->ptr, "proportional")) &&
+				!RNA_property_is_set(op->ptr, prop))
+			{
+				if (t->obedit)
+					ts->proportional = proportional;
+				else if (t->options & CTX_MASK)
+					ts->proportional_mask = (proportional != PROP_EDIT_OFF);
+				else
+					ts->proportional_objects = (proportional != PROP_EDIT_OFF);
+			}
 
-		if ((prop = RNA_struct_find_property(op->ptr, "proportional_edit_falloff")) &&
-		    !RNA_property_is_set(op->ptr, prop))
-		{
-			ts->prop_mode = t->prop_mode;
+			if ((prop = RNA_struct_find_property(op->ptr, "proportional_size")) &&
+				!RNA_property_is_set(op->ptr, prop))
+			{
+				ts->proportional_size = t->prop_size;
+			}
+
+			if ((prop = RNA_struct_find_property(op->ptr, "proportional_edit_falloff")) &&
+				!RNA_property_is_set(op->ptr, prop))
+			{
+				ts->prop_mode = t->prop_mode;
+			}
 		}
 		
 		/* do we check for parameter? */
@@ -3011,7 +3008,12 @@ static void ElementResize(TransInfo *t, TransData *td, float mat[3][3])
 		copy_v3_v3(center, td->center);
 	}
 	else if (t->options & CTX_MOVIECLIP) {
-		copy_v3_v3(center, td->center);
+		if (td->flag & TD_INDIVIDUAL_SCALE) {
+			copy_v3_v3(center, td->center);
+		}
+		else {
+			copy_v3_v3(center, t->center);
+		}
 	}
 	else {
 		copy_v3_v3(center, t->center);
@@ -5706,7 +5708,7 @@ int handleEventEdgeSlide(struct TransInfo *t, const struct wmEvent *event)
 	return 0;
 }
 
-void drawEdgeSlide(const struct bContext *C, TransInfo *t)
+static void drawEdgeSlide(const struct bContext *C, TransInfo *t)
 {
 	if (t->mode == TFM_EDGE_SLIDE) {
 		EdgeSlideData *sld = (EdgeSlideData *)t->customData;
@@ -5880,14 +5882,8 @@ int EdgeSlide(TransInfo *t, const int UNUSED(mval[2]))
 
 	t->values[0] = final;
 
-	/*do stuff here*/
-	if (t->customData) {
-		doEdgeSlide(t, final);
-	}
-	else {
-		BLI_strncpy(str, IFACE_("Invalid Edge Selection"), MAX_INFO_LEN);
-		t->state = TRANS_CANCEL;
-	}
+	/* do stuff here */
+	doEdgeSlide(t, final);
 
 	recalcData(t);
 
@@ -6394,14 +6390,8 @@ int VertSlide(TransInfo *t, const int UNUSED(mval[2]))
 	ofs += BLI_snprintf(str + ofs, MAX_INFO_LEN - ofs, IFACE_("Alt or (C)lamp: %s"), is_clamp ? on_str : off_str);
 	/* done with header string */
 
-	/*do stuff here*/
-	if (t->customData) {
-		doVertSlide(t, final);
-	}
-	else {
-		BLI_strncpy(str, IFACE_("Invalid Vert Selection"), MAX_INFO_LEN);
-		t->state = TRANS_CANCEL;
-	}
+	/* do stuff here */
+	doVertSlide(t, final);
 
 	recalcData(t);
 

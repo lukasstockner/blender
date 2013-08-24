@@ -106,8 +106,8 @@ bGPdata **gpencil_data_get_pointers(const bContext *C, PointerRNA *ptr)
 				
 				/* TODO: we can include other data-types such as bones later if need be... */
 
-				/* just in case no active object */
-				if (ob) {
+				/* just in case no active/selected object */
+				if (ob && (ob->flag & SELECT)) {
 					/* for now, as long as there's an object, default to using that in 3D-View */
 					if (ptr) RNA_id_pointer_create(&ob->id, ptr);
 					return &ob->gpd;
@@ -192,7 +192,14 @@ bGPdata *gpencil_data_get_active(const bContext *C)
 /* needed for offscreen rendering */
 bGPdata *gpencil_data_get_active_v3d(Scene *scene)
 {
-	bGPdata *gpd = scene->basact ? scene->basact->object->gpd : NULL;
+	Base *base = scene->basact;
+	bGPdata *gpd = NULL;
+	/* We have to make sure active object is actually visible and selected, else we must use default scene gpd,
+	 * to be consistent with gpencil_data_get_active's behavior.
+	 */
+	if (base && (scene->lay & base->lay) && (base->object->flag & SELECT)) {
+		gpd = base->object->gpd;
+	}
 	return gpd ? gpd : scene->gpd;
 }
 

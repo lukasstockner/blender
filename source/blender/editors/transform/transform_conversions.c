@@ -58,9 +58,12 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math.h"
-#include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 #include "BLI_smallhash.h"
+#include "BLI_listbase.h"
+#include "BLI_linklist_stack.h"
+#include "BLI_string.h"
+#include "BLI_rect.h"
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_action.h"
@@ -119,8 +122,6 @@
 
 #include "transform.h"
 #include "bmesh.h"
-
-#include "BLI_sys_types.h" // for intptr_t support
 
 /* when transforming islands */
 struct TransIslandData {
@@ -274,6 +275,13 @@ static void createTransTexspace(TransInfo *t)
 
 	id = ob->data;
 	if (id == NULL || !ELEM3(GS(id->name), ID_ME, ID_CU, ID_MB)) {
+		BKE_report(t->reports, RPT_ERROR, "Unsupported object type for text-space transform");
+		t->total = 0;
+		return;
+	}
+
+	if (BKE_object_obdata_is_libdata(ob)) {
+		BKE_report(t->reports, RPT_ERROR, "Linked data can't text-space transform");
 		t->total = 0;
 		return;
 	}
@@ -989,8 +997,7 @@ static void createTransPose(TransInfo *t, Object *ob)
 
 	if (arm->flag & ARM_RESTPOS) {
 		if (ELEM(t->mode, TFM_DUMMY, TFM_BONESIZE) == 0) {
-			// XXX use transform operator reports
-			// BKE_report(op->reports, RPT_ERROR, "Cannot select linked when sync selection is enabled");
+			BKE_report(t->reports, RPT_ERROR, "Cannot select linked when sync selection is enabled");
 			return;
 		}
 	}
@@ -1030,8 +1037,7 @@ static void createTransPose(TransInfo *t, Object *ob)
 	}
 
 	if (td != (t->data + t->total)) {
-		// XXX use transform operator reports
-		// BKE_report(op->reports, RPT_DEBUG, "Bone selection count error");
+		BKE_report(t->reports, RPT_DEBUG, "Bone selection count error");
 	}
 
 	/* initialize initial auto=ik chainlen's? */
@@ -1848,15 +1854,13 @@ static void editmesh_set_connectivity_distance(BMesh *bm, float mtx[3][3], float
 	/* need to be very careful of feedback loops here, store previous dist's to avoid feedback */
 	float *dists_prev = MEM_mallocN(bm->totvert * sizeof(float), __func__);
 
-	BMVert **queue = MEM_mallocN(bm->totvert * sizeof(BMVert *), __func__);
-	STACK_DECLARE(queue);
+	BLI_LINKSTACK_DECLARE(queue, BMVert *);
 
 	/* any BM_ELEM_TAG'd vertex is in 'queue_next', so we don't add in twice */
-	BMVert **queue_next = MEM_mallocN(bm->totvert * sizeof(BMVert *), __func__);
-	STACK_DECLARE(queue_next);
+	BLI_LINKSTACK_DECLARE(queue_next, BMVert *);
 
-	STACK_INIT(queue);
-	STACK_INIT(queue_next);
+	BLI_LINKSTACK_INIT(queue);
+	BLI_LINKSTACK_INIT(queue_next);
 
 	{
 		BMIter viter;
@@ -1871,7 +1875,7 @@ static void editmesh_set_connectivity_distance(BMesh *bm, float mtx[3][3], float
 				dists[i] = FLT_MAX;
 			}
 			else {
-				STACK_PUSH(queue, v);
+				BLI_LINKSTACK_PUSH(queue, v);
 
 				dists[i] = 0.0f;
 			}
@@ -1880,11 +1884,11 @@ static void editmesh_set_connectivity_distance(BMesh *bm, float mtx[3][3], float
 
 	do {
 		BMVert *v;
-		unsigned int i;
+		LinkNode *lnk;
 
 		memcpy(dists_prev, dists, sizeof(float) * bm->totvert);
 
-		while ((v = STACK_POP(queue))) {
+		while ((v = BLI_LINKSTACK_POP(queue))) {
 			BMIter iter;
 			BMEdge *e;
 			BMLoop *l;
@@ -1896,7 +1900,7 @@ static void editmesh_set_connectivity_distance(BMesh *bm, float mtx[3][3], float
 					if (bmesh_test_dist_add(v, v_other, dists, dists_prev, mtx)) {
 						if (BM_elem_flag_test(v_other, BM_ELEM_TAG) == 0) {
 							BM_elem_flag_enable(v_other, BM_ELEM_TAG);
-							STACK_PUSH(queue_next, v_other);
+							BLI_LINKSTACK_PUSH(queue_next, v_other);
 						}
 					}
 				}
@@ -1912,7 +1916,7 @@ static void editmesh_set_connectivity_distance(BMesh *bm, float mtx[3][3], float
 						if (bmesh_test_dist_add(v, v_other, dists, dists_prev, mtx)) {
 							if (BM_elem_flag_test(v_other, BM_ELEM_TAG) == 0) {
 								BM_elem_flag_enable(v_other, BM_ELEM_TAG);
-								STACK_PUSH(queue_next, v_other);
+								BLI_LINKSTACK_PUSH(queue_next, v_other);
 							}
 						}
 					} while ((l = l->next) != l_end);
@@ -1921,22 +1925,20 @@ static void editmesh_set_connectivity_distance(BMesh *bm, float mtx[3][3], float
 		}
 
 		/* clear for the next loop */
-		for (i = 0; i < STACK_SIZE(queue_next); i++) {
-			BM_elem_flag_disable(queue_next[i], BM_ELEM_TAG);
+		for (lnk = queue_next; lnk; lnk = lnk->next) {
+			BM_elem_flag_disable((BMVert *)lnk->link, BM_ELEM_TAG);
 		}
 
-		STACK_SWAP(queue, queue_next);
+		BLI_LINKSTACK_SWAP(queue, queue_next);
 
 		/* none should be tagged now since 'queue_next' is empty */
 		BLI_assert(BM_iter_mesh_count_flag(BM_VERTS_OF_MESH, bm, BM_ELEM_TAG, true) == 0);
 
-	} while (STACK_SIZE(queue));
+	} while (BLI_LINKSTACK_SIZE(queue));
 
-	STACK_FREE(queue);
-	STACK_FREE(queue_next);
+	BLI_LINKSTACK_FREE(queue);
+	BLI_LINKSTACK_FREE(queue_next);
 
-	MEM_freeN(queue);
-	MEM_freeN(queue_next);
 	MEM_freeN(dists_prev);
 }
 
@@ -1991,7 +1993,7 @@ static struct TransIslandData *editmesh_islands_info_calc(BMEditMesh *em, int *r
 
 	/* may be an edge OR a face array */
 	for (i = 0; i < group_tot; i++) {
-		BMEditSelection ese = {0};
+		BMEditSelection ese = {NULL};
 
 		const int fg_sta = group_index[i][0];
 		const int fg_len = group_index[i][1];
@@ -5959,7 +5961,8 @@ static void createTransNodeData(bContext *UNUSED(C), TransInfo *t)
 
 enum transDataTracking_Mode {
 	transDataTracking_ModeTracks = 0,
-	transDataTracking_ModeCurves = 1
+	transDataTracking_ModeCurves = 1,
+	transDataTracking_ModePlaneTracks = 2,
 };
 
 typedef struct TransDataTracking {
@@ -5978,6 +5981,9 @@ typedef struct TransDataTracking {
 	/* marker transformation from curves editor */
 	float *prev_pos, scale;
 	short coord;
+
+	MovieTrackingTrack *track;
+	MovieTrackingPlaneTrack *plane_track;
 } TransDataTracking;
 
 static void markerToTransDataInit(TransData *td, TransData2D *td2d, TransDataTracking *tdt,
@@ -6008,6 +6014,7 @@ static void markerToTransDataInit(TransData *td, TransData2D *td2d, TransDataTra
 
 	tdt->markersnr = track->markersnr;
 	tdt->markers = track->markers;
+	tdt->track = track;
 
 	if (rel) {
 		if (!anchor) {
@@ -6026,6 +6033,7 @@ static void markerToTransDataInit(TransData *td, TransData2D *td2d, TransDataTra
 	copy_v3_v3(td->iloc, td->loc);
 
 	//copy_v3_v3(td->center, td->loc);
+	td->flag |= TD_INDIVIDUAL_SCALE;
 	td->center[0] = marker->pos[0] * aspx;
 	td->center[1] = marker->pos[1] * aspy;
 
@@ -6076,6 +6084,52 @@ static void trackToTransData(const int framenr, TransData *td, TransData2D *td2d
 	}
 }
 
+static void planeMarkerToTransDataInit(TransData *td, TransData2D *td2d, TransDataTracking *tdt,
+                                       MovieTrackingPlaneTrack *plane_track, float corner[2],
+                                       float aspx, float aspy)
+{
+	tdt->mode = transDataTracking_ModePlaneTracks;
+	tdt->plane_track = plane_track;
+
+	td2d->loc[0] = corner[0] * aspx; /* hold original location */
+	td2d->loc[1] = corner[1] * aspy;
+
+	td2d->loc2d = corner; /* current location */
+	td2d->loc[2] = 0.0f;
+
+	td->flag = 0;
+	td->loc = td2d->loc;
+	copy_v3_v3(td->iloc, td->loc);
+	copy_v3_v3(td->center, td->loc);
+
+	memset(td->axismtx, 0, sizeof(td->axismtx));
+	td->axismtx[2][2] = 1.0f;
+
+	td->ext = NULL;
+	td->val = NULL;
+
+	td->flag |= TD_SELECTED;
+	td->dist = 0.0;
+
+	unit_m3(td->mtx);
+	unit_m3(td->smtx);
+}
+
+static void planeTrackToTransData(const int framenr, TransData *td, TransData2D *td2d,
+                                  TransDataTracking *tdt, MovieTrackingPlaneTrack *plane_track,
+                                  float aspx, float aspy)
+{
+	MovieTrackingPlaneMarker *plane_marker = BKE_tracking_plane_marker_ensure(plane_track, framenr);
+	int i;
+
+	tdt->flag = plane_marker->flag;
+	plane_marker->flag &= ~PLANE_MARKER_TRACKED;
+
+	for (i = 0; i < 4; i++) {
+		planeMarkerToTransDataInit(td++, td2d++, tdt++, plane_track, plane_marker->corners[i], aspx, aspy);
+	}
+}
+
 static void transDataTrackingFree(TransInfo *t)
 {
 	TransDataTracking *tdt = t->customData;
@@ -6096,7 +6150,9 @@ static void createTransTrackingTracksData(bContext *C, TransInfo *t)
 	SpaceClip *sc = CTX_wm_space_clip(C);
 	MovieClip *clip = ED_space_clip_get_clip(sc);
 	ListBase *tracksbase = BKE_tracking_get_active_tracks(&clip->tracking);
+	ListBase *plane_tracks_base = BKE_tracking_get_active_plane_tracks(&clip->tracking);
 	MovieTrackingTrack *track;
+	MovieTrackingPlaneTrack *plane_track;
 	TransDataTracking *tdt;
 	int framenr = ED_space_clip_get_clip_frame_number(sc);
 	float aspx, aspy;
@@ -6120,6 +6176,15 @@ static void createTransTrackingTracksData(bContext *C, TransInfo *t)
 		}
 
 		track = track->next;
+	}
+
+	for (plane_track = plane_tracks_base->first;
+	     plane_track;
+	     plane_track = plane_track->next)
+	{
+		if (plane_track->flag & SELECT) {
+			t->total += 4;
+		}
 	}
 
 	if (t->total == 0)
@@ -6165,11 +6230,23 @@ static void createTransTrackingTracksData(bContext *C, TransInfo *t)
 
 		track = track->next;
 	}
+
+	for (plane_track = plane_tracks_base->first;
+	     plane_track;
+	     plane_track = plane_track->next)
+	{
+		if (plane_track->flag & SELECT) {
+			planeTrackToTransData(framenr, td, td2d, tdt, plane_track, aspx, aspy);
+			td += 4;
+			td2d += 4;
+			tdt += 4;
+		}
+	}
 }
 
 static void markerToTransCurveDataInit(TransData *td, TransData2D *td2d, TransDataTracking *tdt,
-                                       MovieTrackingMarker *marker, MovieTrackingMarker *prev_marker,
-                                       short coord, float size)
+                                       MovieTrackingTrack *track, MovieTrackingMarker *marker,
+                                       MovieTrackingMarker *prev_marker, short coord, float size)
 {
 	float frames_delta = (marker->framenr - prev_marker->framenr);
 
@@ -6180,6 +6257,7 @@ static void markerToTransCurveDataInit(TransData *td, TransData2D *td2d, TransDa
 	tdt->coord = coord;
 	tdt->scale = 1.0f / size * frames_delta;
 	tdt->prev_pos = prev_marker->pos;
+	tdt->track = track;
 
 	/* calculate values depending on marker's speed */
 	td2d->loc[0] = marker->framenr;
@@ -6265,14 +6343,14 @@ static void createTransTrackingCurvesData(bContext *C, TransInfo *t)
 					continue;
 
 				if (marker->flag & MARKER_GRAPH_SEL_X) {
-					markerToTransCurveDataInit(td, td2d, tdt, marker, &track->markers[i - 1], 0, width);
+					markerToTransCurveDataInit(td, td2d, tdt, track, marker, &track->markers[i - 1], 0, width);
 					td += 1;
 					td2d += 1;
 					tdt += 1;
 				}
 
 				if (marker->flag & MARKER_GRAPH_SEL_Y) {
-					markerToTransCurveDataInit(td, td2d, tdt, marker, &track->markers[i - 1], 1, height);
+					markerToTransCurveDataInit(td, td2d, tdt, track, marker, &track->markers[i - 1], 1, height);
 
 					td += 1;
 					td2d += 1;
@@ -6313,57 +6391,54 @@ static void createTransTrackingData(bContext *C, TransInfo *t)
 
 static void cancelTransTracking(TransInfo *t)
 {
-	TransDataTracking *tdt = t->customData;
 	SpaceClip *sc = t->sa->spacedata.first;
-	MovieClip *clip = ED_space_clip_get_clip(sc);
-	ListBase *tracksbase = BKE_tracking_get_active_tracks(&clip->tracking);
-	MovieTrackingTrack *track;
-	MovieTrackingMarker *marker;
-	int a, framenr = ED_space_clip_get_clip_frame_number(sc);
+	int i, framenr = ED_space_clip_get_clip_frame_number(sc);
 
-	if (tdt->mode == transDataTracking_ModeTracks) {
-		track = tracksbase->first;
-		while (track) {
-			if (TRACK_VIEW_SELECTED(sc, track) && (track->flag & TRACK_LOCKED) == 0) {
-				marker = BKE_tracking_marker_get(track, framenr);
-				marker->flag = tdt->flag;
+	i = 0;
+	while (i < t->total) {
+		TransDataTracking *tdt = (TransDataTracking *) t->customData + i;
 
-				tdt++;
+		if (tdt->mode == transDataTracking_ModeTracks) {
+			MovieTrackingTrack *track = tdt->track;
+			MovieTrackingMarker *marker = BKE_tracking_marker_get(track, framenr);
 
-				if (track->flag & SELECT)
-					tdt++;
+			marker->flag = tdt->flag;
 
-				if (track->pat_flag & SELECT)
-					tdt += 2;
+			if (track->flag & SELECT)
+				i++;
 
-				if (track->search_flag & SELECT)
-					tdt += 2;
-			}
+			if (track->pat_flag & SELECT)
+				i += 4;
 
-			track = track->next;
+			if (track->search_flag & SELECT)
+				i += 2;
 		}
-	}
-	else if (tdt->mode == transDataTracking_ModeCurves) {
-		MovieTrackingMarker *prev_marker;
+		else if (tdt->mode == transDataTracking_ModeCurves) {
+			MovieTrackingTrack *track = tdt->track;
+			MovieTrackingMarker *marker, *prev_marker;
+			int a;
 
-		track = tracksbase->first;
-		while (track) {
-			if (TRACK_VIEW_SELECTED(sc, track) && (track->flag & TRACK_LOCKED) == 0) {
-				for (a = 1; a < track->markersnr; a++) {
-					marker = &track->markers[a];
-					prev_marker = &track->markers[a - 1];
+			for (a = 1; a < track->markersnr; a++) {
+				marker = &track->markers[a];
+				prev_marker = &track->markers[a - 1];
 
-					if ((marker->flag & MARKER_DISABLED) || (prev_marker->flag & MARKER_DISABLED))
-						continue;
+				if ((marker->flag & MARKER_DISABLED) || (prev_marker->flag & MARKER_DISABLED))
+					continue;
 
-					if (marker->flag & (MARKER_GRAPH_SEL_X | MARKER_GRAPH_SEL_Y)) {
-						marker->flag = tdt->flag;
-					}
+				if (marker->flag & (MARKER_GRAPH_SEL_X | MARKER_GRAPH_SEL_Y)) {
+					marker->flag = tdt->flag;
 				}
 			}
-
-			track = track->next;
 		}
+		else if (tdt->mode == transDataTracking_ModePlaneTracks) {
+			MovieTrackingPlaneTrack *plane_track = tdt->plane_track;
+			MovieTrackingPlaneMarker *plane_marker = BKE_tracking_plane_marker_get(plane_track, framenr);
+
+			plane_marker->flag = tdt->flag;
+			i += 3;
+		}
+
+		i++;
 	}
 }
 
@@ -6421,7 +6496,7 @@ void flushTransTracking(TransInfo *t)
 				}
 			}
 
-			if (tdt->area != TRACK_AREA_POINT || tdt->relative == 0) {
+			if (tdt->area != TRACK_AREA_POINT || tdt->relative == NULL) {
 				td2d->loc2d[0] = loc2d[0];
 				td2d->loc2d[1] = loc2d[1];
 
@@ -6431,6 +6506,10 @@ void flushTransTracking(TransInfo *t)
 		}
 		else if (tdt->mode == transDataTracking_ModeCurves) {
 			td2d->loc2d[tdt->coord] = tdt->prev_pos[tdt->coord] + td2d->loc[1] * tdt->scale;
+		}
+		else if (tdt->mode == transDataTracking_ModePlaneTracks) {
+			td2d->loc2d[0] = td2d->loc[0] / aspx;
+			td2d->loc2d[1] = td2d->loc[1] / aspy;
 		}
 	}
 }
@@ -6667,10 +6746,6 @@ void createTransData(bContext *C, TransInfo *t)
 			set_prop_dist(t, 1);
 			sort_trans_data_dist(t);
 		}
-	}
-	else if (t->options == CTX_BMESH) {
-		// TRANSFORM_FIX_ME
-		//createTransBMeshVerts(t, G.editBMesh->bm, G.editBMesh->td);
 	}
 	else if (t->spacetype == SPACE_IMAGE) {
 		t->flag |= T_POINTS | T_2D_EDIT;

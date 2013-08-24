@@ -23,11 +23,12 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
- * A general (pointer -> pointer) hash table ADT
  */
 
 /** \file blender/blenlib/intern/BLI_ghash.c
  *  \ingroup bli
+ *
+ * A general (pointer -> pointer) hash table ADT
  *
  * \note edgehash.c is based on this, make sure they stay in sync.
  */
@@ -62,38 +63,71 @@ const unsigned int hashsizes[] = {
 
 /***/
 
-GHash *BLI_ghash_new(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info)
+typedef struct Entry {
+	struct Entry *next;
+
+	void *key, *val;
+} Entry;
+
+struct GHash {
+	GHashHashFP hashfp;
+	GHashCmpFP cmpfp;
+
+	Entry **buckets;
+	struct BLI_mempool *entrypool;
+	unsigned int nbuckets;
+	unsigned int nentries;
+	unsigned int cursize, flag;
+};
+
+
+/* -------------------------------------------------------------------- */
+/* GHash API */
+
+/* internal utility API */
+
+BLI_INLINE bool ghash_test_expand_buckets(const unsigned int nentries, const unsigned int nbuckets)
 {
-	GHash *gh = MEM_mallocN(sizeof(*gh), info);
-	gh->hashfp = hashfp;
-	gh->cmpfp = cmpfp;
-	gh->entrypool = BLI_mempool_create(sizeof(Entry), 64, 64, 0);
-
-	gh->cursize = 0;
-	gh->nentries = 0;
-	gh->nbuckets = hashsizes[gh->cursize];
-
-	gh->buckets = MEM_callocN(gh->nbuckets * sizeof(*gh->buckets), "buckets");
-
-	return gh;
+	return (nentries > nbuckets * 3);
 }
 
-int BLI_ghash_size(GHash *gh)
+BLI_INLINE unsigned int ghash_keyhash(GHash *gh, const void *key)
 {
-	return (int)gh->nentries;
+	return gh->hashfp(key) % gh->nbuckets;
 }
 
-void BLI_ghash_insert(GHash *gh, void *key, void *val)
+BLI_INLINE Entry *ghash_lookup_entry_ex(GHash *gh, const void *key,
+                                        const unsigned int hash)
 {
-	unsigned int hash = gh->hashfp(key) % gh->nbuckets;
+	Entry *e;
+
+	for (e = gh->buckets[hash]; e; e = e->next) {
+		if (gh->cmpfp(key, e->key) == 0) {
+			return e;
+		}
+	}
+	return NULL;
+}
+
+BLI_INLINE Entry *ghash_lookup_entry(GHash *gh, const void *key)
+{
+	const unsigned int hash = ghash_keyhash(gh, key);
+	return ghash_lookup_entry_ex(gh, key, hash);
+}
+
+static void ghash_insert_ex(GHash *gh, void *key, void *val,
+                            unsigned int hash)
+{
 	Entry *e = (Entry *)BLI_mempool_alloc(gh->entrypool);
+
+	BLI_assert((gh->flag & GHASH_FLAG_ALLOW_DUPES) || (BLI_ghash_haskey(gh, key) == 0));
 
 	e->next = gh->buckets[hash];
 	e->key = key;
 	e->val = val;
 	gh->buckets[hash] = e;
 
-	if (UNLIKELY(++gh->nentries > gh->nbuckets / 2)) {
+	if (UNLIKELY(ghash_test_expand_buckets(++gh->nentries, gh->nbuckets))) {
 		Entry **old = gh->buckets;
 		const unsigned nold = gh->nbuckets;
 		unsigned int i;
@@ -105,7 +139,7 @@ void BLI_ghash_insert(GHash *gh, void *key, void *val)
 			Entry *e_next;
 			for (e = old[i]; e; e = e_next) {
 				e_next = e->next;
-				hash = gh->hashfp(e->key) % gh->nbuckets;
+				hash = ghash_keyhash(gh, e->key);
 				e->next = gh->buckets[hash];
 				gh->buckets[hash] = e;
 			}
@@ -115,22 +149,86 @@ void BLI_ghash_insert(GHash *gh, void *key, void *val)
 	}
 }
 
-void *BLI_ghash_lookup(GHash *gh, const void *key)
-{
-	const unsigned int hash = gh->hashfp(key) % gh->nbuckets;
-	Entry *e;
 
-	for (e = gh->buckets[hash]; e; e = e->next) {
-		if (gh->cmpfp(key, e->key) == 0) {
-			return e->val;
+/* Public API */
+
+GHash *BLI_ghash_new_ex(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info,
+                        const unsigned int nentries_reserve)
+{
+	GHash *gh = MEM_mallocN(sizeof(*gh), info);
+
+	gh->hashfp = hashfp;
+	gh->cmpfp = cmpfp;
+
+	gh->nbuckets = hashsizes[0];  /* gh->cursize */
+	gh->nentries = 0;
+	gh->cursize = 0;
+	gh->flag = 0;
+
+	/* if we have reserved the number of elements that this hash will contain */
+	if (nentries_reserve) {
+		while (ghash_test_expand_buckets(nentries_reserve, gh->nbuckets)) {
+			gh->nbuckets = hashsizes[++gh->cursize];
 		}
 	}
-	return NULL;
+
+	gh->buckets = MEM_callocN(gh->nbuckets * sizeof(*gh->buckets), "buckets");
+	gh->entrypool = BLI_mempool_create(sizeof(Entry), 64, 64, 0);
+
+	return gh;
+}
+
+GHash *BLI_ghash_new(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info)
+{
+	return BLI_ghash_new_ex(hashfp, cmpfp, info, 0);
+}
+
+int BLI_ghash_size(GHash *gh)
+{
+	return (int)gh->nentries;
+}
+
+void BLI_ghash_insert(GHash *gh, void *key, void *val)
+{
+	const unsigned int hash = ghash_keyhash(gh, key);
+	ghash_insert_ex(gh, key, val, hash);
+}
+
+/**
+ * Assign a new value to a key that may already be in ghash.
+ * Avoids #BLI_ghash_remove, #BLI_ghash_insert calls (double lookups)
+ */
+void BLI_ghash_reinsert(GHash *gh, void *key, void *val, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp)
+{
+	const unsigned int hash = ghash_keyhash(gh, key);
+	Entry *e = ghash_lookup_entry_ex(gh, key, hash);
+	if (e) {
+		if (keyfreefp) keyfreefp(e->key);
+		if (valfreefp) valfreefp(e->val);
+
+		e->key = key;
+		e->val = val;
+	}
+	else {
+		ghash_insert_ex(gh, key, val, hash);
+	}
+}
+
+void *BLI_ghash_lookup(GHash *gh, const void *key)
+{
+	Entry *e = ghash_lookup_entry(gh, key);
+	return e ? e->val : NULL;
+}
+
+void **BLI_ghash_lookup_p(GHash *gh, const void *key)
+{
+	Entry *e = ghash_lookup_entry(gh, key);
+	return e ? &e->val : NULL;
 }
 
 bool BLI_ghash_remove(GHash *gh, void *key, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp)
 {
-	unsigned int hash = gh->hashfp(key) % gh->nbuckets;
+	const unsigned int hash = ghash_keyhash(gh, key);
 	Entry *e;
 	Entry *p = NULL;
 
@@ -156,37 +254,11 @@ bool BLI_ghash_remove(GHash *gh, void *key, GHashKeyFreeFP keyfreefp, GHashValFr
 	return false;
 }
 
-void BLI_ghash_clear(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp)
-{
-	unsigned int i;
-
-	if (keyfreefp || valfreefp) {
-		for (i = 0; i < gh->nbuckets; i++) {
-			Entry *e;
-
-			for (e = gh->buckets[i]; e; ) {
-				Entry *n = e->next;
-
-				if (keyfreefp) keyfreefp(e->key);
-				if (valfreefp) valfreefp(e->val);
-
-				e = n;
-			}
-		}
-	}
-
-	gh->cursize = 0;
-	gh->nentries = 0;
-	gh->nbuckets = hashsizes[gh->cursize];
-
-	gh->buckets = MEM_recallocN(gh->buckets, gh->nbuckets * sizeof(*gh->buckets));
-}
-
 /* same as above but return the value,
  * no free value argument since it will be returned */
 void *BLI_ghash_pop(GHash *gh, void *key, GHashKeyFreeFP keyfreefp)
 {
-	unsigned int hash = gh->hashfp(key) % gh->nbuckets;
+	const unsigned int hash = ghash_keyhash(gh, key);
 	Entry *e;
 	Entry *p = NULL;
 
@@ -214,14 +286,34 @@ void *BLI_ghash_pop(GHash *gh, void *key, GHashKeyFreeFP keyfreefp)
 
 bool BLI_ghash_haskey(GHash *gh, const void *key)
 {
-	unsigned int hash = gh->hashfp(key) % gh->nbuckets;
-	Entry *e;
+	return (ghash_lookup_entry(gh, key) != NULL);
+}
 
-	for (e = gh->buckets[hash]; e; e = e->next)
-		if (gh->cmpfp(key, e->key) == 0)
-			return true;
+void BLI_ghash_clear(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp)
+{
+	unsigned int i;
 
-	return false;
+	if (keyfreefp || valfreefp) {
+		for (i = 0; i < gh->nbuckets; i++) {
+			Entry *e;
+
+			for (e = gh->buckets[i]; e; ) {
+				Entry *n = e->next;
+
+				if (keyfreefp) keyfreefp(e->key);
+				if (valfreefp) valfreefp(e->val);
+
+				e = n;
+			}
+		}
+	}
+
+	gh->cursize = 0;
+	gh->nentries = 0;
+	gh->nbuckets = hashsizes[gh->cursize];
+
+	MEM_freeN(gh->buckets);
+	gh->buckets = MEM_callocN(gh->nbuckets * sizeof(*gh->buckets), "buckets");
 }
 
 void BLI_ghash_free(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp)
@@ -251,7 +343,19 @@ void BLI_ghash_free(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreef
 	MEM_freeN(gh);
 }
 
-/***/
+void BLI_ghash_flag_set(GHash *gh, unsigned int flag)
+{
+	gh->flag |= flag;
+}
+
+void BLI_ghash_flag_clear(GHash *gh, unsigned int flag)
+{
+	gh->flag &= ~flag;
+}
+
+
+/* -------------------------------------------------------------------- */
+/* GHash Iterator API */
 
 GHashIterator *BLI_ghashIterator_new(GHash *gh)
 {
@@ -304,10 +408,23 @@ bool BLI_ghashIterator_done(GHashIterator *ghi)
 
 /***/
 
+#if 0
+/* works but slower */
 unsigned int BLI_ghashutil_ptrhash(const void *key)
 {
 	return (unsigned int)(intptr_t)key;
 }
+#else
+/* based python3.3's pointer hashing function */
+unsigned int BLI_ghashutil_ptrhash(const void *key)
+{
+	size_t y = (size_t)key;
+	/* bottom 3 or 4 bits are likely to be 0; rotate y by 4 to avoid
+	 * excessive hash collisions for dicts and sets */
+	y = (y >> 4) | (y << (8 * sizeof(void *) - 4));
+	return (unsigned int)y;
+}
+#endif
 int BLI_ghashutil_ptrcmp(const void *a, const void *b)
 {
 	if (a == b)
@@ -363,21 +480,48 @@ int BLI_ghashutil_strcmp(const void *a, const void *b)
 	return strcmp(a, b);
 }
 
+GHash *BLI_ghash_ptr_new_ex(const char *info,
+                            const unsigned int nentries_reserve)
+{
+	return BLI_ghash_new_ex(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, info,
+	                        nentries_reserve);
+}
 GHash *BLI_ghash_ptr_new(const char *info)
 {
-	return BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, info);
+	return BLI_ghash_ptr_new_ex(info, 0);
+}
+
+GHash *BLI_ghash_str_new_ex(const char *info,
+                            const unsigned int nentries_reserve)
+{
+	return BLI_ghash_new_ex(BLI_ghashutil_strhash, BLI_ghashutil_strcmp, info,
+	                        nentries_reserve);
 }
 GHash *BLI_ghash_str_new(const char *info)
 {
-	return BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp, info);
+	return BLI_ghash_str_new_ex(info, 0);
+}
+
+GHash *BLI_ghash_int_new_ex(const char *info,
+                            const unsigned int nentries_reserve)
+{
+	return BLI_ghash_new_ex(BLI_ghashutil_inthash, BLI_ghashutil_intcmp, info,
+	                        nentries_reserve);
 }
 GHash *BLI_ghash_int_new(const char *info)
 {
-	return BLI_ghash_new(BLI_ghashutil_inthash, BLI_ghashutil_intcmp, info);
+	return BLI_ghash_int_new_ex(info, 0);
+}
+
+GHash *BLI_ghash_pair_new_ex(const char *info,
+                             const unsigned int nentries_reserve)
+{
+	return BLI_ghash_new_ex(BLI_ghashutil_pairhash, BLI_ghashutil_paircmp, info,
+	                        nentries_reserve);
 }
 GHash *BLI_ghash_pair_new(const char *info)
 {
-	return BLI_ghash_new(BLI_ghashutil_pairhash, BLI_ghashutil_paircmp, info);
+	return BLI_ghash_pair_new_ex(info, 0);
 }
 
 GHashPair *BLI_ghashutil_pairalloc(const void *first, const void *second)

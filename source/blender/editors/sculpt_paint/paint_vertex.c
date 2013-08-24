@@ -61,6 +61,7 @@
 #include "BKE_object_deform.h"
 #include "BKE_paint.h"
 #include "BKE_report.h"
+#include "BKE_colortools.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -3364,7 +3365,7 @@ static int paint_weight_gradient_exec(bContext *C, wmOperator *op)
 	const bool is_interactive = (gesture != NULL);
 	DerivedMesh *dm = mesh_get_derived_final(scene, ob, scene->customdata_mask);
 
-	DMGradient_userData data = {0};
+	DMGradient_userData data = {NULL};
 
 	if (is_interactive) {
 		if (gesture->userdata == NULL) {
@@ -3407,6 +3408,9 @@ static int paint_weight_gradient_exec(bContext *C, wmOperator *op)
 		ToolSettings *ts = CTX_data_tool_settings(C);
 		VPaint *wp = ts->wpaint;
 		struct Brush *brush = BKE_paint_brush(&wp->paint);
+
+		curvemapping_initialize(brush->curve);
+
 		data.brush = brush;
 		data.weightpaint = BKE_brush_weight_get(scene, brush);
 	}

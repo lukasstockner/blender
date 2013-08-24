@@ -77,7 +77,7 @@ void bmo_extrude_discrete_faces_exec(BMesh *bm, BMOperator *op)
 
 			f_side = BM_face_create_quad_tri(bm,
 			                                 l_org->next->v, l_new->next->v, l_new->v, l_org->v,
-			                                 f_org, false);
+			                                 f_org, BM_CREATE_NOP);
 
 			l_side_iter = BM_FACE_FIRST_LOOP(f_side);
 
@@ -163,7 +163,7 @@ void bmo_extrude_edge_only_exec(BMesh *bm, BMOperator *op)
 	/* disable root flag on all new skin nodes */
 	if (CustomData_has_layer(&bm->vdata, CD_MVERT_SKIN)) {
 		BMVert *v;
-		BMO_ITER(v, &siter, dupeop.slots_out, "geom.out", BM_VERT) {
+		BMO_ITER (v, &siter, dupeop.slots_out, "geom.out", BM_VERT) {
 			bm_extrude_disable_skin_root(bm, v);
 		}
 	}
@@ -185,7 +185,7 @@ void bmo_extrude_edge_only_exec(BMesh *bm, BMOperator *op)
 			f_verts[3] = e_new->v2;
 		}
 		/* not sure what to do about example face, pass NULL for now */
-		f = BM_face_create_quad_tri_v(bm, f_verts, 4, NULL, false);
+		f = BM_face_create_verts(bm, f_verts, 4, NULL, BM_CREATE_NOP, true);
 		bm_extrude_copy_face_loop_attributes(bm, f);
 		
 		if (BMO_elem_flag_test(bm, e, EXT_INPUT))
@@ -211,11 +211,11 @@ void bmo_extrude_vert_indiv_exec(BMesh *bm, BMOperator *op)
 	const bool has_vskin = CustomData_has_layer(&bm->vdata, CD_MVERT_SKIN);
 
 	for (v = BMO_iter_new(&siter, op->slots_in, "verts", BM_VERT); v; v = BMO_iter_step(&siter)) {
-		dupev = BM_vert_create(bm, v->co, v, 0);
+		dupev = BM_vert_create(bm, v->co, v, BM_CREATE_NOP);
 		if (has_vskin)
 			bm_extrude_disable_skin_root(bm, v);
 
-		e = BM_edge_create(bm, v, dupev, NULL, 0);
+		e = BM_edge_create(bm, v, dupev, NULL, BM_CREATE_NOP);
 
 		BMO_elem_flag_enable(bm, e, EXT_KEEP);
 		BMO_elem_flag_enable(bm, dupev, EXT_KEEP);
@@ -319,7 +319,7 @@ void bmo_extrude_face_region_exec(BMesh *bm, BMOperator *op)
 
 	/* disable root flag on all new skin nodes */
 	if (CustomData_has_layer(&bm->vdata, CD_MVERT_SKIN)) {
-		BMO_ITER(v, &siter, dupeop.slots_out, "geom.out", BM_VERT) {
+		BMO_ITER (v, &siter, dupeop.slots_out, "geom.out", BM_VERT) {
 			bm_extrude_disable_skin_root(bm, v);
 		}
 	}
@@ -401,7 +401,7 @@ void bmo_extrude_face_region_exec(BMesh *bm, BMOperator *op)
 		}
 
 		/* not sure what to do about example face, pass NULL for now */
-		f = BM_face_create_quad_tri_v(bm, f_verts, 4, NULL, false);
+		f = BM_face_create_verts(bm, f_verts, 4, NULL, BM_CREATE_NOP, true);
 		bm_extrude_copy_face_loop_attributes(bm, f);
 	}
 
