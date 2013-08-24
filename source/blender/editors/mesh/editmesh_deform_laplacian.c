@@ -49,6 +49,9 @@
 #include "ONL_opennl.h"
 #include "BLF_translation.h"
 
+#include "BIF_gl.h"
+#include "BIF_glutil.h"
+
 #include "ED_screen.h"
 #include "ED_space_api.h"
 #include "ED_view3d.h"
@@ -58,6 +61,7 @@ struct BStaticAnchors {
 	int numStatics;				/* Number of static anchors*/
 	int numVerts;				/* Number of verts*/
 	int * list_index;			/* Static vertex index list*/
+	bool *list_statics;
 	float (*co)[3];				/* Original vertex coordinates*/
 	float (*no)[3];				/* Original vertex normal*/
 	BMVert ** list_verts;		/* Vertex order by index*/
@@ -97,6 +101,7 @@ struct BSystemCustomData {
 	HandlerAnchors * shs;
 	int stateSystem;
 	bool update_required;
+	Object *ob;
 };
 
 typedef struct BSystemCustomData SystemCustomData;
@@ -149,6 +154,7 @@ static StaticAnchors * init_static_anchors(int numv, int nums)
 	sa->numVerts = numv;
 	sa->numStatics = nums;
 	sa->list_index = (int *)MEM_callocN(sizeof(int)*(sa->numStatics), "LapListStatics");
+	sa->list_statics = (bool *)MEM_callocN(sizeof(bool)*(sa->numVerts), "LapListBoolStatics");
 	sa->list_verts = (BMVert**)MEM_callocN(sizeof(BMVert*)*(sa->numVerts), "LapListverts");
 	sa->co = (float (*)[3])MEM_callocN(sizeof(float)*(sa->numVerts*3), "LapCoordinates");
 	sa->no = (float (*)[3])MEM_callocN(sizeof(float)*(sa->numVerts*3), "LapNormals");
@@ -191,6 +197,7 @@ static void delete_static_anchors(StaticAnchors * sa)
 	delete_void_pointer(sa->list_index);
 	delete_void_pointer(sa->no);
 	delete_void_pointer(sa->list_verts);
+	delete_void_pointer(sa->list_statics);
 	delete_void_pointer(sa);
 	sa = NULL;
 }
@@ -264,6 +271,7 @@ static int laplacian_deform_invoke(struct bContext *C, struct wmOperator *op, co
 	SystemCustomData * sys;
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
+	view3d_operator_needs_opengl(C);
 	sys = op->customdata = MEM_callocN(sizeof(SystemCustomData), "LapSystemCustomData");
 	if (!sys) {
 		return OPERATOR_CANCELLED;
@@ -288,7 +296,7 @@ static void laplacian_deform_mark_static(bContext *C, wmOperator *op)
 	BMIter viter;
 	BMVert *v;
 
-	nums = BM_iter_mesh_count_flag(BM_VERTS_OF_MESH, em->bm, BM_ELEM_SELECT, true);
+	nums = BM_iter_mesh_count_flag(BM_VERTS_OF_MESH, em->bm, BM_ELEM_SELECT, false);
 	if (data->sa) {
 		if (data->sa->numVerts != em->bm->totvert) {
 			delete_static_anchors(data->sa);
@@ -298,6 +306,7 @@ static void laplacian_deform_mark_static(bContext *C, wmOperator *op)
 			delete_void_pointer( data->sa->list_index);
 			data->sa->numStatics = nums;
 			data->sa->list_index = (int *)MEM_callocN(sizeof(int)*(data->sa->numStatics), "LapListStatics");
+			data->sa->list_statics = (bool *)MEM_callocN(sizeof(bool)*(data->sa->numVerts), "LapListStatics");
 		}
 	} 
 	else {
@@ -309,12 +318,23 @@ static void laplacian_deform_mark_static(bContext *C, wmOperator *op)
 		vid = BM_elem_index_get(v);
 		copy_v3_v3(data->sa->co[vid], v->co);
 		data->sa->list_verts[vid] = v;
-		if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+		data->sa->list_statics[vid] = false;
+		if (!BM_elem_flag_test_bool(v, BM_ELEM_SELECT)) {
 			data->sa->list_index[i] = vid;
 			i = i + 1;
+			data->sa->list_statics[vid] = true;
 		}
 	}
 	update_system_state(data, LAP_STATE_HAS_STATIC);
+	laplacian_deform_mark_handlers(C, op);
+}
+
+static copy_m4_v16(float mout[4][4], double vin[16])
+{
+	int i, j;
+	for (i=0; i<4; i++)
+		for (j=0; j<4; j++)
+			mout[i][j] = (float)vin[i*4 + j];
 }
 
 static void laplacian_deform_mark_handlers(bContext *C, wmOperator *op)
@@ -322,9 +342,57 @@ static void laplacian_deform_mark_handlers(bContext *C, wmOperator *op)
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	SystemCustomData * data = op->customdata;
-	BMIter viter;
+	BMIter viter, eiter, fiter;
 	BMVert *v;
-	int vid, i, numh;
+	BMEdge *e;
+	BMFace *f;
+	int vid, i, numh, nf, vid1, vid2;
+	bglMats mats;
+	float mview[4][4], iview[4][4];
+	float vp[3], ni[2];
+	view3d_operator_needs_opengl(C);
+	vp[0] = 0.0f; vp[1] = 0.0f; vp[2] = 0.0f; 
+	bgl_get_mats(&mats);
+	copy_m4_v16(mview, mats.modelview);
+	invert_m4_m4(iview,  mview);
+	mul_m4_v3(iview, vp);
+	invert_m4_m4(obedit->imat, obedit->obmat); 
+	mul_m4_v3(obedit->imat, vp);
+	
+	BM_ITER_MESH(v, &viter, em->bm, BM_VERTS_OF_MESH) {
+		BM_elem_flag_set(v, BM_ELEM_SELECT, false);
+	}
+
+	BM_ITER_MESH(f, &fiter, em->bm, BM_FACES_OF_MESH) {
+		BM_elem_flag_set(f, BM_ELEM_SELECT, false);
+	}
+
+	BM_ITER_MESH(e, &eiter, em->bm, BM_EDGES_OF_MESH) {
+		BM_elem_flag_set(e, BM_ELEM_SELECT, false);
+	}
+
+	BM_ITER_MESH(e, &eiter, em->bm, BM_EDGES_OF_MESH) {
+		nf = 0;
+		vid1 = BM_elem_index_get(e->v1);
+		vid2 = BM_elem_index_get(e->v2);
+		if (data->sa->list_statics[vid1]==false && data->sa->list_statics[vid2]==false){
+			BM_ITER_ELEM(f, &fiter, e, BM_FACES_OF_EDGE) {
+				ni[nf] = dot_v3v3(f->no, vp);
+				nf = nf + 1;
+			}
+			if (nf == 2) {
+				if (ni[0]*ni[1] <=0) {
+					BM_elem_flag_set(e->v1, BM_ELEM_SELECT, true);
+					BM_elem_flag_set(e->v2, BM_ELEM_SELECT, true);
+				} 
+			} 
+		}
+		//else {
+		//	BM_elem_flag_set(e->v1, BM_ELEM_SELECT, false);
+		//	BM_elem_flag_set(e->v2, BM_ELEM_SELECT, false);
+		//}
+	}
+
 	numh = BM_iter_mesh_count_flag(BM_VERTS_OF_MESH, em->bm, BM_ELEM_SELECT, true);
 	if (data->shs) {
 		delete_handler_anchors(data->shs);
@@ -654,6 +722,7 @@ static int laplacian_deform_cancel(bContext *C, wmOperator *op)
 		delete_laplacian_system(data->sys);
 		delete_static_anchors(data->sa);
 		delete_handler_anchors(data->shs);
+		data->ob = NULL;
 		delete_void_pointer(data);
 	}
 
@@ -685,8 +754,8 @@ wmKeyMap * laplacian_deform_modal_keymap(wmKeyConfig *keyconf)
 	WM_modalkeymap_add_item(keymap, SPACEKEY, KM_PRESS, KM_ANY, 0, LAP_MODAL_CONFIRM);
 
 	WM_modalkeymap_add_item(keymap, QKEY, KM_PRESS, 0, 0, LAP_MODAL_CANCEL);
-	WM_modalkeymap_add_item(keymap, JKEY, KM_PRESS, 0, 0, LAP_MODAL_MARK_STATIC);
-	WM_modalkeymap_add_item(keymap, HKEY, KM_PRESS, 0, 0, LAP_MODAL_MARK_HANDLER);
+	//WM_modalkeymap_add_item(keymap, JKEY, KM_PRESS, 0, 0, LAP_MODAL_MARK_HANDLER);
+	WM_modalkeymap_add_item(keymap, HKEY, KM_PRESS, 0, 0, LAP_MODAL_MARK_STATIC);
 	WM_modalkeymap_add_item(keymap, PKEY, KM_PRESS, 0, 0, LAP_MODAL_PREVIEW);
 
 	WM_modalkeymap_add_item(keymap, SKEY, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
