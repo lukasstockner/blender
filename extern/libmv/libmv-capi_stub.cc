@@ -173,7 +173,8 @@ void libmv_featuresDestroy(struct libmv_Features * /*libmv_features*/)
 /* ************ camera intrinsics ************ */
 
 struct libmv_CameraIntrinsics *libmv_reconstructionExtractIntrinsics(
-		struct libmv_Reconstruction * /*libmv_reconstruction*/)
+		struct libmv_Reconstruction * /*libmv_reconstruction*/,
+    int /*camera*/)
 {
 	return NULL;
 }
