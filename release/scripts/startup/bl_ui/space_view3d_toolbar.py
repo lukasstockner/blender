@@ -676,19 +676,6 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                 
                 col.prop(brush, "gravity", slider=True)
 
-            col = layout.column(align=True)
-            col.label(text="Overlay:")
-
-            row = col.row(align=True)
-            if brush.use_cursor_overlay:
-                row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
-            else:
-                row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
-
-            sub = row.row(align=True)
-            sub.prop(brush, "cursor_overlay_alpha", text="Alpha")
-            sub.prop(brush, "use_cursor_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
-
         # Texture Paint Mode #
 
         elif context.image_paint_object and brush:
@@ -754,19 +741,6 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             if capabilities.has_accumulate:
                 col.separator()
                 col.prop(brush, "use_accumulate")
-
-            col = layout.column(align=True)
-            col.label(text="Overlay:")
-
-            row = col.row(align=True)
-            if brush.use_cursor_overlay:
-                row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
-            else:
-                row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
-
-            sub = row.row(align=True)
-            sub.prop(brush, "cursor_overlay_alpha", text="Alpha")
-            sub.prop(brush, "use_cursor_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
 
         # Weight Paint Mode #
         elif context.weight_paint_object and brush:
