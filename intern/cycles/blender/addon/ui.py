@@ -49,8 +49,10 @@ class CyclesButtonsPanel():
 
 
 def draw_samples_info(layout, cscene):
+    integrator = cscene.progressive
+
     # Calculate sample values
-    if cscene.progressive:
+    if integrator == 'PATH':
         aa = cscene.samples
         if cscene.use_square_samples:
             aa = aa * aa
@@ -73,18 +75,20 @@ def draw_samples_info(layout, cscene):
             sss = sss * sss
 
     # Draw interface
-    col = layout.column(align=True)
-    col.scale_y = 0.6
-    col.label("Total Samples:")
-    col.separator()
-    if cscene.progressive:
-        col.label("%s AA" % aa)
-    else:
-        col.label("%s AA, %s Diffuse, %s Glossy, %s Transmission" %
-                  (aa, d * aa, g * aa, t * aa))
+    # Do not draw for progressive, when Square Samples are disabled
+    if (integrator == 'BRANCHED_PATH') or (cscene.use_square_samples and integrator == 'PATH'):
+        col = layout.column(align=True)
+        col.scale_y = 0.6
+        col.label("Total Samples:")
         col.separator()
-        col.label("%s AO, %s Mesh Light, %s Subsurface" %
-                  (ao * aa, ml * aa, sss * aa))
+        if integrator == 'PATH':
+            col.label("%s AA" % aa)
+        else:
+            col.label("%s AA, %s Diffuse, %s Glossy, %s Transmission" %
+                      (aa, d * aa, g * aa, t * aa))
+            col.separator()
+            col.label("%s AO, %s Mesh Light, %s Subsurface" %
+                      (ao * aa, ml * aa, sss * aa))
 
 
 class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
@@ -104,7 +108,7 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
         row.operator("render.cycles_sampling_preset_add", text="", icon="ZOOMOUT").remove_active = True
 
         row = layout.row()
-        row.prop(cscene, "progressive")
+        row.prop(cscene, "progressive", text="")
         row.prop(cscene, "use_square_samples")
 
         split = layout.split()
@@ -115,7 +119,7 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
         sub.prop(cscene, "seed")
         sub.prop(cscene, "sample_clamp")
 
-        if cscene.progressive:
+        if cscene.progressive == 'PATH':
             col = split.column()
             sub = col.column(align=True)
             sub.label(text="Samples:")
@@ -248,8 +252,8 @@ class CyclesRender_PT_performance(CyclesButtonsPanel, Panel):
         col = split.column(align=True)
 
         col.label(text="Threads:")
-        col.row().prop(rd, "threads_mode", expand=True)
-        sub = col.column()
+        col.row(align=True).prop(rd, "threads_mode", expand=True)
+        sub = col.column(align=True)
         sub.enabled = rd.threads_mode == 'FIXED'
         sub.prop(rd, "threads")
 
@@ -262,7 +266,7 @@ class CyclesRender_PT_performance(CyclesButtonsPanel, Panel):
 
         sub.prop(cscene, "use_progressive_refine")
 
-        subsub = sub.column()
+        subsub = sub.column(align=True)
         subsub.enabled = not rd.use_border
         subsub.prop(rd, "use_save_buffers")
 
@@ -711,7 +715,7 @@ class CyclesLamp_PT_lamp(CyclesButtonsPanel, Panel):
                 sub.prop(lamp, "size", text="Size X")
                 sub.prop(lamp, "size_y", text="Size Y")
 
-        if not cscene.progressive:
+        if cscene.progressive == 'BRANCHED_PATH':
             col.prop(clamp, "samples")
 
         col = split.column()

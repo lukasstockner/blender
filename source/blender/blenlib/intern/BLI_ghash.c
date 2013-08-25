@@ -77,20 +77,36 @@ struct GHash {
 	struct BLI_mempool *entrypool;
 	unsigned int nbuckets;
 	unsigned int nentries;
-	unsigned short cursize, flag;
+	unsigned int cursize, flag;
 };
 
 
 /* -------------------------------------------------------------------- */
 /* GHash API */
 
-/* internal utility API */
+/** \name Internal Utility API
+ * \{ */
 
+/**
+ * Check if the number of items in the GHash is large enough to require more buckets.
+ */
+BLI_INLINE bool ghash_test_expand_buckets(const unsigned int nentries, const unsigned int nbuckets)
+{
+	return (nentries > nbuckets * 3);
+}
+
+/**
+ * Get the hash for a key.
+ */
 BLI_INLINE unsigned int ghash_keyhash(GHash *gh, const void *key)
 {
 	return gh->hashfp(key) % gh->nbuckets;
 }
 
+/**
+ * Internal lookup function.
+ * Takes a hash argument to avoid calling #ghash_keyhash multiple times.
+ */
 BLI_INLINE Entry *ghash_lookup_entry_ex(GHash *gh, const void *key,
                                         const unsigned int hash)
 {
@@ -104,12 +120,19 @@ BLI_INLINE Entry *ghash_lookup_entry_ex(GHash *gh, const void *key,
 	return NULL;
 }
 
+/**
+ * Internal lookup function. Only wraps #ghash_lookup_entry_ex
+ */
 BLI_INLINE Entry *ghash_lookup_entry(GHash *gh, const void *key)
 {
 	const unsigned int hash = ghash_keyhash(gh, key);
 	return ghash_lookup_entry_ex(gh, key, hash);
 }
 
+/**
+ * Internal insert function.
+ * Takes a hash argument to avoid calling #ghash_keyhash multiple times.
+ */
 static void ghash_insert_ex(GHash *gh, void *key, void *val,
                             unsigned int hash)
 {
@@ -122,7 +145,7 @@ static void ghash_insert_ex(GHash *gh, void *key, void *val,
 	e->val = val;
 	gh->buckets[hash] = e;
 
-	if (UNLIKELY(++gh->nentries > gh->nbuckets / 2)) {
+	if (UNLIKELY(ghash_test_expand_buckets(++gh->nentries, gh->nbuckets))) {
 		Entry **old = gh->buckets;
 		const unsigned nold = gh->nbuckets;
 		unsigned int i;
@@ -143,11 +166,24 @@ static void ghash_insert_ex(GHash *gh, void *key, void *val,
 		MEM_freeN(old);
 	}
 }
+/** \} */
 
 
-/* Public API */
+/** \name Public API
+ * \{ */
 
-GHash *BLI_ghash_new(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info)
+/**
+ * Creates a new, empty GHash.
+ *
+ * \param hashfp  Hash callback.
+ * \param cmpfp  Comparison callback.
+ * \param info  Identifier string for the GHash.
+ * \param nentries_reserve  Optionally reserve the number of members that the hash will hold.
+ * Use this to avoid resizing buckets if the size is known or can be closely approximated.
+ * \return  An empty GHash.
+ */
+GHash *BLI_ghash_new_ex(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info,
+                        const unsigned int nentries_reserve)
 {
 	GHash *gh = MEM_mallocN(sizeof(*gh), info);
 
@@ -159,17 +195,42 @@ GHash *BLI_ghash_new(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info)
 	gh->cursize = 0;
 	gh->flag = 0;
 
+	/* if we have reserved the number of elements that this hash will contain */
+	if (nentries_reserve) {
+		while (ghash_test_expand_buckets(nentries_reserve, gh->nbuckets)) {
+			gh->nbuckets = hashsizes[++gh->cursize];
+		}
+	}
+
 	gh->buckets = MEM_callocN(gh->nbuckets * sizeof(*gh->buckets), "buckets");
 	gh->entrypool = BLI_mempool_create(sizeof(Entry), 64, 64, 0);
 
 	return gh;
 }
 
+/**
+ * Wraps #BLI_ghash_new_ex with zero entries reserved.
+ */
+GHash *BLI_ghash_new(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info)
+{
+	return BLI_ghash_new_ex(hashfp, cmpfp, info, 0);
+}
+
+/**
+ * \return size of the GHash.
+ */
 int BLI_ghash_size(GHash *gh)
 {
 	return (int)gh->nentries;
 }
 
+/**
+ * Insert a key/value pair into the \a gh.
+ *
+ * \note Duplicates are not checked,
+ * the caller is expected to ensure elements are unique unless
+ * GHASH_FLAG_ALLOW_DUPES flag is set.
+ */
 void BLI_ghash_insert(GHash *gh, void *key, void *val)
 {
 	const unsigned int hash = ghash_keyhash(gh, key);
@@ -177,7 +238,8 @@ void BLI_ghash_insert(GHash *gh, void *key, void *val)
 }
 
 /**
- * Assign a new value to a key that may already be in ghash.
+ * Inserts a new value to a key that may already be in ghash.
+ *
  * Avoids #BLI_ghash_remove, #BLI_ghash_insert calls (double lookups)
  */
 void BLI_ghash_reinsert(GHash *gh, void *key, void *val, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp)
@@ -196,18 +258,45 @@ void BLI_ghash_reinsert(GHash *gh, void *key, void *val, GHashKeyFreeFP keyfreef
 	}
 }
 
+/**
+ * Lookup the value of \a key in \a gh.
+ *
+ * \param key  The key to lookup.
+ * \returns the value for \a key or NULL.
+ *
+ * \note When NULL is a valid value, use #BLI_ghash_lookup_p to differentiate a missing key
+ * from a key with a NULL value. (Avoids calling #BLI_ghash_haskey before #BLI_ghash_lookup)
+ */
 void *BLI_ghash_lookup(GHash *gh, const void *key)
 {
 	Entry *e = ghash_lookup_entry(gh, key);
 	return e ? e->val : NULL;
 }
 
+/**
+ * Lookup a pointer to the value of \a key in \a gh.
+ *
+ * \param key  The key to lookup.
+ * \returns the pointer to value for \a key or NULL.
+ *
+ * \note This has 2 main benifits over #BLI_ghash_lookup.
+ * - A NULL return always means that \a key isn't in \a gh.
+ * - The value can be modified in-place without further function calls (faster).
+ */
 void **BLI_ghash_lookup_p(GHash *gh, const void *key)
 {
 	Entry *e = ghash_lookup_entry(gh, key);
 	return e ? &e->val : NULL;
 }
 
+/**
+ * Remove \a key from \a gh, or return false if the key wasn't found.
+ *
+ * \param key  The key to remove.
+ * \param keyfreefp  Optional callback to free the key.
+ * \param valfreefp  Optional callback to free the value.
+ * \return true if \a key was removed from \a gh.
+ */
 bool BLI_ghash_remove(GHash *gh, void *key, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp)
 {
 	const unsigned int hash = ghash_keyhash(gh, key);
@@ -238,6 +327,13 @@ bool BLI_ghash_remove(GHash *gh, void *key, GHashKeyFreeFP keyfreefp, GHashValFr
 
 /* same as above but return the value,
  * no free value argument since it will be returned */
+/**
+ * Remove \a key from \a gh, returning the value or NULL if the key wasn't found.
+ *
+ * \param key  The key to remove.
+ * \param keyfreefp  Optional callback to free the key.
+ * \return the value of \a key int \a gh or NULL.
+ */
 void *BLI_ghash_pop(GHash *gh, void *key, GHashKeyFreeFP keyfreefp)
 {
 	const unsigned int hash = ghash_keyhash(gh, key);
@@ -266,11 +362,20 @@ void *BLI_ghash_pop(GHash *gh, void *key, GHashKeyFreeFP keyfreefp)
 	return NULL;
 }
 
+/**
+ * \return true if the \a key is in \a gh.
+ */
 bool BLI_ghash_haskey(GHash *gh, const void *key)
 {
 	return (ghash_lookup_entry(gh, key) != NULL);
 }
 
+/**
+ * Reset \a gh clearing all entries.
+ *
+ * \param keyfreefp  Optional callback to free the key.
+ * \param valfreefp  Optional callback to free the value.
+ */
 void BLI_ghash_clear(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp)
 {
 	unsigned int i;
@@ -298,6 +403,13 @@ void BLI_ghash_clear(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfree
 	gh->buckets = MEM_callocN(gh->nbuckets * sizeof(*gh->buckets), "buckets");
 }
 
+/**
+ * Frees the GHash and its members.
+ *
+ * \param gh  The GHash to free.
+ * \param keyfreefp  Optional callback to free the key.
+ * \param valfreefp  Optional callback to free the value.
+ */
 void BLI_ghash_free(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp)
 {
 	unsigned int i;
@@ -325,19 +437,30 @@ void BLI_ghash_free(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreef
 	MEM_freeN(gh);
 }
 
-void BLI_ghash_flag_set(GHash *gh, unsigned short flag)
+/**
+ * Sets a GHash flag.
+ */
+void BLI_ghash_flag_set(GHash *gh, unsigned int flag)
 {
 	gh->flag |= flag;
 }
 
-void BLI_ghash_flag_clear(GHash *gh, unsigned short flag)
+/**
+ * Clear a GHash flag.
+ */
+void BLI_ghash_flag_clear(GHash *gh, unsigned int flag)
 {
-	gh->flag &= (unsigned short)~flag;
+	gh->flag &= ~flag;
 }
+
+/** \} */
 
 
 /* -------------------------------------------------------------------- */
 /* GHash Iterator API */
+
+/** \name Iterator API
+ * \{ */
 
 GHashIterator *BLI_ghashIterator_new(GHash *gh)
 {
@@ -388,12 +511,31 @@ bool BLI_ghashIterator_done(GHashIterator *ghi)
 	return ghi->curEntry == NULL;
 }
 
+/** \} */
+
+
+/** \name Generic Key Hash & Comparison Functions
+ * \{ */
+
 /***/
 
+#if 0
+/* works but slower */
 unsigned int BLI_ghashutil_ptrhash(const void *key)
 {
 	return (unsigned int)(intptr_t)key;
 }
+#else
+/* based python3.3's pointer hashing function */
+unsigned int BLI_ghashutil_ptrhash(const void *key)
+{
+	size_t y = (size_t)key;
+	/* bottom 3 or 4 bits are likely to be 0; rotate y by 4 to avoid
+	 * excessive hash collisions for dicts and sets */
+	y = (y >> 4) | (y << (8 * sizeof(void *) - 4));
+	return (unsigned int)y;
+}
+#endif
 int BLI_ghashutil_ptrcmp(const void *a, const void *b)
 {
 	if (a == b)
@@ -449,23 +591,6 @@ int BLI_ghashutil_strcmp(const void *a, const void *b)
 	return strcmp(a, b);
 }
 
-GHash *BLI_ghash_ptr_new(const char *info)
-{
-	return BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, info);
-}
-GHash *BLI_ghash_str_new(const char *info)
-{
-	return BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp, info);
-}
-GHash *BLI_ghash_int_new(const char *info)
-{
-	return BLI_ghash_new(BLI_ghashutil_inthash, BLI_ghashutil_intcmp, info);
-}
-GHash *BLI_ghash_pair_new(const char *info)
-{
-	return BLI_ghash_new(BLI_ghashutil_pairhash, BLI_ghashutil_paircmp, info);
-}
-
 GHashPair *BLI_ghashutil_pairalloc(const void *first, const void *second)
 {
 	GHashPair *pair = MEM_mallocN(sizeof(GHashPair), "GHashPair");
@@ -496,3 +621,55 @@ void BLI_ghashutil_pairfree(void *ptr)
 {
 	MEM_freeN(ptr);
 }
+
+/** \} */
+
+
+/** \name Convenience Creation Functions
+ * \{ */
+
+GHash *BLI_ghash_ptr_new_ex(const char *info,
+                            const unsigned int nentries_reserve)
+{
+	return BLI_ghash_new_ex(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, info,
+	                        nentries_reserve);
+}
+GHash *BLI_ghash_ptr_new(const char *info)
+{
+	return BLI_ghash_ptr_new_ex(info, 0);
+}
+
+GHash *BLI_ghash_str_new_ex(const char *info,
+                            const unsigned int nentries_reserve)
+{
+	return BLI_ghash_new_ex(BLI_ghashutil_strhash, BLI_ghashutil_strcmp, info,
+	                        nentries_reserve);
+}
+GHash *BLI_ghash_str_new(const char *info)
+{
+	return BLI_ghash_str_new_ex(info, 0);
+}
+
+GHash *BLI_ghash_int_new_ex(const char *info,
+                            const unsigned int nentries_reserve)
+{
+	return BLI_ghash_new_ex(BLI_ghashutil_inthash, BLI_ghashutil_intcmp, info,
+	                        nentries_reserve);
+}
+GHash *BLI_ghash_int_new(const char *info)
+{
+	return BLI_ghash_int_new_ex(info, 0);
+}
+
+GHash *BLI_ghash_pair_new_ex(const char *info,
+                             const unsigned int nentries_reserve)
+{
+	return BLI_ghash_new_ex(BLI_ghashutil_pairhash, BLI_ghashutil_paircmp, info,
+	                        nentries_reserve);
+}
+GHash *BLI_ghash_pair_new(const char *info)
+{
+	return BLI_ghash_pair_new_ex(info, 0);
+}
+
+/** \} */

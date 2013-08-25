@@ -55,7 +55,7 @@ CCL_NAMESPACE_BEGIN
 #ifdef __KERNEL_CPU__
 #define __KERNEL_SHADING__
 #define __KERNEL_ADV_SHADING__
-#define __NON_PROGRESSIVE__
+#define __BRANCHED_PATH__
 #ifdef WITH_OSL
 #define __OSL__
 #endif
@@ -67,7 +67,7 @@ CCL_NAMESPACE_BEGIN
 #define __KERNEL_SHADING__
 #if __CUDA_ARCH__ >= 200
 #define __KERNEL_ADV_SHADING__
-#define __NON_PROGRESSIVE__
+#define __BRANCHED_PATH__
 #endif
 #endif
 
@@ -220,6 +220,7 @@ enum PathRayFlag {
 	PATH_RAY_MIS_SKIP = 1024,
 	PATH_RAY_DIFFUSE_ANCESTOR = 2048,
 	PATH_RAY_GLOSSY_ANCESTOR = 4096,
+	PATH_RAY_BSSRDF_ANCESTOR = 8192,
 
 	/* this gives collisions with localview bits
 	 * see: blender_util.h, grr - Campbell */
@@ -763,8 +764,8 @@ typedef struct KernelIntegrator {
 	/* clamp */
 	float sample_clamp;
 
-	/* non-progressive */
-	int progressive;
+	/* branched path */
+	int branched;
 	int aa_samples;
 	int diffuse_samples;
 	int glossy_samples;
