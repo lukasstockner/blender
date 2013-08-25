@@ -189,7 +189,7 @@ void BlenderSync::sync_integrator()
 	}
 #endif
 
-	integrator->method = (Integrator::Method)get_int(cscene, "progressive");
+	integrator->method = (Integrator::Method)get_enum(cscene, "progressive");
 
 	int diffuse_samples = get_int(cscene, "diffuse_samples");
 	int glossy_samples = get_int(cscene, "glossy_samples");
@@ -420,7 +420,7 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::Use
 		preview_samples = preview_samples * preview_samples;
 	}
 
-	if(get_int(cscene, "progressive") == 0) {
+	if(get_enum(cscene, "progressive") == 0) {
 		if(background) {
 			params.samples = aa_samples;
 		}

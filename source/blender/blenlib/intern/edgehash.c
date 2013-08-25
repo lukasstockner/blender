@@ -75,21 +75,26 @@ struct EdgeHash {
 	EdgeEntry **buckets;
 	BLI_mempool *epool;
 	unsigned int nbuckets, nentries;
-	unsigned short cursize, flag;
+	unsigned int cursize, flag;
 };
 
 
 /* -------------------------------------------------------------------- */
 /* EdgeHash API */
 
-/* internal utility API */
+/** \name Internal Utility API
+ * \{ */
 
-#define EDGE_HASH(v0, v1)  ((v0 * 39) ^ (v1 * 31))
+BLI_INLINE bool edgehash_test_expand_buckets(const unsigned int nentries, const unsigned int nbuckets)
+{
+	return (nentries > nbuckets * 3);
+}
 
 BLI_INLINE unsigned int edgehash_keyhash(EdgeHash *eh, unsigned int v0, unsigned int v1)
 {
 	BLI_assert(v0 < v1);
-	return EDGE_HASH(v0, v1) % eh->nbuckets;
+
+	return ((v0 * 39) ^ (v1 * 31)) % eh->nbuckets;
 }
 
 BLI_INLINE EdgeEntry *edgehash_lookup_entry_ex(EdgeHash *eh, unsigned int v0, unsigned int v1,
@@ -130,7 +135,7 @@ static void edgehash_insert_ex(EdgeHash *eh, unsigned int v0, unsigned int v1, v
 	e->val = val;
 	eh->buckets[hash] = e;
 
-	if (UNLIKELY(++eh->nentries > eh->nbuckets / 2)) {
+	if (UNLIKELY(edgehash_test_expand_buckets(++eh->nentries, eh->nbuckets))) {
 		EdgeEntry **old = eh->buckets;
 		const unsigned int nold = eh->nbuckets;
 		unsigned int i;
@@ -151,25 +156,40 @@ static void edgehash_insert_ex(EdgeHash *eh, unsigned int v0, unsigned int v1, v
 		MEM_freeN(old);
 	}
 }
+/** \} */
 
-#undef EDGE_HASH
 
+/** \name Public API
+ * \{ */
 
 /* Public API */
 
-EdgeHash *BLI_edgehash_new(void)
+EdgeHash *BLI_edgehash_new_ex(const char *info,
+                              const unsigned int nentries_reserve)
 {
-	EdgeHash *eh = MEM_callocN(sizeof(*eh), "EdgeHash");
+	EdgeHash *eh = MEM_mallocN(sizeof(*eh), info);
 
 	eh->nbuckets = _ehash_hashsizes[0];  /* eh->cursize */
 	eh->nentries = 0;
 	eh->cursize = 0;
 	eh->flag = 0;
 
+	/* if we have reserved the number of elements that this hash will contain */
+	if (nentries_reserve) {
+		while (edgehash_test_expand_buckets(nentries_reserve, eh->nbuckets)) {
+			eh->nbuckets = _ehash_hashsizes[++eh->cursize];
+		}
+	}
+
 	eh->buckets = MEM_callocN(eh->nbuckets * sizeof(*eh->buckets), "eh buckets 2");
 	eh->epool = BLI_mempool_create(sizeof(EdgeEntry), 512, 512, BLI_MEMPOOL_SYSMALLOC);
 
 	return eh;
+}
+
+EdgeHash *BLI_edgehash_new(const char *info)
+{
+	return BLI_edgehash_new_ex(info, 0);
 }
 
 /**
@@ -187,7 +207,7 @@ void BLI_edgehash_insert(EdgeHash *eh, unsigned int v0, unsigned int v1, void *v
 /**
  * Assign a new value to a key that may already be in edgehash.
  */
-void BLI_edgehash_assign(EdgeHash *eh, unsigned int v0, unsigned int v1, void *val)
+void BLI_edgehash_reinsert(EdgeHash *eh, unsigned int v0, unsigned int v1, void *val)
 {
 	unsigned int hash;
 	EdgeEntry *e;
@@ -277,19 +297,24 @@ void BLI_edgehash_free(EdgeHash *eh, EdgeHashFreeFP valfreefp)
 }
 
 
-void BLI_edgehash_flag_set(EdgeHash *eh, unsigned short flag)
+void BLI_edgehash_flag_set(EdgeHash *eh, unsigned int flag)
 {
 	eh->flag |= flag;
 }
 
-void BLI_edgehash_flag_clear(EdgeHash *eh, unsigned short flag)
+void BLI_edgehash_flag_clear(EdgeHash *eh, unsigned int flag)
 {
-	eh->flag &= (unsigned short)~flag;
+	eh->flag &= ~flag;
 }
+
+/** \} */
 
 
 /* -------------------------------------------------------------------- */
 /* EdgeHash Iterator API */
+
+/** \name Iterator API
+ * \{ */
 
 struct EdgeHashIterator {
 	EdgeHash *eh;
@@ -380,3 +405,5 @@ bool BLI_edgehashIterator_isDone(EdgeHashIterator *ehi)
 {
 	return (ehi->curEntry == NULL);
 }
+
+/** \} */

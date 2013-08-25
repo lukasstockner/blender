@@ -40,17 +40,19 @@ enum {
 	EDGEHASH_FLAG_ALLOW_DUPES = (1 << 0),  /* only checked for in debug mode */
 };
 
-EdgeHash       *BLI_edgehash_new(void);
+EdgeHash       *BLI_edgehash_new_ex(const char *info,
+                                    const unsigned int nentries_reserve);
+EdgeHash       *BLI_edgehash_new(const char *info);
 void            BLI_edgehash_free(EdgeHash *eh, EdgeHashFreeFP valfreefp);
 void            BLI_edgehash_insert(EdgeHash *eh, unsigned int v0, unsigned int v1, void *val);
-void            BLI_edgehash_assign(EdgeHash *eh, unsigned int v0, unsigned int v1, void *val);
+void            BLI_edgehash_reinsert(EdgeHash *eh, unsigned int v0, unsigned int v1, void *val);
 void           *BLI_edgehash_lookup(EdgeHash *eh, unsigned int v0, unsigned int v1);
 void          **BLI_edgehash_lookup_p(EdgeHash *eh, unsigned int v0, unsigned int v1);
 bool            BLI_edgehash_haskey(EdgeHash *eh, unsigned int v0, unsigned int v1);
 int             BLI_edgehash_size(EdgeHash *eh);
 void            BLI_edgehash_clear(EdgeHash *eh, EdgeHashFreeFP valfreefp);
-void            BLI_edgehash_flag_set(EdgeHash *eh, unsigned short flag);
-void            BLI_edgehash_flag_clear(EdgeHash *eh, unsigned short flag);
+void            BLI_edgehash_flag_set(EdgeHash *eh, unsigned int flag);
+void            BLI_edgehash_flag_clear(EdgeHash *eh, unsigned int flag);
 
 EdgeHashIterator   *BLI_edgehashIterator_new(EdgeHash *eh);
 void                BLI_edgehashIterator_free(EdgeHashIterator *ehi);
@@ -60,4 +62,7 @@ void                BLI_edgehashIterator_setValue(EdgeHashIterator *ehi, void *v
 void                BLI_edgehashIterator_step(EdgeHashIterator *ehi);
 bool                BLI_edgehashIterator_isDone(EdgeHashIterator *ehi);
 
-#endif
+#define BLI_EDGEHASH_SIZE_GUESS_FROM_LOOPS(totloop)  ((totloop) / 2)
+#define BLI_EDGEHASH_SIZE_GUESS_FROM_POLYS(totpoly)  ((totpoly) * 2)
+
+#endif  /* __BLI_EDGEHASH_H__ */
