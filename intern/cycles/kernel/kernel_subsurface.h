@@ -111,8 +111,8 @@ __device float3 subsurface_scatter_eval(ShaderData *sd, ShaderClosure *sc, float
 		sc = &sd->closure[i];
 		
 		if(CLOSURE_IS_BSSRDF(sc->type)) {
-			/* in case of non-progressive integrate we sample all bssrdf's once,
-			 * for progressive we pick one, so adjust pdf for that */
+			/* in case of branched path integrate we sample all bssrdf's once,
+			 * for path trace we pick one, so adjust pdf for that */
 			float sample_weight = (all)? 1.0f: sc->sample_weight * sample_weight_inv;
 
 			/* compute pdf */
@@ -221,20 +221,26 @@ __device int subsurface_scatter_multi_step(KernelGlobals *kg, ShaderData *sd, Sh
 	disk_N = sd->Ng;
 	make_orthonormals(disk_N, &disk_T, &disk_B);
 
-	if(disk_u < 0.5f) {
+	/* reusing variable for picking the closure gives a bit nicer stratification
+	 * for path tracer, for branched we do all closures so it doesn't help */
+	float axisu = (all)? disk_u: sd->randb_closure;
+
+	if(axisu < 0.5f) {
 		pick_pdf_N = 0.5f;
 		pick_pdf_T = 0.25f;
 		pick_pdf_B = 0.25f;
-		disk_u *= 2.0f;
+		if(all)
+			disk_u *= 2.0f;
 	}
-	else if(disk_u < 0.75f) {
+	else if(axisu < 0.75f) {
 		float3 tmp = disk_N;
 		disk_N = disk_T;
 		disk_T = tmp;
 		pick_pdf_N = 0.25f;
 		pick_pdf_T = 0.5f;
 		pick_pdf_B = 0.25f;
-		disk_u = (disk_u - 0.5f)*4.0f;
+		if(all)
+			disk_u = (disk_u - 0.5f)*4.0f;
 	}
 	else {
 		float3 tmp = disk_N;
@@ -243,7 +249,8 @@ __device int subsurface_scatter_multi_step(KernelGlobals *kg, ShaderData *sd, Sh
 		pick_pdf_N = 0.25f;
 		pick_pdf_T = 0.25f;
 		pick_pdf_B = 0.5f;
-		disk_u = (disk_u - 0.75f)*4.0f;
+		if(all)
+			disk_u = (disk_u - 0.75f)*4.0f;
 	}
 
 	/* sample point on disk */
@@ -323,20 +330,18 @@ __device void subsurface_scatter_step(KernelGlobals *kg, ShaderData *sd,
 	disk_N = sd->Ng;
 	make_orthonormals(disk_N, &disk_T, &disk_B);
 
-	if(disk_u < 0.5f) {
+	if(sd->randb_closure < 0.5f) {
 		pick_pdf_N = 0.5f;
 		pick_pdf_T = 0.25f;
 		pick_pdf_B = 0.25f;
-		disk_u *= 2.0f;
 	}
-	else if(disk_u < 0.75f) {
+	else if(sd->randb_closure < 0.75f) {
 		float3 tmp = disk_N;
 		disk_N = disk_T;
 		disk_T = tmp;
 		pick_pdf_N = 0.25f;
 		pick_pdf_T = 0.5f;
 		pick_pdf_B = 0.25f;
-		disk_u = (disk_u - 0.5f)*4.0f;
 	}
 	else {
 		float3 tmp = disk_N;
@@ -345,7 +350,6 @@ __device void subsurface_scatter_step(KernelGlobals *kg, ShaderData *sd,
 		pick_pdf_N = 0.25f;
 		pick_pdf_T = 0.25f;
 		pick_pdf_B = 0.5f;
-		disk_u = (disk_u - 0.75f)*4.0f;
 	}
 
 	/* sample point on disk */
@@ -464,8 +468,8 @@ __device float3 old_subsurface_scatter_multi_eval(KernelGlobals *kg, ShaderData 
 	float inv_pdf_sum;
 	
 	if(pdf_sum > 0.0f) {
-		/* in case of non-progressive integrate we sample all bssrdf's once,
-		 * for progressive we pick one, so adjust pdf for that */
+		/* in case of branched path integrate we sample all bssrdf's once,
+		 * for path trace we pick one, so adjust pdf for that */
 		if(all)
 			inv_pdf_sum = 1.0f/pdf_sum;
 		else
