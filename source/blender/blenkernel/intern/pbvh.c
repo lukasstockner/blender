@@ -1542,12 +1542,12 @@ int BKE_pbvh_node_raycast(PBVH *bvh, PBVHNode *node, float (*origco)[3], int use
 
 typedef struct {
 	DMSetMaterial setMaterial;
-	int wireframe;
+	bool wireframe;
 } PBVHNodeDrawData;
 
 void BKE_pbvh_node_draw(PBVHNode *node, void *data_v)
 {
-	PBVHNodeDrawData *data = data_v;
+	PBVHNodeDrawData *data = (PBVHNodeDrawData*)data_v;
 
 #if 0
 	/* XXX: Just some quick code to show leaf nodes in different colors */
@@ -1566,11 +1566,8 @@ void BKE_pbvh_node_draw(PBVHNode *node, void *data_v)
 	gpuColor3f(1, 0, 0);
 #endif
 
-	if (!(node->flag & PBVH_FullyHidden)) {
-		GPU_draw_buffers(node->draw_buffers,
-		                 data->setMaterial,
-		                 data->wireframe);
-	}
+	if ((node->flag & PBVH_FullyHidden) == 0)
+		GPU_draw_buffers(node->draw_buffers, data->setMaterial, data->wireframe);
 }
 
 typedef enum {
@@ -1639,7 +1636,7 @@ static void pbvh_node_check_diffuse_changed(PBVH *bvh, PBVHNode *node)
 }
 
 void BKE_pbvh_draw(PBVH *bvh, float (*planes)[4], float (*face_nors)[3],
-                   DMSetMaterial setMaterial, int wireframe)
+                   DMSetMaterial setMaterial, bool wireframe)
 {
 	PBVHNodeDrawData draw_data = {setMaterial, wireframe};
 	PBVHNode **nodes;

@@ -100,9 +100,6 @@ static void draw_keyframe_shape(float x, float y, float xscale, float yscale, sh
 	gpuTranslate(x, y, 0.0f);
 	gpuScale(1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
 
-	/* anti-aliased lines for more consistent appearance */
-	gpuEnableLineSmooth();
-
 	if (sel)
 		UI_ThemeColorShadeAlpha(TH_STRIP_SELECT, 50, -255 * (1.0f - alpha));
 	else
@@ -115,6 +112,11 @@ static void draw_keyframe_shape(float x, float y, float xscale, float yscale, sh
 	gpuVertex2fv(_unit_diamond_shape[3]);
 	gpuEnd();
 
+	/* anti-aliased lines for more consistent appearance */
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 	/* exterior - black frame */
 	gpuColor4P(CPACK_BLACK, alpha);
 	gpuBegin(GL_LINE_LOOP);
@@ -124,7 +126,9 @@ static void draw_keyframe_shape(float x, float y, float xscale, float yscale, sh
 	gpuVertex2fv(_unit_diamond_shape[3]);
 	gpuEnd();
 
-	gpuDisableLineSmooth();
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
 
 	/* restore view transform */
 	gpuPopMatrix();

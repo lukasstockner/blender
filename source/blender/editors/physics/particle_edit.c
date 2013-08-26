@@ -2562,11 +2562,20 @@ static void brush_drawcursor(bContext *C, int x, int y, void *UNUSED(customdata)
 
 	if (brush) {
 		gpuColor4P(CPACK_WHITE, 0.500f);
-		gpuEnableLineSmooth();
+
+		GPU_raster_begin();
+
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 		glEnable(GL_BLEND);
+
 		gpuSingleCircle((float)x, (float)y, pe_brush_size_get(scene, brush), 40);
+
 		glDisable(GL_BLEND);
-		gpuDisableLineSmooth();
+
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+		GPU_raster_end();
 	}
 }
 

@@ -183,7 +183,7 @@ void GPU_update_grid_buffers(GPU_Buffers *buffers, struct CCGElem **grids,
                              int show_diffuse_color);
 
 void GPU_draw_buffers(struct GPU_Buffers *buffers, DMSetMaterial setMaterial,
-					  int wireframe);
+					  bool wireframe);
 
 int GPU_buffers_diffuse_changed(struct GPU_Buffers *buffers, int show_diffuse_color);
 

@@ -1501,69 +1501,109 @@ static void stitch_calculate_edge_normal(BMEditMesh *em, UvEdge *edge, float *no
 	normalize_v2(normal);
 }
 
+static void commit_theme_color(int colorid)
+{
+	GPUcommon* common = gpu_get_common();
+
+	if (common != NULL) {
+		GPU_CHECK_NO_ERROR();
+
+		if (common->color != -1) {
+			float color[4];
+			UI_GetThemeColor4fv(colorid, color);
+
+			glVertexAttrib4fv(common->color, color);
+		}
+
+		GPU_CHECK_NO_ERROR();
+
+		return;
+	}
+
+#if defined(WITH_GL_PROFILE_COMPAT)
+	GPU_CHECK_NO_ERROR();
+
+	UI_ThemeColor4(colorid);
+
+	GPU_CHECK_NO_ERROR();
+#endif
+}
+
+/* XXX jwilkins: this needs more work to fit within the new abstraction layer */
 static void stitch_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar), void *arg)
 {
-#if defined(WITH_GL_PROFILE_COMPAT)
-	int i, index = 0;
-	float pointsize = UI_GetThemeValuef(TH_VERTEX_SIZE);
+	int i, index;
 	StitchState *state = (StitchState *)arg;
 	StitchPreviewer *stitch_preview = state->stitch_preview;
 
-	gpuSpriteSize(pointsize * 2.0f);
+	GPU_CHECK_NO_ERROR();
+
+	gpu_commit_aspect();
+	gpu_commit_matrixes();
 
 	glEnable(GL_BLEND);
 
-	UI_ThemeColor4(TH_STITCH_PREVIEW_ACTIVE);
-	gpuPolygonMode(GL_FILL);
+	gpu_enable_vertex_array();
 
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glVertexPointer(2, GL_FLOAT, 0, stitch_preview->static_tris);
+	gpu_vertex_pointer(2, GL_FLOAT, 0, stitch_preview->static_tris);
+	commit_theme_color(TH_STITCH_PREVIEW_ACTIVE);
 	glDrawArrays(GL_TRIANGLES, 0, stitch_preview->num_static_tris * 3);
 
-	glVertexPointer(2, GL_FLOAT, 0, stitch_preview->preview_polys);
+	gpu_vertex_pointer(2, GL_FLOAT, 0, stitch_preview->preview_polys);
+
+	index = 0;
 	for (i = 0; i < stitch_preview->num_polys; i++) {
-		gpuPolygonMode(GL_FILL);
-		UI_ThemeColor4(TH_STITCH_PREVIEW_FACE);
+		commit_theme_color(TH_STITCH_PREVIEW_FACE);
 		glDrawArrays(GL_TRIANGLE_FAN, index, stitch_preview->uvs_per_polygon[i]);
-		gpuPolygonMode(GL_LINE);
-		UI_ThemeColor4(TH_STITCH_PREVIEW_EDGE);
-		glDrawArrays(GL_TRIANGLE_FAN, index, stitch_preview->uvs_per_polygon[i]);
-		#if 0
-		gpuPolygonMode(GL_POINT);
-		UI_ThemeColor4(TH_STITCH_PREVIEW_VERT);
-		glDrawArrays(GL_POLYGON, index, stitch_preview->uvs_per_polygon[i]);
-		#endif
 
 		index += stitch_preview->uvs_per_polygon[i];
 	}
+
+	GPU_raster_begin();
+
+	gpuPolygonMode(GL_LINE);
+
+	index = 0;
+	for (i = 0; i < stitch_preview->num_polys; i++) {
+		commit_theme_color(TH_STITCH_PREVIEW_EDGE);
+		glDrawArrays(GL_TRIANGLE_FAN, index, stitch_preview->uvs_per_polygon[i]);
+
+		index += stitch_preview->uvs_per_polygon[i];
+	}
+
+	gpuPolygonMode(GL_FILL);
+
+	GPU_raster_end();
+
 	glDisable(GL_BLEND);
 
 	/* draw vert preview */
 	if (state->mode == STITCH_VERT) {
-		UI_ThemeColor4(TH_STITCH_PREVIEW_STITCHABLE);
-		glVertexPointer(2, GL_FLOAT, 0, stitch_preview->preview_stitchable);
+		gpuSpriteSize(2.0f * UI_GetThemeValuef(TH_VERTEX_SIZE));
+
+		gpu_vertex_pointer(2, GL_FLOAT, 0, stitch_preview->preview_stitchable);
+		commit_theme_color(TH_STITCH_PREVIEW_STITCHABLE);
 		glDrawArrays(GL_POINTS, 0, stitch_preview->num_stitchable);
 
-		UI_ThemeColor4(TH_STITCH_PREVIEW_UNSTITCHABLE);
-		glVertexPointer(2, GL_FLOAT, 0, stitch_preview->preview_unstitchable);
+		gpu_vertex_pointer(2, GL_FLOAT, 0, stitch_preview->preview_unstitchable);
+		commit_theme_color(TH_STITCH_PREVIEW_UNSTITCHABLE);
 		glDrawArrays(GL_POINTS, 0, stitch_preview->num_unstitchable);
+
+		gpuSpriteSize(1.0); /* restore default value */
 	}
 	else {
-		UI_ThemeColor4(TH_STITCH_PREVIEW_STITCHABLE);
-		glVertexPointer(2, GL_FLOAT, 0, stitch_preview->preview_stitchable);
+		gpu_vertex_pointer(2, GL_FLOAT, 0, stitch_preview->preview_stitchable);
+		commit_theme_color(TH_STITCH_PREVIEW_STITCHABLE);
 		glDrawArrays(GL_LINES, 0, 2 * stitch_preview->num_stitchable);
 
-		UI_ThemeColor4(TH_STITCH_PREVIEW_UNSTITCHABLE);
-		glVertexPointer(2, GL_FLOAT, 0, stitch_preview->preview_unstitchable);
+		gpu_vertex_pointer(2, GL_FLOAT, 0, stitch_preview->preview_unstitchable);
+		commit_theme_color(TH_STITCH_PREVIEW_UNSTITCHABLE);
 		glDrawArrays(GL_LINES, 0, 2 * stitch_preview->num_unstitchable);
 	}
 
-	glDisableClientState(GL_VERTEX_ARRAY);
+	gpu_disable_vertex_array();
 
-	gpuPolygonMode(GL_FILL);
-
-	gpuSpriteSize(1.0); /* restore default value */
-#endif
+	GPU_CHECK_NO_ERROR();
 }
 
 static UvEdge *uv_edge_get(BMLoop *l, StitchState *state)

@@ -157,14 +157,17 @@ void ED_area_do_refresh(bContext *C, ScrArea *sa)
  */
 static void area_draw_azone(short x1, short y1, short x2, short y2)
 {
-	int dx = x2 - x1;
-	int dy = y2 - y1;
+	float dx = x2 - x1;
+	float dy = y2 - y1;
 
 	dx = copysign(ceilf(0.3f * fabsf(dx)), dx);
 	dy = copysign(ceilf(0.3f * fabsf(dy)), dy);
 
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 	glEnable(GL_BLEND);
-	gpuEnableLineSmooth();
 
 	gpuImmediateFormat_C4_V2(); // DOODLE: azone, 6 lines, colored
 	gpuBegin(GL_LINES);
@@ -193,7 +196,10 @@ static void area_draw_azone(short x1, short y1, short x2, short y2)
 	gpuEnd();
 	gpuImmediateUnformat();
 
-	gpuDisableLineSmooth();
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
+
 	glDisable(GL_BLEND);
 }
 
@@ -208,7 +214,9 @@ static void region_draw_azone_icon(AZone *az)
 	gpuImmediateFormat_V2(); // DOODLE, azone icon, disk, circle, and plus (cross), 2 lines mono
 
 	/* outlined circle */
-	gpuEnableLineSmooth();
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
 
 	gpuColor4P(CPACK_WHITE, 0.800f);
 	gpuDrawDisk(0, 0, 4.25f, 16);
@@ -216,7 +224,9 @@ static void region_draw_azone_icon(AZone *az)
 	gpuGray4f(0.200f, 0.900f);
 	gpuDrawCircle(0, 0, 4.25, 16);
 
-	gpuDisableLineSmooth();
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
 
 	gpuPopMatrix();
 

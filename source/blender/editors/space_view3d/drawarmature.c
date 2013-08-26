@@ -1420,32 +1420,34 @@ static void pchan_draw_IK_root_lines(bPoseChannel *pchan, short only_temp)
 {
 	bConstraint *con;
 	bPoseChannel *parchan;
-	
-	for (con = pchan->constraints.first; con; con = con->next) {
+
+	GPU_raster_begin();
+
+	for (con = (bConstraint*)(pchan->constraints.first); con; con = con->next) {
 		if (con->enforce == 0.0f)
 			continue;
-		
+
 		switch (con->type) {
-			case CONSTRAINT_TYPE_KINEMATIC:
+		case CONSTRAINT_TYPE_KINEMATIC:
 			{
 				bKinematicConstraint *data = (bKinematicConstraint *)con->data;
 				int segcount = 0;
-				
+
 				/* if only_temp, only draw if it is a temporary ik-chain */
 				if ((only_temp) && !(data->flag & CONSTRAINT_IK_TEMP))
 					continue;
-				
-				setlinestyle(3);
+
+				GPU_raster_set_line_style(3);
 				gpuBegin(GL_LINES);
-				
+
 				/* exclude tip from chain? */
 				if ((data->flag & CONSTRAINT_IK_TIP) == 0)
 					parchan = pchan->parent;
 				else
 					parchan = pchan;
-				
+
 				gpuVertex3fv(parchan->pose_tail);
-				
+
 				/* Find the chain's root */
 				while (parchan->parent) {
 					segcount++;
@@ -1456,22 +1458,22 @@ static void pchan_draw_IK_root_lines(bPoseChannel *pchan, short only_temp)
 				}
 				if (parchan)
 					gpuVertex3fv(parchan->pose_head);
-				
+
 				gpuEnd();
-				setlinestyle(0);
+				GPU_raster_set_line_style(0);
 			}
 			break;
-			case CONSTRAINT_TYPE_SPLINEIK: 
+		case CONSTRAINT_TYPE_SPLINEIK: 
 			{
 				bSplineIKConstraint *data = (bSplineIKConstraint *)con->data;
 				int segcount = 0;
-				
-				setlinestyle(3);
+
+				GPU_raster_set_line_style(3);
 				gpuBegin(GL_LINES);
-				
+
 				parchan = pchan;
 				gpuVertex3fv(parchan->pose_tail);
-				
+
 				/* Find the chain's root */
 				while (parchan->parent) {
 					segcount++;
@@ -1483,11 +1485,13 @@ static void pchan_draw_IK_root_lines(bPoseChannel *pchan, short only_temp)
 					gpuVertex3fv(parchan->pose_head);
 
 				gpuEnd();
-				setlinestyle(0);
+				GPU_raster_set_line_style(0);
 			}
 			break;
 		}
 	}
+
+	GPU_raster_end();
 }
 
 static void bgl_sphere_project(float ax, float az)
@@ -1944,14 +1948,19 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 								gpuSelectLoad(index & 0xFFFF);  /* object tag, for bordersel optim */
 								UI_ThemeColor(TH_WIRE);
 							}
-							setlinestyle(3);
+
+							GPU_raster_begin();
+
+							GPU_raster_set_line_style(3);
 							gpuImmediateFormat_V3();
 							gpuBegin(GL_LINES);
 							gpuVertex3fv(pchan->pose_head);
 							gpuVertex3fv(pchan->parent->pose_tail);
 							gpuEnd();
 							gpuImmediateUnformat();
-							setlinestyle(0);
+							GPU_raster_set_line_style(0);
+
+							GPU_raster_end();
 						}
 						
 						/* Draw a line to IK root bone 
@@ -2250,14 +2259,19 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 				if (eBone->parent) {
 					UI_ThemeColor(TH_WIRE_EDIT);
 					gpuSelectLoad(-1);  /* -1 here is OK! */
-					setlinestyle(3);
-					
+
+					GPU_raster_begin();
+
+					GPU_raster_set_line_style(3);
+
 					gpuBegin(GL_LINES);
 					gpuVertex3fv(eBone->parent->tail);
 					gpuVertex3fv(eBone->head);
 					gpuEnd();
-					
-					setlinestyle(0);
+
+					GPU_raster_set_line_style(0);
+
+					GPU_raster_end();
 				}
 			}
 		}

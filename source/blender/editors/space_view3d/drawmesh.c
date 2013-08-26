@@ -183,12 +183,16 @@ void draw_mesh_face_select(RegionView3D *rv3d, Mesh *me, DerivedMesh *dm)
 	bglPolygonOffset(rv3d->dist, 1.0);
 
 	/* Draw (Hidden) Edges */
-	setlinestyle(1);
+	GPU_raster_begin();
+
+	GPU_raster_set_line_style(1);
 	UI_ThemeColor(TH_EDGE_FACESEL);
 	gpuImmediateFormat_C4_V3(); /* XXX: jwilkins, C4 only because CCG age visualization may be enabled */
 	dm->drawMappedEdges(dm, draw_mesh_face_select__setHiddenOpts, &data);
 	gpuImmediateUnformat();
-	setlinestyle(0);
+	GPU_raster_set_line_style(0);
+
+	GPU_raster_end();
 
 	/* Draw Selected Faces */
 	if (me->drawflag & ME_DRAWFACES) {
@@ -206,11 +210,16 @@ void draw_mesh_face_select(RegionView3D *rv3d, Mesh *me, DerivedMesh *dm)
 
 	/* Draw Stippled Outline for selected faces */
 	gpuColor3P(CPACK_WHITE);
-	setlinestyle(1);
+
+	GPU_raster_begin();
+
+	GPU_raster_set_line_style(1);
 	gpuImmediateFormat_C4_V3(); /* XXX: jwilkins, C4 only because CCG age visualization may be enabled */
 	dm->drawMappedEdges(dm, draw_mesh_face_select__setSelectOpts, &data);
 	gpuImmediateUnformat();
-	setlinestyle(0);
+	GPU_raster_set_line_style(0);
+
+	GPU_raster_end();
 
 	bglPolygonOffset(rv3d->dist, 0.0);  /* resets correctly now, even after calling accumulated offsets */
 

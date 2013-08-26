@@ -112,11 +112,13 @@ static void gp_draw_stroke_buffer(tGPspoint *points, int totpoints, short thickn
 	}
 	else {
 		float oldpressure = points[0].pressure;
-		
-		/* draw stroke curve */
-		if (G.debug & G_DEBUG) setlinestyle(2);
 
-		glLineWidth(oldpressure * thickness);
+		GPU_raster_begin();
+
+		/* draw stroke curve */
+		if (G.debug & G_DEBUG) GPU_raster_set_line_style(2);
+
+		gpuLineWidth(oldpressure * thickness);
 		gpuBegin(GL_LINE_STRIP);
 
 		for (i = 0, pt = points; i < totpoints && pt; i++, pt++) {
@@ -125,7 +127,7 @@ static void gp_draw_stroke_buffer(tGPspoint *points, int totpoints, short thickn
 			 */
 			if (fabsf(pt->pressure - oldpressure) > 0.2f) {
 				gpuEnd();
-				glLineWidth(pt->pressure * thickness);
+				gpuLineWidth(pt->pressure * thickness);
 				gpuBegin(GL_LINE_STRIP);
 				
 				/* need to roll-back one point to ensure that there are no gaps in the stroke */
@@ -143,9 +145,11 @@ static void gp_draw_stroke_buffer(tGPspoint *points, int totpoints, short thickn
 		gpuEnd();
 
 		/* reset for predictable OpenGL context */
-		glLineWidth(1.0f);
+		gpuLineWidth(1.0f);
 		
-		if (G.debug & G_DEBUG) setlinestyle(0);
+		if (G.debug & G_DEBUG) GPU_raster_set_line_style(0);
+
+		GPU_raster_end();
 	}
 }
 
@@ -209,7 +213,7 @@ static void gp_draw_stroke_3d(bGPDspoint *points, int totpoints, short thickness
 		 */
 		if (fabsf(pt->pressure - oldpressure) > 0.2f) {
 			gpuEnd();
-			glLineWidth(pt->pressure * thickness);
+			gpuLineWidth(pt->pressure * thickness);
 			gpuBegin(GL_LINE_STRIP);
 			
 			/* need to roll-back one point to ensure that there are no gaps in the stroke */
@@ -546,14 +550,14 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 	gpuImmediateFormat_V3();
 
 	/* reset line drawing style (in case previous user didn't reset) */
-	setlinestyle(0);
-	
+	GPU_raster_set_line_style(0);
+
 	/* turn on smooth lines (i.e. anti-aliasing) */
-	gpuEnableLineSmooth();
-	
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 	/* turn on alpha-blending */
 	glEnable(GL_BLEND);
-		
+
 	/* loop over layers, drawing them */
 	for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
 		bGPDframe *gpf;
@@ -572,7 +576,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 			continue;
 		
 		/* set color, stroke thickness, and point size */
-		glLineWidth(lthick);
+		gpuLineWidth(lthick);
 		copy_v4_v4(color, gpl->color); // just for copying 4 array elements
 		copy_v4_v4(tcolor, gpl->color); // additional copy of color (for ghosting)
 		gpuColor4fv(color);
@@ -651,13 +655,15 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 			gp_draw_stroke_buffer(gpd->sbuffer, gpd->sbuffer_size, lthick, dflag, gpd->sbuffer_sflag);
 		}
 	}
-	
-	/* turn off alpha blending, then smooth lines */
-	glDisable(GL_BLEND); // alpha blending
-	gpuDisableLineSmooth(); // smooth lines
-		
+
+	/* turn off alpha blending */
+	glDisable(GL_BLEND);
+
+	/* turn off smooth lines */
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 	/* restore initial gl conditions */
-	glLineWidth(1.0);
+	gpuLineWidth(1.0);
 	gpuSpriteSize(1.0);
 
 	gpuImmediateUnformat();

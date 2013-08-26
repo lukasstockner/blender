@@ -149,7 +149,6 @@ void gla2DSetMap(gla2DDrawInfo *di, struct rctf *rect);
 #endif
 
 void set_inverted_drawing(int enable);
-void setlinestyle(int nr);
 
 /* own working polygon offset */
 void bglPolygonOffset(float viewdist, float dist);

@@ -86,45 +86,48 @@ void draw_image_cursor(SpaceImage *sima, ARegion *ar)
 	mul_v2_fl(zoom, 256.0f * UI_DPI_FAC);
 	x_fac = zoom[0];
 	y_fac = zoom[1];
-	
+
 	gpuTranslate(sima->cursor[0], sima->cursor[1], 0.0);
+
+	GPU_raster_begin();
 
 	gpuImmediateFormat_C4_V2(); // DOODLE: uvedit cursor sima, 16 colored lines
 	gpuBegin(GL_LINES);
 
 	gpuColor3P(CPACK_WHITE);
-	gpuAppendLinef(-0.05f * x_fac, 0, 0, 0.05f * y_fac);
-	gpuAppendLinef(0, 0.05f * y_fac, 0.05f * x_fac, 0.0f);
-	gpuAppendLinef(0.05f * x_fac, 0.0f, 0.0f, -0.05f * y_fac);
-	gpuAppendLinef(0.0f, -0.05f * y_fac, -0.05f * x_fac, 0.0f);
+	gpuAppendLinef(-0.05f * x_fac,  0.00f,          0.00f,          0.05f * y_fac);
+	gpuAppendLinef( 0.00f,          0.05f * y_fac,  0.05f * x_fac,  0.00f        );
+	gpuAppendLinef( 0.05f * x_fac,  0.00f,          0.00f,         -0.05f * y_fac);
+	gpuAppendLinef( 0.00f,         -0.05f * y_fac, -0.05f * x_fac,  0.00f        );
 
-	setlinestyle(4);
+	GPU_raster_set_line_style(4);
 	gpuColor3P(CPACK_BLUE);
-	gpuAppendLinef(-0.05f * x_fac, 0.0f, 0.0f, 0.05f * y_fac);
-	gpuAppendLinef(0.0f, 0.05f * y_fac, 0.05f * x_fac, 0.0f);
-	gpuAppendLinef(0.05f * x_fac, 0.0f, 0.0f, -0.05f * y_fac);
-	gpuAppendLinef(0.0f, -0.05f * y_fac, -0.05f * x_fac, 0.0f);
+	gpuAppendLinef(-0.05f * x_fac,  0.00f,          0.00f,          0.05f * y_fac);
+	gpuAppendLinef( 0.0f,           0.05f * y_fac,  0.05f * x_fac,  0.00f        );
+	gpuAppendLinef( 0.05f * x_fac,  0.00f,          0.00f,         -0.05f * y_fac);
+	gpuAppendLinef( 0.0f,          -0.05f * y_fac, -0.05f * x_fac,  0.00f        );
 
-
-	setlinestyle(0.0f);
+	GPU_raster_set_line_style(0);
 	gpuColor3P(CPACK_BLACK);
-	gpuAppendLinef(-0.020f * x_fac, 0.0f, -0.1f * x_fac, 0.0f);
-	gpuAppendLinef(0.1f * x_fac, 0.0f, 0.020f * x_fac, 0.0f);
-	gpuAppendLinef(0.0f, -0.020f * y_fac, 0.0f, -0.1f * y_fac);
-	gpuAppendLinef(0.0f, 0.1f * y_fac, 0.0f, 0.020f * y_fac);
+	gpuAppendLinef(-0.02f * x_fac,  0.00f,         -0.10f * x_fac,  0.00f        );
+	gpuAppendLinef( 0.10f * x_fac,  0.00f,          0.02f * x_fac,  0.00f        );
+	gpuAppendLinef( 0.00f,         -0.02f * y_fac,  0.00f,         -0.10f * y_fac);
+	gpuAppendLinef( 0.00f,          0.10f * y_fac,  0.00f,          0.02f * y_fac);
 
-	setlinestyle(1);
+	GPU_raster_set_line_style(1);
 	gpuColor3P(CPACK_WHITE);
-	gpuAppendLinef(-0.020f * x_fac, 0.0f, -0.1f * x_fac, 0.0f);
-	gpuAppendLinef(0.1f * x_fac, 0.0f, 0.020f * x_fac, 0.0f);
-	gpuAppendLinef(0.0f, -0.020f * y_fac, 0.0f, -0.1f * y_fac);
-	gpuAppendLinef(0.0f, 0.1f * y_fac, 0.0f, 0.020f * y_fac);
+	gpuAppendLinef(-0.02f * x_fac,  0.00f,         -0.10f * x_fac,  0.00f        );
+	gpuAppendLinef( 0.10f * x_fac,  0.00f,          0.02f * x_fac,  0.00f        );
+	gpuAppendLinef( 0.00f,         -0.02f * y_fac,  0.00f,         -0.10f * y_fac);
+	gpuAppendLinef( 0.00f,          0.10f * y_fac,  0.00f,          0.02f * y_fac);
 
 	gpuEnd();
 	gpuImmediateUnformat();
 
 	gpuTranslate(-sima->cursor[0], -sima->cursor[1], 0.0);
-	setlinestyle(0);
+	GPU_raster_set_line_style(0);
+
+	GPU_raster_end();
 }
 
 static int draw_uvs_face_check(Scene *scene)
@@ -612,7 +615,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 					}
 					gpuEnd();
 
-					setlinestyle(2);
+					GPU_raster_set_line_style(2);
 					gpuGray3f(0.565f);
 
 					gpuBegin(GL_LINE_LOOP);
@@ -622,7 +625,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 					}
 					gpuEnd();
 
-					setlinestyle(0);
+					GPU_raster_set_line_style(0);
 				}
 			}
 			break;

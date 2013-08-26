@@ -349,7 +349,8 @@ static void mask_draw_curve_type(const bContext *C, MaskSpline *spline, float (*
 
 		case MASK_DT_DASH:
 		default:
-			gpuEnableLineStipple();
+
+			GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
 
 #ifdef USE_XOR
 			glEnable(GL_COLOR_LOGIC_OP);
@@ -368,9 +369,9 @@ static void mask_draw_curve_type(const bContext *C, MaskSpline *spline, float (*
 			gpuLineStipple(3, 0x5555);
 			gpuRepeat();
 
-			gpuDisableLineStipple();
-			break;
+			GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
 
+			break;
 
 		case MASK_DT_BLACK:
 		case MASK_DT_WHITE:
@@ -403,6 +404,7 @@ static void mask_draw_curve_type(const bContext *C, MaskSpline *spline, float (*
 	}
 
 	gpuImmediateUnformat();
+
 	if (points != orig_points)
 		MEM_freeN(points);
 }
@@ -432,8 +434,10 @@ static void draw_spline_curve(const bContext *C, MaskLayer *masklay, MaskSpline 
 	if (!diff_points)
 		return;
 
+	GPU_raster_begin();
+
 	if (is_smooth) {
-		gpuEnableLineSmooth();
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
 		glEnable(GL_BLEND);
 	}
 
@@ -475,9 +479,11 @@ static void draw_spline_curve(const bContext *C, MaskLayer *masklay, MaskSpline 
 	MEM_freeN(diff_points);
 
 	if (draw_flag & MASK_DRAWFLAG_SMOOTH) {
-		gpuDisableLineSmooth();
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
 		glDisable(GL_BLEND);
 	}
+
+	GPU_raster_end();
 
 	(void)draw_type;
 }

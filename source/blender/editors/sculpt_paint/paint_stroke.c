@@ -117,12 +117,15 @@ static void paint_draw_smooth_stroke(bContext *C, int x, int y, void *customdata
 {
 	Paint *paint = BKE_paint_get_active_from_context(C);
 	Brush *brush = BKE_paint_brush(paint);
-	PaintStroke *stroke = customdata;
+	PaintStroke *stroke = (PaintStroke*)customdata;
 
 	if (stroke && brush && (brush->flag & BRUSH_SMOOTH_STROKE)) {
 		gpuColor4ubv(paint->paint_cursor_col);
 
-		gpuEnableLineSmooth();
+		GPU_raster_begin();
+
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 		glEnable(GL_BLEND);
 
 		// DOODLE: single line
@@ -133,7 +136,10 @@ static void paint_draw_smooth_stroke(bContext *C, int x, int y, void *customdata
 			(int)stroke->last_mouse_position[1] - stroke->vc.ar->winrct.ymin);
 
 		glDisable(GL_BLEND);
-		gpuDisableLineSmooth();
+
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+		GPU_raster_end();
 	}
 }
 

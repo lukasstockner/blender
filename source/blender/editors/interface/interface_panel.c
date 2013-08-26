@@ -388,8 +388,10 @@ static void ui_draw_tria_rect(const rctf *rect, char dir)
 
 static void ui_draw_anti_x(float x1, float y1, float x2, float y2)
 {
-	/* set antialias line */
-	gpuEnableLineSmooth();
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 	glEnable(GL_BLEND);
 
 	gpuLineWidth(2.0);
@@ -403,9 +405,11 @@ static void ui_draw_anti_x(float x1, float y1, float x2, float y2)
 
 	gpuLineWidth(1.0);
 
-	gpuDisableLineSmooth();
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
+
 	glDisable(GL_BLEND);
-	
 }
 
 /* x 'icon' for panel header */

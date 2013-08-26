@@ -308,8 +308,12 @@ static void draw_stabilization_border(SpaceClip *sc, ARegion *ar, int width, int
 
 	/* draw boundary border for frame if stabilization is enabled */
 	if (sc->flag & SC_SHOW_STABLE && clip->tracking.stabilization.flag & TRACKING_2D_STABILIZATION) {
-		gpuLineStipple(3, 0xaaaa);
-		gpuEnableLineStipple();
+		GPU_raster_begin();
+
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
+
+		gpuLineStipple(3, 0xAAAA);
+
 		set_inverted_drawing(GL_TRUE); // XXX jwilkins: double check to make sure what was hear before was meant to be inversion
 
 		gpuPushMatrix();
@@ -328,7 +332,10 @@ static void draw_stabilization_border(SpaceClip *sc, ARegion *ar, int width, int
 		gpuPopMatrix();
 
 		set_inverted_drawing(GL_FALSE);
-		gpuDisableLineStipple();
+
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
+
+		GPU_raster_end();
 	}
 }
 
@@ -629,7 +636,10 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 			
 			gpuEnd();
 
-			gpuEnableLineStipple();
+			GPU_raster_begin();
+
+			GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
+
 			gpuLineStipple(3, 0xAAAA);
 
 			glEnable(GL_COLOR_LOGIC_OP);
@@ -641,7 +651,10 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 			gpuEnd();
 
 			set_inverted_drawing(GL_FALSE);
-			gpuDisableLineStipple();
+
+			GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
+
+			GPU_raster_end();
 		}
 	}
 
@@ -649,9 +662,11 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 	gpuPushMatrix();
 	gpuTranslate(marker_pos[0], marker_pos[1], 0);
 
+	GPU_raster_begin();
+
 	if (tiny) {
-		gpuLineStipple(3, 0xaaaa);
-		gpuEnableLineStipple();
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
+		gpuLineStipple(3, 0xAAAA);
 	}
 
 	if ((track->pat_flag & SELECT) == sel && (sc->flag & SC_SHOW_MARKER_PATTERN)) {
@@ -717,7 +732,9 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 	}
 
 	if (tiny)
-		gpuDisableLineStipple();
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
+
+	GPU_raster_end();
 
 	gpuPopMatrix();
 }
@@ -854,7 +871,10 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 
 		BKE_tracking_marker_pattern_minmax(marker, pat_min, pat_max);
 
-		gpuEnableLineStipple();
+		GPU_raster_begin();
+
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
+
 		gpuLineStipple(3, 0xAAAA);
 
 #if 0
@@ -878,8 +898,9 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 		gpuVertex2fv(tilt_ctrl);
 		gpuEnd();
 
-		gpuDisableLineStipple();
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
 
+		GPU_raster_end();
 
 		/* slider to control pattern tilt */
 		draw_marker_slide_square(tilt_ctrl[0], tilt_ctrl[1], patdx, patdy, outline, px);

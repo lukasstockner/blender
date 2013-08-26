@@ -1244,7 +1244,9 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		float y2 = v2d->tot.ymax;
 
 		/* border */
-		setlinestyle(3);
+		GPU_raster_begin();
+
+		GPU_raster_set_line_style(3);
 
 		UI_ThemeColorBlendShade(TH_WIRE, TH_BACK, 1.0, 0);
 
@@ -1276,9 +1278,11 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 
 		}
 
-		setlinestyle(0);
+		GPU_raster_set_line_style(0);
+
+		GPU_raster_end();
 	}
-	
+
 	if (sseq->flag & SEQ_SHOW_GPENCIL) {
 		if (is_imbuf) {
 			/* draw grease-pencil (image aligned) */

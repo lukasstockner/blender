@@ -712,11 +712,18 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 				gpuDrawClientArrays(GL_TRIANGLE_FAN, &arrays, 0, wtb->totvert);
 
 				/* light checkers */
-				gpuEnablePolygonStipple();
+
+				GPU_raster_begin();
+
+				GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
+
 				gpuColor4ub(UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, 255);
 				gpuPolygonStipple(checker_stipple_sml);
 				gpuRepeat();
-				gpuDisablePolygonStipple();
+
+				GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
+
+				GPU_raster_end();
 
 				gpuColor4ubv((unsigned char *)wcol->inner);
 				gpuRepeat();
@@ -1936,11 +1943,18 @@ static void ui_hsv_cursor(float x, float y)
 	gpuDrawDisk(x, y, 3.0f * U.pixelsize, 8);
 
 	glEnable(GL_BLEND);
-	gpuEnableLineSmooth();
+
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 	gpuColor3P(CPACK_BLACK);
 	gpuDrawCircle(x, y, 3.0f * U.pixelsize, 12);
 	glDisable(GL_BLEND);
-	gpuDisableLineSmooth();
+
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
 }
 
 void ui_hsvcircle_vals_from_pos(float *val_rad, float *val_dist, const rcti *rect,
@@ -2046,10 +2060,18 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 
 	/* fully rounded outline */
 	glEnable(GL_BLEND);
-	gpuEnableLineSmooth();
+
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 	gpuColor3ubv((unsigned char *)wcol->outline);
 	gpuDrawCircle(centx, centy, radius, tot + 1);
-	gpuDisableLineSmooth();
+
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
+
 	glDisable(GL_BLEND);
 
 	/* cursor */
@@ -2394,9 +2416,17 @@ void ui_draw_link_bezier(const rcti *rect)
 
 	if (ui_link_bezier_points(rect, coord_array, LINK_RESOL)) {
 		glEnable(GL_BLEND);
-		gpuEnableLineSmooth();
+
+		GPU_raster_begin();
+
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 		gpuSingleClientArrays_V2F(GL_LINE_STRIP, coord_array, 0, 0, LINK_RESOL+1);
-		gpuDisableLineSmooth();
+
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+		GPU_raster_end();
+
 		glDisable(GL_BLEND);
 	}
 }

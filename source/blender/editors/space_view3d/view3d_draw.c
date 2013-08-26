@@ -422,7 +422,9 @@ static void drawgrid(UnitSettings *unit, ARegion *ar, View3D *v3d, const char **
 	y += (wy);
 	UI_GetThemeColor3ubv(TH_GRID, col);
 
-	setlinestyle(0);
+	GPU_raster_begin();
+
+	GPU_raster_set_line_style(0);
 
 	gpuImmediateFormat_V3(); // DOODLE: grid floor axis, 2 standard colored lines
 	gpuBegin(GL_LINES);
@@ -454,6 +456,8 @@ static void drawgrid(UnitSettings *unit, ARegion *ar, View3D *v3d, const char **
 
 	gpuEnd();
 	gpuImmediateUnformat();
+
+	GPU_raster_end();
 
 	gpuDepthMask(GL_TRUE);  /* enable write in zbuffer */
 }
@@ -588,18 +592,20 @@ static void drawcursor(Scene *scene, ARegion *ar, View3D *v3d)
 		const float f5 = 0.25f * U.widget_unit;
 		const float f10 = 0.5f * U.widget_unit;
 		const float f20 = U.widget_unit;
-		
+
+		GPU_raster_begin();
+
 		gpuImmediateFormat_V2(); // DOODLE: view3d cursor, 2 stippled circles, 4 mono lines
 
-		setlinestyle(0); 
+		GPU_raster_set_line_style(0); 
 		gpuColor3P(CPACK_BLUE);
 		gpuDrawCircle((float)co[0], (float)co[1], f10, 32);
 
-		setlinestyle(4);
+		GPU_raster_set_line_style(4);
 		gpuColor3P(CPACK_WHITE);
 		gpuRepeat();
 
-		setlinestyle(0);
+		GPU_raster_set_line_style(0);
 		gpuColor3P(CPACK_BLACK);
 
 		gpuBegin(GL_LINES);
@@ -610,6 +616,8 @@ static void drawcursor(Scene *scene, ARegion *ar, View3D *v3d)
 		gpuEnd();
 
 		gpuImmediateUnformat();
+
+		GPU_raster_end();
 	}
 }
 
@@ -723,7 +731,7 @@ static void draw_view_axis(RegionView3D *rv3d, rcti *rect)
 
 	sort3(sort, axis[0][2], axis[1][2], axis[2][2]);
 
-	glLineWidth(size);
+	gpuLineWidth(size);
 	glEnable(GL_BLEND);
 	gpuImmediateFormat_C4_V2();
 	gpuBegin(GL_LINES);
@@ -746,7 +754,7 @@ static void draw_view_axis(RegionView3D *rv3d, rcti *rect)
 	gpuEnd();
 	gpuImmediateUnformat();
 	glDisable(GL_BLEND);
-	glLineWidth(1.0);
+	gpuLineWidth(1.0);
 
 	BLF_draw_default_lock();
 	for (i = 0; i < 3; i++) {
@@ -1180,6 +1188,8 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 	Camera *ca = NULL;
 	RegionView3D *rv3d = (RegionView3D *)ar->regiondata;
 
+	GPU_raster_begin();
+
 	gpuImmediateFormat_V2();
 
 	if (v3d->camera == NULL)
@@ -1228,7 +1238,8 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 	}
 
 	/* edge */
-	setlinestyle(0);
+
+	GPU_raster_set_line_style(0);
 
 	UI_ThemeColor(TH_BACK);
 
@@ -1242,7 +1253,7 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 	}
 #endif
 
-	setlinestyle(3);
+	GPU_raster_set_line_style(3);
 
 	/* outer line not to confuse with object selecton */
 	if (v3d->flag2 & V3D_LOCK_CAMERA) {
@@ -1371,7 +1382,9 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 		}
 	}
 
-	setlinestyle(0);
+	GPU_raster_set_line_style(0);
+
+	GPU_raster_end();
 
 	/* camera name - draw in highlighted text color */
 	if (ca && (ca->flag & CAM_SHOWNAME)) {
@@ -3532,16 +3545,21 @@ static void view3d_main_area_draw_info(const bContext *C, ARegion *ar, const cha
 		drawviewborder(scene, ar, v3d);
 	}
 	else if (v3d->flag2 & V3D_RENDER_BORDER) {
+		GPU_raster_begin();
+
 		gpuPolygonMode(GL_LINE);
-		setlinestyle(3);
+		GPU_raster_set_line_style(3);
+
 		gpuColor3P(0x4040FF);
 
 		gpuSingleFilledRectf(
 		        v3d->render_border.xmin * ar->winx, v3d->render_border.ymin * ar->winy,
 		        v3d->render_border.xmax * ar->winx, v3d->render_border.ymax * ar->winy);
 
-		setlinestyle(0);
+		GPU_raster_set_line_style(0);
 		gpuPolygonMode(GL_FILL);
+
+		GPU_raster_end();
 	}
 
 	if (v3d->flag2 & V3D_SHOW_GPENCIL) {

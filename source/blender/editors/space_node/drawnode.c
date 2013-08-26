@@ -465,21 +465,33 @@ static void node_draw_frame(const bContext *C, ARegion *ar, SpaceNode *snode,
 	/* outline active and selected emphasis */
 	if (node->flag & SELECT) {
 		glEnable(GL_BLEND);
-		gpuEnableLineSmooth();
-		
+
+		GPU_raster_begin();
+
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 		if (node->flag & NODE_ACTIVE)
 			UI_ThemeColorShadeAlpha(TH_ACTIVE, 0, -40);
 		else
 			UI_ThemeColorShadeAlpha(TH_SELECT, 0, -40);
+
 		uiSetRoundBox(UI_CNR_ALL);
-		uiDrawBox(GL_LINE_LOOP,
-		          rct->xmin, rct->ymin,
-		          rct->xmax, rct->ymax, BASIS_RAD);
-		
-		gpuDisableLineSmooth();
+
+		uiDrawBox(
+			GL_LINE_LOOP,
+			rct->xmin,
+			rct->ymin,
+			rct->xmax,
+			rct->ymax,
+			BASIS_RAD);
+
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+		GPU_raster_end();
+
 		glDisable(GL_BLEND);
 	}
-	
+
 	/* label */
 	node_draw_frame_label(node, snode->aspect);
 	
@@ -2974,26 +2986,30 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 				}
 				node = node->next;
 			}
-			
+
 			if ((snode->nodetree->flag & NTREE_VIEWER_BORDER) &&
 			        viewer_border->xmin < viewer_border->xmax &&
 			        viewer_border->ymin < viewer_border->ymax)
 			{
+				GPU_raster_begin();
+
 				gpuPolygonMode(GL_LINE);
-				setlinestyle(3);
+				GPU_raster_set_line_style(3);
 				gpuColor3P(0x4040FF);
-				
+
 				gpuSingleFilledRectf(
 				        x + snode->zoom * viewer_border->xmin * ibuf->x,
 				        y + snode->zoom * viewer_border->ymin * ibuf->y,
 				        x + snode->zoom * viewer_border->xmax * ibuf->x,
 				        y + snode->zoom * viewer_border->ymax * ibuf->y);
-				
-				setlinestyle(0);
+
+				GPU_raster_set_line_style(0);
 				gpuPolygonMode(GL_FILL);
+
+				GPU_raster_end();
 			}
 		}
-		
+
 		gpuMatrixMode(GL_PROJECTION);
 		gpuPopMatrix();
 		gpuMatrixMode(GL_MODELVIEW);
@@ -3102,8 +3118,10 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 		
 		/* we can reuse the dist variable here to increment the GL curve eval amount*/
 		dist = 1.0f / (float)LINK_RESOL;
-		
-		gpuEnableLineSmooth();
+
+		GPU_raster_begin();
+
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
 
 		gpuImmediateFormat_V2();
 
@@ -3126,7 +3144,7 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 		}
 		if (do_triple) {
 			UI_ThemeColorShadeAlpha(th_col3, -80, -120);
-			glLineWidth(4.0f);
+			gpuLineWidth(4.0f);
 
 			gpuBegin(GL_LINE_STRIP);
 
@@ -3150,7 +3168,7 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 		 * for Intel hardware, this breaks with GL_LINE_STRIP and
 		 * changing color in begin/end blocks.
 		 */
-		glLineWidth(1.5f);
+		gpuLineWidth(1.5f);
 		if (do_shaded) {
 			gpuBegin(GL_LINES);
 			for (i=0; i<LINK_RESOL; i++) {
@@ -3181,11 +3199,13 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 			gpuVertex2fv(arrow2);
 			gpuEnd();
 		}
-		
-		gpuDisableLineSmooth();
-		
+
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+		GPU_raster_end();
+
 		/* restore previuos linewidth */
-		glLineWidth(1.0f);
+		gpuLineWidth(1.0f);
 
 		gpuImmediateUnformat();
 	}
@@ -3230,7 +3250,7 @@ void node_draw_link_straight(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 	
 	if (do_triple) {
 		UI_ThemeColorShadeAlpha(th_col3, -80, -120);
-		glLineWidth(4.0f);
+		gpuLineWidth(4.0f);
 		
 		gpuBegin(GL_LINES);
 		gpuVertex2fv(coord_array[0]);
@@ -3239,7 +3259,7 @@ void node_draw_link_straight(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 	}
 	
 	UI_ThemeColor(th_col1);
-	glLineWidth(1.5f);
+	gpuLineWidth(1.5f);
 	
 	/* XXX using GL_LINES for shaded node lines is a workaround
 	 * for Intel hardware, this breaks with GL_LINE_STRIP and
@@ -3273,7 +3293,7 @@ void node_draw_link_straight(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 	gpuDisableLineSmooth();
 	
 	/* restore previuos linewidth */
-	glLineWidth(1.0f);
+	gpuLineWidth(1.0f);
 }
 #endif
 

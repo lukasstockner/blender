@@ -44,6 +44,8 @@
 /* external */
 #include "BLI_dynstr.h"
 
+#include "DNA_userdef_types.h"
+
 #include "MEM_guardedalloc.h"
 
 /* standard */
@@ -57,8 +59,8 @@ static struct RASTER {
 	uint32_t options;
 
 	GPUShader* gpushader[GPU_RASTER_OPTION_COMBINATIONS];
-	bool         failed [GPU_RASTER_OPTION_COMBINATIONS];
-	GPUcommon    common [GPU_RASTER_OPTION_COMBINATIONS];
+	bool       failed   [GPU_RASTER_OPTION_COMBINATIONS];
+	GPUcommon  common   [GPU_RASTER_OPTION_COMBINATIONS];
 
 	GLubyte  polygon_stipple[32*32];
 
@@ -75,7 +77,7 @@ static struct RASTER {
 
 /* Init / exit */
 
-void gpu_raster_shader_init(void)
+void GPU_raster_shader_init(void)
 {
 	memset(&RASTER, 0, sizeof(RASTER));
 
@@ -93,7 +95,7 @@ void gpu_raster_shader_init(void)
 
 
 
-void gpu_raster_shader_exit(void)
+void GPU_raster_shader_exit(void)
 {
 	int i;
 
@@ -120,6 +122,22 @@ void gpu_init_stipple(void)
 	}
 
 	gpuPolygonStipple((GLubyte*)mask);
+}
+
+
+
+/* Shader feature enable/disable */
+
+void GPU_raster_shader_enable(uint32_t options)
+{
+	RASTER.options |= options;
+}
+
+
+
+void GPU_raster_shader_disable(uint32_t options)
+{
+	RASTER.options &= ~options;
 }
 
 
@@ -313,6 +331,23 @@ void gpuPolygonMode(GLenum mode)
 GLenum gpuGetPolygonMode(void)
 {
 	return RASTER.polygon_mode;
+}
+
+
+
+void GPU_raster_set_line_style(int factor)
+{
+	if (factor == 0) {
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
+	}
+	else {
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
+
+		if (U.pixelsize > 1.0f)
+			gpuLineStipple(factor, 0xCCCC);
+		else
+			gpuLineStipple(factor, 0xAAAA);
+	}
 }
 
 

@@ -488,7 +488,7 @@ static void emDM_drawMappedFaces(
 					if (poly_prev != GL_NOOP) gpuEnd();
 					poly_prev = GL_NOOP; /* force gpuBegin */
 
-					gpuEnablePolygonStipple();
+					GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
 					gpuPolygonStipple(stipple_quarttone);
 				}
 
@@ -560,7 +560,7 @@ static void emDM_drawMappedFaces(
 				if (flush) {
 					gpuEnd();
 
-					gpuDisablePolygonStipple();
+					GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
 
 					poly_prev = GL_TRIANGLES;
 					gpuBegin(GL_TRIANGLES);

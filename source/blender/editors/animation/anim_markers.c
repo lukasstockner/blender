@@ -371,7 +371,9 @@ static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
 	if (flag & DRAW_MARKERS_LINES)
 #endif
 	{
-		setlinestyle(3);
+		GPU_raster_begin();
+
+		GPU_raster_set_line_style(3);
 
 		gpuColor4P(
 			(marker->flag & SELECT) ? CPACK_WHITE : CPACK_BLACK,
@@ -384,7 +386,9 @@ static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
 			(xpos * xscale) + 0.5f,
 			(v2d->cur.ymax + 12.0f) * yscale);
 
-		setlinestyle(0);
+		GPU_raster_set_line_style(0);
+
+		GPU_raster_end();
 	}
 	
 	/* 5 px to offset icon to align properly, space / pixels corrects for zoom */

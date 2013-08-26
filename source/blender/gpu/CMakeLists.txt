@@ -78,7 +78,6 @@ set(SRC
 	GPU_font_shader.h
 	GPU_material.h
 	GPU_matrix.h
-	GPU_object.h
 	GPU_primitives.h
 	GPU_utility.h
 

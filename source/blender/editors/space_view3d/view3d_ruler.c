@@ -489,13 +489,20 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 			}
 			gpuEnd();
 			gpuColor3P(0xaaaaaa);
-			setlinestyle(3);
+
+			GPU_raster_begin();
+
+			GPU_raster_set_line_style(3);
+
 			gpuBegin(GL_LINE_STRIP);
 			for (j = 0; j < 3; j++) {
 				gpuVertex2fv(co_ss[j]);
 			}
 			gpuEnd();
-			setlinestyle(0);
+
+			GPU_raster_set_line_style(0);
+
+			GPU_raster_end();
 
 			/* arc */
 			{
@@ -627,7 +634,9 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 
 			gpuColor3P(0xAAAAAA);
 
-			setlinestyle(3);
+			GPU_raster_begin();
+
+			GPU_raster_set_line_style(3);
 
 			gpuBegin(GL_LINE_STRIP);
 			for (j = 0; j < 3; j += 2) {
@@ -637,7 +646,9 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 
 			gpuImmediateUnformat();
 
-			setlinestyle(0);
+			GPU_raster_set_line_style(0);
+
+			GPU_raster_end();
 
 			sub_v2_v2v2(dir_ruler, co_ss[0], co_ss[2]);
 

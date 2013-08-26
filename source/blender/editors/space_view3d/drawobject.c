@@ -963,7 +963,9 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 		ED_view3d_after_add(&v3d->afterdraw_transp, base, dflag);
 		return;
 	}
-	
+
+	GPU_raster_begin();
+
 	/* we first draw only the screen aligned & fixed scale stuff */
 	gpuPushMatrix();
 	gpuLoadMatrix(rv3d->viewmat);
@@ -1014,7 +1016,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 
 		/* Outer circle */
 		circrad = 3.0f * lampsize;
-		setlinestyle(3);
+		GPU_raster_set_line_style(3);
 
 		gpuDrawFastBall(GL_LINE_LOOP, vec, circrad, imat);
 
@@ -1026,7 +1028,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 		}
 	}
 	else {
-		setlinestyle(3);
+		GPU_raster_set_line_style(3);
 		circrad = 0.0f;
 	}
 
@@ -1045,7 +1047,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 		/* center */
 		gpuTranslate(vec[0], vec[1], vec[2]);
 
-		setlinestyle(3);
+		GPU_raster_set_line_style(3);
 
 		gpuBegin(GL_LINES);
 		for (axis = 0; axis < 8; axis++) {
@@ -1174,7 +1176,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 			zero_v3(vec);
 			outdist = 0.14; mul = 1.4; dir = 1;
 			
-			setlinestyle(4);
+			GPU_raster_set_line_style(4);
 			/* loop over the 4 compass points, and draw each arc as a LINE_STRIP */
 			for (axis = 0; axis < 4; axis++) {
 				float v[3] = {0.0, 0.0, 0.0};
@@ -1207,7 +1209,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 		}
 	}
 	else if (la->type == LA_AREA) {
-		setlinestyle(3);
+		GPU_raster_set_line_style(3);
 		if (la->area_shape == LA_AREA_SQUARE)
 			gpuDrawWireRectf(-la->area_size * 0.5f, -la->area_size * 0.5f, la->area_size * 0.5f, la->area_size * 0.5f);
 		else if (la->area_shape == LA_AREA_RECT)
@@ -1223,7 +1225,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 	gpuLoadMatrix(rv3d->viewmat);
 	copy_v3_v3(vec, ob->obmat[3]);
 
-	setlinestyle(0);
+	GPU_raster_set_line_style(0);
 
 	if ((la->type == LA_SPOT) && (la->mode & LA_SHAD_BUF) && (is_view == false)) {
 		drawshadbuflimits(la, ob->obmat);
@@ -1263,6 +1265,8 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 		/* restore for drawing extra stuff */
 		gpuColor3ubv(ob_wire_col);
 	}
+
+	GPU_raster_end();
 }
 
 static void draw_limit_line(float sta, float end, const short dflag, unsigned int col)
@@ -1415,10 +1419,9 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 						gpuColor3ubv(ob_wire_col);
 					}
 
-					gpuLineWidth(2.f);
+					GPU_raster_begin();
 
-					// SSS Disable Lighting
-					GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
+					gpuLineWidth(2.0f);
 
 					gpuPolygonMode(GL_LINE);
 
@@ -1426,10 +1429,9 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 
 					gpuPolygonMode(GL_FILL);
 
-					// SSS Enable Lighting
-					GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
-
 					gpuLineWidth(1.f);
+
+					GPU_raster_end();
 				}
 
 				if ((dflag & DRAW_CONSTCOLOR) == 0) {
@@ -3185,15 +3187,22 @@ static void draw_mesh_object_outline(View3D *v3d, Object *ob, DerivedMesh *dm)
 	if ((v3d->transp == false) &&  /* not when we draw the transparent pass */
 	    (ob->mode & OB_MODE_ALL_PAINT) == false) /* not when painting (its distracting) - campbell */
 	{
+		GPU_raster_begin();
+
 		gpuLineWidth(UI_GetThemeValuef(TH_OUTLINE_WIDTH) * 2.0f);
+
 		gpuDepthMask(GL_FALSE);
 
 		/* if transparent, we cannot draw the edges for solid select... edges have no material info.
 		 * drawFacesSolid() doesn't draw the transparent faces */
 		if (ob->dtx & OB_DRAWTRANSP) {
+
 			gpuPolygonMode(GL_LINE);
+
 			dm->drawFacesSolid(dm, NULL, 0, GPU_enable_material);
+
 			gpuPolygonMode(GL_FILL);
+
 			GPU_disable_material();
 		}
 		else {
@@ -3201,6 +3210,9 @@ static void draw_mesh_object_outline(View3D *v3d, Object *ob, DerivedMesh *dm)
 		}
 
 		gpuLineWidth(1.0);
+
+		GPU_raster_end();
+
 		gpuDepthMask(GL_TRUE);
 	}
 }
@@ -3577,9 +3589,11 @@ static bool drawDispListwire(ListBase *dlbase)
 		return 1;
 	}
 
+	GPU_raster_begin();
+
 	gpuPolygonMode(GL_LINE);
 
-	for (dl = dlbase->first; dl; dl = dl->next) {
+	for (dl = (DispList*)(dlbase->first); dl; dl = dl->next) {
 		GPUarrays arrays;
 
 		if (dl->parts == 0 || dl->nr == 0) {
@@ -3672,6 +3686,8 @@ static bool drawDispListwire(ListBase *dlbase)
 	}
 
 	gpuPolygonMode(GL_FILL);
+
+	GPU_raster_end();
 
 	return false;
 }
@@ -4001,8 +4017,11 @@ static bool drawDispList(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *ba
 static void draw_particle_arrays(int draw_as, int totpoint, int ob_dt, int select, void* c, void *n, void *v)
 {
 	if (v) {
+		GLenum polygonmode;
 		GLenum mode;
 		GLint count;
+
+		GPU_raster_begin();
 
 		/* draw created data arrays */
 		switch (draw_as) {
@@ -4016,10 +4035,8 @@ static void draw_particle_arrays(int draw_as, int totpoint, int ob_dt, int selec
 				count = 2 * totpoint;
 				break;
 			case PART_DRAW_BB:
-				if (ob_dt <= OB_WIRE || select)
-					gpuPolygonMode(GL_LINE);
-				else
-					gpuPolygonMode(GL_FILL);
+				polygonmode = gpuGetPolygonMode();
+				gpuPolygonMode((ob_dt <= OB_WIRE || select) ? GL_LINE : GL_FILL);
 
 				mode  = GL_QUADS;
 				count = 4 * totpoint;
@@ -4030,18 +4047,21 @@ static void draw_particle_arrays(int draw_as, int totpoint, int ob_dt, int selec
 				break;
 		}
 
-		if (c && n) {
+		if (c && n)
 			gpuSingleClientArrays_C3F_N3F_V3F(mode, c, 0, n, 0, v, 0, 0, count);
+		else if (c)
+			gpuSingleClientArrays_C3F_V3F    (mode, c, 0,       v, 0, 0, count);
+		else if (n)
+			gpuSingleClientArrays_N3F_V3F    (mode,       n, 0, v, 0, 0, count);
+		else
+			gpuSingleClientArrays_V3F        (mode,             v, 0, 0, count);
+
+		switch(draw_as) {
+			case PART_DRAW_BB:
+				gpuPolygonMode(polygonmode);
 		}
-		else if (c) {
-			gpuSingleClientArrays_C3F_V3F(mode, c, 0, v, 0, 0, count);
-		}
-		else if (n) {
-			gpuSingleClientArrays_N3F_V3F(mode, n, 0, v, 0, 0, count);
-		}
-		else {
-			gpuSingleClientArrays_V3F(mode, v, 0, 0, count);
-		}
+
+		GPU_raster_end();
 	}
 }
 
@@ -4261,7 +4281,6 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 	float ma_col[3] = {0.0f, 0.0f, 0.0f};
 	int a, totpart, totpoint = 0, totve = 0, drawn, draw_as, totchild = 0;
 	int select = ob->flag & SELECT, create_cdata = 0, need_v = 0;
-	GLint polygonmode;
 	char numstr[32];
 	unsigned char tcol[4] = {0, 0, 0, 255};
 
@@ -4498,7 +4517,9 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 			totpoint = pdd->totpoint; /* draw data is up to date */
 		}
 		else {
-			if (draw_as == PART_DRAW_CIRC) {
+			if (draw_as == PART_DRAW_CIRC || part->draw & PART_DRAW_SIZE) {
+				/* these conditions cause things to be drawn, not just copied */
+				GPU_raster_begin();
 				gpuImmediateFormat_V3();
 			}
 
@@ -4603,9 +4624,9 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 					}
 
 					if (part->draw & PART_DRAW_SIZE) {
-						setlinestyle(3);
+						GPU_raster_set_line_style(3);
 						gpuDrawFastBall(GL_LINE_LOOP, state.co, pa_size, imat);
-						setlinestyle(0);
+						GPU_raster_set_line_style(0);
 					}
 
 
@@ -4638,14 +4659,14 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 				}
 			}
 
-			if (draw_as == PART_DRAW_CIRC) {
+			if (draw_as == PART_DRAW_CIRC || part->draw & PART_DRAW_SIZE) {
+				/* these conditions cause things to be drawn, not just copied */
 				gpuImmediateUnformat();
+				GPU_raster_end();
 			}
 		}
 	}
 /* 6. */
-
-	polygonmode = gpuGetPolygonMode();
 
 	if (draw_as == PART_DRAW_PATH) {
 		ParticleCacheKey **cache, *path;
@@ -4730,7 +4751,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 			cdata2 = NULL;
 		}
 
-		gpuLineWidth(1.0f);
+		// gpuLineWidth(1.0f); // XXX jwilkins: the line width wasn't changed earlier, so why is this here?
 
 		if ((part->draw & PART_DRAW_NUM) && (v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
 			cache = psys->pathcache;
@@ -4738,7 +4759,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 			for (a = 0, pa = psys->particles; a < totpart; a++, pa++) {
 				float vec_txt[3];
 				BLI_snprintf(numstr, sizeof(numstr), "%i", a);
-				/* use worldspace beause object matrix is already applied */
+				/* use worldspace beCause object matrix is already applied */
 				mul_v3_m4v3(vec_txt, ob->imat, cache[a]->co);
 				view3d_cached_text_draw_add(vec_txt, numstr, 10, V3D_CACHE_TEXT_WORLDSPACE | V3D_CACHE_TEXT_ASCII, tcol);
 			}
@@ -4819,7 +4840,6 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 			pdd->vedata);
 	}
 
-	gpuPolygonMode(polygonmode);
 
 	// SSS Disable Lighting
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
@@ -5919,7 +5939,9 @@ static void draw_forcefield(Object *ob, RegionView3D *rv3d,
 	float imat[4][4], tmat[4][4];
 	float vec[3] = {0.0, 0.0, 0.0};
 	float size;
-	
+
+	GPU_raster_begin();
+
 	gpuImmediateFormat_V3(); // DOODLE: force field
 
 	/* scale size of circle etc with the empty drawsize */
@@ -6019,12 +6041,12 @@ static void draw_forcefield(Object *ob, RegionView3D *rv3d,
 			}
 
 			/*path end*/
-			setlinestyle(3);
+			GPU_raster_set_line_style(3);
 			where_on_path(ob, 1.0f, guidevec1, guidevec2, NULL, NULL, NULL);
 			gpuDrawFastBall(GL_LINE_LOOP, guidevec1, mindist, imat);
 
 			/*path beginning*/
-			setlinestyle(0);
+			GPU_raster_set_line_style(0);
 			where_on_path(ob, 0.0f, guidevec1, guidevec2, NULL, NULL, NULL);
 			gpuDrawFastBall(GL_LINE_LOOP, guidevec1, mindist, imat);
 			
@@ -6032,7 +6054,7 @@ static void draw_forcefield(Object *ob, RegionView3D *rv3d,
 		}
 	}
 
-	setlinestyle(3);
+	GPU_raster_set_line_style(3);
 
 	if ((dflag & DRAW_CONSTCOLOR) == 0) {
 		ob_wire_color_blend_theme_id(ob_wire_col, TH_BACK, 0.5f);
@@ -6093,9 +6115,11 @@ static void draw_forcefield(Object *ob, RegionView3D *rv3d,
 				drawcone(vec, distance * sinf(radius), -distance * cosf(radius), tmat);
 		}
 	}
-	setlinestyle(0);
+	GPU_raster_set_line_style(0);
 
 	gpuImmediateUnformat();
+
+	GPU_raster_end();
 }
 
 static void draw_box(float vec[8][3])
@@ -6312,12 +6336,16 @@ static void drawtexspace(Object *ob)
 
 	vec[0][2] = vec[3][2] = vec[4][2] = vec[7][2] = loc[2] - size[2];
 	vec[1][2] = vec[2][2] = vec[5][2] = vec[6][2] = loc[2] + size[2];
-	
-	setlinestyle(2);
+
+	GPU_raster_begin();
+
+	GPU_raster_set_line_style(2);
 
 	draw_box(vec);
 
-	setlinestyle(0);
+	GPU_raster_set_line_style(0);
+
+	GPU_raster_end();
 }
 
 /* draws wire outline */
@@ -6425,12 +6453,16 @@ static void draw_hooks(Object *ob)
 			mul_v3_m4v3(vec, ob->obmat, hmd->cent);
 
 			if (hmd->object) {
-				setlinestyle(3);
+				GPU_raster_begin();
+
+				GPU_raster_set_line_style(3);
 				gpuBegin(GL_LINES);
 				gpuVertex3fv(hmd->object->obmat[3]);
 				gpuVertex3fv(vec);
 				gpuEnd();
-				setlinestyle(0);
+				GPU_raster_set_line_style(0);
+
+				GPU_raster_end();
 			}
 
 			gpuSpriteSize(3.0);
@@ -6451,8 +6483,12 @@ static void draw_rigid_body_pivot(bRigidBodyJointConstraint *data, const short d
 	float mat[4][4];
 
 	eul_to_mat4(mat, &data->axX);
+
+	GPU_raster_begin();
+
 	gpuLineWidth(4.0f);
-	setlinestyle(2);
+	GPU_raster_set_line_style(2);
+
 	for (axis = 0; axis < 3; axis++) {
 		float dir[3] = {0, 0, 0};
 		float v[3];
@@ -6475,8 +6511,11 @@ static void draw_rigid_body_pivot(bRigidBodyJointConstraint *data, const short d
 			view3d_cached_text_draw_add(v, axis_str[axis], 0, V3D_CACHE_TEXT_ASCII, ob_wire_col);
 		}
 	}
+
 	gpuLineWidth(1.0f);
-	setlinestyle(0);
+	GPU_raster_set_line_style(0);
+
+	GPU_raster_end();
 }
 
 static void draw_object_wire_color(Scene *scene, Base *base, unsigned char r_ob_wire_col[4])
@@ -6746,6 +6785,8 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 					drawDispList(scene, v3d, rv3d, base, dt, dflag, ob_wire_col);
 				}
 
+				GPU_raster_begin();
+
 				if (cu->linewidth != 0.0f) {
 					UI_ThemeColor(TH_WIRE_EDIT);
 					copy_v3_v3(vec1, ob->orig);
@@ -6754,17 +6795,20 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 					vec2[0] += cu->linewidth;
 					vec1[1] += cu->linedist * cu->fsize;
 					vec2[1] -= cu->lines * cu->linedist * cu->fsize;
-					setlinestyle(3);
+
+					GPU_raster_set_line_style(3);
+
 					gpuImmediateFormat_V3();
 					gpuBegin(GL_LINE_STRIP);
 					gpuVertex2fv(vec1);
 					gpuVertex2fv(vec2);
 					gpuEnd();
 					gpuImmediateUnformat();
-					setlinestyle(0);
+
+					GPU_raster_set_line_style(0);
 				}
 
-				setlinestyle(3);
+				GPU_raster_set_line_style(3);
 				for (i = 0; i < cu->totbox; i++) {
 					if (cu->tb[i].w != 0.0f) {
 						UI_ThemeColor(i == (cu->actbox - 1) ? TH_ACTIVE : TH_WIRE);
@@ -6786,8 +6830,9 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 						gpuImmediateUnformat();
 					}
 				}
-				setlinestyle(0);
+				GPU_raster_set_line_style(0);
 
+				GPU_raster_end();
 
 				if (BKE_vfont_select_get(ob, &selstart, &selend) && cu->selboxes) {
 					float selboxw;
@@ -7122,9 +7167,15 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 		if ((ob->gameflag & OB_BOUNDS) && (ob->mode == OB_MODE_OBJECT)) {
 			if (ob->boundtype != ob->collision_boundtype || (dtx & OB_DRAWBOUNDOX) == 0) {
-				setlinestyle(2);
+				GPU_raster_begin();
+
+				GPU_raster_set_line_style(2);
+
 				draw_bounding_volume(scene, ob, ob->collision_boundtype);
-				setlinestyle(0);
+
+				GPU_raster_set_line_style(0);
+
+				GPU_raster_end();
 			}
 		}
 
@@ -7179,9 +7230,15 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				gpuColor3ubv(ob_wire_col);
 			}
 
-			setlinestyle(2);
+			GPU_raster_begin();
+
+			GPU_raster_set_line_style(2);
+
 			gpuSingleFastBall(GL_LINE_LOOP, vec, ob->inertia, imat);
-			setlinestyle(0);
+
+			GPU_raster_set_line_style(0);
+
+			GPU_raster_end();
 		}
 	}
 
@@ -7248,14 +7305,22 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 		/* help lines and so */
 		if (ob != scene->obedit && ob->parent && (ob->parent->lay & v3d->lay)) {
-			setlinestyle(3);
+			GPU_raster_begin();
+
+			GPU_raster_set_line_style(3);
+
 			gpuImmediateFormat_V3();
+
 			gpuBegin(GL_LINES);
 			gpuVertex3fv(ob->obmat[3]);
 			gpuVertex3fv(ob->orig);
 			gpuEnd();
+
 			gpuImmediateUnformat();
-			setlinestyle(0);
+
+			GPU_raster_set_line_style(0);
+
+			GPU_raster_end();
 		}
 
 		/* Drawing the constraint lines */
@@ -7296,14 +7361,22 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 					}
 
 					if (camob) {
-						setlinestyle(3);
+						GPU_raster_begin();
+
+						GPU_raster_set_line_style(3);
+
 						gpuImmediateFormat_V3();
+
 						gpuBegin(GL_LINES);
 						gpuVertex3fv(camob->obmat[3]);
 						gpuVertex3fv(ob->obmat[3]);
 						gpuEnd();
+
 						gpuImmediateUnformat();
-						setlinestyle(0);
+
+						GPU_raster_set_line_style(0);
+
+						GPU_raster_end();
 					}
 				}
 				else if ((curcon->flag & CONSTRAINT_EXPAND) && (cti->get_constraint_targets)) {
@@ -7315,15 +7388,23 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 							cti->get_target_matrix(curcon, cob, ct, BKE_scene_frame_get(scene));
 						else
 							unit_m4(ct->matrix);
-						
-						setlinestyle(3);
+
+						GPU_raster_begin();
+
+						GPU_raster_set_line_style(3);
+
 						gpuImmediateFormat_V3();
+
 						gpuBegin(GL_LINES);
 						gpuVertex3fv(ct->matrix[3]);
 						gpuVertex3fv(ob->obmat[3]);
 						gpuEnd();
+
 						gpuImmediateUnformat();
-						setlinestyle(0);
+
+						GPU_raster_set_line_style(0);
+
+						GPU_raster_end();
 					}
 					
 					if (cti->flush_constraint_targets)
@@ -7336,8 +7417,13 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		/* draw rigid body constraint lines */
 		if (rbc) {
 			UI_ThemeColor(TH_WIRE);
-			setlinestyle(3);
+
+			GPU_raster_begin();
+
+			GPU_raster_set_line_style(3);
+
 			gpuImmediateFormat_V3();
+
 			gpuBegin(GL_LINES);
 			if (rbc->ob1) {
 				gpuVertex3fv(ob->obmat[3]);
@@ -7348,8 +7434,12 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				gpuVertex3fv(rbc->ob2->obmat[3]);
 			}
 			gpuEnd();
+
 			gpuImmediateUnformat();
-			setlinestyle(0);
+
+			GPU_raster_set_line_style(0);
+
+			GPU_raster_end();
 		}
 	}
 

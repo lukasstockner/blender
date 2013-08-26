@@ -181,7 +181,7 @@ GPU_CHECK_NO_ERROR();
 	if (format->normalSize != 0) {
 		gpu_enable_normal_array();
 GPU_CHECK_NO_ERROR();
-		gpu_normal_pointer(GL_FLOAT, stride, base + offset);
+		gpu_normal_pointer(GL_FLOAT, stride, GL_FALSE, base + offset);
 GPU_CHECK_NO_ERROR();
 		offset += 3 * sizeof(GLfloat);
 	}
@@ -713,9 +713,9 @@ void gpu_commit_current(void)
 {
 	const GPUcommon* common = gpu_get_common();
 
-	GPU_CHECK_NO_ERROR();
-
 	if (common) {
+		GPU_CHECK_NO_ERROR();
+
 		if (GPU_IMMEDIATE->format.colorSize == 0 && common->color != -1) {
 			glVertexAttrib4f(
 				common->color,
@@ -730,15 +730,19 @@ void gpu_commit_current(void)
 		if (GPU_IMMEDIATE->format.normalSize == 0 && common->normal != -1)
 			glVertexAttrib3fv(common->normal, GPU_IMMEDIATE->normal);
 
+		GPU_CHECK_NO_ERROR();
+
 		return;
 	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
+	GPU_CHECK_NO_ERROR();
+
 	glColor4ubv(GPU_IMMEDIATE->color);
 	glNormal3fv(GPU_IMMEDIATE->normal);
-#endif
 
 	GPU_CHECK_NO_ERROR();
+#endif
 }
 
 
@@ -748,9 +752,13 @@ void gpu_commit_samplers(void)
 	const GPUcommon* common = gpu_get_common();
 
 	if (common) {
+		GPU_CHECK_NO_ERROR();
+
 		glUniform1iv(
 			common->sampler[0],
 			GPU_IMMEDIATE->format.samplerCount,
 			GPU_IMMEDIATE->format.samplerMap);
+
+		GPU_CHECK_NO_ERROR();
 	}
 }

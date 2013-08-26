@@ -93,8 +93,10 @@ static void draw_fcurve_modifier_controls_envelope(FModifier *fcm, View2D *v2d)
 	int i;
 
 	/* draw two black lines showing the standard reference levels */
+	GPU_raster_begin();
+
 	gpuColor3P(CPACK_BLACK);
-	setlinestyle(5);
+	GPU_raster_set_line_style(5);
 
 	gpuBegin(GL_LINES);
 	gpuVertex2f(v2d->cur.xmin, env->midval + env->min);
@@ -103,7 +105,9 @@ static void draw_fcurve_modifier_controls_envelope(FModifier *fcm, View2D *v2d)
 	gpuVertex2f(v2d->cur.xmin, env->midval + env->max);
 	gpuVertex2f(v2d->cur.xmax, env->midval + env->max);
 	gpuEnd();  /* GL_LINES */
-	setlinestyle(0);
+	GPU_raster_set_line_style(0);
+
+	GPU_raster_end();
 
 	/* set size of vertices (non-adjustable for now) */
 	gpuSpriteSize(2.0f);
@@ -196,19 +200,23 @@ static void draw_fcurve_vertices_handles(FCurve *fcu, SpaceIpo *sipo, View2D *v2
 	BezTriple *prevbezt = NULL;
 	float hsize, xscale, yscale;
 	int i;
-	
+
 	/* get view settings */
 	hsize = UI_GetThemeValuef(TH_HANDLE_VERTEX_SIZE);
 	UI_view2d_getscale(v2d, &xscale, &yscale);
-	
+
 	/* set handle color */
 	if (sel) UI_ThemeColor(TH_HANDLE_VERTEX_SELECT);
 	else UI_ThemeColor(TH_HANDLE_VERTEX);
-	
+
+	GPU_raster_begin();
+
 	/* anti-aliased lines for more consistent appearance */
-	if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) gpuEnableLineSmooth();
+	if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0)
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 	glEnable(GL_BLEND);
-	
+
 	for (i = 0; i < fcu->totvert; i++, prevbezt = bezt, bezt++) {
 		/* Draw the editmode handles for a bezier curve (others don't have handles) 
 		 * if their selection status matches the selection status we're drawing for
@@ -223,16 +231,20 @@ static void draw_fcurve_vertices_handles(FCurve *fcu, SpaceIpo *sipo, View2D *v2
 				if ((bezt->f1 & SELECT) == sel) /* && v2d->cur.xmin < bezt->vec[0][0] < v2d->cur.xmax)*/
 					draw_fcurve_handle_control(bezt->vec[0][0], bezt->vec[0][1], xscale, yscale, hsize);
 			}
-			
+
 			if (bezt->ipo == BEZT_IPO_BEZ) {
 				if ((bezt->f3 & SELECT) == sel) /* && v2d->cur.xmin < bezt->vec[2][0] < v2d->cur.xmax)*/
 					draw_fcurve_handle_control(bezt->vec[2][0], bezt->vec[2][1], xscale, yscale, hsize);
 			}
 		}
 	}
-	
-	if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) gpuDisableLineSmooth();
+
 	glDisable(GL_BLEND);
+
+	if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) 
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
 }
 
 /* helper func - set color to draw F-Curve data with */
@@ -437,15 +449,23 @@ static void draw_fcurve_samples(SpaceIpo *sipo, ARegion *ar, FCurve *fcu)
 	
 	/* draw */
 	if (first && last) {
+		GPU_raster_begin();
+
 		/* anti-aliased lines for more consistent appearance */
-		if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) gpuEnableLineSmooth();
+		if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0)
+			GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 		glEnable(GL_BLEND);
 		
 		draw_fcurve_sample_control(first->vec[0], first->vec[1], xscale, yscale, hsize);
 		draw_fcurve_sample_control(last->vec[0], last->vec[1], xscale, yscale, hsize);
 		
 		glDisable(GL_BLEND);
-		if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) gpuDisableLineSmooth();
+
+		if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0)
+			GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+		GPU_raster_end();
 	}
 }
 
@@ -771,8 +791,10 @@ static void graph_draw_driver_debug(bAnimContext *ac, ID *id, FCurve *fcu)
 		
 		/* draw with thin dotted lines in style of what curve would have been */
 		gpuColor3fv(fcu->color);
-		
-		setlinestyle(20);
+
+		GPU_raster_begin();
+
+		GPU_raster_set_line_style(20);
 		gpuLineWidth(2.0f);
 		
 		/* draw 1-1 line, stretching just past the screen limits 
@@ -787,8 +809,10 @@ static void graph_draw_driver_debug(bAnimContext *ac, ID *id, FCurve *fcu)
 		gpuEnd();
 		
 		/* cleanup line drawing */
-		setlinestyle(0);
+		GPU_raster_set_line_style(0);
 		gpuLineWidth(1.0f);
+
+		GPU_raster_end();
 	}
 	
 	/* draw driver only if actually functional */
@@ -802,9 +826,12 @@ static void graph_draw_driver_debug(bAnimContext *ac, ID *id, FCurve *fcu)
 			float co[2];
 			
 			/* draw dotted lines leading towards this point from both axes ....... */
+			GPU_raster_begin();
+
 			gpuColor3f(0.9f, 0.9f, 0.9f);
-			setlinestyle(5);
-			
+
+			GPU_raster_set_line_style(5);
+
 			gpuBegin(GL_LINES);
 				/* x-axis lookup */
 				co[0] = x;
@@ -826,9 +853,11 @@ static void graph_draw_driver_debug(bAnimContext *ac, ID *id, FCurve *fcu)
 				co[0] = x;
 				gpuVertex2fv(co);
 			gpuEnd();
-			
-			setlinestyle(0);
-			
+
+			GPU_raster_set_line_style(0);
+
+			GPU_raster_end();
+
 			/* x marks the spot .................................................... */
 			/* -> outer frame */
 			gpuColor3f(0.9f, 0.9f, 0.9f);
@@ -863,13 +892,17 @@ void graph_draw_ghost_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar)
 	FCurve *fcu;
 	
 	/* draw with thick dotted lines */
-	setlinestyle(10);
+	GPU_raster_begin();
+
+	GPU_raster_set_line_style(10);
 	gpuLineWidth(3.0f);
-	
+
 	/* anti-aliased lines for less jagged appearance */
-	if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) gpuEnableLineSmooth();
+	if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0)
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 	glEnable(GL_BLEND);
-	
+
 	/* the ghost curves are simply sampled F-Curves stored in sipo->ghostCurves */
 	for (fcu = sipo->ghostCurves.first; fcu; fcu = fcu->next) {
 		/* set whatever color the curve has set 
@@ -881,13 +914,17 @@ void graph_draw_ghost_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar)
 		/* simply draw the stored samples */
 		draw_fcurve_curve_samples(ac, NULL, fcu, &ar->v2d);
 	}
-	
+
 	/* restore settings */
-	setlinestyle(0);
+	GPU_raster_set_line_style(0);
 	gpuLineWidth(1.0f);
-	
-	if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) gpuDisableLineSmooth();
+
+	if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0)
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 	glDisable(GL_BLEND);
+
+	GPU_raster_end();
 }
 
 /* This is called twice from space_graph.c -> graph_main_area_draw()
@@ -926,10 +963,12 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 		 
 		/* 1) draw curve line */
 		{
+			GPU_raster_begin();
+
 			/* set color/drawing style for curve itself */
 			if (((fcu->grp) && (fcu->grp->flag & AGRP_PROTECTED)) || (fcu->flag & FCURVE_PROTECTED)) {
 				/* protected curves (non editable) are drawn with dotted lines */
-				setlinestyle(2);
+				GPU_raster_set_line_style(2);
 			}
 			if (((fcu->grp) && (fcu->grp->flag & AGRP_MUTED)) || (fcu->flag & FCURVE_MUTED)) {
 				/* muted curves are drawn in a grayish hue */
@@ -949,7 +988,9 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 			}
 			
 			/* anti-aliased lines for less jagged appearance */
-			if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) gpuEnableLineSmooth();
+			if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0)
+				GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 			glEnable(GL_BLEND);
 			
 			/* draw F-Curve */
@@ -968,11 +1009,15 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 			}
 			
 			/* restore settings */
-			setlinestyle(0);
+			GPU_raster_set_line_style(0);
 			gpuLineWidth(1.0);
-			
-			if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) gpuDisableLineSmooth();
+
+			if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0)
+				GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 			glDisable(GL_BLEND);
+
+			GPU_raster_end();
 		}
 		
 		/* 2) draw handles and vertices as appropriate based on active 

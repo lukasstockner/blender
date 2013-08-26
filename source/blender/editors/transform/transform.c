@@ -1532,13 +1532,15 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 
 		gpuPushMatrix();
 
+		GPU_raster_begin();
+
 		gpuImmediateFormat_V3();
 
 		switch (t->helpline) {
 			case HLP_SPRING:
 				UI_ThemeColor(TH_WIRE);
 
-				setlinestyle(3);
+				GPU_raster_set_line_style(3);
 				gpuBegin(GL_LINE_STRIP);
 				gpuVertex2iv(t->mval);
 				gpuVertex2fv(cent);
@@ -1547,7 +1549,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 				gpuTranslate(mval[0], mval[1], 0);
 				gpuRotateAxis(RAD2DEGF(-(atan2f(cent[0] - t->mval[0], cent[1] - t->mval[1]))), 'Z');
 
-				setlinestyle(0);
+				GPU_raster_set_line_style(0);
 				gpuLineWidth(3.0);
 				drawArrow(UP, 5, 10, 5);
 				drawArrow(DOWN, 5, 10, 5);
@@ -1585,7 +1587,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 				float spacing_angle = min_ff(5.0f / dist, (float)M_PI / 12.0f);
 				UI_ThemeColor(TH_WIRE);
 
-				setlinestyle(3);
+				GPU_raster_set_line_style(3);
 				gpuBegin(GL_LINE_STRIP);
 				gpuVertex2iv(t->mval);
 				gpuVertex2fv(cent);
@@ -1593,7 +1595,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 
 				gpuTranslate(cent[0] - t->mval[0] + mval[0], cent[1] - t->mval[1] + mval[1], 0);
 
-				setlinestyle(0);
+				GPU_raster_set_line_style(0);
 				gpuLineWidth(3.0);
 				gpuDrawArc(0, 0, angle - spacing_angle, delta_angle - spacing_angle, dist, dist, 10);
 				gpuDrawArc(0, 0, angle + spacing_angle, spacing_angle - delta_angle, dist, dist, 10);
@@ -1643,6 +1645,8 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 
 		gpuImmediateUnformat();
 
+		GPU_raster_end();
+
 		gpuPopMatrix();
 	}
 }
@@ -1678,7 +1682,6 @@ void drawConstraintLine(TransInfo *t, const float center[3], const float dir[3],
 		UI_make_axis_color(col, col2, axis);
 		gpuColor3ubv(col2);
 
-		setlinestyle(0);
 		gpuVertex3fv(v1);
 		gpuVertex3fv(v2);
 	}
@@ -1706,6 +1709,8 @@ static void drawConstraint(TransInfo *t)
 		tc->drawExtra(t);
 	}
 	else {
+		GPU_raster_begin();
+
 		gpuImmediateFormat_C4_V3();
 
 		if (tc->mode & CON_SELECT) {
@@ -1715,6 +1720,8 @@ static void drawConstraint(TransInfo *t)
 
 			convertViewVec(t, vec, (t->mval[0] - t->con.imval[0]), (t->mval[1] - t->con.imval[1]));
 			add_v3_v3(vec, tc->center);
+
+			GPU_raster_set_line_style(0);
 
 			gpuBegin(GL_LINES);
 			drawConstraintLine(t, tc->center, tc->mtx[0], 'X', 0);
@@ -1728,12 +1735,12 @@ static void drawConstraint(TransInfo *t)
 			if (depth_test_enabled)
 				glDisable(GL_DEPTH_TEST);
 
-			setlinestyle(1);
+			GPU_raster_set_line_style(1);
 			gpuBegin(GL_LINE_STRIP);
 				gpuVertex3fv(tc->center);
 				gpuVertex3fv(vec);
 			gpuEnd();
-			setlinestyle(0);
+			GPU_raster_set_line_style(0);
 
 			if (depth_test_enabled)
 				glEnable(GL_DEPTH_TEST);
@@ -1756,6 +1763,8 @@ static void drawConstraint(TransInfo *t)
 		gpuEnd();
 
 		gpuImmediateUnformat();
+
+		GPU_raster_end();
 	}
 }
 
@@ -1871,8 +1880,9 @@ static void drawSnapping(const struct bContext *C, TransInfo *t)
 			gpuTranslate(t->tsnap.snapPoint[0], t->tsnap.snapPoint[1], 0.0f);
 
 			//gpuDrawFilledRectf(0, 0, 1, 1);
+			GPU_raster_begin();
 
-			setlinestyle(0);
+			GPU_raster_set_line_style(0);
 			gpuColor3P(CPACK_BLACK);
 
 			gpuBegin(GL_LINES);
@@ -1882,8 +1892,11 @@ static void drawSnapping(const struct bContext *C, TransInfo *t)
 			gpuAppendLinef(0, 0.1/h, 0, 0.020/h);
 			gpuEnd();
 
+			GPU_raster_set_line_style(0);
+
+			GPU_raster_end();
+
 			gpuTranslate(-t->tsnap.snapPoint[0], -t->tsnap.snapPoint[1], 0.0f);
-			setlinestyle(0);
 #endif
 		}
 		else if (t->spacetype == SPACE_NODE) {

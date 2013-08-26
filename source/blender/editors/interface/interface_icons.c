@@ -250,9 +250,15 @@ static void viconutil_draw_lineloop(GLint(*pts)[2], int numPoints)
 
 static void viconutil_draw_lineloop_smooth(GLint(*pts)[2], int numPoints)
 {
-	gpuEnableLineSmooth();
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 	viconutil_draw_lineloop(pts, numPoints);
-	gpuDisableLineSmooth();
+
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
 }
 
 static void viconutil_draw_points(GLint(*pts)[2], int numPoints, int pointSize)
@@ -280,7 +286,9 @@ static void vicon_x_draw(int x, int y, int w, int h, float alpha)
 	w -= 6;
 	h -= 6;
 
-	gpuEnableLineSmooth();
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
 
 	gpuLineWidth(2.5);
 
@@ -294,8 +302,10 @@ static void vicon_x_draw(int x, int y, int w, int h, float alpha)
 	gpuEnd();
 
 	gpuLineWidth(1.0);
-	
-	gpuDisableLineSmooth();
+
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
 }
 
 static void vicon_view3d_draw(int x, int y, int w, int h, float alpha)
@@ -471,7 +481,10 @@ static void vicon_move_up_draw(int x, int y, int w, int h, float UNUSED(alpha))
 {
 	int d = -2;
 
-	gpuEnableLineSmooth();
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 	gpuLineWidth(1);
 	gpuColor3P(CPACK_BLACK);
 
@@ -482,14 +495,20 @@ static void vicon_move_up_draw(int x, int y, int w, int h, float UNUSED(alpha))
 	gpuEnd();
 
 	gpuLineWidth(1.0);
-	gpuDisableLineSmooth();
+
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
 }
 
 static void vicon_move_down_draw(int x, int y, int w, int h, float UNUSED(alpha))
 {
 	int d = 2;
 
-	gpuEnableLineSmooth();
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 	gpuLineWidth(1);
 	gpuColor3P(CPACK_BLACK);
 
@@ -500,7 +519,10 @@ static void vicon_move_down_draw(int x, int y, int w, int h, float UNUSED(alpha)
 	gpuEnd();
 
 	gpuLineWidth(1.0);
-	gpuDisableLineSmooth();
+
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
 }
 
 #ifndef WITH_HEADLESS

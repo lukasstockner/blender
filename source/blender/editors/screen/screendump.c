@@ -407,24 +407,28 @@ static void screenshot_startjob(void *sjv, short *stop, short *do_update, float 
 /* Helper callback for drawing the cursor itself */
 static void screencast_draw_cursor(bContext *UNUSED(C), int x, int y, void *UNUSED(p_ptr))
 {
-	
 	gpuPushMatrix();
-	
+
 	gpuTranslate((float)x, (float)y, 0.0f);
-	
-	
-	gpuEnableLineSmooth();
+
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 	glEnable(GL_BLEND);
-	
+
 	gpuColor4ub(0, 0, 0, 32);
 	gpuSingleArc(0, 0, 0, 2*M_PI, 20, 20, 40);
-	
+
 	gpuColor4ub(255, 255, 255, 128);
 	gpuSingleArc(0, 0, 0, 2*M_PI, 20, 20, 40);
-	
+
 	glDisable(GL_BLEND);
-	gpuDisableLineSmooth();
-	
+
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
+
 	gpuPopMatrix();
 }
 

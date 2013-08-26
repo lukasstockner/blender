@@ -130,7 +130,7 @@ void gpu_disable_color_array   (void);
 void gpu_disable_texcoord_array(void);
 
 void gpu_vertex_pointer  (GLint size, GLenum type, GLsizei stride, const GLvoid* pointer);
-void gpu_normal_pointer  (            GLenum type, GLsizei stride, const GLvoid* pointer);
+void gpu_normal_pointer  (            GLenum type, GLsizei stride, GLboolean normalized, const GLvoid* pointer);
 void gpu_color_pointer   (GLint size, GLenum type, GLsizei stride, const GLvoid* pointer);
 void gpu_texcoord_pointer(GLint size, GLenum type, GLsizei stride, const GLvoid* pointer);
 

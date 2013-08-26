@@ -224,7 +224,10 @@ static void nla_draw_strip_curves(NlaStrip *strip, float yminc, float ymaxc)
 	gpuGray3f(0.700f);
 
 	/* draw with AA'd line */
-	gpuEnableLineSmooth();
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 	glEnable(GL_BLEND);
 	
 	/* influence -------------------------- */
@@ -270,7 +273,10 @@ static void nla_draw_strip_curves(NlaStrip *strip, float yminc, float ymaxc)
 	// XXX do we want to draw this curve? in a different color too?
 	
 	/* turn off AA'd lines */
-	gpuDisableLineSmooth();
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
+
 	glDisable(GL_BLEND);
 }
 
@@ -375,11 +381,13 @@ static void nla_draw_strip(SpaceNla *snla, AnimData *adt, NlaTrack *nlt, NlaStri
 		/* strip should appear to stand out, so draw a dark border around it */
 		gpuColor3f(0.0f, 0.0f, 0.0f);
 	}
-	
+
+	GPU_raster_begin();
+
 	/* - line style: dotted for muted */
 	if (strip->flag & NLASTRIP_FLAG_MUTED)
-		setlinestyle(4);
-		
+		GPU_raster_set_line_style(4);
+
 	/* draw outline */
 	uiDrawBoxShade(GL_LINE_LOOP, strip->start, yminc, strip->end, ymaxc, 0.0, 0.0, 0.1);
 
@@ -427,7 +435,9 @@ static void nla_draw_strip(SpaceNla *snla, AnimData *adt, NlaTrack *nlt, NlaStri
 	gpuImmediateUnformat();
 
 	/* reset linestyle */
-	setlinestyle(0);
+	GPU_raster_set_line_style(0);
+
+	GPU_raster_end();
 } 
 
 /* add the relevant text to the cache of text-strings to draw in pixelspace */

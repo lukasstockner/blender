@@ -449,11 +449,19 @@ static void cdDM_drawEdges(DerivedMesh *dm, int drawLooseEdges, int drawAllEdges
 	if (cddm->pbvh && cddm->pbvh_draw &&
 		BKE_pbvh_type(cddm->pbvh) == PBVH_BMESH)
 	{
-		BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, TRUE);
+		GPU_raster_begin();
+
+		gpuPolygonMode(GL_LINE);
+
+		BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, true);
+
+		gpuPolygonMode(GL_FILL);
+
+		GPU_raster_end();
 
 		return;
 	}
-	
+
 	if (GPU_buffer_legacy(dm)) {
 		DEBUG_VBO("Using legacy code. cdDM_drawEdges\n");
 		gpuImmediateFormat_V3();
@@ -579,7 +587,7 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 		if (dm->numTessFaceData) {
 			float (*face_nors)[3] = (float(*)[3])CustomData_get_layer(&dm->faceData, CD_NORMAL);
 
-			BKE_pbvh_draw(cddm->pbvh, partial_redraw_planes, face_nors, setMaterial, FALSE);
+			BKE_pbvh_draw(cddm->pbvh, partial_redraw_planes, face_nors, setMaterial, false);
 		}
 
 		return;
@@ -702,7 +710,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 	if (cddm->pbvh && cddm->pbvh_draw && BKE_pbvh_type(cddm->pbvh) == PBVH_BMESH) {
 		if (dm->numTessFaceData) {
 			GPU_set_tpage(NULL, false, false);
-			BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, FALSE);
+			BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, false);
 		}
 
 		return;
@@ -1120,7 +1128,7 @@ static void cdDM_drawMappedFaces(
 						draw_option = setDrawOptions(userData, orig);
 
 					if (draw_option == DM_DRAW_OPTION_STIPPLE) {
-						gpuEnablePolygonStipple();
+						GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
 						gpuPolygonStipple(stipple_quarttone);
 					}
 	
@@ -1152,7 +1160,7 @@ static void cdDM_drawMappedFaces(
 						prevstart = i + 1;
 
 						if (draw_option == DM_DRAW_OPTION_STIPPLE)
-							gpuDisablePolygonStipple();
+							GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
 					}
 				}
 			}
@@ -1331,7 +1339,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 	if (cddm->pbvh && cddm->pbvh_draw && BKE_pbvh_type(cddm->pbvh) == PBVH_BMESH) {
 		if (dm->numTessFaceData) {
 			setMaterial(1, &gattribs);
-			BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, FALSE);
+			BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, false);
 		}
 
 		return;
@@ -1658,7 +1666,7 @@ static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
 	if (cddm->pbvh && cddm->pbvh_draw && BKE_pbvh_type(cddm->pbvh) == PBVH_BMESH) {
 		if (dm->numTessFaceData) {
 			setMaterial(userData, 1, &gattribs);
-			BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, FALSE);
+			BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, false);
 		}
 
 		return;

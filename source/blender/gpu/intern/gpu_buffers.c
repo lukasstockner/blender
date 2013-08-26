@@ -1318,10 +1318,9 @@ static void gpu_colors_enable(VBO_State vbo_state)
 {
 	// SSS not needed?
 	//gpuEnableColorMaterial();
-#if defined(WITH_GL_PROFILE_COMPAT)
+
 	if (vbo_state == VBO_ENABLED)
-		glEnableClientState(GL_COLOR_ARRAY);
-#endif
+		gpu_enable_color_array();
 }
 
 static void gpu_colors_disable(VBO_State vbo_state)
@@ -2351,9 +2350,14 @@ static void gpu_draw_buffers_legacy_grids(GPU_Buffers *buffers)
 	}
 }
 
-void GPU_draw_buffers(GPU_Buffers *buffers, DMSetMaterial setMaterial,
-					  int wireframe)
+/* XXX jwilkins: this needs more work to fit within the new abstraction layer */
+void GPU_draw_buffers(
+	GPU_Buffers*  buffers,
+	DMSetMaterial setMaterial,
+	bool          wireframe)
 {
+	GPU_CHECK_NO_ERROR();
+
 	/* sets material from the first face, to solve properly face would need to
 	 * be sorted in buckets by materials */
 	if (setMaterial) {
@@ -2374,19 +2378,16 @@ void GPU_draw_buffers(GPU_Buffers *buffers, DMSetMaterial setMaterial,
 	}
 
 	// SSS Enable/Disable Smooth
-	if (buffers->smooth || buffers->totface)
+	if (!wireframe && (buffers->smooth || buffers->totface))
 		GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 	else
 		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	if (buffers->vert_buf) {
-#if defined(WITH_GL_PROFILE_COMPAT)
-		glEnableClientState(GL_VERTEX_ARRAY);
-#endif
+		gpu_enable_vertex_array();
+
 		if (!wireframe) {
-#if defined(WITH_GL_PROFILE_COMPAT)
-			glEnableClientState(GL_NORMAL_ARRAY);
-#endif
+			gpu_enable_normal_array();
 			gpu_colors_enable(VBO_ENABLED);
 		}
 
@@ -2398,21 +2399,13 @@ void GPU_draw_buffers(GPU_Buffers *buffers, DMSetMaterial setMaterial,
 		gpu_commit_aspect();
 		gpu_commit_matrixes();
 
-		if (wireframe)
-			gpuPolygonMode(GL_LINE);
-
 		if (buffers->tot_quad) {
 			char *offset = 0;
 			int i, last = buffers->has_hidden ? 1 : buffers->totgrid;
 			for (i = 0; i < last; i++) {
-#if defined(WITH_GL_PROFILE_COMPAT) // XXX jwilkins: need core implemenation
-				glVertexPointer(3, GL_FLOAT, sizeof(VertexBufferFormat),
-				                offset + offsetof(VertexBufferFormat, co));
-				glNormalPointer(GL_SHORT, sizeof(VertexBufferFormat),
-				                offset + offsetof(VertexBufferFormat, no));
-				glColorPointer(3, GL_UNSIGNED_BYTE, sizeof(VertexBufferFormat),
-				               offset + offsetof(VertexBufferFormat, color));
-#endif
+				gpu_vertex_pointer(3, GL_FLOAT, sizeof(VertexBufferFormat), offset + offsetof(VertexBufferFormat, co));
+				gpu_normal_pointer(GL_SHORT, sizeof(VertexBufferFormat), GL_TRUE, offset + offsetof(VertexBufferFormat, no));
+				gpu_color_pointer(3, GL_UNSIGNED_BYTE, sizeof(VertexBufferFormat), offset + offsetof(VertexBufferFormat, color));
 
 				glDrawElements(GL_QUADS, buffers->tot_quad * 4, buffers->index_type, 0);
 
@@ -2422,14 +2415,9 @@ void GPU_draw_buffers(GPU_Buffers *buffers, DMSetMaterial setMaterial,
 		else {
 			int totelem = buffers->tot_tri * 3;
 
-#if defined(WITH_GL_PROFILE_COMPAT) // XXX jwilkins: need core implemenation
-			glVertexPointer(3, GL_FLOAT, sizeof(VertexBufferFormat),
-			                (void *)offsetof(VertexBufferFormat, co));
-			glNormalPointer(GL_SHORT, sizeof(VertexBufferFormat),
-			                (void *)offsetof(VertexBufferFormat, no));
-			glColorPointer(3, GL_UNSIGNED_BYTE, sizeof(VertexBufferFormat),
-			               (void *)offsetof(VertexBufferFormat, color));
-#endif
+			gpu_vertex_pointer(3, GL_FLOAT, sizeof(VertexBufferFormat), (void *)offsetof(VertexBufferFormat, co));
+			gpu_normal_pointer(GL_SHORT, sizeof(VertexBufferFormat), GL_TRUE, (void *)offsetof(VertexBufferFormat, no));
+			gpu_color_pointer(3, GL_UNSIGNED_BYTE, sizeof(VertexBufferFormat), (void *)offsetof(VertexBufferFormat, color));
 
 			if (buffers->index_buf)
 				glDrawElements(GL_TRIANGLES, totelem, buffers->index_type, 0);
@@ -2437,20 +2425,14 @@ void GPU_draw_buffers(GPU_Buffers *buffers, DMSetMaterial setMaterial,
 				glDrawArrays(GL_TRIANGLES, 0, totelem);
 		}
 
-		if (wireframe)
-			gpuPolygonMode(GL_FILL);
-
 		gpu_glBindBuffer(GL_ARRAY_BUFFER, 0);
 		if (buffers->index_buf)
 			gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-#if defined(WITH_GL_PROFILE_COMPAT)
-		glDisableClientState(GL_VERTEX_ARRAY);
-#endif
+		gpu_disable_vertex_array();
+
 		if (!wireframe) {
-#if defined(WITH_GL_PROFILE_COMPAT)
-			glDisableClientState(GL_NORMAL_ARRAY);
-#endif
+			gpu_disable_normal_array();
 			gpu_colors_disable(VBO_ENABLED);
 		}
 	}
@@ -2461,6 +2443,8 @@ void GPU_draw_buffers(GPU_Buffers *buffers, DMSetMaterial setMaterial,
 	else if (buffers->totgrid) {
 		gpu_draw_buffers_legacy_grids(buffers);
 	}
+
+	GPU_CHECK_NO_ERROR();
 }
 
 int GPU_buffers_diffuse_changed(GPU_Buffers *buffers, int show_diffuse_color)

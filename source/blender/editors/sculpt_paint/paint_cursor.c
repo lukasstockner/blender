@@ -898,7 +898,10 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 
 	/* make lines pretty */
 	glEnable(GL_BLEND);
-	gpuEnableLineSmooth();
+
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
 
 	/* set brush color */
 	gpuColor4f(outline_col[0], outline_col[1], outline_col[2], outline_alpha);
@@ -916,7 +919,10 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 
 	/* restore GL state */
 	glDisable(GL_BLEND);
-	gpuDisableLineSmooth();
+
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
 }
 
 /* Public API */

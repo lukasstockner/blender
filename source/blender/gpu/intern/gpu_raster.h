@@ -67,6 +67,8 @@ void GPU_raster_shader_disable(uint32_t options);
 void GPU_raster_shader_bind  (void);
 void GPU_raster_shader_unbind(void);
 
+void GPU_raster_set_line_style(int factor);
+
 void gpuPolygonStipple(const GLubyte* mask);
 
 void gpuLineStipple(GLint factor, GLushort pattern);

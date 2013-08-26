@@ -1392,17 +1392,21 @@ static void gp_paint_cleanup(tGPsdata *p)
 static void gpencil_draw_eraser(bContext *UNUSED(C), int x, int y, void *p_ptr)
 {
 	tGPsdata *p = (tGPsdata *)p_ptr;
-	
+
 	if (p->paintmode == GP_PAINTMODE_ERASER) {
 		gpuColor4P(CPACK_WHITE, 0.500f);
-		
-		gpuEnableLineSmooth();
+
+		GPU_raster_begin();
+
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
 		glEnable(GL_BLEND);
 
 		gpuSingleCircle(x, y, p->radius, 40);
 
 		glDisable(GL_BLEND);
-		gpuDisableLineSmooth();
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+		GPU_raster_end();
 	}
 }
 

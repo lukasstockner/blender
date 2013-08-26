@@ -762,7 +762,11 @@ void brush_drawcursor_texpaint_uvsculpt(bContext *C, int x, int y, void *UNUSED(
 			gpuScale(zoomx, zoomy, 1.0f);
 
 		gpuColor4f(brush->add_col[0], brush->add_col[1], brush->add_col[2], alpha);
-		gpuEnableLineSmooth();
+
+		GPU_raster_begin();
+
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 		glEnable(GL_BLEND);
 		{
 			UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
@@ -776,7 +780,10 @@ void brush_drawcursor_texpaint_uvsculpt(bContext *C, int x, int y, void *UNUSED(
 		}
 		gpuSingleCircle(0, 0, size, 40);
 		glDisable(GL_BLEND);
-		gpuDisableLineSmooth();
+
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+		GPU_raster_end();
 
 		gpuPopMatrix();
 	}

@@ -213,21 +213,6 @@ void sdrawtrifill(short x1, short y1, short x2, short y2)
 
 /* ******************************************** */
 
-void setlinestyle(int nr)
-{
-	if (nr == 0) {
-		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
-	}
-	else {
-		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
-
-		if (U.pixelsize > 1.0f)
-			gpuLineStipple(nr, 0xCCCC);
-		else
-			gpuLineStipple(nr, 0xAAAA);
-	}
-}
-
 /* Invert line handling */
 	
 #define GL_TOGGLE(mode, onoff)  (((onoff) ? glEnable : glDisable)(mode))

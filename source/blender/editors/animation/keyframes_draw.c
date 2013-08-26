@@ -559,9 +559,6 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 	gpuTranslate(x, y, 0.0f);
 	gpuScale(1.0f / xscale * hsize, hsize, 1.0f);
 	
-	/* anti-aliased lines for more consistent appearance */
-	gpuEnableLineSmooth();
-	
 	/* draw! */
 	if (ELEM(mode, KEYFRAME_SHAPE_INSIDE, KEYFRAME_SHAPE_BOTH)) {
 		/* interior - hardcoded colors (for selected and unselected only) */
@@ -595,7 +592,7 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 			}
 			break;
 		}
-		
+
 		gpuBegin(GL_QUADS);
 		gpuVertex2fv(_unit_diamond_shape[0]);
 		gpuVertex2fv(_unit_diamond_shape[1]);
@@ -603,21 +600,28 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 		gpuVertex2fv(_unit_diamond_shape[3]);
 		gpuEnd();
 	}
-	
+
 	if (ELEM(mode, KEYFRAME_SHAPE_FRAME, KEYFRAME_SHAPE_BOTH)) {
+		GPU_raster_begin();
+
+		/* anti-aliased lines for more consistent appearance */
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 		/* exterior - black frame */
 		gpuColor4P(CPACK_BLACK, alpha);
-		
+
 		gpuBegin(GL_LINE_LOOP);
 		gpuVertex2fv(_unit_diamond_shape[0]);
 		gpuVertex2fv(_unit_diamond_shape[1]);
 		gpuVertex2fv(_unit_diamond_shape[2]);
 		gpuVertex2fv(_unit_diamond_shape[3]);
 		gpuEnd();
+
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+		GPU_raster_end();
 	}
-	
-	gpuDisableLineSmooth();
-	
+
 	/* restore view transform */
 	gpuScale(xscale / hsize, 1.0f / hsize, 1.0f);
 	gpuTranslate(-x, -y, 0.0f);

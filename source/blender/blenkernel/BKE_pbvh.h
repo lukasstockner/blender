@@ -101,7 +101,7 @@ int BKE_pbvh_node_raycast(PBVH *bvh, PBVHNode *node, float (*origco)[3], int use
 
 void BKE_pbvh_node_draw(PBVHNode *node, void *data);
 void BKE_pbvh_draw(PBVH *bvh, float (*planes)[4], float (*face_nors)[3],
-                   int (*setMaterial)(int, void *attribs), int wireframe);
+                   int (*setMaterial)(int, void *attribs), bool wireframe);
 
 /* PBVH Access */
 typedef enum {

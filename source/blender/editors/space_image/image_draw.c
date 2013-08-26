@@ -659,20 +659,23 @@ void draw_image_sample_line(SpaceImage *sima)
 	if (sima->sample_line_hist.flag & HISTO_FLAG_SAMPLELINE) {
 		Histogram *hist = &sima->sample_line_hist;
 
+		GPU_raster_begin();
+
 		gpuBegin(GL_LINES);
 		gpuColor3P(CPACK_BLACK);
 		gpuVertex2fv(hist->co[0]);
 		gpuVertex2fv(hist->co[1]);
 		gpuEnd();
 
-		setlinestyle(1);
+		GPU_raster_set_line_style(1);
 		gpuBegin(GL_LINES);
 		gpuColor3P(CPACK_WHITE);
 		gpuVertex2fv(hist->co[0]);
 		gpuVertex2fv(hist->co[1]);
 		gpuEnd();
-		setlinestyle(0);
+		GPU_raster_set_line_style(0);
 
+		GPU_raster_end();
 	}
 }
 

@@ -334,7 +334,7 @@ GPU_CHECK_NO_ERROR();
 
 
 
-void gpu_normal_pointer(GLenum type, GLsizei stride, const GLvoid* pointer)
+void gpu_normal_pointer(GLenum type, GLsizei stride, GLboolean normalized, const GLvoid* pointer)
 {
 	if (current_common != NULL) {
 		if (current_common->normal != -1)

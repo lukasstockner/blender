@@ -393,13 +393,19 @@ void uiRoundRect(float minx, float miny, float maxx, float maxy, float rad)
 	}
 
 	/* set antialias line */
-	gpuEnableLineSmooth();
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 	glEnable(GL_BLEND);
 
 	uiDrawBox(GL_LINE_LOOP, minx, miny, maxx, maxy, rad);
 
 	glDisable(GL_BLEND);
-	gpuDisableLineSmooth();
+
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
 }
 
 /* (old, used in outliner) plain antialiased filled box */
@@ -500,22 +506,28 @@ static void histogram_draw_one(float r, float g, float b, float alpha,
 	int i;
 
 	if (is_line) {
-		glLineWidth(1.5);
+		gpuLineWidth(1.5);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE); /* non-standard blend function */
 		gpuColor4f(r, g, b, alpha);
 
 		/* curve outline */
 
-		gpuEnableLineSmooth();
+		GPU_raster_begin();
+
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 		gpuBegin(GL_LINE_STRIP);
 		for (i = 0; i < res; i++) {
 			float x2 = x + i * (w / (float)res);
 			gpuVertex2f(x2, y + (data[i] * h));
 		}
 		gpuEnd();
-		gpuDisableLineSmooth();
 
-		glLineWidth(1.0);
+		gpuLineWidth(1.0);
+
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+		GPU_raster_end();
 
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); /* reset blender default */
 	}
@@ -541,7 +553,10 @@ static void histogram_draw_one(float r, float g, float b, float alpha,
 		gpuColor4P(CPACK_BLACK, 0.250f);
 
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); /* reset blender default */
-		gpuEnableLineSmooth();
+
+		GPU_raster_begin();
+
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
 
 		gpuBegin(GL_LINE_STRIP); // DOODLE: line graph drawn using a line strip, locking done by callee
 		for (i = 0; i < res; i++) {
@@ -550,7 +565,9 @@ static void histogram_draw_one(float r, float g, float b, float alpha,
 		}
 		gpuEnd();
 
-		gpuDisableLineSmooth();
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+		GPU_raster_end();
 	}
 }
 
@@ -1008,11 +1025,18 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 
 	gpuColor4ub(UI_TRANSP_DARK, UI_TRANSP_DARK, UI_TRANSP_DARK, 255);
 	gpuDrawFilledRectf(x1, y1, x1 + sizex, y1 + sizey);
-	gpuEnablePolygonStipple();
+
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
+
 	gpuColor4ub(UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, 255);
 	gpuPolygonStipple(checker_stipple_sml);
 	gpuDrawFilledRectf(x1, y1, x1 + sizex, y1 + sizey);
-	gpuDisablePolygonStipple();
+
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
+
+	GPU_raster_end();
 
 	// SSS Enable Smooth
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
@@ -1063,6 +1087,7 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 	v2a[1] = y1 + 0.75f * sizey;
 	v3[1] = y1 + sizey;
 
+	GPU_raster_begin();
 
 	cbd = coba->data;
 	gpuBegin(GL_LINES);
@@ -1075,13 +1100,13 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 			gpuVertex2fv(v3);
 			gpuEnd();
 
-			setlinestyle(2);
+			GPU_raster_set_line_style(2);
 			gpuBegin(GL_LINES);
 			gpuColor3P(CPACK_WHITE);
 			gpuVertex2fv(v1);
 			gpuVertex2fv(v3);
 			gpuEnd();
-			setlinestyle(0);
+			GPU_raster_set_line_style(0);
 			gpuBegin(GL_LINES);
 
 #if 0
@@ -1113,6 +1138,8 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 		}
 	}
 	gpuEnd();
+
+	GPU_raster_end();
 
 	gpuImmediateUnformat();
 }
@@ -1209,11 +1236,20 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 	
 	/* AA circle */
 	glEnable(GL_BLEND);
-	gpuEnableLineSmooth();
+
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 	gpuColor3ubv((unsigned char *)wcol->inner);
+
 	gpuSingleFastCircleXY(100.0f);
+
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
+
 	glDisable(GL_BLEND);
-	gpuDisableLineSmooth();
 
 	/* matrix after circle */
 	gpuPopMatrix();
@@ -1390,14 +1426,19 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 
 	/* the curve */
 	gpuColor3ubv((unsigned char *)wcol->item);
-	gpuEnableLineSmooth();
+
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 	glEnable(GL_BLEND);
+
 	gpuBegin(GL_LINE_STRIP);
-	
+
 	if (cuma->table == NULL)
 		curvemapping_changed(cumap, FALSE);
 	cmp = cuma->table;
-	
+
 	/* first point */
 	if ((cuma->flag & CUMA_EXTEND_EXTRAPOLATE) == 0) {
 		gpuVertex2f(rect->xmin, rect->ymin + zoomy * (cmp[0].y - offsy));
@@ -1422,8 +1463,12 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 		gpuVertex2f(fx, fy);
 	}
 	gpuEnd();
-	gpuDisableLineSmooth();
+
 	glDisable(GL_BLEND);
+
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
 
 	/* the points, use aspect to make them visible on edges */
 	cmp = cuma->curve;
@@ -1537,10 +1582,12 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 			          BLI_rctf_size_x(&rect),
 			          BLI_rctf_size_y(&rect));
 
+			GPU_raster_begin();
+
 			for (a = 0; a < 2; a++) {
 				if (a == 1) {
-					gpuLineStipple(3, 0xaaaa);
-					gpuEnableLineStipple();
+					gpuLineStipple(3, 0xAAAA);
+					GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
 					UI_ThemeColor(TH_SEL_MARKER);
 				}
 				else {
@@ -1554,9 +1601,12 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 				gpuVertex2f(0.0f, 10.0f);
 				gpuEnd();
 			}
+
+			GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
+
+			GPU_raster_end();
 		}
 
-		gpuDisableLineStipple();
 		gpuPopMatrix();
 
 		ok = 1;
@@ -1628,14 +1678,22 @@ void ui_draw_but_NODESOCKET(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol
 	gpuColor4ub(0, 0, 0, 150);
 	
 	glEnable(GL_BLEND);
-	gpuEnableLineSmooth();
+
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 	gpuBegin(GL_LINE_LOOP);
 	for (a = 0; a < 16; a++)
 		gpuVertex2f(x + size * si[a], y + size * co[a]);
 	gpuEnd();
-	gpuDisableLineSmooth();
+
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
+
 	glDisable(GL_BLEND);
-	glLineWidth(1.0f);
+	gpuLineWidth(1.0f);
 	
 	/* restore scissortest */
 	gpuScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
@@ -1743,10 +1801,16 @@ void ui_dropshadow(const rctf *rct, float radius, float aspect, float alpha, int
 	}
 
 	/* outline emphasis */
-	gpuEnableLineSmooth();
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 	gpuColor4P(CPACK_BLACK, 0.392f);
 	uiDrawBox(GL_LINE_LOOP, rct->xmin - 0.5f, rct->ymin - 0.5f, rct->xmax + 0.5f, rct->ymax + 0.5f, radius + 0.5f);
-	gpuDisableLineSmooth();
+
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
 
 	glDisable(GL_BLEND);
 }

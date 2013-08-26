@@ -113,7 +113,6 @@
 #include "GPU_extensions.h"
 #include "GPU_draw.h"
 #include "GPU_compatibility.h"
-#include "GPU_object.h"
 
 #include "BKE_depsgraph.h"
 #include "BKE_sound.h"

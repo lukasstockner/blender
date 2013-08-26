@@ -716,6 +716,10 @@ static void drawObjectConstraint(TransInfo *t)
 	int i;
 	float tmp_axismtx[3][3];
 
+	GPU_raster_begin();
+
+	GPU_raster_set_line_style(0);
+
 	gpuImmediateFormat_C4_V3();
 
 	gpuBegin(GL_LINES);
@@ -760,6 +764,8 @@ static void drawObjectConstraint(TransInfo *t)
 	gpuEnd();
 
 	gpuImmediateUnformat();
+
+	GPU_raster_end();
 }
 
 /*--------------------- START / STOP CONSTRAINTS ---------------------- */

@@ -264,12 +264,21 @@ void ED_region_draw_mouse_line_cb(const bContext *C, ARegion *ar, void *arg_info
 	                         win->eventstate->y - ar->winrct.ymin};
 
 	UI_ThemeColor(TH_WIRE);
-	setlinestyle(3);
+
+	GPU_raster_begin();
+
+	GPU_raster_set_line_style(3);
+
 	gpuImmediateFormat_V3();
+
 	gpuBegin(GL_LINE_STRIP);
 	gpuVertex2iv(mval_dst);
 	gpuVertex2iv(mval_src);
 	gpuEnd();
+
 	gpuImmediateUnformat();
-	setlinestyle(0);
+
+	GPU_raster_set_line_style(0);
+
+	GPU_raster_end();
 }

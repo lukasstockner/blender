@@ -579,13 +579,19 @@ static void node_draw_mute_line(View2D *v2d, SpaceNode *snode, bNode *node)
 	bNodeLink *link;
 
 	glEnable(GL_BLEND);
-	gpuEnableLineSmooth();
+
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
 
 	for (link = node->internal_links.first; link; link = link->next)
 		node_draw_link_bezier(v2d, snode, link, TH_REDALERT, 0, TH_WIRE, 0, TH_WIRE);
 
 	glDisable(GL_BLEND);
-	gpuDisableLineSmooth();
+
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
 }
 
 /* this might have some more generic use */
@@ -624,12 +630,20 @@ static void node_circle_draw(float x, float y, float size, float *col, int highl
 		gpuColor4P(CPACK_BLACK, 0.588f);
 	}
 	glEnable(GL_BLEND);
-	gpuEnableLineSmooth();
+
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 	gpuBegin(GL_LINE_LOOP);
 	for (a = 0; a < 16; a++)
 		gpuVertex2f(x + size*si[a], y + size*co[a]);
 	gpuEnd();
-	gpuDisableLineSmooth();
+
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
+
 	glDisable(GL_BLEND);
 	gpuLineWidth(1.0f);
 }
@@ -889,17 +903,23 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	if (node->flag & SELECT) {
 		
 		glEnable(GL_BLEND);
-		gpuEnableLineSmooth();
-		
+
+		GPU_raster_begin();
+
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 		if (node->flag & NODE_ACTIVE)
 			UI_ThemeColorShadeAlpha(TH_ACTIVE, 0, -40);
 		else
 			UI_ThemeColorShadeAlpha(TH_SELECT, 0, -40);
-		
+
 		uiSetRoundBox(UI_CNR_ALL);
 		uiDrawBox(GL_LINE_LOOP, rct->xmin, rct->ymin, rct->xmax, rct->ymax, BASIS_RAD);
-		
-		gpuDisableLineSmooth();
+
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+		GPU_raster_end();
+
 		glDisable(GL_BLEND);
 	}
 	
@@ -974,27 +994,39 @@ static void node_draw_hidden(const bContext *C, ARegion *ar, SpaceNode *snode, b
 	/* outline active and selected emphasis */
 	if (node->flag & SELECT) {
 		glEnable(GL_BLEND);
-		gpuEnableLineSmooth();
-		
+
+		GPU_raster_begin();
+
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 		if (node->flag & NODE_ACTIVE)
 			UI_ThemeColorShadeAlpha(TH_ACTIVE, 0, -40);
 		else
 			UI_ThemeColorShadeAlpha(TH_SELECT, 0, -40);
 		uiDrawBox(GL_LINE_LOOP, rct->xmin, rct->ymin, rct->xmax, rct->ymax, hiddenrad);
-		
-		gpuDisableLineSmooth();
+
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+		GPU_raster_end();
+
 		glDisable(GL_BLEND);
 	}
 
 	/* custom color inline */
 	if (node->flag & NODE_CUSTOM_COLOR) {
 		glEnable(GL_BLEND);
-		gpuEnableLineSmooth();
+
+		GPU_raster_begin();
+
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
 
 		gpuColor3fv(node->color);
 		uiDrawBox(GL_LINE_LOOP, rct->xmin + 1, rct->ymin + 1, rct->xmax -1, rct->ymax - 1, hiddenrad);
 
-		gpuDisableLineSmooth();
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+		GPU_raster_end();
+
 		glDisable(GL_BLEND);
 	}
 
@@ -1180,12 +1212,20 @@ void node_draw_nodetree(const bContext *C, ARegion *ar, SpaceNode *snode, bNodeT
 	
 	/* node lines */
 	glEnable(GL_BLEND);
-	gpuEnableLineSmooth();
+
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 	for (link = ntree->links.first; link; link = link->next) {
 		if (!nodeLinkIsHidden(link))
 			node_draw_link(&ar->v2d, snode, link);
 	}
-	gpuDisableLineSmooth();
+
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
+
 	glDisable(GL_BLEND);
 	
 	/* draw foreground nodes, last nodes in front */
@@ -1336,12 +1376,20 @@ void drawnodespace(const bContext *C, ARegion *ar)
 		
 		/* temporary links */
 		glEnable(GL_BLEND);
-		gpuEnableLineSmooth();
+
+		GPU_raster_begin();
+
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
 		for (nldrag = snode->linkdrag.first; nldrag; nldrag = nldrag->next) {
 			for (linkdata = nldrag->links.first; linkdata; linkdata = linkdata->next)
 				node_draw_link(v2d, snode, (bNodeLink *)linkdata->data);
 		}
-		gpuDisableLineSmooth();
+
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+		GPU_raster_end();
+
 		glDisable(GL_BLEND);
 		
 		if (snode->flag & SNODE_SHOW_GPENCIL) {
