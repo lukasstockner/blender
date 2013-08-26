@@ -3094,9 +3094,6 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 	BMVert *eve_act = NULL;
 	bool use_occlude_wire = (v3d->flag2 & V3D_OCCLUDE_WIRE) && (dt > OB_WIRE);
 	
-	// BLI_assert(!cageDM || !(cageDM->dirty & DM_DIRTY_NORMALS));
-	BLI_assert(!finalDM || !(finalDM->dirty & DM_DIRTY_NORMALS));
-
 	if (em->bm->selected.last) {
 		BMEditSelection *ese = em->bm->selected.last;
 		/* face is handeled above */
@@ -3368,8 +3365,6 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 
 	if (!dm)
 		return;
-
-	if (dm)  BLI_assert(!(dm->dirty & DM_DIRTY_NORMALS));
 
 	/* Check to draw dynamic paint colors (or weights from WeightVG modifiers).
 	 * Note: Last "preview-active" modifier in stack will win! */
@@ -6661,23 +6656,17 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 	/* faceselect exception: also draw solid when (dt == wire), except in editmode */
 	if (is_obact && (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT))) {
-		if (ob->type == OB_MESH) {
-
-			if (ob->mode & OB_MODE_EDIT) {
-				/* pass */
+		if (ob->type == OB_MESH) {			
+			if (dt < OB_SOLID) {
+				zbufoff = 1;
+				dt = OB_SOLID;
 			}
-			else {
-				if (dt < OB_SOLID) {
-					zbufoff = 1;
-					dt = OB_SOLID;
-				}
 
-				if (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
-					dt = OB_PAINT;
-				}
-
-				glEnable(GL_DEPTH_TEST);
+			if (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
+				dt = OB_PAINT;
 			}
+
+			glEnable(GL_DEPTH_TEST);
 		}
 		else {
 			if (dt < OB_SOLID) {
