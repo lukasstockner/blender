@@ -1382,41 +1382,6 @@ static void scene_update_objects(Scene *scene, Scene *scene_parent, bool use_thr
 		print_threads_statistics(&state);
 	}
 #endif
-
-	/* XXX: Weak, very weak!
-	 *
-	 * We update dupligroups in single thread! :S
-	 *
-	 * This is because we've got absolutely no idea about dependencies
-	 * inside the group and we only know order of objects in which we
-	 * need to perform objects update.
-	 *
-	 * We even can not update different groups in different threads,
-	 * because groups could share the objects and detecting whether
-	 * object is updating in multiple threads is not so much easy.
-	 *
-	 * This is solvable with local group dependency graph or expanding
-	 * current dependency graph to be aware of dependencies inside
-	 * groups.
-	 *
-	 * P.S. Objects from the dup_group are very much likely in scene's
-	 *      dependency graph and were alreayd updated in threaded tasks
-	 *      scheduler already.
-	 *
-	 *      So objects from the dupli_groups are likely don't have
-	 *      OB_RECALC_ALL flag here, but it seems they still do have
-	 *      non-zero recalc flags, and here we make sure things are
-	 *      100% by calling BKE_group_handle_recalc_and_update.
-	 */
-	{
-		Base *base;
-		for (base = scene->base.first; base; base = base->next) {
-			Object *object = base->object;
-
-			if (object->dup_group && (object->transflag & OB_DUPLIGROUP))
-				BKE_group_handle_recalc_and_update(scene_parent, object, object->dup_group);
-		}
-	}
 }
 
 static void scene_update_tagged_recursive(Main *bmain, Scene *scene, Scene *scene_parent, bool use_threads)
