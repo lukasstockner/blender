@@ -347,10 +347,11 @@ static DerivedMesh *arrayModifier_doArray(ArrayModifierData *amd,
 	BMOpSlot *slot_targetmap = NULL;  /* for weldop */
 
 	/* need to avoid infinite recursion here */
+	/* TODO(sergey): We shouldn't build other object's DM from modifier stack! */
 	if (amd->start_cap && amd->start_cap != ob && amd->start_cap->type == OB_MESH)
-		start_cap = mesh_get_derived_final(scene, amd->start_cap, CD_MASK_MESH);
+		start_cap = mesh_get_derived_final(scene, amd->start_cap, CD_MASK_BAREMESH);
 	if (amd->end_cap && amd->end_cap != ob && amd->end_cap->type == OB_MESH)
-		end_cap = mesh_get_derived_final(scene, amd->end_cap, CD_MASK_MESH);
+		end_cap = mesh_get_derived_final(scene, amd->end_cap, CD_MASK_BAREMESH);
 
 	unit_m4(offset);
 

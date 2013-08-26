@@ -137,7 +137,8 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	if (bmd->object != ob) {
 		/* weak! - but we can too easy end up with circular dep crash otherwise */
 		if (bmd->object->type == OB_MESH && modifiers_findByType(bmd->object, eModifierType_Boolean) == NULL) {
-			dm = mesh_get_derived_final(md->scene, bmd->object, CD_MASK_MESH);
+			/* TODO(sergey): We shouldn't build other object's DM from modifier stack! */
+			dm = mesh_get_derived_final(md->scene, bmd->object, CD_MASK_BAREMESH);
 		}
 		else {
 			dm = bmd->object->derivedFinal;
