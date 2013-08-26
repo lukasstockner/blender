@@ -303,8 +303,7 @@ void GPU_buffer_free(GPUBuffer *buffer)
 		 * buffer, so increase pool size */
 		if (pool->maxsize == pool->totbuf) {
 			pool->maxsize += MAX_FREE_GPU_BUFFERS;
-			pool->buffers = MEM_reallocN(pool->buffers,
-			                             sizeof(GPUBuffer *) * pool->maxsize);
+			pool->buffers = (GPUBuffer**)MEM_reallocN(pool->buffers, sizeof(GPUBuffer *) * pool->maxsize);
 		}
 	}
 
@@ -918,17 +917,16 @@ void GPU_vertex_setup(DerivedMesh *dm)
 	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_VERTEX))
 		return;
 
-#if defined(WITH_GL_PROFILE_COMPAT)
-	glEnableClientState(GL_VERTEX_ARRAY);
+	gpu_enable_vertex_array();
+
 	if (useVBOs) {
 		gpu_glBindBuffer(GL_ARRAY_BUFFER, dm->drawObject->points->id);
-		glVertexPointer(3, GL_FLOAT, 0, 0);
+		gpu_vertex_pointer(3, GL_FLOAT, 0, 0);
 	}
 	else {
-		glVertexPointer(3, GL_FLOAT, 0, dm->drawObject->points->pointer);
+		gpu_vertex_pointer(3, GL_FLOAT, 0, dm->drawObject->points->pointer);
 	}
-#endif
-	
+
 	GLStates |= GPU_BUFFER_VERTEX_STATE;
 }
 
@@ -937,16 +935,15 @@ void GPU_normal_setup(DerivedMesh *dm)
 	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_NORMAL))
 		return;
 
-#if defined(WITH_GL_PROFILE_COMPAT)
-	glEnableClientState(GL_NORMAL_ARRAY);
+	gpu_enable_normal_array();
+
 	if (useVBOs) {
 		gpu_glBindBuffer(GL_ARRAY_BUFFER, dm->drawObject->normals->id);
-		glNormalPointer(GL_FLOAT, 0, 0);
+		gpu_normal_pointer(GL_FLOAT, 0, GL_FALSE, 0);
 	}
 	else {
-		glNormalPointer(GL_FLOAT, 0, dm->drawObject->normals->pointer);
+		gpu_normal_pointer(GL_FLOAT, 0, GL_FALSE, dm->drawObject->normals->pointer);
 	}
-#endif
 
 	GLStates |= GPU_BUFFER_NORMAL_STATE;
 }
@@ -956,16 +953,15 @@ void GPU_uv_setup(DerivedMesh *dm)
 	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_UV))
 		return;
 
-#if defined(WITH_GL_PROFILE_COMPAT)
-	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+	gpu_enable_texcoord_array();
+
 	if (useVBOs) {
 		gpu_glBindBuffer(GL_ARRAY_BUFFER, dm->drawObject->uv->id);
-		glTexCoordPointer(2, GL_FLOAT, 0, 0);
+		gpu_texcoord_pointer(2, GL_FLOAT, 0, 0);
 	}
 	else {
-		glTexCoordPointer(2, GL_FLOAT, 0, dm->drawObject->uv->pointer);
+		gpu_texcoord_pointer(2, GL_FLOAT, 0, dm->drawObject->uv->pointer);
 	}
-#endif
 
 	GLStates |= GPU_BUFFER_TEXCOORD_STATE;
 }
@@ -995,16 +991,15 @@ void GPU_color_setup(DerivedMesh *dm, int colType)
 	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_COLOR))
 		return;
 
-#if defined(WITH_GL_PROFILE_COMPAT)
-	glEnableClientState(GL_COLOR_ARRAY);
+	gpu_enable_color_array();
+
 	if (useVBOs) {
 		gpu_glBindBuffer(GL_ARRAY_BUFFER, dm->drawObject->colors->id);
-		glColorPointer(3, GL_UNSIGNED_BYTE, 0, 0);
+		gpu_color_pointer(3, GL_UNSIGNED_BYTE, 0, 0);
 	}
 	else {
-		glColorPointer(3, GL_UNSIGNED_BYTE, 0, dm->drawObject->colors->pointer);
+		gpu_color_pointer(3, GL_UNSIGNED_BYTE, 0, dm->drawObject->colors->pointer);
 	}
-#endif
 
 	GLStates |= GPU_BUFFER_COLOR_STATE;
 }
@@ -1017,16 +1012,15 @@ void GPU_edge_setup(DerivedMesh *dm)
 	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_VERTEX))
 		return;
 
-#if defined(WITH_GL_PROFILE_COMPAT)
-	glEnableClientState(GL_VERTEX_ARRAY);
+	gpu_enable_vertex_array();
+
 	if (useVBOs) {
 		gpu_glBindBuffer(GL_ARRAY_BUFFER, dm->drawObject->points->id);
-		glVertexPointer(3, GL_FLOAT, 0, 0);
+		gpu_vertex_pointer(3, GL_FLOAT, 0, 0);
 	}
 	else {
-		glVertexPointer(3, GL_FLOAT, 0, dm->drawObject->points->pointer);
+		gpu_vertex_pointer(3, GL_FLOAT, 0, dm->drawObject->points->pointer);
 	}
-#endif
 
 	GLStates |= GPU_BUFFER_VERTEX_STATE;
 
@@ -1041,16 +1035,15 @@ void GPU_uvedge_setup(DerivedMesh *dm)
 	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_UVEDGE))
 		return;
 
-#if defined(WITH_GL_PROFILE_COMPAT)
-	glEnableClientState(GL_VERTEX_ARRAY);
+	gpu_enable_vertex_array();
+
 	if (useVBOs) {
 		gpu_glBindBuffer(GL_ARRAY_BUFFER, dm->drawObject->uvedges->id);
-		glVertexPointer(2, GL_FLOAT, 0, 0);
+		gpu_vertex_pointer(2, GL_FLOAT, 0, 0);
 	}
 	else {
-		glVertexPointer(2, GL_FLOAT, 0, dm->drawObject->uvedges->pointer);
+		gpu_vertex_pointer(2, GL_FLOAT, 0, dm->drawObject->uvedges->pointer);
 	}
-#endif
 
 	GLStates |= GPU_BUFFER_VERTEX_STATE;
 }
@@ -1125,59 +1118,60 @@ void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numda
 }
 
 
+
 void GPU_buffer_unbind(void)
 {
 	int i;
 
-#if defined(WITH_GL_PROFILE_COMPAT)
 	if (GLStates & GPU_BUFFER_VERTEX_STATE)
-		glDisableClientState(GL_VERTEX_ARRAY);
-	if (GLStates & GPU_BUFFER_NORMAL_STATE)
-		glDisableClientState(GL_NORMAL_ARRAY);
-	if (GLStates & GPU_BUFFER_TEXCOORD_STATE)
-		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-	if (GLStates & GPU_BUFFER_COLOR_STATE)
-		glDisableClientState(GL_COLOR_ARRAY);
-	if (GLStates & GPU_BUFFER_ELEMENT_STATE) {
-		if (useVBOs) {
-			gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-		}
-	}
-#endif
+		gpu_disable_vertex_array();
 
-	GLStates &= ~(GPU_BUFFER_VERTEX_STATE | GPU_BUFFER_NORMAL_STATE |
-	              GPU_BUFFER_TEXCOORD_STATE | GPU_BUFFER_COLOR_STATE |
-	              GPU_BUFFER_ELEMENT_STATE);
+	if (GLStates & GPU_BUFFER_NORMAL_STATE)
+		gpu_disable_normal_array();
+
+	if (GLStates & GPU_BUFFER_TEXCOORD_STATE)
+		gpu_disable_texcoord_array();
+
+	if (GLStates & GPU_BUFFER_COLOR_STATE)
+		gpu_disable_color_array();
+
+	if (useVBOs && (GLStates & GPU_BUFFER_ELEMENT_STATE))
+		gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+	if (useVBOs)
+		gpu_glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	for (i = 0; i < MAX_GPU_ATTRIB_DATA; i++) {
-		if (attribData[i].index != -1) {
+		if (attribData[i].index != -1)
 			gpu_glDisableVertexAttribArray(attribData[i].index);
-		}
 		else
 			break;
 	}
 
-	if (useVBOs)
-		gpu_glBindBuffer(GL_ARRAY_BUFFER, 0);
+	GLStates &= ~(GPU_BUFFER_VERTEX_STATE | GPU_BUFFER_NORMAL_STATE |
+	              GPU_BUFFER_TEXCOORD_STATE | GPU_BUFFER_COLOR_STATE |
+	              GPU_BUFFER_ELEMENT_STATE);
 }
+
+
 
 void GPU_color_switch(int mode)
 {
 	if (mode) {
-#if defined(WITH_GL_PROFILE_COMPAT)
 		if (!(GLStates & GPU_BUFFER_COLOR_STATE))
-			glEnableClientState(GL_COLOR_ARRAY);
-#endif
+			gpu_enable_color_array();
+
 		GLStates |= GPU_BUFFER_COLOR_STATE;
 	}
 	else {
-#if defined(WITH_GL_PROFILE_COMPAT)
 		if (GLStates & GPU_BUFFER_COLOR_STATE)
-			glDisableClientState(GL_COLOR_ARRAY);
-#endif
+			gpu_disable_color_array();
+
 		GLStates &= ~GPU_BUFFER_COLOR_STATE;
 	}
 }
+
+
 
 /* return 1 if drawing should be done using old immediate-mode
  * code, 0 otherwise */
@@ -1327,10 +1321,9 @@ static void gpu_colors_disable(VBO_State vbo_state)
 {
 	// SSS not needed?
 	//gpuDisableColorMaterial();
-#if defined(WITH_GL_PROFILE_COMPAT)
+
 	if (vbo_state == VBO_ENABLED)
-		glDisableClientState(GL_COLOR_ARRAY);
-#endif
+		gpu_disable_color_array();
 }
 
 static float gpu_color_from_mask(float mask)
@@ -1388,6 +1381,7 @@ static void gpu_color_from_mask_quad_set(const CCGKey *key,
                                          float diffuse_color[4])
 {
 	float color = gpu_color_from_mask_quad(key, a, b, c, d);
+	// XXX jwilkins: this probably needs a VertexAttrib as well
 	gpuColor3f(diffuse_color[0] * color, diffuse_color[1] * color, diffuse_color[2] * color);
 }
 

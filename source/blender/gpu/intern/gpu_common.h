@@ -137,17 +137,6 @@ void gpu_texcoord_pointer(GLint size, GLenum type, GLsizei stride, const GLvoid*
 void  gpu_set_common_active_texture(GLint texture);
 GLint gpu_get_common_active_texture(void);
 
-void gpu_enable_vertex_attrib_array (GLuint index);
-void gpu_disable_vertex_attrib_array(GLuint index);
-
-void gpu_vertex_attrib_pointer(
-	GLuint        index,
-	GLint         size,
-	GLenum        type,
-	GLboolean     normalize,
-	GLsizei       stride,
-	const GLvoid* pointer);
-
 
 
 #ifdef __cplusplus

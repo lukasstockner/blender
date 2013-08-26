@@ -412,33 +412,3 @@ GLint gpu_get_common_active_texture(void)
 }
 
 
-
-void gpu_enable_vertex_attrib_array (GLuint index)
-{
-	if (current_common != NULL)
-		gpu_glEnableVertexAttribArray(index);
-}
-
-
-
-void gpu_disable_vertex_attrib_array(GLuint index)
-{
-	if (current_common != NULL)
-		gpu_glDisableVertexAttribArray(index);
-}
-
-
-
-void gpu_vertex_attrib_pointer(
-	GLuint        index,
-	GLint         size,
-	GLenum        type,
-	GLboolean     normalize,
-	GLsizei       stride,
-	const GLvoid* pointer)
-{
-	if (current_common != NULL)
-		gpu_glVertexAttribPointer(index, size, type, normalize, stride, pointer);
-}
-
-

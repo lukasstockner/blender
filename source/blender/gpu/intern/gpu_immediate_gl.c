@@ -212,7 +212,7 @@ GPU_CHECK_NO_ERROR();
 	/* float vertex attribute */
 	for (i = 0; i < format->attribCount_f; i++) {
 		if (format->attribSize_f[i] > 0) {
-			gpu_vertex_attrib_pointer(
+			gpu_glVertexAttribPointer(
 				format->attribIndexMap_f[i],
 				format->attribSize_f[i],
 				GL_FLOAT,
@@ -223,7 +223,7 @@ GPU_CHECK_NO_ERROR();
 
 			offset += (size_t)(format->attribSize_f[i]) * sizeof(GLfloat);
 
-			gpu_enable_vertex_attrib_array(format->attribIndexMap_f[i]);
+			gpu_glEnableVertexAttribArray(format->attribIndexMap_f[i]);
 GPU_CHECK_NO_ERROR();
 		}
 	}
@@ -231,7 +231,7 @@ GPU_CHECK_NO_ERROR();
 	/* byte vertex attribute */
 	for (i = 0; i < format->attribCount_ub; i++) {
 		if (format->attribSize_ub[i] > 0) {
-			gpu_vertex_attrib_pointer(
+			gpu_glVertexAttribPointer(
 				format->attribIndexMap_ub[i],
 				format->attribSize_ub[i],
 				GL_UNSIGNED_BYTE,
@@ -242,7 +242,7 @@ GPU_CHECK_NO_ERROR();
 
 			offset += 4 * sizeof(GLubyte);
 
-			gpu_enable_vertex_attrib_array(format->attribIndexMap_ub[i]);
+			gpu_glEnableVertexAttribArray(format->attribIndexMap_ub[i]);
 GPU_CHECK_NO_ERROR();
 		}
 	}
@@ -283,12 +283,12 @@ static void unsetup(void)
 	/* float vertex attribute */
 	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_f; i++)
 //		if (GPU_IMMEDIATE->format.attribSize_f[i] > 0)
-			gpu_disable_vertex_attrib_array(GPU_IMMEDIATE->format.attribIndexMap_f[i]);
+			gpu_glDisableVertexAttribArray(GPU_IMMEDIATE->format.attribIndexMap_f[i]);
 
 	/* byte vertex attribute */
 	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++)
 //		if (GPU_IMMEDIATE->format.attribSize_ub[i] > 0)
-			gpu_disable_vertex_attrib_array(GPU_IMMEDIATE->format.attribIndexMap_ub[i]);
+			gpu_glDisableVertexAttribArray(GPU_IMMEDIATE->format.attribIndexMap_ub[i]);
 
 	GPU_CHECK_NO_ERROR();
 }
