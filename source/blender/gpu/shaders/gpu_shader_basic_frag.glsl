@@ -69,7 +69,7 @@ void main()
 
 		float NdotVP = dot(N, VP);
 
-		if (NdotVP > 0) {
+		if (NdotVP > 0.0) {
 			L_diffuse += NdotVP * b_LightSource[i].diffuse.rgb;
 
 #ifdef USE_SPECULAR
@@ -79,7 +79,7 @@ void main()
 			vec3  HV     = normalize(VP + VE);
 			float NdotHV = dot(N, HV);
 
-			if (NdotHV > 0)
+			if (NdotHV > 0.0)
 				L_specular += pow(NdotHV, b_FrontMaterial.shininess) * b_LightSource[i].specular.rgb;
 #endif
 		}

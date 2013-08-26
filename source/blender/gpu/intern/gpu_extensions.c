@@ -42,6 +42,7 @@
 #include "intern/gpu_codegen.h"
 #include "intern/gpu_extension_wrapper.h"
 #include "intern/gpu_pixels.h"
+#include "intern/gpu_raster.h"
 
 /* external */
 #include "BLI_blenlib.h"
@@ -300,6 +301,7 @@ void GPU_extensions_init(void)
 	GPU_basic_shaders_init();
 	GPU_font_shader_init();
 	GPU_pixels_shader_init();
+	GPU_raster_shader_init();
 
 	gpu_initialize_aspects();
 	gpu_initialize_aspect_funcs();
@@ -317,6 +319,7 @@ GPU_CHECK_NO_ERROR();
 	GPU_basic_shaders_exit();
 	GPU_font_shader_exit();
 	GPU_pixels_shader_exit();
+	GPU_raster_shader_exit();
 
 	GPU_aspect_end();
 	gpu_shutdown_aspect_funcs(); // XXX jwilkins: should my shutdown functions be named exit?

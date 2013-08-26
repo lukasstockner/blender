@@ -172,20 +172,26 @@ static void setup(void)
 
 	/* vertex */
 	gpu_enable_vertex_array();
+GPU_CHECK_NO_ERROR();
 	gpu_vertex_pointer(format->vertexSize, GL_FLOAT, stride, base + offset);
+GPU_CHECK_NO_ERROR();
 	offset += (size_t)(format->vertexSize) * sizeof(GLfloat);
 
 	/* normal */
 	if (format->normalSize != 0) {
 		gpu_enable_normal_array();
+GPU_CHECK_NO_ERROR();
 		gpu_normal_pointer(GL_FLOAT, stride, base + offset);
+GPU_CHECK_NO_ERROR();
 		offset += 3 * sizeof(GLfloat);
 	}
 
 	/* color */
 	if (format->colorSize != 0) {
 		gpu_enable_color_array();
+GPU_CHECK_NO_ERROR();
 		gpu_color_pointer(format->colorSize, GL_UNSIGNED_BYTE, stride, base + offset);
+GPU_CHECK_NO_ERROR();
 		offset += 4 * sizeof(GLubyte); /* 4 bytes are always reserved for color, for efficient memory alignment */
 	}
 
@@ -193,8 +199,11 @@ static void setup(void)
 
 	for (i = 0; i < format->texCoordCount; i++) {
 		gpu_set_common_active_texture(i);
+GPU_CHECK_NO_ERROR();
 		gpu_enable_texcoord_array();
+GPU_CHECK_NO_ERROR();
 		gpu_texcoord_pointer(format->texCoordSize[i], GL_FLOAT, stride, base + offset);
+GPU_CHECK_NO_ERROR();
 		offset += (size_t)(format->texCoordSize[i]) * sizeof(GLfloat);
 	}
 
@@ -210,10 +219,12 @@ static void setup(void)
 				format->attribNormalized_f[i],
 				stride,
 				base + offset);
+GPU_CHECK_NO_ERROR();
 
 			offset += (size_t)(format->attribSize_f[i]) * sizeof(GLfloat);
 
 			gpu_enable_vertex_attrib_array(format->attribIndexMap_f[i]);
+GPU_CHECK_NO_ERROR();
 		}
 	}
 
@@ -227,10 +238,12 @@ static void setup(void)
 				format->attribNormalized_ub[i],
 				stride,
 				base + offset);
+GPU_CHECK_NO_ERROR();
 
 			offset += 4 * sizeof(GLubyte);
 
 			gpu_enable_vertex_attrib_array(format->attribIndexMap_ub[i]);
+GPU_CHECK_NO_ERROR();
 		}
 	}
 
@@ -467,21 +480,21 @@ void gpu_lock_buffer_gl(void)
 	allocate();
 	allocateIndex();
 
-	//if (gpu_glGenVertexArrays != NULL) {
-	//	bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
-	//	bool init = (bufferData->vao == 0);
+	if (gpu_glGenVertexArrays != NULL) {
+		bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
+		bool init = (bufferData->vao == 0);
 
-	//	if (init)
-	//		gpu_glGenVertexArrays(1, &(bufferData->vao));
+		if (init)
+			gpu_glGenVertexArrays(1, &(bufferData->vao));
 
-	//	gpu_glBindVertexArray(bufferData->vao);
+		gpu_glBindVertexArray(bufferData->vao);
 
-	//	if (init)
-	//		setup();
-	//}
-	//else {
-	//	setup();
-	//}
+		if (init)
+			setup();
+	}
+	else {
+		setup();
+	}
 }
 
 
@@ -557,12 +570,12 @@ void gpu_end_buffer_gl(void)
 
 void gpu_unlock_buffer_gl(void)
 {
-	//bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
+	bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
 
-	//if (bufferData->vao != 0)
-	//	glBindVertexArray(0);
-	//else
-	//	unsetup();
+	if (bufferData->vao != 0)
+		glBindVertexArray(0);
+	else
+		unsetup();
 }
 
 

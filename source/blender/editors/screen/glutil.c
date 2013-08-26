@@ -144,59 +144,37 @@ const GLubyte stipple_diag_stripes_neg[128] = {
 	0x3f, 0xc0, 0x3f, 0xc0, 0x7f, 0x80, 0x7f, 0x80};
 
 
-//void fdrawbezier(float vec[4][3])
-//{
-//	float dist;
-//	float curve_res = 24, spline_step = 0.0f;
-//	
-//	dist = 0.5f * ABS(vec[0][0] - vec[3][0]);
-//	
-//	/* check direction later, for top sockets */
-//	vec[1][0] = vec[0][0] + dist;
-//	vec[1][1] = vec[0][1];
-//	
-//	vec[2][0] = vec[3][0] - dist;
-//	vec[2][1] = vec[3][1];
-//	/* we can reuse the dist variable here to increment the GL curve eval amount*/
-//	dist = 1.0f / curve_res;
-//	
-//	gpuColor3P(CPACK_BLACK);
-//	glMap1f(GL_MAP1_VERTEX_3, 0.0, 1.0, 3, 4, vec[0]);
-//	gpuBegin(GL_LINE_STRIP);
-//	while (spline_step < 1.000001f) {
-//#if 0
-//		if (do_shaded)
-//			UI_ThemeColorBlend(th_col1, th_col2, spline_step);
-//#endif
-//		glEvalCoord1f(spline_step);
-//		spline_step += dist;
-//	}
-//	gpuEnd();
-//}
-
-
 void fdrawcheckerboard(float x1, float y1, float x2, float y2)
 {
-	unsigned char col1[4] = {40, 40, 40}, col2[4] = {50, 50, 50};
+	static const unsigned char col1[4] = {40, 40, 40};
+	static const unsigned char col2[4] = {50, 50, 50};
 
-	GLubyte checker_stipple[32 * 32 / 8] = {
-		255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0,
-		255,  0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0,
-		0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255,
-		0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255,
-		255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0,
-		255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0,
-		0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255,
-		0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255};
-	
+	static const GLubyte checker_stipple[32 * 32 / 8] = {
+		255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0,
+		255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0,
+		  0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255,
+		  0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255,
+		255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0,
+		255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0,
+		  0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255,
+		  0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255,   0, 255
+	};
+
 	gpuColor3ubv(col1);
 	gpuSingleFilledRectf(x1, y1, x2, y2);
 	gpuColor3ubv(col2);
 
-	gpuEnablePolygonStipple();
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
+
 	gpuPolygonStipple(checker_stipple);
+
 	gpuSingleFilledRectf(x1, y1, x2, y2);
-	gpuDisablePolygonStipple();
+
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
+
+	GPU_raster_end();
 }
 
 /*
@@ -238,11 +216,11 @@ void sdrawtrifill(short x1, short y1, short x2, short y2)
 void setlinestyle(int nr)
 {
 	if (nr == 0) {
-		gpuDisableLineStipple();
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
 	}
 	else {
-		
-		gpuEnableLineStipple();
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
+
 		if (U.pixelsize > 1.0f)
 			gpuLineStipple(nr, 0xCCCC);
 		else
@@ -626,10 +604,10 @@ void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int fo
 		{
 			GPUpixels pixels = { draw_w, draw_h, format, type, data };
 
-			gpuPixelsBegin();
+			GPU_pixels_begin();
 			gpuPixelPos2f(rast_x, rast_y);
 			gpuPixels(&pixels);
-			gpuPixelsEnd();
+			GPU_pixels_end();
 		}
 	}
 }

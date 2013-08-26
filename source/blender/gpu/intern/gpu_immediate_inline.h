@@ -331,10 +331,6 @@ BLI_INLINE void gpuVertexAttrib4ubv(GLsizei index, const GLubyte *restrict v)
 
 
 
-void gpu_copy_vertex(void);
-
-
-
 BLI_INLINE void gpuVertex2f(GLfloat x, GLfloat y)
 {
 	GPU_IMMEDIATE->vertex[0] = x;
@@ -342,7 +338,7 @@ BLI_INLINE void gpuVertex2f(GLfloat x, GLfloat y)
 	GPU_IMMEDIATE->vertex[2] = 0;
 	GPU_IMMEDIATE->vertex[3] = 1;
 
-	gpu_copy_vertex();
+	GPU_IMMEDIATE->copyVertex();
 }
 
 BLI_INLINE void gpuVertex2fv(const GLfloat *restrict v)
@@ -352,7 +348,7 @@ BLI_INLINE void gpuVertex2fv(const GLfloat *restrict v)
 	GPU_IMMEDIATE->vertex[2] = 0;
 	GPU_IMMEDIATE->vertex[3] = 1;
 
-	gpu_copy_vertex();
+	GPU_IMMEDIATE->copyVertex();
 }
 
 BLI_INLINE void gpuVertex3f(GLfloat x, GLfloat y, GLfloat z)
@@ -362,7 +358,7 @@ BLI_INLINE void gpuVertex3f(GLfloat x, GLfloat y, GLfloat z)
 	GPU_IMMEDIATE->vertex[2] = z;
 	GPU_IMMEDIATE->vertex[3] = 1;
 
-	gpu_copy_vertex();
+	GPU_IMMEDIATE->copyVertex();
  }
 
 BLI_INLINE void gpuVertex3fv(const GLfloat *restrict v)
@@ -372,7 +368,7 @@ BLI_INLINE void gpuVertex3fv(const GLfloat *restrict v)
 	GPU_IMMEDIATE->vertex[2] = v[2];
 	GPU_IMMEDIATE->vertex[3] = 1;
 
-	gpu_copy_vertex();
+	GPU_IMMEDIATE->copyVertex();
 }
 
 BLI_INLINE void gpuVertex3d(GLdouble x, GLdouble y, GLdouble z)
@@ -382,7 +378,7 @@ BLI_INLINE void gpuVertex3d(GLdouble x, GLdouble y, GLdouble z)
 	GPU_IMMEDIATE->vertex[2] = (GLfloat)(z);
 	GPU_IMMEDIATE->vertex[3] = 1;
 
-	gpu_copy_vertex();
+	GPU_IMMEDIATE->copyVertex();
 }
 
 BLI_INLINE void gpuVertex3dv(const GLdouble *restrict v)
@@ -392,7 +388,7 @@ BLI_INLINE void gpuVertex3dv(const GLdouble *restrict v)
 	GPU_IMMEDIATE->vertex[2] = (GLfloat)(v[2]);
 	GPU_IMMEDIATE->vertex[3] = 1;
 
-	gpu_copy_vertex();
+	GPU_IMMEDIATE->copyVertex();
 }
 
 BLI_INLINE void gpuVertex2i(GLint x, GLint y)
@@ -402,7 +398,7 @@ BLI_INLINE void gpuVertex2i(GLint x, GLint y)
 	GPU_IMMEDIATE->vertex[2] = 0;
 	GPU_IMMEDIATE->vertex[3] = 1;
 
-	gpu_copy_vertex();
+	GPU_IMMEDIATE->copyVertex();
 }
 
 BLI_INLINE void gpuVertex2iv(const GLint *restrict v)
@@ -412,7 +408,7 @@ BLI_INLINE void gpuVertex2iv(const GLint *restrict v)
 	GPU_IMMEDIATE->vertex[2] = 0;
 	GPU_IMMEDIATE->vertex[3] = 1;
 
-	gpu_copy_vertex();
+	GPU_IMMEDIATE->copyVertex();
 }
 
 BLI_INLINE void gpuVertex2sv(const GLshort *restrict v)
@@ -422,7 +418,7 @@ BLI_INLINE void gpuVertex2sv(const GLshort *restrict v)
 	GPU_IMMEDIATE->vertex[2] = 0;
 	GPU_IMMEDIATE->vertex[3] = 1;
 
-	gpu_copy_vertex();
+	GPU_IMMEDIATE->copyVertex();
 }
 
 

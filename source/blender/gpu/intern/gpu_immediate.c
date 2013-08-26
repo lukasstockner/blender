@@ -240,10 +240,16 @@ GLint gpuImmediateLockCount(void)
 
 
 
+static void gpu_copy_vertex(void);
+
+
+
 GPUimmediate* gpuNewImmediate(void)
 {
 	GPUimmediate* immediate =
 		(GPUimmediate*)MEM_callocN(sizeof(GPUimmediate), "GPUimmediate");
+
+	immediate->copyVertex = gpu_copy_vertex;
 
 #if GPU_SAFETY
 	immediate->lastTexture = GPU_max_textures() - 1;
@@ -503,7 +509,7 @@ static GLboolean end_begin(void)
 
 
 
-void gpu_copy_vertex(void)
+static void gpu_copy_vertex(void)
 {
 	size_t i;
 	size_t size;

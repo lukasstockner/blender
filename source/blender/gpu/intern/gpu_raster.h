@@ -34,6 +34,8 @@
 
 #include "gpu_glew.h"
 
+#include "BLI_sys_types.h" // for uint32_t
+
 
 
 #ifdef __cplusplus
@@ -42,23 +44,37 @@ extern "C" {
 
 
 
-void GPU_init_raster(void);
+typedef enum GPURasterShaderOption {
+	GPU_RASTER_STIPPLE = (1<<0), /*  */
+	GPU_RASTER_AA      = (1<<1), /*  */
+	GPU_RASTER_POLYGON = (1<<2), /*  */
 
-void gpuEnablePolygonStipple(void);
+	GPU_RASTER_OPTIONS_NUM         = 3,
+	GPU_RASTER_OPTION_COMBINATIONS = (1<<GPU_RASTER_OPTIONS_NUM)
+} GPURasterShaderOption;
+
+
+
+void GPU_raster_shader_init(void);
+void GPU_raster_shader_exit(void);
+
+void GPU_raster_begin(void);
+void GPU_raster_end  (void);
+
+void GPU_raster_shader_enable (uint32_t options);
+void GPU_raster_shader_disable(uint32_t options);
+
+void GPU_raster_shader_bind  (void);
+void GPU_raster_shader_unbind(void);
+
 void gpuPolygonStipple(const GLubyte* mask);
-void gpuDisablePolygonStipple(void);
 
-void gpuEnableLineStipple(void);
 void gpuLineStipple(GLint factor, GLushort pattern);
-void gpuDisableLineStipple(void);
 
-void gpuEnableLineSmooth(void);
-void gpuDisableLineSmooth(void);
-
-void gpuLineWidth(GLfloat width);
+void    gpuLineWidth(GLfloat width);
 GLfloat gpuGetLineWidth(void);
 
-void gpuPolygonMode(GLenum mode);
+void   gpuPolygonMode(GLenum mode);
 GLenum gpuGetPolygonMode(void);
 
 

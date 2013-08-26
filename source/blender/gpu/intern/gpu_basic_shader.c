@@ -321,4 +321,3 @@ bool GPU_basic_shader_needs_normals(void)
 }
 
 
-

@@ -322,6 +322,7 @@ void gpu_vertex_pointer(GLint size, GLenum type, GLsizei stride, const GLvoid* p
 	if (current_common != NULL) {
 		if (current_common->vertex != -1)
 			gpu_glVertexAttribPointer(current_common->vertex, size, type, GL_FALSE, stride, pointer);
+GPU_CHECK_NO_ERROR();
 
 		return;
 	}

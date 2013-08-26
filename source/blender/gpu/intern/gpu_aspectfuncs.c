@@ -29,13 +29,19 @@
 *  \ingroup gpu
 */
 
+/* my interface */
 #define GPU_ASPECT_INTERN
 #include "intern/gpu_aspectfuncs.h"
-#include "intern/gpu_pixels.h"
 
+/* my library */
 #include "GPU_basic_shader.h"
 #include "GPU_font_shader.h"
 
+/* internal */
+#include "intern/gpu_pixels.h"
+#include "intern/gpu_raster.h"
+
+/* external */
 #include "BLI_utildefines.h"
 
 
@@ -116,15 +122,49 @@ GPUaspectfuncs GPU_ASPECTFUNCS_BASIC = {
 
 
 
+static bool raster_end(void* UNUSED(param), const void* UNUSED(object))
+{
+	GPU_raster_shader_unbind();
+
+	return true;
+}
+
+static void raster_commit(void* UNUSED(param))
+{
+	GPU_raster_shader_bind();
+}
+
+static void raster_enable(void* UNUSED(param), uint32_t options)
+{
+	GPU_raster_shader_enable(options);
+}
+
+static void raster_disable(void* UNUSED(param), uint32_t options)
+{
+	GPU_raster_shader_disable(options);
+}
+
+GPUaspectfuncs GPU_ASPECTFUNCS_RASTER = {
+	NULL,          /* begin   */
+	raster_end,    /* end     */
+	raster_commit, /* commit  */
+	raster_enable, /* enable  */
+	raster_disable /* disable */
+};
+
+
+
 void gpu_initialize_aspect_funcs(void)
 {
 	GPU_gen_aspects(1, &GPU_ASPECT_FONT);
 	GPU_gen_aspects(1, &GPU_ASPECT_BASIC);
 	GPU_gen_aspects(1, &GPU_ASPECT_PIXELS);
+	GPU_gen_aspects(1, &GPU_ASPECT_RASTER);
 
 	GPU_aspect_funcs(GPU_ASPECT_FONT,   &GPU_ASPECTFUNCS_FONT);
 	GPU_aspect_funcs(GPU_ASPECT_BASIC,  &GPU_ASPECTFUNCS_BASIC);
 	GPU_aspect_funcs(GPU_ASPECT_PIXELS, &GPU_ASPECTFUNCS_PIXELS);
+	GPU_aspect_funcs(GPU_ASPECT_RASTER, &GPU_ASPECTFUNCS_RASTER);
 }
 
 
@@ -134,4 +174,5 @@ void gpu_shutdown_aspect_funcs(void)
 	GPU_delete_aspects(1, &GPU_ASPECT_FONT);
 	GPU_delete_aspects(1, &GPU_ASPECT_BASIC);
 	GPU_delete_aspects(1, &GPU_ASPECT_PIXELS);
+	GPU_delete_aspects(1, &GPU_ASPECT_RASTER);
 }

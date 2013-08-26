@@ -1016,11 +1016,11 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 				gpuEnd();
 			}
 			else {
-				gpuPixelsBegin();
+				GPU_pixels_begin();
 				gpuPixelPos3f(0.0f, 0.0f, 0.0f);
 				gpuCacheBitmap(&bm_dot8);
 				gpuBitmap(&bm_dot8);
-				gpuPixelsEnd();
+				GPU_pixels_end();
 			}
 		}
 
@@ -1041,11 +1041,11 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 			gpuEnd();
 		}
 		else {
-			gpuPixelsBegin();
+			GPU_pixels_begin();
 			gpuPixelPos3f(0.0f, 1.0f, 0.0f);
 			gpuCacheBitmap(&bm_dot7);
 			gpuBitmap(&bm_dot7);
-			gpuPixelsEnd();
+			GPU_pixels_end();
 		}
 
 		/* further we send no names */
@@ -1067,11 +1067,11 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 				else UI_ThemeColor(TH_VERTEX);
 			}
 
-			gpuPixelsBegin();
+			GPU_pixels_begin();
 			gpuPixelPos3f(0.0f, 0.0f, 0.0f);
 			gpuCacheBitmap(&bm_dot6);
 			gpuBitmap(&bm_dot6);
-			gpuPixelsEnd();
+			GPU_pixels_end();
 		}
 	}
 
@@ -1093,11 +1093,11 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 			else UI_ThemeColor(TH_VERTEX);
 		}
 
-		gpuPixelsBegin();
+		GPU_pixels_begin();
 		gpuPixelPos3f(0.0f, 1.0f, 0.0f);
 		gpuCacheBitmap(&bm_dot5);
 		gpuBitmap(&bm_dot5);
-		gpuPixelsEnd();
+		GPU_pixels_end();
 	}
 
 	gpuLineWidth(1.0);

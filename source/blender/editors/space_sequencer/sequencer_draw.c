@@ -256,18 +256,16 @@ static void drawseqwave(Scene *scene, Sequence *seq, float x1, float y1, float x
 	}
 }
 
-static void drawmeta_stipple(int value)
+static void drawmeta_stipple(bool value)
 {
 	if (value) {
-		gpuEnablePolygonStipple();
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
+
 		gpuPolygonStipple(stipple_halftone);
-		
-		gpuEnableLineStipple();
 		gpuLineStipple(1, 0x8888);
 	}
 	else {
-		gpuDisablePolygonStipple();
-		gpuDisableLineStipple();
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
 	}
 }
 
@@ -288,8 +286,10 @@ static void drawmeta_contents(Scene *scene, Sequence *seqm, float x1, float y1, 
 
 	glEnable(GL_BLEND);
 
+	GPU_raster_begin();
+
 	if (seqm->flag & SEQ_MUTE)
-		drawmeta_stipple(1);
+		drawmeta_stipple(true);
 
 	for (seq = seqm->seqbase.first; seq; seq = seq->next) {
 		chan_min = min_ii(chan_min, seq->machine);
@@ -309,7 +309,7 @@ static void drawmeta_contents(Scene *scene, Sequence *seqm, float x1, float y1, 
 			float y1_chan, y2_chan;
 
 			if ((seqm->flag & SEQ_MUTE) == 0 && (seq->flag & SEQ_MUTE))
-				drawmeta_stipple(1);
+				drawmeta_stipple(true);
 
 			get_seq_color3ubv(scene, seq, col);
 
@@ -322,21 +322,25 @@ static void drawmeta_contents(Scene *scene, Sequence *seqm, float x1, float y1, 
 			y1_chan = y1 + y_chan + (draw_height * SEQ_STRIP_OFSBOTTOM);
 			y2_chan = y1 + y_chan + (draw_height * SEQ_STRIP_OFSTOP);
 
+			GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON);
 			gpuSingleFilledRectf(x1_chan,  y1_chan, x2_chan,  y2_chan);
+			GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON);
 
 			UI_GetColorPtrShade3ubv(col, col, -30);
 			gpuColor4ubv(col);
 			gpuSingleWireRectf(x1_chan,  y1_chan, x2_chan,  y2_chan);
 
 			if ((seqm->flag & SEQ_MUTE) == 0 && (seq->flag & SEQ_MUTE))
-				drawmeta_stipple(0);
+				drawmeta_stipple(false);
 		}
 	}
 
 	if (seqm->flag & SEQ_MUTE)
-		drawmeta_stipple(0);
+		drawmeta_stipple(false);
 	
 	glDisable(GL_BLEND);
+
+	GPU_raster_end();
 }
 
 /* clamp handles to defined size in pixel space */
@@ -649,16 +653,15 @@ static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, floa
 {
 	float ymid1, ymid2;
 
+	GPU_raster_begin();
+
 	if (seq->flag & SEQ_MUTE) {
-		gpuEnablePolygonStipple();
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
 		gpuPolygonStipple(stipple_halftone);
 	}
 
 	ymid1 = (y2 - y1) * 0.25f + y1;
 	ymid2 = (y2 - y1) * 0.65f + y1;
-
-	// SSS Enable Smooth
-	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	gpuBegin(GL_QUADS);
 
@@ -699,12 +702,11 @@ static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, floa
 
 	gpuEnd();
 
-	// SSS Disable Smooth
-	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
-
 	if (seq->flag & SEQ_MUTE) {
-		gpuDisablePolygonStipple();
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
 	}
+
+	GPU_raster_end();
 }
 
 /*
@@ -761,7 +763,10 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 
 	/* draw lock */
 	if (seq->flag & SEQ_LOCK) {
-		gpuEnablePolygonStipple();
+		GPU_raster_begin();
+
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
+
 		glEnable(GL_BLEND);
 
 		/* light stripes */
@@ -774,19 +779,26 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 		gpuPolygonStipple(stipple_diag_stripes_neg);
 		gpuSingleFilledRectf(x1, y1, x2, y2);
 
-		gpuDisablePolygonStipple();
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
+
 		glDisable(GL_BLEND);
+
+		GPU_raster_end();
 	}
 
 	if (!BKE_sequence_is_valid_check(seq)) {
-		gpuEnablePolygonStipple();
+		GPU_raster_begin();
+
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
 
 		/* panic! */
 		gpuColor4ub(255, 0, 0, 255);
 		gpuPolygonStipple(stipple_diag_stripes_pos);
 		gpuSingleFilledRectf(x1, y1, x2, y2);
 
-		gpuDisablePolygonStipple();
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
+
+		GPU_raster_end();
 	}
 
 	get_seq_color3ubv(scene, seq, col);
@@ -799,24 +811,29 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 	}
 	else
 		UI_GetColorPtrShade3ubv(col, col, outline_tint);
-	
+
 	gpuColor3ubv((GLubyte *)col);
-	
+
 	if (seq->flag & SEQ_MUTE) {
-		gpuEnableLineStipple();
+		GPU_raster_begin();
+
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
+
 		gpuLineStipple(1, 0x8888);
 	}
-	
+
 	uiDrawBoxShade(GL_LINE_LOOP, x1, y1, x2, y2, 0.0, 0.1, 0.0);
-	
+
 	if (seq->flag & SEQ_MUTE) {
-		gpuDisableLineStipple();
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
+
+		GPU_raster_end();
 	}
-	
+
 	if (seq->type == SEQ_TYPE_META) {
 		drawmeta_contents(scene, seq, x1, y1, x2, y2);
 	}
-	
+
 	/* calculate if seq is long enough to print a name */
 	x1 = seq->startdisp + handsize_clamped;
 	x2 = seq->enddisp   - handsize_clamped;

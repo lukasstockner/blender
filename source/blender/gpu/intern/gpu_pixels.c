@@ -420,9 +420,12 @@ void GPU_pixels_shader_unbind(void)
 
 static bool begun = false;
 
-void gpuPixelsBegin()
+void GPU_pixels_begin()
 {
+#if GPU_SAFETY
 	GPU_ASSERT(!begun);
+	begun = true;
+#endif
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (GPU_PROFILE_COMPAT) {
@@ -448,6 +451,74 @@ void gpuPixelsBegin()
 
 	// SSS Begin Pixels
 	GPU_aspect_begin(GPU_ASPECT_PIXELS, NULL);
+}
+
+
+
+void GPU_pixels_end()
+{
+#if GPU_SAFETY
+	GPU_ASSERT(begun);
+	begun = false;
+#endif
+
+#if defined(WITH_GL_PROFILE_COMPAT)
+	if (GPU_PROFILE_COMPAT) {
+		if (non_default_flags & NON_DEFAULT_RED_SCALE) {
+			glPixelTransferf(GL_RED_SCALE, 1);
+		}
+
+		if (non_default_flags & NON_DEFAULT_RED_BIAS) {
+			glPixelTransferf(GL_RED_BIAS, 0);
+		}
+
+		if (non_default_flags & NON_DEFAULT_GREEN_SCALE) {
+			glPixelTransferf(GL_BLUE_SCALE, 1);
+		}
+
+		if (non_default_flags & NON_DEFAULT_GREEN_BIAS) {
+			glPixelTransferf(GL_BLUE_BIAS, 0);
+		}
+
+		if (non_default_flags & NON_DEFAULT_BLUE_SCALE) {
+			glPixelTransferf(GL_GREEN_SCALE, 1);
+		}
+
+		if (non_default_flags & NON_DEFAULT_BLUE_BIAS) {
+			glPixelTransferf(GL_GREEN_BIAS, 0);
+		}
+
+		if (non_default_flags & NON_DEFAULT_ALPHA_SCALE) {
+			glPixelTransferf(GL_ALPHA_SCALE, 1);
+		}
+
+		if (non_default_flags & NON_DEFAULT_ALPHA_BIAS) {
+			glPixelTransferf(GL_ALPHA_BIAS, 0);
+		}
+
+		if (non_default_flags & NON_DEFAULT_FACTOR) {
+			glPixelZoom(1, 1);
+		}
+
+		if (non_default_flags & NON_DEFAULT_UNPACK_ROW_LENGTH) {
+			glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+		}
+
+		if (non_default_flags & NON_DEFAULT_UNPACK_ALIGNMENT) {
+			glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+		}
+
+		if (non_default_flags & NON_DEFAULT_UNPACK_ROW_LENGTH) {
+			glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE);
+		}
+	}
+#endif
+
+	// SSS End Pixels
+	GPU_aspect_end();
+
+	// SSS Begin Basic
+	GPU_aspect_begin(GPU_ASPECT_BASIC, NULL);
 }
 
 
@@ -583,69 +654,5 @@ void gpuPixels(GPUpixels* pixels)
 #endif
 }
 
-
-
-void gpuPixelsEnd()
-{
-	GPU_ASSERT(!begun);
-
-#if defined(WITH_GL_PROFILE_COMPAT)
-	if (GPU_PROFILE_COMPAT) {
-		if (non_default_flags & NON_DEFAULT_RED_SCALE) {
-			glPixelTransferf(GL_RED_SCALE, 1);
-		}
-
-		if (non_default_flags & NON_DEFAULT_RED_BIAS) {
-			glPixelTransferf(GL_RED_BIAS, 0);
-		}
-
-		if (non_default_flags & NON_DEFAULT_GREEN_SCALE) {
-			glPixelTransferf(GL_BLUE_SCALE, 1);
-		}
-
-		if (non_default_flags & NON_DEFAULT_GREEN_BIAS) {
-			glPixelTransferf(GL_BLUE_BIAS, 0);
-		}
-
-		if (non_default_flags & NON_DEFAULT_BLUE_SCALE) {
-			glPixelTransferf(GL_GREEN_SCALE, 1);
-		}
-
-		if (non_default_flags & NON_DEFAULT_BLUE_BIAS) {
-			glPixelTransferf(GL_GREEN_BIAS, 0);
-		}
-
-		if (non_default_flags & NON_DEFAULT_ALPHA_SCALE) {
-			glPixelTransferf(GL_ALPHA_SCALE, 1);
-		}
-
-		if (non_default_flags & NON_DEFAULT_ALPHA_BIAS) {
-			glPixelTransferf(GL_ALPHA_BIAS, 0);
-		}
-
-		if (non_default_flags & NON_DEFAULT_FACTOR) {
-			glPixelZoom(1, 1);
-		}
-
-		if (non_default_flags & NON_DEFAULT_UNPACK_ROW_LENGTH) {
-			glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-		}
-
-		if (non_default_flags & NON_DEFAULT_UNPACK_ALIGNMENT) {
-			glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-		}
-
-		if (non_default_flags & NON_DEFAULT_UNPACK_ROW_LENGTH) {
-			glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE);
-		}
-	}
-#endif
-
-	// SSS End Pixels
-	GPU_aspect_end();
-
-	// SSS Begin Basic
-	GPU_aspect_begin(GPU_ASPECT_BASIC, NULL);
-}
 
 

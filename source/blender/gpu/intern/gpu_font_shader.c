@@ -134,21 +134,25 @@ static void gpu_font_shader(void)
 
 
 
+/* Bind / Unbind */
+
+
+
 void GPU_font_shader_bind(void)
 {
 	bool glsl_support = GPU_glsl_support();
-
-	GPU_CHECK_NO_ERROR();
 
 	if (glsl_support)
 		gpu_font_shader();
 
 #if defined(WITH_GL_PROFILE_COMPAT)
+	GPU_CHECK_NO_ERROR();
+
 	if (!glsl_support)
 		glEnable(GL_TEXTURE_2D);
-#endif
 
 	GPU_CHECK_NO_ERROR();
+#endif
 }
 
 

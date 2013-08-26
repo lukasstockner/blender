@@ -453,8 +453,10 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 	unsigned char color_text[3];
 	unsigned char color_wire[3];
 
+	GPU_raster_begin();
+
 	/* anti-aliased lines for more consistent appearance */
-	gpuEnableLineSmooth();
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
 
 	BLF_enable(blf_mono_font, BLF_ROTATION);
 	BLF_size(blf_mono_font, 14 * U.pixelsize, U.dpi);
@@ -623,7 +625,7 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 			}
 			gpuEnd();
 
-			gpuColor3P(0xaaaaaa);
+			gpuColor3P(0xAAAAAA);
 
 			setlinestyle(3);
 
@@ -646,6 +648,8 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 				const int prec = 6;  /* XXX, todo, make optional */
 				float pos[2];
 
+				GPU_raster_end(); // XXX
+
 				ruler_item_as_string(ruler_item, unit, numstr, sizeof(numstr), prec);
 
 				BLF_width_and_height(blf_mono_font, numstr, &numstr_size[0], &numstr_size[1]);
@@ -665,7 +669,10 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 				/* draw text */
 				gpuColor3ubv(color_text);
 				BLF_position(blf_mono_font, pos[0], pos[1], 0.0f);
+
 				BLF_draw(blf_mono_font, numstr, sizeof(numstr));
+
+				GPU_raster_begin(); // XXX
 			}
 
 			/* capping */
@@ -699,7 +706,9 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 		}
 	}
 
-	gpuDisableLineSmooth();
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
 
 	BLF_disable(blf_mono_font, BLF_ROTATION);
 

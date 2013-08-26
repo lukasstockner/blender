@@ -204,8 +204,6 @@ void WM_init(bContext *C, int argc, const char **argv)
 
 		/* begin - init opengl compatibility layer */
 
-		GPU_init_raster();
-
 		immediate = gpuNewImmediate();
 		gpuImmediateMakeCurrent(immediate);
 		gpuImmediateMaxVertexCount(500000); // XXX jwilkins: temporary!

@@ -110,7 +110,7 @@ if(WITH_GPU_SAFETY)
 	)
 endif()
 
-data_to_c_simple(shaders/gpu_shader_vertex.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_vertex.glsl   SRC)
 data_to_c_simple(shaders/gpu_shader_material.glsl SRC)
 
 data_to_c_simple(shaders/gpu_shader_sep_gaussian_blur_frag.glsl SRC)
@@ -127,11 +127,15 @@ data_to_c_simple(shaders/gpu_shader_font_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_font_vert.glsl SRC)
 
 data_to_c_simple(shaders/gpu_shader_pixels_uniforms.glsl SRC)
-data_to_c_simple(shaders/gpu_shader_pixels_frag.glsl SRC)
-data_to_c_simple(shaders/gpu_shader_pixels_vert.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_pixels_frag.glsl     SRC)
+data_to_c_simple(shaders/gpu_shader_pixels_vert.glsl     SRC)
 
 data_to_c_simple(shaders/gpu_shader_basic_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_basic_vert.glsl SRC)
+
+data_to_c_simple(shaders/gpu_shader_raster_frag.glsl     SRC)
+data_to_c_simple(shaders/gpu_shader_raster_uniforms.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_raster_vert.glsl     SRC)
 
 if(WITH_MOD_SMOKE)
 	add_definitions(-DWITH_SMOKE)

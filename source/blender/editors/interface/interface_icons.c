@@ -1052,10 +1052,10 @@ static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect),
 	else {
 		GPUpixels pixels = { w, h, GL_RGBA, GL_UNSIGNED_BYTE, rect };
 
-		gpuPixelsBegin();
+		GPU_pixels_begin();
 		gpuPixelPos2f(x, y);
 		gpuPixels(&pixels);
-		gpuPixelsEnd();
+		GPU_pixels_end();
 	}
 
 	/* modulate color */

@@ -70,12 +70,13 @@ void gpuPixelFormat(GLenum pname, GLint param);
 
 void gpuPixelUniform1f(GLenum pname, GLfloat param);
 
-void gpuPixelsBegin();
 void gpuPixelPos2f(GLfloat x, GLfloat y);
 void gpuPixelPos3f(GLfloat x, GLfloat y, GLfloat z);
 void gpuBitmap(GPUbitmap* bitmap);
 void gpuPixels(GPUpixels* pixels);
-void gpuPixelsEnd();
+
+void GPU_pixels_begin(void);
+void GPU_pixels_end  (void);
 
 void GPU_pixels_shader_init  (void);
 void GPU_pixels_shader_exit  (void);

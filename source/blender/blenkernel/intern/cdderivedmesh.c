@@ -1002,14 +1002,14 @@ static void cdDM_drawMappedFaces(
 				unsigned char *cp = NULL;
 
 				if (draw_option == DM_DRAW_OPTION_STIPPLE) {
-					gpuEnablePolygonStipple();
+					GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
 					gpuPolygonStipple(stipple_quarttone);
 				}
 
 				if (useColors && mcol)
 					cp = (unsigned char *)&mcol[i * 4];
 
-				/*  normals are used to change shading, so choose smooth so smooth shading will work (XXX jwilkins: rewrote to say what I think was meant */
+				/* normals are used to change shading, so choose smooth so smooth shading will work (XXX jwilkins: rewrote to say what I think was meant */
 
 				// SSS Enable Smooth
 				GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
@@ -1061,7 +1061,7 @@ static void cdDM_drawMappedFaces(
 				gpuEnd();
 
 				if (draw_option == DM_DRAW_OPTION_STIPPLE)
-					gpuDisablePolygonStipple();
+					GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
 			}
 			
 			if (nors) nors += 3;

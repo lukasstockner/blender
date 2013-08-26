@@ -3444,7 +3444,10 @@ static void radial_control_paint_cursor(bContext *C, int x, int y, void *customd
 	gpuTranslate((float)x, (float)y, 0.0f);
 
 	glEnable(GL_BLEND);
-	gpuEnableLineSmooth();
+
+	GPU_raster_begin();
+
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
 
 	/* apply zoom if available */
 	if (rc->zoom_prop) {
@@ -3488,7 +3491,10 @@ static void radial_control_paint_cursor(bContext *C, int x, int y, void *customd
 	gpuImmediateUnformat();
 
 	glDisable(GL_BLEND);
-	gpuDisableLineSmooth();
+
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	GPU_raster_end();
 }
 
 typedef enum {

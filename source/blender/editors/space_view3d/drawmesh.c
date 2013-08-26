@@ -1145,12 +1145,23 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
 			glDisable(GL_DEPTH_TEST);
 		}
 
-		glEnable(GL_BLEND);
 		gpuColor4P(CPACK_WHITE, 0.376f);
-		gpuEnableLineStipple();
+
+		glEnable(GL_BLEND);
+
+		GPU_raster_begin();
+
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
+
 		gpuLineStipple(1, 0xAAAA);
 
 		dm->drawEdges(dm, 1, 1);
+
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
+
+		GPU_raster_end();
+
+		glDisable(GL_BLEND);
 
 		if (use_depth) {
 			bglPolygonOffset(rv3d->dist, 0.0);
@@ -1159,9 +1170,5 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
 		else {
 			glEnable(GL_DEPTH_TEST);
 		}
-
-		gpuDisableLineStipple();
-		glDisable(GL_BLEND);
 	}
 }
-

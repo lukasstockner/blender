@@ -2510,7 +2510,7 @@ static void ccgDM_drawMappedFaces(
 
 			if (draw_option != DM_DRAW_OPTION_SKIP) {
 				if (draw_option == DM_DRAW_OPTION_STIPPLE) {
-					gpuEnablePolygonStipple();
+					GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
 					gpuPolygonStipple(stipple_quarttone);
 				}
 
@@ -2589,7 +2589,7 @@ static void ccgDM_drawMappedFaces(
 				GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 				if (draw_option == DM_DRAW_OPTION_STIPPLE)
-					gpuDisablePolygonStipple();
+					GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
 			}
 		}
 	}

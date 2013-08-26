@@ -6,6 +6,5 @@ void main()
 	varying_texcoord = (b_TextureMatrix[0] * b_MultiTexCoord0).st;
 	varying_color    = b_Color;
 
-	//gl_Position = b_ModelViewProjectionMatrix * b_Vertex;
-	gl_Position = b_ProjectionMatrix * b_ModelViewMatrix * b_Vertex;
+	gl_Position = b_ModelViewProjectionMatrix * b_Vertex;
 }

@@ -565,7 +565,10 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 			glEnable(GL_BLEND);
 			UI_ThemeColor4(TH_EDITMESH_ACTIVE);
 
-			gpuEnablePolygonStipple();
+			GPU_raster_begin();
+
+			GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
+
 			gpuPolygonStipple(stipple_quarttone);
 
 			gpuBegin(GL_TRIANGLE_FAN);
@@ -575,18 +578,23 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 			}
 			gpuEnd();
 
-			gpuDisablePolygonStipple();
+			GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
+
+			GPU_raster_end();
+
 			glDisable(GL_BLEND);
 		}
 	}
 	
 	/* 4. draw edges */
 
+	GPU_raster_begin();
+
 	if (sima->flag & SI_SMOOTH_UV) {
-		gpuEnableLineSmooth();
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
 		glEnable(GL_BLEND);
 	}
-	
+
 	switch (sima->dt_uv) {
 		case SI_UVDT_DASH:
 			BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
@@ -721,9 +729,11 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 	}
 
 	if (sima->flag & SI_SMOOTH_UV) {
-		gpuDisableLineSmooth();
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
 		glDisable(GL_BLEND);
 	}
+
+	GPU_raster_end();
 
 	/* 5. draw face centers */
 

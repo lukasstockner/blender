@@ -210,6 +210,8 @@ typedef struct GPUimmediate {
 
 	struct GPUindex *restrict index;
 
+	void (*copyVertex)(void);
+
 #if GPU_SAFETY
 	GLint     lastTexture;
 	GLboolean hasOverflowed;

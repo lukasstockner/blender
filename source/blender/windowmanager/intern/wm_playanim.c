@@ -282,10 +282,10 @@ static void playanim_toscreen(PlayState *ps, PlayAnimPict *picture, struct ImBuf
 	{
 		GPUpixels pixels = { ibuf->x, ibuf->y, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect };
 
-		gpuPixelsBegin();
+		GPU_pixels_begin();
 		gpuPixelPos2f(offsx, offsy);
 		gpuPixels(&pixels);
-		gpuPixelsEnd();
+		GPU_pixels_end();
 	}
 
 	glDisable(GL_BLEND);

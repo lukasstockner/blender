@@ -34,6 +34,8 @@
 
 #include "intern/gpu_lighting.h"
 
+#include "BLI_sys_types.h" // for uint32_t
+
 
 
 #ifdef __cplusplus
@@ -45,7 +47,7 @@ extern "C" {
 /* Simple Shading */
 
 // XXX jwilkins: may need alpha testing?
-typedef enum GPUSimpleShaderOption {
+typedef enum GPUBasicShaderOption {
 	GPU_BASIC_LIGHTING       = (1<<0), /* do lighting computations                */
 	GPU_BASIC_TWO_SIDE       = (1<<1), /* flip backfacing normals towards viewer  */
 	GPU_BASIC_TEXTURE_2D     = (1<<2), /* use 2D texture to replace diffuse color */
@@ -57,13 +59,14 @@ typedef enum GPUSimpleShaderOption {
 
 	GPU_BASIC_OPTIONS_NUM         = 7,
 	GPU_BASIC_OPTION_COMBINATIONS = (1<<GPU_BASIC_OPTIONS_NUM)
-} GPUSimpleShaderOption;
+} GPUBasicShaderOption;
 
 void GPU_basic_shaders_init(void);
 void GPU_basic_shaders_exit(void);
 
 void GPU_basic_shader_enable(uint32_t options);
 void GPU_basic_shader_disable(uint32_t options);
+
 void GPU_basic_shader_bind(void);
 void GPU_basic_shader_unbind(void);
 
