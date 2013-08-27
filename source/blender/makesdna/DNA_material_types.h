@@ -133,7 +133,10 @@ typedef struct Material {
 	short pr_lamp, pr_texture, ml_flag;	/* ml_flag is for disable base material */
 	
 	/* mapping */
-	char mapflag, pad;
+	char mapflag;
+
+	/* texture painting */
+	char texactpaint;
 
 	/* shaders */
 	short diff_shader, spec_shader;

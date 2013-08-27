@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 import bpy
-from bpy.types import Menu, Panel
+from bpy.types import Menu, Panel, UIList
 from bl_ui.properties_paint_common import UnifiedPaintPanel
 from bl_ui.properties_paint_common import brush_texture_settings
 from bl_ui.properties_paint_common import brush_mask_texture_settings
@@ -1216,6 +1216,20 @@ class VIEW3D_PT_tools_vertexpaint(Panel, View3DPaintPanel):
 
 # ********** default tools for texture-paint ****************
 
+class TEXTURE_UL_texpaintslots(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        # assert(isinstance(item, bpy.types.MaterialTextureSlot)
+        ma = data
+        slot = item
+        tex = slot.texture if slot else None
+
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            # layout.label(text=tex.image.name, translate=False)
+            layout.label(text=tex.name, translate=False, icon_value=icon)
+        elif self.layout_type in {'GRID'}:
+            layout.alignment = 'CENTER'
+            layout.label(text="")
+
 
 class VIEW3D_PT_tools_projectpaint(View3DPanel, Panel):
     bl_context = "imagepaint"
@@ -1235,9 +1249,17 @@ class VIEW3D_PT_tools_projectpaint(View3DPanel, Panel):
         ipaint = toolsettings.image_paint
         settings = toolsettings.image_paint
 
-        layout.prop(ipaint, "input_samples")
-
         col = layout.column()
+
+        if ob:
+            col.label("Paint layers")
+            col.template_list("MATERIAL_UL_matslots", "", ob, "material_slots", ob, "active_material_index", rows=2)
+            mat = ob.active_material;
+            if mat:
+                col.template_list("TEXTURE_UL_texpaintslots", "", mat, "texture_paint_slots", mat, "active_paint_texture_index", rows=2)
+
+        col.prop(ipaint, "input_samples")
+
         col.prop(ipaint, "use_occlude")
         col.prop(ipaint, "use_backface_culling")
 

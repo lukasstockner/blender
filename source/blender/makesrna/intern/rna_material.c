@@ -164,6 +164,26 @@ static void rna_Material_mtex_begin(CollectionPropertyIterator *iter, PointerRNA
 	rna_iterator_array_begin(iter, (void *)ma->mtex, sizeof(MTex *), MAX_MTEX, 0, NULL);
 }
 
+/* texture painting on material slots */
+static int rna_texture_paint_material(CollectionPropertyIterator *UNUSED(iter), void *data)
+{
+	MTex *mtex = (*((MTex **)data));
+
+	/* do not skip under these circumstances */
+	if (mtex && mtex->texco == TEXCO_UV &&
+	    mtex->tex && mtex->tex->type == TEX_IMAGE &&
+	    mtex->tex->ima)
+			return 0;
+
+	return 1;
+}
+
+static void rna_MaterialTexturePaint_mtex_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	Material *ma = (Material *)ptr->data;
+	rna_iterator_array_begin(iter, (void *)ma->mtex, sizeof(MTex *), MAX_MTEX, 0, rna_texture_paint_material);
+}
+
 static PointerRNA rna_Material_active_texture_get(PointerRNA *ptr)
 {
 	Material *ma = (Material *)ptr->data;
@@ -1694,6 +1714,7 @@ static void rna_def_material_physics(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Damping", "Damping of the spring force, when inside the physics distance area");
 }
 
+
 void RNA_def_material(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -2035,6 +2056,8 @@ void RNA_def_material(BlenderRNA *brna)
 	                    "rna_Material_active_texture_set", "rna_Material_active_texture_editable",
 	                    "MaterialTextureSlot", "MaterialTextureSlots", "rna_Material_update");
 
+	rna_def_mtex_texpaint(srna, "MaterialTextureSlot");
+
 	/* only material has this one */
 	prop = RNA_def_property(srna, "use_textures", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "septex", 1);
@@ -2122,5 +2145,24 @@ void rna_def_mtex_common(BlenderRNA *brna, StructRNA *srna, const char *begin,
 	RNA_def_property_ui_text(prop, "Active Texture Index", "Index of active texture slot");
 	RNA_def_property_update(prop, NC_MATERIAL | ND_SHADING_LINKS, update);
 }
+
+void rna_def_mtex_texpaint(StructRNA *srna, const char *structname)
+{
+	PropertyRNA *prop;
+
+	/* mtex */
+	prop = RNA_def_property(srna, "texture_paint_slots", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_struct_type(prop, structname);
+	RNA_def_property_collection_funcs(prop, "rna_MaterialTexturePaint_mtex_begin", "rna_iterator_array_next", "rna_iterator_array_end",
+	                                  "rna_iterator_array_dereference_get", NULL, NULL, NULL, NULL);
+	RNA_def_property_ui_text(prop, "Textures", "Texture slots defining the mapping and influence of textures");
+
+	prop = RNA_def_property(srna, "active_paint_texture_index", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_sdna(prop, NULL, "texactpaint");
+	RNA_def_property_range(prop, 0, MAX_MTEX - 1);
+	RNA_def_property_ui_text(prop, "Active Paint Texture Index", "Index of active texture paint slot");
+	RNA_def_property_update(prop, NC_MATERIAL | ND_SHADING_LINKS, "rna_Material_update");
+}
+
 
 #endif
