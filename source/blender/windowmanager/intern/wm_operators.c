@@ -4156,10 +4156,17 @@ void add_to_icon_shelf(bContext *C, void *arg1, void *UNUSED(arg2))
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_MENU_BAR);
+	wmWindowManager *wm = CTX_wm_manager(C);
 	
 	if (ar && arg1)
 	{
 		wmOperatorType *ot = (wmOperatorType*)arg1;
+		
+		if (BLI_findstring(&ar->operators, ot->idname, offsetof(OperatorListItem, optype_idname))) {
+			BKE_reportf(&wm->reports, RPT_INFO, "This operator (%s) is already present in the menubar.", ot->idname);
+			return;
+		}
+		
 		OperatorListItem *oli = MEM_callocN(sizeof(OperatorListItem), "add operator list item to icon shelf");
 
 		BLI_strncpy(oli->optype_idname, ot->idname, OP_MAX_TYPENAME);
@@ -4230,7 +4237,7 @@ static int wm_create_custom_panel_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar;
-	PanelType *pt_iter, *pt_new;
+	PanelType *pt_iter;
 	char *name = NULL;
 	int name_taken = 1;
 	
@@ -4297,7 +4304,6 @@ static int wm_add_to_custom_panel_exec(bContext *C, wmOperator *op)
 	char *opname = NULL, *panelid = NULL;
 	ARegion *ar;
 	ScrArea *sa = CTX_wm_area(C);
-	PanelType *pt;
 	Panel *pa;
 	
 	prop = RNA_struct_find_property(op->ptr, "operator");
@@ -4310,12 +4316,6 @@ static int wm_add_to_custom_panel_exec(bContext *C, wmOperator *op)
 	
 	// get panel
 	ar = BKE_area_find_region_type(sa, RGN_TYPE_TOOLS);
-//	for (pt_iter = ar->type->paneltypes.first; pt_iter; pt_iter = pt_iter->next) {
-//		if (strcmp(pt_iter->idname, panelid) == 0) {
-//			pt = pt_iter;
-//			break;
-//		}
-//	}
 
 	for (pa = ar->panels.first; pa; pa = pa->next) {
 		if (pa->type && strcmp(pa->type->idname, panelid) == 0) {
@@ -4323,13 +4323,17 @@ static int wm_add_to_custom_panel_exec(bContext *C, wmOperator *op)
 		}
 	}
 
-	if(pa == NULL) {
+	if (pa == NULL) {
 		MEM_freeN(opname);
 		MEM_freeN(panelid);
 		return OPERATOR_CANCELLED;
 	}
 	
-	// TODO: actually add the operator id string to the paneltype
+	if (BLI_findstring(&pa->operators, opname, offsetof(OperatorListItem, optype_idname))) {
+		BKE_reportf(op->reports, RPT_INFO, "This operator (%s) is already present in this panel (%s).", opname, pa->drawname);
+		return OPERATOR_CANCELLED;
+	}
+	
 	uiPanelAddOperator(pa, opname);
 	
 	MEM_freeN(opname);

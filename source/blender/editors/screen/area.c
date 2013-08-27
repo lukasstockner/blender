@@ -937,9 +937,6 @@ static void region_rect_recursive(wmWindow *win, ScrArea *sa, ARegion *ar, rcti 
 	
 	/* set here, assuming userpref switching forces to call this again */
 	ar->overlap = region_is_overlap(win, sa, ar);
-	
-	if (ar->regiontype == RGN_TYPE_TOOL_PROPS)
-		printf("yep, overlep!\n");
 
 	/* clear state flags first */
 	ar->flag &= ~RGN_FLAG_TOO_SMALL;
