@@ -120,9 +120,6 @@ static void view3d_panel_operator_redo(const bContext *C, Panel *pa)
 
 	/* set region back */
 	CTX_wm_region_set((bContext *)C, ar);
-	ED_region_tag_redraw(ar);
-	
-	WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 }
 
 static void collapse_all_panels(bContext *C, void *UNUSED(arg1), void *UNUSED(arg2))
