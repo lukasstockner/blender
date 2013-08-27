@@ -991,6 +991,9 @@ static void region_rect_recursive(wmWindow *win, ScrArea *sa, ARegion *ar, rcti 
 		else {
 			ar->winrct.ymax = ar->winrct.ymin + 26;
 		}
+		
+		if (!BLI_rcti_inside_rcti(&mw->winrct, &ar->winrct))
+			ar->flag |= RGN_FLAG_TOO_SMALL;
 	}
 	else if (ar->flag & RGN_FLAG_HIDDEN) {
 		/* hidden is user flag */
