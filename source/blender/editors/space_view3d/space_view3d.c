@@ -1171,11 +1171,30 @@ static void view3d_menubar_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa
 	}
 }
 
+static int view3d_props_sum_panel_heights(ARegion *ar)
+{
+	Panel *pa;
+	int sum = 0;
+	for (pa = ar->panels.first; pa; pa = pa->next) {
+		sum += pa->sizey;
+	}
+	return sum;
+}
 
 
 static void view3d_props_area_draw(const bContext *C, ARegion *ar)
 {
+	/* If in laying out and redrawing the panels this area contains we find that the
+	 * panels have changed in height we'll need to redraw the area so that its height
+	 * is automatically adapted. If  */
+	int total_panel_height = view3d_props_sum_panel_heights(ar);
+	
 	ED_region_panels(C, ar, 1, CTX_data_mode_string(C), -1);
+	
+	if (total_panel_height != view3d_props_sum_panel_heights(ar)) {
+		ED_area_tag_redraw(CTX_wm_area(C));
+		CTX_wm_screen(C)->do_refresh = TRUE;
+	}
 }
 
 static void view3d_props_area_init(wmWindowManager *wm, ARegion *ar)

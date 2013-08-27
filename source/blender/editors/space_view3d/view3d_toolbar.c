@@ -150,12 +150,8 @@ static void view3d_toolbar_header_draw(const bContext *C, Panel *pa)
 
 	uiItemL(row, name, modeicon);
 
-	// TODO: somehow this centers the button's text
 	but = uiDefIconBut(uiLayoutGetBlock(row), BUT, 0, ICON_TRIA_RIGHT, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0, 0, 0, 0, "Collapse all panels in this toolbar");
-	//but = uiDefIconTextBut(uiLayoutGetBlock(column), BUT, 0, ICON_NONE, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Collapse All"), 0, 0, 0, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
 	uiButSetFunc(but, collapse_all_panels, pa, NULL);
-	
-//	uiItemO(row, "", ICON_NONE, "WM_OT_create_custom_panel");
 	
 	uiDefIconButO(uiLayoutGetBlock(row), BUT, "WM_OT_create_custom_panel", WM_OP_INVOKE_DEFAULT, ICON_PLUS, 0, 0, UI_UNIT_X, UI_UNIT_Y, "Add a custom panel to this toolbar");
 	
