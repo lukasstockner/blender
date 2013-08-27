@@ -54,6 +54,10 @@ extern "C" {
 
 
 
+const char* gpuErrorString(GLenum err);
+
+
+
 #if GPU_SAFETY
 
 /* Define some useful, but potentially slow, checks for correct API usage. */

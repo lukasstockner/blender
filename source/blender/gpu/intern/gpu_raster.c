@@ -377,7 +377,7 @@ void GPU_raster_end()
 	begun = false;
 #endif
 
-	// SSS End Pixels
+	// SSS End Raster
 	GPU_aspect_end();
 
 	// SSS Begin Basic

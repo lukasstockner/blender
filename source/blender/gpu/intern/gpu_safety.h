@@ -32,7 +32,21 @@
 #ifndef GPU_SAFETY_H
 #define GPU_SAFETY_H
 
-#include "gpu_glew.h" // XXX jwilkins: remove this dependency
+
+
+#ifndef GPU_SAFETY 
+#if (!defined(NDEBUG) && WITH_GPU_SAFETY)
+#define GPU_SAFETY 1
+#else
+#define GPU_SAFETY 0
+#endif
+#endif
+
+
+
+#if GPU_SAFETY
+
+
 
 #include "BLI_utildefines.h"
 
@@ -46,21 +60,11 @@ extern "C" {
 
 
 
-#ifndef GPU_SAFETY
-#define GPU_SAFETY (!defined(NDEBUG) && WITH_GPU_SAFETY)
-#endif
+/* Define some useful, but slow, checks for correct API usage. */
 
-
-
-const char* gpuErrorString(GLenum err);
 
 void gpu_check(const char* file, int line, const char* text);
 
-
-
-#if GPU_SAFETY
-
-/* Define some useful, but slow, checks for correct API usage. */
 
 #define GPU_ASSERT(test) BLI_assert(test)
 
@@ -68,7 +72,7 @@ void gpu_check(const char* file, int line, const char* text);
    Needs a variable in scope to store results of the test.
    Can be used in functions that return void if third argument is left blank */
 #define GPU_SAFE_RETURN(test, var, ret) \
-    var = (GLboolean)(test);            \
+    var = (bool)(test);            \
     GPU_ASSERT(((void)#test, var));     \
     if (!var) {                         \
         return ret;                     \
@@ -83,6 +87,15 @@ void gpu_check(const char* file, int line, const char* text);
 #define GPU_CHECK_NO_ERROR() gpu_check(__FILE__, __LINE__, 0)
 
 #define GPU_CHECK(x) (gpu_check(__FILE__, __LINE__, "Before: " #x), (x), gpu_check(__FILE__, __LINE__, "After: " #x))
+
+
+
+
+#ifdef __cplusplus
+}
+#endif
+
+
 
 #else
 
@@ -99,9 +112,5 @@ void gpu_check(const char* file, int line, const char* text);
 #endif /* GPU_SAFETY */
 
 
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* GPU_SAFETY_H */

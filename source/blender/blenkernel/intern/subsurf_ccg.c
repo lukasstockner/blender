@@ -2510,14 +2510,18 @@ static void ccgDM_drawMappedFaces(
 
 			if (draw_option != DM_DRAW_OPTION_SKIP) {
 				if (draw_option == DM_DRAW_OPTION_STIPPLE) {
+					GPU_raster_begin();
+
 					GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
+
 					gpuPolygonStipple(stipple_quarttone);
 				}
+				else {
+					/*  normals are used to change shading, so choose smooth so smooth shading will work (XXX jwilkins: rewrote to say what I think was meant */
 
-				/*  normals are used to change shading, so choose smooth so smooth shading will work (XXX jwilkins: rewrote to say what I think was meant */
-
-				// SSS Enable Smooth
-				GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
+					// SSS Enable Smooth
+					GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
+				}
 
 				for (S = 0; S < numVerts; S++) {
 					CCGElem *faceGridData = (CCGElem*)ccgSubSurf_getFaceGridDataArray(ss, f, S);
@@ -2585,11 +2589,15 @@ static void ccgDM_drawMappedFaces(
 					}
 				}
 
-				// SSS Disable Smooth
-				GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
-
-				if (draw_option == DM_DRAW_OPTION_STIPPLE)
+				if (draw_option == DM_DRAW_OPTION_STIPPLE) {
 					GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
+
+					GPU_raster_end();
+				}
+				else {
+					// SSS Disable Smooth
+					GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
+				}
 			}
 		}
 	}

@@ -467,7 +467,6 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 
 	gpuImmediateFormat_C4_V2();
 
-
 	activetf = EDBM_mtexpoly_active_get(em, &efa_act, FALSE, FALSE); /* will be set to NULL if hidden */
 	activef = BM_active_face_get(bm, FALSE, FALSE);
 	ts = scene->toolsettings;

@@ -33,7 +33,10 @@
 
 #if GPU_SAFETY
 
-#include <stdlib.h>
+#include "intern/gpu_glew.h"
+#include "intern/gpu_immediate.h"
+
+#include <stdio.h>
 
 
 

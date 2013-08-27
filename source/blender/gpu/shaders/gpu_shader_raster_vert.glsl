@@ -6,7 +6,8 @@ attribute float b_StippleParameter;
 
 void main()
 {
-	varying_color = b_Color;
+	//varying_color = b_Color;
+	varying_color = vec4(1,0,1,1);
 
 #ifdef USE_LINE_STIPPLE
 	varying_stipple_parameter = b_StippleParameter;

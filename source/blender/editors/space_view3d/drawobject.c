@@ -2388,8 +2388,6 @@ static void draw_dm_faces_sel(BMEditMesh *em, DerivedMesh *dm, unsigned char *ba
 		data.orig_index_mf_to_mpoly = data.orig_index_mp_to_orig = NULL;
 	}
 
-	GPU_raster_begin();
-
 	gpuImmediateFormat_C4_V3();
 
 	dm->drawMappedFaces(
@@ -2401,8 +2399,6 @@ static void draw_dm_faces_sel(BMEditMesh *em, DerivedMesh *dm, unsigned char *ba
 		0);
 
 	gpuImmediateUnformat();
-
-	GPU_raster_end();
 }
 
 static DMDrawOption draw_dm_creases__setDrawOptions(void *userData, int index)

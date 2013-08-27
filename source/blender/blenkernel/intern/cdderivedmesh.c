@@ -1010,17 +1010,21 @@ static void cdDM_drawMappedFaces(
 				unsigned char *cp = NULL;
 
 				if (draw_option == DM_DRAW_OPTION_STIPPLE) {
+					GPU_raster_begin();
+
 					GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
+
 					gpuPolygonStipple(stipple_quarttone);
+				}
+				else {
+					// SSS Enable Smooth
+					GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 				}
 
 				if (useColors && mcol)
 					cp = (unsigned char *)&mcol[i * 4];
 
 				/* normals are used to change shading, so choose smooth so smooth shading will work (XXX jwilkins: rewrote to say what I think was meant */
-
-				// SSS Enable Smooth
-				GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 				gpuBegin(mf->v4 ? GL_QUADS : GL_TRIANGLES);
 				if (!drawSmooth) {
@@ -1068,8 +1072,15 @@ static void cdDM_drawMappedFaces(
 
 				gpuEnd();
 
-				if (draw_option == DM_DRAW_OPTION_STIPPLE)
+				if (draw_option == DM_DRAW_OPTION_STIPPLE) {
 					GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
+
+					GPU_raster_end();
+				}
+				else {
+					// SSS Disable Smooth
+					GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
+				}
 			}
 			
 			if (nors) nors += 3;
@@ -1128,7 +1139,10 @@ static void cdDM_drawMappedFaces(
 						draw_option = setDrawOptions(userData, orig);
 
 					if (draw_option == DM_DRAW_OPTION_STIPPLE) {
+						GPU_raster_begin();
+
 						GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
+
 						gpuPolygonStipple(stipple_quarttone);
 					}
 	
@@ -1159,8 +1173,11 @@ static void cdDM_drawMappedFaces(
 
 						prevstart = i + 1;
 
-						if (draw_option == DM_DRAW_OPTION_STIPPLE)
+						if (draw_option == DM_DRAW_OPTION_STIPPLE) {
 							GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
+
+							GPU_raster_end();
+						}
 					}
 				}
 			}

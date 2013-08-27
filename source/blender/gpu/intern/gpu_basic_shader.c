@@ -74,8 +74,6 @@ static struct BASIC_SHADER {
 	GPUShader*   gpushader[GPU_BASIC_OPTION_COMBINATIONS];
 	bool         failed   [GPU_BASIC_OPTION_COMBINATIONS];
 	GPUcommon    common   [GPU_BASIC_OPTION_COMBINATIONS];
-
-	bool need_normals;
 } BASIC_SHADER;
 
 
@@ -281,11 +279,6 @@ void GPU_basic_shader_bind(void)
 	if (BASIC_SHADER.options & GPU_BASIC_LIGHTING) {
 		gpu_commit_light();
 		gpu_commit_material();
-
-		BASIC_SHADER.need_normals = true; // Temporary hack. Should be solved outside of this file.
-	}
-	else {
-		BASIC_SHADER.need_normals = false; // Temporary hack. Should be solved outside of this file.
 	}
 
 	GPU_CHECK_NO_ERROR();
@@ -308,8 +301,6 @@ void GPU_basic_shader_unbind(void)
 	glShadeModel(GL_FLAT);
 #endif
 
-	BASIC_SHADER.need_normals = false; // Temporary hack. Should be solved outside of this file.
-
 	GPU_CHECK_NO_ERROR();
 }
 
@@ -317,7 +308,5 @@ void GPU_basic_shader_unbind(void)
 
 bool GPU_basic_shader_needs_normals(void)
 {
-	return BASIC_SHADER.need_normals;
+	return BASIC_SHADER.options & GPU_BASIC_LIGHTING; // Temporary hack. Should be solved outside of this file.
 }
-
-
