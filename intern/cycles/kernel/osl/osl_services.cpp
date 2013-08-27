@@ -815,34 +815,36 @@ bool OSLRenderServices::texture3d(ustring filename, TextureOpt &options,
 	OSLThreadData *tdata = kg->osl_tdata;
 	OIIO::TextureSystem::Perthread *thread_info = tdata->oiio_thread_info;
 
+    if (VDBTextureSystem::valid_vdb_file(filename)) {
         VDBTextureSystem::Ptr volume_ts = vdb_ts;
-        if (volume_ts->is_vdb_volume(filename))
-        {
-            std::cout << "Before lookup. FILE: " << filename.string() << " ; POINT: " << P << std::endl;
-            status = volume_ts->perform_lookup(filename, options, sg, P, dPdx, dPdy, dPdz, result);
-            std::cout << "After lookup. Status: " << status << " ; Result: " << *result << std::endl;
-        }
-        else
-        {
-            OIIO::TextureSystem::TextureHandle *th =  ts->get_texture_handle(filename, thread_info);
+        
+        //std::cout << "Before lookup. FILE: " << filename.string() << " ; POINT: " << P << std::endl;
+        status = volume_ts->perform_lookup(filename, thread_info,
+                                           options, P, dPdx, dPdy, dPdz, result);
+        //std::cout << "After lookup. Status: " << status << " ; Result: " << *result << std::endl;
+    }
+    else
+    {
+        OIIO::TextureSystem::TextureHandle *th =  ts->get_texture_handle(filename, thread_info);
+        
+        status = ts->texture3d(th, thread_info,
+                               options, P, dPdx, dPdy, dPdz, result);
+    }
+           
+    if(!status) {
+        if(options.nchannels == 3 || options.nchannels == 4) {
+            result[0] = 1.0f;
+            result[1] = 0.0f;
+            result[2] = 1.0f;
             
-            status = ts->texture3d(th, thread_info,
-                                        options, P, dPdx, dPdy, dPdz, result);
-        }
-        if(!status) {
-            if(options.nchannels == 3 || options.nchannels == 4) {
-                result[0] = 1.0f;
-                result[1] = 0.0f;
-                result[2] = 1.0f;
-                
-                if(options.nchannels == 4)
-                    result[3] = 1.0f;
-            }
-            
+            if(options.nchannels == 4)
+                result[3] = 1.0f;
         }
         
-        return status;
     }
+    
+    return status;
+}
 
 bool OSLRenderServices::environment(ustring filename, TextureOpt &options,
                                     OSL::ShaderGlobals *sg, const OSL::Vec3 &R,

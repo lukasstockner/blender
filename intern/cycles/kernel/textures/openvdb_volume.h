@@ -37,18 +37,17 @@ public:
     typedef boost::shared_ptr<VDBTextureSystem> Ptr;
     
     static VDBTextureSystem::Ptr init();
-    static void free (VDBTextureSystem::Ptr vdb_ts);
+    static void free (VDBTextureSystem::Ptr &vdb_ts);
     
-    VDBTextureSystem() { }
-    ~VDBTextureSystem();
+    static bool valid_vdb_file (ustring filename);
     
-    bool is_vdb_volume (ustring filename);
-    
-    bool perform_lookup (ustring filename, TextureOpt &options, OSL::ShaderGlobals *sg,
-                    const Imath::V3f &P, const Imath::V3f &dPdx,
+    bool perform_lookup (ustring filename, OIIO::TextureSystem::Perthread *thread_info,
+                    TextureOpt &options, const Imath::V3f &P, const Imath::V3f &dPdx,
                     const Imath::V3f &dPdy, const Imath::V3f &dPdz,
                     float *result);
-    VDBMap get_map();
+  
+    VDBTextureSystem() { }
+    ~VDBTextureSystem() { }
     
 private:
     VDBMap vdb_files;

@@ -57,8 +57,8 @@ public:
     static int nearest_neighbor(float worldCoord);
     
 private:
-    static bool vdb_file_check_extension(ustring filename);
-    static bool vdb_file_check_valid_header(ustring filename);
+    static bool vdb_file_format(ustring filename);
+    static bool valid_file(ustring filename);
 };
 
 
@@ -71,18 +71,25 @@ void OpenVDBUtil::initialize_library()
 	openvdb::initialize();
 }
 
-bool OpenVDBUtil::vdb_file_check_valid_header(ustring filename)
+// Open file to check header information and determine
+// if file is a valid VDB volume.
+bool OpenVDBUtil::valid_file(ustring filename)
 {
-    OpenVDBUtil::initialize_library();
-    openvdb::io::File file(filename.string());
-    file.open();
-    
     OIIO::ustring openvdb_version;
+    openvdb::io::File file(filename.string());
     
-    openvdb_version.empty();
-    openvdb_version = file.version();
-    
-    file.close();
+    try {
+        file.open();
+        
+        openvdb_version.empty();
+        openvdb_version = file.version();
+        
+        file.close();
+        
+    } catch (openvdb::IoError error) {
+        std::cout << "ERROR: VDB file could not be opened (" << filename << ")." << std::endl;
+        return false;
+    }
     
     if(openvdb_version.length() > 0)
         return true;
@@ -90,7 +97,7 @@ bool OpenVDBUtil::vdb_file_check_valid_header(ustring filename)
 	return false;
 }
 
-bool OpenVDBUtil::vdb_file_check_extension(ustring filename)
+bool OpenVDBUtil::vdb_file_format(ustring filename)
 {
     if (filename.substr(filename.length() - u_openvdb_file_extension.length(),
                         u_openvdb_file_extension.length()) == u_openvdb_file_extension)
@@ -102,10 +109,8 @@ bool OpenVDBUtil::vdb_file_check_extension(ustring filename)
 
 bool OpenVDBUtil::is_vdb_volume_file(OIIO::ustring filename)
 {
-    OIIO::ustring openvdb_version;
-    
-    if (vdb_file_check_extension(filename)) {
-        if (vdb_file_check_valid_header(filename))
+    if (vdb_file_format(filename)) {
+        if (valid_file(filename))
             return true;
     }
     
@@ -129,30 +134,22 @@ int OpenVDBUtil::nearest_neighbor(float worldCoord)
 
 VDBTextureSystem::Ptr VDBTextureSystem::init() {
     OpenVDBUtil::initialize_library();
-    
     Ptr vdb_ts(new VDBTextureSystem());
     
     return vdb_ts;
 }
 
-bool VDBTextureSystem::is_vdb_volume(ustring filename)
+bool VDBTextureSystem::valid_vdb_file(ustring filename)
 {
-    if (vdb_files.empty())
-    {
-        return OpenVDBUtil::is_vdb_volume_file(filename);
-    }
-    if (vdb_files.find(filename) != vdb_files.end())
-        return true;
-    else
         return OpenVDBUtil::is_vdb_volume_file(filename);
 }
 
-bool VDBTextureSystem::perform_lookup(ustring filename, TextureOpt &options, OSL::ShaderGlobals *sg,
-                                      const Imath::V3f &P, const Imath::V3f &dPdx,
-                                      const Imath::V3f &dPdy, const Imath::V3f &dPdz,
-                                      float *result)
+bool VDBTextureSystem::perform_lookup(ustring filename, OIIO::TextureSystem::Perthread *thread_info,
+                                      TextureOpt &options, const Imath::V3f &P,
+                                      const Imath::V3f &dPdx,const Imath::V3f &dPdy,
+                                      const Imath::V3f &dPdz, float *result)
 {
-    // - check if file is open;
+    // check if file is open;
     VDBMap::const_iterator open_file = vdb_files.find(filename);
     
     if (open_file == vdb_files.end())
@@ -162,24 +159,31 @@ bool VDBTextureSystem::perform_lookup(ustring filename, TextureOpt &options, OSL
 
     VDBFilePtr vdb_p = open_file->second;
     
-    //decide on type of grid; let's say it's a float grid.
-    openvdb::GridPtrVec::const_iterator it = vdb_p->grids->begin();
-    const openvdb::GridBase::Ptr grid = *it;
-    
-    openvdb::FloatGrid::Ptr floatGrid = openvdb::gridPtrCast<openvdb::FloatGrid>(grid);
-    
-    openvdb::FloatGrid::Accessor accessor = floatGrid->getAccessor();
-    
-    float x, y, z = 0;
-    x = OpenVDBUtil::nearest_neighbor(P[0]);
-    y = OpenVDBUtil::nearest_neighbor(P[1]);
-    z = OpenVDBUtil::nearest_neighbor(P[2]);
-    
-    openvdb::Coord point((int)x, (int)y, (int)z);
-    
-    const float myResult(accessor.getValue(point));
-    *result = myResult; 
-    return true;
+    if (!vdb_p) {
+        return false;
+    }
+    else
+    {    
+        //decide on type of grid; let's say it's a float grid.
+        openvdb::GridPtrVec::const_iterator it = vdb_p->grids->begin();
+        const openvdb::GridBase::Ptr grid = *it;
+        
+        openvdb::FloatGrid::Ptr floatGrid = openvdb::gridPtrCast<openvdb::FloatGrid>(grid);
+        
+        openvdb::FloatGrid::Accessor accessor = floatGrid->getAccessor();
+        
+        float x, y, z = 0;
+        x = OpenVDBUtil::nearest_neighbor(P[0]);
+        y = OpenVDBUtil::nearest_neighbor(P[1]);
+        z = OpenVDBUtil::nearest_neighbor(P[2]);
+        
+        openvdb::Coord point((int)x, (int)y, (int)z);
+        
+        const float myResult(accessor.getValue(point));
+        *result = myResult;
+        
+        return true;
+    }
 }
 
 VDBTextureSystem::VDBMap::const_iterator VDBTextureSystem::add_vdb_to_map(ustring filename)
@@ -189,12 +193,9 @@ VDBTextureSystem::VDBMap::const_iterator VDBTextureSystem::add_vdb_to_map(ustrin
     return (vdb_files.insert(std::make_pair(filename, vdb_sp))).first;
 }
 
-void VDBTextureSystem::free(VDBTextureSystem::Ptr vdb_ts)
+void VDBTextureSystem::free(VDBTextureSystem::Ptr &vdb_ts)
 {
     vdb_ts.reset();
-}
-
-VDBTextureSystem::~VDBTextureSystem(){
 }
 
 CCL_NAMESPACE_END
