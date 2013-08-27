@@ -30,9 +30,9 @@
 
 #include "BKE_treehash.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 #include "BLI_mempool.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_outliner_types.h"
 
@@ -113,7 +113,7 @@ static void free_treehash_group(void *key) {
 
 void *BKE_treehash_rebuild_from_treestore(void *treehash, BLI_mempool *treestore)
 {
-	BLI_ghash_clear_ex(treehash, NULL, free_treehash_group, BLI_mempool_count(treestore));
+	BLI_ghash_clear(treehash, NULL, free_treehash_group);
 	fill_treehash(treehash, treestore);
 	return treehash;
 }

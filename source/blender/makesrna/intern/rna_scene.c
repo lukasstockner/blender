@@ -487,8 +487,7 @@ static void rna_Scene_view3d_update(Main *bmain, Scene *UNUSED(scene_unused), Po
 static void rna_Scene_layer_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	rna_Scene_view3d_update(bmain, scene, ptr);
-	/* We need do_time here, else we can have update issues like [#36289]... */
-	DAG_on_visible_update(bmain, true);
+	DAG_on_visible_update(bmain, FALSE);
 }
 
 static void rna_Scene_fps_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *UNUSED(ptr))
