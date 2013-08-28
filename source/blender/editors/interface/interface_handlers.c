@@ -4959,6 +4959,16 @@ static void ui_but_menu_set_last_properties(bContext *UNUSED(C), void *arg_op, i
 	WM_operator_default_properties_store(op);
 }
 
+static void remove_from_custom_panel(bContext *UNUSED(C), void *arg_pa, void *arg_optype)
+{
+	Panel *pa = arg_pa;
+	wmOperatorType *ot = arg_optype;
+	OperatorListItem *oli;
+	
+	oli = BLI_findstring(&pa->operators, ot->idname, offsetof(OperatorListItem, optype_idname));
+	BLI_freelinkN(&pa->operators, oli);
+}
+
 static bool ui_but_menu(bContext *C, uiBut *but)
 {
 	uiPopupMenu *pup;
@@ -5211,10 +5221,24 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 		uiItemS(layout);
 		
 		{
-			uiBut *icon_add_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Add to Icon Shelf"), 0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
-			uiButSetFunc(icon_add_but, add_to_icon_shelf, but->optype, NULL);
+			uiBut *opp_but;
+			ARegion *ar = CTX_wm_region(C);
+			Panel *pa = but->block->panel;
 			
-			uiItemMenuF(layout, IFACE_("Add to Custom Panel..."), ICON_NONE, add_to_custom_panel_menu, but->optype);
+			/* Remove the operator from the custom enclosure */
+			if (ar->regiontype == RGN_TYPE_TOOLS) {
+				
+				opp_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Remove From Custom Panel"), 0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
+				uiButSetFunc(opp_but, remove_from_custom_panel, pa, but->optype);
+			}
+			else if (ar->regiontype == RGN_TYPE_MENU_BAR) {
+				
+			}
+			
+			opp_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Add to Icon Shelf"), 0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
+			uiButSetFunc(opp_but, add_to_icon_shelf, but->optype, NULL);
+			
+			uiItemMenuF(layout, IFACE_("Add to Custom Panel..."), ICON_NONE, add_to_custom_panel_menu, but->optype);			
 			
 		}
 		

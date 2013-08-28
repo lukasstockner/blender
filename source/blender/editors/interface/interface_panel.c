@@ -1406,9 +1406,6 @@ int ui_handler_panel_region(bContext *C, const wmEvent *event)
 				retval = WM_UI_HANDLER_BREAK;
 				continue;
 			}
-			else if (event->type == RIGHTMOUSE && pa->flag & PNL_CUSTOM_PANEL) {
-				uiPupBlock(C, custom_panel_options_create_block, block->panel);
-			}
 		}
 		
 		/* on active button, do not handle panels */
@@ -1481,6 +1478,9 @@ int ui_handler_panel_region(bContext *C, const wmEvent *event)
 						}
 					}
 #endif
+				}
+				else if (event->type == RIGHTMOUSE && pa->flag & PNL_CUSTOM_PANEL) {
+					uiPupBlock(C, custom_panel_options_create_block, block->panel);
 				}
 			}
 		}
