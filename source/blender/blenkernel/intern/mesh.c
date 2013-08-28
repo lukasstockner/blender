@@ -1931,6 +1931,21 @@ void BKE_mesh_smooth_flag_set(Object *meshOb, int enableSmooth)
 	}
 }
 
+/**
+ * Call when there are no polygons.
+ */
+static void mesh_calc_normals_vert_fallback(MVert *mverts, int numVerts)
+{
+	int i;
+	for (i = 0; i < numVerts; i++) {
+		MVert *mv = &mverts[i];
+		float no[3];
+
+		normalize_v3_v3(no, mv->co);
+		normal_float_to_short_v3(mv->no, no);
+	}
+}
+
 void BKE_mesh_calc_normals_mapping(MVert *mverts, int numVerts,
                                    MLoop *mloop, MPoly *mpolys, int numLoops, int numPolys, float (*polyNors_r)[3],
                                    MFace *mfaces, int numFaces, int *origIndexFace, float (*faceNors_r)[3])
@@ -1952,6 +1967,9 @@ void BKE_mesh_calc_normals_mapping_ex(MVert *mverts, int numVerts,
 	MPoly *mp;
 
 	if (numPolys == 0) {
+		if (only_face_normals == FALSE) {
+			mesh_calc_normals_vert_fallback(mverts, numVerts);
+		}
 		return;
 	}
 
@@ -3852,9 +3870,7 @@ void BKE_mesh_poly_edgehash_insert(EdgeHash *ehash, const MPoly *mp, const MLoop
 	ml = &ml_next[i - 1];  /* last loop */
 
 	while (i-- != 0) {
-		if (!BLI_edgehash_haskey(ehash, ml->v, ml_next->v)) {
-			BLI_edgehash_insert(ehash, ml->v, ml_next->v, NULL);
-		}
+		BLI_edgehash_reinsert(ehash, ml->v, ml_next->v, NULL);
 
 		ml = ml_next;
 		ml_next++;

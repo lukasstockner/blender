@@ -138,7 +138,6 @@ static void rna_Lamp_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 	Lamp *la = ptr->id.data;
 
 	DAG_id_tag_update(&la->id, 0);
-
 	WM_main_add_notifier(NC_LAMP | ND_LIGHTING, la);
 }
 
