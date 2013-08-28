@@ -5237,12 +5237,15 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 			
 			/* Remove the operator from the custom enclosure */
 			if (ar->regiontype == RGN_TYPE_TOOLS) {
-				opp_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Remove From Custom Panel"), 0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
+				opp_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Remove From Panel"), 0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
 				uiButSetFunc(opp_but, remove_from_custom_panel, pa, but->optype);
+				uiItemS(layout);
 			}
-			else if (ar->regiontype == RGN_TYPE_MENU_BAR) {
+			else if (ar->regiontype == RGN_TYPE_MENU_BAR && BLI_findstring(&ar->operators, but->optype->idname
+, offsetof(OperatorListItem, optype_idname)) != NULL) {
 				opp_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Remove From Menu Bar"), 0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
 				uiButSetFunc(opp_but, remove_from_menu_bar, ar, but->optype);
+				uiItemS(layout);
 			}
 			
 			opp_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Add to Icon Shelf"), 0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
