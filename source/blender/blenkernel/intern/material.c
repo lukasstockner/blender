@@ -1299,6 +1299,36 @@ int object_remove_material_slot(Object *ob)
 	return TRUE;
 }
 
+bool get_mtex_slot_valid_texpaint(struct MTex *mtex)
+{
+		return mtex && (mtex->texco == TEXCO_UV) &&
+		       mtex->tex && (mtex->tex->type == TEX_IMAGE) &&
+		       mtex->tex->ima;
+}
+
+struct Image *give_current_texpaint_image(Material *ma)
+{
+	MTex **mtex, *validmtex = NULL;
+
+	short index = 0, i = 0;
+
+	for(mtex = ma->mtex; i < MAX_MTEX; i++, mtex++) {
+		if (get_mtex_slot_valid_texpaint(*mtex)) {
+			if (index++ == ma->texactpaint)
+				return (*mtex)->tex->ima;
+
+			validmtex = *mtex;
+		}
+	}
+
+	/* possible to not have selected anything as active texture. Just set to a valid index */
+	if (index > 0) {
+		ma->texactpaint = index;
+		return validmtex->tex->ima;
+	}
+
+	return NULL;
+}
 
 /* r_col = current value, col = new value, (fac == 0) is no change */
 void ramp_blend(int type, float r_col[3], const float fac, const float col[3])

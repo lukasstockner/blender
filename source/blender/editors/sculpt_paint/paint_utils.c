@@ -35,6 +35,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
+#include "DNA_material_types.h"
 
 #include "DNA_scene_types.h"
 #include "DNA_brush_types.h"
@@ -50,6 +51,7 @@
 #include "BKE_brush.h"
 #include "BKE_context.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_material.h"
 #include "BKE_paint.h"
 #include "BKE_report.h"
 #include "BKE_image.h"
@@ -354,15 +356,15 @@ static Image *imapaint_face_image(DerivedMesh *dm, Scene *scene, Object *ob, int
 	Image *ima;
 
 	MFace *dm_mface = dm->getTessFaceArray(dm);
-	MTFace *dm_mtface = dm->getTessFaceDataArray(dm, CD_MTFACE);
 
 	if (BKE_scene_use_new_shading_nodes(scene)) {
 		MFace *mf = &dm_mface[face_index];
 		ED_object_get_active_image(ob, mf->mat_nr + 1, &ima, NULL, NULL);
 	}
 	else {
-		MTFace *tf = &dm_mtface[face_index];
-		ima = tf->tpage;
+		MFace *mf = dm_mface + face_index;
+		Material *ma = give_current_material(ob, mf->mat_nr + 1);
+		ima = give_current_texpaint_image(ma);
 	}
 
 	return ima;

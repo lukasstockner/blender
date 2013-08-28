@@ -170,10 +170,8 @@ static int rna_texture_paint_material(CollectionPropertyIterator *UNUSED(iter), 
 	MTex *mtex = (*((MTex **)data));
 
 	/* do not skip under these circumstances */
-	if (mtex && mtex->texco == TEXCO_UV &&
-	    mtex->tex && mtex->tex->type == TEX_IMAGE &&
-	    mtex->tex->ima)
-			return 0;
+	if(get_mtex_slot_valid_texpaint(mtex))
+		return 0;
 
 	return 1;
 }

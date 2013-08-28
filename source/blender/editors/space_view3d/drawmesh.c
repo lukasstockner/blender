@@ -231,23 +231,25 @@ static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *
 	static int c_lit;
 	static int c_has_texface;
 
-	Object *litob = NULL;  /* to get mode to turn off mipmap in painting mode */
 	int backculled = 1;
 	int alphablend = 0;
 	int textured = 0;
 	int lit = 0;
 	int has_texface = texface != NULL;
 	bool need_set_tpage = false;
+	bool texpaint = false;
+	Image *ima = NULL;
 
 	if (clearcache) {
 		c_textured = c_lit = c_backculled = -1;
 		memset(&c_texface, 0, sizeof(MTFace));
 		c_badtex = false;
 		c_has_texface = -1;
+		c_ma = NULL;
 	}
 	else {
 		textured = gtexdraw.is_tex;
-		litob = gtexdraw.ob;
+		texpaint = ((gtexdraw.ob->mode & OB_MODE_TEXTURE_PAINT) != 0);
 	}
 
 	/* convert number of lights into boolean */
@@ -259,14 +261,16 @@ static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *
 		backculled = (ma->game.flag & GEMAT_BACKCULL) || gtexdraw.use_backface_culling;
 	}
 
-	if (texface) {
+	if (texface && !texpaint) {
 		textured = textured && (texface->tpage);
 
 		/* no material, render alpha if texture has depth=32 */
 		if (!ma && BKE_image_has_alpha(texface->tpage))
 			alphablend = GPU_BLEND_ALPHA;
 	}
-
+	else if (texpaint) {
+		ima = ma ? give_current_texpaint_image(ma) : NULL;
+	}
 	else
 		textured = 0;
 
@@ -280,11 +284,23 @@ static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *
 	/* need to re-set tpage if textured flag changed or existsment of texface changed..  */
 	need_set_tpage = textured != c_textured || has_texface != c_has_texface;
 	/* ..or if settings inside texface were changed (if texface was used) */
-	need_set_tpage |= texface && memcmp(&c_texface, texface, sizeof(c_texface));
+	need_set_tpage |= (texpaint && c_ma != ma) || (texface && memcmp(&c_texface, texface, sizeof(c_texface)));
 
 	if (need_set_tpage) {
 		if (textured) {
-			c_badtex = !GPU_set_tpage(texface, !(litob->mode & OB_MODE_TEXTURE_PAINT), alphablend);
+			if (texpaint) {
+				c_badtex = false;
+				if(GPU_verify_image(ima, NULL, 0, 1, 0, false)) {
+					glEnable(GL_TEXTURE_2D);
+				}
+				else {
+					GPU_set_tpage(NULL, 0, 0);
+					glBindTexture(GL_TEXTURE_2D, 0);
+				}
+			}
+			else {
+				c_badtex = !GPU_set_tpage(texface, !texpaint, alphablend);
+			}
 		}
 		else {
 			GPU_set_tpage(NULL, 0, 0);
@@ -318,6 +334,7 @@ static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *
 			glDisable(GL_COLOR_MATERIAL);
 		}
 		c_lit = lit;
+		c_ma = ma;
 	}
 
 	return c_badtex;

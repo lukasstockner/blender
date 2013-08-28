@@ -43,6 +43,8 @@ struct Object;
 struct Mesh;
 struct MTFace;
 struct Scene;
+struct Image;
+struct MTex;
 
 /* materials */
 
@@ -85,6 +87,9 @@ short find_material_index(struct Object *ob, struct Material *ma);
 
 int object_add_material_slot(struct Object *ob);
 int object_remove_material_slot(struct Object *ob);
+
+bool get_mtex_slot_valid_texpaint(struct MTex *);
+struct Image *give_current_texpaint_image(struct Material *ma);
 
 /* rna api */
 void BKE_material_resize_id(struct ID *id, short totcol, bool do_id_user);

@@ -68,6 +68,7 @@
 #include "BKE_image.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
+#include "BKE_material.h"
 #include "BKE_mesh.h"
 #include "BKE_node.h"
 #include "BKE_object.h"
@@ -336,7 +337,24 @@ static const float proj_pixel_soften_v2[PROJ_PIXEL_SOFTEN_TOT][2] = {
 
 /* Finish projection painting structs */
 
-static Image *project_paint_face_image(const ProjPaintState *ps, MTFace *dm_mtface, int face_index)
+static Image *project_paint_face_image(const ProjPaintState *ps, int face_index)
+{
+	Image *ima;
+
+	if (ps->do_new_shading_nodes) { /* cached BKE_scene_use_new_shading_nodes result */
+		MFace *mf = ps->dm_mface + face_index;
+		ED_object_get_active_image(ps->ob, mf->mat_nr + 1, &ima, NULL, NULL);
+	}
+	else {
+		MFace *mf = ps->dm_mface + face_index;
+		Material *ma = give_current_material(ps->ob, mf->mat_nr + 1);
+		ima = give_current_texpaint_image(ma);
+	}
+
+	return ima;
+}
+
+static Image *project_paint_mtface_image(const ProjPaintState *ps, MTFace *dm_mtface, int face_index)
 {
 	Image *ima;
 
@@ -350,6 +368,7 @@ static Image *project_paint_face_image(const ProjPaintState *ps, MTFace *dm_mtfa
 
 	return ima;
 }
+
 
 /* fast projection bucket array lookup, use the safe version for bound checking  */
 static int project_bucket_offset(const ProjPaintState *ps, const float projCoSS[2])
@@ -547,7 +566,7 @@ static int project_paint_PickColor(const ProjPaintState *ps, const float pt[2],
 		interp_v2_v2v2v2(uv, tf->uv[0], tf->uv[2], tf->uv[3], w);
 	}
 
-	ima = project_paint_face_image(ps, ps->dm_mtface, face_index);
+	ima = project_paint_face_image(ps, face_index);
 	ibuf = ima->ibufs.first; /* we must have got the imbuf before getting here */
 	if (!ibuf) return 0;
 
@@ -913,8 +932,8 @@ static int check_seam(const ProjPaintState *ps, const int orig_face, const int o
 
 			/* Only need to check if 'i2_fidx' is valid because we know i1_fidx is the same vert on both faces */
 			if (i2_fidx != -1) {
-				Image *tpage = project_paint_face_image(ps, ps->dm_mtface, face_index);
-				Image *orig_tpage = project_paint_face_image(ps, ps->dm_mtface, orig_face);
+				Image *tpage = project_paint_face_image(ps, face_index);
+				Image *orig_tpage = project_paint_face_image(ps, orig_face);
 
 				/* This IS an adjacent face!, now lets check if the UVs are ok */
 				tf = ps->dm_mtface + face_index;
@@ -1236,7 +1255,7 @@ static float project_paint_uvpixel_mask(
 	if (ps->do_layer_stencil) {
 		/* another UV maps image is masking this one's */
 		ImBuf *ibuf_other;
-		Image *other_tpage = project_paint_face_image(ps, ps->dm_mtface_stencil, face_index);
+		Image *other_tpage = project_paint_mtface_image(ps, ps->dm_mtface_stencil, face_index);
 		const MTFace *tf_other = ps->dm_mtface_stencil + face_index;
 
 		if (other_tpage && (ibuf_other = BKE_image_acquire_ibuf(other_tpage, NULL, NULL))) {
@@ -1444,7 +1463,7 @@ static ProjPixel *project_paint_uvpixel_init(
 	if (ps->tool == PAINT_TOOL_CLONE) {
 		if (ps->dm_mtface_clone) {
 			ImBuf *ibuf_other;
-			Image *other_tpage = project_paint_face_image(ps, ps->dm_mtface_clone, face_index);
+			Image *other_tpage = project_paint_mtface_image(ps, ps->dm_mtface_clone, face_index);
 			const MTFace *tf_other = ps->dm_mtface_clone + face_index;
 
 			if (other_tpage && (ibuf_other = BKE_image_acquire_ibuf(other_tpage, NULL, NULL))) {
@@ -2809,7 +2828,7 @@ static void project_bucket_init(const ProjPaintState *ps, const int thread_index
 			face_index = GET_INT_FROM_POINTER(node->link);
 
 			/* Image context switching */
-			tpage = project_paint_face_image(ps, ps->dm_mtface, face_index);
+			tpage = project_paint_face_image(ps, face_index);
 			if (tpage_last != tpage) {
 				tpage_last = tpage;
 
@@ -3358,7 +3377,7 @@ static void project_paint_begin(ProjPaintState *ps)
 			is_face_sel = true;
 		}
 
-		if (is_face_sel && (tpage = project_paint_face_image(ps, ps->dm_mtface, face_index))) {
+		if (is_face_sel && (tpage = project_paint_face_image(ps, face_index))) {
 			float *v1coSS, *v2coSS, *v3coSS, *v4coSS = NULL;
 
 			v1coSS = ps->screenCoords[mf->v1];

@@ -1252,11 +1252,13 @@ class VIEW3D_PT_tools_projectpaint(View3DPanel, Panel):
         col = layout.column()
 
         if ob:
-            col.label("Paint layers")
+            col.label("Materials")
             col.template_list("MATERIAL_UL_matslots", "", ob, "material_slots", ob, "active_material_index", rows=2)
             mat = ob.active_material;
             if mat:
+                col.label("Available Paint layers")
                 col.template_list("TEXTURE_UL_texpaintslots", "", mat, "texture_paint_slots", mat, "active_paint_texture_index", rows=2)
+                col.label("Only slots with UV mapping and image textures are available")
 
         col.prop(ipaint, "input_samples")
 
