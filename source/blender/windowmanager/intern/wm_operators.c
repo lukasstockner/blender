@@ -4213,24 +4213,16 @@ void add_to_custom_panel_menu(bContext *C, uiLayout *layout, void *arg1)
 
 static int wm_create_custom_panel_poll(bContext *C)
 {
+	ScrArea *sa;
+	ARegion *ar;
 
-	if (CTX_wm_window(C) == NULL) {
+	if (CTX_wm_window(C) == NULL)
 		return 0;
-	} else {
-		ScrArea *sa = CTX_wm_area(C);
-		ARegion *ar;
-		if (sa) {
-			// We should be in a space where there are toolbars
-			//if (!ELEM(sa->spacetype, SPACE_VIEW3D, SPACE_CLIP)) return 0;
-			for (ar = sa->regionbase.first; ar; ar = ar->next) {
-				if (ar->type && ar->type->regionid == RGN_TYPE_TOOLS) {
-					return 1;
-				}
-			}
-		}
-	}
-	// If a RGN_TYPE_TOOLS wasn't found we can't create a panel for it
-	return 0;
+	
+	sa = CTX_wm_area(C);
+	ar = BKE_area_find_region_type(sa, RGN_TYPE_TOOLS);
+		
+	return (ar != NULL);
 }
 
 static int wm_create_custom_panel_exec(bContext *C, wmOperator *UNUSED(op))
@@ -4242,10 +4234,7 @@ static int wm_create_custom_panel_exec(bContext *C, wmOperator *UNUSED(op))
 	int name_taken = 1;
 	
 	// find RGN_TYPE_TOOLS
-	for (ar = sa->regionbase.first; ar; ar = ar->next)
-		if (ar->type && ar->type->regionid == RGN_TYPE_TOOLS)
-			break;
-	
+	ar = BKE_area_find_region_type(sa, RGN_TYPE_TOOLS);
 	if (ar == NULL) return OPERATOR_CANCELLED;
 	
 	// find new name for paneltype
@@ -4274,7 +4263,7 @@ static int wm_create_custom_panel_exec(bContext *C, wmOperator *UNUSED(op))
 	if (name_taken)
 		return OPERATOR_CANCELLED;
 		
-	uiCreateCustomPanelType(sa, ar, CTX_data_mode_string(C), name);
+	uiCreateCustomPanelType(sa, ar, CTX_data_mode_string(C), name, "Custom Panel");
 	
 	MEM_freeN(name);
 	

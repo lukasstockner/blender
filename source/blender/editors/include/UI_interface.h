@@ -686,7 +686,7 @@ void uiPanelAddOperator(struct Panel *pa, const char *optype_idname);
 void uiPanelFree(struct Panel *pa);
 int uiPanelClosed(struct Panel *pa);
 
-struct PanelType  *uiCreateCustomPanelType(struct ScrArea *sa, struct ARegion *ar, const char *context, const char *name);
+struct PanelType  *uiCreateCustomPanelType(struct ScrArea *sa, struct ARegion *ar, const char *context, const char *name, const char *label);
 
 /* Handlers
  *

@@ -933,7 +933,7 @@ void uiBeginPanels(const bContext *C, ARegion *ar)
 		 * and it's the correct context. */
 		if (pa->type == NULL && pa->flag & PNL_CUSTOM_PANEL && strcmp(context, pa->context) == 0) {
 			/*  recreate custom paneltypes for typeless panels */
-			pt = uiCreateCustomPanelType(sa, ar, context, pa->panelname);
+			pt = uiCreateCustomPanelType(sa, ar, context, pa->panelname, pa->drawname);
 			pa->type = pt;
 		}
 	}
@@ -1178,6 +1178,81 @@ static uiBlock *panel_popup_create_block(bContext *C, ARegion *ar, void *pa_arg)
 	return block;
 }
 
+static void rename_custom_panel(bContext *C, void *but_arg, void *pa_arg)
+{
+	uiBut *but = but_arg;
+	Panel *pa = pa_arg;
+	ARegion *ar = CTX_wm_region(C);
+
+	if (pa->type) {
+		BLI_strncpy(pa->type->label, but->drawstr, MAX_NAME);
+		BLI_strncpy(pa->drawname, but->drawstr, MAX_NAME);
+	}
+	
+	ED_region_tag_redraw(ar);
+}
+
+static void delete_custom_panel(bContext *C, void *pa_arg, void *UNUSED(arg2))
+{
+	Panel *pa = pa_arg;
+	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_TOOLS);
+	
+	if (pa->type && ar->type)
+		BLI_freelinkN(&ar->type->paneltypes, pa->type);
+	
+	BLI_remlink(&ar->panels, pa);
+	uiPanelFree(pa);
+	
+	/* make sure we don't leave gaps in the layout */
+	for (pa = ar->panels.first; pa; pa = pa->next) {
+		panel_activate_state(C, pa, PANEL_STATE_ANIMATION);
+	}
+	ED_region_tag_redraw(ar);
+}
+
+static uiBlock *custom_panel_options_create_block(bContext *C, ARegion *ar, void *pa_arg)
+{
+	uiBlock *block;
+	Panel *pa = (Panel*)pa_arg; // the custom panel
+	uiLayout *layout;
+	uiBut *but;
+	PointerRNA ptr;
+	
+	block = uiBeginBlock(C, ar, "panel options", UI_EMBOSS);
+	
+	uiBlockClearFlag(block, UI_BLOCK_LOOP);
+	uiBlockSetFlag(block, UI_BLOCK_MOVEMOUSE_QUIT);
+	
+	uiStyle *style = UI_GetStyleDraw();
+	
+	int xco, yco;
+	int w = UI_PANEL_WIDTH / 2;
+	int em = UI_UNIT_Y;
+		
+	layout = uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_TOOLBAR,
+							style->panelspace, 0, w - 2 * style->panelspace, em, style);
+	
+	/* Rename panel */
+	RNA_pointer_create(NULL, &RNA_Panel, pa, &ptr);
+	
+	but = uiDefButR(block, TEX, 1, "", 0, 0, w, UI_UNIT_Y,
+					&ptr, "text", -1, 0, 0, -1, -1, NULL);
+	uiButSetFunc(but, rename_custom_panel, but, pa);
+
+	
+	/* Delete panel button */
+	but = uiDefIconTextBut(block, BUTM, 0, ICON_NONE, IFACE_("Delete Panel"), 0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
+	uiButSetFunc(but, delete_custom_panel, pa, NULL);
+	
+	uiBlockLayoutResolve(block, &xco, &yco);
+	
+	uiPopupBoundsBlock(block, 6, 0, -UI_UNIT_Y); /* move it downwards, mouse over button */
+	uiEndBlock(C, block);
+	
+	return block;
+}
+
 /* this function is supposed to call general window drawing too */
 /* also it supposes a block has panel, and isn't a menu */
 static void ui_handle_panel_header(bContext *C, uiBlock *block, int mx, int my, int event, int ctrl)
@@ -1330,6 +1405,9 @@ int ui_handler_panel_region(bContext *C, const wmEvent *event)
 				
 				retval = WM_UI_HANDLER_BREAK;
 				continue;
+			}
+			else if (event->type == RIGHTMOUSE && pa->flag & PNL_CUSTOM_PANEL) {
+				uiPupBlock(C, custom_panel_options_create_block, block->panel);
 			}
 		}
 		
@@ -1552,12 +1630,12 @@ static void custom_panel_draw(const bContext *UNUSED(C), Panel *pa)
 	}
 }
 
-PanelType *uiCreateCustomPanelType(ScrArea *sa, ARegion *ar, const char *context, const char *name)
+PanelType *uiCreateCustomPanelType(ScrArea *sa, ARegion *ar, const char *context, const char *name, const char *label)
 {
 	PanelType *pt = MEM_callocN(sizeof(PanelType), "custom panel type");
 	// Create new panel type and add to the current editor's toolbar
 	BLI_strncpy(pt->idname, name, BKE_ST_MAXNAME);
-	strcpy(pt->label, N_("Custom Panel"));
+	strcpy(pt->label, label);
 	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
 	//	pt_new->draw_header = custom_panel_draw_header;
 	pt->draw = custom_panel_draw;
