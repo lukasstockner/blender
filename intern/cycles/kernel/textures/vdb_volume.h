@@ -16,13 +16,13 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __OPENVDB_VOLUME_H__
-#define __OPENVDB_VOLUME_H__
+#ifndef __VDB_VOLUME_H__
+#define __VDB_VOLUME_H__
 
 #include <OSL/oslexec.h>
 #include "util_map.h"
 
-using namespace OIIO;
+using OpenImageIO::ustring;
 
 CCL_NAMESPACE_BEGIN
 
@@ -33,7 +33,7 @@ class OpenVDBUtil;
 class VDBTextureSystem {
 public:
     typedef boost::shared_ptr<VDBVolumeFile> VDBFilePtr;
-    typedef unordered_map<ustring, VDBFilePtr, ustringHash> VDBMap;
+    typedef unordered_map<ustring, VDBFilePtr, OIIO::ustringHash> VDBMap;
     typedef boost::shared_ptr<VDBTextureSystem> Ptr;
     
     static VDBTextureSystem::Ptr init();
@@ -42,7 +42,7 @@ public:
     static bool valid_vdb_file (ustring filename);
     
     bool perform_lookup (ustring filename, OIIO::TextureSystem::Perthread *thread_info,
-                    TextureOpt &options, const Imath::V3f &P, const Imath::V3f &dPdx,
+                         OIIO::TextureOpt &options, const Imath::V3f &P, const Imath::V3f &dPdx,
                     const Imath::V3f &dPdy, const Imath::V3f &dPdz,
                     float *result);
   
@@ -56,4 +56,4 @@ private:
 
 CCL_NAMESPACE_END
 
-#endif /* __OPENVDB_VOLUME_H__ */
+#endif /* __VDB_VOLUME_H__ */

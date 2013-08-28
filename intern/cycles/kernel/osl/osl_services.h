@@ -30,7 +30,7 @@
 #include <OSL/oslexec.h>
 #include <OSL/oslclosure.h>
 
-#include <textures/openvdb_volume.h>
+#include <textures/vdb_volume.h>
 
 CCL_NAMESPACE_BEGIN
 

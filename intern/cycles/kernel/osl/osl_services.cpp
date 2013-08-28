@@ -818,10 +818,10 @@ bool OSLRenderServices::texture3d(ustring filename, TextureOpt &options,
     if (VDBTextureSystem::valid_vdb_file(filename)) {
         VDBTextureSystem::Ptr volume_ts = vdb_ts;
         
-        //std::cout << "Before lookup. FILE: " << filename.string() << " ; POINT: " << P << std::endl;
+        std::cout << "Before lookup. FILE: " << filename.string() << " ; POINT: " << P << std::endl;
         status = volume_ts->perform_lookup(filename, thread_info,
                                            options, P, dPdx, dPdy, dPdz, result);
-        //std::cout << "After lookup. Status: " << status << " ; Result: " << *result << std::endl;
+        std::cout << "After lookup. Status: " << status << " ; Result: " << *result << std::endl;
     }
     else
     {

@@ -16,33 +16,12 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#ifndef __VDB_UTIL_H__
+#define __VDB_UTIL_H__
 
-#include "openvdb_volume.h"
-#include <openvdb/openvdb.h>
+#include "vdb_definitions.h"
 
 CCL_NAMESPACE_BEGIN
-
-typedef struct VDBVolumeFile {    
-	openvdb::io::File file;
-    ustring version;
-    
-	openvdb::GridPtrVecPtr grids;
-    openvdb::MetaMap::Ptr meta;
-
-    VDBVolumeFile(ustring filename) : file(filename.string())
-    {
-        file.open();
-        
-        grids = file.getGrids();
-        meta = file.getMetadata();
-        version = file.version();
-    }
-    ~VDBVolumeFile()
-    {
-        file.close();
-    }
-    
-} VDBVolumeFile;
 
 class OpenVDBUtil
 {
@@ -53,8 +32,9 @@ public:
 	static bool open_file(OIIO::ustring filename, VDBVolumeFile *vdb_volume);
 	static bool is_vdb_volume_file(OIIO::ustring filename);
     static VDBVolumeFile *get_volume_from_file(OIIO::ustring filename);
-    static int get_number_of_grids(VDBVolumeFile vdb_volume);
+    static int get_number_of_grids(VDBVolumeFile &vdb_volume);
     static int nearest_neighbor(float worldCoord);
+    static void print_info(VDBVolumeFile &vdb_file);
     
 private:
     static bool vdb_file_format(ustring filename);
@@ -118,7 +98,7 @@ bool OpenVDBUtil::is_vdb_volume_file(OIIO::ustring filename)
 }
 
 
-int OpenVDBUtil::get_number_of_grids(VDBVolumeFile vdb_volume)
+int OpenVDBUtil::get_number_of_grids(VDBVolumeFile &vdb_volume)
 {
     return vdb_volume.grids->size();
 }
@@ -129,73 +109,54 @@ int OpenVDBUtil::nearest_neighbor(float worldCoord)
     return x;
 }
 
-
-// VDBTextureSystem
-
-VDBTextureSystem::Ptr VDBTextureSystem::init() {
-    OpenVDBUtil::initialize_library();
-    Ptr vdb_ts(new VDBTextureSystem());
-    
-    return vdb_ts;
-}
-
-bool VDBTextureSystem::valid_vdb_file(ustring filename)
+std::string metaToString(
+                 const openvdb::MetaMap::ConstMetaIterator& begin,
+                 const openvdb::MetaMap::ConstMetaIterator& end,
+                 const std::string& indent = "\n")
 {
-        return OpenVDBUtil::is_vdb_volume_file(filename);
-}
-
-bool VDBTextureSystem::perform_lookup(ustring filename, OIIO::TextureSystem::Perthread *thread_info,
-                                      TextureOpt &options, const Imath::V3f &P,
-                                      const Imath::V3f &dPdx,const Imath::V3f &dPdy,
-                                      const Imath::V3f &dPdz, float *result)
-{
-    // check if file is open;
-    VDBMap::const_iterator open_file = vdb_files.find(filename);
-    
-    if (open_file == vdb_files.end())
+    std::ostringstream ostr;
+    char sep[2] = { 0, 0 };
+    for (openvdb::MetaMap::ConstMetaIterator it = begin; it != end; ++it)
     {
-        open_file = add_vdb_to_map(filename);
+        ostr << sep << indent << it->first;
+        if (it->second) {
+            const std::string value = it->second->str();
+            if (!value.empty()) ostr << ": " << value;
+        }
+        sep[0] = '\n';
     }
-
-    VDBFilePtr vdb_p = open_file->second;
-    
-    if (!vdb_p) {
-        return false;
-    }
-    else
-    {    
-        //decide on type of grid; let's say it's a float grid.
-        openvdb::GridPtrVec::const_iterator it = vdb_p->grids->begin();
-        const openvdb::GridBase::Ptr grid = *it;
-        
-        openvdb::FloatGrid::Ptr floatGrid = openvdb::gridPtrCast<openvdb::FloatGrid>(grid);
-        
-        openvdb::FloatGrid::Accessor accessor = floatGrid->getAccessor();
-        
-        float x, y, z = 0;
-        x = OpenVDBUtil::nearest_neighbor(P[0]);
-        y = OpenVDBUtil::nearest_neighbor(P[1]);
-        z = OpenVDBUtil::nearest_neighbor(P[2]);
-        
-        openvdb::Coord point((int)x, (int)y, (int)z);
-        
-        const float myResult(accessor.getValue(point));
-        *result = myResult;
-        
-        return true;
-    }
+    return ostr.str();
 }
 
-VDBTextureSystem::VDBMap::const_iterator VDBTextureSystem::add_vdb_to_map(ustring filename)
+void OpenVDBUtil::print_info(VDBVolumeFile &vdb_file)
 {
-    VDBFilePtr vdb_sp(new VDBVolumeFile(filename));
+    std::string str;
     
-    return (vdb_files.insert(std::make_pair(filename, vdb_sp))).first;
-}
-
-void VDBTextureSystem::free(VDBTextureSystem::Ptr &vdb_ts)
-{
-    vdb_ts.reset();
+    std::cout << "VDB file loaded. Volume details: " << std::endl;
+    
+    // Output basic metadata information.
+    if (vdb_file.meta) {
+        str = metaToString(vdb_file.meta->beginMeta(), vdb_file.meta->endMeta());
+        if (!str.empty()) std::cout << str << "\n";
+    }
+    
+    // Iterate over all grids, and output name and value type.
+    for (openvdb::GridPtrVec::const_iterator it = vdb_file.grids->begin(); it != vdb_file.grids->end(); ++it) {
+        const openvdb::GridBase::ConstPtr grid = *it;
+        if (!grid) continue;
+        
+        std::cout << "Grid name: " << grid->getName() << std::endl
+        << "Grid value type: " <<  grid->valueType() << std::endl;
+    
+        // Print custom metadata, if any.
+        if (vdb_file.meta) {
+            str = metaToString(grid->beginMeta(), grid->endMeta(), " ");
+            if (!str.empty()) std::cout << str << "\n";
+            std::cout << std::flush;
+        }
+    }
 }
 
 CCL_NAMESPACE_END
+
+#endif /* __VDB_UTIL_H__ */

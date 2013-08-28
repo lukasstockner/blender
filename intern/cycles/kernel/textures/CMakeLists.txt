@@ -13,11 +13,14 @@ set(INC_SYS
 )
 
 set(SRC
-	openvdb_volume.cpp
+	vdb_volume.cpp
 )
 
 set(HEADER_SRC
-	openvdb_volume.h
+	vdb_definitions.h
+	vdb_volume.h
+	vdb_lookup.h
+	vdb_util.h
 )
 
 include_directories(${INC})
