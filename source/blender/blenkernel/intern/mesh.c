@@ -46,6 +46,7 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_blenlib.h"
+#include "BLI_memarena.h"
 #include "BLI_math.h"
 #include "BLI_edgehash.h"
 #include "BLI_bitmap.h"
@@ -1931,6 +1932,21 @@ void BKE_mesh_smooth_flag_set(Object *meshOb, int enableSmooth)
 	}
 }
 
+/**
+ * Call when there are no polygons.
+ */
+static void mesh_calc_normals_vert_fallback(MVert *mverts, int numVerts)
+{
+	int i;
+	for (i = 0; i < numVerts; i++) {
+		MVert *mv = &mverts[i];
+		float no[3];
+
+		normalize_v3_v3(no, mv->co);
+		normal_float_to_short_v3(mv->no, no);
+	}
+}
+
 void BKE_mesh_calc_normals_mapping(MVert *mverts, int numVerts,
                                    MLoop *mloop, MPoly *mpolys, int numLoops, int numPolys, float (*polyNors_r)[3],
                                    MFace *mfaces, int numFaces, int *origIndexFace, float (*faceNors_r)[3])
@@ -1952,6 +1968,9 @@ void BKE_mesh_calc_normals_mapping_ex(MVert *mverts, int numVerts,
 	MPoly *mp;
 
 	if (numPolys == 0) {
+		if (only_face_normals == FALSE) {
+			mesh_calc_normals_vert_fallback(mverts, numVerts);
+		}
 		return;
 	}
 
@@ -2715,6 +2734,7 @@ int BKE_mesh_recalc_tessellation(CustomData *fdata,
 	ScanFillContext sf_ctx;
 	ScanFillVert *sf_vert, *sf_vert_last, *sf_vert_first;
 	ScanFillFace *sf_tri;
+	MemArena *sf_arena = NULL;
 	int *mface_to_poly_map;
 	int lindex[4]; /* only ever use 3 in this case */
 	int poly_index, j, mface_index;
@@ -2797,7 +2817,11 @@ int BKE_mesh_recalc_tessellation(CustomData *fdata,
 #endif
 			ml = mloop + mp->loopstart;
 			
-			BLI_scanfill_begin(&sf_ctx);
+			if (UNLIKELY(sf_arena == NULL)) {
+				sf_arena = BLI_memarena_new(BLI_SCANFILL_ARENA_SIZE, __func__);
+			}
+
+			BLI_scanfill_begin_arena(&sf_ctx, sf_arena);
 			sf_vert_first = NULL;
 			sf_vert_last = NULL;
 			for (j = 0; j < mp->totloop; j++, ml++) {
@@ -2849,10 +2873,15 @@ int BKE_mesh_recalc_tessellation(CustomData *fdata,
 				mface_index++;
 			}
 	
-			BLI_scanfill_end(&sf_ctx);
+			BLI_scanfill_end_arena(&sf_ctx, sf_arena);
 
 #undef USE_TESSFACE_CALCNORMAL
 		}
+	}
+
+	if (sf_arena) {
+		BLI_memarena_free(sf_arena);
+		sf_arena = NULL;
 	}
 
 	CustomData_free(fdata, totface);
@@ -3852,9 +3881,7 @@ void BKE_mesh_poly_edgehash_insert(EdgeHash *ehash, const MPoly *mp, const MLoop
 	ml = &ml_next[i - 1];  /* last loop */
 
 	while (i-- != 0) {
-		if (!BLI_edgehash_haskey(ehash, ml->v, ml_next->v)) {
-			BLI_edgehash_insert(ehash, ml->v, ml_next->v, NULL);
-		}
+		BLI_edgehash_reinsert(ehash, ml->v, ml_next->v, NULL);
 
 		ml = ml_next;
 		ml_next++;
