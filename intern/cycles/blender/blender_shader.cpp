@@ -635,7 +635,7 @@ static ShaderNode *add_node(Scene *scene, BL::BlendData b_data, BL::Scene b_scen
 		sky->type = SkyTextureNode::type_enum[(int)b_sky_node.sky_type()];
 		sky->sun_direction = get_float3(b_sky_node.sun_direction());
 		sky->turbidity = b_sky_node.turbidity();
-		sky->albedo = b_sky_node.albedo();
+		sky->ground_albedo = b_sky_node.ground_albedo();
 		get_tex_mapping(&sky->tex_mapping, b_sky_node.texture_mapping());
 		node = sky;
 	}

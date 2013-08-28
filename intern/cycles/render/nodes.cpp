@@ -458,7 +458,7 @@ static void sky_texture_precompute_old(SunSky *sunsky, float3 dir, float turbidi
 }
 
 /* Hosek / Wilkie */
-static void sky_texture_precompute_new(SunSky *sunsky, float3 dir, float turbidity, float albedo)
+static void sky_texture_precompute_new(SunSky *sunsky, float3 dir, float turbidity, float ground_albedo)
 {
 	/* Calculate Sun Direction and save coordinates */
 	float2 spherical = sky_spherical_coordinates(dir);
@@ -472,7 +472,7 @@ static void sky_texture_precompute_new(SunSky *sunsky, float3 dir, float turbidi
 
 	/* Initialize Sky Model */
 	ArHosekSkyModelState *sky_state;
-	sky_state = arhosek_xyz_skymodelstate_alloc_init(turbidity, albedo, solarElevation);
+	sky_state = arhosek_xyz_skymodelstate_alloc_init(turbidity, ground_albedo, solarElevation);
 
 	/* Copy values from sky_state to SunSky */
 	for (int i = 0; i < 9; ++i) {
@@ -507,7 +507,7 @@ SkyTextureNode::SkyTextureNode()
 	
 	sun_direction = make_float3(0.0f, 0.0f, 1.0f);
 	turbidity = 2.2f;
-	albedo = 0.3f;
+	ground_albedo = 0.3f;
 
 	add_input("Vector", SHADER_SOCKET_VECTOR, ShaderInput::POSITION);
 	add_output("Color", SHADER_SOCKET_COLOR);
@@ -522,7 +522,7 @@ void SkyTextureNode::compile(SVMCompiler& compiler)
 	if(type_enum[type] == NODE_SKY_OLD)
 		sky_texture_precompute_old(&sunsky, sun_direction, turbidity);
 	else if(type_enum[type] == NODE_SKY_NEW)
-		sky_texture_precompute_new(&sunsky, sun_direction, turbidity, albedo);
+		sky_texture_precompute_new(&sunsky, sun_direction, turbidity, ground_albedo);
 
 	if(vector_in->link)
 		compiler.stack_assign(vector_in);
@@ -558,7 +558,7 @@ void SkyTextureNode::compile(OSLCompiler& compiler)
 	if(type_enum[type] == NODE_SKY_OLD)
 		sky_texture_precompute_old(&sunsky, sun_direction, turbidity);
 	else if(type_enum[type] == NODE_SKY_NEW)
-		sky_texture_precompute_new(&sunsky, sun_direction, turbidity, albedo);
+		sky_texture_precompute_new(&sunsky, sun_direction, turbidity, ground_albedo);
 		
 	compiler.parameter("sky_model", type);
 	compiler.parameter("theta", sunsky.theta);

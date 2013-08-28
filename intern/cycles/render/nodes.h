@@ -105,7 +105,7 @@ public:
 
 	float3 sun_direction;
 	float turbidity;
-	float albedo;
+	float ground_albedo;
 	
 	ustring type;
 	static ShaderEnum type_enum;

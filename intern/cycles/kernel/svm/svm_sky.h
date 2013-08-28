@@ -107,12 +107,15 @@ __device float3 sky_radiance_new(KernelGlobals *kg, float3 dir,
 
 __device void svm_node_tex_sky(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int *offset)
 {
-	uint dir_offset = node.y, out_offset = node.z;
-	
-	int sky_model = node.w;
+	/* Define variables */
 	float sunphi, suntheta, radiance_x, radiance_y, radiance_z;
 	float config_x[9], config_y[9], config_z[9];
 	
+	/* Load data */
+	uint dir_offset = node.y;
+	uint out_offset = node.z;
+	int sky_model = node.w;
+
 	float4 data = read_node_float(kg, offset);
 	sunphi = data.x;
 	suntheta = data.y;
@@ -164,6 +167,7 @@ __device void svm_node_tex_sky(KernelGlobals *kg, ShaderData *sd, float *stack, 
 	float3 dir = stack_load_float3(stack, dir_offset);
 	float3 f;
 
+	/* Compute Sky */
 	if(sky_model == 0)
 		f = sky_radiance_old(kg, dir, sunphi, suntheta,
 	                             radiance_x, radiance_y, radiance_z,
