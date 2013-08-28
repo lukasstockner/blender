@@ -2985,6 +2985,7 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 			break;
 		case UI_WTYPE_LABEL:
 			wt.draw = NULL;
+			wt.state = widget_state_label;
 			break;
 			
 		case UI_WTYPE_TOGGLE:
