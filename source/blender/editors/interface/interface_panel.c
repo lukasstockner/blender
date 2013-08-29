@@ -75,7 +75,9 @@ typedef enum uiHandlePanelState {
 	PANEL_STATE_DRAG_SCALE,
 	PANEL_STATE_WAIT_UNTAB,
 	PANEL_STATE_ANIMATION,
-	PANEL_STATE_EXIT
+	PANEL_STATE_EXIT,
+	PANEL_STATE_DRAG_BUTTON_WAITING,
+	PANEL_STATE_DRAG_BUTTON
 } uiHandlePanelState;
 
 typedef struct uiHandlePanelData {
@@ -89,6 +91,10 @@ typedef struct uiHandlePanelData {
 	int startx, starty;
 	int startofsx, startofsy;
 	int startsizex, startsizey;
+	
+	/* dragging custom button */
+	OperatorListItem *oli;
+	
 } uiHandlePanelData;
 
 static void panel_activate_state(const bContext *C, Panel *pa, uiHandlePanelState state);
@@ -1109,6 +1115,28 @@ static void ui_do_drag(const bContext *C, const wmEvent *event, Panel *panel)
 	ED_region_tag_redraw(ar);
 }
 
+static void ui_do_drag_button(const bContext *C, const wmEvent *event, Panel *panel)
+{
+	uiHandlePanelData *data = panel->activedata;
+	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar = CTX_wm_region(C);
+
+	// TODO: deal with the reordering of buttons
+	
+	ED_region_tag_redraw(ar);
+}
+
+static void ui_do_drag_button_finish(const bContext *C, const wmEvent *event, Panel *panel)
+{
+	uiHandlePanelData *data = panel->activedata;
+	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar = CTX_wm_region(C);
+	
+	// TODO: finish and clean up the reordering of buttons
+	
+	ED_region_tag_redraw(ar);
+}
+
 /******************* region level panel interaction *****************/
 
 static void panel_popup_draw(bContext *C, uiBlock *block, Panel *pa)
@@ -1301,7 +1329,6 @@ static void ui_handle_panel_header(bContext *C, uiBlock *block, int mx, int my, 
 		case 1:
 			/* collapse */
 			if (ctrl)
-				// TODO: CTRL AKEY doesn't seem to arrive here ~ ack-err
 				uiCollapseAllPanels(sa, ar, CTX_data_mode_string(C));
 
 			if (block->panel->flag & PNL_CLOSED) {
@@ -1393,24 +1420,48 @@ int ui_handler_panel_region(bContext *C, const wmEvent *event)
 		}
 		
 		/* XXX hardcoded key warning */
-		if ((inside || inside_header) && event->val == KM_PRESS) {
-			if (event->type == AKEY && !ELEM4(KM_MOD_FIRST, event->ctrl, event->oskey, event->shift, event->alt)) {
-				
-				if (pa->flag & PNL_CLOSEDY) {
-					if ((block->rect.ymax <= my) && (block->rect.ymax + PNL_HEADER >= my))
+		if (inside || inside_header) {
+			if (event->val == KM_PRESS) {
+				if (event->type == AKEY && !ELEM4(KM_MOD_FIRST, event->ctrl, event->oskey, event->shift, event->alt)) {
+					
+					if (pa->flag & PNL_CLOSEDY) {
+						if ((block->rect.ymax <= my) && (block->rect.ymax + PNL_HEADER >= my))
+							ui_handle_panel_header(C, block, mx, my, event->type, event->ctrl);
+					}
+					else
 						ui_handle_panel_header(C, block, mx, my, event->type, event->ctrl);
+					
+					retval = WM_UI_HANDLER_BREAK;
+					continue;
 				}
-				else
-					ui_handle_panel_header(C, block, mx, my, event->type, event->ctrl);
-				
-				retval = WM_UI_HANDLER_BREAK;
-				continue;
 			}
 		}
 		
-		/* on active button, do not handle panels */
-		if (ui_button_is_active(ar))
+		/* This catches the drag events here so that we can do our own custom drag instead
+		 * of having the drag & drop system handle the button/op drag. */
+		
+		
+		/* on active button, do a possible button drag for reordering, but panels should
+		 * not be handled. */
+		
+		if (ui_button_is_active(ar)) {
+			uiBut *but = ui_but_find_activated(ar);
+			uiHandlePanelData *data;
+			
+			if (inside && but && pa->flag & PNL_CUSTOM_PANEL) {
+				// Are we starting a potential drag?
+				if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
+					panel_activate_state(C, pa, PANEL_STATE_DRAG_BUTTON_WAITING);
+					// pass the oli that is being dragged
+					data = pa->activedata;
+					data->oli = BLI_findstring(&pa->operators, but->optype->idname, offsetof(OperatorListItem, optype_idname));
+				}
+			}
+			
+			// Don't handle events for the panels if a button was activated
 			continue;
+		}
+			
 		
 		if (inside || inside_header) {
 
@@ -1496,13 +1547,17 @@ static int ui_handler_panel(bContext *C, const wmEvent *event, void *userdata)
 {
 	Panel *panel = userdata;
 	uiHandlePanelData *data = panel->activedata;
+	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar = CTX_wm_region(C);
+	uiBut *but;
 
 	/* verify if we can stop */
+	
 	if (event->type == LEFTMOUSE && event->val != KM_PRESS) {
-		ScrArea *sa = CTX_wm_area(C);
-		ARegion *ar = CTX_wm_region(C);
 		int align = panel_aligned(sa, ar);
 
+		if (data->state == PANEL_STATE_DRAG_BUTTON)
+			ui_do_drag_button_finish(C, event, panel);
 		if (align)
 			panel_activate_state(C, panel, PANEL_STATE_ANIMATION);
 		else
@@ -1511,6 +1566,14 @@ static int ui_handler_panel(bContext *C, const wmEvent *event, void *userdata)
 	else if (event->type == MOUSEMOVE) {
 		if (data->state == PANEL_STATE_DRAG)
 			ui_do_drag(C, event, panel);
+		if (data->state == PANEL_STATE_DRAG_BUTTON_WAITING) {
+			panel_activate_state(C, panel, PANEL_STATE_DRAG_BUTTON);
+			but = ui_but_find_activated(ar);
+			ui_button_active_free(C, but);
+			return WM_UI_HANDLER_BREAK;
+		}
+		if (data->state == PANEL_STATE_DRAG_BUTTON)
+			ui_do_drag_button(C, event, panel);
 	}
 	else if (event->type == TIMER && event->customdata == data->animtimer) {
 		if (data->state == PANEL_STATE_ANIMATION)
@@ -1622,11 +1685,21 @@ int uiPanelClosed(Panel *pa)
 
 static void custom_panel_draw(const bContext *UNUSED(C), Panel *pa)
 {
+	uiHandlePanelData *data = pa->activedata;
 	uiLayout *layout = pa->layout;
 	uiLayout *column = uiLayoutColumn(layout, TRUE);
+	const char *idname;
+	OperatorListItem *oli_drag = NULL, *oli;
+	int drag_state = data ? (data->state == PANEL_STATE_DRAG_BUTTON) : 0;
 	
-	for (OperatorListItem *oli = pa->operators.first; oli; oli = oli->next) {
-		uiItemO(column, NULL, ICON_NONE, oli->optype_idname);
+	for (oli = pa->operators.first; oli; oli = oli->next) {
+		if (drag_state && data->oli == oli) {
+			uiItemS(column);
+			uiItemS(column);
+		}
+		else {
+			uiItemO(column, NULL, ICON_NONE, oli->optype_idname);
+		}
 	}
 }
 

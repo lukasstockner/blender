@@ -5545,7 +5545,7 @@ static bool ui_but_contains_pt(uiBut *but, int mx, int my)
 	return BLI_rctf_isect_pt(&but->rect, mx, my);
 }
 
-static uiBut *ui_but_find_activated(ARegion *ar)
+uiBut *ui_but_find_activated(ARegion *ar)
 {
 	uiBlock *block;
 	uiBut *but;

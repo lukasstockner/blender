@@ -517,6 +517,7 @@ extern void ui_pan_to_scroll(const struct wmEvent *event, int *type, int *val);
 extern void ui_button_activate_do(struct bContext *C, struct ARegion *ar, uiBut *but);
 extern void ui_button_execute_do(struct bContext *C, struct ARegion *ar, uiBut *but);
 extern void ui_button_active_free(const struct bContext *C, uiBut *but);
+extern uiBut *ui_but_find_activated(ARegion *ar);
 extern bool ui_button_is_active(struct ARegion *ar);
 extern int ui_button_open_menu_direction(uiBut *but);
 extern void ui_button_text_password_hide(char password_str[UI_MAX_DRAW_STR], uiBut *but, int restore);
