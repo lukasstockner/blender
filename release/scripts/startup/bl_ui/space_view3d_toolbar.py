@@ -505,6 +505,46 @@ class View3DPaintPanel(UnifiedPaintPanel):
     bl_region_type = 'TOOLS'
 
 
+class TEXTURE_UL_texpaintslots(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        # assert(isinstance(item, bpy.types.MaterialTextureSlot)
+        ma = data
+        slot = item
+        tex = slot.texture if slot else None
+
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            # layout.label(text=tex.image.name, translate=False)
+            layout.label(text=tex.name, translate=False, icon_value=icon)
+        elif self.layout_type in {'GRID'}:
+            layout.alignment = 'CENTER'
+            layout.label(text="")
+
+
+class VIEW3D_PT_layers_projectpaint(View3DPanel, Panel):
+    bl_context = "imagepaint"
+    bl_label = "Layers"
+
+    @classmethod
+    def poll(cls, context):
+        brush = context.tool_settings.image_paint.brush
+        ob = context.active_object
+        return (brush is not None and ob is not None)
+
+    def draw(self, context):
+        layout = self.layout
+
+        ob = context.active_object
+        col = layout.column()
+
+        col.label("Materials")
+        col.template_list("MATERIAL_UL_matslots", "", ob, "material_slots", ob, "active_material_index", rows=2)
+        mat = ob.active_material;
+        if mat:
+            col.label("Available Paint layers")
+            col.template_list("TEXTURE_UL_texpaintslots", "", mat, "texture_paint_slots", mat, "active_paint_texture_index", rows=2)
+            #col.label("Only slots with UV mapping and image textures are available")
+
+
 class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
     bl_label = "Brush"
 
@@ -1216,20 +1256,6 @@ class VIEW3D_PT_tools_vertexpaint(Panel, View3DPaintPanel):
 
 # ********** default tools for texture-paint ****************
 
-class TEXTURE_UL_texpaintslots(UIList):
-    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-        # assert(isinstance(item, bpy.types.MaterialTextureSlot)
-        ma = data
-        slot = item
-        tex = slot.texture if slot else None
-
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            # layout.label(text=tex.image.name, translate=False)
-            layout.label(text=tex.name, translate=False, icon_value=icon)
-        elif self.layout_type in {'GRID'}:
-            layout.alignment = 'CENTER'
-            layout.label(text="")
-
 
 class VIEW3D_PT_tools_projectpaint(View3DPanel, Panel):
     bl_context = "imagepaint"
@@ -1250,15 +1276,6 @@ class VIEW3D_PT_tools_projectpaint(View3DPanel, Panel):
         settings = toolsettings.image_paint
 
         col = layout.column()
-
-        if ob:
-            col.label("Materials")
-            col.template_list("MATERIAL_UL_matslots", "", ob, "material_slots", ob, "active_material_index", rows=2)
-            mat = ob.active_material;
-            if mat:
-                col.label("Available Paint layers")
-                col.template_list("TEXTURE_UL_texpaintslots", "", mat, "texture_paint_slots", mat, "active_paint_texture_index", rows=2)
-                col.label("Only slots with UV mapping and image textures are available")
 
         col.prop(ipaint, "input_samples")
 
