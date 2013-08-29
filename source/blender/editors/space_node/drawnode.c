@@ -809,9 +809,13 @@ static void node_shader_buts_tex_environment(uiLayout *layout, bContext *C, Poin
 }
 
 static void node_shader_buts_tex_sky(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
-{
+{	
+	uiItemR(layout, ptr, "sky_type", 0, "", ICON_NONE);
 	uiItemR(layout, ptr, "sun_direction", 0, "", ICON_NONE);
 	uiItemR(layout, ptr, "turbidity", 0, NULL, ICON_NONE);
+
+	if (RNA_enum_get(ptr, "sky_type") == SHD_SKY_NEW)
+		uiItemR(layout, ptr, "ground_albedo", 0, NULL, ICON_NONE);
 }
 
 static void node_shader_buts_tex_gradient(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
@@ -1628,12 +1632,14 @@ static void node_composit_buts_file_output_details(uiLayout *layout, bContext *C
 	active_index = RNA_int_get(ptr, "active_input_index");
 	/* using different collection properties if multilayer format is enabled */
 	if (multilayer) {
-		uiTemplateList(col, C, "UI_UL_list", "file_output_node", ptr, "layer_slots", ptr, "active_input_index", 0, 0, 0);
+		uiTemplateList(col, C, "UI_UL_list", "file_output_node", ptr, "layer_slots", ptr, "active_input_index",
+		               0, 0, 0, 0);
 		RNA_property_collection_lookup_int(ptr, RNA_struct_find_property(ptr, "layer_slots"),
 		                                   active_index, &active_input_ptr);
 	}
 	else {
-		uiTemplateList(col, C, "UI_UL_list", "file_output_node", ptr, "file_slots", ptr, "active_input_index", 0, 0, 0);
+		uiTemplateList(col, C, "UI_UL_list", "file_output_node", ptr, "file_slots", ptr, "active_input_index",
+		               0, 0, 0, 0);
 		RNA_property_collection_lookup_int(ptr, RNA_struct_find_property(ptr, "file_slots"),
 		                                   active_index, &active_input_ptr);
 	}

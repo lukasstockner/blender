@@ -46,19 +46,11 @@
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
+#include "BLI_fnmatch.h"
 
 #include "../blenkernel/BKE_blender.h"  /* BLENDER_VERSION, bad level include (no function call) */
 
 #include "GHOST_Path-api.h"
-
-#if defined WIN32 && !defined _LIBC  || defined __sun
-#  include "BLI_fnmatch.h" /* use fnmatch included in blenlib */
-#else
-#  ifndef _GNU_SOURCE
-#    define _GNU_SOURCE
-#  endif
-#  include <fnmatch.h>
-#endif
 
 #ifdef WIN32
 #  include "utf_winfunc.h"
@@ -1647,6 +1639,16 @@ bool BLI_ensure_extension(char *path, size_t maxlen, const char *ext)
 
 	memcpy(path + a, ext, ext_len + 1);
 	return true;
+}
+
+bool BLI_ensure_filename(char *filepath, size_t maxlen, const char *filename)
+{
+	char *c = (char *)BLI_last_slash(filepath);
+	if (!c || ((c - filepath) < maxlen - (strlen(filename) + 1))) {
+		strcpy(c ? &c[1] : filepath, filename);
+		return true;
+	}
+	return false;
 }
 
 /* Converts "/foo/bar.txt" to "/foo/" and "bar.txt"
