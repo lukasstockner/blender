@@ -364,7 +364,7 @@ static Image *imapaint_face_image(DerivedMesh *dm, Scene *scene, Object *ob, int
 	else {
 		MFace *mf = dm_mface + face_index;
 		Material *ma = give_current_material(ob, mf->mat_nr + 1);
-		ima = give_current_texpaint_image(ma);
+		ima = ma->texpaintima;
 	}
 
 	return ima;
@@ -401,6 +401,8 @@ void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool texpaint_pr
 			unsigned int faceindex;
 			unsigned int totface = dm->getNumTessFaces(dm);
 			MTFace *dm_mtface = dm->getTessFaceDataArray(dm, CD_MTFACE);
+
+			refresh_object_texpaint_images(ob);
 
 			if (dm_mtface) {
 				view3d_set_viewcontext(C, &vc);

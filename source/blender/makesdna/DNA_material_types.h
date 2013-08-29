@@ -137,6 +137,8 @@ typedef struct Material {
 
 	/* texture painting */
 	char texactpaint;
+	struct Image *texpaintima; /* cached image for painting. Make sure to recalculate before use
+	                            * with refresh_texpaint_image_cache */
 
 	/* shaders */
 	short diff_shader, spec_shader;

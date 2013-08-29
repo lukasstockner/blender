@@ -89,7 +89,9 @@ int object_add_material_slot(struct Object *ob);
 int object_remove_material_slot(struct Object *ob);
 
 bool get_mtex_slot_valid_texpaint(struct MTex *);
-struct Image *give_current_texpaint_image(struct Material *ma);
+void refresh_texpaint_image_cache(struct Material *ma);
+struct MTex *give_current_texpaint_slot(struct Material *ma);
+void refresh_object_texpaint_images(struct Object*);
 
 /* rna api */
 void BKE_material_resize_id(struct ID *id, short totcol, bool do_id_user);

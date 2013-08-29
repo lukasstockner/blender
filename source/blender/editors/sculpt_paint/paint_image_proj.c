@@ -348,7 +348,7 @@ static Image *project_paint_face_image(const ProjPaintState *ps, int face_index)
 	else {
 		MFace *mf = ps->dm_mface + face_index;
 		Material *ma = give_current_material(ps->ob, mf->mat_nr + 1);
-		ima = give_current_texpaint_image(ma);
+		ima = ma->texpaintima;
 	}
 
 	return ima;
@@ -4496,6 +4496,7 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 void *paint_proj_new_stroke(bContext *C, Object *ob, const float mouse[2], int mode)
 {
 	ProjPaintState *ps = MEM_callocN(sizeof(ProjPaintState), "ProjectionPaintState");
+	refresh_object_texpaint_images(ob);
 	project_state_init(C, ob, ps, mode);
 
 	if (ps->tool == PAINT_TOOL_CLONE && mode == BRUSH_STROKE_INVERT) {
