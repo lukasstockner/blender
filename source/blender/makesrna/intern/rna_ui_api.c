@@ -432,8 +432,8 @@ void RNA_api_ui_layout(StructRNA *srna)
 	                                "Sub-layout. Items placed in this sublayout are placed next to each other "
 	                                "in a row");
 	RNA_def_boolean(func, "align", 0, "", "Align buttons to each other");
-	parm = RNA_def_int(func, "button_height", 1, 1, 5, "",
-					   "The multiplier for the height of buttons in this new layout.", 1, 5);
+	parm = RNA_def_float(func, "button_height", 1.0f, 1.0f, 5.0f, "",
+					   "The multiplier for the height of buttons in this new layout.", 1.0f, 5.0f);
 	
 	func = RNA_def_function(srna, "column", "uiLayoutColumnWithButtonHeight");
 	parm = RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in");
@@ -442,8 +442,8 @@ void RNA_api_ui_layout(StructRNA *srna)
 	                                "Sub-layout. Items placed in this sublayout are placed under each other "
 	                                "in a column");
 	RNA_def_boolean(func, "align", 0, "", "Align buttons to each other");
-	parm = RNA_def_int(func, "button_height", 1, 1, 5, "",
-					   "The multiplier for the height of buttons in this new layout.", 1, 5);
+	parm = RNA_def_float(func, "button_height", 1.0f, 1.0f, 5.0f, "",
+						 "The multiplier for the height of buttons in this new layout.", 1.0f, 5.0f);
 
 	func = RNA_def_function(srna, "column_flow", "uiLayoutColumnFlow");
 	RNA_def_int(func, "columns", 0, 0, INT_MAX, "", "Number of columns, 0 is automatic", 0, INT_MAX);
@@ -642,6 +642,15 @@ void RNA_api_ui_layout(StructRNA *srna)
 	RNA_def_string(func, "unlink", "", 0, "", "Operator identifier to unlink the ID block");
 	
 	func = RNA_def_function(srna, "template_ID_preview", "uiTemplateIDPreview");
+	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+	api_ui_item_rna_common(func);
+	RNA_def_string(func, "new", "", 0, "", "Operator identifier to create a new ID block");
+	RNA_def_string(func, "open", "", 0, "", "Operator identifier to open a file for creating a new ID block");
+	RNA_def_string(func, "unlink", "", 0, "", "Operator identifier to unlink the ID block");
+	RNA_def_int(func, "rows", 0, 0, INT_MAX, "Number of thumbnail preview rows to display", "", 0, INT_MAX);
+	RNA_def_int(func, "cols", 0, 0, INT_MAX, "Number of thumbnail preview columns to display", "", 0, INT_MAX);
+	
+	func = RNA_def_function(srna, "template_ID_preview_brush", "uiTemplateIDPreviewBrush");
 	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 	api_ui_item_rna_common(func);
 	RNA_def_string(func, "new", "", 0, "", "Operator identifier to create a new ID block");

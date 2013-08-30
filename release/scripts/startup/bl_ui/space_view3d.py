@@ -44,17 +44,27 @@ class VIEW3D_HT_header(Header):
 
             sub.menu("VIEW3D_MT_view")
 
-            # if edit_object:
-            #     sub.menu("VIEW3D_MT_edit_%s" % edit_object.type.lower())
-            # elif obj:
-            #     if mode_string not in {'PAINT_TEXTURE'}:
-            #         sub.menu("VIEW3D_MT_%s" % mode_string.lower())
-            #     if mode_string in {'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'PAINT_TEXTURE'}:
-            #         sub.menu("VIEW3D_MT_brush")
-            #     if mode_string == 'SCULPT':
-            #         sub.menu("VIEW3D_MT_hide_mask")
-            # else:
-            #     sub.menu("VIEW3D_MT_object")
+            # Select Menu
+            if mode_string in {'PAINT_WEIGHT', 'PAINT_VERTEX', 'PAINT_TEXTURE'}:
+                mesh = obj.data
+                if mesh.use_paint_mask:
+                    sub.menu("VIEW3D_MT_select_paint_mask")
+                elif mesh.use_paint_mask_vertex and mode_string == 'PAINT_WEIGHT':
+                    sub.menu("VIEW3D_MT_select_paint_mask_vertex")
+            elif mode_string not in {'EDIT_TEXT', 'SCULPT'}:
+                sub.menu("VIEW3D_MT_select_%s" % mode_string.lower())
+
+            if edit_object:
+                sub.menu("VIEW3D_MT_edit_%s" % edit_object.type.lower())
+            elif obj:
+                if mode_string not in {'PAINT_TEXTURE'}:
+                    sub.menu("VIEW3D_MT_%s" % mode_string.lower())
+                if mode_string in {'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'PAINT_TEXTURE'}:
+                    sub.menu("VIEW3D_MT_brush")
+                if mode_string == 'SCULPT':
+                    sub.menu("VIEW3D_MT_hide_mask")
+            else:
+                sub.menu("VIEW3D_MT_object")
 
         # Contains buttons like Mode, Pivot, Manipulator, Layer, Mesh Select Mode...
         row = layout
@@ -1624,7 +1634,9 @@ class VIEW3D_MT_pose_library(Menu):
         layout = self.layout
 
         layout.operator("poselib.browse_interactive", text="Browse Poses...")
+
         layout.separator()
+
         layout.operator("poselib.pose_add", text="Add Pose...")
         layout.operator("poselib.pose_rename", text="Rename Pose...")
         layout.operator("poselib.pose_remove", text="Remove Pose...")

@@ -404,21 +404,21 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 	// ListBase *lb; // UNUSED
 	ID *id, *idfrom;
 	int editable = RNA_property_editable(&template->ptr, template->prop);
-
+	
 	idptr = RNA_property_pointer_get(&template->ptr, template->prop);
 	id = idptr.data;
 	idfrom = template->ptr.id.data;
 	// lb = template->idlb;
-
+	
 	block = uiLayoutGetBlock(layout);
 	uiBlockBeginAlign(block);
-
+	
 	if (idptr.type)
 		type = idptr.type;
-
+	
 	if (flag & UI_ID_PREVIEWS) {
 		template->preview = true;
-
+		
 		but = uiDefBlockButN(block, id_search_menu, MEM_dupallocN(template), "", 0, 0, UI_UNIT_X * 6, UI_UNIT_Y * 6,
 		                     TIP_(template_id_browse_tip(type)));
 		if (type) {
@@ -434,32 +434,32 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 	else if (flag & UI_ID_BROWSE) {
 		but = uiDefBlockButN(block, id_search_menu, MEM_dupallocN(template), "", 0, 0, UI_UNIT_X * 1.6, UI_UNIT_Y,
 		                     TIP_(template_id_browse_tip(type)));
-
+		
 		uiButSetDrawFlag(but, UI_BUT_DRAW_ENUM_ARROWS);
-
+		
 		if (type) {
 			but->icon = RNA_struct_ui_icon(type);
 			/* default dragging of icon for id browse buttons */
 			uiButSetDragID(but, id);
 			uiButSetFlag(but, UI_HAS_ICON | UI_ICON_LEFT);
 		}
-
+		
 		if ((idfrom && idfrom->lib) || !editable)
 			uiButSetFlag(but, UI_BUT_DISABLED);
 	}
-
+	
 	/* text button with name */
 	if (id) {
 		char name[UI_MAX_NAME_STR];
 		const short user_alert = (id->us <= 0);
-
+		
 		//text_idbutton(id, name);
 		name[0] = '\0';
 		but = uiDefButR(block, TEX, 0, name, 0, 0, UI_UNIT_X * 6, UI_UNIT_Y,
 		                &idptr, "name", -1, 0, 0, -1, -1, RNA_struct_ui_description(type));
 		uiButSetNFunc(but, template_id_cb, MEM_dupallocN(template), SET_INT_IN_POINTER(UI_ID_RENAME));
 		if (user_alert) uiButSetFlag(but, UI_BUT_REDALERT);
-
+		
 		if (id->lib) {
 			if (id->flag & LIB_INDIRECT) {
 				but = uiDefIconBut(block, BUT, 0, ICON_LIBRARY_DATA_INDIRECT, 0, 0, UI_UNIT_X, UI_UNIT_Y,
@@ -472,19 +472,19 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 				if (!id_make_local(id, true /* test */) || (idfrom && idfrom->lib))
 					uiButSetFlag(but, UI_BUT_DISABLED);
 			}
-
+			
 			uiButSetNFunc(but, template_id_cb, MEM_dupallocN(template), SET_INT_IN_POINTER(UI_ID_LOCAL));
 		}
-
+		
 		if (id->us > 1) {
 			char numstr[32];
-
+			
 			BLI_snprintf(numstr, sizeof(numstr), "%d", id->us);
-
+			
 			but = uiDefBut(block, BUT, 0, numstr, 0, 0, UI_UNIT_X + ((id->us < 10) ? 0 : 10), UI_UNIT_Y,
 			               NULL, 0, 0, 0, 0,
 			               TIP_("Display number of users of this data (click to make a single-user copy)"));
-
+			
 			uiButSetNFunc(but, template_id_cb, MEM_dupallocN(template), SET_INT_IN_POINTER(UI_ID_ALONE));
 			if (/* test only */
 			    (id_copy(id, NULL, true) == false) ||
@@ -496,12 +496,197 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 				uiButSetFlag(but, UI_BUT_DISABLED);
 			}
 		}
-	
+		
 		if (user_alert) uiButSetFlag(but, UI_BUT_REDALERT);
 		
 		if (id->lib == NULL && !(ELEM5(GS(id->name), ID_GR, ID_SCE, ID_SCR, ID_TXT, ID_OB))) {
 			uiDefButR(block, TOG, 0, "F", 0, 0, UI_UNIT_X, UI_UNIT_Y, &idptr, "use_fake_user", -1, 0, 0, -1, -1, NULL);
 		}
+	}
+	
+	if (flag & UI_ID_ADD_NEW) {
+		int w = id ? UI_UNIT_X : (flag & UI_ID_OPEN) ? UI_UNIT_X * 3 : UI_UNIT_X * 6;
+		
+		/* i18n markup, does nothing! */
+		BLF_I18N_MSGID_MULTI_CTXT("New", BLF_I18NCONTEXT_DEFAULT,
+								  BLF_I18NCONTEXT_ID_SCENE,
+								  BLF_I18NCONTEXT_ID_OBJECT,
+								  BLF_I18NCONTEXT_ID_MESH,
+								  BLF_I18NCONTEXT_ID_CURVE,
+								  BLF_I18NCONTEXT_ID_METABALL,
+								  BLF_I18NCONTEXT_ID_MATERIAL,
+								  BLF_I18NCONTEXT_ID_TEXTURE,
+								  BLF_I18NCONTEXT_ID_IMAGE,
+								  BLF_I18NCONTEXT_ID_LATTICE,
+								  BLF_I18NCONTEXT_ID_LAMP,
+								  BLF_I18NCONTEXT_ID_CAMERA,
+								  BLF_I18NCONTEXT_ID_WORLD,
+								  BLF_I18NCONTEXT_ID_SCREEN,
+								  BLF_I18NCONTEXT_ID_TEXT,
+								  );
+		BLF_I18N_MSGID_MULTI_CTXT("New", BLF_I18NCONTEXT_ID_SPEAKER,
+								  BLF_I18NCONTEXT_ID_SOUND,
+								  BLF_I18NCONTEXT_ID_ARMATURE,
+								  BLF_I18NCONTEXT_ID_ACTION,
+								  BLF_I18NCONTEXT_ID_NODETREE,
+								  BLF_I18NCONTEXT_ID_BRUSH,
+								  BLF_I18NCONTEXT_ID_PARTICLESETTINGS,
+								  BLF_I18NCONTEXT_ID_GPENCIL,
+								  BLF_I18NCONTEXT_ID_FREESTYLELINESTYLE,
+								  );
+		
+		if (newop) {
+			but = uiDefIconTextButO(block, BUT, newop, WM_OP_INVOKE_DEFAULT, ICON_ZOOMIN,
+			                        (id) ? "" : CTX_IFACE_(template_id_context(type), "New"), 0, 0, w, UI_UNIT_Y, NULL);
+			uiButSetNFunc(but, template_id_cb, MEM_dupallocN(template), SET_INT_IN_POINTER(UI_ID_ADD_NEW));
+		}
+		else {
+			but = uiDefIconTextBut(block, BUT, 0, ICON_ZOOMIN, (id) ? "" : CTX_IFACE_(template_id_context(type), "New"),
+			                       0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, NULL);
+			uiButSetNFunc(but, template_id_cb, MEM_dupallocN(template), SET_INT_IN_POINTER(UI_ID_ADD_NEW));
+		}
+		
+		if ((idfrom && idfrom->lib) || !editable)
+			uiButSetFlag(but, UI_BUT_DISABLED);
+	}
+	
+	/* Due to space limit in UI - skip the "open" icon for packed data, and allow to unpack.
+	 * Only for images, sound and fonts */
+	if (id && BKE_pack_check(id)) {
+		but = uiDefIconButO(block, BUT, "FILE_OT_unpack_item", WM_OP_INVOKE_REGION_WIN, ICON_PACKAGE, 0, 0,
+		                    UI_UNIT_X, UI_UNIT_Y, TIP_("Packed File, click to unpack"));
+		uiButGetOperatorPtrRNA(but);
+		
+		RNA_string_set(but->opptr, "id_name", id->name + 2);
+		RNA_int_set(but->opptr, "id_type", GS(id->name));
+		
+	}
+	else if (flag & UI_ID_OPEN) {
+		int w = id ? UI_UNIT_X : (flag & UI_ID_ADD_NEW) ? UI_UNIT_X * 3 : UI_UNIT_X * 6;
+		
+		if (openop) {
+			but = uiDefIconTextButO(block, BUT, openop, WM_OP_INVOKE_DEFAULT, ICON_FILESEL, (id) ? "" : IFACE_("Open"),
+			                        0, 0, w, UI_UNIT_Y, NULL);
+			uiButSetNFunc(but, template_id_cb, MEM_dupallocN(template), SET_INT_IN_POINTER(UI_ID_OPEN));
+		}
+		else {
+			but = uiDefIconTextBut(block, BUT, 0, ICON_FILESEL, (id) ? "" : IFACE_("Open"), 0, 0, w, UI_UNIT_Y,
+			                       NULL, 0, 0, 0, 0, NULL);
+			uiButSetNFunc(but, template_id_cb, MEM_dupallocN(template), SET_INT_IN_POINTER(UI_ID_OPEN));
+		}
+		
+		if ((idfrom && idfrom->lib) || !editable)
+			uiButSetFlag(but, UI_BUT_DISABLED);
+	}
+	
+	/* delete button */
+	/* don't use RNA_property_is_unlink here */
+	if (id && (flag & UI_ID_DELETE) && (RNA_property_flag(template->prop) & PROP_NEVER_UNLINK) == 0) {
+		if (unlinkop) {
+			but = uiDefIconButO(block, BUT, unlinkop, WM_OP_INVOKE_REGION_WIN, ICON_X, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL);
+			/* so we can access the template from operators, font unlinking needs this */
+			uiButSetNFunc(but, NULL, MEM_dupallocN(template), NULL);
+		}
+		else {
+			but = uiDefIconBut(block, BUT, 0, ICON_X, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0, 0, 0, 0,
+			                   TIP_("Unlink datablock "
+			                        "(Shift + Click to set users to zero, data will then not be saved)"));
+			uiButSetNFunc(but, template_id_cb, MEM_dupallocN(template), SET_INT_IN_POINTER(UI_ID_DELETE));
+			
+			if (RNA_property_flag(template->prop) & PROP_NEVER_NULL)
+				uiButSetFlag(but, UI_BUT_DISABLED);
+		}
+		
+		if ((idfrom && idfrom->lib) || !editable)
+			uiButSetFlag(but, UI_BUT_DISABLED);
+	}
+	
+	if (idcode == ID_TE)
+		uiTemplateTextureShow(layout, C, &template->ptr, template->prop);
+	
+	uiBlockEndAlign(block);
+}
+
+static void template_ID_brush(bContext *C, uiLayout *layout, TemplateID *template, StructRNA *type, short idcode, int flag,
+                        const char *newop, const char *UNUSED(openop), const char *unlinkop)
+{
+	uiBut *but;
+	uiBlock *block;
+	uiLayout *row, *col;
+	PointerRNA idptr;
+	ID *id, *idfrom;
+	int editable = RNA_property_editable(&template->ptr, template->prop);
+
+	idptr = RNA_property_pointer_get(&template->ptr, template->prop);
+	id = idptr.data;
+	idfrom = template->ptr.id.data;
+
+	block = uiLayoutGetBlock(layout);
+	uiBlockBeginAlign(block);
+
+	if (idptr.type)
+		type = idptr.type;
+
+	template->preview = true;
+	row = uiLayoutRow(layout, TRUE);
+	
+	/* left part of the brush */
+	col = uiLayoutColumn(row, TRUE);
+	but = uiDefBlockButN(block, id_search_menu, MEM_dupallocN(template), "", 0, 0, UI_UNIT_X * 2, UI_UNIT_Y * 2,
+						 TIP_(template_id_browse_tip(type)));
+	if (type) {
+		but->icon = RNA_struct_ui_icon(type);
+		if (id) but->icon = ui_id_icon_get(C, id, true);
+		uiButSetFlag(but, UI_HAS_ICON | UI_ICON_PREVIEW);
+	}
+	if ((idfrom && idfrom->lib) || !editable)
+		uiButSetFlag(but, UI_BUT_DISABLED);
+	
+	uiItemS(row);
+
+	/* right part */
+	col = uiLayoutColumn(row, TRUE);
+	
+	/* first row: text button with name */
+	row = uiLayoutRow(col, TRUE);
+	char name[UI_MAX_NAME_STR];
+	const short user_alert = (id->us <= 0);
+
+	//text_idbutton(id, name);
+	name[0] = '\0';
+	but = uiDefButR(block, TEX, 0, name, 0, 0, UI_UNIT_X * 6, UI_UNIT_Y,
+					&idptr, "name", -1, 0, 0, -1, -1, RNA_struct_ui_description(type));
+	uiButSetNFunc(but, template_id_cb, MEM_dupallocN(template), SET_INT_IN_POINTER(UI_ID_RENAME));
+	if (user_alert) uiButSetFlag(but, UI_BUT_REDALERT);
+
+	/* second row */
+	row = uiLayoutRow(col, TRUE);
+		
+	if (id->us > 1) {
+		char numstr[32];
+
+		BLI_snprintf(numstr, sizeof(numstr), "%d", id->us);
+
+		but = uiDefBut(block, BUT, 0, numstr, 0, 0, 6 * UI_UNIT_X + ((id->us < 10) ? 0 : 10), UI_UNIT_Y,
+					   NULL, 0, 0, 0, 0,
+					   TIP_("Display number of users of this data (click to make a single-user copy)"));
+
+		uiButSetNFunc(but, template_id_cb, MEM_dupallocN(template), SET_INT_IN_POINTER(UI_ID_ALONE));
+		if (/* test only */
+			(id_copy(id, NULL, true) == false) ||
+			(idfrom && idfrom->lib) ||
+			(editable == FALSE) ||
+			/* object in editmode - don't change data */
+			(idfrom && GS(idfrom->name) == ID_OB && (((Object *)idfrom)->mode & OB_MODE_EDIT)))
+		{
+			uiButSetFlag(but, UI_BUT_DISABLED);
+		}
+	}
+
+	if (user_alert) uiButSetFlag(but, UI_BUT_REDALERT);
+	
+	if (id->lib == NULL && !(ELEM5(GS(id->name), ID_GR, ID_SCE, ID_SCR, ID_TXT, ID_OB))) {
+		uiDefButR(block, TOG, 0, "F", 0, 0, UI_UNIT_X, UI_UNIT_Y, &idptr, "use_fake_user", -1, 0, 0, -1, -1, NULL);
 	}
 	
 	if (flag & UI_ID_ADD_NEW) {
@@ -549,35 +734,6 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 		if ((idfrom && idfrom->lib) || !editable)
 			uiButSetFlag(but, UI_BUT_DISABLED);
 	}
-
-	/* Due to space limit in UI - skip the "open" icon for packed data, and allow to unpack.
-	 * Only for images, sound and fonts */
-	if (id && BKE_pack_check(id)) {
-		but = uiDefIconButO(block, BUT, "FILE_OT_unpack_item", WM_OP_INVOKE_REGION_WIN, ICON_PACKAGE, 0, 0,
-		                    UI_UNIT_X, UI_UNIT_Y, TIP_("Packed File, click to unpack"));
-		uiButGetOperatorPtrRNA(but);
-		
-		RNA_string_set(but->opptr, "id_name", id->name + 2);
-		RNA_int_set(but->opptr, "id_type", GS(id->name));
-		
-	}
-	else if (flag & UI_ID_OPEN) {
-		int w = id ? UI_UNIT_X : (flag & UI_ID_ADD_NEW) ? UI_UNIT_X * 3 : UI_UNIT_X * 6;
-		
-		if (openop) {
-			but = uiDefIconTextButO(block, BUT, openop, WM_OP_INVOKE_DEFAULT, ICON_FILESEL, (id) ? "" : IFACE_("Open"),
-			                        0, 0, w, UI_UNIT_Y, NULL);
-			uiButSetNFunc(but, template_id_cb, MEM_dupallocN(template), SET_INT_IN_POINTER(UI_ID_OPEN));
-		}
-		else {
-			but = uiDefIconTextBut(block, BUT, 0, ICON_FILESEL, (id) ? "" : IFACE_("Open"), 0, 0, w, UI_UNIT_Y,
-			                       NULL, 0, 0, 0, 0, NULL);
-			uiButSetNFunc(but, template_id_cb, MEM_dupallocN(template), SET_INT_IN_POINTER(UI_ID_OPEN));
-		}
-
-		if ((idfrom && idfrom->lib) || !editable)
-			uiButSetFlag(but, UI_BUT_DISABLED);
-	}
 	
 	/* delete button */
 	/* don't use RNA_property_is_unlink here */
@@ -608,7 +764,7 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 }
 
 static void ui_template_id(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, const char *newop,
-                           const char *openop, const char *unlinkop, int flag, int prv_rows, int prv_cols)
+                           const char *openop, const char *unlinkop, int flag, int prv_rows, int prv_cols, int brush)
 {
 	TemplateID *template;
 	PropertyRNA *prop;
@@ -642,7 +798,13 @@ static void ui_template_id(uiLayout *layout, bContext *C, PointerRNA *ptr, const
 	 */
 	if (template->idlb) {
 		uiLayoutRow(layout, TRUE);
-		template_ID(C, layout, template, type, idcode, flag, newop, openop, unlinkop);
+		if (brush) {
+			template_ID_brush(C, layout, template, type, idcode, flag, newop, openop, unlinkop);
+		}
+		else {
+			template_ID(C, layout, template, type, idcode, flag, newop, openop, unlinkop);
+		}
+
 	}
 
 	MEM_freeN(template);
@@ -652,21 +814,29 @@ void uiTemplateID(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *pr
                   const char *openop, const char *unlinkop)
 {
 	ui_template_id(layout, C, ptr, propname, newop, openop, unlinkop,
-	               UI_ID_BROWSE | UI_ID_RENAME | UI_ID_DELETE, 0, 0);
+	               UI_ID_BROWSE | UI_ID_RENAME | UI_ID_DELETE, 0, 0, FALSE);
 }
 
 void uiTemplateIDBrowse(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, const char *newop,
                         const char *openop, const char *unlinkop)
 {
-	ui_template_id(layout, C, ptr, propname, newop, openop, unlinkop, UI_ID_BROWSE | UI_ID_RENAME, 0, 0);
+	ui_template_id(layout, C, ptr, propname, newop, openop, unlinkop, UI_ID_BROWSE | UI_ID_RENAME, 0, 0, FALSE);
 }
 
 void uiTemplateIDPreview(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, const char *newop,
                          const char *openop, const char *unlinkop, int rows, int cols)
 {
 	ui_template_id(layout, C, ptr, propname, newop, openop, unlinkop,
-	               UI_ID_BROWSE | UI_ID_RENAME | UI_ID_DELETE | UI_ID_PREVIEWS, rows, cols);
+	               UI_ID_BROWSE | UI_ID_RENAME | UI_ID_DELETE | UI_ID_PREVIEWS, rows, cols, FALSE);
 }
+
+void uiTemplateIDPreviewBrush(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, const char *newop,
+                         const char *openop, const char *unlinkop, int rows, int cols)
+{
+	ui_template_id(layout, C, ptr, propname, newop, openop, unlinkop,
+	               UI_ID_BROWSE | UI_ID_RENAME | UI_ID_DELETE | UI_ID_PREVIEWS, rows, cols, TRUE);
+}
+
 
 /************************ ID Chooser Template ***************************/
 

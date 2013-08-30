@@ -30,54 +30,221 @@ class View3DPanel():
 
 # ********** common tools for two or more modes ****************
 
-# class VIEW3D_PT_tools_modeswitch(View3DPanel, Panel):
-#     bl_label = "Modes"
+def history_panel(mode):
+    class cls(View3DPanel, Panel):
+        bl_context = mode
+        bl_label = "History"
 
-#     def draw(self, context):
-#         layout = self.layout
-#         active_object = context.active_object
+        def draw(self, context):
+                layout = self.layout 
+                # col = layout.column(align=True, button_height=1.5)
+                # col.operator("screen.redo_last", text="Change last")
+                
+                col = layout.column(align=True)
+                col.operator("screen.repeat_last")
+                col.operator("screen.repeat_history", text="History...")
 
-#         col = layout.column(align=True)
-#         row = col.row(align=True)
-#         row.operator("object.mode_set", text="", single_unit=False, shortcut=False, icon='OBJECT_DATAMODE').mode = "OBJECT"
-#         row.operator("object.mode_set", text="", single_unit=False, shortcut=False, icon='EDITMODE_HLT').mode = "EDIT"
-#         row.operator("object.mode_set", text="", single_unit=False, shortcut=False, icon='SCULPTMODE_HLT').mode = "SCULPT"
-
-#         row = col.row(align=True)
-#         row.operator("object.mode_set", text="", single_unit=False, shortcut=False, icon='VPAINT_HLT').mode = "VERTEX_PAINT"
-#         row.operator("object.mode_set", text="", single_unit=False, shortcut=False, icon='TPAINT_HLT').mode = "TEXTURE_PAINT"
-#         row.operator("object.mode_set", text="", single_unit=False, shortcut=False, icon='WPAINT_HLT').mode = "WEIGHT_PAINT"
-    
-
-# def grease_panel(mode):
-#     class cls(View3DPanel, Panel):
-#         bl_context = mode
-#         bl_label = "Grease & Measure"
-#         def draw(self, context):
-#             layout = self.layout
-
-#             col = layout.column(align=True)
-#             row = col.row(align=True, button_height=2)
-
-#             row.operator("gpencil.draw", text="", shortcut=False, single_unit=False, icon='GREASE_DRAW').mode = 'DRAW'
-#             row.operator("gpencil.draw", text="", shortcut=False, single_unit=False, icon='GREASE_LINE').mode = 'DRAW_STRAIGHT'
-
-#             row = col.row(align=True, button_height=2)
-#             row.operator("gpencil.draw", text="", shortcut=False, single_unit=False, icon='GREASE_POLY').mode = 'DRAW_POLY'
-#             row.operator("gpencil.draw", text="", shortcut=False, single_unit=False, icon='GREASE_ERASE').mode = 'ERASER'
-
-#             row = col.row()
-#             row.prop(context.tool_settings, "use_grease_pencil_sessions", text="use sketching sessions")
-
-#             col.operator("view3d.ruler", icon='RULER')
-
-#     cls.__name__ = "VIEW3D_PT_tools_%s_grease" % mode
-#     return cls
+    cls.__name__ = "VIEW3D_PT_tools_%s_history" % mode
+    return cls
 
 # ********** default tools for object-mode ****************
+
+# VIEW3D_PT_tools_objectmode_modes = switch_panel("objectmode");
+
+class VIEW3D_PT_tools_objectmode_transform(View3DPanel, Panel):
+    bl_context = "objectmode"
+    bl_label = "Transform"
+
+    def draw(self, context):
+        layout = self.layout
+
+        col = layout.column(align=True)
+        row = col.row(align=True)
+        row.operator("transform.translate", text="", single_unit=False, icon='MAN_TRANS', shortcut=False)
+        row.operator("transform.rotate", text="", single_unit=False, icon='MAN_ROT', shortcut=False)
+        row.operator("transform.resize", text="", single_unit=False, icon='MAN_SCALE', shortcut=False)
+        col.operator("object.origin_set", text="Origin")
+                
+class VIEW3D_PT_tools_objectmode_add(View3DPanel, Panel):
+    bl_context = "objectmode"
+    bl_label = "Add & Delete"
+
+    def draw(self, context):
+        layout = self.layout
+
+        col = layout.column(align=True)
+        row = col.row(align=True, button_height=1.5)
+        row.operator("wm.call_menu", text="", single_unit=False, shortcut=False, icon='TOOLBAR_ADD').name = 'INFO_MT_add'
+        row.operator("object.delete", text="", shortcut=False, single_unit=False, icon='TOOLBAR_DELETE')
         
+        col = layout.column(align=True)
+        row = col.row(align=True)
+        row.operator("object.duplicate_move", text="", shortcut=False, single_unit=False, icon='TOOLBAR_DUP')
+        row.operator("object.duplicate_move_linked", text="", shortcut=False, single_unit=False, icon='TOOLBAR_DUP_LINKED')
+        row = col.row(align=True)
+        col.operator("object.join")
+
+class VIEW3D_PT_tools_objectmode_adjust(View3DPanel, Panel):
+    bl_context = "objectmode"
+    bl_label = "Adjust"
+
+    def draw(self, context):
+        layout = self.layout
+        #active_object = context.active_object
+        #if active_object and active_object.type in {'MESH', 'CURVE', 'SURFACE'}:
+        col = layout.column(align=True)
+        col.operator("object.shade_smooth", text="Shade smooth")
+        col.operator("object.shade_flat", text="Shade flat")
+        
+VIEW3D_PT_tools_objectmode_history = history_panel("objectmode")
+
+class VIEW3D_PT_tools_objectmode_keyframes(View3DPanel, Panel):
+    bl_context = "objectmode"
+    bl_label = "Keyframes"
+    
+    def draw(self, context):
+        layout = self.layout 
+
+        col = layout.column(align=True)
+        row = col.row(align=True, button_height=1.5)
+
+        row.operator("anim.keyframe_insert_menu", text="", single_unit=False, shortcut=False, icon='KEY_HLT')
+        row.operator("anim.keyframe_delete_v3d", text="", single_unit=False, shortcut=False, icon='KEY_DEHLT')
+
+        col = layout.column(align=True)
+        col.operator("object.paths_calculate", text="Calculate motion")
+        col.operator("object.paths_clear", text="Clear motion")
+
+class VIEW3D_PT_tools_rigidbody(View3DPanel, Panel):
+    bl_context = "objectmode"
+    bl_label = "Rigid Body"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        col = layout.column(align=True)
+        col.label(text="Add/Remove:")
+        row = col.row()
+        row.operator("rigidbody.objects_add", text="Add Active").type = 'ACTIVE'
+        row.operator("rigidbody.objects_add", text="Add Passive").type = 'PASSIVE'
+        row = col.row()
+        row.operator("rigidbody.objects_remove", text="Remove")
+
+        col = layout.column(align=True)
+        col.label(text="Object Tools:")
+        col.operator("rigidbody.shape_change", text="Change Shape")
+        col.operator("rigidbody.mass_calculate", text="Calculate Mass")
+        col.operator("rigidbody.object_settings_copy", text="Copy from Active")
+        col.operator("rigidbody.bake_to_keyframes", text="Bake To Keyframes")
+        col.label(text="Constraints:")
+        col.operator("rigidbody.connect", text="Connect")
+
 
 # ********** default tools for editmode_mesh ****************
+
+# VIEW3D_PT_tools_editmode_modes = switch_panel("mesh_edit");
+
+class VIEW3D_PT_tools_editmode_transform(View3DPanel, Panel):
+    bl_context = "mesh_edit"
+    bl_label = "Transform"
+
+    def draw(self, context):
+        layout = self.layout
+
+        col = layout.column(align=True)
+        row = col.row(align=True)
+        row.operator("transform.translate", text="", single_unit=False, icon='MAN_TRANS', shortcut=False)
+        row.operator("transform.rotate", text="", single_unit=False, icon='MAN_ROT', shortcut=False)
+        row.operator("transform.resize", text="", single_unit=False, icon='MAN_SCALE', shortcut=False)
+        col.operator("transform.shrink_fatten", text="Shrink/Fatten")
+        col.operator("transform.push_pull", text="Push/Pull")
+
+        col = layout.column(align=True)
+        col.operator("transform.edge_slide", text="Slide edge")
+        col.operator("transform.vert_slide", text="Slide vertex")
+
+        col = layout.column(align=True)
+        col.operator("mesh.vertices_smooth", text="Smooth vertices")
+
+class VIEW3D_PT_tools_editmode_add(View3DPanel, Panel):
+    bl_context = "mesh_edit"
+    bl_label = "Add & Delete"
+
+    def draw(self, context):
+        layout = self.layout
+
+        col = layout.column(align=True)
+        row = col.row(align=True, button_height=1.5)
+        row.operator("wm.call_menu", text="", single_unit=False, shortcut=False, icon='TOOLBAR_ADD').name = 'INFO_MT_mesh_add'
+        row.operator("wm.call_menu", text="", single_unit=False, shortcut=False, icon='TOOLBAR_DELETE').name = 'VIEW3D_MT_edit_mesh_delete'
+        
+        col = layout.column(align=True)
+        col.operator("mesh.duplicate_move", text="Duplicate", single_unit=False, icon='TOOLBAR_DUP')
+
+class VIEW3D_PT_tools_editmode_mesh(View3DPanel, Panel):
+    bl_context = "mesh_edit"
+    bl_label = "Mesh"
+
+    def draw(self, context):
+        layout = self.layout
+
+        col = layout.column(align=True)
+        row = col.row(align=True, button_height=1.5)
+        row.operator("view3d.edit_mesh_extrude_move_normal", text="", single_unit=False, shortcut=False, icon='EXTRUDE_REGION')
+        row.operator("view3d.edit_mesh_extrude_individual_move", text="", single_unit=False, shortcut=False, icon='EXTRUDE_INDIVIDUAL')
+        col.operator("wm.call_menu", text="Extrude...", single_unit=False, shortcut=False).name = 'VIEW3D_MT_edit_mesh_extrude'
+
+        col = layout.column(align=True)
+        row = col.row(align=True, button_height=1.5)
+        
+        props = row.operator("mesh.knife_tool", text="", single_unit=False, shortcut=False, icon='KNIFE')
+        props.use_occlude_geometry = True
+        props.only_selected = False
+        
+        row.operator("mesh.loopcut_slide", text="", single_unit=False, shortcut=False, icon='LOOP_CUT')
+        
+        props = col.operator("mesh.knife_tool", text="Knife select")
+        props.use_occlude_geometry = False
+        props.only_selected = True
+        
+        col.operator("mesh.knife_project")
+        col.operator("mesh.subdivide")
+        col.operator("mesh.spin")
+        col.operator("mesh.screw")
+
+        col = layout.column(align=True)
+        col.operator("mesh.remove_doubles")
+        # col.operator_enum("mesh.merge", "type")
+        col.operator("mesh.merge", text="Merge...")
+        
+class VIEW3D_PT_tools_editmode_adjust(View3DPanel, Panel):
+    bl_context = "mesh_edit"
+    bl_label = "Adjust"
+
+    def draw(self, context):
+        layout = self.layout
+        col = layout.column(align=True)
+        col.operator("mesh.faces_shade_smooth", text="Smooth faces")
+        col.operator("mesh.faces_shade_flat", text="Flat faces")
+
+        col = layout.column(align=True)
+        col.operator("mesh.normals_make_consistent", text="Recalculate normals")
+        col.operator("mesh.flip_normals", text="Flip normals")
+
+class VIEW3D_PT_tools_editmode_uv(View3DPanel, Panel):
+    bl_context = "mesh_edit"
+    bl_label = "UV & Seams"
+
+    def draw(self, context):
+        layout = self.layout
+        
+        col = layout.column(align=True)
+        col.operator("wm.call_menu", text="Unwrap...", single_unit=False, shortcut=False).name = 'VIEW3D_MT_uv_map'
+        col.operator("mesh.mark_seam", text="Mark seam").clear = False
+        col.operator("mesh.mark_seam", text="Clear seam").clear = True
+
+VIEW3D_PT_tools_editmode_history = history_panel("mesh_edit")
 
 # print(VIEW3D_PT_tools_editmode_history.bl_context)
 
@@ -117,7 +284,57 @@ class VIEW3D_PT_tools_meshedit_options(View3DPanel, Panel):
 
 # ********** default tools for editmode_curve ****************
 
+# VIEW3D_PT_tools_curvemode_modes = switch_panel("curve_edit");
+
+class VIEW3D_PT_tools_curveedit(View3DPanel, Panel):
+    bl_context = "curve_edit"
+    bl_label = "Curve Tools"
+
+    def draw(self, context):
+        layout = self.layout
+
+        col = layout.column(align=True)
+        col.label(text="Transform:")
+        col.operator("transform.translate")
+        col.operator("transform.rotate")
+        col.operator("transform.resize", text="Scale")
+
+        col = layout.column(align=True)
+        col.operator("transform.tilt", text="Tilt")
+        col.operator("transform.transform", text="Scale Feather").mode = 'CURVE_SHRINKFATTEN'
+
+        col = layout.column(align=True)
+        col.label(text="Curve:")
+        col.operator("curve.duplicate_move", text="Duplicate")
+        col.operator("curve.delete")
+        col.operator("curve.cyclic_toggle")
+        col.operator("curve.switch_direction")
+        col.operator("curve.spline_type_set")
+        col.operator("curve.radius_set")
+        col.operator("curve.smooth_radius")
+
+        col = layout.column(align=True)
+        col.label(text="Handles:")
+        row = col.row()
+        row.operator("curve.handle_type_set", text="Auto").type = 'AUTOMATIC'
+        row.operator("curve.handle_type_set", text="Vector").type = 'VECTOR'
+        row = col.row()
+        row.operator("curve.handle_type_set", text="Align").type = 'ALIGNED'
+        row.operator("curve.handle_type_set", text="Free").type = 'FREE_ALIGN'
+
+        col = layout.column(align=True)
+        col.label(text="Modeling:")
+        col.operator("curve.extrude_move", text="Extrude")
+        col.operator("curve.subdivide")
+        col.operator("curve.smooth")
+
+        draw_repeat_tools(context, layout)
+
+        draw_gpencil_tools(context, layout)
+
 # ********** default tools for editmode_surface ****************
+
+# VIEW3D_PT_tools_surfacemode_modes = switch_panel("surface_edit");
 
 class VIEW3D_PT_tools_surfaceedit(View3DPanel, Panel):
     bl_context = "surface_edit"
@@ -144,11 +361,13 @@ class VIEW3D_PT_tools_surfaceedit(View3DPanel, Panel):
         col.operator("curve.extrude", text="Extrude")
         col.operator("curve.subdivide")
 
-        # draw_repeat_tools(context, layout)
+        draw_repeat_tools(context, layout)
 
-        # draw_gpencil_tools(context, layout)
+        draw_gpencil_tools(context, layout)
 
 # ********** default tools for editmode_text ****************
+
+# VIEW3D_PT_tools_textmode_modes = switch_panel("text_edit");
 
 class VIEW3D_PT_tools_textedit(View3DPanel, Panel):
     bl_context = "text_edit"
@@ -174,35 +393,40 @@ class VIEW3D_PT_tools_textedit(View3DPanel, Panel):
         col.operator("font.style_toggle", text="Italic").style = 'ITALIC'
         col.operator("font.style_toggle", text="Underline").style = 'UNDERLINE'
 
-        # draw_repeat_tools(context, layout)
+        draw_repeat_tools(context, layout)
 
 
 # ********** default tools for editmode_armature ****************
 
-# class VIEW3D_PT_tools_armatureedit(View3DPanel, Panel):
-#     bl_context = "armature_edit"
-#     bl_label = "Armature Tools"
+# VIEW3D_PT_tools_armaturemode_modes = switch_panel("armature_edit");
 
-#     def draw(self, context):
-#         layout = self.layout
+class VIEW3D_PT_tools_armatureedit(View3DPanel, Panel):
+    bl_context = "armature_edit"
+    bl_label = "Armature Tools"
 
-#         col = layout.column(align=True)
-#         col.label(text="Transform:")
-#         col.operator("transform.translate")
-#         col.operator("transform.rotate")
-#         col.operator("transform.resize", text="Scale")
+    def draw(self, context):
+        layout = self.layout
 
-#         col = layout.column(align=True)
-#         col.label(text="Bones:")
-#         col.operator("armature.bone_primitive_add", text="Add")
-#         col.operator("armature.duplicate_move", text="Duplicate")
-#         col.operator("armature.delete", text="Delete")
+        col = layout.column(align=True)
+        col.label(text="Transform:")
+        col.operator("transform.translate")
+        col.operator("transform.rotate")
+        col.operator("transform.resize", text="Scale")
 
-#         col = layout.column(align=True)
-#         col.label(text="Modeling:")
-#         col.operator("armature.extrude_move")
-#         col.operator("armature.subdivide", text="Subdivide")
-        
+        col = layout.column(align=True)
+        col.label(text="Bones:")
+        col.operator("armature.bone_primitive_add", text="Add")
+        col.operator("armature.duplicate_move", text="Duplicate")
+        col.operator("armature.delete", text="Delete")
+
+        col = layout.column(align=True)
+        col.label(text="Modeling:")
+        col.operator("armature.extrude_move")
+        col.operator("armature.subdivide", text="Subdivide")
+
+        draw_repeat_tools(context, layout)
+
+        draw_gpencil_tools(context, layout)
 
 class VIEW3D_PT_tools_armatureedit_options(View3DPanel, Panel):
     bl_context = "armature_edit"
@@ -214,6 +438,8 @@ class VIEW3D_PT_tools_armatureedit_options(View3DPanel, Panel):
         self.layout.prop(arm, "use_mirror_x")
 
 # ********** default tools for editmode_mball ****************
+
+# VIEW3D_PT_tools_mballmode_modes = switch_panel("mball_edit");
 
 class VIEW3D_PT_tools_mballedit(View3DPanel, Panel):
     bl_context = "mball_edit"
@@ -228,11 +454,13 @@ class VIEW3D_PT_tools_mballedit(View3DPanel, Panel):
         col.operator("transform.rotate")
         col.operator("transform.resize", text="Scale")
 
-        # draw_repeat_tools(context, layout)
+        draw_repeat_tools(context, layout)
 
-        # draw_gpencil_tools(context, layout)
+        draw_gpencil_tools(context, layout)
 
 # ********** default tools for editmode_lattice ****************
+
+# VIEW3D_PT_tools_latticemode_modes = switch_panel("lattice_edit");
 
 class VIEW3D_PT_tools_latticeedit(View3DPanel, Panel):
     bl_context = "lattice_edit"
@@ -250,11 +478,13 @@ class VIEW3D_PT_tools_latticeedit(View3DPanel, Panel):
         col = layout.column(align=True)
         col.operator("lattice.make_regular")
 
-        # draw_repeat_tools(context, layout)
+        draw_repeat_tools(context, layout)
 
-        # draw_gpencil_tools(context, layout)
+        draw_gpencil_tools(context, layout)
 
 # ********** default tools for pose-mode ****************
+
+# VIEW3D_PT_tools_posemode_modes = switch_panel("posemode");
 
 class VIEW3D_PT_tools_posemode(View3DPanel, Panel):
     bl_context = "posemode"
@@ -285,7 +515,7 @@ class VIEW3D_PT_tools_posemode(View3DPanel, Panel):
         col = layout.column(align=True)
         col.operator("poselib.pose_add", text="Add To Library")
 
-        # draw_keyframing_tools(context, layout)
+        draw_keyframing_tools(context, layout)
 
         col = layout.column(align=True)
         col.label(text="Motion Paths:")
@@ -293,9 +523,9 @@ class VIEW3D_PT_tools_posemode(View3DPanel, Panel):
         row.operator("pose.paths_calculate", text="Calculate")
         row.operator("pose.paths_clear", text="Clear")
 
-        # draw_repeat_tools(context, layout)
+        draw_repeat_tools(context, layout)
 
-        # draw_gpencil_tools(context, layout)
+        draw_gpencil_tools(context, layout)
 
 class VIEW3D_PT_tools_posemode_options(View3DPanel, Panel):
     bl_context = "posemode"
@@ -307,6 +537,10 @@ class VIEW3D_PT_tools_posemode_options(View3DPanel, Panel):
         self.layout.prop(arm, "use_auto_ik")
 
 # ********** default tools for paint modes ****************
+
+# VIEW3D_PT_tools_imagepaint_modes = switch_panel("imagepaint");
+# VIEW3D_PT_tools_weightpaint_modes = switch_panel("weightpaint");
+# VIEW3D_PT_tools_vertexpaint_modes = switch_panel("vertexpaint");
 
 class View3DPaintPanel(UnifiedPaintPanel):
     bl_space_type = 'VIEW_3D'
@@ -328,7 +562,7 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
 
         if not context.particle_edit_object:
             col = layout.split().column()
-            col.template_ID_preview(settings, "brush", new="brush.add", rows=3, cols=8)
+            col.template_ID_preview_brush(settings, "brush", new="brush.add", rows=5, cols=8)
 
         # Particle Mode #
         if context.particle_edit_object:
@@ -556,7 +790,7 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
         # Vertex Paint Mode #
         elif context.vertex_paint_object and brush:
             col = layout.column()
-            col.template_color_picker(brush, "color", value_slider=True)
+            # col.template_color_picker(brush, "color", value_slider=False)
             col.prop(brush, "color", text="")
 
             row = col.row(align=True)

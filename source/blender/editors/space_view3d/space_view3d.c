@@ -1449,7 +1449,7 @@ void ED_spacetype_view3d(void)
 	/* regions: tool properties */
 	art = MEM_callocN(sizeof(ARegionType), "spacetype view3d tool properties region");
 	art->regionid = RGN_TYPE_TOOL_PROPS;
-	art->prefsizex = 220; /* XXX */
+	art->prefsizex = 160; /* XXX */
 	art->prefsizey = 50; /* XXX */
 	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
 	art->listener = view3d_props_area_listener;

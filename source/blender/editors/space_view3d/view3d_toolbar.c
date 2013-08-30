@@ -72,14 +72,14 @@
 
 static void view3d_panel_operator_redo_buts(const bContext *C, Panel *pa, wmOperator *op)
 {
-	uiLayoutOperatorButs(C, pa->layout, op, NULL, 'H', 0);
+	uiLayoutOperatorButs(C, pa->layout, op, NULL, 'V', 0);
 }
 
 static void view3d_panel_operator_redo_operator(const bContext *C, Panel *pa, wmOperator *op)
 {
 	if (op->type->flag & OPTYPE_MACRO) {
 		for (op = op->macro.first; op; op = op->next) {
-			uiItemL(pa->layout, RNA_struct_ui_name(op->type->srna), ICON_NONE);
+//			uiItemL(pa->layout, RNA_struct_ui_name(op->type->srna), ICON_NONE);
 			view3d_panel_operator_redo_operator(C, pa, op);
 		}
 	}

@@ -808,9 +808,9 @@ float uiLayoutGetScaleY(uiLayout *layout);
 
 /* layout specifiers */
 uiLayout *uiLayoutRow(uiLayout *layout, int align);
-uiLayout *uiLayoutRowWithButtonHeight(uiLayout *layout, int align, int button_height);
+uiLayout *uiLayoutRowWithButtonHeight(uiLayout *layout, int align, float button_height);
 uiLayout *uiLayoutColumn(uiLayout *layout, int align);
-uiLayout *uiLayoutColumnWithButtonHeight(uiLayout *layout, int align, int button_height);
+uiLayout *uiLayoutColumnWithButtonHeight(uiLayout *layout, int align, float button_height);
 uiLayout *uiLayoutColumnFlow(uiLayout *layout, int number, int align);
 uiLayout *uiLayoutBox(uiLayout *layout);
 uiLayout *uiLayoutListBox(uiLayout *layout, struct uiList *ui_list, struct PointerRNA *ptr, struct PropertyRNA *prop,
@@ -828,6 +828,8 @@ void uiTemplateID(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, 
 void uiTemplateIDBrowse(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname,
                         const char *newop, const char *openop, const char *unlinkop);
 void uiTemplateIDPreview(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname,
+                         const char *newop, const char *openop, const char *unlinkop, int rows, int cols);
+void uiTemplateIDPreviewBrush(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname,
                          const char *newop, const char *openop, const char *unlinkop, int rows, int cols);
 void uiTemplateAnyID(uiLayout *layout, struct PointerRNA *ptr, const char *propname, 
                      const char *proptypename, const char *text);

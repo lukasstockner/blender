@@ -146,7 +146,7 @@ struct uiLayout {
 	bool redalert;
 	bool keepaspect;
 	char alignment;
-	int button_height;
+	float button_height;
 };
 
 typedef struct uiLayoutItemFlow {
@@ -245,7 +245,7 @@ static void ui_item_size(uiLayout *layout, uiItem *item, int *r_w, int *r_h)
 
 		if (r_w) *r_w = BLI_rctf_size_x(&bitem->but->rect);
 		if (r_h) *r_h = BLI_rctf_size_y(&bitem->but->rect) *
-			(layout->button_height ? layout->button_height : 1);
+			(layout->button_height ? layout->button_height : 1.0f);
 	}
 	else {
 		uiLayout *litem = (uiLayout *)item;
@@ -2335,7 +2335,7 @@ static void ui_litem_layout_overlap(uiLayout *litem)
 
 /* layout create functions */
 
-static uiLayout *ui_layout_row(uiLayout *layout, int align, int button_height)
+static uiLayout *ui_layout_row(uiLayout *layout, int align, float button_height)
 {
 	uiLayout *litem;
 	
@@ -2357,17 +2357,17 @@ static uiLayout *ui_layout_row(uiLayout *layout, int align, int button_height)
 	return litem;
 }
 
-uiLayout *uiLayoutRowWithButtonHeight(uiLayout *layout, int align, int button_height)
+uiLayout *uiLayoutRowWithButtonHeight(uiLayout *layout, int align, float button_height)
 {
 	return ui_layout_row(layout, align, button_height);
 }
 
 uiLayout *uiLayoutRow(uiLayout *layout, int align)
 {
-	return ui_layout_row(layout, align, 1);
+	return ui_layout_row(layout, align, 1.0f);
 }
 
-static uiLayout *ui_layout_column(uiLayout *layout, int align, int button_height)
+static uiLayout *ui_layout_column(uiLayout *layout, int align, float button_height)
 {
 	uiLayout *litem;
 
@@ -2391,10 +2391,10 @@ static uiLayout *ui_layout_column(uiLayout *layout, int align, int button_height
 
 uiLayout *uiLayoutColumn(uiLayout *layout, int align)
 {
-	return ui_layout_column(layout, align, 1);
+	return ui_layout_column(layout, align, 1.0f);
 }
 
-uiLayout *uiLayoutColumnWithButtonHeight(uiLayout *layout, int align, int button_height)
+uiLayout *uiLayoutColumnWithButtonHeight(uiLayout *layout, int align, float button_height)
 {
 	return ui_layout_column(layout, align, button_height);
 }

@@ -291,10 +291,9 @@ static void draw_gpencil_operator_buttons(const bContext *C, uiLayout *layout)
 	PointerRNA ptr;
 	uiLayout *row;
 	wmOperatorType *ot;
-	//PropertyRNA *prop;
 	
 	ot = WM_operatortype_find("GPENCIL_OT_draw", 0);
-	row = uiLayoutRow(layout, TRUE);
+	row = uiLayoutRowWithButtonHeight(layout, TRUE, 1.5f);
 	
 	ptr = uiItemFullO_ptr(row, ot, "", ICON_GREASE_DRAW, NULL, uiLayoutGetOperatorContext(layout), UI_ITEM_O_RETURN_PROPS);
 	RNA_enum_set(&ptr, "mode", GP_PAINTMODE_DRAW);
