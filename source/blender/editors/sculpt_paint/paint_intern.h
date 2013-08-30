@@ -176,7 +176,7 @@ void PAINT_OT_brush_colors_flip(struct wmOperatorType *ot);
 void PAINT_OT_texture_paint_toggle(struct wmOperatorType *ot);
 void PAINT_OT_project_image(struct wmOperatorType *ot);
 void PAINT_OT_image_from_view(struct wmOperatorType *ot);
-
+void PAINT_OT_add_layer(struct wmOperatorType *ot);
 /* new texture painting */
 void PAINT_OT_image_paint(struct wmOperatorType *ot);
 

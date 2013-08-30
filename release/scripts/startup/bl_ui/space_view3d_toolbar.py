@@ -545,6 +545,8 @@ class VIEW3D_PT_layers_projectpaint(View3DPanel, Panel):
             col.label("Available Paint layers")
             col.template_list("TEXTURE_UL_texpaintslots", "", mat, "texture_paint_slots", mat, "active_paint_texture_index", rows=2)
             #col.label("Only slots with UV mapping and image textures are available")
+            
+            col.operator_menu_enum("paint.add_layer", "type")
 
 
 class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):

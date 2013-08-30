@@ -48,6 +48,8 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
+#include "BLF_translation.h"
+
 #include "PIL_time.h"
 
 #include "IMB_imbuf.h"
@@ -83,6 +85,7 @@
 #include "BIF_glutil.h"
 
 #include "UI_view2d.h"
+#include "UI_interface.h"
 
 #include "ED_image.h"
 #include "ED_screen.h"
@@ -4770,4 +4773,109 @@ void PAINT_OT_image_from_view(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER;
 
 	RNA_def_string_file_name(ot->srna, "filepath", "", FILE_MAX, "File Path", "Name of the file");
+}
+
+static EnumPropertyItem layer_type_items[] = {
+	{MAP_COL, "DIFFUSE_COLOR", 0, "Diffuse Color", ""},
+	{MAP_REF, "DIFFUSE_INTENSITY", 0, "Diffuse Intensity", ""},
+	{MAP_ALPHA, "ALPHA", 0, "Alpha", ""},
+	{MAP_TRANSLU, "TRANSLUCENCY", 0, "Translucency", ""},
+	{MAP_COLSPEC, "SPECULAR_COLOR", 0, "Specular Color", ""},
+	{MAP_SPEC, "SPECULAR_INTENSITY", 0, "Specular Intensity", ""},
+	{MAP_HAR, "SPECULAR_HARDNESS", 0, "Specular Hardness", ""},
+	{MAP_AMB, "AMBIENT", 0, "Ambient", ""},
+	{MAP_EMIT, "EMMIT", 0, "Emmit", ""},
+	{MAP_COLMIR, "MIRROR_COLOR", 0, "Mirror Color", ""},
+	{MAP_RAYMIRR, "RAYMIRROR", 0, "Ray Mirror", ""},
+	{MAP_NORM, "NORMAL", 0, "Normal", ""},
+	{MAP_WARP, "WARP", 0, "Warp", ""},
+	{MAP_DISPLACE, "DISPLACE", 0, "Displace", ""},
+	{0, NULL, 0, NULL, NULL}
+};
+
+static int texture_paint_add_layer_exec(bContext *C, wmOperator *op)
+{
+	Material *ma;
+	Object *ob = CTX_data_active_object(C);
+	/* hardcoded for now, allow options later */
+	int width = 1024;
+	int height = 1024;
+	float color[4] = {0.0, 0.0, 0.0, 1.0};
+
+	int type = RNA_enum_get(op->ptr, "type");
+
+	if (!ob)
+		return OPERATOR_CANCELLED;
+
+	ma = give_current_material(ob, ob->actcol);
+
+	if (ma) {
+		MTex *mtex = add_mtex_id(&ma->id, -1);
+
+		/* successful creation of mtex layer, now create set */
+		if (mtex) {
+			PointerRNA ptr, idptr;
+			PropertyRNA *prop;
+			Main *bmain = CTX_data_main(C);
+			Image *ima;
+
+			mtex->tex = add_texture(bmain, DATA_("Texture"));
+			mtex->mapto = type;
+
+			if (mtex->tex) {
+				/* hook into UI */
+				uiIDContextProperty(C, &ptr, &prop);
+
+				if (prop) {
+					/* when creating new ID blocks, use is already 1, but RNA
+				     * pointer se also increases user, so this compensates it */
+					mtex->tex->id.us--;
+
+					RNA_id_pointer_create(&mtex->tex->id, &idptr);
+					RNA_property_pointer_set(&ptr, prop, idptr);
+					RNA_property_update(C, &ptr, prop);
+				}
+
+				ima = mtex->tex->ima = BKE_image_add_generated(bmain, width, height, "layer_texture", 32, 0, IMA_GENTYPE_BLANK, color);
+
+				uiIDContextProperty(C, &ptr, &prop);
+
+				if (prop) {
+					/* when creating new ID blocks, use is already 1, but RNA
+				     * pointer se also increases user, so this compensates it */
+					ima->id.us--;
+
+					RNA_id_pointer_create(&ima->id, &idptr);
+					RNA_property_pointer_set(&ptr, prop, idptr);
+					RNA_property_update(C, &ptr, prop);
+				}
+
+				BKE_image_signal(ima, NULL, IMA_SIGNAL_USER_NEW_IMAGE);
+				WM_event_add_notifier(C, NC_TEXTURE | NA_ADDED, mtex->tex);
+			}
+
+			WM_event_add_notifier(C, NC_TEXTURE, CTX_data_scene(C));
+			return OPERATOR_FINISHED;
+		}
+	}
+
+	return OPERATOR_CANCELLED;
+}
+
+void PAINT_OT_add_layer(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Add Paint Layer";
+	ot->description = "Add a paint layer";
+	ot->idname = "PAINT_OT_add_layer";
+
+	/* api callbacks */
+	ot->exec = texture_paint_add_layer_exec;
+	ot->poll = ED_operator_region_view3d_active;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	/* properties */
+	ot->prop = RNA_def_enum(ot->srna, "type", layer_type_items, 0, "Type", "Merge method to use");
 }
