@@ -48,6 +48,12 @@
 #  define __func__ __FUNCTION__
 #endif
 
+/* only for utility functions */
+#if defined(__GNUC__) && defined(__linux__)
+#include <malloc.h>
+#  define HAVE_MALLOC_H
+#endif
+
 #include "MEM_guardedalloc.h"
 
 /* should always be defined except for experimental cases */
@@ -562,8 +568,15 @@ void *MEM_mapallocN(size_t len, const char *str)
 
 	len = (len + 3) & ~3;   /* allocate in units of 4 */
 
+#if defined(WIN32)
+	/* our windows mmap implementation is not thread safe */
+	mem_lock_thread();
+#endif
 	memh = mmap(NULL, len + sizeof(MemHead) + sizeof(MemTail),
 	            PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
+#if defined(WIN32)
+	mem_unlock_thread();
+#endif
 
 	if (memh != (MemHead *)-1) {
 		make_memhead_header(memh, len, str);
@@ -620,7 +633,9 @@ void MEM_printmemlist_stats(void)
 	MemHead *membl;
 	MemPrintBlock *pb, *printblock;
 	int totpb, a, b;
-
+#ifdef HAVE_MALLOC_H
+	size_t mem_in_use_slop;
+#endif
 	mem_lock_thread();
 
 	/* put memory blocks into array */
@@ -639,6 +654,13 @@ void MEM_printmemlist_stats(void)
 
 		totpb++;
 		pb++;
+
+#ifdef HAVE_MALLOC_H
+		if (!membl->mmap) {
+			mem_in_use_slop += (sizeof(MemHead) + sizeof(MemTail) +
+			                    malloc_usable_size((void *)membl)) - membl->len;
+		}
+#endif
 
 		if (membl->next)
 			membl = MEMNEXT(membl->next);
@@ -668,6 +690,10 @@ void MEM_printmemlist_stats(void)
 	       (double)mem_in_use / (double)(1024 * 1024));
 	printf("peak memory len: %.3f MB\n",
 	       (double)peak_mem / (double)(1024 * 1024));
+#ifdef HAVE_MALLOC_H
+	printf("slop memory len: %.3f MB\n",
+	       (double)mem_in_use_slop / (double)(1024 * 1024));
+#endif
 	printf(" ITEMS TOTAL-MiB AVERAGE-KiB TYPE\n");
 	for (a = 0, pb = printblock; a < totpb; a++, pb++) {
 		printf("%6d (%8.3f  %8.3f) %s\n",
@@ -678,7 +704,8 @@ void MEM_printmemlist_stats(void)
 	
 	mem_unlock_thread();
 
-#if 0 /* GLIBC only */
+#ifdef HAVE_MALLOC_H /* GLIBC only */
+	printf("System Statistics:\n");
 	malloc_stats();
 #endif
 }
@@ -937,8 +964,15 @@ static void rem_memblock(MemHead *memh)
 
 	if (memh->mmap) {
 		atomic_sub_z(&mmap_in_use, memh->len);
+#if defined(WIN32)
+		/* our windows mmap implementation is not thread safe */
+		mem_lock_thread();
+#endif
 		if (munmap(memh, memh->len + sizeof(MemHead) + sizeof(MemTail)))
 			printf("Couldn't unmap memory %s\n", memh->name);
+#if defined(WIN32)
+		mem_unlock_thread();
+#endif
 	}
 	else {
 		if (malloc_debug_memset && memh->len)

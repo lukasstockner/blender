@@ -3084,6 +3084,31 @@ void BKE_nurb_handles_calc(Nurb *nu) /* first, if needed, set handle flags */
 	calchandlesNurb_intern(nu, FALSE);
 }
 
+/* similar to BKE_nurb_handle_calc but for curves and
+ * figures out the previous and next for us */
+void BKE_nurb_handle_calc_simple(Nurb *nu, BezTriple *bezt)
+{
+	int index = (int)(bezt - nu->bezt);
+	BezTriple *prev, *next;
+
+	BLI_assert(ARRAY_HAS_ITEM(bezt, nu->bezt, nu->pntsu));
+
+	if (nu->pntsu > 1) {
+		if (index == 0) {
+			prev = (nu->flagu & CU_NURB_CYCLIC) ? &nu->bezt[nu->pntsu - 1] : NULL;
+			next = bezt + 1;
+		}
+		else if (index == nu->pntsu - 1) {
+			prev = bezt - 1;
+			next = (nu->flagu & CU_NURB_CYCLIC) ? &nu->bezt[0] : NULL;
+		}
+	}
+	else {
+		prev = next = NULL;
+	}
+
+	BKE_nurb_handle_calc(bezt, prev, next, 0);
+}
 
 void BKE_nurb_handles_test(Nurb *nu)
 {
