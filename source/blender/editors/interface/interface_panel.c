@@ -94,6 +94,7 @@ typedef struct uiHandlePanelData {
 	
 	/* dragging custom button */
 	OperatorListItem *oli;
+	int newindex;
 	
 } uiHandlePanelData;
 
@@ -1115,24 +1116,36 @@ static void ui_do_drag(const bContext *C, const wmEvent *event, Panel *panel)
 	ED_region_tag_redraw(ar);
 }
 
-static void ui_do_drag_button(const bContext *C, const wmEvent *event, Panel *panel)
+static void ui_do_drag_button(const bContext *C, const wmEvent *event, Panel *pa)
 {
-	uiHandlePanelData *data = panel->activedata;
-	ScrArea *sa = CTX_wm_area(C);
+	uiHandlePanelData *data = pa->activedata;
 	ARegion *ar = CTX_wm_region(C);
-
-	// TODO: deal with the reordering of buttons
+	int cur_index = BLI_findindex(&pa->operators, data->oli);
+	int dy, dunits;
+	
+	// Calculate the new index of the button based on the drag offset
+	dy = event->y - data->starty;
+	dunits = dy / UI_UNIT_Y;
+	data->newindex = MIN2(MAX2(cur_index - dunits, 0), BLI_countlist(&pa->operators));
 	
 	ED_region_tag_redraw(ar);
 }
 
-static void ui_do_drag_button_finish(const bContext *C, const wmEvent *event, Panel *panel)
+static void ui_do_drag_button_finish(const bContext *C, const wmEvent *event, Panel *pa)
 {
-	uiHandlePanelData *data = panel->activedata;
-	ScrArea *sa = CTX_wm_area(C);
+	uiHandlePanelData *data = pa->activedata;
 	ARegion *ar = CTX_wm_region(C);
+	int cur_index = BLI_findindex(&pa->operators, data->oli);
+	OperatorListItem *oli_target = BLI_findlink(&pa->operators, data->newindex);
 	
-	// TODO: finish and clean up the reordering of buttons
+	if (data->newindex < cur_index) {
+		BLI_remlink(&pa->operators, data->oli);
+		BLI_insertlinkbefore(&pa->operators, oli_target, data->oli);
+	}
+	else if (data->newindex > cur_index) {
+		BLI_remlink(&pa->operators, data->oli);
+		BLI_insertlinkafter(&pa->operators, oli_target, data->oli);
+	}
 	
 	ED_region_tag_redraw(ar);
 }
@@ -1558,6 +1571,7 @@ static int ui_handler_panel(bContext *C, const wmEvent *event, void *userdata)
 
 		if (data->state == PANEL_STATE_DRAG_BUTTON)
 			ui_do_drag_button_finish(C, event, panel);
+		
 		if (align)
 			panel_activate_state(C, panel, PANEL_STATE_ANIMATION);
 		else
@@ -1688,18 +1702,37 @@ static void custom_panel_draw(const bContext *UNUSED(C), Panel *pa)
 	uiHandlePanelData *data = pa->activedata;
 	uiLayout *layout = pa->layout;
 	uiLayout *column = uiLayoutColumn(layout, TRUE);
-	const char *idname;
-	OperatorListItem *oli_drag = NULL, *oli;
+	OperatorListItem *oli;
 	int drag_state = data ? (data->state == PANEL_STATE_DRAG_BUTTON) : 0;
+	int i = 0;
 	
 	for (oli = pa->operators.first; oli; oli = oli->next) {
-		if (drag_state && data->oli == oli) {
-			uiItemS(column);
-			uiItemS(column);
+		if (drag_state) {
+			// draw an empty space for where the button was
+			if (oli == data->oli) {
+				uiItemS(column);
+			}
+			// draw a separator for where it's being dragged to
+			else if (i == data->newindex) {
+				// Don't draw a separator for its current position
+				int cur_index = BLI_findindex(&pa->operators, data->oli);
+				// draw it before or after the button that currently has the new index
+				if (data->newindex < cur_index) {
+					uiItemO(column, NULL, ICON_NONE, data->oli->optype_idname);
+					uiItemO(column, NULL, ICON_NONE, oli->optype_idname);
+				}
+				else if (data->newindex > cur_index) {
+					uiItemO(column, NULL, ICON_NONE, oli->optype_idname);
+					uiItemO(column, NULL, ICON_NONE, data->oli->optype_idname);
+				}
+			}
+			// otherwise just draw normally
+			else
+				uiItemO(column, NULL, ICON_NONE, oli->optype_idname);
 		}
-		else {
+		else
 			uiItemO(column, NULL, ICON_NONE, oli->optype_idname);
-		}
+		i++;
 	}
 }
 
