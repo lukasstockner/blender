@@ -284,6 +284,20 @@ void BKE_object_free_derived_caches(Object *ob)
 	
 	if (ob->curve_cache) {
 		BKE_displist_free(&ob->curve_cache->disp);
+		BLI_freelistN(&ob->curve_cache->bev);
+		if (ob->curve_cache->path) {
+			free_path(ob->curve_cache->path);
+			ob->curve_cache->path = NULL;
+		}
+	}
+}
+
+void BKE_object_free_derivedRender_caches(Object *ob)
+{
+	if (ob->derivedRender) {
+		ob->derivedRender->needsFree = 1;
+		ob->derivedRender->release(ob->derivedRender);
+		ob->derivedRender = NULL;
 	}
 }
 
@@ -293,6 +307,7 @@ void BKE_object_free(Object *ob)
 	int a;
 	
 	BKE_object_free_derived_caches(ob);
+	BKE_object_free_derivedRender_caches(ob);
 	
 	/* disconnect specific data, but not for lib data (might be indirect data, can get relinked) */
 	if (ob->data) {
@@ -1297,6 +1312,7 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, int copy_caches)
 	
 	obn->derivedDeform = NULL;
 	obn->derivedFinal = NULL;
+	obn->derivedRender = NULL;
 
 	obn->gpulamp.first = obn->gpulamp.last = NULL;
 	obn->pc_ids.first = obn->pc_ids.last = NULL;
@@ -2490,8 +2506,10 @@ bool BKE_object_minmax_dupli(Scene *scene, Object *ob, float r_min[3], float r_m
 	else {
 		ListBase *lb;
 		DupliObject *dob;
-		
-		lb = object_duplilist(scene, ob, FALSE);
+		EvaluationContext evaluation_context;
+		evaluation_context.for_render = false;
+
+		lb = object_duplilist(&evaluation_context, scene, ob);
 		for (dob = lb->first; dob; dob = dob->next) {
 			if ((use_hidden == false) && (dob->no_draw != 0)) {
 				/* pass */
@@ -2568,7 +2586,7 @@ void BKE_scene_foreach_display_point(
 				ListBase *lb;
 				DupliObject *dob;
 
-				lb = object_duplilist(scene, ob, FALSE);
+				lb = object_duplilist_viewport(scene, ob);
 				for (dob = lb->first; dob; dob = dob->next) {
 					if (dob->no_draw == 0) {
 						BKE_object_foreach_display_point(dob->ob, dob->mat, func_cb, user_data);
@@ -2656,7 +2674,8 @@ bool BKE_object_parent_loop_check(const Object *par, const Object *ob)
 /* the main object update call, for object matrix, constraints, keys and displist (modifiers) */
 /* requires flags to be set! */
 /* Ideally we shouldn't have to pass the rigid body world, but need bigger restructuring to avoid id */
-void BKE_object_handle_update_ex(Scene *scene, Object *ob,
+void BKE_object_handle_update_ex(EvaluationContext *evaluation_context,
+                                 Scene *scene, Object *ob,
                                  RigidBodyWorld *rbw)
 {
 	if (ob->recalc & OB_RECALC_ALL) {
@@ -2726,26 +2745,30 @@ void BKE_object_handle_update_ex(Scene *scene, Object *ob,
 			switch (ob->type) {
 				case OB_MESH:
 				{
-#if 0               // XXX, comment for 2.56a release, background wont set 'scene->customdata_mask'
-					BMEditMesh *em = (ob == scene->obedit) ? BKE_editmesh_from_object(ob) : NULL;
-					BLI_assert((scene->customdata_mask & CD_MASK_BAREMESH) == CD_MASK_BAREMESH);
-					if (em) {
-						makeDerivedMesh(scene, ob, em,  scene->customdata_mask, 0); /* was CD_MASK_BAREMESH */
+					if (evaluation_context->for_render == false) {
+						BMEditMesh *em = (ob == scene->obedit) ? BKE_editmesh_from_object(ob) : NULL;
+						uint64_t data_mask = scene->customdata_mask | CD_MASK_BAREMESH;
+						if (em) {
+							makeDerivedMesh(scene, ob, em,  data_mask, 0); /* was CD_MASK_BAREMESH */
+						}
+						else {
+							makeDerivedMesh(scene, ob, NULL, data_mask, 0);
+						}
 					}
 					else {
-						makeDerivedMesh(scene, ob, NULL, scene->customdata_mask, 0);
-					}
+						/* TODO(sergey): Maybe no need to create derivedRender in advance?
+						 *               On the other hand, this might allow us doing a threaded update.
+						 */
 
-#else               /* ensure CD_MASK_BAREMESH for now */
-					BMEditMesh *em = (ob == scene->obedit) ? BKE_editmesh_from_object(ob) : NULL;
-					uint64_t data_mask = scene->customdata_mask | CD_MASK_BAREMESH;
-					if (em) {
-						makeDerivedMesh(scene, ob, em,  data_mask, 0); /* was CD_MASK_BAREMESH */
+						/* TODO(sergey): For now the same mask as in convertblender.c */
+						uint64_t data_mask = CD_MASK_BAREMESH | CD_MASK_MTFACE | CD_MASK_MCOL;
+
+						/* TODO(sergey): We need to load changes from editMesh here,
+						 *               render DM is up-to-date with current changes from dit mode.
+						 */
+
+						makeDerivedMeshRender(scene, ob, data_mask);
 					}
-					else {
-						makeDerivedMesh(scene, ob, NULL, data_mask, 0);
-					}
-#endif
 					break;
 				}
 				case OB_ARMATURE:
@@ -2761,17 +2784,32 @@ void BKE_object_handle_update_ex(Scene *scene, Object *ob,
 					break;
 
 				case OB_MBALL:
-					BKE_displist_make_mball(scene, ob);
+					if (evaluation_context->for_render == false) {
+						BKE_displist_make_mball(scene, ob);
+					}
+					else {
+						/* nothing for now. */
+					}
 					break;
 
 				case OB_CURVE:
 				case OB_SURF:
 				case OB_FONT:
-					BKE_displist_make_curveTypes(scene, ob, 0);
+					if (evaluation_context->for_render == false) {
+						BKE_displist_make_curveTypes(scene, ob, 0);
+					}
+					else {
+						/* nothing for now. */
+					}
 					break;
 				
 				case OB_LATTICE:
-					BKE_lattice_modifiers_calc(scene, ob);
+					if (evaluation_context->for_render == false) {
+						BKE_lattice_modifiers_calc(scene, ob);
+					}
+					else {
+						/* nothing for now. */
+					}
 					break;
 			}
 			
@@ -2805,7 +2843,7 @@ void BKE_object_handle_update_ex(Scene *scene, Object *ob,
 				while (psys) {
 					if (psys_check_enabled(ob, psys)) {
 						/* check use of dupli objects here */
-						if (psys->part && (psys->part->draw_as == PART_DRAW_REND || G.is_rendering) &&
+						if (psys->part && (psys->part->draw_as == PART_DRAW_REND || evaluation_context->for_render) &&
 						    ((psys->part->ren_as == PART_DRAW_OB && psys->part->dup_ob) ||
 						     (psys->part->ren_as == PART_DRAW_GR && psys->part->dup_group)))
 						{
@@ -2825,7 +2863,7 @@ void BKE_object_handle_update_ex(Scene *scene, Object *ob,
 						psys = psys->next;
 				}
 
-				if (G.is_rendering && ob->transflag & OB_DUPLIPARTS) {
+				if (evaluation_context->for_render && ob->transflag & OB_DUPLIPARTS) {
 					/* this is to make sure we get render level duplis in groups:
 					 * the derivedmesh must be created before init_render_mesh,
 					 * since object_duplilist does dupliparticles before that */
@@ -2845,7 +2883,7 @@ void BKE_object_handle_update_ex(Scene *scene, Object *ob,
 			/* set pointer in library proxy target, for copying, but restore it */
 			ob->proxy->proxy_from = ob;
 			// printf("call update, lib ob %s proxy %s\n", ob->proxy->id.name, ob->id.name);
-			BKE_object_handle_update(scene, ob->proxy);
+			BKE_object_handle_update(evaluation_context, scene, ob->proxy);
 		}
 	
 		ob->recalc &= ~OB_RECALC_ALL;
@@ -2862,9 +2900,9 @@ void BKE_object_handle_update_ex(Scene *scene, Object *ob,
  * e.g. "scene" <-- set 1 <-- set 2 ("ob" lives here) <-- set 3 <-- ... <-- set n
  * rigid bodies depend on their world so use BKE_object_handle_update_ex() to also pass along the corrent rigid body world
  */
-void BKE_object_handle_update(Scene *scene, Object *ob)
+void BKE_object_handle_update(EvaluationContext *evaluation_context, Scene *scene, Object *ob)
 {
-	BKE_object_handle_update_ex(scene, ob, NULL);
+	BKE_object_handle_update_ex(evaluation_context, scene, ob, NULL);
 }
 
 void BKE_object_sculpt_modifiers_changed(Object *ob)

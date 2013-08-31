@@ -1985,7 +1985,7 @@ static void do_render_composite_fields_blur_3d(Render *re)
 				R.stats_draw = re->stats_draw;
 				
 				if (update_newframe)
-					BKE_scene_update_for_newframe(re->main, re->scene, re->lay);
+					BKE_scene_update_for_newframe_render(re->main, re->scene, re->lay);
 				
 				if (re->r.scemode & R_FULL_SAMPLE)
 					do_merge_fullsample(re, ntree);
@@ -2675,7 +2675,7 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 				else
 					updatelay = re->lay;
 
-				BKE_scene_update_for_newframe(bmain, scene, updatelay);
+				BKE_scene_update_for_newframe_render(bmain, scene, updatelay);
 				continue;
 			}
 			else

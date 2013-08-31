@@ -47,6 +47,7 @@
 #include "BKE_editmesh_bvh.h"
 
 #include "BKE_object.h"  /* XXX. only for EDBM_mesh_ensure_valid_dm_hack() which will be removed */
+#include "BKE_scene.h"  /* XXX, only for evaluation_context used in EDBM_mesh_ensure_valid_dm_hack */
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -109,8 +110,10 @@ void EDBM_mesh_ensure_valid_dm_hack(Scene *scene, BMEditMesh *em)
 	if ((((ID *)em->ob->data)->flag & LIB_ID_RECALC) ||
 	    (em->ob->recalc & OB_RECALC_DATA))
 	{
+		EvaluationContext evaluation_context;
+		evaluation_context.for_render = false;
 		em->ob->recalc |= OB_RECALC_DATA;  /* since we may not have done selection flushing */
-		BKE_object_handle_update(scene, em->ob);
+		BKE_object_handle_update(&evaluation_context, scene, em->ob);
 	}
 }
 

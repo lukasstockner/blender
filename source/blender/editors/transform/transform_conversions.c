@@ -4871,8 +4871,12 @@ static void set_trans_object_base_flags(TransInfo *t)
 
 	/* handle pending update events, otherwise they got copied below */
 	for (base = scene->base.first; base; base = base->next) {
-		if (base->object->recalc)
-			BKE_object_handle_update(t->scene, base->object);
+		if (base->object->recalc) {
+			/* TODO(sergey): Ideally, it's not needed. */
+			EvaluationContext evaluation_context;
+			evaluation_context.for_render = false;
+			BKE_object_handle_update(&evaluation_context, t->scene, base->object);
+		}
 	}
 
 	for (base = scene->base.first; base; base = base->next) {

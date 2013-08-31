@@ -39,6 +39,7 @@ extern "C" {
 
 struct AviCodecData;
 struct Base;
+struct EvaluationContext;
 struct bglMats;
 struct Main;
 struct Object;
@@ -111,11 +112,22 @@ float BKE_scene_frame_get(struct Scene *scene);
 float BKE_scene_frame_get_from_ctime(struct Scene *scene, const float frame);
 void  BKE_scene_frame_set(struct Scene *scene, double cfra);
 
-void BKE_scene_update_tagged_ex(struct Main *bmain, struct Scene *scene, bool use_threads);
-void BKE_scene_update_tagged(struct Main *bmain, struct Scene *sce);
+/* **  Scene evaluation ** */
 
-void BKE_scene_update_for_newframe_ex(struct Main *bmain, struct Scene *sce, unsigned int lay, bool use_threads);
-void BKE_scene_update_for_newframe(struct Main *bmain, struct Scene *sce, unsigned int lay);
+/* TODO(sergey): Find a better place for this. */
+typedef struct EvaluationContext {
+	bool for_render;  /* Set to true if evaluation shall be performed for render purposes,
+	                     keep at false if update shall happen for the viewport. */
+} EvaluationContext;
+
+void BKE_scene_update_tagged_ex(struct EvaluationContext *evaluation_context, struct Main *bmain, struct Scene *scene, bool use_threads);
+void BKE_scene_update_tagged(struct EvaluationContext *evaluation_context, struct Main *bmain, struct Scene *sce);
+
+void BKE_scene_update_for_newframe_ex(struct EvaluationContext *evaluation_context, struct Main *bmain, struct Scene *sce, unsigned int lay, bool use_threads);
+void BKE_scene_update_for_newframe(struct EvaluationContext *evaluation_context, struct Main *bmain, struct Scene *sce, unsigned int lay);
+
+void BKE_scene_update_for_newframe_viewport(struct Main *bmain, struct Scene *sce, unsigned int lay);
+void BKE_scene_update_for_newframe_render(struct Main *bmain, struct Scene *sce, unsigned int lay);
 
 struct SceneRenderLayer *BKE_scene_add_render_layer(struct Scene *sce, const char *name);
 int BKE_scene_remove_render_layer(struct Main *main, struct Scene *scene, struct SceneRenderLayer *srl);

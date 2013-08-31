@@ -49,7 +49,10 @@
 
 #include "BKE_blender.h"
 #include "BKE_context.h"
+#include "BKE_curve.h"
 #include "BKE_depsgraph.h"
+#include "BKE_displist.h"
+#include "BKE_DerivedMesh.h"
 #include "BKE_freestyle.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
@@ -510,6 +513,8 @@ static void render_endjob(void *rjv)
 		 * was locked before running the job.
 		 */
 		WM_set_locked_interface(G.main->wm.first, false);
+
+		/* TODO(sergey): Do we need to re-create defived meshes here? */
 	}
 }
 
@@ -563,6 +568,35 @@ static int screen_render_modal(bContext *C, wmOperator *op, const wmEvent *event
 			break;
 	}
 	return OPERATOR_PASS_THROUGH;
+}
+
+static void clean_viewport_memory(Main *bmain)
+{
+	Object *object;
+
+	for (object = bmain->object.first; object; object = object->id.next) {
+		/* TODO(sergey): Afraid we cannot use BKE_object_free_derived_caches
+		 *               because it'll free bounding box which could be needed
+		 *               for texture mapping in render pipeline.
+		 *
+		 *               So for now just use a bit of dupicated logic.
+		 */
+		/* BKE_object_free_derived_caches(); */
+
+		if (object->derivedFinal) {
+			object->derivedFinal->needsFree = 1;
+			object->derivedFinal->release(object->derivedFinal);
+			object->derivedFinal = NULL;
+		}
+		if (object->derivedDeform) {
+			object->derivedDeform->needsFree = 1;
+			object->derivedDeform->release(object->derivedDeform);
+			object->derivedDeform = NULL;
+		}
+		if (object->curve_cache) {
+			BKE_displist_free(&object->curve_cache->disp);
+		}
+	}
 }
 
 /* using context, starts job */
@@ -685,7 +719,8 @@ static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *even
 		 */
 		rj->interface_locked = true;
 
-		/* TODO(sergey): clean memory used by viewport? */
+		/* Clean memory used by viewport? */
+		clean_viewport_memory(rj->main);
 	}
 
 	/* setup job */

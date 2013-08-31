@@ -364,6 +364,8 @@ void wm_event_do_notifiers(bContext *C)
 		if (G.is_rendering == FALSE) {
 			/* depsgraph & animation: update tagged datablocks */
 			Main *bmain = CTX_data_main(C);
+			EvaluationContext evaluation_context;
+			evaluation_context.for_render = false;
 
 			/* copied to set's in scene_update_tagged_recursive() */
 			win->screen->scene->customdata_mask = win_combine_v3d_datamask;
@@ -371,7 +373,7 @@ void wm_event_do_notifiers(bContext *C)
 			/* XXX, hack so operators can enforce datamasks [#26482], gl render */
 			win->screen->scene->customdata_mask |= win->screen->scene->customdata_mask_modal;
 
-			BKE_scene_update_tagged(bmain, win->screen->scene);
+			BKE_scene_update_tagged(&evaluation_context, bmain, win->screen->scene);
 		}
 	}
 

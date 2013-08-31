@@ -1366,9 +1366,11 @@ void BKE_ptcache_ids_from_object(ListBase *lb, Object *ob, Scene *scene, int dup
 
 	if (scene && (duplis-- > 0) && (ob->transflag & OB_DUPLI)) {
 		ListBase *lb_dupli_ob;
+		EvaluationContext evaluation_context;
+		evaluation_context.for_render = false;
 
 		/* don't update the dupli groups, we only want their pid's */
-		if ((lb_dupli_ob = object_duplilist_ex(scene, ob, FALSE, FALSE))) {
+		if ((lb_dupli_ob = object_duplilist_ex(&evaluation_context, scene, ob, FALSE))) {
 			DupliObject *dob;
 			for (dob= lb_dupli_ob->first; dob; dob= dob->next) {
 				if (dob->ob != ob) { /* avoids recursive loops with dupliframes: bug 22988 */
@@ -3095,7 +3097,8 @@ static void *ptcache_bake_thread(void *ptr)
 	efra = data->endframe;
 
 	for (; (*data->cfra_ptr <= data->endframe) && !data->break_operation; *data->cfra_ptr+=data->step) {
-		BKE_scene_update_for_newframe(data->main, data->scene, data->scene->lay);
+		/* TODO(sergey): Is it actctually always viewport or not? */
+		BKE_scene_update_for_newframe_viewport(data->main, data->scene, data->scene->lay);
 		if (G.background) {
 			printf("bake: frame %d :: %d\n", (int)*data->cfra_ptr, data->endframe);
 		}
@@ -3326,8 +3329,9 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 	scene->r.framelen = frameleno;
 	CFRA = cfrao;
 	
-	if (bake) /* already on cfra unless baking */
-		BKE_scene_update_for_newframe(bmain, scene, scene->lay);
+	if (bake) { /* already on cfra unless baking */
+		BKE_scene_update_for_newframe_viewport(bmain, scene, scene->lay);
+	}
 
 	if (thread_data.break_operation)
 		WM_cursor_wait(0);

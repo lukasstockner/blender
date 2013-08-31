@@ -130,10 +130,6 @@ void DAG_threaded_update_foreach_ready_node(struct Scene *scene,
                                             void (*func)(void *node, void *user_data),
                                             void *user_data);
 
-struct Object *DAG_threaded_update_get_node_object(void *node_v);
-
-const char *DAG_threaded_update_get_node_name(void *node_v);
-
 void DAG_threaded_update_handle_node_updated(void *node_v,
                                              void (*func)(void *node, void *user_data),
                                              void *user_data);
@@ -141,6 +137,17 @@ void DAG_threaded_update_handle_node_updated(void *node_v,
 /* Debugging: print dependency graph for scene or armature object to console */
 
 void DAG_print_dependencies(struct Main *bmain, struct Scene *scene, struct Object *ob);
+
+/* Tagging and querying */
+void DAG_tag_clear_nodes(struct Scene *scene);
+void DAG_tag_condition_nodes(struct Scene *scene, bool (*condition) (void *node_v, void *user_data),
+                             void *user_data);
+void DAG_tag_flush_nodes(struct Scene *scene);
+void DAG_foreach_tagged_nodes(struct Scene *scene, void (*callback) (void *node_v, void *user_data),
+                              void *user_data);
+
+struct Object *DAG_get_node_object(void *node_v);
+const char *DAG_get_node_name(void *node_v);
 
 #ifdef __cplusplus
 }

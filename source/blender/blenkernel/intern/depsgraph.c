@@ -2751,28 +2751,6 @@ void DAG_threaded_update_foreach_ready_node(Scene *scene,
 	}
 }
 
-/* Will return Object ID if node represents Object,
- * and will return NULL otherwise.
- */
-Object *DAG_threaded_update_get_node_object(void *node_v)
-{
-	DagNode *node = node_v;
-
-	if (node->type == ID_OB) {
-		return node->ob;
-	}
-
-	return NULL;
-}
-
-/* Returns node name, used for debug output only, atm. */
-const char *DAG_threaded_update_get_node_name(void *node_v)
-{
-	DagNode *node = node_v;
-
-	return dag_node_name(node);
-}
-
 /* This function is called when handling node is done.
  *
  * This function updates valency for all childs and
@@ -2823,4 +2801,82 @@ void DAG_print_dependencies(Main *bmain, Scene *scene, Object *ob)
 	}
 	
 	dag_print_dependencies = 0;
+}
+
+/* ************************ DAG tagging and querying ********************* */
+
+void DAG_tag_clear_nodes(Scene *scene)
+{
+	DagNode *node;
+
+	for (node = scene->theDag->DagNode.first; node; node = node->next) {
+		node->color = DAG_BLACK;
+	}
+}
+
+void DAG_tag_condition_nodes(Scene *scene,
+                             bool (*condition) (void *node_v, void *user_data),
+                             void *user_data)
+{
+	DagNode *node;
+
+	for (node = scene->theDag->DagNode.first; node; node = node->next) {
+		if (condition(node, user_data)) {
+			node->color = DAG_WHITE;
+		}
+	}
+}
+
+static void tag_flush_recurs(DagNode *node)
+{
+	DagAdjList *itA;
+
+	for (itA = node->child; itA; itA = itA->next) {
+		if (itA->node != node) {
+			tag_flush_recurs(itA->node);
+
+			if (itA->node->color == DAG_WHITE) {
+				node->color = DAG_WHITE;
+			}
+		}
+	}
+}
+
+void DAG_tag_flush_nodes(Scene *scene)
+{
+	tag_flush_recurs(scene->theDag->DagNode.first);
+}
+
+void DAG_foreach_tagged_nodes(Scene *scene, void (*callback) (void *node_v, void *user_data),
+                              void *user_data)
+{
+	DagNode *node;
+
+	for (node = scene->theDag->DagNode.first; node; node = node->next) {
+		if (node->color == DAG_WHITE) {
+			callback(node, user_data);
+		}
+	}
+}
+
+/* Will return Object ID if node represents Object,
+ * and will return NULL otherwise.
+ */
+Object *DAG_get_node_object(void *node_v)
+{
+	DagNode *node = node_v;
+
+	if (node->type == ID_OB) {
+		return node->ob;
+	}
+
+	return NULL;
+}
+
+/* Returns node name, used for debug output only, atm. */
+const char *DAG_get_node_name(void *node_v)
+{
+	DagNode *node = node_v;
+
+	return dag_node_name(node);
 }

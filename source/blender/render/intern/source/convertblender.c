@@ -79,6 +79,7 @@
 #include "BKE_constraint.h"
 #include "BKE_displist.h"
 #include "BKE_deform.h"
+#include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_effect.h"
 #include "BKE_global.h"
@@ -3397,7 +3398,7 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 	if (re->r.scemode & R_VIEWPORT_PREVIEW)
 		dm= mesh_create_derived_view(re->scene, ob, mask);
 	else
-		dm= mesh_create_derived_render(re->scene, ob, mask);
+		dm= mesh_get_derived_render(re->scene, ob, mask);
 	if (dm==NULL) return;	/* in case duplicated object fails? */
 
 	if (mask & CD_MASK_ORCO) {
@@ -5035,7 +5036,7 @@ static void dupli_render_particle_set(Render *re, Object *ob, int timeoffset, in
 			/* this is to make sure we get render level duplis in groups:
 			 * the derivedmesh must be created before init_render_mesh,
 			 * since object_duplilist does dupliparticles before that */
-			dm = mesh_create_derived_render(re->scene, ob, CD_MASK_BAREMESH|CD_MASK_MTFACE|CD_MASK_MCOL);
+			dm = mesh_get_derived_render(re->scene, ob, CD_MASK_BAREMESH|CD_MASK_MTFACE|CD_MASK_MCOL);
 			dm->release(dm);
 
 			for (psys=ob->particlesystem.first; psys; psys=psys->next)
@@ -5089,6 +5090,105 @@ static void add_group_render_dupli_obs(Render *re, Group *group, int nolamps, in
 	}
 }
 
+typedef struct TagUserData {
+	Render *re;
+	int lay;
+	int nolamps;
+	int onlyselected;
+	Object *actob;
+	GHash *hash;
+} TagUserData;
+
+static bool allow_render_object_callback(void *node_v, void *user_data)
+{
+	TagUserData *data = (TagUserData *) user_data;
+	Object *object = DAG_get_node_object(node_v);
+
+	if (object) {
+		Base *base;
+
+		if (object->restrictflag & OB_RESTRICT_RENDER) {
+			return false;
+		}
+
+		/* TODO(sergey): Do we need some special checks for duplis here? */
+
+		base = BLI_ghash_lookup(data->hash, object);
+		if (base) {
+			if ((base->lay & data->lay) || (object->type == OB_LAMP && (base->lay & data->re->lay)) ) {
+				return allow_render_object(data->re, object, data->nolamps, data->onlyselected, data->actob);
+			}
+			else {
+				return false;
+			}
+		}
+	}
+
+	return false;
+}
+
+static void create_derivedRender_callback(void *node_v, void *user_data)
+{
+	TagUserData *data = (TagUserData *) user_data;
+	Object *object = DAG_get_node_object(node_v);
+
+	if (object) {
+		if (!allow_render_object_callback(node_v, user_data)) {
+			switch (object->type) {
+				case OB_MESH:
+					makeDerivedMeshRender(data->re->scene, object, CD_MASK_BAREMESH | CD_MASK_MTFACE | CD_MASK_MCOL);
+					break;
+
+				case OB_CURVE:
+				case OB_SURF:
+				case OB_FONT:
+					/* TODO(sergey: Pass for now. */
+					break;
+
+				default:
+					/* pass */
+					break;
+			}
+		}
+	}
+}
+
+static void create_derivedRender_for_dependencies(Render *re, int renderlay, int nolamps, int onlyselected, Object *actob, int timeoffset)
+{
+	TagUserData user_data;
+	Base *base;
+	int vectorlay = get_vector_renderlayers(re->scene);
+
+	user_data.re = re;
+	user_data.lay = timeoffset ? renderlay & vectorlay: renderlay;
+	user_data.nolamps = nolamps;
+	user_data.onlyselected = onlyselected;
+	user_data.actob = actob;
+	user_data.hash = BLI_ghash_ptr_new("ob to base hash");
+
+	/* TODO(sergey): We need base to know which layers particular object
+	 *               belong to, and we also need to know dependencies of
+	 *               all objects. So either we do base -> DAG node or
+	 *               DAG node -> base lookup. Annoying but don't see other
+	 *               way to do it at this moment.
+	 */
+
+	/* TODO(sergey): It'll fail to detect depepdnecies for set scenes. */
+	for (base = re->scene->base.first; base; base = base->next) {
+		BLI_ghash_insert(user_data.hash, base->object, base);
+	}
+
+	/* TODO(sergey): Check on cases when DAG is not here (like, preview render) */
+	if (re->scene->theDag) {
+		DAG_tag_clear_nodes(re->scene);
+		DAG_tag_condition_nodes(re->scene, allow_render_object_callback, &user_data);
+		DAG_tag_flush_nodes(re->scene);
+		DAG_foreach_tagged_nodes(re->scene, create_derivedRender_callback, &user_data);
+	}
+
+	BLI_ghash_free(user_data.hash, NULL, NULL);
+}
+
 static void database_init_objects(Render *re, unsigned int renderlay, int nolamps, int onlyselected, Object *actob, int timeoffset)
 {
 	Base *base;
@@ -5120,6 +5220,12 @@ static void database_init_objects(Render *re, unsigned int renderlay, int nolamp
 		ob->transflag &= ~OB_RENDER_DUPLI;
 	}
 
+	/* Here we detect all objects which are not being rendering
+	 * but which are in dependencies of objects which are being
+	 * rendering.
+	 */
+	create_derivedRender_for_dependencies(re, renderlay, nolamps, onlyselected, actob, timeoffset);
+
 	for (SETLOOPER(re->scene, sce_iter, base)) {
 		ob= base->object;
 
@@ -5147,11 +5253,13 @@ static void database_init_objects(Render *re, unsigned int renderlay, int nolamp
 			if ((ob->transflag & OB_DUPLI) && (ob->type!=OB_MBALL)) {
 				DupliObject *dob;
 				ListBase *lb;
+				EvaluationContext evaluation_context;
+				evaluation_context.for_render = true;
 
 				/* create list of duplis generated by this object, particle
 				 * system need to have render settings set for dupli particles */
 				dupli_render_particle_set(re, ob, timeoffset, 0, 1);
-				lb= object_duplilist(re->scene, ob, TRUE);
+				lb= object_duplilist(&evaluation_context, re->scene, ob);
 				dupli_render_particle_set(re, ob, timeoffset, 0, 0);
 
 				for (dob= lb->first; dob; dob= dob->next) {
@@ -5260,6 +5368,13 @@ static void database_init_objects(Render *re, unsigned int renderlay, int nolamp
 	for (group= re->main->group.first; group; group=group->id.next)
 		add_group_render_dupli_obs(re, group, nolamps, onlyselected, actob, timeoffset, 0);
 
+	/* once all objects are added to the database we might drop out
+	 * derived render caches to save some memory.
+	 */
+	for (SETLOOPER(re->scene, sce_iter, base)) {
+		BKE_object_free_derivedRender_caches(base->object);
+	}
+
 	if (!re->test_break(re->tbh))
 		RE_makeRenderInstances(re);
 }
@@ -5303,12 +5418,12 @@ void RE_Database_FromScene(Render *re, Main *bmain, Scene *scene, unsigned int l
 	
 	/* applies changes fully */
 	if ((re->r.scemode & (R_NO_FRAME_UPDATE|R_BUTS_PREVIEW|R_VIEWPORT_PREVIEW))==0)
-		BKE_scene_update_for_newframe(re->main, re->scene, lay);
+		BKE_scene_update_for_newframe_render(re->main, re->scene, lay);
 	
 	/* if no camera, viewmat should have been set! */
 	if (use_camera_view && camera) {
 		/* called before but need to call again in case of lens animation from the
-		 * above call to BKE_scene_update_for_newframe, fixes bug. [#22702].
+		 * above call to BKE_scene_update_for_newframe_render, fixes bug. [#22702].
 		 * following calls don't depend on 'RE_SetCamera' */
 		RE_SetCamera(re, camera);
 
@@ -5486,7 +5601,7 @@ static void database_fromscene_vectors(Render *re, Scene *scene, unsigned int la
 	
 	/* applies changes fully */
 	scene->r.cfra += timeoffset;
-	BKE_scene_update_for_newframe(re->main, re->scene, lay);
+	BKE_scene_update_for_newframe_render(re->main, re->scene, lay);
 	
 	/* if no camera, viewmat should have been set! */
 	if (camera) {

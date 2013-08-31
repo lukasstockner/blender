@@ -1423,6 +1423,19 @@ void ED_screen_set(bContext *C, bScreen *sc)
 		
 		/* makes button hilites work */
 		WM_event_add_mousemove(C);
+
+		/* TODO(sergey): Needed to make sure all the derivedMeshes are
+		 *               up-to-date before viewport starts acquiring this.
+		 *
+		 *               This is needed in cases when, for example, boolean
+		 *               modifier uses operant from invisible layer.
+		 *               Without this trick boolean wouldn't apply correct.
+		 *
+		 *               Quite the same happens when setting screen's scene,
+		 *               so perhaps this is in fact correct thing to do.
+		 */
+		BKE_scene_set_background(bmain, sc->scene);
+		DAG_on_visible_update(bmain, FALSE);
 	}
 }
 
@@ -1908,7 +1921,7 @@ void ED_update_for_newframe(Main *bmain, Scene *scene, int UNUSED(mute))
 		layers |= BKE_screen_visible_layers(window->screen, scene);
 
 	/* this function applies the changes too */
-	BKE_scene_update_for_newframe(bmain, scene, layers); /* BKE_scene.h */
+	BKE_scene_update_for_newframe_viewport(bmain, scene, layers); /* BKE_scene.h */
 	
 	//if ( (CFRA>1) && (!mute) && (scene->r.audio.flag & AUDIO_SCRUB)) 
 	//	audiostream_scrub( CFRA );

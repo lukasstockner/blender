@@ -640,6 +640,8 @@ DerivedMesh *mesh_get_derived_deform(struct Scene *scene, struct Object *ob,
 DerivedMesh *mesh_create_derived_for_modifier(struct Scene *scene, struct Object *ob,
                                               struct ModifierData *md, int build_shapekey_layers);
 
+DerivedMesh *mesh_get_derived_render(struct Scene *scene, struct Object *ob,
+                                     CustomDataMask dataMask);
 DerivedMesh *mesh_create_derived_render(struct Scene *scene, struct Object *ob,
                                         CustomDataMask dataMask);
 
@@ -674,6 +676,7 @@ float (*editbmesh_get_vertex_cos(struct BMEditMesh *em, int *numVerts_r))[3];
 int editbmesh_modifier_is_enabled(struct Scene *scene, struct ModifierData *md, DerivedMesh *dm);
 void makeDerivedMesh(struct Scene *scene, struct Object *ob, struct BMEditMesh *em, 
                      CustomDataMask dataMask, int build_shapekey_layers);
+void makeDerivedMeshRender(struct Scene *scene, struct Object *ob, CustomDataMask dataMask);
 
 /** returns an array of deform matrices for crazyspace correction, and the
  * number of modifiers left */

@@ -2438,7 +2438,7 @@ static ImBuf *seq_render_scene_strip(SeqRenderData context, Sequence *seq, float
 
 	const short is_rendering = G.is_rendering;
 	const short is_background = G.background;
-	const int do_seq_gl = G.is_rendering ?
+	const int do_seq_gl = is_rendering ?
 	            0 /* (context.scene->r.seq_flag & R_SEQ_GL_REND) */ :
 	            (context.scene->r.seq_flag & R_SEQ_GL_PREV);
 	int do_seq;
@@ -2494,7 +2494,12 @@ static ImBuf *seq_render_scene_strip(SeqRenderData context, Sequence *seq, float
 			context.scene->r.seq_prev_type = 3 /* == OB_SOLID */;
 
 		/* opengl offscreen render */
-		BKE_scene_update_for_newframe(context.bmain, scene, scene->lay);
+		if (is_rendering) {
+			BKE_scene_update_for_newframe_render(context.bmain, scene, scene->lay);
+		}
+		else {
+			BKE_scene_update_for_newframe_viewport(context.bmain, scene, scene->lay);
+		}
 		ibuf = sequencer_view3d_cb(scene, camera, context.rectx, context.recty, IB_rect,
 		                           context.scene->r.seq_prev_type, context.scene->r.seq_flag & R_SEQ_SOLID_TEX,
 		                           TRUE, scene->r.alphamode, err_out);
@@ -2517,8 +2522,13 @@ static ImBuf *seq_render_scene_strip(SeqRenderData context, Sequence *seq, float
 		if (!is_thread_main || is_rendering == FALSE || is_background) {
 			if (re == NULL)
 				re = RE_NewRender(scene->id.name);
-			
-			BKE_scene_update_for_newframe(context.bmain, scene, scene->lay);
+
+			if (is_rendering) {
+				BKE_scene_update_for_newframe_render(context.bmain, scene, scene->lay);
+			}
+			else {
+				BKE_scene_update_for_newframe_viewport(context.bmain, scene, scene->lay);
+			}
 			RE_BlenderFrame(re, context.bmain, scene, NULL, camera, scene->lay, frame, FALSE);
 
 			/* restore previous state after it was toggled on & off by RE_BlenderFrame */
@@ -2553,8 +2563,14 @@ static ImBuf *seq_render_scene_strip(SeqRenderData context, Sequence *seq, float
 	
 	scene->r.cfra = oldcfra;
 
-	if (frame != oldcfra)
-		BKE_scene_update_for_newframe(context.bmain, scene, scene->lay);
+	if (frame != oldcfra) {
+		if (is_rendering) {
+			BKE_scene_update_for_newframe_render(context.bmain, scene, scene->lay);
+		}
+		else {
+			BKE_scene_update_for_newframe_viewport(context.bmain, scene, scene->lay);
+		}
+	}
 	
 #ifdef DURIAN_CAMERA_SWITCH
 	/* stooping to new low's in hackyness :( */

@@ -986,10 +986,13 @@ static int subframe_updateObject(Scene *scene, Object *ob, int update_mesh, int 
 	ob->recalc |= OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME;
 	BKE_animsys_evaluate_animdata(scene, &ob->id, ob->adt, frame, ADT_RECALC_ANIM);
 	if (update_mesh) {
+		/* TODO(sergey): Just for now! It shall be passed from modifier stack! */
+		EvaluationContext evaluation_context;
+		evaluation_context.for_render = false;
 		/* ignore cache clear during subframe updates
 		 *  to not mess up cache validity */
 		object_cacheIgnoreClear(ob, 1);
-		BKE_object_handle_update(scene, ob);
+		BKE_object_handle_update(&evaluation_context, scene, ob);
 		object_cacheIgnoreClear(ob, 0);
 	}
 	else

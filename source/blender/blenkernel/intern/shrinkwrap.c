@@ -68,6 +68,7 @@
 
 /* get derived mesh */
 /* TODO is anyfunction that does this? returning the derivedFinal without we caring if its in edit mode or not? */
+/* TODO(sergey): use derivedRender wehn applying thing for render mode */
 DerivedMesh *object_get_derived_final(Object *ob)
 {
 	Mesh *me = ob->data;
