@@ -695,9 +695,9 @@ static int armature_parent_set_invoke(bContext *C, wmOperator *op, const wmEvent
 		OPERATOR_RETVAL_CHECK(retval);
 		return retval;
 	} else {
+		int allchildbones = 0;
 		pup = uiPupMenuBegin(C, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Make Parent"), ICON_NONE);
 		layout = uiPupMenuLayout(pup);
-		int allchildbones = 0;
 		
 		CTX_DATA_BEGIN(C, EditBone *, ebone, selected_editable_bones)
 		{

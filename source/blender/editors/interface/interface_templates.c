@@ -649,44 +649,47 @@ static void template_ID_brush(bContext *C, uiLayout *layout, TemplateID *templat
 	
 	/* first row: text button with name */
 	row = uiLayoutRow(col, TRUE);
-	char name[UI_MAX_NAME_STR];
-	const short user_alert = (id->us <= 0);
-
-	//text_idbutton(id, name);
-	name[0] = '\0';
-	but = uiDefButR(block, TEX, 0, name, 0, 0, UI_UNIT_X * 6, UI_UNIT_Y,
-					&idptr, "name", -1, 0, 0, -1, -1, RNA_struct_ui_description(type));
-	uiButSetNFunc(but, template_id_cb, MEM_dupallocN(template), SET_INT_IN_POINTER(UI_ID_RENAME));
-	if (user_alert) uiButSetFlag(but, UI_BUT_REDALERT);
-
-	/* second row */
-	row = uiLayoutRow(col, TRUE);
-		
-	if (id->us > 1) {
-		char numstr[32];
-
-		BLI_snprintf(numstr, sizeof(numstr), "%d", id->us);
-
-		but = uiDefBut(block, BUT, 0, numstr, 0, 0, 6 * UI_UNIT_X + ((id->us < 10) ? 0 : 10), UI_UNIT_Y,
-					   NULL, 0, 0, 0, 0,
-					   TIP_("Display number of users of this data (click to make a single-user copy)"));
-
-		uiButSetNFunc(but, template_id_cb, MEM_dupallocN(template), SET_INT_IN_POINTER(UI_ID_ALONE));
-		if (/* test only */
-			(id_copy(id, NULL, true) == false) ||
-			(idfrom && idfrom->lib) ||
-			(editable == FALSE) ||
-			/* object in editmode - don't change data */
-			(idfrom && GS(idfrom->name) == ID_OB && (((Object *)idfrom)->mode & OB_MODE_EDIT)))
-		{
-			uiButSetFlag(but, UI_BUT_DISABLED);
-		}
-	}
-
-	if (user_alert) uiButSetFlag(but, UI_BUT_REDALERT);
 	
-	if (id->lib == NULL && !(ELEM5(GS(id->name), ID_GR, ID_SCE, ID_SCR, ID_TXT, ID_OB))) {
-		uiDefButR(block, TOG, 0, "F", 0, 0, UI_UNIT_X, UI_UNIT_Y, &idptr, "use_fake_user", -1, 0, 0, -1, -1, NULL);
+	if (id) {
+		char name[UI_MAX_NAME_STR];
+		const short user_alert = id->us <= 0;
+
+		//text_idbutton(id, name);
+		name[0] = '\0';
+		but = uiDefButR(block, TEX, 0, name, 0, 0, UI_UNIT_X * 6, UI_UNIT_Y,
+						&idptr, "name", -1, 0, 0, -1, -1, RNA_struct_ui_description(type));
+		uiButSetNFunc(but, template_id_cb, MEM_dupallocN(template), SET_INT_IN_POINTER(UI_ID_RENAME));
+		if (user_alert) uiButSetFlag(but, UI_BUT_REDALERT);
+
+		/* second row */
+		row = uiLayoutRow(col, TRUE);
+			
+		if (id->us > 1) {
+			char numstr[32];
+
+			BLI_snprintf(numstr, sizeof(numstr), "%d", id->us);
+
+			but = uiDefBut(block, BUT, 0, numstr, 0, 0, 6 * UI_UNIT_X + ((id->us < 10) ? 0 : 10), UI_UNIT_Y,
+						   NULL, 0, 0, 0, 0,
+						   TIP_("Display number of users of this data (click to make a single-user copy)"));
+
+			uiButSetNFunc(but, template_id_cb, MEM_dupallocN(template), SET_INT_IN_POINTER(UI_ID_ALONE));
+			if (/* test only */
+				(id_copy(id, NULL, true) == false) ||
+				(idfrom && idfrom->lib) ||
+				(editable == FALSE) ||
+				/* object in editmode - don't change data */
+				(idfrom && GS(idfrom->name) == ID_OB && (((Object *)idfrom)->mode & OB_MODE_EDIT)))
+			{
+				uiButSetFlag(but, UI_BUT_DISABLED);
+			}
+		}
+
+		if (user_alert) uiButSetFlag(but, UI_BUT_REDALERT);
+		
+		if (id->lib == NULL && !(ELEM5(GS(id->name), ID_GR, ID_SCE, ID_SCR, ID_TXT, ID_OB))) {
+			uiDefButR(block, TOG, 0, "F", 0, 0, UI_UNIT_X, UI_UNIT_Y, &idptr, "use_fake_user", -1, 0, 0, -1, -1, NULL);
+		}
 	}
 	
 	if (flag & UI_ID_ADD_NEW) {
