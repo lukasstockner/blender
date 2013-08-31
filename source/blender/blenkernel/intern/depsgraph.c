@@ -2830,16 +2830,25 @@ void DAG_tag_condition_nodes(Scene *scene,
 static void tag_flush_recurs(DagNode *node)
 {
 	DagAdjList *itA;
+	int color = node->color;
+
+	/* Quick hack for recursion detection. */
+	if (node->color == DAG_GRAY) {
+		return;
+	}
+	node->color = DAG_GRAY;
 
 	for (itA = node->child; itA; itA = itA->next) {
 		if (itA->node != node) {
 			tag_flush_recurs(itA->node);
 
 			if (itA->node->color == DAG_WHITE) {
-				node->color = DAG_WHITE;
+				color = DAG_WHITE;
 			}
 		}
 	}
+
+	node->color = color;
 }
 
 void DAG_tag_flush_nodes(Scene *scene)
