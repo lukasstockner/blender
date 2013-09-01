@@ -549,7 +549,7 @@ static void rectf_scale(rctf *rect, const float scale)
 }
 
 /* panel integrated in buttonswindow, tool/property lists etc */
-void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, rcti *rect, int toolbar)
+void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, rcti *rect, int UNUSED(toolbar))
 {
 	Panel *panel = block->panel;
 	rcti headrect;
@@ -1131,7 +1131,7 @@ static void ui_do_drag_button(const bContext *C, const wmEvent *event, Panel *pa
 	ED_region_tag_redraw(ar);
 }
 
-static void ui_do_drag_button_finish(const bContext *C, const wmEvent *event, Panel *pa)
+static void ui_do_drag_button_finish(const bContext *C, const wmEvent *UNUSED(event), Panel *pa)
 {
 	uiHandlePanelData *data = pa->activedata;
 	ARegion *ar = CTX_wm_region(C);
@@ -1259,17 +1259,16 @@ static uiBlock *custom_panel_options_create_block(bContext *C, ARegion *ar, void
 	uiLayout *layout;
 	uiBut *but;
 	PointerRNA ptr;
-	
-	block = uiBeginBlock(C, ar, "panel options", UI_EMBOSS);
-	
-	uiBlockClearFlag(block, UI_BLOCK_LOOP);
-	uiBlockSetFlag(block, UI_BLOCK_MOVEMOUSE_QUIT);
-	
 	uiStyle *style = UI_GetStyleDraw();
 	
 	int xco, yco;
 	int w = UI_PANEL_WIDTH / 2;
 	int em = UI_UNIT_Y;
+	
+	block = uiBeginBlock(C, ar, "panel options", UI_EMBOSS);
+	
+	uiBlockClearFlag(block, UI_BLOCK_LOOP);
+	uiBlockSetFlag(block, UI_BLOCK_MOVEMOUSE_QUIT);
 		
 	layout = uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_TOOLBAR,
 							style->panelspace, 0, w - 2 * style->panelspace, em, style);
