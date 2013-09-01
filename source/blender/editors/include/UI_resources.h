@@ -245,6 +245,7 @@ enum {
 
 struct bTheme;
 struct PointerRNA;
+struct bContext;
 
 // THE CODERS API FOR THEMES:
 
