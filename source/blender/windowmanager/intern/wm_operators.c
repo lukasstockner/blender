@@ -4161,13 +4161,14 @@ void add_to_icon_shelf(bContext *C, void *arg1, void *UNUSED(arg2))
 	if (ar && arg1)
 	{
 		wmOperatorType *ot = (wmOperatorType*)arg1;
+		OperatorListItem *oli;
 		
 		if (BLI_findstring(&ar->operators, ot->idname, offsetof(OperatorListItem, optype_idname))) {
 			BKE_reportf(&wm->reports, RPT_INFO, "This operator (%s) is already present in the menubar.", ot->idname);
 			return;
 		}
 		
-		OperatorListItem *oli = MEM_callocN(sizeof(OperatorListItem), "add operator list item to icon shelf");
+		oli = MEM_callocN(sizeof(OperatorListItem), "add operator list item to icon shelf");
 
 		BLI_strncpy(oli->optype_idname, ot->idname, OP_MAX_TYPENAME);
 		BLI_strncpy(oli->context, CTX_data_mode_string(C), MAX_NAME);
@@ -4185,7 +4186,6 @@ void add_to_custom_panel_menu(bContext *C, uiLayout *layout, void *arg1)
 	PanelType *pt;
 	PropertyRNA *prop;
 	wmOperatorType *optype = (wmOperatorType*)arg1;
-	
 	
 	ar = BKE_area_find_region_type(sa, RGN_TYPE_TOOLS);
 	
