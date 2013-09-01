@@ -969,6 +969,8 @@ static void region_rect_recursive(wmWindow *win, ScrArea *sa, ARegion *ar, rcti 
 	if (alignment == RGN_ALIGN_FLOAT && ar->regiontype == RGN_TYPE_TOOL_PROPS) {
 		/* special case for floating tool properties regions */
 		Panel *pa = NULL;
+		ARegion *mw = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
+		
 		for (pa = ar->panels.first; pa; pa = pa->next) {
 			// TODO: is there a better way to test for the identity of a panel type?
 			if (pa->type && strcmp(pa->type->idname, "VIEW3D_PT_last_operator") == 0) {
@@ -976,7 +978,6 @@ static void region_rect_recursive(wmWindow *win, ScrArea *sa, ARegion *ar, rcti 
 			}
 		}
 
-		ARegion *mw = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
 		ar->winrct.xmax = mw->winrct.xmax;
 		ar->winrct.xmin = mw->winrct.xmax - (ar->type ? ar->type->prefsizex : 160);
 		ar->winrct.ymin = mw->winrct.ymin;
