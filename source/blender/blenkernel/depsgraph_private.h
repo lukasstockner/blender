@@ -99,6 +99,7 @@ typedef struct DagNode {
 	                    * Used by threaded update for faster detect whether node could be
 	                    * updated aready.
 	                    */
+	bool tag, scheduled;
 } DagNode;
 
 typedef struct DagNodeQueueElem {

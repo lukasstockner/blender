@@ -2696,19 +2696,25 @@ void DAG_threaded_exit(void)
 	BLI_spin_end(&threaded_update_lock);
 }
 
-/* Initialize the DAG for threaded update.
+/* Initialize run-time data in the graph needed for traversing it
+ * from multiple threads and start threaded tree traversal by adding
+ * the root node to the queue.
  *
- * Sets up all the data needed for faster check whether DAG node is
- * updatable already (whether all the dependencies are met).
+ * This will mark DAG nodes as object/non-object and will calculate
+ * "valency" of nodes (which is how many non-updated parents node
+ * have, which helps a lot checking whether node could be scheduled
+ * already or not).
  */
-void DAG_threaded_update_begin(Scene *scene)
+void DAG_threaded_update_begin(Scene *scene,
+                               void (*func)(void *node, void *user_data),
+                               void *user_data)
 {
-	DagNode *node;
+	DagNode *node, *root_node;
 
 	/* We reset valency to zero first... */
 	for (node = scene->theDag->DagNode.first; node; node = node->next) {
 		node->valency = 0;
-		node->color = DAG_WHITE;
+		node->scheduled = false;
 	}
 
 	/* ... and then iterate over all the nodes and
@@ -2723,32 +2729,11 @@ void DAG_threaded_update_begin(Scene *scene)
 			}
 		}
 	}
-}
 
-/* Call functor for every node in the graph which is ready for
- * update (all it's dependencies are met). Quick check for this
- * is valency == 0.
- */
-void DAG_threaded_update_foreach_ready_node(Scene *scene,
-                                            void (*func)(void *node, void *user_data),
-                                            void *user_data)
-{
-	DagNode *node;
-
-	for (node = scene->theDag->DagNode.first; node; node = node->next) {
-		if (node->valency == 0) {
-			bool need_schedule;
-
-			BLI_spin_lock(&threaded_update_lock);
-			need_schedule = node->color == DAG_WHITE;
-			node->color = DAG_BLACK;
-			BLI_spin_unlock(&threaded_update_lock);
-
-			if (need_schedule) {
-				func(node, user_data);
-			}
-		}
-	}
+	/* Add root node to the queue. */
+	root_node = scene->theDag->DagNode.first;
+	root_node->scheduled = true;
+	func(root_node, user_data);
 }
 
 /* This function is called when handling node is done.
@@ -2772,8 +2757,8 @@ void DAG_threaded_update_handle_node_updated(void *node_v,
 				bool need_schedule;
 
 				BLI_spin_lock(&threaded_update_lock);
-				need_schedule = child_node->color == DAG_WHITE;
-				child_node->color = DAG_BLACK;
+				need_schedule = child_node->scheduled == false;
+				child_node->scheduled = true;
 				BLI_spin_unlock(&threaded_update_lock);
 
 				if (need_schedule) {
@@ -2810,62 +2795,66 @@ void DAG_tag_clear_nodes(Scene *scene)
 	DagNode *node;
 
 	for (node = scene->theDag->DagNode.first; node; node = node->next) {
-		node->color = DAG_BLACK;
+		node->tag = false;
 	}
 }
 
-void DAG_tag_condition_nodes(Scene *scene,
-                             bool (*condition) (void *node_v, void *user_data),
-                             void *user_data)
+void DAG_tag_node_for_object(Scene *scene, void *object)
 {
-	DagNode *node;
+	DagNode *node = dag_get_node(scene->theDag, object);
 
-	for (node = scene->theDag->DagNode.first; node; node = node->next) {
-		if (condition(node, user_data)) {
-			node->color = DAG_WHITE;
-		}
-	}
-}
-
-static void tag_flush_recurs(DagNode *node)
-{
-	DagAdjList *itA;
-	int color = node->color;
-
-	/* Quick hack for recursion detection. */
-	if (node->color == DAG_GRAY) {
-		return;
-	}
-	node->color = DAG_GRAY;
-
-	for (itA = node->child; itA; itA = itA->next) {
-		if (itA->node != node) {
-			tag_flush_recurs(itA->node);
-
-			if (itA->node->color == DAG_WHITE) {
-				color = DAG_WHITE;
-			}
-		}
-	}
-
-	node->color = color;
+	node->tag = true;
 }
 
 void DAG_tag_flush_nodes(Scene *scene)
 {
-	tag_flush_recurs(scene->theDag->DagNode.first);
-}
+	DagNodeQueue *node_queue;
+	DagNode *node, *root_node;
 
-void DAG_foreach_tagged_nodes(Scene *scene, void (*callback) (void *node_v, void *user_data),
-                              void *user_data)
-{
-	DagNode *node;
+	node_queue = queue_create(DAGQUEUEALLOC);
 
 	for (node = scene->theDag->DagNode.first; node; node = node->next) {
-		if (node->color == DAG_WHITE) {
-			callback(node, user_data);
+		node->color = DAG_WHITE;
+	}
+
+	root_node = scene->theDag->DagNode.first;
+	root_node->color = DAG_GRAY;
+	push_stack(node_queue, root_node);
+
+	while (node_queue->count) {
+		DagAdjList *itA;
+		bool has_new_nodes = false;
+
+		node = get_top_node_queue(node_queue);
+
+		/* Schedule all child nodes. */
+		for (itA = node->child; itA; itA = itA->next) {
+			if (itA->node->color == DAG_WHITE) {
+				itA->node->color = DAG_GRAY;
+				push_stack(node_queue, itA->node);
+				has_new_nodes = true;
+			}
+		}
+
+		if (!has_new_nodes) {
+			node = pop_queue(node_queue);
+			if (node->ob == scene) {
+				break;
+			}
+
+			/* Flush tag from child to current node. */
+			for (itA = node->child; itA; itA = itA->next) {
+				if (itA->node->tag) {
+					node->tag = true;
+					break;
+				}
+			}
+
+			node->color = DAG_BLACK;
 		}
 	}
+
+	queue_delete(node_queue);
 }
 
 /* Will return Object ID if node represents Object,
@@ -2888,4 +2877,11 @@ const char *DAG_get_node_name(void *node_v)
 	DagNode *node = node_v;
 
 	return dag_node_name(node);
+}
+
+bool DAG_get_node_tag(void *node_v)
+{
+	DagNode *node = node_v;
+
+	return node->tag;
 }

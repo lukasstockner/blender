@@ -1337,13 +1337,6 @@ static void scene_update_objects(EvaluationContext *evaluation_context, Scene *s
 		return;
 	}
 
-	/* Ensure malloc will go go fine from threads,
-	 * this is needed because we could be in main thread here
-	 * and malloc could be non-threda safe at this point because
-	 * no other jobs are running.
-	 */
-	BLI_begin_threaded_malloc();
-
 	state.evaluation_context = evaluation_context;
 	state.scene = scene;
 	state.scene_parent = scene_parent;
@@ -1353,33 +1346,9 @@ static void scene_update_objects(EvaluationContext *evaluation_context, Scene *s
 
 	task_pool = BLI_task_pool_create(task_scheduler, &state);
 
-	/* Initialize run-time data in the graph needed for traversing it
-	 * from multiple threads.
-	 *
-	 * This will mark DAG nodes as object/non-object and will calculate
-	 * "valency" of nodes (which is how many non-updated parents node
-	 * have, which helps a lot checking whether node could be scheduled
-	 * already or not).
-	 */
-	DAG_threaded_update_begin(scene);
-
-	/* Put all nodes which are already ready for schedule to the task pool.
-	 * usually its just a Scene node.
-	 *
-	 * We do lock here so no tthreads will start updating nodes valency
-	 * while we're still fillign the queue in. Otherwise it's possible
-	 * to run into situations when the same task is adding twice to the
-	 * queue due to non-safe nature of function below.
-	 */
-	DAG_threaded_update_foreach_ready_node(scene, scene_update_object_add_task, task_pool);
-
-	/* work and wait until tasks are done */
+	DAG_threaded_update_begin(scene, scene_update_object_add_task, task_pool);
 	BLI_task_pool_work_and_wait(task_pool);
-
-	/* free */
 	BLI_task_pool_free(task_pool);
-
-	BLI_end_threaded_malloc();
 
 #ifdef DETAILED_ANALYSIS_OUTPUT
 	print_thread_statistics_for_analysis(&state);

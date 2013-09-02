@@ -2750,20 +2750,6 @@ void BKE_object_handle_update_ex(EvaluationContext *evaluation_context,
 							makeDerivedMesh(scene, ob, NULL, data_mask, 0);
 						}
 					}
-					else {
-						/* TODO(sergey): Maybe no need to create derivedRender in advance?
-						 *               On the other hand, this might allow us doing a threaded update.
-						 */
-
-						/* TODO(sergey): For now the same mask as in convertblender.c */
-						uint64_t data_mask = CD_MASK_BAREMESH | CD_MASK_MTFACE | CD_MASK_MCOL;
-
-						/* TODO(sergey): We need to load changes from editMesh here,
-						 *               render DM is up-to-date with current changes from dit mode.
-						 */
-
-						makeDerivedMeshRender(scene, ob, data_mask);
-					}
 					break;
 				}
 				case OB_ARMATURE:
@@ -2782,9 +2768,6 @@ void BKE_object_handle_update_ex(EvaluationContext *evaluation_context,
 					if (evaluation_context->for_render == false) {
 						BKE_displist_make_mball(scene, ob);
 					}
-					else {
-						/* nothing for now. */
-					}
 					break;
 
 				case OB_CURVE:
@@ -2793,17 +2776,11 @@ void BKE_object_handle_update_ex(EvaluationContext *evaluation_context,
 					if (evaluation_context->for_render == false) {
 						BKE_displist_make_curveTypes(scene, ob, 0);
 					}
-					else {
-						/* nothing for now. */
-					}
 					break;
 				
 				case OB_LATTICE:
 					if (evaluation_context->for_render == false) {
 						BKE_lattice_modifiers_calc(scene, ob);
-					}
-					else {
-						/* nothing for now. */
 					}
 					break;
 			}

@@ -289,6 +289,14 @@ TaskPool *BLI_task_pool_create(TaskScheduler *scheduler, void *userdata)
 	pool->userdata = userdata;
 	BLI_mutex_init(&pool->user_mutex);
 
+	/* Ensure malloc will go go fine from threads,
+	 *
+	 * This is needed because we could be in main thread here
+	 * and malloc could be non-threda safe at this point because
+	 * no other jobs are running.
+	 */
+	BLI_begin_threaded_malloc();
+
 	return pool;
 }
 
@@ -302,6 +310,8 @@ void BLI_task_pool_free(TaskPool *pool)
 	BLI_mutex_end(&pool->user_mutex);
 
 	MEM_freeN(pool);
+
+	BLI_end_threaded_malloc();
 }
 
 void BLI_task_pool_push(TaskPool *pool, TaskRunFunction run,

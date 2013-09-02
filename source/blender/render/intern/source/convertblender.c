@@ -39,8 +39,8 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 #include "BLI_rand.h"
+#include "BLI_task.h"
 #include "BLI_memarena.h"
-#include "BLI_ghash.h"
 #include "BLI_linklist.h"
 #ifdef WITH_FREESTYLE
 #  include "BLI_edgehash.h"
@@ -5090,53 +5090,20 @@ static void add_group_render_dupli_obs(Render *re, Group *group, int nolamps, in
 	}
 }
 
-typedef struct TagUserData {
-	Render *re;
-	int lay;
-	int nolamps;
-	int onlyselected;
-	Object *actob;
-	GHash *hash;
-} TagUserData;
+static void create_derivedRender_add_task(void *node, void *user_data);
 
-static bool allow_render_object_callback(void *node_v, void *user_data)
+static void create_derivedRender_func(TaskPool *pool, void *taskdata, int UNUSED(threadid))
 {
-	TagUserData *data = (TagUserData *) user_data;
-	Object *object = DAG_get_node_object(node_v);
+	Scene *scene = (Scene *) BLI_task_pool_userdata(pool);
+	void *node = taskdata;
 
-	if (object) {
-		Base *base;
+	if (DAG_get_node_tag(node)) {
+		Object *object = DAG_get_node_object(node);
 
-		if (object->restrictflag & OB_RESTRICT_RENDER) {
-			return false;
-		}
-
-		/* TODO(sergey): Do we need some special checks for duplis here? */
-
-		base = BLI_ghash_lookup(data->hash, object);
-		if (base) {
-			if ((base->lay & data->lay) || (object->type == OB_LAMP && (base->lay & data->re->lay)) ) {
-				return allow_render_object(data->re, object, data->nolamps, data->onlyselected, data->actob);
-			}
-			else {
-				return false;
-			}
-		}
-	}
-
-	return false;
-}
-
-static void create_derivedRender_callback(void *node_v, void *user_data)
-{
-	TagUserData *data = (TagUserData *) user_data;
-	Object *object = DAG_get_node_object(node_v);
-
-	if (object) {
-		if (!allow_render_object_callback(node_v, user_data)) {
+		if (object) {
 			switch (object->type) {
 				case OB_MESH:
-					makeDerivedMeshRender(data->re->scene, object, CD_MASK_BAREMESH | CD_MASK_MTFACE | CD_MASK_MCOL);
+					makeDerivedMeshRender(scene, object, CD_MASK_BAREMESH | CD_MASK_MTFACE | CD_MASK_MCOL);
 					break;
 
 				case OB_CURVE:
@@ -5151,42 +5118,51 @@ static void create_derivedRender_callback(void *node_v, void *user_data)
 			}
 		}
 	}
+
+	DAG_threaded_update_handle_node_updated(node,create_derivedRender_add_task, pool);
+}
+
+static void create_derivedRender_add_task(void *node, void *user_data)
+{
+	TaskPool *pool = user_data;
+
+	BLI_task_pool_push(pool, create_derivedRender_func, node, false, TASK_PRIORITY_LOW);
 }
 
 static void create_derivedRender_for_dependencies(Render *re, int renderlay, int nolamps, int onlyselected, Object *actob, int timeoffset)
 {
-	TagUserData user_data;
-	Base *base;
-	int vectorlay = get_vector_renderlayers(re->scene);
-
-	user_data.re = re;
-	user_data.lay = timeoffset ? renderlay & vectorlay: renderlay;
-	user_data.nolamps = nolamps;
-	user_data.onlyselected = onlyselected;
-	user_data.actob = actob;
-	user_data.hash = BLI_ghash_ptr_new("ob to base hash");
-
-	/* TODO(sergey): We need base to know which layers particular object
-	 *               belong to, and we also need to know dependencies of
-	 *               all objects. So either we do base -> DAG node or
-	 *               DAG node -> base lookup. Annoying but don't see other
-	 *               way to do it at this moment.
-	 */
-
-	/* TODO(sergey): It'll fail to detect depepdnecies for set scenes. */
-	for (base = re->scene->base.first; base; base = base->next) {
-		BLI_ghash_insert(user_data.hash, base->object, base);
-	}
+	Scene *scene = re->scene;
+	int vectorlay = get_vector_renderlayers(scene);
+	int lay = timeoffset ? renderlay & vectorlay : renderlay;
 
 	/* TODO(sergey): Check on cases when DAG is not here (like, preview render) */
-	if (re->scene->theDag) {
-		DAG_tag_clear_nodes(re->scene);
-		DAG_tag_condition_nodes(re->scene, allow_render_object_callback, &user_data);
-		DAG_tag_flush_nodes(re->scene);
-		DAG_foreach_tagged_nodes(re->scene, create_derivedRender_callback, &user_data);
-	}
+	if (scene->theDag) {
+		TaskScheduler *task_scheduler = BLI_task_scheduler_get();
+		TaskPool *pool;
+		Scene *sce_iter;
+		Base *base;
 
-	BLI_ghash_free(user_data.hash, NULL, NULL);
+		DAG_tag_clear_nodes(scene);
+
+		/* Tag all nodes which corresponds to object which are needed for renderer. */
+		for (SETLOOPER(scene, sce_iter, base)) {
+			Object *object = base->object;
+			if ((base->lay & lay) || (object->type == OB_LAMP && (base->lay & re->lay)) ) {
+				if (allow_render_object(re, object, nolamps, onlyselected, actob)) {
+					DAG_tag_node_for_object(scene, object);
+				}
+			}
+		}
+
+		/* Flush tag to all arent nodes of which were tagged above.  */
+		DAG_tag_flush_nodes(scene);
+
+		/* Create derived render stuff in threads. */
+		pool = BLI_task_pool_create(task_scheduler, scene);
+		DAG_threaded_update_begin(scene, create_derivedRender_add_task, pool);
+		BLI_task_pool_work_and_wait(pool);
+		BLI_task_pool_free(pool);
+	}
 }
 
 static void database_init_objects(Render *re, unsigned int renderlay, int nolamps, int onlyselected, Object *actob, int timeoffset)

@@ -123,12 +123,9 @@ void DAG_threaded_init(void);
 void DAG_threaded_exit(void);
 
 /* Initialize the DAG for threaded update. */
-void DAG_threaded_update_begin(struct Scene *scene);
-
-/* Run a callback for every node which is ready for update. */
-void DAG_threaded_update_foreach_ready_node(struct Scene *scene,
-                                            void (*func)(void *node, void *user_data),
-                                            void *user_data);
+void DAG_threaded_update_begin(struct Scene *scene,
+                               void (*func)(void *node, void *user_data),
+                               void *user_data);
 
 void DAG_threaded_update_handle_node_updated(void *node_v,
                                              void (*func)(void *node, void *user_data),
@@ -140,14 +137,12 @@ void DAG_print_dependencies(struct Main *bmain, struct Scene *scene, struct Obje
 
 /* Tagging and querying */
 void DAG_tag_clear_nodes(struct Scene *scene);
-void DAG_tag_condition_nodes(struct Scene *scene, bool (*condition) (void *node_v, void *user_data),
-                             void *user_data);
+void DAG_tag_node_for_object(struct Scene *scene, void *object);
 void DAG_tag_flush_nodes(struct Scene *scene);
-void DAG_foreach_tagged_nodes(struct Scene *scene, void (*callback) (void *node_v, void *user_data),
-                              void *user_data);
 
 struct Object *DAG_get_node_object(void *node_v);
 const char *DAG_get_node_name(void *node_v);
+bool DAG_get_node_tag(void *node_v);
 
 #ifdef __cplusplus
 }
