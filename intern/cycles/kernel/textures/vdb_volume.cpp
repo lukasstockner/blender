@@ -57,27 +57,33 @@ bool VDBTextureSystem::perform_lookup(ustring filename, OIIO::TextureSystem::Per
     }
     else
     {
-        openvdb::GridBase::Ptr grid;
-        
+        VDBAccessorPtr accessor;
         if (options.subimagename) {
-            grid = vdb_p->file.readGrid(options.subimagename.string());
+            accessor = vdb_p->getAccessor(options.subimagename);
         }
         else
         {
-            grid = (*(vdb_p->grids))[0];
+            accessor = vdb_p->getAccessor();
         }
         
-        if (!grid) return false;
-        
-        //decide on type of grid; let's say it's a float grid.
-        openvdb::Int32Grid::Ptr intGrid = openvdb::gridPtrCast<openvdb::Int32Grid>(grid);
+        if (!accessor) return false;
     
+      /*
         float x, y, z = 0;
         x = OpenVDBUtil::nearest_neighbor(P[0]);
         y = OpenVDBUtil::nearest_neighbor(P[1]);
         z = OpenVDBUtil::nearest_neighbor(P[2]);
         
-        *result = VDBLookup<openvdb::Int32Grid>::vdb_lookup_single_point(*intGrid, (int)x, (int)y, (int)z);
+       */
+        //accessor->vdb_lookup_single_point(x, y, z, result);
+        
+        openvdb::tools::GridSampler<openvdb::FloatTree, openvdb::tools::BoxSampler>
+        sampler(openvdb::gridPtrCast<openvdb::FloatGrid>(accessor->getGridPtr())->constTree(), accessor->getGridPtr()->transform());
+        openvdb::Vec3d p(P[0], P[1], P[2]);
+        *result = sampler.wsSample(p);
+      //  VDBLookup::vdb_lookup_single_point(grid, x, y, z, result);
+        
+     //   *result = VDBLookup<openvdb::Int32Grid>::vdb_lookup_single_point(*intGrid, (int)x, (int)y, (int)z);
         
         return true;
     }

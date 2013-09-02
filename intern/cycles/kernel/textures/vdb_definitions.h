@@ -19,32 +19,69 @@
 #ifndef __VDB_DEFINITIONS_H__
 #define __VDB_DEFINITIONS_H__
 
-#include <openvdb/openvdb.h>
-#include <OpenImageIO/ustring.h>
+#include "vdb_lookup.h"
+#include <openvdb/tools/Interpolation.h>
+//#include <OpenImageIO/ustring.h>
+#include <OSL/oslconfig.h>
+#include <vector.h>
 
 CCL_NAMESPACE_BEGIN
 
 using OpenImageIO::ustring;
 
+typedef boost::shared_ptr<VDBAccessor> VDBAccessorPtr;
+typedef vector<VDBAccessorPtr> AccessorVector;
+
 typedef struct VDBVolumeFile {
 	openvdb::io::File file;
     ustring version;
-    
+        
+    AccessorVector accessors;
 	openvdb::GridPtrVecPtr grids;
     openvdb::MetaMap::Ptr meta;
+    
+    VDBAccessorPtr getAccessor(ustring grid_name)
+    {
+        VDBAccessorPtr ptr;
+        
+        for (int i = 0; i < accessors.size(); i++)
+        {
+            if (accessors[i]->getGridPtr()->getName() == grid_name.string())
+            {
+                ptr = accessors[i];
+                break;
+            }
+        }
+        
+        return ptr;
+    }
+    
+    VDBAccessorPtr getAccessor()
+    {
+        return accessors[0];
+    }
     
     VDBVolumeFile(ustring filename) : file(filename.string())
     {
         file.open();
         
         grids = file.getGrids();
+        for(int i = 0; i < grids->size(); i++)
+        {
+            VDBAccessorPtr ptr(new VDBAccessor((*grids)[i]));
+            accessors.push_back(ptr);
+        }
+        
         meta = file.getMetadata();
         version = file.version();
     }
     ~VDBVolumeFile()
     {
         file.close();
+        accessors.clear();
     }
+    
+    
     
 } VDBVolumeFile;
 
