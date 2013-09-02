@@ -2047,13 +2047,14 @@ bool ui_set_but_string(bContext *C, uiBut *but, const char *str)
 	return false;
 }
 
-void ui_set_but_default(bContext *C, short all)
+void ui_set_but_default(bContext *C, const bool all)
 {
+	const char *opstring = "UI_OT_reset_default_button";
 	PointerRNA ptr;
 
-	WM_operator_properties_create(&ptr, "UI_OT_reset_default_button");
+	WM_operator_properties_create(&ptr, opstring);
 	RNA_boolean_set(&ptr, "all", all);
-	WM_operator_name_call(C, "UI_OT_reset_default_button", WM_OP_EXEC_DEFAULT, &ptr);
+	WM_operator_name_call(C, opstring, WM_OP_EXEC_DEFAULT, &ptr);
 	WM_operator_properties_free(&ptr);
 }
 
@@ -2230,8 +2231,7 @@ void uiFreeBlock(const bContext *C, uiBlock *block)
 {
 	uiBut *but;
 
-	while ( (but = block->buttons.first) ) {
-		BLI_remlink(&block->buttons, but);
+	while ((but = BLI_pophead(&block->buttons))) {
 		ui_free_but(C, but);
 	}
 
@@ -2255,8 +2255,7 @@ void uiFreeBlocks(const bContext *C, ListBase *lb)
 {
 	uiBlock *block;
 	
-	while ( (block = lb->first) ) {
-		BLI_remlink(lb, block);
+	while ((block = BLI_pophead(lb))) {
 		uiFreeBlock(C, block);
 	}
 }

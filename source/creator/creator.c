@@ -92,6 +92,7 @@
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
+#include "BKE_modifier.h"
 #include "BKE_packedFile.h"
 #include "BKE_scene.h"
 #include "BKE_node.h"
@@ -116,8 +117,6 @@
 
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
-
-#include "BLI_scanfill.h" /* for BLI_setErrorCallBack, TODO, move elsewhere */
 
 #ifdef WITH_FREESTYLE
 #  include "FRS_freestyle.h"
@@ -173,11 +172,12 @@ static int print_version(int argc, const char **argv, void *data);
 #endif
 
 /* for the callbacks: */
-
+#ifndef WITH_PYTHON_MODULE
 #define BLEND_VERSION_FMT         "Blender %d.%02d (sub %d)"
 #define BLEND_VERSION_ARG         BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_SUBVERSION
 /* pass directly to printf */
 #define BLEND_VERSION_STRING_FMT  BLEND_VERSION_FMT "\n", BLEND_VERSION_ARG
+#endif
 
 /* Initialize callbacks for the modules that need them */
 static void setCallbacks(void); 
@@ -1517,6 +1517,7 @@ int main(int argc, const char **argv)
 
 	IMB_init();
 	BKE_images_init();
+	BKE_modifier_init();
 
 	BKE_brush_system_init();
 
@@ -1682,12 +1683,6 @@ void main_python_exit(void)
 }
 #endif
 
-static void error_cb(const char *err)
-{
-	
-	printf("%s\n", err);    /* XXX do this in WM too */
-}
-
 static void mem_error_cb(const char *errorStr)
 {
 	fputs(errorStr, stderr);
@@ -1698,9 +1693,4 @@ static void setCallbacks(void)
 {
 	/* Error output from the alloc routines: */
 	MEM_set_error_callback(mem_error_cb);
-
-
-	/* BLI_blenlib: */
-
-	BLI_setErrorCallBack(error_cb); /* */
 }

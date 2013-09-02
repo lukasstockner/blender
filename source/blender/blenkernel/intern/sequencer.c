@@ -865,8 +865,7 @@ void BKE_sequencer_sort(Scene *scene)
 	seqbase.first = seqbase.last = NULL;
 	effbase.first = effbase.last = NULL;
 
-	while ( (seq = ed->seqbasep->first) ) {
-		BLI_remlink(ed->seqbasep, seq);
+	while ((seq = BLI_pophead(ed->seqbasep))) {
 
 		if (seq->type & SEQ_TYPE_EFFECT) {
 			seqt = effbase.first;
@@ -3677,6 +3676,51 @@ bool BKE_sequence_base_shuffle_time(ListBase *seqbasep, Scene *evil_scene)
 	return offset ? false : true;
 }
 
+/* Unlike _update_sound_ funcs, these ones take info from audaspace to update sequence length! */
+#ifdef WITH_AUDASPACE
+static bool sequencer_refresh_sound_length_recursive(Scene *scene, ListBase *seqbase)
+{
+	Sequence *seq;
+	bool changed = false;
+
+	for (seq = seqbase->first; seq; seq = seq->next) {
+		if (seq->type == SEQ_TYPE_META) {
+			if (sequencer_refresh_sound_length_recursive(scene, &seq->seqbase)) {
+				BKE_sequence_calc(scene, seq);
+				changed = true;
+			}
+		}
+		else if (seq->type == SEQ_TYPE_SOUND_RAM) {
+			AUD_SoundInfo info = AUD_getInfo(seq->sound->playback_handle);
+			int old = seq->len;
+			float fac;
+
+			seq->len = (int)ceil((double)info.length * FPS);
+			fac = (float)seq->len / (float)old;
+			old = seq->startofs;
+			seq->startofs *= fac;
+			seq->endofs *= fac;
+			seq->start += (old - seq->startofs);  /* So that visual/"real" start frame does not change! */
+
+			BKE_sequence_calc(scene, seq);
+			changed = true;
+		}
+	}
+	return changed;
+}
+#endif
+
+void BKE_sequencer_refresh_sound_length(Scene *scene)
+{
+#ifdef WITH_AUDASPACE
+	if (scene->ed) {
+		sequencer_refresh_sound_length_recursive(scene, &scene->ed->seqbase);
+	}
+#else
+	(void)scene;
+#endif
+}
+
 void BKE_sequencer_update_sound_bounds_all(Scene *scene)
 {
 	Editing *ed = scene->ed;
@@ -3954,6 +3998,29 @@ Sequence *BKE_sequence_get_by_name(ListBase *seqbase, const char *name, int recu
 	return NULL;
 }
 
+/**
+ * Only use as last resort when the StripElem is available but no the Sequence.
+ * (needed for RNA)
+ */
+Sequence *BKE_sequencer_from_elem(ListBase *seqbase, StripElem *se)
+{
+	Sequence *iseq;
+
+	for (iseq = seqbase->first; iseq; iseq = iseq->next) {
+		Sequence *seq_found;
+		if ((iseq->strip && iseq->strip->stripdata) &&
+		    (ARRAY_HAS_ITEM(se, iseq->strip->stripdata, iseq->len)))
+		{
+			break;
+		}
+		else if ((seq_found = BKE_sequencer_from_elem(&iseq->seqbase, se))) {
+			iseq = seq_found;
+			break;
+		}
+	}
+
+	return iseq;
+}
 
 Sequence *BKE_sequencer_active_get(Scene *scene)
 {

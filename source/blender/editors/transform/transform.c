@@ -1749,29 +1749,32 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
 
 	// If modal, save settings back in scene if not set as operator argument
 	if (t->flag & T_MODAL) {
-
 		/* save settings if not set in operator */
-		if ((prop = RNA_struct_find_property(op->ptr, "proportional")) &&
-		    !RNA_property_is_set(op->ptr, prop))
-		{
-			if (t->obedit)
-				ts->proportional = proportional;
-			else if (t->options & CTX_MASK)
-				ts->proportional_mask = (proportional != PROP_EDIT_OFF);
-			else
-				ts->proportional_objects = (proportional != PROP_EDIT_OFF);
-		}
 
-		if ((prop = RNA_struct_find_property(op->ptr, "proportional_size")) &&
-		    !RNA_property_is_set(op->ptr, prop))
-		{
-			ts->proportional_size = t->prop_size;
-		}
+		/* skip saving proportional edit if it was not actually used */
+		if (!(t->options & CTX_NO_PET)) {
+			if ((prop = RNA_struct_find_property(op->ptr, "proportional")) &&
+				!RNA_property_is_set(op->ptr, prop))
+			{
+				if (t->obedit)
+					ts->proportional = proportional;
+				else if (t->options & CTX_MASK)
+					ts->proportional_mask = (proportional != PROP_EDIT_OFF);
+				else
+					ts->proportional_objects = (proportional != PROP_EDIT_OFF);
+			}
 
-		if ((prop = RNA_struct_find_property(op->ptr, "proportional_edit_falloff")) &&
-		    !RNA_property_is_set(op->ptr, prop))
-		{
-			ts->prop_mode = t->prop_mode;
+			if ((prop = RNA_struct_find_property(op->ptr, "proportional_size")) &&
+				!RNA_property_is_set(op->ptr, prop))
+			{
+				ts->proportional_size = t->prop_size;
+			}
+
+			if ((prop = RNA_struct_find_property(op->ptr, "proportional_edit_falloff")) &&
+				!RNA_property_is_set(op->ptr, prop))
+			{
+				ts->prop_mode = t->prop_mode;
+			}
 		}
 		
 		/* do we check for parameter? */
@@ -4825,7 +4828,7 @@ static bool bm_loop_calc_opposite_co(BMLoop *l_tmp,
 		float tvec[3];
 		if (isect_line_plane_v3(tvec,
 		                        l_iter->v->co, l_iter->next->v->co,
-		                        l_tmp->v->co, plane_no, false))
+		                        l_tmp->v->co, plane_no))
 		{
 			const float fac = line_point_factor_v3(tvec, l_iter->v->co, l_iter->next->v->co);
 			/* allow some overlap to avoid missing the intersection because of float precision */

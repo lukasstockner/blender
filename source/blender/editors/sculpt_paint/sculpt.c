@@ -70,6 +70,7 @@
 #include "BKE_node.h"
 #include "BKE_object.h"
 #include "BKE_subsurf.h"
+#include "BKE_colortools.h"
 
 #include "BIF_glutil.h"
 
@@ -77,6 +78,7 @@
 #include "WM_types.h"
 
 #include "ED_sculpt.h"
+#include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_view3d.h"
 #include "ED_util.h" /* for crazyspace correction */
@@ -91,6 +93,7 @@
 #include "GPU_buffers.h"
 
 #include "bmesh.h"
+#include "bmesh_tools.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -150,6 +153,7 @@ MultiresModifierData *sculpt_multires_active(Scene *scene, Object *ob)
 {
 	Mesh *me = (Mesh *)ob->data;
 	ModifierData *md;
+	VirtualModifierData virtualModifierData;
 
 	if (ob->sculpt && ob->sculpt->bm) {
 		/* can't combine multires and dynamic topology */
@@ -161,7 +165,7 @@ MultiresModifierData *sculpt_multires_active(Scene *scene, Object *ob)
 		return NULL;
 	}
 
-	for (md = modifiers_getVirtualModifierList(ob); md; md = md->next) {
+	for (md = modifiers_getVirtualModifierList(ob, &virtualModifierData); md; md = md->next) {
 		if (md->type == eModifierType_Multires) {
 			MultiresModifierData *mmd = (MultiresModifierData *)md;
 
@@ -180,8 +184,9 @@ MultiresModifierData *sculpt_multires_active(Scene *scene, Object *ob)
 static int sculpt_has_active_modifiers(Scene *scene, Object *ob)
 {
 	ModifierData *md;
+	VirtualModifierData virtualModifierData;
 
-	md = modifiers_getVirtualModifierList(ob);
+	md = modifiers_getVirtualModifierList(ob, &virtualModifierData);
 
 	/* exception for shape keys because we can edit those */
 	for (; md; md = md->next) {
@@ -198,6 +203,7 @@ static int sculpt_modifiers_active(Scene *scene, Sculpt *sd, Object *ob)
 	ModifierData *md;
 	Mesh *me = (Mesh *)ob->data;
 	MultiresModifierData *mmd = sculpt_multires_active(scene, ob);
+	VirtualModifierData virtualModifierData;
 
 	if (mmd || ob->sculpt->bm)
 		return 0;
@@ -206,7 +212,7 @@ static int sculpt_modifiers_active(Scene *scene, Sculpt *sd, Object *ob)
 	if ((ob->shapeflag & OB_SHAPE_LOCK) == 0 && me->key && ob->shapenr)
 		return 1;
 
-	md = modifiers_getVirtualModifierList(ob);
+	md = modifiers_getVirtualModifierList(ob, &virtualModifierData);
 
 	/* exception for shape keys because we can edit those */
 	for (; md; md = md->next) {
@@ -327,7 +333,7 @@ typedef struct {
 	/* Original coordinate, normal, and mask */
 	const float *co;
 	float mask;
-	short no[3];
+	const short *no;
 } SculptOrigVertData;
 
 
@@ -378,11 +384,10 @@ static void sculpt_orig_vert_data_update(SculptOrigVertData *orig_data,
 		}
 
 		if (orig_data->normals) {
-			copy_v3_v3_short(orig_data->no, orig_data->normals[iter->i]);
+			orig_data->no = orig_data->normals[iter->i];
 		}
 		else {
-			/* TODO: log doesn't store normals yet */
-			normal_float_to_short_v3(orig_data->no, iter->bm_vert->no);
+			orig_data->no = BM_log_original_vert_no(orig_data->bm_log, iter->bm_vert);
 		}
 	}
 	else if (orig_data->unode->type == SCULPT_UNDO_MASK) {
@@ -3716,7 +3721,8 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 	Brush *brush = BKE_paint_brush(&sd->paint);
 	ViewContext *vc = paint_stroke_view_context(op->customdata);
 	Object *ob = CTX_data_active_object(C);
-	float rot[3][3], scale[3], loc[3];
+	float mat[3][3];
+	float viewDir[3] = {0.0f, 0.0f, 1.0f};
 	int i;
 	int mode;
 
@@ -3768,6 +3774,7 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 				brush = br;
 				cache->saved_smooth_size = BKE_brush_size_get(scene, brush);
 				BKE_brush_size_set(scene, brush, size);
+				curvemapping_initialize(brush->curve);
 			}
 		}
 	}
@@ -3784,12 +3791,13 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 	/* cache projection matrix */
 	ED_view3d_ob_project_mat_get(cache->vc->rv3d, ob, cache->projection_mat);
 
-	mat4_to_loc_rot_size(loc, rot, scale, ob->obmat);
-	/* transposing an orthonormal matrix inverts */
-	transpose_m3(rot);
-	ED_view3d_global_to_vector(cache->vc->rv3d, cache->vc->rv3d->twmat[3], cache->true_view_normal);
-	/* This takes care of rotated mesh. Instead of rotating every normal, we inverse rotate view normal. */
-	mul_m3_v3(rot, cache->true_view_normal);
+	invert_m4_m4(ob->imat, ob->obmat);
+	copy_m3_m4(mat, cache->vc->rv3d->viewinv);
+	mul_m3_v3(mat, viewDir);
+	copy_m3_m4(mat, ob->imat);
+	mul_m3_v3(mat, viewDir);
+	normalize_v3_v3(cache->true_view_normal, viewDir);
+
 	/* Initialize layer brush displacements and persistent coords */
 	if (brush->sculpt_tool == SCULPT_TOOL_LAYER) {
 		/* not supported yet for multires or dynamic topology */
@@ -4561,7 +4569,9 @@ static void SCULPT_OT_set_persistent_base(wmOperatorType *ot)
 
 static void sculpt_dynamic_topology_triangulate(BMesh *bm)
 {
-	BM_mesh_triangulate(bm, false, false, NULL, NULL);
+	if (bm->totloop != bm->totface * 3) {
+		BM_mesh_triangulate(bm, false, false, NULL, NULL);
+	}
 }
 
 void sculpt_pbvh_clear(Object *ob)
@@ -4800,8 +4810,8 @@ static int sculpt_symmetrize_exec(bContext *C, wmOperator *UNUSED(op))
 
 	/* Symmetrize and re-triangulate */
 	BMO_op_callf(ss->bm, BMO_FLAG_DEFAULTS,
-	             "symmetrize input=%avef direction=%i",
-	             sd->symmetrize_direction);
+	             "symmetrize input=%avef direction=%i  dist=%f",
+	             sd->symmetrize_direction, 0.00001f);
 	sculpt_dynamic_topology_triangulate(ss->bm);
 
 	/* Finish undo */
@@ -4907,21 +4917,31 @@ int ED_sculpt_mask_layers_ensure(Object *ob, MultiresModifierData *mmd)
 	return ret;
 }
 
-static int sculpt_mode_toggle_exec(bContext *C, wmOperator *UNUSED(op))
+static int sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
 	ToolSettings *ts = CTX_data_tool_settings(C);
 	Object *ob = CTX_data_active_object(C);
-	Mesh *me = ob->data;
+	const int mode_flag = OB_MODE_SCULPT;
+	const bool is_mode_set = (ob->mode & mode_flag) != 0;
+	Mesh *me;
 	MultiresModifierData *mmd = sculpt_multires_active(scene, ob);
 	int flush_recalc = 0;
+
+	if (!is_mode_set) {
+		if (!ED_object_mode_compat_set(C, ob, mode_flag, op->reports)) {
+			return OPERATOR_CANCELLED;
+		}
+	}
+
+	me = BKE_mesh_from_object(ob);
 
 	/* multires in sculpt mode could have different from object mode subdivision level */
 	flush_recalc |= mmd && mmd->sculptlvl != mmd->lvl;
 	/* if object has got active modifiers, it's dm could be different in sculpt mode  */
 	flush_recalc |= sculpt_has_active_modifiers(scene, ob);
 
-	if (ob->mode & OB_MODE_SCULPT) {
+	if (is_mode_set) {
 		if (mmd)
 			multires_force_update(ob);
 
@@ -4936,13 +4956,13 @@ static int sculpt_mode_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 		}
 
 		/* Leave sculptmode */
-		ob->mode &= ~OB_MODE_SCULPT;
+		ob->mode &= ~mode_flag;
 
 		free_sculptsession(ob);
 	}
 	else {
 		/* Enter sculptmode */
-		ob->mode |= OB_MODE_SCULPT;
+		ob->mode |= mode_flag;
 
 		/* Remove dynamic-topology flag; this will be enabled if the
 		 * file was saved with dynamic topology on, but we don't

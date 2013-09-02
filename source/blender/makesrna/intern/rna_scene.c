@@ -487,7 +487,11 @@ static void rna_Scene_view3d_update(Main *bmain, Scene *UNUSED(scene_unused), Po
 static void rna_Scene_layer_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	rna_Scene_view3d_update(bmain, scene, ptr);
-	DAG_on_visible_update(bmain, FALSE);
+	/* XXX We would need do_time=true here, else we can have update issues like [#36289]...
+	 *     However, this has too much drawbacks (like slower layer switch, undesired updates...).
+	 *     That's TODO for future DAG updates.
+	 */
+	DAG_on_visible_update(bmain, false);
 }
 
 static void rna_Scene_fps_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *UNUSED(ptr))
@@ -4190,12 +4194,14 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "tile_x", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "tilex");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_range(prop, 8, 65536);
 	RNA_def_property_ui_text(prop, "Tile X", "Horizontal tile size to use while rendering");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 	
 	prop = RNA_def_property(srna, "tile_y", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "tiley");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_range(prop, 8, 65536);
 	RNA_def_property_ui_text(prop, "Tile Y", "Vertical tile size to use while rendering");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);

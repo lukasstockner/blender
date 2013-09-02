@@ -892,14 +892,30 @@ static int edbm_duplicate_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_edit_object(C);
 	BMEditMesh *em = BKE_editmesh_from_object(ob);
+	BMesh *bm = em->bm;
 	BMOperator bmop;
+	ListBase bm_selected_store = {NULL, NULL};
+
+	/* de-select all would clear otherwise */
+	SWAP(ListBase, bm->selected, bm_selected_store);
 
 	EDBM_op_init(em, &bmop, op, "duplicate geom=%hvef", BM_ELEM_SELECT);
 	
-	BMO_op_exec(em->bm, &bmop);
+	BMO_op_exec(bm, &bmop);
 	EDBM_flag_disable_all(em, BM_ELEM_SELECT);
 
-	BMO_slot_buffer_hflag_enable(em->bm, bmop.slots_out, "geom.out", BM_ALL_NOLOOP, BM_ELEM_SELECT, true);
+	BMO_slot_buffer_hflag_enable(bm, bmop.slots_out, "geom.out", BM_ALL_NOLOOP, BM_ELEM_SELECT, true);
+
+	/* rebuild editselection */
+	bm->selected = bm_selected_store;
+
+	if (bm->selected.first) {
+		BMOpSlot *slot_vert_map_out = BMO_slot_get(bmop.slots_out, "vert_map.out");
+		BMOpSlot *slot_edge_map_out = BMO_slot_get(bmop.slots_out, "edge_map.out");
+		BMOpSlot *slot_face_map_out = BMO_slot_get(bmop.slots_out, "face_map.out");
+
+		BMO_mesh_selected_remap(bm, slot_vert_map_out, slot_edge_map_out, slot_face_map_out);
+	}
 
 	if (!EDBM_op_finish(em, &bmop, op, true)) {
 		return OPERATOR_CANCELLED;
@@ -2292,7 +2308,7 @@ static int edbm_knife_cut_exec(bContext *C, wmOperator *op)
 	mouse_path = MEM_mallocN(len * sizeof(*mouse_path), __func__);
 
 	/* get the cut curve */
-	RNA_BEGIN(op->ptr, itemptr, "path")
+	RNA_BEGIN (op->ptr, itemptr, "path")
 	{
 		RNA_float_get_array(&itemptr, "loc", (float *)&mouse_path[len]);
 	}
@@ -4441,9 +4457,16 @@ static int mesh_symmetrize_exec(bContext *C, wmOperator *op)
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	BMOperator bmop;
 
-	EDBM_op_init(em, &bmop, op, "symmetrize input=%hvef direction=%i",
-	             BM_ELEM_SELECT, RNA_enum_get(op->ptr, "direction"));
+	const float thresh = RNA_float_get(op->ptr, "threshold");
+
+	EDBM_op_init(em, &bmop, op,
+	             "symmetrize input=%hvef direction=%i dist=%f",
+	             BM_ELEM_SELECT, RNA_enum_get(op->ptr, "direction"), thresh);
 	BMO_op_exec(em->bm, &bmop);
+
+	EDBM_flag_disable_all(em, BM_ELEM_SELECT);
+
+	BMO_slot_buffer_hflag_enable(em->bm, bmop.slots_out, "geom.out", BM_ALL_NOLOOP, BM_ELEM_SELECT, true);
 
 	if (!EDBM_op_finish(em, &bmop, op, true)) {
 		return OPERATOR_CANCELLED;
@@ -4472,6 +4495,7 @@ void MESH_OT_symmetrize(struct wmOperatorType *ot)
 	ot->prop = RNA_def_enum(ot->srna, "direction", symmetrize_direction_items,
 	                        BMO_SYMMETRIZE_NEGATIVE_X,
 	                        "Direction", "Which sides to copy from and to");
+	RNA_def_float(ot->srna, "threshold", 0.0001, 0.0, 10.0, "Threshold", "", 0.00001, 0.1);
 }
 
 static int mesh_symmetry_snap_exec(bContext *C, wmOperator *op)

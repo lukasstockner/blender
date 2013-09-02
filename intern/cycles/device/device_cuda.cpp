@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include <stdio.h>
@@ -39,7 +37,7 @@ CCL_NAMESPACE_BEGIN
 class CUDADevice : public Device
 {
 public:
-	TaskPool task_pool;
+	DedicatedTaskPool task_pool;
 	CUdevice cuDevice;
 	CUcontext cuContext;
 	CUmodule cuModule;
@@ -558,7 +556,7 @@ public:
 		}
 	}
 
-	void path_trace(RenderTile& rtile, int sample, bool progressive)
+	void path_trace(RenderTile& rtile, int sample, bool branched)
 	{
 		if(have_error())
 			return;
@@ -570,14 +568,14 @@ public:
 		CUdeviceptr d_rng_state = cuda_device_ptr(rtile.rng_state);
 
 		/* get kernel function */
-		if(progressive)
-			cuda_assert(cuModuleGetFunction(&cuPathTrace, cuModule, "kernel_cuda_path_trace_progressive"))
-		else {
-			cuda_assert(cuModuleGetFunction(&cuPathTrace, cuModule, "kernel_cuda_path_trace_non_progressive"))
-			if(have_error())
-				return;
-		}
-		
+		if(branched)
+			cuda_assert(cuModuleGetFunction(&cuPathTrace, cuModule, "kernel_cuda_branched_path_trace"))
+		else
+			cuda_assert(cuModuleGetFunction(&cuPathTrace, cuModule, "kernel_cuda_path_trace"))
+
+		if(have_error())
+			return;
+	
 		/* pass in parameters */
 		int offset = 0;
 		
@@ -627,7 +625,7 @@ public:
 		cuda_pop_context();
 	}
 
-	void tonemap(DeviceTask& task, device_ptr buffer, device_ptr rgba)
+	void film_convert(DeviceTask& task, device_ptr buffer, device_ptr rgba_byte, device_ptr rgba_half)
 	{
 		if(have_error())
 			return;
@@ -635,11 +633,14 @@ public:
 		cuda_push_context();
 
 		CUfunction cuFilmConvert;
-		CUdeviceptr d_rgba = map_pixels(rgba);
+		CUdeviceptr d_rgba = map_pixels((rgba_byte)? rgba_byte: rgba_half);
 		CUdeviceptr d_buffer = cuda_device_ptr(buffer);
 
 		/* get kernel function */
-		cuda_assert(cuModuleGetFunction(&cuFilmConvert, cuModule, "kernel_cuda_tonemap"))
+		if(rgba_half)
+			cuda_assert(cuModuleGetFunction(&cuFilmConvert, cuModule, "kernel_cuda_convert_to_half_float"))
+		else
+			cuda_assert(cuModuleGetFunction(&cuFilmConvert, cuModule, "kernel_cuda_convert_to_byte"))
 
 		/* pass in parameters */
 		int offset = 0;
@@ -650,11 +651,11 @@ public:
 		cuda_assert(cuParamSetv(cuFilmConvert, offset, &d_buffer, sizeof(d_buffer)))
 		offset += sizeof(d_buffer);
 
-		int sample = task.sample;
-		offset = align_up(offset, __alignof(sample));
+		float sample_scale = 1.0f/(task.sample + 1);
+		offset = align_up(offset, __alignof(sample_scale));
 
-		cuda_assert(cuParamSeti(cuFilmConvert, offset, task.sample))
-		offset += sizeof(task.sample);
+		cuda_assert(cuParamSetf(cuFilmConvert, offset, sample_scale))
+		offset += sizeof(sample_scale);
 
 		cuda_assert(cuParamSeti(cuFilmConvert, offset, task.x))
 		offset += sizeof(task.x);
@@ -686,7 +687,7 @@ public:
 		cuda_assert(cuFuncSetBlockShape(cuFilmConvert, xthreads, ythreads, 1))
 		cuda_assert(cuLaunchGrid(cuFilmConvert, xblocks, yblocks))
 
-		unmap_pixels(task.rgba);
+		unmap_pixels((rgba_byte)? rgba_byte: rgba_half);
 
 		cuda_pop_context();
 	}
@@ -773,13 +774,19 @@ public:
 
 			glGenBuffers(1, &pmem.cuPBO);
 			glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pmem.cuPBO);
-			glBufferData(GL_PIXEL_UNPACK_BUFFER, pmem.w*pmem.h*sizeof(GLfloat)*3, NULL, GL_DYNAMIC_DRAW);
+			if(mem.data_type == TYPE_HALF)
+				glBufferData(GL_PIXEL_UNPACK_BUFFER, pmem.w*pmem.h*sizeof(GLhalf)*4, NULL, GL_DYNAMIC_DRAW);
+			else
+				glBufferData(GL_PIXEL_UNPACK_BUFFER, pmem.w*pmem.h*sizeof(uint8_t)*4, NULL, GL_DYNAMIC_DRAW);
 			
 			glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 			
 			glGenTextures(1, &pmem.cuTexId);
 			glBindTexture(GL_TEXTURE_2D, pmem.cuTexId);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, pmem.w, pmem.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+			if(mem.data_type == TYPE_HALF)
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F_ARB, pmem.w, pmem.h, 0, GL_RGBA, GL_HALF_FLOAT, NULL);
+			else
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, pmem.w, pmem.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 			glBindTexture(GL_TEXTURE_2D, 0);
@@ -867,11 +874,19 @@ public:
 
 			/* for multi devices, this assumes the ineffecient method that we allocate
 			 * all pixels on the device even though we only render to a subset */
-			size_t offset = sizeof(uint8_t)*4*y*w;
+			size_t offset = 4*y*w;
+
+			if(mem.data_type == TYPE_HALF)
+				offset *= sizeof(GLhalf);
+			else
+				offset *= sizeof(uint8_t);
 
 			glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_ARB, pmem.cuPBO);
 			glBindTexture(GL_TEXTURE_2D, pmem.cuTexId);
-			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, (void*)offset);
+			if(mem.data_type == TYPE_HALF)
+				glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGBA, GL_HALF_FLOAT, (void*)offset);
+			else
+				glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, (void*)offset);
 			glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
 			
 			glEnable(GL_TEXTURE_2D);
@@ -920,7 +935,7 @@ public:
 		if(task->type == DeviceTask::PATH_TRACE) {
 			RenderTile tile;
 			
-			bool progressive = task->integrator_progressive;
+			bool branched = task->integrator_branched;
 			
 			/* keep rendering tiles until done */
 			while(task->acquire_tile(this, tile)) {
@@ -933,7 +948,7 @@ public:
 							break;
 					}
 
-					path_trace(tile, sample, progressive);
+					path_trace(tile, sample, branched);
 
 					tile.sample = sample + 1;
 
@@ -963,9 +978,9 @@ public:
 
 	void task_add(DeviceTask& task)
 	{
-		if(task.type == DeviceTask::TONEMAP) {
+		if(task.type == DeviceTask::FILM_CONVERT) {
 			/* must be done in main thread due to opengl access */
-			tonemap(task, task.buffer, task.rgba);
+			film_convert(task, task.buffer, task.rgba_byte, task.rgba_half);
 
 			cuda_push_context();
 			cuda_assert(cuCtxSynchronize())
@@ -978,7 +993,7 @@ public:
 
 	void task_wait()
 	{
-		task_pool.wait_work();
+		task_pool.wait();
 	}
 
 	void task_cancel()

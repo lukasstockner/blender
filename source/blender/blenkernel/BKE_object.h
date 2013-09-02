@@ -60,6 +60,7 @@ void BKE_object_copy_softbody(struct Object *obn, struct Object *ob);
 void BKE_object_free_particlesystems(struct Object *ob);
 void BKE_object_free_softbody(struct Object *ob);
 void BKE_object_free_bulletsoftbody(struct Object *ob);
+void BKE_object_free_curve_cache(struct Object *ob);
 void BKE_object_update_base_layer(struct Scene *scene, struct Object *ob);
 
 void BKE_object_free(struct Object *ob);
@@ -192,6 +193,8 @@ typedef enum eObjectSet {
 struct LinkNode *BKE_object_relational_superset(struct Scene *scene, eObjectSet objectSet, eObRelationTypes includeFilter);
 struct LinkNode *BKE_object_groups(struct Object *ob);
 void             BKE_object_groups_clear(struct Scene *scene, struct Base *base, struct Object *object);
+
+struct KDTree *BKE_object_as_kdtree(struct Object *ob, int *r_tot);
 
 #ifdef __cplusplus
 }

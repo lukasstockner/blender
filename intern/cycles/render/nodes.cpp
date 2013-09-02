@@ -1,25 +1,24 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include "image.h"
 #include "nodes.h"
 #include "svm.h"
 #include "osl.h"
+#include "sky_model.h"
 
 #include "util_transform.h"
 
@@ -386,19 +385,35 @@ static float2 sky_spherical_coordinates(float3 dir)
 	return make_float2(acosf(dir.z), atan2f(dir.x, dir.y));
 }
 
+typedef struct SunSky {
+	/* sun direction in spherical and cartesian */
+	float theta, phi;
+
+	/* Parameter */
+	float radiance_x, radiance_y, radiance_z;
+	float config_x[9], config_y[9], config_z[9];
+} SunSky;
+
+/* Preetham model */
 static float sky_perez_function(float lam[6], float theta, float gamma)
 {
 	return (1.0f + lam[0]*expf(lam[1]/cosf(theta))) * (1.0f + lam[2]*expf(lam[3]*gamma)  + lam[4]*cosf(gamma)*cosf(gamma));
 }
 
-static void sky_texture_precompute(KernelSunSky *ksunsky, float3 dir, float turbidity)
+static void sky_texture_precompute_old(SunSky *sunsky, float3 dir, float turbidity)
 {
+	/*
+	* We re-use the SunSky struct of the new model, to avoid extra variables
+	* zenith_Y/x/y is now radiance_x/y/z
+	* perez_Y/x/y is now config_x/y/z
+	*/
+	
 	float2 spherical = sky_spherical_coordinates(dir);
 	float theta = spherical.x;
 	float phi = spherical.y;
 
-	ksunsky->theta = theta;
-	ksunsky->phi = phi;
+	sunsky->theta = theta;
+	sunsky->phi = phi;
 
 	float theta2 = theta*theta;
 	float theta3 = theta2*theta;
@@ -406,47 +421,96 @@ static void sky_texture_precompute(KernelSunSky *ksunsky, float3 dir, float turb
 	float T2 = T * T;
 
 	float chi = (4.0f / 9.0f - T / 120.0f) * (M_PI_F - 2.0f * theta);
-	ksunsky->zenith_Y = (4.0453f * T - 4.9710f) * tanf(chi) - 0.2155f * T + 2.4192f;
-	ksunsky->zenith_Y *= 0.06f;
+	sunsky->radiance_x = (4.0453f * T - 4.9710f) * tanf(chi) - 0.2155f * T + 2.4192f;
+	sunsky->radiance_x *= 0.06f;
 
-	ksunsky->zenith_x =
+	sunsky->radiance_y =
 	(0.00166f * theta3 - 0.00375f * theta2 + 0.00209f * theta) * T2 +
 	(-0.02903f * theta3 + 0.06377f * theta2 - 0.03202f * theta + 0.00394f) * T +
 	(0.11693f * theta3 - 0.21196f * theta2 + 0.06052f * theta + 0.25886f);
 
-	ksunsky->zenith_y =
+	sunsky->radiance_z =
 	(0.00275f * theta3 - 0.00610f * theta2 + 0.00317f * theta) * T2 +
 	(-0.04214f * theta3 + 0.08970f * theta2 - 0.04153f * theta  + 0.00516f) * T +
 	(0.15346f * theta3 - 0.26756f * theta2 + 0.06670f * theta  + 0.26688f);
 
-	ksunsky->perez_Y[0] = (0.1787f * T  - 1.4630f);
-	ksunsky->perez_Y[1] = (-0.3554f * T  + 0.4275f);
-	ksunsky->perez_Y[2] = (-0.0227f * T  + 5.3251f);
-	ksunsky->perez_Y[3] = (0.1206f * T  - 2.5771f);
-	ksunsky->perez_Y[4] = (-0.0670f * T  + 0.3703f);
+	sunsky->config_x[0] = (0.1787f * T  - 1.4630f);
+	sunsky->config_x[1] = (-0.3554f * T  + 0.4275f);
+	sunsky->config_x[2] = (-0.0227f * T  + 5.3251f);
+	sunsky->config_x[3] = (0.1206f * T  - 2.5771f);
+	sunsky->config_x[4] = (-0.0670f * T  + 0.3703f);
 
-	ksunsky->perez_x[0] = (-0.0193f * T  - 0.2592f);
-	ksunsky->perez_x[1] = (-0.0665f * T  + 0.0008f);
-	ksunsky->perez_x[2] = (-0.0004f * T  + 0.2125f);
-	ksunsky->perez_x[3] = (-0.0641f * T  - 0.8989f);
-	ksunsky->perez_x[4] = (-0.0033f * T  + 0.0452f);
+	sunsky->config_y[0] = (-0.0193f * T  - 0.2592f);
+	sunsky->config_y[1] = (-0.0665f * T  + 0.0008f);
+	sunsky->config_y[2] = (-0.0004f * T  + 0.2125f);
+	sunsky->config_y[3] = (-0.0641f * T  - 0.8989f);
+	sunsky->config_y[4] = (-0.0033f * T  + 0.0452f);
 
-	ksunsky->perez_y[0] = (-0.0167f * T  - 0.2608f);
-	ksunsky->perez_y[1] = (-0.0950f * T  + 0.0092f);
-	ksunsky->perez_y[2] = (-0.0079f * T  + 0.2102f);
-	ksunsky->perez_y[3] = (-0.0441f * T  - 1.6537f);
-	ksunsky->perez_y[4] = (-0.0109f * T  + 0.0529f);
+	sunsky->config_z[0] = (-0.0167f * T  - 0.2608f);
+	sunsky->config_z[1] = (-0.0950f * T  + 0.0092f);
+	sunsky->config_z[2] = (-0.0079f * T  + 0.2102f);
+	sunsky->config_z[3] = (-0.0441f * T  - 1.6537f);
+	sunsky->config_z[4] = (-0.0109f * T  + 0.0529f);
 
-	ksunsky->zenith_Y /= sky_perez_function(ksunsky->perez_Y, 0, theta);
-	ksunsky->zenith_x /= sky_perez_function(ksunsky->perez_x, 0, theta);
-	ksunsky->zenith_y /= sky_perez_function(ksunsky->perez_y, 0, theta);
+	sunsky->radiance_x /= sky_perez_function(sunsky->config_x, 0, theta);
+	sunsky->radiance_y /= sky_perez_function(sunsky->config_y, 0, theta);
+	sunsky->radiance_z /= sky_perez_function(sunsky->config_z, 0, theta);
 }
+
+/* Hosek / Wilkie */
+static void sky_texture_precompute_new(SunSky *sunsky, float3 dir, float turbidity, float ground_albedo)
+{
+	/* Calculate Sun Direction and save coordinates */
+	float2 spherical = sky_spherical_coordinates(dir);
+	float theta = spherical.x;
+	float phi = spherical.y;
+	
+	/* Clamp to Horizon */
+	theta = clamp(theta, 0.0f, M_PI_2_F); 
+
+	sunsky->theta = theta;
+	sunsky->phi = phi;
+
+	double solarElevation = M_PI_2_F - theta;
+
+	/* Initialize Sky Model */
+	ArHosekSkyModelState *sky_state;
+	sky_state = arhosek_xyz_skymodelstate_alloc_init(turbidity, ground_albedo, solarElevation);
+
+	/* Copy values from sky_state to SunSky */
+	for (int i = 0; i < 9; ++i) {
+		sunsky->config_x[i] = sky_state->configs[0][i];
+		sunsky->config_y[i] = sky_state->configs[1][i];
+		sunsky->config_z[i] = sky_state->configs[2][i];
+	}
+	sunsky->radiance_x = sky_state->radiances[0];
+	sunsky->radiance_y = sky_state->radiances[1];
+	sunsky->radiance_z = sky_state->radiances[2];
+
+	/* Free sky_state */
+	arhosekskymodelstate_free(sky_state);
+}
+
+static ShaderEnum sky_type_init()
+{
+	ShaderEnum enm;
+
+	enm.insert("Preetham", NODE_SKY_OLD);
+	enm.insert("Hosek / Wilkie", NODE_SKY_NEW);
+
+	return enm;
+}
+
+ShaderEnum SkyTextureNode::type_enum = sky_type_init();
 
 SkyTextureNode::SkyTextureNode()
 : TextureNode("sky_texture")
 {
+	type = ustring("Hosek / Wilkie");
+	
 	sun_direction = make_float3(0.0f, 0.0f, 1.0f);
 	turbidity = 2.2f;
+	ground_albedo = 0.3f;
 
 	add_input("Vector", SHADER_SOCKET_VECTOR, ShaderInput::POSITION);
 	add_output("Color", SHADER_SOCKET_COLOR);
@@ -457,15 +521,17 @@ void SkyTextureNode::compile(SVMCompiler& compiler)
 	ShaderInput *vector_in = input("Vector");
 	ShaderOutput *color_out = output("Color");
 
-	if(compiler.sunsky) {
-		sky_texture_precompute(compiler.sunsky, sun_direction, turbidity);
-		compiler.sunsky = NULL;
-	}
+	SunSky sunsky;
+	if(type_enum[type] == NODE_SKY_OLD)
+		sky_texture_precompute_old(&sunsky, sun_direction, turbidity);
+	else if(type_enum[type] == NODE_SKY_NEW)
+		sky_texture_precompute_new(&sunsky, sun_direction, turbidity, ground_albedo);
 
 	if(vector_in->link)
 		compiler.stack_assign(vector_in);
 
 	int vector_offset = vector_in->stack_offset;
+	int sky_model = type_enum[type];
 
 	if(!tex_mapping.skip()) {
 		vector_offset = compiler.stack_find_offset(SHADER_SOCKET_VECTOR);
@@ -473,7 +539,15 @@ void SkyTextureNode::compile(SVMCompiler& compiler)
 	}
 
 	compiler.stack_assign(color_out);
-	compiler.add_node(NODE_TEX_SKY, vector_offset, color_out->stack_offset);
+	compiler.add_node(NODE_TEX_SKY, vector_offset, color_out->stack_offset, sky_model);
+	compiler.add_node(__float_as_uint(sunsky.phi), __float_as_uint(sunsky.theta), __float_as_uint(sunsky.radiance_x), __float_as_uint(sunsky.radiance_y));
+	compiler.add_node(__float_as_uint(sunsky.radiance_z), __float_as_uint(sunsky.config_x[0]), __float_as_uint(sunsky.config_x[1]), __float_as_uint(sunsky.config_x[2]));
+	compiler.add_node(__float_as_uint(sunsky.config_x[3]), __float_as_uint(sunsky.config_x[4]), __float_as_uint(sunsky.config_x[5]), __float_as_uint(sunsky.config_x[6]));
+	compiler.add_node(__float_as_uint(sunsky.config_x[7]), __float_as_uint(sunsky.config_x[8]), __float_as_uint(sunsky.config_y[0]), __float_as_uint(sunsky.config_y[1]));
+	compiler.add_node(__float_as_uint(sunsky.config_y[2]), __float_as_uint(sunsky.config_y[3]), __float_as_uint(sunsky.config_y[4]), __float_as_uint(sunsky.config_y[5]));
+	compiler.add_node(__float_as_uint(sunsky.config_y[6]), __float_as_uint(sunsky.config_y[7]), __float_as_uint(sunsky.config_y[8]), __float_as_uint(sunsky.config_z[0]));
+	compiler.add_node(__float_as_uint(sunsky.config_z[1]), __float_as_uint(sunsky.config_z[2]), __float_as_uint(sunsky.config_z[3]), __float_as_uint(sunsky.config_z[4]));
+	compiler.add_node(__float_as_uint(sunsky.config_z[5]), __float_as_uint(sunsky.config_z[6]), __float_as_uint(sunsky.config_z[7]), __float_as_uint(sunsky.config_z[8]));
 
 	if(vector_offset != vector_in->stack_offset)
 		compiler.stack_clear_offset(vector_in->type, vector_offset);
@@ -483,8 +557,19 @@ void SkyTextureNode::compile(OSLCompiler& compiler)
 {
 	tex_mapping.compile(compiler);
 
-	compiler.parameter_vector("sun_direction", sun_direction);
-	compiler.parameter("turbidity", turbidity);
+	SunSky sunsky;
+	if(type_enum[type] == NODE_SKY_OLD)
+		sky_texture_precompute_old(&sunsky, sun_direction, turbidity);
+	else if(type_enum[type] == NODE_SKY_NEW)
+		sky_texture_precompute_new(&sunsky, sun_direction, turbidity, ground_albedo);
+		
+	compiler.parameter("sky_model", type);
+	compiler.parameter("theta", sunsky.theta);
+	compiler.parameter("phi", sunsky.phi);
+	compiler.parameter_color("radiance", make_float3(sunsky.radiance_x, sunsky.radiance_y, sunsky.radiance_z));
+	compiler.parameter_array("config_x", sunsky.config_x, 9);
+	compiler.parameter_array("config_y", sunsky.config_y, 9);
+	compiler.parameter_array("config_z", sunsky.config_z, 9);
 	compiler.add(this, "node_sky_texture");
 }
 
@@ -1276,16 +1361,18 @@ void ProxyNode::compile(OSLCompiler& compiler)
 BsdfNode::BsdfNode(bool scattering_)
 : ShaderNode("bsdf"), scattering(scattering_)
 {
-	closure = ccl::CLOSURE_BSSRDF_ID;
-
 	add_input("Color", SHADER_SOCKET_COLOR, make_float3(0.8f, 0.8f, 0.8f));
 	add_input("Normal", SHADER_SOCKET_NORMAL, ShaderInput::NORMAL);
 	add_input("SurfaceMixWeight", SHADER_SOCKET_FLOAT, 0.0f, ShaderInput::USE_SVM);
 
-	if(scattering)
+	if(scattering) {
+		closure = CLOSURE_BSSRDF_CUBIC_ID;
 		add_output("BSSRDF", SHADER_SOCKET_CLOSURE);
-	else
+	}
+	else {
+		closure = CLOSURE_BSDF_DIFFUSE_ID;
 		add_output("BSDF", SHADER_SOCKET_CLOSURE);
+	}
 }
 
 void BsdfNode::compile(SVMCompiler& compiler, ShaderInput *param1, ShaderInput *param2, ShaderInput *param3)
@@ -1600,25 +1687,45 @@ void TransparentBsdfNode::compile(OSLCompiler& compiler)
 
 /* Subsurface Scattering Closure */
 
+static ShaderEnum subsurface_falloff_init()
+{
+	ShaderEnum enm;
+
+	enm.insert("Cubic", CLOSURE_BSSRDF_CUBIC_ID);
+	enm.insert("Gaussian", CLOSURE_BSSRDF_GAUSSIAN_ID);
+
+	return enm;
+}
+
+ShaderEnum SubsurfaceScatteringNode::falloff_enum = subsurface_falloff_init();
+
 SubsurfaceScatteringNode::SubsurfaceScatteringNode()
 : BsdfNode(true)
 {
 	name = "subsurface_scattering";
-	closure = CLOSURE_BSSRDF_ID;
+	closure = CLOSURE_BSSRDF_CUBIC_ID;
 
 	add_input("Scale", SHADER_SOCKET_FLOAT, 0.01f);
 	add_input("Radius", SHADER_SOCKET_VECTOR, make_float3(0.1f, 0.1f, 0.1f));
-	add_input("IOR", SHADER_SOCKET_FLOAT, 1.3f);
+	add_input("Texture Blur", SHADER_SOCKET_FLOAT, 1.0f);
 }
 
 void SubsurfaceScatteringNode::compile(SVMCompiler& compiler)
 {
-	BsdfNode::compile(compiler, input("Scale"), input("IOR"), input("Radius"));
+	BsdfNode::compile(compiler, input("Scale"), input("Texture Blur"), input("Radius"));
 }
 
 void SubsurfaceScatteringNode::compile(OSLCompiler& compiler)
 {
+	compiler.parameter("Falloff", falloff_enum[closure]);
 	compiler.add(this, "node_subsurface_scattering");
+}
+
+bool SubsurfaceScatteringNode::has_bssrdf_bump()
+{
+	/* detect if anything is plugged into the normal input besides the default */
+	ShaderInput *normal_in = input("Normal");
+	return (normal_in->link && normal_in->link->parent->special_type != SHADER_SPECIAL_TYPE_GEOMETRY);
 }
 
 /* Emissive Closure */
@@ -1835,6 +1942,8 @@ void IsotropicVolumeNode::compile(OSLCompiler& compiler)
 GeometryNode::GeometryNode()
 : ShaderNode("geometry")
 {
+	special_type = SHADER_SPECIAL_TYPE_GEOMETRY;
+
 	add_input("NormalIn", SHADER_SOCKET_NORMAL, ShaderInput::NORMAL, ShaderInput::USE_OSL);
 	add_output("Position", SHADER_SOCKET_POINT);
 	add_output("Normal", SHADER_SOCKET_NORMAL);

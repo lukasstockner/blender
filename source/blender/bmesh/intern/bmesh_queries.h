@@ -27,8 +27,6 @@
  *  \ingroup bmesh
  */
 
-typedef bool (*BMElemFilterFunc)(BMElem *, void *user_data);
-
 bool    BM_vert_in_face(BMFace *f, BMVert *v);
 int     BM_verts_in_face_count(BMFace *f, BMVert **varr, int len);
 bool    BM_verts_in_face(BMFace *f, BMVert **varr, int len);
@@ -108,6 +106,7 @@ bool    BM_edge_share_quad_check(BMEdge *e1, BMEdge *e2);
 bool    BM_edge_share_vert_check(BMEdge *e1, BMEdge *e2);
 
 BMVert *BM_edge_share_vert(BMEdge *e1, BMEdge *e2);
+BMLoop *BM_edge_vert_share_loop(BMLoop *l, BMVert *v);
 BMLoop *BM_face_vert_share_loop(BMFace *f, BMVert *v);
 BMLoop *BM_face_edge_share_loop(BMFace *f, BMEdge *e);
 

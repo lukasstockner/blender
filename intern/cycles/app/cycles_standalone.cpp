@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include <stdio.h>
@@ -31,7 +29,10 @@
 #include "util_progress.h"
 #include "util_string.h"
 #include "util_time.h"
+
+#ifdef WITH_CYCLES_STANDALONE_GUI
 #include "util_view.h"
+#endif
 
 #include "cycles_xml.h"
 
@@ -102,8 +103,10 @@ static void session_init()
 	
 	if(options.session_params.background && !options.quiet)
 		options.session->progress.set_update_callback(function_bind(&session_print_status));
+#ifdef WITH_CYCLES_STANDALONE_GUI
 	else
 		options.session->progress.set_update_callback(function_bind(&view_redraw));
+#endif
 
 	options.session->start();
 
@@ -138,6 +141,7 @@ static void session_exit()
 	}
 }
 
+#ifdef WITH_CYCLES_STANDALONE_GUI
 static void display_info(Progress& progress)
 {
 	static double latency = 0.0;
@@ -188,6 +192,7 @@ static void keyboard(unsigned char key)
 	else if(key == 27) // escape
 		options.session->progress.set_cancel("Cancelled");
 }
+#endif
 
 static int files_parse(int argc, const char *argv[])
 {
@@ -231,7 +236,7 @@ static void options_parse(int argc, const char **argv)
 	ArgParse ap;
 	bool help = false;
 
-	ap.options ("Usage: cycles_test [options] file.xml",
+	ap.options ("Usage: cycles [options] file.xml",
 		"%*", files_parse, "",
 		"--device %s", &devicename, ("Devices to use: " + device_names).c_str(),
 		"--shadingsys %s", &ssname, "Shading system to use: svm, osl",
@@ -273,8 +278,14 @@ static void options_parse(int argc, const char **argv)
 	else if(ssname == "svm")
 		options.scene_params.shadingsystem = SceneParams::SVM;
 		
-	/* Progressive rendering */
-	options.session_params.progressive = true;
+#ifdef WITH_CYCLES_STANDALONE_GUI
+	/* Progressive rendering for GUI */
+	if(!options.session_params.background)
+		options.session_params.progressive = true;
+#else
+	/* When building without GUI, set background */
+	options.session_params.background = true;
+#endif
 
 	/* find matching device */
 	DeviceType device_type = Device::type_from_string(devicename.c_str());
@@ -327,13 +338,15 @@ using namespace ccl;
 int main(int argc, const char **argv)
 {
 	path_init();
-
 	options_parse(argc, argv);
-
+	
+#ifdef WITH_CYCLES_STANDALONE_GUI
 	if(options.session_params.background) {
+#endif
 		session_init();
 		options.session->wait();
 		session_exit();
+#ifdef WITH_CYCLES_STANDALONE_GUI
 	}
 	else {
 		string title = "Cycles: " + path_filename(options.filepath);
@@ -342,6 +355,7 @@ int main(int argc, const char **argv)
 		view_main_loop(title.c_str(), options.width, options.height,
 			session_init, session_exit, resize, display, keyboard);
 	}
+#endif
 
 	return 0;
 }

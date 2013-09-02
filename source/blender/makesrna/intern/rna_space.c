@@ -959,6 +959,14 @@ static EnumPropertyItem *rna_SpaceProperties_texture_context_itemf(bContext *C, 
 	return item;
 }
 
+static void rna_SpaceProperties_texture_context_set(PointerRNA *ptr, int value)
+{
+	SpaceButs *sbuts = (SpaceButs *)(ptr->data);
+
+	/* User action, no need to keep "better" value in prev here! */
+	sbuts->texture_context = sbuts->texture_context_prev = value;
+}
+
 /* Space Console */
 static void rna_ConsoleLine_body_get(PointerRNA *ptr, char *value)
 {
@@ -2194,7 +2202,8 @@ static void rna_def_space_buttons(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "texture_context", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, buttons_texture_context_items);
-	RNA_def_property_enum_funcs(prop, NULL, NULL, "rna_SpaceProperties_texture_context_itemf");
+	RNA_def_property_enum_funcs(prop, NULL, "rna_SpaceProperties_texture_context_set",
+	                            "rna_SpaceProperties_texture_context_itemf");
 	RNA_def_property_ui_text(prop, "Texture Context", "Type of texture data to display and edit");
 	RNA_def_property_update(prop, NC_TEXTURE, NULL);
 
@@ -3525,6 +3534,7 @@ static void rna_def_space_clip(BlenderRNA *brna)
 	static EnumPropertyItem pivot_items[] = {
 		{V3D_CENTER, "BOUNDING_BOX_CENTER", ICON_ROTATE, "Bounding Box Center",
 		             "Pivot around bounding box center of selected object(s)"},
+		{V3D_CURSOR, "CURSOR", ICON_CURSOR, "2D Cursor", "Pivot around the 2D cursor"},
 		{V3D_LOCAL, "INDIVIDUAL_ORIGINS", ICON_ROTATECOLLECTION,
 		            "Individual Origins", "Pivot around each object's own origin"},
 		{V3D_CENTROID, "MEDIAN_POINT", ICON_ROTATECENTER, "Median Point",

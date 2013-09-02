@@ -71,6 +71,11 @@ static void remdoubles_splitface(BMFace *f, BMesh *bm, BMOperator *op, BMOpSlot 
 #define EDGE_COL	2
 #define FACE_MARK	2
 
+/**
+ * \note with 'targetmap', multiple 'keys' are currently supported, though no callers should be using.
+ * (because slot maps currently use GHash without the GHASH_FLAG_ALLOW_DUPES flag set)
+ *
+ */
 void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
 {
 	BMIter iter, liter;
@@ -189,10 +194,8 @@ void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
 			v2 = BMO_slot_map_elem_get(slot_targetmap, v2);
 		}
 		
-		f_new = BM_face_create_ngon(bm, v, v2, edges, a, BM_CREATE_NO_DOUBLE);
+		f_new = BM_face_create_ngon(bm, v, v2, edges, a, f, BM_CREATE_NO_DOUBLE);
 		if (f_new && (f_new != f)) {
-			BM_elem_attrs_copy(bm, bm, f, f_new);
-
 			a = 0;
 			BM_ITER_ELEM (l, &liter, f_new, BM_LOOPS_OF_FACE) {
 				l_new = loops[a];
@@ -495,12 +498,17 @@ static void bmesh_find_doubles_common(BMesh *bm, BMOperator *op,
 	for (i = 0; i < verts_len; i++) {
 		BMVert *v_check = verts[i];
 
-		if (BMO_elem_flag_test(bm, v_check, VERT_DOUBLE)) {
+		if (BMO_elem_flag_test(bm, v_check, VERT_DOUBLE | VERT_TARGET)) {
 			continue;
 		}
 
 		for (j = i + 1; j < verts_len; j++) {
 			BMVert *v_other = verts[j];
+
+			/* a match has already been found, (we could check which is best, for now don't) */
+			if (BMO_elem_flag_test(bm, v_other, VERT_DOUBLE | VERT_TARGET)) {
+				continue;
+			}
 
 			/* Compare sort values of the verts using 3x tolerance (allowing for the tolerance
 			 * on each of the three axes). This avoids the more expensive length comparison

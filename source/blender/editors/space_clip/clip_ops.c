@@ -782,6 +782,8 @@ static int view_all_exec(bContext *C, wmOperator *op)
 
 void CLIP_OT_view_all(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+
 	/* identifiers */
 	ot->name = "View All";
 	ot->idname = "CLIP_OT_view_all";
@@ -792,7 +794,8 @@ void CLIP_OT_view_all(wmOperatorType *ot)
 	ot->poll = ED_space_clip_view_clip_poll;
 
 	/* properties */
-	RNA_def_boolean(ot->srna, "fit_view", 0, "Fit View", "Fit frame to the viewport");
+	prop = RNA_def_boolean(ot->srna, "fit_view", 0, "Fit View", "Fit frame to the viewport");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /********************** view selected operator *********************/
@@ -1453,6 +1456,51 @@ void CLIP_OT_set_scene_frames(wmOperatorType *ot)
 	/* api callbacks */
 	ot->poll = ED_space_clip_view_clip_poll;
 	ot->exec = clip_set_scene_frames_exec;
+}
+
+/******************** set 3d cursor operator ********************/
+
+static int clip_set_2d_cursor_exec(bContext *C, wmOperator *op)
+{
+	SpaceClip *sclip = CTX_wm_space_clip(C);
+
+	RNA_float_get_array(op->ptr, "location", sclip->cursor);
+
+	WM_event_add_notifier(C, NC_SPACE | ND_SPACE_CLIP, NULL);
+
+	return OPERATOR_FINISHED;
+}
+
+static int clip_set_2d_cursor_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	ARegion *ar = CTX_wm_region(C);
+	SpaceClip *sclip = CTX_wm_space_clip(C);
+	float location[2];
+
+	ED_clip_mouse_pos(sclip, ar, event->mval, location);
+	RNA_float_set_array(op->ptr, "location", location);
+
+	return clip_set_2d_cursor_exec(C, op);
+}
+
+void CLIP_OT_cursor_set(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Set 2D Cursor";
+	ot->description = "Set 2D cursor location";
+	ot->idname = "CLIP_OT_cursor_set";
+
+	/* api callbacks */
+	ot->exec = clip_set_2d_cursor_exec;
+	ot->invoke = clip_set_2d_cursor_invoke;
+	ot->poll = ED_space_clip_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	/* properties */
+	RNA_def_float_vector(ot->srna, "location", 2, NULL, -FLT_MAX, FLT_MAX, "Location",
+	                     "Cursor location in normalized clip coordinates", -10.0f, 10.0f);
 }
 
 /********************** macroses *********************/
