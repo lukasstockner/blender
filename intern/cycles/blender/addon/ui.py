@@ -931,7 +931,7 @@ class CyclesWorld_PT_settings(CyclesButtonsPanel, Panel):
         sub = col.row(align=True)
         sub.active = cworld.sample_as_light
         sub.prop(cworld, "sample_map_resolution")
-        if not cscene.progressive:
+        if cscene.progressive == 'BRANCHED_PATH':
             sub.prop(cworld, "samples")
 
 

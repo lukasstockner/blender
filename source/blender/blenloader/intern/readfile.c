@@ -250,11 +250,7 @@ static void convert_tface_mt(FileData *fd, Main *main);
  * we could alternatively have a versions of a report function which forces printing - campbell
  */
 
-static void BKE_reportf_wrap(ReportList *reports, ReportType type, const char *format, ...)
-#ifdef __GNUC__
-__attribute__ ((format(printf, 3, 4)))
-#endif
-;
+static void BKE_reportf_wrap(ReportList *reports, ReportType type, const char *format, ...) ATTR_PRINTF_FORMAT(3, 4);
 static void BKE_reportf_wrap(ReportList *reports, ReportType type, const char *format, ...)
 {
 	char fixed_buf[1024]; /* should be long enough */
@@ -6128,6 +6124,9 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 	for (ui_list = ar->ui_lists.first; ui_list; ui_list = ui_list->next) {
 		ui_list->type = NULL;
 		ui_list->dyn_data = NULL;
+		ui_list->properties = newdataadr(fd, ui_list->properties);
+		if (ui_list->properties)
+			IDP_DirectLinkProperty(ui_list->properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 	}
 
 	if (spacetype == SPACE_EMPTY) {

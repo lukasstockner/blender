@@ -1697,12 +1697,17 @@ static void composite_freestyle_renders(Render *re, int sample)
 	for (srl= (SceneRenderLayer *)re->r.layers.first; srl; srl= srl->next) {
 		if ((re->r.scemode & R_SINGLE_LAYER) && srl != actsrl)
 			continue;
+
 		if (FRS_is_freestyle_enabled(srl)) {
 			freestyle_render = (Render *)link->data;
-			render_result_exr_file_read(freestyle_render, sample);
-			FRS_composite_result(re, srl, freestyle_render);
-			RE_FreeRenderResult(freestyle_render->result);
-			freestyle_render->result = NULL;
+
+			/* may be NULL in case of empty render layer */
+			if (freestyle_render) {
+				render_result_exr_file_read(freestyle_render, sample);
+				FRS_composite_result(re, srl, freestyle_render);
+				RE_FreeRenderResult(freestyle_render->result);
+				freestyle_render->result = NULL;
+			}
 		}
 		link = link->next;
 	}
@@ -1717,8 +1722,9 @@ static void free_all_freestyle_renders(void)
 
 	for (re1= RenderGlobal.renderlist.first; re1; re1= re1->next) {
 		for (link = (LinkData *)re1->freestyle_renders.first; link; link = link->next) {
-			if (link->data) {
-				freestyle_render = (Render *)link->data;
+			freestyle_render = (Render *)link->data;
+
+			if (freestyle_render) {
 				freestyle_scene = freestyle_render->scene;
 				RE_FreeRender(freestyle_render);
 				BKE_scene_unlink(&re1->freestyle_bmain, freestyle_scene, NULL);
@@ -1752,6 +1758,7 @@ static void do_merge_fullsample(Render *re, bNodeTree *ntree)
 	rectf = MEM_mapallocN(re->rectx * re->recty * sizeof(float) * 4, "fullsample rgba");
 	
 	for (sample = 0; sample < re->r.osa; sample++) {
+		Scene *sce;
 		Render *re1;
 		RenderResult rres;
 		int mask;
@@ -1763,9 +1770,11 @@ static void do_merge_fullsample(Render *re, bNodeTree *ntree)
 		/* also function below assumes this */
 			
 		tag_scenes_for_render(re);
-		for (re1 = RenderGlobal.renderlist.first; re1; re1 = re1->next) {
-			if (re1->scene->id.flag & LIB_DOIT) {
-				if (re1->r.scemode & R_FULL_SAMPLE) {
+		for (sce = re->main->scene.first; sce; sce = sce->id.next) {
+			if (sce->id.flag & LIB_DOIT) {
+				re1 = RE_GetRender(sce->id.name);
+
+				if (re1 && (re1->r.scemode & R_FULL_SAMPLE)) {
 					if (sample) {
 						BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
 						render_result_exr_file_read(re1, sample);

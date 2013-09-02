@@ -568,22 +568,19 @@ PyDoc_STRVAR(M_Geometry_intersect_line_plane_doc,
 "   :type plane_co: :class:`mathutils.Vector`\n"
 "   :arg plane_no: The direction the plane is facing\n"
 "   :type plane_no: :class:`mathutils.Vector`\n"
-"   :arg no_flip: Always return an intersection on the directon defined bt line_a -> line_b\n"
-"   :type no_flip: :boolean\n"
 "   :return: The point of intersection or None when not found\n"
 "   :rtype: :class:`mathutils.Vector` or None\n"
 );
 static PyObject *M_Geometry_intersect_line_plane(PyObject *UNUSED(self), PyObject *args)
 {
 	VectorObject *line_a, *line_b, *plane_co, *plane_no;
-	int no_flip = 0;
 	float isect[3];
+
 	if (!PyArg_ParseTuple(args, "O!O!O!O!|i:intersect_line_plane",
 	                      &vector_Type, &line_a,
 	                      &vector_Type, &line_b,
 	                      &vector_Type, &plane_co,
-	                      &vector_Type, &plane_no,
-	                      &no_flip))
+	                      &vector_Type, &plane_no))
 	{
 		return NULL;
 	}
@@ -603,7 +600,7 @@ static PyObject *M_Geometry_intersect_line_plane(PyObject *UNUSED(self), PyObjec
 		return NULL;
 	}
 
-	if (isect_line_plane_v3(isect, line_a->vec, line_b->vec, plane_co->vec, plane_no->vec, no_flip) == 1) {
+	if (isect_line_plane_v3(isect, line_a->vec, line_b->vec, plane_co->vec, plane_no->vec) == 1) {
 		return Vector_CreatePyObject(isect, 3, Py_NEW, NULL);
 	}
 	else {
@@ -980,19 +977,19 @@ PyDoc_STRVAR(M_Geometry_distance_point_to_plane_doc,
 );
 static PyObject *M_Geometry_distance_point_to_plane(PyObject *UNUSED(self), PyObject *args)
 {
-	VectorObject *pt, *plene_co, *plane_no;
+	VectorObject *pt, *plane_co, *plane_no;
 	float plane[4];
 
 	if (!PyArg_ParseTuple(args, "O!O!O!:distance_point_to_plane",
 	                      &vector_Type, &pt,
-	                      &vector_Type, &plene_co,
+	                      &vector_Type, &plane_co,
 	                      &vector_Type, &plane_no))
 	{
 		return NULL;
 	}
 
 	if (pt->size != 3 ||
-	    plene_co->size != 3 ||
+	    plane_co->size != 3 ||
 	    plane_no->size != 3)
 	{
 		PyErr_SetString(PyExc_ValueError,
@@ -1001,13 +998,13 @@ static PyObject *M_Geometry_distance_point_to_plane(PyObject *UNUSED(self), PyOb
 	}
 
 	if (BaseMath_ReadCallback(pt) == -1 ||
-	    BaseMath_ReadCallback(plene_co) == -1 ||
+	    BaseMath_ReadCallback(plane_co) == -1 ||
 	    BaseMath_ReadCallback(plane_no) == -1)
 	{
 		return NULL;
 	}
 
-	plane_from_point_normal_v3(plane, plene_co->vec, plane_no->vec);
+	plane_from_point_normal_v3(plane, plane_co->vec, plane_no->vec);
 	return PyFloat_FromDouble(dist_to_plane_v3(pt->vec, plane));
 }
 
@@ -1121,7 +1118,7 @@ static PyObject *M_Geometry_points_in_planes(PyObject *UNUSED(self), PyObject *a
 
 		/* python */
 		PyObject *py_verts = PyList_New(0);
-		PyObject *py_plene_index = PyList_New(0);
+		PyObject *py_plane_index = PyList_New(0);
 
 		memset(planes_used, 0, sizeof(char) * len);
 
@@ -1173,7 +1170,7 @@ static PyObject *M_Geometry_points_in_planes(PyObject *UNUSED(self), PyObject *a
 		for (i = 0; i < len; i++) {
 			if (planes_used[i]) {
 				PyObject *item = PyLong_FromLong(i);
-				PyList_Append(py_plene_index, item);
+				PyList_Append(py_plane_index, item);
 				Py_DECREF(item);
 			}
 		}
@@ -1182,7 +1179,7 @@ static PyObject *M_Geometry_points_in_planes(PyObject *UNUSED(self), PyObject *a
 		{
 			PyObject *ret = PyTuple_New(2);
 			PyTuple_SET_ITEM(ret, 0, py_verts);
-			PyTuple_SET_ITEM(ret, 1, py_plene_index);
+			PyTuple_SET_ITEM(ret, 1, py_plane_index);
 			return ret;
 		}
 	}

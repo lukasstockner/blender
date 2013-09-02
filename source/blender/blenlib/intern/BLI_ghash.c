@@ -43,16 +43,8 @@
 #include "BLI_utildefines.h"
 #include "BLI_mempool.h"
 #include "BLI_ghash.h"
+#include "BLI_strict_flags.h"
 
-/***/
-
-#ifdef __GNUC__
-#  pragma GCC diagnostic error "-Wsign-conversion"
-#  if (__GNUC__ * 100 + __GNUC_MINOR__) >= 406  /* gcc4.6+ only */
-#    pragma GCC diagnostic error "-Wsign-compare"
-#    pragma GCC diagnostic error "-Wconversion"
-#  endif
-#endif
 
 const unsigned int hashsizes[] = {
 	5, 11, 17, 37, 67, 131, 257, 521, 1031, 2053, 4099, 8209, 
@@ -181,7 +173,7 @@ BLI_INLINE Entry *ghash_lookup_entry(GHash *gh, const void *key)
 
 static GHash *ghash_new(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info,
                         const unsigned int nentries_reserve,
-                        const size_t entry_size)
+                        const unsigned int entry_size)
 {
 	GHash *gh = MEM_mallocN(sizeof(*gh), info);
 
@@ -199,7 +191,7 @@ static GHash *ghash_new(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info,
 	}
 
 	gh->buckets = MEM_callocN(gh->nbuckets * sizeof(*gh->buckets), "buckets");
-	gh->entrypool = BLI_mempool_create((int)entry_size, 64, 64, 0);
+	gh->entrypool = BLI_mempool_create(entry_size, 64, 64, 0);
 
 	return gh;
 }
@@ -246,7 +238,7 @@ BLI_INLINE void ghash_insert_ex_keyonly(GHash *gh, void *key,
 BLI_INLINE void ghash_insert(GHash *gh, void *key, void *val)
 {
 	const unsigned int hash = ghash_keyhash(gh, key);
-	return ghash_insert_ex(gh, key, val, hash);
+	ghash_insert_ex(gh, key, val, hash);
 }
 
 /**
@@ -320,7 +312,7 @@ GHash *BLI_ghash_new_ex(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info,
 {
 	return ghash_new(hashfp, cmpfp, info,
 	                 nentries_reserve,
-	                 sizeof(Entry));
+	                 (unsigned int)sizeof(Entry));
 }
 
 /**
@@ -607,6 +599,18 @@ void *BLI_ghashIterator_getKey(GHashIterator *ghi)
 void *BLI_ghashIterator_getValue(GHashIterator *ghi)
 {
 	return ghi->curEntry ? ghi->curEntry->val : NULL;
+}
+
+/**
+ * Retrieve the value from an iterator.
+ *
+ * \param ghi The iterator.
+ * \return The value at the current index, or NULL if the
+ * iterator is done.
+ */
+void **BLI_ghashIterator_getValue_p(GHashIterator *ghi)
+{
+	return ghi->curEntry ? &ghi->curEntry->val : NULL;
 }
 
 /**
