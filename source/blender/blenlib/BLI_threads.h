@@ -50,6 +50,7 @@ struct ListBase;
 
 /*this is run once at startup*/
 void BLI_threadapi_init(void);
+void BLI_threadapi_exit(void);
 
 void    BLI_init_threads(struct ListBase *threadbase, void *(*do_thread)(void *), int tot);
 int     BLI_available_threads(struct ListBase *threadbase);
@@ -130,6 +131,18 @@ void BLI_rw_mutex_free(ThreadRWMutex *mutex);
 
 void BLI_rw_mutex_lock(ThreadRWMutex *mutex, int mode);
 void BLI_rw_mutex_unlock(ThreadRWMutex *mutex);
+
+/* Ticket Mutex Lock
+ *
+ * This is a 'fair' mutex in that it will grant the lock to the first thread
+ * that requests it. */
+
+typedef struct TicketMutex TicketMutex;
+
+TicketMutex *BLI_ticket_mutex_alloc(void);
+void BLI_ticket_mutex_free(TicketMutex *ticket);
+void BLI_ticket_mutex_lock(TicketMutex *ticket);
+void BLI_ticket_mutex_unlock(TicketMutex *ticket);
 
 /* ThreadedWorker
  *

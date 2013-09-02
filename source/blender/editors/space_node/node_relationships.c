@@ -356,7 +356,7 @@ static int node_link_viewer(const bContext *C, bNode *tonode)
 }
 
 
-static int node_active_link_viewer(bContext *C, wmOperator *UNUSED(op))
+static int node_active_link_viewer_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	SpaceNode *snode = CTX_wm_space_node(C);
 	bNode *node;
@@ -385,7 +385,7 @@ void NODE_OT_link_viewer(wmOperatorType *ot)
 	ot->idname = "NODE_OT_link_viewer";
 
 	/* api callbacks */
-	ot->exec = node_active_link_viewer;
+	ot->exec = node_active_link_viewer_exec;
 	ot->poll = composite_node_editable;
 
 	/* flags */
@@ -762,7 +762,7 @@ static int cut_links_exec(bContext *C, wmOperator *op)
 	float mcoords[256][2];
 	int i = 0;
 
-	RNA_BEGIN(op->ptr, itemptr, "path")
+	RNA_BEGIN (op->ptr, itemptr, "path")
 	{
 		float loc[2];
 

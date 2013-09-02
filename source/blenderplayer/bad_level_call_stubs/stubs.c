@@ -140,7 +140,7 @@ struct wmWindowManager;
 /*new render funcs */
 void EDBM_selectmode_set(struct BMEditMesh *em) {STUB_ASSERT(0);}
 void EDBM_mesh_load(struct Object *ob) {STUB_ASSERT(0);}
-void EDBM_mesh_make(struct ToolSettings *ts, struct Scene *scene, struct Object *ob) {STUB_ASSERT(0);}
+void EDBM_mesh_make(struct ToolSettings *ts, struct Object *ob) {STUB_ASSERT(0);}
 void EDBM_mesh_normals_update(struct BMEditMesh *em) {STUB_ASSERT(0);}
 void *g_system;
 
@@ -226,6 +226,7 @@ struct wmTimer *WM_event_add_timer(struct wmWindowManager *wm, struct wmWindow *
 void WM_event_remove_timer(struct wmWindowManager *wm, struct wmWindow *win, struct wmTimer *timer) {STUB_ASSERT(0);}
 void ED_armature_edit_bone_remove(struct bArmature *arm, struct EditBone *exBone) {STUB_ASSERT(0);}
 void object_test_constraints(struct Object *owner) {STUB_ASSERT(0);}
+void ED_armature_ebone_to_mat4(struct EditBone *ebone, float mat[4][4]) {STUB_ASSERT(0);}
 void ED_object_parent(struct Object *ob, struct Object *par, int type, const char *substr) {STUB_ASSERT(0);}
 void ED_object_constraint_set_active(struct Object *ob, struct bConstraint *con) {STUB_ASSERT(0);}
 void ED_node_composit_default(struct bContext *C, struct Scene *scene) {STUB_ASSERT(0);}
@@ -457,7 +458,7 @@ void uiTemplateLayers(struct uiLayout *layout, struct PointerRNA *ptr, char *pro
 void uiTemplateImageLayers(struct uiLayout *layout, struct bContext *C, struct Image *ima, struct ImageUser *iuser) {STUB_ASSERT(0);}
 void uiTemplateList(struct uiLayout *layout, struct bContext *C, const char *listtype_name, const char *list_id,
                     PointerRNA *dataptr, const char *propname, PointerRNA *active_dataptr,
-                    const char *active_propname, int rows, int maxrows, int layout_type) {STUB_ASSERT(0);}
+                    const char *active_propname, int rows, int maxrows, int layout_type, int columns) {STUB_ASSERT(0);}
 void uiTemplateRunningJobs(struct uiLayout *layout, struct bContext *C) {STUB_ASSERT(0);}
 void uiTemplateOperatorSearch(struct uiLayout *layout) {STUB_ASSERT(0);}
 void uiTemplateHeader3D(struct uiLayout *layout, struct bContext *C) {STUB_ASSERT(0);}

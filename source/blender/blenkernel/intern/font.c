@@ -41,6 +41,7 @@
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
+#include "BLI_threads.h"
 #include "BLI_vfontdata.h"
 #include "BLI_utildefines.h"
 
@@ -59,6 +60,7 @@
 #include "BKE_curve.h"
 #include "BKE_displist.h"
 
+static ThreadMutex vfont_mutex = BLI_MUTEX_INITIALIZER;
 
 /* The vfont code */
 void BKE_vfont_free_data(struct VFont *vfont)
@@ -138,6 +140,18 @@ static VFontData *vfont_get_data(Main *bmain, VFont *vfont)
 	if (!vfont->data) {
 		PackedFile *pf;
 
+		BLI_mutex_lock(&vfont_mutex);
+
+		if (vfont->data) {
+			/* Check data again, since it might have been already
+			 * initialized from other thread (previous check is
+			 * not accurate or threading, just prevents unneeded
+			 * lock if all the data is here for sure).
+			 */
+			BLI_mutex_unlock(&vfont_mutex);
+			return vfont->data;
+		}
+
 		if (BKE_vfont_is_builtin(vfont)) {
 			pf = get_builtin_packedfile();
 		}
@@ -175,8 +189,10 @@ static VFontData *vfont_get_data(Main *bmain, VFont *vfont)
 				freePackedFile(pf);
 			}
 		}
+
+		BLI_mutex_unlock(&vfont_mutex);
 	}
-	
+
 	return vfont->data;
 }
 
@@ -516,7 +532,7 @@ struct CharTrans *BKE_vfont_to_curve(Main *bmain, Scene *scene, Object *ob, int 
 
 	/* Create unicode string */
 	utf8len = BLI_strlen_utf8(cu->str);
-	mem = MEM_callocN(((utf8len + 1) * sizeof(wchar_t)), "convertedmem");
+	mem = MEM_mallocN(((utf8len + 1) * sizeof(wchar_t)), "convertedmem");
 
 	BLI_strncpy_wchar_from_utf8(mem, cu->str, utf8len + 1);
 
@@ -819,8 +835,10 @@ makebreak:
 		
 		cucu->flag |= (CU_PATH + CU_FOLLOW);
 		
-		if (cucu->path == NULL) BKE_displist_make_curveTypes(scene, cu->textoncurve, 0);
-		if (cucu->path) {
+		if (cu->textoncurve->curve_cache == NULL || cu->textoncurve->curve_cache->path == NULL) {
+			BKE_displist_make_curveTypes(scene, cu->textoncurve, 0);
+		}
+		if (cu->textoncurve->curve_cache->path) {
 			float distfac, imat[4][4], imat3[3][3], cmat[3][3];
 			float minx, maxx, miny, maxy;
 			float timeofs, sizefac;
@@ -845,7 +863,7 @@ makebreak:
 			/* we put the x-coordinaat exact at the curve, the y is rotated */
 			
 			/* length correction */
-			distfac = sizefac * cucu->path->totdist / (maxx - minx);
+			distfac = sizefac * cu->textoncurve->curve_cache->path->totdist / (maxx - minx);
 			timeofs = 0.0f;
 			
 			if (distfac > 1.0f) {

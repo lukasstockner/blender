@@ -41,6 +41,7 @@
 #include "BLI_math.h"
 
 #include "BKE_context.h"
+#include "BKE_library.h"
 #include "BKE_screen.h"
 #include "BKE_node.h"
 
@@ -83,6 +84,8 @@ void ED_node_tree_start(SpaceNode *snode, bNodeTree *ntree, ID *id, ID *from)
 			BLI_strncpy(path->node_name, id->name + 2, sizeof(path->node_name));
 		
 		BLI_addtail(&snode->treepath, path);
+		
+		id_us_ensure_real(&ntree->id);
 	}
 	
 	/* update current tree */
@@ -115,6 +118,8 @@ void ED_node_tree_push(SpaceNode *snode, bNodeTree *ntree, bNode *gnode)
 	copy_v2_v2(path->view_center, ntree->view_center);
 	
 	BLI_addtail(&snode->treepath, path);
+	
+	id_us_ensure_real(&ntree->id);
 	
 	/* update current tree */
 	snode->edittree = ntree;
@@ -387,7 +392,8 @@ static void node_area_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn
 	switch (wmn->category) {
 		case NC_SCENE:
 			switch (wmn->data) {
-				case ND_NODES: {
+				case ND_NODES:
+				{
 					ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
 					bNodeTreePath *path = snode->treepath.last;
 					/* shift view to node tree center */
@@ -629,7 +635,7 @@ static void node_main_area_draw(const bContext *C, ARegion *ar)
 
 /* ************* dropboxes ************* */
 
-static int node_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
+static int node_ima_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
 {
 	if (drag->type == WM_DRAG_ID) {
 		ID *id = (ID *)drag->poin;
@@ -641,6 +647,23 @@ static int node_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUS
 			return 1;
 	}
 	return 0;
+}
+
+static int node_mask_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
+{
+	if (drag->type == WM_DRAG_ID) {
+		ID *id = (ID *)drag->poin;
+		if (GS(id->name) == ID_MSK)
+			return 1;
+	}
+	return 0;
+}
+
+static void node_id_drop_copy(wmDrag *drag, wmDropBox *drop)
+{
+	ID *id = (ID *)drag->poin;
+
+	RNA_string_set(drop->ptr, "name", id->name + 2);
 }
 
 static void node_id_path_drop_copy(const bContext *UNUSED(C), const wmEvent *UNUSED(event), wmDrag *drag, wmDropBox *drop)
@@ -660,7 +683,8 @@ static void node_dropboxes(void)
 {
 	ListBase *lb = WM_dropboxmap_find("Node Editor", SPACE_NODE, RGN_TYPE_WINDOW);
 
-	WM_dropbox_add(lb, "NODE_OT_add_file", node_drop_poll, node_id_path_drop_copy);
+	WM_dropbox_add(lb, "NODE_OT_add_file", node_ima_drop_poll, node_id_path_drop_copy);
+	WM_dropbox_add(lb, "NODE_OT_add_mask", node_mask_drop_poll, node_id_drop_copy);
 
 }
 

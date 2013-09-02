@@ -61,6 +61,7 @@
 #include "BKE_object_deform.h"
 #include "BKE_paint.h"
 #include "BKE_report.h"
+#include "BKE_colortools.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -68,11 +69,13 @@
 #include "GPU_buffers.h"
 
 #include "ED_armature.h"
+#include "ED_object.h"
 #include "ED_mesh.h"
 #include "ED_screen.h"
 #include "ED_view3d.h"
 
 #include "paint_intern.h"  /* own include */
+
 
 /* check if we can do partial updates and have them draw realtime
  * (without rebuilding the 'derivedFinal') */
@@ -380,11 +383,9 @@ static int wpaint_mirror_vgroup_ensure(Object *ob, const int vgroup_active)
 		flip_side_name(name, defgroup->name, FALSE);
 		mirrdef = defgroup_name_index(ob, name);
 		if (mirrdef == -1) {
-			int olddef = ob->actdef;  /* tsk, ED_vgroup_add sets the active defgroup */
-			if (ED_vgroup_add_name(ob, name)) {
+			if (BKE_defgroup_new(ob, name)) {
 				mirrdef = BLI_countlist(&ob->defbase) - 1;
 			}
-			ob->actdef = olddef;
 		}
 
 		/* curdef should never be NULL unless this is
@@ -2027,50 +2028,28 @@ static void do_weight_paint_vertex(
 
 /* *************** set wpaint operator ****************** */
 
-static int set_wpaint(bContext *C, wmOperator *UNUSED(op))  /* toggle */
+/**
+ * \note Keep in sync with #vpaint_mode_toggle_exec
+ */
+static int wpaint_mode_toggle_exec(bContext *C, wmOperator *op)
 {		
 	Object *ob = CTX_data_active_object(C);
+	const int mode_flag = OB_MODE_WEIGHT_PAINT;
+	const bool is_mode_set = (ob->mode & mode_flag) != 0;
 	Scene *scene = CTX_data_scene(C);
 	VPaint *wp = scene->toolsettings->wpaint;
 	Mesh *me;
-	
-	me = BKE_mesh_from_object(ob);
-	if (ob->id.lib || me == NULL) return OPERATOR_PASS_THROUGH;
-	
-	if (ob->mode & OB_MODE_WEIGHT_PAINT) ob->mode &= ~OB_MODE_WEIGHT_PAINT;
-	else ob->mode |= OB_MODE_WEIGHT_PAINT;
-	
-	
-	/* Weightpaint works by overriding colors in mesh,
-	 * so need to make sure we recalc on enter and
-	 * exit (exit needs doing regardless because we
-	 * should redeform).
-	 */
-	DAG_id_tag_update(&me->id, 0);
-	
-	if (ob->mode & OB_MODE_WEIGHT_PAINT) {
-		Object *par;
-		
-		if (wp == NULL)
-			wp = scene->toolsettings->wpaint = new_vpaint(1);
 
-		BKE_paint_init(&wp->paint, PAINT_CURSOR_WEIGHT_PAINT);
-		paint_cursor_start(C, weight_paint_poll);
-		
-		mesh_octree_table(ob, NULL, NULL, 's');
-		
-		/* verify if active weight group is also active bone */
-		par = modifiers_isDeformedByArmature(ob);
-		if (par && (par->mode & OB_MODE_POSE)) {
-			bArmature *arm = par->data;
-
-			if (arm->act_bone)
-				ED_vgroup_select_by_name(ob, arm->act_bone->name);
+	if (!is_mode_set) {
+		if (!ED_object_mode_compat_set(C, ob, mode_flag, op->reports)) {
+			return OPERATOR_CANCELLED;
 		}
 	}
-	else {
-		mesh_octree_table(NULL, NULL, NULL, 'e');
-		mesh_mirrtopo_table(NULL, 'e');
+
+	me = BKE_mesh_from_object(ob);
+
+	if (ob->mode & mode_flag) {
+		ob->mode &= ~mode_flag;
 
 		if (me->editflag & ME_EDIT_PAINT_VERT_SEL) {
 			BKE_mesh_flush_select_from_verts(me);
@@ -2078,10 +2057,35 @@ static int set_wpaint(bContext *C, wmOperator *UNUSED(op))  /* toggle */
 		else if (me->editflag & ME_EDIT_PAINT_FACE_SEL) {
 			BKE_mesh_flush_select_from_polys(me);
 		}
+
+		/* weight paint spesific */
+		mesh_octree_table(NULL, NULL, NULL, 'e');
+		mesh_mirrtopo_table(NULL, 'e');
+	}
+	else {
+		ob->mode |= mode_flag;
+
+		if (wp == NULL)
+			wp = scene->toolsettings->wpaint = new_vpaint(1);
+
+		paint_cursor_start(C, weight_paint_poll);
+
+		BKE_paint_init(&wp->paint, PAINT_CURSOR_WEIGHT_PAINT);
+
+		/* weight paint spesific */
+		mesh_octree_table(ob, NULL, NULL, 's');
+		ED_vgroup_sync_from_pose(ob);
 	}
 	
+	/* Weightpaint works by overriding colors in mesh,
+	 * so need to make sure we recalc on enter and
+	 * exit (exit needs doing regardless because we
+	 * should redeform).
+	 */
+	DAG_id_tag_update(&me->id, 0);
+
 	WM_event_add_notifier(C, NC_SCENE | ND_MODE, scene);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -2089,11 +2093,11 @@ static int set_wpaint(bContext *C, wmOperator *UNUSED(op))  /* toggle */
 static int paint_poll_test(bContext *C)
 {
 	Object *ob = CTX_data_active_object(C);
-	if (CTX_data_edit_object(C))
-		return 0;
-	if (CTX_data_active_object(C) == NULL)
+	if (ob == NULL || ob->type != OB_MESH)
 		return 0;
 	if (!ob->data || ((ID *)ob->data)->lib)
+		return 0;
+	if (CTX_data_edit_object(C))
 		return 0;
 	return 1;
 }
@@ -2107,7 +2111,7 @@ void PAINT_OT_weight_paint_toggle(wmOperatorType *ot)
 	ot->description = "Toggle weight paint mode in 3D view";
 	
 	/* api callbacks */
-	ot->exec = set_wpaint;
+	ot->exec = wpaint_mode_toggle_exec;
 	ot->poll = paint_poll_test;
 	
 	/* flags */
@@ -2644,7 +2648,7 @@ void PAINT_OT_weight_set(wmOperatorType *ot)
 
 	/* api callbacks */
 	ot->exec = weight_paint_set_exec;
-	ot->poll = mask_paint_poll; /* it was facemask_paint_poll */
+	ot->poll = mask_paint_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -2652,40 +2656,41 @@ void PAINT_OT_weight_set(wmOperatorType *ot)
 
 /* ************ set / clear vertex paint mode ********** */
 
-
-static int set_vpaint(bContext *C, wmOperator *op)  /* toggle */
+/**
+ * \note Keep in sync with #wpaint_mode_toggle_exec
+ */
+static int vpaint_mode_toggle_exec(bContext *C, wmOperator *op)
 {	
 	Object *ob = CTX_data_active_object(C);
+	const int mode_flag = OB_MODE_VERTEX_PAINT;
+	const bool is_mode_set = (ob->mode & mode_flag) != 0;
 	Scene *scene = CTX_data_scene(C);
 	VPaint *vp = scene->toolsettings->vpaint;
 	Mesh *me;
-	
+
+	if (!is_mode_set) {
+		if (!ED_object_mode_compat_set(C, ob, mode_flag, op->reports)) {
+			return OPERATOR_CANCELLED;
+		}
+	}
+
 	me = BKE_mesh_from_object(ob);
 	
-	if (me == NULL || BKE_object_obdata_is_libdata(ob)) {
-		ob->mode &= ~OB_MODE_VERTEX_PAINT;
-		return OPERATOR_PASS_THROUGH;
-	}
-	
-	if (me && me->mloopcol == NULL) {
-		make_vertexcol(ob);
-	}
-	
 	/* toggle: end vpaint */
-	if (ob->mode & OB_MODE_VERTEX_PAINT) {
-		
-		ob->mode &= ~OB_MODE_VERTEX_PAINT;
+	if (is_mode_set) {
+		ob->mode &= ~mode_flag;
 
 		if (me->editflag & ME_EDIT_PAINT_FACE_SEL) {
 			BKE_mesh_flush_select_from_polys(me);
 		}
 	}
 	else {
-		ob->mode |= OB_MODE_VERTEX_PAINT;
-		/* Turn off weight painting */
-		if (ob->mode & OB_MODE_WEIGHT_PAINT)
-			set_wpaint(C, op);
-		
+		ob->mode |= mode_flag;
+
+		if (me->mloopcol == NULL) {
+			make_vertexcol(ob);
+		}
+
 		if (vp == NULL)
 			vp = scene->toolsettings->vpaint = new_vpaint(0);
 		
@@ -2711,7 +2716,7 @@ void PAINT_OT_vertex_paint_toggle(wmOperatorType *ot)
 	ot->description = "Toggle the vertex paint mode in 3D view";
 	
 	/* api callbacks */
-	ot->exec = set_vpaint;
+	ot->exec = vpaint_mode_toggle_exec;
 	ot->poll = paint_poll_test;
 	
 	/* flags */
@@ -3375,7 +3380,7 @@ static int paint_weight_gradient_exec(bContext *C, wmOperator *op)
 	const bool is_interactive = (gesture != NULL);
 	DerivedMesh *dm = mesh_get_derived_final(scene, ob, scene->customdata_mask);
 
-	DMGradient_userData data = {0};
+	DMGradient_userData data = {NULL};
 
 	if (is_interactive) {
 		if (gesture->userdata == NULL) {
@@ -3418,13 +3423,16 @@ static int paint_weight_gradient_exec(bContext *C, wmOperator *op)
 		ToolSettings *ts = CTX_data_tool_settings(C);
 		VPaint *wp = ts->wpaint;
 		struct Brush *brush = BKE_paint_brush(&wp->paint);
+
+		curvemapping_initialize(brush->curve);
+
 		data.brush = brush;
 		data.weightpaint = BKE_brush_weight_get(scene, brush);
 	}
 
 	ED_view3d_init_mats_rv3d(ob, ar->regiondata);
 
-	dm->foreachMappedVert(dm, gradientVert__mapFunc, &data);
+	dm->foreachMappedVert(dm, gradientVert__mapFunc, &data, DM_FOREACH_NOP);
 
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);

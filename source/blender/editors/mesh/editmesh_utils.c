@@ -36,6 +36,7 @@
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_math.h"
+#include "BLI_alloca.h"
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_context.h"
@@ -171,6 +172,13 @@ void EDBM_stats_update(BMEditMesh *em)
 	}
 }
 
+DerivedMesh *EDBM_mesh_deform_dm_get(BMEditMesh *em)
+{
+	return ((em->derivedFinal != NULL) &&
+	        (em->derivedFinal->type == DM_TYPE_EDITBMESH) &&
+	        (em->derivedFinal->deformedOnly != false)) ? em->derivedFinal : NULL;
+}
+
 bool EDBM_op_init(BMEditMesh *em, BMOperator *bmop, wmOperator *op, const char *fmt, ...)
 {
 	BMesh *bm = em->bm;
@@ -263,7 +271,9 @@ bool EDBM_op_callf(BMEditMesh *em, wmOperator *op, const char *fmt, ...)
 	return EDBM_op_finish(em, &bmop, op, true);
 }
 
-bool EDBM_op_call_and_selectf(BMEditMesh *em, wmOperator *op, const char *select_slot_out, const char *fmt, ...)
+bool EDBM_op_call_and_selectf(BMEditMesh *em, wmOperator *op,
+                              const char *select_slot_out, const bool select_extend,
+                              const char *fmt, ...)
 {
 	BMOpSlot *slot_select_out;
 	BMesh *bm = em->bm;
@@ -287,8 +297,11 @@ bool EDBM_op_call_and_selectf(BMEditMesh *em, wmOperator *op, const char *select
 
 	slot_select_out = BMO_slot_get(bmop.slots_out, select_slot_out);
 	hflag = slot_select_out->slot_subtype.elem & BM_ALL_NOLOOP;
+	BLI_assert(hflag != 0);
 
-	BM_mesh_elem_hflag_disable_all(em->bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT, false);
+	if (select_extend == false) {
+		BM_mesh_elem_hflag_disable_all(em->bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT, false);
+	}
 
 	BMO_slot_buffer_hflag_enable(em->bm, bmop.slots_out, select_slot_out, hflag, BM_ELEM_SELECT, true);
 
@@ -334,7 +347,7 @@ void EDBM_selectmode_to_scene(bContext *C)
 	WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, scene);
 }
 
-void EDBM_mesh_make(ToolSettings *ts, Scene *UNUSED(scene), Object *ob)
+void EDBM_mesh_make(ToolSettings *ts, Object *ob)
 {
 	Mesh *me = ob->data;
 	BMesh *bm;
@@ -361,8 +374,10 @@ void EDBM_mesh_make(ToolSettings *ts, Scene *UNUSED(scene), Object *ob)
 
 	me->edit_btmesh->selectmode = me->edit_btmesh->bm->selectmode = ts->selectmode;
 	me->edit_btmesh->mat_nr = (ob->actcol > 0) ? ob->actcol - 1 : 0;
-
 	me->edit_btmesh->ob = ob;
+
+	/* we need to flush selection because the mode may have changed from when last in editmode */
+	EDBM_selectmode_flush(me->edit_btmesh);
 }
 
 void EDBM_mesh_load(Object *ob)
@@ -1271,6 +1286,38 @@ BMVert *EDBM_verts_mirror_get(BMEditMesh *em, BMVert *v)
 	return NULL;
 }
 
+BMEdge *EDBM_verts_mirror_get_edge(BMEditMesh *em, BMEdge *e)
+{
+	BMVert *v1_mirr = EDBM_verts_mirror_get(em, e->v1);
+	if (v1_mirr) {
+		BMVert *v2_mirr = EDBM_verts_mirror_get(em, e->v2);
+		if (v2_mirr) {
+			return BM_edge_exists(v1_mirr, v2_mirr);
+		}
+	}
+
+	return NULL;
+}
+
+BMFace *EDBM_verts_mirror_get_face(BMEditMesh *em, BMFace *f)
+{
+	BMFace *f_mirr = NULL;
+	BMVert **v_mirr_arr = BLI_array_alloca(v_mirr_arr, f->len);
+
+	BMLoop *l_iter, *l_first;
+	unsigned int i = 0;
+
+	l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+	do {
+		if ((v_mirr_arr[i++] = EDBM_verts_mirror_get(em, l_iter->v)) == NULL) {
+			return NULL;
+		}
+	} while ((l_iter = l_iter->next) != l_first);
+
+	BM_face_exists(v_mirr_arr, f->len, &f_mirr);
+	return f_mirr;
+}
+
 void EDBM_verts_mirror_cache_clear(BMEditMesh *em, BMVert *v)
 {
 	int *mirr = CustomData_bmesh_get_layer_n(&em->bm->vdata, v->head.data, em->mirror_cdlayer);
@@ -1435,9 +1482,9 @@ int BMBVH_VertVisible(BMBVHTree *tree, BMEdge *e, RegionView3D *r3d)
 
 static BMFace *edge_ray_cast(struct BMBVHTree *tree, const float co[3], const float dir[3], float *r_hitout, BMEdge *e)
 {
-	BMFace *f = BKE_bmbvh_ray_cast(tree, co, dir, NULL, r_hitout, NULL);
+	BMFace *f = BKE_bmbvh_ray_cast(tree, co, dir, 0.0f, NULL, r_hitout, NULL);
 
-	if (f && BM_edge_in_face(f, e))
+	if (f && BM_edge_in_face(e, f))
 		return NULL;
 
 	return f;

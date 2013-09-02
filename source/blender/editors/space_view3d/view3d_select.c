@@ -146,12 +146,13 @@ static void edbm_backbuf_check_and_select_verts(BMEditMesh *em, const bool selec
 	BMIter iter;
 	unsigned int index = bm_wireoffs;
 
-	for (eve = BM_iter_new(&iter, em->bm, BM_VERTS_OF_MESH, NULL); eve; eve = BM_iter_step(&iter), index++) {
+	BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
 		if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
 			if (EDBM_backbuf_check(index)) {
 				BM_vert_select_set(em->bm, eve, select);
 			}
 		}
+		index++;
 	}
 }
 
@@ -161,13 +162,13 @@ static void edbm_backbuf_check_and_select_edges(BMEditMesh *em, const bool selec
 	BMIter iter;
 	int index = bm_solidoffs;
 
-	eed = BM_iter_new(&iter, em->bm, BM_EDGES_OF_MESH, NULL);
-	for (; eed; eed = BM_iter_step(&iter), index++) {
+	BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
 		if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
 			if (EDBM_backbuf_check(index)) {
 				BM_edge_select_set(em->bm, eed, select);
 			}
 		}
+		index++;
 	}
 }
 
@@ -177,13 +178,13 @@ static void edbm_backbuf_check_and_select_faces(BMEditMesh *em, const bool selec
 	BMIter iter;
 	unsigned int index = 1;
 
-	efa = BM_iter_new(&iter, em->bm, BM_FACES_OF_MESH, NULL);
-	for (; efa; efa = BM_iter_step(&iter), index++) {
+	BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
 		if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
 			if (EDBM_backbuf_check(index)) {
 				BM_face_select_set(em->bm, efa, select);
 			}
 		}
+		index++;
 	}
 }
 
@@ -609,7 +610,7 @@ static void do_lasso_select_armature__doSelectBone(void *userData, struct EditBo
 	LassoSelectUserData *data = userData;
 	bArmature *arm = data->vc->obedit->data;
 
-	if (EBONE_SELECTABLE(arm, ebone)) {
+	if (data->select ? EBONE_SELECTABLE(arm, ebone) : EBONE_VISIBLE(arm, ebone)) {
 		bool is_point_done = false;
 		int points_proj_tot = 0;
 
@@ -856,6 +857,7 @@ static void view3d_lasso_select(bContext *C, ViewContext *vc,
 				break;
 			default:
 				assert(!"lasso select on incorrect object type");
+				break;
 		}
 
 		WM_event_add_notifier(C, NC_GEOM | ND_SELECT, vc->obedit->data);
@@ -1907,7 +1909,7 @@ static int do_armature_box_select(ViewContext *vc, rcti *rect, bool select, bool
 		int index = buffer[(4 * a) + 3];
 		if (index != -1) {
 			ebone = BLI_findlink(arm->edbo, index & ~(BONESEL_ANY));
-			if ((ebone->flag & BONE_UNSELECTABLE) == 0) {
+			if ((select == false) || ((ebone->flag & BONE_UNSELECTABLE) == 0)) {
 				if (index & BONESEL_TIP) {
 					ebone->flag |= BONE_DONE;
 					if (select) ebone->flag |= BONE_TIPSEL;
@@ -1937,7 +1939,7 @@ static int do_armature_box_select(ViewContext *vc, rcti *rect, bool select, bool
 		if (index != -1) {
 			ebone = BLI_findlink(arm->edbo, index & ~(BONESEL_ANY));
 			if (index & BONESEL_BONE) {
-				if ((ebone->flag & BONE_UNSELECTABLE) == 0) {
+				if ((select == false) || ((ebone->flag & BONE_UNSELECTABLE) == 0)) {
 					if (!(ebone->flag & BONE_DONE)) {
 						if (select)
 							ebone->flag |= (BONE_ROOTSEL | BONE_TIPSEL | BONE_SELECTED);
@@ -1974,7 +1976,7 @@ static int do_object_pose_box_select(bContext *C, ViewContext *vc, rcti *rect, b
 		if (bone_only) {
 			CTX_DATA_BEGIN (C, bPoseChannel *, pchan, visible_pose_bones)
 			{
-				if ((pchan->bone->flag & BONE_UNSELECTABLE) == 0) {
+				if ((select == false) || ((pchan->bone->flag & BONE_UNSELECTABLE) == 0)) {
 					pchan->bone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
 				}
 			}
@@ -2110,6 +2112,7 @@ static int view3d_borderselect_exec(bContext *C, wmOperator *op)
 				break;
 			default:
 				assert(!"border select on incorrect object type");
+				break;
 		}
 	}
 	else {  /* no editmode, unified for bones and objects */
@@ -2551,7 +2554,7 @@ static void do_circle_select_pose__doSelectBone(void *userData, struct bPoseChan
 		/* project tail location to screenspace */
 		if (screen_co_b[0] != IS_CLIPPED) {
 			points_proj_tot++;
-			if (pchan_circle_doSelectJoint(data, pchan, screen_co_a)) {
+			if (pchan_circle_doSelectJoint(data, pchan, screen_co_b)) {
 				is_point_done = true;
 			}
 		}
@@ -2622,7 +2625,7 @@ static void do_circle_select_armature__doSelectBone(void *userData, struct EditB
 	CircleSelectUserData *data = userData;
 	bArmature *arm = data->vc->obedit->data;
 
-	if (EBONE_SELECTABLE(arm, ebone)) {
+	if (data->select ? EBONE_SELECTABLE(arm, ebone) : EBONE_VISIBLE(arm, ebone)) {
 		bool is_point_done = false;
 		int points_proj_tot = 0;
 

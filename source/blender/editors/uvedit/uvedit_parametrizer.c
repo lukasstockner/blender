@@ -26,15 +26,13 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_array.h"
+#include "BLI_utildefines.h"
+#include "BLI_alloca.h"
 #include "BLI_memarena.h"
 #include "BLI_math.h"
 #include "BLI_rand.h"
 #include "BLI_heap.h"
 #include "BLI_boxpack2d.h"
-#include "BLI_utildefines.h"
-
-
 
 #include "ONL_opennl.h"
 
@@ -3682,8 +3680,8 @@ static SmoothNode *p_node_new(MemArena *arena, SmoothTriangle **tri, int ntri, f
 	if (ntri <= 10 || depth >= 15)
 		return node;
 	
-	t1 = MEM_mallocN(sizeof(SmoothTriangle) * ntri, "PNodeTri1");
-	t2 = MEM_mallocN(sizeof(SmoothTriangle) * ntri, "PNodeTri1");
+	t1 = MEM_mallocN(sizeof(*t1) * ntri, "PNodeTri1");
+	t2 = MEM_mallocN(sizeof(*t2) * ntri, "PNodeTri1");
 
 	axis = (bmax[0] - bmin[0] > bmax[1] - bmin[1]) ? 0 : 1;
 	split = 0.5f * (bmin[axis] + bmax[axis]);

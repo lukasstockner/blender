@@ -439,6 +439,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 	uiStringInfo enum_label = {BUT_GET_RNAENUM_LABEL, NULL};
 	uiStringInfo enum_tip = {BUT_GET_RNAENUM_TIP, NULL};
 	uiStringInfo op_keymap = {BUT_GET_OP_KEYMAP, NULL};
+	uiStringInfo prop_keymap = {BUT_GET_PROP_KEYMAP, NULL};
 	uiStringInfo rna_struct = {BUT_GET_RNASTRUCT_IDENTIFIER, NULL};
 	uiStringInfo rna_prop = {BUT_GET_RNAPROP_IDENTIFIER, NULL};
 
@@ -448,7 +449,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 	/* create tooltip data */
 	data = MEM_callocN(sizeof(uiTooltipData), "uiTooltipData");
 
-	uiButGetStrInfo(C, but, &but_tip, &enum_label, &enum_tip, &op_keymap, &rna_struct, &rna_prop, NULL);
+	uiButGetStrInfo(C, but, &but_tip, &enum_label, &enum_tip, &op_keymap, &prop_keymap, &rna_struct, &rna_prop, NULL);
 
 	/* special case, enum rna buttons only have enum item description,
 	 * use general enum description too before the specific one */
@@ -477,6 +478,13 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 	/* Op shortcut */
 	if (op_keymap.strinfo) {
 		BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), TIP_("Shortcut: %s"), op_keymap.strinfo);
+		data->color_id[data->totline] = UI_TIP_LC_NORMAL;
+		data->totline++;
+	}
+	
+	/* Property context-toggle shortcut */
+	if (prop_keymap.strinfo) {
+		BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), TIP_("Shortcut: %s"), prop_keymap.strinfo);
 		data->color_id[data->totline] = UI_TIP_LC_NORMAL;
 		data->totline++;
 	}
@@ -516,7 +524,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 
 		if (but->rnapoin.id.data) {
 			ID *id = but->rnapoin.id.data;
-			if (id->lib && id->lib->name) {
+			if (id->lib) {
 				BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), TIP_("Library: %s"), id->lib->name);
 				data->color_id[data->totline] = UI_TIP_LC_NORMAL;
 				data->totline++;
@@ -582,7 +590,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 			/* never fails */
 			id_path = RNA_path_full_ID_py(id);
 
-			if (ptr->id.data && ptr->data && prop) {
+			if (ptr->data && prop) {
 				data_path = RNA_path_from_ID_to_property(ptr, prop);
 			}
 
@@ -614,6 +622,8 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 		MEM_freeN(enum_tip.strinfo);
 	if (op_keymap.strinfo)
 		MEM_freeN(op_keymap.strinfo);
+	if (prop_keymap.strinfo)
+		MEM_freeN(prop_keymap.strinfo);
 	if (rna_struct.strinfo)
 		MEM_freeN(rna_struct.strinfo);
 	if (rna_prop.strinfo)
@@ -2106,7 +2116,7 @@ static void uiBlockPicker(uiBlock *block, float rgba[4], PointerRNA *ptr, Proper
 	static char tip[50];
 	static char hexcol[128];
 	float rgb_gamma[3];
-	float min, max, step, precision;
+	float softmin, softmax, hardmin, hardmax, step, precision;
 	float *hsv = ui_block_hsv_get(block);
 	int yco;
 	
@@ -2132,7 +2142,8 @@ static void uiBlockPicker(uiBlock *block, float rgba[4], PointerRNA *ptr, Proper
 	/* sneaky way to check for alpha */
 	rgba[3] = FLT_MAX;
 
-	RNA_property_float_ui_range(ptr, prop, &min, &max, &step, &precision);
+	RNA_property_float_ui_range(ptr, prop, &softmin, &softmax, &step, &precision);
+	RNA_property_float_range(ptr, prop, &hardmin, &hardmax);
 	RNA_property_float_get_array(ptr, prop, rgba);
 
 	switch (U.color_picker_type) {
@@ -2186,7 +2197,8 @@ static void uiBlockPicker(uiBlock *block, float rgba[4], PointerRNA *ptr, Proper
 	uiButSetFunc(bt, do_hsv_rna_cb, bt, hsv);
 	bt = uiDefButF(block, NUMSLI, 0, IFACE_("S "),   0, yco -= UI_UNIT_Y, butwidth, UI_UNIT_Y, hsv + 1, 0.0, 1.0, 10, 3, TIP_("Saturation"));
 	uiButSetFunc(bt, do_hsv_rna_cb, bt, hsv);
-	bt = uiDefButF(block, NUMSLI, 0, IFACE_("V "),   0, yco -= UI_UNIT_Y, butwidth, UI_UNIT_Y, hsv + 2, 0.0, max, 10, 3, TIP_("Value"));
+	bt = uiDefButF(block, NUMSLI, 0, IFACE_("V "),   0, yco -= UI_UNIT_Y, butwidth, UI_UNIT_Y, hsv + 2, 0.0, softmax, 10, 3, TIP_("Value"));
+	bt->hardmax = hardmax;  /* not common but rgb  may be over 1.0 */
 	uiButSetFunc(bt, do_hsv_rna_cb, bt, hsv);
 	uiBlockEndAlign(block);
 
@@ -2256,10 +2268,8 @@ uiBlock *ui_block_func_COLOR(bContext *C, uiPopupBlockHandle *handle, void *arg_
 	
 	block = uiBeginBlock(C, handle->region, __func__, UI_EMBOSS);
 	
-	if (but->rnaprop) {
-		if (RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
-			block->color_profile = FALSE;
-		}
+	if (RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
+		block->color_profile = false;
 	}
 
 	if (but->block) {
@@ -2516,7 +2526,7 @@ uiPopupMenu *uiPupMenuBegin(bContext *C, const char *title, int icon)
 	uiStyle *style = UI_GetStyleDraw();
 	uiPopupMenu *pup = MEM_callocN(sizeof(uiPopupMenu), "popup menu");
 	uiBut *but;
-	
+
 	pup->block = uiBeginBlock(C, NULL, __func__, UI_EMBOSSP);
 	pup->block->flag |= UI_BLOCK_POPUP_MEMORY;
 	pup->block->puphash = ui_popup_menu_hash(title);
@@ -2530,7 +2540,7 @@ uiPopupMenu *uiPupMenuBegin(bContext *C, const char *title, int icon)
 	pup->block->handle = MEM_callocN(sizeof(uiPopupBlockHandle), "uiPopupBlockHandle");
 	
 	/* create title button */
-	if (title && title[0]) {
+	if (title[0]) {
 		char titlestr[256];
 		
 		if (icon) {
@@ -2595,12 +2605,10 @@ static void confirm_cancel_operator(bContext *UNUSED(C), void *opv)
 	WM_operator_free(opv);
 }
 
-static void vconfirm_opname(bContext *C, const char *opname, const char *title, const char *itemfmt, va_list ap)
-#ifdef __GNUC__
-__attribute__ ((format(printf, 4, 0)))
-#endif
-;
-static void vconfirm_opname(bContext *C, const char *opname, const char *title, const char *itemfmt, va_list ap)
+static void vconfirm_opname(bContext *C, const char *opname, const char *title,
+                            const char *itemfmt, va_list ap) ATTR_PRINTF_FORMAT(4, 0);
+static void vconfirm_opname(bContext *C, const char *opname, const char *title,
+                            const char *itemfmt, va_list ap)
 {
 	uiPopupBlockHandle *handle;
 	char *s, buf[512];

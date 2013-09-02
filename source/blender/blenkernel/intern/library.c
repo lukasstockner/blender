@@ -1057,6 +1057,7 @@ void free_main(Main *mainvar)
 				case  32: BKE_libblock_free(lb, id); break;
 				default:
 					BLI_assert(0);
+					break;
 			}
 #endif
 		}
@@ -1263,16 +1264,12 @@ static ID *is_dupid(ListBase *lb, ID *id, const char *name)
 static bool check_for_dupid(ListBase *lb, ID *id, char *name)
 {
 	ID *idtest;
-	int nr = 0, nrtest, a, left_len;
+	int nr = 0, a, left_len;
 #define MAX_IN_USE 64
 	bool in_use[MAX_IN_USE];
 	/* to speed up finding unused numbers within [1 .. MAX_IN_USE - 1] */
 
 	char left[MAX_ID_NAME + 8], leftest[MAX_ID_NAME + 8];
-
-	/* make sure input name is terminated properly */
-	/* if ( strlen(name) > MAX_ID_NAME-3 ) name[MAX_ID_NAME-3] = 0; */
-	/* removed since this is only ever called from one place - campbell */
 
 	while (true) {
 
@@ -1300,6 +1297,7 @@ static bool check_for_dupid(ListBase *lb, ID *id, char *name)
 		}
 
 		for (idtest = lb->first; idtest; idtest = idtest->next) {
+			int nrtest;
 			if ( (id != idtest) &&
 			     (idtest->lib == NULL) &&
 			     (*name == *(idtest->name + 2)) &&
@@ -1314,8 +1312,8 @@ static bool check_for_dupid(ListBase *lb, ID *id, char *name)
 					nr = nrtest + 1;    /* track largest unused */
 			}
 		}
-		/* At this point, nr will be at least 1. */
-		BLI_assert(nr >= 1);
+		/* At this point, 'nr' will typically be at least 1. (but not always) */
+		// BLI_assert(nr >= 1);
 
 		/* decide which value of nr to use */
 		for (a = 0; a < MAX_IN_USE; a++) {
@@ -1573,7 +1571,10 @@ void BKE_library_make_local(Main *bmain, Library *lib, bool untagged_only)
 			{
 				if (lib == NULL || id->lib == lib) {
 					if (id->lib) {
-						id_make_local(id, false);
+						/* for Make Local > All we should be calling id_make_local,
+						 * but doing that breaks append (see #36003 and #36006), we
+						 * we should make it work with all datablocks and id.us==0 */
+						id_clear_lib_data(bmain, id); /* sets 'id->flag' */
 
 						/* why sort alphabetically here but not in
 						 * id_clear_lib_data() ? - campbell */

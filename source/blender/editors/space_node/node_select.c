@@ -429,6 +429,7 @@ void NODE_OT_select(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->invoke = node_select_invoke;
+	ot->exec = node_select_exec;
 	ot->poll = ED_operator_node_active;
 	
 	/* flags */
@@ -925,7 +926,7 @@ static uiBlock *node_find_menu(bContext *C, ARegion *ar, void *arg_op)
 	uiEndBlock(C, block);
 	
 	//	uiButActiveOnly(C, ar, block, but); XXX using this here makes Blender hang - investigate
-	event = *(win->eventstate);  /* XXX huh huh? make api call */
+	wm_event_init_from_window(win, &event);
 	event.type = EVT_BUT_OPEN;
 	event.val = KM_PRESS;
 	event.customdata = but;

@@ -76,6 +76,7 @@ void CURVE_OT_hide(struct wmOperatorType *ot);
 void CURVE_OT_reveal(struct wmOperatorType *ot);
 
 void CURVE_OT_separate(struct wmOperatorType *ot);
+void CURVE_OT_split(struct wmOperatorType *ot);
 void CURVE_OT_duplicate(struct wmOperatorType *ot);
 void CURVE_OT_delete(struct wmOperatorType *ot);
 
@@ -88,7 +89,9 @@ void CURVE_OT_shade_flat(struct wmOperatorType *ot);
 void CURVE_OT_tilt_clear(struct wmOperatorType *ot);
 
 void CURVE_OT_smooth(struct wmOperatorType *ot);
+void CURVE_OT_smooth_weight(struct wmOperatorType *ot);
 void CURVE_OT_smooth_radius(struct wmOperatorType *ot);
+void CURVE_OT_smooth_tilt(struct wmOperatorType *ot);
 
 void CURVE_OT_primitive_bezier_curve_add(struct wmOperatorType *ot);
 void CURVE_OT_primitive_bezier_circle_add(struct wmOperatorType *ot);

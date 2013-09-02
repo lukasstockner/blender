@@ -226,7 +226,7 @@ float ED_object_new_primitive_matrix(bContext *C, Object *obedit,
 		return dia;
 	}
 
-	return 1.0f;
+	// return 1.0f;
 }
 
 /********************* Add Object Operator ********************/
@@ -265,6 +265,7 @@ int ED_object_add_generic_get_opts(bContext *C, wmOperator *op, float loc[3], fl
                                    bool *enter_editmode, unsigned int *layer, bool *is_view_aligned)
 {
 	View3D *v3d = CTX_wm_view3d(C);
+	unsigned int _layer;
 
 	/* Switch to Edit mode? */
 	if (RNA_struct_find_property(op->ptr, "enter_editmode")) { /* optional */
@@ -283,7 +284,6 @@ int ED_object_add_generic_get_opts(bContext *C, wmOperator *op, float loc[3], fl
 	/* Get layers! */
 	{
 		int a, layer_values[20];
-		unsigned int _layer;
 		if (!layer)
 			layer = &_layer;
 
@@ -342,7 +342,7 @@ int ED_object_add_generic_get_opts(bContext *C, wmOperator *op, float loc[3], fl
 		else if (RNA_struct_property_is_set(op->ptr, "view_align"))
 			*is_view_aligned = RNA_boolean_get(op->ptr, "view_align");
 		else {
-			*is_view_aligned = U.flag & USER_ADD_VIEWALIGNED;
+			*is_view_aligned = (U.flag & USER_ADD_VIEWALIGNED) != 0;
 			RNA_boolean_set(op->ptr, "view_align", *is_view_aligned);
 		}
 
@@ -657,12 +657,12 @@ void OBJECT_OT_text_add(wmOperatorType *ot)
 static int object_armature_add_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit = CTX_data_edit_object(C);
-	View3D *v3d = CTX_wm_view3d(C);
 	RegionView3D *rv3d = CTX_wm_region_view3d(C);
 	bool newob = false;
 	bool enter_editmode;
 	unsigned int layer;
 	float loc[3], rot[3];
+	bool view_aligned = rv3d && (U.flag & USER_ADD_VIEWALIGNED);
 
 	if (!ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer, NULL))
 		return OPERATOR_CANCELLED;
@@ -681,8 +681,7 @@ static int object_armature_add_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	/* v3d and rv3d are allowed to be NULL */
-	add_primitive_bone(CTX_data_scene(C), v3d, rv3d);
+	add_primitive_bone(obedit, view_aligned);
 
 	/* userdef */
 	if (newob && !enter_editmode)
@@ -1244,7 +1243,7 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
 
 		ob->parent = NULL;
 		ob->constraints.first = ob->constraints.last = NULL;
-		ob->disp.first = ob->disp.last = NULL;
+		ob->curve_cache = NULL;
 		ob->transflag &= ~OB_DUPLI;
 		ob->lay = base->lay;
 
@@ -1386,7 +1385,7 @@ static EnumPropertyItem convert_target_items[] = {
 
 static void curvetomesh(Scene *scene, Object *ob) 
 {
-	if (ob->disp.first == NULL)
+	if (ELEM(NULL, ob->curve_cache, ob->curve_cache->disp.first))
 		BKE_displist_make_curveTypes(scene, ob, 0);  /* force creation */
 
 	BKE_mesh_from_nurbs(ob); /* also does users */
@@ -1432,7 +1431,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
-	Base *basen = NULL, *basact = NULL, *basedel = NULL;
+	Base *basen = NULL, *basact = NULL;
 	Object *ob, *ob1, *newob, *obact = CTX_data_active_object(C);
 	DerivedMesh *dm;
 	Curve *cu;
@@ -1554,7 +1553,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 
 			cu = newob->data;
 
-			if (!newob->disp.first)
+			if ( !newob->curve_cache || !newob->curve_cache->disp.first)
 				BKE_displist_make_curveTypes(scene, newob, 0);
 
 			newob->type = OB_CURVE;
@@ -1596,7 +1595,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 				curvetomesh(scene, newob);
 
 				/* meshes doesn't use displist */
-				BKE_displist_free(&newob->disp);
+				BKE_object_free_curve_cache(newob);
 			}
 		}
 		else if (ELEM(ob->type, OB_CURVE, OB_SURF)) {
@@ -1617,7 +1616,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 					newob = ob;
 
 					/* meshes doesn't use displist */
-					BKE_displist_free(&newob->disp);
+					BKE_object_free_curve_cache(newob);
 				}
 
 				curvetomesh(scene, newob);
@@ -1636,7 +1635,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 				ob->flag |= OB_DONE;
 			}
 
-			if (!baseob->disp.first) {
+			if (!baseob->curve_cache || !baseob->curve_cache->disp.first) {
 				BKE_displist_make_mball(scene, baseob);
 			}
 
@@ -1659,7 +1658,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 					for (a = 0; a < newob->totcol; a++) id_us_plus((ID *)me->mat[a]);
 				}
 
-				BKE_mesh_from_metaball(&baseob->disp, newob->data);
+				BKE_mesh_from_metaball(&baseob->curve_cache->disp, newob->data);
 
 				if (obact->type == OB_MBALL) {
 					basact = basen;
@@ -1687,14 +1686,6 @@ static int convert_exec(bContext *C, wmOperator *op)
 		if (!keep_original && (ob->flag & OB_DONE)) {
 			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 			((ID *)ob->data)->flag &= ~LIB_DOIT; /* flag not to convert this datablock again */
-		}
-
-		/* delete original if needed */
-		if (basedel) {
-			if (!keep_original)
-				ED_base_object_free_and_unlink(bmain, scene, basedel);
-
-			basedel = NULL;
 		}
 	}
 	CTX_DATA_END;

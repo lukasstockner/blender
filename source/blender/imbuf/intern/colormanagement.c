@@ -1094,6 +1094,7 @@ const char *IMB_colormanagement_role_colorspace_name_get(int role)
 		default:
 			printf("Unknown role was passed to %s\n", __func__);
 			BLI_assert(0);
+			break;
 	}
 
 	return NULL;
@@ -1131,6 +1132,21 @@ void IMB_colormanagement_assign_rect_colorspace(ImBuf *ibuf, const char *name)
 		ibuf->colormanage_flag |= IMB_COLORMANAGE_IS_DATA;
 	else
 		ibuf->colormanage_flag &= ~IMB_COLORMANAGE_IS_DATA;
+}
+
+const char *IMB_colormanagement_get_float_colorspace(ImBuf *ibuf)
+{
+	if (ibuf->float_colorspace) {
+		return ibuf->float_colorspace->name;
+	}
+	else {
+		return IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_SCENE_LINEAR);
+	}
+}
+
+const char *IMB_colormanagement_get_rect_colorspace(ImBuf *ibuf)
+{
+	return ibuf->rect_colorspace->name;
 }
 
 /*********************** Threaded display buffer transform routines *************************/
@@ -2448,11 +2464,7 @@ void IMB_colormanagement_colorspace_items_add(EnumPropertyItem **items, int *tot
 		item.name = colorspace->name;
 		item.identifier = colorspace->name;
 		item.icon = 0;
-
-		if (colorspace->description)
-			item.description = colorspace->description;
-		else
-			item.description = "";
+		item.description = colorspace->description;
 
 		RNA_enum_item_add(items, totitem, &item);
 	}
@@ -2790,9 +2802,9 @@ static void update_glsl_display_processor(const ColorManagedViewSettings *view_s
 	    check_glsl_display_processor_changed(view_settings, display_settings, from_colorspace))
 	{
 		/* Store settings of processor for further comparison. */
-		strcpy(global_glsl_state.view, view_settings->view_transform);
-		strcpy(global_glsl_state.display, display_settings->display_device);
-		strcpy(global_glsl_state.input, from_colorspace);
+		BLI_strncpy(global_glsl_state.view, view_settings->view_transform, MAX_COLORSPACE_NAME);
+		BLI_strncpy(global_glsl_state.display, display_settings->display_device, MAX_COLORSPACE_NAME);
+		BLI_strncpy(global_glsl_state.input, from_colorspace, MAX_COLORSPACE_NAME);
 		global_glsl_state.exposure = view_settings->exposure;
 		global_glsl_state.gamma = view_settings->gamma;
 
@@ -2810,6 +2822,17 @@ static void update_glsl_display_processor(const ColorManagedViewSettings *view_s
 	}
 }
 
+int IMB_colormanagement_support_glsl_draw(const ColorManagedViewSettings *view_settings,
+                                          int skip_curves)
+{
+	/* curves not supported yet */
+	if (!skip_curves)
+		if (view_settings && (view_settings->flag & COLORMANAGE_VIEW_USE_CURVES))
+			return 0;
+
+	return OCIO_supportGLSLDraw();
+}
+
 /**
  * Configures GLSL shader for conversion from specified to
  * display color space
@@ -2825,7 +2848,8 @@ static void update_glsl_display_processor(const ColorManagedViewSettings *view_s
  */
 int IMB_colormanagement_setup_glsl_draw_from_space(const ColorManagedViewSettings *view_settings,
                                                    const ColorManagedDisplaySettings *display_settings,
-                                                   struct ColorSpace *from_colorspace, int predivide)
+                                                   struct ColorSpace *from_colorspace, int predivide,
+                                                   int skip_curves)
 {
 	ColorManagedViewSettings default_view_settings;
 	const ColorManagedViewSettings *applied_view_settings;
@@ -2843,8 +2867,9 @@ int IMB_colormanagement_setup_glsl_draw_from_space(const ColorManagedViewSetting
 	}
 
 	/* RGB curves mapping is not supported on GPU yet. */
-	if (applied_view_settings->flag & COLORMANAGE_VIEW_USE_CURVES)
-		return FALSE;
+	if (!skip_curves)
+		if (applied_view_settings->flag & COLORMANAGE_VIEW_USE_CURVES)
+			return FALSE;
 
 	/* Make sure OCIO processor is up-to-date. */
 	update_glsl_display_processor(applied_view_settings, display_settings,
@@ -2856,10 +2881,10 @@ int IMB_colormanagement_setup_glsl_draw_from_space(const ColorManagedViewSetting
 /* Configures GLSL shader for conversion from scene linear to display space */
 int IMB_colormanagement_setup_glsl_draw(const ColorManagedViewSettings *view_settings,
                                         const ColorManagedDisplaySettings *display_settings,
-                                        int predivide)
+                                        int predivide, int skip_curves)
 {
 	return IMB_colormanagement_setup_glsl_draw_from_space(view_settings, display_settings,
-	                                                      NULL, predivide);
+	                                                      NULL, predivide, skip_curves);
 }
 
 /* Same as setup_glsl_draw_from_space, but color management settings are guessing from a given context */
@@ -2870,7 +2895,7 @@ int IMB_colormanagement_setup_glsl_draw_from_space_ctx(const struct bContext *C,
 
 	IMB_colormanagement_display_settings_from_ctx(C, &view_settings, &display_settings);
 
-	return IMB_colormanagement_setup_glsl_draw_from_space(view_settings, display_settings, from_colorspace, predivide);
+	return IMB_colormanagement_setup_glsl_draw_from_space(view_settings, display_settings, from_colorspace, predivide, FALSE);
 }
 
 /* Same as setup_glsl_draw, but color management settings are guessing from a given context */

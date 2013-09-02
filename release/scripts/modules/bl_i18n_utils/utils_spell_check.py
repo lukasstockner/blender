@@ -40,6 +40,7 @@ class SpellChecker():
         "derivate",
         "doesn",  # doesn't
         "fader",
+        "globbing",
         "hasn",  # hasn't
         "hoc",  # ad-hoc
         "indices",
@@ -59,6 +60,7 @@ class SpellChecker():
         "autoclip",
         "autocomplete",
         "autoexec",
+        "autoexecution",
         "autoname",
         "autosave",
         "autoscale",
@@ -70,6 +72,7 @@ class SpellChecker():
         "bandnoise",
         "bindcode",
         "bitrate",
+        "blackbody",
         "blendfile",
         "blendin",
         "bonesize",
@@ -359,6 +362,7 @@ class SpellChecker():
         "timecode",
         "voronoi",
         "voxel", "voxels",
+        "vsync",
         "wireframe",
         "zmask",
         "ztransp",

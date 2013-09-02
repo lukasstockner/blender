@@ -129,6 +129,30 @@ bool BLI_remlink_safe(ListBase *listbase, void *vlink)
 	}
 }
 
+/**
+ * Removes the head from \a listbase and returns it.
+ */
+void *BLI_pophead(ListBase *listbase)
+{
+	Link *link;
+	if ((link = listbase->first)) {
+		BLI_remlink(listbase, link);
+	}
+	return link;
+}
+
+
+/**
+ * Removes the tail from \a listbase and returns it.
+ */
+void *BLI_poptail(ListBase *listbase)
+{
+	Link *link;
+	if ((link = listbase->last)) {
+		BLI_remlink(listbase, link);
+	}
+	return link;
+}
 
 /**
  * Removes \a vlink from listbase and disposes of it. Assumes it is linked into there!
@@ -557,14 +581,14 @@ void BLI_reverselist(ListBase *lb)
 /**
  * \param vlink Link to make first.
  */
-void BLI_rotatelist(ListBase *lb, LinkData *vlink)
+void BLI_rotatelist(ListBase *lb, void *vlink)
 {
 	/* make circular */
 	((LinkData *)lb->first)->prev = lb->last;
 	((LinkData *)lb->last)->next = lb->first;
 
 	lb->first = vlink;
-	lb->last = vlink->prev;
+	lb->last = ((LinkData *)vlink)->prev;
 
 	((LinkData *)lb->first)->prev = NULL;
 	((LinkData *)lb->last)->next = NULL;

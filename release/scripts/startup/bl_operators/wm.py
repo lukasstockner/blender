@@ -27,8 +27,6 @@ from bpy.props import (StringProperty,
                        EnumProperty,
                        )
 
-from rna_prop_ui import rna_idprop_ui_prop_get, rna_idprop_ui_prop_clear
-
 from bpy.app.translations import pgettext_tip as tip_
 
 
@@ -473,24 +471,6 @@ class WM_OT_context_cycle_array(Operator):
         return operator_path_undo_return(context, data_path)
 
 
-class WM_MT_context_menu_enum(Menu):
-    bl_label = ""
-    data_path = ""  # BAD DESIGN, set from operator below.
-
-    def draw(self, context):
-        data_path = self.data_path
-        value = context_path_validate(context, data_path)
-        if value is Ellipsis:
-            return {'PASS_THROUGH'}
-        base_path, prop_string = data_path.rsplit(".", 1)
-        value_base = context_path_validate(context, base_path)
-        prop = value_base.bl_rna.properties[prop_string]
-
-        layout = self.layout
-        layout.label(prop.name, icon=prop.icon)
-        layout.prop(value_base, prop_string, expand=True)
-
-
 class WM_OT_context_menu_enum(Operator):
     bl_idname = "wm.context_menu_enum"
     bl_label = "Context Enum Menu"
@@ -499,8 +479,21 @@ class WM_OT_context_menu_enum(Operator):
 
     def execute(self, context):
         data_path = self.data_path
-        WM_MT_context_menu_enum.data_path = data_path
-        bpy.ops.wm.call_menu(name="WM_MT_context_menu_enum")
+        value = context_path_validate(context, data_path)
+
+        if value is Ellipsis:
+            return {'PASS_THROUGH'}
+
+        base_path, prop_string = data_path.rsplit(".", 1)
+        value_base = context_path_validate(context, base_path)
+        prop = value_base.bl_rna.properties[prop_string]
+
+        def draw_cb(self, context):
+            layout = self.layout
+            layout.prop(value_base, prop_string, expand=True)
+
+        context.window_manager.popup_menu(draw_func=draw_cb, title=prop.name, icon=prop.icon)
+
         return {'PASS_THROUGH'}
 
 
@@ -1029,6 +1022,8 @@ class WM_OT_properties_edit(Operator):
             )
 
     def execute(self, context):
+        from rna_prop_ui import rna_idprop_ui_prop_get, rna_idprop_ui_prop_clear
+
         data_path = self.data_path
         value = self.value
         prop = self.property
@@ -1080,6 +1075,8 @@ class WM_OT_properties_edit(Operator):
         return {'FINISHED'}
 
     def invoke(self, context, event):
+        from rna_prop_ui import rna_idprop_ui_prop_get
+
         data_path = self.data_path
 
         if not data_path:
@@ -1109,6 +1106,8 @@ class WM_OT_properties_add(Operator):
     data_path = rna_path
 
     def execute(self, context):
+        from rna_prop_ui import rna_idprop_ui_prop_get
+
         data_path = self.data_path
         item = eval("context.%s" % data_path)
 
@@ -1287,9 +1286,10 @@ class WM_OT_blenderplayer_start(Operator):
             self.report({'ERROR'}, "Player path: %r not found" % player_path)
             return {'CANCELLED'}
 
-        filepath = os.path.join(bpy.app.tempdir, "game.blend")
+        filepath = bpy.data.filepath + '~' if bpy.data.is_saved else os.path.join(bpy.app.tempdir, "game.blend")
         bpy.ops.wm.save_as_mainfile('EXEC_DEFAULT', filepath=filepath, copy=True)
         subprocess.call([player_path, filepath])
+        os.remove(filepath)
         return {'FINISHED'}
 
 
@@ -1694,6 +1694,19 @@ class WM_OT_theme_install(Operator):
         return {'RUNNING_MODAL'}
 
 
+class WM_OT_addon_refresh(Operator):
+    "Scan addon directories for new modules"
+    bl_idname = "wm.addon_refresh"
+    bl_label = "Refresh"
+
+    def execute(self, context):
+        import addon_utils
+        
+        addon_utils.modules_refresh()
+        
+        return {'FINISHED'}
+
+
 class WM_OT_addon_install(Operator):
     "Install an addon"
     bl_idname = "wm.addon_install"
@@ -1763,12 +1776,12 @@ class WM_OT_addon_install(Operator):
             self.report({'ERROR'}, "Failed to get addons path")
             return {'CANCELLED'}
 
-        # create dir is if missing.
-        try:
-            os.makedirs(path_addons, exist_ok=True)
-        except:
-            import traceback
-            traceback.print_exc()
+        if not os.path.isdir(path_addons):
+            try:
+                os.makedirs(path_addons, exist_ok=True)
+            except:
+                import traceback
+                traceback.print_exc()
 
         # Check if we are installing from a target path,
         # doing so causes 2+ addons of same name or when the same from/to
@@ -1783,7 +1796,7 @@ class WM_OT_addon_install(Operator):
         del pyfile_dir
         # done checking for exceptional case
 
-        addons_old = {mod.__name__ for mod in addon_utils.modules(addon_utils.addons_fake_modules)}
+        addons_old = {mod.__name__ for mod in addon_utils.modules()}
 
         #check to see if the file is in compressed format (.zip)
         if zipfile.is_zipfile(pyfile):
@@ -1826,7 +1839,7 @@ class WM_OT_addon_install(Operator):
                 traceback.print_exc()
                 return {'CANCELLED'}
 
-        addons_new = {mod.__name__ for mod in addon_utils.modules(addon_utils.addons_fake_modules)} - addons_old
+        addons_new = {mod.__name__ for mod in addon_utils.modules()} - addons_old
         addons_new.discard("modules")
 
         # disable any addons we may have enabled previously and removed.
@@ -1836,7 +1849,7 @@ class WM_OT_addon_install(Operator):
 
         # possible the zip contains multiple addons, we could disallow this
         # but for now just use the first
-        for mod in addon_utils.modules(addon_utils.addons_fake_modules):
+        for mod in addon_utils.modules(refresh=False):
             if mod.__name__ in addons_new:
                 info = addon_utils.module_bl_info(mod)
 
@@ -1876,7 +1889,7 @@ class WM_OT_addon_remove(Operator):
         import os
         import addon_utils
 
-        for mod in addon_utils.modules(addon_utils.addons_fake_modules):
+        for mod in addon_utils.modules():
             if mod.__name__ == module:
                 filepath = mod.__file__
                 if os.path.exists(filepath):

@@ -310,14 +310,9 @@ static int wm_macro_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			/* if new operator is modal and also added its own handler */
 			if (retval & OPERATOR_RUNNING_MODAL && op->opm != opm) {
 				wmWindow *win = CTX_wm_window(C);
-				wmEventHandler *handler = NULL;
+				wmEventHandler *handler;
 
-				for (handler = win->modalhandlers.first; handler; handler = handler->next) {
-					/* first handler in list is the new one */
-					if (handler->op == op)
-						break;
-				}
-
+				handler = BLI_findptr(&win->modalhandlers, op, offsetof(wmEventHandler, op));
 				if (handler) {
 					BLI_remlink(&win->modalhandlers, handler);
 					wm_event_free_handler(handler);
@@ -506,7 +501,7 @@ void WM_operator_py_idname(char *to, const char *from)
 		BLI_ascii_strtolower(to, ofs);
 
 		to[ofs] = '.';
-		BLI_strncpy(to + (ofs + 1), sep + 4, OP_MAX_TYPENAME);
+		BLI_strncpy(to + (ofs + 1), sep + 4, OP_MAX_TYPENAME - (ofs + 1));
 	}
 	else {
 		/* should not happen but support just in case */
@@ -525,9 +520,8 @@ void WM_operator_bl_idname(char *to, const char *from)
 
 			memcpy(to, from, sizeof(char) * ofs);
 			BLI_ascii_strtoupper(to, ofs);
-
-			BLI_strncpy(to + ofs, "_OT_", OP_MAX_TYPENAME);
-			BLI_strncpy(to + (ofs + 4), sep + 1, OP_MAX_TYPENAME);
+			strcpy(to + ofs, "_OT_");
+			strcpy(to + (ofs + 4), sep + 1);
 		}
 		else {
 			/* should not happen but support just in case */
@@ -813,7 +807,7 @@ void WM_operator_properties_alloc(PointerRNA **ptr, IDProperty **properties, con
 
 void WM_operator_properties_sanitize(PointerRNA *ptr, const bool no_context)
 {
-	RNA_STRUCT_BEGIN(ptr, prop)
+	RNA_STRUCT_BEGIN (ptr, prop)
 	{
 		switch (RNA_property_type(prop)) {
 			case PROP_ENUM:
@@ -850,7 +844,7 @@ void WM_operator_properties_sanitize(PointerRNA *ptr, const bool no_context)
 int WM_operator_properties_default(PointerRNA *ptr, const bool do_update)
 {
 	int is_change = FALSE;
-	RNA_STRUCT_BEGIN(ptr, prop)
+	RNA_STRUCT_BEGIN (ptr, prop)
 	{
 		switch (RNA_property_type(prop)) {
 			case PROP_POINTER:
@@ -883,7 +877,7 @@ void WM_operator_properties_reset(wmOperator *op)
 		PropertyRNA *iterprop;
 		iterprop = RNA_struct_iterator_property(op->type->srna);
 
-		RNA_PROP_BEGIN(op->ptr, itemptr, iterprop)
+		RNA_PROP_BEGIN (op->ptr, itemptr, iterprop)
 		{
 			PropertyRNA *prop = itemptr.data;
 
@@ -918,7 +912,7 @@ int WM_operator_view3d_distance_invoke(struct bContext *C, struct wmOperator *op
 
 	/* always run, so the values are initialized,
 	 * otherwise we may get differ behavior when (dia != 1.0) */
-	RNA_STRUCT_BEGIN(op->ptr, prop)
+	RNA_STRUCT_BEGIN (op->ptr, prop)
 	{
 		if (RNA_property_type(prop) == PROP_FLOAT) {
 			PropertySubType pstype = RNA_property_subtype(prop);
@@ -995,7 +989,7 @@ static uiBlock *wm_enum_search_menu(bContext *C, ARegion *ar, void *arg_op)
 	uiPopupBoundsBlock(block, 6, 0, -UI_UNIT_Y); /* move it downwards, mouse over button */
 	uiEndBlock(C, block);
 
-	event = *(win->eventstate);  /* XXX huh huh? make api call */
+	wm_event_init_from_window(win, &event);
 	event.type = EVT_BUT_OPEN;
 	event.val = KM_PRESS;
 	event.customdata = but;
@@ -1154,10 +1148,16 @@ void WM_operator_properties_select_all(wmOperatorType *ot)
 
 void WM_operator_properties_border(wmOperatorType *ot)
 {
-	RNA_def_int(ot->srna, "xmin", 0, INT_MIN, INT_MAX, "X Min", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "xmax", 0, INT_MIN, INT_MAX, "X Max", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "ymin", 0, INT_MIN, INT_MAX, "Y Min", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "ymax", 0, INT_MIN, INT_MAX, "Y Max", "", INT_MIN, INT_MAX);
+	PropertyRNA *prop;
+
+	prop = RNA_def_int(ot->srna, "xmin", 0, INT_MIN, INT_MAX, "X Min", "", INT_MIN, INT_MAX);
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+	prop = RNA_def_int(ot->srna, "xmax", 0, INT_MIN, INT_MAX, "X Max", "", INT_MIN, INT_MAX);
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+	prop = RNA_def_int(ot->srna, "ymin", 0, INT_MIN, INT_MAX, "Y Min", "", INT_MIN, INT_MAX);
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+	prop = RNA_def_int(ot->srna, "ymax", 0, INT_MIN, INT_MAX, "Y Max", "", INT_MIN, INT_MAX);
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 void WM_operator_properties_border_to_rcti(struct wmOperator *op, rcti *rect)
@@ -1186,16 +1186,20 @@ void WM_operator_properties_mouse_select(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "toggle", 0, "Toggle Selection", "Toggle the selection");
 }
 
-void WM_operator_properties_gesture_straightline(wmOperatorType *ot, bool cursor)
+void WM_operator_properties_gesture_straightline(wmOperatorType *ot, int cursor)
 {
-	RNA_def_int(ot->srna, "xstart", 0, INT_MIN, INT_MAX, "X Start", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "xend", 0, INT_MIN, INT_MAX, "X End", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "ystart", 0, INT_MIN, INT_MAX, "Y Start", "", INT_MIN, INT_MAX);
-	RNA_def_int(ot->srna, "yend", 0, INT_MIN, INT_MAX, "Y End", "", INT_MIN, INT_MAX);
+	PropertyRNA *prop;
+
+	prop = RNA_def_int(ot->srna, "xstart", 0, INT_MIN, INT_MAX, "X Start", "", INT_MIN, INT_MAX);
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+	prop = RNA_def_int(ot->srna, "xend", 0, INT_MIN, INT_MAX, "X End", "", INT_MIN, INT_MAX);
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+	prop = RNA_def_int(ot->srna, "ystart", 0, INT_MIN, INT_MAX, "Y Start", "", INT_MIN, INT_MAX);
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+	prop = RNA_def_int(ot->srna, "yend", 0, INT_MIN, INT_MAX, "Y End", "", INT_MIN, INT_MAX);
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 	
 	if (cursor) {
-		PropertyRNA *prop;
-
 		prop = RNA_def_int(ot->srna, "cursor", cursor, 0, INT_MAX,
 		                   "Cursor", "Mouse cursor style to use during the modal operator", 0, INT_MAX);
 		RNA_def_property_flag(prop, PROP_HIDDEN);
@@ -1772,7 +1776,7 @@ static uiBlock *wm_block_search_menu(bContext *C, ARegion *ar, void *UNUSED(arg_
 	uiPopupBoundsBlock(block, 6, 0, -UI_UNIT_Y); /* move it downwards, mouse over button */
 	uiEndBlock(C, block);
 	
-	event = *(win->eventstate);  /* XXX huh huh? make api call */
+	wm_event_init_from_window(win, &event);
 	event.type = EVT_BUT_OPEN;
 	event.val = KM_PRESS;
 	event.customdata = but;
@@ -1895,6 +1899,7 @@ static void WM_OT_userpref_autoexec_path_add(wmOperatorType *ot)
 {
 	ot->name = "Add Autoexec Path";
 	ot->idname = "WM_OT_userpref_autoexec_path_add";
+	ot->description = "Add path to exclude from autoexecution";
 
 	ot->exec = wm_userpref_autoexec_add_exec;
 	ot->poll = WM_operator_winactive;
@@ -1916,6 +1921,7 @@ static void WM_OT_userpref_autoexec_path_remove(wmOperatorType *ot)
 {
 	ot->name = "Remove Autoexec Path";
 	ot->idname = "WM_OT_userpref_autoexec_path_remove";
+	ot->description = "Remove path to exclude from autoexecution";
 
 	ot->exec = wm_userpref_autoexec_remove_exec;
 	ot->poll = WM_operator_winactive;
@@ -2272,7 +2278,7 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
 	}
 	else {
-		RNA_BEGIN(op->ptr, itemptr, "files")
+		RNA_BEGIN (op->ptr, itemptr, "files")
 		{
 			RNA_string_get(&itemptr, "name", name);
 			BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
@@ -2438,15 +2444,10 @@ static void WM_OT_recover_auto_save(wmOperatorType *ot)
 
 /* *************** save file as **************** */
 
-static void untitled(char *filepath)
+static void wm_filepath_default(char *filepath)
 {
-	if (G.save_over == 0 && strlen(filepath) < FILE_MAX - 16) {
-		char *c = (char *)BLI_last_slash(filepath);
-		
-		if (c)
-			strcpy(&c[1], "untitled.blend");
-		else
-			strcpy(filepath, "untitled.blend");
+	if (G.save_over == false) {
+		BLI_ensure_filename(filepath, FILE_MAX, "untitled.blend");
 	}
 }
 
@@ -2474,7 +2475,7 @@ static int wm_save_as_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent
 	else
 		BLI_strncpy(name, G.main->name, FILE_MAX);
 	
-	untitled(name);
+	wm_filepath_default(name);
 	RNA_string_set(op->ptr, "filepath", name);
 	
 	WM_event_add_fileselect(C, op);
@@ -2490,11 +2491,12 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
 
 	save_set_compress(op);
 	
-	if (RNA_struct_property_is_set(op->ptr, "filepath"))
+	if (RNA_struct_property_is_set(op->ptr, "filepath")) {
 		RNA_string_get(op->ptr, "filepath", path);
+	}
 	else {
 		BLI_strncpy(path, G.main->name, FILE_MAX);
-		untitled(path);
+		wm_filepath_default(path);
 	}
 	
 	fileflags = G.fileflags & ~G_FILE_USERPREFS;
@@ -2585,7 +2587,7 @@ static int wm_save_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent *U
 	else
 		BLI_strncpy(name, G.main->name, FILE_MAX);
 
-	untitled(name);
+	wm_filepath_default(name);
 	
 	RNA_string_set(op->ptr, "filepath", name);
 
@@ -2633,7 +2635,7 @@ static void WM_OT_window_fullscreen_toggle(wmOperatorType *ot)
 	ot->poll = WM_operator_winactive;
 }
 
-static int wm_exit_blender_op(bContext *C, wmOperator *op)
+static int wm_exit_blender_exec(bContext *C, wmOperator *op)
 {
 	WM_operator_free(op);
 	
@@ -2649,7 +2651,7 @@ static void WM_OT_quit_blender(wmOperatorType *ot)
 	ot->description = "Quit Blender";
 
 	ot->invoke = WM_operator_confirm;
-	ot->exec = wm_exit_blender_op;
+	ot->exec = wm_exit_blender_exec;
 	ot->poll = WM_operator_winactive;
 }
 
@@ -2657,7 +2659,7 @@ static void WM_OT_quit_blender(wmOperatorType *ot)
 
 #if defined(WIN32)
 
-static int wm_console_toggle_op(bContext *UNUSED(C), wmOperator *UNUSED(op))
+static int wm_console_toggle_exec(bContext *UNUSED(C), wmOperator *UNUSED(op))
 {
 	GHOST_toggleConsole(2);
 	return OPERATOR_FINISHED;
@@ -2670,7 +2672,7 @@ static void WM_OT_console_toggle(wmOperatorType *ot)
 	ot->idname = "WM_OT_console_toggle";
 	ot->description = N_("Toggle System Console");
 	
-	ot->exec = wm_console_toggle_op;
+	ot->exec = wm_console_toggle_exec;
 	ot->poll = WM_operator_winactive;
 }
 
@@ -3007,7 +3009,7 @@ static void tweak_gesture_modal(bContext *C, const wmEvent *event)
 			if ((val = wm_gesture_evaluate(gesture))) {
 				wmEvent tevent;
 
-				tevent = *(window->eventstate);
+				wm_event_init_from_window(window, &tevent);
 				if (gesture->event_type == LEFTMOUSE)
 					tevent.type = EVT_TWEAK_L;
 				else if (gesture->event_type == RIGHTMOUSE)
@@ -3218,7 +3220,7 @@ const int (*WM_gesture_lasso_path_to_array(bContext *UNUSED(C), wmOperator *op, 
 			int i = 0;
 			mcords = MEM_mallocN(sizeof(int) * 2 * len, __func__);
 
-			RNA_PROP_BEGIN(op->ptr, itemptr, prop)
+			RNA_PROP_BEGIN (op->ptr, itemptr, prop)
 			{
 				float loc[2];
 
@@ -3244,7 +3246,7 @@ const int (*WM_gesture_lasso_path_to_array(bContext *UNUSED(C), wmOperator *op, 
 
 static int gesture_lasso_exec(bContext *C, wmOperator *op)
 {
-	RNA_BEGIN(op->ptr, itemptr, "path")
+	RNA_BEGIN (op->ptr, itemptr, "path")
 	{
 		float loc[2];
 		
@@ -4420,7 +4422,8 @@ void wm_operatortype_free(void)
 /* called on initialize WM_init() */
 void wm_operatortype_init(void)
 {
-	global_ops_hash = BLI_ghash_str_new("wm_operatortype_init gh");
+	/* reserve size is set based on blender default setup */
+	global_ops_hash = BLI_ghash_str_new_ex("wm_operatortype_init gh", 2048);
 
 	WM_operatortype_append(WM_OT_window_duplicate);
 	WM_operatortype_append(WM_OT_read_history);
@@ -4540,6 +4543,7 @@ static void gesture_straightline_modal_keymap(wmKeyConfig *keyconf)
 	/* assign map to operators */
 	WM_modalkeymap_assign(keymap, "IMAGE_OT_sample_line");
 	WM_modalkeymap_assign(keymap, "PAINT_OT_weight_gradient");
+	WM_modalkeymap_assign(keymap, "MESH_OT_bisect");
 }
 
 

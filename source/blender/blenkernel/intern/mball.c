@@ -56,6 +56,7 @@
 
 /*  #include "BKE_object.h" */
 #include "BKE_animsys.h"
+#include "BKE_curve.h"
 #include "BKE_scene.h"
 #include "BKE_library.h"
 #include "BKE_displist.h"
@@ -199,7 +200,6 @@ void BKE_mball_free(MetaBall *mb)
 		mb->adt = NULL;
 	}
 	if (mb->mat) MEM_freeN(mb->mat);
-	if (mb->bb) MEM_freeN(mb->bb);
 	BLI_freelistN(&mb->elems);
 	if (mb->disp.first) BKE_displist_free(&mb->disp);
 }
@@ -233,7 +233,6 @@ MetaBall *BKE_mball_copy(MetaBall *mb)
 	for (a = 0; a < mbn->totcol; a++) {
 		id_us_plus((ID *)mbn->mat[a]);
 	}
-	mbn->bb = MEM_dupallocN(mb->bb);
 
 	mbn->editelems = NULL;
 	mbn->lastelem = NULL;
@@ -366,7 +365,7 @@ void BKE_mball_texspace_calc(Object *ob)
 	(min)[0] = (min)[1] = (min)[2] = 1.0e30f;
 	(max)[0] = (max)[1] = (max)[2] = -1.0e30f;
 
-	dl = ob->disp.first;
+	dl = ob->curve_cache->disp.first;
 	while (dl) {
 		tot = dl->nr;
 		if (tot) do_it = TRUE;
@@ -485,14 +484,15 @@ void BKE_mball_properties_copy(Scene *scene, Object *active_object)
 	MetaBall *active_mball = (MetaBall *)active_object->data;
 	int basisnr, obnr;
 	char basisname[MAX_ID_NAME], obname[MAX_ID_NAME];
-	
+	SceneBaseIter iter;
+
 	BLI_split_name_num(basisname, &basisnr, active_object->id.name + 2, '.');
 
 	/* XXX recursion check, see scene.c, just too simple code this BKE_scene_base_iter_next() */
-	if (F_ERROR == BKE_scene_base_iter_next(&sce_iter, 0, NULL, NULL))
+	if (F_ERROR == BKE_scene_base_iter_next(&iter, &sce_iter, 0, NULL, NULL))
 		return;
 	
-	while (BKE_scene_base_iter_next(&sce_iter, 1, &base, &ob)) {
+	while (BKE_scene_base_iter_next(&iter, &sce_iter, 1, &base, &ob)) {
 		if (ob->type == OB_MBALL) {
 			if (ob != active_object) {
 				BLI_split_name_num(obname, &obnr, ob->id.name + 2, '.');
@@ -529,14 +529,15 @@ Object *BKE_mball_basis_find(Scene *scene, Object *basis)
 	Object *ob, *bob = basis;
 	int basisnr, obnr;
 	char basisname[MAX_ID_NAME], obname[MAX_ID_NAME];
+	SceneBaseIter iter;
 
 	BLI_split_name_num(basisname, &basisnr, basis->id.name + 2, '.');
 
 	/* XXX recursion check, see scene.c, just too simple code this BKE_scene_base_iter_next() */
-	if (F_ERROR == BKE_scene_base_iter_next(&sce_iter, 0, NULL, NULL))
+	if (F_ERROR == BKE_scene_base_iter_next(&iter, &sce_iter, 0, NULL, NULL))
 		return NULL;
 
-	while (BKE_scene_base_iter_next(&sce_iter, 1, &base, &ob)) {
+	while (BKE_scene_base_iter_next(&iter, &sce_iter, 1, &base, &ob)) {
 		if (ob->type == OB_MBALL) {
 			if (ob != bob) {
 				BLI_split_name_num(obname, &obnr, ob->id.name + 2, '.');
@@ -1644,6 +1645,14 @@ BLI_INLINE void copy_v3_fl3(float v[3], float x, float y, float z)
 	v[2] = z;
 }
 
+/* TODO(sergey): Perhaps it could be general utility function in mathutils. */
+static bool has_zero_axis_m4(float matrix[4][4])
+{
+	return len_squared_v3(matrix[0]) < FLT_EPSILON ||
+	       len_squared_v3(matrix[1]) < FLT_EPSILON ||
+	       len_squared_v3(matrix[2]) < FLT_EPSILON;
+}
+
 static float init_meta(PROCESS *process, Scene *scene, Object *ob)    /* return totsize */
 {
 	Scene *sce_iter = scene;
@@ -1655,7 +1664,8 @@ static float init_meta(PROCESS *process, Scene *scene, Object *ob)    /* return 
 	//float max = 0.0f;
 	int a, obnr, zero_size = 0;
 	char obname[MAX_ID_NAME];
-	
+	SceneBaseIter iter;
+
 	copy_m4_m4(obmat, ob->obmat);   /* to cope with duplicators from BKE_scene_base_iter_next */
 	invert_m4_m4(obinv, ob->obmat);
 	a = 0;
@@ -1663,8 +1673,8 @@ static float init_meta(PROCESS *process, Scene *scene, Object *ob)    /* return 
 	BLI_split_name_num(obname, &obnr, ob->id.name + 2, '.');
 	
 	/* make main array */
-	BKE_scene_base_iter_next(&sce_iter, 0, NULL, NULL);
-	while (BKE_scene_base_iter_next(&sce_iter, 1, &base, &bob)) {
+	BKE_scene_base_iter_next(&iter, &sce_iter, 0, NULL, NULL);
+	while (BKE_scene_base_iter_next(&iter, &sce_iter, 1, &base, &bob)) {
 
 		if (bob->type == OB_MBALL) {
 			zero_size = 0;
@@ -1691,13 +1701,13 @@ static float init_meta(PROCESS *process, Scene *scene, Object *ob)    /* return 
 
 			/* when metaball object has zero scale, then MetaElem to this MetaBall
 			 * will not be put to mainb array */
-			if (bob->size[0] == 0.0f || bob->size[1] == 0.0f || bob->size[2] == 0.0f) {
+			if (has_zero_axis_m4(bob->obmat)) {
 				zero_size = 1;
 			}
 			else if (bob->parent) {
 				struct Object *pob = bob->parent;
 				while (pob) {
-					if (pob->size[0] == 0.0f || pob->size[1] == 0.0f || pob->size[2] == 0.0f) {
+					if (has_zero_axis_m4(pob->obmat)) {
 						zero_size = 1;
 						break;
 					}
@@ -2225,15 +2235,16 @@ static void mball_count(PROCESS *process, Scene *scene, Object *basis)
 	MetaElem *ml = NULL;
 	int basisnr, obnr;
 	char basisname[MAX_ID_NAME], obname[MAX_ID_NAME];
+	SceneBaseIter iter;
 
 	BLI_split_name_num(basisname, &basisnr, basis->id.name + 2, '.');
 	process->totelem = 0;
 
 	/* XXX recursion check, see scene.c, just too simple code this BKE_scene_base_iter_next() */
-	if (F_ERROR == BKE_scene_base_iter_next(&sce_iter, 0, NULL, NULL))
+	if (F_ERROR == BKE_scene_base_iter_next(&iter, &sce_iter, 0, NULL, NULL))
 		return;
 
-	while (BKE_scene_base_iter_next(&sce_iter, 1, &base, &ob)) {
+	while (BKE_scene_base_iter_next(&iter, &sce_iter, 1, &base, &ob)) {
 		if (ob->type == OB_MBALL) {
 			if (ob == bob) {
 				MetaBall *mb = ob->data;
@@ -2269,7 +2280,7 @@ static void mball_count(PROCESS *process, Scene *scene, Object *basis)
 	}
 }
 
-void BKE_mball_polygonize(Scene *scene, Object *ob, ListBase *dispbase)
+void BKE_mball_polygonize(Scene *scene, Object *ob, ListBase *dispbase, bool for_render)
 {
 	MetaBall *mb;
 	DispList *dl;
@@ -2282,7 +2293,7 @@ void BKE_mball_polygonize(Scene *scene, Object *ob, ListBase *dispbase)
 	mball_count(&process, scene, ob);
 
 	if (process.totelem == 0) return;
-	if ((G.is_rendering == FALSE) && (mb->flag == MB_UPDATE_NEVER)) return;
+	if ((for_render == false) && (mb->flag == MB_UPDATE_NEVER)) return;
 	if ((G.moving & (G_TRANSFORM_OBJ | G_TRANSFORM_EDIT)) && mb->flag == MB_UPDATE_FAST) return;
 
 	process.thresh = mb->thresh;
@@ -2320,7 +2331,7 @@ void BKE_mball_polygonize(Scene *scene, Object *ob, ListBase *dispbase)
 	}
 
 	/* width is size per polygonize cube */
-	if (G.is_rendering) {
+	if (for_render) {
 		width = mb->rendersize;
 	}
 	else {
@@ -2434,6 +2445,7 @@ bool BKE_mball_center_median(MetaBall *mb, float r_cent[3])
 
 	for (ml = mb->elems.first; ml; ml = ml->next) {
 		add_v3_v3(r_cent, &ml->x);
+		total++;
 	}
 
 	if (total) {

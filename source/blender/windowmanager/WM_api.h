@@ -40,6 +40,7 @@
 /* dna-savable wmStructs here */
 #include "DNA_windowmanager_types.h"
 #include "WM_keymap.h"
+#include "BLI_compiler_attrs.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -76,17 +77,9 @@ void		WM_init_native_pixels(bool do_it);
 void		WM_init				(struct bContext *C, int argc, const char **argv);
 void		WM_exit_ext			(struct bContext *C, const short do_python);
 
-void		WM_exit				(struct bContext *C)
-#if defined(__GNUC__) || defined(__clang__)
-__attribute__((noreturn))
-#endif
-;
+void		WM_exit				(struct bContext *C) ATTR_NORETURN;
 
-void		WM_main				(struct bContext *C)
-#if defined(__GNUC__) || defined(__clang__)
-__attribute__((noreturn))
-#endif
-;
+void		WM_main				(struct bContext *C) ATTR_NORETURN;
 
 bool 		WM_init_game		(struct bContext *C);
 void		WM_init_splash		(struct bContext *C);
@@ -178,7 +171,13 @@ void		WM_event_add_notifier(const struct bContext *C, unsigned int type, void *r
 void		WM_main_add_notifier(unsigned int type, void *reference);
 void		WM_main_remove_notifier_reference(const void *reference);
 
+			/* reports */
+void        WM_report(const struct bContext *C, ReportType type, const char *message);
+void        WM_reportf(const struct bContext *C, ReportType type, const char *format, ...) ATTR_PRINTF_FORMAT(3, 4);
+
 void		wm_event_add(struct wmWindow *win, const struct wmEvent *event_to_add);
+void		wm_event_init_from_window(struct wmWindow *win, struct wmEvent *event);
+
 
 			/* at maximum, every timestep seconds it triggers event_type events */
 struct wmTimer *WM_event_add_timer(struct wmWindowManager *wm, struct wmWindow *win, int event_type, double timestep);
@@ -245,7 +244,7 @@ void        WM_operator_properties_border(struct wmOperatorType *ot);
 void        WM_operator_properties_border_to_rcti(struct wmOperator *op, struct rcti *rect);
 void		WM_operator_properties_gesture_border(struct wmOperatorType *ot, bool extend);
 void        WM_operator_properties_mouse_select(struct wmOperatorType *ot);
-void		WM_operator_properties_gesture_straightline(struct wmOperatorType *ot, bool cursor);
+void		WM_operator_properties_gesture_straightline(struct wmOperatorType *ot, int cursor);
 void		WM_operator_properties_select_all(struct wmOperatorType *ot);
 void		WM_operator_properties_select_action(struct wmOperatorType *ot, int default_action);
 
@@ -340,7 +339,7 @@ ListBase	*WM_dropboxmap_find(const char *idname, int spaceid, int regionid);
 
 			/* Set a subwindow active in pixelspace view, with optional scissor subset */
 void		wmSubWindowSet			(struct wmWindow *win, int swinid);
-void		wmSubWindowScissorSet	(struct wmWindow *win, int swinid, struct rcti *srct);
+void		wmSubWindowScissorSet	(struct wmWindow *win, int swinid, const struct rcti *srct, bool srct_pad);
 
 			/* OpenGL utilities with safety check + working in modelview matrix mode */
 void		wmFrustum			(float x1, float x2, float y1, float y2, float n, float f);
@@ -384,6 +383,7 @@ struct wmJob *WM_jobs_get(struct wmWindowManager *wm, struct wmWindow *win, void
 int			WM_jobs_test(struct wmWindowManager *wm, void *owner, int job_type);
 float		WM_jobs_progress(struct wmWindowManager *wm, void *owner);
 char       *WM_jobs_name(struct wmWindowManager *wm, void *owner);
+void       *WM_jobs_customdata(struct wmWindowManager *wm, void *owner);
 
 int         WM_jobs_is_running(struct wmJob *);
 void       *WM_jobs_customdata_get(struct wmJob *);
@@ -403,6 +403,9 @@ void		WM_jobs_kill_all_except(struct wmWindowManager *wm, void *owner);
 void		WM_jobs_kill_type(struct wmWindowManager *wm, int job_type);
 
 int			WM_jobs_has_running(struct wmWindowManager *wm);
+
+void		WM_job_main_thread_lock_acquire(struct wmJob *job);
+void		WM_job_main_thread_lock_release(struct wmJob *job);
 
 			/* clipboard */
 char       *WM_clipboard_text_get(int selection);

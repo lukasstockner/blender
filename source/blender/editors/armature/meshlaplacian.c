@@ -15,11 +15,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -286,7 +281,7 @@ static void laplacian_system_construct_end(LaplacianSystem *sys)
 
 	sys->varea = MEM_callocN(sizeof(float) * totvert, "LaplacianSystemVarea");
 
-	sys->edgehash = BLI_edgehash_new();
+	sys->edgehash = BLI_edgehash_new_ex(__func__, BLI_EDGEHASH_SIZE_GUESS_FROM_POLYS(sys->totface));
 	for (a = 0, face = sys->faces; a < sys->totface; a++, face++) {
 		laplacian_increase_edge_count(sys->edgehash, (*face)[0], (*face)[1]);
 		laplacian_increase_edge_count(sys->edgehash, (*face)[1], (*face)[2]);

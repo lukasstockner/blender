@@ -354,7 +354,7 @@ static void alphasort_version_246(FileData *fd, Library *lib, Mesh *me)
 				ma = NULL;
 
 			for (b = 0; ma && b < MAX_MTEX; b++)
-				if (ma->mtex && ma->mtex[b] && ma->mtex[b]->mapto & MAP_ALPHA)
+				if (ma->mtex[b] && ma->mtex[b]->mapto & MAP_ALPHA)
 					texalpha = 1;
 		}
 		else {
@@ -518,11 +518,8 @@ static void do_version_free_effects_245(ListBase *lb)
 {
 	Effect *eff;
 
-	eff = lb->first;
-	while (eff) {
-		BLI_remlink(lb, eff);
+	while ((eff = BLI_pophead(lb))) {
 		do_version_free_effect_245(eff);
-		eff = lb->first;
 	}
 }
 

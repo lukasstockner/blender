@@ -56,7 +56,7 @@ static int bm_vert_other_tag(BMVert *v, BMVert *v_prev,
                              BMEdge **r_e)
 {
 	BMIter iter;
-	BMEdge *e, *e_next;
+	BMEdge *e, *e_next = NULL;
 	unsigned int count = 0;
 
 	BM_ITER_ELEM (e, &iter, v, BM_EDGES_OF_VERT) {
@@ -361,8 +361,7 @@ bool BM_mesh_edgeloops_find_path(BMesh *bm, ListBase *r_eloops,
 void BM_mesh_edgeloops_free(ListBase *eloops)
 {
 	BMEdgeLoopStore *el_store;
-	while ((el_store = eloops->first)) {
-		BLI_remlink(eloops, el_store);
+	while ((el_store = BLI_pophead(eloops))) {
 		BM_edgeloop_free(el_store);
 	}
 }
@@ -428,7 +427,7 @@ void BM_mesh_edgeloops_calc_order(BMesh *UNUSED(bm), ListBase *eloops, const boo
 		float len_best = FLT_MAX;
 
 		if (use_normals)
-			BLI_assert(fabsf(len_squared_v3(no) - 1.0f) < FLT_EPSILON);
+			BLI_ASSERT_UNIT_V3(no);
 
 		for (el_store = eloops->first; el_store; el_store = el_store->next) {
 			float len;

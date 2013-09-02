@@ -45,6 +45,7 @@ set(INC
 	../../../intern/raskter
 	../../../intern/smoke/extern
 	../../../extern/libmv
+	../../../intern/atomic
 
 	# XXX - BAD LEVEL CALL WM_api.h
 	../windowmanager
@@ -152,6 +153,7 @@ set(SRC
 	intern/text.c
 	intern/texture.c
 	intern/tracking.c
+	intern/treehash.c
 	intern/unit.c
 	intern/world.c
 	intern/writeavi.c
@@ -165,7 +167,6 @@ set(SRC
 	BKE_armature.h
 	BKE_autoexec.h
 	BKE_blender.h
-	BKE_bmesh.h
 	BKE_bmfont.h
 	BKE_bmfont_types.h
 	BKE_boids.h
@@ -230,7 +231,6 @@ set(SRC
 	BKE_sca.h
 	BKE_scene.h
 	BKE_screen.h
-	BKE_script.h
 	BKE_sequencer.h
 	BKE_shrinkwrap.h
 	BKE_sketch.h
@@ -245,6 +245,7 @@ set(SRC
 	BKE_text.h
 	BKE_texture.h
 	BKE_tracking.h
+	BKE_treehash.h
 	BKE_unit.h
 	BKE_utildefines.h
 	BKE_world.h

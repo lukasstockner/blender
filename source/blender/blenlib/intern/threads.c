@@ -107,7 +107,7 @@ static void *thread_tls_data;
  *     BLI_end_threads(&lb);
  *
  ************************************************ */
-static pthread_mutex_t _malloc_lock = PTHREAD_MUTEX_INITIALIZER;
+static SpinLock _malloc_lock;
 static pthread_mutex_t _image_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t _image_draw_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t _viewer_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -134,17 +134,24 @@ typedef struct ThreadSlot {
 
 static void BLI_lock_malloc_thread(void)
 {
-	pthread_mutex_lock(&_malloc_lock);
+	BLI_spin_lock(&_malloc_lock);
 }
 
 static void BLI_unlock_malloc_thread(void)
 {
-	pthread_mutex_unlock(&_malloc_lock);
+	BLI_spin_unlock(&_malloc_lock);
 }
 
 void BLI_threadapi_init(void)
 {
 	mainid = pthread_self();
+
+	BLI_spin_init(&_malloc_lock);
+}
+
+void BLI_threadapi_exit(void)
+{
+	BLI_spin_end(&_malloc_lock);
 }
 
 /* tot = 0 only initializes malloc mutex in a safe way (see sequence.c)
@@ -506,6 +513,52 @@ void BLI_rw_mutex_free(ThreadRWMutex *mutex)
 {
 	BLI_rw_mutex_end(mutex);
 	MEM_freeN(mutex);
+}
+
+/* Ticket Mutex Lock */
+
+struct TicketMutex {
+	pthread_cond_t cond;
+	pthread_mutex_t mutex;
+	unsigned int queue_head, queue_tail;
+};
+
+TicketMutex *BLI_ticket_mutex_alloc(void)
+{
+	TicketMutex *ticket = MEM_callocN(sizeof(TicketMutex), "TicketMutex");
+
+	pthread_cond_init(&ticket->cond, NULL);
+	pthread_mutex_init(&ticket->mutex, NULL);
+
+	return ticket;
+}
+
+void BLI_ticket_mutex_free(TicketMutex *ticket)
+{
+	pthread_mutex_destroy(&ticket->mutex);
+	pthread_cond_destroy(&ticket->cond);
+	MEM_freeN(ticket);
+}
+
+void BLI_ticket_mutex_lock(TicketMutex *ticket)
+{
+	unsigned int queue_me;
+
+	pthread_mutex_lock(&ticket->mutex);
+	queue_me = ticket->queue_tail++;
+
+	while (queue_me != ticket->queue_head)
+		pthread_cond_wait(&ticket->cond, &ticket->mutex);
+
+	pthread_mutex_unlock(&ticket->mutex);
+}
+
+void BLI_ticket_mutex_unlock(TicketMutex *ticket)
+{
+	pthread_mutex_lock(&ticket->mutex);
+	ticket->queue_head++;
+	pthread_cond_broadcast(&ticket->cond);
+	pthread_mutex_unlock(&ticket->mutex);
 }
 
 /* ************************************************ */

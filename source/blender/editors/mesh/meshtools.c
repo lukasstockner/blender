@@ -88,9 +88,10 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 	Key *key, *nkey = NULL;
 	KeyBlock *kb, *okb, *kbn;
 	float imat[4][4], cmat[4][4], *fp1, *fp2;
-	int a, b, totcol, totmat = 0, totedge = 0, totvert = 0, ok = 0;
+	int a, b, totcol, totmat = 0, totedge = 0, totvert = 0;
 	int totloop = 0, totpoly = 0, vertofs, *matmap = NULL;
 	int i, j, index, haskey = 0, edgeofs, loopofs, polyofs;
+	bool ok = false;
 	bDeformGroup *dg, *odg;
 	MDeformVert *dvert;
 	CustomData vdata, edata, fdata, ldata, pdata;
@@ -119,7 +120,7 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 			totmat += base->object->totcol;
 			
 			if (base->object == ob)
-				ok = 1;
+				ok = true;
 			
 			/* check for shapekeys */
 			if (me->key)
@@ -129,7 +130,7 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 	CTX_DATA_END;
 	
 	/* that way the active object is always selected */ 
-	if (ok == 0) {
+	if (ok == false) {
 		BKE_report(op->reports, RPT_WARNING, "Active object is not a selected mesh");
 		return OPERATOR_CANCELLED;
 	}
@@ -177,7 +178,6 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 			if (kb->data) MEM_freeN(kb->data);
 			kb->data = MEM_callocN(sizeof(float) * 3 * totvert, "join_shapekey");
 			kb->totelem = totvert;
-			kb->weights = NULL;
 		}
 	}
 	else if (haskey) {
@@ -569,7 +569,7 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 	ED_object_editmode_exit(C, EM_FREEDATA | EM_WAITCURSOR | EM_DO_UNDO);
 #else
 	/* toggle editmode using lower level functions so this can be called from python */
-	EDBM_mesh_make(scene->toolsettings, scene, ob);
+	EDBM_mesh_make(scene->toolsettings, ob);
 	EDBM_mesh_load(ob);
 	EDBM_mesh_free(me->edit_btmesh);
 	MEM_freeN(me->edit_btmesh);
@@ -1135,7 +1135,7 @@ int *mesh_get_x_mirror_faces(Object *ob, BMEditMesh *em)
 
 	mesh_octree_table(ob, em, NULL, 'e');
 
-	fhash = BLI_ghash_new(mirror_facehash, mirror_facecmp, "mirror_facehash gh");
+	fhash = BLI_ghash_new_ex(mirror_facehash, mirror_facecmp, "mirror_facehash gh", me->totface);
 	for (a = 0, mf = mface; a < me->totface; a++, mf++)
 		BLI_ghash_insert(fhash, mf, mf);
 
@@ -1199,7 +1199,7 @@ bool ED_mesh_pick_face(bContext *C, Object *ob, const int mval[2], unsigned int 
 		*index = view3d_sample_backbuf(&vc, mval[0], mval[1]);
 	}
 
-	if ((*index) <= 0 || (*index) > (unsigned int)me->totpoly)
+	if ((*index) == 0 || (*index) > (unsigned int)me->totpoly)
 		return false;
 
 	(*index)--;
@@ -1320,7 +1320,7 @@ bool ED_mesh_pick_vert(bContext *C, Object *ob, const int mval[2], unsigned int 
 			*index = view3d_sample_backbuf(&vc, mval[0], mval[1]);
 		}
 
-		if ((*index) <= 0 || (*index) > (unsigned int)me->totvert)
+		if ((*index) == 0 || (*index) > (unsigned int)me->totvert)
 			return false;
 
 		(*index)--;
@@ -1335,7 +1335,7 @@ bool ED_mesh_pick_vert(bContext *C, Object *ob, const int mval[2], unsigned int 
 		const float mval_f[2] = {(float)mval[0],
 		                         (float)mval[1]};
 
-		VertPickData data = {0};
+		VertPickData data = {NULL};
 
 		ED_view3d_init_mats_rv3d(ob, rv3d);
 
@@ -1350,7 +1350,7 @@ bool ED_mesh_pick_vert(bContext *C, Object *ob, const int mval[2], unsigned int 
 		data.len_best = FLT_MAX;
 		data.v_idx_best = -1;
 
-		dm->foreachMappedVert(dm, ed_mesh_pick_vert__mapFunc, &data);
+		dm->foreachMappedVert(dm, ed_mesh_pick_vert__mapFunc, &data, DM_FOREACH_NOP);
 
 		dm->release(dm);
 

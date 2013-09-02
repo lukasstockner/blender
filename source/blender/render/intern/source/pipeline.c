@@ -468,6 +468,30 @@ void RE_FreePersistentData(void)
 
 /* ********* initialize state ******** */
 
+/* clear full sample and tile flags if needed */
+static int check_mode_full_sample(RenderData *rd)
+{
+	int scemode = rd->scemode;
+
+	if ((rd->mode & R_OSA) == 0)
+		scemode &= ~R_FULL_SAMPLE;
+
+#ifdef WITH_OPENEXR
+	if (scemode & R_FULL_SAMPLE)
+		scemode |= R_EXR_TILE_FILE;   /* enable automatic */
+
+	/* Until use_border is made compatible with save_buffers/full_sample, render without the later instead of not rendering at all.*/
+	if (rd->mode & R_BORDER) {
+		scemode &= ~(R_EXR_TILE_FILE | R_FULL_SAMPLE);
+	}
+
+#else
+	/* can't do this without openexr support */
+	scemode &= ~(R_EXR_TILE_FILE | R_FULL_SAMPLE);
+#endif
+
+	return scemode;
+}
 
 /* what doesn't change during entire render sequence */
 /* disprect is optional, if NULL it assumes full window render */
@@ -533,22 +557,7 @@ void RE_InitState(Render *re, Render *source, RenderData *rd, SceneRenderLayer *
 		return;
 	}
 
-	if ((re->r.mode & (R_OSA)) == 0)
-		re->r.scemode &= ~R_FULL_SAMPLE;
-
-#ifdef WITH_OPENEXR
-	if (re->r.scemode & R_FULL_SAMPLE)
-		re->r.scemode |= R_EXR_TILE_FILE;   /* enable automatic */
-
-	/* Until use_border is made compatible with save_buffers/full_sample, render without the later instead of not rendering at all.*/
-	if (re->r.mode & R_BORDER) {
-		re->r.scemode &= ~(R_EXR_TILE_FILE | R_FULL_SAMPLE);
-	}
-
-#else
-	/* can't do this without openexr support */
-	re->r.scemode &= ~(R_EXR_TILE_FILE | R_FULL_SAMPLE);
-#endif
+	re->r.scemode = check_mode_full_sample(&re->r);
 	
 	/* fullsample wants uniform osa levels */
 	if (source && (re->r.scemode & R_FULL_SAMPLE)) {
@@ -1133,10 +1142,13 @@ static void do_render_3d(Render *re)
 		re->draw_lock(re->dlh, 1);
 	
 	/* make render verts/faces/halos/lamps */
-	if (render_scene_needs_vector(re))
+	if (render_scene_needs_vector(re)) {
 		RE_Database_FromScene_Vectors(re, re->main, re->scene, re->lay);
-	else
+	}
+	else {
 		RE_Database_FromScene(re, re->main, re->scene, re->lay, 1);
+		RE_Database_Preprocess(re);
+	}
 	
 	/* clear UI drawing locks */
 	if (re->draw_lock)
@@ -1667,6 +1679,9 @@ static void add_freestyle(Render *re, int render)
 	}
 
 	FRS_finish_stroke_rendering(re);
+
+	/* restore the global R value (invalidated by nested execution of the internal renderer) */
+	R = *re;
 }
 
 /* merges the results of Freestyle stroke rendering into a given render result */
@@ -1682,12 +1697,17 @@ static void composite_freestyle_renders(Render *re, int sample)
 	for (srl= (SceneRenderLayer *)re->r.layers.first; srl; srl= srl->next) {
 		if ((re->r.scemode & R_SINGLE_LAYER) && srl != actsrl)
 			continue;
+
 		if (FRS_is_freestyle_enabled(srl)) {
 			freestyle_render = (Render *)link->data;
-			render_result_exr_file_read(freestyle_render, sample);
-			FRS_composite_result(re, srl, freestyle_render);
-			RE_FreeRenderResult(freestyle_render->result);
-			freestyle_render->result = NULL;
+
+			/* may be NULL in case of empty render layer */
+			if (freestyle_render) {
+				render_result_exr_file_read(freestyle_render, sample);
+				FRS_composite_result(re, srl, freestyle_render);
+				RE_FreeRenderResult(freestyle_render->result);
+				freestyle_render->result = NULL;
+			}
 		}
 		link = link->next;
 	}
@@ -1702,8 +1722,9 @@ static void free_all_freestyle_renders(void)
 
 	for (re1= RenderGlobal.renderlist.first; re1; re1= re1->next) {
 		for (link = (LinkData *)re1->freestyle_renders.first; link; link = link->next) {
-			if (link->data) {
-				freestyle_render = (Render *)link->data;
+			freestyle_render = (Render *)link->data;
+
+			if (freestyle_render) {
 				freestyle_scene = freestyle_render->scene;
 				RE_FreeRender(freestyle_render);
 				BKE_scene_unlink(&re1->freestyle_bmain, freestyle_scene, NULL);
@@ -1737,6 +1758,7 @@ static void do_merge_fullsample(Render *re, bNodeTree *ntree)
 	rectf = MEM_mapallocN(re->rectx * re->recty * sizeof(float) * 4, "fullsample rgba");
 	
 	for (sample = 0; sample < re->r.osa; sample++) {
+		Scene *sce;
 		Render *re1;
 		RenderResult rres;
 		int mask;
@@ -1748,9 +1770,11 @@ static void do_merge_fullsample(Render *re, bNodeTree *ntree)
 		/* also function below assumes this */
 			
 		tag_scenes_for_render(re);
-		for (re1 = RenderGlobal.renderlist.first; re1; re1 = re1->next) {
-			if (re1->scene->id.flag & LIB_DOIT) {
-				if (re1->r.scemode & R_FULL_SAMPLE) {
+		for (sce = re->main->scene.first; sce; sce = sce->id.next) {
+			if (sce->id.flag & LIB_DOIT) {
+				re1 = RE_GetRender(sce->id.name);
+
+				if (re1 && (re1->r.scemode & R_FULL_SAMPLE)) {
 					if (sample) {
 						BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
 						render_result_exr_file_read(re1, sample);
@@ -1912,6 +1936,8 @@ static void do_render_composite_fields_blur_3d(Render *re)
 		do_render_fields_blur_3d(re);
 	}
 	else {
+		re->i.cfra = re->r.cfra;
+
 		/* ensure new result gets added, like for regular renders */
 		BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
 		
@@ -2222,6 +2248,7 @@ static int check_composite_output(Scene *scene)
 int RE_is_rendering_allowed(Scene *scene, Object *camera_override, ReportList *reports)
 {
 	SceneRenderLayer *srl;
+	int scemode = check_mode_full_sample(&scene->r);
 	
 	if (scene->r.mode & R_BORDER) {
 		if (scene->r.border.xmax <= scene->r.border.xmin ||
@@ -2232,7 +2259,7 @@ int RE_is_rendering_allowed(Scene *scene, Object *camera_override, ReportList *r
 		}
 	}
 	
-	if (scene->r.scemode & (R_EXR_TILE_FILE | R_FULL_SAMPLE)) {
+	if (scemode & (R_EXR_TILE_FILE | R_FULL_SAMPLE)) {
 		char str[FILE_MAX];
 		
 		render_result_exr_file_path(scene, "", 0, str);
@@ -2243,16 +2270,14 @@ int RE_is_rendering_allowed(Scene *scene, Object *camera_override, ReportList *r
 		}
 		
 		/* no fullsample and edge */
-		if ((scene->r.scemode & R_FULL_SAMPLE) && (scene->r.mode & R_EDGE)) {
+		if ((scemode & R_FULL_SAMPLE) && (scene->r.mode & R_EDGE)) {
 			BKE_report(reports, RPT_ERROR, "Full sample does not support edge enhance");
 			return 0;
 		}
 		
 	}
-	else
-		scene->r.scemode &= ~R_FULL_SAMPLE;  /* clear to be sure */
 	
-	if (scene->r.scemode & R_DOCOMP) {
+	if (scemode & R_DOCOMP) {
 		if (scene->use_nodes) {
 			if (!scene->nodetree) {
 				BKE_report(reports, RPT_ERROR, "No node tree in scene");
@@ -2264,7 +2289,7 @@ int RE_is_rendering_allowed(Scene *scene, Object *camera_override, ReportList *r
 				return 0;
 			}
 			
-			if (scene->r.scemode & R_FULL_SAMPLE) {
+			if (scemode & R_FULL_SAMPLE) {
 				if (composite_needs_render(scene, 0) == 0) {
 					BKE_report(reports, RPT_ERROR, "Full sample AA not supported without 3D rendering");
 					return 0;
@@ -2298,7 +2323,7 @@ int RE_is_rendering_allowed(Scene *scene, Object *camera_override, ReportList *r
 	}
 
 	/* layer flag tests */
-	if (scene->r.scemode & R_SINGLE_LAYER) {
+	if (scemode & R_SINGLE_LAYER) {
 		srl = BLI_findlink(&scene->r.layers, scene->r.actlay);
 		/* force layer to be enabled */
 		srl->layflag &= ~SCE_LAY_DISABLE;
@@ -2322,7 +2347,6 @@ static void validate_render_settings(Render *re)
 		if (re->r.osa == 0)
 			re->r.scemode &= ~R_FULL_SAMPLE;
 	}
-	else re->r.scemode &= ~R_FULL_SAMPLE;   /* clear to be sure */
 
 	if (RE_engine_is_external(re)) {
 		/* not supported yet */

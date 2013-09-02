@@ -246,6 +246,7 @@ int rna_Action_id_poll(struct PointerRNA *ptr, struct PointerRNA value);
 int rna_Action_actedit_assign_poll(struct PointerRNA *ptr, struct PointerRNA value);
 
 char *rna_TextureSlot_path(struct PointerRNA *ptr);
+char *rna_Node_ImageUser_path(struct PointerRNA *ptr);
 
 /* API functions */
 
@@ -401,7 +402,6 @@ PointerRNA rna_pointer_inherit_refine(struct PointerRNA *ptr, struct StructRNA *
 /* Functions */
 
 int rna_parameter_size(struct PropertyRNA *parm);
-int rna_parameter_size_alloc(struct PropertyRNA *parm);
 
 struct Mesh *rna_Main_meshes_new_from_object(
         struct Main *bmain, struct ReportList *reports, struct Scene *sce,

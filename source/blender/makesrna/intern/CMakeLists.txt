@@ -26,6 +26,11 @@
 # Generated code has some unused vars we can ignore.
 remove_strict_flags()
 
+if(CMAKE_COMPILER_IS_GNUCC)
+	# add here so we fail early.
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror=implicit-function-declaration")
+endif()
+
 # message(STATUS "Configuring makesrna")
 
 # files rna_access.c rna_define.c makesrna.c intentionally excluded.
@@ -271,14 +276,10 @@ blender_include_dirs(
 	../../../../intern/audaspace/intern
 	../../../../intern/cycles/blender
 	../../../../intern/guardedalloc
+	../../../../intern/atomic
 	../../../../intern/memutil
 	../../../../intern/smoke/extern
 )
-
-if(WITH_FREESTYLE)
-	# TO BE REMOVED when the trunk merger is done
-	add_definitions(-DWITH_FREESTYLE)
-endif()
 
 blender_include_dirs_sys(
 	${GLEW_INCLUDE_PATH}
