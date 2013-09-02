@@ -296,19 +296,19 @@ static SpaceLink *view3d_new(const bContext *C)
 	ar->regiontype = RGN_TYPE_HEADER;
 	ar->alignment = RGN_ALIGN_BOTTOM;
 	
-	/* tool shelf */
-	ar = MEM_callocN(sizeof(ARegion), "toolshelf for view3d");
-	
-	BLI_addtail(&v3d->regionbase, ar);
-	ar->regiontype = RGN_TYPE_TOOLS;
-	ar->alignment = RGN_ALIGN_LEFT;
-	
 	/* operators menubar  */
 	ar = MEM_callocN(sizeof(ARegion), "tool operators menu bar for view3d");
 	
 	BLI_addtail(&v3d->regionbase, ar);
 	ar->regiontype = RGN_TYPE_MENU_BAR;
 	ar->alignment = RGN_ALIGN_TOP;
+	
+	/* tool shelf */
+	ar = MEM_callocN(sizeof(ARegion), "toolshelf for view3d");
+	
+	BLI_addtail(&v3d->regionbase, ar);
+	ar->regiontype = RGN_TYPE_TOOLS;
+	ar->alignment = RGN_ALIGN_LEFT;
 	
 	/* object properties sidebar right */
 	ar = MEM_callocN(sizeof(ARegion), "buttons for view3d");

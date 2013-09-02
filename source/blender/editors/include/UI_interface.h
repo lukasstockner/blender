@@ -829,7 +829,7 @@ void uiTemplateIDBrowse(uiLayout *layout, struct bContext *C, struct PointerRNA 
                         const char *newop, const char *openop, const char *unlinkop);
 void uiTemplateIDPreview(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname,
                          const char *newop, const char *openop, const char *unlinkop, int rows, int cols);
-void uiTemplateIDPreviewBrush(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname,
+void uiTemplateIDPreviewCompact(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname,
                          const char *newop, const char *openop, const char *unlinkop, int rows, int cols);
 void uiTemplateAnyID(uiLayout *layout, struct PointerRNA *ptr, const char *propname, 
                      const char *proptypename, const char *text);

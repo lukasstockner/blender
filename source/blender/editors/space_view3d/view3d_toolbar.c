@@ -283,6 +283,20 @@ void view3d_tool_props_register(ARegionType *art)
 	BLI_addtail(&art->paneltypes, pt);
 }
 
+static int view3d_grease_pencil_panel_poll(const bContext *C, PanelType *UNUSED(pt))
+{
+	return ELEM9(CTX_data_mode_enum(C),
+				  CTX_MODE_EDIT_MESH,
+				  CTX_MODE_EDIT_CURVE,
+				  CTX_MODE_EDIT_SURFACE,
+				  CTX_MODE_EDIT_TEXT,
+				  CTX_MODE_EDIT_ARMATURE,
+				  CTX_MODE_EDIT_METABALL,
+				  CTX_MODE_EDIT_LATTICE,
+				  CTX_MODE_POSE,
+				  CTX_MODE_OBJECT);
+}
+
 void view3d_grease_register(ARegionType *art)
 {
 	PanelType *pt;
@@ -293,6 +307,7 @@ void view3d_grease_register(ARegionType *art)
 	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
 	pt->draw_header = gpencil_panel_standard_header;
 	pt->draw = gpencil_panel_standard;
+	pt->poll = view3d_grease_pencil_panel_poll;
 	BLI_addtail(&art->paneltypes, pt);
 }
 

@@ -73,39 +73,45 @@ class UnifiedPaintPanel():
 def brush_texture_settings(layout, brush, sculpt):
     tex_slot = brush.texture_slot
 
-    layout.label(text="Brush Mapping:")
+    col = layout.column(align=True)
+    row = col.row()
+    row.label(text="Mapping:")
 
     # map_mode
     if sculpt:
-        layout.row().prop(tex_slot, "map_mode", text="")
-        layout.separator()
+        row.prop(tex_slot, "map_mode", text="")
     else:
-        layout.row().prop(tex_slot, "tex_paint_map_mode", text="")
-        layout.separator()
+        row.prop(tex_slot, "tex_paint_map_mode", text="")
 
-    if tex_slot.map_mode == 'STENCIL':
-        if brush.texture and brush.texture.type == 'IMAGE':
-            layout.operator("brush.stencil_fit_image_aspect")
-        layout.operator("brush.stencil_reset_transform")
+    col.separator()
 
     # angle and texture_angle_source
-    col = layout.column()
-    col.active = brush.brush_capabilities.has_texture_angle_source
-    col.label(text="Angle:")
+    row = col.row()
+    row.active = brush.brush_capabilities.has_texture_angle_source
+    row.label(text="Angle:")
+    sub = row.column()
     if brush.brush_capabilities.has_random_texture_angle:
         if sculpt:
             if brush.sculpt_capabilities.has_random_texture_angle:
-                col.prop(brush, "texture_angle_source_random", text="")
+                sub.prop(brush, "texture_angle_source_random", text="")
             else:
-                col.prop(brush, "texture_angle_source_no_random", text="")
+                sub.prop(brush, "texture_angle_source_no_random", text="")
 
         else:
-            col.prop(brush, "texture_angle_source_random", text="")
+            sub.prop(brush, "texture_angle_source_random", text="")
     else:
-        col.prop(brush, "texture_angle_source_no_random", text="")
-    col = layout.column()
-    col.active = brush.brush_capabilities.has_texture_angle
-    col.prop(tex_slot, "angle", text="")
+        sub.prop(brush, "texture_angle_source_no_random", text="")
+    # row = layout.column()
+    sub.active = brush.brush_capabilities.has_texture_angle
+    sub.prop(tex_slot, "angle", text="")
+
+    col = layout.column(align=True)
+    col.separator()
+
+    if tex_slot.map_mode == 'STENCIL':
+        if brush.texture and brush.texture.type == 'IMAGE':
+            col.operator("brush.stencil_fit_image_aspect")
+        col.operator("brush.stencil_reset_transform")
 
     # scale and offset
     split = layout.split()

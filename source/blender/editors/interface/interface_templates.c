@@ -607,7 +607,8 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 	uiBlockEndAlign(block);
 }
 
-static void template_ID_brush(bContext *C, uiLayout *layout, TemplateID *template, StructRNA *type, short idcode, int flag,
+
+static void template_ID_compact(bContext *C, uiLayout *layout, TemplateID *template, StructRNA *type, short idcode, int flag,
                         const char *newop, const char *UNUSED(openop), const char *unlinkop)
 {
 	uiBut *but;
@@ -669,7 +670,7 @@ static void template_ID_brush(bContext *C, uiLayout *layout, TemplateID *templat
 
 			BLI_snprintf(numstr, sizeof(numstr), "%d", id->us);
 
-			but = uiDefBut(block, BUT, 0, numstr, 0, 0, 6 * UI_UNIT_X + ((id->us < 10) ? 0 : 10), UI_UNIT_Y,
+			but = uiDefBut(block, BUT, 0, numstr, 0, 0, UI_UNIT_X + ((id->us < 10) ? 0 : 10), UI_UNIT_Y,
 						   NULL, 0, 0, 0, 0,
 						   TIP_("Display number of users of this data (click to make a single-user copy)"));
 
@@ -688,7 +689,7 @@ static void template_ID_brush(bContext *C, uiLayout *layout, TemplateID *templat
 		if (user_alert) uiButSetFlag(but, UI_BUT_REDALERT);
 		
 		if (id->lib == NULL && !(ELEM5(GS(id->name), ID_GR, ID_SCE, ID_SCR, ID_TXT, ID_OB))) {
-			uiDefButR(block, TOG, 0, "F", 0, 0, UI_UNIT_X, UI_UNIT_Y, &idptr, "use_fake_user", -1, 0, 0, -1, -1, NULL);
+			uiDefButR(block, TOG, 0, "F", 0, 0, 6 * UI_UNIT_X, UI_UNIT_Y, &idptr, "use_fake_user", -1, 0, 0, -1, -1, NULL);
 		}
 	}
 	
@@ -767,7 +768,7 @@ static void template_ID_brush(bContext *C, uiLayout *layout, TemplateID *templat
 }
 
 static void ui_template_id(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, const char *newop,
-                           const char *openop, const char *unlinkop, int flag, int prv_rows, int prv_cols, int brush)
+                           const char *openop, const char *unlinkop, int flag, int prv_rows, int prv_cols, int compact)
 {
 	TemplateID *template;
 	PropertyRNA *prop;
@@ -801,8 +802,8 @@ static void ui_template_id(uiLayout *layout, bContext *C, PointerRNA *ptr, const
 	 */
 	if (template->idlb) {
 		uiLayoutRow(layout, TRUE);
-		if (brush) {
-			template_ID_brush(C, layout, template, type, idcode, flag, newop, openop, unlinkop);
+		if (compact) {
+			template_ID_compact(C, layout, template, type, idcode, flag, newop, openop, unlinkop);
 		}
 		else {
 			template_ID(C, layout, template, type, idcode, flag, newop, openop, unlinkop);
@@ -833,7 +834,7 @@ void uiTemplateIDPreview(uiLayout *layout, bContext *C, PointerRNA *ptr, const c
 	               UI_ID_BROWSE | UI_ID_RENAME | UI_ID_DELETE | UI_ID_PREVIEWS, rows, cols, FALSE);
 }
 
-void uiTemplateIDPreviewBrush(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, const char *newop,
+void uiTemplateIDPreviewCompact(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, const char *newop,
                          const char *openop, const char *unlinkop, int rows, int cols)
 {
 	ui_template_id(layout, C, ptr, propname, newop, openop, unlinkop,

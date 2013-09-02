@@ -98,9 +98,9 @@ class VIEW3D_PT_tools_objectmode_adjust(View3DPanel, Panel):
         
 VIEW3D_PT_tools_objectmode_history = history_panel("objectmode")
 
-class VIEW3D_PT_tools_objectmode_keyframes(View3DPanel, Panel):
+class VIEW3D_PT_tools_objectmode_animation(View3DPanel, Panel):
     bl_context = "objectmode"
-    bl_label = "Keyframes"
+    bl_label = "Animation"
     
     def draw(self, context):
         layout = self.layout 
@@ -251,6 +251,7 @@ VIEW3D_PT_tools_editmode_history = history_panel("mesh_edit")
 class VIEW3D_PT_tools_meshedit_options(View3DPanel, Panel):
     bl_context = "mesh_edit"
     bl_label = "Mesh Options"
+    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
@@ -562,7 +563,8 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
 
         if not context.particle_edit_object:
             col = layout.split().column()
-            col.template_ID_preview_brush(settings, "brush", new="brush.add", rows=5, cols=8)
+            # col.template_ID_preview_compact(settings, "brush", new="brush.add", rows=5, cols=8)
+            col.template_ID_preview(settings, "brush", new="brush.add", rows=3, cols=8)
 
         # Particle Mode #
         if context.particle_edit_object:
@@ -571,7 +573,7 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             layout.column().prop(settings, "tool", expand=True)
 
             if tool != 'NONE':
-                col = layout.column()
+                col = layout.column(align=True)
                 col.prop(brush, "size", slider=True)
                 if tool != 'ADD':
                     col.prop(brush, "strength", slider=True)
@@ -595,7 +597,7 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
         elif context.sculpt_object and brush:
             capabilities = brush.sculpt_capabilities
 
-            col = layout.column()
+            col = layout.column(align=True)
 
             col.separator()
 
@@ -614,7 +616,6 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
 
             # strength, use_strength_pressure, and use_strength_attenuation
             if capabilities.has_strength:
-                col.separator()
                 row = col.row(align=True)
 
                 if capabilities.has_space_attenuation:
@@ -628,28 +629,23 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
 
             # auto_smooth_factor and use_inverse_smooth_pressure
             if capabilities.has_auto_smooth:
-                col.separator()
-
                 row = col.row(align=True)
                 row.prop(brush, "auto_smooth_factor", slider=True)
                 row.prop(brush, "use_inverse_smooth_pressure", toggle=True, text="")
 
             # normal_weight
             if capabilities.has_normal_weight:
-                col.separator()
                 row = col.row(align=True)
                 row.prop(brush, "normal_weight", slider=True)
 
             # crease_pinch_factor
             if capabilities.has_pinch_factor:
-                col.separator()
                 row = col.row(align=True)
                 row.prop(brush, "crease_pinch_factor", slider=True, text="Pinch")
 
             # use_original_normal and sculpt_plane
             if capabilities.has_sculpt_plane:
                 row = col.row(align=True)
-                col.separator()
 
                 if brush.use_original_normal:
                     row.prop(brush, "use_original_normal", toggle=True, text="", icon='LOCKED')
@@ -663,7 +659,6 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
 
             # plane_offset, use_offset_pressure, use_plane_trim, plane_trim
             if capabilities.has_plane_offset:
-                row = col.row(align=True)
                 row.prop(brush, "plane_offset", slider=True)
                 row.prop(brush, "use_offset_pressure", text="")
 
@@ -713,14 +708,11 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                     col.operator("sculpt.set_persistent_base")
 
             col = layout.column(align=True)
-            col.label(text="Overlay:")
-
+            
             row = col.row()
-            if brush.use_cursor_overlay:
-                row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
-            else:
-                row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
-
+            row.prop(brush, "use_cursor_overlay", toggle=True, text="",
+                icon=('RESTRICT_VIEW_OFF' if brush.use_cursor_overlay else 'RESTRICT_VIEW_ON'))
+            
             sub = row.row()
             sub.prop(brush, "cursor_overlay_alpha", text="Alpha")
             sub.prop(brush, "use_cursor_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
@@ -734,6 +726,8 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                 col.template_color_picker(brush, "color", value_slider=True)
                 col.prop(brush, "color", text="")
 
+            col = layout.column(align=True)
+
             row = col.row(align=True)
             self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
             self.prop_unified_size(row, context, brush, "use_pressure_size")
@@ -744,29 +738,26 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
 
             row = col.row(align=True)
 
-            col.prop(brush, "blend", text="Blend")
+            col.prop(brush, "blend", text="")
 
             col = layout.column()
             col.active = (brush.blend not in {'ERASE_ALPHA', 'ADD_ALPHA'})
-            col.prop(brush, "use_alpha")
+            col.prop(brush, "use_alpha", text="Use Alpha")
 
             col = layout.column(align=True)
-            col.label(text="Overlay:")
 
             row = col.row()
-            if brush.use_cursor_overlay:
-                row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
-            else:
-                row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
-
+            row.prop(brush, "use_cursor_overlay", toggle=True, text="",
+                icon=('RESTRICT_VIEW_OFF' if brush.use_cursor_overlay else 'RESTRICT_VIEW_ON'))
+            
             sub = row.row()
-            sub.prop(brush, "cursor_overlay_alpha", text="Alpha")
+            sub.prop(brush, "cursor_overlay_alpha", text="Overlay")
             sub.prop(brush, "use_cursor_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
 
         # Weight Paint Mode #
         elif context.weight_paint_object and brush:
 
-            col = layout.column()
+            col = layout.column(align=True)
 
             row = col.row(align=True)
             self.prop_unified_weight(row, context, brush, "weight", slider=True, text="Weight")
@@ -781,18 +772,19 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
 
             row = col.row(align=True)
 
-            col.prop(brush, "vertex_tool", text="Blend")
+            col.prop(brush, "vertex_tool", text="")
 
-            col = layout.column()
+            col = layout.column(align=True)
             col.prop(toolsettings, "use_auto_normalize", text="Auto Normalize")
             col.prop(toolsettings, "use_multipaint", text="Multi-Paint")
 
         # Vertex Paint Mode #
         elif context.vertex_paint_object and brush:
             col = layout.column()
-            # col.template_color_picker(brush, "color", value_slider=False)
+            col.template_color_picker(brush, "color", value_slider=True)
             col.prop(brush, "color", text="")
 
+            col = layout.column(align=True)
             row = col.row(align=True)
             self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
             self.prop_unified_size(row, context, brush, "use_pressure_size")
@@ -801,24 +793,22 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             self.prop_unified_strength(row, context, brush, "strength", text="Strength")
             self.prop_unified_strength(row, context, brush, "use_pressure_strength")
 
+            col.prop(brush, "vertex_tool", text="")
+
             # XXX - TODO
             #row = col.row(align=True)
             #row.prop(brush, "jitter", slider=True)
             #row.prop(brush, "use_pressure_jitter", toggle=True, text="")
 
-            col.prop(brush, "vertex_tool", text="Blend")
-
             col = layout.column(align=True)
-            col.label(text="Overlay:")
+            # col.label(text="Overlay:")
 
             row = col.row()
-            if brush.use_cursor_overlay:
-                row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
-            else:
-                row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
-
+            row.prop(brush, "use_cursor_overlay", toggle=True, text="",
+                icon=('RESTRICT_VIEW_OFF' if brush.use_cursor_overlay else 'RESTRICT_VIEW_ON'))
+            
             sub = row.row()
-            sub.prop(brush, "cursor_overlay_alpha", text="Alpha")
+            sub.prop(brush, "cursor_overlay_alpha", text="Overlay")
             sub.prop(brush, "use_cursor_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
 
 class VIEW3D_PT_tools_brush_texture(Panel, View3DPaintPanel):
@@ -840,25 +830,141 @@ class VIEW3D_PT_tools_brush_texture(Panel, View3DPaintPanel):
 
         col = layout.column()
 
-        col.template_ID_preview(brush, "texture", new="texture.new", rows=3, cols=8)
+        col.template_ID_preview_compact(brush, "texture", new="texture.new", rows=3, cols=8)
+
+        col.separator()
 
         brush_texture_settings(col, brush, context.sculpt_object)
 
         # use_texture_overlay and texture_overlay_alpha
         col = layout.column(align=True)
         col.active = brush.brush_capabilities.has_overlay
-        col.label(text="Overlay:")
-
+        
         row = col.row()
         if tex_slot.map_mode != 'STENCIL':
-            if brush.use_primary_overlay:
-                row.prop(brush, "use_primary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
-            else:
-                row.prop(brush, "use_primary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
+            row.prop(brush, "use_primary_overlay", toggle=True, text="", 
+                icon='RESTRICT_VIEW_OFF' if brush.use_primary_overlay else 'RESTRICT_VIEW_ON')
+        
 
         sub = row.row()
-        sub.prop(brush, "texture_overlay_alpha", text="Alpha")
+        sub.prop(brush, "texture_overlay_alpha", text="Overlay")
         sub.prop(brush, "use_primary_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
+
+class VIEW3D_PT_tools_brush_stroke(Panel, View3DPaintPanel):
+    bl_label = "Stroke"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        settings = cls.paint_settings(context)
+        return (settings and
+                settings.brush and
+                (context.sculpt_object or
+                 context.vertex_paint_object or
+                 context.weight_paint_object or
+                 context.image_paint_object))
+
+    def draw(self, context):
+        layout = self.layout
+
+        settings = self.paint_settings(context)
+        brush = settings.brush
+
+        col = layout.column()
+
+        row = col.row()
+        row.label(text="Method:")
+
+        if context.sculpt_object:
+            row.prop(brush, "sculpt_stroke_method", text="")
+        else:
+            row.prop(brush, "stroke_method", text="")
+
+        col = layout.column(align=True)
+
+        if brush.use_anchor:
+            # col.separator()
+            col.prop(brush, "use_edge_to_edge", "Edge To Edge")
+
+        if brush.use_airbrush:
+            # col.separator()
+            col.prop(brush, "rate", text="Rate", slider=True)
+
+        if brush.use_space:
+            # col.separator()
+            row = col.row(align=True)
+            row.active = brush.use_space
+            row.prop(brush, "spacing", text="Spacing")
+            row.prop(brush, "use_pressure_spacing", toggle=True, text="")
+
+        # col.separator()
+        if context.sculpt_object:
+            if brush.sculpt_capabilities.has_jitter:
+
+                row = col.row(align=True)
+                if brush.use_relative_jitter:
+                    row.prop(brush, "use_relative_jitter", text="", icon='LOCKED')
+                    row.prop(brush, "jitter", slider=True)
+                else:
+                    row.prop(brush, "use_relative_jitter", text="", icon='UNLOCKED')
+                    row.prop(brush, "jitter_absolute")
+                row.prop(brush, "use_pressure_jitter", toggle=True, text="")
+            if brush.sculpt_capabilities.has_smooth_stroke:
+                # smooth stroke
+                col = layout.column(align=True)
+                col.separator()
+                col.prop(brush, "use_smooth_stroke")
+
+                sub = col.column()
+                sub.active = brush.use_smooth_stroke
+                sub.prop(brush, "smooth_stroke_radius", text="Radius", slider=True)
+                sub.prop(brush, "smooth_stroke_factor", text="Factor", slider=True)
+        else:
+            row = col.row(align=True)
+            if brush.use_relative_jitter:
+                row.prop(brush, "use_relative_jitter", text="", icon='LOCKED')
+                row.prop(brush, "jitter", slider=True)
+            else:
+                row.prop(brush, "use_relative_jitter", text="", icon='UNLOCKED')
+                row.prop(brush, "jitter_absolute")
+            row.prop(brush, "use_pressure_jitter", toggle=True, text="")
+
+            # smooth stroke
+            col = layout.column(align=True)
+            col.separator()
+
+            col.prop(brush, "use_smooth_stroke")
+
+            sub = col.column()
+            sub.active = brush.use_smooth_stroke
+            sub.prop(brush, "smooth_stroke_radius", text="Radius", slider=True)
+            sub.prop(brush, "smooth_stroke_factor", text="Factor", slider=True)
+
+class VIEW3D_PT_tools_brush_curve(Panel, View3DPaintPanel):
+    bl_label = "Curve"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        settings = cls.paint_settings(context)
+        return (settings and settings.brush and settings.brush.curve)
+
+    def draw(self, context):
+        layout = self.layout
+
+        settings = self.paint_settings(context)
+
+        brush = settings.brush
+
+        layout.template_curve_mapping(brush, "curve", brush=True)
+
+        row = layout.row(align=True)
+        row.operator("brush.curve_preset", icon='SMOOTHCURVE', text="").shape = 'SMOOTH'
+        row.operator("brush.curve_preset", icon='SPHERECURVE', text="").shape = 'ROUND'
+        row.operator("brush.curve_preset", icon='ROOTCURVE', text="").shape = 'ROOT'
+        row.operator("brush.curve_preset", icon='SHARPCURVE', text="").shape = 'SHARP'
+        row.operator("brush.curve_preset", icon='LINCURVE', text="").shape = 'LINE'
+        row.operator("brush.curve_preset", icon='NOCURVE', text="").shape = 'MAX'
 
 class VIEW3D_PT_tools_mask_texture(View3DPanel, Panel):
     bl_context = "imagepaint"
@@ -896,120 +1002,6 @@ class VIEW3D_PT_tools_mask_texture(View3DPanel, Panel):
         sub = row.row()
         sub.prop(brush, "mask_overlay_alpha", text="Alpha")
         sub.prop(brush, "use_secondary_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
-
-class VIEW3D_PT_tools_brush_stroke(Panel, View3DPaintPanel):
-    bl_label = "Stroke"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    @classmethod
-    def poll(cls, context):
-        settings = cls.paint_settings(context)
-        return (settings and
-                settings.brush and
-                (context.sculpt_object or
-                 context.vertex_paint_object or
-                 context.weight_paint_object or
-                 context.image_paint_object))
-
-    def draw(self, context):
-        layout = self.layout
-
-        settings = self.paint_settings(context)
-        brush = settings.brush
-
-        col = layout.column()
-
-        col.label(text="Stroke Method:")
-
-        if context.sculpt_object:
-            col.prop(brush, "sculpt_stroke_method", text="")
-        else:
-            col.prop(brush, "stroke_method", text="")
-
-        if brush.use_anchor:
-            col.separator()
-            col.prop(brush, "use_edge_to_edge", "Edge To Edge")
-
-        if brush.use_airbrush:
-            col.separator()
-            col.prop(brush, "rate", text="Rate", slider=True)
-
-        if brush.use_space:
-            col.separator()
-            row = col.row(align=True)
-            row.active = brush.use_space
-            row.prop(brush, "spacing", text="Spacing")
-            row.prop(brush, "use_pressure_spacing", toggle=True, text="")
-
-        if context.sculpt_object:
-            if brush.sculpt_capabilities.has_jitter:
-                col.separator()
-
-                row = col.row(align=True)
-                if brush.use_relative_jitter:
-                    row.prop(brush, "use_relative_jitter", text="", icon='LOCKED')
-                    row.prop(brush, "jitter", slider=True)
-                else:
-                    row.prop(brush, "use_relative_jitter", text="", icon='UNLOCKED')
-                    row.prop(brush, "jitter_absolute")
-                row.prop(brush, "use_pressure_jitter", toggle=True, text="")
-            if brush.sculpt_capabilities.has_smooth_stroke:
-                col = layout.column()
-                col.separator()
-
-                col.prop(brush, "use_smooth_stroke")
-
-                sub = col.column()
-                sub.active = brush.use_smooth_stroke
-                sub.prop(brush, "smooth_stroke_radius", text="Radius", slider=True)
-                sub.prop(brush, "smooth_stroke_factor", text="Factor", slider=True)
-        else:
-            col.separator()
-
-            row = col.row(align=True)
-            if brush.use_relative_jitter:
-                row.prop(brush, "use_relative_jitter", text="", icon='LOCKED')
-                row.prop(brush, "jitter", slider=True)
-            else:
-                row.prop(brush, "use_relative_jitter", text="", icon='UNLOCKED')
-                row.prop(brush, "jitter_absolute")
-            row.prop(brush, "use_pressure_jitter", toggle=True, text="")
-
-            col = layout.column()
-            col.separator()
-
-            col.prop(brush, "use_smooth_stroke")
-
-            sub = col.column()
-            sub.active = brush.use_smooth_stroke
-            sub.prop(brush, "smooth_stroke_radius", text="Radius", slider=True)
-            sub.prop(brush, "smooth_stroke_factor", text="Factor", slider=True)
-
-class VIEW3D_PT_tools_brush_curve(Panel, View3DPaintPanel):
-    bl_label = "Curve"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    @classmethod
-    def poll(cls, context):
-        settings = cls.paint_settings(context)
-        return (settings and settings.brush and settings.brush.curve)
-
-    def draw(self, context):
-        layout = self.layout
-
-        settings = self.paint_settings(context)
-
-        brush = settings.brush
-
-        layout.template_curve_mapping(brush, "curve", brush=True)
-
-        row = layout.row(align=True)
-        row.operator("brush.curve_preset", icon='SMOOTHCURVE', text="").shape = 'SMOOTH'
-        row.operator("brush.curve_preset", icon='SPHERECURVE', text="").shape = 'ROUND'
-        row.operator("brush.curve_preset", icon='ROOTCURVE', text="").shape = 'ROOT'
-        row.operator("brush.curve_preset", icon='SHARPCURVE', text="").shape = 'SHARP'
-        row.operator("brush.curve_preset", icon='LINCURVE', text="").shape = 'LINE'
-        row.operator("brush.curve_preset", icon='NOCURVE', text="").shape = 'MAX'
 
 class VIEW3D_PT_sculpt_topology(Panel, View3DPaintPanel):
     bl_label = "Topology"
@@ -1147,7 +1139,7 @@ class VIEW3D_PT_tools_weightpaint(View3DPanel, Panel):
 
         ob = context.active_object
 
-        col = layout.column()
+        col = layout.column(align=True)
         col.active = ob.vertex_groups.active is not None
         col.operator("object.vertex_group_normalize_all", text="Normalize All")
         col.operator("object.vertex_group_normalize", text="Normalize")
@@ -1164,6 +1156,7 @@ class VIEW3D_PT_tools_weightpaint(View3DPanel, Panel):
 class VIEW3D_PT_tools_weightpaint_options(Panel, View3DPaintPanel):
     bl_context = "weightpaint"
     bl_label = "Options"
+    bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
         layout = self.layout
@@ -1197,9 +1190,10 @@ class VIEW3D_PT_tools_weightpaint_options(Panel, View3DPaintPanel):
 
 # ********** default tools for vertex-paint ****************
 
-class VIEW3D_PT_tools_vertexpaint(Panel, View3DPaintPanel):
+class VIEW3D_PT_tools_vertexpaint_options(Panel, View3DPaintPanel):
     bl_context = "vertexpaint"
     bl_label = "Options"
+    bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
         layout = self.layout

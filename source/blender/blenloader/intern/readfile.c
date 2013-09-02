@@ -9559,16 +9559,16 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			for (sa = sc->areabase.first; sa; sa = sa->next) {
 				SpaceLink *sl;
 				ARegion *ar;
-				ARegion *after = BKE_area_find_region_type(sa, RGN_TYPE_TOOLS);
+				ARegion *before = BKE_area_find_region_type(sa, RGN_TYPE_TOOLS);
 				
-				if (after && sa->spacetype == SPACE_VIEW3D) {
+				if (before && sa->spacetype == SPACE_VIEW3D) {
 					
 					/* add operators menubar  */
 					ar = BKE_area_find_region_type(sa, RGN_TYPE_MENU_BAR);
 					if (ar == NULL) {
 						ar = MEM_callocN(sizeof(ARegion), "tool operators menu bar for view3d");
 						
-						BLI_insertlinkafter(&sa->regionbase, after, ar);
+						BLI_insertlinkbefore(&sa->regionbase, before, ar);
 						ar->regiontype = RGN_TYPE_MENU_BAR;
 						ar->alignment = RGN_ALIGN_TOP;
 					}
@@ -9576,16 +9576,16 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				
 				for (sl = sa->spacedata.first; sl; sl = sl->next) {
 					
-					ARegion *after = BKE_spacelink_find_region_type(sl, RGN_TYPE_TOOLS);
+					ARegion *before = BKE_spacelink_find_region_type(sl, RGN_TYPE_TOOLS);
 					
-					if (after && sl->spacetype == SPACE_VIEW3D) {
+					if (before && sl->spacetype == SPACE_VIEW3D) {
 						
 						/* add operators menubar  */
 						ar = BKE_spacelink_find_region_type(sl, RGN_TYPE_MENU_BAR);
 						if (ar == NULL) {
 							ar = MEM_callocN(sizeof(ARegion), "tool operators menu bar for view3d");
 							
-							BLI_insertlinkafter(&sl->regionbase, after, ar);
+							BLI_insertlinkbefore(&sl->regionbase, before, ar);
 							ar->regiontype = RGN_TYPE_MENU_BAR;
 							ar->alignment = RGN_ALIGN_TOP;
 						}
