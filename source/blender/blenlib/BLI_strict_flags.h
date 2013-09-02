@@ -15,27 +15,29 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __BLI_LASSO_H__
-#define __BLI_LASSO_H__
+#ifndef __BLI_STRICT_FLAGS_H__
+#define __BLI_STRICT_FLAGS_H__
 
-/** \file BLI_lasso.h
- *  \ingroup bli
+/** \file BLI_strict_flags.h
+ * \ingroup bli
+ * \brief Strict compiler flags for areas of code we want
+ * to ensure don't do conversions without us knowing about it.
  */
 
-struct rcti;
-
-void BLI_lasso_boundbox(struct rcti *rect, const int mcords[][2], const unsigned int moves);
-bool BLI_lasso_is_point_inside(const int mcords[][2], const unsigned int moves, const int sx, const int sy, const int error_value);
-bool BLI_lasso_is_edge_inside(const int mcords[][2], const unsigned int moves, int x0, int y0, int x1, int y1, const int error_value);
-
+#ifdef __GNUC__
+#  pragma GCC diagnostic error "-Wsign-conversion"
+#  if (__GNUC__ * 100 + __GNUC_MINOR__) >= 406  /* gcc4.6+ only */
+#    pragma GCC diagnostic error "-Wsign-compare"
+#      ifndef __APPLE__ /* gcc4.6+ on Apple would fail in stdio.h */
+#        pragma GCC diagnostic error "-Wconversion"
+#      endif
+#  endif
+#  if (__GNUC__ * 100 + __GNUC_MINOR__) >= 408  /* gcc4.8+ only (behavior changed to ignore globals)*/
+#    pragma GCC diagnostic error "-Wshadow"
+#  endif
 #endif
+
+#endif  /* __BLI_STRICT_FLAGS_H__ */

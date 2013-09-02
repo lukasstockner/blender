@@ -62,6 +62,9 @@ void IMB_colormanagement_check_is_data(struct ImBuf *ibuf, const char *name);
 void IMB_colormanagement_assign_float_colorspace(struct ImBuf *ibuf, const char *name);
 void IMB_colormanagement_assign_rect_colorspace(struct ImBuf *ibuf, const char *name);
 
+const char *IMB_colormanagement_get_float_colorspace(struct ImBuf *ibuf);
+const char *IMB_colormanagement_get_rect_colorspace(struct ImBuf *ibuf);
+
 /* ** Color space transformation functions ** */
 void IMB_colormanagement_transform(float *buffer, int width, int height, int channels,
                                    const char *from_colorspace, const char *to_colorspace, int predivide);
@@ -159,15 +162,20 @@ void IMB_colormanagement_processor_free(struct ColormanageProcessor *cm_processo
 
 /* ** OpenGL drawing routines using GLSL for color space transform ** */
 
+/* Test if GLSL drawing is supported for combination of graphics card and this configuration */
+int IMB_colormanagement_support_glsl_draw(const struct ColorManagedViewSettings *view_settings,
+                                          int skip_curves);
 /* Configures GLSL shader for conversion from scene linear to display space */
 int IMB_colormanagement_setup_glsl_draw(const struct ColorManagedViewSettings *view_settings,
                                         const struct ColorManagedDisplaySettings *display_settings,
-                                        int predivide);
+                                        int predivide,
+                                        int skip_curves);
 /* Same as above, but display space conversion happens from a specified space */
 int IMB_colormanagement_setup_glsl_draw_from_space(const struct ColorManagedViewSettings *view_settings,
                                                    const struct ColorManagedDisplaySettings *display_settings,
                                                    struct ColorSpace *colorspace,
-                                                   int predivide);
+                                                   int predivide,
+                                                   int skip_curves);
 /* Same as setup_glsl_draw, but color management settings are guessing from a given context */
 int IMB_colormanagement_setup_glsl_draw_ctx(const struct bContext *C, int predivide);
 /* Same as setup_glsl_draw_from_space, but color management settings are guessing from a given context */

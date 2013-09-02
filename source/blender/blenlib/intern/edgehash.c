@@ -38,14 +38,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_edgehash.h"
 #include "BLI_mempool.h"
-
-#ifdef __GNUC__
-#  pragma GCC diagnostic error "-Wsign-conversion"
-#  if (__GNUC__ * 100 + __GNUC_MINOR__) >= 406  /* gcc4.6+ only */
-#    pragma GCC diagnostic error "-Wsign-compare"
-#    pragma GCC diagnostic error "-Wconversion"
-#  endif
-#endif
+#include "BLI_strict_flags.h"
 
 /**************inlined code************/
 static const unsigned int _ehash_hashsizes[] = {
@@ -184,7 +177,7 @@ BLI_INLINE EdgeEntry *edgehash_lookup_entry(EdgeHash *eh, unsigned int v0, unsig
 
 static EdgeHash *edgehash_new(const char *info,
                               const unsigned int nentries_reserve,
-                              const size_t entry_size)
+                              const unsigned int entry_size)
 {
 	EdgeHash *eh = MEM_mallocN(sizeof(*eh), info);
 
@@ -199,7 +192,7 @@ static EdgeHash *edgehash_new(const char *info,
 	}
 
 	eh->buckets = MEM_callocN(eh->nbuckets * sizeof(*eh->buckets), "eh buckets");
-	eh->epool = BLI_mempool_create((int)entry_size, 512, 512, BLI_MEMPOOL_SYSMALLOC);
+	eh->epool = BLI_mempool_create(entry_size, 512, 512, BLI_MEMPOOL_SYSMALLOC);
 
 	return eh;
 }
@@ -488,6 +481,14 @@ void BLI_edgehashIterator_getKey(EdgeHashIterator *ehi, unsigned int *v0_r, unsi
 void *BLI_edgehashIterator_getValue(EdgeHashIterator *ehi)
 {
 	return ehi->curEntry ? ehi->curEntry->val : NULL;
+}
+
+/**
+ * Retrieve the pointer to the value from an iterator.
+ */
+void **BLI_edgehashIterator_getValue_p(EdgeHashIterator *ehi)
+{
+	return ehi->curEntry ? &ehi->curEntry->val : NULL;
 }
 
 /**
