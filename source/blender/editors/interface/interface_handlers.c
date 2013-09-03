@@ -2526,6 +2526,7 @@ static int ui_do_but_BUT(bContext *C, uiBut *but, uiHandleButtonData *data, cons
 		
 		/* this function also ends state */
 		if (ui_but_start_drag(C, but, data, event)) {
+			data->escapecancel = TRUE;
 			return WM_UI_HANDLER_BREAK;
 		}
 		
