@@ -89,7 +89,7 @@ static void wm_notifier_clear(wmNotifier *note);
 static void update_tablet_data(wmWindow *win, wmEvent *event);
 
 static int wm_operator_call_internal(bContext *C, wmOperatorType *ot, PointerRNA *properties, ReportList *reports,
-                                     short context, short poll_only);
+                                     const short context, const bool poll_only);
 
 /* ************ event management ************** */
 
@@ -965,9 +965,8 @@ int WM_operator_last_properties_store(wmOperator *UNUSED(op))
 #endif
 
 static int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event,
-                              PointerRNA *properties, ReportList *reports, short poll_only)
+                              PointerRNA *properties, ReportList *reports, const bool poll_only)
 {
-	wmWindowManager *wm = CTX_wm_manager(C);
 	int retval = OPERATOR_PASS_THROUGH;
 
 	/* this is done because complicated setup is done to call this function that is better not duplicated */
@@ -975,6 +974,7 @@ static int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event,
 		return WM_operator_poll(C, ot);
 
 	if (WM_operator_poll(C, ot)) {
+		wmWindowManager *wm = CTX_wm_manager(C);
 		wmOperator *op = wm_operator_create(wm, ot, properties, reports); /* if reports == NULL, they'll be initialized */
 		const short is_nested_call = (wm->op_undo_depth != 0);
 		
@@ -1103,9 +1103,8 @@ static int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event,
  * 
  * invokes operator in context */
 static int wm_operator_call_internal(bContext *C, wmOperatorType *ot, PointerRNA *properties, ReportList *reports,
-                                     short context, short poll_only)
+                                     const short context, const bool poll_only)
 {
-	wmWindow *window = CTX_wm_window(C);
 	wmEvent *event;
 	
 	int retval;
@@ -1114,16 +1113,23 @@ static int wm_operator_call_internal(bContext *C, wmOperatorType *ot, PointerRNA
 
 	/* dummie test */
 	if (ot && C) {
+		wmWindow *window = CTX_wm_window(C);
+
 		switch (context) {
 			case WM_OP_INVOKE_DEFAULT:
 			case WM_OP_INVOKE_REGION_WIN:
 			case WM_OP_INVOKE_AREA:
 			case WM_OP_INVOKE_SCREEN:
 				/* window is needed for invoke, cancel operator */
-				if (window == NULL)
+				if (window == NULL) {
+					if (poll_only) {
+						CTX_wm_operator_poll_msg_set(C, "missing 'window' in context");
+					}
 					return 0;
-				else
+				}
+				else {
 					event = window->eventstate;
+				}
 				break;
 			default:
 				event = NULL;
