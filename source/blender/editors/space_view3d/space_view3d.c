@@ -1481,7 +1481,7 @@ void ED_spacetype_view3d(void)
 	/* regions: operators menu bar */
 	art = MEM_callocN(sizeof(ARegionType), "spacetype view3d operators menu bar region");
 	art->regionid = RGN_TYPE_MENU_BAR;
-	art->prefsizey = ED_area_headersize() * 2;
+	art->prefsizey = ED_area_headersize();
 	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D;
 	art->listener = view3d_menubar_area_listener;
 	art->init = view3d_menubar_area_init;

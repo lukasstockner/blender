@@ -956,17 +956,17 @@ static void region_rect_recursive(wmWindow *win, ScrArea *sa, ARegion *ar, rcti 
 	/* prefsize, for header we stick to exception (prevent dpi rounding error) */
 	prefsizex = UI_DPI_FAC * (ar->sizex > 1 ? ar->sizex + 0.5f : ar->type->prefsizex);
 	
-	if (ar->regiontype == RGN_TYPE_HEADER) {
+	if (ar->regiontype == RGN_TYPE_HEADER || ar->regiontype == RGN_TYPE_MENU_BAR) {
 		prefsizey = ED_area_headersize();
 	}
-	else if (ar->regiontype == RGN_TYPE_MENU_BAR) {
-		/* quantize sizey to once or twice the headysize */
-		int headersize = ED_area_headersize();
-		if (ar->sizey > 0 && ar->sizey <= headersize)
-			prefsizey = headersize;
-		else if (ar->sizey > headersize)
-			prefsizey = 2 * headersize;
-	}
+//	else if (ar->regiontype == RGN_TYPE_MENU_BAR) {
+//		/* quantize sizey to once or twice the headysize */
+//		int headersize = ED_area_headersize();
+//		if (ar->sizey > 0 && ar->sizey <= headersize)
+//			prefsizey = headersize;
+//		else if (ar->sizey > headersize)
+//			prefsizey = 2 * headersize;
+//	}
 	else if (ar->regiontype == RGN_TYPE_UI && sa->spacetype == SPACE_FILE) {
 		prefsizey = UI_UNIT_Y * 2 + (UI_UNIT_Y / 2);
 	}
@@ -1867,11 +1867,11 @@ void ED_region_menubar(const bContext *C, ARegion *ar)
 	uiStyle *style = UI_GetStyleDraw();
 	uiBlock *block;
 	uiLayout *layout, *row;
-	MenuBarType *mbt;
-	MenuBar mb = {NULL};
+//	MenuBarType *mbt;
+//	MenuBar mb = {NULL};
 	int maxco, xco, yco;
-	int headery = ED_area_headersize() * 2;
-	const char *context = CTX_data_mode_string(C);
+	int headery = ED_area_headersize();
+//	const char *context = CTX_data_mode_string(C);
 	OperatorListItem *oli;
 	
 	/* clear */
@@ -1881,37 +1881,37 @@ void ED_region_menubar(const bContext *C, ARegion *ar)
 	/* set view2d view matrix for scrolling (without scrollers) */
 	UI_view2d_view_ortho(&ar->v2d);
 	
-	xco = maxco = 0.4f * UI_UNIT_X;
-	yco = headery - floor(0.2f * UI_UNIT_Y);
-
-	block = uiBeginBlock(C, ar, "menubar menus", UI_EMBOSS);
-	layout = uiBlockLayout(block, UI_LAYOUT_HORIZONTAL, UI_LAYOUT_HEADER, xco, yco, UI_UNIT_Y, 1, style);
-	
-	/* add all menubar types to the top bar */
-	for (mbt = ar->type->menubartypes.first; mbt; mbt = mbt->next) {
-		
-		/* verify context */
-		if (context)
-			if (mbt->context[0] && strcmp(context, mbt->context) != 0)
-				continue;
-
-		if (mbt->draw) {
-			mb.type = mbt;
-			mb.layout = layout;
-			mbt->draw(C, &mb);
-		}
-	}
-	
-	/* draw top bar */
-	xco = uiLayoutGetWidth(layout);
-	if (xco > maxco) maxco = xco;
-	uiBlockLayoutResolve(block, &xco, &yco);
-	uiEndBlock(C, block);
-	uiDrawBlock(C, block);
+//	xco = maxco = 0.4f * UI_UNIT_X;
+//	yco = headery - floor(0.2f * UI_UNIT_Y);
+//
+//	block = uiBeginBlock(C, ar, "menubar menus", UI_EMBOSS);
+//	layout = uiBlockLayout(block, UI_LAYOUT_HORIZONTAL, UI_LAYOUT_HEADER, xco, yco, UI_UNIT_Y, 1, style);
+//	
+//	/* add all menubar types to the top bar */
+//	for (mbt = ar->type->menubartypes.first; mbt; mbt = mbt->next) {
+//		
+//		/* verify context */
+//		if (context)
+//			if (mbt->context[0] && strcmp(context, mbt->context) != 0)
+//				continue;
+//
+//		if (mbt->draw) {
+//			mb.type = mbt;
+//			mb.layout = layout;
+//			mbt->draw(C, &mb);
+//		}
+//	}
+//	
+//	/* draw top bar */
+//	xco = uiLayoutGetWidth(layout);
+//	if (xco > maxco) maxco = xco;
+//	uiBlockLayoutResolve(block, &xco, &yco);
+//	uiEndBlock(C, block);
+//	uiDrawBlock(C, block);
 	
 	/* add all custom buttons to lower bar */
 	xco = maxco = 0.4f * UI_UNIT_X;
-	yco = headery/2 - floor(0.2f * UI_UNIT_Y);
+	yco = headery - floor(0.2f * UI_UNIT_Y);
 	
 	block = uiBeginBlock(C, ar, "menubar icons", UI_EMBOSS);
 	layout = uiBlockLayout(block, UI_LAYOUT_HORIZONTAL, UI_LAYOUT_HEADER, xco, yco, UI_UNIT_Y, 1, style);
