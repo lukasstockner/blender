@@ -959,50 +959,14 @@ static void region_rect_recursive(wmWindow *win, ScrArea *sa, ARegion *ar, rcti 
 	if (ar->regiontype == RGN_TYPE_HEADER || ar->regiontype == RGN_TYPE_MENU_BAR) {
 		prefsizey = ED_area_headersize();
 	}
-//	else if (ar->regiontype == RGN_TYPE_MENU_BAR) {
-//		/* quantize sizey to once or twice the headysize */
-//		int headersize = ED_area_headersize();
-//		if (ar->sizey > 0 && ar->sizey <= headersize)
-//			prefsizey = headersize;
-//		else if (ar->sizey > headersize)
-//			prefsizey = 2 * headersize;
-//	}
 	else if (ar->regiontype == RGN_TYPE_UI && sa->spacetype == SPACE_FILE) {
 		prefsizey = UI_UNIT_Y * 2 + (UI_UNIT_Y / 2);
 	}
 	else {
 		prefsizey = UI_DPI_FAC * (ar->sizey > 1 ? ar->sizey + 0.5f : ar->type->prefsizey);
 	}
-
-
-	if (alignment == RGN_ALIGN_FLOAT && ar->regiontype == RGN_TYPE_TOOL_PROPS) {
-		/* special case for floating tool properties regions */
-		Panel *pa = NULL;
-		ARegion *mw = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
-		
-		for (pa = ar->panels.first; pa; pa = pa->next) {
-			// TODO: is there a better way to test for the identity of a panel type?
-			if (pa->type && strcmp(pa->type->idname, "VIEW3D_PT_last_operator") == 0) {
-				break;
-			}
-		}
-
-		ar->winrct.xmax = mw->winrct.xmax;
-		ar->winrct.xmin = mw->winrct.xmax - (ar->type ? ar->type->prefsizex : 160);
-		ar->winrct.ymin = mw->winrct.ymin;
-		
-		if (pa && !uiPanelClosed(pa)) {
-			// TODO: This is the previous panel size...
-			ar->winrct.ymax = ar->winrct.ymin + pa->sizey + 26;
-		}
-		else {
-			ar->winrct.ymax = ar->winrct.ymin + 26;
-		}
-		
-		if (!BLI_rcti_inside_rcti(&mw->winrct, &ar->winrct))
-			ar->flag |= RGN_FLAG_TOO_SMALL;
-	}
-	else if (ar->flag & RGN_FLAG_HIDDEN) {
+	
+	if (ar->flag & RGN_FLAG_HIDDEN) {
 		/* hidden is user flag */
 	}
 	else if (rct_fits(remainder, 'v', 1) < 0 || rct_fits(remainder, 'h', 1) < 0) {
@@ -1015,6 +979,19 @@ static void region_rect_recursive(wmWindow *win, ScrArea *sa, ARegion *ar, rcti 
 		BLI_rcti_init(remainder, 0, 0, 0, 0);
 	}
 	else if (alignment == RGN_ALIGN_TOP || alignment == RGN_ALIGN_BOTTOM) {
+		
+		if (ar->regiontype == RGN_TYPE_TOOL_PROPS) {
+			
+			Panel *pa = NULL;
+			for (pa = ar->panels.first; pa; pa = pa->next) {
+				// TODO: is there a better way to test for the identity of a panel type?
+				if (pa->type && strcmp(pa->type->idname, "VIEW3D_PT_last_operator") == 0) {
+					break;
+				}
+			}
+			
+			prefsizey = ((pa && !uiPanelClosed(pa)) ? pa->sizey : 0) + 26;
+		}
 		
 		if (rct_fits(remainder, 'v', prefsizey) < 0) {
 			ar->flag |= RGN_FLAG_TOO_SMALL;

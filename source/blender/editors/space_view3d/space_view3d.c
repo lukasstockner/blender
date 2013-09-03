@@ -58,6 +58,7 @@
 #include "GPU_material.h"
 
 #include "BIF_gl.h"
+#include "BIF_glutil.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -310,6 +311,13 @@ static SpaceLink *view3d_new(const bContext *C)
 	ar->regiontype = RGN_TYPE_TOOLS;
 	ar->alignment = RGN_ALIGN_LEFT;
 	
+	/* tool props, floating and therefore last! */
+	ar = MEM_callocN(sizeof(ARegion), "tool properties for view3d");
+	
+	BLI_addtail(&v3d->regionbase, ar);
+	ar->regiontype = RGN_TYPE_TOOL_PROPS;
+	ar->alignment = RGN_SPLIT_PREV | RGN_ALIGN_BOTTOM;
+	
 	/* object properties sidebar right */
 	ar = MEM_callocN(sizeof(ARegion), "buttons for view3d");
 	
@@ -331,13 +339,6 @@ static SpaceLink *view3d_new(const bContext *C)
 	rv3d->view = RV3D_VIEW_PERSPORTHO;
 	rv3d->dist = 10.0;
 	
-	/* tool props, floating and therefore last! */
-	ar = MEM_callocN(sizeof(ARegion), "tool properties for view3d");
-	
-	BLI_addtail(&v3d->regionbase, ar);
-	ar->regiontype = RGN_TYPE_TOOL_PROPS;
-	ar->alignment = RGN_ALIGN_FLOAT;
-
 	return (SpaceLink *)v3d;
 }
 
@@ -1182,7 +1183,6 @@ static int view3d_props_sum_panel_heights(ARegion *ar)
 	return sum;
 }
 
-
 static void view3d_props_area_draw(const bContext *C, ARegion *ar)
 {
 	/* If in laying out and redrawing the panels this area contains we find that the
@@ -1190,7 +1190,15 @@ static void view3d_props_area_draw(const bContext *C, ARegion *ar)
 	 * is automatically adapted. If  */
 	int total_panel_height = view3d_props_sum_panel_heights(ar);
 	
+	/* firstly, draw a clear divider */
 	ED_region_panels(C, ar, 1, CTX_data_mode_string(C), -1);
+	
+	glEnable(GL_BLEND);
+	
+	glColor4ub(0, 0, 0, 200);
+	fdrawline(0, BLI_rcti_size_y(&ar->winrct)+1, BLI_rcti_size_x(&ar->winrct), BLI_rcti_size_y(&ar->winrct)+1);
+	glColor4ub(255, 255, 255, 30);
+	fdrawline(0, BLI_rcti_size_y(&ar->winrct), BLI_rcti_size_x(&ar->winrct), BLI_rcti_size_y(&ar->winrct));
 	
 	if (total_panel_height != view3d_props_sum_panel_heights(ar)) {
 		ED_area_tag_redraw(CTX_wm_area(C));
