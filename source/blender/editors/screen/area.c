@@ -969,10 +969,6 @@ static void region_rect_recursive(wmWindow *win, ScrArea *sa, ARegion *ar, rcti 
 	if (ar->flag & RGN_FLAG_HIDDEN) {
 		/* hidden is user flag */
 	}
-	else if (rct_fits(remainder, 'v', 1) < 0 || rct_fits(remainder, 'h', 1) < 0) {
-		/* remainder is too small for any usage */
-		ar->flag |= RGN_FLAG_TOO_SMALL;
-	}
 	else if (alignment == RGN_ALIGN_NONE) {
 		/* typically last region */
 		ar->winrct = *remainder;
@@ -985,9 +981,8 @@ static void region_rect_recursive(wmWindow *win, ScrArea *sa, ARegion *ar, rcti 
 			Panel *pa = NULL;
 			for (pa = ar->panels.first; pa; pa = pa->next) {
 				// TODO: is there a better way to test for the identity of a panel type?
-				if (pa->type && strcmp(pa->type->idname, "VIEW3D_PT_last_operator") == 0) {
+				if (pa->type && strcmp(pa->type->idname, "VIEW3D_PT_last_operator") == 0)
 					break;
-				}
 			}
 			
 			prefsizey = ((pa && !uiPanelClosed(pa)) ? pa->sizey : 0) + 26;
@@ -1011,6 +1006,12 @@ static void region_rect_recursive(wmWindow *win, ScrArea *sa, ARegion *ar, rcti 
 			else {
 				ar->winrct.ymax = ar->winrct.ymin + prefsizey - 1;
 				remainder->ymin = ar->winrct.ymax + 1;
+			}
+			
+			/* Make sure we don't hide the tool props region when the toolbar is hidden.
+			 * This only works nicely with overlapping regions. */
+			if (ar->overlap && ar->regiontype == RGN_TYPE_TOOL_PROPS && ar->prev && (ar->prev->flag & RGN_FLAG_HIDDEN || ar->prev->flag & RGN_FLAG_TOO_SMALL)) {
+					ar->winrct.xmax = prefsizex - 1;
 			}
 		}
 	}

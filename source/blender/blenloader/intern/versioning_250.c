@@ -237,6 +237,13 @@ static void area_add_window_regions(ScrArea *sa, SpaceLink *sl, ListBase *lb)
 				ar->regiontype = RGN_TYPE_TOOLS;
 				ar->alignment = RGN_ALIGN_LEFT;
 				//ar->flag = RGN_FLAG_HIDDEN;
+				
+				/* tool props */
+				ar = MEM_callocN(sizeof(ARegion), "tool properties for view3d");
+				
+				BLI_addtail(lb, ar);
+				ar->regiontype = RGN_TYPE_TOOL_PROPS;
+				ar->alignment = RGN_SPLIT_PREV | RGN_ALIGN_BOTTOM;
 
 				/* buttons/list view */
 				ar = MEM_callocN(sizeof(ARegion), "buttons for view3d");

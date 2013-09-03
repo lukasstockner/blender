@@ -1370,8 +1370,11 @@ static void ui_handle_panel_header(bContext *C, uiBlock *block, int mx, int my, 
 			ED_region_tag_redraw(ar);
 			if (align)
 				panel_activate_state(C, block->panel, PANEL_STATE_ANIMATION);
-			if (ar->regiontype == RGN_TYPE_TOOL_PROPS)
+			if (ar->regiontype == RGN_TYPE_TOOL_PROPS) {
 				WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+				/* The size of the redo panel region needs to be calculated again */
+				CTX_wm_screen(C)->do_refresh = TRUE;
+			}
 			break;
 		case 3:
 			uiPupBlock(C, panel_popup_create_block, block->panel);

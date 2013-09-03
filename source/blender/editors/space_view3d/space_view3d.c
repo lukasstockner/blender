@@ -98,37 +98,37 @@ ARegion *view3d_has_buttons_region(ScrArea *sa)
 	return arnew;
 }
 
-ARegion *view3d_has_tools_region(ScrArea *sa)
-{
-	ARegion *ar, *artool = NULL, *arhead;
-	
-	for (ar = sa->regionbase.first; ar; ar = ar->next) {
-		if (ar->regiontype == RGN_TYPE_TOOLS)
-			artool = ar;
-	}
-	
-	/* tool region hide/unhide also hides props */
-	if (artool) return artool;
-	
-	if (artool == NULL) {
-		/* add subdiv level; after header */
-		for (arhead = sa->regionbase.first; arhead; arhead = arhead->next)
-			if (arhead->regiontype == RGN_TYPE_HEADER)
-				break;
-		
-		/* is error! */
-		if (arhead == NULL) return NULL;
-		
-		artool = MEM_callocN(sizeof(ARegion), "tools for view3d");
-		
-		BLI_insertlinkafter(&sa->regionbase, arhead, artool);
-		artool->regiontype = RGN_TYPE_TOOLS;
-		artool->alignment = RGN_ALIGN_LEFT;
-		artool->flag = RGN_FLAG_HIDDEN;
-	}
-	
-	return artool;
-}
+//ARegion *view3d_has_tools_region(ScrArea *sa)
+//{
+//	ARegion *ar, *artool = NULL, *arhead;
+//	
+//	for (ar = sa->regionbase.first; ar; ar = ar->next) {
+//		if (ar->regiontype == RGN_TYPE_TOOLS)
+//			artool = ar;
+//	}
+//	
+//	/* tool region hide/unhide also hides props */
+//	if (artool) return artool;
+//	
+//	if (artool == NULL) {
+//		/* add subdiv level; after header */
+//		for (arhead = sa->regionbase.first; arhead; arhead = arhead->next)
+//			if (arhead->regiontype == RGN_TYPE_HEADER)
+//				break;
+//		
+//		/* is error! */
+//		if (arhead == NULL) return NULL;
+//		
+//		artool = MEM_callocN(sizeof(ARegion), "tools for view3d");
+//		
+//		BLI_insertlinkafter(&sa->regionbase, arhead, artool);
+//		artool->regiontype = RGN_TYPE_TOOLS;
+//		artool->alignment = RGN_ALIGN_LEFT;
+//		artool->flag = RGN_FLAG_HIDDEN;
+//	}
+//	
+//	return artool;
+//}
 
 /* ****************************************************** */
 
@@ -785,7 +785,7 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 {
 	Scene *scene = sc->scene;
 	View3D *v3d = sa->spacedata.first;
-	
+
 	/* context changes */
 	switch (wmn->category) {
 		case NC_ANIMATION:
@@ -936,7 +936,6 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 					rv3d->rflag |= RV3D_GPULIGHT_UPDATE;
 				}
 				ED_region_tag_redraw(ar);
-				sc->do_refresh = TRUE;
 			}
 			break;
 		case NC_ID:
