@@ -122,14 +122,10 @@ static void view3d_panel_operator_redo(const bContext *C, Panel *pa)
 	CTX_wm_region_set((bContext *)C, ar);
 }
 
-static void active_panel_menu_popup_cb(bContext *C, void *arg, int event)
+static void active_panel_menu_popup_cb(bContext *UNUSED(C), void *arg_ar, int UNUSED(event))
 {
-	printf("button callback\n");
-}
-
-static void active_panel_menu_popup_button_cb(bContext *C, void *arg1, void *arg2)
-{
-		printf("popup callback\n");
+	ARegion *ar = (ARegion *)arg_ar;
+	ED_region_tag_redraw(ar);
 }
 
 static int sort_panels_by_sortorder(void *o1, void *o2)
@@ -155,7 +151,7 @@ static uiBlock *active_panel_menu_popup_create_block(bContext *C, ARegion *cur_a
 	block = uiBeginBlock(C, cur_ar, __func__, UI_EMBOSS);
 	uiBlockClearFlag(block, UI_BLOCK_LOOP);
 	uiBlockSetFlag(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_MOVEMOUSE_QUIT);
-	uiBlockSetHandleFunc(block, active_panel_menu_popup_cb, NULL);
+	uiBlockSetHandleFunc(block, active_panel_menu_popup_cb, ar);
 	
 	layout = uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, style->panelspace, 0, width - 2 * style->panelspace, height, style);
 	col = uiLayoutColumn(layout, TRUE);
@@ -173,7 +169,6 @@ static uiBlock *active_panel_menu_popup_create_block(bContext *C, ARegion *cur_a
 		
 		uiLayoutRow(col, TRUE);
 		but = uiDefButBitI(block, OPTIONN, 1, 0, pa->drawname, 0, 0, width, UI_UNIT_Y, (int*)&pa->hidden, 0, 0, 0, 0, "Check to hide panel");
-		uiButSetFunc(but, active_panel_menu_popup_button_cb, pa, NULL);
 	}
 	CTX_wm_region_set(C, cur_ar);
 	
