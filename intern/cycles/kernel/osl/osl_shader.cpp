@@ -239,6 +239,7 @@ static void flatten_surface_closure_tree(ShaderData *sd, int path_flag,
 						sc.type = bssrdf->sc.type;
 						sc.N = bssrdf->sc.N;
 						sc.data1 = bssrdf->sc.data1;
+						sc.T.x = bssrdf->sc.T.x;
 						sc.prim = NULL;
 
 						/* disable in case of diffuse ancestor, can't see it well then and
@@ -387,6 +388,8 @@ static void flatten_volume_closure_tree(ShaderData *sd,
 
 					sc.sample_weight = sample_weight;
 					sc.type = CLOSURE_VOLUME_ID;
+					sc.data0 = 0.0f;
+					sc.data1 = 0.0f;
 					sc.prim = NULL;
 
 					/* add */

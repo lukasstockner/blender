@@ -452,6 +452,13 @@ static void sky_texture_precompute_old(SunSky *sunsky, float3 dir, float turbidi
 	sunsky->config_z[3] = (-0.0441f * T  - 1.6537f);
 	sunsky->config_z[4] = (-0.0109f * T  + 0.0529f);
 
+	/* unused for old sky model */
+	for(int i = 5; i < 9; i++) {
+		sunsky->config_x[i] = 0.0f;
+		sunsky->config_y[i] = 0.0f;
+		sunsky->config_z[i] = 0.0f;
+	}
+
 	sunsky->radiance_x /= sky_perez_function(sunsky->config_x, 0, theta);
 	sunsky->radiance_y /= sky_perez_function(sunsky->config_y, 0, theta);
 	sunsky->radiance_z /= sky_perez_function(sunsky->config_z, 0, theta);
@@ -558,6 +565,7 @@ void SkyTextureNode::compile(OSLCompiler& compiler)
 	tex_mapping.compile(compiler);
 
 	SunSky sunsky;
+
 	if(type_enum[type] == NODE_SKY_OLD)
 		sky_texture_precompute_old(&sunsky, sun_direction, turbidity);
 	else if(type_enum[type] == NODE_SKY_NEW)
@@ -1375,7 +1383,7 @@ BsdfNode::BsdfNode(bool scattering_)
 	}
 }
 
-void BsdfNode::compile(SVMCompiler& compiler, ShaderInput *param1, ShaderInput *param2, ShaderInput *param3)
+void BsdfNode::compile(SVMCompiler& compiler, ShaderInput *param1, ShaderInput *param2, ShaderInput *param3, ShaderInput *param4)
 {
 	ShaderInput *color_in = input("Color");
 	ShaderInput *normal_in = input("Normal");
@@ -1394,6 +1402,8 @@ void BsdfNode::compile(SVMCompiler& compiler, ShaderInput *param1, ShaderInput *
 		compiler.stack_assign(param2);
 	if(param3)
 		compiler.stack_assign(param3);
+	if(param4)
+		compiler.stack_assign(param4);
 
 	if(normal_in->link)
 		compiler.stack_assign(normal_in);
@@ -1410,12 +1420,14 @@ void BsdfNode::compile(SVMCompiler& compiler, ShaderInput *param1, ShaderInput *
 		__float_as_int((param2)? param2->value.x: 0.0f));
 
 	if(tangent_in) {
-		compiler.add_node(NODE_CLOSURE_BSDF, normal_in->stack_offset, tangent_in->stack_offset,
-			(param3)? param3->stack_offset: SVM_STACK_INVALID);
+		compiler.add_node(normal_in->stack_offset, tangent_in->stack_offset,
+			(param3)? param3->stack_offset: SVM_STACK_INVALID,
+			(param4)? param4->stack_offset: SVM_STACK_INVALID);
 	}
 	else {
-		compiler.add_node(NODE_CLOSURE_BSDF, normal_in->stack_offset, SVM_STACK_INVALID,
-			(param3)? param3->stack_offset: SVM_STACK_INVALID);
+		compiler.add_node(normal_in->stack_offset, SVM_STACK_INVALID,
+			(param3)? param3->stack_offset: SVM_STACK_INVALID,
+			(param4)? param4->stack_offset: SVM_STACK_INVALID);
 	}
 }
 
@@ -1707,12 +1719,13 @@ SubsurfaceScatteringNode::SubsurfaceScatteringNode()
 
 	add_input("Scale", SHADER_SOCKET_FLOAT, 0.01f);
 	add_input("Radius", SHADER_SOCKET_VECTOR, make_float3(0.1f, 0.1f, 0.1f));
+	add_input("Sharpness", SHADER_SOCKET_FLOAT, 0.0f);
 	add_input("Texture Blur", SHADER_SOCKET_FLOAT, 1.0f);
 }
 
 void SubsurfaceScatteringNode::compile(SVMCompiler& compiler)
 {
-	BsdfNode::compile(compiler, input("Scale"), input("Texture Blur"), input("Radius"));
+	BsdfNode::compile(compiler, input("Scale"), input("Texture Blur"), input("Radius"), input("Sharpness"));
 }
 
 void SubsurfaceScatteringNode::compile(OSLCompiler& compiler)
