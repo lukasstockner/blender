@@ -2600,7 +2600,6 @@ static int ui_do_but_HOTKEYEVT(bContext *C, uiBut *but, uiHandleButtonData *data
 				data->escapecancel = true;
 				button_activate_state(C, but, BUTTON_STATE_EXIT);
 			}
-			
 		}
 	}
 	

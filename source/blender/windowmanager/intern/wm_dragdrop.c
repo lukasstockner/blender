@@ -199,7 +199,9 @@ static const char *wm_dropbox_active(bContext *C, wmDrag *drag, wmEvent *event)
 	wmWindow *win = CTX_wm_window(C);
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
-	const char *name;
+	ARegion *ar_iter = NULL;
+	const char *name = NULL;
+	const char *name_overlap = NULL;
 	
 	name = dropbox_active(C, &win->handlers, drag, event);
 	if (name) return name;
@@ -208,7 +210,27 @@ static const char *wm_dropbox_active(bContext *C, wmDrag *drag, wmEvent *event)
 	if (name) return name;
 	
 	name = dropbox_active(C, &ar->handlers, drag, event);
-	if (name) return name;
+	
+	/* Make sure overlapping regions are preferred over non-overlapping ones */
+	if (!ar->overlap) {
+		for (ar_iter = sa->regionbase.first; ar_iter; ar_iter = ar_iter->next) {
+			if (ar_iter->overlap) {
+				/* only update name_overlap if none was found yet */
+				if (name_overlap == NULL) {
+					/* We've got to fake the region for a little bit */
+					CTX_wm_region_set(C, ar_iter);
+					name_overlap = dropbox_active(C, &ar_iter->handlers, drag, event);
+				}
+			}
+		}
+	}
+	/* make sure proper region is restored */
+	CTX_wm_region_set(C, ar);
+	
+	if (name_overlap)
+		return name_overlap;
+	if (name)
+		return name;
 
 	return NULL;
 }
