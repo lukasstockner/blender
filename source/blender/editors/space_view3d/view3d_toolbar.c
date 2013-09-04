@@ -132,6 +132,14 @@ static void active_panel_menu_popup_button_cb(bContext *C, void *arg1, void *arg
 		printf("popup callback\n");
 }
 
+static int sort_panels_by_sortorder(void *o1, void *o2)
+{
+	Panel *pa1 = (Panel*)o1;
+	Panel *pa2 = (Panel*)o2;
+	
+	return pa1->sortorder > pa2->sortorder;
+}
+
 static uiBlock *active_panel_menu_popup_create_block(bContext *C, ARegion *cur_ar, void *arg_ar)
 {
 	uiBlock *block;
@@ -153,6 +161,7 @@ static uiBlock *active_panel_menu_popup_create_block(bContext *C, ARegion *cur_a
 	col = uiLayoutColumn(layout, TRUE);
 	
 	CTX_wm_region_set(C, ar);
+	BLI_sortlist(&ar->panels, sort_panels_by_sortorder);
 	for (pa = ar->panels.first; pa; pa = pa->next) {
 		/* Create a button with a callback for each panel that belongs fits the mode */
 		if (!pa->type || pa->type->flag & PNL_NO_HEADER
