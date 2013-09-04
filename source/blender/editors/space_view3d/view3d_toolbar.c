@@ -122,6 +122,65 @@ static void view3d_panel_operator_redo(const bContext *C, Panel *pa)
 	CTX_wm_region_set((bContext *)C, ar);
 }
 
+static void active_panel_menu_popup_cb(bContext *C, void *arg, int event)
+{
+	printf("button callback\n");
+}
+
+static void active_panel_menu_popup_button_cb(bContext *C, void *arg1, void *arg2)
+{
+		printf("popup callback\n");
+}
+
+static uiBlock *active_panel_menu_popup_create_block(bContext *C, ARegion *cur_ar, void *arg_ar)
+{
+	uiBlock *block;
+	Panel *pa;
+	ARegion *ar = (ARegion*)arg_ar;
+	uiLayout *layout, *col;
+	uiStyle *style = UI_GetStyle();
+	uiBut *but;
+	const char *context = CTX_data_mode_string(C);
+	int width = 10 * UI_UNIT_X;
+	int height = 12 * UI_UNIT_Y;
+	
+	block = uiBeginBlock(C, cur_ar, __func__, UI_EMBOSS);
+	uiBlockClearFlag(block, UI_BLOCK_LOOP);
+	uiBlockSetFlag(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_MOVEMOUSE_QUIT);
+	uiBlockSetHandleFunc(block, active_panel_menu_popup_cb, NULL);
+	
+	layout = uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, style->panelspace, 0, width - 2 * style->panelspace, height, style);
+	col = uiLayoutColumn(layout, TRUE);
+	
+	CTX_wm_region_set(C, ar);
+	for (pa = ar->panels.first; pa; pa = pa->next) {
+		/* Create a button with a callback for each panel that belongs fits the mode */
+		if (!pa->type || pa->type->flag & PNL_NO_HEADER
+			|| (context && pa->type->context[0] && strcmp(context, pa->type->context) != 0)
+			|| (pa->type->poll && !pa->type->poll(C, pa->type)))
+			continue;
+		
+		// TODO: sort order
+		
+		uiLayoutRow(col, TRUE);
+		but = uiDefButBitI(block, OPTIONN, 1, 0, pa->drawname, 0, 0, width, UI_UNIT_Y, (int*)&pa->hidden, 0, 0, 0, 0, "Check to hide panel");
+		uiButSetFunc(but, active_panel_menu_popup_button_cb, pa, NULL);
+	}
+	CTX_wm_region_set(C, cur_ar);
+	
+	uiBlockLayoutResolve(block, NULL, NULL);
+	uiPopupBoundsBlock(block, 4, 0, 0);
+	uiEndBlock(C, block);
+	
+	return block;
+}
+
+static void active_panel_menu_popup(bContext *C, void *arg_ar, void *UNUSED(arg2))
+{
+	uiPupBlock(C, active_panel_menu_popup_create_block, arg_ar);
+}
+
+
 static void collapse_all_panels(bContext *C, void *UNUSED(arg1), void *UNUSED(arg2))
 {
 	ScrArea *sa = CTX_wm_area(C);
@@ -131,6 +190,7 @@ static void collapse_all_panels(bContext *C, void *UNUSED(arg1), void *UNUSED(ar
 
 static void view3d_toolbar_header_draw(const bContext *C, Panel *pa)
 {
+	ARegion *ar = CTX_wm_region(C);
 	uiLayout *layout = pa->layout;
 	uiLayout *row = uiLayoutRow(layout, TRUE);
 	const char *name = "";
@@ -150,6 +210,9 @@ static void view3d_toolbar_header_draw(const bContext *C, Panel *pa)
 
 	uiItemL(row, name, modeicon);
 
+	but = uiDefIconBut(uiLayoutGetBlock(row), BUT, 0, ICON_CHECKBOX_HLT, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0, 0, 0, 0, "Collapse all panels in this toolbar");
+	uiButSetFunc(but, active_panel_menu_popup, ar, NULL);
+	
 	but = uiDefIconBut(uiLayoutGetBlock(row), BUT, 0, ICON_TRIA_RIGHT, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0, 0, 0, 0, "Collapse all panels in this toolbar");
 	uiButSetFunc(but, collapse_all_panels, pa, NULL);
 	

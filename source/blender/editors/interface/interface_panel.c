@@ -198,6 +198,18 @@ static void ui_panel_copy_offset(Panel *pa, Panel *papar)
 	pa->ofsy = papar->ofsy + papar->sizey - pa->sizey;
 }
 
+Panel *uiGetExistingPanel(ARegion *ar, PanelType *pt)
+{
+	Panel *pa = NULL;
+	
+	for (pa = ar->panels.first; pa; pa = pa->next)
+		if (strncmp(pa->panelname, pt->idname, UI_MAX_NAME_STR) == 0)
+			if (strncmp(pa->tabname, pt->idname, UI_MAX_NAME_STR) == 0)
+				break;
+	
+	return pa;
+}
+
 Panel *uiBeginPanel(ScrArea *sa, ARegion *ar, uiBlock *block, PanelType *pt, int *open)
 {
 	Panel *pa, *patab, *palast, *panext;
@@ -209,10 +221,7 @@ Panel *uiBeginPanel(ScrArea *sa, ARegion *ar, uiBlock *block, PanelType *pt, int
 	int align = panel_aligned(sa, ar);
 	
 	/* check if Panel exists, then use that one */
-	for (pa = ar->panels.first; pa; pa = pa->next)
-		if (strncmp(pa->panelname, idname, UI_MAX_NAME_STR) == 0)
-			if (strncmp(pa->tabname, tabname, UI_MAX_NAME_STR) == 0)
-				break;
+	pa = uiGetExistingPanel(ar, pt);
 	
 	newpanel = (pa == NULL);
 

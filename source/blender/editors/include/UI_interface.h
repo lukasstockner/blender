@@ -668,6 +668,7 @@ void uiBeginPanels(const struct bContext *C, struct ARegion *ar);
 void uiEndPanels(const struct bContext *C, struct ARegion *ar, int *x, int *y);
 void uiDrawPanels(const struct bContext *C, struct ARegion *ar);
 
+struct Panel *uiGetExistingPanel(struct ARegion *ar, struct PanelType *pt);
 struct Panel *uiBeginPanel(struct ScrArea *sa, struct ARegion *ar, uiBlock *block, struct PanelType *pt, int *open);
 void uiEndPanel(uiBlock *block, int width, int height);
 void uiScalePanels(struct ARegion *ar, float new_width);

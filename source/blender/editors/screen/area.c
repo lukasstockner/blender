@@ -1658,6 +1658,11 @@ void ED_region_panels(const bContext *C, ARegion *ar, int vertical, const char *
 
 			/* draw panel */
 			if (pt->draw && (!pt->poll || pt->poll(C, pt))) {
+				/* If there's a panel for this paneltype, and that panel is hidden, then do not draw it. */
+				panel = uiGetExistingPanel(ar, pt);
+				if (panel && panel->hidden)
+					continue;
+				
 				block = uiBeginBlock(C, ar, pt->idname, UI_EMBOSS);
 				panel = uiBeginPanel(sa, ar, block, pt, &open);
 
