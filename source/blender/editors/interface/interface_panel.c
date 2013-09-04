@@ -204,8 +204,10 @@ Panel *uiGetExistingPanel(ARegion *ar, PanelType *pt)
 	
 	for (pa = ar->panels.first; pa; pa = pa->next)
 		if (strncmp(pa->panelname, pt->idname, UI_MAX_NAME_STR) == 0)
-			if (strncmp(pa->tabname, pt->idname, UI_MAX_NAME_STR) == 0)
+			if (strncmp(pa->tabname, pt->idname, UI_MAX_NAME_STR) == 0) {
+				pa->type = pt;
 				break;
+			}
 	
 	return pa;
 }
@@ -225,10 +227,7 @@ Panel *uiBeginPanel(ScrArea *sa, ARegion *ar, uiBlock *block, PanelType *pt, int
 	
 	newpanel = (pa == NULL);
 
-	if (!newpanel) {
-		pa->type = pt;
-	}
-	else {
+	if (newpanel) {
 		/* new panel */
 		pa = MEM_callocN(sizeof(Panel), "new panel");
 		pa->type = pt;
