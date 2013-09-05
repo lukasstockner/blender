@@ -165,10 +165,8 @@ static uiBlock *active_panel_menu_popup_create_block(bContext *C, ARegion *cur_a
 			|| (pa->type->poll && !pa->type->poll(C, pa->type)))
 			continue;
 		
-		// TODO: sort order
-		
 		uiLayoutRow(col, TRUE);
-		but = uiDefButBitI(block, OPTIONN, 1, 0, pa->drawname, 0, 0, width, UI_UNIT_Y, (int*)&pa->hidden, 0, 0, 0, 0, "Check to hide panel");
+		but = uiDefButBitI(block, OPTIONN, 1, 0, pa->drawname, 0, 0, width, UI_UNIT_Y, (int*)&pa->hidden, 0, 0, 0, 0, "Uncheck to hide panel");
 	}
 	CTX_wm_region_set(C, cur_ar);
 	

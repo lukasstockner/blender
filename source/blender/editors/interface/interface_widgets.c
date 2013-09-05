@@ -54,6 +54,8 @@
 
 #include "BLF_api.h"
 
+#include "WM_types.h"
+
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
 
@@ -3212,6 +3214,21 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 	ThemeUI *tui = &btheme->tui;
 	uiFontStyle *fstyle = &style->widget;
 	uiWidgetType *wt = NULL;
+	
+	/* in case we have an automatic icon, let's set it here */
+	if (but->icon && but->icon == ICON_AUTOMATIC) {
+		int icon = ICON_NONE;
+		
+		if (but->optype) {
+			if (but->optype->icon && but->opptr) {
+				icon = but->optype->icon(C, but->opptr);
+			}
+			else if (but->optype->default_icon) {
+				icon = but->optype->default_icon;
+			}
+		}
+		but->icon = icon;
+	}
 
 	/* handle menus separately */
 	if (but->dt == UI_EMBOSSP) {

@@ -1424,6 +1424,12 @@ static void rna_def_operator(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, operator_flag_items);
 	RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
 	RNA_def_property_ui_text(prop, "Options",  "Options for this operator type");
+	
+	prop = RNA_def_property(srna, "bl_icon", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "type->default_icon");
+	RNA_def_property_enum_items(prop, icon_items); /* TODO: operator_icon_items */
+	RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
+	RNA_def_property_ui_text(prop, "Icon",  "Default icon for this operator type");
 
 	RNA_api_operator(srna);
 

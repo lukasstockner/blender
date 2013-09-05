@@ -5065,11 +5065,11 @@ static void popup_add_shortcut_func(bContext *C, void *arg1, void *UNUSED(arg2))
 	uiPupBlock(C, menu_add_shortcut, but);
 }
 
-static void ui_but_menu_set_last_properties(bContext *UNUSED(C), void *arg_op, int UNUSED(arg_event))
-{
-	wmOperator *op = (wmOperator*)arg_op;
-	WM_operator_default_properties_store(op);
-}
+//static void ui_but_menu_set_last_properties(bContext *UNUSED(C), void *arg_op, int UNUSED(arg_event))
+//{
+//	wmOperator *op = (wmOperator*)arg_op;
+//	WM_operator_default_properties_store(op);
+//}
 
 static void remove_from_custom_panel(bContext *UNUSED(C), void *arg_pa, void *arg_optype)
 {
@@ -5284,7 +5284,7 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 		wmKeyMap *km;
 		wmKeyMapItem *kmi = NULL;
 		int kmi_id = WM_key_event_operator_id(C, but->optype->idname, but->opcontext, prop, 1, &km);
-		wmOperator *op;
+//		wmOperator *op;
 		
 		uiItemS(layout);
 		

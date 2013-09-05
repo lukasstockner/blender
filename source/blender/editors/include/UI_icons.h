@@ -32,6 +32,10 @@
  * once from UI_resources.h for the internal icon enum and
  * once for interface_api.c for the definition of the RNA enum for the icons */
 
+#ifndef ICON_AUTOMATIC
+#define ICON_AUTOMATIC -1
+#endif
+
 /* ICON_ prefix added */
 DEF_ICON(NONE)
 DEF_ICON(QUESTION)

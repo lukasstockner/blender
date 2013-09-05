@@ -295,16 +295,16 @@ static void draw_gpencil_operator_buttons(const bContext *C, uiLayout *layout)
 	ot = WM_operatortype_find("GPENCIL_OT_draw", 0);
 	row = uiLayoutRowWithButtonHeight(layout, TRUE, 1.5f);
 	
-	ptr = uiItemFullO_ptr(row, ot, "", ICON_GREASE_DRAW, NULL, uiLayoutGetOperatorContext(layout), UI_ITEM_O_RETURN_PROPS);
+	ptr = uiItemFullO_ptr(row, ot, "", ICON_AUTOMATIC, NULL, uiLayoutGetOperatorContext(layout), UI_ITEM_O_RETURN_PROPS);
 	RNA_enum_set(&ptr, "mode", GP_PAINTMODE_DRAW);
 	
-	ptr = uiItemFullO_ptr(row, WM_operatortype_find("GPENCIL_OT_draw", 0), "", ICON_GREASE_LINE, NULL, uiLayoutGetOperatorContext(layout), UI_ITEM_O_RETURN_PROPS);
+	ptr = uiItemFullO_ptr(row, WM_operatortype_find("GPENCIL_OT_draw", 0), "", ICON_AUTOMATIC, NULL, uiLayoutGetOperatorContext(layout), UI_ITEM_O_RETURN_PROPS);
 	RNA_enum_set(&ptr, "mode", GP_PAINTMODE_DRAW_STRAIGHT);
 	
-	ptr = uiItemFullO_ptr(row, WM_operatortype_find("GPENCIL_OT_draw", 0), "", ICON_GREASE_POLY, NULL, uiLayoutGetOperatorContext(layout), UI_ITEM_O_RETURN_PROPS);
+	ptr = uiItemFullO_ptr(row, WM_operatortype_find("GPENCIL_OT_draw", 0), "", ICON_AUTOMATIC, NULL, uiLayoutGetOperatorContext(layout), UI_ITEM_O_RETURN_PROPS);
 	RNA_enum_set(&ptr, "mode", GP_PAINTMODE_DRAW_POLY);
 	
-	ptr = uiItemFullO_ptr(row, WM_operatortype_find("GPENCIL_OT_draw", 0), "", ICON_GREASE_ERASE, NULL, uiLayoutGetOperatorContext(layout), UI_ITEM_O_RETURN_PROPS);
+	ptr = uiItemFullO_ptr(row, WM_operatortype_find("GPENCIL_OT_draw", 0), "", ICON_AUTOMATIC, NULL, uiLayoutGetOperatorContext(layout), UI_ITEM_O_RETURN_PROPS);
 	RNA_enum_set(&ptr, "mode", GP_PAINTMODE_ERASER);
 	
 	row = uiLayoutRow(layout, TRUE);

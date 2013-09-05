@@ -70,6 +70,8 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "UI_resources.h"
+
 #include "gpencil_intern.h"
 
 /* ******************************************* */
@@ -2030,6 +2032,23 @@ static EnumPropertyItem prop_gpencil_drawmodes[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
+
+static int gpencil_draw_icon(const bContext *UNUSED(C), PointerRNA *opptr)
+{
+	if (opptr) {
+		switch (RNA_enum_get(opptr, "mode")) {
+			case GP_PAINTMODE_DRAW: return ICON_GREASE_DRAW;
+			case GP_PAINTMODE_DRAW_STRAIGHT: return ICON_GREASE_LINE;
+			case GP_PAINTMODE_DRAW_POLY:
+				return ICON_GREASE_POLY;
+			case GP_PAINTMODE_ERASER:
+				return ICON_GREASE_ERASE;
+		}
+	}
+		
+	return ICON_GREASEPENCIL;
+}
+
 void GPENCIL_OT_draw(wmOperatorType *ot)
 {
 	/* identifiers */
@@ -2043,6 +2062,7 @@ void GPENCIL_OT_draw(wmOperatorType *ot)
 	ot->modal = gpencil_draw_modal;
 	ot->cancel = gpencil_draw_cancel;
 	ot->poll = gpencil_draw_poll;
+	ot->icon = gpencil_draw_icon;
 	
 	/* flags */
 	ot->flag = OPTYPE_UNDO | OPTYPE_BLOCKING;
