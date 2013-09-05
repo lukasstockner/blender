@@ -147,7 +147,7 @@ void wm_dropbox_free(void)
 /* *********************************** */
 
 /* note that the pointer should be valid allocated and not on stack */
-wmDrag *WM_event_start_drag(struct bContext *C, int icon, int type, void *poin, double value)
+wmDrag *WM_event_start_drag(struct bContext *C, int icon, int type, void *poin, double value, PointerRNA *ptr)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmDrag *drag = MEM_callocN(sizeof(struct wmDrag), "new drag");
@@ -160,11 +160,31 @@ wmDrag *WM_event_start_drag(struct bContext *C, int icon, int type, void *poin, 
 	drag->type = type;
 	if (type == WM_DRAG_PATH)
 		BLI_strncpy(drag->path, poin, FILE_MAX);
+	else if (type == WM_DRAG_OP) {
+		/* the PointerRNA should be copied */
+		if (ptr && ptr->data) {
+			drag->ptr = MEM_callocN(sizeof(PointerRNA), "PointerRNA for dragging");
+			drag->ptr->data = IDP_CopyProperty(ptr->data);
+		}
+		drag->poin = poin;
+	}
 	else
 		drag->poin = poin;
 	drag->value = value;
 	
 	return drag;
+}
+
+/* N.B. this doesn't free drag itself */
+void wm_drag_free(wmDrag *drag)
+{
+	if (drag->ptr) {
+		if (drag->type == WM_DRAG_OP) {
+			IDP_FreeProperty(drag->ptr->data);
+			MEM_freeN(drag->ptr->data);
+		}
+		MEM_freeN(drag->ptr);
+	}
 }
 
 void WM_event_drag_image(wmDrag *drag, ImBuf *imb, float scale, int sx, int sy)

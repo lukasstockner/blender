@@ -109,8 +109,16 @@ void wm_event_free(wmEvent *event)
 	if (event->customdata) {
 		if (event->customdatafree) {
 			/* note: pointer to listbase struct elsewhere */
-			if (event->custom == EVT_DATA_LISTBASE)
+			if (event->custom == EVT_DATA_LISTBASE) {
+				if (event->type == EVT_DROP) {
+					ListBase *lb = (ListBase *)event->customdata;
+					wmDrag *drag;
+					for (drag = lb->first; drag; drag = drag->next) {
+						wm_drag_free(drag);
+					}
+				}
 				BLI_freelistN(event->customdata);
+			}
 			else
 				MEM_freeN(event->customdata);
 		}
@@ -1934,22 +1942,25 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 									
 									drop->copy(C, event, drag, drop);
 									
-									/* free the drags before calling operator */
-									BLI_freelistN(event->customdata);
 									event->customdata = NULL;
 									event->custom = 0;
 									
 									WM_operator_name_call(C, drop->ot->idname, drop->opcontext, drop->ptr);
 									action |= WM_HANDLER_BREAK;
-									
+																		
 									/* XXX fileread case */
 									if (CTX_wm_window(C) == NULL)
 										return action;
 									
-									/* escape from drag loop, got freed */
+									/* escape from drag loop... */
 									break;
 								}
 							}
+							/* and free all the drags */
+							for (drag = lb->first; drag; drag = drag->next) {
+								wm_drag_free(drag);
+							}
+							BLI_freelistN(lb);
 						}
 					}
 				}
@@ -2133,18 +2144,34 @@ static void wm_event_drag_test(wmWindowManager *wm, wmWindow *win, wmEvent *even
 	if (event->type == MOUSEMOVE)
 		win->screen->do_draw_drag = TRUE;
 	else if (event->type == ESCKEY) {
+		wmDrag *drag;
+		for (drag = wm->drags.first; drag; drag = drag->next) {
+			wm_drag_free(drag);
+		}
 		BLI_freelistN(&wm->drags);
 		win->screen->do_draw_drag = TRUE;
 	}
 	else if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
-		event->type = EVT_DROP;
 		
 		/* create customdata, first free existing */
 		if (event->customdata) {
-			if (event->customdatafree)
-				MEM_freeN(event->customdata);
+			if (event->customdatafree) {
+				if (event->custom == EVT_DATA_LISTBASE) {
+					if (event->type == EVT_DROP) {
+						ListBase *lb = (ListBase *)event->customdata;
+						wmDrag *drag;
+						for (drag = lb->first; drag; drag = drag->next) {
+							wm_drag_free(drag);
+						}
+					}
+					BLI_freelistN(event->customdata);
+				}
+				else
+					MEM_freeN(event->customdata);
+			}
 		}
 		
+		event->type = EVT_DROP;
 		event->custom = EVT_DATA_LISTBASE;
 		event->customdata = &wm->drags;
 		event->customdatafree = 1;

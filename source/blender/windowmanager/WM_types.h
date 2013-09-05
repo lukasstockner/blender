@@ -631,6 +631,7 @@ typedef struct wmDrag {
 	int sx, sy;
 	
 	char opname[200]; /* if set, draws operator name*/
+	PointerRNA *ptr;
 } wmDrag;
 
 /* dropboxes are like keymaps, part of the screen/area/region definition */
