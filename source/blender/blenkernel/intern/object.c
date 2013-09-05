@@ -2185,8 +2185,15 @@ void BKE_object_where_is_calc_time_ex(Scene *scene, Object *ob, float ctime,
 	/* solve constraints */
 	if (ob->constraints.first && !(ob->transflag & OB_NO_CONSTRAINTS)) {
 		bConstraintOb *cob;
-		
-		cob = BKE_constraints_make_evalob(scene, ob, NULL, CONSTRAINT_OBTYPE_OBJECT, for_render);
+
+		(void) for_render;  /* Currently unused. */
+
+		/* TODO(sergey): Mixing viewport/render evaluation leads to conflicts because
+		 *               of shared ob->obmat.
+		 *               To preserve regressions for now don't use render evaluation
+		 *               for now.
+		 */
+		cob = BKE_constraints_make_evalob(scene, ob, NULL, CONSTRAINT_OBTYPE_OBJECT, false);
 		BKE_solve_constraints(&ob->constraints, cob, ctime);
 		BKE_constraints_clear_evalob(cob);
 	}
