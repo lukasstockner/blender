@@ -57,6 +57,8 @@
 #include "DNA_scene_types.h"
 #include "DNA_view3d_types.h"
 
+#include "RNA_access.h"
+
 #include "BLI_utildefines.h"
 
 #include "BLI_blenlib.h"
@@ -657,10 +659,12 @@ MovieClip *BKE_movieclip_file_add(Main *bmain, const char *name)
 	detect_clip_source(clip);
 
 	movieclip_load_get_szie(clip);
+
 	if (clip->lastsize[0]) {
 		int width = clip->lastsize[0];
-
-		clip->tracking.camera.focal = 24.0f * width / clip->tracking.camera.sensor_width;
+ 
+		float focal = 24.0f * width / clip->tracking.camera.sensor_width;
+		BKE_tracking_camera_focal_length_set(&clip->tracking, focal);
 	}
 
 	movieclip_calc_length(clip);

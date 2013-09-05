@@ -85,6 +85,8 @@ void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int camera, int image
 
 #define LIBMV_CONSTRAIN_FOCAL_LENGTH       (1 << 0)
 
+#define LIBMV_CONSTRAIN_FOCAL_LENGTH       (1 << 0)
+
 typedef struct libmv_CameraIntrinsicsOptions {
 	double focal_length;
 	double principal_point_x, principal_point_y;

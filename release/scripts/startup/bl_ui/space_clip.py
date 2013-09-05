@@ -355,14 +355,14 @@ class CLIP_PT_tools_solve(CLIP_PT_tracking_panel, Panel):
         col = layout.column(align=True)
         col.active = "FOCAL_LENGTH" in settings.refine_intrinsics
         col.prop(settings, "use_focal_length_constraint");
-        row = col.row()
-        row.active = settings.use_focal_length_constraint
+        sub = col.column(align=True)
+        sub.active = settings.use_focal_length_constraint
         if tracking.camera.units == 'MILLIMETERS':
-            row.prop(settings, "focal_length_min_mm")
-            row.prop(settings, "focal_length_max_mm")
+            sub.prop(settings, "focal_length_min", text="Min")
+            sub.prop(settings, "focal_length_max", text="Max")
         else:
-            row.prop(settings, "focal_length_min_px")
-            row.prop(settings, "focal_length_max_px")
+            sub.prop(settings, "focal_length_min_pixels", text="Min")
+            sub.prop(settings, "focal_length_max_pixels", text="Max")
 
 
         col = layout.column(align=True)

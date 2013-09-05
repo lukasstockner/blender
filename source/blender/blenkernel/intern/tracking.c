@@ -213,6 +213,8 @@ void BKE_tracking_settings_init(MovieTracking *tracking)
 	tracking->settings.dist = 1;
 	tracking->settings.object_distance = 1;
 	tracking->settings.reconstruction_success_threshold = 1e-3f;
+	tracking->settings.focal_length_min = 0.0f;
+	tracking->settings.focal_length_max = 5000.0f;
 
 	tracking->stabilization.scaleinf = 1.0f;
 	tracking->stabilization.locinf = 1.0f;
@@ -1817,6 +1819,20 @@ static void reconstructed_camera_scale_set(MovieTrackingObject *object, float ma
 	}
 }
 
+void BKE_tracking_camera_focal_length_set(MovieTracking *tracking, float value)
+{
+	MovieTrackingSettings *settings = &tracking->settings;
+	MovieTrackingCamera *camera = &tracking->camera;
+
+	if (!(settings->refine_intrinsics & REFINE_FOCAL_LENGTH) ||
+	    !(settings->constrain_intrinsics & CONSTRAIN_FOCAL_LENGTH))
+	{
+		settings->focal_length_min = value;
+		settings->focal_length_max = value;
+	}
+
+	camera->focal = value;
+}
 
 /* converts principal offset from center to offset of blender's camera */
 void BKE_tracking_camera_shift_get(MovieTracking *tracking, int winx, int winy, float *shiftx, float *shifty)
@@ -3591,28 +3607,32 @@ static void reconstruct_refine_intrinsics_get_flags(const MovieTracking *trackin
 {
 	short refine = tracking->settings.refine_intrinsics;
 	short constrain = tracking->settings.constrain_intrinsics;
-	short *libmv_refine = &context->refine_intrinsics;
-	short *libmv_constrain = &context->constrain_intrinsics;
+	short libmv_refine = 0;
+	short libmv_constrain = 0;
 
 	if ((object->flag & TRACKING_OBJECT_CAMERA) == 0) {
-		*libmv_refine = 0;
+		context->refine_intrinsics = 0;
+		context->constrain_intrinsics = 0;
 		return;
 	}
 
 	if (refine & REFINE_FOCAL_LENGTH) {
-		*libmv_refine |= LIBMV_REFINE_FOCAL_LENGTH;
+		libmv_refine |= LIBMV_REFINE_FOCAL_LENGTH;
 		if (constrain & CONSTRAIN_FOCAL_LENGTH)
-			*libmv_constrain |= LIBMV_CONSTRAIN_FOCAL_LENGTH;
+			libmv_constrain |= LIBMV_CONSTRAIN_FOCAL_LENGTH;
 	}
 
 	if (refine & REFINE_PRINCIPAL_POINT)
-		*libmv_refine |= LIBMV_REFINE_PRINCIPAL_POINT;
+		libmv_refine |= LIBMV_REFINE_PRINCIPAL_POINT;
 
 	if (refine & REFINE_RADIAL_DISTORTION_K1)
-		*libmv_refine |= LIBMV_REFINE_RADIAL_DISTORTION_K1;
+		libmv_refine |= LIBMV_REFINE_RADIAL_DISTORTION_K1;
 
 	if (refine & REFINE_RADIAL_DISTORTION_K2)
-		*libmv_refine |= LIBMV_REFINE_RADIAL_DISTORTION_K2;
+		libmv_refine |= LIBMV_REFINE_RADIAL_DISTORTION_K2;
+
+	context->refine_intrinsics = libmv_refine;
+	context->constrain_intrinsics = libmv_constrain;
 }
 
 /* Count tracks which has markers at both of keyframes. */
@@ -3776,6 +3796,8 @@ static void cameraIntrinsicsOptionsFromContext(const MovieReconstructContext *co
                                                libmv_CameraIntrinsicsOptions *camera_intrinsics_options)
 {
 	camera_intrinsics_options->focal_length = context->focal_length;
+	CLAMP(camera_intrinsics_options->focal_length,
+	      context->focal_length_min, context->focal_length_max);
 
 	camera_intrinsics_options->principal_point_x = context->principal_point[0];
 	camera_intrinsics_options->principal_point_y = context->principal_point[1];

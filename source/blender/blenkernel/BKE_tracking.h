@@ -160,6 +160,7 @@ struct MovieTrackingReconstruction *BKE_tracking_object_get_reconstruction(struc
                                                                            struct MovieTrackingObject *object);
 
 /* **** Camera **** */
+void BKE_tracking_camera_focal_length_set(struct MovieTracking *tracking, float value);
 void BKE_tracking_camera_shift_get(struct MovieTracking *tracking, int winx, int winy, float *shiftx, float *shifty);
 void BKE_tracking_camera_to_blender(struct MovieTracking *tracking, struct Scene *scene,
                                     struct Camera *camera, int width, int height);
