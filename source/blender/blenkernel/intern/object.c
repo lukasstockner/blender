@@ -2150,7 +2150,8 @@ static int where_is_object_parslow(Object *ob, float obmat[4][4], float slowmat[
 
 /* note, scene is the active scene while actual_scene is the scene the object resides in */
 void BKE_object_where_is_calc_time_ex(Scene *scene, Object *ob, float ctime,
-                                      RigidBodyWorld *rbw, float r_originmat[3][3])
+                                      RigidBodyWorld *rbw, bool for_render,
+                                      float r_originmat[3][3])
 {
 	if (ob == NULL) return;
 	
@@ -2185,7 +2186,7 @@ void BKE_object_where_is_calc_time_ex(Scene *scene, Object *ob, float ctime,
 	if (ob->constraints.first && !(ob->transflag & OB_NO_CONSTRAINTS)) {
 		bConstraintOb *cob;
 		
-		cob = BKE_constraints_make_evalob(scene, ob, NULL, CONSTRAINT_OBTYPE_OBJECT);
+		cob = BKE_constraints_make_evalob(scene, ob, NULL, CONSTRAINT_OBTYPE_OBJECT, for_render);
 		BKE_solve_constraints(&ob->constraints, cob, ctime);
 		BKE_constraints_clear_evalob(cob);
 	}
@@ -2197,7 +2198,8 @@ void BKE_object_where_is_calc_time_ex(Scene *scene, Object *ob, float ctime,
 
 void BKE_object_where_is_calc_time(Scene *scene, Object *ob, float ctime)
 {
-	BKE_object_where_is_calc_time_ex(scene, ob, ctime, NULL, NULL);
+	/* TODO(sergey): We might need real for_render flag here */
+	BKE_object_where_is_calc_time_ex(scene, ob, ctime, NULL, false, NULL);
 }
 
 /* get object transformation matrix without recalculating dependencies and
@@ -2221,13 +2223,14 @@ void BKE_object_where_is_calc_mat4(Scene *scene, Object *ob, float obmat[4][4])
 	}
 }
 
-void BKE_object_where_is_calc_ex(Scene *scene, RigidBodyWorld *rbw, Object *ob, float r_originmat[3][3])
+void BKE_object_where_is_calc_ex(Scene *scene, RigidBodyWorld *rbw, Object *ob, bool for_render, float r_originmat[3][3])
 {
-	BKE_object_where_is_calc_time_ex(scene, ob, BKE_scene_frame_get(scene), rbw, r_originmat);
+	BKE_object_where_is_calc_time_ex(scene, ob, BKE_scene_frame_get(scene), rbw, for_render, r_originmat);
 }
 void BKE_object_where_is_calc(Scene *scene, Object *ob)
 {
-	BKE_object_where_is_calc_time_ex(scene, ob, BKE_scene_frame_get(scene), NULL, NULL);
+	/* TODO(sergey): We might need real for_render flag here */
+	BKE_object_where_is_calc_time_ex(scene, ob, BKE_scene_frame_get(scene), NULL, false, NULL);
 }
 
 /* was written for the old game engine (until 2.04) */
@@ -2265,7 +2268,8 @@ void BKE_object_where_is_calc_simul(Scene *scene, Object *ob)
 	if (ob->constraints.first) {
 		bConstraintOb *cob;
 		
-		cob = BKE_constraints_make_evalob(scene, ob, NULL, CONSTRAINT_OBTYPE_OBJECT);
+		/* TODO(sergey): We need a proper for_render flag here. */
+		cob = BKE_constraints_make_evalob(scene, ob, NULL, CONSTRAINT_OBTYPE_OBJECT, false);
 		BKE_solve_constraints(&ob->constraints, cob, BKE_scene_frame_get(scene));
 		BKE_constraints_clear_evalob(cob);
 	}
@@ -2673,6 +2677,12 @@ void BKE_object_handle_update_ex(EvaluationContext *evaluation_context,
                                  Scene *scene, Object *ob,
                                  RigidBodyWorld *rbw)
 {
+	if (evaluation_context->for_render) {
+		if (ob->type == OB_MESH && !ob->derivedRender) {
+			ob->recalc |= OB_RECALC_DATA;
+		}
+	}
+
 	if (ob->recalc & OB_RECALC_ALL) {
 		/* speed optimization for animation lookups */
 		if (ob->pose)
@@ -2712,7 +2722,7 @@ void BKE_object_handle_update_ex(EvaluationContext *evaluation_context,
 					copy_m4_m4(ob->obmat, ob->proxy_from->obmat);
 			}
 			else
-				BKE_object_where_is_calc_ex(scene, rbw, ob, NULL);
+				BKE_object_where_is_calc_ex(scene, rbw, ob, evaluation_context->for_render, NULL);
 		}
 		
 		if (ob->recalc & OB_RECALC_DATA) {
@@ -2749,6 +2759,9 @@ void BKE_object_handle_update_ex(EvaluationContext *evaluation_context,
 						else {
 							makeDerivedMesh(scene, ob, NULL, data_mask, 0);
 						}
+					}
+					else {
+						makeDerivedMeshRender(scene, ob, CD_MASK_BAREMESH | CD_MASK_MTFACE | CD_MASK_MCOL);
 					}
 					break;
 				}

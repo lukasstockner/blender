@@ -108,7 +108,7 @@ void BKE_unique_constraint_name(bConstraint *con, ListBase *list)
 
 /* package an object/bone for use in constraint evaluation */
 /* This function MEM_calloc's a bConstraintOb struct, that will need to be freed after evaluation */
-bConstraintOb *BKE_constraints_make_evalob(Scene *scene, Object *ob, void *subdata, short datatype)
+bConstraintOb *BKE_constraints_make_evalob(Scene *scene, Object *ob, void *subdata, short datatype, bool for_render)
 {
 	bConstraintOb *cob;
 	
@@ -166,7 +166,9 @@ bConstraintOb *BKE_constraints_make_evalob(Scene *scene, Object *ob, void *subda
 			unit_m4(cob->startmat);
 			break;
 	}
-	
+
+	cob->for_render = for_render;
+
 	return cob;
 }
 
@@ -347,7 +349,7 @@ void BKE_constraint_mat_convertspace(Object *ob, bPoseChannel *pchan, float mat[
 /* ------------ General Target Matrix Tools ---------- */
 
 /* function that sets the given matrix based on given vertex group in mesh */
-static void contarget_get_mesh_mat(Object *ob, const char *substring, float mat[4][4])
+static void contarget_get_mesh_mat(Object *ob, const char *substring, float mat[4][4], bool for_render)
 {
 	DerivedMesh *dm = NULL;
 	BMEditMesh *em = BKE_editmesh_from_object(ob);
@@ -364,7 +366,10 @@ static void contarget_get_mesh_mat(Object *ob, const char *substring, float mat[
 	if (defgroup == -1) return;
 
 	/* get DerivedMesh */
-	if (em) {
+	if (for_render) {
+		dm = ob->derivedRender;
+	}
+	else if (em) {
 		/* target is in editmode, so get a special derived mesh */
 		dm = CDDM_from_editbmesh(em, FALSE, FALSE);
 		freeDM = 1;
@@ -498,7 +503,7 @@ static void contarget_get_lattice_mat(Object *ob, const char *substring, float m
 
 /* generic function to get the appropriate matrix for most target cases */
 /* The cases where the target can be object data have not been implemented */
-static void constraint_target_to_mat4(Object *ob, const char *substring, float mat[4][4], short from, short to, float headtail)
+static void constraint_target_to_mat4(Object *ob, const char *substring, float mat[4][4], short from, short to, float headtail, bool for_render)
 {
 	/*	Case OBJECT */
 	if (!strlen(substring)) {
@@ -515,7 +520,7 @@ static void constraint_target_to_mat4(Object *ob, const char *substring, float m
 	 *		way as constraints can only really affect things on object/bone level.
 	 */
 	else if (ob->type == OB_MESH) {
-		contarget_get_mesh_mat(ob, substring, mat);
+		contarget_get_mesh_mat(ob, substring, mat, for_render);
 		BKE_constraint_mat_convertspace(ob, NULL, mat, from, to);
 	}
 	else if (ob->type == OB_LATTICE) {
@@ -594,10 +599,10 @@ static bConstraintTypeInfo CTI_CONSTRNAME = {
 /* This function should be used for the get_target_matrix member of all 
  * constraints that are not picky about what happens to their target matrix.
  */
-static void default_get_tarmat(bConstraint *con, bConstraintOb *UNUSED(cob), bConstraintTarget *ct, float UNUSED(ctime))
+static void default_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstraintTarget *ct, float UNUSED(ctime))
 {
 	if (VALID_CONS_TARGET(ct))
-		constraint_target_to_mat4(ct->tar, ct->subtarget, ct->matrix, CONSTRAINT_SPACE_WORLD, ct->space, con->headtail);
+		constraint_target_to_mat4(ct->tar, ct->subtarget, ct->matrix, CONSTRAINT_SPACE_WORLD, ct->space, con->headtail, cob->for_render);
 	else if (ct)
 		unit_m4(ct->matrix);
 }
@@ -1065,7 +1070,7 @@ static void kinematic_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstrai
 	bKinematicConstraint *data = con->data;
 	
 	if (VALID_CONS_TARGET(ct)) 
-		constraint_target_to_mat4(ct->tar, ct->subtarget, ct->matrix, CONSTRAINT_SPACE_WORLD, ct->space, con->headtail);
+		constraint_target_to_mat4(ct->tar, ct->subtarget, ct->matrix, CONSTRAINT_SPACE_WORLD, ct->space, con->headtail, cob->for_render);
 	else if (ct) {
 		if (data->flag & CONSTRAINT_IK_AUTO) {
 			Object *ob = cob->ob;
@@ -1942,7 +1947,7 @@ static void pycon_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstraintTa
 		/* firstly calculate the matrix the normal way, then let the py-function override
 		 * this matrix if it needs to do so
 		 */
-		constraint_target_to_mat4(ct->tar, ct->subtarget, ct->matrix, CONSTRAINT_SPACE_WORLD, ct->space, con->headtail);
+		constraint_target_to_mat4(ct->tar, ct->subtarget, ct->matrix, CONSTRAINT_SPACE_WORLD, ct->space, con->headtail, cob->for_render);
 		
 		/* only execute target calculation if allowed */
 #ifdef WITH_PYTHON
@@ -2054,7 +2059,7 @@ static void actcon_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstraintT
 		unit_m4(ct->matrix);
 		
 		/* get the transform matrix of the target */
-		constraint_target_to_mat4(ct->tar, ct->subtarget, tempmat, CONSTRAINT_SPACE_WORLD, ct->space, con->headtail);
+		constraint_target_to_mat4(ct->tar, ct->subtarget, tempmat, CONSTRAINT_SPACE_WORLD, ct->space, con->headtail, cob->for_render);
 		
 		/* determine where in transform range target is */
 		/* data->type is mapped as follows for backwards compatibility:
@@ -3345,8 +3350,7 @@ static void shrinkwrap_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstra
 		float dist;
 		
 		SpaceTransform transform;
-		/* TODO(sergey): use real forRender flag */
-		DerivedMesh *target = object_get_derived_final(ct->tar, false);
+		DerivedMesh *target = object_get_derived_final(ct->tar, cob->for_render);
 		BVHTreeRayHit hit;
 		BVHTreeNearest nearest;
 		
@@ -3987,8 +3991,7 @@ static void followtrack_evaluate(bConstraint *con, bConstraintOb *cob, ListBase 
 
 			if (data->depth_ob) {
 				Object *depth_ob = data->depth_ob;
-				/* TODO(sergey): use real forRender flag */
-				DerivedMesh *target = object_get_derived_final(depth_ob, false);
+				DerivedMesh *target = object_get_derived_final(depth_ob, cob->for_render);
 				if (target) {
 					BVHTreeFromMesh treeData = NULL_BVHTreeFromMesh;
 					BVHTreeRayHit hit;

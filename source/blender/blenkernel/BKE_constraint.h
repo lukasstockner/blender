@@ -57,6 +57,7 @@ typedef struct bConstraintOb {
 	
 	short type;                 /* type of owner  */
 	short rotOrder;             /* rotation order for constraint owner (as defined in eEulerRotationOrders in BLI_math.h) */
+	bool for_render;            /* constraints need to be evaluated for render purposes */
 } bConstraintOb;
 
 /* ---------------------------------------------------------------------------- */
@@ -144,7 +145,7 @@ void BKE_extract_proxylocal_constraints(struct ListBase *dst, struct ListBase *s
 short BKE_proxylocked_constraints_owner(struct Object *ob, struct bPoseChannel *pchan);
 
 /* Constraint Evaluation function prototypes */
-struct bConstraintOb *BKE_constraints_make_evalob(struct Scene *scene, struct Object *ob, void *subdata, short datatype);
+struct bConstraintOb *BKE_constraints_make_evalob(struct Scene *scene, struct Object *ob, void *subdata, short datatype, bool for_render);
 void BKE_constraints_clear_evalob(struct bConstraintOb *cob);
 
 void BKE_constraint_mat_convertspace(struct Object *ob, struct bPoseChannel *pchan, float mat[4][4], short from, short to);

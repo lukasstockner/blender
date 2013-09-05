@@ -2430,7 +2430,8 @@ void BKE_pose_where_is_bone(Scene *scene, Object *ob, bPoseChannel *pchan, float
 			/* prepare PoseChannel for Constraint solving
 			 * - makes a copy of matrix, and creates temporary struct to use
 			 */
-			cob = BKE_constraints_make_evalob(scene, ob, pchan, CONSTRAINT_OBTYPE_BONE);
+			/* TODO(sergey): We need to use proper for_render flag here */
+			cob = BKE_constraints_make_evalob(scene, ob, pchan, CONSTRAINT_OBTYPE_BONE, false);
 
 			/* Solve PoseChannel's Constraints */
 			BKE_solve_constraints(&pchan->constraints, cob, ctime); /* ctime doesnt alter objects */

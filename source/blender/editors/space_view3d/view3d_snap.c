@@ -630,7 +630,7 @@ static int snap_sel_to_grid_exec(bContext *C, wmOperator *UNUSED(op))
 				
 				if (ob->parent) {
 					float originmat[3][3];
-					BKE_object_where_is_calc_ex(scene, NULL, ob, originmat);
+					BKE_object_where_is_calc_ex(scene, NULL, ob, false, originmat);
 					
 					invert_m3_m3(imat, originmat);
 					mul_m3_v3(imat, vec);
@@ -798,7 +798,7 @@ static int snap_sel_to_curs_exec(bContext *C, wmOperator *op)
 				
 				if (ob->parent) {
 					float originmat[3][3];
-					BKE_object_where_is_calc_ex(scene, NULL, ob, originmat);
+					BKE_object_where_is_calc_ex(scene, NULL, ob, false, originmat);
 					
 					invert_m3_m3(imat, originmat);
 					mul_m3_v3(imat, cursor_parent);
