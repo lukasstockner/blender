@@ -266,6 +266,7 @@ typedef struct Object {
 	struct DerivedMesh *derivedDeform, *derivedFinal;
 	struct DerivedMesh *derivedRender;
 	uint64_t lastDataMask;   /* the custom data layer mask that was last used to calculate derivedDeform and derivedFinal */
+	uint64_t lastRenderDataMask;   /* the custom data layer mask that was last used to calculate derivedRender */
 	uint64_t customdata_mask; /* (extra) custom data layer mask to use for creating derivedmesh, set by depsgraph */
 	unsigned int state;			/* bit masks of game controllers that are active */
 	unsigned int init_state;	/* bit masks of initial state as recorded by the users */
