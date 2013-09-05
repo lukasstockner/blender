@@ -351,7 +351,6 @@ static DerivedMesh *arrayModifier_doArray(ArrayModifierData *amd,
 	BMOpSlot *slot_targetmap = NULL;  /* for weld_op */
 
 	/* need to avoid infinite recursion here */
-	/* TODO(sergey): We shouldn't build other object's DM from modifier stack! */
 	if (amd->start_cap && amd->start_cap != ob && amd->start_cap->type == OB_MESH)
 		start_cap = get_operand_dm(amd->start_cap, flag);
 	if (amd->end_cap && amd->end_cap != ob && amd->end_cap->type == OB_MESH)

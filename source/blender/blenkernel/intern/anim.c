@@ -368,7 +368,6 @@ static void motionpaths_calc_update_scene(Scene *scene)
 	   *    that doesn't force complete update, but for now, this is the
 	   *    most accurate way!
 	   */
-	/* TODO(sergey): Is it actctually always viewport or not? */
 	BKE_scene_update_for_newframe_viewport(G.main, scene, scene->lay); /* XXX this is the best way we can get anything moving */
 #endif
 }

@@ -3161,7 +3161,6 @@ static void *ptcache_bake_thread(void *ptr)
 	efra = data->endframe;
 
 	for (; (*data->cfra_ptr <= data->endframe) && !data->break_operation; *data->cfra_ptr+=data->step) {
-		/* TODO(sergey): Is it actctually always viewport or not? */
 		BKE_scene_update_for_newframe_viewport(data->main, data->scene, data->scene->lay);
 		if (G.background) {
 			printf("bake: frame %d :: %d\n", (int)*data->cfra_ptr, data->endframe);
