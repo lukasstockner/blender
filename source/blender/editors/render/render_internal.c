@@ -270,6 +270,7 @@ typedef struct RenderJob {
 	short anim, write_still;
 	Image *image;
 	ImageUser iuser;
+	bool image_outdated;
 	short *stop;
 	short *do_update;
 	float *progress;
@@ -409,9 +410,19 @@ static void image_rect_update(void *rjv, RenderResult *rr, volatile rcti *renrec
 	void *lock;
 
 	/* only update if we are displaying the slot being rendered */
-	if (ima->render_slot != ima->last_render_slot)
+	if (ima->render_slot != ima->last_render_slot) {
+		rj->image_outdated = true;
 		return;
+	}
+	else if (rj->image_outdated) {
+		/* update entire render */
+		rj->image_outdated = false;
+		BKE_image_signal(ima, NULL, IMA_SIGNAL_COLORMANAGE);
+		*(rj->do_update) = TRUE;
+		return;
+	}
 
+	/* update part of render */
 	ibuf = BKE_image_acquire_ibuf(ima, &rj->iuser, &lock);
 	if (ibuf) {
 		image_buffer_rect_update(rj->scene, rr, ibuf, renrect);
@@ -491,7 +502,8 @@ static void render_endjob(void *rjv)
 	 * engine API, so lets use simple and robust way for now
 	 *                                          - sergey -
 	 */
-	if (rj->scene->r.layers.first != rj->scene->r.layers.last) {
+	if (rj->scene->r.layers.first != rj->scene->r.layers.last ||
+	    rj->image_outdated) {
 		void *lock;
 		Image *ima = rj->image;
 		ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &rj->iuser, &lock);
@@ -1125,7 +1137,7 @@ void render_view3d_draw(RenderEngine *engine, const bContext *C)
 
 		/* Try using GLSL display transform. */
 		if (force_fallback == false) {
-			if (IMB_colormanagement_setup_glsl_draw(NULL, &scene->display_settings, TRUE)) {
+			if (IMB_colormanagement_setup_glsl_draw(NULL, &scene->display_settings, TRUE, FALSE)) {
 				glEnable(GL_BLEND);
 				glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 				glaDrawPixelsTex(rres.xof, rres.yof, rres.rectx, rres.recty, GL_RGBA, GL_FLOAT,

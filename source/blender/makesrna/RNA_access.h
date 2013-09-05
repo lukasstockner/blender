@@ -31,6 +31,8 @@
 
 #include "RNA_types.h"
 
+#include "BLI_compiler_attrs.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -622,7 +624,6 @@ extern StructRNA RNA_ThemeWidgetStateColors;
 extern StructRNA RNA_TimelineMarker;
 extern StructRNA RNA_Timer;
 extern StructRNA RNA_ToolSettings;
-extern StructRNA RNA_TouchSensor;
 extern StructRNA RNA_TrackToConstraint;
 extern StructRNA RNA_TransformConstraint;
 extern StructRNA RNA_TransformSequence;
@@ -1087,17 +1088,9 @@ int RNA_function_call_lookup(struct bContext *C, struct ReportList *reports, Poi
                              const char *identifier, ParameterList *parms);
 
 int RNA_function_call_direct(struct bContext *C, struct ReportList *reports, PointerRNA *ptr,
-                             FunctionRNA *func, const char *format, ...)
-#ifdef __GNUC__
-__attribute__ ((format(printf, 5, 6)))
-#endif
-;
+                             FunctionRNA *func, const char *format, ...) ATTR_PRINTF_FORMAT(5, 6);
 int RNA_function_call_direct_lookup(struct bContext *C, struct ReportList *reports, PointerRNA *ptr,
-                                    const char *identifier, const char *format, ...)
-#ifdef __GNUC__
-__attribute__ ((format(printf, 5, 6)))
-#endif
-;
+                                    const char *identifier, const char *format, ...) ATTR_PRINTF_FORMAT(5, 6);
 int RNA_function_call_direct_va(struct bContext *C, struct ReportList *reports, PointerRNA *ptr,
                                 FunctionRNA *func, const char *format, va_list args);
 int RNA_function_call_direct_va_lookup(struct bContext *C, struct ReportList *reports, PointerRNA *ptr,
@@ -1123,11 +1116,7 @@ StructRNA *ID_code_to_RNA_type(short idcode);
 #  define RNA_warning(format, ...) _RNA_warning("%s: " format "\n", __FUNCTION__, __VA_ARGS__)
 #endif
 
-void _RNA_warning(const char *format, ...)
-#ifdef __GNUC__
-__attribute__ ((format(printf, 1, 2)))
-#endif
-;
+void _RNA_warning(const char *format, ...) ATTR_PRINTF_FORMAT(1, 2);
 
 /* Equals test (skips pointers and collections)
  * is_strict false assumes uninitialized properties are equal */

@@ -50,7 +50,7 @@
 
 #include "mesh_intern.h"  /* own include */
 
-
+static int mesh_bisect_exec(bContext *C, wmOperator *op);
 
 /* -------------------------------------------------------------------- */
 /* Model Helpers */
@@ -78,10 +78,11 @@ static bool mesh_bisect_interactive_calc(
 	int x_end = RNA_int_get(op->ptr, "xend");
 	int y_end = RNA_int_get(op->ptr, "yend");
 
+	/* reference location (some point infront of the view) for finding a point on a plane */
 	const float *co_ref = rv3d->ofs;
 	float co_a_ss[2] = {x_start, y_start}, co_b_ss[2] = {x_end, y_end}, co_delta_ss[2];
 	float co_a[3], co_b[3];
-	float zfac = ED_view3d_calc_zfac(rv3d, co_ref, NULL);
+	const float zfac = ED_view3d_calc_zfac(rv3d, co_ref, NULL);
 
 	opdata = gesture->userdata;
 
@@ -94,6 +95,7 @@ static bool mesh_bisect_interactive_calc(
 
 	/* cross both to get a normal */
 	cross_v3_v3v3(plane_no, co_a, co_b);
+	normalize_v3(plane_no);  /* not needed but nicer for user */
 
 	/* point on plane, can use either start or endpoint */
 	ED_view3d_win_to_3d(ar, co_ref, co_a_ss, plane_co);
@@ -109,6 +111,16 @@ static bool mesh_bisect_interactive_calc(
 static int mesh_bisect_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	int ret;
+
+	/* if the properties are set or there is no rv3d,
+	 * skip model and exec immediately */
+
+	if ((CTX_wm_region_view3d(C) == NULL) ||
+	    (RNA_struct_property_is_set(op->ptr, "plane_co") &&
+	     RNA_struct_property_is_set(op->ptr, "plane_no")))
+	{
+		return mesh_bisect_exec(C, op);
+	}
 
 	ret = WM_gesture_straightline_invoke(C, op, event);
 	if (ret & OPERATOR_RUNNING_MODAL) {

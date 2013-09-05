@@ -38,14 +38,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_edgehash.h"
 #include "BLI_mempool.h"
-
-#ifdef __GNUC__
-#  pragma GCC diagnostic error "-Wsign-conversion"
-#  if (__GNUC__ * 100 + __GNUC_MINOR__) >= 406  /* gcc4.6+ only */
-#    pragma GCC diagnostic error "-Wsign-compare"
-#    pragma GCC diagnostic error "-Wconversion"
-#  endif
-#endif
+#include "BLI_strict_flags.h"
 
 /**************inlined code************/
 static const unsigned int _ehash_hashsizes[] = {
@@ -158,7 +151,7 @@ BLI_INLINE void edgehash_buckets_reserve(EdgeHash *eh, const unsigned int nentri
  * Takes a hash argument to avoid calling #ghash_keyhash multiple times.
  */
 BLI_INLINE EdgeEntry *edgehash_lookup_entry_ex(EdgeHash *eh, unsigned int v0, unsigned int v1,
-											   const unsigned int hash)
+                                               const unsigned int hash)
 {
 	EdgeEntry *e;
 	BLI_assert(v0 < v1);
@@ -183,8 +176,8 @@ BLI_INLINE EdgeEntry *edgehash_lookup_entry(EdgeHash *eh, unsigned int v0, unsig
 
 
 static EdgeHash *edgehash_new(const char *info,
-							  const unsigned int nentries_reserve,
-							  const size_t entry_size)
+                              const unsigned int nentries_reserve,
+                              const unsigned int entry_size)
 {
 	EdgeHash *eh = MEM_mallocN(sizeof(*eh), info);
 
@@ -199,7 +192,7 @@ static EdgeHash *edgehash_new(const char *info,
 	}
 
 	eh->buckets = MEM_callocN(eh->nbuckets * sizeof(*eh->buckets), "eh buckets");
-	eh->epool = BLI_mempool_create((int)entry_size, 512, 512, BLI_MEMPOOL_SYSMALLOC);
+	eh->epool = BLI_mempool_create(entry_size, 512, 512, BLI_MEMPOOL_SYSMALLOC);
 
 	return eh;
 }
@@ -209,7 +202,7 @@ static EdgeHash *edgehash_new(const char *info,
  * Takes a hash argument to avoid calling #edgehash_keyhash multiple times.
  */
 BLI_INLINE void edgehash_insert_ex(EdgeHash *eh, unsigned int v0, unsigned int v1, void *val,
-								   unsigned int hash)
+                                   unsigned int hash)
 {
 	EdgeEntry *e = BLI_mempool_alloc(eh->epool);
 
@@ -235,7 +228,7 @@ BLI_INLINE void edgehash_insert_ex(EdgeHash *eh, unsigned int v0, unsigned int v
  * Insert function that doesn't set the value (use for EdgeSet)
  */
 BLI_INLINE void edgehash_insert_ex_keyonly(EdgeHash *eh, unsigned int v0, unsigned int v1,
-										   unsigned int hash)
+                                           unsigned int hash)
 {
 	EdgeEntry *e = BLI_mempool_alloc(eh->epool);
 
@@ -295,11 +288,11 @@ static void edgehash_free_cb(EdgeHash *eh, EdgeHashFreeFP valfreefp)
 /* Public API */
 
 EdgeHash *BLI_edgehash_new_ex(const char *info,
-							  const unsigned int nentries_reserve)
+                              const unsigned int nentries_reserve)
 {
 	return edgehash_new(info,
-						nentries_reserve,
-						sizeof(EdgeEntry));
+	                    nentries_reserve,
+	                    sizeof(EdgeEntry));
 }
 
 EdgeHash *BLI_edgehash_new(const char *info)
@@ -384,7 +377,7 @@ int BLI_edgehash_size(EdgeHash *eh)
  * Remove all edges from hash.
  */
 void BLI_edgehash_clear_ex(EdgeHash *eh, EdgeHashFreeFP valfreefp,
-						   const unsigned int nentries_reserve)
+                           const unsigned int nentries_reserve)
 {
 	if (valfreefp)
 		edgehash_free_cb(eh, valfreefp);
@@ -491,6 +484,14 @@ void *BLI_edgehashIterator_getValue(EdgeHashIterator *ehi)
 }
 
 /**
+ * Retrieve the pointer to the value from an iterator.
+ */
+void **BLI_edgehashIterator_getValue_p(EdgeHashIterator *ehi)
+{
+	return ehi->curEntry ? &ehi->curEntry->val : NULL;
+}
+
+/**
  * Set the value for an iterator.
  */
 void BLI_edgehashIterator_setValue(EdgeHashIterator *ehi, void *val)
@@ -536,11 +537,11 @@ bool BLI_edgehashIterator_isDone(EdgeHashIterator *ehi)
 /** \name EdgeSet Functions
  * \{ */
 EdgeSet *BLI_edgeset_new_ex(const char *info,
-								  const unsigned int nentries_reserve)
+                                  const unsigned int nentries_reserve)
 {
 	EdgeSet *es = (EdgeSet *)edgehash_new(info,
-										  nentries_reserve,
-										  sizeof(EdgeEntry) - sizeof(void *));
+	                                      nentries_reserve,
+	                                      sizeof(EdgeEntry) - sizeof(void *));
 #ifndef NDEBUG
 	((EdgeHash *)es)->flag |= EDGEHASH_FLAG_IS_SET;
 #endif

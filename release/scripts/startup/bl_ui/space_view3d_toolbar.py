@@ -970,6 +970,7 @@ class VIEW3D_PT_tools_brush_stroke(Panel, View3DPaintPanel):
                     row.prop(brush, "use_relative_jitter", text="", icon='UNLOCKED')
                     row.prop(brush, "jitter_absolute")
                 row.prop(brush, "use_pressure_jitter", toggle=True, text="")
+                
             if brush.sculpt_capabilities.has_smooth_stroke:
                 col = layout.column()
                 col.separator()
@@ -1001,6 +1002,9 @@ class VIEW3D_PT_tools_brush_stroke(Panel, View3DPaintPanel):
             sub.active = brush.use_smooth_stroke
             sub.prop(brush, "smooth_stroke_radius", text="Radius", slider=True)
             sub.prop(brush, "smooth_stroke_factor", text="Factor", slider=True)
+        
+        layout.prop(settings, "input_samples")
+
 
 
 class VIEW3D_PT_tools_brush_curve(Panel, View3DPaintPanel):
@@ -1097,8 +1101,6 @@ class VIEW3D_PT_sculpt_options(Panel, View3DPaintPanel):
         layout.prop(sculpt, "show_low_resolution")
         layout.prop(sculpt, "use_deform_only")
         layout.prop(sculpt, "show_diffuse_color")
-
-        layout.prop(sculpt, "input_samples")
 
         self.unified_paint_settings(layout, context)
 
@@ -1206,11 +1208,14 @@ class VIEW3D_PT_tools_weightpaint_options(Panel, View3DPaintPanel):
         wpaint = tool_settings.weight_paint
 
         col = layout.column()
+        row = col.row()
 
-        col.prop(wpaint, "use_all_faces")
-        col.prop(wpaint, "use_normal")
-        col.prop(wpaint, "use_spray")
-        col.prop(wpaint, "use_group_restrict")
+        row.prop(wpaint, "use_all_faces")
+        row.prop(wpaint, "use_normal")
+        col = layout.column()
+        row = col.row()
+        row.prop(wpaint, "use_spray")
+        row.prop(wpaint, "use_group_restrict")
 
         obj = context.weight_paint_object
         if obj.type == 'MESH':
@@ -1219,8 +1224,6 @@ class VIEW3D_PT_tools_weightpaint_options(Panel, View3DPaintPanel):
             row = col.row()
             row.active = mesh.use_mirror_x
             row.prop(mesh, "use_mirror_topology")
-
-        col.prop(wpaint, "input_samples")
 
         col.label("Show Zero Weights:")
         sub = col.row()
@@ -1243,12 +1246,11 @@ class VIEW3D_PT_tools_vertexpaint(Panel, View3DPaintPanel):
         vpaint = toolsettings.vertex_paint
 
         col = layout.column()
+        row = col.row()
         #col.prop(vpaint, "mode", text="")
-        col.prop(vpaint, "use_all_faces")
-        col.prop(vpaint, "use_normal")
+        row.prop(vpaint, "use_all_faces")
+        row.prop(vpaint, "use_normal")
         col.prop(vpaint, "use_spray")
-
-        col.prop(vpaint, "input_samples")
 
         self.unified_paint_settings(col, context)
 
@@ -1281,14 +1283,12 @@ class VIEW3D_PT_tools_projectpaint(View3DPanel, Panel):
 
         col = layout.column()
 
-        col.prop(ipaint, "input_samples")
-
         col.prop(ipaint, "use_occlude")
         col.prop(ipaint, "use_backface_culling")
 
         row = layout.row()
         row.prop(ipaint, "use_normal_falloff")
-
+        
         sub = row.row()
         sub.active = (ipaint.use_normal_falloff)
         sub.prop(ipaint, "normal_angle", text="")

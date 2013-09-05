@@ -56,19 +56,14 @@
 
 #include "MEM_guardedalloc.h"
 
+/* to ensure strict conversions */
+#include "../../source/blender/blenlib/BLI_strict_flags.h"
+
+
 /* should always be defined except for experimental cases */
 #ifdef WITH_GUARDEDALLOC
 
 #include "atomic_ops.h"
-
-/* Blame Microsoft for LLP64 and no inttypes.h, quick workaround needed: */
-#if defined(WIN64)
-#  define SIZET_FORMAT "%I64u"
-#  define SIZET_ARG(a) ((unsigned long long)(a))
-#else
-#  define SIZET_FORMAT "%lu"
-#  define SIZET_ARG(a) ((unsigned long)(a))
-#endif
 
 /* Only for debugging:
  * store original buffer's name when doing MEM_dupallocN
@@ -117,6 +112,18 @@ static void memcount_raise(const char *name)
 	fprintf(stderr, "%s: memcount-leak, %d\n", name, _mallocn_count);
 }
 #endif
+
+/* Blame Microsoft for LLP64 and no inttypes.h, quick workaround needed: */
+#if defined(WIN64)
+#  define SIZET_FORMAT "%I64u"
+#  define SIZET_ARG(a) ((unsigned long long)(a))
+#else
+#  define SIZET_FORMAT "%lu"
+#  define SIZET_ARG(a) ((unsigned long)(a))
+#endif
+
+#define SIZET_ALIGN_4(len) ((len + 3) & ~(size_t)3)
+
 
 /* --------------------------------------------------------------------- */
 /* Data definition                                                       */
@@ -227,7 +234,7 @@ static void (*error_callback)(const char *) = NULL;
 static void (*thread_lock_callback)(void) = NULL;
 static void (*thread_unlock_callback)(void) = NULL;
 
-static int malloc_debug_memset = 0;
+static bool malloc_debug_memset = false;
 
 #ifdef malloc
 #undef malloc
@@ -298,7 +305,7 @@ static void mem_unlock_thread(void)
 		thread_unlock_callback();
 }
 
-int MEM_check_memory_integrity(void)
+bool MEM_check_memory_integrity(void)
 {
 	const char *err_val = NULL;
 	MemHead *listend;
@@ -325,7 +332,7 @@ void MEM_set_lock_callback(void (*lock)(void), void (*unlock)(void))
 
 void MEM_set_memory_debug(void)
 {
-	malloc_debug_memset = 1;
+	malloc_debug_memset = true;
 }
 
 size_t MEM_allocN_len(const void *vmemh)
@@ -518,7 +525,7 @@ void *MEM_mallocN(size_t len, const char *str)
 {
 	MemHead *memh;
 
-	len = (len + 3) & ~3;   /* allocate in units of 4 */
+	len = SIZET_ALIGN_4(len);
 	
 	memh = (MemHead *)malloc(len + sizeof(MemHead) + sizeof(MemTail));
 
@@ -543,7 +550,7 @@ void *MEM_callocN(size_t len, const char *str)
 {
 	MemHead *memh;
 
-	len = (len + 3) & ~3;   /* allocate in units of 4 */
+	len = SIZET_ALIGN_4(len);
 
 	memh = (MemHead *)calloc(len + sizeof(MemHead) + sizeof(MemTail), 1);
 
@@ -566,7 +573,7 @@ void *MEM_mapallocN(size_t len, const char *str)
 {
 	MemHead *memh;
 
-	len = (len + 3) & ~3;   /* allocate in units of 4 */
+	len = SIZET_ALIGN_4(len);
 
 #if defined(WIN32)
 	/* our windows mmap implementation is not thread safe */
@@ -632,9 +639,9 @@ void MEM_printmemlist_stats(void)
 {
 	MemHead *membl;
 	MemPrintBlock *pb, *printblock;
-	int totpb, a, b;
+	unsigned int totpb, a, b;
 #ifdef HAVE_MALLOC_H
-	size_t mem_in_use_slop;
+	size_t mem_in_use_slop = 0;
 #endif
 	mem_lock_thread();
 
@@ -1078,9 +1085,9 @@ static const char *check_memlist(MemHead *memh)
 	return(name);
 }
 
-uintptr_t MEM_get_peak_memory(void)
+size_t MEM_get_peak_memory(void)
 {
-	uintptr_t _peak_mem;
+	size_t _peak_mem;
 
 	mem_lock_thread();
 	_peak_mem = peak_mem;
@@ -1118,9 +1125,9 @@ uintptr_t MEM_get_mapped_memory_in_use(void)
 	return _mmap_in_use;
 }
 
-int MEM_get_memory_blocks_in_use(void)
+unsigned int MEM_get_memory_blocks_in_use(void)
 {
-	int _totblock;
+	unsigned int _totblock;
 
 	mem_lock_thread();
 	_totblock = totblock;

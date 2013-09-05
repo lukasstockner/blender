@@ -1097,7 +1097,8 @@ typedef enum {
 	RC_COLOR    = 1,
 	RC_ROTATION = 2,
 	RC_ZOOM     = 4,
-	RC_WEIGHT   = 8
+	RC_WEIGHT   = 8,
+	RC_SECONDARY_ROTATION = 16
 } RCFlags;
 
 static void set_brush_rc_path(PointerRNA *ptr, const char *brush_path,
@@ -1129,7 +1130,10 @@ static void set_brush_rc_props(PointerRNA *ptr, const char *paint,
 		RNA_string_set(ptr, "data_path_secondary", "");
 	}
 	set_brush_rc_path(ptr, brush_path, "color_path", "cursor_color_add");
-	set_brush_rc_path(ptr, brush_path, "rotation_path", "texture_slot.angle");
+	if (flags & RC_SECONDARY_ROTATION)
+		set_brush_rc_path(ptr, brush_path, "rotation_path", "mask_texture_slot.angle");
+	else
+		set_brush_rc_path(ptr, brush_path, "rotation_path", "texture_slot.angle");
 	RNA_string_set(ptr, "image_id", brush_path);
 
 	if (flags & RC_COLOR)
@@ -1141,6 +1145,11 @@ static void set_brush_rc_props(PointerRNA *ptr, const char *paint,
 	else
 		RNA_string_set(ptr, "zoom_path", "");
 
+	if (flags & RC_SECONDARY_ROTATION)
+		RNA_boolean_set(ptr, "secondary_tex", true);
+	else
+		RNA_boolean_set(ptr, "secondary_tex", false);
+
 	MEM_freeN(brush_path);
 }
 
@@ -1150,6 +1159,7 @@ static void ed_keymap_paint_brush_radial_control(wmKeyMap *keymap, const char *p
 	wmKeyMapItem *kmi;
 	/* only size needs to follow zoom, strength shows fixed size circle */
 	int flags_nozoom = flags & (~RC_ZOOM);
+	int flags_noradial_secondary = flags & (~(RC_SECONDARY_ROTATION | RC_ZOOM));
 
 	kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, 0, 0);
 	set_brush_rc_props(kmi->ptr, paint, "size", "use_unified_size", flags);
@@ -1164,7 +1174,12 @@ static void ed_keymap_paint_brush_radial_control(wmKeyMap *keymap, const char *p
 
 	if (flags & RC_ROTATION) {
 		kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, KM_CTRL, 0);
-		set_brush_rc_props(kmi->ptr, paint, "texture_slot.angle", NULL, flags_nozoom);
+		set_brush_rc_props(kmi->ptr, paint, "texture_slot.angle", NULL, flags_noradial_secondary);
+	}
+
+	if (flags & RC_SECONDARY_ROTATION) {
+		kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, KM_CTRL | KM_ALT, 0);
+		set_brush_rc_props(kmi->ptr, paint, "mask_texture_slot.angle", NULL, flags_nozoom);
 	}
 }
 
@@ -1351,7 +1366,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "PAINT_OT_sample_color", SKEY, KM_PRESS, 0, 0);
 	ed_keymap_paint_brush_switch(keymap, "image_paint");
 	ed_keymap_paint_brush_size(keymap, "tool_settings.image_paint.brush.size");
-	ed_keymap_paint_brush_radial_control(keymap, "image_paint", RC_COLOR | RC_ZOOM | RC_ROTATION);
+	ed_keymap_paint_brush_radial_control(keymap, "image_paint", RC_COLOR | RC_ZOOM | RC_ROTATION | RC_SECONDARY_ROTATION);
 
 	ed_keymap_stencil(keymap);
 

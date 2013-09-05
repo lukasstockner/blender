@@ -985,7 +985,7 @@ static bool ui_but_event_property_operator_string(const bContext *C, uiBut *but,
 			
 			IDPropertyTemplate val = {0};
 			prop_path = IDP_New(IDP_GROUP, &val, __func__);
-			prop_path_value = IDP_NewString(data_path, "data_path", strlen(data_path) + 1); /* len + 1, or else will be truncated */
+			prop_path_value = IDP_NewString(data_path, "data_path", strlen(data_path) + 1);
 			IDP_AddToGroup(prop_path, prop_path_value);
 			
 			/* check each until one works... */
@@ -1807,12 +1807,14 @@ static void ui_get_but_string_unit(uiBut *but, char *str, int len_max, double va
 static float ui_get_but_step_unit(uiBut *but, float step_default)
 {
 	int unit_type = RNA_SUBTYPE_UNIT_VALUE(uiButGetUnitType(but));
-	float step;
+	double step;
 
 	step = bUnit_ClosestScalar(ui_get_but_scale_unit(but, step_default), but->block->unit->system, unit_type);
 
-	if (step > 0.0f) { /* -1 is an error value */
-		return (float)((double)step / ui_get_but_scale_unit(but, 1.0)) * 100.0f;
+	/* -1 is an error value */
+	if (step != -1.0) {
+		BLI_assert(step > 0.0);
+		return (float)(step / ui_get_but_scale_unit(but, 1.0)) * 100.0f;
 	}
 	else {
 		return step_default;
@@ -2047,13 +2049,14 @@ bool ui_set_but_string(bContext *C, uiBut *but, const char *str)
 	return false;
 }
 
-void ui_set_but_default(bContext *C, short all)
+void ui_set_but_default(bContext *C, const bool all)
 {
+	const char *opstring = "UI_OT_reset_default_button";
 	PointerRNA ptr;
 
-	WM_operator_properties_create(&ptr, "UI_OT_reset_default_button");
+	WM_operator_properties_create(&ptr, opstring);
 	RNA_boolean_set(&ptr, "all", all);
-	WM_operator_name_call(C, "UI_OT_reset_default_button", WM_OP_EXEC_DEFAULT, &ptr);
+	WM_operator_name_call(C, opstring, WM_OP_EXEC_DEFAULT, &ptr);
 	WM_operator_properties_free(&ptr);
 }
 
