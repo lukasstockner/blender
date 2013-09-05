@@ -68,11 +68,14 @@
 
 /* get derived mesh */
 /* TODO is anyfunction that does this? returning the derivedFinal without we caring if its in edit mode or not? */
-/* TODO(sergey): use derivedRender wehn applying thing for render mode */
-DerivedMesh *object_get_derived_final(Object *ob)
+DerivedMesh *object_get_derived_final(Object *ob, bool forRender)
 {
 	Mesh *me = ob->data;
 	BMEditMesh *em = me->edit_btmesh;
+
+	if (forRender) {
+		return ob->derivedRender;
+	}
 
 	if (em) {
 		DerivedMesh *dm = em->derivedFinal;
@@ -272,7 +275,7 @@ int normal_projection_project_vertex(char options, const float vert[3], const fl
 }
 
 
-static void shrinkwrap_calc_normal_projection(ShrinkwrapCalcData *calc)
+static void shrinkwrap_calc_normal_projection(ShrinkwrapCalcData *calc, bool forRender)
 {
 	int i;
 
@@ -320,7 +323,7 @@ static void shrinkwrap_calc_normal_projection(ShrinkwrapCalcData *calc)
 	}
 
 	if (calc->smd->auxTarget) {
-		auxMesh = object_get_derived_final(calc->smd->auxTarget);
+		auxMesh = object_get_derived_final(calc->smd->auxTarget, forRender);
 		if (!auxMesh)
 			return;
 		SPACE_TRANSFORM_SETUP(&local2aux, calc->ob, calc->smd->auxTarget);
@@ -501,7 +504,7 @@ static void shrinkwrap_calc_nearest_surface_point(ShrinkwrapCalcData *calc)
 
 /* Main shrinkwrap function */
 void shrinkwrapModifier_deform(ShrinkwrapModifierData *smd, Object *ob, DerivedMesh *dm,
-                               float (*vertexCos)[3], int numVerts)
+                               float (*vertexCos)[3], int numVerts, bool forRender)
 {
 
 	DerivedMesh *ss_mesh    = NULL;
@@ -529,7 +532,7 @@ void shrinkwrapModifier_deform(ShrinkwrapModifierData *smd, Object *ob, DerivedM
 
 
 	if (smd->target) {
-		calc.target = object_get_derived_final(smd->target);
+		calc.target = object_get_derived_final(smd->target, forRender);
 
 		/* TODO there might be several "bugs" on non-uniform scales matrixs
 		 * because it will no longer be nearest surface, not sphere projection
@@ -580,7 +583,7 @@ void shrinkwrapModifier_deform(ShrinkwrapModifierData *smd, Object *ob, DerivedM
 				break;
 
 			case MOD_SHRINKWRAP_PROJECT:
-				TIMEIT_BENCH(shrinkwrap_calc_normal_projection(&calc), deform_project);
+				TIMEIT_BENCH(shrinkwrap_calc_normal_projection(&calc, forRender), deform_project);
 				break;
 
 			case MOD_SHRINKWRAP_NEAREST_VERTEX:

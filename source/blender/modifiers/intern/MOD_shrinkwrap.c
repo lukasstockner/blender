@@ -116,17 +116,18 @@ static void deformVerts(ModifierData *md, Object *ob,
                         DerivedMesh *derivedData,
                         float (*vertexCos)[3],
                         int numVerts,
-                        ModifierApplyFlag UNUSED(flag))
+                        ModifierApplyFlag flag)
 {
 	DerivedMesh *dm = derivedData;
 	CustomDataMask dataMask = requiredDataMask(ob, md);
+	bool forRender = flag & MOD_APPLY_RENDER;
 
 	/* ensure we get a CDDM with applied vertex coords */
 	if (dataMask) {
 		dm = get_cddm(ob, NULL, dm, vertexCos, dependsOnNormals(md));
 	}
 
-	shrinkwrapModifier_deform((ShrinkwrapModifierData *)md, ob, dm, vertexCos, numVerts);
+	shrinkwrapModifier_deform((ShrinkwrapModifierData *)md, ob, dm, vertexCos, numVerts, forRender);
 
 	if (dm != derivedData)
 		dm->release(dm);
@@ -143,7 +144,7 @@ static void deformVertsEM(ModifierData *md, Object *ob, struct BMEditMesh *editD
 		dm = get_cddm(ob, editData, dm, vertexCos, dependsOnNormals(md));
 	}
 
-	shrinkwrapModifier_deform((ShrinkwrapModifierData *)md, ob, dm, vertexCos, numVerts);
+	shrinkwrapModifier_deform((ShrinkwrapModifierData *)md, ob, dm, vertexCos, numVerts, false);
 
 	if (dm != derivedData)
 		dm->release(dm);
