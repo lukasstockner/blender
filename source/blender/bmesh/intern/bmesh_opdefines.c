@@ -1129,7 +1129,7 @@ static BMOpDefine bmo_bisect_plane_def = {
 	 {"dist",         BMO_OP_SLOT_FLT},     /* minimum distance when testing if a vert is exactly on the plane */
 	 {"plane_co", BMO_OP_SLOT_VEC},         /* point on the plane */
 	 {"plane_no", BMO_OP_SLOT_VEC},         /* direction of the plane */
-	 {"use_snap_center",BMO_OP_SLOT_BOOL},  /* snap axis aligned verts to the center */
+	 {"use_snap_center", BMO_OP_SLOT_BOOL},  /* snap axis aligned verts to the center */
 	 {"clear_outer",   BMO_OP_SLOT_BOOL},    /* when enabled. remove all geometry on the positive side of the plane */
 	 {"clear_inner",   BMO_OP_SLOT_BOOL},    /* when enabled. remove all geometry on the negative side of the plane */
 	 {{'\0'}},
@@ -1177,8 +1177,9 @@ static BMOpDefine bmo_duplicate_def = {
 	 {"geom.out", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT | BM_EDGE | BM_FACE}},
 	/* facemap maps from source faces to dupe
 	 * faces, and from dupe faces to source faces */
-	 {"face_map.out", BMO_OP_SLOT_MAPPING, {BMO_OP_SLOT_SUBTYPE_MAP_ELEM}},
 	 {"vert_map.out", BMO_OP_SLOT_MAPPING, {BMO_OP_SLOT_SUBTYPE_MAP_ELEM}},
+	 {"edge_map.out", BMO_OP_SLOT_MAPPING, {BMO_OP_SLOT_SUBTYPE_MAP_ELEM}},
+	 {"face_map.out", BMO_OP_SLOT_MAPPING, {BMO_OP_SLOT_SUBTYPE_MAP_ELEM}},
 	 {"boundary_map.out", BMO_OP_SLOT_MAPPING, {BMO_OP_SLOT_SUBTYPE_MAP_ELEM}},
 	 {"isovert_map.out", BMO_OP_SLOT_MAPPING, {BMO_OP_SLOT_SUBTYPE_MAP_ELEM}},
 	{{'\0'}},

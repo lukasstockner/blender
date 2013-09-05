@@ -32,15 +32,6 @@
 #include <math.h>
 #include <string.h>
 
-#if defined WIN32 && !defined _LIBC  || defined __sun
-# include "BLI_fnmatch.h" /* use fnmatch included in blenlib */
-#else
-#  ifndef _GNU_SOURCE
-#    define _GNU_SOURCE
-#  endif
-# include <fnmatch.h>
-#endif
-
 #include "MEM_guardedalloc.h"
 
 #include "DNA_anim_types.h"
@@ -59,12 +50,14 @@
 #include "DNA_sequence_types.h"
 #include "DNA_speaker_types.h"
 #include "DNA_object_types.h"
+#include "DNA_linestyle_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
 #include "BLI_ghash.h"
 #include "BLI_mempool.h"
+#include "BLI_fnmatch.h"
 
 #include "BLF_translation.h"
 
@@ -384,6 +377,28 @@ static bool outliner_animdata_test(AnimData *adt)
 	return false;
 }
 
+static void outliner_add_line_styles(SpaceOops *soops, ListBase *lb, Scene *sce, TreeElement *te)
+{
+	SceneRenderLayer *srl;
+	FreestyleLineSet *lineset;
+
+	for (srl = sce->r.layers.first; srl; srl = srl->next) {
+		for (lineset = srl->freestyleConfig.linesets.first; lineset; lineset = lineset->next) {
+			lineset->linestyle->id.flag |= LIB_DOIT;
+		}
+	}
+	for (srl = sce->r.layers.first; srl; srl = srl->next) {
+		for (lineset = srl->freestyleConfig.linesets.first; lineset; lineset = lineset->next) {
+			FreestyleLineStyle *linestyle = lineset->linestyle;
+
+			if (!(linestyle->id.flag & LIB_DOIT))
+				continue;
+			linestyle->id.flag &= ~LIB_DOIT;
+			outliner_add_element(soops, lb, linestyle, te, 0, 0);
+		}
+	}
+}
+
 static void outliner_add_scene_contents(SpaceOops *soops, ListBase *lb, Scene *sce, TreeElement *te)
 {
 	SceneRenderLayer *srl;
@@ -409,6 +424,8 @@ static void outliner_add_scene_contents(SpaceOops *soops, ListBase *lb, Scene *s
 		outliner_add_element(soops, lb, sce, te, TSE_ANIM_DATA, 0);
 	
 	outliner_add_element(soops,  lb, sce->world, te, 0, 0);
+	
+	outliner_add_line_styles(soops, lb, sce, te);
 }
 
 // can be inlined if necessary
@@ -765,6 +782,14 @@ static void outliner_add_id_contents(SpaceOops *soops, TreeElement *te, TreeStor
 					}
 				}
 			}
+			break;
+		}
+		case ID_LS:
+		{
+			FreestyleLineStyle *linestyle = (FreestyleLineStyle *)id;
+			
+			if (outliner_animdata_test(linestyle->adt))
+				outliner_add_element(soops, &te->subtree, linestyle, te, TSE_ANIM_DATA, 0);
 			break;
 		}
 	}

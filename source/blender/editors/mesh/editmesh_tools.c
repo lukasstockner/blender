@@ -29,6 +29,8 @@
  *  \ingroup edmesh
  */
 
+#include <stddef.h>
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_key_types.h"
@@ -892,14 +894,30 @@ static int edbm_duplicate_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_edit_object(C);
 	BMEditMesh *em = BKE_editmesh_from_object(ob);
+	BMesh *bm = em->bm;
 	BMOperator bmop;
+	ListBase bm_selected_store = {NULL, NULL};
+
+	/* de-select all would clear otherwise */
+	SWAP(ListBase, bm->selected, bm_selected_store);
 
 	EDBM_op_init(em, &bmop, op, "duplicate geom=%hvef", BM_ELEM_SELECT);
 	
-	BMO_op_exec(em->bm, &bmop);
+	BMO_op_exec(bm, &bmop);
 	EDBM_flag_disable_all(em, BM_ELEM_SELECT);
 
-	BMO_slot_buffer_hflag_enable(em->bm, bmop.slots_out, "geom.out", BM_ALL_NOLOOP, BM_ELEM_SELECT, true);
+	BMO_slot_buffer_hflag_enable(bm, bmop.slots_out, "geom.out", BM_ALL_NOLOOP, BM_ELEM_SELECT, true);
+
+	/* rebuild editselection */
+	bm->selected = bm_selected_store;
+
+	if (bm->selected.first) {
+		BMOpSlot *slot_vert_map_out = BMO_slot_get(bmop.slots_out, "vert_map.out");
+		BMOpSlot *slot_edge_map_out = BMO_slot_get(bmop.slots_out, "edge_map.out");
+		BMOpSlot *slot_face_map_out = BMO_slot_get(bmop.slots_out, "face_map.out");
+
+		BMO_mesh_selected_remap(bm, slot_vert_map_out, slot_edge_map_out, slot_face_map_out);
+	}
 
 	if (!EDBM_op_finish(em, &bmop, op, true)) {
 		return OPERATOR_CANCELLED;
@@ -2816,6 +2834,101 @@ void MESH_OT_fill(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "use_beauty", true, "Beauty", "Use best triangulation division");
 }
 
+/* -------------------------------------------------------------------- */
+/* Grid Fill (and helper functions) */
+
+static bool bm_edge_test_fill_grid_cb(BMEdge *e, void *UNUSED(bm_v))
+{
+	return BM_elem_flag_test_bool(e, BM_ELEM_TAG);
+}
+
+static float edbm_fill_grid_vert_tag_angle(BMVert *v)
+{
+	BMIter iter;
+	BMEdge *e_iter;
+	BMVert *v_pair[2];
+	int i = 0;
+	BM_ITER_ELEM (e_iter, &iter, v, BM_EDGES_OF_VERT) {
+		if (BM_elem_flag_test(e_iter, BM_ELEM_TAG)) {
+			v_pair[i++] = BM_edge_other_vert(e_iter, v);
+		}
+	}
+	BLI_assert(i == 2);
+
+	return fabsf((float)M_PI - angle_v3v3v3(v_pair[0]->co, v->co, v_pair[1]->co));
+}
+
+/**
+ * non-essential utility function to select 2 open edge loops from a closed loop.
+ */
+static void edbm_fill_grid_prepare(BMesh *bm, int span, int offset)
+{
+	BMEdge *e;
+	BMIter iter;
+	int count;
+
+	ListBase eloops = {NULL};
+	struct BMEdgeLoopStore *el_store;
+	// LinkData *el_store;
+
+	/* select -> tag */
+	BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+		BM_elem_flag_set(e, BM_ELEM_TAG, BM_elem_flag_test(e, BM_ELEM_SELECT));
+	}
+
+	count = BM_mesh_edgeloops_find(bm, &eloops, bm_edge_test_fill_grid_cb, bm);
+	el_store = eloops.first;
+
+	if (count == 1 && BM_edgeloop_is_closed(el_store) && (BM_edgeloop_length_get(el_store) & 1) == 0) {
+		/* be clever! detect 2 edge loops from one closed edge loop */
+		const int verts_len = BM_edgeloop_length_get(el_store);
+		ListBase *verts = BM_edgeloop_verts_get(el_store);
+		BMVert *v_act = BM_mesh_active_vert_get(bm);
+		LinkData *v_act_link;
+		BMEdge **edges = MEM_mallocN(sizeof(*edges) * verts_len, __func__);
+		int i;
+
+		if (v_act && (v_act_link = BLI_findptr(verts, v_act, offsetof(LinkData, data)))) {
+			/* pass */
+		}
+		else {
+			/* find the vertex with the best angle (a corner vertex) */
+			LinkData *v_link, *v_link_best = NULL;
+			float angle_best = -1.0f;
+			for (v_link = verts->first; v_link; v_link = v_link->next) {
+				const float angle = edbm_fill_grid_vert_tag_angle(v_link->data);
+				if ((angle > angle_best) || (v_link_best == NULL)) {
+					angle_best = angle;
+					v_link_best = v_link;
+				}
+			}
+
+			v_act_link = v_link_best;
+			v_act = v_act_link->data;
+		}
+
+		if (offset != 0) {
+			v_act_link = BLI_findlink(verts, offset);
+			v_act = v_act_link->data;
+		}
+
+		/* set this vertex first */
+		BLI_rotatelist_first(verts, v_act_link);
+		BM_edgeloop_edges_get(el_store, edges);
+
+		/* un-flag 'rails' */
+		for (i = 0; i < span; i++) {
+			BM_elem_flag_disable(edges[i], BM_ELEM_TAG);
+			BM_elem_flag_disable(edges[(verts_len / 2) + i], BM_ELEM_TAG);
+		}
+
+		MEM_freeN(edges);
+	}
+	/* else let the bmesh-operator handle it */
+
+	BM_mesh_edgeloops_free(&eloops);
+}
+
 static int edbm_fill_grid_exec(bContext *C, wmOperator *op)
 {
 	BMOperator bmop;
@@ -2825,9 +2938,36 @@ static int edbm_fill_grid_exec(bContext *C, wmOperator *op)
 	const int totedge_orig = em->bm->totedge;
 	const int totface_orig = em->bm->totface;
 
+	const bool use_prepare = true;
+
+	if (use_prepare) {
+		/* use when we have a single loop selected */
+		PropertyRNA *prop_span = RNA_struct_find_property(op->ptr, "span");
+		PropertyRNA *prop_offset = RNA_struct_find_property(op->ptr, "offset");
+
+		const int clamp = em->bm->totvertsel;
+		int span;
+		int offset;
+
+		if (RNA_property_is_set(op->ptr, prop_span)) {
+			span = RNA_property_int_get(op->ptr, prop_span);
+			span = min_ii(span, (clamp / 2) - 1);
+		}
+		else {
+			span = clamp / 4;
+		}
+		RNA_property_int_set(op->ptr, prop_span, span);
+
+		offset = RNA_property_int_get(op->ptr, prop_offset);
+		offset = positive_mod(offset, clamp);
+
+		/* in simple cases, move selection for tags, but also support more advanced cases */
+		edbm_fill_grid_prepare(em->bm, span, offset);
+	}
+
 	if (!EDBM_op_init(em, &bmop, op,
 	                  "grid_fill edges=%he mat_nr=%i use_smooth=%b",
-	                  BM_ELEM_SELECT, em->mat_nr, use_smooth))
+	                  use_prepare ? BM_ELEM_TAG : BM_ELEM_SELECT, em->mat_nr, use_smooth))
 	{
 		return OPERATOR_CANCELLED;
 	}
@@ -2855,6 +2995,8 @@ static int edbm_fill_grid_exec(bContext *C, wmOperator *op)
 
 void MESH_OT_fill_grid(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+
 	/* identifiers */
 	ot->name = "Grid Fill";
 	ot->description = "Fill grid from two loops";
@@ -2866,6 +3008,12 @@ void MESH_OT_fill_grid(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	/* properties */
+	prop = RNA_def_int(ot->srna, "span", 1, 1, INT_MAX, "Span", "Number of sides (zero disables)", 1, 100);
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	prop = RNA_def_int(ot->srna, "offset", 0, INT_MIN, INT_MAX, "Offset", "Number of sides (zero disables)", -100, 100);
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 static int edbm_fill_holes_exec(bContext *C, wmOperator *op)
@@ -4434,138 +4582,6 @@ void MESH_OT_convex_hull(wmOperatorType *ot)
 	join_triangle_props(ot);
 }
 #endif
-
-
-static int mesh_bisect_exec(bContext *C, wmOperator *op)
-{
-	Scene *scene = CTX_data_scene(C);
-
-	/* both can be NULL, fallbacks values are used */
-	View3D *v3d = CTX_wm_view3d(C);
-	RegionView3D *rv3d = ED_view3d_context_rv3d(C);
-
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-	BMesh *bm = em->bm;
-	BMOperator bmop;
-	float plane_co[3];
-	float plane_no[3];
-	float imat[4][4];
-
-	const float thresh = RNA_float_get(op->ptr, "threshold");
-	const bool use_fill = RNA_boolean_get(op->ptr, "use_fill");
-	const bool clear_inner = RNA_boolean_get(op->ptr, "clear_inner");
-	const bool clear_outer = RNA_boolean_get(op->ptr, "clear_outer");
-
-	PropertyRNA *prop;
-
-	prop = RNA_struct_find_property(op->ptr, "plane_co");
-	if (RNA_property_is_set(op->ptr, prop)) {
-		RNA_property_float_get_array(op->ptr, prop, plane_co);
-	}
-	else {
-		copy_v3_v3(plane_co, give_cursor(scene, v3d));
-		RNA_property_float_set_array(op->ptr, prop, plane_co);
-	}
-
-	prop = RNA_struct_find_property(op->ptr, "plane_no");
-	if (RNA_property_is_set(op->ptr, prop)) {
-		RNA_property_float_get_array(op->ptr, prop, plane_no);
-	}
-	else {
-		if (rv3d) {
-			copy_v3_v3(plane_no, rv3d->viewinv[1]);
-		}
-		else {
-			/* fallback... */
-			plane_no[0] = plane_no[1] = 0.0f; plane_no[2] = 1.0f;
-		}
-		RNA_property_float_set_array(op->ptr, prop, plane_no);
-	}
-
-	invert_m4_m4(imat, obedit->obmat);
-	mul_m4_v3(imat, plane_co);
-	mul_mat3_m4_v3(imat, plane_no);
-
-	EDBM_op_init(em, &bmop, op,
-	             "bisect_plane geom=%hvef plane_co=%v plane_no=%v dist=%f clear_inner=%b clear_outer=%b",
-	             BM_ELEM_SELECT, plane_co, plane_no, thresh, clear_inner, clear_outer);
-	BMO_op_exec(bm, &bmop);
-
-	EDBM_flag_disable_all(em, BM_ELEM_SELECT);
-
-	if (use_fill) {
-		float normal_fill[3];
-		BMOperator bmop_fill;
-		BMOperator bmop_attr;
-
-		normalize_v3_v3(normal_fill, plane_no);
-		if (clear_outer == true && clear_inner == false) {
-			negate_v3(normal_fill);
-		}
-
-		/* Fill */
-		BMO_op_initf(
-		        bm, &bmop_fill, op->flag,
-		        "triangle_fill edges=%S normal=%v use_dissolve=%b",
-		        &bmop, "geom_cut.out", normal_fill, true);
-		BMO_op_exec(bm, &bmop_fill);
-
-		/* Copy Attributes */
-		BMO_op_initf(bm, &bmop_attr, op->flag,
-		             "face_attribute_fill faces=%S use_normals=%b use_data=%b",
-		             &bmop_fill, "geom.out", false, true);
-		BMO_op_exec(bm, &bmop_attr);
-
-		BMO_slot_buffer_hflag_enable(bm, bmop_fill.slots_out, "geom.out", BM_FACE, BM_ELEM_SELECT, true);
-
-		BMO_op_finish(bm, &bmop_attr);
-		BMO_op_finish(bm, &bmop_fill);
-	}
-
-	BMO_slot_buffer_hflag_enable(bm, bmop.slots_out, "geom_cut.out", BM_VERT | BM_EDGE, BM_ELEM_SELECT, true);
-
-	if (!EDBM_op_finish(em, &bmop, op, true)) {
-		return OPERATOR_CANCELLED;
-	}
-	else {
-		EDBM_update_generic(em, true, true);
-		EDBM_selectmode_flush(em);
-		return OPERATOR_FINISHED;
-	}
-}
-
-void MESH_OT_bisect(struct wmOperatorType *ot)
-{
-	PropertyRNA *prop;
-
-	/* identifiers */
-	ot->name = "Bisect";
-	ot->description = "Enforce symmetry (both form and topological) across an axis";
-	ot->idname = "MESH_OT_bisect";
-
-	/* api callbacks */
-	ot->exec = mesh_bisect_exec;
-	ot->poll = ED_operator_editmesh;
-
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-
-
-	prop = RNA_def_float_vector(ot->srna, "plane_co", 3, NULL, -FLT_MAX, FLT_MAX,
-	                            "Plane Point", "A point on the plane", -FLT_MAX, FLT_MAX);
-	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-	prop = RNA_def_float_vector(ot->srna, "plane_no", 3, NULL, -FLT_MAX, FLT_MAX,
-	                            "Plane Normal", "The direction the plane points", -FLT_MAX, FLT_MAX);
-	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-
-	RNA_def_boolean(ot->srna, "use_fill", false, "Fill", "Fill in the cut");
-	RNA_def_boolean(ot->srna, "clear_inner", false, "Clear Inner", "Remove geometry behind the plane");
-	RNA_def_boolean(ot->srna, "clear_outer", false, "Clear Outer", "Remove geometry infront of the plane");
-
-	RNA_def_float(ot->srna, "threshold", 0.0001, 0.0, 10.0, "Axis Threshold", "", 0.00001, 0.1);
-
-}
 
 static int mesh_symmetrize_exec(bContext *C, wmOperator *op)
 {

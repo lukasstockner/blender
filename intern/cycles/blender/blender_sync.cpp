@@ -458,7 +458,7 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::Use
 		params.tile_size = make_int2(tile_x, tile_y);
 	}
 	
-	params.tile_order = RNA_enum_get(&cscene, "tile_order");
+	params.tile_order = (TileOrder)RNA_enum_get(&cscene, "tile_order");
 
 	params.start_resolution = get_int(cscene, "preview_start_resolution");
 
@@ -492,6 +492,9 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::Use
 		params.shadingsystem = SessionParams::SVM;
 	else if(shadingsystem == 1)
 		params.shadingsystem = SessionParams::OSL;
+	
+	/* color managagement */
+	params.display_buffer_linear = b_engine.support_display_space_shader(b_scene);
 
 	return params;
 }

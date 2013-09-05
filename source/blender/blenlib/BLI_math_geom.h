@@ -34,6 +34,7 @@
 extern "C" {
 #endif
 
+#include "BLI_compiler_attrs.h"
 #include "BLI_math_inline.h"
 
 #if BLI_MATH_DO_INLINE
@@ -97,6 +98,10 @@ void closest_on_tri_to_point_v3(float r[3], const float p[3], const float t1[3],
 
 float line_point_factor_v3(const float p[3], const float l1[3], const float l2[3]);
 float line_point_factor_v2(const float p[2], const float l1[2], const float l2[2]);
+
+float line_plane_factor_v3(const float plane_co[3], const float plane_no[3],
+                           const float l1[3], const float l2[3]);
+
 void limit_dist_v3(float v1[3], float v2[3], const float dist);
 
 /******************************* Intersection ********************************/
@@ -130,7 +135,7 @@ bool isect_ray_plane_v3(const float p1[3], const float d[3],
 
 bool isect_point_planes_v3(float (*planes)[4], int totplane, const float p[3]);
 bool isect_line_plane_v3(float out[3], const float l1[3], const float l2[3],
-                         const float plane_co[3], const float plane_no[3], const bool no_flip);
+                         const float plane_co[3], const float plane_no[3]);
 
 void isect_plane_plane_v3(float r_isect_co[3], float r_isect_no[3],
                           const float plane_a_co[3], const float plane_a_no[3],
@@ -139,6 +144,9 @@ void isect_plane_plane_v3(float r_isect_co[3], float r_isect_no[3],
 /* line/ray triangle */
 bool isect_line_tri_v3(const float p1[3], const float p2[3],
                        const float v0[3], const float v1[3], const float v2[3], float *r_lambda, float r_uv[2]);
+bool isect_line_tri_epsilon_v3(const float p1[3], const float p2[3],
+                       const float v0[3], const float v1[3], const float v2[3],
+                       float *r_lambda, float r_uv[2], const float epsilon);
 bool isect_ray_tri_v3(const float p1[3], const float d[3],
                       const float v0[3], const float v1[3], const float v2[3], float *r_lambda, float r_uv[2]);
 bool isect_ray_tri_threshold_v3(const float p1[3], const float d[3],
@@ -286,11 +294,7 @@ float form_factor_hemi_poly(float p[3], float n[3],
 
 bool  axis_dominant_v3_to_m3(float r_mat[3][3], const float normal[3]);
 void  axis_dominant_v3(int *r_axis_a, int *r_axis_b, const float axis[3]);
-float axis_dominant_v3_max(int *r_axis_a, int *r_axis_b, const float axis[3])
-#ifdef __GNUC__
-__attribute__((warn_unused_result))
-#endif
-;
+float axis_dominant_v3_max(int *r_axis_a, int *r_axis_b, const float axis[3]) ATTR_WARN_UNUSED_RESULT;
 
 MINLINE int max_axis_v3(const float vec[3]);
 MINLINE int min_axis_v3(const float vec[3]);

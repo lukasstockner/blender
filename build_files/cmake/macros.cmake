@@ -387,7 +387,7 @@ macro(setup_liblinks
 		target_link_libraries(${target} ${PTHREADS_LIBRARIES})
 	endif()
 
-	target_link_libraries(${target} ${PLATFORM_LINKLIBS})
+	target_link_libraries(${target} ${PLATFORM_LINKLIBS} ${CMAKE_DL_LIBS})
 endmacro()
 
 macro(TEST_SSE_SUPPORT
@@ -802,6 +802,7 @@ macro(data_to_c_simple
 
 endmacro()
 
+# XXX Not used for now...
 macro(svg_to_png
       file_from
       file_to
@@ -818,6 +819,15 @@ macro(svg_to_png
 	mark_as_advanced(INKSCAPE_EXE)
 
 	if(INKSCAPE_EXE)
+		if(APPLE)
+			# in OS X app bundle, the binary is a shim that doesn't take any
+			# command line arguments, replace it with the actual binary
+			string(REPLACE "MacOS/Inkscape" "Resources/bin/inkscape" INKSCAPE_REAL_EXE ${INKSCAPE_EXE})
+			if(EXISTS "${INKSCAPE_REAL_EXE}")
+				set(INKSCAPE_EXE ${INKSCAPE_REAL_EXE})
+			endif()
+		endif()
+
 		add_custom_command(
 			OUTPUT  ${_file_to}
 			COMMAND ${INKSCAPE_EXE} ${_file_from} --export-dpi=${dpi}  --without-gui --export-png=${_file_to}

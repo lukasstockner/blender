@@ -471,6 +471,8 @@ static void ui_item_array(uiLayout *layout, uiBlock *block, const char *name, in
 					but->type = NUMSLI;
 				if (toggle && but->type == OPTION)
 					but->type = TOG;
+				if ((a == 0) && (subtype == PROP_AXISANGLE))
+					uiButSetUnitType(but, PROP_UNIT_ROTATION);
 			}
 
 			if (boolarr) {
@@ -2431,6 +2433,15 @@ uiLayout *uiLayoutListBox(uiLayout *layout, uiList *ui_list, PointerRNA *ptr, Pr
 	but->rnasearchprop = prop;
 	but->rnapoin = *actptr;
 	but->rnaprop = actprop;
+
+	/* Resizing data. */
+	/* Note: we can't use usual "num button" value handling, as it only tries rnapoin when it is non-NULL... :/
+	 *       So just setting but->poin, not but->pointype.
+	 */
+	but->poin = (void *)&ui_list->list_grip;
+	but->hardmin = but->softmin = 0.0f;
+	but->hardmax = but->softmax = 1000.0f; /* Should be more than enough! */
+	but->a1 = 0.0f;
 
 	/* only for the undo string */
 	if (but->flag & UI_BUT_UNDO) {
