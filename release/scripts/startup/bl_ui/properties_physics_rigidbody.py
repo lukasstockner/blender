@@ -112,23 +112,21 @@ class PHYSICS_PT_rigid_body_dynamics(PHYSICS_PT_rigidbody_panel, Panel):
         ob = context.object
         rbo = ob.rigid_body
 
-        #col = layout.column(align=1)
-        #col.label(text="Activation:")
-        # XXX: settings such as activate on collison/etc.
-
         split = layout.split()
+
+        col = split.column()
+        col.label(text="Activation:")
+        col.prop(rbo, "use_start_deactivated")
 
         col = split.column()
         col.label(text="Deactivation:")
         col.prop(rbo, "use_deactivation")
         sub = col.column()
         sub.active = rbo.use_deactivation
-        sub.prop(rbo, "use_start_deactivated")
         sub.prop(rbo, "deactivate_linear_velocity", text="Linear Vel")
         sub.prop(rbo, "deactivate_angular_velocity", text="Angular Vel")
-        # TODO: other params such as time?
 
-        col = split.column()
+        col = layout.column()
         col.label(text="Damping:")
         col.prop(rbo, "linear_damping", text="Translation")
         col.prop(rbo, "angular_damping", text="Rotation")

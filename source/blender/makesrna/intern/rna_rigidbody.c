@@ -818,8 +818,8 @@ static void rna_def_rigidbody_object(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", RBO_FLAG_USE_DEACTIVATION);
 	RNA_def_property_boolean_default(prop, TRUE);
 	RNA_def_property_boolean_funcs(prop, NULL, "rna_RigidBodyOb_activation_state_set");
-	RNA_def_property_ui_text(prop, "Enable Deactivation",
-	                         "Enable deactivation of resting rigid bodies (increases performance and stability "
+	RNA_def_property_ui_text(prop, "Allow Deactivation",
+	                         "Allow deactivation of resting rigid bodies (increases performance and stability "
 	                         "but can cause glitches)");
 	RNA_def_property_update(prop, NC_OBJECT | ND_POINTCACHE, "rna_RigidBodyOb_reset");
 	
