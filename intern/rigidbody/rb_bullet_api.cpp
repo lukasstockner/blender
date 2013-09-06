@@ -593,14 +593,16 @@ void RB_body_set_kinematic_state(rbRigidBody *object, int kinematic)
 		body->setCollisionFlags(body->getCollisionFlags() & ~btCollisionObject::CF_KINEMATIC_OBJECT);
 }
 
+void RB_body_suspend(rbRigidBody *object)
+{
+	object->saved_mass = RB_body_get_mass(object);
+	RB_body_set_mass(object, 0.0f);
+	object->suspended = true;
+}
+
 void RB_body_set_trigger(rbRigidBody *object, int trigger)
 {
-	btRigidBody *body = object->body;
 	object->is_trigger = trigger;
-	if (trigger)
-		body->setCollisionFlags(body->getCollisionFlags() | btCollisionObject::CF_NO_CONTACT_RESPONSE);
-	else
-		body->setCollisionFlags(body->getCollisionFlags() & ~btCollisionObject::CF_NO_CONTACT_RESPONSE);
 }
 
 /* ............ */
