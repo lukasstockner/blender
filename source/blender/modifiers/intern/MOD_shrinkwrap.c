@@ -120,7 +120,7 @@ static void deformVerts(ModifierData *md, Object *ob,
 {
 	DerivedMesh *dm = derivedData;
 	CustomDataMask dataMask = requiredDataMask(ob, md);
-	bool forRender = flag & MOD_APPLY_RENDER;
+	bool forRender = (flag & MOD_APPLY_RENDER) != 0;
 
 	/* ensure we get a CDDM with applied vertex coords */
 	if (dataMask) {
