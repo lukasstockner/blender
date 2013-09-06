@@ -6190,7 +6190,7 @@ static void get_local_bounds(Object *ob, float center[3], float size[3])
 }
 #endif
 
-static void draw_bb_quadric(BoundBox *bb, char type)
+static void draw_bb_quadric(BoundBox *bb, char type, float *offset)
 {
 	float size[3], cent[3];
 	GLUquadricObj *qobj = gluNewQuadric();
@@ -6206,6 +6206,8 @@ static void draw_bb_quadric(BoundBox *bb, char type)
 	cent[2] = 0.5f * (bb->vec[0][2] + bb->vec[1][2]);
 	
 	glPushMatrix();
+	if (offset)
+		glTranslatef(offset[0], offset[1], offset[2]);
 	if (type == OB_BOUND_SPHERE) {
 		float scale = MAX3(size[0], size[1], size[2]);
 		glTranslatef(cent[0], cent[1], cent[2]);
@@ -6267,11 +6269,49 @@ static void draw_bounding_volume(Scene *scene, Object *ob, char type)
 		BKE_boundbox_init_from_minmax(bb, min, max);
 	}
 	
-	if (bb == NULL) return;
+	if (bb == NULL)
+		return;
 	
-	if (type == OB_BOUND_BOX) draw_box(bb->vec);
-	else draw_bb_quadric(bb, type);
-	
+	if (ob->gameflag & OB_BOUNDS) { /* need to offset bounds for game engine, so it's drawn around origin */
+		float offset[3], center[3], min[3], max[3];
+
+		mul_v3_m4v3(min, ob->obmat, bb->vec[0]);
+		mul_v3_m4v3(max, ob->obmat, bb->vec[6]);
+		add_v3_v3v3(center, max, min);
+		mul_v3_fl(center, 0.5f);
+
+		sub_v3_v3v3(offset, ob->obmat[3], center);
+
+		if (type == OB_BOUND_BOX) {
+			float vec[8][3];
+			copy_v3_v3(vec[0], bb->vec[0]);
+			copy_v3_v3(vec[1], bb->vec[1]);
+			copy_v3_v3(vec[2], bb->vec[2]);
+			copy_v3_v3(vec[3], bb->vec[3]);
+			copy_v3_v3(vec[4], bb->vec[4]);
+			copy_v3_v3(vec[5], bb->vec[5]);
+			copy_v3_v3(vec[6], bb->vec[6]);
+			copy_v3_v3(vec[7], bb->vec[7]);
+			add_v3_v3(vec[0], offset);
+			add_v3_v3(vec[1], offset);
+			add_v3_v3(vec[2], offset);
+			add_v3_v3(vec[3], offset);
+			add_v3_v3(vec[4], offset);
+			add_v3_v3(vec[5], offset);
+			add_v3_v3(vec[6], offset);
+			add_v3_v3(vec[7], offset);
+			draw_box(vec);
+		}
+		else {
+			draw_bb_quadric(bb, type, offset);
+		}
+	}
+	else {
+		if (type == OB_BOUND_BOX)
+			draw_box(bb->vec);
+		else
+			draw_bb_quadric(bb, type, NULL);
+	}
 }
 
 static void drawtexspace(Object *ob)
@@ -6570,16 +6610,16 @@ static void draw_rigidbody_shape(Object *ob)
 			draw_box(bb->vec);
 			break;
 		case RB_SHAPE_SPHERE:
-			draw_bb_quadric(bb, OB_BOUND_SPHERE);
+			draw_bb_quadric(bb, OB_BOUND_SPHERE, NULL);
 			break;
 		case RB_SHAPE_CONE:
-			draw_bb_quadric(bb, OB_BOUND_CONE);
+			draw_bb_quadric(bb, OB_BOUND_CONE, NULL);
 			break;
 		case RB_SHAPE_CYLINDER:
-			draw_bb_quadric(bb, OB_BOUND_CYLINDER);
+			draw_bb_quadric(bb, OB_BOUND_CYLINDER, NULL);
 			break;
 		case RB_SHAPE_CAPSULE:
-			draw_bb_quadric(bb, OB_BOUND_CAPSULE);
+			draw_bb_quadric(bb, OB_BOUND_CAPSULE, NULL);
 			break;
 	}
 }
