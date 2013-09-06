@@ -234,8 +234,17 @@ static rbCollisionShape *rigidbody_get_shape_convexhull_from_mesh(Object *ob, fl
 	int totvert = 0;
 
 	if (ob->type == OB_MESH && ob->data) {
-		BLI_assert(ob->derivedDeform != NULL); // RB_TODO need to make sure there's no case where deform derived mesh doesn't exist
-		dm = ob->derivedDeform;
+		if (ob->rigidbody_object->mesh_source == RBO_MESH_DEFORM) {
+			dm = ob->derivedDeform;
+		}
+		else if (ob->rigidbody_object->mesh_source == RBO_MESH_FINAL) {
+			dm = ob->derivedFinal;
+		}
+		else {
+			dm = CDDM_from_mesh(ob->data, ob);
+		}
+
+		BLI_assert(dm != NULL); // RB_TODO need to make sure there's no case where deform derived mesh doesn't exist
 		mvert   = (dm) ? dm->getVertArray(dm) : NULL;
 		totvert = (dm) ? dm->getNumVerts(dm) : 0;
 	}
@@ -250,6 +259,9 @@ static rbCollisionShape *rigidbody_get_shape_convexhull_from_mesh(Object *ob, fl
 		printf("ERROR: no vertices to define Convex Hull collision shape with\n");
 	}
 
+	if (dm && ob->rigidbody_object->mesh_source == RBO_MESH_BASE)
+		dm->release(dm);
+
 	return shape;
 }
 
@@ -261,13 +273,22 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
 	rbCollisionShape *shape = NULL;
 
 	if (ob->type == OB_MESH) {
-		DerivedMesh *dm = ob->derivedDeform;
-
+		DerivedMesh *dm = NULL;
 		MVert *mvert;
 		MFace *mface;
 		int totvert;
 		int totface;
 		int tottris = 0;
+
+		if (ob->rigidbody_object->mesh_source == RBO_MESH_DEFORM) {
+			dm = ob->derivedDeform;
+		}
+		else if (ob->rigidbody_object->mesh_source == RBO_MESH_FINAL) {
+			dm = ob->derivedFinal;
+		}
+		else {
+			dm = CDDM_from_mesh(ob->data, ob);
+		}
 
 		/* ensure mesh validity, then grab data */
 		BLI_assert(dm!= NULL); // RB_TODO need to make sure there's no case where deform derived mesh doesn't exist
@@ -333,11 +354,14 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
 				shape = RB_shape_new_gimpact_mesh(mdata);
 			}
 		}
+
+		if (dm && ob->rigidbody_object->mesh_source == RBO_MESH_BASE)
+			dm->release(dm);
 	}
 	else {
 		printf("ERROR: cannot make Triangular Mesh collision shape for non-Mesh object\n");
 	}
-
+	
 	return shape;
 }
 
@@ -349,13 +373,23 @@ static rbCollisionShape *rigidbody_get_shape_convex_decomp_from_mesh(Object *ob)
 	rbCollisionShape *shape = NULL;
 
 	if (ob->type == OB_MESH) {
-		DerivedMesh *dm = ob->derivedDeform;
+		DerivedMesh *dm = NULL;
 
 		MVert *mvert;
 		MFace *mface;
 		int totvert;
 		int totface;
 		int tottris = 0;
+		
+		if (ob->rigidbody_object->mesh_source == RBO_MESH_DEFORM) {
+			dm = ob->derivedDeform;
+		}
+		else if (ob->rigidbody_object->mesh_source == RBO_MESH_FINAL) {
+			dm = ob->derivedFinal;
+		}
+		else {
+			dm = CDDM_from_mesh(ob->data, ob);
+		}
 
 		/* ensure mesh validity, then grab data */
 		BLI_assert(dm!= NULL); // RB_TODO need to make sure there's no case where deform derived mesh doesn't exist
@@ -406,6 +440,9 @@ static rbCollisionShape *rigidbody_get_shape_convex_decomp_from_mesh(Object *ob)
 			}
 			shape = RB_shape_new_convex_decomp(mdata);
 		}
+
+		if (dm && ob->rigidbody_object->mesh_source == RBO_MESH_BASE)
+			dm->release(dm);
 	}
 	else {
 		printf("ERROR: cannot make Triangular Mesh collision shape for non-Mesh object\n");

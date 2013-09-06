@@ -69,6 +69,9 @@ class PHYSICS_PT_rigid_body_collisions(PHYSICS_PT_rigidbody_panel, Panel):
         rbo = ob.rigid_body
 
         layout.prop(rbo, "collision_shape", text="Shape")
+        
+        if rbo.collision_shape in {'MESH', 'CONVEX_HULL', 'APPROX'}:
+            layout.prop(rbo, "mesh_source", text="Source")
 
         split = layout.split()
 
