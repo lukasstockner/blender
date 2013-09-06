@@ -51,7 +51,7 @@ public:
     
 private:
     VDBMap vdb_files;
-    VDBMap::const_iterator add_vdb_to_map(ustring filename);
+    VDBMap::const_iterator add_vdb_to_map(const ustring &filename);
 };
 
 CCL_NAMESPACE_END

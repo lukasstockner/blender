@@ -64,20 +64,21 @@ typedef struct VDBVolumeFile {
     VDBVolumeFile(ustring filename) : file(filename.string())
     {
         file.open();
-        
+        std::cout << "Opening file: " << filename.string() << std::endl;
         grids = file.getGrids();
         for(int i = 0; i < grids->size(); i++)
         {
             VDBAccessorPtr ptr(new VDBAccessor((*grids)[i]));
             accessors.push_back(ptr);
         }
-        
+            
         meta = file.getMetadata();
         version = file.version();
+        //std::cout << "Opened file. AccessorVector has " << accessors.size() << " elements." << std::endl;
+        file.close();
     }
     ~VDBVolumeFile()
     {
-        file.close();
         accessors.clear();
     }
     

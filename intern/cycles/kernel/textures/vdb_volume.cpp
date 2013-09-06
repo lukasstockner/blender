@@ -20,13 +20,14 @@
 #include "vdb_util.h"
 #include "vdb_lookup.h"
 #include "vdb_volume.h"
+#include <ctime>
 
 CCL_NAMESPACE_BEGIN
 
 VDBTextureSystem::Ptr VDBTextureSystem::init() {
     OpenVDBUtil::initialize_library();
     Ptr vdb_ts(new VDBTextureSystem());
-    
+    std::cout << "Initialized VDBTextureSystem" << std::endl;
     return vdb_ts;
 }
 
@@ -67,32 +68,19 @@ bool VDBTextureSystem::perform_lookup(ustring filename, OIIO::TextureSystem::Per
         }
         
         if (!accessor) return false;
-    
-      /*
-        float x, y, z = 0;
-        x = OpenVDBUtil::nearest_neighbor(P[0]);
-        y = OpenVDBUtil::nearest_neighbor(P[1]);
-        z = OpenVDBUtil::nearest_neighbor(P[2]);
         
-       */
-        //accessor->vdb_lookup_single_point(x, y, z, result);
+        for (int i = 0; i < options.nchannels; i++)
+            result[i] = 0;
         
-        openvdb::tools::GridSampler<openvdb::FloatTree, openvdb::tools::BoxSampler>
-        sampler(openvdb::gridPtrCast<openvdb::FloatGrid>(accessor->getGridPtr())->constTree(), accessor->getGridPtr()->transform());
-        openvdb::Vec3d p(P[0], P[1], P[2]);
-        *result = sampler.wsSample(p);
-      //  VDBLookup::vdb_lookup_single_point(grid, x, y, z, result);
-        
-     //   *result = VDBLookup<openvdb::Int32Grid>::vdb_lookup_single_point(*intGrid, (int)x, (int)y, (int)z);
+        accessor->vdb_lookup_single_point(P[0], P[1], P[2], result);
         
         return true;
     }
 }
 
-VDBTextureSystem::VDBMap::const_iterator VDBTextureSystem::add_vdb_to_map(ustring filename)
+VDBTextureSystem::VDBMap::const_iterator VDBTextureSystem::add_vdb_to_map(const ustring &filename)
 {
     VDBFilePtr vdb_sp(new VDBVolumeFile(filename));
-    
     return (vdb_files.insert(std::make_pair(filename, vdb_sp))).first;
 }
 

@@ -20,6 +20,7 @@
 #define __VDB_LOOKUP_H__
 
 #include <openvdb/openvdb.h>
+#include <openvdb/tools/Interpolation.h> // for sampling mechanisms
 
 CCL_NAMESPACE_BEGIN
 
@@ -36,6 +37,7 @@ typedef enum VDB_GridType
     VDB_GRID_VEC3D
 } VDB_GridType;
 
+
 class VDBAccessor {
 public:
     VDBAccessor(openvdb::GridBase::Ptr grid);
@@ -47,16 +49,26 @@ public:
     
     void vdb_lookup_single_point(int i, int j, int k, float *result);
     void vdb_lookup_multiple_points(int i[], int j[], int k[], float *result);
+
     
 private:
     openvdb::GridBase::Ptr m_grid;
     VDB_GridType m_type;
 
     template <typename GridType>
+    void vdb_lookup_nearest_neighbor(float i, float j, float k, float *result);
+    
+    template <typename GridType>
+    void vdb_lookup_trilinear(float i, float j, float k, float *result);
+    
+    template <typename GridType>
     typename GridType::ValueType vdb_lookup_single_point(int i, int j, int k);
     
     template <typename GridType>
     typename GridType::ValueType* vdb_lookup_multiple_points(int i[], int j[], int k[], int num);
+    
+    template <typename GridType>
+    typename GridType::TreeType::template ValueAccessor<typename GridType::TreeType> get_value_accessor();
 };
 
 VDBAccessor::VDBAccessor(openvdb::GridBase::Ptr grid)
@@ -87,6 +99,7 @@ openvdb::GridBase::Ptr VDBAccessor::getGridPtr()
 {
     return m_grid;
 }
+
 
 template <typename VectorType>
 void copyVectorToFloatArray(VectorType &vec, float *array, int num)
@@ -139,12 +152,13 @@ void VDBAccessor::vdb_lookup_single_point(int i, int j, int k, float *result)
 template <typename GridType>
 typename GridType::ValueType VDBAccessor::vdb_lookup_single_point(int i, int j, int k)
 {
-    GridType typedGrid = *(openvdb::gridPtrCast<GridType>(m_grid));
-    typename GridType::ValueType result;
-    openvdb::math::Coord xyz(i, j, k);
+    typename GridType::Ptr grid = openvdb::gridPtrCast<GridType>(getGridPtr());
+    typename GridType::Accessor acc = grid->getAccessor();
     
-    result = typedGrid.tree().getValue(xyz);
-    return result;
+    openvdb::tools::GridSampler<openvdb::tree::ValueAccessor<typename GridType::TreeType>, openvdb::tools::PointSampler> sampler(acc);
+    openvdb::Vec3d p(i, j, k);
+    
+    return sampler.wsSample(p);
 }
 
 template <typename GridType>
@@ -165,6 +179,7 @@ typename GridType::ValueType* VDBAccessor::vdb_lookup_multiple_points(int i[], i
     
     return result;
 }
+
 
 CCL_NAMESPACE_END
 

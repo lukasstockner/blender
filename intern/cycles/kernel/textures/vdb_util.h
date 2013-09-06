@@ -48,7 +48,7 @@ ustring OpenVDBUtil::u_openvdb_file_extension(".vdb");
 
 void OpenVDBUtil::initialize_library()
 {
-	openvdb::initialize();
+	openvdb::initialize(); std::cout << "initialized lib." << std::endl;
 }
 
 // Open file to check header information and determine
