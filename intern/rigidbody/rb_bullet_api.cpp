@@ -75,6 +75,8 @@ subject to the following restrictions:
 #include "BulletCollision/Gimpact/btGImpactCollisionAlgorithm.h"
 #include "BulletCollision/CollisionShapes/btScaledBvhTriangleMeshShape.h"
 
+#include <BulletCollision/CollisionDispatch/btInternalEdgeUtility.h>
+
 #include "hacdHACD.h"
 
 struct rbDynamicsWorld {
@@ -106,6 +108,7 @@ struct rbCollisionShape {
 	btCollisionShape *cshape;
 	btCollisionShape *compound;
 	btTriangleMesh *mesh;
+	btTriangleInfoMap *triangle_info_map;
 };
 
 struct rbFilterCallback : public btOverlapFilterCallback
@@ -139,6 +142,12 @@ static void nearCallback(btBroadphasePair &collisionPair, btCollisionDispatcher 
 	}
 	
 	dispatcher.defaultNearCallback(collisionPair, dispatcher, dispatchInfo);
+}
+
+static bool contactAddedCallback(btManifoldPoint &cp, const btCollisionObjectWrapper *colObj0Wrap, int partId0, int index0, const btCollisionObjectWrapper *colObj1Wrap, int partId1, int index1)
+{
+	btAdjustInternalEdgeContacts(cp, colObj1Wrap, colObj0Wrap, partId1, index1);
+	return true;
 }
 
 class rbDebugDraw : public btIDebugDraw {
@@ -229,6 +238,8 @@ rbDynamicsWorld *RB_dworld_new(const float gravity[3])
 	                                                   world->collisionConfiguration);
 
 	RB_dworld_set_gravity(world, gravity);
+	
+	gContactAddedCallback = contactAddedCallback;
 	
 	// HACK set debug drawer, this is only temporary
 	btIDebugDraw *debugDrawer = new rbDebugDraw();
@@ -415,6 +426,9 @@ rbRigidBody *RB_body_new(rbCollisionShape *shape, const float loc[3], const floa
 	
 	object->is_trigger = false;
 	object->suspended = false;
+	
+	if (shape->cshape->getShapeType() == SCALED_TRIANGLE_MESH_SHAPE_PROXYTYPE)
+		object->body->setCollisionFlags(object->body->getCollisionFlags()  | btCollisionObject::CF_CUSTOM_MATERIAL_CALLBACK);
 	
 	return object;
 }
@@ -782,6 +796,7 @@ static rbCollisionShape *prepare_primitive_shape(btCollisionShape *cshape, const
 	rbCollisionShape *shape = new rbCollisionShape;
 	shape->cshape = cshape;
 	shape->mesh = NULL;
+	shape->triangle_info_map = NULL;
 	
 	btTransform world_transform = btTransform();
 	world_transform.setIdentity();
@@ -843,6 +858,7 @@ rbCollisionShape *RB_shape_new_convex_hull(float *verts, int stride, int count, 
 	
 	shape->cshape = hull_shape;
 	shape->mesh = NULL;
+	shape->triangle_info_map = NULL;
 	
 	shape->compound = new btCompoundShape();
 	btTransform compound_transform;
@@ -894,6 +910,9 @@ rbCollisionShape *RB_shape_new_trimesh(rbMeshData *mesh)
 	// RB_TODO perhaps we need to allow saving out this for performance when rebuilding?
 	btBvhTriangleMeshShape *unscaledShape = new btBvhTriangleMeshShape(tmesh, true, true);
 	
+	shape->triangle_info_map = new btTriangleInfoMap();
+	btGenerateInternalEdgeInfo(unscaledShape, shape->triangle_info_map);
+	
 	shape->cshape = new btScaledBvhTriangleMeshShape(unscaledShape, btVector3(1.0f, 1.0f, 1.0f));
 	shape->mesh = tmesh;
 	
@@ -916,6 +935,7 @@ rbCollisionShape *RB_shape_new_gimpact_mesh(rbMeshData *mesh)
 	
 	shape->cshape = gimpactShape;
 	shape->mesh = tmesh;
+	shape->triangle_info_map = NULL;
 	
 	shape->compound = new btCompoundShape();
 	btTransform compound_transform;
@@ -984,6 +1004,7 @@ rbCollisionShape *RB_shape_new_convex_decomp(rbHACDMeshData *mesh)
 	}
 	
 	shape->mesh = NULL;
+	shape->triangle_info_map = NULL;
 	shape->compound = compound;
 	shape->cshape = compound;
 	
@@ -1014,6 +1035,8 @@ void RB_shape_delete(rbCollisionShape *shape)
 	}
 	if (shape->mesh)
 		delete shape->mesh;
+	if (shape->triangle_info_map)
+		delete shape->triangle_info_map;
 	if (shape->cshape != shape->compound)
 		delete shape->cshape;
 	delete shape->compound;
