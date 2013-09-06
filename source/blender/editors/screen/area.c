@@ -957,8 +957,11 @@ static void region_rect_recursive(wmWindow *win, ScrArea *sa, ARegion *ar, rcti 
 	/* prefsize, for header we stick to exception (prevent dpi rounding error) */
 	prefsizex = UI_DPI_FAC * (ar->sizex > 1 ? ar->sizex + 0.5f : ar->type->prefsizex);
 	
-	if (ar->regiontype == RGN_TYPE_HEADER || ar->regiontype == RGN_TYPE_MENU_BAR) {
+	if (ar->regiontype == RGN_TYPE_HEADER) {
 		prefsizey = ED_area_headersize();
+	}
+	else if (ar->regiontype == RGN_TYPE_MENU_BAR) {
+		prefsizey = ED_area_headersize() * 1.5f;
 	}
 	else if (ar->regiontype == RGN_TYPE_UI && sa->spacetype == SPACE_FILE) {
 		prefsizey = UI_UNIT_Y * 2 + (UI_UNIT_Y / 2);
@@ -1854,7 +1857,7 @@ void ED_region_menubar(const bContext *C, ARegion *ar)
 //	MenuBarType *mbt;
 //	MenuBar mb = {NULL};
 	int maxco, xco, yco;
-	int headery = ED_area_headersize();
+	int headery = ED_area_headersize() * 1.5f;
 //	const char *context = CTX_data_mode_string(C);
 	OperatorListItem *oli;
 	
@@ -1900,11 +1903,13 @@ void ED_region_menubar(const bContext *C, ARegion *ar)
 	block = uiBeginBlock(C, ar, "menubar icons", UI_EMBOSS);
 	layout = uiBlockLayout(block, UI_LAYOUT_HORIZONTAL, UI_LAYOUT_HEADER, xco, yco, UI_UNIT_Y, 1, style);
 	row = uiLayoutRow(layout, TRUE);
+	uiLayoutSetScaleX(row, 1.5f);
+	uiLayoutSetScaleY(row, 1.5f);
 	
 	for (oli = ar->operators.first; oli; oli = oli->next) {
 		if (strcmp(oli->context, CTX_data_mode_string(C)) == 0) {
 			wmOperatorType *ot = WM_operatortype_find(oli->optype_idname, TRUE);
-			uiItemFullO_ptr(row, ot, ot->name, ICON_AUTOMATIC, IDP_CopyProperty(oli->properties), oli->opcontext, 0);
+			uiItemFullO_ptr(row, ot, "", ICON_AUTOMATIC, IDP_CopyProperty(oli->properties), oli->opcontext, UI_ITEM_O_SINGLE_UNIT);
 		}
 	}
 

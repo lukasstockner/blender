@@ -625,8 +625,9 @@ static int view3d_menubar_drop_poll(bContext *C, wmDrag *drag, const wmEvent *UN
 	ARegion *ar = CTX_wm_region(C);
 
 	if (drag->type == WM_DRAG_OP && ot && ar && ar->regiontype == RGN_TYPE_MENU_BAR) {
-		if (!BLI_findstring(&ar->operators, ot->idname, offsetof(OperatorListItem, optype_idname)))
-			return 1;
+		/* check to see if an oli with the same properties is already present */
+		if (drag->ptr)
+			return !uiOperatorListItemPresent(&ar->operators, ot->idname, drag->ptr->data);
 	}
 	
 	return 0;
@@ -666,15 +667,16 @@ static int view3d_toolbar_drop_poll(bContext *C, wmDrag *drag, const wmEvent *ev
 {
 	wmOperatorType *ot = (wmOperatorType*)drag->poin;
 	Panel *pa = NULL;
-	void *present_p = NULL;
+	int present_p = 0;
 
 	if (drag->type == WM_DRAG_OP && ot) {
 		pa = over_panel(C, event);
-		if (pa != NULL)
-			present_p = BLI_findstring(&pa->operators, ot->idname, offsetof(OperatorListItem, optype_idname));
+		if (pa != NULL && drag->ptr && drag->ptr->data)
+			/* check to see if an oli with the same properties is already present */
+			present_p =	uiOperatorListItemPresent(&pa->operators, ot->idname, drag->ptr->data);
 	}
 	
-	return pa != NULL && present_p == NULL;
+	return pa != NULL && !present_p;
 }
 
 /* region dropbox definition */

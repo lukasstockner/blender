@@ -904,6 +904,10 @@ void uiItemMenuF(uiLayout *layout, const char *name, int icon, uiMenuCreateFunc 
 void uiItemMenuEnumO(uiLayout *layout, struct bContext *C, const char *opname, const char *propname, const char *name, int icon);
 void uiItemMenuEnumR(uiLayout *layout, struct PointerRNA *ptr, const char *propname, const char *name, int icon);
 
+/* OperatorListItem utilities */
+int uiOperatorListItemPresent(ListBase *lb, const char *idname, IDProperty *properties);
+
+
 /* UI Operators */
 void UI_buttons_operatortypes(void);
 

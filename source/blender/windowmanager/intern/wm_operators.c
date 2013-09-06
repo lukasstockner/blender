@@ -4164,8 +4164,9 @@ void add_to_icon_shelf(bContext *C, void *ot_arg, void *opptr_arg)
 	{
 		wmOperatorType *ot = (wmOperatorType*)ot_arg;
 		OperatorListItem *oli;
+		PointerRNA *opptr = (PointerRNA*)opptr_arg;
 		
-		if (BLI_findstring(&ar->operators, ot->idname, offsetof(OperatorListItem, optype_idname))) {
+		if (uiOperatorListItemPresent(&ar->operators, ot->idname, opptr->data)) {
 			BKE_reportf(&wm->reports, RPT_INFO, "This operator (%s) is already present in the menubar.", ot->idname);
 			return;
 		}
@@ -4175,8 +4176,7 @@ void add_to_icon_shelf(bContext *C, void *ot_arg, void *opptr_arg)
 		BLI_strncpy(oli->optype_idname, ot->idname, OP_MAX_TYPENAME);
 		BLI_strncpy(oli->context, CTX_data_mode_string(C), MAX_NAME);
 		
-		if (opptr_arg) {
-			PointerRNA *opptr = (PointerRNA*)opptr_arg;
+		if (opptr) {
 			PropertyRNA *prop;
 			
 			prop = RNA_struct_find_property(opptr, "COPY_opcontext");

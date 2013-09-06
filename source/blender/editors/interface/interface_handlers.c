@@ -5072,6 +5072,7 @@ static void popup_add_shortcut_func(bContext *C, void *arg1, void *UNUSED(arg2))
 //	WM_operator_default_properties_store(op);
 //}
 
+// TODO: this should make use of the new comparison method, perhaps based on sort order
 static void remove_from_custom_panel(bContext *UNUSED(C), void *arg_pa, void *arg_optype)
 {
 	Panel *pa = arg_pa;
@@ -5083,15 +5084,21 @@ static void remove_from_custom_panel(bContext *UNUSED(C), void *arg_pa, void *ar
 	BKE_operator_list_item_free(oli);
 }
 
-static void remove_from_menu_bar(bContext *UNUSED(C), void *arg_ar, void *arg_optype)
+static void remove_from_icon_shelf(bContext *C, void *arg_ot, void *arg_opptr)
 {
-	ARegion *ar = arg_ar;
-	wmOperatorType *ot = arg_optype;
+	ARegion *ar = CTX_wm_region(C);
+	wmOperatorType *ot = arg_ot;
+	PointerRNA *opptr = (PointerRNA*)arg_opptr;
 	OperatorListItem *oli;
 	
-	oli = BLI_findstring(&ar->operators, ot->idname, offsetof(OperatorListItem, optype_idname));
-	BLI_remlink(&ar->operators, oli);
-	BKE_operator_list_item_free(oli);
+	for (oli = ar->operators.first; oli; oli = oli->next) {
+		if (strcmp(oli->optype_idname, ot->idname) == 0 && IDP_EqualsProperties(opptr->data, oli->properties)) {
+			BLI_remlink(&ar->operators, oli);
+			BKE_operator_list_item_free(oli);
+		}
+	}
+	
+	ED_region_tag_redraw(ar);
 }
 
 static bool ui_but_menu(bContext *C, uiBut *but)
@@ -5354,17 +5361,17 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 				uiButSetFunc(opp_but, remove_from_custom_panel, pa, but->optype);
 				uiItemS(layout);
 			}
-			else if (ar->regiontype == RGN_TYPE_MENU_BAR && BLI_findstring(&ar->operators, but->optype->idname
-, offsetof(OperatorListItem, optype_idname)) != NULL) {
-				opp_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Remove From Menu Bar"), 0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
-				uiButSetFunc(opp_but, remove_from_menu_bar, ar, but->optype);
+			else if (ar->regiontype == RGN_TYPE_MENU_BAR &&
+					 uiOperatorListItemPresent(&ar->operators, but->optype->idname, but->opptr->data)) {
+				opp_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Remove From Icon Shelf"), 0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
+				uiButSetFunc(opp_but, remove_from_icon_shelf, but->optype, but->opptr);
 				uiItemS(layout);
 			}
 			
 			opp_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Add to Icon Shelf"), 0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
-			uiButSetFunc(opp_but, add_to_icon_shelf, but->optype, NULL);
+			uiButSetFunc(opp_but, add_to_icon_shelf, but->optype, but->opptr);
 			
-			uiItemMenuF(layout, IFACE_("Add to Custom Panel..."), ICON_NONE, add_to_custom_panel_menu, but->optype);			
+			uiItemMenuF(layout, IFACE_("Add to Custom Panel..."), ICON_NONE, add_to_custom_panel_menu, but->optype);
 			
 		}
 		

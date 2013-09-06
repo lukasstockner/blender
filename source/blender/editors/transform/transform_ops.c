@@ -557,6 +557,7 @@ static void TRANSFORM_OT_translate(struct wmOperatorType *ot)
 	ot->description = "Translate (move) selected items";
 	ot->idname = OP_TRANSLATION;
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
+	ot->default_icon = ICON_MAN_TRANS;
 
 	/* api callbacks */
 	ot->invoke = transform_invoke;
@@ -577,6 +578,7 @@ static void TRANSFORM_OT_resize(struct wmOperatorType *ot)
 	ot->description = "Scale (resize) selected items"; 
 	ot->idname = OP_RESIZE;
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
+	ot->default_icon = ICON_MAN_SCALE;
 
 	/* api callbacks */
 	ot->invoke = transform_invoke;
@@ -653,6 +655,7 @@ static void TRANSFORM_OT_rotate(struct wmOperatorType *ot)
 	ot->description = "Rotate selected items";
 	ot->idname = OP_ROTATION;
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
+	ot->default_icon = ICON_MAN_ROT;
 
 	/* api callbacks */
 	ot->invoke = transform_invoke;
