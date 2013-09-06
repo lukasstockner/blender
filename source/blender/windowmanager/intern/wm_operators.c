@@ -4154,15 +4154,15 @@ static void operatortype_ghash_free_cb(wmOperatorType *ot)
 
 /* ******************************************************* */
 
-void add_to_icon_shelf(bContext *C, void *arg1, void *UNUSED(arg2))
+void add_to_icon_shelf(bContext *C, void *ot_arg, void *opptr_arg)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_MENU_BAR);
 	wmWindowManager *wm = CTX_wm_manager(C);
 	
-	if (ar && arg1)
+	if (ar && ot_arg)
 	{
-		wmOperatorType *ot = (wmOperatorType*)arg1;
+		wmOperatorType *ot = (wmOperatorType*)ot_arg;
 		OperatorListItem *oli;
 		
 		if (BLI_findstring(&ar->operators, ot->idname, offsetof(OperatorListItem, optype_idname))) {
@@ -4174,6 +4174,22 @@ void add_to_icon_shelf(bContext *C, void *arg1, void *UNUSED(arg2))
 
 		BLI_strncpy(oli->optype_idname, ot->idname, OP_MAX_TYPENAME);
 		BLI_strncpy(oli->context, CTX_data_mode_string(C), MAX_NAME);
+		
+		if (opptr_arg) {
+			PointerRNA *opptr = (PointerRNA*)opptr_arg;
+			PropertyRNA *prop;
+			
+			prop = RNA_struct_find_property(opptr, "COPY_opcontext");
+			if(prop)
+				oli->opcontext = RNA_property_int_get(opptr, prop);
+			
+			/* clear the properties that were only necessary for this operator execution */
+			/* TODO: see if this can all be done a little bit nicer by including a pointer as a property */
+			RNA_struct_idprops_unset(opptr, "COPY_opcontext");
+			RNA_struct_idprops_unset(opptr, "COPY_idname");
+			
+			oli->properties = IDP_CopyProperty(opptr->data);
+		}
 		
 		BLI_addtail(&ar->operators, oli);
 		ED_region_tag_redraw(ar);
@@ -4376,13 +4392,13 @@ static int wm_menubar_add_dragged_operator_exec(bContext *C, wmOperator *op)
 
 	if (ar == NULL) return OPERATOR_CANCELLED;
 	
-	prop = RNA_struct_find_property(op->ptr, "idname");
+	prop = RNA_struct_find_property(op->ptr, "COPY_idname");
 	if(prop == NULL) return OPERATOR_CANCELLED;
 	idname = RNA_property_string_get_alloc(op->ptr, prop, NULL, 0, NULL);
 	
 	ot = WM_operatortype_find(idname, 1);
 	
-	add_to_icon_shelf(C, ot, NULL);
+	add_to_icon_shelf(C, ot, op->ptr);
 	
 	MEM_freeN(idname);
 	
@@ -4407,7 +4423,8 @@ static void WM_OT_menubar_add_dragged_operator(wmOperatorType *ot)
 	
 	ot->flag = OPTYPE_INTERNAL;
 	
-	RNA_def_string(ot->srna, "idname", "", MAX_NAME, "Operator Name", "The name of the operator to add");
+	RNA_def_string(ot->srna, "COPY_idname", "", MAX_NAME, "Operator Name", "The name of the operator to add");
+	RNA_def_int(ot->srna, "COPY_opcontext", 0, 0, 0, "Operator context", "The original opcontext that was set for the button", 0, 0);
 }
 
 

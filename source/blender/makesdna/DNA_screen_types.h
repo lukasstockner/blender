@@ -193,6 +193,9 @@ typedef struct OperatorListItem {
 	struct OperatorListItem *next, *prev;
 	char optype_idname[64];
 	char context[64];
+	struct IDProperty *properties;
+	int opcontext;
+	int pad;
 } OperatorListItem;
 
 
@@ -224,13 +227,12 @@ typedef struct ARegion {
 	ListBase panels;			/* Panel */
 	ListBase ui_lists;			/* uiList */
 	ListBase handlers;			/* wmEventHandler */
+	ListBase operators;			/* OperatorListItem  for custom tool shelf */
 	
 	struct wmTimer *regiontimer; /* blend in/out */
 	
 	char *headerstr;			/* use this string to draw info */
 	void *regiondata;			/* XXX 2.50, need spacedata equivalent? */
-	
-	ListBase operators;			/* OperatorListItem  for custom tool shelf */
 } ARegion;
 
 /* swap */

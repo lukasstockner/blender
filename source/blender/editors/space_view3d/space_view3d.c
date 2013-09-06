@@ -48,6 +48,7 @@
 #include "BKE_icons.h"
 #include "BKE_object.h"
 #include "BKE_screen.h"
+#include "BKE_idprop.h"
 
 #include "ED_render.h"
 #include "ED_space_api.h"
@@ -604,11 +605,18 @@ static void view3d_id_path_drop_copy(const bContext *UNUSED(C), const wmEvent *U
 		RNA_string_set(drop->ptr, "filepath", drag->path);
 }
 
-
 static void view3d_menubar_drop_copy(const bContext *UNUSED(C), const wmEvent *UNUSED(event), wmDrag *drag, wmDropBox *drop)
 {
 	wmOperatorType *ot = (wmOperatorType*)drag->poin;
-	RNA_string_set(drop->ptr, "idname", ot->idname);
+	/* replace the drop ptr with the passed ptr so it can be copied by the drag operator */
+	if (drag->ptr && drag->ptr->data) {
+		WM_operator_properties_free(drop->ptr);
+		drop->ptr->data = IDP_CopyProperty(drag->ptr->data);
+	}
+	/* temporarily set the properties for the drag operator in the copied ptr 
+	 * this is effectively piggy backing on the properties for the OperatorListItem */
+	RNA_string_set(drop->ptr, "COPY_idname", ot->idname);
+	RNA_int_set(drop->ptr, "COPY_opcontext", drag->opcontext);
 }
 
 static int view3d_menubar_drop_poll(bContext *C, wmDrag *drag, const wmEvent *UNUSED(event))

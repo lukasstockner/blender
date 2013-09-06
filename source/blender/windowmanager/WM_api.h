@@ -330,7 +330,7 @@ void		WM_event_print(const struct wmEvent *event);
 void		WM_operator_region_active_win_set(struct bContext *C);
 
 			/* drag and drop */
-struct wmDrag		*WM_event_start_drag(struct bContext *C, int icon, int type, void *poin, double value, struct PointerRNA *ptr);
+struct wmDrag		*WM_event_start_drag(struct bContext *C, int icon, int type, void *poin, double value, struct PointerRNA *ptr, short opcontext);
 void				wm_drag_free(struct wmDrag *drag);
 void				WM_event_drag_image(struct wmDrag *, struct ImBuf *, float scale, int sx, int sy);
 

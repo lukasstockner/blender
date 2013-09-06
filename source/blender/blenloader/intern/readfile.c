@@ -6109,6 +6109,7 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 {
 	Panel *pa;
 	uiList *ui_list;
+	OperatorListItem *oli;
 
 	link_list(fd, &ar->panels);
 
@@ -6119,6 +6120,12 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 		pa->type = NULL;
 		
 		link_list(fd, &pa->operators);
+		
+		for (oli = pa->operators.first; oli; oli = oli->next) {
+			oli->properties = newdataadr(fd, oli->properties);
+			if (oli->properties)
+				IDP_DirectLinkProperty(oli->properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+		}
 	}
 
 	link_list(fd, &ar->ui_lists);
@@ -6132,6 +6139,12 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 	}
 	
 	link_list(fd, &ar->operators);
+	
+	for (oli = ar->operators.first; oli; oli = oli->next) {
+		oli->properties = newdataadr(fd, oli->properties);
+		if (oli->properties)
+			IDP_DirectLinkProperty(oli->properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+	}
 
 	if (spacetype == SPACE_EMPTY) {
 		/* unkown space type, don't leak regiondata */

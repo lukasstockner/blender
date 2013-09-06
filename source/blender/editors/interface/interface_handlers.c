@@ -64,6 +64,7 @@
 #include "BKE_tracking.h"
 #include "BKE_unit.h"
 #include "BKE_paint.h"
+#include "BKE_screen.h"
 
 #include "ED_screen.h"
 #include "ED_util.h"
@@ -905,7 +906,7 @@ static bool ui_but_start_drag(bContext *C, uiBut *but, uiHandleButtonData *data,
 		{
 			wmDrag *drag;
 
-			drag = WM_event_start_drag(C, but->icon, but->dragtype, but->dragpoin, ui_get_but_val(but), but->opptr);
+			drag = WM_event_start_drag(C, but->icon, but->dragtype, but->dragpoin, ui_get_but_val(but), but->opptr, but->opcontext);
 			if (but->imb)
 				WM_event_drag_image(drag, but->imb, but->imb_scale, BLI_rctf_size_x(&but->rect), BLI_rctf_size_y(&but->rect));
 		}
@@ -5078,7 +5079,8 @@ static void remove_from_custom_panel(bContext *UNUSED(C), void *arg_pa, void *ar
 	OperatorListItem *oli;
 	
 	oli = BLI_findstring(&pa->operators, ot->idname, offsetof(OperatorListItem, optype_idname));
-	BLI_freelinkN(&pa->operators, oli);
+	BLI_remlink(&pa->operators, oli);
+	BKE_operator_list_item_free(oli);
 }
 
 static void remove_from_menu_bar(bContext *UNUSED(C), void *arg_ar, void *arg_optype)
@@ -5088,7 +5090,8 @@ static void remove_from_menu_bar(bContext *UNUSED(C), void *arg_ar, void *arg_op
 	OperatorListItem *oli;
 	
 	oli = BLI_findstring(&ar->operators, ot->idname, offsetof(OperatorListItem, optype_idname));
-	BLI_freelinkN(&ar->operators, oli);
+	BLI_remlink(&ar->operators, oli);
+	BKE_operator_list_item_free(oli);
 }
 
 static bool ui_but_menu(bContext *C, uiBut *but)

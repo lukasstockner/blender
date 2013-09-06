@@ -2368,13 +2368,22 @@ static void write_windowmanagers(WriteData *wd, ListBase *lb)
 	}
 }
 
+static void write_operator_list_item(WriteData *wd, OperatorListItem *oli)
+{
+	writestruct(wd, DATA, "OperatorListItem", 1, oli);
+	
+	if (oli->properties) {
+		IDP_WriteProperty(oli->properties, wd);
+	}
+}
+
 static void write_panel(WriteData *wd, Panel *pa)
 {
 	OperatorListItem *oli;
 	writestruct(wd, DATA, "Panel", 1, pa);
 	
 	for (oli = pa->operators.first; oli; oli = oli->next)
-		writestruct(wd, DATA, "OperatorListItem", 1, oli);
+		write_operator_list_item(wd, oli);
 }
 
 static void write_region(WriteData *wd, ARegion *ar, int spacetype)
@@ -2497,7 +2506,7 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 					write_uilist(wd, ui_list);
 				
 				for (oli = ar->operators.first; oli; oli = oli->next)
-					writestruct(wd, DATA, "OperatorListItem", 1, oli);
+					write_operator_list_item(wd, oli);
 			}
 			
 			sl= sa->spacedata.first;

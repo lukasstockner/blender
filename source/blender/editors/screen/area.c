@@ -45,6 +45,7 @@
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_screen.h"
+#include "BKE_idprop.h"
 
 #include "RNA_access.h"
 #include "RNA_types.h"
@@ -1901,8 +1902,10 @@ void ED_region_menubar(const bContext *C, ARegion *ar)
 	row = uiLayoutRow(layout, TRUE);
 	
 	for (oli = ar->operators.first; oli; oli = oli->next) {
-		if (strcmp(oli->context, CTX_data_mode_string(C)) == 0)
-			uiItemO(row, NULL, ICON_NONE, oli->optype_idname);
+		if (strcmp(oli->context, CTX_data_mode_string(C)) == 0) {
+			wmOperatorType *ot = WM_operatortype_find(oli->optype_idname, TRUE);
+			uiItemFullO_ptr(row, ot, ot->name, ICON_AUTOMATIC, IDP_CopyProperty(oli->properties), oli->opcontext, 0);
+		}
 	}
 
 	/* draw bottom bar */

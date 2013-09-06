@@ -36,6 +36,7 @@
 struct ARegion;
 struct Header;
 struct ListBase;
+struct OperatorListItem;
 struct Menu;
 struct Panel;
 struct Scene;
@@ -317,6 +318,9 @@ float BKE_screen_view3d_zoom_from_fac(float zoomfac);
 /* screen */
 void BKE_screen_free(struct bScreen *sc); 
 unsigned int BKE_screen_visible_layers(struct bScreen *screen, struct Scene *scene);
+
+/* custom operator button items */
+void BKE_operator_list_item_free(struct OperatorListItem *oli);
 
 #endif
 

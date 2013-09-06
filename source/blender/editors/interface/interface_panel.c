@@ -1693,9 +1693,10 @@ void uiPanelAddOperator(Panel *pa, const char *optype_idname)
 void uiPanelFree(Panel *pa)
 {
 	if (pa == NULL) return;
+	OperatorListItem *oli;
 	
-	for (OperatorListItem *oli = pa->operators.first; oli; oli = oli->next) {
-		MEM_freeN(oli);
+	while ((oli = (OperatorListItem*)BLI_pophead(&pa->operators))) {
+		BKE_operator_list_item_free(oli);
 	}
 	MEM_freeN(pa);
 }

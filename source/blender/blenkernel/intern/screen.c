@@ -271,6 +271,7 @@ void BKE_area_region_free(SpaceType *st, ARegion *ar)
 {
 	Panel *pa;
 	uiList *uilst;
+	OperatorListItem *oli;
 
 	if (st) {
 		ARegionType *art = BKE_regiontype_from_id(st, ar->regiontype);
@@ -290,7 +291,9 @@ void BKE_area_region_free(SpaceType *st, ARegion *ar)
 	}
 	
 	for (pa = ar->panels.first; pa; pa = pa->next) {
-		BLI_freelistN(&pa->operators);
+		for (oli = pa->operators.first; oli; oli = oli->next) {
+			BKE_operator_list_item_free(oli);
+		}
 	}
 
 	BLI_freelistN(&ar->panels);
@@ -312,7 +315,10 @@ void BKE_area_region_free(SpaceType *st, ARegion *ar)
 		}
 	}
 	BLI_freelistN(&ar->ui_lists);
-	BLI_freelistN(&ar->operators);
+	
+	for (oli = ar->operators.first; oli; oli = oli->next) {
+		BKE_operator_list_item_free(oli);
+	}
 }
 
 /* not area itself */
@@ -369,6 +375,15 @@ unsigned int BKE_screen_visible_layers(bScreen *screen, Scene *scene)
 		return scene->lay;
 
 	return layer;
+}
+
+/* Including the OperatorListItem */
+void BKE_operator_list_item_free(OperatorListItem *oli) {
+	if (oli->properties) {
+		IDP_FreeProperty(oli->properties);
+		MEM_freeN(oli->properties);
+	}
+	MEM_freeN(oli);
 }
 
 /* ***************** Utilities ********************** */
