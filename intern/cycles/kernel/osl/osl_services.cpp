@@ -98,6 +98,7 @@ OSLRenderServices::OSLRenderServices()
 {
 	kernel_globals = NULL;
     vdb_ts = VDBTextureSystem::init();
+	osl_ts = NULL;
 }
 
 OSLRenderServices::~OSLRenderServices()
@@ -703,7 +704,7 @@ bool OSLRenderServices::get_attribute(void *renderstate, bool derivatives, ustri
 	int object, prim, segment;
 
 	/* lookup of attribute on another object */
-	if (object_name != u_empty || sd == NULL) {
+	if (object_name != u_empty) {
 		OSLGlobals::ObjectNameMap::iterator it = kg->osl->object_name_map.find(object_name);
 
 		if (it == kg->osl->object_name_map.end())

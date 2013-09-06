@@ -66,7 +66,7 @@ class CyclesRender(bpy.types.RenderEngine):
     def render(self, scene):
          if self.is_preview:
             return
-            
+        
         engine.render(self)
 
     # viewport render

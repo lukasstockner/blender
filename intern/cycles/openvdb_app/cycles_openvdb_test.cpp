@@ -47,7 +47,7 @@
 #include <unistd.h> // for getopt(), optarg
 #endif
 
-#include <openvdb_volume.h>
+#include <vdb_volume.h>
 #include <OSL/oslexec.h>
 
 namespace {

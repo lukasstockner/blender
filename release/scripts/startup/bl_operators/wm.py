@@ -1272,6 +1272,8 @@ class WM_OT_blenderplayer_start(Operator):
         import sys
         import subprocess
 
+        gs = context.scene.game_settings
+
         # these remain the same every execution
         blender_bin_path = bpy.app.binary_path
         blender_bin_dir = os.path.dirname(blender_bin_path)
@@ -1288,7 +1290,22 @@ class WM_OT_blenderplayer_start(Operator):
 
         filepath = bpy.data.filepath + '~' if bpy.data.is_saved else os.path.join(bpy.app.tempdir, "game.blend")
         bpy.ops.wm.save_as_mainfile('EXEC_DEFAULT', filepath=filepath, copy=True)
-        subprocess.call([player_path, filepath])
+
+        # start the command line call with the player path
+        args = [player_path]
+
+        # handle some UI options as command line arguments
+        args.extend([
+            "-g", "show_framerate=%d" % gs.show_framerate_profile,
+            "-g", "show_profile=%d" % gs.show_framerate_profile,
+            "-g", "show_properties=%d" % gs.show_debug_properties,
+            "-g", "ignore_deprecation_warnings=%d" % (not gs.use_deprecation_warnings),
+            ])
+
+        # finish the call with the path to the blend file
+        args.append(filepath)
+
+        subprocess.call(args)
         os.remove(filepath)
         return {'FINISHED'}
 
@@ -1592,11 +1609,12 @@ class WM_OT_addon_enable(Operator):
             info_ver = info.get("blender", (0, 0, 0))
 
             if info_ver > bpy.app.version:
-                self.report({'WARNING'}, ("This script was written Blender "
-                                          "version %d.%d.%d and might not "
-                                          "function (correctly), "
-                                          "though it is enabled") %
-                                         info_ver)
+                self.report({'WARNING'},
+                            ("This script was written Blender "
+                             "version %d.%d.%d and might not "
+                             "function (correctly), "
+                             "though it is enabled" %
+                             info_ver))
             return {'FINISHED'}
         else:
 
@@ -1701,9 +1719,9 @@ class WM_OT_addon_refresh(Operator):
 
     def execute(self, context):
         import addon_utils
-        
+
         addon_utils.modules_refresh()
-        
+
         return {'FINISHED'}
 
 

@@ -4,6 +4,7 @@ set(INC
 	../device
 	../kernel
 	../kernel/svm
+	../kernel/textures
 	../bvh
 	../util
 	../render

@@ -36,13 +36,15 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_listbase.h"
-#include "BLI_strict_flags.h"
 
 #include "BLI_mempool.h" /* own include */
 
 #include "DNA_listBase.h"
 
 #include "MEM_guardedalloc.h"
+
+#include "BLI_strict_flags.h"  /* keep last */
+
 
 /* note: copied from BLO_blend_defs.h, don't use here because we're in BLI */
 #ifdef __BIG_ENDIAN__
@@ -407,7 +409,7 @@ void BLI_mempool_as_table(BLI_mempool *pool, void **data)
 	while ((elem = BLI_mempool_iterstep(&iter))) {
 		*p++ = elem;
 	}
-	BLI_assert((p - data) == pool->totused);
+	BLI_assert((unsigned int)(p - data) == pool->totused);
 }
 
 /**
@@ -433,7 +435,7 @@ void BLI_mempool_as_array(BLI_mempool *pool, void *data)
 		memcpy(p, elem, (size_t)pool->esize);
 		p += pool->esize;
 	}
-	BLI_assert((p - (char *)data) == pool->totused * pool->esize);
+	BLI_assert((unsigned int)(p - (char *)data) == pool->totused * pool->esize);
 }
 
 /**
@@ -570,7 +572,7 @@ void BLI_mempool_clear_ex(BLI_mempool *pool, const int totelem_reserve)
  */
 void BLI_mempool_clear(BLI_mempool *pool)
 {
-	return BLI_mempool_clear_ex(pool, -1);
+	BLI_mempool_clear_ex(pool, -1);
 }
 
 /**

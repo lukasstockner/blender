@@ -392,10 +392,10 @@ typedef struct differential {
 /* Ray */
 
 typedef struct Ray {
-	float3 P;
-	float3 D;
-	float t;
-	float time;
+	float3 P;		/* origin */
+	float3 D;		/* direction */
+	float t;		/* length of the ray */
+	float time;		/* time (for motion blur) */
 
 #ifdef __RAY_DIFFERENTIALS__
 	differential3 dP;
@@ -462,7 +462,7 @@ typedef struct ShaderClosure {
 	float data1;
 
 	float3 N;
-#ifdef __ANISOTROPIC__
+#if defined(__ANISOTROPIC__) || defined(__SUBSURFACE__)
 	float3 T;
 #endif
 

@@ -501,7 +501,7 @@ void BKE_tracking_clipboard_copy_tracks(MovieTracking *tracking, MovieTrackingOb
 }
 
 /* Check whether there're any tracks in the clipboard. */
-int BKE_tracking_clipboard_has_tracks(void)
+bool BKE_tracking_clipboard_has_tracks(void)
 {
 	return tracking_clipboard.tracks.first != NULL;
 }
@@ -678,7 +678,7 @@ void BKE_tracking_track_flag_clear(MovieTrackingTrack *track, int area, int flag
  *
  * NOTE: frame number should be in clip space, not scene space.
  */
-int BKE_tracking_track_has_marker_at_frame(MovieTrackingTrack *track, int framenr)
+bool BKE_tracking_track_has_marker_at_frame(MovieTrackingTrack *track, int framenr)
 {
 	return BKE_tracking_marker_get_exact(track, framenr) != NULL;
 }
@@ -687,7 +687,7 @@ int BKE_tracking_track_has_marker_at_frame(MovieTrackingTrack *track, int framen
  *
  * NOTE: frame number should be in clip space, not scene space.
  */
-int BKE_tracking_track_has_enabled_marker_at_frame(MovieTrackingTrack *track, int framenr)
+bool BKE_tracking_track_has_enabled_marker_at_frame(MovieTrackingTrack *track, int framenr)
 {
 	MovieTrackingMarker *marker = BKE_tracking_marker_get_exact(track, framenr);
 
@@ -1022,7 +1022,7 @@ float *BKE_tracking_track_get_mask(int frame_width, int frame_height,
 }
 
 /* area - which part of marker should be selected. see TRACK_AREA_* constants */
-void BKE_tracking_track_select(ListBase *tracksbase, MovieTrackingTrack *track, int area, int extend)
+void BKE_tracking_track_select(ListBase *tracksbase, MovieTrackingTrack *track, int area, bool extend)
 {
 	if (extend) {
 		BKE_tracking_track_flag_set(track, area, SELECT);
@@ -1302,25 +1302,6 @@ void BKE_tracking_marker_get_subframe_position(MovieTrackingTrack *track, float 
 }
 
 /*********************** Plane Track *************************/
-
-static void plane_tracks_replace_point_track(ListBase *plane_tracks,
-                                             MovieTrackingTrack *old_track,
-                                             MovieTrackingTrack *new_track)
-{
-	MovieTrackingPlaneTrack *plane_track;
-
-	for (plane_track = plane_tracks->first;
-	    plane_track;
-	    plane_track = plane_track->next)
-	{
-		int i;
-		for (i = 0; i < plane_track->point_tracksnr; i++) {
-			if (plane_track->point_tracks[i] == old_track) {
-				plane_track->point_tracks[i] = new_track;
-			}
-		}
-	}
-}
 
 /* Creates new plane track out of selected point tracks */
 MovieTrackingPlaneTrack *BKE_tracking_plane_track_add(MovieTracking *tracking, ListBase *plane_tracks_base,
@@ -1641,17 +1622,17 @@ MovieTrackingObject *BKE_tracking_object_add(MovieTracking *tracking, const char
 	return object;
 }
 
-int BKE_tracking_object_delete(MovieTracking *tracking, MovieTrackingObject *object)
+bool BKE_tracking_object_delete(MovieTracking *tracking, MovieTrackingObject *object)
 {
 	MovieTrackingTrack *track;
 	int index = BLI_findindex(&tracking->objects, object);
 
 	if (index == -1)
-		return FALSE;
+		return false;
 
 	if (object->flag & TRACKING_OBJECT_CAMERA) {
 		/* object used for camera solving can't be deleted */
-		return FALSE;
+		return false;
 	}
 
 	track = object->tracks.first;
@@ -1674,7 +1655,7 @@ int BKE_tracking_object_delete(MovieTracking *tracking, MovieTrackingObject *obj
 
 	BKE_tracking_dopesheet_tag_update(tracking);
 
-	return TRUE;
+	return true;
 }
 
 void BKE_tracking_object_unique_name(MovieTracking *tracking, MovieTrackingObject *object)
@@ -1905,7 +1886,7 @@ static void cameraIntrinscisOptionsFromTracking(libmv_CameraIntrinsicsOptions *c
 	camera_intrinsics_options->k3 = camera->k3;
 
 	camera_intrinsics_options->image_width = calibration_width;
-	camera_intrinsics_options->image_height = (double) (calibration_height * aspy);
+	camera_intrinsics_options->image_height = (int) (calibration_height * aspy);
 }
 
 MovieDistortion *BKE_tracking_distortion_new(void)
@@ -1947,7 +1928,7 @@ MovieDistortion *BKE_tracking_distortion_copy(MovieDistortion *distortion)
 }
 
 ImBuf *BKE_tracking_distortion_exec(MovieDistortion *distortion, MovieTracking *tracking, ImBuf *ibuf,
-                                    int calibration_width, int calibration_height, float overscan, int undistort)
+                                    int calibration_width, int calibration_height, float overscan, bool undistort)
 {
 	ImBuf *resibuf;
 
@@ -2039,7 +2020,7 @@ ImBuf *BKE_tracking_undistort_frame(MovieTracking *tracking, ImBuf *ibuf, int ca
 		camera->intrinsics = BKE_tracking_distortion_new();
 
 	return BKE_tracking_distortion_exec(camera->intrinsics, tracking, ibuf, calibration_width,
-	                                    calibration_height, overscan, TRUE);
+	                                    calibration_height, overscan, true);
 }
 
 ImBuf *BKE_tracking_distort_frame(MovieTracking *tracking, ImBuf *ibuf, int calibration_width,
@@ -2051,7 +2032,7 @@ ImBuf *BKE_tracking_distort_frame(MovieTracking *tracking, ImBuf *ibuf, int cali
 		camera->intrinsics = BKE_tracking_distortion_new();
 
 	return BKE_tracking_distortion_exec(camera->intrinsics, tracking, ibuf, calibration_width,
-	                                    calibration_height, overscan, FALSE);
+	                                    calibration_height, overscan, false);
 }
 
 void BKE_tracking_max_undistortion_delta_across_bound(MovieTracking *tracking, rcti *rect, float delta[2])
@@ -2117,7 +2098,7 @@ void BKE_tracking_max_undistortion_delta_across_bound(MovieTracking *tracking, r
 
 /*********************** Image sampling *************************/
 
-static void disable_imbuf_channels(ImBuf *ibuf, MovieTrackingTrack *track, int grayscale)
+static void disable_imbuf_channels(ImBuf *ibuf, MovieTrackingTrack *track, bool grayscale)
 {
 	BKE_tracking_disable_channels(ibuf, track->flag & TRACK_DISABLE_RED,
 	                              track->flag & TRACK_DISABLE_GREEN,
@@ -2126,7 +2107,7 @@ static void disable_imbuf_channels(ImBuf *ibuf, MovieTrackingTrack *track, int g
 
 ImBuf *BKE_tracking_sample_pattern(int frame_width, int frame_height, ImBuf *search_ibuf,
                                    MovieTrackingTrack *track, MovieTrackingMarker *marker,
-                                   int from_anchor, int use_mask, int num_samples_x, int num_samples_y,
+                                   bool from_anchor, bool use_mask, int num_samples_x, int num_samples_y,
                                    float pos[2])
 {
 	ImBuf *pattern_ibuf;
@@ -2189,7 +2170,7 @@ ImBuf *BKE_tracking_sample_pattern(int frame_width, int frame_height, ImBuf *sea
 }
 
 ImBuf *BKE_tracking_get_pattern_imbuf(ImBuf *ibuf, MovieTrackingTrack *track, MovieTrackingMarker *marker,
-                                      int anchored, int disable_channels)
+                                      bool anchored, bool disable_channels)
 {
 	ImBuf *pattern_ibuf, *search_ibuf;
 	float pat_min[2], pat_max[2];
@@ -2204,7 +2185,7 @@ ImBuf *BKE_tracking_get_pattern_imbuf(ImBuf *ibuf, MovieTrackingTrack *track, Mo
 
 	if (search_ibuf) {
 		pattern_ibuf = BKE_tracking_sample_pattern(ibuf->x, ibuf->y, search_ibuf, track, marker,
-		                                           anchored, FALSE, num_samples_x, num_samples_y, NULL);
+		                                           anchored, false, num_samples_x, num_samples_y, NULL);
 
 		IMB_freeImBuf(search_ibuf);
 	}
@@ -2216,7 +2197,7 @@ ImBuf *BKE_tracking_get_pattern_imbuf(ImBuf *ibuf, MovieTrackingTrack *track, Mo
 }
 
 ImBuf *BKE_tracking_get_search_imbuf(ImBuf *ibuf, MovieTrackingTrack *track, MovieTrackingMarker *marker,
-                                     int anchored, int disable_channels)
+                                     bool anchored, bool disable_channels)
 {
 	ImBuf *searchibuf;
 	int x, y, w, h;
@@ -2248,7 +2229,7 @@ ImBuf *BKE_tracking_get_search_imbuf(ImBuf *ibuf, MovieTrackingTrack *track, Mov
 		    (track->flag & TRACK_DISABLE_GREEN)     ||
 		    (track->flag & TRACK_DISABLE_BLUE))
 		{
-			disable_imbuf_channels(searchibuf, track, TRUE);
+			disable_imbuf_channels(searchibuf, track, true);
 		}
 	}
 
@@ -2259,8 +2240,8 @@ ImBuf *BKE_tracking_get_search_imbuf(ImBuf *ibuf, MovieTrackingTrack *track, Mov
  * better tracks sometimes. however, instead of simply zeroing the channels
  * out, do a partial grayscale conversion so the display is better.
  */
-void BKE_tracking_disable_channels(ImBuf *ibuf, int disable_red, int disable_green, int disable_blue,
-                                   int grayscale)
+void BKE_tracking_disable_channels(ImBuf *ibuf, bool disable_red, bool disable_green, bool disable_blue,
+                                   bool grayscale)
 {
 	int x, y;
 	float scale;
@@ -2324,7 +2305,7 @@ void BKE_tracking_disable_channels(ImBuf *ibuf, int disable_red, int disable_gre
 
 typedef struct TracksMap {
 	char object_name[MAX_NAME];
-	int is_camera;
+	bool is_camera;
 
 	int num_tracks;
 	int customdata_size;
@@ -2337,7 +2318,7 @@ typedef struct TracksMap {
 	int ptr;
 } TracksMap;
 
-static TracksMap *tracks_map_new(const char *object_name, int is_camera, int num_tracks, int customdata_size)
+static TracksMap *tracks_map_new(const char *object_name, bool is_camera, int num_tracks, int customdata_size)
 {
 	TracksMap *map = MEM_callocN(sizeof(TracksMap), "TrackingsMap");
 
@@ -2386,12 +2367,9 @@ static void tracks_map_insert(TracksMap *map, MovieTrackingTrack *track, void *c
 	map->ptr++;
 }
 
-/* TODO(sergey): Make it so tracks are not re-allocating here */
 static void tracks_map_merge(TracksMap *map, MovieTracking *tracking)
 {
 	MovieTrackingTrack *track;
-	MovieTrackingTrack *act_track = BKE_tracking_track_get_active(tracking);
-	MovieTrackingTrack *rot_track = tracking->stabilization.rot_track;
 	ListBase tracks = {NULL, NULL}, new_tracks = {NULL, NULL};
 	ListBase *old_tracks, *plane_tracks;
 	int a;
@@ -2417,43 +2395,41 @@ static void tracks_map_merge(TracksMap *map, MovieTracking *tracking)
 	 * of currently operating tracks (if needed)
 	 */
 	for (a = 0; a < map->num_tracks; a++) {
-		int replace_sel = 0, replace_rot = 0;
-		MovieTrackingTrack *new_track, *old_track;
+		MovieTrackingTrack *old_track;
+		bool mapped_to_old = false;
 
 		track = &map->tracks[a];
-
-		new_track = tracking_track_duplicate(track);
 
 		/* find original of operating track in list of previously displayed tracks */
 		old_track = BLI_ghash_lookup(map->hash, track);
 		if (old_track) {
-			if (BLI_findindex(old_tracks->first, old_track) != -1) {
-				/* Update active track in movie clip. */
-				if (old_track == act_track) {
-					tracking->act_track = new_track;
-				}
+			if (BLI_findindex(old_tracks, old_track) != -1) {
+				BLI_remlink(old_tracks, old_track);
+				BLI_addtail(&tracks, old_track);
 
-				/* Update track used for rotation stabilization. */
-				if (old_track == rot_track) {
-					tracking->stabilization.rot_track = new_track;
-				}
+				/* Copy flags like selection back to the track map. */
+				track->flag = old_track->flag;
+				track->pat_flag = old_track->pat_flag;
+				track->search_flag = old_track->search_flag;
 
-				new_track->flag = track->flag = old_track->flag;
-				new_track->pat_flag = track->pat_flag = old_track->pat_flag;
-				new_track->search_flag = track->search_flag = old_track->search_flag;
+				/* Copy all the rest settings back from the map to the actual tracks. */
+				MEM_freeN(old_track->markers);
+				*old_track = *track;
+				old_track->markers = MEM_dupallocN(old_track->markers);
 
-				plane_tracks_replace_point_track(plane_tracks, old_track, new_track);
-
-				BKE_tracking_track_free(old_track);
-				BLI_freelinkN(old_tracks, old_track);
+				mapped_to_old = true;
 			}
 		}
 
-		/* Update old-new track mapping */
-		BLI_ghash_remove(map->hash, track, NULL, NULL);
-		BLI_ghash_insert(map->hash, track, new_track);
+		if (mapped_to_old == false) {
+			MovieTrackingTrack *new_track = tracking_track_duplicate(track);
 
-		BLI_addtail(&tracks, new_track);
+			/* Update old-new track mapping */
+			BLI_ghash_remove(map->hash, track, NULL, NULL);
+			BLI_ghash_insert(map->hash, track, new_track);
+
+			BLI_addtail(&tracks, new_track);
+		}
 	}
 
 	/* move all tracks, which aren't operating */
@@ -2532,7 +2508,7 @@ typedef struct MovieTrackingContext {
 	MovieTrackingSettings settings;
 	TracksMap *tracks_map;
 
-	short backwards, sequence;
+	bool backwards, sequence;
 	int sync_frame;
 } MovieTrackingContext;
 
@@ -2705,7 +2681,7 @@ static float *track_get_search_floatbuf(ImBuf *ibuf, MovieTrackingTrack *track, 
 	float *gray_pixels;
 	int width, height;
 
-	searchibuf = BKE_tracking_get_search_imbuf(ibuf, track, marker, FALSE, TRUE);
+	searchibuf = BKE_tracking_get_search_imbuf(ibuf, track, marker, false, true);
 
 	if (!searchibuf) {
 		*width_r = 0;
@@ -2901,19 +2877,24 @@ static void tracking_configure_tracker(const MovieTrackingTrack *track, float *m
 static bool tracking_check_marker_margin(MovieTrackingTrack *track, MovieTrackingMarker *marker,
                                          int frame_width, int frame_height)
 {
-	float pat_min[2], pat_max[2], dim[2], margin[2];
+	float pat_min[2], pat_max[2];
+	float margin_left, margin_top, margin_right, margin_bottom;
+	float normalized_track_margin[2];
 
 	/* margin from frame boundaries */
 	BKE_tracking_marker_pattern_minmax(marker, pat_min, pat_max);
-	sub_v2_v2v2(dim, pat_max, pat_min);
-	margin[0] = margin[1] = max_ff(dim[0], dim[1]) / 2.0f;
 
-	margin[0] = max_ff(margin[0], (float)track->margin / frame_width);
-	margin[1] = max_ff(margin[1], (float)track->margin / frame_height);
+	normalized_track_margin[0] = (float)track->margin / frame_width;
+	normalized_track_margin[1] = (float)track->margin / frame_height;
+
+	margin_left   = max_ff(-pat_min[0], normalized_track_margin[0]);
+	margin_top    = max_ff( pat_max[1], normalized_track_margin[1]);
+	margin_right  = max_ff( pat_max[0], normalized_track_margin[0]);
+	margin_bottom = max_ff(-pat_min[1], normalized_track_margin[1]);
 
 	/* do not track markers which are too close to boundary */
-	if (marker->pos[0] < margin[0] || marker->pos[0] > 1.0f - margin[0] ||
-	    marker->pos[1] < margin[1] || marker->pos[1] > 1.0f - margin[1])
+	if (marker->pos[0] < margin_left || marker->pos[0] > 1.0f - margin_right ||
+	    marker->pos[1] < margin_bottom || marker->pos[1] > 1.0f - margin_top)
 	{
 		return false;
 	}
@@ -3053,7 +3034,7 @@ static bool configure_and_run_tracker(ImBuf *destination_ibuf, MovieTrackingTrac
 /* Track all the tracks from context one more frame,
  * returns FALSe if nothing was tracked.
  */
-int BKE_tracking_context_step(MovieTrackingContext *context)
+bool BKE_tracking_context_step(MovieTrackingContext *context)
 {
 	ImBuf *destination_ibuf;
 	int frame_delta = context->backwards ? -1 : 1;
@@ -3067,7 +3048,7 @@ int BKE_tracking_context_step(MovieTrackingContext *context)
 
 	/* Nothing to track, avoid unneeded frames reading to save time and memory. */
 	if (!map_size)
-		return FALSE;
+		return false;
 
 	/* Get an image buffer for frame we're tracking to. */
 	context->user.framenr += frame_delta;
@@ -3075,7 +3056,7 @@ int BKE_tracking_context_step(MovieTrackingContext *context)
 	destination_ibuf = BKE_movieclip_get_ibuf_flag(context->clip, &context->user,
 	                                               context->clip_flag, MOVIECLIP_CACHE_SKIP);
 	if (!destination_ibuf)
-		return FALSE;
+		return false;
 
 	frame_width = destination_ibuf->x;
 	frame_height = destination_ibuf->y;
@@ -3142,7 +3123,7 @@ int BKE_tracking_context_step(MovieTrackingContext *context)
  * which means if backwards is false, previous keyframe will be as
  * reference.
  */
-void BKE_tracking_refine_marker(MovieClip *clip, MovieTrackingTrack *track, MovieTrackingMarker *marker, int backwards)
+void BKE_tracking_refine_marker(MovieClip *clip, MovieTrackingTrack *track, MovieTrackingMarker *marker, bool backwards)
 {
 	MovieTrackingMarker *reference_marker = NULL;
 	ImBuf *reference_ibuf, *destination_ibuf;
@@ -3160,7 +3141,7 @@ void BKE_tracking_refine_marker(MovieClip *clip, MovieTrackingTrack *track, Movi
 
 	BKE_movieclip_get_size(clip, &user, &frame_width, &frame_height);
 
-	/* Get an image buffer for reference frame, also gets referecnce marker.
+	/* Get an image buffer for reference frame, also gets reference marker.
 	 *
 	 * Usually tracking_context_get_reference_ibuf will return current frame
 	 * if marker is keyframed, which is correct for normal tracking. But here
@@ -3365,7 +3346,7 @@ typedef struct MovieReconstructContext {
 	struct libmv_Reconstruction *reconstruction;
 
 	char object_name[MAX_NAME];
-	int is_camera;
+	bool is_camera;
 	short motion_flag;
 
 	float focal_length;
@@ -3379,7 +3360,7 @@ typedef struct MovieReconstructContext {
 	TracksMap *tracks_map;
 
 	float success_threshold;
-	int use_fallback_reconstruction;
+	bool use_fallback_reconstruction;
 
 	int sfra, efra;
 } MovieReconstructContext;
@@ -3448,7 +3429,7 @@ static void reconstruct_retrieve_libmv_intrinsics(MovieReconstructContext *conte
  * Actually, this also copies reconstructed cameras
  * from libmv to movie clip datablock.
  */
-static int reconstruct_retrieve_libmv_tracks(MovieReconstructContext *context, MovieTracking *tracking)
+static bool reconstruct_retrieve_libmv_tracks(MovieReconstructContext *context, MovieTracking *tracking)
 {
 	struct libmv_Reconstruction *libmv_reconstruction = context->reconstruction;
 	MovieTrackingReconstruction *reconstruction = NULL;
@@ -3625,12 +3606,12 @@ static int reconstruct_count_tracks_on_both_keyframes(MovieTracking *tracking, M
 }
 
 /* Perform early check on whether everything is fine to start reconstruction. */
-int BKE_tracking_reconstruction_check(MovieTracking *tracking, MovieTrackingObject *object,
-                                      char *error_msg, int error_size)
+bool BKE_tracking_reconstruction_check(MovieTracking *tracking, MovieTrackingObject *object,
+                                       char *error_msg, int error_size)
 {
 	if (tracking->settings.motion_flag & TRACKING_MOTION_MODAL) {
 		/* TODO: check for number of tracks? */
-		return TRUE;
+		return true;
 	}
 	else if ((tracking->settings.reconstruction_flag & TRACKING_USE_KEYFRAME_SELECTION) == 0) {
 		/* automatic keyframe selection does not require any pre-process checks */
@@ -3639,16 +3620,16 @@ int BKE_tracking_reconstruction_check(MovieTracking *tracking, MovieTrackingObje
 			            N_("At least 8 common tracks on both of keyframes are needed for reconstruction"),
 			            error_size);
 
-			return FALSE;
+			return false;
 		}
 	}
 
 #ifndef WITH_LIBMV
 	BLI_strncpy(error_msg, N_("Blender is compiled without motion tracking library"), error_size);
-	return FALSE;
+	return false;
 #endif
 
-	return TRUE;
+	return true;
 }
 
 /* Create context for camera/object motion reconstruction.
@@ -3842,7 +3823,7 @@ void BKE_tracking_reconstruction_solve(MovieReconstructContext *context, short *
 /* Finish reconstruction process by copying reconstructed data
  * to an actual movie clip datablock.
  */
-int BKE_tracking_reconstruction_finish(MovieReconstructContext *context, MovieTracking *tracking)
+bool BKE_tracking_reconstruction_finish(MovieReconstructContext *context, MovieTracking *tracking)
 {
 	MovieTrackingReconstruction *reconstruction;
 	MovieTrackingObject *object;
@@ -3867,9 +3848,9 @@ int BKE_tracking_reconstruction_finish(MovieReconstructContext *context, MovieTr
 	reconstruction->flag |= TRACKING_RECONSTRUCTED;
 
 	if (!reconstruct_retrieve_libmv(context, tracking))
-		return FALSE;
+		return false;
 
-	return TRUE;
+	return true;
 }
 
 static void tracking_scale_reconstruction(ListBase *tracksbase, MovieTrackingReconstruction *reconstruction,
@@ -4034,7 +4015,7 @@ static unsigned char *detect_get_frame_ucharbuf(ImBuf *ibuf)
 /* Detect features using FAST detector */
 void BKE_tracking_detect_fast(MovieTracking *tracking, ListBase *tracksbase, ImBuf *ibuf,
                               int framenr, int margin, int min_trackness, int min_distance, bGPDlayer *layer,
-                              int place_outside_layer)
+                              bool place_outside_layer)
 {
 	struct libmv_Features *features;
 	unsigned char *pixels = detect_get_frame_ucharbuf(ibuf);
@@ -4046,14 +4027,14 @@ void BKE_tracking_detect_fast(MovieTracking *tracking, ListBase *tracksbase, ImB
 
 	detect_retrieve_libmv_features(tracking, tracksbase, features,
 	                               framenr, ibuf->x, ibuf->y, layer,
-	                               place_outside_layer ? true : false);
+	                               place_outside_layer);
 
 	libmv_featuresDestroy(features);
 }
 
 /*********************** 2D stabilization *************************/
 
-/* Claculate median point of markers of tracks marked as used for
+/* Calculate median point of markers of tracks marked as used for
  * 2D stabilization.
  *
  * NOTE: frame number should be in clip space, not scene space
@@ -4410,7 +4391,7 @@ ImBuf *BKE_tracking_stabilize_frame(MovieTracking *tracking, int framenr, ImBuf 
  * stabilization data and used for easy coordinate
  * transformation.
  *
- * NOTE: The reaosn it is 4x4 matrix is because it's
+ * NOTE: The reason it is 4x4 matrix is because it's
  *       used for OpenGL drawing directly.
  */
 void BKE_tracking_stabilization_data_to_mat4(int width, int height, float aspect,
@@ -4660,7 +4641,7 @@ static void tracking_dopesheet_channels_calc(MovieTracking *tracking)
 /* Sot dopesheet channels using given method (name, average error, total coverage,
  * longest tracked segment) and could also inverse the list if it's enabled.
  */
-static void tracking_dopesheet_channels_sort(MovieTracking *tracking, int sort_method, int inverse)
+static void tracking_dopesheet_channels_sort(MovieTracking *tracking, int sort_method, bool inverse)
 {
 	MovieTrackingDopesheet *dopesheet = &tracking->dopesheet;
 
@@ -4797,7 +4778,7 @@ void BKE_tracking_dopesheet_update(MovieTracking *tracking)
 	MovieTrackingDopesheet *dopesheet = &tracking->dopesheet;
 
 	short sort_method = dopesheet->sort_method;
-	short inverse = dopesheet->flag & TRACKING_DOPE_SORT_INVERSE;
+	bool inverse = (dopesheet->flag & TRACKING_DOPE_SORT_INVERSE) != 0;
 
 	if (dopesheet->ok)
 		return;
