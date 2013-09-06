@@ -2761,9 +2761,6 @@ void BKE_object_handle_update_ex(EvaluationContext *evaluation_context,
 							makeDerivedMesh(scene, ob, NULL, data_mask, 0);
 						}
 					}
-					else {
-						makeDerivedMeshRender(scene, ob, CD_MASK_BAREMESH | CD_MASK_MTFACE | CD_MASK_MCOL);
-					}
 					break;
 				}
 				case OB_ARMATURE:
