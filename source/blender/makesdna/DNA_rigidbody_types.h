@@ -152,7 +152,9 @@ typedef enum eRigidBodyOb_Flag {
 	RBO_FLAG_USE_MARGIN			= (1 << 6),
 	/* compound shape flags, should not be set manually */
 	RBO_FLAG_COMPOUND_PARENT	= (1 << 7),
-	RBO_FLAG_COMPOUND_CHILD		= (1 << 8)
+	RBO_FLAG_COMPOUND_CHILD		= (1 << 8),
+	/* rigidbdody is used as a collision trigger */
+	RBO_FLAG_TRIGGER			= (1 << 9)
 } eRigidBodyOb_Flag;
 
 /* RigidBody Collision Shape */

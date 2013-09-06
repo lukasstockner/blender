@@ -671,6 +671,7 @@ void BKE_rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, short re
 
 		RB_body_set_mass(rbo->physics_object, RBO_GET_MASS(rbo));
 		RB_body_set_kinematic_state(rbo->physics_object, rbo->flag & RBO_FLAG_KINEMATIC || rbo->flag & RBO_FLAG_DISABLED);
+		RB_body_set_trigger(rbo->physics_object, rbo->flag & RBO_FLAG_TRIGGER);
 	}
 
 	if (rbw && rbw->physics_world && (rbo->flag & RBO_FLAG_COMPOUND_CHILD) == 0) // RB_TODO find better solution for compound shapes

@@ -182,6 +182,8 @@ extern void RB_body_set_angular_factor(rbRigidBody *object, float x, float y, fl
 /* Kinematic State */
 extern void RB_body_set_kinematic_state(rbRigidBody *body, int kinematic);
 
+extern void RB_body_set_trigger(rbRigidBody *object, int trigger);
+
 /* RigidBody Interface - Rigid Body Activation States */
 extern int RB_body_get_activation_state(rbRigidBody *body);
 extern void RB_body_set_activation_state(rbRigidBody *body, int use_deactivation);
