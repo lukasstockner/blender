@@ -921,22 +921,6 @@ static void rna_NodeTree_active_output_set(PointerRNA *ptr, int value)
 	}
 }
 
-static int rna_NodeTree_inputs_lookupstring(PointerRNA *ptr, const char *key, PointerRNA *r_ptr)
-{
-	bNodeTree *ntree = (bNodeTree *)ptr->data;
-	bNodeSocket *sock = ntreeFindSocketInterface(ntree, SOCK_IN, key);
-	RNA_pointer_create(ptr->id.data, &RNA_NodeSocketInterface, sock, r_ptr);
-	return (sock != NULL);
-}
-
-static int rna_NodeTree_outputs_lookupstring(PointerRNA *ptr, const char *key, PointerRNA *r_ptr)
-{
-	bNodeTree *ntree = (bNodeTree *)ptr->data;
-	bNodeSocket *sock = ntreeFindSocketInterface(ntree, SOCK_OUT, key);
-	RNA_pointer_create(ptr->id.data, &RNA_NodeSocketInterface, sock, r_ptr);
-	return (sock != NULL);
-}
-
 static bNodeSocket *rna_NodeTree_inputs_new(bNodeTree *ntree, ReportList *reports, const char *type, const char *name)
 {
 	bNodeSocket *sock;
@@ -1561,22 +1545,6 @@ static void rna_Node_name_set(PointerRNA *ptr, const char *value)
 	
 	/* fix all the animation data which may link to this */
 	BKE_all_animdata_fix_paths_rename(NULL, "nodes", oldname, node->name);
-}
-
-static int rna_Node_inputs_lookupstring(PointerRNA *ptr, const char *key, PointerRNA *r_ptr)
-{
-	bNode *node = (bNode *)ptr->data;
-	bNodeSocket *sock = nodeFindSocket(node, SOCK_IN, key);
-	RNA_pointer_create(ptr->id.data, &RNA_NodeSocket, sock, r_ptr);
-	return (sock != NULL);
-}
-
-static int rna_Node_outputs_lookupstring(PointerRNA *ptr, const char *key, PointerRNA *r_ptr)
-{
-	bNode *node = (bNode *)ptr->data;
-	bNodeSocket *sock = nodeFindSocket(node, SOCK_OUT, key);
-	RNA_pointer_create(ptr->id.data, &RNA_NodeSocket, sock, r_ptr);
-	return (sock != NULL);
 }
 
 static bNodeSocket *rna_Node_inputs_new(ID *id, bNode *node, ReportList *reports, const char *type, const char *name, const char *identifier)
@@ -2851,6 +2819,15 @@ static void rna_ShaderNodeScript_update(Main *bmain, Scene *scene, PointerRNA *p
 	ED_node_tag_update_nodetree(bmain, ntree);
 }
 
+static void rna_ShaderNodeSubsurface_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	bNodeTree *ntree = (bNodeTree *)ptr->id.data;
+	bNode *node = (bNode *)ptr->data;
+
+	nodeUpdate(ntree, node);
+	rna_Node_update(bmain, scene, ptr);
+}
+
 #else
 
 static EnumPropertyItem prop_image_layer_items[] = {
@@ -3220,10 +3197,22 @@ static void def_sh_tex(StructRNA *srna)
 
 static void def_sh_tex_sky(StructRNA *srna)
 {
+	static EnumPropertyItem prop_sky_type[] = {
+		{SHD_SKY_OLD, "PREETHAM", 0, "Preetham", ""},
+		{SHD_SKY_NEW, "HOSEK_WILKIE", 0, "Hosek / Wilkie", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+	
 	PropertyRNA *prop;
 	
 	RNA_def_struct_sdna_from(srna, "NodeTexSky", "storage");
 	def_sh_tex(srna);
+
+	prop = RNA_def_property(srna, "sky_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "sky_model");
+	RNA_def_property_enum_items(prop, prop_sky_type);
+	RNA_def_property_ui_text(prop, "Sky Type", "");
+	RNA_def_property_update(prop, 0, "rna_Node_update");
 	
 	prop = RNA_def_property(srna, "sun_direction", PROP_FLOAT, PROP_DIRECTION);
 	RNA_def_property_ui_text(prop, "Sun Direction", "Direction from where the sun is shining");
@@ -3231,7 +3220,13 @@ static void def_sh_tex_sky(StructRNA *srna)
 	
 	prop = RNA_def_property(srna, "turbidity", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_range(prop, 1.0f, 30.0f);
+	RNA_def_property_ui_range(prop, 1.0f, 10.0f, 10, 3);
 	RNA_def_property_ui_text(prop, "Turbidity", "Atmospheric turbidity");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+	
+	prop = RNA_def_property(srna, "ground_albedo", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Ground Albedo", "Ground color that is subtly reflected in the sky");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
@@ -3638,6 +3633,25 @@ static void def_sh_tangent(StructRNA *srna)
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
 	RNA_def_struct_sdna_from(srna, "bNode", NULL);
+}
+
+
+static void def_sh_subsurface(StructRNA *srna)
+{
+	static EnumPropertyItem prop_subsurface_falloff_items[] = {
+		{SHD_SUBSURFACE_COMPATIBLE, "COMPATIBLE", 0, "Compatible", "Subsurface scattering falloff compatible with previous versions"},
+		{SHD_SUBSURFACE_CUBIC, "CUBIC", 0, "Cubic", "Simple cubic falloff function"},
+		{SHD_SUBSURFACE_GAUSSIAN, "GAUSSIAN", 0, "Gaussian", "Normal distribution, multiple can be combined to fit more complex profiles"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	PropertyRNA *prop;
+	
+	prop = RNA_def_property(srna, "falloff", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "custom1");
+	RNA_def_property_enum_items(prop, prop_subsurface_falloff_items);
+	RNA_def_property_ui_text(prop, "Falloff", "Function to determine how much light nearby points contribute based on their distance to the shading point");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_ShaderNodeSubsurface_update");
 }
 
 static void def_sh_script(StructRNA *srna)
@@ -6822,16 +6836,12 @@ static void rna_def_node(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "inputs", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "inputs", NULL);
-	RNA_def_property_collection_funcs(prop, NULL, NULL, NULL, NULL, NULL, NULL,
-	                                  "rna_Node_inputs_lookupstring", NULL);
 	RNA_def_property_struct_type(prop, "NodeSocket");
 	RNA_def_property_ui_text(prop, "Inputs", "");
 	rna_def_node_sockets_api(brna, prop, SOCK_IN);
 	
 	prop = RNA_def_property(srna, "outputs", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "outputs", NULL);
-	RNA_def_property_collection_funcs(prop, NULL, NULL, NULL, NULL, NULL, NULL,
-	                                  "rna_Node_outputs_lookupstring", NULL);
 	RNA_def_property_struct_type(prop, "NodeSocket");
 	RNA_def_property_ui_text(prop, "Outputs", "");
 	rna_def_node_sockets_api(brna, prop, SOCK_OUT);
@@ -7247,8 +7257,6 @@ static void rna_def_nodetree(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "inputs", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "inputs", NULL);
-	RNA_def_property_collection_funcs(prop, NULL, NULL, NULL, NULL, NULL, NULL,
-	                                  "rna_NodeTree_inputs_lookupstring", NULL);
 	RNA_def_property_struct_type(prop, "NodeSocketInterface");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Inputs", "Node tree inputs");
@@ -7261,8 +7269,6 @@ static void rna_def_nodetree(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "outputs", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "outputs", NULL);
-	RNA_def_property_collection_funcs(prop, NULL, NULL, NULL, NULL, NULL, NULL,
-	                                  "rna_NodeTree_outputs_lookupstring", NULL);
 	RNA_def_property_struct_type(prop, "NodeSocketInterface");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Outputs", "Node tree outputs");

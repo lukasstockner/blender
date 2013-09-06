@@ -178,7 +178,6 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 			if (kb->data) MEM_freeN(kb->data);
 			kb->data = MEM_callocN(sizeof(float) * 3 * totvert, "join_shapekey");
 			kb->totelem = totvert;
-			kb->weights = NULL;
 		}
 	}
 	else if (haskey) {
@@ -1136,7 +1135,7 @@ int *mesh_get_x_mirror_faces(Object *ob, BMEditMesh *em)
 
 	mesh_octree_table(ob, em, NULL, 'e');
 
-	fhash = BLI_ghash_new(mirror_facehash, mirror_facecmp, "mirror_facehash gh");
+	fhash = BLI_ghash_new_ex(mirror_facehash, mirror_facecmp, "mirror_facehash gh", me->totface);
 	for (a = 0, mf = mface; a < me->totface; a++, mf++)
 		BLI_ghash_insert(fhash, mf, mf);
 

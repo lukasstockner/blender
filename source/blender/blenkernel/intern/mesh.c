@@ -46,6 +46,7 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_blenlib.h"
+#include "BLI_memarena.h"
 #include "BLI_math.h"
 #include "BLI_edgehash.h"
 #include "BLI_bitmap.h"
@@ -177,8 +178,8 @@ static int customdata_compare(CustomData *c1, CustomData *c2, Mesh *m1, Mesh *m2
 		if (l1->type == CD_MEDGE) {
 			MEdge *e1 = l1->data;
 			MEdge *e2 = l2->data;
-			EdgeHash *eh = BLI_edgehash_new();
 			int etot = m1->totedge;
+			EdgeHash *eh = BLI_edgehash_new_ex(__func__, etot);
 		
 			for (j = 0; j < etot; j++, e1++) {
 				BLI_edgehash_insert(eh, e1->v1, e1->v2, e1);
@@ -657,6 +658,8 @@ void BKE_mesh_boundbox_calc(Mesh *me, float r_loc[3], float r_size[3])
 	r_size[2] = (max[2] - min[2]) / 2.0f;
 	
 	BKE_boundbox_init_from_minmax(bb, min, max);
+
+	bb->flag &= ~BOUNDBOX_DIRTY;
 }
 
 void BKE_mesh_texspace_calc(Mesh *me)
@@ -686,15 +689,16 @@ BoundBox *BKE_mesh_boundbox_get(Object *ob)
 	if (ob->bb)
 		return ob->bb;
 
-	if (!me->bb)
+	if (me->bb == NULL || (me->bb->flag & BOUNDBOX_DIRTY)) {
 		BKE_mesh_texspace_calc(me);
+	}
 
 	return me->bb;
 }
 
 void BKE_mesh_texspace_get(Mesh *me, float r_loc[3], float r_rot[3], float r_size[3])
 {
-	if (!me->bb) {
+	if (me->bb == NULL || (me->bb->flag & BOUNDBOX_DIRTY)) {
 		BKE_mesh_texspace_calc(me);
 	}
 
@@ -908,7 +912,7 @@ static void make_edges_mdata(MVert *UNUSED(allvert), MFace *allface, MLoop *alll
 	MPoly *mpoly;
 	MFace *mface;
 	MEdge *medge, *med;
-	EdgeHash *hash = BLI_edgehash_new();
+	EdgeHash *hash;
 	struct EdgeSort *edsort, *ed;
 	int a, totedge = 0;
 	unsigned int totedge_final = 0;
@@ -985,6 +989,7 @@ static void make_edges_mdata(MVert *UNUSED(allvert), MFace *allface, MLoop *alll
 	MEM_freeN(edsort);
 	
 	/* set edge members of mloops */
+	hash = BLI_edgehash_new_ex(__func__, totedge_final);
 	for (edge_index = 0, med = medge; edge_index < totedge_final; edge_index++, med++) {
 		BLI_edgehash_insert(hash, med->v1, med->v2, SET_UINT_IN_POINTER(edge_index));
 	}
@@ -1237,10 +1242,12 @@ static void make_edges_mdata_extend(MEdge **r_alledge, int *r_totedge,
 	int totedge = *r_totedge;
 	int totedge_new;
 	EdgeHash *eh;
+	unsigned int eh_reserve;
 	const MPoly *mp;
 	int i;
 
-	eh = BLI_edgehash_new();
+	eh_reserve = max_ii(totedge, BLI_EDGEHASH_SIZE_GUESS_FROM_POLYS(totpoly));
+	eh = BLI_edgehash_new_ex(__func__, eh_reserve);
 
 	for (i = 0, mp = mpoly; i < totpoly; i++, mp++) {
 		BKE_mesh_poly_edgehash_insert(eh, mp, mloop + mp->loopstart);
@@ -1307,7 +1314,13 @@ int BKE_mesh_nurbs_to_mdata(Object *ob, MVert **allvert, int *totvert,
                             MEdge **alledge, int *totedge, MLoop **allloop, MPoly **allpoly,
                             int *totloop, int *totpoly)
 {
-	return BKE_mesh_nurbs_displist_to_mdata(ob, &ob->disp,
+	ListBase disp = {NULL, NULL};
+
+	if (ob->curve_cache) {
+		disp = ob->curve_cache->disp;
+	}
+
+	return BKE_mesh_nurbs_displist_to_mdata(ob, &disp,
 	                                        allvert, totvert,
 	                                        alledge, totedge,
 	                                        allloop, allpoly, NULL,
@@ -1653,8 +1666,13 @@ void BKE_mesh_from_nurbs(Object *ob)
 {
 	Curve *cu = (Curve *) ob->data;
 	bool use_orco_uv = (cu->flag & CU_UV_ORCO) != 0;
+	ListBase disp = {NULL, NULL};
 
-	BKE_mesh_from_nurbs_displist(ob, &ob->disp, use_orco_uv);
+	if (ob->curve_cache) {
+		disp = ob->curve_cache->disp;
+	}
+
+	BKE_mesh_from_nurbs_displist(ob, &disp, use_orco_uv);
 }
 
 typedef struct EdgeLink {
@@ -1914,6 +1932,21 @@ void BKE_mesh_smooth_flag_set(Object *meshOb, int enableSmooth)
 	}
 }
 
+/**
+ * Call when there are no polygons.
+ */
+static void mesh_calc_normals_vert_fallback(MVert *mverts, int numVerts)
+{
+	int i;
+	for (i = 0; i < numVerts; i++) {
+		MVert *mv = &mverts[i];
+		float no[3];
+
+		normalize_v3_v3(no, mv->co);
+		normal_float_to_short_v3(mv->no, no);
+	}
+}
+
 void BKE_mesh_calc_normals_mapping(MVert *mverts, int numVerts,
                                    MLoop *mloop, MPoly *mpolys, int numLoops, int numPolys, float (*polyNors_r)[3],
                                    MFace *mfaces, int numFaces, int *origIndexFace, float (*faceNors_r)[3])
@@ -1935,6 +1968,9 @@ void BKE_mesh_calc_normals_mapping_ex(MVert *mverts, int numVerts,
 	MPoly *mp;
 
 	if (numPolys == 0) {
+		if (only_face_normals == FALSE) {
+			mesh_calc_normals_vert_fallback(mverts, numVerts);
+		}
 		return;
 	}
 
@@ -2293,7 +2329,7 @@ void BKE_mesh_convert_mfaces_to_mpolys_ex(ID *id, CustomData *fdata, CustomData 
 		CustomData_external_read(fdata, id, CD_MASK_MDISPS, totface_i);
 	}
 
-	eh = BLI_edgehash_new();
+	eh = BLI_edgehash_new_ex(__func__, totedge_i);
 
 	/* build edge hash */
 	me = medge;
@@ -2698,6 +2734,7 @@ int BKE_mesh_recalc_tessellation(CustomData *fdata,
 	ScanFillContext sf_ctx;
 	ScanFillVert *sf_vert, *sf_vert_last, *sf_vert_first;
 	ScanFillFace *sf_tri;
+	MemArena *sf_arena = NULL;
 	int *mface_to_poly_map;
 	int lindex[4]; /* only ever use 3 in this case */
 	int poly_index, j, mface_index;
@@ -2780,7 +2817,11 @@ int BKE_mesh_recalc_tessellation(CustomData *fdata,
 #endif
 			ml = mloop + mp->loopstart;
 			
-			BLI_scanfill_begin(&sf_ctx);
+			if (UNLIKELY(sf_arena == NULL)) {
+				sf_arena = BLI_memarena_new(BLI_SCANFILL_ARENA_SIZE, __func__);
+			}
+
+			BLI_scanfill_begin_arena(&sf_ctx, sf_arena);
 			sf_vert_first = NULL;
 			sf_vert_last = NULL;
 			for (j = 0; j < mp->totloop; j++, ml++) {
@@ -2832,10 +2873,15 @@ int BKE_mesh_recalc_tessellation(CustomData *fdata,
 				mface_index++;
 			}
 	
-			BLI_scanfill_end(&sf_ctx);
+			BLI_scanfill_end_arena(&sf_ctx, sf_arena);
 
 #undef USE_TESSFACE_CALCNORMAL
 		}
+	}
+
+	if (sf_arena) {
+		BLI_memarena_free(sf_arena);
+		sf_arena = NULL;
 	}
 
 	CustomData_free(fdata, totface);
@@ -3266,19 +3312,21 @@ static float mesh_calc_poly_planar_area_centroid(MPoly *mpoly, MLoop *loopstart,
  * Calculate smooth groups from sharp edges.
  *
  * \param r_totgroup The total number of groups, 1 or more.
- * \return Polygon aligned array of group index values (starting at 1)
+ * \return Polygon aligned array of group index values (bitflags if use_bitflags is true), starting at 1.
  */
 int *BKE_mesh_calc_smoothgroups(const MEdge *medge, const int totedge,
                                 const MPoly *mpoly, const int totpoly,
                                 const MLoop *mloop, const int totloop,
-                                int *r_totgroup)
+                                int *r_totgroup, const bool use_bitflags)
 {
 	int *poly_groups;
 	int *poly_stack;
-	STACK_DECLARE(poly_stack);
 
 	int poly_prev = 0;
-	int poly_group_id = 0;
+	const int temp_poly_group_id = 3;  /* Placeholder value. */
+	const int poly_group_id_overflowed = 5;  /* Group we could not find any available bit, will be reset to 0 at end */
+	int tot_group = 0;
+	bool group_id_overflow = false;
 
 	/* map vars */
 	MeshElemMap *edge_poly_map;
@@ -3297,10 +3345,11 @@ int *BKE_mesh_calc_smoothgroups(const MEdge *medge, const int totedge,
 	poly_groups = MEM_callocN(sizeof(int) * totpoly, __func__);
 	poly_stack  = MEM_mallocN(sizeof(int) * totpoly, __func__);
 
-	STACK_INIT(poly_stack);
-
 	while (true) {
 		int poly;
+		int bit_poly_group_mask = 0;
+		int poly_group_id;
+		int ps_curr_idx = 0, ps_end_idx = 0;  /* stack indices */
 
 		for (poly = poly_prev; poly < totpoly; poly++) {
 			if (poly_groups[poly] == 0) {
@@ -3313,40 +3362,88 @@ int *BKE_mesh_calc_smoothgroups(const MEdge *medge, const int totedge,
 			break;
 		}
 
+		poly_group_id = use_bitflags ? temp_poly_group_id : ++tot_group;
+
 		/* start searching from here next time */
 		poly_prev = poly + 1;
 
-		/* group starts at 1 */
-		poly_group_id++;
-
 		poly_groups[poly] = poly_group_id;
-		STACK_PUSH(poly_stack, poly);
+		poly_stack[ps_end_idx++] = poly;
 
-		while ((poly = STACK_POP_ELSE(poly_stack, -1)) != -1) {
-
-			const MPoly *mp = &mpoly[poly];
+		while (ps_curr_idx != ps_end_idx) {
+			const MPoly *mp;
 			const MLoop *ml;
-			int j = mp->totloop;
+			int j;
 
+			poly = poly_stack[ps_curr_idx++];
 			BLI_assert(poly_groups[poly] == poly_group_id);
 
-			for (ml = &mloop[mp->loopstart]; j--; ml++) {
+			mp = &mpoly[poly];
+			for (ml = &mloop[mp->loopstart], j = mp->totloop; j--; ml++) {
+				/* loop over poly users */
+				const MeshElemMap *map_ele = &edge_poly_map[ml->e];
+				int *p = map_ele->indices;
+				int i = map_ele->count;
 				if (!(medge[ml->e].flag & ME_SHARP)) {
-					/* loop over poly users */
-					const MeshElemMap *map_ele = &edge_poly_map[ml->e];
-					int *p = map_ele->indices;
-					int i = map_ele->count;
-
 					for (; i--; p++) {
 						/* if we meet other non initialized its a bug */
 						BLI_assert(ELEM(poly_groups[*p], 0, poly_group_id));
 
 						if (poly_groups[*p] == 0) {
 							poly_groups[*p] = poly_group_id;
-							STACK_PUSH(poly_stack, *p);
+							poly_stack[ps_end_idx++] = *p;
 						}
 					}
 				}
+				else if (use_bitflags) {
+					/* Find contiguous smooth groups already assigned, these are the values we can't reuse! */
+					for (; i--; p++) {
+						int bit = poly_groups[*p];
+						if (!ELEM3(bit, 0, poly_group_id, poly_group_id_overflowed) &&
+						    !(bit_poly_group_mask & bit))
+						{
+							bit_poly_group_mask |= bit;
+						}
+					}
+				}
+			}
+		}
+		/* And now, we have all our poly from current group in poly_stack (from 0 to (ps_end_idx - 1)), as well as
+		 * all smoothgroups bits we can't use in bit_poly_group_mask.
+		 */
+		if (use_bitflags) {
+			int i, *p, gid_bit = 0;
+			poly_group_id = 1;
+
+			/* Find first bit available! */
+			for (; (poly_group_id & bit_poly_group_mask) && (gid_bit < 32); gid_bit++) {
+				poly_group_id <<= 1;  /* will 'overflow' on last possible iteration. */
+			}
+			if (UNLIKELY(gid_bit > 31)) {
+				/* All bits used in contiguous smooth groups, we can't do much!
+				 * Note: this is *very* unlikely - theoretically, four groups are enough, I don't think we can reach
+				 *       this goal with such a simple algo, but I don't think either we'll never need all 32 groups!
+				 */
+				printf("Warning, could not find an available id for current smooth group, faces will me marked "
+				       "as out of any smooth group...\n");
+				poly_group_id = poly_group_id_overflowed; /* Can't use 0, will have to set them to this value later. */
+				group_id_overflow = true;
+			}
+			if (gid_bit > tot_group) {
+				tot_group = gid_bit;
+			}
+			/* And assign the final smooth group id to that poly group! */
+			for (i = ps_end_idx, p = poly_stack; i--; p++) {
+				poly_groups[*p] = poly_group_id;
+			}
+		}
+	}
+
+	if (UNLIKELY(group_id_overflow)) {
+		int i = totpoly, *gid = poly_groups;
+		for (; i--; gid++) {
+			if (*gid == poly_group_id_overflowed) {
+				*gid = 0;
 			}
 		}
 	}
@@ -3355,9 +3452,7 @@ int *BKE_mesh_calc_smoothgroups(const MEdge *medge, const int totedge,
 	MEM_freeN(edge_poly_mem);
 	MEM_freeN(poly_stack);
 
-	STACK_FREE(poly_stack);
-
-	*r_totgroup = poly_group_id;
+	*r_totgroup = tot_group + 1;
 
 	return poly_groups;
 }
@@ -3653,7 +3748,7 @@ void BKE_mesh_flush_select_from_verts(Mesh *me)
 
 
 /* basic vertex data functions */
-int BKE_mesh_minmax(Mesh *me, float r_min[3], float r_max[3])
+bool BKE_mesh_minmax(Mesh *me, float r_min[3], float r_max[3])
 {
 	int i = me->totvert;
 	MVert *mvert;
@@ -3664,7 +3759,7 @@ int BKE_mesh_minmax(Mesh *me, float r_min[3], float r_max[3])
 	return (me->totvert != 0);
 }
 
-int BKE_mesh_center_median(Mesh *me, float cent[3])
+bool BKE_mesh_center_median(Mesh *me, float cent[3])
 {
 	int i = me->totvert;
 	MVert *mvert;
@@ -3680,19 +3775,19 @@ int BKE_mesh_center_median(Mesh *me, float cent[3])
 	return (me->totvert != 0);
 }
 
-int BKE_mesh_center_bounds(Mesh *me, float cent[3])
+bool BKE_mesh_center_bounds(Mesh *me, float cent[3])
 {
 	float min[3], max[3];
 	INIT_MINMAX(min, max);
 	if (BKE_mesh_minmax(me, min, max)) {
 		mid_v3_v3v3(cent, min, max);
-		return 1;
+		return true;
 	}
 
-	return 0;
+	return false;
 }
 
-int BKE_mesh_center_centroid(Mesh *me, float cent[3])
+bool BKE_mesh_center_centroid(Mesh *me, float cent[3])
 {
 	int i = me->totpoly;
 	MPoly *mpoly;
@@ -3712,6 +3807,11 @@ int BKE_mesh_center_centroid(Mesh *me, float cent[3])
 	/* otherwise we get NAN for 0 polys */
 	if (me->totpoly) {
 		mul_v3_fl(cent, 1.0f / total_area);
+	}
+
+	/* zero area faces cause this, fallback to median */
+	if (UNLIKELY(!is_finite_v3(cent))) {
+		return BKE_mesh_center_median(me, cent);
 	}
 
 	return (me->totpoly != 0);
@@ -3830,9 +3930,7 @@ void BKE_mesh_poly_edgehash_insert(EdgeHash *ehash, const MPoly *mp, const MLoop
 	ml = &ml_next[i - 1];  /* last loop */
 
 	while (i-- != 0) {
-		if (!BLI_edgehash_haskey(ehash, ml->v, ml_next->v)) {
-			BLI_edgehash_insert(ehash, ml->v, ml_next->v, NULL);
-		}
+		BLI_edgehash_reinsert(ehash, ml->v, ml_next->v, NULL);
 
 		ml = ml_next;
 		ml_next++;

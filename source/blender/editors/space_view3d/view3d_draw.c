@@ -220,10 +220,10 @@ void ED_view3d_clipping_enable(void)
 
 static bool view3d_clipping_test(const float co[3], float clip[6][4])
 {
-	if (0.0f < clip[0][3] + dot_v3v3(co, clip[0]))
-		if (0.0f < clip[1][3] + dot_v3v3(co, clip[1]))
-			if (0.0f < clip[2][3] + dot_v3v3(co, clip[2]))
-				if (0.0f < clip[3][3] + dot_v3v3(co, clip[3]))
+	if (plane_point_side_v3(clip[0], co) > 0.0f)
+		if (plane_point_side_v3(clip[1], co) > 0.0f)
+			if (plane_point_side_v3(clip[2], co) > 0.0f)
+				if (plane_point_side_v3(clip[3], co) > 0.0f)
 					return false;
 
 	return true;
@@ -2073,7 +2073,7 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 				bb = *bb_tmp; /* must make a copy  */
 
 				/* disable boundbox check for list creation */
-				BKE_object_boundbox_flag(dob->ob, OB_BB_DISABLED, 1);
+				BKE_object_boundbox_flag(dob->ob, BOUNDBOX_DISABLED, 1);
 				/* need this for next part of code */
 				unit_m4(dob->ob->obmat);    /* obmat gets restored */
 
@@ -2083,7 +2083,7 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 				glEndList();
 
 				use_displist = true;
-				BKE_object_boundbox_flag(dob->ob, OB_BB_DISABLED, 0);
+				BKE_object_boundbox_flag(dob->ob, BOUNDBOX_DISABLED, 0);
 			}
 		}
 		if (use_displist) {

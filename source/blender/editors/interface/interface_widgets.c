@@ -2850,6 +2850,16 @@ static void widget_optionbut(uiWidgetColors *wcol, rcti *rect, int state, int UN
 	rect->xmin += BLI_rcti_size_y(rect) * 0.7 + delta;
 }
 
+/* labels use Editor theme colors for text */
+static void widget_state_label(uiWidgetType *wt, int state)
+{
+	/* call this for option button */
+	widget_state(wt, state);
+	if (state & UI_SELECT)
+		UI_GetThemeColor3ubv(TH_TEXT_HI, (unsigned char *)wt->wcol.text);
+	else
+		UI_GetThemeColor3ubv(TH_TEXT, (unsigned char *)wt->wcol.text);
+}
 
 static void widget_radiobut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
 {
@@ -2970,9 +2980,12 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 
 		case UI_WTYPE_LISTLABEL:
 			wt.wcol_theme = &btheme->tui.wcol_list_item;
-			/* fall-through */  /* we use usual label code too. */
+			wt.draw = NULL;
+			/* Can't use usual label code. */
+			break;
 		case UI_WTYPE_LABEL:
 			wt.draw = NULL;
+			wt.state = widget_state_label;
 			break;
 			
 		case UI_WTYPE_TOGGLE:

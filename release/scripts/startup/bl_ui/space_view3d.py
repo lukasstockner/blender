@@ -120,16 +120,14 @@ class VIEW3D_HT_header(Header):
         # OpenGL render
         row = layout.row(align=True)
         row.operator("render.opengl", text="", icon='RENDER_STILL')
-        props = row.operator("render.opengl", text="", icon='RENDER_ANIMATION')
-        props.animation = True
+        row.operator("render.opengl", text="", icon='RENDER_ANIMATION').animation = True
 
         # Pose
         if obj and mode == 'POSE':
             row = layout.row(align=True)
             row.operator("pose.copy", text="", icon='COPYDOWN')
             row.operator("pose.paste", text="", icon='PASTEDOWN')
-            props = row.operator("pose.paste", text="", icon='PASTEFLIPDOWN')
-            props.flipped = 1
+            row.operator("pose.paste", text="", icon='PASTEFLIPDOWN').flipped = 1
 
 
 # ********** Menu **********
@@ -293,10 +291,8 @@ class VIEW3D_MT_snap(Menu):
         layout = self.layout
 
         layout.operator("view3d.snap_selected_to_grid", text="Selection to Grid")
-        props = layout.operator("view3d.snap_selected_to_cursor", text="Selection to Cursor")
-        props.use_offset = False
-        props = layout.operator("view3d.snap_selected_to_cursor", text="Selection to Cursor (Offset)")
-        props.use_offset = True
+        layout.operator("view3d.snap_selected_to_cursor", text="Selection to Cursor").use_offset = False
+        layout.operator("view3d.snap_selected_to_cursor", text="Selection to Cursor (Offset)").use_offset = True
 
         layout.separator()
 
@@ -403,9 +399,15 @@ class VIEW3D_MT_view_navigation(Menu):
     bl_label = "Navigation"
 
     def draw(self, context):
+        from math import pi
         layout = self.layout
 
         layout.operator_enum("view3d.view_orbit", "type")
+
+        layout.separator()
+
+        layout.operator("view3d.view_roll", text="Roll Left").angle = pi / -12.0
+        layout.operator("view3d.view_roll", text="Roll Right").angle = pi / 12.0
 
         layout.separator()
 
@@ -1828,6 +1830,7 @@ class VIEW3D_MT_edit_mesh(Menu):
 
         layout.operator("mesh.symmetrize")
         layout.operator("mesh.symmetry_snap")
+        layout.operator("mesh.bisect")
         layout.operator_menu_enum("mesh.sort_elements", "type", text="Sort Elements...")
 
         layout.separator()
@@ -2141,6 +2144,7 @@ def draw_curve(self, context):
 
     layout.operator("curve.extrude_move")
     layout.operator("curve.duplicate_move")
+    layout.operator("curve.split")
     layout.operator("curve.separate")
     layout.operator("curve.make_segment")
     layout.operator("curve.cyclic_toggle")
@@ -2489,7 +2493,7 @@ class VIEW3D_PT_view3d_properties(Panel):
         col.prop(view, "clip_start", text="Start")
         col.prop(view, "clip_end", text="End")
 
-        subcol = col.column()
+        subcol = col.column(align=True)
         subcol.enabled = not view.lock_camera_and_layers
         subcol.label(text="Local Camera:")
         subcol.prop(view, "camera", text="")
@@ -2942,7 +2946,7 @@ class VIEW3D_PT_etch_a_ton(Panel):
 
             colsub = col.column(align=True)
             colsub.prop(toolsettings, "use_etch_autoname")
-            sub = colsub.column()
+            sub = colsub.column(align=True)
             sub.enabled = not toolsettings.use_etch_autoname
             sub.prop(toolsettings, "etch_number")
             sub.prop(toolsettings, "etch_side")
@@ -2999,6 +3003,3 @@ def unregister():
 
 if __name__ == "__main__":
     register()
-
-if __name__ == "__main__":  # only for live edit.
-    bpy.utils.register_module(__name__)

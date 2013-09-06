@@ -1900,9 +1900,9 @@ static void drawlattice(Scene *scene, View3D *v3d, Object *ob)
 	const bool is_edit = (lt->editlatt != NULL);
 
 	/* now we default make displist, this will modifiers work for non animated case */
-	if (ob->disp.first == NULL)
+	if (ELEM(NULL, ob->curve_cache, ob->curve_cache->disp.first))
 		BKE_lattice_modifiers_calc(scene, ob);
-	dl = BKE_displist_find(&ob->disp, DL_VERTS);
+	dl = BKE_displist_find(&ob->curve_cache->disp, DL_VERTS);
 	
 	if (is_edit) {
 		lt = lt->editlatt->latt;
@@ -3094,9 +3094,6 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 	BMVert *eve_act = NULL;
 	bool use_occlude_wire = (v3d->flag2 & V3D_OCCLUDE_WIRE) && (dt > OB_WIRE);
 	
-	// BLI_assert(!cageDM || !(cageDM->dirty & DM_DIRTY_NORMALS));
-	BLI_assert(!finalDM || !(finalDM->dirty & DM_DIRTY_NORMALS));
-
 	if (em->bm->selected.last) {
 		BMEditSelection *ese = em->bm->selected.last;
 		/* face is handeled above */
@@ -3368,8 +3365,6 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 
 	if (!dm)
 		return;
-
-	if (dm)  BLI_assert(!(dm->dirty & DM_DIRTY_NORMALS));
 
 	/* Check to draw dynamic paint colors (or weights from WeightVG modifiers).
 	 * Note: Last "preview-active" modifier in stack will win! */
@@ -3971,7 +3966,7 @@ static bool drawDispList_nobackface(Scene *scene, View3D *v3d, RegionView3D *rv3
 		case OB_CURVE:
 			cu = ob->data;
 
-			lb = &ob->disp;
+			lb = &ob->curve_cache->disp;
 
 			if (solid) {
 				dl = lb->first;
@@ -4021,7 +4016,7 @@ static bool drawDispList_nobackface(Scene *scene, View3D *v3d, RegionView3D *rv3
 			break;
 		case OB_SURF:
 
-			lb = &ob->disp;
+			lb = &ob->curve_cache->disp;
 
 			if (solid) {
 				dl = lb->first;
@@ -4049,8 +4044,11 @@ static bool drawDispList_nobackface(Scene *scene, View3D *v3d, RegionView3D *rv3
 		case OB_MBALL:
 
 			if (BKE_mball_is_basis(ob)) {
-				lb = &ob->disp;
-				if (lb->first == NULL) BKE_displist_make_mball(scene, ob);
+				lb = ob->curve_cache ? &ob->curve_cache->disp : NULL;
+				if (ELEM(lb, lb->first, NULL)) {
+					BKE_displist_make_mball(scene, ob);
+					lb = &ob->curve_cache->disp;
+				}
 				if (lb->first == NULL) {
 					return true;
 				}
@@ -4566,7 +4564,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 		pdd->ma_col = ma_col;
 	}
 
-	psys->lattice = psys_get_lattice(&sim);
+	psys->lattice_deform_data = psys_create_lattice_deform_data(&sim);
 
 	/* circles don't use drawdata, so have to add a special case here */
 	if ((pdd || draw_as == PART_DRAW_CIRC) && draw_as != PART_DRAW_PATH) {
@@ -4892,9 +4890,9 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 		pdd->flag &= ~PARTICLE_DRAW_DATA_UPDATED;
 	}
 
-	if (psys->lattice) {
-		end_latt_deform(psys->lattice);
-		psys->lattice = NULL;
+	if (psys->lattice_deform_data) {
+		end_latt_deform(psys->lattice_deform_data);
+		psys->lattice_deform_data = NULL;
 	}
 
 	if (pdd) {
@@ -5642,7 +5640,7 @@ static void drawnurb(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 	if ((cu->flag & CU_3D) && (ts->normalsize > 0.0015f) && (cu->drawflag & CU_HIDE_NORMALS) == 0) {
 
 		UI_ThemeColor(TH_WIRE_EDIT);
-		for (bl = cu->bev.first, nu = nurb; nu && bl; bl = bl->next, nu = nu->next) {
+		for (bl = ob->curve_cache->bev.first, nu = nurb; nu && bl; bl = bl->next, nu = nu->next) {
 			BevPoint *bevp = (BevPoint *)(bl + 1);
 			int nr = bl->nr;
 			int skip = nu->resolu / 16;
@@ -6065,7 +6063,7 @@ static void draw_forcefield(Object *ob, RegionView3D *rv3d,
 	}
 	else if (pd->forcefield == PFIELD_GUIDE && ob->type == OB_CURVE) {
 		Curve *cu = ob->data;
-		if ((cu->flag & CU_PATH) && cu->path && cu->path->data) {
+		if ((cu->flag & CU_PATH) && ob->curve_cache->path && ob->curve_cache->path->data) {
 			float mindist, guidevec1[4], guidevec2[3];
 
 			//if (has_ipo_code(ob->ipo, OB_PD_FSTR))
@@ -6248,7 +6246,7 @@ static void draw_bounding_volume(Scene *scene, Object *ob, char type)
 		bb = BKE_mesh_boundbox_get(ob);
 	}
 	else if (ELEM3(ob->type, OB_CURVE, OB_SURF, OB_FONT)) {
-		bb = ob->bb ? ob->bb : ( (Curve *)ob->data)->bb;
+		bb = BKE_curve_boundbox_get(ob);
 	}
 	else if (ob->type == OB_MBALL) {
 		if (BKE_mball_is_basis(ob)) {
@@ -6283,9 +6281,7 @@ static void drawtexspace(Object *ob)
 		BKE_mesh_texspace_get(ob->data, loc, NULL, size);
 	}
 	else if (ELEM3(ob->type, OB_CURVE, OB_SURF, OB_FONT)) {
-		Curve *cu = ob->data;
-		copy_v3_v3(size, cu->size);
-		copy_v3_v3(loc, cu->loc);
+		BKE_curve_texspace_get(ob->data, loc, NULL, size);
 	}
 	else if (ob->type == OB_MBALL) {
 		MetaBall *mb = ob->data;
@@ -6323,7 +6319,6 @@ static void drawObjectSelect(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 	glDepthMask(0);
 	
 	if (ELEM3(ob->type, OB_FONT, OB_CURVE, OB_SURF)) {
-		Curve *cu = ob->data;
 		DerivedMesh *dm = ob->derivedFinal;
 		bool has_faces = false;
 
@@ -6331,16 +6326,16 @@ static void drawObjectSelect(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 			has_faces = dm->getNumTessFaces(dm);
 		}
 		else {
-			has_faces = BKE_displist_has_faces(&ob->disp);
+			has_faces = BKE_displist_has_faces(&ob->curve_cache->disp);
 		}
 
-		if (has_faces && ED_view3d_boundbox_clip(rv3d, ob->obmat, ob->bb ? ob->bb : cu->bb)) {
+		if (has_faces && ED_view3d_boundbox_clip(rv3d, ob->obmat, ob->bb)) {
 			draw_index_wire = false;
 			if (dm) {
 				draw_mesh_object_outline(v3d, ob, dm);
 			}
 			else {
-				drawDispListwire(&ob->disp);
+				drawDispListwire(&ob->curve_cache->disp);
 			}
 			draw_index_wire = true;
 		}
@@ -6348,7 +6343,7 @@ static void drawObjectSelect(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 	else if (ob->type == OB_MBALL) {
 		if (BKE_mball_is_basis(ob)) {
 			if ((base->flag & OB_FROMDUPLI) == 0)
-				drawDispListwire(&ob->disp);
+				drawDispListwire(&ob->curve_cache->disp);
 		}
 	}
 	else if (ob->type == OB_ARMATURE) {
@@ -6375,8 +6370,7 @@ static void draw_wire_extra(Scene *scene, RegionView3D *rv3d, Object *ob, unsign
 		glDepthMask(0);  /* disable write in zbuffer, selected edge wires show better */
 
 		if (ELEM3(ob->type, OB_FONT, OB_CURVE, OB_SURF)) {
-			Curve *cu = ob->data;
-			if (ED_view3d_boundbox_clip(rv3d, ob->obmat, ob->bb ? ob->bb : cu->bb)) {
+			if (ED_view3d_boundbox_clip(rv3d, ob->obmat, ob->bb)) {
 				if (ob->type == OB_CURVE)
 					draw_index_wire = false;
 
@@ -6384,7 +6378,7 @@ static void draw_wire_extra(Scene *scene, RegionView3D *rv3d, Object *ob, unsign
 					drawCurveDMWired(ob);
 				}
 				else {
-					drawDispListwire(&ob->disp);
+					drawDispListwire(&ob->curve_cache->disp);
 				}
 
 				if (ob->type == OB_CURVE)
@@ -6393,7 +6387,7 @@ static void draw_wire_extra(Scene *scene, RegionView3D *rv3d, Object *ob, unsign
 		}
 		else if (ob->type == OB_MBALL) {
 			if (BKE_mball_is_basis(ob)) {
-				drawDispListwire(&ob->disp);
+				drawDispListwire(&ob->curve_cache->disp);
 			}
 		}
 
@@ -6662,23 +6656,17 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 	/* faceselect exception: also draw solid when (dt == wire), except in editmode */
 	if (is_obact && (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT))) {
-		if (ob->type == OB_MESH) {
-
-			if (ob->mode & OB_MODE_EDIT) {
-				/* pass */
+		if (ob->type == OB_MESH) {			
+			if (dt < OB_SOLID) {
+				zbufoff = 1;
+				dt = OB_SOLID;
 			}
-			else {
-				if (dt < OB_SOLID) {
-					zbufoff = 1;
-					dt = OB_SOLID;
-				}
 
-				if (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
-					dt = OB_PAINT;
-				}
-
-				glEnable(GL_DEPTH_TEST);
+			if (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
+				dt = OB_PAINT;
 			}
+
+			glEnable(GL_DEPTH_TEST);
 		}
 		else {
 			if (dt < OB_SOLID) {
@@ -6703,7 +6691,9 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	/* bad exception, solve this! otherwise outline shows too late */
 	if (ELEM3(ob->type, OB_CURVE, OB_SURF, OB_FONT)) {
 		/* still needed for curves hidden in other layers. depgraph doesnt handle that yet */
-		if (ob->disp.first == NULL) BKE_displist_make_curveTypes(scene, ob, 0);
+		if (ELEM(NULL, ob->curve_cache, ob->curve_cache->disp.first)) {
+			BKE_displist_make_curveTypes(scene, ob, 0);
+		}
 	}
 	
 	/* draw outline for selected objects, mesh does itself */
@@ -6807,7 +6797,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 					draw_bounding_volume(scene, ob, ob->boundtype);
 				}
 			}
-			else if (ED_view3d_boundbox_clip(rv3d, ob->obmat, ob->bb ? ob->bb : cu->bb)) {
+			else if (ED_view3d_boundbox_clip(rv3d, ob->obmat, ob->bb)) {
 				empty_object = drawDispList(scene, v3d, rv3d, base, dt, dflag, ob_wire_col);
 			}
 
@@ -6825,7 +6815,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 					draw_bounding_volume(scene, ob, ob->boundtype);
 				}
 			}
-			else if (ED_view3d_boundbox_clip(rv3d, ob->obmat, ob->bb ? ob->bb : cu->bb)) {
+			else if (ED_view3d_boundbox_clip(rv3d, ob->obmat, ob->bb)) {
 				empty_object = drawDispList(scene, v3d, rv3d, base, dt, dflag, ob_wire_col);
 
 //XXX old animsys				if (cu->path)
@@ -7050,6 +7040,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 				// get view vector
 				copy_v3_v3(viewnormal, rv3d->viewinv[2]);
+				invert_m4_m4(ob->imat, ob->obmat);
 				mul_mat3_m4_v3(ob->imat, viewnormal);
 				normalize_v3(viewnormal);
 

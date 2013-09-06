@@ -1108,9 +1108,6 @@ static void write_sensors(WriteData *wd, ListBase *lb)
 		case SENS_MOUSE:
 			writestruct(wd, DATA, "bMouseSensor", 1, sens->data);
 			break;
-		case SENS_TOUCH:
-			writestruct(wd, DATA, "bTouchSensor", 1, sens->data);
-			break;
 		case SENS_KEYBOARD:
 			writestruct(wd, DATA, "bKeyboardSensor", 1, sens->data);
 			break;
@@ -2394,6 +2391,15 @@ static void write_region(WriteData *wd, ARegion *ar, int spacetype)
 	}
 }
 
+static void write_uilist(WriteData *wd, uiList *ui_list)
+{
+	writestruct(wd, DATA, "uiList", 1, ui_list);
+
+	if (ui_list->properties) {
+		IDP_WriteProperty(ui_list->properties, wd);
+	}
+}
+
 static void write_soops(WriteData *wd, SpaceOops *so, LinkNode **tmp_mem_list)
 {
 	BLI_mempool *ts = so->treestore;
@@ -2475,7 +2481,7 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 					writestruct(wd, DATA, "Panel", 1, pa);
 				
 				for (ui_list = ar->ui_lists.first; ui_list; ui_list = ui_list->next)
-					writestruct(wd, DATA, "uiList", 1, ui_list);
+					write_uilist(wd, ui_list);
 			}
 			
 			sl= sa->spacedata.first;

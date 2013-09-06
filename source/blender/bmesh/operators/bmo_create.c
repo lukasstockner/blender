@@ -153,8 +153,8 @@ void bmo_contextual_create_exec(BMesh *bm, BMOperator *op)
 		BMO_op_finish(bm, &op_sub);
 
 		BMO_op_initf(bm, &op_sub, op->flag,
-		             "edgenet_fill edges=%fe mat_nr=%i use_smooth=%b",
-		             ELE_NEW, mat_nr, use_smooth);
+		             "edgenet_fill edges=%fe mat_nr=%i use_smooth=%b sides=%i",
+		             ELE_NEW, mat_nr, use_smooth, 10000);
 
 		BMO_op_exec(bm, &op_sub);
 
@@ -182,7 +182,7 @@ void bmo_contextual_create_exec(BMesh *bm, BMOperator *op)
 		/* if we dissolved anything, then return */
 		if (BMO_slot_buffer_count(op_sub.slots_out, "region.out")) {
 			BMO_slot_copy(&op_sub, slots_out, "region.out",
-			              op,   slots_out,  "faces.out");
+			              op,      slots_out, "faces.out");
 			BMO_op_finish(bm, &op_sub);
 			return;
 		}
@@ -283,7 +283,7 @@ void bmo_contextual_create_exec(BMesh *bm, BMOperator *op)
 		BMFace *f;
 
 		BMO_iter_as_array(op->slots_in, "geom", BM_VERT, (void **)vert_arr, totv);
-		f = BM_face_create_ngon_vcloud(bm, vert_arr, totv, BM_CREATE_NO_DOUBLE);
+		f = BM_face_create_ngon_vcloud(bm, vert_arr, totv, NULL, BM_CREATE_NO_DOUBLE);
 
 		if (f) {
 			BMO_elem_flag_enable(bm, f, ELE_OUT);

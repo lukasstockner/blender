@@ -875,7 +875,7 @@ static BMLoop *poly_find_ear(BMFace *f, float (*projectverts)[2], const bool use
 			i++;
 		} while ((l_iter = l_iter->next) != l_first);
 
-		/* pick 0/1 based on best lenth */
+		/* pick 0/1 based on best length */
 		/* XXX Can't only rely on such test, also must check we do not get (too much) degenerated triangles!!! */
 		i = (((len_squared_v3v3(larr[0]->v->co, larr[2]->v->co) >
 		     len_squared_v3v3(larr[1]->v->co, larr[3]->v->co) * bias)) != use_beauty);
@@ -1202,4 +1202,38 @@ void BM_face_as_array_vert_quad(BMFace *f, BMVert *r_verts[4])
 	r_verts[1] = l->v; l = l->next;
 	r_verts[2] = l->v; l = l->next;
 	r_verts[3] = l->v;
+}
+
+
+/**
+ * Small utility functions for fast access
+ *
+ * faster alternative to:
+ *  BM_iter_as_array(bm, BM_LOOPS_OF_FACE, f, (void **)l, 3);
+ */
+void BM_face_as_array_loop_tri(BMFace *f, BMLoop *r_loops[3])
+{
+	BMLoop *l = BM_FACE_FIRST_LOOP(f);
+
+	BLI_assert(f->len == 3);
+
+	r_loops[0] = l; l = l->next;
+	r_loops[1] = l; l = l->next;
+	r_loops[2] = l;
+}
+
+/**
+ * faster alternative to:
+ *  BM_iter_as_array(bm, BM_LOOPS_OF_FACE, f, (void **)l, 4);
+ */
+void BM_face_as_array_loop_quad(BMFace *f, BMLoop *r_loops[4])
+{
+	BMLoop *l = BM_FACE_FIRST_LOOP(f);
+
+	BLI_assert(f->len == 4);
+
+	r_loops[0] = l; l = l->next;
+	r_loops[1] = l; l = l->next;
+	r_loops[2] = l; l = l->next;
+	r_loops[3] = l;
 }

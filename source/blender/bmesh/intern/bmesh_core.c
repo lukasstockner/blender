@@ -56,7 +56,8 @@
 /**
  * \brief Main function for creating a new vertex.
  */
-BMVert *BM_vert_create(BMesh *bm, const float co[3], const BMVert *example, const eBMCreateFlag create_flag)
+BMVert *BM_vert_create(BMesh *bm, const float co[3],
+                       const BMVert *v_example, const eBMCreateFlag create_flag)
 {
 	BMVert *v = BLI_mempool_calloc(bm->vpool);
 
@@ -86,10 +87,10 @@ BMVert *BM_vert_create(BMesh *bm, const float co[3], const BMVert *example, cons
 	}
 
 	if (!(create_flag & BM_CREATE_SKIP_CD)) {
-		if (example) {
+		if (v_example) {
 			int *keyi;
 
-			BM_elem_attrs_copy(bm, bm, example, v);
+			BM_elem_attrs_copy(bm, bm, v_example, v);
 
 			/* exception: don't copy the original shapekey index */
 			keyi = CustomData_bmesh_get(&bm->vdata, v->head.data, CD_SHAPE_KEYINDEX);
@@ -113,7 +114,8 @@ BMVert *BM_vert_create(BMesh *bm, const float co[3], const BMVert *example, cons
  * \note Duplicate edges are supported by the API however users should _never_ see them.
  * so unless you need a unique edge or know the edge won't exist, you should call with \a no_double = true
  */
-BMEdge *BM_edge_create(BMesh *bm, BMVert *v1, BMVert *v2, const BMEdge *example, const eBMCreateFlag create_flag)
+BMEdge *BM_edge_create(BMesh *bm, BMVert *v1, BMVert *v2,
+                       const BMEdge *e_example, const eBMCreateFlag create_flag)
 {
 	BMEdge *e;
 	
@@ -148,8 +150,8 @@ BMEdge *BM_edge_create(BMesh *bm, BMVert *v1, BMVert *v2, const BMEdge *example,
 	bmesh_disk_edge_append(e, e->v2);
 	
 	if (!(create_flag & BM_CREATE_SKIP_CD)) {
-		if (example) {
-			BM_elem_attrs_copy(bm, bm, example, e);
+		if (e_example) {
+			BM_elem_attrs_copy(bm, bm, e_example, e);
 		}
 		else {
 			CustomData_bmesh_set_default(&bm->edata, &e->head.data);
@@ -190,7 +192,8 @@ static BMLoop *bm_loop_create(BMesh *bm, BMVert *v, BMEdge *e, BMFace *f,
 	return l;
 }
 
-static BMLoop *bm_face_boundary_add(BMesh *bm, BMFace *f, BMVert *startv, BMEdge *starte, const int create_flag)
+static BMLoop *bm_face_boundary_add(BMesh *bm, BMFace *f, BMVert *startv, BMEdge *starte,
+                                    const eBMCreateFlag create_flag)
 {
 #ifdef USE_BMESH_HOLES
 	BMLoopList *lst = BLI_mempool_calloc(bm->looplistpool);
@@ -228,7 +231,7 @@ BMFace *BM_face_copy(BMesh *bm_dst, BMesh *bm_src, BMFace *f,
 	i = 0;
 	do {
 		if (copy_verts) {
-			verts[i] = BM_vert_create(bm_dst, l_iter->v->co, l_iter->v, 0);
+			verts[i] = BM_vert_create(bm_dst, l_iter->v->co, l_iter->v, BM_CREATE_NOP);
 		}
 		else {
 			verts[i] = l_iter->v;
@@ -251,7 +254,7 @@ BMFace *BM_face_copy(BMesh *bm_dst, BMesh *bm_src, BMFace *f,
 				v1 = verts[(i + 1) % f->len];
 			}
 			
-			edges[i] = BM_edge_create(bm_dst,  v1, v2, l_iter->e, 0);
+			edges[i] = BM_edge_create(bm_dst, v1, v2, l_iter->e, BM_CREATE_NOP);
 		}
 		else {
 			edges[i] = l_iter->e;
@@ -259,7 +262,7 @@ BMFace *BM_face_copy(BMesh *bm_dst, BMesh *bm_src, BMFace *f,
 		i++;
 	} while ((l_iter = l_iter->next) != l_first);
 	
-	f_copy = BM_face_create(bm_dst, verts, edges, f->len, BM_CREATE_SKIP_CD);
+	f_copy = BM_face_create(bm_dst, verts, edges, f->len, NULL, BM_CREATE_SKIP_CD);
 	
 	BM_elem_attrs_copy(bm_src, bm_dst, f, f_copy);
 	
@@ -320,11 +323,12 @@ BLI_INLINE BMFace *bm_face_create__internal(BMesh *bm, const eBMCreateFlag creat
  * \param len  Length of the face
  * \param create_flag  Options for creating the face
  */
-BMFace *BM_face_create(BMesh *bm, BMVert **verts, BMEdge **edges, const int len, const eBMCreateFlag create_flag)
+BMFace *BM_face_create(BMesh *bm, BMVert **verts, BMEdge **edges, const int len,
+                       const BMFace *f_example, const eBMCreateFlag create_flag)
 {
 	BMFace *f = NULL;
 	BMLoop *l, *startl, *lastl;
-	int i, overlap;
+	int i;
 	
 	if (len == 0) {
 		/* just return NULL for now */
@@ -333,8 +337,8 @@ BMFace *BM_face_create(BMesh *bm, BMVert **verts, BMEdge **edges, const int len,
 
 	if (create_flag & BM_CREATE_NO_DOUBLE) {
 		/* Check if face already exists */
-		overlap = BM_face_exists(verts, len, &f);
-		if (overlap) {
+		const bool is_overlap = BM_face_exists(verts, len, &f);
+		if (is_overlap) {
 			return f;
 		}
 		else {
@@ -364,9 +368,46 @@ BMFace *BM_face_create(BMesh *bm, BMVert **verts, BMEdge **edges, const int len,
 	
 	f->len = len;
 	
+	if (!(create_flag & BM_CREATE_SKIP_CD)) {
+		if (f_example) {
+			BM_elem_attrs_copy(bm, bm, f_example, f);
+		}
+		else {
+			CustomData_bmesh_set_default(&bm->pdata, &f->head.data);
+		}
+	}
+
 	BM_CHECK_ELEMENT(f);
 
 	return f;
+}
+
+/**
+ * Wrapper for #BM_face_create when you don't have an edge array
+ */
+BMFace *BM_face_create_verts(BMesh *bm, BMVert **vert_arr, const int len,
+                             const BMFace *f_example, const eBMCreateFlag create_flag, const bool create_edges)
+{
+	BMEdge **edge_arr = BLI_array_alloca(edge_arr, len);
+	int i, i_prev = len - 1;
+
+	if (create_edges) {
+		for (i = 0; i < len; i++) {
+			edge_arr[i_prev] = BM_edge_create(bm, vert_arr[i_prev], vert_arr[i], NULL, BM_CREATE_NO_DOUBLE);
+			i_prev = i;
+		}
+	}
+	else {
+		for (i = 0; i < len; i++) {
+			edge_arr[i_prev] = BM_edge_exists(vert_arr[i_prev], vert_arr[i]);
+			if (edge_arr[i_prev] == NULL) {
+				return NULL;
+			}
+			i_prev = i;
+		}
+	}
+
+	return BM_face_create(bm, vert_arr, edge_arr, len, f_example, create_flag);
 }
 
 #ifndef NDEBUG
@@ -1053,7 +1094,7 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const bool do_del)
 	}
 
 	/* create region face */
-	f_new = tote ? BM_face_create_ngon(bm, v1, v2, edges, tote, 0) : NULL;
+	f_new = tote ? BM_face_create_ngon(bm, v1, v2, edges, tote, faces[0], BM_CREATE_NOP) : NULL;
 	if (UNLIKELY(!f_new || BMO_error_occurred(bm))) {
 		if (!BMO_error_occurred(bm))
 			err = N_("Invalid boundary region to join faces");
@@ -1080,8 +1121,6 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const bool do_del)
 			BM_elem_attrs_copy(bm, bm, l2, l_iter);
 		}
 	} while ((l_iter = l_iter->next) != l_first);
-	
-	BM_elem_attrs_copy(bm, bm, faces[0], f_new);
 
 #ifdef USE_BMESH_HOLES
 	/* add holes */
@@ -1243,7 +1282,7 @@ BMFace *bmesh_sfme(BMesh *bm, BMFace *f, BMVert *v1, BMVert *v2,
 	}
 
 	/* allocate new edge between v1 and v2 */
-	e = BM_edge_create(bm, v1, v2, example, no_double ? BM_CREATE_NO_DOUBLE : 0);
+	e = BM_edge_create(bm, v1, v2, example, no_double ? BM_CREATE_NO_DOUBLE : BM_CREATE_NOP);
 
 	f2 = bm_face_create__sfme(bm, f);
 	l_f1 = bm_loop_create(bm, v2, e, f, l_v2, 0);
@@ -1384,8 +1423,8 @@ BMVert *bmesh_semv(BMesh *bm, BMVert *tv, BMEdge *e, BMEdge **r_e)
 	valence2 = bmesh_disk_count(tv);
 #endif
 
-	v_new = BM_vert_create(bm, tv->co, tv, 0);
-	e_new = BM_edge_create(bm, v_new, tv, e, 0);
+	v_new = BM_vert_create(bm, tv->co, tv, BM_CREATE_NOP);
+	e_new = BM_edge_create(bm, v_new, tv, e, BM_CREATE_NOP);
 
 	bmesh_disk_edge_remove(e_new, tv);
 	bmesh_disk_edge_remove(e_new, v_new);
@@ -1970,7 +2009,7 @@ void bmesh_vert_separate(BMesh *bm, BMVert *v, BMVert ***r_vout, int *r_vout_len
 
 	verts[0] = v;
 	for (i = 1; i < maxindex; i++) {
-		verts[i] = BM_vert_create(bm, v->co, v, 0);
+		verts[i] = BM_vert_create(bm, v->co, v, BM_CREATE_NOP);
 		if (copy_select) {
 			BM_elem_select_copy(bm, bm, verts[i], v);
 		}
@@ -2136,7 +2175,7 @@ void bmesh_edge_separate(BMesh *bm, BMEdge *e, BMLoop *l_sep,
 		e->l = l_sep->radial_next;
 	}
 
-	e_new = BM_edge_create(bm, e->v1, e->v2, e, 0);
+	e_new = BM_edge_create(bm, e->v1, e->v2, e, BM_CREATE_NOP);
 	bmesh_radial_loop_remove(l_sep, e);
 	bmesh_radial_append(e_new, l_sep);
 	l_sep->e = e_new;

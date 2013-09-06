@@ -127,9 +127,11 @@ static int generic_track_get_marker_framenr(MovieTrackingTrack *track, MovieTrac
                                             int marker_index)
 {
 	if (track) {
+		BLI_assert(marker_index < track->markersnr);
 		return track->markers[marker_index].framenr;
 	}
 	else if (plane_track) {
+		BLI_assert(marker_index < plane_track->markersnr);
 		return plane_track->markers[marker_index].framenr;
 	}
 
@@ -140,6 +142,7 @@ static bool generic_track_is_marker_enabled(MovieTrackingTrack *track, MovieTrac
                                             int marker_index)
 {
 	if (track) {
+		BLI_assert(marker_index < track->markersnr);
 		return (track->markers[marker_index].flag & MARKER_DISABLED) == 0;
 	}
 	else if (plane_track) {
@@ -153,9 +156,11 @@ static bool generic_track_is_marker_keyframed(MovieTrackingTrack *track, MovieTr
                                               int marker_index)
 {
 	if (track) {
+		BLI_assert(marker_index < track->markersnr);
 		return (track->markers[marker_index].flag & MARKER_TRACKED) == 0;
 	}
 	else if (plane_track) {
+		BLI_assert(marker_index < plane_track->markersnr);
 		return (plane_track->markers[marker_index].flag & PLANE_MARKER_TRACKED) == 0;
 	}
 
@@ -212,6 +217,8 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 				a++;
 			}
 
+			a = min_ii(a, markersnr - 1);
+
 			if (generic_track_is_marker_enabled(act_track, act_plane_track, a)) {
 				framenr = generic_track_get_marker_framenr(act_track, act_plane_track, a);
 
@@ -235,11 +242,11 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 		glColor4ub(255, 0, 0, 96);
 
 		for (i = sfra, a = 0; i <= efra; i++) {
-			int ok = FALSE;
+			bool ok = false;
 
 			while (a < n) {
 				if (cameras[a].framenr == i) {
-					ok = TRUE;
+					ok = true;
 					break;
 				}
 				else if (cameras[a].framenr > i) {
@@ -280,11 +287,11 @@ static void draw_movieclip_notes(SpaceClip *sc, ARegion *ar)
 	MovieClip *clip = ED_space_clip_get_clip(sc);
 	MovieTracking *tracking = &clip->tracking;
 	char str[256] = {0};
-	int block = FALSE;
+	bool block = false;
 
 	if (tracking->stats) {
 		BLI_strncpy(str, tracking->stats->message, sizeof(str));
-		block = TRUE;
+		block = true;
 	}
 	else {
 		if (sc->flag & SC_LOCK_SELECTION)
@@ -490,7 +497,7 @@ static void draw_marker_outline(SpaceClip *sc, MovieTrackingTrack *track, MovieT
                                 float marker_pos[2], int width, int height)
 {
 	int tiny = sc->flag & SC_SHOW_TINY_MARKER;
-	int show_search = FALSE;
+	bool show_search = false;
 	float px[2];
 
 	UI_ThemeColor(TH_MARKER_OUTLINE);
@@ -553,8 +560,8 @@ static void draw_marker_outline(SpaceClip *sc, MovieTrackingTrack *track, MovieT
 		glEnd();
 	}
 
-	show_search = TRACK_VIEW_SELECTED(sc, track) &&
-	              ((marker->flag & MARKER_DISABLED) == 0 || (sc->flag & SC_SHOW_MARKER_PATTERN) == 0);
+	show_search = (TRACK_VIEW_SELECTED(sc, track) &&
+	               ((marker->flag & MARKER_DISABLED) == 0 || (sc->flag & SC_SHOW_MARKER_PATTERN) == 0)) != 0;
 	if (sc->flag & SC_SHOW_MARKER_SEARCH && show_search) {
 		glBegin(GL_LINE_LOOP);
 		glVertex2f(marker->search_min[0], marker->search_min[1]);
@@ -593,7 +600,7 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
                               float marker_pos[2], int width, int height, int act, int sel)
 {
 	int tiny = sc->flag & SC_SHOW_TINY_MARKER;
-	int show_search = 0;
+	bool show_search = false;
 	float col[3], scol[3], px[2];
 
 	track_colors(track, act, col, scol);
@@ -708,8 +715,8 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 	}
 
 	/* search */
-	show_search = TRACK_VIEW_SELECTED(sc, track) &&
-	              ((marker->flag & MARKER_DISABLED) == 0 || (sc->flag & SC_SHOW_MARKER_PATTERN) == 0);
+	show_search = (TRACK_VIEW_SELECTED(sc, track) &&
+	               ((marker->flag & MARKER_DISABLED) == 0 || (sc->flag & SC_SHOW_MARKER_PATTERN) == 0)) != 0;
 	if ((track->search_flag & SELECT) == sel && (sc->flag & SC_SHOW_MARKER_SEARCH) && show_search) {
 		if (track->flag & TRACK_LOCKED) {
 			if (act)
@@ -997,17 +1004,6 @@ static void draw_marker_texts(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 	}
 }
 
-static void view2d_to_region_float(View2D *v2d, float x, float y, float *regionx, float *regiony)
-{
-	/* express given coordinates as proportional values */
-	x = -v2d->cur.xmin / BLI_rctf_size_x(&v2d->cur);
-	y = -v2d->cur.ymin / BLI_rctf_size_y(&v2d->cur);
-
-	/* convert proportional distances to screen coordinates */
-	*regionx = v2d->mask.xmin + x * BLI_rcti_size_x(&v2d->mask);
-	*regiony = v2d->mask.ymin + y * BLI_rcti_size_y(&v2d->mask);
-}
-
 static void plane_track_colors(bool is_active, float color[3], float selected_color[3])
 {
 	UI_GetThemeColor3fv(TH_MARKER, color);
@@ -1071,8 +1067,6 @@ static void draw_plane_marker_ex(SpaceClip *sc, MovieTrackingPlaneTrack *plane_t
 	else if (tiny) {
 		glLineStipple(3, 0xaaaa);
 		glEnable(GL_LINE_STIPPLE);
-		glEnable(GL_COLOR_LOGIC_OP);
-		glLogicOp(GL_NOR);
 	}
 
 	/* Draw rectangle itself. */
@@ -1120,10 +1114,7 @@ static void draw_plane_marker_ex(SpaceClip *sc, MovieTrackingPlaneTrack *plane_t
 		}
 	}
 	else if (tiny) {
-		glDisable(GL_COLOR_LOGIC_OP);
 		glDisable(GL_LINE_STIPPLE);
-		glLineStipple(3, 0xaaaa);
-		glEnable(GL_LINE_STIPPLE);
 	}
 }
 
@@ -1173,7 +1164,7 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 	 * to avoid this flickering, calculate base point in the same way as it happens
 	 * in UI_view2d_to_region_no_clip, but do it in floats here */
 
-	view2d_to_region_float(&ar->v2d, 0.0f, 0.0f, &x, &y);
+	UI_view2d_to_region_float(&ar->v2d, 0.0f, 0.0f, &x, &y);
 
 	glPushMatrix();
 	glTranslatef(x, y, 0);
@@ -1416,7 +1407,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 	if ((sc->flag & SC_SHOW_GRID) == 0 && (sc->flag & SC_MANUAL_CALIBRATION) == 0)
 		return;
 
-	view2d_to_region_float(&ar->v2d, 0.0f, 0.0f, &x, &y);
+	UI_view2d_to_region_float(&ar->v2d, 0.0f, 0.0f, &x, &y);
 
 	glPushMatrix();
 	glTranslatef(x, y, 0);

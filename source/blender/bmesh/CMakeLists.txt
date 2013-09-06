@@ -41,6 +41,7 @@ set(INC_SYS
 set(SRC
 	operators/bmo_beautify.c
 	operators/bmo_bevel.c
+	operators/bmo_bisect_plane.c
 	operators/bmo_bridge.c
 	operators/bmo_connect.c
 	operators/bmo_connect_nonplanar.c
@@ -50,6 +51,7 @@ set(SRC
 	operators/bmo_dupe.c
 	operators/bmo_edgenet.c
 	operators/bmo_extrude.c
+	operators/bmo_fill_attribute.c
 	operators/bmo_fill_edgeloop.c
 	operators/bmo_fill_grid.c
 	operators/bmo_fill_holes.c
@@ -119,6 +121,8 @@ set(SRC
 
 	tools/bmesh_bevel.c
 	tools/bmesh_bevel.h
+	tools/bmesh_bisect_plane.c
+	tools/bmesh_bisect_plane.h
 	tools/bmesh_decimate_collapse.c
 	tools/bmesh_decimate_dissolve.c
 	tools/bmesh_decimate_unsubdivide.c
@@ -132,8 +136,11 @@ set(SRC
 	tools/bmesh_triangulate.c
 	tools/bmesh_triangulate.h
 
-	bmesh.h
 	bmesh_class.h
+
+	# public includes
+	bmesh.h
+	bmesh_tools.h
 )
 
 if(MSVC)

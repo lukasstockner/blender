@@ -222,7 +222,7 @@
  * - skip BMO flag allocation, its not needed in many cases, this is fairly redundant to calc by default.
  * - ability to call BMO's with option not to create return data (will save some time)
  * - binary diff UNDO, currently this uses huge amount of ram when all shapes are stored for each undo step for eg.
- * - use two differnt iterator types for BMO map/buffer types.
+ * - use two different iterator types for BMO map/buffer types.
  * - avoid string lookups for BMO slot lookups _especially_ when used in loops, this is very crappy.
  *
  *
@@ -251,8 +251,8 @@ extern "C" {
 #include "intern/bmesh_operator_api.h"
 #include "intern/bmesh_error.h"
 
-#include "intern/bmesh_construct.h"
 #include "intern/bmesh_core.h"
+#include "intern/bmesh_construct.h"
 #include "intern/bmesh_edgeloop.h"
 #include "intern/bmesh_interp.h"
 #include "intern/bmesh_iterators.h"
@@ -268,13 +268,6 @@ extern "C" {
 #include "intern/bmesh_walkers.h"
 
 #include "intern/bmesh_inline.h"
-
-#include "tools/bmesh_bevel.h"
-#include "tools/bmesh_decimate.h"
-#include "tools/bmesh_edgenet.h"
-#include "tools/bmesh_edgesplit.h"
-#include "tools/bmesh_path.h"
-#include "tools/bmesh_triangulate.h"
 
 #ifdef __cplusplus
 }
