@@ -49,6 +49,7 @@ class PHYSICS_PT_rigid_body(PHYSICS_PT_rigidbody_panel, Panel):
                 row.prop(rbo, "enabled", text="Dynamic")
             row.prop(rbo, "kinematic", text="Animated")
             row.prop(rbo, "trigger", text="Trigger")
+            row.prop(rbo, "ghost", text="Ghost")
 
             if rbo.type == 'ACTIVE':
                 layout.prop(rbo, "mass")

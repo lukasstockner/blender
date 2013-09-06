@@ -633,6 +633,15 @@ void RB_body_set_trigger(rbRigidBody *object, int trigger)
 	object->is_trigger = trigger;
 }
 
+void RB_body_set_ghost(rbRigidBody *object, int ghost)
+{
+	btRigidBody *body = object->body;
+	if (ghost)
+		body->setCollisionFlags(body->getCollisionFlags() | btCollisionObject::CF_NO_CONTACT_RESPONSE);
+	else
+		body->setCollisionFlags(body->getCollisionFlags() & ~btCollisionObject::CF_NO_CONTACT_RESPONSE);
+}
+
 /* ............ */
 
 void RB_body_set_activation_state(rbRigidBody *object, int use_deactivation)

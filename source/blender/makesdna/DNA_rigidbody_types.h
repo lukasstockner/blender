@@ -154,7 +154,9 @@ typedef enum eRigidBodyOb_Flag {
 	RBO_FLAG_COMPOUND_PARENT	= (1 << 7),
 	RBO_FLAG_COMPOUND_CHILD		= (1 << 8),
 	/* rigidbdody is used as a collision trigger */
-	RBO_FLAG_TRIGGER			= (1 << 9)
+	RBO_FLAG_TRIGGER			= (1 << 9),
+	/* rigidbdody has no collision response */
+	RBO_FLAG_GHOST				= (1 << 10)
 } eRigidBodyOb_Flag;
 
 /* RigidBody Collision Shape */
