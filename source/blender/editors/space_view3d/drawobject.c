@@ -6284,22 +6284,14 @@ static void draw_bounding_volume(Scene *scene, Object *ob, char type)
 
 		if (type == OB_BOUND_BOX) {
 			float vec[8][3];
-			copy_v3_v3(vec[0], bb->vec[0]);
-			copy_v3_v3(vec[1], bb->vec[1]);
-			copy_v3_v3(vec[2], bb->vec[2]);
-			copy_v3_v3(vec[3], bb->vec[3]);
-			copy_v3_v3(vec[4], bb->vec[4]);
-			copy_v3_v3(vec[5], bb->vec[5]);
-			copy_v3_v3(vec[6], bb->vec[6]);
-			copy_v3_v3(vec[7], bb->vec[7]);
-			add_v3_v3(vec[0], offset);
-			add_v3_v3(vec[1], offset);
-			add_v3_v3(vec[2], offset);
-			add_v3_v3(vec[3], offset);
-			add_v3_v3(vec[4], offset);
-			add_v3_v3(vec[5], offset);
-			add_v3_v3(vec[6], offset);
-			add_v3_v3(vec[7], offset);
+			add_v3_v3v3(vec[0], bb->vec[0], offset);
+			add_v3_v3v3(vec[1], bb->vec[1], offset);
+			add_v3_v3v3(vec[2], bb->vec[2], offset);
+			add_v3_v3v3(vec[3], bb->vec[3], offset);
+			add_v3_v3v3(vec[4], bb->vec[4], offset);
+			add_v3_v3v3(vec[5], bb->vec[5], offset);
+			add_v3_v3v3(vec[6], bb->vec[6], offset);
+			add_v3_v3v3(vec[7], bb->vec[7], offset);
 			draw_box(vec);
 		}
 		else {
