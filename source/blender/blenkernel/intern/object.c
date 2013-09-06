@@ -2684,12 +2684,6 @@ void BKE_object_handle_update_ex(EvaluationContext *evaluation_context,
                                  Scene *scene, Object *ob,
                                  RigidBodyWorld *rbw)
 {
-	if (evaluation_context->for_render) {
-		if (ob->type == OB_MESH && !ob->derivedRender) {
-			ob->recalc |= OB_RECALC_DATA;
-		}
-	}
-
 	if (ob->recalc & OB_RECALC_ALL) {
 		/* speed optimization for animation lookups */
 		if (ob->pose)
