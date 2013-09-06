@@ -85,6 +85,13 @@ struct rbDynamicsWorld {
 	btConstraintSolver *constraintSolver;
 	btOverlapFilterCallback *filterCallback;
 };
+
+enum ActivationType {
+	ACTIVATION_COLLISION = 0,
+	ACTIVATION_TRIGGER,
+	ACTIVATION_TIME
+};
+
 struct rbRigidBody {
 	btRigidBody *body;
 	btDiscreteDynamicsWorld *world;
@@ -92,6 +99,7 @@ struct rbRigidBody {
 	bool is_trigger;
 	bool suspended;
 	float saved_mass;
+	int activation_type;
 };
 
 struct rbCollisionShape {
@@ -121,7 +129,7 @@ void nearCallback(btBroadphasePair &collisionPair, btCollisionDispatcher &dispat
 	rbRigidBody *rb0 = (rbRigidBody *)((btRigidBody *)collisionPair.m_pProxy0->m_clientObject)->getUserPointer();
 	rbRigidBody *rb1 = (rbRigidBody *)((btRigidBody *)collisionPair.m_pProxy1->m_clientObject)->getUserPointer();
 	
-	if (rb1->suspended) {
+	if (rb1->suspended && !(rb1->activation_type == ACTIVATION_TRIGGER && !rb0->is_trigger)) {
 		btRigidBody *body = rb1->body;
 		rb1->suspended = false;
 		rb1->world->removeRigidBody(body);
@@ -640,6 +648,11 @@ void RB_body_set_ghost(rbRigidBody *object, int ghost)
 		body->setCollisionFlags(body->getCollisionFlags() | btCollisionObject::CF_NO_CONTACT_RESPONSE);
 	else
 		body->setCollisionFlags(body->getCollisionFlags() & ~btCollisionObject::CF_NO_CONTACT_RESPONSE);
+}
+
+void RB_body_set_activation_type(rbRigidBody *object, int type)
+{
+	object->activation_type = type;
 }
 
 /* ............ */

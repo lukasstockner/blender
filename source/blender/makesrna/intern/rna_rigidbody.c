@@ -77,12 +77,18 @@ EnumPropertyItem rigidbody_constraint_type_items[] = {
 	{RBC_TYPE_MOTOR, "MOTOR", ICON_NONE, "Motor", "Drive rigid body around or along an axis"},
 	{0, NULL, 0, NULL, NULL}};
 
-/* roles of objects in RigidBody Sims */
+/* mesh source for collision shape creation */
 EnumPropertyItem rigidbody_mesh_source_items[] = {
 	{RBO_MESH_BASE, "BASE", 0, "Base", "Base mesh"},
 	{RBO_MESH_DEFORM, "DEFORM", 0, "Deform", "Deformations (shaps keys, deform modifiers"},
     {RBO_MESH_FINAL, "FINAL", 0, "Final", "All modifiers"},
 	{0, NULL, 0, NULL, NULL}};
+
+EnumPropertyItem rigidbody_activation_type_items[] = {
+    {RBO_ACTIVATION_COLLISION, "COLLISION", 0, "Collision", "Activation on collision with other rigid bodies"},
+    {RBO_ACTIVATION_TRIGGER, "TRIGGER", 0, "Trigger", "Activation on collision with trigger object"},
+    {RBO_ACTIVATION_TIME, "TIME", 0, "Time", "Activation after a specified ammount of time"},
+    {0, NULL, 0, NULL, NULL}};
 
 
 #ifdef RNA_RUNTIME
@@ -761,11 +767,18 @@ static void rna_def_rigidbody_object(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Type", "Role of object in Rigid Body Simulations");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_update(prop, NC_OBJECT | ND_POINTCACHE, "rna_RigidBodyOb_reset");
-	
+
 	prop = RNA_def_property(srna, "mesh_source", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "mesh_source");
 	RNA_def_property_enum_items(prop, rigidbody_mesh_source_items);
 	RNA_def_property_ui_text(prop, "Mesh Source", "Source of the mesh used to create collision shape");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_update(prop, NC_OBJECT | ND_POINTCACHE, "rna_RigidBodyOb_reset");
+
+	prop = RNA_def_property(srna, "activation_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "activation_type");
+	RNA_def_property_enum_items(prop, rigidbody_activation_type_items);
+	RNA_def_property_ui_text(prop, "Activation Type", "Type of activation used");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_update(prop, NC_OBJECT | ND_POINTCACHE, "rna_RigidBodyOb_reset");
 

@@ -117,6 +117,9 @@ class PHYSICS_PT_rigid_body_dynamics(PHYSICS_PT_rigidbody_panel, Panel):
         col = split.column()
         col.label(text="Activation:")
         col.prop(rbo, "use_start_deactivated")
+        sub = col.column()
+        sub.active = rbo.use_start_deactivated
+        sub.prop(rbo, "activation_type")
 
         col = split.column()
         col.label(text="Deactivation:")

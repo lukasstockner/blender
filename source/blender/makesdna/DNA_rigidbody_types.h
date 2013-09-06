@@ -103,8 +103,8 @@ typedef struct RigidBodyOb {
 	
 	int flag;				/* (eRigidBodyOb_Flag) */
 	int col_groups;			/* Collision groups that determines wich rigid bodies can collide with each other */
-	short mesh_source;		/* mesh source for mesh based collision shapes */
-	short pad;
+	short mesh_source;		/* (eRigidBody_MeshSource) mesh source for mesh based collision shapes */
+	short activation_type;	/* (eRigidBody_ActivationType) specifies how the RigidBody can be activaged */
 	
 	/* Physics Parameters */
 	float mass;				/* how much object 'weighs' (i.e. absolute 'amount of stuff' it holds) */
@@ -180,7 +180,6 @@ typedef enum eRigidBody_Shape {
 	RB_SHAPE_APPROX
 } eRigidBody_Shape;
 
-/* RigidBody Collision Shape */
 typedef enum eRigidBody_MeshSource {
 	/* base mesh */
 	RBO_MESH_BASE = 0,
@@ -189,6 +188,15 @@ typedef enum eRigidBody_MeshSource {
 	/* final derived mesh */
 	RBO_MESH_FINAL
 } eRigidBody_MeshSource;
+
+typedef enum eRigidBody_ActivationType {
+	/* body gets activated on collision with other bodies */
+	RBO_ACTIVATION_COLLISION = 0,
+	/* body gets activated on collision with a trigger body */
+	RBO_ACTIVATION_TRIGGER,
+	/* body gets activated after a certain ammount of time */
+	RBO_ACTIVATION_TIME
+} eRigidBody_ActivationType;
 
 /* ******************************** */
 /* RigidBody Constraint */
