@@ -1232,15 +1232,11 @@ static void rigidbody_update_sim_ob(Scene *scene, RigidBodyWorld *rbw, Object *o
 			 *	- we use 'central force' since apply force requires a "relative position" which we don't have...
 			 */
 			pdDoEffectors(effectors, NULL, effector_weights, &epoint, eff_force, NULL);
-			if (G.f & G_DEBUG)
-				printf("\tapplying force (%f,%f,%f) to '%s'\n", eff_force[0], eff_force[1], eff_force[2], ob->id.name + 2);
 			/* activate object in case it is deactivated */
 			if (!is_zero_v3(eff_force))
 				RB_body_activate(rbo->physics_object);
 			RB_body_apply_central_force(rbo->physics_object, eff_force);
 		}
-		else if (G.f & G_DEBUG)
-			printf("\tno forces to apply to '%s'\n", ob->id.name + 2);
 
 		/* cleanup */
 		pdEndEffectors(&effectors);
