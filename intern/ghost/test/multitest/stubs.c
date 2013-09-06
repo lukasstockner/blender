@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -15,32 +15,22 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor: 
- *		Jeroen Bakker 
- *		Monique Dewanchand
+ * The Original Code is Copyright (C) 2013 Blender Foundation.
+ * All rights reserved.
+ *
+ * The Original Code is: all of this file.
+ *
+ * Contributor(s): none yet.
+ *
+ * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "COM_ConvertVectorToColorOperation.h"
+#include <stdlib.h>
 
-ConvertVectorToColorOperation::ConvertVectorToColorOperation() : NodeOperation()
-{
-	this->addInputSocket(COM_DT_VECTOR);
-	this->addOutputSocket(COM_DT_COLOR);
-	this->m_inputOperation = NULL;
-}
+#include "BLI_utildefines.h"
+#include "IMB_imbuf.h"
 
-void ConvertVectorToColorOperation::initExecution()
-{
-	this->m_inputOperation = this->getInputSocketReader(0);
-}
+struct ImBuf;
 
-void ConvertVectorToColorOperation::executePixel(float output[4], float x, float y, PixelSampler sampler)
-{
-	this->m_inputOperation->read(output, x, y, sampler);
-	output[3] = 1.0f;
-}
-
-void ConvertVectorToColorOperation::deinitExecution()
-{
-	this->m_inputOperation = NULL;
-}
+void IMB_freeImBuf(struct ImBuf *UNUSED(ibuf)) {}
+void IMB_colormanagement_display_to_scene_linear_v3(float UNUSED(pixel[3]), struct ColorManagedDisplay *UNUSED(display)) {}

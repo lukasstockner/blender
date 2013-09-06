@@ -1563,7 +1563,7 @@ static void wm_block_splash_close(bContext *C, void *arg_block, void *UNUSED(arg
 
 static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *arg_unused);
 
-/* XXX: hack to refresh splash screen with updated prest menu name,
+/* XXX: hack to refresh splash screen with updated preset menu name,
  * since popup blocks don't get regenerated like panels do */
 static void wm_block_splash_refreshmenu(bContext *UNUSED(C), void *UNUSED(arg_block), void *UNUSED(arg))
 {
@@ -3391,6 +3391,7 @@ typedef struct {
 	int initial_mouse[2];
 	unsigned int gltex;
 	ListBase orig_paintcursors;
+	bool use_secondary_tex;
 	void *cursor;
 } RadialControl;
 
@@ -3434,7 +3435,7 @@ static void radial_control_set_tex(RadialControl *rc)
 
 	switch (RNA_type_to_ID_code(rc->image_id_ptr.type)) {
 		case ID_BR:
-			if ((ibuf = BKE_brush_gen_radial_control_imbuf(rc->image_id_ptr.data))) {
+			if ((ibuf = BKE_brush_gen_radial_control_imbuf(rc->image_id_ptr.data, rc->use_secondary_tex))) {
 				glGenTextures(1, &rc->gltex);
 				glBindTexture(GL_TEXTURE_2D, rc->gltex);
 				glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, ibuf->x, ibuf->y, 0,
@@ -3707,6 +3708,8 @@ static int radial_control_get_properties(bContext *C, wmOperator *op)
 		}
 	}
 
+	rc->use_secondary_tex = RNA_boolean_get(op->ptr, "secondary_tex");
+
 	return 1;
 }
 
@@ -3900,6 +3903,7 @@ static void WM_OT_radial_control(wmOperatorType *ot)
 	RNA_def_string(ot->srna, "fill_color_path", "", 0, "Fill Color Path", "Path of property used to set the fill color of the control");
 	RNA_def_string(ot->srna, "zoom_path", "", 0, "Zoom Path", "Path of property used to set the zoom level for the control");
 	RNA_def_string(ot->srna, "image_id", "", 0, "Image ID", "Path of ID that is used to generate an image for the control");
+	RNA_def_boolean(ot->srna, "secondary_tex", 0, "Secondary Texture", "Tweak brush secondary/mask texture");
 }
 
 /* ************************** timer for testing ***************** */
