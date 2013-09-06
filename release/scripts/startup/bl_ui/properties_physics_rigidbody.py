@@ -19,6 +19,7 @@
 # <pep8 compliant>
 import bpy
 from bpy.types import Panel
+from bl_ui.properties_physics_common import effector_weights_ui
 
 
 class PHYSICS_PT_rigidbody_panel():
@@ -135,6 +136,24 @@ class PHYSICS_PT_rigid_body_dynamics(PHYSICS_PT_rigidbody_panel, Panel):
         col.label(text="Damping:")
         col.prop(rbo, "linear_damping", text="Translation")
         col.prop(rbo, "angular_damping", text="Rotation")
+
+class PHYSICS_PT_rigid_body_field_weights(PHYSICS_PT_rigidbody_panel, Panel):
+    bl_label = "Rigid Body Field Weights"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.object
+        return (obj and obj.rigid_body and
+                obj.rigid_body.type == 'ACTIVE' and
+                (not context.scene.render.use_game_engine))
+
+    def draw(self, context):
+        ob = context.object
+        rbo = ob.rigid_body
+
+        effector_weights_ui(self, context, rbo.effector_weights, 'RIGID_BODY')
 
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)

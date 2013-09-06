@@ -144,6 +144,10 @@ void BKE_rigidbody_free_object(Object *ob)
 		rbo->physics_shape = NULL;
 	}
 
+	/* free effector weights */
+	if (rbo->effector_weights)
+		MEM_freeN(rbo->effector_weights);
+
 	/* free data itself */
 	MEM_freeN(rbo);
 	ob->rigidbody_object = NULL;
@@ -178,11 +182,15 @@ void BKE_rigidbody_free_constraint(Object *ob)
 
 RigidBodyOb *BKE_rigidbody_copy_object(Object *ob)
 {
+	RigidBodyOb *rbo = ob->rigidbody_object;
 	RigidBodyOb *rboN = NULL;
 
-	if (ob->rigidbody_object) {
+	if (rbo) {
 		/* just duplicate the whole struct first (to catch all the settings) */
-		rboN = MEM_dupallocN(ob->rigidbody_object);
+		rboN = MEM_dupallocN(rbo);
+
+		if (rbo->effector_weights)
+			rboN->effector_weights = MEM_dupallocN(rbo->effector_weights);
 
 		/* tag object as needing to be verified */
 		rboN->flag |= RBO_FLAG_NEEDS_VALIDATE;
@@ -959,6 +967,8 @@ RigidBodyOb *BKE_rigidbody_create_object(Scene *scene, Object *ob, short type)
 	/* create new settings data, and link it up */
 	rbo = MEM_callocN(sizeof(RigidBodyOb), "RigidBodyOb");
 
+	rbo->effector_weights = BKE_add_effector_weights(NULL);
+
 	/* set default settings */
 	rbo->type = type;
 
@@ -1211,13 +1221,16 @@ static void rigidbody_update_sim_ob(Scene *scene, RigidBodyWorld *rbw, Object *o
 	/* update influence of effectors - but don't do it on an effector */
 	/* only dynamic bodies need effector update */
 	else if (rbo->type == RBO_TYPE_ACTIVE && ((ob->pd == NULL) || (ob->pd->forcefield == PFIELD_NULL))) {
-		EffectorWeights *effector_weights = rbw->effector_weights;
 		EffectedPoint epoint;
-		ListBase *effectors;
+		ListBase *effectors_local;
+		ListBase *effectors_global;
 
 		/* get effectors present in the group specified by effector_weights */
-		effectors = pdInitEffectors(scene, ob, NULL, effector_weights);
-		if (effectors) {
+		effectors_local = pdInitEffectors(scene, ob, NULL, rbo->effector_weights);
+		effectors_global = pdInitEffectors(scene, ob, NULL, rbw->effector_weights);
+		if (effectors_local && effectors_global) {
+			float eff_force_local[3] = {0.0f, 0.0f, 0.0f};
+			float eff_force_global[3] = {0.0f, 0.0f, 0.0f};
 			float eff_force[3] = {0.0f, 0.0f, 0.0f};
 			float eff_loc[3], eff_vel[3];
 
@@ -1231,7 +1244,10 @@ static void rigidbody_update_sim_ob(Scene *scene, RigidBodyWorld *rbw, Object *o
 			/* calculate net force of effectors, and apply to sim object
 			 *	- we use 'central force' since apply force requires a "relative position" which we don't have...
 			 */
-			pdDoEffectors(effectors, NULL, effector_weights, &epoint, eff_force, NULL);
+			pdDoEffectors(effectors_local, NULL, rbo->effector_weights, &epoint, eff_force_local, NULL);
+			pdDoEffectors(effectors_global, NULL, rbw->effector_weights, &epoint, eff_force_global, NULL);
+			add_v3_v3v3(eff_force, eff_force_global, eff_force_local);
+			mul_v3_fl(eff_force, 0.5f);
 			/* activate object in case it is deactivated */
 			if (!is_zero_v3(eff_force))
 				RB_body_activate(rbo->physics_object);
@@ -1239,7 +1255,8 @@ static void rigidbody_update_sim_ob(Scene *scene, RigidBodyWorld *rbw, Object *o
 		}
 
 		/* cleanup */
-		pdEndEffectors(&effectors);
+		pdEndEffectors(&effectors_global);
+		pdEndEffectors(&effectors_local);
 	}
 	/* NOTE: passive objects don't need to be updated since they don't move */
 

@@ -924,6 +924,12 @@ static void rna_def_rigidbody_object(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Collision Groups", "Collision Groups Rigid Body belongs to");
 	RNA_def_property_update(prop, NC_OBJECT | ND_POINTCACHE, "rna_RigidBodyOb_reset");
 	RNA_def_property_flag(prop, PROP_LIB_EXCEPTION);
+
+	/* effector weights */
+	prop = RNA_def_property(srna, "effector_weights", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "EffectorWeights");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Effector Weights", "");
 }
 
 static void rna_def_rigidbody_constraint(BlenderRNA *brna)

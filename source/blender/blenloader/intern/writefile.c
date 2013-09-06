@@ -1525,6 +1525,7 @@ static void write_objects(WriteData *wd, ListBase *idbase)
 			if (ob->rigidbody_object) {
 				// TODO: if any extra data is added to handle duplis, will need separate function then
 				writestruct(wd, DATA, "RigidBodyOb", 1, ob->rigidbody_object);
+				writestruct(wd, DATA, "EffectorWeights", 1, ob->rigidbody_object->effector_weights);
 			}
 			if (ob->rigidbody_constraint) {
 				writestruct(wd, DATA, "RigidBodyCon", 1, ob->rigidbody_constraint);

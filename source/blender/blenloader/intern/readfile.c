@@ -4926,6 +4926,12 @@ static void direct_link_object(FileData *fd, Object *ob)
 	if (ob->rigidbody_object) {
 		RigidBodyOb *rbo = ob->rigidbody_object;
 		
+		rbo->effector_weights = newdataadr(fd, rbo->effector_weights);
+		if (rbo->effector_weights)
+			rbo->effector_weights->group = newlibadr(fd, ob->id.lib, rbo->effector_weights->group);
+		else
+			rbo->effector_weights = BKE_add_effector_weights(NULL);
+
 		/* must nullify the references to physics sim objects, since they no-longer exist 
 		 * (and will need to be recalculated) 
 		 */
