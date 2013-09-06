@@ -656,7 +656,7 @@ void BKE_rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, short re
 		RB_body_set_sleep_thresh(rbo->physics_object, rbo->lin_sleep_thresh, rbo->ang_sleep_thresh);
 		RB_body_set_activation_state(rbo->physics_object, rbo->flag & RBO_FLAG_USE_DEACTIVATION);
 
-		if (rbo->type == RBO_TYPE_PASSIVE || rbo->flag & RBO_FLAG_START_DEACTIVATED)
+		if (rbo->type == RBO_TYPE_PASSIVE)
 			RB_body_deactivate(rbo->physics_object);
 
 
@@ -670,6 +670,8 @@ void BKE_rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, short re
 		                           (ob->protectflag & OB_LOCK_ROTZ) == 0);
 
 		RB_body_set_mass(rbo->physics_object, RBO_GET_MASS(rbo));
+		if (rbo->flag & RBO_FLAG_START_DEACTIVATED)
+			RB_body_suspend(rbo->physics_object);
 		RB_body_set_kinematic_state(rbo->physics_object, rbo->flag & RBO_FLAG_KINEMATIC || rbo->flag & RBO_FLAG_DISABLED);
 		RB_body_set_trigger(rbo->physics_object, rbo->flag & RBO_FLAG_TRIGGER);
 	}

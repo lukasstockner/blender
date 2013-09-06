@@ -87,8 +87,11 @@ struct rbDynamicsWorld {
 };
 struct rbRigidBody {
 	btRigidBody *body;
+	btDiscreteDynamicsWorld *world;
 	int col_groups;
 	bool is_trigger;
+	bool suspended;
+	float saved_mass;
 };
 
 struct rbCollisionShape {
@@ -112,6 +115,23 @@ struct rbFilterCallback : public btOverlapFilterCallback
 		return collides;
 	}
 };
+
+void nearCallback(btBroadphasePair &collisionPair, btCollisionDispatcher &dispatcher, const btDispatcherInfo &dispatchInfo)
+{
+	rbRigidBody *rb0 = (rbRigidBody *)((btRigidBody *)collisionPair.m_pProxy0->m_clientObject)->getUserPointer();
+	rbRigidBody *rb1 = (rbRigidBody *)((btRigidBody *)collisionPair.m_pProxy1->m_clientObject)->getUserPointer();
+	
+	if (rb1->suspended) {
+		btRigidBody *body = rb1->body;
+		rb1->suspended = false;
+		rb1->world->removeRigidBody(body);
+		RB_body_set_mass(rb1, rb1->saved_mass);
+		rb1->world->addRigidBody(body);
+		body->activate();
+	}
+	
+	dispatcher.defaultNearCallback(collisionPair, dispatcher, dispatchInfo);
+}
 
 class rbDebugDraw : public btIDebugDraw {
 private:
@@ -184,6 +204,7 @@ rbDynamicsWorld *RB_dworld_new(const float gravity[3])
 	
 	world->dispatcher = new btCollisionDispatcher(world->collisionConfiguration);
 	btGImpactCollisionAlgorithm::registerAlgorithm((btCollisionDispatcher *)world->dispatcher);
+	((btCollisionDispatcher *)world->dispatcher)->setNearCallback(nearCallback);
 	
 	world->pairCache = new btDbvtBroadphase();
 	
@@ -302,6 +323,7 @@ void RB_dworld_add_body(rbDynamicsWorld *world, rbRigidBody *object, int col_gro
 {
 	btRigidBody *body = object->body;
 	object->col_groups = col_groups;
+	object->world = world->dynamicsWorld;
 	
 	world->dynamicsWorld->addRigidBody(body);
 }
@@ -383,6 +405,9 @@ rbRigidBody *RB_body_new(rbCollisionShape *shape, const float loc[3], const floa
 	
 	object->body->setUserPointer(object);
 	
+	object->is_trigger = false;
+	object->suspended = false;
+	
 	return object;
 }
 
@@ -450,9 +475,10 @@ void RB_body_set_mass(rbRigidBody *object, float value)
 		btCollisionShape *shape = body->getCollisionShape();
 		shape->calculateLocalInertia(value, localInertia);
 	}
-	
-	body->setMassProps(value, localInertia);
-	body->updateInertiaTensor();
+	if (!object->suspended) {
+		body->setMassProps(value, localInertia);
+		body->updateInertiaTensor();
+	}
 }
 
 
@@ -586,6 +612,8 @@ void RB_body_set_angular_factor(rbRigidBody *object, float x, float y, float z)
 
 void RB_body_set_kinematic_state(rbRigidBody *object, int kinematic)
 {
+	if (object->suspended)
+		return;
 	btRigidBody *body = object->body;
 	if (kinematic)
 		body->setCollisionFlags(body->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
