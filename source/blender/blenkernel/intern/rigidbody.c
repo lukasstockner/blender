@@ -979,6 +979,8 @@ RigidBodyOb *BKE_rigidbody_create_object(Scene *scene, Object *ob, short type)
 		rbo->shape = RB_SHAPE_CONVEXH;
 	else
 		rbo->shape = RB_SHAPE_TRIMESH;
+	
+	rbo->mesh_source = RBO_MESH_DEFORM;
 
 	/* set initial transform */
 	mat4_to_loc_quat(rbo->pos, rbo->orn, ob->obmat);
