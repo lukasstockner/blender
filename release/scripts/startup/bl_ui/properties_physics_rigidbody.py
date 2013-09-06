@@ -44,12 +44,14 @@ class PHYSICS_PT_rigid_body(PHYSICS_PT_rigidbody_panel, Panel):
 
         if rbo is not None:
             layout.prop(rbo, "type", text="Type")
-            row = layout.row()
+            split = layout.split()
+            col = split.column()
             if rbo.type == 'ACTIVE':
-                row.prop(rbo, "enabled", text="Dynamic")
-            row.prop(rbo, "kinematic", text="Animated")
-            row.prop(rbo, "trigger", text="Trigger")
-            row.prop(rbo, "ghost", text="Ghost")
+                col.prop(rbo, "enabled", text="Dynamic")
+            col.prop(rbo, "kinematic", text="Animated")
+            col = split.column()
+            col.prop(rbo, "trigger", text="Trigger")
+            col.prop(rbo, "ghost", text="Ghost")
 
             if rbo.type == 'ACTIVE':
                 layout.prop(rbo, "mass")
