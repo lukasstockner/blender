@@ -500,7 +500,8 @@ static void knife_add_single_cut(KnifeTool_OpData *kcd)
 	KnifeEdge *kfe = new_knife_edge(kcd), *kfe2 = NULL, *kfe3 = NULL;
 
 	if ((kcd->prev.vert && kcd->prev.vert == kcd->curr.vert) ||
-	    (kcd->prev.edge && kcd->prev.edge == kcd->curr.edge)) {
+	    (kcd->prev.edge && kcd->prev.edge == kcd->curr.edge))
+	{
 		kcd->prev = kcd->curr;
 		return;
 	}
@@ -594,10 +595,14 @@ static int find_connected_linehit(KnifeTool_OpData *kcd, int testi, BMFace *f, i
 		if (testi >= 0 && testi < kcd->totlinehit) {
 			if (knife_find_common_face(&kcd->linehits[testi].kfe->faces,
 			                           &kcd->linehits[i].kfe->faces))
+			{
 				return i;
+			}
 			else if (kcd->linehits[testi].v &&
-				 kcd->linehits[testi].v == kcd->linehits[i].v)
+			         kcd->linehits[testi].v == kcd->linehits[i].v)
+			{
 				return i;
+			}
 		}
 		else if (f) {
 			if (find_ref(&kcd->linehits[i].kfe->faces, f))
@@ -722,7 +727,8 @@ static void knife_get_edge_faces(KnifeTool_OpData *kcd, KnifeEdge *kfe, ListBase
 }
 #endif
 
-static void copy_hit_from_posdata(BMEdgeHit *lh, KnifePosData *pos, float lambda) {
+static void copy_hit_from_posdata(BMEdgeHit *lh, KnifePosData *pos, float lambda)
+{
 	lh->kfe = pos->edge;
 	lh->v = pos->vert;
 	lh->f = pos->bmface;
@@ -1244,7 +1250,8 @@ static BMEdgeHit *knife_edge_tri_isect(KnifeTool_OpData *kcd, BMBVHTree *bmtree,
 
 			n_isects = 0;
 			if (fabsf(dist_to_plane_v3(kfe->v1->cageco, tri_plane)) < KNIFE_FLT_EPS &&
-			    fabsf(dist_to_plane_v3(kfe->v2->cageco, tri_plane)) < KNIFE_FLT_EPS) {
+			    fabsf(dist_to_plane_v3(kfe->v2->cageco, tri_plane)) < KNIFE_FLT_EPS)
+			{
 				/* both kfe ends are in cutting triangle */
 				copy_v3_v3(isects[0], kfe->v1->cageco);
 				copy_v3_v3(isects[1], kfe->v2->cageco);
@@ -1320,6 +1327,7 @@ static BMEdgeHit *knife_edge_tri_isect(KnifeTool_OpData *kcd, BMBVHTree *bmtree,
 
 					hit.kfe = kfe;
 					hit.v = NULL;
+					hit.l = 0.0f;
 
 					knife_find_basef(kfe);
 					hit.f = kfe->basef;
@@ -1694,7 +1702,7 @@ static KnifeEdge *knife_find_closest_edge(KnifeTool_OpData *kcd, float p[3], flo
 		if (fptr)
 			*fptr = f;
 
-		if (cure && p) {
+		if (cure) {
 			if (!kcd->ignore_edge_snapping || !(cure->e)) {
 				KnifeVert *edgesnap = NULL;
 
@@ -1787,7 +1795,7 @@ static KnifeVert *knife_find_closest_vert(KnifeTool_OpData *kcd, float p[3], flo
 			if (fptr)
 				*fptr = f;
 
-			if (curv && p) {
+			if (curv) {
 				copy_v3_v3(p, curv->co);
 				copy_v3_v3(cagep, curv->cageco);
 
@@ -2725,7 +2733,7 @@ static void knife_make_chain_cut(KnifeTool_OpData *kcd, BMFace *f, ListBase *cha
 			BM_edge_select_set(bm, l_new->e, true);
 		}
 	}
-	else {
+	else if (f_new) {
 		BM_elem_select_copy(bm, bm, f_new, f);
 	}
 
@@ -2960,7 +2968,7 @@ static void knifetool_exit_ex(bContext *C, KnifeTool_OpData *kcd)
 		return;
 
 	if (kcd->is_interactive) {
-		WM_cursor_restore(CTX_wm_window(C));
+		WM_cursor_modal_restore(CTX_wm_window(C));
 
 		/* deactivate the extra drawing stuff in 3D-View */
 		ED_region_draw_cb_exit(kcd->ar->type, kcd->draw_handle);
@@ -3095,7 +3103,7 @@ static int knifetool_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	knifetool_init(C, kcd, only_select, cut_through, true);
 
 	/* add a modal handler for this operator - handles loop selection */
-	WM_cursor_modal(CTX_wm_window(C), BC_KNIFECURSOR);
+	WM_cursor_modal_set(CTX_wm_window(C), BC_KNIFECURSOR);
 	WM_event_add_modal_handler(C, op);
 
 	knifetool_update_mval_i(kcd, event->mval);

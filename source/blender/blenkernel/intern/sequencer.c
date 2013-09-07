@@ -462,7 +462,7 @@ void BKE_sequencer_imbuf_to_sequencer_space(Scene *scene, ImBuf *ibuf, int make_
 
 		if (!STREQ(float_colorspace, to_colorspace)) {
 			IMB_colormanagement_transform_threaded(ibuf->rect_float, ibuf->x, ibuf->y, ibuf->channels,
-			                                       from_colorspace, to_colorspace, TRUE);
+			                                       from_colorspace, to_colorspace, true);
 		}
 	}
 }
@@ -477,7 +477,7 @@ void BKE_sequencer_imbuf_from_sequencer_space(Scene *scene, ImBuf *ibuf)
 
 	if (to_colorspace && to_colorspace[0] != '\0') {
 		IMB_colormanagement_transform_threaded(ibuf->rect_float, ibuf->x, ibuf->y, ibuf->channels,
-		                                       from_colorspace, to_colorspace, TRUE);
+		                                       from_colorspace, to_colorspace, true);
 	}
 }
 
@@ -2678,12 +2678,14 @@ static ImBuf *do_render_strip_uncached(SeqRenderData context, Sequence *seq, flo
 				                         seq->strip->proxy ? seq->strip->proxy->tc : IMB_TC_RECORD_RUN,
 				                         seq_rendersize_to_proxysize(context.preview_render_size));
 
-				BKE_sequencer_imbuf_to_sequencer_space(context.scene, ibuf, FALSE);
-
-				/* we don't need both (speed reasons)! */
-				if (ibuf && ibuf->rect_float && ibuf->rect)
-					imb_freerectImBuf(ibuf);
 				if (ibuf) {
+					BKE_sequencer_imbuf_to_sequencer_space(context.scene, ibuf, FALSE);
+
+					/* we don't need both (speed reasons)! */
+					if (ibuf->rect_float && ibuf->rect) {
+						imb_freerectImBuf(ibuf);
+					}
+
 					seq->strip->stripdata->orig_width = ibuf->x;
 					seq->strip->stripdata->orig_height = ibuf->y;
 				}

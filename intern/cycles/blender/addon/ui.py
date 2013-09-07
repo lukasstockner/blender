@@ -831,7 +831,6 @@ class CyclesWorld_PT_volume(CyclesButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.active = False
 
         world = context.world
         panel_node_draw(layout, world, 'OUTPUT_WORLD', 'Volume')
@@ -977,7 +976,6 @@ class CyclesMaterial_PT_volume(CyclesButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.active = False
 
         mat = context.material
         cmat = mat.cycles

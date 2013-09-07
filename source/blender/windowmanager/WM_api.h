@@ -111,9 +111,9 @@ void		WM_autosave_init(struct wmWindowManager *wm);
 void		WM_recover_last_session(struct bContext *C, struct ReportList *reports);
 
 			/* mouse cursors */
-void		WM_cursor_set		(struct wmWindow *win, int curs);
-void		WM_cursor_modal		(struct wmWindow *win, int curs);
-void		WM_cursor_restore	(struct wmWindow *win);
+void		WM_cursor_set(struct wmWindow *win, int curs);
+void		WM_cursor_modal_set(struct wmWindow *win, int curs);
+void		WM_cursor_modal_restore(struct wmWindow *win);
 void		WM_cursor_wait		(bool val);
 void		WM_cursor_grab_enable(struct wmWindow *win, bool wrap, bool hide, int bounds[4]);
 void		WM_cursor_grab_disable(struct wmWindow *win, int mouse_ungrab_xy[2]);
@@ -144,9 +144,9 @@ struct wmEventHandler *WM_event_add_keymap_handler_priority(ListBase *handlers, 
 void		WM_event_remove_keymap_handler(ListBase *handlers, wmKeyMap *keymap);
 
 struct wmEventHandler *WM_event_add_ui_handler(
-		const struct bContext *C, ListBase *handlers,
-		int (*func)(struct bContext *C, const struct wmEvent *event, void *userdata),
-		void (*remove)(struct bContext *C, void *userdata), void *userdata);
+        const struct bContext *C, ListBase *handlers,
+        int (*func)(struct bContext *C, const struct wmEvent *event, void *userdata),
+        void (*remove)(struct bContext *C, void *userdata), void *userdata);
 
 void		WM_event_remove_ui_handler(ListBase *handlers,
                                        int (*func)(struct bContext *C, const struct wmEvent *event, void *userdata),

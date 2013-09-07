@@ -630,6 +630,22 @@ void RE_InitState(Render *re, Render *source, RenderData *rd, SceneRenderLayer *
 	RE_init_threadcount(re);
 }
 
+/* update some variables that can be animated, and otherwise wouldn't be due to
+ * RenderData getting copied once at the start of animation render */
+static void render_update_anim_renderdata(Render *re, RenderData *rd)
+{
+	/* filter */
+	re->r.gauss = rd->gauss;
+
+	/* motion blur */
+	re->r.mblur_samples = rd->mblur_samples;
+	re->r.blurfac = rd->blurfac;
+
+	/* freestyle */
+	re->r.line_thickness_mode = rd->line_thickness_mode;
+	re->r.unit_line_thickness = rd->unit_line_thickness;
+}
+
 void RE_SetWindow(Render *re, rctf *viewplane, float clipsta, float clipend)
 {
 	/* re->ok flag? */
@@ -2408,6 +2424,7 @@ static int render_initialize_from_main(Render *re, Main *bmain, Scene *scene, Sc
 	
 	/* not too nice, but it survives anim-border render */
 	if (anim) {
+		render_update_anim_renderdata(re, &scene->r);
 		re->disprect = disprect;
 		return 1;
 	}
@@ -2525,7 +2542,7 @@ static int do_write_image_or_movie(Render *re, Main *bmain, Scene *scene, bMovie
 		}
 
 
-		IMB_colormanagement_imbuf_for_write(ibuf, TRUE, FALSE, &scene->view_settings,
+		IMB_colormanagement_imbuf_for_write(ibuf, true, false, &scene->view_settings,
 		                                    &scene->display_settings, &scene->r.im_format);
 
 		ok = mh->append_movie(&re->r, scene->r.sfra, scene->r.cfra, (int *) ibuf->rect,
@@ -2556,7 +2573,7 @@ static int do_write_image_or_movie(Render *re, Main *bmain, Scene *scene, bMovie
 		else {
 			ImBuf *ibuf = render_result_rect_to_ibuf(&rres, &scene->r);
 
-			IMB_colormanagement_imbuf_for_write(ibuf, TRUE, FALSE, &scene->view_settings,
+			IMB_colormanagement_imbuf_for_write(ibuf, true, false, &scene->view_settings,
 			                                    &scene->display_settings, &scene->r.im_format);
 
 			ok = BKE_imbuf_write_stamp(scene, camera, ibuf, name, &scene->r.im_format);
@@ -2576,7 +2593,7 @@ static int do_write_image_or_movie(Render *re, Main *bmain, Scene *scene, bMovie
 				BKE_add_image_extension(name, &imf);
 				ibuf->planes = 24;
 
-				IMB_colormanagement_imbuf_for_write(ibuf, TRUE, FALSE, &scene->view_settings,
+				IMB_colormanagement_imbuf_for_write(ibuf, true, false, &scene->view_settings,
 				                                    &scene->display_settings, &imf);
 
 				BKE_imbuf_write_stamp(scene, camera, ibuf, name, &imf);
@@ -2918,7 +2935,7 @@ int RE_WriteEnvmapResult(struct ReportList *reports, Scene *scene, EnvMap *env, 
 		return 0;
 	}
 
-	IMB_colormanagement_imbuf_for_write(ibuf, TRUE, FALSE, &scene->view_settings, &scene->display_settings, &imf);
+	IMB_colormanagement_imbuf_for_write(ibuf, true, false, &scene->view_settings, &scene->display_settings, &imf);
 
 	/* to save, we first get absolute path */
 	BLI_strncpy(filepath, relpath, sizeof(filepath));
