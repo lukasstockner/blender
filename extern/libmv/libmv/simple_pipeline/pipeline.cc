@@ -43,7 +43,7 @@ namespace {
 // template bloat and making interface changes much easier.
 struct EuclideanPipelineRoutines {
   typedef EuclideanReconstruction Reconstruction;
-  typedef EuclideanCamera Camera;
+  typedef EuclideanView View;
   typedef EuclideanPoint Point;
 
   static void Bundle(const Tracks &tracks,
@@ -63,9 +63,9 @@ struct EuclideanPipelineRoutines {
   }
 
   static Marker ProjectMarker(const EuclideanPoint &point,
-                              const EuclideanCamera &camera,
+                              const EuclideanView &view,
                               const CameraIntrinsics &intrinsics) {
-    Vec3 projected = camera.R * point.X + camera.t;
+    Vec3 projected = view.R * point.X + view.t;
     projected /= projected(2);
 
     Marker reprojected_marker;
@@ -74,7 +74,7 @@ struct EuclideanPipelineRoutines {
                                &reprojected_marker.x,
                                &reprojected_marker.y);
 
-    reprojected_marker.image = camera.image;
+    reprojected_marker.image = view.image;
     reprojected_marker.track = point.track;
     return reprojected_marker;
   }
@@ -82,7 +82,7 @@ struct EuclideanPipelineRoutines {
 
 struct ProjectivePipelineRoutines {
   typedef ProjectiveReconstruction Reconstruction;
-  typedef ProjectiveCamera Camera;
+  typedef ProjectiveView View;
   typedef ProjectivePoint Point;
 
   static void Bundle(const Tracks &tracks,
@@ -105,9 +105,9 @@ struct ProjectivePipelineRoutines {
   }
 
   static Marker ProjectMarker(const ProjectivePoint &point,
-                              const ProjectiveCamera &camera,
+                              const ProjectiveView &view,
                               const CameraIntrinsics &intrinsics) {
-    Vec3 projected = camera.P * point.X;
+    Vec3 projected = view.P * point.X;
     projected /= projected(2);
 
     Marker reprojected_marker;
@@ -116,7 +116,7 @@ struct ProjectivePipelineRoutines {
                                &reprojected_marker.x,
                                &reprojected_marker.y);
 
-    reprojected_marker.image = camera.image;
+    reprojected_marker.image = view.image;
     reprojected_marker.track = point.track;
     return reprojected_marker;
   }
@@ -169,7 +169,7 @@ void InternalCompleteReconstruction(
 
       vector<Marker> reconstructed_markers;
       for (int i = 0; i < all_markers.size(); ++i) {
-        if (reconstruction->CameraForImage(all_markers[i].camera, all_markers[i].image)) {
+        if (reconstruction->ViewForImage(all_markers[i].camera, all_markers[i].image)) {
           reconstructed_markers.push_back(all_markers[i]);
         }
       }
@@ -199,7 +199,7 @@ void InternalCompleteReconstruction(
     // Do all possible resections.
     num_resects = 0;
     for (int image = 0; image <= max_image; ++image) {
-      if (reconstruction->CameraForImage(0, image)) {
+      if (reconstruction->ViewForImage(0, image)) {
         LG << "Skipping frame: " << image;
         continue;
       }
@@ -239,7 +239,7 @@ void InternalCompleteReconstruction(
   // One last pass...
   num_resects = 0;
   for (int image = 0; image <= max_image; ++image) {
-    if (reconstruction->CameraForImage(0, image)) {
+    if (reconstruction->ViewForImage(0, image)) {
       LG << "Skipping frame: " << image;
       continue;
     }
@@ -281,18 +281,18 @@ double InternalReprojectionError(
   double total_error = 0.0;
   vector<Marker> markers = image_tracks.AllMarkers();
   for (int i = 0; i < markers.size(); ++i) {
-    const typename PipelineRoutines::Camera *camera =
-        reconstruction.CameraForImage(markers[i].camera, markers[i].image);
+    const typename PipelineRoutines::View *view =
+        reconstruction.ViewForImage(markers[i].camera, markers[i].image);
     const typename PipelineRoutines::Point *point =
         reconstruction.PointForTrack(markers[i].track);
-    if (!camera || !point) {
+    if (!view || !point) {
       num_skipped++;
       continue;
     }
     num_reprojected++;
 
     Marker reprojected_marker =
-        PipelineRoutines::ProjectMarker(*point, *camera, intrinsics[markers[i].camera]);
+        PipelineRoutines::ProjectMarker(*point, *view, intrinsics[markers[i].camera]);
     double ex = reprojected_marker.x - markers[i].x;
     double ey = reprojected_marker.y - markers[i].y;
 

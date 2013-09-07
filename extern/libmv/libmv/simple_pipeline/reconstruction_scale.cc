@@ -24,37 +24,37 @@
 namespace libmv {
 
 void EuclideanScaleToUnity(EuclideanReconstruction *reconstruction) {
-  vector<EuclideanCamera> all_cameras = reconstruction->AllCamerasForView(0);
+  vector<EuclideanView> all_views = reconstruction->AllViewsForCamera(0);
   vector<EuclideanPoint> all_points = reconstruction->AllPoints();
 
-  // Calculate center of the mass of all cameras.
-  Vec3 cameras_mass_center = Vec3::Zero();
-  for (int i = 0; i < all_cameras.size(); ++i) {
-    cameras_mass_center += all_cameras[i].t;
+  // Calculate center of the mass of all views.
+  Vec3 views_mass_center = Vec3::Zero();
+  for (int i = 0; i < all_views.size(); ++i) {
+    views_mass_center += all_views[i].t;
   }
-  cameras_mass_center /= all_cameras.size();
+  views_mass_center /= all_views.size();
 
-  // Find the most distant camera from the mass center.
+  // Find the most distant view from the mass center.
   double max_distance = 0.0;
-  for (int i = 0; i < all_cameras.size(); ++i) {
-    double distance = (all_cameras[i].t - cameras_mass_center).squaredNorm();
+  for (int i = 0; i < all_views.size(); ++i) {
+    double distance = (all_views[i].t - views_mass_center).squaredNorm();
     if (distance > max_distance) {
       max_distance = distance;
     }
   }
 
   if (max_distance == 0.0) {
-    LG << "Cameras position variance is too small, can not rescale";
+    LG << "Views position variance is too small, can not rescale";
     return;
   }
 
   double scale_factor = 1.0 / sqrt(max_distance);
 
-  // Rescale cameras positions.
-  for (int i = 0; i < all_cameras.size(); ++i) {
-    int image = all_cameras[i].image;
-    EuclideanCamera *camera = reconstruction->CameraForImage(0, image);
-    camera->t = camera->t * scale_factor;
+  // Rescale views positions.
+  for (int i = 0; i < all_views.size(); ++i) {
+    int image = all_views[i].image;
+    EuclideanView *view = reconstruction->ViewForImage(0, image);
+    view->t = view->t * scale_factor;
   }
 
   // Rescale points positions.

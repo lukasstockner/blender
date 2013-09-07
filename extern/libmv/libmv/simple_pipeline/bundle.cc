@@ -255,15 +255,15 @@ vector<Vec6> PackCamerasRotationAndTranslation(
   all_cameras_R_t.resize(max_image + 1);
 
   for (int i = 0; i <= max_image; i++) {
-    const EuclideanCamera *camera = reconstruction.CameraForImage(0, i);
+    const EuclideanView *view = reconstruction.ViewForImage(0, i);
 
-    if (!camera) {
+    if (!view) {
       continue;
     }
 
-    ceres::RotationMatrixToAngleAxis(&camera->R(0, 0),
+    ceres::RotationMatrixToAngleAxis(&view->R(0, 0),
                                      &all_cameras_R_t[i](0));
-    all_cameras_R_t[i].tail<3>() = camera->t;
+    all_cameras_R_t[i].tail<3>() = view->t;
   }
   return all_cameras_R_t;
 }
@@ -276,15 +276,15 @@ void UnpackCamerasRotationAndTranslation(
   int max_image = tracks.MaxImage();
 
   for (int i = 0; i <= max_image; i++) {
-    EuclideanCamera *camera = reconstruction->CameraForImage(0, i);
+    EuclideanView *view = reconstruction->ViewForImage(0, i);
 
-    if (!camera) {
+    if (!view) {
       continue;
     }
 
     ceres::AngleAxisToRotationMatrix(&all_cameras_R_t[i](0),
-                                     &camera->R(0, 0));
-    camera->t = all_cameras_R_t[i].tail<3>();
+                                     &view->R(0, 0));
+    view->t = all_cameras_R_t[i].tail<3>();
   }
 }
 
@@ -343,8 +343,8 @@ void EuclideanBundlerPerformEvaluation(const Tracks &tracks,
       int max_image = tracks.MaxImage();
       bool is_first_camera = true;
       for (int i = 0; i <= max_image; i++) {
-        const EuclideanCamera *camera = reconstruction->CameraForImage(0, i);
-        if (camera) {
+        const EuclideanView *view = reconstruction->ViewForImage(0, i);
+        if (view) {
           double *current_camera_R_t = &(*all_cameras_R_t)[i](0);
 
           // All cameras are variable now.
@@ -456,15 +456,15 @@ void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
   for (int i = 0; i < markers.size(); ++i) {
     const Marker &marker = markers[i];
     int camera = marker.camera;
-    EuclideanCamera *camera_pose = reconstruction->CameraForImage(camera, marker.image);
+    EuclideanView *view = reconstruction->ViewForImage(camera, marker.image);
     EuclideanPoint *point = reconstruction->PointForTrack(marker.track);
-    if (camera_pose == NULL || point == NULL) {
+    if (view == NULL || point == NULL) {
       continue;
     }
 
     // Rotation of camera denoted in angle axis followed with
     // camera translaiton.
-    double *current_camera_R_t = &all_cameras_R_t[camera_pose->image](0);
+    double *current_camera_R_t = &all_cameras_R_t[view->image](0);
 
     OpenCVReprojectionError *cost_function;
     if (bundle_options.constraints & BUNDLE_CONSTRAIN_FOCAL_LENGTH) {

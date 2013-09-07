@@ -39,8 +39,8 @@ namespace {
 class EuclideanIntersectCostFunctor {
  public:
   EuclideanIntersectCostFunctor(const Marker &marker,
-                                const EuclideanCamera &camera)
-      : marker_(marker), camera_(camera) {}
+                                const EuclideanView &view)
+      : marker_(marker), view_(view) {}
 
   template<typename T>
   bool operator()(const T *X, T *residuals) const {
@@ -48,8 +48,8 @@ class EuclideanIntersectCostFunctor {
     typedef Eigen::Matrix<T, 3, 1> Vec3;
 
     Vec3 x(X);
-    Mat3 R(camera_.R.cast<T>());
-    Vec3 t(camera_.t.cast<T>());
+    Mat3 R(view_.R.cast<T>());
+    Vec3 t(view_.t.cast<T>());
 
     Vec3 projected = R * x + t;
     projected /= projected(2);
@@ -61,7 +61,7 @@ class EuclideanIntersectCostFunctor {
   }
 
   const Marker &marker_;
-  const EuclideanCamera &camera_;
+  const EuclideanView &view_;
 };
 
 }  // namespace
@@ -78,8 +78,8 @@ bool EuclideanIntersect(const vector<Marker> &markers,
   vector<Mat34> cameras;
   Mat34 P;
   for (int i = 0; i < markers.size(); ++i) {
-    EuclideanCamera *camera = reconstruction->CameraForImage(0, markers[i].image);
-    P_From_KRt(K, camera->R, camera->t, &P);
+    EuclideanView *view = reconstruction->ViewForImage(0, markers[i].image);
+    P_From_KRt(K, view->R, view->t, &P);
     cameras.push_back(P);
   }
 
@@ -102,14 +102,14 @@ bool EuclideanIntersect(const vector<Marker> &markers,
 
   for (int i = 0; i < markers.size(); ++i) {
     const Marker &marker = markers[i];
-    const EuclideanCamera &camera =
-        *reconstruction->CameraForImage(0, marker.image);
+    const EuclideanView &view =
+        *reconstruction->ViewForImage(0, marker.image);
 
     problem.AddResidualBlock(
         new ceres::AutoDiffCostFunction<
             EuclideanIntersectCostFunctor,
             2, /* num_residuals */
-            3>(new EuclideanIntersectCostFunctor(marker, camera)),
+            3>(new EuclideanIntersectCostFunctor(marker, view)),
         NULL,
         &X(0));
   }
@@ -130,9 +130,9 @@ bool EuclideanIntersect(const vector<Marker> &markers,
 
   // Try projecting the point; make sure it's in front of everyone.
   for (int i = 0; i < cameras.size(); ++i) {
-    const EuclideanCamera &camera =
-        *reconstruction->CameraForImage(0, markers[i].image);
-    Vec3 x = camera.R * X + camera.t;
+    const EuclideanView &view =
+        *reconstruction->ViewForImage(0, markers[i].image);
+    Vec3 x = view.R * X + view.t;
     if (x(2) < 0) {
       LOG(ERROR) << "POINT BEHIND CAMERA " << markers[i].image
                  << ": " << x.transpose();
@@ -163,9 +163,9 @@ struct ProjectiveIntersectCostFunction {
     Vec residuals(2 * markers.size());
     residuals.setZero();
     for (int i = 0; i < markers.size(); ++i) {
-      const ProjectiveCamera &camera =
-          *reconstruction.CameraForImage(0, markers[i].image);
-      Vec3 projected = camera.P * X;
+      const ProjectiveView &view =
+          *reconstruction.ViewForImage(0, markers[i].image);
+      Vec3 projected = view.P * X;
       projected /= projected(2);
       residuals[2*i + 0] = projected(0) - markers[i].x;
       residuals[2*i + 1] = projected(1) - markers[i].y;
@@ -187,8 +187,8 @@ bool ProjectiveIntersect(const vector<Marker> &markers,
   // Get the cameras to use for the intersection.
   vector<Mat34> cameras;
   for (int i = 0; i < markers.size(); ++i) {
-    ProjectiveCamera *camera = reconstruction->CameraForImage(0, markers[i].image);
-    cameras.push_back(camera->P);
+    ProjectiveView *view = reconstruction->ViewForImage(0, markers[i].image);
+    cameras.push_back(view->P);
   }
 
   // Stack the 2D coordinates together as required by NViewTriangulate.
@@ -214,9 +214,9 @@ bool ProjectiveIntersect(const vector<Marker> &markers,
 
   // Try projecting the point; make sure it's in front of everyone.
   for (int i = 0; i < cameras.size(); ++i) {
-    const ProjectiveCamera &camera =
-        *reconstruction->CameraForImage(0, markers[i].image);
-    Vec3 x = camera.P * X;
+    const ProjectiveView &view =
+        *reconstruction->ViewForImage(0, markers[i].image);
+    Vec3 x = view.P * X;
     if (x(2) < 0) {
       LOG(ERROR) << "POINT BEHIND CAMERA " << markers[i].image
                  << ": " << x.transpose();

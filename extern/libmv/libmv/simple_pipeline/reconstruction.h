@@ -40,21 +40,21 @@ struct ReconstructionOptions {
 };
 
 /*!
-    A EuclideanCamera is the location and rotation of the camera viewing an
-    \a image from a \a camera. All EuclideanCameras with the same \a camera
-    represent the motion of a particular camera across all images.
+    A EuclideanView is the location and rotation of a \a camera viewing an
+    \a image. All EuclideanViews for the same \a camera represent the motion of
+    a particular video camera across all images.
 
-    \a camera identify which camera from \l Tracks this camera represents.
-    \a image identify which image from \l Tracks this camera represents.
-    \a R is a 3x3 matrix representing the rotation of the camera.
+    \a camera identify which camera from \l Tracks this view represents.
+    \a image identify which image from \l Tracks this view represents.
+    \a R is a 3x3 matrix representing the rotation of the view.
     \a t is a translation vector representing its positions.
 
     \sa Reconstruction
 */
-struct EuclideanCamera {
-  EuclideanCamera() : camera(-1), image(-1) {}
-  EuclideanCamera(const EuclideanCamera &c)
-      : camera(c.camera), image(c.image), R(c.R), t(c.t) {}
+struct EuclideanView {
+  EuclideanView() : camera(-1), image(-1) {}
+  EuclideanView(const EuclideanView &v)
+      : camera(v.camera), image(v.image), R(v.R), t(v.t) {}
 
   int camera;
   int image;
@@ -78,16 +78,16 @@ struct EuclideanPoint {
 };
 
 /*!
-    The EuclideanReconstruction class stores \link EuclideanCamera cameras
+    The EuclideanReconstruction class stores \link EuclideanView views
     \endlink and \link EuclideanPoint points \endlink.
 
     The EuclideanReconstruction container is intended as the store of 3D
     reconstruction data to be used with the MultiView API.
 
-    The container has lookups to query a \a EuclideanCamera from an \a camera
+    The container has lookups to query a \a EuclideanView for a \a camera
     and \a image, or a \a EuclideanPoint from a \a track.
 
-    \sa Camera, Point
+    \sa View, Point
 */
 class EuclideanReconstruction {
  public:
@@ -100,17 +100,17 @@ class EuclideanReconstruction {
   EuclideanReconstruction &operator=(const EuclideanReconstruction &other);
 
   /*!
-      Insert a camera into the set. If there is already a camera for the given
-      \a camera and \a image, the existing camera is replaced. If there is no
-      camera for the given \a camera and \a image, a new one is added.
+      Insert a view into the set. If there is already a view for the given
+      \a camera and \a image, the existing view is replaced. If there is no
+      view for the given \a camera and \a image, a new one is added.
 
-      \a camera and \a image are the keys used to retrieve the cameras with the
+      \a camera and \a image are the keys used to retrieve the views with the
       other methods in this class.
 
       \note You should use the same \a camera and \a image identifiers as in
       \l Tracks.
   */
-  void InsertCamera(int camera, int image, const Mat3 &R, const Vec3 &t);
+  void InsertView(int camera, int image, const Mat3 &R, const Vec3 &t);
 
   /*!
       Insert a point into the reconstruction. If there is already a point for
@@ -124,15 +124,15 @@ class EuclideanReconstruction {
   */
   void InsertPoint(int track, const Vec3 &X);
 
-  /// Returns a pointer to the camera corresponding to \a camera and \a image.
-  EuclideanCamera *CameraForImage(int camera, int image);
-  const EuclideanCamera *CameraForImage(int camera, int image) const;
+  /// Returns a pointer to the view corresponding to \a camera and \a image.
+  EuclideanView *ViewForImage(int camera, int image);
+  const EuclideanView *ViewForImage(int camera, int image) const;
 
-  /// Returns all cameras for all cameras.
-  std::vector<vector<EuclideanCamera> > AllCameras() const;
+  /// Returns all views for all cameras.
+  std::vector<vector<EuclideanView> > AllViews() const;
 
-  /// Returns all cameras for a particular \a camera.
-  vector<EuclideanCamera> AllCamerasForView(int camera) const;
+  /// Returns all views for a particular \a camera.
+  vector<EuclideanView> AllViewsForCamera(int camera) const;
 
   /// Returns a pointer to the point corresponding to \a track.
   EuclideanPoint *PointForTrack(int track);
@@ -142,13 +142,13 @@ class EuclideanReconstruction {
   vector<EuclideanPoint> AllPoints() const;
 
  private:
-  std::vector<vector<EuclideanCamera> > cameras_;
+  std::vector<vector<EuclideanView> > views_;
   vector<EuclideanPoint> points_;
 };
 
 /*!
-    A ProjectiveCamera is the projection matrix for the camera viewing an
-    \a image from a \a camera.
+    A ProjectiveView is the projection matrix for the view of an \a image from
+    a \a camera.
 
     \a camera identify which camera from \l Tracks this camera represents.
     \a image identify which image from \l Tracks this camera represents.
@@ -156,10 +156,10 @@ class EuclideanReconstruction {
 
     \sa ProjectiveReconstruction
 */
-struct ProjectiveCamera {
-  ProjectiveCamera() : camera(-1), image(-1) {}
-  ProjectiveCamera(const ProjectiveCamera &c)
-      : camera(c.camera), image(c.image), P(c.P) {}
+struct ProjectiveView {
+  ProjectiveView() : camera(-1), image(-1) {}
+  ProjectiveView(const ProjectiveView &v)
+      : camera(v.camera), image(v.image), P(v.P) {}
 
   int camera;
   int image;
@@ -182,31 +182,31 @@ struct ProjectivePoint {
 };
 
 /*!
-    The ProjectiveReconstruction class stores \link ProjectiveCamera cameras
+    The ProjectiveReconstruction class stores \link ProjectiveView views
     \endlink and \link ProjectivePoint points \endlink.
 
     The ProjectiveReconstruction container is intended as the store of 3D
     reconstruction data to be used with the MultiView API.
 
-    The container has lookups to query a \a ProjectiveCamera from a \a camera and
+    The container has lookups to query a \a ProjectiveView for a \a camera and
     \a image, or a \a ProjectivePoint from a \a track.
 
-    \sa Camera, Point
+    \sa View, Point
 */
 class ProjectiveReconstruction {
  public:
   /*!
-      Insert a camera into the set. If there is already a camera for the given
-      \a camera and \a image, the existing camera is replaced. If there is no
-      camera for the given \a camera and \a image, a new one is added.
+      Insert a view into the set. If there is already a view for the given
+      \a camera and \a image, the existing view is replaced. If there is no
+      view for the given \a camera and \a image, a new one is added.
 
-      \a camera and \a image are the keys used to retrieve the cameras with the
+      \a camera and \a image are the keys used to retrieve the views with the
       other methods in this class.
 
       \note You should use the same \a camera and \a image identifiers as in
       \l Tracks.
   */
-  void InsertCamera(int camera, int image, const Mat34 &P);
+  void InsertView(int camera, int image, const Mat34 &P);
 
   /*!
       Insert a point into the reconstruction. If there is already a point for
@@ -220,15 +220,15 @@ class ProjectiveReconstruction {
   */
   void InsertPoint(int track, const Vec4 &X);
 
-  /// Returns a pointer to the camera corresponding to \a image.
-  ProjectiveCamera *CameraForImage(int camera, int image);
-  const ProjectiveCamera *CameraForImage(int camera, int image) const;
+  /// Returns a pointer to the view corresponding to \a image.
+  ProjectiveView *ViewForImage(int camera, int image);
+  const ProjectiveView *ViewForImage(int camera, int image) const;
 
-  /// Returns all cameras.
-  std::vector<vector<ProjectiveCamera> > AllCameras() const;
+  /// Returns all views.
+  std::vector<vector<ProjectiveView> > AllViews() const;
 
-  /// Returns all cameras for a particular \a camera.
-  vector<ProjectiveCamera> AllCamerasForView(int camera) const;
+  /// Returns all views for a particular \a camera.
+  vector<ProjectiveView> AllViewsForCamera(int camera) const;
 
   /// Returns a pointer to the point corresponding to \a track.
   ProjectivePoint *PointForTrack(int track);
@@ -238,7 +238,7 @@ class ProjectiveReconstruction {
   vector<ProjectivePoint> AllPoints() const;
 
  private:
-  std::vector<vector<ProjectiveCamera> > cameras_;
+  std::vector<vector<ProjectiveView> > views_;
   vector<ProjectivePoint> points_;
 };
 
