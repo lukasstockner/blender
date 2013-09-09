@@ -2200,8 +2200,6 @@ void barycentric_weights_v2_quad(const float v1[2], const float v2[2], const flo
 	        ((_area = cross_v2v2(dirs[i1], dirs[i2])) != 0.0f ? \
 	         fabsf(((lens[i1] * lens[i2]) - dot_v2v2(dirs[i1], dirs[i2])) / _area) : 0.0f)
 
-	float wtot, area;
-
 	const float dirs[4][2] = {
 	    {v1[0] - co[0], v1[1] - co[1]},
 	    {v2[0] - co[0], v2[1] - co[1]},
@@ -2216,20 +2214,29 @@ void barycentric_weights_v2_quad(const float v1[2], const float v2[2], const flo
 	    len_v2(dirs[3]),
 	};
 
-	/* variable 'area' is just for storage,
-	 * the order its initialized doesn't matter */
+	/* avoid divide by zero */
+	if      (UNLIKELY(lens[0] < FLT_EPSILON)) { w[0] = 1.0f; w[1] = w[2] = w[3] = 0.0f; }
+	else if (UNLIKELY(lens[1] < FLT_EPSILON)) { w[1] = 1.0f; w[0] = w[2] = w[3] = 0.0f; }
+	else if (UNLIKELY(lens[2] < FLT_EPSILON)) { w[2] = 1.0f; w[0] = w[1] = w[3] = 0.0f; }
+	else if (UNLIKELY(lens[3] < FLT_EPSILON)) { w[3] = 1.0f; w[0] = w[1] = w[2] = 0.0f;
+	}
+	else {
+		float wtot, area;
+
+		/* variable 'area' is just for storage,
+		 * the order its initialized doesn't matter */
 #ifdef __clang__
 #  pragma clang diagnostic push
 #  pragma clang diagnostic ignored "-Wunsequenced"
 #endif
 
-	/* inline mean_value_half_tan four times here */
-	float t[4] = {
-	    MEAN_VALUE_HALF_TAN_V2(area, 0, 1),
-	    MEAN_VALUE_HALF_TAN_V2(area, 1, 2),
-	    MEAN_VALUE_HALF_TAN_V2(area, 2, 3),
-	    MEAN_VALUE_HALF_TAN_V2(area, 3, 0),
-	};
+		/* inline mean_value_half_tan four times here */
+		float t[4] = {
+			MEAN_VALUE_HALF_TAN_V2(area, 0, 1),
+			MEAN_VALUE_HALF_TAN_V2(area, 1, 2),
+			MEAN_VALUE_HALF_TAN_V2(area, 2, 3),
+			MEAN_VALUE_HALF_TAN_V2(area, 3, 0),
+		};
 
 #ifdef __clang__
 #  pragma clang diagnostic pop
@@ -2237,18 +2244,19 @@ void barycentric_weights_v2_quad(const float v1[2], const float v2[2], const flo
 
 #undef MEAN_VALUE_HALF_TAN_V2
 
-	w[0] = (t[3] + t[0]) / lens[0];
-	w[1] = (t[0] + t[1]) / lens[1];
-	w[2] = (t[1] + t[2]) / lens[2];
-	w[3] = (t[2] + t[3]) / lens[3];
+		w[0] = (t[3] + t[0]) / lens[0];
+		w[1] = (t[0] + t[1]) / lens[1];
+		w[2] = (t[1] + t[2]) / lens[2];
+		w[3] = (t[2] + t[3]) / lens[3];
 
-	wtot = w[0] + w[1] + w[2] + w[3];
+		wtot = w[0] + w[1] + w[2] + w[3];
 
-	if (wtot != 0.0f) {
-		mul_v4_fl(w, 1.0f / wtot);
-	}
-	else { /* dummy values for zero area face */
-		copy_v4_fl(w, 1.0f / 4.0f);
+		if (wtot != 0.0f) {
+			mul_v4_fl(w, 1.0f / wtot);
+		}
+		else { /* dummy values for zero area face */
+			copy_v4_fl(w, 1.0f / 4.0f);
+		}
 	}
 }
 
@@ -2386,17 +2394,16 @@ int interp_sparse_array(float *array, int const list_size, const float skipval)
  * more than 3 vertices */
 static float mean_value_half_tan_v3(const float v1[3], const float v2[3], const float v3[3])
 {
-	float d2[3], d3[3], cross[3], area, dot, len;
+	float d2[3], d3[3], cross[3], area;
 
 	sub_v3_v3v3(d2, v2, v1);
 	sub_v3_v3v3(d3, v3, v1);
 	cross_v3_v3v3(cross, d2, d3);
 
 	area = len_v3(cross);
-	dot = dot_v3v3(d2, d3);
-	len = len_v3(d2) * len_v3(d3);
-
 	if (LIKELY(area != 0.0f)) {
+		const float dot = dot_v3v3(d2, d3);
+		const float len = len_v3(d2) * len_v3(d3);
 		return (len - dot) / area;
 	}
 	else {
@@ -2405,18 +2412,16 @@ static float mean_value_half_tan_v3(const float v1[3], const float v2[3], const 
 }
 static float mean_value_half_tan_v2(const float v1[2], const float v2[2], const float v3[2])
 {
-	float d2[2], d3[2], area, dot, len;
+	float d2[2], d3[2], area;
 
 	sub_v2_v2v2(d2, v2, v1);
 	sub_v2_v2v2(d3, v3, v1);
 
 	/* different from the 3d version but still correct */
 	area = cross_v2v2(d2, d3);
-
-	dot = dot_v2v2(d2, d3);
-	len = len_v2(d2) * len_v2(d3);
-
 	if (LIKELY(area != 0.0f)) {
+		const float dot = dot_v2v2(d2, d3);
+		const float len = len_v2(d2) * len_v2(d3);
 		return (len - dot) / area;
 	}
 	else {

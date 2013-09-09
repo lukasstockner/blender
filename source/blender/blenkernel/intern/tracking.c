@@ -1303,25 +1303,6 @@ void BKE_tracking_marker_get_subframe_position(MovieTrackingTrack *track, float 
 
 /*********************** Plane Track *************************/
 
-static void plane_tracks_replace_point_track(ListBase *plane_tracks,
-                                             MovieTrackingTrack *old_track,
-                                             MovieTrackingTrack *new_track)
-{
-	MovieTrackingPlaneTrack *plane_track;
-
-	for (plane_track = plane_tracks->first;
-	    plane_track;
-	    plane_track = plane_track->next)
-	{
-		int i;
-		for (i = 0; i < plane_track->point_tracksnr; i++) {
-			if (plane_track->point_tracks[i] == old_track) {
-				plane_track->point_tracks[i] = new_track;
-			}
-		}
-	}
-}
-
 /* Creates new plane track out of selected point tracks */
 MovieTrackingPlaneTrack *BKE_tracking_plane_track_add(MovieTracking *tracking, ListBase *plane_tracks_base,
                                                       ListBase *tracks, int framenr)
@@ -2386,19 +2367,15 @@ static void tracks_map_insert(TracksMap *map, MovieTrackingTrack *track, void *c
 	map->ptr++;
 }
 
-/* TODO(sergey): Make it so tracks are not re-allocating here */
 static void tracks_map_merge(TracksMap *map, MovieTracking *tracking)
 {
 	MovieTrackingTrack *track;
-	MovieTrackingTrack *act_track = BKE_tracking_track_get_active(tracking);
-	MovieTrackingTrack *rot_track = tracking->stabilization.rot_track;
 	ListBase tracks = {NULL, NULL}, new_tracks = {NULL, NULL};
-	ListBase *old_tracks, *plane_tracks;
+	ListBase *old_tracks;
 	int a;
 
 	if (map->is_camera) {
 		old_tracks = &tracking->tracks;
-		plane_tracks = &tracking->plane_tracks;
 	}
 	else {
 		MovieTrackingObject *object = BKE_tracking_object_get_named(tracking, map->object_name);
@@ -2409,7 +2386,6 @@ static void tracks_map_merge(TracksMap *map, MovieTracking *tracking)
 		}
 
 		old_tracks = &object->tracks;
-		plane_tracks = &object->plane_tracks;
 	}
 
 	/* duplicate currently operating tracks to temporary list.
@@ -2417,52 +2393,49 @@ static void tracks_map_merge(TracksMap *map, MovieTracking *tracking)
 	 * of currently operating tracks (if needed)
 	 */
 	for (a = 0; a < map->num_tracks; a++) {
-		MovieTrackingTrack *new_track, *old_track;
+		MovieTrackingTrack *old_track;
+		bool mapped_to_old = false;
 
 		track = &map->tracks[a];
-
-		new_track = tracking_track_duplicate(track);
 
 		/* find original of operating track in list of previously displayed tracks */
 		old_track = BLI_ghash_lookup(map->hash, track);
 		if (old_track) {
 			if (BLI_findindex(old_tracks, old_track) != -1) {
-				/* Update active track in movie clip. */
-				if (old_track == act_track) {
-					tracking->act_track = new_track;
-				}
+				BLI_remlink(old_tracks, old_track);
 
-				/* Update track used for rotation stabilization. */
-				if (old_track == rot_track) {
-					tracking->stabilization.rot_track = new_track;
-				}
+				/* Copy flags like selection back to the track map. */
+				track->flag = old_track->flag;
+				track->pat_flag = old_track->pat_flag;
+				track->search_flag = old_track->search_flag;
 
-				new_track->flag = track->flag = old_track->flag;
-				new_track->pat_flag = track->pat_flag = old_track->pat_flag;
-				new_track->search_flag = track->search_flag = old_track->search_flag;
+				/* Copy all the rest settings back from the map to the actual tracks. */
+				MEM_freeN(old_track->markers);
+				*old_track = *track;
+				old_track->markers = MEM_dupallocN(old_track->markers);
 
-				plane_tracks_replace_point_track(plane_tracks, old_track, new_track);
+				BLI_addtail(&tracks, old_track);
 
-				BKE_tracking_track_free(old_track);
-				BLI_freelinkN(old_tracks, old_track);
+				mapped_to_old = true;
 			}
 		}
 
-		/* Update old-new track mapping */
-		BLI_ghash_remove(map->hash, track, NULL, NULL);
-		BLI_ghash_insert(map->hash, track, new_track);
+		if (mapped_to_old == false) {
+			MovieTrackingTrack *new_track = tracking_track_duplicate(track);
 
-		BLI_addtail(&tracks, new_track);
+			/* Update old-new track mapping */
+			BLI_ghash_remove(map->hash, track, NULL, NULL);
+			BLI_ghash_insert(map->hash, track, new_track);
+
+			BLI_addtail(&tracks, new_track);
+		}
 	}
 
 	/* move all tracks, which aren't operating */
 	track = old_tracks->first;
 	while (track) {
 		MovieTrackingTrack *next = track->next;
-
-		track->next = track->prev = NULL;
 		BLI_addtail(&new_tracks, track);
-
 		track = next;
 	}
 
@@ -3164,7 +3137,7 @@ void BKE_tracking_refine_marker(MovieClip *clip, MovieTrackingTrack *track, Movi
 
 	BKE_movieclip_get_size(clip, &user, &frame_width, &frame_height);
 
-	/* Get an image buffer for reference frame, also gets referecnce marker.
+	/* Get an image buffer for reference frame, also gets reference marker.
 	 *
 	 * Usually tracking_context_get_reference_ibuf will return current frame
 	 * if marker is keyframed, which is correct for normal tracking. But here
@@ -3494,7 +3467,7 @@ static bool reconstruct_retrieve_libmv_tracks(MovieReconstructContext *context, 
 			track->flag &= ~TRACK_HAS_BUNDLE;
 			ok = false;
 
-			printf("No bundle for track #%d '%s'\n", tracknr, track->name);
+			printf("Unable to reconstruct position for track #%d '%s'\n", tracknr, track->name);
 		}
 
 		track = track->next;
@@ -4057,7 +4030,7 @@ void BKE_tracking_detect_fast(MovieTracking *tracking, ListBase *tracksbase, ImB
 
 /*********************** 2D stabilization *************************/
 
-/* Claculate median point of markers of tracks marked as used for
+/* Calculate median point of markers of tracks marked as used for
  * 2D stabilization.
  *
  * NOTE: frame number should be in clip space, not scene space
@@ -4414,7 +4387,7 @@ ImBuf *BKE_tracking_stabilize_frame(MovieTracking *tracking, int framenr, ImBuf 
  * stabilization data and used for easy coordinate
  * transformation.
  *
- * NOTE: The reaosn it is 4x4 matrix is because it's
+ * NOTE: The reason it is 4x4 matrix is because it's
  *       used for OpenGL drawing directly.
  */
 void BKE_tracking_stabilization_data_to_mat4(int width, int height, float aspect,
