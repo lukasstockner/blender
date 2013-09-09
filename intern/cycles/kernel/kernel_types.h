@@ -69,6 +69,7 @@ CCL_NAMESPACE_BEGIN
 #if __CUDA_ARCH__ >= 200
 #define __KERNEL_ADV_SHADING__
 #define __BRANCHED_PATH__
+//#define __VOLUME__
 #endif
 #endif
 

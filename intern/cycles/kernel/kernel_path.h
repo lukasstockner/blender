@@ -40,7 +40,9 @@
 #include "kernel_subsurface.h"
 #endif
 
+#ifdef __VOLUME__
 #include "kernel_volume.h"
+#endif
 
 CCL_NAMESPACE_BEGIN
 
@@ -666,7 +668,11 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 				light_ray.dP = sd.dP;
 				light_ray.dD = differential3_zero();
 
+#ifdef __VOLUME__
 				if(!shadow_blocked_new(kg, rng, rng_offset, &rng_congruential, sample, &state, &light_ray, &ao_shadow, media_volume_shader, &tmp_volume_pdf, state.bounce))
+#else
+				if(!shadow_blocked(kg, &state, &light_ray, &ao_shadow))
+#endif
 					path_radiance_accum_ao(&L, throughput, ao_bsdf, ao_shadow, state.bounce);
 			}
 		}
