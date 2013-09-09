@@ -29,15 +29,16 @@ namespace libmv {
 
 /*!
     This solver solves such camera motion as tripod rotation, reconstructing
-    only camera motion itself. Bundles are not reconstructing properly, they're
-    just getting projected onto sphere.
+    only camera motion itself. Bundles are not reconstructing properly; they're
+    projected onto sphere.
 
-    Markers from tracks object would be used for recosntruction, and algorithm
-    assumes thir's positions are undistorted already and they're in nnormalized
-    space.
+    Markers from tracks object are used for reconstruction. The algorithm
+    assumes their positions are undistorted already and that they're in
+    normalized space.
 
-    Reconstructed cameras and projected bundles would be added to reconstruction
-    object.
+    Reconstructed cameras and projected bundles are added to the given
+    reconstruction object. Only camera 0 is reconstructed, using only the
+    markers associated with camera 0.
 */
 void ModalSolver(const Tracks &tracks,
                  EuclideanReconstruction *reconstruction,
