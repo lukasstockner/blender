@@ -300,6 +300,7 @@ static int print_help(int UNUSED(argc), const char **UNUSED(argv), void *data)
 #ifdef WITH_LIBMV
 	BLI_argsPrintArgDoc(ba, "--debug-libmv");
 #endif
+	BLI_argsPrintArgDoc(ba, "--debug-memory");
 	BLI_argsPrintArgDoc(ba, "--debug-jobs");
 	BLI_argsPrintArgDoc(ba, "--debug-python");
 
@@ -435,6 +436,12 @@ static int debug_mode_libmv(int UNUSED(argc), const char **UNUSED(argv), void *U
 	return 0;
 }
 #endif
+
+static int debug_mode_memory(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
+{
+	MEM_set_memory_debug();
+	return 0;
+}
 
 static int set_debug_value(int argc, const char **argv, void *UNUSED(data))
 {
@@ -1381,6 +1388,7 @@ static void setupArguments(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 #ifdef WITH_LIBMV
 	BLI_argsAdd(ba, 1, NULL, "--debug-libmv", "\n\tEnable debug messages from libmv library", debug_mode_libmv, NULL);
 #endif
+	BLI_argsAdd(ba, 1, NULL, "--debug-memory", "\n\tEnable fully guarded memory allocation and debugging", debug_mode_memory, NULL);
 
 	BLI_argsAdd(ba, 1, NULL, "--debug-value", "<value>\n\tSet debug value of <value> on startup\n", set_debug_value, NULL);
 	BLI_argsAdd(ba, 1, NULL, "--debug-jobs",  "\n\tEnable time profiling for background jobs.", debug_mode_generic, (void *)G_DEBUG_JOBS);
@@ -1451,21 +1459,45 @@ int main(int argc, const char **UNUSED(argv_c)) /* Do not mess with const */
 int main(int argc, const char **argv)
 #endif
 {
-	bContext *C = CTX_create();
+	bContext *C;
 	SYS_SystemHandle syshandle;
 
 #ifndef WITH_PYTHON_MODULE
 	bArgs *ba;
 #endif
 
-#ifdef WIN32
-	wchar_t **argv_16 = CommandLineToArgvW(GetCommandLineW(), &argc);
-	int argci = 0;
-	char **argv = MEM_mallocN(argc * sizeof(char *), "argv array");
-	for (argci = 0; argci < argc; argci++) {
-		argv[argci] = alloc_utf_8_from_16(argv_16[argci], 0);
+	/* NOTE: Special excpetion for guarded allocator type switch:
+	 *       we need to perform switch from lock-free to fully
+	 *       guarded allocator before any allocation happened.
+	 */
+	{
+		int i;
+		for (i = 0; i < argc; i++) {
+			if (STREQ(argv[i], "--debug") || STREQ(argv[i], "-d") ||
+			    STREQ(argv[i], "--debug-memory"))
+			{
+				printf("Switching to fully guarded memory allocator.\n");
+				MEM_use_guarded_allocator();
+				break;
+			}
+			else if (STREQ(argv[i], "--")) {
+				break;
+			}
+		}
 	}
-	LocalFree(argv_16);
+
+	C = CTX_create();
+
+#ifdef WIN32
+	{
+		wchar_t **argv_16 = CommandLineToArgvW(GetCommandLineW(), &argc);
+		int argci = 0;
+		char **argv = MEM_mallocN(argc * sizeof(char *), "argv array");
+		for (argci = 0; argci < argc; argci++) {
+			argv[argci] = alloc_utf_8_from_16(argv_16[argci], 0);
+		}
+		LocalFree(argv_16);
+	}
 #endif
 
 #ifdef WITH_PYTHON_MODULE
