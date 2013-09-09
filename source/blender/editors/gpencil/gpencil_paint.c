@@ -2037,12 +2037,10 @@ static int gpencil_draw_icon(const bContext *UNUSED(C), PointerRNA *opptr)
 {
 	if (opptr) {
 		switch (RNA_enum_get(opptr, "mode")) {
-			case GP_PAINTMODE_DRAW: return ICON_GREASE_DRAW;
-			case GP_PAINTMODE_DRAW_STRAIGHT: return ICON_GREASE_LINE;
-			case GP_PAINTMODE_DRAW_POLY:
-				return ICON_GREASE_POLY;
-			case GP_PAINTMODE_ERASER:
-				return ICON_GREASE_ERASE;
+			case GP_PAINTMODE_DRAW: return OPICON_GREASE_DRAW;
+			case GP_PAINTMODE_DRAW_STRAIGHT: return OPICON_GREASE_LINE;
+			case GP_PAINTMODE_DRAW_POLY: return OPICON_GREASE_POLY;
+			case GP_PAINTMODE_ERASER: return OPICON_GREASE_ERASE;
 		}
 	}
 		

@@ -77,9 +77,6 @@
 #include "interface_intern.h"
 
 #ifndef WITH_HEADLESS
-#define ICON_GRID_COLS      26
-#define ICON_GRID_ROWS      30
-
 #define ICON_GRID_MARGIN    10
 #define ICON_GRID_W         32
 #define ICON_GRID_H         32
@@ -130,6 +127,7 @@ typedef struct IconTexture {
  * scanning the filesystem each time the menu is drawn */
 static struct ListBase iconfilelist = {NULL, NULL};
 static IconTexture icongltex = {0, 0, 0, 0.0f, 0.0f};
+static IconTexture opicongltex = {0, 0, 0, 0.0f, 0.0f};
 
 /* **************************************************** */
 
@@ -587,11 +585,78 @@ static void init_matcap_icons(void)
 
 }
 
+static void generate_mipmaps(ImBuf **b32buf, ImBuf **b16buf, IconTexture *gltex, int rows, int cols, int offset)
+{
+	int x, y, icontype;
+
+	if (*b16buf && *b32buf) {
+		/* free existing texture if any */
+		if (gltex->id) {
+			glDeleteTextures(1, &gltex->id);
+			gltex->id = 0;
+		}
+		
+		/* we only use a texture for cards with non-power of two */
+		if (GPU_non_power_of_two_support()) {
+			glGenTextures(1, &gltex->id);
+			
+			
+			if (gltex->id) {
+				int level = 2;
+				
+				gltex->w = (*b32buf)->x;
+				gltex->h = (*b32buf)->y;
+				gltex->invw = 1.0f / (*b32buf)->x;
+				gltex->invh = 1.0f / (*b32buf)->y;
+				
+				glBindTexture(GL_TEXTURE_2D, gltex->id);
+				
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, (*b32buf)->x, (*b32buf)->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, (*b32buf)->rect);
+				glTexImage2D(GL_TEXTURE_2D, 1, GL_RGBA, (*b16buf)->x, (*b16buf)->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, (*b16buf)->rect);
+				
+				while ((*b16buf)->x > 1) {
+					ImBuf *nbuf = IMB_onehalf(*b16buf);
+					glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, nbuf->x, nbuf->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, nbuf->rect);
+					level++;
+					IMB_freeImBuf(*b16buf);
+					*b16buf = nbuf;
+				}
+				
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+				
+				glBindTexture(GL_TEXTURE_2D, 0);
+				
+				if (glGetError() == GL_OUT_OF_MEMORY) {
+					glDeleteTextures(1, &gltex->id);
+					gltex->id = 0;
+				}
+			}
+		}
+	}
+	
+	if (gltex->id)
+		icontype = ICON_TYPE_TEXTURE;
+	else
+		icontype = ICON_TYPE_BUFFER;
+	
+	if (*b32buf) {
+		for (y = 0; y < rows; y++) {
+			for (x = 0; x < cols; x++) {
+				def_internal_icon(*b32buf, offset + y * cols + x,
+				                  x * (ICON_GRID_W + ICON_GRID_MARGIN) + ICON_GRID_MARGIN,
+				                  y * (ICON_GRID_H + ICON_GRID_MARGIN) + ICON_GRID_MARGIN, ICON_GRID_W,
+				                  icontype);
+			}
+		}
+	}
+}
+
 static void init_internal_icons(void)
 {
 //	bTheme *btheme = UI_GetTheme();
 	ImBuf *b16buf = NULL, *b32buf = NULL;
-	int x, y, icontype;
+	ImBuf *b16bufOps = NULL, *b32bufOps = NULL;
 
 #if 0 // temp disabled
 	if ((btheme != NULL) && btheme->tui.iconfile[0]) {
@@ -612,6 +677,8 @@ static void init_internal_icons(void)
 		}
 	}
 #endif
+	
+	/* interface icons */
 	if (b16buf == NULL)
 		b16buf = IMB_ibImageFromMemory((unsigned char *)datatoc_blender_icons16_png,
 		                             datatoc_blender_icons16_png_size, IB_rect, NULL, "<blender icons>");
@@ -624,67 +691,8 @@ static void init_internal_icons(void)
 	if (b32buf)
 		IMB_premultiply_alpha(b32buf);
 	
-	if (b16buf && b32buf) {
-		/* free existing texture if any */
-		if (icongltex.id) {
-			glDeleteTextures(1, &icongltex.id);
-			icongltex.id = 0;
-		}
-
-		/* we only use a texture for cards with non-power of two */
-		if (GPU_non_power_of_two_support()) {
-			glGenTextures(1, &icongltex.id);
-
-			if (icongltex.id) {
-				int level = 2;
-				
-				icongltex.w = b32buf->x;
-				icongltex.h = b32buf->y;
-				icongltex.invw = 1.0f / b32buf->x;
-				icongltex.invh = 1.0f / b32buf->y;
-
-				glBindTexture(GL_TEXTURE_2D, icongltex.id);
-				
-				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, b32buf->x, b32buf->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, b32buf->rect);
-				glTexImage2D(GL_TEXTURE_2D, 1, GL_RGBA, b16buf->x, b16buf->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, b16buf->rect);
-				
-				while (b16buf->x > 1) {
-					ImBuf *nbuf = IMB_onehalf(b16buf);
-					glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, nbuf->x, nbuf->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, nbuf->rect);
-					level++;
-					IMB_freeImBuf(b16buf);
-					b16buf = nbuf;
-				}
-				
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-				
-				glBindTexture(GL_TEXTURE_2D, 0);
-				
-				if (glGetError() == GL_OUT_OF_MEMORY) {
-					glDeleteTextures(1, &icongltex.id);
-					icongltex.id = 0;
-				}
-			}
-		}
-	}
-
-	if (icongltex.id)
-		icontype = ICON_TYPE_TEXTURE;
-	else
-		icontype = ICON_TYPE_BUFFER;
+	generate_mipmaps(&b32buf, &b16buf, &icongltex, ICON_GRID_ROWS, ICON_GRID_COLS, BIFICONID_FIRST);
 	
-	if (b32buf) {
-		for (y = 0; y < ICON_GRID_ROWS; y++) {
-			for (x = 0; x < ICON_GRID_COLS; x++) {
-				def_internal_icon(b32buf, BIFICONID_FIRST + y * ICON_GRID_COLS + x,
-				                  x * (ICON_GRID_W + ICON_GRID_MARGIN) + ICON_GRID_MARGIN,
-				                  y * (ICON_GRID_H + ICON_GRID_MARGIN) + ICON_GRID_MARGIN, ICON_GRID_W,
-				                  icontype);
-			}
-		}
-	}
-
 	def_internal_vicon(VICO_VIEW3D_VEC, vicon_view3d_draw);
 	def_internal_vicon(VICO_EDIT_VEC, vicon_edit_draw);
 	def_internal_vicon(VICO_EDITMODE_VEC_DEHLT, vicon_editmode_dehlt_draw);
@@ -695,9 +703,27 @@ static void init_internal_icons(void)
 	def_internal_vicon(VICO_MOVE_DOWN_VEC, vicon_move_down_draw);
 	def_internal_vicon(VICO_X_VEC, vicon_x_draw);
 	def_internal_vicon(VICO_SMALL_TRI_RIGHT_VEC, vicon_small_tri_right_draw);
-
+	
 	IMB_freeImBuf(b16buf);
 	IMB_freeImBuf(b32buf);
+	
+	/* operator icons */
+	if (b16bufOps == NULL)
+		b16bufOps = IMB_ibImageFromMemory((unsigned char *)datatoc_blender_operator_icons16_png,
+									   datatoc_blender_operator_icons16_png_size, IB_rect, NULL, "<blender operator icons>");
+	if (b16bufOps)
+		IMB_premultiply_alpha(b16bufOps);
+	
+	if (b32bufOps == NULL)
+		b32bufOps = IMB_ibImageFromMemory((unsigned char *)datatoc_blender_operator_icons32_png,
+									   datatoc_blender_operator_icons32_png_size, IB_rect, NULL, "<blender operator icons>");
+	if (b32bufOps)
+		IMB_premultiply_alpha(b32bufOps);
+	
+	generate_mipmaps(&b32bufOps, &b16bufOps, &opicongltex, OPICON_GRID_ROWS, OPICON_GRID_COLS, BIFICONID_FIRST_OP);
+
+	IMB_freeImBuf(b16bufOps);
+	IMB_freeImBuf(b32bufOps);
 	
 }
 #endif  /* WITH_HEADLESS */
@@ -807,6 +833,11 @@ void UI_icons_free(void)
 	if (icongltex.id) {
 		glDeleteTextures(1, &icongltex.id);
 		icongltex.id = 0;
+	}
+	
+	if (opicongltex.id) {
+		glDeleteTextures(1, &opicongltex.id);
+		opicongltex.id = 0;
 	}
 
 	free_iconfile_list(&iconfilelist);
@@ -1035,20 +1066,21 @@ static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect),
 }
 
 static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy,
-                              int UNUSED(iw), int ih, float alpha, const float rgb[3])
+                              int UNUSED(iw), int ih, float alpha, const float rgb[3],
+							  IconTexture *icontex)
 {
 	float x1, x2, y1, y2;
 
 	if (rgb) glColor4f(rgb[0], rgb[1], rgb[2], alpha);
 	else     glColor4f(alpha, alpha, alpha, alpha);
 
-	x1 = ix * icongltex.invw;
-	x2 = (ix + ih) * icongltex.invw;
-	y1 = iy * icongltex.invh;
-	y2 = (iy + ih) * icongltex.invh;
+	x1 = ix * icontex->invw;
+	x2 = (ix + ih) * icontex->invw;
+	y1 = iy * icontex->invh;
+	y2 = (iy + ih) * icontex->invh;
 
 	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, icongltex.id);
+	glBindTexture(GL_TEXTURE_2D, icontex->id);
 
 	/* sharper downscaling, has no effect when scale matches with a mip level */
 	glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, -0.5f);
@@ -1126,7 +1158,8 @@ static void icon_draw_size(float x, float y, int icon_id, float aspect, float al
 		/* texture image use premul alpha for correct scaling */
 		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 		icon_draw_texture(x, y, (float)w, (float)h, di->data.texture.x, di->data.texture.y,
-		                  di->data.texture.w, di->data.texture.h, alpha, rgb);
+		                  di->data.texture.w, di->data.texture.h, alpha, rgb,
+						  (icon_id >= BIFICONID_FIRST_OP ? &opicongltex : &icongltex));
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
 	else if (di->type == ICON_TYPE_BUFFER) {

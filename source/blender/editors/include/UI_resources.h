@@ -32,21 +32,38 @@
 #ifndef __UI_RESOURCES_H__
 #define __UI_RESOURCES_H__
 
+#define ICON_AUTOMATIC -1
+
+#define ICON_GRID_COLS      26
+#define ICON_GRID_ROWS      30
+
+#define OPICON_GRID_COLS      26
+#define OPICON_GRID_ROWS      30
+
+#define OPICON_OFFSET 0x3FFF
+
 /* elubie: TODO: move the typedef for icons to UI_interface_icons.h */
 /* and add/replace include of UI_resources.h by UI_interface_icons.h */
 #define DEF_ICON(name) ICON_##name,
 #define DEF_VICO(name) VICO_##name,
+#define DEF_OPICON(name) OPICON_##name,
+#define DEF_FIRST_OPICON(name) OPICON_##name = OPICON_OFFSET,
 
 typedef enum {
 	/* ui */
 #include "UI_icons.h"
+#include "UI_opicons.h"
 	BIFICONID_LAST
 } BIFIconID;
 
+/* operator icons are offset by 0x3FFF */
 #define BIFICONID_FIRST  (ICON_NONE)
+#define BIFICONID_FIRST_OP (BIFICONID_FIRST + OPICON_OFFSET)
 
 #undef DEF_ICON
 #undef DEF_VICO
+#undef DEF_OPICON
+#undef DEF_FIRST_OPICON
 
 enum {
 	TH_REDALERT,

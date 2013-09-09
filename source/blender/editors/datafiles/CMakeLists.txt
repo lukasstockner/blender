@@ -56,6 +56,14 @@ if(WITH_BLENDER)
 		           #../../../../release/datafiles/blender_icons32.png
 		           #180 SRC)
 		data_to_c_simple(../../../../release/datafiles/blender_icons32.png SRC)
+		#svg_to_png(../../../../release/datafiles/blender_operator_icons.svg
+		           #../../../../release/datafiles/blender_operator_icons16.png
+		           #90 SRC)
+		data_to_c_simple(../../../../release/datafiles/blender_operator_icons16.png SRC)
+		#svg_to_png(../../../../release/datafiles/blender_operator_icons.svg
+		           #../../../../release/datafiles/blender_operator_icons32.png
+		           #180 SRC)
+		data_to_c_simple(../../../../release/datafiles/blender_operator_icons32.png SRC)
 		#svg_to_png(../../../../release/datafiles/prvicons.svg
 		           #../../../../release/datafiles/prvicons.png
 		           #90 SRC)

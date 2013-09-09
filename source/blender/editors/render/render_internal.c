@@ -71,6 +71,8 @@
 #include "ED_screen.h"
 #include "ED_view3d.h"
 
+#include "UI_resources.h"
+
 #include "RE_pipeline.h"
 #include "RE_engine.h"
 
@@ -719,6 +721,8 @@ void RENDER_OT_render(wmOperatorType *ot)
 	ot->invoke = screen_render_invoke;
 	ot->modal = screen_render_modal;
 	ot->exec = screen_render_exec;
+	
+	ot->default_icon = OPICON_RENDER;
 
 	/*ot->poll = ED_operator_screenactive;*/ /* this isn't needed, causes failer in background mode */
 

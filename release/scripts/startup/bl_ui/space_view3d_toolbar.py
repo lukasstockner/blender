@@ -82,13 +82,13 @@ class VIEW3D_PT_tools_objectmode_add(View3DPanel, Panel):
 
         col = layout.column(align=True)
         row = col.row(align=True, button_height=1.5)
-        row.operator("wm.call_menu", text="", single_unit=False, shortcut=False, icon='TOOLBAR_ADD').name = 'INFO_MT_add'
-        row.operator("object.delete", text="", shortcut=False, single_unit=False, icon='TOOLBAR_DELETE')
+        row.operator("wm.call_menu", text="", single_unit=False, shortcut=False, icon='ADD').name = 'INFO_MT_add'
+        row.operator("object.delete", text="", shortcut=False, single_unit=False, icon='DELETE')
         
         col = layout.column(align=True)
         row = col.row(align=True)
-        row.operator("object.duplicate_move", text="", shortcut=False, single_unit=False, icon='TOOLBAR_DUP')
-        row.operator("object.duplicate_move_linked", text="", shortcut=False, single_unit=False, icon='TOOLBAR_DUP_LINKED')
+        row.operator("object.duplicate_move", text="", shortcut=False, single_unit=False, icon='DUP')
+        row.operator("object.duplicate_move_linked", text="", shortcut=False, single_unit=False, icon='DUP_LINKED')
         row = col.row(align=True)
         col.operator("object.join")
 

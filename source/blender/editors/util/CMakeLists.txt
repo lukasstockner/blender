@@ -84,6 +84,7 @@ set(SRC
 	../include/ED_uvedit.h
 	../include/ED_view3d.h
 	../include/UI_icons.h
+	../include/UI_opicons.h
 	../include/UI_interface.h
 	../include/UI_interface_icons.h
 	../include/UI_resources.h

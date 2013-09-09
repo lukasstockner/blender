@@ -1909,7 +1909,7 @@ void ED_region_menubar(const bContext *C, ARegion *ar)
 	for (oli = ar->operators.first; oli; oli = oli->next) {
 		if (strcmp(oli->context, CTX_data_mode_string(C)) == 0) {
 			wmOperatorType *ot = WM_operatortype_find(oli->optype_idname, TRUE);
-			uiItemFullO_ptr(row, ot, "", ICON_AUTOMATIC, IDP_CopyProperty(oli->properties), oli->opcontext, UI_ITEM_O_SINGLE_UNIT);
+			uiItemFullO_ptr(row, ot, "", ICON_AUTOMATIC, IDP_CopyProperty(oli->properties), oli->opcontext, 0 /*UI_ITEM_O_SINGLE_UNIT*/);
 		}
 	}
 

@@ -102,12 +102,17 @@ EnumPropertyItem node_chunksize_items[] = {
 #define DEF_ICON_BLANK_SKIP
 #define DEF_ICON(name) {ICON_##name, (#name), 0, (#name), ""},
 #define DEF_VICO(name)
+#define DEF_OPICON(name) {OPICON_##name, (#name), 0, (#name), ""},
+#define DEF_FIRST_OPICON(name) {OPICON_##name, (#name), 0, (#name), ""},
 EnumPropertyItem node_icon_items[] = {
 #include "UI_icons.h"
+#include "UI_opicons.h"
 	{0, NULL, 0, NULL, NULL}};
 #undef DEF_ICON_BLANK_SKIP
 #undef DEF_ICON
 #undef DEF_VICO
+#undef DEF_OPICON
+#undef DEF_FIRST_OPICON
 
 EnumPropertyItem node_math_items[] = {
 	{ 0, "ADD",          0, "Add",          ""},
