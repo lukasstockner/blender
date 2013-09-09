@@ -1044,7 +1044,7 @@ __device int shader_volume_bsdf_sample(KernelGlobals *kg, const ShaderData *sd,
 	float3 eval = make_float3(0.0f, 0.0f, 0.0f);
 
 	*pdf = 0.0f;
-	label = volume_bsdf_sample(kg, sd, sc, randu, randv, &eval, omega_in, domega_in, pdf);
+	label = volume_sample(kg, sd, sc, randu, randv, &eval, omega_in, domega_in, pdf);
 
 	if(*pdf != 0.0f) {
 		bsdf_eval_init(bsdf_eval, sc->type, eval*sc->weight, kernel_data.film.use_light_pass);
@@ -1060,14 +1060,14 @@ __device int shader_volume_bsdf_sample(KernelGlobals *kg, const ShaderData *sd,
 	/* sample the single closure that we picked */
 	*pdf = 0.0f;
 #if 0
-	int label = volume_bsdf_sample(kg, sd, &sd->closure, randu, randv, bsdf_eval, omega_in, domega_in, pdf);
+	int label = volume_sample(kg, sd, &sd->closure, randu, randv, bsdf_eval, omega_in, domega_in, pdf);
 	*bsdf_eval *= sd->closure.weight;
 #else
 	const ShaderClosure *sc = &sd->closure;
 	int label;
 	float3 eval = make_float3(0.0f, 0.0f, 0.0f);
 
-	label = volume_bsdf_sample(kg, sd, sc, randu, randv, &eval, omega_in, domega_in, pdf);
+	label = volume_sample(kg, sd, sc, randu, randv, &eval, omega_in, domega_in, pdf);
 	bsdf_eval_init(bsdf_eval, sc->type, eval*sc->weight, kernel_data.film.use_light_pass);
 #endif
 	return label;

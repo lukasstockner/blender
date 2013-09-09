@@ -138,8 +138,8 @@ __device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const ShaderC
 
 #ifdef __VOLUME__
 	// need this to keep logic in kernel_emission.h direct light in case of volume particle
-	if (sc->type == CLOSURE_BSDF_DOUBLE_PEAKED_HENYEY_GREENSTEIN_ID)
-		return bsdf_double_peaked_henyey_greenstein_eval(sc, sd->I, omega_in, pdf);
+	if (CLOSURE_IS_VOLUME(sc->type))
+		return volume_eval_phase(kg, sc, sd->I, omega_in, pdf);
 #endif
 
 	if(dot(sd->Ng, omega_in) >= 0.0f) {

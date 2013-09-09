@@ -143,11 +143,11 @@ BSDF_CLOSURE_CLASS_BEGIN(MicrofacetBeckmannRefraction, microfacet_beckmann_refra
 	CLOSURE_FLOAT_PARAM(MicrofacetBeckmannRefractionClosure, sc.data1),
 BSDF_CLOSURE_CLASS_END(MicrofacetBeckmannRefraction, microfacet_beckmann_refraction)
 
-VOLUME_CLOSURE_CLASS_BEGIN(VolumeHenyeyGreenstein, henyey_greenstein, henyey_greenstein)
-	CLOSURE_FLOAT3_PARAM(VolumeHenyeyGreensteinClosure, sc.N),
-	CLOSURE_FLOAT_PARAM(VolumeHenyeyGreensteinClosure, sc.data0),
-	CLOSURE_FLOAT_PARAM(VolumeHenyeyGreensteinClosure, sc.data1),
-VOLUME_CLOSURE_CLASS_END(VolumeHenyeyGreenstein, henyey_greenstein)
+VOLUME_CLOSURE_CLASS_BEGIN(VolumeIsotropic, isotropic, isotropic)
+	CLOSURE_FLOAT3_PARAM(VolumeIsotropicClosure, sc.N),
+	CLOSURE_FLOAT_PARAM(VolumeIsotropicClosure, sc.data0),
+	CLOSURE_FLOAT_PARAM(VolumeIsotropicClosure, sc.data1),
+VOLUME_CLOSURE_CLASS_END(VolumeIsotropic, isotropic)
 
 /* Registration */
 
@@ -234,7 +234,7 @@ void OSLShader::register_closures(OSLShadingSystem *ss_)
 		closure_bssrdf_gaussian_extended_params(), closure_bssrdf_gaussian_prepare);
 
 	register_closure(ss, "henyey_greenstein", id++,
-		bsdf_henyey_greenstein_params(), bsdf_henyey_greenstein_prepare);
+		volume_isotropic_params(), volume_isotropic_prepare);
 }
 
 CCL_NAMESPACE_END

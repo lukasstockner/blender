@@ -19,78 +19,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-#if 0 /* XXX unused */
-/* note: the interfaces here are just as an example, need to figure
- * out the right functions and parameters to use */
-
-/* ISOTROPIC VOLUME CLOSURE */
-
-__device int volume_isotropic_setup(ShaderClosure *sc)
-{
-	sc->type = CLOSURE_VOLUME_ISOTROPIC_ID;
-
-	return SD_VOLUME;
-}
-
-__device float3 volume_isotropic_eval_phase(const ShaderClosure *sc, const float3 omega_in, const float3 omega_out)
-{
-	return make_float3(1.0f, 1.0f, 1.0f);
-}
-
-/* TRANSPARENT VOLUME CLOSURE */
-
-__device int volume_transparent_setup(ShaderClosure *sc)
-{
-	sc->type = CLOSURE_VOLUME_TRANSPARENT_ID;
-
-	return SD_VOLUME;
-}
-
-__device float3 volume_transparent_eval_phase(const ShaderClosure *sc, const float3 omega_in, const float3 omega_out)
-{
-	return make_float3(1.0f, 1.0f, 1.0f);
-}
-
-/* VOLUME CLOSURE */
-
-__device float3 volume_eval_phase(KernelGlobals *kg, const ShaderClosure *sc, const float3 omega_in, const float3 omega_out)
-{
-#ifdef __OSL__
-	if(kg->osl && sc->prim)
-		return OSLShader::volume_eval_phase(sc, omega_in, omega_out);
-#endif
-
-	float3 eval;
-
-	switch(sc->type) {
-		case CLOSURE_VOLUME_ISOTROPIC_ID:
-			eval = volume_isotropic_eval_phase(sc, omega_in, omega_out);
-			break;
-		case CLOSURE_VOLUME_TRANSPARENT_ID:
-			eval = volume_transparent_eval_phase(sc, omega_in, omega_out);
-			break;
-		default:
-			eval = make_float3(0.0f, 0.0f, 0.0f);
-			break;
-	}
-
-	return eval;
-}
-#endif
-
-/* HENYEY_GREENSTEIN CLOSURE */
-
-__device int volume_double_peaked_henyey_greeenstein_setup(ShaderClosure *sc)
-{
-	sc->type = CLOSURE_BSDF_DOUBLE_PEAKED_HENYEY_GREENSTEIN_ID;
-	return SD_BSDF|SD_BSDF_HAS_EVAL;
-}
-
-/* XXX wrapper for OSL closure macros + typo fix ... remove after cleanup */
-__device int bsdf_henyey_greenstein_setup(ShaderClosure *sc)
-{
-	return volume_double_peaked_henyey_greeenstein_setup(sc);
-}
+/* ISOTROPIC VOLUME CLOSURE (Henyey-Greenstein) */
 
 // given cosinus between rays, return probability density that photon bounce to that direction
 // F and g parameters controlling how far it difference from uniform sphere. g=0 uniform diffusion-like, g = 1 - very close to sharp single ray,
@@ -103,118 +32,33 @@ __device float single_peaked_henyey_greenstein(float cos_theta, float m_g)
 	return p;
 };
 
+__device int volume_isotropic_setup(ShaderClosure *sc)
+{
+	sc->type = CLOSURE_VOLUME_ISOTROPIC_ID;
 
-__device float single_peaked_henyey_greenstein_accumulated_prob(float cos_theta, float m_g)
-{
-	float p = (1.0f-m_g*m_g) / (2.0f * m_g) * 
-		(pow(1.0f+m_g*m_g-2.0f*m_g*cos_theta,1.5f) - 1.0f / (1.0f + m_g));
-	return p;
-};
-/*
-__device float single_peaked_henyey_greenstein_forward_prob(float m_g)
-{
-	float p = (1.0f-m_g) * (1.0f + m_g) / 
-		pow(1.0f+m_g*m_g-2.0f*m_g*cos_theta,1.5f) / 4.0f/M_PI_F;
-	return p;
-};
-*/
-__device float double_peaked_henyey_greenstein(float cos_theta, float m_F, float m_g)
-{
-#if 0
-	float q1 = (1.0f-sqrt(m_g))/pow(1.0f+sqrt(m_g)-2.0f*m_g*cos_theta,1.5f)/4.0f/M_PI_F;
-	float q2 = (1.0f-sqrt(m_g))/pow(1.0f+sqrt(m_g)+2.0f*m_g*cos_theta,1.5f)/4.0f/M_PI_F;
-	float p = (1.0f+m_F)/2.0f*q1+(1.0f-m_F)/2.0f*q2;
-#else
-	float q1 = (1.0f-m_g*m_g)/pow(1.0f+m_g*m_g-2.0f*m_g*cos_theta,1.5f)/4.0f/M_PI_F;
-	float q2 = (1.0f-m_g*m_g)/pow(1.0f+m_g*m_g+2.0f*m_g*cos_theta,1.5f)/4.0f/M_PI_F;
-	float p = (1.0f+m_F)/2.0f*q1+(1.0f-m_F)/2.0f*q2;
-#endif
-	return p;
-};
-
-#if 0
+	return SD_BSDF|SD_BSDF_HAS_EVAL;
+}
 
 // just return bsdf at input vector
-__device float3 bsdf_double_peaked_henyey_greenstein_eval(const ShaderData *sd, const ShaderClosure *sc, const float3 I, float3 omega_in, float *pdf)
+__device float3 volume_isotropic_eval_phase(const ShaderClosure *sc, const float3 I, float3 omega_in, float *pdf)
 {
-	float m_F = sc->data0;
-	float m_g = sc->data1;
-
-	float cos_theta = dot( sd->I, omega_in);
-	*pdf = double_peaked_henyey_greenstein( cos_theta, m_F, m_g);
-	return make_float3( *pdf, *pdf, *pdf);
-}
-// calculate sample vector, return it and bsdf
-// brute force version, sphere uniform sample, then calc pdf at random vector. work good only when g very close to 0
-__device int bsdf_double_peaked_henyey_greenstein_sample(const ShaderData *sd, const ShaderClosure *sc, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
-{
-//	float m_F = sc->data0;
-	float m_g = sc->data1;
-	float3 m_N = sd->N;
-
-//	sample_cos_hemisphere(m_N, randu, randv, omega_in, pdf);
-
-	*omega_in = sample_uniform_sphere( randu, randv);
-//	*omega_in = normalize(*omega_in);
-
-	float cos_theta = dot( sd->I, *omega_in);
-#if 0
-	cos_theta = 1;
-	m_F = 0;
-	m_g = 0;
-#endif
-//	float q1 = (1.0f-sqrt(m_g))/pow(1.0f+sqrt(m_g)-2.0f*m_g*cos_theta,1.5f)/4.0f/M_PI_F;
-//	float q2 = (1.0f-sqrt(m_g))/pow(1.0f+sqrt(m_g)+2.0f*m_g*cos_theta,1.5f)/4.0f/M_PI_F;
-//	float p = (1.0f+m_F)/2.0f*q1+(1.0f-m_F)/2.0f*q2;
-//	p = M_1_PI_F;
-//	*pdf = p;
-//	*pdf = double_peaked_henyey_greenstein(cos_theta, m_F, m_g);
-//	*pdf = single_peaked_henyey_greenstein(cos_theta, m_g);
-	*pdf = 1.0f/4.0f/M_PI_F;
-
-//	*pdf = cos_theta;
-	*eval = make_float3(*pdf, *pdf, *pdf);
-//	*eval *= sc->weight[1]; // absorb?
-//	*eval = make_float3(sc->data1, *pdf, *pdf);
-#ifdef __RAY_DIFFERENTIALS__
-		// TODO: find a better approximation for the diffuse bounce
-		*domega_in_dx = (2 * dot(m_N, sd->dI.dx)) * m_N - sd->dI.dx;
-		*domega_in_dy = (2 * dot(m_N, sd->dI.dy)) * m_N - sd->dI.dy;
-		*domega_in_dx *= 125.0f;
-		*domega_in_dy *= 125.0f;
-#endif
-	return LABEL_REFLECT|LABEL_DIFFUSE;
-}
-#else
-
-// new optimized, importance sampled version, no difference when g = 0 but huge gain at other g values (less variance)
-
-// just return bsdf at input vector
-__device float3 bsdf_double_peaked_henyey_greenstein_eval(const ShaderClosure *sc, const float3 I, float3 omega_in, float *pdf)
-{
-//	float m_F = sc->data0;
 	float m_g = sc->data1;
 	const float magic_eps = 0.001f;
 
-	// WARNING! I point in backward direction!
-//	float cos_theta = dot( I, omega_in);
-	float cos_theta = dot( -I, omega_in);
-//	*pdf = double_peaked_henyey_greenstein( cos_theta, m_F, m_g);
-	if ( fabsf(m_g) <  magic_eps)
+//	WARNING! I point in backward direction!
+//	float cos_theta = dot(I, omega_in);
+	float cos_theta = dot(-I, omega_in);
+
+	if (fabsf(m_g) <  magic_eps)
 		*pdf = M_1_PI_F * 0.25f; // ?? double check it
 	else
-		*pdf = single_peaked_henyey_greenstein( cos_theta, m_g);
-//	*pdf = M_1_PI_F / 4;
+		*pdf = single_peaked_henyey_greenstein(cos_theta, m_g);
+
 	return make_float3( *pdf, *pdf, *pdf);
 }
 
-/* XXX wrapper for OSL closure macros ... remove after cleanup */
-__device float3 bsdf_henyey_greenstein_eval(const ShaderClosure *sc, const float3 I, float3 omega_in, float *pdf)
-{
-	return bsdf_double_peaked_henyey_greenstein_eval(sc, I, omega_in, pdf);
-}
-
-__device int bsdf_double_peaked_henyey_greenstein_sample(const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
+__device int volume_isotropic_sample(const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv,
+	float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
 {
 	float m_g = sc->data1;
 	const float magic_eps = 0.001f;
@@ -272,15 +116,55 @@ __device int bsdf_double_peaked_henyey_greenstein_sample(const ShaderClosure *sc
 	return LABEL_REFLECT|LABEL_DIFFUSE;
 }
 
-/* XXX wrapper for OSL closure macros ... remove after cleanup */
-__device int bsdf_henyey_greenstein_sample(const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
+/* TRANSPARENT VOLUME CLOSURE */
+
+__device int volume_transparent_setup(ShaderClosure *sc)
 {
-	return bsdf_double_peaked_henyey_greenstein_sample(sc, Ng, I, dIdx, dIdy, randu, randv, eval, omega_in, domega_in_dx, domega_in_dy, pdf);
+	sc->type = CLOSURE_VOLUME_TRANSPARENT_ID;
+
+	return SD_VOLUME;
 }
 
+__device float3 volume_transparent_eval_phase(const ShaderClosure *sc, const float3 I, float3 omega_in, float *pdf)
+{
+	return make_float3(1.0f, 1.0f, 1.0f);
+}
+
+__device int volume_transparent_sample(const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv,
+	float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
+{
+	/* XXX Implement */
+	return LABEL_REFLECT|LABEL_DIFFUSE;
+}
+
+/* VOLUME CLOSURE */
+
+__device float3 volume_eval_phase(KernelGlobals *kg, const ShaderClosure *sc, const float3 I, float3 omega_in, float *pdf)
+{
+#ifdef __OSL__
+	//if(kg->osl && sc->prim)
+	//	return OSLShader::volume_eval_phase(sc, I, omega_in, pdf);
 #endif
 
-__device int volume_bsdf_sample(KernelGlobals *kg, const ShaderData *sd, const ShaderClosure *sc, float randu, float randv, float3 *eval, float3 *omega_in, differential3 *domega_in, float *pdf)
+	float3 eval;
+
+	switch(sc->type) {
+		case CLOSURE_VOLUME_ISOTROPIC_ID:
+			eval = volume_isotropic_eval_phase(sc, I, omega_in, pdf);
+			break;
+		case CLOSURE_VOLUME_TRANSPARENT_ID:
+			eval = volume_transparent_eval_phase(sc, I, omega_in, pdf);
+			break;
+		default:
+			eval = make_float3(0.0f, 0.0f, 0.0f);
+			break;
+	}
+
+	return eval;
+}
+
+__device int volume_sample(KernelGlobals *kg, const ShaderData *sd, const ShaderClosure *sc, float randu,
+	float randv, float3 *eval, float3 *omega_in, differential3 *domega_in, float *pdf)
 {
 	int label;
 
@@ -290,8 +174,11 @@ __device int volume_bsdf_sample(KernelGlobals *kg, const ShaderData *sd, const S
 #endif
 
 	switch(sc->type) {
-		case CLOSURE_BSDF_DOUBLE_PEAKED_HENYEY_GREENSTEIN_ID:
-			label = bsdf_double_peaked_henyey_greenstein_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv, eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
+		case CLOSURE_VOLUME_ISOTROPIC_ID:
+			label = volume_isotropic_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv, eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
+			break;
+		case CLOSURE_VOLUME_TRANSPARENT_ID:
+			label = volume_transparent_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv, eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
 		default:
 			*eval = make_float3(0.0f, 0.0f, 0.0f);
@@ -303,6 +190,7 @@ __device int volume_bsdf_sample(KernelGlobals *kg, const ShaderData *sd, const S
 
 	return label;
 }
+
 CCL_NAMESPACE_END
 
 #endif

@@ -219,7 +219,7 @@ public: \
 	void setup() \
 	{ \
 		sc.prim = NULL; \
-		m_shaderdata_flag = bsdf_##lower##_setup(&sc); \
+		m_shaderdata_flag = volume_##lower##_setup(&sc); \
 	} \
 \
 	bool mergeable(const ClosurePrimitive *other) const \
@@ -234,7 +234,7 @@ public: \
 \
 	float3 eval(const float3 &omega_out, const float3 &omega_in, float& pdf) const \
 	{ \
-		return bsdf_##svmlower##_eval(&sc, omega_out, omega_in, &pdf); \
+		return volume_##svmlower##_eval_phase(&sc, omega_out, omega_in, &pdf); \
 	} \
 \
 	int sample(const float3 &Ng, \
@@ -243,13 +243,13 @@ public: \
 	           float3 &omega_in, float3 &domega_in_dx, float3 &domega_in_dy, \
 	           float &pdf, float3 &eval) const \
 	{ \
-		return bsdf_##svmlower##_sample(&sc, Ng, omega_out, domega_out_dx, domega_out_dy, \
+		return volume_##svmlower##_sample(&sc, Ng, omega_out, domega_out_dx, domega_out_dy, \
 			randu, randv, &eval, &omega_in, &domega_in_dx, &domega_in_dy, &pdf); \
 	} \
 \
 }; \
 \
-static ClosureParam *bsdf_##lower##_params() \
+static ClosureParam *volume_##lower##_params() \
 { \
 	static ClosureParam params[] = {
 
@@ -262,7 +262,7 @@ static ClosureParam *bsdf_##lower##_params() \
 	return params; \
 } \
 \
-CLOSURE_PREPARE_STATIC(bsdf_##lower##_prepare, Upper##Closure)
+CLOSURE_PREPARE_STATIC(volume_##lower##_prepare, Upper##Closure)
 
 CCL_NAMESPACE_END
 
