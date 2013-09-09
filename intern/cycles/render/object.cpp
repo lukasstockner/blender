@@ -46,7 +46,6 @@ Object::Object()
 	use_motion = false;
 	use_holdout = false;
 	curverender = false;
-	motion_multiplier = 1.0f;
 	dupli_generated = make_float3(0.0f, 0.0f, 0.0f);
 	dupli_uv = make_float2(0.0f, 0.0f);
 }

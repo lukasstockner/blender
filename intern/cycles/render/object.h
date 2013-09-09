@@ -52,8 +52,6 @@ public:
 	float2 dupli_uv;
 
 	int particle_id;
-	
-	float motion_multiplier;
 
 	Object();
 	~Object();

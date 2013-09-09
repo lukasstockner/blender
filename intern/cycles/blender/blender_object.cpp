@@ -239,17 +239,13 @@ Object *BlenderSync::sync_object(BL::Object b_parent, int persistent_id[OBJECT_P
 		object = object_map.find(key);
 
 		if(object) {
-			PointerRNA csettings = RNA_pointer_get(&b_ob.ptr, "cycles_settings");
-
-			object->motion_multiplier = get_float(csettings, "motion_multiplier");
-
 			if(tfm != object->tfm) {
 				if(motion == -1)
 					object->motion.pre = tfm;
 				else
 					object->motion.post = tfm;
-					
-				object->use_motion = get_boolean(csettings, "use_motion");
+
+				object->use_motion = true;
 			}
 
 			/* mesh deformation blur not supported yet */

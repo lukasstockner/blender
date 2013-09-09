@@ -103,8 +103,8 @@ public:
 	/* integrator */
 	device_vector<uint> sobol_directions;
 
-	/* CPU images */
-	device_vector<uchar4> tex_image[TEX_EXTENDED_NUM_IMAGES_CPU];
+	/* images */
+	device_vector<uchar4> tex_image[TEX_EXTENDED_NUM_IMAGES];
 	device_vector<float4> tex_float_image[TEX_EXTENDED_NUM_FLOAT_IMAGES];
 
 	/* opencl images */

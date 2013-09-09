@@ -328,7 +328,6 @@ static bool device_multi_add(vector<DeviceInfo>& devices, DeviceType type, bool 
 
 	info.advanced_shading = with_advanced_shading;
 	info.pack_images = false;
-	info.extended_images = true;
 
 	foreach(DeviceInfo& subinfo, devices) {
 		if(subinfo.type == type) {
@@ -352,7 +351,6 @@ static bool device_multi_add(vector<DeviceInfo>& devices, DeviceType type, bool 
 			if(subinfo.display_device)
 				info.display_device = true;
 			info.pack_images = info.pack_images || subinfo.pack_images;
-			info.extended_images = info.extended_images && subinfo.extended_images;
 			num_added++;
 		}
 	}
