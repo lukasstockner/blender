@@ -97,7 +97,7 @@ class HomographySymmetricGeometricCostFunctor {
 };
 
 void ComputeHomographyFromCorrespondences(const Mat &x1, const Mat &x2,
-                                          CameraIntrinsics &intrinsics,
+                                          const CameraIntrinsics &intrinsics,
                                           Mat3 *H) {
   // Algebraic homography estimation, happens with normalized coordinates
   Homography2DFromCorrespondencesLinear(x1, x2, H, 1e-12);
@@ -172,7 +172,7 @@ class FundamentalSymmetricEpipolarCostFunctor {
 };
 
 void ComputeFundamentalFromCorrespondences(const Mat &x1, const Mat &x2,
-                                           CameraIntrinsics &intrinsics,
+                                           const CameraIntrinsics &intrinsics,
                                            Mat3 *F) {
   // Algebraic fundamental estimation, happens with normalized coordinates
   NormalizedEightPointSolver(x1, x2, F);
@@ -289,7 +289,7 @@ Mat pseudoInverse(const Mat &matrix) {
 }  // namespace
 
 void SelectkeyframesBasedOnGRICAndVariance(const Tracks &tracks,
-                                           CameraIntrinsics &intrinsics,
+                                           const CameraIntrinsics &intrinsics,
                                            vector<int> &keyframes) {
   // Mirza Tahir Ahmed, Matthew N. Dailey
   // Robust key frame extraction for 3D reconstruction from video streams
