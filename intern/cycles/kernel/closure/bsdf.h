@@ -32,6 +32,10 @@
 #include "../closure/bssrdf.h"
 #endif
 
+#ifdef __VOLUME__
+#include "../closure/volume.h"
+#endif
+
 CCL_NAMESPACE_BEGIN
 
 __device int bsdf_sample(KernelGlobals *kg, const ShaderData *sd, const ShaderClosure *sc, float randu, float randv, float3 *eval, float3 *omega_in, differential3 *domega_in, float *pdf)
@@ -130,6 +134,12 @@ __device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const ShaderC
 #ifdef __OSL__
 	if(kg->osl && sc->prim)
 		return OSLShader::bsdf_eval(sd, sc, omega_in, *pdf);
+#endif
+
+#ifdef __VOLUME__
+	// need this to keep logic in kernel_emission.h direct light in case of volume particle
+	if (sc->type == CLOSURE_BSDF_DOUBLE_PEAKED_HENYEY_GREENSTEIN_ID)
+		return bsdf_double_peaked_henyey_greenstein_eval(sd, sc, sd->I, omega_in, pdf);
 #endif
 
 	if(dot(sd->Ng, omega_in) >= 0.0f) {

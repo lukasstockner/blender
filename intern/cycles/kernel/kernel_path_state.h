@@ -24,6 +24,7 @@ typedef struct PathState {
 	int glossy_bounce;
 	int transmission_bounce;
 	int transparent_bounce;
+	int scattering_bounce;
 } PathState;
 
 __device_inline void path_state_init(PathState *state)
@@ -34,6 +35,7 @@ __device_inline void path_state_init(PathState *state)
 	state->glossy_bounce = 0;
 	state->transmission_bounce = 0;
 	state->transparent_bounce = 0;
+	state->scattering_bounce = 0;
 }
 
 __device_inline void path_state_next(KernelGlobals *kg, PathState *state, int label)
@@ -116,7 +118,8 @@ __device_inline float path_state_terminate_probability(KernelGlobals *kg, PathSt
 		if((state->bounce >= kernel_data.integrator.max_bounce) ||
 		   (state->diffuse_bounce >= kernel_data.integrator.max_diffuse_bounce) ||
 		   (state->glossy_bounce >= kernel_data.integrator.max_glossy_bounce) ||
-		   (state->transmission_bounce >= kernel_data.integrator.max_transmission_bounce))
+		   (state->transmission_bounce >= kernel_data.integrator.max_transmission_bounce) ||
+		   (state->scattering_bounce >= kernel_data.integrator.max_scattering_bounce))
 		{
 			return 0.0f;
 		}

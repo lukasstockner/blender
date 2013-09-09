@@ -40,6 +40,8 @@
 #include "kernel_subsurface.h"
 #endif
 
+#include "kernel_volume.h"
+
 CCL_NAMESPACE_BEGIN
 
 __device_inline bool shadow_blocked(KernelGlobals *kg, PathState *state, Ray *ray, float3 *shadow)
@@ -467,9 +469,15 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 
 	float min_ray_pdf = FLT_MAX;
 	float ray_pdf = 0.0f;
+	float3 volume_eval = make_float3(1.0f, 1.0f, 1.0f);
+	float volume_pdf = 1.0f;
 	float ray_t = 0.0f;
 	PathState state;
 	int rng_offset = PRNG_BASE_NUM;
+	uint rng_congruential = lcg_init(*rng + sample*0x51633e2d);
+	int media_volume_shader = kernel_data.background.shader; // assume camera always in air, need proper CSG stack based solution.
+	//media_volume_shader = get_media_volume_shader(kg, ray.P);
+	//media_volume_shader = gmsdr(kg, ray.P);
 #ifdef __CMJ__
 	int num_samples = kernel_data.integrator.aa_samples;
 #else
@@ -479,6 +487,7 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 	path_state_init(&state);
 
 	/* path iteration */
+	float omega_cache = 0.0f;
 	for(;; rng_offset += PRNG_BOUNCE_NUM) {
 		/* intersect scene */
 		Intersection isect;
@@ -526,6 +535,18 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 		}
 #endif
 
+#ifdef __VOLUME__
+		if(state.scattering_bounce < kernel_data.integrator.max_scattering_bounce) {
+			int vol_result = kernel_path_trace_volume(kg, rng, rng_offset, &rng_congruential, sample, &ray, &isect, isect.t, &state, media_volume_shader, &throughput, &L, buffer, &ray_pdf, &volume_eval, &volume_pdf, &omega_cache, state.bounce);
+			if (vol_result == VOLUME_PATH_CONTINUE) {
+				state.scattering_bounce++;
+				continue;
+			}
+			else if (vol_result == VOLUME_PATH_TERMINATED)
+				break; 
+		}
+#endif
+
 		if(!hit) {
 			/* eval background shader if nothing hit */
 			if(kernel_data.background.transparent && (state.flag & PATH_RAY_CAMERA)) {
@@ -545,6 +566,8 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 
 			break;
 		}
+
+		omega_cache = 0.0f;
 
 		/* setup shading */
 		ShaderData sd;
@@ -590,7 +613,8 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 		/* emission */
 		if(sd.flag & SD_EMISSION) {
 			/* todo: is isect.t wrong here for transparent surfaces? */
-			float3 emission = indirect_primitive_emission(kg, &sd, isect.t, state.flag, ray_pdf);
+//			float3 emission = indirect_primitive_emission(kg, &sd, isect.t, state.flag, ray_pdf);
+			float3 emission = indirect_primitive_emission(kg, &sd, isect.t, state.flag, ray_pdf, volume_pdf);
 			path_radiance_accum_emission(&L, throughput, emission, state.bounce);
 		}
 #endif
@@ -637,10 +661,12 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 #ifdef __OBJECT_MOTION__
 				light_ray.time = sd.time;
 #endif
+				float tmp_volume_pdf;
+
 				light_ray.dP = sd.dP;
 				light_ray.dD = differential3_zero();
 
-				if(!shadow_blocked(kg, &state, &light_ray, &ao_shadow))
+				if(!shadow_blocked_new(kg, rng, rng_offset, &rng_congruential, sample, &state, &light_ray, &ao_shadow, media_volume_shader, &tmp_volume_pdf, state.bounce))
 					path_radiance_accum_ao(&L, throughput, ao_bsdf, ao_shadow, state.bounce);
 			}
 		}
@@ -725,8 +751,13 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 				if(direct_emission(kg, &sd, -1, light_t, light_o, light_u, light_v, &light_ray, &L_light, &is_lamp, state.bounce)) {
 					/* trace shadow ray */
 					float3 shadow;
+					float tmp_volume_pdf;
 
+#ifdef __VOLUME__
+					if(!shadow_blocked_new(kg, rng, rng_offset, &rng_congruential, sample, &state, &light_ray, &shadow, media_volume_shader, &tmp_volume_pdf, state.bounce)) {
+#else
 					if(!shadow_blocked(kg, &state, &light_ray, &shadow)) {
+#endif
 						/* accumulate */
 						path_radiance_accum_light(&L, throughput, &L_light, shadow, 1.0f, state.bounce, is_lamp);
 					}
@@ -755,16 +786,14 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 			break;
 
 		/* modify throughput */
+		bsdf_eval_mul(&bsdf_eval, volume_eval/volume_pdf);
 		path_radiance_bsdf_bounce(&L, &throughput, &bsdf_eval, bsdf_pdf, state.bounce, label);
 
 		/* set labels */
-		if(!(label & LABEL_TRANSPARENT)) {
-			ray_pdf = bsdf_pdf;
-#ifdef __LAMP_MIS__
-			ray_t = 0.0f;
-#endif
-			min_ray_pdf = fminf(bsdf_pdf, min_ray_pdf);
-		}
+		min_ray_pdf = fminf(bsdf_pdf, min_ray_pdf);
+		
+
+		ray_pdf *= volume_pdf;
 
 		/* update path state */
 		path_state_next(kg, &state, label);
@@ -781,6 +810,12 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 #ifdef __RAY_DIFFERENTIALS__
 		ray.dP = sd.dP;
 		ray.dD = bsdf_domega_in;
+#endif
+#ifdef __VOLUME__
+		if (sd.flag & SD_BACKFACING)
+			media_volume_shader = kernel_data.background.shader;
+		else
+			media_volume_shader = sd.shader;
 #endif
 	}
 
@@ -972,6 +1007,7 @@ __device float4 kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int 
 		/* intersect scene */
 		Intersection isect;
 		uint visibility = path_state_ray_visibility(kg, &state);
+		uint rng_congruential = lcg_init(*rng + rng_offset + sample*0x51633e2d);
 
 #ifdef __HAIR__
 		float difl = 0.0f, extmax = 0.0f;

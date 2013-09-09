@@ -932,6 +932,10 @@ void BlenderSync::sync_world(bool update_all)
 			graph->connect(closure->output("Background"), out->input("Surface"));
 		}
 
+		/* settings */
+		PointerRNA wmat = RNA_pointer_get(&b_world.ptr, "cycles");
+		shader->homogeneous_volume = get_boolean(wmat, "homogeneous_volume");
+
 		if(b_world) {
 			/* AO */
 			BL::WorldLighting b_light = b_world.light_settings();

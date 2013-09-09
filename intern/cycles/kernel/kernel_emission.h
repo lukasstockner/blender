@@ -70,7 +70,47 @@ __device_noinline float3 direct_emissive_eval(KernelGlobals *kg, float rando,
 	return eval;
 }
 
-__device_noinline bool direct_emission(KernelGlobals *kg, ShaderData *sd, int lindex,
+__device float sigma_from_value_(float value, float geom_factor)
+{
+#if 0
+//	const float att_magic_eps = 1e-7f;
+	const float att_magic_eps = 1e-15f;
+	float attenuation = 1-value;
+	// protect infinity nan from too big density materials
+	if( attenuation < att_magic_eps) attenuation = att_magic_eps;
+	return (-logf( attenuation )/geom_factor);
+#else
+	return value * geom_factor;
+#endif
+}
+
+__device float get_sigma_sample_(KernelGlobals *kg, ShaderData *sd, float randv, int path_flag, float3 p)
+{
+	ShaderData vsd = *sd;
+        vsd.P = p;
+
+#ifdef __MULTI_CLOSURE__
+        int sampled = 0;        
+
+        if(vsd.num_closure > 1) {
+		// do nothing, WIP
+	}
+
+        const ShaderClosure *sc = &sd->closure[sampled];
+
+        shader_eval_volume(kg, &vsd, randv, path_flag, SHADER_CONTEXT_MAIN);
+	float v = sc->data0;
+#else
+        shader_eval_volume(kg, &vsd, randv, path_flag, SHADER_CONTEXT_MAIN);
+	float v = sd->closure.data0;
+#endif
+
+	return sigma_from_value_(v, kernel_data.integrator.volume_density_factor);
+}
+
+
+
+__device bool direct_emission(KernelGlobals *kg, ShaderData *sd, int lindex,
 	float randt, float rando, float randu, float randv, Ray *ray, BsdfEval *eval,
 	bool *is_lamp, int bounce)
 {
@@ -107,7 +147,25 @@ __device_noinline bool direct_emission(KernelGlobals *kg, ShaderData *sd, int li
 
 	if(ls.shader & SHADER_USE_MIS) {
 		/* multiple importance sampling */
+#if 1
+		// with respect to volume pdf
+		// W = (pdf_dir*pdf_dir) / (pdf_indirect*pdf_indirect + pdf_dir*pdf_dir)
+		// pdf_dir =  pre_hit_bsdf_pdf * 1.0  *  1.0f / (triangle_area) ?
+		// 		 ------------angle_pdf------------------ -- volume sphere space pdf-----   --light surf orient--  --light surface density--
+		// pdf_indirect = pre_hit_bsdf_pdf * post_hit_bsdf_pdf   * 1.0f/ (4.0f * M_PI_F * t*t) *   pre_hit_bsdf_pdf      * 1.0f / (triangle_area)
+		// W = post_hit_bsdf_pdf   * 1.0f/ (4.0f * M_PI_F * t*t) *   pre_hit_bsdf_pdf
+
+		float volume_pdf = 1.0f;
+		if(( kernel_data.integrator.use_volumetric ) && (sd->flag & SD_HAS_VOLUME) && (sd->flag & SD_HOMOGENEOUS_VOLUME))
+		{
+			float sigma = get_sigma_sample_(kg, sd, 0, 0, make_float3(0.0f, 0.0f, 0.0f));
+			volume_pdf = sigma * exp(-ls.t * sigma); 	
+		}
+//		float mis_weight = power_heuristic(pdf / volume_pdf, bsdf_pdf);
+		float mis_weight = power_heuristic(ls.pdf, bsdf_pdf * volume_pdf);
+#else
 		float mis_weight = power_heuristic(ls.pdf, bsdf_pdf);
+#endif
 		light_eval *= mis_weight;
 	}
 	
@@ -160,7 +218,7 @@ __device_noinline bool direct_emission(KernelGlobals *kg, ShaderData *sd, int li
 
 /* Indirect Primitive Emission */
 
-__device_noinline float3 indirect_primitive_emission(KernelGlobals *kg, ShaderData *sd, float t, int path_flag, float bsdf_pdf)
+__device float3 indirect_primitive_emission(KernelGlobals *kg, ShaderData *sd, float t, int path_flag, float bsdf_pdf, float volume_pdf = 0.0f)
 {
 	/* evaluate emissive closure */
 	float3 L = shader_emissive_eval(kg, sd);
@@ -173,7 +231,9 @@ __device_noinline float3 indirect_primitive_emission(KernelGlobals *kg, ShaderDa
 		/* multiple importance sampling, get triangle light pdf,
 		 * and compute weight with respect to BSDF pdf */
 		float pdf = triangle_light_pdf(kg, sd->Ng, sd->I, t);
-		float mis_weight = power_heuristic(bsdf_pdf, pdf);
+//		float mis_weight = power_heuristic(bsdf_pdf, pdf);
+//		float mis_weight = power_heuristic(bsdf_pdf, pdf / volume_pdf);
+		float mis_weight = power_heuristic(bsdf_pdf * volume_pdf, pdf);
 
 		return L*mis_weight;
 	}

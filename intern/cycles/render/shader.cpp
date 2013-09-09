@@ -326,6 +326,25 @@ void ShaderManager::add_default(Scene *scene)
 		scene->default_surface = scene->shaders.size() - 1;
 	}
 
+	/* default volume */
+	{
+		graph = new ShaderGraph();
+
+		closure = graph->add(new IsotropicVolumeNode());
+		closure->input("Color")->value = make_float3(0.8f, 0.8f, 0.8f);
+		closure->input("Density")->value.x = 1.0f;
+		closure->input("g")->value.x = 0.0f;
+		out = graph->output();
+
+		graph->connect(closure->output("Volume"), out->input("Volume"));
+
+		shader = new Shader();
+		shader->name = "default_volume";
+		shader->graph = graph;
+		scene->shaders.push_back(shader);
+		scene->default_volume = scene->shaders.size() - 1;
+	}
+
 	/* default light */
 	{
 		graph = new ShaderGraph();

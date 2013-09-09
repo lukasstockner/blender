@@ -32,6 +32,7 @@
 static bNodeSocketTemplate sh_node_volume_isotropic_in[] = {
 	{	SOCK_RGBA, 1, N_("Color"),		0.8f, 0.8f, 0.8f, 1.0f, 0.0f, 1.0f},
 	{	SOCK_FLOAT, 1, N_("Density"),	1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1000.0f},
+	{	SOCK_FLOAT, 1, N_("g"),			0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f},
 	{	-1, 0, ""	}
 };
 

@@ -100,6 +100,29 @@ __device uint sobol_lookup(const uint m, const uint frame, const uint ex, const 
 	return index;
 }
 
+__device_inline float path_rng(KernelGlobals *kg, RNG *rng, int sample, int dimension)
+{
+#ifdef __SOBOL_FULL_SCREEN__
+	uint result = sobol_dimension(kg, *rng, dimension);
+	float r = (float)result * (1.0f/(float)0xFFFFFFFF);
+	return r;
+#else
+	/* compute sobol sequence value using direction vectors */
+	uint result = sobol_dimension(kg, sample + SOBOL_SKIP, dimension);
+	float r = (float)result * (1.0f/(float)0xFFFFFFFF);
+
+	/* Cranly-Patterson rotation using rng seed */
+	float shift;
+
+	if(dimension & 1)
+		shift = (*rng >> 16) * (1.0f/(float)0xFFFF);
+	else
+		shift = (*rng & 0xFFFF) * (1.0f/(float)0xFFFF);
+
+	return r + shift - floorf(r + shift);
+#endif
+}
+
 __device_inline float path_rng_1D(KernelGlobals *kg, RNG *rng, int sample, int num_samples, int dimension)
 {
 #ifdef __CMJ__
@@ -194,6 +217,9 @@ __device void path_rng_end(KernelGlobals *kg, __global uint *rng_state, RNG rng)
 
 __device float path_rng(KernelGlobals *kg, RNG& rng, int sample, int dimension)
 {
+	/* implicit mod 2^32 */
+	rng = (1103515245*(rng) + 12345);
+	return (float)rng * (1.0f/(float)0xFFFFFFFF);
 }
 
 __device_inline float path_rng_1D(KernelGlobals *kg, RNG& rng, int sample, int num_samples, int dimension)

@@ -412,6 +412,48 @@ __device_inline void shader_setup_from_background(KernelGlobals *kg, ShaderData 
 	sd->object = ~0;
 #endif
 	sd->prim = ~0;
+#ifdef __UV__
+	sd->u = 0.0f;
+	sd->v = 0.0f;
+#endif
+
+#ifdef __DPDU__
+	/* dPdu/dPdv */
+	sd->dPdu = make_float3(0.0f, 0.0f, 0.0f);
+	sd->dPdv = make_float3(0.0f, 0.0f, 0.0f);
+#endif
+
+#ifdef __RAY_DIFFERENTIALS__
+	/* differentials */
+	sd->dP = ray->dD;
+	differential_incoming(&sd->dI, sd->dP);
+	sd->du.dx = 0.0f;
+	sd->du.dy = 0.0f;
+	sd->dv.dx = 0.0f;
+	sd->dv.dy = 0.0f;
+#endif
+}
+
+/* ShaderData setup from ray into background or triangle, assume input ray.t +INF or intersection point distance */
+
+__device_inline void shader_setup_from_volume(KernelGlobals *kg, ShaderData *sd, const Ray *ray, int media_shader)
+{
+	/* vectors */
+	sd->P = ray->P;
+	sd->N = -ray->D;  
+	sd->Ng = -ray->D;
+	sd->I = -ray->D;
+	sd->shader = media_shader;
+	sd->flag = kernel_tex_fetch(__shader_flag, (sd->shader & SHADER_MASK)*2);
+#ifdef __OBJECT_MOTION__
+	sd->time = ray->time;
+#endif
+	sd->ray_length = 0.0f;
+
+#ifdef __INSTANCING__
+	sd->object = ~0;
+#endif
+	sd->prim = ~0;
 #ifdef __HAIR__
 	sd->segment = ~0;
 #endif
@@ -454,7 +496,7 @@ __device_inline void _shader_bsdf_multi_eval(KernelGlobals *kg, const ShaderData
 
 		const ShaderClosure *sc = &sd->closure[i];
 
-		if(CLOSURE_IS_BSDF(sc->type)) {
+		if(CLOSURE_IS_BSDF(sc->type) || CLOSURE_IS_VOLUME(sc->type)) {
 			float bsdf_pdf = 0.0f;
 			float3 eval = bsdf_eval(kg, sd, sc, omega_in, &bsdf_pdf);
 
@@ -470,6 +512,30 @@ __device_inline void _shader_bsdf_multi_eval(KernelGlobals *kg, const ShaderData
 	*pdf = (sum_sample_weight > 0.0f)? sum_pdf/sum_sample_weight: 0.0f;
 }
 
+__device_inline void _shader_volume_bsdf_multi_eval( KernelGlobals *kg, const ShaderData *sd, const float3 omega_in, float *pdf,
+	int skip_bsdf, BsdfEval *result_eval, float sum_pdf, float sum_sample_weight)
+{
+	for(int i = 0; i< sd->num_closure; i++) {
+		if(i == skip_bsdf)
+			continue;
+
+		const ShaderClosure *sc = &sd->closure[i];
+
+		if( CLOSURE_IS_VOLUME(sc->type)) {
+			float bsdf_pdf = 0.0f;
+			float3 eval = bsdf_eval(kg, sd, sc, omega_in, &bsdf_pdf);
+
+			if(bsdf_pdf != 0.0f) {
+				bsdf_eval_accum(result_eval, sc->type, eval*sc->weight);
+				sum_pdf += bsdf_pdf*sc->sample_weight;
+			}
+
+			sum_sample_weight += sc->sample_weight;
+		}
+	}
+
+	*pdf = (sum_sample_weight > 0.0f)? sum_pdf/sum_sample_weight: 0.0f;
+}
 #endif
 
 __device void shader_bsdf_eval(KernelGlobals *kg, const ShaderData *sd,
@@ -483,7 +549,13 @@ __device void shader_bsdf_eval(KernelGlobals *kg, const ShaderData *sd,
 	const ShaderClosure *sc = &sd->closure;
 
 	*pdf = 0.0f;
+#if 0
 	*eval = bsdf_eval(kg, sd, sc, omega_in, pdf)*sc->weight;
+#else
+	float3 tmp_eval = bsdf_eval(kg, sd, sc, omega_in, pdf);
+
+	bsdf_eval_init(eval, NBUILTIN_CLOSURES, tmp_eval*sc->weight, kernel_data.film.use_light_pass);
+#endif
 #endif
 }
 
@@ -545,8 +617,17 @@ __device int shader_bsdf_sample(KernelGlobals *kg, const ShaderData *sd,
 #else
 	/* sample the single closure that we picked */
 	*pdf = 0.0f;
+#if 0
 	int label = bsdf_sample(kg, sd, &sd->closure, randu, randv, bsdf_eval, omega_in, domega_in, pdf);
 	*bsdf_eval *= sd->closure.weight;
+#else
+	const ShaderClosure *sc = &sd->closure;
+	int label;
+	float3 eval;
+
+	label = bsdf_sample(kg, sd, sc, randu, randv, &eval, omega_in, domega_in, pdf);
+	bsdf_eval_init(bsdf_eval, sc->type, eval*sc->weight, kernel_data.film.use_light_pass);
+#endif
 	return label;
 #endif
 }
@@ -913,6 +994,79 @@ __device void shader_eval_volume(KernelGlobals *kg, ShaderData *sd,
 	else
 #endif
 		svm_eval_nodes(kg, sd, SHADER_TYPE_VOLUME, randb, path_flag);
+#endif
+}
+
+__device int shader_volume_bsdf_sample(KernelGlobals *kg, const ShaderData *sd,
+	float randu, float randv, BsdfEval *bsdf_eval,
+	float3 *omega_in, differential3 *domega_in, float *pdf)
+{
+#ifdef __MULTI_CLOSURE__
+	int sampled = 0;
+
+	if(sd->num_closure > 1) {
+		/* pick a BSDF closure based on sample weights */
+		float sum = 0.0f;
+
+		for(sampled = 0; sampled < sd->num_closure; sampled++) {
+			const ShaderClosure *sc = &sd->closure[sampled];
+			
+			if(CLOSURE_IS_VOLUME(sc->type))
+				sum += sc->sample_weight;
+		}
+
+		float r = sd->randb_closure*sum;
+		sum = 0.0f;
+
+		for(sampled = 0; sampled < sd->num_closure; sampled++) {
+			const ShaderClosure *sc = &sd->closure[sampled];
+			
+			if(CLOSURE_IS_VOLUME(sc->type)) {
+				sum += sd->closure[sampled].sample_weight;
+
+				if(r <= sum)
+					break;
+			}
+		}
+
+		if(sampled == sd->num_closure) {
+			*pdf = 0.0f;
+			return LABEL_NONE;
+		}
+	}
+
+	const ShaderClosure *sc = &sd->closure[sampled];
+	int label;
+	float3 eval = make_float3(0.0f, 0.0f, 0.0f);
+
+	*pdf = 0.0f;
+	label = volume_bsdf_sample(kg, sd, sc, randu, randv, &eval, omega_in, domega_in, pdf);
+
+	if(*pdf != 0.0f) {
+		bsdf_eval_init(bsdf_eval, sc->type, eval*sc->weight, kernel_data.film.use_light_pass);
+
+		if(sd->num_closure > 1) {
+			float sweight = sc->sample_weight;
+			_shader_volume_bsdf_multi_eval(kg, sd, *omega_in, pdf, sampled, bsdf_eval, *pdf*sweight, sweight);
+		}
+	}
+
+	return label;
+#else
+	/* sample the single closure that we picked */
+	*pdf = 0.0f;
+#if 0
+	int label = volume_bsdf_sample(kg, sd, &sd->closure, randu, randv, bsdf_eval, omega_in, domega_in, pdf);
+	*bsdf_eval *= sd->closure.weight;
+#else
+	const ShaderClosure *sc = &sd->closure;
+	int label;
+	float3 eval = make_float3(0.0f, 0.0f, 0.0f);
+
+	label = volume_bsdf_sample(kg, sd, sc, randu, randv, &eval, omega_in, domega_in, pdf);
+	bsdf_eval_init(bsdf_eval, sc->type, eval*sc->weight, kernel_data.film.use_light_pass);
+#endif
+	return label;
 #endif
 }
 

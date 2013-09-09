@@ -165,12 +165,21 @@ void BlenderSync::sync_integrator()
 	integrator->max_diffuse_bounce = get_int(cscene, "diffuse_bounces");
 	integrator->max_glossy_bounce = get_int(cscene, "glossy_bounces");
 	integrator->max_transmission_bounce = get_int(cscene, "transmission_bounces");
+	integrator->max_scattering_bounce = get_int(cscene, "scattering_bounces");
 
 	integrator->transparent_max_bounce = get_int(cscene, "transparent_max_bounces");
 	integrator->transparent_min_bounce = get_int(cscene, "transparent_min_bounces");
 	integrator->transparent_shadows = get_boolean(cscene, "use_transparent_shadows");
 
 	integrator->no_caustics = get_boolean(cscene, "no_caustics");
+	integrator->use_volumetric = get_boolean(cscene, "use_volumetric");
+	integrator->volume_density_factor = get_float(cscene, "volume_density_factor");
+	integrator->volume_sampling_algorithm = get_enum(cscene, "volume_sampling_algorithm");
+	integrator->volume_homogeneous_sampling = get_enum(cscene, "volume_homogeneous_sampling");
+	integrator->volume_max_iterations = get_int(cscene, "volume_max_iterations");
+	integrator->volume_cell_step = get_float(cscene, "volume_cell_step");
+	integrator->volume_woodcock_max_density = get_float(cscene, "volume_woodcock_max_density");
+
 	integrator->filter_glossy = get_float(cscene, "blur_glossy");
 
 	integrator->seed = get_int(cscene, "seed");

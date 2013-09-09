@@ -61,6 +61,7 @@ CCL_NAMESPACE_BEGIN
 #endif
 #define __SUBSURFACE__
 #define __CMJ__
+#define __VOLUME__
 #endif
 
 #ifdef __KERNEL_CUDA__
@@ -187,7 +188,18 @@ enum PathTraceDimension {
 	PRNG_LIGHT_V = 5,
 	PRNG_LIGHT_F = 6,
 	PRNG_TERMINATE = 7,
-	PRNG_BOUNCE_NUM = 8
+
+	PRNG_VOLUME_DENSITY = 8,
+	PRNG_VOLUME_DISTANCE = 9,
+	//	not need, reuse PRNG_BSDF_UV because we never blend particle and surface
+	PRNG_VOLUME_BRDF_U = PRNG_BSDF_U,
+	PRNG_VOLUME_BRDF_V = PRNG_BSDF_V,
+	PRNG_VOLUME_BRDF = PRNG_BSDF,
+	PRNG_VOLUME_SHADOW_DENSITY = 10,
+	PRNG_VOLUME_SHADOW_DISTANCE = 11,
+	PRNG_VOLUME_TERMINATE = PRNG_TERMINATE,
+
+	PRNG_BOUNCE_NUM = 12
 };
 
 enum SamplingPattern {
@@ -735,6 +747,7 @@ typedef struct KernelIntegrator {
 	int max_diffuse_bounce;
 	int max_glossy_bounce;
 	int max_transmission_bounce;
+	int max_scattering_bounce;
 
 	/* transparent */
 	int transparent_min_bounce;
@@ -744,6 +757,15 @@ typedef struct KernelIntegrator {
 	/* caustics */
 	int no_caustics;
 	float filter_glossy;
+
+	/* volumetric */
+	int use_volumetric;
+	float volume_density_factor;
+	int volume_sampling_algorithm; // when homogeneous = false, 0 = cell marching, 1 = woodcock delta tracking
+	int volume_homogeneous_sampling;
+	int volume_max_iterations;
+	float volume_cell_step;
+	float volume_woodcock_max_density; // set it by hands, guess max density in volume, sorry no auto generation for now
 
 	/* seed */
 	int seed;

@@ -33,6 +33,7 @@ public:
 	int max_diffuse_bounce;
 	int max_glossy_bounce;
 	int max_transmission_bounce;
+	int max_scattering_bounce;
 	bool probalistic_termination;
 
 	int transparent_min_bounce;
@@ -41,6 +42,15 @@ public:
 	bool transparent_shadows;
 
 	bool no_caustics;
+	bool use_volumetric;
+	float volume_density_factor;
+
+	int volume_sampling_algorithm; // when homogeneous = false, 0 = cell marching, 1 = woodcock delta tracking
+	int volume_homogeneous_sampling;
+	int volume_max_iterations;
+	float volume_cell_step;
+	float volume_woodcock_max_density; // set it by hands, guess max density in volume, sorry no auto generation for now
+	
 	float filter_glossy;
 
 	int seed;

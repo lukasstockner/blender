@@ -189,6 +189,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeBackground"),
         NodeItem("ShaderNodeAmbientOcclusion"),
         NodeItem("ShaderNodeHoldout"),
+        NodeItem("ShaderNodeVolumeIsotropic"),
         ]),
     ShaderNewNodeCategory("SH_NEW_TEXTURE", "Texture", items=[
         NodeItem("ShaderNodeTexImage"),

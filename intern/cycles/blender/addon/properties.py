@@ -85,6 +85,18 @@ enum_tile_order = (
     ('TOP_TO_BOTTOM', "Top to Bottom", "Render from top to bottom"),
     ('BOTTOM_TO_TOP', "Bottom to Top", "Render from bottom to top"),
     )
+    
+enum_volumetric_sampling_algorithm = (
+    ('VOLUMETRIC_MARCHING', "Ray Marching", "Use ray marching algorithm"),
+    ('VOLUMETRIC_WOODCOCK', "Woodcock", "Use Woodcock algorithm"),
+    ('VOLUMETRIC_MARCHING_EXP', "Ray Marching(Exp)", "Use ray marching algorithm (experimental)"),
+    ('VOLUMETRIC_WOODCOCK_EXP', "Woodcock(Exp)", "Use Woodcock algorithm (experimental)"),
+    )
+    
+enum_homogeneous_volumetric_sampling_algorithm = (
+    ('VOLUMETRIC_IMPORTANCE_SAMPLING', "Importance Sampling", "Use perfect importance sampling"),
+    ('VOLUMETRIC_EQUIANGULAR', "Equi-angular light(Exp)", "Use angular sampling based on lighting (experimental)"),
+    )
 
 enum_use_layer_samples = (
     ('USE', "Use", "Per render layer number of samples override scene samples"),
@@ -274,6 +286,12 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 min=0, max=1024,
                 default=128,
                 )
+        cls.scattering_bounces = IntProperty(
+                name="Scattering Bounces",
+                description="Maximum number of volumetric scattering events",
+                min=0, max=1024,
+                default=128,
+                )
 
         cls.transparent_min_bounces = IntProperty(
                 name="Transparent Min Bounces",
@@ -401,6 +419,53 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                             "(this renders somewhat slower, "
                             "but time can be saved by manually stopping the render when the noise is low enough)",
                 default=False,
+                )
+        cls.use_volumetric = BoolProperty(
+                name="Use Volumetric",
+                description="Turn on volumetric rendering",
+                default=False
+                )
+
+        cls.volume_density_factor = FloatProperty(
+                name="Density Factor",
+                description="global attenuation coefficient (material volume density) multiplyer",
+                default=1.0,
+                min=0.0, max=100000.0
+                )
+        
+        cls.volume_sampling_algorithm = EnumProperty(
+                name="Sampling algorithm",
+                description="Choose volumetric sampling algorithm for inhomogeneous volumes",
+                items=enum_volumetric_sampling_algorithm,
+                default='VOLUMETRIC_MARCHING',
+                )
+                
+        cls.volume_homogeneous_sampling = EnumProperty(
+                name="Homogeneous Sampling",
+                description="Choose volumetric sampling algorithm for homogeneous volumes",
+                items=enum_homogeneous_volumetric_sampling_algorithm,
+                default='VOLUMETRIC_IMPORTANCE_SAMPLING',
+                )
+
+        cls.volume_max_iterations = IntProperty(
+                name="Max Iterations",
+                description="Number of iterations before we give up, protect for very slow deep volume marching",
+                default=200,
+                min=10, max=8192
+                )
+
+        cls.volume_cell_step = FloatProperty(
+                name="Cell Step",
+                description="cell size when probing for density, work same as 3d texture resolution",
+                default=0.1,
+                min=0.0000001, max=100000.0
+                )
+
+        cls.volume_woodcock_max_density = FloatProperty(
+                name="Max Woodcock Density",
+                description="Max density in volume, band aid, I need to calculate it from texture",
+                default=0.95,
+                min=0.0000001, max=100000.0
                 )
 
     @classmethod
@@ -570,6 +635,12 @@ class CyclesWorldSettings(bpy.types.PropertyGroup):
                 description="Number of light samples to render for each AA sample",
                 min=1, max=10000,
                 default=4,
+                )
+        cls.homogeneous_volume = BoolProperty(
+                name="Homogeneous Volume",
+                description="When using volume rendering, assume volume has the same density everywhere, "
+                            "for faster rendering",
+                default=False,
                 )
 
     @classmethod

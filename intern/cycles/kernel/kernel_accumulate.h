@@ -35,7 +35,7 @@ __device_inline void bsdf_eval_init(BsdfEval *eval, ClosureType type, float3 val
 
 		if(type == CLOSURE_BSDF_TRANSPARENT_ID)
 			eval->transparent = value;
-		else if(CLOSURE_IS_BSDF_DIFFUSE(type))
+		else if(CLOSURE_IS_BSDF_DIFFUSE(type) || CLOSURE_IS_VOLUME(type))
 			eval->diffuse = value;
 		else if(CLOSURE_IS_BSDF_GLOSSY(type))
 			eval->glossy = value;
@@ -55,7 +55,7 @@ __device_inline void bsdf_eval_accum(BsdfEval *eval, ClosureType type, float3 va
 {
 #ifdef __PASSES__
 	if(eval->use_light_pass) {
-		if(CLOSURE_IS_BSDF_DIFFUSE(type))
+		if(CLOSURE_IS_BSDF_DIFFUSE(type) || CLOSURE_IS_VOLUME(type))
 			eval->diffuse += value;
 		else if(CLOSURE_IS_BSDF_GLOSSY(type))
 			eval->glossy += value;
@@ -105,6 +105,23 @@ __device_inline void bsdf_eval_mul(BsdfEval *eval, float3 value)
 		eval->diffuse *= value;
 #else
 	*eval *= value;
+#endif
+}
+
+__device_inline void bsdf_eval_add(BsdfEval *eval, float3 value)
+{
+#ifdef __PASSES__
+	if(eval->use_light_pass) {
+		eval->diffuse += value;
+		eval->glossy += value;
+		eval->transmission += value;
+
+		/* skipping transparent, this function is used by for eval(), will be zero then */
+	}
+	else
+		eval->diffuse += value;
+#else
+	*eval += value;
 #endif
 }
 

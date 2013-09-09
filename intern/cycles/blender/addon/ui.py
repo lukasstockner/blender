@@ -193,7 +193,39 @@ class CyclesRender_PT_light_paths(CyclesButtonsPanel, Panel):
         sub.prop(cscene, "diffuse_bounces", text="Diffuse")
         sub.prop(cscene, "glossy_bounces", text="Glossy")
         sub.prop(cscene, "transmission_bounces", text="Transmission")
+        sub.prop(cscene, "scattering_bounces", text="Scattering")
+        
+class CyclesRender_PT_volumetrics(CyclesButtonsPanel, Panel):
+    bl_label = "Volumetrics"
+    bl_options = {'DEFAULT_CLOSED'}
+    
+    def draw_header(self, context):
+        rd = context.scene.cycles
 
+        self.layout.prop(rd, "use_volumetric", text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+        scene = context.scene
+        cscene = scene.cycles
+        
+        layout.active = cscene.use_volumetric
+        
+        col = layout.column()
+        col.label(text="Sampling:")
+        col.prop(cscene, "volume_sampling_algorithm", text="Inhomogeneous")
+        col.prop(cscene, "volume_homogeneous_sampling", text="Homogeneous")
+        
+        layout.separator()
+        
+        col = layout.column()
+        col.prop(cscene, "volume_density_factor")
+        row = col.row()
+        row.prop(cscene, "volume_max_iterations")
+        row.prop(cscene, "volume_cell_step")
+        if cscene.volume_sampling_algorithm == 'VOLUMETRIC_WOODCOCK_EXP' or cscene.volume_sampling_algorithm == 'VOLUMETRIC_WOODCOCK':
+            col.prop(cscene, "volume_woodcock_max_density")
 
 class CyclesRender_PT_motion_blur(CyclesButtonsPanel, Panel):
     bl_label = "Motion Blur"
@@ -805,15 +837,16 @@ class CyclesWorld_PT_volume(CyclesButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        # world = context.world
-        # world and world.node_tree and CyclesButtonsPanel.poll(context)
-        return False
+        world = context.world
+        return world and world.node_tree and CyclesButtonsPanel.poll(context)
 
     def draw(self, context):
         layout = self.layout
 
         world = context.world
         panel_node_draw(layout, world, 'OUTPUT_WORLD', 'Volume')
+        
+        layout.prop(world.cycles, "homogeneous_volume")
 
 
 class CyclesWorld_PT_ambient_occlusion(CyclesButtonsPanel, Panel):
@@ -950,9 +983,8 @@ class CyclesMaterial_PT_volume(CyclesButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        # mat = context.material
-        # mat and mat.node_tree and CyclesButtonsPanel.poll(context)
-        return False
+        mat = context.material
+        return mat and mat.node_tree and CyclesButtonsPanel.poll(context)
 
     def draw(self, context):
         layout = self.layout

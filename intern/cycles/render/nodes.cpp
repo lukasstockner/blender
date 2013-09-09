@@ -1937,12 +1937,14 @@ void TransparentVolumeNode::compile(OSLCompiler& compiler)
 
 IsotropicVolumeNode::IsotropicVolumeNode()
 {
-	closure = CLOSURE_VOLUME_ISOTROPIC_ID;
+	closure = CLOSURE_BSDF_DOUBLE_PEAKED_HENYEY_GREENSTEIN_ID;
+	
+	add_input("g", SHADER_SOCKET_FLOAT, 0.0f);
 }
 
 void IsotropicVolumeNode::compile(SVMCompiler& compiler)
 {
-	VolumeNode::compile(compiler, input("Density"), NULL);
+	VolumeNode::compile(compiler, input("Density"), input("g"));
 }
 
 void IsotropicVolumeNode::compile(OSLCompiler& compiler)

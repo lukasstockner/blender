@@ -33,6 +33,7 @@ Integrator::Integrator()
 	max_diffuse_bounce = max_bounce;
 	max_glossy_bounce = max_bounce;
 	max_transmission_bounce = max_bounce;
+	max_scattering_bounce = max_bounce;
 	probalistic_termination = true;
 
 	transparent_min_bounce = min_bounce;
@@ -41,6 +42,15 @@ Integrator::Integrator()
 	transparent_shadows = false;
 
 	no_caustics = false;
+	use_volumetric = false;
+	volume_density_factor = M_E/10;
+	volume_sampling_algorithm = 0;
+	volume_homogeneous_sampling = 0;
+	
+	volume_max_iterations = 200;
+	volume_cell_step = 0.1;
+	volume_woodcock_max_density = 0.95;
+
 	filter_glossy = 0.0f;
 	seed = 0;
 	layer_flag = ~0;
@@ -84,6 +94,7 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
 	kintegrator->max_diffuse_bounce = max_diffuse_bounce + 1;
 	kintegrator->max_glossy_bounce = max_glossy_bounce + 1;
 	kintegrator->max_transmission_bounce = max_transmission_bounce + 1;
+	kintegrator->max_scattering_bounce = max_scattering_bounce + 1;
 
 	kintegrator->transparent_max_bounce = transparent_max_bounce + 1;
 	if(transparent_probalistic)
@@ -94,6 +105,14 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
 	kintegrator->transparent_shadows = transparent_shadows;
 
 	kintegrator->no_caustics = no_caustics;
+	kintegrator->use_volumetric = use_volumetric;
+	kintegrator->volume_density_factor = volume_density_factor;
+	kintegrator->volume_sampling_algorithm = volume_sampling_algorithm;
+	kintegrator->volume_homogeneous_sampling = volume_homogeneous_sampling;
+	kintegrator->volume_max_iterations = volume_max_iterations;
+	kintegrator->volume_cell_step = volume_cell_step;
+	kintegrator->volume_woodcock_max_density = volume_woodcock_max_density;
+
 	kintegrator->filter_glossy = (filter_glossy == 0.0f)? FLT_MAX: 1.0f/filter_glossy;
 
 	kintegrator->seed = hash_int(seed);
@@ -153,6 +172,7 @@ bool Integrator::modified(const Integrator& integrator)
 		max_diffuse_bounce == integrator.max_diffuse_bounce &&
 		max_glossy_bounce == integrator.max_glossy_bounce &&
 		max_transmission_bounce == integrator.max_transmission_bounce &&
+		max_scattering_bounce == integrator.max_scattering_bounce &&
 		probalistic_termination == integrator.probalistic_termination &&
 		transparent_min_bounce == integrator.transparent_min_bounce &&
 		transparent_max_bounce == integrator.transparent_max_bounce &&
@@ -161,6 +181,13 @@ bool Integrator::modified(const Integrator& integrator)
 		no_caustics == integrator.no_caustics &&
 		filter_glossy == integrator.filter_glossy &&
 		layer_flag == integrator.layer_flag &&
+		volume_density_factor == integrator.volume_density_factor &&
+		use_volumetric == integrator.use_volumetric &&
+		volume_sampling_algorithm == integrator.volume_sampling_algorithm &&
+		volume_homogeneous_sampling == integrator.volume_homogeneous_sampling &&
+		volume_max_iterations == integrator.volume_max_iterations &&
+		volume_cell_step == integrator.volume_cell_step &&
+		volume_woodcock_max_density == integrator.volume_woodcock_max_density &&
 		seed == integrator.seed &&
 		sample_clamp == integrator.sample_clamp &&
 		method == integrator.method &&
