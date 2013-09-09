@@ -21,31 +21,36 @@
 #ifndef LIBMV_SIMPLE_PIPELINE_KEYFRAME_SELECTION_H_
 #define LIBMV_SIMPLE_PIPELINE_KEYFRAME_SELECTION_H_
 
+#include <vector>
+
 #include "libmv/base/vector.h"
 #include "libmv/simple_pipeline/tracks.h"
 #include "libmv/simple_pipeline/camera_intrinsics.h"
 
 namespace libmv {
 
-// Get list of all images which are good enough to be as keyframes from
-// camera reconstruction. Based on GRIC criteria and uses Pollefeys'
+// Get list of all images from camera 0 which are good enough to be as keyframes
+// for camera reconstruction. Based on GRIC criteria and uses Pollefeys'
 // approach for correspondence ratio constraint.
 //
-// As an additional, additional criteria based on reconstruction
-// variance is used. This means if correspondence and GRIC criteria
-// are passed, two-frames reconstruction using candidate keyframes
-// happens. After reconstruction variance of 3D points is calculating
-// and if expected error estimation is too large, keyframe candidate
-// is rejecting.
+// Additional criteria based on reconstruction variance are used. This means if
+// correspondence and GRIC criteria are passed, two-frame reconstruction using
+// candidate keyframes happens. After reconstruction, the variance of 3D points
+// is calculated and, if the expected error estimation is too large, the keyframe
+// candidate is rejected.
 //
 // \param tracks contains all tracked correspondences between frames
 //        expected to be undistorted and normalized
 // \param intrinsics is camera intrinsics
 // \param keyframes will contain all images number which are considered
 //        good to be used for reconstruction
-void SelectkeyframesBasedOnGRICAndVariance(const Tracks &tracks,
-                                           const CameraIntrinsics &intrinsics,
-                                           vector<int> &keyframes);
+//
+// TODO(sftrabbit): Use algorithm that finds images of high variance from
+//                  multiple cameras.
+void SelectkeyframesBasedOnGRICAndVariance(
+    const Tracks &tracks,
+    const std::vector<CameraIntrinsics> &intrinsics,
+    vector<int> &keyframes);
 
 }  // namespace libmv
 

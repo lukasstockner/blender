@@ -288,13 +288,17 @@ Mat pseudoInverse(const Mat &matrix) {
 }
 }  // namespace
 
-void SelectkeyframesBasedOnGRICAndVariance(const Tracks &tracks,
-                                           const CameraIntrinsics &intrinsics,
-                                           vector<int> &keyframes) {
+void SelectkeyframesBasedOnGRICAndVariance(
+    const Tracks &tracks,
+    const std::vector<CameraIntrinsics> &intrinsics,
+    vector<int> &keyframes) {
   // Mirza Tahir Ahmed, Matthew N. Dailey
   // Robust key frame extraction for 3D reconstruction from video streams
   //
   // http://www.cs.ait.ac.th/~mdailey/papers/Tahir-KeyFrame.pdf
+
+  static const int SELECTION_CAMERA = 0;
+  const CameraIntrinsics &selection_intrinsics = intrinsics[SELECTION_CAMERA];
 
   int max_image = tracks.MaxImage();
   int next_keyframe = 1;
@@ -308,7 +312,7 @@ void SelectkeyframesBasedOnGRICAndVariance(const Tracks &tracks,
   const double Tmin = 0.8;
   const double Tmax = 1.0;
 
-  Mat3 N = IntrinsicsNormalizationMatrix(intrinsics);
+  Mat3 N = IntrinsicsNormalizationMatrix(selection_intrinsics);
   Mat3 N_inverse = N.inverse();
 
   double Sc_best = std::numeric_limits<double>::max();
@@ -328,16 +332,16 @@ void SelectkeyframesBasedOnGRICAndVariance(const Tracks &tracks,
          candidate_image++) {
       // Conjunction of all markers from both keyframes
       vector<Marker> all_markers =
-        tracks.MarkersInBothImages(0, current_keyframe, candidate_image);
+        tracks.MarkersInBothImages(SELECTION_CAMERA, current_keyframe, candidate_image);
 
       // Match keypoints between frames current_keyframe and candidate_image
       vector<Marker> tracked_markers =
-        tracks.MarkersForTracksInBothImages(0, current_keyframe, candidate_image);
+        tracks.MarkersForTracksInBothImages(SELECTION_CAMERA, current_keyframe, candidate_image);
 
       // Correspondences in normalized space
       Mat x1, x2;
-      CoordinatesForMarkersInImage(tracked_markers, 0, current_keyframe, &x1);
-      CoordinatesForMarkersInImage(tracked_markers, 0, candidate_image, &x2);
+      CoordinatesForMarkersInImage(tracked_markers, SELECTION_CAMERA, current_keyframe, &x1);
+      CoordinatesForMarkersInImage(tracked_markers, SELECTION_CAMERA, candidate_image, &x2);
 
       LG << "Found " << x1.cols()
          << " correspondences between " << current_keyframe
@@ -360,8 +364,8 @@ void SelectkeyframesBasedOnGRICAndVariance(const Tracks &tracks,
         continue;
 
       Mat3 H, F;
-      ComputeHomographyFromCorrespondences(x1, x2, intrinsics, &H);
-      ComputeFundamentalFromCorrespondences(x1, x2, intrinsics, &F);
+      ComputeHomographyFromCorrespondences(x1, x2, selection_intrinsics, &H);
+      ComputeFundamentalFromCorrespondences(x1, x2, selection_intrinsics, &F);
 
       // TODO(sergey): STEP 2: Discard outlier matches
 
@@ -373,9 +377,9 @@ void SelectkeyframesBasedOnGRICAndVariance(const Tracks &tracks,
       F_e.resize(x1.cols());
       for (int i = 0; i < x1.cols(); i++) {
         Vec2 current_x1 =
-          NorrmalizedToPixelSpace(Vec2(x1(0, i), x1(1, i)), intrinsics);
+          NorrmalizedToPixelSpace(Vec2(x1(0, i), x1(1, i)), selection_intrinsics);
         Vec2 current_x2 =
-          NorrmalizedToPixelSpace(Vec2(x2(0, i), x2(1, i)), intrinsics);
+          NorrmalizedToPixelSpace(Vec2(x2(0, i), x2(1, i)), selection_intrinsics);
 
         H_e(i) = SymmetricGeometricDistance(H, current_x1, current_x2);
         F_e(i) = SymmetricEpipolarDistance(F, current_x1, current_x2);
@@ -442,10 +446,10 @@ void SelectkeyframesBasedOnGRICAndVariance(const Tracks &tracks,
          << "\nt:" << t.transpose();
 
       // First camera is identity, second one is relative to it
-      reconstruction.InsertView(0, current_keyframe,
+      reconstruction.InsertView(SELECTION_CAMERA, current_keyframe,
                                 Mat3::Identity(),
                                 Vec3::Zero());
-      reconstruction.InsertView(0, candidate_image, R, t);
+      reconstruction.InsertView(SELECTION_CAMERA, candidate_image, R, t);
 
       // Reconstruct 3D points
       int intersects_total = 0, intersects_success = 0;

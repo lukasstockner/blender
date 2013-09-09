@@ -490,7 +490,7 @@ static bool selectTwoKeyframesBasedOnGRICAndVariance(
 
 	/* Get list of all keyframe candidates first. */
 	SelectkeyframesBasedOnGRICAndVariance(normalized_tracks,
-	                                      camera_intrinsics[0],
+	                                      camera_intrinsics,
 	                                      keyframes);
 
 	if (keyframes.size() < 2) {
