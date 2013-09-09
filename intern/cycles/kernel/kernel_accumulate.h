@@ -108,23 +108,6 @@ __device_inline void bsdf_eval_mul(BsdfEval *eval, float3 value)
 #endif
 }
 
-__device_inline void bsdf_eval_add(BsdfEval *eval, float3 value)
-{
-#ifdef __PASSES__
-	if(eval->use_light_pass) {
-		eval->diffuse += value;
-		eval->glossy += value;
-		eval->transmission += value;
-
-		/* skipping transparent, this function is used by for eval(), will be zero then */
-	}
-	else
-		eval->diffuse += value;
-#else
-	*eval += value;
-#endif
-}
-
 /* Path Radiance
  *
  * We accumulate different render passes separately. After summing at the end

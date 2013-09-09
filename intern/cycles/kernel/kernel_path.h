@@ -796,8 +796,13 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 		path_radiance_bsdf_bounce(&L, &throughput, &bsdf_eval, bsdf_pdf, state.bounce, label);
 
 		/* set labels */
-		min_ray_pdf = fminf(bsdf_pdf, min_ray_pdf);
-		
+		if(!(label & LABEL_TRANSPARENT)) {
+			ray_pdf = bsdf_pdf;
+#ifdef __LAMP_MIS__
+			ray_t = 0.0f;
+#endif
+			min_ray_pdf = fminf(bsdf_pdf, min_ray_pdf);
+		}
 
 		ray_pdf *= volume_pdf;
 
