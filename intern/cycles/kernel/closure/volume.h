@@ -19,15 +19,15 @@
 
 CCL_NAMESPACE_BEGIN
 
+#if 0 /* XXX unused */
 /* note: the interfaces here are just as an example, need to figure
  * out the right functions and parameters to use */
 
 /* ISOTROPIC VOLUME CLOSURE */
 
-__device int volume_isotropic_setup(ShaderClosure *sc, float density)
+__device int volume_isotropic_setup(ShaderClosure *sc)
 {
 	sc->type = CLOSURE_VOLUME_ISOTROPIC_ID;
-	sc->data0 = density;
 
 	return SD_VOLUME;
 }
@@ -39,10 +39,9 @@ __device float3 volume_isotropic_eval_phase(const ShaderClosure *sc, const float
 
 /* TRANSPARENT VOLUME CLOSURE */
 
-__device int volume_transparent_setup(ShaderClosure *sc, float density)
+__device int volume_transparent_setup(ShaderClosure *sc)
 {
 	sc->type = CLOSURE_VOLUME_TRANSPARENT_ID;
-	sc->data0 = density;
 
 	return SD_VOLUME;
 }
@@ -77,15 +76,20 @@ __device float3 volume_eval_phase(KernelGlobals *kg, const ShaderClosure *sc, co
 
 	return eval;
 }
+#endif
 
 /* HENYEY_GREENSTEIN CLOSURE */
 
-__device int volume_double_peaked_henyey_greeenstein_setup(ShaderClosure *sc, float density, float g)
+__device int volume_double_peaked_henyey_greeenstein_setup(ShaderClosure *sc)
 {
 	sc->type = CLOSURE_BSDF_DOUBLE_PEAKED_HENYEY_GREENSTEIN_ID;
-	sc->data0 = density;
-	sc->data1 = g;
 	return SD_BSDF|SD_BSDF_HAS_EVAL;
+}
+
+/* XXX wrapper for OSL closure macros + typo fix ... remove after cleanup */
+__device int bsdf_henyey_greenstein_setup(ShaderClosure *sc)
+{
+	return volume_double_peaked_henyey_greeenstein_setup(sc);
 }
 
 // given cosinus between rays, return probability density that photon bounce to that direction
@@ -186,15 +190,15 @@ __device int bsdf_double_peaked_henyey_greenstein_sample(const ShaderData *sd, c
 // new optimized, importance sampled version, no difference when g = 0 but huge gain at other g values (less variance)
 
 // just return bsdf at input vector
-__device float3 bsdf_double_peaked_henyey_greenstein_eval(const ShaderData *sd, const ShaderClosure *sc, const float3 I, float3 omega_in, float *pdf)
+__device float3 bsdf_double_peaked_henyey_greenstein_eval(const ShaderClosure *sc, const float3 I, float3 omega_in, float *pdf)
 {
 //	float m_F = sc->data0;
 	float m_g = sc->data1;
 	const float magic_eps = 0.001f;
 
-	// WARNING! sd->I point in backward direction!
-//	float cos_theta = dot( sd->I, omega_in);
-	float cos_theta = dot( -sd->I, omega_in);
+	// WARNING! I point in backward direction!
+//	float cos_theta = dot( I, omega_in);
+	float cos_theta = dot( -I, omega_in);
 //	*pdf = double_peaked_henyey_greenstein( cos_theta, m_F, m_g);
 	if ( fabsf(m_g) <  magic_eps)
 		*pdf = M_1_PI_F * 0.25f; // ?? double check it
@@ -203,10 +207,16 @@ __device float3 bsdf_double_peaked_henyey_greenstein_eval(const ShaderData *sd, 
 //	*pdf = M_1_PI_F / 4;
 	return make_float3( *pdf, *pdf, *pdf);
 }
-__device int bsdf_double_peaked_henyey_greenstein_sample(const ShaderData *sd, const ShaderClosure *sc, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
+
+/* XXX wrapper for OSL closure macros ... remove after cleanup */
+__device float3 bsdf_henyey_greenstein_eval(const ShaderClosure *sc, const float3 I, float3 omega_in, float *pdf)
+{
+	return bsdf_double_peaked_henyey_greenstein_eval(sc, I, omega_in, pdf);
+}
+
+__device int bsdf_double_peaked_henyey_greenstein_sample(const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
 {
 	float m_g = sc->data1;
-	float3 m_N = sd->N;
 	const float magic_eps = 0.001f;
 #if 0
 	float4 tt4;
@@ -219,7 +229,7 @@ __device int bsdf_double_peaked_henyey_greenstein_sample(const ShaderData *sd, c
 	(*ptt4).x = 3.3f; 
 	(*ptt3).x = 3.3f; 
 #endif
-	// WARNING! sd->I point in backward direction!
+	// WARNING! I point in backward direction!
 
 	if ( fabsf(m_g) <  magic_eps)
 	{
@@ -243,23 +253,29 @@ __device int bsdf_double_peaked_henyey_greenstein_sample(const ShaderData *sd, c
 		float sin_theta = sqrt(1 - cos_theta * cos_theta);
 		
 		float3 T, B;
-		make_orthonormals(-sd->I, &T, &B);
+		make_orthonormals(-I, &T, &B);
 		float phi = 2.f * M_PI_F * randv;
 		cos_phi = cosf( phi);
 		sin_phi = sinf( phi);
-		*omega_in = sin_theta * cos_phi * T + sin_theta * sin_phi * B + cos_theta * (-sd->I);
+		*omega_in = sin_theta * cos_phi * T + sin_theta * sin_phi * B + cos_theta * (-I);
 		*pdf = single_peaked_henyey_greenstein( cos_theta, m_g);
 	}
 
 	*eval = make_float3(*pdf, *pdf, *pdf); // perfect importance sampling
 #ifdef __RAY_DIFFERENTIALS__
 		// TODO: find a better approximation for the diffuse bounce
-		*domega_in_dx = (2 * dot(m_N, sd->dI.dx)) * m_N - sd->dI.dx;
-		*domega_in_dy = (2 * dot(m_N, sd->dI.dy)) * m_N - sd->dI.dy;
+		*domega_in_dx = (2 * dot(Ng, dIdx)) * Ng - dIdx;
+		*domega_in_dy = (2 * dot(Ng, dIdy)) * Ng - dIdy;
 		*domega_in_dx *= 125.0f;
 		*domega_in_dy *= 125.0f;
 #endif
 	return LABEL_REFLECT|LABEL_DIFFUSE;
+}
+
+/* XXX wrapper for OSL closure macros ... remove after cleanup */
+__device int bsdf_henyey_greenstein_sample(const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
+{
+	return bsdf_double_peaked_henyey_greenstein_sample(sc, Ng, I, dIdx, dIdy, randu, randv, eval, omega_in, domega_in_dx, domega_in_dy, pdf);
 }
 
 #endif
@@ -269,13 +285,13 @@ __device int volume_bsdf_sample(KernelGlobals *kg, const ShaderData *sd, const S
 	int label;
 
 #ifdef __OSL__
-        if(kg->osl && sc->prim)
-			return OSLShader::bsdf_sample(sd, sc, randu, randv, *eval, *omega_in, *domega_in, *pdf);
+//        if(kg->osl && sc->prim)
+//			return OSLShader::bsdf_sample(sd, sc, randu, randv, *eval, *omega_in, *domega_in, *pdf);
 #endif
 
 	switch(sc->type) {
 		case CLOSURE_BSDF_DOUBLE_PEAKED_HENYEY_GREENSTEIN_ID:
-			label = bsdf_double_peaked_henyey_greenstein_sample(sd, sc, randu, randv, eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
+			label = bsdf_double_peaked_henyey_greenstein_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv, eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
 		default:
 			*eval = make_float3(0.0f, 0.0f, 0.0f);

@@ -1872,7 +1872,9 @@ void AmbientOcclusionNode::compile(OSLCompiler& compiler)
 VolumeNode::VolumeNode()
 : ShaderNode("volume")
 {
+#if 0 /* XXX unused */
 	closure = CLOSURE_VOLUME_ISOTROPIC_ID;
+#endif
 
 	add_input("Color", SHADER_SOCKET_COLOR, make_float3(0.8f, 0.8f, 0.8f));
 	add_input("Density", SHADER_SOCKET_FLOAT, 1.0f);
@@ -1920,7 +1922,9 @@ void VolumeNode::compile(OSLCompiler& compiler)
 
 TransparentVolumeNode::TransparentVolumeNode()
 {
+#if 0 /* XXX unused */
 	closure = CLOSURE_VOLUME_TRANSPARENT_ID;
+#endif
 }
 
 void TransparentVolumeNode::compile(SVMCompiler& compiler)
@@ -1949,7 +1953,7 @@ void IsotropicVolumeNode::compile(SVMCompiler& compiler)
 
 void IsotropicVolumeNode::compile(OSLCompiler& compiler)
 {
-	compiler.add(this, "node_isotropic_volume");
+	compiler.add(this, "node_henyey_greenstein_volume");
 }
 
 /* Geometry */

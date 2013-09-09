@@ -54,6 +54,7 @@ OSL::ClosureParam *closure_bssrdf_cubic_params();
 OSL::ClosureParam *closure_bssrdf_gaussian_params();
 OSL::ClosureParam *closure_bssrdf_cubic_extended_params();
 OSL::ClosureParam *closure_bssrdf_gaussian_extended_params();
+OSL::ClosureParam *closure_isotropic_volume_params();
 
 void closure_emission_prepare(OSL::RendererServices *, int id, void *data);
 void closure_background_prepare(OSL::RendererServices *, int id, void *data);
@@ -65,6 +66,7 @@ void closure_westin_backscatter_prepare(OSL::RendererServices *, int id, void *d
 void closure_westin_sheen_prepare(OSL::RendererServices *, int id, void *data);
 void closure_bssrdf_cubic_prepare(OSL::RendererServices *, int id, void *data);
 void closure_bssrdf_gaussian_prepare(OSL::RendererServices *, int id, void *data);
+void closure_isotropic_volume_prepare(OSL::RendererServices *, int id, void *data);
 
 enum {
 	AmbientOcclusion = 100
@@ -172,6 +174,88 @@ static ClosureParam *bsdf_##lower##_params() \
 /* parameters */
 
 #define BSDF_CLOSURE_CLASS_END(Upper, lower) \
+		CLOSURE_STRING_KEYPARAM("label"), \
+	    CLOSURE_FINISH_PARAM(Upper##Closure) \
+	}; \
+	return params; \
+} \
+\
+CLOSURE_PREPARE_STATIC(bsdf_##lower##_prepare, Upper##Closure)
+
+
+/* Volume */
+
+class CVolumeClosure : public OSL::ClosurePrimitive {
+public:
+	ShaderClosure sc;
+
+	CVolumeClosure() : OSL::ClosurePrimitive(Volume),
+	    m_shaderdata_flag(0)
+	{ memset(&sc, 0, sizeof(sc)); }
+	~CVolumeClosure() { }
+
+	int shaderdata_flag() const { return m_shaderdata_flag; }
+
+	virtual float3 eval(const float3 &omega_out, const float3 &omega_in, float& pdf) const = 0;
+
+	virtual int sample(const float3 &Ng,
+	                   const float3 &omega_out, const float3 &domega_out_dx, const float3 &domega_out_dy,
+	                   float randu, float randv,
+	                   float3 &omega_in, float3 &domega_in_dx, float3 &domega_in_dy,
+	                   float &pdf, float3 &eval) const = 0;
+
+protected:
+	int m_shaderdata_flag;
+};
+
+#define VOLUME_CLOSURE_CLASS_BEGIN(Upper, lower, svmlower) \
+\
+class Upper##Closure : public CVolumeClosure { \
+public: \
+	Upper##Closure() : CVolumeClosure() {} \
+	size_t memsize() const { return sizeof(*this); } \
+	const char *name() const { return #lower; } \
+\
+	void setup() \
+	{ \
+		sc.prim = NULL; \
+		m_shaderdata_flag = bsdf_##lower##_setup(&sc); \
+	} \
+\
+	bool mergeable(const ClosurePrimitive *other) const \
+	{ \
+		return false; \
+	} \
+	\
+	void print_on(std::ostream &out) const \
+	{ \
+		out << name() << " ((" << sc.N[0] << ", " << sc.N[1] << ", " << sc.N[2] << "))"; \
+	} \
+\
+	float3 eval(const float3 &omega_out, const float3 &omega_in, float& pdf) const \
+	{ \
+		return bsdf_##svmlower##_eval(&sc, omega_out, omega_in, &pdf); \
+	} \
+\
+	int sample(const float3 &Ng, \
+	           const float3 &omega_out, const float3 &domega_out_dx, const float3 &domega_out_dy, \
+	           float randu, float randv, \
+	           float3 &omega_in, float3 &domega_in_dx, float3 &domega_in_dy, \
+	           float &pdf, float3 &eval) const \
+	{ \
+		return bsdf_##svmlower##_sample(&sc, Ng, omega_out, domega_out_dx, domega_out_dy, \
+			randu, randv, &eval, &omega_in, &domega_in_dx, &domega_in_dy, &pdf); \
+	} \
+\
+}; \
+\
+static ClosureParam *bsdf_##lower##_params() \
+{ \
+	static ClosureParam params[] = {
+
+/* parameters */
+
+#define VOLUME_CLOSURE_CLASS_END(Upper, lower) \
 		CLOSURE_STRING_KEYPARAM("label"), \
 	    CLOSURE_FINISH_PARAM(Upper##Closure) \
 	}; \

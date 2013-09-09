@@ -437,23 +437,28 @@ __device void svm_node_closure_volume(KernelGlobals *kg, ShaderData *sd, float *
 	float param2 = (stack_valid(param2_offset))? stack_load_float(stack, param2_offset): __uint_as_float(node.w);
 
 	switch(type) {
+#if 0 /* XXX unused */
 		case CLOSURE_VOLUME_TRANSPARENT_ID: {
 			ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
 
 			if(sc) {
 				float density = param1;
-				sd->flag |= volume_transparent_setup(sc, density);
+				sc->data0 = density;
+				sd->flag |= volume_transparent_setup(sc);
 			}
 			break;
 		}
+#endif
 		case CLOSURE_BSDF_DOUBLE_PEAKED_HENYEY_GREENSTEIN_ID: { /* CLOSURE_VOLUME_ISOTROPIC_ID */
 			ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
 
 			if(sc) {
 				float density = param1;
 				float g = param2;
-				sd->flag |= volume_double_peaked_henyey_greeenstein_setup(sc, density, g);
-				// sd->flag |= volume_isotropic_setup(sc, density);
+				sc->data0 = density;
+				sc->data1 = g;
+				sd->flag |= volume_double_peaked_henyey_greeenstein_setup(sc);
+				// sd->flag |= volume_isotropic_setup(sc);
 			}
 			break;
 		}

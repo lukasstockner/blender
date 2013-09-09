@@ -433,6 +433,10 @@ void OSLShader::eval_volume(KernelGlobals *kg, ShaderData *sd, float randb, int 
 
 	if (kg->osl->volume_state[shader])
 		ss->execute(*octx, *(kg->osl->volume_state[shader]), *globals);
+	
+	/* flatten closure tree */
+	sd->num_closure = 0;
+	sd->randb_closure = randb;
 
 	if (globals->Ci)
 		flatten_volume_closure_tree(sd, globals->Ci);
@@ -505,12 +509,14 @@ float3 OSLShader::emissive_eval(const ShaderData *sd, const ShaderClosure *sc)
 
 /* Volume Closure */
 
+#if 0 /* XXX unused */
 float3 OSLShader::volume_eval_phase(const ShaderClosure *sc, const float3 omega_in, const float3 omega_out)
 {
 	OSL::VolumeClosure *volume = (OSL::VolumeClosure *)sc->prim;
 	OSL::Color3 volume_eval = volume->eval_phase(TO_VEC3(omega_in), TO_VEC3(omega_out));
 	return TO_FLOAT3(volume_eval) * sc->weight;
 }
+#endif
 
 /* Attributes */
 

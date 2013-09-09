@@ -963,6 +963,7 @@ __device float3 shader_eval_background(KernelGlobals *kg, ShaderData *sd, int pa
 
 /* Volume */
 
+#if 0 /* XXX unused */
 __device float3 shader_volume_eval_phase(KernelGlobals *kg, ShaderData *sd,
 	float3 omega_in, float3 omega_out)
 {
@@ -981,20 +982,23 @@ __device float3 shader_volume_eval_phase(KernelGlobals *kg, ShaderData *sd,
 	return volume_eval_phase(kg, &sd->closure, omega_in, omega_out);
 #endif
 }
+#endif
 
 /* Volume Evaluation */
 
 __device void shader_eval_volume(KernelGlobals *kg, ShaderData *sd,
 	float randb, int path_flag, ShaderContext ctx)
 {
-#ifdef __SVM__
 #ifdef __OSL__
 	if (kg->osl)
 		OSLShader::eval_volume(kg, sd, randb, path_flag, ctx);
 	else
 #endif
+	{
+#ifdef __SVM__
 		svm_eval_nodes(kg, sd, SHADER_TYPE_VOLUME, randb, path_flag);
 #endif
+	}
 }
 
 __device int shader_volume_bsdf_sample(KernelGlobals *kg, const ShaderData *sd,

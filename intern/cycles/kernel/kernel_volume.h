@@ -595,23 +595,25 @@ __device int kernel_volumetric_sample(KernelGlobals *kg, RNG* rng, int rng_offse
 		 ShaderData *sd, Ray ray, float distance, float* particle_isect_t, int path_flag, float *pdf, float *eval, float3* throughput, float *omega_cache = NULL)
 {
 	/* sample point on volumetric ray (return false - no hit, true - hit : fill new hit t value on path [start,end] */
-       float distance_magic_eps = 1e-4f;
+	float distance_magic_eps = 1e-4f;
 
-       if((sd->flag & SD_HAS_VOLUME) == 0 || (distance < distance_magic_eps))
-               return 0; /* empty volume shader slot or escape from bottle when scattering in solid */
+	if((sd->flag & SD_HAS_VOLUME) == 0 || (distance < distance_magic_eps))
+		return 0; /* empty volume shader slot or escape from bottle when scattering in solid */
 
-       *pdf = 1.0f;
-       *eval = 1.0f;
+	*pdf = 1.0f;
+	*eval = 1.0f;
 	*particle_isect_t = 0.0f;
 
 	if( sd->flag & SD_HOMOGENEOUS_VOLUME)
 	{
 		/* homogeneous media */
 		if (kernel_data.integrator.volume_homogeneous_sampling == 1 && kernel_data.integrator.num_all_lights) {
-			return kernel_volumetric_equiangular_sampler( kg, rng, rng_offset, rng_congruential, pass, randv, randp, sd, ray, path_flag, distance, particle_isect_t, pdf, eval,  omega_cache);
+			bool ok = kernel_volumetric_equiangular_sampler( kg, rng, rng_offset, rng_congruential, pass, randv, randp, sd, ray, path_flag, distance, particle_isect_t, pdf, eval,  omega_cache);
+			return ok;
 		}
 		else {
-			return kernel_volumetric_homogeneous_sampler( kg, rng, rng_offset, pass, randv, randp, sd, ray, path_flag, distance, particle_isect_t, pdf, eval, omega_cache);
+			bool ok = kernel_volumetric_homogeneous_sampler( kg, rng, rng_offset, pass, randv, randp, sd, ray, path_flag, distance, particle_isect_t, pdf, eval, omega_cache);
+			return ok;
 		}
 	}
 	else
@@ -619,23 +621,27 @@ __device int kernel_volumetric_sample(KernelGlobals *kg, RNG* rng, int rng_offse
 		if (kernel_data.integrator.volume_sampling_algorithm == 3)
 		{
 			/* Woodcock delta tracking */
-			return kernel_volumetric_woodcock_sampler( kg, rng, rng_offset, rng_congruential, pass, randv, sd, ray, path_flag, distance, particle_isect_t, pdf);
+			bool ok = kernel_volumetric_woodcock_sampler( kg, rng, rng_offset, rng_congruential, pass, randv, sd, ray, path_flag, distance, particle_isect_t, pdf);
 			*eval = *pdf;
+			return ok;
 		}
 		else if (kernel_data.integrator.volume_sampling_algorithm == 2){
 			/* Volume marching. Move particles through one region at a time, until collision occurs */
-			return kernel_volumetric_marching_sampler( kg, rng, rng_offset, rng_congruential, pass, randv, sd, ray, path_flag, distance, particle_isect_t, pdf);
+			bool ok = kernel_volumetric_marching_sampler( kg, rng, rng_offset, rng_congruential, pass, randv, sd, ray, path_flag, distance, particle_isect_t, pdf);
 			*eval = *pdf;
+			return ok;
 		}
 		else if (kernel_data.integrator.volume_sampling_algorithm == 1){
 			/* Woodcock delta tracking */
-			return kernel_volumetric_woodcock_sampler2( kg, rng, rng_offset, rng_congruential, pass, randv, sd, ray, path_flag, distance, particle_isect_t, pdf);
+			bool ok = kernel_volumetric_woodcock_sampler2( kg, rng, rng_offset, rng_congruential, pass, randv, sd, ray, path_flag, distance, particle_isect_t, pdf);
 			*eval = *pdf;
+			return ok;
 		}
 		else {
 			/* Volume marching. Move particles through one region at a time, until collision occurs */
-			return kernel_volumetric_marching_sampler2( kg, rng, rng_offset, rng_congruential, pass, randv, sd, ray, path_flag, distance, particle_isect_t, pdf);
+			bool ok = kernel_volumetric_marching_sampler2( kg, rng, rng_offset, rng_congruential, pass, randv, sd, ray, path_flag, distance, particle_isect_t, pdf);
 			*eval = *pdf;
+			return ok;
 		}
 	}
 }
@@ -878,18 +884,16 @@ __device int kernel_path_trace_volume(KernelGlobals *kg, RNG *rng, int rng_offse
 		return VOLUME_PATH_PARTICLE_MISS;
 
 	ShaderData vsd;
-
 	shader_setup_from_volume(kg, &vsd, ray, media_volume_shader);
-	if((vsd.flag & SD_HAS_VOLUME) == 0)
+	if ((vsd.flag & SD_HAS_VOLUME) == 0)
 		return VOLUME_PATH_PARTICLE_MISS; // null volume slot, assume transparent.
-
 
 	float randv = path_rng(kg, rng, sample, rng_offset + PRNG_VOLUME_DISTANCE);
 	float randp = path_rng(kg, rng, sample, rng_offset + PRNG_VOLUME_DENSITY);
 	float particle_isect_t;
 	float pdf;
 	float eval;
-	if(kernel_volumetric_sample(kg, rng, rng_offset, rng_congruential, sample, randv, randp, &vsd, *ray, isect_t, &particle_isect_t, state->flag, &pdf, &eval, throughput, omega_cache))
+	if (kernel_volumetric_sample(kg, rng, rng_offset, rng_congruential, sample, randv, randp, &vsd, *ray, isect_t, &particle_isect_t, state->flag, &pdf, &eval, throughput, omega_cache))
 	{
 		*volume_pdf = pdf;
 		*volume_eval = make_float3( eval, eval, eval);
