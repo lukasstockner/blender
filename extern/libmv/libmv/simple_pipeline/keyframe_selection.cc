@@ -297,8 +297,8 @@ void SelectkeyframesBasedOnGRICAndVariance(
   //
   // http://www.cs.ait.ac.th/~mdailey/papers/Tahir-KeyFrame.pdf
 
-  static const int SELECTION_CAMERA = 0;
-  const CameraIntrinsics &selection_intrinsics = intrinsics[SELECTION_CAMERA];
+  static const int kSelectionCamera = 0;
+  const CameraIntrinsics &selection_intrinsics = intrinsics[kSelectionCamera];
 
   int max_image = tracks.MaxImage();
   int next_keyframe = 1;
@@ -332,16 +332,16 @@ void SelectkeyframesBasedOnGRICAndVariance(
          candidate_image++) {
       // Conjunction of all markers from both keyframes
       vector<Marker> all_markers =
-        tracks.MarkersInBothImages(SELECTION_CAMERA, current_keyframe, candidate_image);
+        tracks.MarkersInBothImages(kSelectionCamera, current_keyframe, candidate_image);
 
       // Match keypoints between frames current_keyframe and candidate_image
       vector<Marker> tracked_markers =
-        tracks.MarkersForTracksInBothImages(SELECTION_CAMERA, current_keyframe, candidate_image);
+        tracks.MarkersForTracksInBothImages(kSelectionCamera, current_keyframe, candidate_image);
 
       // Correspondences in normalized space
       Mat x1, x2;
-      CoordinatesForMarkersInImage(tracked_markers, SELECTION_CAMERA, current_keyframe, &x1);
-      CoordinatesForMarkersInImage(tracked_markers, SELECTION_CAMERA, candidate_image, &x2);
+      CoordinatesForMarkersInImage(tracked_markers, kSelectionCamera, current_keyframe, &x1);
+      CoordinatesForMarkersInImage(tracked_markers, kSelectionCamera, candidate_image, &x2);
 
       LG << "Found " << x1.cols()
          << " correspondences between " << current_keyframe
@@ -446,10 +446,10 @@ void SelectkeyframesBasedOnGRICAndVariance(
          << "\nt:" << t.transpose();
 
       // First camera is identity, second one is relative to it
-      reconstruction.InsertView(SELECTION_CAMERA, current_keyframe,
+      reconstruction.InsertView(kSelectionCamera, current_keyframe,
                                 Mat3::Identity(),
                                 Vec3::Zero());
-      reconstruction.InsertView(SELECTION_CAMERA, candidate_image, R, t);
+      reconstruction.InsertView(kSelectionCamera, candidate_image, R, t);
 
       // Reconstruct 3D points
       int intersects_total = 0, intersects_success = 0;

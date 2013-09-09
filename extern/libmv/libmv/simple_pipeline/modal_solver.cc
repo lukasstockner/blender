@@ -99,7 +99,7 @@ struct ModalReprojectionError {
 void ModalSolver(const Tracks &tracks,
                  EuclideanReconstruction *reconstruction,
                  ProgressUpdateCallback *update_callback) {
-  static const int MODAL_CAMERA = 0;
+  static const int kModalCamera = 0;
   int max_image = tracks.MaxImage();
   int max_track = tracks.MaxTrack();
 
@@ -112,7 +112,7 @@ void ModalSolver(const Tracks &tracks,
   ceres::AngleAxisToQuaternion(&zero_rotation(0), &quaternion(0));
 
   for (int image = 0; image <= max_image; ++image) {
-    vector<Marker> all_markers = tracks.MarkersInImage(MODAL_CAMERA, image);
+    vector<Marker> all_markers = tracks.MarkersInImage(kModalCamera, image);
 
     ModalSolverLogProress(update_callback, (float) image / max_image);
 
@@ -218,7 +218,7 @@ void ModalSolver(const Tracks &tracks,
     // Convert quaternion to rotation matrix.
     Mat3 R;
     ceres::QuaternionToRotation(&quaternion(0), &R(0, 0));
-    reconstruction->InsertView(MODAL_CAMERA, image, R, Vec3::Zero());
+    reconstruction->InsertView(kModalCamera, image, R, Vec3::Zero());
 
     // STEP 3: reproject all new markers appeared at image
 
@@ -226,7 +226,7 @@ void ModalSolver(const Tracks &tracks,
     // and reproject them on sphere to obtain 3D position/
     for (int track = 0; track <= max_track; ++track) {
       if (!reconstruction->PointForTrack(track)) {
-        Marker marker = tracks.MarkerInImageForTrack(MODAL_CAMERA, image, track);
+        Marker marker = tracks.MarkerInImageForTrack(kModalCamera, image, track);
 
         if (marker.image == image) {
           // New track appeared on this image,
