@@ -233,7 +233,7 @@ void OSLShader::register_closures(OSLShadingSystem *ss_)
 	register_closure(ss, "bssrdf_gaussian", id++,
 		closure_bssrdf_gaussian_extended_params(), closure_bssrdf_gaussian_prepare);
 
-	register_closure(ss, "henyey_greenstein", id++,
+	register_closure(ss, "isotropic", id++,
 		volume_isotropic_params(), volume_isotropic_prepare);
 }
 

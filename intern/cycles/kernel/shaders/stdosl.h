@@ -469,7 +469,7 @@ closure color bssrdf_cubic(normal N, vector radius, float texture_blur, float sh
 closure color bssrdf_gaussian(normal N, vector radius, float texture_blur) BUILTIN;
 
 // Volume
-closure color henyey_greenstein(normal N, float Density, float g) BUILTIN;
+closure color isotropic(normal N, float Density, float g) BUILTIN;
 
 // Backwards compatibility
 closure color bssrdf_cubic(normal N, vector radius) BUILTIN;

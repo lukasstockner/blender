@@ -16,12 +16,12 @@
 
 #include "stdosl.h"
 
-shader node_henyey_greenstein_volume(
+shader node_isotropic_volume(
 	color Color = color(0.8, 0.8, 0.8),
 	float Density = 1.0,
 	float g = 0.0,
 	normal Normal = N,
 	output closure color Volume = 0)
 {
-	Volume = Color * henyey_greenstein(Normal, Density, g);
+	Volume = Color * isotropic(Normal, Density, g);
 }
