@@ -744,6 +744,12 @@ static void paint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 			if (pop->mode == PAINT_MODE_2D) {
 				paint_2d_gradient_fill(C, brush, pop->startmouse, pop->prevmouse, pop->custom_paint);
 			}
+			else {
+				paint_proj_stroke(C, pop->custom_paint, pop->startmouse, pop->prevmouse, 1.0, 0.0);
+				/* two redraws, one for GPU update, one for notification */
+				paint_proj_redraw(C, pop->custom_paint, false);
+				paint_proj_redraw(C, pop->custom_paint, true);
+			}
 		}
 		else {
 			if (pop->mode == PAINT_MODE_2D) {
@@ -751,7 +757,8 @@ static void paint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 
 				srgb_to_linearrgb_v3_v3(color, brush->rgb);
 				paint_2d_bucket_fill(C, color);
-			} else {
+			}
+			else {
 				paint_proj_stroke(C, pop->custom_paint, pop->startmouse, pop->prevmouse, 1.0, 0.0);
 				/* two redraws, one for GPU update, one for notification */
 				paint_proj_redraw(C, pop->custom_paint, false);

@@ -4061,21 +4061,63 @@ static void *do_projectpaint_thread(void *ph_v)
 
 				/* fill tools */
 				if (ps->source == PROJ_SRC_VIEW_FILL) {
-					if (is_floatbuf) {
-						float newColor_f[4];
-						newColor_f[3] = ((float)projPixel->mask) * (1.0f / 65535.0f);
-						copy_v3_v3(newColor_f, ps->paint_color_linear);
+					if (brush->flag & BRUSH_USE_GRADIENT) {
+						/* these could probably be cached instead of being done per pixel */
+						float tangent[2];
+						float line_len_sq_inv, line_len;
+						float f;
+						float color_f[4];
+						float p[2] = {projPixel->projCoSS[0] - lastpos[0], projPixel->projCoSS[1] - lastpos[1]};
 
-						blend_color_mix_float(projPixel->pixel.f_pt,  projPixel->origColor.f_pt,
-						                      newColor_f);
+						sub_v2_v2v2(tangent, pos, lastpos);
+						line_len = len_squared_v2(tangent);
+						line_len_sq_inv = 1.0/line_len;
+						line_len = sqrt(line_len);
+
+						switch (brush->gradient_fill_mode) {
+							case BRUSH_GRADIENT_LINEAR:
+							{
+								f = dot_v2v2(p, tangent)*line_len_sq_inv;
+								break;
+							}
+							case BRUSH_GRADIENT_RADIAL:
+							{
+								f = len_v2(p)/line_len;
+								break;
+							}
+						}
+						do_colorband(brush->gradient, f, color_f);
+						color_f[3] *= ((float)projPixel->mask) * (1.0f / 65535.0f);
+
+						if (is_floatbuf) {
+							/* convert to premultipied */
+							mul_v3_fl(color_f, color_f[3]);
+							blend_color_mix_float(projPixel->pixel.f_pt,  projPixel->origColor.f_pt,
+							                      color_f);
+						}
+						else {
+							rgba_float_to_uchar(projPixel->newColor.ch, color_f);
+							blend_color_mix_byte(projPixel->pixel.ch_pt,  projPixel->origColor.ch_pt,
+							                     projPixel->newColor.ch);
+						}
 					}
 					else {
-						float mask = ((float)projPixel->mask) * (1.0f / 65535.0f);
-						projPixel->newColor.ch[3] = mask * 255;
+						if (is_floatbuf) {
+							float newColor_f[4];
+							newColor_f[3] = ((float)projPixel->mask) * (1.0f / 65535.0f);
+							copy_v3_v3(newColor_f, ps->paint_color_linear);
 
-						rgb_float_to_uchar(projPixel->newColor.ch, ps->paint_color);
-						blend_color_mix_byte(projPixel->pixel.ch_pt,  projPixel->origColor.ch_pt,
-						                     projPixel->newColor.ch);
+							blend_color_mix_float(projPixel->pixel.f_pt,  projPixel->origColor.f_pt,
+							                      newColor_f);
+						}
+						else {
+							float mask = ((float)projPixel->mask) * (1.0f / 65535.0f);
+							projPixel->newColor.ch[3] = mask * 255;
+
+							rgb_float_to_uchar(projPixel->newColor.ch, ps->paint_color);
+							blend_color_mix_byte(projPixel->pixel.ch_pt,  projPixel->origColor.ch_pt,
+							                     projPixel->newColor.ch);
+						}
 					}
 
 					last_partial_redraw_cell = last_projIma->partRedrawRect + projPixel->bb_cell_index;
