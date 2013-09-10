@@ -1949,7 +1949,7 @@ void IsotropicVolumeNode::compile(SVMCompiler& compiler)
 
 void IsotropicVolumeNode::compile(OSLCompiler& compiler)
 {
-	compiler.add(this, "node_henyey_greenstein_volume");
+	compiler.add(this, "node_isotropic_volume");
 }
 
 /* Geometry */
