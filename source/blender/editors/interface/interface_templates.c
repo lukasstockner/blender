@@ -3388,8 +3388,12 @@ void uiTemplateKeymapItemProperties(uiLayout *layout, PointerRNA *ptr)
 
 		/* attach callbacks to compensate for missing properties update,
 		 * we don't know which keymap (item) is being modified there */
-		for (; but; but = but->next)
-			uiButSetFunc(but, keymap_item_modified, ptr->data, NULL);
+		for (; but; but = but->next) {
+			/* operator buttons may store props for use (file selector, [#36492]) */
+			if (but->rnaprop) {
+				uiButSetFunc(but, keymap_item_modified, ptr->data, NULL);
+			}
+		}
 	}
 }
 
@@ -3440,6 +3444,8 @@ void uiTemplateColormanagedViewSettings(uiLayout *layout, bContext *UNUSED(C), P
 	col = uiLayoutColumn(layout, FALSE);
 	uiItemR(col, &view_transform_ptr, "exposure", 0, NULL, ICON_NONE);
 	uiItemR(col, &view_transform_ptr, "gamma", 0, NULL, ICON_NONE);
+
+	uiItemR(col, &view_transform_ptr, "look", 0, IFACE_("Look"), ICON_NONE);
 
 	col = uiLayoutColumn(layout, FALSE);
 	uiItemR(col, &view_transform_ptr, "use_curve_mapping", 0, NULL, ICON_NONE);
