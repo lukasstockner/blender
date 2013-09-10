@@ -383,18 +383,23 @@ static void flatten_volume_closure_tree(ShaderData *sd,
 
 			switch (prim->category()) {
 				case OSL::ClosurePrimitive::Volume: {
+					CVolumeClosure *volume = (CVolumeClosure *)prim;
 					/* sample weight */
 					float sample_weight = fabsf(average(weight));
 
 					sc.sample_weight = sample_weight;
-					sc.type = CLOSURE_VOLUME_ID;
-					sc.data0 = 0.0f;
-					sc.data1 = 0.0f;
-					sc.prim = NULL;
+					sc.type = volume->sc.type;
+					sc.N = volume->sc.N;
+					sc.T = volume->sc.T;
+					sc.data0 = volume->sc.data0;
+					sc.data1 = volume->sc.data1;
+					sc.prim = volume->sc.prim;
 
 					/* add */
-					if(sc.sample_weight > 1e-5f && sd->num_closure < MAX_CLOSURE)
+					if(sc.sample_weight > 1e-5f && sd->num_closure < MAX_CLOSURE) {
 						sd->closure[sd->num_closure++] = sc;
+						sd->flag |= volume->shaderdata_flag();
+					}
 					break;
 				}
 				case OSL::ClosurePrimitive::Holdout:
