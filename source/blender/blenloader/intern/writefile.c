@@ -2387,7 +2387,7 @@ static void write_panel(WriteData *wd, Panel *pa)
 }
 
 static void write_region(WriteData *wd, ARegion *ar, int spacetype)
-{	
+{
 	writestruct(wd, DATA, "ARegion", 1, ar);
 	
 	if (ar->regiondata) {

@@ -2829,3 +2829,32 @@ float *ui_block_hsv_get(uiBlock *block)
 {
 	return block->_hsv;
 }
+
+OperatorListItem *uiRegionDraggedOperatorListItem(ARegion *ar)
+{
+	OperatorListItem *oli = NULL;
+	uiHandleRegionDragData *data;
+	
+	if (ar->dragdata) {
+		data = ar->dragdata;
+		if (data->state == REGION_STATE_DRAG_BUTTON) {
+			return data->oli;
+		}
+	}
+	
+	return oli;
+}
+
+int uiRegionDraggedNewIndex(ARegion *ar)
+{
+	uiHandleRegionDragData *data;
+	
+	if (ar->dragdata) {
+		data = ar->dragdata;
+		if (data->state == REGION_STATE_DRAG_BUTTON) {
+			return data->newindex;
+		}
+	}
+	
+	return 0;
+}

@@ -233,6 +233,7 @@ typedef struct ARegion {
 	
 	char *headerstr;			/* use this string to draw info */
 	void *regiondata;			/* XXX 2.50, need spacedata equivalent? */
+	void *dragdata;
 } ARegion;
 
 /* swap */

@@ -1825,7 +1825,7 @@ void uiItemMenuEnumR(uiLayout *layout, struct PointerRNA *ptr, const char *propn
 /********************* OperatorListItem utilities ********************/
 
 /* return 1 when an OperatorListItem with the same name and properties is already present in lb */
-int uiOperatorListItemPresent(ListBase *lb, const char *idname, IDProperty *properties)
+OperatorListItem *uiOperatorListItemPresent(ListBase *lb, const char *idname, IDProperty *properties)
 {
 	OperatorListItem *oli;
 	
@@ -1834,14 +1834,14 @@ int uiOperatorListItemPresent(ListBase *lb, const char *idname, IDProperty *prop
 		if (strcmp(oli->optype_idname, idname) == 0) {
 			/* if no idprops are present, and the name is the same */
 			if (oli->properties == NULL && properties == NULL) {
-				return 1;
+				return oli;
 			}
 			/* if one of the properties is set, then they are not equal */
 			else if (oli->properties == NULL || properties == NULL) {
 				continue;
 			}
 			else if (IDP_EqualsProperties(oli->properties, properties)) {
-				return 1;
+				return oli;
 			}
 		}
 		else {
@@ -1849,7 +1849,7 @@ int uiOperatorListItemPresent(ListBase *lb, const char *idname, IDProperty *prop
 		}
 	}
 	
-	return 0;
+	return NULL;
 }
 
 

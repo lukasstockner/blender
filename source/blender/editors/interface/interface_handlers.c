@@ -7657,6 +7657,136 @@ static int ui_handle_menus_recursive(bContext *C, const wmEvent *event, uiPopupB
 
 /* *************** UI event handlers **************** */
 
+static void ui_do_drag_button(const bContext *C, const wmEvent *event, ARegion *ar)
+{
+	uiHandleRegionDragData *data = ar->dragdata;
+	int cur_index = BLI_findindex(&ar->operators, data->oli);
+	int dx, dunits, maxindex;
+	
+	// Calculate the new index of the button based on the drag offset
+	dx = data->startx - event->x;
+	dunits = dx / (UI_UNIT_X * 1.5); // TODO: make sure this factor corresponds to menubar button sizes
+	data->newindex = (cur_index - dunits);
+	maxindex = (BLI_countlist(&ar->operators) - 1);
+	CLAMP(data->newindex, 0, maxindex);
+	
+	ED_region_tag_redraw(ar);
+}
+
+static void ui_do_drag_button_finish(const bContext *UNUSED(C), const wmEvent *UNUSED(event), ARegion *ar)
+{
+	uiHandleRegionDragData *data = ar->dragdata;
+	int cur_index = BLI_findindex(&ar->operators, data->oli);
+	OperatorListItem *oli_target = BLI_findlink(&ar->operators, data->newindex);
+	
+	if (data->newindex < cur_index) {
+		BLI_remlink(&ar->operators, data->oli);
+		BLI_insertlinkbefore(&ar->operators, oli_target, data->oli);
+	}
+	else if (data->newindex > cur_index) {
+		BLI_remlink(&ar->operators, data->oli);
+		BLI_insertlinkafter(&ar->operators, oli_target, data->oli);
+	}
+	
+	ED_region_tag_redraw(ar);
+}
+
+
+static void region_activate_drag_state(const bContext *C, ARegion *ar, uiHandleRegionDragState state);
+
+static int ui_handler_region_drag_shelf(bContext *C, const wmEvent *event, void *userdata)
+{
+	ARegion *ar = userdata;
+	uiHandleRegionDragData *data;
+	int retval = WM_UI_HANDLER_CONTINUE;
+	
+	if (event->type == MOUSEMOVE) {
+		if (ar->dragdata) {
+			data = ar->dragdata;
+			
+			if (data->state == REGION_STATE_DRAG_BUTTON) {
+				ui_do_drag_button(C, event, ar);
+			}
+			else if (data->state == REGION_STATE_DRAG_BUTTON_WAITING) {
+				if (ABS(data->startx - event->x) > UI_UNIT_X) {
+					region_activate_drag_state(C, ar, REGION_STATE_DRAG_BUTTON);
+				}
+			}
+		}
+		retval = WM_UI_HANDLER_BREAK;
+	}
+	else if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
+		if (ar->dragdata) {
+			data = ar->dragdata;
+			if (data->state == REGION_STATE_DRAG_BUTTON) {
+				ui_do_drag_button_finish(C, event, ar);
+				retval = WM_UI_HANDLER_BREAK;
+			}
+		}
+		region_activate_drag_state(C, ar, REGION_STATE_DRAG_EXIT);
+	}
+	
+	return retval;
+}
+
+//static void ui_handler_region_drag_shelf_remove(bContext *C, void *userdata)
+static void ui_handler_region_drag_shelf_remove(bContext *UNUSED(C), void *UNUSED(userdata))
+{
+//	ARegion *ar = userdata;
+//	region_activate_drag_state(C, ar, REGION_STATE_DRAG_EXIT);
+}
+
+static void region_activate_drag_state(const bContext *C, ARegion *ar, uiHandleRegionDragState state)
+{
+	uiHandleRegionDragData *data = ar->dragdata;
+	wmWindow *win = CTX_wm_window(C);
+	
+	if (data && data->state == state)
+		return;
+	
+	if (state == REGION_STATE_DRAG_EXIT) {
+		
+		if (data) {
+			/* deactivate the button when we've dragged, otherwise we'll get a 
+			 * global drag */
+			if (data->state == REGION_STATE_DRAG_BUTTON) {
+				uiBut *but = ui_but_find_activated(ar);
+				ui_button_active_free(C, but);
+			}
+			
+			MEM_freeN(data);
+			ar->dragdata = NULL;
+		}
+		WM_event_remove_ui_handler(&win->modalhandlers, ui_handler_region_drag_shelf, ui_handler_region_drag_shelf_remove, ar, FALSE);
+	}
+	else if (state == REGION_STATE_DRAG_BUTTON_WAITING) {
+		if (!data) {
+			OperatorListItem *oli = NULL;
+			uiBut *but = ui_but_find_activated(ar);
+			
+			if (but->optype) {
+				oli = uiOperatorListItemPresent(&ar->operators, but->optype->idname, but->opptr ? but->opptr->data : NULL);
+				
+				if (oli) {
+					data = MEM_callocN(sizeof(uiHandleRegionDragData), "uiHandleRegionDragData");
+					data->state = REGION_STATE_DRAG_BUTTON_WAITING;
+					data->startx = win->eventstate->x;
+					data->starty = win->eventstate->y;
+					data->oli = oli;
+					ar->dragdata = (void*)data;
+					
+					WM_event_add_ui_handler(C, &win->modalhandlers, ui_handler_region_drag_shelf, ui_handler_region_drag_shelf_remove, ar);
+				}
+			}
+		}
+	}
+	else if (state == REGION_STATE_DRAG_BUTTON) {
+		if (data) data->state = state;
+	}
+	
+	ED_region_tag_redraw(ar);
+}
+
 static int ui_handler_region(bContext *C, const wmEvent *event, void *UNUSED(userdata))
 {
 	ARegion *ar;
@@ -7672,22 +7802,35 @@ static int ui_handler_region(bContext *C, const wmEvent *event, void *UNUSED(use
 
 	/* either handle events for already activated button or try to activate */
 	but = ui_but_find_activated(ar);
-
+	
+	/* capture button drags in the MENU_BAR region so that we can do custom drag and drop */
+	if (ar->regiontype == RGN_TYPE_MENU_BAR) {
+		/* start drag */
+		if (but && event->type == LEFTMOUSE && event->val == KM_PRESS) {
+			region_activate_drag_state(C, ar, REGION_STATE_DRAG_BUTTON_WAITING);
+		}
+	}
+	
 	retval = ui_handler_panel_region(C, event);
 
 	if (retval == WM_UI_HANDLER_CONTINUE)
 		retval = ui_handle_list_event(C, event, ar);
 
-	if (retval == WM_UI_HANDLER_CONTINUE) {
+	/* only if there's no drag going on inside the region */
+	if (retval == WM_UI_HANDLER_CONTINUE
+//		&& (ar->dragdata == NULL || (uiHandleRegionDragData*)(ar->dragdata)->state == REGION_STATE_DRAG_BUTTON_WAITING)
+		)
+	{
 		if (but)
 			retval = ui_handle_button_event(C, event, but);
 		else
 			retval = ui_handle_button_over(C, event, ar);
 	}
 
-	/* re-enable tooltips */
+	/* re-enable tooltips, only if there's no drag going on inside the region */
 	if (event->type == MOUSEMOVE && (event->x != event->prevx || event->y != event->prevy))
-		ui_blocks_set_tooltips(ar, true);
+		if (ar->dragdata == NULL)
+			ui_blocks_set_tooltips(ar, true);
 	
 	/* delayed apply callbacks */
 	ui_apply_but_funcs_after(C);

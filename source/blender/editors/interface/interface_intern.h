@@ -37,6 +37,7 @@
 #include "RNA_types.h"
 
 struct ARegion;
+struct OperatorListItem;
 struct bContext;
 struct IDProperty;
 struct uiHandleButtonData;
@@ -456,6 +457,24 @@ struct uiPopupBlockHandle {
 
 	/* menu direction */
 	int direction;
+};
+
+typedef enum uiHandleRegionDragState {
+	REGION_STATE_DRAG_BUTTON_WAITING,
+	REGION_STATE_DRAG_BUTTON,
+	REGION_STATE_DRAG_EXIT
+} uiHandleRegionDragState;
+
+struct uiHandleRegionDragData {
+	/* keep track of dragging state */
+	uiHandleRegionDragState state;
+	
+	/* info for dragging */
+	int startx, starty;
+	
+	/* custom button */
+	OperatorListItem *oli;
+	int newindex;
 };
 
 uiBlock *ui_block_func_COLOR(struct bContext *C, uiPopupBlockHandle *handle, void *arg_but);

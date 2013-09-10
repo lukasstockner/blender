@@ -1854,12 +1854,12 @@ void ED_region_menubar(const bContext *C, ARegion *ar)
 	uiStyle *style = UI_GetStyleDraw();
 	uiBlock *block;
 	uiLayout *layout, *row;
-//	MenuBarType *mbt;
-//	MenuBar mb = {NULL};
 	int maxco, xco, yco;
 	int headery = ED_area_headersize() * 1.5f;
-//	const char *context = CTX_data_mode_string(C);
-	OperatorListItem *oli;
+	OperatorListItem *oli_iter;
+	OperatorListItem *oli_dragged = uiRegionDraggedOperatorListItem(ar);
+	int newindex = uiRegionDraggedNewIndex(ar);
+	int i = 0;
 	
 	/* clear */
 	UI_ThemeClearColor(TH_BACK);
@@ -1867,34 +1867,6 @@ void ED_region_menubar(const bContext *C, ARegion *ar)
 	
 	/* set view2d view matrix for scrolling (without scrollers) */
 	UI_view2d_view_ortho(&ar->v2d);
-	
-//	xco = maxco = 0.4f * UI_UNIT_X;
-//	yco = headery - floor(0.2f * UI_UNIT_Y);
-//
-//	block = uiBeginBlock(C, ar, "menubar menus", UI_EMBOSS);
-//	layout = uiBlockLayout(block, UI_LAYOUT_HORIZONTAL, UI_LAYOUT_HEADER, xco, yco, UI_UNIT_Y, 1, style);
-//	
-//	/* add all menubar types to the top bar */
-//	for (mbt = ar->type->menubartypes.first; mbt; mbt = mbt->next) {
-//		
-//		/* verify context */
-//		if (context)
-//			if (mbt->context[0] && strcmp(context, mbt->context) != 0)
-//				continue;
-//
-//		if (mbt->draw) {
-//			mb.type = mbt;
-//			mb.layout = layout;
-//			mbt->draw(C, &mb);
-//		}
-//	}
-//	
-//	/* draw top bar */
-//	xco = uiLayoutGetWidth(layout);
-//	if (xco > maxco) maxco = xco;
-//	uiBlockLayoutResolve(block, &xco, &yco);
-//	uiEndBlock(C, block);
-//	uiDrawBlock(C, block);
 	
 	/* add all custom buttons to lower bar */
 	xco = maxco = 0.4f * UI_UNIT_X;
@@ -1905,21 +1877,42 @@ void ED_region_menubar(const bContext *C, ARegion *ar)
 	row = uiLayoutRow(layout, TRUE);
 	uiLayoutSetScaleX(row, 1.5f);
 	uiLayoutSetScaleY(row, 1.5f);
-	
-	for (oli = ar->operators.first; oli; oli = oli->next) {
-		if (strcmp(oli->context, CTX_data_mode_string(C)) == 0) {
-			wmOperatorType *ot = WM_operatortype_find(oli->optype_idname, TRUE);
-			uiItemFullO_ptr(row, ot, "", ICON_AUTOMATIC, IDP_CopyProperty(oli->properties), oli->opcontext, 0 /*UI_ITEM_O_SINGLE_UNIT*/);
-		}
-	}
 
-	/* draw bottom bar */
+	for (oli_iter = ar->operators.first; oli_iter; oli_iter = oli_iter->next) {
+		wmOperatorType *ot_iter = WM_operatortype_find(oli_iter->optype_idname, TRUE);
+		
+		if (oli_dragged) {
+			wmOperatorType *ot_dragged = WM_operatortype_find(oli_dragged->optype_idname, TRUE);
+			// draw the new order of buttons
+			if (i == newindex) {
+				int cur_index = BLI_findindex(&ar->operators, oli_dragged);
+				// draw it before or after the button that currently has the new index
+				if (newindex == cur_index) {
+					uiItemFullO_ptr(row, ot_iter, "", ICON_AUTOMATIC, IDP_CopyProperty(oli_iter->properties), oli_iter->opcontext, 0);
+				}
+				else if (newindex < cur_index) {
+					uiItemFullO_ptr(row, ot_dragged, "", ICON_AUTOMATIC, IDP_CopyProperty(oli_dragged->properties), oli_dragged->opcontext, 0);
+					uiItemFullO_ptr(row, ot_iter, "", ICON_AUTOMATIC, IDP_CopyProperty(oli_iter->properties), oli_iter->opcontext, 0);
+				}
+				else if (newindex > cur_index) {
+					uiItemFullO_ptr(row, ot_iter, "", ICON_AUTOMATIC, IDP_CopyProperty(oli_iter->properties), oli_iter->opcontext, 0);
+					uiItemFullO_ptr(row, ot_dragged, "", ICON_AUTOMATIC, IDP_CopyProperty(oli_dragged->properties), oli_dragged->opcontext, 0);
+				}
+			}
+			// otherwise just draw normally
+			else if (oli_iter != oli_dragged)
+				uiItemFullO_ptr(row, ot_iter, "", ICON_AUTOMATIC, IDP_CopyProperty(oli_iter->properties), oli_iter->opcontext, 0);
+		}
+		else
+			uiItemFullO_ptr(row, ot_iter, "", ICON_AUTOMATIC, IDP_CopyProperty(oli_iter->properties), oli_iter->opcontext, 0);
+		i++;
+	}
+	
 	xco = uiLayoutGetWidth(row);
 	if (xco > maxco) maxco = xco;
 	uiBlockLayoutResolve(block, &xco, &yco);
 	uiEndBlock(C, block);
 	uiDrawBlock(C, block);
-	
 	
 	/* always as last  */
 	UI_view2d_totRect_set(&ar->v2d, maxco + UI_UNIT_X + 80, headery);

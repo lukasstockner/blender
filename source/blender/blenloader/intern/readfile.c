@@ -6181,6 +6181,7 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 	ar->swap = 0;
 	ar->do_draw = FALSE;
 	ar->regiontimer = NULL;
+	ar->dragdata = NULL;
 	memset(&ar->drawrct, 0, sizeof(ar->drawrct));
 }
 

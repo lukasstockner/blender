@@ -1479,6 +1479,7 @@ int ui_handler_panel_region(bContext *C, const wmEvent *event)
 					panel_activate_state(C, pa, PANEL_STATE_DRAG_BUTTON_WAITING);
 					// pass the oli that is being dragged
 					data = pa->activedata;
+					// TODO: also check for oli->properties equality
 					data->oli = BLI_findstring(&pa->operators, but->optype->idname, offsetof(OperatorListItem, optype_idname));
 				}
 			}

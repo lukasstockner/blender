@@ -44,6 +44,7 @@ struct Main;
 struct ListBase;
 struct ARegion;
 struct ARegionType;
+struct OperatorListItem;
 struct ScrArea;
 struct wmWindow;
 struct wmWindowManager;
@@ -79,6 +80,7 @@ typedef struct uiBut uiBut;
 typedef struct uiBlock uiBlock;
 typedef struct uiPopupBlockHandle uiPopupBlockHandle;
 typedef struct uiLayout uiLayout;
+typedef struct uiHandleRegionDragData uiHandleRegionDragData;
 
 /* Defines */
 
@@ -905,7 +907,9 @@ void uiItemMenuEnumO(uiLayout *layout, struct bContext *C, const char *opname, c
 void uiItemMenuEnumR(uiLayout *layout, struct PointerRNA *ptr, const char *propname, const char *name, int icon);
 
 /* OperatorListItem utilities */
-int uiOperatorListItemPresent(ListBase *lb, const char *idname, IDProperty *properties);
+struct OperatorListItem *uiOperatorListItemPresent(ListBase *lb, const char *idname, IDProperty *properties);
+struct OperatorListItem *uiRegionDraggedOperatorListItem(struct ARegion *ar);
+int uiRegionDraggedNewIndex(struct ARegion *ar);
 
 
 /* UI Operators */
