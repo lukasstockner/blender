@@ -39,8 +39,7 @@ void Tracks::Insert(int camera, int image, int track, double x, double y) {
   // TODO(keir): Wow, this is quadratic for repeated insertions. Fix this by
   // adding a smarter data structure like a set<>.
   for (int i = 0; i < markers_.size(); ++i) {
-    if (markers_[i].camera == camera &&
-        markers_[i].image == image &&
+    if (markers_[i].image == image &&
         markers_[i].track == track) {
       markers_[i].x = x;
       markers_[i].y = y;
@@ -55,7 +54,7 @@ vector<Marker> Tracks::AllMarkers() const {
   return markers_;
 }
 
-vector<Marker> Tracks::MarkersInCamera(int camera) const {
+vector<Marker> Tracks::MarkersForCamera(int camera) const {
   vector<Marker> markers;
   for (int i = 0; i < markers_.size(); ++i) {
     if (camera == markers_[i].camera) {
@@ -65,11 +64,10 @@ vector<Marker> Tracks::MarkersInCamera(int camera) const {
   return markers;
 }
 
-vector<Marker> Tracks::MarkersInImage(int camera, int image) const {
+vector<Marker> Tracks::MarkersInImage(int image) const {
   vector<Marker> markers;
   for (int i = 0; i < markers_.size(); ++i) {
-    if (camera == markers_[i].camera &&
-        image == markers_[i].image) {
+    if (image == markers_[i].image) {
       markers.push_back(markers_[i]);
     }
   }
@@ -86,32 +84,28 @@ vector<Marker> Tracks::MarkersForTrack(int track) const {
   return markers;
 }
 
-vector<Marker> Tracks::MarkersInBothImages(int camera,
-                                           int image1, int image2) const {
+vector<Marker> Tracks::MarkersInBothImages(int image1, int image2) const {
   vector<Marker> markers;
   for (int i = 0; i < markers_.size(); ++i) {
     int image = markers_[i].image;
-    if (markers_[i].camera == camera &&
-        (image == image1 || image == image2)) {
+    if (image == image1 || image == image2) {
       markers.push_back(markers_[i]);
     }
   }
   return markers;
 }
 
-vector<Marker> Tracks::MarkersForTracksInBothImages(int camera, int image1,
+vector<Marker> Tracks::MarkersForTracksInBothImages(int image1,
                                                     int image2) const {
   std::vector<int> image1_tracks;
   std::vector<int> image2_tracks;
 
   for (int i = 0; i < markers_.size(); ++i) {
-    if (markers_[i].camera == camera) {
-      int image = markers_[i].image;
-      if (image == image1) {
-        image1_tracks.push_back(markers_[i].track);
-      } else if (image == image2) {
-        image2_tracks.push_back(markers_[i].track);
-      }
+    int image = markers_[i].image;
+    if (image == image1) {
+      image1_tracks.push_back(markers_[i].track);
+    } else if (image == image2) {
+      image2_tracks.push_back(markers_[i].track);
     }
   }
 
@@ -134,10 +128,9 @@ vector<Marker> Tracks::MarkersForTracksInBothImages(int camera, int image1,
   return markers;
 }
 
-Marker Tracks::MarkerInImageForTrack(int camera, int image, int track) const {
+Marker Tracks::MarkerInImageForTrack(int image, int track) const {
   for (int i = 0; i < markers_.size(); ++i) {
-    if (markers_[i].camera == camera &&
-        markers_[i].image == image &&
+    if (markers_[i].image == image &&
         markers_[i].track == track) {
       return markers_[i];
     }
@@ -156,6 +149,16 @@ void Tracks::RemoveMarkersForCamera(int camera) {
   markers_.resize(size);
 }
 
+void Tracks::RemoveMarkersInImage(int image) {
+  int size = 0;
+  for (int i = 0; i < markers_.size(); ++i) {
+    if (markers_[i].image != image) {
+      markers_[size++] = markers_[i];
+    }
+  }
+  markers_.resize(size);
+}
+
 void Tracks::RemoveMarkersForTrack(int track) {
   int size = 0;
   for (int i = 0; i < markers_.size(); ++i) {
@@ -166,16 +169,24 @@ void Tracks::RemoveMarkersForTrack(int track) {
   markers_.resize(size);
 }
 
-void Tracks::RemoveMarker(int camera, int image, int track) {
+void Tracks::RemoveMarker(int image, int track) {
   int size = 0;
   for (int i = 0; i < markers_.size(); ++i) {
-    if (markers_[i].camera != camera ||
-        markers_[i].image != image ||
+    if (markers_[i].image != image ||
         markers_[i].track != track) {
       markers_[size++] = markers_[i];
     }
   }
   markers_.resize(size);
+}
+
+int Tracks::CameraFromImage(int image) const {
+  for (int i = 0; i < markers_.size(); ++i) {
+    if (markers_[i].image == image) {
+      return markers_[i].camera;
+    }
+  }
+  return -1;
 }
 
 int Tracks::MaxCamera() const {
@@ -210,13 +221,12 @@ int Tracks::NumMarkers() const {
 }
 
 void CoordinatesForMarkersInImage(const vector<Marker> &markers,
-                                  int camera, int image,
+                                  int image,
                                   Mat *coordinates) {
   vector<Vec2> coords;
   for (int i = 0; i < markers.size(); ++i) {
     const Marker &marker = markers[i];
-    if (marker.camera == camera &&
-        marker.image == image) {
+    if (marker.image == image) {
       coords.push_back(Vec2(marker.x, marker.y));
     }
   }

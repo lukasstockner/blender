@@ -53,7 +53,7 @@ void EuclideanScaleToUnity(EuclideanReconstruction *reconstruction) {
   // Rescale views positions.
   for (int i = 0; i < all_views.size(); ++i) {
     int image = all_views[i].image;
-    EuclideanView *view = reconstruction->ViewForImage(0, image);
+    EuclideanView *view = reconstruction->ViewForImage(image);
     view->t = view->t * scale_factor;
   }
 

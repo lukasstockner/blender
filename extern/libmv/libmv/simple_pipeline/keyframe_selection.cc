@@ -332,16 +332,16 @@ void SelectkeyframesBasedOnGRICAndVariance(
          candidate_image++) {
       // Conjunction of all markers from both keyframes
       vector<Marker> all_markers =
-        tracks.MarkersInBothImages(kSelectionCamera, current_keyframe, candidate_image);
+        tracks.MarkersInBothImages(current_keyframe, candidate_image);
 
       // Match keypoints between frames current_keyframe and candidate_image
       vector<Marker> tracked_markers =
-        tracks.MarkersForTracksInBothImages(kSelectionCamera, current_keyframe, candidate_image);
+        tracks.MarkersForTracksInBothImages(current_keyframe, candidate_image);
 
       // Correspondences in normalized space
       Mat x1, x2;
-      CoordinatesForMarkersInImage(tracked_markers, kSelectionCamera, current_keyframe, &x1);
-      CoordinatesForMarkersInImage(tracked_markers, kSelectionCamera, candidate_image, &x2);
+      CoordinatesForMarkersInImage(tracked_markers, current_keyframe, &x1);
+      CoordinatesForMarkersInImage(tracked_markers, candidate_image, &x2);
 
       LG << "Found " << x1.cols()
          << " correspondences between " << current_keyframe

@@ -169,7 +169,7 @@ void InternalCompleteReconstruction(
 
       vector<Marker> reconstructed_markers;
       for (int i = 0; i < all_markers.size(); ++i) {
-        if (reconstruction->ViewForImage(all_markers[i].camera, all_markers[i].image)) {
+        if (reconstruction->ViewForImage(all_markers[i].image)) {
           reconstructed_markers.push_back(all_markers[i]);
         }
       }
@@ -199,11 +199,11 @@ void InternalCompleteReconstruction(
     // Do all possible resections.
     num_resects = 0;
     for (int image = 0; image <= max_image; ++image) {
-      if (reconstruction->ViewForImage(0, image)) {
+      if (reconstruction->ViewForImage(image)) {
         LG << "Skipping frame: " << image;
         continue;
       }
-      vector<Marker> all_markers = tracks.MarkersInImage(0, image);
+      vector<Marker> all_markers = tracks.MarkersInImage(image);
       LG << "Got " << all_markers.size() << " markers for image " << image;
 
       vector<Marker> reconstructed_markers;
@@ -239,11 +239,11 @@ void InternalCompleteReconstruction(
   // One last pass...
   num_resects = 0;
   for (int image = 0; image <= max_image; ++image) {
-    if (reconstruction->ViewForImage(0, image)) {
+    if (reconstruction->ViewForImage(image)) {
       LG << "Skipping frame: " << image;
       continue;
     }
-    vector<Marker> all_markers = tracks.MarkersInImage(0, image);
+    vector<Marker> all_markers = tracks.MarkersInImage(image);
 
     vector<Marker> reconstructed_markers;
     for (int i = 0; i < all_markers.size(); ++i) {
@@ -282,7 +282,7 @@ double InternalReprojectionError(
   vector<Marker> markers = image_tracks.AllMarkers();
   for (int i = 0; i < markers.size(); ++i) {
     const typename PipelineRoutines::View *view =
-        reconstruction.ViewForImage(markers[i].camera, markers[i].image);
+        reconstruction.ViewForImage(markers[i].image);
     const typename PipelineRoutines::Point *point =
         reconstruction.PointForTrack(markers[i].track);
     if (!view || !point) {

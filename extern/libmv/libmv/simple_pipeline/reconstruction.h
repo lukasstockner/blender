@@ -42,9 +42,9 @@ struct ReconstructionOptions {
 /*!
     A EuclideanView is the location and rotation of a \a camera viewing an
     \a image. All EuclideanViews for the same \a camera represent the motion of
-    a particular video camera across all images.
+    a particular video camera across all of its corresponding images.
 
-    \a camera identify which camera from \l Tracks this view represents.
+    \a camera identify which camera from \l Tracks this view is associated with.
     \a image identify which image from \l Tracks this view represents.
     \a R is a 3x3 matrix representing the rotation of the view.
     \a t is a translation vector representing its positions.
@@ -101,14 +101,16 @@ class EuclideanReconstruction {
 
   /*!
       Insert a view into the set. If there is already a view for the given
-      \a camera and \a image, the existing view is replaced. If there is no
-      view for the given \a camera and \a image, a new one is added.
+      \a image, the existing view is replaced. If there is no view for the given
+      \a image, a new one is added.
 
-      \a camera and \a image are the keys used to retrieve the views with the
-      other methods in this class.
+      \a image is the key used to retrieve the views with the other methods in
+      this class.
 
       \note You should use the same \a camera and \a image identifiers as in
-      \l Tracks.
+            \l Tracks.
+      \note All markers for a single \a image should have the same \a camera
+            identifiers.
   */
   void InsertView(int camera, int image, const Mat3 &R, const Vec3 &t);
 
@@ -124,12 +126,12 @@ class EuclideanReconstruction {
   */
   void InsertPoint(int track, const Vec3 &X);
 
-  /// Returns a pointer to the view corresponding to \a camera and \a image.
-  EuclideanView *ViewForImage(int camera, int image);
-  const EuclideanView *ViewForImage(int camera, int image) const;
+  /// Returns a pointer to the view corresponding to \a image.
+  EuclideanView *ViewForImage(int image);
+  const EuclideanView *ViewForImage(int image) const;
 
-  /// Returns all views for all cameras.
-  std::vector<vector<EuclideanView> > AllViews() const;
+  /// Returns all views for all images.
+  vector<EuclideanView> AllViews() const;
 
   /// Returns all views for a particular \a camera.
   vector<EuclideanView> AllViewsForCamera(int camera) const;
@@ -142,16 +144,17 @@ class EuclideanReconstruction {
   vector<EuclideanPoint> AllPoints() const;
 
  private:
-  std::vector<vector<EuclideanView> > views_;
+  vector<EuclideanView> views_;
   vector<EuclideanPoint> points_;
 };
 
 /*!
     A ProjectiveView is the projection matrix for the view of an \a image from
-    a \a camera.
+    a \a camera. All ProjectiveViews for the same \a camera represent the motion of
+    a particular video camera across all of its corresponding images.
 
-    \a camera identify which camera from \l Tracks this camera represents.
-    \a image identify which image from \l Tracks this camera represents.
+    \a camera identify which camera from \l Tracks this view is associated with.
+    \a image identify which image from \l Tracks this view represents.
     \a P is the 3x4 projection matrix.
 
     \sa ProjectiveReconstruction
@@ -197,14 +200,16 @@ class ProjectiveReconstruction {
  public:
   /*!
       Insert a view into the set. If there is already a view for the given
-      \a camera and \a image, the existing view is replaced. If there is no
-      view for the given \a camera and \a image, a new one is added.
+      \a image, the existing view is replaced. If there is no view for the given
+      \a image, a new one is added.
 
-      \a camera and \a image are the keys used to retrieve the views with the
-      other methods in this class.
+      \a image is the key used to retrieve the views with the other methods in
+      this class.
 
       \note You should use the same \a camera and \a image identifiers as in
-      \l Tracks.
+            \l Tracks.
+      \note All markers for a single \a image should have the same \a camera
+            identifiers.
   */
   void InsertView(int camera, int image, const Mat34 &P);
 
@@ -221,11 +226,11 @@ class ProjectiveReconstruction {
   void InsertPoint(int track, const Vec4 &X);
 
   /// Returns a pointer to the view corresponding to \a image.
-  ProjectiveView *ViewForImage(int camera, int image);
-  const ProjectiveView *ViewForImage(int camera, int image) const;
+  ProjectiveView *ViewForImage(int image);
+  const ProjectiveView *ViewForImage(int image) const;
 
   /// Returns all views.
-  std::vector<vector<ProjectiveView> > AllViews() const;
+  vector<ProjectiveView> AllViews() const;
 
   /// Returns all views for a particular \a camera.
   vector<ProjectiveView> AllViewsForCamera(int camera) const;
@@ -238,7 +243,7 @@ class ProjectiveReconstruction {
   vector<ProjectivePoint> AllPoints() const;
 
  private:
-  std::vector<vector<ProjectiveView> > views_;
+  vector<ProjectiveView> views_;
   vector<ProjectivePoint> points_;
 };
 

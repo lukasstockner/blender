@@ -119,9 +119,9 @@ struct libmv_Reconstruction *libmv_solve(const struct libmv_Tracks *libmv_tracks
 void libmv_reconstructionDestroy(struct libmv_Reconstruction *libmv_reconstruction);
 int libmv_reprojectionPointForTrack(const struct libmv_Reconstruction *libmv_reconstruction, int track, double pos[3]);
 double libmv_reprojectionErrorForTrack(const struct libmv_Reconstruction *libmv_reconstruction, int track);
-double libmv_reprojectionErrorForImage(const struct libmv_Reconstruction *libmv_reconstruction, int camera, int image);
+double libmv_reprojectionErrorForImage(const struct libmv_Reconstruction *libmv_reconstruction, int image);
 int libmv_reprojectionCameraForImage(const struct libmv_Reconstruction *libmv_reconstruction,
-                                     int camera, int image, double mat[4][4]);
+                                     int image, double mat[4][4]);
 double libmv_reprojectionError(const struct libmv_Reconstruction *libmv_reconstruction);
 struct libmv_CameraIntrinsics *libmv_reconstructionExtractIntrinsics(struct libmv_Reconstruction *libmv_Reconstruction,
                                                                      int camera);

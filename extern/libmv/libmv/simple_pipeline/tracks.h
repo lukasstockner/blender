@@ -30,10 +30,11 @@ namespace libmv {
     A Marker is the 2D location of a tracked point in an image.
 
     \a x, \a y is the position of the marker in pixels from the top left corner
-    of the image identified by \a image for the camera identified by \a camera.
-    All markers for the same target form a track identified by a common \a track
-    number. Markers for a particular track but with different \a camera numbers
-    correspond to the same target from an alternate view.
+    of the image identified by \a image. All markers for an \a image are
+    associated with a particular camera identified by \a camera. All markers for
+    the same target form a track identified by a common \a track number. Markers
+    for a particular track but with different \a camera numbers correspond to
+    the same target filmed from an alternate viewpoint.
 
     \note Markers are typically aggregated with the help of the \l Tracks class.
 
@@ -69,31 +70,32 @@ class Tracks {
 
   /*!
       Inserts a marker into the set. If there is already a marker for the given
-      \a camera, \a image and \a track, the existing marker is replaced. If
-      there is no marker for the given \a camera, \a image and \a track, a new
-      one is added.
+      \a image and \a track, the existing marker is replaced. If there is no
+      marker for the given \a image and \a track, a new one is added.
 
       \a camera, \a image and \a track are the keys used to retrieve the markers
       with the other methods in this class.
 
       \note To get an identifier for a new track, use \l MaxTrack() + 1.
+      \note All markers for a single \a image should belong to the same
+            \a camera.
   */
   void Insert(int camera, int image, int track, double x, double y);
 
   /// Returns all the markers.
   vector<Marker> AllMarkers() const;
 
-  /// Returns all the markers visible from \a camera.
-  vector<Marker> MarkersInCamera(int camera) const;
+  /// Returns all the markers visible from a \a camera.
+  vector<Marker> MarkersForCamera(int camera) const;
 
-  /// Returns all the markers visible in an \a image from \a camera.
-  vector<Marker> MarkersInImage(int camera, int image) const;
+  /// Returns all the markers visible in an \a image.
+  vector<Marker> MarkersInImage(int image) const;
 
   /// Returns all the markers belonging to a track.
   vector<Marker> MarkersForTrack(int track) const;
 
-  /// Returns all the markers visible in \a image1 and \a image2 from \a camera.
-  vector<Marker> MarkersInBothImages(int camera, int image1, int image2) const;
+  /// Returns all the markers visible in \a image1 and \a image2.
+  vector<Marker> MarkersInBothImages(int image1, int image2) const;
 
   /*!
       Returns the markers in \a image1 and \a image2 (both from \a camera) which
@@ -102,20 +104,25 @@ class Tracks {
       This is not the same as the union of the markers in \a image1 and \a
       image2; each marker is for a track that appears in both images.
   */
-  vector<Marker> MarkersForTracksInBothImages(int camera, int image1,
-                                              int image2) const;
+  vector<Marker> MarkersForTracksInBothImages(int image1, int image2) const;
 
-  /// Returns the marker in \a image from \a camera belonging to \a track.
-  Marker MarkerInImageForTrack(int camera, int image, int track) const;
+  /// Returns the marker in \a image belonging to \a track.
+  Marker MarkerInImageForTrack(int image, int track) const;
 
   /// Removes all the markers belonging to \a camera.
   void RemoveMarkersForCamera(int camera);
+
+  /// Removes all the markers belonging to \a image.
+  void RemoveMarkersInImage(int image);
 
   /// Removes all the markers belonging to \a track.
   void RemoveMarkersForTrack(int track);
 
   /// Removes the marker in \a image of \a camera belonging to \a track.
-  void RemoveMarker(int camera, int image, int track);
+  void RemoveMarker(int image, int track);
+
+  /// Returns the camera that \a image belongs to.
+  int CameraFromImage(int image) const;
 
   /// Returns the maximum camera identifier used.
   int MaxCamera() const;
@@ -134,7 +141,7 @@ class Tracks {
 };
 
 void CoordinatesForMarkersInImage(const vector<Marker> &markers,
-                                  int camera, int image,
+                                  int image,
                                   Mat *coordinates);
 
 }  // namespace libmv

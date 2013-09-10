@@ -117,13 +117,13 @@ double libmv_reprojectionErrorForTrack(const struct libmv_Reconstruction * /*lib
 }
 
 double libmv_reprojectionErrorForImage(const struct libmv_Reconstruction * /*libmv_reconstruction*/,
-                                       int /*camera*/, int /*image*/)
+                                       int /*image*/)
 {
 	return 0.0;
 }
 
 int libmv_reprojectionCameraForImage(const struct libmv_Reconstruction * /*libmv_reconstruction*/,
-                                     int /*camera*/, int /*image*/, double /*mat*/[4][4])
+                                     int /*image*/, double /*mat*/[4][4])
 {
 	return 0;
 }
