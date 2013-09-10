@@ -720,6 +720,11 @@ void KX_GameObject::RemoveMeshes()
 	m_meshes.clear();
 }
 
+void KX_GameObject::AddLodMesh(RAS_MeshObject* mesh)
+{
+	m_lodmeshes.push_back(mesh);
+}
+
 void KX_GameObject::UpdateLod(MT_Vector3 &cam_pos)
 {
 	// Handle dupligroups

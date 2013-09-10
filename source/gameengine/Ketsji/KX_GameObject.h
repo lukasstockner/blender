@@ -764,9 +764,7 @@ public:
 		void
 	AddLodMesh(
 		RAS_MeshObject* mesh
-	) {
-		m_lodmeshes.push_back(mesh);
-	}
+	);
 
 	/**
 	 * Updates the current lod level based on distance from camera.
