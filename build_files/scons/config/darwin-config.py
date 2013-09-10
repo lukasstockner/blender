@@ -350,6 +350,7 @@ CFLAGS = []
 CXXFLAGS = []
 CCFLAGS = ['-pipe','-funsigned-char']
 
+
 CPPFLAGS = list(ARCH_FLAGS)
 
 if WITH_GHOST_COCOA:

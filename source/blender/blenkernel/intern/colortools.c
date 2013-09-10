@@ -878,6 +878,19 @@ void curvemapping_initialize(CurveMapping *cumap)
 	}
 }
 
+void curvemap_initialize(CurveMap *cuma)
+{
+	if (cuma->table == NULL) {
+		rctf clipr;
+		/* clip rectangle is not available here, but we can use a temporary
+		 * rectangle with the same min/max values */
+		clipr.xmin = cuma->mintable;
+		clipr.xmax = cuma->maxtable;
+
+		curvemap_make_table(cuma, &clipr);
+	}
+}
+
 void curvemapping_table_RGBA(const CurveMapping *cumap, float **array, int *size)
 {
 	int a;
@@ -1260,6 +1273,7 @@ void BKE_color_managed_view_settings_init(ColorManagedViewSettings *settings)
 	 *            for now use NONE to be compatible with all current files
 	 */
 	BLI_strncpy(settings->view_transform, "Default", sizeof(settings->view_transform));
+	BLI_strncpy(settings->look, "None", sizeof(settings->look));
 
 	settings->gamma = 1.0f;
 	settings->exposure = 0.0f;
@@ -1268,6 +1282,7 @@ void BKE_color_managed_view_settings_init(ColorManagedViewSettings *settings)
 void BKE_color_managed_view_settings_copy(ColorManagedViewSettings *new_settings,
                                           const ColorManagedViewSettings *settings)
 {
+	BLI_strncpy(new_settings->look, settings->look, sizeof(new_settings->look));
 	BLI_strncpy(new_settings->view_transform, settings->view_transform, sizeof(new_settings->view_transform));
 
 	new_settings->flag = settings->flag;
