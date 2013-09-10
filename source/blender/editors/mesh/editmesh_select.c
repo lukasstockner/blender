@@ -33,6 +33,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_linklist.h"
+#include "BLI_linklist_stack.h"
 #include "BLI_math.h"
 #include "BLI_rand.h"
 #include "BLI_array.h"
@@ -1233,7 +1234,7 @@ static void mouse_mesh_loop(bContext *C, const int mval[2], bool extend, bool de
 				/* We can't be sure this has already been set... */
 				ED_view3d_init_mats_rv3d(vc.obedit, vc.rv3d);
 
-				BM_ITER_ELEM(f, &iterf, eed, BM_FACES_OF_EDGE) {
+				BM_ITER_ELEM (f, &iterf, eed, BM_FACES_OF_EDGE) {
 					if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
 						float cent[3];
 						float co[2], tdist;
@@ -2509,7 +2510,7 @@ static int edbm_select_nth_exec(bContext *C, wmOperator *op)
 	int offset = RNA_int_get(op->ptr, "offset");
 
 	/* so input of offset zero ends up being (nth - 1) */
-	offset = (offset + (nth - 1)) % nth;
+	offset = mod_i(offset, nth);
 
 	if (edbm_deselect_nth(em, nth, offset) == false) {
 		BKE_report(op->reports, RPT_ERROR, "Mesh has no active vert/edge/face");
@@ -2537,7 +2538,7 @@ void MESH_OT_select_nth(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	RNA_def_int(ot->srna, "nth", 2, 2, INT_MAX, "Nth Selection", "", 2, 100);
-	RNA_def_int(ot->srna, "offset", 0, 0, INT_MAX, "Offset", "", 0, 100);
+	RNA_def_int(ot->srna, "offset", 0, INT_MIN, INT_MAX, "Offset", "", -100, 100);
 }
 
 void em_setup_viewcontext(bContext *C, ViewContext *vc)
@@ -2609,8 +2610,7 @@ static int edbm_select_linked_flat_faces_exec(bContext *C, wmOperator *op)
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	BMesh *bm = em->bm;
 
-	BMFace **stack = MEM_mallocN(sizeof(BMFace *) * bm->totface, __func__);
-	STACK_DECLARE(stack);
+	BLI_LINKSTACK_DECLARE(stack, BMFace *);
 
 	BMIter iter, liter, liter2;
 	BMFace *f;
@@ -2619,6 +2619,7 @@ static int edbm_select_linked_flat_faces_exec(bContext *C, wmOperator *op)
 
 	BM_mesh_elem_hflag_disable_all(bm, BM_FACE, BM_ELEM_TAG, false);
 
+	BLI_LINKSTACK_INIT(stack);
 
 	BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
 		if ((BM_elem_flag_test(f, BM_ELEM_HIDDEN) != 0) ||
@@ -2628,7 +2629,7 @@ static int edbm_select_linked_flat_faces_exec(bContext *C, wmOperator *op)
 			continue;
 		}
 
-		STACK_INIT(stack);
+		BLI_assert(BLI_LINKSTACK_SIZE(stack) == 0);
 
 		do {
 			BM_face_select_set(bm, f, true);
@@ -2648,16 +2649,14 @@ static int edbm_select_linked_flat_faces_exec(bContext *C, wmOperator *op)
 					angle = angle_normalized_v3v3(f->no, l2->f->no);
 
 					if (angle < angle_limit) {
-						STACK_PUSH(stack, l2->f);
+						BLI_LINKSTACK_PUSH(stack, l2->f);
 					}
 				}
 			}
-		} while ((f = STACK_POP(stack)));
+		} while ((f = BLI_LINKSTACK_POP(stack)));
 	}
 
-	STACK_FREE(stack);
-
-	MEM_freeN(stack);
+	BLI_LINKSTACK_FREE(stack);
 
 	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 

@@ -278,6 +278,7 @@ void RNA_api_scene_render(struct StructRNA *srna);
 void RNA_api_sequence_strip(StructRNA *srna);
 void RNA_api_text(struct StructRNA *srna);
 void RNA_api_ui_layout(struct StructRNA *srna);
+void RNA_api_window(struct StructRNA *srna);
 void RNA_api_wm(struct StructRNA *srna);
 void RNA_api_sensor(struct StructRNA *srna);
 void RNA_api_controller(struct StructRNA *srna);
@@ -402,7 +403,6 @@ PointerRNA rna_pointer_inherit_refine(struct PointerRNA *ptr, struct StructRNA *
 /* Functions */
 
 int rna_parameter_size(struct PropertyRNA *parm);
-int rna_parameter_size_alloc(struct PropertyRNA *parm);
 
 struct Mesh *rna_Main_meshes_new_from_object(
         struct Main *bmain, struct ReportList *reports, struct Scene *sce,

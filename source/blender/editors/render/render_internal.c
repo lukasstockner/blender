@@ -164,7 +164,7 @@ void image_buffer_rect_update(Scene *scene, RenderResult *rr, ImBuf *ibuf, volat
 
 	IMB_partial_display_buffer_update(ibuf, rectf, NULL, rr->rectx, rxmin, rymin,
 	                                  &scene->view_settings, &scene->display_settings,
-	                                  rxmin, rymin, rxmin + xmax, rymin + ymax, TRUE);
+	                                  rxmin, rymin, rxmin + xmax, rymin + ymax, true);
 }
 
 /* ****************************** render invoking ***************** */
@@ -270,6 +270,7 @@ typedef struct RenderJob {
 	short anim, write_still;
 	Image *image;
 	ImageUser iuser;
+	bool image_outdated;
 	short *stop;
 	short *do_update;
 	float *progress;
@@ -409,9 +410,19 @@ static void image_rect_update(void *rjv, RenderResult *rr, volatile rcti *renrec
 	void *lock;
 
 	/* only update if we are displaying the slot being rendered */
-	if (ima->render_slot != ima->last_render_slot)
+	if (ima->render_slot != ima->last_render_slot) {
+		rj->image_outdated = true;
 		return;
+	}
+	else if (rj->image_outdated) {
+		/* update entire render */
+		rj->image_outdated = false;
+		BKE_image_signal(ima, NULL, IMA_SIGNAL_COLORMANAGE);
+		*(rj->do_update) = TRUE;
+		return;
+	}
 
+	/* update part of render */
 	ibuf = BKE_image_acquire_ibuf(ima, &rj->iuser, &lock);
 	if (ibuf) {
 		image_buffer_rect_update(rj->scene, rr, ibuf, renrect);
@@ -491,7 +502,9 @@ static void render_endjob(void *rjv)
 	 * engine API, so lets use simple and robust way for now
 	 *                                          - sergey -
 	 */
-	if (rj->scene->r.layers.first != rj->scene->r.layers.last) {
+	if (rj->scene->r.layers.first != rj->scene->r.layers.last ||
+	    rj->image_outdated)
+	{
 		void *lock;
 		Image *ima = rj->image;
 		ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &rj->iuser, &lock);
@@ -804,6 +817,11 @@ static bool render_view3d_get_rects(ARegion *ar, View3D *v3d, RegionView3D *rv3d
 	return true;
 }
 
+static bool render_view3d_is_valid(RenderPreview *rp)
+{
+	return (rp->rv3d->render_engine != NULL);
+}
+
 /* called by renderer, checks job value */
 static int render_view3d_break(void *rpv)
 {
@@ -813,8 +831,9 @@ static int render_view3d_break(void *rpv)
 		return 1;
 	
 	/* during render, rv3d->engine can get freed */
-	if (rp->rv3d->render_engine == NULL)
+	if (render_view3d_is_valid(rp) == false) {
 		*rp->stop = 1;
+	}
 	
 	return *(rp->stop);
 }
@@ -928,8 +947,11 @@ static void render_view3d_startjob(void *customdata, short *stop, short *do_upda
 		RE_Database_Preprocess(re);
 
 		/* conversion not completed, need to do it again */
-		if (!rstats->convertdone)
-			rp->engine->job_update_flag |= PR_UPDATE_DATABASE;
+		if (!rstats->convertdone) {
+			if (render_view3d_is_valid(rp)) {
+				rp->engine->job_update_flag |= PR_UPDATE_DATABASE;
+			}
+		}
 
 		// printf("dbase update\n");
 	}
@@ -1116,11 +1138,11 @@ void render_view3d_draw(RenderEngine *engine, const bContext *C)
 
 		/* Try using GLSL display transform. */
 		if (force_fallback == false) {
-			if (IMB_colormanagement_setup_glsl_draw(NULL, &scene->display_settings, TRUE)) {
+			if (IMB_colormanagement_setup_glsl_draw(NULL, &scene->display_settings, true, false)) {
 				glEnable(GL_BLEND);
 				glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 				glaDrawPixelsTex(rres.xof, rres.yof, rres.rectx, rres.recty, GL_RGBA, GL_FLOAT,
-				                 GL_LINEAR, rres.rectf);
+				                 GL_NEAREST, rres.rectf);
 				glDisable(GL_BLEND);
 
 				IMB_colormanagement_finish_glsl_draw();
@@ -1139,7 +1161,7 @@ void render_view3d_draw(RenderEngine *engine, const bContext *C)
 			glEnable(GL_BLEND);
 			glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 			glaDrawPixelsAuto(rres.xof, rres.yof, rres.rectx, rres.recty, GL_RGBA, GL_UNSIGNED_BYTE,
-			                  GL_LINEAR, display_buffer);
+			                  GL_NEAREST, display_buffer);
 			glDisable(GL_BLEND);
 
 			MEM_freeN(display_buffer);

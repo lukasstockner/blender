@@ -57,22 +57,24 @@ extern "C"
 {
 #endif  // __cplusplus
 #include "MEM_guardedalloc.h"
-#include "BKE_blender.h"
-#include "BKE_global.h"
-#include "BKE_icons.h"
-#include "BKE_image.h"
-#include "BKE_node.h"
-#include "BKE_report.h"
-#include "BKE_library.h"
 #include "BLI_threads.h"
 #include "BLI_blenlib.h"
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 #include "BLO_readfile.h"
 #include "BLO_runtime.h"
-#include "IMB_imbuf.h"
+#include "BKE_blender.h"
+#include "BKE_depsgraph.h"
+#include "BKE_global.h"
+#include "BKE_icons.h"
+#include "BKE_image.h"
+#include "BKE_node.h"
+#include "BKE_report.h"
+#include "BKE_library.h"
+#include "BKE_modifier.h"
 #include "BKE_text.h"
 #include "BKE_sound.h"
+#include "IMB_imbuf.h"
 	
 	int GHOST_HACK_getFirstFile(char buf[]);
 	
@@ -116,6 +118,14 @@ static void mem_error_cb(const char *errorStr)
 {
 	fprintf(stderr, "%s", errorStr);
 	fflush(stderr);
+}
+
+// library.c will only free window managers with a callback function.
+// We don't actually use a wmWindowManager, but loading a blendfile
+// loads wmWindows, so we need to free those.
+static void wm_free(bContext *C, wmWindowManager *wm)
+{
+	BLI_freelistN(&wm->windows);
 }
 
 #ifdef WIN32
@@ -448,6 +458,7 @@ int main(int argc, char** argv)
 
 	IMB_init();
 	BKE_images_init();
+	BKE_modifier_init();
 
 #ifdef WITH_FFMPEG
 	IMB_ffmpeg_init();
@@ -500,6 +511,8 @@ int main(int argc, char** argv)
 	U.use_gpu_mipmap = 1;
 
 	sound_init_once();
+
+	set_free_windowmanager_cb(wm_free);
 
 	/* if running blenderplayer the last argument can't be parsed since it has to be the filename. */
 	isBlenderPlayer = !BLO_is_a_runtime(argv[0]);

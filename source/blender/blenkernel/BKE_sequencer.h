@@ -194,6 +194,7 @@ void             BKE_sequencer_editing_free(struct Scene *scene);
 
 void             BKE_sequencer_sort(struct Scene *scene);
 
+struct Sequence *BKE_sequencer_from_elem(ListBase *seqbase, struct StripElem *se);
 struct Sequence *BKE_sequencer_active_get(struct Scene *scene);
 int              BKE_sequencer_active_get_pair(struct Scene *scene, struct Sequence **seq_act, struct Sequence **seq_other);
 void             BKE_sequencer_active_set(struct Scene *scene, struct Sequence *seq);
@@ -317,6 +318,8 @@ void BKE_sequencer_update_sound_bounds_all(struct Scene *scene);
 void BKE_sequencer_update_sound_bounds(struct Scene *scene, struct Sequence *seq);
 void BKE_sequencer_update_muting(struct Editing *ed);
 void BKE_sequencer_update_sound(struct Scene *scene, struct bSound *sound);
+
+void BKE_sequencer_refresh_sound_length(struct Scene *scene);
 
 void BKE_sequence_base_unique_name_recursive(ListBase *seqbasep, struct Sequence *seq);
 void BKE_sequence_base_dupli_recursive(struct Scene *scene, struct Scene *scene_to, ListBase *nseqbase, ListBase *seqbase, int dupe_flag);

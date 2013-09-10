@@ -177,8 +177,8 @@ static int replace_if_different(char *tmpfile, const char *dep_files[])
 
 
 	if (len_new != len_org) {
-		fclose(fp_new);
-		fclose(fp_org);
+		fclose(fp_new); fp_new = NULL;
+		fclose(fp_org); fp_org = NULL;
 		REN_IF_DIFF;
 	}
 
@@ -191,8 +191,8 @@ static int replace_if_different(char *tmpfile, const char *dep_files[])
 	if (fread(arr_org, sizeof(char), len_org, fp_org) != len_org)
 		fprintf(stderr, "%s:%d, error reading file %s for comparison.\n", __FILE__, __LINE__, orgfile);
 
-	fclose(fp_new);
-	fclose(fp_org);
+	fclose(fp_new); fp_new = NULL;
+	fclose(fp_org); fp_org = NULL;
 
 	cmp = memcmp(arr_new, arr_org, len_new);
 
@@ -646,13 +646,14 @@ static char *rna_def_property_get_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 					if (prop->flag & PROP_DYNAMIC) {
 						char *lenfunc = rna_alloc_function_name(srna->identifier, rna_safe_id(prop->identifier),
 						                                        "get_length");
-						fprintf(f, "	int i, arraylen[RNA_MAX_ARRAY_DIMENSION];\n");
-						fprintf(f, "	int len = %s(ptr, arraylen);\n\n", lenfunc);
+						fprintf(f, "	unsigned int arraylen[RNA_MAX_ARRAY_DIMENSION];\n");
+						fprintf(f, "	unsigned int i;\n");
+						fprintf(f, "	unsigned int len = %s(ptr, arraylen);\n\n", lenfunc);
 						fprintf(f, "	for (i = 0; i < len; i++) {\n");
 						MEM_freeN(lenfunc);
 					}
 					else {
-						fprintf(f, "	int i;\n\n");
+						fprintf(f, "	unsigned int i;\n\n");
 						fprintf(f, "	for (i = 0; i < %u; i++) {\n", prop->totarraylength);
 					}
 
@@ -2272,11 +2273,12 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
 				valstr = "*";
 			}
 
-			/* this must be kept in sync with RNA_parameter_length_get_data,
+			/* this must be kept in sync with RNA_parameter_dynamic_length_get_data and RNA_parameter_get,
 			 * we could just call the function directly, but this is faster */
 			if (flag & PROP_DYNAMIC) {
-				fprintf(f, "\t%s_len = %s((int *)_data);\n", dparm->prop->identifier, pout ? "" : "*");
-				data_str = "(&(((char *)_data)[sizeof(void *)]))";
+				fprintf(f, "\t%s_len = %s((ParameterDynAlloc *)_data)->array_tot;\n", dparm->prop->identifier,
+				                                                                      pout ? "(int *)&" : "(int)");
+				data_str = "(&(((ParameterDynAlloc *)_data)->array))";
 			}
 			else {
 				data_str = "_data";
@@ -2291,7 +2293,7 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
 		}
 
 		if (dparm->next)
-			fprintf(f, "\t_data += %d;\n", rna_parameter_size_alloc(dparm->prop));
+			fprintf(f, "\t_data += %d;\n", rna_parameter_size(dparm->prop));
 	}
 
 	if (dfunc->call) {

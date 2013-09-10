@@ -261,7 +261,8 @@ mark_as_advanced(PYTHON_NUMPY_PATH)
 
 # Cycles
 option(WITH_CYCLES					"Enable cycles Render Engine" ON)
-option(WITH_CYCLES_TEST				"Build cycles test application" OFF)
+option(WITH_CYCLES_STANDALONE		"Build cycles standalone application" OFF)
+option(WITH_CYCLES_STANDALONE_GUI	"Build cycles standalone with GUI" OFF)
 option(WITH_CYCLES_OSL				"Build Cycles with OSL support" OFF)
 option(WITH_CYCLES_CUDA_BINARIES	"Build cycles CUDA binaries" OFF)
 set(CYCLES_CUDA_BINARIES_ARCH sm_20 sm_21 sm_30 sm_35 CACHE STRING "CUDA architectures to build binaries for")
@@ -305,7 +306,9 @@ if(APPLE)
 	endif()
 	
 	execute_process(COMMAND uname -r OUTPUT_VARIABLE MAC_SYS) # check for actual system-version
-	if(${MAC_SYS} MATCHES 12)
+	if(${MAC_SYS} MATCHES 13)
+		set(OSX_SYSTEM 10.9)
+	elseif(${MAC_SYS} MATCHES 12)
 		set(OSX_SYSTEM 10.8)
 	elseif(${MAC_SYS} MATCHES 11)
 		set(OSX_SYSTEM 10.7)
@@ -373,7 +376,7 @@ endif()
 #-----------------------------------------------------------------------------
 # Check for conflicting/unsupported configurations
 
-if(NOT WITH_BLENDER AND NOT WITH_PLAYER AND NOT WITH_CYCLES_TEST)
+if(NOT WITH_BLENDER AND NOT WITH_PLAYER AND NOT WITH_CYCLES_STANDALONE)
 	message(FATAL_ERROR "At least one of WITH_BLENDER or WITH_PLAYER must be enabled, nothing to do!")
 endif()
 
@@ -414,6 +417,10 @@ endif()
 # may as well build python module without a UI
 if(WITH_PYTHON_MODULE)
 	set(WITH_HEADLESS ON)
+endif()
+
+if(NOT WITH_PYTHON)
+	set(WITH_CYCLES OFF)
 endif()
 
 # enable boost for cycles, booleans, audaspace or i18n
@@ -767,14 +774,14 @@ if(UNIX AND NOT APPLE)
 		endif()
 
 		if(LLVM_DIRECTORY)
-			FIND_PROGRAM(LLVM_CONFIG llvm-config-${LLVM_VERSION} HINTS ${LLVM_DIRECTORY}/bin NO_CMAKE_PATH)
+			find_program(LLVM_CONFIG llvm-config-${LLVM_VERSION} HINTS ${LLVM_DIRECTORY}/bin NO_CMAKE_PATH)
 			if(NOT LLVM_CONFIG)
-				FIND_PROGRAM(LLVM_CONFIG llvm-config HINTS ${LLVM_DIRECTORY}/bin NO_CMAKE_PATH)
+				find_program(LLVM_CONFIG llvm-config HINTS ${LLVM_DIRECTORY}/bin NO_CMAKE_PATH)
 			endif()
 		else()
-			FIND_PROGRAM(LLVM_CONFIG llvm-config-${LLVM_VERSION})
+			find_program(LLVM_CONFIG llvm-config-${LLVM_VERSION})
 			if(NOT LLVM_CONFIG)
-				FIND_PROGRAM(LLVM_CONFIG llvm-config)
+				find_program(LLVM_CONFIG llvm-config)
 			endif()
 		endif()
 		execute_process(COMMAND ${LLVM_CONFIG} --version
@@ -877,8 +884,6 @@ if(UNIX AND NOT APPLE)
 
 	if(CMAKE_SYSTEM_NAME MATCHES "Linux")
 		if(NOT WITH_PYTHON_MODULE)
-			# BSD's dont use libdl.so
-		set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} -ldl")
 			# binreloc is linux only
 			set(BINRELOC_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/extern/binreloc/include)
 			set(WITH_BINRELOC ON)
@@ -1778,6 +1783,9 @@ elseif(APPLE)
 		set(CMAKE_C_FLAGS_RELEASE "-mdynamic-no-pic -fno-strict-aliasing")
 		set(CMAKE_CXX_FLAGS_RELEASE "-mdynamic-no-pic -fno-strict-aliasing")
 	endif()
+
+	# Xcode 5 has too low template depth of 128 for libmv
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftemplate-depth=1024")
 endif()
 
 #-----------------------------------------------------------------------------
@@ -2140,6 +2148,23 @@ endif()
 # eg: -Wno-uninitialized
 set(CMAKE_C_FLAGS "${C_WARNINGS} ${CMAKE_C_FLAGS} ${PLATFORM_CFLAGS}")
 set(CMAKE_CXX_FLAGS "${CXX_WARNINGS} ${CMAKE_CXX_FLAGS} ${PLATFORM_CFLAGS}")
+
+# defined above, platform spesific but shared names
+mark_as_advanced(
+	CYCLES_OSL
+	OSL_LIB_EXEC
+	OSL_COMPILER
+	OSL_LIB_COMP
+	OSL_LIB_QUERY
+	OSL_INCLUDES
+)
+
+mark_as_advanced(
+	LLVM_CONFIG
+	LLVM_DIRECTORY
+	LLVM_LIBRARY
+	LLVM_VERSION
+)
 
 #-------------------------------------------------------------------------------
 # Global Defines

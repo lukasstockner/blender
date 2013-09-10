@@ -1,3 +1,4 @@
+
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -85,7 +86,7 @@ DefNode( ShaderNode,     SH_NODE_BSDF_TRANSLUCENT,   0,                      "BS
 DefNode( ShaderNode,     SH_NODE_BSDF_TRANSPARENT,   0,                      "BSDF_TRANSPARENT",   BsdfTransparent,  "Transparent BSDF",  ""       )
 DefNode( ShaderNode,     SH_NODE_BSDF_VELVET,        0,                      "BSDF_VELVET",        BsdfVelvet,       "Velvet BSDF",       ""       )
 DefNode( ShaderNode,     SH_NODE_BSDF_TOON,          def_toon,               "BSDF_TOON",          BsdfToon,         "Toon BSDF",         ""       )
-DefNode( ShaderNode,     SH_NODE_SUBSURFACE_SCATTERING, 0,                   "SUBSURFACE_SCATTERING",SubsurfaceScattering,"Subsurface Scattering","")
+DefNode( ShaderNode,     SH_NODE_SUBSURFACE_SCATTERING, def_sh_subsurface,   "SUBSURFACE_SCATTERING",SubsurfaceScattering,"Subsurface Scattering","")
 DefNode( ShaderNode,     SH_NODE_VOLUME_TRANSPARENT, 0,                      "VOLUME_TRANSPARENT", VolumeTransparent,"Transparent Volume",""       )
 DefNode( ShaderNode,     SH_NODE_VOLUME_ISOTROPIC,   0,                      "VOLUME_ISOTROPIC",   VolumeIsotropic,  "Isotropic Volume",  ""       )
 DefNode( ShaderNode,     SH_NODE_EMISSION,           0,                      "EMISSION",           Emission,         "Emission",          ""       )
@@ -97,6 +98,7 @@ DefNode( ShaderNode,     SH_NODE_PARTICLE_INFO,      0,                      "PA
 DefNode( ShaderNode,     SH_NODE_HAIR_INFO,          0,                      "HAIR_INFO",          HairInfo,         "Hair Info",         ""       )
 DefNode( ShaderNode,     SH_NODE_WIREFRAME,          def_sh_tex_wireframe,   "WIREFRAME",          Wireframe,        "Wireframe",         ""       )
 DefNode( ShaderNode,     SH_NODE_WAVELENGTH,         0,                      "WAVELENGTH",         Wavelength,       "Wavelength",        ""       )
+DefNode( ShaderNode,     SH_NODE_BLACKBODY,          0,                      "BLACKBODY",          Blackbody,        "Blackbody",         ""       )
 DefNode( ShaderNode,     SH_NODE_BUMP,               def_sh_bump,            "BUMP",               Bump,             "Bump",              ""       )
 DefNode( ShaderNode,     SH_NODE_NORMAL_MAP,         def_sh_normal_map,      "NORMAL_MAP",         NormalMap,        "Normal Map",        ""       )
 DefNode( ShaderNode,     SH_NODE_TANGENT,            def_sh_tangent,         "TANGENT",            Tangent,          "Tangent",           ""       )
@@ -113,6 +115,9 @@ DefNode( ShaderNode,     SH_NODE_TEX_VORONOI,        def_sh_tex_voronoi,     "TE
 DefNode( ShaderNode,     SH_NODE_TEX_CHECKER,        def_sh_tex_checker,     "TEX_CHECKER",        TexChecker,       "Checker Texture",   ""       )
 DefNode( ShaderNode,     SH_NODE_TEX_BRICK,          def_sh_tex_brick,       "TEX_BRICK",          TexBrick,         "Brick Texture",     ""       )
 DefNode( ShaderNode,     SH_NODE_TEX_COORD,          def_sh_tex_coord,       "TEX_COORD",          TexCoord,         "Texture Coordinate",""       )
+DefNode( ShaderNode,     SH_NODE_VECT_TRANSFORM,     def_sh_vect_transform,  "VECT_TRANSFORM",     VectorTransform,  "Vector Transform",  ""       )
+DefNode( ShaderNode,     SH_NODE_SEPHSV,             0,                      "SEPHSV",             SeparateHSV,      "Separate HSV",      ""       )
+DefNode( ShaderNode,     SH_NODE_COMBHSV,            0,                      "COMBHSV",            CombineHSV,       "Combine HSV",       ""       )
 
 DefNode( CompositorNode, CMP_NODE_VIEWER,         def_cmp_viewer,         "VIEWER",         Viewer,           "Viewer",            ""              )
 DefNode( CompositorNode, CMP_NODE_RGB,            0,                      "RGB",            RGB,              "RGB",               ""              )
@@ -196,6 +201,7 @@ DefNode( CompositorNode, CMP_NODE_KEYINGSCREEN,   def_cmp_keyingscreen,   "KEYIN
 DefNode( CompositorNode, CMP_NODE_KEYING,         def_cmp_keying,         "KEYING",         Keying,           "Keying",            ""              )
 DefNode( CompositorNode, CMP_NODE_TRACKPOS,       def_cmp_trackpos,       "TRACKPOS",       TrackPos,         "Track Position",    ""              )
 DefNode( CompositorNode, CMP_NODE_PIXELATE,       0,                      "PIXELATE",       Pixelate,         "Pixelate",          ""              )
+DefNode( CompositorNode, CMP_NODE_PLANETRACKDEFORM,def_cmp_planetrackdeform,"PLANETRACKDEFORM",PlaneTrackDeform,"Plane Track Deform",""              )
 
 DefNode( TextureNode,    TEX_NODE_OUTPUT,         def_tex_output,         "OUTPUT",         Output,           "Output",            ""              )
 DefNode( TextureNode,    TEX_NODE_CHECKER,        0,                      "CHECKER",        Checker,          "Checker",           ""              )

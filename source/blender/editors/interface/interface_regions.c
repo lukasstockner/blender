@@ -590,7 +590,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 			/* never fails */
 			id_path = RNA_path_full_ID_py(id);
 
-			if (ptr->id.data && ptr->data && prop) {
+			if (ptr->data && prop) {
 				data_path = RNA_path_from_ID_to_property(ptr, prop);
 			}
 
@@ -2268,10 +2268,8 @@ uiBlock *ui_block_func_COLOR(bContext *C, uiPopupBlockHandle *handle, void *arg_
 	
 	block = uiBeginBlock(C, handle->region, __func__, UI_EMBOSS);
 	
-	if (but->rnaprop) {
-		if (RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
-			block->color_profile = FALSE;
-		}
+	if (RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
+		block->color_profile = false;
 	}
 
 	if (but->block) {
@@ -2607,12 +2605,10 @@ static void confirm_cancel_operator(bContext *UNUSED(C), void *opv)
 	WM_operator_free(opv);
 }
 
-static void vconfirm_opname(bContext *C, const char *opname, const char *title, const char *itemfmt, va_list ap)
-#ifdef __GNUC__
-__attribute__ ((format(printf, 4, 0)))
-#endif
-;
-static void vconfirm_opname(bContext *C, const char *opname, const char *title, const char *itemfmt, va_list ap)
+static void vconfirm_opname(bContext *C, const char *opname, const char *title,
+                            const char *itemfmt, va_list ap) ATTR_PRINTF_FORMAT(4, 0);
+static void vconfirm_opname(bContext *C, const char *opname, const char *title,
+                            const char *itemfmt, va_list ap)
 {
 	uiPopupBlockHandle *handle;
 	char *s, buf[512];

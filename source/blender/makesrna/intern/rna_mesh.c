@@ -575,8 +575,9 @@ static void rna_Mesh_texspace_size_get(PointerRNA *ptr, float values[3])
 {
 	Mesh *me = (Mesh *)ptr->data;
 
-	if (!me->bb)
+	if (me->bb == NULL || (me->bb->flag & BOUNDBOX_DIRTY)) {
 		BKE_mesh_texspace_calc(me);
+	}
 
 	copy_v3_v3(values, me->size);
 }
@@ -585,8 +586,9 @@ static void rna_Mesh_texspace_loc_get(PointerRNA *ptr, float values[3])
 {
 	Mesh *me = (Mesh *)ptr->data;
 
-	if (!me->bb)
+	if (me->bb == NULL || (me->bb->flag & BOUNDBOX_DIRTY)) {
 		BKE_mesh_texspace_calc(me);
+	}
 
 	copy_v3_v3(values, me->loc);
 }
@@ -1106,12 +1108,15 @@ static void rna_MeshPoly_vertices_set(PointerRNA *ptr, const int *values)
 	}
 }
 
+/* disabling, some importers don't know the total material count when assigning materials */
+#if 0
 static void rna_MeshPoly_material_index_range(PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
 {
 	Mesh *me = rna_mesh(ptr);
 	*min = 0;
 	*max = max_ii(0, me->totcol - 1);
 }
+#endif
 
 static int rna_MeshVertex_index_get(PointerRNA *ptr)
 {
@@ -1675,7 +1680,7 @@ static void rna_def_mvert(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "index", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_int_funcs(prop, "rna_MeshVertex_index_get", NULL, NULL);
-	RNA_def_property_ui_text(prop, "Index", "Index number of the vertex");
+	RNA_def_property_ui_text(prop, "Index", "Index of this vertex");
 
 	prop = RNA_def_property(srna, "undeformed_co", PROP_FLOAT, PROP_TRANSLATION);
 	RNA_def_property_array(prop, 3);
@@ -1740,7 +1745,7 @@ static void rna_def_medge(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "index", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_int_funcs(prop, "rna_MeshEdge_index_get", NULL, NULL);
-	RNA_def_property_ui_text(prop, "Index", "Index number of the vertex");
+	RNA_def_property_ui_text(prop, "Index", "Index of this edge");
 }
 
 static void rna_def_mface(BlenderRNA *brna)
@@ -1771,7 +1776,9 @@ static void rna_def_mface(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "material_index", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_sdna(prop, NULL, "mat_nr");
 	RNA_def_property_ui_text(prop, "Material Index", "");
+#if 0
 	RNA_def_property_int_funcs(prop, NULL, NULL, "rna_MeshPoly_material_index_range"); /* reuse for tessface is ok */
+#endif
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
 	prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
@@ -1794,17 +1801,17 @@ static void rna_def_mface(BlenderRNA *brna)
 	RNA_def_property_range(prop, -1.0f, 1.0f);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_float_funcs(prop, "rna_MeshTessFace_normal_get", NULL, NULL);
-	RNA_def_property_ui_text(prop, "Face normal", "Local space unit length normal vector for this face");
+	RNA_def_property_ui_text(prop, "Face Normal", "Local space unit length normal vector for this face");
 
 	prop = RNA_def_property(srna, "area", PROP_FLOAT, PROP_UNSIGNED);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_float_funcs(prop, "rna_MeshTessFace_area_get", NULL, NULL);
-	RNA_def_property_ui_text(prop, "Face area", "Read only area of the face");
+	RNA_def_property_ui_text(prop, "Face Area", "Read only area of this face");
 
 	prop = RNA_def_property(srna, "index", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_int_funcs(prop, "rna_MeshTessFace_index_get", NULL, NULL);
-	RNA_def_property_ui_text(prop, "Index", "Index number of the vertex");
+	RNA_def_property_ui_text(prop, "Index", "Index of this face");
 }
 
 
@@ -1830,7 +1837,7 @@ static void rna_def_mloop(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "index", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_int_funcs(prop, "rna_MeshLoop_index_get", NULL, NULL);
-	RNA_def_property_ui_text(prop, "Index", "Index number of the loop");
+	RNA_def_property_ui_text(prop, "Index", "Index of this loop");
 }
 
 static void rna_def_mpolygon(BlenderRNA *brna)
@@ -1859,16 +1866,18 @@ static void rna_def_mpolygon(BlenderRNA *brna)
 	/* these are both very low level access */
 	prop = RNA_def_property(srna, "loop_start", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_sdna(prop, NULL, "loopstart");
-	RNA_def_property_ui_text(prop, "Loop Start", "");
+	RNA_def_property_ui_text(prop, "Loop Start", "Index of the first loop of this polygon");
 	/* also low level */
 	prop = RNA_def_property(srna, "loop_total", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_sdna(prop, NULL, "totloop");
-	RNA_def_property_ui_text(prop, "Loop Total", "");
+	RNA_def_property_ui_text(prop, "Loop Total", "Number of loops used by this polygon");
 
 	prop = RNA_def_property(srna, "material_index", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_sdna(prop, NULL, "mat_nr");
 	RNA_def_property_ui_text(prop, "Material Index", "");
+#if 0
 	RNA_def_property_int_funcs(prop, NULL, NULL, "rna_MeshPoly_material_index_range");
+#endif
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
 	prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
@@ -1891,23 +1900,23 @@ static void rna_def_mpolygon(BlenderRNA *brna)
 	RNA_def_property_range(prop, -1.0f, 1.0f);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_float_funcs(prop, "rna_MeshPolygon_normal_get", NULL, NULL);
-	RNA_def_property_ui_text(prop, "Face normal", "Local space unit length normal vector for this polygon");
+	RNA_def_property_ui_text(prop, "Polygon Normal", "Local space unit length normal vector for this polygon");
 
 	prop = RNA_def_property(srna, "center", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_float_funcs(prop, "rna_MeshPolygon_center_get", NULL, NULL);
-	RNA_def_property_ui_text(prop, "Face center", "Center of the polygon");
+	RNA_def_property_ui_text(prop, "Polygon Center", "Center of this polygon");
 
 	prop = RNA_def_property(srna, "area", PROP_FLOAT, PROP_UNSIGNED);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_float_funcs(prop, "rna_MeshPolygon_area_get", NULL, NULL);
-	RNA_def_property_ui_text(prop, "Face area", "Read only area of the face");
+	RNA_def_property_ui_text(prop, "Polygon Area", "Read only area of this polygon");
 
 	prop = RNA_def_property(srna, "index", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_int_funcs(prop, "rna_MeshPolygon_index_get", NULL, NULL);
-	RNA_def_property_ui_text(prop, "Index", "Index number of the vertex");
+	RNA_def_property_ui_text(prop, "Index", "Index of this polygon");
 }
 
 /* mesh.loop_uvs */
@@ -2058,7 +2067,7 @@ static void rna_def_mtface(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "uv_raw", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_multi_array(prop, 2, uv_dim);
 	RNA_def_property_float_sdna(prop, NULL, "uv");
-	RNA_def_property_ui_text(prop, "UV", "Fixed size UV coordinates array");
+	RNA_def_property_ui_text(prop, "UV Raw", "Fixed size UV coordinates array");
 
 }
 
@@ -2848,7 +2857,7 @@ static void rna_def_mesh(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "tessfaces", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "mface", "totface");
 	RNA_def_property_struct_type(prop, "MeshTessFace");
-	RNA_def_property_ui_text(prop, "TessFaces", "Tessellation faces of the mesh (derived from polygons)");
+	RNA_def_property_ui_text(prop, "TessFaces", "Tessellated faces of the mesh (derived from polygons)");
 	rna_def_mesh_tessfaces(brna, prop);
 
 	prop = RNA_def_property(srna, "loops", PROP_COLLECTION, PROP_NONE);

@@ -34,6 +34,7 @@
 #include "DNA_meshdata_types.h"
 
 #include "BLI_math.h"
+#include "BLI_sort_utils.h"
 
 #include "BKE_customdata.h"
 
@@ -181,10 +182,6 @@ static bool bm_edge_faces_cmp(BMesh *bm, BMEdge *e, const bool do_uv, const bool
 	return true;
 }
 
-typedef struct JoinEdge {
-	float weight;
-	BMEdge *e;
-} JoinEdge;
 
 #define EDGE_MARK	1
 #define EDGE_CHOSEN	2
@@ -192,14 +189,7 @@ typedef struct JoinEdge {
 #define FACE_MARK	1
 #define FACE_INPUT	2
 
-static int fplcmp(const void *v1, const void *v2)
-{
-	const JoinEdge *e1 = (JoinEdge *)v1, *e2 = (JoinEdge *)v2;
 
-	if      (e1->weight > e2->weight) return  1;
-	else if (e1->weight < e2->weight) return -1;
-	else                              return  0;
-}
 
 void bmo_join_triangles_exec(BMesh *bm, BMOperator *op)
 {
@@ -214,20 +204,22 @@ void bmo_join_triangles_exec(BMesh *bm, BMOperator *op)
 	BMOIter siter;
 	BMFace *f;
 	BMEdge *e;
-	JoinEdge *jedges = NULL;
+	/* data: edge-to-join, sort_value: error weight */
+	struct SortPointerByFloat *jedges;
 	unsigned i, totedge;
 	unsigned int totedge_tag = 0;
 
 	/* flag all edges of all input face */
 	BMO_ITER (f, &siter, op->slots_in, "faces", BM_FACE) {
-		BMO_elem_flag_enable(bm, f, FACE_INPUT);
+		if (f->len == 3) {
+			BMO_elem_flag_enable(bm, f, FACE_INPUT);
+		}
 	}
 
 	/* flag edges surrounded by 2 flagged triangles */
 	BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
 		BMFace *f_a, *f_b;
 		if (BM_edge_face_pair(e, &f_a, &f_b) &&
-		    (f_a->len == 3 && f_b->len == 3) &&
 		    (BMO_elem_flag_test(bm, f_a, FACE_INPUT) && BMO_elem_flag_test(bm, f_b, FACE_INPUT)))
 		{
 			BMO_elem_flag_enable(bm, e, EDGE_MARK);
@@ -270,19 +262,19 @@ void bmo_join_triangles_exec(BMesh *bm, BMOperator *op)
 
 		measure = measure_facepair(v1->co, v2->co, v3->co, v4->co, limit);
 		if (measure < limit) {
-			jedges[i].e = e;
-			jedges[i].weight = measure;
+			jedges[i].data = e;
+			jedges[i].sort_value = measure;
 			i++;
 		}
 	}
 
 	totedge = i;
-	qsort(jedges, totedge, sizeof(JoinEdge), fplcmp);
+	qsort(jedges, totedge, sizeof(*jedges), BLI_sortutil_cmp_float);
 
 	for (i = 0; i < totedge; i++) {
 		BMFace *f_a, *f_b;
 
-		e = jedges[i].e;
+		e = jedges[i].data;
 		f_a = e->l->f;
 		f_b = e->l->radial_next->f;
 
@@ -307,9 +299,11 @@ void bmo_join_triangles_exec(BMesh *bm, BMOperator *op)
 			continue;
 
 		BM_edge_face_pair(e, &f_a, &f_b); /* checked above */
-		f_new = BM_faces_join_pair(bm, f_a, f_b, e, true);
-		if (f_new) {
-			BMO_elem_flag_enable(bm, f_new, FACE_OUT);
+		if ((f_a->len == 3 && f_b->len == 3)) {
+			f_new = BM_faces_join_pair(bm, f_a, f_b, e, true);
+			if (f_new) {
+				BMO_elem_flag_enable(bm, f_new, FACE_OUT);
+			}
 		}
 	}
 

@@ -463,10 +463,14 @@ closure color emission() BUILTIN;
 closure color background() BUILTIN;
 closure color holdout() BUILTIN;
 closure color ambient_occlusion() BUILTIN;
-closure color bssrdf_cubic(normal N, vector radius) BUILTIN;
+
+// BSSRDF
+closure color bssrdf_cubic(normal N, vector radius, float texture_blur, float sharpness) BUILTIN;
+closure color bssrdf_gaussian(normal N, vector radius, float texture_blur) BUILTIN;
 
 // Backwards compatibility
-
+closure color bssrdf_cubic(normal N, vector radius) BUILTIN;
+closure color bssrdf_gaussian(normal N, vector radius) BUILTIN;
 closure color specular_toon(normal N, float size, float smooth) BUILTIN;
 
 // Renderer state

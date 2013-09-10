@@ -45,6 +45,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
+#include "BLI_ghash.h"
 
 #include "BKE_animsys.h"
 #include "BKE_context.h"
@@ -56,6 +57,7 @@
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_sequencer.h"
+#include "BKE_treehash.h"
 
 #include "ED_armature.h"
 #include "ED_object.h"
@@ -112,7 +114,7 @@ static void set_operation_types(SpaceOops *soops, ListBase *lb,
 					case ID_LA: case ID_AR: case ID_CA: case ID_SPK:
 					case ID_MA: case ID_TE: case ID_IP: case ID_IM:
 					case ID_SO: case ID_KE: case ID_WO: case ID_AC:
-					case ID_NLA: case ID_TXT: case ID_GR:
+					case ID_NLA: case ID_TXT: case ID_GR: case ID_LS:
 						if (*idlevel == 0) *idlevel = idcode;
 						else if (*idlevel != idcode) *idlevel = -1;
 						break;
@@ -682,6 +684,10 @@ static int outliner_object_operation_exec(bContext *C, wmOperator *op)
 	else if (event == OL_OP_RENAME) {
 		outliner_do_object_operation(C, scene, soops, &soops->tree, item_rename_cb);
 		str = "Rename Object";
+	}
+	else {
+		BLI_assert(0);
+		return OPERATOR_CANCELLED;
 	}
 
 	ED_undo_push(C, str);

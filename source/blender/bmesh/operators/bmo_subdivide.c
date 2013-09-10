@@ -593,7 +593,7 @@ static void quad_4edge_subdivide(BMesh *bm, BMFace *UNUSED(face), BMVert **verts
 	}
 
 	for (i = 1; i < numcuts + 2; i++) {
-		for (j = 1; j < numcuts + 1; j++) {
+		for (j = 1; j <= numcuts; j++) {
 			a = i * s + j;
 			b = (i - 1) * s + j;
 			e = connect_smallest_face(bm, lines[a], lines[b], &f_new);
@@ -710,7 +710,7 @@ static void tri_3edge_subdivide(BMesh *bm, BMFace *UNUSED(face), BMVert **verts,
 	 *      s    s
 	 * </pre>
 	 */
-	for (i = 1; i < numcuts + 1; i++) {
+	for (i = 1; i <= numcuts; i++) {
 		for (j = 0; j < i; j++) {
 			e = connect_smallest_face(bm, lines[i][j], lines[i + 1][j + 1], &f_new);
 
@@ -921,7 +921,7 @@ void bmo_subdivide_edges_exec(BMesh *bm, BMOperator *op)
 		}
 
 		if (BMO_elem_flag_test(bm, face, FACE_CUSTOMFILL)) {
-			pat = BMO_slot_map_data_get(params.slot_custom_patterns, face);
+			pat = *BMO_slot_map_data_get(params.slot_custom_patterns, face);
 			for (i = 0; i < pat->len; i++) {
 				matched = 1;
 				for (j = 0; j < pat->len; j++) {

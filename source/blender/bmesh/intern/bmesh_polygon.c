@@ -95,7 +95,7 @@ static void calc_poly_normal(float normal[3], float verts[][3], int nverts)
  *
  * Same as #calc_poly_normal but operates directly on a bmesh face.
  */
-static void bm_face_calc_poly_normal(BMFace *f, float n[3])
+static void bm_face_calc_poly_normal(const BMFace *f, float n[3])
 {
 	BMLoop *l_first = BM_FACE_FIRST_LOOP(f);
 	BMLoop *l_iter  = l_first;
@@ -173,7 +173,7 @@ static void bm_face_calc_poly_center_mean_vertex_cos(BMFace *f, float r_cent[3],
  * \param r_loops  Store face loop pointers, (f->len)
  * \param r_index  Store triangle triples, indicies into \a r_loops,  ((f->len - 2) * 3)
  */
-int BM_face_calc_tessellation(BMFace *f, BMLoop **r_loops, int (*_r_index)[3])
+int BM_face_calc_tessellation(const BMFace *f, BMLoop **r_loops, int (*_r_index)[3])
 {
 	int *r_index = (int *)_r_index;
 	BMLoop *l_first = BM_FACE_FIRST_LOOP(f);
@@ -579,7 +579,7 @@ void BM_vert_normal_update_all(BMVert *v)
  * is passed in as well.
  */
 
-void BM_face_calc_normal(BMFace *f, float r_no[3])
+void BM_face_calc_normal(const BMFace *f, float r_no[3])
 {
 	BMLoop *l;
 
@@ -875,7 +875,7 @@ static BMLoop *poly_find_ear(BMFace *f, float (*projectverts)[2], const bool use
 			i++;
 		} while ((l_iter = l_iter->next) != l_first);
 
-		/* pick 0/1 based on best lenth */
+		/* pick 0/1 based on best length */
 		/* XXX Can't only rely on such test, also must check we do not get (too much) degenerated triangles!!! */
 		i = (((len_squared_v3v3(larr[0]->v->co, larr[2]->v->co) >
 		     len_squared_v3v3(larr[1]->v->co, larr[3]->v->co) * bias)) != use_beauty);
@@ -1006,6 +1006,8 @@ void BM_face_triangulate(BMesh *bm, BMFace *f,
 	float *abscoss = BLI_array_alloca(abscoss, f_len_orig);
 	float mat[3][3];
 
+	BLI_assert(BM_face_is_normal_valid(f));
+
 	axis_dominant_v3_to_m3(mat, f->no);
 
 	/* copy vertex coordinates to vertspace area */
@@ -1061,7 +1063,7 @@ void BM_face_legal_splits(BMFace *f, BMLoop *(*loops)[2], int len)
 {
 	const int len2 = len * 2;
 	BMLoop *l;
-	float v1[2], v2[2], v3[2] /*, v4[3 */, no[3], mid[2], *p1, *p2, *p3, *p4;
+	float v1[2], v2[2], v3[2], mid[2], *p1, *p2, *p3, *p4;
 	float out[2] = {-FLT_MAX, -FLT_MAX};
 	float axis_mat[3][3];
 	float (*projverts)[2] = BLI_array_alloca(projverts, f->len);
@@ -1069,10 +1071,9 @@ void BM_face_legal_splits(BMFace *f, BMLoop *(*loops)[2], int len)
 	float fac1 = 1.0000001f, fac2 = 0.9f; //9999f; //0.999f;
 	int i, j, a = 0, clen;
 
-	/* TODO, the face normal may already be correct */
-	BM_face_calc_normal(f, no);
+	BLI_assert(BM_face_is_normal_valid(f));
 
-	axis_dominant_v3_to_m3(axis_mat, no);
+	axis_dominant_v3_to_m3(axis_mat, f->no);
 
 	for (i = 0, l = BM_FACE_FIRST_LOOP(f); i < f->len; i++, l = l->next) {
 		BM_elem_index_set(l, i); /* set_loop */
@@ -1201,4 +1202,38 @@ void BM_face_as_array_vert_quad(BMFace *f, BMVert *r_verts[4])
 	r_verts[1] = l->v; l = l->next;
 	r_verts[2] = l->v; l = l->next;
 	r_verts[3] = l->v;
+}
+
+
+/**
+ * Small utility functions for fast access
+ *
+ * faster alternative to:
+ *  BM_iter_as_array(bm, BM_LOOPS_OF_FACE, f, (void **)l, 3);
+ */
+void BM_face_as_array_loop_tri(BMFace *f, BMLoop *r_loops[3])
+{
+	BMLoop *l = BM_FACE_FIRST_LOOP(f);
+
+	BLI_assert(f->len == 3);
+
+	r_loops[0] = l; l = l->next;
+	r_loops[1] = l; l = l->next;
+	r_loops[2] = l;
+}
+
+/**
+ * faster alternative to:
+ *  BM_iter_as_array(bm, BM_LOOPS_OF_FACE, f, (void **)l, 4);
+ */
+void BM_face_as_array_loop_quad(BMFace *f, BMLoop *r_loops[4])
+{
+	BMLoop *l = BM_FACE_FIRST_LOOP(f);
+
+	BLI_assert(f->len == 4);
+
+	r_loops[0] = l; l = l->next;
+	r_loops[1] = l; l = l->next;
+	r_loops[2] = l; l = l->next;
+	r_loops[3] = l;
 }

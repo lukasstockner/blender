@@ -547,7 +547,6 @@ static void vgroup_normalize_active(Object *ob, eVGroupSelect subset_type)
 			ED_mesh_defvert_mirror_update_em(ob, eve_act, -1, -1, cd_dvert_offset);
 		}
 		else {
-			int v_act = BKE_mesh_mselect_active_get(me, ME_VSEL);
 			ED_mesh_defvert_mirror_update_ob(ob, -1, v_act);
 		}
 	}
@@ -1562,9 +1561,12 @@ static void getVerticalAndHorizontalChange(const float norm[3], float d, const f
 	/* A = Q - ((Q - P).N)N
 	 * D = (a * x0 + b * y0 +c * z0 + d) */
 	float projA[3], projB[3];
+	float plane[4];
 
-	closest_to_plane_v3(projA, coord, norm, start);
-	closest_to_plane_v3(projB, coord, norm, end);
+	plane_from_point_normal_v3(plane, coord, norm);
+
+	closest_to_plane_v3(projA, plane, start);
+	closest_to_plane_v3(projB, plane, end);
 	/* (vertical and horizontal refer to the plane's y and xz respectively)
 	 * vertical distance */
 	dists[index] = dot_v3v3(norm, end) + d;

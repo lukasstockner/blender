@@ -582,7 +582,12 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		m_canvas = new GPG_Canvas(window);
 		if (!m_canvas)
 			return false;
-				
+
+		if (gm->vsync == VSYNC_ADAPTIVE)
+			m_canvas->SetSwapInterval(-1);
+		else
+			m_canvas->SetSwapInterval((gm->vsync == VSYNC_ON) ? 1 : 0);
+
 		m_canvas->Init();
 		if (gm->flag & GAME_SHOW_MOUSE)
 			m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
@@ -787,9 +792,6 @@ void GPG_Application::stopEngine()
 	}
 
 	m_pyGlobalDictString_Length = saveGamePythonConfig(&m_pyGlobalDictString);
-	
-	// when exiting the mainloop
-	exitGamePythonScripting();
 #endif
 	
 	m_ketsjiengine->StopEngine();
@@ -803,6 +805,7 @@ void GPG_Application::stopEngine()
 		m_system->removeTimer(m_frameTimer);
 		m_frameTimer = 0;
 	}
+
 	m_engineRunning = false;
 }
 
@@ -879,6 +882,11 @@ void GPG_Application::exitEngine()
 	}
 
 	GPU_extensions_exit();
+
+#ifdef WITH_PYTHON
+	// Call this after we're sure nothing needs Python anymore (e.g., destructors)
+	exitGamePlayerPythonScripting();
+#endif
 
 	m_exitRequested = 0;
 	m_engineInitialized = false;

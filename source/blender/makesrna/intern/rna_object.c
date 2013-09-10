@@ -466,7 +466,7 @@ static EnumPropertyItem *rna_Object_parent_type_itemf(bContext *UNUSED(C), Point
 			RNA_enum_items_add_value(&item, &totitem, parent_type_items, PARBONE);
 		}
 
-		if (ELEM4(par->type, OB_MESH, OB_CURVE, OB_SURF, OB_LATTICE)) {
+		if (OB_TYPE_SUPPORT_PARVERT(par->type)) {
 			RNA_enum_items_add_value(&item, &totitem, parent_type_items, PARVERT1);
 			RNA_enum_items_add_value(&item, &totitem, parent_type_items, PARVERT3);
 		}
@@ -904,6 +904,7 @@ static void rna_MaterialSlot_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	rna_Object_internal_update(bmain, scene, ptr);
 	WM_main_add_notifier(NC_OBJECT | ND_OB_SHADING, ptr->id.data);
+	WM_main_add_notifier(NC_MATERIAL | ND_SHADING_LINKS, NULL);
 }
 
 /* why does this have to be so complicated?, can't all this crap be

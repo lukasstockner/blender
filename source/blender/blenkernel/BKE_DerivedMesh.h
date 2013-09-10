@@ -72,6 +72,8 @@
 #include "DNA_customdata_types.h"
 #include "DNA_meshdata_types.h"
 
+#include "BLI_compiler_attrs.h"
+
 #include "BKE_customdata.h"
 #include "BKE_bvhutils.h"
 
@@ -94,8 +96,6 @@ struct GPUDrawObject;
 struct BMEditMesh;
 struct ListBase;
 struct PBVH;
-
-#define DM_OMP_LIMIT 10000  /* setting zero so we can catch bugs in OpenMP/BMesh */
 
 /* number of sub-elements each mesh element has (for interpolation) */
 #define SUB_ELEMS_VERT 0
@@ -733,13 +733,11 @@ void DM_init_origspace(DerivedMesh *dm);
 char *DM_debug_info(DerivedMesh *dm);
 void DM_debug_print(DerivedMesh *dm);
 void DM_debug_print_cdlayers(CustomData *cdata);
+
+bool DM_is_valid(DerivedMesh *dm);
 #endif
 
-#ifdef __GNUC__
-BLI_INLINE int DM_origindex_mface_mpoly(const int *index_mf_to_mpoly, const int *index_mp_to_orig, const int i)
-	__attribute__((nonnull(1)))
-;
-#endif
+BLI_INLINE int DM_origindex_mface_mpoly(const int *index_mf_to_mpoly, const int *index_mp_to_orig, const int i) ATTR_NONNULL(1);
 
 BLI_INLINE int DM_origindex_mface_mpoly(const int *index_mf_to_mpoly, const int *index_mp_to_orig, const int i)
 {

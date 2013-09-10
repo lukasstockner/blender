@@ -618,13 +618,10 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh, Mesh *me)
 				set_poly_indices(mpoly, mloop, loop_index, position_indices, vcount);
 
 
-				for (unsigned int l = 0; l < index_list_array.getCount(); l++) {
-					int uvset_index = index_list_array[l]->getSetIndex();
-
+				for (unsigned int uvset_index = 0; uvset_index < index_list_array.getCount(); uvset_index++) {
 					// get mtface by face index and uv set index
 					MLoopUV  *mloopuv = (MLoopUV  *)CustomData_get_layer_n(&me->ldata, CD_MLOOPUV, uvset_index);
-
-					set_face_uv(mloopuv+loop_index, uvs, start_index, *index_list_array[l], vcount);
+					set_face_uv(mloopuv+loop_index, uvs, start_index, *index_list_array[uvset_index], vcount);
 				}
 
 				if (mp_has_normals) {
@@ -860,7 +857,7 @@ std::vector<Object *> MeshImporter::get_all_users_of(Mesh *reference_mesh)
  *
  * During import all materials have been assigned to Object.
  * Now we iterate over the imported objects and optimize
- * the assignements as follows:
+ * the assignments as follows:
  *
  * for each imported geometry:
  *     if number of users is 1:

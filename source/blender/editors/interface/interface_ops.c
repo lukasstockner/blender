@@ -118,7 +118,7 @@ static int eyedropper_init(bContext *C, wmOperator *op)
 
 static void eyedropper_exit(bContext *C, wmOperator *op)
 {
-	WM_cursor_restore(CTX_wm_window(C));
+	WM_cursor_modal_restore(CTX_wm_window(C));
 	
 	if (op->customdata)
 		MEM_freeN(op->customdata);
@@ -148,7 +148,7 @@ static void eyedropper_color_sample_fl(bContext *C, Eyedropper *UNUSED(eye), int
 		if (BLI_rcti_isect_pt(&sa->totrct, mx, my)) {
 			if (sa->spacetype == SPACE_IMAGE) {
 				ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
-				if (BLI_rcti_isect_pt(&ar->winrct, mx, my)) {
+				if (ar && BLI_rcti_isect_pt(&ar->winrct, mx, my)) {
 					SpaceImage *sima = sa->spacedata.first;
 					int mval[2] = {mx - ar->winrct.xmin,
 					               my - ar->winrct.ymin};
@@ -160,7 +160,7 @@ static void eyedropper_color_sample_fl(bContext *C, Eyedropper *UNUSED(eye), int
 			}
 			else if (sa->spacetype == SPACE_NODE) {
 				ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
-				if (BLI_rcti_isect_pt(&ar->winrct, mx, my)) {
+				if (ar && BLI_rcti_isect_pt(&ar->winrct, mx, my)) {
 					SpaceNode *snode = sa->spacedata.first;
 					int mval[2] = {mx - ar->winrct.xmin,
 					               my - ar->winrct.ymin};
@@ -172,7 +172,7 @@ static void eyedropper_color_sample_fl(bContext *C, Eyedropper *UNUSED(eye), int
 			}
 			else if (sa->spacetype == SPACE_CLIP) {
 				ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
-				if (BLI_rcti_isect_pt(&ar->winrct, mx, my)) {
+				if (ar && BLI_rcti_isect_pt(&ar->winrct, mx, my)) {
 					SpaceClip *sc = sa->spacedata.first;
 					int mval[2] = {mx - ar->winrct.xmin,
 					               my - ar->winrct.ymin};
@@ -289,7 +289,7 @@ static int eyedropper_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(
 {
 	/* init */
 	if (eyedropper_init(C, op)) {
-		WM_cursor_modal(CTX_wm_window(C), BC_EYEDROPPER_CURSOR);
+		WM_cursor_modal_set(CTX_wm_window(C), BC_EYEDROPPER_CURSOR);
 
 		/* add temp handler */
 		WM_event_add_modal_handler(C, op);
@@ -704,12 +704,12 @@ static void UI_OT_reports_to_textblock(wmOperatorType *ot)
 /* EditSource Utility funcs and operator,
  * note, this includes utility functions and button matching checks */
 
-struct uiEditSourceStore {
+typedef struct uiEditSourceStore {
 	uiBut but_orig;
 	GHash *hash;
 } uiEditSourceStore;
 
-struct uiEditSourceButStore {
+typedef struct uiEditSourceButStore {
 	char py_dbg_fn[FILE_MAX];
 	int py_dbg_ln;
 } uiEditSourceButStore;

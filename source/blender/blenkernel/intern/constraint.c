@@ -69,6 +69,7 @@
 #include "BKE_bvhutils.h"
 #include "BKE_camera.h"
 #include "BKE_constraint.h"
+#include "BKE_curve.h"
 #include "BKE_displist.h"
 #include "BKE_deform.h"
 #include "BKE_DerivedMesh.h"    /* for geometry targets */
@@ -448,7 +449,7 @@ static void contarget_get_lattice_mat(Object *ob, const char *substring, float m
 {
 	Lattice *lt = (Lattice *)ob->data;
 	
-	DispList *dl = BKE_displist_find(&ob->disp, DL_VERTS);
+	DispList *dl = ob->curve_cache ? BKE_displist_find(&ob->curve_cache->disp, DL_VERTS) : NULL;
 	float *co = dl ? dl->verts : NULL;
 	BPoint *bp = lt->def;
 	
@@ -1163,10 +1164,10 @@ static void followpath_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstra
 		 */
 		
 		/* only happens on reload file, but violates depsgraph still... fix! */
-		if (cu->path == NULL || cu->path->data == NULL)
+		if (ct->tar->curve_cache == NULL || ct->tar->curve_cache->path == NULL || ct->tar->curve_cache->path->data == NULL)
 			BKE_displist_make_curveTypes(cob->scene, ct->tar, 0);
 		
-		if (cu->path && cu->path->data) {
+		if (ct->tar->curve_cache->path && ct->tar->curve_cache->path->data) {
 			float quat[4];
 			if ((data->followflag & FOLLOWPATH_STATIC) == 0) {
 				/* animated position along curve depending on time */
@@ -1227,7 +1228,7 @@ static void followpath_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstra
 				
 				copy_v3_v3(totmat[3], vec);
 				
-				mul_serie_m4(ct->matrix, ct->tar->obmat, totmat, NULL, NULL, NULL, NULL, NULL, NULL);
+				mul_m4_m4m4(ct->matrix, ct->tar->obmat, totmat);
 			}
 		}
 	}
@@ -1253,7 +1254,7 @@ static void followpath_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *
 		mat4_to_size(size, cob->matrix);
 		
 		/* apply targetmat - containing location on path, and rotation */
-		mul_serie_m4(cob->matrix, ct->matrix, obmat, NULL, NULL, NULL, NULL, NULL, NULL);
+		mul_m4_m4m4(cob->matrix, ct->matrix, obmat);
 		
 		/* un-apply scaling caused by path */
 		if ((data->followflag & FOLLOWPATH_RADIUS) == 0) { /* XXX - assume that scale correction means that radius will have some scale error in it - Campbell */
@@ -1933,10 +1934,8 @@ static void pycon_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstraintTa
 	if (VALID_CONS_TARGET(ct)) {
 		/* special exception for curves - depsgraph issues */
 		if (ct->tar->type == OB_CURVE) {
-			Curve *cu = ct->tar->data;
-			
 			/* this check is to make sure curve objects get updated on file load correctly.*/
-			if (cu->path == NULL || cu->path->data == NULL) /* only happens on reload file, but violates depsgraph still... fix! */
+			if (ct->tar->curve_cache == NULL || ct->tar->curve_cache->path == NULL || ct->tar->curve_cache->path->data == NULL) /* only happens on reload file, but violates depsgraph still... fix! */
 				BKE_displist_make_curveTypes(cob->scene, ct->tar, 0);
 		}
 		
@@ -2080,6 +2079,8 @@ static void actcon_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstraintT
 			axis = data->type - 20;
 		}
 		
+		BLI_assert((unsigned int)axis < 3);
+
 		/* Target defines the animation */
 		s = (vec[axis] - data->min) / (data->max - data->min);
 		CLAMP(s, 0, 1);
@@ -3007,14 +3008,12 @@ static void clampto_flush_tars(bConstraint *con, ListBase *list, short nocopy)
 static void clampto_get_tarmat(bConstraint *UNUSED(con), bConstraintOb *cob, bConstraintTarget *ct, float UNUSED(ctime))
 {
 	if (VALID_CONS_TARGET(ct)) {
-		Curve *cu = ct->tar->data;
-		
 		/* note: when creating constraints that follow path, the curve gets the CU_PATH set now,
 		 *		currently for paths to work it needs to go through the bevlist/displist system (ton) 
 		 */
 		
 		/* only happens on reload file, but violates depsgraph still... fix! */
-		if (cu->path == NULL || cu->path->data == NULL)
+		if (ct->tar->curve_cache == NULL || ct->tar->curve_cache->path == NULL || ct->tar->curve_cache->path->data == NULL)
 			BKE_displist_make_curveTypes(cob->scene, ct->tar, 0);
 	}
 	
@@ -3032,7 +3031,6 @@ static void clampto_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *tar
 	
 	/* only evaluate if there is a target and it is a curve */
 	if (VALID_CONS_TARGET(ct) && (ct->tar->type == OB_CURVE)) {
-		Curve *cu = data->tar->data;
 		float obmat[4][4], ownLoc[3];
 		float curveMin[3], curveMax[3];
 		float targetMatrix[4][4] = MAT4_UNITY;
@@ -3045,7 +3043,7 @@ static void clampto_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *tar
 		BKE_object_minmax(ct->tar, curveMin, curveMax, TRUE);
 		
 		/* get targetmatrix */
-		if (cu->path && cu->path->data) {
+		if (data->tar->curve_cache &&  data->tar->curve_cache->path && data->tar->curve_cache->path->data) {
 			float vec[4], dir[3], totmat[4][4];
 			float curvetime;
 			short clamp_axis;
@@ -3120,7 +3118,7 @@ static void clampto_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *tar
 				unit_m4(totmat);
 				copy_v3_v3(totmat[3], vec);
 				
-				mul_serie_m4(targetMatrix, ct->tar->obmat, totmat, NULL, NULL, NULL, NULL, NULL, NULL);
+				mul_m4_m4m4(targetMatrix, ct->tar->obmat, totmat);
 			}
 		}
 		
@@ -3310,6 +3308,14 @@ static void shrinkwrap_id_looper(bConstraint *con, ConstraintIDFunc func, void *
 	func(con, (ID **)&data->target, FALSE, userdata);
 }
 
+static void shrinkwrap_new_data(void *cdata)
+{
+	bShrinkwrapConstraint *data = (bShrinkwrapConstraint *)cdata;
+
+	data->projAxis = OB_POSZ;
+	data->projAxisSpace = CONSTRAINT_SPACE_LOCAL;
+}
+
 static int shrinkwrap_get_tars(bConstraint *con, ListBase *list)
 {
 	if (con && list) {
@@ -3341,23 +3347,13 @@ static void shrinkwrap_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstra
 	bShrinkwrapConstraint *scon = (bShrinkwrapConstraint *) con->data;
 	
 	if (VALID_CONS_TARGET(ct) && (ct->tar->type == OB_MESH) ) {
-		int fail = FALSE;
+		bool fail = false;
 		float co[3] = {0.0f, 0.0f, 0.0f};
-		float no[3] = {0.0f, 0.0f, 0.0f};
-		float dist;
 		
 		SpaceTransform transform;
 		DerivedMesh *target = object_get_derived_final(ct->tar);
-		BVHTreeRayHit hit;
-		BVHTreeNearest nearest;
 		
 		BVHTreeFromMesh treeData = {NULL};
-		
-		nearest.index = -1;
-		nearest.dist = FLT_MAX;
-		
-		hit.index = -1;
-		hit.dist = 100000.0f;  //TODO should use FLT_MAX.. but normal projection doenst yet supports it
 		
 		unit_m4(ct->matrix);
 		
@@ -3367,7 +3363,13 @@ static void shrinkwrap_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstra
 			switch (scon->shrinkType) {
 				case MOD_SHRINKWRAP_NEAREST_SURFACE:
 				case MOD_SHRINKWRAP_NEAREST_VERTEX:
-					
+				{
+					BVHTreeNearest nearest;
+					float dist;
+
+					nearest.index = -1;
+					nearest.dist = FLT_MAX;
+
 					if (scon->shrinkType == MOD_SHRINKWRAP_NEAREST_VERTEX)
 						bvhtree_from_mesh_verts(&treeData, target, 0.0, 2, 6);
 					else
@@ -3388,32 +3390,54 @@ static void shrinkwrap_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstra
 					}
 					space_transform_invert(&transform, co);
 					break;
-				
+				}
 				case MOD_SHRINKWRAP_PROJECT:
-					if (scon->projAxis & MOD_SHRINKWRAP_PROJECT_OVER_X_AXIS) no[0] = 1.0f;
-					if (scon->projAxis & MOD_SHRINKWRAP_PROJECT_OVER_Y_AXIS) no[1] = 1.0f;
-					if (scon->projAxis & MOD_SHRINKWRAP_PROJECT_OVER_Z_AXIS) no[2] = 1.0f;
+				{
+					BVHTreeRayHit hit;
+
+					float mat[4][4];
+					float no[3] = {0.0f, 0.0f, 0.0f};
+
+					/* TODO should use FLT_MAX.. but normal projection doenst yet supports it */
+					hit.index = -1;
+					hit.dist = (scon->projLimit == 0.0f) ? 100000.0f : scon->projLimit;
+
+					switch (scon->projAxis) {
+						case OB_POSX: case OB_POSY: case OB_POSZ:
+							no[scon->projAxis - OB_POSX] = 1.0f;
+							break;
+						case OB_NEGX: case OB_NEGY: case OB_NEGZ:
+							no[scon->projAxis - OB_NEGX] = -1.0f;
+							break;
+					}
 					
-					if (dot_v3v3(no, no) < FLT_EPSILON) {
+					/* transform normal into requested space */
+					unit_m4(mat);
+					BKE_constraint_mat_convertspace(cob->ob, cob->pchan, mat, CONSTRAINT_SPACE_LOCAL, scon->projAxisSpace);
+					invert_m4(mat);
+					mul_mat3_m4_v3(mat, no);
+
+					if (normalize_v3(no) < FLT_EPSILON) {
 						fail = TRUE;
 						break;
 					}
-					
-					normalize_v3(no);
-					
-					
+
 					bvhtree_from_mesh_faces(&treeData, target, scon->dist, 4, 6);
 					if (treeData.tree == NULL) {
 						fail = TRUE;
 						break;
 					}
+
 					
-					if (normal_projection_project_vertex(0, co, no, &transform, treeData.tree, &hit, treeData.raycast_callback, &treeData) == FALSE) {
+					if (BKE_shrinkwrap_project_normal(0, co, no, &transform, treeData.tree, &hit,
+					                                  treeData.raycast_callback, &treeData) == false)
+					{
 						fail = TRUE;
 						break;
 					}
 					copy_v3_v3(co, hit.co);
 					break;
+				}
 			}
 			
 			free_bvhtree_from_mesh(&treeData);
@@ -3450,7 +3474,7 @@ static bConstraintTypeInfo CTI_SHRINKWRAP = {
 	NULL, /* free data */
 	shrinkwrap_id_looper, /* id looper */
 	NULL, /* copy data */
-	NULL, /* new data */
+	shrinkwrap_new_data, /* new data */
 	shrinkwrap_get_tars, /* get constraint targets */
 	shrinkwrap_flush_tars, /* flush constraint targets */
 	shrinkwrap_get_tarmat, /* get a target matrix */
@@ -3648,14 +3672,12 @@ static void splineik_flush_tars(bConstraint *con, ListBase *list, short nocopy)
 static void splineik_get_tarmat(bConstraint *UNUSED(con), bConstraintOb *cob, bConstraintTarget *ct, float UNUSED(ctime))
 {
 	if (VALID_CONS_TARGET(ct)) {
-		Curve *cu = ct->tar->data;
-		
 		/* note: when creating constraints that follow path, the curve gets the CU_PATH set now,
 		 *		currently for paths to work it needs to go through the bevlist/displist system (ton) 
 		 */
 		
 		/* only happens on reload file, but violates depsgraph still... fix! */
-		if (cu->path == NULL || cu->path->data == NULL)
+		if (ct->tar->curve_cache == NULL || ct->tar->curve_cache->path == NULL || ct->tar->curve_cache->path->data == NULL)
 			BKE_displist_make_curveTypes(cob->scene, ct->tar, 0);
 	}
 	

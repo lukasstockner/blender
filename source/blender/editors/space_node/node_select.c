@@ -306,24 +306,21 @@ static int node_mouse_select(Main *bmain, SpaceNode *snode, ARegion *ar, const i
 {
 	bNode *node, *tnode;
 	bNodeSocket *sock, *tsock;
-	float mx, my;
+	float cursor[2];
 	int selected = 0;
 	
 	/* get mouse coordinates in view2d space */
-	UI_view2d_region_to_view(&ar->v2d, mval[0], mval[1], &mx, &my);
-	/* node_find_indicated_socket uses snode->mx/my */
-	snode->cursor[0] = mx;
-	snode->cursor[1] = my;
+	UI_view2d_region_to_view(&ar->v2d, mval[0], mval[1], &cursor[0], &cursor[1]);
 	
 	if (extend) {
 		/* first do socket selection, these generally overlap with nodes.
 		 * socket selection only in extend mode.
 		 */
-		if (node_find_indicated_socket(snode, &node, &sock, SOCK_IN)) {
+		if (node_find_indicated_socket(snode, &node, &sock, cursor, SOCK_IN)) {
 			node_socket_toggle(node, sock, 1);
 			selected = 1;
 		}
-		else if (node_find_indicated_socket(snode, &node, &sock, SOCK_OUT)) {
+		else if (node_find_indicated_socket(snode, &node, &sock, cursor, SOCK_OUT)) {
 			if (sock->flag & SELECT) {
 				node_socket_deselect(node, sock, 1);
 			}
@@ -341,7 +338,7 @@ static int node_mouse_select(Main *bmain, SpaceNode *snode, ARegion *ar, const i
 		}
 		else {
 			/* find the closest visible node */
-			node = node_under_mouse_select(snode->edittree, mx, my);
+			node = node_under_mouse_select(snode->edittree, cursor[0], cursor[1]);
 			
 			if (node) {
 				if ((node->flag & SELECT) && (node->flag & NODE_ACTIVE) == 0) {
@@ -362,7 +359,7 @@ static int node_mouse_select(Main *bmain, SpaceNode *snode, ARegion *ar, const i
 	else {  /* extend == 0 */
 		
 		/* find the closest visible node */
-		node = node_under_mouse_select(snode->edittree, mx, my);
+		node = node_under_mouse_select(snode->edittree, cursor[0], cursor[1]);
 		
 		if (node) {
 			for (tnode = snode->edittree->nodes.first; tnode; tnode = tnode->next) {
@@ -926,7 +923,7 @@ static uiBlock *node_find_menu(bContext *C, ARegion *ar, void *arg_op)
 	uiEndBlock(C, block);
 	
 	//	uiButActiveOnly(C, ar, block, but); XXX using this here makes Blender hang - investigate
-	event = *(win->eventstate);  /* XXX huh huh? make api call */
+	wm_event_init_from_window(win, &event);
 	event.type = EVT_BUT_OPEN;
 	event.val = KM_PRESS;
 	event.customdata = but;
