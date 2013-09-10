@@ -1129,12 +1129,14 @@ static void ui_do_drag_button(const bContext *C, const wmEvent *event, Panel *pa
 	uiHandlePanelData *data = pa->activedata;
 	ARegion *ar = CTX_wm_region(C);
 	int cur_index = BLI_findindex(&pa->operators, data->oli);
-	int dy, dunits;
+	int dy, dunits, maxindex;
 	
 	// Calculate the new index of the button based on the drag offset
 	dy = event->y - data->starty;
 	dunits = dy / UI_UNIT_Y;
-	data->newindex = MIN2(MAX2(cur_index - dunits, 0), BLI_countlist(&pa->operators));
+	data->newindex = (cur_index - dunits);
+	maxindex = (BLI_countlist(&pa->operators) - 1);
+	CLAMP(data->newindex, 0, maxindex);
 	
 	ED_region_tag_redraw(ar);
 }
@@ -1590,7 +1592,7 @@ static int ui_handler_panel(bContext *C, const wmEvent *event, void *userdata)
 	else if (event->type == MOUSEMOVE) {
 		if (data->state == PANEL_STATE_DRAG)
 			ui_do_drag(C, event, panel);
-		if (data->state == PANEL_STATE_DRAG_BUTTON_WAITING) {
+		if (data->state == PANEL_STATE_DRAG_BUTTON_WAITING && ABS(data->starty - event->y) > (UI_UNIT_Y / 2)) {
 			panel_activate_state(C, panel, PANEL_STATE_DRAG_BUTTON);
 			but = ui_but_find_activated(ar);
 			ui_button_active_free(C, but);
@@ -1719,16 +1721,15 @@ static void custom_panel_draw(const bContext *UNUSED(C), Panel *pa)
 	
 	for (oli = pa->operators.first; oli; oli = oli->next) {
 		if (drag_state) {
-			// draw an empty space for where the button was
-			if (oli == data->oli) {
-				uiItemS(column);
-			}
-			// draw a separator for where it's being dragged to
-			else if (i == data->newindex) {
+			// draw the new order of buttons
+			if (i == data->newindex) {
 				// Don't draw a separator for its current position
 				int cur_index = BLI_findindex(&pa->operators, data->oli);
 				// draw it before or after the button that currently has the new index
-				if (data->newindex < cur_index) {
+				if (data->newindex == cur_index) {
+					uiItemO(column, NULL, ICON_NONE, oli->optype_idname);
+				}
+				else if (data->newindex < cur_index) {
 					uiItemO(column, NULL, ICON_NONE, data->oli->optype_idname);
 					uiItemO(column, NULL, ICON_NONE, oli->optype_idname);
 				}
@@ -1738,7 +1739,7 @@ static void custom_panel_draw(const bContext *UNUSED(C), Panel *pa)
 				}
 			}
 			// otherwise just draw normally
-			else
+			else if (oli != data->oli)
 				uiItemO(column, NULL, ICON_NONE, oli->optype_idname);
 		}
 		else
