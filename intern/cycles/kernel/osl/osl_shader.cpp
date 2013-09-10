@@ -509,14 +509,12 @@ float3 OSLShader::emissive_eval(const ShaderData *sd, const ShaderClosure *sc)
 
 /* Volume Closure */
 
-#if 0 /* XXX unused */
-float3 OSLShader::volume_eval_phase(const ShaderClosure *sc, const float3 omega_in, const float3 omega_out)
+float3 OSLShader::volume_eval_phase(const ShaderClosure *sc, const float3 &omega_out, const float3 &omega_in, float &pdf)
 {
-	OSL::VolumeClosure *volume = (OSL::VolumeClosure *)sc->prim;
-	OSL::Color3 volume_eval = volume->eval_phase(TO_VEC3(omega_in), TO_VEC3(omega_out));
-	return TO_FLOAT3(volume_eval) * sc->weight;
+	CVolumeClosure *volume = (CVolumeClosure *)sc->prim;
+	float3 volume_eval = volume->eval_phase(omega_out, omega_in, pdf);
+	return volume_eval * sc->weight;
 }
-#endif
 
 /* Attributes */
 

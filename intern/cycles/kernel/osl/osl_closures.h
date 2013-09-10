@@ -196,7 +196,7 @@ public:
 
 	int shaderdata_flag() const { return m_shaderdata_flag; }
 
-	virtual float3 eval(const float3 &omega_out, const float3 &omega_in, float& pdf) const = 0;
+	virtual float3 eval_phase(const float3 &omega_out, const float3 &omega_in, float& pdf) const = 0;
 
 	virtual int sample(const float3 &Ng,
 	                   const float3 &omega_out, const float3 &domega_out_dx, const float3 &domega_out_dy,
@@ -232,7 +232,7 @@ public: \
 		out << name() << " ((" << sc.N[0] << ", " << sc.N[1] << ", " << sc.N[2] << "))"; \
 	} \
 \
-	float3 eval(const float3 &omega_out, const float3 &omega_in, float& pdf) const \
+	float3 eval_phase(const float3 &omega_out, const float3 &omega_in, float& pdf) const \
 	{ \
 		return volume_##svmlower##_eval_phase(&sc, omega_out, omega_in, &pdf); \
 	} \

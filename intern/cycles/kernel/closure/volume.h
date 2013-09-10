@@ -142,8 +142,8 @@ __device int volume_transparent_sample(const ShaderClosure *sc, float3 Ng, float
 __device float3 volume_eval_phase(KernelGlobals *kg, const ShaderClosure *sc, const float3 I, float3 omega_in, float *pdf)
 {
 #ifdef __OSL__
-	//if(kg->osl && sc->prim)
-	//	return OSLShader::volume_eval_phase(sc, I, omega_in, pdf);
+	if(kg->osl && sc->prim)
+		return OSLShader::volume_eval_phase(sc, I, omega_in, *pdf);
 #endif
 
 	float3 eval;
@@ -169,8 +169,8 @@ __device int volume_sample(KernelGlobals *kg, const ShaderData *sd, const Shader
 	int label;
 
 #ifdef __OSL__
-//        if(kg->osl && sc->prim)
-//			return OSLShader::bsdf_sample(sd, sc, randu, randv, *eval, *omega_in, *domega_in, *pdf);
+	if(kg->osl && sc->prim)
+		return OSLShader::bsdf_sample(sd, sc, randu, randv, *eval, *omega_in, *domega_in, *pdf);
 #endif
 
 	switch(sc->type) {

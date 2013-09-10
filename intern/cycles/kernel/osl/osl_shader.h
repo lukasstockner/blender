@@ -68,10 +68,8 @@ public:
 
 	static float3 emissive_eval(const ShaderData *sd, const ShaderClosure *sc);
 
-	#if 0 /* XXX unused */
-	static float3 volume_eval_phase(const ShaderClosure *sc,
-	                                const float3 omega_in, const float3 omega_out);
-	#endif
+	static float3 volume_eval_phase(const ShaderClosure *sc, const float3 &omega_out,
+	                                const float3 &omega_in, float &pdf);
 
 	/* attributes */
 	static int find_attribute(KernelGlobals *kg, const ShaderData *sd, uint id, AttributeElement *elem);
