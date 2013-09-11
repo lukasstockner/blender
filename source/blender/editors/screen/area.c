@@ -1849,20 +1849,34 @@ void ED_region_header_init(ARegion *ar)
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_HEADER, ar->winx, ar->winy);
 }
 
-void static menubar_draw_oli(uiLayout *row, OperatorListItem *oli)
+void static menubar_fold_divider(bContext *UNUSED(C), void *arg1, void *UNUSED(arg2))
 {
+	OperatorListItem *oli = arg1;
+	oli->flag ^= OLI_DIVIDER_CLOSED;
+}
+
+void static menubar_draw_oli(uiLayout *row, OperatorListItem *oli, int *draw_buttons)
+{
+	uiBlock *block = uiLayoutGetBlock(row);
+	uiBut *but;
+	
 	if (oli && row) {
 		if (oli->flag & OLI_DIVIDER) {
-			if (oli->flag & OLI_DIVIDER_CLOSED) {
-				uiItemS(row);
-			}
-			else {
-				uiItemS(row);
-			}
+			uiItemS(row);
+			uiBlockSetEmboss(block, UI_EMBOSSN);
+//			uiDefIconButBitI(block, TOGBUT, OLI_DIVIDER_CLOSED, 0, (oli->flag & OLI_DIVIDER_CLOSED ? ICON_DISCLOSURE_TRI_RIGHT : ICON_DISCLOSURE_TRI_DOWN), 0, 0, UI_UNIT_X/2, UI_UNIT_Y, &(oli->flag), 0.f, 0.f, 0.f, 0.f, "When checked shows the buttons to the right");
+			but = uiDefIconBut(block, BUT, 0, (oli->flag & OLI_DIVIDER_CLOSED ? ICON_DISCLOSURE_TRI_RIGHT : ICON_DISCLOSURE_TRI_DOWN), 0, 0, UI_UNIT_X/3, UI_UNIT_Y, NULL, 0, 0, 0, 0, "When checked shows the buttons to the right");
+			uiButSetFunc(but, menubar_fold_divider, oli, NULL);
+			uiBlockSetEmboss(block, UI_EMBOSS);
+			uiItemS(row);
+			
+			*draw_buttons = !(oli->flag & OLI_DIVIDER_CLOSED);
 		}
 		else {
-			wmOperatorType *ot = WM_operatortype_find(oli->optype_idname, TRUE);
-			uiItemFullO_ptr(row, ot, "", ICON_AUTOMATIC, IDP_CopyProperty(oli->properties), oli->opcontext, 0);
+			if (*draw_buttons) {
+				wmOperatorType *ot = WM_operatortype_find(oli->optype_idname, TRUE);
+				uiItemFullO_ptr(row, ot, "", ICON_AUTOMATIC, IDP_CopyProperty(oli->properties), oli->opcontext, 0);
+			}
 		}
 	}
 }
@@ -1878,6 +1892,7 @@ void ED_region_menubar(const bContext *C, ARegion *ar)
 	OperatorListItem *oli_dragged = uiRegionDraggedOperatorListItem(ar);
 	int newindex = uiRegionDraggedNewIndex(ar);
 	int i = 0;
+	int draw_buttons = 1;
 	
 	/* clear */
 	UI_ThemeClearColor(TH_BACK);
@@ -1903,27 +1918,27 @@ void ED_region_menubar(const bContext *C, ARegion *ar)
 				int cur_index = BLI_findindex(&ar->operators, oli_dragged);
 				// draw it before or after the button that currently has the new index
 				if (newindex == cur_index) {
-					menubar_draw_oli(row, oli_iter);
+					menubar_draw_oli(row, oli_iter, &draw_buttons);
 				}
 				else if (newindex < cur_index) {
-					menubar_draw_oli(row, oli_dragged);
+					menubar_draw_oli(row, oli_dragged, &draw_buttons);
 					if (strcmp(oli_iter->context, CTX_data_mode_string(C)) == 0)
-						menubar_draw_oli(row, oli_iter);
+						menubar_draw_oli(row, oli_iter, &draw_buttons);
 				}
 				else if (newindex > cur_index) {
 					if (strcmp(oli_iter->context, CTX_data_mode_string(C)) == 0)
-						menubar_draw_oli(row, oli_iter);
-					menubar_draw_oli(row, oli_dragged);
+						menubar_draw_oli(row, oli_iter, &draw_buttons);
+					menubar_draw_oli(row, oli_dragged, &draw_buttons);
 				}
 			}
 			// otherwise just draw normally
 			else if (oli_iter != oli_dragged)
 				if (strcmp(oli_iter->context, CTX_data_mode_string(C)) == 0)
-					menubar_draw_oli(row, oli_iter);
+					menubar_draw_oli(row, oli_iter, &draw_buttons);
 		}
 		else
 			if (strcmp(oli_iter->context, CTX_data_mode_string(C)) == 0)
-				menubar_draw_oli(row, oli_iter);
+				menubar_draw_oli(row, oli_iter, &draw_buttons);
 		i++;
 	}
 	

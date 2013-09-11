@@ -7719,8 +7719,6 @@ static void ui_do_drag_button(const bContext *C, const wmEvent *event, ARegion *
 	maxindex = (BLI_countlist(&ar->operators) - 1);
 	CLAMP(data->newindex, 0, maxindex);
 	
-	printf("dx: %i dunits: %i extra_units: %i newindex: %i\n", dx, dunits, extra_units, data->newindex);
-	
 	ED_region_tag_redraw(ar);
 }
 
@@ -7816,6 +7814,7 @@ static void region_activate_drag_state(const bContext *C, ARegion *ar, uiHandleR
 			OperatorListItem *oli = NULL;
 			uiBut *but = ui_but_find_activated(ar);
 			
+			// TODO: the divider buttons don't match these checks, so they can't be dragged yet
 			if (but->optype) {
 				oli = uiOperatorListItemPresent(&ar->operators, but->optype->idname, but->opptr ? but->opptr->data : NULL, CTX_data_mode_string(C));
 				
