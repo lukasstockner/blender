@@ -85,8 +85,9 @@ struct libmv_Tracks *libmv_tracksNew(void)
 }
 
 void libmv_tracksInsert(struct libmv_Tracks * /*libmv_tracks*/,
-                        int /*view*/, int /*image*/, int /*track*/,
-                        double /*x*/, double /*y*/)
+                        int /*image*/, int /*track*/,
+                        double /*x*/, double /*y*/,
+                        int /*camera*/)
 {
 }
 

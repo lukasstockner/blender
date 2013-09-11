@@ -42,19 +42,19 @@ EuclideanReconstruction &EuclideanReconstruction::operator=(
   return *this;
 }
 
-void EuclideanReconstruction::InsertView(int camera,
-                                         int image,
+void EuclideanReconstruction::InsertView(int image,
                                          const Mat3 &R,
-                                         const Vec3 &t) {
+                                         const Vec3 &t,
+                                         int camera) {
   LG << "InsertView camera " << camera << ", image " << image
      << ":\nR:\n"<< R << "\nt:\n" << t;
   if (image >= views_.size()) {
     views_.resize(image + 1);
   }
-  views_[image].camera = camera;
   views_[image].image = image;
   views_[image].R = R;
   views_[image].t = t;
+  views_[image].camera = camera;
 }
 
 void EuclideanReconstruction::InsertPoint(int track, const Vec3 &X) {
@@ -99,7 +99,7 @@ vector<EuclideanView> EuclideanReconstruction::AllViewsForCamera(
     int camera) const {
   vector<EuclideanView> views;
   for (int i = 0; i < views_.size(); ++i) {
-    if (views_[i].camera == camera) {
+    if (views_[i].image != -1 && views_[i].camera == camera) {
       views.push_back(views_[i]);
     }
   }
@@ -132,16 +132,17 @@ vector<EuclideanPoint> EuclideanReconstruction::AllPoints() const {
   return points;
 }
 
-void ProjectiveReconstruction::InsertView(int camera, int image,
-                                          const Mat34 &P) {
+void ProjectiveReconstruction::InsertView(int image,
+                                          const Mat34 &P,
+                                          int camera) {
   LG << "InsertView camera " << camera << ", image " << image
      << ":\nP:\n"<< P;
   if (image >= views_.size()) {
     views_.resize(image + 1);
   }
-  views_[image].camera = camera;
   views_[image].image = image;
   views_[image].P = P;
+  views_[image].camera = camera;
 }
 
 void ProjectiveReconstruction::InsertPoint(int track, const Vec4 &X) {

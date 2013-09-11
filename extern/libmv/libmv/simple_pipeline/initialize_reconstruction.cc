@@ -87,8 +87,8 @@ bool EuclideanReconstructTwoFrames(const vector<Marker> &markers,
   }
 
   // Image 1 gets the reference frame, image 2 gets the relative motion.
-  reconstruction->InsertView(camera, image1, Mat3::Identity(), Vec3::Zero());
-  reconstruction->InsertView(camera, image2, R, t);
+  reconstruction->InsertView(image1, Mat3::Identity(), Vec3::Zero(), camera);
+  reconstruction->InsertView(image2, R, t, camera);
 
   LG << "From two frame reconstruction got:\nR:\n" << R
      << "\nt:" << t.transpose();
@@ -188,8 +188,8 @@ bool ProjectiveReconstructTwoFrames(const vector<Marker> &markers,
   Mat34 P2;
   ProjectionsFromFundamental(F, &P1, &P2);
 
-  reconstruction->InsertView(0, image1, P1);
-  reconstruction->InsertView(0, image2, P2);
+  reconstruction->InsertView(image1, P1, 0);
+  reconstruction->InsertView(image2, P2, 0);
 
   LG << "From two frame reconstruction got P2:\n" << P2;
   return true;

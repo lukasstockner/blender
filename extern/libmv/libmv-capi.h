@@ -73,7 +73,7 @@ void libmv_samplePlanarPatch(const float *image, int width, int height,
 /* Tracks */
 struct libmv_Tracks *libmv_tracksNew(void);
 void libmv_tracksDestroy(struct libmv_Tracks *libmv_tracks);
-void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int camera, int image, int track, double x, double y);
+void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int image, int track, double x, double y, int camera);
 
 /* Reconstruction */
 #define LIBMV_TRACKING_MOTION_MODAL        (1 << 0)

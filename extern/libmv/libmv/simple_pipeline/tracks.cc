@@ -35,7 +35,7 @@ Tracks::Tracks(const Tracks &other) {
 
 Tracks::Tracks(const vector<Marker> &markers) : markers_(markers) {}
 
-void Tracks::Insert(int camera, int image, int track, double x, double y) {
+void Tracks::Insert(int image, int track, double x, double y, int camera) {
   // TODO(keir): Wow, this is quadratic for repeated insertions. Fix this by
   // adding a smarter data structure like a set<>.
   for (int i = 0; i < markers_.size(); ++i) {
@@ -46,22 +46,12 @@ void Tracks::Insert(int camera, int image, int track, double x, double y) {
       return;
     }
   }
-  Marker marker = { camera, image, track, x, y };
+  Marker marker = { image, track, x, y, camera };
   markers_.push_back(marker);
 }
 
 vector<Marker> Tracks::AllMarkers() const {
   return markers_;
-}
-
-vector<Marker> Tracks::MarkersForCamera(int camera) const {
-  vector<Marker> markers;
-  for (int i = 0; i < markers_.size(); ++i) {
-    if (camera == markers_[i].camera) {
-      markers.push_back(markers_[i]);
-    }
-  }
-  return markers;
 }
 
 vector<Marker> Tracks::MarkersInImage(int image) const {
@@ -78,6 +68,16 @@ vector<Marker> Tracks::MarkersForTrack(int track) const {
   vector<Marker> markers;
   for (int i = 0; i < markers_.size(); ++i) {
     if (track == markers_[i].track) {
+      markers.push_back(markers_[i]);
+    }
+  }
+  return markers;
+}
+
+vector<Marker> Tracks::MarkersForCamera(int camera) const {
+  vector<Marker> markers;
+  for (int i = 0; i < markers_.size(); ++i) {
+    if (camera == markers_[i].camera) {
       markers.push_back(markers_[i]);
     }
   }
@@ -139,16 +139,6 @@ Marker Tracks::MarkerInImageForTrack(int image, int track) const {
   return null;
 }
 
-void Tracks::RemoveMarkersForCamera(int camera) {
-  int size = 0;
-  for (int i = 0; i < markers_.size(); ++i) {
-    if (markers_[i].camera != camera) {
-      markers_[size++] = markers_[i];
-    }
-  }
-  markers_.resize(size);
-}
-
 void Tracks::RemoveMarkersInImage(int image) {
   int size = 0;
   for (int i = 0; i < markers_.size(); ++i) {
@@ -163,6 +153,16 @@ void Tracks::RemoveMarkersForTrack(int track) {
   int size = 0;
   for (int i = 0; i < markers_.size(); ++i) {
     if (markers_[i].track != track) {
+      markers_[size++] = markers_[i];
+    }
+  }
+  markers_.resize(size);
+}
+
+void Tracks::RemoveMarkersForCamera(int camera) {
+  int size = 0;
+  for (int i = 0; i < markers_.size(); ++i) {
+    if (markers_[i].camera != camera) {
       markers_[size++] = markers_[i];
     }
   }
@@ -189,15 +189,6 @@ int Tracks::CameraFromImage(int image) const {
   return -1;
 }
 
-int Tracks::MaxCamera() const {
-  // TODO(MatthiasF): maintain a max_camera_ member (updated on Insert)
-  int max_camera = 0;
-  for (int i = 0; i < markers_.size(); ++i) {
-    max_camera = std::max(markers_[i].camera, max_camera);
-  }
-  return max_camera;
-}
-
 int Tracks::MaxImage() const {
   // TODO(MatthiasF): maintain a max_image_ member (updated on Insert)
   int max_image = 0;
@@ -214,6 +205,15 @@ int Tracks::MaxTrack() const {
     max_track = std::max(markers_[i].track, max_track);
   }
   return max_track;
+}
+
+int Tracks::MaxCamera() const {
+  // TODO(MatthiasF): maintain a max_camera_ member (updated on Insert)
+  int max_camera = 0;
+  for (int i = 0; i < markers_.size(); ++i) {
+    max_camera = std::max(markers_[i].camera, max_camera);
+  }
+  return max_camera;
 }
 
 int Tracks::NumMarkers() const {

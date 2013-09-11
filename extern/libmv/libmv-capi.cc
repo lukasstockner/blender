@@ -400,9 +400,9 @@ void libmv_tracksDestroy(struct libmv_Tracks *libmv_tracks)
 	delete (libmv::Tracks*) libmv_tracks;
 }
 
-void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int camera, int image, int track, double x, double y)
+void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int image, int track, double x, double y, int camera)
 {
-	((libmv::Tracks*)libmv_tracks)->Insert(camera, image, track, x, y);
+	((libmv::Tracks*)libmv_tracks)->Insert(image, track, x, y, camera);
 }
 
 /* ************ Reconstruction ************ */

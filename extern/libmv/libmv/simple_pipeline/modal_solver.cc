@@ -218,7 +218,7 @@ void ModalSolver(const Tracks &tracks,
     // Convert quaternion to rotation matrix.
     Mat3 R;
     ceres::QuaternionToRotation(&quaternion(0), &R(0, 0));
-    reconstruction->InsertView(kModalCamera, image, R, Vec3::Zero());
+    reconstruction->InsertView(image, R, Vec3::Zero(), kModalCamera);
 
     // STEP 3: reproject all new markers appeared at image
 

@@ -446,10 +446,11 @@ void SelectKeyframesBasedOnGRICAndVariance(
          << "\nt:" << t.transpose();
 
       // First camera is identity, second one is relative to it
-      reconstruction.InsertView(kSelectionCamera, current_keyframe,
+      reconstruction.InsertView(current_keyframe,
                                 Mat3::Identity(),
-                                Vec3::Zero());
-      reconstruction.InsertView(kSelectionCamera, candidate_image, R, t);
+                                Vec3::Zero(),
+                                kSelectionCamera);
+      reconstruction.InsertView(candidate_image, R, t, kSelectionCamera);
 
       // Reconstruct 3D points
       int intersects_total = 0, intersects_success = 0;

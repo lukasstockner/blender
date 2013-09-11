@@ -40,26 +40,28 @@ struct ReconstructionOptions {
 };
 
 /*!
-    A EuclideanView is the location and rotation of a \a camera viewing an
-    \a image. All EuclideanViews for the same \a camera represent the motion of
-    a particular video camera across all of its corresponding images.
+    A EuclideanView is the location and orientation of a camera viewing an
+    \a image. A EuclideanView may be associated with a particular \a camera for
+    a multicamera reconstruction. All EuclideanViews for the same \a camera
+    represent the motion of a particular video camera across all of its
+    corresponding images.
 
-    \a camera identify which camera from \l Tracks this view is associated with.
     \a image identify which image from \l Tracks this view represents.
     \a R is a 3x3 matrix representing the rotation of the view.
     \a t is a translation vector representing its positions.
+    \a camera identify which camera from \l Tracks this view is associated with.
 
     \sa Reconstruction
 */
 struct EuclideanView {
-  EuclideanView() : camera(-1), image(-1) {}
+  EuclideanView() : image(-1), camera(0) {}
   EuclideanView(const EuclideanView &v)
-      : camera(v.camera), image(v.image), R(v.R), t(v.t) {}
+      : image(v.image), R(v.R), t(v.t), camera(v.camera) {}
 
-  int camera;
   int image;
   Mat3 R;
   Vec3 t;
+  int camera;
 };
 
 /*!
@@ -84,8 +86,8 @@ struct EuclideanPoint {
     The EuclideanReconstruction container is intended as the store of 3D
     reconstruction data to be used with the MultiView API.
 
-    The container has lookups to query a \a EuclideanView for a \a camera
-    and \a image, or a \a EuclideanPoint from a \a track.
+    The container has lookups to query a \a EuclideanView for an \a image, or a
+    \a EuclideanPoint from a \a track.
 
     \sa View, Point
 */
@@ -102,17 +104,18 @@ class EuclideanReconstruction {
   /*!
       Insert a view into the set. If there is already a view for the given
       \a image, the existing view is replaced. If there is no view for the given
-      \a image, a new one is added.
+      \a image, a new one is added. A view may be associated with a \a camera
+      in a multicamera reconstruction.
 
-      \a image is the key used to retrieve the views with the other methods in
-      this class.
+      \a image and \a camera are the keys used to retrieve the views with the
+      other methods in this class.
 
       \note You should use the same \a camera and \a image identifiers as in
             \l Tracks.
       \note All markers for a single \a image should have the same \a camera
             identifiers.
   */
-  void InsertView(int camera, int image, const Mat3 &R, const Vec3 &t);
+  void InsertView(int image, const Mat3 &R, const Vec3 &t, int camera = 0);
 
   /*!
       Insert a point into the reconstruction. If there is already a point for
@@ -149,24 +152,26 @@ class EuclideanReconstruction {
 };
 
 /*!
-    A ProjectiveView is the projection matrix for the view of an \a image from
-    a \a camera. All ProjectiveViews for the same \a camera represent the motion of
-    a particular video camera across all of its corresponding images.
+    A ProjectiveView is the projection matrix for the view of an \a image. A
+    ProjectiveView may be associated with a particular \a camera for a
+    multicamera reconstruction. All ProjectiveViews for the same \a camera
+    represent the motion of a particular video camera across all of its
+    corresponding images.
 
-    \a camera identify which camera from \l Tracks this view is associated with.
     \a image identify which image from \l Tracks this view represents.
     \a P is the 3x4 projection matrix.
+    \a camera identify which camera from \l Tracks this view is associated with.
 
     \sa ProjectiveReconstruction
 */
 struct ProjectiveView {
-  ProjectiveView() : camera(-1), image(-1) {}
+  ProjectiveView() : image(-1), camera(0) {}
   ProjectiveView(const ProjectiveView &v)
-      : camera(v.camera), image(v.image), P(v.P) {}
+      : image(v.image), P(v.P), camera(v.camera) {}
 
-  int camera;
   int image;
   Mat34 P;
+  int camera;
 };
 
 /*!
@@ -191,8 +196,8 @@ struct ProjectivePoint {
     The ProjectiveReconstruction container is intended as the store of 3D
     reconstruction data to be used with the MultiView API.
 
-    The container has lookups to query a \a ProjectiveView for a \a camera and
-    \a image, or a \a ProjectivePoint from a \a track.
+    The container has lookups to query a \a ProjectiveView for an \a image, or
+    a \a ProjectivePoint from a \a track.
 
     \sa View, Point
 */
@@ -201,17 +206,18 @@ class ProjectiveReconstruction {
   /*!
       Insert a view into the set. If there is already a view for the given
       \a image, the existing view is replaced. If there is no view for the given
-      \a image, a new one is added.
+      \a image, a new one is added. A view may be associated with a \a camera
+      in a multicamera reconstruction.
 
-      \a image is the key used to retrieve the views with the other methods in
-      this class.
+      \a image and \a camera are the keys used to retrieve the views with the
+      other methods in this class.
 
       \note You should use the same \a camera and \a image identifiers as in
             \l Tracks.
       \note All markers for a single \a image should have the same \a camera
             identifiers.
   */
-  void InsertView(int camera, int image, const Mat34 &P);
+  void InsertView(int image, const Mat34 &P, int camera = 0);
 
   /*!
       Insert a point into the reconstruction. If there is already a point for

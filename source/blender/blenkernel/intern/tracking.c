@@ -3480,9 +3480,10 @@ static struct libmv_Tracks *libmv_tracks_new(ListBase *tracksbase, int width, in
 			MovieTrackingMarker *marker = &track->markers[a];
 
 			if ((marker->flag & MARKER_DISABLED) == 0) {
-				libmv_tracksInsert(tracks, 0, marker->framenr, tracknr,
+				libmv_tracksInsert(tracks, marker->framenr, tracknr,
 				                   (marker->pos[0] + track->offset[0]) * width,
-				                   (marker->pos[1] + track->offset[1]) * height);
+				                   (marker->pos[1] + track->offset[1]) * height,
+													 0);
 			}
 		}
 
