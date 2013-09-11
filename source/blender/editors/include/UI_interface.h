@@ -907,7 +907,7 @@ void uiItemMenuEnumO(uiLayout *layout, struct bContext *C, const char *opname, c
 void uiItemMenuEnumR(uiLayout *layout, struct PointerRNA *ptr, const char *propname, const char *name, int icon);
 
 /* OperatorListItem utilities */
-struct OperatorListItem *uiOperatorListItemPresent(ListBase *lb, const char *idname, IDProperty *properties);
+struct OperatorListItem *uiOperatorListItemPresent(ListBase *lb, const char *idname, IDProperty *properties, const char *context);
 struct OperatorListItem *uiRegionDraggedOperatorListItem(struct ARegion *ar);
 int uiRegionDraggedNewIndex(struct ARegion *ar);
 

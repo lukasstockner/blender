@@ -195,7 +195,7 @@ typedef struct OperatorListItem {
 	char context[64];
 	struct IDProperty *properties;
 	int opcontext;
-	int pad;
+	int flag;
 } OperatorListItem;
 
 
@@ -308,6 +308,13 @@ enum {
 };
 
 #define UILST_FLT_SORT_MASK (((unsigned int)UILST_FLT_SORT_REVERSE) - 1)
+
+
+/* OperatorListItem flags */
+enum {
+	OLI_DIVIDER			= 1 << 0,		/* 1 for marking the OperatorListItem a divider, 0 for a normal button */
+	OLI_DIVIDER_CLOSED	= 1 << 1		/* 1 for marking a divider as being closed, 0 for open */
+};
 
 /* regiontype, first two are the default set */
 /* Do NOT change order, append on end. Types are hardcoded needed */

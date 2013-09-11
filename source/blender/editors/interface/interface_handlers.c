@@ -5101,6 +5101,31 @@ static void remove_from_icon_shelf(bContext *C, void *arg_ot, void *arg_opptr)
 	ED_region_tag_redraw(ar);
 }
 
+static void add_divider_to_icon_shelf(bContext *C, void *arg_ot, void *arg_opptr)
+{
+	ARegion *ar = CTX_wm_region(C);
+	wmOperatorType *ot = arg_ot;
+	PointerRNA *opptr = (PointerRNA*)arg_opptr;
+	OperatorListItem *oli = uiOperatorListItemPresent(&ar->operators, ot->idname, opptr->data, CTX_data_mode_string(C));
+	OperatorListItem *div;
+	
+	/*
+	 * Only add a divider if:
+	 * - the current button is not a divider
+	 * - the current button does not have a divider in front of it already
+	 */
+	if (oli && !(oli->flag & OLI_DIVIDER) &&
+		!(oli->prev != NULL && ((OperatorListItem*)(oli->prev))->flag & OLI_DIVIDER)) {
+		div = MEM_callocN(sizeof(OperatorListItem), "OperatorListItem divider");
+		div->flag |= OLI_DIVIDER;
+		BLI_strncpy(div->context, CTX_data_mode_string(C), MAX_NAME);
+		
+		BLI_insertlinkbefore(&ar->operators, oli, div);
+	}
+	
+	ED_region_tag_redraw(ar);
+}
+
 static bool ui_but_menu(bContext *C, uiBut *but)
 {
 	uiPopupMenu *pup;
@@ -5357,22 +5382,34 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 			
 			/* Remove the operator from the custom enclosure */
 			if (ar->regiontype == RGN_TYPE_TOOLS) {
-				opp_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Remove From Panel"), 0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
+				opp_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE,
+										   CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Remove From Panel"),
+										   0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
 				uiButSetFunc(opp_but, remove_from_custom_panel, pa, but->optype);
 				uiItemS(layout);
 			}
 			else if (ar->regiontype == RGN_TYPE_MENU_BAR &&
-					 uiOperatorListItemPresent(&ar->operators, but->optype->idname, but->opptr->data)) {
-				opp_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Remove From Icon Shelf"), 0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
+					 uiOperatorListItemPresent(&ar->operators, but->optype->idname, but->opptr->data, CTX_data_mode_string(C))) {
+				opp_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE,
+										   CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Add Divider to the Left"),
+										   0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
+				uiButSetFunc(opp_but, add_divider_to_icon_shelf, but->optype, but->opptr);
+				
+				opp_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE,
+										   CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Remove From Icon Shelf"),
+										   0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
 				uiButSetFunc(opp_but, remove_from_icon_shelf, but->optype, but->opptr);
 				uiItemS(layout);
 			}
 			
-			opp_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Add to Icon Shelf"), 0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
-			uiButSetFunc(opp_but, add_to_icon_shelf, but->optype, but->opptr);
+			if (ar->regiontype != RGN_TYPE_MENU_BAR) {
+				opp_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE,
+										   CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Add to Icon Shelf"),
+										   0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
+				uiButSetFunc(opp_but, add_to_icon_shelf, but->optype, but->opptr);
+			}
 			
 			uiItemMenuF(layout, IFACE_("Add to Custom Panel..."), ICON_NONE, add_to_custom_panel_menu, but->optype);
-			
 		}
 		
 		uiItemS(layout);
@@ -7661,14 +7698,28 @@ static void ui_do_drag_button(const bContext *C, const wmEvent *event, ARegion *
 {
 	uiHandleRegionDragData *data = ar->dragdata;
 	int cur_index = BLI_findindex(&ar->operators, data->oli);
-	int dx, dunits, maxindex;
-	
+	OperatorListItem *oli_iter = data->oli;
+	int dx, dunits, dunits_iter, extra_units = 0, maxindex;
+
 	// Calculate the new index of the button based on the drag offset
-	dx = data->startx - event->x;
+	dx = event->x - data->startx;
 	dunits = dx / (UI_UNIT_X * 1.5); // TODO: make sure this factor corresponds to menubar button sizes
-	data->newindex = (cur_index - dunits);
+	
+	// Offset the new index by the interleaved list items that aren't shown in the current contex
+	dunits_iter = dunits;
+	while (dunits_iter != 0) {
+		oli_iter = dunits < 0 ? oli_iter->prev : oli_iter->next;
+		if (oli_iter == NULL) break;
+		if (strcmp(oli_iter->context, CTX_data_mode_string(C)) != 0)
+			extra_units += (dunits < 0 ? -1 : 1);
+		dunits_iter += (dunits < 0 ? 1 : -1);
+	}
+	
+	data->newindex = (cur_index + dunits) + extra_units;
 	maxindex = (BLI_countlist(&ar->operators) - 1);
 	CLAMP(data->newindex, 0, maxindex);
+	
+	printf("dx: %i dunits: %i extra_units: %i newindex: %i\n", dx, dunits, extra_units, data->newindex);
 	
 	ED_region_tag_redraw(ar);
 }
@@ -7751,7 +7802,8 @@ static void region_activate_drag_state(const bContext *C, ARegion *ar, uiHandleR
 			 * global drag */
 			if (data->state == REGION_STATE_DRAG_BUTTON) {
 				uiBut *but = ui_but_find_activated(ar);
-				ui_button_active_free(C, but);
+				if (but)
+					ui_button_active_free(C, but);
 			}
 			
 			MEM_freeN(data);
@@ -7765,7 +7817,7 @@ static void region_activate_drag_state(const bContext *C, ARegion *ar, uiHandleR
 			uiBut *but = ui_but_find_activated(ar);
 			
 			if (but->optype) {
-				oli = uiOperatorListItemPresent(&ar->operators, but->optype->idname, but->opptr ? but->opptr->data : NULL);
+				oli = uiOperatorListItemPresent(&ar->operators, but->optype->idname, but->opptr ? but->opptr->data : NULL, CTX_data_mode_string(C));
 				
 				if (oli) {
 					data = MEM_callocN(sizeof(uiHandleRegionDragData), "uiHandleRegionDragData");

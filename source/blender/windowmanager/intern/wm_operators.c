@@ -4166,7 +4166,7 @@ void add_to_icon_shelf(bContext *C, void *ot_arg, void *opptr_arg)
 		OperatorListItem *oli;
 		PointerRNA *opptr = (PointerRNA*)opptr_arg;
 		
-		if (uiOperatorListItemPresent(&ar->operators, ot->idname, opptr->data)) {
+		if (uiOperatorListItemPresent(&ar->operators, ot->idname, opptr->data, CTX_data_mode_string(C))) {
 			BKE_reportf(&wm->reports, RPT_INFO, "This operator (%s) is already present in the menubar.", ot->idname);
 			return;
 		}

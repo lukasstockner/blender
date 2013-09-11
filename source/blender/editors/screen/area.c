@@ -1849,6 +1849,24 @@ void ED_region_header_init(ARegion *ar)
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_HEADER, ar->winx, ar->winy);
 }
 
+void static menubar_draw_oli(uiLayout *row, OperatorListItem *oli)
+{
+	if (oli && row) {
+		if (oli->flag & OLI_DIVIDER) {
+			if (oli->flag & OLI_DIVIDER_CLOSED) {
+				uiItemS(row);
+			}
+			else {
+				uiItemS(row);
+			}
+		}
+		else {
+			wmOperatorType *ot = WM_operatortype_find(oli->optype_idname, TRUE);
+			uiItemFullO_ptr(row, ot, "", ICON_AUTOMATIC, IDP_CopyProperty(oli->properties), oli->opcontext, 0);
+		}
+	}
+}
+
 void ED_region_menubar(const bContext *C, ARegion *ar)
 {
 	uiStyle *style = UI_GetStyleDraw();
@@ -1879,32 +1897,33 @@ void ED_region_menubar(const bContext *C, ARegion *ar)
 	uiLayoutSetScaleY(row, 1.5f);
 
 	for (oli_iter = ar->operators.first; oli_iter; oli_iter = oli_iter->next) {
-		wmOperatorType *ot_iter = WM_operatortype_find(oli_iter->optype_idname, TRUE);
-		
 		if (oli_dragged) {
-			wmOperatorType *ot_dragged = WM_operatortype_find(oli_dragged->optype_idname, TRUE);
 			// draw the new order of buttons
 			if (i == newindex) {
 				int cur_index = BLI_findindex(&ar->operators, oli_dragged);
 				// draw it before or after the button that currently has the new index
 				if (newindex == cur_index) {
-					uiItemFullO_ptr(row, ot_iter, "", ICON_AUTOMATIC, IDP_CopyProperty(oli_iter->properties), oli_iter->opcontext, 0);
+					menubar_draw_oli(row, oli_iter);
 				}
 				else if (newindex < cur_index) {
-					uiItemFullO_ptr(row, ot_dragged, "", ICON_AUTOMATIC, IDP_CopyProperty(oli_dragged->properties), oli_dragged->opcontext, 0);
-					uiItemFullO_ptr(row, ot_iter, "", ICON_AUTOMATIC, IDP_CopyProperty(oli_iter->properties), oli_iter->opcontext, 0);
+					menubar_draw_oli(row, oli_dragged);
+					if (strcmp(oli_iter->context, CTX_data_mode_string(C)) == 0)
+						menubar_draw_oli(row, oli_iter);
 				}
 				else if (newindex > cur_index) {
-					uiItemFullO_ptr(row, ot_iter, "", ICON_AUTOMATIC, IDP_CopyProperty(oli_iter->properties), oli_iter->opcontext, 0);
-					uiItemFullO_ptr(row, ot_dragged, "", ICON_AUTOMATIC, IDP_CopyProperty(oli_dragged->properties), oli_dragged->opcontext, 0);
+					if (strcmp(oli_iter->context, CTX_data_mode_string(C)) == 0)
+						menubar_draw_oli(row, oli_iter);
+					menubar_draw_oli(row, oli_dragged);
 				}
 			}
 			// otherwise just draw normally
 			else if (oli_iter != oli_dragged)
-				uiItemFullO_ptr(row, ot_iter, "", ICON_AUTOMATIC, IDP_CopyProperty(oli_iter->properties), oli_iter->opcontext, 0);
+				if (strcmp(oli_iter->context, CTX_data_mode_string(C)) == 0)
+					menubar_draw_oli(row, oli_iter);
 		}
 		else
-			uiItemFullO_ptr(row, ot_iter, "", ICON_AUTOMATIC, IDP_CopyProperty(oli_iter->properties), oli_iter->opcontext, 0);
+			if (strcmp(oli_iter->context, CTX_data_mode_string(C)) == 0)
+				menubar_draw_oli(row, oli_iter);
 		i++;
 	}
 	

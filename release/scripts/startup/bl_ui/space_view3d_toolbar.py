@@ -183,11 +183,11 @@ class VIEW3D_PT_tools_editmode_add(View3DPanel, Panel):
 
         col = layout.column(align=True)
         row = col.row(align=True, button_height=1.5)
-        row.operator("wm.call_menu", text="", single_unit=False, shortcut=False, icon='TOOLBAR_ADD').name = 'INFO_MT_mesh_add'
-        row.operator("wm.call_menu", text="", single_unit=False, shortcut=False, icon='TOOLBAR_DELETE').name = 'VIEW3D_MT_edit_mesh_delete'
+        row.operator("wm.call_menu", text="", single_unit=False, shortcut=False, icon='ADD').name = 'INFO_MT_mesh_add'
+        row.operator("wm.call_menu", text="", single_unit=False, shortcut=False, icon='DELETE').name = 'VIEW3D_MT_edit_mesh_delete'
         
         col = layout.column(align=True)
-        col.operator("mesh.duplicate_move", text="Duplicate", single_unit=False, icon='TOOLBAR_DUP')
+        col.operator("mesh.duplicate_move", text="Duplicate", single_unit=False, icon='DUP')
 
 class VIEW3D_PT_tools_editmode_mesh(View3DPanel, Panel):
     bl_context = "mesh_edit"
@@ -198,8 +198,8 @@ class VIEW3D_PT_tools_editmode_mesh(View3DPanel, Panel):
 
         col = layout.column(align=True)
         row = col.row(align=True, button_height=1.5)
-        row.operator("view3d.edit_mesh_extrude_move_normal", text="", single_unit=False, shortcut=False, icon='EXTRUDE_REGION')
-        row.operator("view3d.edit_mesh_extrude_individual_move", text="", single_unit=False, shortcut=False, icon='EXTRUDE_INDIVIDUAL')
+        row.operator("view3d.edit_mesh_extrude_move_normal", text="", single_unit=False, shortcut=False)
+        row.operator("view3d.edit_mesh_extrude_individual_move", text="", single_unit=False, shortcut=False)
         col.operator("wm.call_menu", text="Extrude...", single_unit=False, shortcut=False).name = 'VIEW3D_MT_edit_mesh_extrude'
 
         col = layout.column(align=True)
@@ -209,7 +209,7 @@ class VIEW3D_PT_tools_editmode_mesh(View3DPanel, Panel):
         props.use_occlude_geometry = True
         props.only_selected = False
         
-        row.operator("mesh.loopcut_slide", text="", single_unit=False, shortcut=False, icon='LOOP_CUT')
+        row.operator("mesh.loopcut_slide", text="", single_unit=False, shortcut=False, icon='LOOPCUT')
         
         props = col.operator("mesh.knife_tool", text="Knife select")
         props.use_occlude_geometry = False
