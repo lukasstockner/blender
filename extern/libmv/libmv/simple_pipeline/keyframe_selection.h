@@ -47,7 +47,7 @@ namespace libmv {
 //
 // TODO(sftrabbit): Use algorithm that finds images of high variance from
 //                  multiple cameras.
-void SelectkeyframesBasedOnGRICAndVariance(
+void SelectKeyframesBasedOnGRICAndVariance(
     const Tracks &tracks,
     const std::vector<CameraIntrinsics> &intrinsics,
     vector<int> &keyframes);

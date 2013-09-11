@@ -288,7 +288,7 @@ Mat pseudoInverse(const Mat &matrix) {
 }
 }  // namespace
 
-void SelectkeyframesBasedOnGRICAndVariance(
+void SelectKeyframesBasedOnGRICAndVariance(
     const Tracks &tracks,
     const std::vector<CameraIntrinsics> &intrinsics,
     vector<int> &keyframes) {

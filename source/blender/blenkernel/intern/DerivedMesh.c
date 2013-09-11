@@ -438,9 +438,9 @@ void DM_update_tessface_data(DerivedMesh *dm)
 
 	int *polyindex = CustomData_get_layer(fdata, CD_ORIGINDEX);
 
-	int mf_idx,
-	    totface = dm->getNumTessFaces(dm),
-	    ml_idx[4];
+	const int totface = dm->getNumTessFaces(dm);
+	int mf_idx;
+	int ml_idx[4];
 
 	/* Should never occure, but better abort than segfault! */
 	if (!polyindex)
@@ -1685,7 +1685,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 					DM_add_edge_layer(dm, CD_ORIGINDEX, CD_CALLOC, NULL);
 					DM_add_poly_layer(dm, CD_ORIGINDEX, CD_CALLOC, NULL);
 
-#pragma omp parallel sections if (dm->numVertData + dm->numEdgeData + dm->numPolyData >= DM_OMP_LIMIT)
+#pragma omp parallel sections if (dm->numVertData + dm->numEdgeData + dm->numPolyData >= BKE_MESH_OMP_LIMIT)
 					{
 #pragma omp section
 						{ range_vn_i(DM_get_vert_data_layer(dm, CD_ORIGINDEX), dm->numVertData, 0); }

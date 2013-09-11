@@ -1305,25 +1305,6 @@ void BKE_tracking_marker_get_subframe_position(MovieTrackingTrack *track, float 
 
 /*********************** Plane Track *************************/
 
-static void plane_tracks_replace_point_track(ListBase *plane_tracks,
-                                             MovieTrackingTrack *old_track,
-                                             MovieTrackingTrack *new_track)
-{
-	MovieTrackingPlaneTrack *plane_track;
-
-	for (plane_track = plane_tracks->first;
-	    plane_track;
-	    plane_track = plane_track->next)
-	{
-		int i;
-		for (i = 0; i < plane_track->point_tracksnr; i++) {
-			if (plane_track->point_tracks[i] == old_track) {
-				plane_track->point_tracks[i] = new_track;
-			}
-		}
-	}
-}
-
 /* Creates new plane track out of selected point tracks */
 MovieTrackingPlaneTrack *BKE_tracking_plane_track_add(MovieTracking *tracking, ListBase *plane_tracks_base,
                                                       ListBase *tracks, int framenr)
@@ -2402,19 +2383,15 @@ static void tracks_map_insert(TracksMap *map, MovieTrackingTrack *track, void *c
 	map->ptr++;
 }
 
-/* TODO(sergey): Make it so tracks are not re-allocating here */
 static void tracks_map_merge(TracksMap *map, MovieTracking *tracking)
 {
 	MovieTrackingTrack *track;
-	MovieTrackingTrack *act_track = BKE_tracking_track_get_active(tracking);
-	MovieTrackingTrack *rot_track = tracking->stabilization.rot_track;
 	ListBase tracks = {NULL, NULL}, new_tracks = {NULL, NULL};
-	ListBase *old_tracks, *plane_tracks;
+	ListBase *old_tracks;
 	int a;
 
 	if (map->is_camera) {
 		old_tracks = &tracking->tracks;
-		plane_tracks = &tracking->plane_tracks;
 	}
 	else {
 		MovieTrackingObject *object = BKE_tracking_object_get_named(tracking, map->object_name);
@@ -2425,7 +2402,6 @@ static void tracks_map_merge(TracksMap *map, MovieTracking *tracking)
 		}
 
 		old_tracks = &object->tracks;
-		plane_tracks = &object->plane_tracks;
 	}
 
 	/* duplicate currently operating tracks to temporary list.
@@ -2433,52 +2409,49 @@ static void tracks_map_merge(TracksMap *map, MovieTracking *tracking)
 	 * of currently operating tracks (if needed)
 	 */
 	for (a = 0; a < map->num_tracks; a++) {
-		MovieTrackingTrack *new_track, *old_track;
+		MovieTrackingTrack *old_track;
+		bool mapped_to_old = false;
 
 		track = &map->tracks[a];
-
-		new_track = tracking_track_duplicate(track);
 
 		/* find original of operating track in list of previously displayed tracks */
 		old_track = BLI_ghash_lookup(map->hash, track);
 		if (old_track) {
 			if (BLI_findindex(old_tracks, old_track) != -1) {
-				/* Update active track in movie clip. */
-				if (old_track == act_track) {
-					tracking->act_track = new_track;
-				}
+				BLI_remlink(old_tracks, old_track);
 
-				/* Update track used for rotation stabilization. */
-				if (old_track == rot_track) {
-					tracking->stabilization.rot_track = new_track;
-				}
+				/* Copy flags like selection back to the track map. */
+				track->flag = old_track->flag;
+				track->pat_flag = old_track->pat_flag;
+				track->search_flag = old_track->search_flag;
 
-				new_track->flag = track->flag = old_track->flag;
-				new_track->pat_flag = track->pat_flag = old_track->pat_flag;
-				new_track->search_flag = track->search_flag = old_track->search_flag;
+				/* Copy all the rest settings back from the map to the actual tracks. */
+				MEM_freeN(old_track->markers);
+				*old_track = *track;
+				old_track->markers = MEM_dupallocN(old_track->markers);
 
-				plane_tracks_replace_point_track(plane_tracks, old_track, new_track);
+				BLI_addtail(&tracks, old_track);
 
-				BKE_tracking_track_free(old_track);
-				BLI_freelinkN(old_tracks, old_track);
+				mapped_to_old = true;
 			}
 		}
 
-		/* Update old-new track mapping */
-		BLI_ghash_remove(map->hash, track, NULL, NULL);
-		BLI_ghash_insert(map->hash, track, new_track);
+		if (mapped_to_old == false) {
+			MovieTrackingTrack *new_track = tracking_track_duplicate(track);
 
-		BLI_addtail(&tracks, new_track);
+			/* Update old-new track mapping */
+			BLI_ghash_remove(map->hash, track, NULL, NULL);
+			BLI_ghash_insert(map->hash, track, new_track);
+
+			BLI_addtail(&tracks, new_track);
+		}
 	}
 
 	/* move all tracks, which aren't operating */
 	track = old_tracks->first;
 	while (track) {
 		MovieTrackingTrack *next = track->next;
-
-		track->next = track->prev = NULL;
 		BLI_addtail(&new_tracks, track);
-
 		track = next;
 	}
 
@@ -2541,7 +2514,7 @@ typedef struct MovieTrackingContext {
 	MovieClip *clip;
 	int clip_flag;
 
-	int frames;
+	int frames, first_frame;
 	bool first_time;
 
 	MovieTrackingSettings settings;
@@ -2581,6 +2554,7 @@ MovieTrackingContext *BKE_tracking_context_new(MovieClip *clip, MovieClipUser *u
 	context->backwards = backwards;
 	context->sync_frame = user->framenr;
 	context->first_time = true;
+	context->first_frame = user->framenr;
 	context->sequence = sequence;
 
 	/* count */
@@ -3157,6 +3131,44 @@ bool BKE_tracking_context_step(MovieTrackingContext *context)
 	return ok;
 }
 
+void BKE_tracking_context_finish(MovieTrackingContext *context)
+{
+	MovieClip *clip = context->clip;
+	ListBase *plane_tracks_base = BKE_tracking_get_active_plane_tracks(&clip->tracking);
+	MovieTrackingPlaneTrack *plane_track;
+	int map_size = tracks_map_get_size(context->tracks_map);
+
+	for (plane_track = plane_tracks_base->first;
+	     plane_track;
+	     plane_track = plane_track->next)
+	{
+		if ((plane_track->flag & PLANE_TRACK_AUTOKEY) == 0) {
+			int i;
+			for (i = 0; i < map_size; i++) {
+				TrackContext *track_context = NULL;
+				MovieTrackingTrack *track, *old_track;
+				bool do_update = false;
+				int j;
+
+				tracks_map_get_indexed_element(context->tracks_map, i, &track, (void **)&track_context);
+
+				old_track = BLI_ghash_lookup(context->tracks_map->hash, track);
+				for (j = 0; j < plane_track->point_tracksnr; j++) {
+					if (plane_track->point_tracks[j] == old_track) {
+						do_update = true;
+						break;
+					}
+				}
+
+				if (do_update) {
+					BKE_tracking_track_plane_from_existing_motion(plane_track, context->first_frame);
+					break;
+				}
+			}
+		}
+	}
+}
+
 /* Refine marker's position using previously known keyframe.
  * Direction of searching for a keyframe depends on backwards flag,
  * which means if backwards is false, previous keyframe will be as
@@ -3180,7 +3192,7 @@ void BKE_tracking_refine_marker(MovieClip *clip, MovieTrackingTrack *track, Movi
 
 	BKE_movieclip_get_size(clip, &user, &frame_width, &frame_height);
 
-	/* Get an image buffer for reference frame, also gets referecnce marker.
+	/* Get an image buffer for reference frame, also gets reference marker.
 	 *
 	 * Usually tracking_context_get_reference_ibuf will return current frame
 	 * if marker is keyframed, which is correct for normal tracking. But here
@@ -3289,8 +3301,29 @@ BLI_INLINE void mat3f_from_mat3d(float mat_float[3][3], double mat_double[3][3])
 static void track_plane_from_existing_motion(MovieTrackingPlaneTrack *plane_track, int start_frame, int direction)
 {
 	MovieTrackingPlaneMarker *start_plane_marker = BKE_tracking_plane_marker_get(plane_track, start_frame);
+	MovieTrackingPlaneMarker *keyframe_plane_marker = NULL;
 	MovieTrackingPlaneMarker new_plane_marker;
 	int current_frame, frame_delta = direction > 0 ? 1 : -1;
+
+	if (plane_track->flag & PLANE_TRACK_AUTOKEY) {
+		/* Find a keyframe in given direction. */
+		for (current_frame = start_frame; ; current_frame += frame_delta) {
+			MovieTrackingPlaneMarker *next_plane_marker =
+				BKE_tracking_plane_marker_get_exact(plane_track, current_frame + frame_delta);
+
+			if (next_plane_marker == NULL) {
+				break;
+			}
+
+			if ((next_plane_marker->flag & PLANE_MARKER_TRACKED) == 0) {
+				keyframe_plane_marker = next_plane_marker;
+				break;
+			}
+		}
+	}
+	else {
+		start_plane_marker->flag |= PLANE_MARKER_TRACKED;
+	}
 
 	new_plane_marker = *start_plane_marker;
 	new_plane_marker.flag |= PLANE_MARKER_TRACKED;
@@ -3305,7 +3338,10 @@ static void track_plane_from_existing_motion(MovieTrackingPlaneTrack *plane_trac
 
 		/* As soon as we meet keyframed plane, we stop updating the sequence. */
 		if (next_plane_marker && (next_plane_marker->flag & PLANE_MARKER_TRACKED) == 0) {
-			break;
+			/* Don't override keyframes if track is in auto-keyframe mode */
+			if (plane_track->flag & PLANE_TRACK_AUTOKEY) {
+				break;
+			}
 		}
 
 		num_correspondences =
@@ -3338,6 +3374,21 @@ static void track_plane_from_existing_motion(MovieTrackingPlaneTrack *plane_trac
 		}
 
 		new_plane_marker.framenr = current_frame + frame_delta;
+
+		if (keyframe_plane_marker &&
+		    next_plane_marker &&
+		    (plane_track->flag & PLANE_TRACK_AUTOKEY))
+		{
+			float fac = ((float) next_plane_marker->framenr - start_plane_marker->framenr)
+			          / ((float) keyframe_plane_marker->framenr - start_plane_marker->framenr);
+
+			fac = 3*fac*fac - 2*fac*fac*fac;
+
+			for (i = 0; i < 4; i++) {
+				interp_v2_v2v2(new_plane_marker.corners[i], new_plane_marker.corners[i],
+				               next_plane_marker->corners[i], fac);
+			}
+		}
 
 		BKE_tracking_plane_marker_insert(plane_track, &new_plane_marker);
 
@@ -3512,7 +3563,7 @@ static bool reconstruct_retrieve_libmv_tracks(MovieReconstructContext *context, 
 			track->flag &= ~TRACK_HAS_BUNDLE;
 			ok = false;
 
-			printf("No bundle for track #%d '%s'\n", tracknr, track->name);
+			printf("Unable to reconstruct position for track #%d '%s'\n", tracknr, track->name);
 		}
 
 		track = track->next;
@@ -4090,7 +4141,7 @@ void BKE_tracking_detect_fast(MovieTracking *tracking, ListBase *tracksbase, ImB
 
 /*********************** 2D stabilization *************************/
 
-/* Claculate median point of markers of tracks marked as used for
+/* Calculate median point of markers of tracks marked as used for
  * 2D stabilization.
  *
  * NOTE: frame number should be in clip space, not scene space
@@ -4447,7 +4498,7 @@ ImBuf *BKE_tracking_stabilize_frame(MovieTracking *tracking, int framenr, ImBuf 
  * stabilization data and used for easy coordinate
  * transformation.
  *
- * NOTE: The reaosn it is 4x4 matrix is because it's
+ * NOTE: The reason it is 4x4 matrix is because it's
  *       used for OpenGL drawing directly.
  */
 void BKE_tracking_stabilization_data_to_mat4(int width, int height, float aspect,

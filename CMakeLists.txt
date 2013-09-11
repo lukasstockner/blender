@@ -306,7 +306,9 @@ if(APPLE)
 	endif()
 	
 	execute_process(COMMAND uname -r OUTPUT_VARIABLE MAC_SYS) # check for actual system-version
-	if(${MAC_SYS} MATCHES 12)
+	if(${MAC_SYS} MATCHES 13)
+		set(OSX_SYSTEM 10.9)
+	elseif(${MAC_SYS} MATCHES 12)
 		set(OSX_SYSTEM 10.8)
 	elseif(${MAC_SYS} MATCHES 11)
 		set(OSX_SYSTEM 10.7)
@@ -1622,7 +1624,7 @@ elseif(APPLE)
 		endif()
 
 	if(WITH_JACK)
-		set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -weak_framework jackmp")
+		set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -F/Library/Frameworks -weak_framework jackmp")
 	endif()
 
 	else()
@@ -1780,6 +1782,15 @@ elseif(APPLE)
 	else()
 		set(CMAKE_C_FLAGS_RELEASE "-mdynamic-no-pic -fno-strict-aliasing")
 		set(CMAKE_CXX_FLAGS_RELEASE "-mdynamic-no-pic -fno-strict-aliasing")
+	endif()
+
+	if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+		if(${CMAKE_GENERATOR} MATCHES "Xcode")
+			if(${XCODE_VERSION} VERSION_EQUAL 5 OR ${XCODE_VERSION} VERSION_GREATER 5)
+				# Xcode 5 has too low template depth of 128 for libmv
+				set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftemplate-depth=1024")
+			endif()
+		endif()
 	endif()
 endif()
 

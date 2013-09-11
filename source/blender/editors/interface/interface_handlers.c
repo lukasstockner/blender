@@ -1981,7 +1981,7 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
 
 	ui_check_but(but);
 	
-	WM_cursor_modal(CTX_wm_window(C), BC_TEXTEDITCURSOR);
+	WM_cursor_modal_set(CTX_wm_window(C), BC_TEXTEDITCURSOR);
 }
 
 static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
@@ -2013,7 +2013,7 @@ static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
 		but->pos = -1;
 	}
 	
-	WM_cursor_restore(CTX_wm_window(C));
+	WM_cursor_modal_restore(CTX_wm_window(C));
 }
 
 static void ui_textedit_next_but(uiBlock *block, uiBut *actbut, uiHandleButtonData *data)
@@ -2220,7 +2220,7 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 
 			case BACKSPACEKEY:
 				changed = ui_textedit_delete(but, data, 0,
-				                             event->shift ? STRCUR_JUMP_ALL : (event->ctrl ? STRCUR_JUMP_DELIM : STRCUR_JUMP_NONE));
+				                             event->ctrl ? STRCUR_JUMP_DELIM : STRCUR_JUMP_NONE);
 				retval = WM_UI_HANDLER_BREAK;
 				break;
 				

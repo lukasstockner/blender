@@ -34,6 +34,7 @@
 #  include "MEM_guardedalloc.h"
 #  include "BLI_blenlib.h"
 #  include "BLI_boxpack2d.h"
+#  include "BLI_convexhull2d.h"
 #  include "BKE_displist.h"
 #  include "BKE_curve.h"
 #endif
@@ -1492,7 +1493,7 @@ static PyObject *M_Geometry_box_pack_2d(PyObject *UNUSED(self), PyObject *boxlis
 		}
 
 		/* Non Python function */
-		BLI_box_pack_2D(boxarray, len, &tot_width, &tot_height);
+		BLI_box_pack_2d(boxarray, len, &tot_width, &tot_height);
 
 		boxPack_ToPyObject(boxlist, &boxarray);
 	}
@@ -1500,6 +1501,87 @@ static PyObject *M_Geometry_box_pack_2d(PyObject *UNUSED(self), PyObject *boxlis
 	ret = PyTuple_New(2);
 	PyTuple_SET_ITEM(ret, 0, PyFloat_FromDouble(tot_width));
 	PyTuple_SET_ITEM(ret, 1, PyFloat_FromDouble(tot_width));
+	return ret;
+}
+
+PyDoc_STRVAR(M_Geometry_box_fit_2d_doc,
+".. function:: box_fit_2d(points)\n"
+"\n"
+"   Returns an angle that best fits the points to an axis aligned rectangle\n"
+"\n"
+"   :arg points: list of 2d points.\n"
+"   :type points: list\n"
+"   :return: angle\n"
+"   :rtype: float\n"
+);
+static PyObject *M_Geometry_box_fit_2d(PyObject *UNUSED(self), PyObject *pointlist)
+{
+	float (*points)[2];
+	Py_ssize_t len;
+
+	float angle = 0.0f;
+
+	len = mathutils_array_parse_alloc_v(((float **)&points), 2, pointlist, "box_fit_2d");
+	if (len == -1) {
+		return NULL;
+	}
+
+	if (len) {
+		/* Non Python function */
+		angle = BLI_convexhull_aabb_fit_points_2d((const float (*)[2])points, len);
+
+		PyMem_Free(points);
+	}
+
+
+	return PyFloat_FromDouble(angle);
+}
+
+PyDoc_STRVAR(M_Geometry_convex_hull_2d_doc,
+".. function:: convex_hull_2d(points)\n"
+"\n"
+"   Returns a list of indices into the list given\n"
+"\n"
+"   :arg points: list of 2d points.\n"
+"   :type points: list\n"
+"   :return: a list of indices\n"
+"   :rtype: list of ints\n"
+);
+static PyObject *M_Geometry_convex_hull_2d(PyObject *UNUSED(self), PyObject *pointlist)
+{
+	float (*points)[2];
+	Py_ssize_t len;
+
+	PyObject *ret;
+
+	len = mathutils_array_parse_alloc_v(((float **)&points), 2, pointlist, "convex_hull_2d");
+	if (len == -1) {
+		return NULL;
+	}
+
+	if (len) {
+		int *index_map;
+		Py_ssize_t len_ret, i;
+
+		index_map  = MEM_mallocN(sizeof(*index_map) * len, __func__);
+
+		/* Non Python function */
+		len_ret = BLI_convexhull_2d((const float (*)[2])points, len, index_map);
+
+		ret = PyList_New(len_ret);
+		for (i = 0; i < len_ret; i++) {
+			PyList_SET_ITEM(ret, i, PyLong_FromLong(index_map[i]));
+		}
+
+		MEM_freeN(index_map);
+
+		PyMem_Free(points);
+	}
+	else {
+		ret = PyList_New(0);
+	}
+
+
 	return ret;
 }
 
@@ -1527,6 +1609,8 @@ static PyMethodDef M_Geometry_methods[] = {
 #ifndef MATH_STANDALONE
 	{"interpolate_bezier", (PyCFunction) M_Geometry_interpolate_bezier, METH_VARARGS, M_Geometry_interpolate_bezier_doc},
 	{"tessellate_polygon", (PyCFunction) M_Geometry_tessellate_polygon, METH_O, M_Geometry_tessellate_polygon_doc},
+	{"convex_hull_2d", (PyCFunction) M_Geometry_convex_hull_2d, METH_O, M_Geometry_convex_hull_2d_doc},
+	{"box_fit_2d", (PyCFunction) M_Geometry_box_fit_2d, METH_O, M_Geometry_box_fit_2d_doc},
 	{"box_pack_2d", (PyCFunction) M_Geometry_box_pack_2d, METH_O, M_Geometry_box_pack_2d_doc},
 #endif
 	{NULL, NULL, 0, NULL}
