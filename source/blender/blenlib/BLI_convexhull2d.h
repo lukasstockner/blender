@@ -15,28 +15,20 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/**
- * \file IMB_allocimbuf.h
- * \ingroup imbuf
- * \brief Header file for allocimbuf.c
+#ifndef __BLI_CONVEXHULL2D__
+#define __BLI_CONVEXHULL2D__
+
+/** \file BLI_convexhull2d.h
+ *  \ingroup bli
  */
-#ifndef __IMB_ALLOCIMBUF_H__
-#define __IMB_ALLOCIMBUF_H__
 
-struct ImBuf;
+int BLI_convexhull_2d_sorted(const float (*points)[2], const int n, int r_points[]);
+int BLI_convexhull_2d(const float (*points)[2], const int n, int r_points[]);
 
-bool imb_addencodedbufferImBuf(struct ImBuf *ibuf);
-bool imb_enlargeencodedbufferImBuf(struct ImBuf *ibuf);
+float BLI_convexhull_aabb_fit_hull_2d(const float (*points_hull)[2], unsigned int n);
+float BLI_convexhull_aabb_fit_points_2d(const float (*points)[2], unsigned int n);
 
-#endif
-
+#endif  /* __BLI_CONVEXHULL2D__ */

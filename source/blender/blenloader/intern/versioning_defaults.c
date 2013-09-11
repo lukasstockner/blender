@@ -15,28 +15,32 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
+ * Contributor(s): Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
+ *
  */
 
-/**
- * \file IMB_allocimbuf.h
- * \ingroup imbuf
- * \brief Header file for allocimbuf.c
+/** \file blender/blenloader/intern/versioning_defaults.c
+ *  \ingroup blenloader
  */
-#ifndef __IMB_ALLOCIMBUF_H__
-#define __IMB_ALLOCIMBUF_H__
 
-struct ImBuf;
+#include "BLI_utildefines.h"
 
-bool imb_addencodedbufferImBuf(struct ImBuf *ibuf);
-bool imb_enlargeencodedbufferImBuf(struct ImBuf *ibuf);
+#include "DNA_scene_types.h"
+#include "DNA_userdef_types.h"
 
-#endif
+#include "BKE_main.h"
+
+#include "BLO_readfile.h"
+
+/* Update defaults in startup.blend, without having to save and embed the file.
+ * This function can be emptied each time the startup.blend is updated. */
+void BLO_update_defaults_startup_blend(Main *main)
+{
+	Scene *scene;
+
+	for (scene = main->scene.first; scene; scene = scene->id.next)
+		scene->r.im_format.planes = R_IMF_PLANES_RGBA;
+}
 

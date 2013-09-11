@@ -621,12 +621,19 @@ static void rna_ColorManagement_update(Main *UNUSED(bmain), Scene *UNUSED(scene)
 }
 
 /* this function only exists because #curvemap_evaluateF uses a 'const' qualifier */
-static float rna_CurveMap_evaluateF(struct CurveMap *cuma, float value)
+static float rna_CurveMap_evaluateF(struct CurveMap *cuma, ReportList *reports, float value)
 {
-	curvemap_initialize(cuma);
+	if (!cuma->table) {
+		BKE_reportf(reports, RPT_ERROR, "CurveMap table not initialized, call initialize() on CurveMapping owner of the CurveMap");
+		return 0.0f;
+	}
 	return curvemap_evaluateF(cuma, value);
 }
 
+static void rna_CurveMap_initialize(struct CurveMapping *cumap)
+{
+	curvemapping_initialize(cumap);
+}
 #else
 
 static void rna_def_curvemappoint(BlenderRNA *brna)
@@ -712,6 +719,7 @@ static void rna_def_curvemap(BlenderRNA *brna)
 	rna_def_curvemap_points_api(brna, prop);
 
 	func = RNA_def_function(srna, "evaluate", "rna_CurveMap_evaluateF");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
 	RNA_def_function_ui_description(func, "Evaluate curve at given location");
 	parm = RNA_def_float(func, "position", 0.0f, -FLT_MAX, FLT_MAX, "Position", "Position to evaluate curve at", -FLT_MAX, FLT_MAX);
 	RNA_def_property_flag(parm, PROP_REQUIRED);
@@ -780,6 +788,9 @@ static void rna_def_curvemapping(BlenderRNA *brna)
 
 	func = RNA_def_function(srna, "update", "curvemapping_changed_all");
 	RNA_def_function_ui_description(func, "Update curve mapping after making changes");
+
+	func = RNA_def_function(srna, "initialize", "rna_CurveMap_initialize");
+	RNA_def_function_ui_description(func, "Initialize curve");
 }
 
 static void rna_def_color_ramp_element(BlenderRNA *brna)
@@ -980,7 +991,7 @@ static void rna_def_colormanage(BlenderRNA *brna)
 	};
 
 	static EnumPropertyItem look_items[] = {
-		{0, "NONE", 0, "None", "Do not modify image in an artistics manner"},
+		{0, "NONE", 0, "None", "Do not modify image in an artistic manner"},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -1015,7 +1026,7 @@ static void rna_def_colormanage(BlenderRNA *brna)
 	RNA_def_property_enum_funcs(prop, "rna_ColorManagedViewSettings_look_get",
 	                                  "rna_ColorManagedViewSettings_look_set",
 	                                  "rna_ColorManagedViewSettings_look_itemf");
-	RNA_def_property_ui_text(prop, "Look", "Additional tarnsform applyed before view transform for an artistics needs");
+	RNA_def_property_ui_text(prop, "Look", "Additional transform applied before view transform for an artistic needs");
 	RNA_def_property_update(prop, NC_WINDOW, "rna_ColorManagement_update");
 
 	prop = RNA_def_property(srna, "view_transform", PROP_ENUM, PROP_NONE);

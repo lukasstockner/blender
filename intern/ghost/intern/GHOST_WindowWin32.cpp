@@ -177,45 +177,20 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 
 	if (state != GHOST_kWindowStateFullScreen) {
 		RECT rect;
-		MONITORINFO monitor;
-		GHOST_TUns32 tw, th; 
 
-		width += GetSystemMetrics(SM_CXSIZEFRAME) * 2;
-		height += GetSystemMetrics(SM_CYSIZEFRAME) * 2 + GetSystemMetrics(SM_CYCAPTION);
+		int framex = GetSystemMetrics(SM_CXSIZEFRAME);
+		int framey = GetSystemMetrics(SM_CYSIZEFRAME);
+		int caption = GetSystemMetrics(SM_CYCAPTION);
+		width += framex * 2;
+		height += framey * 2 + caption;
+
+		left -= framex;
+		top -= (caption+framey);
 
 		rect.left = left;
-		rect.right = left + width;
+		rect.right = left + width + framex;
 		rect.top = top;
-		rect.bottom = top + height;
-
-		monitor.cbSize = sizeof(monitor);
-		monitor.dwFlags = 0;
-
-		// take taskbar into account
-		GetMonitorInfo(MonitorFromRect(&rect, MONITOR_DEFAULTTONEAREST), &monitor);
-
-		th = monitor.rcWork.bottom - monitor.rcWork.top;
-		tw = monitor.rcWork.right - monitor.rcWork.left;
-
-		if (tw < width)
-		{
-			width = tw;
-			left = monitor.rcWork.left;
-		}
-		else if (monitor.rcWork.right < left + (int)width)
-			left = monitor.rcWork.right - width;
-		else if (left < monitor.rcWork.left)
-			left = monitor.rcWork.left;
-
-		if (th < height)
-		{
-			height = th;
-			top = monitor.rcWork.top;
-		}
-		else if (monitor.rcWork.bottom < top + (int)height)
-			top = monitor.rcWork.bottom - height;
-		else if (top < monitor.rcWork.top)
-			top = monitor.rcWork.top;
+		rect.bottom = top + height + caption - framey;
 
 		int wintype = WS_OVERLAPPEDWINDOW;
 		if (m_parentWindowHwnd != 0)
