@@ -754,6 +754,12 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                         col.prop(brush, "secondary_color", text="")
                         col.operator("paint.brush_colors_flip", icon='FILE_REFRESH')
 
+                col.prop(brush, "blend", text="Blend")
+
+                col = layout.column()
+                col.active = (brush.blend not in {'ERASE_ALPHA', 'ADD_ALPHA'})
+                col.prop(brush, "use_alpha")
+
                 col = layout.column()
                 col.template_ID(settings, "palette", new="palette.new")
                 if settings.palette:
@@ -772,19 +778,16 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                 else:
                     row.prop(brush, "use_space_attenuation", toggle=True, text="", icon='UNLOCKED')
 
-            self.prop_unified_strength(row, context, brush, "strength", text="Strength")
-            self.prop_unified_strength(row, context, brush, "use_pressure_strength")
-
-            col.prop(brush, "blend", text="Blend")
-
-            col = layout.column()
-            col.active = (brush.blend not in {'ERASE_ALPHA', 'ADD_ALPHA'})
-            col.prop(brush, "use_alpha")
+            col.separator()
+            col.row().prop(brush, "direction", expand=True)
 
             # use_accumulate
             if capabilities.has_accumulate:
                 col.separator()
                 col.prop(brush, "use_accumulate")
+            
+            self.prop_unified_strength(row, context, brush, "strength", text="Strength")
+            self.prop_unified_strength(row, context, brush, "use_pressure_strength")
 
         # Weight Paint Mode #
         elif context.weight_paint_object and brush:

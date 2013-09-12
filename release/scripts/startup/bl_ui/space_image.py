@@ -747,6 +747,8 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
                         col.prop(brush, "secondary_color", text="")
                         col.operator("paint.brush_colors_flip", icon='FILE_REFRESH')
 
+                col.prop(brush, "blend", text="Blend")
+
                 col = layout.column()
                 col.template_ID(toolsettings, "palette", new="palette.new")
                 if toolsettings.palette:
@@ -763,12 +765,9 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
                     row.prop(brush, "use_space_attenuation", toggle=True, text="", icon='LOCKED')
                 else:
                     row.prop(brush, "use_space_attenuation", toggle=True, text="", icon='UNLOCKED')
-
-            self.prop_unified_strength(row, context, brush, "strength", slider=True, text="Strength")
-            self.prop_unified_strength(row, context, brush, "use_pressure_strength")
-
-            col.prop(brush, "blend", text="Blend")
-
+            col.separator()
+            col.row().prop(brush, "direction", expand=True)
+            
             if brush.image_tool == 'CLONE':
                 col.separator()
                 col.prop(brush, "clone_image", text="Image")
@@ -779,6 +778,9 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
                 col.separator()
 
                 col.prop(brush, "use_accumulate")
+
+            self.prop_unified_strength(row, context, brush, "strength", slider=True, text="Strength")
+            self.prop_unified_strength(row, context, brush, "use_pressure_strength")
 
 
 

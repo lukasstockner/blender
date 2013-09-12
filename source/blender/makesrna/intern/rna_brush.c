@@ -282,6 +282,7 @@ static int rna_ImapaintToolCapabilities_has_accumulate_get(PointerRNA *ptr)
 	return ((br->flag & BRUSH_AIRBRUSH) ||
 	        (br->flag & BRUSH_DRAG_DOT) ||
 	        (br->flag & BRUSH_ANCHORED) ||
+	        (br->imagepaint_tool == PAINT_TOOL_SOFTEN) ||
 	        (br->imagepaint_tool == PAINT_TOOL_SMEAR) ||
 	        (br->mtex.tex && !ELEM3(br->mtex.brush_map_mode, MTEX_MAP_MODE_TILED, MTEX_MAP_MODE_STENCIL, MTEX_MAP_MODE_3D))
 	        ) ? false : true;
@@ -425,13 +426,16 @@ static void rna_Brush_set_unprojected_radius(PointerRNA *ptr, float value)
 	brush->unprojected_radius = value;
 }
 
-static EnumPropertyItem *rna_Brush_direction_itemf(bContext *UNUSED(C), PointerRNA *ptr,
+static EnumPropertyItem *rna_Brush_direction_itemf(bContext *C, PointerRNA *ptr,
                                                    PropertyRNA *UNUSED(prop), int *UNUSED(free))
 {
+	PaintMode mode = BKE_paintmode_get_active_from_context(C);
+
 	static EnumPropertyItem prop_default_items[] = {
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	/* sculpt mode */
 	static EnumPropertyItem prop_flatten_contrast_items[] = {
 		{0, "FLATTEN", 0, "Flatten", "Add effect of brush"},
 		{BRUSH_DIR_IN, "CONTRAST", 0, "Contrast", "Subtract effect of brush"},
@@ -462,44 +466,70 @@ static EnumPropertyItem *rna_Brush_direction_itemf(bContext *UNUSED(C), PointerR
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	/* texture paint mode */
+	static EnumPropertyItem prop_soften_sharpen_items[] = {
+		{0, "SOFTEN", 0, "Soften", "Blur effect of brush"},
+		{BRUSH_DIR_IN, "SHARPEN", 0, "Sharpen", "Sharpen effect of brush"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	Brush *me = (Brush *)(ptr->data);
 
-	switch (me->sculpt_tool) {
-		case SCULPT_TOOL_DRAW:
-		case SCULPT_TOOL_CREASE:
-		case SCULPT_TOOL_BLOB:
-		case SCULPT_TOOL_LAYER:
-		case SCULPT_TOOL_CLAY:
-		case SCULPT_TOOL_CLAY_STRIPS:
-			return prop_direction_items;
-
-		case SCULPT_TOOL_MASK:
-			switch ((BrushMaskTool)me->mask_tool) {
-				case BRUSH_MASK_DRAW:
+	switch (mode) {
+		case PAINT_SCULPT:
+			switch (me->sculpt_tool) {
+				case SCULPT_TOOL_DRAW:
+				case SCULPT_TOOL_CREASE:
+				case SCULPT_TOOL_BLOB:
+				case SCULPT_TOOL_LAYER:
+				case SCULPT_TOOL_CLAY:
+				case SCULPT_TOOL_CLAY_STRIPS:
 					return prop_direction_items;
-					break;
-				case BRUSH_MASK_SMOOTH:
+
+				case SCULPT_TOOL_MASK:
+					switch ((BrushMaskTool)me->mask_tool) {
+						case BRUSH_MASK_DRAW:
+							return prop_direction_items;
+							break;
+						case BRUSH_MASK_SMOOTH:
+							return prop_default_items;
+							break;
+					}
+
+				case SCULPT_TOOL_FLATTEN:
+					return prop_flatten_contrast_items;
+
+				case SCULPT_TOOL_FILL:
+					return prop_fill_deepen_items;
+
+				case SCULPT_TOOL_SCRAPE:
+					return prop_scrape_peaks_items;
+
+				case SCULPT_TOOL_PINCH:
+					return prop_pinch_magnify_items;
+
+				case SCULPT_TOOL_INFLATE:
+					return prop_inflate_deflate_items;
+
+				default:
 					return prop_default_items;
-					break;
 			}
+			break;
 
-		case SCULPT_TOOL_FLATTEN:
-			return prop_flatten_contrast_items;
+		case PAINT_TEXTURE_2D:
+		case PAINT_TEXTURE_PROJECTIVE:
+			switch (me->imagepaint_tool) {
+				case PAINT_TOOL_SOFTEN:
+					return prop_soften_sharpen_items;
 
-		case SCULPT_TOOL_FILL:
-			return prop_fill_deepen_items;
-
-		case SCULPT_TOOL_SCRAPE:
-			return prop_scrape_peaks_items;
-
-		case SCULPT_TOOL_PINCH:
-			return prop_pinch_magnify_items;
-
-		case SCULPT_TOOL_INFLATE:
-			return prop_inflate_deflate_items;
+				default:
+					return prop_default_items;
+			}
+			break;
 
 		default:
 			return prop_default_items;
+
 	}
 }
 

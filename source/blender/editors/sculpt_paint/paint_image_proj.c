@@ -3883,14 +3883,20 @@ static void do_projectpaint_soften_f(ProjPaintState *ps, ProjPixel *projPixel, f
 		mul_v4_fl(rgba, 1.0f / (float)accum_tot);
 
 		if (ps->mode == BRUSH_STROKE_INVERT) {
+			float alpha;
+
 			/* subtract blurred image from normal image gives high pass filter */
-			blend_color_sub_float(rgba, projPixel->pixel.f_pt, rgba);
+			sub_v3_v3v3(rgba, projPixel->pixel.f_pt, rgba);
+
 			/* now rgba_ub contains the edge result, but this should be converted to luminance to avoid
 			 * colored speckles appearing in final image, and also to check for threshhold */
 			rgba[0] = rgba[1] = rgba[2] = rgb_to_grayscale(rgba);
-			rgba[3] = mask;
+			alpha = projPixel->pixel.f_pt[3];
+			projPixel->pixel.f_pt[3] = rgba[3] = mask;
+
 			/* add to enhance edges */
 			blend_color_add_float(rgba, projPixel->pixel.f_pt, rgba);
+			projPixel->pixel.f_pt[3] = alpha;
 		} else {
 			blend_color_interpolate_float(rgba, rgba, projPixel->pixel.f_pt, mask);
 		}
@@ -3925,18 +3931,26 @@ static void do_projectpaint_soften(ProjPaintState *ps, ProjPixel *projPixel, flo
 
 		mul_v4_fl(rgba, 1.0f / (float)accum_tot);
 
-		premul_float_to_straight_uchar(rgba_ub, rgba);
-
 		if (ps->mode == BRUSH_STROKE_INVERT) {
+			float rgba_pixel[4], alpha;
+
+			straight_uchar_to_premul_float(rgba_pixel, projPixel->pixel.ch_pt);
+
 			/* subtract blurred image from normal image gives high pass filter */
-			blend_color_sub_byte(rgba_ub, projPixel->pixel.ch_pt, rgba_ub);
+			sub_v3_v3v3(rgba, rgba_pixel, rgba);
 			/* now rgba_ub contains the edge result, but this should be converted to luminance to avoid
 			 * colored speckles appearing in final image, and also to check for threshhold */
-			rgba_ub[0] = rgba_ub[1] = rgba_ub[2] = rgb_to_grayscale_byte(rgba_ub);
-			rgba_ub[3] = mask * 255;
+			rgba[0] = rgba[1] = rgba[2] = rgb_to_grayscale(rgba);
+			alpha = rgba_pixel[3];
+			rgba[3] = rgba_pixel[3] = mask;
+
 			/* add to enhance edges */
-			blend_color_add_byte(rgba_ub, projPixel->pixel.ch_pt, rgba_ub);
+			blend_color_add_float(rgba, rgba_pixel, rgba);
+
+			rgba[3] = alpha;
+			premul_float_to_straight_uchar(rgba_ub, rgba);
 		} else {
+			premul_float_to_straight_uchar(rgba_ub, rgba);
 			blend_color_interpolate_byte(rgba_ub, rgba_ub, projPixel->pixel.ch_pt, mask);
 		}
 		BLI_linklist_prepend_arena(softenPixels, (void *)projPixel, softenArena);
@@ -4488,6 +4502,10 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 		Brush *brush = ps->brush;
 		ps->tool = brush->imagepaint_tool;
 		ps->blend = brush->blend;
+		/* only check for inversion for the soften tool, elsewhere, a resident brush inversion flag can cause issues */
+		if (brush->imagepaint_tool == PAINT_TOOL_SOFTEN)
+			ps->mode = ((ps->mode == BRUSH_STROKE_INVERT) ^ ((brush->flag & BRUSH_DIR_IN) != 0) ?
+			            BRUSH_STROKE_INVERT : BRUSH_STROKE_NORMAL);
 
 		/* disable for 3d mapping also because painting on mirrored mesh can create "stripes" */
 		ps->do_masking = paint_use_opacity_masking(brush);
