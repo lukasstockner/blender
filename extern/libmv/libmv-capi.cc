@@ -478,56 +478,56 @@ static libmv::Tracks getNormalizedTracks(const libmv::Tracks &tracks,
 	return libmv::Tracks(markers);
 }
 
-static bool selectTwoKeyframesBasedOnGRICAndVariance(
-                          libmv::Tracks &tracks,
-                          libmv::Tracks &normalized_tracks,
-                          std::vector<libmv::CameraIntrinsics> &camera_intrinsics,
-                          libmv::ReconstructionOptions &reconstruction_options,
-                          int &keyframe1,
-                          int &keyframe2)
+static bool selectTwoInitialImages(
+		libmv::Tracks &tracks,
+		libmv::Tracks &normalized_tracks,
+		std::vector<libmv::CameraIntrinsics> &camera_intrinsics,
+		libmv::ReconstructionOptions &reconstruction_options,
+		int &image1,
+		int &image2)
 {
-	libmv::vector<int> keyframes;
+	libmv::vector<int> images;
 
-	/* Get list of all keyframe candidates first. */
+	/* Get list of all image candidates first. */
 	SelectKeyframesBasedOnGRICAndVariance(normalized_tracks,
-	                                      camera_intrinsics,
-	                                      keyframes);
+	                                   camera_intrinsics,
+	                                   images);
 
-	if (keyframes.size() < 2) {
+	if (images.size() < 2) {
 		LG << "Not enough keyframes detected by GRIC";
 		return false;
 	}
-	else if (keyframes.size() == 2) {
-		keyframe1 = keyframes[0];
-		keyframe2 = keyframes[1];
+	else if (images.size() == 2) {
+		image1 = images[0];
+		image2 = images[1];
 		return true;
 	}
 
-	/* Now choose two keyframes with minimal reprojection error after initial
-	 * reconstruction choose keyframes with the least reprojection error after
-	 * solving from two candidate keyframes.
+	/* Now choose two images with minimal reprojection error after initial
+	 * reconstruction choose images with the least reprojection error after
+	 * solving from two candidate images.
 	 *
 	 * In fact, currently libmv returns single pair only, so this code will
 	 * not actually run. But in the future this could change, so let's stay
 	 * prepared.
 	 */
-	int previous_keyframe = keyframes[0];
+	int previous_image = images[0];
 	double best_error = std::numeric_limits<double>::max();
-	for (int i = 1; i < keyframes.size(); i++) {
+	for (int i = 1; i < images.size(); i++) {
 		libmv::EuclideanReconstruction reconstruction;
-		int current_keyframe = keyframes[i];
+		int current_image = images[i];
 
-		libmv::vector<libmv::Marker> keyframe_markers =
-			normalized_tracks.MarkersForTracksInBothImages(previous_keyframe,
-			                                               current_keyframe);
+		libmv::vector<libmv::Marker> image_markers =
+			normalized_tracks.MarkersForTracksInBothImages(previous_image,
+			                                               current_image);
 
-		libmv::Tracks keyframe_tracks(keyframe_markers);
+		libmv::Tracks image_tracks(image_markers);
 
-		/* get a solution from two keyframes only */
-		libmv::EuclideanReconstructTwoFrames(keyframe_markers, &reconstruction);
-		libmv::EuclideanBundle(keyframe_tracks, &reconstruction);
+		/* get a solution from two images only */
+		libmv::EuclideanReconstructTwoFrames(image_markers, &reconstruction);
+		libmv::EuclideanBundle(image_tracks, &reconstruction);
 		libmv::EuclideanCompleteReconstruction(reconstruction_options,
-		                                       keyframe_tracks,
+		                                       image_tracks,
 		                                       &reconstruction, NULL);
 
 		double current_error =
@@ -535,17 +535,17 @@ static bool selectTwoKeyframesBasedOnGRICAndVariance(
 			                                  reconstruction,
 			                                  camera_intrinsics);
 
-		LG << "Error between " << previous_keyframe
-		   << " and " << current_keyframe
+		LG << "Error between " << previous_image
+		   << " and " << current_image
 		   << ": " << current_error;
 
 		if (current_error < best_error) {
 			best_error = current_error;
-			keyframe1 = previous_keyframe;
-			keyframe2 = current_keyframe;
+			image1 = previous_image;
+			image2 = current_image;
 		}
 
-		previous_keyframe = current_keyframe;
+		previous_image = current_image;
 	}
 
 	return true;
@@ -635,34 +635,34 @@ libmv_Reconstruction *libmv_solve(const libmv_Tracks *libmv_tracks,
 		                            &reconstruction);
 	}
 	else {
-		/* Keyframe selection */
-		int &keyframe1 = libmv_reconstruction_options->keyframe1,
-		    &keyframe2 = libmv_reconstruction_options->keyframe2;
+		/* Image selection */
+		int &image1 = libmv_reconstruction_options->keyframe1,
+		    &image2 = libmv_reconstruction_options->keyframe2;
 
 		if (libmv_reconstruction_options->select_keyframes) {
-			LG << "Using automatic keyframe selection";
+			LG << "Using automatic image selection";
 
-			update_callback.invoke(0, "Selecting keyframes");
+			update_callback.invoke(0, "Selecting images");
 
-			selectTwoKeyframesBasedOnGRICAndVariance(tracks,
-			                                         normalized_tracks,
-			                                         camera_intrinsics,
-			                                         reconstruction_options,
-			                                         keyframe1,
-			                                         keyframe2);
+			selectTwoInitialImages(tracks,
+			                       normalized_tracks,
+			                       camera_intrinsics,
+			                       reconstruction_options,
+			                       image1,
+			                       image2);
 		}
 
-		LG << "frames to init from: " << keyframe1 << " " << keyframe2;
+		LG << "frames to init from: " << image1 << " " << image2;
 
-		/* Reconstruct for two frames */
-		libmv::vector<libmv::Marker> keyframe_markers =
-				normalized_tracks.MarkersForTracksInBothImages(keyframe1, keyframe2);
+		/* Reconstruct for two images */
+		libmv::vector<libmv::Marker> image_markers =
+				normalized_tracks.MarkersForTracksInBothImages(image1, image2);
 
-		LG << "number of markers for init: " << keyframe_markers.size();
+		LG << "number of markers for init: " << image_markers.size();
 
 		update_callback.invoke(0, "Initial reconstruction");
 
-		libmv::EuclideanReconstructTwoFrames(keyframe_markers, &reconstruction);
+		libmv::EuclideanReconstructTwoFrames(image_markers, &reconstruction);
 
 		/* Perform bundle adjustment */
 		libmv::EuclideanBundle(normalized_tracks, &reconstruction);
