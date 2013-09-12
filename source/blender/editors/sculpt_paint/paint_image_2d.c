@@ -77,7 +77,7 @@ typedef struct BrushPainterCache {
 	bool use_float;              /* need float imbuf? */
 	bool use_color_correction;   /* use color correction for float */
 	bool use_masking;            /* use masking? */
-	bool invert_color;
+	bool invert;
 
 	bool is_texbrush;
 	bool is_maskbrush;
@@ -153,7 +153,7 @@ static BrushPainter *brush_painter_2d_new(Scene *scene, Brush *brush, bool inver
 	painter->scene = scene;
 	painter->firsttouch = 1;
 	painter->cache.lastsize = -1; /* force ibuf create in refresh */
-	painter->cache.invert_color = invert;
+	painter->cache.invert = invert;
 
 	return painter;
 }
@@ -295,7 +295,7 @@ static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size, float pre
 
 	/* get brush color */
 	if (brush->imagepaint_tool == PAINT_TOOL_DRAW) {
-		if (painter->cache.invert_color)
+		if (painter->cache.invert)
 			copy_v3_v3(brush_rgb, brush->secondary_rgb);
 		else {
 			if (brush->flag & BRUSH_USE_GRADIENT) {
@@ -400,7 +400,7 @@ static void brush_painter_imbuf_update(BrushPainter *painter, ImBuf *oldtexibuf,
 
 	/* get brush color */
 	if (brush->imagepaint_tool == PAINT_TOOL_DRAW) {
-		if (painter->cache.invert_color)
+		if (painter->cache.invert)
 			copy_v3_v3(brush_rgb, brush->secondary_rgb);
 		else
 			copy_v3_v3(brush_rgb, brush->rgb);
@@ -807,11 +807,15 @@ static int paint_2d_ibuf_add_if(ImBuf *ibuf, unsigned int x, unsigned int y, flo
 	return 1;
 }
 
-static void paint_2d_lift_soften(ImBuf *ibuf, ImBuf *ibufb, int *pos, const short is_torus)
+static void paint_2d_lift_soften(ImagePaintState *s, ImBuf *ibuf, ImBuf *ibufb, int *pos, const short is_torus)
 {
+	bool sharpen = (s->painter->cache.invert ^ ((s->brush->flag & BRUSH_DIR_IN) != 0));
+	float threshold = s->brush->sharp_threshold;
 	int x, y, count, xi, yi, xo, yo;
 	int out_off[2], in_off[2], dim[2];
+	int diff_pos[2];
 	float outrgb[4];
+	float rgba[4];
 
 	dim[0] = ibufb->x;
 	dim[1] = ibufb->y;
@@ -827,15 +831,18 @@ static void paint_2d_lift_soften(ImBuf *ibuf, ImBuf *ibufb, int *pos, const shor
 			return;
 	}
 
+	/* find offset inside mask buffers to sample them */
+	sub_v2_v2v2_int(diff_pos, out_off, in_off);
+
 	for (y = 0; y < dim[1]; y++) {
 		for (x = 0; x < dim[0]; x++) {
 			/* get input pixel */
 			xi = in_off[0] + x;
 			yi = in_off[1] + y;
 
-			count = 1;
-			paint_2d_ibuf_rgb_get(ibuf, xi, yi, is_torus, outrgb);
-
+			count = 0;
+			paint_2d_ibuf_rgb_get(ibuf, xi, yi, is_torus, rgba);
+			zero_v4(outrgb);
 			count += paint_2d_ibuf_add_if(ibuf, xi - 1, yi - 1, outrgb, is_torus);
 			count += paint_2d_ibuf_add_if(ibuf, xi - 1, yi, outrgb, is_torus);
 			count += paint_2d_ibuf_add_if(ibuf, xi - 1, yi + 1, outrgb, is_torus);
@@ -847,8 +854,31 @@ static void paint_2d_lift_soften(ImBuf *ibuf, ImBuf *ibufb, int *pos, const shor
 			count += paint_2d_ibuf_add_if(ibuf, xi + 1, yi, outrgb, is_torus);
 			count += paint_2d_ibuf_add_if(ibuf, xi + 1, yi + 1, outrgb, is_torus);
 
-			mul_v4_fl(outrgb, 1.0f / (float)count);
+			if (count > 0) {
+				mul_v4_fl(outrgb, 1.0f / (float)count);
 
+				if (sharpen) {
+					/* subtract blurred image from normal image gives high pass filter */
+					sub_v3_v3v3(outrgb, rgba, outrgb);
+
+					/* now rgba_ub contains the edge result, but this should be converted to luminance to avoid
+			         * colored speckles appearing in final image, and also to check for threshhold */
+					outrgb[0] = outrgb[1] = outrgb[2] = rgb_to_grayscale(outrgb);
+					if (fabs(outrgb[0]) > threshold) {
+						float mask = BKE_brush_alpha_get(s->scene, s->brush);
+						float alpha = rgba[3];
+						rgba[3] = outrgb[3] = mask;
+
+						/* add to enhance edges */
+						blend_color_add_float(outrgb, rgba, outrgb);
+						outrgb[3] = alpha;
+					}
+					else
+						copy_v4_v4(outrgb, rgba);
+				}
+			}
+			else
+				copy_v4_v4(outrgb, rgba);
 			/* write into brush buffer */
 			xo = out_off[0] + x;
 			yo = out_off[1] + y;
@@ -962,7 +992,7 @@ static int paint_2d_op(void *state, ImBuf *ibufb, unsigned short *maskb, unsigne
 
 	/* lift from canvas */
 	if (s->tool == PAINT_TOOL_SOFTEN) {
-		paint_2d_lift_soften(s->canvas, ibufb, bpos, torus);
+		paint_2d_lift_soften(s, s->canvas, ibufb, bpos, torus);
 	}
 	else if (s->tool == PAINT_TOOL_SMEAR) {
 		if (lastpos[0] == pos[0] && lastpos[1] == pos[1])
