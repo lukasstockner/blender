@@ -1061,7 +1061,7 @@ static void rna_def_trackingMarker(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "framenr");
 	RNA_def_property_ui_text(prop, "Frame", "Frame number marker is keyframed on");
 	RNA_def_property_int_funcs(prop, NULL, "rna_trackingMarker_frame_set", NULL);
-	RNA_def_property_update(prop, NC_MOVIECLIP | NA_EDITED, 0);
+	RNA_def_property_update(prop, NC_MOVIECLIP | NA_EDITED, NULL);
 
 	/* enable */
 	prop = RNA_def_property(srna, "mute", PROP_BOOLEAN, PROP_NONE);
@@ -1134,7 +1134,7 @@ static void rna_def_trackingMarkers(BlenderRNA *brna, PropertyRNA *cprop)
 	parm = RNA_def_int(func, "frame", 1, MINFRAME, MAXFRAME, "Frame",
 	                   "Frame number to insert marker to", MINFRAME, MAXFRAME);
 	RNA_def_property_flag(parm, PROP_REQUIRED);
-	RNA_def_float_vector(func, "co", 2, 0, -1.0, 1.0, "Coordinate",
+	RNA_def_float_vector(func, "co", 2, NULL, -1.0, 1.0, "Coordinate",
 	                     "Place new marker at the given frame using specified in normalized space coordinates",
 	                     -1.0, 1.0);
 	RNA_def_property_flag(parm, PROP_REQUIRED);
@@ -1371,7 +1371,7 @@ static void rna_def_trackingPlaneMarker(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "framenr");
 	RNA_def_property_ui_text(prop, "Frame", "Frame number marker is keyframed on");
 	RNA_def_property_int_funcs(prop, NULL, "rna_trackingPlaneMarker_frame_set", NULL);
-	RNA_def_property_update(prop, NC_MOVIECLIP | NA_EDITED, 0);
+	RNA_def_property_update(prop, NC_MOVIECLIP | NA_EDITED, NULL);
 
 	/* Corners */
 	prop = RNA_def_property(srna, "corners", PROP_FLOAT, PROP_MATRIX);
@@ -1460,6 +1460,12 @@ static void rna_def_trackingPlaneTrack(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SELECT);
 	RNA_def_property_ui_text(prop, "Select", "Plane track is selected");
 	RNA_def_property_update(prop, NC_MOVIECLIP | ND_DISPLAY, NULL);
+
+	/* auto keyframing */
+	prop = RNA_def_property(srna, "use_auto_keying", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", PLANE_TRACK_AUTOKEY);
+	RNA_def_property_ui_text(prop, "Auto Keyframe", "Automatic keyframe insertion when moving plane corners");
+	RNA_def_property_ui_icon(prop, ICON_REC, 0);
 }
 
 static void rna_def_trackingStabilization(BlenderRNA *brna)

@@ -15,20 +15,32 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
+ * Contributor(s): Blender Foundation
+ *
  * ***** END GPL LICENSE BLOCK *****
+ *
  */
 
-#ifndef __BLI_CONVEXHULL2D__
-#define __BLI_CONVEXHULL2D__
-
-/** \file BLI_convexhull2d.h
- *  \ingroup bli
+/** \file blender/blenloader/intern/versioning_defaults.c
+ *  \ingroup blenloader
  */
 
-int BLI_convexhull_2d_sorted(const float (*points)[2], const int n, int r_points[]);
-int BLI_convexhull_2d(const float (*points)[2], const int n, int r_points[]);
+#include "BLI_utildefines.h"
 
-float BLI_convexhull_aabb_fit_hull_2d(const float (*points_hull)[2], unsigned int n);
-float BLI_convexhull_aabb_fit_points_2d(const float (*points)[2], unsigned int n);
+#include "DNA_scene_types.h"
+#include "DNA_userdef_types.h"
 
-#endif  /* __BLI_CONVEXHULL2D__ */
+#include "BKE_main.h"
+
+#include "BLO_readfile.h"
+
+/* Update defaults in startup.blend, without having to save and embed the file.
+ * This function can be emptied each time the startup.blend is updated. */
+void BLO_update_defaults_startup_blend(Main *main)
+{
+	Scene *scene;
+
+	for (scene = main->scene.first; scene; scene = scene->id.next)
+		scene->r.im_format.planes = R_IMF_PLANES_RGBA;
+}
+
