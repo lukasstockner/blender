@@ -291,16 +291,17 @@ Mat pseudoInverse(const Mat &matrix) {
 void SelectKeyframesBasedOnGRICAndVariance(
     const Tracks &tracks,
     const std::vector<CameraIntrinsics> &intrinsics,
+    int camera,
     vector<int> &keyframes) {
   // Mirza Tahir Ahmed, Matthew N. Dailey
   // Robust key frame extraction for 3D reconstruction from video streams
   //
   // http://www.cs.ait.ac.th/~mdailey/papers/Tahir-KeyFrame.pdf
 
-  static const int kSelectionCamera = 0;
-  const CameraIntrinsics &selection_intrinsics = intrinsics[kSelectionCamera];
+  Tracks camera_tracks(tracks.MarkersForCamera(camera));
+  const CameraIntrinsics &camera_intrinsics = intrinsics[camera];
 
-  int max_image = tracks.MaxImage();
+  int max_image = camera_tracks.MaxImage();
   int next_keyframe = 1;
   int number_keyframes = 0;
 
@@ -312,7 +313,7 @@ void SelectKeyframesBasedOnGRICAndVariance(
   const double Tmin = 0.8;
   const double Tmax = 1.0;
 
-  Mat3 N = IntrinsicsNormalizationMatrix(selection_intrinsics);
+  Mat3 N = IntrinsicsNormalizationMatrix(camera_intrinsics);
   Mat3 N_inverse = N.inverse();
 
   double Sc_best = std::numeric_limits<double>::max();
@@ -332,11 +333,11 @@ void SelectKeyframesBasedOnGRICAndVariance(
          candidate_image++) {
       // Conjunction of all markers from both keyframes
       vector<Marker> all_markers =
-        tracks.MarkersInBothImages(current_keyframe, candidate_image);
+        camera_tracks.MarkersInBothImages(current_keyframe, candidate_image);
 
       // Match keypoints between frames current_keyframe and candidate_image
       vector<Marker> tracked_markers =
-        tracks.MarkersForTracksInBothImages(current_keyframe, candidate_image);
+        camera_tracks.MarkersForTracksInBothImages(current_keyframe, candidate_image);
 
       // Correspondences in normalized space
       Mat x1, x2;
@@ -364,8 +365,8 @@ void SelectKeyframesBasedOnGRICAndVariance(
         continue;
 
       Mat3 H, F;
-      ComputeHomographyFromCorrespondences(x1, x2, selection_intrinsics, &H);
-      ComputeFundamentalFromCorrespondences(x1, x2, selection_intrinsics, &F);
+      ComputeHomographyFromCorrespondences(x1, x2, camera_intrinsics, &H);
+      ComputeFundamentalFromCorrespondences(x1, x2, camera_intrinsics, &F);
 
       // TODO(sergey): STEP 2: Discard outlier matches
 
@@ -377,9 +378,9 @@ void SelectKeyframesBasedOnGRICAndVariance(
       F_e.resize(x1.cols());
       for (int i = 0; i < x1.cols(); i++) {
         Vec2 current_x1 =
-          NorrmalizedToPixelSpace(Vec2(x1(0, i), x1(1, i)), selection_intrinsics);
+          NorrmalizedToPixelSpace(Vec2(x1(0, i), x1(1, i)), camera_intrinsics);
         Vec2 current_x2 =
-          NorrmalizedToPixelSpace(Vec2(x2(0, i), x2(1, i)), selection_intrinsics);
+          NorrmalizedToPixelSpace(Vec2(x2(0, i), x2(1, i)), camera_intrinsics);
 
         H_e(i) = SymmetricGeometricDistance(H, current_x1, current_x2);
         F_e(i) = SymmetricEpipolarDistance(F, current_x1, current_x2);
@@ -449,8 +450,8 @@ void SelectKeyframesBasedOnGRICAndVariance(
       reconstruction.InsertView(current_keyframe,
                                 Mat3::Identity(),
                                 Vec3::Zero(),
-                                kSelectionCamera);
-      reconstruction.InsertView(candidate_image, R, t, kSelectionCamera);
+                                camera);
+      reconstruction.InsertView(candidate_image, R, t, camera);
 
       // Reconstruct 3D points
       int intersects_total = 0, intersects_success = 0;
@@ -582,6 +583,13 @@ void SelectKeyframesBasedOnGRICAndVariance(
       }
     }
   }
+}
+
+void SelectKeyframesBasedOnGRICAndVariance(
+    const Tracks &tracks,
+    const std::vector<CameraIntrinsics> &intrinsics,
+    vector<int> &keyframes) {
+  SelectKeyframesBasedOnGRICAndVariance(tracks, intrinsics, 0, keyframes);
 }
 
 }  // namespace libmv

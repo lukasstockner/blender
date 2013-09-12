@@ -29,9 +29,9 @@
 
 namespace libmv {
 
-// Get list of all images from camera 0 which are good enough to be as keyframes
-// for camera reconstruction. Based on GRIC criteria and uses Pollefeys'
-// approach for correspondence ratio constraint.
+// Get list of all images from given camera which are good enough to be as
+// keyframes for camera reconstruction. Based on GRIC criteria and uses
+// Pollefeys' approach for correspondence ratio constraint.
 //
 // Additional criteria based on reconstruction variance are used. This means if
 // correspondence and GRIC criteria are passed, two-frame reconstruction using
@@ -47,6 +47,12 @@ namespace libmv {
 //
 // TODO(sftrabbit): Use algorithm that finds images of high variance from
 //                  multiple cameras.
+void SelectKeyframesBasedOnGRICAndVariance(
+    const Tracks &tracks,
+    const std::vector<CameraIntrinsics> &intrinsics,
+    int camera,
+    vector<int> &keyframes);
+
 void SelectKeyframesBasedOnGRICAndVariance(
     const Tracks &tracks,
     const std::vector<CameraIntrinsics> &intrinsics,
