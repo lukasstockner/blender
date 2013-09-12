@@ -115,6 +115,9 @@ typedef struct Brush {
 
 	float unprojected_radius;
 
+	float sharp_threshold;
+	int pad;
+
 	float add_col[3];
 	float sub_col[3];
 

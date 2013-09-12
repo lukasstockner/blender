@@ -1031,6 +1031,13 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Mask Stencil Dimensions", "Dimensions of mask stencil in viewport");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
+	prop = RNA_def_property(srna, "sharp_threshold", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0, 100.0);
+	RNA_def_property_ui_range(prop, 0.0, 1.0, 0.01, 3);
+	RNA_def_property_float_sdna(prop, NULL, "sharp_threshold");
+	RNA_def_property_ui_text(prop, "Sharp Threshold", "Threshold below which, no sharpening is done");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
 	/* flag */
 	prop = RNA_def_property(srna, "use_airbrush", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_AIRBRUSH);

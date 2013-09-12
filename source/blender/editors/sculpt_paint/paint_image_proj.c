@@ -3883,20 +3883,22 @@ static void do_projectpaint_soften_f(ProjPaintState *ps, ProjPixel *projPixel, f
 		mul_v4_fl(rgba, 1.0f / (float)accum_tot);
 
 		if (ps->mode == BRUSH_STROKE_INVERT) {
-			float alpha;
-
 			/* subtract blurred image from normal image gives high pass filter */
 			sub_v3_v3v3(rgba, projPixel->pixel.f_pt, rgba);
 
 			/* now rgba_ub contains the edge result, but this should be converted to luminance to avoid
 			 * colored speckles appearing in final image, and also to check for threshhold */
 			rgba[0] = rgba[1] = rgba[2] = rgb_to_grayscale(rgba);
-			alpha = projPixel->pixel.f_pt[3];
-			projPixel->pixel.f_pt[3] = rgba[3] = mask;
+			if (fabs(rgba[0]) > ps->brush->sharp_threshold) {
+				float alpha = projPixel->pixel.f_pt[3];
+				projPixel->pixel.f_pt[3] = rgba[3] = mask;
 
-			/* add to enhance edges */
-			blend_color_add_float(rgba, projPixel->pixel.f_pt, rgba);
-			projPixel->pixel.f_pt[3] = alpha;
+				/* add to enhance edges */
+				blend_color_add_float(rgba, projPixel->pixel.f_pt, rgba);
+				projPixel->pixel.f_pt[3] = alpha;
+			}
+			else
+				return;
 		} else {
 			blend_color_interpolate_float(rgba, rgba, projPixel->pixel.f_pt, mask);
 		}
@@ -3932,7 +3934,7 @@ static void do_projectpaint_soften(ProjPaintState *ps, ProjPixel *projPixel, flo
 		mul_v4_fl(rgba, 1.0f / (float)accum_tot);
 
 		if (ps->mode == BRUSH_STROKE_INVERT) {
-			float rgba_pixel[4], alpha;
+			float rgba_pixel[4];
 
 			straight_uchar_to_premul_float(rgba_pixel, projPixel->pixel.ch_pt);
 
@@ -3941,15 +3943,20 @@ static void do_projectpaint_soften(ProjPaintState *ps, ProjPixel *projPixel, flo
 			/* now rgba_ub contains the edge result, but this should be converted to luminance to avoid
 			 * colored speckles appearing in final image, and also to check for threshhold */
 			rgba[0] = rgba[1] = rgba[2] = rgb_to_grayscale(rgba);
-			alpha = rgba_pixel[3];
-			rgba[3] = rgba_pixel[3] = mask;
+			if (fabs(rgba[0]) > ps->brush->sharp_threshold) {
+				float alpha = rgba_pixel[3];
+				rgba[3] = rgba_pixel[3] = mask;
 
-			/* add to enhance edges */
-			blend_color_add_float(rgba, rgba_pixel, rgba);
+				/* add to enhance edges */
+				blend_color_add_float(rgba, rgba_pixel, rgba);
 
-			rgba[3] = alpha;
-			premul_float_to_straight_uchar(rgba_ub, rgba);
-		} else {
+				rgba[3] = alpha;
+				premul_float_to_straight_uchar(rgba_ub, rgba);
+			}
+			else
+				return;
+		}
+		else {
 			premul_float_to_straight_uchar(rgba_ub, rgba);
 			blend_color_interpolate_byte(rgba_ub, rgba_ub, projPixel->pixel.ch_pt, mask);
 		}

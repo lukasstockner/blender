@@ -765,8 +765,11 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
                     row.prop(brush, "use_space_attenuation", toggle=True, text="", icon='LOCKED')
                 else:
                     row.prop(brush, "use_space_attenuation", toggle=True, text="", icon='UNLOCKED')
-            col.separator()
-            col.row().prop(brush, "direction", expand=True)
+
+            if brush.image_tool == 'SOFTEN':
+                col.separator()
+                col.row().prop(brush, "direction", expand=True)
+                col.row().prop(brush, "sharp_threshold")
             
             if brush.image_tool == 'CLONE':
                 col.separator()

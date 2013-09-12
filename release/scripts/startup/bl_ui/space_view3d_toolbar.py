@@ -778,8 +778,10 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                 else:
                     row.prop(brush, "use_space_attenuation", toggle=True, text="", icon='UNLOCKED')
 
-            col.separator()
-            col.row().prop(brush, "direction", expand=True)
+            if brush.image_tool == 'SOFTEN':
+                col.separator()
+                col.row().prop(brush, "direction", expand=True)
+                col.row().prop(brush, "sharp_threshold")
 
             # use_accumulate
             if capabilities.has_accumulate:
