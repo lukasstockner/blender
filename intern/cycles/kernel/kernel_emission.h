@@ -70,6 +70,8 @@ __device_noinline float3 direct_emissive_eval(KernelGlobals *kg, float rando,
 	return eval;
 }
 
+#ifdef __VOLUME__
+/* ToDo: Remove these 2 duplicate functions */
 __device float sigma_from_value_(float value, float geom_factor)
 {
 #if 0
@@ -107,10 +109,9 @@ __device float get_sigma_sample_(KernelGlobals *kg, ShaderData *sd, float randv,
 
 	return sigma_from_value_(v, kernel_data.integrator.volume_density_factor);
 }
+#endif
 
-
-
-__device bool direct_emission(KernelGlobals *kg, ShaderData *sd, int lindex,
+__device_noinline bool direct_emission(KernelGlobals *kg, ShaderData *sd, int lindex,
 	float randt, float rando, float randu, float randv, Ray *ray, BsdfEval *eval,
 	bool *is_lamp, int bounce)
 {
@@ -147,7 +148,7 @@ __device bool direct_emission(KernelGlobals *kg, ShaderData *sd, int lindex,
 
 	if(ls.shader & SHADER_USE_MIS) {
 		/* multiple importance sampling */
-#if 1
+#ifdef __VOLUME__
 		// with respect to volume pdf
 		// W = (pdf_dir*pdf_dir) / (pdf_indirect*pdf_indirect + pdf_dir*pdf_dir)
 		// pdf_dir =  pre_hit_bsdf_pdf * 1.0  *  1.0f / (triangle_area) ?
@@ -218,7 +219,7 @@ __device bool direct_emission(KernelGlobals *kg, ShaderData *sd, int lindex,
 
 /* Indirect Primitive Emission */
 
-__device float3 indirect_primitive_emission(KernelGlobals *kg, ShaderData *sd, float t, int path_flag, float bsdf_pdf, float volume_pdf = 0.0f)
+__device_noinline float3 indirect_primitive_emission(KernelGlobals *kg, ShaderData *sd, float t, int path_flag, float bsdf_pdf, float volume_pdf = 0.0f)
 {
 	/* evaluate emissive closure */
 	float3 L = shader_emissive_eval(kg, sd);
@@ -231,10 +232,11 @@ __device float3 indirect_primitive_emission(KernelGlobals *kg, ShaderData *sd, f
 		/* multiple importance sampling, get triangle light pdf,
 		 * and compute weight with respect to BSDF pdf */
 		float pdf = triangle_light_pdf(kg, sd->Ng, sd->I, t);
-//		float mis_weight = power_heuristic(bsdf_pdf, pdf);
-//		float mis_weight = power_heuristic(bsdf_pdf, pdf / volume_pdf);
+#ifdef __VOLUME__
 		float mis_weight = power_heuristic(bsdf_pdf * volume_pdf, pdf);
-
+#else
+		float mis_weight = power_heuristic(bsdf_pdf, pdf);
+#endif
 		return L*mis_weight;
 	}
 
