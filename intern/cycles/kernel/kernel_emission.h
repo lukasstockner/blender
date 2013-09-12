@@ -94,9 +94,7 @@ __device float get_sigma_sample_(KernelGlobals *kg, ShaderData *sd, float randv,
 #ifdef __MULTI_CLOSURE__
         int sampled = 0;        
 
-        if(vsd.num_closure > 1) {
-		// do nothing, WIP
-	}
+        // if(vsd.num_closure > 1)
 
         const ShaderClosure *sc = &sd->closure[sampled];
 

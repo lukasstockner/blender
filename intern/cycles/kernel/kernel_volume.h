@@ -52,9 +52,7 @@ __device float get_sigma_sample(KernelGlobals *kg, ShaderData *sd, float randv, 
 #ifdef __MULTI_CLOSURE__
        int sampled = 0;
 
-       if(sd->num_closure > 1) {
-               // do nothing, WIP
-       }
+       // if(sd->num_closure > 1)
 
        const ShaderClosure *sc = &sd->closure[sampled];
 
@@ -97,9 +95,7 @@ __device  float3 kernel_volume_get_final_homogeneous_extinction_tsd(KernelGlobal
 #ifdef __MULTI_CLOSURE__
 		int sampled = 0;        
 
-		if(sd->num_closure > 1) {
-			// do nothing, WIP
-		}
+		// if(sd->num_closure > 1)
 
 		const ShaderClosure *sc = &sd->closure[sampled];
 
@@ -146,7 +142,6 @@ __device float kernel_volume_homogeneous_pdf( KernelGlobals *kg, ShaderData *sd,
 #endif
 }
 
-
 __device float3 kernel_volume_get_final_homogeneous_extinction(KernelGlobals *kg, float trandp, int media_volume_shader)
 {
 	ShaderData tsd;
@@ -173,9 +168,7 @@ __device float3 kernel_volume_get_final_homogeneous_extinction(KernelGlobals *kg
 #ifdef __MULTI_CLOSURE__
 		int sampled = 0;        
 
-		if(tsd.num_closure > 1) {
-			// do nothing, WIP
-		}
+		// if(tsd.num_closure > 1)
 
 		const ShaderClosure *sc = &tsd.closure[sampled];
 
@@ -752,7 +745,6 @@ __device float3 kernel_volume_get_shadow_attenuation(KernelGlobals *kg, RNG *rng
 
 __device bool shadow_blocked_new(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential, int sample, PathState *state, Ray *ray, float3 *shadow, int media_volume_shader, float *volume_pdf, int bounces)
 {
-#if 1
 	*shadow = make_float3(1.0f, 1.0f, 1.0f);
 	*volume_pdf = 1.0f;
 	float tmp_volume_pdf;
@@ -810,11 +802,9 @@ __device bool shadow_blocked_new(KernelGlobals *kg, RNG *rng, int rng_offset, RN
 //				if(!scene_intersect(kg, ray, PATH_RAY_SHADOW_TRANSPARENT, &isect)) {
 				if(!scene_intersect(kg, ray, visibility, &isect)) {
 #endif
-
-#ifdef __VOLUME__
 					float3 attenuation = kernel_volume_get_shadow_attenuation(kg, rng, rng_offset, rng_congruential, sample, ray, media_volume_shader, &tmp_volume_pdf);
 					throughput *= attenuation;
-#endif
+
 					*shadow *= throughput;
 					*volume_pdf *= tmp_volume_pdf;
 					return false;
@@ -827,49 +817,42 @@ __device bool shadow_blocked_new(KernelGlobals *kg, RNG *rng, int rng_offset, RN
 					*volume_pdf = 1.0f;
 					return true;
 				}
-#ifdef __VOLUME__
+
 				Ray v_ray = *ray;
 				v_ray.t = isect.t;
 				float3 attenuation = kernel_volume_get_shadow_attenuation(kg, rng, rng_offset, rng_congruential, sample, &v_ray, media_volume_shader, &tmp_volume_pdf);
 				*volume_pdf *= tmp_volume_pdf;
-#endif
 
 				ShaderData sd;
 				shader_setup_from_ray(kg, &sd, &isect, ray, bounces);
 				shader_eval_surface(kg, &sd, 0.0f, PATH_RAY_SHADOW, SHADER_CONTEXT_MAIN);
 
-#ifdef __VOLUME__
 				throughput *= shader_bsdf_transparency(kg, &sd) * attenuation;
-#else
-				throughput *= shader_bsdf_transparency(kg, &sd);
-#endif
 
 				ray->P = ray_offset(sd.P, -sd.Ng);
 				if(ray->t != FLT_MAX)
 					ray->D = normalize_len(Pend - ray->P, &ray->t);
 
 				bounce++;
-#ifdef __VOLUME__
+
 //				swap_media();
 				if (media_volume_shader == kernel_data.background.shader)
 					media_volume_shader = sd.shader;
 				else
 					media_volume_shader = kernel_data.background.shader;
-#endif
 
 			}
 		}
 	}
 #endif
-#ifdef __VOLUME__
+
 	if(! result){
 		float3 attenuation = kernel_volume_get_shadow_attenuation(kg, rng, rng_offset, rng_congruential, sample, ray, media_volume_shader, &tmp_volume_pdf);
 		*shadow *= attenuation;
 		*volume_pdf *= tmp_volume_pdf;
 	}
-#endif
+
 	return result;
-#endif
 }
 
 
@@ -942,7 +925,7 @@ __device int kernel_path_trace_volume(KernelGlobals *kg, RNG *rng, int rng_offse
                                 light_ray.time = vsd.time;
 #endif
 
-#ifdef __MULTI_LIGHT__
+#ifdef __MULTI_LIGHT__ /* ToDo: Fix, Branched Path trace feature */
 				/* index -1 means randomly sample from distribution */
 				int i = (kernel_data.integrator.num_distribution)? -1: 0;
 
