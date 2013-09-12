@@ -1015,7 +1015,13 @@ static void region_rect_recursive(wmWindow *win, ScrArea *sa, ARegion *ar, rcti 
 			/* Make sure we don't hide the tool props region when the toolbar is hidden.
 			 * This only works nicely with overlapping regions. */
 			if (ar->overlap && ar->regiontype == RGN_TYPE_TOOL_PROPS && ar->prev && (ar->prev->flag & RGN_FLAG_HIDDEN || ar->prev->flag & RGN_FLAG_TOO_SMALL)) {
-					ar->winrct.xmax = prefsizex - 1;
+					Panel *pa = NULL;
+					for (pa = ar->panels.first; pa; pa = pa->next) {
+						if (pa->type && strcmp(pa->type->idname, "VIEW3D_PT_last_operator") == 0)
+							break;
+					}
+					if (pa && pa->flag & PNL_PINNED)
+						ar->winrct.xmax = prefsizex - 1;
 			}
 		}
 	}

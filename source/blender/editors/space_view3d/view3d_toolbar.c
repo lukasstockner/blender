@@ -90,6 +90,15 @@ static void view3d_panel_operator_redo_operator(const bContext *C, Panel *pa, wm
 }
 
 /* TODO de-duplicate redo panel functions - campbell */
+static void view3d_panel_operator_redo_header(const bContext *UNUSED(C), Panel *pa)
+{
+	uiLayout *layout = pa->layout;
+	
+	uiBlockSetEmboss(uiLayoutGetBlock(layout), UI_EMBOSSN);
+	uiDefIconButBitS(uiLayoutGetBlock(layout), TOG, PNL_PINNED, 0, pa->flag & PNL_PINNED ? ICON_PINNED : ICON_UNPINNED, 0, 0, UI_UNIT_X, UI_UNIT_Y, &pa->flag, 0.f, 0.f, 0.f, 0.f, "When this panel is pinned it is not hidden when the toolbar is hidden");
+	uiBlockSetEmboss(uiLayoutGetBlock(layout), UI_EMBOSS);
+}
+
 static void view3d_panel_operator_redo(const bContext *C, Panel *pa)
 {
 	wmOperator *op = WM_operator_last_redo(C);
@@ -344,6 +353,7 @@ void view3d_tool_props_register(ARegionType *art)
 	strcpy(pt->idname, "VIEW3D_PT_last_operator");
 	strcpy(pt->label, N_("Last Operator"));
 	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
+	pt->draw_header = view3d_panel_operator_redo_header;
 	pt->draw = view3d_panel_operator_redo;
 	BLI_addtail(&art->paneltypes, pt);
 }

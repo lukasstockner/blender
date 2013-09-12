@@ -284,6 +284,7 @@ typedef enum {
 #define PNL_NEW_ADDED       16
 #define PNL_FIRST           32
 #define PNL_CUSTOM_PANEL	64
+#define PNL_PINNED			128
 
 /* Drawing
  *
