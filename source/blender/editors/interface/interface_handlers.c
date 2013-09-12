@@ -7710,6 +7710,7 @@ static void ui_do_drag_button(const bContext *C, const wmEvent *event, ARegion *
 	while (dunits_iter != 0) {
 		oli_iter = dunits < 0 ? oli_iter->prev : oli_iter->next;
 		if (oli_iter == NULL) break;
+		// TODO: also take into account closed groups
 		if (strcmp(oli_iter->context, CTX_data_mode_string(C)) != 0)
 			extra_units += (dunits < 0 ? -1 : 1);
 		dunits_iter += (dunits < 0 ? 1 : -1);
@@ -7778,7 +7779,6 @@ static int ui_handler_region_drag_shelf(bContext *C, const wmEvent *event, void 
 	return retval;
 }
 
-//static void ui_handler_region_drag_shelf_remove(bContext *C, void *userdata)
 static void ui_handler_region_drag_shelf_remove(bContext *UNUSED(C), void *UNUSED(userdata))
 {
 //	ARegion *ar = userdata;
@@ -7814,9 +7814,11 @@ static void region_activate_drag_state(const bContext *C, ARegion *ar, uiHandleR
 			OperatorListItem *oli = NULL;
 			uiBut *but = ui_but_find_activated(ar);
 			
-			// TODO: the divider buttons don't match these checks, so they can't be dragged yet
-			if (but->optype) {
-				oli = uiOperatorListItemPresent(&ar->operators, but->optype->idname, but->opptr ? but->opptr->data : NULL, CTX_data_mode_string(C));
+			if (but->optype || but->func_arg1) {
+				if (but->optype)
+					oli = uiOperatorListItemPresent(&ar->operators, but->optype->idname, but->opptr ? but->opptr->data : NULL, CTX_data_mode_string(C));
+				else
+					oli = (OperatorListItem*)but->func_arg1;
 				
 				if (oli) {
 					data = MEM_callocN(sizeof(uiHandleRegionDragData), "uiHandleRegionDragData");
@@ -7868,9 +7870,7 @@ static int ui_handler_region(bContext *C, const wmEvent *event, void *UNUSED(use
 		retval = ui_handle_list_event(C, event, ar);
 
 	/* only if there's no drag going on inside the region */
-	if (retval == WM_UI_HANDLER_CONTINUE
-//		&& (ar->dragdata == NULL || (uiHandleRegionDragData*)(ar->dragdata)->state == REGION_STATE_DRAG_BUTTON_WAITING)
-		)
+	if (retval == WM_UI_HANDLER_CONTINUE)
 	{
 		if (but)
 			retval = ui_handle_button_event(C, event, but);

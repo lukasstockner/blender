@@ -701,6 +701,8 @@ PointerRNA uiItemFullO_ptr(uiLayout *layout, wmOperatorType *ot, const char *nam
 	if ((!(flag & UI_ITEM_O_SINGLE_UNIT) || flag & UI_ITEM_O_SHORTCUT)
 		&& block->flag & UI_BLOCK_SHORTCUTS)
 		w = ui_text_icon_width(layout, "|", icon, 0);
+	else if (flag & UI_ITEM_O_SINGLE_UNIT)
+		w = UI_UNIT_X;
 	else
 		w = ui_text_icon_width(layout, name, icon, 0);
 

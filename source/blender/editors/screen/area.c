@@ -1855,18 +1855,21 @@ void static menubar_fold_divider(bContext *UNUSED(C), void *arg1, void *UNUSED(a
 	oli->flag ^= OLI_DIVIDER_CLOSED;
 }
 
-void static menubar_draw_oli(uiLayout *row, OperatorListItem *oli, int *draw_buttons)
+void static menubar_draw_oli(const bContext *C, uiLayout *row, OperatorListItem *oli, int *draw_buttons)
 {
 	uiBlock *block = uiLayoutGetBlock(row);
 	uiBut *but;
-	
+
 	if (oli && row) {
 		if (oli->flag & OLI_DIVIDER) {
 			uiItemS(row);
 			uiBlockSetEmboss(block, UI_EMBOSSN);
-//			uiDefIconButBitI(block, TOGBUT, OLI_DIVIDER_CLOSED, 0, (oli->flag & OLI_DIVIDER_CLOSED ? ICON_DISCLOSURE_TRI_RIGHT : ICON_DISCLOSURE_TRI_DOWN), 0, 0, UI_UNIT_X/2, UI_UNIT_Y, &(oli->flag), 0.f, 0.f, 0.f, 0.f, "When checked shows the buttons to the right");
-			but = uiDefIconBut(block, BUT, 0, (oli->flag & OLI_DIVIDER_CLOSED ? ICON_DISCLOSURE_TRI_RIGHT : ICON_DISCLOSURE_TRI_DOWN), 0, 0, UI_UNIT_X/3, UI_UNIT_Y, NULL, 0, 0, 0, 0, "When checked shows the buttons to the right");
+			but = uiDefIconBut(block, BUT, -1, (oli->flag & OLI_DIVIDER_CLOSED ? ICON_DISCLOSURE_TRI_RIGHT : ICON_DISCLOSURE_TRI_DOWN), 0, 0, UI_UNIT_X/3, UI_UNIT_Y, NULL, 0, 0, 0, 0, "When checked shows the buttons to the right");
+
+			/* N.B. func_arg1 is also used for the drag system */
 			uiButSetFunc(but, menubar_fold_divider, oli, NULL);
+			/* Hack to make the button system not catch drag events for non-operator buttons */
+			uiButSetDragOp(but, (wmOperatorType*)oli);
 			uiBlockSetEmboss(block, UI_EMBOSS);
 			uiItemS(row);
 			
@@ -1875,7 +1878,17 @@ void static menubar_draw_oli(uiLayout *row, OperatorListItem *oli, int *draw_but
 		else {
 			if (*draw_buttons) {
 				wmOperatorType *ot = WM_operatortype_find(oli->optype_idname, TRUE);
-				uiItemFullO_ptr(row, ot, "", ICON_AUTOMATIC, IDP_CopyProperty(oli->properties), oli->opcontext, 0);
+				int icon = ICON_NONE;
+				PointerRNA ptr;
+				
+				RNA_pointer_create(NULL, &RNA_Operator, oli->properties, &ptr);
+				icon = ot->icon ? ot->icon(C, &ptr) : ot->default_icon;
+				
+				if (icon != ICON_NONE)
+					uiItemFullO_ptr(row, ot, "", ICON_AUTOMATIC, IDP_CopyProperty(oli->properties), oli->opcontext, 0);
+				else
+					uiItemFullO_ptr(row, ot, ot->name, ICON_NONE, IDP_CopyProperty(oli->properties), oli->opcontext, UI_ITEM_O_SINGLE_UNIT);
+					
 			}
 		}
 	}
@@ -1918,27 +1931,27 @@ void ED_region_menubar(const bContext *C, ARegion *ar)
 				int cur_index = BLI_findindex(&ar->operators, oli_dragged);
 				// draw it before or after the button that currently has the new index
 				if (newindex == cur_index) {
-					menubar_draw_oli(row, oli_iter, &draw_buttons);
+					menubar_draw_oli(C, row, oli_iter, &draw_buttons);
 				}
 				else if (newindex < cur_index) {
-					menubar_draw_oli(row, oli_dragged, &draw_buttons);
+					menubar_draw_oli(C, row, oli_dragged, &draw_buttons);
 					if (strcmp(oli_iter->context, CTX_data_mode_string(C)) == 0)
-						menubar_draw_oli(row, oli_iter, &draw_buttons);
+						menubar_draw_oli(C, row, oli_iter, &draw_buttons);
 				}
 				else if (newindex > cur_index) {
 					if (strcmp(oli_iter->context, CTX_data_mode_string(C)) == 0)
-						menubar_draw_oli(row, oli_iter, &draw_buttons);
-					menubar_draw_oli(row, oli_dragged, &draw_buttons);
+						menubar_draw_oli(C, row, oli_iter, &draw_buttons);
+					menubar_draw_oli(C, row, oli_dragged, &draw_buttons);
 				}
 			}
 			// otherwise just draw normally
 			else if (oli_iter != oli_dragged)
 				if (strcmp(oli_iter->context, CTX_data_mode_string(C)) == 0)
-					menubar_draw_oli(row, oli_iter, &draw_buttons);
+					menubar_draw_oli(C, row, oli_iter, &draw_buttons);
 		}
 		else
 			if (strcmp(oli_iter->context, CTX_data_mode_string(C)) == 0)
-				menubar_draw_oli(row, oli_iter, &draw_buttons);
+				menubar_draw_oli(C, row, oli_iter, &draw_buttons);
 		i++;
 	}
 	
