@@ -3858,15 +3858,6 @@ static void do_projectpaint_smear_f(ProjPaintState *ps, ProjPixel *projPixel, fl
 	BLI_linklist_prepend_arena(smearPixels_f, (void *)projPixel, smearArena);
 }
 
-/* do_projectpaint_soften for float & byte
- */
-static float inv_pow2(float f)
-{
-	f = 1.0f - f;
-	f = f * f;
-	return 1.0f - f;
-}
-
 static void do_projectpaint_soften_f(ProjPaintState *ps, ProjPixel *projPixel, float mask,
                                      MemArena *softenArena, LinkNode **softenPixels)
 {
@@ -3874,9 +3865,6 @@ static void do_projectpaint_soften_f(ProjPaintState *ps, ProjPixel *projPixel, f
 	unsigned int i;
 
 	float *rgba = projPixel->newColor.f;
-
-	/* sigh, mask values tend to need to be a _lot_ stronger with blur */
-	mask  = inv_pow2(mask);
 
 	/* rather then painting, accumulate surrounding colors */
 	zero_v4(rgba);
@@ -3893,7 +3881,20 @@ static void do_projectpaint_soften_f(ProjPaintState *ps, ProjPixel *projPixel, f
 
 	if (LIKELY(accum_tot != 0)) {
 		mul_v4_fl(rgba, 1.0f / (float)accum_tot);
-		blend_color_interpolate_float(rgba, rgba, projPixel->pixel.f_pt, mask);
+
+		if (ps->mode == BRUSH_STROKE_INVERT) {
+			/* subtract blurred image from normal image gives high pass filter */
+			blend_color_sub_float(rgba, projPixel->pixel.f_pt, rgba);
+			/* now rgba_ub contains the edge result, but this should be converted to luminance to avoid
+			 * colored speckles appearing in final image, and also to check for threshhold */
+			rgba[0] = rgba[1] = rgba[2] = rgb_to_grayscale(rgba);
+			rgba[3] = mask;
+			/* add to enhance edges */
+			blend_color_add_float(rgba, projPixel->pixel.f_pt, rgba);
+		} else {
+			blend_color_interpolate_float(rgba, rgba, projPixel->pixel.f_pt, mask);
+		}
+
 		BLI_linklist_prepend_arena(softenPixels, (void *)projPixel, softenArena);
 	}
 }
@@ -3905,9 +3906,6 @@ static void do_projectpaint_soften(ProjPaintState *ps, ProjPixel *projPixel, flo
 	unsigned int i;
 
 	float rgba[4];  /* convert to byte after */
-
-	/* sigh, mask values tend to need to be a _lot_ stronger with blur */
-	mask  = inv_pow2(mask);
 
 	/* rather then painting, accumulate surrounding colors */
 	zero_v4(rgba);
@@ -3926,9 +3924,21 @@ static void do_projectpaint_soften(ProjPaintState *ps, ProjPixel *projPixel, flo
 		unsigned char *rgba_ub = projPixel->newColor.ch;
 
 		mul_v4_fl(rgba, 1.0f / (float)accum_tot);
+
 		premul_float_to_straight_uchar(rgba_ub, rgba);
 
-		blend_color_interpolate_byte(rgba_ub, rgba_ub, projPixel->pixel.ch_pt, mask);
+		if (ps->mode == BRUSH_STROKE_INVERT) {
+			/* subtract blurred image from normal image gives high pass filter */
+			blend_color_sub_byte(rgba_ub, projPixel->pixel.ch_pt, rgba_ub);
+			/* now rgba_ub contains the edge result, but this should be converted to luminance to avoid
+			 * colored speckles appearing in final image, and also to check for threshhold */
+			rgba_ub[0] = rgba_ub[1] = rgba_ub[2] = rgb_to_grayscale_byte(rgba_ub);
+			rgba_ub[3] = mask * 255;
+			/* add to enhance edges */
+			blend_color_add_byte(rgba_ub, projPixel->pixel.ch_pt, rgba_ub);
+		} else {
+			blend_color_interpolate_byte(rgba_ub, rgba_ub, projPixel->pixel.ch_pt, mask);
+		}
 		BLI_linklist_prepend_arena(softenPixels, (void *)projPixel, softenArena);
 	}
 }
