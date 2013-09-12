@@ -112,131 +112,133 @@ void ModalSolver(const Tracks &tracks,
   ceres::AngleAxisToQuaternion(&zero_rotation(0), &quaternion(0));
 
   for (int image = 0; image <= max_image; ++image) {
-    vector<Marker> all_markers = tracks.MarkersInImage(image);
+    if (tracks.CameraFromImage(image) == kModalCamera) {
+      vector<Marker> all_markers = tracks.MarkersInImage(image);
 
-    ModalSolverLogProress(update_callback, (float) image / max_image);
+      ModalSolverLogProress(update_callback, (float) image / max_image);
 
-    // Skip empty images without doing anything.
-    if (all_markers.size() == 0) {
-      LG << "Skipping image: " << image;
-      continue;
-    }
-
-    // STEP 1: Estimate rotation analytically.
-    Mat3 current_R;
-    ceres::QuaternionToRotation(&quaternion(0), &current_R(0, 0));
-    // Construct point cloud for current and previous images,
-    // using markers appear at current image for which we know
-    // 3D positions.
-    Mat x1, x2;
-    for (int i = 0; i < all_markers.size(); ++i) {
-      Marker &marker = all_markers[i];
-      EuclideanPoint *point = reconstruction->PointForTrack(marker.track);
-      if (point) {
-        Vec3 X;
-        ProjectMarkerOnSphere(marker, X);
-
-        int last_column = x1.cols();
-        x1.conservativeResize(3, last_column + 1);
-        x2.conservativeResize(3, last_column + 1);
-
-        x1.col(last_column) = current_R * point->X;
-        x2.col(last_column) = X;
+      // Skip empty images without doing anything.
+      if (all_markers.size() == 0) {
+        LG << "Skipping image: " << image;
+        continue;
       }
-    }
 
-    if (x1.cols() >= 2) {
-      Mat3 delta_R;
-
-      // Compute delta rotation matrix for two point clouds.
-      // Could be a bit confusing at first glance, but order
-      // of clouds is indeed so.
-      GetR_FixedCameraCenter(x2, x1, 1.0, &delta_R);
-
-      // Convert delta rotation form matrix to final image
-      // rotation stored in a quaternion
-      Vec3 delta_angle_axis;
-      ceres::RotationMatrixToAngleAxis(&delta_R(0, 0), &delta_angle_axis(0));
-
-      Vec3 current_angle_axis;
-      ceres::QuaternionToAngleAxis(&quaternion(0), &current_angle_axis(0));
-
-      Vec3 angle_axis = current_angle_axis + delta_angle_axis;
-
-      ceres::AngleAxisToQuaternion(&angle_axis(0), &quaternion(0));
-
-      LG << "Analytically computed quaternion "
-         << quaternion.transpose();
-    }
-
-    // STEP 2: Refine rotation with Ceres.
-    ceres::Problem problem;
-
-    ceres::LocalParameterization* quaternion_parameterization =
-        new ceres::QuaternionParameterization;
-
-    int num_residuals = 0;
-    for (int i = 0; i < all_markers.size(); ++i) {
-      Marker &marker = all_markers[i];
-      EuclideanPoint *point = reconstruction->PointForTrack(marker.track);
-
-      if (point) {
-        problem.AddResidualBlock(new ceres::AutoDiffCostFunction<
-            ModalReprojectionError,
-            2, /* num_residuals */
-            4>(new ModalReprojectionError(marker.x, marker.y,
-                                          point->X)),
-            NULL,
-            &quaternion(0));
-        num_residuals++;
-
-        problem.SetParameterization(&quaternion(0),
-                                    quaternion_parameterization);
-      }
-    }
-
-    LG << "Number of residuals: " << num_residuals;
-
-    if (num_residuals) {
-      // Configure the solve.
-      ceres::Solver::Options solver_options;
-      solver_options.linear_solver_type = ceres::DENSE_QR;
-      solver_options.max_num_iterations = 50;
-      solver_options.update_state_every_iteration = true;
-      solver_options.gradient_tolerance = 1e-36;
-      solver_options.parameter_tolerance = 1e-36;
-      solver_options.function_tolerance = 1e-36;
-
-      // Run the solve.
-      ceres::Solver::Summary summary;
-      ceres::Solve(solver_options, &problem, &summary);
-
-      LG << "Summary:\n" << summary.FullReport();
-      LG << "Refined quaternion " << quaternion.transpose();
-    }
-
-    // Convert quaternion to rotation matrix.
-    Mat3 R;
-    ceres::QuaternionToRotation(&quaternion(0), &R(0, 0));
-    reconstruction->InsertView(image, R, Vec3::Zero(), kModalCamera);
-
-    // STEP 3: reproject all new markers appeared at image
-
-    // Check if there're new markers appeared on current image
-    // and reproject them on sphere to obtain 3D position/
-    for (int track = 0; track <= max_track; ++track) {
-      if (!reconstruction->PointForTrack(track)) {
-        Marker marker = tracks.MarkerInImageForTrack(image, track);
-
-        if (marker.image == image) {
-          // New track appeared on this image,
-          // project it's position onto sphere.
-
-          LG << "Projecting track " << track << " at image " << image;
-
+      // STEP 1: Estimate rotation analytically.
+      Mat3 current_R;
+      ceres::QuaternionToRotation(&quaternion(0), &current_R(0, 0));
+      // Construct point cloud for current and previous images,
+      // using markers appear at current image for which we know
+      // 3D positions.
+      Mat x1, x2;
+      for (int i = 0; i < all_markers.size(); ++i) {
+        Marker &marker = all_markers[i];
+        EuclideanPoint *point = reconstruction->PointForTrack(marker.track);
+        if (point) {
           Vec3 X;
           ProjectMarkerOnSphere(marker, X);
-          reconstruction->InsertPoint(track, R.inverse() * X);
+
+          int last_column = x1.cols();
+          x1.conservativeResize(3, last_column + 1);
+          x2.conservativeResize(3, last_column + 1);
+
+          x1.col(last_column) = current_R * point->X;
+          x2.col(last_column) = X;
+        }
+      }
+
+      if (x1.cols() >= 2) {
+        Mat3 delta_R;
+
+        // Compute delta rotation matrix for two point clouds.
+        // Could be a bit confusing at first glance, but order
+        // of clouds is indeed so.
+        GetR_FixedCameraCenter(x2, x1, 1.0, &delta_R);
+
+        // Convert delta rotation form matrix to final image
+        // rotation stored in a quaternion
+        Vec3 delta_angle_axis;
+        ceres::RotationMatrixToAngleAxis(&delta_R(0, 0), &delta_angle_axis(0));
+
+        Vec3 current_angle_axis;
+        ceres::QuaternionToAngleAxis(&quaternion(0), &current_angle_axis(0));
+
+        Vec3 angle_axis = current_angle_axis + delta_angle_axis;
+
+        ceres::AngleAxisToQuaternion(&angle_axis(0), &quaternion(0));
+
+        LG << "Analytically computed quaternion "
+           << quaternion.transpose();
+      }
+
+      // STEP 2: Refine rotation with Ceres.
+      ceres::Problem problem;
+
+      ceres::LocalParameterization* quaternion_parameterization =
+          new ceres::QuaternionParameterization;
+
+      int num_residuals = 0;
+      for (int i = 0; i < all_markers.size(); ++i) {
+        Marker &marker = all_markers[i];
+        EuclideanPoint *point = reconstruction->PointForTrack(marker.track);
+
+        if (point) {
+          problem.AddResidualBlock(new ceres::AutoDiffCostFunction<
+              ModalReprojectionError,
+              2, /* num_residuals */
+              4>(new ModalReprojectionError(marker.x, marker.y,
+                                            point->X)),
+              NULL,
+              &quaternion(0));
+          num_residuals++;
+
+          problem.SetParameterization(&quaternion(0),
+                                      quaternion_parameterization);
+        }
+      }
+
+      LG << "Number of residuals: " << num_residuals;
+
+      if (num_residuals) {
+        // Configure the solve.
+        ceres::Solver::Options solver_options;
+        solver_options.linear_solver_type = ceres::DENSE_QR;
+        solver_options.max_num_iterations = 50;
+        solver_options.update_state_every_iteration = true;
+        solver_options.gradient_tolerance = 1e-36;
+        solver_options.parameter_tolerance = 1e-36;
+        solver_options.function_tolerance = 1e-36;
+
+        // Run the solve.
+        ceres::Solver::Summary summary;
+        ceres::Solve(solver_options, &problem, &summary);
+
+        LG << "Summary:\n" << summary.FullReport();
+        LG << "Refined quaternion " << quaternion.transpose();
+      }
+
+      // Convert quaternion to rotation matrix.
+      Mat3 R;
+      ceres::QuaternionToRotation(&quaternion(0), &R(0, 0));
+      reconstruction->InsertView(image, R, Vec3::Zero(), kModalCamera);
+
+      // STEP 3: reproject all new markers appeared at image
+
+      // Check if there're new markers appeared on current image
+      // and reproject them on sphere to obtain 3D position/
+      for (int track = 0; track <= max_track; ++track) {
+        if (!reconstruction->PointForTrack(track)) {
+          Marker marker = tracks.MarkerInImageForTrack(image, track);
+
+          if (marker.image == image) {
+            // New track appeared on this image,
+            // project it's position onto sphere.
+
+            LG << "Projecting track " << track << " at image " << image;
+
+            Vec3 X;
+            ProjectMarkerOnSphere(marker, X);
+            reconstruction->InsertPoint(track, R.inverse() * X);
+          }
         }
       }
     }
