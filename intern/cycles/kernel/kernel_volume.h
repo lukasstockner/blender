@@ -210,8 +210,7 @@ __device int get_media_volume_shader(KernelGlobals *kg, float3 P, int bounce)
         shader_setup_from_ray(kg, &sd, &isect, &ray, bounce);
         shader_eval_surface(kg, &sd, 0.0f, 0, SHADER_CONTEXT_MAIN); // not needed ?
 
-		if (sd.flag & SD_BACKFACING)
-		{
+		if (sd.flag & SD_BACKFACING) {
 			stack--;
 			if (stack <= 0 && (sd.flag & SD_HAS_VOLUME))
 				return sd.shader; // we are inside of object, as first triangle hit is from inside
@@ -274,8 +273,7 @@ __device int kernel_volumetric_woodcock_sampler( KernelGlobals *kg, RNG* rng, in
 	}
 
 	// Assume rest of media up to end is homogeneous, it helps when using woodcock in outdoor scenes that tend to have continuous density.
-	if ((i > max_iter) && (t < (end - magic_eps)))
-	{
+	if ((i > max_iter) && (t < (end - magic_eps))) {
 		float sigma = get_sigma_sample(kg, sd, my_rand_congruential(), path_flag, ray.P + ray.D * t);
 		if( sigma < magic_eps)
 			return 0;
@@ -283,11 +281,9 @@ __device int kernel_volumetric_woodcock_sampler( KernelGlobals *kg, RNG* rng, in
 		float r = my_rand_congruential();
 		t += -logf( r) / sigma;
 		*pdf *= sigma * r;
-		if (t < (end - magic_eps))
-		{
+		if (t < (end - magic_eps)) {
 			// double check current sigma, just to be sure we do not register event for null media.
-			if(get_sigma_sample(kg, sd, my_rand_congruential(), path_flag, ray.P + ray.D * t) > magic_eps)
-			{
+			if(get_sigma_sample(kg, sd, my_rand_congruential(), path_flag, ray.P + ray.D * t) > magic_eps) {
 				*new_t = t;
 				sd->P = ray.P + ray.D * t;
 				return 1;
@@ -328,8 +324,7 @@ __device int kernel_volumetric_woodcock_sampler2( KernelGlobals *kg, RNG* rng, i
 		(t +start )< (end - magic_eps) &&
 		i++ < max_iter);
 
-	if ((t + start) < (end - magic_eps) && i <= max_iter)
-	{
+	if ((t + start) < (end - magic_eps) && i <= max_iter) {
 		*new_t = t + start;
 	        sd->P = ray.P + ray.D * (t + start);
 		// *pdf *= sigma_factor; // fixme: is it necessary ?
@@ -341,19 +336,16 @@ __device int kernel_volumetric_woodcock_sampler2( KernelGlobals *kg, RNG* rng, i
 	// last chance trick, we cannot iterate infinity, but we can force to homogeneous last step after max_iter,
 	// assume rest of media up to end is homogeneous, it help to use woodcock even in outdoor scenes that tend to have continuous density
 	// even if vary a bit in close distance. of course it make sampling biased (not respect actual density).
-	if ((i > max_iter) && ((t +start ) < (end - magic_eps)))
-	{
+	if ((i > max_iter) && ((t +start ) < (end - magic_eps))) {
 		float sigma = get_sigma_sample(kg, sd, my_rand_congruential(), path_flag, ray.P + ray.D * (t + start));
 		if( sigma < magic_eps) return 0;
 		// t += -logf( my_rand_congruential()) / sigma;
 		float r = my_rand_congruential();
 		t += -logf( r) / sigma;
 		*pdf *= sigma * r;
-		if ((t + start) < (end - magic_eps))
-		{
+		if ((t + start) < (end - magic_eps)) {
 			// double check current sigma, just to be sure we do not register event for null media.
-			if( get_sigma_sample(kg, sd, my_rand_congruential(), path_flag, ray.P + ray.D * (t + start)) > magic_eps)
-			{
+			if( get_sigma_sample(kg, sd, my_rand_congruential(), path_flag, ray.P + ray.D * (t + start)) > magic_eps) {
 				*new_t = t + start;
 				sd->P = ray.P + ray.D * (t + start);
 				return 1;
@@ -389,7 +381,7 @@ __device int kernel_volumetric_marching_sampler( KernelGlobals *kg, RNG* rng, in
 
 	float root = -logf(randsamp);
 	float intstep = 0.0f;
-	do{
+	do {
 		current_cell_near_boundary_distance += step;
 		t = current_cell_near_boundary_distance + random_jitter_offset;
 		previous_cell_average_sigma = current_cell_average_sigma;
@@ -425,7 +417,7 @@ __device int kernel_volumetric_marching_sampler2( KernelGlobals *kg, RNG* rng, i
 	float random_jitter_offset = my_rand_congruential() * step;
 
 	float t = 0.0f;
-	do{
+	do {
 		current_cell_near_boundary_distance = step * (float)cell_count;
 		float current_cell_average_sigma = get_sigma_sample(kg, sd, my_rand_congruential(), path_flag, ray.P + ray.D * (current_cell_near_boundary_distance + random_jitter_offset));
 		if (current_cell_average_sigma < sigma_magic_eps)
@@ -467,8 +459,7 @@ __device int kernel_volumetric_homogeneous_sampler( KernelGlobals *kg, RNG* rng,
 	}
 
 #if 1
-	if (*omega_cache != NULL)
-	{
+	if (*omega_cache != NULL) {
 		if(*omega_cache == 0.0f) {
 			*omega_cache =  get_sigma_sample(kg, sd, randp, path_flag, ray.P + ray.D * start);
 		}
@@ -503,8 +494,7 @@ __device int kernel_volumetric_homogeneous_sampler( KernelGlobals *kg, RNG* rng,
 #endif
 
 	float sample_distance = -logf(randv) / sigma + start;
-	if (sample_distance > end) // nothing hit in between [start, end]
-	{
+	if (sample_distance > end) { // nothing hit in between [start, end]
 		//*new_t = sample_distance; // not used if return false 
 		//*eval = sigma * exp(-distance * sigma);
 		*eval = sigma * randv;
@@ -548,8 +538,7 @@ __device int kernel_volumetric_equiangular_sampler( KernelGlobals *kg, RNG* rng,
 	if(ls.pdf == 0.0f)
 		return 0;
 
-	if (*omega_cache != NULL)
-	{
+	if (*omega_cache != NULL) {
 		if(*omega_cache == 0.0f) {
 			*omega_cache =  get_sigma_sample(kg, sd, randp, path_flag, ray.P + ray.D * start);
 		}
@@ -584,8 +573,8 @@ __device int kernel_volumetric_equiangular_sampler( KernelGlobals *kg, RNG* rng,
 	return 1;
 }
 
-__device int kernel_volumetric_sample(KernelGlobals *kg, RNG* rng, int rng_offset, RNG* rng_congruential, int pass, float randv, float randp,
-		 ShaderData *sd, Ray ray, float distance, float* particle_isect_t, int path_flag, float *pdf, float *eval, float3* throughput, float *omega_cache = NULL)
+__device int kernel_volumetric_sample(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential, int pass, float randv, float randp,
+		 ShaderData *sd, Ray ray, float distance, float *particle_isect_t, int path_flag, float *pdf, float *eval, float3 *throughput, float *omega_cache = NULL)
 {
 	/* sample point on volumetric ray (return false - no hit, true - hit : fill new hit t value on path [start,end] */
 	float distance_magic_eps = 1e-4f;
@@ -597,8 +586,7 @@ __device int kernel_volumetric_sample(KernelGlobals *kg, RNG* rng, int rng_offse
 	*eval = 1.0f;
 	*particle_isect_t = 0.0f;
 
-	if( sd->flag & SD_HOMOGENEOUS_VOLUME)
-	{
+	if(sd->flag & SD_HOMOGENEOUS_VOLUME) {
 		/* homogeneous media */
 		if (kernel_data.integrator.volume_homogeneous_sampling == 1 && kernel_data.integrator.num_all_lights) {
 			bool ok = kernel_volumetric_equiangular_sampler( kg, rng, rng_offset, rng_congruential, pass, randv, randp, sd, ray, path_flag, distance, particle_isect_t, pdf, eval,  omega_cache);
@@ -609,10 +597,8 @@ __device int kernel_volumetric_sample(KernelGlobals *kg, RNG* rng, int rng_offse
 			return ok;
 		}
 	}
-	else
-	{
-		if (kernel_data.integrator.volume_sampling_algorithm == 3)
-		{
+	else {
+		if (kernel_data.integrator.volume_sampling_algorithm == 3) {
 			/* Woodcock delta tracking */
 			bool ok = kernel_volumetric_woodcock_sampler( kg, rng, rng_offset, rng_congruential, pass, randv, sd, ray, path_flag, distance, particle_isect_t, pdf);
 			*eval = *pdf;
@@ -652,16 +638,15 @@ __device float3 kernel_volume_get_shadow_attenuation(KernelGlobals *kg, RNG *rng
 
 	ShaderData tsd;
 	shader_setup_from_volume(kg, &tsd, light_ray, media_volume_shader);
-	if((tsd.flag & SD_HAS_VOLUME) != 0) // check for empty volume shader
-	{
+	if((tsd.flag & SD_HAS_VOLUME) != 0) { // check for empty volume shader
 		float trandv = path_rng(kg, rng, sample, rng_offset + PRNG_VOLUME_SHADOW_DISTANCE);
 		float trandp = path_rng(kg, rng, sample, rng_offset + PRNG_VOLUME_SHADOW_DENSITY);
 		float tparticle_isect_t;
 		float tpdf;
 		float teval;
 		float3 tthroughput = make_float3(1.0f, 1.0f, 1.0f);
-                attenuation = make_float3(1.0f, 1.0f, 1.0f);
-		if( tsd.flag & SD_HOMOGENEOUS_VOLUME){
+		attenuation = make_float3(1.0f, 1.0f, 1.0f);
+		if(tsd.flag & SD_HOMOGENEOUS_VOLUME) {
 			// special case
 			float sigma = get_sigma_sample(kg, &tsd, trandp, PATH_RAY_SHADOW, light_ray->P/* + ray.D * start*/);
 			if (sigma < 0.0f) sigma = 0.0f;
@@ -679,7 +664,7 @@ __device float3 kernel_volume_get_shadow_attenuation(KernelGlobals *kg, RNG *rng
 //			if ( light_ray->t < magic_eps)
 			if ( light_ray->t < magic_eps || (sigma < 0.00001f))
 				attenuation = make_float3(1.0f, 1.0f, 1.0f);
-			else{
+			else {
 				*volume_pdf =  sigma * exp(-light_ray->t * sigma);
 #if 0
 				float a = exp(-light_ray->t * sigma);
@@ -724,11 +709,10 @@ __device float3 kernel_volume_get_shadow_attenuation(KernelGlobals *kg, RNG *rng
 			}
 
 		}
-		else{
-			if( !kernel_volumetric_sample(kg, rng, rng_offset, rng_congruential, sample, trandv, trandp, &tsd, *light_ray, light_ray->t, &tparticle_isect_t, PATH_RAY_SHADOW, &tpdf, &teval, &tthroughput))
+		else {
+			if(!kernel_volumetric_sample(kg, rng, rng_offset, rng_congruential, sample, trandv, trandp, &tsd, *light_ray, light_ray->t, &tparticle_isect_t, PATH_RAY_SHADOW, &tpdf, &teval, &tthroughput))
 				attenuation = make_float3(1.0f, 1.0f, 1.0f);
-			else
-			{
+			else {
 				*volume_pdf = 0.0f;
 				attenuation = make_float3(0.0f, 0.0f, 0.0f);
 			}
@@ -810,8 +794,7 @@ __device bool shadow_blocked_new(KernelGlobals *kg, RNG *rng, int rng_offset, RN
 					return false;
 				}
 
-				if(!shader_transparent_shadow(kg, &isect))
-				{
+				if(!shader_transparent_shadow(kg, &isect)) {
 //					*shadow = make_float3(1.0f, 1.0f, 1.0f);
 					*shadow = make_float3(0.0f, 0.0f, 0.0f); // black 
 					*volume_pdf = 1.0f;
@@ -846,7 +829,7 @@ __device bool shadow_blocked_new(KernelGlobals *kg, RNG *rng, int rng_offset, RN
 	}
 #endif
 
-	if(! result){
+	if(! result) {
 		float3 attenuation = kernel_volume_get_shadow_attenuation(kg, rng, rng_offset, rng_congruential, sample, ray, media_volume_shader, &tmp_volume_pdf);
 		*shadow *= attenuation;
 		*volume_pdf *= tmp_volume_pdf;
@@ -857,7 +840,9 @@ __device bool shadow_blocked_new(KernelGlobals *kg, RNG *rng, int rng_offset, RN
 
 
 /* volumetric tracing */
-__device int kernel_path_trace_volume(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential, int sample, Ray * ray, Intersection *isect, float isect_t, PathState *state, int media_volume_shader, float3 *throughput, PathRadiance * L,  __global float *buffer, float * ray_pdf, float3* volume_eval, float * volume_pdf, float *omega_cache, int bounce)
+__device int kernel_path_trace_volume(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential, int sample,
+	Ray *ray, Intersection *isect, float isect_t, PathState *state, int media_volume_shader, float3 *throughput,
+	PathRadiance *L,  __global float *buffer, float *ray_pdf, float3 *volume_eval, float *volume_pdf, float *omega_cache)
 {
 	// we sampling volume using different algorithms, respect importance sampling
 	*volume_pdf = 1.0f;
@@ -876,8 +861,9 @@ __device int kernel_path_trace_volume(KernelGlobals *kg, RNG *rng, int rng_offse
 	float particle_isect_t;
 	float pdf;
 	float eval;
-	if (kernel_volumetric_sample(kg, rng, rng_offset, rng_congruential, sample, randv, randp, &vsd, *ray, isect_t, &particle_isect_t, state->flag, &pdf, &eval, throughput, omega_cache))
-	{
+	if (kernel_volumetric_sample(kg, rng, rng_offset, rng_congruential, sample, randv, randp, &vsd,
+		*ray, isect_t, &particle_isect_t, state->flag, &pdf, &eval, throughput, omega_cache)) {
+		
 		*volume_pdf = pdf;
 		*volume_eval = make_float3( eval, eval, eval);
 		//if (vsd.flag & SD_HOMOGENEOUS_VOLUME)
@@ -934,14 +920,12 @@ __device int kernel_path_trace_volume(KernelGlobals *kg, RNG *rng, int rng_offse
 				const int i = -1;
 #endif
 
-					if(direct_emission(kg, &vsd, i, light_t, light_o, light_u, light_v, &light_ray, &L_light, &is_lamp, bounce)) {
+					if(direct_emission(kg, &vsd, i, light_t, light_o, light_u, light_v, &light_ray, &L_light, &is_lamp, state->bounce)) {
 						/* trace shadow ray */
 						float3 shadow;
 						float tmp_volume_pdf;
 
-//						if(!shadow_blocked_new(kg, &state, &light_ray, &shadow)) {
-						if(!shadow_blocked_new(kg, rng, rng_offset, rng_congruential, sample, state, &light_ray, &shadow, media_volume_shader, &tmp_volume_pdf, bounce)) {
-//						if(!shadow_blocked_new(kg, rng, rng_offset, rng_congruential)) {
+						if(!shadow_blocked_new(kg, rng, rng_offset, rng_congruential, sample, state, &light_ray, &shadow, media_volume_shader, &tmp_volume_pdf, state->bounce)) {
 							/* accumulate */
 //							bool is_lamp = (lamp != ~0);
 							path_radiance_accum_light(L, *throughput, &L_light, shadow, 1.0f, state->bounce, is_lamp);

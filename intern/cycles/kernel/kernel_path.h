@@ -543,7 +543,9 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 
 #ifdef __VOLUME__
 		if(state.scattering_bounce < kernel_data.integrator.max_scattering_bounce) {
-			int vol_result = kernel_path_trace_volume(kg, rng, rng_offset, &rng_congruential, sample, &ray, &isect, isect.t, &state, media_volume_shader, &throughput, &L, buffer, &ray_pdf, &volume_eval, &volume_pdf, &omega_cache, state.bounce);
+			int vol_result = kernel_path_trace_volume(kg, rng, rng_offset, &rng_congruential, sample, &ray, &isect, isect.t,
+							&state, media_volume_shader, &throughput, &L, buffer, &ray_pdf, &volume_eval, &volume_pdf, &omega_cache);
+
 			if (vol_result == VOLUME_PATH_CONTINUE) {
 				state.scattering_bounce++;
 				continue;
