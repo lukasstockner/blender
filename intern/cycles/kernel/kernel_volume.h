@@ -75,8 +75,7 @@ __device  float3 kernel_volume_get_final_homogeneous_extinction_tsd(KernelGlobal
 	// NOTE: color must be constant as well, because we use it to modify extinction.
 
 	float3 res_sigma = make_float3(1.0f, 1.0f, 1.0f);
-	if((sd->flag & SD_HAS_VOLUME) != 0) // check for empty volume shader
-	{
+	if((sd->flag & SD_HAS_VOLUME) != 0) { // check for empty volume shader
 		// base sigma
 		float base_sigma = get_sigma_sample(kg, sd, trandp, path_flag, ray.P/* + ray.D * start*/);
 
@@ -153,8 +152,7 @@ __device float3 kernel_volume_get_final_homogeneous_extinction(KernelGlobals *kg
 	int path_flag = PATH_RAY_SHADOW; // why ?
 
 	float3 res_sigma = make_float3(1.0f, 1.0f, 1.0f);
-	if((tsd.flag & SD_HAS_VOLUME) != 0) // check for empty volume shader
-	{
+	if((tsd.flag & SD_HAS_VOLUME) != 0) { // check for empty volume shader
 		// base sigma
 		float base_sigma = get_sigma_sample(kg, &tsd, trandp, path_flag, ray.P/* + ray.D * start*/);
 
@@ -228,8 +226,9 @@ __device int get_media_volume_shader(KernelGlobals *kg, float3 P, int bounce)
 
 /*used */
 
-/*volumetric sampling */
-__device int kernel_volumetric_woodcock_sampler( KernelGlobals *kg, RNG* rng, int rng_offset, RNG* rng_congruential, int pass, float randv, ShaderData *sd, Ray ray, int path_flag, float end, float* new_t, float* pdf)
+/* Volumetric sampling */
+__device int kernel_volumetric_woodcock_sampler(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential,
+	int pass, float randv, ShaderData *sd, Ray ray, int path_flag, float end, float *new_t, float *pdf)
 {
 	/* google "woodcock delta tracker" algorithm, must be preprocessed to guess max density in volume, better keep it as close to density as possible or we got lot of tiny steps and spend milenniums marching single volume ray segment. 0.95 is good default. */
 	float magic_eps = 1e-4f;
@@ -248,10 +247,7 @@ __device int kernel_volumetric_woodcock_sampler( KernelGlobals *kg, RNG* rng, in
 	float sigma_factor = 1.0f;
 	*pdf = 1.0f;
 
-	if(end < magic_eps)
-		return 0;
-	
-	if(max_sigma_t == 0)
+	if((end < magic_eps) || (max_sigma_t == 0))
 		return 0;
 
 	do {
@@ -264,8 +260,7 @@ __device int kernel_volumetric_woodcock_sampler( KernelGlobals *kg, RNG* rng, in
 		t < (end - magic_eps) &&
 		i++ < max_iter);
 
-	if (t < (end - magic_eps) && i <= max_iter)
-	{
+	if (t < (end - magic_eps) && i <= max_iter) {
 		*new_t = t;
 	    sd->P = ray.P + ray.D * t;
 		// *pdf *= sigma_factor; // fixme: is it necessary ?
@@ -293,7 +288,8 @@ __device int kernel_volumetric_woodcock_sampler( KernelGlobals *kg, RNG* rng, in
 
 	return 0;
 }
-__device int kernel_volumetric_woodcock_sampler2( KernelGlobals *kg, RNG* rng, int rng_offset, RNG* rng_congruential, int pass, float randv, ShaderData *sd, Ray ray, int path_flag, float end, float* new_t, float* pdf)
+__device int kernel_volumetric_woodcock_sampler2(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential, int pass,
+	float randv, ShaderData *sd, Ray ray, int path_flag, float end, float *new_t, float *pdf)
 {
 	/* google "woodcock delta tracker" algorithm, must be preprocessed to guess max density in volume, better keep it as close to density as possible or we got lot of tiny steps and spend milenniums marching single volume ray segment. 0.95 is good default. */
 	float magic_eps = 1e-4f;
@@ -356,13 +352,9 @@ __device int kernel_volumetric_woodcock_sampler2( KernelGlobals *kg, RNG* rng, i
 
 	return 0;
 }
-__device int kernel_volumetric_marching_sampler( KernelGlobals *kg, RNG* rng, int rng_offset, RNG* rng_congruential, int pass, float randv, ShaderData *sd, Ray ray, int path_flag, float end, float* new_t, float* pdf)
-{
-	float distance_magic_eps = 1e-4f;
-	float sigma_magic_eps = 1e-15f;
-	float rand_magic_eps = 0.00001f;
-	float distance_eps = 1.0f - distance_magic_eps; // ensure we never check particle behind/at surface to stop light leaks, so decrease distance a bit
-	
+__device int kernel_volumetric_marching_sampler(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential, int pass,
+	float randv, ShaderData *sd, Ray ray, int path_flag, float end, float *new_t, float *pdf)
+{	
 	int max_steps = kernel_data.integrator.volume_max_iterations;
 	//float step = end != FLT_MAX ? end / max_steps : kernel_data.integrator.volume_cell_step;
 	float step = kernel_data.integrator.volume_cell_step;
@@ -403,11 +395,10 @@ __device int kernel_volumetric_marching_sampler( KernelGlobals *kg, RNG* rng, in
 	return 1;
 }
 
-__device int kernel_volumetric_marching_sampler2( KernelGlobals *kg, RNG* rng, int rng_offset, RNG* rng_congruential, int pass, float randv, ShaderData *sd, Ray ray, int path_flag, float end, float* new_t, float* pdf)
+__device int kernel_volumetric_marching_sampler2(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential,
+	int pass, float randv, ShaderData *sd, Ray ray, int path_flag, float end, float *new_t, float *pdf)
 {
-	float distance_magic_eps = 1e-4f;
 	float sigma_magic_eps = 1e-15f;
-	float distance_eps = 1.0f - distance_magic_eps; // ensure we never check particle behind/at surface to stop light leaks, so decrease distance a bit
 	
 	float step = kernel_data.integrator.volume_cell_step;
 	int  max_steps = min(kernel_data.integrator.volume_max_iterations, (int)ceil(end / step));
@@ -438,7 +429,8 @@ __device int kernel_volumetric_marching_sampler2( KernelGlobals *kg, RNG* rng, i
 	return 1;
 }
 
-__device int kernel_volumetric_homogeneous_sampler( KernelGlobals *kg, RNG* rng, int rng_offset, int pass, float randv, float randp, ShaderData *sd, Ray ray, int path_flag, float end, float* new_t, float * pdf, float * eval, float *omega_cache)
+__device int kernel_volumetric_homogeneous_sampler(KernelGlobals *kg, RNG *rng, int rng_offset, int pass, float randv,
+	float randp, ShaderData *sd, Ray ray, int path_flag, float end, float *new_t, float *pdf, float *eval, float *omega_cache)
 {
 	/* return pdf of perfect importance volume sampling at given distance
 	only for homogeneous case, of course.
@@ -473,9 +465,9 @@ __device int kernel_volumetric_homogeneous_sampler( KernelGlobals *kg, RNG* rng,
 	sigma = min( sigma, sigma3.z);
 #endif
 
-	if( sigma < sigma_magic_eps ) {
-		/*  Very transparent volume - Protect div by 0, *new_t = end; */
-		 return 0;
+	if(sigma < sigma_magic_eps) {
+		/* Very transparent volume - Protect div by 0, *new_t = end; */
+		return 0;
 	}
 
 #ifdef __VOLUME_USE_GUARANTEE_HIT_PROB
@@ -495,11 +487,10 @@ __device int kernel_volumetric_homogeneous_sampler( KernelGlobals *kg, RNG* rng,
 
 	float sample_distance = -logf(randv) / sigma + start;
 	if (sample_distance > end) { // nothing hit in between [start, end]
-		//*new_t = sample_distance; // not used if return false 
 		//*eval = sigma * exp(-distance * sigma);
 		*eval = sigma * randv;
 		*pdf = sigma * randv;
-		 return 0;
+		return 0;
 	}
 	
 	// we hit particle!
@@ -510,7 +501,8 @@ __device int kernel_volumetric_homogeneous_sampler( KernelGlobals *kg, RNG* rng,
 	return 1;
 }
 
-__device int kernel_volumetric_equiangular_sampler( KernelGlobals *kg, RNG* rng, int rng_offset, RNG* rng_congruential, int pass, float randv, float randp, ShaderData *sd, Ray ray, int path_flag, float end, float* new_t, float * pdf, float * eval, float *omega_cache)
+__device int kernel_volumetric_equiangular_sampler(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential, int pass, float randv,
+	float randp, ShaderData *sd, Ray ray, int path_flag, float end, float *new_t, float *pdf, float *eval, float *omega_cache)
 {
 	float distance_magic_eps = 1e-4f;
 	float rand_magic_eps = 0.00001f;
@@ -559,22 +551,19 @@ __device int kernel_volumetric_equiangular_sampler( KernelGlobals *kg, RNG* rng,
 	float t = D * tan((randv * M_PI_2_F) - (1 - randv) * atheta);
 	sample_distance += t;
 
-	if (sample_distance > end) {
-		*pdf = D / ((M_PI_2_F + atheta) * (D * D + t * t));
-		*eval= *pdf;
-		 return 0;
-	}
-	
-	// we hit particle !
-	*new_t = sample_distance;
 	*pdf = D / ((M_PI_2_F + atheta) * (D * D + t * t));
 	*eval = *pdf;
-	sd->P = ray.P + ray.D * sample_distance;
-	return 1;
+	if(sample_distance > end)
+		return 0;
+	else
+		/* we hit particle */
+		*new_t = sample_distance;
+		sd->P = ray.P + ray.D * sample_distance;
+		return 1;
 }
 
 __device int kernel_volumetric_sample(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential, int pass, float randv, float randp,
-		 ShaderData *sd, Ray ray, float distance, float *particle_isect_t, int path_flag, float *pdf, float *eval, float3 *throughput, float *omega_cache = NULL)
+	ShaderData *sd, Ray ray, float distance, float *particle_isect_t, int path_flag, float *pdf, float *eval, float3 *throughput, float *omega_cache = NULL)
 {
 	/* sample point on volumetric ray (return false - no hit, true - hit : fill new hit t value on path [start,end] */
 	float distance_magic_eps = 1e-4f;
@@ -625,8 +614,9 @@ __device int kernel_volumetric_sample(KernelGlobals *kg, RNG *rng, int rng_offse
 	}
 }
 
-/*volumetric shadows*/
-__device float3 kernel_volume_get_shadow_attenuation(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential, int sample, Ray *light_ray, int media_volume_shader, float *volume_pdf)
+/* Volumetric shadows */
+__device float3 kernel_volume_get_shadow_attenuation(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential, int sample,
+	Ray *light_ray, int media_volume_shader, float *volume_pdf)
 {
 	// helper for shadow probes, optimised for homogeneous volume, variable density other return 0 or 1.
 	// assume there are no objects inside light_ray, so it mus be preceded by shdow_blocked() or scene_intersect().
@@ -727,7 +717,8 @@ __device float3 kernel_volume_get_shadow_attenuation(KernelGlobals *kg, RNG *rng
 
 
 
-__device bool shadow_blocked_new(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential, int sample, PathState *state, Ray *ray, float3 *shadow, int media_volume_shader, float *volume_pdf, int bounces)
+__device bool shadow_blocked_new(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential, int sample, PathState *state,
+	Ray *ray, float3 *shadow, int media_volume_shader, float *volume_pdf)
 {
 	*shadow = make_float3(1.0f, 1.0f, 1.0f);
 	*volume_pdf = 1.0f;
@@ -807,7 +798,7 @@ __device bool shadow_blocked_new(KernelGlobals *kg, RNG *rng, int rng_offset, RN
 				*volume_pdf *= tmp_volume_pdf;
 
 				ShaderData sd;
-				shader_setup_from_ray(kg, &sd, &isect, ray, bounces);
+				shader_setup_from_ray(kg, &sd, &isect, ray, state->bounce);
 				shader_eval_surface(kg, &sd, 0.0f, PATH_RAY_SHADOW, SHADER_CONTEXT_MAIN);
 
 				throughput *= shader_bsdf_transparency(kg, &sd) * attenuation;
@@ -925,7 +916,7 @@ __device int kernel_path_trace_volume(KernelGlobals *kg, RNG *rng, int rng_offse
 						float3 shadow;
 						float tmp_volume_pdf;
 
-						if(!shadow_blocked_new(kg, rng, rng_offset, rng_congruential, sample, state, &light_ray, &shadow, media_volume_shader, &tmp_volume_pdf, state->bounce)) {
+						if(!shadow_blocked_new(kg, rng, rng_offset, rng_congruential, sample, state, &light_ray, &shadow, media_volume_shader, &tmp_volume_pdf)) {
 							/* accumulate */
 //							bool is_lamp = (lamp != ~0);
 							path_radiance_accum_light(L, *throughput, &L_light, shadow, 1.0f, state->bounce, is_lamp);

@@ -679,7 +679,7 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 
 #ifdef __VOLUME__
 				float tmp_volume_pdf;
-				if(!shadow_blocked_new(kg, rng, rng_offset, &rng_congruential, sample, &state, &light_ray, &ao_shadow, media_volume_shader, &tmp_volume_pdf, state.bounce))
+				if(!shadow_blocked_new(kg, rng, rng_offset, &rng_congruential, sample, &state, &light_ray, &ao_shadow, media_volume_shader, &tmp_volume_pdf))
 #else
 				if(!shadow_blocked(kg, &state, &light_ray, &ao_shadow))
 #endif
@@ -769,7 +769,7 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 					float3 shadow;
 #ifdef __VOLUME__
 					float tmp_volume_pdf;
-					if(!shadow_blocked_new(kg, rng, rng_offset, &rng_congruential, sample, &state, &light_ray, &shadow, media_volume_shader, &tmp_volume_pdf, state.bounce)) {
+					if(!shadow_blocked_new(kg, rng, rng_offset, &rng_congruential, sample, &state, &light_ray, &shadow, media_volume_shader, &tmp_volume_pdf)) {
 #else
 					if(!shadow_blocked(kg, &state, &light_ray, &shadow)) {
 #endif
