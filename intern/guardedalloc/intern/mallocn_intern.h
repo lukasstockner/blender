@@ -51,12 +51,13 @@
 
 #undef HAVE_MALLOC_STATS
 
-#if defined(__linux__) || defined(__MINGW32__)
+#if defined(__linux__)
 #  include <malloc.h>
 #  define HAVE_MALLOC_STATS
 #elif defined(__APPLE__)
 #  define malloc_usable_size malloc_size
-#elif defined(_MSC_VER)
+#elif defined(WIN32)
+#  include <malloc.h>
 #  define malloc_usable_size _msize
 #else
 #  error "We don't know how to use malloc_usable_size on your platform"
