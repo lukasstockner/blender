@@ -780,7 +780,7 @@ class DupliOffsetFromCursor(Operator):
 class LodByName(Operator):
     """Add levels of detail to this object based on object names"""
     bl_idname = "object.lod_by_name"
-    bl_label = "Setup Level of Details By Name"
+    bl_label = "Setup Levels of Detail By Name"
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
