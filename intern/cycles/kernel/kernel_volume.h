@@ -227,14 +227,14 @@ __device int get_media_volume_shader(KernelGlobals *kg, float3 P, int bounce)
 /*used */
 
 /* Volumetric sampling */
-__device int kernel_volumetric_woodcock_sampler(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential,
-	int pass, float randv, ShaderData *sd, Ray ray, int path_flag, float end, float *new_t, float *pdf)
+__device int kernel_volumetric_woodcock_sampler(KernelGlobals *kg, RNG *rng_congruential, ShaderData *sd,
+	Ray ray, int path_flag, float end, float *new_t, float *pdf)
 {
 	/* google "woodcock delta tracker" algorithm, must be preprocessed to guess max density in volume, better keep it as close to density as possible or we got lot of tiny steps and spend milenniums marching single volume ray segment. 0.95 is good default. */
 	float magic_eps = 1e-4f;
 
 	int max_iter = kernel_data.integrator.volume_max_iterations;
-	float max_prob = kernel_data.integrator.volume_woodcock_max_density;
+	//float max_prob = kernel_data.integrator.volume_woodcock_max_density;
 	//float max_sigma_t = sigma_from_value(max_prob, kernel_data.integrator.volume_density_factor);
 	float max_sigma_t = 0.0f;
 	
@@ -288,8 +288,8 @@ __device int kernel_volumetric_woodcock_sampler(KernelGlobals *kg, RNG *rng, int
 
 	return 0;
 }
-__device int kernel_volumetric_woodcock_sampler2(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential, int pass,
-	float randv, ShaderData *sd, Ray ray, int path_flag, float end, float *new_t, float *pdf)
+__device int kernel_volumetric_woodcock_sampler2(KernelGlobals *kg, RNG *rng_congruential, ShaderData *sd,
+	Ray ray, int path_flag, float end, float *new_t, float *pdf)
 {
 	/* google "woodcock delta tracker" algorithm, must be preprocessed to guess max density in volume, better keep it as close to density as possible or we got lot of tiny steps and spend milenniums marching single volume ray segment. 0.95 is good default. */
 	float magic_eps = 1e-4f;
@@ -352,8 +352,8 @@ __device int kernel_volumetric_woodcock_sampler2(KernelGlobals *kg, RNG *rng, in
 
 	return 0;
 }
-__device int kernel_volumetric_marching_sampler(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential, int pass,
-	float randv, ShaderData *sd, Ray ray, int path_flag, float end, float *new_t, float *pdf)
+__device int kernel_volumetric_marching_sampler(KernelGlobals *kg, RNG *rng_congruential, ShaderData *sd,
+	Ray ray, int path_flag, float end, float *new_t, float *pdf)
 {	
 	int max_steps = kernel_data.integrator.volume_max_iterations;
 	//float step = end != FLT_MAX ? end / max_steps : kernel_data.integrator.volume_cell_step;
@@ -395,8 +395,8 @@ __device int kernel_volumetric_marching_sampler(KernelGlobals *kg, RNG *rng, int
 	return 1;
 }
 
-__device int kernel_volumetric_marching_sampler2(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential,
-	int pass, float randv, ShaderData *sd, Ray ray, int path_flag, float end, float *new_t, float *pdf)
+__device int kernel_volumetric_marching_sampler2(KernelGlobals *kg, RNG *rng_congruential, ShaderData *sd,
+	Ray ray, int path_flag, float end, float *new_t, float *pdf)
 {
 	float sigma_magic_eps = 1e-15f;
 	
@@ -429,8 +429,8 @@ __device int kernel_volumetric_marching_sampler2(KernelGlobals *kg, RNG *rng, in
 	return 1;
 }
 
-__device int kernel_volumetric_homogeneous_sampler(KernelGlobals *kg, RNG *rng, int rng_offset, int pass, float randv,
-	float randp, ShaderData *sd, Ray ray, int path_flag, float end, float *new_t, float *pdf, float *eval, float *omega_cache)
+__device int kernel_volumetric_homogeneous_sampler(KernelGlobals *kg, float randv, float randp, ShaderData *sd,
+	Ray ray, int path_flag, float end, float *new_t, float *pdf, float *eval, float *omega_cache)
 {
 	/* return pdf of perfect importance volume sampling at given distance
 	only for homogeneous case, of course.
@@ -501,8 +501,8 @@ __device int kernel_volumetric_homogeneous_sampler(KernelGlobals *kg, RNG *rng, 
 	return 1;
 }
 
-__device int kernel_volumetric_equiangular_sampler(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential, int pass, float randv,
-	float randp, ShaderData *sd, Ray ray, int path_flag, float end, float *new_t, float *pdf, float *eval, float *omega_cache)
+__device int kernel_volumetric_equiangular_sampler(KernelGlobals *kg, RNG *rng_congruential, float randv, float randp,
+	ShaderData *sd, Ray ray, int path_flag, float end, float *new_t, float *pdf, float *eval, float *omega_cache)
 {
 	float distance_magic_eps = 1e-4f;
 	float rand_magic_eps = 0.00001f;
@@ -578,36 +578,36 @@ __device int kernel_volumetric_sample(KernelGlobals *kg, RNG *rng, int rng_offse
 	if(sd->flag & SD_HOMOGENEOUS_VOLUME) {
 		/* homogeneous media */
 		if (kernel_data.integrator.volume_homogeneous_sampling == 1 && kernel_data.integrator.num_all_lights) {
-			bool ok = kernel_volumetric_equiangular_sampler( kg, rng, rng_offset, rng_congruential, pass, randv, randp, sd, ray, path_flag, distance, particle_isect_t, pdf, eval,  omega_cache);
+			bool ok = kernel_volumetric_equiangular_sampler(kg, rng_congruential, randv, randp, sd, ray, path_flag, distance, particle_isect_t, pdf, eval,  omega_cache);
 			return ok;
 		}
 		else {
-			bool ok = kernel_volumetric_homogeneous_sampler( kg, rng, rng_offset, pass, randv, randp, sd, ray, path_flag, distance, particle_isect_t, pdf, eval, omega_cache);
+			bool ok = kernel_volumetric_homogeneous_sampler(kg, randv, randp, sd, ray, path_flag, distance, particle_isect_t, pdf, eval, omega_cache);
 			return ok;
 		}
 	}
 	else {
 		if (kernel_data.integrator.volume_sampling_algorithm == 3) {
 			/* Woodcock delta tracking */
-			bool ok = kernel_volumetric_woodcock_sampler( kg, rng, rng_offset, rng_congruential, pass, randv, sd, ray, path_flag, distance, particle_isect_t, pdf);
+			bool ok = kernel_volumetric_woodcock_sampler(kg, rng_congruential, sd, ray, path_flag, distance, particle_isect_t, pdf);
 			*eval = *pdf;
 			return ok;
 		}
 		else if (kernel_data.integrator.volume_sampling_algorithm == 2){
 			/* Volume marching. Move particles through one region at a time, until collision occurs */
-			bool ok = kernel_volumetric_marching_sampler( kg, rng, rng_offset, rng_congruential, pass, randv, sd, ray, path_flag, distance, particle_isect_t, pdf);
+			bool ok = kernel_volumetric_marching_sampler(kg, rng_congruential, sd, ray, path_flag, distance, particle_isect_t, pdf);
 			*eval = *pdf;
 			return ok;
 		}
 		else if (kernel_data.integrator.volume_sampling_algorithm == 1){
 			/* Woodcock delta tracking */
-			bool ok = kernel_volumetric_woodcock_sampler2( kg, rng, rng_offset, rng_congruential, pass, randv, sd, ray, path_flag, distance, particle_isect_t, pdf);
+			bool ok = kernel_volumetric_woodcock_sampler2(kg, rng_congruential, sd, ray, path_flag, distance, particle_isect_t, pdf);
 			*eval = *pdf;
 			return ok;
 		}
 		else {
 			/* Volume marching. Move particles through one region at a time, until collision occurs */
-			bool ok = kernel_volumetric_marching_sampler2( kg, rng, rng_offset, rng_congruential, pass, randv, sd, ray, path_flag, distance, particle_isect_t, pdf);
+			bool ok = kernel_volumetric_marching_sampler2(kg, rng_congruential, sd, ray, path_flag, distance, particle_isect_t, pdf);
 			*eval = *pdf;
 			return ok;
 		}
