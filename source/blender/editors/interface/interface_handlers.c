@@ -5381,7 +5381,7 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 			Panel *pa = but->block->panel;
 			
 			/* Remove the operator from the custom enclosure */
-			if (ar->regiontype == RGN_TYPE_TOOLS) {
+			if (ar->regiontype == RGN_TYPE_TOOLS && pa && pa->flag & PNL_CUSTOM_PANEL) {
 				opp_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE,
 										   CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Remove From Panel"),
 										   0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");

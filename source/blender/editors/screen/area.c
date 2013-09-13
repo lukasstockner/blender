@@ -1886,8 +1886,10 @@ void static menubar_draw_oli(const bContext *C, uiLayout *row, OperatorListItem 
 				wmOperatorType *ot = WM_operatortype_find(oli->optype_idname, TRUE);
 				int icon = ICON_NONE;
 				PointerRNA ptr;
+
+				WM_operator_properties_create_ptr(&ptr, ot);
+				ptr.data = oli->properties;
 				
-				RNA_pointer_create(NULL, &RNA_Operator, oli->properties, &ptr);
 				icon = ot->icon ? ot->icon(C, &ptr) : ot->default_icon;
 				
 				if (icon != ICON_NONE)
