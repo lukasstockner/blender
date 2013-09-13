@@ -1466,6 +1466,13 @@ int main(int argc, const char **argv)
 	bArgs *ba;
 #endif
 
+#ifdef WIN32 /* Win32 Unicode Args */
+	wchar_t **argv_16;
+	int argci = 0;
+	char **argv;
+#endif
+
+
 	/* NOTE: Special excpetion for guarded allocator type switch:
 	 *       we need to perform switch from lock-free to fully
 	 *       guarded allocator before any allocation happened.
@@ -1488,16 +1495,13 @@ int main(int argc, const char **argv)
 
 	C = CTX_create();
 
-#ifdef WIN32
-	{
-		wchar_t **argv_16 = CommandLineToArgvW(GetCommandLineW(), &argc);
-		int argci = 0;
-		char **argv = MEM_mallocN(argc * sizeof(char *), "argv array");
-		for (argci = 0; argci < argc; argci++) {
-			argv[argci] = alloc_utf_8_from_16(argv_16[argci], 0);
-		}
-		LocalFree(argv_16);
+#ifdef WIN32 /* Win32 Unicode Args */
+	argv_16 = CommandLineToArgvW(GetCommandLineW(), &argc);
+	argv = MEM_mallocN(argc * sizeof(char *), "argv array");
+	for (argci = 0; argci < argc; argci++) {
+		argv[argci] = alloc_utf_8_from_16(argv_16[argci], 0);
 	}
+	LocalFree(argv_16);
 #endif
 
 #ifdef WITH_PYTHON_MODULE
