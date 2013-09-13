@@ -5101,6 +5101,17 @@ static void remove_from_icon_shelf(bContext *C, void *arg_ot, void *arg_opptr)
 	ED_region_tag_redraw(ar);
 }
 
+static void remove_from_icon_shelf_divider(bContext *C, void *arg_oli, void *UNUSED(arg2))
+{
+	ARegion *ar = CTX_wm_region(C);
+	OperatorListItem *oli = (OperatorListItem*)arg_oli;
+	
+	BLI_remlink(&ar->operators, oli);
+	BKE_operator_list_item_free(oli);
+	
+	ED_region_tag_redraw(ar);
+}
+
 static void add_divider_to_icon_shelf(bContext *C, void *arg_ot, void *arg_opptr)
 {
 	ARegion *ar = CTX_wm_region(C);
@@ -5132,6 +5143,7 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 	uiLayout *layout;
 	bool is_array, is_array_component;
 	uiStringInfo label = {BUT_GET_LABEL, NULL};
+	ARegion *ar = CTX_wm_region(C);
 
 /*	if ((but->rnapoin.data && but->rnaprop) == 0 && but->optype == NULL)*/
 /*		return 0;*/
@@ -5319,36 +5331,9 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 		wmKeyMap *km;
 		wmKeyMapItem *kmi = NULL;
 		int kmi_id = WM_key_event_operator_id(C, but->optype->idname, but->opcontext, prop, 1, &km);
-//		wmOperator *op;
-		
+
 		uiItemS(layout);
 		
-//		/* operator defaults */
-//		
-//		/* initialise the operator type's default properties from the temporary operator */
-//		if (but->optype->default_properties_op) {
-//			// make sure the temporary operator has the latest default properties set.
-//			WM_operator_properties_init(but->optype->default_properties_op);
-//		} else {
-//			// make sure the last_properties are set from the new operator.
-//			but->optype->default_properties_op = WM_operator_create(C, but->optype, NULL, NULL);
-//		}
-//		
-//		uiBlockSetHandleFunc(block, &ui_but_menu_set_last_properties, but->optype->default_properties_op);
-//		
-//		// add panels for all operators in a macro
-//		if (but->optype->flag & OPTYPE_MACRO) {
-//			for (op = but->optype->default_properties_op->macro.first; op; op = op->next) {
-//				uiLayoutOperatorTypeDefaultsButs(C, layout, op);
-//			}
-//		}
-//		else {
-//			uiLayoutOperatorTypeDefaultsButs(C, layout, but->optype->default_properties_op);
-//		}
-//		
-//		uiItemS(layout);		
-		
-
 		if (kmi_id)
 			kmi = WM_keymap_item_find_id(km, kmi_id);
 
@@ -5377,7 +5362,6 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 		
 		{
 			uiBut *opp_but;
-			ARegion *ar = CTX_wm_region(C);
 			Panel *pa = but->block->panel;
 			
 			/* Remove the operator from the custom enclosure */
@@ -5388,17 +5372,20 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 				uiButSetFunc(opp_but, remove_from_custom_panel, pa, but->optype);
 				uiItemS(layout);
 			}
-			else if (ar->regiontype == RGN_TYPE_MENU_BAR &&
-					 uiOperatorListItemPresent(&ar->operators, but->optype->idname, but->opptr->data, CTX_data_mode_string(C))) {
-				opp_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE,
-										   CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Add Divider to the Left"),
-										   0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
-				uiButSetFunc(opp_but, add_divider_to_icon_shelf, but->optype, but->opptr);
-				
-				opp_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE,
-										   CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Remove From Icon Shelf"),
-										   0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
-				uiButSetFunc(opp_but, remove_from_icon_shelf, but->optype, but->opptr);
+			else if (ar->regiontype == RGN_TYPE_MENU_BAR) {
+				/* Only show the option to add a divider for a button, not a divider */
+				if (uiOperatorListItemPresent(&ar->operators, but->optype->idname, but->opptr->data, CTX_data_mode_string(C))) {
+					opp_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE,
+											   CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Add Divider to the Left"),
+											   0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
+					uiButSetFunc(opp_but, add_divider_to_icon_shelf, but->optype, but->opptr);
+					
+					opp_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE,
+											   CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Remove From Icon Shelf"),
+											   0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
+					uiButSetFunc(opp_but, remove_from_icon_shelf, but->optype, but->opptr);
+				}
+
 				uiItemS(layout);
 			}
 			
@@ -5415,6 +5402,23 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 		uiItemS(layout);
 	}
 
+	/* Divider butons */
+	if (ar->regiontype == RGN_TYPE_MENU_BAR) {
+		if (but->func_arg1) {
+			uiBut *div_but;
+			uiBlock *block = uiLayoutGetBlock(layout);
+			int w = uiLayoutGetWidth(layout);
+			
+			div_but = uiDefIconTextBut(block, BUT, 0, ICON_NONE,
+									   CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Remove From Icon Shelf"),
+									   0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
+			/* N.B. the but->func_arg1 is set to the divider OperatorListItem. */
+			uiButSetFunc(div_but, remove_from_icon_shelf_divider, but->func_arg1, NULL);
+			
+			uiItemS(layout);
+		}
+	}
+	
 	/* Show header tools for header buttons. */
 	{
 		ARegion *ar = CTX_wm_region(C);
