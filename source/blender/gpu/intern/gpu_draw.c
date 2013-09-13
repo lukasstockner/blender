@@ -1389,7 +1389,7 @@ void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, O
 	int new_shading_nodes = BKE_scene_use_new_shading_nodes(scene);
 	int use_matcap = (v3d->flag2 & V3D_SHOW_SOLID_MATCAP); /* assumes v3d->defmaterial->preview is set */
 
-	if (BKE_object_lod_check(ob, scene)) {
+	if (BKE_object_lod_is_usable(ob, scene)) {
 		Object *tmp = BKE_object_lod_matob_get(ob);
 		if (tmp) ob = tmp;
 	}

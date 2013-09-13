@@ -1054,7 +1054,7 @@ static LodLevel* lod_level_select(struct Object *ob, float cam_loc[3])
 	return current;
 }
 
-bool BKE_object_lod_check(struct Object *ob, struct Scene *scene)
+bool BKE_object_lod_is_usable(struct Object *ob, struct Scene *scene)
 {
 	bool active = (scene) ? ob == OBACT : 0;
 	return (ob->mode == OB_MODE_OBJECT || !active);
