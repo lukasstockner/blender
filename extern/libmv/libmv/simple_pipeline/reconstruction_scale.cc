@@ -24,7 +24,7 @@
 namespace libmv {
 
 void EuclideanScaleToUnity(EuclideanReconstruction *reconstruction) {
-  vector<EuclideanView> all_views = reconstruction->AllViewsForCamera(0);
+  vector<EuclideanView> all_views = reconstruction->AllViews();
   vector<EuclideanPoint> all_points = reconstruction->AllPoints();
 
   // Calculate center of the mass of all views.
