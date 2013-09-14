@@ -86,7 +86,6 @@ const EuclideanView *EuclideanReconstruction::ViewForImage(int image) const {
 vector<EuclideanView> EuclideanReconstruction::AllViews(
     ) const {
   vector<EuclideanView> views;
-  views.resize(views_.size());
   for (int i = 0; i < views_.size(); ++i) {
     if (views_[i].camera != -1 && views_[i].image != -1) {
       views.push_back(views_[i]);
@@ -185,7 +184,7 @@ vector<ProjectiveView> ProjectiveReconstruction::AllViewsForCamera(
     int camera) const {
   vector<ProjectiveView> views;
   for (int i = 0; i < views_.size(); ++i) {
-    if (views_[i].camera == camera) {
+    if (views_[i].image != -1 && views_[i].camera == camera) {
       views.push_back(views_[i]);
     }
   }
