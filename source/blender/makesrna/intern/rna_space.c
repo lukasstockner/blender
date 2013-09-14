@@ -109,13 +109,15 @@ static EnumPropertyItem transform_orientation_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-EnumPropertyItem autosnap_items[] = {
+#ifndef RNA_RUNTIME
+static EnumPropertyItem autosnap_items[] = {
 	{SACTSNAP_OFF, "NONE", 0, "No Auto-Snap", ""},
 	{SACTSNAP_STEP, "STEP", 0, "Time Step", "Snap to 1.0 frame/second intervals"},
 	{SACTSNAP_FRAME, "FRAME", 0, "Nearest Frame", "Snap to actual frames/seconds (nla-action time)"},
 	{SACTSNAP_MARKER, "MARKER", 0, "Nearest Marker", "Snap to nearest marker"},
 	{0, NULL, 0, NULL, NULL}
 };
+#endif
 
 EnumPropertyItem viewport_shade_items[] = {
 	{OB_BOUNDBOX, "BOUNDBOX", ICON_BBOX, "Bounding Box", "Display the object's local bounding boxes only"},
@@ -2598,7 +2600,7 @@ static void rna_def_space_text(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "top", PROP_INT, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_int_sdna(prop, NULL, "top");
-	RNA_def_property_ui_text(prop, "Top Line", "Top line visible.");
+	RNA_def_property_ui_text(prop, "Top Line", "Top line visible");
 
 	prop = RNA_def_property(srna, "visible_lines", PROP_INT, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
