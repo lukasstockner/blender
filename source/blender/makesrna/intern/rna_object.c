@@ -1447,22 +1447,10 @@ int rna_Object_use_dynamic_topology_sculpting_get(PointerRNA *ptr)
 	return (ss && ss->bm);
 }
 
-static int lod_cmp(void *a, void *b)
-{
-	LodLevel *loda = (LodLevel*)a;
-	LodLevel *lodb = (LodLevel*)b;
-
-	if (loda->distance < lodb->distance) return -1;
-	return loda->distance > lodb->distance;
-}
-
 static void rna_Object_lod_distance_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	Object *ob = (Object *)ptr->id.data;
-	LodLevel* lod = ptr->data;
-
-	if (lod->distance < 0.0) lod->distance = 0.0;
-	BLI_sortlist(&ob->lodlevels, lod_cmp);
+	BKE_object_lod_sort(ob);
 }
 #else
 
@@ -2029,6 +2017,7 @@ static void rna_def_object_lodlevel(BlenderRNA* brna)
 
 	prop = RNA_def_property(srna, "distance", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "distance");
+	RNA_def_property_range(prop, 0.0, FLT_MAX);
 	RNA_def_property_ui_text(prop, "Distance", "Distance to begin using this level of detail");
 	RNA_def_property_update(prop, NC_OBJECT|ND_LOD, "rna_Object_lod_distance_update");
 

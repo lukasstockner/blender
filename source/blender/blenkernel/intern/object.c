@@ -1008,6 +1008,20 @@ void BKE_object_lod_add(Object *ob)
 	BLI_addtail(&ob->lodlevels, lod);
 }
 
+static int lod_cmp(void *a, void *b)
+{
+	LodLevel *loda = (LodLevel*)a;
+	LodLevel *lodb = (LodLevel*)b;
+
+	if (loda->distance < lodb->distance) return -1;
+	return loda->distance > lodb->distance;
+}
+
+void BKE_object_lod_sort(Object *ob)
+{
+	BLI_sortlist(&ob->lodlevels, lod_cmp);
+}
+
 bool BKE_object_lod_remove(Object *ob, int level)
 {
 	LodLevel *rem;
