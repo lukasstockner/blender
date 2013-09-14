@@ -32,15 +32,18 @@
 namespace libmv {
 namespace {
 
-void GetImagesInMarkers(const vector<Marker> &markers,
-                        int *image1, int *image2) {
+void GetImagesAndCamerasInMarkers(const vector<Marker> &markers,
+                                  int *image1, int *image2,
+                                  int *camera1, int *camera2) {
   if (markers.size() < 2) {
     return;
   }
   *image1 = markers[0].image;
+  *camera1 = markers[0].camera;
   for (int i = 1; i < markers.size(); ++i) {
     if (markers[i].image != *image1) {
       *image2 = markers[i].image;
+      *camera2 = markers[i].camera;
       return;
     }
   }
@@ -57,10 +60,9 @@ bool EuclideanReconstructTwoFrames(const vector<Marker> &markers,
     return false;
   }
 
-  int camera = markers[0].camera;
-
   int image1, image2;
-  GetImagesInMarkers(markers, &image1, &image2);
+  int camera1, camera2;
+  GetImagesAndCamerasInMarkers(markers, &image1, &image2, &camera1, &camera2);
 
   Mat x1, x2;
   CoordinatesForMarkersInImage(markers, image1, &x1);
@@ -87,8 +89,8 @@ bool EuclideanReconstructTwoFrames(const vector<Marker> &markers,
   }
 
   // Image 1 gets the reference frame, image 2 gets the relative motion.
-  reconstruction->InsertView(image1, Mat3::Identity(), Vec3::Zero(), camera);
-  reconstruction->InsertView(image2, R, t, camera);
+  reconstruction->InsertView(image1, Mat3::Identity(), Vec3::Zero(), camera1);
+  reconstruction->InsertView(image2, R, t, camera2);
 
   LG << "From two frame reconstruction got:\nR:\n" << R
      << "\nt:" << t.transpose();
@@ -148,7 +150,8 @@ bool ProjectiveReconstructTwoFrames(const vector<Marker> &markers,
   }
 
   int image1, image2;
-  GetImagesInMarkers(markers, &image1, &image2);
+  int camera1, camera2;
+  GetImagesAndCamerasInMarkers(markers, &image1, &image2, &camera1, &camera2);
 
   Mat x1, x2;
   CoordinatesForMarkersInImage(markers, image1, &x1);
@@ -188,8 +191,8 @@ bool ProjectiveReconstructTwoFrames(const vector<Marker> &markers,
   Mat34 P2;
   ProjectionsFromFundamental(F, &P1, &P2);
 
-  reconstruction->InsertView(image1, P1, 0);
-  reconstruction->InsertView(image2, P2, 0);
+  reconstruction->InsertView(image1, P1, camera1);
+  reconstruction->InsertView(image2, P2, camera2);
 
   LG << "From two frame reconstruction got P2:\n" << P2;
   return true;
