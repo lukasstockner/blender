@@ -754,16 +754,15 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                         col.prop(brush, "secondary_color", text="")
                         col.operator("paint.brush_colors_flip", icon='FILE_REFRESH')
 
-                col.prop(brush, "blend", text="Blend")
-
                 col = layout.column()
-                col.active = (brush.blend not in {'ERASE_ALPHA', 'ADD_ALPHA'})
                 col.prop(brush, "use_alpha")
 
                 col = layout.column()
                 col.template_ID(settings, "palette", new="palette.new")
                 if settings.palette:
                     col.template_palette(settings, "palette", color=True)      
+
+            col.prop(brush, "blend", text="Blend")
                           
             col = layout.column()
             row = col.row(align=True)
