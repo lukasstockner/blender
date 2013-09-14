@@ -962,14 +962,6 @@ Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
 	/* Animation Visualization defaults */
 	animviz_settings_init(&ob->avs);
 
-	/* LoD defaults */
-	BKE_object_lod_add(ob);
-	base = BLI_findlink(&ob->lodlevels, 0);
-	base->distance = 0.0;
-	base->use_mat = base->use_mesh = 1;
-	base->source = ob;
-	ob->currentlod = base;
-
 	return ob;
 }
 
@@ -1000,8 +992,17 @@ void BKE_object_lod_add(struct Object *ob)
 {
 	LodLevel *lod = MEM_callocN(sizeof(LodLevel), "LoD Level");
 	LodLevel *last = ob->lodlevels.last;
+
+	/* If the lod list is empty, initialize it with the base lod level */
+	if (!last) {
+		LodLevel *base = MEM_callocN(sizeof(LodLevel), "Base LoD Level");
+		BLI_addtail(&ob->lodlevels, base);
+		base->use_mat = base->use_mesh = 1;
+		base->source = ob;
+		last = ob->currentlod = base;
+	}
 	
-	lod->distance = (last) ? last->distance + 25.0f : 25.0f;
+	lod->distance = last->distance + 25.0f;
 	lod->use_mesh = lod->use_mat = 1;
 
 	BLI_addtail(&ob->lodlevels, lod);
@@ -1022,6 +1023,14 @@ bool BKE_object_lod_remove(struct Object *ob, int level)
 
 	BLI_remlink(&ob->lodlevels, rem);
 	MEM_freeN(rem);
+
+	/* If there are no user defined lods, remove the base lod as well */
+	if (BLI_countlist(&ob->lodlevels) == 1) {
+		LodLevel *base = ob->lodlevels.first;
+		BLI_remlink(&ob->lodlevels, base);
+		MEM_freeN(base);
+		ob->currentlod = NULL;
+	}
 
 	return true;
 }
@@ -1077,6 +1086,9 @@ struct Object *BKE_object_lod_meshob_get(struct Object *ob)
 {
 	LodLevel *current = ob->currentlod;
 
+	if (!current)
+		return ob;
+
 	while( current->prev && (!current->use_mesh || !current->source || current->source->type != OB_MESH)) {
 		current = current->prev;
 	}
@@ -1087,6 +1099,9 @@ struct Object *BKE_object_lod_meshob_get(struct Object *ob)
 struct Object *BKE_object_lod_matob_get(struct Object *ob)
 {
 	LodLevel *current = ob->currentlod;
+
+	if (!current)
+		return ob;
 
 	while( current->prev && (!current->use_mat || !current->source || current->source->type != OB_MESH)) {
 		current = current->prev;

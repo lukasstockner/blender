@@ -9666,23 +9666,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 
-	/* Load defaults for the level of detail System */
-	{
-		Object *ob;
-		LodLevel *base;
-
-		for (ob = main->object.first; ob; ob = ob->id.next) {
-			if (!ob->lodlevels.first) {
-				BKE_object_lod_add(ob);
-				base = BLI_findlink(&ob->lodlevels, 0);
-				base->distance = 0.0;
-				base->use_mat = base->use_mesh = 1;
-				base->source = ob;
-				ob->currentlod = base;
-			}
-		}
-	}
-
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init see do_versions_userdef() above! */
 
