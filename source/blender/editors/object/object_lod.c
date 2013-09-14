@@ -60,7 +60,7 @@ void OBJECT_OT_lod_add(wmOperatorType *ot)
 	PropertyRNA *prop;
 
 	/* identifiers */
-	ot->name = "Add LoD";
+	ot->name = "Add Level of Detail";
 	ot->description = "Add a level of detail to this object";
 	ot->idname = "OBJECT_OT_lod_add";
 
@@ -86,7 +86,7 @@ static int object_lod_remove_exec(bContext *C, wmOperator *op)
 void OBJECT_OT_lod_remove(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Remove LoD";
+	ot->name = "Remove Level of Detail";
 	ot->description = "Remove a level of detail from this object";
 	ot->idname = "OBJECT_OT_lod_remove";
 
