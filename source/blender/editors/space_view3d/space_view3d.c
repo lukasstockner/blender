@@ -768,6 +768,7 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 				case ND_CONSTRAINT:
 				case ND_KEYS:
 				case ND_PARTICLE:
+				case ND_LOD:
 					ED_region_tag_redraw(ar);
 					break;
 			}
@@ -893,10 +894,6 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 		case NC_GPENCIL:
 			if (wmn->action == NA_EDITED)
 				ED_region_tag_redraw(ar);
-			break;
-		case NC_LOD:
-			/* all lod ops for now */
-			ED_region_tag_redraw(ar);
 			break;
 	}
 }

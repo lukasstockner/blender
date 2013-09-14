@@ -79,7 +79,7 @@ static int object_lod_remove_exec(bContext *C, wmOperator *op)
 	if(!BKE_object_lod_remove(ob, index))
 		return OPERATOR_CANCELLED;
 
-	WM_event_add_notifier(C, NC_LOD, CTX_wm_view3d(C));
+	WM_event_add_notifier(C, NC_OBJECT|ND_LOD, CTX_wm_view3d(C));
 	return OPERATOR_FINISHED;
 }
 
