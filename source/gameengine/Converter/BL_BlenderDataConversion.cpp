@@ -2006,10 +2006,10 @@ static KX_GameObject *gameobject_from_blenderobject(
 			gameobj->AddLodMesh(meshobj);
 			for (; lod; lod = lod->next) {
 				if (!lod->source || lod->source->type != OB_MESH) continue;
-				if (lod->use_mesh) {
+				if (lod->flags & OB_LOD_USE_MESH) {
 					lodmesh = static_cast<Mesh*>(lod->source->data);
 				}
-				if (lod->use_mat) {
+				if (lod->flags & OB_LOD_USE_MAT) {
 					lodmatob = lod->source;
 				}
 				gameobj->AddLodMesh(BL_ConvertMesh(lodmesh, lodmatob, kxscene, converter, libloading));

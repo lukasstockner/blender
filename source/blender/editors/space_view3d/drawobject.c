@@ -3358,7 +3358,7 @@ static void draw_mesh_object_outline(View3D *v3d, Object *ob, DerivedMesh *dm)
 static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D *rv3d, Base *base,
                             const char dt, const unsigned char ob_wire_col[4], const short dflag)
 {
-	Object *ob = base->object;
+	Object *ob = BKE_object_lod_meshob_get(base->object, scene);
 	Mesh *me = ob->data;
 	Material *ma = give_current_material(ob, 1);
 	const short hasHaloMat = (ma && (ma->material_type == MA_TYPE_HALO) && !BKE_scene_use_new_shading_nodes(scene));
@@ -3367,14 +3367,6 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 	DerivedMesh *dm = mesh_get_derived_final(scene, ob, scene->customdata_mask);
 	const bool is_obact = (ob == OBACT);
 	int draw_flags = (is_obact && paint_facesel_test(ob)) ? DRAW_FACE_SELECT : 0;
-
-	if (BKE_object_lod_is_usable(ob, scene)) {
-		ob = BKE_object_lod_meshob_get(ob);
-		if (!ob) ob = base->object;
-		me = ob->data;
-		dm->release(dm);
-		dm = mesh_get_derived_final(scene, ob, scene->customdata_mask);
-	}
 
 	if (!dm)
 		return;

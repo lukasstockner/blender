@@ -108,7 +108,7 @@ enum {
 typedef struct LodLevel {
 	struct LodLevel *next, *prev;
 	struct Object *source;
-	char use_mesh, use_mat, pad[2];
+	int flags;
 	float distance;
 } LodLevel;
 
@@ -478,6 +478,12 @@ enum {
 	OB_BOUND_CONVEX_HULL   = 5,
 /*	OB_BOUND_DYN_MESH      = 6, */ /*UNUSED*/
 	OB_BOUND_CAPSULE       = 7,
+};
+
+/* lod flags */
+enum {
+	OB_LOD_USE_MESH		= 1 << 0,
+	OB_LOD_USE_MAT		= 1 << 1,
 };
 
 

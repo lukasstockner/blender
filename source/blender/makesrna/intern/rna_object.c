@@ -2040,13 +2040,13 @@ static void rna_def_object_lodlevel(BlenderRNA* brna)
 	RNA_def_property_update(prop, NC_LOD, NULL);
 
 	prop = RNA_def_property(srna, "use_mesh", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "use_mesh", 0);
+	RNA_def_property_boolean_sdna(prop, NULL, "flags", OB_LOD_USE_MESH);
 	RNA_def_property_ui_text(prop, "Use Mesh", "Use the mesh from this object at this level of detail");
 	RNA_def_property_ui_icon(prop, ICON_MESH_DATA, 0);
 	RNA_def_property_update(prop, NC_LOD, NULL);
 
 	prop = RNA_def_property(srna, "use_material", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "use_mat", 0);
+	RNA_def_property_boolean_sdna(prop, NULL, "flags", OB_LOD_USE_MAT);
 	RNA_def_property_ui_text(prop, "Use Material", "Use the material from this object at this level of detail");
 	RNA_def_property_ui_icon(prop, ICON_MATERIAL, 0);
 	RNA_def_property_update(prop, NC_LOD, NULL);

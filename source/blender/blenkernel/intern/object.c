@@ -988,7 +988,7 @@ Object *BKE_object_add(Main *bmain, Scene *scene, int type)
 	return ob;
 }
 
-void BKE_object_lod_add(struct Object *ob)
+void BKE_object_lod_add(Object *ob)
 {
 	LodLevel *lod = MEM_callocN(sizeof(LodLevel), "LoD Level");
 	LodLevel *last = ob->lodlevels.last;
@@ -997,18 +997,18 @@ void BKE_object_lod_add(struct Object *ob)
 	if (!last) {
 		LodLevel *base = MEM_callocN(sizeof(LodLevel), "Base LoD Level");
 		BLI_addtail(&ob->lodlevels, base);
-		base->use_mat = base->use_mesh = 1;
+		base->flags = OB_LOD_USE_MESH | OB_LOD_USE_MAT;
 		base->source = ob;
 		last = ob->currentlod = base;
 	}
 	
 	lod->distance = last->distance + 25.0f;
-	lod->use_mesh = lod->use_mat = 1;
+	lod->flags = OB_LOD_USE_MESH | OB_LOD_USE_MAT;
 
 	BLI_addtail(&ob->lodlevels, lod);
 }
 
-bool BKE_object_lod_remove(struct Object *ob, int level)
+bool BKE_object_lod_remove(Object *ob, int level)
 {
 	LodLevel *rem;
 
@@ -1035,7 +1035,7 @@ bool BKE_object_lod_remove(struct Object *ob, int level)
 	return true;
 }
 
-static LodLevel* lod_level_select(struct Object *ob, float cam_loc[3])
+static LodLevel* lod_level_select(Object *ob, float cam_loc[3])
 {
 	LodLevel *current = ob->currentlod;
 	float ob_loc[3], delta[3];
@@ -1063,13 +1063,13 @@ static LodLevel* lod_level_select(struct Object *ob, float cam_loc[3])
 	return current;
 }
 
-bool BKE_object_lod_is_usable(struct Object *ob, struct Scene *scene)
+bool BKE_object_lod_is_usable(Object *ob, Scene *scene)
 {
 	bool active = (scene) ? ob == OBACT : 0;
 	return (ob->mode == OB_MODE_OBJECT || !active);
 }
 
-bool BKE_object_lod_update(struct Object *ob, float camera_position[3])
+bool BKE_object_lod_update(Object *ob, float camera_position[3])
 {
 	LodLevel* cur_level = ob->currentlod;
 	LodLevel* new_level = lod_level_select(ob, camera_position);
@@ -1082,32 +1082,28 @@ bool BKE_object_lod_update(struct Object *ob, float camera_position[3])
 	return false;
 }
 
-struct Object *BKE_object_lod_meshob_get(struct Object *ob)
+static Object *lod_ob_get(Object *ob, Scene *scene, int flag)
 {
 	LodLevel *current = ob->currentlod;
 
-	if (!current)
+	if (!current || !BKE_object_lod_is_usable(ob, scene))
 		return ob;
 
-	while( current->prev && (!current->use_mesh || !current->source || current->source->type != OB_MESH)) {
+	while( current->prev && (!(current->flags & flag) || !current->source || current->source->type != OB_MESH)) {
 		current = current->prev;
 	}
 
 	return current->source;
 }
 
-struct Object *BKE_object_lod_matob_get(struct Object *ob)
+struct Object *BKE_object_lod_meshob_get(Object *ob, Scene *scene)
 {
-	LodLevel *current = ob->currentlod;
+	return lod_ob_get(ob, scene, OB_LOD_USE_MESH);
+}
 
-	if (!current)
-		return ob;
-
-	while( current->prev && (!current->use_mat || !current->source || current->source->type != OB_MESH)) {
-		current = current->prev;
-	}
-
-	return current->source;
+struct Object *BKE_object_lod_matob_get(Object *ob, Scene *scene)
+{
+	return lod_ob_get(ob, scene, OB_LOD_USE_MAT);
 }
 
 SoftBody *copy_softbody(SoftBody *sb, int copy_caches)
