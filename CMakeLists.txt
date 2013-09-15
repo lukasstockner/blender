@@ -320,9 +320,22 @@ if(APPLE)
 		set(OSX_SYSTEM unsupported)
 	endif()
 	message(STATUS "Detected system-version: " ${OSX_SYSTEM})
-
+	
+	# workaround for incorrect cmake xcode lookup for developer previews - XCODE_VERSION does not take xcode-select path into accout
+	# but would always look into /Applications/Xcode.app while dev versions are named Xcode<version>-DP<preview_number>
+	execute_process(COMMAND xcode-select --print-path  OUTPUT_VARIABLE XCODE_CHECK OUTPUT_STRIP_TRAILING_WHITESPACE)
+	string(REPLACE "/Contents/Developer" "" XCODE_BUNDLE ${XCODE_CHECK}) # truncate to bundlepath in any case
+	message(STATUS "Xcode-bundle : " ${XCODE_BUNDLE})
+	
 	if(${CMAKE_GENERATOR} MATCHES "Xcode")
 	
+		if(${XCODE_VERSION} VERSION_GREATER 4.2) # earlier xcode has no bundled developer dir, no sense in getting xcode path from
+			string(SUBSTRING "${XCODE_CHECK}" 14 6 DP_NAME) # reduce to XCode name without dp extension
+			if(${DP_NAME} MATCHES Xcode5)
+				set(XCODE_VERSION 5)
+			endif()
+		endif()
+
 		##### cmake incompatibility with xcode  4.3 and higher #####
 		if(${XCODE_VERSION} MATCHES '') # cmake fails due looking for xcode in the wrong path, thus will be empty var
 			message(FATAL_ERROR "Xcode 4.3 and higher must be used with cmake 2.8-8 or higher")
@@ -346,9 +359,10 @@ if(APPLE)
 	if(${XCODE_VERSION} VERSION_LESS 4.3)
 		set(CMAKE_OSX_SYSROOT /Developer/SDKs/MacOSX${OSX_SYSTEM}.sdk CACHE PATH "" FORCE)  # use guaranteed existing sdk
 	else()
-		# note: i don't use xcode-select path on purpose, cause also /Applications/Xcode.app would be allowed
-		# absolute pathes are more foolproof here !
-		set(OSX_SYSROOT_PREFIX /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform)
+		# note: xcode-select path could be ambigous, cause /Applications/Xcode.app/Contents/Developer or /Applications/Xcode.app would be allowed
+		# so i use a selfcomposed bundlepath here  
+		set(OSX_SYSROOT_PREFIX ${XCODE_BUNDLE}/Contents/Developer/Platforms/MacOSX.platform)
+		message(STATUS "OSX_SYSROOT_PREFIX: " ${OSX_SYSROOT_PREFIX})
 		set(OSX_DEVELOPER_PREFIX /Developer/SDKs/MacOSX${OSX_SYSTEM}.sdk) # use guaranteed existing sdk
 		set(CMAKE_OSX_SYSROOT ${OSX_SYSROOT_PREFIX}/${OSX_DEVELOPER_PREFIX} CACHE PATH "" FORCE)
 	endif()

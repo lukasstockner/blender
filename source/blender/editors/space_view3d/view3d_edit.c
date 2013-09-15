@@ -1012,9 +1012,13 @@ static int view3d_camera_user_poll(bContext *C)
 static int view3d_lock_poll(bContext *C)
 {
 	View3D *v3d = CTX_wm_view3d(C);
-	RegionView3D *rv3d = CTX_wm_region_view3d(C);
-
-	return ED_view3d_offset_lock_check(v3d, rv3d);
+	if (v3d) {
+		RegionView3D *rv3d = CTX_wm_region_view3d(C);
+		if (rv3d) {
+			return ED_view3d_offset_lock_check(v3d, rv3d);
+		}
+	}
+	return false;
 }
 
 static int viewrotate_cancel(bContext *C, wmOperator *op)
@@ -3618,7 +3622,6 @@ static int viewroll_exec(bContext *C, wmOperator *op)
 	View3D *v3d;
 	RegionView3D *rv3d;
 	ARegion *ar;
-	float mousevec[3];
 
 	if (op->customdata) {
 		ViewOpsData *vod = op->customdata;
@@ -3629,9 +3632,6 @@ static int viewroll_exec(bContext *C, wmOperator *op)
 		ar = CTX_wm_region(C);
 		v3d = CTX_wm_view3d(C);
 	}
-
-	negate_v3_v3(mousevec, ((RegionView3D *)ar->regiondata)->viewinv[2]);
-	normalize_v3(mousevec);
 
 	rv3d = ar->regiondata;
 	if ((rv3d->persp != RV3D_CAMOB) || ED_view3d_camera_lock_check(v3d, rv3d)) {
