@@ -190,26 +190,30 @@ static EnumPropertyItem node_sampler_type_items[] = {
 int rna_node_tree_type_to_enum(bNodeTreeType *typeinfo)
 {
 	int i = 0, result = -1;
-	NODE_TREE_TYPES_BEGIN(nt)
+	NODE_TREE_TYPES_BEGIN (nt)
+	{
 		if (nt == typeinfo) {
 			result = i;
 			break;
 		}
 		++i;
-	NODE_TREE_TYPES_END
+	}
+	NODE_TREE_TYPES_END;
 	return result;
 }
 
 int rna_node_tree_idname_to_enum(const char *idname)
 {
 	int i = 0, result = -1;
-	NODE_TREE_TYPES_BEGIN(nt)
+	NODE_TREE_TYPES_BEGIN (nt)
+	{
 		if (STREQ(nt->idname, idname)) {
 			result = i;
 			break;
 		}
 		++i;
-	NODE_TREE_TYPES_END
+	}
+	NODE_TREE_TYPES_END;
 	return result;
 }
 
@@ -217,13 +221,15 @@ bNodeTreeType *rna_node_tree_type_from_enum(int value)
 {
 	int i = 0;
 	bNodeTreeType *result = NULL;
-	NODE_TREE_TYPES_BEGIN(nt)
+	NODE_TREE_TYPES_BEGIN (nt)
+	{
 		if (i == value) {
 			result = nt;
 			break;
 		}
 		++i;
-	NODE_TREE_TYPES_END
+	}
+	NODE_TREE_TYPES_END;
 	return result;
 }
 
@@ -233,7 +239,8 @@ EnumPropertyItem *rna_node_tree_type_itemf(void *data, int (*poll)(void *data, b
 	EnumPropertyItem *item = NULL;
 	int totitem = 0, i = 0;
 	
-	NODE_TREE_TYPES_BEGIN(nt)
+	NODE_TREE_TYPES_BEGIN (nt)
+	{
 		if (poll && !poll(data, nt)) {
 			++i;
 			continue;
@@ -248,7 +255,8 @@ EnumPropertyItem *rna_node_tree_type_itemf(void *data, int (*poll)(void *data, b
 		RNA_enum_item_add(&item, &totitem, &tmp);
 		
 		++i;
-	NODE_TREE_TYPES_END
+	}
+	NODE_TREE_TYPES_END;
 
 	RNA_enum_item_end(&item, &totitem);
 	*free = 1;
@@ -2877,6 +2885,12 @@ static EnumPropertyItem node_toon_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
+static EnumPropertyItem node_hair_items[] = {
+	{SHD_HAIR_REFLECTION,     "Reflection",    0,   "Reflection", ""},
+	{SHD_HAIR_TRANSMISSION,   "Transmission",    0,  "Transmission", ""},
+	{0, NULL, 0, NULL, NULL}
+};
+
 static EnumPropertyItem node_script_mode_items[] = {
 	{NODE_SCRIPT_INTERNAL, "INTERNAL", 0, "Internal", "Use internal text datablock"},
 	{NODE_SCRIPT_EXTERNAL, "EXTERNAL", 0, "External", "Use external .osl or .oso file"},
@@ -3572,6 +3586,17 @@ static void def_sh_bump(StructRNA *srna)
 	prop = RNA_def_property(srna, "invert", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "custom1", 1);
 	RNA_def_property_ui_text(prop, "Invert", "Invert the bump mapping direction to push into the surface instead of out");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_hair(StructRNA *srna)
+{
+	PropertyRNA *prop;
+	
+	prop = RNA_def_property(srna, "component", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "custom1");
+	RNA_def_property_enum_items(prop, node_hair_items);
+	RNA_def_property_ui_text(prop, "Component", "");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 

@@ -4122,6 +4122,8 @@ static void direct_link_customdata(FileData *fd, CustomData *data, int count)
 		
 		if (layer->flag & CD_FLAG_EXTERNAL)
 			layer->flag &= ~CD_FLAG_IN_MEMORY;
+
+		layer->flag &= ~CD_FLAG_NOFREE;
 		
 		if (CustomData_verify_versions(data, i)) {
 			layer->data = newdataadr(fd, layer->data);
@@ -4169,6 +4171,12 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 	direct_link_customdata(fd, &mesh->ldata, mesh->totloop);
 	direct_link_customdata(fd, &mesh->pdata, mesh->totpoly);
 	
+	if (mesh->mloopuv || mesh->mtpoly) {
+		/* for now we have to ensure texpoly and mloopuv layers are aligned
+		 * in the future we may allow non-aligned layers */
+		BKE_mesh_cd_validate(mesh);
+	}
+
 	mesh->bb = NULL;
 	mesh->edit_btmesh = NULL;
 	

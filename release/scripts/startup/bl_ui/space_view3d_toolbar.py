@@ -974,7 +974,7 @@ class VIEW3D_PT_tools_brush_stroke(Panel, View3DPaintPanel):
                     row.prop(brush, "use_relative_jitter", text="", icon='UNLOCKED')
                     row.prop(brush, "jitter_absolute")
                 row.prop(brush, "use_pressure_jitter", toggle=True, text="")
-                
+
             if brush.sculpt_capabilities.has_smooth_stroke:
                 col = layout.column()
                 col.separator()
@@ -1006,9 +1006,8 @@ class VIEW3D_PT_tools_brush_stroke(Panel, View3DPaintPanel):
             sub.active = brush.use_smooth_stroke
             sub.prop(brush, "smooth_stroke_radius", text="Radius", slider=True)
             sub.prop(brush, "smooth_stroke_factor", text="Factor", slider=True)
-        
-        layout.prop(settings, "input_samples")
 
+        layout.prop(settings, "input_samples")
 
 
 class VIEW3D_PT_tools_brush_curve(Panel, View3DPaintPanel):
@@ -1292,7 +1291,7 @@ class VIEW3D_PT_tools_projectpaint(View3DPanel, Panel):
 
         row = layout.row()
         row.prop(ipaint, "use_normal_falloff")
-        
+
         sub = row.row()
         sub.active = (ipaint.use_normal_falloff)
         sub.prop(ipaint, "normal_angle", text="")
