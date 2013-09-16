@@ -1597,7 +1597,9 @@ int ED_area_header_standardbuttons(const bContext *C, uiBlock *block, int yco)
 	}
 
 	uiButClearFlag(but, UI_BUT_UNDO); /* skip undo on screen buttons */
-	
+
+	uiBlockSetEmboss(block, UI_EMBOSS);
+
 	return xco + U.widget_unit;
 }
 

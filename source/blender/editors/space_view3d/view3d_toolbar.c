@@ -131,9 +131,21 @@ static void view3d_panel_operator_redo(const bContext *C, Panel *pa)
 	CTX_wm_region_set((bContext *)C, ar);
 }
 
-static void active_panel_menu_popup_cb(bContext *UNUSED(C), void *arg_ar, int UNUSED(event))
+static uiBlock *active_panel_menu_popup_create_block(bContext *C, ARegion *cur_ar, void *arg_ar);
+
+static void active_panel_menu_popup_cb(bContext *C, void *UNUSED(arg_block), int UNUSED(event))
 {
-	ARegion *ar = (ARegion *)arg_ar;
+	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_TOOLS);
+//	uiBlock *block = (uiBlock*)arg_block;
+
+	/* This results in a crash that has something to do with recursion 
+	   in the event handling system. I'm not quite sure it is possible
+	   to refresh popup blocks.
+	 */
+//	uiPupBlockClose(C, block);
+//	uiPupBlock(C, active_panel_menu_popup_create_block, ar);
+
 	ED_region_tag_redraw(ar);
 }
 
@@ -156,17 +168,49 @@ static uiBlock *active_panel_menu_popup_create_block(bContext *C, ARegion *cur_a
 	const char *context = CTX_data_mode_string(C);
 	int width = 10 * UI_UNIT_X;
 	int height = 12 * UI_UNIT_Y;
+//	bool all_showing = true;
 	
 	block = uiBeginBlock(C, cur_ar, __func__, UI_EMBOSS);
-	uiBlockClearFlag(block, UI_BLOCK_LOOP);
 	uiBlockSetFlag(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_MOVEMOUSE_QUIT);
-	uiBlockSetHandleFunc(block, active_panel_menu_popup_cb, ar);
-	
+	uiBlockSetHandleFunc(block, active_panel_menu_popup_cb, block);
+
 	layout = uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, style->panelspace, 0, width - 2 * style->panelspace, height, style);
 	col = uiLayoutColumn(layout, TRUE);
 	
 	CTX_wm_region_set(C, ar);
+
 	BLI_sortlist(&ar->panels, sort_panels_by_sortorder);
+	
+	/* 
+	 The following code is meant to show 2 buttons:
+	 1. - Show all => a button that is shown if 1 or more panels are hidden and unhides all panels when pressed.
+		- Hide all => a button that is shown if all panels are visible and hides all panels when pressed
+	 2. Invert => a button that hides the visible panels and unhides the hidden ones when pressed.
+	 
+	 However, it is not so easy to redraw a popup block and this 
+	 severly limits the usefulness of these buttons. The rest of the 
+	 buttons don't update accordingly and the panel would have to be 
+	 reopened again by the user. Without these extra buttons the panel 
+	 is conceptually clear, and I doubt that the extra buttons would 
+	 be very helpful.
+	 */
+	
+//	for (pa = ar->panels.first; pa; pa = pa->next) {
+//		/* check to see if this panel should be considered */
+//		if (pa->type && !(pa->type->flag & PNL_NO_HEADER) &&
+//			(pa->type->context[0] ? strcmp(context, pa->type->context) == 0 : true) &&
+//			(pa->type->poll ? pa->type->poll(C, pa->type) : true)) {
+//			/* if any panel is not hidden, break */
+//			if (pa->hidden) {
+//				all_showing = false;
+//				break;
+//			}
+//		}
+//	}
+//	
+//	but = uiDefBut(block, BUT, 1, !all_showing ? "Show all" : "Hide all", 0, 0, width, UI_UNIT_Y, NULL, 0, 0, 0, 0, "Show all panels");
+//	// TODO: set callback that shows or hides all panels.
+			
 	for (pa = ar->panels.first; pa; pa = pa->next) {
 		/* Create a button with a callback for each panel that belongs fits the mode */
 		if (!pa->type || pa->type->flag & PNL_NO_HEADER
@@ -221,7 +265,7 @@ static void view3d_toolbar_header_draw(const bContext *C, Panel *pa)
 
 	uiItemL(row, name, modeicon);
 
-	but = uiDefIconBut(uiLayoutGetBlock(row), BUT, 0, ICON_CHECKBOX_HLT, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0, 0, 0, 0, "Collapse all panels in this toolbar");
+	but = uiDefIconBut(uiLayoutGetBlock(row), BUT, 0, ICON_CHECKBOX_HLT, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0, 0, 0, 0, "Show and hide panels");
 	uiButSetFunc(but, active_panel_menu_popup, ar, NULL);
 	
 	but = uiDefIconBut(uiLayoutGetBlock(row), BUT, 0, ICON_TRIA_RIGHT, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0, 0, 0, 0, "Collapse all panels in this toolbar");

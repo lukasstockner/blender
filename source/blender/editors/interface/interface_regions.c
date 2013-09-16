@@ -2830,6 +2830,9 @@ float *ui_block_hsv_get(uiBlock *block)
 	return block->_hsv;
 }
 
+/* OperatorListItem utility functions for dragging in the Menubar */
+
+/* Retrieve the OperatorListItem that is being dragged */
 OperatorListItem *uiRegionDraggedOperatorListItem(ARegion *ar)
 {
 	OperatorListItem *oli = NULL;
@@ -2845,6 +2848,7 @@ OperatorListItem *uiRegionDraggedOperatorListItem(ARegion *ar)
 	return oli;
 }
 
+/* Retrieve the new index for the dropped OperatorListItem */
 int uiRegionDraggedNewIndex(ARegion *ar)
 {
 	uiHandleRegionDragData *data;
