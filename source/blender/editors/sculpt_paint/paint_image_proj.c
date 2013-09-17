@@ -285,6 +285,8 @@ typedef struct ProjPaintState {
 
 	/* redraw */
 	bool need_redraw;
+
+	BlurKernel *blurkernel;
 } ProjPaintState;
 
 typedef union pixelPointer {
@@ -325,18 +327,6 @@ typedef struct ProjPixelClone {
 	struct ProjPixel __pp;
 	PixelStore clonepx;
 } ProjPixelClone;
-
-/* blur, store surrounding colors */
-#define PROJ_PIXEL_SOFTEN_TOT 4
-/* blur picking offset (in screenspace) */
-#define PROJ_PIXEL_SOFTEN_OFS_PX 1.0f
-
-static const float proj_pixel_soften_v2[PROJ_PIXEL_SOFTEN_TOT][2] = {
-	{-PROJ_PIXEL_SOFTEN_OFS_PX,                         0.0f},
-	{ 0.0f,                        -PROJ_PIXEL_SOFTEN_OFS_PX},
-	{ 0.0f,                         PROJ_PIXEL_SOFTEN_OFS_PX},
-	{ PROJ_PIXEL_SOFTEN_OFS_PX,                         0.0f},
-};
 
 /* Finish projection painting structs */
 
@@ -3610,6 +3600,11 @@ static void project_paint_end(ProjPaintState *ps)
 	}
 #endif
 
+	if (ps->blurkernel) {
+		paint_delete_blur_kernel(ps->blurkernel);
+		MEM_freeN(ps->blurkernel);
+	}
+
 	if (ps->vertFlags) MEM_freeN(ps->vertFlags);
 
 	for (a = 0; a < ps->thread_tot; a++) {
@@ -3861,21 +3856,27 @@ static void do_projectpaint_smear_f(ProjPaintState *ps, ProjPixel *projPixel, fl
 static void do_projectpaint_soften_f(ProjPaintState *ps, ProjPixel *projPixel, float mask,
                                      MemArena *softenArena, LinkNode **softenPixels)
 {
-	unsigned int accum_tot = 0;
-	unsigned int i;
-
+	float accum_tot = 0.0;
+	int xk, yk;
+	BlurKernel *kernel = ps->blurkernel;
 	float *rgba = projPixel->newColor.f;
 
 	/* rather then painting, accumulate surrounding colors */
 	zero_v4(rgba);
 
-	for (i = 0; i < PROJ_PIXEL_SOFTEN_TOT; i++) {
-		float co_ofs[2];
-		float rgba_tmp[4];
-		sub_v2_v2v2(co_ofs, projPixel->projCoSS, proj_pixel_soften_v2[i]);
-		if (project_paint_PickColor(ps, co_ofs, rgba_tmp, NULL, TRUE)) {
-			add_v4_v4(rgba, rgba_tmp);
-			accum_tot++;
+	for (yk = 0; yk < kernel->side; yk++) {
+		for (xk = 0; xk < kernel->side; xk++) {
+			float rgba_tmp[4];
+			float co_ofs[2] = {xk - kernel->pixel_len, yk - kernel->pixel_len};
+
+			add_v2_v2(co_ofs, projPixel->projCoSS);
+
+			if (project_paint_PickColor(ps, co_ofs, rgba_tmp, NULL, TRUE)) {
+				float weight = kernel->wdata[xk + yk * kernel->side];
+				mul_v4_fl(rgba_tmp, weight);
+				add_v4_v4(rgba, rgba_tmp);
+				accum_tot += weight;
+			}
 		}
 	}
 
@@ -3910,21 +3911,27 @@ static void do_projectpaint_soften_f(ProjPaintState *ps, ProjPixel *projPixel, f
 static void do_projectpaint_soften(ProjPaintState *ps, ProjPixel *projPixel, float mask,
                                    MemArena *softenArena, LinkNode **softenPixels)
 {
-	unsigned int accum_tot = 0;
-	unsigned int i;
-
+	float accum_tot = 0;
+	int xk, yk;
+	BlurKernel *kernel = ps->blurkernel;
 	float rgba[4];  /* convert to byte after */
 
 	/* rather then painting, accumulate surrounding colors */
 	zero_v4(rgba);
 
-	for (i = 0; i < PROJ_PIXEL_SOFTEN_TOT; i++) {
-		float co_ofs[2];
-		float rgba_tmp[4];
-		sub_v2_v2v2(co_ofs, projPixel->projCoSS, proj_pixel_soften_v2[i]);
-		if (project_paint_PickColor(ps, co_ofs, rgba_tmp, NULL, TRUE)) {
-			add_v4_v4(rgba, rgba_tmp);
-			accum_tot++;
+	for (yk = 0; yk < kernel->side; yk++) {
+		for (xk = 0; xk < kernel->side; xk++) {
+			float rgba_tmp[4];
+			float co_ofs[2] = {xk - kernel->pixel_len, yk - kernel->pixel_len};
+
+			add_v2_v2(co_ofs, projPixel->projCoSS);
+
+			if (project_paint_PickColor(ps, co_ofs, rgba_tmp, NULL, TRUE)) {
+				float weight = kernel->wdata[xk + yk * kernel->side];
+				mul_v4_fl(rgba_tmp, weight);
+				add_v4_v4(rgba, rgba_tmp);
+				accum_tot += weight;
+			}
 		}
 	}
 
@@ -4510,9 +4517,12 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 		ps->tool = brush->imagepaint_tool;
 		ps->blend = brush->blend;
 		/* only check for inversion for the soften tool, elsewhere, a resident brush inversion flag can cause issues */
-		if (brush->imagepaint_tool == PAINT_TOOL_SOFTEN)
+		if (brush->imagepaint_tool == PAINT_TOOL_SOFTEN) {
 			ps->mode = ((ps->mode == BRUSH_STROKE_INVERT) ^ ((brush->flag & BRUSH_DIR_IN) != 0) ?
 			            BRUSH_STROKE_INVERT : BRUSH_STROKE_NORMAL);
+
+			ps->blurkernel = paint_new_blur_kernel(brush);
+		}
 
 		/* disable for 3d mapping also because painting on mirrored mesh can create "stripes" */
 		ps->do_masking = paint_use_opacity_masking(brush);
