@@ -501,6 +501,7 @@ BlurKernel *paint_new_blur_kernel(Brush *br)
 	kernel->side = pixel_len * 2 + 1;
 	kernel->side_squared = kernel->side * kernel->side;
 	kernel->wdata = MEM_mallocN(sizeof(float) * kernel->side_squared, "blur kernel data");
+	kernel->pixel_len = pixel_len;
 
 	switch (type) {
 		case KERNEL_BOX:

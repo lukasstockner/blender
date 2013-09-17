@@ -851,8 +851,8 @@ static void paint_2d_lift_soften(ImagePaintState *s, ImBuf *ibuf, ImBuf *ibufb, 
 
 			for (yk = 0; yk < kernel->side; yk++) {
 				for (xk = 0; xk < kernel->side; xk++) {
-					count += paint_2d_ibuf_add_if(ibuf, xi - (xk - kernel->pixel_len),
-					                               yi - (yk - kernel->pixel_len), outrgb, is_torus,
+					count += paint_2d_ibuf_add_if(ibuf, xi + xk - kernel->pixel_len,
+					                               yi + yk - kernel->pixel_len, outrgb, is_torus,
 					                               kernel->wdata[xk + yk * kernel->side]);
 				}
 			}
