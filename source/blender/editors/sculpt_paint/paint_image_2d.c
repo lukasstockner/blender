@@ -142,6 +142,8 @@ typedef struct ImagePaintState {
 	int do_facesel;
 
 	bool need_redraw;
+
+	BlurKernel *blurkernel;
 } ImagePaintState;
 
 
@@ -789,7 +791,7 @@ static void paint_2d_ibuf_rgb_set(ImBuf *ibuf, int x, int y, const short is_toru
 	}
 }
 
-static int paint_2d_ibuf_add_if(ImBuf *ibuf, unsigned int x, unsigned int y, float *outrgb, short torus)
+static float paint_2d_ibuf_add_if(ImBuf *ibuf, unsigned int x, unsigned int y, float *outrgb, short torus, float w)
 {
 	float inrgb[4];
 
@@ -802,20 +804,23 @@ static int paint_2d_ibuf_add_if(ImBuf *ibuf, unsigned int x, unsigned int y, flo
 		paint_2d_ibuf_rgb_get(ibuf, x, y, 0, inrgb);
 	}
 
+	mul_v4_fl(inrgb, w);
 	add_v4_v4(outrgb, inrgb);
 
-	return 1;
+	return w;
 }
 
 static void paint_2d_lift_soften(ImagePaintState *s, ImBuf *ibuf, ImBuf *ibufb, int *pos, const short is_torus)
 {
 	bool sharpen = (s->painter->cache.invert ^ ((s->brush->flag & BRUSH_DIR_IN) != 0));
 	float threshold = s->brush->sharp_threshold;
-	int x, y, count, xi, yi, xo, yo;
+	int x, y, xi, yi, xo, yo, xk, yk;
+	float count;
 	int out_off[2], in_off[2], dim[2];
 	int diff_pos[2];
 	float outrgb[4];
 	float rgba[4];
+	BlurKernel *kernel = s->blurkernel;
 
 	dim[0] = ibufb->x;
 	dim[1] = ibufb->y;
@@ -840,21 +845,19 @@ static void paint_2d_lift_soften(ImagePaintState *s, ImBuf *ibuf, ImBuf *ibufb, 
 			xi = in_off[0] + x;
 			yi = in_off[1] + y;
 
-			count = 0;
+			count = 0.0;
 			paint_2d_ibuf_rgb_get(ibuf, xi, yi, is_torus, rgba);
 			zero_v4(outrgb);
-			count += paint_2d_ibuf_add_if(ibuf, xi - 1, yi - 1, outrgb, is_torus);
-			count += paint_2d_ibuf_add_if(ibuf, xi - 1, yi, outrgb, is_torus);
-			count += paint_2d_ibuf_add_if(ibuf, xi - 1, yi + 1, outrgb, is_torus);
 
-			count += paint_2d_ibuf_add_if(ibuf, xi, yi - 1, outrgb, is_torus);
-			count += paint_2d_ibuf_add_if(ibuf, xi, yi + 1, outrgb, is_torus);
+			for (yk = 0; yk < kernel->side; yk++) {
+				for (xk = 0; xk < kernel->side; xk++) {
+					count += paint_2d_ibuf_add_if(ibuf, xi - (xk - kernel->pixel_len),
+					                               yi - (yk - kernel->pixel_len), outrgb, is_torus,
+					                               kernel->wdata[xk + yk * kernel->side]);
+				}
+			}
 
-			count += paint_2d_ibuf_add_if(ibuf, xi + 1, yi - 1, outrgb, is_torus);
-			count += paint_2d_ibuf_add_if(ibuf, xi + 1, yi, outrgb, is_torus);
-			count += paint_2d_ibuf_add_if(ibuf, xi + 1, yi + 1, outrgb, is_torus);
-
-			if (count > 0) {
+			if (count > 0.0) {
 				mul_v4_fl(outrgb, 1.0f / (float)count);
 
 				if (sharpen) {
@@ -1129,6 +1132,11 @@ static void paint_2d_canvas_free(ImagePaintState *s)
 	BKE_image_release_ibuf(s->image, s->canvas, NULL);
 	BKE_image_release_ibuf(s->brush->clone.image, s->clonecanvas, NULL);
 
+	if (s->blurkernel) {
+		paint_delete_blur_kernel(s->blurkernel);
+		MEM_freeN(s->blurkernel);
+	}
+
 	if (s->do_masking)
 		image_undo_remove_masks();
 }
@@ -1213,6 +1221,10 @@ void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
 
 		MEM_freeN(s);
 		return NULL;
+	}
+
+	if (brush->imagepaint_tool == PAINT_TOOL_SOFTEN) {
+		s->blurkernel = paint_new_blur_kernel(brush);
 	}
 
 	paint_brush_init_tex(s->brush);

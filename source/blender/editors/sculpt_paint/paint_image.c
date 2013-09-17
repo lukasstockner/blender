@@ -491,10 +491,12 @@ void imapaint_image_update(SpaceImage *sima, Image *image, ImBuf *ibuf, short te
 
 /* paint blur kernels */
 
-BlurKernel *paint_new_blur_kernel(int pixel_len, BlurKernelType type)
+BlurKernel *paint_new_blur_kernel(Brush *br)
 {
 	int i, j;
 	BlurKernel *kernel = MEM_mallocN(sizeof(BlurKernel), "blur kernel");
+	int pixel_len = br->blur_kernel_radius;
+	BlurKernelType type = br->blur_mode;
 
 	kernel->side = pixel_len * 2 + 1;
 	kernel->side_squared = kernel->side * kernel->side;
@@ -503,13 +505,12 @@ BlurKernel *paint_new_blur_kernel(int pixel_len, BlurKernelType type)
 	switch (type) {
 		case KERNEL_BOX:
 			for (i = 0; i < kernel->side_squared; i++)
-				kernel->wdata[i] = 1.0/(float)kernel->side_squared;
+				kernel->wdata[i] = 1.0;
 			break;
 
 		case KERNEL_GAUSSIAN:
 		{
 			float standard_dev = pixel_len / 3.0; /* at standard deviation of 3.0 kernel is at about zero */
-			float weight_sum = 0.0; /* for kernel normalization */
 			int i_term = pixel_len + 1;
 
 			/* make the necessary adjustment to the value for use in the normal distribution formula */
@@ -525,19 +526,12 @@ BlurKernel *paint_new_blur_kernel(int pixel_len, BlurKernelType type)
 					float value = exp((idist * idist + jdist * jdist) / standard_dev);
 
 					kernel->wdata[i + j * kernel->side] =
-					kernel->wdata[(kernel->side - j) + i * kernel->side] =
-					kernel->wdata[(kernel->side - i) + (kernel->side - j) * kernel->side] =
-					kernel->wdata[j + (kernel->side - i) * kernel->side] =
+					kernel->wdata[(kernel->side - j - 1) + i * kernel->side] =
+					kernel->wdata[(kernel->side - i - 1) + (kernel->side - j - 1) * kernel->side] =
+					kernel->wdata[j + (kernel->side - i - 1) * kernel->side] =
 						value;
-
-					weight_sum += value;
 				}
 			}
-
-			weight_sum *= 4.0;
-			weight_sum += 1.0; /* central */
-
-			weight_sum /= kernel->side_squared;
 
 			break;
 		}

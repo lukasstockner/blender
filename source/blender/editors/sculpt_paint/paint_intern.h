@@ -280,7 +280,7 @@ typedef struct {
 
 enum BlurKernelType;
 /* can be extended to other blur kernels later */
-BlurKernel *paint_new_blur_kernel(int pixel_len, enum BlurKernelType type);
+BlurKernel *paint_new_blur_kernel(struct Brush *br);
 void paint_delete_blur_kernel(BlurKernel *);
 
 #endif /* __PAINT_INTERN_H__ */
