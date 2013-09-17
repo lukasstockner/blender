@@ -1232,11 +1232,7 @@ static void scene_update_object_func(TaskPool *pool, void *taskdata, int threadi
 
 		PRINT("Thread %d: update object %s\n", threadid, object->id.name);
 
-#ifdef DETAILED_ANALYSIS_OUTPUT
-		{
-#else
 		if (G.debug & G_DEBUG) {
-#endif
 			start_time = PIL_check_seconds_timer();
 
 			if (object->recalc & OB_RECALC_ALL) {
@@ -1281,11 +1277,17 @@ static void scene_update_object_add_task(void *node, void *user_data)
 	BLI_task_pool_push(task_pool, scene_update_object_func, node, false, TASK_PRIORITY_LOW);
 }
 
-#ifdef DETAILED_ANALYSIS_OUTPUT
-static void print_thread_statistics_for_analysis(ThreadedObjectUpdateState *state)
+static void print_threads_statistics(ThreadedObjectUpdateState *state)
 {
+	int i, tot_thread;
+
+	if ((G.debug & G_DEBUG) == 0) {
+		return;
+	}
+
+#ifdef DETAILED_ANALYSIS_OUTPUT
 	if (state->has_updated_objects) {
-		int i, tot_thread = BLI_system_thread_count();
+		tot_thread = BLI_system_thread_count();
 
 		fprintf(stderr, "objects update base time %f\n", state->base_time);
 
@@ -1302,16 +1304,7 @@ static void print_thread_statistics_for_analysis(ThreadedObjectUpdateState *stat
 			BLI_freelistN(&state->statistics[i]);
 		}
 	}
-}
 #else
-static void print_threads_statistics(ThreadedObjectUpdateState *state)
-{
-	int i, tot_thread;
-
-	if ((G.debug & G_DEBUG) == 0) {
-		return;
-	}
-
 	tot_thread = BLI_system_thread_count();
 
 	for (i = 0; i < tot_thread; i++) {
@@ -1341,8 +1334,8 @@ static void print_threads_statistics(ThreadedObjectUpdateState *state)
 
 		BLI_freelistN(&state->statistics[i]);
 	}
-}
 #endif
+}
 
 static void scene_update_objects(EvaluationContext *evaluation_context, Scene *scene, Scene *scene_parent, bool use_threads)
 {
@@ -1368,13 +1361,9 @@ static void scene_update_objects(EvaluationContext *evaluation_context, Scene *s
 	BLI_task_pool_work_and_wait(task_pool);
 	BLI_task_pool_free(task_pool);
 
-#ifdef DETAILED_ANALYSIS_OUTPUT
-	print_thread_statistics_for_analysis(&state);
-#else
 	if (G.debug & G_DEBUG) {
 		print_threads_statistics(&state);
 	}
-#endif
 }
 
  static void scene_update_tagged_recursive(EvaluationContext *evaluation_context, Main *bmain, Scene *scene, Scene *scene_parent, bool use_threads)
