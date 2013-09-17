@@ -109,13 +109,17 @@ typedef struct Brush {
 
 	float texture_sample_bias;
 
+	/* overlay */
 	int texture_overlay_alpha;
 	int mask_overlay_alpha;
 	int cursor_overlay_alpha;
 
 	float unprojected_radius;
 
+	/* soften/sharpen */
 	float sharp_threshold;
+	int blur_kernel_radius;
+	int blur_mode;
 	int pad;
 
 	float add_col[3];
@@ -269,6 +273,12 @@ typedef enum {
 	BRUSH_MASK_DRAW = 0,
 	BRUSH_MASK_SMOOTH = 1
 } BrushMaskTool;
+
+/* blur kernel types, Brush.blur_mode */
+typedef enum BlurKernelType {
+	KERNEL_GAUSSIAN,
+	KERNEL_BOX
+} BlurKernelType;
 
 #define MAX_BRUSH_PIXEL_RADIUS 200
 

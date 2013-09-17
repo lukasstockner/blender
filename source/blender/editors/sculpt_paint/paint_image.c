@@ -489,6 +489,76 @@ void imapaint_image_update(SpaceImage *sima, Image *image, ImBuf *ibuf, short te
 	}
 }
 
+/* paint blur kernels */
+
+BlurKernel *paint_new_blur_kernel(int pixel_len, BlurKernelType type)
+{
+	int i, j;
+	BlurKernel *kernel = MEM_mallocN(sizeof(BlurKernel), "blur kernel");
+
+	kernel->side = pixel_len * 2 + 1;
+	kernel->side_squared = kernel->side * kernel->side;
+	kernel->wdata = MEM_mallocN(sizeof(float) * kernel->side_squared, "blur kernel data");
+
+	switch (type) {
+		case KERNEL_BOX:
+			for (i = 0; i < kernel->side_squared; i++)
+				kernel->wdata[i] = 1.0/(float)kernel->side_squared;
+			break;
+
+		case KERNEL_GAUSSIAN:
+		{
+			float standard_dev = pixel_len / 3.0; /* at standard deviation of 3.0 kernel is at about zero */
+			float weight_sum = 0.0; /* for kernel normalization */
+			int i_term = pixel_len + 1;
+
+			/* make the necessary adjustment to the value for use in the normal distribution formula */
+			standard_dev = standard_dev * standard_dev * 2;
+
+			kernel->wdata[pixel_len + pixel_len * kernel->side] = 1.0;
+			/* fill in all four quadrants at once */
+			for (i = 0; i < i_term; i++) {
+				for (j = 0; j < pixel_len; j++) {
+					float idist = pixel_len - i;
+					float jdist = pixel_len - j;
+
+					float value = exp((idist * idist + jdist * jdist) / standard_dev);
+
+					kernel->wdata[i + j * kernel->side] =
+					kernel->wdata[(kernel->side - j) + i * kernel->side] =
+					kernel->wdata[(kernel->side - i) + (kernel->side - j) * kernel->side] =
+					kernel->wdata[j + (kernel->side - i) * kernel->side] =
+						value;
+
+					weight_sum += value;
+				}
+			}
+
+			weight_sum *= 4.0;
+			weight_sum += 1.0; /* central */
+
+			weight_sum /= kernel->side_squared;
+
+			break;
+		}
+
+		default:
+			printf("unidentified kernel type, aborting\n");
+			MEM_freeN(kernel->wdata);
+			MEM_freeN(kernel);
+			return NULL;
+			break;
+	}
+
+	return kernel;
+}
+
+void paint_delete_blur_kernel(BlurKernel *kernel)
+{
+	if (kernel->wdata)
+		MEM_freeN(kernel->wdata);
+}
+
 /************************ image paint poll ************************/
 
 static Brush *image_paint_brush(bContext *C)

@@ -773,6 +773,12 @@ static void rna_def_brush(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem brush_blur_mode_items[] = {
+		{KERNEL_BOX, "BOX", 0, "Box", ""},
+		{KERNEL_GAUSSIAN, "GAUSSIAN", 0, "Gaussian", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	static EnumPropertyItem brush_gradient_items[] = {
 		{BRUSH_GRADIENT_PRESSURE, "PRESSURE", 0, "Pressure", ""},
 		{BRUSH_GRADIENT_SPACING_REPEAT, "SPACING_REPEAT", 0, "Repeat", ""},
@@ -1036,6 +1042,18 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 0.0, 1.0, 0.01, 3);
 	RNA_def_property_float_sdna(prop, NULL, "sharp_threshold");
 	RNA_def_property_ui_text(prop, "Sharp Threshold", "Threshold below which, no sharpening is done");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	prop = RNA_def_property(srna, "blur_kernel_radius", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "blur_kernel_radius");
+	RNA_def_property_range(prop, 1, 10000);
+	RNA_def_property_ui_range(prop, 1, 50, 1, -1);
+	RNA_def_property_ui_text(prop, "Kernel Radius", "Radius of kernel used for soften and sharpen in pixels");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	prop = RNA_def_property(srna, "blur_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, brush_blur_mode_items);
+	RNA_def_property_ui_text(prop, "Blur Mode", "");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	/* flag */
