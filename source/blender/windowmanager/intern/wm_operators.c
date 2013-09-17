@@ -892,33 +892,38 @@ void WM_operator_properties_free(PointerRNA *ptr)
 
 /* ************ default op callbacks, exported *********** */
 
-int WM_operator_view3d_distance_invoke(struct bContext *C, struct wmOperator *op, const struct wmEvent *UNUSED(event))
+void WM_operator_view3d_unit_defaults(struct bContext *C, struct wmOperator *op)
 {
-	Scene *scene = CTX_data_scene(C);
-	View3D *v3d = CTX_wm_view3d(C);
+	if (op->flag & OP_IS_INVOKE) {
+		Scene *scene = CTX_data_scene(C);
+		View3D *v3d = CTX_wm_view3d(C);
 
-	const float dia = v3d ? ED_view3d_grid_scale(scene, v3d, NULL) : ED_scene_grid_scale(scene, NULL);
+		const float dia = v3d ? ED_view3d_grid_scale(scene, v3d, NULL) : ED_scene_grid_scale(scene, NULL);
 
-	/* always run, so the values are initialized,
-	 * otherwise we may get differ behavior when (dia != 1.0) */
-	RNA_STRUCT_BEGIN (op->ptr, prop)
-	{
-		if (RNA_property_type(prop) == PROP_FLOAT) {
-			PropertySubType pstype = RNA_property_subtype(prop);
-			if (pstype == PROP_DISTANCE) {
-				/* we don't support arrays yet */
-				BLI_assert(RNA_property_array_check(prop) == FALSE);
-				/* initialize */
-				if (!RNA_property_is_set_ex(op->ptr, prop, FALSE)) {
-					const float value = RNA_property_float_get_default(op->ptr, prop) * dia;
-					RNA_property_float_set(op->ptr, prop, value);
+		/* always run, so the values are initialized,
+		 * otherwise we may get differ behavior when (dia != 1.0) */
+		RNA_STRUCT_BEGIN (op->ptr, prop)
+		{
+			if (RNA_property_type(prop) == PROP_FLOAT) {
+				PropertySubType pstype = RNA_property_subtype(prop);
+				if (pstype == PROP_DISTANCE) {
+					/* we don't support arrays yet */
+					BLI_assert(RNA_property_array_check(prop) == FALSE);
+					/* initialize */
+					if (!RNA_property_is_set_ex(op->ptr, prop, FALSE)) {
+						const float value = RNA_property_float_get_default(op->ptr, prop) * dia;
+						RNA_property_float_set(op->ptr, prop, value);
+					}
 				}
 			}
 		}
+		RNA_STRUCT_END;
 	}
-	RNA_STRUCT_END;
+}
 
-	return op->type->exec(C, op);
+int WM_operator_smooth_viewtx_get(const wmOperator *op)
+{
+	return (op->flag & OP_IS_INVOKE) ? U.smooth_viewtx : 0;
 }
 
 /* invoke callback, uses enum property named "type" */
@@ -2756,7 +2761,7 @@ static void wm_gesture_end(bContext *C, wmOperator *op)
 	ED_area_tag_redraw(CTX_wm_area(C));
 	
 	if (RNA_struct_find_property(op->ptr, "cursor") )
-		WM_cursor_restore(CTX_wm_window(C));
+		WM_cursor_modal_restore(CTX_wm_window(C));
 }
 
 int WM_border_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -3065,7 +3070,7 @@ int WM_gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	wm_gesture_tag_redraw(C);
 	
 	if (RNA_struct_find_property(op->ptr, "cursor") )
-		WM_cursor_modal(CTX_wm_window(C), RNA_int_get(op->ptr, "cursor"));
+		WM_cursor_modal_set(CTX_wm_window(C), RNA_int_get(op->ptr, "cursor"));
 	
 	return OPERATOR_RUNNING_MODAL;
 }
@@ -3080,7 +3085,7 @@ int WM_gesture_lines_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	wm_gesture_tag_redraw(C);
 	
 	if (RNA_struct_find_property(op->ptr, "cursor") )
-		WM_cursor_modal(CTX_wm_window(C), RNA_int_get(op->ptr, "cursor"));
+		WM_cursor_modal_set(CTX_wm_window(C), RNA_int_get(op->ptr, "cursor"));
 	
 	return OPERATOR_RUNNING_MODAL;
 }
@@ -3297,7 +3302,7 @@ int WM_gesture_straightline_invoke(bContext *C, wmOperator *op, const wmEvent *e
 	wm_gesture_tag_redraw(C);
 	
 	if (RNA_struct_find_property(op->ptr, "cursor") )
-		WM_cursor_modal(CTX_wm_window(C), RNA_int_get(op->ptr, "cursor"));
+		WM_cursor_modal_set(CTX_wm_window(C), RNA_int_get(op->ptr, "cursor"));
 		
 	return OPERATOR_RUNNING_MODAL;
 }

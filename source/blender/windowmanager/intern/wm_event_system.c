@@ -264,7 +264,6 @@ void wm_event_do_notifiers(bContext *C)
 				if (note->category == NC_SCREEN) {
 					if (note->data == ND_SCREENBROWSE) {
 						/* free popup handlers only [#35434] */
-						wmWindow *win = CTX_wm_window(C);
 						UI_remove_popup_handlers_all(C, &win->modalhandlers);
 
 
@@ -976,6 +975,8 @@ static int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event,
 		wmOperator *op = wm_operator_create(wm, ot, properties, reports); /* if reports == NULL, they'll be initialized */
 		const short is_nested_call = (wm->op_undo_depth != 0);
 		
+		op->flag |= OP_IS_INVOKE;
+
 		/* initialize setting from previous run */
 		if (!is_nested_call) { /* not called by py script */
 			WM_operator_last_properties_init(op);
@@ -1121,7 +1122,7 @@ static int wm_operator_call_internal(bContext *C, wmOperatorType *ot, PointerRNA
 				/* window is needed for invoke, cancel operator */
 				if (window == NULL) {
 					if (poll_only) {
-						CTX_wm_operator_poll_msg_set(C, "missing 'window' in context");
+						CTX_wm_operator_poll_msg_set(C, "Missing 'window' in context");
 					}
 					return 0;
 				}
@@ -2103,7 +2104,7 @@ static void wm_event_drag_test(wmWindowManager *wm, wmWindow *win, wmEvent *even
 		win->screen->do_draw_drag = TRUE;
 		
 		/* restore cursor (disabled, see wm_dragdrop.c) */
-		// WM_cursor_restore(win);
+		// WM_cursor_modal_restore(win);
 	}
 	
 	/* overlap fails otherwise */

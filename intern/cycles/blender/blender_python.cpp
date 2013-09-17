@@ -365,7 +365,7 @@ static PyObject *osl_update_node_func(PyObject *self, PyObject *args)
 
 		for (b_node.inputs.begin(b_input); b_input != b_node.inputs.end(); ++b_input) {
 			if(used_sockets.find(b_input->ptr.data) == used_sockets.end()) {
-				b_node.inputs.remove(*b_input);
+				b_node.inputs.remove(*b_input); 
 				removed = true;
 				break;
 			}

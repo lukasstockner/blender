@@ -862,8 +862,6 @@ kmi = km.keymap_items.new('particle.hide', 'H', 'PRESS', ctrl=True)
 kmi.properties.unselected = False
 kmi = km.keymap_items.new('particle.hide', 'H', 'PRESS', alt=True)
 kmi.properties.unselected = True
-kmi = km.keymap_items.new('view3d.manipulator', 'LEFTMOUSE', 'PRESS', any=True)
-kmi.properties.release_confirm = True
 kmi = km.keymap_items.new('particle.brush_edit', 'LEFTMOUSE', 'PRESS')
 kmi = km.keymap_items.new('particle.brush_edit', 'LEFTMOUSE', 'PRESS', shift=True)
 kmi = km.keymap_items.new('wm.radial_control', 'B', 'PRESS')
@@ -900,10 +898,10 @@ kmi = km.keymap_items.new('object.origin_set', 'C', 'PRESS', shift=True, ctrl=Tr
 # Map 3D View
 km = kc.keymaps.new('3D View', space_type='VIEW_3D', region_type='WINDOW', modal=False)
 
-kmi = km.keymap_items.new('view3d.manipulator', 'LEFTMOUSE', 'PRESS', any=True)
-kmi.properties.release_confirm = True
 kmi = km.keymap_items.new('view3d.cursor3d', 'ACTIONMOUSE', 'PRESS')
 kmi = km.keymap_items.new('view3d.rotate', 'LEFTMOUSE', 'PRESS', alt=True)
+kmi = km.keymap_items.new('view3d.manipulator', 'LEFTMOUSE', 'PRESS', any=True)
+kmi.properties.release_confirm = True
 kmi = km.keymap_items.new('view3d.move', 'MIDDLEMOUSE', 'PRESS', alt=True)
 kmi = km.keymap_items.new('view3d.zoom', 'RIGHTMOUSE', 'PRESS', alt=True)
 kmi = km.keymap_items.new('view3d.view_selected', 'F', 'PRESS')
@@ -1197,6 +1195,34 @@ kmi = km.keymap_items.new_modal('AUTOIK_CHAIN_LEN_DOWN', 'PAGE_DOWN', 'PRESS', s
 kmi = km.keymap_items.new_modal('AUTOIK_CHAIN_LEN_UP', 'WHEELDOWNMOUSE', 'PRESS', shift=True)
 kmi = km.keymap_items.new_modal('AUTOIK_CHAIN_LEN_DOWN', 'WHEELUPMOUSE', 'PRESS', shift=True)
 kmi = km.keymap_items.new_modal('CONFIRM', 'MIDDLEMOUSE', 'RELEASE')
+
+# Map View3D Gesture Circle
+km = kc.keymaps.new('View3D Gesture Circle', space_type='EMPTY', region_type='WINDOW', modal=True)
+
+kmi = km.keymap_items.new_modal('CANCEL', 'ESC', 'PRESS', any=True)
+kmi = km.keymap_items.new_modal('CANCEL', 'RIGHTMOUSE', 'ANY', any=True)
+kmi = km.keymap_items.new_modal('CONFIRM', 'RET', 'PRESS', any=True)
+kmi = km.keymap_items.new_modal('CONFIRM', 'NUMPAD_ENTER', 'PRESS')
+kmi = km.keymap_items.new_modal('SELECT', 'LEFTMOUSE', 'PRESS')
+kmi = km.keymap_items.new_modal('DESELECT', 'MIDDLEMOUSE', 'PRESS')
+kmi = km.keymap_items.new_modal('NOP', 'MIDDLEMOUSE', 'RELEASE')
+kmi = km.keymap_items.new_modal('NOP', 'LEFTMOUSE', 'RELEASE')
+kmi = km.keymap_items.new_modal('SUBTRACT', 'WHEELUPMOUSE', 'PRESS')
+kmi = km.keymap_items.new_modal('SUBTRACT', 'NUMPAD_MINUS', 'PRESS')
+kmi = km.keymap_items.new_modal('ADD', 'WHEELDOWNMOUSE', 'PRESS')
+kmi = km.keymap_items.new_modal('ADD', 'NUMPAD_PLUS', 'PRESS')
+kmi = km.keymap_items.new_modal('SIZE', 'TRACKPADPAN', 'ANY')
+
+# Map Gesture Border
+km = kc.keymaps.new('Gesture Border', space_type='EMPTY', region_type='WINDOW', modal=True)
+
+kmi = km.keymap_items.new_modal('CANCEL', 'ESC', 'PRESS', any=True)
+kmi = km.keymap_items.new_modal('CANCEL', 'RIGHTMOUSE', 'PRESS', any=True)
+kmi = km.keymap_items.new_modal('BEGIN', 'LEFTMOUSE', 'PRESS')
+kmi = km.keymap_items.new_modal('SELECT', 'LEFTMOUSE', 'RELEASE', any=True)
+kmi = km.keymap_items.new_modal('SELECT', 'RIGHTMOUSE', 'RELEASE', any=True)
+kmi = km.keymap_items.new_modal('BEGIN', 'MIDDLEMOUSE', 'PRESS')
+kmi = km.keymap_items.new_modal('DESELECT', 'MIDDLEMOUSE', 'RELEASE')
 
 # Map UV Sculpt
 km = kc.keymaps.new('UV Sculpt', space_type='EMPTY', region_type='WINDOW', modal=False)

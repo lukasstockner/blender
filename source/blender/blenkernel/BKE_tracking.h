@@ -211,11 +211,14 @@ void BKE_tracking_context_free(struct MovieTrackingContext *context);
 void BKE_tracking_context_sync(struct MovieTrackingContext *context);
 void BKE_tracking_context_sync_user(const struct MovieTrackingContext *context, struct MovieClipUser *user);
 bool BKE_tracking_context_step(struct MovieTrackingContext *context);
+void BKE_tracking_context_finish(struct MovieTrackingContext *context);
+
 void BKE_tracking_refine_marker(struct MovieClip *clip, struct MovieTrackingTrack *track, struct MovieTrackingMarker *marker, bool backwards);
 
 /* **** Plane tracking **** */
 
 void BKE_tracking_track_plane_from_existing_motion(struct MovieTrackingPlaneTrack *plane_track, int start_frame);
+void BKE_tracking_retrack_plane_from_existing_motion_at_segment(struct MovieTrackingPlaneTrack *plane_track, int start_frame);
 void BKE_tracking_homography_between_two_quads(/*const*/ float reference_corners[4][2], /*const*/ float corners[4][2], float H[3][3]);
 
 /* **** Camera solving **** */

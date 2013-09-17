@@ -819,7 +819,7 @@ static int area_swap_init(wmOperator *op, const wmEvent *event)
 
 static void area_swap_exit(bContext *C, wmOperator *op)
 {
-	WM_cursor_restore(CTX_wm_window(C));
+	WM_cursor_modal_restore(CTX_wm_window(C));
 	if (op->customdata)
 		MEM_freeN(op->customdata);
 	op->customdata = NULL;
@@ -838,7 +838,7 @@ static int area_swap_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		return OPERATOR_PASS_THROUGH;
 	
 	/* add modal handler */
-	WM_cursor_modal(CTX_wm_window(C), BC_SWAPAREA_CURSOR);
+	WM_cursor_modal_set(CTX_wm_window(C), BC_SWAPAREA_CURSOR);
 	WM_event_add_modal_handler(C, op);
 	
 	return OPERATOR_RUNNING_MODAL;
@@ -1408,7 +1408,7 @@ static void area_split_exit(bContext *C, wmOperator *op)
 		op->customdata = NULL;
 	}
 	
-	WM_cursor_restore(CTX_wm_window(C));
+	WM_cursor_modal_restore(CTX_wm_window(C));
 	WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, NULL);
 	
 	/* this makes sure aligned edges will result in aligned grabbing */
@@ -3940,9 +3940,11 @@ void ED_keymap_screen(wmKeyConfig *keyconf)
 	
 	
 	/* render */
-	WM_keymap_add_item(keymap, "RENDER_OT_render", F12KEY, KM_PRESS, 0, 0);
+	kmi = WM_keymap_add_item(keymap, "RENDER_OT_render", F12KEY, KM_PRESS, 0, 0);
+	RNA_boolean_set(kmi->ptr, "use_viewport", TRUE);
 	kmi = WM_keymap_add_item(keymap, "RENDER_OT_render", F12KEY, KM_PRESS, KM_CTRL, 0);
 	RNA_boolean_set(kmi->ptr, "animation", TRUE);
+	RNA_boolean_set(kmi->ptr, "use_viewport", TRUE);
 	WM_keymap_add_item(keymap, "RENDER_OT_view_cancel", ESCKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "RENDER_OT_view_show", F11KEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "RENDER_OT_play_rendered_anim", F11KEY, KM_PRESS, KM_CTRL, 0);

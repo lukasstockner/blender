@@ -219,11 +219,11 @@ static int view_pan_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	RNA_int_set(op->ptr, "deltay", 0);
 	
 	if (v2d->keepofs & V2D_LOCKOFS_X)
-		WM_cursor_modal(window, BC_NS_SCROLLCURSOR);
+		WM_cursor_modal_set(window, BC_NS_SCROLLCURSOR);
 	else if (v2d->keepofs & V2D_LOCKOFS_Y)
-		WM_cursor_modal(window, BC_EW_SCROLLCURSOR);
+		WM_cursor_modal_set(window, BC_EW_SCROLLCURSOR);
 	else
-		WM_cursor_modal(window, BC_NSEW_SCROLLCURSOR);
+		WM_cursor_modal_set(window, BC_NSEW_SCROLLCURSOR);
 	
 	/* add temp handler */
 	WM_event_add_modal_handler(C, op);
@@ -260,7 +260,7 @@ static int view_pan_modal(bContext *C, wmOperator *op, const wmEvent *event)
 				RNA_int_set(op->ptr, "deltay", (vpd->starty - vpd->lasty));
 				
 				view_pan_exit(op);
-				WM_cursor_restore(CTX_wm_window(C));
+				WM_cursor_modal_restore(CTX_wm_window(C));
 				WM_operator_name_call(C, "VIEW2D_OT_zoom", WM_OP_INVOKE_DEFAULT, NULL);
 				return OPERATOR_FINISHED;
 			}
@@ -273,7 +273,7 @@ static int view_pan_modal(bContext *C, wmOperator *op, const wmEvent *event)
 					RNA_int_set(op->ptr, "deltay", (vpd->starty - vpd->lasty));
 					
 					view_pan_exit(op);
-					WM_cursor_restore(CTX_wm_window(C));
+					WM_cursor_modal_restore(CTX_wm_window(C));
 					
 					return OPERATOR_FINISHED;
 				}
@@ -987,11 +987,11 @@ static int view_zoomdrag_invoke(bContext *C, wmOperator *op, const wmEvent *even
 	}
 
 	if (v2d->keepofs & V2D_LOCKOFS_X)
-		WM_cursor_modal(window, BC_NS_SCROLLCURSOR);
+		WM_cursor_modal_set(window, BC_NS_SCROLLCURSOR);
 	else if (v2d->keepofs & V2D_LOCKOFS_Y)
-		WM_cursor_modal(window, BC_EW_SCROLLCURSOR);
+		WM_cursor_modal_set(window, BC_EW_SCROLLCURSOR);
 	else
-		WM_cursor_modal(window, BC_NSEW_SCROLLCURSOR);
+		WM_cursor_modal_set(window, BC_NSEW_SCROLLCURSOR);
 	
 	/* add temp handler */
 	WM_event_add_modal_handler(C, op);
@@ -1093,7 +1093,7 @@ static int view_zoomdrag_modal(bContext *C, wmOperator *op, const wmEvent *event
 			
 			/* free customdata */
 			view_zoomdrag_exit(C, op);
-			WM_cursor_restore(CTX_wm_window(C));
+			WM_cursor_modal_restore(CTX_wm_window(C));
 			
 			return OPERATOR_FINISHED;
 		}
@@ -1144,6 +1144,7 @@ static int view_borderzoom_exec(bContext *C, wmOperator *op)
 	rctf rect;
 	rctf cur_new = v2d->cur;
 	int gesture_mode;
+	const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 	
 	/* convert coordinates of rect to 'tot' rect coordinates */
 	UI_view2d_region_to_view(v2d, RNA_int_get(op->ptr, "xmin"), RNA_int_get(op->ptr, "ymin"), &rect.xmin, &rect.ymin);
@@ -1195,7 +1196,7 @@ static int view_borderzoom_exec(bContext *C, wmOperator *op)
 		}
 	}
 	
-	UI_view2d_smooth_view(C, ar, &cur_new);
+	UI_view2d_smooth_view(C, ar, &cur_new, smooth_viewtx);
 	
 	return OPERATOR_FINISHED;
 } 
@@ -1269,7 +1270,7 @@ static float smooth_view_rect_to_fac(const rctf *rect_a, const rctf *rect_b)
 /* will start timer if appropriate */
 /* the arguments are the desired situation */
 void UI_view2d_smooth_view(bContext *C, ARegion *ar,
-                           const rctf *cur)
+                           const rctf *cur, const int smooth_viewtx)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmWindow *win = CTX_wm_window(C);
@@ -1289,7 +1290,7 @@ void UI_view2d_smooth_view(bContext *C, ARegion *ar,
 		fac = smooth_view_rect_to_fac(&v2d->cur, cur);
 	}
 
-	if (U.smooth_viewtx && fac > FLT_EPSILON) {
+	if (smooth_viewtx && fac > FLT_EPSILON) {
 		int changed = FALSE;
 
 		if (BLI_rctf_compare(&sms.new_cur, &v2d->cur, FLT_EPSILON) == FALSE)
@@ -1300,7 +1301,7 @@ void UI_view2d_smooth_view(bContext *C, ARegion *ar,
 		if (changed) {
 			sms.orig_cur = v2d->cur;
 
-			sms.time_allowed = (double)U.smooth_viewtx / 1000.0;
+			sms.time_allowed = (double)smooth_viewtx / 1000.0;
 
 			/* scale the time allowed the change in view */
 			sms.time_allowed *= (double)fac;

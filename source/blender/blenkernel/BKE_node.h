@@ -337,7 +337,7 @@ struct GHashIterator *ntreeTypeGetIterator(void);
 #define NODE_TREE_TYPES_END \
 	} \
 	BLI_ghashIterator_free(__node_tree_type_iter__); \
-}
+} (void)0
 
 void ntreeSetTypes(const struct bContext *C, struct bNodeTree *ntree);
 
@@ -746,6 +746,7 @@ struct ShadeResult;
 #define SH_NODE_VECT_TRANSFORM			182
 #define SH_NODE_SEPHSV					183
 #define SH_NODE_COMBHSV					184
+#define SH_NODE_BSDF_HAIR				185
 
 /* custom defines options for Material node */
 #define SH_NODE_MAT_DIFF   1
