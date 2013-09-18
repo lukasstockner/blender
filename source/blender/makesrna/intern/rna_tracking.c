@@ -964,12 +964,6 @@ static void rna_def_trackingSettings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Tripod Motion",
 	                         "Use special solver to track a stable camera position, such as a tripod");
 
-	prop = RNA_def_property(srna, "use_multicamera_solver", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	RNA_def_property_boolean_sdna(prop, NULL, "reconstruction_flag", TRACKING_USE_MULTICAMERA_SOLVER);
-	RNA_def_property_ui_text(prop, "Multicamera",
-	                         "Use track correspondences between multiple cameras for reconstruction");
-
 	/* default_limit_frames */
 	prop = RNA_def_property(srna, "default_frames_limit", PROP_INT, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
