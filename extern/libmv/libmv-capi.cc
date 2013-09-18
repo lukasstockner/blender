@@ -682,7 +682,7 @@ libmv_Reconstruction *libmv_solve(const libmv_Tracks *libmv_tracks,
 		libmv::EuclideanBundleCommonIntrinsics(tracks,
 		                                       refinement_bundle_options,
 		                                       &reconstruction,
-		                                       &camera_intrinsics[0]);
+		                                       camera_intrinsics);
 	}
 
 	/* Set reconstruction scale to unity */

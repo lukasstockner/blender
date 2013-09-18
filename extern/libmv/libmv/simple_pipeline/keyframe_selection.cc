@@ -20,6 +20,8 @@
 
 #include "libmv/simple_pipeline/keyframe_selection.h"
 
+#include <vector>
+
 #include "libmv/numeric/numeric.h"
 #include "ceres/ceres.h"
 #include "libmv/logging/logging.h"
@@ -500,7 +502,7 @@ void SelectKeyframesBasedOnGRICAndVariance(
       success_intersects_factor_best = success_intersects_factor;
 
       Tracks two_frames_tracks(tracked_markers);
-      CameraIntrinsics empty_intrinsics;
+      std::vector<CameraIntrinsics> empty_intrinsics(tracks.MaxCamera()+1);
       BundleEvaluation evaluation;
       evaluation.evaluate_jacobian = true;
 
@@ -508,7 +510,7 @@ void SelectKeyframesBasedOnGRICAndVariance(
       EuclideanBundleCommonIntrinsics(two_frames_tracks,
                                       bundle_options,
                                       &reconstruction,
-                                      &empty_intrinsics,
+                                      empty_intrinsics,
                                       &evaluation);
 
       Mat &jacobian = evaluation.jacobian;

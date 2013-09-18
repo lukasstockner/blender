@@ -21,7 +21,7 @@
 #ifndef LIBMV_SIMPLE_PIPELINE_BUNDLE_H
 #define LIBMV_SIMPLE_PIPELINE_BUNDLE_H
 
-#include <iostream>
+#include <vector>
 
 #include "ceres/types.h"
 #include "ceres/iteration_callback.h"
@@ -164,7 +164,7 @@ struct BundleOptions {
 void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
                                      const BundleOptions &bundle_options,
                                      EuclideanReconstruction *reconstruction,
-                                     CameraIntrinsics *intrinsics,
+                                     std::vector<CameraIntrinsics> &intrinsics,
                                      BundleEvaluation *evaluation = NULL);
 
 /*!
