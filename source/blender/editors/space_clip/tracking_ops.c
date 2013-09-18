@@ -4188,3 +4188,20 @@ void CLIP_OT_keyframe_delete(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
+
+/********************** Multicamera operators ******************************/
+
+void CLIP_OT_create_correspondence(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Create correspondence";
+	ot->description = "Create a correspondence between selected tracks across multiple clips";
+	ot->idname = "CLIP_OT_create_correspondence";
+
+	/* api callbacks */
+	//ot->poll = ;
+	//ot->exec = ;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}

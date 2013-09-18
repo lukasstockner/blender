@@ -956,6 +956,17 @@ class CLIP_PT_tools_clip(CLIP_PT_clip_view_panel, Panel):
         layout.operator("clip.set_scene_frames")
 
 
+class CLIP_PT_multicamera_clip(CLIP_PT_clip_view_panel, Panel):
+    bl_space_type = 'CLIP_EDITOR'
+    bl_region_type = 'TOOLS'
+    bl_label = "Multicamera"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("clip.create_correspondence")
+
+
 class CLIP_MT_view(Menu):
     bl_label = "View"
 

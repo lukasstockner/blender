@@ -526,6 +526,9 @@ static void clip_operatortypes(void)
 	WM_operatortype_append(CLIP_OT_keyframe_insert);
 	WM_operatortype_append(CLIP_OT_keyframe_delete);
 
+	/* Multicamera */
+	WM_operatortype_append(CLIP_OT_create_correspondence);
+
 	/* ** clip_graph_ops.c  ** */
 
 	/* graph editing */
