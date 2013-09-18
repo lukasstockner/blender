@@ -502,7 +502,7 @@ void SelectKeyframesBasedOnGRICAndVariance(
       success_intersects_factor_best = success_intersects_factor;
 
       Tracks two_frames_tracks(tracked_markers);
-      std::vector<CameraIntrinsics> empty_intrinsics(tracks.MaxCamera()+1);
+      std::vector<CameraIntrinsics> empty_intrinsics;
       BundleEvaluation evaluation;
       evaluation.evaluate_jacobian = true;
 

@@ -394,7 +394,7 @@ void EuclideanBundle(const Tracks &tracks,
                      EuclideanReconstruction *reconstruction) {
   BundleOptions bundle_options;
 
-  std::vector<CameraIntrinsics> empty_intrinsics(tracks.MaxCamera()+1);
+  std::vector<CameraIntrinsics> empty_intrinsics;
   EuclideanBundleCommonIntrinsics(tracks,
                                   bundle_options,
                                   reconstruction,
@@ -406,7 +406,7 @@ void EuclideanBundleModal(const Tracks &tracks,
   BundleOptions bundle_options;
   bundle_options.constraints = libmv::BUNDLE_NO_TRANSLATION;
 
-  std::vector<CameraIntrinsics> empty_intrinsics(tracks.MaxCamera()+1);
+  std::vector<CameraIntrinsics> empty_intrinsics;
   EuclideanBundleCommonIntrinsics(tracks,
                                   bundle_options,
                                   reconstruction,
@@ -423,6 +423,11 @@ void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
 
   //LG << "Original intrinsics: " << *intrinsics;
   vector<Marker> markers = tracks.AllMarkers();
+
+  int num_cameras = tracks.MaxCamera() + 1;
+  if (intrinsics.size() < num_cameras) {
+    intrinsics.resize(num_cameras);
+  }
 
   ceres::Problem::Options problem_options;
   ceres::Problem problem(problem_options);
