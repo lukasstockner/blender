@@ -412,7 +412,8 @@ enum {
 /* MovieTrackingSettings->reconstruction_flag */
 enum {
 	TRACKING_USE_FALLBACK_RECONSTRUCTION = (1 << 0),
-	TRACKING_USE_KEYFRAME_SELECTION      = (1 << 1)
+	TRACKING_USE_KEYFRAME_SELECTION      = (1 << 1),
+	TRACKING_USE_MULTICAMERA_SOLVER      = (1 << 2)
 };
 
 /* MovieTrackingSettings->refine_intrinsics */

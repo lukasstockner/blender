@@ -373,6 +373,9 @@ class CLIP_PT_tools_solve(CLIP_PT_tracking_panel, Panel):
         sub.active = settings.use_fallback_reconstruction
         sub.prop(settings, "reconstruction_success_threshold")
 
+        col = layout.column()
+        col.prop(settings, "use_multicamera_solver")
+
 
 class CLIP_PT_tools_cleanup(CLIP_PT_tracking_panel, Panel):
     bl_space_type = 'CLIP_EDITOR'
