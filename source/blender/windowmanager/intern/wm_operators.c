@@ -4217,10 +4217,10 @@ void add_to_custom_panel_menu(bContext *C, uiLayout *layout, void *arg1)
 			
 			PointerRNA op_ptr = uiItemFullO(layout, "WM_OT_add_to_custom_panel", pt->label, ICON_NONE, NULL, WM_OP_INVOKE_DEFAULT, UI_ITEM_O_RETURN_PROPS);
 			
-			prop = RNA_struct_find_property(&op_ptr, "operator");
+			prop = RNA_struct_find_property(&op_ptr, "COPY_idname");
 			RNA_property_string_set(&op_ptr, prop, optype->idname);
 			
-			prop = RNA_struct_find_property(&op_ptr, "paneltypeid");
+			prop = RNA_struct_find_property(&op_ptr, "COPY_paneltypeid");
 			RNA_property_string_set(&op_ptr, prop, pt->idname);
 			
 			
