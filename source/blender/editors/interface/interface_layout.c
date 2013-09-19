@@ -716,7 +716,7 @@ PointerRNA uiItemFullO_ptr(uiLayout *layout, wmOperatorType *ot, const char *nam
 		uiBlockSetEmboss(block, UI_EMBOSSN);
 
 	/* create the button */
-	if (icon) {
+	if (icon != 0) {
 		if (name[0]) {
 			but = uiDefIconTextButO_ptr(block, BUT, ot, context, icon, name, 0, 0, w, UI_UNIT_Y, NULL);
 		}
@@ -743,7 +743,7 @@ PointerRNA uiItemFullO_ptr(uiLayout *layout, wmOperatorType *ot, const char *nam
 		but->flag |= UI_TEXT_LEFT;
 	}
 	
-	if (layout->root->type == UI_LAYOUT_TOOLBAR && !(flag & UI_ITEM_O_SHORTCUT))
+	if (layout->root->type == UI_LAYOUT_TOOLBAR && !(flag & UI_ITEM_O_SHORTCUT) && !name[0])
 		but->flag &= ~UI_ICON_LEFT;
 
 	if (flag & UI_ITEM_R_NO_BG)

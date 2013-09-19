@@ -49,6 +49,8 @@
 
 #include "BKE_context.h"
 #include "BKE_screen.h"
+#include "BKE_report.h"
+#include "BKE_idprop.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -1172,6 +1174,7 @@ static void panel_popup_draw(bContext *C, uiBlock *block, Panel *pa)
 	
 	if (pa) {
 		
+		/* Create a copy of the panel so that we can reset the ofset */
 		pa_copy = MEM_callocN(sizeof(Panel), "new panel");
 		memcpy(pa_copy, pa, sizeof(Panel));
 		
@@ -1192,21 +1195,10 @@ static void panel_popup_draw(bContext *C, uiBlock *block, Panel *pa)
 		uiEndPanel(block, w, 0);
 		
 		uiBlockSetPanel(block, NULL);
-		// N.B. don't use uiPanelFree because the operator list is shared.
+		/* N.B. don't use uiPanelFree because the operator list is shared with the original. */
 		MEM_freeN(pa_copy);
 	}
 }
-
-//static void panel_popup_cb(bContext *C, void *arg1, void *arg2)
-//{
-//	uiBlock *block = (uiBlock*)arg1;
-////	ARegion *ar = (ARegion*)arg1;
-//	PanelType *pt = (PanelType*)arg2;
-//	
-//	panel_popup_draw(C, block, pt);
-////	ED_region_tag_redraw(ar);
-//	printf("executing.\n");
-//}
 
 static uiBlock *panel_popup_create_block(bContext *C, ARegion *ar, void *pa_arg)
 {
@@ -1217,9 +1209,6 @@ static uiBlock *panel_popup_create_block(bContext *C, ARegion *ar, void *pa_arg)
 	
 	uiBlockClearFlag(block, UI_BLOCK_LOOP);
 	uiBlockSetFlag(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_MOVEMOUSE_QUIT);
-	
-	/* An attempt to make the block redraw so that dynamic panels get updated (e.g. grease pencil layers) ~ ack-err */
-//	uiBlockSetFunc(block, panel_popup_cb, block, pt);
 	
 	panel_popup_draw(C, block, pa);
 	
@@ -1686,10 +1675,36 @@ static void panel_activate_state(const bContext *C, Panel *pa, uiHandlePanelStat
 }
 
 
-void uiPanelAddOperator(Panel *pa, const char *optype_idname)
+void uiPanelAddOperator(bContext *C, Panel *pa, wmOperatorType *ot, PointerRNA *opptr)
 {
-	OperatorListItem *oli = MEM_callocN(sizeof(OperatorListItem), "panel type operator");
-	BLI_strncpy(oli->optype_idname, optype_idname, OP_MAX_TYPENAME);
+	OperatorListItem *oli;
+	wmWindowManager *wm = CTX_wm_manager(C);
+	
+	if (uiOperatorListItemPresent(&pa->operators, ot->idname, opptr->data, CTX_data_mode_string(C))) {
+		BKE_reportf(&wm->reports, RPT_INFO, "This operator (%s) is already present in this panel.", ot->idname);
+		return;
+	}
+	
+	oli = MEM_callocN(sizeof(OperatorListItem), "panel type operator");
+	BLI_strncpy(oli->optype_idname, ot->idname, OP_MAX_TYPENAME);
+	BLI_strncpy(oli->context, CTX_data_mode_string(C), MAX_NAME);
+	
+	if (opptr) {
+		PropertyRNA *prop;
+		
+		prop = RNA_struct_find_property(opptr, "COPY_opcontext");
+		if(prop)
+			oli->opcontext = RNA_property_int_get(opptr, prop);
+		
+		/* clear the properties that were only necessary for this operator execution */
+		/* TODO: see if this can all be done a little bit nicer by including a pointer as a property */
+		RNA_struct_idprops_unset(opptr, "COPY_opcontext");
+		RNA_struct_idprops_unset(opptr, "COPY_idname");
+		RNA_struct_idprops_unset(opptr, "COPY_paneltypeid");
+		
+		oli->properties = IDP_CopyProperty(opptr->data);
+	}
+	
 	BLI_addtail(&pa->operators, oli);
 }
 
@@ -1711,7 +1726,26 @@ int uiPanelClosed(Panel *pa)
 	return (pa->flag & PNL_CLOSED || pa->flag & PNL_CLOSEDX || pa->flag & PNL_CLOSEDY);
 }
 
-static void custom_panel_draw(const bContext *UNUSED(C), Panel *pa)
+static void custom_panel_draw_oli(const bContext *C, uiLayout *column, OperatorListItem *oli)
+{	
+	if (oli && column) {
+		wmOperatorType *ot = WM_operatortype_find(oli->optype_idname, TRUE);
+		int icon = ICON_NONE;
+		PointerRNA ptr;
+		
+		WM_operator_properties_create_ptr(&ptr, ot);
+		ptr.data = oli->properties;
+		
+		icon = ot->icon ? ot->icon(C, &ptr) : ot->default_icon;
+		
+		if (icon != ICON_NONE)
+			uiItemFullO_ptr(column, ot, ot->name, ICON_AUTOMATIC, IDP_CopyProperty(oli->properties), oli->opcontext, 0);
+		else
+			uiItemFullO_ptr(column, ot, ot->name, ICON_NONE, IDP_CopyProperty(oli->properties), oli->opcontext, 0);
+	}
+}
+
+static void custom_panel_draw(const bContext *C, Panel *pa)
 {
 	uiHandlePanelData *data = pa->activedata;
 	uiLayout *layout = pa->layout;
@@ -1728,23 +1762,23 @@ static void custom_panel_draw(const bContext *UNUSED(C), Panel *pa)
 				int cur_index = BLI_findindex(&pa->operators, data->oli);
 				// draw it before or after the button that currently has the new index
 				if (data->newindex == cur_index) {
-					uiItemO(column, NULL, ICON_NONE, oli->optype_idname);
+					custom_panel_draw_oli(C, column, oli);
 				}
 				else if (data->newindex < cur_index) {
-					uiItemO(column, NULL, ICON_NONE, data->oli->optype_idname);
-					uiItemO(column, NULL, ICON_NONE, oli->optype_idname);
+					custom_panel_draw_oli(C, column, data->oli);
+					custom_panel_draw_oli(C, column, oli);
 				}
 				else if (data->newindex > cur_index) {
-					uiItemO(column, NULL, ICON_NONE, oli->optype_idname);
-					uiItemO(column, NULL, ICON_NONE, data->oli->optype_idname);
+					custom_panel_draw_oli(C, column, oli);
+					custom_panel_draw_oli(C, column, data->oli);
 				}
 			}
 			// otherwise just draw normally
 			else if (oli != data->oli)
-				uiItemO(column, NULL, ICON_NONE, oli->optype_idname);
+				custom_panel_draw_oli(C, column, oli);
 		}
 		else
-			uiItemO(column, NULL, ICON_NONE, oli->optype_idname);
+			custom_panel_draw_oli(C, column, oli);
 		i++;
 	}
 }

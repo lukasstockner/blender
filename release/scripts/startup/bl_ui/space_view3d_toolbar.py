@@ -67,7 +67,7 @@ class VIEW3D_PT_tools_objectmode_transform(View3DPanel, Panel):
         layout = self.layout
 
         col = layout.column(align=True)
-        row = col.row(align=True)
+        row = col.row(align=True, button_height=1.5)
         row.operator("transform.translate", text="", single_unit=False, icon='MAN_TRANS', shortcut=False)
         row.operator("transform.rotate", text="", single_unit=False, icon='MAN_ROT', shortcut=False)
         row.operator("transform.resize", text="", single_unit=False, icon='MAN_SCALE', shortcut=False)
@@ -83,13 +83,11 @@ class VIEW3D_PT_tools_objectmode_add(View3DPanel, Panel):
         col = layout.column(align=True)
         row = col.row(align=True, button_height=1.5)
         row.operator("wm.call_menu", text="", single_unit=False, shortcut=False, icon='ADD').name = 'INFO_MT_add'
+        row.operator("object.duplicate_move", text="", shortcut=False, single_unit=False, icon='DUP')
+        row.operator("object.duplicate_move_linked", text="", shortcut=False, single_unit=False, icon='DUP_LINKED')
         row.operator("object.delete", text="", shortcut=False, single_unit=False, icon='DELETE')
         
         col = layout.column(align=True)
-        row = col.row(align=True)
-        row.operator("object.duplicate_move", text="", shortcut=False, single_unit=False, icon='DUP')
-        row.operator("object.duplicate_move_linked", text="", shortcut=False, single_unit=False, icon='DUP_LINKED')
-        row = col.row(align=True)
         col.operator("object.join")
 
 class VIEW3D_PT_tools_objectmode_adjust(View3DPanel, Panel):
@@ -160,7 +158,7 @@ class VIEW3D_PT_tools_editmode_transform(View3DPanel, Panel):
         layout = self.layout
 
         col = layout.column(align=True)
-        row = col.row(align=True)
+        row = col.row(align=True, button_height=1.5)
         row.operator("transform.translate", text="", single_unit=False, icon='MAN_TRANS', shortcut=False)
         row.operator("transform.rotate", text="", single_unit=False, icon='MAN_ROT', shortcut=False)
         row.operator("transform.resize", text="", single_unit=False, icon='MAN_SCALE', shortcut=False)
@@ -184,10 +182,9 @@ class VIEW3D_PT_tools_editmode_add(View3DPanel, Panel):
         col = layout.column(align=True)
         row = col.row(align=True, button_height=1.5)
         row.operator("wm.call_menu", text="", single_unit=False, shortcut=False, icon='ADD').name = 'INFO_MT_mesh_add'
+        row.operator("mesh.duplicate_move", text="", single_unit=False, shortcut=False, icon='DUP')
         row.operator("wm.call_menu", text="", single_unit=False, shortcut=False, icon='DELETE').name = 'VIEW3D_MT_edit_mesh_delete'
         
-        col = layout.column(align=True)
-        col.operator("mesh.duplicate_move", text="Duplicate", single_unit=False, icon='DUP')
 
 class VIEW3D_PT_tools_editmode_mesh(View3DPanel, Panel):
     bl_context = "mesh_edit"

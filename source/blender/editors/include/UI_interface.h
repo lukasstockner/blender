@@ -676,7 +676,7 @@ struct Panel *uiBeginPanel(struct ScrArea *sa, struct ARegion *ar, uiBlock *bloc
 void uiEndPanel(uiBlock *block, int width, int height);
 void uiScalePanels(struct ARegion *ar, float new_width);
 
-void uiPanelAddOperator(struct Panel *pa, const char *optype_idname);
+void uiPanelAddOperator(struct bContext *C, struct Panel *pa, struct wmOperatorType *ot, PointerRNA *opptr);
 void uiPanelFree(struct Panel *pa);
 int uiPanelClosed(struct Panel *pa);
 

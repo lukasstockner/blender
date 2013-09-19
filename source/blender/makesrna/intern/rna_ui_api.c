@@ -437,6 +437,7 @@ void RNA_api_ui_layout(StructRNA *srna)
 	                                "Sub-layout. Items placed in this sublayout are placed next to each other "
 	                                "in a row");
 	RNA_def_boolean(func, "align", false, "", "Align buttons to each other");
+	// TODO: button_height should be replaced by the already present scale_y property. ~ ack-err
 	parm = RNA_def_float(func, "button_height", 1.0f, 1.0f, 5.0f, "",
 					   "The multiplier for the height of buttons in this new layout.", 1.0f, 5.0f);
 	
@@ -548,7 +549,7 @@ void RNA_api_ui_layout(StructRNA *srna)
 	func = RNA_def_function(srna, "operator", "rna_uiItemO");
 	api_ui_item_op_common(func);
 	RNA_def_boolean(func, "emboss", true, "", "Draw the button itself, just the icon/text");
-	RNA_def_boolean(func, "single_unit", 1, "", "Truncate the button width to a single unit if there is no text");
+	RNA_def_boolean(func, "single_unit", 0, "", "Truncate the button width to a single unit if there is no text");
 	RNA_def_boolean(func, "shortcut", 1, "", "Show the shortcut on the button if there is one");
 	parm = RNA_def_pointer(func, "properties", "OperatorProperties", "",
 	                       "Operator properties to fill in, return when 'properties' is set to true");

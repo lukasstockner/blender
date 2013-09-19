@@ -659,8 +659,16 @@ static void view3d_toolbar_drop_copy(const bContext *C, const wmEvent *event, wm
 	wmOperatorType *ot = (wmOperatorType*)drag->poin;
 	Panel *pa = over_panel(C, event);
 	
-	RNA_string_set(drop->ptr, "operator", ot->idname);
-	RNA_string_set(drop->ptr, "paneltypeid", pa->type ? pa->type->idname : "");
+	/* replace the drop ptr with the passed ptr so it can be copied by the drag operator */
+	if (drag->ptr && drag->ptr->data) {
+		WM_operator_properties_free(drop->ptr);
+		drop->ptr->data = IDP_CopyProperty(drag->ptr->data);
+	}
+	/* temporarily set the properties for the drag operator in the copied ptr
+	 * this is effectively piggy backing on the properties for the OperatorListItem */
+	RNA_string_set(drop->ptr, "COPY_idname", ot->idname);
+	RNA_int_set(drop->ptr, "COPY_opcontext", drag->opcontext);
+	RNA_string_set(drop->ptr, "COPY_paneltypeid", pa->type ? pa->type->idname : "");
 }
 
 static int view3d_toolbar_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
@@ -676,7 +684,7 @@ static int view3d_toolbar_drop_poll(bContext *C, wmDrag *drag, const wmEvent *ev
 			present_p =	uiOperatorListItemPresent(&pa->operators, ot->idname, drag->ptr->data, CTX_data_mode_string(C));
 	}
 	
-	return pa != NULL && present_p != NULL;
+	return pa != NULL && present_p == NULL;
 }
 
 /* region dropbox definition */

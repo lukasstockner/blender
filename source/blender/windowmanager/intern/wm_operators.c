@@ -4296,28 +4296,27 @@ static void WM_OT_create_custom_panel(wmOperatorType *ot)
 	ot->idname = "WM_OT_create_custom_panel";
 	ot->description = "Create a custom panel in the current region's toolbar";
 	
-//	ot->invoke = wm_create_custom_panel_invoke;
 	ot->exec = wm_create_custom_panel_exec;
 	ot->poll = wm_create_custom_panel_poll;
-	
-//	ot->flag |= OPTYPE_INTERNAL;
-	
 }
 
 static int wm_add_to_custom_panel_exec(bContext *C, wmOperator *op)
 {
 	// get operator properties: paneltype idname, property name
 	PropertyRNA *prop;
-	char *opname = NULL, *panelid = NULL;
+	char *idname = NULL, *panelid = NULL;
 	ARegion *ar;
 	ScrArea *sa = CTX_wm_area(C);
 	Panel *pa;
+	wmOperatorType *ot;
 	
-	prop = RNA_struct_find_property(op->ptr, "operator");
+	prop = RNA_struct_find_property(op->ptr, "COPY_idname");
 	if(prop == NULL) return OPERATOR_CANCELLED;
-	opname = RNA_property_string_get_alloc(op->ptr, prop, NULL, 0, NULL);
+	idname = RNA_property_string_get_alloc(op->ptr, prop, NULL, 0, NULL);
+	
+	ot = WM_operatortype_find(idname, 1);
 
-	prop = RNA_struct_find_property(op->ptr, "paneltypeid");
+	prop = RNA_struct_find_property(op->ptr, "COPY_paneltypeid");
 	if(prop == NULL) return OPERATOR_CANCELLED;
 	panelid = RNA_property_string_get_alloc(op->ptr, prop, NULL, 0, NULL);
 	
@@ -4331,19 +4330,19 @@ static int wm_add_to_custom_panel_exec(bContext *C, wmOperator *op)
 	}
 
 	if (pa == NULL) {
-		MEM_freeN(opname);
+		MEM_freeN(idname);
 		MEM_freeN(panelid);
 		return OPERATOR_CANCELLED;
 	}
 	
-	if (BLI_findstring(&pa->operators, opname, offsetof(OperatorListItem, optype_idname))) {
-		BKE_reportf(op->reports, RPT_INFO, "This operator (%s) is already present in this panel (%s).", opname, pa->drawname);
+	// This shouldn't be necessary, already checked in the dragg poll
+	if (uiOperatorListItemPresent(&pa->operators, idname, op->ptr->data, CTX_data_mode_string(C))) {
 		return OPERATOR_CANCELLED;
 	}
 	
-	uiPanelAddOperator(pa, opname);
+	uiPanelAddOperator(C, pa, ot, op->ptr);
 	
-	MEM_freeN(opname);
+	MEM_freeN(idname);
 	MEM_freeN(panelid);
 	
 	ED_region_tag_redraw(ar);
@@ -4372,12 +4371,13 @@ static void WM_OT_add_to_custom_panel(wmOperatorType *ot)
 	
 	ot->flag |= OPTYPE_INTERNAL;
 	
-	prop = RNA_def_string(ot->srna, "operator", "", OP_MAX_TYPENAME, "Operator to add", "The operator id to add to the panel");
-
+	prop = RNA_def_string(ot->srna, "COPY_idname", "", OP_MAX_TYPENAME, "Operator to add", "The operator id to add to the panel");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE | PROP_REQUIRED);
 	
-	prop = RNA_def_string(ot->srna, "paneltypeid", "", OP_MAX_TYPENAME, "idname of PanelType", "idname of the PanelType to add the operator to");
-	
+	prop = RNA_def_string(ot->srna, "COPY_paneltypeid", "", OP_MAX_TYPENAME, "idname of PanelType", "idname of the PanelType to add the operator to");
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE | PROP_REQUIRED);
+
+	prop = RNA_def_int(ot->srna, "COPY_opcontext", 0, 0, 0, "Operator context", "The original opcontext that was set for the button", 0, 0);
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE | PROP_REQUIRED);
 	
 }
@@ -4414,6 +4414,8 @@ static int wm_menubar_add_dragged_operator_poll(bContext *UNUSED(C))
 
 static void WM_OT_menubar_add_dragged_operator(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+	
 	ot->name = "Add Operator to Menubar";
 	ot->idname = "WM_OT_menubar_add_dragged_operator";
 	ot->description = "Add the dragged operator to the current menubar";
@@ -4423,8 +4425,10 @@ static void WM_OT_menubar_add_dragged_operator(wmOperatorType *ot)
 	
 	ot->flag = OPTYPE_INTERNAL;
 	
-	RNA_def_string(ot->srna, "COPY_idname", "", MAX_NAME, "Operator Name", "The name of the operator to add");
-	RNA_def_int(ot->srna, "COPY_opcontext", 0, 0, 0, "Operator context", "The original opcontext that was set for the button", 0, 0);
+	prop = RNA_def_string(ot->srna, "COPY_idname", "", MAX_NAME, "Operator Name", "The name of the operator to add");
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE | PROP_REQUIRED);
+	prop = RNA_def_int(ot->srna, "COPY_opcontext", 0, 0, 0, "Operator context", "The original opcontext that was set for the button", 0, 0);
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE | PROP_REQUIRED);
 }
 
 
