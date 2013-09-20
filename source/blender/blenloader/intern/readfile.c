@@ -10650,6 +10650,12 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
 		expand_doit(fd, mainvar, ob->rigidbody_constraint->ob2);
 	}
 
+	if (ob->currentlod) {
+		LodLevel *level;
+		for (level = ob->lodlevels.first; level; level = level->next) {
+			expand_doit(fd, mainvar, level->source);
+		}
+	}
 }
 
 static void expand_scene(FileData *fd, Main *mainvar, Scene *sce)
