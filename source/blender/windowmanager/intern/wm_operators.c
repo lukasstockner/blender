@@ -542,22 +542,20 @@ char *WM_operator_pystring(bContext *C, wmOperatorType *ot, PointerRNA *opptr, i
 	/* only to get the orginal props for comparisons */
 	PointerRNA opptr_default;
 
-	if (all_args == 0 || opptr == NULL) {
+	if (opptr == NULL) {
 		WM_operator_properties_create_ptr(&opptr_default, ot);
-
-		if (opptr == NULL)
-			opptr = &opptr_default;
+		opptr = &opptr_default;
 	}
 
 	WM_operator_py_idname(idname_py, ot->idname);
 	BLI_dynstr_appendf(dynstr, "bpy.ops.%s(", idname_py);
 
-	cstring_args = RNA_pointer_as_string_keywords(C, opptr, &opptr_default, FALSE,
+	cstring_args = RNA_pointer_as_string_keywords(C, opptr, false,
 	                                              all_args, max_prop_length);
 	BLI_dynstr_append(dynstr, cstring_args);
 	MEM_freeN(cstring_args);
 
-	if (all_args == 0 || opptr == &opptr_default)
+	if (opptr == &opptr_default)
 		WM_operator_properties_free(&opptr_default);
 
 	BLI_dynstr_append(dynstr, ")");
@@ -1683,7 +1681,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	uiItemStringO(col, IFACE_("Credits"), ICON_URL, "WM_OT_url_open", "url",
 	              "http://www.blender.org/development/credits");
 	uiItemStringO(col, IFACE_("Release Log"), ICON_URL, "WM_OT_url_open", "url",
-	              "http://www.blender.org/development/release-logs/blender-268");
+	              "http://www.blender.org/development/release-logs/blender-269");
 	uiItemStringO(col, IFACE_("Manual"), ICON_URL, "WM_OT_url_open", "url",
 	              "http://wiki.blender.org/index.php/Doc:2.6/Manual");
 	uiItemStringO(col, IFACE_("Blender Website"), ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org");

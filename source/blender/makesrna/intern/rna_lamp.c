@@ -133,7 +133,7 @@ static StructRNA *rna_Lamp_refine(struct PointerRNA *ptr)
 	}
 }
 
-static void rna_Lamp_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_Lamp_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	Lamp *la = ptr->id.data;
 
