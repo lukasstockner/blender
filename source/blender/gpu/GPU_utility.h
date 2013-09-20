@@ -61,6 +61,8 @@ extern "C" {
 
 const char* gpuErrorString(GLenum err);
 
+GLenum GPU_mipmap_2D(GLboolean genmip, GLenum internalFormat, int w, int h, GLenum type, void* data);
+
 #ifdef __cplusplus
 }
 #endif

@@ -72,6 +72,7 @@
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_init_exit.h"
+#include "GPU_glew.h"
 
 #include "UI_interface.h"
 

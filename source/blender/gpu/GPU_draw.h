@@ -32,8 +32,6 @@
 #ifndef __GPU_DRAW_H__
 #define __GPU_DRAW_H__
 
-#include "GPU_glew.h"
-
 #include "BLI_sys_types.h"
 
 #ifdef __cplusplus
@@ -134,8 +132,6 @@ void GPU_create_smoke(struct SmokeModifierData *smd, int highres);
 
 /* Delayed free of OpenGL buffers by main thread */
 void GPU_free_unused_buffers(void);
-
-GLenum GPU_mipmap_2D(GLboolean genmip, GLenum internalFormat, int w, int h, GLenum type, void* data);
 
 #ifdef __cplusplus
 }

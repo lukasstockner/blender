@@ -57,7 +57,7 @@
 #include "IMB_imbuf.h"
 #include "IMB_colormanagement.h"
 
-#include "GPU_draw.h"
+#include "GPU_utility.h"
 #include "GPU_state_latch.h"
 
 #include "DNA_image_types.h"
