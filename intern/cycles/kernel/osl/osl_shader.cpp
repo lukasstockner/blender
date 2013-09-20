@@ -150,7 +150,11 @@ static void flatten_surface_closure_tree(ShaderData *sd, int path_flag,
 
 		if (prim) {
 			ShaderClosure sc;
+#ifdef OSL_SUPPORTS_WEIGHTED_CLOSURE_COMPONENTS
+			sc.weight = weight*TO_FLOAT3(comp->w);
+#else
 			sc.weight = weight;
+#endif
 
 			switch (prim->category()) {
 				case OSL::ClosurePrimitive::BSDF: {
@@ -175,6 +179,10 @@ static void flatten_surface_closure_tree(ShaderData *sd, int path_flag,
 					sc.data0 = bsdf->sc.data0;
 					sc.data1 = bsdf->sc.data1;
 					sc.prim = bsdf->sc.prim;
+
+#ifdef __HAIR__
+					sc.offset = bsdf->sc.offset;
+#endif
 
 					/* add */
 					if(sc.sample_weight > 1e-5f && sd->num_closure < MAX_CLOSURE) {
@@ -327,7 +335,11 @@ static float3 flatten_background_closure_tree(const OSL::ClosureColor *closure)
 		OSL::ClosurePrimitive *prim = (OSL::ClosurePrimitive *)comp->data();
 
 		if (prim && prim->category() == OSL::ClosurePrimitive::Background)
+#ifdef OSL_SUPPORTS_WEIGHTED_CLOSURE_COMPONENTS
+			return TO_FLOAT3(comp->w);
+#else
 			return make_float3(1.0f, 1.0f, 1.0f);
+#endif
 	}
 	else if (closure->type == OSL::ClosureColor::MUL) {
 		OSL::ClosureMul *mul = (OSL::ClosureMul *)closure;
@@ -379,7 +391,11 @@ static void flatten_volume_closure_tree(ShaderData *sd,
 
 		if (prim) {
 			ShaderClosure sc;
+#ifdef OSL_SUPPORTS_WEIGHTED_CLOSURE_COMPONENTS
+			sc.weight = weight*TO_FLOAT3(comp->w);
+#else
 			sc.weight = weight;
+#endif
 
 			switch (prim->category()) {
 				case OSL::ClosurePrimitive::Volume: {

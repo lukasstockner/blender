@@ -51,13 +51,15 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-EnumPropertyItem texture_filter_items[] = {
+#ifndef RNA_RUNTIME
+static EnumPropertyItem texture_filter_items[] = {
 	{TXF_BOX, "BOX", 0, "Box", ""},
 	{TXF_EWA, "EWA", 0, "EWA", ""},
 	{TXF_FELINE, "FELINE", 0, "FELINE", ""},
 	{TXF_AREA, "AREA", 0, "Area", ""},
 	{0, NULL, 0, NULL, NULL}
 };
+#endif
 
 EnumPropertyItem texture_type_items[] = {
 	{0, "NONE", 0, "None", ""},
@@ -82,7 +84,8 @@ EnumPropertyItem texture_type_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-EnumPropertyItem blend_type_items[] = {
+#ifndef RNA_RUNTIME
+static EnumPropertyItem blend_type_items[] = {
 	{MTEX_BLEND, "MIX", 0, "Mix", ""},
 	{MTEX_ADD, "ADD", 0, "Add", ""},
 	{MTEX_SUB, "SUBTRACT", 0, "Subtract", ""},
@@ -101,6 +104,7 @@ EnumPropertyItem blend_type_items[] = {
 	{MTEX_LIN_LIGHT, "LINEAR_LIGHT", 0, "Linear Light", ""},
 	{0, NULL, 0, NULL, NULL}
 };
+#endif
 
 #ifdef RNA_RUNTIME
 
@@ -180,7 +184,7 @@ static void rna_Texture_mapping_update(Main *bmain, Scene *scene, PointerRNA *pt
 	rna_Texture_update(bmain, scene, ptr);
 }
 
-static void rna_Color_mapping_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_Color_mapping_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
 {
 	/* nothing to do */
 }
@@ -362,7 +366,7 @@ static int rna_TextureSlot_output_node_get(PointerRNA *ptr)
 }
 
 
-static EnumPropertyItem *rna_TextureSlot_output_node_itemf(bContext *C, PointerRNA *ptr,
+static EnumPropertyItem *rna_TextureSlot_output_node_itemf(bContext *UNUSED(C), PointerRNA *ptr,
                                                            PropertyRNA *UNUSED(prop), int *free)
 {
 	MTex *mtex = ptr->data;
@@ -474,7 +478,7 @@ static char *rna_VoxelData_path(PointerRNA *UNUSED(ptr))
 	return BLI_sprintfN("voxel_data");
 }
 
-static char *rna_OceanTex_path(PointerRNA *ptr)
+static char *rna_OceanTex_path(PointerRNA *UNUSED(ptr))
 {
 	return BLI_sprintfN("ocean");
 }

@@ -4100,6 +4100,8 @@ static void direct_link_customdata(FileData *fd, CustomData *data, int count)
 		
 		if (layer->flag & CD_FLAG_EXTERNAL)
 			layer->flag &= ~CD_FLAG_IN_MEMORY;
+
+		layer->flag &= ~CD_FLAG_NOFREE;
 		
 		if (CustomData_verify_versions(data, i)) {
 			layer->data = newdataadr(fd, layer->data);
@@ -4147,6 +4149,12 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 	direct_link_customdata(fd, &mesh->ldata, mesh->totloop);
 	direct_link_customdata(fd, &mesh->pdata, mesh->totpoly);
 	
+	if (mesh->mloopuv || mesh->mtpoly) {
+		/* for now we have to ensure texpoly and mloopuv layers are aligned
+		 * in the future we may allow non-aligned layers */
+		BKE_mesh_cd_validate(mesh);
+	}
+
 	mesh->bb = NULL;
 	mesh->edit_btmesh = NULL;
 	
@@ -7072,7 +7080,9 @@ static const char *dataname(short id_code)
 		case ID_BR: return "Data from BR";
 		case ID_PA: return "Data from PA";
 		case ID_GD: return "Data from GD";
+		case ID_WM: return "Data from WM";
 		case ID_MC: return "Data from MC";
+		case ID_MSK: return "Data from MSK";
 		case ID_LS: return "Data from LS";
 	}
 	return "Data from Lib Block";
@@ -9536,8 +9546,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 
-	if (MAIN_VERSION_OLDER(main, 267, 1))
-	{
+	if (MAIN_VERSION_OLDER(main, 267, 1)) {
 		Object *ob;
 
 		for (ob = main->object.first; ob; ob = ob->id.next) {
@@ -9581,9 +9590,23 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		#undef BRUSH_FIXED
 	}
 	
-	{
+
+	if (!MAIN_VERSION_ATLEAST(main, 268, 4)) {
 		bScreen *sc;
 		Object *ob;
+
+		for (ob = main->object.first; ob; ob = ob->id.next) {
+			bConstraint *con;
+			for (con = ob->constraints.first; con; con = con->next) {
+				if (con->type == CONSTRAINT_TYPE_SHRINKWRAP) {
+					bShrinkwrapConstraint *data = (bShrinkwrapConstraint *)con->data;
+					if      (data->projAxis & MOD_SHRINKWRAP_PROJECT_OVER_X_AXIS) data->projAxis = OB_POSX;
+					else if (data->projAxis & MOD_SHRINKWRAP_PROJECT_OVER_Y_AXIS) data->projAxis = OB_POSY;
+					else                                                          data->projAxis = OB_POSZ;
+					data->projAxisSpace = CONSTRAINT_SPACE_LOCAL;
+				}
+			}
+		}
 
 		for (ob = main->object.first; ob; ob = ob->id.next) {
 			ModifierData *md;
@@ -9641,6 +9664,40 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 
 					sens->data = cs;
 					sens->type = sens->otype = SENS_COLLISION;
+				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 268, 5)) {
+		bScreen *sc;
+		ScrArea *sa;
+
+		/* add missing (+) expander in node editor */
+		for (sc = main->screen.first; sc; sc = sc->id.next) {
+			for (sa = sc->areabase.first; sa; sa = sa->next) {
+				ARegion *ar, *arnew;
+
+				if (sa->spacetype == SPACE_NODE) {
+					ar = BKE_area_find_region_type(sa, RGN_TYPE_TOOLS);
+
+					if (ar)
+						continue;
+
+					/* add subdiv level; after header */
+					ar = BKE_area_find_region_type(sa, RGN_TYPE_HEADER);
+					
+					/* is error! */
+					if (ar == NULL)
+						continue;
+
+					arnew = MEM_callocN(sizeof(ARegion), "node tools");
+					
+					BLI_insertlinkafter(&sa->regionbase, ar, arnew);
+					arnew->regiontype = RGN_TYPE_TOOLS;
+					arnew->alignment = RGN_ALIGN_LEFT;
+					
+					arnew->flag = RGN_FLAG_HIDDEN;
 				}
 			}
 		}

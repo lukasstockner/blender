@@ -1872,7 +1872,7 @@ void AmbientOcclusionNode::compile(OSLCompiler& compiler)
 VolumeNode::VolumeNode()
 : ShaderNode("volume")
 {
-	closure = ccl::CLOSURE_VOLUME_ISOTROPIC_ID;
+	closure = CLOSURE_VOLUME_ISOTROPIC_ID;
 
 	add_input("Color", SHADER_SOCKET_COLOR, make_float3(0.8f, 0.8f, 0.8f));
 	add_input("Density", SHADER_SOCKET_FLOAT, 1.0f);
@@ -1930,7 +1930,7 @@ void TransparentVolumeNode::compile(SVMCompiler& compiler)
 
 void TransparentVolumeNode::compile(OSLCompiler& compiler)
 {
-	compiler.add(this, "node_isotropic_volume");
+	compiler.add(this, "node_transparent_volume");
 }
 
 /* Isotropic Volume Closure */
@@ -1948,6 +1948,46 @@ void IsotropicVolumeNode::compile(SVMCompiler& compiler)
 void IsotropicVolumeNode::compile(OSLCompiler& compiler)
 {
 	compiler.add(this, "node_isotropic_volume");
+}
+
+/* Hair BSDF Closure */
+
+static ShaderEnum hair_component_init()
+{
+	ShaderEnum enm;
+
+	enm.insert("Reflection", CLOSURE_BSDF_HAIR_REFLECTION_ID);
+	enm.insert("Transmission", CLOSURE_BSDF_HAIR_TRANSMISSION_ID);
+	
+
+	return enm;
+}
+
+ShaderEnum HairBsdfNode::component_enum = hair_component_init();
+
+HairBsdfNode::HairBsdfNode()
+{
+	component = ustring("Reflection");
+
+	add_input("Offset", SHADER_SOCKET_FLOAT);
+	add_input("RoughnessU", SHADER_SOCKET_FLOAT);
+	add_input("RoughnessV", SHADER_SOCKET_FLOAT);
+
+}
+
+void HairBsdfNode::compile(SVMCompiler& compiler)
+{
+	closure = (ClosureType)component_enum[component];
+
+	BsdfNode::compile(compiler, input("RoughnessU"), input("RoughnessV"), input("Offset"));
+}
+
+void HairBsdfNode::compile(OSLCompiler& compiler)
+{
+	compiler.parameter("component", component);
+
+	compiler.add(this, "node_hair_bsdf");
+
 }
 
 /* Geometry */

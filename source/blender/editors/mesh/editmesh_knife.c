@@ -497,7 +497,7 @@ static KnifeVert *knife_split_edge(KnifeTool_OpData *kcd, KnifeEdge *kfe, float 
  * and move cur data to prev. */
 static void knife_add_single_cut(KnifeTool_OpData *kcd)
 {
-	KnifeEdge *kfe = new_knife_edge(kcd), *kfe2 = NULL, *kfe3 = NULL;
+	KnifeEdge *kfe, *kfe2 = NULL, *kfe3 = NULL;
 
 	if ((kcd->prev.vert && kcd->prev.vert == kcd->curr.vert) ||
 	    (kcd->prev.edge && kcd->prev.edge == kcd->curr.edge))
@@ -506,6 +506,7 @@ static void knife_add_single_cut(KnifeTool_OpData *kcd)
 		return;
 	}
 
+	kfe = new_knife_edge(kcd);
 	kfe->draw = true;
 
 	if (kcd->prev.vert) {
@@ -590,24 +591,56 @@ static int verge_linehit(const void *vlh1, const void *vlh2)
 static int find_connected_linehit(KnifeTool_OpData *kcd, int testi, BMFace *f, int firsti, int lasti)
 {
 	int i;
+	ListBase *testfaces, *ifaces;
+	BMFace *testface, *iface;
+	BMEdgeHit *lh;
+	bool shareface;
 
+	if (testi >= 0 && testi < kcd->totlinehit) {
+		testface = NULL;
+		testfaces = NULL;
+		lh = &kcd->linehits[testi];
+		if (lh->v)
+			testfaces = &lh->v->faces;
+		else if (lh->kfe)
+			testfaces = &lh->kfe->faces;
+		else if (lh->f) {
+			testfaces = NULL;
+			testface = lh->f;
+		}
+	}
+	else {
+		testface = f;
+		testfaces = NULL;
+	}
 	for (i = firsti; i <= lasti; i++) {
-		if (testi >= 0 && testi < kcd->totlinehit) {
-			if (knife_find_common_face(&kcd->linehits[testi].kfe->faces,
-			                           &kcd->linehits[i].kfe->faces))
-			{
-				return i;
-			}
-			else if (kcd->linehits[testi].v &&
-			         kcd->linehits[testi].v == kcd->linehits[i].v)
-			{
-				return i;
-			}
+		shareface = false;
+		lh = &kcd->linehits[i];
+		iface = NULL;
+		ifaces = NULL;
+		if (lh->v)
+			ifaces = &lh->v->faces;
+		else if (lh->kfe)
+			ifaces = &lh->kfe->faces;
+		else if (lh->f) {
+			ifaces = NULL;
+			iface = lh->f;
 		}
-		else if (f) {
-			if (find_ref(&kcd->linehits[i].kfe->faces, f))
-				return i;
+		if (testfaces) {
+			if (ifaces)
+				shareface = knife_find_common_face(testfaces, ifaces);
+			else if (iface)
+				shareface = find_ref(testfaces, iface);
 		}
+		else if (ifaces) {
+			if (testface)
+				shareface = find_ref(ifaces, testface);
+		}
+		else if (testface && iface) {
+			shareface = (testface == iface);
+		}
+		if (shareface)
+			return i;
 	}
 	return -1;
 }
@@ -2706,7 +2739,7 @@ static void knife_make_chain_cut(KnifeTool_OpData *kcd, BMFace *f, ListBase *cha
 	l_new = NULL;
 	if (nco == 0) {
 		/* Want to prevent creating two-sided polygons */
-		if (BM_edge_exists(v1, v2)) {
+		if (v1 == v2 || BM_edge_exists(v1, v2)) {
 			f_new = NULL;
 		}
 		else {
@@ -2968,7 +3001,7 @@ static void knifetool_exit_ex(bContext *C, KnifeTool_OpData *kcd)
 		return;
 
 	if (kcd->is_interactive) {
-		WM_cursor_restore(CTX_wm_window(C));
+		WM_cursor_modal_restore(CTX_wm_window(C));
 
 		/* deactivate the extra drawing stuff in 3D-View */
 		ED_region_draw_cb_exit(kcd->ar->type, kcd->draw_handle);
@@ -3103,7 +3136,7 @@ static int knifetool_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	knifetool_init(C, kcd, only_select, cut_through, true);
 
 	/* add a modal handler for this operator - handles loop selection */
-	WM_cursor_modal(CTX_wm_window(C), BC_KNIFECURSOR);
+	WM_cursor_modal_set(CTX_wm_window(C), BC_KNIFECURSOR);
 	WM_event_add_modal_handler(C, op);
 
 	knifetool_update_mval_i(kcd, event->mval);
@@ -3123,7 +3156,8 @@ enum {
 	KNF_MODEL_IGNORE_SNAP_OFF,
 	KNF_MODAL_ADD_CUT,
 	KNF_MODAL_ANGLE_SNAP_TOGGLE,
-	KNF_MODAL_CUT_THROUGH_TOGGLE
+	KNF_MODAL_CUT_THROUGH_TOGGLE,
+	KNF_MODAL_PANNING
 };
 
 wmKeyMap *knifetool_modal_keymap(wmKeyConfig *keyconf)
@@ -3139,6 +3173,7 @@ wmKeyMap *knifetool_modal_keymap(wmKeyConfig *keyconf)
 		{KNF_MODAL_CUT_THROUGH_TOGGLE, "CUT_THROUGH_TOGGLE", 0, "Toggle Cut Through", ""},
 		{KNF_MODAL_NEW_CUT, "NEW_CUT", 0, "End Current Cut", ""},
 		{KNF_MODAL_ADD_CUT, "ADD_CUT", 0, "Add Cut", ""},
+		{KNF_MODAL_PANNING, "PANNING", 0, "Panning", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -3152,6 +3187,7 @@ wmKeyMap *knifetool_modal_keymap(wmKeyConfig *keyconf)
 
 	/* items for modal map */
 	WM_modalkeymap_add_item(keymap, ESCKEY, KM_PRESS, KM_ANY, 0, KNF_MODAL_CANCEL);
+	WM_modalkeymap_add_item(keymap, MIDDLEMOUSE, KM_ANY, KM_ANY, 0, KNF_MODAL_PANNING);
 	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_PRESS, KM_ANY, 0, KNF_MODAL_ADD_CUT);
 	WM_modalkeymap_add_item(keymap, RIGHTMOUSE, KM_PRESS, KM_ANY, 0, KNF_MODAL_CANCEL);
 	WM_modalkeymap_add_item(keymap, RETKEY, KM_PRESS, KM_ANY, 0, KNF_MODAL_CONFIRM);
@@ -3277,18 +3313,12 @@ static int knifetool_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 				ED_region_tag_redraw(kcd->ar);
 				break;
-		}
-	}
-	else { /* non-modal-mapped events */
-		switch (event->type) {
-			case WHEELUPMOUSE:
-			case WHEELDOWNMOUSE:
-				return OPERATOR_PASS_THROUGH;
-			case MIDDLEMOUSE:
+			case KNF_MODAL_PANNING:
 				if (event->val != KM_RELEASE) {
-					if (kcd->mode != MODE_PANNING)
+					if (kcd->mode != MODE_PANNING) {
 						kcd->prevmode = kcd->mode;
-					kcd->mode = MODE_PANNING;
+						kcd->mode = MODE_PANNING;
+					}
 				}
 				else {
 					kcd->mode = kcd->prevmode;
@@ -3296,7 +3326,17 @@ static int knifetool_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 				ED_region_tag_redraw(kcd->ar);
 				return OPERATOR_PASS_THROUGH;
-
+				break;
+		}
+	}
+	else { /* non-modal-mapped events */
+		switch (event->type) {
+			case MOUSEPAN:
+			case MOUSEZOOM:
+			case MOUSEROTATE:
+			case WHEELUPMOUSE:
+			case WHEELDOWNMOUSE:
+				return OPERATOR_PASS_THROUGH;
 			case MOUSEMOVE: /* mouse moved somewhere to select another loop */
 				if (kcd->mode != MODE_PANNING) {
 					knifetool_update_mval_i(kcd, event->mval);

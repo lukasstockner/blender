@@ -720,7 +720,7 @@ static Sequence *sequence_get_by_proxy(Editing *ed, StripProxy *proxy)
 	return data.seq;
 }
 
-static void rna_Sequence_tcindex_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
+static void rna_Sequence_tcindex_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	Scene *scene = (Scene *) ptr->id.data;
 	Editing *ed = BKE_sequencer_editing_get(scene, FALSE);
@@ -1298,7 +1298,7 @@ static void rna_def_strip_color_balance(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "StripColorBalance");
 }
 
-EnumPropertyItem blend_mode_items[] = {
+static EnumPropertyItem blend_mode_items[] = {
 	{SEQ_BLEND_REPLACE, "REPLACE", 0, "Replace", ""},
 	{SEQ_TYPE_CROSS, "CROSS", 0, "Cross", ""},
 	{SEQ_TYPE_ADD, "ADD", 0, "Add", ""},

@@ -1672,7 +1672,7 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 	int i;
 	float drawsize;
 	const bool is_view = (rv3d->persp == RV3D_CAMOB && ob == v3d->camera);
-	MovieClip *clip = BKE_object_movieclip_get(scene, base->object, 0);
+	MovieClip *clip = BKE_object_movieclip_get(scene, base->object, false);
 
 	/* draw data for movie clip set as active for scene */
 	if (clip) {
@@ -2550,6 +2550,11 @@ static void draw_dm_bweights(BMEditMesh *em, Scene *scene, DerivedMesh *dm)
 			glLineWidth(1.0);
 		}
 	}
+}
+
+static int draw_dm_override_material_color(int UNUSED(nr), void *UNUSED(attribs))
+{
+	return 1;
 }
 
 /* Second section of routines: Combine first sets to form fancy
@@ -3468,7 +3473,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 				glEnable(GL_LIGHTING);
 				glEnable(GL_COLOR_MATERIAL);
 
-				dm->drawMappedFaces(dm, NULL, GPU_enable_material, NULL, NULL, DM_DRAW_USE_COLORS);
+				dm->drawMappedFaces(dm, NULL, draw_dm_override_material_color, NULL, NULL, DM_DRAW_USE_COLORS);
 				glDisable(GL_COLOR_MATERIAL);
 				glDisable(GL_LIGHTING);
 
@@ -3798,11 +3803,15 @@ static void drawDispListsolid(ListBase *lb, Object *ob, const short dflag,
 	glEnable(GL_LIGHTING);
 	glEnableClientState(GL_VERTEX_ARRAY);
 	
-	if (ob->transflag & OB_NEG_SCALE) glFrontFace(GL_CW);
-	else glFrontFace(GL_CCW);
 	
 	if (ob->type == OB_MBALL) {  /* mball always smooth shaded */
+		if (ob->transflag & OB_NEG_SCALE) glFrontFace(GL_CW);
+		else glFrontFace(GL_CCW);
 		glShadeModel(GL_SMOOTH);
+	}
+	else {
+		if (ob->transflag & OB_NEG_SCALE) glFrontFace(GL_CCW);
+		else glFrontFace(GL_CW);
 	}
 	
 	dl = lb->first;
@@ -4085,7 +4094,7 @@ static bool drawDispList(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *ba
 	if (v3d->flag2 & V3D_BACKFACE_CULLING) {
 		/* not all displists use same in/out normal direction convention */
 		glEnable(GL_CULL_FACE);
-		glCullFace((base->object->type == OB_MBALL || base->object->derivedFinal) ? GL_BACK : GL_FRONT);
+		glCullFace(GL_BACK);
 	}
 
 	retval = drawDispList_nobackface(scene, v3d, rv3d, base, dt, dflag, ob_wire_col);

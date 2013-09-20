@@ -34,125 +34,13 @@
 #include "kernel_light.h"
 #include "kernel_emission.h"
 #include "kernel_passes.h"
+#include "kernel_path_state.h"
 
 #ifdef __SUBSURFACE__
 #include "kernel_subsurface.h"
 #endif
 
 CCL_NAMESPACE_BEGIN
-
-typedef struct PathState {
-	int flag;
-	int bounce;
-
-	int diffuse_bounce;
-	int glossy_bounce;
-	int transmission_bounce;
-	int transparent_bounce;
-} PathState;
-
-__device_inline void path_state_init(PathState *state)
-{
-	state->flag = PATH_RAY_CAMERA|PATH_RAY_SINGULAR|PATH_RAY_MIS_SKIP;
-	state->bounce = 0;
-	state->diffuse_bounce = 0;
-	state->glossy_bounce = 0;
-	state->transmission_bounce = 0;
-	state->transparent_bounce = 0;
-}
-
-__device_inline void path_state_next(KernelGlobals *kg, PathState *state, int label)
-{
-	/* ray through transparent keeps same flags from previous ray and is
-	 * not counted as a regular bounce, transparent has separate max */
-	if(label & LABEL_TRANSPARENT) {
-		state->flag |= PATH_RAY_TRANSPARENT;
-		state->transparent_bounce++;
-
-		if(!kernel_data.integrator.transparent_shadows)
-			state->flag |= PATH_RAY_MIS_SKIP;
-
-		return;
-	}
-
-	state->bounce++;
-
-	/* reflection/transmission */
-	if(label & LABEL_REFLECT) {
-		state->flag |= PATH_RAY_REFLECT;
-		state->flag &= ~(PATH_RAY_TRANSMIT|PATH_RAY_CAMERA|PATH_RAY_TRANSPARENT);
-
-		if(label & LABEL_DIFFUSE)
-			state->diffuse_bounce++;
-		else
-			state->glossy_bounce++;
-	}
-	else {
-		kernel_assert(label & LABEL_TRANSMIT);
-
-		state->flag |= PATH_RAY_TRANSMIT;
-		state->flag &= ~(PATH_RAY_REFLECT|PATH_RAY_CAMERA|PATH_RAY_TRANSPARENT);
-
-		state->transmission_bounce++;
-	}
-
-	/* diffuse/glossy/singular */
-	if(label & LABEL_DIFFUSE) {
-		state->flag |= PATH_RAY_DIFFUSE|PATH_RAY_DIFFUSE_ANCESTOR;
-		state->flag &= ~(PATH_RAY_GLOSSY|PATH_RAY_SINGULAR|PATH_RAY_MIS_SKIP);
-	}
-	else if(label & LABEL_GLOSSY) {
-		state->flag |= PATH_RAY_GLOSSY|PATH_RAY_GLOSSY_ANCESTOR;
-		state->flag &= ~(PATH_RAY_DIFFUSE|PATH_RAY_SINGULAR|PATH_RAY_MIS_SKIP);
-	}
-	else {
-		kernel_assert(label & LABEL_SINGULAR);
-
-		state->flag |= PATH_RAY_GLOSSY|PATH_RAY_SINGULAR|PATH_RAY_MIS_SKIP;
-		state->flag &= ~PATH_RAY_DIFFUSE;
-	}
-}
-
-__device_inline uint path_state_ray_visibility(KernelGlobals *kg, PathState *state)
-{
-	uint flag = state->flag & PATH_RAY_ALL_VISIBILITY;
-
-	/* for visibility, diffuse/glossy are for reflection only */
-	if(flag & PATH_RAY_TRANSMIT)
-		flag &= ~(PATH_RAY_DIFFUSE|PATH_RAY_GLOSSY);
-	/* for camera visibility, use render layer flags */
-	if(flag & PATH_RAY_CAMERA)
-		flag |= kernel_data.integrator.layer_flag;
-
-	return flag;
-}
-
-__device_inline float path_state_terminate_probability(KernelGlobals *kg, PathState *state, const float3 throughput)
-{
-	if(state->flag & PATH_RAY_TRANSPARENT) {
-		/* transparent rays treated separately */
-		if(state->transparent_bounce >= kernel_data.integrator.transparent_max_bounce)
-			return 0.0f;
-		else if(state->transparent_bounce <= kernel_data.integrator.transparent_min_bounce)
-			return 1.0f;
-	}
-	else {
-		/* other rays */
-		if((state->bounce >= kernel_data.integrator.max_bounce) ||
-		   (state->diffuse_bounce >= kernel_data.integrator.max_diffuse_bounce) ||
-		   (state->glossy_bounce >= kernel_data.integrator.max_glossy_bounce) ||
-		   (state->transmission_bounce >= kernel_data.integrator.max_transmission_bounce))
-		{
-			return 0.0f;
-		}
-		else if(state->bounce <= kernel_data.integrator.min_bounce) {
-			return 1.0f;
-		}
-	}
-
-	/* probalistic termination */
-	return average(throughput); /* todo: try using max here */
-}
 
 __device_inline bool shadow_blocked(KernelGlobals *kg, PathState *state, Ray *ray, float3 *shadow)
 {
@@ -232,7 +120,7 @@ __device_inline bool shadow_blocked(KernelGlobals *kg, PathState *state, Ray *ra
 }
 
 
-#if defined(__BRANCHED_PATH__) || defined(__BSSRDF__)
+#if defined(__BRANCHED_PATH__) || defined(__SUBSURFACE__)
 
 __device void kernel_path_indirect(KernelGlobals *kg, RNG *rng, int sample, Ray ray, __global float *buffer,
 	float3 throughput, int num_samples, int num_total_samples,
@@ -290,7 +178,9 @@ __device void kernel_path_indirect(KernelGlobals *kg, RNG *rng, int sample, Ray 
 		shader_setup_from_ray(kg, &sd, &isect, &ray, state.bounce);
 		float rbsdf = path_rng_1D(kg, rng, sample, num_total_samples, rng_offset + PRNG_BSDF);
 		shader_eval_surface(kg, &sd, rbsdf, state.flag, SHADER_CONTEXT_INDIRECT);
+#ifdef __BRANCHED_PATH__
 		shader_merge_closures(kg, &sd);
+#endif
 
 		/* blurring of bsdf after bounces, for rays that have a small likelihood
 		 * of following this particular path (diffuse, rough glossy) */
@@ -339,6 +229,7 @@ __device void kernel_path_indirect(KernelGlobals *kg, RNG *rng, int sample, Ray 
 			float3 ao_bsdf = shader_bsdf_ao(kg, &sd, ao_factor, &ao_N);
 			float3 ao_D;
 			float ao_pdf;
+			float3 ao_alpha = make_float3(0.0f, 0.0f, 0.0f);
 
 			sample_cos_hemisphere(ao_N, bsdf_u, bsdf_v, &ao_D, &ao_pdf);
 
@@ -356,7 +247,7 @@ __device void kernel_path_indirect(KernelGlobals *kg, RNG *rng, int sample, Ray 
 				light_ray.dD = differential3_zero();
 
 				if(!shadow_blocked(kg, &state, &light_ray, &ao_shadow))
-					path_radiance_accum_ao(L, throughput, ao_bsdf, ao_shadow, state.bounce);
+					path_radiance_accum_ao(L, throughput, ao_alpha, ao_bsdf, ao_shadow, state.bounce);
 			}
 		}
 #endif
@@ -734,6 +625,7 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 			float3 ao_bsdf = shader_bsdf_ao(kg, &sd, ao_factor, &ao_N);
 			float3 ao_D;
 			float ao_pdf;
+			float3 ao_alpha = shader_bsdf_alpha(kg, &sd);
 
 			sample_cos_hemisphere(ao_N, bsdf_u, bsdf_v, &ao_D, &ao_pdf);
 
@@ -751,7 +643,7 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 				light_ray.dD = differential3_zero();
 
 				if(!shadow_blocked(kg, &state, &light_ray, &ao_shadow))
-					path_radiance_accum_ao(&L, throughput, ao_bsdf, ao_shadow, state.bounce);
+					path_radiance_accum_ao(&L, throughput, ao_alpha, ao_bsdf, ao_shadow, state.bounce);
 			}
 		}
 #endif
@@ -1186,6 +1078,7 @@ __device float4 kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int 
 			float ao_factor = kernel_data.background.ao_factor;
 			float3 ao_N;
 			float3 ao_bsdf = shader_bsdf_ao(kg, &sd, ao_factor, &ao_N);
+			float3 ao_alpha = shader_bsdf_alpha(kg, &sd);
 
 			for(int j = 0; j < num_samples; j++) {
 				float bsdf_u, bsdf_v;
@@ -1210,7 +1103,7 @@ __device float4 kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int 
 					light_ray.dD = differential3_zero();
 
 					if(!shadow_blocked(kg, &state, &light_ray, &ao_shadow))
-						path_radiance_accum_ao(&L, throughput*num_samples_inv, ao_bsdf, ao_shadow, state.bounce);
+						path_radiance_accum_ao(&L, throughput*num_samples_inv, ao_alpha, ao_bsdf, ao_shadow, state.bounce);
 				}
 			}
 		}

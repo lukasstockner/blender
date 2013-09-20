@@ -166,7 +166,7 @@ static void panel_draw_header(const bContext *C, Panel *pnl)
 	RNA_parameter_list_free(&list);
 }
 
-static void rna_Panel_unregister(Main *bmain, StructRNA *type)
+static void rna_Panel_unregister(Main *UNUSED(bmain), StructRNA *type)
 {
 	ARegionType *art;
 	PanelType *pt = RNA_struct_blender_type_get(type);
@@ -268,7 +268,7 @@ static StructRNA *rna_Panel_refine(PointerRNA *ptr)
 }
 
 /* UIList */
-static unsigned int rna_UIList_filter_const_FILTER_ITEM_get(PointerRNA *ptr)
+static unsigned int rna_UIList_filter_const_FILTER_ITEM_get(PointerRNA *UNUSED(ptr))
 {
 	return UILST_FLT_ITEM;
 }
@@ -1122,7 +1122,7 @@ static void rna_def_uilist(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "bitflag_filter_item", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_ui_text(prop, "FILTER_ITEM",
-	                               "The value of the reserved bitfalg 'FILTER_ITEM' (in filter_flags values)");
+	                               "The value of the reserved bitflag 'FILTER_ITEM' (in filter_flags values)");
 	RNA_def_property_int_funcs(prop, "rna_UIList_filter_const_FILTER_ITEM_get", NULL, NULL);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 }

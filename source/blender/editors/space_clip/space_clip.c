@@ -523,6 +523,9 @@ static void clip_operatortypes(void)
 	WM_operatortype_append(CLIP_OT_create_plane_track);
 	WM_operatortype_append(CLIP_OT_slide_plane_marker);
 
+	WM_operatortype_append(CLIP_OT_keyframe_insert);
+	WM_operatortype_append(CLIP_OT_keyframe_delete);
+
 	/* ** clip_graph_ops.c  ** */
 
 	/* graph editing */
@@ -694,6 +697,9 @@ static void clip_keymap(struct wmKeyConfig *keyconf)
 	/* plane tracks */
 	WM_keymap_add_item(keymap, "CLIP_OT_slide_plane_marker", LEFTMOUSE, KM_PRESS, 0, 0);
 
+	WM_keymap_add_item(keymap, "CLIP_OT_keyframe_insert", IKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "CLIP_OT_keyframe_delete", IKEY, KM_PRESS, KM_ALT, 0);
+
 	/* clean-up */
 	WM_keymap_add_item(keymap, "CLIP_OT_join_tracks", JKEY, KM_PRESS, KM_CTRL, 0);
 
@@ -728,6 +734,23 @@ static void clip_keymap(struct wmKeyConfig *keyconf)
 
 	/* Cursor */
 	WM_keymap_add_item(keymap, "CLIP_OT_cursor_set", ACTIONMOUSE, KM_PRESS, 0, 0);
+
+	/* pivot point */
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", COMMAKEY, KM_PRESS, 0, 0);
+	RNA_string_set(kmi->ptr, "data_path", "space_data.pivot_point");
+	RNA_string_set(kmi->ptr, "value", "BOUNDING_BOX_CENTER");
+
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", COMMAKEY, KM_PRESS, KM_CTRL, 0); /* 2.4x allowed Comma+Shift too, rather not use both */
+	RNA_string_set(kmi->ptr, "data_path", "space_data.pivot_point");
+	RNA_string_set(kmi->ptr, "value", "MEDIAN_POINT");
+
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", PERIODKEY, KM_PRESS, 0, 0);
+	RNA_string_set(kmi->ptr, "data_path", "space_data.pivot_point");
+	RNA_string_set(kmi->ptr, "value", "CURSOR");
+
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", PERIODKEY, KM_PRESS, KM_CTRL, 0);
+	RNA_string_set(kmi->ptr, "data_path", "space_data.pivot_point");
+	RNA_string_set(kmi->ptr, "value", "INDIVIDUAL_ORIGINS");
 
 	/* ******** Hotkeys avalaible for preview region only ******** */
 
@@ -1123,6 +1146,7 @@ static void clip_main_area_draw(const bContext *C, ARegion *ar)
 	MovieClip *clip = ED_space_clip_get_clip(sc);
 	float aspx, aspy, zoomx, zoomy, x, y;
 	int width, height;
+	bool show_cursor = false;
 
 	/* if tracking is in progress, we should synchronize framenr from clipuser
 	 * so latest tracked frame would be shown */
@@ -1175,13 +1199,18 @@ static void clip_main_area_draw(const bContext *C, ARegion *ar)
 		}
 	}
 
-	glPushMatrix();
-	glTranslatef(x, y, 0);
-	glScalef(zoomx, zoomy, 0);
-	glMultMatrixf(sc->stabmat);
-	glScalef(width, height, 0);
-	draw_image_cursor(ar, sc->cursor);
-	glPopMatrix();
+	show_cursor |= sc->mode == SC_MODE_MASKEDIT;
+	show_cursor |= sc->around == V3D_CURSOR;
+
+	if (show_cursor) {
+		glPushMatrix();
+		glTranslatef(x, y, 0);
+		glScalef(zoomx, zoomy, 0);
+		glMultMatrixf(sc->stabmat);
+		glScalef(width, height, 0);
+		draw_image_cursor(ar, sc->cursor);
+		glPopMatrix();
+	}
 
 	if (sc->flag & SC_SHOW_GPENCIL) {
 		/* Grease Pencil */

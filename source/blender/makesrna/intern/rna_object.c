@@ -556,7 +556,8 @@ static void rna_Object_active_vertex_group_index_set(PointerRNA *ptr, int value)
 	ob->actdef = value + 1;
 }
 
-static void rna_Object_active_vertex_group_index_range(PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
+static void rna_Object_active_vertex_group_index_range(PointerRNA *ptr, int *min, int *max,
+                                                       int *UNUSED(softmin), int *UNUSED(softmax))
 {
 	Object *ob = (Object *)ptr->id.data;
 
@@ -667,7 +668,8 @@ static void rna_Object_active_material_index_set(PointerRNA *ptr, int value)
 	}
 }
 
-static void rna_Object_active_material_index_range(PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
+static void rna_Object_active_material_index_range(PointerRNA *ptr, int *min, int *max,
+                                                   int *UNUSED(softmin), int *UNUSED(softmax))
 {
 	Object *ob = (Object *)ptr->id.data;
 	*min = 0;
@@ -693,7 +695,7 @@ static void rna_Object_active_material_set(PointerRNA *ptr, PointerRNA value)
 }
 
 static void rna_Object_active_particle_system_index_range(PointerRNA *ptr, int *min, int *max,
-                                                          int *softmin, int *softmax)
+                                                          int *UNUSED(softmin), int *UNUSED(softmax))
 {
 	Object *ob = (Object *)ptr->id.data;
 	*min = 0;
@@ -1184,7 +1186,8 @@ static void rna_GameObjectSettings_col_mask_set(PointerRNA *ptr, const int *valu
 }
 
 
-static void rna_Object_active_shape_key_index_range(PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
+static void rna_Object_active_shape_key_index_range(PointerRNA *ptr, int *min, int *max,
+                                                    int *UNUSED(softmin), int *UNUSED(softmax))
 {
 	Object *ob = (Object *)ptr->id.data;
 	Key *key = BKE_key_from_object(ob);
@@ -2350,7 +2353,7 @@ static void rna_def_object(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "constraints", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_struct_type(prop, "Constraint");
 	RNA_def_property_ui_text(prop, "Constraints", "Constraints affecting the transformation of the object");
-/*	RNA_def_property_collection_funcs(prop, 0, 0, 0, 0, 0, 0, 0, "constraints__add", "constraints__remove"); */
+/*	RNA_def_property_collection_funcs(prop, NULL, NULL, NULL, NULL, NULL, NULL, NULL, "constraints__add", "constraints__remove"); */
 	rna_def_object_constraints(brna, prop);
 
 	/* game engine */

@@ -41,6 +41,7 @@ set(SRC_HEADERS
 	kernel_object.h
 	kernel_passes.h
 	kernel_path.h
+	kernel_path_state.h
 	kernel_primitive.h
 	kernel_projection.h
 	kernel_random.h
@@ -66,6 +67,7 @@ set(SRC_CLOSURE_HEADERS
 	closure/bsdf_util.h
 	closure/bsdf_ward.h
 	closure/bsdf_westin.h
+	closure/bsdf_hair.h
 	closure/bssrdf.h
 	closure/emissive.h
 	closure/volume.h

@@ -1981,7 +1981,7 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
 
 	ui_check_but(but);
 	
-	WM_cursor_modal(CTX_wm_window(C), BC_TEXTEDITCURSOR);
+	WM_cursor_modal_set(CTX_wm_window(C), BC_TEXTEDITCURSOR);
 }
 
 static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
@@ -2013,7 +2013,7 @@ static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
 		but->pos = -1;
 	}
 	
-	WM_cursor_restore(CTX_wm_window(C));
+	WM_cursor_modal_restore(CTX_wm_window(C));
 }
 
 static void ui_textedit_next_but(uiBlock *block, uiBut *actbut, uiHandleButtonData *data)
@@ -2097,10 +2097,12 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 			break;
 		case RIGHTMOUSE:
 		case ESCKEY:
-			data->cancel = true;
-			data->escapecancel = true;
-			button_activate_state(C, but, BUTTON_STATE_EXIT);
-			retval = WM_UI_HANDLER_BREAK;
+			if (event->val == KM_PRESS) {
+				data->cancel = true;
+				data->escapecancel = true;
+				button_activate_state(C, but, BUTTON_STATE_EXIT);
+				retval = WM_UI_HANDLER_BREAK;
+			}
 			break;
 		case LEFTMOUSE:
 		{
@@ -2220,7 +2222,7 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 
 			case BACKSPACEKEY:
 				changed = ui_textedit_delete(but, data, 0,
-				                             event->shift ? STRCUR_JUMP_ALL : (event->ctrl ? STRCUR_JUMP_DELIM : STRCUR_JUMP_NONE));
+				                             event->ctrl ? STRCUR_JUMP_DELIM : STRCUR_JUMP_NONE);
 				retval = WM_UI_HANDLER_BREAK;
 				break;
 				
@@ -2569,9 +2571,11 @@ static int ui_do_but_HOTKEYEVT(bContext *C, uiBut *but, uiHandleButtonData *data
 				return WM_UI_HANDLER_BREAK;
 			}
 			else if (event->type == ESCKEY) {
-				data->cancel = true;
-				data->escapecancel = true;
-				button_activate_state(C, but, BUTTON_STATE_EXIT);
+				if (event->val == KM_PRESS) {
+					data->cancel = true;
+					data->escapecancel = true;
+					button_activate_state(C, but, BUTTON_STATE_EXIT);
+				}
 			}
 			
 		}
@@ -3014,9 +3018,11 @@ static int ui_do_but_NUM(bContext *C, uiBlock *block, uiBut *but, uiHandleButton
 	}
 	else if (data->state == BUTTON_STATE_NUM_EDITING) {
 		if (event->type == ESCKEY || event->type == RIGHTMOUSE) {
-			data->cancel = true;
-			data->escapecancel = true;
-			button_activate_state(C, but, BUTTON_STATE_EXIT);
+			if (event->val == KM_PRESS) {
+				data->cancel = true;
+				data->escapecancel = true;
+				button_activate_state(C, but, BUTTON_STATE_EXIT);
+			}
 		}
 		else if (event->type == LEFTMOUSE && event->val != KM_PRESS) {
 			if (data->dragchange)
@@ -3278,9 +3284,11 @@ static int ui_do_but_SLI(bContext *C, uiBlock *block, uiBut *but, uiHandleButton
 	}
 	else if (data->state == BUTTON_STATE_NUM_EDITING) {
 		if (event->type == ESCKEY || event->type == RIGHTMOUSE) {
-			data->cancel = TRUE;
-			data->escapecancel = TRUE;
-			button_activate_state(C, but, BUTTON_STATE_EXIT);
+			if (event->val == KM_PRESS) {
+				data->cancel = TRUE;
+				data->escapecancel = TRUE;
+				button_activate_state(C, but, BUTTON_STATE_EXIT);
+			}
 		}
 		else if (event->type == LEFTMOUSE && event->val != KM_PRESS) {
 			if (data->dragchange)
@@ -3395,9 +3403,11 @@ static int ui_do_but_SCROLL(bContext *C, uiBlock *block, uiBut *but, uiHandleBut
 	}
 	else if (data->state == BUTTON_STATE_NUM_EDITING) {
 		if (event->type == ESCKEY) {
-			data->cancel = true;
-			data->escapecancel = true;
-			button_activate_state(C, but, BUTTON_STATE_EXIT);
+			if (event->val == KM_PRESS) {
+				data->cancel = true;
+				data->escapecancel = true;
+				button_activate_state(C, but, BUTTON_STATE_EXIT);
+			}
 		}
 		else if (event->type == LEFTMOUSE && event->val != KM_PRESS) {
 			button_activate_state(C, but, BUTTON_STATE_EXIT);
@@ -3433,12 +3443,14 @@ static int ui_do_but_LISTBOX(bContext *C, uiBlock *block, uiBut *but, uiHandleBu
 
 	if (data->state == BUTTON_STATE_NUM_EDITING) {
 		if (event->type == ESCKEY) {
-			data->cancel = true;
-			data->escapecancel = true;
-			*size = (int)data->origvalue;
-			button_activate_state(C, but, BUTTON_STATE_EXIT);
-			ui_list->flag &= ~UILST_RESIZING;
-			ED_region_tag_redraw(data->region);
+			if (event->val == KM_PRESS) {
+				data->cancel = true;
+				data->escapecancel = true;
+				*size = (int)data->origvalue;
+				button_activate_state(C, but, BUTTON_STATE_EXIT);
+				ui_list->flag &= ~UILST_RESIZING;
+				ED_region_tag_redraw(data->region);
+			}
 		}
 		else if (event->type == LEFTMOUSE && event->val != KM_PRESS) {
 			button_activate_state(C, but, BUTTON_STATE_EXIT);
@@ -3976,9 +3988,11 @@ static int ui_do_but_HSVCUBE(bContext *C, uiBlock *block, uiBut *but, uiHandleBu
 	}
 	else if (data->state == BUTTON_STATE_NUM_EDITING) {
 		if (event->type == ESCKEY || event->type == RIGHTMOUSE) {
-			data->cancel = true;
-			data->escapecancel = true;
-			button_activate_state(C, but, BUTTON_STATE_EXIT);
+			if (event->val == KM_PRESS) {
+				data->cancel = true;
+				data->escapecancel = true;
+				button_activate_state(C, but, BUTTON_STATE_EXIT);
+			}
 		}
 		else if (event->type == MOUSEMOVE) {
 			if (mx != data->draglastx || my != data->draglasty) {
@@ -4187,9 +4201,11 @@ static int ui_do_but_HSVCIRCLE(bContext *C, uiBlock *block, uiBut *but, uiHandle
 	}
 	else if (data->state == BUTTON_STATE_NUM_EDITING) {
 		if (event->type == ESCKEY || event->type == RIGHTMOUSE) {
-			data->cancel = true;
-			data->escapecancel = true;
-			button_activate_state(C, but, BUTTON_STATE_EXIT);
+			if (event->val == KM_PRESS) {
+				data->cancel = true;
+				data->escapecancel = true;
+				button_activate_state(C, but, BUTTON_STATE_EXIT);
+			}
 		}
 		/* XXX hardcoded keymap check.... */
 		else if (event->type == WHEELDOWNMOUSE) {
@@ -4632,9 +4648,11 @@ static int ui_do_but_HISTOGRAM(bContext *C, uiBlock *block, uiBut *but, uiHandle
 	}
 	else if (data->state == BUTTON_STATE_NUM_EDITING) {
 		if (event->type == ESCKEY) {
-			data->cancel = true;
-			data->escapecancel = true;
-			button_activate_state(C, but, BUTTON_STATE_EXIT);
+			if (event->val == KM_PRESS) {
+				data->cancel = true;
+				data->escapecancel = true;
+				button_activate_state(C, but, BUTTON_STATE_EXIT);
+			}
 		}
 		else if (event->type == MOUSEMOVE) {
 			if (mx != data->draglastx || my != data->draglasty) {
@@ -4715,9 +4733,11 @@ static int ui_do_but_WAVEFORM(bContext *C, uiBlock *block, uiBut *but, uiHandleB
 	}
 	else if (data->state == BUTTON_STATE_NUM_EDITING) {
 		if (event->type == ESCKEY) {
-			data->cancel = true;
-			data->escapecancel = true;
-			button_activate_state(C, but, BUTTON_STATE_EXIT);
+			if (event->val == KM_PRESS) {
+				data->cancel = true;
+				data->escapecancel = true;
+				button_activate_state(C, but, BUTTON_STATE_EXIT);
+			}
 		}
 		else if (event->type == MOUSEMOVE) {
 			if (mx != data->draglastx || my != data->draglasty) {
@@ -4782,9 +4802,11 @@ static int ui_do_but_VECTORSCOPE(bContext *C, uiBlock *block, uiBut *but, uiHand
 	}
 	else if (data->state == BUTTON_STATE_NUM_EDITING) {
 		if (event->type == ESCKEY) {
-			data->cancel = true;
-			data->escapecancel = true;
-			button_activate_state(C, but, BUTTON_STATE_EXIT);
+			if (event->val == KM_PRESS) {
+				data->cancel = true;
+				data->escapecancel = true;
+				button_activate_state(C, but, BUTTON_STATE_EXIT);
+			}
 		}
 		else if (event->type == MOUSEMOVE) {
 			if (mx != data->draglastx || my != data->draglasty) {
@@ -4893,9 +4915,11 @@ static int ui_do_but_TRACKPREVIEW(bContext *C, uiBlock *block, uiBut *but, uiHan
 	}
 	else if (data->state == BUTTON_STATE_NUM_EDITING) {
 		if (event->type == ESCKEY) {
-			data->cancel = true;
-			data->escapecancel = true;
-			button_activate_state(C, but, BUTTON_STATE_EXIT);
+			if (event->val == KM_PRESS) {
+				data->cancel = true;
+				data->escapecancel = true;
+				button_activate_state(C, but, BUTTON_STATE_EXIT);
+			}
 		}
 		else if (event->type == MOUSEMOVE) {
 			if (mx != data->draglastx || my != data->draglasty) {
@@ -5068,7 +5092,12 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 	uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
 
 	if (but->rnapoin.data && but->rnaprop) {
-		bool is_anim = RNA_property_animateable(&but->rnapoin, but->rnaprop);
+		PointerRNA *ptr = &but->rnapoin;
+		PropertyRNA *prop = but->rnaprop;
+		bool is_anim = RNA_property_animateable(ptr, prop);
+		bool is_editable = RNA_property_editable(ptr, prop);
+		/*bool is_idprop = RNA_property_is_idprop(prop);*/ /* XXX does not work as expected, not strictly needed */
+		bool is_set = RNA_property_is_set(ptr, prop);
 
 		/* second slower test, saved people finding keyframe items in menus when its not possible */
 		if (is_anim)
@@ -5214,6 +5243,10 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 		else {
 			uiItemBooleanO(layout, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Reset to Default Value"),
 			        ICON_NONE, "UI_OT_reset_default_button", "all", 1);
+		}
+		if (is_editable /*&& is_idprop*/ && is_set) {
+			uiItemO(layout, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Unset"),
+			        ICON_NONE, "UI_OT_unset_property_button");
 		}
 		
 		uiItemO(layout, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Copy Data Path"),

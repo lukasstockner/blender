@@ -111,9 +111,9 @@ void		WM_autosave_init(struct wmWindowManager *wm);
 void		WM_recover_last_session(struct bContext *C, struct ReportList *reports);
 
 			/* mouse cursors */
-void		WM_cursor_set		(struct wmWindow *win, int curs);
-void		WM_cursor_modal		(struct wmWindow *win, int curs);
-void		WM_cursor_restore	(struct wmWindow *win);
+void		WM_cursor_set(struct wmWindow *win, int curs);
+void		WM_cursor_modal_set(struct wmWindow *win, int curs);
+void		WM_cursor_modal_restore(struct wmWindow *win);
 void		WM_cursor_wait		(bool val);
 void		WM_cursor_grab_enable(struct wmWindow *win, bool wrap, bool hide, int bounds[4]);
 void		WM_cursor_grab_disable(struct wmWindow *win, int mouse_ungrab_xy[2]);
@@ -186,7 +186,8 @@ void		WM_event_timer_sleep(struct wmWindowManager *wm, struct wmWindow *win, str
 
 		/* operator api, default callbacks */
 			/* invoke callback, uses enum property named "type" */
-int			WM_operator_view3d_distance_invoke(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
+void		WM_operator_view3d_unit_defaults(struct bContext *C, struct wmOperator *op);
+int			WM_operator_smooth_viewtx_get(const struct wmOperator *op);
 int			WM_menu_invoke			(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
 int			WM_enum_search_invoke(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
 			/* invoke callback, confirm menu + exec */

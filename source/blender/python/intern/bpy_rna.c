@@ -1341,7 +1341,7 @@ PyObject *pyrna_prop_to_py(PointerRNA *ptr, PropertyRNA *prop)
 		return pyrna_py_from_array(ptr, prop);
 	}
 
-	/* see if we can coorce into a python type - PropertyType */
+	/* see if we can coerce into a python type - PropertyType */
 	switch (type) {
 		case PROP_BOOLEAN:
 			ret = PyBool_FromLong(RNA_property_boolean_get(ptr, prop));
@@ -1507,7 +1507,7 @@ static int pyrna_py_to_prop(PointerRNA *ptr, PropertyRNA *prop, void *data, PyOb
 	else {
 		/* Normal Property (not an array) */
 
-		/* see if we can coorce into a python type - PropertyType */
+		/* see if we can coerce into a python type - PropertyType */
 		switch (type) {
 			case PROP_BOOLEAN:
 			{
@@ -4600,14 +4600,6 @@ PyDoc_STRVAR(pyrna_prop_collection_foreach_get_doc,
 ".. method:: foreach_get(attr, seq)\n"
 "\n"
 "   This is a function to give fast access to attributes within a collection.\n"
-"\n"
-"   .. code-block:: python\n"
-"\n"
-"      collection.foreach_get(attr, someseq)\n"
-"\n"
-"      # Python equivalent\n"
-"      for i in range(len(seq)): someseq[i] = getattr(collection, attr)\n"
-"\n"
 );
 static PyObject *pyrna_prop_collection_foreach_get(BPy_PropertyRNA *self, PyObject *args)
 {
@@ -4620,14 +4612,6 @@ PyDoc_STRVAR(pyrna_prop_collection_foreach_set_doc,
 ".. method:: foreach_set(attr, seq)\n"
 "\n"
 "   This is a function to give fast access to attributes within a collection.\n"
-"\n"
-"   .. code-block:: python\n"
-"\n"
-"      collection.foreach_set(attr, seq)\n"
-"\n"
-"      # Python equivalent\n"
-"      for i in range(len(seq)): setattr(collection[i], attr, seq[i])\n"
-"\n"
 );
 static PyObject *pyrna_prop_collection_foreach_set(BPy_PropertyRNA *self, PyObject *args)
 {
@@ -4887,7 +4871,7 @@ static PyObject *pyrna_param_to_py(PointerRNA *ptr, PropertyRNA *prop, void *dat
 		}
 	}
 	else {
-		/* see if we can coorce into a python type - PropertyType */
+		/* see if we can coerce into a python type - PropertyType */
 		switch (type) {
 			case PROP_BOOLEAN:
 				ret = PyBool_FromLong(*(int *)data);
@@ -5327,7 +5311,7 @@ static PyObject *pyrna_func_doc_get(BPy_FunctionRNA *self, void *UNUSED(closure)
 	PyObject *ret;
 	char *args;
 
-	args = RNA_function_as_string_keywords(NULL, self->func, NULL, true, true, INT_MAX);
+	args = RNA_function_as_string_keywords(NULL, self->func, true, true, INT_MAX);
 
 	ret = PyUnicode_FromFormat("%.200s.%.200s(%.200s)\n%s",
 	                           RNA_struct_identifier(self->ptr.type),
