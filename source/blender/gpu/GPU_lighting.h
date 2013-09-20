@@ -1,3 +1,6 @@
+#ifndef _GPU_LIGHTING_H_
+#define _GPU_LIGHTING_H_
+
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -25,20 +28,15 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gpu_lighting.h
+/** \file source/blender/gpu/GPU_lighting.h
  *  \ingroup gpu
  */
 
-#ifndef GPU_LIGHTING_H
-#define GPU_LIGHTING_H
-
-#include "BLI_sys_types.h" // for bool
+#include "BLI_sys_types.h" /* for bool */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-
 
 typedef struct GPUbasiclight {
 	float position[4];
@@ -54,37 +52,26 @@ typedef struct GPUbasiclight {
 	float spot_exponent;
 } GPUbasiclight;
 
-typedef struct GPUbasicmaterial {
-	float specular[4];
-	int   shininess;
-} GPUbasicmaterial;
-
-void gpu_commit_light   (void);
-void gpu_commit_material(void);
-bool gpu_fast_lighting  (void);
-
 void GPU_set_basic_material_shininess(int shininess);
 void GPU_set_basic_material_specular(const float specular[4]);
 
 /* Set lights and also applies appropriate transformations on
    the positions and spot directions */
-void GPU_set_basic_lights(int light_count, GPUbasiclight lights[]);
+void GPU_set_basic_lights(int light_count, const GPUbasiclight lights[]);
 
 int GPU_get_basic_lights(GPUbasiclight lights_out[]); /* Lights out! Get it? :-) */
 
 /* Set lights without transforming position or spot_direction.
    Suitable for restoring a backup copy of previous light state.
    Keeps position and spot position from getting transformed twice. */
-void GPU_restore_basic_lights(int light_count, GPUbasiclight lights[]);
+void GPU_restore_basic_lights(int light_count, const GPUbasiclight lights[]);
 
 /* A white directional light shining straight down with no attenuation or spot effects.
    Same as the default legacy OpenGL light #0. */
 extern const GPUbasiclight GPU_DEFAULT_LIGHT;
 
-
-
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* GPU_LIGHTING_H */
+#endif /* _GPU_LIGHTING_H_ */

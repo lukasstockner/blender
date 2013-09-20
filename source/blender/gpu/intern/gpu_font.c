@@ -25,19 +25,18 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/gpu/intern/gpu_font_shader.c
+/** \file source/blender/gpu/intern/gpu_font.c
  *  \ingroup gpu
  */
 
 /* my interface */
-#include "GPU_font_shader.h"
+#include "intern/gpu_font_intern.h"
 
 /* my library */
+#include "GPU_blender_aspect.h"
+#include "GPU_common.h"
 #include "GPU_extensions.h"
-
-/* internal */
-#include "intern/gpu_common.h"
-#include "intern/gpu_safety.h"
+#include "GPU_safety.h"
 
 /* external */
 
@@ -50,20 +49,28 @@
 
 static GPUShader*  FONT_SHADER = NULL;
 static GPUcommon   FONT_COMMON = {0};
-static bool        FONT_FAILED = FALSE;
+static bool        FONT_FAILED = false;
+
+#if GPU_SAFETY
+static bool FONT_BEGUN = false;
+#endif
 
 
 
-void GPU_font_shader_init(void)
+void gpu_font_init(void)
 {
 	FONT_SHADER = NULL;
 }
 
 
 
-void GPU_font_shader_exit(void)
+void gpu_font_exit(void)
 {
 	GPU_shader_free(FONT_SHADER);
+	
+#if GPU_SAFETY
+	FONT_BEGUN = false;
+#endif
 }
 
 
@@ -73,8 +80,6 @@ static void gpu_font_shader(void)
 	/* GLSL code */
 	extern const char datatoc_gpu_shader_font_vert_glsl[];
 	extern const char datatoc_gpu_shader_font_frag_glsl[];
-
-	GPU_CHECK_NO_ERROR();
 
 	/* Create shader if it doesn't exist yet. */
 	if (FONT_SHADER != NULL) {
@@ -128,8 +133,6 @@ static void gpu_font_shader(void)
 	else {
 		gpu_set_common(NULL);
 	}
-
-	GPU_CHECK_NO_ERROR();
 }
 
 
@@ -138,38 +141,62 @@ static void gpu_font_shader(void)
 
 
 
-void GPU_font_shader_bind(void)
+void gpu_font_bind(void)
 {
 	bool glsl_support = GPU_glsl_support();
 
+	GPU_ASSERT(FONT_BEGUN);
+	
 	if (glsl_support)
 		gpu_font_shader();
 
 #if defined(WITH_GL_PROFILE_COMPAT)
-	GPU_CHECK_NO_ERROR();
-
 	if (!glsl_support)
-		glEnable(GL_TEXTURE_2D);
-
-	GPU_CHECK_NO_ERROR();
+		GPU_CHECK(glEnable(GL_TEXTURE_2D));
 #endif
 }
 
 
 
-void GPU_font_shader_unbind(void)
+void gpu_font_unbind(void)
 {
 	bool glsl_support = GPU_glsl_support();
 
-	GPU_CHECK_NO_ERROR();
-
+	GPU_ASSERT(FONT_BEGUN);
+	
 	if (glsl_support)
 		GPU_shader_unbind();
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (!glsl_support)
-		glDisable(GL_TEXTURE_2D);
+		GPU_CHECK(glDisable(GL_TEXTURE_2D));
+#endif
+}
+
+
+
+void GPU_font_begin(void)
+{
+#if GPU_SAFETY
+	GPU_ASSERT(!FONT_BEGUN);
+	FONT_BEGUN = true;
 #endif
 
-	GPU_CHECK_NO_ERROR();
+	GPU_aspect_end(); /* assuming was GPU_ASPECT_BASIC */
+
+	GPU_aspect_begin(GPU_ASPECT_FONT, 0);
+}
+
+
+
+void GPU_font_end(void)
+{
+#if GPU_SAFETY
+	GPU_ASSERT(FONT_BEGUN);
+	FONT_BEGUN = false;
+#endif
+
+	GPU_aspect_end();
+	
+	GPU_aspect_begin(GPU_ASPECT_BASIC, 0);
 }

@@ -1,36 +1,46 @@
-#ifndef GPU_INTERN_COMMON_H
-#define GPU_INTERN_COMMON_H
+#ifndef _GPU_COMMON_INTERN_H_
+#define _GPU_COMMON_INTERN_H_
 
 /*
-* ***** BEGIN GPL LICENSE BLOCK *****
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License
-* as published by the Free Software Foundation; either version 2
-* of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software Foundation,
-* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-*
-* The Original Code is Copyright (C) 2013 Blender Foundation.
-* All rights reserved.
-*
-* The Original Code is: all of this file.
-*
-* Contributor(s): Jason Wilkins.
-*
-* ***** END GPL LICENSE BLOCK *****
-*/
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * The Original Code is Copyright (C) 2013 Blender Foundation.
+ * All rights reserved.
+ *
+ * The Original Code is: all of this file.
+ *
+ * Contributor(s): Jason Wilkins.
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
 
-/** \file blender/gpu/intern/gpu_common.h
-*  \ingroup gpu
-*/
+/** \file blender/gpu/intern/gpu_common_intern.h
+ *  \ingroup gpu
+ */
+
+#include "GPU_common.h"
+
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 
 /* 
 
@@ -50,20 +60,6 @@ Any rarely used or uncommon attributes and uniforms needed for
 advanced drawing routines do not belong here!
 
 */
-
-#include "intern/gpu_glew.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
-
-#define GPU_MAX_COMMON_TEXCOORDS 1
-#define GPU_MAX_COMMON_SAMPLERS  1
-#define GPU_MAX_COMMON_LIGHTS    8
-
-
 
 typedef struct GPUcommon {
 	GLint vertex;                                             /* b_Vertex                             */
@@ -104,8 +100,11 @@ typedef struct GPUcommon {
 
 
 
+void gpu_common_init(void);
+void gpu_common_exit(void);
+
 /* given a GPUShader, initialize a GPUcommon */
-void gpu_init_common(GPUcommon* common, struct GPUShader* gpushader);
+void gpu_common_get_symbols(GPUcommon* common, struct GPUShader* gpushader);
 
 /* set/get the global GPUcommon currently in use */
 void       gpu_set_common(GPUcommon* common);
@@ -117,30 +116,9 @@ void gpu_include_common_frag(struct DynStr* frag);
 void gpu_include_common_defs(struct DynStr* defs);
 
 
-/* for setting up the common vertex attributes */
-
-void gpu_enable_vertex_array  (void);
-void gpu_enable_normal_array  (void);
-void gpu_enable_color_array   (void);
-void gpu_enable_texcoord_array(void);
-
-void gpu_disable_vertex_array  (void);
-void gpu_disable_normal_array  (void);
-void gpu_disable_color_array   (void);
-void gpu_disable_texcoord_array(void);
-
-void gpu_vertex_pointer  (GLint size, GLenum type, GLsizei stride, const GLvoid* pointer);
-void gpu_normal_pointer  (            GLenum type, GLsizei stride, GLboolean normalized, const GLvoid* pointer);
-void gpu_color_pointer   (GLint size, GLenum type, GLsizei stride, const GLvoid* pointer);
-void gpu_texcoord_pointer(GLint size, GLenum type, GLsizei stride, const GLvoid* pointer);
-
-void  gpu_set_common_active_texture(GLint texture);
-GLint gpu_get_common_active_texture(void);
-
-
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* GPU_INTERN_COMMON_H */
+#endif /* _GPU_COMMON_H_ */

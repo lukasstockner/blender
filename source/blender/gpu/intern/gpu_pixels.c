@@ -25,13 +25,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/gpu/intern/gpu_pixels.h
+/** \file source/blender/gpu/intern/gpu_pixels.c
  *  \ingroup gpu
  */
 
 /* my interface */
-#include "intern/gpu_pixels.h"
-#include "intern/gpu_immediate_inline.h"
+#include "intern/gpu_pixels_intern.h"
 
 /* my library */
 #include "GPU_basic_shader.h"
@@ -45,7 +44,8 @@
 #include "intern/gpu_view.h"
 #include "intern/gpu_state_latch.h"
 #include "intern/gpu_aspect.h"
-#include "intern/gpu_aspectfuncs.h"
+#include "intern/gpu_blender_aspect.h"
+#include "intern/gpu_immediate_inline.h"
 
 /* external */
 #include "BLI_dynstr.h"
@@ -54,45 +54,53 @@
 
 
 
-static GPUShader*  PIXEL_SHADER = NULL;
-static GPUcommon   PIXEL_COMMON = {0};
-static bool        PIXEL_FAILED = FALSE;
+static GPUShader*  PIXELS_SHADER = NULL;
+static GPUcommon   PIXELS_COMMON = {0};
+static bool        PIXELS_FAILED = FALSE;
+
+#if defined(GPU_PROFILE_CORE) || defined(GPU_PROFILE_ES20)
+static GLfloat PIXELS_POS[3] = { 0, 0, 0 };
+#endif
+
+#if GPU_SAFETY
+static bool PIXELS_BEGUN = false;
+#endif
 
 
 
-void GPU_pixels_shader_init(void)
+void gpu_pixels_shader_init(void)
 {
-	PIXEL_SHADER = NULL;
+	PIXELS_SHADER = NULL;
 }
 
 
 
-void GPU_pixels_shader_exit(void)
+void gpu_pixels_shader_exit(void)
 {
-	GPU_shader_free(PIXEL_SHADER);
+	GPU_shader_free(PIXELS_SHADER);
 }
 
 
 
-void gpuCacheBitmap(GPUbitmap* bitmap)
-{
-}
-
-
-
-void gpuCachePixels(GPUpixels* pixels)
-{
-}
-
-
-
-void gpuUncacheBitmap(GPUbitmap* bitmap)
+void GPU_cache_bitmap(GPUbitmap* bitmap)
 {
 }
 
 
 
-void gpuUncachePixels(GPUbitmap* bitmap)
+void GPU_cache_pixels(GPUpixels* pixels)
+{
+}
+
+
+
+void GPU_uncache_bitmap(GPUbitmap* bitmap)
+{
+}
+
+
+
+void GPU_uncache_pixels(GPUpixels* pixels)
 {
 }
 
@@ -119,7 +127,7 @@ static GLint     format_unpack_row_length = 0;
 static GLboolean format_unpack_swap_bytes = GL_FALSE;
 static GLint     format_unpack_alignment  = 4;
 
-void gpuPixelFormat(GLenum pname, GLint param)
+void GPU_pixels_format(GLenum pname, GLint param)
 {
 	switch(pname) {
 	case GL_UNPACK_ROW_LENGTH:
@@ -160,7 +168,7 @@ void gpuPixelFormat(GLenum pname, GLint param)
 static GLfloat pixels_zoom_xfactor = 1;
 static GLfloat pixels_zoom_yfactor = 1;
 
-void gpuPixelZoom(GLfloat xfactor, GLfloat yfactor)
+void GPU_pixels_zoom(GLfloat xfactor, GLfloat yfactor)
 {
 	pixels_zoom_xfactor = xfactor;
 	pixels_zoom_yfactor = yfactor;
@@ -173,7 +181,7 @@ void gpuPixelZoom(GLfloat xfactor, GLfloat yfactor)
 
 
 
-void gpuGetPixelZoom(GLfloat* xfactor_out, GLfloat *yfactor_out)
+void GPU_get_pixels_zoom(GLfloat* xfactor_out, GLfloat *yfactor_out)
 {
 	*xfactor_out = pixels_zoom_xfactor;
 	*yfactor_out = pixels_zoom_yfactor;
@@ -193,7 +201,7 @@ static GLfloat pixels_bias_alpha  = 0;
 
 // XXX jwilkins: this would be a lot shorter if you made a table
 
-void gpuPixelUniform1f(GLenum pname, GLfloat param)
+void GPU_pixels_uniform_1f(GLenum pname, GLfloat param)
 {
 	switch(pname) {
 		case GL_RED_SCALE:
@@ -289,8 +297,8 @@ static GLint location_bias;
 
 static void pixels_init_uniform_locations(void)
 {
-	location_scale = GPU_shader_get_uniform(PIXEL_SHADER, "b_Pixels.scale");
-	location_bias  = GPU_shader_get_uniform(PIXEL_SHADER, "b_Pixels.bias" );
+	location_scale = GPU_shader_get_uniform(PIXELS_SHADER, "b_Pixels.scale");
+	location_bias  = GPU_shader_get_uniform(PIXELS_SHADER, "b_Pixels.bias" );
 }
 
 
@@ -299,7 +307,6 @@ static void commit_pixels(void)
 {
 	GPU_CHECK_NO_ERROR();
 	glUniform4f(location_scale, pixels_scale_red, pixels_scale_green, pixels_scale_blue, pixels_scale_alpha);
-	GPU_CHECK_NO_ERROR();
 	glUniform4f(location_bias , pixels_bias_red,  pixels_bias_green,  pixels_bias_blue,  pixels_bias_alpha );
 	GPU_CHECK_NO_ERROR();
 }
@@ -313,14 +320,12 @@ static void gpu_pixels_shader(void)
 	extern const char datatoc_gpu_shader_pixels_vert_glsl[];
 	extern const char datatoc_gpu_shader_pixels_frag_glsl[];
 
-	GPU_CHECK_NO_ERROR();
-
 	/* Create shader if it doesn't exist yet. */
-	if (PIXEL_SHADER != NULL) {
-		GPU_shader_bind(PIXEL_SHADER);
-		gpu_set_common(&PIXEL_COMMON);
+	if (PIXELS_SHADER != NULL) {
+		GPU_shader_bind(PIXELS_SHADER);
+		gpu_set_common(&PIXELS_COMMON);
 	}
-	else if (!PIXEL_FAILED) {
+	else if (!PIXELS_FAILED) {
 		DynStr* vert = BLI_dynstr_new();
 		DynStr* frag = BLI_dynstr_new();
 		DynStr* defs = BLI_dynstr_new();
@@ -344,7 +349,7 @@ static void gpu_pixels_shader(void)
 		frag_cstring = BLI_dynstr_get_cstring(frag);
 		defs_cstring = BLI_dynstr_get_cstring(defs);
 
-		PIXEL_SHADER =
+		PIXELS_SHADER =
 			GPU_shader_create(vert_cstring, frag_cstring, NULL, defs_cstring);
 
 		MEM_freeN(vert_cstring);
@@ -355,26 +360,24 @@ static void gpu_pixels_shader(void)
 		BLI_dynstr_free(frag);
 		BLI_dynstr_free(defs);
 
-		if (PIXEL_SHADER != NULL) {
-			gpu_init_common(&PIXEL_COMMON, PIXEL_SHADER);
-			gpu_set_common(&PIXEL_COMMON);
+		if (PIXELS_SHADER != NULL) {
+			gpu_init_common(&PIXELS_COMMON, PIXELS_SHADER);
+			gpu_set_common(&PIXELS_COMMON);
 
 			pixels_init_uniform_locations();
 
-			GPU_shader_bind(PIXEL_SHADER);
+			GPU_shader_bind(PIXELS_SHADER);
 
 			commit_pixels(); /* only needs to be done once */
 		}
 		else {
-			PIXEL_FAILED = true;
+			PIXELS_FAILED = true;
 			gpu_set_common(NULL);
 		}
 	}
 	else {
 		gpu_set_common(NULL);
 	}
-
-	GPU_CHECK_NO_ERROR();
 }
 
 
@@ -383,19 +386,13 @@ void GPU_pixels_shader_bind(void)
 {
 	bool glsl_support = GPU_glsl_support();
 
-	GPU_CHECK_NO_ERROR();
-
-	if (glsl_support) {
+	if (glsl_support)
 		gpu_pixels_shader();
-		return;
-	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (!glsl_support)
-		glEnable(GL_TEXTURE_2D);
+		GPU_CHECK(glEnable(GL_TEXTURE_2D));
 #endif
-
-	GPU_CHECK_NO_ERROR();
 }
 
 
@@ -404,27 +401,22 @@ void GPU_pixels_shader_unbind(void)
 {
 	bool glsl_support = GPU_glsl_support();
 
-	GPU_CHECK_NO_ERROR();
-
 	if (glsl_support)
 		GPU_shader_unbind();
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (!glsl_support)
-		glDisable(GL_TEXTURE_2D);
+		GPU_CHECK(glDisable(GL_TEXTURE_2D));
 #endif
-
-	GPU_CHECK_NO_ERROR();
 }
 
 
-static bool begun = false;
 
 void GPU_pixels_begin()
 {
 #if GPU_SAFETY
-	GPU_ASSERT(!begun);
-	begun = true;
+	GPU_ASSERT(!PIXELS_BEGUN);
+	PIXELS_BEGUN = true;
 #endif
 
 #if defined(WITH_GL_PROFILE_COMPAT)
@@ -458,59 +450,51 @@ void GPU_pixels_begin()
 void GPU_pixels_end()
 {
 #if GPU_SAFETY
-	GPU_ASSERT(begun);
-	begun = false;
+	GPU_ASSERT(PIXELS_BEGUN);
+	PIXELS_BEGUN = false;
 #endif
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (GPU_PROFILE_COMPAT) {
-		if (non_default_flags & NON_DEFAULT_RED_SCALE) {
+		GPU_CHECK_NO_ERROR();
+		
+		if (non_default_flags & NON_DEFAULT_RED_SCALE)
 			glPixelTransferf(GL_RED_SCALE, 1);
-		}
 
-		if (non_default_flags & NON_DEFAULT_RED_BIAS) {
+		if (non_default_flags & NON_DEFAULT_RED_BIAS)
 			glPixelTransferf(GL_RED_BIAS, 0);
-		}
 
-		if (non_default_flags & NON_DEFAULT_GREEN_SCALE) {
+		if (non_default_flags & NON_DEFAULT_GREEN_SCALE)
 			glPixelTransferf(GL_BLUE_SCALE, 1);
-		}
 
-		if (non_default_flags & NON_DEFAULT_GREEN_BIAS) {
+		if (non_default_flags & NON_DEFAULT_GREEN_BIAS)
 			glPixelTransferf(GL_BLUE_BIAS, 0);
-		}
 
-		if (non_default_flags & NON_DEFAULT_BLUE_SCALE) {
+		if (non_default_flags & NON_DEFAULT_BLUE_SCALE)
 			glPixelTransferf(GL_GREEN_SCALE, 1);
-		}
 
-		if (non_default_flags & NON_DEFAULT_BLUE_BIAS) {
+		if (non_default_flags & NON_DEFAULT_BLUE_BIAS)
 			glPixelTransferf(GL_GREEN_BIAS, 0);
-		}
 
-		if (non_default_flags & NON_DEFAULT_ALPHA_SCALE) {
+		if (non_default_flags & NON_DEFAULT_ALPHA_SCALE)
 			glPixelTransferf(GL_ALPHA_SCALE, 1);
-		}
 
-		if (non_default_flags & NON_DEFAULT_ALPHA_BIAS) {
+		if (non_default_flags & NON_DEFAULT_ALPHA_BIAS)
 			glPixelTransferf(GL_ALPHA_BIAS, 0);
-		}
 
-		if (non_default_flags & NON_DEFAULT_FACTOR) {
+		if (non_default_flags & NON_DEFAULT_FACTOR)
 			glPixelZoom(1, 1);
-		}
 
-		if (non_default_flags & NON_DEFAULT_UNPACK_ROW_LENGTH) {
+		if (non_default_flags & NON_DEFAULT_UNPACK_ROW_LENGTH)
 			glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-		}
 
-		if (non_default_flags & NON_DEFAULT_UNPACK_ALIGNMENT) {
+		if (non_default_flags & NON_DEFAULT_UNPACK_ALIGNMENT)
 			glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-		}
 
-		if (non_default_flags & NON_DEFAULT_UNPACK_ROW_LENGTH) {
+		if (non_default_flags & NON_DEFAULT_UNPACK_ROW_LENGTH)
 			glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE);
-		}
+		
+		GPU_CHECK_NO_ERROR();
 	}
 #endif
 
@@ -539,6 +523,8 @@ static void raster_pos_safe_2f(float x, float y, float known_good_x, float known
 {
 	GLubyte dummy = 0;
 
+	GPU_CHECK_NO_ERROR();
+	
 	/* As long as known good coordinates are correct
 	 * this is guaranteed to generate an ok raster
 	 * position (ignoring potential (real) overflow
@@ -550,60 +536,47 @@ static void raster_pos_safe_2f(float x, float y, float known_good_x, float known
 	 * it in the first place using the glBitmap trick.
 	 */
 	glBitmap(0, 0, 0, 0, x - known_good_x, y - known_good_y, &dummy);
+
+	GPU_CHECK_NO_ERROR();
 }
 #endif
 
 
-#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
-static GLfloat pixels_pos[3] = { 0, 0, 0 };
-#endif
 
-
-
-void gpuPixelPos2f(GLfloat x, GLfloat y)
+void GPU_pixels_pos_2f(GLfloat x, GLfloat y)
 {
-#if defined(WITH_GL_PROFILE_COMPAT)
-	if (GPU_PROFILE_COMPAT) {
-		/* Don't use safe RasterPos (slower) if we can avoid it. */
-		if (x >= 0 && y >= 0) {
-			glRasterPos2f(x, y);
-		}
-		else {
-			raster_pos_safe_2f(x, y, 0, 0);
-		}
-
-		return;
-	}
+#if defined(GPU_PROFILE_COMPAT)
+	/* Don't use safe RasterPos (slower) if we can avoid it. */
+	if (x >= 0 && y >= 0)
+		glRasterPos2f(x, y);
+	else
+		raster_pos_safe_2f(x, y, 0, 0);
 #endif
 
-#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
-	pixels_pos[0] = x;
-	pixels_pos[1] = y;
-	pixels_pos[2] = 0;
+#if defined(GPU_PROFILE_CORE) || defined(GPU_PROFILE_ES20)
+	VEC_COPY(PIXELS_POS, x, y, 0);
 #endif
 }
 
 
 
-void gpuPixelPos3f(GLfloat x, GLfloat y, GLfloat z)
+void GPU_pixels_pos_3f(GLfloat x, GLfloat y, GLfloat z)
 {
-#if defined(WITH_GL_PROFILE_COMPAT)
-	if (GPU_PROFILE_COMPAT) {
-		glRasterPos3f(x, y, z);
-	}
+#if defined(GPU_PROFILE_COMPAT)
+	glRasterPos3fv(PIXELS_POS);
 #endif
-
-#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
-	pixels_pos[0] = x;
-	pixels_pos[1] = y;
-	pixels_pos[2] = z;
+	
+#if defined(GPU_PROFILE_CORE) || defined(GPU_PROFILE_ES20)
+	VEC_COPY(PIXELS_POS, x, y, z);
 #endif
 }
 
 
 
-void gpuBitmap(GPUbitmap* bitmap)
+void GPU_bitmap(GPUbitmap* bitmap)
 {
+	GPU_ASSERT(PIXELS_BEGUN);
+	
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (GPU_PROFILE_COMPAT) {
 		glBitmap(
@@ -619,18 +592,22 @@ void gpuBitmap(GPUbitmap* bitmap)
 }
 
 
+
 extern void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, const void *rect, float scaleX, float scaleY);
 
-void gpuPixels(GPUpixels* pixels)
+void GPU_pixels(GPUpixels* pixels)
 {
+	GPU_ASSERT(PIXELS_BEGUN);
+	
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (GPU_PROFILE_COMPAT) {
-		glDrawPixels(
-			pixels->width,
-			pixels->height,
-			pixels->format,
-			pixels->type,
-			pixels->pixels);
+		GPU_CHECK(
+			glDrawPixels(
+				pixels->width,
+				pixels->height,
+				pixels->format,
+				pixels->type,
+				pixels->pixels));
 
 		return;
 	}
@@ -639,8 +616,8 @@ void gpuPixels(GPUpixels* pixels)
 #if defined(WITH_GL_PROFILE_ES20) || defined(WITH_GL_PROFILE_CORE)
 	if (GPU_PROFILE_ES20 || GPU_PROFILE_CORE) {
 		glaDrawPixelsTexScaled(
-			pixels_pos[0],
-			pixels_pos[1],
+			PIXELS_POS[0],
+			PIXELS_POS[1],
 			pixels->width,
 			pixels->height,
 			pixels->format,
@@ -653,6 +630,3 @@ void gpuPixels(GPUpixels* pixels)
 	}
 #endif
 }
-
-
-

@@ -112,7 +112,7 @@
 #include "GPU_buffers.h"
 #include "GPU_extensions.h"
 #include "GPU_draw.h"
-#include "GPU_compatibility.h"
+#include "GPU_init_exit.h"
 
 #include "BKE_depsgraph.h"
 #include "BKE_sound.h"
@@ -129,21 +129,12 @@ static void wm_free_reports(bContext *C)
 
 bool wm_start_with_console = false; /* used in creator.c */
 
-static GPUimmediate* immediate;
-static GPUindex*     gindex;
-
 /* only called once, for startup */
 void WM_init(bContext *C, int argc, const char **argv)
 {
 	if (!G.background) {
 		wm_ghost_init(C);   /* note: it assigns C to ghost! */
 		wm_init_cursor_data();
-
-		// SSS shared shader is initialized elsewhere
-		//gpuInitializeLighting(); // XXX jwilkins: sort out this initialization order
-		GPU_ms_init();
-		//GPU_init_object_func(); //XXX jwilkins: not needed
-		gpuInitializeViewFuncs();
 	}
 
 	GHOST_CreateSystemPaths();
@@ -196,22 +187,11 @@ void WM_init(bContext *C, int argc, const char **argv)
 	wm_init_reports(C); /* reports cant be initialized before the wm */
 
 	if (!G.background) {
-		GPU_extensions_init();
+		GPU_init();
+		
 		GPU_set_mipmap(!(U.gameflags & USER_DISABLE_MIPMAP));
 		GPU_set_anisotropic(U.anisotropic_filter);
 		GPU_set_gpu_mipmapping(U.use_gpu_mipmap);
-
-		/* begin - init opengl compatibility layer */
-
-		immediate = gpuNewImmediate();
-		gpuImmediateMakeCurrent(immediate);
-		gpuImmediateMaxVertexCount(500000); // XXX jwilkins: temporary!
-
-		gindex = gpuNewIndex();
-		gpuImmediateIndex(gindex);
-		gpuImmediateMaxIndexCount(500000, GL_UNSIGNED_SHORT); // XXX jwilkins: temporary!
-
-		/* end - init opengl compatibility layer */
 
 		UI_init();
 	}
@@ -416,17 +396,8 @@ void WM_exit_ext(bContext *C, const short do_python)
 		if (!G.background) {
 			GPU_global_buffer_pool_free();
 			GPU_free_unused_buffers();
-			GPU_extensions_exit();
 
-			//gpuShutdownLighting(); XXX jwilkins
-
-			gpuDeleteIndex(gindex);
-			gpuImmediateIndex(NULL);
-
-			gpuImmediateMakeCurrent(NULL);
-			gpuDeleteImmediate(immediate);
-
-			GPU_ms_exit();
+			GPU_exit();
 
 			if ((U.uiflag2 & USER_KEEP_SESSION) || BKE_undo_valid(NULL)) {
 				/* save the undo state as quit.blend */

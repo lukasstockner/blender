@@ -416,7 +416,7 @@ static void quad_free_heap(void)
 
 
 
-void gpu_quad_elements_init(void)
+static void quad_elements_init(void)
 {
 
 	int i, j;
@@ -454,7 +454,7 @@ void gpu_quad_elements_init(void)
 
 
 
-void gpu_quad_elements_exit(void)
+static void quad_elements_exit(void)
 {
 	quad_free_heap();
 
@@ -471,6 +471,19 @@ void gpu_quad_elements_exit(void)
 #if GPU_SAFETY
 	quad_init = false;
 #endif
+}
+
+
+void gpu_immediate_gl_init(void)
+{
+	quad_elements_init();
+}
+
+
+
+void gpu_immediate_gl_exit(void)
+{
+	quad_elements_exit();
 }
 
 
@@ -711,38 +724,11 @@ void gpu_draw_range_elements_gl(void)
 
 void gpu_commit_current(void)
 {
-	const GPUcommon* common = gpu_get_common();
-
-	if (common) {
-		GPU_CHECK_NO_ERROR();
-
-		if (GPU_IMMEDIATE->format.colorSize == 0 && common->color != -1) {
-			glVertexAttrib4f(
-				common->color,
-				((float)(GPU_IMMEDIATE->color[0]))/255.0f,
-				((float)(GPU_IMMEDIATE->color[1]))/255.0f,
-				((float)(GPU_IMMEDIATE->color[2]))/255.0f,
-				((float)(GPU_IMMEDIATE->color[3]))/255.0f);
-
-			//glVertexAttrib4f(common->color, 1,0,1,1);
-		}
-
-		if (GPU_IMMEDIATE->format.normalSize == 0 && common->normal != -1)
-			glVertexAttrib3fv(common->normal, GPU_IMMEDIATE->normal);
-
-		GPU_CHECK_NO_ERROR();
-
-		return;
-	}
-
-#if defined(WITH_GL_PROFILE_COMPAT)
-	GPU_CHECK_NO_ERROR();
-
-	glColor4ubv(GPU_IMMEDIATE->color);
-	glNormal3fv(GPU_IMMEDIATE->normal);
-
-	GPU_CHECK_NO_ERROR();
-#endif
+	if (GPU_IMMEDIATE->format.colorSize == 0)
+		GPU_common_color_4uvb(GPU_IMMEDIATE->color);
+	
+	if (GPU_IMMEDIATE->format.normalSize == 0)
+		GPU_common_normal_3fv(GPU_IMMEDIATE->normal);
 }
 
 

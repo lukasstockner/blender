@@ -20,7 +20,7 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): Brecht Van Lommel.
+ * Contributor(s): Brecht Van Lommel, Jason Wilkins.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -30,7 +30,7 @@
  */
 
 /* my interface */
-#include "GPU_extensions.h"
+#include "intern/gpu_extensions_intern.h"
 
 /* my library */
 #include "GPU_draw.h"
@@ -40,7 +40,6 @@
 
 /* internal */
 #include "intern/gpu_codegen.h"
-#include "intern/gpu_extension_wrapper.h"
 #include "intern/gpu_pixels.h"
 #include "intern/gpu_raster.h"
 
@@ -115,8 +114,6 @@ int GPU_type_matches(GPUDeviceType device, GPUOSType os, GPUDriverType driver)
 
 /* GPU Extensions */
 
-static int gpu_extensions_init = 0;
-
 void GPU_extensions_disable(void)
 {
 	GG.extdisabled = 1;
@@ -177,39 +174,28 @@ int GPU_max_textures(void)
 	return GG.maxtextures;
 }
 
-void GPU_extensions_init(void)
+static void shim_init(void);
+
+void gpu_extensions_init(void)
 {
 	GLint r, g, b;
 	const char *vendor, *renderer;
 	int bdepth = -1;
 
-	/* can't avoid calling this multiple times, see wm_window_add_ghostwindow */
-	if (gpu_extensions_init) return;
-	gpu_extensions_init= 1;
-
-	GPU_wrap_extensions(&(GG.glslsupport), &(GG.framebuffersupport));
-	GPU_codegen_init();
-
+	GPU_CHECK_NO_ERROR();
+	
+	shim_init();
+	
 	GG.maxtextures = get_max_textures();
 
-	GPU_CHECK_NO_ERROR();
-
-//#if defined(WITH_GL_PROFILE_ES20) || defined(WITH_GL_PROFILE_CORE)
-//	gpu_object_init_gles();
-//#endif
-
-	GPU_CHECK_NO_ERROR();
-
 	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &GG.maxtexsize);
-
-	GPU_CHECK_NO_ERROR();
 
 	if (GPU_PROFILE_CORE) {
 #if defined(WITH_GL_PROFILE_CORE)
 		//glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_BACK, GL_FRAMEBUFFER_ATTACHMENT_RED_SIZE,   &r);
 		//glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_BACK, GL_FRAMEBUFFER_ATTACHMENT_GREEN_SIZE, &g);
 		//glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_BACK, GL_FRAMEBUFFER_ATTACHMENT_BLUE_SIZE,  &b);
-		r=g=b=8;// XXX jwilkins: workaround driver bug?  will probably need to forward this from ghost
+		r=g=b=8;// XXX jwilkins: above code seems like it should work but doesn't due to driver bug(?)  will probably need to forward this from ghost
 #endif
 	}
 	else
@@ -221,14 +207,10 @@ void GPU_extensions_init(void)
 #endif
 	}
 
-	GPU_CHECK_NO_ERROR();
-
 	GG.colordepth = r+g+b; /* assumes same depth for RGB */
 
-	vendor = (const char *)glGetString(GL_VENDOR);
+	vendor   = (const char *)glGetString(GL_VENDOR);
 	renderer = (const char *)glGetString(GL_RENDERER);
-
-	GPU_CHECK_NO_ERROR();
 
 	if (strstr(vendor, "ATI")) {
 		GG.device = GPU_DEVICE_ATI;
@@ -296,40 +278,12 @@ void GPU_extensions_init(void)
 	GG.os = GPU_OS_UNIX;
 #endif
 
-	gpu_quad_elements_init();
-
-	GPU_basic_shaders_init();
-	GPU_font_shader_init();
-	GPU_pixels_shader_init();
-	GPU_raster_shader_init();
-
-	gpu_initialize_aspects();
-	gpu_initialize_aspect_funcs();
-	GPU_aspect_begin(GPU_ASPECT_BASIC, NULL);
-
-GPU_CHECK_NO_ERROR();
+	GPU_CHECK_NO_ERROR();
 }
 
-void GPU_extensions_exit(void)
+void gpu_extensions_exit(void)
 {
-GPU_CHECK_NO_ERROR();
-
-	gpu_extensions_init = 0;
-	GPU_codegen_exit();
-	GPU_basic_shaders_exit();
-	GPU_font_shader_exit();
-	GPU_pixels_shader_exit();
-	GPU_raster_shader_exit();
-
-	GPU_aspect_end();
-	gpu_shutdown_aspect_funcs(); // XXX jwilkins: should my shutdown functions be named exit?
-	gpu_shutdown_aspects(); // XXX jwilkins: should my shutdown functions be named exit?
-
-	gpu_quad_elements_exit();
-
-GPU_CHECK_NO_ERROR();
 }
-
 
 int GPU_glsl_support(void)
 {
@@ -1869,3 +1823,420 @@ void GPU_pixelbuffer_async_to_gpu(GPUTexture *tex, GPUPixelBuffer *pb)
 }
 #endif
 
+
+
+
+#if GPU_SAFETY
+
+#define GPU_CHECK_INVALID_PNAME(symbol)           \
+    {                                             \
+    GLboolean paramOK;                            \
+    GPU_SAFE_RETURN(pname != (symbol), paramOK,); \
+    }
+
+#else
+
+#define GPU_CHECK_INVALID_PNAME(symbol)
+
+#endif
+
+
+#if !defined(GLEW_ES_ONLY)
+static void GLAPIENTRY check_glGetObjectParameterivARB(GLuint shader, GLuint pname, GLint *params)
+{
+	GPU_CHECK_INVALID_PNAME(GL_SHADER_TYPE);
+
+	glGetObjectParameterivARB(shader, pname, params);
+}
+#endif
+
+static void GLAPIENTRY check_glGetShaderiv(GLuint shader, GLuint pname, GLint *params)
+{
+	GPU_CHECK_INVALID_PNAME(GL_SHADER_TYPE);
+
+	glGetShaderiv(shader, pname, params);
+}
+
+static GLboolean init_shader_objects(void)
+{
+	if (GLEW_VERSION_2_0 || GLEW_ES_VERSION_2_0) {
+		gpu_glAttachShader       = glAttachShader;
+		gpu_glCompileShader      = glCompileShader;
+		gpu_glCreateProgram      = glCreateProgram;
+		gpu_glCreateShader       = glCreateShader;
+		gpu_glDeleteShader       = glDeleteShader;
+		gpu_glGetProgramInfoLog  = glGetProgramInfoLog;
+		gpu_glGetShaderiv        = check_glGetShaderiv;
+		gpu_glGetShaderInfoLog   = glGetShaderInfoLog;
+		gpu_glGetUniformLocation = glGetUniformLocation;
+		gpu_glLinkProgram        = glLinkProgram;
+		gpu_glShaderSource       = glShaderSource;
+		gpu_glUniform1i          = glUniform1i;
+		gpu_glUniform1f          = glUniform1f;
+		gpu_glUniform1iv         = glUniform1iv;
+		gpu_glUniform2iv         = glUniform2iv;
+		gpu_glUniform3iv         = glUniform3iv;
+		gpu_glUniform4iv         = glUniform4iv;
+		gpu_glUniform1fv         = glUniform1fv;
+		gpu_glUniform2fv         = glUniform2fv;
+		gpu_glUniform3fv         = glUniform3fv;
+		gpu_glUniform4fv         = glUniform4fv;
+		gpu_glUniformMatrix3fv   = glUniformMatrix3fv;
+		gpu_glUniformMatrix4fv   = glUniformMatrix4fv;
+		gpu_glUseProgram         = glUseProgram;
+		gpu_glValidateProgram    = glValidateProgram;
+
+		return GL_TRUE;
+	}
+
+#if !defined(GLEW_ES_ONLY)
+	if (GLEW_ARB_shader_objects) {
+		gpu_glAttachShader       = glAttachObjectARB;
+		gpu_glCompileShader      = glCompileShaderARB;
+		gpu_glCreateProgram      = glCreateProgramObjectARB;
+		gpu_glCreateShader       = glCreateShaderObjectARB;
+		gpu_glDeleteShader       = glDeleteObjectARB;
+		gpu_glGetProgramInfoLog  = glGetInfoLogARB;
+		gpu_glGetShaderiv        = check_glGetObjectParameterivARB;
+		gpu_glGetShaderInfoLog   = glGetInfoLogARB;
+		gpu_glGetUniformLocation = glGetUniformLocationARB;
+		gpu_glLinkProgram        = glLinkProgramARB;
+		gpu_glShaderSource       = glShaderSourceARB;
+		gpu_glUniform1i          = glUniform1iARB;
+		gpu_glUniform1f          = glUniform1fARB;
+		gpu_glUniform1iv         = glUniform1ivARB;
+		gpu_glUniform2iv         = glUniform2ivARB;
+		gpu_glUniform3iv         = glUniform3ivARB;
+		gpu_glUniform4iv         = glUniform4ivARB;
+		gpu_glUniform1fv         = glUniform1fvARB;
+		gpu_glUniform2fv         = glUniform2fvARB;
+		gpu_glUniform3fv         = glUniform3fvARB;
+		gpu_glUniform4fv         = glUniform4fvARB;
+		gpu_glUniformMatrix3fv   = glUniformMatrix3fvARB;
+		gpu_glUniformMatrix4fv   = glUniformMatrix4fvARB;
+		gpu_glUseProgram         = glUseProgramObjectARB;
+		gpu_glValidateProgram    = glValidateProgramARB;
+
+		return GL_TRUE;
+	}
+#endif
+
+	return GL_FALSE;
+}
+
+static GLboolean init_vertex_shader(void)
+{
+	if (GLEW_VERSION_2_0 || GLEW_ES_VERSION_2_0) {
+		gpu_glGetAttribLocation  = glGetAttribLocation;
+		gpu_glBindAttribLocation = glBindAttribLocation;
+
+		return GL_TRUE;
+	}
+
+#if !defined(GLEW_ES_ONLY)
+	if (GLEW_ARB_vertex_shader) {
+		gpu_glBindAttribLocation = (void (GLAPIENTRY*)(GLuint,GLuint,const GLchar*))glBindAttribLocationARB;
+		gpu_glGetAttribLocation  = glGetAttribLocationARB;
+
+		return GL_TRUE;
+	}
+#endif
+
+	return GL_FALSE;
+}
+
+#if !defined(GLEW_ES_ONLY)
+static void GLAPIENTRY check_glGetProgramivARB(GLuint shader, GLuint pname, GLint *params)
+{
+	GPU_CHECK_INVALID_PNAME(GL_ACTIVE_ATTRIBUTES);
+	GPU_CHECK_INVALID_PNAME(GL_ACTIVE_ATTRIBUTE_MAX_LENGTH);
+
+	glGetProgramivARB(shader, pname, params);
+}
+#endif
+
+static void GLAPIENTRY check_glGetProgramiv(GLuint shader, GLuint pname, GLint *params)
+{
+	GPU_CHECK_INVALID_PNAME(GL_ACTIVE_ATTRIBUTES);
+	GPU_CHECK_INVALID_PNAME(GL_ACTIVE_ATTRIBUTE_MAX_LENGTH);
+
+	glGetProgramiv(shader, pname, params);
+}
+
+static GLboolean init_vertex_program(void)
+{
+	if (GLEW_VERSION_2_0 || GLEW_ES_VERSION_2_0) {
+		gpu_glDeleteProgram            = glDeleteProgram;
+		gpu_glDisableVertexAttribArray = glDisableVertexAttribArray;
+		gpu_glEnableVertexAttribArray  = glEnableVertexAttribArray;
+		gpu_glGetProgramiv             = check_glGetProgramiv;
+		gpu_glVertexAttribPointer      = glVertexAttribPointer;
+
+		return GL_TRUE;
+	}
+
+#if !defined(GLEW_ES_ONLY)
+	if (GLEW_ARB_vertex_program) {
+		gpu_glDeleteProgram            = glDeleteObjectARB;
+		gpu_glDisableVertexAttribArray = glDisableVertexAttribArrayARB;
+		gpu_glEnableVertexAttribArray  = glEnableVertexAttribArrayARB;
+		gpu_glGetProgramiv             = check_glGetProgramivARB;
+		gpu_glVertexAttribPointer      = glVertexAttribPointerARB;
+
+		return GL_TRUE;
+	}
+#endif
+
+	return GL_FALSE;
+}
+
+static void init_buffers(void)
+{
+	if (GLEW_VERSION_1_5 || GLEW_ES_VERSION_2_0) {
+		gpu_glBindBuffer    = glBindBuffer;
+		gpu_glBufferData    = glBufferData;
+		gpu_glBufferSubData = glBufferSubData;
+		gpu_glDeleteBuffers = glDeleteBuffers;
+		gpu_glGenBuffers    = glGenBuffers;
+
+		return;
+	}
+
+#if !defined(GLEW_ES_ONLY)
+	if (GLEW_ARB_vertex_buffer_object) {
+		gpu_glBindBuffer    = glBindBufferARB;
+		gpu_glBufferData    = glBufferDataARB;
+		gpu_glBufferSubData = glBufferSubDataARB;
+		gpu_glDeleteBuffers = glDeleteBuffersARB;
+		gpu_glGenBuffers    = glGenBuffersARB;
+
+		return;
+	}
+#endif
+}
+
+static void init_mapbuffer(void)
+{
+#if !defined(GLEW_ES_ONLY)
+	if (GLEW_VERSION_1_5) {
+		gpu_glMapBuffer   = glMapBuffer;
+		gpu_glUnmapBuffer = glUnmapBuffer;
+
+		return;
+	}
+
+	if (GLEW_ARB_vertex_buffer_object) {
+		gpu_glMapBuffer   = glMapBufferARB;
+		gpu_glUnmapBuffer = glUnmapBufferARB;
+
+		return;
+	}
+#endif
+
+#if !defined(GLEW_NO_ES)
+	if (GLEW_OES_mapbuffer) {
+		gpu_glMapBuffer   = glMapBufferOES;
+		gpu_glUnmapBuffer = glUnmapBufferOES;
+
+		return;
+	}
+#endif
+}
+
+static GLboolean init_framebuffer_object(void)
+{
+	if (GLEW_VERSION_3_0 || GLEW_ES_VERSION_2_0 || GLEW_ARB_framebuffer_object) {
+		gpu_glGenFramebuffers        = glGenFramebuffers;
+		gpu_glBindFramebuffer        = glBindFramebuffer;
+		gpu_glDeleteFramebuffers     = glDeleteFramebuffers;
+		gpu_glFramebufferTexture2D   = glFramebufferTexture2D;
+		gpu_glCheckFramebufferStatus = glCheckFramebufferStatus;
+
+		return GL_TRUE;
+	}
+
+#if !defined(GLEW_ES_ONLY)
+	if (GLEW_EXT_framebuffer_object) {
+		gpu_glGenFramebuffers        = glGenFramebuffersEXT;
+		gpu_glBindFramebuffer        = glBindFramebufferEXT;
+		gpu_glDeleteFramebuffers     = glDeleteFramebuffersEXT;
+		gpu_glFramebufferTexture2D   = glFramebufferTexture2DEXT;
+		gpu_glCheckFramebufferStatus = glCheckFramebufferStatusEXT;
+
+		return GL_TRUE;
+	}
+#endif
+
+#if !defined(GLEW_NO_ES)
+	if (GLEW_OES_framebuffer_object) {
+		gpu_glGenFramebuffers        = glGenFramebuffersOES;
+		gpu_glBindFramebuffer        = glBindFramebufferOES;
+		gpu_glDeleteFramebuffers     = glDeleteFramebuffersOES;
+		gpu_glFramebufferTexture2D   = glFramebufferTexture2DOES;
+		gpu_glCheckFramebufferStatus = glCheckFramebufferStatusOES;
+
+		return GL_TRUE;
+	}
+#endif
+
+	return GL_FALSE;
+}
+
+static void init_vertex_arrays(void)
+{
+#if !defined(GLEW_ES_ONLY)
+	if (GLEW_VERSION_3_0 || GLEW_ARB_vertex_array_object) {
+		gpu_glGenVertexArrays    = glGenVertexArrays;
+		gpu_glBindVertexArray    = glBindVertexArray;
+		gpu_glDeleteVertexArrays = glDeleteVertexArrays;
+
+		return;
+	}
+#endif
+
+#if !defined(GLEW_NO_ES)
+	if (GLEW_OES_vertex_array_object) {
+		gpu_glGenVertexArrays    = glGenVertexArraysOES;
+		gpu_glBindVertexArray    = glBindVertexArrayOES;
+		gpu_glDeleteVertexArrays = glDeleteVertexArraysOES;
+
+		return;
+	}
+#endif
+}
+
+static GPUFUNC void (GLAPIENTRY* _GenerateMipmap)(GLenum target);
+
+static void init_generate_mipmap(void)
+{
+#if !defined(GLEW_ES_ONLY)
+	if (GLEW_VERSION_3_0 || GLEW_ARB_framebuffer_object) {
+		_GenerateMipmap = glGenerateMipmap;
+		return;
+	}
+
+	if (GLEW_EXT_framebuffer_object) {
+		_GenerateMipmap = glGenerateMipmapEXT;
+		return;
+	}
+#endif
+
+#if !defined(GLEW_NO_ES)
+	if (GLEW_OES_framebuffer_object) {
+		_GenerateMipmap = glGenerateMipmapOES;
+	}
+#endif
+}
+
+void gpu_glGenerateMipmap(GLenum target)
+{
+	GLboolean workaround;
+
+	/* Work around bug in ATI driver, need to have GL_TEXTURE_2D enabled.
+	 * http://www.opengl.org/wiki/Common_Mistakes#Automatic_mipmap_generation */
+	if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY)) {
+		workaround = !glIsEnabled(target);
+
+		if (workaround) {
+			glEnable(target);
+		}
+	}
+	else {
+		workaround = GL_FALSE;
+	}
+
+	_GenerateMipmap(target);
+
+	if (workaround) {
+		glDisable(target);
+	}
+}
+
+static void* gpu_buffer_start_update_dummy(GLenum UNUSED(target), void* data)
+{
+	GPU_ASSERT(data != NULL);
+	return data;
+}
+
+static void* gpu_buffer_start_update_copy(GLenum UNUSED(target), void* data)
+{
+	GPU_ASSERT(data != NULL);
+	return data;
+}
+
+static void* gpu_buffer_start_update_map(GLenum target, void* UNUSED(data))
+{
+	void* mappedData;
+	GPU_ASSERT(UNUSED_data == NULL);
+	mappedData = gpu_glMapBuffer(target, GL_WRITE_ONLY);
+	GPU_CHECK_NO_ERROR();
+	return mappedData;
+}
+
+static void gpu_buffer_finish_update_dummy(GLenum UNUSED(target), GLsizeiptr UNUSED(dataSize), const GLvoid* UNUSED(data))
+{
+	GPU_ASSERT(UNUSED_data != NULL);
+}
+
+static void gpu_buffer_finish_update_copy(GLenum target, GLsizeiptr dataSize, const GLvoid* data)
+{
+	GPU_ASSERT(data != NULL);
+	gpu_glBufferSubData(target, 0, dataSize, data);
+	GPU_CHECK_NO_ERROR();
+}
+
+static void gpu_buffer_finish_update_map(GLenum target, GLsizeiptr UNUSED(dataSize), const GLvoid* UNUSED(data))
+{
+	GPU_ASSERT(UNUSED_data != NULL);
+	gpu_glUnmapBuffer(target);
+	GPU_CHECK_NO_ERROR();
+}
+
+
+
+static void shim_init(void)
+{
+	if (!GG.disableext) {
+		GG.glslsupport = true;
+		
+		if (!init_shader_objects())
+			GG.glslsupport = false;
+
+		if (!init_vertex_shader())
+			GG.glslsupport = false;
+
+		if (!init_vertex_program())
+			GG.glslsupport = false;
+
+		if (!(GLEW_ARB_multitexture || GLEW_VERSION_1_3 || GLEW_ES_VERSION_2_0)) // Note: This should mean only the non-deprecated parts of the extension
+			GG.glslsupport = false;
+
+		GG.framebuffersupport = init_framebuffer_object();
+		
+		init_vertex_arrays();
+		init_buffers();
+		init_mapbuffer();
+		
+		if (GLEW_VERSION_1_5 || GLEW_OES_mapbuffer || GLEW_ARB_vertex_buffer_object) {
+			gpu_buffer_start_update  = gpu_buffer_start_update_map;
+			gpu_buffer_finish_update = gpu_buffer_finish_update_map;
+		}
+		else if (GLEW_ES_VERSION_2_0) {
+			gpu_buffer_start_update  = gpu_buffer_start_update_copy;
+			gpu_buffer_finish_update = gpu_buffer_finish_update_copy;
+		}
+		else {
+			gpu_buffer_start_update  = gpu_buffer_start_update_dummy;
+			gpu_buffer_finish_update = gpu_buffer_finish_update_dummy;
+		}
+
+		init_generate_mipmap();
+	}
+	else {
+		GG.glslsupport = false;
+		GG.framebuffersupport = false;
+		
+		gpu_buffer_start_update  = gpu_buffer_start_update_dummy;
+		gpu_buffer_finish_update = gpu_buffer_finish_update_dummy;
+	}
+}

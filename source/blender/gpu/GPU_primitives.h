@@ -213,15 +213,6 @@ void gpuSingleDisk(GLfloat x, GLfloat y, GLfloat radius, GLint nsectors);
 
 
 
-void gpuBeginSprites(void);
-void gpuSprite3fv(const GLfloat v[3]);
-void gpuSprite3f(GLfloat x, GLfloat y, GLfloat z);
-void gpuSprite2f(GLfloat x, GLfloat y);
-void gpuSprite2fv(const GLfloat vec[2]);
-void gpuEndSprites(void);
-
-
-
 void gpuSingleWireUnitCube(void);
 void gpuSingleWireCube(GLfloat size);
 

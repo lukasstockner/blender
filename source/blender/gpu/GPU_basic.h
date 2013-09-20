@@ -1,5 +1,5 @@
-#ifndef _GPU_SIMPLE_SHADER_H_
-#define _GPU_SIMPLE_SHADER_H_
+#ifndef _GPU_BASIC_H_
+#define _GPU_BASIC_H_
 
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -23,18 +23,14 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): Brecht Van Lommel.
+ * Contributor(s): Brecht Van Lommel, Jason Wilkins.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file GPU_basic_shader.h
+/** \file source/blender/gpu/GPU_basic.h
  *  \ingroup gpu
  */
-
-#include "intern/gpu_lighting.h"
-
-#include "BLI_sys_types.h" // for uint32_t
 
 
 
@@ -44,33 +40,23 @@ extern "C" {
 
 
 
-/* Simple Shading */
-
-// XXX jwilkins: may need alpha testing?
-typedef enum GPUBasicShaderOption {
+typedef enum GPUBasicOption {
 	GPU_BASIC_LIGHTING       = (1<<0), /* do lighting computations                */
-	GPU_BASIC_TWO_SIDE       = (1<<1), /* flip backfacing normals towards viewer  */
+	GPU_BASIC_TWO_SIDE       = (1<<1), /* flip back-facing normals towards viewer */
 	GPU_BASIC_TEXTURE_2D     = (1<<2), /* use 2D texture to replace diffuse color */
 	GPU_BASIC_LOCAL_VIEWER   = (1<<3), /* use for orthographic projection         */
 	GPU_BASIC_SMOOTH         = (1<<4), /* use smooth shading                      */
 	GPU_BASIC_ALPHATEST      = (1<<5), /* use alpha test                          */
 
-	GPU_BASIC_FAST_LIGHTING = (1<<6), /* use faster lighting (set automatically) */
+	GPU_BASIC_FAST_LIGHTING  = (1<<6), /* use faster lighting (set automatically) */
 
 	GPU_BASIC_OPTIONS_NUM         = 7,
 	GPU_BASIC_OPTION_COMBINATIONS = (1<<GPU_BASIC_OPTIONS_NUM)
-} GPUBasicShaderOption;
+} GPUBasicOption;
 
-void GPU_basic_shaders_init(void);
-void GPU_basic_shaders_exit(void);
 
-void GPU_basic_shader_enable(uint32_t options);
-void GPU_basic_shader_disable(uint32_t options);
 
-void GPU_basic_shader_bind(void);
-void GPU_basic_shader_unbind(void);
-
-bool GPU_basic_shader_needs_normals(void);
+bool GPU_basic_needs_normals(void);
 
 
 
@@ -78,4 +64,4 @@ bool GPU_basic_shader_needs_normals(void);
 }
 #endif
 
-#endif /* _GPU_SIMPLE_SHADER_ */
+#endif /* _GPU_BASIC_H_ */

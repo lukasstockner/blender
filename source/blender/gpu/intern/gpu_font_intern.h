@@ -1,5 +1,5 @@
-#ifndef GPU_FONT_SHADER_H
-#define GPU_FONT_SHADER_H
+#ifndef _GPU_FONT_INTERN_H_
+#define _GPU_FONT_INTERN_H_
 
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -28,24 +28,21 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file GPU_font_shader.h
+/** \file source/blender/gpu/intern/gpu_font_intern.h
  *  \ingroup gpu
  */
 
-
+#include "GPU_font.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+void GPU_font_init(void);
+void GPU_font_exit(void);
 
-
-void GPU_font_shader_init  (void);
-void GPU_font_shader_exit  (void);
-void GPU_font_shader_bind  (void);
-void GPU_font_shader_unbind(void);
-
-
+void GPU_font_bind  (void);
+void GPU_font_unbind(void);
 
 #ifdef __cplusplus
 }

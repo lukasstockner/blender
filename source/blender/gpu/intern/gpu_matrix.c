@@ -20,26 +20,22 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): Jason Wilkins, Alexandr Kuznetsov
+ * Contributor(s): Alexandr Kuznetsov, Jason Wilkins
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file GPU_copmatibility.h
+/** \file source/blender/gpu/intern/gpu_matrix.c
  *  \ingroup gpu
  */
 
 /* my interface */
-#define GPU_MAT_CAST_ANY 0
-#include "GPU_matrix.h"
+#include "intern/gpu_matrix_intern.h"
 
 /* my library */
+#include "GPU_common.h"
 #include "GPU_extensions.h"
-
-/* internal */
-#include "intern/gpu_common.h"
-#include "intern/gpu_safety.h"
-#include "intern/gpu_glew.h"
+#include "GPU_safety.h"
 
 /* external */
 
@@ -73,7 +69,6 @@ static GLenum ms_current_mode;
 
 static GLint glstackpos[3];
 static GLint glstackmode;
-
 
 
 
@@ -137,7 +132,7 @@ static void ms_free(GPU_matrix_stack * ms)
 
 
 
-void GPU_ms_init(void)
+void gpu_matrix_init(void)
 {
 	ms_init(&ms_texture,    16);
 	ms_init(&ms_projection, 16);
@@ -153,7 +148,7 @@ void GPU_ms_init(void)
 	gpuLoadIdentity();
 }
 
-void GPU_ms_exit(void)
+void gpu_matrix_exit(void)
 {
 	ms_free(&ms_modelview);
 	ms_free(&ms_projection);
@@ -165,51 +160,7 @@ void GPU_ms_exit(void)
 
 
 
-#if 0
-void gpuMatrixCommit(void)
-{
-	GPU_CHECK_NO_ERROR();
-
-#if defined(WITH_GL_PROFILE_COMPAT)
-	glMatrixMode(GL_PROJECTION);
-	glLoadMatrixf((GLfloat*)ms_projection.dynstack[ms_projection.pos]);
-
-	glMatrixMode(GL_TEXTURE);
-	glLoadMatrixf((GLfloat*)ms_texture.dynstack[ms_texture.pos]);
-
-	glMatrixMode(GL_MODELVIEW);
-	glLoadMatrixf((GLfloat*)ms_modelview.dynstack[ms_modelview.pos]);
-#endif
-
-#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
-	if (curglslesi) {
-		if(curglslesi->viewmatloc!=-1) {
-			glUniformMatrix4fv(curglslesi->viewmatloc, 1, 0, ms_modelview.dynstack[ms_modelview.pos][0]);
-		}
-
-		if(curglslesi->normalmatloc!=-1) {
-			GLfloat t[3][3] = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
-			copy_m3_m4(t, ms_modelview.dynstack[ms_modelview.pos]);
-			glUniformMatrix3fv(curglslesi->normalmatloc, 1, 0, t[0]);
-		}
-
-		if(curglslesi->projectionmatloc!=-1) {
-			glUniformMatrix4fv(curglslesi->projectionmatloc, 1, 0, ms_projection.dynstack[ms_projection.pos][0]);
-		}
-	
-		if(curglslesi->texturematloc != -1) {
-			glUniformMatrix4fv(curglslesi->texturematloc, 1, 0, ms_texture.dynstack[ms_texture.pos][0]);
-		}
-	}
-#endif
-
-	GPU_CHECK_NO_ERROR();
-}
-#endif
-
-
-
-void gpu_commit_matrixes(void)
+void gpu_commit_matrix(void)
 {
 	const GPUcommon* common = gpu_get_common();
 
@@ -279,11 +230,15 @@ void gpu_commit_matrixes(void)
 
 void gpuPushMatrix(void)
 {
-	ms_current->pos++;
+	GLsizei new_pos = ms_current->pos + 1;
+	
+	GPU_ASSERT(new_pos < ms_current->size);
 
-	GPU_ASSERT(ms_current->pos < ms_current->size);
+	if (new_pos < ms_current->size) {
+		ms_current->pos++;
 
-	gpuLoadMatrix((GLfloat*)ms_current->dynstack[ms_current->pos-1]);
+		gpuLoadMatrix((GLfloat*)ms_current->dynstack[ms_current->pos-1]);
+	}
 }
 
 
@@ -292,9 +247,11 @@ void gpuPopMatrix(void)
 {
 	GPU_ASSERT(ms_current->pos != 0);
 
-	ms_current->pos--;
+	if (ms_current->pos != 0) {
+		ms_current->pos--;
 
-	CHECKMAT(ms_current);
+		CHECKMAT(ms_current);
+	}
 }
 
 
@@ -574,7 +531,7 @@ GLboolean gpuUnProject(const GLfloat win[3], const GLfloat model[4][4], const GL
 
 
 
-void gpuFeedbackVertex3fv(GLenum type, GLfloat x, GLfloat y, GLfloat z, GLfloat out[3])
+void GPU_feedback_vertex_3fv(GLenum type, GLfloat x, GLfloat y, GLfloat z, GLfloat out[3])
 {
 	GPU_matrix* m = (GPU_matrix*)gpuGetMatrix(type, NULL);
 	float in[3] = {x, y, z};
@@ -583,7 +540,7 @@ void gpuFeedbackVertex3fv(GLenum type, GLfloat x, GLfloat y, GLfloat z, GLfloat 
 
 
 
-void gpuFeedbackVertex4fv(GLenum type, GLfloat x, GLfloat y, GLfloat z, GLfloat w, GLfloat out[3])
+void GPU_feedback_vertex_4fv(GLenum type, GLfloat x, GLfloat y, GLfloat z, GLfloat w, GLfloat out[3])
 {
 	GPU_matrix* m = (GPU_matrix*)gpuGetMatrix(type, NULL);
 	float in[4] = {x, y, z, w};

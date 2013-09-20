@@ -1,3 +1,6 @@
+#ifndef _GPU_SHIM_H_
+#define _GPU_SHIM_H_
+
 /* ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -19,19 +22,14 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): Jason Wilkins.
+ * Contributor(s):  Alexandr Kuznetsov, Jason Wilkins.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/gpu/gpu_extension_wrapper.h
+/** \file source/blender/gpu/intern/gpu_shim.h
  *  \ingroup gpu
  */
-
-#ifndef __GPU_EXTENSION_WRAPPER_H__
-#define __GPU_EXTENSION_WRAPPER_H__
-
-#include "intern/gpu_immediate.h" /* XXX: temporary, will re-factor header files later */
 
 #ifndef GPU_FUNC_INTERN
 #define GPUFUNC extern
@@ -260,12 +258,13 @@ GPUFUNC void (GLAPIENTRY* gpu_glGenVertexArrays)(GLsizei n, GLuint *arrays);
 GPUFUNC void (GLAPIENTRY* gpu_glBindVertexArray)(GLuint array);
 GPUFUNC void (GLAPIENTRY* gpu_glDeleteVertexArrays)(GLsizei n, const GLuint *arrays);
 
-GPUFUNC void* (*GPU_buffer_start_update )(GLenum target, GLvoid* data);
-GPUFUNC void  (*GPU_buffer_finish_update)(GLenum target, GLsizeiptr size, const GLvoid* data);
-
-void GPU_wrap_extensions(GLboolean* glslsupport_out, GLboolean* framebuffersupport_out);
+GPUFUNC void* (*gpu_buffer_start_update )(GLenum target, GLvoid* data);
+GPUFUNC void  (*gpu_buffer_finish_update)(GLenum target, GLsizeiptr size, const GLvoid* data);
 
 void gpu_glGenerateMipmap(GLenum target);
+
+void gpu_extensions_init(void); /* call this before running any of the functions below */
+void gpu_extensions_exit(void);
 
 #ifdef __cplusplus
 }
@@ -300,4 +299,4 @@ void gpu_glGenerateMipmap(GLenum target);
 
 #endif
 
-#endif
+#endif /* _GPU_SHIM_H_ */

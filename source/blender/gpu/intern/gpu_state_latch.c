@@ -29,18 +29,19 @@
  *  \ingroup gpu
  */
 
-#include "gpu_state_latch.h"
+/* my interface */
+#include "GPU_state_latch.h"
 
-#include "gpu_glew.h"
-#include "gpu_profile.h"
-#include "gpu_safety.h"
+/* my library */
+#include "GPU_profile.h"
+#include "GPU_safety.h"
 
+/* standard */
 #include <string.h>
 
 
 
-// XXX jwilkins: this may need to be extended to save these values in different contexts later,
-// but Blender doesn't use multiple contexts, so it isn't a problem right now.
+// XXX jwilkins: this needs to be made to save these values from different contexts
 
 
 
@@ -49,25 +50,20 @@ static GLdouble depth_range[2] = { 0, 1 };
 void gpuDepthRange(GLdouble near, GLdouble far)
 {
 	GPU_ASSERT(near != far);
-	GPU_CHECK_NO_ERROR();
 
 	depth_range[0] = near;
 	depth_range[1] = far;
 
 #if !defined(GLEW_ES_ONLY)
 	if (!GPU_PROFILE_ES20) {
-		glDepthRange(near, far);
-
-		GPU_CHECK_NO_ERROR();
+		GPU_CHECK_NO_ERROR(glDepthRange(near, far));
 		return;
 	}
 #endif
 
 #if !defined(GLEW_NO_ES)
 	if (GPU_PROFILE_ES20) {
-		glDepthRangef((GLfloat)near, (GLfloat)far);
-
-		GPU_CHECK_NO_ERROR();
+		GPU_CHECK(glDepthRangef((GLfloat)near, (GLfloat)far));
 		return;
 	}
 #endif
@@ -77,8 +73,6 @@ void gpuDepthRange(GLdouble near, GLdouble far)
 
 void gpuGetDepthRange(GLdouble out[2])
 {
-	GPU_CHECK_NO_ERROR();
-
 	memcpy(out, depth_range, sizeof(depth_range));
 }
 
@@ -87,8 +81,6 @@ void gpuGetDepthRange(GLdouble out[2])
 GLfloat gpuFeedbackDepthRange(GLfloat z)
 {
 	GLfloat depth;
-
-	GPU_CHECK_NO_ERROR();
 
 	depth = depth_range[1] - depth_range[0];
 
@@ -107,8 +99,6 @@ static GLuint texture_binding_2D = 0;
 
 void gpuBindTexture(GLenum target, GLuint name)
 {
-	GPU_CHECK_NO_ERROR();
-
 	switch(target)
 	{
 		case GL_TEXTURE_2D:
@@ -120,17 +110,13 @@ void gpuBindTexture(GLenum target, GLuint name)
 			break;
 	}
 
-	glBindTexture(target, name);
-
-	GPU_CHECK_NO_ERROR();
+	GPU_CHECK(glBindTexture(target, name));
 }
 
 
 
 GLuint gpuGetTextureBinding2D(void)
 {
-	GPU_CHECK_NO_ERROR();
-
 	return texture_binding_2D;
 }
 
@@ -140,21 +126,40 @@ static GLboolean depth_writemask = GL_TRUE;
 
 void gpuDepthMask(GLboolean flag)
 {
-	GPU_CHECK_NO_ERROR();
-
 	depth_writemask = flag;
-	glDepthMask(flag);
-
-	GPU_CHECK_NO_ERROR();
+	GPU_CHECK(glDepthMask(flag));
 }
 
 
 
 GLboolean gpuGetDepthWritemask(void)
 {
-	GPU_CHECK_NO_ERROR();
-
 	return depth_writemask;
+}
+
+
+
+static GLint viewport[4];
+
+void gpuViewport(int x, int y, unsigned int width, unsigned int height)
+{
+	viewport[0] = x;
+	viewport[1] = y;
+	viewport[2] = width;
+	viewport[3] = height;
+
+	GPU_CHECK(glViewport(x, y, width, height));
+}
+
+
+
+void GPU_feedback_viewport_2fv(GLfloat x, GLfloat y, GLfloat out[2])
+{
+	const GLfloat halfw = (GLfloat)viewport[2] / 2.0f;
+	const GLfloat halfh = (GLfloat)viewport[3] / 2.0f;
+
+	out[0] = halfw*x + halfw + (GLfloat)viewport[0];
+	out[1] = halfh*y + halfh + (GLfloat)viewport[1];
 }
 
 

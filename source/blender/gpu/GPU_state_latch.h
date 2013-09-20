@@ -1,3 +1,6 @@
+#ifndef _GPU_STATE_LATCH_H_
+#define _GPU_STATE_LATCH_H_
+
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -25,21 +28,17 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/gpu/intern/gpu_state_latch.h
+/** \file blender/gpu/GPU_state_latch.h
  *  \ingroup gpu
  */
 
-#ifndef __GPU_STATE_LATCH_H__
-#define __GPU_STATE_LATCH_H__
-
-#include "gpu_glew.h"
+#include "GPU_glew.h"
 
 
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 
 /*
 OpenGL ES does not have state query functions for some state.
@@ -56,11 +55,11 @@ they have nothing else in common besides the need for state query.
 
 */
 
-/* These also covers the fact the ES 2.0 doesn't accept GLdouble for depth range by doing a implicit conversion. */
+/* These also covers the fact the ES 2.0 doesn't accept GLdouble for depth range by doing a conversion. */
 void gpuDepthRange(GLdouble near, GLdouble far);
 void gpuGetDepthRange(GLdouble range[2]);
 
-GLfloat gpuFeedbackDepthRange(GLfloat z);
+GLfloat GPU_feedback_depth_range(GLfloat z);
 
 void gpuBindTexture(GLenum target, GLuint name);
 GLuint gpuGetTextureBinding2D(void);
@@ -68,16 +67,8 @@ GLuint gpuGetTextureBinding2D(void);
 void gpuDepthMask(GLboolean flag);
 GLboolean gpuGetDepthWritemask(void);
 
-
-
-typedef struct gpu_tex_parameters_t {
-	GLuint  name;
-	GLuint  width;
-	GLuint  height;
-	GLvoid* image;
-} tex_parameters_t;
-
-
+void gpuViewport(int x, int y, unsigned int width, unsigned int height);
+void GPU_feedback_viewport_2fv(GLfloat x, GLfloat y, GLfloat out[2]);
 
 #ifdef __cplusplus
 }

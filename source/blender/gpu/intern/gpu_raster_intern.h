@@ -1,5 +1,5 @@
-#ifndef _GPU_IMMEDIATE_GL_H_
-#define _GPU_IMMEDIATE_GL_H_
+#ifndef _GPU_RASTER_INTERN_H_
+#define _GPU_RASTER_INTERN_H_
 
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -18,51 +18,44 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2012 Blender Foundation.
+ * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): Alexandr Kuznetsov, Jason Wilkins.
+ * Contributor(s): Jason Wilkins.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file source/blender/gpu/intern/gpu_immediate_gl.h
+/** \file source/blender/gpu/intern/gpu_raster_intern.h
  *  \ingroup gpu
  */
 
-/*
+#include "GPU_raster.h"
 
-This module contains the back-end of the immediate mode replacement.
-
-These are the parts of the code that depend directly on OpenGL.
-
-*/
-
-#include "BLI_utildefines.h" /* for restrict */
+#include "BLI_sys_types.h" /* for uint32_t */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void gpu_lock_buffer_gl(void);
-void gpu_unlock_buffer_gl(void);
-void gpu_begin_buffer_gl(void);
-void gpu_end_buffer_gl(void);
-void gpu_shutdown_buffer_gl(struct GPUimmediate *restrict immediate);
-void gpu_current_normal_gl(void);
-void gpu_index_begin_buffer_gl(void);
-void gpu_index_end_buffer_gl(void);
-void gpu_index_shutdown_buffer_gl(struct GPUindex *restrict index);
-void gpu_draw_elements_gl(void);
-void gpu_draw_range_elements_gl(void);
+void gpu_raster_init(void);
+void gpu_raster_exit(void);
 
-void gpu_immediate_gl_init(void);
-void gpu_immediate_gl_exit(void);
+void GPU_raster_begin(void);
+void GPU_raster_end  (void);
+
+void gpu_raster_enable (uint32_t options);
+void gpu_raster_disable(uint32_t options);
+
+void gpu_raster_bind  (void);
+void gpu_raster_unbind(void);
+
+void gpu_raster_reset_stipple(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _GPU_IMMEDIATE_GL_H_ */
+#endif /* _GPU_RASTER_INTERN_H_ */

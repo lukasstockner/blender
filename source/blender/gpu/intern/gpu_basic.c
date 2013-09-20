@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/gpu/intern/gpu_basic_shader.c
+/** \file source/blender/gpu/intern/gpu_basic.c
  *  \ingroup gpu
  */
 
@@ -43,15 +43,15 @@
  */
 
 /* my interface */
-#include "GPU_basic_shader.h"
+#include "intern/gpu_basic_intern.h"
 
 /* my library */
 #include "GPU_extensions.h"
 #include "GPU_matrix.h"
+#include "GPU_safety.h"
 
 /* internal */
 #include "intern/gpu_common.h"
-#include "intern/gpu_safety.h"
 #include "intern/gpu_state_latch.h"
 
 /* external */
@@ -80,20 +80,22 @@ static struct BASIC_SHADER {
 
 /* Init / exit */
 
-void GPU_basic_shaders_init(void)
+void gpu_basic_init(void)
 {
 	memset(&BASIC_SHADER, 0, sizeof(BASIC_SHADER));
 
-	//{
-	//	int i;
-	//for (i = 0; i < GPU_BASIC_OPTION_COMBINATIONS; i++)
-	//	BASIC_SHADER.failed[i] = true;
-	//}
+#if 0
+	{ 	/* for testing purposes, mark all shaders as failed*/
+		int i;
+		for (i = 0; i < GPU_BASIC_OPTION_COMBINATIONS; i++)
+			BASIC_SHADER.failed[i] = true;
+	}
+#endif
 }
 
 
 
-void GPU_basic_shaders_exit(void)
+void gpu_basic_exit(void)
 {
 	int i;
 
@@ -106,7 +108,7 @@ void GPU_basic_shaders_exit(void)
 
 /* Shader feature enable/disable */
 
-void GPU_basic_shader_enable(uint32_t options)
+void gpu_basic_enable(uint32_t options)
 {
 	GPU_ASSERT(!(options & GPU_BASIC_FAST_LIGHTING));
 
@@ -115,7 +117,7 @@ void GPU_basic_shader_enable(uint32_t options)
 
 
 
-void GPU_basic_shader_disable(uint32_t options)
+void gpu_basic_disable(uint32_t options)
 {
 	BASIC_SHADER.options &= ~options;
 }
@@ -133,7 +135,7 @@ static uint32_t tweak_options(void)
 	/* detect if we can do faster lighting for solid draw mode */
 	if (  BASIC_SHADER.options & GPU_BASIC_LIGHTING      &&
 		!(BASIC_SHADER.options & GPU_BASIC_LOCAL_VIEWER) &&
-		gpu_fast_lighting())
+		gpu_lighting_is_fast())
 	{
 		options |= GPU_BASIC_FAST_LIGHTING;
 	}
@@ -153,8 +155,6 @@ static void basic_shader_bind(void)
 	extern const char datatoc_gpu_shader_basic_frag_glsl[];
 
 	const uint32_t tweaked_options = tweak_options();
-
-	GPU_CHECK_NO_ERROR();
 
 	/* create shader if it doesn't exist yet */
 	if (BASIC_SHADER.gpushader[tweaked_options] != NULL) {
@@ -227,8 +227,6 @@ static void basic_shader_bind(void)
 	else {
 		gpu_set_common(NULL);
 	}
-
-	GPU_CHECK_NO_ERROR();
 }
 
 
@@ -237,17 +235,17 @@ static void basic_shader_bind(void)
 
 
 
-void GPU_basic_shader_bind(void)
+void gpu_basic_shader_bind(void)
 {
 	bool glsl_support = GPU_glsl_support();
-
-	GPU_CHECK_NO_ERROR();
 
 	if (glsl_support) {
 		basic_shader_bind();
 	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
+	GPU_CHECK_NO_ERROR();
+
 	if (!glsl_support) {
 		if (BASIC_SHADER.options & GPU_BASIC_LIGHTING)
 			glEnable(GL_LIGHTING);
@@ -274,34 +272,34 @@ void GPU_basic_shader_bind(void)
 		else
 			glShadeModel(GL_FLAT);
 	}
+
+	GPU_CHECK_NO_ERROR();
 #endif
 
 	if (BASIC_SHADER.options & GPU_BASIC_LIGHTING) {
 		gpu_commit_light();
 		gpu_commit_material();
 	}
-
-	GPU_CHECK_NO_ERROR();
 }
 
 
 
-void GPU_basic_shader_unbind(void)
+void gpu_basic_shader_unbind(void)
 {
-	GPU_CHECK_NO_ERROR();
-
 	if (GPU_glsl_support())
 		GPU_shader_unbind();
 
 #if defined(WITH_GL_PROFILE_COMPAT)
+	GPU_CHECK_NO_ERROR();
+
 	glDisable(GL_LIGHTING);
 	glDisable(GL_TEXTURE_2D);
 	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
 	glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_FALSE);
 	glShadeModel(GL_FLAT);
-#endif
 
 	GPU_CHECK_NO_ERROR();
+#endif
 }
 
 

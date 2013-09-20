@@ -1,3 +1,6 @@
+#ifndef _GPU_EXTENSIONS_H_
+#define _GPU_EXTENSIONS_H_
+
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -20,17 +23,14 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): Brecht Van Lommel.
+ * Contributor(s): Brecht Van Lommel, Jason Wilkins.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file GPU_extensions.h
+/** \file source/blender/gpu/GPU_extensions.h
  *  \ingroup gpu
  */
-
-#ifndef __GPU_EXTENSIONS_H__
-#define __GPU_EXTENSIONS_H__
 
 #include <stddef.h>
 
@@ -67,8 +67,6 @@ typedef struct GPUShader GPUShader;
 /* GPU extensions support */
 
 void GPU_extensions_disable(void);
-void GPU_extensions_init(void); /* call this before running any of the functions below */
-void GPU_extensions_exit(void);
 int GPU_print_error(const char *str);
 
 int GPU_glsl_support(void);

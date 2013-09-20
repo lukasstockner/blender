@@ -1,3 +1,6 @@
+#ifndef _GPU_DEPRECATED_H_
+#define _GPU_DEPRECATED_H_
+
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -25,12 +28,9 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file intern/gpu_deprecated.h
+/** \file source/blender/gpu/intern/gpu_deprecated.h
  *  \ingroup gpu
  */
-
-#ifndef _GPU_DEPRECATED_H_
-#define _GPU_DEPRECATED_H_
 
 #undef glBegin
 #define glBegin DO_NOT_USE_glBegin
@@ -606,5 +606,15 @@
 #define glFrustum DO_NOT_USE_glFrustum
 #undef glLoadIdentity
 #define glLoadItentity DO_NOT_USE_glLoadIdentity
+
+/* these aren't really deprecated, but the corresponding state query (glGet) is */
+#undef glDepthRange
+#define glDepthRange DO_NOT_USE_glDepthRange
+#undef glBindTexture
+#define glBindTexture DO_NOT_USE_glBindTexture
+#undef glDepthMask
+#define glDepthMask DO_NOT_USE_glDepthMask
+#undef glViewport
+#define glViewport DO_NOT_USE_glViewport
 
 #endif /* _GPU_DEPRECATED_H_ */

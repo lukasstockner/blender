@@ -1,3 +1,6 @@
+#ifndef _GPU_RASTER_H_
+#define _GPU_RASTER_H_
+
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -25,16 +28,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/gpu/intern/gpu_raster.h
+/** \file source/blender/gpu/GPU_raster.h
  *  \ingroup gpu
  */
 
-#ifndef __GPU_RASTER_H__
-#define __GPU_RASTER_H__
-
-#include "gpu_glew.h"
-
-#include "BLI_sys_types.h" // for uint32_t
+#include "GPU_glew.h"
 
 
 
@@ -55,18 +53,6 @@ typedef enum GPURasterShaderOption {
 
 
 
-void GPU_raster_shader_init(void);
-void GPU_raster_shader_exit(void);
-
-void GPU_raster_begin(void);
-void GPU_raster_end  (void);
-
-void GPU_raster_shader_enable (uint32_t options);
-void GPU_raster_shader_disable(uint32_t options);
-
-void GPU_raster_shader_bind  (void);
-void GPU_raster_shader_unbind(void);
-
 void GPU_raster_set_line_style(int factor);
 
 void gpuPolygonStipple(const GLubyte* mask);
@@ -78,10 +64,6 @@ GLfloat gpuGetLineWidth(void);
 
 void   gpuPolygonMode(GLenum mode);
 GLenum gpuGetPolygonMode(void);
-
-
-
-void gpu_init_stipple(void);
 
 
 
@@ -106,4 +88,4 @@ void gpu_init_stipple(void);
 }
 #endif
 
-#endif
+#endif /* _GPU_RASTER_H_ */

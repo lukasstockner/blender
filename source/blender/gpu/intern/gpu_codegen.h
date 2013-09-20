@@ -174,8 +174,8 @@ void GPU_pass_unbind(GPUPass *pass);
 
 void GPU_pass_free(GPUPass *pass);
 
-void GPU_codegen_init(void);
-void GPU_codegen_exit(void);
+void gpu_codegen_init(void);
+void gpu_codegen_exit(void);
 
 /* Material calls */
 

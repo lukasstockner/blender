@@ -1,5 +1,5 @@
-#ifndef _GPU_IMMEDIATE_GL_H_
-#define _GPU_IMMEDIATE_GL_H_
+#ifndef _GPU_SPRITE_INTERN_H_
+#define _GPU_SPRITE_INTERN_H_
 
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -23,46 +23,34 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): Alexandr Kuznetsov, Jason Wilkins.
+ * Contributor(s): Jason Wilkins
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file source/blender/gpu/intern/gpu_immediate_gl.h
- *  \ingroup gpu
+/** \file blender/gpu/intern/gpu_sprite_intern.h
+ *   \ingroup gpu
  */
 
-/*
+#include "GPU_sprite.h"
 
-This module contains the back-end of the immediate mode replacement.
-
-These are the parts of the code that depend directly on OpenGL.
-
-*/
-
-#include "BLI_utildefines.h" /* for restrict */
+#include "BLI_sys_types.h" // for uint32_t
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void gpu_lock_buffer_gl(void);
-void gpu_unlock_buffer_gl(void);
-void gpu_begin_buffer_gl(void);
-void gpu_end_buffer_gl(void);
-void gpu_shutdown_buffer_gl(struct GPUimmediate *restrict immediate);
-void gpu_current_normal_gl(void);
-void gpu_index_begin_buffer_gl(void);
-void gpu_index_end_buffer_gl(void);
-void gpu_index_shutdown_buffer_gl(struct GPUindex *restrict index);
-void gpu_draw_elements_gl(void);
-void gpu_draw_range_elements_gl(void);
+void gpu_sprite_init(void);
+void gpu_sprite_exit(void);
 
-void gpu_immediate_gl_init(void);
-void gpu_immediate_gl_exit(void);
+void gpu_sprite_enable (uint32_t options);
+void gpu_sprite_disable(uint32_t options);
+
+void gpu_sprite_bind  (void);
+void gpu_sprite_unbind(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _GPU_IMMEDIATE_GL_H_ */
+#endif /* _GPU_SPRITE_INTERN_H_ */

@@ -1,3 +1,6 @@
+#ifndef _GPU_PIXELS_H_
+#define _GPU_PIXELS_H_
+
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -25,14 +28,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/gpu/intern/gpu_pixels.h
+/** \file blender/gpu/GPU_pixels.h
  *  \ingroup gpu
  */
 
-#ifndef __GPU_PIXELS_H__
-#define __GPU_PIXELS_H__
-
-#include "gpu_glew.h"
+#include "GPU_glew.h"
 
 
 
@@ -57,31 +57,27 @@ typedef struct GPUpixels {
 
 
 
-void gpuCacheBitmap(GPUbitmap* bitmap);
-void gpuCachePixels(GPUpixels* pixels);
+void GPU_cache_bitmap(GPUbitmap* bitmap);
+void GPU_cache_pixels(GPUpixels* pixels);
 
-void gpuUncacheBitmap(GPUbitmap* bitmap);
-void gpuUncachePixels(GPUbitmap* bitmap);
+void GPU_uncache_bitmap(GPUbitmap* bitmap);
+void GPU_uncache_pixels(GPUpixels* pixels);
 
-void gpuPixelZoom(GLfloat xfactor, GLfloat yfactor);
-void gpuGetPixelZoom(GLfloat* xfactor_out, GLfloat *yfactor_out);
+void GPU_pixels_zoom(GLfloat xfactor, GLfloat yfactor);
+void GPU_get_pixels_zoom(GLfloat* xfactor_out, GLfloat *yfactor_out);
 
-void gpuPixelFormat(GLenum pname, GLint param);
+void GPU_pixels_format(GLenum pname, GLint param);
 
-void gpuPixelUniform1f(GLenum pname, GLfloat param);
+void GPU_pixels_uniform_1f(GLenum pname, GLfloat param);
 
-void gpuPixelPos2f(GLfloat x, GLfloat y);
-void gpuPixelPos3f(GLfloat x, GLfloat y, GLfloat z);
-void gpuBitmap(GPUbitmap* bitmap);
-void gpuPixels(GPUpixels* pixels);
+void GPU_pixel_pos_2f(GLfloat x, GLfloat y);
+void GPU_pixel_pos_3f(GLfloat x, GLfloat y, GLfloat z);
+
+void GPU_bitmap(GPUbitmap* bitmap);
+void GPU_pixels(GPUpixels* pixels);
 
 void GPU_pixels_begin(void);
 void GPU_pixels_end  (void);
-
-void GPU_pixels_shader_init  (void);
-void GPU_pixels_shader_exit  (void);
-void GPU_pixels_shader_bind  (void);
-void GPU_pixels_shader_unbind(void);
 
 
 
@@ -120,4 +116,4 @@ void GPU_pixels_shader_unbind(void);
 }
 #endif
 
-#endif
+#endif /* _GPU_PIXELS_H_ */

@@ -30,18 +30,19 @@
  */
 
 /* my interface */
-#include "intern/gpu_raster.h"
+#include "intern/gpu_raster_intern.h"
 
 /* my library */
+#include "GPU_blender_aspect.h"
 #include "GPU_extensions.h"
+#include "GPU_safety.h"
 
 /* internal */
-#include "intern/gpu_aspectfuncs.h"
-#include "intern/gpu_safety.h"
 #include "intern/gpu_immediate.h"
 #include "intern/gpu_immediate_gl.h"
 
 /* external */
+
 #include "BLI_dynstr.h"
 
 #include "DNA_userdef_types.h"
@@ -73,15 +74,19 @@ static struct RASTER {
 
 } RASTER;
 
+#if GPU_SAFETY
+static bool RASTER_BEGUN = false;
+#endif
+
 
 
 /* Init / exit */
 
-void GPU_raster_shader_init(void)
+void gpu_raster_init(void)
 {
 	memset(&RASTER, 0, sizeof(RASTER));
 
-	gpu_init_stipple();
+	gpu_raster_reset_stipple();
 
 	RASTER.line_width = 1;
 
@@ -95,7 +100,7 @@ void GPU_raster_shader_init(void)
 
 
 
-void GPU_raster_shader_exit(void)
+void gpu_raster_exit(void)
 {
 	int i;
 
@@ -106,7 +111,7 @@ void GPU_raster_shader_exit(void)
 
 
 
-void gpu_init_stipple(void)
+void gpu_raster_reset_stipple(void)
 {
 	int a, x, y;
 	GLubyte mask[32*32];
@@ -128,14 +133,14 @@ void gpu_init_stipple(void)
 
 /* Shader feature enable/disable */
 
-void GPU_raster_shader_enable(uint32_t options)
+void gpu_raster_enable(uint32_t options)
 {
 	RASTER.options |= options;
 }
 
 
 
-void GPU_raster_shader_disable(uint32_t options)
+void gpu_raster_disable(uint32_t options)
 {
 	RASTER.options &= ~options;
 }
@@ -150,8 +155,6 @@ static void raster_shader_bind(void)
 	extern const char datatoc_gpu_shader_raster_uniforms_glsl[];
 
 	const uint32_t tweaked_options = RASTER.options;//tweak_options();
-
-	GPU_CHECK_NO_ERROR();
 
 	/* create shader if it doesn't exist yet */
 	if (RASTER.gpushader[tweaked_options] != NULL) {
@@ -215,8 +218,6 @@ static void raster_shader_bind(void)
 	else {
 		gpu_set_common(NULL);
 	}
-
-	GPU_CHECK_NO_ERROR();
 }
 
 
@@ -225,14 +226,15 @@ void GPU_raster_shader_bind(void)
 {
 	bool glsl_support = GPU_glsl_support();
 
-	if (glsl_support) {
+	GPU_ASSERT(RASTER_BEGUN);
+	
+	if (glsl_support)
 		raster_shader_bind();
-	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
-	GPU_CHECK_NO_ERROR();
-
 	if (!glsl_support) {
+		GPU_CHECK_NO_ERROR();
+
 		if (RASTER.options & GPU_RASTER_STIPPLE) {
 			glEnable(GL_LINE_STIPPLE);
 			glEnable(GL_POLYGON_STIPPLE);
@@ -256,9 +258,9 @@ void GPU_raster_shader_bind(void)
 
 		glPolygonMode(RASTER.polygon_mode);
 		glPolygonStipple(RASTER.polygon_stipple);
+		
+		GPU_CHECK_NO_ERROR();
 	}
-
-	GPU_CHECK_NO_ERROR();
 #endif
 }
 
@@ -268,13 +270,15 @@ void GPU_raster_shader_unbind(void)
 {
 	bool glsl_support = GPU_glsl_support();
 
+	GPU_ASSERT(RASTER_BEGUN);
+	
 	if (glsl_support)
 		GPU_shader_unbind();
 
 #if defined(WITH_GL_PROFILE_COMPAT)
-	GPU_CHECK_NO_ERROR();
-
 	if (!glsl_support) {
+		GPU_CHECK_NO_ERROR();
+
 		glDisable(GL_LINE_STIPPLE);
 		glDisable(GL_POLYGON_STIPPLE);
 
@@ -284,9 +288,9 @@ void GPU_raster_shader_unbind(void)
 		glLineWidth(1);
 
 		glPolygonMode(GL_FILL);
+		
+		GPU_CHECK_NO_ERROR();
 	}
-
-	GPU_CHECK_NO_ERROR();
 #endif
 }
 
@@ -352,13 +356,11 @@ void GPU_raster_set_line_style(int factor)
 
 
 
-static bool begun = false;
-
 void GPU_raster_begin()
 {
 #if GPU_SAFETY
-	GPU_ASSERT(!begun);
-	begun = true;
+	GPU_ASSERT(!RASTER_BEGUN);
+	RASTER_BEGUN = true;
 #endif
 
 	// SSS End (Assuming the basic aspect is ending)
@@ -373,8 +375,8 @@ void GPU_raster_begin()
 void GPU_raster_end()
 {
 #if GPU_SAFETY
-	GPU_ASSERT(begun);
-	begun = false;
+	GPU_ASSERT(RASTER_BEGUN);
+	RASTER_BEGUN = false;
 #endif
 
 	// SSS End Raster

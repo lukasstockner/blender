@@ -1,3 +1,6 @@
+#ifndef _GPU_ASPECT_H_
+#define _GPU_ASPECT_H_
+
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -20,48 +23,45 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): Alexandr Kuznetsov
+ * Contributor(s): Jason Wilkins.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#if !defined(GPU_VIEW_H) || defined(GPU_VIEW_INTERN)
-#define GPU_VIEW_H
+/** \file blender/gpu/GPU_aspect.h
+  *  \ingroup gpu
+  */
 
-#include "gpu_glew.h"
+#include "BLI_sys_types.h"
 
-#ifndef GPU_VIEW_INTERN
-#define GPU_VIEW_FUNC extern
-#else
-#define GPU_VIEW_FUNC
-#endif
-
+#include <string.h> /* for size_t */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void gpuInitializeViewFuncs(void);
+void GPU_gen_aspects   (size_t count,       uint32_t* aspects);
+void GPU_delete_aspects(size_t count, const uint32_t* aspects);
 
-GPU_VIEW_FUNC void (* gpuColorAndClear)(float r, float g, float b, float a);
-GPU_VIEW_FUNC void (* gpuClearColor)(float r, float g, float b, float a);
+typedef struct GPUaspectimpl {
+	bool  (*begin  )(void* param, const void* object);
+	bool  (*end    )(void* param, const void* object);
+	void  (*commit )(void* param);
+	void  (*enable )(void* param, uint32_t options);
+	void  (*disable)(void* param, uint32_t options);
+	void* param;
+} GPUaspectfuncs;
 
-GPU_VIEW_FUNC void (* gpuColorAndClearvf)(float c[3], float a);
-GPU_VIEW_FUNC void (* gpuClearColorfv)(float c[3], float a);
+void GPU_aspect_impl(uint32_t aspect, GPUaspectimpl* aspectImpl);
 
-GPU_VIEW_FUNC void (* gpuClear)(int mask);
+bool GPU_aspect_begin(uint32_t aspect, const void* object);
+bool GPU_aspect_end  (void);
 
-GPU_VIEW_FUNC void (* gpuViewport)(int x, int y, unsigned int width, unsigned int height);
-GPU_VIEW_FUNC void (* gpuScissor)(int x, int y, unsigned int width, unsigned int height);
-GPU_VIEW_FUNC void (* gpuViewportScissor)(int x, int y, unsigned int width, unsigned int height);
-
-GPU_VIEW_FUNC void (*gpuGetSizeBox)(int type, int *box);
-
-void gpuFeedbackViewport2fv(GLfloat x, GLfloat y, GLfloat out[2]);
+void GPU_aspect_enable (uint32_t aspect, uint32_t options);
+void GPU_aspect_disable(uint32_t aspect, uint32_t options);
 
 #ifdef __cplusplus
 }
 #endif
 
-
-#endif
+#endif /* _GPU_ASPECT_H_ */

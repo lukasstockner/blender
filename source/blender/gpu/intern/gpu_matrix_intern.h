@@ -1,3 +1,6 @@
+#ifndef _GPU_MATRIX_INTERN_H_
+#define _GPU_MATRIX_INTERN_H_
+
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -20,31 +23,30 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): Alexandr Kuznetsov
+ * Contributor(s): Alexandr Kuznetsov, Jason Wilkins
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#define GPU_VIEW_INTERN
-#include "gpu_view.h"
-#include "gpu_view_gl.h"
+/** \file source/blender/gpu/intern/gpu_matrix_itnern.h
+ *  \ingroup gpu
+ */
 
+#include "GPU_matrix.h"
 
-void gpuInitializeViewFuncs(void)
-{
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-gpuColorAndClear = gpuColorAndClear_gl;
-gpuClearColor = gpuClearColor_gl;
+void gpu_matrix_forced_update(void);
 
-gpuColorAndClearvf = gpuColorAndClearvf_gl;
-gpuClearColorfv = gpuClearColorvf_gl;
+void gpu_matrix_init(void);
+void gpu_matrix_exit(void);
 
+void gpu_commit_matrix(void);
 
-gpuViewport = gpuViewport_gl;
-gpuScissor = gpuScissor_gl;
-gpuViewportScissor = gpuViewportScissor_gl;
-gpuGetSizeBox = gpuGetSizeBox_gl;
-
-gpuClear = gpuClear_gl;
-
+#ifdef __cplusplus
 }
+#endif
+
+#endif /* _GPU_MATRIX_INTERN_H_ */

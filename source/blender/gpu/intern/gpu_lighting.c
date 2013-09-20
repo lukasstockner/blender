@@ -25,25 +25,30 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gpu_lighting.c
+/** \file source/blender/gpu/intern/gpu_lighting.c
  *  \ingroup gpu
  */
 
 /* my interface */
-#include "intern/gpu_lighting.h"
-
-/* internal */
-#include "intern/gpu_common.h"
-#include "intern/gpu_safety.h"
+#include "intern/gpu_lighting_intern.h"
 
 /* my library */
 #include "GPU_extensions.h"
 #include "GPU_matrix.h"
+#include "GPU_safety.h"
+#include "GPU_common.h"
+
+/* internal */
 
 /* external */
 #include "BLI_math_vector.h"
 
 
+
+typedef struct GPUbasicmaterial {
+	float specular[4];
+	int   shininess;
+} GPUbasicmaterial;
 
 static struct LIGHTING {
 	GPUbasiclight    light[GPU_MAX_COMMON_LIGHTS];
@@ -66,7 +71,21 @@ const GPUbasiclight GPU_DEFAULT_LIGHT =
 };
 
 
-bool gpu_fast_lighting(void)
+
+void gpu_lighting_init(void)
+{
+	GPU_restore_basic_lights(1, &GPU_DEFAULT_LIGHT);
+}
+
+
+
+void gpu_lighting_exit(void)
+{
+}
+
+
+
+bool gpu_lighting_is_fast(void)
 {
 	int i;
 
@@ -79,7 +98,7 @@ bool gpu_fast_lighting(void)
 
 
 
-void gpu_commit_light(void)
+void gpu_commit_lighting(void)
 {
 	const GPUcommon*     common = gpu_get_common();
 	const GPUbasiclight* light  = LIGHTING.light;
@@ -177,7 +196,7 @@ void GPU_set_basic_material_specular(const float specular[4])
 
 
 
-void GPU_restore_basic_lights(int light_count, GPUbasiclight lights[])
+void GPU_restore_basic_lights(int light_count, const GPUbasiclight lights[])
 {
 	GPU_ASSERT(light_count < GPU_MAX_COMMON_LIGHTS);
 
@@ -190,7 +209,7 @@ void GPU_restore_basic_lights(int light_count, GPUbasiclight lights[])
 
 static void feedback_light_position(float position[4] /* in-out */)
 {
-	gpuFeedbackVertex4fv(GL_MODELVIEW_MATRIX,  position[0], position[1], position[2], position[3], position);
+	GPU_feedback_vertex_4fv(GL_MODELVIEW_MATRIX,  position[0], position[1], position[2], position[3], position);
 }
 
 
@@ -205,7 +224,7 @@ static void feedback_spot_direction(float spot_direction[3] /* in-out */)
 
 
 
-void GPU_set_basic_lights(int light_count, GPUbasiclight lights[])
+void GPU_set_basic_lights(int light_count, const GPUbasiclight lights[])
 {
 	int i;
 

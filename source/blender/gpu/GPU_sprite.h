@@ -1,3 +1,6 @@
+#ifndef _GPU_SPRITE_H_
+#define _GPU_SPRITE_H_
+
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -20,26 +23,45 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): Alexandr Kuznetsov
+ * Contributor(s): 
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/gpu/GPU_sprite.h
+ *   \ingroup gpu
+ */
 
-void gpuColorAndClear_gl(float r, float g, float b, float a);
+#include "BLI_sys_types.h" // for uint32_t
 
-void gpuClearColor_gl(float r, float g, float b, float a);
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-void gpuColorAndClearvf_gl(float c[3], float a);
+void GPU_sprite_begin(void);
+void GPU_sprite_end  (void);
 
-void gpuClearColorvf_gl(float c[3], float a);
+void GPU_sprite_size(float size);
 
-void gpuViewport_gl(int x, int y, unsigned int width, unsigned int height);
+typedef enum GPUSpriteShaderOption {
+	GPU_SPRITE_AA         = (1<<0), /* */
+	GPU_SPRITE_TEXTURE_2D = (1<<1), /* */
 
-void gpuScissor_gl(int x, int y, unsigned int width, unsigned int height);
+	GPU_SPRITE_OPTIONS_NUM         = 1,
+	GPU_SPRITE_OPTION_COMBINATIONS = (1<<GPU_SPRITE_OPTIONS_NUM)
+} GPUSpriteShaderOption;
 
-void gpuViewportScissor_gl(int x, int y, unsigned int width, unsigned int height);
+void GPU_sprite_enable (uint32_t options);
+void GPU_sprite_disable(uint32_t options);
 
-void gpuGetSizeBox_gl(int type, int *box);
+void GPU_sprite_2f (float x, float y);
+void GPU_sprite_2fv(const float v[2]);
 
-void gpuClear_gl(int mask);
+void GPU_sprite_3f (float x, float y, float z);
+void GPU_sprite_3fv(const float v[3]);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* _GPU_SPRITE_H_ */
