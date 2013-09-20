@@ -1287,7 +1287,7 @@ void GPU_free_unused_buffers(void)
 	BLI_unlock_thread(LOCK_OPENGL);
 }
 
-void GPU_free_image(Image *ima)
+void GPU_free_image(struct Image *ima)
 {
 	if (!BLI_thread_is_main()) {
 		gpu_queue_image_for_free(ima);

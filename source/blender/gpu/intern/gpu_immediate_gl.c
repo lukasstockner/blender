@@ -450,14 +450,14 @@ static void quad_elements_exit(void)
 }
 
 
-void gpu_immediate_gl_init(void)
+void gpu_immediate_init(void)
 {
 	quad_elements_init();
 }
 
 
 
-void gpu_immediate_gl_exit(void)
+void gpu_immediate_exit(void)
 {
 	quad_elements_exit();
 }

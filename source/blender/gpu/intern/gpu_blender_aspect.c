@@ -192,7 +192,7 @@ GPUaspectimpl GPU_ASPECTIMPL_SPRITE = {
 
 
 
-void gpu_initialize_aspect_impl(void)
+void gpu_blender_aspect_init(void)
 {
 	GPU_gen_aspects(1, &GPU_ASPECT_FONT);
 	GPU_gen_aspects(1, &GPU_ASPECT_BASIC);
@@ -209,7 +209,7 @@ void gpu_initialize_aspect_impl(void)
 
 
 
-void gpu_shutdown_aspect_impl(void)
+void gpu_blender_aspect_exit(void)
 {
 	GPU_delete_aspects(1, &GPU_ASPECT_FONT);
 	GPU_delete_aspects(1, &GPU_ASPECT_BASIC);

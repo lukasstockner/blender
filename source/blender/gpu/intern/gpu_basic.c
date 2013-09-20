@@ -236,7 +236,7 @@ static void basic_shader_bind(void)
 
 
 
-void gpu_basic_shader_bind(void)
+void gpu_basic_bind(void)
 {
 	bool glsl_support = GPU_glsl_support();
 
@@ -287,7 +287,7 @@ void gpu_basic_shader_bind(void)
 
 
 
-void gpu_basic_shader_unbind(void)
+void gpu_basic_unbind(void)
 {
 	if (GPU_glsl_support())
 		GPU_shader_unbind();
@@ -307,7 +307,7 @@ void gpu_basic_shader_unbind(void)
 
 
 
-bool GPU_basic_shader_needs_normals(void)
+bool GPU_basic_needs_normals(void)
 {
 	return BASIC_SHADER.options & GPU_BASIC_LIGHTING; // Temporary hack. Should be solved outside of this file.
 }

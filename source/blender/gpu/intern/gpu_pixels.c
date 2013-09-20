@@ -68,14 +68,14 @@ static bool PIXELS_BEGUN = false;
 
 
 
-void gpu_pixels_shader_init(void)
+void gpu_pixels_init(void)
 {
 	PIXELS_SHADER = NULL;
 }
 
 
 
-void gpu_pixels_shader_exit(void)
+void gpu_pixels_exit(void)
 {
 	GPU_shader_free(PIXELS_SHADER);
 }
@@ -382,7 +382,7 @@ static void gpu_pixels_shader(void)
 
 
 
-void gpu_pixels_shader_bind(void)
+void gpu_pixels_bind(void)
 {
 	bool glsl_support = GPU_glsl_support();
 
@@ -399,7 +399,7 @@ void gpu_pixels_shader_bind(void)
 
 
 
-void gpu_pixels_shader_unbind(void)
+void gpu_pixels_unbind(void)
 {
 	bool glsl_support = GPU_glsl_support();
 
