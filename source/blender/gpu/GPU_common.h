@@ -69,7 +69,9 @@ void  GPU_set_common_active_texture(GLint texture);
 GLint GPU_get_common_active_texture(void);
 
 void GPU_common_normal_3fv(GLfloat n[3]);
+
 void GPU_common_color_4ubv(GLubyte c[4]);
+void GPU_common_color_4fv (GLfloat c[4]);
 
 
 

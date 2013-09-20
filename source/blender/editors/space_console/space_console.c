@@ -44,7 +44,7 @@
 #include "ED_space_api.h"
 #include "ED_screen.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 
 #include "RNA_access.h"
 
@@ -221,7 +221,7 @@ static void console_main_area_draw(const bContext *C, ARegion *ar)
 
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);
-	gpuClear(GL_COLOR_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT);
 
 	/* worlks best with no view2d matrix set */
 	UI_view2d_view_ortho(v2d);

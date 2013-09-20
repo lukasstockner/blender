@@ -1,3 +1,6 @@
+#ifndef _GPU_IMMEDIATE_INTERN_H_
+#define _GPU_IMMEDIATE_INTERN_H_
+
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -15,47 +18,31 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2013 Blender Foundation.
+ * The Original Code is Copyright (C) 2012 Blender Foundation.
  * All rights reserved.
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): Jason Wilkins.
+ * Contributor(s): Alexandr Kuznetsov, Jason Wilkins.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/gpu/intern/gpu_select.h
+/** \file source/blender/gpu/intern/gpu_immediate_intern.h
  *  \ingroup gpu
  */
 
-#ifndef __GPU_SELECT_H__
-#define __GPU_SELECT_H__
-
-#include "gpu_glew.h"
-
-
+#include "GPU_immediate.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-
-
-void    gpuSelectBuffer(GLsizei size, GLuint* buffer);
-
-void    gpuSelectBegin (void);
-GLsizei gpuSelectEnd   (void);
-
-void    gpuSelectClear (void);
-void    gpuSelectPop   (void);
-void    gpuSelectPush  (GLuint name);
-void    gpuSelectLoad  (GLuint name);
-
-
+void gpu_immediate_init(void);
+void gpu_immediate_exit(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif
+#endif /* _GPU_IMMEDIATE_INTERN_H_ */

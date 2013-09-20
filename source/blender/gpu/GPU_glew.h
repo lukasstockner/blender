@@ -35,6 +35,18 @@
 #define glewGetContext() glewContext
 #include <GL/glew.h>
 
+
+
+#ifndef GPU_MANGLE_DEPRECATED
+#define GPU_MANGLE_DEPRECATED 1
+#endif
+
+#if GPU_MANGLE_DEPRECATED
+#include "GPU_deprecated.h"
+#endif
+
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif

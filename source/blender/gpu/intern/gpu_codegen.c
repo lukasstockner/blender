@@ -33,7 +33,7 @@
 #include "intern/gpu_codegen.h"
 
 /* internal */
-#include "intern/gpu_common.h"
+#include "intern/gpu_common_intern.h"
 
 /* my library */
 #include "GPU_material.h"

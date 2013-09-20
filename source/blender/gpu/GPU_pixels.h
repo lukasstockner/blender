@@ -57,8 +57,8 @@ typedef struct GPUpixels {
 
 
 
-void GPU_cache_bitmap(GPUbitmap* bitmap);
-void GPU_cache_pixels(GPUpixels* pixels);
+void GPU_bitmap_cache(GPUbitmap* bitmap);
+void GPU_pixels_cache(GPUpixels* pixels);
 
 void GPU_uncache_bitmap(GPUbitmap* bitmap);
 void GPU_uncache_pixels(GPUpixels* pixels);
@@ -70,8 +70,8 @@ void GPU_pixels_format(GLenum pname, GLint param);
 
 void GPU_pixels_uniform_1f(GLenum pname, GLfloat param);
 
-void GPU_pixel_pos_2f(GLfloat x, GLfloat y);
-void GPU_pixel_pos_3f(GLfloat x, GLfloat y, GLfloat z);
+void GPU_pixels_pos_2f(GLfloat x, GLfloat y);
+void GPU_pixels_pos_3f(GLfloat x, GLfloat y, GLfloat z);
 
 void GPU_bitmap(GPUbitmap* bitmap);
 void GPU_pixels(GPUpixels* pixels);

@@ -69,7 +69,7 @@
 
 #include "BIF_glutil.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 #include "GPU_extensions.h"
 
 #include "wm_window.h"

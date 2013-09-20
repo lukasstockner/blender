@@ -25,15 +25,15 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/gpu/intern/gpu_select.c
+/** \file source/blender/gpu/intern/gpu_select.c
  *  \ingroup gpu
  */
 
-#include "gpu_select.h"
+#include "GPU_select.h"
 
 
 
-void gpuSelectBuffer(GLsizei size, GLuint* buffer)
+void GPU_select_buffer(GLsizei size, GLuint* buffer)
 {
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glSelectBuffer(size, buffer);
@@ -42,7 +42,7 @@ void gpuSelectBuffer(GLsizei size, GLuint* buffer)
 
 
 
-void gpuSelectBegin(void)
+void GPU_select_begin(void)
 {
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glRenderMode(GL_SELECT);
@@ -51,17 +51,18 @@ void gpuSelectBegin(void)
 
 
 
-GLsizei gpuSelectEnd(void)
+GLsizei GPU_select_end(void)
 {
 #if defined(WITH_GL_PROFILE_COMPAT)
 	return glRenderMode(GL_RENDER);
-#endif
+#else
 	return 0;
+#endif
 }
 
 
 
-void gpuSelectClear(void)
+void GPU_select_clear(void)
 {
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glInitNames();
@@ -70,7 +71,7 @@ void gpuSelectClear(void)
 
 
 
-void gpuSelectPop(void)
+void GPU_select_pop(void)
 {
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glPopName();
@@ -79,7 +80,7 @@ void gpuSelectPop(void)
 
 
 
-void gpuSelectPush(GLuint name)
+void GPU_select_push(GLuint name)
 {
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glPushName(name);
@@ -88,7 +89,7 @@ void gpuSelectPush(GLuint name)
 
 
 
-void gpuSelectLoad(GLuint name)
+void GPU_select_load(GLuint name)
 {
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glLoadName(name);

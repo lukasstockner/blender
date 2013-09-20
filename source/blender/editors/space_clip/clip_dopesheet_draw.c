@@ -49,8 +49,11 @@
 #include "ED_screen.h"
 #include "ED_clip.h"
 
+#include "GPU_blender_aspect.h"
 #include "GPU_colors.h"
+#include "GPU_matrix.h"
 #include "GPU_primitives.h"
+#include "GPU_raster.h"
 
 #include "BIF_glutil.h"
 

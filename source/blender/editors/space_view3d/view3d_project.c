@@ -43,7 +43,7 @@
 
 #include "ED_view3d.h"  /* own include */
 
-#include "GPU_compatibility.h"
+#include "GPU_matrix.h"
 
 #define BL_NEAR_CLIP 0.001
 #define BL_ZERO_CLIP 0.001

@@ -50,8 +50,9 @@
 #include "BLF_api.h"
 #include "BIF_glutil.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_blender_aspect.h"
 #include "GPU_primitives.h"
+#include "GPU_raster.h"
 
 #include "UI_resources.h"
 #include "UI_interface.h"

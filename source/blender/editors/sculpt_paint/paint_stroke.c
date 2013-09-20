@@ -57,7 +57,10 @@
 
 #include "paint_intern.h"
 
+#include "GPU_blender_aspect.h"
+#include "GPU_matrix.h"
 #include "GPU_primitives.h"
+#include "GPU_raster.h"
 
 #include <float.h>
 #include <math.h>

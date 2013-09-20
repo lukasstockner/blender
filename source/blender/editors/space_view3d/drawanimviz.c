@@ -57,8 +57,11 @@
 #include "DNA_view3d_types.h"
 #include "DNA_object_types.h"
 
-#include "GPU_basic_shader.h"
-#include "GPU_compatibility.h"
+#include "GPU_basic.h"
+#include "GPU_blender_aspect.h"
+#include "GPU_immediate.h"
+#include "GPU_matrix.h"
+#include "GPU_sprite.h"
 
 /* standard */
 #include <stdlib.h>
@@ -80,7 +83,7 @@ void draw_motion_paths_init(View3D *v3d, ARegion *ar)
 	if (v3d->zbuf) glDisable(GL_DEPTH_TEST);
 	
 	gpuPushMatrix();
-	gpuLoadMatrix(rv3d->viewmat);
+	gpuLoadMatrix(rv3d->viewmat[4]);
 }
 
 /* Draw the given motion path for an Object or a Bone 
@@ -202,7 +205,7 @@ void draw_motion_path_instance(Scene *scene,
 	// SSS Disable Smooth
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
-	gpuSpriteSize(1.0);
+	GPU_sprite_size(1.0);
 
 	/* draw little black point at each frame
 	 * NOTE: this is not really visible/noticeable
@@ -226,14 +229,14 @@ void draw_motion_path_instance(Scene *scene,
 	    (sfra < CFRA) && (CFRA <= efra))
 	{
 		UI_ThemeColor(TH_CFRAME);
-		gpuSpriteSize(6.0f);
+		GPU_sprite_size(6.0f);
 		
 		gpuBegin(GL_POINTS);
 		mpv = mpv_start + (CFRA - sfra);
 		gpuVertex3fv(mpv->co);
 		gpuEnd();
 
-		gpuSpriteSize(1.0f);
+		GPU_sprite_size(1.0f);
 		UI_ThemeColor(TH_TEXT_HI);
 	}
 
@@ -302,7 +305,7 @@ void draw_motion_path_instance(Scene *scene,
 		UI_GetThemeColor3ubv(TH_VERTEX_SELECT, col);
 		col[3] = 255;
 
-		gpuSpriteSize(4.0f);
+		GPU_sprite_size(4.0f);
 		gpuColor3ubv(col);
 
 		gpuBegin(GL_POINTS);
@@ -315,7 +318,7 @@ void draw_motion_path_instance(Scene *scene,
 		}
 		gpuEnd();
 
-		gpuSpriteSize(1.0f);
+		GPU_sprite_size(1.0f);
 
 		/* Draw frame numbers of keyframes  */
 		if (avs->path_viewflag & MOTIONPATH_VIEW_KFNOS) {

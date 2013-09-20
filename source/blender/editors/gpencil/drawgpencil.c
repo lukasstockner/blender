@@ -60,7 +60,11 @@
 #include "ED_sequencer.h"
 #include "ED_view3d.h"
 
+#include "GPU_blender_aspect.h"
 #include "GPU_primitives.h"
+#include "GPU_raster.h"
+#include "GPU_sprite.h"
+#include "GPU_state_latch.h"
 
 #include "gpencil_intern.h"
 
@@ -580,7 +584,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		copy_v4_v4(color, gpl->color); // just for copying 4 array elements
 		copy_v4_v4(tcolor, gpl->color); // additional copy of color (for ghosting)
 		gpuColor4fv(color);
-		gpuSpriteSize((float)(gpl->thickness + 2));
+		GPU_sprite_size((float)(gpl->thickness + 2));
 		
 		/* apply xray layer setting */
 		if (gpl->flag & GP_LAYER_NO_XRAY) dflag |=  GP_DRAWDATA_NO_XRAY;
@@ -664,7 +668,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 
 	/* restore initial gl conditions */
 	gpuLineWidth(1.0);
-	gpuSpriteSize(1.0);
+	GPU_sprite_size(1.0);
 
 	gpuImmediateUnformat();
 }

@@ -53,9 +53,12 @@
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
 
-#include "GPU_basic_shader.h"
+#include "GPU_blender_aspect.h"
+#include "GPU_basic.h"
 #include "GPU_colors.h"
+#include "GPU_matrix.h"
 #include "GPU_primitives.h"
+#include "GPU_raster.h"
 
 #include "RNA_access.h"
 

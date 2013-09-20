@@ -55,8 +55,10 @@
 
 #include "BIF_glutil.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_blender_aspect.h"
 #include "GPU_draw.h"
+#include "GPU_matrix.h"
+#include "GPU_select.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -73,7 +75,7 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 #include "GPU_matrix.h"
 
 #include "view3d_intern.h"  /* own include */
@@ -100,12 +102,11 @@ void view3d_region_operator_needs_opengl(wmWindow *win, ARegion *ar)
 		
 		wmSubWindowSet(win, ar->swinid);
 		gpuMatrixMode(GL_PROJECTION);
-		gpuLoadMatrix(rv3d->winmat);
+		gpuLoadMatrix(rv3d->winmat[0]);
 		gpuMatrixMode(GL_MODELVIEW);
-		gpuLoadMatrix(rv3d->viewmat);
+		gpuLoadMatrix(rv3d->viewmat[0]);
 
-		gpu_commit_aspect(); // XXX jwilkins: internal interface
-		gpu_commit_matrixes();//change // XXX jwilkins: hmm... why?
+		GPU_commit_aspect();
 	}
 }
 
@@ -926,10 +927,10 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 	if (vc->rv3d->rflag & RV3D_CLIPPING)
 		ED_view3d_clipping_set(vc->rv3d);
 	
-	gpuSelectBuffer(bufsize, buffer);
-	gpuSelectBegin();
-	gpuSelectClear();
-	gpuSelectPush(-1);
+	GPU_select_buffer(bufsize, buffer);
+	GPU_select_begin();
+	GPU_select_clear();
+	GPU_select_push(-1);
 	code = 1;
 	
 	if (vc->obedit && vc->obedit->type == OB_MBALL) {
@@ -952,7 +953,7 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 					base->selcol = 0;
 				else {
 					base->selcol = code;
-					gpuSelectLoad(code);
+					GPU_select_load(code);
 					draw_object(scene, ar, v3d, base, DRAW_PICKING | DRAW_CONSTCOLOR);
 					
 					/* we draw duplicators for selection too */
@@ -989,8 +990,8 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 		v3d->xray = false;  /* restore */
 	}
 	
-	gpuSelectPop();    /* see above (pushname) */
-	hits = gpuSelectEnd();
+	GPU_select_pop();    /* see above (pushname) */
+	hits = GPU_select_end();
 	
 	G.f &= ~G_PICKSEL;
 	setwinmatrixview3d(ar, v3d, NULL);

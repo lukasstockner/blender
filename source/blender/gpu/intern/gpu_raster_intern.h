@@ -43,9 +43,6 @@ extern "C" {
 void gpu_raster_init(void);
 void gpu_raster_exit(void);
 
-void GPU_raster_begin(void);
-void GPU_raster_end  (void);
-
 void gpu_raster_enable (uint32_t options);
 void gpu_raster_disable(uint32_t options);
 

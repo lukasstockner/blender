@@ -64,7 +64,11 @@
 #include "BKE_image.h"
 
 #include "GPU_colors.h"
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
+#include "GPU_immediate.h"
+#include "GPU_matrix.h"
+#include "GPU_pixels.h"
+#include "GPU_state_latch.h"
 
 #include "BIF_glutil.h"
 
@@ -280,11 +284,11 @@ static void playanim_toscreen(PlayState *ps, PlayAnimPict *picture, struct ImBuf
 	}
 
 	{
-		GPUpixels pixels = { ibuf->x, ibuf->y, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect };
+		struct GPUpixels pixels = { ibuf->x, ibuf->y, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect };
 
 		GPU_pixels_begin();
-		gpuPixelPos2f(offsx, offsy);
-		gpuPixels(&pixels);
+		GPU_pixels_pos_2f(offsx, offsy);
+		GPU_pixels(&pixels);
 		GPU_pixels_end();
 	}
 
@@ -751,7 +755,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 			if (ps->zoom < 1.0f) ps->zoom = 1.0f;
 			
 			gpuViewport(0, 0, ps->win_x, ps->win_y);
-			gpuScissor(0, 0, ps->win_x, ps->win_y);
+			glScissor(0, 0, ps->win_x, ps->win_y);
 			
 			/* unified matrix, note it affects offset for drawing */
 			gpuMatrixMode(GL_PROJECTION);
@@ -759,10 +763,10 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 			gpuOrtho(0.0f, 1.0f, 0.0f, 1.0f, -1.0f, 1.0f);
 			gpuMatrixMode(GL_MODELVIEW);
 
-			gpuPixelZoom(ps->zoom, ps->zoom);
+			GPU_pixels_zoom(ps->zoom, ps->zoom);
 			ptottime = 0.0;
 			playanim_toscreen(ps, ps->picture, ps->curframe_ibuf, ps->fontid, ps->fstep);
-			gpuPixelZoom(1.0f, 1.0f); /* restore default value */
+			GPU_pixels_zoom(1.0f, 1.0f); /* restore default value */
 
 			break;
 		}

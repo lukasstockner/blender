@@ -78,11 +78,18 @@
 
 #include "BIF_glutil.h"
 
-#include "GPU_basic_shader.h"
+#include "GPU_basic.h"
+#include "GPU_blender_aspect.h"
 #include "GPU_colors.h"
-#include "GPU_primitives.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
+#include "GPU_lighting.h"
+#include "GPU_matrix.h"
+#include "GPU_primitives.h"
+#include "GPU_raster.h"
+#include "GPU_select.h"
+#include "GPU_sprite.h"
+#include "GPU_state_latch.h"
 
 #include "ED_mesh.h"
 #include "ED_particle.h"
@@ -804,12 +811,12 @@ static void drawshadbuflimits(Lamp *la, float mat[4][4])
 	gpuVertex3fv(end);
 	gpuEnd();
 
-	gpuSpriteSize(3.0);
-	gpuBeginSprites();
-	gpuSprite3fv(sta);
-	gpuSprite3fv(end);
-	gpuEndSprites();
-	gpuSpriteSize(1.0);
+	GPU_sprite_size(3.0);
+	GPU_sprite_begin();
+	GPU_sprite_3fv(sta);
+	GPU_sprite_3fv(end);
+	GPU_sprite_end();
+	GPU_sprite_size(1.0);
 }
 
 
@@ -968,7 +975,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 
 	/* we first draw only the screen aligned & fixed scale stuff */
 	gpuPushMatrix();
-	gpuLoadMatrix(rv3d->viewmat);
+	gpuLoadMatrix(rv3d->viewmat[0]);
 
 	/* lets calculate the scale: */
 	lampsize = pixsize * ((float)U.obcenter_dia * 0.5f);
@@ -1222,7 +1229,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 	}
 
 	/* and back to viewspace */
-	gpuLoadMatrix(rv3d->viewmat);
+	gpuLoadMatrix(rv3d->viewmat[0]);
 	copy_v3_v3(vec, ob->obmat[3]);
 
 	GPU_raster_set_line_style(0);
@@ -1249,13 +1256,13 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 	gpuVertex3fv(vec);
 	gpuEnd();
 
-	gpuSpriteSize(2.0);
+	GPU_sprite_size(2.0);
 
 	gpuBegin(GL_POINTS);
 	gpuVertex3fv(vec);
 	gpuEnd();
 
-	gpuSpriteSize(1.0);
+	GPU_sprite_size(1.0);
 
 	gpuImmediateUnformat();
 
@@ -1277,13 +1284,13 @@ static void draw_limit_line(float sta, float end, const short dflag, unsigned in
 	gpuEnd();
 
 	if (!(dflag & DRAW_PICKING)) {
-		gpuSpriteSize(3.0);
+		GPU_sprite_size(3.0);
 		gpuBegin(GL_POINTS);
 		gpuColor3P(col);
 		gpuVertex3f(0.0, 0.0, -sta);
 		gpuVertex3f(0.0, 0.0, -end);
 		gpuEnd();
-		gpuSpriteSize(1.0);
+		GPU_sprite_size(1.0);
 	}
 }
 
@@ -1363,8 +1370,8 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 		 * from current ogl matrix */
 		invert_m4_m4(imat, base->object->obmat);
 
-		gpuMultMatrix(imat);
-		gpuMultMatrix(mat);
+		gpuMultMatrix(imat[0]);
+		gpuMultMatrix(mat[0]);
 	}
 	else {
 		float obmat[4][4];
@@ -1372,7 +1379,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 		BKE_tracking_camera_get_reconstructed_interpolate(tracking, tracking_object, scene->r.cfra, obmat);
 
 		invert_m4_m4(imat, obmat);
-		gpuMultMatrix(imat);
+		gpuMultMatrix(imat[0]);
 	}
 
 	for (track = tracksbase->first; track; track = track->next) {
@@ -1385,7 +1392,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 			continue;
 
 		if (dflag & DRAW_PICKING)
-			gpuSelectLoad(base->selcol + (tracknr << 16));
+			GPU_select_load(base->selcol + (tracknr << 16));
 
 		gpuPushMatrix();
 		gpuTranslate(track->bundle_pos[0], track->bundle_pos[1], track->bundle_pos[2]);
@@ -1543,7 +1550,7 @@ static void draw_viewport_reconstruction(Scene *scene, Base *base, View3D *v3d, 
 	}
 
 	if (dflag & DRAW_PICKING)
-		gpuSelectLoad(base->selcol);
+		GPU_select_load(base->selcol);
 }
 
 /* flag similar to draw_object() */
@@ -1666,8 +1673,8 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 			normalize_m4(nobmat);
 
 			gpuPushMatrix();
-			gpuLoadMatrix(rv3d->viewmat);
-			gpuMultMatrix(nobmat);
+			gpuLoadMatrix(rv3d->viewmat[0]);
+			gpuMultMatrix(nobmat[0]);
 
 			if (cam->flag & CAM_SHOWLIMITS) {
 				draw_limit_line(cam->clipsta, cam->clipend, dflag, 0x77FFFF); /* cpack */
@@ -1743,8 +1750,8 @@ static void lattice_draw_verts(Lattice *lt, DispList *dl, BPoint *actbp, short s
 	const int color = sel ? TH_VERTEX_SELECT : TH_VERTEX;
 	UI_ThemeColor(color);
 
-	gpuSpriteSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
-	gpuBeginSprites();
+	GPU_sprite_size(UI_GetThemeValuef(TH_VERTEX_SIZE));
+	GPU_sprite_begin();
 
 	for (w = 0; w < lt->pntsw; w++) {
 		int wxt = (w == 0 || w == lt->pntsw - 1);
@@ -1757,11 +1764,11 @@ static void lattice_draw_verts(Lattice *lt, DispList *dl, BPoint *actbp, short s
 						/* check for active BPoint and ensure selected */
 						if ((bp == actbp) && (bp->f1 & SELECT)) {
 							UI_ThemeColor(TH_LASTSEL_POINT);
-							gpuSprite3fv(dl ? co : bp->vec);
+							GPU_sprite_3fv(dl ? co : bp->vec);
 							UI_ThemeColor(color);
 						}
 						else if ((bp->f1 & SELECT) == sel) {
-							gpuSprite3fv(dl ? co : bp->vec);
+							GPU_sprite_3fv(dl ? co : bp->vec);
 						}
 					}
 				}
@@ -1769,8 +1776,8 @@ static void lattice_draw_verts(Lattice *lt, DispList *dl, BPoint *actbp, short s
 		}
 	}
 	
-	gpuSpriteSize(1.0);
-	gpuEndSprites();
+	GPU_sprite_size(1.0);
+	GPU_sprite_end();
 }
 
 static void drawlattice__point(Lattice *lt, DispList *dl, int u, int v, int w, int actdef_wcol)
@@ -1986,7 +1993,7 @@ static void draw_dm_face_centers__mapFunc(void *userData, int index, const float
 	const char sel = *(((char **)userData)[1]);
 	
 	if (efa && !BM_elem_flag_test(efa, BM_ELEM_HIDDEN) && BM_elem_flag_test(efa, BM_ELEM_SELECT) == sel) {
-		gpuSprite3fv(cent);
+		GPU_sprite_3fv(cent);
 	}
 }
 static void draw_dm_face_centers(BMEditMesh *em, DerivedMesh *dm, char sel)
@@ -1994,9 +2001,9 @@ static void draw_dm_face_centers(BMEditMesh *em, DerivedMesh *dm, char sel)
 	void *ptrs[2] = {em, &sel};
 
 	gpuImmediateFormat_V3();
-	gpuBeginSprites();
+	GPU_sprite_begin();
 	dm->foreachMappedFaceCenter(dm, draw_dm_face_centers__mapFunc, ptrs);
-	gpuEndSprites();
+	GPU_sprite_end();
 	gpuImmediateUnformat();
 }
 
@@ -2066,13 +2073,13 @@ static void draw_dm_verts__mapFunc(void *userData, int index, const float co[3],
 
 			if (vs->flag & MVERT_SKIN_ROOT) {
 				float radius = (vs->radius[0] + vs->radius[1]) * 0.5f;
-				gpuEndSprites();
+				GPU_sprite_end();
 
 				gpuColor4ubv(data->th_skin_root);
 				gpuDrawFastBall(GL_LINES, co, radius, data->imat);
 
 				gpuColor4ubv(data->sel ? data->th_vertex_select : data->th_vertex);
-				gpuBeginSprites();
+				GPU_sprite_begin();
 			}
 		}
 
@@ -2080,19 +2087,19 @@ static void draw_dm_verts__mapFunc(void *userData, int index, const float co[3],
 		if (eve == data->eve_act) {
 			gpuColor4ubv(data->th_editmesh_active);
 
-			gpuEndSprites();
+			GPU_sprite_end();
 
-			gpuSpriteSize(data->th_vertex_size);
-			gpuBeginSprites();
-			gpuSprite3fv(co);
-			gpuEndSprites();
+			GPU_sprite_size(data->th_vertex_size);
+			GPU_sprite_begin();
+			GPU_sprite_3fv(co);
+			GPU_sprite_end();
 
 			gpuColor4ubv(data->sel ? data->th_vertex_select : data->th_vertex);
-			gpuSpriteSize(data->th_vertex_size);
-			gpuBeginSprites();
+			GPU_sprite_size(data->th_vertex_size);
+			GPU_sprite_begin();
 		}
 		else {
-			gpuSprite3fv(co);
+			GPU_sprite_3fv(co);
 		}
 	}
 }
@@ -2119,9 +2126,9 @@ static void draw_dm_verts(BMEditMesh *em, DerivedMesh *dm, const char sel, BMVer
 	invert_m4(data.imat);
 
 	gpuImmediateFormat_V3();
-	gpuBeginSprites();
+	GPU_sprite_begin();
 	dm->foreachMappedVert(dm, draw_dm_verts__mapFunc, &data);
-	gpuEndSprites();
+	GPU_sprite_end();
 	gpuImmediateUnformat();
 }
 
@@ -2456,7 +2463,7 @@ static void draw_dm_bweights__mapFunc(BMEditMesh *em, int index, const float co[
 		!BM_elem_flag_test(eve, BM_ELEM_HIDDEN))
 	{
 		UI_ThemeColorBlend(TH_VERTEX, TH_VERTEX_SELECT, *bweight);
-		gpuSprite3fv(co);
+		GPU_sprite_3fv(co);
 	}
 }
 
@@ -2465,11 +2472,11 @@ static void draw_dm_bweights(BMEditMesh *em, Scene *scene, DerivedMesh *dm)
 	ToolSettings *ts = scene->toolsettings;
 
 	if (ts->selectmode & SCE_SELECT_VERTEX) {
-		gpuSpriteSize(UI_GetThemeValuef(TH_VERTEX_SIZE) + 2);
+		GPU_sprite_size(UI_GetThemeValuef(TH_VERTEX_SIZE) + 2);
 		gpuImmediateFormat_C4_V3();
-		gpuBeginSprites();
+		GPU_sprite_begin();
 		dm->foreachMappedVert(dm, draw_dm_bweights__mapFunc, em);
-		gpuEndSprites();
+		GPU_sprite_end();
 		gpuImmediateUnformat();
 	}
 	else {
@@ -2529,13 +2536,13 @@ static void draw_em_fancy_verts(Scene *scene, View3D *v3d, Object *obedit,
 			}
 
 			if (ts->selectmode & SCE_SELECT_VERTEX) {
-				gpuSpriteSize(size);
+				GPU_sprite_size(size);
 				gpuColor4ubv(col);
 				draw_dm_verts(em, cageDM, sel, eve_act, rv3d);
 			}
 			
 			if (check_ob_drawface_dot(scene, v3d, obedit->dt)) {
-				gpuSpriteSize(fsize);
+				GPU_sprite_size(fsize);
 				gpuColor4ubv(fcol);
 				draw_dm_face_centers(em, cageDM, sel);
 			}
@@ -2548,7 +2555,7 @@ static void draw_em_fancy_verts(Scene *scene, View3D *v3d, Object *obedit,
 	}
 
 	if (v3d->zbuf) gpuDepthMask(GL_TRUE);
-	gpuSpriteSize(1.0);
+	GPU_sprite_size(1.0);
 }
 
 static void draw_em_fancy_edges(BMEditMesh *em, Scene *scene, View3D *v3d,
@@ -3256,9 +3263,9 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			draw_bounding_volume(scene, ob, ob->boundtype);
 	}
 	else if (hasHaloMat || (totface == 0 && totedge == 0)) {
-		gpuSpriteSize(1.5);
+		GPU_sprite_size(1.5);
 		dm->drawVerts(dm);
-		gpuSpriteSize(1.0);
+		GPU_sprite_size(1.0);
 	}
 	else if (dt == OB_WIRE || totface == 0) {
 		draw_wire = OBDRAW_WIRE_ON; /* draw wire only, no depth buffer stuff  */
@@ -3458,7 +3465,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 		const int use_depth = (v3d->flag & V3D_ZBUF_SELECT);
 		
 		gpuColor3P(CPACK_BLACK);
-		gpuSpriteSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
+		GPU_sprite_size(UI_GetThemeValuef(TH_VERTEX_SIZE));
 
 		if (!use_depth) glDisable(GL_DEPTH_TEST);
 		else            bglPolygonOffset(rv3d->dist, 1.0);
@@ -3466,7 +3473,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 		if (!use_depth) glEnable(GL_DEPTH_TEST);
 		else            bglPolygonOffset(rv3d->dist, 0.0);
 
-		gpuSpriteSize(1.0f);
+		GPU_sprite_size(1.0f);
 	}
 	dm->release(dm);
 }
@@ -4341,7 +4348,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 	if ((base->flag & OB_FROMDUPLI) && (ob->flag & OB_FROMGROUP)) {
 		float mat[4][4];
 		mul_m4_m4m4(mat, ob->obmat, psys->imat);
-		gpuMultMatrix(mat);
+		gpuMultMatrix(mat[0]);
 	}
 
 	/* needed for text display */
@@ -4358,9 +4365,9 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 	switch (draw_as) {
 		case PART_DRAW_DOT:
 			if (part->draw_size)
-				gpuSpriteSize(part->draw_size);
+				GPU_sprite_size(part->draw_size);
 			else
-				gpuSpriteSize(2.0);  /* default dot size */
+				GPU_sprite_size(2.0);  /* default dot size */
 			break;
 		case PART_DRAW_CIRC:
 			/* calculate view aligned matrix: */
@@ -4399,9 +4406,9 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 				draw_as = part->draw_as = PART_DRAW_DOT;
 
 				if (part->draw_size)
-					gpuSpriteSize(part->draw_size);
+					GPU_sprite_size(part->draw_size);
 				else
-					gpuSpriteSize(2.0);  /* default dot size */
+					GPU_sprite_size(2.0);  /* default dot size */
 			}
 			else if (part->bb_ob)
 				bb.ob = part->bb_ob;
@@ -4778,10 +4785,10 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 			UI_ThemeColor(TH_ACTIVE);
 			
 			if (part->draw_size) {
-				gpuSpriteSize(part->draw_size + 2);
+				GPU_sprite_size(part->draw_size + 2);
 			}
 			else {
-				gpuSpriteSize(4.0);
+				GPU_sprite_size(4.0);
 			}
 
 			gpuLineWidth(3.0);
@@ -4791,7 +4798,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 
 		/* restore from select */
 		gpuColor3fv(ma_col);
-		gpuSpriteSize(part->draw_size ? part->draw_size : 2.0);
+		GPU_sprite_size(part->draw_size ? part->draw_size : 2.0);
 		gpuLineWidth(1.0);
 
 		/* enable other data arrays */
@@ -4866,7 +4873,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 	}
 
 	if ((base->flag & OB_FROMDUPLI) && (ob->flag & OB_FROMGROUP)) {
-		gpuLoadMatrix(rv3d->viewmat);
+		gpuLoadMatrix(rv3d->viewmat[0]);
 	}
 }
 
@@ -4979,7 +4986,7 @@ static void draw_ptcache_edit(Scene *scene, View3D *v3d, PTCacheEdit *edit)
 
 	/* draw edit vertices */
 	if (pset->selectmode != SCE_SELECT_PATH) {
-		gpuSpriteSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
+		GPU_sprite_size(UI_GetThemeValuef(TH_VERTEX_SIZE));
 
 		if (pset->selectmode == SCE_SELECT_POINT) {
 			float *pd = NULL, *pdata = NULL;
@@ -5103,7 +5110,7 @@ static void draw_ptcache_edit(Scene *scene, View3D *v3d, PTCacheEdit *edit)
 	}
 
 	gpuLineWidth(1.0f);
-	gpuSpriteSize(1.0);
+	GPU_sprite_size(1.0);
 }
 //static void ob_draw_RE_motion(float com[3],float rotscale[3][3],float tw,float th)
 static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, float ith, float drw_size)
@@ -5384,9 +5391,9 @@ static void drawvertsN(Nurb *nu, const char sel, const bool hide_handles, void *
 	UI_ThemeColor(color);
 
 	size = UI_GetThemeValuef(TH_VERTEX_SIZE);
-	gpuSpriteSize(size);
+	GPU_sprite_size(size);
 	
-	gpuBeginSprites();
+	GPU_sprite_begin();
 	
 	if (nu->type == CU_BEZIER) {
 
@@ -5396,22 +5403,22 @@ static void drawvertsN(Nurb *nu, const char sel, const bool hide_handles, void *
 			if (bezt->hide == 0) {
 				if (sel == 1 && bezt == lastsel) {
 					UI_ThemeColor(TH_LASTSEL_POINT);
-					gpuSprite3fv(bezt->vec[1]);
+					GPU_sprite_3fv(bezt->vec[1]);
 
 					if (!hide_handles) {
-						if (bezt->f1 & SELECT) gpuSprite3fv(bezt->vec[0]);
-						if (bezt->f3 & SELECT) gpuSprite3fv(bezt->vec[2]);
+						if (bezt->f1 & SELECT) GPU_sprite_3fv(bezt->vec[0]);
+						if (bezt->f3 & SELECT) GPU_sprite_3fv(bezt->vec[2]);
 					}
 
 					UI_ThemeColor(color);
 				}
 				else if (hide_handles) {
-					if ((bezt->f2 & SELECT) == sel) gpuSprite3fv(bezt->vec[1]);
+					if ((bezt->f2 & SELECT) == sel) GPU_sprite_3fv(bezt->vec[1]);
 				}
 				else {
-					if ((bezt->f1 & SELECT) == sel) gpuSprite3fv(bezt->vec[0]);
-					if ((bezt->f2 & SELECT) == sel) gpuSprite3fv(bezt->vec[1]);
-					if ((bezt->f3 & SELECT) == sel) gpuSprite3fv(bezt->vec[2]);
+					if ((bezt->f1 & SELECT) == sel) GPU_sprite_3fv(bezt->vec[0]);
+					if ((bezt->f2 & SELECT) == sel) GPU_sprite_3fv(bezt->vec[1]);
+					if ((bezt->f3 & SELECT) == sel) GPU_sprite_3fv(bezt->vec[2]);
 				}
 			}
 			bezt++;
@@ -5424,19 +5431,19 @@ static void drawvertsN(Nurb *nu, const char sel, const bool hide_handles, void *
 			if (bp->hide == 0) {
 				if (bp == lastsel) {
 					UI_ThemeColor(TH_LASTSEL_POINT);
-					gpuSprite3fv(bp->vec);
+					GPU_sprite_3fv(bp->vec);
 					UI_ThemeColor(color);
 				}
 				else {
-					if ((bp->f1 & SELECT) == sel) gpuSprite3fv(bp->vec);
+					if ((bp->f1 & SELECT) == sel) GPU_sprite_3fv(bp->vec);
 				}
 			}
 			bp++;
 		}
 	}
 	
-	gpuEndSprites();
-	gpuSpriteSize(1.0);
+	GPU_sprite_end();
+	GPU_sprite_size(1.0);
 }
 
 static void editnurb_draw_active_poly(Nurb *nu)
@@ -5900,7 +5907,7 @@ static bool drawmball(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 			
 			if (G.f & G_PICKSEL) {
 				ml->selcol1 = code;
-				gpuSelectLoad(code++);
+				GPU_select_load(code++);
 			}
 		}
 
@@ -5915,7 +5922,7 @@ static bool drawmball(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 			
 			if (G.f & G_PICKSEL) {
 				ml->selcol2 = code;
-				gpuSelectLoad(code++);
+				GPU_select_load(code++);
 			}
 			gpuDrawFastBall(GL_LINE_LOOP, &(ml->x), ml->rad * atanf(ml->s) / (float)M_PI_2, imat);
 		}
@@ -6461,11 +6468,11 @@ static void draw_hooks(Object *ob)
 				GPU_raster_end();
 			}
 
-			gpuSpriteSize(3.0);
-			gpuBeginSprites();
-			gpuSprite3fv(vec);
-			gpuEndSprites();
-			gpuSpriteSize(1.0);
+			GPU_sprite_size(3.0);
+			GPU_sprite_begin();
+			GPU_sprite_3fv(vec);
+			GPU_sprite_end();
+			GPU_sprite_size(1.0);
 		}
 	}
 
@@ -6918,7 +6925,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		case OB_LAMP:
 			if ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
 				drawlamp(scene, v3d, rv3d, base, dt, dflag, ob_wire_col);
-				if (dtx || (base->flag & SELECT)) gpuMultMatrix(ob->obmat);
+				if (dtx || (base->flag & SELECT)) gpuMultMatrix(ob->obmat[0]);
 			}
 			break;
 		case OB_CAMERA:
@@ -6969,12 +6976,12 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 			if ((sb = ob->soft)) {
 				if (sb->solverflags & SBSO_ESTIMATEIPO) {
 
-					gpuLoadMatrix(rv3d->viewmat);
+					gpuLoadMatrix(rv3d->viewmat[0]);
 					copy_m3_m3(msc, sb->lscale);
 					copy_m3_m3(mrt, sb->lrot);
 					mul_m3_m3m3(mtr, mrt, msc);
 					ob_draw_RE_motion(sb->lcom, mtr, tipw, tiph, drawsize);
-					gpuMultMatrix(ob->obmat);
+					gpuMultMatrix(ob->obmat[0]);
 				}
 			}
 		}
@@ -6995,7 +7002,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		}
 		//gpuDepthMask(GL_FALSE);
 
-		gpuLoadMatrix(rv3d->viewmat);
+		gpuLoadMatrix(rv3d->viewmat[0]);
 		
 		view3d_cached_text_draw_begin();
 
@@ -7012,7 +7019,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		invert_m4_m4(ob->imat, ob->obmat);
 		view3d_cached_text_draw_end(v3d, ar, 0, NULL);
 
-		gpuMultMatrix(ob->obmat);
+		gpuMultMatrix(ob->obmat[0]);
 
 		//gpuDepthMask(GL_TRUE);
 	}
@@ -7025,10 +7032,10 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		if (ob->mode & OB_MODE_PARTICLE_EDIT && is_obact) {
 			PTCacheEdit *edit = PE_create_current(scene, ob);
 			if (edit) {
-				gpuLoadMatrix(rv3d->viewmat);
+				gpuLoadMatrix(rv3d->viewmat[0]);
 				draw_update_ptcache_edit(scene, ob, edit);
 				draw_ptcache_edit(scene, v3d, edit);
-				gpuMultMatrix(ob->obmat);
+				gpuMultMatrix(ob->obmat[0]);
 			}
 		}
 	}
@@ -7053,16 +7060,16 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				glEnable(GL_BLEND);
 				
 
-				// gpuSpriteSize(3.0);
-				gpuBeginSprites();
+				// GPU_sprite_size(3.0);
+				GPU_sprite_begin();
 
 				for (i = 0; i < scs->numpoints; i++)
 				{
-					gpuSprite3fv(&scs->points[3 * i]);
+					GPU_sprite_3fv(&scs->points[3 * i]);
 				}
 
-				gpuEndSprites();
-				gpuSpriteSize(1.0);
+				GPU_sprite_end();
+				GPU_sprite_size(1.0);
 
 				gpuMultMatrix(ob->obmat);
 				glDisable(GL_BLEND);
@@ -7077,8 +7084,8 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 			float p0[3], p1[3], viewnormal[3];
 			BoundBox bb;
 
-			gpuLoadMatrix(rv3d->viewmat);
-			gpuMultMatrix(ob->obmat);
+			gpuLoadMatrix(rv3d->viewmat[0]);
+			gpuMultMatrix(ob->obmat[0]);
 
 			if (ob->flag & SELECT) {
 				gpuColor3P(CPACK_WHITE);
@@ -7244,7 +7251,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	/* return warning, clear temp flag */
 	v3d->flag2 &= ~V3D_SHOW_SOLID_MATCAP;
 	
-	gpuLoadMatrix(rv3d->viewmat);
+	gpuLoadMatrix(rv3d->viewmat[0]);
 
 	if (zbufoff) {
 		glDisable(GL_DEPTH_TEST);
@@ -7455,7 +7462,7 @@ static void bbs_obmode_mesh_verts__mapFunc(void *userData, int index, const floa
 
 	if (!(mv->flag & ME_HIDE)) {
 		WM_framebuffer_index_set(offset + index);
-		gpuSprite3fv(co);
+		GPU_sprite_3fv(co);
 	}
 }
 
@@ -7466,11 +7473,11 @@ static void bbs_obmode_mesh_verts(Object *ob, DerivedMesh *dm, int offset)
 	MVert *mvert = me->mvert;
 	data.mvert = mvert;
 	data.offset = (void *)(intptr_t) offset;
-	gpuSpriteSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
-	gpuBeginSprites();
+	GPU_sprite_size(UI_GetThemeValuef(TH_VERTEX_SIZE));
+	GPU_sprite_begin();
 	dm->foreachMappedVert(dm, bbs_obmode_mesh_verts__mapFunc, &data);
-	gpuEndSprites();
-	gpuSpriteSize(1.0);
+	GPU_sprite_end();
+	GPU_sprite_size(1.0);
 }
 
 static void bbs_mesh_verts__mapFunc(void *userData, int index, const float co[3],
@@ -7482,7 +7489,7 @@ static void bbs_mesh_verts__mapFunc(void *userData, int index, const float co[3]
 
 	if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
 		WM_framebuffer_index_set(offset + index);
-		gpuSprite3fv(co);
+		GPU_sprite_3fv(co);
 	}
 }
 
@@ -7490,17 +7497,17 @@ static void bbs_mesh_verts(BMEditMesh *em, DerivedMesh *dm, int offset)
 {
 	void *ptrs[2] = {(void *)(intptr_t) offset, em};
 
-	gpuSpriteSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
+	GPU_sprite_size(UI_GetThemeValuef(TH_VERTEX_SIZE));
 
 	gpuImmediateFormat_C4_V3();
 
-	gpuBeginSprites();
+	GPU_sprite_begin();
 	dm->foreachMappedVert(dm, bbs_mesh_verts__mapFunc, ptrs);
-	gpuEndSprites();
+	GPU_sprite_end();
 
 	gpuImmediateUnformat();
 
-	gpuSpriteSize(1.0);
+	GPU_sprite_size(1.0);
 }
 
 typedef struct mesh_wire_options {
@@ -7560,7 +7567,7 @@ static void bbs_mesh_solid__drawCenter(mesh_solid_options *opts, int index, cons
 	if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
 		WM_framebuffer_index_set(index + 1);
 
-		gpuSprite3fv(cent);
+		GPU_sprite_3fv(cent);
 	}
 }
 
@@ -7595,11 +7602,11 @@ static void bbs_mesh_solid_EM(BMEditMesh *em, Scene *scene, View3D *v3d,
 	}
 
 	if (facecol && check_ob_drawface_dot(scene, v3d, ob->dt)) {
-		gpuSpriteSize(UI_GetThemeValuef(TH_FACEDOT_SIZE));
+		GPU_sprite_size(UI_GetThemeValuef(TH_FACEDOT_SIZE));
 
-		gpuBeginSprites();
+		GPU_sprite_begin();
 		dm->foreachMappedFaceCenter(dm, bbs_mesh_solid__drawCenter, &opts);
-		gpuEndSprites();
+		GPU_sprite_end();
 	}
 
 	gpuImmediateUnformat();
@@ -7667,9 +7674,10 @@ void draw_object_backbufsel(Scene *scene, View3D *v3d, RegionView3D *rv3d, Objec
 {
 	ToolSettings *ts = scene->toolsettings;
 
-	gpuMultMatrix(ob->obmat);
+	gpuMultMatrix(ob->obmat[0]);
 
-	/*glClearDepth(1.0); */gpuClear(GL_DEPTH_BUFFER_BIT);
+	/*glClearDepth(1.0); */
+	glClear(GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 
 	switch (ob->type) {
@@ -7725,7 +7733,7 @@ void draw_object_backbufsel(Scene *scene, View3D *v3d, RegionView3D *rv3d, Objec
 			break;
 	}
 
-	gpuLoadMatrix(rv3d->viewmat);
+	gpuLoadMatrix(rv3d->viewmat[0]);
 }
 
 

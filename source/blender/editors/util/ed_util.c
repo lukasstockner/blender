@@ -60,7 +60,8 @@
 #include "ED_space_api.h"
 #include "ED_util.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_raster.h"
+#include "GPU_immediate.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"

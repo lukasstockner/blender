@@ -44,7 +44,8 @@
 #include "BKE_editmesh.h"
 
 #include "GPU_colors.h"
-#include "GPU_compatibility.h"
+#include "GPU_immediate.h"
+#include "GPU_matrix.h"
 
 
 #include "ED_screen.h"
@@ -97,7 +98,7 @@ static void ringsel_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 			glDisable(GL_DEPTH_TEST);
 
 		gpuPushMatrix();
-		gpuMultMatrix(lcd->ob->obmat);
+		gpuMultMatrix(lcd->ob->obmat[0]);
 
 		gpuImmediateFormat_V3();
 		gpuColor3P(CPACK_MAGENTA);

@@ -99,7 +99,10 @@
 
 #include "transform.h"
 
+#include "GPU_matrix.h"
 #include "GPU_primitives.h"
+#include "GPU_raster.h"
+#include "GPU_sprite.h"
 
 #define MAX_INFO_LEN 256
 
@@ -1968,7 +1971,7 @@ static void drawEdgeSlide(const struct bContext *C, TransInfo *t)
 
 			gpuPushMatrix();
 
-			gpuMultMatrix(t->obedit->obmat);
+			gpuMultMatrix(t->obedit->obmat[0]);
 
 			gpuLineWidth(line_size);
 			UI_ThemeColorShadeAlpha(TH_EDGE_SELECT, 80, alpha_shade);
@@ -1984,21 +1987,21 @@ static void drawEdgeSlide(const struct bContext *C, TransInfo *t)
 			gpuEnd();
 
 			UI_ThemeColorShadeAlpha(TH_SELECT, -30, alpha_shade);
-			gpuSpriteSize(ctrl_size);
-			gpuBeginSprites();
+			GPU_sprite_size(ctrl_size);
+			GPU_sprite_begin();
 			if (sld->flipped_vtx) {
-				if (curr_sv->v_b) gpuSprite3fv(curr_sv->v_b->co);
+				if (curr_sv->v_b) GPU_sprite_3fv(curr_sv->v_b->co);
 			}
 			else {
-				if (curr_sv->v_a) gpuSprite3fv(curr_sv->v_a->co);
+				if (curr_sv->v_a) GPU_sprite_3fv(curr_sv->v_a->co);
 			}
-			gpuEndSprites();
+			GPU_sprite_end();
 
 			UI_ThemeColorShadeAlpha(TH_SELECT, 255, alpha_shade);
-			gpuSpriteSize(guide_size);
-			gpuBeginSprites();
-			gpuSprite3fv(marker);
-			gpuEndSprites();
+			GPU_sprite_size(guide_size);
+			GPU_sprite_begin();
+			GPU_sprite_3fv(marker);
+			GPU_sprite_end();
 
 
 			gpuPopMatrix();
@@ -6608,7 +6611,7 @@ static void drawVertSlide(const struct bContext *C, TransInfo *t)
 
 			gpuPushMatrix();
 
-			gpuMultMatrix(t->obedit->obmat);
+			gpuMultMatrix(t->obedit->obmat[0]);
 
 			gpuImmediateFormat_V3();
 
@@ -6638,13 +6641,13 @@ static void drawVertSlide(const struct bContext *C, TransInfo *t)
 			}
 			gpuEnd();
 
-			gpuSpriteSize(ctrl_size);
+			GPU_sprite_size(ctrl_size);
 
-			gpuBeginSprites();
-			gpuSprite3fv((sld->flipped_vtx && sld->is_proportional == FALSE) ?
+			GPU_sprite_begin();
+			GPU_sprite_3fv((sld->flipped_vtx && sld->is_proportional == FALSE) ?
 			             curr_sv->co_link_orig_3d[curr_sv->co_link_curr] :
 			             curr_sv->co_orig_3d);
-			gpuEndSprites();
+			GPU_sprite_end();
 
 			gpuPopMatrix();
 

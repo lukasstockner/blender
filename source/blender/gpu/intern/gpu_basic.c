@@ -47,12 +47,13 @@
 
 /* my library */
 #include "GPU_extensions.h"
-#include "GPU_matrix.h"
 #include "GPU_safety.h"
+#include "GPU_state_latch.h"
 
 /* internal */
-#include "intern/gpu_common.h"
-#include "intern/gpu_state_latch.h"
+#include "intern/gpu_common_intern.h"
+#include "intern/gpu_lighting_intern.h"
+#include "intern/gpu_matrix_intern.h"
 
 /* external */
 
@@ -214,8 +215,8 @@ static void basic_shader_bind(void)
 		BLI_dynstr_free(defs);
 
 		if (BASIC_SHADER.gpushader[tweaked_options] != NULL) {
-			gpu_init_common(BASIC_SHADER.common + tweaked_options, BASIC_SHADER.gpushader[tweaked_options]);
-			gpu_set_common (BASIC_SHADER.common + tweaked_options);
+			gpu_common_get_symbols(BASIC_SHADER.common + tweaked_options, BASIC_SHADER.gpushader[tweaked_options]);
+			gpu_set_common(BASIC_SHADER.common + tweaked_options);
 
 			GPU_shader_bind(BASIC_SHADER.gpushader[tweaked_options]);
 		}
@@ -277,9 +278,11 @@ void gpu_basic_shader_bind(void)
 #endif
 
 	if (BASIC_SHADER.options & GPU_BASIC_LIGHTING) {
-		gpu_commit_light();
+		gpu_commit_lighting();
 		gpu_commit_material();
 	}
+
+	gpu_commit_matrix();
 }
 
 

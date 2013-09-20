@@ -1537,7 +1537,7 @@ int BKE_pbvh_node_raycast(PBVH *bvh, PBVHNode *node, float (*origco)[3], int use
 }
 
 #if 0
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 #endif
 
 typedef struct {

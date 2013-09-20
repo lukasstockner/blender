@@ -30,18 +30,26 @@
  */
 
 /* my interface */
+#define GPU_FUNC_INTERN
 #include "intern/gpu_extensions_intern.h"
-
-/* my library */
-#include "GPU_draw.h"
-#include "GPU_basic_shader.h"
-#include "GPU_compatibility.h"
-#include "GPU_font_shader.h"
 
 /* internal */
 #include "intern/gpu_codegen.h"
-#include "intern/gpu_pixels.h"
-#include "intern/gpu_raster.h"
+
+/* my library */
+#include "GPU_basic.h"
+#include "GPU_draw.h"
+#include "GPU_font.h"
+#include "GPU_pixels.h"
+#include "GPU_raster.h"
+#include "GPU_profile.h"
+#include "GPU_safety.h"
+#include "GPU_state_latch.h"
+#include "GPU_matrix.h"
+#include "GPU_aspect.h"
+#include "GPU_blender_aspect.h"
+#include "GPU_immediate.h"
+#include "GPU_utility.h"
 
 /* external */
 #include "BLI_blenlib.h"
@@ -459,7 +467,7 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 	}
 
 	tex->number = 0;
-	glBindTexture(tex->target, tex->bindcode);
+	gpuBindTexture(tex->target, tex->bindcode);
 
 	if (depth) {
 		type           = GL_UNSIGNED_BYTE;
@@ -594,9 +602,9 @@ GPUTexture *GPU_texture_create_3D(int w, int h, int depth, int channels, float *
 	}
 
 	tex->number = 0;
-	glBindTexture(tex->target, tex->bindcode);
+	gpuBindTexture(tex->target, tex->bindcode);
 
-	GPU_print_error("3D glBindTexture");
+	GPU_print_error("3D gpuBindTexture");
 
 	type = GL_FLOAT;
 	if (channels == 4) {
@@ -833,7 +841,7 @@ void GPU_texture_bind(GPUTexture *tex, int number)
 
 	arbnumber = (GLenum)((GLuint)GL_TEXTURE0 + number);
 	if (number != 0) glActiveTexture(arbnumber);
-	glBindTexture(tex->target, tex->bindcode);
+	gpuBindTexture(tex->target, tex->bindcode);
 	glEnable(tex->target);
 	if (number != 0) glActiveTexture(GL_TEXTURE0);
 
@@ -858,7 +866,7 @@ void GPU_texture_unbind(GPUTexture *tex)
 
 	arbnumber = (GLenum)((GLuint)GL_TEXTURE0 + tex->number);
 	if (tex->number != 0) glActiveTexture(arbnumber);
-	glBindTexture(tex->target, 0);
+	gpuBindTexture(tex->target, 0);
 	glDisable(tex->target);
 	if (tex->number != 0) glActiveTexture(GL_TEXTURE0);
 
@@ -1654,7 +1662,7 @@ void GPU_shader_uniform_texture(GPUShader *UNUSED(shader), int location, GPUText
 
 	if (tex->number != 0) 
 		glActiveTexture(arbnumber);
-	glBindTexture(tex->target, tex->bindcode);
+	gpuBindTexture(tex->target, tex->bindcode);
 	gpu_glUniform1i(location, tex->number);
 	glEnable(tex->target);
 	if (tex->number != 0) 
@@ -1756,7 +1764,7 @@ void GPU_pixelbuffer_texture(GPUTexture *tex, GPUPixelBuffer *pb)
 	void *pixels;
 	int i;
 
-	glBindTexture(GL_TEXTURE_RECTANGLE_EXT, tex->bindcode);
+	gpuBindTexture(GL_TEXTURE_RECTANGLE_EXT, tex->bindcode);
 
 	for (i = 0; i < pb->numbuffers; i++) {
 		glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_EXT, pb->bindcode[pb->current]);
@@ -1772,7 +1780,7 @@ void GPU_pixelbuffer_texture(GPUTexture *tex, GPUPixelBuffer *pb)
 		}
 	}
 
-	glBindTexture(GL_TEXTURE_RECTANGLE_EXT, 0);
+	gpuBindTexture(GL_TEXTURE_RECTANGLE_EXT, 0);
 }
 
 static int pixelbuffer_map_into_gpu(GLuint bindcode)
@@ -1795,14 +1803,14 @@ static int pixelbuffer_map_into_gpu(GLuint bindcode)
 static void pixelbuffer_copy_to_texture(GPUTexture *tex, GPUPixelBuffer *pb, GLuint bindcode)
 {
 	GLenum type = (pb->halffloat)? GL_HALF_FLOAT_NV: GL_UNSIGNED_BYTE;
-	glBindTexture(GL_TEXTURE_RECTANGLE_EXT, tex->bindcode);
+	gpuBindTexture(GL_TEXTURE_RECTANGLE_EXT, tex->bindcode);
 	glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_EXT, bindcode);
 
 	glTexSubImage2D(GL_TEXTURE_RECTANGLE_EXT, 0, 0, 0, tex->w, tex->h,
 					GL_RGBA, type, NULL);
 
 	glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_EXT, 0);
-	glBindTexture(GL_TEXTURE_RECTANGLE_EXT, 0);
+	gpuBindTexture(GL_TEXTURE_RECTANGLE_EXT, 0);
 }
 
 void GPU_pixelbuffer_async_to_gpu(GPUTexture *tex, GPUPixelBuffer *pb)
@@ -2196,7 +2204,7 @@ static void gpu_buffer_finish_update_map(GLenum target, GLsizeiptr UNUSED(dataSi
 
 static void shim_init(void)
 {
-	if (!GG.disableext) {
+	if (!GG.extdisabled) {
 		GG.glslsupport = true;
 		
 		if (!init_shader_objects())

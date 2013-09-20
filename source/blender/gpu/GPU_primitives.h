@@ -34,7 +34,7 @@
 
 
 
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 
 
 

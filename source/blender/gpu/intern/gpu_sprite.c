@@ -34,7 +34,12 @@
 
 /* my library */
 #include "GPU_aspect.h"
+#include "GPU_blender_aspect.h"
+#include "GPU_immediate.h"
 #include "GPU_safety.h"
+
+/* internal */
+#include "intern/gpu_matrix_intern.h"
 
 
 
@@ -112,6 +117,8 @@ void gpu_sprite_bind(void)
 		
 	GPU_CHECK_NO_ERROR();
 #endif
+
+	gpu_commit_matrix();
 }
 
 
@@ -187,7 +194,7 @@ void GPU_sprite_begin(void)
 void GPU_sprite_3fv(const float vec[3])
 {
 	GPU_ASSERT(SPRITE_BEGUN);
-	
+
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (pointhack) {
 		GPU_CHECK_NO_ERROR();
@@ -208,8 +215,6 @@ void GPU_sprite_3fv(const float vec[3])
 	{
 		gpuVertex3fv(vec);
 	}
-	
-	sprint_begun = false;
 }
 
 

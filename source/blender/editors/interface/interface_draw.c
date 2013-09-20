@@ -58,9 +58,15 @@
 #include "IMB_imbuf_types.h"
 #include "IMB_colormanagement.h"
 
-#include "GPU_basic_shader.h"
+#include "GPU_basic.h"
+#include "GPU_blender_aspect.h"
 #include "GPU_colors.h"
+#include "GPU_lighting.h"
+#include "GPU_matrix.h"
+#include "GPU_pixels.h"
 #include "GPU_primitives.h"
+#include "GPU_raster.h"
+#include "GPU_sprite.h"
 
 /* standard */
 #include <math.h>
@@ -438,8 +444,8 @@ void ui_draw_but_IMAGE(ARegion *UNUSED(ar), uiBut *but, uiWidgetColors *UNUSED(w
 	//gpuSingleWireRectf(rect->xmin, rect->ymin, rect->xmax, rect->ymax)
 
 	/* prevent drawing outside widget area */
-	gpuGetSizeBox(GL_SCISSOR_BOX, scissor);
-	gpuScissor(ar->winrct.xmin + rect->xmin, ar->winrct.ymin + rect->ymin, w, h);
+	glGetIntegerv(GL_SCISSOR_BOX, scissor);
+	glScissor(ar->winrct.xmin + rect->xmin, ar->winrct.ymin + rect->ymin, w, h);
 #endif
 	
 	glEnable(GL_BLEND);
@@ -450,20 +456,20 @@ void ui_draw_but_IMAGE(ARegion *UNUSED(ar), uiBut *but, uiWidgetColors *UNUSED(w
 	if (do_zoom) {
 		float facx = (float)w / (float)ibuf->x;
 		float facy = (float)h / (float)ibuf->y;
-		gpuPixelZoom(facx, facy);
+		GPU_pixels_zoom(facx, facy);
 	}
 
 	glaDrawPixelsAuto((float)rect->xmin, (float)rect->ymin, ibuf->x, ibuf->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST, ibuf->rect);
 	
 	if (do_zoom) {
-		gpuPixelZoom(1.0f, 1.0f); /* restore default value */
+		GPU_pixels_zoom(1.0f, 1.0f); /* restore default value */
 	}
 	
 	glDisable(GL_BLEND);
 	
 #if 0
 	// restore scissortest
-	gpuScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
+	glScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
 #endif
 	
 #endif
@@ -474,7 +480,7 @@ static void draw_scope_end(const rctf *rect, GLint *scissor)
 	float scaler_x1, scaler_x2;
 
 	/* restore scissortest */
-	gpuScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
+	glScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
 
 	/* scale widget */
 	scaler_x1 = rect->xmin + BLI_rctf_size_x(rect) / 2 - SCOPE_RESIZE_PAD;
@@ -598,8 +604,8 @@ void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol)
 	uiDrawBox(GL_TRIANGLE_FAN, rect.xmin - 1, rect.ymin - 1, rect.xmax + 1, rect.ymax + 1, 3.0f);
 
 	/* need scissor test, histogram can draw outside of boundary */
-	gpuGetSizeBox(GL_VIEWPORT, scissor);
-	gpuScissor(ar->winrct.xmin + (rect.xmin - 1),
+	glGetIntegerv(GL_VIEWPORT, scissor);
+	glScissor(ar->winrct.xmin + (rect.xmin - 1),
 	          ar->winrct.ymin + (rect.ymin - 1),
 	          (rect.xmax + 1) - (rect.xmin - 1),
 	          (rect.ymax + 1) - (rect.ymin - 1));
@@ -689,8 +695,8 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 	
 
 	/* need scissor test, waveform can draw outside of boundary */
-	gpuGetSizeBox(GL_VIEWPORT, scissor);
-	gpuScissor(ar->winrct.xmin + (rect.xmin - 1),
+	glGetIntegerv(GL_VIEWPORT, scissor);
+	glScissor(ar->winrct.xmin + (rect.xmin - 1),
 	          ar->winrct.ymin + (rect.ymin - 1),
 	          (rect.xmax + 1) - (rect.xmin - 1),
 	          (rect.ymax + 1) - (rect.ymin - 1));
@@ -928,8 +934,8 @@ void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wco
 	uiDrawBox(GL_TRIANGLE_FAN, rect.xmin - 1, rect.ymin - 1, rect.xmax + 1, rect.ymax + 1, 3.0f);
 
 	/* need scissor test, hvectorscope can draw outside of boundary */
-	gpuGetSizeBox(GL_VIEWPORT, scissor);
-	gpuScissor(ar->winrct.xmin + (rect.xmin - 1),
+	glGetIntegerv(GL_VIEWPORT, scissor);
+	glScissor(ar->winrct.xmin + (rect.xmin - 1),
 	          ar->winrct.ymin + (rect.ymin - 1),
 	          (rect.xmax + 1) - (rect.xmin - 1),
 	          (rect.ymax + 1) - (rect.ymin - 1));
@@ -1146,11 +1152,11 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 
 void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 {
-	static GPUimmediate *displist = NULL;
-	static GPUindex *index = NULL;
+	static struct GPUimmediate *displist = NULL;
+	static struct GPUindex *index = NULL;
 
-	GPUbasiclight light;
-	GPUbasiclight backup_lights[GPU_MAX_COMMON_LIGHTS];
+	struct GPUbasiclight light;
+	struct GPUbasiclight backup_lights[GPU_MAX_COMMON_LIGHTS];
 	int backup_count;
 
 	static const float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -1308,13 +1314,13 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 	cuma = &cumap->cm[cumap->cur];
 
 	/* need scissor test, curve can draw outside of boundary */
-	gpuGetSizeBox(GL_VIEWPORT, scissor);
+	glGetIntegerv(GL_VIEWPORT, scissor);
 	scissor_new.xmin = ar->winrct.xmin + rect->xmin;
 	scissor_new.ymin = ar->winrct.ymin + rect->ymin;
 	scissor_new.xmax = ar->winrct.xmin + rect->xmax;
 	scissor_new.ymax = ar->winrct.ymin + rect->ymax;
 	BLI_rcti_isect(&scissor_new, &ar->winrct, &scissor_new);
-	gpuScissor(scissor_new.xmin,
+	glScissor(scissor_new.xmin,
 	          scissor_new.ymin,
 	          BLI_rcti_size_x(&scissor_new),
 	          BLI_rcti_size_y(&scissor_new));
@@ -1472,8 +1478,8 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 
 	/* the points, use aspect to make them visible on edges */
 	cmp = cuma->curve;
-	gpuSpriteSize(3.0f);
-	gpuBeginSprites();
+	GPU_sprite_size(3.0f);
+	GPU_sprite_begin();
 	for (a = 0; a < cuma->totpoint; a++) {
 		if (cmp[a].flag & CUMA_SELECT)
 			UI_ThemeColor(TH_TEXT_HI);
@@ -1481,13 +1487,13 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 			UI_ThemeColor(TH_TEXT);
 		fac[0] = rect->xmin + zoomx * (cmp[a].x - offsx);
 		fac[1] = rect->ymin + zoomy * (cmp[a].y - offsy);
-		gpuSprite2fv(fac);
+		GPU_sprite_2fv(fac);
 	}
-	gpuEndSprites();
-	gpuSpriteSize(1.0f);
+	GPU_sprite_end();
+	GPU_sprite_size(1.0f);
 	
 	/* restore scissortest */
-	gpuScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
+	glScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
 
 	/* outline */
 	gpuColor3ubv((unsigned char *)wcol->outline);
@@ -1512,8 +1518,8 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 	glEnable(GL_BLEND);
 
 	/* need scissor test, preview image can draw outside of boundary */
-	gpuGetSizeBox(GL_VIEWPORT, scissor);
-	gpuScissor(ar->winrct.xmin + (rect.xmin - 1),
+	glGetIntegerv(GL_VIEWPORT, scissor);
+	glScissor(ar->winrct.xmin + (rect.xmin - 1),
 	          ar->winrct.ymin + (rect.ymin - 1),
 	          (rect.xmax + 1) - (rect.xmin - 1),
 	          (rect.ymax + 1) - (rect.ymin - 1));
@@ -1561,7 +1567,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 		track_pos[1] = scopes->track_pos[1];
 
 		/* draw content of pattern area */
-		gpuScissor(ar->winrct.xmin + rect.xmin, ar->winrct.ymin + rect.ymin, scissor[2], scissor[3]);
+		glScissor(ar->winrct.xmin + rect.xmin, ar->winrct.ymin + rect.ymin, scissor[2], scissor[3]);
 
 		if (width > 0 && height > 0) {
 			drawibuf = scopes->track_preview;
@@ -1577,7 +1583,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 
 			/* draw cross for pizel position */
 			gpuTranslate(rect.xmin + track_pos[0], rect.ymin + track_pos[1], 0.f);
-			gpuScissor(ar->winrct.xmin + rect.xmin,
+			glScissor(ar->winrct.xmin + rect.xmin,
 			          ar->winrct.ymin + rect.ymin,
 			          BLI_rctf_size_x(&rect),
 			          BLI_rctf_size_y(&rect));
@@ -1659,7 +1665,7 @@ void ui_draw_but_NODESOCKET(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol
 	scissor_new.xmax = ar->winrct.xmin + recti->xmax;
 	scissor_new.ymax = ar->winrct.ymin + recti->ymax;
 	BLI_rcti_isect(&scissor_new, &ar->winrct, &scissor_new);
-	gpuScissor(scissor_new.xmin,
+	glScissor(scissor_new.xmin,
 	          scissor_new.ymin,
 	          BLI_rcti_size_x(&scissor_new),
 	          BLI_rcti_size_y(&scissor_new));
@@ -1696,7 +1702,7 @@ void ui_draw_but_NODESOCKET(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol
 	gpuLineWidth(1.0f);
 	
 	/* restore scissortest */
-	gpuScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
+	glScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
 
 	gpuImmediateUnformat();
 }

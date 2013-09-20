@@ -50,7 +50,9 @@
 #include "blf_internal_types.h"
 #include "blf_internal.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_blender_aspect.h"
+#include "GPU_immediate.h"
+#include "GPU_matrix.h"
 
 /* Max number of font in memory.
  * Take care that now every font have a glyph cache per size/dpi,

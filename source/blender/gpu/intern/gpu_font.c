@@ -34,9 +34,12 @@
 
 /* my library */
 #include "GPU_blender_aspect.h"
-#include "GPU_common.h"
 #include "GPU_extensions.h"
 #include "GPU_safety.h"
+
+/* internal */
+#include "intern/gpu_common_intern.h"
+#include "intern/gpu_matrix_intern.h"
 
 /* external */
 
@@ -47,9 +50,9 @@
 
 
 
-static GPUShader*  FONT_SHADER = NULL;
-static GPUcommon   FONT_COMMON = {0};
-static bool        FONT_FAILED = false;
+static struct GPUShader*  FONT_SHADER = NULL;
+static struct GPUcommon   FONT_COMMON = {0};
+static bool               FONT_FAILED = false;
 
 #if GPU_SAFETY
 static bool FONT_BEGUN = false;
@@ -120,7 +123,7 @@ static void gpu_font_shader(void)
 		BLI_dynstr_free(defs);
 
 		if (FONT_SHADER != NULL) {
-			gpu_init_common(&FONT_COMMON, FONT_SHADER);
+			gpu_common_get_symbols(&FONT_COMMON, FONT_SHADER);
 			gpu_set_common(&FONT_COMMON);
 
 			GPU_shader_bind(FONT_SHADER);
@@ -154,6 +157,8 @@ void gpu_font_bind(void)
 	if (!glsl_support)
 		GPU_CHECK(glEnable(GL_TEXTURE_2D));
 #endif
+
+	gpu_commit_matrix();
 }
 
 

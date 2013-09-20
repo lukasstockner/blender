@@ -48,8 +48,10 @@
 #include "BKE_context.h"
 #include "BKE_global.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_matrix.h"
 #include "GPU_extensions.h"
+#include "GPU_immediate.h"
+#include "GPU_state_latch.h"
 
 #include "WM_api.h"
 #include "wm_subwindow.h"
@@ -270,14 +272,14 @@ void wmSubWindowScissorSet(wmWindow *win, int swinid, rcti *srct)
 		(float)height - GLA_PIXEL_OFS);
 
 	if (srct) {
-		gpuScissor(
+		glScissor(
 			srct->xmin,
 			srct->ymin,
 			BLI_rcti_size_x(srct) + 1,
 			BLI_rcti_size_y(srct) + 1);
 	}
 	else {
-		gpuScissor(
+		glScissor(
 			x,
 			y,
 			width,

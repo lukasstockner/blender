@@ -54,8 +54,12 @@
 #include "BKE_curve.h"
 #include "BKE_fcurve.h"
 
+#include "GPU_blender_aspect.h"
 #include "GPU_colors.h"
+#include "GPU_matrix.h"
 #include "GPU_primitives.h"
+#include "GPU_raster.h"
+#include "GPU_sprite.h"
 
 #include "BIF_glutil.h"
 
@@ -110,7 +114,7 @@ static void draw_fcurve_modifier_controls_envelope(FModifier *fcm, View2D *v2d)
 	GPU_raster_end();
 
 	/* set size of vertices (non-adjustable for now) */
-	gpuSpriteSize(2.0f);
+	GPU_sprite_size(2.0f);
 
 	/* for now, point color is fixed, and is white */
 	gpuColor3P(CPACK_WHITE);
@@ -118,19 +122,19 @@ static void draw_fcurve_modifier_controls_envelope(FModifier *fcm, View2D *v2d)
 	/* we use bgl points not standard gl points, to workaround vertex 
 	 * drawing bugs that some drivers have (probably legacy ones only though)
 	 */
-	gpuBeginSprites();
+	GPU_sprite_begin();
 	for (i = 0, fed = env->data; i < env->totvert; i++, fed++) {
 		/* only draw if visible
 		 *	- min/max here are fixed, not relative
 		 */
 		if (IN_RANGE(fed->time, (v2d->cur.xmin - fac), (v2d->cur.xmax + fac))) {
-			gpuSprite2f(fed->time, fed->min);
-			gpuSprite2f(fed->time, fed->max);
+			GPU_sprite_2f(fed->time, fed->min);
+			GPU_sprite_2f(fed->time, fed->max);
 		}
 	}
-	gpuEndSprites();
+	GPU_sprite_end();
 	
-	gpuSpriteSize(1.0f);
+	GPU_sprite_size(1.0f);
 }
 
 /* *************************** */
@@ -148,7 +152,7 @@ static void draw_fcurve_vertices_keyframes(FCurve *fcu, SpaceIpo *UNUSED(sipo), 
 	/* we use bgl points not standard gl points, to workaround vertex 
 	 * drawing bugs that some drivers have (probably legacy ones only though)
 	 */
-	gpuBeginSprites();
+	GPU_sprite_begin();
 	
 	for (i = 0; i < fcu->totvert; i++, bezt++) {
 		/* as an optimization step, only draw those in view 
@@ -161,17 +165,17 @@ static void draw_fcurve_vertices_keyframes(FCurve *fcu, SpaceIpo *UNUSED(sipo), 
 				 *	- 
 				 */
 				if ((bezt->f2 & SELECT) == sel)
-					gpuSprite3fv(bezt->vec[1]);
+					GPU_sprite_3fv(bezt->vec[1]);
 			}
 			else {
 				/* no check for selection here, as curve is not editable... */
 				/* XXX perhaps we don't want to even draw points?   maybe add an option for that later */
-				gpuSprite3fv(bezt->vec[1]);
+				GPU_sprite_3fv(bezt->vec[1]);
 			}
 		}
 	}
 	
-	gpuEndSprites();
+	GPU_sprite_end();
 }
 
 
@@ -278,7 +282,7 @@ static void draw_fcurve_vertices(SpaceIpo *sipo, ARegion *ar, FCurve *fcu, short
 	 *	- draw handles before keyframes, so that keyframes will overlap handles (keyframes are more important for users)
 	 */
 	
-	gpuSpriteSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
+	GPU_sprite_size(UI_GetThemeValuef(TH_VERTEX_SIZE));
 	
 	/* draw the two handles first (if they're shown, the curve doesn't have just a single keyframe, and the curve is being edited) */
 	if (do_handles) {
@@ -296,7 +300,7 @@ static void draw_fcurve_vertices(SpaceIpo *sipo, ARegion *ar, FCurve *fcu, short
 	set_fcurve_vertex_color(fcu, 1);
 	draw_fcurve_vertices_keyframes(fcu, sipo, v2d, !(fcu->flag & FCURVE_PROTECTED), 1);
 	
-	gpuSpriteSize(1.0f);
+	GPU_sprite_size(1.0f);
 }
 
 /* Handles ---------------- */
@@ -861,7 +865,7 @@ static void graph_draw_driver_debug(bAnimContext *ac, ID *id, FCurve *fcu)
 			/* x marks the spot .................................................... */
 			/* -> outer frame */
 			gpuColor3f(0.9f, 0.9f, 0.9f);
-			gpuSpriteSize(7.0);
+			GPU_sprite_size(7.0);
 			
 			gpuBegin(GL_POINTS);
 				gpuVertex2f(x, y);
@@ -869,13 +873,13 @@ static void graph_draw_driver_debug(bAnimContext *ac, ID *id, FCurve *fcu)
 			
 			/* inner frame */
 			gpuColor3f(0.9f, 0.0f, 0.0f);
-			gpuSpriteSize(3.0);
+			GPU_sprite_size(3.0);
 			
 			gpuBegin(GL_POINTS);
 				gpuVertex2f(x, y);
 			gpuEnd();
 			
-			gpuSpriteSize(1.0f);
+			GPU_sprite_size(1.0f);
 		}
 	}
 

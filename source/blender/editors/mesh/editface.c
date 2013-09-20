@@ -48,7 +48,7 @@
 #include "BKE_context.h"
 #include "BKE_editmesh.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 
 #include "ED_mesh.h"
 #include "ED_screen.h"

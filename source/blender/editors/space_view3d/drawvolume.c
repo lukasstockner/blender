@@ -67,10 +67,10 @@
 
 #include "smoke_API.h"
 
-
-#include "GPU_compatibility.h"
 #include "GPU_colors.h"
 #include "GPU_extensions.h"
+#include "GPU_immediate.h"
+#include "GPU_state_latch.h"
 
 #include "ED_mesh.h"
 
@@ -572,7 +572,7 @@ void draw_smoke_velocity(SmokeDomainSettings *domain, Object *ob)
 					float col_g = 1.0f - vel;
 					CLAMP(col_g, 0.0f, 1.0f);
 					glColor3f(1.0f, col_g, 0.0f);
-					gpuSpriteSize(10.0f * vel);
+					GPU_sprite_size(10.0f * vel);
 
 					glBegin(GL_LINES);
 					glVertex3f(pos[0], pos[1], pos[2]);
@@ -623,7 +623,7 @@ void draw_smoke_heat(SmokeDomainSettings *domain, Object *ob)
 					float col_gb = 1.0f - heat[index];
 					CLAMP(col_gb, 0.0f, 1.0f);
 					glColor3f(1.0f, col_gb, col_gb);
-					gpuSpriteSize(24.0f * heat[index]);
+					GPU_sprite_size(24.0f * heat[index]);
 
 					glBegin(GL_POINTS);
 					glVertex3f(pos[0], pos[1], pos[2]);

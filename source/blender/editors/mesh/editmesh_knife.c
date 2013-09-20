@@ -50,7 +50,11 @@
 #include "BKE_editmesh.h"
 #include "BKE_editmesh_bvh.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_blender_aspect.h"
+#include "GPU_immediate.h"
+#include "GPU_matrix.h"
+#include "GPU_raster.h"
+#include "GPU_sprite.h"
 
 #include "BIF_glutil.h" /* for paint cursor */
 
@@ -1025,7 +1029,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 	gpuImmediateFormat_V3();
 
 	gpuPushMatrix();
-	gpuMultMatrix(kcd->ob->obmat);
+	gpuMultMatrix(kcd->ob->obmat[0]);
 
 	if (kcd->mode == MODE_DRAGGING) {
 		if (kcd->angle_snapping != ANGLE_FREE)
@@ -1056,7 +1060,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 	}
 	else if (kcd->curr.vert) {
 		gpuColor3ubv(kcd->colors.point);
-		gpuSpriteSize(11);
+		GPU_sprite_size(11);
 
 		gpuBegin(GL_POINTS);
 		gpuVertex3fv(kcd->curr.cage);
@@ -1065,7 +1069,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 
 	if (kcd->curr.bmface) {
 		gpuColor3ubv(kcd->colors.curpoint);
-		gpuSpriteSize(9);
+		GPU_sprite_size(9);
 
 		gpuBegin(GL_POINTS);
 		gpuVertex3fv(kcd->curr.cage);
@@ -1083,7 +1087,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 
 		/* draw any snapped verts first */
 		gpuColor4ubv(kcd->colors.point_a);
-		gpuSpriteSize(11);
+		GPU_sprite_size(11);
 		gpuBegin(GL_POINTS);
 		lh = kcd->linehits;
 		for (i = 0; i < kcd->totlinehit; i++, lh++) {
@@ -1108,7 +1112,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 
 		/* now draw the rest */
 		gpuColor4ubv(kcd->colors.curpoint_a);
-		gpuSpriteSize(7);
+		GPU_sprite_size(7);
 		gpuBegin(GL_POINTS);
 		lh = kcd->linehits;
 		for (i = 0; i < kcd->totlinehit; i++, lh++) {
@@ -1144,7 +1148,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		BLI_mempool_iter iter;
 		KnifeVert *kfv;
 
-		gpuSpriteSize(5.0);
+		GPU_sprite_size(5.0);
 
 		gpuBegin(GL_POINTS);
 		BLI_mempool_iternew(kcd->kverts, &iter);

@@ -58,7 +58,8 @@
 #include "BKE_idprop.h"
 
 #include "GPU_colors.h"
-#include "GPU_compatibility.h"
+#include "GPU_immediate.h"
+#include "GPU_matrix.h"
 
 #include "BLF_api.h"
 #include "BLF_translation.h"

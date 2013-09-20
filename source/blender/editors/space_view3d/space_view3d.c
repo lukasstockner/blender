@@ -52,9 +52,10 @@
 #include "ED_screen.h"
 #include "ED_object.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"
+#include "GPU_matrix.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -67,7 +68,7 @@
 
 #include "view3d_intern.h"  /* own include */
 
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 
 /* ******************** manage regions ********************* */
 
@@ -241,7 +242,7 @@ void ED_view3d_init_mats_rv3d_gl(struct Object *ob, struct RegionView3D *rv3d)
 	/* we have to multiply instead of loading viewmatob to make
 	 * it work with duplis using displists, otherwise it will
 	 * override the dupli-matrix */
-	gpuMultMatrix(ob->obmat);
+	gpuMultMatrix(ob->obmat[0]);
 }
 
 #ifdef DEBUG

@@ -76,9 +76,10 @@
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 #include "GPU_colors.h"
 #include "GPU_extensions.h"
+#include "GPU_immediate.h"
 
 #include "BIF_glutil.h"
 

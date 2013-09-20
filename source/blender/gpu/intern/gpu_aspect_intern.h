@@ -41,8 +41,6 @@ extern "C" {
 void gpu_aspect_init(void);
 void gpu_aspect_exit(void);
 
-void gpu_commit_aspect(void);
-
 #ifdef __cplusplus
 }
 #endif

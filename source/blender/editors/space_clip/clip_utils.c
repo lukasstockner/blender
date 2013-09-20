@@ -44,7 +44,9 @@
 #include "BKE_depsgraph.h"
 
 #include "GPU_colors.h"
+#include "GPU_matrix.h"
 #include "GPU_primitives.h"
+#include "GPU_raster.h"
 
 #include "BIF_glutil.h"
 

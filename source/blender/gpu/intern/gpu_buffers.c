@@ -29,21 +29,26 @@
  *  \ingroup gpu
  */
 
-
+/* my interface */
 #include "GPU_buffers.h"
 
-#include "GPU_basic_shader.h"
-#include "GPU_compatibility.h"
+/* my library */
+#include "GPU_basic.h"
+#include "GPU_blender_aspect.h"
+#include "GPU_common.h"
 #include "GPU_draw.h"
+#include "GPU_glew.h"
+#include "GPU_immediate.h"
 
-#include "intern/gpu_extension_wrapper.h"
+/* internal */
+#include "intern/gpu_extensions_intern.h"
+
+/* external */
 
 #include "BKE_ccg.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_paint.h"
 #include "BKE_subsurf.h"
-
-#include "DNA_userdef_types.h"
 
 #include "BLI_bitmap.h"
 #include "BLI_math.h"
@@ -55,9 +60,11 @@
 
 #include "DNA_meshdata_types.h"
 #include "DNA_material_types.h"
+#include "DNA_userdef_types.h"
 
 #include "MEM_guardedalloc.h"
 
+/* standard */
 #include <limits.h>
 #include <stddef.h>
 #include <string.h>
@@ -917,14 +924,14 @@ void GPU_vertex_setup(DerivedMesh *dm)
 	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_VERTEX))
 		return;
 
-	gpu_enable_vertex_array();
+	GPU_common_enable_vertex_array();
 
 	if (useVBOs) {
 		gpu_glBindBuffer(GL_ARRAY_BUFFER, dm->drawObject->points->id);
-		gpu_vertex_pointer(3, GL_FLOAT, 0, 0);
+		GPU_common_vertex_pointer(3, GL_FLOAT, 0, 0);
 	}
 	else {
-		gpu_vertex_pointer(3, GL_FLOAT, 0, dm->drawObject->points->pointer);
+		GPU_common_vertex_pointer(3, GL_FLOAT, 0, dm->drawObject->points->pointer);
 	}
 
 	GLStates |= GPU_BUFFER_VERTEX_STATE;
@@ -935,14 +942,14 @@ void GPU_normal_setup(DerivedMesh *dm)
 	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_NORMAL))
 		return;
 
-	gpu_enable_normal_array();
+	GPU_common_enable_normal_array();
 
 	if (useVBOs) {
 		gpu_glBindBuffer(GL_ARRAY_BUFFER, dm->drawObject->normals->id);
-		gpu_normal_pointer(GL_FLOAT, 0, GL_FALSE, 0);
+		GPU_common_normal_pointer(GL_FLOAT, 0, GL_FALSE, 0);
 	}
 	else {
-		gpu_normal_pointer(GL_FLOAT, 0, GL_FALSE, dm->drawObject->normals->pointer);
+		GPU_common_normal_pointer(GL_FLOAT, 0, GL_FALSE, dm->drawObject->normals->pointer);
 	}
 
 	GLStates |= GPU_BUFFER_NORMAL_STATE;
@@ -953,14 +960,14 @@ void GPU_uv_setup(DerivedMesh *dm)
 	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_UV))
 		return;
 
-	gpu_enable_texcoord_array();
+	GPU_common_enable_texcoord_array();
 
 	if (useVBOs) {
 		gpu_glBindBuffer(GL_ARRAY_BUFFER, dm->drawObject->uv->id);
-		gpu_texcoord_pointer(2, GL_FLOAT, 0, 0);
+		GPU_common_texcoord_pointer(2, GL_FLOAT, 0, 0);
 	}
 	else {
-		gpu_texcoord_pointer(2, GL_FLOAT, 0, dm->drawObject->uv->pointer);
+		GPU_common_texcoord_pointer(2, GL_FLOAT, 0, dm->drawObject->uv->pointer);
 	}
 
 	GLStates |= GPU_BUFFER_TEXCOORD_STATE;
@@ -991,14 +998,14 @@ void GPU_color_setup(DerivedMesh *dm, int colType)
 	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_COLOR))
 		return;
 
-	gpu_enable_color_array();
+	GPU_common_enable_color_array();
 
 	if (useVBOs) {
 		gpu_glBindBuffer(GL_ARRAY_BUFFER, dm->drawObject->colors->id);
-		gpu_color_pointer(3, GL_UNSIGNED_BYTE, 0, 0);
+		GPU_common_color_pointer(3, GL_UNSIGNED_BYTE, 0, 0);
 	}
 	else {
-		gpu_color_pointer(3, GL_UNSIGNED_BYTE, 0, dm->drawObject->colors->pointer);
+		GPU_common_color_pointer(3, GL_UNSIGNED_BYTE, 0, dm->drawObject->colors->pointer);
 	}
 
 	GLStates |= GPU_BUFFER_COLOR_STATE;
@@ -1012,14 +1019,14 @@ void GPU_edge_setup(DerivedMesh *dm)
 	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_VERTEX))
 		return;
 
-	gpu_enable_vertex_array();
+	GPU_common_enable_vertex_array();
 
 	if (useVBOs) {
 		gpu_glBindBuffer(GL_ARRAY_BUFFER, dm->drawObject->points->id);
-		gpu_vertex_pointer(3, GL_FLOAT, 0, 0);
+		GPU_common_vertex_pointer(3, GL_FLOAT, 0, 0);
 	}
 	else {
-		gpu_vertex_pointer(3, GL_FLOAT, 0, dm->drawObject->points->pointer);
+		GPU_common_vertex_pointer(3, GL_FLOAT, 0, dm->drawObject->points->pointer);
 	}
 
 	GLStates |= GPU_BUFFER_VERTEX_STATE;
@@ -1035,14 +1042,14 @@ void GPU_uvedge_setup(DerivedMesh *dm)
 	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_UVEDGE))
 		return;
 
-	gpu_enable_vertex_array();
+	GPU_common_enable_vertex_array();
 
 	if (useVBOs) {
 		gpu_glBindBuffer(GL_ARRAY_BUFFER, dm->drawObject->uvedges->id);
-		gpu_vertex_pointer(2, GL_FLOAT, 0, 0);
+		GPU_common_vertex_pointer(2, GL_FLOAT, 0, 0);
 	}
 	else {
-		gpu_vertex_pointer(2, GL_FLOAT, 0, dm->drawObject->uvedges->pointer);
+		GPU_common_vertex_pointer(2, GL_FLOAT, 0, dm->drawObject->uvedges->pointer);
 	}
 
 	GLStates |= GPU_BUFFER_VERTEX_STATE;
@@ -1124,16 +1131,16 @@ void GPU_buffer_unbind(void)
 	int i;
 
 	if (GLStates & GPU_BUFFER_VERTEX_STATE)
-		gpu_disable_vertex_array();
+		GPU_common_disable_vertex_array();
 
 	if (GLStates & GPU_BUFFER_NORMAL_STATE)
-		gpu_disable_normal_array();
+		GPU_common_disable_normal_array();
 
 	if (GLStates & GPU_BUFFER_TEXCOORD_STATE)
-		gpu_disable_texcoord_array();
+		GPU_common_disable_texcoord_array();
 
 	if (GLStates & GPU_BUFFER_COLOR_STATE)
-		gpu_disable_color_array();
+		GPU_common_disable_color_array();
 
 	if (useVBOs && (GLStates & GPU_BUFFER_ELEMENT_STATE))
 		gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -1159,13 +1166,13 @@ void GPU_color_switch(int mode)
 {
 	if (mode) {
 		if (!(GLStates & GPU_BUFFER_COLOR_STATE))
-			gpu_enable_color_array();
+			GPU_common_enable_color_array();
 
 		GLStates |= GPU_BUFFER_COLOR_STATE;
 	}
 	else {
 		if (GLStates & GPU_BUFFER_COLOR_STATE)
-			gpu_disable_color_array();
+			GPU_common_disable_color_array();
 
 		GLStates &= ~GPU_BUFFER_COLOR_STATE;
 	}
@@ -1237,8 +1244,7 @@ void GPU_buffer_unlock(GPUBuffer *buffer)
 /* used for drawing edges */
 void GPU_buffer_draw_elements(GPUBuffer *elements, unsigned int mode, int start, int count)
 {
-	gpu_commit_aspect();
-	gpu_commit_matrixes();
+	GPU_commit_aspect();
 
 	glDrawElements(mode, count, GL_UNSIGNED_INT,
 	               (useVBOs ?
@@ -1314,7 +1320,7 @@ static void gpu_colors_enable(VBO_State vbo_state)
 	//gpuEnableColorMaterial();
 
 	if (vbo_state == VBO_ENABLED)
-		gpu_enable_color_array();
+		GPU_common_enable_color_array();
 }
 
 static void gpu_colors_disable(VBO_State vbo_state)
@@ -1323,7 +1329,7 @@ static void gpu_colors_disable(VBO_State vbo_state)
 	//gpuDisableColorMaterial();
 
 	if (vbo_state == VBO_ENABLED)
-		gpu_disable_color_array();
+		GPU_common_disable_color_array();
 }
 
 static float gpu_color_from_mask(float mask)
@@ -2378,10 +2384,10 @@ void GPU_draw_buffers(
 		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 	if (buffers->vert_buf) {
-		gpu_enable_vertex_array();
+		GPU_common_enable_vertex_array();
 
 		if (!wireframe) {
-			gpu_enable_normal_array();
+			GPU_common_enable_normal_array();
 			gpu_colors_enable(VBO_ENABLED);
 		}
 
@@ -2390,16 +2396,15 @@ void GPU_draw_buffers(
 		if (buffers->index_buf)
 			gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers->index_buf);
 
-		gpu_commit_aspect();
-		gpu_commit_matrixes();
+		GPU_commit_aspect();
 
 		if (buffers->tot_quad) {
 			char *offset = 0;
 			int i, last = buffers->has_hidden ? 1 : buffers->totgrid;
 			for (i = 0; i < last; i++) {
-				gpu_vertex_pointer(3, GL_FLOAT, sizeof(VertexBufferFormat), offset + offsetof(VertexBufferFormat, co));
-				gpu_normal_pointer(GL_SHORT, sizeof(VertexBufferFormat), GL_TRUE, offset + offsetof(VertexBufferFormat, no));
-				gpu_color_pointer(3, GL_UNSIGNED_BYTE, sizeof(VertexBufferFormat), offset + offsetof(VertexBufferFormat, color));
+				GPU_common_vertex_pointer(3, GL_FLOAT, sizeof(VertexBufferFormat), offset + offsetof(VertexBufferFormat, co));
+				GPU_common_normal_pointer(GL_SHORT, sizeof(VertexBufferFormat), GL_TRUE, offset + offsetof(VertexBufferFormat, no));
+				GPU_common_color_pointer(3, GL_UNSIGNED_BYTE, sizeof(VertexBufferFormat), offset + offsetof(VertexBufferFormat, color));
 
 				glDrawElements(GL_QUADS, buffers->tot_quad * 4, buffers->index_type, 0);
 
@@ -2409,9 +2414,9 @@ void GPU_draw_buffers(
 		else {
 			int totelem = buffers->tot_tri * 3;
 
-			gpu_vertex_pointer(3, GL_FLOAT, sizeof(VertexBufferFormat), (void *)offsetof(VertexBufferFormat, co));
-			gpu_normal_pointer(GL_SHORT, sizeof(VertexBufferFormat), GL_TRUE, (void *)offsetof(VertexBufferFormat, no));
-			gpu_color_pointer(3, GL_UNSIGNED_BYTE, sizeof(VertexBufferFormat), (void *)offsetof(VertexBufferFormat, color));
+			GPU_common_vertex_pointer(3, GL_FLOAT, sizeof(VertexBufferFormat), (void *)offsetof(VertexBufferFormat, co));
+			GPU_common_normal_pointer(GL_SHORT, sizeof(VertexBufferFormat), GL_TRUE, (void *)offsetof(VertexBufferFormat, no));
+			GPU_common_color_pointer(3, GL_UNSIGNED_BYTE, sizeof(VertexBufferFormat), (void *)offsetof(VertexBufferFormat, color));
 
 			if (buffers->index_buf)
 				glDrawElements(GL_TRIANGLES, totelem, buffers->index_type, 0);
@@ -2423,10 +2428,10 @@ void GPU_draw_buffers(
 		if (buffers->index_buf)
 			gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-		gpu_disable_vertex_array();
+		GPU_common_disable_vertex_array();
 
 		if (!wireframe) {
-			gpu_disable_normal_array();
+			GPU_common_disable_normal_array();
 			gpu_colors_disable(VBO_ENABLED);
 		}
 	}

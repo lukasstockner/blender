@@ -37,6 +37,9 @@
 #include "GPU_extensions.h"
 #include "GPU_safety.h"
 
+/* internal */
+#include "intern/gpu_common_intern.h"
+
 /* external */
 
 #include "BLI_math_matrix.h"
@@ -75,7 +78,7 @@ static GLint glstackmode;
 void GPU_matrix_forced_update(void)
 {
 	glslneedupdate = GL_TRUE;
-	gpu_commit_matrixes();
+	gpu_commit_matrix();
 	glslneedupdate = GL_TRUE;
 }
 
@@ -162,7 +165,7 @@ void gpu_matrix_exit(void)
 
 void gpu_commit_matrix(void)
 {
-	const GPUcommon* common = gpu_get_common();
+	const struct GPUcommon* common = gpu_get_common();
 
 	GPU_CHECK_NO_ERROR();
 
@@ -200,12 +203,12 @@ void gpu_commit_matrix(void)
 
 		for (i = 0; i < GPU_MAX_COMMON_TEXCOORDS; i++) {
 			if (common->texture_matrix[i] != -1) {
-				gpu_set_common_active_texture(i);
+				GPU_set_common_active_texture(i);
 				glUniformMatrix4fv(common->texture_matrix[i], 1, GL_FALSE, gpuGetMatrix(GL_TEXTURE_MATRIX, NULL));
 			}
 		}
 
-		gpu_set_common_active_texture(0);
+		GPU_set_common_active_texture(0);
 
 		GPU_CHECK_NO_ERROR();
 
@@ -471,12 +474,12 @@ void gpuLookAt(GLfloat eyeX, GLfloat eyeY, GLfloat eyeZ, GLfloat centerX, GLfloa
 
 
 
-void gpuProject(const GLfloat obj[3], const GLfloat model[4][4], const GLfloat proj[4][4], const GLint view[4], GLfloat win[3])
+void gpuProject(const GLfloat obj[3], const GLfloat model[16], const GLfloat proj[16], const GLint view[4], GLfloat win[3])
 {
 	float v[4];
 
-	mul_v4_m4v3(v, model, obj);
-	mul_m4_v4(proj, v);
+	mul_v4_m4v3(v, (float(*)[4])model, obj);
+	mul_m4_v4((float(*)[4])proj, v);
 
 	win[0]=view[0]+(view[2]*(v[0]+1))*0.5f;
 	win[1]=view[1]+(view[3]*(v[1]+1))*0.5f;
@@ -485,13 +488,13 @@ void gpuProject(const GLfloat obj[3], const GLfloat model[4][4], const GLfloat p
 
 
 
-GLboolean gpuUnProject(const GLfloat win[3], const GLfloat model[4][4], const GLfloat proj[4][4], const GLint view[4], GLfloat obj[3])
+GLboolean gpuUnProject(const GLfloat win[3], const GLfloat model[16], const GLfloat proj[16], const GLint view[4], GLfloat obj[3])
 {
 	GLfloat pm[4][4];
 	GLfloat in[4];
 	GLfloat out[4];
 
-	mul_m4_m4m4(pm, proj, model);
+	mul_m4_m4m4(pm, (float(*)[4])proj, (float(*)[4])model);
 
 	if (!invert_m4(pm)) {
 		return GL_FALSE;

@@ -80,7 +80,7 @@ void gpu_aspect_exit(void)
 
 
 
-void gpu_commit_aspect(void)
+void GPU_commit_aspect(void)
 {
 	GPUaspectimpl* aspectImpl = GPU_ASPECT_FUNCS[current_aspect];
 

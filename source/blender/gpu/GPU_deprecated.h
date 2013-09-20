@@ -28,7 +28,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file source/blender/gpu/intern/gpu_deprecated.h
+/** \file source/blender/gpu/GPU_deprecated.h
  *  \ingroup gpu
  */
 

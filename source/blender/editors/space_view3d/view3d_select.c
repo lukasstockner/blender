@@ -71,7 +71,7 @@
 #include "BKE_tracking.h"
 #include "BKE_utildefines.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_matrix.h"
 
 #include "BIF_glutil.h"
 
@@ -93,7 +93,7 @@
 #include "UI_interface.h"
 #include "UI_resources.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 
 #include "view3d_intern.h"  /* own include */
 
@@ -495,7 +495,7 @@ static void do_lasso_select_mesh(ViewContext *vc, const int mcords[][2], short m
 	/* for non zbuf projections, don't change the GL state */
 	ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d);
 
-	gpuLoadMatrix(vc->rv3d->viewmat);
+	gpuLoadMatrix(vc->rv3d->viewmat[0]);
 	bbsel = EDBM_backbuf_border_mask_init(vc, mcords, moves, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
 	
 	if (ts->selectmode & SCE_SELECT_VERTEX) {
@@ -1797,7 +1797,7 @@ static int do_mesh_box_select(ViewContext *vc, rcti *rect, bool select, bool ext
 	/* for non zbuf projections, don't change the GL state */
 	ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d);
 
-	gpuLoadMatrix(vc->rv3d->viewmat);
+	gpuLoadMatrix(vc->rv3d->viewmat[0]);
 	bbsel = EDBM_backbuf_border_init(vc, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 
 	if (ts->selectmode & SCE_SELECT_VERTEX) {

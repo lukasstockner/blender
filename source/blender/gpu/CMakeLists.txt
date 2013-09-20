@@ -45,17 +45,16 @@ set(INC_SYS
 )
 
 set(SRC
-    intern/gpu_aspect.c
-	intern/gpu_aspectimpl.c
+	intern/gpu_aspect.c
 	intern/gpu_basic.c
+	intern/gpu_blender_aspect.c
 	intern/gpu_buffers.c
 	intern/gpu_codegen.c
 	intern/gpu_common.c
 	intern/gpu_debug.c
 	intern/gpu_draw.c
 	intern/gpu_extensions.c
-	intern/gpu_extension_wrapper.c
-	intern/gpu_font_shader.c
+	intern/gpu_font.c
 	intern/gpu_immediate.c
 	intern/gpu_immediate_gl.c
 	intern/gpu_init_exit.c
@@ -68,47 +67,44 @@ set(SRC
 	intern/gpu_select.c
 	intern/gpu_sprite.c
 	intern/gpu_state_latch.c
-	intern/gpu_view.c
-	intern/gpu_view_gl.c
+	intern/gpu_utility.c
 
 	GPU_aspect.h
 	GPU_basic.h
+	GPU_blender_aspect.h
 	GPU_buffers.h
 	GPU_colors.h
-	GPU_commoh.h
-	GPU_compatibility.h
+	GPU_common.h
+	GPU_deprecated.h
 	GPU_draw.h
 	GPU_extensions.h
-	GPU_font_shader.h
+	GPU_font.h
+	GPU_glew.h
 	GPU_init_exit.h
+	GPU_immediate.h
+	GPU_lighting.h
 	GPU_material.h
 	GPU_matrix.h
 	GPU_primitives.h
-	GPU_utility.h
+	GPU_raster.h
 	GPU_safety.h
+    GPU_select.h
 	GPU_sprite.h
+	GPU_state_latch.h
+	GPU_utility.h
 
 	intern/gpu_aspect_intern.h
 	intern/gpu_basic_intern.h
-	intern/gpu_sprite_intern.h
-	
-	intern/gpu_aspectfuncs.h
+	intern/gpu_blender_aspect_intern.h
 	intern/gpu_codegen.h
-	intern/gpu_deprecated.h
-	intern/gpu_extension_wrapper.h
-	intern/gpu_glew.h
-	intern/gpu_immediate.h
-	intern/gpu_immediate_inline.h
-	intern/gpu_immediate_gl.h
-	intern/gpu_lighting.h
-	intern/gpu_pixels.h
+	intern/gpu_extensions_intern.h
+	intern/gpu_immediate_intern.h
+	intern/gpu_lighting_intern.h
+	intern/gpu_pixels_intern.h
 	intern/gpu_primitives_inline.h
 	intern/gpu_profile.h
-	intern/gpu_raster.h
-	intern/gpu_select.h
-	intern/gpu_state_latch.h
-	intern/gpu_view.h
-	intern/gpu_view_gl.h
+	intern/gpu_raster_intern.h
+	intern/gpu_sprite_intern.h
 )
 
 if(WITH_GPU_SAFETY)

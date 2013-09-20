@@ -33,7 +33,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
@@ -327,7 +327,8 @@ static void file_main_area_draw(const bContext *C, ARegion *ar)
 
 	/* clear and setup matrix */
 	UI_GetThemeColor3fv(TH_BACK, col);
-	gpuColorAndClearvf(col, 0.0);
+	glClearColor(col[0], col[1], col[2], 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
 	
 	/* Allow dynamically sliders to be set, saves notifiers etc. */
 	if (layout && (layout->flag == FILE_LAYOUT_VER)) {
@@ -543,7 +544,8 @@ static void file_ui_area_draw(const bContext *C, ARegion *ar)
 	float col[3];
 	/* clear */
 	UI_GetThemeColor3fv(TH_BACK, col);
-	gpuColorAndClearvf(col, 0.0);
+	glClearColor(col[0], col[1], col[2], 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
 
 	/* scrolling here is just annoying, disable it */
 	ar->v2d.cur.ymax = BLI_rctf_size_y(&ar->v2d.cur);

@@ -48,10 +48,15 @@
 #include "IMB_colormanagement.h"
 #include "IMB_imbuf_types.h"
 
-#include "GPU_basic_shader.h"
+#include "GPU_basic.h"
+#include "GPU_blender_aspect.h"
 #include "GPU_colors.h"
 #include "GPU_extensions.h"
+#include "GPU_matrix.h"
+#include "GPU_pixels.h"
 #include "GPU_primitives.h"
+#include "GPU_raster.h"
+#include "GPU_state_latch.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -59,89 +64,6 @@
 #include <stdio.h>
 #include <string.h>
 
-
-
-#ifndef GL_CLAMP_TO_EDGE
-#define GL_CLAMP_TO_EDGE                        0x812F
-#endif
-
-
-/* ******************************************** */
-
-const GLubyte stipple_halftone[128] = {
-	0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55, 
-	0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55, 
-	0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55,
-	0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55, 
-	0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55, 
-	0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55,
-	0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55, 
-	0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55, 
-	0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55,
-	0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55, 
-	0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55, 
-	0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55,
-	0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55, 
-	0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55, 
-	0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55,
-	0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55};
-
-
-/*  repeat this pattern
- *
- *     X000X000
- *     00000000
- *     00X000X0
- *     00000000 */
-
-
-const GLubyte stipple_quarttone[128] = {
-	136, 136, 136, 136, 0, 0, 0, 0, 34, 34, 34, 34, 0, 0, 0, 0,
-	136, 136, 136, 136, 0, 0, 0, 0, 34, 34, 34, 34, 0, 0, 0, 0,
-	136, 136, 136, 136, 0, 0, 0, 0, 34, 34, 34, 34, 0, 0, 0, 0,
-	136, 136, 136, 136, 0, 0, 0, 0, 34, 34, 34, 34, 0, 0, 0, 0,
-	136, 136, 136, 136, 0, 0, 0, 0, 34, 34, 34, 34, 0, 0, 0, 0,
-	136, 136, 136, 136, 0, 0, 0, 0, 34, 34, 34, 34, 0, 0, 0, 0,
-	136, 136, 136, 136, 0, 0, 0, 0, 34, 34, 34, 34, 0, 0, 0, 0,
-	136, 136, 136, 136, 0, 0, 0, 0, 34, 34, 34, 34, 0, 0, 0, 0};
-
-
-const GLubyte stipple_diag_stripes_pos[128] = {
-	0x00, 0xff, 0x00, 0xff, 0x01, 0xfe, 0x01, 0xfe,
-	0x03, 0xfc, 0x03, 0xfc, 0x07, 0xf8, 0x07, 0xf8,
-	0x0f, 0xf0, 0x0f, 0xf0, 0x1f, 0xe0, 0x1f, 0xe0,
-	0x3f, 0xc0, 0x3f, 0xc0, 0x7f, 0x80, 0x7f, 0x80,
-	0xff, 0x00, 0xff, 0x00, 0xfe, 0x01, 0xfe, 0x01,
-	0xfc, 0x03, 0xfc, 0x03, 0xf8, 0x07, 0xf8, 0x07,
-	0xf0, 0x0f, 0xf0, 0x0f, 0xe0, 0x1f, 0xe0, 0x1f,
-	0xc0, 0x3f, 0xc0, 0x3f, 0x80, 0x7f, 0x80, 0x7f,
-	0x00, 0xff, 0x00, 0xff, 0x01, 0xfe, 0x01, 0xfe,
-	0x03, 0xfc, 0x03, 0xfc, 0x07, 0xf8, 0x07, 0xf8,
-	0x0f, 0xf0, 0x0f, 0xf0, 0x1f, 0xe0, 0x1f, 0xe0,
-	0x3f, 0xc0, 0x3f, 0xc0, 0x7f, 0x80, 0x7f, 0x80,
-	0xff, 0x00, 0xff, 0x00, 0xfe, 0x01, 0xfe, 0x01,
-	0xfc, 0x03, 0xfc, 0x03, 0xf8, 0x07, 0xf8, 0x07,
-	0xf0, 0x0f, 0xf0, 0x0f, 0xe0, 0x1f, 0xe0, 0x1f,
-	0xc0, 0x3f, 0xc0, 0x3f, 0x80, 0x7f, 0x80, 0x7f};
-
-
-const GLubyte stipple_diag_stripes_neg[128] = {
-	0xff, 0x00, 0xff, 0x00, 0xfe, 0x01, 0xfe, 0x01,
-	0xfc, 0x03, 0xfc, 0x03, 0xf8, 0x07, 0xf8, 0x07,
-	0xf0, 0x0f, 0xf0, 0x0f, 0xe0, 0x1f, 0xe0, 0x1f,
-	0xc0, 0x3f, 0xc0, 0x3f, 0x80, 0x7f, 0x80, 0x7f,
-	0x00, 0xff, 0x00, 0xff, 0x01, 0xfe, 0x01, 0xfe,
-	0x03, 0xfc, 0x03, 0xfc, 0x07, 0xf8, 0x07, 0xf8,
-	0x0f, 0xf0, 0x0f, 0xf0, 0x1f, 0xe0, 0x1f, 0xe0,
-	0x3f, 0xc0, 0x3f, 0xc0, 0x7f, 0x80, 0x7f, 0x80,
-	0xff, 0x00, 0xff, 0x00, 0xfe, 0x01, 0xfe, 0x01,
-	0xfc, 0x03, 0xfc, 0x03, 0xf8, 0x07, 0xf8, 0x07,
-	0xf0, 0x0f, 0xf0, 0x0f, 0xe0, 0x1f, 0xe0, 0x1f,
-	0xc0, 0x3f, 0xc0, 0x3f, 0x80, 0x7f, 0x80, 0x7f,
-	0x00, 0xff, 0x00, 0xff, 0x01, 0xfe, 0x01, 0xfe,
-	0x03, 0xfc, 0x03, 0xfc, 0x07, 0xf8, 0x07, 0xf8,
-	0x0f, 0xf0, 0x0f, 0xf0, 0x1f, 0xe0, 0x1f, 0xe0,
-	0x3f, 0xc0, 0x3f, 0xc0, 0x7f, 0x80, 0x7f, 0x80};
 
 
 void fdrawcheckerboard(float x1, float y1, float x2, float y2)
@@ -361,7 +283,7 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 	int texid = get_cached_work_texture(&tex_w, &tex_h);
 	int components;
 
-	gpuGetPixelZoom(&xzoom, &yzoom);
+	GPU_get_pixels_zoom(&xzoom, &yzoom);
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	/* Specify the color outside this function, and tex will modulate it.
@@ -521,7 +443,7 @@ void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int fo
 	int scissor[4];
 	int draw_w, draw_h;
 
-	gpuGetPixelZoom(&xzoom, &yzoom);
+	GPU_get_pixels_zoom(&xzoom, &yzoom);
 
 	/* The pixel space coordinate of the intersection of
 	 * the [zoomed] image with the origin.
@@ -553,7 +475,7 @@ void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int fo
 	 * fails if we zoom in on one really huge pixel so that it
 	 * covers the entire screen).
 	 */
-	gpuGetSizeBox(GL_SCISSOR_BOX, scissor);
+	glGetIntegerv(GL_SCISSOR_BOX, scissor);
 	draw_w = min_ii(img_w - off_x, ceil((float)(scissor[2] - rast_x) / xzoom));
 	draw_h = min_ii(img_h - off_y, ceil((float)(scissor[3] - rast_y) / yzoom));
 
@@ -561,7 +483,7 @@ void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int fo
 		int index, components;
 		void* data;
 
-		gpuPixelFormat(GL_UNPACK_ROW_LENGTH, row_w);
+		GPU_pixels_format(GL_UNPACK_ROW_LENGTH, row_w);
 
 		components = ELEM(format, GL_LUMINANCE, GL_RED) ? 1 : 4; // Note: GL_RED is not defined in ES 2.0,
 		                                                         // but if it still somehow gets passed in here, it should work fine.
@@ -582,16 +504,16 @@ void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int fo
 
 			default:
 				GPU_ABORT();
-				gpuPixelFormat(GL_UNPACK_ROW_LENGTH, 0);
+				GPU_pixels_format(GL_UNPACK_ROW_LENGTH, 0);
 				return;
 		}
 
 		{
-			GPUpixels pixels = { draw_w, draw_h, format, type, data };
+			struct GPUpixels pixels = { draw_w, draw_h, format, type, data };
 
 			GPU_pixels_begin();
-			gpuPixelPos2f(rast_x, rast_y);
-			gpuPixels(&pixels);
+			GPU_pixels_pos_2f(rast_x, rast_y);
+			GPU_pixels(&pixels);
 			GPU_pixels_end();
 		}
 	}
@@ -617,7 +539,7 @@ void glaDefine2DArea(rcti *screen_rect)
 	const int sc_h = BLI_rcti_size_y(screen_rect) + 1;
 
 	gpuViewport(screen_rect->xmin, screen_rect->ymin, sc_w, sc_h);
-	gpuScissor(screen_rect->xmin, screen_rect->ymin, sc_w, sc_h);
+	glScissor(screen_rect->xmin, screen_rect->ymin, sc_w, sc_h);
 
 	/* The GLA_PIXEL_OFS magic number is to shift the matrix so that
 	 * both raster and vertex integer coordinates fall at pixel
@@ -685,7 +607,7 @@ gla2DDrawInfo *glaBegin2DDraw(rcti *screen_rect, rctf *world_rect)
 	int sc_w, sc_h;
 	float wo_w, wo_h;
 
-	gpuGetSizeBox(GL_VIEWPORT, (GLint *)di->orig_vp);
+	glGetIntegerv(GL_VIEWPORT, (GLint *)di->orig_vp);
 	gpuGetMatrix(GL_PROJECTION_MATRIX, (GLfloat *)di->orig_projmat);
 	gpuGetMatrix(GL_MODELVIEW_MATRIX, (GLfloat *)di->orig_viewmat);
 
@@ -737,7 +659,7 @@ void gla2DDrawTranslatePtv(gla2DDrawInfo *di, float world[2], int screen_r[2])
 void glaEnd2DDraw(gla2DDrawInfo *di)
 {
 	gpuViewport(di->orig_vp[0], di->orig_vp[1], di->orig_vp[2], di->orig_vp[3]);
-	gpuScissor(di->orig_vp[0], di->orig_vp[1], di->orig_vp[2], di->orig_vp[3]);
+	glScissor(di->orig_vp[0], di->orig_vp[1], di->orig_vp[2], di->orig_vp[3]);
 	gpuMatrixMode(GL_PROJECTION);
 	gpuLoadMatrix(di->orig_projmat);
 	gpuMatrixMode(GL_MODELVIEW);
@@ -754,7 +676,7 @@ void bgl_get_mats(bglMats *mats)
 
 	gpuGetMatrix(GL_MODELVIEW_MATRIX, mats->modelview);
 	gpuGetMatrix(GL_PROJECTION_MATRIX, mats->projection);
-	gpuGetSizeBox(GL_VIEWPORT, (GLint *)mats->viewport);
+	glGetIntegerv(GL_VIEWPORT, (GLint *)mats->viewport);
 	
 	/* Very strange code here - it seems that certain bad values in the
 	 * modelview matrix can cause gluUnProject to give bad results. */

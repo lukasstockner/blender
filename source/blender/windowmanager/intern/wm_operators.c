@@ -88,9 +88,13 @@
 
 #include "GHOST_C-api.h"
 
-#include "GPU_basic_shader.h"
+#include "GPU_basic.h"
+#include "GPU_blender_aspect.h"
 #include "GPU_colors.h"
+#include "GPU_matrix.h"
 #include "GPU_primitives.h"
+#include "GPU_raster.h"
+#include "GPU_state_latch.h"
 
 #include "IMB_colormanagement.h"
 #include "IMB_imbuf_types.h"

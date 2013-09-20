@@ -1,6 +1,3 @@
-#ifndef _GPU_BLENDER_ASPECT_INTERN_H_
-#define _GPU_BLENDER_ASPECT_INTERN_H_
-
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -28,21 +25,55 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/gpu/intern/gpu_aspectimpl_intern.h
+/** \file blender/gpu/intern/gpu_utility.c
  *  \ingroup gpu
  */
 
-#include "GPU_blender_aspect.h"
+#include "GPU_utility.h"
 
-#ifdef __cplusplus
-extern "C" {
+
+
+const char* gpuErrorString(GLenum err)
+{
+	switch(err) {
+		case GL_NO_ERROR:
+			return "No Error";
+
+		case GL_INVALID_ENUM:
+			return "Invalid Enum";
+
+		case GL_INVALID_VALUE:
+			return "Invalid Value";
+
+		case GL_INVALID_OPERATION:
+			return "Invalid Operation";
+
+		case GL_STACK_OVERFLOW:
+			return "Stack Overflow";
+
+		case GL_STACK_UNDERFLOW:
+			return "Stack Underflow";
+
+		case GL_OUT_OF_MEMORY:
+			return "Out of Memory";
+
+#if GL_ARB_imagining
+		case GL_TABLE_TOO_LARGE:
+			return "Table Too Large";
 #endif
 
-void gpu_blender_aspect_init(void);
-void gpu_blender_aspect_exit(void);
+#if defined(WITH_GLU)
+		case GLU_INVALID_ENUM:
+			return "Invalid Enum (GLU)";
 
-#ifdef __cplusplus
+		case GLU_INVALID_VALUE:
+			return "Invalid Value (GLU)";
+
+		case GLU_OUT_OF_MEMORY:
+			return "Out of Memory (GLU)";
+#endif
+
+		default:
+			return "<unknown error>";
+	}
 }
-#endif
-
-#endif /* _GPU_BLENDER_ASPECT_INTERN_H_ */

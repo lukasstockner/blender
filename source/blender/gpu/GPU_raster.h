@@ -42,6 +42,14 @@ extern "C" {
 
 
 
+/* OpenGL stipple defines */
+extern const GLubyte GPU_stipple_halftone        [128];
+extern const GLubyte GPU_stipple_quarttone       [128];
+extern const GLubyte GPU_stipple_diag_stripes_pos[128];
+extern const GLubyte GPU_stipple_diag_stripes_neg[128];
+
+
+
 typedef enum GPURasterShaderOption {
 	GPU_RASTER_STIPPLE = (1<<0), /*  */
 	GPU_RASTER_AA      = (1<<1), /*  */
@@ -52,6 +60,9 @@ typedef enum GPURasterShaderOption {
 } GPURasterShaderOption;
 
 
+
+void GPU_raster_begin(void);
+void GPU_raster_end  (void);
 
 void GPU_raster_set_line_style(int factor);
 

@@ -74,6 +74,7 @@
 
 #include "GPU_colors.h"
 #include "GPU_primitives.h"
+#include "GPU_raster.h"
 
 #include "WM_api.h"
 #include "WM_types.h"

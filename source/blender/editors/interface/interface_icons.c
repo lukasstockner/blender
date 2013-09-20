@@ -60,10 +60,14 @@
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
-#include "GPU_basic_shader.h"
+#include "GPU_basic.h"
+#include "GPU_blender_aspect.h"
 #include "GPU_colors.h"
-#include "GPU_compatibility.h"
 #include "GPU_extensions.h"
+#include "GPU_immediate.h"
+#include "GPU_pixels.h"
+#include "GPU_raster.h"
+#include "GPU_state_latch.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -1050,12 +1054,12 @@ static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect),
 
 	/* modulate color */
 	if (alpha != 1.0f)
-		gpuPixelUniform1f(GL_ALPHA_SCALE, alpha);
+		GPU_pixels_uniform_1f(GL_ALPHA_SCALE, alpha);
 
 	if (rgb) {
-		gpuPixelUniform1f(GL_RED_SCALE,   rgb[0]);
-		gpuPixelUniform1f(GL_GREEN_SCALE, rgb[1]);
-		gpuPixelUniform1f(GL_BLUE_SCALE,  rgb[2]);
+		GPU_pixels_uniform_1f(GL_RED_SCALE,   rgb[0]);
+		GPU_pixels_uniform_1f(GL_GREEN_SCALE, rgb[1]);
+		GPU_pixels_uniform_1f(GL_BLUE_SCALE,  rgb[2]);
 	}
 
 	/* rect contains image in 'rendersize', we only scale if needed */
@@ -1072,22 +1076,22 @@ static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect),
 		glaDrawPixelsSafe(x, y, w, h, w, GL_RGBA, GL_UNSIGNED_BYTE, rect);
 	}
 	else {
-		GPUpixels pixels = { w, h, GL_RGBA, GL_UNSIGNED_BYTE, rect };
+		struct GPUpixels pixels = { w, h, GL_RGBA, GL_UNSIGNED_BYTE, rect };
 
 		GPU_pixels_begin();
-		gpuPixelPos2f(x, y);
-		gpuPixels(&pixels);
+		GPU_pixels_pos_2f(x, y);
+		GPU_pixels(&pixels);
 		GPU_pixels_end();
 	}
 
 	/* modulate color */
 	if (alpha != 1.0f)
-		gpuPixelUniform1f(GL_ALPHA_SCALE, 1.0f); /* restore default value */
+		GPU_pixels_uniform_1f(GL_ALPHA_SCALE, 1.0f); /* restore default value */
 
 	if (rgb) {
-		gpuPixelUniform1f(GL_RED_SCALE,   1.0f); /* restore default value */
-		gpuPixelUniform1f(GL_GREEN_SCALE, 1.0f); /* restore default value */
-		gpuPixelUniform1f(GL_BLUE_SCALE,  1.0f); /* restore default value */
+		GPU_pixels_uniform_1f(GL_RED_SCALE,   1.0f); /* restore default value */
+		GPU_pixels_uniform_1f(GL_GREEN_SCALE, 1.0f); /* restore default value */
+		GPU_pixels_uniform_1f(GL_BLUE_SCALE,  1.0f); /* restore default value */
 	}
 
 	if (ima)

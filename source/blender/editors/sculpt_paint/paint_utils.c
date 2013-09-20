@@ -56,7 +56,7 @@
 
 #include "BIF_glutil.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_matrix.h"
 
 #include "RE_shader_ext.h"
 #include "RE_render_ext.h"
@@ -72,7 +72,7 @@
 
 #include "paint_intern.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 
 /* Convert the object-space axis-aligned bounding box (expressed as
  * its minimum and maximum corners) into a screen-space rectangle,
@@ -221,7 +221,7 @@ static void imapaint_tri_weights(Object *ob,
 	/* compute barycentric coordinates */
 
 	/* get the needed opengl matrices */
-	gpuGetSizeBox(GL_VIEWPORT, view);
+	glGetIntegerv(GL_VIEWPORT, view);
 	gpuGetMatrix(GL_MODELVIEW_MATRIX,  (float *)model);
 	gpuGetMatrix(GL_PROJECTION_MATRIX, (float *)proj);
 	view[0] = view[1] = 0;

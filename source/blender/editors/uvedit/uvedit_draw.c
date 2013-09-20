@@ -63,9 +63,13 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
-#include "GPU_basic_shader.h"
+#include "GPU_basic.h"
+#include "GPU_blender_aspect.h"
 #include "GPU_colors.h"
 #include "GPU_primitives.h"
+#include "GPU_matrix.h"
+#include "GPU_raster.h"
+#include "GPU_sprite.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -571,7 +575,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 
 			GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
 
-			gpuPolygonStipple(stipple_quarttone);
+			gpuPolygonStipple(GPU_stipple_quarttone);
 
 			gpuBegin(GL_TRIANGLE_FAN);
 			BM_ITER_ELEM (l, &liter, activef, BM_LOOPS_OF_FACE) {
@@ -743,37 +747,37 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 		float cent[2];
 		
 		pointsize = UI_GetThemeValuef(TH_FACEDOT_SIZE);
-		gpuSpriteSize(pointsize); // TODO - drawobject.c changes this value after - Investigate!
+		GPU_sprite_size(pointsize); // TODO - drawobject.c changes this value after - Investigate!
 		
 		/* unselected faces */
 		UI_ThemeColor(TH_WIRE);
 
-		gpuBeginSprites();
+		GPU_sprite_begin();
 		BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 			if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
 				continue;
 
 			if (!uvedit_face_select_test(scene, efa, cd_loop_uv_offset)) {
 				uv_poly_center(efa, cent, cd_loop_uv_offset);
-				gpuSprite2fv(cent);
+				GPU_sprite_2fv(cent);
 			}
 		}
-		gpuEndSprites();
+		GPU_sprite_end();
 
 		/* selected faces */
 		UI_ThemeColor(TH_FACE_DOT);
 
-		gpuBeginSprites();
+		GPU_sprite_begin();
 		BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 			if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
 				continue;
 
 			if (uvedit_face_select_test(scene, efa, cd_loop_uv_offset)) {
 				uv_poly_center(efa, cent, cd_loop_uv_offset);
-				gpuSprite2fv(cent);
+				GPU_sprite_2fv(cent);
 			}
 		}
-		gpuEndSprites();
+		GPU_sprite_end();
 	}
 
 	/* 6. draw uv vertices */
@@ -782,9 +786,9 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 		/* unselected uvs */
 		UI_ThemeColor(TH_VERTEX);
 		pointsize = UI_GetThemeValuef(TH_VERTEX_SIZE);
-		gpuSpriteSize(pointsize);
+		GPU_sprite_size(pointsize);
 	
-		gpuBeginSprites();
+		GPU_sprite_begin();
 		BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 			if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
 				continue;
@@ -792,17 +796,17 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 			BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 				luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
 				if (!uvedit_uv_select_test(scene, l, cd_loop_uv_offset))
-					gpuSprite2fv(luv->uv);
+					GPU_sprite_2fv(luv->uv);
 			}
 		}
-		gpuEndSprites();
+		GPU_sprite_end();
 
 		/* pinned uvs */
 		/* give odd pointsizes odd pin pointsizes */
-		gpuSpriteSize(pointsize * 2 + (((int)pointsize % 2) ? (-1) : 0));
+		GPU_sprite_size(pointsize * 2 + (((int)pointsize % 2) ? (-1) : 0));
 		gpuColor3P(CPACK_BLUE);
 
-		gpuBeginSprites();
+		GPU_sprite_begin();
 		BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 			if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
 				continue;
@@ -811,16 +815,16 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 				luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
 
 				if (luv->flag & MLOOPUV_PINNED)
-					gpuSprite2fv(luv->uv);
+					GPU_sprite_2fv(luv->uv);
 			}
 		}
-		gpuEndSprites();
+		GPU_sprite_end();
 	
 		/* selected uvs */
 		UI_ThemeColor(TH_VERTEX_SELECT);
-		gpuSpriteSize(pointsize);
+		GPU_sprite_size(pointsize);
 	
-		gpuBeginSprites();
+		GPU_sprite_begin();
 		BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 			if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
 				continue;
@@ -829,13 +833,13 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 				luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
 
 				if (uvedit_uv_select_test(scene, l, cd_loop_uv_offset))
-					gpuSprite2fv(luv->uv);
+					GPU_sprite_2fv(luv->uv);
 			}
 		}
-		gpuEndSprites();	
+		GPU_sprite_end();	
 	}
 
-	gpuSpriteSize(1.0);
+	GPU_sprite_size(1.0);
 
 	gpuImmediateUnformat();
 }

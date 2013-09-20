@@ -69,9 +69,9 @@
 
 #include "PIL_time.h"
 
-#include "GPU_compatibility.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
+#include "GPU_init_exit.h"
 
 #include "UI_interface.h"
 
@@ -368,13 +368,11 @@ static void wm_window_add_ghostwindow(const char *title, wmWindow *win)
 	                              0 /* no stereo */,
 	                              multisamples /* AA */);
 
-	GPU_CHECK_NO_ERROR();
-
 	if (ghostwin) {
 		GHOST_RectangleHandle bounds;
 
 		/* needed so we can detect the graphics card below */
-		GPU_extensions_init();
+		GPU_init();
 
 		/* set the state*/
 		GHOST_SetWindowState(ghostwin, (GHOST_TWindowState)win->windowstate);
@@ -386,10 +384,10 @@ static void wm_window_add_ghostwindow(const char *title, wmWindow *win)
 			win->eventstate = MEM_callocN(sizeof(wmEvent), "window event state");
 
 		/* until screens get drawn, make it nice gray */
-		gpuClearColor(0.55, 0.55, 0.55, 0.0);
+		glClearColor(0.55, 0.55, 0.55, 0.0);
 		/* Crash on OSS ATI: bugs.launchpad.net/ubuntu/+source/mesa/+bug/656100 */
 		if (!GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE)) {
-			gpuClear(GL_COLOR_BUFFER_BIT);
+			glClear(GL_COLOR_BUFFER_BIT);
 		}
 
 		/* displays with larger native pixels, like Macbook. Used to scale dpi with */
@@ -402,7 +400,6 @@ static void wm_window_add_ghostwindow(const char *title, wmWindow *win)
 		win->sizex = GHOST_GetWidthRectangle(bounds);
 		win->sizey = GHOST_GetHeightRectangle(bounds);
 		GHOST_DisposeRectangle(bounds);
-
 
 		wm_window_swap_buffers(win);
 

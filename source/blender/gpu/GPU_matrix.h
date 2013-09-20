@@ -48,13 +48,13 @@ void gpuPopMatrix(void);
 void   gpuMatrixMode(GLenum mode);
 GLenum gpuGetMatrixMode(void);
 
-void gpuLoadMatrix(const GLfloat* m);
-const GLfloat* gpuGetMatrix(GLenum type, GLfloat* m);
+void gpuLoadMatrix(const GLfloat m[16]);
+const GLfloat* gpuGetMatrix(GLenum type, GLfloat m[16]);
 
 void gpuLoadIdentity(void);
 
-void gpuMultMatrix(const GLfloat* m);
-void gpuMultMatrixd(const GLdouble* m);
+void gpuMultMatrix(const GLfloat m[16]);
+void gpuMultMatrixd(const GLdouble m[16]);
 
 void gpuTranslate(GLfloat x, GLfloat y, GLfloat z);
 void gpuScale(GLfloat x, GLfloat y, GLfloat z);
@@ -70,8 +70,8 @@ void gpuLoadFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GL
 
 void gpuLookAt(GLfloat eyeX, GLfloat eyeY, GLfloat eyeZ, GLfloat centerX, GLfloat centerY, GLfloat centerZ, GLfloat upX, GLfloat upY, GLfloat upZ);
 
-void gpuProject(const GLfloat obj[3], const GLfloat model[4][4], const GLfloat proj[4][4], const GLint view[4], GLfloat win[3]);
-GLboolean gpuUnProject(const GLfloat win[3], const GLfloat model[4][4], const GLfloat proj[4][4], const GLint view[4], GLfloat obj[3]);
+void gpuProject(const GLfloat obj[3], const GLfloat model[16], const GLfloat proj[16], const GLint view[4], GLfloat win[3]);
+GLboolean gpuUnProject(const GLfloat win[3], const GLfloat model[16], const GLfloat proj[16], const GLint view[4], GLfloat obj[3]);
 
 void GPU_feedback_vertex_3fv(GLenum type, GLfloat x, GLfloat y, GLfloat z,            GLfloat out[3]);
 void GPU_feedback_vertex_4fv(GLenum type, GLfloat x, GLfloat y, GLfloat z, GLfloat w, GLfloat out[4]);

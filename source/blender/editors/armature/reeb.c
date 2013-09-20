@@ -3343,7 +3343,7 @@ void REEB_draw()
 		for (rg = GLOBAL_RG; rg->multi_level != i && rg->link_up; rg = rg->link_up) ;
 	}
 
-	gpuSpriteSize(BIF_GetThemeValuef(TH_VERTEX_SIZE));
+	GPU_sprite_size(BIF_GetThemeValuef(TH_VERTEX_SIZE));
 
 	glDisable(GL_DEPTH_TEST);
 
@@ -3463,7 +3463,7 @@ void REEB_draw()
 	glEnable(GL_DEPTH_TEST);
 
 	gpuLineWidth(1.0);
-	gpuSpriteSize(1.0);
+	GPU_sprite_size(1.0);
 }
 
 #endif

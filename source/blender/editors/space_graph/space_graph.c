@@ -53,6 +53,7 @@
 #include "ED_markers.h"
 
 #include "GPU_primitives.h"
+#include "GPU_raster.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -231,7 +232,8 @@ static void graph_main_area_draw(const bContext *C, ARegion *ar)
 	
 	/* clear and setup matrix */
 	UI_GetThemeColor3fv(TH_BACK, col);
-	gpuColorAndClearvf(col, 0.0);
+	glClearColor(col[0], col[1], col[2], 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
 	
 	UI_view2d_view_ortho(v2d);
 	
@@ -335,7 +337,8 @@ static void graph_channel_area_draw(const bContext *C, ARegion *ar)
 	
 	/* clear and setup matrix */
 	UI_GetThemeColor3fv(TH_BACK, col);
-	gpuColorAndClearvf(col, 0.0);
+	glClearColor(col[0], col[1], col[2], 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
 	
 	UI_view2d_view_ortho(v2d);
 	

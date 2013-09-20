@@ -43,7 +43,9 @@
 #include "ED_screen.h"
 
 #include "GPU_colors.h"
+#include "GPU_matrix.h"
 #include "GPU_primitives.h"
+#include "GPU_select.h"
 
 #include "ED_armature.h"
 #include "armature_intern.h"
@@ -497,7 +499,7 @@ static void sk_drawStroke(SK_Stroke *stk, int id, float color[3], int start, int
 	struct GPUprim3 prim = GPU_PRIM_LOFI_SOLID;
 
 	if (id != -1) {
-		gpuSelectLoad(id);
+		GPU_select_load(id);
 
 		for (i = 0; i < stk->nb_points; i++) {
 			gpuPushMatrix();
@@ -2023,7 +2025,7 @@ static void sk_drawSketch(Scene *scene, View3D *UNUSED(v3d), SK_Sketch *sketch, 
 	ToolSettings *ts = scene->toolsettings;
 	SK_Stroke *stk;
 
-	gpuClear(GL_DEPTH_BUFFER_BIT);
+	glClear(GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 
 	if (with_names) {
@@ -2032,7 +2034,7 @@ static void sk_drawSketch(Scene *scene, View3D *UNUSED(v3d), SK_Sketch *sketch, 
 			sk_drawStroke(stk, id, NULL, -1, -1);
 		}
 
-		gpuSelectLoad(-1);
+		GPU_select_load(-1);
 	}
 	else {
 		float selected_rgb[3] = {1, 0, 0};

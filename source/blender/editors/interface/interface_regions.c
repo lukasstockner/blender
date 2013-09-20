@@ -57,7 +57,7 @@
 
 #include "RNA_access.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_immediate.h"
 #include "GPU_utility.h"
 
 

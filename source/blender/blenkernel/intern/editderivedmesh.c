@@ -61,13 +61,12 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "GPU_basic.h"
+#include "GPU_blender_aspect.h"
 #include "GPU_extensions.h"
-#include "GPU_compatibility.h"
-#include "GPU_basic_shader.h"
-
-
-
-extern GLubyte stipple_quarttone[128]; /* glutil.c, bad level data */
+#include "GPU_immediate.h"
+#include "GPU_lighting.h"
+#include "GPU_raster.h"
 
 static void bmdm_get_tri_colpreview(BMLoop *ls[3], MLoopCol *lcol[3], unsigned char(*color_vert_array)[4]);
 
@@ -329,7 +328,7 @@ static void emDM_drawMappedFaces(
 	const int lasttri = tottri - 1; /* compare agasint this a lot */
 	DMDrawOption draw_option;
 	int i, flush;
-	const int useNormals = (flag & DM_DRAW_USE_NORMALS) && GPU_basic_shader_needs_normals(); /* could be passed as an arg */
+	const int useNormals = (flag & DM_DRAW_USE_NORMALS) && GPU_basic_needs_normals(); /* could be passed as an arg */
 
 	MLoopCol *lcol[3] = {NULL} /* , dummylcol = {0} */;
 	unsigned char(*color_vert_array)[4] = em->derivedVertColor;
@@ -393,7 +392,7 @@ static void emDM_drawMappedFaces(
 
 					GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
 
-					gpuPolygonStipple(stipple_quarttone);
+					gpuPolygonStipple(GPU_stipple_quarttone);
 				}
 
 				if      (has_vcol_preview) bmdm_get_tri_colpreview(ltri, lcol, color_vert_array);
@@ -497,7 +496,7 @@ static void emDM_drawMappedFaces(
 
 					GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
 
-					gpuPolygonStipple(stipple_quarttone);
+					gpuPolygonStipple(GPU_stipple_quarttone);
 				}
 
 				if      (has_vcol_preview) bmdm_get_tri_colpreview(ltri, lcol, color_vert_array);

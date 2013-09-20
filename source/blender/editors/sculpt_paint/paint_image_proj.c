@@ -98,7 +98,7 @@
 #include "RNA_enum_types.h"
 
 #include "GPU_draw.h"
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 
 #include "IMB_colormanagement.h"
 

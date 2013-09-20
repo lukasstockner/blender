@@ -65,9 +65,16 @@
 #include "DNA_view3d_types.h"
 #include "DNA_object_types.h"
 
+#include "GPU_basic.h"
+#include "GPU_blender_aspect.h"
 #include "GPU_colors.h"
+#include "GPU_lighting.h"
+#include "GPU_matrix.h"
+#include "GPU_pixels.h"
 #include "GPU_primitives.h"
-#include "GPU_basic_shader.h"
+#include "GPU_raster.h"
+#include "GPU_select.h"
+#include "GPU_state_latch.h"
 
 /* standard */
 #include <stdlib.h>
@@ -498,7 +505,7 @@ static void draw_bone_points(const short dt, int armflag, unsigned int boneflag,
 	/*	Draw root point if we are not connected */
 	if ((boneflag & BONE_CONNECTED) == 0) {
 		if (id != -1)
-			gpuSelectLoad(id | BONESEL_ROOT);
+			GPU_select_load(id | BONESEL_ROOT);
 		
 		if (dt <= OB_WIRE) {
 			if (armflag & ARM_EDITMODE) {
@@ -521,7 +528,7 @@ static void draw_bone_points(const short dt, int armflag, unsigned int boneflag,
 	
 	/*	Draw tip point */
 	if (id != -1)
-		gpuSelectLoad(id | BONESEL_TIP);
+		GPU_select_load(id | BONESEL_TIP);
 	
 	if (dt <= OB_WIRE) {
 		if (armflag & ARM_EDITMODE) {
@@ -736,7 +743,7 @@ static void draw_sphere_bone_wire(float smat[4][4], float imat[4][4],
 	/*	Draw root point if we are not connected */
 	if ((boneflag & BONE_CONNECTED) == 0) {
 		if (id != -1)
-			gpuSelectLoad(id | BONESEL_ROOT);
+			GPU_select_load(id | BONESEL_ROOT);
 		
 		gpuDrawFastBall(GL_LINE_LOOP, headvec, head, imat);
 	}
@@ -748,7 +755,7 @@ static void draw_sphere_bone_wire(float smat[4][4], float imat[4][4],
 	}
 
 	if (id != -1)
-		gpuSelectLoad(id | BONESEL_TIP);
+		GPU_select_load(id | BONESEL_TIP);
 
 	gpuDrawFastBall(GL_LINE_LOOP, tailvec, tail, imat);
 
@@ -779,7 +786,7 @@ static void draw_sphere_bone_wire(float smat[4][4], float imat[4][4],
 		cross_v3_v3v3(norvect, vec, imat[2]);
 
 		if (id != -1)
-			gpuSelectLoad(id | BONESEL_BONE);
+			GPU_select_load(id | BONESEL_BONE);
 
 		gpuBegin(GL_LINES);
 
@@ -865,7 +872,7 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 	/*	Draw root point if we are not connected */
 	if ((boneflag & BONE_CONNECTED) == 0) {
 		if (id != -1) {
-			gpuSelectLoad(id | BONESEL_ROOT);
+			GPU_select_load(id | BONESEL_ROOT);
 		}
 
 		gpuDrawSphere(&prim, head);
@@ -883,7 +890,7 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 	}
 
 	if (id != -1) {
-		gpuSelectLoad(id | BONESEL_TIP);
+		GPU_select_load(id | BONESEL_TIP);
 	}
 
 	gpuTranslate(0.0f, 0.0f, length);
@@ -912,7 +919,7 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 
 	if (length > (head + tail)) {
 		if (id != -1) {
-			gpuSelectLoad(id | BONESEL_BONE);
+			GPU_select_load(id | BONESEL_BONE);
 		}
 
 		glEnable(GL_POLYGON_OFFSET_FILL);
@@ -959,17 +966,17 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 
 
 
-static GLubyte   bm_dot6_data[] = {0x00, 0x18, 0x3C, 0x7E, 0x7E, 0x3C, 0x18, 0x00};
-static GPUbitmap bm_dot6        = {8, 8, 4, 4, bm_dot6_data};
+static        GLubyte   bm_dot6_data[] = {0x00, 0x18, 0x3C, 0x7E, 0x7E, 0x3C, 0x18, 0x00};
+static struct GPUbitmap bm_dot6        = {8, 8, 4, 4, bm_dot6_data};
 
-static GLubyte   bm_dot8_data[] = {0x3C, 0x7E, 0xFF, 0xFF, 0xFF, 0xFF, 0x7E, 0x3C};
-static GPUbitmap bm_dot8        = {8, 8, 4, 4, bm_dot8_data};
+static        GLubyte   bm_dot8_data[] = {0x3C, 0x7E, 0xFF, 0xFF, 0xFF, 0xFF, 0x7E, 0x3C};
+static struct GPUbitmap bm_dot8        = {8, 8, 4, 4, bm_dot8_data};
 
-static GLubyte   bm_dot5_data[] = {0x00, 0x00, 0x10, 0x38, 0x7c, 0x38, 0x10, 0x00};
-static GPUbitmap bm_dot5        = {8, 8, 4, 4, bm_dot5_data};
+static        GLubyte   bm_dot5_data[] = {0x00, 0x00, 0x10, 0x38, 0x7c, 0x38, 0x10, 0x00};
+static struct GPUbitmap bm_dot5        = {8, 8, 4, 4, bm_dot5_data};
 
-static GLubyte   bm_dot7_data[] = {0x00, 0x38, 0x7C, 0xFE, 0xFE, 0xFE, 0x7C, 0x38};
-static GPUbitmap bm_dot7        = {8, 8, 4, 4, bm_dot7_data};
+static        GLubyte   bm_dot7_data[] = {0x00, 0x38, 0x7C, 0xFE, 0xFE, 0xFE, 0x7C, 0x38};
+static struct GPUbitmap bm_dot7        = {8, 8, 4, 4, bm_dot7_data};
 
 
 
@@ -978,7 +985,7 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 {
 	float length;
 
-	gpuPixelFormat(GL_UNPACK_ALIGNMENT, 1);
+	GPU_pixels_format(GL_UNPACK_ALIGNMENT, 1);
 
 	if (pchan) 
 		length = pchan->bone->length;
@@ -1010,22 +1017,22 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 		/*	Draw root point if we are not connected */
 		if ((boneflag & BONE_CONNECTED) == 0) {
 			if (G.f & G_PICKSEL) {  /* no bitmap in selection mode, crashes 3d cards... */
-				gpuSelectLoad(id | BONESEL_ROOT);
+				GPU_select_load(id | BONESEL_ROOT);
 				gpuBegin(GL_POINTS);
 				gpuVertex3f(0.0f, 0.0f, 0.0f);
 				gpuEnd();
 			}
 			else {
 				GPU_pixels_begin();
-				gpuPixelPos3f(0.0f, 0.0f, 0.0f);
-				gpuCacheBitmap(&bm_dot8);
-				gpuBitmap(&bm_dot8);
+				GPU_pixels_pos_3f(0.0f, 0.0f, 0.0f);
+				GPU_bitmap_cache(&bm_dot8);
+				GPU_bitmap(&bm_dot8);
 				GPU_pixels_end();
 			}
 		}
 
 		if (id != -1)
-			gpuSelectLoad((GLuint) id | BONESEL_BONE);
+			GPU_select_load((GLuint) id | BONESEL_BONE);
 		
 		gpuBegin(GL_LINES);
 		gpuVertex3f(0.0f, 0.0f, 0.0f);
@@ -1035,22 +1042,22 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 		/* tip */
 		if (G.f & G_PICKSEL) {
 			/* no bitmap in selection mode, crashes 3d cards... */
-			gpuSelectLoad(id | BONESEL_TIP);
+			GPU_select_load(id | BONESEL_TIP);
 			gpuBegin(GL_POINTS);
 			gpuVertex3f(0.0f, 1.0f, 0.0f);
 			gpuEnd();
 		}
 		else {
 			GPU_pixels_begin();
-			gpuPixelPos3f(0.0f, 1.0f, 0.0f);
-			gpuCacheBitmap(&bm_dot7);
-			gpuBitmap(&bm_dot7);
+			GPU_pixels_pos_3f(0.0f, 1.0f, 0.0f);
+			GPU_bitmap_cache(&bm_dot7);
+			GPU_bitmap(&bm_dot7);
 			GPU_pixels_end();
 		}
 
 		/* further we send no names */
 		if (id != -1)
-			gpuSelectLoad(id & 0xFFFF);  /* object tag, for bordersel optim */
+			GPU_select_load(id & 0xFFFF);  /* object tag, for bordersel optim */
 
 		if (armflag & ARM_POSEMODE)
 			set_pchan_gpuColor(PCHAN_COLOR_LINEBONE, boneflag, constflag);
@@ -1068,9 +1075,9 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 			}
 
 			GPU_pixels_begin();
-			gpuPixelPos3f(0.0f, 0.0f, 0.0f);
-			gpuCacheBitmap(&bm_dot6);
-			gpuBitmap(&bm_dot6);
+			GPU_pixels_pos_3f(0.0f, 0.0f, 0.0f);
+			GPU_bitmap_cache(&bm_dot6);
+			GPU_bitmap(&bm_dot6);
 			GPU_pixels_end();
 		}
 	}
@@ -1094,9 +1101,9 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 		}
 
 		GPU_pixels_begin();
-		gpuPixelPos3f(0.0f, 1.0f, 0.0f);
-		gpuCacheBitmap(&bm_dot5);
-		gpuBitmap(&bm_dot5);
+		GPU_pixels_pos_3f(0.0f, 1.0f, 0.0f);
+		GPU_bitmap_cache(&bm_dot5);
+		GPU_bitmap(&bm_dot5);
 		GPU_pixels_end();
 	}
 
@@ -1111,7 +1118,7 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 	}
 
-	gpuPixelFormat(GL_UNPACK_ALIGNMENT, 4);  /* restore default value */
+	GPU_pixels_format(GL_UNPACK_ALIGNMENT, 4);  /* restore default value */
 }
 
 static void draw_b_bone_boxes(const short dt, bPoseChannel *pchan, float xwidth, float length, float zwidth)
@@ -1128,7 +1135,7 @@ static void draw_b_bone_boxes(const short dt, bPoseChannel *pchan, float xwidth,
 		
 		for (a = 0; a < segments; a++, bbone++) {
 			gpuPushMatrix();
-			gpuMultMatrix(bbone->mat);
+			gpuMultMatrix(bbone->mat[0]);
 			gpuScale(xwidth, dlen, zwidth);
 
 			if (dt == OB_SOLID) {
@@ -1200,7 +1207,7 @@ static void draw_b_bone(const short dt, int armflag, int boneflag, short constfl
 	}
 	
 	if (id != -1) {
-		gpuSelectLoad((GLuint) id | BONESEL_BONE);
+		GPU_select_load((GLuint) id | BONESEL_BONE);
 	}
 	
 	/* set up solid drawing */
@@ -1251,7 +1258,7 @@ static void draw_wire_bone_segments(bPoseChannel *pchan, Mat4 *bbones, float len
 		
 		for (a = 0; a < segments; a++, bbone++) {
 			gpuPushMatrix();
-			gpuMultMatrix(bbone->mat);
+			gpuMultMatrix(bbone->mat[0]);
 			
 			gpuBegin(GL_LINES);
 			gpuVertex3f(0.0f, 0.0f, 0.0f);
@@ -1303,13 +1310,13 @@ static void draw_wire_bone(const short dt, int armflag, int boneflag, short cons
 	/* this chunk not in object mode */
 	if (armflag & (ARM_EDITMODE | ARM_POSEMODE)) {
 		if (id != -1)
-			gpuSelectLoad((GLuint) id | BONESEL_BONE);
+			GPU_select_load((GLuint) id | BONESEL_BONE);
 		
 		draw_wire_bone_segments(pchan, bbones, length, segments);
 		
 		/* further we send no names */
 		if (id != -1)
-			gpuSelectLoad(id & 0xFFFF);    /* object tag, for bordersel optim */
+			GPU_select_load(id & 0xFFFF);    /* object tag, for bordersel optim */
 	}
 	
 	/* colors for modes */
@@ -1353,7 +1360,7 @@ static void draw_bone(const short dt, int armflag, int boneflag, short constflag
 	
 	/* now draw the bone itself */
 	if (id != -1) {
-		gpuSelectLoad((GLuint) id | BONESEL_BONE);
+		GPU_select_load((GLuint) id | BONESEL_BONE);
 	}
 	
 	/* wire? */
@@ -1409,7 +1416,7 @@ static void draw_custom_bone(Scene *scene, View3D *v3d, RegionView3D *rv3d, Obje
 	}
 	
 	if (id != -1) {
-		gpuSelectLoad((GLuint) id | BONESEL_BONE);
+		GPU_select_load((GLuint) id | BONESEL_BONE);
 	}
 	
 	draw_object_instance(scene, v3d, rv3d, ob, dt, armflag & ARM_POSEMODE);
@@ -1595,11 +1602,11 @@ static void draw_pose_dofs(Object *ob)
 							if (pchan->parent) {
 								copy_m4_m4(mat, pchan->parent->pose_mat);
 								mat[3][0] = mat[3][1] = mat[3][2] = 0.0f;
-								gpuMultMatrix(mat);
+								gpuMultMatrix(mat[0]);
 							}
 							
 							copy_m4_m3(mat, pchan->bone->bone_mat);
-							gpuMultMatrix(mat);
+							gpuMultMatrix(mat[0]);
 							
 							scale = bone->length * pchan->size[1];
 							gpuScale(scale, scale, scale);
@@ -1778,10 +1785,10 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 					gpuPushMatrix();
 					
 					if (use_custom && pchan->custom_tx) {
-						gpuMultMatrix(pchan->custom_tx->pose_mat);
+						gpuMultMatrix(pchan->custom_tx->pose_mat[0]);
 					}
 					else {
-						gpuMultMatrix(pchan->pose_mat);
+						gpuMultMatrix(pchan->pose_mat[0]);
 					}
 					
 					/* catch exception for bone with hidden parent */
@@ -1836,12 +1843,12 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 				index += 0x10000;  /* pose bones count in higher 2 bytes only */
 		}
 		
-		/* very very confusing... but in object mode, solid draw, we cannot do gpuSelectLoad yet,
+		/* very very confusing... but in object mode, solid draw, we cannot do GPU_select_load yet,
 		 * stick bones and/or wire custom-shapes are drawn in next loop 
 		 */
 		if (ELEM(arm->drawtype, ARM_LINE, ARM_WIRE) == 0 && (draw_wire == false)) {
 			/* object tag, for bordersel optim */
-			gpuSelectLoad(index & 0xFFFF);
+			GPU_select_load(index & 0xFFFF);
 			index = -1;
 		}
 	}
@@ -1867,10 +1874,10 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 							gpuPushMatrix();
 							
 							if (pchan->custom_tx) {
-								gpuMultMatrix(pchan->custom_tx->pose_mat);
+								gpuMultMatrix(pchan->custom_tx->pose_mat[0]);
 							}
 							else {
-								gpuMultMatrix(pchan->pose_mat);
+								gpuMultMatrix(pchan->pose_mat[0]);
 							}
 							
 							/* prepare colors */
@@ -1907,7 +1914,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 		/* stick or wire bones have not been drawn yet so don't clear object selection in this case */
 		if (ELEM(arm->drawtype, ARM_LINE, ARM_WIRE) == 0 && draw_wire) {
 			/* object tag, for bordersel optim */
-			gpuSelectLoad(index & 0xFFFF);
+			GPU_select_load(index & 0xFFFF);
 			index = -1;
 		}
 	}
@@ -1945,7 +1952,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 						 */
 						if ((do_dashed & 2) && ((bone->flag & BONE_CONNECTED) == 0)) {
 							if (arm->flag & ARM_POSEMODE) {
-								gpuSelectLoad(index & 0xFFFF);  /* object tag, for bordersel optim */
+								GPU_select_load(index & 0xFFFF);  /* object tag, for bordersel optim */
 								UI_ThemeColor(TH_WIRE);
 							}
 
@@ -1972,7 +1979,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 									if (constflag & PCHAN_HAS_TARGET) gpuColor3ub(200, 120, 0);
 									else gpuColor3ub(200, 200, 50);  /* add theme! */
 
-									gpuSelectLoad(index & 0xFFFF);
+									GPU_select_load(index & 0xFFFF);
 									pchan_draw_IK_root_lines(pchan, !(do_dashed & 2));
 								}
 							}
@@ -1980,7 +1987,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 								if (bone->flag & BONE_SELECTED) {
 									gpuColor3ub(150, 200, 50);   /* add theme! */
 									
-									gpuSelectLoad(index & 0xFFFF);
+									GPU_select_load(index & 0xFFFF);
 									pchan_draw_IK_root_lines(pchan, !(do_dashed & 2));
 								}
 							}
@@ -1989,7 +1996,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 					
 					gpuPushMatrix();
 					if (arm->drawtype != ARM_ENVELOPE)
-						gpuMultMatrix(pchan->pose_mat);
+						gpuMultMatrix(pchan->pose_mat[0]);
 					
 					/* catch exception for bone with hidden parent */
 					flag = bone->flag;
@@ -2097,7 +2104,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 						gpuPushMatrix();
 						copy_m4_m4(bmat, pchan->pose_mat);
 						bone_matrix_translate_y(bmat, pchan->bone->length);
-						gpuMultMatrix(bmat);
+						gpuMultMatrix(bmat[0]);
 
 						gpuColor3ubv(col);
 						drawaxes(pchan->bone->length * 0.25f, OB_ARROWS);
@@ -2179,7 +2186,7 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 				if ((eBone->flag & BONE_HIDDEN_A) == 0) {
 					gpuPushMatrix();
 					get_matrix_editbone(eBone, bmat);
-					gpuMultMatrix(bmat);
+					gpuMultMatrix(bmat[0]);
 					
 					/* catch exception for bone with hidden parent */
 					flag = eBone->flag;
@@ -2209,7 +2216,7 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 	
 	/* if wire over solid, set offset */
 	index = -1;
-	gpuSelectLoad(-1);
+	GPU_select_load(-1);
 	if (ELEM(arm->drawtype, ARM_LINE, ARM_WIRE)) {
 		if (G.f & G_PICKSEL)
 			index = 0;
@@ -2241,7 +2248,7 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 				else {
 					gpuPushMatrix();
 					get_matrix_editbone(eBone, bmat);
-					gpuMultMatrix(bmat);
+					gpuMultMatrix(bmat[0]);
 					
 					if (arm->drawtype == ARM_LINE) 
 						draw_line_bone(arm->flag, flag, 0, index, NULL, eBone);
@@ -2258,7 +2265,7 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 				/* offset to parent */
 				if (eBone->parent) {
 					UI_ThemeColor(TH_WIRE_EDIT);
-					gpuSelectLoad(-1);  /* -1 here is OK! */
+					GPU_select_load(-1);  /* -1 here is OK! */
 
 					GPU_raster_begin();
 
@@ -2280,7 +2287,7 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 	
 	/* restore */
 	if (index != -1) {
-		gpuSelectLoad(-1);
+		GPU_select_load(-1);
 	}
 
 	if (ELEM(arm->drawtype, ARM_LINE, ARM_WIRE)) {
@@ -2317,7 +2324,7 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 							gpuPushMatrix();
 							get_matrix_editbone(eBone, bmat);
 							bone_matrix_translate_y(bmat, eBone->length);
-							gpuMultMatrix(bmat);
+							gpuMultMatrix(bmat[0]);
 
 							gpuColor3ubv(col);
 							drawaxes(eBone->length * 0.25f, OB_ARROWS);

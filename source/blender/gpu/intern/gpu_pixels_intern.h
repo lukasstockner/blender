@@ -38,11 +38,11 @@
 extern "C" {
 #endif
 
-void gpu_pixels_shader_init(void);
-void gpu_pixels_shader_exit(void);
+void gpu_pixels_init(void);
+void gpu_pixels_exit(void);
 
-void gpu_pixels_shader_bind  (void);
-void gpu_pixels_shader_unbind(void);
+void gpu_pixels_bind  (void);
+void gpu_pixels_unbind(void);
 
 #ifdef __cplusplus
 }

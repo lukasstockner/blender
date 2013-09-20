@@ -50,7 +50,7 @@ typedef struct GPUaspectimpl {
 	void  (*enable )(void* param, uint32_t options);
 	void  (*disable)(void* param, uint32_t options);
 	void* param;
-} GPUaspectfuncs;
+} GPUaspectimpl;
 
 void GPU_aspect_impl(uint32_t aspect, GPUaspectimpl* aspectImpl);
 
@@ -59,6 +59,8 @@ bool GPU_aspect_end  (void);
 
 void GPU_aspect_enable (uint32_t aspect, uint32_t options);
 void GPU_aspect_disable(uint32_t aspect, uint32_t options);
+
+void GPU_commit_aspect(void);
 
 #ifdef __cplusplus
 }

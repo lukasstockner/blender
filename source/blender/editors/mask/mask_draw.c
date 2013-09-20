@@ -48,8 +48,12 @@
 #include "ED_mask.h"  /* own include */
 #include "ED_space_api.h"
 
+#include "GPU_blender_aspect.h"
 #include "GPU_colors.h"
-#include "GPU_compatibility.h"
+#include "GPU_immediate.h"
+#include "GPU_matrix.h"
+#include "GPU_raster.h"
+#include "GPU_sprite.h"
 
 #include "UI_resources.h"
 #include "UI_view2d.h"
@@ -154,7 +158,7 @@ static void draw_spline_points(const bContext *C, MaskLayer *masklay, MaskSpline
 	/* TODO, add this to sequence editor */
 	hsize = 4; /* UI_GetThemeValuef(TH_HANDLE_VERTEX_SIZE); */
 
-	gpuSpriteSize(hsize);
+	GPU_sprite_size(hsize);
 
 	mask_spline_color_get(masklay, spline, is_spline_sel, rgb_spline);
 
@@ -282,7 +286,7 @@ static void draw_spline_points(const bContext *C, MaskLayer *masklay, MaskSpline
 		gpuEnd();
 	}
 
-	gpuSpriteSize(1.0f);
+	GPU_sprite_size(1.0f);
 
 	gpuImmediateUnformat();
 }
@@ -310,7 +314,7 @@ static void mask_draw_curve_type(const bContext *C, MaskSpline *spline, float (*
 	const unsigned char rgb_black[4] = {0x00, 0x00, 0x00, 0xff};
 //	const unsigned char rgb_white[4] = {0xff, 0xff, 0xff, 0xff};
 	unsigned char rgb_tmp[4];
-	GPUarrays arrays = GPU_ARRAYS_V3F;
+	struct GPUarrays arrays = GPU_ARRAYS_V3F;
 	SpaceClip *sc = CTX_wm_space_clip(C);
 	float (*points)[2] = orig_points;
 
@@ -607,7 +611,7 @@ void ED_mask_draw_region(Mask *mask, ARegion *ar,
 	gpuScale(maxdim * zoomx, maxdim * zoomy, 0);
 
 	if (stabmat) {
-		gpuMultMatrix(stabmat);
+		gpuMultMatrix(stabmat[0]);
 	}
 
 	if (do_draw_cb) {

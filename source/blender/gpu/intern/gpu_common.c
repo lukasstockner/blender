@@ -34,9 +34,10 @@
 
 /* my library */
 #include "GPU_extensions.h"
+#include "GPU_safety.h"
 
 /* internal */
-#include "intern/gpu_extension_wrapper.h"
+#include "intern/gpu_extensions_intern.h"
 #include "intern/gpu_profile.h"
 
 /* external */
@@ -452,8 +453,24 @@ void GPU_common_color_4ubv(GLubyte c[4])
 		
 		return;
 	}
-	
+
 #if defined(WITH_GL_PROFILE_COMPAT)
 	GPU_CHECK(glColor4ubv(c));
+#endif
+}
+
+
+
+void GPU_common_color_4fv(GLfloat c[4])
+{
+	if (current_common != NULL) {
+		if (current_common->color != -1)
+			GPU_CHECK(glVertexAttrib4fv(current_common->color, c));
+
+		return;
+	}
+
+#if defined(WITH_GL_PROFILE_COMPAT)
+	GPU_CHECK(glColor4fv(c));
 #endif
 }

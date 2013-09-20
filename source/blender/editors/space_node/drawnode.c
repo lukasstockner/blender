@@ -51,8 +51,12 @@
 
 #include "NOD_texture.h"
 
+#include "GPU_blender_aspect.h"
 #include "GPU_colors.h"
+#include "GPU_matrix.h"
+#include "GPU_pixels.h"
 #include "GPU_primitives.h"
+#include "GPU_raster.h"
 
 #include "BIF_glutil.h"
 
@@ -2931,43 +2935,43 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 				else                                 ofs = 3;
 #endif
 				
-				gpuPixelZoom(snode->zoom, snode->zoom);
+				GPU_pixels_zoom(snode->zoom, snode->zoom);
 
 				/* swap bytes, so alpha is most significant one, then just draw it as luminance int */
 				
 				glaDrawPixelsSafe(x, y, ibuf->x, ibuf->y, ibuf->x, GL_LUMINANCE, GL_UNSIGNED_INT,
 				                  display_buffer + ofs);
 				
-				gpuPixelZoom(1.0f, 1.0f); /* restore default value */
+				GPU_pixels_zoom(1.0f, 1.0f); /* restore default value */
 			}
 			else if (snode->flag & SNODE_SHOW_ALPHA) {
 				display_buffer = IMB_display_buffer_acquire_ctx(C, ibuf, &cache_handle);
 				
-				gpuPixelZoom(snode->zoom, snode->zoom);
+				GPU_pixels_zoom(snode->zoom, snode->zoom);
 				/* swap bytes, so alpha is most significant one, then just draw it as luminance int */
 #ifdef __BIG_ENDIAN__
-				gpuPixelFormat(GL_UNPACK_SWAP_BYTES, GL_TRUE);
+				GPU_pixels_format(GL_UNPACK_SWAP_BYTES, GL_TRUE);
 #endif
 				glaDrawPixelsSafe(x, y, ibuf->x, ibuf->y, ibuf->x, GL_LUMINANCE, GL_UNSIGNED_INT, display_buffer);
 #ifdef __BIG_ENDIAN__
-				gpuPixelFormat(GL_UNPACK_SWAP_BYTES, GL_FALSE); /* restore default value */
+				GPU_pixels_format(GL_UNPACK_SWAP_BYTES, GL_FALSE); /* restore default value */
 #endif
 			}
 			else if (snode->flag & SNODE_USE_ALPHA) {
 				glEnable(GL_BLEND);
-				gpuPixelZoom(snode->zoom, snode->zoom);
+				GPU_pixels_zoom(snode->zoom, snode->zoom);
 				
 				glaDrawImBuf_glsl_ctx(C, ibuf, x, y, GL_NEAREST);
 				
-				gpuPixelZoom(1.0f, 1.0f); /* restore default value */
+				GPU_pixels_zoom(1.0f, 1.0f); /* restore default value */
 				glDisable(GL_BLEND);
 			}
 			else {
-				gpuPixelZoom(snode->zoom, snode->zoom);
+				GPU_pixels_zoom(snode->zoom, snode->zoom);
 				
 				glaDrawImBuf_glsl_ctx(C, ibuf, x, y, GL_NEAREST);
 				
-				gpuPixelZoom(1.0f, 1.0f); /* restore default value */
+				GPU_pixels_zoom(1.0f, 1.0f); /* restore default value */
 			}
 			
 			if (cache_handle)

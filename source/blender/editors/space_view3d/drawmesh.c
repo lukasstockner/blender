@@ -67,13 +67,18 @@
 #include "DNA_view3d_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "GPU_basic_shader.h"
+#include "GPU_basic.h"
+#include "GPU_blender_aspect.h"
 #include "GPU_buffers.h"
-#include "GPU_compatibility.h"
 #include "GPU_colors.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
+#include "GPU_immediate.h"
+#include "GPU_lighting.h"
 #include "GPU_material.h"
+#include "GPU_matrix.h"
+#include "GPU_raster.h"
+#include "GPU_state_latch.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -921,7 +926,7 @@ static void tex_mat_set_texture_cb(void *userData, int mat_nr, void *attribs)
 			gpuColor3P(CPACK_WHITE);
 
 			gpuMatrixMode(GL_TEXTURE);
-			gpuLoadMatrix(texbase->tex_mapping.mat);
+			gpuLoadMatrix(texbase->tex_mapping.mat[0]);
 			gpuMatrixMode(GL_MODELVIEW);
 
 			/* use active UV texture layer */

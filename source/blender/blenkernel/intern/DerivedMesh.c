@@ -80,7 +80,7 @@ static DerivedMesh *navmesh_dm_createNavMeshForVisualization(DerivedMesh *dm);
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 
 static void add_shapekey_layers(DerivedMesh *dm, Mesh *me, Object *ob);
 static void shapekey_layers_to_keyblocks(DerivedMesh *dm, Mesh *me, int actshape_uid);

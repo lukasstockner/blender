@@ -59,7 +59,7 @@
 
 #include "IMB_imbuf.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -70,7 +70,7 @@
 
 #include "RNA_access.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 
 
 #include "clip_intern.h"  /* own include */
@@ -1135,7 +1135,7 @@ static void clip_main_area_draw(const bContext *C, ARegion *ar)
 
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);
-	gpuClear(GL_COLOR_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT);
 
 	/* data... */
 	movieclip_main_area_set_view2d(C, ar);
@@ -1219,7 +1219,7 @@ static void graph_area_draw(const bContext *C, ARegion *ar)
 
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);
-	gpuClear(GL_COLOR_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT);
 
 	UI_view2d_view_ortho(v2d);
 
@@ -1252,7 +1252,7 @@ static void dopesheet_area_draw(const bContext *C, ARegion *ar)
 
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);
-	gpuClear(GL_COLOR_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT);
 
 	UI_view2d_view_ortho(v2d);
 
@@ -1315,7 +1315,7 @@ static void clip_channels_area_draw(const bContext *C, ARegion *ar)
 
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);
-	gpuClear(GL_COLOR_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT);
 
 	UI_view2d_view_ortho(v2d);
 

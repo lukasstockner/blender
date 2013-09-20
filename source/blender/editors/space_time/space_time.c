@@ -54,6 +54,7 @@
 #include "WM_types.h"
 
 #include "GPU_colors.h"
+#include "GPU_matrix.h"
 #include "GPU_primitives.h"
 
 #include "BIF_glutil.h"
@@ -487,7 +488,7 @@ static void time_main_area_draw(const bContext *C, ARegion *ar)
 	
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);
-	gpuClear(GL_COLOR_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT);
 	
 	UI_view2d_view_ortho(v2d);
 	

@@ -69,8 +69,9 @@
 #include "DNA_windowmanager_types.h"
 
 #include "IMB_imbuf_types.h"
- 
-#include "GPU_basic_shader.h"
+
+#include "GPU_basic.h"
+#include "GPU_blender_aspect.h"
 #include "GPU_colors.h"
 #include "GPU_primitives.h"
 

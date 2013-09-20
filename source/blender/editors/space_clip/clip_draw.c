@@ -57,8 +57,13 @@
 #include "ED_mask.h"
 #include "ED_gpencil.h"
 
+#include "GPU_blender_aspect.h"
 #include "GPU_colors.h"
+#include "GPU_matrix.h"
+#include "GPU_pixels.h"
 #include "GPU_primitives.h"
+#include "GPU_raster.h"
+#include "GPU_sprite.h"
 
 #include "BIF_glutil.h"
 
@@ -286,12 +291,12 @@ static void draw_movieclip_buffer(const bContext *C, SpaceClip *sc, ARegion *ar,
 		}
 
 		/* set zoom */
-		gpuPixelZoom(zoomx * width / ibuf->x, zoomy * height / ibuf->y);
+		GPU_pixels_zoom(zoomx * width / ibuf->x, zoomy * height / ibuf->y);
 
 		glaDrawImBuf_glsl_ctx(C, ibuf, x, y, filter);
 
 		/* reset zoom */
-		gpuPixelZoom(1.0f, 1.0f); /* restore default value */
+		GPU_pixels_zoom(1.0f, 1.0f); /* restore default value */
 
 		if (ibuf->planes == 32)
 			glDisable(GL_BLEND);
@@ -320,7 +325,7 @@ static void draw_stabilization_border(SpaceClip *sc, ARegion *ar, int width, int
 		gpuTranslate(x, y, 0.0f);
 
 		gpuScale(zoomx, zoomy, 1.0f);
-		gpuMultMatrix(sc->stabmat);
+		gpuMultMatrix(sc->stabmat[0]);
 
 		gpuBegin(GL_LINE_LOOP);
 		gpuVertex2f(0, 0);
@@ -403,7 +408,7 @@ static void draw_track_path(SpaceClip *sc, MovieClip *UNUSED(clip), MovieTrackin
 		UI_ThemeColor(TH_MARKER_OUTLINE);
 
 		if (TRACK_VIEW_SELECTED(sc, track)) {
-			gpuSpriteSize(5.0f);
+			GPU_sprite_size(5.0f);
 			gpuBegin(GL_POINTS);
 			for (i = a; i < b; i++) {
 				if (i != curindex) {
@@ -425,7 +430,7 @@ static void draw_track_path(SpaceClip *sc, MovieClip *UNUSED(clip), MovieTrackin
 	UI_ThemeColor(TH_PATH_BEFORE);
 
 	if (TRACK_VIEW_SELECTED(sc, track)) {
-		gpuSpriteSize(3.0f);
+		GPU_sprite_size(3.0f);
 		gpuBegin(GL_POINTS);
 		for (i = a; i < b; i++) {
 			if (i == count + 1) {
@@ -450,7 +455,7 @@ static void draw_track_path(SpaceClip *sc, MovieClip *UNUSED(clip), MovieTrackin
 		gpuVertex2f(path[i][0], path[i][1]);
 	}
 	gpuEnd();
-	gpuSpriteSize(1.0f);
+	GPU_sprite_size(1.0f);
 }
 
 static void draw_marker_outline(SpaceClip *sc, MovieTrackingTrack *track, MovieTrackingMarker *marker,
@@ -479,17 +484,17 @@ static void draw_marker_outline(SpaceClip *sc, MovieTrackingTrack *track, MovieT
 		                        marker->pattern_corners[2], marker->pattern_corners[3]))
 		{
 			if (tiny) {
-				gpuSpriteSize(3.0f);
+				GPU_sprite_size(3.0f);
 			}
 			else {
-				gpuSpriteSize(4.0f);
+				GPU_sprite_size(4.0f);
 			}
 
 			gpuBegin(GL_POINTS);
 			gpuVertex2f(pos[0], pos[1]);
 			gpuEnd();
 			
-			gpuSpriteSize(1.0f);
+			GPU_sprite_size(1.0f);
 		}
 		else {
 			if (!tiny) {
@@ -610,14 +615,14 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 		                        marker->pattern_corners[2], marker->pattern_corners[3]))
 		{
 			if (!tiny)
-				gpuSpriteSize(2.0f);
+				GPU_sprite_size(2.0f);
 
 			gpuBegin(GL_POINTS);
 			gpuVertex2f(pos[0], pos[1]);
 			gpuEnd();
 
 			if (!tiny)
-				gpuSpriteSize(1.0f);
+				GPU_sprite_size(1.0f);
 		}
 		else {
 			gpuBegin(GL_LINES);
@@ -1030,7 +1035,7 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 
 	gpuPushMatrix();
 	gpuScale(zoomx, zoomy, 0);
-	gpuMultMatrix(sc->stabmat);
+	gpuMultMatrix(sc->stabmat[0]);
 	gpuScale(width, height, 0);
 
 	act_track = BKE_tracking_track_get_active(tracking);
@@ -1153,7 +1158,7 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 		float pos[4], vec[4], mat[4][4], aspy;
 
 		glEnable(GL_POINT_SMOOTH);
-		gpuSpriteSize(3.0f);
+		GPU_sprite_size(3.0f);
 
 		aspy = 1.0f / clip->tracking.camera.pixel_aspect;
 		BKE_tracking_get_projection_matrix(tracking, object, framenr, width, height, mat);
@@ -1201,7 +1206,7 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 			track = track->next;
 		}
 
-		gpuSpriteSize(1.0f);
+		GPU_sprite_size(1.0f);
 		glDisable(GL_POINT_SMOOTH);
 	}
 
@@ -1264,7 +1269,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 	gpuPushMatrix();
 	gpuTranslate(x, y, 0);
 	gpuScale(zoomx, zoomy, 0);
-	gpuMultMatrix(sc->stabmat);
+	gpuMultMatrix(sc->stabmat[0]);
 	gpuScale(width, height, 0);
 
 	/* grid */
@@ -1387,7 +1392,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 
 			gpuColor4fv(layer->color);
 			gpuLineWidth(layer->thickness);
-			gpuSpriteSize((float)(layer->thickness + 2));
+			GPU_sprite_size((float)(layer->thickness + 2));
 
 			while (frame) {
 				bGPDstroke *stroke = frame->strokes.first;
@@ -1444,7 +1449,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 		}
 
 		gpuLineWidth(1.0f);
-		gpuSpriteSize(1.0f);
+		GPU_sprite_size(1.0f);
 	}
 
 	gpuPopMatrix();
@@ -1532,7 +1537,7 @@ void clip_draw_grease_pencil(bContext *C, int onlyv2d)
 		 * drawn in draw_distortion */
 		if ((sc->flag & SC_MANUAL_CALIBRATION) == 0 || sc->mode != SC_MODE_DISTORTION) {
 			gpuPushMatrix();
-			gpuMultMatrix(sc->unistabmat);
+			gpuMultMatrix(sc->unistabmat[0]);
 
 			if (sc->gpencil_src == SC_GPENCIL_SRC_TRACK) {
 				MovieTrackingTrack *track = BKE_tracking_track_get_active(&sc->clip->tracking);

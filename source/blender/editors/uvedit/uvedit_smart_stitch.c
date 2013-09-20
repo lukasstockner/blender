@@ -67,7 +67,11 @@
 #include "UI_view2d.h"
 #include "UI_resources.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_blender_aspect.h"
+#include "GPU_common.h"
+#include "GPU_raster.h"
+#include "GPU_safety.h"
+#include "GPU_sprite.h"
 
 #include "uvedit_intern.h"
 
@@ -1503,30 +1507,9 @@ static void stitch_calculate_edge_normal(BMEditMesh *em, UvEdge *edge, float *no
 
 static void commit_theme_color(int colorid)
 {
-	GPUcommon* common = gpu_get_common();
-
-	if (common != NULL) {
-		GPU_CHECK_NO_ERROR();
-
-		if (common->color != -1) {
-			float color[4];
-			UI_GetThemeColor4fv(colorid, color);
-
-			glVertexAttrib4fv(common->color, color);
-		}
-
-		GPU_CHECK_NO_ERROR();
-
-		return;
-	}
-
-#if defined(WITH_GL_PROFILE_COMPAT)
-	GPU_CHECK_NO_ERROR();
-
-	UI_ThemeColor4(colorid);
-
-	GPU_CHECK_NO_ERROR();
-#endif
+	float color[4];
+	UI_GetThemeColor4fv(colorid, color);
+	GPU_common_color_4fv(color);
 }
 
 /* XXX jwilkins: this needs more work to fit within the new abstraction layer */
@@ -1538,18 +1521,17 @@ static void stitch_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar), void *ar
 
 	GPU_CHECK_NO_ERROR();
 
-	gpu_commit_aspect();
-	gpu_commit_matrixes();
+	GPU_commit_aspect();
 
 	glEnable(GL_BLEND);
 
-	gpu_enable_vertex_array();
+	GPU_common_enable_vertex_array();
 
-	gpu_vertex_pointer(2, GL_FLOAT, 0, stitch_preview->static_tris);
+	GPU_common_vertex_pointer(2, GL_FLOAT, 0, stitch_preview->static_tris);
 	commit_theme_color(TH_STITCH_PREVIEW_ACTIVE);
 	glDrawArrays(GL_TRIANGLES, 0, stitch_preview->num_static_tris * 3);
 
-	gpu_vertex_pointer(2, GL_FLOAT, 0, stitch_preview->preview_polys);
+	GPU_common_vertex_pointer(2, GL_FLOAT, 0, stitch_preview->preview_polys);
 
 	index = 0;
 	for (i = 0; i < stitch_preview->num_polys; i++) {
@@ -1579,29 +1561,33 @@ static void stitch_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar), void *ar
 
 	/* draw vert preview */
 	if (state->mode == STITCH_VERT) {
-		gpuSpriteSize(2.0f * UI_GetThemeValuef(TH_VERTEX_SIZE));
+		GPU_sprite_begin();
 
-		gpu_vertex_pointer(2, GL_FLOAT, 0, stitch_preview->preview_stitchable);
+		GPU_sprite_size(2.0f * UI_GetThemeValuef(TH_VERTEX_SIZE));
+
+		GPU_common_vertex_pointer(2, GL_FLOAT, 0, stitch_preview->preview_stitchable);
 		commit_theme_color(TH_STITCH_PREVIEW_STITCHABLE);
 		glDrawArrays(GL_POINTS, 0, stitch_preview->num_stitchable);
 
-		gpu_vertex_pointer(2, GL_FLOAT, 0, stitch_preview->preview_unstitchable);
+		GPU_common_vertex_pointer(2, GL_FLOAT, 0, stitch_preview->preview_unstitchable);
 		commit_theme_color(TH_STITCH_PREVIEW_UNSTITCHABLE);
 		glDrawArrays(GL_POINTS, 0, stitch_preview->num_unstitchable);
 
-		gpuSpriteSize(1.0); /* restore default value */
+		GPU_sprite_size(1.0); /* restore default value */
+
+		GPU_sprite_end();
 	}
 	else {
-		gpu_vertex_pointer(2, GL_FLOAT, 0, stitch_preview->preview_stitchable);
+		GPU_common_vertex_pointer(2, GL_FLOAT, 0, stitch_preview->preview_stitchable);
 		commit_theme_color(TH_STITCH_PREVIEW_STITCHABLE);
 		glDrawArrays(GL_LINES, 0, 2 * stitch_preview->num_stitchable);
 
-		gpu_vertex_pointer(2, GL_FLOAT, 0, stitch_preview->preview_unstitchable);
+		GPU_common_vertex_pointer(2, GL_FLOAT, 0, stitch_preview->preview_unstitchable);
 		commit_theme_color(TH_STITCH_PREVIEW_UNSTITCHABLE);
 		glDrawArrays(GL_LINES, 0, 2 * stitch_preview->num_unstitchable);
 	}
 
-	gpu_disable_vertex_array();
+	GPU_common_disable_vertex_array();
 
 	GPU_CHECK_NO_ERROR();
 }

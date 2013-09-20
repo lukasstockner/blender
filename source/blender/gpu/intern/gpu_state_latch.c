@@ -29,6 +29,8 @@
  *  \ingroup gpu
  */
 
+#define GPU_MANGLE_DEPRECATED 0
+
 /* my interface */
 #include "GPU_state_latch.h"
 
@@ -56,7 +58,7 @@ void gpuDepthRange(GLdouble near, GLdouble far)
 
 #if !defined(GLEW_ES_ONLY)
 	if (!GPU_PROFILE_ES20) {
-		GPU_CHECK_NO_ERROR(glDepthRange(near, far));
+		GPU_CHECK(glDepthRange(near, far));
 		return;
 	}
 #endif

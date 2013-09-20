@@ -45,9 +45,9 @@
 
 #include "BKE_depsgraph.h" /* for fly mode updating */
 
-#include "GPU_compatibility.h"
 #include "GPU_colors.h"
-
+#include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 #include "WM_api.h"
 #include "WM_types.h"

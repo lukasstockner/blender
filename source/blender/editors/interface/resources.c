@@ -58,7 +58,7 @@
 
 #include "interface_intern.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_immediate.h"
 
 /* global for themes */
 typedef void (*VectorDrawFunc)(int x, int y, int w, int h, float alpha);
@@ -1322,7 +1322,7 @@ void UI_ThemeClearColor(int colorid)
 {
 	float col[3];
 	UI_GetThemeColor3fv(colorid, col);
-	gpuClearColorfv(col, 0.0);
+	glClearColor(col[0], col[1], col[2], 0.0);
 }
 
 int UI_ThemeMenuShadowWidth(void)

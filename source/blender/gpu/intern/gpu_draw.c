@@ -32,21 +32,21 @@
 /* my interface */
 #include "GPU_draw.h"
 
-/* internal */
-#include "intern/gpu_lighting.h"
-#include "intern/gpu_common.h"
-#include "intern/gpu_extension_wrapper.h"
-#include "intern/gpu_aspect.h"
-#include "intern/gpu_aspectfuncs.h"
-#include "intern/gpu_raster.h"
+#include "intern/gpu_extensions_intern.h"
+#include "intern/gpu_raster_intern.h"
 
 /* my library */
-#include "GPU_compatibility.h"
 #include "GPU_colors.h"
+#include "GPU_common.h"
 #include "GPU_buffers.h"
 #include "GPU_extensions.h"
+#include "GPU_lighting.h"
 #include "GPU_material.h"
-#include "GPU_basic_shader.h"
+#include "GPU_basic.h"
+#include "GPU_immediate.h"
+#include "GPU_matrix.h"
+#include "GPU_state_latch.h"
+#include "GPU_blender_aspect.h"
 
 /* external */
 
@@ -2014,7 +2014,7 @@ void GPU_state_init(void)
 
 	gpuDepthRange(0.0, 1.0);
 
-	gpu_init_stipple();
+	gpu_raster_reset_stipple();
 
 	gpuMatrixMode(GL_TEXTURE);
 	gpuLoadIdentity();

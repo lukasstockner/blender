@@ -1,3 +1,6 @@
+#ifndef _GPU_UTILITY_H_
+#define _GPU_UTILITY_H_
+
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -25,14 +28,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file GPU_utility.h
+/** \file source/blender/gpu/GPU_utility.h
  *  \ingroup gpu
  */
- 
-#ifndef __GPU_UTILITY_H__
-#define __GPU_UTILITY_H__
 
-
+#include "GPU_glew.h"
 
 /* XXX jwilkins: temporary work around for MinGW32 build error */
 #ifdef __MINGW32__
@@ -58,6 +58,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+const char* gpuErrorString(GLenum err);
 
 #ifdef __cplusplus
 }

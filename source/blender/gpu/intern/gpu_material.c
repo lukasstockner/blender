@@ -34,7 +34,7 @@
 
 /* my library */
 #include "GPU_extensions.h"
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 
 /* internal */
 #include "intern/gpu_codegen.h"

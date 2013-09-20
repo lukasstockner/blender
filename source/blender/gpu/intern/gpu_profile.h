@@ -1,3 +1,6 @@
+#ifndef _GPU_PROFILE_H_
+#define _GPU_PROFILE_H_
+
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -25,12 +28,9 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/gpu/intern/gpu_profile.h
+/** \file source/blender/gpu/intern/gpu_profile.h
  *  \ingroup gpu
  */
-
-#ifndef __GPU_PROFILE_H__
-#define __GPU_PROFILE_H__
 
 #if defined(WITH_GL_PROFILE_ES20)
 #define GPU_PROFILE_ES20 1

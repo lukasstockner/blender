@@ -38,11 +38,11 @@
 extern "C" {
 #endif
 
-void GPU_font_init(void);
-void GPU_font_exit(void);
+void gpu_font_init(void);
+void gpu_font_exit(void);
 
-void GPU_font_bind  (void);
-void GPU_font_unbind(void);
+void gpu_font_bind  (void);
+void gpu_font_unbind(void);
 
 #ifdef __cplusplus
 }

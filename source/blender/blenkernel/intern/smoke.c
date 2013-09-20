@@ -83,7 +83,7 @@
 #include "BKE_scene.h"
 #include "BKE_smoke.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 
 #include "RE_shader_ext.h"
 

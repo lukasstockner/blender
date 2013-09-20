@@ -49,7 +49,9 @@
 #include "RNA_access.h"
 
 #include "GPU_colors.h"
+#include "GPU_matrix.h"
 #include "GPU_primitives.h"
+#include "GPU_raster.h"
 
 #include "BIF_glutil.h"
 
@@ -57,7 +59,7 @@
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 
 /* *************************************************** */
 /* TIME CODE FORMATTING */

@@ -33,11 +33,11 @@
 #include "intern/gpu_blender_aspect_intern.h"
 
 /* my library */
-#include "GPU_basic.h"
-#include "GPU_font.h"
-#include "GPU_pixels.h"
-#include "GPU_raster.h"
-#include "GPU_sprite.h"
+#include "intern/gpu_basic_intern.h"
+#include "intern/gpu_font_intern.h"
+#include "intern/gpu_pixels_intern.h"
+#include "intern/gpu_raster_intern.h"
+#include "intern/gpu_sprite_intern.h"
 
 /* external */
 #include "BLI_utildefines.h"
@@ -54,14 +54,14 @@ uint32_t GPU_ASPECT_SPRITE = 0;
 
 static bool font_end(void* UNUSED(param), const void* UNUSED(object))
 {
-	GPU_font_unbind();
+	gpu_font_unbind();
 
 	return true;
 }
 
 static void font_commit(void* UNUSED(param))
 {
-	GPU_font_bind();
+	gpu_font_bind();
 }
 
 GPUaspectimpl GPU_ASPECTIMPL_FONT = {
@@ -76,14 +76,14 @@ GPUaspectimpl GPU_ASPECTIMPL_FONT = {
 
 static bool pixels_end(void* UNUSED(param), const void* UNUSED(object))
 {
-	GPU_pixels_unbind();
+	gpu_pixels_unbind();
 
 	return true;
 }
 
 static void pixels_commit(void* UNUSED(param))
 {
-	GPU_pixels_bind();
+	gpu_pixels_bind();
 }
 
 GPUaspectimpl GPU_ASPECTIMPL_PIXELS = {
@@ -98,24 +98,24 @@ GPUaspectimpl GPU_ASPECTIMPL_PIXELS = {
 
 static bool basic_end(void* UNUSED(param), const void* UNUSED(object))
 {
-	GPU_basic_unbind();
+	gpu_basic_unbind();
 
 	return true;
 }
 
 static void basic_commit(void* UNUSED(param))
 {
-	GPU_basic_bind();
+	gpu_basic_bind();
 }
 
 static void basic_enable(void* UNUSED(param), uint32_t options)
 {
-	GPU_basic_enable(options);
+	gpu_basic_enable(options);
 }
 
 static void basic_disable(void* UNUSED(param), uint32_t options)
 {
-	GPU_basic_disable(options);
+	gpu_basic_disable(options);
 }
 
 GPUaspectimpl GPU_ASPECTIMPL_BASIC = {
@@ -130,24 +130,24 @@ GPUaspectimpl GPU_ASPECTIMPL_BASIC = {
 
 static bool raster_end(void* UNUSED(param), const void* UNUSED(object))
 {
-	GPU_raster_unbind();
+	gpu_raster_unbind();
 
 	return true;
 }
 
 static void raster_commit(void* UNUSED(param))
 {
-	GPU_raster_bind();
+	gpu_raster_bind();
 }
 
 static void raster_enable(void* UNUSED(param), uint32_t options)
 {
-	GPU_raster_enable(options);
+	gpu_raster_enable(options);
 }
 
 static void raster_disable(void* UNUSED(param), uint32_t options)
 {
-	GPU_raster_disable(options);
+	gpu_raster_disable(options);
 }
 
 GPUaspectimpl GPU_ASPECTIMPL_RASTER = {
@@ -162,24 +162,24 @@ GPUaspectimpl GPU_ASPECTIMPL_RASTER = {
 
 static bool sprite_end(void* UNUSED(param), const void* UNUSED(object))
 {
-	GPU_sprite_unbind();
+	gpu_sprite_unbind();
 
 	return true;
 }
 
 static void sprite_commit(void* UNUSED(param))
 {
-	GPU_sprite_bind();
+	gpu_sprite_bind();
 }
 
 static void sprite_enable(void* UNUSED(param), uint32_t options)
 {
-	GPU_sprite_enable(options);
+	gpu_sprite_enable(options);
 }
 
 static void sprite_disable(void* UNUSED(param), uint32_t options)
 {
-	GPU_sprite_disable(options);
+	gpu_sprite_disable(options);
 }
 
 GPUaspectimpl GPU_ASPECTIMPL_SPRITE = {

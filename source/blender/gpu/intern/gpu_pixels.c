@@ -33,19 +33,19 @@
 #include "intern/gpu_pixels_intern.h"
 
 /* my library */
-#include "GPU_basic_shader.h"
+#include "GPU_basic.h"
+#include "GPU_blender_aspect.h"
 #include "GPU_colors.h"
 #include "GPU_extensions.h"
+#include "GPU_immediate.h"
 #include "GPU_matrix.h"
+#include "GPU_safety.h"
+#include "GPU_state_latch.h"
 
 /* internal */
+#include "intern/gpu_common_intern.h"
+#include "intern/gpu_matrix_intern.h"
 #include "intern/gpu_profile.h"
-#include "intern/gpu_safety.h"
-#include "intern/gpu_view.h"
-#include "intern/gpu_state_latch.h"
-#include "intern/gpu_aspect.h"
-#include "intern/gpu_blender_aspect.h"
-#include "intern/gpu_immediate_inline.h"
 
 /* external */
 #include "BLI_dynstr.h"
@@ -54,11 +54,11 @@
 
 
 
-static GPUShader*  PIXELS_SHADER = NULL;
-static GPUcommon   PIXELS_COMMON = {0};
-static bool        PIXELS_FAILED = FALSE;
+static struct GPUShader*  PIXELS_SHADER = NULL;
+static struct GPUcommon   PIXELS_COMMON = {0};
+static bool               PIXELS_FAILED = FALSE;
 
-#if defined(GPU_PROFILE_CORE) || defined(GPU_PROFILE_ES20)
+#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
 static GLfloat PIXELS_POS[3] = { 0, 0, 0 };
 #endif
 
@@ -82,13 +82,13 @@ void gpu_pixels_shader_exit(void)
 
 
 
-void GPU_cache_bitmap(GPUbitmap* bitmap)
+void GPU_bitmap_cache(GPUbitmap* bitmap)
 {
 }
 
 
 
-void GPU_cache_pixels(GPUpixels* pixels)
+void GPU_pixels_cache(GPUpixels* pixels)
 {
 }
 
@@ -361,7 +361,7 @@ static void gpu_pixels_shader(void)
 		BLI_dynstr_free(defs);
 
 		if (PIXELS_SHADER != NULL) {
-			gpu_init_common(&PIXELS_COMMON, PIXELS_SHADER);
+			gpu_common_get_symbols(&PIXELS_COMMON, PIXELS_SHADER);
 			gpu_set_common(&PIXELS_COMMON);
 
 			pixels_init_uniform_locations();
@@ -382,7 +382,7 @@ static void gpu_pixels_shader(void)
 
 
 
-void GPU_pixels_shader_bind(void)
+void gpu_pixels_shader_bind(void)
 {
 	bool glsl_support = GPU_glsl_support();
 
@@ -393,11 +393,13 @@ void GPU_pixels_shader_bind(void)
 	if (!glsl_support)
 		GPU_CHECK(glEnable(GL_TEXTURE_2D));
 #endif
+
+	gpu_commit_matrix();
 }
 
 
 
-void GPU_pixels_shader_unbind(void)
+void gpu_pixels_shader_unbind(void)
 {
 	bool glsl_support = GPU_glsl_support();
 
@@ -545,7 +547,7 @@ static void raster_pos_safe_2f(float x, float y, float known_good_x, float known
 
 void GPU_pixels_pos_2f(GLfloat x, GLfloat y)
 {
-#if defined(GPU_PROFILE_COMPAT)
+#if defined(WITH_GL_PROFILE_COMPAT)
 	/* Don't use safe RasterPos (slower) if we can avoid it. */
 	if (x >= 0 && y >= 0)
 		glRasterPos2f(x, y);
@@ -553,8 +555,8 @@ void GPU_pixels_pos_2f(GLfloat x, GLfloat y)
 		raster_pos_safe_2f(x, y, 0, 0);
 #endif
 
-#if defined(GPU_PROFILE_CORE) || defined(GPU_PROFILE_ES20)
-	VEC_COPY(PIXELS_POS, x, y, 0);
+#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
+	VEC3D(PIXELS_POS, x, y, 0);
 #endif
 }
 
@@ -562,12 +564,12 @@ void GPU_pixels_pos_2f(GLfloat x, GLfloat y)
 
 void GPU_pixels_pos_3f(GLfloat x, GLfloat y, GLfloat z)
 {
-#if defined(GPU_PROFILE_COMPAT)
+#if defined(WITH_GL_PROFILE_COMPAT)
 	glRasterPos3fv(PIXELS_POS);
 #endif
 	
-#if defined(GPU_PROFILE_CORE) || defined(GPU_PROFILE_ES20)
-	VEC_COPY(PIXELS_POS, x, y, z);
+#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
+	VEC3D(PIXELS_POS, x, y, z);
 #endif
 }
 

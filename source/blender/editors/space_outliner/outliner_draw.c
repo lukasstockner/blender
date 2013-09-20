@@ -65,6 +65,7 @@
 
 #include "GPU_colors.h"
 #include "GPU_primitives.h"
+#include "GPU_pixels.h"
 
 #include "BIF_glutil.h"
 
@@ -1617,12 +1618,12 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 			offsx += 2 * ufac;
 		
 		if (tselem->type == 0 && tselem->id->lib) {
-			gpuPixelUniform1f(GL_ALPHA_SCALE, 0.5f);
+			GPU_pixels_uniform_1f(GL_ALPHA_SCALE, 0.5f);
 			if (tselem->id->flag & LIB_INDIRECT)
 				UI_icon_draw((float)startx + offsx, (float)*starty + 2 * ufac, ICON_LIBRARY_DATA_INDIRECT);
 			else
 				UI_icon_draw((float)startx + offsx, (float)*starty + 2 * ufac, ICON_LIBRARY_DATA_DIRECT);
-			gpuPixelUniform1f(GL_ALPHA_SCALE, 1.0f); /* restore default value */
+			GPU_pixels_uniform_1f(GL_ALPHA_SCALE, 1.0f); /* restore default value */
 			offsx += UI_UNIT_X;
 		}
 		glDisable(GL_BLEND);
@@ -1658,11 +1659,11 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 						*starty + UI_UNIT_Y - 4.0f * ufac);
 
 					glEnable(GL_BLEND);
-					gpuPixelUniform1f(GL_ALPHA_SCALE, 0.5);
+					GPU_pixels_uniform_1f(GL_ALPHA_SCALE, 0.5);
 
 					outliner_draw_iconrow(C, block, scene, soops, &te->subtree, 0, xmax, &tempx, *starty);
 
-					gpuPixelUniform1f(GL_ALPHA_SCALE, 1.0); /* restore default value */
+					GPU_pixels_uniform_1f(GL_ALPHA_SCALE, 1.0); /* restore default value */
 					glDisable(GL_BLEND);
 				}
 			}

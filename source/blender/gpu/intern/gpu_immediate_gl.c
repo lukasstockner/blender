@@ -30,16 +30,13 @@
 */
 
 /* my interface */
-#include "intern/gpu_immediate_gl.h"
+#include "intern/gpu_immediate_intern.h"
 
 /* internal */
-#include "intern/gpu_aspect.h"
-#include "intern/gpu_common.h"
-#include "intern/gpu_immediate.h"
-#include "intern/gpu_extension_wrapper.h"
-#include "intern/gpu_glew.h"
+#include "intern/gpu_extensions_intern.h"
+#include "intern/gpu_common_intern.h"
 
-/* my library */
+#include "GPU_aspect.h"
 #include "GPU_matrix.h"
 
 /* external */
@@ -168,46 +165,35 @@ static void setup(void)
 
 	size_t i;
 
-	GPU_CHECK_NO_ERROR();
-
 	/* vertex */
-	gpu_enable_vertex_array();
-GPU_CHECK_NO_ERROR();
-	gpu_vertex_pointer(format->vertexSize, GL_FLOAT, stride, base + offset);
-GPU_CHECK_NO_ERROR();
+	GPU_common_enable_vertex_array();
+	GPU_common_vertex_pointer(format->vertexSize, GL_FLOAT, stride, base + offset);
 	offset += (size_t)(format->vertexSize) * sizeof(GLfloat);
 
 	/* normal */
 	if (format->normalSize != 0) {
-		gpu_enable_normal_array();
-GPU_CHECK_NO_ERROR();
-		gpu_normal_pointer(GL_FLOAT, stride, GL_FALSE, base + offset);
-GPU_CHECK_NO_ERROR();
+		GPU_common_enable_normal_array();
+		GPU_common_normal_pointer(GL_FLOAT, stride, GL_FALSE, base + offset);
 		offset += 3 * sizeof(GLfloat);
 	}
 
 	/* color */
 	if (format->colorSize != 0) {
-		gpu_enable_color_array();
-GPU_CHECK_NO_ERROR();
-		gpu_color_pointer(format->colorSize, GL_UNSIGNED_BYTE, stride, base + offset);
-GPU_CHECK_NO_ERROR();
+		GPU_common_enable_color_array();
+		GPU_common_color_pointer(format->colorSize, GL_UNSIGNED_BYTE, stride, base + offset);
 		offset += 4 * sizeof(GLubyte); /* 4 bytes are always reserved for color, for efficient memory alignment */
 	}
 
 	/* texture coordinate */
 
 	for (i = 0; i < format->texCoordCount; i++) {
-		gpu_set_common_active_texture(i);
-GPU_CHECK_NO_ERROR();
-		gpu_enable_texcoord_array();
-GPU_CHECK_NO_ERROR();
-		gpu_texcoord_pointer(format->texCoordSize[i], GL_FLOAT, stride, base + offset);
-GPU_CHECK_NO_ERROR();
+		GPU_set_common_active_texture(i);
+		GPU_common_enable_texcoord_array();
+		GPU_common_texcoord_pointer(format->texCoordSize[i], GL_FLOAT, stride, base + offset);
 		offset += (size_t)(format->texCoordSize[i]) * sizeof(GLfloat);
 	}
 
-	gpu_set_common_active_texture(0);
+	GPU_set_common_active_texture(0);
 
 	/* float vertex attribute */
 	for (i = 0; i < format->attribCount_f; i++) {
@@ -219,12 +205,10 @@ GPU_CHECK_NO_ERROR();
 				format->attribNormalized_f[i],
 				stride,
 				base + offset);
-GPU_CHECK_NO_ERROR();
 
 			offset += (size_t)(format->attribSize_f[i]) * sizeof(GLfloat);
 
 			gpu_glEnableVertexAttribArray(format->attribIndexMap_f[i]);
-GPU_CHECK_NO_ERROR();
 		}
 	}
 
@@ -238,16 +222,12 @@ GPU_CHECK_NO_ERROR();
 				format->attribNormalized_ub[i],
 				stride,
 				base + offset);
-GPU_CHECK_NO_ERROR();
 
 			offset += 4 * sizeof(GLubyte);
 
 			gpu_glEnableVertexAttribArray(format->attribIndexMap_ub[i]);
-GPU_CHECK_NO_ERROR();
 		}
 	}
-
-	GPU_CHECK_NO_ERROR();
 }
 
 
@@ -256,29 +236,27 @@ static void unsetup(void)
 {
 	size_t i;
 
-	GPU_CHECK_NO_ERROR();
-
 	/* vertex */
-	gpu_disable_vertex_array();
+	GPU_common_disable_vertex_array();
 
 	/* normal */
 //	if (GPU_IMMEDIATE->format.normalSize != 0)
-		gpu_disable_normal_array();
+		GPU_common_disable_normal_array();
 
 	/* color */
 //	if (GPU_IMMEDIATE->format.colorSize != 0)
-		gpu_disable_color_array();
+		GPU_common_disable_color_array();
 
 	/* texture coordinate */
 
 	for (i = 0; i < GPU_IMMEDIATE->format.texCoordCount; i++) {
-		gpu_set_common_active_texture(i);
+		GPU_set_common_active_texture(i);
 
 //		if (GPU_IMMEDIATE->format.texCoordSize[i] != 0)
-			gpu_disable_texcoord_array();
+			GPU_common_disable_texcoord_array();
 	}
 
-	gpu_set_common_active_texture(0);
+	GPU_set_common_active_texture(0);
 
 	/* float vertex attribute */
 	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_f; i++)
@@ -289,8 +267,6 @@ static void unsetup(void)
 	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++)
 //		if (GPU_IMMEDIATE->format.attribSize_ub[i] > 0)
 			gpu_glDisableVertexAttribArray(GPU_IMMEDIATE->format.attribIndexMap_ub[i]);
-
-	GPU_CHECK_NO_ERROR();
 }
 
 
@@ -517,7 +493,7 @@ void gpu_begin_buffer_gl(void)
 	bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
 
 	bufferData->mappedBuffer =
-		(GLubyte*)GPU_buffer_start_update(GL_ARRAY_BUFFER, bufferData->unmappedBuffer);
+		(GLubyte*)gpu_buffer_start_update(GL_ARRAY_BUFFER, bufferData->unmappedBuffer);
 
 	GPU_IMMEDIATE->mappedBuffer = bufferData->mappedBuffer;
 }
@@ -531,17 +507,16 @@ void gpu_end_buffer_gl(void)
 	GPU_CHECK_NO_ERROR();
 
 	if (bufferData->mappedBuffer != NULL) {
-		GPU_buffer_finish_update(GL_ARRAY_BUFFER, GPU_IMMEDIATE->offset, bufferData->mappedBuffer);
+		gpu_buffer_finish_update(GL_ARRAY_BUFFER, GPU_IMMEDIATE->offset, bufferData->mappedBuffer);
 
 		bufferData   ->mappedBuffer = NULL;
 		GPU_IMMEDIATE->mappedBuffer = NULL;
 	}
 
 	if (!(GPU_IMMEDIATE->mode == GL_NOOP || GPU_IMMEDIATE->count == 0)) {
-		gpu_commit_aspect();
+		GPU_commit_aspect();
 		unsetup();
 		setup();
-		gpu_commit_matrixes();
 		gpu_commit_current ();
 		gpu_commit_samplers();
 
@@ -640,7 +615,7 @@ void gpu_index_begin_buffer_gl(void)
 	indexBufferDataGLSL* bufferData = (indexBufferDataGLSL*)(index->bufferData);
 
 	bufferData->mappedBuffer =
-		(GLubyte*)GPU_buffer_start_update(GL_ELEMENT_ARRAY_BUFFER, bufferData->unmappedBuffer);
+		(GLubyte*)gpu_buffer_start_update(GL_ELEMENT_ARRAY_BUFFER, bufferData->unmappedBuffer);
 
 	index->mappedBuffer = bufferData->mappedBuffer;
 }
@@ -652,7 +627,7 @@ void gpu_index_end_buffer_gl(void)
 	GPUindex *restrict   index      = GPU_IMMEDIATE->index;
 	indexBufferDataGLSL* bufferData = (indexBufferDataGLSL*)(index->bufferData);
 
-	GPU_buffer_finish_update(GL_ELEMENT_ARRAY_BUFFER, index->offset, bufferData->mappedBuffer);
+	gpu_buffer_finish_update(GL_ELEMENT_ARRAY_BUFFER, index->offset, bufferData->mappedBuffer);
 
 	bufferData->mappedBuffer = NULL;
 	index     ->mappedBuffer = NULL;
@@ -667,10 +642,9 @@ void gpu_draw_elements_gl(void)
 
 	GPU_CHECK_NO_ERROR();
 
-	gpu_commit_aspect();
+	GPU_commit_aspect();
 	unsetup();
 	setup();
-	gpu_commit_matrixes();
 	gpu_commit_current ();
 	gpu_commit_samplers();
 
@@ -692,10 +666,9 @@ void gpu_draw_range_elements_gl(void)
 
 	GPU_CHECK_NO_ERROR();
 
-	gpu_commit_aspect  ();
+	GPU_commit_aspect();
 	unsetup();
 	setup();
-	gpu_commit_matrixes();
 	gpu_commit_current ();
 	gpu_commit_samplers();
 
@@ -725,7 +698,7 @@ void gpu_draw_range_elements_gl(void)
 void gpu_commit_current(void)
 {
 	if (GPU_IMMEDIATE->format.colorSize == 0)
-		GPU_common_color_4uvb(GPU_IMMEDIATE->color);
+		GPU_common_color_4ubv(GPU_IMMEDIATE->color);
 	
 	if (GPU_IMMEDIATE->format.normalSize == 0)
 		GPU_common_normal_3fv(GPU_IMMEDIATE->normal);
@@ -735,7 +708,7 @@ void gpu_commit_current(void)
 
 void gpu_commit_samplers(void)
 {
-	const GPUcommon* common = gpu_get_common();
+	const struct GPUcommon* common = gpu_get_common();
 
 	if (common) {
 		GPU_CHECK_NO_ERROR();

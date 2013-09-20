@@ -46,6 +46,7 @@
 #include "BKE_text.h"
 
 #include "GPU_colors.h"
+#include "GPU_matrix.h"
 #include "GPU_primitives.h"
 #include "GPU_utility.h"
 

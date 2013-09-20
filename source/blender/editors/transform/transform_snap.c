@@ -51,7 +51,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_object.h"

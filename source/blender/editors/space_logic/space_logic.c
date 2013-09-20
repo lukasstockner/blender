@@ -45,7 +45,7 @@
 #include "ED_space_api.h"
 #include "ED_screen.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -250,7 +250,7 @@ static void logic_main_area_draw(const bContext *C, ARegion *ar)
 	
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);
-	gpuClear(GL_COLOR_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT);
 	
 	UI_view2d_view_ortho(v2d);
 	

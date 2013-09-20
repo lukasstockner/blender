@@ -38,7 +38,7 @@
 
 #include "BLI_utildefines.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 
 
 #include "RNA_define.h"
@@ -58,6 +58,7 @@
 #include "IMB_colormanagement.h"
 
 #include "GPU_draw.h"
+#include "GPU_state_latch.h"
 
 #include "DNA_image_types.h"
 #include "DNA_scene_types.h"

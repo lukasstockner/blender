@@ -59,8 +59,11 @@
 #include "ED_types.h"
 #include "ED_fileselect.h" 
 
+#include "GPU_blender_aspect.h"
 #include "GPU_colors.h"
+#include "GPU_matrix.h"
 #include "GPU_primitives.h"
+#include "GPU_raster.h"
 
 #include "BLF_api.h"
 
@@ -450,7 +453,7 @@ void ED_region_do_draw(bContext *C, ARegion *ar)
 	/* optional header info instead? */
 	if (ar->headerstr) {
 		UI_ThemeClearColor(TH_HEADER);
-		gpuClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT);
 		
 		UI_ThemeColor(TH_TEXT);
 		BLF_draw_default(UI_UNIT_X, 0.4f * UI_UNIT_Y, 0.0f, ar->headerstr, BLF_DRAW_STR_DUMMY_MAX);
@@ -1773,7 +1776,7 @@ void ED_region_header(const bContext *C, ARegion *ar)
 
 	/* clear */
 	UI_ThemeClearColor((ED_screen_area_active(C)) ? TH_HEADER : TH_HEADERDESEL);
-	gpuClear(GL_COLOR_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT);
 	
 	/* set view2d view matrix for scrolling (without scrollers) */
 	UI_view2d_view_ortho(&ar->v2d);
@@ -1845,7 +1848,7 @@ void ED_region_info_draw(ARegion *ar, const char *text, int block, float fill_co
 
 	/* setup scissor */
 	glGetIntegerv(GL_SCISSOR_BOX, scissor);
-	gpuScissor(ar->winrct.xmin + rect.xmin, ar->winrct.ymin + rect.ymin,
+	glScissor(ar->winrct.xmin + rect.xmin, ar->winrct.ymin + rect.ymin,
 	          BLI_rcti_size_x(&rect) + 1, BLI_rcti_size_y(&rect) + 1);
 
 	glEnable(GL_BLEND);
@@ -1864,7 +1867,7 @@ void ED_region_info_draw(ARegion *ar, const char *text, int block, float fill_co
 	BLF_disable(fontid, BLF_CLIPPING);
 
 	/* restore scissor as it was before */
-	gpuScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
+	glScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
 }
 
 void ED_region_grid_draw(ARegion *ar, float zoomx, float zoomy)

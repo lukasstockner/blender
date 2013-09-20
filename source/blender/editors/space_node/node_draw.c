@@ -48,10 +48,13 @@
 #include "BKE_main.h"
 #include "BKE_node.h"
 
+#include "GPU_blender_aspect.h"
 #include "GPU_colors.h"
+#include "GPU_pixels.h"
 #include "GPU_primitives.h"
-#include "BLF_api.h"
+#include "GPU_raster.h"
 
+#include "BLF_api.h"
 
 #include "BIF_glutil.h"
 
@@ -727,9 +730,9 @@ static void node_draw_preview(bNodePreview *preview, rctf *prv)
 	glEnable(GL_BLEND);  /* premul graphics */
 	
 	gpuColor3P(CPACK_WHITE);
-	gpuPixelZoom(scale, scale);
+	GPU_pixels_zoom(scale, scale);
 	glaDrawPixelsTex(draw_rect.xmin, draw_rect.ymin, preview->xsize, preview->ysize, GL_RGBA, GL_UNSIGNED_BYTE, GL_LINEAR, preview->rect);
-	gpuPixelZoom(1.0f, 1.0f); /* restore default value */
+	GPU_pixels_zoom(1.0f, 1.0f); /* restore default value */
 	
 	glDisable(GL_BLEND);
 
@@ -1308,7 +1311,7 @@ void drawnodespace(const bContext *C, ARegion *ar)
 	View2D *v2d = &ar->v2d;
 
 	UI_ThemeClearColor(TH_BACK);
-	gpuClear(GL_COLOR_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT);
 
 	UI_view2d_view_ortho(v2d);
 

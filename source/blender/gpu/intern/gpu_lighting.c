@@ -39,6 +39,7 @@
 #include "GPU_common.h"
 
 /* internal */
+#include "intern/gpu_common_intern.h"
 
 /* external */
 #include "BLI_math_vector.h"
@@ -100,8 +101,8 @@ bool gpu_lighting_is_fast(void)
 
 void gpu_commit_lighting(void)
 {
-	const GPUcommon*     common = gpu_get_common();
-	const GPUbasiclight* light  = LIGHTING.light;
+	const struct GPUcommon*     common = gpu_get_common();
+	const struct GPUbasiclight* light  = LIGHTING.light;
 
 	int i;
 
@@ -156,8 +157,8 @@ void gpu_commit_lighting(void)
 
 void gpu_commit_material(void)
 {
-	const GPUcommon*         common   = gpu_get_common();
-	const GPUbasicmaterial* material = &(LIGHTING.material);
+	const struct GPUcommon*         common   = gpu_get_common();
+	const struct GPUbasicmaterial* material = &(LIGHTING.material);
 
 GPU_CHECK_NO_ERROR();
 	if (common) {

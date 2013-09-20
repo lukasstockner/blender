@@ -63,12 +63,15 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "GPU_basic.h"
+#include "GPU_blender_aspect.h"
 #include "GPU_buffers.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
+#include "GPU_immediate.h"
 #include "GPU_material.h"
-#include "GPU_compatibility.h"
-#include "GPU_basic_shader.h"
+#include "GPU_matrix.h"
+#include "GPU_raster.h"
 
 /* standard */
 #include <string.h>
@@ -76,8 +79,6 @@
 #include <math.h>
 
 
-
-extern GLubyte stipple_quarttone[128]; /* glutil.c, bad level data */
 
 typedef struct {
 	DerivedMesh dm;
@@ -351,8 +352,7 @@ static void cdDM_drawVerts(DerivedMesh *dm)
 	else {  /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
 		GPU_vertex_setup(dm);
 
-		gpu_commit_aspect(); // XXX jwilkins: internal interface
-		gpu_commit_matrixes(); // XXX jwilkins: internal interface
+		GPU_commit_aspect();
 
 		if (!GPU_buffer_legacy(dm)) {
 			if (dm->drawObject->tot_triangle_point)
@@ -405,8 +405,7 @@ static void cdDM_drawUVEdges(DerivedMesh *dm)
 
 			GPU_uvedge_setup(dm);
 
-			gpu_commit_aspect(); // XXX jwilkins: internal interface
-			gpu_commit_matrixes(); // XXX jwilkins: internal interface
+			GPU_commit_aspect();
 
 			if (!GPU_buffer_legacy(dm)) {
 				for (i = 0; i < dm->numTessFaceData; i++, mf++) {
@@ -895,8 +894,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 						else
 							GPU_color_switch(0);
 
-						gpu_commit_aspect(); // XXX jwilkins: internal interface
-						gpu_commit_matrixes(); // XXX jwilkins: internal interface
+						GPU_commit_aspect();
 
 						glDrawArrays(GL_TRIANGLES, first, count);
 					}
@@ -1014,7 +1012,7 @@ static void cdDM_drawMappedFaces(
 
 					GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
 
-					gpuPolygonStipple(stipple_quarttone);
+					gpuPolygonStipple(GPU_stipple_quarttone);
 				}
 				else {
 					// SSS Enable Smooth
@@ -1111,8 +1109,7 @@ static void cdDM_drawMappedFaces(
 			if (setDrawOptions == NULL) {
 				/* just draw the entire face array */
 
-				gpu_commit_aspect(); // XXX jwilkins: internal interface
-				gpu_commit_matrixes(); // XXX jwilkins: internal function call
+				GPU_commit_aspect();
 
 				glDrawArrays(GL_TRIANGLES, 0, (tottri) * 3);
 			}
@@ -1143,7 +1140,7 @@ static void cdDM_drawMappedFaces(
 
 						GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
 
-						gpuPolygonStipple(stipple_quarttone);
+						gpuPolygonStipple(GPU_stipple_quarttone);
 					}
 	
 					/* Goal is to draw as long of a contiguous triangle
@@ -1167,7 +1164,7 @@ static void cdDM_drawMappedFaces(
 
 						if (count)
 						{
-							gpu_commit_matrixes(); // XXX jwilkins: internal function call
+							GPU_commit_aspect();
 							glDrawArrays(GL_TRIANGLES, first, count);
 						}
 
@@ -1453,8 +1450,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 		GPU_normal_setup(dm);
 
 		if (!GPU_buffer_legacy(dm)) {
-			gpu_commit_aspect(); // XXX jwilkins: internal interface
-			gpu_commit_matrixes(); // XXX jwilkins: internal function call
+			GPU_commit_aspect();
 
 			for (i = 0; i < dm->drawObject->tot_triangle_point / 3; i++) {
 
@@ -1636,8 +1632,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 						GPU_interleaved_attrib_setup(buffer, datatypes, numdata);
 					}
 
-					gpu_commit_aspect(); // XXX jwilkins: internal interface
-					gpu_commit_matrixes(); // XXX jwilkins: internal function call
+					GPU_commit_aspect();
 
 					glDrawArrays(GL_TRIANGLES, start * 3, (curface - start) * 3);
 				}

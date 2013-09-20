@@ -80,12 +80,18 @@
 #include "DNA_scene_types.h"
 #include "DNA_world_types.h"
 
-#include "GPU_basic_shader.h"
+#include "GPU_basic.h"
+#include "GPU_blender_aspect.h"
 #include "GPU_colors.h"
-#include "GPU_primitives.h"
 #include "GPU_draw.h"
-#include "GPU_material.h"
 #include "GPU_extensions.h"
+#include "GPU_material.h"
+#include "GPU_matrix.h"
+#include "GPU_pixels.h"
+#include "GPU_primitives.h"
+#include "GPU_raster.h"
+#include "GPU_sprite.h"
+#include "GPU_state_latch.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -120,16 +126,18 @@ static void star_stuff_init_func(void)
 {
 	gpuImmediateFormat_V3();
 	gpuColor3P(CPACK_WHITE);
-	gpuSpriteSize(1.0);
-	gpuBegin(GL_POINTS);
+	GPU_sprite_size(1.0);
+	GPU_sprite_begin();
 }
+
 static void star_stuff_vertex_func(float *i)
 {
-	gpuVertex3fv(i);
+	GPU_sprite_3fv(i);
 }
+
 static void star_stuff_term_func(void)
 {
-	gpuEnd();
+	GPU_sprite_end();
 	gpuImmediateUnformat();
 }
 
@@ -786,7 +794,7 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 	// SSS Enable Smooth
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
-	gpuSpriteSize(5);
+	GPU_sprite_size(5);
 	glEnable(GL_POINT_SMOOTH);
 	gpuDepthMask(GL_FALSE);  /* don't overwrite zbuf */
 
@@ -1479,15 +1487,15 @@ static void backdrawview3d(Scene *scene, ARegion *ar, View3D *v3d)
 	if (rv3d->gpuoffscreen)
 		GPU_offscreen_bind(rv3d->gpuoffscreen);
 	else
-		gpuScissor(ar->winrct.xmin, ar->winrct.ymin, BLI_rcti_size_x(&ar->winrct), BLI_rcti_size_y(&ar->winrct));
+		glScissor(ar->winrct.xmin, ar->winrct.ymin, BLI_rcti_size_x(&ar->winrct), BLI_rcti_size_y(&ar->winrct));
 
-	gpuClearColor(0.0, 0.0, 0.0, 0.0); 
+	glClearColor(0.0, 0.0, 0.0, 0.0); 
 	if (v3d->zbuf) {
 		glEnable(GL_DEPTH_TEST);
-		gpuClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	}
 	else {
-		gpuClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT);
 		glDisable(GL_DEPTH_TEST);
 	}
 	
@@ -1936,7 +1944,7 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 			gpuPushMatrix();
 			ED_region_pixelspace(ar);
 
-			gpuPixelZoom(zoomx, zoomy);
+			GPU_pixels_zoom(zoomx, zoomy);
 
 			gpuColor4P(CPACK_WHITE, 1 - bgpic->blend);
 			/* could not use glaDrawPixelsAuto because it could fallback to
@@ -1945,7 +1953,7 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 			 */
 			glaDrawPixelsTex(x1, y1, ibuf->x, ibuf->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_LINEAR, ibuf->rect);
 
-			gpuPixelZoom(1.0f, 1.0f); /* restore default value */
+			GPU_pixels_zoom(1.0f, 1.0f); /* restore default value */
 
 			gpuMatrixMode(GL_PROJECTION);
 			gpuPopMatrix();
@@ -2034,7 +2042,7 @@ static void view3d_draw_xray(Scene *scene, ARegion *ar, View3D *v3d, int clear)
 	View3DAfter *v3da, *next;
 
 	if (clear && v3d->zbuf)
-		gpuClear(GL_DEPTH_BUFFER_BIT);
+		glClear(GL_DEPTH_BUFFER_BIT);
 
 	v3d->xray = TRUE;
 	for (v3da = v3d->afterdraw_xray.first; v3da; v3da = next) {
@@ -2053,7 +2061,7 @@ static void view3d_draw_xraytransp(Scene *scene, ARegion *ar, View3D *v3d, int c
 	View3DAfter *v3da, *next;
 
 	if (clear && v3d->zbuf)
-		gpuClear(GL_DEPTH_BUFFER_BIT);
+		glClear(GL_DEPTH_BUFFER_BIT);
 
 	v3d->xray = TRUE;
 	v3d->transp = TRUE;
@@ -2355,9 +2363,9 @@ void draw_depth_gpencil(Scene *scene, ARegion *ar, View3D *v3d)
 	invert_m4_m4(rv3d->persinv, rv3d->persmat);
 	invert_m4_m4(rv3d->viewinv, rv3d->viewmat);
 
-	gpuClear(GL_DEPTH_BUFFER_BIT);
+	glClear(GL_DEPTH_BUFFER_BIT);
 
-	gpuLoadMatrix(rv3d->viewmat);
+	gpuLoadMatrix(rv3d->viewmat[0]);
 
 	v3d->zbuf = TRUE;
 	glEnable(GL_DEPTH_TEST);
@@ -2392,9 +2400,9 @@ void draw_depth(Scene *scene, ARegion *ar, View3D *v3d, int (*func)(void *), boo
 	invert_m4_m4(rv3d->persinv, rv3d->persmat);
 	invert_m4_m4(rv3d->viewinv, rv3d->viewmat);
 	
-	gpuClear(GL_DEPTH_BUFFER_BIT);
+	glClear(GL_DEPTH_BUFFER_BIT);
 	
-	gpuLoadMatrix(rv3d->viewmat);
+	gpuLoadMatrix(rv3d->viewmat[0]);
 //	persp(PERSP_STORE);  /* store correct view for persp(PERSP_VIEW) calls */
 	
 	if (rv3d->rflag & RV3D_CLIPPING) {
@@ -2687,9 +2695,9 @@ static void view3d_main_area_setup_view(Scene *scene, View3D *v3d, ARegion *ar, 
 
 	/* set for opengl */
 	gpuMatrixMode(GL_PROJECTION);
-	gpuLoadMatrix(rv3d->winmat);
+	gpuLoadMatrix(rv3d->winmat[0]);
 	gpuMatrixMode(GL_MODELVIEW);
-	gpuLoadMatrix(rv3d->viewmat);
+	gpuLoadMatrix(rv3d->viewmat[0]);
 }
 
 void ED_view3d_draw_offscreen_init(Scene *scene, View3D *v3d)
@@ -2745,7 +2753,7 @@ void ED_view3d_draw_offscreen(Scene *scene, View3D *v3d, ARegion *ar, int winx, 
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	}
 
-	gpuClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	/* setup view matrices */
 	view3d_main_area_setup_view(scene, v3d, ar, viewmat, winmat);
@@ -3114,8 +3122,8 @@ static bool view3d_main_area_draw_engine(const bContext *C, ARegion *ar, bool cl
 	if (clip_border) {
 		/* for border draw, we only need to clear a subset of the 3d view */
 		if (border_rect->xmax > border_rect->xmin && border_rect->ymax > border_rect->ymin) {
-			gpuGetSizeBox(GL_SCISSOR_BOX, scissor);
-			gpuScissor(border_rect->xmin, border_rect->ymin,
+			glGetIntegerv(GL_SCISSOR_BOX, scissor);
+			glScissor(border_rect->xmin, border_rect->ymin,
 			          BLI_rcti_size_x(border_rect), BLI_rcti_size_y(border_rect));
 		}
 		else {
@@ -3123,8 +3131,8 @@ static bool view3d_main_area_draw_engine(const bContext *C, ARegion *ar, bool cl
 		}
 	}
 
-	gpuClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	gpuClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	if (v3d->flag & V3D_DISPBGPICS)
 		view3d_draw_bgpic(scene, ar, v3d, false, true);
@@ -3140,7 +3148,7 @@ static bool view3d_main_area_draw_engine(const bContext *C, ARegion *ar, bool cl
 
 	if (clip_border) {
 		/* restore scissor as it was before */
-		gpuScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
+		glScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
 	}
 
 	return true;
@@ -3419,9 +3427,9 @@ static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const 
 			drawgrid(&scene->unit, ar, v3d, grid_unit);
 			/* XXX make function? replaces persp(1) */
 			gpuMatrixMode(GL_PROJECTION);
-			gpuLoadMatrix(rv3d->winmat);
+			gpuLoadMatrix(rv3d->winmat[0]);
 			gpuMatrixMode(GL_MODELVIEW);
-			gpuLoadMatrix(rv3d->viewmat);
+			gpuLoadMatrix(rv3d->viewmat[0]);
 		}
 	}
 
@@ -3704,7 +3712,7 @@ static void bl_debug_draw(void)
 			glVertex3fv(_bl_debug_draw_edges[i][1]);
 		}
 		glEnd();
-		gpuSpriteSize(4.0);
+		GPU_sprite_size(4.0);
 		glBegin(GL_POINTS);
 		for (i = 0; i < _bl_debug_draw_edges_tot; i ++) {
 			glVertex3fv(_bl_debug_draw_edges[i][0]);

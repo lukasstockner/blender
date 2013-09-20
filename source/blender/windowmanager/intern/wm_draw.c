@@ -63,11 +63,14 @@
 
 #include "GHOST_C-api.h"
 
-#include "GPU_basic_shader.h"
+#include "GPU_basic.h"
+#include "GPU_blender_aspect.h"
 #include "GPU_colors.h"
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
+#include "GPU_immediate.h"
+#include "GPU_state_latch.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -485,20 +488,20 @@ static int wm_triple_gen_textures(wmWindow *win, wmDrawTriple *triple)
 			maxsize = GPU_max_texture_size();
 
 			if (triple->x[x] > maxsize || triple->y[y] > maxsize) {
-				glBindTexture(triple->target, 0);
+				gpuBindTexture(triple->target, 0);
 				printf("WM: failed to allocate texture for triple buffer drawing "
 				       "(texture too large for graphics card).\n");
 				return 0;
 			}
 
 			/* setup actual texture */
-			glBindTexture(triple->target, triple->bind[x + y * triple->nx]);
+			gpuBindTexture(triple->target, triple->bind[x + y * triple->nx]);
 			glTexImage2D(triple->target, 0, (GLEW_VERSION_1_1 || GLEW_OES_required_internalformat) ? GL_RGB8 : GL_RGB, triple->x[x], triple->y[y], 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 			glTexParameteri(triple->target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 			glTexParameteri(triple->target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 			/* The current color is ignored if the GL_REPLACE texture environment is used. */
 			// glTexEnvi(triple->target, GL_TEXTURE_ENV_MODE, GL_REPLACE); // XXX jwilkins: this was commented out, but would have been only places Blender changes TEXTURE_ENV_MODE
-			glBindTexture(triple->target, 0);
+			gpuBindTexture(triple->target, 0);
 
 			/* not sure if this works everywhere .. */
 			if (glGetError() == GL_OUT_OF_MEMORY) {
@@ -537,7 +540,7 @@ static void wm_triple_draw_textures(wmWindow *win, wmDrawTriple *triple, float a
 				halfy /= triple->y[y];
 			}
 
-			glBindTexture(triple->target, triple->bind[x + y * triple->nx]);
+			gpuBindTexture(triple->target, triple->bind[x + y * triple->nx]);
 
 			gpuColor4P(CPACK_WHITE, alpha);
 
@@ -567,7 +570,7 @@ static void wm_triple_draw_textures(wmWindow *win, wmDrawTriple *triple, float a
 		}
 	}
 
-	glBindTexture(triple->target, 0);
+	gpuBindTexture(triple->target, 0);
 	glDisable(triple->target);
 }
 
@@ -580,12 +583,12 @@ static void wm_triple_copy_textures(wmWindow *win, wmDrawTriple *triple)
 			sizex = (x == triple->nx - 1) ? WM_window_pixels_x(win) - offx : triple->x[x];
 			sizey = (y == triple->ny - 1) ? WM_window_pixels_y(win) - offy : triple->y[y];
 
-			glBindTexture(triple->target, triple->bind[x + y * triple->nx]);
+			gpuBindTexture(triple->target, triple->bind[x + y * triple->nx]);
 			glCopyTexSubImage2D(triple->target, 0, 0, 0, offx, offy, sizex, sizey);
 		}
 	}
 
-	glBindTexture(triple->target, 0);
+	gpuBindTexture(triple->target, 0);
 }
 
 static void wm_draw_region_blend(wmWindow *win, ARegion *ar)
@@ -612,8 +615,8 @@ static void wm_method_draw_triple(bContext *C, wmWindow *win)
 	int copytex = 0, paintcursor = 1;
 
 	if (win->drawdata) {
-		gpuClearColor(0, 0, 0, 0);
-		gpuClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glClearColor(0, 0, 0, 0);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		wmSubWindowSet(win, screen->mainwin);
 

@@ -32,14 +32,14 @@
  *  \ingroup gpu
  */
 
-#ifndef __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
 void GPU_init(void);
 void GPU_exit(void);
 
-#ifndef __cplusplus
+#ifdef __cplusplus
 }
 #endif
 

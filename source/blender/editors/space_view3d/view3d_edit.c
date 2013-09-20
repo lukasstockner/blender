@@ -59,7 +59,7 @@
 #include "BKE_armature.h"
 #include "BKE_depsgraph.h" /* for ED_view3d_camera_lock_sync */
 
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 
 #include "BIF_glutil.h"
 
@@ -77,7 +77,7 @@
 #include "ED_view3d.h"
 #include "ED_sculpt.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_matrix.h"
 
 #include "PIL_time.h" /* smoothview */
 

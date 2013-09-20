@@ -52,8 +52,11 @@
 #include "BKE_report.h"
 #include "BKE_writeavi.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_blender_aspect.h"
+#include "GPU_matrix.h"
 #include "GPU_primitives.h"
+#include "GPU_raster.h"
+
 #include "BIF_glutil.h"
 
 #include "RNA_access.h"

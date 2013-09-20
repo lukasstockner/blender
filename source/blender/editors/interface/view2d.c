@@ -49,6 +49,7 @@
 
 #include "WM_api.h"
 
+#include "GPU_matrix.h"
 #include "GPU_primitives.h"
 
 #include "BLF_api.h"

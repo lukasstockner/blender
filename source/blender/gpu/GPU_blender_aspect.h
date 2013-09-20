@@ -42,11 +42,11 @@ extern uint32_t GPU_ASPECT_PIXELS;
 extern uint32_t GPU_ASPECT_RASTER;
 extern uint32_t GPU_ASPECT_SPRITE;
 
-extern GPUaspectimpl* GPU_ASPECTIMPL_BASIC;
-extern GPUaspectimpl* GPU_ASPECTIMPL_FONT;
-extern GPUaspectimpl* GPU_ASPECTIMPL_PIXELS;
-extern GPUaspectimpl* GPU_ASPECTIMPL_RASTER;
-extern GPUaspectimpl* GPU_ASPECTIMPL_SPRITE;
+extern GPUaspectimpl GPU_ASPECTIMPL_BASIC;
+extern GPUaspectimpl GPU_ASPECTIMPL_FONT;
+extern GPUaspectimpl GPU_ASPECTIMPL_PIXELS;
+extern GPUaspectimpl GPU_ASPECTIMPL_RASTER;
+extern GPUaspectimpl GPU_ASPECTIMPL_SPRITE;
 
 
 

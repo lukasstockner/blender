@@ -46,7 +46,7 @@
 // #include "BKE_suggestions.h"
 #include "BKE_report.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_glew.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -148,7 +148,8 @@ static int report_textview_begin(TextViewContext *tvc)
 	/* iterator */
 	tvc->iter = reports->list.last;
 
-	gpuColorAndClear(120.0 / 255.0, 120.0 / 255.0, 120.0 / 255.0, 1.0);
+	glClearColor(120.0 / 255.0, 120.0 / 255.0, 120.0 / 255.0, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT);
 
 #ifdef USE_INFO_NEWLINE
 	tvc->iter_tmp = 0;

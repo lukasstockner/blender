@@ -34,7 +34,7 @@
 
 
 
-#include "gpu_immediate_inline.h"
+#include "GPU_immediate.h"
 
 
 

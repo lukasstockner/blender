@@ -69,9 +69,12 @@
 #include "IMB_colormanagement.h"
 #include "IMB_imbuf.h"
 
-#include "GPU_basic_shader.h"
+#include "GPU_basic.h"
+#include "GPU_blender_aspect.h"
 #include "GPU_colors.h"
 #include "GPU_primitives.h"
+#include "GPU_raster.h"
+#include "GPU_state_latch.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -261,7 +264,7 @@ static void drawmeta_stipple(bool value)
 	if (value) {
 		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
 
-		gpuPolygonStipple(stipple_halftone);
+		gpuPolygonStipple(GPU_stipple_halftone);
 		gpuLineStipple(1, 0x8888);
 	}
 	else {
@@ -657,7 +660,7 @@ static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, floa
 
 	if (seq->flag & SEQ_MUTE) {
 		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
-		gpuPolygonStipple(stipple_halftone);
+		gpuPolygonStipple(GPU_stipple_halftone);
 	}
 
 	ymid1 = (y2 - y1) * 0.25f + y1;
@@ -771,12 +774,12 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 
 		/* light stripes */
 		gpuColor4P(CPACK_WHITE, 0.125f);
-		gpuPolygonStipple(stipple_diag_stripes_pos);
+		gpuPolygonStipple(GPU_stipple_diag_stripes_pos);
 		gpuSingleFilledRectf(x1, y1, x2, y2);
 
 		/* dark stripes */
 		gpuColor4P(CPACK_BLACK, 0.125f);
-		gpuPolygonStipple(stipple_diag_stripes_neg);
+		gpuPolygonStipple(GPU_stipple_diag_stripes_neg);
 		gpuSingleFilledRectf(x1, y1, x2, y2);
 
 		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
@@ -793,7 +796,7 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 
 		/* panic! */
 		gpuColor4ub(255, 0, 0, 255);
-		gpuPolygonStipple(stipple_diag_stripes_pos);
+		gpuPolygonStipple(GPU_stipple_diag_stripes_pos);
 		gpuSingleFilledRectf(x1, y1, x2, y2);
 
 		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
@@ -1011,7 +1014,8 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 
 	if (!draw_overlay || sseq->overlay_type == SEQ_DRAW_OVERLAY_REFERENCE) {
 		UI_GetThemeColor3fv(TH_SEQ_PREVIEW, col);
-		gpuColorAndClearvf(col, 0.0);
+		glClearColor(col[0], col[1], col[2], 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
 	}
 
 	gpuColor3P(CPACK_WHITE);
@@ -1485,10 +1489,14 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	
 	/* clear and setup matrix */
 	UI_GetThemeColor3fv(TH_BACK, col);
-	if (ed && ed->metastack.first) 
-		gpuColorAndClear(col[0], col[1], col[2] - 0.1f, 0.0f);
-	else 
-		gpuColorAndClearvf(col, 0.0f);
+	if (ed && ed->metastack.first) {
+		glClearColor(col[0], col[1], col[2] - 0.1f, 0.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+	}
+	else {
+		glClearColor(col[0], col[1], col[2], 0.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+	}
 
 	UI_view2d_view_ortho(v2d);
 

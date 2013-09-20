@@ -41,13 +41,13 @@
 #include "intern/gpu_blender_aspect_intern.h"
 #include "intern/gpu_codegen.h"
 #include "intern/gpu_common_intern.h"
+#include "intern/gpu_extensions_intern.h"
 #include "intern/gpu_font_intern.h"
-#include "intern/gpu_immediate_gl.h"
+#include "intern/gpu_immediate_intern.h"
 #include "intern/gpu_lighting_intern.h"
 #include "intern/gpu_matrix_intern.h"
 #include "intern/gpu_pixels_intern.h"
 #include "intern/gpu_raster_intern.h"
-#include "intern/gpu_shim.h"
 #include "intern/gpu_sprite_intern.h"
 
 /*
@@ -78,7 +78,7 @@ void GPU_init(void)
 	gpu_codegen_init();
 	gpu_common_init();
 	gpu_font_init();
-	gpu_immediate_gl_init();
+	gpu_immediate_init();
 	gpu_lighting_init();
 	gpu_matrix_init();
 	gpu_pixels_init();
@@ -90,7 +90,7 @@ void GPU_init(void)
 	gpuImmediateMaxVertexCount(500000); // XXX jwilkins: temporary!
 
 	index = gpuNewIndex();
-	gpuImmediateIndex(gindex);
+	gpuImmediateIndex(index);
 	gpuImmediateMaxIndexCount(50000, GL_UNSIGNED_SHORT); // XXX jwilkins: temporary!
 
 	GPU_aspect_begin(GPU_ASPECT_BASIC, NULL);
@@ -115,7 +115,7 @@ void GPU_exit(void)
 	gpu_pixels_exit();
 	gpu_matrix_init();
 	gpu_lighting_exit();
-	gpu_immediate_gl_exit();
+	gpu_immediate_exit();
 	gpu_font_exit();
 	gpu_common_exit();
 	gpu_codegen_exit();

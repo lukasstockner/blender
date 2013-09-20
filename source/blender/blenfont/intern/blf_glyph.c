@@ -54,7 +54,8 @@
 #include "blf_internal_types.h"
 #include "blf_internal.h"
 
-#include "GPU_compatibility.h"
+#include "GPU_state_latch.h"
+#include "GPU_immediate.h"
 
 #ifdef __GNUC__
 #  pragma GCC diagnostic error "-Wsign-conversion"

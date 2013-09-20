@@ -58,7 +58,7 @@
 #include "ED_view3d.h"
 
 #include "GPU_colors.h"
-#include "GPU_compatibility.h"
+#include "GPU_immediate.h"
 
 #include "DNA_object_types.h"
 #include "DNA_meshdata_types.h"

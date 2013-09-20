@@ -70,12 +70,14 @@
 #  include "BLI_array.h"
 #endif
 
-#include "GPU_compatibility.h"
+#include "GPU_basic.h"
+#include "GPU_blender_aspect.h"
 #include "GPU_colors.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
+#include "GPU_immediate.h"
 #include "GPU_material.h"
-#include "GPU_basic_shader.h"
+#include "GPU_raster.h"
 
 #include "CCGSubSurf.h"
 
@@ -86,8 +88,6 @@
 #include <math.h>
 #include <float.h>
 
-
-extern GLubyte stipple_quarttone[128]; /* glutil.c, bad level data */ // XXX jwilkins: fix this
 
 static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
                                          int drawInteriorEdges,
@@ -2514,7 +2514,7 @@ static void ccgDM_drawMappedFaces(
 
 					GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
 
-					gpuPolygonStipple(stipple_quarttone);
+					gpuPolygonStipple(GPU_stipple_quarttone);
 				}
 				else {
 					/*  normals are used to change shading, so choose smooth so smooth shading will work (XXX jwilkins: rewrote to say what I think was meant */

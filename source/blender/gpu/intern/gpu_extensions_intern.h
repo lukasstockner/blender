@@ -31,6 +31,9 @@
  *  \ingroup gpu
  */
 
+#include "GPU_glew.h"
+#include "GPU_extensions.h"
+
 #ifndef GPU_FUNC_INTERN
 #define GPUFUNC extern
 #else
@@ -271,15 +274,15 @@ void gpu_extensions_exit(void);
 #endif
 
 
-#ifndef GPU_FUNC_INTERN
+//#ifndef GPU_FUNC_INTERN
 
 /***** BEGIN:THIS CODE WAS COPIED DIRECTLY FROM glew.h *****/
 
 #ifdef GLEW_APIENTRY_DEFINED
 #undef GLEW_APIENTRY_DEFINED
 #undef APIENTRY
-#undef GLAPIENTRY
-#define GLAPIENTRY
+//#undef GLAPIENTRY
+//#define GLAPIENTRY
 #endif
 
 #ifdef GLEW_CALLBACK_DEFINED
@@ -297,6 +300,6 @@ void gpu_extensions_exit(void);
 
 /***** END:THIS CODE WAS COPIED DIRECTLY FROM glew.h *****/
 
-#endif
+//#endif
 
 #endif /* _GPU_SHIM_H_ */
