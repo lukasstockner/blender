@@ -722,15 +722,15 @@ static int sculpt_brush_test_cyl(SculptBrushTest *test, float co[3], float locat
 /* Uses symm to selectively flip any axis of a coordinate. */
 static void flip_v3_v3(float out[3], const float in[3], const char symm)
 {
-	if (symm & SCULPT_SYMM_X)
+	if (symm & PAINT_SYMM_X)
 		out[0] = -in[0];
 	else
 		out[0] = in[0];
-	if (symm & SCULPT_SYMM_Y)
+	if (symm & PAINT_SYMM_Y)
 		out[1] = -in[1];
 	else
 		out[1] = in[1];
-	if (symm & SCULPT_SYMM_Z)
+	if (symm & PAINT_SYMM_Z)
 		out[2] = -in[2];
 	else
 		out[2] = in[2];
@@ -780,7 +780,7 @@ static float calc_radial_symmetry_feather(Sculpt *sd, StrokeCache *cache, const 
 
 static float calc_symmetry_feather(Sculpt *sd, StrokeCache *cache)
 {
-	if (sd->flags & SCULPT_SYMMETRY_FEATHER) {
+	if (sd->paint.symmetry_flags & PAINT_SYMMETRY_FEATHER) {
 		float overlap;
 		int symm = cache->symmetry;
 		int i;
@@ -3417,7 +3417,7 @@ static void calc_brushdata_symm(Sculpt *sd, StrokeCache *cache, const char symm,
 	/* XXX This reduces the length of the grab delta if it approaches the line of symmetry
 	 * XXX However, a different approach appears to be needed */
 #if 0
-	if (sd->flags & SCULPT_SYMMETRY_FEATHER) {
+	if (sd->paint.symmetry_flags & SCULPT_SYMMETRY_FEATHER) {
 		float frac = 1.0f / max_overlap_count(sd);
 		float reduce = (feather - frac) / (1 - frac);
 
@@ -3477,7 +3477,7 @@ static void do_symmetrical_brush_actions(Sculpt *sd, Object *ob,
 	Brush *brush = BKE_paint_brush(&sd->paint);
 	SculptSession *ss = ob->sculpt;
 	StrokeCache *cache = ss->cache;
-	const char symm = sd->flags & 7;
+	const char symm = sd->paint.symmetry_flags & 7;
 	int i;
 
 	float feather = calc_symmetry_feather(sd, ss->cache);
@@ -5062,7 +5062,7 @@ static int sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
 			ts->sculpt = MEM_callocN(sizeof(Sculpt), "sculpt mode data");
 
 			/* Turn on X plane mirror symmetry by default */
-			ts->sculpt->flags |= SCULPT_SYMM_X;
+			ts->sculpt->paint.symmetry_flags |= PAINT_SYMM_X;
 		}
 
 		if (!ts->sculpt->detail_size)

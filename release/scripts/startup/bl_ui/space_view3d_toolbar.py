@@ -1290,6 +1290,13 @@ class VIEW3D_PT_tools_projectpaint(View3DPanel, Panel):
 
         col = layout.column()
 
+        col.label(text="Mirror:")
+        row = col.row(align=True)
+        row.prop(ipaint, "use_symmetry_x", text="X", toggle=True)
+        row.prop(ipaint, "use_symmetry_y", text="Y", toggle=True)
+        row.prop(ipaint, "use_symmetry_z", text="Z", toggle=True)
+
+        col.separator()
         col.prop(ipaint, "use_occlude")
         col.prop(ipaint, "use_backface_culling")
 

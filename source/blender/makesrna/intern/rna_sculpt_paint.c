@@ -363,6 +363,23 @@ static void rna_def_paint(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "num_input_samples");
 	RNA_def_property_ui_range(prop, 1, PAINT_MAX_INPUT_SAMPLES, 0, -1);
 	RNA_def_property_ui_text(prop, "Input Samples", "Average multiple input samples together to smooth the brush stroke");
+
+	prop = RNA_def_property(srna, "use_symmetry_x", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "symmetry_flags", PAINT_SYMM_X);
+	RNA_def_property_ui_text(prop, "Symmetry X", "Mirror brush across the X axis");
+
+	prop = RNA_def_property(srna, "use_symmetry_y", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "symmetry_flags", PAINT_SYMM_Y);
+	RNA_def_property_ui_text(prop, "Symmetry Y", "Mirror brush across the Y axis");
+
+	prop = RNA_def_property(srna, "use_symmetry_z", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "symmetry_flags", PAINT_SYMM_Z);
+	RNA_def_property_ui_text(prop, "Symmetry Z", "Mirror brush across the Z axis");
+
+	prop = RNA_def_property(srna, "use_symmetry_feather", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "symmetry_flags", PAINT_SYMMETRY_FEATHER);
+	RNA_def_property_ui_text(prop, "Symmetry Feathering",
+	                         "Reduce the strength of the brush where it overlaps symmetrical daubs");
 }
 
 static void rna_def_sculpt(BlenderRNA  *brna)
@@ -382,18 +399,6 @@ static void rna_def_sculpt(BlenderRNA  *brna)
 	RNA_def_property_ui_text(prop, "Radial Symmetry Count X Axis",
 	                         "Number of times to copy strokes across the surface");
 
-	prop = RNA_def_property(srna, "use_symmetry_x", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_SYMM_X);
-	RNA_def_property_ui_text(prop, "Symmetry X", "Mirror brush across the X axis");
-
-	prop = RNA_def_property(srna, "use_symmetry_y", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_SYMM_Y);
-	RNA_def_property_ui_text(prop, "Symmetry Y", "Mirror brush across the Y axis");
-
-	prop = RNA_def_property(srna, "use_symmetry_z", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_SYMM_Z);
-	RNA_def_property_ui_text(prop, "Symmetry Z", "Mirror brush across the Z axis");
-
 	prop = RNA_def_property(srna, "lock_x", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_LOCK_X);
 	RNA_def_property_ui_text(prop, "Lock X", "Disallow changes to the X axis of vertices");
@@ -405,11 +410,6 @@ static void rna_def_sculpt(BlenderRNA  *brna)
 	prop = RNA_def_property(srna, "lock_z", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_LOCK_Z);
 	RNA_def_property_ui_text(prop, "Lock Z", "Disallow changes to the Z axis of vertices");
-
-	prop = RNA_def_property(srna, "use_symmetry_feather", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_SYMMETRY_FEATHER);
-	RNA_def_property_ui_text(prop, "Symmetry Feathering",
-	                         "Reduce the strength of the brush where it overlaps symmetrical daubs");
 
 	prop = RNA_def_property(srna, "use_threaded", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_USE_OPENMP);
