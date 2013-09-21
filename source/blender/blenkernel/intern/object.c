@@ -1335,7 +1335,9 @@ static void copy_object_lod(Object *obn, Object *ob)
 {
 	BLI_duplicatelist(&obn->lodlevels, &ob->lodlevels);
 
-	((LodLevel*)obn->lodlevels.first)->source = obn;
+	if (obn->lodlevels.first)
+		((LodLevel*)obn->lodlevels.first)->source = obn;
+
 	obn->currentlod = (LodLevel*) obn->lodlevels.first;
 }
 
