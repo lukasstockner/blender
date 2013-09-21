@@ -86,6 +86,7 @@ struct rbDynamicsWorld {
 	btBroadphaseInterface *pairCache;
 	btConstraintSolver *constraintSolver;
 	btOverlapFilterCallback *filterCallback;
+	double elapsed_time;
 };
 
 enum ActivationType {
@@ -96,11 +97,12 @@ enum ActivationType {
 
 struct rbRigidBody {
 	btRigidBody *body;
-	btDiscreteDynamicsWorld *world;
+	rbDynamicsWorld *world;
 	int col_groups;
 	bool is_trigger;
 	bool suspended;
 	float saved_mass;
+	double activation_time;
 	int activation_type;
 };
 
@@ -142,20 +144,24 @@ struct rbFilterCallback : public btOverlapFilterCallback
 	}
 };
 
+static void activate(rbRigidBody *rb)
+{
+	btRigidBody *body = rb->body;
+	rb->suspended = false;
+	rb->world->dynamicsWorld->removeRigidBody(body);
+	RB_body_set_mass(rb, rb->saved_mass);
+	rb->world->dynamicsWorld->addRigidBody(body);
+	body->activate();
+}
+
 static void nearCallback(btBroadphasePair &collisionPair, btCollisionDispatcher &dispatcher, const btDispatcherInfo &dispatchInfo)
 {
 	rbRigidBody *rb0 = (rbRigidBody *)((btRigidBody *)collisionPair.m_pProxy0->m_clientObject)->getUserPointer();
 	rbRigidBody *rb1 = (rbRigidBody *)((btRigidBody *)collisionPair.m_pProxy1->m_clientObject)->getUserPointer();
 	
 	if (rb1->suspended && !(rb1->activation_type == ACTIVATION_TRIGGER && !rb0->is_trigger)) {
-		btRigidBody *body = rb1->body;
-		rb1->suspended = false;
-		rb1->world->removeRigidBody(body);
-		RB_body_set_mass(rb1, rb1->saved_mass);
-		rb1->world->addRigidBody(body);
-		body->activate();
+		activate(rb1);
 	}
-	
 	dispatcher.defaultNearCallback(collisionPair, dispatcher, dispatchInfo);
 }
 
@@ -256,6 +262,8 @@ rbDynamicsWorld *RB_dworld_new(const float gravity[3])
 	
 //	gContactAddedCallback = contactAddedCallback;
 	
+	world->elapsed_time = 0.0;
+	
 	// HACK set debug drawer, this is only temporary
 	btIDebugDraw *debugDrawer = new rbDebugDraw();
 	debugDrawer->setDebugMode(btIDebugDraw::DBG_DrawWireframe |
@@ -316,6 +324,7 @@ void RB_dworld_set_split_impulse(rbDynamicsWorld *world, int split_impulse)
 
 void RB_dworld_step_simulation(rbDynamicsWorld *world, float timeStep, int maxSubSteps, float timeSubStep)
 {
+	world->elapsed_time += timeStep;
 	world->dynamicsWorld->stepSimulation(timeStep, maxSubSteps, timeSubStep);
 	
 	// draw debug information
@@ -357,7 +366,7 @@ void RB_dworld_add_body(rbDynamicsWorld *world, rbRigidBody *object, int col_gro
 {
 	btRigidBody *body = object->body;
 	object->col_groups = col_groups;
-	object->world = world->dynamicsWorld;
+	object->world = world;
 	
 	world->dynamicsWorld->addRigidBody(body);
 }
@@ -682,6 +691,17 @@ void RB_body_set_ghost(rbRigidBody *object, int ghost)
 void RB_body_set_activation_type(rbRigidBody *object, int type)
 {
 	object->activation_type = type;
+}
+
+void RB_body_set_activation_time(rbRigidBody *object, double time)
+{
+	object->activation_time = time;
+}
+
+void RB_body_try_activation(rbRigidBody *object)
+{
+	if (object->suspended && object->activation_time <= object->world->elapsed_time)
+		activate(object);
 }
 
 /* ............ */

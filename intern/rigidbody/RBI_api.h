@@ -187,6 +187,8 @@ extern void RB_body_suspend(rbRigidBody *object);
 extern void RB_body_set_trigger(rbRigidBody *object, int trigger);
 extern void RB_body_set_ghost(rbRigidBody *object, int ghost);
 extern void RB_body_set_activation_type(rbRigidBody *object, int type);
+extern void RB_body_set_activation_time(rbRigidBody *object, double time);
+extern void RB_body_try_activation(rbRigidBody *object);
 
 /* RigidBody Interface - Rigid Body Activation States */
 extern int RB_body_get_activation_state(rbRigidBody *body);

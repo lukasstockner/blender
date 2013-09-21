@@ -679,6 +679,7 @@ void BKE_rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, short re
 		RB_body_set_trigger(rbo->physics_object, rbo->flag & RBO_FLAG_TRIGGER);
 		RB_body_set_ghost(rbo->physics_object, rbo->flag & RBO_FLAG_GHOST);
 		RB_body_set_activation_type(rbo->physics_object, rbo->activation_type);
+		RB_body_set_activation_time(rbo->physics_object, rbo->activation_time);
 	}
 
 	if (rbw && rbw->physics_world && (rbo->flag & RBO_FLAG_COMPOUND_CHILD) == 0) // RB_TODO find better solution for compound shapes
@@ -982,6 +983,8 @@ RigidBodyOb *BKE_rigidbody_create_object(Scene *scene, Object *ob, short type)
 
 	rbo->col_groups = 1;
 
+	rbo->activation_time = 1.0f;
+
 	/* use triangle meshes for passive objects
 	 * use convex hulls for active objects since dynamic triangle meshes are very unstable
 	 */
@@ -1202,6 +1205,9 @@ static void rigidbody_update_sim_ob(Scene *scene, RigidBodyWorld *rbw, Object *o
 
 		RB_shape_trimesh_update(rbo->physics_shape, (float*)mvert, totvert, sizeof(MVert), bb->vec[0], bb->vec[6]);
 	}
+
+	if (rbo->type == RBO_TYPE_ACTIVE && rbo->activation_type == RBO_ACTIVATION_TIME)
+		RB_body_try_activation(rbo->physics_object);
 
 	mat4_decompose(loc, rot, scale, ob->obmat);
 

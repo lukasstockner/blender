@@ -838,7 +838,13 @@ static void rna_def_rigidbody_object(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_OBJECT | ND_POINTCACHE, "rna_RigidBodyOb_reset");
 	
 	/* Dynamics Parameters - Activation */
-	// TODO: define and figure out how to implement these
+	prop = RNA_def_property(srna, "activation_time", PROP_FLOAT, PROP_UNIT_TIME);
+	RNA_def_property_float_sdna(prop, NULL, "activation_time");
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_float_default(prop, 1.0f);
+	RNA_def_property_ui_text(prop, "Time", "Time until activation");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_update(prop, NC_OBJECT | ND_POINTCACHE, "rna_RigidBodyOb_reset");
 	
 	/* Dynamics Parameters - Deactivation */
 	prop = RNA_def_property(srna, "use_deactivation", PROP_BOOLEAN, PROP_NONE);

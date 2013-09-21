@@ -122,7 +122,7 @@ typedef struct RigidBodyOb {
 	
 	float orn[4];			/* rigid body orientation */
 	float pos[3];			/* rigid body position */
-	float pad1;
+	float activation_time;	/* time until body is activated */
 	struct EffectorWeights *effector_weights;
 } RigidBodyOb;
 
