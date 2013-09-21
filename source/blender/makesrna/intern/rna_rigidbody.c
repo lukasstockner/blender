@@ -802,7 +802,7 @@ static void rna_def_rigidbody_object(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, rigidbody_object_shape_items);
 	RNA_def_property_ui_text(prop, "Collision Shape", "Collision Shape of object in Rigid Body Simulations");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	RNA_def_property_update(prop, NC_OBJECT | ND_POINTCACHE, "rna_RigidBodyOb_reset");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_RigidBodyOb_reset");
 	
 	prop = RNA_def_property(srna, "kinematic", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", RBO_FLAG_KINEMATIC);
