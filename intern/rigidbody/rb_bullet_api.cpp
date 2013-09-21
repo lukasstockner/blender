@@ -239,7 +239,7 @@ rbDynamicsWorld *RB_dworld_new(const float gravity[3])
 
 	RB_dworld_set_gravity(world, gravity);
 	
-	gContactAddedCallback = contactAddedCallback;
+//	gContactAddedCallback = contactAddedCallback;
 	
 	// HACK set debug drawer, this is only temporary
 	btIDebugDraw *debugDrawer = new rbDebugDraw();
@@ -911,7 +911,7 @@ rbCollisionShape *RB_shape_new_trimesh(rbMeshData *mesh)
 	btBvhTriangleMeshShape *unscaledShape = new btBvhTriangleMeshShape(tmesh, true, true);
 	
 	shape->triangle_info_map = new btTriangleInfoMap();
-	btGenerateInternalEdgeInfo(unscaledShape, shape->triangle_info_map);
+//	btGenerateInternalEdgeInfo(unscaledShape, shape->triangle_info_map);
 	
 	shape->cshape = new btScaledBvhTriangleMeshShape(unscaledShape, btVector3(1.0f, 1.0f, 1.0f));
 	shape->mesh = tmesh;
