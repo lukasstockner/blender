@@ -2573,6 +2573,7 @@ class VIEW3D_PT_view3d_display(Panel):
         col.prop(view, "show_outline_selected")
         col.prop(view, "show_all_objects_origin")
         col.prop(view, "show_relationship_lines")
+        col.prop(view, "show_physics")
 
         col = layout.column()
         col.active = display_all

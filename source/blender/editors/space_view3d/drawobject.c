@@ -7157,25 +7157,27 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	}
 
 	if ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
-		bConstraint *con;
+		if ((v3d->flag2 & V3D_NO_PHYSICS) == 0) {
+			bConstraint *con;
 
-		for (con = ob->constraints.first; con; con = con->next) {
-			if (con->type == CONSTRAINT_TYPE_RIGIDBODYJOINT) {
-				bRigidBodyJointConstraint *data = (bRigidBodyJointConstraint *)con->data;
-				if (data->flag & CONSTRAINT_DRAW_PIVOT)
-					draw_rigid_body_pivot(data, dflag, ob_wire_col);
+			for (con = ob->constraints.first; con; con = con->next) {
+				if (con->type == CONSTRAINT_TYPE_RIGIDBODYJOINT) {
+					bRigidBodyJointConstraint *data = (bRigidBodyJointConstraint *)con->data;
+					if (data->flag & CONSTRAINT_DRAW_PIVOT)
+						draw_rigid_body_pivot(data, dflag, ob_wire_col);
+				}
 			}
-		}
 
-		if (ob->gameflag & OB_BOUNDS) {
-			if (ob->boundtype != ob->collision_boundtype || (dtx & OB_DRAWBOUNDOX) == 0) {
-				setlinestyle(2);
-				draw_bounding_volume(scene, ob, ob->collision_boundtype);
-				setlinestyle(0);
+			if (ob->gameflag & OB_BOUNDS) {
+				if (ob->boundtype != ob->collision_boundtype || (dtx & OB_DRAWBOUNDOX) == 0) {
+					setlinestyle(2);
+					draw_bounding_volume(scene, ob, ob->collision_boundtype);
+					setlinestyle(0);
+				}
 			}
-		}
-		if (ob->rigidbody_object) {
-			draw_rigidbody_shape(ob);
+			if (ob->rigidbody_object) {
+				draw_rigidbody_shape(ob);
+			}
 		}
 
 		/* draw extra: after normal draw because of makeDispList */
