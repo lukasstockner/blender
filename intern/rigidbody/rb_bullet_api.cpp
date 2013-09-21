@@ -162,6 +162,9 @@ static void nearCallback(btBroadphasePair &collisionPair, btCollisionDispatcher 
 	if (rb1->suspended && !(rb1->activation_type == ACTIVATION_TRIGGER && !rb0->is_trigger)) {
 		activate(rb1);
 	}
+	if (rb0->suspended && !(rb0->activation_type == ACTIVATION_TRIGGER && !rb1->is_trigger)) {
+		activate(rb0);
+	}
 	dispatcher.defaultNearCallback(collisionPair, dispatcher, dispatchInfo);
 }
 
