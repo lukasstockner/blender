@@ -21,6 +21,10 @@
 #ifndef __PBVH_INTERN_H__
 #define __PBVH_INTERN_H__
 
+/** \file blender/blenkernel/intern/pbvh_intern.h
+ *  \ingroup bli
+ */
+
 /* Axis-aligned bounding box */
 typedef struct {
 	float bmin[3], bmax[3];

@@ -227,7 +227,7 @@ static void do_item_rename(ARegion *ar, TreeElement *te, TreeStoreElem *tselem, 
 		BKE_report(reports, RPT_WARNING, "Cannot edit sequence name");
 	}
 	else if (tselem->id->lib) {
-		// XXX						error_libdata();
+		BKE_report(reports, RPT_WARNING, "Cannot edit external libdata");
 	}
 	else if (te->idcode == ID_LI && te->parent) {
 		BKE_report(reports, RPT_WARNING, "Cannot edit the path of an indirectly linked library");
@@ -1102,7 +1102,7 @@ static void tree_element_to_path(TreeElement *te, TreeStoreElem *tselem,
 			/* item is part of an array, so must set the array_index */
 			*array_index = te->index;
 		}
-		else if (RNA_property_array_length(ptr, prop)) {
+		else if (RNA_property_array_check(prop)) {
 			/* entire array was selected, so keyframe all */
 			*flag |= KSP_FLAG_WHOLE_ARRAY;
 		}

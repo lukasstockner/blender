@@ -164,7 +164,10 @@ void BKE_mesh_calc_normals_tessface(
         struct MVert *mverts, int numVerts,
         struct MFace *mfaces, int numFaces,
         float (*faceNors_r)[3]);
-
+void BKE_mesh_normals_loop_split(
+        struct MVert *mverts, int numVerts, struct MEdge *medges, int numEdges,
+        struct MLoop *mloops, float (*r_loopnors)[3], int numLoops,
+        struct MPoly *mpolys, float (*polynors)[3], int numPolys, float split_angle);
 
 void BKE_mesh_calc_poly_normal(
         struct MPoly *mpoly, struct MLoop *loopstart,
@@ -351,6 +354,7 @@ void BKE_mesh_calc_relative_deform(
 /* *** mesh_validate.c *** */
 
 int BKE_mesh_validate(struct Mesh *me, const int do_verbose);
+void BKE_mesh_cd_validate(struct Mesh *me);
 
 bool BKE_mesh_validate_arrays(
         struct Mesh *me,

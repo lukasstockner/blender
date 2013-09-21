@@ -3602,7 +3602,6 @@ KDTree *BKE_object_as_kdtree(Object *ob, int *r_tot)
 {
 	KDTree *tree = NULL;
 	unsigned int tot = 0;
-	float co[3];
 
 	switch (ob->type) {
 		case OB_MESH:
@@ -3624,6 +3623,7 @@ KDTree *BKE_object_as_kdtree(Object *ob, int *r_tot)
 				/* we don't how how many verts from the DM we can use */
 				for (i = 0; i < totvert; i++) {
 					if (index[i] != ORIGINDEX_NONE) {
+						float co[3];
 						mul_v3_m4v3(co, ob->obmat, mvert[i].co);
 						BLI_kdtree_insert(tree, index[i], co, NULL);
 						tot++;
@@ -3637,6 +3637,7 @@ KDTree *BKE_object_as_kdtree(Object *ob, int *r_tot)
 				tree = BLI_kdtree_new(tot);
 
 				for (i = 0; i < tot; i++) {
+					float co[3];
 					mul_v3_m4v3(co, ob->obmat, mvert[i].co);
 					BLI_kdtree_insert(tree, i, co, NULL);
 				}
@@ -3666,6 +3667,7 @@ KDTree *BKE_object_as_kdtree(Object *ob, int *r_tot)
 					bezt = nu->bezt;
 					a = nu->pntsu;
 					while (a--) {
+						float co[3];
 						mul_v3_m4v3(co, ob->obmat, bezt->vec[1]);
 						BLI_kdtree_insert(tree, i++, co, NULL);
 						bezt++;
@@ -3677,6 +3679,7 @@ KDTree *BKE_object_as_kdtree(Object *ob, int *r_tot)
 					bp = nu->bp;
 					a = nu->pntsu * nu->pntsv;
 					while (a--) {
+						float co[3];
 						mul_v3_m4v3(co, ob->obmat, bp->vec);
 						BLI_kdtree_insert(tree, i++, co, NULL);
 						bp++;

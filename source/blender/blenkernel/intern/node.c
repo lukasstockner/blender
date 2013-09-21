@@ -3449,6 +3449,7 @@ static void registerShaderNodes(void)
 	register_node_type_sh_bsdf_transparent();
 	register_node_type_sh_bsdf_velvet();
 	register_node_type_sh_bsdf_toon();
+	register_node_type_sh_bsdf_hair();
 	register_node_type_sh_emission();
 	register_node_type_sh_holdout();
 	//register_node_type_sh_volume_transparent();
@@ -3574,11 +3575,13 @@ void free_nodesystem(void)
 	}
 
 	if (nodetreetypes_hash) {
-		NODE_TREE_TYPES_BEGIN(nt)
+		NODE_TREE_TYPES_BEGIN (nt)
+		{
 			if (nt->ext.free) {
 				nt->ext.free(nt->ext.data);
 			}
-		NODE_TREE_TYPES_END
+		}
+		NODE_TREE_TYPES_END;
 
 		BLI_ghash_free(nodetreetypes_hash, NULL, ntree_free_type);
 		nodetreetypes_hash = NULL;

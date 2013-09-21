@@ -170,7 +170,7 @@ typedef struct MovieTrackingPlaneTrack {
 	char name[64];  /* MAX_NAME */
 
 	MovieTrackingTrack **point_tracks;  /* Array of point tracks used to define this plane.
-	                                       Each element is a pointer to MovieTrackingTrack. */
+	                                     * Each element is a pointer to MovieTrackingTrack. */
 	int point_tracksnr, pad;  /* Number of tracks in point_tracks array. */
 
 	MovieTrackingPlaneMarker *markers;   /* Markers in the plane track */
@@ -481,8 +481,9 @@ enum {
 
 /* MovieTrackingPlaneTrack->flag */
 enum {
-	PLANE_TRACK_HIDDEN = (1 << 1),
-	PLANE_TRACK_LOCKED = (1 << 2),
+	PLANE_TRACK_HIDDEN  = (1 << 1),
+	PLANE_TRACK_LOCKED  = (1 << 2),
+	PLANE_TRACK_AUTOKEY = (1 << 3),
 };
 
 #endif  /* __DNA_TRACKING_TYPES_H__ */

@@ -45,11 +45,12 @@
 #include "DNA_ID.h"
 
 #include "BLI_utildefines.h"
-#include "BLI_blenlib.h"
-#include "BLI_linklist.h"
+#include "BLI_string.h"
+#include "BLI_path_util.h"
 #include "BLI_math.h"
 #include "BLI_mempool.h"
 #include "BLI_utildefines.h"
+#include "BLI_alloca.h"
 
 #include "BLF_translation.h"
 
@@ -256,7 +257,7 @@ static void layerInterp_mdeformvert(void **sources, const float *weights,
 
 			/* if this def_nr is not in the list, add it */
 			if (!node) {
-				struct MDeformWeight_Link *tmp_dwlink = MEM_mallocN(sizeof(*tmp_dwlink), __func__);
+				struct MDeformWeight_Link *tmp_dwlink = alloca(sizeof(*tmp_dwlink));
 				tmp_dwlink->dw.def_nr = dw->def_nr;
 				tmp_dwlink->dw.weight = weight;
 
@@ -286,12 +287,9 @@ static void layerInterp_mdeformvert(void **sources, const float *weights,
 	}
 
 	if (totweight) {
-		struct MDeformWeight_Link *node_next;
 		dvert->totweight = totweight;
-		for (i = 0, node = dest_dwlink; node; node = node_next, i++) {
-			node_next = node->next;
+		for (i = 0, node = dest_dwlink; node; node = node->next, i++) {
 			dvert->dw[i] = node->dw;
-			MEM_freeN(node);
 		}
 	}
 	else {
@@ -1217,6 +1215,16 @@ const CustomDataMask CD_MASK_BMESH =
 const CustomDataMask CD_MASK_FACECORNERS =
     CD_MASK_MTFACE | CD_MASK_MCOL | CD_MASK_MTEXPOLY | CD_MASK_MLOOPUV |
     CD_MASK_MLOOPCOL;
+const CustomDataMask CD_MASK_EVERYTHING =
+    CD_MASK_MVERT | CD_MASK_MSTICKY /* DEPRECATED */ | CD_MASK_MDEFORMVERT | CD_MASK_MEDGE | CD_MASK_MFACE |
+    CD_MASK_MTFACE | CD_MASK_MCOL | CD_MASK_ORIGINDEX | CD_MASK_NORMAL /* | CD_MASK_POLYINDEX */ | CD_MASK_PROP_FLT |
+    CD_MASK_PROP_INT | CD_MASK_PROP_STR | CD_MASK_ORIGSPACE | CD_MASK_ORCO | CD_MASK_MTEXPOLY | CD_MASK_MLOOPUV |
+    CD_MASK_MLOOPCOL | CD_MASK_TANGENT | CD_MASK_MDISPS | CD_MASK_PREVIEW_MCOL | CD_MASK_CLOTH_ORCO | CD_MASK_RECAST |
+    /* BMESH ONLY START */
+    CD_MASK_MPOLY | CD_MASK_MLOOP | CD_MASK_SHAPE_KEYINDEX | CD_MASK_SHAPEKEY | CD_MASK_BWEIGHT | CD_MASK_CREASE |
+    CD_MASK_ORIGSPACE_MLOOP | CD_MASK_PREVIEW_MLOOPCOL | CD_MASK_BM_ELEM_PYPTR |
+    /* BMESH ONLY END */
+    CD_MASK_PAINT_MASK | CD_MASK_GRID_PAINT_MASK | CD_MASK_MVERT_SKIN | CD_MASK_FREESTYLE_EDGE | CD_MASK_FREESTYLE_FACE;
 
 static const LayerTypeInfo *layerType_getInfo(int type)
 {
