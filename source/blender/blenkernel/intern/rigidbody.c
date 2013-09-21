@@ -317,8 +317,8 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
 			int i;
 
 			/* count triangles */
-			for (i = 0; (i < totface) && (mface); i++) {
-				(mface->v4) ? (tottris += 2) : (tottris += 1);
+			for (i = 0; i < totface; i++) {
+				(mface[i].v4) ? (tottris += 2) : (tottris += 1);
 			}
 
 			/* init mesh data for collision shape */
