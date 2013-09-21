@@ -952,8 +952,6 @@ rbCollisionShape *RB_shape_new_trimesh(rbMeshData *mesh)
 void RB_shape_trimesh_update(rbCollisionShape *shape, float *vertices, int num_verts, int vert_stride, float min[3], float max[3])
 {
 	assert(num_verts == shape->mesh->num_vertices);
-	btScaledBvhTriangleMeshShape *scaled_shape = (btScaledBvhTriangleMeshShape *)shape->cshape;
-	btBvhTriangleMeshShape *mesh_shape = scaled_shape->getChildShape();
 	
 	for (int i = 0; i < num_verts; i++) {
 		float *vert = (float*)(((char*)vertices + i * vert_stride));
@@ -961,7 +959,16 @@ void RB_shape_trimesh_update(rbCollisionShape *shape, float *vertices, int num_v
 		shape->mesh->vertices[i].y = vert[1];
 		shape->mesh->vertices[i].z = vert[2];
 	}
-	mesh_shape->refitTree(btVector3(min[0], min[1], min[2]), btVector3(max[0], max[1], max[2]));
+	
+	if (shape->cshape->getShapeType() == SCALED_TRIANGLE_MESH_SHAPE_PROXYTYPE) {
+		btScaledBvhTriangleMeshShape *scaled_shape = (btScaledBvhTriangleMeshShape *)shape->cshape;
+		btBvhTriangleMeshShape *mesh_shape = scaled_shape->getChildShape();
+		mesh_shape->refitTree(btVector3(min[0], min[1], min[2]), btVector3(max[0], max[1], max[2]));
+	}
+	else if (shape->cshape->getShapeType() == GIMPACT_SHAPE_PROXYTYPE) {
+		btGImpactMeshShape *mesh_shape = (btGImpactMeshShape*)shape->cshape;
+		mesh_shape->updateBound();
+	}
 }
 
 rbCollisionShape *RB_shape_new_gimpact_mesh(rbMeshData *mesh)

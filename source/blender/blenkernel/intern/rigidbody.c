@@ -1194,7 +1194,7 @@ static void rigidbody_update_sim_ob(Scene *scene, RigidBodyWorld *rbw, Object *o
 	if (rbo->physics_object == NULL)
 		return;
 
-	if (rbo->type == RBO_TYPE_PASSIVE && rbo->shape == RB_SHAPE_TRIMESH && rbo->flag & RBO_FLAG_USE_DEFORM) {
+	if (rbo->shape == RB_SHAPE_TRIMESH && rbo->flag & RBO_FLAG_USE_DEFORM) {
 		DerivedMesh *dm = ob->derivedDeform;
 		MVert *mvert = dm->getVertArray(dm);
 		int totvert = dm->getNumVerts(dm);
