@@ -75,6 +75,7 @@ static struct BASIC_SHADER {
 	GPUShader*   gpushader[GPU_BASIC_OPTION_COMBINATIONS];
 	bool         failed   [GPU_BASIC_OPTION_COMBINATIONS];
 	GPUcommon    common   [GPU_BASIC_OPTION_COMBINATIONS];
+
 } BASIC_SHADER;
 
 

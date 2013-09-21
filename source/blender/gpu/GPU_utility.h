@@ -69,4 +69,4 @@ GLenum GPU_mipmap_2D(GLboolean genmip, GLenum internalFormat, int w, int h, GLen
 
 
 
-#endif /* __GPU_UTILITY_H__ */
+#endif /* _GPU_UTILITY_H_ */

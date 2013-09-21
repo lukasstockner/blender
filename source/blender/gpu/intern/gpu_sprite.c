@@ -310,7 +310,6 @@ void GPU_sprite_end(void)
 {
 #if GPU_SAFETY
 	GPU_ASSERT(SPRITE_BEGUN);
-	SPRITE_BEGUN = false;
 #endif
 
 #if defined(WITH_GL_PROFILE_COMPAT)
@@ -322,8 +321,12 @@ void GPU_sprite_end(void)
 	{
 		gpuEnd();
 	}
-	
+
 	GPU_aspect_end();
-	
+
+#if GPU_SAFETY
+	SPRITE_BEGUN = false;
+#endif
+
 	GPU_aspect_begin(GPU_ASPECT_BASIC, NULL);
 }

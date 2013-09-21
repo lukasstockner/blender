@@ -461,11 +461,14 @@ void GPU_raster_end()
 {
 #if GPU_SAFETY
 	GPU_ASSERT(RASTER_BEGUN);
-	RASTER_BEGUN = false;
 #endif
 
 	// SSS End Raster
 	GPU_aspect_end();
+
+#if GPU_SAFETY
+	RASTER_BEGUN = false;
+#endif
 
 	// SSS Begin Basic
 	GPU_aspect_begin(GPU_ASPECT_BASIC, NULL);

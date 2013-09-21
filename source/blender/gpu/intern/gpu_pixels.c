@@ -453,7 +453,6 @@ void GPU_pixels_end()
 {
 #if GPU_SAFETY
 	GPU_ASSERT(PIXELS_BEGUN);
-	PIXELS_BEGUN = false;
 #endif
 
 #if defined(WITH_GL_PROFILE_COMPAT)
@@ -502,6 +501,10 @@ void GPU_pixels_end()
 
 	// SSS End Pixels
 	GPU_aspect_end();
+
+#if GPU_SAFETY
+	PIXELS_BEGUN = false;
+#endif
 
 	// SSS Begin Basic
 	GPU_aspect_begin(GPU_ASPECT_BASIC, NULL);

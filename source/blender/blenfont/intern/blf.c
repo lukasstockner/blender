@@ -53,6 +53,7 @@
 #include "GPU_blender_aspect.h"
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"
+#include "GPU_font.h"
 
 /* Max number of font in memory.
  * Take care that now every font have a glyph cache per size/dpi,
@@ -504,11 +505,7 @@ static void draw_lock(FontBLF *font)
 	}
 
 	if (font->locked == 0) {
-		// SSS End (Assuming the basic aspect is ending)
-		GPU_aspect_end();
-
-		// SSS Begin Font
-		GPU_aspect_begin(GPU_ASPECT_FONT, NULL);
+		GPU_font_begin();
 
 		if (font->shadow || font->blur) {
 			gpuImmediateFormat_T2_C4_V2(); // DOODLE: blurred and/or shadowed text
@@ -540,11 +537,7 @@ static void draw_unlock(FontBLF *font)
 
 		gpuImmediateUnformat();
 
-		// SSS End Font
-		GPU_aspect_end();
-
-		// SSS Begin Basic
-		GPU_aspect_begin(GPU_ASPECT_BASIC, NULL);
+		GPU_font_end();
 	}
 }
 

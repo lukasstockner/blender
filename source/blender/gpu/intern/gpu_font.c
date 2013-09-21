@@ -198,10 +198,13 @@ void GPU_font_end(void)
 {
 #if GPU_SAFETY
 	GPU_ASSERT(FONT_BEGUN);
-	FONT_BEGUN = false;
 #endif
 
 	GPU_aspect_end();
 	
+#if GPU_SAFETY
+	FONT_BEGUN = false;
+#endif
+
 	GPU_aspect_begin(GPU_ASPECT_BASIC, 0);
 }
