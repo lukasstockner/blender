@@ -157,7 +157,9 @@ typedef enum eRigidBodyOb_Flag {
 	/* rigidbdody is used as a collision trigger */
 	RBO_FLAG_TRIGGER			= (1 << 9),
 	/* rigidbdody has no collision response */
-	RBO_FLAG_GHOST				= (1 << 10)
+	RBO_FLAG_GHOST				= (1 << 10),
+	/* collision shape deforms during simulation (only for passive triangle mesh shapes) */
+	RBO_FLAG_USE_DEFORM			= (1 << 11)
 } eRigidBodyOb_Flag;
 
 /* RigidBody Collision Shape */
