@@ -136,8 +136,14 @@ struct rbFilterCallback : public btOverlapFilterCallback
 		rbRigidBody *rb1 = (rbRigidBody *)((btRigidBody *)proxy1->m_clientObject)->getUserPointer();
 		
 		bool collides;
-		collides = (proxy0->m_collisionFilterGroup & proxy1->m_collisionFilterMask) != 0;
-		collides = collides && (proxy1->m_collisionFilterGroup & proxy0->m_collisionFilterMask);
+		
+		if (rb0->suspended || rb1->suspended) { /* allow static-static collision so suspended bodies can be activated */
+			collides = true;
+		}
+		else {
+			collides = (proxy0->m_collisionFilterGroup & proxy1->m_collisionFilterMask) != 0;
+			collides = collides && (proxy1->m_collisionFilterGroup & proxy0->m_collisionFilterMask);
+		}
 		collides = collides && (rb0->col_groups & rb1->col_groups);
 		
 		return collides;
