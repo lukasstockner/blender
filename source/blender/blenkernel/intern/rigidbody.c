@@ -287,6 +287,7 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
 		int totvert;
 		int totface;
 		int tottris = 0;
+		int triangle_index = 0;
 
 		if (ob->rigidbody_object->mesh_source == RBO_MESH_DEFORM) {
 			dm = ob->derivedDeform;
@@ -323,28 +324,22 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
 			/* init mesh data for collision shape */
 			mdata = RB_trimesh_data_new(tottris, totvert);
 
+			RB_trimesh_add_vertices(mdata, (float*)mvert, totvert, sizeof(MVert));
+
 			/* loop over all faces, adding them as triangles to the collision shape
 			 * (so for some faces, more than triangle will get added)
 			 */
 			for (i = 0; (i < totface) && (mface) && (mvert); i++, mface++) {
 				/* add first triangle - verts 1,2,3 */
-				{
-					MVert *va = (mface->v1 < totvert) ? (mvert + mface->v1) : (mvert);
-					MVert *vb = (mface->v2 < totvert) ? (mvert + mface->v2) : (mvert);
-					MVert *vc = (mface->v3 < totvert) ? (mvert + mface->v3) : (mvert);
-
-					RB_trimesh_add_triangle(mdata, va->co, vb->co, vc->co);
-				}
-
+				RB_trimesh_add_triangle_indices(mdata, triangle_index, mface->v1, mface->v2, mface->v3);
+				triangle_index++;
 				/* add second triangle if needed - verts 1,3,4 */
 				if (mface->v4) {
-					MVert *va = (mface->v1 < totvert) ? (mvert + mface->v1) : (mvert);
-					MVert *vb = (mface->v3 < totvert) ? (mvert + mface->v3) : (mvert);
-					MVert *vc = (mface->v4 < totvert) ? (mvert + mface->v4) : (mvert);
-
-					RB_trimesh_add_triangle(mdata, va->co, vb->co, vc->co);
+					RB_trimesh_add_triangle_indices(mdata, triangle_index, mface->v1, mface->v3, mface->v4);
+					triangle_index++;
 				}
 			}
+			RB_trimesh_finish(mdata);
 
 			/* construct collision shape
 			 *
