@@ -7167,14 +7167,14 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 			}
 		}
 
-		if ((ob->gameflag & OB_BOUNDS) && (ob->mode == OB_MODE_OBJECT)) {
+		if (ob->gameflag & OB_BOUNDS) {
 			if (ob->boundtype != ob->collision_boundtype || (dtx & OB_DRAWBOUNDOX) == 0) {
 				setlinestyle(2);
 				draw_bounding_volume(scene, ob, ob->collision_boundtype);
 				setlinestyle(0);
 			}
 		}
-		else if (ob->rigidbody_object) {
+		if (ob->rigidbody_object) {
 			draw_rigidbody_shape(ob);
 		}
 
