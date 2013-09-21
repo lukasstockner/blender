@@ -1253,9 +1253,12 @@ static void rigidbody_update_sim_ob(Scene *scene, RigidBodyWorld *rbw, Object *o
 			add_v3_v3v3(eff_force, eff_force_global, eff_force_local);
 			mul_v3_fl(eff_force, 0.5f);
 			/* activate object in case it is deactivated */
-			if (!is_zero_v3(eff_force))
+			if (!is_zero_v3(eff_force)) {
+				/* adjust the force based on fps, use 24 as neutral point since it's blender's default */
+				mul_v3_fl(eff_force, (float)FPS / 24.0f);
 				RB_body_activate(rbo->physics_object);
-			RB_body_apply_central_force(rbo->physics_object, eff_force);
+				RB_body_apply_central_force(rbo->physics_object, eff_force);
+			}
 		}
 
 		/* cleanup */
