@@ -951,7 +951,8 @@ rbCollisionShape *RB_shape_new_trimesh(rbMeshData *mesh)
 
 void RB_shape_trimesh_update(rbCollisionShape *shape, float *vertices, int num_verts, int vert_stride, float min[3], float max[3])
 {
-	assert(num_verts == shape->mesh->num_vertices);
+	if (num_verts != shape->mesh->num_vertices)
+		return;
 	
 	for (int i = 0; i < num_verts; i++) {
 		float *vert = (float*)(((char*)vertices + i * vert_stride));
