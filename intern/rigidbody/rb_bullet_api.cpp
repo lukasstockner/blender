@@ -159,11 +159,27 @@ static void nearCallback(btBroadphasePair &collisionPair, btCollisionDispatcher 
 	rbRigidBody *rb0 = (rbRigidBody *)((btRigidBody *)collisionPair.m_pProxy0->m_clientObject)->getUserPointer();
 	rbRigidBody *rb1 = (rbRigidBody *)((btRigidBody *)collisionPair.m_pProxy1->m_clientObject)->getUserPointer();
 	
-	if (rb1->suspended && !(rb1->activation_type == ACTIVATION_TRIGGER && !rb0->is_trigger)) {
-		activate(rb1);
+	if (rb1->suspended) {
+		switch(rb1->activation_type) {
+		case ACTIVATION_COLLISION:
+			activate(rb1);
+			break;
+		case ACTIVATION_TRIGGER:
+			if (rb0->is_trigger)
+				activate(rb1);
+			break;
+		}
 	}
-	if (rb0->suspended && !(rb0->activation_type == ACTIVATION_TRIGGER && !rb1->is_trigger)) {
-		activate(rb0);
+	if (rb0->suspended) {
+		switch(rb0->activation_type) {
+		case ACTIVATION_COLLISION:
+			activate(rb0);
+			break;
+		case ACTIVATION_TRIGGER:
+			if (rb1->is_trigger)
+				activate(rb0);
+			break;
+		}
 	}
 	dispatcher.defaultNearCallback(collisionPair, dispatcher, dispatchInfo);
 }
