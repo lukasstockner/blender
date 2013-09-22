@@ -1201,11 +1201,13 @@ static void rigidbody_update_sim_ob(Scene *scene, RigidBodyWorld *rbw, Object *o
 
 	if (rbo->shape == RB_SHAPE_TRIMESH && rbo->flag & RBO_FLAG_USE_DEFORM) {
 		DerivedMesh *dm = ob->derivedDeform;
-		MVert *mvert = dm->getVertArray(dm);
-		int totvert = dm->getNumVerts(dm);
-		BoundBox *bb = BKE_object_boundbox_get(ob);
+		if (dm) {
+			MVert *mvert = dm->getVertArray(dm);
+			int totvert = dm->getNumVerts(dm);
+			BoundBox *bb = BKE_object_boundbox_get(ob);
 
-		RB_shape_trimesh_update(rbo->physics_shape, (float*)mvert, totvert, sizeof(MVert), bb->vec[0], bb->vec[6]);
+			RB_shape_trimesh_update(rbo->physics_shape, (float*)mvert, totvert, sizeof(MVert), bb->vec[0], bb->vec[6]);
+		}
 	}
 
 	if (rbo->type == RBO_TYPE_ACTIVE && rbo->activation_type == RBO_ACTIVATION_TIME)
