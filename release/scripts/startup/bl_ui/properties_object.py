@@ -138,6 +138,11 @@ class OBJECT_MT_lod_tools(Menu):
 
 class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
     bl_label = "Levels of Detail"
+    COMPAT_ENGINES = {'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.render.engine in cls.COMPAT_ENGINES
 
     def draw(self, context):
         layout = self.layout
