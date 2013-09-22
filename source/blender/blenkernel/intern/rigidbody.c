@@ -300,7 +300,9 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
 		}
 
 		/* ensure mesh validity, then grab data */
-		BLI_assert(dm!= NULL); // RB_TODO need to make sure there's no case where deform derived mesh doesn't exist
+		if (dm == NULL)
+			return NULL;
+
 		DM_ensure_tessface(dm);
 
 		mvert   = (dm) ? dm->getVertArray(dm) : NULL;
