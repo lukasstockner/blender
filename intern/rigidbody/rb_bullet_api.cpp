@@ -175,8 +175,10 @@ static void nearCallback(btBroadphasePair &collisionPair, btCollisionDispatcher 
 			activate(rb1);
 			break;
 		case ACTIVATION_TRIGGER:
-			if (rb0->is_trigger)
+			if (rb0->is_trigger) {
 				activate(rb1);
+				return;
+			}
 			break;
 		}
 	}
@@ -186,8 +188,10 @@ static void nearCallback(btBroadphasePair &collisionPair, btCollisionDispatcher 
 			activate(rb0);
 			break;
 		case ACTIVATION_TRIGGER:
-			if (rb1->is_trigger)
+			if (rb1->is_trigger) {
 				activate(rb0);
+				return;
+			}
 			break;
 		}
 	}
