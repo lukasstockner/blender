@@ -137,7 +137,11 @@ struct rbFilterCallback : public btOverlapFilterCallback
 		
 		bool collides;
 		
-		if (rb0->suspended || rb1->suspended) { /* allow static-static collision so suspended bodies can be activated */
+		bool rb0_kinematic = ((btRigidBody *)proxy0->m_clientObject)->isKinematicObject();
+		bool rb1_kinematic = ((btRigidBody *)proxy1->m_clientObject)->isKinematicObject();
+		
+		/* allow static-static collision so suspended bodies can be activated by kinematic objects */
+		if ((rb0->suspended && rb1_kinematic) || (rb1->suspended && rb0_kinematic)) {
 			collides = true;
 		}
 		else {
