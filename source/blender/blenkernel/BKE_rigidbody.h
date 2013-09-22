@@ -68,9 +68,6 @@ void BKE_rigidbody_world_groups_relink(struct RigidBodyWorld *rbw);
 
 /* 'validate' (i.e. make new or replace old) Physics-Engine objects */
 void BKE_rigidbody_validate_sim_world(struct Scene *scene, struct RigidBodyWorld *rbw, bool rebuild);
-void BKE_rigidbody_validate_sim_object(struct RigidBodyWorld *rbw, struct Object *ob, bool rebuild);
-void BKE_rigidbody_validate_sim_shape(struct Object *ob, bool rebuild);
-void BKE_rigidbody_validate_sim_constraint(struct RigidBodyWorld *rbw, struct Object *ob, bool rebuild);
 
 /* -------------- */
 /* Utilities */
