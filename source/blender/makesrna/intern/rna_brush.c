@@ -244,7 +244,8 @@ static int rna_SculptToolCapabilities_has_space_attenuation_get(PointerRNA *ptr)
 static int rna_ImapaintToolCapabilities_has_space_attenuation_get(PointerRNA *ptr)
 {
 	Brush *br = (Brush *)ptr->data;
-	return ((br->flag & (BRUSH_SPACE | BRUSH_LINE | BRUSH_POLYLINE | BRUSH_CURVE)) && (br->flag & BRUSH_ACCUMULATE));
+	return (br->flag & (BRUSH_SPACE | BRUSH_LINE | BRUSH_POLYLINE | BRUSH_CURVE)) &&
+	        br->imagepaint_tool != PAINT_TOOL_FILL;
 }
 
 static int rna_BrushCapabilities_has_spacing_get(PointerRNA *ptr)
@@ -295,8 +296,17 @@ static int rna_ImapaintToolCapabilities_has_accumulate_get(PointerRNA *ptr)
 	        (br->flag & BRUSH_ANCHORED) ||
 	        (br->imagepaint_tool == PAINT_TOOL_SOFTEN) ||
 	        (br->imagepaint_tool == PAINT_TOOL_SMEAR) ||
+	        (br->imagepaint_tool == PAINT_TOOL_FILL) ||
 	        (br->mtex.tex && !ELEM3(br->mtex.brush_map_mode, MTEX_MAP_MODE_TILED, MTEX_MAP_MODE_STENCIL, MTEX_MAP_MODE_3D))
 	        ) ? false : true;
+}
+
+static int rna_ImapaintToolCapabilities_has_radius_get(PointerRNA *ptr)
+{
+	/* only support for draw tool */
+	Brush *br = (Brush *)ptr->data;
+
+	return (br->imagepaint_tool != PAINT_TOOL_FILL);
 }
 
 
@@ -699,6 +709,7 @@ static void rna_def_imapaint_capabilities(BlenderRNA *brna)
 
 	IMAPAINT_TOOL_CAPABILITY(has_accumulate, "Has Accumulate");
 	IMAPAINT_TOOL_CAPABILITY(has_space_attenuation, "Has Space Attenuation");
+	IMAPAINT_TOOL_CAPABILITY(has_radius, "Has Radius");
 
 #undef IMAPAINT_TOOL_CAPABILITY
 }

@@ -747,25 +747,20 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
                         col.prop(brush, "secondary_color", text="")
                         col.operator("paint.brush_colors_flip", icon='FILE_REFRESH')
 
-                col.prop(brush, "blend", text="Blend")
-
                 col = layout.column()
                 col.template_ID(toolsettings, "palette", new="palette.new")
                 if toolsettings.palette:
-                    col.template_palette(toolsettings, "palette", color=True)      
+                    col.template_palette(toolsettings, "palette", color=True)
+                    
+            col.prop(brush, "blend", text="Blend")
 
-            row = col.row(align=True)
-            self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
-            self.prop_unified_size(row, context, brush, "use_pressure_size")
+            col = layout.column()
             
-            row = col.row(align=True)
-
-            if capabilities.has_space_attenuation:
-                if brush.use_space_attenuation:
-                    row.prop(brush, "use_space_attenuation", toggle=True, text="", icon='LOCKED')
-                else:
-                    row.prop(brush, "use_space_attenuation", toggle=True, text="", icon='UNLOCKED')
-
+            if capabilities.has_radius:
+                row = col.row(align=True)
+                self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
+                self.prop_unified_size(row, context, brush, "use_pressure_size")
+            
             if brush.image_tool == 'SOFTEN':
                 col = layout.column(align=True)
                 col.row().prop(brush, "direction", expand=True)
@@ -780,14 +775,22 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
                 col.prop(brush, "clone_image", text="Image")
                 col.prop(brush, "clone_alpha", text="Alpha")
             
+            row = col.row(align=True)
+
+            if capabilities.has_space_attenuation:
+                if brush.use_space_attenuation:
+                    row.prop(brush, "use_space_attenuation", toggle=True, text="", icon='LOCKED')
+                else:
+                    row.prop(brush, "use_space_attenuation", toggle=True, text="", icon='UNLOCKED')
+
+            self.prop_unified_strength(row, context, brush, "strength", slider=True, text="Strength")
+            self.prop_unified_strength(row, context, brush, "use_pressure_strength")
+
             # use_accumulate
             if capabilities.has_accumulate:
                 col.separator()
 
                 col.prop(brush, "use_accumulate")
-
-            self.prop_unified_strength(row, context, brush, "strength", slider=True, text="Strength")
-            self.prop_unified_strength(row, context, brush, "use_pressure_strength")
 
 
 
