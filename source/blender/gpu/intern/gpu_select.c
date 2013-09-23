@@ -35,15 +35,19 @@
 /* my library */
 #include "GPU_safety.h"
 
+/* internal */
+#include "intern/gpu_matrix_intern.h"
+#include "intern/gpu_aspect_intern.h"
 
 
-static bool is_select_mode = false;
+
+static bool IS_SELECT_MODE = false;
 
 
 
 void gpu_select_init(void)
 {
-	is_select_mode = false;
+	IS_SELECT_MODE = false;
 }
 
 
@@ -54,30 +58,51 @@ void gpu_select_exit(void)
 
 
 
-void gpu_default_select(void* UNUSED(param))
+bool gpu_default_select_begin(void* UNUSED(param), const void* UNUSED(object))
 {
+#if defined(WITH_GPU_PROFILE_COMPAT)
+	return true; /* nothing to do, allow this pass to start */
+#else
+	return false; /* not implemented, so cancel this pass before it starts if possible */
+#endif
 }
 
 
 
-void gpu_default_unselect(void* UNUSED(param))
+bool gpu_default_select_end(void* UNUSED(param), const void* UNUSED(object))
 {
+	return true; /* only one pass, 'true' means 'done' */
+}
+
+
+
+bool gpu_default_select_commit(void* UNUSED(param))
+{
+#if defined(WITH_GPU_PROFILE_COMPAT)
+	gpu_set_common(NULL);
+	gpu_glUseProgram(0);
+	gpu_commit_matrix();
+
+	return true;
+#else
+	return false; /* cancel drawing, since select mode isn't implemented */
+#endif
 }
 
 
 
 bool gpu_is_select_mode(void)
 {
-	return is_select_mode;
+	return IS_SELECT_MODE;
 }
 
 
 
 void GPU_select_buffer(GLsizei size, GLuint* buffer)
 {
-	GPU_ASSERT(!is_select_mode);
+	GPU_ASSERT(!IS_SELECT_MODE);
 
-	if (!is_select_mode) {
+	if (!IS_SELECT_MODE) {
 #if defined(WITH_GL_PROFILE_COMPAT)
 		glSelectBuffer(size, buffer);
 #endif
@@ -88,9 +113,10 @@ void GPU_select_buffer(GLsizei size, GLuint* buffer)
 
 void GPU_select_begin(void)
 {
-	GPU_ASSERT(!is_select_mode);
+	GPU_ASSERT(!gpu_aspect_active());
+	GPU_ASSERT(!IS_SELECT_MODE);
 
-	is_select_mode = true;
+	IS_SELECT_MODE = true;
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glRenderMode(GL_SELECT);
@@ -101,9 +127,10 @@ void GPU_select_begin(void)
 
 GLsizei GPU_select_end(void)
 {
-	GPU_ASSERT(is_select_mode);
+	GPU_ASSERT(!gpu_aspect_active());
+	GPU_ASSERT(IS_SELECT_MODE);
 
-	is_select_mode = false;
+	IS_SELECT_MODE = false;
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	return glRenderMode(GL_RENDER);
@@ -116,7 +143,7 @@ GLsizei GPU_select_end(void)
 
 void GPU_select_clear(void)
 {
-	if (is_select_mode) {
+	if (IS_SELECT_MODE) {
 #if defined(WITH_GL_PROFILE_COMPAT)
 		glInitNames();
 #endif
@@ -127,7 +154,7 @@ void GPU_select_clear(void)
 
 void GPU_select_pop(void)
 {
-	if (is_select_mode) {
+	if (IS_SELECT_MODE) {
 #if defined(WITH_GL_PROFILE_COMPAT)
 		glPopName();
 #endif
@@ -138,7 +165,7 @@ void GPU_select_pop(void)
 
 void GPU_select_push(GLuint name)
 {
-	if (is_select_mode) {
+	if (IS_SELECT_MODE) {
 #if defined(WITH_GL_PROFILE_COMPAT)
 		glPushName(name);
 #endif
@@ -149,7 +176,7 @@ void GPU_select_push(GLuint name)
 
 void GPU_select_load(GLuint name)
 {
-	if (is_select_mode) {
+	if (IS_SELECT_MODE) {
 #if defined(WITH_GL_PROFILE_COMPAT)
 		glLoadName(name);
 #endif

@@ -67,6 +67,7 @@
 #include "BKE_editmesh.h"
 #include "BKE_lattice.h"
 
+#include "GPU_blender_aspect.h"
 #include "GPU_primitives.h"
 #include "GPU_matrix.h"
 #include "GPU_select.h"
@@ -1665,10 +1666,14 @@ static int manipulator_selectbuf(ScrArea *sa, ARegion *ar, const int mval[2], fl
 	setwinmatrixview3d(ar, v3d, &rect);
 	mul_m4_m4m4(rv3d->persmat, rv3d->winmat, rv3d->viewmat);
 
+	GPU_aspect_end(); /* have to end current aspect before initializing selection mode */
+
 	GPU_select_buffer(64, buffer);
 	GPU_select_begin();
 	GPU_select_clear();
 	GPU_select_push(-2);
+
+	GPU_aspect_begin(GPU_ASPECT_BASIC, NULL); /* restart aspect in selection mode (assuming was in basic aspect before) */
 
 	/* do the drawing */
 	if (v3d->twtype & V3D_MANIP_ROTATE) {
@@ -1680,7 +1685,12 @@ static int manipulator_selectbuf(ScrArea *sa, ARegion *ar, const int mval[2], fl
 		draw_manipulator_translate(v3d, rv3d, 0, MAN_TRANS_C & rv3d->twdrawflag, v3d->twtype, MAN_RGB);
 
 	GPU_select_pop();
+
+	GPU_aspect_end(); /* must end aspect before ending selection mode */
+
 	hits = GPU_select_end();
+
+	GPU_aspect_begin(GPU_ASPECT_BASIC, NULL); /* restarting in render mode (assuming was basic aspect before) */
 
 	G.f &= ~G_PICKSEL;
 	setwinmatrixview3d(ar, v3d, NULL);

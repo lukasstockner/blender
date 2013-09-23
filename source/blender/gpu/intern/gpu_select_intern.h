@@ -46,8 +46,9 @@ extern "C" {
 void gpu_select_init(void);
 void gpu_select_exit(void);
 
-void gpu_default_select  (void* param);
-void gpu_default_unselect(void* param);
+bool gpu_default_select_begin (void* param, const void* object);
+bool gpu_default_select_end   (void* param, const void* object);
+bool gpu_default_select_commit(void* param);
 
 bool gpu_is_select_mode(void);
 
@@ -57,4 +58,4 @@ bool gpu_is_select_mode(void);
 }
 #endif
 
-#endif /* _GPU_SELECT_H_ */
+#endif /* _GPU_SELECT_INTERN_H_ */

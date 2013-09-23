@@ -60,19 +60,22 @@ static bool font_end(void* UNUSED(param), const void* UNUSED(object))
 	return true;
 }
 
-static void font_commit(void* UNUSED(param))
+static bool font_commit(void* UNUSED(param))
 {
 	gpu_font_bind();
+
+	return true;
 }
 
 GPUaspectimpl GPU_ASPECTIMPL_FONT = {
-	NULL,        /* begin    */
-	font_end,    /* end      */
-	font_commit, /* commit   */
-	NULL,        /* select   */
-	NULL,        /* unselect */
-	NULL,        /* enable   */
-	NULL,        /* disable  */
+	NULL,        /* render_begin  */
+	font_end,    /* render_end    */
+	font_commit, /* render_commit */
+	NULL,        /* select_begin  */
+	NULL,        /* select_end    */
+	NULL,        /* select_commit */
+	NULL,        /* enable        */
+	NULL,        /* disable       */
 };
 
 
@@ -84,19 +87,22 @@ static bool pixels_end(void* UNUSED(param), const void* UNUSED(object))
 	return true;
 }
 
-static void pixels_commit(void* UNUSED(param))
+static bool pixels_commit(void* UNUSED(param))
 {
 	gpu_pixels_bind();
+
+	return true;
 }
 
 GPUaspectimpl GPU_ASPECTIMPL_PIXELS = {
-	NULL,          /* begin    */
-	pixels_end,    /* end      */
-	pixels_commit, /* commit   */
-	NULL,          /* select   */
-	NULL,          /* unselect */
-	NULL,          /* enable   */
-	NULL,          /* disable  */
+	NULL,          /* render_begin  */
+	pixels_end,    /* render_end    */
+	pixels_commit, /* render_commit */
+	NULL,          /* select_begin  */
+	NULL,          /* select_end    */
+	NULL,          /* select_commit */
+	NULL,          /* enable        */
+	NULL,          /* disable       */
 };
 
 
@@ -108,9 +114,11 @@ static bool basic_end(void* UNUSED(param), const void* UNUSED(object))
 	return true;
 }
 
-static void basic_commit(void* UNUSED(param))
+static bool basic_commit(void* UNUSED(param))
 {
 	gpu_basic_bind();
+
+	return true;
 }
 
 static void basic_enable(void* UNUSED(param), uint32_t options)
@@ -124,13 +132,14 @@ static void basic_disable(void* UNUSED(param), uint32_t options)
 }
 
 GPUaspectimpl GPU_ASPECTIMPL_BASIC = {
-	NULL,                 /* begin    */
-	basic_end,            /* end      */
-	basic_commit,         /* commit   */
-	gpu_default_select,   /* select   */
-	gpu_default_unselect, /* unselect */
-	basic_enable,         /* enable   */
-	basic_disable         /* disable  */
+	NULL,                      /* render_begin  */
+	basic_end,                 /* render_end    */
+	basic_commit,              /* render_commit */
+	gpu_default_select_begin,  /* select_begin  */
+	gpu_default_select_end,    /* select_end    */
+	gpu_default_select_commit, /* select_commit */
+	basic_enable,              /* enable        */
+	basic_disable              /* disable       */
 };
 
 
@@ -142,9 +151,11 @@ static bool raster_end(void* UNUSED(param), const void* UNUSED(object))
 	return true;
 }
 
-static void raster_commit(void* UNUSED(param))
+static bool raster_commit(void* UNUSED(param))
 {
 	gpu_raster_bind();
+
+	return true;
 }
 
 static void raster_enable(void* UNUSED(param), uint32_t options)
@@ -158,13 +169,14 @@ static void raster_disable(void* UNUSED(param), uint32_t options)
 }
 
 GPUaspectimpl GPU_ASPECTIMPL_RASTER = {
-	NULL,                 /* begin    */
-	raster_end,           /* end      */
-	raster_commit,        /* commit   */
-	gpu_default_select,   /* select   */
-	gpu_default_unselect, /* unselect */
-	raster_enable,        /* enable   */
-	raster_disable        /* disable  */
+	NULL,                      /* render_begin  */
+	raster_end,                /* render_end    */
+	raster_commit,             /* render_commit */
+	gpu_default_select_begin,  /* select_begin  */
+	gpu_default_select_end,    /* select_end    */
+	gpu_default_select_commit, /* select_commit */
+	raster_enable,             /* enable        */
+	raster_disable             /* disable       */
 };
 
 
@@ -176,9 +188,11 @@ static bool sprite_end(void* UNUSED(param), const void* UNUSED(object))
 	return true;
 }
 
-static void sprite_commit(void* UNUSED(param))
+static bool sprite_commit(void* UNUSED(param))
 {
 	gpu_sprite_bind();
+
+	return true;
 }
 
 static void sprite_enable(void* UNUSED(param), uint32_t options)
@@ -192,13 +206,14 @@ static void sprite_disable(void* UNUSED(param), uint32_t options)
 }
 
 GPUaspectimpl GPU_ASPECTIMPL_SPRITE = {
-	NULL,                 /* begin    */
-	sprite_end,           /* end      */
-	sprite_commit,        /* commit   */
-	gpu_default_select,   /* select   */
-	gpu_default_unselect, /* unselect */
-	sprite_enable,        /* enable   */
-	sprite_disable        /* disable  */
+	NULL,                      /* begin         */
+	sprite_end,                /* end           */
+	sprite_commit,             /* commit        */
+	gpu_default_select_begin,  /* select_begin  */
+	gpu_default_select_end,    /* select_end    */
+	gpu_default_select_commit, /* select_commit */
+	sprite_enable,             /* enable        */
+	sprite_disable             /* disable       */
 };
 
 

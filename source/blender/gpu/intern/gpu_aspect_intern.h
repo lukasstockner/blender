@@ -34,12 +34,18 @@
 
 #include "GPU_aspect.h"
 
+#include "GPU_safety.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 void gpu_aspect_init(void);
 void gpu_aspect_exit(void);
+
+#if GPU_SAFETY
+bool gpu_aspect_active(void);
+#endif
 
 #ifdef __cplusplus
 }

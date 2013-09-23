@@ -926,13 +926,17 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 	
 	if (vc->rv3d->rflag & RV3D_CLIPPING)
 		ED_view3d_clipping_set(vc->rv3d);
-	
+
+	GPU_aspect_end(); /* have to end current aspect before initializing selection mode */
+
 	GPU_select_buffer(bufsize, buffer);
 	GPU_select_begin();
 	GPU_select_clear();
 	GPU_select_push(-1);
 	code = 1;
-	
+
+	GPU_aspect_begin(GPU_ASPECT_BASIC, NULL); /* restart aspect in selection mode (assuming was in basic aspect before) */
+
 	if (vc->obedit && vc->obedit->type == OB_MBALL) {
 		draw_object(scene, ar, v3d, BASACT, DRAW_PICKING | DRAW_CONSTCOLOR);
 	}
@@ -991,8 +995,13 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 	}
 	
 	GPU_select_pop();    /* see above (pushname) */
+
+	GPU_aspect_end(); /* must end aspect before ending selection mode */
+
 	hits = GPU_select_end();
-	
+
+	GPU_aspect_begin(GPU_ASPECT_BASIC, NULL); /* restarting in render mode (assuming was basic aspect before) */
+
 	G.f &= ~G_PICKSEL;
 	setwinmatrixview3d(ar, v3d, NULL);
 	mul_m4_m4m4(vc->rv3d->persmat, vc->rv3d->winmat, vc->rv3d->viewmat);

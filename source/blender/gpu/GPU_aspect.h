@@ -44,14 +44,14 @@ void GPU_gen_aspects   (size_t count,       uint32_t* aspects);
 void GPU_delete_aspects(size_t count, const uint32_t* aspects);
 
 typedef struct GPUaspectimpl {
-	bool  (*begin   )(void* param, const void* object);
-	bool  (*end     )(void* param, const void* object);
-	void  (*commit  )(void* param);
-	void  (*enable  )(void* param, uint32_t options);
-	void  (*disable )(void* param, uint32_t options);
-	void  (*select_begin )(void* param, const void* object);
-	void  (*select_commit)(void* param);
-	void  (*select_end   )(void* param, const void* object);
+	bool  (*render_begin )(void* param, const void* object);
+	bool  (*render_end   )(void* param, const void* object);
+	bool  (*render_commit)(void* param);
+	bool  (*select_begin )(void* param, const void* object);
+	bool  (*select_end   )(void* param, const void* object);
+	bool  (*select_commit)(void* param);
+	void  (*enable       )(void* param, uint32_t options);
+	void  (*disable      )(void* param, uint32_t options);
 	void* param;
 } GPUaspectimpl;
 
