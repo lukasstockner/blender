@@ -55,19 +55,23 @@ they have nothing else in common besides the need for state query.
 
 */
 
-/* These also covers the fact the ES 2.0 doesn't accept GLdouble for depth range by doing a conversion. */
+/* the DepthRange state latch also covers the fact the ES 2.0 doesn't accept
+   GLdouble for depth range by doing a conversion. */
 void gpuDepthRange(GLdouble near, GLdouble far);
 void gpuGetDepthRange(GLdouble range[2]);
-
-GLfloat GPU_feedback_depth_range(GLfloat z);
 
 void gpuBindTexture(GLenum target, GLuint name);
 GLuint gpuGetTextureBinding2D(void);
 
 void gpuDepthMask(GLboolean flag);
-GLboolean gpuGetDepthWritemask(void);
+GLboolean gpuGetDepthWriteMask(void);
 
-void gpuViewport(int x, int y, unsigned int width, unsigned int height);
+void gpuViewport(int x, int y, int width, int height);
+void gpuGetViewport(int out[4]);
+
+/* feedback functions use the latched state to transform coordinates in the
+   same way as the legacy fixed function pipeline */
+GLfloat GPU_feedback_depth_range(GLfloat z);
 void GPU_feedback_viewport_2fv(GLfloat x, GLfloat y, GLfloat out[2]);
 
 #ifdef __cplusplus

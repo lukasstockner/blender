@@ -67,6 +67,7 @@
 #include "GPU_primitives.h"
 #include "GPU_raster.h"
 #include "GPU_sprite.h"
+#include "GPU_state_latch.h"
 
 /* standard */
 #include <math.h>
@@ -604,7 +605,7 @@ void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol)
 	uiDrawBox(GL_TRIANGLE_FAN, rect.xmin - 1, rect.ymin - 1, rect.xmax + 1, rect.ymax + 1, 3.0f);
 
 	/* need scissor test, histogram can draw outside of boundary */
-	glGetIntegerv(GL_VIEWPORT, scissor);
+	gpuGetViewport(scissor);
 	glScissor(ar->winrct.xmin + (rect.xmin - 1),
 	          ar->winrct.ymin + (rect.ymin - 1),
 	          (rect.xmax + 1) - (rect.xmin - 1),
@@ -695,7 +696,7 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 	
 
 	/* need scissor test, waveform can draw outside of boundary */
-	glGetIntegerv(GL_VIEWPORT, scissor);
+	gpuGetViewport(scissor);
 	glScissor(ar->winrct.xmin + (rect.xmin - 1),
 	          ar->winrct.ymin + (rect.ymin - 1),
 	          (rect.xmax + 1) - (rect.xmin - 1),
@@ -934,7 +935,7 @@ void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wco
 	uiDrawBox(GL_TRIANGLE_FAN, rect.xmin - 1, rect.ymin - 1, rect.xmax + 1, rect.ymax + 1, 3.0f);
 
 	/* need scissor test, hvectorscope can draw outside of boundary */
-	glGetIntegerv(GL_VIEWPORT, scissor);
+	gpuGetViewport(scissor);
 	glScissor(ar->winrct.xmin + (rect.xmin - 1),
 	          ar->winrct.ymin + (rect.ymin - 1),
 	          (rect.xmax + 1) - (rect.xmin - 1),
@@ -1314,7 +1315,7 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 	cuma = &cumap->cm[cumap->cur];
 
 	/* need scissor test, curve can draw outside of boundary */
-	glGetIntegerv(GL_VIEWPORT, scissor);
+	gpuGetViewport(scissor);
 	scissor_new.xmin = ar->winrct.xmin + rect->xmin;
 	scissor_new.ymin = ar->winrct.ymin + rect->ymin;
 	scissor_new.xmax = ar->winrct.xmin + rect->xmax;
@@ -1518,7 +1519,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 	glEnable(GL_BLEND);
 
 	/* need scissor test, preview image can draw outside of boundary */
-	glGetIntegerv(GL_VIEWPORT, scissor);
+	gpuGetViewport(scissor);
 	glScissor(ar->winrct.xmin + (rect.xmin - 1),
 	          ar->winrct.ymin + (rect.ymin - 1),
 	          (rect.xmax + 1) - (rect.xmin - 1),
@@ -1659,7 +1660,7 @@ void ui_draw_but_NODESOCKET(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol
 	y = 0.5f * (recti->ymin + recti->ymax);
 	
 	/* need scissor test, can draw outside of boundary */
-	glGetIntegerv(GL_VIEWPORT, scissor);
+	gpuGetViewport(scissor);
 	scissor_new.xmin = ar->winrct.xmin + recti->xmin;
 	scissor_new.ymin = ar->winrct.ymin + recti->ymin;
 	scissor_new.xmax = ar->winrct.xmin + recti->xmax;

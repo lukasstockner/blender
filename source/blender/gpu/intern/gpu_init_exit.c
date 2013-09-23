@@ -49,6 +49,7 @@
 #include "intern/gpu_pixels_intern.h"
 #include "intern/gpu_raster_intern.h"
 #include "intern/gpu_sprite_intern.h"
+#include "intern/gpu_state_latch_intern.h"
 
 /*
 
@@ -84,6 +85,7 @@ void GPU_init(void)
 	gpu_pixels_init();
 	gpu_raster_init();
 	gpu_sprite_init();
+	gpu_state_latch_init();
 
 	immediate = gpuNewImmediate();
 	gpuImmediateMakeCurrent(immediate);
@@ -110,6 +112,7 @@ void GPU_exit(void)
 	gpuImmediateMakeCurrent(NULL);
 	gpuDeleteImmediate(immediate);
 
+	gpu_state_latch_exit();
 	gpu_sprite_exit();
 	gpu_raster_exit();
 	gpu_pixels_exit();

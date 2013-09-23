@@ -50,6 +50,7 @@
 #include "GPU_blender_aspect.h"
 #include "GPU_immediate.h"
 #include "GPU_utility.h"
+#include "GPU_state_latch.h"
 
 /* external */
 #include "BLI_blenlib.h"
@@ -1078,7 +1079,7 @@ void GPU_framebuffer_texture_bind(GPUFrameBuffer *UNUSED(fb), GPUTexture *tex, i
 	gpu_glBindFramebuffer(GL_FRAMEBUFFER, tex->fb->object);
 
 	/* push matrices and set default viewport and matrix */
-	glGetIntegerv(GL_VIEWPORT, save_viewport);
+	gpuGetViewport(save_viewport);
 	gpuViewport(0, 0, w, h);
 	GG.currentfb = tex->fb->object;
 

@@ -32,7 +32,7 @@
 #define GPU_MANGLE_DEPRECATED 0
 
 /* my interface */
-#include "GPU_state_latch.h"
+#include "intern/gpu_state_latch_intern.h"
 
 /* my library */
 #include "GPU_profile.h"
@@ -45,16 +45,57 @@
 
 // XXX jwilkins: this needs to be made to save these values from different contexts
 
+static bool      depth_range_valid = false;
+static GLdouble  depth_range[2];
+
+static bool      viewport_valid = false;
+static GLint     viewport[4];
+
+static bool      texture_binding_2D_valid = false;
+static GLuint    texture_binding_2D;
+
+static bool      depth_writemask_valid = false;
+static GLboolean depth_writemask;
 
 
-static GLdouble depth_range[2] = { 0, 1 };
+
+void gpu_state_latch_init(void)
+{
+#if defined(WITH_GL_PROFILE_COMPAT)
+	glGetDoublev(GL_DEPTH_RANGE, depth_range);
+	depth_range_valid        = true;
+
+	glGetIntegerv(GL_VIEWPORT, viewport);
+	viewport_valid           = true;
+
+	glGetIntegerv(GL_TEXTURE_BINDING_2D, &texture_binding_2D);
+	texture_binding_2D_valid = true;
+
+	glGetBooleanv(GL_DEPTH_WRITEMASK, &depth_writemask);
+	depth_writemask_valid    = true;
+#else
+	depth_range_valid        = false;
+	viewport_valid           = false;
+	texture_binding_2D_valid = false;
+	depth_writemask_valid    = false;
+#endif
+}
+
+
+
+void gpu_state_latch_exit(void)
+{
+}
+
+
 
 void gpuDepthRange(GLdouble near, GLdouble far)
 {
 	GPU_ASSERT(near != far);
 
-	depth_range[0] = near;
-	depth_range[1] = far;
+	VEC2D(depth_range, near, far);
+
+	depth_range_valid = true;
 
 #if !defined(GLEW_ES_ONLY)
 	if (!GPU_PROFILE_ES20) {
@@ -75,14 +116,18 @@ void gpuDepthRange(GLdouble near, GLdouble far)
 
 void gpuGetDepthRange(GLdouble out[2])
 {
-	memcpy(out, depth_range, sizeof(depth_range));
+	GPU_ASSERT(depth_range_valid);
+
+	VECCOPY2D(out, depth_range);
 }
 
 
 
-GLfloat gpuFeedbackDepthRange(GLfloat z)
+GLfloat GPU_feedback_depth_range(GLfloat z)
 {
 	GLfloat depth;
+
+	GPU_ASSERT(depth_range_valid);
 
 	depth = depth_range[1] - depth_range[0];
 
@@ -97,14 +142,13 @@ GLfloat gpuFeedbackDepthRange(GLfloat z)
 
 
 
-static GLuint texture_binding_2D = 0;
-
 void gpuBindTexture(GLenum target, GLuint name)
 {
 	switch(target)
 	{
 		case GL_TEXTURE_2D:
-			texture_binding_2D = name;
+			texture_binding_2D       = name;
+			texture_binding_2D_valid = true;
 			break;
 
 		default:
@@ -119,38 +163,51 @@ void gpuBindTexture(GLenum target, GLuint name)
 
 GLuint gpuGetTextureBinding2D(void)
 {
+	GPU_ASSERT(texture_binding_2D_valid);
+
 	return texture_binding_2D;
 }
 
 
 
-static GLboolean depth_writemask = GL_TRUE;
-
 void gpuDepthMask(GLboolean flag)
 {
-	depth_writemask = flag;
+	depth_writemask       = flag;
+	depth_writemask_valid = true;
+
 	GPU_CHECK(glDepthMask(flag));
 }
 
 
 
-GLboolean gpuGetDepthWritemask(void)
+GLboolean gpuGetDepthWriteMask(void)
 {
+	GPU_ASSERT(depth_writemask_valid);
+
 	return depth_writemask;
 }
 
 
 
-static GLint viewport[4];
-
-void gpuViewport(int x, int y, unsigned int width, unsigned int height)
+void gpuViewport(int x, int y, int width, int height)
 {
 	viewport[0] = x;
 	viewport[1] = y;
 	viewport[2] = width;
 	viewport[3] = height;
 
+	viewport_valid = true;
+
 	GPU_CHECK(glViewport(x, y, width, height));
+}
+
+
+
+void gpuGetViewport(int out[4])
+{
+	GPU_ASSERT(viewport_valid);
+
+	VECCOPY4D(out, viewport);
 }
 
 
@@ -160,8 +217,8 @@ void GPU_feedback_viewport_2fv(GLfloat x, GLfloat y, GLfloat out[2])
 	const GLfloat halfw = (GLfloat)viewport[2] / 2.0f;
 	const GLfloat halfh = (GLfloat)viewport[3] / 2.0f;
 
+	GPU_ASSERT(viewport_valid);
+
 	out[0] = halfw*x + halfw + (GLfloat)viewport[0];
 	out[1] = halfh*y + halfh + (GLfloat)viewport[1];
 }
-
-

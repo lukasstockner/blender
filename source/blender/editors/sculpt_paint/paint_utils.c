@@ -73,6 +73,7 @@
 #include "paint_intern.h"
 
 #include "GPU_glew.h"
+#include "GPU_state_latch.h"
 
 /* Convert the object-space axis-aligned bounding box (expressed as
  * its minimum and maximum corners) into a screen-space rectangle,
@@ -221,7 +222,7 @@ static void imapaint_tri_weights(Object *ob,
 	/* compute barycentric coordinates */
 
 	/* get the needed opengl matrices */
-	glGetIntegerv(GL_VIEWPORT, view);
+	gpuGetViewport(view);
 	gpuGetMatrix(GL_MODELVIEW_MATRIX,  (float *)model);
 	gpuGetMatrix(GL_PROJECTION_MATRIX, (float *)proj);
 	view[0] = view[1] = 0;

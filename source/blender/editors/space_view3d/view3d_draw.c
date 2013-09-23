@@ -2450,7 +2450,7 @@ void draw_depth(Scene *scene, ARegion *ar, View3D *v3d, int (*func)(void *), boo
 		v3d->xray = TRUE;
 		
 		/* transp materials can change the depth mask, see #21388 */
-		mask_orig = gpuGetDepthWritemask();
+		mask_orig = gpuGetDepthWriteMask();
 
 
 		if (v3d->afterdraw_xray.first || v3d->afterdraw_xraytransp.first) {

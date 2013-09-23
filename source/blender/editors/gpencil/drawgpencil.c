@@ -504,7 +504,7 @@ static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int 
 			int mask_orig = 0;
 			
 			if (no_xray) {
-				mask_orig = gpuGetDepthWritemask();
+				mask_orig = gpuGetDepthWriteMask();
 				gpuDepthMask(GL_FALSE);
 				glEnable(GL_DEPTH_TEST);
 				

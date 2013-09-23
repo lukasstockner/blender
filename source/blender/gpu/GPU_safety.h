@@ -28,13 +28,13 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/gpu/intern/gpu_safety.h
+/** \file blender/gpu/GPU_safety.h
  *  \ingroup gpu
  */
 
 
 
-#ifndef GPU_SAFETY 
+#ifndef GPU_SAFETY
 #if (!defined(NDEBUG) && WITH_GPU_SAFETY)
 #define GPU_SAFETY 1
 #else
@@ -44,7 +44,7 @@
 
 
 
-#if GPU_SAFETY /* Define some useful, but slow, checks for correct API usage. */
+#if GPU_SAFETY /* Define some useful, but potentially slow, checks for correct API usage. */
 
 #include "BLI_utildefines.h"
 
@@ -70,7 +70,7 @@ void gpu_check(const char* file, int line, const char* text);
    Needs a variable in scope to store results of the test.
    Can be used in functions that return void if third argument is left blank */
 #define GPU_SAFE_RETURN(test, var, ret) \
-    var = (bool)(test);            \
+    var = (bool)(test);                 \
     GPU_ASSERT(((void)#test, var));     \
     if (!var) {                         \
         return ret;                     \

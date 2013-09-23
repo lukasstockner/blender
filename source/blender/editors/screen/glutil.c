@@ -607,7 +607,7 @@ gla2DDrawInfo *glaBegin2DDraw(rcti *screen_rect, rctf *world_rect)
 	int sc_w, sc_h;
 	float wo_w, wo_h;
 
-	glGetIntegerv(GL_VIEWPORT, (GLint *)di->orig_vp);
+	gpuGetViewport((GLint *)di->orig_vp);
 	gpuGetMatrix(GL_PROJECTION_MATRIX, (GLfloat *)di->orig_projmat);
 	gpuGetMatrix(GL_MODELVIEW_MATRIX, (GLfloat *)di->orig_viewmat);
 
@@ -676,7 +676,7 @@ void bgl_get_mats(bglMats *mats)
 
 	gpuGetMatrix(GL_MODELVIEW_MATRIX, mats->modelview);
 	gpuGetMatrix(GL_PROJECTION_MATRIX, mats->projection);
-	glGetIntegerv(GL_VIEWPORT, (GLint *)mats->viewport);
+	gpuGetViewport((GLint *)mats->viewport);
 	
 	/* Very strange code here - it seems that certain bad values in the
 	 * modelview matrix can cause gluUnProject to give bad results. */
