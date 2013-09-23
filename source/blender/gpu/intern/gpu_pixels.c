@@ -94,13 +94,13 @@ void GPU_pixels_cache(GPUpixels* pixels)
 
 
 
-void GPU_uncache_bitmap(GPUbitmap* bitmap)
+void GPU_bitmap_uncache(GPUbitmap* bitmap)
 {
 }
 
 
 
-void GPU_uncache_pixels(GPUpixels* pixels)
+void GPU_pixels_uncache(GPUpixels* pixels)
 {
 }
 

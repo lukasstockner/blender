@@ -60,8 +60,8 @@ typedef struct GPUpixels {
 void GPU_bitmap_cache(GPUbitmap* bitmap);
 void GPU_pixels_cache(GPUpixels* pixels);
 
-void GPU_uncache_bitmap(GPUbitmap* bitmap);
-void GPU_uncache_pixels(GPUpixels* pixels);
+void GPU_bitmap_uncache(GPUbitmap* bitmap);
+void GPU_pixels_uncache(GPUpixels* pixels);
 
 void GPU_pixels_zoom(GLfloat xfactor, GLfloat yfactor);
 void GPU_get_pixels_zoom(GLfloat* xfactor_out, GLfloat *yfactor_out);

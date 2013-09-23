@@ -132,6 +132,7 @@ set(SRC
 	GPU_lighting.h
 	GPU_material.h
 	GPU_matrix.h
+	GPU_pixels.h
 	GPU_primitives.h
 	GPU_raster.h
 	GPU_safety.h
