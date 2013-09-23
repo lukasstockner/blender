@@ -547,7 +547,7 @@ __device int kernel_volumetric_equiangular_sampler(KernelGlobals *kg, RNG *rng_c
 	float sample_distance = dot((ls.P - ray.P) , ray.D);
 	float D = sqrtf(len_squared(ls.P - ray.P) - sample_distance * sample_distance);
 	float atheta = atan(sample_distance / D);
-	float endtheta = atan((end - sample_distance) / D); 
+	//float endtheta = atan((end - sample_distance) / D); 
 	float t = D * tan((randv * M_PI_2_F) - (1 - randv) * atheta);
 	sample_distance += t;
 
@@ -670,15 +670,15 @@ __device float3 kernel_volume_get_shadow_attenuation(KernelGlobals *kg, RNG *rng
 				// warning, require Color = constant as well as Homogeneous
 				// TODO: ensure that shader have color input unplugged.
 //				float3 color = make_float3(0.2f, 0.8f, 0.8f);
-				float3 color = make_float3(0.5f, 0.99f, 0.99f);
+//				float3 color = make_float3(0.5f, 0.99f, 0.99f);
 //				float3 tr_color = make_float3(1.0f, 1.0f, 1.0f) - color;
-				float3 tr_color = color;
+//				float3 tr_color = color;
 #if 0
 				attenuation.x = exp(-light_ray->t * sigma / (transition_pdf * tr_color.x) );
 				attenuation.y = exp(-light_ray->t * sigma / (transition_pdf * tr_color.y) );
 				attenuation.z = exp(-light_ray->t * sigma / (transition_pdf * tr_color.z) );
 #else
-				float3 sigma3 = kernel_volume_get_final_homogeneous_extinction_tsd(kg, &tsd, trandp, *light_ray, PATH_RAY_SHADOW);
+//				float3 sigma3 = kernel_volume_get_final_homogeneous_extinction_tsd(kg, &tsd, trandp, *light_ray, PATH_RAY_SHADOW);
 #if 1
 //				attenuation.x = exp(-light_ray->t * sigma3.x);
 //				attenuation.y = exp(-light_ray->t * sigma3.y);

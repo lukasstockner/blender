@@ -1033,9 +1033,6 @@ __device float4 kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int 
 		/* intersect scene */
 		Intersection isect;
 		uint visibility = path_state_ray_visibility(kg, &state);
-#ifdef __VOLUME__
-		uint rng_congruential = lcg_init(*rng + rng_offset + sample*0x51633e2d);
-#endif
 
 #ifdef __HAIR__
 		float difl = 0.0f, extmax = 0.0f;
