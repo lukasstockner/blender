@@ -1356,6 +1356,7 @@ GPUPass *GPU_generate_pass(ListBase *nodes, GPUNodeLink *outlink, GPUVertexAttri
 	GPUShader *shader;
 	GPUPass *pass;
 	char *vertexcode, *fragmentcode;
+	char nickname[100];
 
 	/*if (!FUNCTION_LIB) {
 		GPU_nodes_free(nodes);
@@ -1371,7 +1372,8 @@ GPUPass *GPU_generate_pass(ListBase *nodes, GPUNodeLink *outlink, GPUVertexAttri
 	/* generate code and compile with opengl */
 	fragmentcode = code_generate_fragment(nodes, outlink->output, name);
 	vertexcode = code_generate_vertex(nodes);
-	shader = GPU_shader_create(vertexcode, fragmentcode, glsl_material_library, NULL);
+	sprintf(nickname, "GPUPass: %s", name);
+	shader = GPU_shader_create(nickname, vertexcode, fragmentcode, glsl_material_library, NULL);
 
 	/* failed? */
 	if (!shader) {
@@ -1382,7 +1384,7 @@ GPUPass *GPU_generate_pass(ListBase *nodes, GPUNodeLink *outlink, GPUVertexAttri
 	}
 	
 	/* create pass */
-	pass = MEM_callocN(sizeof(GPUPass), "GPUPass");
+	pass = (GPUPass*)MEM_callocN(sizeof(GPUPass), "GPUPass");
 
 	pass->output = outlink->output;
 	pass->shader = shader;

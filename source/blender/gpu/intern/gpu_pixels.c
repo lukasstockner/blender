@@ -350,7 +350,7 @@ static void gpu_pixels_shader(void)
 		defs_cstring = BLI_dynstr_get_cstring(defs);
 
 		PIXELS_SHADER =
-			GPU_shader_create(vert_cstring, frag_cstring, NULL, defs_cstring);
+			GPU_shader_create("Pixels", vert_cstring, frag_cstring, NULL, defs_cstring);
 
 		MEM_freeN(vert_cstring);
 		MEM_freeN(frag_cstring);

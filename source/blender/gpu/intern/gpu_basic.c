@@ -172,6 +172,8 @@ static void basic_shader_bind(void)
 		char* frag_cstring;
 		char* defs_cstring;
 
+		char nickname[20];
+
 		gpu_include_common_vert(vert);
 		BLI_dynstr_append(vert, datatoc_gpu_shader_basic_vert_glsl);
 
@@ -204,8 +206,10 @@ static void basic_shader_bind(void)
 		frag_cstring = BLI_dynstr_get_cstring(frag);
 		defs_cstring = BLI_dynstr_get_cstring(defs);
 
+		sprintf(nickname, "Basic[0x%04X]", tweaked_options);
+
 		BASIC_SHADER.gpushader[tweaked_options] =
-			GPU_shader_create(vert_cstring, frag_cstring, NULL, defs_cstring);
+			GPU_shader_create(nickname, vert_cstring, frag_cstring, NULL, defs_cstring);
 
 		MEM_freeN(vert_cstring);
 		MEM_freeN(frag_cstring);

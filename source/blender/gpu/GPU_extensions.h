@@ -176,7 +176,7 @@ int GPU_offscreen_height(GPUOffScreen *ofs);
  * - only for fragment shaders now
  * - must call texture bind before setting a texture as uniform! */
 
-GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const char *libcode, const char *defines);
+GPUShader *GPU_shader_create(const char* from, const char *vertexcode, const char *fragcode, const char *libcode, const char *defines);
 void GPU_shader_free(GPUShader *shader);
 
 void GPU_shader_bind(GPUShader *shader);
