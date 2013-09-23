@@ -29,21 +29,69 @@
  *  \ingroup gpu
  */
 
-#include "GPU_select.h"
+/* my interface */
+#include "intern/gpu_select_intern.h"
+
+/* my library */
+#include "GPU_safety.h"
+
+
+
+static bool is_select_mode = false;
+
+
+
+void gpu_select_init(void)
+{
+	is_select_mode = false;
+}
+
+
+
+void gpu_select_exit(void)
+{
+}
+
+
+
+void gpu_default_select(void* UNUSED(param))
+{
+}
+
+
+
+void gpu_default_unselect(void* UNUSED(param))
+{
+}
+
+
+
+bool gpu_is_select_mode(void)
+{
+	return is_select_mode;
+}
 
 
 
 void GPU_select_buffer(GLsizei size, GLuint* buffer)
 {
+	GPU_ASSERT(!is_select_mode);
+
+	if (!is_select_mode) {
 #if defined(WITH_GL_PROFILE_COMPAT)
-	glSelectBuffer(size, buffer);
+		glSelectBuffer(size, buffer);
 #endif
+	}
 }
 
 
 
 void GPU_select_begin(void)
 {
+	GPU_ASSERT(!is_select_mode);
+
+	is_select_mode = true;
+
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glRenderMode(GL_SELECT);
 #endif
@@ -53,6 +101,10 @@ void GPU_select_begin(void)
 
 GLsizei GPU_select_end(void)
 {
+	GPU_ASSERT(is_select_mode);
+
+	is_select_mode = false;
+
 #if defined(WITH_GL_PROFILE_COMPAT)
 	return glRenderMode(GL_RENDER);
 #else
@@ -64,34 +116,42 @@ GLsizei GPU_select_end(void)
 
 void GPU_select_clear(void)
 {
+	if (is_select_mode) {
 #if defined(WITH_GL_PROFILE_COMPAT)
-	glInitNames();
+		glInitNames();
 #endif
+	}
 }
 
 
 
 void GPU_select_pop(void)
 {
+	if (is_select_mode) {
 #if defined(WITH_GL_PROFILE_COMPAT)
-	glPopName();
+		glPopName();
 #endif
+	}
 }
 
 
 
 void GPU_select_push(GLuint name)
 {
+	if (is_select_mode) {
 #if defined(WITH_GL_PROFILE_COMPAT)
-	glPushName(name);
+		glPushName(name);
 #endif
+	}
 }
 
 
 
 void GPU_select_load(GLuint name)
 {
+	if (is_select_mode) {
 #if defined(WITH_GL_PROFILE_COMPAT)
-	glLoadName(name);
+		glLoadName(name);
 #endif
+	}
 }

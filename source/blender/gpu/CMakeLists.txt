@@ -56,6 +56,7 @@ set(INTERN_INC
 	intern/gpu_primitives_inline.h
 	intern/gpu_profile.h
 	intern/gpu_raster_intern.h
+    intern/gpu_select_intern.h
 	intern/gpu_sprite_intern.h
 	intern/gpu_state_latch_intern.h
 )

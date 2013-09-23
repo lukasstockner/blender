@@ -48,6 +48,7 @@
 #include "intern/gpu_matrix_intern.h"
 #include "intern/gpu_pixels_intern.h"
 #include "intern/gpu_raster_intern.h"
+#include "intern/gpu_select_intern.h"
 #include "intern/gpu_sprite_intern.h"
 #include "intern/gpu_state_latch_intern.h"
 
@@ -84,6 +85,7 @@ void GPU_init(void)
 	gpu_matrix_init();
 	gpu_pixels_init();
 	gpu_raster_init();
+	gpu_select_init();
 	gpu_sprite_init();
 	gpu_state_latch_init();
 
@@ -114,9 +116,10 @@ void GPU_exit(void)
 
 	gpu_state_latch_exit();
 	gpu_sprite_exit();
+	gpu_select_exit();
 	gpu_raster_exit();
 	gpu_pixels_exit();
-	gpu_matrix_init();
+	gpu_matrix_exit();
 	gpu_lighting_exit();
 	gpu_immediate_exit();
 	gpu_font_exit();
@@ -127,6 +130,6 @@ void GPU_exit(void)
 	gpu_aspect_exit();
 
 	gpu_extensions_exit(); /* must come last */
-	
+
 	initialized = false;
 }

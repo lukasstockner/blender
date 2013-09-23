@@ -1244,12 +1244,12 @@ void GPU_buffer_unlock(GPUBuffer *buffer)
 /* used for drawing edges */
 void GPU_buffer_draw_elements(GPUBuffer *elements, unsigned int mode, int start, int count)
 {
-	GPU_commit_aspect();
-
-	glDrawElements(mode, count, GL_UNSIGNED_INT,
-	               (useVBOs ?
-	                (void *)(start * sizeof(unsigned int)) :
-	                ((int *)elements->pointer) + start));
+	if (GPU_commit_aspect())
+		glDrawElements(
+			mode,
+			count,
+			GL_UNSIGNED_INT,
+			(useVBOs ? (void *)(start * sizeof(unsigned int)) : ((int *)elements->pointer) + start));
 }
 
 
@@ -2396,32 +2396,32 @@ void GPU_draw_buffers(
 		if (buffers->index_buf)
 			gpu_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers->index_buf);
 
-		GPU_commit_aspect();
+		if (GPU_commit_aspect()) {
+			if (buffers->tot_quad) {
+				char *offset = 0;
+				int i, last = buffers->has_hidden ? 1 : buffers->totgrid;
+				for (i = 0; i < last; i++) {
+					GPU_common_vertex_pointer(3, GL_FLOAT, sizeof(VertexBufferFormat), offset + offsetof(VertexBufferFormat, co));
+					GPU_common_normal_pointer(GL_SHORT, sizeof(VertexBufferFormat), GL_TRUE, offset + offsetof(VertexBufferFormat, no));
+					GPU_common_color_pointer(3, GL_UNSIGNED_BYTE, sizeof(VertexBufferFormat), offset + offsetof(VertexBufferFormat, color));
 
-		if (buffers->tot_quad) {
-			char *offset = 0;
-			int i, last = buffers->has_hidden ? 1 : buffers->totgrid;
-			for (i = 0; i < last; i++) {
-				GPU_common_vertex_pointer(3, GL_FLOAT, sizeof(VertexBufferFormat), offset + offsetof(VertexBufferFormat, co));
-				GPU_common_normal_pointer(GL_SHORT, sizeof(VertexBufferFormat), GL_TRUE, offset + offsetof(VertexBufferFormat, no));
-				GPU_common_color_pointer(3, GL_UNSIGNED_BYTE, sizeof(VertexBufferFormat), offset + offsetof(VertexBufferFormat, color));
+					glDrawElements(GL_QUADS, buffers->tot_quad * 4, buffers->index_type, 0);
 
-				glDrawElements(GL_QUADS, buffers->tot_quad * 4, buffers->index_type, 0);
-
-				offset += buffers->gridkey.grid_area * sizeof(VertexBufferFormat);
+					offset += buffers->gridkey.grid_area * sizeof(VertexBufferFormat);
+				}
 			}
-		}
-		else {
-			int totelem = buffers->tot_tri * 3;
+			else {
+				int totelem = buffers->tot_tri * 3;
 
-			GPU_common_vertex_pointer(3, GL_FLOAT, sizeof(VertexBufferFormat), (void *)offsetof(VertexBufferFormat, co));
-			GPU_common_normal_pointer(GL_SHORT, sizeof(VertexBufferFormat), GL_TRUE, (void *)offsetof(VertexBufferFormat, no));
-			GPU_common_color_pointer(3, GL_UNSIGNED_BYTE, sizeof(VertexBufferFormat), (void *)offsetof(VertexBufferFormat, color));
+				GPU_common_vertex_pointer(3, GL_FLOAT, sizeof(VertexBufferFormat), (void *)offsetof(VertexBufferFormat, co));
+				GPU_common_normal_pointer(GL_SHORT, sizeof(VertexBufferFormat), GL_TRUE, (void *)offsetof(VertexBufferFormat, no));
+				GPU_common_color_pointer(3, GL_UNSIGNED_BYTE, sizeof(VertexBufferFormat), (void *)offsetof(VertexBufferFormat, color));
 
-			if (buffers->index_buf)
-				glDrawElements(GL_TRIANGLES, totelem, buffers->index_type, 0);
-			else
-				glDrawArrays(GL_TRIANGLES, 0, totelem);
+				if (buffers->index_buf)
+					glDrawElements(GL_TRIANGLES, totelem, buffers->index_type, 0);
+				else
+					glDrawArrays(GL_TRIANGLES, 0, totelem);
+			}
 		}
 
 		gpu_glBindBuffer(GL_ARRAY_BUFFER, 0);

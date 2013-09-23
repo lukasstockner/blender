@@ -617,4 +617,17 @@
 #undef glViewport
 #define glViewport DO_NOT_USE_glViewport
 
+#undef glRenderMode
+#define glRenderMode DO_NOT_USE_glRenderMode
+#undef glSelectBuffer
+#define glSelectBuffer DO_NOT_USE_glSelectBuffer
+#undef glInitNames
+#define glInitNames DO_NOT_USE_glInitNames
+#undef glPopName
+#define glPopName DO_NOT_USE_glPopName
+#undef glPushName
+#define glPushName DO_NOT_USE_glPushName
+#undef glLoadName
+#define glLoadName DO_NOT_USE_glLoadName
+
 #endif /* _GPU_DEPRECATED_H_ */

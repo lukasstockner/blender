@@ -514,7 +514,9 @@ void gpu_end_buffer_gl(void)
 	}
 
 	if (!(GPU_IMMEDIATE->mode == GL_NOOP || GPU_IMMEDIATE->count == 0)) {
-		GPU_commit_aspect();
+		if (!GPU_commit_aspect())
+			return;
+
 		unsetup();
 		setup();
 		gpu_commit_current ();
@@ -642,7 +644,9 @@ void gpu_draw_elements_gl(void)
 
 	GPU_CHECK_NO_ERROR();
 
-	GPU_commit_aspect();
+	if (!GPU_commit_aspect())
+		return;
+
 	unsetup();
 	setup();
 	gpu_commit_current ();
@@ -666,7 +670,9 @@ void gpu_draw_range_elements_gl(void)
 
 	GPU_CHECK_NO_ERROR();
 
-	GPU_commit_aspect();
+	if (!GPU_commit_aspect())
+		return;
+
 	unsetup();
 	setup();
 	gpu_commit_current ();

@@ -1521,7 +1521,8 @@ static void stitch_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar), void *ar
 
 	GPU_CHECK_NO_ERROR();
 
-	GPU_commit_aspect();
+	if (!GPU_commit_aspect())
+		return;
 
 	glEnable(GL_BLEND);
 

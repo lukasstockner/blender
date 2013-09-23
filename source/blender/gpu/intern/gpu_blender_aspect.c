@@ -32,11 +32,12 @@
 /* my interface */
 #include "intern/gpu_blender_aspect_intern.h"
 
-/* my library */
+/* internal */
 #include "intern/gpu_basic_intern.h"
 #include "intern/gpu_font_intern.h"
 #include "intern/gpu_pixels_intern.h"
 #include "intern/gpu_raster_intern.h"
+#include "intern/gpu_select_intern.h"
 #include "intern/gpu_sprite_intern.h"
 
 /* external */
@@ -65,11 +66,13 @@ static void font_commit(void* UNUSED(param))
 }
 
 GPUaspectimpl GPU_ASPECTIMPL_FONT = {
-	NULL,        /* begin   */
-	font_end,    /* end     */
-	font_commit, /* commit  */
-	NULL,        /* enable  */
-	NULL,        /* disable */
+	NULL,        /* begin    */
+	font_end,    /* end      */
+	font_commit, /* commit   */
+	NULL,        /* select   */
+	NULL,        /* unselect */
+	NULL,        /* enable   */
+	NULL,        /* disable  */
 };
 
 
@@ -87,11 +90,13 @@ static void pixels_commit(void* UNUSED(param))
 }
 
 GPUaspectimpl GPU_ASPECTIMPL_PIXELS = {
-	NULL,          /* begin   */
-	pixels_end,    /* end     */
-	pixels_commit, /* commit  */
-	NULL,          /* enable  */
-	NULL,          /* disable */
+	NULL,          /* begin    */
+	pixels_end,    /* end      */
+	pixels_commit, /* commit   */
+	NULL,          /* select   */
+	NULL,          /* unselect */
+	NULL,          /* enable   */
+	NULL,          /* disable  */
 };
 
 
@@ -119,11 +124,13 @@ static void basic_disable(void* UNUSED(param), uint32_t options)
 }
 
 GPUaspectimpl GPU_ASPECTIMPL_BASIC = {
-	NULL,         /* begin   */
-	basic_end,    /* end     */
-	basic_commit, /* commit  */
-	basic_enable, /* enable  */
-	basic_disable /* disable */
+	NULL,                 /* begin    */
+	basic_end,            /* end      */
+	basic_commit,         /* commit   */
+	gpu_default_select,   /* select   */
+	gpu_default_unselect, /* unselect */
+	basic_enable,         /* enable   */
+	basic_disable         /* disable  */
 };
 
 
@@ -151,11 +158,13 @@ static void raster_disable(void* UNUSED(param), uint32_t options)
 }
 
 GPUaspectimpl GPU_ASPECTIMPL_RASTER = {
-	NULL,          /* begin   */
-	raster_end,    /* end     */
-	raster_commit, /* commit  */
-	raster_enable, /* enable  */
-	raster_disable /* disable */
+	NULL,                 /* begin    */
+	raster_end,           /* end      */
+	raster_commit,        /* commit   */
+	gpu_default_select,   /* select   */
+	gpu_default_unselect, /* unselect */
+	raster_enable,        /* enable   */
+	raster_disable        /* disable  */
 };
 
 
@@ -183,11 +192,13 @@ static void sprite_disable(void* UNUSED(param), uint32_t options)
 }
 
 GPUaspectimpl GPU_ASPECTIMPL_SPRITE = {
-	NULL,          /* begin   */
-	sprite_end,    /* end     */
-	sprite_commit, /* commit  */
-	sprite_enable, /* enable  */
-	sprite_disable /* disable */
+	NULL,                 /* begin    */
+	sprite_end,           /* end      */
+	sprite_commit,        /* commit   */
+	gpu_default_select,   /* select   */
+	gpu_default_unselect, /* unselect */
+	sprite_enable,        /* enable   */
+	sprite_disable        /* disable  */
 };
 
 
