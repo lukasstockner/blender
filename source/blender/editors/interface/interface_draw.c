@@ -1479,8 +1479,10 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 
 	/* the points, use aspect to make them visible on edges */
 	cmp = cuma->curve;
-	GPU_sprite_size(3.0f);
+
+	GPU_sprite_size(3);
 	GPU_sprite_begin();
+
 	for (a = 0; a < cuma->totpoint; a++) {
 		if (cmp[a].flag & CUMA_SELECT)
 			UI_ThemeColor(TH_TEXT_HI);
@@ -1490,9 +1492,10 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 		fac[1] = rect->ymin + zoomy * (cmp[a].y - offsy);
 		GPU_sprite_2fv(fac);
 	}
+
 	GPU_sprite_end();
-	GPU_sprite_size(1.0f);
-	
+	GPU_sprite_size(1);
+
 	/* restore scissortest */
 	glScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
 

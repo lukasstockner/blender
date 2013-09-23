@@ -18,7 +18,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2012 Blender Foundation.
+ * The Original Code is Copyright (C) 2013 Blender Foundation.
  * All rights reserved.
  *
  * The Original Code is: all of this file.
@@ -41,18 +41,16 @@ extern "C" {
 void GPU_sprite_begin(void);
 void GPU_sprite_end  (void);
 
+void GPU_point_size (float size);
 void GPU_sprite_size(float size);
 
 typedef enum GPUSpriteShaderOption {
-	GPU_SPRITE_AA         = (1<<0), /* */
+	GPU_SPRITE_CIRCULAR   = (1<<0), /* */
 	GPU_SPRITE_TEXTURE_2D = (1<<1), /* */
 
 	GPU_SPRITE_OPTIONS_NUM         = 1,
 	GPU_SPRITE_OPTION_COMBINATIONS = (1<<GPU_SPRITE_OPTIONS_NUM)
 } GPUSpriteShaderOption;
-
-void GPU_sprite_enable (uint32_t options);
-void GPU_sprite_disable(uint32_t options);
 
 void GPU_sprite_2f (float x, float y);
 void GPU_sprite_2fv(const float v[2]);

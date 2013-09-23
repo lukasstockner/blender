@@ -113,16 +113,15 @@ static void draw_fcurve_modifier_controls_envelope(FModifier *fcm, View2D *v2d)
 
 	GPU_raster_end();
 
-	/* set size of vertices (non-adjustable for now) */
-	GPU_sprite_size(2.0f);
-
 	/* for now, point color is fixed, and is white */
 	gpuColor3P(CPACK_WHITE);
 
-	/* we use bgl points not standard gl points, to workaround vertex 
+	/* we use sprites and not standard gl points, to workaround vertex
 	 * drawing bugs that some drivers have (probably legacy ones only though)
 	 */
+	GPU_sprite_size(2); /* set size of vertices (non-adjustable for now) */
 	GPU_sprite_begin();
+
 	for (i = 0, fed = env->data; i < env->totvert; i++, fed++) {
 		/* only draw if visible
 		 *	- min/max here are fixed, not relative
@@ -132,9 +131,9 @@ static void draw_fcurve_modifier_controls_envelope(FModifier *fcm, View2D *v2d)
 			GPU_sprite_2f(fed->time, fed->max);
 		}
 	}
+
 	GPU_sprite_end();
-	
-	GPU_sprite_size(1.0f);
+	GPU_sprite_size(1);
 }
 
 /* *************************** */
@@ -281,9 +280,8 @@ static void draw_fcurve_vertices(SpaceIpo *sipo, ARegion *ar, FCurve *fcu, short
 	 *     and also to make sure in the case of overlapping points that the selected is always visible
 	 *	- draw handles before keyframes, so that keyframes will overlap handles (keyframes are more important for users)
 	 */
-	
-	GPU_sprite_size(UI_GetThemeValuef(TH_VERTEX_SIZE));
-	
+
+
 	/* draw the two handles first (if they're shown, the curve doesn't have just a single keyframe, and the curve is being edited) */
 	if (do_handles) {
 		set_fcurve_vertex_color(fcu, 0);
@@ -292,15 +290,17 @@ static void draw_fcurve_vertices(SpaceIpo *sipo, ARegion *ar, FCurve *fcu, short
 		set_fcurve_vertex_color(fcu, 1);
 		draw_fcurve_vertices_handles(fcu, sipo, v2d, 1, sel_handle_only);
 	}
-		
+
+	GPU_sprite_size(UI_GetThemeValuef(TH_VERTEX_SIZE));
+
 	/* draw keyframes over the handles */
 	set_fcurve_vertex_color(fcu, 0);
 	draw_fcurve_vertices_keyframes(fcu, sipo, v2d, !(fcu->flag & FCURVE_PROTECTED), 0);
 	
 	set_fcurve_vertex_color(fcu, 1);
 	draw_fcurve_vertices_keyframes(fcu, sipo, v2d, !(fcu->flag & FCURVE_PROTECTED), 1);
-	
-	GPU_sprite_size(1.0f);
+
+	GPU_sprite_size(1);
 }
 
 /* Handles ---------------- */
@@ -865,21 +865,21 @@ static void graph_draw_driver_debug(bAnimContext *ac, ID *id, FCurve *fcu)
 			/* x marks the spot .................................................... */
 			/* -> outer frame */
 			gpuColor3f(0.9f, 0.9f, 0.9f);
-			GPU_sprite_size(7.0);
-			
+			GPU_point_size(7);
+
 			gpuBegin(GL_POINTS);
 				gpuVertex2f(x, y);
 			gpuEnd();
-			
+
 			/* inner frame */
 			gpuColor3f(0.9f, 0.0f, 0.0f);
-			GPU_sprite_size(3.0);
-			
+			GPU_point_size(3);
+
 			gpuBegin(GL_POINTS);
 				gpuVertex2f(x, y);
 			gpuEnd();
-			
-			GPU_sprite_size(1.0f);
+
+			GPU_point_size(1);
 		}
 	}
 

@@ -205,7 +205,7 @@ void draw_motion_path_instance(Scene *scene,
 	// SSS Disable Smooth
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
-	GPU_sprite_size(1.0);
+	GPU_point_size(1);
 
 	/* draw little black point at each frame
 	 * NOTE: this is not really visible/noticeable
@@ -229,14 +229,14 @@ void draw_motion_path_instance(Scene *scene,
 	    (sfra < CFRA) && (CFRA <= efra))
 	{
 		UI_ThemeColor(TH_CFRAME);
-		GPU_sprite_size(6.0f);
+		GPU_point_size(6);
 		
 		gpuBegin(GL_POINTS);
 		mpv = mpv_start + (CFRA - sfra);
 		gpuVertex3fv(mpv->co);
 		gpuEnd();
 
-		GPU_sprite_size(1.0f);
+		GPU_point_size(1);
 		UI_ThemeColor(TH_TEXT_HI);
 	}
 
@@ -305,8 +305,9 @@ void draw_motion_path_instance(Scene *scene,
 		UI_GetThemeColor3ubv(TH_VERTEX_SELECT, col);
 		col[3] = 255;
 
-		GPU_sprite_size(4.0f);
 		gpuColor3ubv(col);
+
+		GPU_point_size(4);
 
 		gpuBegin(GL_POINTS);
 		for (i = 0, mpv = mpv_start; i < len; i++, mpv++) {
@@ -318,7 +319,7 @@ void draw_motion_path_instance(Scene *scene,
 		}
 		gpuEnd();
 
-		GPU_sprite_size(1.0f);
+		GPU_point_size(1);
 
 		/* Draw frame numbers of keyframes  */
 		if (avs->path_viewflag & MOTIONPATH_VIEW_KFNOS) {

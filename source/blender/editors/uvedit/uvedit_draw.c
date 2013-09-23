@@ -747,12 +747,14 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 		float cent[2];
 		
 		pointsize = UI_GetThemeValuef(TH_FACEDOT_SIZE);
-		GPU_sprite_size(pointsize); // TODO - drawobject.c changes this value after - Investigate!
-		
+
 		/* unselected faces */
 		UI_ThemeColor(TH_WIRE);
 
+		GPU_sprite_size(pointsize); // TODO - drawobject.c changes this value after - Investigate!
+
 		GPU_sprite_begin();
+
 		BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 			if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
 				continue;

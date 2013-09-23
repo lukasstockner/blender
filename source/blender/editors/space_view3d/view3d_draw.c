@@ -126,7 +126,6 @@ static void star_stuff_init_func(void)
 {
 	gpuImmediateFormat_V3();
 	gpuColor3P(CPACK_WHITE);
-	GPU_sprite_size(1.0);
 	GPU_sprite_begin();
 }
 
@@ -794,8 +793,6 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 	// SSS Enable Smooth
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
-	GPU_sprite_size(5);
-	glEnable(GL_POINT_SMOOTH);
 	gpuDepthMask(GL_FALSE);  /* don't overwrite zbuf */
 
 	if (rv3d->rot_angle != 0.f) {
@@ -868,10 +865,15 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 		color[3] = 0.5f;  /* see-through dot */
 
 	/* -- draw rotation center -- */
+	/* XXX jwilkins: so much code for one point */
 	gpuColor4fv(color);
-	gpuBegin(GL_POINTS);
-	gpuVertex3fv(o);
-	gpuEnd();
+	GPU_sprite_size(5);
+	GPU_aspect_enable(GPU_ASPECT_SPRITE, GPU_SPRITE_CIRCULAR);
+	GPU_sprite_begin();
+	GPU_sprite_3fv(o);
+	GPU_sprite_end();
+	GPU_aspect_disable(GPU_ASPECT_SPRITE, GPU_SPRITE_CIRCULAR);
+	GPU_sprite_size(1);
 
 	// SSS Disable Smooth
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
@@ -884,7 +886,6 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 	/* ^^ just playing around, does not work */
 
 	glDisable(GL_BLEND);
-	glDisable(GL_POINT_SMOOTH);
 	gpuDepthMask(GL_TRUE);
 }
 
@@ -3712,13 +3713,14 @@ static void bl_debug_draw(void)
 			glVertex3fv(_bl_debug_draw_edges[i][1]);
 		}
 		glEnd();
-		GPU_sprite_size(4.0);
+		GPU_point_size(4);
 		glBegin(GL_POINTS);
 		for (i = 0; i < _bl_debug_draw_edges_tot; i ++) {
 			glVertex3fv(_bl_debug_draw_edges[i][0]);
 			glVertex3fv(_bl_debug_draw_edges[i][1]);
 		}
 		glEnd();
+		GPU_point_size(1);
 	}
 }
 #endif

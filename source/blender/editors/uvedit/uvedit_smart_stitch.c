@@ -1561,9 +1561,7 @@ static void stitch_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar), void *ar
 
 	/* draw vert preview */
 	if (state->mode == STITCH_VERT) {
-		GPU_sprite_begin();
-
-		GPU_sprite_size(2.0f * UI_GetThemeValuef(TH_VERTEX_SIZE));
+		GPU_point_size(2.0f * UI_GetThemeValuef(TH_VERTEX_SIZE));
 
 		GPU_common_vertex_pointer(2, GL_FLOAT, 0, stitch_preview->preview_stitchable);
 		commit_theme_color(TH_STITCH_PREVIEW_STITCHABLE);
@@ -1573,9 +1571,7 @@ static void stitch_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar), void *ar
 		commit_theme_color(TH_STITCH_PREVIEW_UNSTITCHABLE);
 		glDrawArrays(GL_POINTS, 0, stitch_preview->num_unstitchable);
 
-		GPU_sprite_size(1.0); /* restore default value */
-
-		GPU_sprite_end();
+		GPU_point_size(1); /* restore default value */
 	}
 	else {
 		GPU_common_vertex_pointer(2, GL_FLOAT, 0, stitch_preview->preview_stitchable);

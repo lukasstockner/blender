@@ -42,6 +42,7 @@
 #include "intern/gpu_matrix_intern.h"
 
 
+static float point_size = 1;
 
 static float    SPRITE_SIZE    = 1;
 static uint32_t SPRITE_OPTIONS = 0;
@@ -67,6 +68,12 @@ static GLubyte square_dot[16] = {
 
 void gpu_sprite_init(void)
 {
+#if defined(WITH_GL_PROFILE_COMPAT) || defined(WITH_GL_PROFILE_CORE)
+	glGetFloatv(GL_POINT_SIZE, &point_size);
+#else
+	point_size = 1;
+#endif
+
 	SPRITE_SIZE    = 1;
 	SPRITE_OPTIONS = 0;
 }
@@ -105,16 +112,16 @@ void gpu_sprite_bind(void)
 		return;
 
 	GPU_CHECK_NO_ERROR();
-		
-	if (point_size != 1)
+
+	if (SPRITE_SIZE != point_size)
 		glPointSize(SPRITE_SIZE);
-	
-	if (point_options & GPU_SPRITE_AA)
+
+	if (point_options & GPU_SPRITE_CIRCULAR)
 		glEnable(GL_POINT_SMOOTH);
-	
+
 	if (point_options & GPU_SPRITE_TEXTURE_2D)
 		glEnable(GL_POINT_SPRITE);
-		
+
 	GPU_CHECK_NO_ERROR();
 #endif
 
@@ -133,12 +140,20 @@ void gpu_sprite_unbind(void)
 		
 	GPU_CHECK_NO_ERROR();
 
-	glPointSize(1);
+	glPointSize(point_size);
 	glDisable(GL_POINT_SMOOTH);
 	glDisable(GL_POINT_SPRITE);
 		
 	GPU_CHECK_NO_ERROR();
 #endif
+}
+
+
+
+void GPU_point_size(float size)
+{
+	point_size = size;
+	glPointSize(point_size);
 }
 
 

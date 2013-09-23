@@ -572,7 +572,7 @@ void draw_smoke_velocity(SmokeDomainSettings *domain, Object *ob)
 					float col_g = 1.0f - vel;
 					CLAMP(col_g, 0.0f, 1.0f);
 					glColor3f(1.0f, col_g, 0.0f);
-					GPU_sprite_size(10.0f * vel);
+					GPU_point_size(10.0f * vel);
 
 					glBegin(GL_LINES);
 					glVertex3f(pos[0], pos[1], pos[2]);
@@ -581,6 +581,8 @@ void draw_smoke_velocity(SmokeDomainSettings *domain, Object *ob)
 					glBegin(GL_POINTS);
 					glVertex3f(pos[0] + vel_x[index] * vf, pos[1] + vel_y[index] * vf, pos[2] + vel_z[index] * vf);
 					glEnd();
+
+					GPU_point_size(1);
 				}
 			}
 }
@@ -623,11 +625,13 @@ void draw_smoke_heat(SmokeDomainSettings *domain, Object *ob)
 					float col_gb = 1.0f - heat[index];
 					CLAMP(col_gb, 0.0f, 1.0f);
 					glColor3f(1.0f, col_gb, col_gb);
-					GPU_sprite_size(24.0f * heat[index]);
+					GPU_point_size(24.0f * heat[index]);
 
 					glBegin(GL_POINTS);
 					glVertex3f(pos[0], pos[1], pos[2]);
 					glEnd();
+
+					GPU_point_size(1);
 				}
 			}
 }

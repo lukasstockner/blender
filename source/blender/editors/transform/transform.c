@@ -2003,6 +2003,7 @@ static void drawEdgeSlide(const struct bContext *C, TransInfo *t)
 			GPU_sprite_3fv(marker);
 			GPU_sprite_end();
 
+			GPU_sprite_size(1);
 
 			gpuPopMatrix();
 
@@ -6642,12 +6643,12 @@ static void drawVertSlide(const struct bContext *C, TransInfo *t)
 			gpuEnd();
 
 			GPU_sprite_size(ctrl_size);
-
 			GPU_sprite_begin();
 			GPU_sprite_3fv((sld->flipped_vtx && sld->is_proportional == FALSE) ?
 			             curr_sv->co_link_orig_3d[curr_sv->co_link_curr] :
 			             curr_sv->co_orig_3d);
 			GPU_sprite_end();
+			GPU_sprite_size(1);
 
 			gpuPopMatrix();
 
