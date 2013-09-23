@@ -45,22 +45,23 @@
 
 
 
-uint32_t GPU_ASPECT_FONT   = 0;
-uint32_t GPU_ASPECT_BASIC  = 0;
-uint32_t GPU_ASPECT_PIXELS = 0;
-uint32_t GPU_ASPECT_RASTER = 0;
-uint32_t GPU_ASPECT_SPRITE = 0;
+uint32_t GPU_ASPECT_BASIC   = 0;
+uint32_t GPU_ASPECT_CODEGEN = 0;
+uint32_t GPU_ASPECT_FONT    = 0;
+uint32_t GPU_ASPECT_PIXELS  = 0;
+uint32_t GPU_ASPECT_RASTER  = 0;
+uint32_t GPU_ASPECT_SPRITE  = 0;
 
 
 
-static bool font_end(void* UNUSED(param), const void* UNUSED(object))
+static bool font_end(const void* UNUSED(object), void* UNUSED(param))
 {
 	gpu_font_unbind();
 
 	return true;
 }
 
-static bool font_commit(void* UNUSED(param))
+static bool font_commit(const void* UNUSED(object))
 {
 	gpu_font_bind();
 
@@ -80,14 +81,14 @@ GPUaspectimpl GPU_ASPECTIMPL_FONT = {
 
 
 
-static bool pixels_end(void* UNUSED(param), const void* UNUSED(object))
+static bool pixels_end(const void* UNUSED(object), void* UNUSED(param))
 {
 	gpu_pixels_unbind();
 
 	return true;
 }
 
-static bool pixels_commit(void* UNUSED(param))
+static bool pixels_commit(const void* UNUSED(object))
 {
 	gpu_pixels_bind();
 
@@ -107,26 +108,26 @@ GPUaspectimpl GPU_ASPECTIMPL_PIXELS = {
 
 
 
-static bool basic_end(void* UNUSED(param), const void* UNUSED(object))
+static bool basic_end(const void* UNUSED(object), void* UNUSED(param))
 {
 	gpu_basic_unbind();
 
 	return true;
 }
 
-static bool basic_commit(void* UNUSED(param))
+static bool basic_commit(const void* UNUSED(object))
 {
 	gpu_basic_bind();
 
 	return true;
 }
 
-static void basic_enable(void* UNUSED(param), uint32_t options)
+static void basic_enable(const void* UNUSED(object), uint32_t options)
 {
 	gpu_basic_enable(options);
 }
 
-static void basic_disable(void* UNUSED(param), uint32_t options)
+static void basic_disable(const void* UNUSED(object), uint32_t options)
 {
 	gpu_basic_disable(options);
 }
@@ -144,26 +145,39 @@ GPUaspectimpl GPU_ASPECTIMPL_BASIC = {
 
 
 
-static bool raster_end(void* UNUSED(param), const void* UNUSED(object))
+GPUaspectimpl GPU_ASPECTIMPL_CODEGEN = {
+	NULL, /* render_begin  */
+	NULL, /* render_end    */
+	NULL, /* render_commit */
+	NULL, /* select_begin  */
+	NULL, /* select_end    */
+	NULL, /* select_commit */
+	NULL, /* enable        */
+	NULL, /* disable       */
+};
+
+
+
+static bool raster_end(const void* UNUSED(object), void* UNUSED(param))
 {
 	gpu_raster_unbind();
 
 	return true;
 }
 
-static bool raster_commit(void* UNUSED(param))
+static bool raster_commit(const void* UNUSED(object))
 {
 	gpu_raster_bind();
 
 	return true;
 }
 
-static void raster_enable(void* UNUSED(param), uint32_t options)
+static void raster_enable(const void* UNUSED(object), uint32_t options)
 {
 	gpu_raster_enable(options);
 }
 
-static void raster_disable(void* UNUSED(param), uint32_t options)
+static void raster_disable(const void* UNUSED(object), uint32_t options)
 {
 	gpu_raster_disable(options);
 }
@@ -181,26 +195,26 @@ GPUaspectimpl GPU_ASPECTIMPL_RASTER = {
 
 
 
-static bool sprite_end(void* UNUSED(param), const void* UNUSED(object))
+static bool sprite_end(const void* UNUSED(object), void* UNUSED(param))
 {
 	gpu_sprite_unbind();
 
 	return true;
 }
 
-static bool sprite_commit(void* UNUSED(param))
+static bool sprite_commit(const void* UNUSED(object))
 {
 	gpu_sprite_bind();
 
 	return true;
 }
 
-static void sprite_enable(void* UNUSED(param), uint32_t options)
+static void sprite_enable(const void* UNUSED(object), uint32_t options)
 {
 	gpu_sprite_enable(options);
 }
 
-static void sprite_disable(void* UNUSED(param), uint32_t options)
+static void sprite_disable(const void* UNUSED(object), uint32_t options)
 {
 	gpu_sprite_disable(options);
 }
@@ -220,14 +234,16 @@ GPUaspectimpl GPU_ASPECTIMPL_SPRITE = {
 
 void gpu_blender_aspect_init(void)
 {
-	GPU_gen_aspects(1, &GPU_ASPECT_FONT);
 	GPU_gen_aspects(1, &GPU_ASPECT_BASIC);
+	GPU_gen_aspects(1, &GPU_ASPECT_CODEGEN);
+	GPU_gen_aspects(1, &GPU_ASPECT_FONT);
 	GPU_gen_aspects(1, &GPU_ASPECT_PIXELS);
 	GPU_gen_aspects(1, &GPU_ASPECT_RASTER);
 	GPU_gen_aspects(1, &GPU_ASPECT_SPRITE);
 
-	GPU_aspect_impl(GPU_ASPECT_FONT,   &GPU_ASPECTIMPL_FONT);
 	GPU_aspect_impl(GPU_ASPECT_BASIC,  &GPU_ASPECTIMPL_BASIC);
+	GPU_aspect_impl(GPU_ASPECT_BASIC,  &GPU_ASPECTIMPL_CODEGEN);
+	GPU_aspect_impl(GPU_ASPECT_FONT,   &GPU_ASPECTIMPL_FONT);
 	GPU_aspect_impl(GPU_ASPECT_PIXELS, &GPU_ASPECTIMPL_PIXELS);
 	GPU_aspect_impl(GPU_ASPECT_RASTER, &GPU_ASPECTIMPL_RASTER);
 	GPU_aspect_impl(GPU_ASPECT_SPRITE, &GPU_ASPECTIMPL_SPRITE);
@@ -237,8 +253,9 @@ void gpu_blender_aspect_init(void)
 
 void gpu_blender_aspect_exit(void)
 {
-	GPU_delete_aspects(1, &GPU_ASPECT_FONT);
 	GPU_delete_aspects(1, &GPU_ASPECT_BASIC);
+	GPU_delete_aspects(1, &GPU_ASPECT_CODEGEN);
+	GPU_delete_aspects(1, &GPU_ASPECT_FONT);
 	GPU_delete_aspects(1, &GPU_ASPECT_PIXELS);
 	GPU_delete_aspects(1, &GPU_ASPECT_RASTER);
 	GPU_delete_aspects(1, &GPU_ASPECT_SPRITE);

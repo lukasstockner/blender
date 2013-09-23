@@ -58,7 +58,7 @@ void gpu_select_exit(void)
 
 
 
-bool gpu_default_select_begin(void* UNUSED(param), const void* UNUSED(object))
+bool gpu_default_select_begin(const void* UNUSED(object), void* UNUSED(param))
 {
 #if defined(WITH_GPU_PROFILE_COMPAT)
 	return true; /* nothing to do, allow this pass to start */
@@ -69,14 +69,14 @@ bool gpu_default_select_begin(void* UNUSED(param), const void* UNUSED(object))
 
 
 
-bool gpu_default_select_end(void* UNUSED(param), const void* UNUSED(object))
+bool gpu_default_select_end(const void* UNUSED(object), void* UNUSED(param))
 {
 	return true; /* only one pass, 'true' means 'done' */
 }
 
 
 
-bool gpu_default_select_commit(void* UNUSED(param))
+bool gpu_default_select_commit(const void* UNUSED(object))
 {
 #if defined(WITH_GPU_PROFILE_COMPAT)
 	gpu_set_common(NULL);

@@ -48,8 +48,7 @@ static size_t aspect_fill = 0;
 
 static GPUaspectimpl dummy = { NULL };
 
-static uint32_t    current_aspect = -1;
-static const void* current_object = NULL;
+static uint32_t current_aspect = -1;
 
 static bool in_select_mode = false;
 
@@ -102,9 +101,9 @@ bool GPU_commit_aspect(void)
 
 	if (aspectImpl != NULL) {
 		if (in_select_mode)
-			return aspectImpl->select_commit != NULL ? aspectImpl->select_commit(aspectImpl->param) : false;
+			return aspectImpl->select_commit != NULL ? aspectImpl->select_commit(aspectImpl->object) : false;
 		else
-			return aspectImpl->render_commit != NULL ? aspectImpl->render_commit(aspectImpl->param) : false;
+			return aspectImpl->render_commit != NULL ? aspectImpl->render_commit(aspectImpl->object) : false;
 	}
 
 	return false;
@@ -161,29 +160,33 @@ void GPU_delete_aspects(size_t count, const uint32_t* aspects)
 
 void GPU_aspect_impl(uint32_t aspect, GPUaspectimpl* aspectImpl)
 {
-	GPU_ASPECT_FUNCS[aspect] = aspectImpl;
+	if (aspectImpl != NULL)
+		GPU_ASPECT_FUNCS[aspect] = aspectImpl;
+	else
+		GPU_ASPECT_FUNCS[aspect] = &dummy;
 }
 
 
 
-bool GPU_aspect_begin(uint32_t aspect, const void* object)
+bool GPU_aspect_begin(uint32_t aspect, void* param)
 {
 	GPUaspectimpl* aspectImpl;
 
 	GPU_ASSERT(!gpu_aspect_active());
 
 	current_aspect = aspect;
-	current_object = object;
 
 	in_select_mode = gpu_is_select_mode();
 
 	aspectImpl = GPU_ASPECT_FUNCS[aspect];
 
 	if (aspectImpl != NULL) {
+		aspectImpl->current_param = param;
+
 		if (in_select_mode)
-			return aspectImpl->select_begin != NULL ? aspectImpl->select_begin(aspectImpl->param, object) : true;
+			return aspectImpl->select_begin != NULL ? aspectImpl->select_begin(aspectImpl->object, param) : true;
 		else
-			return aspectImpl->render_begin != NULL ? aspectImpl->render_begin(aspectImpl->param, object) : true;
+			return aspectImpl->render_begin != NULL ? aspectImpl->render_begin(aspectImpl->object, param) : true;
 	}
 
 	return true;
@@ -194,22 +197,23 @@ bool GPU_aspect_begin(uint32_t aspect, const void* object)
 bool GPU_aspect_end(void)
 {
 	GPUaspectimpl* aspectImpl;
-	const void*    object;
+	void*          param;
 
 	GPU_ASSERT(gpu_aspect_active());
 	GPU_ASSERT(in_select_mode == gpu_is_select_mode()); /* not allowed to change select/render mode while an aspect is active */
 
 	aspectImpl = GPU_ASPECT_FUNCS[current_aspect];
-	object     = current_object;
 
 	current_aspect = -1;
-	current_object = NULL;
 
 	if (aspectImpl != NULL) {
+		param = aspectImpl->current_param;
+		aspectImpl->current_param  = NULL;
+
 		if (in_select_mode)
-			return aspectImpl->select_end != NULL ? aspectImpl->select_end(aspectImpl->param, object) : true;
+			return aspectImpl->select_end != NULL ? aspectImpl->select_end(aspectImpl->object, param) : true;
 		else
-			return aspectImpl->render_end != NULL ? aspectImpl->render_end(aspectImpl->param, object) : true;
+			return aspectImpl->render_end != NULL ? aspectImpl->render_end(aspectImpl->object, param) : true;
 	}
 
 	return true;
@@ -226,7 +230,7 @@ void GPU_aspect_enable(uint32_t aspect, uint32_t options)
 	aspectImpl = GPU_ASPECT_FUNCS[aspect];
 
 	if (aspectImpl != NULL && aspectImpl->enable != NULL)
-		aspectImpl->enable(aspectImpl->param, options);
+		aspectImpl->enable(aspectImpl->object, options);
 }
 
 
@@ -240,5 +244,5 @@ void GPU_aspect_disable(uint32_t aspect, uint32_t options)
 	aspectImpl = GPU_ASPECT_FUNCS[aspect];
 
 	if (aspectImpl != NULL && aspectImpl->disable != NULL )
-		aspectImpl->disable(aspectImpl->param, options);
+		aspectImpl->disable(aspectImpl->object, options);
 }
