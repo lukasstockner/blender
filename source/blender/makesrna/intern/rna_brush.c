@@ -222,6 +222,17 @@ static int rna_SculptToolCapabilities_has_smooth_stroke_get(PointerRNA *ptr)
 	               SCULPT_TOOL_SNAKE_HOOK, SCULPT_TOOL_THUMB));
 }
 
+static int rna_BrushCapabilities_has_smooth_stroke_get(PointerRNA *ptr)
+{
+	Brush *br = (Brush *)ptr->data;
+	return (!(br->flag & BRUSH_ANCHORED) &&
+	        !(br->flag & BRUSH_DRAG_DOT) &&
+	        !(br->flag & BRUSH_LINE) &&
+	        !(br->flag & BRUSH_POLYLINE) &&
+	        !(br->flag & BRUSH_CURVE)
+	        );
+}
+
 static int rna_SculptToolCapabilities_has_space_attenuation_get(PointerRNA *ptr)
 {
 	Brush *br = (Brush *)ptr->data;
@@ -660,6 +671,8 @@ static void rna_def_brush_capabilities(BlenderRNA *brna)
 	BRUSH_CAPABILITY(has_texture_angle, "Has Texture Angle");
 	BRUSH_CAPABILITY(has_texture_angle_source, "Has Texture Angle Source");
 	BRUSH_CAPABILITY(has_spacing, "Has Spacing");
+	BRUSH_CAPABILITY(has_smooth_stroke, "Has Smooth Stroke");
+
 
 #undef BRUSH_CAPABILITY
 }

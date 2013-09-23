@@ -915,14 +915,15 @@ class IMAGE_PT_paint_stroke(BrushButtonsPanel, Panel):
         col = layout.column()
         col.separator()
 
-        col.prop(brush, "use_smooth_stroke")
+        if brush.brush_capabilities.has_smooth_stroke:
+            col.prop(brush, "use_smooth_stroke")
 
-        sub = col.column()
-        sub.active = brush.use_smooth_stroke
-        sub.prop(brush, "smooth_stroke_radius", text="Radius", slider=True)
-        sub.prop(brush, "smooth_stroke_factor", text="Factor", slider=True)
+            sub = col.column()
+            sub.active = brush.use_smooth_stroke
+            sub.prop(brush, "smooth_stroke_radius", text="Radius", slider=True)
+            sub.prop(brush, "smooth_stroke_factor", text="Factor", slider=True)
 
-        col.separator()
+            col.separator()
 
         row = col.row(align=True)
         if brush.use_relative_jitter:
