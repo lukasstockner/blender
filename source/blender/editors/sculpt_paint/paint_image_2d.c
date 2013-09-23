@@ -1281,7 +1281,7 @@ void paint_2d_stroke_done(void *ps)
 
 
 /* this function expects linear space color values */
-void paint_2d_bucket_fill (const bContext *C, float color[3])
+void paint_2d_bucket_fill (const bContext *C, float color[3], float strength)
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
 	Image *ima = sima->image;
@@ -1307,10 +1307,10 @@ void paint_2d_bucket_fill (const bContext *C, float color[3])
 
 	if (!do_float) {
 		linearrgb_to_srgb_uchar3((unsigned char *)&color_b, color);
-		*(((char *)&color_b) + 3) = 255;
+		*(((char *)&color_b) + 3) = strength*255;
 	} else {
 		copy_v3_v3(color_f, color);
-		color_f[3] = 1.0;
+		color_f[3] = strength;
 	}
 
 	/* this will be substituted by something else when selection is available */
@@ -1319,14 +1319,16 @@ void paint_2d_bucket_fill (const bContext *C, float color[3])
 	if (do_float) {
 		for (; i < ibuf->x; i++) {
 			for (j = 0; j < ibuf->y; j++) {
-				copy_v4_v4(ibuf->rect_float + 4 * (j * ibuf->x + i), color_f);
+				blend_color_mix_float(ibuf->rect_float + 4 * (j * ibuf->x + i),
+				                      ibuf->rect_float + 4 * (j * ibuf->x + i), color_f);
 			}
 		}
 	}
 	else {
 		for (; i < ibuf->x; i++) {
 			for (j = 0; j < ibuf->y; j++) {
-				*(ibuf->rect + j * ibuf->x + i) =  color_b;
+				blend_color_mix_byte((unsigned char *)(ibuf->rect + j * ibuf->x + i),
+				                     (unsigned char *)(ibuf->rect + j * ibuf->x + i), (unsigned char *)&color_b);
 			}
 		}
 	}
@@ -1404,6 +1406,7 @@ void paint_2d_gradient_fill (const bContext *C, Brush *br, float mouse_init[2], 
 				do_colorband(br->gradient, f, color_f);
 				/* convert to premultiplied */
 				mul_v3_fl(color_f, color_f[3]);
+				color_f[3] *= br->alpha;
 				blend_color_mix_float(ibuf->rect_float + 4 * (j * ibuf->x + i),
 				                      ibuf->rect_float + 4 * (j * ibuf->x + i),
 				                      color_f);
@@ -1431,7 +1434,7 @@ void paint_2d_gradient_fill (const bContext *C, Brush *br, float mouse_init[2], 
 
 				do_colorband(br->gradient, f, color_f);
 				rgba_float_to_uchar((unsigned char *)&color_b, color_f);
-
+				((unsigned char *)&color_b)[3] *= br->alpha;
 				blend_color_mix_byte((unsigned char *)(ibuf->rect + j * ibuf->x + i),
 				                     (unsigned char *)(ibuf->rect + j * ibuf->x + i),
 				                     (unsigned char *)&color_b);

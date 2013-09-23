@@ -4125,7 +4125,7 @@ static void *do_projectpaint_thread(void *ph_v)
 							}
 						}
 						do_colorband(brush->gradient, f, color_f);
-						color_f[3] *= ((float)projPixel->mask) * (1.0f / 65535.0f);
+						color_f[3] *= ((float)projPixel->mask) * (1.0f / 65535.0f) * brush->alpha;
 
 						if (is_floatbuf) {
 							/* convert to premultipied */
@@ -4142,7 +4142,7 @@ static void *do_projectpaint_thread(void *ph_v)
 					else {
 						if (is_floatbuf) {
 							float newColor_f[4];
-							newColor_f[3] = ((float)projPixel->mask) * (1.0f / 65535.0f);
+							newColor_f[3] = ((float)projPixel->mask) * (1.0f / 65535.0f) * brush->alpha;
 							copy_v3_v3(newColor_f, ps->paint_color_linear);
 
 							blend_color_mix_float(projPixel->pixel.f_pt,  projPixel->origColor.f_pt,
@@ -4150,7 +4150,7 @@ static void *do_projectpaint_thread(void *ph_v)
 						}
 						else {
 							float mask = ((float)projPixel->mask) * (1.0f / 65535.0f);
-							projPixel->newColor.ch[3] = mask * 255;
+							projPixel->newColor.ch[3] = mask * 255 * brush->alpha;
 
 							rgb_float_to_uchar(projPixel->newColor.ch, ps->paint_color);
 							blend_color_mix_byte(projPixel->pixel.ch_pt,  projPixel->origColor.ch_pt,

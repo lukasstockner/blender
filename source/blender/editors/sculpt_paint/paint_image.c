@@ -822,7 +822,7 @@ static void paint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 				float color[3];
 
 				srgb_to_linearrgb_v3_v3(color, brush->rgb);
-				paint_2d_bucket_fill(C, color);
+				paint_2d_bucket_fill(C, color, brush->alpha);
 			}
 			else {
 				paint_proj_stroke(C, pop->custom_paint, pop->startmouse, pop->prevmouse, 1.0, 0.0);
@@ -1435,7 +1435,7 @@ void paint_bucket_fill(struct bContext *C, float color[3], wmOperator *op)
 	undo_paint_push_begin(UNDO_PAINT_IMAGE, op->type->name,
 	                      image_undo_restore, image_undo_free);
 
-	paint_2d_bucket_fill(C, color);
+	paint_2d_bucket_fill(C, color, 1.0);
 
 	undo_paint_push_end(UNDO_PAINT_IMAGE);
 }
