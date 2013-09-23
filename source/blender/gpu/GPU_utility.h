@@ -54,19 +54,15 @@ extern "C" {
 #endif
 
 #if GL_GREMEDY_string_marker && GPU_ENABLE_STRING_MARKER
-#define GPU_STRING_MARKER(msg)                   \
-    if (GLEW_GREMEDY_string_marker) {            \
-        glStringMarkerGREMEDY(sizeof(msg), msg); \
-    }
+#define GPU_STRING_MARKER(msg) if (GLEW_GREMEDY_string_marker) glStringMarkerGREMEDY(sizeof(msg), msg)
 #else
-#define GPU_STRING_MARKER(msg) ((void)0)
+#define GPU_STRING_MARKER(msg) do {} while(0)
 #endif
 
 
 
-const char* gpuErrorString(GLenum err);
-
-
+const char* gpuErrorString(GLenum err); /* e.g. Invalid Enumeration */
+const char* gpuErrorSymbol(GLenum err); /* e.g. GL_INVALID_ENUM     */
 
 
 

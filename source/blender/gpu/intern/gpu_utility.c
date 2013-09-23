@@ -40,7 +40,7 @@ const char* gpuErrorString(GLenum err)
 			return "No Error";
 
 		case GL_INVALID_ENUM:
-			return "Invalid Enum";
+			return "Invalid Enumeration";
 
 		case GL_INVALID_VALUE:
 			return "Invalid Value";
@@ -71,6 +71,51 @@ const char* gpuErrorString(GLenum err)
 
 		case GLU_OUT_OF_MEMORY:
 			return "Out of Memory (GLU)";
+#endif
+
+		default:
+			return "<unknown error>";
+	}
+}
+
+const char* gpuErrorSymbol(GLenum err)
+{
+	switch(err) {
+		case GL_NO_ERROR:
+			return "GL_NO_ERROR";
+
+		case GL_INVALID_ENUM:
+			return "GL_INVALID_ENUM";
+
+		case GL_INVALID_VALUE:
+			return "GL_INVALID_VALUE";
+
+		case GL_INVALID_OPERATION:
+			return "GL_INVALID_OPERATION";
+
+		case GL_STACK_OVERFLOW:
+			return "GL_STACK_OVERFLOW";
+
+		case GL_STACK_UNDERFLOW:
+			return "GL_STACK_UNDERFLOW";
+
+		case GL_OUT_OF_MEMORY:
+			return "GL_OUT_OF_MEMORY";
+
+#if GL_ARB_imagining
+		case GL_TABLE_TOO_LARGE:
+			return "GL_TABLE_TOO_LARGE";
+#endif
+
+#if defined(WITH_GLU)
+		case GLU_INVALID_ENUM:
+			return "GLU_INVALID_ENUM";
+
+		case GLU_INVALID_VALUE:
+			return "GLU_INVALID_VALUE";
+
+		case GLU_OUT_OF_MEMORY:
+			return "GLU_OUT_OF_MEMORY";
 #endif
 
 		default:

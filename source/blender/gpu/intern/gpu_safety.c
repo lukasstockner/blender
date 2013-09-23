@@ -54,9 +54,9 @@ void gpu_check(const char* file, int line, const char* text)
 			no_error = GL_FALSE;
 
 			if (text == NULL)
-				fprintf(stderr, "%s(%d): GL Error (0x%04X): %s\n", file, line, code, gpuErrorString(code));
+				fprintf(stderr, "%s(%d): GL Error (0x%04X): %s: %s\n", file, line, code, gpuErrorSymbol(code), gpuErrorString(code));
 			else
-				fprintf(stderr, "%s(%d):[%s] -> GL Error (0x%04X): %s\n", file, line, text, code, gpuErrorString(code));
+				fprintf(stderr, "%s(%d):[%s] -> GL Error (0x%04X): %s\n", file, line, text, code, gpuErrorSymbol(code), gpuErrorString(code));
 		}
 
 		error_count ++;
