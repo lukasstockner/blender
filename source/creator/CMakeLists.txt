@@ -39,6 +39,9 @@ blender_include_dirs(
 	../blender/windowmanager
 )
 
+add_definitions(${GL_DEFINITIONS})
+blender_include_dirs(${GLEW_INCLUDE_PATH})
+
 if(WIN32)
 	blender_include_dirs(../../intern/utfconv)
 endif()

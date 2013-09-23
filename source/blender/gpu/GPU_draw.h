@@ -34,6 +34,8 @@
 
 #include "BLI_sys_types.h"
 
+#include "GPU_glew.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -111,6 +113,8 @@ float GPU_get_anisotropic(void);
 
 /* enable gpu mipmapping */
 void GPU_set_gpu_mipmapping(int gpu_mipmap);
+
+GLenum GPU_mipmap_2D(GLboolean genmip, GLenum internalFormat, int w, int h, GLenum type, void* data);
 
 /* Image updates and free
  * - these deal with images bound as opengl textures */

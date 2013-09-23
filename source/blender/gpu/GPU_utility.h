@@ -34,6 +34,15 @@
 
 #include "GPU_glew.h"
 
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
+
+
 /* XXX jwilkins: temporary work around for MinGW32 build error */
 #ifdef __MINGW32__
 #undef GPU_ENABLE_STRING_MARKER
@@ -55,13 +64,11 @@
 
 
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 const char* gpuErrorString(GLenum err);
 
-GLenum GPU_mipmap_2D(GLboolean genmip, GLenum internalFormat, int w, int h, GLenum type, void* data);
+
+
+
 
 #ifdef __cplusplus
 }
