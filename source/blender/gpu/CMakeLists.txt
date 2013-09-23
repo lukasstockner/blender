@@ -48,6 +48,7 @@ set(INTERN_INC
 	intern/gpu_aspect_intern.h
 	intern/gpu_basic_intern.h
 	intern/gpu_blender_aspect_intern.h
+	intern/gpu_common_intern.h
 	intern/gpu_codegen.h
 	intern/gpu_extensions_intern.h
 	intern/gpu_immediate_intern.h
