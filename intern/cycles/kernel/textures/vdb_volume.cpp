@@ -20,7 +20,7 @@
 #include "vdb_util.h"
 #include "vdb_lookup.h"
 #include "vdb_volume.h"
-#include <ctime>
+#include <string.h>
 
 CCL_NAMESPACE_BEGIN
 
@@ -33,7 +33,15 @@ VDBTextureSystem::Ptr VDBTextureSystem::init() {
 
 bool VDBTextureSystem::valid_vdb_file(ustring filename)
 {
-        return OpenVDBUtil::is_vdb_volume_file(filename);
+    //This opens the file, much too slow!
+    //return OpenVDBUtil::is_vdb_volume_file(filename);
+
+    size_t length = filename.length();
+
+    if(length < 4)
+        return false;
+
+    return strcmp(filename.data() + length - 4, ".vdb") == 0;
 }
 
 bool VDBTextureSystem::perform_lookup(ustring filename, OIIO::TextureSystem::Perthread *thread_info,
@@ -90,3 +98,4 @@ void VDBTextureSystem::free(VDBTextureSystem::Ptr &vdb_ts)
 }
 
 CCL_NAMESPACE_END
+

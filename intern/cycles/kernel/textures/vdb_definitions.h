@@ -23,7 +23,8 @@
 #include <openvdb/tools/Interpolation.h>
 //#include <OpenImageIO/ustring.h>
 #include <OSL/oslconfig.h>
-#include <vector.h>
+
+#include "util_vector.h"
 
 CCL_NAMESPACE_BEGIN
 

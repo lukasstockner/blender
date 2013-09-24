@@ -47,8 +47,8 @@ public:
     //getGrid
     openvdb::GridBase::Ptr getGridPtr();
     
-    void vdb_lookup_single_point(int i, int j, int k, float *result);
-    void vdb_lookup_multiple_points(int i[], int j[], int k[], float *result);
+    void vdb_lookup_single_point(float x, float y, float z, float *result);
+    void vdb_lookup_multiple_points(float x[], float y[], float z[], float *result);
 
     
 private:
@@ -56,16 +56,16 @@ private:
     VDB_GridType m_type;
 
     template <typename GridType>
-    void vdb_lookup_nearest_neighbor(float i, float j, float k, float *result);
+    void vdb_lookup_nearest_neighbor(float x, float y, float z, float *result);
     
     template <typename GridType>
-    void vdb_lookup_trilinear(float i, float j, float k, float *result);
+    void vdb_lookup_trilinear(float x, float y, float z, float *result);
     
     template <typename GridType>
-    typename GridType::ValueType vdb_lookup_single_point(int i, int j, int k);
+    typename GridType::ValueType vdb_lookup_single_point(float x, float y, float z);
     
     template <typename GridType>
-    typename GridType::ValueType* vdb_lookup_multiple_points(int i[], int j[], int k[], int num);
+    typename GridType::ValueType* vdb_lookup_multiple_points(float x[], float y[], float z[], int num);
     
     template <typename GridType>
     typename GridType::TreeType::template ValueAccessor<typename GridType::TreeType> get_value_accessor();
@@ -108,39 +108,39 @@ void copyVectorToFloatArray(VectorType &vec, float *array, int num)
         array[i] = vec[i];
 }
 
-void VDBAccessor::vdb_lookup_single_point(int i, int j, int k, float *result)
+void VDBAccessor::vdb_lookup_single_point(float x, float y, float z, float *result)
 {
     switch (m_type) {
         case VDB_GRID_BOOL:
-            *result = static_cast<float>(VDBAccessor::vdb_lookup_single_point<openvdb::BoolGrid>(i, j, k));
+            *result = static_cast<float>(VDBAccessor::vdb_lookup_single_point<openvdb::BoolGrid>(x, y, z));
             break;
         case VDB_GRID_FLOAT:
-            *result = VDBAccessor::vdb_lookup_single_point<openvdb::FloatGrid>(i, j, k);
+            *result = VDBAccessor::vdb_lookup_single_point<openvdb::FloatGrid>(x, y, z);
             break;
         case VDB_GRID_DOUBLE:
-            *result = static_cast<float>(VDBAccessor::vdb_lookup_single_point<openvdb::DoubleGrid>(i, j, k));
+            *result = static_cast<float>(VDBAccessor::vdb_lookup_single_point<openvdb::DoubleGrid>(x, y, z));
             break;
         case VDB_GRID_INT32:
-            *result = static_cast<float>(VDBAccessor::vdb_lookup_single_point<openvdb::Int32Grid>(i, j, k));
+            *result = static_cast<float>(VDBAccessor::vdb_lookup_single_point<openvdb::Int32Grid>(x, y, z));
             break;
         case VDB_GRID_INT64:
-            *result = static_cast<float>(VDBAccessor::vdb_lookup_single_point<openvdb::Int64Grid>(i, j, k));
+            *result = static_cast<float>(VDBAccessor::vdb_lookup_single_point<openvdb::Int64Grid>(x, y, z));
             break;
         case VDB_GRID_VEC3I:
         {
-            openvdb::Vec3i result3i = VDBAccessor::vdb_lookup_single_point<openvdb::Vec3IGrid>(i, j, k);
+            openvdb::Vec3i result3i = VDBAccessor::vdb_lookup_single_point<openvdb::Vec3IGrid>(x, y, z);
             copyVectorToFloatArray(result3i, result, 3);
             break;
         }
         case VDB_GRID_VEC3F:
         {
-            openvdb::Vec3f result3f = VDBAccessor::vdb_lookup_single_point<openvdb::Vec3fGrid>(i, j, k);
+            openvdb::Vec3f result3f = VDBAccessor::vdb_lookup_single_point<openvdb::Vec3fGrid>(x, y, z);
             copyVectorToFloatArray(result3f, result, 3);
             break;
         }
         case VDB_GRID_VEC3D:
         {
-            openvdb::Vec3d result3d = VDBAccessor::vdb_lookup_single_point<openvdb::Vec3DGrid>(i, j, k);
+            openvdb::Vec3d result3d = VDBAccessor::vdb_lookup_single_point<openvdb::Vec3DGrid>(x, y, z);
             copyVectorToFloatArray(result3d, result, 3);
             break;
         }
@@ -150,19 +150,19 @@ void VDBAccessor::vdb_lookup_single_point(int i, int j, int k, float *result)
 }
 
 template <typename GridType>
-typename GridType::ValueType VDBAccessor::vdb_lookup_single_point(int i, int j, int k)
+typename GridType::ValueType VDBAccessor::vdb_lookup_single_point(float x, float y, float z)
 {
     typename GridType::Ptr grid = openvdb::gridPtrCast<GridType>(getGridPtr());
     typename GridType::Accessor acc = grid->getAccessor();
     
     openvdb::tools::GridSampler<openvdb::tree::ValueAccessor<typename GridType::TreeType>, openvdb::tools::PointSampler> sampler(acc);
-    openvdb::Vec3d p(i, j, k);
-    
+    openvdb::Vec3d p(x, y, z);
+
     return sampler.wsSample(p);
 }
 
 template <typename GridType>
-typename GridType::ValueType* VDBAccessor::vdb_lookup_multiple_points(int i[], int j[], int k[], int num)
+typename GridType::ValueType* VDBAccessor::vdb_lookup_multiple_points(float x[], float y[], float z[], int num)
 {
     GridType typedGrid = *(openvdb::gridPtrCast<GridType>(m_grid));
     typename GridType::ValueType result;
@@ -173,7 +173,7 @@ typename GridType::ValueType* VDBAccessor::vdb_lookup_multiple_points(int i[], i
     
     for (int pos = 0; pos < num; pos++) {
         
-        xyz = openvdb::math::Coord(i[pos], j[pos], k[pos]);
+        xyz = openvdb::math::Coord(x[pos], y[pos], z[pos]);
         result[pos] = accessor.getValue(xyz);
     }
     
