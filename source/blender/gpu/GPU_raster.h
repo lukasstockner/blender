@@ -51,9 +51,9 @@ extern const GLubyte GPU_stipple_diag_stripes_neg[128];
 
 
 typedef enum GPURasterShaderOption {
-	GPU_RASTER_STIPPLE = (1<<0), /*  */
-	GPU_RASTER_AA      = (1<<1), /*  */
-	GPU_RASTER_POLYGON = (1<<2), /*  */
+	GPU_RASTER_STIPPLE = (1<<0), /* polygon or line stippling */
+	GPU_RASTER_AA      = (1<<1), /* anti-aliasing             */
+	GPU_RASTER_POLYGON = (1<<2), /* choose polygon or line    */
 
 	GPU_RASTER_OPTIONS_NUM         = 3,
 	GPU_RASTER_OPTION_COMBINATIONS = (1<<GPU_RASTER_OPTIONS_NUM)
