@@ -1063,9 +1063,16 @@ static void rna_def_brush(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "sharp_threshold", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_range(prop, 0.0, 100.0);
-	RNA_def_property_ui_range(prop, 0.0, 1.0, 0.01, 3);
+	RNA_def_property_ui_range(prop, 0.0, 1.0, 1, 3);
 	RNA_def_property_float_sdna(prop, NULL, "sharp_threshold");
 	RNA_def_property_ui_text(prop, "Sharp Threshold", "Threshold below which, no sharpening is done");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	prop = RNA_def_property(srna, "fill_threshold", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0, 100.0);
+	RNA_def_property_ui_range(prop, 0.0, 1.0, 1, 3);
+	RNA_def_property_float_sdna(prop, NULL, "fill_threshold");
+	RNA_def_property_ui_text(prop, "Fill Threshold", "Threshold above which filling is not propagated");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop = RNA_def_property(srna, "blur_kernel_radius", PROP_INT, PROP_NONE);

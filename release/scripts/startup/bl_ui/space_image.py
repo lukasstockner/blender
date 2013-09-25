@@ -770,11 +770,14 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
                 col.separator()
                 col.prop(brush, "blur_mode")
             
-            if brush.image_tool == 'CLONE':
+            elif brush.image_tool == 'CLONE':
                 col.separator()
                 col.prop(brush, "clone_image", text="Image")
                 col.prop(brush, "clone_alpha", text="Alpha")
-            
+                
+            elif brush.image_tool == 'FILL':
+                 col.prop(brush, "fill_threshold")
+                 
             row = col.row(align=True)
 
             if capabilities.has_space_attenuation:

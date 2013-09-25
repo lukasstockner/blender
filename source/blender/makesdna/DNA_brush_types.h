@@ -120,7 +120,9 @@ typedef struct Brush {
 	float sharp_threshold;
 	int blur_kernel_radius;
 	int blur_mode;
-	int pad;
+
+	/* fill tool */
+	float fill_threshold;
 
 	float add_col[3];
 	float sub_col[3];

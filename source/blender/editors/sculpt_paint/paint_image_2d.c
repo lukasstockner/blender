@@ -41,6 +41,8 @@
 #include "BLI_math.h"
 #include "BLI_rect.h"
 #include "BLI_math_color_blend.h"
+#include "BLI_gsqueue.h"
+#include "BLI_bitmap.h"
 
 #include "BKE_context.h"
 #include "BKE_brush.h"
@@ -1279,17 +1281,42 @@ void paint_2d_stroke_done(void *ps)
 	MEM_freeN(s);
 }
 
+static void paint_2d_fill_add_pixel_byte(int i, int j, ImBuf *ibuf, GSQueue *stack, BLI_bitmap *touched, float color[4], float threshold)
+{
+	int coordinate = j * ibuf->x + i;
+
+	if (i >= ibuf->x || i < 0 || j >= ibuf->y || j < 0)
+		return;
+
+	if (!BLI_BITMAP_GET(touched, coordinate)) {
+		float color_f[4];
+		unsigned char *color_b = (unsigned char *)(ibuf->rect + coordinate);
+		float luminance;
+		rgba_uchar_to_float(color_f, color_b);
+
+		sub_v3_v3(color_f, color);
+
+		luminance = (fabs(color_f[0]) + fabs(color_f[0]) + fabs(color_f[0]))/3.0;
+		if (luminance < threshold) {
+			BLI_gsqueue_push(stack, &coordinate);
+		}
+		BLI_BITMAP_SET(touched, coordinate);
+	}
+}
 
 /* this function expects linear space color values */
-void paint_2d_bucket_fill (const bContext *C, float color[3], float strength)
+void paint_2d_bucket_fill (const bContext *C, float color[3], Brush *br, float mouse_init[2], void *ps)
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
 	Image *ima = sima->image;
 
+	ImagePaintState *s = ps;
+
 	ImBuf *ibuf;
-	unsigned short i = 0, j = 0;
+	int i = 0, j = 0;
 	unsigned int color_b;
 	float color_f[4];
+	float strength = br ? br->alpha : 1.0;
 
 	bool do_float;
 
@@ -1303,34 +1330,115 @@ void paint_2d_bucket_fill (const bContext *C, float color[3], float strength)
 
 	do_float = (ibuf->rect_float != NULL);
 	/* first check if our image is float. If it is not we should correct the colour to
-	 * be in gamma space */
-
+	 * be in gamma space. strictly speaking this is not correct, but blender does not paint
+	 * byte images in linear space */
 	if (!do_float) {
 		linearrgb_to_srgb_uchar3((unsigned char *)&color_b, color);
-		*(((char *)&color_b) + 3) = strength*255;
+		*(((char *)&color_b) + 3) = strength * 255;
 	} else {
 		copy_v3_v3(color_f, color);
 		color_f[3] = strength;
 	}
 
-	/* this will be substituted by something else when selection is available */
-	imapaint_dirty_region(ima, ibuf, 0, 0, ibuf->x, ibuf->y);
+	if (!mouse_init || !br) {
+		/* first case, no image UV, fill the whole image */
+		imapaint_dirty_region(ima, ibuf, 0, 0, ibuf->x, ibuf->y);
 
-	if (do_float) {
-		for (; i < ibuf->x; i++) {
-			for (j = 0; j < ibuf->y; j++) {
-				blend_color_mix_float(ibuf->rect_float + 4 * (j * ibuf->x + i),
-				                      ibuf->rect_float + 4 * (j * ibuf->x + i), color_f);
+		if (do_float) {
+			for (; i < ibuf->x; i++) {
+				for (j = 0; j < ibuf->y; j++) {
+					blend_color_mix_float(ibuf->rect_float + 4 * (j * ibuf->x + i),
+					                      ibuf->rect_float + 4 * (j * ibuf->x + i), color_f);
+				}
+			}
+		}
+		else {
+			for (; i < ibuf->x; i++) {
+				for (j = 0; j < ibuf->y; j++) {
+					blend_color_mix_byte((unsigned char *)(ibuf->rect + j * ibuf->x + i),
+					                     (unsigned char *)(ibuf->rect + j * ibuf->x + i), (unsigned char *)&color_b);
+				}
 			}
 		}
 	}
 	else {
-		for (; i < ibuf->x; i++) {
-			for (j = 0; j < ibuf->y; j++) {
-				blend_color_mix_byte((unsigned char *)(ibuf->rect + j * ibuf->x + i),
-				                     (unsigned char *)(ibuf->rect + j * ibuf->x + i), (unsigned char *)&color_b);
+		/* second case, start sweeping the neighboring pixels, looking for pixels whose
+		 * value is within the brush fill threshold from the fill color */
+		GSQueue *stack;
+		BLI_bitmap *touched;
+		int coordinate;
+		int width = ibuf->x;
+		float image_init[2];
+		int minx = ibuf->x, miny = ibuf->y, maxx = 0, maxy = 0;
+		float pixel_color[4];
+
+		UI_view2d_region_to_view(s->v2d, mouse_init[0], mouse_init[1], &image_init[0], &image_init[1]);
+
+		i = image_init[0] * ibuf->x;
+		j = image_init[1] * ibuf->y;
+
+		if (i >= ibuf->x || i < 0 || j > ibuf->y || j < 0) {
+			BKE_image_release_ibuf(ima, ibuf, NULL);
+			return;
+		}
+
+		/* change image invalidation method later */
+		imapaint_dirty_region(ima, ibuf, 0, 0, ibuf->x, ibuf->y);
+
+		stack = BLI_gsqueue_new(sizeof(int));
+		touched = BLI_BITMAP_NEW(ibuf->x * ibuf->y, "bucket_fill_bitmap");
+
+		coordinate = (j * ibuf->x + i);
+
+		if (do_float) {
+
+		}
+		else {
+			int pixel_color_b = *(ibuf->rect + coordinate);
+			rgba_uchar_to_float(pixel_color, (unsigned char *)&pixel_color_b);
+		}
+
+		BLI_gsqueue_push(stack, &coordinate);
+		BLI_BITMAP_SET(touched, coordinate);
+
+		if (do_float) {
+					blend_color_mix_float(ibuf->rect_float + 4 * (j * ibuf->x + i),
+					                      ibuf->rect_float + 4 * (j * ibuf->x + i), color_f);
+					BLI_gsqueue_pop(stack, &coordinate);
+		}
+		else {
+			while (!BLI_gsqueue_is_empty(stack)) {
+				BLI_gsqueue_pop(stack, &coordinate);
+
+				blend_color_mix_byte((unsigned char *)(ibuf->rect + coordinate),
+					                     (unsigned char *)(ibuf->rect + coordinate), (unsigned char *)&color_b);
+
+				/* reconstruct the coordinates here */
+				i = coordinate % width;
+				j = coordinate / width;
+
+				paint_2d_fill_add_pixel_byte(i - 1, j - 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
+				paint_2d_fill_add_pixel_byte(i - 1, j, ibuf, stack, touched, pixel_color, br->fill_threshold);
+				paint_2d_fill_add_pixel_byte(i - 1, j + 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
+				paint_2d_fill_add_pixel_byte(i, j + 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
+				paint_2d_fill_add_pixel_byte(i, j - 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
+				paint_2d_fill_add_pixel_byte(i + 1, j - 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
+				paint_2d_fill_add_pixel_byte(i + 1, j, ibuf, stack, touched, pixel_color, br->fill_threshold);
+				paint_2d_fill_add_pixel_byte(i + 1, j + 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
+
+				if (i > maxx)
+					maxx = i;
+				if (i < minx)
+					minx = i;
+				if (j > maxy)
+					maxy = j;
+				if (i > miny)
+					miny = j;
 			}
 		}
+
+		MEM_freeN(touched);
+		BLI_gsqueue_free(stack);
 	}
 
 	imapaint_image_update(sima, ima, ibuf, false);
