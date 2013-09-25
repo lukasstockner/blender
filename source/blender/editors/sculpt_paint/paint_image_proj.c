@@ -4862,6 +4862,10 @@ void PAINT_OT_image_from_view(wmOperatorType *ot)
 	RNA_def_string_file_name(ot->srna, "filepath", "", FILE_MAX, "File Path", "Name of the file");
 }
 
+/* Add layer operator */
+
+#define TEXNAME_MAX 30
+
 static EnumPropertyItem layer_type_items[] = {
 	{MAP_COL, "DIFFUSE_COLOR", 0, "Diffuse Color", ""},
 	{MAP_REF, "DIFFUSE_INTENSITY", 0, "Diffuse Intensity", ""},
@@ -4884,15 +4888,22 @@ static int texture_paint_add_layer_exec(bContext *C, wmOperator *op)
 {
 	Material *ma;
 	Object *ob = CTX_data_active_object(C);
-	/* hardcoded for now, allow options later */
-	int width = 1024;
-	int height = 1024;
 	float color[4] = {0.0, 0.0, 0.0, 1.0};
+	int i;
+	ImagePaintSettings *imapaint = &CTX_data_tool_settings(C)->imapaint;
+	int width = imapaint->new_layer_xresolution;
+	int height = imapaint->new_layer_yresolution;
 
 	int type = RNA_enum_get(op->ptr, "type");
 
 	if (!ob)
 		return OPERATOR_CANCELLED;
+
+	/* unlikely, but just in case */
+	if (width * height == 0) {
+		BKE_report(op->reports, RPT_ERROR, "New layer dimensions need to be greater than 0");
+		return OPERATOR_CANCELLED;
+	}
 
 	ma = give_current_material(ob, ob->actcol);
 
@@ -4901,12 +4912,22 @@ static int texture_paint_add_layer_exec(bContext *C, wmOperator *op)
 
 		/* successful creation of mtex layer, now create set */
 		if (mtex) {
+			char imagename[FILE_MAX];
+			char name[TEXNAME_MAX];
 			PointerRNA ptr, idptr;
 			PropertyRNA *prop;
 			Main *bmain = CTX_data_main(C);
 			Image *ima;
 
-			mtex->tex = add_texture(bmain, DATA_("Texture"));
+			/* get the name of the texture layer type */
+			for (i = 0; i < sizeof(layer_type_items); i++) {
+				if (type == layer_type_items[i].value) {
+					BLI_strncpy(name, layer_type_items[i].name, TEXNAME_MAX);
+					break;
+				}
+			}
+
+			mtex->tex = add_texture(bmain, DATA_(name));
 			mtex->mapto = type;
 
 			if (mtex->tex) {
@@ -4923,7 +4944,12 @@ static int texture_paint_add_layer_exec(bContext *C, wmOperator *op)
 					RNA_property_update(C, &ptr, prop);
 				}
 
-				ima = mtex->tex->ima = BKE_image_add_generated(bmain, width, height, "layer_texture", 32, 0, IMA_GENTYPE_BLANK, color);
+				BLI_strncpy(imagename, &ma->id.name[2], FILE_MAX);
+				BLI_strncat_utf8(imagename, "_", FILE_MAX);
+				BLI_strncat_utf8(imagename, name, FILE_MAX);
+				/* take the second letter to avoid the ID identifier */
+
+				ima = mtex->tex->ima = BKE_image_add_generated(bmain, width, height, imagename, 32, 0, IMA_GENTYPE_BLANK, color);
 
 				uiIDContextProperty(C, &ptr, &prop);
 

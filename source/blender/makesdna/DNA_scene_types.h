@@ -785,6 +785,10 @@ typedef struct ImagePaintSettings {
 	short seam_bleed, normal_angle;
 	short screen_grab_size[2]; /* capture size for re-projection */
 
+	/* new layer default resolution */
+	int new_layer_xresolution;
+	int new_layer_yresolution;
+
 	int pad1;
 
 	void *paintcursor;			/* wm handle */

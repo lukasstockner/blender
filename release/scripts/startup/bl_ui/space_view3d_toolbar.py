@@ -535,6 +535,8 @@ class VIEW3D_PT_layers_projectpaint(View3DPanel, Panel):
     def draw(self, context):
         layout = self.layout
 
+        settings = context.tool_settings.image_paint
+
         ob = context.active_object
         col = layout.column()
 
@@ -547,6 +549,10 @@ class VIEW3D_PT_layers_projectpaint(View3DPanel, Panel):
             #col.label("Only slots with UV mapping and image textures are available")
             
             col.operator_menu_enum("paint.add_layer", "type")
+        
+        row = col.row(align=True)
+        row.prop(settings, "new_layer_xresolution")
+        row.prop(settings, "new_layer_yresolution")
 
 
 class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
