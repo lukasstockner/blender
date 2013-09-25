@@ -1304,6 +1304,26 @@ static void paint_2d_fill_add_pixel_byte(int i, int j, ImBuf *ibuf, GSQueue *sta
 	}
 }
 
+static void paint_2d_fill_add_pixel_float(int i, int j, ImBuf *ibuf, GSQueue *stack, BLI_bitmap *touched, float color[4], float threshold)
+{
+	int coordinate = j * ibuf->x + i;
+
+	if (i >= ibuf->x || i < 0 || j >= ibuf->y || j < 0)
+		return;
+
+	if (!BLI_BITMAP_GET(touched, coordinate)) {
+		float color_f[4];
+		float luminance;
+		sub_v3_v3v3(color_f, ibuf->rect_float + 4 * coordinate, color);
+
+		luminance = (fabs(color_f[0]) + fabs(color_f[0]) + fabs(color_f[0]))/3.0;
+		if (luminance < threshold) {
+			BLI_gsqueue_push(stack, &coordinate);
+		}
+		BLI_BITMAP_SET(touched, coordinate);
+	}
+}
+
 /* this function expects linear space color values */
 void paint_2d_bucket_fill (const bContext *C, float color[3], Brush *br, float mouse_init[2], void *ps)
 {
@@ -1391,7 +1411,7 @@ void paint_2d_bucket_fill (const bContext *C, float color[3], Brush *br, float m
 		coordinate = (j * ibuf->x + i);
 
 		if (do_float) {
-
+			copy_v4_v4(pixel_color, ibuf->rect_float + 4 * coordinate);
 		}
 		else {
 			int pixel_color_b = *(ibuf->rect + coordinate);
@@ -1402,9 +1422,34 @@ void paint_2d_bucket_fill (const bContext *C, float color[3], Brush *br, float m
 		BLI_BITMAP_SET(touched, coordinate);
 
 		if (do_float) {
-					blend_color_mix_float(ibuf->rect_float + 4 * (j * ibuf->x + i),
-					                      ibuf->rect_float + 4 * (j * ibuf->x + i), color_f);
-					BLI_gsqueue_pop(stack, &coordinate);
+			while (!BLI_gsqueue_is_empty(stack)) {
+				BLI_gsqueue_pop(stack, &coordinate);
+
+				blend_color_mix_float(ibuf->rect_float + 4 * (coordinate),
+					                      ibuf->rect_float + 4 * (coordinate), color_f);
+
+				/* reconstruct the coordinates here */
+				i = coordinate % width;
+				j = coordinate / width;
+
+				paint_2d_fill_add_pixel_float(i - 1, j - 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
+				paint_2d_fill_add_pixel_float(i - 1, j, ibuf, stack, touched, pixel_color, br->fill_threshold);
+				paint_2d_fill_add_pixel_float(i - 1, j + 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
+				paint_2d_fill_add_pixel_float(i, j + 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
+				paint_2d_fill_add_pixel_float(i, j - 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
+				paint_2d_fill_add_pixel_float(i + 1, j - 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
+				paint_2d_fill_add_pixel_float(i + 1, j, ibuf, stack, touched, pixel_color, br->fill_threshold);
+				paint_2d_fill_add_pixel_float(i + 1, j + 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
+
+				if (i > maxx)
+					maxx = i;
+				if (i < minx)
+					minx = i;
+				if (j > maxy)
+					maxy = j;
+				if (i > miny)
+					miny = j;
+			}
 		}
 		else {
 			while (!BLI_gsqueue_is_empty(stack)) {
