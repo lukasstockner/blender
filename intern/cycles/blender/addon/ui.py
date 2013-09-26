@@ -1117,6 +1117,8 @@ class CyclesTexture_PT_mapping(CyclesButtonsPanel, Panel):
 
         mapping = node.texture_mapping
 
+        layout.prop(mapping, "type", expand=True)
+
         row = layout.row()
 
         row.column().prop(mapping, "translation")
