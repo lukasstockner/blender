@@ -166,36 +166,62 @@ static void activate(rbRigidBody *rb)
 
 static void nearCallback(btBroadphasePair &collisionPair, btCollisionDispatcher &dispatcher, const btDispatcherInfo &dispatchInfo)
 {
-	rbRigidBody *rb0 = (rbRigidBody *)((btRigidBody *)collisionPair.m_pProxy0->m_clientObject)->getUserPointer();
-	rbRigidBody *rb1 = (rbRigidBody *)((btRigidBody *)collisionPair.m_pProxy1->m_clientObject)->getUserPointer();
+	btCollisionObject* colObj0 = (btCollisionObject*)collisionPair.m_pProxy0->m_clientObject;
+	btCollisionObject* colObj1 = (btCollisionObject*)collisionPair.m_pProxy1->m_clientObject;
 	
-	if (rb1->suspended) {
-		switch(rb1->activation_type) {
-		case ACTIVATION_COLLISION:
-			activate(rb1);
-			break;
-		case ACTIVATION_TRIGGER:
-			if (rb0->is_trigger) {
-				activate(rb1);
-				return;
+	if (dispatcher.needsCollision(colObj0, colObj1)) {
+		btCollisionObjectWrapper obj0Wrap(0, colObj0->getCollisionShape(), colObj0,colObj0->getWorldTransform(), -1, -1);
+		btCollisionObjectWrapper obj1Wrap(0, colObj1->getCollisionShape(), colObj1,colObj1->getWorldTransform(), -1, -1);
+		
+		
+		//dispatcher will keep algorithms persistent in the collision pair
+		if (!collisionPair.m_algorithm) {
+			collisionPair.m_algorithm = dispatcher.findAlgorithm(&obj0Wrap, &obj1Wrap);
+		}
+		if (collisionPair.m_algorithm) {
+			btManifoldResult contactPointResult(&obj0Wrap, &obj1Wrap);
+			
+			if (dispatchInfo.m_dispatchFunc == btDispatcherInfo::DISPATCH_DISCRETE) {
+				//discrete collision detection query
+				
+				collisionPair.m_algorithm->processCollision(&obj0Wrap, &obj1Wrap, dispatchInfo, &contactPointResult);
 			}
-			break;
+			else {
+				//continuous collision detection query, time of impact (toi)
+				btScalar toi = collisionPair.m_algorithm->calculateTimeOfImpact(colObj0, colObj1, dispatchInfo, &contactPointResult);
+				if (dispatchInfo.m_timeOfImpact > toi)
+					dispatchInfo.m_timeOfImpact = toi;
+				
+			}
+			if (contactPointResult.getPersistentManifold() && contactPointResult.getPersistentManifold()->getNumContacts() > 0) {
+				rbRigidBody *rb0 = (rbRigidBody *)((btRigidBody *)collisionPair.m_pProxy0->m_clientObject)->getUserPointer();
+				rbRigidBody *rb1 = (rbRigidBody *)((btRigidBody *)collisionPair.m_pProxy1->m_clientObject)->getUserPointer();
+				
+				if (rb1->suspended) {
+					switch(rb1->activation_type) {
+					case ACTIVATION_COLLISION:
+						activate(rb1);
+						break;
+					case ACTIVATION_TRIGGER:
+						if (rb0->is_trigger)
+							activate(rb1);
+						break;
+					}
+				}
+				if (rb0->suspended) {
+					switch(rb0->activation_type) {
+					case ACTIVATION_COLLISION:
+						activate(rb0);
+						break;
+					case ACTIVATION_TRIGGER:
+						if (rb1->is_trigger)
+							activate(rb0);
+						break;
+					}
+				}
+			}
 		}
 	}
-	if (rb0->suspended) {
-		switch(rb0->activation_type) {
-		case ACTIVATION_COLLISION:
-			activate(rb0);
-			break;
-		case ACTIVATION_TRIGGER:
-			if (rb1->is_trigger) {
-				activate(rb0);
-				return;
-			}
-			break;
-		}
-	}
-	dispatcher.defaultNearCallback(collisionPair, dispatcher, dispatchInfo);
 }
 
 static bool contactAddedCallback(btManifoldPoint &cp, const btCollisionObjectWrapper *colObj0Wrap, int partId0, int index0, const btCollisionObjectWrapper *colObj1Wrap, int partId1, int index1)
