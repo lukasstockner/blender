@@ -2450,7 +2450,8 @@ static void write_soops(WriteData *wd, SpaceOops *so, LinkNode **tmp_mem_list)
 
 		/* restore old treestore */
 		so->treestore = ts;
-	} else {
+	}
+	else {
 		writestruct(wd, DATA, "SpaceOops", 1, so);
 	}
 }
