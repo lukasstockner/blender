@@ -123,6 +123,8 @@ typedef struct RigidBodyOb {
 	float orn[4];			/* rigid body orientation */
 	float pos[3];			/* rigid body position */
 	float activation_time;	/* time until body is activated */
+	float activation_impulse;	/* impulse threshold that needs to be reached for body to get activated */
+	int pad;
 	struct EffectorWeights *effector_weights;
 } RigidBodyOb;
 

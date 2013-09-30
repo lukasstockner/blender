@@ -128,6 +128,8 @@ class PHYSICS_PT_rigid_body_dynamics(PHYSICS_PT_rigidbody_panel, Panel):
         sub.prop(rbo, "activation_type", text="Type")
         if rbo.activation_type == 'TIME':
             sub.prop(rbo, "activation_time", text="Time")
+        elif rbo.activation_type in {'COLLISION', 'TRIGGER'}:
+            sub.prop(rbo, "activation_impulse", text="Threshold")
 
         col = split.column()
         col.label(text="Deactivation:")

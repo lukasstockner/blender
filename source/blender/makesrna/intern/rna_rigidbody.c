@@ -854,6 +854,14 @@ static void rna_def_rigidbody_object(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_update(prop, NC_OBJECT | ND_POINTCACHE, "rna_RigidBodyOb_reset");
 	
+	prop = RNA_def_property(srna, "activation_impulse", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "activation_impulse");
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_float_default(prop, 1.0f);
+	RNA_def_property_ui_text(prop, "Impulse Threshold", "Impulse that need to be reached for body to be activated");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_update(prop, NC_OBJECT | ND_POINTCACHE, "rna_RigidBodyOb_reset");
+
 	/* Dynamics Parameters - Deactivation */
 	prop = RNA_def_property(srna, "use_deactivation", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", RBO_FLAG_USE_DEACTIVATION);

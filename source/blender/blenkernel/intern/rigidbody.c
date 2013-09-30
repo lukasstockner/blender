@@ -681,6 +681,7 @@ static void rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, bool 
 		RB_body_set_ghost(rbo->physics_object, rbo->flag & RBO_FLAG_GHOST);
 		RB_body_set_activation_type(rbo->physics_object, rbo->activation_type);
 		RB_body_set_activation_time(rbo->physics_object, rbo->activation_time);
+		RB_body_set_activation_impulse(rbo->physics_object, rbo->activation_impulse);
 	}
 
 	if (rbw && rbw->physics_world && (rbo->flag & RBO_FLAG_COMPOUND_CHILD) == 0) // RB_TODO find better solution for compound shapes

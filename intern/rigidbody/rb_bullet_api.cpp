@@ -103,6 +103,7 @@ struct rbRigidBody {
 	bool suspended;
 	float saved_mass;
 	double activation_time;
+	float activation_impulse;
 	int activation_type;
 };
 
@@ -154,7 +155,7 @@ struct rbFilterCallback : public btOverlapFilterCallback
 	}
 };
 
-static void activate(rbRigidBody *rb)
+static inline void activate(rbRigidBody *rb)
 {
 	btRigidBody *body = rb->body;
 	rb->suspended = false;
@@ -162,6 +163,40 @@ static void activate(rbRigidBody *rb)
 	RB_body_set_mass(rb, rb->saved_mass);
 	rb->world->dynamicsWorld->addRigidBody(body);
 	body->activate();
+}
+
+static inline void activate_on_impulse(btPersistentManifold *manifold, rbRigidBody *rb0, rbRigidBody *rb1)
+{
+	if (rb0->activation_impulse > 0.0f) {
+		float impulse = 0.0f;
+		/* use contact with highest impulse */
+		for (int i = 0; i < manifold->getNumContacts(); i++) {
+			btScalar velocity = (rb1->body->getLinearVelocity() + rb1->body->getAngularVelocity()).dot(-manifold->getContactPoint(i).m_normalWorldOnB);
+			impulse = (impulse < velocity) ? velocity : impulse;
+		}
+		impulse /= rb1->body->getInvMass();
+		if (impulse >= rb0->activation_impulse)
+			activate(rb0);
+	}
+	else {
+		activate(rb0);
+	}
+}
+
+static inline void handle_activation(btPersistentManifold *manifold, rbRigidBody *rb0, rbRigidBody *rb1)
+{
+	if (rb0->suspended) {
+		switch(rb0->activation_type) {
+		case ACTIVATION_COLLISION:
+			activate_on_impulse(manifold, rb0, rb1);
+			break;
+		case ACTIVATION_TRIGGER:
+			if (rb1->is_trigger) {
+				activate_on_impulse(manifold, rb0, rb1);
+			}
+			break;
+		}
+	}
 }
 
 static void nearCallback(btBroadphasePair &collisionPair, btCollisionDispatcher &dispatcher, const btDispatcherInfo &dispatchInfo)
@@ -193,32 +228,13 @@ static void nearCallback(btBroadphasePair &collisionPair, btCollisionDispatcher 
 					dispatchInfo.m_timeOfImpact = toi;
 				
 			}
-			if (contactPointResult.getPersistentManifold() && contactPointResult.getPersistentManifold()->getNumContacts() > 0) {
+			btPersistentManifold *manifold = contactPointResult.getPersistentManifold();
+			if (manifold && manifold->getNumContacts() > 0) {
 				rbRigidBody *rb0 = (rbRigidBody *)((btRigidBody *)collisionPair.m_pProxy0->m_clientObject)->getUserPointer();
 				rbRigidBody *rb1 = (rbRigidBody *)((btRigidBody *)collisionPair.m_pProxy1->m_clientObject)->getUserPointer();
 				
-				if (rb1->suspended) {
-					switch(rb1->activation_type) {
-					case ACTIVATION_COLLISION:
-						activate(rb1);
-						break;
-					case ACTIVATION_TRIGGER:
-						if (rb0->is_trigger)
-							activate(rb1);
-						break;
-					}
-				}
-				if (rb0->suspended) {
-					switch(rb0->activation_type) {
-					case ACTIVATION_COLLISION:
-						activate(rb0);
-						break;
-					case ACTIVATION_TRIGGER:
-						if (rb1->is_trigger)
-							activate(rb0);
-						break;
-					}
-				}
+				handle_activation(manifold, rb0, rb1);
+				handle_activation(manifold, rb1, rb0);
 			}
 		}
 	}
@@ -755,6 +771,11 @@ void RB_body_set_activation_type(rbRigidBody *object, int type)
 void RB_body_set_activation_time(rbRigidBody *object, double time)
 {
 	object->activation_time = time;
+}
+
+void RB_body_set_activation_impulse(rbRigidBody *object, float impulse)
+{
+	object->activation_impulse = impulse;
 }
 
 void RB_body_try_activation(rbRigidBody *object)
