@@ -251,8 +251,6 @@ static rbCollisionShape *rigidbody_get_shape_convexhull_from_mesh(Object *ob, fl
 		else {
 			dm = CDDM_from_mesh(ob->data, ob);
 		}
-
-		BLI_assert(dm != NULL); // RB_TODO need to make sure there's no case where deform derived mesh doesn't exist
 		mvert   = (dm) ? dm->getVertArray(dm) : NULL;
 		totvert = (dm) ? dm->getNumVerts(dm) : 0;
 	}
@@ -612,7 +610,8 @@ static void rigidbody_validate_sim_shape(Object *ob, bool rebuild)
 		rbo->physics_shape = new_shape;
 		RB_shape_set_margin(rbo->physics_shape, RBO_GET_MARGIN(rbo));
 	}
-	else { /* otherwise fall back to box shape */
+	/* use box shape if we can't fall back to old shape */
+	else if (rbo->physics_shape == NULL) {
 		rbo->shape = RB_SHAPE_BOX;
 		rigidbody_validate_sim_shape(ob, true);
 	}
