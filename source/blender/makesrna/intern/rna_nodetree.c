@@ -3135,9 +3135,23 @@ static void def_sh_material(StructRNA *srna)
 
 static void def_sh_mapping(StructRNA *srna)
 {
+	static EnumPropertyItem prop_vect_type_items[] = {
+		{TEXMAP_TYPE_TEXTURE, "TEXTURE", 0, "Texture", "Transform a texture by inverse mapping the texture coordinate"},
+		{TEXMAP_TYPE_POINT,   "POINT",   0, "Point",   "Transform a point"},
+		{TEXMAP_TYPE_VECTOR,  "VECTOR",  0, "Vector",  "Transform a direction vector"},
+		{TEXMAP_TYPE_NORMAL,  "NORMAL",  0, "Normal",  "Transform a normal vector with unit length"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	PropertyRNA *prop;
 	
 	RNA_def_struct_sdna_from(srna, "TexMapping", "storage");
+
+	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "type");
+	RNA_def_property_enum_items(prop, prop_vect_type_items);
+	RNA_def_property_ui_text(prop, "Type", "Type of vector that the mapping transforms");
+	RNA_def_property_update(prop, 0, "rna_Mapping_Node_update");
 
 	prop = RNA_def_property(srna, "translation", PROP_FLOAT, PROP_TRANSLATION);
 	RNA_def_property_float_sdna(prop, NULL, "loc");
@@ -3244,7 +3258,7 @@ static void def_sh_tex_sky(StructRNA *srna)
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 	
 	prop = RNA_def_property(srna, "turbidity", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_range(prop, 1.0f, 30.0f);
+	RNA_def_property_range(prop, 1.0f, 10.0f);
 	RNA_def_property_ui_range(prop, 1.0f, 10.0f, 10, 3);
 	RNA_def_property_ui_text(prop, "Turbidity", "Atmospheric turbidity");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
@@ -3522,9 +3536,9 @@ static void def_sh_tex_coord(StructRNA *srna)
 static void def_sh_vect_transform(StructRNA *srna)
 {
 	static EnumPropertyItem prop_vect_type_items[] = {
-		{SHD_VECT_TRANSFORM_TYPE_VECTOR, "VECTOR",  0, "Vector",   ""},
-		{SHD_VECT_TRANSFORM_TYPE_POINT,  "POINT",   0, "Point",    ""},
-		{SHD_VECT_TRANSFORM_TYPE_NORMAL, "NORMAL",  0, "Normal",   ""},
+		{SHD_VECT_TRANSFORM_TYPE_POINT,  "POINT",   0, "Point",    "Transform a point"},
+		{SHD_VECT_TRANSFORM_TYPE_VECTOR, "VECTOR",  0, "Vector",   "Transform a direction vector"},
+		{SHD_VECT_TRANSFORM_TYPE_NORMAL, "NORMAL",  0, "Normal",   "Transform a normal vector with unit length"},
 		{0, NULL, 0, NULL, NULL}
 	};
 

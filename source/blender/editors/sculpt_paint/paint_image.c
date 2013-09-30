@@ -1292,7 +1292,7 @@ static int sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 static int sample_color_poll(bContext *C)
 {
-	return image_paint_poll(C) || vertex_paint_poll(C);
+	return (image_paint_poll(C) || vertex_paint_poll(C));
 }
 
 void PAINT_OT_sample_color(wmOperatorType *ot)

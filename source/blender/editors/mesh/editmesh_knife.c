@@ -628,13 +628,13 @@ static int find_connected_linehit(KnifeTool_OpData *kcd, int testi, BMFace *f, i
 		}
 		if (testfaces) {
 			if (ifaces)
-				shareface = knife_find_common_face(testfaces, ifaces);
+				shareface = (knife_find_common_face(testfaces, ifaces) != NULL);
 			else if (iface)
-				shareface = find_ref(testfaces, iface);
+				shareface = (find_ref(testfaces, iface) != NULL);
 		}
 		else if (ifaces) {
 			if (testface)
-				shareface = find_ref(ifaces, testface);
+				shareface = (find_ref(ifaces, testface) != NULL);
 		}
 		else if (testface && iface) {
 			shareface = (testface == iface);
@@ -1233,6 +1233,69 @@ static float len_v3_tri_side_max(const float v1[3], const float v2[3], const flo
 	return sqrtf(max_fff(s1, s2, s3));
 }
 
+/**
+ * given a tri, return 3 planes aligned with the tri's normal.
+ *
+ * If the triangle were extruded along its normal,
+ * the planes calculated would be the 3 sides around the extrusion.
+ */
+static void plane_from_tri_clip3_v3(
+        float tri_plane_clip[3][4],
+        const float v0[3], const float v1[3], const float v2[3])
+{
+	float tri_norm[3];
+	float tvec[3], cross[3];
+
+	normal_tri_v3(tri_norm, v0, v1, v2);
+
+	sub_v3_v3v3(tvec, v0, v1);
+	cross_v3_v3v3(cross, tvec, tri_norm);
+	plane_from_point_normal_v3(tri_plane_clip[0], v0, cross);
+
+	sub_v3_v3v3(tvec, v1, v2);
+	cross_v3_v3v3(cross, tvec, tri_norm);
+	plane_from_point_normal_v3(tri_plane_clip[1], v1, cross);
+
+	sub_v3_v3v3(tvec, v2, v0);
+	cross_v3_v3v3(cross, tvec, tri_norm);
+	plane_from_point_normal_v3(tri_plane_clip[2], v2, cross);
+}
+
+/**
+ * Given a line that is planar with a tri, clip the segment by that tri.
+ *
+ * This is needed so we end up with both points in the triangle.
+ */
+static bool isect_line_tri_coplanar_v3(
+        const float p1[3], const float p2[3],
+        const float v0[3], const float v1[3], const float v2[3],
+        float r_isects[2][3],
+
+        /* avoid re-calculating every time */
+        float tri_plane[4], float tri_plane_clip[3][4])
+{
+	float p1_tmp[3] = {UNPACK3(p1)};
+	float p2_tmp[3] = {UNPACK3(p2)};
+
+	(void)v0, (void)v1, (void)v2;
+
+	/* first check if the points are planar with the tri */
+	if ((fabsf(dist_squared_to_plane_v3(p1, tri_plane)) < KNIFE_FLT_EPS_SQUARED) &&
+	    (fabsf(dist_squared_to_plane_v3(p2, tri_plane)) < KNIFE_FLT_EPS_SQUARED) &&
+	    /* clip the segment by planes around the triangle so we can be sure the points
+	     * aren't outside the triangle */
+	    (clip_segment_v3_plane_n(p1_tmp, p2_tmp, tri_plane_clip, 3)))
+	{
+		copy_v3_v3(r_isects[0], p1_tmp);
+		copy_v3_v3(r_isects[1], p2_tmp);
+
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
 static BMEdgeHit *knife_edge_tri_isect(KnifeTool_OpData *kcd, BMBVHTree *bmtree,
                                        const float v1[3],  const float v2[3], const float v3[3],
                                        SmallHash *ehash, bglMats *mats, int *count)
@@ -1243,8 +1306,10 @@ static BMEdgeHit *knife_edge_tri_isect(KnifeTool_OpData *kcd, BMBVHTree *bmtree,
 	BVHTreeOverlap *results, *result;
 	BMLoop **ls;
 	float cos[9], tri_norm[3], tri_plane[4], isects[2][3], lambda;
+	float tri_plane_clip[3][4];
 	unsigned int tot = 0;
 	int i, j, n_isects;
+
 
 	/* for comparing distances, error of intersection depends on triangle scale.
 	 * need to scale down before squaring for accurate comparison */
@@ -1255,8 +1320,10 @@ static BMEdgeHit *knife_edge_tri_isect(KnifeTool_OpData *kcd, BMBVHTree *bmtree,
 	copy_v3_v3(cos + 3, v2);
 	copy_v3_v3(cos + 6, v3);
 
+	/* avoid re-calculation in #isect_line_tri_coplanar_v3 */
 	normal_tri_v3(tri_norm, v1, v2, v3);
 	plane_from_point_normal_v3(tri_plane, v1, tri_norm);
+	plane_from_tri_clip3_v3(tri_plane_clip, v1, v2, v3);
 
 	BLI_bvhtree_insert(tree2, 0, cos, 3);
 	BLI_bvhtree_balance(tree2);
@@ -1282,21 +1349,25 @@ static BMEdgeHit *knife_edge_tri_isect(KnifeTool_OpData *kcd, BMBVHTree *bmtree,
 			}
 
 			n_isects = 0;
-			if (fabsf(dist_to_plane_v3(kfe->v1->cageco, tri_plane)) < KNIFE_FLT_EPS &&
-			    fabsf(dist_to_plane_v3(kfe->v2->cageco, tri_plane)) < KNIFE_FLT_EPS)
+
+			if (isect_line_tri_coplanar_v3(kfe->v1->cageco, kfe->v2->cageco, v1, v2, v3,
+			                               isects,
+			                               /* cached values */
+			                               tri_plane, tri_plane_clip))
 			{
 				/* both kfe ends are in cutting triangle */
-				copy_v3_v3(isects[0], kfe->v1->cageco);
-				copy_v3_v3(isects[1], kfe->v2->cageco);
 				n_isects = 2;
 			}
-			else if (isect_line_tri_epsilon_v3(kfe->v1->cageco, kfe->v2->cageco, v1, v2, v3, &lambda, NULL, depsilon)) {
+			else if (isect_line_tri_epsilon_v3(kfe->v1->cageco, kfe->v2->cageco, v1, v2, v3,
+			                                   &lambda, NULL, depsilon))
+			{
 				/* kfe intersects cutting triangle lambda of the way along kfe */
 				interp_v3_v3v3(isects[0], kfe->v1->cageco, kfe->v2->cageco, lambda);
 				n_isects = 1;
 			}
+
 			for (j = 0; j < n_isects; j++) {
-				float p[3], no[3], view[3], sp[2];
+				float p[3];
 
 				copy_v3_v3(p, isects[j]);
 				if (kcd->curr.vert && len_squared_v3v3(kcd->curr.vert->cageco, p) < depsilon_sq) {
@@ -1316,16 +1387,18 @@ static BMEdgeHit *knife_edge_tri_isect(KnifeTool_OpData *kcd, BMBVHTree *bmtree,
 					continue;
 				}
 
-				knife_project_v2(kcd, p, sp);
-				ED_view3d_unproject(mats, view, sp[0], sp[1], 0.0f);
-				mul_m4_v3(kcd->ob->imat, view);
-
 				if (kcd->cut_through) {
 					f_hit = NULL;
 				}
 				else {
 					/* check if this point is visible in the viewport */
-					float p1[3], lambda1;
+					float p1[3], no[3], view[3], sp[2];
+					float lambda1;
+
+					/* screen projection */
+					knife_project_v2(kcd, p, sp);
+					ED_view3d_unproject(mats, view, sp[0], sp[1], 0.0f);
+					mul_m4_v3(kcd->ob->imat, view);
 
 					/* if face isn't planer, p may be behind the current tesselated tri,
 					 * so move it onto that and then a little towards eye */

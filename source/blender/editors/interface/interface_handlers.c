@@ -7863,6 +7863,8 @@ static int ui_handler_popup(bContext *C, const wmEvent *event, void *userdata)
 		}
 		else if (temp.cancel_func)
 			temp.cancel_func(C, temp.popup_arg);
+
+		WM_event_add_mousemove(C);
 	}
 	else {
 		/* re-enable tooltips */
