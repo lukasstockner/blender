@@ -464,11 +464,12 @@ if(NOT WITH_BOOST)
 	set_and_warn(WITH_CYCLES         OFF)
 	set_and_warn(WITH_MOD_BOOLEAN    OFF)
 	set_and_warn(WITH_AUDASPACE      OFF)
+	set_and_warn(WITH_ALEMBIC        OFF)
 	set_and_warn(WITH_INTERNATIONAL  OFF)
 
 	set_and_warn(WITH_OPENAL         OFF)  # depends on AUDASPACE
 	set_and_warn(WITH_GAMEENGINE     OFF)  # depends on AUDASPACE
-elseif(WITH_CYCLES OR WITH_OPENIMAGEIO OR WITH_MOD_BOOLEAN OR WITH_AUDASPACE OR WITH_INTERNATIONAL)
+elseif(WITH_CYCLES OR WITH_OPENIMAGEIO OR WITH_MOD_BOOLEAN OR WITH_AUDASPACE OR WITH_ALEMBIC OR WITH_INTERNATIONAL)
 	# Keep enabled
 else()
 	# Enabled but we don't need it
@@ -876,6 +877,13 @@ if(UNIX AND NOT APPLE)
 		else()
 			message(STATUS "OSL not found")
 		endif()
+	endif()
+
+	if(WITH_ALEMBIC)
+		find_package_wrapper(Alembic)
+
+		set(ALEMBIC_LIBRARIES ${ALEMBIC_LIBRARIES} ${BOOST_LIBRARIES})
+		set(ALEMBIC_DEFINITIONS "")
 	endif()
 
 	# OpenSuse needs lutil, ArchLinux not, for now keep, can avoid by using --as-needed
@@ -1827,6 +1835,12 @@ if(WITH_CYCLES)
 		if(NOT WITH_LLVM)
 			message(FATAL_ERROR "Cycles OSL requires WITH_LLVM, the library may not have been found. Configure LLVM or disable WITH_CYCLES_OSL")
 		endif()
+	endif()
+endif()
+
+if(WITH_ALEMBIC)
+	if(NOT WITH_BOOST)
+		message(FATAL_ERROR "Alembic requires WITH_BOOST, the library may not have been found. Configure BOOST or disable WITH_ALEMBIC")
 	endif()
 endif()
 
