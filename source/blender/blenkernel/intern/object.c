@@ -658,7 +658,9 @@ void BKE_object_unlink(Object *ob)
 				for (lineset = (FreestyleLineSet *)srl->freestyleConfig.linesets.first;
 				     lineset; lineset = lineset->next)
 				{
-					BKE_unlink_linestyle_target_object(lineset->linestyle, ob);
+					if (lineset->linestyle) {
+						BKE_unlink_linestyle_target_object(lineset->linestyle, ob);
+					}
 				}
 			}
 		}
@@ -2861,21 +2863,20 @@ void BKE_object_handle_update_ex(EvaluationContext *evaluation_context,
 			/* quick cache removed */
 		}
 
-		/* the no-group proxy case, we call update */
-		if (ob->proxy && ob->proxy_group == NULL) {
-			/* set pointer in library proxy target, for copying, but restore it */
-			ob->proxy->proxy_from = ob;
-			// printf("call update, lib ob %s proxy %s\n", ob->proxy->id.name, ob->id.name);
-			BKE_object_handle_update(evaluation_context, scene, ob->proxy);
-		}
-	
 		ob->recalc &= ~OB_RECALC_ALL;
 	}
 
 	/* the case when this is a group proxy, object_update is called in group.c */
 	if (ob->proxy) {
+		/* set pointer in library proxy target, for copying, but restore it */
 		ob->proxy->proxy_from = ob;
 		// printf("set proxy pointer for later group stuff %s\n", ob->id.name);
+
+		/* the no-group proxy case, we call update */
+		if (ob->proxy_group == NULL) {
+			// printf("call update, lib ob %s proxy %s\n", ob->proxy->id.name, ob->id.name);
+			BKE_object_handle_update(evaluation_context, scene, ob->proxy);
+		}
 	}
 }
 /* WARNING: "scene" here may not be the scene object actually resides in. 

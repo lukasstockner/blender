@@ -493,7 +493,7 @@ int WM_operator_poll_context(bContext *C, wmOperatorType *ot, short context)
 static void wm_operator_print(bContext *C, wmOperator *op)
 {
 	/* context is needed for enum function */
-	char *buf = WM_operator_pystring(C, op->type, op->ptr, 1);
+	char *buf = WM_operator_pystring(C, op->type, op->ptr, false);
 	printf("%s\n", buf);
 	MEM_freeN(buf);
 }
@@ -628,7 +628,7 @@ static void wm_operator_reports(bContext *C, wmOperator *op, int retval, int cal
 		if (op->type->flag & OPTYPE_REGISTER) {
 			if (G.background == 0) { /* ends up printing these in the terminal, gets annoying */
 				/* Report the python string representation of the operator */
-				char *buf = WM_operator_pystring(C, op->type, op->ptr, 1);
+				char *buf = WM_operator_pystring(C, op->type, op->ptr, false);
 				BKE_report(CTX_wm_reports(C), RPT_OPERATOR, buf);
 				MEM_freeN(buf);
 			}
@@ -662,7 +662,7 @@ static void wm_operator_finished(bContext *C, wmOperator *op, int repeat)
 	
 	if (repeat == 0) {
 		if (G.debug & G_DEBUG_WM) {
-			char *buf = WM_operator_pystring(C, op->type, op->ptr, 1);
+			char *buf = WM_operator_pystring(C, op->type, op->ptr, false);
 			BKE_report(CTX_wm_reports(C), RPT_OPERATOR, buf);
 			MEM_freeN(buf);
 		}
@@ -2186,7 +2186,7 @@ void wm_event_do_handlers(bContext *C)
 		while ( (event = win->queue.first) ) {
 			int action = WM_HANDLER_CONTINUE;
 
-#ifdef DEBUG
+#ifndef NDEBUG
 			if (G.debug & (G_DEBUG_HANDLERS | G_DEBUG_EVENTS) && !ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)) {
 				printf("\n%s: Handling event\n", __func__);
 				WM_event_print(event);

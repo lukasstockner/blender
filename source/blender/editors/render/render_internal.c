@@ -595,6 +595,17 @@ static int screen_render_modal(bContext *C, wmOperator *op, const wmEvent *event
 	return OPERATOR_PASS_THROUGH;
 }
 
+static int screen_render_cancel(bContext *C, wmOperator *op)
+{
+	wmWindowManager *wm = CTX_wm_manager(C);
+	Scene *scene = (Scene *) op->customdata;
+
+	/* kill on cancel, because job is using op->reports */
+	WM_jobs_kill_type(wm, scene, WM_JOB_TYPE_RENDER);
+
+	return OPERATOR_CANCELLED;
+}
+
 static void clean_viewport_memory(Main *bmain)
 {
 	Object *object;
@@ -810,6 +821,7 @@ void RENDER_OT_render(wmOperatorType *ot)
 	/* api callbacks */
 	ot->invoke = screen_render_invoke;
 	ot->modal = screen_render_modal;
+	ot->cancel = screen_render_cancel;
 	ot->exec = screen_render_exec;
 
 	/*ot->poll = ED_operator_screenactive;*/ /* this isn't needed, causes failer in background mode */

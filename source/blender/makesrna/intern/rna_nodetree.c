@@ -584,8 +584,9 @@ static void rna_NodeTree_unregister(Main *UNUSED(bmain), StructRNA *type)
 	WM_main_add_notifier(NC_NODE | NA_EDITED, NULL);
 }
 
-static StructRNA *rna_NodeTree_register(Main *bmain, ReportList *reports, void *data, const char *identifier,
-                                        StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
+static StructRNA *rna_NodeTree_register(
+        Main *bmain, ReportList *reports, void *data, const char *identifier,
+        StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
 {
 	bNodeTreeType *nt, dummynt;
 	bNodeTree dummyntree;
@@ -652,7 +653,7 @@ static bool rna_NodeTree_check(bNodeTree *ntree, ReportList *reports)
 		return true;
 }
 
-static void rna_NodeTree_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_NodeTree_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	bNodeTree *ntree = (bNodeTree *)ptr->id.data;
 
@@ -1390,9 +1391,10 @@ static bNodeType *rna_Node_register_base(Main *bmain, ReportList *reports, Struc
 	return nt;
 }
 
-static StructRNA *rna_Node_register(Main *bmain, ReportList *reports,
-                                    void *data, const char *identifier,
-                                    StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
+static StructRNA *rna_Node_register(
+        Main *bmain, ReportList *reports,
+        void *data, const char *identifier,
+        StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
 {
 	bNodeType *nt = rna_Node_register_base(bmain, reports, &RNA_Node, data, identifier, validate, call, free);
 	if (!nt)
@@ -1406,9 +1408,10 @@ static StructRNA *rna_Node_register(Main *bmain, ReportList *reports,
 	return nt->ext.srna;
 }
 
-static StructRNA *rna_ShaderNode_register(Main *bmain, ReportList *reports,
-                                          void *data, const char *identifier,
-                                          StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
+static StructRNA *rna_ShaderNode_register(
+        Main *bmain, ReportList *reports,
+        void *data, const char *identifier,
+        StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
 {
 	bNodeType *nt = rna_Node_register_base(bmain, reports, &RNA_ShaderNode, data, identifier, validate, call, free);
 	if (!nt)
@@ -1422,9 +1425,10 @@ static StructRNA *rna_ShaderNode_register(Main *bmain, ReportList *reports,
 	return nt->ext.srna;
 }
 
-static StructRNA *rna_CompositorNode_register(Main *bmain, ReportList *reports,
-                                              void *data, const char *identifier,
-                                              StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
+static StructRNA *rna_CompositorNode_register(
+        Main *bmain, ReportList *reports,
+        void *data, const char *identifier,
+        StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
 {
 	bNodeType *nt = rna_Node_register_base(bmain, reports, &RNA_CompositorNode, data, identifier, validate, call, free);
 	if (!nt)
@@ -1438,9 +1442,10 @@ static StructRNA *rna_CompositorNode_register(Main *bmain, ReportList *reports,
 	return nt->ext.srna;
 }
 
-static StructRNA *rna_TextureNode_register(Main *bmain, ReportList *reports,
-                                           void *data, const char *identifier,
-                                           StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
+static StructRNA *rna_TextureNode_register(
+        Main *bmain, ReportList *reports,
+        void *data, const char *identifier,
+        StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
 {
 	bNodeType *nt = rna_Node_register_base(bmain, reports, &RNA_TextureNode, data, identifier, validate, call, free);
 	if (!nt)
@@ -1762,8 +1767,9 @@ static void rna_NodeSocket_unregister(Main *UNUSED(bmain), StructRNA *type)
 	WM_main_add_notifier(NC_NODE | NA_EDITED, NULL);
 }
 
-static StructRNA *rna_NodeSocket_register(Main *bmain, ReportList *reports, void *data, const char *identifier,
-                                          StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
+static StructRNA *rna_NodeSocket_register(
+        Main *UNUSED(bmain), ReportList *reports, void *data, const char *identifier,
+        StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
 {
 	bNodeSocketType *st, dummyst;
 	bNodeSocket dummysock;
@@ -2033,8 +2039,9 @@ static void rna_NodeSocketInterface_unregister(Main *UNUSED(bmain), StructRNA *t
 	WM_main_add_notifier(NC_NODE | NA_EDITED, NULL);
 }
 
-static StructRNA *rna_NodeSocketInterface_register(Main *bmain, ReportList *reports, void *data, const char *identifier,
-                                                  StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
+static StructRNA *rna_NodeSocketInterface_register(
+        Main *UNUSED(bmain), ReportList *UNUSED(reports), void *data, const char *identifier,
+        StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
 {
 	bNodeSocketType *st, dummyst;
 	bNodeSocket dummysock;
@@ -2350,9 +2357,10 @@ static void rna_NodeInternal_draw_buttons_ext(ID *id, bNode *node, struct bConte
 	}
 }
 
-static StructRNA *rna_NodeCustomGroup_register(Main *bmain, ReportList *reports,
-                                               void *data, const char *identifier,
-                                               StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
+static StructRNA *rna_NodeCustomGroup_register(
+        Main *bmain, ReportList *reports,
+        void *data, const char *identifier,
+        StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
 {
 	bNodeType *nt = rna_Node_register_base(bmain, reports, &RNA_NodeCustomGroup, data, identifier, validate, call, free);
 	if (!nt)
@@ -3127,9 +3135,23 @@ static void def_sh_material(StructRNA *srna)
 
 static void def_sh_mapping(StructRNA *srna)
 {
+	static EnumPropertyItem prop_vect_type_items[] = {
+		{TEXMAP_TYPE_TEXTURE, "TEXTURE", 0, "Texture", "Transform a texture by inverse mapping the texture coordinate"},
+		{TEXMAP_TYPE_POINT,   "POINT",   0, "Point",   "Transform a point"},
+		{TEXMAP_TYPE_VECTOR,  "VECTOR",  0, "Vector",  "Transform a direction vector"},
+		{TEXMAP_TYPE_NORMAL,  "NORMAL",  0, "Normal",  "Transform a normal vector with unit length"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	PropertyRNA *prop;
 	
 	RNA_def_struct_sdna_from(srna, "TexMapping", "storage");
+
+	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "type");
+	RNA_def_property_enum_items(prop, prop_vect_type_items);
+	RNA_def_property_ui_text(prop, "Type", "Type of vector that the mapping transforms");
+	RNA_def_property_update(prop, 0, "rna_Mapping_Node_update");
 
 	prop = RNA_def_property(srna, "translation", PROP_FLOAT, PROP_TRANSLATION);
 	RNA_def_property_float_sdna(prop, NULL, "loc");
@@ -3236,7 +3258,7 @@ static void def_sh_tex_sky(StructRNA *srna)
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 	
 	prop = RNA_def_property(srna, "turbidity", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_range(prop, 1.0f, 30.0f);
+	RNA_def_property_range(prop, 1.0f, 10.0f);
 	RNA_def_property_ui_range(prop, 1.0f, 10.0f, 10, 3);
 	RNA_def_property_ui_text(prop, "Turbidity", "Atmospheric turbidity");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
@@ -3514,9 +3536,9 @@ static void def_sh_tex_coord(StructRNA *srna)
 static void def_sh_vect_transform(StructRNA *srna)
 {
 	static EnumPropertyItem prop_vect_type_items[] = {
-		{SHD_VECT_TRANSFORM_TYPE_VECTOR, "VECTOR",  0, "Vector",   ""},
-		{SHD_VECT_TRANSFORM_TYPE_POINT,  "POINT",   0, "Point",    ""},
-		{SHD_VECT_TRANSFORM_TYPE_NORMAL, "NORMAL",  0, "Normal",   ""},
+		{SHD_VECT_TRANSFORM_TYPE_POINT,  "POINT",   0, "Point",    "Transform a point"},
+		{SHD_VECT_TRANSFORM_TYPE_VECTOR, "VECTOR",  0, "Vector",   "Transform a direction vector"},
+		{SHD_VECT_TRANSFORM_TYPE_NORMAL, "NORMAL",  0, "Normal",   "Transform a normal vector with unit length"},
 		{0, NULL, 0, NULL, NULL}
 	};
 

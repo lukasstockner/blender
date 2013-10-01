@@ -85,26 +85,23 @@
 /* for ndof prints */
 // #define DEBUG_NDOF_MOTION
 
-static void view3d_offset_lock_report(ReportList *reports)
-{
-	BKE_report(reports, RPT_WARNING, "View offset is locked");
-}
-
 bool ED_view3d_offset_lock_check(struct View3D *v3d, struct RegionView3D *rv3d)
 {
 	return (rv3d->persp != RV3D_CAMOB) && (v3d->ob_centre_cursor || v3d->ob_centre);
 }
 
-#define VIEW3D_OP_OFS_LOCK_TEST(C, op) \
-	{ \
-		View3D *v3d_tmp = CTX_wm_view3d(C); \
-		RegionView3D *rv3d_tmp = CTX_wm_region_view3d(C); \
-		if (ED_view3d_offset_lock_check(v3d_tmp, rv3d_tmp)) { \
-			view3d_offset_lock_report((op)->reports); \
-			return OPERATOR_CANCELLED; \
-		} \
-	} (void)0
-
+static bool view3d_operator_offset_lock_check(bContext *C, wmOperator *op)
+{
+	View3D *v3d = CTX_wm_view3d(C);
+	RegionView3D *rv3d = CTX_wm_region_view3d(C);
+	if (ED_view3d_offset_lock_check(v3d, rv3d)) {
+		BKE_report(op->reports, RPT_WARNING, "View offset is locked");
+		return true;
+	}
+	else {
+		return false;
+	}
+}
 
 /* ********************** view3d_edit: view manipulations ********************* */
 
@@ -182,6 +179,27 @@ bool ED_view3d_camera_lock_sync(View3D *v3d, RegionView3D *rv3d)
 	}
 }
 
+/**
+ * For viewport operators that exit camera persp.
+ *
+ * \note This differs from simply setting ``rv3d->persp = persp`` because it
+ * sets the ``ofs`` and ``dist`` values of the viewport so it matches the camera,
+ * otherwise switching out of camera view may jump to a different part of the scene.
+ */
+static void view3d_persp_switch_from_camera(View3D *v3d, RegionView3D *rv3d, const char persp)
+{
+	BLI_assert(rv3d->persp == RV3D_CAMOB);
+	BLI_assert(persp != RV3D_CAMOB);
+
+	if (v3d->camera) {
+		rv3d->dist = ED_view3d_offset_distance(v3d->camera->obmat, rv3d->ofs, VIEW3D_DIST_FALLBACK);
+		ED_view3d_from_object(v3d->camera, rv3d->ofs, rv3d->viewquat, &rv3d->dist, NULL);
+	}
+
+	if (!ED_view3d_camera_lock_check(v3d, rv3d)) {
+		rv3d->persp = persp;
+	}
+}
 
 /* ********************* box view support ***************** */
 
@@ -378,6 +396,7 @@ void ED_view3d_quadview_update(ScrArea *sa, ARegion *ar, bool do_clip)
 /* ************************** init for view ops **********************************/
 
 typedef struct ViewOpsData {
+	/* context pointers (assigned by viewops_data_alloc) */
 	ScrArea *sa;
 	ARegion *ar;
 	View3D *v3d;
@@ -435,10 +454,17 @@ static void calctrackballvec(const rcti *rect, int mx, int my, float vec[3])
 }
 
 
-static void viewops_data_create(bContext *C, wmOperator *op, const wmEvent *event)
+/* -------------------------------------------------------------------- */
+/* ViewOpsData */
+
+/** \name Generic View Operator Custom-Data.
+ * \{ */
+
+/**
+ * Allocate and fill in context pointers for #ViewOpsData
+ */
+static void viewops_data_alloc(bContext *C, wmOperator *op)
 {
-	static float lastofs[3] = {0, 0, 0};
-	RegionView3D *rv3d;
 	ViewOpsData *vod = MEM_callocN(sizeof(ViewOpsData), "viewops data");
 
 	/* store data */
@@ -446,7 +472,17 @@ static void viewops_data_create(bContext *C, wmOperator *op, const wmEvent *even
 	vod->sa = CTX_wm_area(C);
 	vod->ar = CTX_wm_region(C);
 	vod->v3d = vod->sa->spacedata.first;
-	vod->rv3d = rv3d = vod->ar->regiondata;
+	vod->rv3d = vod->ar->regiondata;
+}
+
+/**
+ * Calculate the values for #ViewOpsData
+ */
+static void viewops_data_create(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	ViewOpsData *vod = op->customdata;
+	static float lastofs[3] = {0, 0, 0};
+	RegionView3D *rv3d = vod->rv3d;
 
 	/* set the view from the camera, if view locking is enabled.
 	 * we may want to make this optional but for now its needed always */
@@ -589,6 +625,8 @@ static void viewops_data_free(bContext *C, wmOperator *op)
 	if (p && (p->flags & PAINT_FAST_NAVIGATE))
 		ED_region_tag_redraw(ar);
 }
+/** \} */
+
 
 /* ************************** viewrotate **********************************/
 
@@ -941,37 +979,27 @@ static int viewrotate_modal(bContext *C, wmOperator *op, const wmEvent *event)
 static int viewrotate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	ViewOpsData *vod;
-	RegionView3D *rv3d;
 
 	/* makes op->customdata */
+	viewops_data_alloc(C, op);
 	viewops_data_create(C, op, event);
 	vod = op->customdata;
-	rv3d = vod->rv3d;
 
-	if (rv3d->viewlock) { /* poll should check but in some cases fails, see poll func for details */
+	if (vod->rv3d->viewlock) { /* poll should check but in some cases fails, see poll func for details */
 		viewops_data_free(C, op);
 		return OPERATOR_PASS_THROUGH;
 	}
 
 	/* switch from camera view when: */
-	if (rv3d->persp != RV3D_PERSP) {
+	if (vod->rv3d->persp != RV3D_PERSP) {
 
 		if (U.uiflag & USER_AUTOPERSP) {
 			if (!ED_view3d_camera_lock_check(vod->v3d, vod->rv3d)) {
-				rv3d->persp = RV3D_PERSP;
+				vod->rv3d->persp = RV3D_PERSP;
 			}
 		}
-		else if (rv3d->persp == RV3D_CAMOB) {
-
-			/* changed since 2.4x, use the camera view */
-			if (vod->v3d->camera) {
-				rv3d->dist = ED_view3d_offset_distance(vod->v3d->camera->obmat, rv3d->ofs, VIEW3D_DIST_FALLBACK);
-				ED_view3d_from_object(vod->v3d->camera, rv3d->ofs, rv3d->viewquat, &rv3d->dist, NULL);
-			}
-
-			if (!ED_view3d_camera_lock_check(vod->v3d, vod->rv3d)) {
-				rv3d->persp = rv3d->lpersp;
-			}
+		else if (vod->rv3d->persp == RV3D_CAMOB) {
+			view3d_persp_switch_from_camera(vod->v3d, vod->rv3d, vod->rv3d->lpersp);
 		}
 		ED_region_tag_redraw(vod->ar);
 	}
@@ -983,7 +1011,7 @@ static int viewrotate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		else
 			viewrotate_apply(vod, event->prevx, event->prevy);
 			
-		ED_view3d_depth_tag_update(rv3d);
+		ED_view3d_depth_tag_update(vod->rv3d);
 		
 		viewops_data_free(C, op);
 		
@@ -992,7 +1020,7 @@ static int viewrotate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	else if (event->type == MOUSEROTATE) {
 		/* MOUSEROTATE performs orbital rotation, so y axis delta is set to 0 */
 		viewrotate_apply(vod, event->prevx, event->y);
-		ED_view3d_depth_tag_update(rv3d);
+		ED_view3d_depth_tag_update(vod->rv3d);
 		
 		viewops_data_free(C, op);
 		
@@ -1160,8 +1188,9 @@ static void view3d_ndof_orbit(const struct wmNDOFMotionData *ndof, RegionView3D 
 static int ndof_orbit_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	
-	if (event->type != NDOF_MOTION)
+	if (event->type != NDOF_MOTION) {
 		return OPERATOR_CANCELLED;
+	}
 	else {
 		View3D *v3d = CTX_wm_view3d(C);
 		ViewOpsData *vod;
@@ -1170,6 +1199,7 @@ static int ndof_orbit_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 		ED_view3d_camera_lock_init(v3d, rv3d);
 
+		viewops_data_alloc(C, op);
 		viewops_data_create(C, op, event);
 		vod = op->customdata;
 
@@ -1227,7 +1257,7 @@ void VIEW3D_OT_ndof_orbit(struct wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "NDOF Orbit View";
-	ot->description = "Explore every angle of an object using the 3D mouse";
+	ot->description = "Orbit the view using the 3D mouse";
 	ot->idname = "VIEW3D_OT_ndof_orbit";
 
 	/* api callbacks */
@@ -1242,8 +1272,9 @@ void VIEW3D_OT_ndof_orbit(struct wmOperatorType *ot)
 static int ndof_orbit_zoom_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	
-	if (event->type != NDOF_MOTION)
+	if (event->type != NDOF_MOTION) {
 		return OPERATOR_CANCELLED;
+	}
 	else {
 		ViewOpsData *vod;
 		View3D *v3d = CTX_wm_view3d(C);
@@ -1254,6 +1285,7 @@ static int ndof_orbit_zoom_invoke(bContext *C, wmOperator *op, const wmEvent *ev
 
 		rv3d->rot_angle = 0.f; /* off by default, until changed later this function */
 
+		viewops_data_alloc(C, op);
 		viewops_data_create(C, op, event);
 		vod = op->customdata;
 
@@ -1323,7 +1355,7 @@ void VIEW3D_OT_ndof_orbit_zoom(struct wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "NDOF Orbit View with Zoom";
-	ot->description = "Explore every angle of an object using the 3D mouse";
+	ot->description = "Orbit and zoom the view using the 3D mouse";
 	ot->idname = "VIEW3D_OT_ndof_orbit_zoom";
 
 	/* api callbacks */
@@ -1339,14 +1371,16 @@ void VIEW3D_OT_ndof_orbit_zoom(struct wmOperatorType *ot)
  */
 static int ndof_pan_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	if (event->type != NDOF_MOTION)
+	if (event->type != NDOF_MOTION) {
 		return OPERATOR_CANCELLED;
+	}
 	else {
 		View3D *v3d = CTX_wm_view3d(C);
 		RegionView3D *rv3d = CTX_wm_region_view3d(C);
 		wmNDOFMotionData *ndof = (wmNDOFMotionData *) event->customdata;
 
-		VIEW3D_OP_OFS_LOCK_TEST(C, op);
+		if (view3d_operator_offset_lock_check(C, op))
+			return OPERATOR_CANCELLED;
 
 		ED_view3d_camera_lock_init(v3d, rv3d);
 
@@ -1418,7 +1452,7 @@ void VIEW3D_OT_ndof_pan(struct wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "NDOF Pan View";
-	ot->description = "Position your viewpoint with the 3D mouse";
+	ot->description = "Pan the view with the 3D mouse";
 	ot->idname = "VIEW3D_OT_ndof_pan";
 
 	/* api callbacks */
@@ -1439,13 +1473,13 @@ static int ndof_all_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		return OPERATOR_CANCELLED;
 	}
 	else {
-	
 		ViewOpsData *vod;
 		RegionView3D *rv3d;
 		
 		View3D *v3d = CTX_wm_view3d(C);
 		wmNDOFMotionData *ndof = (wmNDOFMotionData *) event->customdata;
 
+		viewops_data_alloc(C, op);
 		viewops_data_create(C, op, event);
 		vod = op->customdata;
 		rv3d = vod->rv3d;
@@ -1509,7 +1543,7 @@ void VIEW3D_OT_ndof_all(struct wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "NDOF Move View";
-	ot->description = "Position your viewpoint with the 3D mouse";
+	ot->description = "Pan and rotate the view with the 3D mouse";
 	ot->idname = "VIEW3D_OT_ndof_all";
 
 	/* api callbacks */
@@ -1644,6 +1678,7 @@ static int viewmove_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	ViewOpsData *vod;
 
 	/* makes op->customdata */
+	viewops_data_alloc(C, op);
 	viewops_data_create(C, op, event);
 	vod = op->customdata;
 
@@ -2010,6 +2045,7 @@ static int viewzoom_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	ViewOpsData *vod;
 
 	/* makes op->customdata */
+	viewops_data_alloc(C, op);
 	viewops_data_create(C, op, event);
 	vod = op->customdata;
 
@@ -2224,11 +2260,33 @@ static int viewdolly_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	ViewOpsData *vod;
 
-	VIEW3D_OP_OFS_LOCK_TEST(C, op);
+	if (view3d_operator_offset_lock_check(C, op))
+		return OPERATOR_CANCELLED;
 
 	/* makes op->customdata */
-	viewops_data_create(C, op, event);
+	viewops_data_alloc(C, op);
 	vod = op->customdata;
+
+	if (vod->rv3d->viewlock) { /* poll should check but in some cases fails, see poll func for details */
+		viewops_data_free(C, op);
+		return OPERATOR_PASS_THROUGH;
+	}
+
+	/* needs to run before 'viewops_data_create' so the backup 'rv3d->ofs' is correct */
+	/* switch from camera view when: */
+	if (vod->rv3d->persp != RV3D_PERSP) {
+		if (vod->rv3d->persp == RV3D_CAMOB) {
+			/* ignore rv3d->lpersp because dolly only makes sense in perspective mode */
+			view3d_persp_switch_from_camera(vod->v3d, vod->rv3d, RV3D_PERSP);
+		}
+		else {
+			vod->rv3d->persp = RV3D_PERSP;
+		}
+		ED_region_tag_redraw(vod->ar);
+	}
+
+	viewops_data_create(C, op, event);
+
 
 	/* if one or the other zoom position aren't set, set from event */
 	if (!RNA_struct_property_is_set(op->ptr, "mx") || !RNA_struct_property_is_set(op->ptr, "my")) {
@@ -2274,25 +2332,6 @@ static int viewdolly_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	return OPERATOR_FINISHED;
 }
 
-/* like ED_operator_region_view3d_active but check its not in ortho view */
-static int viewdolly_poll(bContext *C)
-{
-	RegionView3D *rv3d = CTX_wm_region_view3d(C);
-
-	if (rv3d) {
-		if (rv3d->persp == RV3D_PERSP) {
-			return 1;
-		}
-		else {
-			View3D *v3d = CTX_wm_view3d(C);
-			if (ED_view3d_camera_lock_check(v3d, rv3d)) {
-				return 1;
-			}
-		}
-	}
-	return 0;
-}
-
 static int viewdolly_cancel(bContext *C, wmOperator *op)
 {
 	viewops_data_free(C, op);
@@ -2311,7 +2350,7 @@ void VIEW3D_OT_dolly(wmOperatorType *ot)
 	ot->invoke = viewdolly_invoke;
 	ot->exec = viewdolly_exec;
 	ot->modal = viewdolly_modal;
-	ot->poll = viewdolly_poll;
+	ot->poll = ED_operator_region_view3d_active;
 	ot->cancel = viewdolly_cancel;
 
 	/* flags */
@@ -3703,6 +3742,7 @@ static int viewroll_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	ViewOpsData *vod;
 
 	/* makes op->customdata */
+	viewops_data_alloc(C, op);
 	viewops_data_create(C, op, event);
 	vod = op->customdata;
 
@@ -3780,7 +3820,8 @@ static int viewpan_exec(bContext *C, wmOperator *op)
 	float zfac;
 	int pandir;
 
-	VIEW3D_OP_OFS_LOCK_TEST(C, op);
+	if (view3d_operator_offset_lock_check(C, op))
+		return OPERATOR_CANCELLED;
 
 	pandir = RNA_enum_get(op->ptr, "type");
 
@@ -4082,6 +4123,11 @@ void ED_view3d_cursor3d_position(bContext *C, float fp[3], const int mval[2])
 	float zfac;
 	bool flip;
 	
+	/* normally the caller should ensure this,
+	 * but this is called from areas that aren't already dealing with the viewport */
+	if (rv3d == NULL)
+		return;
+
 	zfac = ED_view3d_calc_zfac(rv3d, fp, &flip);
 	
 	/* reset the depth based on the view offset (we _know_ the offset is infront of us) */
