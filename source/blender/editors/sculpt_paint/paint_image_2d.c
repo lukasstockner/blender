@@ -74,8 +74,6 @@
 /* Defines and Structs */
 
 typedef struct BrushPainterCache {
-	int size;                    /* size override, if 0 uses 2*BKE_brush_size_get(brush) */
-
 	bool use_float;              /* need float imbuf? */
 	bool use_color_correction;   /* use color correction for float */
 	bool use_masking;            /* use masking? */
@@ -84,7 +82,7 @@ typedef struct BrushPainterCache {
 	bool is_texbrush;
 	bool is_maskbrush;
 
-	int lastsize;
+	int lastdiameter;
 	float lastalpha;
 	float lastjitter;
 	float last_tex_rotation;
@@ -156,7 +154,7 @@ static BrushPainter *brush_painter_2d_new(Scene *scene, Brush *brush, bool inver
 	painter->brush = brush;
 	painter->scene = scene;
 	painter->firsttouch = 1;
-	painter->cache.lastsize = -1; /* force ibuf create in refresh */
+	painter->cache.lastdiameter = -1; /* force ibuf create in refresh */
 	painter->cache.invert = invert;
 
 	return painter;
@@ -174,13 +172,13 @@ static void brush_painter_2d_require_imbuf(BrushPainter *painter, bool use_float
 		painter->cache.ibuf = NULL;
 		painter->cache.curve_mask = NULL;
 		painter->cache.max_mask = NULL;
-		painter->cache.lastsize = -1; /* force ibuf create in refresh */
+		painter->cache.lastdiameter = -1; /* force ibuf create in refresh */
 	}
 
 	if (painter->cache.use_float != use_float) {
 		if (painter->cache.texibuf) IMB_freeImBuf(painter->cache.texibuf);
 		painter->cache.texibuf = NULL;
-		painter->cache.lastsize = -1; /* force ibuf create in refresh */
+		painter->cache.lastdiameter = -1; /* force ibuf create in refresh */
 	}
 
 	painter->cache.use_float = use_float;
@@ -243,23 +241,21 @@ static unsigned short *brush_painter_max_mask_new(BrushPainter *painter, int siz
 
 
 /* create a mask with the falloff strength */
-static unsigned short *brush_painter_curve_mask_new(BrushPainter *painter, int size)
+static unsigned short *brush_painter_curve_mask_new(BrushPainter *painter, int diameter, float radius)
 {
-	Scene *scene = painter->scene;
 	Brush *brush = painter->brush;
 
-	int radius = BKE_brush_size_get(scene, brush);
-	int xoff = -size * 0.5f + 0.5f;
-	int yoff = -size * 0.5f + 0.5f;
+	int xoff = -diameter * 0.5f + 0.5f;
+	int yoff = -diameter * 0.5f + 0.5f;
 
 	unsigned short *mask, *m;
 	int x, y;
 
-	mask = MEM_callocN(sizeof(unsigned short) * size * size, "brush_painter_mask");
+	mask = MEM_callocN(sizeof(unsigned short) * diameter * diameter, "brush_painter_mask");
 	m = mask;
 
-	for (y = 0; y < size; y++) {
-		for (x = 0; x < size; x++, m++) {
+	for (y = 0; y < diameter; y++) {
+		for (x = 0; x < diameter; x++, m++) {
 			float xy[2] = {x + xoff, y + yoff};
 			float len = len_v2(xy);
 
@@ -418,7 +414,7 @@ static void brush_painter_imbuf_update(BrushPainter *painter, ImBuf *oldtexibuf,
 		brush_rgb[2] = 1.0f;
 	}
 
-	/* fill pixes */
+	/* fill pixels */
 	for (y = origy; y < h; y++) {
 		for (x = origx; x < w; x++) {
 			/* sample texture and multiply with brush color */
@@ -505,14 +501,11 @@ static void brush_painter_imbuf_update(BrushPainter *painter, ImBuf *oldtexibuf,
 /* update the brush image by trying to reuse the cached texture result. this
  * can be considerably faster for brushes that change size due to pressure or
  * textures that stick to the surface where only part of the pixels are new */
-static void brush_painter_imbuf_partial_update(BrushPainter *painter, const float pos[2])
+static void brush_painter_imbuf_partial_update(BrushPainter *painter, const float pos[2], int diameter)
 {
-	const Scene *scene = painter->scene;
-	Brush *brush = painter->brush;
 	BrushPainterCache *cache = &painter->cache;
 	ImBuf *oldtexibuf, *ibuf;
 	int imbflag, destx, desty, srcx, srcy, w, h, x1, y1, x2, y2;
-	int diameter = 2 * BKE_brush_size_get(scene, brush);
 
 	/* create brush image buffer if it didn't exist yet */
 	imbflag = (cache->use_float) ? IB_rectfloat : IB_rect;
@@ -538,7 +531,7 @@ static void brush_painter_imbuf_partial_update(BrushPainter *painter, const floa
 		destx = desty = 0;
 		w = h = 0;
 	}
-	
+
 	x1 = destx;
 	y1 = desty;
 	x2 = min_ii(destx + w, ibuf->x);
@@ -562,7 +555,7 @@ static void brush_painter_imbuf_partial_update(BrushPainter *painter, const floa
 		brush_painter_imbuf_update(painter, NULL, x1, y2, x2, ibuf->y, 0, 0);
 }
 
-static void brush_painter_2d_tex_mapping(ImagePaintState *s, int size, const float startpos[2], const float pos[2], const float mouse[2], int mapmode, rctf *mapping)
+static void brush_painter_2d_tex_mapping(ImagePaintState *s, int diameter, const float startpos[2], const float pos[2], const float mouse[2], int mapmode, rctf *mapping)
 {
 	float invw = 1.0f / (float)s->canvas->x;
 	float invh = 1.0f / (float)s->canvas->y;
@@ -570,19 +563,19 @@ static void brush_painter_2d_tex_mapping(ImagePaintState *s, int size, const flo
 	int ipos[2];
 
 	/* find start coordinate of brush in canvas */
-	ipos[0] = (int)floorf((pos[0] - size / 2) + 1.0f);
-	ipos[1] = (int)floorf((pos[1] - size / 2) + 1.0f);
+	ipos[0] = (int)floorf((pos[0] - diameter / 2) + 1.0f);
+	ipos[1] = (int)floorf((pos[1] - diameter / 2) + 1.0f);
 
 	if (mapmode == MTEX_MAP_MODE_STENCIL) {
 		/* map from view coordinates of brush to region coordinates */
 		UI_view2d_to_region_no_clip(s->v2d, ipos[0] * invw, ipos[1] * invh, &xmin, &ymin);
-		UI_view2d_to_region_no_clip(s->v2d, (ipos[0] + size) * invw, (ipos[1] + size) * invh, &xmax, &ymax);
+		UI_view2d_to_region_no_clip(s->v2d, (ipos[0] + diameter) * invw, (ipos[1] + diameter) * invh, &xmax, &ymax);
 
 		/* output mapping from brush ibuf x/y to region coordinates */
 		mapping->xmin = xmin;
 		mapping->ymin = ymin;
-		mapping->xmax = (xmax - xmin) / (float)size;
-		mapping->ymax = (ymax - ymin) / (float)size;
+		mapping->xmax = (xmax - xmin) / (float)diameter;
+		mapping->ymax = (ymax - ymin) / (float)diameter;
 	}
 	else if (mapmode == MTEX_MAP_MODE_3D) {
 		/* 3D mapping, just mapping to canvas 0..1  */
@@ -593,27 +586,26 @@ static void brush_painter_2d_tex_mapping(ImagePaintState *s, int size, const flo
 	}
 	else if (ELEM(mapmode, MTEX_MAP_MODE_VIEW, MTEX_MAP_MODE_RANDOM)) {
 		/* view mapping */
-		mapping->xmin = mouse[0] - size * 0.5f + 0.5f;
-		mapping->ymin = mouse[1] - size * 0.5f + 0.5f;
+		mapping->xmin = mouse[0] - diameter * 0.5f + 0.5f;
+		mapping->ymin = mouse[1] - diameter * 0.5f + 0.5f;
 		mapping->xmax = 1.0f;
 		mapping->ymax = 1.0f;
 	}
 	else /* if (mapmode == MTEX_MAP_MODE_TILED) */ {
-		mapping->xmin = -size * 0.5f + 0.5f + (int)pos[0] - (int)startpos[0];
-		mapping->ymin = -size * 0.5f + 0.5f + (int)pos[1] - (int)startpos[1];
+		mapping->xmin = (int)(-diameter * 0.5) + (int)pos[0] - (int)startpos[0];
+		mapping->ymin = (int)(-diameter * 0.5) + (int)pos[1] - (int)startpos[1];
 		mapping->xmax = 1.0f;
 		mapping->ymax = 1.0f;
 	}
 }
 
-static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *painter, const float pos[2], const float mouse[2], float pressure, float distance)
+static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *painter, const float pos[2], const float mouse[2], float pressure, float distance, float size)
 {
 	const Scene *scene = painter->scene;
 	UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
 	Brush *brush = painter->brush;
 	BrushPainterCache *cache = &painter->cache;
-	const int diameter = 2 * BKE_brush_size_get(scene, brush);
-	const int size = (cache->size) ? cache->size : diameter;
+	const int diameter = 2 * size;
 	const float alpha = BKE_brush_alpha_get(scene, brush);
 
 	bool do_random = false;
@@ -636,7 +628,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 		else if (!(brush->flag & BRUSH_ANCHORED) || update_color)
 			do_partial_update = true;
 
-		brush_painter_2d_tex_mapping(s, size, painter->startpaintpos, pos, mouse,
+		brush_painter_2d_tex_mapping(s, diameter, painter->startpaintpos, pos, mouse,
 		                             brush->mtex.brush_map_mode, &painter->tex_mapping);
 	}
 
@@ -645,7 +637,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 		bool do_view_mask = false;
 		//bool do_partial_update_mask = false;
 		/* invalidate case for all mapping modes */
-		if (diameter != cache->lastsize ||
+		if (diameter != cache->lastdiameter ||
 		    alpha != cache->lastalpha)
 		{
 			renew_maxmask = true;
@@ -678,14 +670,14 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 			//do_partial_update_mask = false;
 		}
 
-		brush_painter_2d_tex_mapping(s, size, painter->startpaintpos, pos, mouse,
+		brush_painter_2d_tex_mapping(s, diameter, painter->startpaintpos, pos, mouse,
 		                             brush->mask_mtex.brush_map_mode, &painter->mask_mapping);
 		if (renew_maxmask) {
 			if (cache->max_mask) {
 				MEM_freeN(cache->max_mask);
 				cache->max_mask = NULL;
 			}
-			cache->max_mask = brush_painter_max_mask_new(painter, size);
+			cache->max_mask = brush_painter_max_mask_new(painter, diameter);
 		}
 	}
 
@@ -695,17 +687,17 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 	painter->pool = BKE_image_pool_new();
 
 	/* curve mask can only change if the size changes */
-	if (diameter != cache->lastsize) {
+	if (diameter != cache->lastdiameter) {
 		if (cache->curve_mask) {
 			MEM_freeN(cache->curve_mask);
 			cache->curve_mask = NULL;
 		}
 
-		cache->curve_mask = brush_painter_curve_mask_new(painter, size);
+		cache->curve_mask = brush_painter_curve_mask_new(painter, diameter, size);
 	}
 
 	/* detect if we need to recreate image brush buffer */
-	if (diameter != cache->lastsize ||
+	if (diameter != cache->lastdiameter ||
 	    alpha != cache->lastalpha ||
 	    brush->jitter != cache->lastjitter ||
 	    tex_rotation != cache->last_tex_rotation ||
@@ -720,14 +712,14 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 
 		if (do_partial_update) {
 			/* do partial update of texture */
-			brush_painter_imbuf_partial_update(painter, pos);
+			brush_painter_imbuf_partial_update(painter, pos, diameter);
 		}
 		else {
 			/* create brush and mask from scratch */
-			cache->ibuf = brush_painter_imbuf_new(painter, size, pressure, distance);
+			cache->ibuf = brush_painter_imbuf_new(painter, diameter, pressure, distance);
 		}
 
-		cache->lastsize = diameter;
+		cache->lastdiameter = diameter;
 		cache->lastalpha = alpha;
 		cache->lastjitter = brush->jitter;
 		cache->last_tex_rotation = tex_rotation;
@@ -740,7 +732,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 		int dy = (int)painter->lastpaintpos[1] - (int)pos[1];
 
 		if ((dx != 0) || (dy != 0)) {
-			brush_painter_imbuf_partial_update(painter, pos);
+			brush_painter_imbuf_partial_update(painter, pos, diameter);
 		}
 	}
 
@@ -1143,7 +1135,7 @@ static void paint_2d_canvas_free(ImagePaintState *s)
 		image_undo_remove_masks();
 }
 
-void paint_2d_stroke(void *ps, const float prev_mval[2], const float mval[2], int eraser, float pressure, float distance)
+void paint_2d_stroke(void *ps, const float prev_mval[2], const float mval[2], int eraser, float pressure, float distance, float size)
 {
 	float newuv[2], olduv[2];
 	ImagePaintState *s = ps;
@@ -1188,7 +1180,7 @@ void paint_2d_stroke(void *ps, const float prev_mval[2], const float mval[2], in
 	 */
 	brush_painter_2d_require_imbuf(painter, (ibuf->rect_float != NULL), !is_data, s->do_masking);
 
-	brush_painter_2d_refresh_cache(s, painter, newuv, mval, pressure, distance);
+	brush_painter_2d_refresh_cache(s, painter, newuv, mval, pressure, distance, size);
 
 	if (paint_2d_op(s, painter->cache.ibuf, painter->cache.curve_mask, painter->cache.max_mask, olduv, newuv))
 		s->need_redraw = true;

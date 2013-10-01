@@ -738,7 +738,6 @@ static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, Po
 	float alphafac = (brush->flag & BRUSH_ACCUMULATE)? ups->overlap_factor : 1.0;
 
 	/* initial brush values. Maybe it should be considered moving these to stroke system */
-	float startsize = (float)BKE_brush_size_get(scene, brush);
 	float startalpha = BKE_brush_alpha_get(scene, brush);
 
 	float mouse[2];
@@ -750,7 +749,7 @@ static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, Po
 	RNA_float_get_array(itemptr, "mouse", mouse);
 	pressure = RNA_float_get(itemptr, "pressure");
 	eraser = RNA_boolean_get(itemptr, "pen_flip");
-	size = RNA_float_get(itemptr, "size");
+	size = max_ff(1.0f, RNA_float_get(itemptr, "size"));
 
 	/* stroking with fill tool only acts on stroke end */
 	if (brush->imagepaint_tool == PAINT_TOOL_FILL) {
@@ -764,17 +763,15 @@ static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, Po
 	else
 		BKE_brush_alpha_set(scene, brush, max_ff(0.0f, startalpha * alphafac));
 
-	BKE_brush_size_set(scene, brush, max_ff(1.0f, size));
-
 	if ((brush->flag & BRUSH_DRAG_DOT) || (brush->flag & BRUSH_ANCHORED)) {
 		paint_stroke_restore();
 	}
 
 	if (pop->mode == PAINT_MODE_3D_PROJECT) {
-		paint_proj_stroke(C, pop->custom_paint, pop->prevmouse, mouse, pressure, distance);
+		paint_proj_stroke(C, pop->custom_paint, pop->prevmouse, mouse, pressure, distance, size);
 	}
 	else {
-		paint_2d_stroke(pop->custom_paint, pop->prevmouse, mouse, eraser, pressure, distance);
+		paint_2d_stroke(pop->custom_paint, pop->prevmouse, mouse, eraser, pressure, distance, size);
 	}
 
 	pop->prevmouse[0] = mouse[0];
@@ -782,7 +779,6 @@ static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, Po
 
 	/* restore brush values */
 	BKE_brush_alpha_set(scene, brush, startalpha);
-	BKE_brush_size_set(scene, brush, startsize);
 }
 
 static void paint_stroke_redraw(const bContext *C, struct PaintStroke *stroke, bool final)
@@ -812,7 +808,7 @@ static void paint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 				paint_2d_gradient_fill(C, brush, pop->startmouse, pop->prevmouse, pop->custom_paint);
 			}
 			else {
-				paint_proj_stroke(C, pop->custom_paint, pop->startmouse, pop->prevmouse, 1.0, 0.0);
+				paint_proj_stroke(C, pop->custom_paint, pop->startmouse, pop->prevmouse, 1.0, 0.0, BKE_brush_size_get(scene, brush));
 				/* two redraws, one for GPU update, one for notification */
 				paint_proj_redraw(C, pop->custom_paint, false);
 				paint_proj_redraw(C, pop->custom_paint, true);
@@ -826,7 +822,7 @@ static void paint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 				paint_2d_bucket_fill(C, color, brush, pop->prevmouse, pop->custom_paint);
 			}
 			else {
-				paint_proj_stroke(C, pop->custom_paint, pop->startmouse, pop->prevmouse, 1.0, 0.0);
+				paint_proj_stroke(C, pop->custom_paint, pop->startmouse, pop->prevmouse, 1.0, 0.0, BKE_brush_size_get(scene, brush));
 				/* two redraws, one for GPU update, one for notification */
 				paint_proj_redraw(C, pop->custom_paint, false);
 				paint_proj_redraw(C, pop->custom_paint, true);

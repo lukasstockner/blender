@@ -202,6 +202,7 @@ typedef struct ProjPaintState {
 	Brush *brush;
 	short tool, blend, mode;
 	int orig_brush_size;
+	float brush_size;
 	Object *ob;
 	/* end similarities with ImagePaintState */
 
@@ -3697,7 +3698,7 @@ static int project_bucket_iter_init(ProjPaintState *ps, const float mval_f[2])
 {
 	if (ps->source == PROJ_SRC_VIEW) {
 		float min_brush[2], max_brush[2];
-		const float radius = (float)BKE_brush_size_get(ps->scene, ps->brush);
+		const float radius = ps->brush_size;
 
 		/* so we don't have a bucket bounds that is way too small to paint into */
 		// if (radius < 1.0f) radius = 1.0f; // this doesn't work yet :/
@@ -3735,7 +3736,7 @@ static int project_bucket_iter_init(ProjPaintState *ps, const float mval_f[2])
 
 static int project_bucket_iter_next(ProjPaintState *ps, int *bucket_index, rctf *bucket_bounds, const float mval[2])
 {
-	const int diameter = 2 * BKE_brush_size_get(ps->scene, ps->brush);
+	const int diameter = 2 * ps->brush_size;
 
 	if (ps->thread_tot > 1)
 		BLI_lock_thread(LOCK_CUSTOM1);
@@ -4047,7 +4048,7 @@ static void *do_projectpaint_thread(void *ph_v)
 	float co[2];
 	unsigned short mask_short;
 	const float brush_alpha = BKE_brush_alpha_get(ps->scene, brush);
-	const float brush_radius = (float)BKE_brush_size_get(ps->scene, brush);
+	const float brush_radius = ps->brush_size;
 	const float brush_radius_sq = brush_radius * brush_radius; /* avoid a square root with every dist comparison */
 
 	short lock_alpha = ELEM(brush->blend, IMB_BLEND_ERASE_ALPHA, IMB_BLEND_ADD_ALPHA) ? 0 : brush->flag & BRUSH_LOCK_ALPHA;
@@ -4439,11 +4440,13 @@ static int project_paint_op(void *state, const float lastpos[2], const float pos
 }
 
 
-void paint_proj_stroke(const bContext *C, void *pps, const float prev_pos[2], const float pos[2], float pressure, float distance)
+void paint_proj_stroke(const bContext *C, void *pps, const float prev_pos[2], const float pos[2], float pressure, float distance, float size)
 {
 	ProjPaintState *ps = pps;
 	Brush *brush = ps->brush;
 	int a;
+
+	ps->brush_size = size;
 
 	/* clone gets special treatment here to avoid going through image initialization */
 	if (ps->tool == PAINT_TOOL_CLONE && ps->mode == BRUSH_STROKE_INVERT) {
