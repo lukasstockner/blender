@@ -1,18 +1,14 @@
 # - Find Alembic library
 # Find the native Alembic includes and library
 # This module defines
-#  ALEMBIC_INCLUDE_DIRS, where to find openimageio.h, Set when
-#                        OPENIMAGEIO_INCLUDE_DIR is found.
-#  OPENIMAGEIO_LIBRARIES, libraries to link against to use OpenImageIO.
-#  OPENIMAGEIO_ROOT_DIR, The base directory to search for OpenImageIO.
-#                        This can also be an environment variable.
-#  OPENIMAGEIO_FOUND, If false, do not try to use OpenImageIO.
-#
-# also defined, but not for general use are
-#  OPENIMAGEIO_LIBRARY, where to find the OpenImageIO library.
+#  ALEMBIC_INCLUDE_DIRS, where to find Alembic headers.
+#  ALEMBIC_LIBRARIES, libraries to link against to use Alembic.
+#  ALEMBIC_ROOT_DIR, The base directory to search for Alembic.
+#                    This can also be an environment variable.
+#  ALEMBIC_FOUND, If false, do not try to use Alembic.
 
 #=============================================================================
-# Copyright 2011 Blender Foundation.
+# Copyright 2013 Blender Foundation.
 #
 # Distributed under the OSI-approved BSD License (the "License");
 # see accompanying file Copyright.txt for details.

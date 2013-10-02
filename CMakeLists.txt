@@ -204,6 +204,7 @@ option(WITH_MOD_OCEANSIM        "Enable Ocean Modifier" OFF)
 
 # Alembic
 option(WITH_ALEMBIC             "Enable Alembic Support" OFF)
+option(WITH_HDF5                "Enable HDF5 Support for Alembic" OFF)
 
 # Image format support
 option(WITH_OPENIMAGEIO         "Enable OpenImageIO Support (http://www.openimageio.org)" OFF)
@@ -477,6 +478,11 @@ elseif(WITH_CYCLES OR WITH_OPENIMAGEIO OR WITH_MOD_BOOLEAN OR WITH_AUDASPACE OR 
 else()
 	# Enabled but we don't need it
 	set(WITH_BOOST OFF)
+endif()
+
+# disable hdf5 if Alembic is disabled
+if(NOT WITH_ALEMBIC)
+	set(WITH_HDF5 OFF)
 endif()
 
 # auto enable openimageio for cycles
@@ -884,9 +890,11 @@ if(UNIX AND NOT APPLE)
 
 	if(WITH_ALEMBIC)
 		find_package_wrapper(Alembic)
-
 		set(ALEMBIC_LIBRARIES ${ALEMBIC_LIBRARIES} ${BOOST_LIBRARIES})
-		set(ALEMBIC_DEFINITIONS "")
+	endif()
+
+	if(WITH_HDF5)
+		find_package_wrapper(HDF5)
 	endif()
 
 	# OpenSuse needs lutil, ArchLinux not, for now keep, can avoid by using --as-needed
