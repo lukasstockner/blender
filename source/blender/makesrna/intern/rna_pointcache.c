@@ -25,6 +25,9 @@
  *  \ingroup RNA
  */
 
+/* XXX hack, remove later */
+#define POINTCACHE_OLD
+
 #include "DNA_object_force.h"
 #include "DNA_scene_types.h"
 
@@ -39,6 +42,7 @@
 
 #ifdef RNA_RUNTIME
 
+#ifdef POINTCACHE_OLD
 #include "BLI_math_base.h"
 
 #include "DNA_object_types.h"
@@ -260,9 +264,11 @@ static void rna_PointCache_frame_step_range(PointerRNA *ptr, int *min, int *max,
 
 	BLI_freelistN(&pidlist);
 }
+#endif /*POINTCACHE_OLD*/
 
 #else
 
+#ifdef POINTCACHE_OLD
 /* ptcache.point_caches */
 static void rna_def_ptcache_point_caches(BlenderRNA *brna, PropertyRNA *cprop)
 {
@@ -284,23 +290,27 @@ static void rna_def_ptcache_point_caches(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_property_ui_text(prop, "Active Point Cache Index", "");
 	RNA_def_property_update(prop, NC_OBJECT, "rna_Cache_change");
 }
+#endif /*POINTCACHE_OLD*/
 
 static void rna_def_pointcache(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
 
+#ifdef POINTCACHE_OLD
 	static EnumPropertyItem point_cache_compress_items[] = {
 		{PTCACHE_COMPRESS_NO, "NO", 0, "No", "No compression"},
 		{PTCACHE_COMPRESS_LZO, "LIGHT", 0, "Light", "Fast but not so effective compression"},
 		{PTCACHE_COMPRESS_LZMA, "HEAVY", 0, "Heavy", "Effective but slow compression"},
 		{0, NULL, 0, NULL, NULL}
 	};
+#endif /*POINTCACHE_OLD*/
 
 	srna = RNA_def_struct(brna, "PointCache", NULL);
 	RNA_def_struct_ui_text(srna, "Point Cache", "Point cache for physics simulations");
 	RNA_def_struct_ui_icon(srna, ICON_PHYSICS);
-	
+
+#ifdef POINTCACHE_OLD
 	prop = RNA_def_property(srna, "frame_start", PROP_INT, PROP_TIME);
 	RNA_def_property_int_sdna(prop, NULL, "startframe");
 	RNA_def_property_range(prop, -MAXFRAME, MAXFRAME);
@@ -387,6 +397,7 @@ static void rna_def_pointcache(BlenderRNA *brna)
 	                         "Use this file's path for the disk cache when library linked into another file "
 	                         "(for local bakes per scene file, disable this option)");
 	RNA_def_property_update(prop, NC_OBJECT, "rna_Cache_idname_change");
+#endif /*POINTCACHE_OLD*/
 
 	prop = RNA_def_property(srna, "point_caches", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_funcs(prop, "rna_Cache_list_begin", "rna_iterator_listbase_next",
