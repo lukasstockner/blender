@@ -202,6 +202,9 @@ option(WITH_MOD_REMESH          "Enable Remesh Modifier" ON)
 # mark_as_advanced(WITH_MOD_CLOTH_ELTOPO)
 option(WITH_MOD_OCEANSIM        "Enable Ocean Modifier" OFF)
 
+# Alembic
+option(WITH_ALEMBIC             "Enable Alembic Support" OFF)
+
 # Image format support
 option(WITH_OPENIMAGEIO         "Enable OpenImageIO Support (http://www.openimageio.org)" OFF)
 option(WITH_IMAGE_OPENEXR       "Enable OpenEXR Support (http://www.openexr.com)" ON)
@@ -884,6 +887,8 @@ if(UNIX AND NOT APPLE)
 
 		set(ALEMBIC_LIBRARIES ${ALEMBIC_LIBRARIES} ${BOOST_LIBRARIES})
 		set(ALEMBIC_DEFINITIONS "")
+
+		add_definitions(-DWITH_ALEMBIC)
 	endif()
 
 	# OpenSuse needs lutil, ArchLinux not, for now keep, can avoid by using --as-needed
