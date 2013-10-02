@@ -32,7 +32,19 @@ set(INC_SYS
 )
 
 set(SRC
+	test.cpp
+
 	PTC_api.h
+	PTC_schema.h
+
+	PTC_particles.h
+	PTC_particles.cpp
 )
+
+if(WITH_ALEMBIC)
+	list(APPEND INC_SYS ${ALEMBIC_INCLUDE_DIRS} ${OPENEXR_INCLUDE_DIR}/OpenEXR)
+
+#	add_subdirectory(alembic)
+endif()
 
 blender_add_lib(bf_pointcache "${SRC}" "${INC}" "${INC_SYS}")

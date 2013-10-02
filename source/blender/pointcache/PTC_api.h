@@ -23,6 +23,7 @@
 extern "C" {
 #endif
 
+void test_archive();
 
 #ifdef __cplusplus
 }
