@@ -3265,6 +3265,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
 	{"rna_object_force.c", NULL, RNA_def_object_force},
 	{"rna_packedfile.c", NULL, RNA_def_packedfile},
 	{"rna_particle.c", NULL, RNA_def_particle},
+	{"rna_pointcache.c", NULL, RNA_def_pointcache},
 	{"rna_pose.c", "rna_pose_api.c", RNA_def_pose},
 	{"rna_property.c", NULL, RNA_def_gameproperty},
 	{"rna_render.c", NULL, RNA_def_render},

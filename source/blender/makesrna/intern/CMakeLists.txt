@@ -70,6 +70,7 @@ set(DEFSRC
 	rna_object_force.c
 	rna_packedfile.c
 	rna_particle.c
+	rna_pointcache.c
 	rna_pose.c
 	rna_property.c
 	rna_render.c
@@ -272,6 +273,7 @@ blender_include_dirs(
 	../../ikplugin
 	../../makesdna
 	../../nodes/
+	../../pointcache/
 	../../windowmanager
 	../../editors/include
 	../../render/extern/include
