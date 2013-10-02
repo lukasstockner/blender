@@ -233,6 +233,20 @@ void BKE_rigidbody_relink_constraint(RigidBodyCon *rbc)
 /* ************************************** */
 /* Setup Utilities - Validate Sim Instances */
 
+/* get the appropriate DerivedMesh based on rigid body mesh source */
+static DerivedMesh *rigidbody_get_mesh(Object *ob)
+{
+	if (ob->rigidbody_object->mesh_source == RBO_MESH_DEFORM) {
+		return ob->derivedDeform;
+	}
+	else if (ob->rigidbody_object->mesh_source == RBO_MESH_FINAL) {
+		return ob->derivedFinal;
+	}
+	else {
+		return CDDM_from_mesh(ob->data, ob);
+	}
+}
+
 /* create collision shape of mesh - convex hull */
 static rbCollisionShape *rigidbody_get_shape_convexhull_from_mesh(Object *ob, float margin, bool *can_embed)
 {
@@ -242,15 +256,7 @@ static rbCollisionShape *rigidbody_get_shape_convexhull_from_mesh(Object *ob, fl
 	int totvert = 0;
 
 	if (ob->type == OB_MESH && ob->data) {
-		if (ob->rigidbody_object->mesh_source == RBO_MESH_DEFORM) {
-			dm = ob->derivedDeform;
-		}
-		else if (ob->rigidbody_object->mesh_source == RBO_MESH_FINAL) {
-			dm = ob->derivedFinal;
-		}
-		else {
-			dm = CDDM_from_mesh(ob->data, ob);
-		}
+		dm = rigidbody_get_mesh(ob);
 		mvert   = (dm) ? dm->getVertArray(dm) : NULL;
 		totvert = (dm) ? dm->getNumVerts(dm) : 0;
 	}
@@ -287,15 +293,7 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
 		int tottris = 0;
 		int triangle_index = 0;
 
-		if (ob->rigidbody_object->mesh_source == RBO_MESH_DEFORM) {
-			dm = ob->derivedDeform;
-		}
-		else if (ob->rigidbody_object->mesh_source == RBO_MESH_FINAL) {
-			dm = ob->derivedFinal;
-		}
-		else {
-			dm = CDDM_from_mesh(ob->data, ob);
-		}
+		dm = rigidbody_get_mesh(ob);
 
 		/* ensure mesh validity, then grab data */
 		if (dm == NULL)
@@ -384,15 +382,7 @@ static rbCollisionShape *rigidbody_get_shape_convex_decomp_from_mesh(Object *ob)
 		int totface;
 		int tottris = 0;
 		
-		if (ob->rigidbody_object->mesh_source == RBO_MESH_DEFORM) {
-			dm = ob->derivedDeform;
-		}
-		else if (ob->rigidbody_object->mesh_source == RBO_MESH_FINAL) {
-			dm = ob->derivedFinal;
-		}
-		else {
-			dm = CDDM_from_mesh(ob->data, ob);
-		}
+		dm = rigidbody_get_mesh(ob);
 
 		/* ensure mesh validity, then grab data */
 		BLI_assert(dm!= NULL); // RB_TODO need to make sure there's no case where deform derived mesh doesn't exist
