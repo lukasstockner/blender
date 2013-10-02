@@ -446,14 +446,16 @@ class FundamentalSymmetricEpipolarCostFunctor {
 };
 
 /* Fundamental transformation estimation. */
-bool FundamentalFromCorrespondencesEuc(const Mat &x1,
-                                       const Mat &x2,
-                                       const FundamentalEstimationOptions &options,
-                                       Mat3 *F) {
+bool FundamentalFromCorrespondencesEuc(
+    const Mat &x1,
+    const Mat &x2,
+    const FundamentalEstimationOptions &options,
+    Mat3 *F) {
   // Step 1: Algebraic fundamental estimation.
   bool algebraic_success = NormalizedEightPointSolver(x1, x2, F);
 
-  LG << "Algebraic result " << algebraic_success << ", estimated matrix " << F;
+  LG << "Algebraic result " << algebraic_success
+     << ", estimated matrix:\n" << *F;
 
   if (!algebraic_success && !options.use_refine_if_algebraic_fails) {
     return false;
@@ -470,7 +472,7 @@ bool FundamentalFromCorrespondencesEuc(const Mat &x1,
     problem.AddResidualBlock(
         new ceres::AutoDiffCostFunction<
             FundamentalSymmetricEpipolarCostFunctor,
-            2, /* num_residuals */
+            2,  // num_residuals
             9>(fundamental_symmetric_epipolar_cost_function),
         NULL,
         F->data());
@@ -490,10 +492,9 @@ bool FundamentalFromCorrespondencesEuc(const Mat &x1,
 
   VLOG(1) << "Summary:\n" << summary.FullReport();
 
-  LG << "Final refined matrix: " << F;
+  LG << "Final refined matrix:\n" << *F;
 
   return !(summary.termination_type == ceres::DID_NOT_RUN ||
-           summary.termination_type == ceres::NO_CONVERGENCE ||
            summary.termination_type == ceres::NUMERICAL_FAILURE);
 }
 

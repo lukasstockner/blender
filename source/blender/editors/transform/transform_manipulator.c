@@ -428,12 +428,12 @@ int calc_manipulator_stats(const bContext *C)
 								totsel++;
 							}
 							else {
-								if (bezt->f1) {
-									calc_tw_center(scene, bezt->vec[0]);
+								if (bezt->f1 & SELECT) {
+									calc_tw_center(scene, bezt->vec[(v3d->around == V3D_LOCAL) ? 1 : 0]);
 									totsel++;
 								}
-								if (bezt->f3) {
-									calc_tw_center(scene, bezt->vec[2]);
+								if (bezt->f3 & SELECT) {
+									calc_tw_center(scene, bezt->vec[(v3d->around == V3D_LOCAL) ? 1 : 2]);
 									totsel++;
 								}
 							}
