@@ -45,6 +45,8 @@ if(WITH_ALEMBIC)
 	list(APPEND INC_SYS ${ALEMBIC_INCLUDE_DIRS} ${OPENEXR_INCLUDE_DIR}/OpenEXR)
 
 #	add_subdirectory(alembic)
+
+	add_definitions(-DWITH_ALEMBIC)
 endif()
 
 blender_add_lib(bf_pointcache "${SRC}" "${INC}" "${INC_SYS}")

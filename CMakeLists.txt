@@ -887,8 +887,6 @@ if(UNIX AND NOT APPLE)
 
 		set(ALEMBIC_LIBRARIES ${ALEMBIC_LIBRARIES} ${BOOST_LIBRARIES})
 		set(ALEMBIC_DEFINITIONS "")
-
-		add_definitions(-DWITH_ALEMBIC)
 	endif()
 
 	# OpenSuse needs lutil, ArchLinux not, for now keep, can avoid by using --as-needed
