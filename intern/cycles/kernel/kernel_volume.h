@@ -715,23 +715,22 @@ __device float3 kernel_volume_get_shadow_attenuation(KernelGlobals *kg, RNG *rng
 	return attenuation;
 }
 
-
-
-__device bool shadow_blocked_new(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential, int sample, PathState *state,
-	Ray *ray, float3 *shadow, int media_volume_shader, float *volume_pdf)
+__device_inline bool shadow_blocked_volume(KernelGlobals *kg, PathState *state, Ray *ray, float3 *shadow,
+	RNG *rng, RNG *rng_congruential, int rng_offset, int sample, int media_volume_shader, float *volume_pdf)
 {
 	*shadow = make_float3(1.0f, 1.0f, 1.0f);
 	*volume_pdf = 1.0f;
-	float tmp_volume_pdf;
 
 	if(ray->t == 0.0f)
 		return false;
+		
+	float tmp_volume_pdf;
 
 	uint visibility = path_state_ray_visibility(kg, state);
 	visibility |= PATH_RAY_SHADOW_OPAQUE;
 	Intersection isect;
 #ifdef __HAIR__ 
-//	bool result = scene_intersect(kg, ray, PATH_RAY_SHADOW_OPAQUE, &isect);
+//	bool result = scene_intersect(kg, ray, PATH_RAY_SHADOW_OPAQUE, &isect, NULL, 0.0f, 0.0f);
 	bool result = scene_intersect(kg, ray, visibility, &isect, NULL, 0.0f, 0.0f);
 #else
 //	bool result = scene_intersect(kg, ray, PATH_RAY_SHADOW_OPAQUE, &isect);
@@ -772,6 +771,7 @@ __device bool shadow_blocked_new(KernelGlobals *kg, RNG *rng, int rng_offset, RN
 #endif
 				}
 #ifdef __HAIR__
+//				if(!scene_intersect(kg, ray, PATH_RAY_SHADOW_TRANSPARENT, &isect, NULL, 0.0f, 0.0f)) {
 				if(!scene_intersect(kg, ray, visibility, &isect, NULL, 0.0f, 0.0f)) {
 #else
 //				if(!scene_intersect(kg, ray, PATH_RAY_SHADOW_TRANSPARENT, &isect)) {
@@ -809,18 +809,16 @@ __device bool shadow_blocked_new(KernelGlobals *kg, RNG *rng, int rng_offset, RN
 
 				bounce++;
 
-//				swap_media();
-				if (media_volume_shader == kernel_data.background.shader)
+				if(media_volume_shader == kernel_data.background.shader)
 					media_volume_shader = sd.shader;
 				else
 					media_volume_shader = kernel_data.background.shader;
-
 			}
 		}
 	}
 #endif
 
-	if(! result) {
+	if(!result) {
 		float3 attenuation = kernel_volume_get_shadow_attenuation(kg, rng, rng_offset, rng_congruential, sample, ray, media_volume_shader, &tmp_volume_pdf);
 		*shadow *= attenuation;
 		*volume_pdf *= tmp_volume_pdf;
@@ -828,7 +826,6 @@ __device bool shadow_blocked_new(KernelGlobals *kg, RNG *rng, int rng_offset, RN
 
 	return result;
 }
-
 
 /* volumetric tracing */
 __device int kernel_path_trace_volume(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential, int sample,
@@ -916,7 +913,7 @@ __device int kernel_path_trace_volume(KernelGlobals *kg, RNG *rng, int rng_offse
 						float3 shadow;
 						float tmp_volume_pdf;
 
-						if(!shadow_blocked_new(kg, rng, rng_offset, rng_congruential, sample, state, &light_ray, &shadow, media_volume_shader, &tmp_volume_pdf)) {
+						if(!shadow_blocked_volume(kg, state, &light_ray, &shadow, rng, rng_congruential, rng_offset, sample, media_volume_shader, &tmp_volume_pdf)) {
 							/* accumulate */
 //							bool is_lamp = (lamp != ~0);
 							path_radiance_accum_light(L, *throughput, &L_light, shadow, 1.0f, state->bounce, is_lamp);
