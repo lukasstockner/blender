@@ -82,7 +82,7 @@ __device  float3 kernel_volume_get_final_homogeneous_extinction_tsd(KernelGlobal
 	float3 res_sigma = make_float3(1.0f, 1.0f, 1.0f);
 	if((sd->flag & SD_HAS_VOLUME) != 0) { // check for empty volume shader
 		// base sigma
-		float base_sigma = get_sigma_sample(kg, sd, trandp, path_flag, ray.P/* + ray.D * start*/);
+		float base_sigma = get_sigma_sample(kg, sd, trandp, path_flag, ray.P);
 
 		// get transition probability
 		// or flux that pass forward even if catched by particle.
@@ -158,7 +158,7 @@ __device float3 kernel_volume_get_final_homogeneous_extinction(KernelGlobals *kg
 	float3 res_sigma = make_float3(1.0f, 1.0f, 1.0f);
 	if((tsd.flag & SD_HAS_VOLUME) != 0) { // check for empty volume shader
 		// base sigma
-		float base_sigma = get_sigma_sample(kg, &tsd, trandp, path_flag, ray.P/* + ray.D * start*/);
+		float base_sigma = get_sigma_sample(kg, &tsd, trandp, path_flag, ray.P);
 
 		// get transition probability
 		BsdfEval eval;
@@ -309,11 +309,10 @@ __device int kernel_volumetric_woodcock_sampler2(KernelGlobals *kg, RNG *rng_con
 	
 	int i = 0;
 	float t = 0;
-	float start = 0.0f;
 	float sigma_factor = 1.0f;
 	*pdf = 1.0f;
 
-	if((end - start) < magic_eps)
+	if(end < magic_eps)
 		return 0;
 	
 	if(max_sigma_t == 0.0f)
@@ -325,13 +324,13 @@ __device int kernel_volumetric_woodcock_sampler2(KernelGlobals *kg, RNG *rng_con
 		// *pdf *= sigma_factor; // pdf that previous position was transparent pseudo-particle, obviously 1.0 for first loop step
 		// *pdf *= max_sigma_t * r; // pdf of particle collision, based on conventional freefly homogeneous distance equation
 	}
-	while((sigma_factor = (get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * (t + start)) / max_sigma_t)) < rand_congruential() && 
-		(t + start ) < (end - magic_eps) &&
+	while((sigma_factor = (get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * t) / max_sigma_t)) < rand_congruential() && 
+		(t < (end - magic_eps)) &&
 		i++ < max_iter);
 
-	if ((t + start) < (end - magic_eps) && i <= max_iter) {
-		*new_t = t + start;
-		sd->P = ray.P + ray.D * (t + start);
+	if(t < (end - magic_eps) && i <= max_iter) {
+		*new_t = t;
+		sd->P = ray.P + ray.D * t;
 		// *pdf *= sigma_factor; // fixme: is it necessary ?
 		return 1;
 	}
@@ -341,18 +340,19 @@ __device int kernel_volumetric_woodcock_sampler2(KernelGlobals *kg, RNG *rng_con
 	// last chance trick, we cannot iterate infinity, but we can force to homogeneous last step after max_iter,
 	// assume rest of media up to end is homogeneous, it help to use woodcock even in outdoor scenes that tend to have continuous density
 	// even if vary a bit in close distance. of course it make sampling biased (not respect actual density).
-	if((i > max_iter) && ((t +start ) < (end - magic_eps))) {
-		float sigma = get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * (t + start));
-		if( sigma < magic_eps) return 0;
+	if((i > max_iter) && (t < (end - magic_eps))) {
+		float sigma = get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * t);
+		if(sigma < magic_eps) 
+			return 0;
 		// t += -logf( rand_congruential()) / sigma;
 		float r = rand_congruential();
 		t += -logf(r) / sigma;
 		*pdf *= sigma * r;
-		if((t + start) < (end - magic_eps)) {
+		if(t < (end - magic_eps)) {
 			// double check current sigma, just to be sure we do not register event for null media.
-			if(get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * (t + start)) > magic_eps) {
-				*new_t = t + start;
-				sd->P = ray.P + ray.D * (t + start);
+			if(get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * t) > magic_eps) {
+				*new_t = t;
+				sd->P = ray.P + ray.D * t;
 				return 1;
 			}
 		}
@@ -442,9 +442,8 @@ __device int kernel_volumetric_homogeneous_sampler(KernelGlobals *kg, float rand
 	/* return pdf of perfect importance volume sampling at given distance
 	only for homogeneous case, of course.
 	TODO: cache sigma to avoid complex shader call (very CPU/GPU expensive) */
-	
-	float start = 0.0f;
-	float distance = end - start;
+
+	float distance = end;
 	float sigma;
 
 	*pdf = 1.0f; /* pdf used for importance sampling of homogeneous data, it just sigma if x=log(1-rand())/sigma used as sampling distance */
@@ -457,12 +456,12 @@ __device int kernel_volumetric_homogeneous_sampler(KernelGlobals *kg, float rand
 #if 1
 	if (*omega_cache != NULL) {
 		if(*omega_cache == 0.0f) {
-			*omega_cache =  get_sigma_sample(kg, sd, randp, path_flag, ray.P + ray.D * start);
+			*omega_cache =  get_sigma_sample(kg, sd, randp, path_flag, ray.P);
 		}
 		sigma = *omega_cache;
 	}
 	else
-		sigma = get_sigma_sample(kg, sd, randp, path_flag, ray.P + ray.D * start);
+		sigma = get_sigma_sample(kg, sd, randp, path_flag, ray.P);
 #else
 	float3 sigma3 = kernel_volume_get_final_homogeneous_extinction_tsd(kg, sd, randp, ray, path_flag);
 	sigma = min( sigma3.x, sigma3.y);
@@ -489,8 +488,8 @@ __device int kernel_volumetric_homogeneous_sampler(KernelGlobals *kg, float rand
 	}
 #endif
 
-	float sample_distance = -logf(randv) / sigma + start;
-	if(sample_distance > end) { // nothing hit in between [start, end]
+	float sample_distance = -logf(randv) / sigma;
+	if(sample_distance > end) { // nothing hit in between [start(0.0), end]
 		//*eval = sigma * exp(-distance * sigma);
 		*eval = sigma * randv;
 		*pdf = sigma * randv;
@@ -507,9 +506,8 @@ __device int kernel_volumetric_homogeneous_sampler(KernelGlobals *kg, float rand
 
 __device int kernel_volumetric_equiangular_sampler(KernelGlobals *kg, RNG *rng_congruential, float randv, float randp,
 	ShaderData *sd, Ray ray, int path_flag, float end, float *new_t, float *pdf, float *eval, float *omega_cache)
-{	
-	float start = 0.0f;
-	float distance = end - start;
+{
+	float distance = end;
 	float sigma;
 
 	*pdf = 1.0f; /* pdf used for importance sampling of homogeneous data, it just sigma if x=log(1-rand())/sigma used as sampling distance */
@@ -532,12 +530,12 @@ __device int kernel_volumetric_equiangular_sampler(KernelGlobals *kg, RNG *rng_c
 
 	if (*omega_cache != NULL) {
 		if(*omega_cache == 0.0f) {
-			*omega_cache =  get_sigma_sample(kg, sd, randp, path_flag, ray.P + ray.D * start);
+			*omega_cache =  get_sigma_sample(kg, sd, randp, path_flag, ray.P);
 		}
 		sigma = *omega_cache;
 	}
 	else
-		sigma = get_sigma_sample(kg, sd, randp, path_flag, ray.P + ray.D * start);
+		sigma = get_sigma_sample(kg, sd, randp, path_flag, ray.P);
 
 	if(sigma < SIGMA_MAGIC_EPS) {
 		/*  Very transparent volume - Protect div by 0, *new_t = end; */ 
@@ -565,7 +563,7 @@ __device int kernel_volumetric_equiangular_sampler(KernelGlobals *kg, RNG *rng_c
 __device int kernel_volumetric_sample(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential, int pass, float randv, float randp,
 	ShaderData *sd, Ray ray, float distance, float *particle_isect_t, int path_flag, float *pdf, float *eval, float3 *throughput, float *omega_cache = NULL)
 {
-	/* sample point on volumetric ray (return false - no hit, true - hit : fill new hit t value on path [start,end] */
+	/* sample point on volumetric ray (return false - no hit, true - hit : fill new hit t value on path [start, end] */
 
 	if((sd->flag & SD_HAS_VOLUME) == 0 || (distance < DISTANCE_MAGIC_EPS))
 		return 0; /* empty volume shader slot or escape from bottle when scattering in solid */
@@ -637,7 +635,7 @@ __device float3 kernel_volume_get_shadow_attenuation(KernelGlobals *kg, RNG *rng
 		attenuation = make_float3(1.0f, 1.0f, 1.0f);
 		if(tsd.flag & SD_HOMOGENEOUS_VOLUME) {
 			// special case
-			float sigma = get_sigma_sample(kg, &tsd, trandp, PATH_RAY_SHADOW, light_ray->P/* + ray.D * start*/);
+			float sigma = get_sigma_sample(kg, &tsd, trandp, PATH_RAY_SHADOW, light_ray->P);
 			if (sigma < 0.0f) sigma = 0.0f;
 //			sigma = 1.0f;
 #if 0
