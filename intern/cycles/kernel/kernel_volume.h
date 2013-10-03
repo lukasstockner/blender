@@ -39,12 +39,13 @@ __device float sigma_from_value(float value, float geom_factor)
 	/* return "sigma" that required to get "value" attenuation at "geom_factor" distance of media.
 	to make input value resemble "alpha color" in 2d grapics , "value"=0 mean ransparent, 1 = opaque, so there is another a=1-v step.*/
 #if 0
-//	const float att_magic_eps = 1e-7f;
-	const float att_magic_eps = 1e-15f;
+	const float att_magic_eps = 1e-15f; // 1e-7f?
 	float attenuation = 1-value;
 	// protect infinity nan from too big density materials
-	if( attenuation < att_magic_eps) attenuation = att_magic_eps;
-	return (-logf( attenuation )/geom_factor);
+	if(attenuation < att_magic_eps) 
+		attenuation = att_magic_eps;
+
+	return (-logf(attenuation) / geom_factor);
 #else
 	return value * geom_factor;
 #endif
@@ -69,7 +70,6 @@ __device float get_sigma_sample(KernelGlobals *kg, ShaderData *sd, float randv, 
 #endif
        return sigma_from_value(v, kernel_data.integrator.volume_density_factor);
 }
-
 
 __device  float3 kernel_volume_get_final_homogeneous_extinction_tsd(KernelGlobals *kg, ShaderData *sd, float trandp, Ray ray, int path_flag)
 {
@@ -126,12 +126,11 @@ __device  float3 kernel_volume_get_final_homogeneous_extinction_tsd(KernelGlobal
 		res_sigma.z = base_sigma * (1.0f + logf(1.0f + (1.0f / M_E - 1.0f) * transition_pdf * color.z));
 //		printf("pdf=%g\n", transition_pdf);
 #else
-		res_sigma = ( make_float3(transition_pdf, transition_pdf, transition_pdf) * color);
-		if( res_sigma.x > 1.0f) res_sigma.x = 1.0f;
-		if( res_sigma.y > 1.0f) res_sigma.y = 1.0f;
-		if( res_sigma.z > 1.0f) res_sigma.z = 1.0f;
+		res_sigma = (make_float3(transition_pdf, transition_pdf, transition_pdf) * color);		
+		res_sigma = min(res_sigma, 1.0f);
 #endif
 	}
+
 	return res_sigma;
 }
 
@@ -181,8 +180,9 @@ __device float3 kernel_volume_get_final_homogeneous_extinction(KernelGlobals *kg
 		shader_eval_volume(kg, &tsd, trandp, path_flag, SHADER_CONTEXT_MAIN);
 		float3 color = tsd.closure.weight;
 #endif
-		res_sigma = make_float3(base_sigma, base_sigma, base_sigma) / ( make_float3(transition_pdf, transition_pdf, transition_pdf) * color);
+		res_sigma = make_float3(base_sigma, base_sigma, base_sigma) / (make_float3(transition_pdf, transition_pdf, transition_pdf) * color);
 	}
+
 	return res_sigma;
 }
 
@@ -190,7 +190,7 @@ __device int get_media_volume_shader(KernelGlobals *kg, float3 P, int bounce)
 {
 	/* check all objects that intersect random ray from given point, assume we have perfect geometry (all meshes closed, correct faces direct
 	 we can calculate current volume material, assuming background as start, and reassign when we cross face */
-	if (!kernel_data.integrator.use_volumetric)
+	if(!kernel_data.integrator.use_volumetric)
 		return kernel_data.background.shader;
 
 	Ray ray;
@@ -204,18 +204,18 @@ __device int get_media_volume_shader(KernelGlobals *kg, float3 P, int bounce)
 	int stack = 0;
 //	while (scene_intersect(kg, &ray, PATH_RAY_SHADOW, &isect))
 #ifdef __HAIR__ 
-	while (scene_intersect(kg, &ray, 0, &isect, NULL, 0.0f, 0.0f))
+	while(scene_intersect(kg, &ray, 0, &isect, NULL, 0.0f, 0.0f))
 #else
-	while (scene_intersect(kg, &ray, 0, &isect))
+	while(scene_intersect(kg, &ray, 0, &isect))
 #endif
 	{
 		ShaderData sd;
         shader_setup_from_ray(kg, &sd, &isect, &ray, bounce);
         shader_eval_surface(kg, &sd, 0.0f, 0, SHADER_CONTEXT_MAIN); // not needed ?
 
-		if (sd.flag & SD_BACKFACING) {
+		if(sd.flag & SD_BACKFACING) {
 			stack--;
-			if (stack <= 0 && (sd.flag & SD_HAS_VOLUME))
+			if(stack <= 0 && (sd.flag & SD_HAS_VOLUME))
 				return sd.shader; // we are inside of object, as first triangle hit is from inside
 		}
 		else
@@ -229,13 +229,15 @@ __device int get_media_volume_shader(KernelGlobals *kg, float3 P, int bounce)
 	return kernel_data.background.shader;
 }
 
-/*used */
+/* used */
 
 /* Volumetric sampling */
 __device int kernel_volumetric_woodcock_sampler(KernelGlobals *kg, RNG *rng_congruential, ShaderData *sd,
 	Ray ray, int path_flag, float end, float *new_t, float *pdf)
 {
-	/* google "woodcock delta tracker" algorithm, must be preprocessed to guess max density in volume, better keep it as close to density as possible or we got lot of tiny steps and spend milenniums marching single volume ray segment. 0.95 is good default. */
+	/* Google "woodcock delta tracker" algorithm, must be preprocessed to guess max density in volume,
+	 * better keep it as close to density as possible or we got lot of tiny steps and spend millenniums
+	 * marching single volume ray segment. 0.95 is good default. */
 	float magic_eps = 1e-4f;
 
 	int max_iter = kernel_data.integrator.volume_max_iterations;
@@ -245,27 +247,27 @@ __device int kernel_volumetric_woodcock_sampler(KernelGlobals *kg, RNG *rng_cong
 	
 	float step = end / 10.0f; // uses 10 segments for maximum - needs parameter
 	for(float s = 0.0f ; s < end ; s+= step)
-		max_sigma_t = max( max_sigma_t , get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * s));
+		max_sigma_t = max(max_sigma_t , get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * s));
 	
 	int i = 0;
 	float t = 0;
 	float sigma_factor = 1.0f;
 	*pdf = 1.0f;
 
-	if((end < magic_eps) || (max_sigma_t == 0))
+	if((end < magic_eps) || (max_sigma_t == 0.0f))
 		return 0;
 
 	do {
 		float r = rand_congruential();
-		t += -logf( r) / max_sigma_t;
+		t += -logf(r) / max_sigma_t;
 		// *pdf *= sigma_factor; // pdf that previous position was transparent pseudo-particle, obviously 1.0 for first loop step
 		// *pdf *= max_sigma_t * r; // pdf of particle collision, based on conventional freefly homogeneous distance equation
 	}
-	while( ( sigma_factor = (get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * t)/ max_sigma_t)) < rand_congruential() && 
+	while((sigma_factor = (get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * t) / max_sigma_t)) < rand_congruential() && 
 		t < (end - magic_eps) &&
 		i++ < max_iter);
 
-	if (t < (end - magic_eps) && i <= max_iter) {
+	if(t < (end - magic_eps) && i <= max_iter) {
 		*new_t = t;
 	    sd->P = ray.P + ray.D * t;
 		// *pdf *= sigma_factor; // fixme: is it necessary ?
@@ -273,15 +275,15 @@ __device int kernel_volumetric_woodcock_sampler(KernelGlobals *kg, RNG *rng_cong
 	}
 
 	// Assume rest of media up to end is homogeneous, it helps when using woodcock in outdoor scenes that tend to have continuous density.
-	if ((i > max_iter) && (t < (end - magic_eps))) {
+	if((i > max_iter) && (t < (end - magic_eps))) {
 		float sigma = get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * t);
-		if( sigma < magic_eps)
+		if(sigma < magic_eps)
 			return 0;
 
 		float r = rand_congruential();
-		t += -logf( r) / sigma;
+		t += -logf(r) / sigma;
 		*pdf *= sigma * r;
-		if (t < (end - magic_eps)) {
+		if(t < (end - magic_eps)) {
 			// double check current sigma, just to be sure we do not register event for null media.
 			if(get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * t) > magic_eps) {
 				*new_t = t;
@@ -296,7 +298,9 @@ __device int kernel_volumetric_woodcock_sampler(KernelGlobals *kg, RNG *rng_cong
 __device int kernel_volumetric_woodcock_sampler2(KernelGlobals *kg, RNG *rng_congruential, ShaderData *sd,
 	Ray ray, int path_flag, float end, float *new_t, float *pdf)
 {
-	/* google "woodcock delta tracker" algorithm, must be preprocessed to guess max density in volume, better keep it as close to density as possible or we got lot of tiny steps and spend milenniums marching single volume ray segment. 0.95 is good default. */
+	/* Google "woodcock delta tracker" algorithm, must be preprocessed to guess max density in volume,
+	 * better keep it as close to density as possible or we got lot of tiny steps and spend millenniums
+	 * marching single volume ray segment. 0.95 is good default. */
 	float magic_eps = 1e-4f;
 
 	int max_iter = kernel_data.integrator.volume_max_iterations;
@@ -312,22 +316,22 @@ __device int kernel_volumetric_woodcock_sampler2(KernelGlobals *kg, RNG *rng_con
 	if((end - start) < magic_eps)
 		return 0;
 	
-	if(max_sigma_t == 0)
+	if(max_sigma_t == 0.0f)
 		return 0;
 
 	do {
 		float r = rand_congruential();
-		t += -logf( r) / max_sigma_t;
+		t += -logf(r) / max_sigma_t;
 		// *pdf *= sigma_factor; // pdf that previous position was transparent pseudo-particle, obviously 1.0 for first loop step
 		// *pdf *= max_sigma_t * r; // pdf of particle collision, based on conventional freefly homogeneous distance equation
 	}
-	while( ( sigma_factor = (get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * (t + start))/ max_sigma_t)) < rand_congruential() && 
-		(t +start )< (end - magic_eps) &&
+	while((sigma_factor = (get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * (t + start)) / max_sigma_t)) < rand_congruential() && 
+		(t + start ) < (end - magic_eps) &&
 		i++ < max_iter);
 
 	if ((t + start) < (end - magic_eps) && i <= max_iter) {
 		*new_t = t + start;
-	        sd->P = ray.P + ray.D * (t + start);
+		sd->P = ray.P + ray.D * (t + start);
 		// *pdf *= sigma_factor; // fixme: is it necessary ?
 		return 1;
 	}
@@ -337,16 +341,16 @@ __device int kernel_volumetric_woodcock_sampler2(KernelGlobals *kg, RNG *rng_con
 	// last chance trick, we cannot iterate infinity, but we can force to homogeneous last step after max_iter,
 	// assume rest of media up to end is homogeneous, it help to use woodcock even in outdoor scenes that tend to have continuous density
 	// even if vary a bit in close distance. of course it make sampling biased (not respect actual density).
-	if ((i > max_iter) && ((t +start ) < (end - magic_eps))) {
+	if((i > max_iter) && ((t +start ) < (end - magic_eps))) {
 		float sigma = get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * (t + start));
 		if( sigma < magic_eps) return 0;
 		// t += -logf( rand_congruential()) / sigma;
 		float r = rand_congruential();
-		t += -logf( r) / sigma;
+		t += -logf(r) / sigma;
 		*pdf *= sigma * r;
-		if ((t + start) < (end - magic_eps)) {
+		if((t + start) < (end - magic_eps)) {
 			// double check current sigma, just to be sure we do not register event for null media.
-			if( get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * (t + start)) > magic_eps) {
+			if(get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * (t + start)) > magic_eps) {
 				*new_t = t + start;
 				sd->P = ray.P + ray.D * (t + start);
 				return 1;
@@ -387,9 +391,9 @@ __device int kernel_volumetric_marching_sampler(KernelGlobals *kg, RNG *rng_cong
 		integral += intstep;
 		cell_count++;
 	}
-	while( (integral < root) && (cell_count < max_steps) && (t < end));
+	while((integral < root) && (cell_count < max_steps) && (t < end));
 
-	if ((cell_count >= max_steps) || (t > end)) {
+	if((cell_count >= max_steps) || (t > end)) {
 		return 0;
 	}
 
@@ -404,7 +408,7 @@ __device int kernel_volumetric_marching_sampler2(KernelGlobals *kg, RNG *rng_con
 	Ray ray, int path_flag, float end, float *new_t, float *pdf)
 {	
 	float step = kernel_data.integrator.volume_cell_step;
-	int  max_steps = min(kernel_data.integrator.volume_max_iterations, (int)ceil(end / step));
+	int max_steps = min(kernel_data.integrator.volume_max_iterations, ceil_to_int(end / step));
 	
 	int cell_count = 0;
 	float current_cell_near_boundary_distance;
@@ -414,17 +418,17 @@ __device int kernel_volumetric_marching_sampler2(KernelGlobals *kg, RNG *rng_con
 	do {
 		current_cell_near_boundary_distance = step * (float)cell_count;
 		float current_cell_average_sigma = get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * (current_cell_near_boundary_distance + random_jitter_offset));
-		if (current_cell_average_sigma < SIGMA_MAGIC_EPS)
+		if(current_cell_average_sigma < SIGMA_MAGIC_EPS)
 			t = end + step;
 		else
 			t = -logf( rand_congruential()) / current_cell_average_sigma;
 		cell_count++;
 	}
-	while( (t > step) && (cell_count < max_steps));
+	while((t > step) && (cell_count < max_steps));
 
 	*pdf = 1.0f;
 
-	if ((cell_count >= max_steps) && ((current_cell_near_boundary_distance + t) > end))
+	if((cell_count >= max_steps) && ((current_cell_near_boundary_distance + t) > end))
 		return 0;
 
 	*new_t = current_cell_near_boundary_distance + t;
@@ -486,7 +490,7 @@ __device int kernel_volumetric_homogeneous_sampler(KernelGlobals *kg, float rand
 #endif
 
 	float sample_distance = -logf(randv) / sigma + start;
-	if (sample_distance > end) { // nothing hit in between [start, end]
+	if(sample_distance > end) { // nothing hit in between [start, end]
 		//*eval = sigma * exp(-distance * sigma);
 		*eval = sigma * randv;
 		*pdf = sigma * randv;
@@ -572,7 +576,7 @@ __device int kernel_volumetric_sample(KernelGlobals *kg, RNG *rng, int rng_offse
 
 	if(sd->flag & SD_HOMOGENEOUS_VOLUME) {
 		/* homogeneous media */
-		if (kernel_data.integrator.volume_homogeneous_sampling == 1 && kernel_data.integrator.num_all_lights) {
+		if(kernel_data.integrator.volume_homogeneous_sampling == 1 && kernel_data.integrator.num_all_lights) {
 			bool ok = kernel_volumetric_equiangular_sampler(kg, rng_congruential, randv, randp, sd, ray, path_flag, distance, particle_isect_t, pdf, eval,  omega_cache);
 			return ok;
 		}
@@ -582,19 +586,19 @@ __device int kernel_volumetric_sample(KernelGlobals *kg, RNG *rng, int rng_offse
 		}
 	}
 	else {
-		if (kernel_data.integrator.volume_sampling_algorithm == 3) {
+		if(kernel_data.integrator.volume_sampling_algorithm == 3) {
 			/* Woodcock delta tracking */
 			bool ok = kernel_volumetric_woodcock_sampler(kg, rng_congruential, sd, ray, path_flag, distance, particle_isect_t, pdf);
 			*eval = *pdf;
 			return ok;
 		}
-		else if (kernel_data.integrator.volume_sampling_algorithm == 2){
+		else if(kernel_data.integrator.volume_sampling_algorithm == 2){
 			/* Volume marching. Move particles through one region at a time, until collision occurs */
 			bool ok = kernel_volumetric_marching_sampler(kg, rng_congruential, sd, ray, path_flag, distance, particle_isect_t, pdf);
 			*eval = *pdf;
 			return ok;
 		}
-		else if (kernel_data.integrator.volume_sampling_algorithm == 1){
+		else if(kernel_data.integrator.volume_sampling_algorithm == 1){
 			/* Woodcock delta tracking */
 			bool ok = kernel_volumetric_woodcock_sampler2(kg, rng_congruential, sd, ray, path_flag, distance, particle_isect_t, pdf);
 			*eval = *pdf;
@@ -646,8 +650,8 @@ __device float3 kernel_volume_get_shadow_attenuation(KernelGlobals *kg, RNG *rng
 			sigma /= transition_pdf; //diffusion?
 #endif
 			float magic_eps = 0.00001f;
-//			if ( light_ray->t < magic_eps)
-			if ( light_ray->t < magic_eps || (sigma < 0.00001f))
+//			if( light_ray->t < magic_eps)
+			if( light_ray->t < magic_eps || (sigma < 0.00001f))
 				attenuation = make_float3(1.0f, 1.0f, 1.0f);
 			else {
 				*volume_pdf =  sigma * exp(-light_ray->t * sigma);
@@ -831,12 +835,12 @@ __device int kernel_path_trace_volume(KernelGlobals *kg, RNG *rng, int rng_offse
 	*volume_pdf = 1.0f;
 	*volume_eval = make_float3( *volume_pdf, *volume_pdf, *volume_pdf);
 
-	if (!kernel_data.integrator.use_volumetric)
+	if(!kernel_data.integrator.use_volumetric)
 		return VOLUME_PATH_PARTICLE_MISS;
 
 	ShaderData vsd;
 	shader_setup_from_volume(kg, &vsd, ray, media_volume_shader);
-	if ((vsd.flag & SD_HAS_VOLUME) == 0)
+	if((vsd.flag & SD_HAS_VOLUME) == 0)
 		return VOLUME_PATH_PARTICLE_MISS; // null volume slot, assume transparent.
 
 	float randv = path_rng(kg, rng, sample, rng_offset + PRNG_VOLUME_DISTANCE);
@@ -844,7 +848,7 @@ __device int kernel_path_trace_volume(KernelGlobals *kg, RNG *rng, int rng_offse
 	float particle_isect_t;
 	float pdf;
 	float eval;
-	if (kernel_volumetric_sample(kg, rng, rng_offset, rng_congruential, sample, randv, randp, &vsd,
+	if(kernel_volumetric_sample(kg, rng, rng_offset, rng_congruential, sample, randv, randp, &vsd,
 		*ray, isect_t, &particle_isect_t, state->flag, &pdf, &eval, throughput, omega_cache)) {
 		
 		*volume_pdf = pdf;
@@ -961,7 +965,7 @@ __device int kernel_path_trace_volume(KernelGlobals *kg, RNG *rng, int rng_offse
 
 	}
 	*volume_pdf = pdf;
-	//*volume_eval = make_float3( 1.0f, 1.0f, 1.0f);
+	//*volume_eval = make_float3(1.0f, 1.0f, 1.0f);
 	*volume_eval = make_float3( eval, eval, eval);
 	//*volume_eval = make_float3( *volume_pdf, *volume_pdf, *volume_pdf);  // perfect importance sampling for homogeneous
 
