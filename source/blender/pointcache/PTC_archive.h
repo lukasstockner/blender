@@ -16,20 +16,13 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_API_H
-#define PTC_API_H
+#ifndef PTC_ARCHIVE_H
+#define PTC_ARCHIVE_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <Alembic/Abc/OArchive.h>
+#include <Alembic/AbcCoreHDF5/ReadWrite.h>
 
-void test_archive();
+using namespace Alembic::Abc;
+namespace Util = Alembic::Util;
 
-void *PTC_archive_create(const char *filename);
-void PTC_archive_free(void *archive);
-
-#ifdef __cplusplus
-} /* extern C */
-#endif
-
-#endif  /* PTC_API_H */
+#endif  /* PTC_ARCHIVE_H */

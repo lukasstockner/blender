@@ -37,6 +37,8 @@ set(SRC
 	PTC_api.h
 	PTC_schema.h
 
+	PTC_archive.h
+	PTC_archive.cpp
 	PTC_particles.h
 	PTC_particles.cpp
 )

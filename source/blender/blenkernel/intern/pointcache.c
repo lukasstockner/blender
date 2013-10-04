@@ -76,6 +76,8 @@
 
 #include "BIK_api.h"
 
+#include "PTC_api.h"
+
 #ifdef WITH_BULLET
 #  include "RBI_api.h"
 #endif
@@ -3004,6 +3006,8 @@ PointCache *BKE_ptcache_add(ListBase *ptcaches)
 	cache->step= 10;
 	cache->index = -1;
 
+	cache->archive = NULL;
+
 	BLI_addtail(ptcaches, cache);
 
 	return cache;
@@ -3029,6 +3033,10 @@ void BKE_ptcache_free(PointCache *cache)
 		cache->free_edit(cache->edit);
 	if (cache->cached_frames)
 		MEM_freeN(cache->cached_frames);
+
+	if (cache->archive)
+		PTC_archive_free(cache->archive);
+
 	MEM_freeN(cache);
 }
 void BKE_ptcache_free_list(ListBase *ptcaches)
@@ -3081,6 +3089,8 @@ static PointCache *ptcache_copy(PointCache *cache, int copy_data)
 
 	/* hmm, should these be copied over instead? */
 	ncache->edit = NULL;
+
+	ncache->archive = NULL;
 
 	return ncache;
 }

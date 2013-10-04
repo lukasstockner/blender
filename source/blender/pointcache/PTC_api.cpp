@@ -16,20 +16,24 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_API_H
-#define PTC_API_H
+#include "PTC_api.h"
+#include "PTC_archive.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
-void test_archive();
+void *PTC_archive_create(const char *filename)
+{
+	OArchive *archive = new OArchive(Alembic::AbcCoreHDF5::WriteArchive(),
+	                                 std::string(filename),
+	                                 ErrorHandler::kThrowPolicy);
+	
+	return archive;
+}
 
-void *PTC_archive_create(const char *filename);
-void PTC_archive_free(void *archive);
+void PTC_archive_free(void *_archive)
+{
+	OArchive *archive = static_cast<OArchive *>(_archive);
+	delete archive;
+}
 
-#ifdef __cplusplus
 } /* extern C */
-#endif
-
-#endif  /* PTC_API_H */
