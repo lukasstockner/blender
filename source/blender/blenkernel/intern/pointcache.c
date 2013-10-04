@@ -1440,14 +1440,16 @@ void BKE_ptcache_ids_from_object(ListBase *lb, Object *ob, Scene *scene, int dup
 #define MAX_PTCACHE_PATH FILE_MAX
 #define MAX_PTCACHE_FILE (FILE_MAX * 2)
 
-static int ptcache_path(PTCacheID *pid, char *filename)
+static int ptcache_path(PointCache *cache, Object *ob, char *filename)
 {
-	Library *lib = (pid->ob) ? pid->ob->id.lib : NULL;
-	const char *blendfilename= (lib && (pid->cache->flag & PTCACHE_IGNORE_LIBPATH)==0) ? lib->filepath: G.main->name;
+	bool is_external = cache && (cache->flag & PTCACHE_EXTERNAL);
+	bool ignore_libpath = cache && (cache->flag & PTCACHE_IGNORE_LIBPATH);
+	Library *lib = ob ? ob->id.lib : NULL;
+	const char *blendfilename= (lib && !ignore_libpath) ? lib->filepath: G.main->name;
 	size_t i;
 
-	if (pid->cache->flag & PTCACHE_EXTERNAL) {
-		strcpy(filename, pid->cache->path);
+	if (cache && is_external) {
+		strcpy(filename, cache->path);
 
 		if (BLI_path_is_rel(filename)) {
 			BLI_path_abs(filename, blendfilename);
@@ -1479,20 +1481,22 @@ static int ptcache_path(PTCacheID *pid, char *filename)
 
 static int ptcache_filename(PTCacheID *pid, char *filename, int cfra, short do_path, short do_ext)
 {
+	PointCache *cache = pid->cache;
+	bool is_external = (cache->flag & PTCACHE_EXTERNAL);
 	int len=0;
 	char *idname;
 	char *newname;
 	filename[0] = '\0';
 	newname = filename;
 	
-	if (!G.relbase_valid && (pid->cache->flag & PTCACHE_EXTERNAL)==0) return 0; /* save blend file before using disk pointcache */
+	if (!G.relbase_valid && !is_external) return 0; /* save blend file before using disk pointcache */
 	
 	/* start with temp dir */
 	if (do_path) {
-		len = ptcache_path(pid, filename);
+		len = ptcache_path(pid->cache, pid->ob, filename);
 		newname += len;
 	}
-	if (pid->cache->name[0] == '\0' && (pid->cache->flag & PTCACHE_EXTERNAL)==0) {
+	if (cache->name[0] == '\0' && !is_external) {
 		idname = (pid->ob->id.name + 2);
 		/* convert chars to hex so they are always a valid filename */
 		while ('\0' != *idname) {
@@ -1502,19 +1506,19 @@ static int ptcache_filename(PTCacheID *pid, char *filename, int cfra, short do_p
 		}
 	}
 	else {
-		int temp = (int)strlen(pid->cache->name); 
-		strcpy(newname, pid->cache->name); 
+		int temp = (int)strlen(cache->name); 
+		strcpy(newname, cache->name); 
 		newname+=temp;
 		len += temp;
 	}
 
 	if (do_ext) {
 
-		if (pid->cache->index < 0)
-			pid->cache->index =  pid->stack_index = BKE_object_insert_ptcache(pid->ob);
+		if (cache->index < 0)
+			cache->index =  pid->stack_index = BKE_object_insert_ptcache(pid->ob);
 
-		if (pid->cache->flag & PTCACHE_EXTERNAL) {
-			if (pid->cache->index >= 0)
+		if (is_external) {
+			if (cache->index >= 0)
 				BLI_snprintf(newname, MAX_PTCACHE_FILE, "_%06d_%02u"PTCACHE_EXT, cfra, pid->stack_index); /* always 6 chars */
 			else
 				BLI_snprintf(newname, MAX_PTCACHE_FILE, "_%06d"PTCACHE_EXT, cfra); /* always 6 chars */
@@ -2572,7 +2576,7 @@ void BKE_ptcache_id_clear(PTCacheID *pid, int mode, unsigned int cfra)
 	case PTCACHE_CLEAR_BEFORE:
 	case PTCACHE_CLEAR_AFTER:
 		if (pid->cache->flag & PTCACHE_DISK_CACHE) {
-			ptcache_path(pid, path);
+			ptcache_path(pid->cache, pid->ob, path);
 			
 			len = ptcache_filename(pid, filename, cfra, 0, 0); /* no path */
 			
@@ -2778,7 +2782,7 @@ void BKE_ptcache_id_time(PTCacheID *pid, Scene *scene, float cfra, int *startfra
 			char ext[MAX_PTCACHE_PATH];
 			unsigned int len; /* store the length of the string */
 
-			ptcache_path(pid, path);
+			ptcache_path(pid->cache, pid->ob, path);
 			
 			len = ptcache_filename(pid, filename, (int)cfra, 0, 0); /* no path */
 			
@@ -2958,7 +2962,7 @@ void BKE_ptcache_remove(void)
 	char path_full[MAX_PTCACHE_PATH];
 	int rmdir = 1;
 	
-	ptcache_path(NULL, path);
+	ptcache_path(NULL, NULL, path);
 
 	if (BLI_exists(path)) {
 		/* The pointcache dir exists? - remove all pointcache */
@@ -3479,8 +3483,12 @@ void BKE_ptcache_toggle_disk_cache(PTCacheID *pid)
 		cache->cached_frames=NULL;
 	}
 
-	if (cache->flag & PTCACHE_DISK_CACHE)
+	if (cache->flag & PTCACHE_DISK_CACHE) {
 		BKE_ptcache_mem_to_disk(pid);
+		
+		if (!cache->archive)
+			cache = PTC_archive_create()
+	}
 	else
 		BKE_ptcache_disk_to_mem(pid);
 
@@ -3516,7 +3524,7 @@ void BKE_ptcache_disk_cache_rename(PTCacheID *pid, const char *name_src, const c
 
 	len = ptcache_filename(pid, old_filename, 0, 0, 0); /* no path */
 
-	ptcache_path(pid, path);
+	ptcache_path(pid->cache, pid->ob, path);
 	dir = opendir(path);
 	if (dir==NULL) {
 		BLI_strncpy(pid->cache->name, old_name, sizeof(pid->cache->name));
@@ -3570,7 +3578,7 @@ void BKE_ptcache_load_external(PTCacheID *pid)
 	if (!cache)
 		return;
 
-	ptcache_path(pid, path);
+	ptcache_path(pid->cache, pid->ob, path);
 	
 	len = ptcache_filename(pid, filename, 1, 0, 0); /* no path */
 	
