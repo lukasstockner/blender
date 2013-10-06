@@ -634,12 +634,14 @@ static float paint_stroke_overlapped_curve(Brush *br, float x, float spacing)
 	return sum;
 }
 
-static float paint_stroke_integrate_overlap(Brush *br, float spacing)
+static float paint_stroke_integrate_overlap(Brush *br, float factor)
 {
 	int i;
 	int m;
 	float g;
 	float max;
+
+	float spacing = br->spacing * factor;
 
 	if (!(br->flag & BRUSH_SPACE_ATTEN && (br->spacing < 100)))
 		return 1.0;
@@ -694,6 +696,7 @@ static int paint_space_stroke(bContext *C, wmOperator *op, const float final_mou
 	float pressure, dpressure;
 	float mouse[2], dmouse[2];
 	float length;
+	float no_pressure_spacing = paint_space_stroke_spacing(scene, stroke, 1.0f, 1.0f);
 
 	sub_v2_v2v2(dmouse, final_mouse, stroke->last_mouse_position);
 
@@ -710,7 +713,7 @@ static int paint_space_stroke(bContext *C, wmOperator *op, const float final_mou
 			mouse[1] = stroke->last_mouse_position[1] + dmouse[1] * spacing;
 			pressure = stroke->last_pressure + (spacing / length) * dpressure;
 
-			ups->overlap_factor = paint_stroke_integrate_overlap(stroke->brush, spacing/stroke->zoom_2d);
+			ups->overlap_factor = paint_stroke_integrate_overlap(stroke->brush, spacing/no_pressure_spacing);
 
 			stroke->stroke_distance += spacing / stroke->zoom_2d;
 			paint_brush_stroke_add_step(C, op, mouse, pressure);
@@ -983,7 +986,7 @@ static void paint_line_strokes_spacing(bContext *C, wmOperator *op, PaintStroke 
 			mouse[0] = stroke->last_mouse_position[0] + dmouse[0] * spacing_final;
 			mouse[1] = stroke->last_mouse_position[1] + dmouse[1] * spacing_final;
 
-			ups->overlap_factor = paint_stroke_integrate_overlap(stroke->brush, spacing/stroke->zoom_2d);
+			ups->overlap_factor = paint_stroke_integrate_overlap(stroke->brush, 1.0);
 
 			stroke->stroke_distance += spacing / stroke->zoom_2d;
 			paint_brush_stroke_add_step(C, op, mouse, 1.0);
@@ -1016,7 +1019,7 @@ static void paint_stroke_polyline_end(bContext *C, wmOperator *op, PaintStroke *
 			MEM_freeN(plast);
 		}
 
-		stroke->ups->overlap_factor = paint_stroke_integrate_overlap(br, br->spacing);
+		stroke->ups->overlap_factor = paint_stroke_integrate_overlap(br, 1.0);
 
 		if (p->next)
 			paint_brush_stroke_add_step(C, op, p->pos, 1.0);
@@ -1036,7 +1039,7 @@ static void paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
 		CurvePoint *cp = stroke->line.first;
 		float length_residue = 0.0f;
 
-		stroke->ups->overlap_factor = paint_stroke_integrate_overlap(br, br->spacing);
+		stroke->ups->overlap_factor = paint_stroke_integrate_overlap(br, 1.0);
 
 		if (cp->next)
 			paint_brush_stroke_add_step(C, op, &cp->bez.vec[1][0], 1.0);
@@ -1309,7 +1312,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	    paint_space_stroke_enabled(br, mode) &&
 	    !(br->flag & BRUSH_SMOOTH_STROKE))
 	{
-		stroke->ups->overlap_factor = paint_stroke_integrate_overlap(br, br->spacing);
+		stroke->ups->overlap_factor = paint_stroke_integrate_overlap(br, 1.0);
 		paint_brush_stroke_add_step(C, op, sample_average.mouse, sample_average.pressure);
 		redraw = true;
 	}
