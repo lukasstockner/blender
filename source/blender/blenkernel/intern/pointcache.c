@@ -1532,6 +1532,54 @@ static int ptcache_filename(PTCacheID *pid, char *filename, int cfra, short do_p
 	return len; /* make sure the above string is always 16 chars */
 }
 
+static int ptcache_archive_filename(PointCache *cache, Object *ob, char *filename, bool do_path, bool do_ext)
+{
+	bool is_external = (cache->flag & PTCACHE_EXTERNAL);
+	int len=0;
+	char *idname;
+	char *newname;
+	filename[0] = '\0';
+	newname = filename;
+	
+	if (!G.relbase_valid && !is_external) return 0; /* save blend file before using disk pointcache */
+	
+	/* start with temp dir */
+	if (do_path) {
+		len = ptcache_path(cache, ob, filename);
+		newname += len;
+	}
+	if (cache->name[0] == '\0' && !is_external) {
+		idname = (ob->id.name + 2);
+		/* convert chars to hex so they are always a valid filename */
+		while ('\0' != *idname) {
+			BLI_snprintf(newname, MAX_PTCACHE_FILE, "%02X", (char)(*idname++));
+			newname+=2;
+			len += 2;
+		}
+	}
+	else {
+		int temp = (int)strlen(cache->name); 
+		strcpy(newname, cache->name); 
+		newname+=temp;
+		len += temp;
+	}
+	
+	if (do_ext) {
+		if (cache->index < 0)
+			cache->index =  BKE_object_insert_ptcache(ob);
+
+		if (cache->index < 0 || !is_external) {
+			BLI_snprintf(newname, MAX_PTCACHE_FILE, PTCACHE_ARCHIVE_EXT); /* always 6 chars */
+		}
+		else {
+			BLI_snprintf(newname, MAX_PTCACHE_FILE, "_%02u"PTCACHE_ARCHIVE_EXT, cache->index); /* always 6 chars */
+		}
+		len += 16;
+	}
+	
+	return len; /* make sure the above string is always 16 chars */
+}
+
 /* youll need to close yourself after! */
 static PTCacheFile *ptcache_file_open(PTCacheID *pid, int mode, int cfra)
 {
@@ -3486,11 +3534,20 @@ void BKE_ptcache_toggle_disk_cache(PTCacheID *pid)
 	if (cache->flag & PTCACHE_DISK_CACHE) {
 		BKE_ptcache_mem_to_disk(pid);
 		
-		if (!cache->archive)
-			cache = PTC_archive_create()
+		if (!cache->archive) {
+			char filename[FILE_MAX * 2];
+			ptcache_archive_filename(cache, pid->ob, filename, true, true);
+			cache->archive = PTC_archive_create(filename);
+		}
 	}
-	else
+	else {
 		BKE_ptcache_disk_to_mem(pid);
+		
+		if (cache->archive) {
+			PTC_archive_free(cache->archive);
+			cache->archive = NULL;
+		}
+	}
 
 	cache->flag ^= PTCACHE_DISK_CACHE;
 	BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);

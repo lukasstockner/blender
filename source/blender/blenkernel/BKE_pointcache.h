@@ -53,6 +53,7 @@
 
 /* Add the blendfile name after blendcache_ */
 #define PTCACHE_EXT ".bphys"
+#define PTCACHE_ARCHIVE_EXT ".abc"
 #define PTCACHE_PATH "blendcache_"
 
 /* File open options, for BKE_ptcache_file_open */

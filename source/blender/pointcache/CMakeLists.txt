@@ -35,6 +35,7 @@ set(SRC
 	test.cpp
 
 	PTC_api.h
+	PTC_api.cpp
 	PTC_schema.h
 
 	PTC_archive.h

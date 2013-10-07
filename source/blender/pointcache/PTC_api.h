@@ -25,8 +25,15 @@ extern "C" {
 
 void test_archive();
 
-void *PTC_archive_create(const char *filename);
-void PTC_archive_free(void *archive);
+
+struct PTCArchive;
+struct PTCObject;
+
+struct PTCArchive *PTC_archive_create(const char *filename);
+void PTC_archive_free(struct PTCArchive *archive);
+
+
+//PTCObject *PTC_object_particles()
 
 #ifdef __cplusplus
 } /* extern C */
