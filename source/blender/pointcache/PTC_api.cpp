@@ -21,18 +21,20 @@
 
 extern "C" {
 
-void *PTC_archive_create(const char *filename)
+typedef struct PTCArchive PTCArchive;
+
+PTCArchive *PTC_archive_create(const char *filename)
 {
 	OArchive *archive = new OArchive(Alembic::AbcCoreHDF5::WriteArchive(),
 	                                 std::string(filename),
 	                                 ErrorHandler::kThrowPolicy);
 	
-	return archive;
+	return (PTCArchive *)archive;
 }
 
-void PTC_archive_free(void *_archive)
+void PTC_archive_free(PTCArchive *_archive)
 {
-	OArchive *archive = static_cast<OArchive *>(_archive);
+	OArchive *archive = (OArchive *)_archive;
 	delete archive;
 }
 
