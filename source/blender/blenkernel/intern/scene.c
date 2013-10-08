@@ -44,6 +44,7 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_group_types.h"
+#include "DNA_linestyle_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_rigidbody_types.h"
@@ -429,7 +430,7 @@ Scene *BKE_scene_add(Main *bmain, const char *name)
 	sce->r.filtertype = R_FILTER_MITCH;
 	sce->r.size = 50;
 
-	sce->r.im_format.planes = R_IMF_PLANES_RGB;
+	sce->r.im_format.planes = R_IMF_PLANES_RGBA;
 	sce->r.im_format.imtype = R_IMF_IMTYPE_PNG;
 	sce->r.im_format.depth = R_IMF_CHAN_DEPTH_8;
 	sce->r.im_format.quality = 90;
@@ -492,23 +493,10 @@ Scene *BKE_scene_add(Main *bmain, const char *name)
 	sce->r.border.ymax = 1.0f;
 	
 	sce->toolsettings = MEM_callocN(sizeof(struct ToolSettings), "Tool Settings Struct");
-	sce->toolsettings->cornertype = 1;
-	sce->toolsettings->degr = 90; 
-	sce->toolsettings->step = 9;
-	sce->toolsettings->turn = 1;
-	sce->toolsettings->extr_offs = 1; 
 	sce->toolsettings->doublimit = 0.001;
-	sce->toolsettings->segments = 32;
-	sce->toolsettings->rings = 32;
-	sce->toolsettings->vertices = 32;
-	sce->toolsettings->uvcalc_radius = 1.0f;
-	sce->toolsettings->uvcalc_cubesize = 1.0f;
-	sce->toolsettings->uvcalc_mapdir = 1;
-	sce->toolsettings->uvcalc_mapalign = 1;
 	sce->toolsettings->uvcalc_margin = 0.001f;
 	sce->toolsettings->unwrapper = 1;
 	sce->toolsettings->select_thresh = 0.01f;
-	sce->toolsettings->jointrilimit = 0.8f;
 
 	sce->toolsettings->selectmode = SCE_SELECT_VERTEX;
 	sce->toolsettings->uv_selectmode = UV_SELECT_VERTEX;
@@ -1064,6 +1052,7 @@ void BKE_scene_frame_set(struct Scene *scene, double cfra)
  */
 static void scene_update_drivers(Main *UNUSED(bmain), Scene *scene)
 {
+	SceneRenderLayer *srl;
 	float ctime = BKE_scene_frame_get(scene);
 	
 	/* scene itself */
@@ -1097,6 +1086,22 @@ static void scene_update_drivers(Main *UNUSED(bmain), Scene *scene)
 		
 		if (adt && adt->drivers.first)
 			BKE_animsys_evaluate_animdata(scene, nid, adt, ctime, ADT_RECALC_DRIVERS);
+	}
+
+	/* freestyle */
+	for (srl = scene->r.layers.first; srl; srl = srl->next) {
+		FreestyleConfig *config = &srl->freestyleConfig;
+		FreestyleLineSet *lineset;
+
+		for (lineset = config->linesets.first; lineset; lineset = lineset->next) {
+			if (lineset->linestyle) {
+				ID *lid = &lineset->linestyle->id;
+				AnimData *adt = BKE_animdata_from_id(lid);
+
+				if (adt && adt->drivers.first)
+					BKE_animsys_evaluate_animdata(scene, lid, adt, ctime, ADT_RECALC_DRIVERS);
+			}
+		}
 	}
 }
 

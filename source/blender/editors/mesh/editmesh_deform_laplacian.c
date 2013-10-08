@@ -758,9 +758,9 @@ wmKeyMap * laplacian_deform_modal_keymap(wmKeyConfig *keyconf)
 	WM_modalkeymap_add_item(keymap, HKEY, KM_PRESS, 0, 0, LAP_MODAL_MARK_STATIC);
 	WM_modalkeymap_add_item(keymap, PKEY, KM_PRESS, 0, 0, LAP_MODAL_PREVIEW);
 
-	WM_modalkeymap_add_item(keymap, SKEY, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
-	WM_modalkeymap_add_item(keymap, RKEY, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
-	WM_modalkeymap_add_item(keymap, GKEY, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
+	//WM_modalkeymap_add_item(keymap, SKEY, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
+	//WM_modalkeymap_add_item(keymap, RKEY, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
+	//WM_modalkeymap_add_item(keymap, GKEY, KM_PRESS, 0, 0, LAP_MODAL_TRANSFORM);
 
 	WM_modalkeymap_add_item(keymap, ZKEY, KM_PRESS, 0, 0, LAP_MODAL_NOTHING);
 	WM_modalkeymap_add_item(keymap, TKEY, KM_PRESS, 0, 0, LAP_MODAL_NOTHING);

@@ -1108,9 +1108,6 @@ static void write_sensors(WriteData *wd, ListBase *lb)
 		case SENS_MOUSE:
 			writestruct(wd, DATA, "bMouseSensor", 1, sens->data);
 			break;
-		case SENS_TOUCH:
-			writestruct(wd, DATA, "bTouchSensor", 1, sens->data);
-			break;
 		case SENS_KEYBOARD:
 			writestruct(wd, DATA, "bKeyboardSensor", 1, sens->data);
 			break;
@@ -1739,7 +1736,7 @@ static void write_grid_paint_mask(WriteData *wd, int count, GridPaintMask *grid_
 		for (i = 0; i < count; ++i) {
 			GridPaintMask *gpm = &grid_paint_mask[i];
 			if (gpm->data) {
-				const int gridsize = ccg_gridsize(gpm->level);
+				const int gridsize = BKE_ccg_gridsize(gpm->level);
 				writedata(wd, DATA,
 				          sizeof(*gpm->data) * gridsize * gridsize,
 				          gpm->data);
@@ -1750,16 +1747,26 @@ static void write_grid_paint_mask(WriteData *wd, int count, GridPaintMask *grid_
 
 static void write_customdata(WriteData *wd, ID *id, int count, CustomData *data, int partial_type, int partial_count)
 {
+	CustomData data_tmp;
 	int i;
 
+	/* This copy will automatically ignore/remove layers set as NO_COPY (and TEMPORARY). */
+	CustomData_copy(data, &data_tmp, CD_MASK_EVERYTHING, CD_REFERENCE, count);
+
 	/* write external customdata (not for undo) */
-	if (data->external && !wd->current)
-		CustomData_external_write(data, id, CD_MASK_MESH, count, 0);
+	if (data_tmp.external && !wd->current)
+		CustomData_external_write(&data_tmp, id, CD_MASK_MESH, count, 0);
 
-	writestruct(wd, DATA, "CustomDataLayer", data->maxlayer, data->layers);
+	for (i = 0; i < data_tmp.totlayer; i++)
+		data_tmp.layers[i].flag &= ~CD_FLAG_NOFREE;
 
-	for (i=0; i<data->totlayer; i++) {
-		CustomDataLayer *layer= &data->layers[i];
+	writestruct_at_address(wd, DATA, "CustomDataLayer", data_tmp.maxlayer, data->layers, data_tmp.layers);
+ 
+	for (i = 0; i < data_tmp.totlayer; i++)
+		data_tmp.layers[i].flag |= CD_FLAG_NOFREE;
+
+	for (i = 0; i < data_tmp.totlayer; i++) {
+		CustomDataLayer *layer= &data_tmp.layers[i];
 		const char *structname;
 		int structnum, datasize;
 
@@ -1795,11 +1802,13 @@ static void write_customdata(WriteData *wd, ID *id, int count, CustomData *data,
 		}
 	}
 
-	if (data->external)
-		writestruct(wd, DATA, "CustomDataExternal", 1, data->external);
+	if (data_tmp.external)
+		writestruct_at_address(wd, DATA, "CustomDataExternal", 1, data->external, data_tmp.external);
+
+	CustomData_free(&data_tmp, count);
 }
 
-static void write_meshs(WriteData *wd, ListBase *idbase)
+static void write_meshes(WriteData *wd, ListBase *idbase)
 {
 	Mesh *mesh;
 	int save_for_old_blender= 0;
@@ -2394,6 +2403,15 @@ static void write_region(WriteData *wd, ARegion *ar, int spacetype)
 	}
 }
 
+static void write_uilist(WriteData *wd, uiList *ui_list)
+{
+	writestruct(wd, DATA, "uiList", 1, ui_list);
+
+	if (ui_list->properties) {
+		IDP_WriteProperty(ui_list->properties, wd);
+	}
+}
+
 static void write_soops(WriteData *wd, SpaceOops *so, LinkNode **tmp_mem_list)
 {
 	BLI_mempool *ts = so->treestore;
@@ -2421,8 +2439,8 @@ static void write_soops(WriteData *wd, SpaceOops *so, LinkNode **tmp_mem_list)
 			 * outliners in a screen we might get the same address on the next
 			 * malloc, which makes the address no longer unique and so invalid for
 			 * lookups on file read, causing crashes or double frees */
-			BLI_linklist_append(tmp_mem_list, ts_flat);
-			BLI_linklist_append(tmp_mem_list, data);
+			BLI_linklist_prepend(tmp_mem_list, ts_flat);
+			BLI_linklist_prepend(tmp_mem_list, data);
 		}
 		else {
 			so->treestore = NULL;
@@ -2431,7 +2449,8 @@ static void write_soops(WriteData *wd, SpaceOops *so, LinkNode **tmp_mem_list)
 
 		/* restore old treestore */
 		so->treestore = ts;
-	} else {
+	}
+	else {
 		writestruct(wd, DATA, "SpaceOops", 1, so);
 	}
 }
@@ -2475,7 +2494,7 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 					writestruct(wd, DATA, "Panel", 1, pa);
 				
 				for (ui_list = ar->ui_lists.first; ui_list; ui_list = ui_list->next)
-					writestruct(wd, DATA, "uiList", 1, ui_list);
+					write_uilist(wd, ui_list);
 			}
 			
 			sl= sa->spacedata.first;
@@ -2920,6 +2939,21 @@ static void write_movieTracks(WriteData *wd, ListBase *tracks)
 	}
 }
 
+static void write_moviePlaneTracks(WriteData *wd, ListBase *plane_tracks_base)
+{
+	MovieTrackingPlaneTrack *plane_track;
+
+	for (plane_track = plane_tracks_base->first;
+	     plane_track;
+	     plane_track = plane_track->next)
+	{
+		writestruct(wd, DATA, "MovieTrackingPlaneTrack", 1, plane_track);
+
+		writedata(wd, DATA, sizeof(MovieTrackingTrack *) * plane_track->point_tracksnr, plane_track->point_tracks);
+		writestruct(wd, DATA, "MovieTrackingPlaneMarker", plane_track->markersnr, plane_track->markers);
+	}
+}
+
 static void write_movieReconstruction(WriteData *wd, MovieTrackingReconstruction *reconstruction)
 {
 	if (reconstruction->camnr)
@@ -2944,6 +2978,7 @@ static void write_movieclips(WriteData *wd, ListBase *idbase)
 				write_animdata(wd, clip->adt);
 
 			write_movieTracks(wd, &tracking->tracks);
+			write_moviePlaneTracks(wd, &tracking->plane_tracks);
 			write_movieReconstruction(wd, &tracking->reconstruction);
 
 			object= tracking->objects.first;
@@ -2951,6 +2986,7 @@ static void write_movieclips(WriteData *wd, ListBase *idbase)
 				writestruct(wd, DATA, "MovieTrackingObject", 1, object);
 
 				write_movieTracks(wd, &object->tracks);
+				write_moviePlaneTracks(wd, &object->plane_tracks);
 				write_movieReconstruction(wd, &object->reconstruction);
 
 				object= object->next;
@@ -3330,7 +3366,7 @@ static int write_file_handle(Main *mainvar, int handle, MemFile *compare, MemFil
 	write_objects  (wd, &mainvar->object);
 	write_materials(wd, &mainvar->mat);
 	write_textures (wd, &mainvar->tex);
-	write_meshs    (wd, &mainvar->mesh);
+	write_meshes   (wd, &mainvar->mesh);
 	write_particlesettings(wd, &mainvar->particle);
 	write_nodetrees(wd, &mainvar->nodetree);
 	write_brushes  (wd, &mainvar->brush);

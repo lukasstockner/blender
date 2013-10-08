@@ -43,8 +43,6 @@ extern struct bNodeTreeType *ntreeType_Shader;
 void register_node_tree_type_sh(void);
 
 void register_node_type_sh_group(void);
-void register_node_type_sh_forloop(void);
-void register_node_type_sh_whileloop(void);
 
 void register_node_type_sh_output(void);
 void register_node_type_sh_material(void);
@@ -108,6 +106,7 @@ void register_node_type_sh_emission(void);
 void register_node_type_sh_holdout(void);
 void register_node_type_sh_volume_transparent(void);
 void register_node_type_sh_volume_isotropic(void);
+void register_node_type_sh_bsdf_hair(void);
 void register_node_type_sh_subsurface_scattering(void);
 void register_node_type_sh_mix_shader(void);
 void register_node_type_sh_add_shader(void);

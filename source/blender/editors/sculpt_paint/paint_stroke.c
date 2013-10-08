@@ -46,6 +46,7 @@
 #include "BKE_context.h"
 #include "BKE_paint.h"
 #include "BKE_brush.h"
+#include "BKE_colortools.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -184,7 +185,8 @@ static void paint_brush_update(bContext *C, Brush *brush, PaintMode mode,
 
 	if (paint_supports_dynamic_tex_coords(brush, mode)) {
 		if (((brush->mtex.brush_map_mode == MTEX_MAP_MODE_VIEW) ||
-		    (brush->mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM)) &&
+		     (brush->mtex.brush_map_mode == MTEX_MAP_MODE_AREA) ||
+		     (brush->mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM)) &&
 		    !(brush->flag & BRUSH_RAKE))
 		{
 			if (brush->flag & BRUSH_RANDOM_ROTATION)
@@ -477,6 +479,9 @@ PaintStroke *paint_stroke_new(bContext *C,
 	stroke->redraw = redraw;
 	stroke->done = done;
 	stroke->event_type = event_type; /* for modal, return event */
+
+	/* initialize here to avoid initialization conflict with threaded strokes */
+	curvemapping_initialize(br->curve);
 	
 	BKE_paint_set_overlay_override(br->overlay_flags);
 

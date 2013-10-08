@@ -121,7 +121,7 @@ static void bm_bridge_best_rotation(struct BMEdgeLoopStore *el_store_a, struct B
 	}
 
 	if (el_b_best) {
-		BLI_rotatelist(lb_b, el_b_best);
+		BLI_rotatelist_first(lb_b, el_b_best);
 	}
 }
 
@@ -273,9 +273,8 @@ static void bridge_loop_pair(BMesh *bm,
 		if (twist_offset != 0) {
 			const int len_b = BM_edgeloop_length_get(el_store_b);
 			ListBase *lb_b = BM_edgeloop_verts_get(el_store_b);
-			const int offset = twist_offset % len_b;
-			LinkData *el_b = BLI_rfindlink(lb_b, (offset < 0) ? (offset + len_b) : offset);
-			BLI_rotatelist(lb_b, el_b);
+			LinkData *el_b = BLI_rfindlink(lb_b, mod_i(twist_offset, len_b));
+			BLI_rotatelist_first(lb_b, el_b);
 		}
 	}
 
@@ -343,7 +342,7 @@ static void bridge_loop_pair(BMesh *bm,
 				BMVert *v_arr[4] = {v_a, v_b, v_b_next, v_a_next};
 				if (BM_face_exists(v_arr, 4, &f) == false) {
 					/* copy if loop data if its is missing on one ring */
-					f = BM_face_create_ngon_verts(bm, v_arr, 4, 0, false, true);
+					f = BM_face_create_verts(bm, v_arr, 4, NULL, BM_CREATE_NOP, true);
 
 					l_iter = BM_FACE_FIRST_LOOP(f);
 					if (l_b)      BM_elem_attrs_copy(bm, bm, l_b,      l_iter); l_iter = l_iter->next;
@@ -356,7 +355,7 @@ static void bridge_loop_pair(BMesh *bm,
 				BMVert *v_arr[3] = {v_a, v_b, v_a_next};
 				if (BM_face_exists(v_arr, 3, &f) == false) {
 					/* fan-fill a triangle */
-					f = BM_face_create_ngon_verts(bm, v_arr, 3, 0, false, true);
+					f = BM_face_create_verts(bm, v_arr, 3, NULL, BM_CREATE_NOP, true);
 
 					l_iter = BM_FACE_FIRST_LOOP(f);
 					if (l_b)      BM_elem_attrs_copy(bm, bm, l_b,      l_iter); l_iter = l_iter->next;
@@ -422,8 +421,8 @@ static void bridge_loop_pair(BMesh *bm,
 
 
 		BMO_op_initf(bm, &op_sub, 0,
-		             "beautify_fill faces=%hf edges=ae use_restrict_tag=%b",
-		             BM_ELEM_TAG, true);
+		             "beautify_fill faces=%hf edges=ae use_restrict_tag=%b method=%i",
+		             BM_ELEM_TAG, true, 1);
 
 		if (use_edgeout) {
 			BMOIter siter;

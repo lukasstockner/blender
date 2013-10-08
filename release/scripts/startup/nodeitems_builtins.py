@@ -186,6 +186,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeBsdfToon"),
         NodeItem("ShaderNodeSubsurfaceScattering"),
         NodeItem("ShaderNodeEmission"),
+        NodeItem("ShaderNodeBsdfHair"),
         NodeItem("ShaderNodeBackground"),
         NodeItem("ShaderNodeAmbientOcclusion"),
         NodeItem("ShaderNodeHoldout"),
@@ -342,6 +343,7 @@ compositor_node_categories = [
         NodeItem("CompositorNodeMapUV"),
         NodeItem("CompositorNodeTransform"),
         NodeItem("CompositorNodeStabilize"),
+        NodeItem("CompositorNodePlaneTrackDeform"),
         ]),
     CompositorNodeCategory("CMP_GROUP", "Group", items=node_group_items),
     CompositorNodeCategory("CMP_LAYOUT", "Layout", items=[

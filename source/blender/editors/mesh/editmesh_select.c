@@ -33,6 +33,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_linklist.h"
+#include "BLI_linklist_stack.h"
 #include "BLI_math.h"
 #include "BLI_rand.h"
 #include "BLI_array.h"
@@ -185,53 +186,6 @@ unsigned int bm_solidoffs = 0, bm_wireoffs = 0, bm_vertoffs = 0;    /* set in dr
 /* facilities for border select and circle select */
 static char *selbuf = NULL;
 
-/* opengl doesn't support concave... */
-static void draw_triangulated(const int mcords[][2], const short tot)
-{
-	ListBase lb = {NULL, NULL};
-	DispList *dl;
-	float *fp;
-	int a;
-	const float z_up[3] = {0.0f, 0.0f, 1.0f};
-	
-	/* make displist */
-	dl = MEM_callocN(sizeof(DispList), "poly disp");
-	dl->type = DL_POLY;
-	dl->parts = 1;
-	dl->nr = tot;
-	dl->verts = fp = MEM_callocN(tot * 3 * sizeof(float), "poly verts");
-	BLI_addtail(&lb, dl);
-	
-	for (a = 0; a < tot; a++, fp += 3) {
-		fp[0] = (float)mcords[a][0];
-		fp[1] = (float)mcords[a][1];
-	}
-	
-	/* do the fill */
-	BKE_displist_fill(&lb, &lb, z_up, false);
-
-	/* do the draw */
-	dl = lb.first;  /* filldisplist adds in head of list */
-	if (dl->type == DL_INDEX3) {
-		int *index;
-		
-		a = dl->parts;
-		fp = dl->verts;
-		index = dl->index;
-		glBegin(GL_TRIANGLES);
-		while (a--) {
-			glVertex3fv(fp + 3 * index[0]);
-			glVertex3fv(fp + 3 * index[1]);
-			glVertex3fv(fp + 3 * index[2]);
-			index += 3;
-		}
-		glEnd();
-	}
-	
-	BKE_displist_free(&lb);
-}
-
-
 /* reads rect, and builds selection array for quick lookup */
 /* returns if all is OK */
 bool EDBM_backbuf_border_init(ViewContext *vc, short xmin, short ymin, short xmax, short ymax)
@@ -265,7 +219,11 @@ bool EDBM_backbuf_border_init(ViewContext *vc, short xmin, short ymin, short xma
 
 int EDBM_backbuf_check(unsigned int index)
 {
+	/* odd logic, if selbuf is NULL we assume no zbuf-selection is enabled
+	 * and just ignore the depth buffer, this is error prone since its possible
+	 * code doesn't set the depth buffer by accident, but leave for now. - Campbell */
 	if (selbuf == NULL) return 1;
+
 	if (index > 0 && index <= bm_vertoffs)
 		return selbuf[index];
 	return 0;
@@ -277,6 +235,18 @@ void EDBM_backbuf_free(void)
 	selbuf = NULL;
 }
 
+struct LassoMaskData {
+	unsigned int *px;
+	int width;
+};
+
+static void edbm_mask_lasso_px_cb(int x, int y, void *user_data)
+{
+	struct LassoMaskData *data = user_data;
+	data->px[(y * data->width) + x] = true;
+}
+
+
 /* mcords is a polygon mask
  * - grab backbuffer,
  * - draw with black in backbuffer, 
@@ -285,9 +255,10 @@ void EDBM_backbuf_free(void)
  */
 bool EDBM_backbuf_border_mask_init(ViewContext *vc, const int mcords[][2], short tot, short xmin, short ymin, short xmax, short ymax)
 {
-	unsigned int *dr, *drm;
-	struct ImBuf *buf, *bufmask;
+	unsigned int *dr, *dr_mask, *dr_mask_arr;
+	struct ImBuf *buf;
 	int a;
+	struct LassoMaskData lasso_mask_data;
 	
 	/* method in use for face selecting too */
 	if (vc->obedit == NULL) {
@@ -305,49 +276,25 @@ bool EDBM_backbuf_border_mask_init(ViewContext *vc, const int mcords[][2], short
 
 	dr = buf->rect;
 
-	if (vc->rv3d->gpuoffscreen)
-		GPU_offscreen_bind(vc->rv3d->gpuoffscreen);
-	
-	/* draw the mask */
-	glDisable(GL_DEPTH_TEST);
-	
-	glColor3ub(0, 0, 0);
-	
-	/* yah, opengl doesn't do concave... tsk! */
-	ED_region_pixelspace(vc->ar);
-	draw_triangulated(mcords, tot);
-	
-	glBegin(GL_LINE_LOOP);  /* for zero sized masks, lines */
-	for (a = 0; a < tot; a++) {
-		glVertex2iv(mcords[a]);
-	}
-	glEnd();
-	
-	glFinish(); /* to be sure readpixels sees mask */
-	
-	if (vc->rv3d->gpuoffscreen)
-		GPU_offscreen_unbind(vc->rv3d->gpuoffscreen);
-	
-	/* grab mask */
-	bufmask = view3d_read_backbuf(vc, xmin, ymin, xmax, ymax);
+	dr_mask = dr_mask_arr = MEM_callocN(sizeof(*dr_mask) * buf->x * buf->y, __func__);
+	lasso_mask_data.px = dr_mask;
+	lasso_mask_data.width = (xmax - xmin) + 1;
 
-	if (bufmask == NULL) {
-		return false;  /* only when mem alloc fails, go crash somewhere else! */
-	}
-	else {
-		drm = bufmask->rect;
-	}
+	fill_poly_v2i_n(
+	       xmin, ymin, xmax + 1, ymax + 1,
+	       mcords, tot,
+	       edbm_mask_lasso_px_cb, &lasso_mask_data);
 
 	/* build selection lookup */
 	selbuf = MEM_callocN(bm_vertoffs + 1, "selbuf");
 	
 	a = (xmax - xmin + 1) * (ymax - ymin + 1);
 	while (a--) {
-		if (*dr > 0 && *dr <= bm_vertoffs && *drm == 0) selbuf[*dr] = 1;
-		dr++; drm++;
+		if (*dr > 0 && *dr <= bm_vertoffs && *dr_mask == true) selbuf[*dr] = 1;
+		dr++; dr_mask++;
 	}
 	IMB_freeImBuf(buf);
-	IMB_freeImBuf(bufmask);
+	MEM_freeN(dr_mask_arr);
 
 	return true;
 }
@@ -1233,7 +1180,7 @@ static void mouse_mesh_loop(bContext *C, const int mval[2], bool extend, bool de
 				/* We can't be sure this has already been set... */
 				ED_view3d_init_mats_rv3d(vc.obedit, vc.rv3d);
 
-				BM_ITER_ELEM(f, &iterf, eed, BM_FACES_OF_EDGE) {
+				BM_ITER_ELEM (f, &iterf, eed, BM_FACES_OF_EDGE) {
 					if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
 						float cent[3];
 						float co[2], tdist;
@@ -2509,7 +2456,7 @@ static int edbm_select_nth_exec(bContext *C, wmOperator *op)
 	int offset = RNA_int_get(op->ptr, "offset");
 
 	/* so input of offset zero ends up being (nth - 1) */
-	offset = (offset + (nth - 1)) % nth;
+	offset = mod_i(offset, nth);
 
 	if (edbm_deselect_nth(em, nth, offset) == false) {
 		BKE_report(op->reports, RPT_ERROR, "Mesh has no active vert/edge/face");
@@ -2537,7 +2484,7 @@ void MESH_OT_select_nth(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	RNA_def_int(ot->srna, "nth", 2, 2, INT_MAX, "Nth Selection", "", 2, 100);
-	RNA_def_int(ot->srna, "offset", 0, 0, INT_MAX, "Offset", "", 0, 100);
+	RNA_def_int(ot->srna, "offset", 0, INT_MIN, INT_MAX, "Offset", "", -100, 100);
 }
 
 void em_setup_viewcontext(bContext *C, ViewContext *vc)
@@ -2609,8 +2556,7 @@ static int edbm_select_linked_flat_faces_exec(bContext *C, wmOperator *op)
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	BMesh *bm = em->bm;
 
-	BMFace **stack = MEM_mallocN(sizeof(BMFace *) * bm->totface, __func__);
-	STACK_DECLARE(stack);
+	BLI_LINKSTACK_DECLARE(stack, BMFace *);
 
 	BMIter iter, liter, liter2;
 	BMFace *f;
@@ -2619,6 +2565,7 @@ static int edbm_select_linked_flat_faces_exec(bContext *C, wmOperator *op)
 
 	BM_mesh_elem_hflag_disable_all(bm, BM_FACE, BM_ELEM_TAG, false);
 
+	BLI_LINKSTACK_INIT(stack);
 
 	BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
 		if ((BM_elem_flag_test(f, BM_ELEM_HIDDEN) != 0) ||
@@ -2628,7 +2575,7 @@ static int edbm_select_linked_flat_faces_exec(bContext *C, wmOperator *op)
 			continue;
 		}
 
-		STACK_INIT(stack);
+		BLI_assert(BLI_LINKSTACK_SIZE(stack) == 0);
 
 		do {
 			BM_face_select_set(bm, f, true);
@@ -2648,16 +2595,14 @@ static int edbm_select_linked_flat_faces_exec(bContext *C, wmOperator *op)
 					angle = angle_normalized_v3v3(f->no, l2->f->no);
 
 					if (angle < angle_limit) {
-						STACK_PUSH(stack, l2->f);
+						BLI_LINKSTACK_PUSH(stack, l2->f);
 					}
 				}
 			}
-		} while ((f = STACK_POP(stack)));
+		} while ((f = BLI_LINKSTACK_POP(stack)));
 	}
 
-	STACK_FREE(stack);
-
-	MEM_freeN(stack);
+	BLI_LINKSTACK_FREE(stack);
 
 	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 

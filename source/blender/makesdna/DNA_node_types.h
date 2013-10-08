@@ -720,8 +720,10 @@ typedef struct NodeTexBase {
 
 typedef struct NodeTexSky {
 	NodeTexBase base;
+	int sky_model;
 	float sun_direction[3];
 	float turbidity;
+	float ground_albedo;
 } NodeTexSky;
 
 typedef struct NodeTexImage {
@@ -827,6 +829,10 @@ typedef struct NodeTranslateData {
 	char pad[6];
 } NodeTranslateData;
 
+typedef struct NodePlaneTrackDeformData {
+	char tracking_object[64];
+	char plane_track_name[64];
+} NodePlaneTrackDeformData;
 
 typedef struct NodeShaderScript {
 	int mode;
@@ -888,6 +894,10 @@ typedef struct NodeShaderNormalMap {
 #define SHD_TOON_DIFFUSE	0
 #define SHD_TOON_GLOSSY		1
 
+/* hair components */
+#define SHD_HAIR_REFLECTION		0
+#define SHD_HAIR_TRANSMISSION		1
+
 /* blend texture */
 #define SHD_BLEND_LINEAR			0
 #define SHD_BLEND_QUADRATIC			1
@@ -933,9 +943,9 @@ typedef struct NodeShaderNormalMap {
 #define SHD_WAVE_BANDS		0
 #define SHD_WAVE_RINGS		1
 
-#define SHD_WAVE_SINE	0
-#define SHD_WAVE_SAW	1
-#define SHD_WAVE_TRI	2
+/* sky texture */
+#define SHD_SKY_OLD		0
+#define SHD_SKY_NEW		1
 
 /* image/environment texture */
 #define SHD_COLORSPACE_NONE		0
@@ -964,6 +974,11 @@ typedef struct NodeShaderNormalMap {
 #define SHD_NORMAL_MAP_WORLD			2
 #define SHD_NORMAL_MAP_BLENDER_OBJECT	3
 #define SHD_NORMAL_MAP_BLENDER_WORLD	4
+
+/* subsurface */
+#define SHD_SUBSURFACE_COMPATIBLE		0 // Deprecated
+#define SHD_SUBSURFACE_CUBIC			1
+#define SHD_SUBSURFACE_GAUSSIAN			2
 
 /* blur node */
 #define CMP_NODE_BLUR_ASPECT_NONE		0

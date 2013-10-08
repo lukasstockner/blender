@@ -70,7 +70,6 @@
 #ifdef WIN32
 #  include <io.h>
 #  include <direct.h>
-#  include <limits.h>  /* PATH_MAX */
 #  include "BLI_winstuff.h"
 #  include "utfconv.h"
 #else

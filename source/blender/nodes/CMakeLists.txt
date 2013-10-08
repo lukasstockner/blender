@@ -92,6 +92,7 @@ set(SRC
 	composite/nodes/node_composite_normal.c
 	composite/nodes/node_composite_normalize.c
 	composite/nodes/node_composite_outputFile.c
+	composite/nodes/node_composite_planetrackdeform.c
 	composite/nodes/node_composite_premulkey.c
 	composite/nodes/node_composite_rgb.c
 	composite/nodes/node_composite_rotate.c
@@ -163,6 +164,7 @@ set(SRC
 	shader/nodes/node_shader_bsdf_translucent.c
 	shader/nodes/node_shader_bsdf_transparent.c
 	shader/nodes/node_shader_bsdf_velvet.c
+	shader/nodes/node_shader_bsdf_hair.c
 	shader/nodes/node_shader_bump.c
 	shader/nodes/node_shader_emission.c
 	shader/nodes/node_shader_fresnel.c

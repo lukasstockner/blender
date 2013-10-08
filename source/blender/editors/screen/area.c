@@ -1446,7 +1446,6 @@ void ED_area_newspace(bContext *C, ScrArea *sa, int type)
 		}
 		
 		if (sl) {
-			
 			/* swap regions */
 			slold->regionbase = sa->regionbase;
 			sa->regionbase = sl->regionbase;
@@ -1696,8 +1695,10 @@ void ED_region_panels(const bContext *C, ARegion *ar, int vertical, const char *
 			/* Note: this code scales fine, but because of rounding differences, positions of elements
 			 * flip +1 or -1 pixel compared to redoing the entire layout again.
 			 * Leaving in commented code for future tests */
-			/* uiScalePanels(ar, BLI_rctf_size_x(&v2d->cur));
-			   break; */
+#if 0
+			uiScalePanels(ar, BLI_rctf_size_x(&v2d->cur));
+			break;
+#endif
 		}
 		else {
 			break;
@@ -1806,7 +1807,7 @@ void ED_region_header_init(ARegion *ar)
 /* UI_UNIT_Y is defined as U variable now, depending dpi */
 int ED_area_headersize(void)
 {
-	return (int)(1.3f * UI_UNIT_Y);
+	return (int)(HEADERY * UI_DPI_FAC);
 }
 
 void ED_region_info_draw(ARegion *ar, const char *text, int block, float fill_color[4])

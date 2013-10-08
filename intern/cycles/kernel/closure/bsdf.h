@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include "../closure/bsdf_ashikhmin_velvet.h"
@@ -30,7 +28,10 @@
 #endif
 #include "../closure/bsdf_westin.h"
 #include "../closure/bsdf_toon.h"
+#include "../closure/bsdf_hair.h"
+#ifdef __SUBSURFACE__
 #include "../closure/bssrdf.h"
+#endif
 
 CCL_NAMESPACE_BEGIN
 
@@ -114,6 +115,14 @@ __device int bsdf_sample(KernelGlobals *kg, const ShaderData *sd, const ShaderCl
 			label = bsdf_westin_sheen_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
+		case CLOSURE_BSDF_HAIR_REFLECTION_ID:
+			label = bsdf_hair_reflection_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
+				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
+			break;
+		case CLOSURE_BSDF_HAIR_TRANSMISSION_ID:
+			label = bsdf_hair_transmission_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
+				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
+			break;
 #endif
 		default:
 			label = LABEL_NONE;
@@ -188,6 +197,12 @@ __device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const ShaderC
 			case CLOSURE_BSDF_WESTIN_SHEEN_ID:
 				eval = bsdf_westin_sheen_eval_reflect(sc, sd->I, omega_in, pdf);
 				break;
+			case CLOSURE_BSDF_HAIR_REFLECTION_ID:
+				eval = bsdf_hair_reflection_eval_reflect(sc, sd->I, omega_in, pdf);
+				break;
+			case CLOSURE_BSDF_HAIR_TRANSMISSION_ID:
+				eval = bsdf_hair_transmission_eval_reflect(sc, sd->I, omega_in, pdf);
+				break;
 #endif
 			default:
 				eval = make_float3(0.0f, 0.0f, 0.0f);
@@ -243,6 +258,12 @@ __device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const ShaderC
 				break;
 			case CLOSURE_BSDF_WESTIN_SHEEN_ID:
 				eval = bsdf_westin_sheen_eval_transmit(sc, sd->I, omega_in, pdf);
+				break;
+			case CLOSURE_BSDF_HAIR_REFLECTION_ID:
+				eval = bsdf_hair_reflection_eval_transmit(sc, sd->I, omega_in, pdf);
+				break;
+			case CLOSURE_BSDF_HAIR_TRANSMISSION_ID:
+				eval = bsdf_hair_transmission_eval_transmit(sc, sd->I, omega_in, pdf);
 				break;
 #endif
 			default:
@@ -317,6 +338,10 @@ __device void bsdf_blur(KernelGlobals *kg, ShaderClosure *sc, float roughness)
 			break;
 		case CLOSURE_BSDF_WESTIN_SHEEN_ID:
 			bsdf_westin_sheen_blur(sc, roughness);
+			break;
+		case CLOSURE_BSDF_HAIR_REFLECTION_ID:
+		case CLOSURE_BSDF_HAIR_TRANSMISSION_ID:
+			bsdf_hair_reflection_blur(sc, roughness);
 			break;
 #endif
 		default:

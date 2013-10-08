@@ -22,6 +22,7 @@ set(SRC_HEADERS
 	kernel.h
 	kernel_accumulate.h
 	kernel_bvh.h
+	kernel_bvh_subsurface.h
 	kernel_bvh_traversal.h
 	kernel_camera.h
 	kernel_compat_cpu.h
@@ -40,6 +41,7 @@ set(SRC_HEADERS
 	kernel_object.h
 	kernel_passes.h
 	kernel_path.h
+	kernel_path_state.h
 	kernel_primitive.h
 	kernel_projection.h
 	kernel_random.h
@@ -65,6 +67,7 @@ set(SRC_CLOSURE_HEADERS
 	closure/bsdf_util.h
 	closure/bsdf_ward.h
 	closure/bsdf_westin.h
+	closure/bsdf_hair.h
 	closure/bssrdf.h
 	closure/emissive.h
 	closure/volume.h
@@ -148,36 +151,16 @@ if(WITH_CYCLES_CUDA_BINARIES)
 
 		set(cuda_version_flags "-D__KERNEL_CUDA_VERSION__=${CUDA_VERSION}")
 
-		# build flags depending on CUDA version and arch
-		if(CUDA_VERSION LESS 50)
-			# CUDA 4.x
-			if(${arch} MATCHES "sm_1[0-9]")
-				# sm_1x
-				set(cuda_arch_flags "--maxrregcount=24 --opencc-options -OPT:Olimit=0")
-			elseif(${arch} MATCHES "sm_2[0-9]")
-				# sm_2x
-				set(cuda_arch_flags "--maxrregcount=24")
-			else()
-				# sm_3x
-				set(cuda_arch_flags "--maxrregcount=32")
-			endif()
-
-			set(cuda_math_flags "")
-		else()
-			# CUDA 5.x
-			if(${arch} MATCHES "sm_1[0-9]")
-				# sm_1x
-				set(cuda_arch_flags "--maxrregcount=24 --opencc-options -OPT:Olimit=0")
-			elseif(${arch} MATCHES "sm_2[0-9]")
-				# sm_2x
-				set(cuda_arch_flags "--maxrregcount=32")
-			else()
-				# sm_3x
-				set(cuda_arch_flags "--maxrregcount=32")
-			endif()
-
-			set(cuda_math_flags "--use_fast_math")
+		# CUDA 5.x build flags for different archs
+		if(${arch} MATCHES "sm_2[0-9]")
+			# sm_2x
+			set(cuda_arch_flags "--maxrregcount=32")
+		elseif(${arch} MATCHES "sm_3[0-9]")
+			# sm_3x
+			set(cuda_arch_flags "--maxrregcount=32")
 		endif()
+
+		set(cuda_math_flags "--use_fast_math")
 		
 		if(CUDA_VERSION LESS 50 AND ${arch} MATCHES "sm_35")
 			message(WARNING "Can't build kernel for CUDA sm_35 architecture, skipping")

@@ -1341,7 +1341,7 @@ PyObject *pyrna_prop_to_py(PointerRNA *ptr, PropertyRNA *prop)
 		return pyrna_py_from_array(ptr, prop);
 	}
 
-	/* see if we can coorce into a python type - PropertyType */
+	/* see if we can coerce into a python type - PropertyType */
 	switch (type) {
 		case PROP_BOOLEAN:
 			ret = PyBool_FromLong(RNA_property_boolean_get(ptr, prop));
@@ -1507,7 +1507,7 @@ static int pyrna_py_to_prop(PointerRNA *ptr, PropertyRNA *prop, void *data, PyOb
 	else {
 		/* Normal Property (not an array) */
 
-		/* see if we can coorce into a python type - PropertyType */
+		/* see if we can coerce into a python type - PropertyType */
 		switch (type) {
 			case PROP_BOOLEAN:
 			{
@@ -4600,14 +4600,6 @@ PyDoc_STRVAR(pyrna_prop_collection_foreach_get_doc,
 ".. method:: foreach_get(attr, seq)\n"
 "\n"
 "   This is a function to give fast access to attributes within a collection.\n"
-"\n"
-"   .. code-block:: python\n"
-"\n"
-"      collection.foreach_get(attr, someseq)\n"
-"\n"
-"      # Python equivalent\n"
-"      for i in range(len(seq)): someseq[i] = getattr(collection, attr)\n"
-"\n"
 );
 static PyObject *pyrna_prop_collection_foreach_get(BPy_PropertyRNA *self, PyObject *args)
 {
@@ -4620,14 +4612,6 @@ PyDoc_STRVAR(pyrna_prop_collection_foreach_set_doc,
 ".. method:: foreach_set(attr, seq)\n"
 "\n"
 "   This is a function to give fast access to attributes within a collection.\n"
-"\n"
-"   .. code-block:: python\n"
-"\n"
-"      collection.foreach_set(attr, seq)\n"
-"\n"
-"      # Python equivalent\n"
-"      for i in range(len(seq)): setattr(collection[i], attr, seq[i])\n"
-"\n"
 );
 static PyObject *pyrna_prop_collection_foreach_set(BPy_PropertyRNA *self, PyObject *args)
 {
@@ -4887,7 +4871,7 @@ static PyObject *pyrna_param_to_py(PointerRNA *ptr, PropertyRNA *prop, void *dat
 		}
 	}
 	else {
-		/* see if we can coorce into a python type - PropertyType */
+		/* see if we can coerce into a python type - PropertyType */
 		switch (type) {
 			case PROP_BOOLEAN:
 				ret = PyBool_FromLong(*(int *)data);
@@ -5327,7 +5311,7 @@ static PyObject *pyrna_func_doc_get(BPy_FunctionRNA *self, void *UNUSED(closure)
 	PyObject *ret;
 	char *args;
 
-	args = RNA_function_as_string_keywords(NULL, self->func, NULL, true, true, INT_MAX);
+	args = RNA_function_as_string_keywords(NULL, self->func, true, true, INT_MAX);
 
 	ret = PyUnicode_FromFormat("%.200s.%.200s(%.200s)\n%s",
 	                           RNA_struct_identifier(self->ptr.type),
@@ -6875,7 +6859,7 @@ int pyrna_deferred_register_class(StructRNA *srna, PyTypeObject *py_class)
 
 /*-------------------- Type Registration ------------------------*/
 
-static int rna_function_arg_count(FunctionRNA *func)
+static int rna_function_arg_count(FunctionRNA *func, int *min_count)
 {
 	const ListBase *lb = RNA_function_defined_parameters(func);
 	PropertyRNA *parm;
@@ -6883,13 +6867,23 @@ static int rna_function_arg_count(FunctionRNA *func)
 	int flag = RNA_function_flag(func);
 	int is_staticmethod = (flag & FUNC_NO_SELF) && !(flag & FUNC_USE_SELF_TYPE);
 	int count = is_staticmethod ? 0 : 1;
+	bool done_min_count = false;
 
 	for (link = lb->first; link; link = link->next) {
 		parm = (PropertyRNA *)link;
-		if (!(RNA_property_flag(parm) & PROP_OUTPUT))
+		if (!(RNA_property_flag(parm) & PROP_OUTPUT)) {
+			if (!done_min_count && (RNA_property_flag(parm) & PROP_PYFUNC_OPTIONAL)) {
+				/* From now on, following parameters are optional in py func */
+				if (min_count)
+					*min_count = count;
+				done_min_count = true;
+			}
 			count++;
+		}
 	}
 
+	if (!done_min_count && min_count)
+		*min_count = count;
 	return count;
 }
 
@@ -6904,7 +6898,7 @@ static int bpy_class_validate_recursive(PointerRNA *dummyptr, StructRNA *srna, v
 	PyObject *py_class = (PyObject *)py_data;
 	PyObject *base_class = RNA_struct_py_type_get(srna);
 	PyObject *item;
-	int i, flag, is_staticmethod, arg_count, func_arg_count;
+	int i, flag, is_staticmethod, arg_count, func_arg_count, func_arg_min_count = 0;
 	const char *py_class_name = ((PyTypeObject *)py_class)->tp_name;  /* __name__ */
 
 	if (srna_base) {
@@ -6968,7 +6962,7 @@ static int bpy_class_validate_recursive(PointerRNA *dummyptr, StructRNA *srna, v
 				}
 			}
 
-			func_arg_count = rna_function_arg_count(func);
+			func_arg_count = rna_function_arg_count(func, &func_arg_min_count);
 
 			if (func_arg_count >= 0) { /* -1 if we don't care*/
 				arg_count = ((PyCodeObject *)PyFunction_GET_CODE(item))->co_argcount;
@@ -6976,14 +6970,25 @@ static int bpy_class_validate_recursive(PointerRNA *dummyptr, StructRNA *srna, v
 				/* note, the number of args we check for and the number of args we give to
 				 * @staticmethods are different (quirk of python),
 				 * this is why rna_function_arg_count() doesn't return the value -1*/
-				if (is_staticmethod)
+				if (is_staticmethod) {
 					func_arg_count++;
+					func_arg_min_count++;
+				}
 
-				if (arg_count != func_arg_count) {
-					PyErr_Format(PyExc_ValueError,
-					             "expected %.200s, %.200s class \"%.200s\" function to have %d args, found %d",
-					             class_type, py_class_name, RNA_function_identifier(func),
-					             func_arg_count, arg_count);
+				if (arg_count < func_arg_min_count || arg_count > func_arg_count) {
+					if (func_arg_min_count != func_arg_count) {
+						PyErr_Format(PyExc_ValueError,
+						             "expected %.200s, %.200s class \"%.200s\" function to have between %d and %d "
+						             "args, found %d",
+						             class_type, py_class_name, RNA_function_identifier(func),
+						             func_arg_count, func_arg_min_count, arg_count);
+					}
+					else {
+						PyErr_Format(PyExc_ValueError,
+						             "expected %.200s, %.200s class \"%.200s\" function to have %d args, found %d",
+						             class_type, py_class_name, RNA_function_identifier(func),
+						             func_arg_count, arg_count);
+					}
 					return -1;
 				}
 			}
@@ -7063,7 +7068,7 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
 	PropertyRNA *parm;
 	ParameterIterator iter;
 	PointerRNA funcptr;
-	int err = 0, i, ret_len = 0;
+	int err = 0, i, ret_len = 0, arg_count;
 	int flag = RNA_function_flag(func);
 	const char is_staticmethod = (flag & FUNC_NO_SELF) && !(flag & FUNC_USE_SELF_TYPE);
 	const char is_classmethod = (flag & FUNC_NO_SELF) && (flag & FUNC_USE_SELF_TYPE);
@@ -7198,7 +7203,15 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
 		if (item) {
 			RNA_pointer_create(NULL, &RNA_Function, func, &funcptr);
 
-			args = PyTuple_New(rna_function_arg_count(func)); /* first arg is included in 'item' */
+			if (is_staticmethod) {
+				arg_count = ((PyCodeObject *)PyFunction_GET_CODE(((PyMethodObject *)item)->im_func))->co_argcount - 1;
+			}
+			else {
+				arg_count = ((PyCodeObject *)PyFunction_GET_CODE(item))->co_argcount;
+			}
+//			args = PyTuple_New(rna_function_arg_count(func)); /* first arg is included in 'item' */
+			args = PyTuple_New(arg_count); /* first arg is included in 'item' */
+
 
 			if (is_staticmethod) {
 				i = 0;
@@ -7230,9 +7243,11 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
 					continue;
 				}
 
-				parmitem = pyrna_param_to_py(&funcptr, parm, iter.data);
-				PyTuple_SET_ITEM(args, i, parmitem);
-				i++;
+				if (i < arg_count) {
+					parmitem = pyrna_param_to_py(&funcptr, parm, iter.data);
+					PyTuple_SET_ITEM(args, i, parmitem);
+					i++;
+				}
 			}
 
 #ifdef USE_PEDANTIC_WRITE

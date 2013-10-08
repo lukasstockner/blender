@@ -393,7 +393,7 @@ extern bool ui_set_but_string(struct bContext *C, uiBut *but, const char *str);
 extern bool ui_set_but_string_eval_num(struct bContext *C, uiBut *but, const char *str, double *value);
 extern int  ui_get_but_string_max_length(uiBut *but);
 
-extern void ui_set_but_default(struct bContext *C, short all);
+extern void ui_set_but_default(struct bContext *C, const bool all);
 
 extern void ui_check_but(uiBut *but);
 extern bool ui_is_but_float(uiBut *but);
@@ -538,7 +538,7 @@ extern void ui_draw_but(const struct bContext *C, ARegion *ar, struct uiStyle *s
 struct ThemeUI;
 void ui_widget_color_init(struct ThemeUI *tui);
 
-void ui_draw_menu_item(struct uiFontStyle *fstyle, rcti *rect, const char *name, int iconid, int state);
+void ui_draw_menu_item(struct uiFontStyle *fstyle, rcti *rect, const char *name, int iconid, int state, bool use_sep);
 void ui_draw_preview_item(struct uiFontStyle *fstyle, rcti *rect, const char *name, int iconid, int state);
 
 extern const unsigned char checker_stipple_sml[32 * 32 / 8];
@@ -584,4 +584,8 @@ int ui_but_anim_expression_set(uiBut *but, const char *str);
 int ui_but_anim_expression_create(uiBut *but, const char *str);
 void ui_but_anim_autokey(struct bContext *C, uiBut *but, struct Scene *scene, float cfra);
 
-#endif
+/* interface_eyedropper.c */
+void UI_OT_eyedropper_color(struct wmOperatorType *ot);
+void UI_OT_eyedropper_id(struct wmOperatorType *ot);
+
+#endif  /* __INTERFACE_INTERN_H__ */

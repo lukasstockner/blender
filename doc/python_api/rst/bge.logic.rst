@@ -127,7 +127,9 @@ Variables
 
 .. data:: joysticks
 
-   A list of attached :class:`~bge.types.SCA_PythonJoystick`s. The list size is the maximum number of supported joysticks. If no joystick is available for a given slot, the slot is set to None.
+   A list of attached :class:`~bge.types.SCA_PythonJoystick`.
+   The list size is the maximum number of supported joysticks.
+   If no joystick is available for a given slot, the slot is set to None.
 
 *****************
 General functions
@@ -1114,6 +1116,19 @@ See :class:`bge.types.KX_GameObject.playAction`
    
    :value: 2
 
+.. _gameobject-playaction-blend:
+
+.. data:: KX_ACTION_BLEND_BLEND
+
+   Blend layers using linear interpolation
+
+   :value: 0
+
+.. data:: KX_ACTION_BLEND_ADD
+
+   Adds the layers together
+
+   :value: 1
 
 -------------
 Mouse Buttons
