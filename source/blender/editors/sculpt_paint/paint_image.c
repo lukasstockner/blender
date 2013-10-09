@@ -66,6 +66,7 @@
 #include "BKE_image.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
+#include "BKE_material.h"
 #include "BKE_mesh.h"
 #include "BKE_node.h"
 #include "BKE_object.h"
@@ -1357,6 +1358,14 @@ static int texture_paint_toggle_exec(bContext *C, wmOperator *op)
 		toggle_paint_cursor(C, 0);
 	}
 	else {
+		/* Make sure that active object has a material, and assign UVs and image layers (TODO) if they do not exist */
+
+		/* no material, add one */
+		if (ob->totcol == 0) {
+			Material *ma = BKE_material_add(CTX_data_main(C), "Material");
+			assign_material(ob, ma, 1, BKE_MAT_ASSIGN_USERPREF);
+		}
+
 		ob->mode |= mode_flag;
 
 		if (me->mtface == NULL)
