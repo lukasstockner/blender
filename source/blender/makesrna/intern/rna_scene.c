@@ -219,6 +219,13 @@ EnumPropertyItem snap_uv_element_items[] = {
 #  define R_IMF_ENUM_TIFF
 #endif
 
+#ifdef WITH_PSD
+#  define R_IMF_ENUM_PSD     {R_IMF_IMTYPE_PSD, "PSD", ICON_FILE_IMAGE, "Photosp PSD", \
+                                                "Output image in Photoshop PSD format"},
+#else
+#  define R_IMF_ENUM_PSD
+#endif
+
 
 #define IMAGE_TYPE_ITEMS_IMAGE_ONLY                                           \
 	R_IMF_ENUM_BMP                                                            \
@@ -236,6 +243,7 @@ EnumPropertyItem snap_uv_element_items[] = {
 	R_IMF_ENUM_EXR                                                            \
 	R_IMF_ENUM_HDR                                                            \
 	R_IMF_ENUM_TIFF                                                           \
+	R_IMF_ENUM_PSD                                                            \
 
 
 EnumPropertyItem image_only_type_items[] = {
@@ -1541,7 +1549,8 @@ static void rna_FreestyleLineSet_linestyle_set(PointerRNA *ptr, PointerRNA value
 {
 	FreestyleLineSet *lineset = (FreestyleLineSet *)ptr->data;
 
-	lineset->linestyle->id.us--;
+	if (lineset->linestyle)
+		lineset->linestyle->id.us--;
 	lineset->linestyle = (FreestyleLineStyle *)value.data;
 	lineset->linestyle->id.us++;
 }
@@ -4079,6 +4088,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 		{RE_BAKE_NORMALS, "NORMALS", 0, "Normals", "Bake normals"},
 		{RE_BAKE_TEXTURE, "TEXTURE", 0, "Textures", "Bake textures"},
 		{RE_BAKE_DISPLACEMENT, "DISPLACEMENT", 0, "Displacement", "Bake displacement"},
+		{RE_BAKE_DERIVATIVE, "DERIVATIVE", 0, "Derivative", "Bake derivative map"},
 		{RE_BAKE_EMIT, "EMIT", 0, "Emission", "Bake Emit values (glow)"},
 		{RE_BAKE_ALPHA, "ALPHA", 0, "Alpha", "Bake Alpha values (transparency)"},
 		{RE_BAKE_MIRROR_INTENSITY, "MIRROR_INTENSITY", 0, "Mirror Intensity", "Bake Mirror values"},
@@ -4664,6 +4674,17 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Bake to Vertex Color",
 	                         "Bake to vertex colors instead of to a UV-mapped image");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+	prop = RNA_def_property(srna, "use_bake_user_scale", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "bake_flag", R_BAKE_USERSCALE);
+	RNA_def_property_ui_text(prop, "User scale", "Use a user scale for the derivative map");
+
+	prop = RNA_def_property(srna, "bake_user_scale", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "bake_user_scale");
+	RNA_def_property_range(prop, 0.0, 1000.0);
+	RNA_def_property_ui_text(prop, "Scale",
+	                         "Instead of automatically normalizing to 0..1, "
+	                         "apply a user scale to the derivative map.");
 
 	/* stamp */
 	
