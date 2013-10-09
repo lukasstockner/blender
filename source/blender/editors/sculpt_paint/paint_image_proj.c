@@ -962,8 +962,8 @@ static int check_seam(const ProjPaintState *ps, const int orig_face, const int o
 
 					/* we now have a point in the middle of the uv edge, slightly offset in uv space.
 					 * Test if it is within both faces */
-					isect_orig = isect_point_poly_v2(uv_point, orig_tf->uv, ((orig_mf->v4) ? 4 : 3));
-					isect = isect_point_poly_v2(uv_point, ((const MTFace *)tf)->uv, ((mf->v4) ? 4 : 3));
+					isect_orig = isect_point_poly_v2(uv_point, orig_tf->uv, ((orig_mf->v4) ? 4 : 3), false);
+					isect = isect_point_poly_v2(uv_point, ((const MTFace *)tf)->uv, ((mf->v4) ? 4 : 3), false);
 
 					if (isect_orig == isect)
 						return 1;

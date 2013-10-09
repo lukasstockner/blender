@@ -983,12 +983,6 @@ void MESH_OT_flip_normals(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static const EnumPropertyItem direction_items[] = {
-	{false, "CW", 0, "Clockwise", ""},
-	{true, "CCW", 0, "Counter Clockwise", ""},
-	{0, NULL, 0, NULL, NULL}
-};
-
 /* only accepts 1 selected edge, or 2 selected faces */
 static int edbm_edge_rotate_selected_exec(bContext *C, wmOperator *op)
 {
@@ -3008,7 +3002,7 @@ static int edbm_fill_grid_exec(bContext *C, wmOperator *op)
 		}
 
 		offset = RNA_property_int_get(op->ptr, prop_offset);
-		offset = mod_i(offset, clamp);
+		offset = clamp ? mod_i(offset, clamp) : 0;
 
 		/* in simple cases, move selection for tags, but also support more advanced cases */
 		edbm_fill_grid_prepare(em->bm, offset, &span, calc_span);

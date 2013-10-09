@@ -1750,6 +1750,7 @@ static void do_draw_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 
 	/* offset with as much as possible factored in already */
 	mul_v3_v3fl(offset, ss->cache->sculpt_normal_symm, ss->cache->radius);
+	mul_v3_v3(offset, ss->cache->scale);
 	mul_v3_fl(offset, bstrength);
 
 	/* threaded loop over nodes */
@@ -1794,6 +1795,7 @@ static void do_crease_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnod
 
 	/* offset with as much as possible factored in already */
 	mul_v3_v3fl(offset, ss->cache->sculpt_normal_symm, ss->cache->radius);
+	mul_v3_v3(offset, ss->cache->scale);
 	mul_v3_fl(offset, bstrength);
 	
 	/* we divide out the squared alpha and multiply by the squared crease to give us the pinch strength */
@@ -2222,7 +2224,8 @@ static void do_inflate_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totno
 				if (vd.fno) copy_v3_v3(val, vd.fno);
 				else normal_short_to_float_v3(val, vd.no);
 				
-				mul_v3_v3fl(proxy[vd.i], val, fade * ss->cache->radius);
+				mul_v3_fl(val, fade * ss->cache->radius);
+				mul_v3_v3v3(proxy[vd.i], val, ss->cache->scale);
 
 				if (vd.mvert)
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
@@ -2601,7 +2604,8 @@ static void do_flatten_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totno
 
 	displace = radius * offset;
 
-	mul_v3_v3fl(temp, an, displace);
+	mul_v3_v3v3(temp, an, ss->cache->scale);
+	mul_v3_fl(temp, displace);
 	add_v3_v3(fc, temp);
 
 	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
@@ -2670,7 +2674,8 @@ static void do_clay_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 
 	displace = radius * (0.25f + offset);
 
-	mul_v3_v3fl(temp, an, displace);
+	mul_v3_v3v3(temp, an, ss->cache->scale);
+	mul_v3_fl(temp, displace);
 	add_v3_v3(fc, temp);
 
 	/* add_v3_v3v3(p, ss->cache->location, an); */
@@ -2757,7 +2762,8 @@ static void do_clay_strips_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int t
 
 	displace = radius * (0.25f + offset);
 
-	mul_v3_v3fl(temp, sn, displace);
+	mul_v3_v3v3(temp, sn, ss->cache->scale);
+	mul_v3_fl(temp, displace);
 	add_v3_v3(fc, temp);
 
 	/* init mat */
@@ -2836,7 +2842,8 @@ static void do_fill_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 
 	displace = radius * offset;
 
-	mul_v3_v3fl(temp, an, displace);
+	mul_v3_v3v3(temp, an, ss->cache->scale);
+	mul_v3_fl(temp, displace);
 	add_v3_v3(fc, temp);
 
 	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
@@ -2899,7 +2906,8 @@ static void do_scrape_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnod
 
 	displace = -radius * offset;
 
-	mul_v3_v3fl(temp, an, displace);
+	mul_v3_v3v3(temp, an, ss->cache->scale);
+	mul_v3_fl(temp, displace);
 	add_v3_v3(fc, temp);
 
 	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
@@ -3809,15 +3817,26 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 	Object *ob = CTX_data_active_object(C);
 	float mat[3][3];
 	float viewDir[3] = {0.0f, 0.0f, 1.0f};
+	float max_scale;
 	int i;
 	int mode;
 
 	ss->cache = cache;
 
 	/* Set scaling adjustment */
-	cache->scale[0] = 1.0f / ob->size[0];
-	cache->scale[1] = 1.0f / ob->size[1];
-	cache->scale[2] = 1.0f / ob->size[2];
+	if (brush->sculpt_tool == SCULPT_TOOL_LAYER) {
+		max_scale = 1.0f;
+	}
+	else {
+		max_scale = 0.0f;
+		for (i = 0; i < 3; i ++) {
+			max_scale = max_ff(max_scale, fabsf(ob->size[i]));
+		}
+	}
+	cache->scale[0] = max_scale / ob->size[0];
+	cache->scale[1] = max_scale / ob->size[1];
+	cache->scale[2] = max_scale / ob->size[2];
+
 
 	cache->plane_trim_squared = brush->plane_trim * brush->plane_trim;
 
@@ -5032,6 +5051,8 @@ static int sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
 		ob->mode &= ~mode_flag;
 
 		free_sculptsession(ob);
+
+		paint_cursor_delete_textures();
 	}
 	else {
 		/* Enter sculptmode */

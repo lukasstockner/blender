@@ -4186,12 +4186,6 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 	direct_link_customdata(fd, &mesh->fdata, mesh->totface);
 	direct_link_customdata(fd, &mesh->ldata, mesh->totloop);
 	direct_link_customdata(fd, &mesh->pdata, mesh->totpoly);
-	
-	if (mesh->mloopuv || mesh->mtpoly) {
-		/* for now we have to ensure texpoly and mloopuv layers are aligned
-		 * in the future we may allow non-aligned layers */
-		BKE_mesh_cd_validate(mesh);
-	}
 
 	mesh->bb = NULL;
 	mesh->edit_btmesh = NULL;
@@ -4199,6 +4193,12 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 	/* happens with old files */
 	if (mesh->mselect == NULL) {
 		mesh->totselect = 0;
+	}
+
+	if (mesh->mloopuv || mesh->mtpoly) {
+		/* for now we have to ensure texpoly and mloopuv layers are aligned
+		 * in the future we may allow non-aligned layers */
+		BKE_mesh_cd_validate(mesh);
 	}
 
 	/* Multires data */
@@ -9734,11 +9734,27 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			}
 		}
 	}
+	
+	if (!MAIN_VERSION_ATLEAST(main, 269, 1)) {
+		/* Removal of Cycles SSS Compatible falloff */
+		FOREACH_NODETREE(main, ntree, id) {
+			if (ntree->type == NTREE_SHADER) {
+				bNode *node;
+				for (node = ntree->nodes.first; node; node = node->next) {
+					if (node->type == SH_NODE_SUBSURFACE_SCATTERING) {
+						if (node->custom1 == SHD_SUBSURFACE_COMPATIBLE) {
+							node->custom1 = SHD_SUBSURFACE_CUBIC;
+						}
+					}
+				}
+			}
+		} FOREACH_NODETREE_END
+	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init see do_versions_userdef() above! */
 
-	/* don't forget to set version number in blender.c! */
+	/* don't forget to set version number in BKE_blender.h! */
 }
 
 #if 0 // XXX: disabled for now... we still don't have this in the right place in the loading code for it to work

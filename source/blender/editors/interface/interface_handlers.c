@@ -2257,12 +2257,16 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 				break;
 				
 			case AKEY:
+
 				/* Ctrl + A: Select all */
-#if !defined(__APPLE__)
-				if (event->ctrl && !(event->alt || event->shift || event->oskey)) {
+#if defined(__APPLE__)
+				/* OSX uses cmd-a systemwide, so add it */
+				if ((event->oskey && !(event->alt || event->shift || event->ctrl)) ||
+				    (event->ctrl  && !(event->alt || event->shift || event->oskey)))
 #else
-				if (event->oskey && !(event->alt || event->shift || event->ctrl)) { // OSX conformity
+				if (event->ctrl && !(event->alt || event->shift || event->oskey))
 #endif
+				{
 					ui_textedit_move(but, data, STRCUR_DIR_PREV,
 					                 false, STRCUR_JUMP_ALL);
 					ui_textedit_move(but, data, STRCUR_DIR_NEXT,
@@ -2647,7 +2651,10 @@ static int ui_do_but_TEX(bContext *C, uiBlock *block, uiBut *but, uiHandleButton
 {
 	if (data->state == BUTTON_STATE_HIGHLIGHT) {
 		if (ELEM4(event->type, LEFTMOUSE, EVT_BUT_OPEN, PADENTER, RETKEY) && event->val == KM_PRESS) {
-			if (but->dt == UI_EMBOSSN && !event->ctrl) {
+			if (ELEM(event->type, PADENTER, RETKEY) && (!ui_is_but_utf8(but))) {
+				/* pass - allow filesel, enter to execute */
+			}
+			else if (but->dt == UI_EMBOSSN && !event->ctrl) {
 				/* pass */
 			}
 			else {
@@ -2681,13 +2688,8 @@ static int ui_do_but_SEARCH_UNLINK(bContext *C, uiBlock *block, uiBut *but, uiHa
 		BLI_rcti_rctf_copy(&rect, &but->rect);
 		
 		rect.xmin = rect.xmax - (BLI_rcti_size_y(&rect));
-		if ( BLI_rcti_isect_pt(&rect, x, y) ) {
-			/* most likely NULL, but let's check, and give it temp zero string */
-			if (data->str == NULL)
-				data->str = MEM_callocN(16, "temp str");
-			data->str[0] = 0;
-			
-			ui_apply_but_TEX(C, but, data);
+		if (BLI_rcti_isect_pt(&rect, x, y)) {
+			ui_set_but_string(C, but, "");
 			button_activate_state(C, but, BUTTON_STATE_EXIT);
 			
 			return WM_UI_HANDLER_BREAK;
@@ -3639,6 +3641,69 @@ static int ui_do_but_BLOCK(bContext *C, uiBut *but, uiHandleButtonData *data, co
 	return WM_UI_HANDLER_CONTINUE;
 }
 
+
+static bool ui_numedit_but_NORMAL(uiBut *but, uiHandleButtonData *data, int mx, int my)
+{
+	float dx, dy, rad, radsq, mrad, *fp;
+	int mdx, mdy;
+	bool changed = true;
+	
+	/* button is presumed square */
+	/* if mouse moves outside of sphere, it does negative normal */
+
+	/* note that both data->vec and data->origvec should be normalized
+	 * else we'll get a harmless but annoying jump when first clicking */
+
+	fp = data->origvec;
+	rad = BLI_rctf_size_x(&but->rect);
+	radsq = rad * rad;
+	
+	if (fp[2] > 0.0f) {
+		mdx = (rad * fp[0]);
+		mdy = (rad * fp[1]);
+	}
+	else if (fp[2] > -1.0f) {
+		mrad = rad / sqrtf(fp[0] * fp[0] + fp[1] * fp[1]);
+		
+		mdx = 2.0f * mrad * fp[0] - (rad * fp[0]);
+		mdy = 2.0f * mrad * fp[1] - (rad * fp[1]);
+	}
+	else {
+		mdx = mdy = 0;
+	}
+	
+	dx = (float)(mx + mdx - data->dragstartx);
+	dy = (float)(my + mdy - data->dragstarty);
+
+	fp = data->vec;
+	mrad = dx * dx + dy * dy;
+	if (mrad < radsq) { /* inner circle */
+		fp[0] = dx;
+		fp[1] = dy;
+		fp[2] = sqrt(radsq - dx * dx - dy * dy);
+	}
+	else {  /* outer circle */
+		
+		mrad = rad / sqrtf(mrad);  // veclen
+		
+		dx *= (2.0f * mrad - 1.0f);
+		dy *= (2.0f * mrad - 1.0f);
+		
+		mrad = dx * dx + dy * dy;
+		if (mrad < radsq) {
+			fp[0] = dx;
+			fp[1] = dy;
+			fp[2] = -sqrt(radsq - dx * dx - dy * dy);
+		}
+	}
+	normalize_v3(fp);
+
+	data->draglastx = mx;
+	data->draglasty = my;
+
+	return changed;
+}
+
 static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
 {
 
@@ -3755,68 +3820,6 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
 	}
 
 	return WM_UI_HANDLER_CONTINUE;
-}
-
-static bool ui_numedit_but_NORMAL(uiBut *but, uiHandleButtonData *data, int mx, int my)
-{
-	float dx, dy, rad, radsq, mrad, *fp;
-	int mdx, mdy;
-	bool changed = true;
-	
-	/* button is presumed square */
-	/* if mouse moves outside of sphere, it does negative normal */
-
-	/* note that both data->vec and data->origvec should be normalized
-	 * else we'll get a harmless but annoying jump when first clicking */
-
-	fp = data->origvec;
-	rad = BLI_rctf_size_x(&but->rect);
-	radsq = rad * rad;
-	
-	if (fp[2] > 0.0f) {
-		mdx = (rad * fp[0]);
-		mdy = (rad * fp[1]);
-	}
-	else if (fp[2] > -1.0f) {
-		mrad = rad / sqrtf(fp[0] * fp[0] + fp[1] * fp[1]);
-		
-		mdx = 2.0f * mrad * fp[0] - (rad * fp[0]);
-		mdy = 2.0f * mrad * fp[1] - (rad * fp[1]);
-	}
-	else {
-		mdx = mdy = 0;
-	}
-	
-	dx = (float)(mx + mdx - data->dragstartx);
-	dy = (float)(my + mdy - data->dragstarty);
-
-	fp = data->vec;
-	mrad = dx * dx + dy * dy;
-	if (mrad < radsq) { /* inner circle */
-		fp[0] = dx;
-		fp[1] = dy;
-		fp[2] = sqrt(radsq - dx * dx - dy * dy);
-	}
-	else {  /* outer circle */
-		
-		mrad = rad / sqrtf(mrad);  // veclen
-		
-		dx *= (2.0f * mrad - 1.0f);
-		dy *= (2.0f * mrad - 1.0f);
-		
-		mrad = dx * dx + dy * dy;
-		if (mrad < radsq) {
-			fp[0] = dx;
-			fp[1] = dy;
-			fp[2] = -sqrt(radsq - dx * dx - dy * dy);
-		}
-	}
-	normalize_v3(fp);
-
-	data->draglastx = mx;
-	data->draglasty = my;
-
-	return changed;
 }
 
 static int ui_do_but_NORMAL(bContext *C, uiBlock *block, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
@@ -5516,6 +5519,28 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
 		/* handle drop */
 		else if (event->type == EVT_DROP) {
 			ui_but_drop(C, event, but, data);
+		}
+		/* handle eyedropper */
+		else if ((event->type == EKEY) && (event->val == KM_PRESS)) {
+			if (event->alt || event->shift || event->ctrl || event->oskey) {
+				/* pass */
+			}
+			else {
+				if (but->type == COLOR) {
+					WM_operator_name_call(C, "UI_OT_eyedropper_color", WM_OP_INVOKE_DEFAULT, NULL);
+					return WM_UI_HANDLER_BREAK;
+				}
+				else if (but->type == SEARCH_MENU_UNLINK) {
+					if (but->rnaprop && RNA_property_type(but->rnaprop) == PROP_POINTER) {
+						StructRNA *type = RNA_property_pointer_type(&but->rnapoin, but->rnaprop);
+						const short idcode = RNA_type_to_ID_code(type);
+						if ((idcode == ID_OB) || OB_DATA_SUPPORT_ID(idcode)) {
+							WM_operator_name_call(C, "UI_OT_eyedropper_id", WM_OP_INVOKE_DEFAULT, NULL);
+							return WM_UI_HANDLER_BREAK;
+						}
+					}
+				}
+			}
 		}
 		/* handle keyframing */
 		else if ((event->type == IKEY) &&
