@@ -54,7 +54,7 @@ OSL::ClosureParam *closure_bssrdf_cubic_params();
 OSL::ClosureParam *closure_bssrdf_gaussian_params();
 OSL::ClosureParam *closure_bssrdf_cubic_extended_params();
 OSL::ClosureParam *closure_bssrdf_gaussian_extended_params();
-OSL::ClosureParam *closure_isotropic_volume_params();
+OSL::ClosureParam *closure_henyey_greenstein_volume_params();
 
 void closure_emission_prepare(OSL::RendererServices *, int id, void *data);
 void closure_background_prepare(OSL::RendererServices *, int id, void *data);
@@ -66,7 +66,7 @@ void closure_westin_backscatter_prepare(OSL::RendererServices *, int id, void *d
 void closure_westin_sheen_prepare(OSL::RendererServices *, int id, void *data);
 void closure_bssrdf_cubic_prepare(OSL::RendererServices *, int id, void *data);
 void closure_bssrdf_gaussian_prepare(OSL::RendererServices *, int id, void *data);
-void closure_isotropic_volume_prepare(OSL::RendererServices *, int id, void *data);
+void closure_henyey_greenstein_volume_prepare(OSL::RendererServices *, int id, void *data);
 
 enum {
 	AmbientOcclusion = 100

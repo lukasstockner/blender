@@ -487,7 +487,7 @@ closure color hair_reflection(normal N, float roughnessu, float roughnessv, vect
 closure color hair_transmission(normal N, float roughnessu, float roughnessv, vector T, float offset) BUILTIN;
 
 // Volume
-closure color isotropic(normal N, float Density, float g) BUILTIN;
+closure color henyey_greenstein(normal N, float Density, float g) BUILTIN;
 
 // Backwards compatibility
 closure color bssrdf_cubic(normal N, vector radius) BUILTIN;

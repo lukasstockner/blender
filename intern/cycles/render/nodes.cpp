@@ -1923,7 +1923,7 @@ void AmbientOcclusionNode::compile(OSLCompiler& compiler)
 VolumeNode::VolumeNode()
 : ShaderNode("volume")
 {
-	closure = CLOSURE_VOLUME_ISOTROPIC_ID;
+	closure = CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID;
 
 	add_input("Color", SHADER_SOCKET_COLOR, make_float3(0.8f, 0.8f, 0.8f));
 	add_input("Density", SHADER_SOCKET_FLOAT, 1.0f);
@@ -1988,7 +1988,7 @@ void TransparentVolumeNode::compile(OSLCompiler& compiler)
 
 IsotropicVolumeNode::IsotropicVolumeNode()
 {
-	closure = CLOSURE_VOLUME_ISOTROPIC_ID;
+	closure = CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID;
 	
 	add_input("g", SHADER_SOCKET_FLOAT, 0.0f);
 }
@@ -2000,7 +2000,7 @@ void IsotropicVolumeNode::compile(SVMCompiler& compiler)
 
 void IsotropicVolumeNode::compile(OSLCompiler& compiler)
 {
-	compiler.add(this, "node_isotropic_volume");
+	compiler.add(this, "node_henyey_greenstein_volume");
 }
 
 /* Hair BSDF Closure */

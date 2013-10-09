@@ -29,11 +29,11 @@ set(SRC_OSL
 	node_glossy_bsdf.osl
 	node_gradient_texture.osl
 	node_hair_info.osl
+	node_henyey_greenstein_volume.osl
 	node_holdout.osl
 	node_hsv.osl
 	node_image_texture.osl
 	node_invert.osl
-	node_isotropic_volume.osl
 	node_layer_weight.osl
 	node_light_falloff.osl
 	node_light_path.osl

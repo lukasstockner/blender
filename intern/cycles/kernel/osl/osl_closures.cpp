@@ -170,11 +170,11 @@ BSDF_CLOSURE_CLASS_BEGIN(HairTransmission, hair_transmission, hair_transmission,
 #endif
 BSDF_CLOSURE_CLASS_END(HairTransmission, hair_transmission)
 
-VOLUME_CLOSURE_CLASS_BEGIN(VolumeIsotropic, isotropic, isotropic)
-	CLOSURE_FLOAT3_PARAM(VolumeIsotropicClosure, sc.N),
-	CLOSURE_FLOAT_PARAM(VolumeIsotropicClosure, sc.data0),
-	CLOSURE_FLOAT_PARAM(VolumeIsotropicClosure, sc.data1),
-VOLUME_CLOSURE_CLASS_END(VolumeIsotropic, isotropic)
+VOLUME_CLOSURE_CLASS_BEGIN(VolumeHenyeyGreenstein, henyey_greenstein, henyey_greenstein)
+	CLOSURE_FLOAT3_PARAM(VolumeHenyeyGreensteinClosure, sc.N),
+	CLOSURE_FLOAT_PARAM(VolumeHenyeyGreensteinClosure, sc.data0),
+	CLOSURE_FLOAT_PARAM(VolumeHenyeyGreensteinClosure, sc.data1),
+VOLUME_CLOSURE_CLASS_END(VolumeHenyeyGreenstein, henyey_greenstein)
 
 /* Registration */
 
@@ -265,8 +265,8 @@ void OSLShader::register_closures(OSLShadingSystem *ss_)
 	register_closure(ss, "hair_transmission", id++,
 		bsdf_hair_transmission_params(), bsdf_hair_transmission_prepare);
 
-	register_closure(ss, "isotropic", id++,
-		volume_isotropic_params(), volume_isotropic_prepare);
+	register_closure(ss, "henyey_greenstein", id++,
+		volume_henyey_greenstein_params(), volume_henyey_greenstein_prepare);
 }
 
 CCL_NAMESPACE_END

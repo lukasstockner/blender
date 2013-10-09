@@ -489,7 +489,7 @@ __device void svm_node_closure_volume(KernelGlobals *kg, ShaderData *sd, float *
 			break;
 		}
 #endif
-		case CLOSURE_VOLUME_ISOTROPIC_ID: {
+		case CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID: {
 			ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
 
 			if(sc) {
@@ -497,7 +497,7 @@ __device void svm_node_closure_volume(KernelGlobals *kg, ShaderData *sd, float *
 				float g = param2;
 				sc->data0 = density;
 				sc->data1 = g;
-				sd->flag |= volume_isotropic_setup(sc);
+				sd->flag |= volume_henyey_greenstein_setup(sc);
 			}
 			break;
 		}
