@@ -18,27 +18,22 @@
  * The Original Code is Copyright (C) 2005 by the Blender Foundation.
  * All rights reserved.
  *
- * Contributor(s): Your name
+ * Contributor(s): Alexander Pinzon Fernandez
  *
  * ***** END GPL LICENSE BLOCK *****
  *
  */
  
-/** \file blender/modifiers/intern/MOD_scaling.c
+/** \file blender/modifiers/intern/MOD_laplaciandeform.c
  *  \ingroup modifiers
  */
  
- 
 #include "DNA_meshdata_types.h"
- 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 #include "BLI_string.h"
 #include "BLI_array.h"
-
- 
 #include "MEM_guardedalloc.h"
- 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_particle.h"
 #include "BKE_deform.h"
@@ -46,18 +41,15 @@
 #include "BKE_context.h"
 #include "BKE_editmesh.h"
 #include "BKE_editmesh_bvh.h"
-
- 
 #include "MOD_modifiertypes.h"
 #include "MOD_util.h"
-
 #include "ONL_opennl.h"
 
 struct BLaplacianSystem {
 	bool is_matrix_computed;
+	bool has_solution;
 	int total_verts;
 	int total_edges;
-	int total_faces;
 	int total_anchors;
 	char defgrp_name[64];		/* Vertex Group name*/
 	float (*co)[3];				/* Original vertex coordinates*/
@@ -79,9 +71,9 @@ static LaplacianSystem * newLaplacianSystem()
 		return NULL;
 	}
 	sys->is_matrix_computed = false;
+	sys->has_solution = false;
 	sys->total_verts = 0;
 	sys->total_edges = 0;
-	sys->total_faces = 0;
 	sys->total_anchors = 0;
 	sys->defgrp_name[0] = '\0';
 	sys->co = NULL;
@@ -102,9 +94,9 @@ static LaplacianSystem * initLaplacianSystem(int totalVerts, int totalEdges, int
 		return NULL;
 	}
 	sys->is_matrix_computed = false;
+	sys->has_solution = false;
 	sys->total_verts = totalVerts;
 	sys->total_edges = totalEdges;
-	sys->total_faces = totalFaces;
 	sys->total_anchors = totalAnchors;
 	BLI_strncpy(sys->defgrp_name, defgrpName, sizeof(sys->defgrp_name));
 	sys->co = (float (*)[3])MEM_callocN(sizeof(float)*(totalVerts*3), "DeformCoordinates");
@@ -276,10 +268,10 @@ static void computeImplictRotations(LaplacianSystem * sys)
 		minj = 1000000.0f;
 		for (j = 0; j < (ln-1); j++) {
 			vid = vidn[j];
-			copy_v3_v3(qj, sys->co[vid]);// vn[j]->co;
-			sub_v3_v3v3(vj, qj, sys->co[i]); //sub_v3_v3v3(vj, qj, v->co);
+			copy_v3_v3(qj, sys->co[vid]);
+			sub_v3_v3v3(vj, qj, sys->co[i]);
 			normalize_v3(vj);
-			mjt = fabs(dot_v3v3(vj, sys->no[i])); //mjt = fabs(dot_v3v3(vj, v->no));
+			mjt = fabs(dot_v3v3(vj, sys->no[i]));
 			if (mjt < minj) {
 				minj = mjt;
 				sys->unit_verts[i] = vidn[j];
@@ -306,10 +298,10 @@ static void rotateDifferentialCoordinates(LaplacianSystem * sys)
 
 	BM_ITER_MESH (v, &viter, sys->bm, BM_VERTS_OF_MESH) {
 		i = BM_elem_index_get(v);
-		copy_v3_v3(pi, sys->co[i]); //copy_v3_v3(pi, v->co);
-		copy_v3_v3(ni, sys->no[i]); //copy_v3_v3(ni, v->no);
+		copy_v3_v3(pi, sys->co[i]); 
+		copy_v3_v3(ni, sys->no[i]); 
 		k = sys->unit_verts[i];
-		copy_v3_v3(pj, sys->co[k]); //copy_v3_v3(pj, sys->uverts[i]->co);
+		copy_v3_v3(pj, sys->co[k]); 
 		sub_v3_v3v3(uij, pj, pi);
 		mul_v3_v3fl(dun, ni, dot_v3v3(uij, ni));
 		sub_v3_v3(uij, dun);
@@ -426,6 +418,7 @@ static void laplacianDeformPreview(LaplacianSystem * sys, float (*vertexCos)[3])
 		nlEnd(NL_SYSTEM);
 
 		if (nlSolveAdvanced(NULL, NL_TRUE) ) {
+			sys->has_solution = true;
 			
 			nlBegin(NL_SYSTEM);
 			nlBegin(NL_MATRIX);
@@ -441,15 +434,21 @@ static void laplacianDeformPreview(LaplacianSystem * sys, float (*vertexCos)[3])
 			nlEnd(NL_MATRIX);
 			nlEnd(NL_SYSTEM);
 			if (nlSolveAdvanced(NULL, NL_FALSE) ) {
+				sys->has_solution = true;
 				for (vid=0; vid<sys->total_verts; vid++) {
 					vertexCos[vid][0] = nlGetVariable(0, vid);
 					vertexCos[vid][1] = nlGetVariable(1, vid);
 					vertexCos[vid][2] = nlGetVariable(2, vid);
 				}		
+			} else {
+				sys->has_solution = false;
 			}
+		} else {
+			sys->has_solution = false;
 		}
 		sys->is_matrix_computed = true;
 	} else {
+		if (!sys->has_solution) return;
 
 		nlBegin(NL_SYSTEM);
 		nlBegin(NL_MATRIX);
@@ -471,6 +470,7 @@ static void laplacianDeformPreview(LaplacianSystem * sys, float (*vertexCos)[3])
 		nlEnd(NL_SYSTEM);
 
 		if (nlSolveAdvanced(NULL, NL_FALSE) ) {
+			sys->has_solution = true;
 			
 			nlBegin(NL_SYSTEM);
 			nlBegin(NL_MATRIX);
@@ -486,12 +486,17 @@ static void laplacianDeformPreview(LaplacianSystem * sys, float (*vertexCos)[3])
 			nlEnd(NL_MATRIX);
 			nlEnd(NL_SYSTEM);
 			if (nlSolveAdvanced(NULL, NL_FALSE) ) {
+				sys->has_solution = true;
 				for (vid=0; vid<sys->total_verts; vid++) {
 					vertexCos[vid][0] = nlGetVariable(0, vid);
 					vertexCos[vid][1] = nlGetVariable(1, vid);
 					vertexCos[vid][2] = nlGetVariable(2, vid);
 				}			
+			} else {
+				sys->has_solution = false;
 			}
+		} else {
+			sys->has_solution = false;
 		}
 	}
 }
@@ -631,7 +636,6 @@ static	bool onlyChangueAnchors(LaplacianDeformModifierData *smd, Object *ob, Der
 
 static	bool onlyChangueGroup(LaplacianDeformModifierData *smd, Object *ob, DerivedMesh *dm, int numVerts)
 {
-	int i;
 	LaplacianSystem * sys = (LaplacianSystem *)smd->cacheSystem;
 
 	if (sys->total_verts != numVerts) return false;
@@ -769,8 +773,7 @@ ModifierTypeInfo modifierType_LaplacianDeform = {
 	/* structName */        "LaplacianDeformModifierData",
 	/* structSize */        sizeof(LaplacianDeformModifierData),
 	/* type */              eModifierTypeType_OnlyDeform,
-	/* flags */             eModifierTypeFlag_AcceptsMesh |
-	                        eModifierTypeFlag_SupportsEditmode,
+	/* flags */             eModifierTypeFlag_AcceptsMesh,
  
 	/* copyData */          copyData,
 	/* deformVerts */       deformVerts,
