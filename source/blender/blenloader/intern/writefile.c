@@ -1474,6 +1474,11 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 			if (wmd->cmap_curve)
 				write_curvemapping(wd, wmd->cmap_curve);
 		}
+		else if(md->type==eModifierType_LaplacianDeform) {
+			LaplacianDeformModifierData *ldmd = (LaplacianDeformModifierData*) md;
+			
+			writedata(wd, DATA, sizeof(float)*ldmd->total_verts*3, ldmd->vertexco);
+		}
 	}
 }
 
