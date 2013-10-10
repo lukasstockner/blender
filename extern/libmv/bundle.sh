@@ -128,6 +128,7 @@ set(INC
 
 set(SRC
 	libmv-capi.h
+	libmv-capi_intern.h
 )
 
 if(WITH_LIBMV)
@@ -139,6 +140,7 @@ if(WITH_LIBMV)
 
 	list(APPEND INC
 		third_party/ceres/include
+		../../intern/guardedalloc
 	)
 
 	set(INC_SYS
