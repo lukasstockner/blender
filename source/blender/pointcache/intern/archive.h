@@ -19,10 +19,4 @@
 #ifndef PTC_ARCHIVE_H
 #define PTC_ARCHIVE_H
 
-#include <Alembic/Abc/OArchive.h>
-#include <Alembic/AbcCoreHDF5/ReadWrite.h>
-
-using namespace Alembic::Abc;
-namespace Util = Alembic::Util;
-
 #endif  /* PTC_ARCHIVE_H */

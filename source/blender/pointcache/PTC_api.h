@@ -23,17 +23,20 @@
 extern "C" {
 #endif
 
-void test_archive();
+void PTC_test_archive(void);
 
 
 struct PTCArchive;
-struct PTCObject;
 
 struct PTCArchive *PTC_archive_create(const char *filename);
 void PTC_archive_free(struct PTCArchive *archive);
 
 
-//PTCObject *PTC_object_particles()
+/* Particles */
+struct Object;
+struct ParticleSystem;
+
+void PTC_write_particles(struct PTCArchive *archive, struct Object *ob, struct ParticleSystem *psys);
 
 #ifdef __cplusplus
 } /* extern C */

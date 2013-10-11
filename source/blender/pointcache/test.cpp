@@ -17,14 +17,36 @@
  */
 
 #include "PTC_api.h"
-#include "PTC_schema.h"
+#include "particles.h"
+#include "schema.h"
 
-using namespace Alembic::Abc;
+#include <Alembic/AbcCoreHDF5/ReadWrite.h>
 
-namespace PTC {
+//namespace PTC {
 
-void test_archive()
+void PTC_test_archive(void)
 {
+	std::string archiveName("myFirstArchive.abc");
+	OArchive archive(Alembic::AbcCoreHDF5::WriteArchive(),
+	                 archiveName,
+	                 ErrorHandler::kThrowPolicy);
+	
+	OObject root = archive.getTop();
+//	obj = schema.getObject();
+//	ts = schema.getTimeSampling();
+//	OCompoundProperty props = root.getProperties();
+	OParticles particles(root, "particles");
+//	OFloatProperty size(props, "size");
+	OParticlesSchema schema = particles.getSchema();
+
+//	for (int i = 0; i < 10; ++i) {
+	OParticlesSchema::Sample sample;
+		
+//		size.set(i*i - 0.43*i);
+		schema.set(sample);
+//	}
+
+#if 0
 	std::string archiveName("myFirstArchive.abc");
 
 	// Create an archive with the default writer
@@ -42,12 +64,12 @@ void test_archive()
 	// Create a TimeSampling object: one sample every 24th of a second
 	const chrono_t dt = 1.0 / 24.0;
 
-	TimeSamplingType tst( dt );               // uniform with cycle=dt
-
+	TimeSampling tst(dt, 0.0f);               // uniform with cycle=dt
+	
 	// Create a scalar property on this child object named 'mass'
 	ODoubleProperty mass( childProps,  // owner
 	                      "mass", // name
-	                      tst );
+	                      TimeSamplingPtr(&tst) );
 
 	// Write out the samples
 	const unsigned int numSamples = 5;
@@ -55,47 +77,12 @@ void test_archive()
 	for (int tt=0; tt<numSamples; tt++)
 	{
 		double mm = (1.0 + 0.1*tt); // vary the mass
-		mass.set( mm,  OSampleSelector(tt, startTime + tt*dt ) );
+		mass.set(mm);
 	}
 
 	// The archive is closed (and written to disk) when 'archive'
-	//  goes out of scope.	
+	//  goes out of scope.
+#endif
 }
 
-#if 0
-PTC_SCHEMA_INFO("ParticleSystem", "ParticleSystem", ".particles", ParticlesSchemaInfo);
-
-class IParticlesSchema : public ISchema<ParticlesSchemaInfo>
-{
-public:
-	class Sample
-	{
-	public:
-		Sample() {}
-
-//		V3dArraySamplePtr getPositions() const { return m_positions; }
-
-	protected:
-		friend class IParticleSchema;
-//		V3dArraySamplePtr m_positions;
-	};
-
-	// fill the provided Sample ref with the data
-	void get(Sample &iSample, const ISampleSelector iSS = ISampleSelector());
-
-	// return a Sample object filled with the data
-	Sample getValue(const ISampleSelector &iSS = ISampleSelector());
-
-protected:
-	void init(Argument);
-//	V3dArrayProperty m_positions;
-};
-
-typedef ISchemaObject<IParticlesSchema> IParticles;
-
-class OParticlesSchema : public OSchema<ParticlesSchemaInfo>
-{
-};
-#endif
-
-} /* namespace PTC */
+//} /* namespace PTC */

@@ -21,7 +21,8 @@
 
 //namespace PTC {
 
-#include "PTC_schema.h"
+#include "schema.h"
+#include "types.h"
 
 PTC_SCHEMA_INFO("Particles", "Particles", ".particles", ParticlesSchemaInfo);
 
@@ -36,11 +37,11 @@ public:
 		// Users don't ever create this data directly.
 		Sample() { reset(); }
 
-		Abc::P3fArraySamplePtr getPositions() const { return m_positions; }
-		Abc::UInt64ArraySamplePtr getIds() const { return m_ids; }
-		Abc::V3fArraySamplePtr getVelocities() const { return m_velocities; }
+		P3fArraySamplePtr getPositions() const { return m_positions; }
+		UInt64ArraySamplePtr getIds() const { return m_ids; }
+		V3fArraySamplePtr getVelocities() const { return m_velocities; }
 
-		Abc::Box3d getSelfBounds() const { return m_selfBounds; }
+		Box3d getSelfBounds() const { return m_selfBounds; }
 
 		bool valid() const
 		{
@@ -59,11 +60,11 @@ public:
 
 	protected:
 		friend class IParticlesSchema;
-		Abc::P3fArraySamplePtr m_positions;
-		Abc::UInt64ArraySamplePtr m_ids;
-		Abc::V3fArraySamplePtr m_velocities;
+		P3fArraySamplePtr m_positions;
+		UInt64ArraySamplePtr m_ids;
+		V3fArraySamplePtr m_velocities;
 
-		Abc::Box3d m_selfBounds;
+		Box3d m_selfBounds;
 	};
 
 	//-*************************************************************************
@@ -93,8 +94,8 @@ public:
 	IParticlesSchema(CPROP_PTR iParent,
 	                 const std::string &iName,
 
-	                 const Abc::Argument &iArg0 = Abc::Argument(),
-	                 const Abc::Argument &iArg1 = Abc::Argument())
+	                 const Argument &iArg0 = Argument(),
+	                 const Argument &iArg1 = Argument())
 	  : IGeomBaseSchema<ParticlesSchemaInfo>(iParent, iName,
 	                                         iArg0, iArg1)
 	{
@@ -105,8 +106,8 @@ public:
 	//! schema name used.
 	template <class CPROP_PTR>
 	explicit IParticlesSchema(CPROP_PTR iParent,
-	                          const Abc::Argument &iArg0 = Abc::Argument(),
-	                          const Abc::Argument &iArg1 = Abc::Argument())
+	                          const Argument &iArg0 = Argument(),
+	                          const Argument &iArg1 = Argument())
 	    : IGeomBaseSchema<ParticlesSchemaInfo>(iParent,
 	                                           iArg0, iArg1)
 	{
@@ -142,7 +143,7 @@ public:
 
 	//! Time sampling Information.
 	//!
-	Abc::TimeSamplingPtr getTimeSampling() const
+	TimeSamplingPtr getTimeSampling() const
 	{
 		if (m_positionsProperty.valid())
 		{
@@ -153,7 +154,7 @@ public:
 
 	//-*************************************************************************
 	void get(Sample &oSample,
-	         const Abc::ISampleSelector &iSS = Abc::ISampleSelector()) const
+	         const ISampleSelector &iSS = ISampleSelector()) const
 	{
 		ALEMBIC_ABC_SAFE_CALL_BEGIN("IParticlesSchema::get()");
 
@@ -171,18 +172,18 @@ public:
 		ALEMBIC_ABC_SAFE_CALL_END();
 	}
 
-	Sample getValue(const Abc::ISampleSelector &iSS = Abc::ISampleSelector()) const
+	Sample getValue(const ISampleSelector &iSS = ISampleSelector()) const
 	{
 		Sample smp;
 		get(smp, iSS);
 		return smp;
 	}
 
-	Abc::IP3fArrayProperty getPositionsProperty() const { return m_positionsProperty; }
+	IP3fArrayProperty getPositionsProperty() const { return m_positionsProperty; }
 
-	Abc::IV3fArrayProperty getVelocitiesProperty() const { return m_velocitiesProperty; }
+	IV3fArrayProperty getVelocitiesProperty() const { return m_velocitiesProperty; }
 
-	Abc::IUInt64ArrayProperty getIdsProperty() const { return m_idsProperty; }
+	IUInt64ArrayProperty getIdsProperty() const { return m_idsProperty; }
 
 	IFloatGeomParam getWidthsParam() const { return m_widthsParam; }
 
@@ -218,17 +219,17 @@ public:
 	ALEMBIC_OVERRIDE_OPERATOR_BOOL(IParticlesSchema::valid());
 
 protected:
-	void init(const Abc::Argument &iArg0,
-	          const Abc::Argument &iArg1);
+	void init(const Argument &iArg0,
+	          const Argument &iArg1);
 
-	Abc::IP3fArrayProperty m_positionsProperty;
-	Abc::IUInt64ArrayProperty m_idsProperty;
-	Abc::IV3fArrayProperty m_velocitiesProperty;
+	IP3fArrayProperty m_positionsProperty;
+	IUInt64ArrayProperty m_idsProperty;
+	IV3fArrayProperty m_velocitiesProperty;
 	IFloatGeomParam m_widthsParam;
 };
 
 //-*****************************************************************************
-typedef Abc::ISchemaObject<IParticlesSchema> IParticles;
+typedef ISchemaObject<IParticlesSchema> IParticles;
 
 typedef Util::shared_ptr< IParticles > IParticlesPtr;
 
@@ -249,8 +250,8 @@ public:
 
 		//! Creates a sample with position data but no id
 		//! data. For specifying samples after the first one
-		Sample(const Abc::P3fArraySample &iPos,
-		       const Abc::V3fArraySample &iVelocities = Abc::V3fArraySample(),
+		Sample(const P3fArraySample &iPos,
+		       const V3fArraySample &iVelocities = V3fArraySample(),
 		       const OFloatGeomParam::Sample &iWidths = OFloatGeomParam::Sample())
 		    : m_positions( iPos )
 		    , m_velocities( iVelocities )
@@ -260,9 +261,9 @@ public:
 		//! Creates a sample with position data and id data. The first
 		//! sample must be full like this. Subsequent samples may also
 		//! be full like this, which would indicate a change of topology
-		Sample(const Abc::P3fArraySample &iPos,
-		       const Abc::UInt64ArraySample &iId,
-		       const Abc::V3fArraySample &iVelocities = Abc::V3fArraySample(),
+		Sample(const P3fArraySample &iPos,
+		       const UInt64ArraySample &iId,
+		       const V3fArraySample &iVelocities = V3fArraySample(),
 		       const OFloatGeomParam::Sample &iWidths =  OFloatGeomParam::Sample())
 		    : m_positions(iPos)
 		    , m_velocities(iVelocities)
@@ -271,23 +272,23 @@ public:
 		{}
 
 		// positions accessor
-		const Abc::P3fArraySample &getPositions() const { return m_positions; }
-		void setPositions(const Abc::P3fArraySample &iSmp) { m_positions = iSmp; }
+		const P3fArraySample &getPositions() const { return m_positions; }
+		void setPositions(const P3fArraySample &iSmp) { m_positions = iSmp; }
 
 		// ids accessor
-		const Abc::UInt64ArraySample &getIds() const { return m_ids; }
-		void setIds(const Abc::UInt64ArraySample &iSmp) { m_ids = iSmp; }
+		const UInt64ArraySample &getIds() const { return m_ids; }
+		void setIds(const UInt64ArraySample &iSmp) { m_ids = iSmp; }
 
 		// velocities accessor
-		const Abc::V3fArraySample &getVelocities() const { return m_velocities; }
-		void setVelocities(const Abc::V3fArraySample &iVelocities) { m_velocities = iVelocities; }
+		const V3fArraySample &getVelocities() const { return m_velocities; }
+		void setVelocities(const V3fArraySample &iVelocities) { m_velocities = iVelocities; }
 
 		// widths accessor
 		const OFloatGeomParam::Sample &getWidths() const { return m_widths; }
 		void setWidths(const OFloatGeomParam::Sample &iWidths) { m_widths = iWidths; }
 
-		const Abc::Box3d &getSelfBounds() const { return m_selfBounds; }
-		void setSelfBounds(const Abc::Box3d &iBnds) { m_selfBounds = iBnds; }
+		const Box3d &getSelfBounds() const { return m_selfBounds; }
+		void setSelfBounds(const Box3d &iBnds) { m_selfBounds = iBnds; }
 
 		void reset()
 		{
@@ -300,12 +301,12 @@ public:
 		}
 
 	protected:
-		Abc::P3fArraySample m_positions;
-		Abc::V3fArraySample m_velocities;
-		Abc::UInt64ArraySample m_ids;
+		P3fArraySample m_positions;
+		V3fArraySample m_velocities;
+		UInt64ArraySample m_ids;
 		OFloatGeomParam::Sample m_widths;
 
-		Abc::Box3d m_selfBounds;
+		Box3d m_selfBounds;
 	};
 
 	//-*************************************************************************
@@ -335,15 +336,15 @@ public:
 	OParticlesSchema(CPROP_PTR iParent,
 	                 const std::string &iName,
 
-	                 const Abc::Argument &iArg0 = Abc::Argument(),
-	                 const Abc::Argument &iArg1 = Abc::Argument(),
-	                 const Abc::Argument &iArg2 = Abc::Argument())
+	                 const Argument &iArg0 = Argument(),
+	                 const Argument &iArg1 = Argument(),
+	                 const Argument &iArg2 = Argument())
 	    : OGeomBaseSchema<ParticlesSchemaInfo>(
 	          GetCompoundPropertyWriterPtr(iParent),
 	          iName, iArg0, iArg1, iArg2)
 	{
-		AbcA::TimeSamplingPtr tsPtr = Abc::GetTimeSampling( iArg0, iArg1, iArg2 );
-		uint32_t tsIndex = Abc::GetTimeSamplingIndex( iArg0, iArg1, iArg2 );
+		TimeSamplingPtr tsPtr = GetTimeSampling( iArg0, iArg1, iArg2 );
+		uint32_t tsIndex = GetTimeSamplingIndex( iArg0, iArg1, iArg2 );
 
 		// if we specified a valid TimeSamplingPtr, use it to determine the
 		// index otherwise we'll use the index, which defaults to the intrinsic
@@ -360,15 +361,15 @@ public:
 
 	template <class CPROP_PTR>
 	explicit OParticlesSchema(CPROP_PTR iParent,
-	                          const Abc::Argument &iArg0 = Abc::Argument(),
-	                          const Abc::Argument &iArg1 = Abc::Argument(),
-	                          const Abc::Argument &iArg2 = Abc::Argument())
+	                          const Argument &iArg0 = Argument(),
+	                          const Argument &iArg1 = Argument(),
+	                          const Argument &iArg2 = Argument())
 	    : OGeomBaseSchema<ParticlesSchemaInfo>(
 	          GetCompoundPropertyWriterPtr(iParent),
 	          iArg0, iArg1, iArg2)
 	{
-		AbcA::TimeSamplingPtr tsPtr = Abc::GetTimeSampling( iArg0, iArg1, iArg2 );
-		uint32_t tsIndex = Abc::GetTimeSamplingIndex( iArg0, iArg1, iArg2 );
+		TimeSamplingPtr tsPtr = GetTimeSampling( iArg0, iArg1, iArg2 );
+		uint32_t tsIndex = GetTimeSamplingIndex( iArg0, iArg1, iArg2 );
 
 		// if we specified a valid TimeSamplingPtr, use it to determine the
 		// index otherwise we'll use the index, which defaults to the intrinsic
@@ -396,7 +397,7 @@ public:
 	//-*************************************************************************
 
 	//! Return the time sampling
-	AbcA::TimeSamplingPtr getTimeSampling() const { return m_positionsProperty.getTimeSampling(); }
+	TimeSamplingPtr getTimeSampling() const { return m_positionsProperty.getTimeSampling(); }
 
 	//-*************************************************************************
 	// SAMPLE STUFF
@@ -414,7 +415,7 @@ public:
 	void setFromPrevious();
 
 	void setTimeSampling(uint32_t iIndex);
-	void setTimeSampling(AbcA::TimeSamplingPtr iTime);
+	void setTimeSampling(TimeSamplingPtr iTime);
 
 	//-*************************************************************************
 	// ABC BASE MECHANISMS
@@ -450,9 +451,9 @@ public:
 protected:
 	void init(uint32_t iTsIdx);
 
-	Abc::OP3fArrayProperty m_positionsProperty;
-	Abc::OUInt64ArrayProperty m_idsProperty;
-	Abc::OV3fArrayProperty m_velocitiesProperty;
+	OP3fArrayProperty m_positionsProperty;
+	OUInt64ArrayProperty m_idsProperty;
+	OV3fArrayProperty m_velocitiesProperty;
 	OFloatGeomParam m_widthsParam;
 
 };
@@ -460,9 +461,9 @@ protected:
 //-*****************************************************************************
 // SCHEMA OBJECT
 //-*****************************************************************************
-typedef Abc::OSchemaObject<OParticlesSchema> OPoints;
+typedef OSchemaObject<OParticlesSchema> OParticles;
 
-typedef Util::shared_ptr< OPoints > OPointsPtr;
+typedef Util::shared_ptr< OParticles > OParticlesPtr;
 
 //} /* namespace PTC */
 

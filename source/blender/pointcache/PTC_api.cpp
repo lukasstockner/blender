@@ -17,11 +17,17 @@
  */
 
 #include "PTC_api.h"
-#include "PTC_archive.h"
 
-extern "C" {
+#ifdef WITH_ALEMBIC
+
+#include "archive.h"
+#include "particles.h"
+
+#include "DNA_object_types.h"
+#include "DNA_particle_types.h"
 
 typedef struct PTCArchive PTCArchive;
+typedef struct PTCObject PTCObject;
 
 PTCArchive *PTC_archive_create(const char *filename)
 {
@@ -38,4 +44,27 @@ void PTC_archive_free(PTCArchive *_archive)
 	delete archive;
 }
 
-} /* extern C */
+
+void PTC_write_particles(PTCArchive *_archive, Object *ob, ParticleSystem *psys)
+{
+	OArchive *archive = (OArchive *)_archive;
+	
+	OObject root = archive->getTop();
+	
+//	OParticles particles(root.getChild(psys->name).getPtr(), kWrapExisting);
+//	if (!particles.getPtr())
+//		particles = OParticles(root, psys->name);
+}
+
+#else
+
+PTCArchive *PTC_archive_create(const char *filename)
+{
+	return NULL;
+}
+
+void PTC_archive_free(PTCArchive *_archive)
+{
+}
+
+#endif

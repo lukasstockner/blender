@@ -14,17 +14,17 @@
 # along with this program; if not, write to the Free Software Foundation,
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
-# The Original Code is Copyright (C) 2011, Blender Foundation
+# The Original Code is Copyright (C) 2013, Blender Foundation
 # All rights reserved.
 #
 # The Original Code is: all of this file.
-#
-# Contributor(s): Jeroen Bakker, Monique Dewanchand, Blender Developers Fund.
 #
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
 	.
+	intern
+	../makesdna
 	../../../intern/guardedalloc
 )
 
@@ -36,18 +36,19 @@ set(SRC
 
 	PTC_api.h
 	PTC_api.cpp
-	PTC_schema.h
-
-	PTC_archive.h
-	PTC_archive.cpp
-	PTC_particles.h
-	PTC_particles.cpp
 )
 
 if(WITH_ALEMBIC)
 	list(APPEND INC_SYS ${ALEMBIC_INCLUDE_DIRS} ${OPENEXR_INCLUDE_DIR}/OpenEXR)
 
-#	add_subdirectory(alembic)
+	list(APPEND SRC
+	intern/archive.h
+	intern/archive.cpp
+	intern/particles.h
+	intern/particles.cpp
+	intern/schema.h
+	intern/types.h
+	)
 
 	add_definitions(-DWITH_ALEMBIC)
 endif()

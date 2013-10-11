@@ -32,6 +32,7 @@
 #include "DNA_scene_types.h"
 
 #include "RNA_define.h"
+#include "RNA_types.h"
 
 #include "rna_internal.h"
 
@@ -295,6 +296,7 @@ static void rna_def_ptcache_point_caches(BlenderRNA *brna, PropertyRNA *cprop)
 static void rna_def_pointcache(BlenderRNA *brna)
 {
 	StructRNA *srna;
+	FunctionRNA *func;
 	PropertyRNA *prop;
 
 #ifdef POINTCACHE_OLD
@@ -406,6 +408,9 @@ static void rna_def_pointcache(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "PointCache");
 	RNA_def_property_ui_text(prop, "Point Cache List", "Point cache list");
 	rna_def_ptcache_point_caches(brna, prop);
+
+	func = RNA_def_function(srna, "test", "PTC_test_archive");
+	RNA_def_function_flag(func, FUNC_NO_SELF);
 }
 
 void RNA_def_pointcache(BlenderRNA *brna)
