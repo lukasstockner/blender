@@ -203,6 +203,7 @@ option(WITH_MOD_REMESH          "Enable Remesh Modifier" ON)
 option(WITH_MOD_OCEANSIM        "Enable Ocean Modifier" OFF)
 
 # Image format support
+option(WITH_IMAGE_OPENIMAGEIO   "Enable OpenImageIO Support (http://www.openimageio.org)" OFF)
 option(WITH_IMAGE_OPENEXR       "Enable OpenEXR Support (http://www.openexr.com)" ON)
 option(WITH_IMAGE_OPENJPEG      "Enable OpenJpeg Support (http://www.openjpeg.org)" ON)
 option(WITH_IMAGE_TIFF          "Enable LibTIFF Support" ON)
@@ -278,12 +279,13 @@ mark_as_advanced(LLVM_STATIC)
 option(WITH_MEM_JEMALLOC   "Enable malloc replacement (http://www.canonware.com/jemalloc)" OFF)
 mark_as_advanced(WITH_MEM_JEMALLOC)
 
+# currently only used for BLI_mempool
+option(WITH_MEM_VALGRIND "Enable extended valgrind support for better reporting" OFF)
+mark_as_advanced(WITH_MEM_VALGRIND)
+
 # Debug
 option(WITH_CXX_GUARDEDALLOC "Enable GuardedAlloc for C++ memory allocation tracking (only enable for development)" OFF)
 mark_as_advanced(WITH_CXX_GUARDEDALLOC)
-
-option(WITH_GUARDEDALLOC "Enable GuardedAlloc (DISABLE AT OWN RISK!)" ON)
-mark_as_advanced(WITH_GUARDEDALLOC)
 
 option(WITH_ASSERT_ABORT "Call abort() when raising an assertion through BLI_assert()" OFF)
 mark_as_advanced(WITH_ASSERT_ABORT)
@@ -368,7 +370,7 @@ if(APPLE)
 	endif()
 	
 	if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
-			set(CMAKE_OSX_DEPLOYMENT_TARGET "10.5" CACHE STRING "" FORCE) # 10.5 is our min. target, if you use higher sdk, weak linking happens
+		set(CMAKE_OSX_DEPLOYMENT_TARGET "10.5" CACHE STRING "" FORCE) # 10.5 is our min. target, if you use higher sdk, weak linking happens
 	endif()
 	
 	if(NOT ${CMAKE_GENERATOR} MATCHES "Xcode")
@@ -418,6 +420,10 @@ if(WITH_IMAGE_REDCODE AND ((NOT WITH_IMAGE_OPENJPEG) OR (NOT WITH_CODEC_FFMPEG))
 	message(FATAL_ERROR "WITH_IMAGE_REDCODE requires WITH_IMAGE_OPENJPEG and WITH_CODEC_FFMPEG")
 endif()
 
+if(WITH_IMAGE_OPENIMAGEIO)
+	set(WITH_OPENIMAGEIO ON)
+endif()
+
 # python module, needs some different options
 if(WITH_PYTHON_MODULE AND WITH_PLAYER)
 	message(FATAL_ERROR "WITH_PYTHON_MODULE requires WITH_PLAYER to be OFF")
@@ -456,7 +462,7 @@ if(NOT WITH_BOOST)
 
 	set_and_warn(WITH_OPENAL         OFF)  # depends on AUDASPACE
 	set_and_warn(WITH_GAMEENGINE     OFF)  # depends on AUDASPACE
-elseif(WITH_CYCLES OR WITH_MOD_BOOLEAN OR WITH_AUDASPACE OR WITH_INTERNATIONAL)
+elseif(WITH_CYCLES OR WITH_OPENIMAGEIO OR WITH_MOD_BOOLEAN OR WITH_AUDASPACE OR WITH_INTERNATIONAL)
 	# Keep enabled
 else()
 	# Enabled but we don't need it
@@ -798,33 +804,38 @@ if(UNIX AND NOT APPLE)
 				find_program(LLVM_CONFIG llvm-config)
 			endif()
 		endif()
-		execute_process(COMMAND ${LLVM_CONFIG} --version
-		                OUTPUT_VARIABLE LLVM_VERSION
-		                OUTPUT_STRIP_TRAILING_WHITESPACE)
-		execute_process(COMMAND ${LLVM_CONFIG} --prefix
-		                OUTPUT_VARIABLE LLVM_DIRECTORY
-		                OUTPUT_STRIP_TRAILING_WHITESPACE)
-		execute_process(COMMAND ${LLVM_CONFIG} --libdir
-		                OUTPUT_VARIABLE LLVM_LIB_DIR
-		                OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+		if(NOT DEFINED LLVM_VERSION)
+			execute_process(COMMAND ${LLVM_CONFIG} --version
+							OUTPUT_VARIABLE LLVM_VERSION
+							OUTPUT_STRIP_TRAILING_WHITESPACE)
+			set(LLVM_VERSION ${LLVM_VERSION} CACHE STRING "Version of LLVM to use")
+		endif()
+		if(NOT DEFINED LLVM_DIRECTORY)
+			execute_process(COMMAND ${LLVM_CONFIG} --prefix
+							OUTPUT_VARIABLE LLVM_DIRECTORY
+							OUTPUT_STRIP_TRAILING_WHITESPACE)
+			set(LLVM_DIRECTORY ${LLVM_DIRECTORY} CACHE PATH "Path to the LLVM installation")
+		endif()
+		if(NOT DEFINED LLVM_LIBPATH)
+			execute_process(COMMAND ${LLVM_CONFIG} --libdir
+							OUTPUT_VARIABLE LLVM_LIBPATH
+							OUTPUT_STRIP_TRAILING_WHITESPACE)
+			set(LLVM_LIBPATH ${LLVM_LIBPATH} CACHE PATH "Path to the LLVM library path")
+		endif()
 
 		if(LLVM_STATIC)
 			find_library(LLVM_LIBRARY
 			             NAMES LLVMAnalysis # first of a whole bunch of libs to get
-			             PATHS ${LLVM_LIB_DIR})
+			             PATHS ${LLVM_LIBPATH})
 		else()
 			find_library(LLVM_LIBRARY
 			             NAMES LLVM-${LLVM_VERSION}
-			             PATHS ${LLVM_LIB_DIR})
+			             PATHS ${LLVM_LIBPATH})
 		endif()
 
-		message(STATUS "LLVM version  = ${LLVM_VERSION}")
-		message(STATUS "LLVM dir      = ${LLVM_DIRECTORY}")
-		message(STATUS "LLVM lib dir  = ${LLVM_LIB_DIR}")
-		set(LLVM_VERSION ${LLVM_VERSION} CACHE STRING "Version of LLVM to use")
-		set(LLVM_DIRECTORY ${LLVM_DIRECTORY} CACHE PATH "Path to the LLVM installation")
 
-		if(LLVM_LIBRARY AND LLVM_DIRECTORY AND LLVM_LIB_DIR)
+		if(LLVM_LIBRARY AND LLVM_DIRECTORY AND LLVM_LIBPATH)
 			if(LLVM_STATIC)
 				# if static LLVM libraries were requested, use llvm-config to generate
 				# the list of what libraries we need, and substitute that in the right
@@ -832,7 +843,7 @@ if(UNIX AND NOT APPLE)
 				execute_process(COMMAND ${LLVM_CONFIG} --libfiles
 				                OUTPUT_VARIABLE LLVM_LIBRARY
 				                OUTPUT_STRIP_TRAILING_WHITESPACE)
-				string(REPLACE " " ";" LLVM_LIBRARY ${LLVM_LIBRARY})
+				string(REPLACE " " ";" LLVM_LIBRARY "${LLVM_LIBRARY}")
 			endif()
 		else()
 			message(FATAL_ERROR "LLVM not found.")
@@ -1449,7 +1460,7 @@ elseif(WIN32)
 		
 		if(WITH_LLVM)
 			set(LLVM_DIRECTORY ${LIBDIR}/llvm CACHE PATH	"Path to the LLVM installation")
-			set(LLVM_LIB_DIR ${LLVM_DIRECTORY}/lib)
+			set(LLVM_LIBPATH ${LLVM_DIRECTORY}/lib)
 			# Explicitly set llvm lib order.
 			#---- WARNING ON GCC ORDER OF LIBS IS IMPORTANT, DO NOT CHANGE! ---------
 			set(LLVM_LIBRARY LLVMSelectionDAG LLVMCodeGen LLVMScalarOpts LLVMAnalysis LLVMArchive
@@ -1743,13 +1754,13 @@ elseif(APPLE)
 		                OUTPUT_VARIABLE LLVM_DIRECTORY
 		                OUTPUT_STRIP_TRAILING_WHITESPACE)
 		execute_process(COMMAND ${LLVM_CONFIG} --libdir
-		                OUTPUT_VARIABLE LLVM_LIB_DIR
+		                OUTPUT_VARIABLE LLVM_LIBPATH
 		                OUTPUT_STRIP_TRAILING_WHITESPACE)
 		find_library(LLVM_LIBRARY
 		             NAMES LLVMAnalysis # first of a whole bunch of libs to get
-		             PATHS ${LLVM_LIB_DIR})
+		             PATHS ${LLVM_LIBPATH})
 
-		if(LLVM_LIBRARY AND LLVM_DIRECTORY AND LLVM_LIB_DIR)
+		if(LLVM_LIBRARY AND LLVM_DIRECTORY AND LLVM_LIBPATH)
 			if(LLVM_STATIC)
 				# if static LLVM libraries were requested, use llvm-config to generate
 				# the list of what libraries we need, and substitute that in the right
@@ -1823,22 +1834,22 @@ endif()
 
 if(WITH_CYCLES)
 	if(NOT WITH_OPENIMAGEIO)
-		message(FATAL_ERROR "Cycles reqires WITH_OPENIMAGEIO, the library may not have been found. Configure OIIO or disable WITH_CYCLES")
+		message(FATAL_ERROR "Cycles requires WITH_OPENIMAGEIO, the library may not have been found. Configure OIIO or disable WITH_CYCLES")
 	endif()
 	if(NOT WITH_BOOST)
-		message(FATAL_ERROR "Cycles reqires WITH_BOOST, the library may not have been found. Configure BOOST or disable WITH_CYCLES")
+		message(FATAL_ERROR "Cycles requires WITH_BOOST, the library may not have been found. Configure BOOST or disable WITH_CYCLES")
 	endif()
 
 	if(WITH_CYCLES_OSL)
 		if(NOT WITH_LLVM)
-			message(FATAL_ERROR "Cycles OSL reqires WITH_LLVM, the library may not have been found. Configure LLVM or disable WITH_CYCLES_OSL")
+			message(FATAL_ERROR "Cycles OSL requires WITH_LLVM, the library may not have been found. Configure LLVM or disable WITH_CYCLES_OSL")
 		endif()
 	endif()
 endif()
 
 if(WITH_INTERNATIONAL)
 	if(NOT WITH_BOOST)
-		message(FATAL_ERROR "Internationalization reqires WITH_BOOST, the library may not have been found. Configure BOOST or disable WITH_INTERNATIONAL")
+		message(FATAL_ERROR "Internationalization requires WITH_BOOST, the library may not have been found. Configure BOOST or disable WITH_INTERNATIONAL")
 	endif()
 endif()
 
@@ -2276,10 +2287,12 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_X11_XF86VMODE)
 	info_cfg_option(WITH_X11_XINPUT)
 	info_cfg_option(WITH_MEM_JEMALLOC)
+	info_cfg_option(WITH_MEM_VALGRIND)
 	info_cfg_option(WITH_SYSTEM_GLEW)
 	info_cfg_option(WITH_SYSTEM_OPENJPEG)
 
 	info_cfg_text("Image Formats:")
+	info_cfg_option(WITH_IMAGE_OPENIMAGEIO)
 	info_cfg_option(WITH_IMAGE_CINEON)
 	info_cfg_option(WITH_IMAGE_DDS)
 	info_cfg_option(WITH_IMAGE_HDR)

@@ -1738,7 +1738,7 @@ static void write_grid_paint_mask(WriteData *wd, int count, GridPaintMask *grid_
 		for (i = 0; i < count; ++i) {
 			GridPaintMask *gpm = &grid_paint_mask[i];
 			if (gpm->data) {
-				const int gridsize = ccg_gridsize(gpm->level);
+				const int gridsize = BKE_ccg_gridsize(gpm->level);
 				writedata(wd, DATA,
 				          sizeof(*gpm->data) * gridsize * gridsize,
 				          gpm->data);
@@ -1810,7 +1810,7 @@ static void write_customdata(WriteData *wd, ID *id, int count, CustomData *data,
 	CustomData_free(&data_tmp, count);
 }
 
-static void write_meshs(WriteData *wd, ListBase *idbase)
+static void write_meshes(WriteData *wd, ListBase *idbase)
 {
 	Mesh *mesh;
 	int save_for_old_blender= 0;
@@ -2451,7 +2451,8 @@ static void write_soops(WriteData *wd, SpaceOops *so, LinkNode **tmp_mem_list)
 
 		/* restore old treestore */
 		so->treestore = ts;
-	} else {
+	}
+	else {
 		writestruct(wd, DATA, "SpaceOops", 1, so);
 	}
 }
@@ -3367,7 +3368,7 @@ static int write_file_handle(Main *mainvar, int handle, MemFile *compare, MemFil
 	write_objects  (wd, &mainvar->object);
 	write_materials(wd, &mainvar->mat);
 	write_textures (wd, &mainvar->tex);
-	write_meshs    (wd, &mainvar->mesh);
+	write_meshes   (wd, &mainvar->mesh);
 	write_particlesettings(wd, &mainvar->particle);
 	write_nodetrees(wd, &mainvar->nodetree);
 	write_brushes  (wd, &mainvar->brush);

@@ -1085,6 +1085,8 @@ class CyclesTexture_PT_mapping(CyclesButtonsPanel, Panel):
 
         mapping = node.texture_mapping
 
+        layout.prop(mapping, "vector_type", expand=True)
+
         row = layout.row()
 
         row.column().prop(mapping, "translation")
@@ -1178,7 +1180,7 @@ class CyclesRender_PT_CurveRendering(CyclesButtonsPanel, Panel):
         scene = context.scene
         cscene = scene.cycles
         psys = context.particle_system
-        return CyclesButtonsPanel.poll(context) and psys
+        return CyclesButtonsPanel.poll(context) and psys and psys.settings.type == 'HAIR'
 
     def draw_header(self, context):
         ccscene = context.scene.cycles_curves
@@ -1218,8 +1220,9 @@ class CyclesParticle_PT_CurveSettings(CyclesButtonsPanel, Panel):
         scene = context.scene
         cscene = scene.cycles
         ccscene = scene.cycles_curves
-        use_curves = ccscene.use_curves and context.particle_system
-        return CyclesButtonsPanel.poll(context) and use_curves
+        psys = context.particle_system
+        use_curves = ccscene.use_curves and psys
+        return CyclesButtonsPanel.poll(context) and use_curves and psys.settings.type == 'HAIR'
 
     def draw(self, context):
         layout = self.layout

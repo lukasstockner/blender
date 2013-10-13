@@ -1419,7 +1419,7 @@ static void node_flag_toggle_exec(SpaceNode *snode, int toggle_flag)
 			
 			if (toggle_flag == NODE_PREVIEW && (node->typeinfo->flag & NODE_PREVIEW) == 0)
 				continue;
-			if (toggle_flag == NODE_OPTIONS && !(node->typeinfo->uifunc || node->typeinfo->uifuncbut))
+			if (toggle_flag == NODE_OPTIONS && !(node->typeinfo->draw_buttons || node->typeinfo->draw_buttons_ex))
 				continue;
 			
 			if (node->flag & toggle_flag)
@@ -1433,7 +1433,7 @@ static void node_flag_toggle_exec(SpaceNode *snode, int toggle_flag)
 			
 			if (toggle_flag == NODE_PREVIEW && (node->typeinfo->flag & NODE_PREVIEW) == 0)
 				continue;
-			if (toggle_flag == NODE_OPTIONS && !(node->typeinfo->uifunc || node->typeinfo->uifuncbut))
+			if (toggle_flag == NODE_OPTIONS && !(node->typeinfo->draw_buttons || node->typeinfo->draw_buttons_ex))
 				continue;
 			
 			if ((tot_eq && tot_neq) || tot_eq == 0)
@@ -1731,7 +1731,7 @@ static int node_output_file_add_socket_exec(bContext *C, wmOperator *op)
 		node = nodeGetActive(snode->edittree);
 	}
 
-	if (!node)
+	if (!node || node->type != CMP_NODE_OUTPUT_FILE)
 		return OPERATOR_CANCELLED;
 
 	RNA_string_get(op->ptr, "file_path", file_path);
@@ -1777,7 +1777,7 @@ static int node_output_file_remove_active_socket_exec(bContext *C, wmOperator *U
 		node = nodeGetActive(snode->edittree);
 	}
 
-	if (!node)
+	if (!node || node->type != CMP_NODE_OUTPUT_FILE)
 		return OPERATOR_CANCELLED;
 	
 	if (!ntreeCompositOutputFileRemoveActiveSocket(ntree, node))
@@ -1819,7 +1819,7 @@ static int node_output_file_move_active_socket_exec(bContext *C, wmOperator *op)
 	else if (snode && snode->edittree)
 		node = nodeGetActive(snode->edittree);
 
-	if (!node)
+	if (!node || node->type != CMP_NODE_OUTPUT_FILE)
 		return OPERATOR_CANCELLED;
 
 	nimf = node->storage;

@@ -926,13 +926,13 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		/* stop all running jobs, except screen one. currently previews frustrate Render
 		 * needed to make so sequencer's rendering doesn't conflict with compositor
 		 */
-		WM_jobs_kill_type(CTX_wm_manager(C), WM_JOB_TYPE_COMPOSITE);
+		WM_jobs_kill_type(CTX_wm_manager(C), NULL, WM_JOB_TYPE_COMPOSITE);
 
 		if ((scene->r.seq_flag & R_SEQ_GL_PREV) == 0) {
 			/* in case of final rendering used for preview, kill all previews,
 			 * otherwise threading conflict will happen in rendering module
 			 */
-			WM_jobs_kill_type(CTX_wm_manager(C), WM_JOB_TYPE_RENDER_PREVIEW);
+			WM_jobs_kill_type(CTX_wm_manager(C), NULL, WM_JOB_TYPE_RENDER_PREVIEW);
 		}
 	}
 
@@ -1251,7 +1251,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 			height = (scene->r.size * scene->r.ysch) / 100;
 
 			ED_mask_draw_region(mask, ar,
-			                    0, 0,  /* TODO */
+			                    0, 0, 0,  /* TODO */
 			                    width, height,
 			                    aspx, aspy,
 			                    FALSE, TRUE,

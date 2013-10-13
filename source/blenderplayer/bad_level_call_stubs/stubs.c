@@ -276,6 +276,7 @@ struct wmKeyMap *WM_keymap_list_find(struct ListBase *lb, char *idname, int spac
 struct wmKeyConfig *WM_keyconfig_new(struct wmWindowManager *wm, char *idname) {STUB_ASSERT(0); return (struct wmKeyConfig *) NULL;}
 struct wmKeyConfig *WM_keyconfig_new_user(struct wmWindowManager *wm, char *idname) {STUB_ASSERT(0); return (struct wmKeyConfig *) NULL;}
 void WM_keyconfig_remove(struct wmWindowManager *wm, char *idname) {STUB_ASSERT(0);}
+void WM_keymap_remove(struct wmKeyConfig *keyconf, char *idname) {STUB_ASSERT(0);}
 void WM_keyconfig_set_active(struct wmWindowManager *wm, const char *idname) {STUB_ASSERT(0);}
 void WM_keymap_remove_item(struct wmKeyMap *keymap, struct wmKeyMapItem *kmi) {STUB_ASSERT(0);}
 void WM_keymap_restore_to_default(struct wmKeyMap *keymap) {STUB_ASSERT(0);}
@@ -334,6 +335,7 @@ void ED_view3D_background_image_remove(struct View3D *v3d, struct BGpic *bgpic) 
 void ED_view3D_background_image_clear(struct View3D *v3d) {STUB_ASSERT(0);}
 void ED_view3d_update_viewmat(struct Scene *scene, struct View3D *v3d, struct ARegion *ar, float viewmat[4][4], float winmat[4][4]) {STUB_ASSERT(0);}
 float ED_view3d_grid_scale(struct Scene *scene, struct View3D *v3d, const char **grid_unit) {STUB_ASSERT(0); return 0.0f;}
+void ED_view3d_shade_update(struct Main *bmain, struct View3D *v3d, struct ScrArea *sa) {STUB_ASSERT(0);}
 void view3d_apply_mat4(float mat[4][4], float *ofs, float *quat, float *dist) {STUB_ASSERT(0);}
 int text_file_modified(struct Text *text) {STUB_ASSERT(0); return 0;}
 void ED_node_shader_default(struct bContext *C, struct ID *id) {STUB_ASSERT(0);}

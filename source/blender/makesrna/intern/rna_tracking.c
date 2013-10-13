@@ -124,7 +124,8 @@ static void rna_tracking_active_object_index_set(PointerRNA *ptr, int value)
 	BKE_tracking_dopesheet_tag_update(&clip->tracking);
 }
 
-static void rna_tracking_active_object_index_range(PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
+static void rna_tracking_active_object_index_range(PointerRNA *ptr, int *min, int *max,
+                                                   int *UNUSED(softmin), int *UNUSED(softmax))
 {
 	MovieClip *clip = (MovieClip *)ptr->id.data;
 
@@ -362,7 +363,8 @@ static void rna_tracking_stabTracks_active_index_set(PointerRNA *ptr, int value)
 	clip->tracking.stabilization.act_track = value;
 }
 
-static void rna_tracking_stabTracks_active_index_range(PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
+static void rna_tracking_stabTracks_active_index_range(PointerRNA *ptr, int *min, int *max,
+                                                       int *UNUSED(softmin), int *UNUSED(softmax))
 {
 	MovieClip *clip = (MovieClip *)ptr->id.data;
 
@@ -525,7 +527,7 @@ static void rna_tracking_markerPattern_boundbox_get(PointerRNA *ptr, float *valu
 	copy_v2_v2(values + 2, max);
 }
 
-static void rna_trackingDopesheet_tagUpdate(Main *UNUSED(bmain), Scene *scene, PointerRNA *ptr)
+static void rna_trackingDopesheet_tagUpdate(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	MovieClip *clip = (MovieClip *)ptr->id.data;
 	MovieTrackingDopesheet *dopesheet = &clip->tracking.dopesheet;
@@ -708,9 +710,6 @@ static EnumPropertyItem pattern_match_items[] = {
 	{TRACK_MATCH_PREVFRAME, "PREV_FRAME", 0, "Previous frame", "Track pattern from current frame to next frame"},
 	{0, NULL, 0, NULL, NULL}
 };
-
-static int rna_matrix_dimsize_4x4[] = {4, 4};
-static int rna_matrix_dimsize_4x2[] = {4, 2};
 
 static void rna_def_trackingSettings(BlenderRNA *brna)
 {

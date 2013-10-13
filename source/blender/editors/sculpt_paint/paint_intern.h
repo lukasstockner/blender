@@ -74,6 +74,7 @@ bool paint_space_stroke_enabled(struct Brush *br, enum PaintMode mode);
 bool paint_supports_dynamic_size(struct Brush *br, enum PaintMode mode);
 bool paint_supports_dynamic_tex_coords(struct Brush *br, enum PaintMode mode);
 bool paint_supports_smooth_stroke(struct Brush *br, enum PaintMode mode);
+bool paint_supports_texture(enum PaintMode mode);
 bool paint_supports_jitter(enum PaintMode mode);
 
 struct wmKeyMap *paint_stroke_modal_keymap(struct wmKeyConfig *keyconf);
@@ -86,6 +87,7 @@ void paint_stroke_set_mode_data(struct PaintStroke *stroke, void *mode_data);
 int paint_poll(struct bContext *C);
 void paint_cursor_start(struct bContext *C, int (*poll)(struct bContext *C));
 void paint_cursor_start_explicit(struct Paint *p, struct wmWindowManager *wm, int (*poll)(struct bContext *C));
+void paint_cursor_delete_textures(void);
 
 /* paint_vertex.c */
 int weight_paint_poll(struct bContext *C);

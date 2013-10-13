@@ -1360,7 +1360,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 	}
 }
 
-int calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], int cent2d[2])
+int calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], float cent2d[2])
 {
 	TransInfo *t = MEM_callocN(sizeof(TransInfo), "TransInfo data");
 	int success;
@@ -1390,7 +1390,7 @@ int calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], int c
 		calculateCenter(t);
 
 		if (cent2d) {
-			copy_v2_v2_int(cent2d, t->center2d);
+			copy_v2_v2(cent2d, t->center2d);
 		}
 
 		if (cent3d) {
@@ -2600,8 +2600,8 @@ void initWarp(TransInfo *t)
 	t->idx_max = 0;
 	t->num.idx_max = 0;
 	t->snap[0] = 0.0f;
-	t->snap[1] = 5.0f / 180.0f * (float)M_PI;
-	t->snap[2] = 1.0f / 180.0f * (float)M_PI;
+	t->snap[1] = DEG2RAD(5.0);
+	t->snap[2] = DEG2RAD(1.0);
 	
 	t->num.increment = 1.0f;
 
@@ -3369,8 +3369,8 @@ void initRotation(TransInfo *t)
 	t->idx_max = 0;
 	t->num.idx_max = 0;
 	t->snap[0] = 0.0f;
-	t->snap[1] = (float)((5.0 / 180) * M_PI);
-	t->snap[2] = t->snap[1] * 0.2f;
+	t->snap[1] = DEG2RAD(5.0);
+	t->snap[2] = DEG2RAD(1.0);
 	
 	t->num.increment = 1.0f;
 
@@ -3701,8 +3701,8 @@ void initTrackball(TransInfo *t)
 	t->idx_max = 1;
 	t->num.idx_max = 1;
 	t->snap[0] = 0.0f;
-	t->snap[1] = (float)((5.0 / 180) * M_PI);
-	t->snap[2] = t->snap[1] * 0.2f;
+	t->snap[1] = DEG2RAD(5.0);
+	t->snap[2] = DEG2RAD(1.0);
 
 	t->num.increment = 1.0f;
 
@@ -4149,8 +4149,8 @@ void initTilt(TransInfo *t)
 	t->idx_max = 0;
 	t->num.idx_max = 0;
 	t->snap[0] = 0.0f;
-	t->snap[1] = (float)((5.0 / 180) * M_PI);
-	t->snap[2] = t->snap[1] * 0.2f;
+	t->snap[1] = DEG2RAD(5.0);
+	t->snap[2] = DEG2RAD(1.0);
 
 	t->num.increment = t->snap[1];
 
@@ -4802,6 +4802,26 @@ static BMEdge *get_other_edge(BMVert *v, BMEdge *e)
 	}
 
 	return NULL;
+}
+
+/* interpoaltes along a line made up of 2 segments (used for edge slide) */
+static void interp_line_v3_v3v3v3(float p[3], const float v1[3], const float v2[3], const float v3[3], const float t)
+{
+	float t_mid, t_delta;
+
+	/* could be pre-calculated */
+	t_mid = line_point_factor_v3(v2, v1, v3);
+
+	t_delta = t - t_mid;
+	if (fabsf(t_delta) < FLT_EPSILON) {
+		copy_v3_v3(p, v2);
+	}
+	else if (t_delta < 0.0f) {
+		interp_v3_v3v3(p, v1, v2, t / t_mid);
+	}
+	else {
+		interp_v3_v3v3(p, v2, v3, (t - t_mid) / (1.0f - t_mid));
+	}
 }
 
 static void len_v3_ensure(float v[3], const float length)
@@ -5716,20 +5736,16 @@ static void drawEdgeSlide(const struct bContext *C, TransInfo *t)
 		/* Non-Prop mode */
 		if (sld && sld->is_proportional == FALSE) {
 			View3D *v3d = CTX_wm_view3d(C);
-			float marker[3];
-			float v1[3], v2[3];
-			float interp_v;
+			float co_a[3], co_b[3], co_mark[3];
 			TransDataEdgeSlideVert *curr_sv = &sld->sv[sld->curr_sv_index];
+			const float fac = (sld->perc + 1.0f) / 2.0f;
 			const float ctrl_size = UI_GetThemeValuef(TH_FACEDOT_SIZE) + 1.5f;
 			const float guide_size = ctrl_size - 0.5f;
 			const float line_size = UI_GetThemeValuef(TH_OUTLINE_WIDTH) + 0.5f;
 			const int alpha_shade = -30;
 
-			add_v3_v3v3(v1, curr_sv->v_co_orig, curr_sv->dir_a);
-			add_v3_v3v3(v2, curr_sv->v_co_orig, curr_sv->dir_b);
-
-			interp_v = (sld->perc + 1.0f) / 2.0f;
-			interp_v3_v3v3(marker, v2, v1, interp_v);
+			add_v3_v3v3(co_a, curr_sv->v_co_orig, curr_sv->dir_a);
+			add_v3_v3v3(co_b, curr_sv->v_co_orig, curr_sv->dir_b);
 
 			if (v3d && v3d->zbuf)
 				glDisable(GL_DEPTH_TEST);
@@ -5770,7 +5786,12 @@ static void drawEdgeSlide(const struct bContext *C, TransInfo *t)
 			UI_ThemeColorShadeAlpha(TH_SELECT, 255, alpha_shade);
 			glPointSize(guide_size);
 			bglBegin(GL_POINTS);
-			bglVertex3fv(marker);
+#if 0
+			interp_v3_v3v3(co_mark, co_b, co_a, fac);
+			bglVertex3fv(co_mark);
+#endif
+			interp_line_v3_v3v3v3(co_mark, co_b, curr_sv->v_co_orig, co_a, fac);
+			bglVertex3fv(co_mark);
 			bglEnd();
 
 
@@ -5832,10 +5853,10 @@ static int doEdgeSlide(TransInfo *t, float perc)
 				add_v3_v3v3(co_b, sv->v_co_orig, sv->dir_b);
 
 				if (sld->flipped_vtx) {
-					interp_v3_v3v3(sv->v->co, co_b, co_a, fac);
+					interp_line_v3_v3v3v3(sv->v->co, co_b, sv->v_co_orig, co_a, fac);
 				}
 				else {
-					interp_v3_v3v3(sv->v->co, co_a, co_b, fac);
+					interp_line_v3_v3v3v3(sv->v->co, co_a, sv->v_co_orig, co_b, fac);
 				}
 			}
 		}
@@ -6414,8 +6435,8 @@ void initBoneRoll(TransInfo *t)
 	t->idx_max = 0;
 	t->num.idx_max = 0;
 	t->snap[0] = 0.0f;
-	t->snap[1] = (float)((5.0 / 180) * M_PI);
-	t->snap[2] = t->snap[1] * 0.2f;
+	t->snap[1] = DEG2RAD(5.0);
+	t->snap[2] = DEG2RAD(1.0);
 
 	t->num.increment = 1.0f;
 
@@ -7217,7 +7238,7 @@ int TimeSlide(TransInfo *t, const int mval[2])
 
 void initTimeScale(TransInfo *t)
 {
-	int center[2];
+	float center[2];
 
 	/* this tool is only really available in the Action Editor
 	 * AND NLA Editor (for strip scaling)
@@ -7232,7 +7253,7 @@ void initTimeScale(TransInfo *t)
 	/* recalculate center2d to use CFRA and mouse Y, since that's
 	 * what is used in time scale */
 	t->center[0] = t->scene->r.cfra;
-	projectIntView(t, t->center, center);
+	projectFloatView(t, t->center, center);
 	center[1] = t->imval[1];
 
 	/* force a reinit with the center2d used here */
