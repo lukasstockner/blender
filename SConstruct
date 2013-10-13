@@ -246,6 +246,7 @@ if 'blenderlite' in B.targets:
     target_env_defs['WITH_BF_CYCLES'] = False
     target_env_defs['WITH_BF_OPENAL'] = False
     target_env_defs['WITH_BF_OPENEXR'] = False
+    target_env_defs['WITH_BF_PSD'] = False
     target_env_defs['WITH_BF_OPENMP'] = False
     target_env_defs['WITH_BF_ICONV'] = False
     target_env_defs['WITH_BF_INTERNATIONAL'] = False
@@ -289,13 +290,13 @@ if env['OURPLATFORM']=='darwin':
     print B.bc.OKGREEN + "Detected Xcode version: -- " + B.bc.ENDC + env['XCODE_CUR_VER'] + " --"
     print "Available " + env['MACOSX_SDK_CHECK']
     if not 'Mac OS X 10.6' in env['MACOSX_SDK_CHECK']:
-        print  B.bc.OKGREEN + "Auto-setting available MacOSX SDK -> " + B.bc.ENDC + "MacOSX10.7.sdk"
+        print  B.bc.OKGREEN + "Building with user-defined OS X SDK ( Xcode 4.4 or newer )"
     elif not 'Mac OS X 10.5' in env['MACOSX_SDK_CHECK']:
         print  B.bc.OKGREEN + "Auto-setting available MacOSX SDK -> " + B.bc.ENDC + "MacOSX10.6.sdk"
     else:
         print B.bc.OKGREEN + "Found recommended sdk :" + B.bc.ENDC + " using MacOSX10.5.sdk"
 		
-    if env['CXX'].startswith('clang') and env['XCODE_CUR_VER'] >= '5':
+    if env['XCODE_CUR_VER'] >= '5' and not (env['CXX'][:-2].endswith('4.6') or env['CXX'][:-2].endswith('4.8')):
         env['CCFLAGS'].append('-ftemplate-depth=1024') # only valid for clang bundled with xcode 5
 
     # for now, Mac builders must download and install the 3DxWare 10 Beta 4 driver framework from 3Dconnexion
@@ -551,6 +552,7 @@ if B.targets != ['cudakernels']:
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_vertex.glsl")
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_vsm_store_frag.glsl")
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_vsm_store_vert.glsl")
+    data_to_c_simple("intern/opencolorio/gpu_shader_display_transform.glsl")
 
     # --- blender ---
     data_to_c_simple("release/datafiles/bfont.pfb")

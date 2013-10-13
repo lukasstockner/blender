@@ -105,6 +105,8 @@ static int doVertSlide(TransInfo *t, float perc);
 
 static void drawEdgeSlide(const struct bContext *C, TransInfo *t);
 static void drawVertSlide(const struct bContext *C, TransInfo *t);
+static void len_v3_ensure(float v[3], const float length);
+static void postInputRotation(TransInfo *t, float values[3]);
 
 static bool transdata_check_local_center(TransInfo *t)
 {
@@ -1360,7 +1362,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 	}
 }
 
-int calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], int cent2d[2])
+int calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], float cent2d[2])
 {
 	TransInfo *t = MEM_callocN(sizeof(TransInfo), "TransInfo data");
 	int success;
@@ -1390,7 +1392,7 @@ int calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], int c
 		calculateCenter(t);
 
 		if (cent2d) {
-			copy_v2_v2_int(cent2d, t->center2d);
+			copy_v2_v2(cent2d, t->center2d);
 		}
 
 		if (cent3d) {
@@ -2576,58 +2578,67 @@ static void constraintSizeLim(TransInfo *t, TransData *td)
 
 /* ************************** WARP *************************** */
 
-static void postInputWarp(TransInfo *t, float values[3])
-{
-	mul_v3_fl(values, (float)(M_PI * 2));
+struct WarpCustomData {
+	float warp_sta[3];
+	float warp_end[3];
 
-	if (t->customData) { /* non-null value indicates reversed input */
-		negate_v3(values);
-	}
-}
+	float warp_nor[3];
+	float warp_tan[3];
+
+	/* for applying the mouse distance */
+	float warp_init_dist;
+};
 
 void initWarp(TransInfo *t)
 {
-	float max[3], min[3];
-	int i;
+	const float mval_fl[2] = {UNPACK2(t->mval)};
+	const float *curs;
+	float tvec[3];
+	struct WarpCustomData *data;
 	
 	t->mode = TFM_WARP;
 	t->transform = Warp;
 	t->handleEvent = handleEventWarp;
 	
-	setInputPostFct(&t->mouse, postInputWarp);
-	initMouseInputMode(t, &t->mouse, INPUT_HORIZONTAL_RATIO);
+	setInputPostFct(&t->mouse, postInputRotation);
+	initMouseInputMode(t, &t->mouse, INPUT_ANGLE_SPRING);
 	
-	t->idx_max = 0;
-	t->num.idx_max = 0;
+	t->idx_max = 1;
+	t->num.idx_max = 1;
 	t->snap[0] = 0.0f;
-	t->snap[1] = 5.0f / 180.0f * (float)M_PI;
-	t->snap[2] = 1.0f / 180.0f * (float)M_PI;
+	t->snap[1] = DEG2RAD(5.0);
+	t->snap[2] = DEG2RAD(1.0);
 	
 	t->num.increment = 1.0f;
 
 	t->flag |= T_NO_CONSTRAINT;
-	
-	/* we need min/max in view space */
-	for (i = 0; i < t->total; i++) {
-		float center[3];
-		copy_v3_v3(center, t->data[i].center);
-		mul_m3_v3(t->data[i].mtx, center);
-		mul_m4_v3(t->viewmat, center);
-		sub_v3_v3(center, t->viewmat[3]);
-		if (i) {
-			minmax_v3v3_v3(min, max, center);
-		}
-		else {
-			copy_v3_v3(max, center);
-			copy_v3_v3(min, center);
-		}
+
+	//copy_v3_v3(t->center, give_cursor(t->scene, t->view));
+	calculateCenterCursor(t);
+
+	t->val = 0.0f;
+
+	data = MEM_callocN(sizeof(*data), __func__);
+
+	curs = give_cursor(t->scene, t->view);
+	copy_v3_v3(data->warp_sta, curs);
+	ED_view3d_win_to_3d(t->ar, curs, mval_fl, data->warp_end);
+
+	copy_v3_v3(data->warp_nor, t->viewinv[2]);
+	if (t->flag & T_EDIT) {
+		sub_v3_v3(data->warp_sta, t->obedit->obmat[3]);
+		sub_v3_v3(data->warp_end, t->obedit->obmat[3]);
 	}
+	normalize_v3(data->warp_nor);
 
-	mid_v3_v3v3(t->center, min, max);
+	/* tangent */
+	sub_v3_v3v3(tvec, data->warp_end, data->warp_sta);
+	cross_v3_v3v3(data->warp_tan, tvec, data->warp_nor);
+	normalize_v3(data->warp_tan);
 
-	if (max[0] == min[0])
-		max[0] += 0.1f;  /* not optimal, but flipping is better than invalid garbage (i.e. division by zero!) */
-	t->val = (max[0] - min[0]) / 2.0f; /* t->val is X dimension projected boundbox */
+	data->warp_init_dist = len_v3v3(data->warp_end, data->warp_sta);
+
+	t->customData = data;
 }
 
 int handleEventWarp(TransInfo *t, const wmEvent *event)
@@ -2635,11 +2646,7 @@ int handleEventWarp(TransInfo *t, const wmEvent *event)
 	int status = 0;
 	
 	if (event->type == MIDDLEMOUSE && event->val == KM_PRESS) {
-		// Use customData pointer to signal warp direction
-		if (t->customData == NULL)
-			t->customData = (void *)1;
-		else
-			t->customData = NULL;
+		(void)t;
 		
 		status = 1;
 	}
@@ -2650,91 +2657,115 @@ int handleEventWarp(TransInfo *t, const wmEvent *event)
 int Warp(TransInfo *t, const int UNUSED(mval[2]))
 {
 	TransData *td = t->data;
-	float vec[3], circumfac, dist, phi0, co, si, cursor[3], gcursor[3];
-	const float *curs;
+	float vec[3];
+	float pivot[3];
+	float warp_end_radius[3];
 	int i;
 	char str[MAX_INFO_LEN];
-	
-	curs = give_cursor(t->scene, t->view);
-	/*
-	 * gcursor is the one used for helpline.
-	 * It has to be in the same space as the drawing loop
-	 * (that means it needs to be in the object's space when in edit mode and
-	 *  in global space in object mode)
-	 *
-	 * cursor is used for calculations.
-	 * It needs to be in view space, but we need to take object's offset
-	 * into account if in Edit mode.
-	 */
-	copy_v3_v3(cursor, curs);
-	copy_v3_v3(gcursor, cursor);
-	if (t->flag & T_EDIT) {
-		sub_v3_v3(cursor, t->obedit->obmat[3]);
-		sub_v3_v3(gcursor, t->obedit->obmat[3]);
-		mul_m3_v3(t->data->smtx, gcursor);
-	}
-	mul_m4_v3(t->viewmat, cursor);
-	sub_v3_v3(cursor, t->viewmat[3]);
-	
+	const struct WarpCustomData *data = t->customData;
+	const bool is_clamp = (t->flag & T_ALT_TRANSFORM) == 0;
+
+	union {
+		struct { float angle, scale; };
+		float vector[2];
+	} values;
+
 	/* amount of radians for warp */
-	circumfac = t->values[0];
-	
-	snapGrid(t, &circumfac);
-	applyNumInput(&t->num, &circumfac);
+	copy_v2_v2(values.vector, t->values);
+
+#if 0
+	snapGrid(t, angle_rad);
+#else
+	/* hrmf, snapping radius is using 'angle' steps, need to convert to something else
+	 * this isnt essential but nicer to give reasonable snapping values for radius */
+	if (t->tsnap.mode == SCE_SNAP_MODE_INCREMENT) {
+		const float radius_snap = 0.1f;
+		const float snap_hack = (t->snap[1] * data->warp_init_dist) / radius_snap;
+		values.scale *= snap_hack;
+		snapGrid(t, values.vector);
+		values.scale /= snap_hack;
+	}
+#endif
 	
 	/* header print for NumInput */
 	if (hasNumInput(&t->num)) {
-		char c[NUM_STR_REP_LEN];
+		char c[NUM_STR_REP_LEN * 2];
 		
+		applyNumInput(&t->num, values.vector);
+
 		outputNumInput(&(t->num), c);
 		
-		BLI_snprintf(str, MAX_INFO_LEN, IFACE_("Warp: %s"), c);
+		BLI_snprintf(str, MAX_INFO_LEN, IFACE_("Warp Angle: %s Radius: %s Alt, Clamp %s"),
+		             &c[0], &c[NUM_STR_REP_LEN],
+		             WM_bool_as_string(is_clamp));
 
-		circumfac = DEG2RADF(circumfac);
+		values.angle = DEG2RADF(values.angle);
+		values.scale = values.scale / data->warp_init_dist;
 	}
 	else {
 		/* default header print */
-		BLI_snprintf(str, MAX_INFO_LEN, IFACE_("Warp: %.3f"), RAD2DEGF(circumfac));
+		BLI_snprintf(str, MAX_INFO_LEN, IFACE_("Warp Angle: %.3f Radius: %.4f, Alt, Clamp %s"),
+		             RAD2DEGF(values.angle), values.scale * data->warp_init_dist,
+		             WM_bool_as_string(is_clamp));
 	}
 	
-	t->values[0] = circumfac;
+	copy_v2_v2(t->values, values.vector);
 
-	circumfac /= 2; /* only need 180 on each side to make 360 */
+	values.angle *= -1.0f;
+	values.scale *= data->warp_init_dist;
 	
+	/* calc 'data->warp_end' from 'data->warp_end_init' */
+	copy_v3_v3(warp_end_radius, data->warp_end);
+	dist_ensure_v3_v3fl(warp_end_radius, data->warp_sta, values.scale);
+	/* done */
+
+	/* calculate pivot */
+	copy_v3_v3(pivot, data->warp_sta);
+	if (values.angle > 0.0f) {
+		madd_v3_v3fl(pivot, data->warp_tan, -values.scale * shell_angle_to_dist((float)M_PI_2 - values.angle));
+	}
+	else {
+		madd_v3_v3fl(pivot, data->warp_tan, +values.scale * shell_angle_to_dist((float)M_PI_2 + values.angle));
+	}
+
 	for (i = 0; i < t->total; i++, td++) {
-		float loc[3];
+		float mat[3][3];
+		float delta[3];
+		float fac, fac_scaled;
+
 		if (td->flag & TD_NOACTION)
 			break;
 		
 		if (td->flag & TD_SKIP)
 			continue;
-		
-		/* translate point to center, rotate in such a way that outline==distance */
+
+		if (UNLIKELY(values.angle == 0.0f)) {
+			copy_v3_v3(td->loc, td->iloc);
+			continue;
+		}
+
 		copy_v3_v3(vec, td->iloc);
 		mul_m3_v3(td->mtx, vec);
-		mul_m4_v3(t->viewmat, vec);
-		sub_v3_v3(vec, t->viewmat[3]);
-		
-		dist = vec[0] - cursor[0];
-		
-		/* t->val is X dimension projected boundbox */
-		phi0 = (circumfac * dist / t->val);
-		
-		vec[1] = (vec[1] - cursor[1]);
-		
-		co = cosf(phi0);
-		si = sinf(phi0);
-		loc[0] = -si * vec[1] + cursor[0];
-		loc[1] = co * vec[1] + cursor[1];
-		loc[2] = vec[2];
-		
-		mul_m4_v3(t->viewinv, loc);
-		sub_v3_v3(loc, t->viewinv[3]);
-		mul_m3_v3(td->smtx, loc);
-		
-		sub_v3_v3(loc, td->iloc);
-		mul_v3_fl(loc, td->factor);
-		add_v3_v3v3(td->loc, td->iloc, loc);
+
+		fac = line_point_factor_v3(vec, data->warp_sta, warp_end_radius);
+		if (is_clamp) {
+			CLAMP(fac, 0.0f, 1.0f);
+		}
+
+		fac_scaled = fac * td->factor;
+		axis_angle_normalized_to_mat3(mat, data->warp_nor, values.angle * fac_scaled);
+		interp_v3_v3v3(delta, data->warp_sta, warp_end_radius, fac_scaled);
+		sub_v3_v3(delta, data->warp_sta);
+
+		/* delta is subtracted, rotation adds back this offset */
+		sub_v3_v3(vec, delta);
+
+		sub_v3_v3(vec, pivot);
+		mul_m3_v3(mat, vec);
+		add_v3_v3(vec, pivot);
+
+		mul_m3_v3(td->smtx, vec);
+		copy_v3_v3(td->loc, vec);
 	}
 	
 	recalcData(t);
@@ -3369,8 +3400,8 @@ void initRotation(TransInfo *t)
 	t->idx_max = 0;
 	t->num.idx_max = 0;
 	t->snap[0] = 0.0f;
-	t->snap[1] = (float)((5.0 / 180) * M_PI);
-	t->snap[2] = t->snap[1] * 0.2f;
+	t->snap[1] = DEG2RAD(5.0);
+	t->snap[2] = DEG2RAD(1.0);
 	
 	t->num.increment = 1.0f;
 
@@ -3701,8 +3732,8 @@ void initTrackball(TransInfo *t)
 	t->idx_max = 1;
 	t->num.idx_max = 1;
 	t->snap[0] = 0.0f;
-	t->snap[1] = (float)((5.0 / 180) * M_PI);
-	t->snap[2] = t->snap[1] * 0.2f;
+	t->snap[1] = DEG2RAD(5.0);
+	t->snap[2] = DEG2RAD(1.0);
 
 	t->num.increment = 1.0f;
 
@@ -4107,7 +4138,7 @@ int ShrinkFatten(TransInfo *t, const int UNUSED(mval[2]))
 		}
 	}
 	BLI_snprintf(str + ofs, MAX_INFO_LEN - ofs, IFACE_(" or Alt) Even Thickness %s"),
-	             (t->flag & T_ALT_TRANSFORM) ? IFACE_("ON") : IFACE_("OFF"));
+	             WM_bool_as_string(t->flag & T_ALT_TRANSFORM));
 	/* done with header string */
 
 
@@ -4149,8 +4180,8 @@ void initTilt(TransInfo *t)
 	t->idx_max = 0;
 	t->num.idx_max = 0;
 	t->snap[0] = 0.0f;
-	t->snap[1] = (float)((5.0 / 180) * M_PI);
-	t->snap[2] = t->snap[1] * 0.2f;
+	t->snap[1] = DEG2RAD(5.0);
+	t->snap[2] = DEG2RAD(1.0);
 
 	t->num.increment = t->snap[1];
 
@@ -4802,6 +4833,26 @@ static BMEdge *get_other_edge(BMVert *v, BMEdge *e)
 	}
 
 	return NULL;
+}
+
+/* interpoaltes along a line made up of 2 segments (used for edge slide) */
+static void interp_line_v3_v3v3v3(float p[3], const float v1[3], const float v2[3], const float v3[3], const float t)
+{
+	float t_mid, t_delta;
+
+	/* could be pre-calculated */
+	t_mid = line_point_factor_v3(v2, v1, v3);
+
+	t_delta = t - t_mid;
+	if (fabsf(t_delta) < FLT_EPSILON) {
+		copy_v3_v3(p, v2);
+	}
+	else if (t_delta < 0.0f) {
+		interp_v3_v3v3(p, v1, v2, t / t_mid);
+	}
+	else {
+		interp_v3_v3v3(p, v2, v3, (t - t_mid) / (1.0f - t_mid));
+	}
 }
 
 static void len_v3_ensure(float v[3], const float length)
@@ -5716,20 +5767,16 @@ static void drawEdgeSlide(const struct bContext *C, TransInfo *t)
 		/* Non-Prop mode */
 		if (sld && sld->is_proportional == FALSE) {
 			View3D *v3d = CTX_wm_view3d(C);
-			float marker[3];
-			float v1[3], v2[3];
-			float interp_v;
+			float co_a[3], co_b[3], co_mark[3];
 			TransDataEdgeSlideVert *curr_sv = &sld->sv[sld->curr_sv_index];
+			const float fac = (sld->perc + 1.0f) / 2.0f;
 			const float ctrl_size = UI_GetThemeValuef(TH_FACEDOT_SIZE) + 1.5f;
 			const float guide_size = ctrl_size - 0.5f;
 			const float line_size = UI_GetThemeValuef(TH_OUTLINE_WIDTH) + 0.5f;
 			const int alpha_shade = -30;
 
-			add_v3_v3v3(v1, curr_sv->v_co_orig, curr_sv->dir_a);
-			add_v3_v3v3(v2, curr_sv->v_co_orig, curr_sv->dir_b);
-
-			interp_v = (sld->perc + 1.0f) / 2.0f;
-			interp_v3_v3v3(marker, v2, v1, interp_v);
+			add_v3_v3v3(co_a, curr_sv->v_co_orig, curr_sv->dir_a);
+			add_v3_v3v3(co_b, curr_sv->v_co_orig, curr_sv->dir_b);
 
 			if (v3d && v3d->zbuf)
 				glDisable(GL_DEPTH_TEST);
@@ -5770,7 +5817,12 @@ static void drawEdgeSlide(const struct bContext *C, TransInfo *t)
 			UI_ThemeColorShadeAlpha(TH_SELECT, 255, alpha_shade);
 			glPointSize(guide_size);
 			bglBegin(GL_POINTS);
-			bglVertex3fv(marker);
+#if 0
+			interp_v3_v3v3(co_mark, co_b, co_a, fac);
+			bglVertex3fv(co_mark);
+#endif
+			interp_line_v3_v3v3v3(co_mark, co_b, curr_sv->v_co_orig, co_a, fac);
+			bglVertex3fv(co_mark);
 			bglEnd();
 
 
@@ -5832,10 +5884,10 @@ static int doEdgeSlide(TransInfo *t, float perc)
 				add_v3_v3v3(co_b, sv->v_co_orig, sv->dir_b);
 
 				if (sld->flipped_vtx) {
-					interp_v3_v3v3(sv->v->co, co_b, co_a, fac);
+					interp_line_v3_v3v3v3(sv->v->co, co_b, sv->v_co_orig, co_a, fac);
 				}
 				else {
-					interp_v3_v3v3(sv->v->co, co_a, co_b, fac);
+					interp_line_v3_v3v3v3(sv->v->co, co_a, sv->v_co_orig, co_b, fac);
 				}
 			}
 		}
@@ -5854,9 +5906,6 @@ int EdgeSlide(TransInfo *t, const int UNUSED(mval[2]))
 	bool flipped = sld->flipped_vtx;
 	bool is_proportional = sld->is_proportional;
 
-	const char *on_str = IFACE_("ON");
-	const char *off_str = IFACE_("OFF");
-
 	final = t->values[0];
 
 	snapGrid(t, &final);
@@ -5872,11 +5921,11 @@ int EdgeSlide(TransInfo *t, const int UNUSED(mval[2]))
 		outputNumInput(&(t->num), c);
 
 		BLI_snprintf(str, MAX_INFO_LEN, IFACE_("Edge Slide: %s (E)ven: %s, (F)lipped: %s"),
-		             &c[0], !is_proportional ? on_str : off_str, flipped ? on_str : off_str);
+		             &c[0], WM_bool_as_string(!is_proportional), WM_bool_as_string(flipped));
 	}
 	else {
 		BLI_snprintf(str, MAX_INFO_LEN, IFACE_("Edge Slide: %.4f (E)ven: %s, (F)lipped: %s"),
-		             final, !is_proportional ? on_str : off_str, flipped ? on_str : off_str);
+		             final, WM_bool_as_string(!is_proportional), WM_bool_as_string(flipped));
 	}
 
 	CLAMP(final, -1.0f, 1.0f);
@@ -6361,9 +6410,6 @@ int VertSlide(TransInfo *t, const int UNUSED(mval[2]))
 	const bool is_clamp = !(t->flag & T_ALT_TRANSFORM);
 	const bool is_constrained = !(is_clamp == false || hasNumInput(&t->num));
 
-	const char *on_str = IFACE_("ON");
-	const char *off_str = IFACE_("OFF");
-
 	final = t->values[0];
 
 	snapGrid(t, &final);
@@ -6384,11 +6430,11 @@ int VertSlide(TransInfo *t, const int UNUSED(mval[2]))
 	else {
 		ofs += BLI_snprintf(str + ofs, MAX_INFO_LEN - ofs, "%.4f ", final);
 	}
-	ofs += BLI_snprintf(str + ofs, MAX_INFO_LEN - ofs, IFACE_("(E)ven: %s, "), !is_proportional ? on_str : off_str);
+	ofs += BLI_snprintf(str + ofs, MAX_INFO_LEN - ofs, IFACE_("(E)ven: %s, "), WM_bool_as_string(!is_proportional));
 	if (!is_proportional) {
-		ofs += BLI_snprintf(str + ofs, MAX_INFO_LEN - ofs, IFACE_("(F)lipped: %s, "), flipped ? on_str : off_str);
+		ofs += BLI_snprintf(str + ofs, MAX_INFO_LEN - ofs, IFACE_("(F)lipped: %s, "), WM_bool_as_string(flipped));
 	}
-	ofs += BLI_snprintf(str + ofs, MAX_INFO_LEN - ofs, IFACE_("Alt or (C)lamp: %s"), is_clamp ? on_str : off_str);
+	ofs += BLI_snprintf(str + ofs, MAX_INFO_LEN - ofs, IFACE_("Alt or (C)lamp: %s"), WM_bool_as_string(is_clamp));
 	/* done with header string */
 
 	/* do stuff here */
@@ -6414,8 +6460,8 @@ void initBoneRoll(TransInfo *t)
 	t->idx_max = 0;
 	t->num.idx_max = 0;
 	t->snap[0] = 0.0f;
-	t->snap[1] = (float)((5.0 / 180) * M_PI);
-	t->snap[2] = t->snap[1] * 0.2f;
+	t->snap[1] = DEG2RAD(5.0);
+	t->snap[2] = DEG2RAD(1.0);
 
 	t->num.increment = 1.0f;
 
@@ -6720,7 +6766,7 @@ static void headerSeqSlide(TransInfo *t, float val[2], char *str)
 		}
 	}
 	ofs += BLI_snprintf(str + ofs, MAX_INFO_LEN - ofs, IFACE_(" or Alt) Expand to fit %s"),
-	                    (t->flag & T_ALT_TRANSFORM) ? IFACE_("ON") : IFACE_("OFF"));
+	                    WM_bool_as_string(t->flag & T_ALT_TRANSFORM));
 }
 
 static void applySeqSlide(TransInfo *t, const float val[2])
@@ -7217,7 +7263,7 @@ int TimeSlide(TransInfo *t, const int mval[2])
 
 void initTimeScale(TransInfo *t)
 {
-	int center[2];
+	float center[2];
 
 	/* this tool is only really available in the Action Editor
 	 * AND NLA Editor (for strip scaling)
@@ -7232,7 +7278,7 @@ void initTimeScale(TransInfo *t)
 	/* recalculate center2d to use CFRA and mouse Y, since that's
 	 * what is used in time scale */
 	t->center[0] = t->scene->r.cfra;
-	projectIntView(t, t->center, center);
+	projectFloatView(t, t->center, center);
 	center[1] = t->imval[1];
 
 	/* force a reinit with the center2d used here */

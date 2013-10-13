@@ -505,6 +505,14 @@ static void ui_item_enum_expand_handle(bContext *C, void *arg1, void *arg2)
 static void ui_item_enum_expand(uiLayout *layout, uiBlock *block, PointerRNA *ptr, PropertyRNA *prop,
                                 const char *uiname, int h, int icon_only)
 {
+	/* XXX The way this function currently handles uiname parameter is insane and inconsistent with general UI API:
+	 *     * uiname is the *enum property* label.
+	 *     * when it is NULL or empty, we do not draw *enum items* labels, this doubles the icon_only parameter.
+	 *     * we *never* draw (i.e. really use) the enum label uiname, it is just used as a mere flag!
+	 *     Unfortunately, fixing this implies an API "soft break", so better to defer it for later... :/
+	 *     --mont29
+	 */
+
 	uiBut *but;
 	EnumPropertyItem *item, *item_array;
 	const char *name;
@@ -3091,20 +3099,25 @@ void uiLayoutOperatorButs(const bContext *C, uiLayout *layout, wmOperator *op,
 
 	/* set various special settings for buttons */
 	{
+		uiBlock *block = uiLayoutGetBlock(layout);
+		const bool is_popup = (block->flag & UI_BLOCK_KEEP_OPEN) != 0;
 		uiBut *but;
+
 		
-		for (but = uiLayoutGetBlock(layout)->buttons.first; but; but = but->next) {
+		for (but = block->buttons.first; but; but = but->next) {
 			/* no undo for buttons for operator redo panels */
 			uiButClearFlag(but, UI_BUT_UNDO);
 			
-#if 0		/* broken, causes freedback loop, see [#36109] */
+			/* only for popups, see [#36109] */
+
 			/* if button is operator's default property, and a text-field, enable focus for it
 			 *	- this is used for allowing operators with popups to rename stuff with fewer clicks
 			 */
-			if ((but->rnaprop == op->type->prop) && (but->type == TEX)) {
-				uiButSetFocusOnEnter(CTX_wm_window(C), but);
+			if (is_popup) {
+				if ((but->rnaprop == op->type->prop) && (but->type == TEX)) {
+					uiButSetFocusOnEnter(CTX_wm_window(C), but);
+				}
 			}
-#endif
 		}
 	}
 }

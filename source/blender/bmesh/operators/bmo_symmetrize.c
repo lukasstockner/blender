@@ -26,9 +26,6 @@
  * Makes the mesh symmetrical by splitting along an axis and duplicating the geometry.
  */
 
-
-#include "MEM_guardedalloc.h"
-
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
 
@@ -59,7 +56,7 @@ void bmo_symmetrize_exec(BMesh *bm, BMOperator *op)
 	copy_v3_fl(plane_no, 0.0f);
 	copy_v3_fl(scale, 1.0f);
 
-	plane_no[axis] = direction > 2 ? 1.0f : -1.0f;
+	plane_no[axis] = direction > 2 ? -1.0f : 1.0f;
 	scale[axis] *= -1.0f;
 
 	/* Cut in half */
