@@ -531,7 +531,7 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 		components = 4;
 	else if (format == GL_RGB)
 		components = 3;
-	else if (format == GL_LUMINANCE)
+	else if (ELEM(format,  GL_LUMINANCE, GL_ALPHA))
 		components = 1;
 	else {
 		BLI_assert(!"Incompatible format passed to glaDrawPixelsTexScaled");
@@ -1091,18 +1091,15 @@ void glaDrawImBuf_glsl(ImBuf *ibuf, float x, float y, int zoomfilter,
 		if (ibuf->rect_float) {
 			if (ibuf->float_colorspace) {
 				ok = IMB_colormanagement_setup_glsl_draw_from_space(view_settings, display_settings,
-				                                                    ibuf->float_colorspace,
-				                                                    true, false);
+				                                                    ibuf->float_colorspace, true);
 			}
 			else {
-				ok = IMB_colormanagement_setup_glsl_draw(view_settings, display_settings,
-				                                         true, false);
+				ok = IMB_colormanagement_setup_glsl_draw(view_settings, display_settings, true);
 			}
 		}
 		else {
 			ok = IMB_colormanagement_setup_glsl_draw_from_space(view_settings, display_settings,
-			                                                    ibuf->rect_colorspace,
-			                                                    false, false);
+			                                                    ibuf->rect_colorspace, false);
 		}
 
 		if (ok) {

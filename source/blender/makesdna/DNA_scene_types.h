@@ -316,6 +316,7 @@ typedef struct ImageFormatData {
 #define R_IMF_IMTYPE_H264           31
 #define R_IMF_IMTYPE_XVID           32
 #define R_IMF_IMTYPE_THEORA         33
+#define R_IMF_IMTYPE_PSD            34
 
 #define R_IMF_IMTYPE_INVALID        255
 
@@ -510,6 +511,7 @@ typedef struct RenderData {
 	short bake_normal_space, bake_quad_split;
 	float bake_maxdist, bake_biasdist;
 	short bake_samples, bake_pad;
+	float bake_user_scale, bake_pad1;
 
 	/* path to render output */
 	char pic[1024]; /* 1024 = FILE_MAX */
@@ -1210,6 +1212,7 @@ typedef struct Scene {
 /* flag */
 	/* use preview range */
 #define SCER_PRV_RANGE	(1<<0)
+#define SCER_LOCK_FRAME_SELECTION	(1<<1)
 
 /* mode (int now) */
 #define R_OSA			0x0001
@@ -1352,6 +1355,7 @@ typedef struct Scene {
 #define R_BAKE_MULTIRES		16
 #define R_BAKE_LORES_MESH	32
 #define R_BAKE_VCOL			64
+#define R_BAKE_USERSCALE	128
 
 /* bake_normal_space */
 #define R_BAKE_SPACE_CAMERA	 0
